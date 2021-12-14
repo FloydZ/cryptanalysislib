@@ -1,0 +1,192 @@
+image: docker:stable
+
+variables:
+  DEBIAN_FRONTEND: noninteractive
+  DOCKER_DRIVER: overlay2
+  GIT_STRATEGY: clone
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  # dependencies
+  - cd deps/fplll
+  - git checkout 5.3.0
+  - cd ../..
+  - apt update
+  - apt install -y sudo libtbb-dev cmake-doc cmake autoconf automake libfplll-dev fplll-tools libgtest-dev googletest cmake make libmpfrc++-dev libtcmalloc-minimal4 python3-pip
+  - pip3 install Cython cysignals flake8 ipython numpy begins pytest requests scipy multiprocessing-logging
+#  - sudo rm /usr/bin/python
+#  - sudo ln /usr/bin/python3 /usr/bin/python
+
+services:
+  - docker:dind
+
+build_test:
+  tags:
+    - docker
+  stage: build
+  image: gcc
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=Release ..
+
+    - make test_binary_container
+    - ./tests/binary/test_binary_container
+
+    - make test_binary_container_cmp
+    - ./tests/binary/test_binary_container_cmp
+
+    - make test_binary_container_avx
+    - ./tests/binary/test_binary_container_avx
+
+    - make test_binary_container_label
+    - ./tests/binary/test_binary_container_label
+
+    - make test_binary_list
+    - ./tests/binary/test_binary_list
+
+    - make test_binary_label
+    - ./tests/binary/test_binary_label
+
+    - make test_binary_value
+    - ./tests/binary/test_binary_value
+
+    - make test_binary_build_tree
+    - ./tests/binary/test_binary_build_tree
+
+    - make test_binary_tree
+    - ./tests/binary/test_binary_tree
+
+    - make test_binary_32
+    - ./tests/binary/test_binary_32
+
+    - make test_binary_64
+    - ./tests/binary/test_binary_64
+
+    - make test_binary_128
+    - ./tests/binary/test_binary_128
+
+    - make test_binary_256
+    - ./tests/binary/test_binary_256
+
+# TODO
+#    - make test_binary_32_align
+#    - ./tests/binary/test_binary_32_align
+#
+#    - make test_binary_64_align
+#    - ./tests/binary/test_binary_64_align
+#
+#    - make test_binary_128_align
+#    - ./tests/binary/test_binary_128_align
+#
+#    - make test_binary_256_align
+#    - ./tests/binary/test_binary_256_align
+
+    - make test_build_tree
+    - ./tests/test_build_tree
+
+    - make test_combinations
+    - ./tests/test_combinations
+
+    - make test_element
+    - ./tests/test_element
+
+    - make test_label
+    - ./tests/test_label
+
+    - make test_kArytype
+    - ./tests/test_kArytype
+
+    - make test_kAryPackedContainer
+    - ./tests/test_kAryPackedContainer
+
+    - make test_list
+    - ./tests/test_list
+
+    - make test_sort
+    - ./tests/test_sort
+
+    - make test_tree
+    - ./tests/test_tree
+
+    - make test_treecorrectdistribution
+    - ./tests/test_treecorrectdistribution
+
+    - make test_value
+    - ./tests/test_value
+
+build_bench:
+  tags:
+    - docker
+  stage: build
+  image: gcc
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=Release ..
+
+    - make bench_b63_combinations_binary
+    - ./bench/combinations/bench_b63_combinations_binary -i
+
+    - make bench_b63_combinations_ternary
+    - ./bench/combinations/bench_b63_combinations_ternary -i
+
+    - make bench_b63_container_get_bits
+    - ./bench/container/bench_b63_container_get_bits -i
+
+    - make bench_b63_container_kAryPackedContainer
+    - ./bench/container/bench_b63_container_kAryPackedContainer -i
+
+    - make bench_b63_label_add
+    - ./bench/label/bench_b63_label_add -i
+
+    - make bench_b63_label_add_level
+    - ./bench/label/bench_b63_label_add_level -i
+
+    - make bench_b63_label_equal_level
+    - ./bench/label/bench_b63_label_equal_level -i
+
+    - make bench_b63_label_sub
+    - ./bench/label/bench_b63_label_sub -i
+
+    - make bench_b63_label_sub_level
+    - ./bench/label/bench_b63_label_sub_level -i
+
+    - make bench_b63_labeltype_add
+    - ./bench/labeltype/bench_b63_labeltype_add -i
+
+    - make bench_b63_labeltype_sub
+    - ./bench/labeltype/bench_b63_labeltype_sub -i
+
+    - make bench_b63_list_search
+    - ./bench/list/bench_b63_list_search -i
+
+    - make bench_b63_list_sort
+    - ./bench/list/bench_b63_list_sort -i
+
+    - make bench_b63_mem_malloc_free
+    - ./bench/mem/bench_b63_mem_malloc_free -i
+
+    - make bench_b63_search_binarysearch
+    - ./bench/combinations/bench_b63_search_binarysearch -i
+
+    - make bench_b63_search_internal_parallel_bucket_search
+    - ./bench/combinations/bench_b63_internal_parallal_bucket_search -i
+
+    - make bench_b63_sort_binarycontainer_single_limb
+    - ./bench/sort/bench_b63_sort_binarycontainer_single_limb -i
+
+    - make bench_b63_sort_binarycontainer_internal_parallel_bucket_sort
+    - ./bench/sort/bench_b63_sort_binarycontainer_internal_parallel_bucket_sort -i
+
+    - make bench_b63_stl_stl
+    - ./bench/stl/stl -i
+
+    - make bench_b63_value_absolute
+    - ./bench/value/bench_b63_value_absolute -i
+
+    - make bench_b63_value_add
+    - ./bench/value/bench_b63_value_add -i
+
+    - make bench_b63_value_move_operator
+    - ./bench/value/bench_b63_value_move_operator -i

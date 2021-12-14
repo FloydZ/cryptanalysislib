@@ -1,0 +1,13 @@
+set(LINK_BENCH_FLAGS -pthread gmp fplll gmpxx libm4ri.a m png)
+set(COMPILE_BENCH_FLAGS -Ofast -march=native)
+
+add_subdirectory(combinations)
+add_subdirectory(container)
+add_subdirectory(labeltype)
+add_subdirectory(label)
+add_subdirectory(value)
+add_subdirectory(list)
+add_subdirectory(mem)
+add_subdirectory(sort)
+add_subdirectory(search)
+add_subdirectory(stl)
