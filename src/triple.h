@@ -54,6 +54,9 @@ public:
 		std::swap(second, t.second);
 		std::swap(third, t.third);
 	}
+
+	/// default copy constructo
+	triple& operator =(triple const &obj) = default;
 };
 
 #endif //SMALLSECRETLWE_TRIPLE_H

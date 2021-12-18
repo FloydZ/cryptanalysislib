@@ -3,7 +3,8 @@
 
 #include "m4ri/m4ri.h"
 #include "m4ri/mzd.h"
-#include "glue_m4ri.h"
+#include "helper.h"
+#include "random.h"
 
 #ifdef USE_AVX2
 #include <immintrin.h>
@@ -27,15 +28,28 @@ typedef struct customMatrixData {
 #define MAX_K 7
 #define WORD_SIZE (8 * sizeof(word))
 
+// implementation taken from gray_code.c
+// a = #rows, b = #cols
+constexpr int matrix_opt_k(const int a, const int b) {
+	return  MIN(__M4RI_MAXKAY, MAX(1, (int)(0.75 * (1 + const_log(MIN(a, b))))));
+}
+
+void mzd_row_xor(mzd_t *out, const rci_t i, const rci_t j) {
+	assert(out->nrows > i && out->nrows > j);
+	for (uint32_t l = 0; l < uint32_t(out->width); ++l) {
+		out->rows[i][l] ^= out->rows[j][l];
+	}
+}
+
 /// custom function to append in_matrix to out_matrix.
 /// \param out_matrix
 /// \param in_matrix
 /// \param start_r
 /// \param start_c
 void mzd_append(mzd_t *out_matrix, const mzd_t *const in_matrix, const int start_r, const int start_c) {
-	ASSERT(out_matrix->nrows > start_r);
-	ASSERT(out_matrix->ncols > start_c);
-	ASSERT(out_matrix->nrows - start_r == in_matrix->nrows);
+	assert(out_matrix->nrows > start_r);
+	assert(out_matrix->ncols > start_c);
+	assert(out_matrix->nrows - start_r == in_matrix->nrows);
 	for (int row = 0; row < in_matrix->nrows; ++row) {
 		for (int col = 0; col < in_matrix->ncols; ++col) {
 			auto bit = mzd_read_bit(in_matrix, row, col);
@@ -179,7 +193,7 @@ void matrix_create_random_permutation(mzd_t *A, mzp_t *P) {
 	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
 		word pos = fastrandombytes_uint64() % (P->length - i);
 
-		ASSERT(i+pos < uint64_t(P->length));
+		assert(i+pos < uint64_t(P->length));
 
 		auto tmp = P->values[i];
 		P->values[i] = P->values[i+pos];
@@ -198,7 +212,7 @@ void matrix_create_random_permutation(mzd_t *A, mzd_t *AT, mzp_t *P) {
 	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
 		word pos = fastrandombytes_uint64() % (P->length - i);
 
-		ASSERT(i+pos < uint32_t(P->length));
+		assert(i+pos < uint32_t(P->length));
 
 		auto tmp = P->values[i];
 		P->values[i] = P->values[i+pos];
@@ -506,7 +520,7 @@ mzd_t *matrix_init(rci_t r, rci_t c) {
 
 /// ein versuch die matrix so zu splitten, dass die H matrix 256 alignent ist.
 mzd_t *matrix_init_split(const mzd_t *A, const mzd_t *s, const uint32_t nkl, const uint32_t c) {
-	ASSERT(s->nrows==1);
+	assert(s->nrows==1);
 
 	auto padding = MATRIX_AVX_PADDING(A->ncols + c);
 	mzd_t *r = mzd_init(A->nrows, padding);

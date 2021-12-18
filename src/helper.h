@@ -453,13 +453,14 @@ inline void static_for(functor_types&&... functor_args) {
 #define CRYPTANALYSELIB_REPEAT_1(x) x
 #define CRYPTANALYSELIB_REPEAT(x, N) CRYPTANALYSELIB_REPEAT_##N (x)
 
-
+__device__ __host__
 constexpr int32_t cceil(float num) {
 	return (static_cast<float>(static_cast<int32_t>(num)) == num)
 	       ? static_cast<int32_t>(num)
 	       : static_cast<int32_t>(num) + ((num > 0) ? 1 : 0);
 }
 
+__device__ __host__
 constexpr int64_t cceil(double num) {
 	return (static_cast<double>(static_cast<int32_t>(num)) == num)
 	       ? static_cast<int64_t>(num)
@@ -470,6 +471,7 @@ constexpr int64_t cceil(double num) {
 /// \param nn
 /// \param kk
 /// \return nn over kk
+__device__ __host__
 constexpr inline uint64_t bc(uint64_t nn, uint64_t kk) noexcept {
 	return
 			(kk > nn  ) ? 0 :       // out of range
@@ -501,10 +503,14 @@ constexpr uint64_t constexpr_bits_log2(uint64_t n) {
 }
 
 // taken from https://github.com/kthohr/gcem/blob/master/include/gcem_incl/log.hpp
+__device__ __host__
 constexpr double log_cf_main(const double xx, const int depth) noexcept { return( depth < 25 ? double(2*depth - 1) - uint64_t(depth*depth)*xx/log_cf_main(xx,depth+1) : double(2*depth - 1) );}
+__device__ __host__
 constexpr double log_cf_begin(const double x) { return( double(2)*x/log_cf_main(x*x,1) ); }
+__device__ __host__
 constexpr uint64_t const_log(const uint64_t x) { return uint64_t(log_cf_begin((x - double(1))/(x + double(1))) ); }
-
+//__host__ __device__
+//constexpr double const_log(const double x) { return log_cf_begin((x - double(1))/(x + double(1))) ; }
 
 // SOURCE: https://github.com/elbeno/constexpr/blob/master/src/include/cx_math.h
 // test whether values are within machine epsilon, used for algorithm
@@ -756,7 +762,9 @@ typename std::conditional<(n <= 0xFF), uint8_t,
 /// \param l1	print a space at this position
 /// \param l2	print a space at this position
 template<typename T>
+#if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T>
+#endif
 void printbinary(T a,
 				 const uint16_t l1=std::numeric_limits<uint16_t>::max(),
 				 const uint16_t l2=std::numeric_limits<uint16_t>::max()) {

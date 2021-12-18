@@ -7,11 +7,7 @@
 
 #include "helper.h"
 
-// implementation taken from gray_code.c
-// a = #rows, b = #cols
-constexpr int matrix_opt_k(const int a, const int b) {
-	return  MIN(__M4RI_MAXKAY, MAX(1, (int)(0.75 * (1 + const_log(MIN(a, b))))));
-}
+
 
 int mzd_copy_row_internal(word *out, const word *in, const int start, const int end){
 	ASSERT(end > start && start >= 0);
@@ -100,15 +96,11 @@ void mzd_row_xor_unroll(mzd_t *out, const rci_t i, const rci_t j) {
 	}
 }
 
-void mzd_row_xor(mzd_t *out, const rci_t i, const rci_t j) {
-	ASSERT(out->nrows > i && out->nrows > j);
-	for (uint32_t l = 0; l < uint32_t(out->width); ++l) {
-		out->rows[i][l] ^= out->rows[j][l];
-	}
-}
+
+
 
 void mzd_row_xor(mzd_t *out, const rci_t i, const rci_t j, const rci_t k) {
-	ASSERT(out->nrows > i && out->nrows > j && out->nrows > k);
+	assert(out->nrows > i && out->nrows > j && out->nrows > k);
 	for (uint32_t l = 0; l < uint32_t(out->width); ++l) {
 		out->rows[i][l] ^= out->rows[j][l] ^ out->rows[k][l];
 	}

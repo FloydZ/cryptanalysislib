@@ -1406,7 +1406,7 @@ public:
 		if (row.get(cl.first) == 0) {
 			row.set(sym, cl.first);
 			row.set(0, cl.second);
-			SWAP(cl.first, cl.second);
+			std::swap(cl.first, cl.second);
 		} else {
 			row.set(0, cl.first);
 			row.set(sym, cl.second);

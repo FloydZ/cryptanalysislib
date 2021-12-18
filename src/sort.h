@@ -26,7 +26,6 @@
 #include "sort.h"
 #include "ska_sort.hpp"
 
-#if __cplusplus > 201709L
 template<class List>
 concept HashMapListAble = requires(List l) {
 	// we need some basic data types
@@ -46,7 +45,6 @@ concept HashMapListAble = requires(List l) {
 		{ l.size() } -> std::convertible_to<size_t>;
 	};
 };
-#endif
 
 // LSD radix sort, taken from valentin vasseur
 template<typename T, bool use_idx>
@@ -534,11 +532,9 @@ template<const ConfigParallelBucketSort &config,
 				typename ArgumentLimbType,              // container of the `l`-part
 				typename ExternalIndexType,             // container of the indices which point into the baselists
 				ArgumentLimbType (* HashFkt)(uint64_t)> // TODO describe
-#if __cplusplus > 201709L
 requires HashMapListAble<ExternalList> &&
          std::is_integral<ArgumentLimbType>::value &&
          std::is_integral<ExternalIndexType>::value
-#endif
 class ParallelBucketSort {
 public:
 	/// nomenclature:
@@ -627,9 +623,11 @@ public:
 	// Main data container
 	using BucketIndexEntry  = std::array<IndexType, Anri>;
 
+	using TripleT                                        = uint64_t;
+
 	/// TODO probably one day i want to change this to a std::tuple.
 	using BucketEntry       = typename  std::conditional<config.EXTEND_TO_TRIPLE,
-														 triple<ArgumentLimbType, BucketIndexEntry, __uint128_t>,
+														 triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
 														 std::pair<ArgumentLimbType, BucketIndexEntry>>::type;
 
 private:
@@ -946,6 +944,37 @@ public:
 			data = e(L.data_label(i));
 			pos[0] = i;
 			insert1(data, pos, tid);
+		}
+	}
+
+	// the ase above but using an extractor and a hasher
+	template<class Extractor, class Extractor2>
+	void hash_extend_to_triple(const List &L, const uint64_t load, const uint32_t tid,
+							   Extractor e, Extractor2 et) {
+		ASSERT(tid < config.nr_threads);
+
+		const std::size_t s_tid = L.start_pos(tid);
+		const std::size_t e_tid = s_tid + load;
+
+		ArgumentLimbType data;
+		IndexType pos[1];
+		for (std::size_t i = s_tid; i < e_tid; ++i) {
+			data = e(L.data_label(i));
+			pos[0] = i;
+
+			// insert the element.
+			const BucketHashType bid = HashFkt(data);
+			const LoadType load      = get_bucket_load(tid, bid);
+			if (size_t - load == 0) {
+				continue;
+			}
+
+			const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
+			inc_bucket_load(tid, bid);
+
+			__buckets[bucketOffset].first = data;
+			memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
+			__buckets[bucketOffset].third = et(L.data_label(i));
 		}
 	}
 
@@ -1648,11 +1677,9 @@ template<const ConfigParallelBucketSort &config,
 		typename ExternalIndexType,                     // container of the indices which point into the baselists
 		ArgumentLimbType (* HashFkt)(ArgumentLimbType),         // hash function, the output is needed to work as a bucket index
 		ArgumentLimbType (* HashSearchFkt)(ArgumentLimbType)>   // similar as the Hashfkt but with the difference its only used for search, so can be further simplified
-#if __cplusplus > 201709L
 	requires HashMapListAble<ExternalList> &&
 	        std::is_integral<ArgumentLimbType>::value &&
 			std::is_integral<ExternalIndexType>::value
-#endif
 class ParallelLockFreeBucketSort {
 public:
 	/// nomenclature:
