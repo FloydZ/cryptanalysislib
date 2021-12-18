@@ -830,7 +830,7 @@ public:
 			acc_buckets_load.resize(nrb);
 		}
 
-#if !defined(BENCHMARK) && !defined(NO_LOGGING)
+#if !defined(BENCHMARK) && !defined(NO_LOGGING) && !defined(CHALLENGE)
 		std::cout << "HM" << nri << "\n";
 		std::cout << "\tb0=" << b0 << ", b1=" << b1 << ", b2=" << b2 << "\n";
 		std::cout << "\tsize_b=" << size_b << ", size_t=" << size_t << ", chunks=" << chunks << "\n";
