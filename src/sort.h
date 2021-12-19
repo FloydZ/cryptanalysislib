@@ -41,7 +41,7 @@ concept HashMapListAble = requires(List l) {
 	// The following functions are needed.
 	requires requires(const size_t s){
 		l.data_label(s);
-		l.data_value(s);
+		//l.data_value(s);
 		{ l.size() } -> std::convertible_to<size_t>;
 	};
 };
@@ -465,13 +465,13 @@ struct ConfigParallelBucketSort {
 
 	/// number of additional l window shifts which needs to be saved in one element.
 	/// Note that l window is not exactly the same as the l in Dumer.
-	/// IM = Infyk Motwani
+	/// IM = Indyk Motwani
 	uint8_t IM_nr_views;
 
 	// for description of these flags look at the implementation of `ParallelBucketSort`
 	bool STDBINARYSEARCH_SWITCH         = false;
 	bool INTERPOLATIONSEARCH_SWITCH     = false;
-	bool LINEAREARCH_SWITCH             = false;
+	bool LINEARSEARCH_SWITCH            = false;
 	bool USE_LOAD_IN_FIND_SWITCH        = true;
 
 	// Because of the greate abstraction of the hashing and extracting of this hashmap, this flag does not have a direct
@@ -482,8 +482,19 @@ struct ConfigParallelBucketSort {
 
 	// if this flag is set to `true`, the internal data of holding just the lpart and indices of the baselist, will
 	// be exchanged to a triple holding the lpart, indices of the baselist and additional the label (or another part of it)
-	bool EXTEND_TO_TRIPLE               = false;
+	uint8_t EXTEND_TO_TRIPLE            = 0;
 
+	// If set to true: some elements are prefetched in the `find` method to speed up the `traversing` of buckets
+	bool USE_PREFETCH_SWITCH            = false;
+
+	// if set to true, the internal structure of the hashmap changes a lot.
+	//      The internal `LoadType` is change to `std::atomic<LoadType>`.
+	//      The above-mentioned splitting the array into chunks for each thread is aldo dismissed
+	//      Instead we can use the array as the hashmap directly because, we lock the write access to each bucket through the load.
+	//      Sorting is not needed afterwards
+	bool USE_ATOMIC_LOAD_SWITCH         = false;
+
+private:
 	// useless empty constructor.
 	constexpr ConfigParallelBucketSort() :
 			label_offset(0),
@@ -498,19 +509,33 @@ struct ConfigParallelBucketSort {
 			lvl(0),
 			IM_nr_views(0) {}
 
-	//constexpr ConfigParallelBucketSort(const ConfigParallelBucketSort &c);
-
-	constexpr ConfigParallelBucketSort(uint16_t b0, uint16_t b1, uint16_t b2, uint64_t bucket_size, uint64_t nr_buckets,
-	                                   uint32_t nr_threads, uint32_t nr_indices, uint32_t label_offset,
-	                                   uint32_t l, uint8_t lvl,
-	                                   uint8_t nr_IM_views=0,
-	                                   bool SBSSW=false, bool ISSW=false, bool LSSW=false, bool USIDSW=true,
-									   bool SF128B=false, bool ETT=false) :
+	// TODO explain
+public:
+	constexpr ConfigParallelBucketSort(const uint16_t b0,             //
+	                                   const uint16_t b1,             //
+	                                   const uint16_t b2,             //
+	                                   const uint64_t bucket_size,    //
+	                                   const uint64_t nr_buckets,     //
+	                                   const uint32_t nr_threads,     //
+	                                   const uint32_t nr_indices,     //
+	                                   const uint32_t label_offset,   //
+	                                   const uint32_t l,              //
+	                                   const uint8_t lvl,             //
+	                                   const uint8_t nr_IM_views=0,   //
+	                                   const bool SBSSW=false,        //
+	                                   const bool ISSW=false,         //
+	                                   const bool LSSW=false,         //
+	                                   const bool USIDSW=true,        //
+									   const bool SF128B=false,       //
+	                                   const uint8_t ETT=0,           //
+	                                   const bool UPS=false,          //
+	                                   const bool UALS=false          //
+	                                   ) :
 			label_offset(label_offset), l(l), bucket_size(bucket_size), nr_buckets(nr_buckets),
 			nr_threads(nr_threads), nr_indices(nr_indices), b0(b0), b1(b1), b2(b2),
 			 lvl(lvl), IM_nr_views(nr_IM_views),
 			STDBINARYSEARCH_SWITCH(SBSSW), INTERPOLATIONSEARCH_SWITCH(ISSW),
-			LINEAREARCH_SWITCH(LSSW), USE_LOAD_IN_FIND_SWITCH(USIDSW),
+			LINEARSEARCH_SWITCH(LSSW), USE_LOAD_IN_FIND_SWITCH(USIDSW),
 			SAVE_FULL_128BIT(SF128B), EXTEND_TO_TRIPLE(ETT) {}
 
 	/// print some information about the configuration
@@ -522,7 +547,7 @@ struct ConfigParallelBucketSort {
 		            << ", nr_indices: " << nr_indices
 					<< ", b0: " << b0 << ", b1: " << b1 << ", b2: " << b2
 					<< ", SAVE_FULL_128BIT: " << SAVE_FULL_128BIT
-					<< ", EXTEND_TO_TRIPLE: " << EXTEND_TO_TRIPLE
+					<< ", EXTEND_TO_TRIPLE: " << unsigned(EXTEND_TO_TRIPLE)
 					<< "\n";
 	}
 };
@@ -596,18 +621,20 @@ private:
 		return Anri;
 	}
 
+	// if set to true, the hashmaps extends the number of indices it can hold, s.t. each element within the hashmap is placed
+	// on address divisible by `ALIGNMENT`.
 	constexpr static bool ALIGNMENT_SWITCH  = false;
 	constexpr static uint64_t ALIGNMENT     = 64;
 	constexpr static uint64_t nrb           = config.nr_buckets;
 	constexpr static uint32_t nrt           = config.nr_threads;
 	constexpr static uint32_t nri           = config.nr_indices;
 	// Aligned number of indices.
-	constexpr static uint32_t Anri       = ALIGNMENT_SWITCH ? BucketAlignment(nri, ALIGNMENT, sizeof(IndexType)*8, sizeof(ArgumentLimbType)*8) : nri;
+	constexpr static uint32_t Anri          = ALIGNMENT_SWITCH ? BucketAlignment(nri, ALIGNMENT, sizeof(IndexType)*8, sizeof(ArgumentLimbType)*8) : nri;
 
-	constexpr static uint64_t size_b     = config.bucket_size; // size of each bucket
-	constexpr static uint64_t size_t     = size_b / nrt;       // size of each bucket which is accessible by one thread.
-	constexpr static uint64_t chunks     = nrb / nrt;          // how many buckets must each thread sort or reset.
-	constexpr static uint64_t chunks_size= chunks * size_b;
+	constexpr static uint64_t size_b        = config.bucket_size; // size of each bucket
+	constexpr static uint64_t size_t        = size_b / nrt;       // size of each bucket which is accessible by one thread.
+	constexpr static uint64_t chunks        = nrb / nrt;          // how many buckets must each thread sort or reset.
+	constexpr static uint64_t chunks_size   = chunks * size_b;
 
 public:
 	// We choose the optimal data container for every occasion.
@@ -616,17 +643,24 @@ public:
 	using LoadType          = IndexType;
 	// In contrast to `LoadType` this type does not include the absolute position within the array, but only the
 	// relative within the bucket. Can be smaller than `IndexType`
-	using LoadInternalType  = TypeTemplate<size_b>;
+	using LoadInternalType  = typename std::conditional<config.USE_ATOMIC_LOAD_SWITCH,
+	                                                    std::atomic<TypeTemplate<size_b>>,
+	                                                    TypeTemplate<size_b>>::type;
+
+	using ArrayLoadInternalType  = typename std::conditional<config.USE_ATOMIC_LOAD_SWITCH,
+															std::array<LoadInternalType, nrb>,
+															std::vector<LoadInternalType>>::type;
 	// Number of bits needed to hold a hash
 	using BucketHashType    = TypeTemplate<uint64_t(1) << (config.b1-config.b0)>;
 	using BucketIndexType   = TypeTemplate<nrb * size_b>;
 	// Main data container
 	using BucketIndexEntry  = std::array<IndexType, Anri>;
 
-	using TripleT                                        = uint64_t;
+	// only sed if `config.EXTEND_TO_TRIPLE` si activated.
+	using TripleT           = LogTypeTemplate<config.EXTEND_TO_TRIPLE>;
 
 	/// TODO probably one day i want to change this to a std::tuple.
-	using BucketEntry       = typename  std::conditional<config.EXTEND_TO_TRIPLE,
+	using BucketEntry       = typename  std::conditional<config.EXTEND_TO_TRIPLE != 0,
 														 triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
 														 std::pair<ArgumentLimbType, BucketIndexEntry>>::type;
 
@@ -650,7 +684,7 @@ private:
 	constexpr static uint32_t MAXLOAD_SWITCH = 64/sizeof(ArgumentLimbType);
 
 	// NOTE: Currently permanently disabled.
-	constexpr static bool SPECIAL_LOAD_DECODING_SWITCH1         = false;//((BitSizeArgumentLimbType - b2) >= (1+BitSizeLoadInternalType)) && size_b < MAXLOAD_SWITCH;
+	constexpr static bool SPECIAL_LOAD_DECODING_SWITCH          = false;//((BitSizeArgumentLimbType - b2) >= (1+BitSizeLoadInternalType)) && size_b < MAXLOAD_SWITCH;
 	constexpr static uint32_t BitSizeArgumentLimbType           = sizeof(ArgumentLimbType)*8;
 	constexpr static uint32_t BitSizeLoadInternalType           = sizeof(LoadInternalType)*8;
 	constexpr static uint32_t DecodedLoadOffset                 = BitSizeArgumentLimbType - BitSizeLoadInternalType;
@@ -668,15 +702,16 @@ private:
 	}
 
 	// DO NOT USE IT.
+	// if set to:   false:  `std::lower_bound` will be used to find a match in one bucket of this hashmap
+	//              true: custom mono bounded binary search is used to fin a match
 	constexpr static bool STDBINARYSEARCH_SWITCH        = config.STDBINARYSEARCH_SWITCH;
 
 	// replace binary search with smarter interpolation search
-	//size_b >= 1000
 	constexpr static bool INTERPOLATIONSEARCH_SWITCH    = config.INTERPOLATIONSEARCH_SWITCH;
 
-	// switch to a linear search insteat of binary/interpolation in special cases. Number completely arbitrary
+	// switch to a linear search instead of binary/interpolation in special cases. Number completely arbitrary
 	//((b1 != b2) && (size_t<15)) ? true : false;
-	constexpr static bool LINEAREARCH_SWITCH            = config.LINEAREARCH_SWITCH;
+	constexpr static bool LINEARSEARCH_SWITCH           = config.LINEARSEARCH_SWITCH;
 
 	// if set to true an additional mem fetch the load array will be made.
 	constexpr static bool USE_LOAD_IN_FIND_SWITCH       = config.USE_LOAD_IN_FIND_SWITCH;
@@ -691,7 +726,14 @@ private:
 
 	// Set this flag to true to extend the fundamental datastructure by an additional datatype (__uint128_t) to hold
 	// additional information.
-	constexpr static bool EXTEND_TO_TRIPLE               = config.EXTEND_TO_TRIPLE;
+	constexpr static uint8_t EXTEND_TO_TRIPLE            = config.EXTEND_TO_TRIPLE;
+
+	// If set to true: The Hashmaps runs some cache prefetching instructions, before returning a found element.
+	// The idea behind is to optimize the `traversing` a bucket, when a match is found.
+	constexpr static bool USE_PREFETCH_SWITCH            = config.USE_PREFETCH_SWITCH;
+
+	// TODO desribe
+	constexpr static bool USE_ATOMIC_LOAD_SWITCH         = config.USE_ATOMIC_LOAD_SWITCH;
 
 	// Indyk Motwani Nearest Neighbor Search:
 	// How many additional l windows should this hashmap hold?
@@ -710,7 +752,15 @@ private:
 
 	inline uint64_t bucket_offset(const uint32_t tid, const BucketHashType bid) {
 		ASSERT(bid < nrb && tid < nrt);
-		const uint64_t r = bid * size_b + tid * size_t;
+		uint64_t r;
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			// In this case we break up the chunks for each thread,
+			// so every thread can operate on the full length of a bucket.
+			r = bid * size_b;
+		} else {
+			r = bid * size_b + tid * size_t;
+		}
+
 		ASSERT(r < nrb * size_b);
 		ASSERT(size_t <= size_b);
 		return r;
@@ -720,6 +770,11 @@ private:
 	// can be called multithreaded
 	inline void acc_bucket_load(const BucketHashType bid) {
 		ASSERT(bid < nrb);
+
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			// Do nothing.
+			return;
+		}
 
 		LoadType load = 0;
 
@@ -733,13 +788,34 @@ private:
 public:
 
 	// increments the bucket load by one
-	inline void inc_bucket_load(const uint32_t tid, const BucketHashType bid) {
+	inline LoadType inc_bucket_load(const uint32_t tid, const BucketHashType bid) {
 		ASSERT(tid < nrt && bid < nrb);
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			// So here takes all the magic place. So basically we want to return and unique position where the callee
+			// function can save its element.
+			// We have to take care that we are not overloading the buckets
+#if __cplusplus > 201709L
+			// This is like super stupid. Fucking apple...
+			return buckets_load[bid].fetch_add(1, std::memory_order::relaxed);
+#else
+			return buckets_load[bid].fetch_add(1);
+#endif
+		}
+
 		buckets_load[tid*nrb + bid] += 1;
+		return 0;
 	}
 
 	inline LoadType get_bucket_load(const uint32_t tid, const BucketHashType bid) {
 		ASSERT(tid < nrt && bid < nrb);
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			// because I want to reduce the atomic loads I do not check before inserting elements, which leads to an overflow of the load factor
+			// do not use this function to insert elements.
+			return std::min(LoadInternalType(buckets_load[bid].load()),
+			                LoadInternalType(size_b));
+		}
+
+		// Normal code path
 		if constexpr (nrt != 1) {
 			return buckets_load[tid * nrb + bid];
 		} else {
@@ -750,6 +826,14 @@ public:
 	// IMPORTANT: Call `acc_bucket_load` first
 	inline LoadType get_bucket_load(const BucketHashType bid) {
 		ASSERT(bid < nrb);
+
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			// because I want to reduce the atomic loads I do not check before inserting elements, which leads to an overflow of the load factor
+			// do not use this function to insert elements.
+			return std::min(LoadInternalType(buckets_load[bid].load()),
+			                LoadInternalType(size_b));
+		}
+
 		if constexpr (nrt != 1) {
 			return acc_buckets_load[bid];
 		} else {
@@ -765,7 +849,8 @@ public:
 
 	// Datacontainers
 	alignas(PAGE_SIZE) std::vector<BucketEntry> __buckets;
-	alignas(PAGE_SIZE) std::vector<LoadInternalType> buckets_load;
+	//alignas(PAGE_SIZE) std::vector<LoadInternalType> buckets_load;
+	alignas(PAGE_SIZE) ArrayLoadInternalType buckets_load;
 	alignas(PAGE_SIZE) std::vector<LoadInternalType> acc_buckets_load; // TODO merge?
 
 	ParallelBucketSort() {
@@ -783,13 +868,13 @@ public:
 		// make sure that the user does not want to match on more coordinates that the container hold.
 		// TODO reactivate static_assert(b2 <= sizeof(ArgumentLimbType)*8, "make sure that T is big enough...");
 
-
 		// make sure that from all the given search method only one is active
-		static_assert(!(LINEAREARCH_SWITCH && INTERPOLATIONSEARCH_SWITCH));
+		static_assert(!(LINEARSEARCH_SWITCH && INTERPOLATIONSEARCH_SWITCH));
 
 		// make sure that we actually have some coordinates to search on, if the user wants to do a linear/different search.
-		static_assert(!((b1 != b2) && LINEAREARCH_SWITCH));
-		static_assert(!((b1 != b2) && INTERPOLATIONSEARCH_SWITCH));
+		if constexpr (LINEARSEARCH_SWITCH || INTERPOLATIONSEARCH_SWITCH) {
+			static_assert(b1 < b2);
+		}
 
 		// make sure that the given size parameter are sane.
 		static_assert(size_b != 0);
@@ -799,8 +884,8 @@ public:
 			static_assert(sizeof(ArgumentLimbType) == 128/8, "pass a `__uint128_t` to the hashmap as base type");
 		}
 
-		// only allow one of these flags acitvated.
-		static_assert(SAVE_FULL_128BIT + EXTEND_TO_TRIPLE <= 1, "only one of these flags is allowed");
+		// only allow one of these flags activated.
+		static_assert(SAVE_FULL_128BIT + bool(EXTEND_TO_TRIPLE) <= 1, "only one of these flags is allowed");
 
 		if constexpr(nrt != 1) {
 			// This restriction is only needed if we have more than one thread. Or we have to overwrite the buckets with -1.
@@ -820,36 +905,52 @@ public:
 			static_assert((IM_nr_views * IM_bits_view) <= 64);
 		}
 
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			// If we have atomic load, and only one thread operating on it. This would be stupid.
+			static_assert(nrt > 1);
+		}
+
 		if ((1 << (b2 - b1)) / nrb > size_b)
 			std::cout << "WHAT DOES THIS MEAN???\n";
 
 		__buckets.resize(nrb * size_b);
-		buckets_load.resize(nrb * nrt);
 
-		if constexpr(nrt != 1) {
+		if constexpr(!USE_ATOMIC_LOAD_SWITCH) {
+			buckets_load.resize(nrb * nrt);
+		}
+
+		if constexpr(nrt != 1 && !USE_ATOMIC_LOAD_SWITCH) {
 			acc_buckets_load.resize(nrb);
 		}
 
+		// Make sure the internal stuff is only printed once.
 #if !defined(BENCHMARK) && !defined(NO_LOGGING) && !defined(CHALLENGE)
-		std::cout << "HM" << nri << "\n";
-		std::cout << "\tb0=" << b0 << ", b1=" << b1 << ", b2=" << b2 << "\n";
-		std::cout << "\tsize_b=" << size_b << ", size_t=" << size_t << ", chunks=" << chunks << "\n";
-		std::cout << "\tAnri=" << Anri << "\n";
-		std::cout << "\tBucketHashType: " << sizeof(BucketHashType)*8 << "Bits\n";
-		std::cout << "\tBucketIndexType: " << sizeof(BucketIndexType)*8 << "Bits\n";
-		std::cout << "\tBucketEntry: " << sizeof(BucketEntry)*8 << "Bits\n";
-		std::cout << "\tArgumentLimbType: " << sizeof(ArgumentLimbType)*8 << "Bits\n";
-		std::cout << "\tIndexType: " << sizeof(IndexType)*8 << "Bits\n";
-		std::cout << "\tLoadType: " << sizeof(LoadType)*8 << "Bits\n";
-		std::cout << "\tLoadInternalType: " << sizeof(LoadInternalType)*8 << "Bits\n";
-		std::cout << "\tLabelType: " << sizeof(Label)*8 << "Bits\n";
-		std::cout << "\tSPECIAL_LOAD_DECODING_SWITCH1:" << SPECIAL_LOAD_DECODING_SWITCH1 << "\n";
-		std::cout << "\tINTERPOLATIONSEARCH_SWITCH:" << INTERPOLATIONSEARCH_SWITCH << "\n";
-		std::cout << "\tSTDBINARYSEARCH_SWITCH:" << STDBINARYSEARCH_SWITCH << "\n";
-		std::cout << "\tLINEAREARCH_SWITCH:" << LINEAREARCH_SWITCH << "\n";
-		std::cout << "\tUSE_LOAD_IN_FIND_SWITCH:" << USE_LOAD_IN_FIND_SWITCH << "\n";
-		std::cout << "\tIM_SWITCH:" << IM_SWITCH << "\n";
-		std::cout << "\tALIGNMENT_SWITCH:" << ALIGNMENT_SWITCH << "\n";
+#pragma omp single
+		{
+			std::cout << "HM" << nri << "\n";
+			std::cout << "\tb0=" << b0 << ", b1=" << b1 << ", b2=" << b2 << "\n";
+			std::cout << "\tsize_b=" << size_b << ", size_t=" << size_t << ", chunks=" << chunks << "\n";
+			std::cout << "\tAnri=" << Anri << "\n";
+			std::cout << "\tBucketHashType: " << sizeof(BucketHashType) * 8 << "Bits\n";
+			std::cout << "\tBucketIndexType: " << sizeof(BucketIndexType) * 8 << "Bits\n";
+			std::cout << "\tBucketEntry: " << sizeof(BucketEntry) * 8 << "Bits\n";
+			std::cout << "\tArgumentLimbType: " << sizeof(ArgumentLimbType) * 8 << "Bits\n";
+			std::cout << "\tIndexType: " << sizeof(IndexType) * 8 << "Bits\n";
+			std::cout << "\tLoadType: " << sizeof(LoadType) * 8 << "Bits\n";
+			std::cout << "\tLoadInternalType: " << sizeof(LoadInternalType) * 8 << "Bits\n";
+			std::cout << "\tLabelType: " << sizeof(Label) * 8 << "Bits\n";
+			std::cout << "\tSPECIAL_LOAD_DECODING_SWITCH:" << SPECIAL_LOAD_DECODING_SWITCH << "\n";
+			std::cout << "\tINTERPOLATIONSEARCH_SWITCH:" << INTERPOLATIONSEARCH_SWITCH << "\n";
+			std::cout << "\tSTDBINARYSEARCH_SWITCH:" << STDBINARYSEARCH_SWITCH << "\n";
+			std::cout << "\tLINEAREARCH_SWITCH:" << LINEARSEARCH_SWITCH << "\n";
+			std::cout << "\tUSE_LOAD_IN_FIND_SWITCH:" << USE_LOAD_IN_FIND_SWITCH << "\n";
+			std::cout << "\tIM_SWITCH:" << IM_SWITCH << "\n";
+			std::cout << "\tALIGNMENT_SWITCH:" << ALIGNMENT_SWITCH << "\n";
+			std::cout << "\tSAVE_FULL_128BIT:" << SAVE_FULL_128BIT << "\n";
+			std::cout << "\tEXTEND_TO_TRIPLE:" << unsigned(EXTEND_TO_TRIPLE) << "\n";
+			std::cout << "\tUSE_PREFETCH_SWITCH:" << USE_PREFETCH_SWITCH << "\n";
+			std::cout << "\tUSE_ATOMIC_LOAD_SWITCH:" << USE_ATOMIC_LOAD_SWITCH << "\n";
+		}
 #endif
 		reset();
 	}
@@ -902,37 +1003,20 @@ public:
 			}
 
 			Lptr += size_label;
-			//ASSERT(check_label(data, L, i));
 
 			pos[0] = i;
 			insert(data, pos, tid);
 		}
 	}
 
-	/// Abstract version of
-	/// \tparam H
+	/// TODO discribe
+	/// \tparam Extractor
 	/// \param L
+	/// \param load
 	/// \param tid
-	/// \param h
-	template<class H>
-	void hash(const List &L, const uint64_t load, const uint32_t tid, H h) {
-		ASSERT(tid < config.nr_threads);
-
-		const std::size_t s_tid = L.start_pos(tid);
-		const std::size_t e_tid = s_tid + load;
-
-		ArgumentLimbType data;
-		IndexType pos[1];
-		for (uint64_t i = s_tid; i < e_tid; ++i) {
-			data = h(L.data_label(i));
-			pos[0] = i;
-			insert(data, pos, tid);
-		}
-	}
-
-	// the ase above but using an extractor and a hasher
+	/// \param e
 	template<class Extractor>
-	void hash1(const List &L, const uint64_t load, const uint32_t tid, Extractor e) {
+	void hash(const List &L, const uint64_t load, const uint32_t tid, Extractor e) {
 		ASSERT(tid < config.nr_threads);
 
 		const std::size_t s_tid = L.start_pos(tid);
@@ -943,7 +1027,7 @@ public:
 		for (std::size_t i = s_tid; i < e_tid; ++i) {
 			data = e(L.data_label(i));
 			pos[0] = i;
-			insert1(data, pos, tid);
+			insert(data, pos, tid);
 		}
 	}
 
@@ -981,72 +1065,75 @@ public:
 	/// \param data l part of the label IMPORTANT MUST BE ONE LIMB
 	/// \param pos	pointer to the array which should be copied into the internal data structure to loop up elements in the baselists
 	/// \param tid	thread_id
-	/// \param add_option additional option, which can be used is various different ways, depending on what flags are activated.
-	///			- SPECIAL_LOAD_DECODING_SWITCH1
-	///				currently disabled because to slow
-	///			- IMSWITCH
-	///				unused
-	///			- CACHE_STREAM_SWITCH
-	///				unused
 	/// returns 0 if full, 1 if successfully inserted.
 	uint32_t insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) {
 		ASSERT(tid < config.nr_threads);
-		// Note this code is currently deactivated, because its tends to be slower than the normal approach.
-//		if constexpr(SPECIAL_LOAD_DECODING_SWITCH1) {
-//			const BucketHashType bid = hash(data);
-//			BucketIndexType bucketOffset = bucket_offset(tid, bid);
-//			const ArgumentLimbType loadcheck = get_decoded_loadcheck1(bucketOffset);
-//			const BucketIndexType load = (loadcheck&1) == add_option ? (loadcheck >> 1) : 0;
-//
-//			if (size_t - load == 0) {
-//				return 0;
-//			}
-//
-//			ArgumentLimbType bla = ((((load+1) << 1) ^ add_option) << DecodedLoadCheckOffset);
-//			__buckets[bucketOffset].first = (__buckets[bucketOffset].first&rmask2)^bla;;
-//			bucketOffset += load;
-//			__buckets[bucketOffset].first = (data&rmask2)^bla;
-//			memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
-//			return 1;
-//		}
+		if constexpr(SPECIAL_LOAD_DECODING_SWITCH) {
+			const BucketHashType bid            = HashFkt(data);
+			BucketIndexType bucketOffset        = bucket_offset(tid, bid);
+			const ArgumentLimbType loadcheck    = get_decoded_loadcheck1(bucketOffset);
+			const BucketIndexType load          = 0; // TODO
 
-		const BucketHashType bid = hash(data);
-		const LoadType load      = get_bucket_load(tid, bid);
+			if (size_t - load == 0) {
+				return 0;
+			}
+
+			ArgumentLimbType bla = 0; // TODO ((((load+1) << 1) ^ add_option) << DecodedLoadCheckOffset);
+			__buckets[bucketOffset].first = (__buckets[bucketOffset].first&rmask2)^bla;;
+			bucketOffset += load;
+			__buckets[bucketOffset].first = (data&rmask2)^bla;
+			memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
+			return 1;
+		}
+
+		const BucketHashType bid = HashFkt(data);
+		LoadType load;
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			load = inc_bucket_load(tid, bid);
+		} else {
+			load = get_bucket_load(tid, bid);
+		}
 
 		// early exit if a bucket is full.
-		if (size_t - uint64_t (load) == 0) {
-			return 0;
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			if (size_b - uint64_t(load) == 0) {
+				return 0;
+			}
+		} else {
+			if (size_t - uint64_t(load) == 0) {
+				return 0;
+			}
 		}
 
+		// calculated the final index within the array of elements which will be returned to the tree construction.
 		const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
-		inc_bucket_load(tid, bid);
+		if constexpr (!USE_ATOMIC_LOAD_SWITCH) {
+			// we need to increase the load factor only at this point if we do not use atomics.
+			inc_bucket_load(tid, bid);
+		}
 
-
+		// A little if ... else ... mess. But actually we just write the element and the indices of the baselists into the correct places.
 		if constexpr (CACHE_STREAM_SWITCH) {
-			//MM256_STREAM64(&(__buckets[bucketOffset].first), uint64_t (data))
-			//MM256_STREAM64(&__buckets[bucketOffset].second, npos)
-			//memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
+			MM256_STREAM64(&(__buckets[bucketOffset].first), uint64_t (data))
+			if constexpr (nri == 1) {
+				MM256_STREAM64(&__buckets[bucketOffset].second, npos);
+			} else if constexpr (nri == 2) {
+				MM256_STREAM128(&__buckets[bucketOffset].second, npos);
+			} else {
+				memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
+			}
 		} else {
 			__buckets[bucketOffset].first = data;
-			memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
+			if constexpr (nri == 1) {
+				__buckets[bucketOffset].second[0] = npos [0];
+			} else if constexpr (nri == 2) {
+				__buckets[bucketOffset].second[0] = npos [0];
+				__buckets[bucketOffset].second[1] = npos [1];
+			} else {
+				memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
+			}
 		}
 
-		return 1;
-	}
-
-	uint32_t insert1(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) {
-		ASSERT(tid < config.nr_threads);
-		const BucketHashType bid = HashFkt(data);
-		const LoadType load      = get_bucket_load(tid, bid);
-		if (size_t - load == 0) {
-			return 0;
-		}
-
-		const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
-		inc_bucket_load(tid, bid);
-
-		__buckets[bucketOffset].first = data;
-		memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
 		return 1;
 	}
 
@@ -1096,6 +1183,12 @@ public:
 	/// which this thread needs to sort.
 	inline void sort(const uint32_t tid) {
 		ASSERT(tid < config.nr_threads);
+
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			// thats the whole reason, we use atomic value. So we dont have to sort.
+			return;
+		}
+
 		if constexpr ((config.nr_threads == 1) && (config.b2 == config.b1)) {
 			// Fastpath. If the hash function maps onto the full length and
 			// we only have one thread there is nothing to do.
@@ -1141,121 +1234,11 @@ public:
 	// returns -1 on error/nothing found. Else the position.
 	// IMPORTANT: load` is the actual load + bid*size_b
 	BucketIndexType find(const ArgumentLimbType &data, LoadType &load) {
-		const BucketHashType bid = hash(data);
-		const BucketIndexType boffset = bid * size_b;   // start index of the bucket in the internal data structure
-
-		// Depend on how we encoded the load parameter, read it.
-		if constexpr(SPECIAL_LOAD_DECODING_SWITCH1) {
-			// IMPORTANT: threads not implemented.
-			// Note that this approach is slower
-			load = get_decoded_load1(bid*size_b + 0);
-		} else {
-			// last index within the bucket.
-			// IMPORTANT: Note that we need the full bucket load and not just
-			// the load of a bucket for a thread.
-			if constexpr ((b1 == b2) || USE_LOAD_IN_FIND_SWITCH) {
-				load = get_bucket_load(bid);
-			} else {
-				load = size_b;
-			}
-		}
-
-		ASSERT(bid < nrb && boffset < nrb * size_b && load < nrb * size_b);
-
-		// fastpath. Meaning that there was nothing to sort on.
-		if constexpr (b2 == b1) {
-			if (load != 0) {
-				// Prefetch data. The idea is that we know that in the special where we dont have to sort every element
-				// in the bucket is a match. So we preload it, if the whole bucket fits into one cacheline.
-				//if constexpr(size_b < MAXLOAD_SWITCH) {
-				//	__builtin_prefetch(__buckets.data() + boffset, 0 , 0);
-				//}
-
-				// Check if the last element is really not a -1.
-				// NOTE: this check makes propably no sense after a few runs of the algorithm.
-				ASSERT(__buckets[boffset + load - 1].first != ArgumentLimbType(-1));
-
-				load += boffset;
-				return boffset;
-			}
-
-			return -1;
-		}
-
-		// Second fastpath.
-		if (load == 0) { return -1; }
-		load += boffset;
-
-		constexpr static BucketIndexEntry dummy = {{0}};
-		BucketEntry data_target(data, dummy);
-
-		// on huge arrays with huge bucket size is maybe a good idea to switch to interpolation search
-		if constexpr(INTERPOLATIONSEARCH_SWITCH) {
-			// if this switch is enabled, we are doing an interpolation search.
-			auto r = lower_bound_interpolation_search2(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			                                           [](const BucketEntry &e1) -> ArgumentLimbType {
-				                                           return (e1.first & mask2)>>b1; // See note std::lower_bound
-			                                           }
-			);
-
-			if (r == (__buckets.begin() + load)) return -1;
-			const BucketIndexType pos = distance(__buckets.begin(), r);
-			if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
-			return pos;
-		}
-
-		// on huge arrays with small bucket size it's maybe a good idea to switch on linear search.
-		if constexpr(LINEAREARCH_SWITCH) {
-			BucketIndexType pos = boffset;
-			ASSERT(pos < load);
-
-			const ArgumentLimbType data2 = data&mask2;
-			while((__buckets[pos].first&mask2) != data2) {
-				pos += 1;
-			}
-
-			if (pos == load)
-				return -1;
-
-			ASSERT(pos < load);
-			return pos;
-		}
-
-		// if every other search function is not adaptable go back to the good old binary search.
-		typename std::vector<BucketEntry>::iterator r;
-		if constexpr(STDBINARYSEARCH_SWITCH) {
-			//fallback implementation: binary search.
-			r = std::lower_bound(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			                     [](const auto &e1, const auto &e2) {
-				                     // well this is actually not completely correct. This checks on the lowest b2 bits. But actually
-				                     // it should check on the bits [b1, b2].
-				                     return (e1.first & mask2) < (e2.first & mask2);
-			                     }
-			);
-		} else {
-			r = lower_bound_monobound_binary_search(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			                                        [](const BucketEntry &e1) -> ArgumentLimbType {
-				                                        return e1.first & mask2;// See note std::lower_bound
-			                                        }
-			);
-		}
-
-
-
-		if (r == (__buckets.begin() + load)) return -1;
-		const BucketIndexType pos = distance(__buckets.begin(), r);
-		if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
-
-		ASSERT(pos < load);
-		return pos;
-	}
-
-	BucketIndexType find1(const ArgumentLimbType &data, LoadType &load) {
 		const BucketHashType bid = HashFkt(data);
 		const BucketIndexType boffset = bid * size_b;   // start index of the bucket in the internal data structure
 
 		// Depend on how we encoded the load parameter, read it.
-		if constexpr(SPECIAL_LOAD_DECODING_SWITCH1) {
+		if constexpr(SPECIAL_LOAD_DECODING_SWITCH) {
 			// IMPORTANT: threads not implemented.
 			// Note that this approach is slower
 			load = get_decoded_load1(bid*size_b + 0);
@@ -1275,21 +1258,20 @@ public:
 		// fastpath. Meaning that there was nothing to sort on.
 		if constexpr (b2 == b1) {
 			if (load != 0) {
-				// Prefetch data. The idea is that we know that in the special where we dont have to sort every element
-				// in the bucket is a match. So we preload it, if the whole bucket fits into one cacheline.
-				//if constexpr(size_b < MAXLOAD_SWITCH) {
-				//	__builtin_prefetch(__buckets.data() + boffset, 0 , 0);
-				//}
+				// Prefetch data. The idea is that we know that in the special case where we dont have to sort, every element
+				// in the bucket is a match.
+				if constexpr(USE_PREFETCH_SWITCH) {
+					__builtin_prefetch(__buckets.data() + boffset, 0 , 0);
+				}
 
 				// Check if the last element is really not a -1.
-				// NOTE: this check makes propably no sense after a few runs of the algorithm.
+				// NOTE: this check makes probably no sense after a few runs of the algorithm.
 				// ASSERT(__buckets[boffset + load - 1].first != ArgumentLimbType(-1));
 
 				load += boffset;
 				return boffset;
 			}
 
-			// Note the implicit type cast
 			return -1;
 		}
 
@@ -1303,7 +1285,6 @@ public:
 		// on huge arrays with huge bucket size is maybe a good idea to switch to interpolation search
 		if constexpr(INTERPOLATIONSEARCH_SWITCH) {
 			// if this switch is enabled, we are doing an interpolation search.
-			// return InterpolationSearch(data, boffset, load);
 			auto r = lower_bound_interpolation_search2(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
 			                                           [](const BucketEntry &e1) -> ArgumentLimbType {
 				                                           return (e1.first & mask2)>>b1; // See note std::lower_bound
@@ -1317,7 +1298,7 @@ public:
 		}
 
 		// on huge arrays with small bucket size it's maybe a good idea to switch on linear search.
-		if constexpr(LINEAREARCH_SWITCH) {
+		if constexpr(LINEARSEARCH_SWITCH) {
 			BucketIndexType pos = boffset;
 			ASSERT(pos < load);
 
@@ -1395,10 +1376,6 @@ public:
 		pos += 1;
 		if (a != b)
 			pos = IndexType(-1);
-
-//		if (b == ArgumentLimbType(-1))
-//			pos = IndexType(-1);
-
 		return ret;
 	}
 
@@ -1406,10 +1383,6 @@ public:
 	void traverse_drop(const ArgumentLimbType &data, IndexType &pos, IndexType *npos, const LoadType &load) {
 		ASSERT(npos != nullptr && pos < load);
 		memcpy(&npos[lvl], __buckets[pos].second.data(), ctr * sizeof(IndexType));
-//		if (npos[0] == IndexType(-1)){
-//			print(hash(data), 100);
-//		}
-
 		ASSERT(npos[0] != IndexType(-1) && npos[1] != IndexType(-1) && npos[2] != IndexType(-1) && npos[3] != IndexType(-1));
 
 		if (pos >= (load-1)) {
@@ -1667,509 +1640,6 @@ public:
 		uint64_t ret = sizeof(BucketEntry) * __buckets.size();
 		ret += sizeof(LoadType) * buckets_load.size();
 		ret += sizeof(LoadType) * acc_buckets_load.size();
-		return ret;
-	}
-};
-
-template<const ConfigParallelBucketSort &config,
-		class ExternalList,
-        typename ArgumentLimbType,                      // container of the `l`-part
-		typename ExternalIndexType,                     // container of the indices which point into the baselists
-		ArgumentLimbType (* HashFkt)(ArgumentLimbType),         // hash function, the output is needed to work as a bucket index
-		ArgumentLimbType (* HashSearchFkt)(ArgumentLimbType)>   // similar as the Hashfkt but with the difference its only used for search, so can be further simplified
-	requires HashMapListAble<ExternalList> &&
-	        std::is_integral<ArgumentLimbType>::value &&
-			std::is_integral<ExternalIndexType>::value
-class ParallelLockFreeBucketSort {
-public:
-	/// nomenclature:
-	///		bid = bucket id
-	///		tid = thread id
-	///		nri	= number of indices
-	///		nrt = number of threads
-	///		nrb = number of buckets
-	typedef typename ExternalList::ElementType                      Element;
-	typedef typename ExternalList::LabelType                        Label;
-	typedef typename ExternalList::ValueType                        Value;
-	typedef typename ExternalList::LabelContainerType               LabelContainerType;
-	typedef ArgumentLimbType T;
-	typedef ArgumentLimbType H;
-	typedef ExternalIndexType IndexType;
-	typedef ExternalList List;
-
-private:
-	/// Memory Layout of a bucket entry.
-	/// 	The first 64/128 (depending on `ArgumentLimbType`) bit are used for the `l` part of the label. Thereafter called
-	/// 	`data`. Each data chunk is split at the position `b1`. The bits [b0,..., b1) are used as the `hash` function
-	/// 	for each bucket. Whereas the bits [b1, ..., b2) are used so sort each element within each bucket.
-	/// 	The indices i1, ..., i4 (actually only `nri` are saved.) are used as pointers (list positions) to he 4 baselists L1, ..., L4.
-	///   L1        L2        L3        L4
-	/// ┌─────┐   ┌─────┐   ┌─────┐   ┌─────┐
-	/// │     │   │     │   │     │   │     │
-	/// │     │   │     │   │     │   │     │
-	/// │     │◄┐ │     |◄─┐|     │◄─┐|     │◄┐
-	/// │     │ │ │     │  ││     │  ││     │ │
-	/// │     │ │ │     │  ││     │  ││     │ │
-	/// └─────┘ │ └─────┘  │└─────┘  │└─────┘ │
-	///         │          └────┐    │        │
-	///         │               │    │        │
-	///         └────────────┐  │    │    ┌───┘
-	///     b0    b1  b2     │  │    │    │ align + 4*32
-	/// ┌────┬─────┬───┬───┬─┴─┬┴──┬─┴─┬──┴┐
-	/// │    │     │   |   │   │   │   │   │
-	/// │     DATA         │ i1│ i2│ i3│ i4│
-	/// │    │     │   |   │   │   │   │   │
-	/// └────┴─────┴───┴───┴───┴───┴───┴───┘
-	constexpr static uint16_t b0 = config.b0;
-	constexpr static uint16_t b1 = config.b1;
-	constexpr static uint16_t b2 = config.b2;
-
-	/// returns the number of indices needed to archive alignment
-	/// \param i 					= nri
-	/// \param alignment			= 128, alignment in bits
-	/// \param sizeofindicesinbytes	= 32
-	/// \return	number of indicies to archive alignment
-	constexpr static uint32_t BucketAlignment(const uint32_t i, const uint32_t alignment,
-											  const uint32_t sizeofindicesinbytes, const uint32_t sizeofarginbytes) {
-		const uint32_t bytes  = i * sizeofindicesinbytes;
-		const uint32_t bytes2 = ((bytes + alignment - 1)/alignment)*alignment;
-		const uint32_t Anri   = (bytes2-sizeofarginbytes)/sizeofindicesinbytes;
-		if (Anri == 0)
-			return i;
-		if (Anri < i)
-			return BucketAlignment(i, 2*alignment, sizeofindicesinbytes, sizeofarginbytes);
-		return Anri;
-	}
-
-	constexpr static bool ALIGNMENT_SWITCH  = false;
-	constexpr static uint64_t ALIGNMENT     = 64;
-	constexpr static uint64_t nrb           = config.nr_buckets;
-	constexpr static uint32_t nrt           = config.nr_threads;
-	constexpr static uint32_t nri           = config.nr_indices;
-	// Aligned number of indices.
-	constexpr static uint32_t Anri       = ALIGNMENT_SWITCH ? BucketAlignment(nri, ALIGNMENT, sizeof(IndexType)*8, sizeof(ArgumentLimbType)*8) : nri;
-
-	constexpr static uint64_t size_b     = config.bucket_size; // size of each bucket
-	constexpr static uint64_t size_t     = size_b / nrt;       // size of each bucket which is accessible by one thread.
-	constexpr static uint64_t chunks     = nrb / nrt;          // how many buckets must each thread sort or reset.
-	constexpr static uint64_t chunks_size= chunks * size_b;
-
-public:
-	// We choose the optimal data container for every occation.
-	// This is the Type which is exported to the outside and denotes the maximum number of elements a bucket can hold.
-	// Must be the same as IndexType, because `load` means always an absolute position within the array.
-	using LoadType          = IndexType;
-	// In contrast to `LoadType` this type does not include the absolute position within the array, but only the
-	// relative within the bucket. Can be smaller than `IndexType`
-	using LoadInternalType  = TypeTemplate<size_b>;
-	// Number of bits needed to hold a hash
-	using BucketHashType    = TypeTemplate<uint64_t(1) << (config.b1-config.b0)>;
-	using BucketIndexType   = TypeTemplate<nrb * size_b>;
-	// Main data container
-	using BucketIndexEntry  = std::array<IndexType, Anri>;
-	using BucketEntry       = std::pair<ArgumentLimbType, BucketIndexEntry>;
-
-private:
-	// precompute the compare masks and limbs
-	constexpr static ArgumentLimbType lmask1    = (~((ArgumentLimbType(1) << b0) - 1));
-	constexpr static ArgumentLimbType rmask1    = ((ArgumentLimbType(1) << b1) - 1);
-	constexpr static ArgumentLimbType mask1     = lmask1 & rmask1;
-
-	// masks for the [b1, b2] part
-	constexpr static ArgumentLimbType lmask2        = (~((ArgumentLimbType(1) << b1) - 1));
-	constexpr static ArgumentLimbType rmask2        = ((ArgumentLimbType(1) << b2) - 1);
-	constexpr static ArgumentLimbType mask2         = lmask2 & rmask2;
-	constexpr static ArgumentLimbType highbitmask   = ArgumentLimbType(1) << (sizeof(ArgumentLimbType)*8-1);
-	constexpr static ArgumentLimbType sortrmask2    = ((ArgumentLimbType(1) << (b2 + config.lvl)) - 1) | highbitmask;
-
-	// idea use the leftover space in one `ArgumentLimbType` to store the load.
-	// 0      l      align
-	// | data | load | index1 | index2 |
-	// NOTE:    Cacheline = 64Byte
-	constexpr static uint32_t MAXLOAD_SWITCH = 64/sizeof(ArgumentLimbType);
-
-	// NOTE: Currently permanently disabled.
-	constexpr static bool SPECIAL_LOAD_DECODING_SWITCH1         = false;//((BitSizeArgumentLimbType - b2) >= (1+BitSizeLoadInternalType)) && size_b < MAXLOAD_SWITCH;
-	constexpr static uint32_t BitSizeArgumentLimbType           = sizeof(ArgumentLimbType)*8;
-	constexpr static uint32_t BitSizeLoadInternalType           = sizeof(LoadInternalType)*8;
-	constexpr static uint32_t DecodedLoadOffset                 = BitSizeArgumentLimbType - BitSizeLoadInternalType;
-	constexpr static uint32_t DecodedLoadCheckOffset            = BitSizeArgumentLimbType - BitSizeLoadInternalType -1;
-	constexpr static ArgumentLimbType DecodedLoadCheckBitMask   = ArgumentLimbType(1) << (BitSizeArgumentLimbType - BitSizeLoadInternalType - 1);
-	constexpr static ArgumentLimbType DecodedLoadMask           = ~((ArgumentLimbType(1) << DecodedLoadOffset) - 1) ;
-	constexpr static ArgumentLimbType DecodedLoadCheckMask      = ~((ArgumentLimbType(1) << DecodedLoadCheckOffset) - 1) ;
-
-	inline LoadInternalType get_decoded_load1(const BucketIndexType bucket_offset) {
-		// Note implicit cast here, if
-		return (__buckets[bucket_offset].first & DecodedLoadMask) >> DecodedLoadOffset;
-	}
-	inline ArgumentLimbType get_decoded_loadcheck1(const BucketIndexType bucket_offset) {
-		return (__buckets[bucket_offset].first & DecodedLoadCheckMask) >> DecodedLoadCheckOffset;
-	}
-
-	// DO NOT USE IT.
-	constexpr static bool STDBINARYSEARCH_SWITCH        = config.STDBINARYSEARCH_SWITCH;
-
-	// replace binary search with smarter interpolation search
-	constexpr static bool INTERPOLATIONSEARCH_SWITCH    = config.INTERPOLATIONSEARCH_SWITCH;
-
-	// switch to a linear search instead of binary/interpolation in special cases.
-	constexpr static bool LINEAREARCH_SWITCH            = config.LINEAREARCH_SWITCH;
-
-	// if set to true an additional mem fetch the load array will be made.
-	constexpr static bool USE_LOAD_IN_FIND_SWITCH       = config.USE_LOAD_IN_FIND_SWITCH;
-
-	// if set to true most of the load/write instruction will be replaced with instructions which to not touch a cache
-	// NOTE: each l-window entry of the data vector MUST at least 8 Byte aligned
-	constexpr static bool CACHE_STREAM_SWITCH           = false;
-
-	// Indyk Motwani Nearest Neighbor Search:
-	// How many additional l windows should this hashmap hold?
-	constexpr static bool IM_SWITCH         = config.IM_nr_views != 0;
-	constexpr static uint32_t IM_nr_views   = config.IM_nr_views;
-
-	// nr of bits of each view
-	constexpr static uint32_t IM_bits_view  = b1;
-	constexpr static uint32_t IM_bits       = IM_bits_view*IM_nr_views;
-
-	inline uint64_t bucket_offset(const uint32_t tid, const BucketHashType bid) {
-		ASSERT(bid < nrb && tid < nrt);
-		const uint64_t r = bid * size_b + tid * size_t;
-		ASSERT(r < nrb * size_b);
-		ASSERT(size_t <= size_b);
-		return r;
-	}
-
-	// TODO idea: Speed things up indem wir die load kopieren in ein neues array ohne locks. Damit wird find schneller.
-	// ONLY CALL THIS FUNCTION TO CALCULATE THE OVERALL LOAD OF THE HM/ NEVER USE IT TO INSERT AN ELEMENT
-	inline LoadType get_bucket_load(const BucketHashType bid) {
-		ASSERT(bid < nrb);
-		return std::min(std::size_t(__buckets_load[bid].load()), std::size_t(size_b));
-	}
-
-	// increments the bucket load by one, and return the old value
-	inline LoadType inc_bucket_load(const BucketHashType bid) {
-		ASSERT(bid < nrb);
-
-		// So is all takes all the magic place. So basically we want to return and unique position where the callee
-		// function can save its element.
-		// We have to take care that we are not overloading the buckets
-#if __cplusplus > 201709L
-        // This is like super stupid. Fucking apple...
-		return __buckets_load[bid].fetch_add(1, std::memory_order::relaxed);
-#else
-        return __buckets_load[bid].fetch_add(1);
-#endif
-	}
-
-public:
-	// TODO im single threaded fall den atomic datentyp weg
-	// Datacontainers
-	alignas(PAGE_SIZE) std::array<BucketEntry, nrb*size_b>            __buckets;
-	alignas(PAGE_SIZE) std::array<std::atomic<LoadInternalType>, nrb> __buckets_load;
-
-	ParallelLockFreeBucketSort() {
-		// TODO static asserts
-
-		if constexpr(IM_SWITCH) {
-			// Explanation:
-			//  Additionally to the l bits on which the MMT algorithm normally matches in the last lvl, we save
-			//  `nr_IM_views` distinct such views. So essentially each `ArgumentLimbType` holds in fact l1 + `nr_IM_views` * l2
-			// bits of a label. Or to put it more easily the last  l1 + `nr_IM_views` * l2 bits of each label
-			// is copied inside.
-			static_assert((IM_nr_views * IM_bits_view) <= 64);
-		}
-
-		if ((1 << (b2 - b1)) / nrb > size_b)
-			std::cout << "WHAT DOES THIS MEAN???\n";
-
-		reset();
-	}
-
-	// the case above but using an extractor and a hasher
-	template<class Extractor>
-	void hash(const List &L, const std::size_t load, const uint32_t tid, Extractor e) {
-		ASSERT(tid < config.nr_threads);
-
-		const std::size_t s_tid = L.start_pos(tid);
-		const std::size_t e_tid = s_tid + load;
-
-		ArgumentLimbType data;
-		IndexType pos[1];
-		for (std::size_t i = s_tid; i < e_tid; ++i) {
-			data = e(L.data_label(i));
-			pos[0] = i;
-			insert(data, pos, tid);
-		}
-	}
-
-	/// \param data l part of the label IMPORTANT MUST BE ONE LIMB
-	/// \param pos	pointer to the array which should be copied into the internal data structure to loop up elements in the baselists
-	/// \param tid	thread_id
-	uint32_t insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) {
-		ASSERT(tid < config.nr_threads);
-		const BucketHashType bid = HashFkt(data);
-
-		// At this point we uniquely locked the "load" position for the elements
-		const LoadType load      = inc_bucket_load(bid);
-
-		// Already full
-		if (size_t <= load) {
-			return 0;
-		}
-
-		const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
-
-		__buckets[bucketOffset].first = data;
-		memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
-		return 1;
-	}
-
-	// returns -1 on error/nothing found. Else the position.
-	// IMPORTANT: load` is the actual load + bid*size_b
-	BucketIndexType find(const ArgumentLimbType &data, LoadType &load) {
-		const BucketHashType bid      = HashFkt(data);
-		const BucketIndexType boffset = bid * size_b;   // start index of the bucket in the internal data structure
-
-		// Depend on how we encoded the load parameter, read it.
-		if constexpr(SPECIAL_LOAD_DECODING_SWITCH1) {
-			// IMPORTANT: threads not implemented.
-			// Note that this approach is slower
-			load = get_decoded_load1(bid*size_b + 0);
-		} else {
-			// last index within the bucket.
-			// IMPORTANT: Note that we need the full bucket load and not just
-			// the load of a bucket for a thread.
-			if constexpr ((b1 == b2) || USE_LOAD_IN_FIND_SWITCH) {
-				load = get_bucket_load(bid);
-			} else {
-				load = size_b;
-			}
-		}
-
-		ASSERT(bid < nrb && boffset < nrb * size_b && load < nrb * size_b);
-
-		// fastpath. Meaning that there was nothing to sort on.
-		if constexpr (b2 == b1) {
-			if (load != 0) {
-				// Prefetch data. The idea is that we know that in the special where we dont have to sort every element
-				// in the bucket is a match. So we preload it, if the whole bucket fits into one cacheline.
-				//if constexpr(size_b < MAXLOAD_SWITCH) {
-				//	__builtin_prefetch(__buckets.data() + boffset, 0 , 0);
-				//}
-
-				// Check if the last element is really not a -1.
-				// NOTE: this check makes propably no sense after a few runs of the algorithm.
-				ASSERT(__buckets[boffset + load - 1].first != ArgumentLimbType(-1));
-
-				load += boffset;
-				return boffset;
-			}
-
-			return -1;
-		}
-
-		// Second fastpath.
-		if (load == 0) { return -1; }
-		load += boffset;
-
-		constexpr static BucketIndexEntry dummy = {{0}};
-		BucketEntry data_target(data, dummy);
-
-		// on huge arrays with small bucket size it's maybe a good idea to switch on linear search.
-		if constexpr(LINEAREARCH_SWITCH) {
-			BucketIndexType pos = boffset;
-			ASSERT(pos < load);
-
-			const ArgumentLimbType data2 = data&mask2;
-			while((__buckets[pos].first&mask2) != data2) {
-				pos += 1;
-			}
-
-			if (pos == load)
-				return -1;
-
-			ASSERT(pos < load);
-			return pos;
-		}
-
-		// TODO simplifu the search, by using the hash function.
-		// if every other search function is not adaptable go back to the good old binary search.
-		typename std::array<BucketEntry, nrb*size_b>::iterator r;
-		if constexpr(STDBINARYSEARCH_SWITCH) {
-			//fallback implementation: binary search.
-			r = std::lower_bound(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			                          [](const auto &e1, const auto &e2) {
-	              // well this is actually not completely correct. This checks on the lowest b2 bits. But actually
-	              // it should check on the bits [b1, b2].
-	              return (e1.first & mask2) < (e2.first & mask2);
-	          }
-			);
-		} else {
-			r = lower_bound_monobound_binary_search(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-                 [](const BucketEntry &e1) -> ArgumentLimbType {
-                     return e1.first & mask2;
-                 }
-			);
-		}
-
-		if (r == (__buckets.begin() + load)) return -1;
-		const BucketIndexType pos = distance(__buckets.begin(), r);
-		if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
-
-		ASSERT(pos < load);
-		return pos;
-	}
-
-	// Diese funktion muss
-	//  - npos anpassen
-	//  - pos danach inkrementieren.
-	/// this function traverses from a given position until the value [b1, b2] changes. This is done by
-	///		first: copy the current positions array into the output array `npos`
-	/// \tparam lvl the starting point from which `npos` is copied from.
-	/// \tparam ctr how many elements are copied.
-	/// \param pos	current position of a match on the coordinates [b1, ..., b2) between `data` and __buckets[pos].first
-	/// \param npos	output array if length `nri`
-	/// \return
-	template<uint8_t lvl, uint8_t ctr>
-	ArgumentLimbType traverse(const ArgumentLimbType &data, IndexType &pos, IndexType *npos, const LoadType &load) {
-		ASSERT(lvl < 4 && npos != nullptr && pos < load);
-		if (pos >= (load-1)) {
-			pos = IndexType(-1);
-			return pos;
-		}
-
-		// This memcpy copies the indices (= positions of elements within the baselist) into the output array `npos`
-		// the position and length of what needs to be copies is specified by the template parameters `lvl` and `ctr`.
-		// Whereas `lvl` specifies the starting position of the memcpy and `ctr` the length.
-		memcpy(&npos[lvl], __buckets[pos].second.data(), ctr * sizeof(IndexType));
-		ASSERT(npos[0] != IndexType(-1) && npos[1] != IndexType(-1));
-
-		const ArgumentLimbType ret = data ^__buckets[pos].first;
-
-		// check if the next element is still the same.
-		const ArgumentLimbType a = __buckets[pos    ].first & rmask2;
-		const ArgumentLimbType b = __buckets[pos + 1].first & rmask2;
-
-		pos += 1;
-		if (a != b)
-			pos = IndexType(-1);
-
-//		if (b == ArgumentLimbType(-1))
-//			pos = IndexType(-1);
-
-		return ret;
-	}
-
-	template<uint8_t lvl, uint8_t ctr>
-	void traverse_drop(const ArgumentLimbType &data, IndexType &pos, IndexType *npos, const LoadType &load) {
-		ASSERT(npos != nullptr && pos < load);
-		memcpy(&npos[lvl], __buckets[pos].second.data(), ctr * sizeof(IndexType));
-//		if (npos[0] == IndexType(-1)){
-//			print(hash(data), 100);
-//		}
-
-		ASSERT(npos[0] != IndexType(-1) && npos[1] != IndexType(-1) && npos[2] != IndexType(-1) && npos[3] != IndexType(-1));
-
-		if (pos >= (load-1)) {
-			pos = IndexType(-1);
-			return;
-		}
-
-		ArgumentLimbType a = __buckets[pos    ].first & rmask2;
-		ArgumentLimbType b = __buckets[pos + 1].first & rmask2;
-		pos += 1;
-		if (a != b)
-			pos = IndexType(-1);
-	}
-
-	/// IMPORTANT: Only call this function by exactly one thread.
-	void reset() {
-		// for instructions please read the comment of the function `void reset(const uint32_t tid)`
-		memset(__buckets_load.data(), 0, nrb * nrt * sizeof(LoadInternalType));
-		memset(__buckets.data(), -1, nrb * size_b * sizeof(BucketEntry));
-	}
-
-	/// Each thread resets a number of blocks
-	void reset(const uint32_t tid) {
-		ASSERT(tid < nrt);
-		ASSERT((tid * chunks_size) < (nrb*size_b));
-
-		memset((void *) (uint64_t(__buckets_load.data()) + (tid * nrb * sizeof(LoadInternalType))),
-		       0, nrb * sizeof(LoadInternalType));
-
-		// We do not have to reset the accumulated load array nor the buckets, because we don't depend on the
-		// data written there in the case were we have multiple threads. Only in the case were we have to go into the sorting
-		// function we have to reset the buckets.
-		if constexpr((b2 != b1) && (nrt != 1)){
-			memset((void *) (uint64_t(__buckets.data()) + (tid * chunks_size * sizeof(BucketEntry))),
-			       -1, chunks_size * sizeof(BucketEntry));
-		}
-	}
-
-	/// \param a
-	void printbinary(ArgumentLimbType a) {
-		print128(a, 128, 128);
-	}
-
-	/// \param a
-	/// \param l1
-	/// \param l2
-	void print128(__uint128_t a, const uint16_t l1, const uint16_t l2) {
-		const ArgumentLimbType mask = 1;
-		for (uint16_t i = 0; i < 128; ++i) {
-			if (a & mask) {
-				std::cout << "1";
-			} else {
-				std::cout << "0";
-			}
-			a >>= 1;
-			if ((i == l1 - 1) || (i == l2 - 1))
-				std::cout << " ";
-		}
-	}
-
-	/// \param bid
-	void print(uint64_t bid=-1) {
-		const uint64_t sbid = bid == -1 ? 0 : bid;
-		const uint64_t ebid = bid == -1 ? nrb : bid+1;
-		for (uint64_t i = sbid; i < ebid; ++i) {
-			std::cout << "Bucket: " << i << "\n";
-			for (uint64_t j = 0; j < size_b; ++j) {
-				uint64_t pos = i*size_b + j;
-
-				printbinary(__buckets[pos].first);
-				std::cout << ", " << __buckets[pos].second[0] << "\n";
-				//std::cout << __buckets[pos].first << ", " << __buckets[pos].second[0] << "\n";
-			}
-		}
-	}
-
-	// returns the load summed over all buckets
-	uint64_t load() {
-		uint64_t load = 0;
-
-		if (omp_get_thread_num() == 0) {
-
-#pragma omp critical
-			{
-				for (uint64_t _nrb = 0; _nrb < nrb; ++_nrb) {
-					load += get_bucket_load(_nrb);
-				}
-			}
-		}
-
-#pragma omp barrier
-		return load;
-	}
-
-	// Returns the number of total elements
-	uint64_t size() {
-		return size_b*nrb;
-	}
-
-	uint64_t bytes() {
-		uint64_t ret = sizeof(BucketEntry) * __buckets.size();
-		ret += sizeof(LoadType) * __buckets_load.size();
 		return ret;
 	}
 };

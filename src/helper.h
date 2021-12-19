@@ -266,7 +266,7 @@ static void check_huge_page(void* ptr) {
 	}
 }
 
-///
+/// tries to alloc a huge page.
 /// \param size
 void*  cryptanalysislib_hugepage_malloc(const size_t size) {
 	const size_t nr_pages = (size+HPAGE_SIZE-1)/HPAGE_SIZE;
@@ -305,7 +305,7 @@ void constexpr_for(F func) {
 	constexpr_for(func, std::make_index_sequence<N>());
 }
 
-///
+/// jeah complex meta programming. My approach to have something like a constexpr loop.
 /// \tparam for_start
 /// \tparam for_end
 /// \tparam ret
@@ -468,8 +468,8 @@ constexpr int64_t cceil(double num) {
 }
 
 /// Binomial coefficient
-/// \param nn
-/// \param kk
+/// \param nn n over k
+/// \param kk n over k
 /// \return nn over kk
 __device__ __host__
 constexpr inline uint64_t bc(uint64_t nn, uint64_t kk) noexcept {
@@ -485,7 +485,7 @@ constexpr inline uint64_t bc(uint64_t nn, uint64_t kk) noexcept {
 /// Sumer over all binomial coefficients nn over i, with i <= kk
 /// \param nn
 /// \param kk
-/// \return
+/// \return \sum n over i
 constexpr uint64_t sum_bc(uint64_t nn, uint64_t kk) {
 	uint64_t sum = 0;
 	for (uint64_t i = 1; i <= kk; ++i) {
@@ -813,7 +813,7 @@ public:
 
 	///
 	/// \tparam k_lower		lower coordinate to extract
-	/// \tparam k_higher 	higher coordinate (nit included) to exctract
+	/// \tparam k_higher 	higher coordinate (nit included) to extract
 	/// \tparam flop		if == 0 : nothing happens
 	/// 					k_lower <= flip <= k_higher:
 	///							exchanges the bits between [k_lower, ..., flip] and [flip, ..., k_upper]
@@ -881,11 +881,14 @@ public:
 		return extract<k_lower, k_higher, flip>(v.ptr());
 	}
 
-	///
-	/// \tparam k_lower
-	/// \tparam k_higher
-	/// \param v
-	/// \return
+	/// \tparam k_lower		lower coordinate to extract
+	/// \tparam k_higher 	higher coordinate (nit included) to extract
+	/// \tparam flop		if == 0 : nothing happens
+	/// 					k_lower <= flip <= k_higher:
+	///							exchanges the bits between [k_lower, ..., flip] and [flip, ..., k_upper]
+	/// \param v1
+	/// \param v3
+	/// \return				v on the coordinates between [k_lower] and [k_higher]
 	template<uint32_t k_lower, uint32_t k_higher, uint32_t flip=0>
 	static __FORCEINLINE__ ArgumentLimbType extract(const ContainerLimbType *v) {
 		static_assert(k_lower < k_higher);

@@ -557,9 +557,8 @@ private:
 
 /// nearly the same as
 ///		 `Parallel_List_T`
-/// with the small difference that the label sortable, by adding index pointers at the end of each value
 /// \tparam Element
-template<class Element>
+template<class Element, uint32_t nri>
     requires ListAble<Element>
 class Parallel_List_IndexElement_T {
 private:
@@ -586,36 +585,29 @@ public:
 	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
 	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
 
+	using IndexType = std::array<uint32_t, nri>;
+	using InternalElementType = std::pair<LabelType, IndexType>;
+
 	~Parallel_List_IndexElement_T() {}
 
-	explicit Parallel_List_IndexElement_T(const uint32_t size, const uint32_t threads, const uint32_t thread_block2) {
-		__data_value.resize(size);
-		__data_label.resize(size);
+	explicit Parallel_List_IndexElement_T(const size_t size, const uint32_t threads, const size_t thread_block2) {
+		__data.resize(size);
 		nr_elements = size;
 		thread_block = thread_block2;
 		threads1 = threads;
 	}
 
-	constexpr uint64_t size() const { return nr_elements; }
+	///
+	constexpr size_t size() const { return nr_elements; }
 
-	inline ValueType* data_value(){ return __data_value; }
-	inline const ValueType* data_value() const { return __data_value; }
-	inline LabelType* data_label(){ return __data_label; }
-	inline const LabelType* data_label() const { return __data_label; }
-
-	inline ValueType& data_value(const uint32_t i){  ASSERT(i < nr_elements); return __data_value[i]; }
-	inline const ValueType& data_value(const uint32_t i) const { ASSERT(i < nr_elements); return __data_value[i]; }
-	inline LabelType& data_label(const uint32_t i){ ASSERT(i < nr_elements); return __data_label[i]; }
-	inline const LabelType& data_label(const uint32_t i) const { ASSERT(i < nr_elements); return __data_label[i]; }
+	inline LabelType& data_label(const uint32_t i){ ASSERT(i < nr_elements); return __data[i].first; }
+	inline const LabelType& data_label(const uint32_t i) const { ASSERT(i < nr_elements); return __data[i].first; }
 
 	// returning the range in which one thread is allowed to operate
-	inline uint64_t start_pos(const uint32_t tid) { ASSERT(tid < threads1); return tid * thread_block; };
-	inline uint64_t end_pos(const uint32_t tid) { ASSERT(tid < threads1); return (tid+1) * thread_block; };
+	inline size_t start_pos(const uint32_t tid) const { ASSERT(tid < threads1); return tid * thread_block; };
+	inline size_t end_pos(const uint32_t tid) const { ASSERT(tid < threads1); return (tid+1) * thread_block; };
 
-	// returning the start pointer for each thread
-	inline LabelType* start_label_ptr(const uint32_t tid) { return &__data_label[start_pos(tid)]; };
-
-	inline Parallel_List_IndexElement_T<Element>& operator=(const Parallel_List_IndexElement_T<Element>& other) {
+	inline Parallel_List_IndexElement_T& operator=(const Parallel_List_IndexElement_T& other) {
 		// Guard self assignment
 		if (this == &other)
 			return *this;
@@ -624,8 +616,7 @@ public:
 		thread_block = other.thread_block;
 		threads1 = other.threads;
 
-		memcpy(__data_value, other.data(), nr_elements*sizeof(ValueType));
-		memcpy(__data_label, other.data(), nr_elements*sizeof(LabelType));
+		memcpy(__data, other.data(), nr_elements*sizeof(InternalElementType));
 		return *this;
 	}
 
@@ -636,11 +627,9 @@ public:
 		const std::size_t s = tid*in.threads1;
 		const std::size_t c = ((tid == in.threads1 - 1) ? in.thread_block : in.nr_elements- (in.threads1-1)*in.thread_block);
 
-		memcpy(out.__data_value+s, in.__data_value+s, c*sizeof(ValueType));
-		memcpy(out.__data_label+s, in.__data_value+s, c*sizeof(LabelType));
+		memcpy(out.__data+s, in.__data+s, c*sizeof(InternalElementType));
 	}
 
-	/// TODO IMPLEMEMT
 	/// \param l
 	/// \param j
 	/// \param tid
@@ -648,13 +637,33 @@ public:
 		ASSERT(0 && "not implemented\n");
 	}
 
-private:
-	uint64_t thread_block;
-	uint64_t nr_elements;
-	uint64_t threads1;
+	/// TODO describe
+	/// \param l1
+	/// \param l2
+	/// \param i2
+	/// \param i2
+	/// \param load
+	/// \param tid
+	inline void add_and_append(const LabelType &l1, const LabelType &l2,
+	                    const uint32_t i1, const uint32_t i2,
+	                    uint64_t &load, const uint32_t tid) noexcept{
+		ASSERT(tid < threads1);
 
-	alignas(PAGE_SIZE) std::vector<ValueType> __data_value;
-	alignas(PAGE_SIZE) std::vector<LabelType> __data_label;
+		if (load >= thread_block)
+			return;
+
+		LabelType::add(__data[start_pos(tid) + load].first, l1, l2);
+		__data[start_pos(tid) + load].second[0] = i1;
+        __data[start_pos(tid) + load].second[1] = i2;
+        load += 1;
+	}
+public:
+	size_t thread_block;
+	size_t nr_elements;
+	uint32_t threads1;
+
+
+	alignas(PAGE_SIZE) std::vector<InternalElementType> __data;
 };
 
 template<class Element>
