@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <vector>
+#include <iterator>
 
 #include "helper.h"
 
@@ -225,7 +226,6 @@ uint64_t breaking_linear_search(T *array, uint64_t array_size, T key) {
 	}
 
 	while (--top) {
-
 		if (key >= array[top]) {
 			break;
 		}
@@ -372,7 +372,7 @@ uint64_t doubletapped_binary_search(T *array, uint64_t array_size, T key) {
 }
 
 template<typename ForwardIt, typename T, typename Hash>
-ForwardIt upper_bound_monobound_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash hash) {
+ForwardIt upper_bound_monobound_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
 	auto count = std::distance(first, last);
 	const auto key = h(key_);
 	auto bot = first;
@@ -383,30 +383,39 @@ ForwardIt upper_bound_monobound_binary_search(ForwardIt first, ForwardIt last, c
 		return last;
 
 	while(count > 1) {
-		// std::advance(mid, -count/2);
 		const auto midc = count/2;
 		it = bot;
+
 		std::advance(it, midc);
 		if (key >= h(*it)) {
 			std::advance(bot, midc);
 		}
 
 		std::advance(top, -midc);
-		count = std::distance(bot, top);
+		count = std::distance(first, top);
 	}
 		
 	if (key == h(*bot))
 		return bot;
-	return last;
+
+	return bot;
 }
 
-//TODO not working
+///
+/// \tparam ForwardIt
+/// \tparam T
+/// \tparam Hash
+/// \param first
+/// \param last
+/// \param key_
+/// \param h
+/// \return
 template<typename ForwardIt, typename T, typename Hash>
 ForwardIt lower_bound_monobound_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
 	auto count = std::distance(first, last);
 	const auto key = h(key_);
 	auto bot = first;
-	auto  it = first;
+	auto  it = last;
 	auto top = last;
 	std::advance(top, -1);
 
@@ -416,24 +425,25 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first, ForwardIt last, c
 	while(count > 1) {
 		const auto mid = count/2;
 		it = top;
-		std::advance(it, -mid);
 
+		std::advance(it, -mid);
 		if (key <= h(*it)) {
 			std::advance(top, -mid);
 		}
+
 		std::advance(bot, mid);
-		count = std::distance(bot, top);
+		count = std::distance(bot, last);
 	}
 
 	if (key == h(*top))
 		return top;
 
-	return last;
+	return top;
 }
 
 // faster than the boundless binary search, more checks
 template<typename T>
-uint64_t monobound_binary_search(T *array, uint64_t array_size, T key) {
+uint64_t monobound_binary_search(T *array, size_t array_size, T key) {
 	uint64_t bot, mid, top;
 
 	if (array_size == 0) {
@@ -545,50 +555,13 @@ uint64_t monobound_quaternary_search(T *array, uint64_t array_size, T key) {
 }
 
 
-
 template<class ForwardIt, class T, class Hash>
 ForwardIt upper_bound_monobound_interpolated_search(ForwardIt first, ForwardIt last, T &key_, Hash h) {
 
 }
 
 
-// TODO not finished implemented
-// requires an even/uniform distribution
-// do not need a comparison operator
-// sorted in increasing order
-template<class ForwardIt, class T, class Hash>
-ForwardIt lower_bound_monobound_interpolated_search(ForwardIt first, ForwardIt last, T &key_, Hash h) {
-	typename std::iterator_traits<ForwardIt>::difference_type count, step, array_size;
-	array_size = std::distance(first, last);
-	count = array_size;
-	step = 1;
-
-	// This is stupid.
-	ForwardIt llast = last;
-	std::advance(llast, -1);
-
-	const T key = h(key_);
-	//unsigned int mid, top;
-	int min, max;
-
-	if (array_size == 0) {
-		return last;
-	}
-
-	if (key < h(*first)) {
-		return last;
-	}
-
-	ForwardIt bot = first;
-	min = h(*first);
-	max = h(*llast);
-	ASSERT(min <= max);
-
-	//std::advance(bot, (bot*(float) (key - min) / (max - min)));
-	return last;
-}
-
-template<typename ForwardIt, typename T, typename Hash>	
+template<typename ForwardIt, typename T, typename Hash>
 ForwardIt upper_bound_adaptive_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
 	static uint64_t balance;
 	static ForwardIt i = first;
@@ -671,127 +644,109 @@ adaptive_binary_search_monobound:
 }
 
 
-//
-//// requires in order sequential access
-//template<class ForwardIt, class T, class Compare>
-//ForwardIt lower_bound_adaptive_binary_search(ForwardIt first, ForwardIt last, T &key, Compare compare) {
-//	typename std::iterator_traits<ForwardIt>::difference_type count, step, array_size;
-//	array_size = std::distance(first, last);
-//	count = array_size;
-//	step = 1;
-//
-//	static unsigned int i, balance;
-//	unsigned int bot, top, mid;
-//
-//	// Maybe replace these values with cacheline optimised values?
-//	if (balance >= 32 || array_size <= 64) {
-//		bot = 0;
-//		top = array_size;
-//
-//		goto monobound;
-//	}
-//
-//	bot = i;
-//	top = 32;
-//
-//	if (key >= array[bot]) {
-//		while (true) {
-//			if (bot + top >= array_size) {
-//				top = array_size - bot;
-//				break;
-//			}
-//			bot += top;
-//
-//			if (key < array[bot]) {
-//				bot -= top;
-//				break;
-//			}
-//			top *= 2;
-//		}
-//	}
-//	else {
-//		while (true) {
-//			if (bot < top) {
-//				top = bot;
-//				bot = 0;
-//
-//				break;
-//			}
-//			bot -= top;
-//
-//			if (key >= array[bot]) {
-//				break;
-//			}
-//			top *= 2;
-//		}
-//	}
-//
-//	monobound:
-//
-//	while (top > 3) {
-//		mid = top / 2;
-//
-//		if (key >= array[bot + mid]) {
-//			bot += mid;
-//		}
-//		top -= mid;
-//	}
-//
-//	balance = i > bot ? i - bot : bot - i;
-//
-//	i = bot;
-//
-//	while (top) {
-//		if (key == array[bot + --top]) {
-//			return bot + top;
-//		}
-//	}
-//	return -1;
-//}
-
-// TODO
-// Only needed for the interpolation search
-#define ISAccess(x) x //((x&mask2)>>b1)
-
-
 /// implementation idea taken from `https://en.wikipedia.org/wiki/Interpolation_search`
-template<typename Buckets, typename BucketIndexType, typename ArgumentLimbType, typename LoadType>
-BucketIndexType InterpolationSearch(const Buckets *__buckets,
-									const ArgumentLimbType data2,
-                                    const BucketIndexType boffset,
-                                    const LoadType load) {
+template<typename T, typename Extractor>
+size_t LowerBoundInterpolationSearch(const  T*__buckets,
+									const T key,
+                                    const size_t boffset,
+                                    const size_t load,
+									Extractor e) {
 	ASSERT(boffset < load);
-	BucketIndexType low = boffset, high = load - 1, mid;
-	const ArgumentLimbType data = ISAccess(data2);
-	// std::cout << data << " " << ISAccess(__buckets[low].first) << " " << ISAccess(__buckets[high].first) << "\n";
+	// example of the extract function#define ISAccess(x) x //((x&mask2)>>b1)
 
+	size_t low = boffset, high = load - 1, mid;
+	const T data = e(key);
+	while  ((e(__buckets[high]) >= e(__buckets[low])) &&
+	        (data >= e(__buckets[low])) &&
+	        (data <= e(__buckets[high]))) {
 
-	while  ((ISAccess(__buckets[high].first) >= ISAccess(__buckets[low].first)) &&
-	        (data >= ISAccess(__buckets[low].first)) &&
-	        (data <= ISAccess(__buckets[high].first))) {
-
-		uint64_t div = ISAccess(__buckets[high].first) - ISAccess(__buckets[low].first);
-		double abc = double(high - low);
-		uint64_t mul = abc/div;
-		mid = low + ((data - ISAccess(__buckets[low].first)) * mul);
+		const size_t div = e(__buckets[high]) - e(__buckets[low]);
+		const double abc = double(high - low);
+		const size_t mul = abc/double(div);
+		mid = low + ((data - e(__buckets[low])) * mul);
 		ASSERT(mid <= high);
 
-		const ArgumentLimbType middata = ISAccess(__buckets[mid].first);
+		const T middata = e(__buckets[mid]);
 		if (middata < data)
 			low = mid + 1;
 		else if (data < middata)
 			high = mid - 1;
 		else {
 			// mhhh do the final walk down
-			while ((mid > boffset) && (ISAccess(__buckets[mid-1].first) == ISAccess(__buckets[mid].first)))
+			while ((mid > boffset) &&
+				   (e(__buckets[mid-1]) == e(__buckets[mid])))
 				mid -= 1;
 			return mid;
 		}
 	}
 
-	if (data == ISAccess(__buckets[low].first))
+	if (data == e(__buckets[low]))
 		return low ;
 	else
 		return -1;
 }
+
+/// Implementation Idea taken from wikipedia: `https://en.wikipedia.org/wiki/Interpolation_search`
+/// This search algorithm assumes a lot.
+///		T mus implement
+/// 			<	Operator
+/// \tparam ForwardIt	Iterator, must be random access_iterator
+/// \tparam Extract		Hash/Extractor function
+/// \param first		low end iterator
+/// \param last			high end iterator
+/// \param key_			value to look for
+/// \param h			instantiation of the extractor/hash function
+/// \return
+template<typename ForwardIt, typename Extract>
+	requires std::random_access_iterator<ForwardIt>
+ForwardIt LowerBoundInterpolationSearch(ForwardIt first, ForwardIt last, const typename ForwardIt::value_type &key_, Extract e) {
+	using diff_type = typename std::iterator_traits<ForwardIt>::difference_type;
+	using T = typename ForwardIt::value_type;
+
+	auto low = first;
+	auto mid = first;
+	auto high = last;
+	std::advance(high, -1);
+	const T data = e(key_);
+
+	while((e(*high) >= e(*low)) &&
+		  (data >= e(*low)) &&
+		  (data <= e(*high))) {
+
+		const double div = e(*high) - e(*low);
+		const double abc = std::distance(low, high);
+		const diff_type mul = diff_type (abc/div);
+
+		mid = low;
+		std::advance(mid, (data - e(*low)) * mul);
+		const T middata = e(*mid);
+		ASSERT(middata <= e(*high));
+
+		if (middata < data) {
+			low = mid;
+			std::advance(low, 1);
+		} else if (data < middata) {
+			high = mid;
+			std::advance(high, -1);
+		} else {
+			// ugly, but somehow we need to catch the case, when the key is not unique in the sorted data.
+			auto tmp_mid = mid;
+			std::advance(tmp_mid, -1);
+			while((std::distance(first, mid) > 0) && (e(*tmp_mid) == e(*mid))) {
+				std::advance(tmp_mid, -1);
+				std::advance(mid, -1);
+			}
+
+			return mid;
+		}
+	}
+
+	if (data == e(*low)) {
+		return low;
+	}
+
+	// nothing found
+	return low;
+}
+
 #endif //SMALLSECRETLWE_SEARCH_H
