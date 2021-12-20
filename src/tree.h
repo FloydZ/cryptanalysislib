@@ -1218,7 +1218,7 @@ public:
 	// variadic type of the function above
 	template<const ExtendenTreeConfig &config, const uint32_t cl, class HMOut, class HMIn, class... HMs>
 	static void streamJoin_internal(HMOut *out, HMIn *in, const List &L2) {
-		constexpr size_t n = sizeof...(HMs);
+		// TODO finish implementing constexpr size_t n = sizeof...(HMs);
 	}
 
 	///
@@ -1236,10 +1236,6 @@ public:
 
 		// thread id
 		const uint32_t tid = config.threads == 1 ? 0 : omp_get_thread_num();
-
-		// run the merge between the first an second list
-		const size_t spos0 = L2.start_pos(tid);
-		const size_t epos0 = L2.end_pos(tid);
 
 		// generate intermediate targets
 		LabelType targets[config.d];

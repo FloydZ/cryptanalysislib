@@ -318,14 +318,12 @@ public:
 	/// \param j upper   .....
 	void sort_level(const uint32_t i, const uint32_t j) {
 		ASSERT(i < j);
+		ASSERT(lower == upper); // TODO
 		using T = LabelContainerType;
 
-		const uint64_t lower = T::round_down_to_limb(i);
-		const uint64_t upper = T::round_down_to_limb(j);
-		ASSERT(lower == upper); // TODO
-
+		//constexpr uint64_t upper = T::round_down_to_limb(j);
+		constexpr uint64_t lower = T::round_down_to_limb(i);
 		const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
-
 		if constexpr (USE_STD_SORT) {
 			std::sort(__data.begin(),
 					  __data.end(),
@@ -352,7 +350,7 @@ public:
 		using T = LabelContainerType;
 
 		const uint64_t lower = T::round_down_to_limb(i);
-		const uint64_t upper = T::round_down_to_limb(j);
+		//const uint64_t upper = T::round_down_to_limb(j);
 		ASSERT(lower == upper); // TODO
 
 		const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
@@ -877,7 +875,7 @@ private:
 		using T = LabelContainerType;
 
 		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
+		//const uint64_t upper = T::round_down_to_limb(k_higher);
 		ASSERT(lower == upper);
 
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
@@ -921,7 +919,7 @@ private:
 	inline uint64_t search_level_binary_simple(const Element &e, const uint64_t k_lower, const uint64_t k_higher) {
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
+		//const uint64_t upper = T::round_down_to_limb(k_higher);
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
 		ASSERT(lower == upper);
 
@@ -989,7 +987,7 @@ private:
 	inline uint64_t search_level_binary_custom_simple(const Element &e, const uint64_t k_lower, const uint64_t k_higher) {
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
+		//const uint64_t upper = T::round_down_to_limb(k_higher);
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
 		ASSERT(lower == upper);
 
