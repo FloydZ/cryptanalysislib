@@ -318,7 +318,7 @@ public:
 	/// \param j upper   .....
 	void sort_level(const uint32_t i, const uint32_t j) {
 		ASSERT(i < j);
-		ASSERT(lower == upper); // TODO
+		// ASSERT(lower == upper); // TODO
 		using T = LabelContainerType;
 
 		//constexpr uint64_t upper = T::round_down_to_limb(j);
@@ -351,7 +351,7 @@ public:
 
 		const uint64_t lower = T::round_down_to_limb(i);
 		//const uint64_t upper = T::round_down_to_limb(j);
-		ASSERT(lower == upper); // TODO
+		//ASSERT(lower == upper); // TODO
 
 		const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
 
@@ -876,7 +876,7 @@ private:
 
 		const uint64_t lower = T::round_down_to_limb(k_lower);
 		//const uint64_t upper = T::round_down_to_limb(k_higher);
-		ASSERT(lower == upper);
+		// TODO ASSERT(lower == upper);
 
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
 		std::sort(__data.begin(), __data.begin() + load,
@@ -921,7 +921,7 @@ private:
 		const uint64_t lower = T::round_down_to_limb(k_lower);
 		//const uint64_t upper = T::round_down_to_limb(k_higher);
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
-		ASSERT(lower == upper);
+		// TODO ASSERT(lower == upper);
 
 		auto r = std::lower_bound(__data.begin(), __data.begin() + load, e,
 		                          [lower, mask](const Element &c1, const Element &c2) {
@@ -989,7 +989,7 @@ private:
 		const uint64_t lower = T::round_down_to_limb(k_lower);
 		//const uint64_t upper = T::round_down_to_limb(k_higher);
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
-		ASSERT(lower == upper);
+		// TODO  ASSERT(lower == upper);
 
 		size_t size = load;
 		size_t low = 0;

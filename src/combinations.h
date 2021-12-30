@@ -10,13 +10,13 @@
 #include "element.h"
 
 class CombinationsIndex {
+	/// generates all n over k permutations, but only the indices and not the actual bit permutations
 private:
 	const uint32_t n,k,offset;
 	uint32_t j;
 	int32_t *a = nullptr;
 public:
-
-	/// generate the indeces of permutations for n over k.
+	/// generate the indexes of permutations for n over k.
 	/// if offset is set, this value is added to each permutation index.
 	/// EXAMPLE:
 	///		generate(P, 20, 3, 0) returns:
@@ -61,6 +61,13 @@ public:
 
 	~CombinationsIndex() { free(a); };
 
+	/// Constructor
+	///  sets all internal needed values, also sets the first permutation = id.
+	///  to get the next permutation call the `next` function.
+	/// \param P output array, __must__ be of size k*sizeof(uint16_t)
+	/// \param n length
+	/// \param k bits the enumerate
+	/// \param offset start the enumeration from the `offset` position
 	CombinationsIndex(uint16_t *P,  const uint32_t n, const uint32_t k, const uint32_t offset = 0) : n(n), k(k), offset(offset), j(0) {
 		a = (int32_t *)malloc(sizeof(int32_t)*k);
 		for (j = 0; j < k; ++j) {
@@ -72,6 +79,8 @@ public:
 		}
 	}
 
+	/// generates the next permutation.
+	/// \param P output array, __must__ be of size k*sizeof(uint16_t)
 	int next(uint16_t *P) {
 		for (uint32_t i = 0; i < k; ++i) {
 			P[i] = offset + a[i];
@@ -90,17 +99,10 @@ public:
 };
 
 class CombinationsMeta {
-	/// Base Class: Dont use it normaly. This class provides some helpers nothing more.
+	/// Base Class: Dont use it normaly. 
+	/// This class provides some helpers nothing more.
 
 protected:
-	template<class T>
-	static void _swap(T *e, uint64_t left, uint64_t right) {
-		auto tmp = e[left];
-		e[left] = e[right];
-		e[right] = tmp;
-	}
-
-
 	template<class T>
 	static inline uint64_t ith_value_left_zero_position(const T *value, const uint32_t len, const uint64_t i, const uint64_t start = 0) {
 		uint64_t count = 0;
@@ -165,15 +167,21 @@ class Combinations : CombinationsMeta {
 	///						and after invocation of a 'step'-function this ones/minus_ones will be shifted to the left.
 	///		- left means:  the exact opposite.
 protected:
-
-	static void _swap(Element &e, uint64_t left, uint64_t right) {
+	/// special wrapper helper function
+	/// \param e the base element
+	/// \param left first bit to swap
+	/// \param right seconf bit to swap
+	static void _swap(Element &e, const size_t left, const size_t right) {
 		auto tmp = e.get_value(left);
 		e.get_value().data()[left] = e.get_value(right);
 		e.get_value().data()[right] = tmp;
-		// std::cout << e << "\n";
 	}
 
-	static void _swap_only_on_diff(Element &e, uint64_t left, uint64_t right) {
+	/// special wrapper helper function 
+	/// \param e the base element
+	/// \param left first bit to swap
+	/// \param right second bit to swap
+	static void _swap_only_on_diff(Element &e, const size_t left, const size_t right) {
 		if (e.get_value().data()[left] != e.get_value().data()[right]) {
 			auto tmp = e.get_value().data()[left];
 			e.get_value().data()[left] = e.get_value().data()[right];
@@ -195,7 +203,7 @@ protected:
 	///					true:	start counting from right
 	static void apply_bool_vector(Element &e_out, const Element &e,
 	                              const uint8_t *v, const uint32_t len,
-	                              const uint64_t start = 0, const bool mode = false) {
+	                              const size_t start = 0, const bool mode = false) {
 		uint64_t pos;
 		for (int j = 0; j < len; ++j) {
 			// is a bit set?
@@ -211,9 +219,10 @@ protected:
 		}
 	}
 
+	/// just wrapper for `apply_bool_vector` 
 	static void apply_bool_vector(Element &e_out, const Element &e,
 	                              const std::vector<uint8_t> &v,
-	                              const uint64_t start = 0, const bool mode = false) {
+	                              const size_t start = 0, const bool mode = false) {
 		apply_bool_vector(e_out, e, v.data(), v.size(), start, mode);
 	}
 };
@@ -228,8 +237,12 @@ class Combinations_Chase_VV_Binary : CombinationsMeta {
 	 *  separated by only one position.
 	 *
 	 *  See exercise 45 of Knuth's The art of computer programming volume 4A.
+	 *
+	 *  Code is from Valentin Vasseur. As far as i (Floyd) know this code is 
+	 *  not fully correct. At some point it generates duplicates.
 	 */
 
+	//
 	// disable the standard constructor.
 	Combinations_Chase_VV_Binary() : n(0), t(0), offset(0) {};
 
@@ -383,7 +396,11 @@ public:
 		free(c);
 		free(z);
 	}
-	Combinations_Chase_VV_Binary(const uint64_t n, const uint64_t t, const uint64_t offset = 0) :
+
+	/// :param n 
+	/// :param t 
+	/// :param offset
+	Combinations_Chase_VV_Binary(const size_t n, const size_t t, const size_t offset = 0) :
 			n(n), t(t), offset(offset) {
 		c = (uint16_t *)malloc((t + 2) * sizeof(uint16_t));
 		z = (uint16_t *)malloc((t + 2) * sizeof(uint16_t));
@@ -424,6 +441,9 @@ class Combinations_Chase2 : CombinationsMeta {
 	Combinations_Chase2() : n(0), k(0), start(0) {};
 
 public:
+	/// generate a list of all permutation
+	/// \param table output list, will be resized
+	/// \param diff the change list, generating the elements in `table`
 	void table(std::vector<T> &table, std::vector<std::pair<uint64_t, uint64_t>> &diff){
 		const uint64_t size = bc(n, k);
 		uint64_t pos1 = 0, pos2 = 0, ctr = 0;
@@ -933,12 +953,15 @@ private:
 	const uint64_t start;                           // offset position (not implemented.)
 };
 
-template<typename Word=uint64_t>
+template<typename T=uint64_t>
+	requires std::is_integral_v<T>
 class Combinations_Chase_Binary {
 	/*
 	 *  generate a sequence of all bit vectors with length n and k bits set by only changing two bits.
 	 * 	idea taken from https://stackoverflow.com/questions/36451090/permutations-of-binary-number-by-swapping-two-bits-not-lexicographically
 	 * 	algorithm 3
+	 *
+	 *  This is the data struct which is used in the BJMM/MMT algorithm.
 	 */
 	// data for the two functions: 'two_changes_binary_left_init', 'two_changes_binary_left_init'
 	std::vector<uint64_t> two_changes_binary_o;      // offset from the left most position
@@ -947,8 +970,10 @@ class Combinations_Chase_Binary {
 	std::vector<uint64_t> two_changes_binary_p;      // current position of the bit in the current part
 	uint64_t two_changes_binary_b = 0;      // how many permutations already processed
 
-	constexpr static uint32_t RADIX = sizeof(Word)*8;
+	// number of bits in one limb
+	constexpr static uint32_t RADIX = sizeof(T) * 8;
 
+	//
 	inline void left_round(const uint64_t b) {
 		ASSERT(b < two_changes_binary_o.size());
 
@@ -959,7 +984,8 @@ class Combinations_Chase_Binary {
 		two_changes_binary_p[b] = 0;
 	}
 
-	inline uint64_t left_write(Word *A, const uint32_t b, const int bit){
+	//
+	inline uint64_t left_write(T *A, const uint32_t b, const int bit){
 		ASSERT(b < two_changes_binary_o.size());
 		uint64_t ret = start + two_changes_binary_o[b] + two_changes_binary_p[b] * two_changes_binary_d[b];
 		WRITE_BIT(A, ret, bit);
@@ -976,17 +1002,17 @@ protected:
 
 public:
 	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
-	static inline void WRITE_BIT(Word *v, const uint64_t i, const BIT b) { __M4RI_WRITE_BIT(v[i/RADIX], i%RADIX, b); }
-	static inline BIT GET_BIT(const Word *v, const uint64_t i) { return __M4RI_GET_BIT(v[i/RADIX], i%RADIX); }
+	static inline void WRITE_BIT(T *v, const size_t i, const BIT b) { __M4RI_WRITE_BIT(v[i / RADIX], i % RADIX, b); }
+	static inline BIT GET_BIT(const T *v, const size_t i) { return __M4RI_GET_BIT(v[i / RADIX], i % RADIX); }
 
 	Combinations_Chase_Binary(const uint64_t n, const uint64_t k, const uint64_t start = 0) :
 			two_changes_binary_b(0),  n(n-start), k(k), start(start) {
-		// ASSERT(k > 0);
+		// TODO this is currently disabled, because ASSERT(k > 0);
 	};
 
 
 	// REMINDER: Make sure to set A on all limbs on zero.
-	void left_init(Word *A) {
+	void left_init(T *A) {
 		two_changes_binary_o.clear();
 		two_changes_binary_d.clear();
 		two_changes_binary_n.clear();
@@ -1004,7 +1030,13 @@ public:
 		two_changes_binary_p[0] = 0;
 	}
 
-	uint64_t left_step(Word *A, bool init = false) {
+	/// computes one step in the cache sequence
+	/// \param A  input array = limbs needed to represent 'n' bits.
+	/// \param init if True: if the first element in the cache sequence is going to be generated,
+	/// 			  False: else
+	/// \return false if the end of the sequence is reached
+	///         true if the end of the sequence is NOT reached
+	uint64_t left_step(T *A, bool init = false) {
 		if (!init) { // cleanup of the previous round
 			do {
 				left_write(A, two_changes_binary_b, 0);
@@ -1029,15 +1061,20 @@ public:
 		return 1;
 	}
 
-	// xors the two matrices limb per limb
-	static void diff(const Word *p, const Word *p_old, const uint32_t limbs, uint16_t *pos1, uint16_t *pos2) {
+	/// This functions simply xors together two given rows `p` and `p_old` and finds the two positions where they differ
+	/// \param p newly generated chase element. Output from `left_step`
+	/// \param p_old  last generated element from the chase sequence.
+	/// \param limbs Number of limbs of type T needed to represent a element of the chase sequence
+	/// \param pos1 output: first bit position where 'p` and `p_old` differs
+	/// \param pos2 output: second bit position
+	static void diff(const T *p, const T *p_old, const uint32_t limbs, uint16_t *pos1, uint16_t *pos2) {
 		uint8_t sols = 0;                       // solution counter. Should be at most 2 if Chase generation is used.
 		uint32_t sol;                           // bit position of the change
 		uint16_t* sol_ptr[2] = {pos1, pos2};    // easy access to the solution array
 
 		for (uint32_t i = 0; i < limbs; ++i) {
 			// get the diff of the current limb
-			Word x = p[i] ^ p_old[i];
+			T x = p[i] ^ p_old[i];
 			// loop as long we found ones in the limb. (Maybe we have two ones in on limb)
 			while (x != 0 && sols < 2) {
 				sol = ffsll(x)-1;

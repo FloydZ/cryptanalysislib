@@ -1,6 +1,8 @@
 #ifndef PRIMITIVES_H
 #define PRIMITIVES_H
 
+#include <stdint.h>
+
 #if defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ > 7
 /**
  * An atomic fetch-and-add.
@@ -111,7 +113,7 @@ static inline int _compare_and_swap(void ** ptr, void ** expected, void * desire
 #define PAUSE() __asm__ ("pause")
 
 static inline
-int _CAS2(volatile uint64_t *ptr, uint64_t *cmp1, uint64_t *cmp2, uint64_t val1, uint64_| val2) {
+int _CAS2(volatile uint64_t *ptr, uint64_t *cmp1, uint64_t *cmp2, uint64_t val1, uint64_t val2) {
   char success;
   long tmp1 = *cmp1;
   long tmp2 = *cmp2;

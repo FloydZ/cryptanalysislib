@@ -17,21 +17,20 @@
 // external includes
 #include "m4ri/m4ri.h"
 
-// helper macros
+// TODO C++ 20 comparsion operator
+// C macro for implementing multi limb comparison.
 #define BINARYCONTAINER_COMPARE(limb1, limb2, op1, op2) \
 if (limb1 op1 limb2)                                    \
 	return 1;                                           \
 else if(limb1 op2 limb2)                                \
 	return 0;
 
+// C Macro for implementing multi limb comparison
 #define BINARYCONTAINER_COMPARE_MASKED(limb1, limb2, mask, op1, op2)\
 if ((limb1&mask) op1 (limb2&mask))                                  \
 	return 1;                                                       \
 else if((limb1&mask) op2 (limb2&mask))                              \
 	return 0;                                                       \
-
-//  move
-constexpr uint64_t minus_one = uint64_t(-1);
 
 #ifdef USE_AVX2
 static inline uint32_t hammingweight_mod2_limb256(__m256i v) {
@@ -75,13 +74,19 @@ static inline __m256i hammingweight_mod2_limb256_nonacc(__m256i v) {
 }
 #endif
 
+/// Concept for base data type.
+/// \tparam T
 template<typename T>
 concept kAryContainerAble =
 requires(T t) {
 	t ^ t;
 	t.random();
+	T(0);
+	~(T(0));
 };
 
+/// Concept for the base data type
+/// \tparam T
 template<typename T>
 concept kAryPackedContainerAble =
 std::is_integral<T>::value && requires(T t) {
@@ -89,6 +94,8 @@ std::is_integral<T>::value && requires(T t) {
 	t + t;
 };
 
+/// Concept fot the base data type
+/// \tparam T
 template<typename T>
 concept BinaryContainerAble =
 std::is_integral<T>::value && requires(T t) {
@@ -112,15 +119,18 @@ public:
 	// internal data length. Used in the template system to pass through this information
 	constexpr static uint32_t LENGTH = length;
 
-	constexpr void zero() noexcept {
+	/// zeros our the whole container
+	/// \return nothing
+	constexpr inline void zero() noexcept {
 		LOOP_UNROLL();
 		for (unsigned int i = 0; i < length; i++){
 			__data[i] = T(0);
 		}
 	}
 
-	// set everything on `fff.fff`
-	constexpr void one() noexcept {
+	/// set everything on `fff.fff`
+	/// \return nothing
+	constexpr inline void one() noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = 0; i < length; i++) {
 			__data[i] = ~(T(0));
@@ -149,7 +159,7 @@ public:
 	}
 
 	/// calculate the hamming weight
-	/// \return the weight
+	/// \return the hamming weight
 	inline uint32_t weight() const noexcept {
 		uint32_t r = 0;
 		for (int i = 0; i < length; ++i) {
@@ -159,9 +169,9 @@ public:
 		return r;
 	}
 
-	/// swap coordinate i, j
-	/// \param i
-	/// \param j
+	/// swap coordinate i, j, boundary checks are done
+	/// \param i coordinate
+	/// \param j coordinate
 	void swap(const uint32_t i, const uint32_t j) {
 		ASSERT(i < length && j < length);
 		SWAP(__data[i], __data[j]);
@@ -175,20 +185,20 @@ public:
 	}
 
 	/// negate every coordinate between [k_lower, k_higher)
-	/// \param k_lower
-	/// \param k_upper
+	/// \param k_lower lower dimension
+	/// \param k_upper higher dimension
 	inline void neg(const uint32_t k_lower, const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= length &&k_lower < k_upper);
 
 		LOOP_UNROLL();
-		for (int i = k_lower; i < k_upper; ++i) {
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			__data[i] = 0 - __data[i];
 		}
 	}
 
-	/// \param v3 output
-	/// \param v1 input
-	/// \param v2 input
+	/// \param v3 output container
+	/// \param v1 input container
+	/// \param v2 input container
 	/// \param k_lower lower dimension
 	/// \param k_upper higher dimension
 	inline static void add(kAryContainer_T &v3, kAryContainer_T const &v1, kAryContainer_T const &v2,
@@ -196,7 +206,7 @@ public:
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
-		for (uint64_t i = k_lower; i < k_upper; ++i) {
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = v1.__data[i] + v2.__data[i];
 		}
 	}
@@ -223,25 +233,25 @@ public:
 		return false;
 	}
 
-	/// \param v3 output
-	/// \param v1 input
-	/// \param v2 input
+	/// \param v3 output container
+	/// \param v1 input container
+	/// \param v2 input container
 	/// \param k_lower lower dimension
 	/// \param k_upper higher dimension
 	/// \return true if the elements needs to be filled out. False else.
 	inline static void sub(kAryContainer_T &v3, kAryContainer_T const &v1, kAryContainer_T const &v2,
-	                       const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) {
+	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
-		for (uint64_t i = k_lower; i < k_upper; ++i) {
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = v1.__data[i] - v2.__data[i];
 		}
 	}
 
-	/// \param v3 output
-	/// \param v1 input
-	/// \param v2 input
+	/// \param v3 output container
+	/// \param v1 input container
+	/// \param v2 input container
 	/// \param k_lower lower dimension
 	/// \param k_upper higher dimension
 	/// \param norm filter every element out if hte norm is bigger than `norm`
@@ -252,7 +262,7 @@ public:
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
-		for (uint64_t i = k_lower; i < k_upper; ++i) {
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = v1.__data[i] - v2.__data[i];
 			if ((abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
 				return true;
@@ -261,8 +271,8 @@ public:
 		return false;
 	}
 
-	/// \param v1 input
-	/// \param v2 input
+	/// \param v1 input container
+	/// \param v2 input container
 	/// \param k_lower lower dimension
 	/// \param k_upper higher dimension
 	/// \return v1 == v2 on the coordinates [k_lower, k_higher)
@@ -271,7 +281,7 @@ public:
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
-		for (uint64_t i = k_lower; i < k_upper; ++i) {
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			if (v1.__data[i] != v2.__data[i])
 				return false;
 		}
@@ -282,14 +292,14 @@ public:
 	/// static function. Sets v1 to v2 between [k_lower, k_higher). Does not touch the other coordinates in v1
 	/// \param v1 output container
 	/// \param v2 input container
-	/// \param k_lower lower bound
-	/// \param k_upper higher bound
+	/// \param k_lower lower bound coordinate wise
+	/// \param k_upper higher bound coordinate wise
 	inline static void set(kAryContainer_T &v1, kAryContainer_T const &v2,
 	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
-		for (uint64_t i = k_lower; i < k_upper; ++i) {
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v1.__data[i] = v2.__data[i];
 		}
 	}
@@ -304,8 +314,8 @@ public:
 	}
 
 	/// \param obj to compare to
-	/// \param k_lower lower bound
-	/// \param k_upper higher bound
+	/// \param k_lower lower bound coordinate wise
+	/// \param k_upper higher bound coordinate wise
 	/// \return this > obj on the coordinates [k_lower, k_higher)
 	bool is_greater(kAryContainer_T const &obj,
 	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const {
@@ -324,8 +334,8 @@ public:
 	}
 
 	/// \param obj to compare to
-	/// \param k_lower lower bound
-	/// \param k_upper higher bound
+	/// \param k_lower lower bound coordinate wise
+	/// \param k_upper higher bound coordinate wise
 	/// \return this < obj on the coordinates [k_lower, k_higher)
 	bool is_lower(kAryContainer_T const &obj,
 	                     const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const {
@@ -372,7 +382,7 @@ public:
 	/// prints this container between the limbs [k_lower, k_higher)
 	/// \param k_lower lower bound
 	/// \param k_upper higher bound
-	void print(const uint64_t k_lower, const uint64_t k_upper) {
+	void print(const uint32_t k_lower, const uint32_t k_upper) {
 		ASSERT(k_lower < length && k_upper < length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << __data[i] << " ";
@@ -380,7 +390,7 @@ public:
 		std::cout << "\n";
 	}
 
-	// iterators
+	/// iterators
 	auto begin() { return __data.begin();}
 	const auto begin() const { return __data.begin();}
 	auto end() { return __data.end();}
@@ -392,11 +402,13 @@ public:
 	__FORCEINLINE__ constexpr static uint32_t limbs() { return length; }
 	__FORCEINLINE__ constexpr static uint32_t bytes() { return length*sizeof(T); }
 
+	/// returns the underlying data container
 	__FORCEINLINE__ std::array<T, length>& data() { return __data; }
 	__FORCEINLINE__ const std::array<T, length>& data() const { return __data; }
 	//T& data(const uint64_t index) { ASSERT(index < length && "wrong index"); return __data[index]; }
 	const T data(const uint64_t index) const { ASSERT(index < length && "wrong index"); return __data[index]; }
 
+	/// TODO remove
 	T get_type() {return __data[0]; }
 private:
 	std::array<T, length> __data;
@@ -410,6 +422,11 @@ class kAryPackedContainer_T {
 	///     Number 	:= actual data one wants to save % MOD
 	///		Limb 	:= Underlying data container holding at max sizeof(T)/log2(MOD) many numbers.
 	/// Its not possible, that numbers cover more than one limb.
+	/// The internal data container layout looks like this:
+	/// 		limb0				limb1			limb2
+	///   [	n0	,  n1  ,  n2  |	    , 	,	  |		,	 ,     |  .... ]
+	/// The container fits as much numbers is the limb as possible. But there will no overhanging elements (e.g.
+	///  numbers that first bits are on one limb and the remaining bits are on the next limb).
 public:
 	// base constructor
 	kAryPackedContainer_T () { __data.fill(0); }
@@ -428,8 +445,13 @@ public:
 	// true if we need every bit of the last bit
 	constexpr static bool is_full = (length%bits_per_limb) == 0;
 
+	// minimal internal datatype to present an element.
 	using DataType = LogTypeTemplate<bits_per_number>;
+
+	// we are good C++ devs.
 	typedef T ContainerLimbType;
+
+	// internal data
 	std::array<T, internal_limbs> __data;
 
 	// list compatibility typedef
@@ -437,23 +459,30 @@ public:
 	typedef T LimbType;
 	typedef T LabelContainerType;
 
+	// make the length of the container public available
 	constexpr static uint32_t LENGTH = length;
 
-	/// \param i
+	/// the mask is only valid for one internal number.
+	/// \param i bit position the read
 	/// \return bit mask to access the i-th element within a limb
 	inline T accessMask(const uint16_t i) {
 		return number_mask << (i%numbers_per_limb);
 	}
 
-	// access the i-th coordinate/number/element
-	DataType get(const uint16_t i) const {
+	/// access the i-th coordinate/number/element
+	/// \param i coordinate to access.
+	/// \return the number you wanted to access, shifted down to the lowest bits.
+	DataType get(const uint16_t i) const noexcept {
 		// needs 5 instructions. So 64*5 for the whole limb
 		ASSERT(i < length);
 		return DataType((__data[i/numbers_per_limb] >> ((i%numbers_per_limb)*bits_per_number)) & number_mask);
 	}
 
-	// input MUST be positive.
-	void set(const DataType data, const uint16_t i) {
+	/// sets the `i`-th number to `data`
+	/// \param data
+	/// \param i -th number to overwrite
+	/// \retutn nothing
+	void set(const DataType data, const uint16_t i) noexcept {
 		ASSERT(i < length);
 		const uint16_t off = i/numbers_per_limb;
 		const uint16_t spot = (i%numbers_per_limb) * bits_per_number;
@@ -463,45 +492,55 @@ public:
 		__data[off] = bla | val;
 	}
 
-	// set everything to zero
-	constexpr void zero() {
+	/// set everything to zero
+	constexpr void zero() noexcept {
 		LOOP_UNROLL();
-		for (unsigned int i = 0; i < internal_limbs; i++){
+		for (uint32_t i = 0; i < internal_limbs; i++){
 			__data[i] = 0;
 		}
 	}
 
-	constexpr void zero(const uint32_t a, const uint32_t b) {
-		for (unsigned int i = a; i < b; i++){
+	/// sets everything to zero between [a, b)
+	/// \param a lower bound
+	/// \param b higher bound
+	/// \return nothing
+	constexpr void zero(const uint32_t a, const uint32_t b) noexcept {
+		for (uint32_t i = a; i < b; i++){
 			set(0, i);
 		}
 	}
 
-	// set everything to one
-	constexpr void one() {
+	/// set everything to one
+	/// \return nothing
+	constexpr void one(const uint32_t a=0, const uint32_t b=LENGTH) noexcept {
 		LOOP_UNROLL();
-		for (unsigned int i = 0; i < length; i++) {
+		for (uint32_t i = a; i < b; i++) {
 			set(1, i);
 		}
 	}
 
-	// Set everything to two
-	constexpr void two() {
+	/// Set everything to two
+	/// \return nothing
+	constexpr void two(const uint32_t a=0, const uint32_t b=LENGTH) noexcept {
 		LOOP_UNROLL();
-		for (unsigned int i = 0; i < length; i++) {
-			set(2, i);
+		for (uint32_t i = a; i < b; i++) {
+			set(2%MOD, i);
 		}
 	}
 
-	void random() {
+	/// generates all limbs uniformly random
+	/// \return nothing
+	void random(const uint32_t a=0, const uint32_t b=LENGTH) noexcept {
 		LOOP_UNROLL();
-		for (unsigned int i = 0; i < length; i++) {
+		for (uint32_t i=a; i < b; i++) {
 			set(fastrandombytes_uint64() % MOD, i);
 		}
 	}
 
-	/// return the positions of the first p bits set
-	void get_bits_set(uint32_t *out, const uint32_t p) {
+	/// return the positions of the first p bits/numbers set
+	/// \param out output: array of the first p positions set in the container
+	/// \param p maximum bits!=0 to find
+	void get_bits_set(uint16_t *out, const uint32_t p) {
 		uint32_t ctr = 0;
 		for (uint32_t i = 0; i < LENGTH; i++) {
   			if (unsigned(get(i)) != 0u) {
@@ -515,9 +554,10 @@ public:
 			}
   		}
 	}
-	
+
+	/// \return true if every limb is empty
 	bool is_zero() const {
-		for (int i = 0; i < internal_limbs; ++i) {
+		for (uint32_t i = 0; i < internal_limbs; ++i) {
 			if(__data[i] != 0)
 				return false;
 		}
@@ -525,16 +565,36 @@ public:
 		return true;
 	}
 
-	// calculates the hamming weight.
-	inline uint64_t weight() const {
+	/// checks if every number between [a, b) is empyt
+	/// \param a lower bound
+	/// \param b higher bound
+	/// \return true/false
+	bool is_zero(const uint32_t a, const uint32_t b) const {
+		for (uint32_t i = a; i < b; ++i) {
+			if(get(i) != 0)
+				return false;
+		}
+
+		return true;
+	}
+
+	/// calculates the hamming weight between [a,b)
+	/// \param a lower bound
+	/// \param b higher bound
+	/// \return the hamming weight
+	inline uint32_t weight(const uint32_t a=0, const uint32_t b=LENGTH) const {
 		uint64_t r = 0;
-		for (int i = 0; i < length; ++i) {
+		for (uint32_t i = a; i < b; ++i) {
 			if (get(i) != 0)
 				r += 1;
 		}
+
 		return r;
 	}
 
+	/// swap the numbers on positions `i`, `j`.
+	/// \param i first coordinate
+	/// \param j second coordinate
 	void swap(const uint16_t i, const uint16_t j) {
 		ASSERT(i < length && j < length);
 		auto tmp = get(i);
@@ -542,6 +602,7 @@ public:
 		set(j, tmp);
 	}
 
+	/// TODO generalize to arbitrary MOD
 	inline void neg() {
 		if constexpr (internal_limbs == 1) {
 			__data[0] = neg_mod3_limb(__data[0]);
@@ -566,13 +627,62 @@ public:
 
 	}
 
-	inline void neg(const uint32_t k_lower, const uint32_t k_upper) {
+	/// infix negates (x= -x mod q)  all numbers between [k_lower, k_higher)
+	/// \param k_lower lower limit
+	/// \param k_upper higher limit
+	inline void neg(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) {
 		ASSERT(k_upper <= length &&k_lower < k_upper);
 		for (unsigned int i = k_lower; i < k_upper; i++) {
 			set(((-get(i)) + MOD)%MOD, i);
 		}
 	}
 
+
+	/// calcs the hamming weight of one limb.
+	/// NOTE only correct if there is no 3 in one of the limbs
+	static inline uint16_t hammingweight_mod3_limb(const T a) {
+		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
+		constexpr T c1 = T(6148914691236517205u);
+		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
+		constexpr T c2 = T(12297829382473034410u);
+
+		const T ac1 = a&c1; // filter the ones
+		const T ac2 = a&c2; // filter the twos
+
+		return __builtin_popcountll(ac1) + __builtin_popcountll(ac2);
+	}
+
+	/// calcs the hamming weight of one __uint128
+	/// NOTE only correct if there is no 3 in one of the limbs
+	static inline uint16_t hammingweight_mod3_limb128(const __uint128_t a) {
+		constexpr __uint128_t c1 = __uint128_t(6148914691236517205u)   << 64 | 6148914691236517205u;
+		constexpr __uint128_t c2 = __uint128_t(12297829382473034410u)  << 64 | 12297829382473034410u;
+
+		const __uint128_t ac1 = a&c1; // filter the ones
+		const __uint128_t ac2 = a&c2; // filter the twos
+
+		// can this thing get faster?
+		return __builtin_popcountll(ac1) + __builtin_popcountll(ac1>>64) +
+			   __builtin_popcountll(ac2) + __builtin_popcountll(ac2>>64);
+	}
+
+#ifdef USE_AVX2
+	static inline uint16_t hammingweight_mod3_limb256(const __m256i a) {
+		constexpr __uint128_t c1_128 = __uint128_t(6148914691236517205u)   << 64 | 6148914691236517205u;
+		constexpr __uint128_t c2_128 = __uint128_t(12297829382473034410u)  << 64 | 12297829382473034410u;
+		const static __m256i c1 = _mm256_set_m128i((__m128i)c1_128, (__m128i)c1_128);
+		const static __m256i c2 = _mm256_set_m128i((__m128i)c2_128, (__m128i)c2_128);
+
+		const __m256i ac1 = _mm256_and_si256(a, c1); // filter the ones
+		const __m256i ac2 = _mm256_and_si256(a, c2); // filter the twos
+
+		return hammingweight_mod2_limb256(ac1) + hammingweight_mod2_limb256(ac2);
+	}
+#endif
+
+	/// TODO only valid for ternary
+	/// \tparam k_lower lower limit
+	/// \tparam k_upper
 	template<uint32_t k_lower, uint32_t k_upper>
 	inline void neg() {
 		static_assert(k_upper <= length && k_lower < k_upper);
@@ -601,58 +711,25 @@ public:
 
 	}
 
-	/// calcs the hamming weight of one limb.
-	/// NOTE only correct if there is no 3 in one of the limbs
-	static inline uint16_t hammingweight_mod3_limb(const T a) {
-		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
-		constexpr T c2 = T(12297829382473034410u);
-		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
-		constexpr T c1 = T(6148914691236517205u);
-
-		const T ac1 = a&c1;
-		const T ac2 = a&c2;
-
-		return __builtin_popcountll(ac1) + __builtin_popcountll(ac2);
-	}
-
-	/// calcs the hamming weight of one limb.
-	/// NOTE only correct if there is no 3 in one of the limbs
-	static inline uint16_t hammingweight_mod3_limb128(const __uint128_t a) {
-		constexpr __uint128_t c2 = __uint128_t(12297829382473034410u)  << 64 | 12297829382473034410u;
-		constexpr __uint128_t c1 = __uint128_t(6148914691236517205u)   << 64 | 6148914691236517205u;
-
-		const __uint128_t ac1 = a&c1;
-		const __uint128_t ac2 = a&c2;
-
-		return __builtin_popcountll(ac1) + __builtin_popcountll(ac1>>64) +
-			   __builtin_popcountll(ac2) + __builtin_popcountll(ac2>>64);
-	}
-
-#ifdef USE_AVX2
-	static inline uint16_t hammingweight_mod3_limb256(const __m256i a) {
-		constexpr __uint128_t c2_128 = __uint128_t(12297829382473034410u)  << 64 | 12297829382473034410u;
-		constexpr __uint128_t c1_128 = __uint128_t(6148914691236517205u)   << 64 | 6148914691236517205u;
-		const static __m256i c1 = _mm256_set_m128i((__m128i)c1_128, (__m128i)c1_128);
-		const static __m256i c2 = _mm256_set_m128i((__m128i)c2_128, (__m128i)c2_128);
-
-		const __m256i ac1 = _mm256_and_si256(a, c1);
-		const __m256i ac2 = _mm256_and_si256(a, c2);
-
-		return hammingweight_mod2_limb256(ac1) + hammingweight_mod2_limb256(ac2);
-	}
-#endif
-
+	/// negates one limb
+	/// \param a input limb
+	/// \return negative limb
 	static inline T neg_mod3_limb(const T a) {
-		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
-		constexpr T c2 = T(12297829382473034410u);
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
 		constexpr T c1 = T(6148914691236517205u);
+		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
+		constexpr T c2 = T(12297829382473034410u);
 
-		const T e1 = a&c1;
-		const T e2 = a&c2;
+		const T e1 = a&c1; // filter the ones
+		const T e2 = a&c2; // filter the twos
+
+		// reshifts everything to the correct place
 		return (e1 << 1) ^ (e2 >> 1);
 	}
 
+	///
+	/// \param a
+	/// \return
 	static inline __uint128_t neg_mod3_limb128(const __uint128_t a) {
 		constexpr __uint128_t c2 = __uint128_t(12297829382473034410u)  << 64 | 12297829382473034410u;
 		constexpr __uint128_t c1 = __uint128_t(6148914691236517205u)   << 64 | 6148914691236517205u;
@@ -677,6 +754,9 @@ public:
 	}
 #endif
 
+	/// calculates a mod 3 on everything number
+	/// \param a
+	/// \return
 	static inline T mod3_limb(const T a) {
 		const T e = mod3_limb_withoutcorrection(a);
 
@@ -729,15 +809,26 @@ public:
 	}
 
 
+	/// \param x input number
+	/// \param y output number
+	/// \return x-y in every number
 	static inline T sub_mod3_limb(const T x, const T y) {
 		return add_mod3_limb(x, neg_mod3_limb(y));
 	}
 
+	///
+	/// \param x
+	/// \param y
+	/// \return
 	static inline __uint128_t sub_mod3_limb128(const __uint128_t x, const __uint128_t y) {
 		return add_mod3_limb128(x, neg_mod3_limb128(y));
 	}
 
 #ifdef USE_AVX2
+	///
+	/// \param x
+	/// \param y
+	/// \return
 	static inline __m256i sub_mod3_limb256(const __m256i x, const __m256i y) {
 		return add_mod3_limb256(x, neg_mod3_limb256(y));
 	}
@@ -749,12 +840,21 @@ public:
 		return a+b;
 	}
 
+	///
+	/// \param x input first number
+	/// \param y input second number
+	/// \return x+y in every number
 	static inline T add_mod3_limb(const T x, const T y) {
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr T c2 = T(12297829382473034410u);
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
 		constexpr T c1 = T(6148914691236517205u);
 
+		// This are not the optimal operations to calculate the ternary addidion. But nearly.
+		// The problem is that one needs to spit the limb for the ones/two onto two seperate limbs. But two seperate
+		// limbs mean
+		//      - higher memory consumption for each container
+		//      - complicated hashing for the hashmaps
 		const T xy = x^y;
 		const T xy2 = x&y;
 		const T a = xy&c1;
@@ -1245,6 +1345,7 @@ public:
 
 	// internal data length. Need to export it for the template system.
 	constexpr static uint32_t LENGTH = length;
+	constexpr static LimbType minus_one = LimbType(-1);
 private:
 	constexpr static uint64_t popcount(LimbType x) {
 		if constexpr(limb_bits_width() == 64) {
