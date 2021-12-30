@@ -8,6 +8,7 @@ deps/elena_smallSecretLWE/
 .clangd/
 build/
 compile_commands.json
+.local-history/
 
 # Created by .ignore support plugin (hsz.mobi)
 ### C++ template
