@@ -857,9 +857,12 @@ public:
 
 	ParallelBucketSort() {
 		//TODO only correct if not ternary static_assert((uint64_t(nrb)*uint64_t(size_b)) < uint64_t(std::numeric_limits<IndexType>::max()));
-		static_assert((size_b%nrt) == 0);
-		static_assert(nrt <= nrb);
-		static_assert(size_t <= size_b);
+		if constexpr (!config.USE_ATOMIC_LOAD_SWITCH) {
+			static_assert((size_b%nrt) == 0);
+			static_assert(nrt <= nrb);
+			static_assert(size_t <= size_b);
+		}
+
 		//TODO this is only valid in non ternary static_assert((uint64_t(1) << uint64_t (b1 - b0)) <= uint64_t (nrb));
 		static_assert(b0 < b1);
 		static_assert(b1 <= b2);
@@ -1011,7 +1014,7 @@ public:
 		}
 	}
 
-	/// TODO discribe
+	/// TODO describe
 	/// \tparam Extractor
 	/// \param L
 	/// \param load
@@ -1098,7 +1101,7 @@ public:
 
 		// early exit if a bucket is full.
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
-			if (size_b - uint64_t(load) == 0) {
+			if (size_b <= uint64_t(load)) {
 				return 0;
 			}
 		} else {
@@ -1183,11 +1186,11 @@ public:
 
 	/// A little helper function, which maps a thread (its assumed that nr_threads <= nr_buckets) to a set of buckets,
 	/// which this thread needs to sort.
-	inline void sort(const uint32_t tid) {
+	inline void sort(const uint32_t tid) noexcept {
 		ASSERT(tid < config.nr_threads);
 
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
-			// thats the whole reason, we use atomic value. So we dont have to sort.
+			// that's the whole reason, we use atomic value. So we dont have to sort.
 			return;
 		}
 

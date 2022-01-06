@@ -89,7 +89,9 @@ public:
 		}
 	}
 
-
+	/// Note this clears the matrix
+	/// \param i
+	/// \param j
 	void resize(const uint64_t i, const uint64_t j) { mzd_free(m); m = mzd_init(i, j); };
 
 	uint64_t get_rows() const { return m->nrows; };
