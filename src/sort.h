@@ -1405,7 +1405,11 @@ public:
 	/// IMPORTANT: Only call this function by exactly one thread.
 	void reset() {
 		// for instructions please read the comment of the function `void reset(const uint32_t tid)`
-		memset(buckets_load.data(), 0, nrb * nrt * sizeof(LoadInternalType));
+		if constexpr (config.USE_ATOMIC_LOAD_SWITCH) {
+			memset(buckets_load.data(), 0, nrb * sizeof(LoadInternalType));
+		} else {
+			memset(buckets_load.data(), 0, nrb * nrt * sizeof(LoadInternalType));
+		}
 		// std::fill(buckets_load.begin(), buckets_load.end(), 0);
 
 		if constexpr(nrt == 1){
