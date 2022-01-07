@@ -174,6 +174,10 @@ public:
 		// return std::vector<LabelType>::iterator (__data_label);
 	}
 
+	uint64_t bytes() {
+		return nr_elements * (sizeof(ValueType) + sizeof(LabelType));
+	}
+
 private:
 	uint64_t thread_block;
 	size_t nr_elements;
@@ -654,6 +658,11 @@ public:
 		__data[start_pos(tid) + load].second[0] = i1;
         __data[start_pos(tid) + load].second[1] = i2;
         load += 1;
+	}
+
+	/// return the number of butes needed for this list
+	uint64_t bytes() noexcept {
+		return __data.size() * sizeof(InternalElementType);
 	}
 public:
 	size_t thread_block;

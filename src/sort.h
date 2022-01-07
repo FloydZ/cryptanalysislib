@@ -830,7 +830,8 @@ public:
 		ASSERT(bid < nrb);
 
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
-			// because I want to reduce the atomic loads I do not check before inserting elements, which leads to an overflow of the load factor
+			// because I want to reduce the atomic loads I do not check before inserting elements,
+			// which leads to an overflow of the load factor
 			// do not use this function to insert elements.
 			return std::min(LoadInternalType(buckets_load[bid].load()),
 			                LoadInternalType(size_b));
@@ -1423,6 +1424,7 @@ public:
 		ASSERT(tid < nrt);
 		ASSERT((tid * chunks_size) < (nrb*size_b));
 
+		// each thread clears only the load of itself.
 		memset((void *) (uint64_t(buckets_load.data()) + (tid * nrb * sizeof(LoadInternalType))),
 		       0, nrb * sizeof(LoadInternalType));
 
@@ -1482,6 +1484,7 @@ public:
 		std::cout << "size: " << nrb * size_b * sizeof(BucketEntry) + nrb * nrt * sizeof(uint64_t) << "Byte\n";
 	}
 
+	///
 	void print() {
 		LoadType load = 0;
 
@@ -1641,10 +1644,13 @@ public:
 		return load;
 	}
 
+	/// \return the number of elements the hashmap can hold in total.
 	uint64_t size() {
 		return __buckets.size();
 	}
 
+	/// \return the number of bytes the hashmap needs to hold all data.
+	///				NOTE: this does not take alignment into account
 	uint64_t bytes() {
 		uint64_t ret = sizeof(BucketEntry) * __buckets.size();
 		ret += sizeof(LoadType) * buckets_load.size();
