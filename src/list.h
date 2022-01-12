@@ -82,11 +82,16 @@ public:
 	/// \param size of the whole list
 	/// \param threads number of threads access this list
 	/// \param thread_block2 size of each block for each thread.
-	explicit Parallel_List_T(const uint64_t size, const uint32_t threads, const uint64_t thread_block2) {
-		__data_value = (ValueType *)cryptanalysislib_aligned_malloc(size*sizeof(ValueType), PAGE_SIZE);
-		if (__data_value == NULL) {
-			assert("could not alloc __data_value");
-			exit(1);
+	/// \param no_value do not allocate the value array
+	explicit Parallel_List_T(const uint64_t size, const uint32_t threads, const uint64_t thread_block2, bool no_value=false) {
+		if (no_values == false) {
+			__data_value = (ValueType *) cryptanalysislib_aligned_malloc(size * sizeof(ValueType), PAGE_SIZE);
+			if (__data_value == NULL) {
+				assert("could not alloc __data_value");
+				exit(1);
+			}
+
+			memset(__data_value, 0, size * sizeof(ValueType));
 		}
 
 		__data_label = (LabelType *)cryptanalysislib_aligned_malloc(size*sizeof(LabelType), PAGE_SIZE);
@@ -95,10 +100,7 @@ public:
 			exit(1);
 		}
 
-		memset(__data_value, 0, size*sizeof(ValueType));
 		memset(__data_label, 0, size*sizeof(LabelType));
-//		std::fill(__data_value.begin(), __data_value.end(), 0);
-//		std::fill(__data_label.begin(), __data_label.end(), 0);
 
 		nr_elements = size;
 		thread_block = thread_block2;
@@ -175,6 +177,9 @@ public:
 	}
 
 	uint64_t bytes() {
+		if (__data_value == nullptr)
+			return nr_elements * sizeof(LabelType);
+
 		return nr_elements * (sizeof(ValueType) + sizeof(LabelType));
 	}
 

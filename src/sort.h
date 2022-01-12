@@ -679,30 +679,6 @@ private:
 	constexpr static ArgumentLimbType highbitmask   = ArgumentLimbType(1) << (sizeof(ArgumentLimbType)*8-1);
 	constexpr static ArgumentLimbType sortrmask2    = ((ArgumentLimbType(1) << (b2 + config.lvl)) - 1) | highbitmask;
 
-	// idea use the leftover space in one `ArgumentLimbType` to store the load.
-	// 0      l      align
-	// | data | load | index1 | index2 |
-	// NOTE:    Cacheline = 64Byte
-	constexpr static uint32_t MAXLOAD_SWITCH = 64/sizeof(ArgumentLimbType);
-
-	// NOTE: Currently permanently disabled.
-	constexpr static bool SPECIAL_LOAD_DECODING_SWITCH          = false;//((BitSizeArgumentLimbType - b2) >= (1+BitSizeLoadInternalType)) && size_b < MAXLOAD_SWITCH;
-	constexpr static uint32_t BitSizeArgumentLimbType           = sizeof(ArgumentLimbType)*8;
-	constexpr static uint32_t BitSizeLoadInternalType           = sizeof(LoadInternalType)*8;
-	constexpr static uint32_t DecodedLoadOffset                 = BitSizeArgumentLimbType - BitSizeLoadInternalType;
-	constexpr static uint32_t DecodedLoadCheckOffset            = BitSizeArgumentLimbType - BitSizeLoadInternalType -1;
-	constexpr static ArgumentLimbType DecodedLoadCheckBitMask   = ArgumentLimbType(1) << (BitSizeArgumentLimbType - BitSizeLoadInternalType - 1);
-	constexpr static ArgumentLimbType DecodedLoadMask           = ~((ArgumentLimbType(1) << DecodedLoadOffset) - 1) ;
-	constexpr static ArgumentLimbType DecodedLoadCheckMask      = ~((ArgumentLimbType(1) << DecodedLoadCheckOffset) - 1) ;
-
-	inline LoadInternalType get_decoded_load1(const BucketIndexType bucket_offset) {
-		// Note implicit cast here, if
-		return (__buckets[bucket_offset].first & DecodedLoadMask) >> DecodedLoadOffset;
-	}
-	inline ArgumentLimbType get_decoded_loadcheck1(const BucketIndexType bucket_offset) {
-		return (__buckets[bucket_offset].first & DecodedLoadCheckMask) >> DecodedLoadCheckOffset;
-	}
-
 	// DO NOT USE IT.
 	// if set to:   false:  `std::lower_bound` will be used to find a match in one bucket of this hashmap
 	//              true: custom mono bounded binary search is used to fin a match
@@ -787,6 +763,44 @@ private:
 		acc_buckets_load[bid] = load;
 	}
 
+	/// \param index position to check in the __buckets array
+	/// \return if the element is zero or not
+	bool is_zero(const uint64_t index) {
+		ASSERT(index < nrb *size_b);
+		constexpr ArgumentLimbType zero_element = ArgumentLimbType(-1);
+		return __buckets[index].first == zero_element;
+	}
+
+	/// \template insert: if set to true: find the next empty slot per bucket per thread
+	///								false: find the next empty slot per bucket
+	///
+	/// \param bid bucket id
+	/// \param tid thread id
+	/// \return the next empty slot in the array
+	template<const bool insert>
+	inline LoadType find_next_empty_slot(const BucketHashType bid, const uint32_t tid) {
+		// make sure the function is only called in the correct setting
+		ASSERT(!USE_LOAD_IN_FIND_SWITCH && LINEARSEARCH_SWITCH);
+		ASSERT(tid < nrt);
+
+		constexpr LoadType middle = insert ? size_t/2 : size_b/2;
+		const uint64_t offset = insert ? bucket_offset(tid, bid) : bucket_offset(bid);
+		LoadType ret = middle;
+
+		if (is_zero(offset+ret)) {
+			// go down
+			ret -= 1;
+			while(is_zero(offset + ret) && ret > 0) { ret -= 1; }
+		} else {
+			// go up
+			ret += 1;
+			while(is_zero(offset + ret) && ret < size_t) { ret += 1; }
+		}
+
+		return ret;
+	}
+
+
 public:
 
 	// increments the bucket load by one
@@ -850,11 +864,10 @@ public:
 		return bid;
 	}
 
-	// Datacontainers
+	// internal data containers
 	alignas(PAGE_SIZE) std::vector<BucketEntry> __buckets;
-	//alignas(PAGE_SIZE) std::vector<LoadInternalType> buckets_load;
 	alignas(PAGE_SIZE) ArrayLoadInternalType buckets_load;
-	alignas(PAGE_SIZE) std::vector<LoadInternalType> acc_buckets_load; // TODO merge?
+	alignas(PAGE_SIZE) std::vector<LoadInternalType> acc_buckets_load;
 
 	ParallelBucketSort() {
 		//TODO only correct if not ternary static_assert((uint64_t(nrb)*uint64_t(size_b)) < uint64_t(std::numeric_limits<IndexType>::max()));
@@ -878,8 +891,8 @@ public:
 		static_assert(!(LINEARSEARCH_SWITCH && INTERPOLATIONSEARCH_SWITCH));
 
 		// make sure that we actually have some coordinates to search on, if the user wants to do a linear/different search.
-		if constexpr (LINEARSEARCH_SWITCH || INTERPOLATIONSEARCH_SWITCH) {
-			static_assert(b1 < b2);
+		if constexpr ((LINEARSEARCH_SWITCH || INTERPOLATIONSEARCH_SWITCH) && !USE_LOAD_IN_FIND_SWITCH) {
+			//static_assert(b1 < b2);
 		}
 
 		// make sure that the given size parameter are sane.
@@ -916,16 +929,21 @@ public:
 			static_assert(nrt > 1);
 		}
 
+		if constexpr (LINEARSEARCH_SWITCH) {
+			// only allow to remove the load factor array if linear search is active
+			static_assert(!USE_LOAD_IN_FIND_SWITCH);
+		}
+
 		if ((1 << (b2 - b1)) / nrb > size_b)
 			std::cout << "WHAT DOES THIS MEAN???\n";
 
 		__buckets.resize(nrb * size_b);
 
-		if constexpr(!USE_ATOMIC_LOAD_SWITCH) {
+		if constexpr(!USE_ATOMIC_LOAD_SWITCH && USE_LOAD_IN_FIND_SWITCH) {
 			buckets_load.resize(nrb * nrt);
 		}
 
-		if constexpr(nrt != 1 && !USE_ATOMIC_LOAD_SWITCH) {
+		if constexpr(nrt != 1 && !USE_ATOMIC_LOAD_SWITCH && USE_LOAD_IN_FIND_SWITCH) {
 			acc_buckets_load.resize(nrb);
 		}
 
@@ -945,7 +963,6 @@ public:
 			std::cout << "\tLoadType: " << sizeof(LoadType) * 8 << "Bits\n";
 			std::cout << "\tLoadInternalType: " << sizeof(LoadInternalType) * 8 << "Bits\n";
 			std::cout << "\tLabelType: " << sizeof(Label) * 8 << "Bits\n";
-			std::cout << "\tSPECIAL_LOAD_DECODING_SWITCH:" << SPECIAL_LOAD_DECODING_SWITCH << "\n";
 			std::cout << "\tINTERPOLATIONSEARCH_SWITCH:" << INTERPOLATIONSEARCH_SWITCH << "\n";
 			std::cout << "\tSTDBINARYSEARCH_SWITCH:" << STDBINARYSEARCH_SWITCH << "\n";
 			std::cout << "\tLINEAREARCH_SWITCH:" << LINEARSEARCH_SWITCH << "\n";
@@ -958,6 +975,7 @@ public:
 			std::cout << "\tUSE_ATOMIC_LOAD_SWITCH:" << USE_ATOMIC_LOAD_SWITCH << "\n";
 		}
 #endif
+		// reset the whole thing for the first usage
 		reset();
 	}
 
@@ -1017,9 +1035,9 @@ public:
 
 	/// TODO describe
 	/// \tparam Extractor
-	/// \param L
-	/// \param load
-	/// \param tid
+	/// \param L list to hash
+	/// \param load size of 'L', e.g. number of elements in the list.
+	/// \param tid thread id
 	/// \param e
 	template<class Extractor>
 	void hash(const List &L, const uint64_t load, const uint32_t tid, Extractor e) {
@@ -1074,30 +1092,19 @@ public:
 	/// returns 0 if full, 1 if successfully inserted.
 	uint32_t insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) {
 		ASSERT(tid < config.nr_threads);
-		if constexpr(SPECIAL_LOAD_DECODING_SWITCH) {
-			const BucketHashType bid            = HashFkt(data);
-			BucketIndexType bucketOffset        = bucket_offset(tid, bid);
-			const ArgumentLimbType loadcheck    = get_decoded_loadcheck1(bucketOffset);
-			const BucketIndexType load          = 0; // TODO
-
-			if (size_t - load == 0) {
-				return 0;
-			}
-
-			ArgumentLimbType bla = 0; // TODO ((((load+1) << 1) ^ add_option) << DecodedLoadCheckOffset);
-			__buckets[bucketOffset].first = (__buckets[bucketOffset].first&rmask2)^bla;;
-			bucketOffset += load;
-			__buckets[bucketOffset].first = (data&rmask2)^bla;
-			memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
-			return 1;
-		}
-
 		const BucketHashType bid = HashFkt(data);
 		LoadType load;
-		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
-			load = inc_bucket_load(tid, bid);
+
+		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
+			// in this case we do not access the 'load' array. This reduces the caches
+			// misses by one. Instead, we do a linear search over the buckets to find a empty space
+			load = find_next_empty_slot<true>(bid, tid);
 		} else {
-			load = get_bucket_load(tid, bid);
+			if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+				load = inc_bucket_load(tid, bid);
+			} else {
+				load = get_bucket_load(tid, bid);
+			}
 		}
 
 		// early exit if a bucket is full.
@@ -1113,7 +1120,7 @@ public:
 
 		// calculated the final index within the array of elements which will be returned to the tree construction.
 		const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
-		if constexpr (!USE_ATOMIC_LOAD_SWITCH) {
+		if constexpr (!USE_ATOMIC_LOAD_SWITCH && USE_LOAD_IN_FIND_SWITCH) {
 			// we need to increase the load factor only at this point if we do not use atomics.
 			inc_bucket_load(tid, bid);
 		}
@@ -1243,11 +1250,10 @@ public:
 		const BucketHashType bid = HashFkt(data);
 		const BucketIndexType boffset = bid * size_b;   // start index of the bucket in the internal data structure
 
-		// Depend on how we encoded the load parameter, read it.
-		if constexpr(SPECIAL_LOAD_DECODING_SWITCH) {
-			// IMPORTANT: threads not implemented.
-			// Note that this approach is slower
-			load = get_decoded_load1(bid*size_b + 0);
+		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
+			// in this case we do not access the 'load' array. This reduces the caches
+			// misses by one. Instead, we do a linear search over the buckets to find a empty space
+			load = find_next_empty_slot<false>(bid, 0);
 		} else {
 			// last index within the bucket.
 			// IMPORTANT: Note that we need the full bucket load and not just
@@ -1405,6 +1411,12 @@ public:
 
 	/// IMPORTANT: Only call this function by exactly one thread.
 	void reset() {
+		if (!USE_LOAD_IN_FIND_SWITCH) {
+			// only in this case reset everything except the load array.
+			memset(__buckets.data(), -1, __buckets.size() * sizeof(BucketEntry));
+			return;
+		}
+
 		// for instructions please read the comment of the function `void reset(const uint32_t tid)`
 		if constexpr (config.USE_ATOMIC_LOAD_SWITCH) {
 			memset(buckets_load.data(), 0, nrb * sizeof(LoadInternalType));
@@ -1423,6 +1435,14 @@ public:
 	void reset(const uint32_t tid) {
 		ASSERT(tid < nrt);
 		ASSERT((tid * chunks_size) < (nrb*size_b));
+
+		if (!USE_LOAD_IN_FIND_SWITCH) {
+			// only in this case reset everything except the load array.
+			memset((void *) (uint64_t(__buckets.data()) + (tid * chunks_size * sizeof(BucketEntry))),
+			       -1, chunks_size * sizeof(BucketEntry));
+			return;
+		}
+
 
 		// each thread clears only the load of itself.
 		memset((void *) (uint64_t(buckets_load.data()) + (tid * nrb * sizeof(LoadInternalType))),
