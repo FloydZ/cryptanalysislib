@@ -83,7 +83,7 @@ public:
 	/// \param threads number of threads access this list
 	/// \param thread_block2 size of each block for each thread.
 	/// \param no_value do not allocate the value array
-	explicit Parallel_List_T(const uint64_t size, const uint32_t threads, const uint64_t thread_block2, bool no_value=false) {
+	explicit Parallel_List_T(const uint64_t size, const uint32_t threads, const uint64_t thread_block2, bool no_values=false) {
 		if (no_values == false) {
 			__data_value = (ValueType *) cryptanalysislib_aligned_malloc(size * sizeof(ValueType), PAGE_SIZE);
 			if (__data_value == NULL) {
