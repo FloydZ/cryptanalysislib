@@ -773,7 +773,6 @@ private:
 
 	/// \template insert: if set to true: find the next empty slot per bucket per thread
 	///								false: find the next empty slot per bucket
-	///
 	/// \param bid bucket id
 	/// \param tid thread id
 	/// \return the next empty slot in the array
@@ -789,12 +788,10 @@ private:
 
 		if (is_zero(offset+ret)) {
 			// go down
-			ret -= 1;
-			while(is_zero(offset + ret) && ret > 0) { ret -= 1; }
+			while(ret > 0 && is_zero(offset + ret - 1)) { ret -= 1; }
 		} else {
 			// go up
-			ret += 1;
-			while(is_zero(offset + ret) && ret < size_t) { ret += 1; }
+			while(ret < size_t-1 && is_zero(offset + ret + 1)) { ret += 1; }
 		}
 
 		return ret;
