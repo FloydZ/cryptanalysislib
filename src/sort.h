@@ -472,6 +472,8 @@ struct ConfigParallelBucketSort {
 	bool STDBINARYSEARCH_SWITCH         = false;
 	bool INTERPOLATIONSEARCH_SWITCH     = false;
 	bool LINEARSEARCH_SWITCH            = false;
+
+	// TODO explain in detail
 	bool USE_LOAD_IN_FIND_SWITCH        = true;
 
 	// Because of the greate abstraction of the hashing and extracting of this hashmap, this flag does not have a direct
@@ -494,6 +496,7 @@ struct ConfigParallelBucketSort {
 	//      Sorting is not needed afterwards
 	bool USE_ATOMIC_LOAD_SWITCH         = false;
 
+	bool USE_HIGH_WEIGHT_SWITCH         = false;
 private:
 	// useless empty constructor.
 	constexpr ConfigParallelBucketSort() :
@@ -509,9 +512,8 @@ private:
 			lvl(0),
 			IM_nr_views(0) {}
 
-	// TODO explain
 public:
-	constexpr ConfigParallelBucketSort(const uint16_t b0,             //
+	constexpr ConfigParallelBucketSort(const uint16_t b0,             // TODO explain
 	                                   const uint16_t b1,             //
 	                                   const uint16_t b2,             //
 	                                   const uint64_t bucket_size,    //
@@ -529,7 +531,8 @@ public:
 									   const bool SF128B=false,       //
 	                                   const uint8_t ETT=0,           //
 	                                   const bool UPS=false,          //
-	                                   const bool UALS=false          //
+	                                   const bool UALS=false,         //
+	                                   const bool UHWS=false          //
 	                                   ) :
 			label_offset(label_offset), l(l), bucket_size(bucket_size), nr_buckets(nr_buckets),
 			nr_threads(nr_threads), nr_indices(nr_indices), b0(b0), b1(b1), b2(b2),
@@ -537,7 +540,8 @@ public:
 			STDBINARYSEARCH_SWITCH(SBSSW), INTERPOLATIONSEARCH_SWITCH(ISSW),
 			LINEARSEARCH_SWITCH(LSSW), USE_LOAD_IN_FIND_SWITCH(USIDSW),
 			SAVE_FULL_128BIT(SF128B), EXTEND_TO_TRIPLE(ETT),
-	        USE_PREFETCH_SWITCH(UPS), USE_ATOMIC_LOAD_SWITCH(UALS)
+	        USE_PREFETCH_SWITCH(UPS), USE_ATOMIC_LOAD_SWITCH(UALS),
+			USE_HIGH_WEIGHT_SWITCH(UHWS)
 	{}
 
 	/// print some information about the configuration
@@ -638,39 +642,43 @@ private:
 	constexpr static uint64_t chunks        = nrb / nrt;          // how many buckets must each thread sort or reset.
 	constexpr static uint64_t chunks_size   = chunks * size_b;
 
+
 public:
+	// needed in certain configurations
+	constexpr static ArgumentLimbType zero_element = ArgumentLimbType(-1);
+
 	// We choose the optimal data container for every occasion.
 	// This is the Type which is exported to the outside and denotes the maximum number of elements a bucket can hold.
 	// Must be the same as IndexType, because `load` means always an absolute position within the array.
 	using LoadType          = IndexType;
 	// In contrast to `LoadType` this type does not include the absolute position within the array, but only the
 	// relative within the bucket. Can be smaller than `IndexType`
-	using LoadInternalType  = typename std::conditional<config.USE_ATOMIC_LOAD_SWITCH,
+	using LoadInternalType      = typename std::conditional<config.USE_ATOMIC_LOAD_SWITCH,
 	                                                    std::atomic<TypeTemplate<size_b>>,
 	                                                    TypeTemplate<size_b>>::type;
 
-	using ArrayLoadInternalType  = typename std::conditional<config.USE_ATOMIC_LOAD_SWITCH,
+	using ArrayLoadInternalType = typename std::conditional<config.USE_ATOMIC_LOAD_SWITCH,
 															std::array<LoadInternalType, nrb>,
 															std::vector<LoadInternalType>>::type;
 	// Number of bits needed to hold a hash
-	using BucketHashType    = TypeTemplate<uint64_t(1) << (config.b1-config.b0)>;
-	using BucketIndexType   = TypeTemplate<nrb * size_b>;
+	using BucketHashType        = TypeTemplate<uint64_t(1) << (config.b1-config.b0)>;
+	using BucketIndexType       = TypeTemplate<nrb * size_b>;
 	// Main data container
-	using BucketIndexEntry  = std::array<IndexType, Anri>;
+	using BucketIndexEntry      = std::array<IndexType, Anri>;
 
-	// only sed if `config.EXTEND_TO_TRIPLE` si activated.
-	using TripleT           = LogTypeTemplate<config.EXTEND_TO_TRIPLE>;
+	// only set, if `config.EXTEND_TO_TRIPLE` is activated.
+	using TripleT               = LogTypeTemplate<config.EXTEND_TO_TRIPLE>;
 
 	/// TODO probably one day i want to change this to a std::tuple.
-	using BucketEntry       = typename  std::conditional<config.EXTEND_TO_TRIPLE != 0,
+	using BucketEntry           = typename  std::conditional<config.EXTEND_TO_TRIPLE != 0,
 														 triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
 														 std::pair<ArgumentLimbType, BucketIndexEntry>>::type;
 
 private:
 	// precompute the compare masks and limbs
-	constexpr static ArgumentLimbType lmask1    = (~((ArgumentLimbType(1) << b0) - 1));
-	constexpr static ArgumentLimbType rmask1    = ((ArgumentLimbType(1) << b1) - 1);
-	constexpr static ArgumentLimbType mask1     = lmask1 & rmask1;
+	constexpr static ArgumentLimbType lmask1        = (~((ArgumentLimbType(1) << b0) - 1));
+	constexpr static ArgumentLimbType rmask1        = ((ArgumentLimbType(1) << b1) - 1);
+	constexpr static ArgumentLimbType mask1         = lmask1 & rmask1;
 
 	// masks for the [b1, b2] part
 	constexpr static ArgumentLimbType lmask2        = (~((ArgumentLimbType(1) << b1) - 1));
@@ -712,6 +720,10 @@ private:
 
 	// TODO desribe
 	constexpr static bool USE_ATOMIC_LOAD_SWITCH         = config.USE_ATOMIC_LOAD_SWITCH;
+
+	// TODO
+	constexpr static bool USE_HIGH_WEIGHT_SWITCH         = config.USE_HIGH_WEIGHT_SWITCH;
+
 
 	// Indyk Motwani Nearest Neighbor Search:
 	// How many additional l windows should this hashmap hold?
@@ -767,7 +779,6 @@ private:
 	/// \return if the element is zero or not
 	bool is_zero(const uint64_t index) {
 		ASSERT(index < nrb *size_b);
-		constexpr ArgumentLimbType zero_element = ArgumentLimbType(-1);
 		return __buckets[index].first == zero_element;
 	}
 
@@ -821,6 +832,8 @@ public:
 
 	inline LoadType get_bucket_load(const uint32_t tid, const BucketHashType bid) {
 		ASSERT(tid < nrt && bid < nrb);
+		ASSERT(config.USE_LOAD_IN_FIND_SWITCH);
+
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
 			// because I want to reduce the atomic loads I do not check before inserting elements, which leads to an overflow of the load factor
 			// do not use this function to insert elements.
@@ -1083,11 +1096,19 @@ public:
 		}
 	}
 
+	uint32_t traverse_insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) {
+		ASSERT(tid < config.nr_threads);
+		const BucketHashType bid = HashFkt(data);
+		LoadType load;
+		// TODO
+		return 0;
+	}
+
+
 	/// \param data l part of the label IMPORTANT MUST BE ONE LIMB
 	/// \param pos	pointer to the array which should be copied into the internal data structure to loop up elements in the baselists
 	/// \param tid	thread_id
-	/// returns 0 if full, 1 if successfully inserted.
-	uint32_t insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) {
+	void insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) {
 		ASSERT(tid < config.nr_threads);
 		const BucketHashType bid = HashFkt(data);
 		LoadType load;
@@ -1107,11 +1128,11 @@ public:
 		// early exit if a bucket is full.
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
 			if (size_b <= uint64_t(load)) {
-				return 0;
+				return;
 			}
 		} else {
 			if (size_t - uint64_t(load) == 0) {
-				return 0;
+				return;
 			}
 		}
 
@@ -1137,14 +1158,12 @@ public:
 			if constexpr (nri == 1) {
 				__buckets[bucketOffset].second[0] = npos [0];
 			} else if constexpr (nri == 2) {
-				__buckets[bucketOffset].second[0] = npos [0];
-				__buckets[bucketOffset].second[1] = npos [1];
+				__buckets[bucketOffset].second[0] = npos[0];
+				__buckets[bucketOffset].second[1] = npos[1];
 			} else {
 				memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
 			}
 		}
-
-		return 1;
 	}
 
 	/// Only sort a single bucket. Make sure that you call this function for every bucket.
@@ -1199,6 +1218,45 @@ public:
 			return;
 		}
 
+		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
+			// in this case we cannot simply query the `load` array.
+			// We need to `recalculate the load for each bucket and each on the fly new
+			// Additionally, we also break up the thread `boundaries` and allow each thread
+			// to access areas of other threads.
+
+			if constexpr (b1 != b2) {
+				ASSERT(0); // not implemented
+				return;
+			}
+
+			if constexpr (!LINEARSEARCH_SWITCH) {
+				ASSERT(0); // not implemented
+				return;
+			}
+
+			for (uint64_t bid = tid * chunks; bid < ((tid + 1) * chunks); ++bid) {
+				const std::size_t offset = bid * size_b;
+				std::size_t load_offset = find_next_empty_slot<1>(bid, 0);
+				std::size_t thread_offset = size_t;
+
+				for (uint64_t i = 0; i < nrt -1; i++) {
+					uint64_t load2 = find_next_empty_slot<1>(bid, i+1);
+
+					// Note these two mem regions can overlap.
+					memcpy(__buckets.data() + offset + load_offset,
+					       __buckets.data() + offset + thread_offset,
+					       load2 * sizeof(BucketEntry));
+
+					load_offset += load2;
+					thread_offset += size_t;
+				}
+			}
+
+			// NOTE: Instead of the normal routine we do not have to accumulate the load
+			//          into a separate accumulate array.
+			return;
+		}
+
 		if constexpr ((config.nr_threads == 1) && (config.b2 == config.b1)) {
 			// Fastpath. If the hash function maps onto the full length and
 			// we only have one thread there is nothing to do.
@@ -1207,8 +1265,7 @@ public:
 
 		if constexpr ((config.nr_threads > 1) && (config.b2 == config.b1)) {
 			// in the special case that (config.b2 == config.b1) but threads > 1 we can memcpy
-			// everything "max-load" elements down.
-			// We just have to do it in a per thread manner.
+			// "max-load" elements down. We just have to do it in a per thread manner.
 			for (uint64_t bid = tid * chunks; bid < ((tid + 1) * chunks); ++bid) {
 				const uint64_t offset = bid * size_b;
 				uint64_t load_offset = get_bucket_load(0, bid);
@@ -1216,7 +1273,7 @@ public:
 				for (uint64_t i = 0; i < nrt -1; i++) {
 					uint64_t load2 = get_bucket_load(i+1, bid);
 
-					// Note these to mem regions can overlap.
+					// Note these two mem regions can overlap.
 					memcpy(__buckets.data() + offset + load_offset,
 					       __buckets.data() + offset + thread_offset,
 					       load2 * sizeof(BucketEntry));
@@ -1225,7 +1282,7 @@ public:
 					thread_offset += size_t;
 				}
 
-				// After we `sorted` everything , we have to accumulate the load over each thread.
+				// After we `sorted` everything, we have to accumulate the load over each thread.
 				// but instead of using `acc_bucket_load(bid);` we can set the accumulated load to `load_offset`
 				acc_buckets_load[bid] = load_offset;
 			}
@@ -1240,8 +1297,17 @@ public:
 		}
 	}
 
+	// todo as flag and in `find`
+	BucketIndexType traverse_find(const ArgumentLimbType &data) {
+		const BucketHashType bid = HashFkt(data);
+		const BucketIndexType boffset = bid * size_b;
+		ASSERT(bid < nrb && boffset < nrb * size_b);
+		//ignore load
+		return boffset;
+	}
 
-	// returns -1 on error/nothing found. Else the position.
+
+		// returns -1 on error/nothing found. Else the position.
 	// IMPORTANT: load` is the actual load + bid*size_b
 	BucketIndexType find(const ArgumentLimbType &data, LoadType &load) {
 		const BucketHashType bid = HashFkt(data);
@@ -1408,10 +1474,16 @@ public:
 
 	/// IMPORTANT: Only call this function by exactly one thread.
 	void reset() {
-		if (!USE_LOAD_IN_FIND_SWITCH) {
+		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
 			// only in this case reset everything except the load array.
 			memset(__buckets.data(), -1, __buckets.size() * sizeof(BucketEntry));
 			return;
+		}
+
+		if constexpr (USE_HIGH_WEIGHT_SWITCH) {
+			// in this case we must also reset the whole hashmap, but also the
+			// load factor arrays
+			memset(__buckets.data(), -1, __buckets.size() * sizeof(BucketEntry));
 		}
 
 		// for instructions please read the comment of the function `void reset(const uint32_t tid)`
@@ -1433,11 +1505,17 @@ public:
 		ASSERT(tid < nrt);
 		ASSERT((tid * chunks_size) < (nrb*size_b));
 
-		if (!USE_LOAD_IN_FIND_SWITCH) {
-			// only in this case reset everything except the load array.
+		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
+			// in this case reset everything except the load array.
 			memset((void *) (uint64_t(__buckets.data()) + (tid * chunks_size * sizeof(BucketEntry))),
 			       -1, chunks_size * sizeof(BucketEntry));
 			return;
+		}
+
+		if constexpr (USE_HIGH_WEIGHT_SWITCH) {
+			// only in this case reset everything
+			memset((void *) (uint64_t(__buckets.data()) + (tid * chunks_size * sizeof(BucketEntry))),
+			       -1, chunks_size * sizeof(BucketEntry));
 		}
 
 
@@ -1508,7 +1586,7 @@ public:
 		bool flag = false;
 		// IMPORTANT: Functions is only useful if `acc_bucket_load` was called befor.
 		for (uint64_t bid = 0; bid < nrb; ++bid) {
-			load += get_bucket_load(bid);
+			load += USE_LOAD_IN_FIND_SWITCH ? get_bucket_load(bid) : find_next_empty_slot<0>(bid, 0);
 			if (load > 0) {
 				flag = true;
 			}
