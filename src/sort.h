@@ -790,7 +790,7 @@ private:
 	template<const bool insert>
 	inline LoadType find_next_empty_slot(const BucketHashType bid, const uint32_t tid) {
 		// make sure the function is only called in the correct setting
-		ASSERT(!USE_LOAD_IN_FIND_SWITCH && LINEARSEARCH_SWITCH);
+		ASSERT((!USE_LOAD_IN_FIND_SWITCH && LINEARSEARCH_SWITCH) || USE_HIGH_WEIGHT_SWITCH);
 		ASSERT(tid < nrt);
 
 		constexpr LoadType middle = insert ? size_t/2 : size_b/2;
@@ -983,6 +983,7 @@ public:
 			std::cout << "\tEXTEND_TO_TRIPLE:" << unsigned(EXTEND_TO_TRIPLE) << "\n";
 			std::cout << "\tUSE_PREFETCH_SWITCH:" << USE_PREFETCH_SWITCH << "\n";
 			std::cout << "\tUSE_ATOMIC_LOAD_SWITCH:" << USE_ATOMIC_LOAD_SWITCH << "\n";
+			std::cout << "\tUSE_HIGH_WEIGHT_SWITCH:" << USE_HIGH_WEIGHT_SWITCH << "\n";
 		}
 #endif
 		// reset the whole thing for the first usage
@@ -1043,12 +1044,11 @@ public:
 		}
 	}
 
-	/// TODO describe
 	/// \tparam Extractor
 	/// \param L list to hash
 	/// \param load size of 'L', e.g. number of elements in the list.
 	/// \param tid thread id
-	/// \param e
+	/// \param e extractor function
 	template<class Extractor>
 	void hash(const List &L, const uint64_t load, const uint32_t tid, Extractor e) {
 		ASSERT(tid < config.nr_threads);
@@ -1093,6 +1093,35 @@ public:
 			__buckets[bucketOffset].first = data;
 			memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
 			__buckets[bucketOffset].third = et(L.data_label(i));
+		}
+	}
+
+	// same as above but do not touch the load array
+	template<class Extractor>
+	void traverse_hash(const List &L, const uint64_t load, const uint32_t tid, Extractor e) {
+		ASSERT(tid < config.nr_threads);
+
+		const std::size_t s_tid = L.start_pos(tid);
+		const std::size_t e_tid = s_tid + load;
+
+		ArgumentLimbType data;
+		IndexType pos[1];
+		for (std::size_t i = s_tid; i < e_tid; ++i) {
+			data = e(L.data_label(i));
+			pos[0] = i;
+
+			// insert the element.
+			const BucketHashType bid = HashFkt(data);
+			const LoadType load      = find_next_empty_slot<1>(bid, tid);
+			if (size_t - load == 0) {
+				continue;
+			}
+
+			const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
+
+			__buckets[bucketOffset].first = data;
+			memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
+			//__buckets[bucketOffset].third = et(L.data_label(i));
 		}
 	}
 
