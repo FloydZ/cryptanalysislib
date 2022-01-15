@@ -1596,7 +1596,7 @@ public:
 			load += buckets_load[chunks + i];
 		}
 
-#pragma omp critical
+		#pragma omp critical
 		{std::cout << "ThreadID: " << tid << ", load: " << double(load)/chunks << "\n"; }
 
 		for (uint64_t i = 0; i < nrt; i++) {
@@ -1615,7 +1615,7 @@ public:
 		bool flag = false;
 		// IMPORTANT: Functions is only useful if `acc_bucket_load` was called befor.
 		for (uint64_t bid = 0; bid < nrb; ++bid) {
-			load += USE_LOAD_IN_FIND_SWITCH ? get_bucket_load(bid) : find_next_empty_slot<0>(bid, 0);
+			load += (USE_LOAD_IN_FIND_SWITCH && !USE_HIGH_WEIGHT_SWITCH) ? get_bucket_load(bid) : find_next_empty_slot<0>(bid, 0);
 			if (load > 0) {
 				flag = true;
 			}
