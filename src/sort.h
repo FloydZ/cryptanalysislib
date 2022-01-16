@@ -793,6 +793,13 @@ private:
 		ASSERT((!USE_LOAD_IN_FIND_SWITCH && LINEARSEARCH_SWITCH) || USE_HIGH_WEIGHT_SWITCH);
 		ASSERT(tid < nrt);
 
+		if constexpr (!insert && size_b <= 2) {
+			LoadType ret = 0;
+			const std::size_t offset = bucket_offset(bid);
+			while(ret < size_b && is_zero(offset + ret)) { ret += 1; }
+			return ret;
+		}
+
 		constexpr LoadType middle = insert ? size_t/2 : size_b/2;
 		const uint64_t offset = insert ? bucket_offset(tid, bid) : bucket_offset(bid);
 		LoadType ret = middle;
@@ -802,7 +809,8 @@ private:
 			while(ret > 0 && is_zero(offset + ret - 1)) { ret -= 1; }
 		} else {
 			// go up
-			while(ret < size_t-1 && is_zero(offset + ret + 1)) { ret += 1; }
+			constexpr std::size_t limit = insert ? size_t : size_b;
+			while(ret < limit-1 && is_zero(offset + ret + 1)) { ret += 1; }
 		}
 
 		return ret;
@@ -1061,7 +1069,20 @@ public:
 		for (std::size_t i = s_tid; i < e_tid; ++i) {
 			data = e(L.data_label(i));
 			pos[0] = i;
-			insert(data, pos, tid);
+			if constexpr (!USE_HIGH_WEIGHT_SWITCH) {
+				insert(data, pos, tid);
+			} else {
+				const BucketHashType bid = HashFkt(data);
+				const LoadType load      = find_next_empty_slot<1>(bid, tid);
+				if (size_t - load == 0) {
+					continue;
+				}
+
+				const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
+
+				__buckets[bucketOffset].first = data;
+				memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
+			}
 		}
 	}
 
@@ -1080,19 +1101,33 @@ public:
 			data = e(L.data_label(i));
 			pos[0] = i;
 
-			// insert the element.
-			const BucketHashType bid = HashFkt(data);
-			const LoadType load      = get_bucket_load(tid, bid);
-			if (size_t - load == 0) {
-				continue;
+			if constexpr (!USE_HIGH_WEIGHT_SWITCH) {
+			    // insert the element.
+			    const BucketHashType bid = HashFkt(data);
+			    const LoadType load = get_bucket_load(tid, bid);
+			    if (size_t - load == 0) {
+				    continue;
+			    }
+
+			    const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
+			    inc_bucket_load(tid, bid);
+
+			    __buckets[bucketOffset].first = data;
+			    memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
+			    __buckets[bucketOffset].third = et(L.data_label(i));
+		    } else {
+				const BucketHashType bid = HashFkt(data);
+				const LoadType load      = find_next_empty_slot<1>(bid, tid);
+				if (size_t - load == 0) {
+					continue;
+				}
+
+				const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
+
+				__buckets[bucketOffset].first = data;
+				memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
+				__buckets[bucketOffset].third = et(L.data_label(i));
 			}
-
-			const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
-			inc_bucket_load(tid, bid);
-
-			__buckets[bucketOffset].first = data;
-			memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
-			__buckets[bucketOffset].third = et(L.data_label(i));
 		}
 	}
 
@@ -1100,6 +1135,7 @@ public:
 	template<class Extractor>
 	void traverse_hash(const List &L, const uint64_t load, const uint32_t tid, Extractor e) {
 		ASSERT(tid < config.nr_threads);
+		ASSERT(USE_HIGH_WEIGHT_SWITCH);
 
 		const std::size_t s_tid = L.start_pos(tid);
 		const std::size_t e_tid = s_tid + load;
@@ -1121,16 +1157,10 @@ public:
 
 			__buckets[bucketOffset].first = data;
 			memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
-			//__buckets[bucketOffset].third = et(L.data_label(i));
+			if constexpr (EXTEND_TO_TRIPLE) {
+				//__buckets[bucketOffset].third = et(L.data_label(i));
+			}
 		}
-	}
-
-	uint32_t traverse_insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) {
-		ASSERT(tid < config.nr_threads);
-		const BucketHashType bid = HashFkt(data);
-		LoadType load;
-		// TODO
-		return 0;
 	}
 
 
