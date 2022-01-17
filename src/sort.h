@@ -496,7 +496,12 @@ struct ConfigParallelBucketSort {
 	//      Sorting is not needed afterwards
 	bool USE_ATOMIC_LOAD_SWITCH         = false;
 
+	// TODO explain
 	bool USE_HIGH_WEIGHT_SWITCH         = false;
+
+	// TODO explain
+	bool USE_PACKED_SWITCH              = true;
+
 private:
 	// useless empty constructor.
 	constexpr ConfigParallelBucketSort() :
@@ -532,7 +537,8 @@ public:
 	                                   const uint8_t ETT=0,           //
 	                                   const bool UPS=false,          //
 	                                   const bool UALS=false,         //
-	                                   const bool UHWS=false          //
+	                                   const bool UHWS=false,         //
+	                                   const bool UPAS=true           //
 	                                   ) :
 			label_offset(label_offset), l(l), bucket_size(bucket_size), nr_buckets(nr_buckets),
 			nr_threads(nr_threads), nr_indices(nr_indices), b0(b0), b1(b1), b2(b2),
@@ -541,7 +547,7 @@ public:
 			LINEARSEARCH_SWITCH(LSSW), USE_LOAD_IN_FIND_SWITCH(USIDSW),
 			SAVE_FULL_128BIT(SF128B), EXTEND_TO_TRIPLE(ETT),
 	        USE_PREFETCH_SWITCH(UPS), USE_ATOMIC_LOAD_SWITCH(UALS),
-			USE_HIGH_WEIGHT_SWITCH(UHWS)
+			USE_HIGH_WEIGHT_SWITCH(UHWS), USE_PACKED_SWITCH(UPAS)
 	{}
 
 	/// print some information about the configuration
@@ -673,13 +679,16 @@ public:
 	struct __attribute__ ((packed))
 	InternalPair {
 		ArgumentLimbType first;
-		IndexType        second[nri];
+		BucketIndexEntry second;
+
+		InternalPair() : first(0), second(BucketIndexEntry()) {};
+		InternalPair(ArgumentLimbType a, BucketIndexEntry b) : first(a), second(b) {};
 	};
 
 	/// TODO probably one day i want to change this to a std::tuple.
 	using BucketEntry           = typename  std::conditional<config.EXTEND_TO_TRIPLE != 0,
 														 triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
-														         InternalPair>::type;
+	                                                     InternalPair>::type;
 														 //std::pair<ArgumentLimbType, BucketIndexEntry>>::type;
 
 private:
@@ -732,6 +741,8 @@ private:
 	// TODO
 	constexpr static bool USE_HIGH_WEIGHT_SWITCH         = config.USE_HIGH_WEIGHT_SWITCH;
 
+	// TODO
+	constexpr static bool USE_PACKED_SWITCH              = true; //config.USE_PACKED_SWITCH;
 
 	// Indyk Motwani Nearest Neighbor Search:
 	// How many additional l windows should this hashmap hold?
@@ -1090,13 +1101,15 @@ public:
 
 			// insert the element.
 			const BucketHashType bid = HashFkt(data);
-			const LoadType load      = get_bucket_load(tid, bid);
+			const LoadType load      = !USE_HIGH_WEIGHT_SWITCH ? get_bucket_load(tid, bid) : find_next_empty_slot<1>(bid, tid);
 			if (size_t - load == 0) {
 				continue;
 			}
 
 			const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
-			inc_bucket_load(tid, bid);
+			if constexpr (!USE_HIGH_WEIGHT_SWITCH) {
+				inc_bucket_load(tid, bid);
+			}
 
 			__buckets[bucketOffset].first = data;
 			memcpy(&__buckets[bucketOffset].second, pos, nri * sizeof(IndexType));
@@ -1397,10 +1410,12 @@ public:
 		// on huge arrays with huge bucket size is maybe a good idea to switch to interpolation search
 		if constexpr(INTERPOLATIONSEARCH_SWITCH) {
 			// if this switch is enabled, we are doing an interpolation search.
-			auto r = lower_bound_interpolation_search2(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			                                           [](const BucketEntry &e1) -> ArgumentLimbType {
-				                                           return (e1.first & mask2)>>b1; // See note std::lower_bound
-			                                           }
+			auto r = lower_bound_interpolation_search2(__buckets.begin() + boffset,
+			                                           __buckets.begin() + load,
+			                                           data_target,
+			    [](const BucketEntry &e1) -> ArgumentLimbType {
+				    return (e1.first & mask2)>>b1; // See note std::lower_bound
+			    }
 			);
 
 			if (r == (__buckets.begin() + load)) return -1;
@@ -1431,17 +1446,17 @@ public:
 		if constexpr(STDBINARYSEARCH_SWITCH) {
 			//fallback implementation: binary search.
 			r = std::lower_bound(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			                     [](const auto &e1, const auto &e2) {
-				                     // well this is actually not completely correct. This checks on the lowest b2 bits. But actually
-				                     // it should check on the bits [b1, b2].
-				                     return (e1.first & mask2) < (e2.first & mask2);
-			                     }
+			    [](const auto &e1, const auto &e2) {
+				    // well this is actually not completely correct. This checks on the lowest b2 bits. But actually
+				    // it should check on the bits [b1, b2].
+				    return (e1.first & mask2) < (e2.first & mask2);
+			    }
 			);
 		} else {
 			r = lower_bound_monobound_binary_search(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			                                        [](const BucketEntry &e1) -> ArgumentLimbType {
-				                                        return e1.first & mask2;// See note std::lower_bound
-			                                        }
+			    [](const BucketEntry &e1) -> ArgumentLimbType {
+				    return e1.first & mask2;// See note std::lower_bound
+			    }
 			);
 		}
 
