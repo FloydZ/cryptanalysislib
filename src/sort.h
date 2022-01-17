@@ -687,9 +687,11 @@ public:
 
 	/// TODO probably one day i want to change this to a std::tuple.
 	using BucketEntry           = typename  std::conditional<config.EXTEND_TO_TRIPLE != 0,
-														 triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
-	                                                     InternalPair>::type;
-														 //std::pair<ArgumentLimbType, BucketIndexEntry>>::type;
+	                                              triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
+	                                                    typename std::conditional<config.USE_PACKED_SWITCH,
+	                                                    InternalPair,
+	                                                    std::pair<ArgumentLimbType, BucketIndexEntry>>::type
+	                                              >::type;
 
 private:
 	// precompute the compare masks and limbs
@@ -1003,6 +1005,7 @@ public:
 			std::cout << "\tUSE_PREFETCH_SWITCH:" << USE_PREFETCH_SWITCH << "\n";
 			std::cout << "\tUSE_ATOMIC_LOAD_SWITCH:" << USE_ATOMIC_LOAD_SWITCH << "\n";
 			std::cout << "\tUSE_HIGH_WEIGHT_SWITCH:" << USE_HIGH_WEIGHT_SWITCH << "\n";
+			std::cout << "\tUSE_PACKED_SWITCH:" << USE_PACKED_SWITCH << "\n";
 		}
 #endif
 		// reset the whole thing for the first usage
