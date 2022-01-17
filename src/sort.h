@@ -643,6 +643,7 @@ private:
 	constexpr static uint64_t chunks_size   = chunks * size_b;
 
 
+
 public:
 	// needed in certain configurations
 	constexpr static ArgumentLimbType zero_element = ArgumentLimbType(-1);
@@ -650,7 +651,7 @@ public:
 	// We choose the optimal data container for every occasion.
 	// This is the Type which is exported to the outside and denotes the maximum number of elements a bucket can hold.
 	// Must be the same as IndexType, because `load` means always an absolute position within the array.
-	using LoadType          = IndexType;
+	using LoadType              = IndexType;
 	// In contrast to `LoadType` this type does not include the absolute position within the array, but only the
 	// relative within the bucket. Can be smaller than `IndexType`
 	using LoadInternalType      = typename std::conditional<config.USE_ATOMIC_LOAD_SWITCH,
@@ -669,10 +670,17 @@ public:
 	// only set, if `config.EXTEND_TO_TRIPLE` is activated.
 	using TripleT               = LogTypeTemplate<config.EXTEND_TO_TRIPLE>;
 
+	struct __attribute__ ((packed))
+	InternalPair {
+		ArgumentLimbType first;
+		IndexType        second[nri];
+	};
+
 	/// TODO probably one day i want to change this to a std::tuple.
 	using BucketEntry           = typename  std::conditional<config.EXTEND_TO_TRIPLE != 0,
 														 triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
-														 std::pair<ArgumentLimbType, BucketIndexEntry>>::type;
+														         InternalPair>::type;
+														 //std::pair<ArgumentLimbType, BucketIndexEntry>>::type;
 
 private:
 	// precompute the compare masks and limbs
@@ -980,7 +988,7 @@ public:
 			std::cout << "\tIM_SWITCH:" << IM_SWITCH << "\n";
 			std::cout << "\tALIGNMENT_SWITCH:" << ALIGNMENT_SWITCH << "\n";
 			std::cout << "\tSAVE_FULL_128BIT:" << SAVE_FULL_128BIT << "\n";
-			std::cout << "\tEXTEND_TO_TRIPLE:" << unsigned(EXTEND_TO_TRIPLE) << "\n";
+			std::cout << "\tEXTEND_TO_TRIPLE:" << EXTEND_TO_TRIPLE << "\n";
 			std::cout << "\tUSE_PREFETCH_SWITCH:" << USE_PREFETCH_SWITCH << "\n";
 			std::cout << "\tUSE_ATOMIC_LOAD_SWITCH:" << USE_ATOMIC_LOAD_SWITCH << "\n";
 			std::cout << "\tUSE_HIGH_WEIGHT_SWITCH:" << USE_HIGH_WEIGHT_SWITCH << "\n";
@@ -1626,7 +1634,9 @@ public:
 		}
 
 		std::cout << "HM" << nri - 1 << " #Elements:" << load << " Avg. load per bucket : " << (double(load)/nrb) << " elements/bucket";
-		std::cout << ", size: " << double(size()) / (1024.0 * 1024.0) << "MB";
+		std::cout << ", size: " << double(bytes()) / (1024.0 * 1024.0)
+		          << "MB, load: " << (sizeof(LoadType) * buckets_load.size() >> 20)
+		          << "MB, accload: " << (sizeof(LoadType) * acc_buckets_load.size() >> 20) << "MB";
 		std::cout << "\n" << std::flush;
 	}
 
@@ -1777,8 +1787,12 @@ public:
 	///				NOTE: this does not take alignment into account
 	uint64_t bytes() {
 		uint64_t ret = sizeof(BucketEntry) * __buckets.size();
-		ret += sizeof(LoadType) * buckets_load.size();
-		ret += sizeof(LoadType) * acc_buckets_load.size();
+		if constexpr(!USE_ATOMIC_LOAD_SWITCH) {
+			ret += sizeof(LoadType) * buckets_load.size();
+		}
+		if constexpr (!USE_ATOMIC_LOAD_SWITCH && nrt > 1) {
+			ret += sizeof(LoadType) * acc_buckets_load.size();
+		}
 		return ret;
 	}
 };
