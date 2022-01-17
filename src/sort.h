@@ -1001,7 +1001,7 @@ public:
 			std::cout << "\tIM_SWITCH:" << IM_SWITCH << "\n";
 			std::cout << "\tALIGNMENT_SWITCH:" << ALIGNMENT_SWITCH << "\n";
 			std::cout << "\tSAVE_FULL_128BIT:" << SAVE_FULL_128BIT << "\n";
-			std::cout << "\tEXTEND_TO_TRIPLE:" << EXTEND_TO_TRIPLE << "\n";
+			std::cout << "\tEXTEND_TO_TRIPLE:" << int(EXTEND_TO_TRIPLE) << "\n";
 			std::cout << "\tUSE_PREFETCH_SWITCH:" << USE_PREFETCH_SWITCH << "\n";
 			std::cout << "\tUSE_ATOMIC_LOAD_SWITCH:" << USE_ATOMIC_LOAD_SWITCH << "\n";
 			std::cout << "\tUSE_HIGH_WEIGHT_SWITCH:" << USE_HIGH_WEIGHT_SWITCH << "\n";

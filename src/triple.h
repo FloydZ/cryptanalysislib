@@ -17,7 +17,8 @@ template<typename T1, typename T2, typename T3>
 		std::is_default_constructible_v<T1> &&
 		std::is_default_constructible_v<T2> &&
 		std::is_default_constructible_v<T3>
-class triple {
+struct  __attribute__ ((packed))
+    triple {
 public:
 	typedef T1 first_type;
 	typedef T2 second_type;
