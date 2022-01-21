@@ -824,7 +824,6 @@ public:
 	static inline ArgumentLimbType add(ContainerLimbType *v1, const ContainerLimbType *v3) {
 		static_assert(k_lower < k_higher);
 		// TODO somehow make sure that k_higher is valid. Maybe ensure that 'ValueType' exports an coordinate field
-
 		constexpr uint32_t llimb = k_lower /BITSIZE;
 		constexpr uint32_t hlimb = (k_higher-1)/BITSIZE;
 		constexpr uint32_t l     = k_lower %BITSIZE;
@@ -839,22 +838,41 @@ public:
 			v1[llimb] ^= v3[llimb] & mask1;
 			return v1[llimb] >> l;
 		} else {
-			static_assert(llimb == hlimb-1);
+			__uint128_t data;
+			if constexpr (llimb == hlimb-1) {
+				// this is the easy case, where the bits we want to extract are spread
+				// over two limbs.
+				v1[llimb] ^= v3[llimb] & mask1;
+				v1[hlimb] ^= v3[hlimb] & mask2;
 
-			v1[llimb] ^= v3[llimb] & mask1;
-			v1[hlimb] ^= v3[hlimb] & mask2;
+				data = v1[llimb];
+				data ^= (__uint128_t(v1[hlimb]) << BITSIZE);
 
-			__uint128_t data = v1[llimb];
-			data            += (__uint128_t(v1[hlimb]) << BITSIZE);
+			} else if constexpr (llimb == hlimb-2) {
+				static_assert(hlimb >= 2);
+				// this is the hard case were the bits we want to extract are spread
+				// over 3 limbs. This can only happen in a special configuration
+				// --hm1_savefull128bit 1, or --hm1_extendtotriple
 
-			if constexpr(flip == 0) {
+				v1[llimb]   ^= v3[llimb] & mask1;
+				v1[llimb+1] ^= v3[llimb+1];
+				v1[hlimb]   ^= v3[hlimb] & mask2;
+				data = *(__uint128_t *) (&v1[llimb]);
+				data >>= l;
+				data ^= (__uint128_t(v1[hlimb]) << BITSIZE);
+
+				// TODO impl flip
+				return data;
+			}
+
+			if constexpr (flip == 0) {
 				return data >> l;
 			} else {
 				static_assert(k_lower <= flip);
 				static_assert(flip <= k_higher);
-				constexpr uint32_t fshift1 = flip-k_lower;
-				constexpr uint32_t fshift2 = k_higher-flip;
-				constexpr uint32_t f       = fshift1;
+				constexpr uint32_t fshift1 = flip - k_lower;
+				constexpr uint32_t fshift2 = k_higher - flip;
+				constexpr uint32_t f = fshift1;
 
 				// is moment:
 				// k_lower          flip                        k_higher
@@ -862,8 +880,8 @@ public:
 				// after this transformation:
 				// k_higher                     flip            k+lower
 				// [c                            d|a                 b]
-				constexpr ArgumentLimbType fmask1 = ~((ArgumentLimbType(1) << f) - 1);  // high part
-				constexpr ArgumentLimbType fmask2 =   (ArgumentLimbType(1) << f) - 1;   // low part
+				constexpr ArgumentLimbType fmask1 = ~((ArgumentLimbType(1) << f) - 1);// high part
+				constexpr ArgumentLimbType fmask2 = (ArgumentLimbType(1) << f) - 1;   // low part
 
 				//move     high -> low                      low -> high
 				const ArgumentLimbType data2 = (data & fmask1) >> fshift1;
