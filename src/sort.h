@@ -740,11 +740,11 @@ private:
 	// TODO desribe
 	constexpr static bool USE_ATOMIC_LOAD_SWITCH         = config.USE_ATOMIC_LOAD_SWITCH;
 
-	// TODO
+	// TODO explain
 	constexpr static bool USE_HIGH_WEIGHT_SWITCH         = config.USE_HIGH_WEIGHT_SWITCH;
 
-	// TODO
-	constexpr static bool USE_PACKED_SWITCH              = true; //config.USE_PACKED_SWITCH;
+	// TODO explain
+	constexpr static bool USE_PACKED_SWITCH              = config.USE_PACKED_SWITCH;
 
 	// Indyk Motwani Nearest Neighbor Search:
 	// How many additional l windows should this hashmap hold?
