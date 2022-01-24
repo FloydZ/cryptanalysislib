@@ -859,7 +859,7 @@ public:
 				v1[hlimb]   ^= v3[hlimb] & mask2;
 				data = *(__uint128_t *) (&v1[llimb]);
 				data >>= l;
-				data ^= (__uint128_t(v1[hlimb]) << BITSIZE);
+				data ^= (__uint128_t(v1[hlimb]) << (128-l));
 
 				// TODO impl flip
 				return data;
@@ -912,7 +912,7 @@ public:
 		static_assert(k_lower < k_higher);
 		constexpr uint32_t llimb = k_lower /BITSIZE;
 		constexpr uint32_t hlimb = (k_higher-1)/BITSIZE;
-		constexpr uint32_t l = k_lower%BITSIZE;
+		constexpr uint32_t l = k_lower %BITSIZE;
 		constexpr uint32_t h = k_higher%BITSIZE;
 
 		constexpr ContainerLimbType mask1 = ~((ContainerLimbType(1) << l) - 1);
@@ -922,15 +922,26 @@ public:
 			constexpr ContainerLimbType mask  = mask1 & mask2;
 			return (v[llimb] & mask) >> l;
 		} else {
-			ContainerLimbType dl = v[llimb] & mask1;
-			ContainerLimbType dh = v[hlimb];
+			__uint128_t data;
 
-			__uint128_t data = dl ^ (__uint128_t(dh) << BITSIZE);
+			if constexpr (llimb == hlimb-1) {
+				// simple case
+				ContainerLimbType dl = v[llimb] & mask1;
+				ContainerLimbType dh = v[hlimb];
+				data = dl ^ (__uint128_t(dh) << BITSIZE);
+			} else {
+				// hard case
+				data = *(__uint128_t *) (&v[llimb]);
+				data >>= l;
+				data ^= (__uint128_t(v[hlimb]) << (128-l));
+			}
+
+
 			if constexpr(flip == 0) {
 				return data >> l;
 			} else {
-				static_assert(k_lower <= flip);
-				static_assert(flip <= k_higher);
+				static_assert(k_lower < flip);
+				static_assert(flip < k_higher);
 
 				constexpr uint32_t fshift1 = flip-k_lower;
 				constexpr uint32_t fshift2 = k_higher-flip;
@@ -946,7 +957,7 @@ public:
 				constexpr ArgumentLimbType fmask2 =   (ArgumentLimbType(1) << f) - 1;   // low part
 
 				//move     high -> low                      low -> high
-				ArgumentLimbType data2 = (data & fmask1) >> fshift1;
+				ArgumentLimbType data2 = data >> fshift1;
 				ArgumentLimbType data3 = (data & fmask2) << fshift2;
 				ArgumentLimbType data4 = data2 ^ data3;
 
