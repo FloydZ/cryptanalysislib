@@ -30,19 +30,19 @@ public:
 	T3 third;
 
 	/// simple constructor.
-	constexpr triple() :
+	constexpr triple() noexcept :
 		first(), second(), third() {}
 
 	/// simple constructor, default initializes the fields T2 and T3
-	constexpr triple(const T1 &a) :
+	constexpr triple(const T1 &a) noexcept :
 		first(a), second(), third() {}
 
 	/// simple constructor, default initializes the fields T3
-	constexpr triple(const T1 &a, const T2 &b) :
+	constexpr triple(const T1 &a, const T2 &b) noexcept :
 		first(a), second(b), third() {}
 
 	/// simple constructor
-	constexpr triple(const T1 &a, const T2 &b, const T3 &c) :
+	constexpr triple(const T1 &a, const T2 &b, const T3 &c) noexcept :
 		first(a), second(b), third(c) {}
 
 	/// copy constructor

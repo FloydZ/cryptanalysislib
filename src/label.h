@@ -64,31 +64,31 @@ public:
 
 	// add v1 + v2 = v3 on the coordinates between [k_lower, k_upper)
 	inline static void add(Label_T &v3, Label_T const &v1, Label_T const &v2,
-	                const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) {
+	                const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
 		Container::add(v3.__data, v1.__data, v2.__data, k_lower, k_upper);
 	}
 
 	// subtract v1 - v2 = v3 on the coordinates between [k_lower, k_upper)
 	inline static void sub(Label_T &v3, Label_T const &v1, Label_T const &v2,
-	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) {
+	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
 		Container::sub(v3.__data, v1.__data, v2.__data, k_lower, k_upper);
 	}
 
 	// negate all coordinates
-	inline void neg(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) {
+	inline void neg(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
 		__data.neg(k_lower, k_upper);
 	}
 
 	// i think this does a 3 way comparison.
     inline static bool cmp(Label_T const &v1, Label_T const &v2,
-                           const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) {
+                           const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
 	    return Container::cmp(v1.__data, v2.__data, k_lower, k_upper);
 
     }
 
     // v1 = v3 between the coordinates [k_lower, k_upper)
     inline static void set(Label_T &v1, Label_T const &v2,
-                           const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) {
+                           const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
 	    Container::set(v1.__data, v2.__data, k_lower, k_upper);
     }
 
@@ -98,37 +98,37 @@ public:
 	/// \param k_lower	lower bound to start comparison
 	/// \param k_upper	upper bound
 	/// \return
-	inline bool is_equal(const Label_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const {
+	inline bool is_equal(const Label_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		return Container::cmp(__data, obj.__data, k_lower, k_upper);
 	}
 
-	inline bool is_greater(const Label_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const {
+	inline bool is_greater(const Label_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		return __data.is_greater(obj.__data, k_lower, k_upper);
 	}
 
-	inline bool is_lower(const Label_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const {
+	inline bool is_lower(const Label_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 	    return __data.is_lower(obj.__data, k_lower, k_upper);
     }
 
 	/// \return true/false
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_equal(const Label_T &obj) const {
+	inline bool is_equal(const Label_T &obj) const noexcept {
 		return __data.template is_equal<k_lower, k_upper>(obj.__data);
 	}
 
 	/// \return this > obj between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_greater(const Label_T &obj) const {
+	inline bool is_greater(const Label_T &obj) const noexcept {
 		return __data.template is_greater<k_lower, k_upper>(obj.__data);
 	}
 
 	/// \return this < obj between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_lower(const Label_T &obj) const {
+	inline bool is_lower(const Label_T &obj) const noexcept {
 		return __data.template is_lower<k_lower, k_upper>(obj.__data);
 	}
 
-	Label_T& operator =(Label_T const &obj) {
+	Label_T& operator =(Label_T const &obj) noexcept {
 	    // fast path: do nothing if they are the same.
     	if (likely(this != &obj)) {
 		    __data = obj.__data;
@@ -138,29 +138,29 @@ public:
     }
 
 	///
-	bool is_zero() {
+	bool is_zero() const noexcept{
 		return __data.is_zero();
 	}
 	/// print the data
-	void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const { __data.print(k_lower, k_upper); }
+	void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept { __data.print(k_lower, k_upper); }
 
 	// size information
-	__FORCEINLINE__ constexpr static bool binary() { return Container::binary(); }
-	__FORCEINLINE__ constexpr static uint32_t size() { return Container::size(); }
-	__FORCEINLINE__ constexpr static uint32_t limbs() { return Container::limbs(); }
-	__FORCEINLINE__ constexpr static uint32_t bytes() { return Container::bytes(); }
+	__FORCEINLINE__ constexpr static bool binary() noexcept { return Container::binary(); }
+	__FORCEINLINE__ constexpr static uint32_t size() noexcept { return Container::size(); }
+	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return Container::limbs(); }
+	__FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return Container::bytes(); }
 
-	__FORCEINLINE__ auto* ptr() { return __data.data().data(); };
-	__FORCEINLINE__ const auto* ptr() const { return __data.data().data(); };
+	__FORCEINLINE__ auto* ptr() noexcept { return __data.data().data(); };
+	__FORCEINLINE__ const auto* ptr() const noexcept { return __data.data().data(); };
 
-	__FORCEINLINE__ Container& data() { return __data; };
-	__FORCEINLINE__ const Container& data() const { return __data; };
+	__FORCEINLINE__ Container& data() noexcept { return __data; };
+	__FORCEINLINE__ const Container& data() const noexcept { return __data; };
 
-	__FORCEINLINE__ auto data(const uint64_t i) { ASSERT(i < __data.size()); return __data[i]; };
-	__FORCEINLINE__ const auto data(const uint64_t i) const { ASSERT(i < __data.size()); return __data[i]; };
+	__FORCEINLINE__ auto data(const uint64_t i) noexcept { ASSERT(i < __data.size()); return __data[i]; };
+	__FORCEINLINE__ const auto data(const uint64_t i) const noexcept { ASSERT(i < __data.size()); return __data[i]; };
 
-	__FORCEINLINE__ auto operator [](const uint64_t i) { return data(i); };
-	__FORCEINLINE__ const auto operator [](const uint64_t i) const { return __data.data(i); };
+	__FORCEINLINE__ auto operator [](const uint64_t i) noexcept { return data(i); };
+	__FORCEINLINE__ const auto operator [](const uint64_t i) const noexcept { return __data.data(i); };
 private:
 	Container __data;
 };

@@ -38,132 +38,133 @@ template<typename T, typename T2, const T q>
 #endif
 class kAry_Type_T {
 public:
-	kAry_Type_T() {
+	kAry_Type_T() noexcept {
 		static_assert(q > 1);
 		__value = 0;
 	};
 
-	kAry_Type_T(uint16_t i) {
+	kAry_Type_T(const uint16_t i) noexcept {
 		static_assert(q > 2);
 		__value = i % q;
 	};
 
-	void random() {
+	void random() noexcept {
 		__value = fastrandombytes_uint64()%q;
 	}
 
-	T abs() const {
+	T abs() const noexcept {
 		return std::abs(__value);
 	}
 
-	void addmul(const T &a, const T &b) {
+	void addmul(const T &a, const T &b) noexcept {
 		__value = (__value + ((T2)a * (T2)b) % q) % q;
 	}
 
-	void addmul(kAry_Type_T<T, T2, q> const &a, kAry_Type_T<T, T2, q> const &b) {
+	void addmul(kAry_Type_T<T, T2, q> const &a, kAry_Type_T<T, T2, q> const &b) noexcept {
 		__value = T2(__value + T2(T2(a.__value) * T2(b.__value)) % q) % q;
 	}
 
-	friend kAry_Type_T<T, T2, q> operator&(kAry_Type_T<T, T2, q> obj1, long const obj2) {
+	friend kAry_Type_T<T, T2, q> operator&(kAry_Type_T<T, T2, q> obj1, long const obj2) noexcept {
 		kAry_Type_T<T, T2, q> r;
 		std::cout << "not implemented\n";
 		return r;
 	}
 
-	friend kAry_Type_T<T, T2, q> operator^(kAry_Type_T<T, T2, q> obj1, long const obj2) {
+	friend kAry_Type_T<T, T2, q> operator^(kAry_Type_T<T, T2, q> obj1, long const obj2) noexcept {
 		kAry_Type_T<T, T2, q> r;
 		std::cout << "not implemented\n";
 		return r;
 	}
 
-	friend kAry_Type_T<T, T2, q> operator*(kAry_Type_T<T, T2, q> obj1, long const obj2) {
+	friend kAry_Type_T<T, T2, q> operator*(kAry_Type_T<T, T2, q> obj1, long const obj2) noexcept {
 		kAry_Type_T<T, T2, q> r;
 		r.__value = T((T2(T2(obj1.__value) * T2(obj2))) % q);
 		return r;
 	}
 
 
-	friend kAry_Type_T<T, T2, q> operator&(const kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) {
+	friend kAry_Type_T<T, T2, q> operator&(const kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) noexcept {
 		kAry_Type_T<T, T2, q> r;
 		std::cout << "not implemented\n";
 		return r;
 	}
 
-	friend kAry_Type_T<T, T2, q> operator^(kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) {
+	friend kAry_Type_T<T, T2, q> operator^(kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) noexcept {
 		kAry_Type_T<T, T2, q> r;
 		std::cout << "not implemented\n";
 		return r;
 	}
 
-	friend kAry_Type_T<T, T2, q> operator*(kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) {
+	friend kAry_Type_T<T, T2, q> operator*(kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) noexcept {
 		kAry_Type_T<T, T2, q> r;
 		r.__value = (T2(T2(obj1.__value) * T2(obj2.__value))) % q;
 		return r;
 	}
 
 
-	friend kAry_Type_T<T, T2, q> operator+(kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) {
+	friend kAry_Type_T<T, T2, q> operator+(kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) noexcept {
 		kAry_Type_T<T, T2, q> r;
 		r.__value = (T2(T2(obj1.__value) + T2(obj2.__value))) % q;
 		return r;
 	}
 
-	friend kAry_Type_T<T, T2, q> operator-(kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) {
+	friend kAry_Type_T<T, T2, q> operator-(kAry_Type_T<T, T2, q> obj1, kAry_Type_T<T, T2, q> const &obj2) noexcept {
 		kAry_Type_T<T, T2, q> r;
 		r.__value = obj1.__value >= obj2.__value ? T2(obj1.__value) - T2(obj2.__value) : obj1.__value + (q - obj2.__value);
 		return r;
 	}
 
-	friend bool operator==(uint64_t obj1, kAry_Type_T<T, T2, q> const &obj2) {
+	friend bool operator==(uint64_t obj1, kAry_Type_T<T, T2, q> const &obj2) noexcept {
 		return obj1 == obj2.__value;
 	}
 
-	friend bool operator!=(uint64_t obj1, kAry_Type_T<T, T2, q> const &obj2) {
+	friend bool operator!=(uint64_t obj1, kAry_Type_T<T, T2, q> const &obj2) noexcept {
 		return obj1 != obj2.__value;
 	}
 
-	kAry_Type_T<T, T2, q> &operator+=(unsigned int obj) {
+	kAry_Type_T<T, T2, q> &operator+=(unsigned int obj) noexcept {
 		__value = T2((T2)__value + (T2)obj) % q;
 		return *this;
 	}
 
-	kAry_Type_T<T, T2, q> &operator+=(kAry_Type_T<T, T2, q> const &obj) {
+	kAry_Type_T<T, T2, q> &operator+=(kAry_Type_T<T, T2, q> const &obj) noexcept {
 		__value = T2((T2)__value + (T2)obj.__value) % q;
 		return *this;
 	}
 
-	kAry_Type_T<T, T2, q> &operator%=(const uint64_t &obj) {
+	kAry_Type_T<T, T2, q> &operator%=(const uint64_t &obj) noexcept {
 		__value %= obj;
 		return *this;
 	}
 
-	kAry_Type_T<T, T2, q> &operator%(const uint64_t &obj) {
+	kAry_Type_T<T, T2, q> &operator%(const uint64_t &obj) noexcept {
 		__value %= obj;
 		return *this;
 	}
 
-	kAry_Type_T<T, T2, q> &operator=(kAry_Type_T<T, T2, q> const &obj) {
+	kAry_Type_T<T, T2, q> &operator=(kAry_Type_T<T, T2, q> const &obj) const noexcept {
 		if (this != &obj) {
 			__value = obj.__value;
 		}
 		return *this;
 	}
-    kAry_Type_T<T, T2, q> &operator=(uint32_t const obj) {
+
+    kAry_Type_T<T, T2, q> &operator=(uint32_t const obj) const noexcept {
         __value = obj % q;
         return *this;
     }
 
-    kAry_Type_T<T, T2, q> &operator=(uint64_t const obj) {
+    kAry_Type_T<T, T2, q> &operator=(uint64_t const obj) noexcept {
         __value = obj % q;
         return *this;
     }
 
-	kAry_Type_T<T, T2, q> &operator=(int32_t const obj) {
+	kAry_Type_T<T, T2, q> &operator=(int32_t const obj) noexcept {
 		__value = obj % q;
 		return *this;
 	}
 
-	kAry_Type_T<T, T2, q> &operator=(int64_t const obj) {
+	kAry_Type_T<T, T2, q> &operator=(int64_t const obj) noexcept {
 		__value = obj % q;
 		return *this;
 	}
@@ -183,41 +184,41 @@ public:
 //		return *this;
 //	}
 
-	inline bool operator!=(kAry_Type_T<T, T2, q> const &obj) const {
+	inline bool operator!=(kAry_Type_T<T, T2, q> const &obj) const noexcept {
 		return __value != obj.__value;
 	}
 
-	inline bool operator==(kAry_Type_T<T, T2, q> const &obj) const {
+	inline bool operator==(kAry_Type_T<T, T2, q> const &obj) const noexcept {
 		return __value == obj.__value;
 	}
 
-	inline bool operator==(uint64_t const &obj) const {
+	inline bool operator==(uint64_t const &obj) const noexcept {
 		return __value == obj;
 	}
 
-	inline bool operator>(kAry_Type_T<T, T2, q> const &obj) const {
+	inline bool operator>(kAry_Type_T<T, T2, q> const &obj) const noexcept {
 		return __value > obj.__value;
 	}
 
-	inline bool operator>=(kAry_Type_T<T, T2, q> const &obj) const {
+	inline bool operator>=(kAry_Type_T<T, T2, q> const &obj) const noexcept {
 		return __value >= obj.__value;
 	}
 
-	inline bool operator<(kAry_Type_T<T, T2, q> const &obj) const {
+	inline bool operator<(kAry_Type_T<T, T2, q> const &obj) const noexcept {
 		return __value < obj.__value;
 	}
 
-	inline bool operator<=(kAry_Type_T<T, T2, q> const &obj) const {
+	inline bool operator<=(kAry_Type_T<T, T2, q> const &obj) const noexcept {
 		return __value <= obj.__value;
 	}
 
-	T get_value() { return __value; }
-	T value() { return __value; }
+	T get_value() noexcept { return __value; }
+	T value() noexcept { return __value; }
 
-	const T get_value() const { return __value; }
-	const T value() const { return __value; }
-	const T data() const { return __value; }
-	constexpr static T modulo() { return q; }
+	const T get_value() const noexcept { return __value; }
+	const T value() const noexcept { return __value; }
+	const T data() const noexcept { return __value; }
+	constexpr static T modulo() noexcept { return q; }
 
 private:
 	T __value;

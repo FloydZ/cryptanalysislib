@@ -68,7 +68,7 @@ public:
 
 	typedef uint64_t LoadType;
 
-	~Parallel_List_T() {
+	~Parallel_List_T() noexcept {
 		/*if (__data_value != nullptr) {
 			//cryptanalysislib_aligned_free(__data_value);
 		}
@@ -81,9 +81,16 @@ public:
 	/// TODO replace ptr with std::array
 	/// \param size of the whole list
 	/// \param threads number of threads access this list
-	/// \param thread_block2 size of each block for each thread.
+	/// \param thread_block size of each block for each thread.
 	/// \param no_value do not allocate the value array
-	explicit Parallel_List_T(const uint64_t size, const uint32_t threads, const uint64_t thread_block2, bool no_values=false) {
+	explicit Parallel_List_T(const uint64_t size,
+	                         const uint32_t threads,
+	                         const uint64_t thread_block,
+	                         bool no_values=false) noexcept :
+	    nr_elements(size),
+		thread_block(thread_block),
+		threads1(threads)
+	{
 		if (no_values == false) {
 			__data_value = (ValueType *) cryptanalysislib_aligned_malloc(size * sizeof(ValueType), PAGE_SIZE);
 			if (__data_value == NULL) {
@@ -101,32 +108,30 @@ public:
 		}
 
 		memset(__data_label, 0, size*sizeof(LabelType));
-
-		nr_elements = size;
-		thread_block = thread_block2;
-		threads1 = threads;
 	}
 
-	constexpr size_t size() const { return nr_elements; }
-	constexpr size_t size(const uint32_t tid) const { return thread_block; }
+	constexpr size_t size() const noexcept { return nr_elements; }
+	constexpr size_t size(const uint32_t tid) const noexcept { return thread_block; }
 
-	inline ValueType* data_value(){ return __data_value; }
-	inline const ValueType* data_value() const { return __data_value; }
-	inline LabelType* data_label(){ return __data_label; }
-	inline const LabelType* data_label() const { return __data_label; }
+	inline ValueType* data_value() noexcept { return __data_value; }
+	inline const ValueType* data_value() const noexcept { return __data_value; }
+	inline LabelType* data_label() noexcept { return __data_label; }
+	inline const LabelType* data_label() const noexcept { return __data_label; }
 
-	inline ValueType& data_value(const size_t i){  ASSERT(i < nr_elements); return __data_value[i]; }
-	inline const ValueType& data_value(const size_t i) const { ASSERT(i < nr_elements); return __data_value[i]; }
-	inline LabelType& data_label(const size_t i){ ASSERT(i < nr_elements); return __data_label[i]; }
-	inline const LabelType& data_label(const size_t i) const { ASSERT(i < nr_elements); return __data_label[i]; }
+	inline ValueType& data_value(const size_t i) noexcept {  ASSERT(i < nr_elements); return __data_value[i]; }
+	inline const ValueType& data_value(const size_t i) const noexcept { ASSERT(i < nr_elements); return __data_value[i]; }
+	inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < nr_elements); return __data_label[i]; }
+	inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < nr_elements); return __data_label[i]; }
 
 	// print the `pos ` elements label between k_lower and k_higer in binary
-	void print_binary(const uint64_t pos, const uint16_t k_lower, const uint16_t k_higher) const {
+	void print_binary(const uint64_t pos,
+	                  const uint16_t k_lower,
+	                  const uint16_t k_higher) const noexcept {
 		data_label(pos).print_binary(k_lower, k_higher);
 	}
 
 	// single threaded memcopy
-	inline Parallel_List_T<Element>& operator=(const Parallel_List_T<Element>& other) {
+	inline Parallel_List_T<Element>& operator=(const Parallel_List_T<Element>& other) noexcept {
 	    // Guard self assignment
 	    if (this == &other)
 	        return *this;
@@ -141,7 +146,7 @@ public:
 	}
 
 	// parallel memcopy
-	inline void static copy(Parallel_List_T &out, const Parallel_List_T &in , const uint32_t tid) {
+	inline void static copy(Parallel_List_T &out, const Parallel_List_T &in , const uint32_t tid) noexcept {
 		out.nr_elements = in.size();
 		out.thread_block = in.thread_block;
 
@@ -153,7 +158,7 @@ public:
 	}
 
 	template<typename Hash>
-	void sort(uint32_t tid, Hash hash) {
+	void sort(uint32_t tid, Hash hash) noexcept {
 		// TODO sort, good question how this should be implemented?
 		ASSERT(0 && "not implemented");
 	}
@@ -161,22 +166,23 @@ public:
 	/// print some information. Note: this will print the whole list. So be careful if its big.
 	/// \param k_lower
 	/// \param k_upper
-	void print(const uint32_t k_lower=0, const uint32_t k_upper=LabelType::LENGTH) const {
+	void print(const uint32_t k_lower=0,
+	           const uint32_t k_upper=LabelType::LENGTH) const noexcept {
 		for (size_t i = 0; i < nr_elements; ++i) {
 			std::cout << __data_label[i] << " " << __data_value[i] << ", i: " << i << "\n" << std::flush;
 		}
 	}
 
 	// returning the range in which one thread is allowed to operate
-	inline uint64_t start_pos(const uint32_t tid) const { return tid*thread_block; };
-	inline uint64_t end_pos(const uint32_t tid) const { return( tid+1)*thread_block; };
+	inline uint64_t start_pos(const uint32_t tid) const noexcept { return tid*thread_block; };
+	inline uint64_t end_pos(const uint32_t tid) const noexcept { return( tid+1)*thread_block; };
 
 	// TODO implement ranges/iterators
-	auto begin() {
+	auto begin() noexcept {
 		// return std::vector<LabelType>::iterator (__data_label);
 	}
 
-	uint64_t bytes() {
+	uint64_t bytes() const noexcept {
 		if (__data_value == nullptr)
 			return nr_elements * sizeof(LabelType);
 
@@ -184,12 +190,12 @@ public:
 	}
 
 private:
-	uint64_t thread_block;
-	size_t nr_elements;
-	uint64_t threads1;
-
 	ValueType *__data_value = nullptr;
 	LabelType *__data_label = nullptr;
+
+	const size_t nr_elements;
+	const uint64_t thread_block;
+	const uint64_t threads1;
 };
 
 /// same the class
@@ -238,18 +244,20 @@ public:
 	~Parallel_List_FullElement_T() = default;
 
 	// simple single threaded constructor
-	explicit Parallel_List_FullElement_T(const uint64_t size) {
+	explicit Parallel_List_FullElement_T(const size_t size) noexcept :
+			nr_elements(size), thread_block(size), threads1(1)
+	{
 		__data.resize(size);
-		nr_elements = size;
-		thread_block = size;
-		threads1 = 1;
 	}
 
-	explicit Parallel_List_FullElement_T(const uint64_t size, const uint32_t threads, const uint64_t thread_block2) {
+	explicit Parallel_List_FullElement_T(const size_t size,
+	                                     const uint32_t threads,
+	                                     const size_t thread_block) noexcept :
+		nr_elements(size),
+	    thread_block(thread_block),
+	    threads1(threads)
+	{
 		__data.resize(size);
-		nr_elements = size;
-		thread_block = thread_block2;
-		threads1 = threads;
 	}
 
 #ifdef  _OPENMP
@@ -303,7 +311,7 @@ public:
 	/// \param e	upper bound of the sorting algorithm
 	/// \param hash
 	template<typename Hash>
-	void sort(LoadType s, LoadType e, Hash hash) {
+	void sort(LoadType s, LoadType e, Hash hash) noexcept {
 		ska_sort(__data.begin() + s,
 		         __data.begin() + e,
 		         hash
@@ -315,7 +323,7 @@ public:
 	/// \param tid thread id
 	/// \param hash hash function
 	template<typename Hash>
-	void sort(uint32_t tid, Hash hash, const size_t size=-1) {
+	void sort(uint32_t tid, Hash hash, const size_t size=-1) noexcept {
 		ASSERT(tid < threads1);
 
 		const auto e = size == size_t(-1) ? end_pos(tid) : size;
@@ -325,7 +333,7 @@ public:
 	/// TODO generalize for kAryType
 	/// \param i lower coordinate in the label used as the sorting index
 	/// \param j upper   .....
-	void sort_level(const uint32_t i, const uint32_t j) {
+	void sort_level(const uint32_t i, const uint32_t j) noexcept {
 		ASSERT(i < j);
 		// ASSERT(lower == upper); // TODO
 		using T = LabelContainerType;
@@ -354,7 +362,7 @@ public:
 	/// \param i lower coordinate in the label used as the sorting index
 	/// \param j upper   .....
 	/// \param tid thread id
-	void sort_level(const uint32_t i, const uint32_t j, const uint32_t tid) {
+	void sort_level(const uint32_t i, const uint32_t j, const uint32_t tid) noexcept {
 		ASSERT(i < j);
 		using T = LabelContainerType;
 
@@ -386,7 +394,10 @@ public:
 	/// \param k_lower lower coordinate on which the element must be equal
 	/// \param k_higher higher coordinate the elements must be equal
 	/// \return the position of the first (lower) element which is equal to e. -1 if nothing found
-	size_t search_level(const Element &e, const uint32_t k_lower, const uint32_t k_higher, bool sort=false) {
+	size_t search_level(const Element &e,
+	                    const uint32_t k_lower,
+	                    const uint32_t k_higher,
+	                    bool sort=false) noexcept {
 		auto r = std::find_if(__data.begin(),
 		                      __data.end(),
 		                      [&e, k_lower, k_higher](const Element &c) {
@@ -410,7 +421,7 @@ public:
 	std::pair<uint64_t, uint64_t> search_boundaries(const Element &e,
 													const uint32_t k_lower,
 													const uint32_t k_higher,
-													const uint32_t tid) {
+													const uint32_t tid) noexcept {
 		uint64_t end_index;
 		uint64_t start_index = search_level(e, k_lower, k_higher, tid);
 		if (start_index == uint64_t(-1))
@@ -427,7 +438,7 @@ public:
 	/// overwrites every element with the byte sym
 	/// \param tid thread number
 	/// \param sym byte to overwrite the memory with.
-	void reset(const uint32_t tid, const uint8_t sym=0) {
+	void reset(const uint32_t tid, const uint8_t sym=0) noexcept {
 		ASSERT(tid < threads1);
 
 		uint64_t s = start_pos(tid);
@@ -437,17 +448,17 @@ public:
 
 	/// zero out the i-th element.
 	/// \param i
-	void zero(size_t i) {
+	void zero(size_t i) noexcept {
 		ASSERT(i < nr_elements);
 		__data[i].zero();
 	}
 
 	/// just drop it
-	void resize(size_t i) {}
+	void resize(size_t i) noexcept {}
 
 	/// remove the i-th element completely from the list
 	/// \param i
-	void erase(size_t i) {
+	void erase(size_t i) noexcept {
 		ASSERT(i < nr_elements);
 		__data.erase(__data.begin()+i);
 	}
@@ -458,7 +469,10 @@ public:
 	/// \param e2	second element to add
 	/// \param load load factor = number of elements currently in the list.
 	/// \param tid thread number
-	void add_and_append(const Element &e1, const Element &e2, LoadType &load, const uint32_t tid) {
+	void add_and_append(const Element &e1,
+	                    const Element &e2,
+	                    LoadType &load,
+	                    const uint32_t tid) noexcept {
 		ASSERT(tid < threads1);
 
 		if (load >= thread_block)
@@ -478,7 +492,7 @@ public:
 	/// \param tid thread id inserting this element.
 	void add_and_append(const LabelType &l1, const ValueType &v1,
 						const LabelType &l2, const ValueType &v2,
-						LoadType &load, const uint32_t tid) {
+						LoadType &load, const uint32_t tid) noexcept {
 		ASSERT(tid < threads1);
 
 		if (load >= thread_block)
@@ -490,37 +504,37 @@ public:
 	}
 
 		// size information
-	constexpr __FORCEINLINE__ uint64_t size() const { return nr_elements; }
-	constexpr __FORCEINLINE__ uint64_t thread_size() const { return thread_block; }
+	constexpr __FORCEINLINE__ uint64_t size() const noexcept { return nr_elements; }
+	constexpr __FORCEINLINE__ uint64_t thread_size() const noexcept { return thread_block; }
 
-	inline Element * data(){ return __data.data(); }
-	inline const Element* data() const { return __data.data(); }
+	inline Element * data() noexcept{ return __data.data(); }
+	inline const Element* data() const noexcept { return __data.data(); }
 
-	inline Element &data(const size_t i){ ASSERT(i < size()); return this->__data[i]; }
-	inline const Element& data(const size_t i) const { ASSERT(i < size()); return this->__data[i];  }
+	inline Element &data(const size_t i) noexcept { ASSERT(i < size()); return this->__data[i]; }
+	inline const Element& data(const size_t i) const noexcept { ASSERT(i < size()); return this->__data[i];  }
 
-	inline Element &operator[](const size_t i) { ASSERT(i < size()); return this->__data[i]; }
-	const inline Element &operator[](const size_t i) const {ASSERT(i < size()); return this->__data[i]; }
+	inline Element &operator[](const size_t i) noexcept { ASSERT(i < size()); return this->__data[i]; }
+	const inline Element &operator[](const size_t i) const noexcept {ASSERT(i < size()); return this->__data[i]; }
 
-	inline ValueType* data_value(){ return (ValueType *)__data.data(); }
-	inline const ValueType* data_value() const { return (ValueType *)__data.data(); }
-	inline LabelType* data_label(){ return (LabelType *)__data.data(); }
-	inline const LabelType* data_label() const { return (LabelType *)__data.data(); }
+	inline ValueType* data_value() noexcept { return (ValueType *)__data.data(); }
+	inline const ValueType* data_value() const noexcept { return (ValueType *)__data.data(); }
+	inline LabelType* data_label() noexcept { return (LabelType *)__data.data(); }
+	inline const LabelType* data_label() const noexcept { return (LabelType *)__data.data(); }
 
-	inline ValueType& data_value(const size_t i){  ASSERT(i < nr_elements); return __data[i].get_value(); }
-	inline const ValueType& data_value(const size_t i) const { ASSERT(i < nr_elements); return __data[i].get_value(); }
-	inline LabelType& data_label(const size_t i){ ASSERT(i < nr_elements); return __data[i].get_label(); }
-	inline const LabelType& data_label(const size_t i) const { ASSERT(i < nr_elements); return __data[i].get_label(); }
+	inline ValueType& data_value(const size_t i) noexcept {  ASSERT(i < nr_elements); return __data[i].get_value(); }
+	inline const ValueType& data_value(const size_t i) const noexcept { ASSERT(i < nr_elements); return __data[i].get_value(); }
+	inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < nr_elements); return __data[i].get_label(); }
+	inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < nr_elements); return __data[i].get_label(); }
 
 	// returning the range in which one thread is allowed to operate
-	inline size_t start_pos(const uint32_t tid) const { return tid*thread_block; };
-	inline size_t end_pos(const uint32_t tid) const { return( tid+1)*thread_block; };
+	inline size_t start_pos(const uint32_t tid) const noexcept { return tid*thread_block; };
+	inline size_t end_pos(const uint32_t tid) const noexcept { return( tid+1)*thread_block; };
 
 	// returning the start pointer for each thread
-	inline LabelType* start_label_ptr(const uint32_t tid) { return (LabelType *)(((uint64_t)&__data[start_pos(tid)]) + value_size); };
+	inline LabelType* start_label_ptr(const uint32_t tid) noexcept { return (LabelType *)(((uint64_t)&__data[start_pos(tid)]) + value_size); };
 
 	// Single threaded copy
-	inline Parallel_List_FullElement_T<Element>& operator=(const Parallel_List_FullElement_T<Element>& other) {
+	inline Parallel_List_FullElement_T<Element>& operator=(const Parallel_List_FullElement_T<Element>& other) noexcept {
 		// Guard self assignment
 		if (this == &other)
 			return *this;
@@ -534,7 +548,7 @@ public:
 	}
 
 	// parallel copy
-	inline void static copy(Parallel_List_FullElement_T &out, const Parallel_List_FullElement_T &in , const uint32_t tid) {
+	inline void static copy(Parallel_List_FullElement_T &out, const Parallel_List_FullElement_T &in , const uint32_t tid) noexcept {
 		out.nr_elements = in.size();
 		out.thread_block = in.thread_block;
 
@@ -546,7 +560,7 @@ public:
 	}
 
 
-	void print(uint64_t s=0, uint64_t e=30) {
+	void print(uint64_t s=0, uint64_t e=30) const noexcept {
 		for (uint64_t i = s; i < MIN(e,nr_elements); ++i) {
 			std::cout << __data[i];
 		}
@@ -554,11 +568,12 @@ public:
 		std::cout << "\n";
 	}
 private:
-	uint64_t thread_block;
-	uint64_t nr_elements;
-	uint32_t threads1;
-
+	// i want the data ptr (the hot part of this class as aligned as possible.)
 	alignas(PAGE_SIZE) std::vector<Element>  __data;
+
+	const size_t thread_block;
+	const size_t nr_elements;
+	const uint32_t threads1;
 };
 
 
@@ -595,26 +610,31 @@ public:
 	using IndexType = std::array<uint32_t, nri>;
 	using InternalElementType = std::pair<LabelType, IndexType>;
 
-	~Parallel_List_IndexElement_T() {}
+	~Parallel_List_IndexElement_T() noexcept {}
 
-	explicit Parallel_List_IndexElement_T(const size_t size, const uint32_t threads, const size_t thread_block2) {
+	/// TODO explain
+	/// \param size
+	/// \param threads
+	/// \param thread_block
+	explicit Parallel_List_IndexElement_T(const size_t size,
+	                                      const uint32_t threads,
+	                                      const size_t thread_block) noexcept :
+			nr_elements(size), thread_block(size), threads1(1)
+	{
 		__data.resize(size);
-		nr_elements = size;
-		thread_block = thread_block2;
-		threads1 = threads;
 	}
 
 	///
-	constexpr size_t size() const { return nr_elements; }
+	constexpr size_t size() const noexcept { return nr_elements; }
 
-	inline LabelType& data_label(const uint32_t i){ ASSERT(i < nr_elements); return __data[i].first; }
-	inline const LabelType& data_label(const uint32_t i) const { ASSERT(i < nr_elements); return __data[i].first; }
+	inline LabelType& data_label(const uint32_t i) noexcept { ASSERT(i < nr_elements); return __data[i].first; }
+	inline const LabelType& data_label(const uint32_t i) const noexcept { ASSERT(i < nr_elements); return __data[i].first; }
 
 	// returning the range in which one thread is allowed to operate
-	inline size_t start_pos(const uint32_t tid) const { ASSERT(tid < threads1); return tid * thread_block; };
-	inline size_t end_pos(const uint32_t tid) const { ASSERT(tid < threads1); return (tid+1) * thread_block; };
+	inline size_t start_pos(const uint32_t tid) const noexcept { ASSERT(tid < threads1); return tid * thread_block; };
+	inline size_t end_pos(const uint32_t tid) const noexcept  { ASSERT(tid < threads1); return (tid+1) * thread_block; };
 
-	inline Parallel_List_IndexElement_T& operator=(const Parallel_List_IndexElement_T& other) {
+	inline Parallel_List_IndexElement_T& operator=(const Parallel_List_IndexElement_T& other) noexcept {
 		// Guard self assignment
 		if (this == &other)
 			return *this;
@@ -627,7 +647,7 @@ public:
 		return *this;
 	}
 
-	inline void static copy(Parallel_List_IndexElement_T &out, const Parallel_List_IndexElement_T &in , const uint32_t tid) {
+	inline void static copy(Parallel_List_IndexElement_T &out, const Parallel_List_IndexElement_T &in , const uint32_t tid) noexcept {
 		out.nr_elements = in.size();
 		out.thread_block = in.thread_block;
 
@@ -640,7 +660,7 @@ public:
 	/// \param l
 	/// \param j
 	/// \param tid
-	void sort_level(const uint64_t l, const uint64_t j, const uint32_t tid) {
+	void sort_level(const uint64_t l, const uint64_t j, const uint32_t tid) noexcept {
 		ASSERT(0 && "not implemented\n");
 	}
 
@@ -653,7 +673,7 @@ public:
 	/// \param tid
 	inline void add_and_append(const LabelType &l1, const LabelType &l2,
 	                    const uint32_t i1, const uint32_t i2,
-	                    uint64_t &load, const uint32_t tid) noexcept{
+	                    uint64_t &load, const uint32_t tid) noexcept {
 		ASSERT(tid < threads1);
 
 		if (load >= thread_block)
@@ -666,14 +686,13 @@ public:
 	}
 
 	/// return the number of butes needed for this list
-	uint64_t bytes() noexcept {
+	uint64_t bytes() const noexcept {
 		return __data.size() * sizeof(InternalElementType);
 	}
 public:
 	size_t thread_block;
 	size_t nr_elements;
 	uint32_t threads1;
-
 
 	alignas(PAGE_SIZE) std::vector<InternalElementType> __data;
 };

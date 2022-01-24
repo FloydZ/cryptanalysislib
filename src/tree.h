@@ -124,7 +124,7 @@ private:
     ///			Level 3: final list must be saved.
     /// \param i 	current level
     /// \return
-    [[nodiscard]] constexpr unsigned int intermediat_level_limit(const unsigned int i) const {
+    [[nodiscard]] constexpr unsigned int intermediat_level_limit(const unsigned int i) const noexcept {
         // the first -1 half the amount of lists.
         return (1ULL << (depth - i - 1)) - 1;
     }
@@ -132,7 +132,7 @@ private:
     /// count how many carries would occur of one add 2,4,... and so till no
     /// \param in
     /// \return
-    [[nodiscard]] constexpr static unsigned int count_carry_propagates(const unsigned int in) {
+    [[nodiscard]] constexpr static unsigned int count_carry_propagates(const unsigned int in) noexcept {
         ASSERT(in >= 2 && "insert bigger than 2");
 
         auto prev = in - 2u;
@@ -160,7 +160,7 @@ public:
     explicit Tree_T(const unsigned int d, const Matrix_T<MatrixType> &A,
 					const unsigned int baselist_size, // 10
 					const std::vector<uint64_t> &level_translation_array,
-					const std::vector<std::vector<uint8_t>> &level_filter_array) :
+					const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept :
             matrix(A),
             level_translation_array(level_translation_array),
 			level_filter_array(level_filter_array)
@@ -189,7 +189,7 @@ public:
 	explicit Tree_T(const unsigned int d, const Matrix_T<MatrixType> &A,
 	                const List &b1, const List &b2,
 	                const unsigned int baselist_size,
-	                std::vector<uint64_t> &level_translation_array) :
+	                std::vector<uint64_t> &level_translation_array) noexcept :
 			matrix(A),
 			level_translation_array(level_translation_array)
 	{
@@ -208,7 +208,7 @@ public:
 
     // Andre: this just saves in default target list (lists[level+2])
     /// \param level
-    void join_stream(uint64_t level) {
+    void join_stream(uint64_t level) noexcept {
 	    ASSERT(lists.size() >= level + 1);
         join_stream_internal(level, lists[level + 2]);
     }
@@ -223,7 +223,7 @@ public:
     ///				---------------------					---------------------					MERGE ON LEVEL 0
     ///				|					|					|					|
     ///		[ BASE LIST 1]		[ BASE LIST 2]		[ BASE LIST 3]		[ BASE LIST 4]							LEVEL 0
-    void join_stream(uint64_t level, List &target) {
+    void join_stream(uint64_t level, List &target) noexcept {
         join_stream_internal(level, target);
     }
 
@@ -231,7 +231,7 @@ public:
     /// \param target
     /// \param gen_lists
     /// \param two_result_lists
-    void build_tree(LabelType &target, bool gen_lists = true, bool two_result_lists = false) {
+    void build_tree(LabelType &target, bool gen_lists = true, bool two_result_lists = false) noexcept {
 	    uint64_t k_lower, k_higher;
 
 	    if (gen_lists) {
@@ -302,7 +302,7 @@ public:
     ///
     /// \param i
     /// \param intermediate_targets
-    void restore_label(std::vector<std::vector<LabelType>> &intermediate_targets, bool two_result_lists) {
+    void restore_label(std::vector<std::vector<LabelType>> &intermediate_targets, bool two_result_lists) noexcept {
 	    uint64_t k_lower, k_higher;
 
 	    // if one result list was created, the label matches the target on bla coordinates
@@ -342,7 +342,7 @@ public:
     ///
     /// \param i
     /// \param intermediate_targets
-    void restore_baselists(int i, std::vector<std::vector<LabelType>> &intermediate_targets) {
+    void restore_baselists(int i, std::vector<std::vector<LabelType>> &intermediate_targets) noexcept {
         /// first, second are the positions of the lists to prepare
         int first = 2 * i;
         int second = 2 * i + 1;
@@ -384,7 +384,7 @@ public:
     ///
     /// \param i
     /// \param intermediate_targets
-    void prepare_lists(int i, std::vector<std::vector<LabelType>> &intermediate_targets) {
+    void prepare_lists(int i, std::vector<std::vector<LabelType>> &intermediate_targets) noexcept {
         /// first, second are the positions of the lists to prepare
         int first = 2 * i;
         int second = 2 * i + 1;
@@ -454,7 +454,7 @@ public:
 	///		using Odlyzko_element = Element_T<Value_T<kAryContainer_T<uint64_t, 1>>, Label_T<BinaryContainer<G_n + G_l>>, fplll::ZZ_mat<Label_Type>>;
 	///		using Odlyzko_list = List_T<Odlyzko_element>;
     template<class BDD_list, class Odlyzko_list, class Odlyzko_element, const uint32_t q>
-	static void create_odlyzko_list(BDD_list & in, Odlyzko_list & out, const uint32_t n, const uint32_t l) {
+	static void create_odlyzko_list(BDD_list & in, Odlyzko_list & out, const uint32_t n, const uint32_t l) noexcept {
         Odlyzko_element el{};
         //NOTE: 10 ok?
         std::vector<uint64_t> border_indices(10);
@@ -525,7 +525,7 @@ public:
     /// \param k_lower2
     /// \param k_upper2
 	static void twolevel_streamjoin(List &out, List iL, List &L1, List &L2,
-								 const uint64_t k_lower1, const uint64_t k_upper1,const uint64_t k_lower2, const uint64_t k_upper2) {
+								 const uint64_t k_lower1, const uint64_t k_upper1,const uint64_t k_lower2, const uint64_t k_upper2) noexcept {
     	ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 <= k_upper2);
 		// internal variables.
 	    const uint32_t filter = -1;
@@ -593,13 +593,13 @@ public:
     /// \param L2 	Input List (will be changed. Target is added to every element in it.)
     /// \param ta __MUST__ be an uint64_t array containing two elements. The first will be used as the lower cooridnate bound to match the elements on, where as the latter one will be the upper bound.
     static void join2lists(List &out, List &L1, List &L2, const LabelType &target,
-							const std::vector<uint64_t> &lta, const bool prepare=true){
+							const std::vector<uint64_t> &lta, const bool prepare=true) noexcept {
     	ASSERT(lta.size() >=1 );
 	    join2lists(out, L1, L2, target, lta[0], lta[1], prepare);
     }
 
 	static void join2lists(List &out, List &L1, List &L2, const LabelType &target,
-	                           uint64_t k_lower, uint64_t k_upper, bool prepare=true){
+	                           uint64_t k_lower, uint64_t k_upper, bool prepare=true) noexcept {
     	ASSERT(k_lower < k_upper && 0 < k_upper);
     	uint64_t i= 0,j = 0;
 	    const uint32_t filter = -1; //translate_filter(0);
@@ -674,7 +674,7 @@ public:
 	/// \param lta
     static void streamjoin4lists(List &out, List &L1, List &L2, List &L3, List &L4,
 	                        const LabelType &target, const std::vector<uint64_t> &lta,
-	                        const bool prepare=true) {
+	                        const bool prepare=true) noexcept {
 		ASSERT(lta.size() == 3);
 		// limits: k_lower1, k_upper1 for the lowest level tree. And k_lower2, k_upper2 for highest level. There are
 		// only two levels..., so obviously k_upper1=k_lower2
@@ -686,7 +686,7 @@ public:
 	static void streamjoin4lists(List &out, List &L1, List &L2, List &L3, List &L4,
 	                             const LabelType &target,
 	                             const uint64_t k_lower1, const uint64_t k_upper1, const uint64_t k_lower2, const uint64_t k_upper2,
-	                             const bool prepare=true){
+	                             const bool prepare=true) noexcept {
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2
 		        && L1.get_load() > 0 && L2.get_load() > 0 && L3.get_load() > 0 && L4.get_load() > 0);
 		// Intermediate Element, List, Target
@@ -747,7 +747,7 @@ public:
 	/// \param lta
 	static void streamjoin4lists_twolists(List &out, List &L1, List &L2,
 	                             const LabelType &target, const std::vector<uint64_t> &lta,
-	                             bool prepare=true) {
+	                             bool prepare=true) noexcept {
 		ASSERT(lta.size() == 3);
 		// limits: k_lower1, k_upper1 for the lowest level tree. And k_lower2, k_upper2 for highest level. There are
 		// only two levels..., so obviously k_upper1=k_lower2
@@ -759,7 +759,7 @@ public:
 	static void streamjoin4lists_twolists(List &out, List &L1, List &L2,
 	                             const LabelType &target,
 	                             const uint64_t k_lower1, const uint64_t k_upper1, const uint64_t k_lower2, const uint64_t k_upper2,
-	                             bool prepare=true){
+	                             bool prepare=true) noexcept {
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 <= k_upper2 && L1.get_load() > 0 && L2.get_load() > 0);
 		// Intermediate Element, List, Target
 		List iL{0};
@@ -796,7 +796,7 @@ public:
 	/// \param target	target to match on
 	/// \param lta		translation array with the limits to match on, for each lvl
 	static void streamjoin8lists(List &out, std::vector<List> &L, const LabelType &target,
-	                             const std::vector<uint64_t> &lta) {
+	                             const std::vector<uint64_t> &lta) noexcept {
 		ASSERT(lta.size() == 4 && L.size() == 8);
 
 		// limits:
@@ -874,7 +874,7 @@ public:
 	/// \param k_middle
 	/// \param k_upper
 	static void cross_product(List &out, const List &in1, const List &in2,
-	                          const uint64_t k_lower, const uint64_t k_middle, const uint64_t k_upper) {
+	                          const uint64_t k_lower, const uint64_t k_middle, const uint64_t k_upper) noexcept {
     	ASSERT(k_lower < k_middle && k_middle < k_upper && 0 < k_middle);
 
     	const uint64_t size = in1.get_size()* in2.get_size();
@@ -893,12 +893,12 @@ public:
     }
 
     // const and non-const list access functions.
-    List &operator[](uint64_t i) {
+    List &operator[](uint64_t i) noexcept {
         ASSERT(i < (depth + additional_baselists) && "Wrong index");
         return this->lists[i];
     }
 
-    const List &operator[](const uint64_t i) const {
+    const List &operator[](const uint64_t i) const noexcept {
         ASSERT(i < (depth + additional_baselists) && "Wrong index");
         return this->lists[i];
     }
@@ -906,7 +906,7 @@ public:
     /// some getters
     const uint64_t get_size() const { return lists.size(); }
     const uint64_t get_basesize() const { return base_size; }
-	const auto& get_level_translation_array() const { return level_translation_array; }
+	const auto& get_level_translation_array() const noexcept { return level_translation_array; }
 private:
     // drop the default constructor.
     Tree_T();
@@ -1072,8 +1072,6 @@ std::ostream &operator<<(std::ostream &out, const Tree_T<List> &obj) {
 
     return out;
 }
-
-
 
 
 

@@ -639,7 +639,7 @@ double HH(const double x) {
 ///			if level == -1:
 ///				return on all bits
 static void translate_level(uint64_t *lower, uint64_t *upper, const uint32_t level,
-                         const std::vector<uint64_t> &level_translation_array) {
+                         const std::vector<uint64_t> &level_translation_array) noexcept {
 	ASSERT(lower != NULL && upper != NULL);
 
 	// this is actually mostly only for testing.
@@ -662,7 +662,7 @@ static void translate_level(uint64_t *lower, uint64_t *upper, const uint32_t lev
 /// \param const lvl = current lvl
 /// \param const level_filter_array input parameter
 static uint32_t translate_filter(const uint8_t lvl, const uint16_t nr2,
-										   const std::vector<std::vector<uint8_t>> &level_filter_array) {
+										   const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept {
 //	const uint32_t max_lvl = level_filter_array.size();
 //
 //	// some sanity check
@@ -767,7 +767,7 @@ template<typename T>
 #endif
 void printbinary(T a,
 				 const uint16_t l1=std::numeric_limits<uint16_t>::max(),
-				 const uint16_t l2=std::numeric_limits<uint16_t>::max()) {
+				 const uint16_t l2=std::numeric_limits<uint16_t>::max()) noexcept {
 	const T mask = 1;
 	for (uint16_t i = 0; i < sizeof(T)*8; ++i) {
 		if (a & mask) {
@@ -807,7 +807,7 @@ public:
 	constexpr static uint32_t BITSIZE = sizeof(ContainerLimbType)*8;
 
 	template<uint32_t k_lower, uint32_t k_higher, uint32_t flip=0>
-	static inline ArgumentLimbType add(ValueType &v, const ValueType &w) {
+	static inline ArgumentLimbType add(ValueType &v, const ValueType &w) noexcept {
 		return add<k_lower, k_higher, flip>(v.data().data().data(), w.data().data().data());
 	}
 
@@ -821,7 +821,7 @@ public:
 	/// \param v3
 	/// \return				v1+=v2 on the coordinates between [k_lower] and [k_higher]
 	template<uint32_t k_lower, uint32_t k_higher, uint32_t flip=0>
-	static inline ArgumentLimbType add(ContainerLimbType *v1, const ContainerLimbType *v3) {
+	static inline ArgumentLimbType add(ContainerLimbType *v1, const ContainerLimbType *v3) noexcept {
 		static_assert(k_lower < k_higher);
 		// TODO somehow make sure that k_higher is valid. Maybe ensure that 'ValueType' exports an coordinate field
 		constexpr uint32_t llimb = k_lower /BITSIZE;
@@ -895,7 +895,7 @@ public:
 
 	/// extracts the bits of v between k_lower, k_higher zero aligned.
 	template<uint32_t k_lower, uint32_t k_higher, uint32_t flip=0>
-	static __FORCEINLINE__ ArgumentLimbType extract(const ValueType &v) {
+	static __FORCEINLINE__ ArgumentLimbType extract(const ValueType &v) noexcept {
 		return extract<k_lower, k_higher, flip>(v.ptr());
 	}
 
@@ -908,7 +908,7 @@ public:
 	/// \param v3
 	/// \return				v on the coordinates between [k_lower] and [k_higher]
 	template<uint32_t k_lower, uint32_t k_higher, uint32_t flip=0>
-	static __FORCEINLINE__ ArgumentLimbType extract(const ContainerLimbType *v) {
+	static __FORCEINLINE__ ArgumentLimbType extract(const ContainerLimbType *v) noexcept {
 		static_assert(k_lower < k_higher);
 		constexpr uint32_t llimb = k_lower /BITSIZE;
 		constexpr uint32_t hlimb = (k_higher-1)/BITSIZE;
@@ -971,7 +971,9 @@ public:
 	/// \param k_lower
 	/// \param k_higher
 	/// \return
-	static inline ArgumentLimbType extract(const ValueType &v, uint32_t k_lower, uint32_t k_higher) {
+	static inline ArgumentLimbType extract(const ValueType &v,
+	                                       const uint32_t k_lower,
+	                                       const uint32_t k_higher) noexcept {
 		const uint32_t llimb = k_lower /BITSIZE;
 		const uint32_t hlimb = (k_higher-1)/BITSIZE;
 		const uint32_t l = k_lower%BITSIZE;

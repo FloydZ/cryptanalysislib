@@ -56,24 +56,24 @@ public:
 
 	Matrix_T(mzd_t *A) : m(A) {}
 
-	const auto value(const uint64_t i, const uint64_t j) const  { return mzd_read_bit(m, i, j); };
+	const auto value(const uint64_t i, const uint64_t j) const noexcept { return mzd_read_bit(m, i, j); };
 
-	auto limb(const uint64_t i, const uint64_t j) { ASSERT(i < uint64_t(m->nrows) && j < uint64_t(m->width)); return m->rows[i][j]; }
-	const auto limb(const uint64_t i, const uint64_t j) const { ASSERT(i < uint64_t(m->nrows) && j < uint64_t(m->width) ); return m->rows[i][j]; };
+	auto limb(const uint64_t i, const uint64_t j) noexcept { ASSERT(i < uint64_t(m->nrows) && j < uint64_t(m->width)); return m->rows[i][j]; }
+	const auto limb(const uint64_t i, const uint64_t j) const noexcept { ASSERT(i < uint64_t(m->nrows) && j < uint64_t(m->width) ); return m->rows[i][j]; };
 
-	auto operator()(uint64_t i) { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; }
-	const auto operator()(const uint64_t i) const { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; }
+	auto operator()(uint64_t i) noexcept { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; }
+	const auto operator()(const uint64_t i) const noexcept { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; }
 
-	auto operator()(uint64_t i, uint64_t j) { return mzd_read_bit(m, i, j); }
-	const auto operator()(uint64_t i, uint64_t j) const { return mzd_read_bit(m, i, j); }
+	auto operator()(uint64_t i, uint64_t j) noexcept { return mzd_read_bit(m, i, j); }
+	const auto operator()(uint64_t i, uint64_t j) const noexcept { return mzd_read_bit(m, i, j); }
 
-	auto *ptr(const uint64_t i) { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; };
-	const auto *ptr(const uint64_t i) const { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; };
+	auto *ptr(const uint64_t i) noexcept { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; };
+	const auto *ptr(const uint64_t i) const noexcept { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; };
 
-	constexpr bool binary() const { return true; }
+	constexpr bool binary() const noexcept { return true; }
 
 	// maybe make sure that only 0/1 is a valid input
-	void fill(const uint64_t a) {
+	void fill(const uint64_t a) noexcept {
 		for (int i = 0; i < m->nrows; ++i) {
 			for (int j = 0; j < m->nrows; ++j) {
 				mzd_write_bit(m, i, j, a&1u);
@@ -81,8 +81,8 @@ public:
 		}
 	};
 
-	void gen_uniform(const uint64_t bits) { mzd_randomize(m); };
-	void gen_identity(const uint64_t d) {
+	void gen_uniform(const size_t bits) noexcept { mzd_randomize(m); };
+	void gen_identity(const size_t d) noexcept {
 		ASSERT(d == uint64_t(m->nrows) && d == uint64_t(m->ncols));
 		for (uint64_t i = 0; i < d; ++i) {
 			mzd_write_bit(m, i, i, 1);
@@ -92,13 +92,13 @@ public:
 	/// Note this clears the matrix
 	/// \param i
 	/// \param j
-	void resize(const uint64_t i, const uint64_t j) { mzd_free(m); m = mzd_init(i, j); };
+	void resize(const size_t i, const size_t j) noexcept { mzd_free(m); m = mzd_init(i, j); };
 
-	uint64_t get_rows() const { return m->nrows; };
-	uint64_t get_cols() const { return m->ncols; };
+	size_t get_rows() const noexcept { return m->nrows; };
+	size_t get_cols() const noexcept { return m->ncols; };
 
-	uint64_t limbs() const { return m->width; }
-	const auto matrix() const { return m; }
+	size_t limbs() const noexcept { return m->width; }
+	const auto matrix() const noexcept { return m; }
 
 private:
 	mzd_t *m;
@@ -214,7 +214,7 @@ bool equal(const fplll::NumVect<T> &t1, const fplll::NumVect<T> &t2, const int n
 template<class Label, class Value, class T>
 static void new_vector_matrix_product(Label &result,
                                       const Value &x,
-                                      const Matrix_T<T> &m) {
+                                      const Matrix_T<T> &m) noexcept {
 	for (uint32_t j = 0; j < result.size(); j++)
 		result.data()[j] = 0;
 

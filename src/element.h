@@ -107,13 +107,14 @@ public:
 
 
 	/// normal constructor. Initialize everything with zero.
-    Element_T() : value(), label() { this->zero(); }
+    Element_T() noexcept : value(), label() { this->zero(); }
 
     /// copy constructor
-	Element_T(const Element_T& a) : value(a.value), label(a.label) {}
+	Element_T(const Element_T& a) noexcept
+	    : value(a.value), label(a.label) {}
 
 	/// zero out the element.
-    void zero() {
+    void zero() const noexcept {
         value.zero();
         label.zero();
     }
@@ -122,7 +123,7 @@ public:
 	/// \param i		pos
 	/// \param start
 	/// \return
-    uint64_t ith_value_left_zero_position(const uint64_t i, const uint64_t start = 0) const {
+    size_t ith_value_left_zero_position(const size_t i, const size_t start = 0) const noexcept {
 	    uint64_t count = 0;
 	    for (uint64_t j = 0; j < value_size(); ++j) {
 			if (get_value().data()[j] == 0)
@@ -139,7 +140,7 @@ public:
 	/// \param i
 	/// \param start
 	/// \return
-	uint64_t ith_value_right_zero_position(const uint64_t i, const uint64_t start = 0) const {
+	size_t ith_value_right_zero_position(const size_t i, const size_t start = 0) const noexcept {
 		uint64_t count = 0;
 		for (uint64_t j = value_size(); j > 0; --j) {
 			if (get_value().data()[j - 1] == 0)
@@ -154,7 +155,7 @@ public:
 
 	/// generate a random element.
 	/// \param m 	Matrix
-	void random(const Matrix_T<Matrix> &m) {
+	void random(const Matrix_T<Matrix> &m) noexcept {
 		value.random();
 		recalculate_label(m);
 	}
@@ -162,7 +163,7 @@ public:
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
-    void recalculate_label(const Matrix_T<Matrix> &m){
+    void recalculate_label(const Matrix_T<Matrix> &m) noexcept {
 	    new_vector_matrix_product<Label, Value, Matrix>(label, value, m);
 	}
 
@@ -170,7 +171,7 @@ public:
 	/// \param m
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
-	bool is_correct(const Matrix_T<Matrix> &m, const bool rewrite=false) {
+	bool is_correct(const Matrix_T<Matrix> &m, const bool rewrite=false) const noexcept {
     	Label tmp = label;
     	recalculate_label(m);
 
@@ -194,14 +195,14 @@ public:
     ///					it also stops the calculation so the result __MUST__ __NOT__ be correct in this case.
     ///				else 'false'
     static bool add(Element_T &e3, Element_T const &e1, Element_T const &e2,
-                    const uint32_t k_lower, const uint32_t k_upper, const uint32_t norm=-1) {
+                    const uint32_t k_lower, const uint32_t k_upper, const uint32_t norm=-1) noexcept {
         Label::add(e3.label, e1.label, e2.label, k_lower, k_upper);
 	    return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
     }
 
 	/// same as the function above but always return false, meaning to NOT filter out this element.
 	///  Useful if you do not want to filter in your tree and want additional performance.
-	static void add(Element_T &e3, Element_T const &e1, Element_T const &e2) {
+	static void add(Element_T &e3, Element_T const &e1, Element_T const &e2) noexcept {
 		LabelContainerType::add(e3.label.data(), e1.label.data(), e2.label.data());
 		ValueContainerType::add(e3.value.data(), e1.value.data(), e2.value.data());
 	}
@@ -211,40 +212,40 @@ public:
     /// \param k_lower  lower coordinate
     /// \param k_upper  higher coordinate
     /// \return true/false
-    inline bool is_equal(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const {
+    inline bool is_equal(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
 	    // No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
 		return label.is_equal(obj.label, k_lower, k_upper);
     }
 
 	/// \return this->label > obj.label between the coordinates [k_lower, ..., k_upper]
-	inline bool is_greater(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const {
+	inline bool is_greater(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_greater(...)'
 		return label.is_greater(obj.label, k_lower, k_upper);
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
-    inline bool is_lower(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const {
+    inline bool is_lower(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
 	    // No need to assert, because everything will be done inside the called function 'value.is_lower(...)'
         return label.is_lower(obj.label, k_lower, k_upper);
     }
 
 	/// \return true/false
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_equal(const Element_T &obj) const {
+	inline bool is_equal(const Element_T &obj) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
 		return label.template is_equal<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label > obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_greater(const Element_T &obj) const {
+	inline bool is_greater(const Element_T &obj) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_greater(...)'
 		return label.template is_greater<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_lower(const Element_T &obj) const {
+	inline bool is_lower(const Element_T &obj) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_lower(...)'
 		return label.template is_lower<k_lower, k_upper>(obj.label);
 	}
@@ -254,7 +255,7 @@ public:
     ///
     /// \param obj to copy from
     /// \return this
-    Element_T& operator =(Element_T const &obj) {
+    Element_T& operator =(Element_T const &obj) noexcept {
 	    // self-assignment check expected
 	    if (this != &obj) {
 	        // now we can copy it
@@ -267,7 +268,7 @@ public:
 
 	///
 	/// \return true if either the value or label is zero on all coordinates
-	bool is_zero() {
+	bool is_zero() const noexcept {
 		bool ret = false;
 
 		ret |= value.is_zero();
@@ -291,46 +292,47 @@ public:
 	/// print the internal data
 	/// \param k_lower lower dimension
 	/// \param k_upper upper dimension
-	void print(const uint64_t k_lower, const uint64_t k_upper) const {
+	void print(const uint64_t k_lower, const uint64_t k_upper) const noexcept {
 		label.print(k_lower, k_upper);
 		value.print(k_lower, k_upper);
 	}
 
-	Value& get_value() { return value; }
-	const Value& get_value() const { return value; }
-	auto get_value(const size_t i) { ASSERT(i < value.size()); return value.data(i); }
-	const auto get_value(const size_t i) const { ASSERT(i < value.size()); return value.data(i); }
+	Value& get_value() noexcept { return value; }
+	const Value& get_value() const noexcept { return value; }
+	auto get_value(const size_t i) noexcept { ASSERT(i < value.size()); return value.data(i); }
+	const auto get_value(const size_t i) const noexcept { ASSERT(i < value.size()); return value.data(i); }
 
-	Label& get_label() { return label; }
-	const Label& get_label() const { return label; }
-	auto get_label(const uint64_t i) { ASSERT(i < label.size()); return label.data(i); }
-	const auto get_label(const uint64_t i) const { ASSERT(i < label.size()); return label.data(i); }
+	Label& get_label() noexcept { return label; }
+	const Label& get_label() const noexcept { return label; }
+	auto get_label(const uint64_t i) noexcept { ASSERT(i < label.size()); return label.data(i); }
+	const auto get_label(const uint64_t i) const noexcept { ASSERT(i < label.size()); return label.data(i); }
 
-	void set_value(const Value &v) { value = v; }
-	void set_label(const Label &l) { label = l; }
+	void set_value(const Value &v) noexcept { value = v; }
+	void set_label(const Label &l) noexcept { label = l; }
 
 
 	/// returns true of both underlying data structs are binary
-	constexpr static bool binary() { return Label::binary() & Value::binary(); }
-	constexpr static uint32_t label_size() { return Label::size(); }
-	constexpr static uint32_t value_size() { return Value::size(); }
-	constexpr static uint32_t size() { return Value::size()+Label::size(); }
-	constexpr static uint32_t bytes() { return ValueContainerType::copyable_ssize()+LabelContainerType::copyable_ssize(); }
+	constexpr static bool binary() noexcept { return Label::binary() & Value::binary(); }
+	constexpr static uint32_t label_size() noexcept { return Label::size(); }
+	constexpr static uint32_t value_size() noexcept { return Value::size(); }
+	constexpr static uint32_t size() noexcept { return Value::size()+Label::size(); }
+	constexpr static uint32_t bytes() noexcept { return ValueContainerType::copyable_ssize()+LabelContainerType::copyable_ssize(); }
 
-	__FORCEINLINE__ auto& get_label_container() { return label.data(); }
-	__FORCEINLINE__ auto& get_value_container() { return value.data(); }
+	__FORCEINLINE__ auto& get_label_container() noexcept { return label.data(); }
+	__FORCEINLINE__ auto& get_value_container() noexcept { return value.data(); }
 
-	__FORCEINLINE__ const auto& get_label_container() const { return label.data(); }
-	__FORCEINLINE__ const auto& get_value_container() const { return value.data(); }
+	__FORCEINLINE__ const auto& get_label_container() const noexcept { return label.data(); }
+	__FORCEINLINE__ const auto& get_value_container() const noexcept { return value.data(); }
 
-	__FORCEINLINE__ auto* get_label_container_ptr() { return label.data().data().data(); }
-	__FORCEINLINE__ auto* get_value_container_ptr() { return value.data().data().data(); }
+	__FORCEINLINE__ auto* get_label_container_ptr() noexcept { return label.data().data().data(); }
+	__FORCEINLINE__ auto* get_value_container_ptr() noexcept { return value.data().data().data(); }
 
-	__FORCEINLINE__ const auto* get_label_container_ptr() const { return label.data().data().data(); }
-	__FORCEINLINE__ const auto* get_value_container_ptr() const { return value.data().data().data(); }
+	__FORCEINLINE__ const auto* get_label_container_ptr() const noexcept { return label.data().data().data(); }
+	__FORCEINLINE__ const auto* get_value_container_ptr() const noexcept { return value.data().data().data(); }
+
 private:
-    Value value;
-    Label label;
+	Label label;
+	Value value;
 };
 
 /// print operator

@@ -30,11 +30,11 @@ typedef struct customMatrixData {
 
 // implementation taken from gray_code.c
 // a = #rows, b = #cols
-constexpr int matrix_opt_k(const int a, const int b) {
+constexpr int matrix_opt_k(const int a, const int b) noexcept {
 	return  MIN(__M4RI_MAXKAY, MAX(1, (int)(0.75 * (1 + const_log(MIN(a, b))))));
 }
 
-void mzd_row_xor(mzd_t *out, const rci_t i, const rci_t j) {
+void mzd_row_xor(mzd_t *out, const rci_t i, const rci_t j) noexcept {
 	assert(out->nrows > i && out->nrows > j);
 	for (uint32_t l = 0; l < uint32_t(out->width); ++l) {
 		out->rows[i][l] ^= out->rows[j][l];
@@ -46,7 +46,7 @@ void mzd_row_xor(mzd_t *out, const rci_t i, const rci_t j) {
 /// \param in_matrix
 /// \param start_r
 /// \param start_c
-void mzd_append(mzd_t *out_matrix, const mzd_t *const in_matrix, const int start_r, const int start_c) {
+void mzd_append(mzd_t *out_matrix, const mzd_t *const in_matrix, const int start_r, const int start_c) noexcept {
 	assert(out_matrix->nrows > start_r);
 	assert(out_matrix->ncols > start_c);
 	assert(out_matrix->nrows - start_r == in_matrix->nrows);
@@ -61,7 +61,7 @@ void mzd_append(mzd_t *out_matrix, const mzd_t *const in_matrix, const int start
 
 mzd_t *_mzd_transpose(mzd_t *DST, mzd_t const *A);
 
-mzd_t *matrix_transpose(mzd_t *DST, mzd_t const *A) {
+mzd_t *matrix_transpose(mzd_t *DST, mzd_t const *A) noexcept {
 	if (DST == NULL) {
 		DST = mzd_init(A->ncols, A->nrows);
 	} else if (__M4RI_UNLIKELY(DST->nrows < A->ncols || DST->ncols < A->nrows)) {
@@ -91,7 +91,7 @@ mzd_t *matrix_transpose(mzd_t *DST, mzd_t const *A) {
 
 // The same as `mzd_concat` but with the oddity that a new matrix with avx padding is generated if necessary.
 // This is sometimes called augment
-mzd_t *matrix_concat(mzd_t *C, mzd_t const *A, mzd_t const *B) {
+mzd_t *matrix_concat(mzd_t *C, mzd_t const *A, mzd_t const *B) noexcept {
 	if (A->nrows != B->nrows) { m4ri_die("mzd_concat: Bad arguments to concat!\n"); }
 
 	if (C == NULL) {
@@ -121,7 +121,7 @@ mzd_t *matrix_concat(mzd_t *C, mzd_t const *A, mzd_t const *B) {
 // generates the DOOM shits
 // in must be the syndrom in column form
 // writes the shifts directly into the out matrix.
-mzd_t *matrix_down_shift_into_matrix(mzd_t *out, const mzd_t *in, const uint32_t col, const uint32_t i) {
+mzd_t *matrix_down_shift_into_matrix(mzd_t *out, const mzd_t *in, const uint32_t col, const uint32_t i) noexcept {
 	if ((in->ncols != 1) || (in->nrows != out->nrows)) m4ri_die("matrix_shift: Bad argument!\n");
 
 	if (out == nullptr) {
@@ -138,7 +138,7 @@ mzd_t *matrix_down_shift_into_matrix(mzd_t *out, const mzd_t *in, const uint32_t
 // generates the DOOM shits
 // in must be the syndrom in column form
 // writes the shifts directly into the out matrix.
-mzd_t *matrix_up_shift_into_matrix(mzd_t *out, const mzd_t *in, const uint32_t col, const uint32_t i) {
+mzd_t *matrix_up_shift_into_matrix(mzd_t *out, const mzd_t *in, const uint32_t col, const uint32_t i) noexcept {
 	if (in->ncols != 1) m4ri_die("matrix_shift: Bad argument!\n");
 
 	if (out == nullptr) {
@@ -154,7 +154,7 @@ mzd_t *matrix_up_shift_into_matrix(mzd_t *out, const mzd_t *in, const uint32_t c
 
 // generates the DOOM shits
 // in must be the syndrom in column form
-mzd_t *matrix_down_shift(mzd_t *out, const mzd_t *in, uint32_t i) {
+mzd_t *matrix_down_shift(mzd_t *out, const mzd_t *in, uint32_t i) noexcept {
 	if (in->ncols != 1) m4ri_die("matrix_shift: Bad argument!\n");
 
 	if (out == nullptr) {
@@ -170,7 +170,7 @@ mzd_t *matrix_down_shift(mzd_t *out, const mzd_t *in, uint32_t i) {
 
 // generates the DOOM shits
 // in must be the syndrom in column form
-mzd_t *matrix_up_shift(mzd_t *out, const mzd_t *in, uint32_t i) {
+mzd_t *matrix_up_shift(mzd_t *out, const mzd_t *in, uint32_t i) noexcept {
 	if (in->ncols != 1) m4ri_die("matrix_shift: Bad argument!\n");
 
 	if (out == nullptr) {
@@ -186,7 +186,7 @@ mzd_t *matrix_up_shift(mzd_t *out, const mzd_t *in, uint32_t i) {
 
 // create A with `mzp_t *A = mzp_init(length)
 // input permutation `A` should have initilaised with: `for(int i = 0; i < A->length; i++) A->value[i] = i` or something.
-void matrix_create_random_permutation(mzd_t *A, mzp_t *P) {
+void matrix_create_random_permutation(mzd_t *A, mzp_t *P) noexcept {
 	mzd_t * AT= mzd_init(A->ncols,A->nrows);
 	mzd_transpose(AT, A);
 	// dont permute the last column since it is the syndrome
@@ -206,7 +206,7 @@ void matrix_create_random_permutation(mzd_t *A, mzp_t *P) {
 }
 
 // optimized version to which you have additionally pass the transposed, So its not created/freed every time
-void matrix_create_random_permutation(mzd_t *A, mzd_t *AT, mzp_t *P) {
+void matrix_create_random_permutation(mzd_t *A, mzd_t *AT, mzp_t *P) noexcept {
 	matrix_transpose(AT, A);
 	// dont permute the last column since it is the syndrome
 	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
@@ -224,7 +224,7 @@ void matrix_create_random_permutation(mzd_t *A, mzd_t *AT, mzp_t *P) {
 }
 
 
-void xor_avx1_new(uint8_t *x, uint8_t *y, uint8_t *z, unsigned n) {
+inline void xor_avx1_new(uint8_t *x, uint8_t *y, uint8_t *z, unsigned n) noexcept {
 	for (unsigned i = 0; i < n; i += 1) {
 #ifdef USE_AVX2
 #ifdef USE_AVX2_SPECIAL_ALIGNMENT
@@ -248,7 +248,7 @@ void xor_avx1_new(uint8_t *x, uint8_t *y, uint8_t *z, unsigned n) {
 }
 
 
-void matrix_swap_rows_new(mzd_t *M, size_t i, size_t j) {
+void matrix_swap_rows_new(mzd_t *M, size_t i, size_t j) noexcept {
 	word *tmp = M->rows[i];
 	M->rows[i] = M->rows[j];
 	M->rows[j] = tmp;
@@ -256,7 +256,7 @@ void matrix_swap_rows_new(mzd_t *M, size_t i, size_t j) {
 
 
 size_t matrix_gauss_submatrix(mzd_t *M, const size_t r, size_t c, size_t rows,
-                              size_t cols, size_t k) {
+                              size_t cols, size_t k) noexcept {
 	size_t start_row = r;
 	size_t j;
 	size_t cols_padded_ymm = MATRIX_AVX_PADDING(cols) / 256;
@@ -292,7 +292,7 @@ size_t matrix_gauss_submatrix(mzd_t *M, const size_t r, size_t c, size_t rows,
 }
 
 
-void matrix_make_table(mzd_t *M, size_t r, size_t cols, size_t k, uint64_t *T, int **diff) {
+void matrix_make_table(mzd_t *M, size_t r, size_t cols, size_t k, uint64_t *T, int **diff) noexcept {
 	size_t cols_padded = MATRIX_AVX_PADDING(cols);
 	size_t cols_padded_word = cols_padded / 64;
 	size_t cols_padded_ymm = cols_padded / 256;
@@ -309,7 +309,7 @@ void matrix_make_table(mzd_t *M, size_t r, size_t cols, size_t k, uint64_t *T, i
 }
 
 
-word matrix_read_bits(mzd_t *M, size_t x, size_t y, size_t n) {
+word matrix_read_bits(mzd_t *M, size_t x, size_t y, size_t n) noexcept {
 	int spot = y % WORD_SIZE;
 	word block = y / WORD_SIZE;
 	int spill = spot + n - WORD_SIZE;
@@ -321,7 +321,7 @@ word matrix_read_bits(mzd_t *M, size_t x, size_t y, size_t n) {
 
 
 void matrix_process_rows(mzd_t *M, size_t rstart, size_t cstart, size_t rstop,
-                         size_t k, size_t cols, uint64_t *T, int **rev) {
+                         size_t k, size_t cols, uint64_t *T, int **rev) noexcept {
 	size_t cols_padded = MATRIX_AVX_PADDING(cols);
 	size_t cols_padded_ymm = cols_padded / 256;
 	size_t cols_padded_word = cols_padded / 64;
@@ -342,7 +342,7 @@ void matrix_process_rows(mzd_t *M, size_t rstart, size_t cstart, size_t rstop,
 /// \param matrix_data 	helper data
 /// \param cstart 		column start.
 /// \return
-size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixData *matrix_data, size_t cstart) {
+size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixData *matrix_data, size_t cstart) noexcept {
 	int **rev = matrix_data->rev;
 	int **diff = matrix_data->diff;
 	uint64_t  *xor_rows = matrix_data->lookup_table;
@@ -389,7 +389,7 @@ size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixD
 size_t matrix_echelonize_partial_plusfix(mzd_t *M, size_t k, size_t rstop,
 										 customMatrixData *matrix_data, size_t cstart,
 										 size_t fix_col, size_t look_ahead,
-                                         mzp_t *permutation) {
+                                         mzp_t *permutation) noexcept {
 	size_t rang = matrix_echelonize_partial(M, k, rstop, matrix_data, cstart);
 	for (size_t b = rang; b < rstop; ++b) {
 		bool found = false;
@@ -423,11 +423,11 @@ size_t matrix_echelonize_partial_plusfix(mzd_t *M, size_t k, size_t rstop,
 	return fix_col;
 }
 
-size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixData *matrix_data) {
+size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixData *matrix_data) noexcept {
 	return matrix_echelonize_partial(M, k, rstop, matrix_data, 0);
 }
 
-static int gray_new(int i, int k) {
+static int gray_new(int i, int k) noexcept {
 	int lastbit = 0;
 	int res = 0;
 	for (int j = k; j-- > 0;) {
@@ -439,7 +439,7 @@ static int gray_new(int i, int k) {
 }
 
 
-void matrix_alloc_gray_code(int ***rev, int ***diff) {
+void matrix_alloc_gray_code(int ***rev, int ***diff) noexcept {
 	*rev = (int **) malloc((MAX_K + 1) * sizeof(int *));
 	*diff = (int **) malloc((MAX_K + 1) * sizeof(int *));
 
@@ -450,7 +450,7 @@ void matrix_alloc_gray_code(int ***rev, int ***diff) {
 }
 
 
-void matrix_free_gray_code(int **rev, int **diff) {
+void matrix_free_gray_code(int **rev, int **diff) noexcept {
 	for (size_t k = 0; k <= MAX_K; ++k) {
 		free(rev[k]);
 		free(diff[k]);
@@ -460,7 +460,7 @@ void matrix_free_gray_code(int **rev, int **diff) {
 }
 
 
-void matrix_build_gray_code(int **rev, int **diff) {
+void matrix_build_gray_code(int **rev, int **diff) noexcept {
 	for (size_t k = 0; k <= MAX_K; ++k) {
 		for (size_t i = 0; i < 1UL << k; ++i) {
 			rev[k][gray_new(i, k)] = i;
@@ -475,7 +475,7 @@ void matrix_build_gray_code(int **rev, int **diff) {
 }
 
 // special copy, which can be useful if you working with avx alignment
-mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) {
+mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) noexcept {
 	if (N == P) return N;
 
 	if (N == NULL) {
@@ -494,7 +494,7 @@ mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) {
 	return N;
 }
 
-customMatrixData* init_matrix_data(int nr_columns){
+customMatrixData* init_matrix_data(int nr_columns) noexcept {
 	customMatrixData *matrix_data = (customMatrixData *) malloc(sizeof(customMatrixData));
 
 	matrix_data->real_nr_cols = nr_columns;
@@ -507,19 +507,19 @@ customMatrixData* init_matrix_data(int nr_columns){
 	return matrix_data;
 }
 
-void free_matrix_data(customMatrixData* matrix_data){
+void free_matrix_data(customMatrixData* matrix_data) noexcept {
 	matrix_free_gray_code(matrix_data->rev, matrix_data->diff);
 	free(matrix_data->lookup_table);
 	free(matrix_data);
 }
 
-mzd_t *matrix_init(rci_t r, rci_t c) {
+mzd_t *matrix_init(rci_t r, rci_t c) noexcept {
 	auto padding = MATRIX_AVX_PADDING(c);
 	return mzd_init(r, padding);
 }
 
 /// ein versuch die matrix so zu splitten, dass die H matrix 256 alignent ist.
-mzd_t *matrix_init_split(const mzd_t *A, const mzd_t *s, const uint32_t nkl, const uint32_t c) {
+mzd_t *matrix_init_split(const mzd_t *A, const mzd_t *s, const uint32_t nkl, const uint32_t c) noexcept {
 	assert(s->nrows==1);
 
 	auto padding = MATRIX_AVX_PADDING(A->ncols + c);
@@ -541,7 +541,7 @@ mzd_t *matrix_init_split(const mzd_t *A, const mzd_t *s, const uint32_t nkl, con
 }
 
 // the same as above.
-static void print_matrix(const char *s, const mzd_t *A, int start_row=-1, int end_row=-1){
+static void print_matrix(const char *s, const mzd_t *A, int start_row=-1, int end_row=-1) noexcept {
 	const int ss = start_row == -1 ? 0 : start_row;
 	const int ee = end_row == -1 ? A->nrows : end_row;
 
@@ -552,7 +552,7 @@ static void print_matrix(const char *s, const mzd_t *A, int start_row=-1, int en
 	printf("\n");
 }
 
-static void print_matrix(const char *s, const mzd_t *A, int start_row, int end_row, int start_col, int end_col){
+static void print_matrix(const char *s, const mzd_t *A, int start_row, int end_row, int start_col, int end_col) noexcept {
 	const int sstart_row = start_row == -1 ? 0 : start_row;
 	const int eend_row = end_row == -1 ? A->nrows : end_row;
 

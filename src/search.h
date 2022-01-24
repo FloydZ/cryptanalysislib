@@ -37,7 +37,7 @@ static size_t Khuong_bin_search(const List &list, typename List::value_type &val
 
 
 template<typename ForwardIt, typename T, typename Hash>
-constexpr ForwardIt lower_bound_interpolation_search1(ForwardIt first, ForwardIt last, const T &value_, Hash h) {
+constexpr ForwardIt lower_bound_interpolation_search1(ForwardIt first, ForwardIt last, const T &value_, Hash h) noexcept {
 	auto low = first, high = last, mid = first;
 	std::advance(high, -1);
 
@@ -87,7 +87,7 @@ constexpr ForwardIt lower_bound_interpolation_search1(ForwardIt first, ForwardIt
 // taken from:
 // https://medium.com/@vgasparyan1995/interpolation-search-a-generic-implementation-in-c-part-2-164d2c9f55fa
 template<typename ForwardIt, typename T, typename Hash>
-constexpr ForwardIt lower_bound_interpolation_search2(ForwardIt first, ForwardIt last, const T &value_, Hash h) {
+constexpr ForwardIt lower_bound_interpolation_search2(ForwardIt first, ForwardIt last, const T &value_, Hash h) noexcept {
 	auto count = std::distance(first, last);
 	auto from_iter = first;
 	auto to_iter = from_iter;
@@ -133,7 +133,7 @@ constexpr ForwardIt lower_bound_interpolation_search2(ForwardIt first, ForwardIt
 
 // linear search, needs to run backwards so it's stable
 template<class ForwardIt, class T, class Compare>
-constexpr ForwardIt upper_bound_linear_search(ForwardIt first, ForwardIt last, T &key, Compare compare) {
+constexpr ForwardIt upper_bound_linear_search(ForwardIt first, ForwardIt last, T &key, Compare compare) noexcept {
 	typename std::iterator_traits<ForwardIt>::difference_type count, step;
 	count = std::distance(first, last);
 	step = -1;
@@ -151,7 +151,7 @@ constexpr ForwardIt upper_bound_linear_search(ForwardIt first, ForwardIt last, T
 
 // linear search, needs to run forward so it's stable
 template<class ForwardIt, class T, class Compare>
-constexpr ForwardIt lower_bound_linear_search(ForwardIt first, ForwardIt last, T &key, Compare compare) {
+constexpr ForwardIt lower_bound_linear_search(ForwardIt first, ForwardIt last, T &key, Compare compare) noexcept {
 	typename std::iterator_traits<ForwardIt>::difference_type count, step;
 	count = std::distance(first, last);
 	step = 1;
@@ -168,7 +168,7 @@ constexpr ForwardIt lower_bound_linear_search(ForwardIt first, ForwardIt last, T
 
 // 
 template<class ForwardIt, class T, class Hash>
-constexpr ForwardIt upper_bound_breaking_linear_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+constexpr ForwardIt upper_bound_breaking_linear_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 	auto count = std::distance(first, last);
 	if (count == 0)
 		return first;
@@ -193,7 +193,7 @@ constexpr ForwardIt upper_bound_breaking_linear_search(ForwardIt first, ForwardI
 
 // 
 template<class ForwardIt, class T, class Hash>
-constexpr ForwardIt lower_bound_breaking_linear_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+constexpr ForwardIt lower_bound_breaking_linear_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 	auto count = std::distance(first, last);
 	if (count == 0)
 		return first;
@@ -218,7 +218,7 @@ constexpr ForwardIt lower_bound_breaking_linear_search(ForwardIt first, ForwardI
 
 // faster than linear on larger arrays
 template<typename T>
-uint64_t breaking_linear_search(T *array, uint64_t array_size, T key) {
+uint64_t breaking_linear_search(T *array, uint64_t array_size, T key) noexcept {
 	uint64_t top = array_size;
 
 	if (array_size == 0) {
@@ -239,7 +239,7 @@ uint64_t breaking_linear_search(T *array, uint64_t array_size, T key) {
 }
 
 template<typename ForwardIt, typename T, typename Hash>
-ForwardIt upper_bound_standard_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+ForwardIt upper_bound_standard_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 	const auto count = std::distance(first, last);
 	if (count == 0)
 		return first;
@@ -271,7 +271,7 @@ ForwardIt upper_bound_standard_binary_search(ForwardIt first, ForwardIt last, co
 }
 
 template<typename ForwardIt, typename T, typename Hash>
-ForwardIt lower_bound_standard_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+ForwardIt lower_bound_standard_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 	ForwardIt it;
 	typename std::iterator_traits<ForwardIt>::difference_type count, step;
 	count = std::distance(first, last);
@@ -292,7 +292,7 @@ ForwardIt lower_bound_standard_binary_search(ForwardIt first, ForwardIt last, co
 
 // the standard binary search from text books
 template<typename T>
-uint64_t standard_binary_search(T *array, uint64_t array_size, T key) {
+uint64_t standard_binary_search(T *array, uint64_t array_size, T key) noexcept {
 	uint64_t bot, mid, top;
 
 	if (array_size == 0) {
@@ -323,7 +323,7 @@ uint64_t standard_binary_search(T *array, uint64_t array_size, T key) {
 
 // faster than the standard binary search, same number of checks
 template<typename T>
-uint64_t boundless_binary_search(T *array, uint64_t array_size, T key) {
+uint64_t boundless_binary_search(T *array, uint64_t array_size, T key) noexcept {
 	uint64_t mid, bot;
 
 	if (array_size == 0) {
@@ -349,7 +349,7 @@ uint64_t boundless_binary_search(T *array, uint64_t array_size, T key) {
 
 // always double tap
 template<typename T>
-uint64_t doubletapped_binary_search(T *array, uint64_t array_size, T key) {
+uint64_t doubletapped_binary_search(T *array, uint64_t array_size, T key) noexcept {
 	uint64_t mid, bot;
 
 	bot = 0;
@@ -372,7 +372,7 @@ uint64_t doubletapped_binary_search(T *array, uint64_t array_size, T key) {
 }
 
 template<typename ForwardIt, typename T, typename Hash>
-ForwardIt upper_bound_monobound_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+ForwardIt upper_bound_monobound_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 	auto count = std::distance(first, last);
 	const auto key = h(key_);
 	auto bot = first;
@@ -411,7 +411,7 @@ ForwardIt upper_bound_monobound_binary_search(ForwardIt first, ForwardIt last, c
 /// \param h
 /// \return
 template<typename ForwardIt, typename T, typename Hash>
-ForwardIt lower_bound_monobound_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+ForwardIt lower_bound_monobound_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 	auto count = std::distance(first, last);
 	const auto key = h(key_);
 	auto bot = first;
@@ -443,7 +443,7 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first, ForwardIt last, c
 
 // faster than the boundless binary search, more checks
 template<typename T>
-uint64_t monobound_binary_search(T *array, size_t array_size, T key) {
+uint64_t monobound_binary_search(T *array, size_t array_size, T key) noexcept {
 	uint64_t bot, mid, top;
 
 	if (array_size == 0) {
@@ -472,19 +472,19 @@ uint64_t monobound_binary_search(T *array, size_t array_size, T key) {
 
 
 template<typename ForwardIt, typename T, typename Hash>
-ForwardIt upper_bound_tripletapped_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+ForwardIt upper_bound_tripletapped_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 
 }
 
 template<typename ForwardIt, typename T, typename Hash>
-ForwardIt lower_bound_tripletapped_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+ForwardIt lower_bound_tripletapped_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 
 }
 
 
 // heck, always triple tap ⁍⁍⁍
 template<typename T>
-uint64_t tripletapped_binary_search(T *array, uint64_t array_size, T key) {
+uint64_t tripletapped_binary_search(T *array, uint64_t array_size, T key) noexcept {
 	uint64_t bot, mid, top;
 
 	bot = 0;
@@ -509,7 +509,7 @@ uint64_t tripletapped_binary_search(T *array, uint64_t array_size, T key) {
 
 // better performance on large arrays
 template<typename T>
-uint64_t monobound_quaternary_search(T *array, uint64_t array_size, T key) {
+uint64_t monobound_quaternary_search(T *array, uint64_t array_size, T key) noexcept {
 	uint64_t bot, mid, top;
 
 	if (array_size == 0) {
@@ -556,13 +556,13 @@ uint64_t monobound_quaternary_search(T *array, uint64_t array_size, T key) {
 
 
 template<class ForwardIt, class T, class Hash>
-ForwardIt upper_bound_monobound_interpolated_search(ForwardIt first, ForwardIt last, T &key_, Hash h) {
+ForwardIt upper_bound_monobound_interpolated_search(ForwardIt first, ForwardIt last, T &key_, Hash h) noexcept {
 
 }
 
 
 template<typename ForwardIt, typename T, typename Hash>
-ForwardIt upper_bound_adaptive_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) {
+ForwardIt upper_bound_adaptive_binary_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
 	static uint64_t balance;
 	static ForwardIt i = first;
 	ForwardIt bot, top, mid;
@@ -650,7 +650,7 @@ size_t LowerBoundInterpolationSearch(const  T*__buckets,
 									const T key,
                                     const size_t boffset,
                                     const size_t load,
-									Extractor e) {
+									Extractor e) noexcept {
 	ASSERT(boffset < load);
 	// example of the extract function#define ISAccess(x) x //((x&mask2)>>b1)
 
@@ -699,7 +699,7 @@ size_t LowerBoundInterpolationSearch(const  T*__buckets,
 /// \return
 template<typename ForwardIt, typename Extract>
 	requires std::random_access_iterator<ForwardIt>
-ForwardIt LowerBoundInterpolationSearch(ForwardIt first, ForwardIt last, const typename ForwardIt::value_type &key_, Extract e) {
+ForwardIt LowerBoundInterpolationSearch(ForwardIt first, ForwardIt last, const typename ForwardIt::value_type &key_, Extract e) noexcept {
 	using diff_type = typename std::iterator_traits<ForwardIt>::difference_type;
 	using T = typename ForwardIt::value_type;
 

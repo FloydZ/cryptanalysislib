@@ -77,20 +77,20 @@ public:
 	constexpr static uint32_t LENGTH = Container::LENGTH;
 
 	/// default constructor
-	Value_T(): __data() {this->zero(); }
+	Value_T() noexcept : __data() {this->zero(); }
 
 	/// Copy Constructor
 	/// \param a
-	Value_T(const Value_T& a) : __data(a.__data) {}
+	Value_T(const Value_T& a) noexcept : __data(a.__data) {}
 
     /// zero the complete data vector
-    void zero() { __data.zero(); }
+    void zero() noexcept { __data.zero(); }
 
     /// set the whole data array on random data.
-    void random() { __data.random(); }
+    void random() noexcept { __data.random(); }
 
 	/// \return true if every coordinate is zero
-	bool is_zero() {
+	bool is_zero() noexcept {
 		return __data.is_zero();
 	}
 
@@ -106,7 +106,7 @@ public:
 	/// \return		true if the resulting 'v3' __MUST__ __NOT__ be added to the list.
 	///				false else.
     static inline bool add(Value_T &v3, Value_T const &v1, Value_T const &v2,
-                    const uint64_t k_lower=0, const uint64_t k_higher=LENGTH, const uint32_t norm=-1) {
+                    const uint64_t k_lower=0, const uint64_t k_higher=LENGTH, const uint32_t norm=-1) noexcept {
 		return Container::add(v3.__data, v1.__data, v2.__data, k_lower, k_higher, norm);
 	}
 
@@ -119,19 +119,19 @@ public:
 	/// \param k_higher upper
 	/// \return
 	static inline void sub(Value_T &v3, Value_T const &v1, Value_T const &v2,
-	                const uint64_t k_lower=0, const uint64_t k_higher=LENGTH) {
+	                const uint64_t k_lower=0, const uint64_t k_higher=LENGTH) noexcept {
 		Container::sub(v3.__data, v1.__data, v2.__data, k_lower, k_higher);
 	}
 
 
 	/// negate all coordinates
-	inline void neg(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) {
+	inline void neg(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) noexcept {
 		__data.neg(k_lower, k_upper);
 	}
 
 	/// i think this does a 3 way comparison.
 	inline static bool cmp(Value_T const &v1, Value_T const &v2,
-	                       const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) {
+	                       const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) noexcept {
 		return Container::cmp(v1.__data, v2.__data, k_lower, k_upper);
 
 	}
@@ -146,7 +146,7 @@ public:
 	/// see https://en.cppreference.com/w/cpp/language/operators
     /// \param obj
     /// \return
-	Value_T& operator =(Value_T const &obj) {
+	Value_T& operator =(Value_T const &obj) noexcept {
 		// fast path: do nothing if they are the same.
 		if (likely(this != &obj)) {
 			__data = obj.__data;
@@ -175,7 +175,7 @@ public:
 	/// \param k_lower lower limit
 	/// \param k_upper upper limit
 	/// \return true/false
-	inline bool is_equal(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const {
+	inline bool is_equal(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < k_upper);
 
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
@@ -191,51 +191,51 @@ public:
 	/// \param k_lower  lower limit
 	/// \param k_upper  upper limit
 	/// \return true/false
-	inline bool is_greater(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const {
+	inline bool is_greater(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < k_upper);
 		return __data.is_greater(obj.data(), k_lower, k_upper);
 	}
 
 	/// same as "is_greater"
-	inline bool is_lower(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const {
+	inline bool is_lower(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < k_upper);
 		return __data.is_lower(obj.data(), k_lower, k_upper);
 	}
 
 	/// \return true/false
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_equal(const Value_T &obj) const {
+	inline bool is_equal(const Value_T &obj) const noexcept {
 		return __data.template is_equal<k_lower, k_upper>(obj.__data);
 	}
 
 	/// \return this > obj between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_greater(const Value_T &obj) const {
+	inline bool is_greater(const Value_T &obj) const noexcept {
 		return __data.template is_greater<k_lower, k_upper>(obj.__data);
 	}
 
 	/// \return this < obj between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_lower(const Value_T &obj) const {
+	inline bool is_lower(const Value_T &obj) const noexcept {
 		return __data.template is_lower<k_lower, k_upper>(obj.__data);
 	}
 
 	/// print the data
-	void print(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) const { __data.print(k_lower, k_upper); }
+	void print(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) const noexcept { __data.print(k_lower, k_upper); }
 
-	__FORCEINLINE__ constexpr static bool binary() { return Container::binary(); }
-	__FORCEINLINE__ constexpr static uint64_t size() { return Container::size(); }
-	__FORCEINLINE__ constexpr static uint32_t limbs() { return Container::limbs(); }
-	__FORCEINLINE__ constexpr static uint32_t bytes() { return Container::bytes(); }
+	__FORCEINLINE__ constexpr static bool binary() noexcept { return Container::binary(); }
+	__FORCEINLINE__ constexpr static uint64_t size() noexcept { return Container::size(); }
+	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return Container::limbs(); }
+	__FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return Container::bytes(); }
 
-	__FORCEINLINE__ Container& data()  {return __data; };
-	__FORCEINLINE__ const Container& data() const { return __data; };
+	__FORCEINLINE__ Container& data() noexcept {return __data; };
+	__FORCEINLINE__ const Container& data() const noexcept { return __data; };
 
-	__FORCEINLINE__ auto data(const uint64_t i) { ASSERT(i < __data.size()); return __data[i]; };
-	__FORCEINLINE__ const DataType data(const uint64_t i) const { ASSERT(i < __data.size()); return __data[i]; };
+	__FORCEINLINE__ auto data(const uint64_t i) noexcept { ASSERT(i < __data.size()); return __data[i]; };
+	__FORCEINLINE__ const DataType data(const uint64_t i) const noexcept { ASSERT(i < __data.size()); return __data[i]; };
 
-	__FORCEINLINE__ auto operator [](const uint64_t i) { return data(i); };
-	__FORCEINLINE__ const DataType operator [](const uint64_t i) const { return data(i); };
+	__FORCEINLINE__ auto operator [](const uint64_t i) noexcept { return data(i); };
+	__FORCEINLINE__ const DataType operator [](const uint64_t i) const noexcept { return data(i); };
 private:
 	Container __data;
 };
