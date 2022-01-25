@@ -1438,27 +1438,26 @@ public:
 
 		// if every other search function is not adaptable go back to the good old binary search.
 		typename std::vector<BucketEntry>::iterator r;
-		if constexpr(STDBINARYSEARCH_SWITCH) {
-			//fallback implementation: binary search.
-			r = std::lower_bound(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			    [](const auto &e1, const auto &e2) {
-				    // well this is actually not completely correct. This checks on the lowest b2 bits. But actually
-				    // it should check on the bits [b1, b2].
-				    return (e1.first & mask2) < (e2.first & mask2);
-			    }
-			);
-		} else {
-			r = lower_bound_monobound_binary_search(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-			    [](const BucketEntry &e1) -> ArgumentLimbType {
-				    return e1.first & mask2;// See note std::lower_bound
-			    }
-			);
-		}
-
-
-
-		if (r == (__buckets.begin() + load)) return -1;
-		const BucketIndexType pos = distance(__buckets.begin(), r);
+		// TODO
+		ASSERT(0);
+		//		if constexpr(STDBINARYSEARCH_SWITCH) {
+//			//fallback implementation: binary search.
+//			r = std::lower_bound(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
+//			    [](const auto &e1, const auto &e2) {
+//				    // well this is actually not completely correct. This checks on the lowest b2 bits. But actually
+//				    // it should check on the bits [b1, b2].
+//				    return (e1.first & mask2) < (e2.first & mask2);
+//			    }
+//			);
+//		} else {
+//			r = lower_bound_monobound_binary_search(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
+//			    [](const BucketEntry &e1) -> ArgumentLimbType {
+//				    return e1.first & mask2;// See note std::lower_bound
+//			    }
+//			);
+//		}
+//		if (r == (__buckets.begin() + load)) return -1;
+		const BucketIndexType pos = 0; // TODOdistance(__buckets.begin(), r);
 		if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
 
 		ASSERT(pos < load);

@@ -504,8 +504,8 @@ public:
 	}
 
 		// size information
-	constexpr __FORCEINLINE__ uint64_t size() const noexcept { return nr_elements; }
-	constexpr __FORCEINLINE__ uint64_t thread_size() const noexcept { return thread_block; }
+	constexpr __FORCEINLINE__ size_t size() const noexcept { return nr_elements; }
+	constexpr __FORCEINLINE__ size_t size(const uint32_t tid) const noexcept { return thread_block; }
 
 	inline Element * data() noexcept{ return __data.data(); }
 	inline const Element* data() const noexcept { return __data.data(); }
@@ -539,7 +539,7 @@ public:
 		if (this == &other)
 			return *this;
 
-		nr_elements = other.size();
+		nr_elements = other.nr_elements;
 		thread_block = other.thread_block;
 		threads1 = other.threads1;
 
@@ -571,9 +571,9 @@ private:
 	// i want the data ptr (the hot part of this class as aligned as possible.)
 	alignas(PAGE_SIZE) std::vector<Element>  __data;
 
-	const size_t thread_block;
-	const size_t nr_elements;
-	const uint32_t threads1;
+	size_t nr_elements;
+	size_t thread_block;
+	uint32_t threads1;
 };
 
 
@@ -689,9 +689,10 @@ public:
 	uint64_t bytes() const noexcept {
 		return __data.size() * sizeof(InternalElementType);
 	}
+
 public:
-	size_t thread_block;
 	size_t nr_elements;
+	size_t thread_block;
 	uint32_t threads1;
 
 	alignas(PAGE_SIZE) std::vector<InternalElementType> __data;

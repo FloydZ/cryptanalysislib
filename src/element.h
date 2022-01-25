@@ -107,14 +107,14 @@ public:
 
 
 	/// normal constructor. Initialize everything with zero.
-    Element_T() noexcept : value(), label() { this->zero(); }
+    Element_T() noexcept : label(), value() { this->zero(); }
 
     /// copy constructor
 	Element_T(const Element_T& a) noexcept
-	    : value(a.value), label(a.label) {}
+	    :  label(a.label), value(a.value) {}
 
 	/// zero out the element.
-    void zero() const noexcept {
+    void zero() noexcept {
         value.zero();
         label.zero();
     }

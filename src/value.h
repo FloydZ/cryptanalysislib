@@ -90,7 +90,7 @@ public:
     void random() noexcept { __data.random(); }
 
 	/// \return true if every coordinate is zero
-	bool is_zero() noexcept {
+	bool is_zero() const noexcept {
 		return __data.is_zero();
 	}
 
