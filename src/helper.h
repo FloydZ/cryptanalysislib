@@ -833,10 +833,21 @@ public:
 		constexpr ContainerLimbType mask2 =  h == 0 ? ContainerLimbType (-1) : ((ContainerLimbType(1u) << h) - 1u);
 
 		if constexpr(llimb == hlimb) {
-			static_assert(flip == 0, "not implemented");
+			//static_assert(flip == 0, "not implemented");
+			if constexpr (flip == 0) {
+				v1[llimb] ^= v3[llimb] & mask1;
+				return v1[llimb] >> l;
+			} else {
+				// TODO not finished
+				assert(0);
+				constexpr uint32_t l2 = flip%BITSIZE;
+				constexpr ContainerLimbType mask = (ContainerLimbType(1u) << l2) - 1u;
 
-			v1[llimb] ^= v3[llimb] & mask1;
-			return v1[llimb] >> l;
+				v1[llimb] ^= v3[llimb] & mask1;
+				ContainerLimbType ret  =  v1[llimb];
+				ContainerLimbType ret2 =((ret >> (l2)) ^ (ret << l)) & mask1;
+				return ret2 >> l;
+			}
 		} else {
 			__uint128_t data;
 			if constexpr (llimb == hlimb-1) {

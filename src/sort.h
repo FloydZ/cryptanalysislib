@@ -985,8 +985,9 @@ public:
 		{
 			std::cout << "HM" << nri << "\n";
 			std::cout << "\tb0=" << b0 << ", b1=" << b1 << ", b2=" << b2 << "\n";
-			std::cout << "\tsize_b=" << size_b << ", size_t=" << size_t << ", chunks=" << chunks << "\n";
-			std::cout << "\tAnri=" << Anri << "\n";
+			std::cout << "\tnr_buckets:" << nrb << "\n";
+			std::cout << "\tsize_b:" << size_b << ", size_t:" << size_t << ", chunks:" << chunks << "\n";
+			std::cout << "\tAnri:" << Anri << "\n";
 			std::cout << "\tBucketHashType: " << sizeof(BucketHashType) * 8 << "Bits\n";
 			std::cout << "\tBucketIndexType: " << sizeof(BucketIndexType) * 8 << "Bits\n";
 			std::cout << "\tBucketEntry: " << sizeof(BucketEntry) * 8 << "Bits\n";
@@ -1006,7 +1007,7 @@ public:
 			std::cout << "\tUSE_PREFETCH_SWITCH:" << USE_PREFETCH_SWITCH << "\n";
 			std::cout << "\tUSE_ATOMIC_LOAD_SWITCH:" << USE_ATOMIC_LOAD_SWITCH << "\n";
 			std::cout << "\tUSE_HIGH_WEIGHT_SWITCH:" << USE_HIGH_WEIGHT_SWITCH << "\n";
-			std::cout << "\tUSE_PACKED_SWITCH:" << USE_PACKED_SWITCH << "\n";
+			std::cout << "\tUSE_PACKED_SWITCH:" << USE_PACKED_SWITCH << "\n" << std::flush;
 		}
 #endif
 		// reset the whole thing for the first usage

@@ -67,8 +67,9 @@ public:
 	auto operator()(uint64_t i, uint64_t j) noexcept { return mzd_read_bit(m, i, j); }
 	const auto operator()(uint64_t i, uint64_t j) const noexcept { return mzd_read_bit(m, i, j); }
 
-	auto *ptr(const uint64_t i) noexcept { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; };
-	const auto *ptr(const uint64_t i) const noexcept { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; };
+	// returns a ptr to the i-th row
+	auto *ptr(const size_t i) noexcept { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; };
+	const auto *ptr(const size_t i) const noexcept { ASSERT(i < uint64_t(m->nrows)); return m->rows[i]; };
 
 	constexpr bool binary() const noexcept { return true; }
 
@@ -89,7 +90,7 @@ public:
 		}
 	}
 
-	/// Note this clears the matrix
+	/// NOTE: this clears the matrix
 	/// \param i
 	/// \param j
 	void resize(const size_t i, const size_t j) noexcept { mzd_free(m); m = mzd_init(i, j); };
