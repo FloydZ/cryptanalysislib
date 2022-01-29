@@ -440,6 +440,33 @@ inline void static_for(functor_types&&... functor_args) {
 	loop(std::forward<functor_types>(functor_args)...);
 }
 
+template <auto Start, auto End, auto Inc, class F>
+constexpr inline void constexpr_for(F&& f) noexcept {
+	if constexpr (Start < End) {
+		f(std::integral_constant<decltype(Start), Start>());
+		constexpr_for<Start + Inc, End, Inc>(f);
+	}
+}
+
+/// constexpr loop, with passing the current index as template to
+/// the functions
+/// \tparam Start
+/// \tparam End
+/// \tparam Inc
+/// \tparam F
+/// \param f
+/// \return
+template <const uint32_t Start,
+          const uint32_t End,
+          const uint32_t Inc,
+          class F>
+constexpr void constexpr_for_passing_index(F& f) {
+	if constexpr (Start < End) {
+		f.template operator() <Start>() ;
+		constexpr_for<Start + Inc, End, Inc>(f);
+	}
+}
+
 // The same as the C++ templated, but for loops in C
 #define CRYPTANALYSELIB_REPEAT_10(x) x CRYPTANALYSELIB_REPEAT_9(x)
 #define CRYPTANALYSELIB_REPEAT_9(x) x CRYPTANALYSELIB_REPEAT_8(x)
@@ -452,6 +479,9 @@ inline void static_for(functor_types&&... functor_args) {
 #define CRYPTANALYSELIB_REPEAT_2(x) x CRYPTANALYSELIB_REPEAT_1(x)
 #define CRYPTANALYSELIB_REPEAT_1(x) x
 #define CRYPTANALYSELIB_REPEAT(x, N) CRYPTANALYSELIB_REPEAT_##N (x)
+
+
+
 
 __device__ __host__
 constexpr int32_t cceil(float num) {

@@ -84,7 +84,7 @@ typedef struct pcg_state_setseq_64 pcg32_random_t;
 
 static pcg32_random_t pcg32_global = { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL };
 
-static inline uint32_t pcg32_random_r(pcg32_random_t* rng) {
+static inline uint32_t pcg32_random_r(pcg32_random_t* rng) noexcept {
 	uint64_t oldstate = rng->state;
 	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
 	uint32_t xorshifted = (uint32_t)(((oldstate >> 18u) ^ oldstate) >> 27u);
@@ -92,22 +92,22 @@ static inline uint32_t pcg32_random_r(pcg32_random_t* rng) {
 	return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
 }
 
-static inline uint32_t pcg32_random(void) {
+static inline uint32_t pcg32_random(void) noexcept {
 	return pcg32_random_r(&pcg32_global);
 }
 
 
-static inline void pcg32_init_state(uint32_t state) {
+static inline void pcg32_init_state(const uint32_t state) noexcept {
 	pcg32_global.state = state;
 }
 
-static inline void pcg32_init_inc(uint32_t inc) {
+static inline void pcg32_init_inc(const uint32_t inc) noexcept {
 	pcg32_global.inc = inc | 1;
 }
 
 // bounded version.
 template<const int range>
-static int fastrandombytes_int() {
+static int fastrandombytes_int() noexcept {
 	uint64_t random32bit, multiresult;
 	uint32_t leftover;
 	uint32_t threshold;
@@ -125,7 +125,7 @@ static int fastrandombytes_int() {
 	return multiresult >> 32; // [0, range)
 }
 
-static int fastrandombytes_int(uint32_t range) {
+static int fastrandombytes_int(const uint32_t range) noexcept {
 	uint64_t random32bit, multiresult;
 	uint32_t leftover;
 	uint32_t threshold;
@@ -174,7 +174,7 @@ static int fastrandombytes_int(uint32_t range) {
    results in our test than the 2016 version (a=55, b=14, c=36).
 */
 
-static inline uint64_t rotl(const uint64_t x, int k) {
+static inline uint64_t rotl(const uint64_t x, const int k) noexcept {
 	return (x << k) | (x >> (64 - k));
 }
 
@@ -215,7 +215,7 @@ void xoroshiro128_jump(uint64_t *S0, uint64_t *S1) {
    2^96 calls to next(); it can be used to generate 2^32 starting points, from
    each of which jump() will generate 2^32 non-overlapping subsequences for
    parallel distributed computations. */
-void xoroshiro128_long_jump(uint64_t *S0, uint64_t *S1) {
+void xoroshiro128_long_jump(uint64_t *S0, uint64_t *S1) noexcept {
 	static const uint64_t LONG_JUMP[] = {0xd2a98b26625eee7b, 0xdddf9b1090aa7ac1};
 
 	uint64_t s0 = 0;
@@ -234,7 +234,7 @@ void xoroshiro128_long_jump(uint64_t *S0, uint64_t *S1) {
 	*S1 = s1;
 }
 
-int xoroshiro128_seed_random(uint64_t *S0, uint64_t *S1) {
+int xoroshiro128_seed_random(uint64_t *S0, uint64_t *S1) noexcept {
 	uint64_t new_s[2];
 	FILE *urandom_fp;
 
@@ -249,7 +249,7 @@ int xoroshiro128_seed_random(uint64_t *S0, uint64_t *S1) {
 	return 1;
 }
 
-uint64_t xoroshiro128_random_lim(uint64_t limit, uint64_t *S0, uint64_t *S1) {
+uint64_t xoroshiro128_random_lim(uint64_t limit, uint64_t *S0, uint64_t *S1) noexcept {
 	uint64_t divisor = 0xffffffffffffffffUL / (limit + 1);
 	uint64_t retval;
 
@@ -265,16 +265,24 @@ uint64_t xoroshiro128_random_lim(uint64_t limit, uint64_t *S0, uint64_t *S1) {
  *
  *
  */
-static int fastrandombytes(void *buf, size_t n) {
+static int fastrandombytes(void *buf, size_t n) noexcept {
 	return xorshf96_fastrandombytes(buf, n);
 }
 
-static void random_seed(uint64_t i){
+static void random_seed(uint64_t i) noexcept {
 	xorshf96_random_seed(i);
 }
 
-static uint64_t fastrandombytes_uint64() {
+static uint64_t fastrandombytes_uint64() noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
 
+template<typename T, const uint32_t bits>
+static T fastrandombits() noexcept {
+	constexpr uint32_t Tbits = sizeof(T)*8;
+	constexpr T mask = (T(1u) << bits) - T(1u);
+	static_assert(Tbits >= bits);
+
+	return T(xorshf96_fastrandombytes_uint64()) & mask;
+}
 #endif //SMALLSECRETLWE_RANDOM_H

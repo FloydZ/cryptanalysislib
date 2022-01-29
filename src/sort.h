@@ -565,7 +565,7 @@ public:
 };
 
 template<const ConfigParallelBucketSort &config,
-				class ExternalList,                     // TODO
+				class ExternalList,                     // TODO describe
 				typename ArgumentLimbType,              // container of the `l`-part
 				typename ExternalIndexType,             // container of the indices which point into the baselists
 				ArgumentLimbType (* HashFkt)(uint64_t)> // TODO describe
@@ -648,8 +648,6 @@ private:
 	constexpr static uint64_t chunks        = nrb / nrt;          // how many buckets must each thread sort or reset.
 	constexpr static uint64_t chunks_size   = chunks * size_b;
 
-
-
 public:
 	// needed in certain configurations
 	constexpr static ArgumentLimbType zero_element = ArgumentLimbType(-1);
@@ -687,7 +685,7 @@ public:
 	};
 
 	/// TODO probably one day i want to change this to a std::tuple.
-	using BucketEntry           = typename  std::conditional<config.EXTEND_TO_TRIPLE != 0,
+	using BucketEntry           = typename std::conditional<config.EXTEND_TO_TRIPLE != 0,
 	                                              triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
 	                                                    typename std::conditional<config.USE_PACKED_SWITCH,
 	                                                    InternalPair,
@@ -738,13 +736,16 @@ private:
 	// The idea behind is to optimize the `traversing` a bucket, when a match is found.
 	constexpr static bool USE_PREFETCH_SWITCH            = config.USE_PREFETCH_SWITCH;
 
-	// TODO desribe
+	// Get loose of the split of the `__bucket` array and secure the buckets' insertion process
+	// by setting the load factor with a atomic store/load value.
 	constexpr static bool USE_ATOMIC_LOAD_SWITCH         = config.USE_ATOMIC_LOAD_SWITCH;
 
-	// TODO explain
+	// If this flag is set, the whole finding procedure is not using any access to the
+	// `load` factor, but rather checking via a linear search if a element is found or not
 	constexpr static bool USE_HIGH_WEIGHT_SWITCH         = config.USE_HIGH_WEIGHT_SWITCH;
 
-	// TODO explain
+	// If this flag is set, the internal datastructure are forced to be packed, s.t. every
+	// alignment of the internal fields are disregarded.
 	constexpr static bool USE_PACKED_SWITCH              = config.USE_PACKED_SWITCH;
 
 	// Indyk Motwani Nearest Neighbor Search:
@@ -779,7 +780,7 @@ private:
 	}
 
 	// accumulate the bucket load over all threads
-	// can be called multithreaded
+	// can be called multithreading.
 	inline void acc_bucket_load(const BucketHashType bid) noexcept {
 		ASSERT(bid < nrb);
 
@@ -830,9 +831,7 @@ private:
 		return ret;
 	}
 
-
 public:
-
 	// increments the bucket load by one
 	inline LoadType inc_bucket_load(const uint32_t tid, const BucketHashType bid) noexcept {
 		ASSERT(tid < nrt && bid < nrb);
@@ -1437,32 +1436,44 @@ public:
 			return pos;
 		}
 
-		// if every other search function is not adaptable go back to the good old binary search.
-		typename std::vector<BucketEntry>::iterator r;
-		// TODO
-		ASSERT(0);
-		//		if constexpr(STDBINARYSEARCH_SWITCH) {
-//			//fallback implementation: binary search.
-//			r = std::lower_bound(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-//			    [](const auto &e1, const auto &e2) {
-//				    // well this is actually not completely correct. This checks on the lowest b2 bits. But actually
-//				    // it should check on the bits [b1, b2].
-//				    return (e1.first & mask2) < (e2.first & mask2);
-//			    }
-//			);
-//		} else {
-//			r = lower_bound_monobound_binary_search(__buckets.begin() + boffset, __buckets.begin() + load, data_target,
-//			    [](const BucketEntry &e1) -> ArgumentLimbType {
-//				    return e1.first & mask2;// See note std::lower_bound
-//			    }
-//			);
-//		}
-//		if (r == (__buckets.begin() + load)) return -1;
-		const BucketIndexType pos = 0; // TODOdistance(__buckets.begin(), r);
-		if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
+		if constexpr(STDBINARYSEARCH_SWITCH) {
+			//fallback implementation: binary search.
+			auto r = std::lower_bound(__buckets.begin() + boffset,
+			                          __buckets.begin() + load,
+			                          data_target,
+			    [](const auto &e1, const auto &e2) {
+				    // Well this is actually not completely correct.
+				    // This checks on the lowest b2 bits. But actually
+				    // it should check on the bits [b1, b2].
+				    return (e1.first & mask2) < (e2.first & mask2);
+			    }
+			);
 
-		ASSERT(pos < load);
-		return pos;
+			if (r == (__buckets.begin() + load)) return -1;
+			const BucketIndexType pos = distance(__buckets.begin(), r);
+			if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
+
+			ASSERT(pos < load);
+			return pos;
+		} else {
+			auto r = lower_bound_monobound_binary_search(__buckets.begin() + boffset,
+			                                             __buckets.begin() + load,
+			                                             data_target,
+			    [](const BucketEntry &e1) -> ArgumentLimbType {
+				    return e1.first & mask2;// See note std::lower_bound
+			    }
+			);
+
+			if (r == (__buckets.begin() + load)) return -1;
+			const BucketIndexType pos = distance(__buckets.begin(), r);
+			if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
+
+			ASSERT(pos < load);
+			return pos;
+		}
+
+		ASSERT(0);
+		return 0;
 	}
 
 	// Diese funktion muss
