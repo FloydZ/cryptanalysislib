@@ -1190,7 +1190,7 @@ public:
 
 		// A little if ... else ... mess. But actually we just write the element and the indices of the baselists into the correct places.
 		if constexpr (CACHE_STREAM_SWITCH) {
-			MM256_STREAM64(&(__buckets[bucketOffset].first), uint64_t (data))
+			MM256_STREAM64(&(__buckets[bucketOffset].first), uint64_t (data));
 			if constexpr (nri == 1) {
 				MM256_STREAM64(&__buckets[bucketOffset].second, npos);
 			} else if constexpr (nri == 2) {
