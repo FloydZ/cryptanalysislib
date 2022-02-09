@@ -12,6 +12,7 @@
 //#define USE_BRANCH_PREDICTION
 
 // Global Includes
+#include <stddef.h>
 #include <cstdint>      // needed for uint8_t and so on
 #include <vector>       // for __level_translation_array
 #include <array>

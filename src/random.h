@@ -261,9 +261,7 @@ uint64_t xoroshiro128_random_lim(uint64_t limit, uint64_t *S0, uint64_t *S1) noe
 }
 
 /*
- *  Final wrapper function. Can easily replaced with whatever function you want
- *
- *
+ *  Final wrapper function. Can easily be replaced with whatever function you want
  */
 static int fastrandombytes(void *buf, size_t n) noexcept {
 	return xorshf96_fastrandombytes(buf, n);
@@ -278,7 +276,7 @@ static uint64_t fastrandombytes_uint64() noexcept {
 }
 
 template<typename T, const uint32_t bits>
-static T fastrandombits() noexcept {
+static inline T fastrandombits() noexcept {
 	constexpr uint32_t Tbits = sizeof(T)*8;
 	constexpr T mask = (T(1u) << bits) - T(1u);
 	static_assert(Tbits >= bits);
