@@ -684,9 +684,11 @@ public:
 		InternalPair(ArgumentLimbType a, BucketIndexEntry b) : first(a), second(b) {};
 	};
 
+	constexpr static ConfigTriple tconfig{};
+
 	/// TODO probably one day i want to change this to a std::tuple.
 	using BucketEntry           = typename std::conditional<config.EXTEND_TO_TRIPLE != 0,
-	                                              triple<ArgumentLimbType, BucketIndexEntry, TripleT>,
+	                                              triple<ArgumentLimbType, BucketIndexEntry, TripleT, tconfig>,
 	                                                    typename std::conditional<config.USE_PACKED_SWITCH,
 	                                                    InternalPair,
 	                                                    std::pair<ArgumentLimbType, BucketIndexEntry>>::type

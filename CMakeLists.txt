@@ -30,6 +30,10 @@ ExternalProject_Add(m4ri_project
         TEST_COMMAND      ""
         )
 
+add_custom_target (
+        CRYPTANALYSISLIB_BUILD_SCRIPT
+        COMMAND ./${CMAKE_SOURCE_DIR}/build.sh
+)
 
 # include directories
 include_directories("deps/fplll/fplll")
