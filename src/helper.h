@@ -19,6 +19,7 @@
 #include <cmath>
 #include <concepts>     // for std::integral
 #include <type_traits>  // for std::convertable_to
+#include <cassert>
 
 #ifndef __CUDACC__
 #define __device__

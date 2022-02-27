@@ -15,15 +15,51 @@
 
 
 typedef struct customMatrixData {
-	int **rev;
-	int **diff;
+	uint32_t **rev;
+	uint32_t **diff;
+
 	// Unpadded number of columns
-	int real_nr_cols;
+	uint32_t real_nr_cols;
 
-	int working_nr_cols;
+	uint32_t working_nr_cols;
 
-	uint64_t *lookup_table;
+	alignas(64) uint64_t *lookup_table;
 } customMatrixData;
+
+typedef struct matrix_perm_t {
+	// The swap operations in LAPACK format.
+	uint16_t *values;
+
+   	// The length of the swap array.
+	size_t length;
+} matrix_perm;
+
+matrix_perm* matrix_perm_init(const size_t length) {
+	matrix_perm *P = (matrix_perm *)aligned_alloc(64, sizeof(matrix_perm));
+	P->values = (uint16_t *)aligned_alloc(64, sizeof(uint16_t) * length);
+	P->length = length;
+
+	if (P == nullptr || P->values == nullptr) {
+		std::cout << "Alloc Error\n";
+		exit(1);
+	}
+
+	for (uint32_t i = 0; i < length; ++i) {
+		P->values[i] = i;
+	}
+
+	return P;
+}
+
+void inline matrix_random(matrix_perm *P) {
+	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
+		word pos = fastrandombytes_uint64() % (P->length - i);
+
+		ASSERT(i+pos < uint64_t(P->length));
+		std::swap(P->values[i], P->values[i+pos]);
+	}
+}
+
 
 #define MAX_K 7
 #define WORD_SIZE (8 * sizeof(word))
@@ -193,11 +229,8 @@ void matrix_create_random_permutation(mzd_t *A, mzp_t *P) noexcept {
 	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
 		word pos = fastrandombytes_uint64() % (P->length - i);
 
-		assert(i+pos < uint64_t(P->length));
-
-		auto tmp = P->values[i];
-		P->values[i] = P->values[i+pos];
-		P->values[pos+i] = tmp;
+		ASSERT(i+pos < uint64_t(P->length));
+		std::swap(P->values[i], P->values[i+pos]);
 
 		mzd_row_swap(AT, i, i+pos);
 	}
@@ -248,15 +281,19 @@ inline void xor_avx1_new(uint8_t *x, uint8_t *y, uint8_t *z, unsigned n) noexcep
 }
 
 
-void matrix_swap_rows_new(mzd_t *M, size_t i, size_t j) noexcept {
-	word *tmp = M->rows[i];
-	M->rows[i] = M->rows[j];
-	M->rows[j] = tmp;
+inline void matrix_swap_rows_new(mzd_t *__restrict__ M,
+                          const size_t i,
+                          const size_t j) noexcept {
+	std::swap(M->rows[i], M->rows[j]);
 }
 
 
-size_t matrix_gauss_submatrix(mzd_t *M, const size_t r, size_t c, size_t rows,
-                              size_t cols, size_t k) noexcept {
+size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
+                              const size_t r,
+                              const size_t c,
+                              const size_t rows,
+                              const size_t cols,
+                              const size_t k) noexcept {
 	size_t start_row = r;
 	size_t j;
 	size_t cols_padded_ymm = MATRIX_AVX_PADDING(cols) / 256;
@@ -265,7 +302,9 @@ size_t matrix_gauss_submatrix(mzd_t *M, const size_t r, size_t c, size_t rows,
 		for (size_t i = start_row; i < rows; ++i) {
 			for (size_t l = 0; l < j - c; ++l) {
 				if ((M->rows[i][(c + l) / WORD_SIZE] >> ((c + l) % WORD_SIZE)) & 1) {
-					xor_avx1_new((uint8_t *) M->rows[r + l], (uint8_t *) M->rows[i], (uint8_t *) M->rows[i],
+					xor_avx1_new((uint8_t *) M->rows[r + l],
+					             (uint8_t *) M->rows[i],
+					             (uint8_t *) M->rows[i],
 					             cols_padded_ymm);
 				}
 			}
@@ -274,7 +313,9 @@ size_t matrix_gauss_submatrix(mzd_t *M, const size_t r, size_t c, size_t rows,
 				matrix_swap_rows_new(M, i, start_row);
 				for (size_t l = r; l < start_row; ++l) {
 					if ((M->rows[l][j / WORD_SIZE] >> (j % WORD_SIZE)) & 1) {
-						xor_avx1_new((uint8_t *) M->rows[start_row], (uint8_t *) M->rows[l], (uint8_t *) M->rows[l],
+						xor_avx1_new((uint8_t *) M->rows[start_row],
+						             (uint8_t *) M->rows[l],
+						             (uint8_t *) M->rows[l],
 						             cols_padded_ymm);
 					}
 				}
@@ -292,10 +333,15 @@ size_t matrix_gauss_submatrix(mzd_t *M, const size_t r, size_t c, size_t rows,
 }
 
 
-void matrix_make_table(mzd_t *M, size_t r, size_t cols, size_t k, uint64_t *T, int **diff) noexcept {
-	size_t cols_padded = MATRIX_AVX_PADDING(cols);
-	size_t cols_padded_word = cols_padded / 64;
-	size_t cols_padded_ymm = cols_padded / 256;
+void matrix_make_table(mzd_t *M,
+                       const size_t r,
+                       const size_t cols,
+                       const size_t k,
+                       uint64_t *T,
+                       uint32_t **diff) noexcept {
+	const size_t cols_padded = MATRIX_AVX_PADDING(cols);
+	const size_t cols_padded_word = cols_padded / 64;
+	const size_t cols_padded_ymm = cols_padded / 256;
 
 	for (size_t i = 0; i < cols_padded_word; ++i) {
 		T[i] = 0L;
@@ -309,10 +355,13 @@ void matrix_make_table(mzd_t *M, size_t r, size_t cols, size_t k, uint64_t *T, i
 }
 
 
-word matrix_read_bits(mzd_t *M, size_t x, size_t y, size_t n) noexcept {
-	int spot = y % WORD_SIZE;
-	word block = y / WORD_SIZE;
-	int spill = spot + n - WORD_SIZE;
+word matrix_read_bits(mzd_t *__restrict__ M,
+                      const size_t x,
+                      const size_t y,
+                      const size_t n) noexcept {
+	const uint32_t spot = y % WORD_SIZE;
+	const word block = y / WORD_SIZE;
+	const uint32_t spill = spot + n - WORD_SIZE;
 	word temp = (spill <= 0) ? M->rows[x][block] << -spill
 	                         : (M->rows[x][block + 1] << (WORD_SIZE - spill)) |
 	                           (M->rows[x][block] >> spill);
@@ -320,11 +369,17 @@ word matrix_read_bits(mzd_t *M, size_t x, size_t y, size_t n) noexcept {
 }
 
 
-void matrix_process_rows(mzd_t *M, size_t rstart, size_t cstart, size_t rstop,
-                         size_t k, size_t cols, uint64_t *T, int **rev) noexcept {
-	size_t cols_padded = MATRIX_AVX_PADDING(cols);
-	size_t cols_padded_ymm = cols_padded / 256;
-	size_t cols_padded_word = cols_padded / 64;
+void matrix_process_rows(mzd_t *M,
+                         const size_t rstart,
+                         const size_t cstart,
+                         const size_t rstop,
+                         size_t k,
+                         size_t cols,
+                         uint64_t *T,
+                         uint32_t **rev) noexcept {
+	const size_t cols_padded = MATRIX_AVX_PADDING(cols);
+	const size_t cols_padded_ymm = cols_padded / 256;
+	const size_t cols_padded_word = cols_padded / 64;
 
 	for (size_t r = rstart; r < rstop; ++r) {
 		size_t x0 = rev[k][matrix_read_bits(M, r, cstart, k)];
@@ -342,13 +397,17 @@ void matrix_process_rows(mzd_t *M, size_t rstart, size_t cstart, size_t rstop,
 /// \param matrix_data 	helper data
 /// \param cstart 		column start.
 /// \return
-size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixData *matrix_data, size_t cstart) noexcept {
-	int **rev = matrix_data->rev;
-	int **diff = matrix_data->diff;
-	uint64_t  *xor_rows = matrix_data->lookup_table;
+size_t matrix_echelonize_partial(mzd_t *M,
+                                 const size_t k,
+                                 const size_t rstop,
+                                 customMatrixData *matrix_data,
+                                 const size_t cstart) noexcept {
+	alignas(64) uint32_t **rev = matrix_data->rev;
+	alignas(64) uint32_t **diff = matrix_data->diff;
+	alignas(64) uint64_t  *xor_rows = matrix_data->lookup_table;
 
-	size_t rows = M->nrows;
-	size_t cols = matrix_data->working_nr_cols;
+	const size_t rows = M->nrows;
+	const size_t cols = matrix_data->working_nr_cols;
 
 	size_t kk = k;
 
@@ -376,7 +435,7 @@ size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixD
 	return r;
 }
 
-// additionally to the m4ri algorithm a fix is applied if m4ri fails
+// additionally, to the m4ri algorithm a fix is applied if m4ri fails
 /// \param M
 /// \param k
 /// \param rstop
@@ -386,10 +445,14 @@ size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixD
 /// \param look_ahead 	how many the algorithm must start ahead of `fix_col` to search for a pivo element. Can be zero
 /// \param permutation
 /// \return
-size_t matrix_echelonize_partial_plusfix(mzd_t *M, size_t k, size_t rstop,
-										 customMatrixData *matrix_data, size_t cstart,
-										 size_t fix_col, size_t look_ahead,
-                                         mzp_t *permutation) noexcept {
+size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
+                                         const size_t k,
+                                         const size_t rstop,
+										 customMatrixData *__restrict__ matrix_data,
+                                         const size_t cstart,
+										 const size_t fix_col,
+                                         const size_t look_ahead,
+                                         mzp_t *__restrict__ permutation) noexcept {
 	size_t rang = matrix_echelonize_partial(M, k, rstop, matrix_data, cstart);
 	for (size_t b = rang; b < rstop; ++b) {
 		bool found = false;
@@ -423,11 +486,18 @@ size_t matrix_echelonize_partial_plusfix(mzd_t *M, size_t k, size_t rstop,
 	return fix_col;
 }
 
-size_t matrix_echelonize_partial(mzd_t *M, size_t k, size_t rstop, customMatrixData *matrix_data) noexcept {
+
+
+
+size_t matrix_echelonize_partial(mzd_t *M,
+                                 const size_t k,
+                                 const size_t rstop,
+                                 customMatrixData *matrix_data) noexcept {
 	return matrix_echelonize_partial(M, k, rstop, matrix_data, 0);
 }
 
-static int gray_new(int i, int k) noexcept {
+static int gray_new(const uint32_t i,
+                    const uint32_t k) noexcept {
 	int lastbit = 0;
 	int res = 0;
 	for (int j = k; j-- > 0;) {
@@ -439,18 +509,18 @@ static int gray_new(int i, int k) noexcept {
 }
 
 
-void matrix_alloc_gray_code(int ***rev, int ***diff) noexcept {
-	*rev = (int **) malloc((MAX_K + 1) * sizeof(int *));
-	*diff = (int **) malloc((MAX_K + 1) * sizeof(int *));
+void matrix_alloc_gray_code(uint32_t ***__restrict__ rev, uint32_t ***__restrict__ diff) noexcept {
+	*rev  = (uint32_t **) aligned_alloc(1024, (MAX_K + 1) * sizeof(uint32_t *));
+	*diff = (uint32_t **) aligned_alloc(1024, (MAX_K + 1) * sizeof(uint32_t *));
 
 	for (size_t k = 0; k <= MAX_K; ++k) {
-		(*rev)[k] = (int *) malloc((1 << k) * sizeof(int));
-		(*diff)[k] = (int *) malloc((1 << k) * sizeof(int));
+		(*rev)[k]  = (uint32_t *) aligned_alloc(1024, (1 << k) * sizeof(uint32_t));
+		(*diff)[k] = (uint32_t *) aligned_alloc(1024, (1 << k) * sizeof(uint32_t));
 	}
 }
 
 
-void matrix_free_gray_code(int **rev, int **diff) noexcept {
+void matrix_free_gray_code(uint32_t **rev, uint32_t **diff) noexcept {
 	for (size_t k = 0; k <= MAX_K; ++k) {
 		free(rev[k]);
 		free(diff[k]);
@@ -460,7 +530,7 @@ void matrix_free_gray_code(int **rev, int **diff) noexcept {
 }
 
 
-void matrix_build_gray_code(int **rev, int **diff) noexcept {
+void matrix_build_gray_code(uint32_t **rev, uint32_t **diff) noexcept {
 	for (size_t k = 0; k <= MAX_K; ++k) {
 		for (size_t i = 0; i < 1UL << k; ++i) {
 			rev[k][gray_new(i, k)] = i;
@@ -570,4 +640,101 @@ static void print_matrix(const char *s, const mzd_t *A, int start_row, int end_r
 	mzd_free(B);
 }
 
+
+
+template<const uint32_t n, const uint32_t k, const uint32_t l>
+size_t matrix_echelonize_partial_plusfix_die_andre_geh_mir_nicht_auf_den_keks_version(
+		mzd_t *__restrict__ A,
+		mzd_t *__restrict__ AT,
+		const size_t m4ri_k,
+        const size_t max_column,
+		customMatrixData *__restrict__ matrix_data,
+		mzp_t *__restrict__ P) noexcept {
+	mzd_transpose(AT, A);
+	std::vector<uint16_t> unitpos(n-k-l, uint16_t (-1));
+	std::vector<uint16_t> posfix(n, uint16_t (-1));
+
+	for (uint32_t i = 0; i < n-k-l; ++i) {
+		posfix[i] = i;
+	}
+
+	uint32_t unitctr = 0, switchctr = 0;
+
+	// dont permute the last column since it is the syndrome
+	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
+		uint64_t pos = fastrandombytes_uint64() % (P->length - i);
+		ASSERT(i+pos < uint64_t(P->length));
+
+		std::swap(posfix[i], posfix[i+pos]);
+		std::swap(P->values[i], P->values[pos+i]);
+		mzd_row_swap(AT, i, i+pos);
+
+		if (posfix[i] != uint16_t(-1) && (i < n-k-l)) {
+			unitpos[i] = posfix[i];
+			unitctr += 1;
+		}
+	}
+
+	// in der transposnierten alles nach rechts schieben
+	for (uint32_t i = n-k-l; i > 0; i--) {
+		// move the right pointer to the next free place from the right
+		if (unitpos[i-1] == uint16_t(-1)) {
+			// move the left pointer to the next element
+			while (unitpos[switchctr] == uint16_t(-1))
+				switchctr += 1;
+
+			if (i-1 <= switchctr)
+				break;
+
+			std::swap(unitpos[i-1], unitpos[switchctr]); // TODO remove
+			std::swap(P->values[i-1], P->values[switchctr]);
+
+			mzd_row_swap(AT, i-1, switchctr);
+			//unitpos[i-1] = unitpos[switchctr];
+
+			//std::cout << i-1 << " " << switchctr << "\n";
+			switchctr += 1;
+		}
+	}
+
+
+
+
+//	for (int i = 0; i < n-k-l; ++i) {
+//		std::cout << i << ":" << unitpos[i] << ":" << n-k-l-1-i << "\n";
+//	}
+//	std::cout << "\n" << switchctr << ":" << unitctr << "\n";
+//	std::cout << std::flush;
+
+	mzd_transpose(A, AT);
+
+//	mzd_print(A);
+//	std::cout << std::flush << "\n\n";
+
+
+
+	// reset the array
+	for (uint32_t i = 0; i < n; ++i) {
+		posfix[i] = 0;
+	}
+	for (uint32_t i = 0; i < unitctr; i++){
+		//std::cout << i << ":" << unitpos[n-k-l-1-i] << ":" << n-k-l-1-i << "\n";
+
+		mzd_row_swap(A, unitpos[n-k-l-1-i], n-k-l-1-i);
+		if (posfix[n-k-l-1-i] == 0) {
+			posfix[n-k-l-1-i] = unitpos[n-k-l-1-i];
+		} else {
+			std::cout << "double: "  << n-k-l-1-i << " " << unitpos[n-k-l-1-i] << "\n";
+		}
+	}
+
+	for (int i = 0; i < n-k-l; ++i) {
+		//std::cout << i << ":" << posfix[i] << ":" << n-k-l-1-i << "\n";
+	}
+
+
+//	mzd_print(A);
+	matrix_echelonize_partial(A, 5, n-k-l-unitctr, matrix_data, 0);
+	return 0;
+}
 #endif //SMALLSECRETLWE_CUSTOM_MATRIX_H
