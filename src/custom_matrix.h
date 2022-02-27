@@ -70,11 +70,59 @@ constexpr int matrix_opt_k(const int a, const int b) noexcept {
 	return  MIN(__M4RI_MAXKAY, MAX(1, (int)(0.75 * (1 + const_log(MIN(a, b))))));
 }
 
-void mzd_row_xor(mzd_t *out, const rci_t i, const rci_t j) noexcept {
+inline void xor_avx1_new(const uint8_t *x,
+                         const uint8_t *y,
+                         uint8_t *z,
+                         unsigned nn) noexcept {
+	for (uint32_t i = 0; i < nn; i += 1) {
+#ifdef USE_AVX2
+#ifdef USE_AVX2_SPECIAL_ALIGNMENT
+		__m256i x_avx = _mm256_load_si256((__m256i *)x + i);
+		__m256i y_avx = _mm256_load_si256((__m256i *)y + i);
+		__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
+		_mm256_store_si256((__m256i *)z + i, z_avx);
+#else
+		__m256 x_avx = _mm256_loadu_ps((float*)x + 8*i);
+		__m256 y_avx = _mm256_loadu_ps((float*)y + 8*i);
+		__m256 z_avx = _mm256_xor_ps(x_avx,y_avx);
+		_mm256_storeu_ps((float*)z + 8*i, z_avx);
+#endif
+#else
+		((uint64_t *)z)[4*i] = ((uint64_t *)x)[4*i] ^ ((uint64_t *)y)[4*i];
+		((uint64_t *)z)[4*i+1] = ((uint64_t *)x)[4*i+1] ^ ((uint64_t *)y)[4*i+1];
+		((uint64_t *)z)[4*i+2] = ((uint64_t *)x)[4*i+2] ^ ((uint64_t *)y)[4*i+2];
+		((uint64_t *)z)[4*i+3] = ((uint64_t *)x)[4*i+3] ^ ((uint64_t *)y)[4*i+3];
+#endif
+	}
+}
+// TODO AVX2
+void mzd_row_xor(mzd_t *out,
+                 const rci_t i,
+                 const rci_t j) noexcept {
 	assert(out->nrows > i && out->nrows > j);
 	for (uint32_t l = 0; l < uint32_t(out->width); ++l) {
 		out->rows[i][l] ^= out->rows[j][l];
 	}
+}
+
+// Is this really smart?
+// this changes only the pointer not the content
+inline void matrix_swap_rows_new(mzd_t *__restrict__ M,
+                                 const size_t i,
+                                 const size_t j) noexcept {
+	std::swap(M->rows[i], M->rows[j]);
+}
+
+// in comparison to `matrix_swap_rows_new` this changes the content and not just the pointesr
+inline void matrix_swap_rows_new2(mzd_t *__restrict__ M,
+                                  const size_t i,
+                                  const size_t j) noexcept {
+	const size_t cols = M->ncols;
+	const size_t cols_padded_ymm = MATRIX_AVX_PADDING(cols) / 256;
+
+	xor_avx1_new((uint8_t *) M->rows[i], (uint8_t *) M->rows[j], (uint8_t *) M->rows[i], cols_padded_ymm);
+	xor_avx1_new((uint8_t *) M->rows[j], (uint8_t *) M->rows[i], (uint8_t *) M->rows[j], cols_padded_ymm);
+	xor_avx1_new((uint8_t *) M->rows[i], (uint8_t *) M->rows[j], (uint8_t *) M->rows[i], cols_padded_ymm);
 }
 
 /// custom function to append in_matrix to out_matrix.
@@ -239,53 +287,27 @@ void matrix_create_random_permutation(mzd_t *A, mzp_t *P) noexcept {
 }
 
 // optimized version to which you have additionally pass the transposed, So its not created/freed every time
-void matrix_create_random_permutation(mzd_t *A, mzd_t *AT, mzp_t *P) noexcept {
+void matrix_create_random_permutation(mzd_t *__restrict__ A,
+                                      mzd_t *__restrict__ AT,
+                                      mzp_t *__restrict__ P) noexcept {
 	matrix_transpose(AT, A);
+
 	// dont permute the last column since it is the syndrome
 	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
 		word pos = fastrandombytes_uint64() % (P->length - i);
 
-		assert(i+pos < uint32_t(P->length));
-
-		auto tmp = P->values[i];
-		P->values[i] = P->values[i+pos];
-		P->values[pos+i] = tmp;
-
+		ASSERT(i+pos < uint32_t(P->length));
+		std::swap(P->values[i], P->values[i+pos]);
 		mzd_row_swap(AT, i, i+pos);
+		//matrix_swap_rows_new2(AT, i, i+pos);
 	}
 	matrix_transpose(A, AT);
 }
 
 
-inline void xor_avx1_new(uint8_t *x, uint8_t *y, uint8_t *z, unsigned n) noexcept {
-	for (unsigned i = 0; i < n; i += 1) {
-#ifdef USE_AVX2
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-		__m256i x_avx = _mm256_load_si256((__m256i *)x + i);
-		__m256i y_avx = _mm256_load_si256((__m256i *)y + i);
-		__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-		_mm256_store_si256((__m256i *)z + i, z_avx);
-#else
-		__m256 x_avx = _mm256_loadu_ps((float*)x + 8*i);
-		__m256 y_avx = _mm256_loadu_ps((float*)y + 8*i);
-		__m256 z_avx = _mm256_xor_ps(x_avx,y_avx);
-		_mm256_storeu_ps((float*)z + 8*i, z_avx);
-#endif
-#else
-		((uint64_t *)z)[4*i] = ((uint64_t *)x)[4*i] ^ ((uint64_t *)y)[4*i];
-		((uint64_t *)z)[4*i+1] = ((uint64_t *)x)[4*i+1] ^ ((uint64_t *)y)[4*i+1];
-		((uint64_t *)z)[4*i+2] = ((uint64_t *)x)[4*i+2] ^ ((uint64_t *)y)[4*i+2];
-		((uint64_t *)z)[4*i+3] = ((uint64_t *)x)[4*i+3] ^ ((uint64_t *)y)[4*i+3];
-#endif
-	}
-}
 
 
-inline void matrix_swap_rows_new(mzd_t *__restrict__ M,
-                          const size_t i,
-                          const size_t j) noexcept {
-	std::swap(M->rows[i], M->rows[j]);
-}
+
 
 
 size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
@@ -294,9 +316,9 @@ size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
                               const size_t rows,
                               const size_t cols,
                               const size_t k) noexcept {
-	size_t start_row = r;
-	size_t j;
-	size_t cols_padded_ymm = MATRIX_AVX_PADDING(cols) / 256;
+	size_t start_row = r, j;
+	const size_t cols_padded_ymm = MATRIX_AVX_PADDING(cols) / 256;
+
 	for (j = c; j < c + k; ++j) {
 		int found = 0;
 		for (size_t i = start_row; i < rows; ++i) {
@@ -333,7 +355,7 @@ size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
 }
 
 
-void matrix_make_table(mzd_t *M,
+void matrix_make_table(mzd_t *__restrict__ M,
                        const size_t r,
                        const size_t cols,
                        const size_t k,
@@ -348,33 +370,37 @@ void matrix_make_table(mzd_t *M,
 	}
 
 	for (size_t i = 0; i + 1 < 1UL << k; ++i) {
-		xor_avx1_new((uint8_t *)M->rows[r + diff[k][i]], (uint8_t *)T,
-		             (uint8_t *)(T + cols_padded_word), cols_padded_ymm);
+		xor_avx1_new((uint8_t *)M->rows[r + diff[k][i]],
+		             (uint8_t *)T,
+		             (uint8_t *)(T + cols_padded_word),
+		             cols_padded_ymm);
 		T += cols_padded_word;
 	}
 }
 
 
-word matrix_read_bits(mzd_t *__restrict__ M,
+uint64_t matrix_read_bits(mzd_t *M,
                       const size_t x,
                       const size_t y,
-                      const size_t n) noexcept {
-	const uint32_t spot = y % WORD_SIZE;
-	const word block = y / WORD_SIZE;
-	const uint32_t spill = spot + n - WORD_SIZE;
-	word temp = (spill <= 0) ? M->rows[x][block] << -spill
+                      const size_t nn) noexcept {
+	const uint32_t spot  = y % WORD_SIZE;
+	const uint64_t block = y / WORD_SIZE;
+
+	// this must be negative...
+	const int32_t spill = spot + nn - WORD_SIZE;
+	uint64_t temp = (spill <= 0) ? M->rows[x][block] << -spill
 	                         : (M->rows[x][block + 1] << (WORD_SIZE - spill)) |
 	                           (M->rows[x][block] >> spill);
-	return temp >> (WORD_SIZE- n);
+	return temp >> (WORD_SIZE - nn);
 }
 
 
-void matrix_process_rows(mzd_t *M,
+void matrix_process_rows(mzd_t *__restrict__ M,
                          const size_t rstart,
                          const size_t cstart,
                          const size_t rstop,
-                         size_t k,
-                         size_t cols,
+                         const size_t k,
+                         const size_t cols,
                          uint64_t *T,
                          uint32_t **rev) noexcept {
 	const size_t cols_padded = MATRIX_AVX_PADDING(cols);
@@ -384,8 +410,10 @@ void matrix_process_rows(mzd_t *M,
 	for (size_t r = rstart; r < rstop; ++r) {
 		size_t x0 = rev[k][matrix_read_bits(M, r, cstart, k)];
 		if (x0) {
-			xor_avx1_new((uint8_t *) (T + x0 * cols_padded_word), (uint8_t *) M->rows[r],
-			             (uint8_t *) M->rows[r], cols_padded_ymm);
+			xor_avx1_new((uint8_t *) (T + x0 * cols_padded_word),
+			             (uint8_t *) M->rows[r],
+			             (uint8_t *) M->rows[r],
+			             cols_padded_ymm);
 		}
 	}
 }
