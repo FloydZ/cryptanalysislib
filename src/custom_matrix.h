@@ -6,6 +6,11 @@
 #include "helper.h"
 #include "random.h"
 
+#include <type_traits>
+#include <utility>
+#include <array>
+#include <memory>
+
 #ifdef USE_AVX2
 #include <immintrin.h>
 #include <emmintrin.h>
@@ -13,6 +18,8 @@
 
 #define MATRIX_AVX_PADDING(len) (((len + 255) / 256) * 256)
 
+#define MAX_K 8
+#define WORD_SIZE (8 * sizeof(word))
 
 typedef struct customMatrixData {
 	uint32_t **rev;
@@ -60,9 +67,16 @@ void inline matrix_random(matrix_perm *P) {
 	}
 }
 
+void inline mzp_random(mzp_t *P) {
+	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
+		word pos = fastrandombytes_uint64() % (P->length - i);
 
-#define MAX_K 7
-#define WORD_SIZE (8 * sizeof(word))
+		ASSERT(i+pos < uint64_t(P->length));
+		std::swap(P->values[i], P->values[i+pos]);
+	}
+}
+
+
 
 // implementation taken from gray_code.c
 // a = #rows, b = #cols
@@ -574,7 +588,8 @@ void matrix_build_gray_code(uint32_t **rev, uint32_t **diff) noexcept {
 
 // special copy, which can be useful if you working with avx alignment
 mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) noexcept {
-	if (N == P) return N;
+	if (N == P)
+		return N;
 
 	if (N == NULL) {
 		N = mzd_init(P->nrows, P->ncols);
@@ -669,18 +684,31 @@ static void print_matrix(const char *s, const mzd_t *A, int start_row, int end_r
 }
 
 
+template<typename T, std::size_t N, std::size_t... I>
+constexpr auto create_array_impl(std::index_sequence<I...>) {
+	return std::array<T, N>{ {I...} };
+}
 
 template<const uint32_t n, const uint32_t k, const uint32_t l>
-size_t matrix_echelonize_partial_plusfix_die_andre_geh_mir_nicht_auf_den_keks_version(
+size_t matrix_echelonize_partial_plusfix_opt (
 		mzd_t *__restrict__ A,
 		mzd_t *__restrict__ AT,
 		const size_t m4ri_k,
         const size_t max_column,
 		customMatrixData *__restrict__ matrix_data,
 		mzp_t *__restrict__ P) noexcept {
+	constexpr uint32_t nkl  = n-k-l;
+	constexpr uint16_t zero = uint16_t(-1);
+	// create the transposed
 	mzd_transpose(AT, A);
-	std::vector<uint16_t> unitpos(n-k-l, uint16_t (-1));
-	std::vector<uint16_t> posfix(n, uint16_t (-1));
+
+	// constexpr auto unitpos = create_array_impl<uint16_t, n-k-l>(std::make_index_sequence<n-k-l>{});
+	std::vector<uint16_t> unitpos(nkl, zero);
+	std::vector<uint16_t> posfix(n, zero);
+	//auto posfix = create_array_impl<uint16_t, n>(std::make_index_sequence<n>{});
+
+	//uint16_t unitpos[nkl] = {[0 ... nkl-1] = zero};
+	//uint16_t posfix [n] = {[0 ... n-1] = zero};
 
 	for (uint32_t i = 0; i < n-k-l; ++i) {
 		posfix[i] = i;
@@ -695,74 +723,65 @@ size_t matrix_echelonize_partial_plusfix_die_andre_geh_mir_nicht_auf_den_keks_ve
 
 		std::swap(posfix[i], posfix[i+pos]);
 		std::swap(P->values[i], P->values[pos+i]);
+		// matrix_swap_rows_new2(AT, i, i+pos);
 		mzd_row_swap(AT, i, i+pos);
 
-		if (posfix[i] != uint16_t(-1) && (i < n-k-l)) {
+		if (posfix[i] != zero && (i < n-k-l)) {
 			unitpos[i] = posfix[i];
 			unitctr += 1;
 		}
 	}
 
-	// in der transposnierten alles nach rechts schieben
+	// move in the transposed matrix everything to the right
 	for (uint32_t i = n-k-l; i > 0; i--) {
 		// move the right pointer to the next free place from the right
-		if (unitpos[i-1] == uint16_t(-1)) {
+		if (unitpos[i-1] == zero) {
 			// move the left pointer to the next element
-			while (unitpos[switchctr] == uint16_t(-1))
+			while (unitpos[switchctr] == zero)
 				switchctr += 1;
 
 			if (i-1 <= switchctr)
 				break;
 
-			std::swap(unitpos[i-1], unitpos[switchctr]); // TODO remove
+			std::swap(unitpos[i-1], unitpos[switchctr]);
 			std::swap(P->values[i-1], P->values[switchctr]);
 
+			// matrix_swap_rows_new2(AT, i-1, switchctr);
 			mzd_row_swap(AT, i-1, switchctr);
-			//unitpos[i-1] = unitpos[switchctr];
-
-			//std::cout << i-1 << " " << switchctr << "\n";
 			switchctr += 1;
 		}
 	}
 
-
-
-
-//	for (int i = 0; i < n-k-l; ++i) {
-//		std::cout << i << ":" << unitpos[i] << ":" << n-k-l-1-i << "\n";
-//	}
-//	std::cout << "\n" << switchctr << ":" << unitctr << "\n";
-//	std::cout << std::flush;
-
+	// transpose it back
 	mzd_transpose(A, AT);
 
-//	mzd_print(A);
-//	std::cout << std::flush << "\n\n";
-
-
-
 	// reset the array
-	for (uint32_t i = 0; i < n; ++i) {
-		posfix[i] = 0;
+	for (uint32_t i = 0; i < n-k-l; ++i) {
+		posfix[i] = i;
 	}
-	for (uint32_t i = 0; i < unitctr; i++){
-		//std::cout << i << ":" << unitpos[n-k-l-1-i] << ":" << n-k-l-1-i << "\n";
 
-		mzd_row_swap(A, unitpos[n-k-l-1-i], n-k-l-1-i);
-		if (posfix[n-k-l-1-i] == 0) {
-			posfix[n-k-l-1-i] = unitpos[n-k-l-1-i];
-		} else {
-			std::cout << "double: "  << n-k-l-1-i << " " << unitpos[n-k-l-1-i] << "\n";
+	// swap everything down
+	for (uint32_t i = 0; i < unitctr; i++){
+		// matrix_swap_rows_new2(A, n-k-l-1-i, posfix[unitpos[n-k-l-1-i]]);
+		mzd_row_swap(A, nkl-1-i, posfix[unitpos[nkl-1-i]]);
+		std::swap(posfix[nkl-1-i], posfix[unitpos[nkl-1-i]]);
+	}
+
+	// final fix
+	for (uint32_t i = nkl-unitctr; i < nkl; ++i) {
+		if (mzd_read_bit(A, i, i) == 0) {
+			for (uint32_t j = 0; j < nkl; ++j) {
+				if (mzd_read_bit(A, j, i)) {
+					// matrix_swap_rows_new2(A, i, j);
+					mzd_row_swap(A, i, j);
+					break;
+				}
+			}
 		}
 	}
 
-	for (int i = 0; i < n-k-l; ++i) {
-		//std::cout << i << ":" << posfix[i] << ":" << n-k-l-1-i << "\n";
-	}
-
-
-//	mzd_print(A);
-	matrix_echelonize_partial(A, 5, n-k-l-unitctr, matrix_data, 0);
-	return 0;
+	// apply the final gaussian elimination on the first coordinates
+	matrix_echelonize_partial(A, m4ri_k, nkl-unitctr, matrix_data, 0);
+	return nkl;
 }
 #endif //SMALLSECRETLWE_CUSTOM_MATRIX_H
