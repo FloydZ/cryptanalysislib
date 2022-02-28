@@ -319,11 +319,6 @@ void matrix_create_random_permutation(mzd_t *__restrict__ A,
 }
 
 
-
-
-
-
-
 size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
                               const size_t r,
                               const size_t c,
@@ -368,6 +363,86 @@ size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
 	return j - c;
 }
 
+// specialised gaus which looks ahead in the l window
+inline size_t matrix_gauss_submatrix_opt(mzd_t *__restrict__ M,
+                                         const size_t r,
+                                         const size_t c,
+                                         const size_t rows,
+                                         const size_t cols,
+                                         const size_t rstop,
+                                         const size_t lwin_start,
+                                         const size_t k) noexcept {
+	size_t start_row = r, j;
+	const size_t cols_padded_ymm = MATRIX_AVX_PADDING(cols) / 256;
+
+	// for each column
+	for (j = c; j < c + k; ++j) {
+		int found = 0;
+		for (size_t i = start_row; i < rstop; ++i) {
+			for (size_t l = 0; l < j - c; ++l) {
+				if ((M->rows[i][(c + l) / WORD_SIZE] >> ((c + l) % WORD_SIZE)) & 1) {
+					xor_avx1_new((uint8_t *) M->rows[r + l],
+					             (uint8_t *) M->rows[i],
+					             (uint8_t *) M->rows[i],
+					             cols_padded_ymm);
+				}
+			}
+
+			if ((M->rows[i][j / WORD_SIZE] >> (j % WORD_SIZE)) & 1) {
+				matrix_swap_rows_new(M, i, start_row);
+				for (size_t l = r; l < start_row; ++l) {
+					if ((M->rows[l][j / WORD_SIZE] >> (j % WORD_SIZE)) & 1) {
+						xor_avx1_new((uint8_t *) M->rows[start_row],
+						             (uint8_t *) M->rows[l],
+						             (uint8_t *) M->rows[l],
+						             cols_padded_ymm);
+					}
+				}
+
+				++start_row;
+				found = 1;
+				break;
+			}
+		}
+
+		// second try: find the pivot element in the l window
+		if (found == 0) {
+			for (size_t i = lwin_start; i < rows; ++i) {
+				for (size_t l = 0; l < j - c; ++l) {
+					if ((M->rows[i][(c + l) / WORD_SIZE] >> ((c + l) % WORD_SIZE)) & 1) {
+						xor_avx1_new((uint8_t *) M->rows[r + l],
+						             (uint8_t *) M->rows[i],
+						             (uint8_t *) M->rows[i],
+						             cols_padded_ymm);
+					}
+				}
+
+				if ((M->rows[i][j / WORD_SIZE] >> (j % WORD_SIZE)) & 1) {
+					matrix_swap_rows_new(M, i, start_row);
+					for (size_t l = r; l < start_row; ++l) {
+						if ((M->rows[l][j / WORD_SIZE] >> (j % WORD_SIZE)) & 1) {
+							xor_avx1_new((uint8_t *) M->rows[start_row],
+							             (uint8_t *) M->rows[l],
+							             (uint8_t *) M->rows[l],
+							             cols_padded_ymm);
+						}
+					}
+
+					++start_row;
+					found = 1;
+					break;
+				}
+			}
+		}
+
+		// okk we really couldnt find a pivot element
+		if (found == 0) {
+			break;
+		}
+	}
+
+	return j - c;
+}
 
 void matrix_make_table(mzd_t *__restrict__ M,
                        const size_t r,
@@ -424,9 +499,9 @@ void matrix_process_rows(mzd_t *__restrict__ M,
 	for (size_t r = rstart; r < rstop; ++r) {
 		size_t x0 = rev[k][matrix_read_bits(M, r, cstart, k)];
 		if (x0) {
-			xor_avx1_new((uint8_t *) (T + x0 * cols_padded_word),
-			             (uint8_t *) M->rows[r],
-			             (uint8_t *) M->rows[r],
+			xor_avx1_new((uint8_t *) (T + x0 * cols_padded_word),   // in
+			             (uint8_t *) M->rows[r],                    // in
+			             (uint8_t *) M->rows[r],                    // out
 			             cols_padded_ymm);
 		}
 	}
@@ -444,16 +519,18 @@ size_t matrix_echelonize_partial(mzd_t *M,
                                  const size_t rstop,
                                  customMatrixData *matrix_data,
                                  const size_t cstart) noexcept {
-	alignas(64) uint32_t **rev = matrix_data->rev;
-	alignas(64) uint32_t **diff = matrix_data->diff;
-	alignas(64) uint64_t  *xor_rows = matrix_data->lookup_table;
+	alignas(64) uint32_t **rev      = matrix_data->rev;
+	alignas(64) uint32_t **diff     = matrix_data->diff;
+	alignas(64) uint64_t *xor_rows  = matrix_data->lookup_table;
 
 	const size_t rows = M->nrows;
 	const size_t cols = matrix_data->working_nr_cols;
 
 	size_t kk = k;
 
+	// current row
 	size_t r = 0;
+	// current column
 	size_t c = cstart;
 
 	while (c < rstop) {
@@ -462,11 +539,62 @@ size_t matrix_echelonize_partial(mzd_t *M,
 		}
 
 		size_t kbar = matrix_gauss_submatrix(M, r, c, rows, cols, kk);
-		if (kk != kbar) break;
+		if (kk != kbar)
+			break;
 
 		if (kbar > 0) {
-			matrix_make_table(M, r, cols, kbar, xor_rows, diff);
+			matrix_make_table  (M, r, cols, kbar, xor_rows, diff);
+			// fix everything below
 			matrix_process_rows(M, r + kbar, c, rows, kbar, cols, xor_rows, rev);
+			// fix everything over it
+			matrix_process_rows(M, 0, c, r, kbar, cols, xor_rows, rev);
+		}
+
+		r += kbar;
+		c += kbar;
+	}
+
+	return r;
+}
+
+// specialised m4ri which is allowd to perform special look aheads
+// in the l window
+size_t matrix_echelonize_partial_opt(mzd_t *M,
+                                 const size_t k,
+                                 const size_t rstop,
+                                 const size_t lwin_start,
+                                 customMatrixData *matrix_data) noexcept {
+	alignas(64) uint32_t **rev      = matrix_data->rev;
+	alignas(64) uint32_t **diff     = matrix_data->diff;
+	alignas(64) uint64_t *xor_rows  = matrix_data->lookup_table;
+
+	const size_t rows = M->nrows;
+	const size_t cols = matrix_data->working_nr_cols;
+
+	ASSERT(lwin_start <= rows);
+	ASSERT(rstop <= rows);
+
+	size_t kk = k;
+
+	// current row
+	size_t r = 0;
+	// current column
+	size_t c = 0;
+
+	while (c < rstop) {
+		if (c + kk > rstop) {
+			kk = rstop - c;
+		}
+
+		size_t kbar = matrix_gauss_submatrix_opt(M, r, c, rows, cols, rstop, lwin_start, kk);
+		if (kk != kbar)
+			break;
+
+		if (kbar > 0) {
+			matrix_make_table  (M, r, cols, kbar, xor_rows, diff);
+			// fix everything below
+			matrix_process_rows(M, r + kbar, c, rows, kbar, cols, xor_rows, rev);
+			// fix everything over it
 			matrix_process_rows(M, 0, c, r, kbar, cols, xor_rows, rev);
 		}
 
@@ -732,7 +860,7 @@ size_t matrix_echelonize_partial_plusfix_opt (
 		}
 	}
 
-	// move in the transposed matrix everything to the right
+	// move in the matrix everything to the right
 	for (uint32_t i = n-k-l; i > 0; i--) {
 		// move the right pointer to the next free place from the right
 		if (unitpos[i-1] == zero) {
@@ -752,8 +880,17 @@ size_t matrix_echelonize_partial_plusfix_opt (
 		}
 	}
 
+	// for (int i = 0; i < n-k-l; ++i) {
+	// 	std::cout << i << ":" << unitpos[n-k-l-1-i] << ":" << n-k-l-1-i << "\n";
+	// }
+	// std::cout << "\n" << switchctr << ":" << unitctr << "\n";
+	// std::cout << std::flush;
+
 	// transpose it back
 	mzd_transpose(A, AT);
+
+	// mzd_print(A);
+	// std::cout << "\n";
 
 	// reset the array
 	for (uint32_t i = 0; i < n-k-l; ++i) {
@@ -766,6 +903,9 @@ size_t matrix_echelonize_partial_plusfix_opt (
 		mzd_row_swap(A, nkl-1-i, posfix[unitpos[nkl-1-i]]);
 		std::swap(posfix[nkl-1-i], posfix[unitpos[nkl-1-i]]);
 	}
+
+	// mzd_print(A);
+	// std::cout << "\n";
 
 	// final fix
 	for (uint32_t i = nkl-unitctr; i < nkl; ++i) {
@@ -780,8 +920,16 @@ size_t matrix_echelonize_partial_plusfix_opt (
 		}
 	}
 
+	// mzd_print(A);
+	// std::cout << "\n";
+
 	// apply the final gaussian elimination on the first coordinates
-	matrix_echelonize_partial(A, m4ri_k, nkl-unitctr, matrix_data, 0);
+	matrix_echelonize_partial_opt(A, m4ri_k, nkl-unitctr, nkl, matrix_data);
+	// std::cout << unitctr << " " << nkl-unitctr << "\n";
+
+	// mzd_print(A);
+	// std::cout << "\n";
 	return nkl;
 }
+
 #endif //SMALLSECRETLWE_CUSTOM_MATRIX_H
