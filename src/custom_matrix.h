@@ -932,4 +932,123 @@ size_t matrix_echelonize_partial_plusfix_opt (
 	return nkl;
 }
 
+template<const uint32_t n, 
+	const uint32_t k, 
+	const uint32_t l,
+	const uint32_t c>
+size_t matrix_echelonize_partial_plusfix_opt_onlyc(
+		mzd_t *__restrict__ A,
+		mzd_t *__restrict__ AT,
+		const size_t m4ri_k,
+        const size_t max_column,
+		customMatrixData *__restrict__ matrix_data,
+		mzp_t *__restrict__ P) noexcept {
+	constexpr uint32_t nkl  = n-k-l;
+	constexpr uint16_t zero = uint16_t(-1);
+	constexpr uint32_t mod = k+l;
+	
+	// some security checks
+	static_assert(nkl >= c);
+
+	// create the transposed
+	mzd_transpose(AT, A);
+	
+	std::vector<uint16_t> unitpos1(c, zero);
+	std::vector<uint16_t> unitpos2(c, zero);
+	std::vector<uint16_t> posfix  (nkl, zero);
+	std::vector<uint16_t> perm    (n, zero);
+
+	for (uint32_t i = 0; i < nkl; ++i) {
+		posfix[i] = i;
+	}
+
+	for (uint32_t i = 0; i < n; ++i) {
+		perm[i] = i;
+	}
+
+	for (int i = 0; i < c; ++i) {
+		const uint32_t pos1 = fastrandombytes_uint64() % (k+l-i);
+		const uint32_t pos2 = fastrandombytes_uint64() % (n-k-l-i);
+		std::swap(perm[n-k-l+i], perm[n-k-l+i+pos1]);
+		std::swap(perm[i], perm[i+pos2]);
+
+	}
+	// dont permute the last column since it is the syndrome
+	for (uint32_t i = 0; i < c; ++i) {
+		const uint32_t pos1 = perm[i];
+		const uint32_t pos2 = perm[n-k-l+i];
+		ASSERT(pos1 < P->length);
+		ASSERT(pos2 < P->length);
+
+		std::swap(P->values[pos1], P->values[pos2]);
+		mzd_row_swap(AT, pos1, pos2);
+
+		unitpos1[i] = pos1;
+		if (pos1 < c)
+			unitpos2[pos1] = 0;
+	}
+
+	// move in the matrix everything to the left
+	uint32_t left_ctr, right_ctr = 0;//, switch_ctr = 0;
+	for (left_ctr = 0; left_ctr < c; left_ctr++) {
+		if (unitpos2[left_ctr] == 0)
+			continue;
+
+		while(right_ctr < c && unitpos1[right_ctr] < c) {
+			right_ctr += 1;
+		}
+
+		mzd_row_swap(AT, left_ctr, unitpos1[right_ctr]);
+		std::swap(P->values[left_ctr], P->values[unitpos1[right_ctr]]);
+		//unitpos1[switch_ctr] = unitpos1[right_ctr];
+		posfix[unitpos1[right_ctr]] = left_ctr;
+		//switch_ctr += 1;
+
+		// step to the next element
+		right_ctr += 1;
+	}
+
+	//mzd_print(AT);
+	//std::cout << "\n";
+
+	//for (int i = 0; i < c; ++i) {
+	//	std::cout << i << ":" << unitpos1[i]  << "\n";
+	//}
+	//std::cout << std::flush;
+
+	// transpose it back
+	mzd_transpose(A, AT);
+
+	//mzd_print(A);
+	//std::cout << "\n";
+
+	for (uint32_t i = nkl; i > c; i--){
+		mzd_row_swap(A, i-1, posfix[i-1]);
+		std::swap(posfix[i-1], posfix[posfix[i-1]]);
+	}
+
+	//mzd_print(A);
+	//std::cout << "\n";
+
+	// final fix
+//	for (uint32_t i = c; i < nkl; ++i) {
+//		if (mzd_read_bit(A, i, i) == 0) {
+//			for (uint32_t j = 0; j < nkl; ++j) {
+//				if (mzd_read_bit(A, j, i)) {
+//					mzd_row_swap(A, i, j);
+//					break;
+//				}
+//			}
+//		}
+//	}
+
+
+	// apply the final gaussian elimination on the first coordinates
+	matrix_echelonize_partial_opt(A, m4ri_k, c, nkl, matrix_data);
+	// std::cout << unitctr << " " << nkl-unitctr << "\n";
+
+	// mzd_print(A);
+	// std::cout << "\n";
+	return nkl;
+}
 #endif //SMALLSECRETLWE_CUSTOM_MATRIX_H
