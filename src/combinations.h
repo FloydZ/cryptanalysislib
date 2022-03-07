@@ -36,7 +36,7 @@ public:
 		}
 
 		while(true) {
-			for (j = i+1; j < k; ++j) {
+			for (j = i+1; j < int(k); ++j) {
 				a[j] = a[j-1]+1;
 			}
 
@@ -547,7 +547,7 @@ public:
 		for (j = r; !w[j]; j++) {
 			int b = a[j] + 1;
 			int n = a[j + 1];
-			if (b < (w[j + 1] ? n - (2 - (n & 1u)) : n)) {
+			if (b < int(w[j + 1] ? n - (2 - (n & 1u)) : n)) {
 				if ((b & 1u) == 0 && b + 1 < n) b++;
 
 				__M4RI_WRITE_BIT(cc[(start + a[j]) / m4ri_radix], (start + a[j]) % m4ri_radix, 0);

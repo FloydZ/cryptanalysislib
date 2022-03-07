@@ -12,8 +12,7 @@
 #include <array>
 #include <cmath>
 
-#include <gmpxx.h>
-#include <gmp.h>
+
 
 template<class Matrix>
 class Matrix_T {
@@ -106,6 +105,9 @@ private:
 };
 
 #ifdef USE_FPLLL
+#include <gmpxx.h>
+#include <gmp.h>
+
 #include "fplll/nr/matrix.h"
 #include "glue_fplll.h"
 
