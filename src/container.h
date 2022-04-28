@@ -616,7 +616,7 @@ public:
 //			*((__m256i *)&__data[i]) = t;
 //		}
 //#endif
-		for (; i+2 <= internal_limbs; i += 2){
+		for (; i+2 <= internal_limbs; i += 2) {
 			__uint128_t t = neg_mod3_limb128(*((__uint128_t *)&__data[i]));
 			*((__uint128_t *)&__data[i]) = t;
 		}
@@ -625,6 +625,10 @@ public:
 			__data[i] = neg_mod3_limb(__data[i]);
 		}
 
+	}
+
+	constexpr inline void neg(const uint32_t k_lower, const uint32_t k_higher) {
+		// TODO
 	}
 
 	/// infix negates (x= -x mod q)  all numbers between [k_lower, k_higher)

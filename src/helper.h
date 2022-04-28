@@ -1,10 +1,6 @@
 #ifndef SMALLSECRETLWE_HELPER_H
 #define SMALLSECRETLWE_HELPER_H
 
-#ifndef VERSION
-#define VERSION "0.0.1"
-#endif
-
 // should be passed via gcc/clang command line
 // currently activated for syntax highlighting
 //#define USE_LOOP_UNROLL
@@ -13,6 +9,7 @@
 
 // Global Includes
 #include <stddef.h>
+#include <string.h>
 #include <cstdint>      // needed for uint8_t and so on
 #include <vector>       // for __level_translation_array
 #include <array>
@@ -158,6 +155,33 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 #else
 #define DEBUG_MACRO(x)
 #endif
+
+
+
+size_t hex2bin (void *bin, const char hex[]) {
+	size_t len, i;
+	int x;
+	uint8_t *p = (uint8_t*)bin;
+
+	len = strlen(hex);
+
+	if ((len & 1) != 0) {
+		return 0;
+	}
+
+	for (i=0; i<len; i++) {
+		if (isxdigit((int)hex[i]) == 0) {
+			return 0;
+		}
+	}
+
+	for (i=0; i<len / 2; i++) {
+		sscanf(&hex[i * 2], "%2x", &x);
+		p[i] = (uint8_t)x;
+	}
+
+	return len / 2;
+}
 
 // Mem functions
 static __FORCEINLINE__ void* cryptanalysislib_align_up(const void * address, size_t alignment) {
@@ -1036,4 +1060,5 @@ public:
 		}
 	}
 };
+
 #endif //SMALLSECRETLWE_HELPER_H

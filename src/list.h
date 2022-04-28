@@ -193,9 +193,9 @@ private:
 	ValueType *__data_value = nullptr;
 	LabelType *__data_label = nullptr;
 
-	const size_t nr_elements;
-	const uint64_t thread_block;
-	const uint64_t threads1;
+	size_t nr_elements;
+	uint64_t thread_block;
+	uint64_t threads1;
 };
 
 /// same the class

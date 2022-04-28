@@ -8,10 +8,23 @@
 #include <assert.h>
 
 #include "helper.h"
-//#include "cx_algorithm.h"
 
-namespace stdcryptolib {
-	template<typename T, size_t N>
+
+namespace cryptanalysislib {
+	struct config_array {
+		// force the container pointer to be aligned
+		const uint32_t base_alignment = 16;
+
+		// force each element in the container to be aligned.
+		const uint32_t element_alignment = 1;
+
+		constexpr config_array() {};
+	};
+
+	constexpr config_array std_config_array = config_array();
+
+
+	template<typename T, size_t N, const config_array &config = std_config_array>
 	class array {
 	public:
 		using const_iterator = const T *const;
@@ -50,7 +63,7 @@ namespace stdcryptolib {
 		}
 
 		/// same as the operator[]
-		/// \param n index to acess
+		/// \param n index to accdess
 		/// \return the element
 		constexpr T at(const size_t n) const noexcept {
 			return this->operator[](n);
@@ -180,9 +193,9 @@ namespace stdcryptolib {
 		}
 
 		constexpr bool less_r(const T *b, const T *e, size_t i) const {
-			return b == e ? false : // other has run out
-			       i == N ? true : // this has run out
-			       m_data[i] < *b ? true : // elementwise less
+			return b == e ? false :         // other has run out
+			       i == N ? true :          // this has run out
+			       m_data[i] < *b ? true :  // elementwise less
 			       less_r(b + 1, e, i + 1); // recurse
 		}
 
@@ -401,7 +414,7 @@ namespace stdcryptolib {
 
 namespace std {
 	template<size_t n, typename T, size_t N>
-	constexpr T get(const stdcryptolib::array<T, N> &a) noexcept {
+	constexpr T get(const cryptanalysislib::array<T, N> &a) noexcept {
 		static_assert(n < N);
 		return a[n];
 	}
