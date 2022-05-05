@@ -21,6 +21,8 @@
 #define MAX_K 8
 #define WORD_SIZE (8 * sizeof(word))
 
+
+// aus dem ganzen spass mal ne klasse machen
 typedef struct customMatrixData {
 	uint32_t **rev;
 	uint32_t **diff;

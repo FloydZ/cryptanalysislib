@@ -22,9 +22,9 @@ constexpr size_t roundToAligned(const size_t n) noexcept {
 ///
 template<class T>
 concept Allocator = requires(T a, Blk b, size_t n) {
-	{ a.allocate(n) } -> std::convertible_to<Blk>;
+	{ a.allocate(n) }   -> std::convertible_to<Blk>;
 	{ a.deallocate(b) } -> std::convertible_to<Blk>;
-	{ a.owns(b) } -> std::convertible_to<Blk>;
+	{ a.owns(b) }       -> std::convertible_to<Blk>;
 };
 
 template<size_t s>

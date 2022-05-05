@@ -5,7 +5,6 @@
 #include "test.h"
 #include "helper.h"
 #include "random.h"
-#include "kAry_type.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -15,7 +14,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using Row = kAryPackedContainer_T<uint64_t, 3, n>;
+using Row = kAryPackedContainer_T<uint64_t, 3, 32>;
 
 // return true if correct, false if not
 bool correct(const uint64_t t, const uint64_t a, const uint64_t b) {
@@ -26,7 +25,7 @@ bool correct(const uint64_t t, const uint64_t a, const uint64_t b) {
 	Row::add(row3, row1, row2);
 
 	uint64_t data = t;
-	for (uint32_t i = 0; i < 32; i++) {
+	for (uint32_t i = 0; i < Row::LENGTH; i++) {
 		if ((data&3) != row3.get(i)) {
 			return false;
 		}
@@ -46,7 +45,7 @@ bool correct128(const __uint128_t t, const __uint128_t a, const __uint128_t b) {
 
 	Row::add(row3, row1, row2);
 	__uint128_t data = t;
-	for (uint32_t i = 0; i < 64; i++) {
+	for (uint32_t i = 0; i < Row::LENGTH; i++) {
 		if ((data&3) != row3.get(i)) {
 			row3.print();
 			Row::print(t);

@@ -82,7 +82,7 @@ requires(T t) {
 	t ^ t;
 	t.random();
 	T(0);
-	~(T(0));
+	//~(T(0));
 };
 
 /// Concept for the base data type
@@ -854,8 +854,8 @@ public:
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
 		constexpr T c1 = T(6148914691236517205u);
 
-		// This are not the optimal operations to calculate the ternary addidion. But nearly.
-		// The problem is that one needs to spit the limb for the ones/two onto two seperate limbs. But two seperate
+		// These are not the optimal operations to calculate the ternary addition. But nearly.
+		// The problem is that one needs to spit the limb for the ones/two onto two separate limbs. But two separate
 		// limbs mean
 		//      - higher memory consumption for each container
 		//      - complicated hashing for the hashmaps
@@ -1322,6 +1322,7 @@ public:
 	const auto end() const noexcept { return __data.end();}
 
 
+	// return `true` if the datastruct contains binary data.
 	__FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
 	__FORCEINLINE__ constexpr static uint32_t size() noexcept { return length; }
 	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return internal_limbs; }
