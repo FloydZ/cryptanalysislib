@@ -445,6 +445,8 @@ public:
 	// true if we need every bit of the last bit
 	constexpr static bool is_full = (length%bits_per_limb) == 0;
 
+	constexpr static bool activate_avx2 = false;
+
 	// minimal internal datatype to present an element.
 	using DataType = LogTypeTemplate<bits_per_number>;
 
@@ -812,7 +814,6 @@ public:
 		return (e&ofmask2)^ofbits3;
 	}
 
-
 	/// \param x input number
 	/// \param y output number
 	/// \return x-y in every number
@@ -820,7 +821,6 @@ public:
 		return add_mod3_limb(x, neg_mod3_limb(y));
 	}
 
-	///
 	/// \param x
 	/// \param y
 	/// \return
@@ -829,7 +829,6 @@ public:
 	}
 
 #ifdef USE_AVX2
-	///
 	/// \param x
 	/// \param y
 	/// \return
@@ -899,10 +898,9 @@ public:
 		return _mm256_add_epi64(a,b);
 	}
 
-
 	static inline __m256i add_mod3_limb256(const __m256i x, const __m256i y) noexcept {
-		const static __m256i c1 = _mm256_set_epi64x(6148914691236517205u,6148914691236517205u,6148914691236517205u,6148914691236517205u);
-		const static __m256i c2 = _mm256_set_epi64x(12297829382473034410u,12297829382473034410u,12297829382473034410u,12297829382473034410u);
+		const static __m256i c1 = _mm256_set_epi64x(6148914691236517205ull,6148914691236517205ull,6148914691236517205ull,6148914691236517205ull);
+		const static __m256i c2 = _mm256_set_epi64x(12297829382473034410ull,12297829382473034410ull,12297829382473034410ull,12297829382473034410ull);
 
 		const __m256i xy = _mm256_xor_si256(x,y);
 		const __m256i xy2 = _mm256_and_si256(x,y);
@@ -947,7 +945,7 @@ public:
 	/// \return returns the number of two in the limb
 	static inline uint32_t filter2count_mod3_limb(const T a) noexcept {
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
-		constexpr T m = T(12297829382473034410u);
+		constexpr T m = T(12297829382473034410ull);
 		return __builtin_popcountll(a&m);
 	}
 
@@ -1047,9 +1045,12 @@ public:
 
 		uint32_t i = 0;
 #ifdef USE_AVX2
-		for (; i+4 <= internal_limbs; i += 4) {
-			__m256i t = add_mod3_limb256(_mm256_lddqu_si256((__m256i *)&v1.__data[i]), _mm256_lddqu_si256((__m256i *)&v2.__data[i]));
-			_mm256_storeu_si256((__m256i *)&v3.__data[i], t);
+		if constexpr(activate_avx2) {
+			for (; i + 4 <= internal_limbs; i += 4) {
+				__m256i t = add_mod3_limb256(_mm256_lddqu_si256((__m256i *) &v1.__data[i]),
+				                             _mm256_lddqu_si256((__m256i *) &v2.__data[i]));
+				_mm256_storeu_si256((__m256i *) &v3.__data[i], t);
+			}
 		}
 #endif
 
@@ -1098,11 +1099,15 @@ public:
 
 		uint32_t i = 0;
 #ifdef USE_AVX2
-		for (; i+4 <= internal_limbs; i += 4) {
-			__m256i t = sub_mod3_limb256(_mm256_lddqu_si256((__m256i *)&v1.__data[i]), _mm256_lddqu_si256((__m256i *)&v2.__data[i]));
-			_mm256_storeu_si256((__m256i *)&v3.__data[i], t);
+		if constexpr(activate_avx2) {
+			for (; i + 4 <= internal_limbs; i += 4) {
+				__m256i t = sub_mod3_limb256(_mm256_lddqu_si256((__m256i *) &v1.__data[i]),
+				                             _mm256_lddqu_si256((__m256i *) &v2.__data[i]));
+				_mm256_storeu_si256((__m256i *) &v3.__data[i], t);
+			}
 		}
 #endif
+
 		for (; i+2 <= internal_limbs; i += 2) {
 			__uint128_t t = sub_mod3_limb128(*((__uint128_t *)&v1.__data[i]), *((__uint128_t *)&v2.__data[i]));
 			*((__uint128_t *)&v3.__data[i]) = t;
