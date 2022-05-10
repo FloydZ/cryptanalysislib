@@ -627,8 +627,11 @@ public:
 	///
 	constexpr size_t size() const noexcept { return nr_elements; }
 
-	inline LabelType& data_label(const uint32_t i) noexcept { ASSERT(i < nr_elements); return __data[i].first; }
-	inline const LabelType& data_label(const uint32_t i) const noexcept { ASSERT(i < nr_elements); return __data[i].first; }
+	// Not implementable, because we do not save the value sin this list.
+	// inline ValueType& data_value(const size_t i) noexcept { return __data[i]; }
+	// inline const ValueType& data_value(const sizez_t i) const noexcept { return __data[]; }
+	inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < nr_elements); return __data[i].first; }
+	inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < nr_elements); return __data[i].first; }
 
 	// returning the range in which one thread is allowed to operate
 	inline size_t start_pos(const uint32_t tid) const noexcept { ASSERT(tid < threads1); return tid * thread_block; };
