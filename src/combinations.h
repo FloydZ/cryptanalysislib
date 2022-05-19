@@ -757,6 +757,7 @@ protected:
 	Combinations_Lexicographic_Binary(const uint64_t n, const uint64_t k, const uint64_t start = 0) :
 			n(n), k(k), start(start) {};
 
+	// TODO use onw
 	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
 	inline static void write_bit(word *row, const uint16_t pos, const BIT bit) { __M4RI_WRITE_BIT(row[pos/m4ri_radix], pos%m4ri_radix, bit); }
 	inline static BIT get_bit(const word *row, const uint16_t pos) { return __M4RI_GET_BIT(row[pos/m4ri_radix], pos%m4ri_radix); }
@@ -1451,6 +1452,106 @@ public:
 
 		//std::cout << row <<  " " << cl.first << ":" << cl.second << " out\n";
 		return i;
+	}
+};
+
+template<typename T = uint64_t>
+class Combinations_Lexicographic_Binary_allk : public CombinationsMeta {
+	// enumertation all vectors of length n with maximum weight k in a lexicographical order
+
+	// disable the default constructor
+	Combinations_Lexicographic_Binary_allk() : n(0), k(0), start(0)  {};
+
+	uint32_t    n,      // code length
+				k,      // max 1 in code
+				start,  // start offset of the sequence
+				sp,     // stack pointer, needed internally
+				ctr;    // current position within the sequence
+
+	bool    loop = false;
+	uint32_t stack[32]; // TODO generalize
+
+	// TODO use own
+	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
+	inline static void write_bit(word *row, const uint16_t pos, const BIT bit) { __M4RI_WRITE_BIT(row[pos/m4ri_radix], pos%m4ri_radix, bit); }
+	inline static BIT get_bit(const word *row, const uint16_t pos) { return __M4RI_GET_BIT(row[pos/m4ri_radix], pos%m4ri_radix); }
+	static inline void SWAP_BITS(word *row, const int pos1, const int pos2) {
+		BIT p1 = get_bit(row, pos1);
+		BIT p2 = get_bit(row, pos2);
+		write_bit(row, pos1, p2);
+		write_bit(row, pos2, p1);
+	}
+
+	//
+	uint64_t update_stack() {
+		if (stack[sp] == k) {
+			uint32_t i = sp + 1;
+
+			// walk up
+			while (stack[i] == k)
+				i += 1;
+
+			// update
+			stack[i] += 1;
+			const uint32_t val = stack[i];
+			const uint32_t altered_sp = i;
+
+			// walk down
+			while (i > 0) {
+				stack[i - 1] = val;
+				i -= 1;
+			}
+
+			// fix up stack pointer
+			sp = 0;
+			return (1ull << (altered_sp + 1)) - 1;
+		} else {
+			// this should be the normal case.
+			stack[sp] += 1;
+			return 1ull;
+		}
+	}
+protected:
+	Combinations_Lexicographic_Binary_allk(const uint64_t n, const uint64_t k, const uint64_t start = 0) :
+			n(n), k(k), start(start) {};
+
+public:
+
+	void left_init(T *v) {
+		for (uint64_t i = 0; i < n; ++i) { write_bit(v, i, false); }
+		for (uint64_t i = start; i < start+k; ++i) { write_bit(v, i, true); }
+		for (unsigned int & i : stack) {
+			i = 0;
+		}
+	}
+
+	// TODO -rewrite the whole thing with a state machine, which somehow traxk
+	uint64_t left_step(T *v) {
+		// check if we reached the finish
+		if (ctr > (1ull << n))
+			return 0;
+
+		// number of k windows the algorithm walks through.
+		const uint64_t limit = k+1-stack[sp];
+
+		for (uint64_t cw = limit; cw > 1; --cw) {
+
+			// start printing
+			const uint64_t nr_steps = (1ull << cw) - 1ull;
+			for (uint64_t i = 0; i < nr_steps; ++i) {
+				// f(ctr++);
+			}
+
+			// skip
+			const uint64_t nr_skip = update_stack(stack, &sp, n, k);
+
+			ctr += nr_skip;
+		}
+
+		//f(ctr++);
+
+		const uint64_t nr_skip = update_stack(stack, &sp, n, k);
+		ctr += nr_skip;
 	}
 };
 

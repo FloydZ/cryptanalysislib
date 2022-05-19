@@ -39,7 +39,7 @@
 #define CRUM_OUT  24
 
 template<typename T, typename CMP>
-size_t crum_analyze(T *array, T *swap, size_t swap_size, size_t nmemb, CMP *cmp)
+size_t crum_analyze(T *array, T *swap, size_t swap_size, size_t nmemb, CMP cmp)
 {
 	char loop, dist;
 	size_t cnt, balance = 0, streaks = 0;
@@ -86,7 +86,7 @@ size_t crum_analyze(T *array, T *swap, size_t swap_size, size_t nmemb, CMP *cmp)
 
 	if (streaks >= nmemb / 24) {
 //	if (streaks >= nmemb / 32){
-		quadsort_swap(array, swap, swap_size, nmemb, cmp);
+		quadsort_swap<T>(array, swap, swap_size, nmemb, cmp);
 
 		return 1;
 	}
@@ -95,7 +95,7 @@ size_t crum_analyze(T *array, T *swap, size_t swap_size, size_t nmemb, CMP *cmp)
 
 // The next 3 functions are used for pivot selection
 template<typename T, typename CMP>
-T *crum_median_of_sqrt(T *array, T *swap, size_t swap_size, size_t nmemb, CMP *cmp){
+T *crum_median_of_sqrt(T *array, T *swap, size_t swap_size, size_t nmemb, CMP cmp){
 	T *pta, *piv;
 	size_t cnt, sqrt, div;
 
@@ -112,13 +112,13 @@ T *crum_median_of_sqrt(T *array, T *swap, size_t swap_size, size_t nmemb, CMP *c
 		pta -= div;
 	}
 
-	quadsort_swap(piv, swap, swap_size, sqrt, cmp);
+	quadsort_swap<T>(piv, swap, swap_size, sqrt, cmp);
 
 	return piv + sqrt / 2;
 }
 
 template<typename T, typename CMP>
-size_t crum_median_of_three(T *array, size_t v0, size_t v1, size_t v2, CMP *cmp) {
+size_t crum_median_of_three(T *array, size_t v0, size_t v1, size_t v2, CMP cmp) {
 	size_t v[3] = {v0, v1, v2};
 	char x, y, z;
 
@@ -130,36 +130,35 @@ size_t crum_median_of_three(T *array, size_t v0, size_t v1, size_t v2, CMP *cmp)
 }
 
 template<typename T, typename CMP>
-T *crum_median_of_nine(T *array, size_t nmemb, CMP *cmp) {
+T *crum_median_of_nine(T *array, size_t nmemb, CMP cmp) {
 	size_t x, y, z, div = nmemb / 16;
 
 	x = crum_median_of_three(array, div * 2, div * 1, div * 4, cmp);
 	y = crum_median_of_three(array, div * 8, div * 6, div * 10, cmp);
 	z = crum_median_of_three(array, div * 14, div * 12, div * 15, cmp);
 
-	return array + crum_median_of_three(array, x, y, z, cmp);
+	return array + crum_median_of_three<T>(array, x, y, z, cmp);
 }
 
 // As per suggestion by Marshall Lochbaum to improve generic data handling
 template<typename T, typename CMP>
-size_t fulcrum_reverse_partition(T *array, T *swap, T *ptx, T *piv, size_t swap_size, size_t nmemb, CMP *cmp) {
+size_t fulcrum_reverse_partition(T *array, T *swap, T *ptx, T *piv, size_t swap_size, size_t nmemb, CMP cmp) {
 	size_t cnt, val, i, m = 0;
 	T *ptl, *ptr, *pta, *tpa;
 
-	if (nmemb <= swap_size)
-	{
+	if (nmemb <= swap_size){
 		cnt = nmemb / 8;
 
-		do for (i = 8 ; i ; i--)
-			{
-				val = cmp(piv, ptx) > 0; swap[-m] = array[m] = *ptx++; m += val; swap++;
-			}
+		do for (i = 8 ; i ; i--){
+			val = cmp(piv, ptx) > 0; swap[-m] = array[m] = *ptx++; m += val; swap++;
+		}
 		while (--cnt);
 
 		for (cnt = nmemb % 8 ; cnt ; cnt--)
 		{
 			val = cmp(piv, ptx) > 0; swap[-m] = array[m] = *ptx++; m += val; swap++;
 		}
+
 		memcpy(array + m, swap - nmemb, (nmemb - m) * sizeof(T));
 
 		return m;
@@ -215,7 +214,7 @@ size_t fulcrum_reverse_partition(T *array, T *swap, T *ptx, T *piv, size_t swap_
 }
 
 template<typename T, typename CMP>
-size_t fulcrum_default_partition(T *array, T *swap, T *ptx, T *piv, size_t swap_size, size_t nmemb, CMP *cmp) {
+size_t fulcrum_default_partition(T *array, T *swap, T *ptx, T *piv, size_t swap_size, size_t nmemb, CMP cmp) {
 	size_t cnt, val, i, m = 0;
 	T *ptl, *ptr, *pta, *tpa;
 
@@ -282,7 +281,7 @@ size_t fulcrum_default_partition(T *array, T *swap, T *ptx, T *piv, size_t swap_
 }
 
 template<typename T, typename CMP>
-void fulcrum_partition(T *array, T *swap, T *max, size_t swap_size, size_t nmemb, CMP *cmp)
+void fulcrum_partition(T *array, T *swap, T *max, size_t swap_size, size_t nmemb, CMP cmp)
 {
 	size_t a_size, s_size;
 	T *ptp, piv;
@@ -302,7 +301,7 @@ void fulcrum_partition(T *array, T *swap, T *max, size_t swap_size, size_t nmemb
 
 			if (s_size <= a_size / 16 || a_size <= CRUM_OUT)
 			{
-				return quadsort_swap(array, swap, swap_size, a_size, cmp);
+				return quadsort_swap<T>(array, swap, swap_size, a_size, cmp);
 			}
 			nmemb = a_size; max = NULL;
 			continue;
@@ -316,23 +315,23 @@ void fulcrum_partition(T *array, T *swap, T *max, size_t swap_size, size_t nmemb
 
 		if (a_size <= s_size / 16 || s_size <= CRUM_OUT) {
 			if (s_size == 0) {
-				a_size = fulcrum_reverse_partition(array, swap, array, &piv, swap_size, a_size, cmp);
+				a_size = fulcrum_reverse_partition<T>(array, swap, array, &piv, swap_size, a_size, cmp);
 				s_size = nmemb - a_size;
 
 				if (s_size <= a_size / 16 || a_size <= CRUM_OUT) {
-					return quadsort_swap(array, swap, swap_size, a_size, cmp);
+					return quadsort_swap<T>(array, swap, swap_size, a_size, cmp);
 				}
-				return fulcrum_partition(array, swap, max, swap_size, a_size, cmp);
+				return fulcrum_partition<T>(array, swap, max, swap_size, a_size, cmp);
 			}
 
-			quadsort_swap(ptp + 1, swap, swap_size, s_size, cmp);
+			quadsort_swap<T>(ptp + 1, swap, swap_size, s_size, cmp);
 		}
 		else {
-			fulcrum_partition(ptp + 1, swap, max, swap_size, s_size, cmp);
+			fulcrum_partition<T>(ptp + 1, swap, max, swap_size, s_size, cmp);
 		}
 
 		if (s_size <= a_size / 32 || a_size <= CRUM_OUT) {
-			return quadsort_swap(array, swap, swap_size, a_size, cmp);
+			return quadsort_swap<T>(array, swap, swap_size, a_size, cmp);
 		}
 		max = ptp;
 		nmemb = a_size;
@@ -340,9 +339,9 @@ void fulcrum_partition(T *array, T *swap, T *max, size_t swap_size, size_t nmemb
 }
 
 template<typename T, typename CMP>
-void crumsort(T *array, size_t nmemb, CMP *cmp) {
+void crumsort(T *array, size_t nmemb, CMP cmp) {
 	if (nmemb < 32){
-		return tail_swap(array, nmemb, cmp);
+		return tail_swap<T>(array, nmemb, cmp);
 	}
 #if CRUM_AUX
 	size_t swap_size = CRUM_AUX;
@@ -356,18 +355,18 @@ void crumsort(T *array, size_t nmemb, CMP *cmp) {
 
 	T swap[swap_size];
 
-	if (crum_analyze(array, swap, swap_size, nmemb, cmp) == 0) {
-		fulcrum_partition(array, swap, NULL, swap_size, nmemb, cmp);
+	if (crum_analyze<T>(array, swap, swap_size, nmemb, cmp) == 0) {
+		fulcrum_partition<T>(array, swap, NULL, swap_size, nmemb, cmp);
 	}
 }
 
 template<typename T, typename CMP>
-void crumsort_swap(T *array, T *swap, size_t swap_size, size_t nmemb, CMP *cmp) {
+void crumsort_swap(T *array, T *swap, size_t swap_size, size_t nmemb, CMP cmp) {
 	if (nmemb < 32) {
-		tail_swap(array, nmemb, cmp);
+		tail_swap<T>(array, nmemb, cmp);
 	}
-	else if (crum_analyze(array, swap, swap_size, nmemb, cmp) == 0){
-		fulcrum_partition(array, swap, NULL, swap_size, nmemb, cmp);
+	else if (crum_analyze<T>(array, swap, swap_size, nmemb, cmp) == 0){
+		fulcrum_partition<T>(array, swap, NULL, swap_size, nmemb, cmp);
 	}
 }
 //#define cmp(a,b) (*(a) > *(b))
@@ -384,7 +383,8 @@ void crumsort_swap(T *array, T *swap, size_t swap_size, size_t nmemb, CMP *cmp) 
 //└─────────────────────────────────────────────────────────────────────┘//
 //////////////////////////////////////////////////////////////////////////
 
-void crumsort(void *array, size_t nmemb, size_t size, CMPFUNC *cmp) {
+template<typename T, typename CMP>
+void crumsort(T*array, size_t nmemb, size_t size, CMP cmp) {
 	if (nmemb < 2) {
 		return;
 	}

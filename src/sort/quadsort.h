@@ -61,7 +61,7 @@
 }
 
 template<typename T, typename CMP>
-void unguarded_insert(T *array, size_t offset, size_t nmemb, CMP *cmp) {
+void unguarded_insert(T *array, size_t offset, size_t nmemb, CMP cmp) {
 	T key, *pta, *end;
 	size_t i, top, x, y;
 
@@ -98,8 +98,8 @@ void unguarded_insert(T *array, size_t offset, size_t nmemb, CMP *cmp) {
 }
 
 template<typename T, typename CMP>
-void bubble_sort(T *array, size_t nmemb, CMP *cmp) {
-	T swap, *pta;
+void bubble_sort(T *array, size_t nmemb, CMP cmp) {
+	T swap{}, *pta;
 	size_t x, y;
 
 	if (nmemb > 1) {
@@ -115,8 +115,8 @@ void bubble_sort(T *array, size_t nmemb, CMP *cmp) {
 }
 
 template<typename T, typename CMP>
-void quad_swap_four(T *array, CMP *cmp) {
-	T *pta, swap;
+void quad_swap_four(T *array, CMP cmp) {
+	T *pta, swap{};
 	size_t x, y;
 
 	pta = array;
@@ -133,7 +133,7 @@ void quad_swap_four(T *array, CMP *cmp) {
 }
 
 template<typename T, typename CMP>
-void parity_swap_eight(T *array, CMP *cmp)
+void parity_swap_eight(T *array, CMP cmp)
 {
 	T swap[8], *ptl, *ptr, *pts;
 	unsigned char x, y;
@@ -154,7 +154,7 @@ void parity_swap_eight(T *array, CMP *cmp)
 }
 
 template<typename T, typename CMP>
-void parity_merge(T *dest, T *from, size_t block, size_t nmemb, CMP *cmp) {
+void parity_merge(T *dest, T *from, size_t block, size_t nmemb, CMP cmp) {
 	T *ptl, *ptr, *tpl, *tpr, *tpd, *ptd;
 	unsigned char x, y;
 
@@ -174,7 +174,7 @@ void parity_merge(T *dest, T *from, size_t block, size_t nmemb, CMP *cmp) {
 }
 
 template<typename T, typename CMP>
-void parity_swap_sixteen(T *array, CMP *cmp) {
+void parity_swap_sixteen(T *array, CMP cmp) {
 	T swap[16], *ptl, *ptr, *pts;
 	unsigned char x, y;
 
@@ -193,30 +193,29 @@ void parity_swap_sixteen(T *array, CMP *cmp) {
 }
 
 template<typename T, typename CMP>
-void tail_swap(T *array, size_t nmemb, CMP *cmp) {
+void tail_swap(T *array, size_t nmemb, CMP cmp) {
 	if (nmemb < 4) {
-		bubble_sort(array, nmemb, cmp);
+		bubble_sort<T>(array, nmemb, cmp);
 		return;
 	}
 	if (nmemb < 8) {
-		quad_swap_four(array, cmp);
-		unguarded_insert(array, 4, nmemb, cmp);
+		quad_swap_four<T>(array, cmp);
+		unguarded_insert<T>(array, 4, nmemb, cmp);
 		return;
 	}
 	if (nmemb < 16) {
-		parity_swap_eight(array, cmp);
-		unguarded_insert(array, 8, nmemb, cmp);
+		parity_swap_eight<T>(array, cmp);
+		unguarded_insert<T>(array, 8, nmemb, cmp);
 		return;
 	}
 
-	parity_swap_sixteen(array, cmp);
-	unguarded_insert(array, 16, nmemb, cmp);
+	parity_swap_sixteen<T>(array, cmp);
+	unguarded_insert<T>(array, 16, nmemb, cmp);
 }
 
 // the next three functions create sorted blocks of 32 elements
-
 template<typename T, typename CMP>
-void parity_tail_swap_eight(T *array, CMP *cmp)
+void parity_tail_swap_eight(T *array, CMP cmp)
 {
 	T swap[8], *ptl, *ptr, *pts;
 	unsigned char x, y;
@@ -234,7 +233,7 @@ void parity_tail_swap_eight(T *array, CMP *cmp)
 }
 
 template<typename T, typename CMP>
-void parity_tail_flip_eight(T *array, CMP *cmp) {
+void parity_tail_flip_eight(T *array, CMP cmp) {
 	T swap[8], *ptl, *ptr, *pts;
 	unsigned char x, y;
 
@@ -249,10 +248,10 @@ void parity_tail_flip_eight(T *array, CMP *cmp) {
 }
 
 template<typename T, typename CMP>
-void tail_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block, CMP *cmp);
+void tail_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block, CMP cmp);
 
 template<typename T, typename CMP>
-size_t quad_swap(T *array, size_t nmemb, CMP *cmp)
+size_t quad_swap(T *array, size_t nmemb, CMP cmp)
 {
 	T swap[32];
 	size_t count, reverse, x, y;
@@ -418,7 +417,7 @@ size_t quad_swap(T *array, size_t nmemb, CMP *cmp)
 // quad merge support routines
 
 template<typename T, typename CMP>
-void forward_merge(T *dest, T *from, size_t block, CMP *cmp)
+void forward_merge(T *dest, T *from, size_t block, CMP cmp)
 {
 	T *ptl, *ptr, *m, *e; // left, right, middle, end
 	size_t x, y;
@@ -479,7 +478,7 @@ void forward_merge(T *dest, T *from, size_t block, CMP *cmp)
 // main memory: [A  B  C  D] step 3
 
 template<typename T, typename CMP>
-void quad_merge_block(T *array, T *swap, size_t block, CMP *cmp) {
+void quad_merge_block(T *array, T *swap, size_t block, CMP cmp) {
 	T *pts, *c, *c_max;
 	size_t block_x_2 = block * 2;
 
@@ -522,7 +521,7 @@ void quad_merge_block(T *array, T *swap, size_t block, CMP *cmp) {
 }
 
 template<typename T, typename CMP>
-size_t quad_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block, CMP *cmp){
+size_t quad_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block, CMP cmp){
 	T *pta, *pte;
 	pte = array + nmemb;
 	block *= 4;
@@ -535,17 +534,17 @@ size_t quad_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t bloc
 			pta += block;
 		} while (pta + block <= pte);
 
-		tail_merge(pta, swap, swap_size, pte - pta, block / 4, cmp);
+		tail_merge<T>(pta, swap, swap_size, pte - pta, block / 4, cmp);
 		block *= 4;
 	}
 
-	tail_merge(array, swap, swap_size, nmemb, block / 4, cmp);
+	tail_merge<T>(array, swap, swap_size, nmemb, block / 4, cmp);
 
 	return block / 2;
 }
 
 template<typename T, typename CMP>
-void partial_forward_merge(T *array, T *swap, size_t nmemb, size_t block, CMP *cmp)
+void partial_forward_merge(T *array, T *swap, size_t nmemb, size_t block, CMP cmp)
 {
 	T *r, *m, *e, *s; // right, middle, end, swap
 	size_t x, y;
@@ -581,7 +580,7 @@ void partial_forward_merge(T *array, T *swap, size_t nmemb, size_t block, CMP *c
 }
 
 template<typename T, typename CMP>
-void partial_backward_merge(T *array, T *swap, size_t nmemb, size_t block, CMP *cmp) {
+void partial_backward_merge(T *array, T *swap, size_t nmemb, size_t block, CMP cmp) {
 	T *m, *e, *s; // middle, end, swap
 	size_t x, y;
 
@@ -621,18 +620,18 @@ void partial_backward_merge(T *array, T *swap, size_t nmemb, size_t block, CMP *
 }
 
 template<typename T, typename CMP>
-void tail_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block, CMP *cmp) {
+void tail_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block, CMP cmp) {
 	T *pta, *pte;
 	pte = array + nmemb;
 
 	while (block < nmemb && block <= swap_size) {
 		for (pta = array ; pta + block < pte ; pta += block * 2) {
 			if (pta + block * 2 < pte) {
-				partial_backward_merge(pta, swap, block * 2, block, cmp);
+				partial_backward_merge<T>(pta, swap, block * 2, block, cmp);
 
 				continue;
 			}
-			partial_backward_merge(pta, swap, pte - pta, block, cmp);
+			partial_backward_merge<T>(pta, swap, pte - pta, block, cmp);
 
 			break;
 		}
@@ -643,7 +642,7 @@ void tail_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block,
 
 // the next four functions provide in-place rotate merge support
 
-template<typename T, typename CMP>
+template<typename T>
 void trinity_rotation(T *array, T *swap, size_t swap_size, size_t nmemb, size_t left){
 	size_t bridge, right = nmemb - left;
 
@@ -755,7 +754,7 @@ void trinity_rotation(T *array, T *swap, size_t swap_size, size_t nmemb, size_t 
 }
 
 template<typename T, typename CMP>
-size_t monobound_binary_first(T *array, T *value, size_t top, CMP *cmp) {
+size_t monobound_binary_first(T *array, T *value, size_t top, CMP cmp) {
 	T *end;
 	size_t mid;
 
@@ -777,57 +776,57 @@ size_t monobound_binary_first(T *array, T *value, size_t top, CMP *cmp) {
 }
 
 template<typename T, typename CMP>
-void blit_merge_block(T *array, T *swap, size_t swap_size, size_t block, size_t right, CMP *cmp) {
+void blit_merge_block(T *array, T *swap, size_t swap_size, size_t block, size_t right, CMP cmp) {
 	size_t left;
 
 	if (cmp(array + block - 1, array + block) <= 0) {
 		return;
 	}
 
-	left = monobound_binary_first(array + block, array + block / 2, right, cmp);
+	left = monobound_binary_first<T>(array + block, array + block / 2, right, cmp);
 	right -= left;
 	block /= 2;
 
 	if (left) {
-		trinity_rotation(array + block, swap, swap_size, block + left, block);
+		trinity_rotation<T>(array + block, swap, swap_size, block + left, block);
 
 		if (left <= swap_size) {
-			partial_backward_merge(array, swap, block + left, block, cmp);
+			partial_backward_merge<T>(array, swap, block + left, block, cmp);
 		}
 		else if (block <= swap_size) {
-			partial_forward_merge(array, swap, block + left, block, cmp);
+			partial_forward_merge<T>(array, swap, block + left, block, cmp);
 		}
 		else {
-			blit_merge_block(array, swap, swap_size, block, left, cmp);
+			blit_merge_block<T>(array, swap, swap_size, block, left, cmp);
 		}
 	}
 
 	if (right) {
 		if (right <= swap_size) {
-			partial_backward_merge(array + block + left, swap, block + right, block, cmp);
+			partial_backward_merge<T>(array + block + left, swap, block + right, block, cmp);
 		}
 		else if (block <= swap_size) {
-			partial_forward_merge(array + block + left, swap, block + right, block, cmp);
+			partial_forward_merge<T>(array + block + left, swap, block + right, block, cmp);
 		}
 		else {
-			blit_merge_block(array + block + left, swap, swap_size, block, right, cmp);
+			blit_merge_block<T>(array + block + left, swap, swap_size, block, right, cmp);
 		}
 	}
 }
 
 template<typename T, typename CMP>
-void blit_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block, CMP *cmp) {
+void blit_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block, CMP cmp) {
 	T *pta, *pte;
 	pte = array + nmemb;
 
 	while (block < nmemb) {
 		for (pta = array ; pta + block < pte ; pta += block * 2) {
 			if (pta + block * 2 < pte) {
-				blit_merge_block(pta, swap, swap_size, block, block, cmp);
+				blit_merge_block<T>(pta, swap, swap_size, block, block, cmp);
 				continue;
 			}
 
-			blit_merge_block(pta, swap, swap_size, block, pte - pta - block, cmp);
+			blit_merge_block<T>(pta, swap, swap_size, block, pte - pta - block, cmp);
 			break;
 		}
 
@@ -847,11 +846,11 @@ void blit_merge(T *array, T *swap, size_t swap_size, size_t nmemb, size_t block,
 ///////////////////////////////////////////////////////////////////////////////
 
 template<typename T, typename CMP>
-void quadsort(void *array, size_t nmemb, CMP *cmp) {
+void quadsort(T *array, size_t nmemb, CMP cmp) {
 	if (nmemb < 32) {
-		tail_swap(array, nmemb, cmp);
+		tail_swap<T>(array, nmemb, cmp);
 	}
-	else if (quad_swap(array, nmemb, cmp) == 0) {
+	else if (quad_swap<T>(array, nmemb, cmp) == 0) {
 		T *swap;
 		size_t swap_size = 32;
 
@@ -866,31 +865,29 @@ void quadsort(void *array, size_t nmemb, CMP *cmp) {
 			if (swap == NULL) {
 				T stack[32];
 
-				tail_merge(array, stack, 32, nmemb, 32, cmp);
-				blit_merge(array, stack, 32, nmemb, 64, cmp);
+				tail_merge<T>(array, stack, 32, nmemb, 32, cmp);
+				blit_merge<T>(array, stack, 32, nmemb, 64, cmp);
 
 				return;
 			}
 		}
 
-		quad_merge(array, swap, swap_size, nmemb, 32, cmp);
-		blit_merge(array, swap, swap_size, nmemb, swap_size * 2, cmp);
+		quad_merge<T>(array, swap, swap_size, nmemb, 32, cmp);
+		blit_merge<T>(array, swap, swap_size, nmemb, swap_size * 2, cmp);
 
 		free(swap);
 	}
 }
 
 template<typename T, typename CMP>
-void quadsort_swap(void *array, void *swap, size_t swap_size, size_t nmemb, CMP *cmp) {
+void quadsort_swap(T *array, T *swap, size_t swap_size, size_t nmemb, CMP cmp) {
 	if (nmemb < 32) {
-		tail_swap(array, nmemb, cmp);
+		tail_swap<T>(array, nmemb, cmp);
 	}
-	else if (quad_swap(array, nmemb, cmp) == 0) {
+	else if (quad_swap<T>(array, nmemb, cmp) == 0) {
 		size_t block;
-
-		block = quad_merge(array, swap, swap_size, nmemb, 32, cmp);
-
-		blit_merge(array, swap, swap_size, nmemb, block, cmp);
+		block = quad_merge<T>(array, swap, swap_size, nmemb, 32, cmp);
+		blit_merge<T>(array, swap, swap_size, nmemb, block, cmp);
 	}
 }
 
@@ -907,7 +904,7 @@ void quadsort_swap(void *array, void *swap, size_t swap_size, size_t nmemb, CMP 
 ///////////////////////////////////////////////////////////////////////////////
 
 template<typename T, typename CMP>
-void quadsort(void *array, size_t nmemb, size_t size, CMP *cmp)
+void quadsort(void *array, size_t nmemb, size_t size, CMP cmp)
 {
 	if (nmemb < 2) {
 		return;
