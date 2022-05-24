@@ -29,9 +29,9 @@ template<typename T1, typename T2, typename T3, const ConfigTriple &config>
 struct  __attribute__ ((packed))
     triple {
 public:
-	using first_type    = std::conditional<config.swap12, T2, T1>;
-	using second_type   = std::conditional<config.swap23, T3, T2>;
-	using third_type    = std::conditional<config.swap13, T1, T3>;
+	using first_type    = typename std::conditional<config.swap12, T2, T1>::type;
+	using second_type   = typename std::conditional<config.swap23, T3, T2>::type;
+	using third_type    = typename std::conditional<config.swap13, T1, T3>::type;
 
 	/// automatic alignment deduction.
 	first_type first;
@@ -55,10 +55,10 @@ public:
 		first(a), second(b), third(c) {}
 
 	/// copy constructor
-	constexpr triple(const triple&) = default;
+	//constexpr triple(const triple&) = default;
 
 	/// move constructor
-	constexpr triple(triple&&) = default;
+	//constexpr triple(triple&&) = default;
 
 	constexpr auto get_first() noexcept {
 		if constexpr(config.swap12) {
