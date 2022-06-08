@@ -10,7 +10,7 @@
 template<class Container>
 concept LabelAble = requires(Container c) {
 	typename Container::DataType;
-	std::integral<typename Container::DataType>;
+	requires std::integral<typename Container::DataType>;
 
 	// we need to enforce the existence of some fields
 	{ Container::LENGTH } -> std::convertible_to<uint32_t>;

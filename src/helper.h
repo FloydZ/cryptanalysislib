@@ -159,8 +159,8 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 
 
 size_t hex2bin (void *bin, const char hex[]) {
-	size_t len, i;
-	int x;
+	size_t len;
+	unsigned int x;
 	uint8_t *p = (uint8_t*)bin;
 
 	len = strlen(hex);
@@ -169,13 +169,13 @@ size_t hex2bin (void *bin, const char hex[]) {
 		return 0;
 	}
 
-	for (i=0; i<len; i++) {
+	for (size_t i = 0; i < len; i++) {
 		if (isxdigit((int)hex[i]) == 0) {
 			return 0;
 		}
 	}
 
-	for (i=0; i<len / 2; i++) {
+	for (size_t i = 0; i < len / 2; i++) {
 		sscanf(&hex[i * 2], "%2x", &x);
 		p[i] = (uint8_t)x;
 	}

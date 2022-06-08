@@ -1763,7 +1763,7 @@ public:
 	// checks weather to label computation in `data` is correct or not.
 	template<class List>
 	bool check_label(const ArgumentLimbType data, const List &L, const uint64_t i, const uint32_t k_lower=-1, const uint32_t k_upper=-1) const noexcept {
-		const bool flag = (k_lower == -1) && (k_upper == -1);
+		const bool flag = (k_lower == uint32_t(-1)) && (k_upper == uint32_t(-1));
 		const uint64_t nkl   = flag ? config.label_offset : k_lower;
 		const uint32_t limit = flag ? config.l : k_upper - k_lower;
 		ArgumentLimbType d = data;

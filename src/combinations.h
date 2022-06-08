@@ -579,7 +579,7 @@ public:
 		w[j] = b - 1 >= j;
 		if (!found_r)
 			r = j;
-		return (a[k] == n);
+		return (uint64_t (a[k]) == n);
 	}
 
 	Combinations_Chase_Binary2(const uint32_t n, const uint32_t k, const uint32_t start = 0) :
