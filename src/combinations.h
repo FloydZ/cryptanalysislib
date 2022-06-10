@@ -454,7 +454,7 @@ public:
 
 		current.zero(); tmp.zero();
 
-		for (int j = n-k; j < n; ++j) {
+		for (uint32_t j = n-k; j < n; ++j) {
 			current[j] = true;
 		}
 
@@ -475,7 +475,7 @@ public:
 		for (j = r; !w[j]; j++) {
 			int b = a[j] + 1;
 			int n = a[j + 1];
-			if (b < (w[j + 1] ? n - (2 - (n & 1u)) : n)) {
+			if (b < int(w[j + 1] ? n - (2 - (n & 1u)) : n)) {
 				if ((b & 1u) == 0 && b + 1 < n) b++;
 				cc.clear_bit(a[j]);
 				*pos1 = a[j];
@@ -506,7 +506,7 @@ public:
 		if (!found_r)
 			r = j;
 
-		return (a[k] == n);
+		return (a[k] == int(n));
 	}
 
 	void left_init(T &cc) {
@@ -518,10 +518,10 @@ public:
 	Combinations_Chase2(const uint64_t n, const uint64_t k, const uint64_t start = 0) :
 			n(n), k(k), start(start) {
 		ASSERT(k < (n - start) && "Wrong k size");
-		a.resize(k+1), 0;
+		a.resize(k+1);
 		w.resize(k+1, true);
 
-		for (int j = 0; j < k + 1; j++) {
+		for (uint32_t j = 0; j < k + 1; j++) {
 			a[j] = n - (k - j);
 			w[j] = true;
 		}

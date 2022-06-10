@@ -462,7 +462,7 @@ inline int m4ri_cmp_row_testing(const mzd_t *in1, const mzd_t *in2) {
 	ASSERT(in1->nrows == in2->nrows && in1->nrows == 1 && in1->ncols == in2->ncols);
 
 	LOOP_UNROLL();
-	for (int i = 0; i < limbs; ++i) {
+	for (uint32_t i = 0; i < limbs; ++i) {
 		if (in1->rows[0][i] != in2->rows[0][i])
 			return 1;
 	}

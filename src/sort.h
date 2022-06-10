@@ -246,7 +246,7 @@ public:
 	void hash(List &L) {
 		ASSERT(Label::size() >= b2 && b0 < b1 && b1 <= b2 && b2 - b0 <= 64);
 
-		for (int i = 0; i < n_buckets; ++i) {
+		for (uint32_t i = 0; i < n_buckets; ++i) {
 			buckets_load[i] = 0;
 		}
 
@@ -298,7 +298,7 @@ public:
 	void hash(List &L, const uint32_t k_lower, const uint32_t k_upper) {
 		ASSERT(Label::size() >= k_upper && k_upper - k_lower == b2 - b0);
 
-		for (int i = 0; i < n_buckets; ++i) {
+		for (uint32_t i = 0; i < n_buckets; ++i) {
 			buckets_load[i] = 0;
 		}
 
@@ -343,7 +343,7 @@ public:
 	void print_stats() {
 		double avg_load = 0.0;
 		uint64_t max_load = 0;
-		for (int i = 0; i < n_buckets; i++) {
+		for (uint32_t i = 0; i < n_buckets; i++) {
 			avg_load += buckets_load[i];
 			if (max_load < buckets_load[i])
 				max_load = buckets_load[i];
@@ -362,8 +362,12 @@ public:
 
 	// upper is inclusive
 	// returns
-	bool find(const Label &target, uint64_t *bucket, uint64_t *lower, uint64_t *upper,
-	          uint16_t i0 = b0, uint16_t i2 = b2) {
+	bool find(const Label &target,
+			  uint64_t *bucket,
+			  uint64_t *lower,
+			  uint64_t *upper,
+	          uint16_t i0 = b0,
+			  uint16_t i2 = b2) {
 		const LimbType data = target.data().get_bits(i0, i2);
 		const uint64_t j = data & mask1;
 		ASSERT(j < n_buckets);
@@ -401,7 +405,7 @@ public:
 		}
 
 		constexpr uint64_t window = 3;
-		for (int i = pos + 1; i < MIN(pos + window, buckets_load[j]); i++) {
+		for (uint32_t i = pos + 1; i < MIN(pos + window, buckets_load[j]); i++) {
 			if (buckets[j][i].second != data) {
 				*upper = i - 1;
 				return true;
@@ -420,7 +424,7 @@ public:
 		                     }
 		);
 
-		const auto pos2 = distance(buckets[j].begin(), r) - 1;
+		const uint64_t pos2 = distance(buckets[j].begin(), r) - 1;
 		ASSERT(pos2 + 1 >= pos + window);
 		*upper = pos2;
 		return true;

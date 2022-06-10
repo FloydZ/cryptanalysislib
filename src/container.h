@@ -2416,7 +2416,7 @@ public:
 			add(v3, v1, v2, k_lower, k_upper);
 			return false;
 		} else {
-			ASSERT((&v1 != &v3 && &v2 != &v3) || (norm == -1));
+			ASSERT((&v1 != &v3 && &v2 != &v3) || (norm == uint32_t(-1)));
 			uint32_t cnorm = add_weight(v3, v1, v2, k_lower, k_upper);
 			if (cnorm >= norm)
 				return true;
