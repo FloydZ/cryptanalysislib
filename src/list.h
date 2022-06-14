@@ -99,6 +99,7 @@ public:
 			}
 
 			memset(__data_value, 0, size * sizeof(ValueType));
+			// std::fill(__data_value, 0, size);
 		}
 
 		__data_label = (LabelType *)cryptanalysislib_aligned_malloc(size*sizeof(LabelType), PAGE_SIZE);
