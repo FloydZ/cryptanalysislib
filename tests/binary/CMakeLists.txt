@@ -5,7 +5,7 @@ foreach(testfile ${TEST_SOURCES})
     add_executable(test_binary_${file} ${testfile})
     target_compile_options(test_binary_${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(test_binary_${file} ${LINK_TEST_FLAGS})
-    add_dependencies(test_binary_${file} m4ri_project fplll_project)
+    # add_dependencies(test_binary_${file} m4ri_project fplll_project)
 endforeach(testfile ${TEST_SOURCES})
 
 add_executable(test_binary_32 32/32.cpp)

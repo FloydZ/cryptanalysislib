@@ -16,3 +16,5 @@ add_subdirectory(binary)
 if(USE_CUDA)
 add_subdirectory(cuda)
 endif()
+
+add_subdirectory(popcount)
