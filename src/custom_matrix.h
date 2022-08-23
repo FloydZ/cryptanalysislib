@@ -829,6 +829,8 @@ size_t matrix_echelonize_partial_plusfix_opt (
 		mzp_t *__restrict__ P) noexcept {
 	constexpr uint32_t nkl  = n-k-l;
 	constexpr uint16_t zero = uint16_t(-1);
+
+#if 1
 	// create the transposed
 	mzd_transpose(AT, A);
 
@@ -928,9 +930,9 @@ size_t matrix_echelonize_partial_plusfix_opt (
 	// apply the final gaussian elimination on the first coordinates
 	matrix_echelonize_partial_opt(A, m4ri_k, nkl-unitctr, nkl, matrix_data);
 	// std::cout << unitctr << " " << nkl-unitctr << "\n";
-
-	// mzd_print(A);
-	// std::cout << "\n";
+#else
+	matrix_echelonize_partial_plusfix(A, m4ri_k, n - k - l, matrix_data, 0, n - k - l, 0, P);
+#endif
 	return nkl;
 }
 
