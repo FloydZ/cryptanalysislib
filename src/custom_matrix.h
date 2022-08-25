@@ -970,13 +970,14 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 		perm[i] = i;
 	}
 
-	for (int i = 0; i < c; ++i) {
+	for (uint32_t i = 0; i < c; ++i) {
 		const uint32_t pos1 = fastrandombytes_uint64() % (k+l-i);
 		const uint32_t pos2 = fastrandombytes_uint64() % (n-k-l-i);
 		std::swap(perm[n-k-l+i], perm[n-k-l+i+pos1]);
 		std::swap(perm[i], perm[i+pos2]);
 
 	}
+
 	// dont permute the last column since it is the syndrome
 	for (uint32_t i = 0; i < c; ++i) {
 		const uint32_t pos1 = perm[i];
