@@ -10,7 +10,7 @@ git apply patch.diff
 cd ../../
 cd deps/fplll
 git checkout 5.3.0
-./autogen.sh
-./configure
-make -j8
-cd ../../
+# ./autogen.sh
+# ./configure
+# make -j8
+# cd ../../
