@@ -73,7 +73,7 @@ set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-unused-local-typedef -Wno-overl
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-set(DEBUG_FLAGS "-g -DDEBUG -march=native -Wno-absolute-value -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+set(DEBUG_FLAGS "-g -DDEBUG -march=native  -Wno-absolute-value -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 set(OPTIMIZE_FLAGS "-march=native -O3 -flto -DNDEBUG -Wno-absolute-value -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 set(SANITIZER_FLAGS -fsanitize=address -fno-omit-frame-pointer)
 set(GCC_HELPER_FLAGS -fvar-tracking-assignments)

@@ -9,6 +9,7 @@ deps/elena_smallSecretLWE/
 build/
 compile_commands.json
 .local-history/
+Session.vim
 
 # Created by .ignore support plugin (hsz.mobi)
 ### C++ template
