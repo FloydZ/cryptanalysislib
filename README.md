@@ -1,4 +1,5 @@
-This is the backbone implementation of our [Paper](https://eprint.iacr.org/2021/1634).
+This is the backbone implementation of our [Paper](https://eprint.iacr.org/2021/1634)
+and our second [paper](https://eprint.iacr.org/2022/1329).
 
 Requirements
 -----
