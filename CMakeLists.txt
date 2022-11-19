@@ -34,6 +34,11 @@ add_custom_target (
         COMMAND ./${CMAKE_SOURCE_DIR}/build.sh
 )
 
+
+# only for the CI
+include_directories("benchmark/include")
+link_directories("benchmark/build/src")
+
 # include directories
 include_directories("deps/fplll/fplll")
 include_directories("deps/fplll")
@@ -76,6 +81,10 @@ set(DEBUG_FLAGS "-g -Og -DDEBUG -march=native -mavx2 -mbmi -fopenmp ${ALLOWED_WA
 set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 set(SANITIZER_FLAGS -fsanitize=address -fno-omit-frame-pointer)
 set(GCC_HELPER_FLAGS -fvar-tracking-assignments)
+
+# note that fplll is missing
+set(LINK_TEST_FLAGS -lgtest -pthread gmp gmpxx libm4ri.a m png tbb -lbenchmark)
+
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # if using GCC

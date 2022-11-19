@@ -1,5 +1,4 @@
 #TESTS Flags
-set(LINK_TEST_FLAGS -lgtest -pthread gmp fplll gmpxx libm4ri.a m png tbb -lbenchmark)
 set(COMPILE_TEST_FLAGS -g -pthread -march=native)
 
 file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
