@@ -9,7 +9,7 @@ cp ../patches/patch.diff ./patch.diff
 git apply patch.diff
 cd ../../
 cd deps/fplll
-git checkout 5.3.0
+#git checkout 5.3.0
 # ./autogen.sh
 # ./configure
 # make -j8
