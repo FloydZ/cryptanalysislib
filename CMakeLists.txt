@@ -82,8 +82,10 @@ set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fopenmp ${AL
 set(SANITIZER_FLAGS -fsanitize=address -fno-omit-frame-pointer)
 set(GCC_HELPER_FLAGS -fvar-tracking-assignments)
 
+# TODO simplify to only one flag
 # note that fplll is missing
 set(LINK_TEST_FLAGS -lgtest -pthread gmp gmpxx libm4ri.a m png tbb -lbenchmark)
+set(LINK_BENCH_FLAGS -lgtest -pthread gmp gmpxx libm4ri.a m png tbb -lbenchmark)
 
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
