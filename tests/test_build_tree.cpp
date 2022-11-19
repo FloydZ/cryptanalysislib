@@ -16,6 +16,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+#ifdef USE_FPLLL
+
 TEST(TreeTest, BuildTreeTest1) {
     //FixME: Testing mit Identity does only work for q<1<<8 as Value type is uint8_t, also filtering makes problems for higher q
     //maybe implement a switch to turn of filtering for debugging purposes?
@@ -220,6 +222,8 @@ TEST(TreeTest, RestoreLabelTwoLists) {
     EXPECT_EQ(correct,true);
     EXPECT_EQ(wrong,0);
 }
+
+#endif
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

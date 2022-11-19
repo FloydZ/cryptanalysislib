@@ -6,6 +6,8 @@
 #include <helper.h>
 #include <list.h>
 
+#ifdef USE_FPLLL
+
 B63_BASELINE(NotFind, nn) {
 	kAryList l{n};
 	kAryElement e{};
@@ -110,6 +112,10 @@ B63_BENCHMARK(FindBegin, nn) {
 
 	B63_KEEP(res);
 }
+#else 
+B63_BASELINE(DoNothing, nn) {}
+#endif
+
 int main(int argc, char **argv) {
 	B63_RUN_WITH("time,lpe:cycles,lpe:instructions,lpe:ref-cycles,lpe:context-switches,lpe:cs", argc, argv);
 	return 0;

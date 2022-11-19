@@ -10,6 +10,8 @@
 #include "ska_sort.hpp"
 //#include "pdqsort/pdqsort.h"
 
+using namespace std;
+
 constexpr static uint64_t SIZE = 1<<22;
 
 constexpr static uint32_t ssize = 32;

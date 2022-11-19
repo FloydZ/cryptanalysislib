@@ -142,14 +142,14 @@ public:
 		return *this;
 	}
 
-	kAry_Type_T<T, T2, q> &operator=(kAry_Type_T<T, T2, q> const &obj) const noexcept {
+	kAry_Type_T<T, T2, q> &operator=(kAry_Type_T<T, T2, q> const &obj) noexcept {
 		if (this != &obj) {
 			__value = obj.__value;
 		}
 		return *this;
 	}
 
-    kAry_Type_T<T, T2, q> &operator=(uint32_t const obj) const noexcept {
+    kAry_Type_T<T, T2, q> &operator=(uint32_t const obj) noexcept {
         __value = obj % q;
         return *this;
     }
@@ -233,7 +233,11 @@ std::ostream &operator<<(std::ostream &out, const kAry_Type_T<T, T2, q> &obj) {
 //generic abs function for the kAryType
 template<class T>
 T abs(T in){
-	return T(__builtin_llabs(in.data()));
+	if constexpr (std::is_integral<T>::value == true) {
+		return __builtin_llabs(in);
+	} else {
+		return T(__builtin_llabs(in.data()));
+	}
 }
 
 #include "helper.h"

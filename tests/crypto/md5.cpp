@@ -6,7 +6,7 @@
 
 #include "helper.h"
 #include "random.h"
-#include "crypto/md5.h"
+// TODO c#include "crypto/md5.h"
 
 
 using ::testing::EmptyTestEventListener;
@@ -17,11 +17,11 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using namespace cryptanalysislib;
+//using namespace cryptanalysislib;
 
-TEST(MD5, simple) {
-	constexpr MD5 hash_value = MD5("Hello World");
-}
+// TEST(MD5, simple) {
+// 	constexpr MD5 hash_value = MD5("Hello World");
+// }
 
 
 int main(int argc, char **argv) {

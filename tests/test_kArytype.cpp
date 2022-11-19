@@ -20,7 +20,6 @@ TEST(Label, DoesNotLeak) {
     delete l;
 }
 
-
 TEST(Set, Simple) {
 	kAryType l1;
 	unsigned int t1 = fastrandombytes_uint64()% q;
@@ -39,14 +38,14 @@ TEST(Add, Zero) {
 	kAryType l1;
 	kAryType l2;
 	kAryType l3;
-	l1 = l2 = l3 = 0ull;
+	l1 = l2 = l3 = 0;
 	l3 = l1 + l2;
 
 	EXPECT_EQ(l3, 0);
 	EXPECT_EQ(l1, 0);
 	EXPECT_EQ(l2, 0);
 
-	l3 = 1ull;
+	l3 = 1;
 	l3 = l1 + l2;
 
 	EXPECT_EQ(l3, 0);
@@ -58,7 +57,7 @@ TEST(Add, one) {
 	kAryType l1;
 	kAryType l2;
 	kAryType l3;
-	l1 = l2 = l3 = 1ull;
+	l1 = l2 = l3 = 1;
 	l3 = l1 + l2;
 #if LOG_Q > 1
 	EXPECT_EQ(l3, 2);

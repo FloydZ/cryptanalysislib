@@ -14,6 +14,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+#ifdef Element
 TEST(ElementTest, Reference) {
 	Element e{};
 	e.zero();
@@ -336,6 +337,7 @@ TEST(Filter, AddBounds) {
 		}
 	}
 }
+#endif
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

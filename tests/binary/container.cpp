@@ -2,8 +2,6 @@
 #include <cstdint>
 #include <bitset>
 
-// Hack for testing private functions (C++ god)
-#define private public
 
 #include "binary.h"
 

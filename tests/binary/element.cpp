@@ -3,7 +3,7 @@
 #include <bitset>
 
 // Hack for testing private functions (C++ god)
-#define private public
+//#define private public
 
 #include "element.h"
 
@@ -17,9 +17,12 @@ using ::testing::UnitTest;
 
 constexpr uint32_t G_k = 10;
 constexpr uint32_t G_l = 5;
+constexpr uint32_t G_n = 20;
+
+
 TEST(Internals, Size) {
 	using BinaryValue     = Value_T<BinaryContainer<G_k + G_l>>;
-	using BinaryLabel     = Label_T<BinaryContainer<n - G_k>>;
+	using BinaryLabel     = Label_T<BinaryContainer<G_n - G_k>>;
 	using BinaryMatrix    = mzd_t *;
 	using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 
@@ -28,10 +31,10 @@ TEST(Internals, Size) {
 	BinaryLabel l;
 
 	BinaryContainer<G_k + G_l> c1;
-	BinaryContainer<n - G_k> c2;
+	BinaryContainer<G_n - G_k> c2;
 
 	std::cout << "k+l: " << G_k + G_l << "\n";
-	std::cout << "n+k: " << n - G_k << "\n";
+	std::cout << "n+k: " << G_n - G_k << "\n";
 
 	std::cout << "Size Element: " << sizeof(e) << "\n";
 	std::cout << "Size Value:   " << sizeof(e.get_value()) << "\n";
@@ -47,7 +50,6 @@ TEST(Internals, Size) {
 	std::cout << "Size CLabelD: " << sizeof(c2.data()) << "\n";
 
 	std::cout << "PointerOffset:   " << e.get_label_container_ptr() - e.get_value_container_ptr() << "\n";
-
 }
 
 #ifndef EXTERNAL_MAIN

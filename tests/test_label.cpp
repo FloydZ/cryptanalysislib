@@ -12,6 +12,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+using Label_Type = uint64_t;
+
 TEST(Label, DoesNotLeak) {
     auto*l = new Label;
     delete l;
@@ -24,7 +26,6 @@ TEST(Label, Check_References) {
 	l.data()[0] = 1;       // this should also be ok, if the 'container' class decides if its a reference or not.
 
 }
-
 
 TEST(Label, Zero) {
 	Label l;

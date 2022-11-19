@@ -1390,7 +1390,7 @@ public:
 	constexpr static uint16_t limb_bits_width() noexcept { return limb_bytes_width() * 8; };
 	constexpr static uint16_t limb_bytes_width() noexcept { return sizeof(LimbType); };
 
-private:
+//private:
 	// DO NOT CALL THIS FUNCTION. Use 'limbs()'.
 	constexpr static uint16_t compute_limbs() noexcept {
 #ifdef BINARY_CONTAINER_ALIGNMENT

@@ -17,26 +17,26 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-
+#ifdef USE_FPLLL
 
 ///
 /// \param l
 /// \return the number of elements which are duplicate
-uint64_t helper_list_is_every_element_value_unique(const List &l){
-	if (l.get_load() == 0)
+uint64_t helper_list_is_every_element_value_unique(const List &L){
+	if (L.get_load() == 0)
 		return 0;
 
 	uint64_t errors = 0;
-	const uint64_t vs = l[0].value_size();
-	for (int i = 0; i < l.get_load(); ++i) {
-		for (int j = 0; j < l.get_load(); ++j) {
+	const uint64_t vs = L[0].value_size();
+	for (int i = 0; i < L.get_load(); ++i) {
+		for (int j = 0; j < L.get_load(); ++j) {
 			// skip element if their are the same
 			if (i == j)
 				continue;
 
 			bool equal = true;
 			for (int k = 0; k < vs; ++k) {
-				if (l[i].get_value().data()[k] != l[j].get_value().data()[k]) {
+				if (:[i].get_value().data()[k] != L[j].get_value().data()[k]) {
 					equal = false;
 					break;
 				}
@@ -255,6 +255,8 @@ TEST(SortLevelSimple, Simple) {
 		}
 	}
 }
+
+#endif
 
 #ifndef EXTERNAL_MAIN
 int main(int argc, char **argv) {

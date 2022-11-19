@@ -14,9 +14,11 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+// TODO explain
 constexpr uint64_t kk = 3;
 constexpr uint64_t e1 = 2;
 constexpr uint64_t em1 = 2;
+
 
 TEST(CombinationsIndex2, Left) {
 	constexpr uint64_t N = 105;
@@ -40,6 +42,7 @@ TEST(CombinationsIndex2, Left) {
 
 }
 
+#ifdef USE_FPLLL
 TEST(Combinations_Chase_BinaryContainer_Compare_Chase2, Left) {
 	using TestBinaryContainer = BinaryContainer<n>;
 	uint64_t nperm = 0;
@@ -81,6 +84,7 @@ TEST(Combinations_Chase_BinaryContainer_Compare_Chase2, Left) {
 	EXPECT_EQ(nperm, nperm2);
 
 }
+#endif
 
 TEST(Combinations_Chase_VV_Binary2, Left) {
 	constexpr uint64_t N = 105;
@@ -244,6 +248,7 @@ TEST(Combinations_Chase_M4RI, Left_Start) {
 	mzd_free(p_tmp);
 }
 
+#ifdef USE_FPLLL
 TEST(Combinations_Chase_Element, Left) {
 	uint64_t nperm = 0;
 	Element e, e_tmp; e.zero(); e_tmp.zero();
@@ -267,6 +272,7 @@ TEST(Combinations_Chase_Element, Left) {
 
 	EXPECT_EQ(nperm, bc(n, kk));
 }
+#endif
 
 TEST(Combinations_Chase_Binary_BinaryContainer, Left) {
 	uint64_t nperm = 0;

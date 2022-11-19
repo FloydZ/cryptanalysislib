@@ -4,7 +4,6 @@
 
 #include "helper.h"
 #include "binary.h"
-#include "bkw.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -101,7 +100,7 @@ TEST(extendedTree, stream_join) {
 	BinaryLabel target; target.random();
 	//TestExtendedTree::template stream_join<1, limits>(L1, L2, target);
 	//TestExtendedTree::stream_join(L1, L2, target);
-	TestExtendedTree::template streamjoin<config, 0, HM0Type, HM1Type, HM2Type>(L1, L2, target);
+	//TODO currently under dev TestExtendedTree::template streamjoin<config, 0, HM0Type, HM1Type, HM2Type>(L1, L2, target);
 }
 
 

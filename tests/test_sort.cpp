@@ -16,6 +16,9 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+using namespace std;
+
+
 TEST(Std_Sort_Binary_Container, SingleLimb_Simple) {
 	constexpr uint64_t size = 63;
 	const uint64_t k_lower = 0;

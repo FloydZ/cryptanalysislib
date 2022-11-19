@@ -13,6 +13,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+#ifdef USE_FPLLL
 TEST(TreeTest, JoinForLevelOne) {
 	fplll::ZZ_mat<kAryType> A_(n, n);
 	A_.fill(0);
@@ -301,7 +302,7 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 //	EXPECT_EQ(0, wrong);
 //	EXPECT_EQ(right, true);
 //}
-
+#endif
 
 
 int main(int argc, char **argv) {

@@ -21,6 +21,7 @@ using kAryContainer     = kAryContainer_T<kAryType, n>;
 using kAryContainer2    = kAryContainer_T<kAryType, k>;
 using kAryLabel         = Label_T<kAryContainer2>;
 using kAryValue         = Value_T<kAryContainer>;
+
 #ifdef USE_FPLLL
 using kAryMatrix        = fplll::ZZ_mat<kAryType>;
 using kAryElement       = Element_T<kAryValue, kAryLabel, kAryMatrix>;

@@ -6,6 +6,7 @@
 #include <helper.h>
 #include <list.h>
 
+#ifdef USE_FPLLL
 B63_BASELINE(Simple, nn) {
 	kAryList l{n};
 	B63_SUSPEND {
@@ -44,7 +45,14 @@ B63_BASELINE(Simple, nn) {
 //
 //	/* this is to prevent compiler from optimizing res out */
 //	B63_KEEP(res);
-//}
+//n}
+
+#else
+
+
+B63_BASELINE(DoNothing, nn) {}
+
+#endif
 
 int main(int argc, char **argv) {
 	B63_RUN_WITH("time,lpe:cycles,lpe:instructions,lpe:ref-cycles,lpe:context-switches,lpe:cs", argc, argv);

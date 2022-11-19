@@ -93,49 +93,51 @@ constexpr static ConfigParallelBucketSort chm1{b0, b1, b2, size_bucket, uint64_t
 constexpr static ConfigParallelBucketSort chm2{b0, b1-5, b2, size_bucket, uint64_t(1) << number_bucket,
                                                threads, 1, 20, 10, 0, 0,
                                                true, false, false, true};
-TEST(ParallelLockFreeBucketSort, first) {
-	using HM1Type = ParallelLockFreeBucketSort<chm1, BinaryList2, LPartType, IndexType, &Hash<0, 0+number_bucket>, &HashSearch<0, 0+number_bucket>>;
-	auto *hm = new HM1Type();
-	using Extractor = WindowExtractor<BinaryLabel, LPartType>;
-	auto extractor = [](const BinaryLabel &label1) -> LPartType {
-		return Extractor::template extract<0, 20>(label1);
-	};
 
-	BinaryList2 L{LSize, threads, LSize/threads};
-	for (uint64_t i = 0; i < LSize; ++i) {
-		L.data_label(i).random();
-	}
-
-	// Approach2
-	uint64_t t1 = clock();
-#pragma omp parallel default(none) shared(L, hm, extractor) num_threads(threads)
-	{
-		uint32_t tid = omp_get_thread_num();
-		const std::size_t s_tid = L.start_pos(tid);
-		const std::size_t e_tid = L.end_pos(tid);
-
-		uint64_t data;
-		IndexType pos[1];
-		for (uint64_t j = 0; j < loops; j++) {
-			for (std::size_t i = s_tid; i < e_tid; ++i) {
-				data = extractor(L.data_label(i));
-				pos[0] = i;
-				hm->insert(data, pos, tid);
-			}
-
-			if (j != loops-1)
-				hm->reset(tid);
-		}
-	}
-
-	uint64_t time = clock() - t1;
-	std::cout << "Time: " << time << "\n";
-	std::cout << "load: " << hm->load() << ", size: " << hm->size() <<  "\n";
-
-	uint64_t load = 0ul;
-	auto poss = hm->find(extractor(L.data_label(30)), load);
-	//ASSERT(hm->__buckets[poss].second[0] == 30);
-}
+// Does not exits anymore
+//TEST(ParallelLockFreeBucketSort, first) {
+//	using HM1Type = ParallelLockFreeBucketSort<chm1, BinaryList2, LPartType, IndexType, &Hash<0, 0+number_bucket>, &HashSearch<0, 0+number_bucket>>;
+//	auto *hm = new HM1Type();
+//	using Extractor = WindowExtractor<BinaryLabel, LPartType>;
+//	auto extractor = [](const BinaryLabel &label1) -> LPartType {
+//		return Extractor::template extract<0, 20>(label1);
+//	};
+//
+//	BinaryList2 L{LSize, threads, LSize/threads};
+//	for (uint64_t i = 0; i < LSize; ++i) {
+//		L.data_label(i).random();
+//	}
+//
+//	// Approach2
+//	uint64_t t1 = clock();
+//#pragma omp parallel default(none) shared(L, hm, extractor) num_threads(threads)
+//	{
+//		uint32_t tid = omp_get_thread_num();
+//		const std::size_t s_tid = L.start_pos(tid);
+//		const std::size_t e_tid = L.end_pos(tid);
+//
+//		uint64_t data;
+//		IndexType pos[1];
+//		for (uint64_t j = 0; j < loops; j++) {
+//			for (std::size_t i = s_tid; i < e_tid; ++i) {
+//				data = extractor(L.data_label(i));
+//				pos[0] = i;
+//				hm->insert(data, pos, tid);
+//			}
+//
+//			if (j != loops-1)
+//				hm->reset(tid);
+//		}
+//	}
+//
+//	uint64_t time = clock() - t1;
+//	std::cout << "Time: " << time << "\n";
+//	std::cout << "load: " << hm->load() << ", size: " << hm->size() <<  "\n";
+//
+//	uint64_t load = 0ul;
+//	auto poss = hm->find(extractor(L.data_label(30)), load);
+//	//ASSERT(hm->__buckets[poss].second[0] == 30);
+//}
 
 
 TEST(ParallelBucketSort, first) {
@@ -165,7 +167,7 @@ TEST(ParallelBucketSort, first) {
 			for (std::size_t i = s_tid; i < e_tid; ++i) {
 				data = extractor(L.data_label(i));
 				pos[0] = i;
-				hm->insert1(data, pos, tid);
+				hm->insert(data, pos, tid);
 			}
 
 			if (j != loops-1)
@@ -212,7 +214,7 @@ TEST(ParallelBucketSort, need2sort) {
 			for (std::size_t i = s_tid; i < e_tid; ++i) {
 				data = extractor(L.data_label(i));
 				pos[0] = i;
-				hm->insert1(data, pos, tid);
+				hm->insert(data, pos, tid);
 			}
 
 			if (j != loops-1)

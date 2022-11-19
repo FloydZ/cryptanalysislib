@@ -1,5 +1,6 @@
 #define EXTERNAL_MAIN
 #include "include.h"
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();

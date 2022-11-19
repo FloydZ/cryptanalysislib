@@ -12,8 +12,6 @@
 #define G_w                     (G_n * 3 / 8)       // NTRU encrypt
 #define SORT_INCREASING_ORDER
 #define VALUE_KARY
-static  std::vector<uint64_t>   __level_translation_array{{0, 2, 4, 6, 8, G_n}};
-constexpr std::array<std::array<uint8_t, 3>, 3>   __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{0,0,0}} }};
 
 #include "value.h"
 #include "element.h"
@@ -21,8 +19,11 @@ constexpr std::array<std::array<uint8_t, 3>, 3>   __level_filter_array{{ {{4,0,0
 #include "test.h"
 
 #include "m4ri/m4ri.h"
+
+#ifdef USE_FPLLL
 #include "fplll/nr/matrix.h"
 #include "glue_fplll.h"
+#endif
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -79,7 +80,7 @@ static inline uint64_t mult_rows(const word *row, mzd_t *A, const uint64_t i) {
 	return res;
 }
 
-
+#ifdef USE_FPLLL
 TEST(hybrid_split, compile) {
 	const uint64_t l = (G_n/2)+1;
 	const uint64_t g = (G_n/2)+1;
@@ -109,7 +110,6 @@ TEST(hybrid_split, compile) {
 	// std::cout << Al << "\n";
 
 }
-
 TEST(createBasis, compile) {
     const uint64_t l = (G_n/2)+3;
     const uint64_t g = (G_n/2)+3;
@@ -172,6 +172,66 @@ TEST(new_vector_matrix_product, symmetric_fplll_k_ary_one_simple) {
 		}
 	}
 }
+
+TEST(new_vector_matrix_product, asymmetric_fplll_random) {
+	const uint32_t rows = G_n;
+	const uint32_t columns = G_n + 10;
+
+	auto bit_random = []() {
+		return rand()%G_q;
+	};
+
+	using T = kAryType;
+	using Label = Label_T<kAryContainer_T<kAryType, columns>>;
+	using Value = Value_T<kAryContainer_T<kAryType, rows>>;
+
+	fplll::Matrix<T> mm_2_T(columns, rows);
+	fplll::NumVect<T> mm_2_v(1, rows);
+	fplll::NumVect<T> mm_2_l(1, columns);
+
+	Label l{};
+	Value v{};
+
+	for (int i = 0; i < columns; ++i) {
+		for (int j = 0; j < rows; ++j) {
+			mm_2_T(i, j) = bit_random();
+		}
+	}
+	for (int i = 0; i < rows; ++i) {
+		mm_2_v[i] = bit_random();
+	}
+	for (int i = 0; i < columns; ++i) {
+		mm_2_l[i] = 0;
+	}
+
+	ZZ_mat<kAryType> mmm_2_T(columns, rows);
+	for (int i = 0; i < columns; ++i) {
+		for (int j = 0; j < rows; ++j) {
+			//TODO does not work mmm_2_T(i, j) = mm_2_T(i, j);
+		}
+	}
+
+	Matrix_T<ZZ_mat<T>> m_T(mmm_2_T);
+
+	vector_matrix_product<T>(mm_2_l, mm_2_l, mm_2_T);
+	new_vector_matrix_product<Label, Value, ZZ_mat<T>>(l, v, m_T);
+
+	for (int i = 0; i < m_T.get_rows(); ++i) {
+		for (int j = 0; j < m_T.get_cols(); ++j) {
+			EXPECT_EQ(m_T.value(i, j),mmm_2_T(i, j));
+		}
+	}
+
+	for (int i = 0; i < v.size(); ++i) {
+		EXPECT_EQ(mm_2_v[i],v.data()[i]);
+	}
+
+	for (int i = 0; i < l.size(); ++i) {
+		EXPECT_EQ(mm_2_l[i],l.data()[i]);
+	}
+}
+
+#endif
 
 TEST(new_vector_matrix_product, symmetric_mzd_one_simple) {
 	mzd_t *mm = mzd_init(G_n, G_n);
@@ -283,63 +343,7 @@ TEST(new_vector_matrix_product, symmetric_mzd_random) {
 
 }
 
-TEST(new_vector_matrix_product, asymmetric_fplll_random) {
-	const uint32_t rows = G_n;
-	const uint32_t columns = G_n + 10;
 
-	auto bit_random = []() {
-		return rand()%G_q;
-	};
-
-	using T = kAryType;
-	using Label = Label_T<kAryContainer_T<kAryType, columns>>;
-	using Value = Value_T<kAryContainer_T<kAryType, rows>>;
-
-	fplll::Matrix<T> mm_2_T(columns, rows);
-	fplll::NumVect<T> mm_2_v(1, rows);
-	fplll::NumVect<T> mm_2_l(1, columns);
-
-	Label l{};
-	Value v{};
-
-	for (int i = 0; i < columns; ++i) {
-		for (int j = 0; j < rows; ++j) {
-			mm_2_T(i, j) = bit_random();
-		}
-	}
-	for (int i = 0; i < rows; ++i) {
-		mm_2_v[i] = bit_random();
-	}
-	for (int i = 0; i < columns; ++i) {
-		mm_2_l[i] = 0;
-	}
-
-	ZZ_mat<kAryType> mmm_2_T(columns, rows);
-	for (int i = 0; i < columns; ++i) {
-		for (int j = 0; j < rows; ++j) {
-			//TODO does not work mmm_2_T(i, j) = mm_2_T(i, j);
-		}
-	}
-
-	Matrix_T<ZZ_mat<T>> m_T(mmm_2_T);
-
-	vector_matrix_product<T>(mm_2_l, mm_2_l, mm_2_T);
-	new_vector_matrix_product<Label, Value, ZZ_mat<T>>(l, v, m_T);
-
-	for (int i = 0; i < m_T.get_rows(); ++i) {
-		for (int j = 0; j < m_T.get_cols(); ++j) {
-			EXPECT_EQ(m_T.value(i, j),mmm_2_T(i, j));
-		}
-	}
-
-	for (int i = 0; i < v.size(); ++i) {
-		EXPECT_EQ(mm_2_v[i],v.data()[i]);
-	}
-
-	for (int i = 0; i < l.size(); ++i) {
-		EXPECT_EQ(mm_2_l[i],l.data()[i]);
-	}
-}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

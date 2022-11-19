@@ -10,7 +10,7 @@
 #include "sort/ska_sort.h"
 #include "sort/vergesort.h"
 
-#include "crypto/sha1.h"
+//TODO #include "crypto/sha1.h"
 
 #include "alloc/alloc.h"
 
@@ -262,44 +262,43 @@ constexpr uint32_t doubleit(uint32_t a) {
 }
 
 
-bool test_sha1() {
-	char *text[] =
-			{ "",
-			  "a",
-			  "abc",
-			  "message digest",
-			  "abcdefghijklmnopqrstuvwxyz",
-			  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-			  "12345678901234567890123456789012345678901234567890123456789012345678901234567890"
-			};
-
-	char *SHA1_dgst[] =
-			{ "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-			  "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
-			  "a9993e364706816aba3e25717850c26c9cd0d89d",
-			  "c12252ceda8be8994d5fa0290a47231c1d16aae3",
-			  "32d10c7b8cf96570ca04ce37f2a19d84240d3a89",
-			  "761c457bf73b14d27e9e9265c46f4b4dda11f940",
-			  "50abf5706a150990a08b2c5ea40fa0e585554732"
-			};
-
-	bool ret = true;
-	uint8_t dgst[cryptanalysislib::internal::SHA1_DIGEST_LEN+1],
-			tv[cryptanalysislib::internal::SHA1_DIGEST_LEN+1];
-
-	for (uint32_t i = 0; i < sizeof(text)/sizeof(char*); i++) {
-		cryptanalysislib::sha1(dgst, (uint8_t *)text[i], strlen(text[i]));
-		hex2bin(tv, SHA1_dgst[i]);
-
-		if (memcmp(dgst, tv, cryptanalysislib::internal::SHA1_DIGEST_LEN) != 0) {
-			printf ("\nFailed for string : \"%s\"", text[i]);
-			ret = false;
-		}
-	}
-
-	return ret;
-
-}
+//bool test_sha1() {
+//	char *text[] =
+//			{ "",
+//			  "a",
+//			  "abc",
+//			  "message digest",
+//			  "abcdefghijklmnopqrstuvwxyz",
+//			  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+//			  "12345678901234567890123456789012345678901234567890123456789012345678901234567890"
+//			};
+//
+//	char *SHA1_dgst[] =
+//			{ "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+//			  "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
+//			  "a9993e364706816aba3e25717850c26c9cd0d89d",
+//			  "c12252ceda8be8994d5fa0290a47231c1d16aae3",
+//			  "32d10c7b8cf96570ca04ce37f2a19d84240d3a89",
+//			  "761c457bf73b14d27e9e9265c46f4b4dda11f940",
+//			  "50abf5706a150990a08b2c5ea40fa0e585554732"
+//			};
+//
+//	bool ret = true;
+//	uint8_t dgst[cryptanalysislib::internal::SHA1_DIGEST_LEN+1],
+//			tv[cryptanalysislib::internal::SHA1_DIGEST_LEN+1];
+//
+//	for (uint32_t i = 0; i < sizeof(text)/sizeof(char*); i++) {
+//		// TODO not constexpr cryptanalysislib::sha1(dgst, (uint8_t *)text[i], strlen(text[i]));
+//		hex2bin(tv, SHA1_dgst[i]);
+//
+//		if (memcmp(dgst, tv, cryptanalysislib::internal::SHA1_DIGEST_LEN) != 0) {
+//			printf ("\nFailed for string : \"%s\"", text[i]);
+//			ret = false;
+//		}
+//	}
+//
+//	return ret;
+//}
 
 int main(){
 	// allocator
@@ -313,7 +312,7 @@ int main(){
 //	uint8_t crypto_out_test[64] = {0};
 //	const size_t crypto_len = sizeof(crypto_in_test);
 //	cryptanalysislib::sha1(crypto_out_test, crypto_in_test, crypto_len);
-	test_sha1();
+//	test_sha1();
 
 	// container crypt
 //	cryptanalysislib::array<uint32_t, 10> v{}, w{};

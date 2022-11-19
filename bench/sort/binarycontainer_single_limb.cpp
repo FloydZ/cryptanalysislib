@@ -12,6 +12,7 @@ constexpr static uint64_t k_lower = 62;
 constexpr static uint64_t k_higher = sssize;
 using ContainerT = BinaryContainer<sssize>;
 
+using namespace  std;
 
 // std_sort
 B63_BASELINE(Std_Sort, nn) {

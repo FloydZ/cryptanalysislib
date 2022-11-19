@@ -19,6 +19,7 @@ const uint64_t BASELIST_SIZE = 10;
 const double ERROR_FACTOR_HIGHER = 1.5;
 const double ERROR_FACTOR_LOWER = 0.5;
 
+#ifdef USE_FPLLL
 ///teste für tiefe 4
 TEST(TreeTest, BuildTreeCheckDistributionOnBinaryD4) {
 	fplll::ZZ_mat<kAryType> A(n, n);
@@ -51,7 +52,7 @@ TEST(TreeTest, BuildTreeCheckDistributionOnBinaryD4) {
 		EXPECT_GE(data[i], (uint64_t(1)<<BASELIST_SIZE) * ERROR_FACTOR_LOWER);
 	}
 }
-
+#endif
 
 int main(int argc, char **argv) {
 	srand(0);

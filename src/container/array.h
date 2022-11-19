@@ -233,13 +233,16 @@ namespace cryptanalysislib {
 				return a.push_front(t, std::make_index_sequence<N>());
 			}
 		};
-
-		template<size_t I>
-		struct inserter<I, typename std::enable_if<(I > 0 && I < N)>::type> {
-			constexpr array<T, N + 1> operator()(const array<T, N> &a, const T &t) const {
-				return a.slice<0, I>().concat(a.slice<I, N>().push_front(t));
-			}
-		};
+		
+		// TODO not compiling under gcc
+		// template<size_t I>
+		// struct inserter<I, typename std::enable_if<(I > 0 && I < N)>::type> {
+		// 	constexpr array<T, N + 1> operator()(const array<T, N> &a, const T &t) const {
+		// 		return a.slice<0, I>()
+		// 				.concat(a.slice<I, N>()
+		// 				.push_front(t));
+		// 	}
+		// };
 
 		template<size_t I>
 		struct inserter<I, typename std::enable_if<(I == N)>::type> {

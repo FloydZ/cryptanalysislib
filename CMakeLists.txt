@@ -11,14 +11,14 @@ include(ExternalProject)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # include the external projects 'fplll', 'g6k', 'abseil' and 'tcmalloc'
-ExternalProject_Add(fplll_project
-        SOURCE_DIR        ${CMAKE_SOURCE_DIR}/deps/fplll
-        CONFIGURE_COMMAND cd <SOURCE_DIR> && ./autogen.sh
-        COMMAND           cd <SOURCE_DIR> && ./configure
-        BUILD_COMMAND     cd <SOURCE_DIR> && make -j8
-        INSTALL_COMMAND   ""
-        TEST_COMMAND      ""
-        )
+#ExternalProject_Add(fplll_project
+#        SOURCE_DIR        ${CMAKE_SOURCE_DIR}/deps/fplll
+#        CONFIGURE_COMMAND cd <SOURCE_DIR> && ./autogen.sh
+#        COMMAND           cd <SOURCE_DIR> && ./configure
+#        BUILD_COMMAND     cd <SOURCE_DIR> && make -j8
+#        INSTALL_COMMAND   ""
+#        TEST_COMMAND      ""
+#)
 
 ExternalProject_Add(m4ri_project
         SOURCE_DIR        ${CMAKE_SOURCE_DIR}/deps/m4ri
@@ -27,7 +27,7 @@ ExternalProject_Add(m4ri_project
         BUILD_COMMAND     cd <SOURCE_DIR> && make -j8
         INSTALL_COMMAND   ""
         TEST_COMMAND      ""
-        )
+)
 
 add_custom_target (
         CRYPTANALYSISLIB_BUILD_SCRIPT
@@ -67,13 +67,13 @@ set(SANITIZE_FLAG "")
 #set(ADDITIONAL_FLAGS "-DUSE_AVX2  -fno-inline")
 set(ADDITIONAL_FLAGS "-DUSE_AVX2")
 
-set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-unused-local-typedef -Wno-overlength-strings")
+set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-set(DEBUG_FLAGS "-g -DDEBUG -march=native  -Wno-absolute-value -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
-set(OPTIMIZE_FLAGS "-march=native -O3 -flto -DNDEBUG -Wno-absolute-value -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+set(DEBUG_FLAGS "-g -Og -DDEBUG -march=native -mavx2 -mbmi -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 set(SANITIZER_FLAGS -fsanitize=address -fno-omit-frame-pointer)
 set(GCC_HELPER_FLAGS -fvar-tracking-assignments)
 
@@ -109,7 +109,7 @@ if(USE_CUDA)
     # as far as i know this is only needed for arch linux.
     include_directories(/opt/cuda/samples/common/inc)
     include_directories(/opt/cuda/include)
-    include_directories("deps/cudacommon")
+    include_directories("deps/cuda/common")
 
     #for ubuntu
     include_directories(/usr/local/cuda/samples/common/inc)

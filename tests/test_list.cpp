@@ -14,6 +14,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+#ifdef USE_FPLLL
 ///
 /// \param l
 /// \return the number of elements which are duplicate
@@ -295,6 +296,7 @@ TEST(SearchBoundaries, Basiclevel1) {
 	}
 }
 
+#endif
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

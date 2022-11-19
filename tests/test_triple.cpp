@@ -16,12 +16,13 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using Triple = triple<uint64_t, std::array<uint32_t, 2>, Label>;
-
-TEST(Triple, first) {
-	Triple a{};
-	// std::cout << std::format("{} " , a) << "\n";
-}
+// NOT implemented
+// using Triple = triple<uint64_t, std::array<uint32_t, 2>, Label>;
+// 
+// TEST(Triple, first) {
+// 	Triple a{};
+// 	// std::cout << std::format("{} " , a) << "\n";
+// }
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

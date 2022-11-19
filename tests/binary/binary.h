@@ -18,6 +18,7 @@ using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList      = List_T<BinaryElement>;
 using BinaryTree      = Tree_T<BinaryList>;
 
+#include "../test.h"
 // DO NOT USE THIS
 #ifdef EXTERNAL_MAIN
 // #include "build_tree.cpp"
@@ -31,5 +32,4 @@ using BinaryTree      = Tree_T<BinaryList>;
 #include "value.cpp"
 #endif
 
-#include "../test.h"
 #endif //SMALLSECRETLWE_BINARY_H
