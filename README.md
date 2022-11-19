@@ -70,6 +70,11 @@ Range checks are performed in every implementation.
 Currently `ska_sort` (Link)[https://github.com/skarupke/ska_sort] is used as the main sorting algorithm. Note that sorting is avoided in the code as much as possible. Do not sort if you want fast code.
 
 
+Benchmarks
+===
+Can be found [here](https://floydz.github.io/cryptanalysislib/dev/bench/)
+
+
 TODO
 ===
 explain:
