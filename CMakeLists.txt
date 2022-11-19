@@ -11,7 +11,6 @@ include(ExternalProject)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # include the external projects 'fplll', 'g6k', 'abseil' and 'tcmalloc'
-# TODO temporary fix for the CI
 ExternalProject_Add(fplll_project
         SOURCE_DIR        ${CMAKE_SOURCE_DIR}/deps/fplll
         CONFIGURE_COMMAND cd <SOURCE_DIR> && ./autogen.sh
@@ -92,13 +91,13 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 # MAIN SOURCE FILES
 set(SRCS src/config/config.cpp)
 
-add_library(small_secret_lwe_library STATIC ${SRCS})
-add_dependencies(small_secret_lwe_library fplll_project m4ri_project)
-target_compile_options(small_secret_lwe_library PRIVATE ${VALUE_FLAG})
+# add_library(small_secret_lwe_library STATIC ${SRCS})
+# add_dependencies(small_secret_lwe_library fplll_project m4ri_project)
+# target_compile_options(small_secret_lwe_library PRIVATE ${VALUE_FLAG})
 
-#add_library(small_secret_lwe_binary_library STATIC ${SRCS})
-#add_dependencies(small_secret_lwe_binary_library fplll_project)
-#target_compile_options(small_secret_lwe_binary_library PRIVATE -DVALUE_BINARY)
+# add_library(small_secret_lwe_binary_library STATIC ${SRCS})
+# add_dependencies(small_secret_lwe_binary_library fplll_project)
+# target_compile_options(small_secret_lwe_binary_library PRIVATE -DVALUE_BINARY)
 
 # now check if we have to add the cuda runtime
 #set(USE_CUDA "1")

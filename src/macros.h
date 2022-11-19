@@ -1,4 +1,4 @@
-// TODO merge with helper.h
+// popcount_TODO merge with helper.h
 
 #ifndef SMALLSECRETLWE_MACROS_H
 #define SMALLSECRETLWE_MACROS_H
@@ -326,7 +326,7 @@
 #include <stdio.h>      // for printf
 #include <inttypes.h>   // for printf(uint64_t)
 
-#include "config.h"
+// TODO #include "config.h"
 
 /* ------------------------------------------------------------------------- */
 

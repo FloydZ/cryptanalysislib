@@ -99,18 +99,18 @@ class SHA224_256 : public CryptoHash<HASH_SIZE> {
                                         int start_index, int i=0) const { 
       return i == 64 ? 
         (hash_parameters) { 
-            prev_h[0]+h[0], 
-            prev_h[1]+h[1], 
-            prev_h[2]+h[2], 
-            prev_h[3]+h[3], 
-            prev_h[4]+h[4], 
-            prev_h[5]+h[5], 
-            prev_h[6]+h[6], 
+            prev_h[0]+h[0],
+            prev_h[1]+h[1],
+            prev_h[2]+h[2],
+            prev_h[3]+h[3],
+            prev_h[4]+h[4],
+            prev_h[5]+h[5],
+            prev_h[6]+h[6],
             prev_h[7]+h[7] 
         } : hash_block(
                     Section_T(section,start_index+i+16,scheduled),
                     hash_section(section,h,i),
-                    prev_h, start_index, i+16);
+                    prev_h, start_index,hi+16);
     }
   
     template <typename ... InitialValues>

@@ -2,6 +2,12 @@
 #define CRYPTANALYSISLIB_SHA1_H
 
 #include "macros.h"
+#include "memcpy.h"
+#include "memset.h"
+
+constexpr int get_string_size(const uint8_t *input, int i = 0) {
+    return input[i] == '\0' ? i : get_string_size(input, i+1);
+}
 
 namespace cryptanalysislib {
 	namespace internal {
@@ -35,7 +41,8 @@ namespace cryptanalysislib {
 				w[i] = ROTL32(w[i-1] ^ w[i-8] ^ w[i-14] ^ w[i-16], 1);
 			}
 
-			memcpy((uint8_t *)s, (uint8_t *)ctx_s, SHA1_DIGEST_LEN);
+			// memcpy(static_cast<uint8_t *>(s), (uint8_t *)ctx_s, SHA1_DIGEST_LEN);
+			cryptanalysislib::memcpy<uint8_t>((uint8_t *)s, ctx_s, SHA1_DIGEST_LEN);
 
 			// for 80 rounds
 			for (uint32_t i = 0; i < 80; i++) {
@@ -62,7 +69,7 @@ namespace cryptanalysislib {
 		}
 	};
 
-	constexpr void sha1(uint8_t *out, const uint8_t *const in, const size_t len) noexcept {
+	constexpr void sha1(uint8_t *out, const uint8_t *in, const size_t len) noexcept {
 		// init
 		uint32_t s[internal::SHA1_DIGEST_UINT32_LEN] = {0}, buf[internal::SHA1_CBLOCK_LEN/4];
 		s[0] = 0x67452301;
@@ -81,7 +88,7 @@ namespace cryptanalysislib {
 		// update
 		while (internal_len > 0) {
 			r = std::min(internal_len, internal::SHA1_CBLOCK_LEN);
-			memcpy(buf, p, r);
+			cryptanalysislib::memcpy<uint8_t>(buf, p, r);
 
 			if (r < internal::SHA1_CBLOCK_LEN)
 				break;
@@ -95,7 +102,7 @@ namespace cryptanalysislib {
 		uint32_t idx = len & (internal::SHA1_CBLOCK_LEN - 1);
 
 		// fill remaining space with zeros
-		memset(&((uint8_t *)buf)[len], 0, internal::SHA1_CBLOCK_LEN - len);
+		cryptanalysislib::memset<uint8_t>(&((uint8_t *)buf)[len], 0, internal::SHA1_CBLOCK_LEN - len);
 
 		// add the end bit
 		((uint8_t *)buf)[len] = 0x80;
@@ -119,6 +126,15 @@ namespace cryptanalysislib {
 		// copy digest to buffer
 		memcpy((uint8_t *)out, (uint8_t *)s, internal::SHA1_DIGEST_LEN);
 	}
+	
+	class SHA1 {
+		uint8_t data[internal::SHA1_DIGEST_LEN] = {0};
+		public:
+		constexpr SHA1(const uint8_t *input) {
+			sha1(data, input, get_string_size(input));
+
+		}
+	};
 };
 
 

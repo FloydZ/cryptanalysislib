@@ -9,7 +9,7 @@ foreach(testfile ${TEST_SOURCES})
     add_executable(${file} ${testfile})
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})
-    #add_dependencies(${file} m4ri_project fplll_project)
+    # add_dependencies(${file} m4ri_project fplll_project)
 endforeach(testfile ${TEST_SOURCES})
 
 add_subdirectory(binary)
@@ -18,3 +18,4 @@ add_subdirectory(cuda)
 endif()
 
 add_subdirectory(popcount)
+add_subdirectory(crypto)
