@@ -1,0 +1,2 @@
+/nix/store/z3l0b9fha7yj3xnwbf49kd69qc6d5l0d-binutils-2.38/bin/ar qc libsmall_secret_lwe_library.a CMakeFiles/small_secret_lwe_library.dir/src/config/config.cpp.o
+/nix/store/z3l0b9fha7yj3xnwbf49kd69qc6d5l0d-binutils-2.38/bin/ranlib libsmall_secret_lwe_library.a

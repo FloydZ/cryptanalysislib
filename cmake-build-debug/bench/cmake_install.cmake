@@ -1,0 +1,59 @@
+# Install script for directory: /home/duda/Downloads/crypto/lib/cryptanalysislib/bench
+
+# Set the install prefix
+if(NOT DEFINED CMAKE_INSTALL_PREFIX)
+  set(CMAKE_INSTALL_PREFIX "/var/empty/local")
+endif()
+string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
+
+# Set the install configuration name.
+if(NOT DEFINED CMAKE_INSTALL_CONFIG_NAME)
+  if(BUILD_TYPE)
+    string(REGEX REPLACE "^[^A-Za-z0-9_]+" ""
+           CMAKE_INSTALL_CONFIG_NAME "${BUILD_TYPE}")
+  else()
+    set(CMAKE_INSTALL_CONFIG_NAME "")
+  endif()
+  message(STATUS "Install configuration: \"${CMAKE_INSTALL_CONFIG_NAME}\"")
+endif()
+
+# Set the component getting installed.
+if(NOT CMAKE_INSTALL_COMPONENT)
+  if(COMPONENT)
+    message(STATUS "Install component: \"${COMPONENT}\"")
+    set(CMAKE_INSTALL_COMPONENT "${COMPONENT}")
+  else()
+    set(CMAKE_INSTALL_COMPONENT)
+  endif()
+endif()
+
+# Install shared libraries without execute permission?
+if(NOT DEFINED CMAKE_INSTALL_SO_NO_EXE)
+  set(CMAKE_INSTALL_SO_NO_EXE "0")
+endif()
+
+# Is this installation the result of a crosscompile?
+if(NOT DEFINED CMAKE_CROSSCOMPILING)
+  set(CMAKE_CROSSCOMPILING "FALSE")
+endif()
+
+# Set default install directory permissions.
+if(NOT DEFINED CMAKE_OBJDUMP)
+  set(CMAKE_OBJDUMP "/nix/store/z3l0b9fha7yj3xnwbf49kd69qc6d5l0d-binutils-2.38/bin/objdump")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for each subdirectory.
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/combinations/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/container/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/labeltype/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/label/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/value/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/list/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/mem/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/sort/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/search/cmake_install.cmake")
+  include("/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/bench/stl/cmake_install.cmake")
+
+endif()
+

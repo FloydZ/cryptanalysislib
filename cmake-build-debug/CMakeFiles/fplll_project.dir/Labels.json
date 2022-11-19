@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/CMakeFiles/fplll_project"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/CMakeFiles/fplll_project.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/CMakeFiles/fplll_project-complete.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/fplll_project-prefix/src/fplll_project-stamp/fplll_project-build.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/fplll_project-prefix/src/fplll_project-stamp/fplll_project-configure.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/fplll_project-prefix/src/fplll_project-stamp/fplll_project-download.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/fplll_project-prefix/src/fplll_project-stamp/fplll_project-install.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/fplll_project-prefix/src/fplll_project-stamp/fplll_project-mkdir.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/fplll_project-prefix/src/fplll_project-stamp/fplll_project-patch.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/fplll_project-prefix/src/fplll_project-stamp/fplll_project-test.rule"
+		},
+		{
+			"file" : "/home/duda/Downloads/crypto/lib/cryptanalysislib/cmake-build-debug/fplll_project-prefix/src/fplll_project-stamp/fplll_project-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"fplll_project"
+		],
+		"name" : "fplll_project"
+	}
+}
