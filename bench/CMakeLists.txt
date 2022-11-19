@@ -1,4 +1,3 @@
-set(LINK_BENCH_FLAGS -pthread gmp fplll gmpxx libm4ri.a m png)
 set(COMPILE_BENCH_FLAGS -Ofast -march=native)
 
 add_subdirectory(combinations)
