@@ -39,7 +39,23 @@ jobs:
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      run: ctest -C ${{env.BUILD_TYPE}}
+    - name: Bench
+      run: cd build && ./bench/sort/bench_b63_sort_gbench_sort --benchmark_format=json | tee benchmark_result.json
+    
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'googlecpp'
+        output-file-path: build/benchmark_result.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+        alert-threshold: '200%'
+        comment-on-alert: true
+        fail-on-alert: true
+        alert-comment-cc-users: '@FloydZ'
+      
+    # TODO
+    #- name: Test
+    #  working-directory: ${{github.workspace}}/build
+    #  run: ctest -C ${{env.BUILD_TYPE}}
 
