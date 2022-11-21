@@ -85,6 +85,7 @@ jobs:
         ./tests/binary/test_binary_sort
         ./tests/popcount/popcount_simple
 
+
   Benchmark:
     runs-on: ubuntu-latest
 
@@ -102,6 +103,10 @@ jobs:
     
     - name: Install Google Benchmark
       run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
+
+    - name: Install gtest
+      run:
+        sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
 
     - name: Run build.sh
       run: ./build.sh
