@@ -115,7 +115,7 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
     - name: Bench
       run: cd build && 
-        ./bench/sort/bench_b63_sort_gbench_sort --benchmark_=json         | tee benchmark_bench_b63_sort_gbench_sort.json               &&
+        ./bench/sort/bench_b63_sort_gbench_sort ---benchmark_format=json  | tee benchmark_bench_b63_sort_gbench_sort.json               &&
         ./bench/combinations/bench_b63_combinations_binary            -j  | tee benchmark_bench_b63_combinations_binary .json           &&
         ./bench/combinations/bench_b63_combinations_ternary           -j  | tee benchmark_bench_b63_combinations_ternary.json           &&
         ./bench/combinations/bench_b63_container_get_bits             -j  | tee benchmark_bench_b63_container_get_bits.json             &&
