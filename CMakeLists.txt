@@ -42,7 +42,7 @@ link_directories("benchmark/build/src")
 # include directories
 include_directories("deps/fplll/fplll")
 include_directories("deps/fplll")
-include_directories("deps/b63/src")
+include_directories("deps/b63/include/b63")
 include_directories("deps/m4ri")
 include_directories("deps/ska_sort")
 include_directories("deps")

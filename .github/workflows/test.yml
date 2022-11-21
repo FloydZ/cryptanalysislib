@@ -30,6 +30,74 @@ jobs:
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
     
+    - name: Run build.sh
+      run: ./build.sh
+      
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: |
+        ./tests/test_build_tree
+        ./tests/test_element
+        ./tests/test_label
+        ./tests/test_search
+        ./tests/test_treecorrectdistribution
+        ./tests/test_combinations
+        ./tests/test_gaus
+        ./tests/test_list
+        ./tests/test_sort 
+        ./tests/test_triple
+        ./tests/test_ConstNonBlockingLinkedList
+        ./tests/test_kAryPackedContainer
+        ./tests/test_matrix_mul
+        ./tests/test_stl
+        ./tests/test_value*                      
+        ./tests/test_custommatrix
+        ./tests/test_kArytype
+        ./tests/test_mem
+        ./tests/test_tree
+        ./tests/crypto/crypto_md5
+        ./tests/crypto/crypto_sha1
+        ./tests/binary/test_binary_128
+        ./tests/binary/test_binary_256_align
+        ./tests/binary/test_binary_64
+        ./tests/binary/test_binary_container
+        ./tests/binary/test_binary_container_label
+        ./tests/binary/test_binary_label
+        ./tests/binary/test_binary_tree
+        ./tests/binary/test_binary_128_align
+        ./tests/binary/test_binary_32
+        ./tests/binary/test_binary_64_align
+        ./tests/binary/test_binary_container_avx
+        ./tests/binary/test_binary_element
+        ./tests/binary/test_binary_list
+        ./tests/binary/test_binary_value
+        ./tests/binary/test_binary_256
+        ./tests/binary/test_binary_32_align
+        ./tests/binary/test_binary_build_tree
+        ./tests/binary/test_binary_container_cmp 
+        ./tests/binary/test_binary_extended_tree
+        ./tests/binary/test_binary_sort
+        ./tests/popcount/popcount_simple
+    
+
+  Benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install Software
+      run: |
+        sudo apt-get install -y libmpfr-dev libpng-dev libtbb-dev
+    
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    
     - name: Install Google Benchmark
       run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
 
@@ -38,15 +106,40 @@ jobs:
       
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-
     - name: Bench
-      run: cd build && ./bench/sort/bench_b63_sort_gbench_sort --benchmark_format=json | tee benchmark_result.json
+      run: cd build && 
+        ./bench/sort/bench_b63_sort_gbench_sort --benchmark_=json         | tee benchmark_bench_b63_sort_gbench_sort.json               &&
+        ./bench/combinations/bench_b63_combinations_binary            -j  | tee benchmark_bench_b63_combinations_binary .json           &&
+        ./bench/combinations/bench_b63_combinations_ternary           -j  | tee benchmark_bench_b63_combinations_ternary.json           &&
+        ./bench/combinations/bench_b63_container_get_bits             -j  | tee benchmark_bench_b63_container_get_bits.json             &&
+        ./bench/combinations/bench_b63_container_kAryPackedContainer  -j  | tee benchmark_bench_b63_container_kAryPackedContainer.json  &&
+        ./bench/combinations/bench_b63_label_add                      -j  | tee benchmark_bench_b63_label_add.json                      &&
+        ./bench/combinations/bench_b63_label_add_level                -j  | tee benchmark_bench_b63_label_add_level.json                &&
+        ./bench/combinations/bench_b63_label_equal_level              -j  | tee benchmark_bench_b63_label_equal_level.json              &&
+        ./bench/combinations/bench_b63_label_sub                      -j  | tee benchmark_bench_b63_label_sub.json                      &&
+        ./bench/combinations/bench_b63_label_sub_level                -j  | tee benchmark_bench_b63_label_sub_level.json                &&
+        ./bench/combinations/bench_b63_labeltype_add                  -j  | tee benchmark_bench_b63_labeltype_add.json                  &&
+        ./bench/combinations/bench_b63_labeltype_sub                  -j  | tee benchmark_bench_b63_labeltype_sub.json                  &&
+        ./bench/combinations/bench_b63_list_binarysearch              -j  | tee benchmark_bench_b63_list_binarysearchjson               &&
+        ./bench/combinations/bench_b63_list_search                    -j  | tee benchmark_bench_b63_list_search.json                    &&
+        ./bench/combinations/bench_b63_list_sort                      -j  | tee benchmark_bench_b63_list_sort                           &&
+        ./bench/combinations/bench_b63_mem_malloc_free                -j  | tee benchmark_bench_b63_mem_malloc_free.json                &&
+        ./bench/combinations/bench_b63_search_binarysearch            -j  | tee benchmark_bench_b63_search_binarysearch.json            &&
+        ./bench/combinations/bench_b63_search_internal_parallel_bucket_search -j  | tee benchmark_bench_b63_search_internal_parallel_bucket_search.json &&
+        ./bench/combinations/bench_b63_sort_binarycontainer_single_limb       -j  | tee benchmark_bench_b63_sort_binarycontainer_single_limb.json       &&
+        ./bench/combinations/bench_b63_sort_internal_parallel_bucket_sort     -j  | tee benchmark_bench_b63_sort_internal_parallel_bucket_sort.json     &&
+        ./bench/combinations/bench_b63_sort_sort                      -j  | tee benchmark_bench_b63_sort_sort.json                      &&
+        ./bench/combinations/bench_stl_stl                            -j  | tee benchmark_bench_stl_stl.json                            &&
+        ./bench/combinations/bench_b63_value_absolute                 -j  | tee benchmark_bench_b63_value_absolute.json                 &&
+        ./bench/combinations/bench_b63_value_add                      -j  | tee benchmark_bench_b63_value_add.json                      &&
+        ./bench/combinations/bench_b63_value_move_operator            j  | tee benchmark_bench_b63_value_move_operator.json
+
     
-    - name: Store benchmark result
+    - name: benchmark_bench_b63_sort_gbench_sort
       uses: benchmark-action/github-action-benchmark@v1
       with:
         tool: 'googlecpp'
-        output-file-path: build/benchmark_result.json
+        output-file-path: build/benchmark_bench_b63_sort_gbench_sort.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: true
         alert-threshold: '200%'
@@ -54,8 +147,16 @@ jobs:
         fail-on-alert: true
         alert-comment-cc-users: '@FloydZ'
       
-    # TODO
-    #- name: Test
-    #  working-directory: ${{github.workspace}}/build
-    #  run: ctest -C ${{env.BUILD_TYPE}}
+    - name: benchmark_bench_b63_combinations_binary
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'googlecpp'
+        output-file-path: build/benchmark_bench_b63_combinations_binary.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+        alert-threshold: '200%'
+        comment-on-alert: true
+        fail-on-alert: true
+        alert-comment-cc-users: '@FloydZ'
+      
 
