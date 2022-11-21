@@ -21,6 +21,15 @@ sudo make
 sudo cp *.a /usr/lib
 ```
 
+## NixOS
+```bash
+nix-shell
+mkdir build
+cd build
+cmake ..
+make
+```
+
 ## MacOS
 ```bash
 brew install cmake make tbb gcc googletest autoconf automake libtool googlebenchmark
