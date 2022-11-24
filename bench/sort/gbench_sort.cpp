@@ -18,20 +18,19 @@ std::vector<ContainerT> data;
 
 void setup(const benchmark::State& state) {
 	data.resize(SIZE_LIST);
-	for (int i = 0; i < SIZE_LIST; ++i) {
+	for (uint32_t i = 0; i < SIZE_LIST; ++i) {
 		data[i].random();
 	}
 }
 
-
 static void BM_std_sort(benchmark::State& state) {
+	setup(state);
 	for (auto _ : state) {
 		std::sort(data.begin(), data.end(), [](const ContainerT &a, const ContainerT &b){
 			return a.is_greater<k_lower, k_higher>(b);
 		});
 	}
 }
-
 
 static void BM_crum_sort(benchmark::State& state) {
 	for (auto _ : state) {
@@ -41,11 +40,9 @@ static void BM_crum_sort(benchmark::State& state) {
 	}
 }
 
-
-
-
-
-// Register the function as a benchmark
-BENCHMARK(BM_std_sort)->Setup(setup);;
-BENCHMARK(BM_crum_sort)->Setup(setup);;
+// run the benchmarks
+//BENCHMARK(BM_std_sort)->Setup(setup);
+//BENCHMARK(BM_crum_sort)->Setup(setup);
+BENCHMARK(BM_std_sort);
+BENCHMARK(BM_crum_sort);
 BENCHMARK_MAIN();
