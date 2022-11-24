@@ -9,7 +9,7 @@
 #define G_l                     0u                  // unused Parameter
 #define G_k                     0u                  // unused Parameter
 #define G_d                     0u                  // unused Parameter
-#define G_n                     32u
+#define G_n                     256u
 #define LOG_Q                   1u                  // unused Parameter
 #define G_q                     1u                  // unused Parameter
 #define G_w                     1u                  // unused Parameter

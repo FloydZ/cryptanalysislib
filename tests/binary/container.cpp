@@ -46,19 +46,19 @@ TEST(Internals, access_pass_through) {
 	}
 }
 
-TEST(Internals, compute_limbs){
-	BinaryContainer<63> b1;
-	EXPECT_EQ(b1.compute_limbs(), 1);
-
-	BinaryContainer<64> b2;
-	EXPECT_EQ(b2.compute_limbs(), 1);
-
-	BinaryContainer<65> b3;
-	EXPECT_EQ(b3.compute_limbs(), 2);
-
-	BinaryContainer<250> b4;
-	EXPECT_EQ(b4.compute_limbs(), 4);
-}
+//TEST(Internals, compute_limbs){
+//	BinaryContainer<63> b1;
+//	EXPECT_EQ(b1.compute_limbs(), 1);
+//
+//	BinaryContainer<64> b2;
+//	EXPECT_EQ(b2.compute_limbs(), 1);
+//
+//	BinaryContainer<65> b3;
+//	EXPECT_EQ(b3.compute_limbs(), 2);
+//
+//	BinaryContainer<250> b4;
+//	EXPECT_EQ(b4.compute_limbs(), 4);
+//}
 
 TEST(Internals, masks){
 	BinaryContainer<n> b;
