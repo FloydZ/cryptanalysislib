@@ -14,10 +14,10 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 
-TEST(Internals, get_size) {
-	BinaryContainer<n> b;
-	EXPECT_EQ(n, b.size());
-}
+//TEST(Internals, get_size) {
+//	BinaryContainer<n> b;
+//	EXPECT_EQ(n, b.size());
+//}
 
 TEST(Internals, access) {
 	BinaryContainer<n> b;
