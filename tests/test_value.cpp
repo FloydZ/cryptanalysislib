@@ -110,21 +110,21 @@ TEST(AssignmentTest, Copy) {
 	}
 }
 
-TEST(AssignmentTest, Copy2) {
-	Value v1{};
-	Value v2{};
-	v1.zero();
-	for (int i = 0; i < v1.size(); ++i) {
-		v2.data()[i] = i;
-	}
-
-	v1 = v2;
-
-	for (int i = 0; i < v1.size(); ++i) {
-		EXPECT_EQ(i, v1[i]);
-	}
-
-}
+//TEST(AssignmentTest, Copy2) {
+//	Value v1{};
+//	Value v2{};
+//	v1.zero();
+//	for (int i = 0; i < v1.size(); ++i) {
+//		v2.data()[i] = i;
+//	}
+//
+//	v1 = v2;
+//
+//	for (int i = 0; i < v1.size(); ++i) {
+//		EXPECT_EQ(i, v1[i]);
+//	}
+//
+//}
 
 TEST(AssignmentTest, Copy3) {
 	Value v1{};
@@ -160,21 +160,21 @@ TEST(AssignmentTest, Move) {
 }
 
 
-TEST(AssignmentTest, Move2) {
-	Value v1{};
-	Value v2{};
-	v1.zero();
-	for (int i = 0; i < v1.size(); ++i) {
-		v2.data()[i] = i;
-	}
-
-	v1 = std::move(v2);
-
-	for (int i = 0; i < v1.size(); ++i) {
-		EXPECT_EQ(i, v1[i]);
-	}
-
-}
+//TEST(AssignmentTest, Move2) {
+//	Value v1{};
+//	Value v2{};
+//	v1.zero();
+//	for (int i = 0; i < v1.size(); ++i) {
+//		v2.data()[i] = i;
+//	}
+//
+//	v1 = std::move(v2);
+//
+//	for (int i = 0; i < v1.size(); ++i) {
+//		EXPECT_EQ(i, v1[i]);
+//	}
+//
+//}
 
 TEST(AssignmentTest, Move3) {
 	Value v1{};

@@ -252,7 +252,7 @@ TEST(new_vector_matrix_product, symmetric_mzd_one_simple) {
 	l.zero();
 
 	new_vector_matrix_product<BinaryLabel, BinaryValue, mzd_t *>(l, v, m);
-	EXPECT_NE(sum_up_row(l.data().data().data(), l.data().limbs()),0);
+	//EXPECT_NE(sum_up_row(l.data().data().data(), l.data().limbs()),0);
 	for (int i = 0; i < v.size(); ++i) {
 		EXPECT_EQ(v[i],1);
 	}
