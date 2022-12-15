@@ -3,7 +3,7 @@
 
 #include "m4ri/m4ri.h"
 #include "m4ri/mzd.h"
-#include "helper.h"
+//#include "helper.h"
 #include "random.h"
 
 #include <type_traits>

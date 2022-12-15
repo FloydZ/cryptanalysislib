@@ -151,7 +151,9 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 #endif
 
 #ifdef DEBUG
+#ifndef DEBUG_MACRO
 #define DEBUG_MACRO(x) x
+#endif
 #else
 #define DEBUG_MACRO(x)
 #endif
