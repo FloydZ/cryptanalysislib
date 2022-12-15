@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669324664195,
+  "lastUpdate": 1671113212601,
   "repoUrl": "https://github.com/FloydZ/cryptanalysislib",
   "entries": {
     "Benchmark": [
@@ -306,6 +306,40 @@ window.BENCHMARK_DATA = {
             "value": 656180.8941947535,
             "unit": "ns/iter",
             "extra": "iterations: 1068\ncpu: 656092.509363296 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "floyd.zweydinger@rub.de",
+            "name": "Floyd Zweydinger"
+          },
+          "committer": {
+            "email": "floyd.zweydinger@rub.de",
+            "name": "Floyd Zweydinger"
+          },
+          "distinct": true,
+          "id": "e203c68b810ac81d8486cd31b2924beb5a672f97",
+          "message": "added better gaus test/bench",
+          "timestamp": "2022-12-15T14:59:21+01:00",
+          "tree_id": "c21e944f827069fa4114e78fdb7e8db73bdcd845",
+          "url": "https://github.com/FloydZ/cryptanalysislib/commit/e203c68b810ac81d8486cd31b2924beb5a672f97"
+        },
+        "date": 1671113211096,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "BM_std_sort",
+            "value": 18987197.971427705,
+            "unit": "ns/iter",
+            "extra": "iterations: 35\ncpu: 18978808.571428575 ns\nthreads: 1"
+          },
+          {
+            "name": "BM_crum_sort",
+            "value": 636335.9682395408,
+            "unit": "ns/iter",
+            "extra": "iterations: 1102\ncpu: 636274.6823956444 ns\nthreads: 1"
           }
         ]
       }
