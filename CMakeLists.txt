@@ -74,13 +74,14 @@ set(ADDITIONAL_FLAGS "-DUSE_AVX2")
 
 set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings")
 
+set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
+set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
+
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-set(DEBUG_FLAGS "-g -Og -DDEBUG -march=native -mavx2 -mbmi -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+set(DEBUG_FLAGS "-g -Og -DDEBUG -march=native -mavx2 -mbmi -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
-set(SANITIZER_FLAGS -fsanitize=address -fno-omit-frame-pointer)
-set(GCC_HELPER_FLAGS -fvar-tracking-assignments)
 
 # TODO simplify to only one flag
 # note that fplll is missing
@@ -120,7 +121,7 @@ if(USE_CUDA)
     # as far as i know this is only needed for arch linux.
     include_directories(/opt/cuda/samples/common/inc)
     include_directories(/opt/cuda/include)
-    include_directories("deps/cuda/common")
+    include_directories(deps/cuda/common)
 
     #for ubuntu
     include_directories(/usr/local/cuda/samples/common/inc)

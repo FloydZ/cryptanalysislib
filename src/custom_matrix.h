@@ -3,7 +3,7 @@
 
 #include "m4ri/m4ri.h"
 #include "m4ri/mzd.h"
-//#include "helper.h"
+#include "helper.h"
 #include "random.h"
 
 #include <type_traits>
@@ -22,7 +22,7 @@
 #define WORD_SIZE (8 * sizeof(word))
 
 
-// aus dem ganzen spass mal ne klasse machen
+// TODO, create a class out of this
 typedef struct customMatrixData {
 	uint32_t **rev;
 	uint32_t **diff;
@@ -609,7 +609,7 @@ size_t matrix_echelonize_partial_opt(mzd_t *M,
 
 // additionally, to the m4ri algorithm a fix is applied if m4ri fails
 /// \param M
-/// \param k
+/// \param k			m4ri k
 /// \param rstop
 /// \param matrix_data
 /// \param cstart
@@ -626,14 +626,16 @@ size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
                                          const size_t look_ahead,
                                          mzp_t *__restrict__ permutation) noexcept {
 	size_t rang = matrix_echelonize_partial(M, k, rstop, matrix_data, cstart);
+	// printf("%d %d\n", rang, rstop);
+
 	for (size_t b = rang; b < rstop; ++b) {
 		bool found = false;
 		// find a column where in the last row is a one
 		for (size_t i = fix_col+look_ahead; i < size_t(M->ncols); ++i) {
 			if (mzd_read_bit(M, b, i)) {
 				found = true;
-				if (i == b)
-					break;
+				// if (i == b)
+				// 	break;
 
 				std::swap(permutation->values[i-look_ahead], permutation->values[b]);
 				mzd_col_swap(M, b, i);
@@ -648,6 +650,13 @@ size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
 					mzd_row_xor(M, i, b);
 				}
 			}
+			
+			// and solve it below
+			for (size_t i = b+1; i < M->nrows; ++i) {
+				if (mzd_read_bit(M, i, b)) {
+					mzd_row_xor(M, i, b);
+				}
+			}
 		} else {
 			// if we were not able to fix the gaussian elimination, we return the original rang which was solved
 			return rang;
@@ -655,7 +664,8 @@ size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
 	}
 
 	// return the full rang, if we archived it.
-	return fix_col;
+	// return fix_col;
+	return rstop;
 }
 
 
@@ -681,13 +691,18 @@ static int gray_new(const uint32_t i,
 }
 
 
+///
 void matrix_alloc_gray_code(uint32_t ***__restrict__ rev, uint32_t ***__restrict__ diff) noexcept {
-	*rev  = (uint32_t **) aligned_alloc(1024, (MAX_K + 1) * sizeof(uint32_t *));
-	*diff = (uint32_t **) aligned_alloc(1024, (MAX_K + 1) * sizeof(uint32_t *));
+	constexpr uint32_t alignment = 1024;
+	*rev  = (uint32_t **) aligned_alloc(alignment, MAX(alignment, (MAX_K + 1) * sizeof(uint32_t *)));
+	*diff = (uint32_t **) aligned_alloc(alignment, MAX(alignment, (MAX_K + 1) * sizeof(uint32_t *)));
 
 	for (size_t k = 0; k <= MAX_K; ++k) {
-		(*rev)[k]  = (uint32_t *) aligned_alloc(1024, (1 << k) * sizeof(uint32_t));
-		(*diff)[k] = (uint32_t *) aligned_alloc(1024, (1 << k) * sizeof(uint32_t));
+		// (*rev)[k]  = (uint32_t *) aligned_alloc(alignment, (1 << k) * sizeof(uint32_t));
+		// (*diff)[k] = (uint32_t *) aligned_alloc(alignment, (1 << k) * sizeof(uint32_t));
+
+		(*rev)[k]  = (uint32_t *) malloc((1 << k) * sizeof(uint32_t));
+		(*diff)[k] = (uint32_t *) malloc((1 << k) * sizeof(uint32_t));
 	}
 }
 
@@ -697,6 +712,7 @@ void matrix_free_gray_code(uint32_t **rev, uint32_t **diff) noexcept {
 		free(rev[k]);
 		free(diff[k]);
 	}
+
 	free(rev);
 	free(diff);
 }
@@ -718,8 +734,9 @@ void matrix_build_gray_code(uint32_t **rev, uint32_t **diff) noexcept {
 
 // special copy, which can be useful if you working with avx alignment
 mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) noexcept {
-	if (N == P)
+	if (N == P) {
 		return N;
+	}
 
 	if (N == NULL) {
 		N = mzd_init(P->nrows, P->ncols);
@@ -738,6 +755,7 @@ mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) noexcept {
 }
 
 customMatrixData* init_matrix_data(int nr_columns) noexcept {
+	// this should be alignend
 	customMatrixData *matrix_data = (customMatrixData *) malloc(sizeof(customMatrixData));
 
 	matrix_data->real_nr_cols = nr_columns;
@@ -746,7 +764,7 @@ customMatrixData* init_matrix_data(int nr_columns) noexcept {
 	matrix_alloc_gray_code(&matrix_data->rev, &matrix_data->diff);
 	matrix_build_gray_code(matrix_data->rev, matrix_data->diff);
 
-	matrix_data->lookup_table = (uint64_t *) aligned_alloc(4096, (MATRIX_AVX_PADDING(nr_columns) / 8) * (1<<MAX_K));
+	matrix_data->lookup_table = (uint64_t *)aligned_alloc(4096, (MATRIX_AVX_PADDING(nr_columns) / 8) * (1<<MAX_K));
 	return matrix_data;
 }
 
@@ -835,17 +853,26 @@ size_t matrix_echelonize_partial_plusfix_opt (
 	mzd_transpose(AT, A);
 
 	// constexpr auto unitpos = create_array_impl<uint16_t, n-k-l>(std::make_index_sequence<n-k-l>{});
-	std::vector<uint16_t> unitpos(nkl, zero);
-	std::vector<uint16_t> posfix(n, zero);
+	// std::vector<uint16_t> unitpos(nkl, zero);
+	// std::vector<uint16_t> posfix(n, zero);
 	//auto posfix = create_array_impl<uint16_t, n>(std::make_index_sequence<n>{});
 
 	//uint16_t unitpos[nkl] = {[0 ... nkl-1] = zero};
 	//uint16_t posfix [n] = {[0 ... n-1] = zero};
+	
+	static uint16_t unitpos[nkl];
+	static uint16_t posfix [n];
+	for (uint32_t i = 0; i < nkl; ++i) {
+		unitpos[i] = zero;
+	}
 
-	for (uint32_t i = 0; i < n-k-l; ++i) {
+	for (uint32_t i = 0; i < nkl; ++i) {
 		posfix[i] = i;
 	}
 
+	for (uint32_t i = nkl; i < n; ++i) {
+		posfix[i] = zero;
+	}
 	uint32_t unitctr = 0, switchctr = 0;
 
 	// dont permute the last column since it is the syndrome
@@ -865,7 +892,7 @@ size_t matrix_echelonize_partial_plusfix_opt (
 	}
 
 	// move in the matrix everything to the right
-	for (uint32_t i = n-k-l; i > 0; i--) {
+	for (uint32_t i = nkl; i > 0; i--) {
 		// move the right pointer to the next free place from the right
 		if (unitpos[i-1] == zero) {
 			// move the left pointer to the next element
@@ -930,10 +957,10 @@ size_t matrix_echelonize_partial_plusfix_opt (
 	// apply the final gaussian elimination on the first coordinates
 	matrix_echelonize_partial_opt(A, m4ri_k, nkl-unitctr, nkl, matrix_data);
 	// std::cout << unitctr << " " << nkl-unitctr << "\n";
-#else
-	matrix_echelonize_partial_plusfix(A, m4ri_k, n - k - l, matrix_data, 0, n - k - l, 0, P);
-#endif
 	return nkl;
+#else
+	return matrix_echelonize_partial_plusfix(A, m4ri_k, n - k - l, matrix_data, 0, n - k - l, 0, P);
+#endif
 }
 
 template<const uint32_t n, 
@@ -953,14 +980,27 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 	
 	// some security checks
 	static_assert(nkl >= c);
+	ASSERT(c > m4ri_k);
 
 	// create the transposed
 	mzd_transpose(AT, A);
 	
-	std::vector<uint16_t> unitpos1(c, zero);
-	std::vector<uint16_t> unitpos2(c, zero);
-	std::vector<uint16_t> posfix  (nkl, zero);
-	std::vector<uint16_t> perm    (n, zero);
+	//std::vector<uint16_t> unitpos1(c, zero);
+	//std::vector<uint16_t> unitpos2(c, zero);
+	//std::vector<uint16_t> posfix  (nkl, zero);
+	//std::vector<uint16_t> perm    (n, zero);
+	static uint16_t unitpos1[c];
+	static uint16_t unitpos2[c];
+	static uint16_t posfix[nkl];
+	static uint16_t perm[n];
+
+	for (uint32_t i = 0; i < c; ++i) {
+		unitpos1[i] = zero;
+	}
+
+	for (uint32_t i = 0; i < c; ++i) {
+		unitpos2[i] = zero;
+	}
 
 	for (uint32_t i = 0; i < nkl; ++i) {
 		posfix[i] = i;
@@ -989,8 +1029,9 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 		mzd_row_swap(AT, pos1, pos2);
 
 		unitpos1[i] = pos1;
-		if (pos1 < c)
+		if (pos1 < c) {
 			unitpos2[pos1] = 0;
+		}
 	}
 
 	// move in the matrix everything to the left
@@ -1005,51 +1046,57 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 
 		mzd_row_swap(AT, left_ctr, unitpos1[right_ctr]);
 		std::swap(P->values[left_ctr], P->values[unitpos1[right_ctr]]);
-		//unitpos1[switch_ctr] = unitpos1[right_ctr];
 		posfix[unitpos1[right_ctr]] = left_ctr;
-		//switch_ctr += 1;
 
 		// step to the next element
 		right_ctr += 1;
 	}
 
-	//mzd_print(AT);
-	//std::cout << "\n";
-
-	//for (int i = 0; i < c; ++i) {
-	//	std::cout << i << ":" << unitpos1[i]  << "\n";
-	//}
-	//std::cout << std::flush;
-
 	// transpose it back
 	mzd_transpose(A, AT);
-
-	//mzd_print(A);
-	//std::cout << "\n";
 
 	for (uint32_t i = nkl; i > c; i--){
 		mzd_row_swap(A, i-1, posfix[i-1]);
 		std::swap(posfix[i-1], posfix[posfix[i-1]]);
 	}
 
-	//mzd_print(A);
-	//std::cout << "\n";
-
-	// final fix
-//	for (uint32_t i = c; i < nkl; ++i) {
-//		if (mzd_read_bit(A, i, i) == 0) {
-//			for (uint32_t j = 0; j < nkl; ++j) {
-//				if (mzd_read_bit(A, j, i)) {
-//					mzd_row_swap(A, i, j);
-//					break;
-//				}
-//			}
-//		}
-//	}
-
-
 	// apply the final gaussian elimination on the first coordinates
-	matrix_echelonize_partial_opt(A, m4ri_k, c, nkl, matrix_data);
+	const uint32_t rang = matrix_echelonize_partial_opt(A, m4ri_k, c, nkl, matrix_data);
+	
+	// fix the first 
+	for (size_t b = rang; b < c; ++b) {
+		bool found = false;
+		// find a column where in the last row is a one
+		for (size_t i = n-k-l; i < n; ++i) {
+			if (mzd_read_bit(A, b, i)) {
+				found = true;
+
+				std::swap(P->values[i], P->values[b]);
+				mzd_col_swap(A, b, i);
+				break;
+			}
+		}
+
+		ASSERT(found);
+
+		// if something found, fix this row by adding it to each row where a 1 one.
+		if (found) {
+			for (size_t i = 0; i < b; ++i) {
+				if (mzd_read_bit(A, i, b)) {
+					mzd_row_xor(A, i, b);
+				}
+			}
+			
+			// and solve it below
+			for (size_t i = b+1; i < n-k; ++i) {
+				if (mzd_read_bit(A, i, b)) {
+					mzd_row_xor(A, i, b);
+				}
+			}
+		} 
+	}
+	
+	
 	// std::cout << unitctr << " " << nkl-unitctr << "\n";
 
 	// mzd_print(A);
