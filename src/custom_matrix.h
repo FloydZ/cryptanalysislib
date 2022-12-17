@@ -11,6 +11,8 @@
 #include <array>
 #include <memory>
 
+#include <omp.h>
+
 #ifdef USE_AVX2
 #include <immintrin.h>
 #include <emmintrin.h>
@@ -994,10 +996,12 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 	static uint16_t posfix[nkl];
 	static uint16_t perm[n];
 
+	#pragma unroll
 	for (uint32_t i = 0; i < c; ++i) {
 		unitpos1[i] = zero;
 	}
 
+	#pragma unroll
 	for (uint32_t i = 0; i < c; ++i) {
 		unitpos2[i] = zero;
 	}
@@ -1036,13 +1040,24 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 
 	// move in the matrix everything to the left
 	uint32_t left_ctr, right_ctr = 0;//, switch_ctr = 0;
-	for (left_ctr = 0; left_ctr < c; left_ctr++) {
+	for (left_ctr = 0; left_ctr < c && right_ctr < c; left_ctr++) {
 		if (unitpos2[left_ctr] == 0)
 			continue;
 
-		while(right_ctr < c && unitpos1[right_ctr] < c) {
+		while(right_ctr < (c-1) && unitpos1[right_ctr] < c) {
 			right_ctr += 1;
 		}
+
+		//if (right_ctr >= c || unitpos1[right_ctr] >= (n-k-l)) {
+		//	std::cout << "kekw: ";
+		//	std::cout << omp_get_thread_num() << ":";
+		//	std::cout << right_ctr << "\n";
+		//	for (uint32_t i = 0; i < c; i++){
+		//		std::cout << unitpos1[i] << " ";
+		//	}
+		//}
+		//ASSERT(right_ctr < c);
+		//ASSERT(unitpos1[right_ctr] < n-k-l);
 
 		mzd_row_swap(AT, left_ctr, unitpos1[right_ctr]);
 		std::swap(P->values[left_ctr], P->values[unitpos1[right_ctr]]);
