@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671113212601,
+  "lastUpdate": 1671286822865,
   "repoUrl": "https://github.com/FloydZ/cryptanalysislib",
   "entries": {
     "Benchmark": [
@@ -340,6 +340,40 @@ window.BENCHMARK_DATA = {
             "value": 636335.9682395408,
             "unit": "ns/iter",
             "extra": "iterations: 1102\ncpu: 636274.6823956444 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "floyd.zweydinger@rub.de",
+            "name": "Floyd Zweydinger"
+          },
+          "committer": {
+            "email": "floyd.zweydinger@rub.de",
+            "name": "Floyd Zweydinger"
+          },
+          "distinct": true,
+          "id": "fc210f741a00ace0ffcb3616095bfca63785eef6",
+          "message": "gitbak",
+          "timestamp": "2022-12-17T15:10:54+01:00",
+          "tree_id": "7ef0da35a0f1f97698577ec4b8d18136904630bf",
+          "url": "https://github.com/FloydZ/cryptanalysislib/commit/fc210f741a00ace0ffcb3616095bfca63785eef6"
+        },
+        "date": 1671286820195,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "BM_std_sort",
+            "value": 22540228.39130575,
+            "unit": "ns/iter",
+            "extra": "iterations: 23\ncpu: 22227782.608695652 ns\nthreads: 1"
+          },
+          {
+            "name": "BM_crum_sort",
+            "value": 812273.9569892864,
+            "unit": "ns/iter",
+            "extra": "iterations: 837\ncpu: 812201.5531660692 ns\nthreads: 1"
           }
         ]
       }
