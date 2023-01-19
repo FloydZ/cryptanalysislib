@@ -1,0 +1,4 @@
+gcc -fPIC -Wall -fomit-frame-pointer -fwrapv -O3
+gcc -fPIC -Wall -fomit-frame-pointer -fwrapv -march=core-avx2 -O3
+clang -fPIC -Wall -fomit-frame-pointer -fwrapv -Qunused-arguments -O3
+clang -fPIC -Wall -fomit-frame-pointer -fwrapv -Qunused-arguments -mavx2 -O3

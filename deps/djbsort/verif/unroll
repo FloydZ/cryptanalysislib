@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+import sys
+import angr
+
+symbol = sys.argv[1]
+n = int(sys.argv[2])
+executable = sys.argv[3]
+
+proj = angr.Project(executable)
+state = proj.factory.full_init_state()
+
+state.options -= {angr.options.SIMPLIFY_EXPRS}
+state.options -= {angr.options.SIMPLIFY_REGISTER_WRITES}
+state.options -= {angr.options.SIMPLIFY_MEMORY_WRITES}
+state.options -= {angr.options.SIMPLIFY_REGISTER_READS}
+state.options -= {angr.options.SIMPLIFY_MEMORY_READS}
+state.options.add(angr.options.SYMBOL_FILL_UNCONSTRAINED_MEMORY)
+state.options.add(angr.options.SYMBOL_FILL_UNCONSTRAINED_REGISTERS)
+
+xaddr = proj.loader.find_symbol(symbol).rebased_addr
+for i in range(n):
+  state.mem[xaddr + 4 * i].int = state.solver.BVS('in%d' % i,32)
+
+simgr = proj.factory.simgr(state)
+simgr.run()
+
+exits = simgr.deadended
+assert len(exits) == 1
+
+walked = dict()
+walknext = 0
+
+def rename(op):
+  if op == '__add__': return 'add'
+  if op == '__sub__': return 'sub'
+  if op == '__mul__': return 'mul'
+  if op == '__or__': return 'or'
+  if op == '__xor__': return 'xor'
+  if op == '__and__': return 'and'
+  if op == '__invert__': return 'invert'
+  if op == '__eq__': return 'equal'
+  if op == '__rshift__': return 'signedrshift'
+  if op == 'SLE': return 'signedle'
+  if op == 'SLT': return 'signedlt'
+  return op
+
+def informat(x):
+  if x.startswith('in'):
+    y = x[2:].split('_')
+    x = 'in_%s_%s' % (y[0],y[2])
+  return x
+
+def walk(t):
+  global walknext
+  if t in walked: return walked[t]
+  if t.op == '__xor__':
+    inputs = [walk(a) for a in t.args]
+    result = inputs[0]
+    for x in inputs[1:]:
+      walknext += 1
+      print('v%d = xor(v%d,v%d)' % (walknext,result,x))
+      result = walknext
+    walked[t] = result
+    return result
+  if t.op == 'BVV':
+    walknext += 1
+    print('v%d = constant(%d,%d)' % (walknext,t.size(),t.args[0]))
+  elif t.op == 'BVS':
+    walknext += 1
+    print('v%d = %s' % (walknext,informat(t.args[0])))
+  elif t.op == 'Extract':
+    assert len(t.args) == 3
+    input = 'v%d' % walk(t.args[2])
+    walknext += 1
+    print('v%d = Extract(%s,%d,%d)' % (walknext,input,t.args[0],t.args[1]))
+  elif t.op == 'SignExt':
+    assert len(t.args) == 2
+    input = 'v%d' % walk(t.args[1])
+    walknext += 1
+    print('v%d = SignExt(%s,%d)' % (walknext,input,t.args[0]))
+  else:
+    inputs = ['v%d' % walk(a) for a in t.args]
+    walknext += 1
+    if t.op == 'SGE':
+      t.op = 'SLE'
+      inputs = reversed(inputs)
+    if t.op == 'SGT':
+      t.op = 'SLT'
+      inputs = reversed(inputs)
+    print('v%d = %s(%s)' % (walknext,rename(t.op),','.join(inputs)))
+  walked[t] = walknext
+  return walknext
+
+for i in range(n):
+  x = exits[0].mem[xaddr + 4 * i].int.resolved
+  print('out%d = v%s' % (i,walk(x)))

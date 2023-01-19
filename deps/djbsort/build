@@ -1,0 +1,371 @@
+#!/usr/bin/env python3
+
+import string
+import re
+import platform
+import sys
+import os
+import subprocess
+import shutil
+import datetime
+
+def readfile(fn):
+  with open(fn,'r') as f:
+    return f.read()
+
+def writefilebinary(fn,s):
+  with open(fn,'wb') as f:
+    f.write(s)
+
+def writefile(fn,s):
+  with open(fn,'w') as f:
+    f.write(s)
+
+def copymkdir(old,dir):
+  try:
+    os.makedirs(dir)
+  except:
+    pass
+  shutil.copy(old,dir)
+
+project = 'djbsort'
+
+version = readfile('version').strip()
+
+shorthostname = platform.node().split('.')[0].lower()
+okcharacters = string.ascii_letters + string.digits
+shorthostname = ''.join(c for c in shorthostname if c in okcharacters)
+
+startdir = os.getcwd()
+
+work = '%s/link-build/build-%s/%s' % (startdir,version,shorthostname)
+shutil.rmtree(work,True)
+os.makedirs(work)
+
+notes = '%s/notes' % work
+os.makedirs(notes)
+log = open('%s/log' % notes,'w')
+
+hinternal = '%s/include' % work
+shutil.copytree('h-internal',hinternal)
+
+tmp = '%s/tmp' % work
+
+hexternal = '%s/link-install/run-%s/%s/include' % (startdir,version,shorthostname)
+shutil.rmtree(hexternal,True)
+shutil.copytree('h-external',hexternal)
+
+results = '%s/link-build/obj-%s/%s' % (startdir,version,shorthostname)
+shutil.rmtree(results,True)
+os.makedirs(results)
+
+
+logprevious = None
+
+def lognow(x,y=''):
+  global logprevious
+
+  x = re.sub('\n','_',x)
+  output = '%s\n' % x
+  if y:
+    try:
+      y = y.decode()
+    except:
+      pass
+    for z in y.splitlines():
+      output += '> %s\n' % z
+
+  now = datetime.datetime.now()
+  if logprevious == None: logprevious = now
+  duration = (now - logprevious).total_seconds()
+  logprevious = now
+
+  log.write('%s === %9f === %s' % (now.ctime(),duration,output))
+  log.flush()
+  sys.stdout.write(output)
+  sys.stdout.flush()
+
+lognow('build starting')
+lognow('version %s' % version)
+lognow('hostname %s' % shorthostname)
+
+def guessarchitectures(c):
+  try:
+    command = '%s -dumpmachine' % (c)
+    p = subprocess.Popen(command.split(),cwd=tmp,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    out,err = p.communicate()
+    assert not err
+    if p.returncode:
+      lognow('dumpmachine exited %s' % (p.returncode))
+    out = out.decode()
+    if out.startswith('x86_64'): return ['x86','amd64']
+    if out.startswith('i686'): return ['x86']
+    if out.startswith('i386'): return ['x86']
+    if out.startswith('aarch64'): return ['arm','armeabi','aarch64']
+    if out.startswith('arm'): return ['arm','armeabi']
+    return
+  except Exception as e:
+    lognow('dumpmachine failed %s' % e)
+    return
+
+def compile(c,c_,tmp,dir,f):
+  try:
+    command = '%s -fvisibility=hidden -c %s' % (c,f)
+    p = subprocess.Popen(command.split(),cwd=tmp,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    out,err = p.communicate()
+    assert not err
+    if out:
+      lognow('output',out)
+      try:
+        os.makedirs('%s/%s/%s' % (notes,c_,dir))
+      except:
+        pass
+      writefilebinary('%s/%s/%s/%s' % (notes,c_,dir,f),out)
+    if p.returncode:
+      lognow('%s/%s compiler exited %s' % (dir,f,p.returncode))
+      return False
+    return True
+  except Exception as e:
+    lognow('%s/%s compiler failed %s' % (dir,f,e))
+    return False
+
+def checknamespace(tmp,dir,fo,namespace):
+  for symbol in subprocess.check_output(['nm','-pP','--defined-only','%s/%s' % (tmp,fo)]).decode().splitlines():
+    symbol = symbol.split()
+    if symbol[1] in ['b','d','r','t']: continue
+    if symbol[0] == namespace: continue
+    if symbol[0].startswith('%s_' % namespace): continue
+    if symbol[0].startswith('__x86.get_pc_thunk.'): continue
+    x = '%s_priv_%s' % (namespace,symbol[0])
+    lognow('%s warning: namespace violation: %s %s %s %s' % (dir,fo,symbol[0],symbol[1],x))
+
+# ----- compilers
+
+compilers = {}
+compilers['c'] = readfile('compilers/c').splitlines()
+compilerarchitectures = {}
+
+for c in compilers['c']:
+  c = c.strip()
+  if c == '': continue
+  c_ = re.sub(' ','_',c)
+
+  copt = c
+
+  shutil.rmtree(tmp,True)
+  os.mkdir(tmp)
+
+  lognow('compilers/abiname.c compiling %s' % c)
+  shutil.copy('compilers/abiname.c',tmp)
+  if compile(copt,c_,tmp,'compilers','abiname.c'):
+    copymkdir('%s/abiname.o' % tmp,'%s/%s/%s' % (results,c_,'compilers'))
+
+  x = 'void djbsort_base(void) { ; }'
+  writefile('%s/base.c' % tmp,x)
+  if compile(copt,c_,tmp,'compilers','base.c'):
+    copymkdir('%s/base.o' % tmp,'%s/%s/%s' % (results,c_,'compilers'))
+
+  a = guessarchitectures(c)
+  if a: compilerarchitectures[c] = a
+
+# ----- cpucycles
+
+for counter in sorted(os.listdir('cpucycles')):
+  source = 'cpucycles/%s' % counter
+  if not os.path.isdir(source): continue
+
+  for c in compilers['c']:
+    c = c.strip()
+    if c == '': continue
+    c_ = re.sub(' ','_',c)
+
+    if c in compilerarchitectures:
+      if os.path.exists('%s/architectures' % source):
+        if all(abi.strip() not in compilerarchitectures[c]
+               for abi in readfile('%s/architectures' % source).splitlines()):
+          lognow('%s skipping architecture %s' % (source,c))
+          continue
+
+    lognow('%s compiling %s' % (source,c))
+
+    shutil.rmtree(tmp,True)
+    os.mkdir(tmp)
+    shutil.copy('%s/cpucycles.c' % source,tmp)
+    shutil.copy('%s/implementation.c' % source,tmp)
+    shutil.copy('cpucycles/osfreq.c',tmp)
+    shutil.copy('cpucycles/test.c',tmp)
+
+    copt = c
+    copt += ' -I%s' % hinternal
+
+    if compile(copt,c_,tmp,'cpucycles','cpucycles.c'):
+      if compile(copt,c_,tmp,'cpucycles','implementation.c'):
+        if compile(copt,c_,tmp,'cpucycles','test.c'):
+          dir = '%s/%s/%s/%s' % (results,c_,'cpucycles',counter)
+          copymkdir('%s/cpucycles.o' % tmp,dir)
+          copymkdir('%s/implementation.o' % tmp,dir)
+          copymkdir('%s/test.o' % tmp,dir)
+          if os.path.exists('%s/architectures' % source):
+            copymkdir('%s/architectures' % source,dir)
+          checknamespace(tmp,'cpucycles','cpucycles.o','djbsort_cpucycles')
+          checknamespace(tmp,'cpucycles','implementation.o','djbsort_cpucycles')
+
+# ----- sorting
+
+types = readfile('TYPES').splitlines()
+
+for t in types:
+  t = t.strip()
+  if t == '': continue
+  if not os.path.isdir(t): continue
+  o = '%s_sort' % t
+
+  for impl in sorted(os.listdir(t)):
+    implementationdir = '%s/%s' % (t,impl)
+    if not os.path.isdir(implementationdir): continue
+    
+    files = sorted(os.listdir(implementationdir))
+    cfiles = [x for x in files if x.endswith('.c')]
+    sfiles = [x for x in files if x.endswith('.s') or x.endswith('.S')]
+    files = cfiles + sfiles
+
+    shutil.rmtree(tmp,True)
+    shutil.copytree(implementationdir,tmp)
+
+    # implementations are not allowed to provide compiler.c
+    files += ['compiler.c']
+
+    if not 'version.c' in files:
+      x = ''
+      x += '#include "%s.h"\n' % o
+      x += 'const char %s_version[] __attribute__((visibility("default"))) = "%s";\n' % (o,version)
+      writefile('%s/version.c' % tmp,x)
+      files += ['version.c']
+
+    if not 'implementation.c' in files:
+      x = ''
+      x += '#include "%s.h"\n' % o
+      x += 'const char %s_implementation[] __attribute__((visibility("default"))) = "%s";\n' % (o,implementationdir)
+      writefile('%s/implementation.c' % tmp,x)
+      files += ['implementation.c']
+
+    libraryfiles = list(files)
+
+    shutil.copy('%s/cycles.c' % t,tmp)
+    shutil.copy('%s/works.c' % t,tmp)
+    files += ['cycles.c','works.c']
+
+    ok = True
+    for f in files:
+      if f[0] == '-':
+        lognow('skipping %s because of invalid filename %s' % (implementationdir,f))
+        ok = False
+      for c in f:
+        if not c in string.ascii_letters + string.digits + '._-':
+          lognow('skipping %s because of invalid filename %s' % (implementationdir,f))
+          ok = False
+
+    if not ok: continue
+
+    for c in compilers['c']:
+      c = c.strip()
+      if c == '': continue
+      c_ = re.sub(' ','_',c)
+
+      if c in compilerarchitectures:
+        if os.path.exists('%s/architectures' % implementationdir):
+          if all(abi.strip() not in compilerarchitectures[c]
+                 for abi in readfile('%s/architectures' % implementationdir).splitlines()):
+            lognow('%s skipping architecture %s' % (implementationdir,c))
+            continue
+
+      lognow('%s compiling %s' % (implementationdir,c))
+
+      cquoted = c
+      cquoted = re.sub(r'\\',r'\\\\',cquoted)
+      cquoted = re.sub(r'"',r'\\"',cquoted)
+
+      compilerc = ''
+      compilerc += '#include "%s.h"\n' % o
+      compilerc += 'const char %s_compiler[] __attribute__((visibility("default"))) = "%s";\n' % (o,cquoted)
+      writefile('%s/compiler.c' % tmp,compilerc)
+
+      ok = True
+
+      for f in files:
+        copt = c
+        if f[-2:] in ['.s','.S']:
+          copt += ' -DPRIVATE='
+        else:
+          copt += ' -DPRIVATE=__attribute__((visibility("hidden")))'
+        copt += ' -I. -I%s -I%s' % (hinternal,hexternal)
+
+        lognow('%s/%s compiling' % (implementationdir,f))
+        if not compile(copt,c_,tmp,implementationdir,f):
+          ok = False
+          # but keep going through files to collect error messages
+
+      if ok:
+        lognow('%s compiled %s' % (implementationdir,c))
+        dir = '%s/%s/%s' % (results,c_,implementationdir)
+        for f in files:
+          fo = f[:-1] + 'o'
+          copymkdir('%s/%s' % (tmp,fo),dir)
+          if f in libraryfiles:
+            checknamespace(tmp,implementationdir,fo,'djbsort_%s' % t)
+        if os.path.exists('%s/architectures' % implementationdir):
+          copymkdir('%s/architectures' % implementationdir,dir)
+
+# ----- command
+
+for commandlib in ['limits']:
+  for c in compilers['c']:
+    c = c.strip()
+    if c == '': continue
+    c_ = re.sub(' ','_',c)
+
+    lognow('command/%s.c compiling %s' % (commandlib,c))
+  
+    shutil.rmtree(tmp,True)
+    os.mkdir(tmp)
+  
+    shutil.copy('command/%s.c' % commandlib,tmp)
+    shutil.copy('command/%s.h' % commandlib,tmp)
+  
+    copt = c
+    copt += ' -I%s' % hexternal
+  
+    if compile(copt,c_,tmp,'command','%s.c' % commandlib):
+      dir = '%s/%s/%s' % (results,c_,'command')
+      copymkdir('%s/%s.o' % (tmp,commandlib),dir)
+
+for t in types:
+  t = t.strip()
+  if t == '': continue
+  if not os.path.isdir(t): continue
+  cmd = '%s-speed' % t
+
+  shutil.rmtree(tmp,True)
+  os.mkdir(tmp)
+  
+  shutil.copy('command/%s.c' % cmd,tmp)
+  shutil.copy('command/limits.h',tmp)
+  
+  for c in compilers['c']:
+    c = c.strip()
+    if c == '': continue
+    c_ = re.sub(' ','_',c)
+  
+    lognow('command/%s.c compiling %s' % (cmd,c))
+  
+    copt = c
+    copt += ' -I%s' % hexternal
+  
+    if compile(copt,c_,tmp,'command','%s.c' % cmd):
+      dir = '%s/%s/%s' % (results,c_,'command')
+      copymkdir('%s/%s.o' % (tmp,cmd),dir)
+
+# ----- finishing
+
+shutil.rmtree(tmp,True)
+lognow('build finishing successfully')

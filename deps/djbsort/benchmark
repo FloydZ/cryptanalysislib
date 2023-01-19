@@ -1,0 +1,5 @@
+#!/bin/sh -e
+
+link-install/command/int32-speed
+
+echo 'benchmark finishing successfully'
