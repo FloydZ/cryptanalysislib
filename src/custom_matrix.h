@@ -117,7 +117,7 @@ inline void xor_avx1_new(const uint8_t *x,
 void mzd_row_xor(mzd_t *out,
                  const rci_t i,
                  const rci_t j) noexcept {
-	assert(out->nrows > i && out->nrows > j);
+	ASSERT(out->nrows > i && out->nrows > j);
 	for (uint32_t l = 0; l < uint32_t(out->width); ++l) {
 		out->rows[i][l] ^= out->rows[j][l];
 	}
@@ -808,11 +808,12 @@ static void print_matrix(const char *s, const mzd_t *A, int start_row=-1, int en
 	const int ss = start_row == -1 ? 0 : start_row;
 	const int ee = end_row == -1 ? A->nrows : end_row;
 
-	printf("%s\n", s);
+	if (s != nullptr)
+		printf("%s\n", s);
 	for (int i = ss; i < ee; ++i) {
 		mzd_fprint_row(stdout, A, i);
 	}
-	printf("\n");
+	//printf("\n");
 }
 
 static void print_matrix(const char *s, const mzd_t *A, int start_row, int end_row, int start_col, int end_col) noexcept {
@@ -978,7 +979,7 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 		mzp_t *__restrict__ P) noexcept {
 	constexpr uint32_t nkl  = n-k-l;
 	constexpr uint16_t zero = uint16_t(-1);
-	constexpr uint32_t mod = k+l;
+	// constexpr uint32_t mod = k+l;
 	
 	// some security checks
 	static_assert(nkl >= c);

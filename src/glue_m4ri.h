@@ -107,7 +107,8 @@ void mzd_row_xor(mzd_t *out, const rci_t i, const rci_t j, const rci_t k) {
 }
 
 void mzd_row_xor(mzd_t *out, const rci_t i, const mzd_t *in, const rci_t j) {
-	ASSERT(out->nrows > i && in->nrows > j && out->ncols == in->ncols);
+	// ASSERT(out->nrows > i && in->nrows > j && out->ncols == in->ncols);
+	ASSERT(out->nrows > i && in->nrows > j);
 	for (uint32_t l = 0; l < uint32_t(out->width); ++l) {
 		out->rows[i][l] ^= in->rows[j][l];
 	}

@@ -14,7 +14,7 @@
 #include <vector>       // for __level_translation_array
 #include <array>
 #include <cmath>
-#include <concepts>     // for std::integral
+//#include <concepts>     // for std::integral
 #include <type_traits>  // for std::convertable_to
 #include <cassert>
 
@@ -159,6 +159,12 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 #endif
 
 
+long long cpucycles(void) {
+  unsigned long long result;
+  asm volatile(".byte 15;.byte 49;shlq $32,%%rdx;orq %%rdx,%%rax"
+    : "=a" (result) ::  "%rdx");
+  return result;
+}
 
 size_t hex2bin (void *bin, const char hex[]) {
 	size_t len;
@@ -1063,4 +1069,17 @@ public:
 	}
 };
 
+///
+/// \tparam T
+/// \param a
+/// \param len
+template<typename T>
+static void print_binary(T a, const size_t len = sizeof(T)*8) {
+	for (uint32_t i = 0; i < len; i++) {
+		printf("%d", a & 1);
+		a >>= 1;
+	}
+
+	printf("\n");
+}
 #endif //SMALLSECRETLWE_HELPER_H
