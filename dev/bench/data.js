@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1674137429840,
+  "lastUpdate": 1674151104772,
   "repoUrl": "https://github.com/FloydZ/cryptanalysislib",
   "entries": {
     "Benchmark": [
@@ -408,6 +408,40 @@ window.BENCHMARK_DATA = {
             "value": 636096.2227273086,
             "unit": "ns/iter",
             "extra": "iterations: 1100\ncpu: 636033.3636363638 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "floyd.zweydinger@rub.de",
+            "name": "Floyd Zweydinger"
+          },
+          "committer": {
+            "email": "floyd.zweydinger@rub.de",
+            "name": "Floyd Zweydinger"
+          },
+          "distinct": true,
+          "id": "7121b26974c715672522b70026f5a9e55e4dfc59",
+          "message": "added new sorting algos",
+          "timestamp": "2023-01-19T18:51:15+01:00",
+          "tree_id": "2def5e02bcc31edb26ce698755b4c8cd279bef56",
+          "url": "https://github.com/FloydZ/cryptanalysislib/commit/7121b26974c715672522b70026f5a9e55e4dfc59"
+        },
+        "date": 1674151103220,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "BM_std_sort",
+            "value": 18989448.428570606,
+            "unit": "ns/iter",
+            "extra": "iterations: 35\ncpu: 18986319.999999996 ns\nthreads: 1"
+          },
+          {
+            "name": "BM_crum_sort",
+            "value": 635520.4736842109,
+            "unit": "ns/iter",
+            "extra": "iterations: 1102\ncpu: 635457.0780399273 ns\nthreads: 1"
           }
         ]
       }
