@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1674151104772,
+  "lastUpdate": 1674943810279,
   "repoUrl": "https://github.com/FloydZ/cryptanalysislib",
   "entries": {
     "Benchmark": [
@@ -442,6 +442,40 @@ window.BENCHMARK_DATA = {
             "value": 635520.4736842109,
             "unit": "ns/iter",
             "extra": "iterations: 1102\ncpu: 635457.0780399273 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "floyd.zweydinger@rub.de",
+            "name": "Floyd Zweydinger"
+          },
+          "committer": {
+            "email": "floyd.zweydinger@rub.de",
+            "name": "Floyd Zweydinger"
+          },
+          "distinct": true,
+          "id": "bdea9c9583f66122118c97b1764ca15c04c4fc9b",
+          "message": "added sorting network avx2",
+          "timestamp": "2023-01-28T23:03:39+01:00",
+          "tree_id": "9dbd16b043d43fb2cce85d37d997bf70d46f1ba5",
+          "url": "https://github.com/FloydZ/cryptanalysislib/commit/bdea9c9583f66122118c97b1764ca15c04c4fc9b"
+        },
+        "date": 1674943808758,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "BM_std_sort",
+            "value": 19318154.029412974,
+            "unit": "ns/iter",
+            "extra": "iterations: 34\ncpu: 19317420.58823529 ns\nthreads: 1"
+          },
+          {
+            "name": "BM_crum_sort",
+            "value": 637332.0264116582,
+            "unit": "ns/iter",
+            "extra": "iterations: 1098\ncpu: 637282.7868852462 ns\nthreads: 1"
           }
         ]
       }
