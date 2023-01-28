@@ -18,3 +18,4 @@ endif()
 
 add_subdirectory(popcount)
 add_subdirectory(crypto)
+add_subdirectory(sort)
