@@ -46,7 +46,7 @@ include_directories("deps/b63/include/b63")
 include_directories("deps/m4ri")
 include_directories("deps/ska_sort")
 include_directories("deps/ska_sort")
-include_directories("deps/StaticSort/include")
+include_directories("deps/Static-Sort/include")
 include_directories("src")
 include_directories("/usr/local/include")
 

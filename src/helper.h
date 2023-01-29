@@ -191,6 +191,18 @@ size_t hex2bin (void *bin, const char hex[]) {
 	return len / 2;
 }
 
+
+// returns the smallest multiple of `alignment` that is greater of equal to size
+constexpr size_t cryptanalysislib_align(const size_t size, const size_t alignment) {
+	ASSERT(size > 0);
+	ASSERT(alignment > 0);
+	const size_t t1 = (size/alignment) + 1;
+	const size_t t2 = t1 * alignment;
+
+	return t2;
+}
+
+
 // Mem functions
 static __FORCEINLINE__ void* cryptanalysislib_align_up(const void * address, size_t alignment) {
 	return (void *)((((intptr_t)address) + ((intptr_t)alignment) - 1) & (-((intptr_t)alignment)));

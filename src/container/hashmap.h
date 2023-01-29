@@ -1,0 +1,5 @@
+#ifndef SMALLSECRETLWE_HASHMAP_H
+#define SMALLSECRETLWE_HASHMAP_H
+
+#include "hashmap/simple.h"
+#endif //SMALLSECRETLWE_HASHMAP_H
