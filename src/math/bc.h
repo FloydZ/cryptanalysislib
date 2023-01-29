@@ -90,3 +90,72 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 	// will never happen
 	return _mm256_set1_epi32(1);
 }
+
+/// NOTE: this function computes the `a` bitstring of length `n` and weight `p`
+/// given the a-th step enumerating the list,
+/// return the indicis of the a-th error vector.
+/// \tparam n length of the bitstring
+/// \tparam p weight of the bitstring
+/// \param a input value
+/// \param rows rows[i] is the position of the i-th bit
+template<const uint32_t n, const uint32_t p>
+inline void biject(size_t a, uint16_t rows[p]) noexcept {
+	size_t wn = n;
+	if constexpr (p == 1) {
+		wn -= opt_max_bc<size_t, 1>(a, wn);
+		wn -= 1;
+		rows[0] = wn;
+		return;
+	}
+
+	if constexpr (p == 2) {
+		// w == 2
+		wn -= opt_max_bc<size_t, 2>(a, wn);
+		a -= ((wn-1u) *(wn-2u)) >> 1u;
+
+		wn -= 1u;
+		rows[0] = wn;
+
+		wn -= opt_max_bc<size_t, 1>(a, wn);
+		wn -= 1u;
+		rows[1] = wn;
+		return;
+	}
+
+	ASSERT(false);
+}
+
+/// NOTE: this function computes the `a` bitstring of length `n` and weight `p`,
+///			but for 8 32-bit limbs at the same time.
+/// NOTE: a < 2**32
+/// \tparam n length of the bitstring
+/// \tparam p weight of the bitstring
+/// \param a input value
+/// \param rows rows[i] is the position of the i-th bit
+template<const uint32_t n, const uint32_t p>
+inline void biject_avx(__m256i a, __m256i rows[p]) noexcept {
+	static_assert(p < 3, "not implemented");
+
+	const __m256i one = _mm256_set1_epi32(1);
+	__m256i wn =  _mm256_set1_epi32(n);
+	if constexpr (p == 1) {
+		rows[0] = opt_max_bc_avx<size_t, 1>(a, wn);
+		return;
+	}
+
+	if constexpr (p == 2) {
+		// w == 2
+		wn = opt_max_bc_avx<size_t, 2>(a, wn);
+
+		// a -= ((wn-1u) *(wn-2u)) >> 1u;
+		const __m256i tmp1 = _mm256_mullo_epi32(wn, _mm256_sub_epi32(wn, one));
+		a = _mm256_sub_epi32(a, _mm256_srli_epi32(tmp1, 1));
+		rows[0] = wn;
+
+		//
+		rows[1] = opt_max_bc_avx<size_t, 1>(a, wn);
+		return;
+	}
+
+	ASSERT(false);
+}
