@@ -1,0 +1,4 @@
+#ifndef SMALLSECRETLWE_NN_H
+#define SMALLSECRETLWE_NN_H
+#include "avx2.h"
+#endif //SMALLSECRETLWE_NN_H

@@ -1,0 +1,8 @@
+file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+foreach(testfile ${TEST_SOURCES})
+    file(RELATIVE_PATH filename ${CMAKE_CURRENT_SOURCE_DIR} ${testfile})
+    string(REPLACE ".cpp" "" file ${filename})
+    add_executable(nn_${file} ${testfile})
+    target_compile_options(nn_${file} PUBLIC ${COMPILE_TEST_FLAGS})
+    target_link_libraries(nn_${file} ${LINK_TEST_FLAGS})
+endforeach(testfile ${TEST_SOURCES})

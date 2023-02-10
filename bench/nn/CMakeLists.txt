@@ -1,0 +1,7 @@
+file(GLOB BENCH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+foreach(benchfile ${BENCH_SOURCES})
+    file(RELATIVE_PATH filename ${CMAKE_CURRENT_SOURCE_DIR} ${benchfile})
+    string(REPLACE ".cpp" "" file ${filename})
+    add_executable(bench_nn_${file} ${benchfile})
+    target_compile_options(bench_nn_${file} PUBLIC ${COMPILE_BENCH_FLAGS})
+endforeach( benchfile ${BENCH_SOURCES})
