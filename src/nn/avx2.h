@@ -11,6 +11,9 @@
 
 #include "random.h"
 
+/// TODO merge those global macros with `helper.h`
+
+
 ///
 #define LOAD_ALIGNED
 #ifdef LOAD_ALIGNED
@@ -32,6 +35,7 @@
 #define ASSERT(x) assert(x)
 #endif
 
+/// TODO rename
 class WindowedAVX2_Config {
 private:
 	// disable the normal constructor
@@ -235,7 +239,7 @@ public:
 	constexpr static size_t r = config.r;
 	constexpr static size_t N = config.N;
 	constexpr static size_t LIST_SIZE = config.LIST_SIZE;
-	constexpr static uint64_t k = n/r;
+	constexpr static uint64_t k = 64;// TODO(n)/r;
 	constexpr static uint32_t dk = config.dk;
 	constexpr static uint32_t d = config.d;
 	constexpr static uint64_t epsilon = config.epsilon;
@@ -2272,6 +2276,7 @@ public:
 	/// \param e2
 	template<const uint32_t level>
 	void avx2_nn_internal(const size_t e1, const size_t e2) {
+		static_assert(k%32 == 0);
 		ASSERT(e1 <= LIST_SIZE);
 		ASSERT(e2 <= LIST_SIZE);
 
@@ -2281,7 +2286,7 @@ public:
 			bruteforce(e1, e2);
 		} else {
 			size_t new_e1;
-			size_t new_e2;	
+			size_t new_e2;
 
 			if constexpr (k == 64) {
 				const uint64_t z = fastrandombytes_uint64();
@@ -2291,6 +2296,8 @@ public:
 				const uint32_t z = (uint32_t) fastrandombytes_uint64();
 				new_e1 = avx2_sort_nn_on32<r - level>(e1, z, L1);
 				new_e2 = avx2_sort_nn_on32<r - level>(e2, z, L2);
+			} else {
+				ASSERT(false);
 			}
 
 			ASSERT(new_e1 <= LIST_SIZE);
@@ -2323,7 +2330,7 @@ public:
 		}
 	}
 
-	void avx2_nn(const size_t e1, const size_t e2) {
+	void avx2_nn(const size_t e1=LIST_SIZE, const size_t e2=LIST_SIZE) {
 		//config.print();
 
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
