@@ -397,6 +397,74 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 	}
 }
 
+TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
+	constexpr size_t LS = 1u << 18u;
+	constexpr static WindowedAVX2_Config config{256, 4, 320, LS, 10, 8, 0, 512};
+	WindowedAVX2<config> algo{};
+	algo.generate_random_instance();
+	memcpy(algo.L1, algo.L2, LS*4*8);
+
+	uint32_t z = fastrandombytes_uint64();
+	size_t e1 = algo.avx2_sort_nn_on32_simple<0>(LS, z, algo.L1);
+	size_t e2 = algo.avx2_sort_nn_on32<0>(LS, z, algo.L2);
+	EXPECT_EQ(e1, e2);
+
+	for (size_t i = 0; i < LS; ++i) {
+		for (uint32_t j = 0; j < 4; ++j) {
+			EXPECT_EQ(algo.L1[i][j], algo.L2[i][j]);
+		}
+	}
+
+	free(algo.L1);
+	free(algo.L2);
+	algo.generate_random_instance();
+	memcpy(algo.L1, algo.L2, LS*4*8);
+
+	z = fastrandombytes_uint64();
+	e1 = algo.avx2_sort_nn_on32_simple<1>(LS, z, algo.L1);
+	e2 = algo.avx2_sort_nn_on32<1>(LS, z, algo.L2);
+	EXPECT_EQ(e1, e2);
+
+	for (size_t i = 0; i < LS; ++i) {
+		for (uint32_t j = 0; j < 4; ++j) {
+			EXPECT_EQ(algo.L1[i][j], algo.L2[i][j]);
+		}
+	}
+
+	free(algo.L1);
+	free(algo.L2);
+	algo.generate_random_instance();
+	memcpy(algo.L1, algo.L2, LS*4*8);
+
+	z = fastrandombytes_uint64();
+	e1 = algo.avx2_sort_nn_on32_simple<2>(LS, z, algo.L1);
+	e2 = algo.avx2_sort_nn_on32<2>(LS, z, algo.L2);
+	EXPECT_EQ(e1, e2);
+
+	for (size_t i = 0; i < LS; ++i) {
+		for (uint32_t j = 0; j < 4; ++j) {
+			EXPECT_EQ(algo.L1[i][j], algo.L2[i][j]);
+		}
+	}
+
+
+	free(algo.L1);
+	free(algo.L2);
+	algo.generate_random_instance();
+	memcpy(algo.L1, algo.L2, LS*4*8);
+
+	z = fastrandombytes_uint64();
+	e1 =algo.avx2_sort_nn_on32_simple<3>(LS, z, algo.L1);
+	e2 =algo.avx2_sort_nn_on32<3>(LS, z, algo.L2);
+	EXPECT_EQ(e1, e2);
+
+	for (size_t i = 0; i < LS; ++i) {
+		for (uint32_t j = 0; j < 4; ++j) {
+			EXPECT_EQ(algo.L1[i][j], algo.L2[i][j]);
+		}
+	}
+}
+
 TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	constexpr size_t LS = 1u << 18u;
 	constexpr static WindowedAVX2_Config config{256, 4, 300, LS, 23, 16, 0, 512};
