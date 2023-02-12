@@ -116,9 +116,14 @@ def compute_time(n, lam, w, r, N, d):
 
 
 # TODO compute intermediate list size
-n = 256
-lam = 1 << 14
-w = 16
+#n = 256
+#lam = 1 << 14
+#w = 16
+
+
+n = 84
+lam = math.comb(431-345, 2)
+w = 6
 r, N, d, k = compute_optimal_params(n, lam, w)
 print("r", r, "N", N, "d", d)
 

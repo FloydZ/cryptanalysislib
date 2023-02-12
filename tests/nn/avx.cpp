@@ -472,7 +472,7 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	algo.generate_random_instance();
 
 	constexpr uint32_t nr_tries = 1;
-	uint32_t sols= 0;
+	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {
 		algo.avx2_nn(LS, LS);
 		sols += algo.solutions_nr;
@@ -486,6 +486,26 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	EXPECT_EQ(sols, nr_tries);
 }
 
+TEST(NearestNeighborAVX, MO431Params_n84_r3) {
+	constexpr size_t LS = 1u << 12u;
+	constexpr static WindowedAVX2_Config config{84, 3, 128, LS, 12, 6, 0, 128};
+	WindowedAVX2<config> algo{};
+	algo.generate_random_instance();
+
+	constexpr uint32_t nr_tries = 10;
+	uint32_t sols = 0;
+	for (size_t i = 0; i < nr_tries; i++) {
+		algo.avx2_nn(LS, LS);
+		sols += algo.solutions_nr;
+		algo.solutions_nr = 0;
+
+		free(algo.L1);
+		free(algo.L2);
+		algo.generate_random_instance();
+	}
+
+	EXPECT_EQ(sols, nr_tries);
+}
 TEST(NearestNeighborAVX, Dev) {
 	constexpr static WindowedAVX2_Config config{256, 4, 500, 1u<<14, 22, 16, 0, 512};
 	WindowedAVX2<config> algo{};

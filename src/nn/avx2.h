@@ -239,7 +239,7 @@ public:
 	constexpr static size_t r = config.r;
 	constexpr static size_t N = config.N;
 	constexpr static size_t LIST_SIZE = config.LIST_SIZE;
-	constexpr static uint64_t k = 64;// TODO(n)/r;
+	constexpr static uint64_t k = 32;// TODO(n)/r;
 	constexpr static uint32_t dk = config.dk;
 	constexpr static uint32_t d = config.d;
 	constexpr static uint64_t epsilon = config.epsilon;
@@ -767,10 +767,14 @@ public:
 
 			return true;
 		} else {
+			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
 			uint32_t wt = 0;
 			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; i++) {
 				wt += __builtin_popcountll(a[i] ^ b[i]);
 			}
+
+			ASSERT(!(a[ELEMENT_NR_LIMBS - 1] & mask));
+			ASSERT(!(b[ELEMENT_NR_LIMBS - 1] & mask));
 
 			return wt <= d;
 		}
@@ -911,6 +915,24 @@ public:
 						found_solution(i, j);
 					}
 				}
+			}
+		}
+	}
+
+	/// bruteforce the two lists between the given start and end indices.
+	/// NOTE: without avx2
+	/// \param e1 end index of list 1
+	/// \param e2 end index list 2
+	void bruteforce_96(const size_t e1,
+					   const size_t e2) {
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+
+		for (size_t i = s1; i < e1; i++) {
+			for (size_t j = s2; j < e2; j++) {
+				// TODO
+
 			}
 		}
 	}
@@ -1940,7 +1962,9 @@ public:
 		if constexpr (32 < n and n <= 64) {
 			bruteforce_avx2_64_uxv<4, 4>(e1, e2);
 		} else if constexpr (64 < n and n <= 128){
-			bruteforce_avx2_128(e1, e2);
+			bruteforce_128(e1, e2);
+			// TODO this brute force only works if actually all limbs are used up to 128
+			//bruteforce_avx2_128(e1, e2);
 		} else if constexpr (128 < n and n <= 256) {
 			// TODO optimal value
 			if (e1 < 10 && e2 < 10) {
@@ -2391,8 +2415,9 @@ public:
 				new_e2 = avx2_sort_nn_on64<r - level>(e2, z, L2);
 			} else if constexpr (k == 32) {
 				const uint32_t z = (uint32_t) fastrandombytes_uint64();
-				new_e1 = avx2_sort_nn_on32<r - level>(e1, z, L1);
-				new_e2 = avx2_sort_nn_on32<r - level>(e2, z, L2);
+				// TODO
+				new_e1 = avx2_sort_nn_on32_simple<r - level>(e1, z, L1);
+				new_e2 = avx2_sort_nn_on32_simple<r - level>(e2, z, L2);
 			} else {
 				ASSERT(false);
 			}
