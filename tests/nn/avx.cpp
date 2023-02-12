@@ -488,7 +488,7 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 
 TEST(NearestNeighborAVX, MO431Params_n84_r3) {
 	constexpr size_t LS = 1u << 12u;
-	constexpr static WindowedAVX2_Config config{84, 3, 128, LS, 12, 6, 0, 128};
+	constexpr static WindowedAVX2_Config config{84, 3, 108, LS, 12, 6, 0, 128};
 	WindowedAVX2<config> algo{};
 	algo.generate_random_instance();
 
