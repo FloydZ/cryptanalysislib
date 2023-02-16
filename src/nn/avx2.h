@@ -239,7 +239,7 @@ public:
 	constexpr static size_t r = config.r;
 	constexpr static size_t N = config.N;
 	constexpr static size_t LIST_SIZE = config.LIST_SIZE;
-	constexpr static uint64_t k = 32;// TODO(n)/r;
+	constexpr static uint64_t k = 64;// TODO(n)/r;
 	constexpr static uint32_t dk = config.dk;
 	constexpr static uint32_t d = config.d;
 	constexpr static uint64_t epsilon = config.epsilon;
@@ -2546,7 +2546,6 @@ public:
 				new_e2 = avx2_sort_nn_on64<r - level>(e2, z, L2);
 			} else if constexpr (k == 32) {
 				const uint32_t z = (uint32_t) fastrandombytes_uint64();
-				// TODO
 				new_e1 = avx2_sort_nn_on32<r - level>(e1, z, L1);
 				new_e2 = avx2_sort_nn_on32<r - level>(e2, z, L2);
 			} else {
@@ -2576,7 +2575,9 @@ public:
 				avx2_nn_internal<level - 1>(new_e1, new_e2);
 
 				if (solutions_nr) {
+#if DEBUG
 					std::cout << "sol: " << level << " " << i << " " << new_e1 << " " << new_e2 << "\n";
+#endif
 					break;
 				}
 			}
@@ -2586,6 +2587,8 @@ public:
 	void avx2_nn(const size_t e1=LIST_SIZE, const size_t e2=LIST_SIZE) {
 		//config.print();
 
+		madvise(L1, e1*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
+		madvise(L2, e2*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
 
 		for (size_t i = 0; i < P*N; ++i) {
@@ -2595,7 +2598,7 @@ public:
 				ASSERT(false);
 			}
 			if (solutions_nr > 0) {
-				std::cout << "outer: " << i << "\n";
+				//std::cout << "outer: " << i << "\n";
 				break;
 			}
 		}

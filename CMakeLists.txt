@@ -81,13 +81,13 @@ set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-set(DEBUG_FLAGS "-g -DDEBUG -mavx2 -mbmi -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fopenmp ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+set(DEBUG_FLAGS "-g -DDEBUG -mavx2 -mbmi ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 
 # TODO simplify to only one flag
 # note that fplll is missing
-set(LINK_TEST_FLAGS -lgtest -pthread gmp gmpxx libm4ri.a m png tbb -lbenchmark)
-set(LINK_BENCH_FLAGS -lgtest -pthread gmp gmpxx libm4ri.a m png tbb -lbenchmark)
+set(LINK_TEST_FLAGS -lgtest -pthread gmpxx libm4ri.a m png tbb -lbenchmark)
+set(LINK_BENCH_FLAGS -lgtest -pthread gmpxx libm4ri.a m png tbb -lbenchmark)
 
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
