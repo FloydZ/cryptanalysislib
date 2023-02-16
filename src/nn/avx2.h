@@ -361,7 +361,7 @@ public:
 	}
 
 	/// generate a random instance, just for testing and debugging
-	void generate_random_instance() noexcept {
+	void generate_random_instance(bool insert_sol=true) noexcept {
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
 		L1 = (Element *)aligned_alloc(64, list_size);
 		L2 = (Element *)aligned_alloc(64, list_size);
@@ -371,9 +371,13 @@ public:
 		generate_random_lists(L1);
 		generate_random_lists(L2);
 
+		/// only insert the solution if wanted.
+		if (!insert_sol)
+			return;
+
 		// generate solution:
-		solution_l = fastrandombytes_uint64() % LIST_SIZE;
-		solution_r = fastrandombytes_uint64() % LIST_SIZE;
+		solution_l = 0;//fastrandombytes_uint64() % LIST_SIZE;
+		solution_r = 8;//fastrandombytes_uint64() % LIST_SIZE;
 		//std::cout << "sols at: " << solution_l << " " << solution_r << "\n";
 
 		if constexpr (EXACT) {
@@ -410,22 +414,6 @@ public:
 		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
 		const __m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
 		return shufmask;
-	}
-
-	///
-	/// \param wt
-	void shuffle_2bit(const int wt){
-		/// see the description of this magic in `shuffle_down_64`
-		const uint64_t expanded_mask_org = _pdep_u64(wt, 0b0101010101010101);
-		const uint64_t expanded_mask = expanded_mask_org * 0b11;
-		constexpr uint64_t identity_indices = 0b11100100;
-		constexpr uint64_t identity_mask = (1u << 8u) - 1u;
-
-		const uint64_t wanted_indices_down1 = _pext_u64(identity_indices, expanded_mask & identity_mask);
-		const uint64_t wanted_indices_up1   = _pdep_u64(identity_indices, expanded_mask & identity_mask);
-
-		const uint64_t wanted_indices_down2 = _pext_u64(identity_indices, expanded_mask >> 8u);
-		const uint64_t wanted_indices_up2 = _pdep_u64(identity_indices, expanded_mask >> 8u);
 	}
 
 	/// returns a permutation that shuffles down a mask on 32bit limbs
@@ -752,15 +740,16 @@ public:
 		}
 	}
 
-	///
+	/// compates the limbs from the given pointer on.
 	/// \param a
 	/// \param b
 	/// \return
+	template <const uint32_t s=0>
 	bool compare_u64_ptr(const uint64_t *a, const uint64_t *b) {
 		ASSERT((T)a < (T)(L1 + LIST_SIZE));
 		ASSERT((T)b < (T)(L2 + LIST_SIZE));
 		if constexpr(EXACT) {
-			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; i++) {
+			for (uint32_t i = s; i < ELEMENT_NR_LIMBS; i++) {
 				if (a[i] != b[i])
 					return false;
 			}
@@ -769,7 +758,7 @@ public:
 		} else {
 			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
 			uint32_t wt = 0;
-			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; i++) {
+			for (uint32_t i = s; i < ELEMENT_NR_LIMBS; i++) {
 				wt += __builtin_popcountll(a[i] ^ b[i]);
 			}
 
@@ -1267,6 +1256,147 @@ public:
 		}
 	}
 
+	///
+	/// \tparam u
+	/// \tparam v
+	/// \param mask
+	/// \param m1
+	/// \param round
+	/// \param i
+	/// \param j
+	template<const uint32_t u, const uint32_t v>
+	void bruteforce_avx2_128_32_2_uxv_helper(uint32_t mask,
+											 const uint8_t *m1,
+											 const uint32_t round,
+											 const size_t i,
+											 const size_t j) {
+		while (mask > 0) {
+			const uint32_t ctz = __builtin_ctz(mask);
+
+			const uint32_t test_i = ctz / v;
+			const uint32_t test_j = ctz % u;
+
+			const uint32_t inner_i2 = __builtin_ctz(m1[ctz]);
+			const uint32_t inner_j2 = inner_i2;
+
+			const int32_t off_l = test_i*8 + inner_i2;
+			const int32_t off_r = test_j*8 + ((8+inner_j2-round)%8);
+
+
+			const T *test_tl = ((T *)L1) + i*2 + off_l*2;
+			const T *test_tr = ((T *)L2) + j*2 + off_r*2;
+			if (compare_u64_ptr<1>(test_tl, test_tr)) {
+				found_solution(i + off_l, j + off_r);
+			}
+
+			mask ^= 1u << ctz;
+		}
+	}
+
+	/// bruteforce the two lists between the given start and end indices.
+	/// NOTE: uses avx2
+	/// NOTE: only in limb comparison possible. inter limb (e.g. bit 43...83) is impossible.
+	/// NOTE: checks weight d on the first 2 limbs. Then direct checking.
+	/// NOTE: unrolls the left loop by u and the right by v
+	/// \param e1 end index of list 1
+	/// \param e2 end index list 2
+	template<const uint32_t u, const uint32_t v>
+	void bruteforce_avx2_128_32_2_uxv(const size_t e1,
+									  const size_t e2) noexcept {
+		static_assert(u <= 8);
+		static_assert(v <= 8);
+		ASSERT(n <= 128);
+		ASSERT(n > 64);
+		ASSERT(2 == ELEMENT_NR_LIMBS);
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+
+		/// some constants
+		const __m256i zero = _mm256_set1_epi32(0);
+		const __m256i shuffl = _mm256_setr_epi32(7, 0, 1, 2, 3, 4, 5, 6);
+		const __m256i loadr = _mm256_setr_epi32(0, 4, 8, 12, 16, 20, 24, 28);
+		constexpr size_t ptr_ctr_l = u*8, ptr_ctr_r = v*8;
+		constexpr size_t ptr_inner_ctr_l = 8*4, ptr_inner_ctr_r = 8*4;
+
+		/// container for the unrolling
+		__m256i lii_1[u], rii_1[v], lii_2[u], rii_2[v];
+
+		/// container for the solutions masks
+		constexpr uint32_t size_m1 = std::max(u*v, 32u);
+		alignas(32) uint8_t m1[size_m1] = {0}; /// NOTE: init with 0 is important
+		__m256i *m1_256 = (__m256i *)m1;
+
+		uint32_t *ptr_l = (uint32_t *)L1;
+		for (size_t i = s1; i < s1 + e1; i += ptr_ctr_l, ptr_l += ptr_ctr_l*4) {
+
+			#pragma unroll
+			for (uint32_t s = 0; s < u; ++s) {
+				lii_1[s] = _mm256_i32gather_epi32(ptr_l + s*ptr_inner_ctr_l + 0, loadr, 4);
+				lii_2[s] = _mm256_i32gather_epi32(ptr_l + s*ptr_inner_ctr_l + 1, loadr, 4);
+			}
+
+			uint32_t *ptr_r = (uint32_t *)L2;
+			for (size_t j = s2; j < s2 + e2; j += ptr_ctr_r, ptr_r += ptr_ctr_r*4) {
+
+				// load the fi
+				#pragma unroll
+				for (uint32_t s = 0; s < v; ++s) {
+					rii_1[s] = _mm256_i32gather_epi32(ptr_r + s*ptr_inner_ctr_r + 0, loadr, 4);
+					rii_2[s] = _mm256_i32gather_epi32(ptr_r + s*ptr_inner_ctr_r + 1, loadr, 4);
+				}
+
+				/// Do the 8x8 shuffle
+				for (uint32_t l = 0; l < 8; ++l) {
+					// compare the first limb
+					#pragma unroll
+					for (uint32_t f1 = 0; f1 < u; ++f1) {
+						for (uint32_t f2 = 0; f2 < v; ++f2) {
+							m1[f1*u + f2] = compare_256_32(lii_1[f1], rii_1[f2]);
+						}
+					}
+
+					// early exit
+					uint32_t mask = _mm256_movemask_epi8(_mm256_cmpgt_epi8(LOAD256((__m256i *)m1), zero));
+					if (mask == 0) {
+						continue;
+					}
+
+					// second limb
+					#pragma unroll
+					for (uint32_t f1 = 0; f1 < u; ++f1) {
+						#pragma unroll
+						for (uint32_t f2 = 0; f2 < v; ++f2) {
+							if (m1[f1*u + f2]) {
+								m1[f1*u + f2] = compare_256_32(lii_2[f1], rii_2[f2]);
+							}
+						}
+					}
+
+
+					// early exit from the second limb computations
+					mask = _mm256_movemask_epi8(_mm256_cmpgt_epi8(LOAD256((__m256i *)m1), zero));
+					if (mask == 0) {
+						continue;
+					}
+
+					// maybe write back a solution
+					bruteforce_avx2_128_32_2_uxv_helper<u,v>(mask, m1, l, i, j);
+
+					// early exit from the shuffle
+					if (l == 7)
+						break;
+
+					// shuffle the right side
+					#pragma unroll
+					for (uint32_t s2 = 0; s2 < v; ++s2) {
+						rii_1[s2] = _mm256_permutevar8x32_epi32(rii_1[s2], shuffl);
+						rii_2[s2] = _mm256_permutevar8x32_epi32(rii_2[s2], shuffl);
+					}
+				} // 8x8 shuffle
+			} // j: enumerate right side
+		} // i: enumerate left side
+	} // end func
 
 	/// bruteforce the two lists between the given start and end indices.
 	/// NOTE: uses avx2
@@ -1689,7 +1819,7 @@ public:
 
 		alignas(32) uint8_t m1s[64];
 
-		/// allowed weight to match on
+		/// helper to detect zeros
 		const __m256i zero = _mm256_set1_epi32(0);
 
 		for (size_t i = s1; i < s1 + e1; i += 64, ptr_l += 512) {
@@ -1963,8 +2093,11 @@ public:
 			bruteforce_avx2_64_uxv<4, 4>(e1, e2);
 		} else if constexpr (64 < n and n <= 128){
 			//bruteforce_128(e1, e2);
-			// TODO this brute force only works if actually all limbs are used up to 128
-			bruteforce_avx2_128(e1, e2);
+			bruteforce_avx2_128_32_2_uxv<4, 4>(e1, e2);
+			//bruteforce_avx2_128(e1, e2);
+
+			// actualy also work
+			// bruteforce_avx2_256_32_8x8(e1, e2);
 		} else if constexpr (128 < n and n <= 256) {
 			// TODO optimal value
 			if (e1 < 10 && e2 < 10) {
@@ -2233,10 +2366,8 @@ public:
 			const __m256i ptr_tmp = _mm256_i64gather_epi64(ptr, offset, 8);
 			const __m256i tmp = _mm256_xor_si256(ptr_tmp, z256);
 			const __m256i tmp_pop = popcount_avx2_64(tmp);
+			const int wt = compare_nn_on32(tmp_pop);
 
-			//const __m256i gt_mask = _mm256_cmpgt_epi64(mask, tmp_pop);
-			const __m256i gt_mask = _mm256_cmpeq_epi64(avx_nn_weight64, tmp_pop);
-			const int wt = _mm256_movemask_pd((__m256d) gt_mask);
 			ASSERT(wt < 1u << 4u);
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
 			// we need to swap the second (0 indexed) uint64_t from L + ctr with the first element from L + i.

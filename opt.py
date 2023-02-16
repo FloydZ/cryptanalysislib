@@ -121,11 +121,11 @@ def compute_time(n, lam, w, r, N, d):
 #w = 16
 
 
-n = 84
-lam = math.comb(431-345, 2)
+n = 86
+lam = math.comb(178, 2)
 w = 6
 r, N, d, k = compute_optimal_params(n, lam, w)
-print("r", r, "N", N, "d", d)
+print("r", r, "N", N, "d", d, "log2(lam)", math.log2(lam))
 
 time = compute_time(n, lam, w, r, N, d)
 print("theta", time, 2**time)

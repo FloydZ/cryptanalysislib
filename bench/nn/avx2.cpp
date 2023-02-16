@@ -4,7 +4,7 @@
 #include <cstdlib>
 
 #define ENABLE_BENCHMARK
-#include "windowed_avx2.h"
+#include "nn/nn.h"
 
 constexpr size_t LS = 1u << 20u;
 constexpr size_t d = 16;
@@ -41,7 +41,7 @@ BENCHMARK(BM_NearestNeighborAVX)->RangeMultiplier(2)->Range(1024, 1u<<18)->Compl
 
 int main(int argc, char** argv) {
 	random_seed(time(NULL));
-	algo.generate_random_instance();
+	algo.generate_random_instance(false);
 
     ::benchmark::Initialize(&argc, argv);
     if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;

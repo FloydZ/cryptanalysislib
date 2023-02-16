@@ -16,7 +16,7 @@ union U256i {
 	uint64_t b[4];
 };
 
-constexpr size_t LS = 7;// 1u << 10u;
+constexpr size_t LS = 1u << 10u;
 constexpr static WindowedAVX2_Config global_config{256, 4, 20, LS, 22, 16, 0, 512};
 
 TEST(PopCountAVX2, uint32_t) {
@@ -197,6 +197,51 @@ TEST(Bruteforce, n128) {
 	EXPECT_EQ(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 }
+
+TEST(Bruteforce, avx_128) {
+	constexpr static WindowedAVX2_Config config{128, 1, 1, LS, 12, 6, 0, 512};
+	WindowedAVX2<config> algo{};
+	algo.generate_random_instance();
+	algo.bruteforce_avx2_128(LS, LS);
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+}
+
+TEST(Bruteforce, avx_uxv_128) {
+	constexpr static WindowedAVX2_Config config{128, 1, 1, LS, 48, 6, 0, 512};
+	WindowedAVX2<config> algo{};
+	algo.generate_random_instance();
+	algo.bruteforce_avx2_128_32_2_uxv<1, 1>(LS, LS);
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+	algo.solutions_nr = 0;
+
+	algo.bruteforce_avx2_128_32_2_uxv<2, 2>(LS, LS);
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+	algo.solutions_nr = 0;
+
+	algo.bruteforce_avx2_128_32_2_uxv<4, 4>(LS, LS);
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+	algo.solutions_nr = 0;
+
+	algo.bruteforce_avx2_128_32_2_uxv<8, 8>(LS, LS);
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+	algo.solutions_nr = 0;
+
+	algo.bruteforce_avx2_128_32_2_uxv<1, 3>(LS, LS);
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+	algo.solutions_nr = 0;
+
+	algo.bruteforce_avx2_128_32_2_uxv<3, 1>(LS, LS);
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+	algo.solutions_nr = 0;
+}
+
 
 TEST(Bruteforce, n256) {
 	constexpr static WindowedAVX2_Config config{256, 4, 1, LS, 80, 50, 0, 512};
@@ -471,12 +516,12 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	WindowedAVX2<config> algo{};
 	algo.generate_random_instance();
 
-	constexpr uint32_t nr_tries = 1;
+	constexpr uint32_t nr_tries = 10;
 	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {
 		algo.avx2_nn(LS, LS);
 		sols += algo.solutions_nr;
-		algo.solutions_nr = 0;
+		algo.solutions_nr = 0
 
 		free(algo.L1);
 		free(algo.L2);
@@ -487,25 +532,29 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 }
 
 TEST(NearestNeighborAVX, MO431Params_n84_r3) {
-	constexpr size_t LS = 1u << 12u;
-	constexpr static WindowedAVX2_Config config{84, 3, 108, LS, 12, 6, 0, 128};
-	WindowedAVX2<config> algo{};
-	algo.generate_random_instance();
+	constexpr size_t LS = 1u << 14u;
+	//constexpr static WindowedAVX2_Config config2{86, 3, 108, LS, 12, 6, 0, 1024}; // %100
+	//constexpr static WindowedAVX2_Config config2{86, 3, 60, LS, 12, 6, 0, 1024}; // %100
+	constexpr static WindowedAVX2_Config config2{86, 3, 10, LS, 13, 6, 0, 700}; // %100
+	//constexpr static WindowedAVX2_Config config2{86, 3, 50, LS, 11, 6, 0, 1024};
+	WindowedAVX2<config2> algokek{};
+	algokek.generate_random_instance();
 
-	constexpr uint32_t nr_tries = 10;
+	constexpr uint32_t nr_tries = 1000;
 	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {
-		algo.avx2_nn(LS, LS);
-		sols += algo.solutions_nr;
-		algo.solutions_nr = 0;
+		algokek.avx2_nn(LS, LS);
+		sols += algokek.solutions_nr;
+		algokek.solutions_nr = 0;
 
-		free(algo.L1);
-		free(algo.L2);
-		algo.generate_random_instance();
+		free(algokek.L1);
+		free(algokek.L2);
+		algokek.generate_random_instance();
 	}
 
 	EXPECT_EQ(sols, nr_tries);
 }
+
 TEST(NearestNeighborAVX, Dev) {
 	constexpr static WindowedAVX2_Config config{256, 4, 500, 1u<<14, 22, 16, 0, 512};
 	WindowedAVX2<config> algo{};
