@@ -1088,7 +1088,7 @@ public:
 template<typename T>
 static void print_binary(T a, const size_t len = sizeof(T)*8) {
 	for (uint32_t i = 0; i < len; i++) {
-		printf("%d", a & 1);
+		printf("%lu", a & 1ul);
 		a >>= 1;
 	}
 
