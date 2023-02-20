@@ -239,7 +239,7 @@ public:
 	constexpr static size_t r = config.r;
 	constexpr static size_t N = config.N;
 	constexpr static size_t LIST_SIZE = config.LIST_SIZE;
-	constexpr static uint64_t k = 64;// TODO(n)/r;
+	constexpr static uint64_t k = 32;// TODO(n)/r;
 	constexpr static uint32_t dk = config.dk;
 	constexpr static uint32_t d = config.d;
 	constexpr static uint64_t epsilon = config.epsilon;
@@ -1256,7 +1256,7 @@ public:
 		}
 	}
 
-	///
+	/// TODO explain
 	/// \tparam u
 	/// \tparam v
 	/// \param mask
@@ -1285,7 +1285,7 @@ public:
 
 			const T *test_tl = ((T *)L1) + i*2 + off_l*2;
 			const T *test_tr = ((T *)L2) + j*2 + off_r*2;
-			if (compare_u64_ptr<1>(test_tl, test_tr)) {
+			if (compare_u64_ptr<0>(test_tl, test_tr)) {
 				found_solution(i + off_l, j + off_r);
 			}
 

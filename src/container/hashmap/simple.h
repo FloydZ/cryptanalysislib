@@ -115,8 +115,8 @@ public:
 			return;
 		} else {
 			size_t load = __internal_load_array[index];
-			// early exit
-			if (load == bucketsize-1)
+			// early exit, if its already full
+			if (load == bucketsize)
 				return ;
 
 			//_mm_stream_si32((int *)__internal_load_array.data() + index, load+1);
