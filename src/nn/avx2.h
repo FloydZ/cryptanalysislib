@@ -239,7 +239,7 @@ public:
 	constexpr static size_t r = config.r;
 	constexpr static size_t N = config.N;
 	constexpr static size_t LIST_SIZE = config.LIST_SIZE;
-	constexpr static uint64_t k = 32;// TODO(n)/r;
+	constexpr static uint64_t k = 64;// TODO(n)/r;
 	constexpr static uint32_t dk = config.dk;
 	constexpr static uint32_t d = config.d;
 	constexpr static uint64_t epsilon = config.epsilon;
@@ -272,8 +272,8 @@ public:
 	}
 
 	/// choose a random element e1 s.t. \wt(e1) < d, and set e2 = 0
-	/// \param e1
-	/// \param e2
+	/// \param e1 output value
+	/// \param e2 output value
 	static void generate_golden_element_simple(Element &e1, Element &e2) noexcept {
 		constexpr T mask = n % T_BITSIZE == 0 ? T(-1) : ((1ul << n % T_BITSIZE) - 1ul);
 		while (true) {
@@ -340,7 +340,7 @@ public:
 		ASSERT(wt = d);
 	}
 
-	///
+	/// simply chooses an uniform random element
 	/// \param e
 	static void generate_random_element(Element &e) noexcept {
 
@@ -729,8 +729,8 @@ public:
 
 	/// checks whether a,b are a solution or not
 	/// NOTE: upper bound `d` is inclusive
-	/// \param a
-	/// \param b
+	/// \param a first value
+	/// \param b second value
 	/// \return
 	bool compare_u64(const uint64_t a, const uint64_t b) {
 		if constexpr(EXACT) {
@@ -740,10 +740,11 @@ public:
 		}
 	}
 
-	/// compates the limbs from the given pointer on.
-	/// \param a
-	/// \param b
-	/// \return
+	/// compares the limbs from the given pointer on.
+	/// \param a first pointer
+	/// \param b second pointer
+	/// \return true if the limbs following the pointer are within distance `d`
+	///			false else
 	template <const uint32_t s=0>
 	bool compare_u64_ptr(const uint64_t *a, const uint64_t *b) {
 		ASSERT((T)a < (T)(L1 + LIST_SIZE));
@@ -765,7 +766,9 @@ public:
 			ASSERT(!(a[ELEMENT_NR_LIMBS - 1] & mask));
 			ASSERT(!(b[ELEMENT_NR_LIMBS - 1] & mask));
 
+			// TODO maybe some flag?
 			return wt <= d;
+			//return wt == d;
 		}
 	}
 
@@ -2450,6 +2453,7 @@ public:
 		Element *ptr = (Element *)(((uint8_t *)L) + limb*8);
 		Element *org_ptr = L;
 
+		/// TODO make this variadic via template arguments
 		constexpr uint32_t u = 8;
 		for (; i+(4*u) < e1; i += (4*u), ptr += (4*u), org_ptr += (4*u)) {
 			__m256i ptr_tmp0 = _mm256_i64gather_epi64(ptr +  0, offset, 8);
@@ -2522,10 +2526,75 @@ public:
 		return ctr;
 	}
 
-	///
-	/// \tparam level
-	/// \param e1
-	/// \param e2
+	/// NOTE: assumes T=uint64
+	/// NOTE: only matches weight dk on uint64_t
+	/// NOTE: dont call this function at first.
+	/// 		the current implementation will overflow the given e1, e2
+	/// \tparam limb current limb
+	/// \tparam u number of checks to unroll
+	/// \param e1 end of List L1
+	/// \param e2 end of List L2
+	/// \param new_e1 new end of List L1
+	/// \param new_e2 new end of List L2
+	/// \param z random element to match on
+	/// \return
+	template<const uint32_t limb, const uint32_t u>
+	void avx2_sort_nn_on6_double(const size_t e1,
+							       const size_t e2,
+								   size_t new_e1,
+	                               size_t new_e2,
+								   const uint64_t z) {
+		ASSERT(limb <= ELEMENT_NR_LIMBS);
+
+		/// just a shorter name, im lazy.
+		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
+
+		size_t i = 0;
+		alignas(32) const __m256i z256 = _mm256_set1_epi64x(z);
+		alignas(32) const __m256i offset = _mm256_setr_epi64x(0*enl, 1*enl, 2*enl, 3*enl);
+
+		/// NOTE: i need 2 ptr tracking the current position, because of the
+		/// limb shift
+		Element *ptr_L1 = (Element *)(((uint8_t *)L1) + limb*8);
+		Element *org_ptr_L1 = L1;
+		Element *ptr_L2 = (Element *)(((uint8_t *)L2) + limb*8);
+		Element *org_ptr_L2 = L1;
+
+		const size_t min_e = (std::min(e1, e2) + u - 1);
+		/// TODO make this variadic via template arguments
+		for (; i+(4*u) < min_e; i += (4*u), ptr_L1 += (4*u), org_ptr_L1 += (4*u),
+											ptr_L2 += (4*u), org_ptr_L2 += (4*u)) {
+			uint32_t wt_L1 = 0, wt_L2;
+
+			#pragma unroll
+			for (uint32_t j = 0; j < u; ++j) {
+				__m256i ptr_tmp_L1 = _mm256_i64gather_epi64(ptr_L1 +  0, offset, 8);
+				ptr_tmp_L1 = _mm256_xor_si256(ptr_tmp_L1, z256);
+				ptr_tmp_L1 = popcount_avx2_64(ptr_tmp_L1);
+				wt_L1 = compare_nn_on64(ptr_tmp_L1) << (4u * j);
+
+				__m256i ptr_tmp_L2 = _mm256_i64gather_epi64(ptr_L2 +  0, offset, 8);
+				ptr_tmp_L2 = _mm256_xor_si256(ptr_tmp_L2, z256);
+				ptr_tmp_L2 = popcount_avx2_64(ptr_tmp_L2);
+				wt_L2 = compare_nn_on64(ptr_tmp_L2) << (4u * j);
+			}
+
+			if (wt_L1) {
+				new_e1 += swap_ctz(wt_L1, L1 + new_e1, org_ptr_L1);
+			}
+
+			if (wt_L2) {
+				new_e2 += swap_ctz(wt_L2, L2 + new_e2, org_ptr_L2);
+			}
+		}
+
+	}
+
+	/// runs the Esser, Kübler, Zweydinger NN on a the two lists
+	/// dont call ths function normally.
+	/// \tparam level current level of the
+	/// \param e1 end of list L1
+	/// \param e2 end of list L2
 	template<const uint32_t level>
 	void avx2_nn_internal(const size_t e1, const size_t e2) {
 		static_assert(k%32 == 0);
@@ -2537,13 +2606,17 @@ public:
 		if constexpr (level <= 1) {
 			bruteforce(e1, e2);
 		} else {
-			size_t new_e1;
-			size_t new_e2;
+			size_t new_e1 = 0;
+			size_t new_e2 = 0;
 
 			if constexpr (k == 64) {
 				const uint64_t z = fastrandombytes_uint64();
-				new_e1 = avx2_sort_nn_on64<r - level>(e1, z, L1);
-				new_e2 = avx2_sort_nn_on64<r - level>(e2, z, L2);
+				if (e1 < 4096 && e2 < 4096) {
+					avx2_sort_nn_on6_double<r-level, 8>(e1, e2, new_e1, new_e2, z);
+				} else {
+					new_e1 = avx2_sort_nn_on64<r - level>(e1, z, L1);
+					new_e2 = avx2_sort_nn_on64<r - level>(e2, z, L2);
+				}
 			} else if constexpr (k == 32) {
 				const uint32_t z = (uint32_t) fastrandombytes_uint64();
 				new_e1 = avx2_sort_nn_on32<r - level>(e1, z, L1);
@@ -2587,8 +2660,8 @@ public:
 	void avx2_nn(const size_t e1=LIST_SIZE, const size_t e2=LIST_SIZE) {
 		//config.print();
 
-		madvise(L1, e1*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
-		madvise(L2, e2*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
+		//madvise(L1, e1*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
+		//madvise(L2, e2*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
 
 		for (size_t i = 0; i < P*N; ++i) {

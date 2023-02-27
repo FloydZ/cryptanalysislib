@@ -323,7 +323,7 @@ void matrix_create_random_permutation(mzd_t *__restrict__ A,
 }
 
 
-size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
+static size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
                               const size_t r,
                               const size_t c,
                               const size_t rows,

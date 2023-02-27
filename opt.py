@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+import argparse
 import math
 
 
 def HH(i: float):
+    """
+    binary entropy
+    """
     if i == 1.0 or i == 0.0:
         return 0.0
 
@@ -14,6 +18,9 @@ def HH(i: float):
 
 
 def H1(value: float):
+    """
+    inverse binary entropy
+    """
     if value == 1.0:
         return 0.5
 
@@ -38,7 +45,7 @@ def H1(value: float):
 
 def calc_q_(n: int, w_: float, d_: float):
     """
-    compute probability of
+    compute probability of any elements survives the filtering step
     """
     assert w_ < n
     assert d_ < n
@@ -47,7 +54,7 @@ def calc_q_(n: int, w_: float, d_: float):
 
 
 
-def compute_optimal_params(n: int, lam, w, r=0):
+def NN_compute_optimal_params(n: int, lam, w, r=0):
     """
     taken from https://arxiv.org/pdf/2102.02597.pdf
 
@@ -67,7 +74,12 @@ def compute_optimal_params(n: int, lam, w, r=0):
         lam = math.log2(lam)/n
     
     if type(w) == int:
+        if w >= n:
+            return -1, -1, -1, -1
         w = w / n
+
+    if w > 0.5:
+        return -1, -1, -1, -1
     
     # only set r if explicity wanted
     if r == 0:
@@ -78,6 +90,7 @@ def compute_optimal_params(n: int, lam, w, r=0):
     delta_star = H1(1. - lam)
     limit = 2.*delta_star * (1. - delta_star)
     if w > limit:
+
         d = 1/2. * (1. - math.sqrt(1. - 2.*w))
     else:
         d = delta_star
@@ -92,7 +105,7 @@ def compute_optimal_params(n: int, lam, w, r=0):
     return r, N, d*k, k
 
 
-def compute_time(n, lam, w, r, N, d):
+def NN_compute_time(n, lam, w, r=0, N=0, d=0):
     """
     compute the expected runtime in log2
     """
@@ -102,11 +115,16 @@ def compute_time(n, lam, w, r, N, d):
 
     w = w
     if type(w) == int:
+        if w >= n:
+            return -1
         w = w / n
+    
+    if w > 0.5:
+        return -1
 
     delta_star = H1(1. - lam)
     w_star = 2*delta_star * (1. - delta_star)
-    print(w, w_star, lam)
+    # print(w, w_star, lam)
     if w <= w_star:
         theta = (1. - w) * (1.0 - HH((delta_star - w/2.)/(1. - w)))
     else:
@@ -115,17 +133,26 @@ def compute_time(n, lam, w, r, N, d):
     return theta*n
 
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Mother of all NN algorithms.')
+    parser.add_argument('-n', help='problem dimension',
+                        type=int, required=True)
+    parser.add_argument('--lam', help='list size, can also be log',
+                        type=int, default=1000)
+    parser.add_argument('-w', help='weight diff',
+                        type=int, default=1)
+
+
 # TODO compute intermediate list size
 #n = 256
 #lam = 1 << 14
 #w = 16
 
-
-n = 86
-lam = math.comb(178, 2)
-w = 6
-r, N, d, k = compute_optimal_params(n, lam, w)
-print("r", r, "N", N, "d", d, "log2(lam)", math.log2(lam))
-
-time = compute_time(n, lam, w, r, N, d)
-print("theta", time, 2**time)
+#n = 86
+#lam = math.comb(178, 2)
+#w = 6
+#r, N, d, k = NN_compute_optimal_params(n, lam, w)
+#print("r", r, "N", N, "d", d, "log2(lam)", math.log2(lam))
+#
+#time = NN_compute_time(n, lam, w, r, N, d)
+#print("theta", time, 2**time)
