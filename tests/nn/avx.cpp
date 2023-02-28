@@ -516,8 +516,8 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	//constexpr static WindowedAVX2_Config config{256, 4, 300, LS, 20, 20, 0, 512};
 
 	constexpr size_t LS = 1u << 20u;
-	//constexpr static WindowedAVX2_Config config{256, 4, 300, LS, 21, 20, 0, 512};
-	constexpr static WindowedAVX2_Config config{256, 4, 300, LS, 20, 20, 0, 512};
+	constexpr static WindowedAVX2_Config config{256, 4, 100, LS, 22, 20, 0, 5000};
+	//constexpr static WindowedAVX2_Config config{256, 4, 300, LS, 20, 20, 0, 512};
 	//constexpr static WindowedAVX2_Config config{256, 4, 300, LS, 20, 20, 0, 5000};
 
 	WindowedAVX2<config> algo{};

@@ -607,7 +607,7 @@ constexpr FloatingPoint constexpr_exp(
 		FloatingPoint x,
 		typename std::enable_if<std::is_floating_point<FloatingPoint>::value>::type* = nullptr){
 	return true ? constexpr_internal_exp(x, FloatingPoint{1}, FloatingPoint{1}, 2, x) :
-	       throw 0;
+	       0;
 }
 
 template <typename Integral>
@@ -698,7 +698,7 @@ constexpr FloatingPoint constexpr_pow(
 		FloatingPoint x, FloatingPoint y,
 		typename std::enable_if<std::is_floating_point<FloatingPoint>::value>::type* = nullptr) {
 	return true ? constexpr_exp(constexpr_log(x)*y) :
-	       throw 0;
+	       0;
 }
 
 /// \param x input

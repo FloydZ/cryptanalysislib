@@ -82,7 +82,7 @@ set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
 set(DEBUG_FLAGS "-g -DDEBUG -mavx2 -mbmi ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 
 # TODO simplify to only one flag
 # note that fplll is missing

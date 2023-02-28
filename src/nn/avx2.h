@@ -2539,10 +2539,10 @@ public:
 	/// \param z random element to match on
 	/// \return
 	template<const uint32_t limb, const uint32_t u>
-	void avx2_sort_nn_on6_double(const size_t e1,
+	void avx2_sort_nn_on_double(const size_t e1,
 							       const size_t e2,
-								   size_t new_e1,
-	                               size_t new_e2,
+								   size_t &new_e1,
+	                               size_t &new_e2,
 								   const uint64_t z) {
 		ASSERT(limb <= ELEMENT_NR_LIMBS);
 
@@ -2558,25 +2558,25 @@ public:
 		Element *ptr_L1 = (Element *)(((uint8_t *)L1) + limb*8);
 		Element *org_ptr_L1 = L1;
 		Element *ptr_L2 = (Element *)(((uint8_t *)L2) + limb*8);
-		Element *org_ptr_L2 = L1;
+		Element *org_ptr_L2 = L2;
 
 		const size_t min_e = (std::min(e1, e2) + u - 1);
 		/// TODO make this variadic via template arguments
 		for (; i+(4*u) < min_e; i += (4*u), ptr_L1 += (4*u), org_ptr_L1 += (4*u),
 											ptr_L2 += (4*u), org_ptr_L2 += (4*u)) {
-			uint32_t wt_L1 = 0, wt_L2;
+			uint32_t wt_L1 = 0, wt_L2 = 0;
 
 			#pragma unroll
 			for (uint32_t j = 0; j < u; ++j) {
-				__m256i ptr_tmp_L1 = _mm256_i64gather_epi64(ptr_L1 +  0, offset, 8);
+				__m256i ptr_tmp_L1 = _mm256_i64gather_epi64(ptr_L1 +  4*j, offset, 8);
 				ptr_tmp_L1 = _mm256_xor_si256(ptr_tmp_L1, z256);
 				ptr_tmp_L1 = popcount_avx2_64(ptr_tmp_L1);
-				wt_L1 = compare_nn_on64(ptr_tmp_L1) << (4u * j);
+				wt_L1 ^= compare_nn_on64(ptr_tmp_L1) << (4u * j);
 
-				__m256i ptr_tmp_L2 = _mm256_i64gather_epi64(ptr_L2 +  0, offset, 8);
+				__m256i ptr_tmp_L2 = _mm256_i64gather_epi64(ptr_L2 +  4*j, offset, 8);
 				ptr_tmp_L2 = _mm256_xor_si256(ptr_tmp_L2, z256);
 				ptr_tmp_L2 = popcount_avx2_64(ptr_tmp_L2);
-				wt_L2 = compare_nn_on64(ptr_tmp_L2) << (4u * j);
+				wt_L2 ^= compare_nn_on64(ptr_tmp_L2) << (4u * j);
 			}
 
 			if (wt_L1) {
@@ -2611,12 +2611,12 @@ public:
 
 			if constexpr (k == 64) {
 				const uint64_t z = fastrandombytes_uint64();
-				if (e1 < 4096 && e2 < 4096) {
-					avx2_sort_nn_on6_double<r-level, 8>(e1, e2, new_e1, new_e2, z);
-				} else {
-					new_e1 = avx2_sort_nn_on64<r - level>(e1, z, L1);
-					new_e2 = avx2_sort_nn_on64<r - level>(e2, z, L2);
-				}
+				//if (e1 < 4096 && e2 < 4096) {
+					avx2_sort_nn_on_double<r-level, 4>(e1, e2, new_e1, new_e2, z);
+				//} else {
+				//	new_e1 = avx2_sort_nn_on64<r - level>(e1, z, L1);
+				//	new_e2 = avx2_sort_nn_on64<r - level>(e2, z, L2);
+				//}
 			} else if constexpr (k == 32) {
 				const uint32_t z = (uint32_t) fastrandombytes_uint64();
 				new_e1 = avx2_sort_nn_on32<r - level>(e1, z, L1);
@@ -2660,8 +2660,8 @@ public:
 	void avx2_nn(const size_t e1=LIST_SIZE, const size_t e2=LIST_SIZE) {
 		//config.print();
 
-		//madvise(L1, e1*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
-		//madvise(L2, e2*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
+		madvise(L1, LIST_SIZE*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL | MADV_HUGEPAGE);
+		madvise(L2, LIST_SIZE*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL | MADV_HUGEPAGE);
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
 
 		for (size_t i = 0; i < P*N; ++i) {
