@@ -6,6 +6,7 @@ deps/coordinates.sage.py
 deps/decoding/
 deps/elena_smallSecretLWE/
 .clangd/
+*__pycache__/
 build/
 compile_commands.json
 .local-history/
