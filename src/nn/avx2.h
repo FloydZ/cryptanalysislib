@@ -326,7 +326,6 @@ public:
 			e2[from_limb] ^= (-to_read ^ e2[from_limb]) & (1ul << from_pos);
 		}
 
-
 		uint32_t wt = 0;
 		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS - 1; i++) {
 			e1[i] = fastrandombytes_uint64();
@@ -343,7 +342,6 @@ public:
 	/// simply chooses an uniform random element
 	/// \param e
 	static void generate_random_element(Element &e) noexcept {
-
 		constexpr T mask = n%T_BITSIZE == 0 ? T(-1) : ((1ul << n%T_BITSIZE) - 1ul);
 		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS-1; i++) {
 			e[i] = fastrandombytes_uint64();

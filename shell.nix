@@ -13,7 +13,9 @@ stdenv.mkDerivation {
 	autogen 
 	gnumake 
 	cmake 
-	clang 
+	clang
+	clang-tools
+	cudaPackages_11_0.cudatoolkit 
 	gtest 
 	gbenchmark 
 	gmp 
