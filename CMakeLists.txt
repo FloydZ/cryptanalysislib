@@ -81,14 +81,13 @@ set(SANITIZE_FLAG "")
 set(ADDITIONAL_FLAGS "-DUSE_AVX2")
 
 set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings")
-
-set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
+#set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-set(DEBUG_FLAGS "-g -DDEBUG -mavx2 -mbmi ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+set(DEBUG_FLAGS "-g -Og -DDEBUG -mavx2 -mbmi ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 
 # TODO simplify to only one flag

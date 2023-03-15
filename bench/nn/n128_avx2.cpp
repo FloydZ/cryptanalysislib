@@ -9,7 +9,7 @@
 constexpr size_t LS = 1u << 14u;
 constexpr size_t d = 6;
 constexpr size_t dk = 12;
-constexpr static WindowedAVX2_Config config{128, 4, 300, LS, dk, d, 0, 512};
+constexpr static WindowedAVX2_Config config{128, 4, 300, 32, LS, dk, d, 0, 512};
 WindowedAVX2<config> algo{};
 
 static void BM_bruteforce_128(benchmark::State& state) {

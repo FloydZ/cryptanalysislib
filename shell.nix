@@ -26,6 +26,7 @@ stdenv.mkDerivation {
 	ninja
 	ripgrep
 	flamegraph
+	gdb
 	linuxKernel.packages.linux_latest_libre.perf
   ];
 
