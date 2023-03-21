@@ -27,15 +27,8 @@ stdenv.mkDerivation {
 	ripgrep
 	flamegraph
 	gdb
-	linuxKernel.packages.linux_latest_libre.perf
+    linuxKernel.packages.linux_6_0.perf
 	valgrind
 	massif-visualizer
   ];
-
-  # buildPhase = "c++ -o main main.cpp -lPocoFoundation -lboost_system";
-
-  # installPhase = ''
-  #  mkdir -p $out/bin
-  #  cp main $out/bin/
-  # '';
 }
