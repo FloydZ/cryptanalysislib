@@ -119,8 +119,9 @@ set(SRCS src/config/config.cpp)
 # target_compile_options(small_secret_lwe_binary_library PRIVATE -DVALUE_BINARY)
 
 # now check if we have to add the cuda runtime
-#set(USE_CUDA "1")
-if(USE_CUDA)
+include(CheckLanguage)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
 
     # global include path for dependencies
