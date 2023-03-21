@@ -28,6 +28,8 @@ stdenv.mkDerivation {
 	flamegraph
 	gdb
 	linuxKernel.packages.linux_latest_libre.perf
+	valgrind
+	massif-visualizer
   ];
 
   # buildPhase = "c++ -o main main.cpp -lPocoFoundation -lboost_system";

@@ -2765,7 +2765,6 @@ public:
 
 	void avx2_nn(const size_t e1=LIST_SIZE, const size_t e2=LIST_SIZE) {
 		//config.print();
-
 		//madvise(L1, LIST_SIZE*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL | MADV_HUGEPAGE);
 		//madvise(L2, LIST_SIZE*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL | MADV_HUGEPAGE);
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
@@ -2945,6 +2944,43 @@ public:
 		std::cout << "sols: " << solutions_nr << "\n";
 		return ret;
 	}
+
+
+#ifdef __AVX512F__
+	__m512i	popcount_avx512_32(const __m512i in) {
+		return _mm512_popcnt_epi32(in);
+	}
+
+	__m512i	popcount_avx512_64(const __m512i in) {
+		return _mm512_popcnt_epi64(in);
+	}
+
+
+	void bruteforce_avx2_512_32_8x8(const size_t e1,
+	                                const size_t e2) noexcept {
+		ASSERT(n <= 256);
+		ASSERT(n > 128);
+		ASSERT(4 == ELEMENT_NR_LIMBS);
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+
+		ASSERT(e1 >= 64);
+		ASSERT(e2 >= 64);
+
+		ASSERT(d < 16);
+
+		uint32_t *ptr_l = (uint32_t *)L1;
+
+		/// difference of the memory location in the right list
+		const __m256i loadr1 = _mm256_setr_epi32(0, 8, 16, 24, 32, 40, 48, 56);
+		const __m256i shuffl = _mm256_setr_epi32(7, 0, 1, 2, 3, 4, 5, 6);
+
+		alignas(32) uint8_t m1s[64];
+
+		// TODO
+	}
+#endif
 };
 
 #endif//NN_CODE_WINDOWED_AVX2_H
