@@ -826,7 +826,8 @@ TEST(NearestNeighborAVX, MO640Params_n128_r2_64_masked) {
 	// 87% runtime in Bruteforce
 	//constexpr static WindowedAVX2_Config config64{128, 2, 180, 48, LS, 17, 11, 0, 600};
 
-
+	// MUVH better
+	// close to 100% correctners: rt 7-10s
 	constexpr static WindowedAVX2_Config config64{128, 2, 1000, 48, LS, 15, 11, 0, 512};
 
 
@@ -882,7 +883,7 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	WindowedAVX2<config> algo{};
 	algo.generate_random_instance();
 
-	constexpr uint32_t nr_tries = 1;
+	constexpr uint32_t nr_tries = 10;
 	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {
 		algo.avx2_nn(LS, LS);

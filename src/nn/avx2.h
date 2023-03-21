@@ -1345,8 +1345,8 @@ public:
 				}
 
 				/// Do the 8x8 shuffle
+				#pragma unroll
 				for (uint32_t l = 0; l < 8; ++l) {
-
 					if (l > 0) {
 						// shuffle the right side
 						#pragma unroll
@@ -1367,35 +1367,30 @@ public:
 
 					// early exit
 					uint32_t mask = _mm256_movemask_epi8(_mm256_cmpgt_epi8(LOAD256((__m256i *)m1), zero));
-					if (mask == 0) {
+					if (unlikely(mask == 0)) {
 						continue;
 					}
 
-					// second limb
+					//// second limb
 					#pragma unroll
 					for (uint32_t f1 = 0; f1 < u; ++f1) {
 						#pragma unroll
 						for (uint32_t f2 = 0; f2 < v; ++f2) {
-							if (m1[f1*u + f2]) {
+							//if (m1[f1*u + f2]) {
 								m1[f1*u + f2] &= compare_256_32(lii_2[f1], rii_2[f2]);
-							}
+							//}
 						}
 					}
 
 
 					// early exit from the second limb computations
 					mask = _mm256_movemask_epi8(_mm256_cmpgt_epi8(LOAD256((__m256i *)m1), zero));
-					if (mask == 0) {
+					if (likely(mask == 0)) {
 						continue;
 					}
 
 					// maybe write back a solution
 					bruteforce_avx2_128_32_2_uxv_helper<u,v>(mask, m1, l, i, j);
-
-					// early exit from the shuffle
-					if (l == 7)
-						break;
-
 				} // 8x8 shuffle
 			} // j: enumerate right side
 		} // i: enumerate left side
@@ -2200,7 +2195,9 @@ public:
 	/// \param to swp to
 	/// \param from
 	/// \return number of elements swapped
-	size_t swap_ctz(uint32_t wt, Element *__restrict__ to, Element *__restrict__ from) noexcept {
+	inline size_t swap_ctz(uint32_t wt,
+	                       Element *__restrict__ to,
+	                       Element *__restrict__ from) noexcept {
 		uint32_t nctr = 0;
 		const uint32_t bit_limit = __builtin_popcount(wt);
 		for (uint32_t i = 0; i < bit_limit; ++i) {
@@ -2648,6 +2645,8 @@ public:
 								   size_t &new_e1,
 	                               size_t &new_e2,
 								   const uint64_t z) noexcept {
+		static_assert(u <= 16);
+		static_assert(u > 0);
 		ASSERT(limb <= ELEMENT_NR_LIMBS);
 		ASSERT(limb <= ELEMENT_NR_LIMBS);
 		ASSERT(e1 <= LIST_SIZE);
@@ -2720,13 +2719,13 @@ public:
 
 			if constexpr (k <= 32) {
 				const uint32_t z = (uint32_t) fastrandombytes_uint64();
-				//avx2_sort_nn_on_double32<r-level, 4>(e1, e2, new_e1, new_e2, z);
-				new_e1 = avx2_sort_nn_on32<r - level>(e1, z, L1);
-				new_e2 = avx2_sort_nn_on32<r - level>(e2, z, L2);
+				avx2_sort_nn_on_double32<r-level, 4>(e1, e2, new_e1, new_e2, z);
+				//new_e1 = avx2_sort_nn_on32<r - level>(e1, z, L1);
+				//new_e2 = avx2_sort_nn_on32<r - level>(e2, z, L2);
 			} else if constexpr (k <= 64) {
 				const uint64_t z = fastrandombytes_uint64();
 				//if (e1 < 4096 && e2 < 4096) {
-					avx2_sort_nn_on_double64<r-level, 4>(e1, e2, new_e1, new_e2, z);
+					avx2_sort_nn_on_double64<r-level, 8>(e1, e2, new_e1, new_e2, z);
 				//} else {
 				//	new_e1 = avx2_sort_nn_on64<r - level>(e1, z, L1);
 				//	new_e2 = avx2_sort_nn_on64<r - level>(e2, z, L2);
@@ -2740,7 +2739,7 @@ public:
 			ASSERT(new_e1 <= e1);
 			ASSERT(new_e2 <= e2);
 
-			if (new_e1 == 0 or new_e2 == 0) {
+			if (unlikely(new_e1 == 0 or new_e2 == 0)) {
 				return;
 			}
 
@@ -2757,7 +2756,7 @@ public:
 
 				avx2_nn_internal<level - 1>(new_e1, new_e2);
 
-				if (solutions_nr) {
+				if (unlikely(solutions_nr)) {
 #if DEBUG
 					std::cout << "sol: " << level << " " << i << " " << new_e1 << " " << new_e2 << "\n";
 #endif
