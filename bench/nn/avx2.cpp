@@ -36,8 +36,8 @@ static void BM_NearestNeighborAVX(benchmark::State& state) {
 }
 
 //BENCHMARK(BM_avx2_256_32_8x8)->RangeMultiplier(2)->Range(128, 1u<<16)->Complexity();
-BENCHMARK(BM_avx2_256_64_4x4)->RangeMultiplier(2)->Range(1024, 1u<<18)->Complexity();
-BENCHMARK(BM_NearestNeighborAVX)->RangeMultiplier(2)->Range(1024, 1u<<18)->Complexity();
+BENCHMARK(BM_avx2_256_64_4x4)->RangeMultiplier(2)->Range(1024, 1u<<16)->Complexity();
+BENCHMARK(BM_NearestNeighborAVX)->RangeMultiplier(2)->Range(1024, 1u<<16)->Complexity();
 
 int main(int argc, char** argv) {
 	random_seed(time(NULL));

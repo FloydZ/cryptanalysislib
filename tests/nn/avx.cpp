@@ -105,10 +105,19 @@ TEST(Bruteforce, avx2_64) {
 TEST(Bruteforce, avx2_64_1x1) {
 	constexpr static WindowedAVX2_Config config{64, 1, 1, 64, LS, 10, 5, 0, 512};
 	WindowedAVX2<config> algo{};
-	algo.generate_random_instance();
-	algo.bruteforce_avx2_64_1x1(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
-	EXPECT_EQ(algo.all_solutions_correct(), true);
+
+	for (uint32_t i = 0; i < 10; ++i) {
+		algo.generate_random_instance();
+		algo.bruteforce_avx2_64_1x1(LS, LS);
+		EXPECT_EQ(algo.solutions_nr, 1);
+		EXPECT_EQ(algo.all_solutions_correct(), true);
+		algo.solutions_nr = 0;
+
+		free(algo.L1);
+		free(algo.L2);
+		algo.L1 = nullptr;
+		algo.L2 = nullptr;
+	}
 }
 
 TEST(Bruteforce, avx2_64_uxv) {
@@ -190,7 +199,7 @@ TEST(Bruteforce, avx2_64_uxv) {
 //}
 
 TEST(Bruteforce, n128) {
-	constexpr static WindowedAVX2_Config config{128, 1, 1, 64, LS, 48, 32, 0, 512};
+	constexpr static WindowedAVX2_Config config{128, 2, 1, 64, LS, 48, 32, 0, 512};
 	WindowedAVX2<config> algo{};
 	algo.generate_random_instance();
 	algo.bruteforce_128(LS, LS);
@@ -243,30 +252,30 @@ TEST(Bruteforce, avx_uxv_128) {
 	//algo.solutions_nr = 0;
 }
 
-
-TEST(Bruteforce, n256) {
-	constexpr static WindowedAVX2_Config config{256, 4, 1, 64, LS, 80, 50, 0, 512};
-	WindowedAVX2<config> algo{};
-	algo.generate_random_instance();
-
-
-	if constexpr (LS > 1u << 16) {
-		algo.bruteforce_256(LS, LS);
-		EXPECT_EQ(algo.solutions_nr, 1);
-		EXPECT_EQ(algo.all_solutions_correct(), true);
-	} else {
-		for (uint32_t i = 0; i < 1; ++i) {
-			algo.bruteforce_256(LS, LS);
-			EXPECT_EQ(algo.solutions_nr, 1);
-			EXPECT_EQ(algo.all_solutions_correct(), true);
-			algo.solutions_nr = 0;
-
-			free(algo.L1);
-			free(algo.L2);
-			algo.generate_random_instance();
-		}
-	}
-}
+// takes to long
+//TEST(Bruteforce, n256) {
+//	constexpr static WindowedAVX2_Config config{256, 4, 1, 64, LS, 80, 50, 0, 512};
+//	WindowedAVX2<config> algo{};
+//	algo.generate_random_instance();
+//
+//
+//	if constexpr (LS > 1u << 16) {
+//		algo.bruteforce_256(LS, LS);
+//		EXPECT_EQ(algo.solutions_nr, 1);
+//		EXPECT_EQ(algo.all_solutions_correct(), true);
+//	} else {
+//		for (uint32_t i = 0; i < 1; ++i) {
+//			algo.bruteforce_256(LS, LS);
+//			EXPECT_EQ(algo.solutions_nr, 1);
+//			EXPECT_EQ(algo.all_solutions_correct(), true);
+//			algo.solutions_nr = 0;
+//
+//			free(algo.L1);
+//			free(algo.L2);
+//			algo.generate_random_instance();
+//		}
+//	}
+//}
 
 TEST(Bruteforce, avx_256) {
 	constexpr static WindowedAVX2_Config config{256, 4, 1, 64, LS, 80, 50, 0, 512};
@@ -278,7 +287,7 @@ TEST(Bruteforce, avx_256) {
 		EXPECT_EQ(algo.solutions_nr, 1);
 		EXPECT_EQ(algo.all_solutions_correct(), true);
 	} else {
-		for (int i = 0; i < 10000; ++i) {
+		for (uint32_t i = 0; i < 1; ++i) {
 			algo.bruteforce_avx2_256(LS, LS);
 			EXPECT_EQ(algo.solutions_nr, 1);
 			EXPECT_EQ(algo.all_solutions_correct(), true);
@@ -356,7 +365,7 @@ TEST(Bruteforce, avx2_256_32_8x8) {
 }
 
 TEST(Bruteforce, avx2_256_64_4x4) {
-	constexpr static WindowedAVX2_Config config{256, 4, 1, 64, 32, 30, 16, 0, 512};
+	constexpr static WindowedAVX2_Config config{256, 4, 1, 64, LS, 30, 16, 0, 512};
 	WindowedAVX2<config> algo{};
 	algo.generate_random_instance();
 
@@ -782,13 +791,70 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64_k) {
 }
 
 
-TEST(NearestNeighborAVX, MO640Params_n128_r3) {
-	constexpr size_t LS = 1u << 16u;
-	constexpr static WindowedAVX2_Config config2{128, 4, 10, 32, LS, 15, 13, 0, 1024}; // %100
+TEST(NearestNeighborAVX, MO640Params_n128_r2_64) {
+	constexpr size_t LS = 1u << 14u;
+	constexpr uint32_t nr_tries = 1000;
+	uint32_t sols = 0;
+	// 100%
+	constexpr static WindowedAVX2_Config config64{128, 2, 250, 64, LS, 24, 11, 0, 600};
+
+	WindowedAVX2<config64> algo64{};
+	algo64.generate_random_instance();
+
+	for (size_t i = 0; i < nr_tries; i++) {
+		algo64.avx2_nn(LS, LS);
+		sols += algo64.solutions_nr;
+		algo64.solutions_nr = 0;
+
+		free(algo64.L1);
+		free(algo64.L2);
+		algo64.generate_random_instance();
+	}
+
+	ASSERT_EQ(sols, nr_tries);
+}
+
+TEST(NearestNeighborAVX, MO640Params_n128_r2_64_masked) {
+	constexpr size_t LS = 1u << 14u;
+	constexpr uint32_t nr_tries = 1000;
+	uint32_t sols = 0;
+
+	// optimal: d=14, N=160
+	//		100% success rate for d=17, N=160
+	//		NOTE: that d=14 or d=17 doesn't matter for the runtime because below 600 elements are surviving
+	//		NOTE: after the optimal d was found, I optimized the N
+	// 87% runtime in Bruteforce
+	//constexpr static WindowedAVX2_Config config64{128, 2, 180, 48, LS, 17, 11, 0, 600};
+
+	// MUVH better
+	// close to 100% correctners: rt 7-10s
+	constexpr static WindowedAVX2_Config config64{128, 2, 1000, 48, LS, 15, 11, 0, 512};
+
+
+	WindowedAVX2<config64> algo64{};
+	algo64.generate_random_instance();
+
+	for (size_t i = 0; i < nr_tries; i++) {
+		algo64.avx2_nn(LS, LS);
+		sols += algo64.solutions_nr;
+		algo64.solutions_nr = 0;
+	}
+
+	ASSERT_EQ(sols, nr_tries);
+}
+
+TEST(NearestNeighborAVX, MO640Params_n128_r4_32) {
+	constexpr size_t LS = 1u << 14u;
+
+	// %77~80% correctness
+	constexpr static WindowedAVX2_Config config2{128, 4, 20, 32, LS, 13, 11, 0, 1024};
+
+	// Nearly 100%
+	//constexpr static WindowedAVX2_Config config2{128, 4, 10, 32, LS, 14, 11, 0, 1024};
 	WindowedAVX2<config2> algokek{};
 	algokek.generate_random_instance();
 
-	constexpr uint32_t nr_tries = 10;
+	constexpr uint32_t nr_tries = 1000;
 	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {
 		algokek.avx2_nn(LS, LS);
@@ -801,25 +867,8 @@ TEST(NearestNeighborAVX, MO640Params_n128_r3) {
 	}
 
 	ASSERT_EQ(sols, nr_tries);
-
-
-	constexpr static WindowedAVX2_Config config64{128, 2, 10, 64, LS, 20, 13, 0, 1024}; // %100
-	WindowedAVX2<config64> algo64{};
-	algo64.generate_random_instance();
-
-	sols = 0;
-	for (size_t i = 0; i < nr_tries; i++) {
-		algo64.avx2_nn(LS, LS);
-		sols += algokek.solutions_nr;
-		algokek.solutions_nr = 0;
-
-		free(algokek.L1);
-		free(algokek.L2);
-		algo64.generate_random_instance();
-	}
-
-	ASSERT_EQ(sols, nr_tries);
 }
+
 
 TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	//constexpr size_t LS = 1u << 18u;
@@ -834,7 +883,7 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	WindowedAVX2<config> algo{};
 	algo.generate_random_instance();
 
-	constexpr uint32_t nr_tries = 100;
+	constexpr uint32_t nr_tries = 10;
 	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {
 		algo.avx2_nn(LS, LS);

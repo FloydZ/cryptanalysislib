@@ -36,7 +36,7 @@ static void BM_bruteforce_avx2_128_32_2_uxv_4x4(benchmark::State& state) {
 
 static void BM_bruteforce_avx2_128_32_2_uxv_8x8(benchmark::State& state) {
 	for (auto _ : state) {
-		algo.bruteforce_avx2_128_32_2_uxv<4, 4>(state.range(0), state.range(0));
+		algo.bruteforce_avx2_128_32_2_uxv<8, 8>(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
