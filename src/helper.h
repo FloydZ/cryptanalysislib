@@ -158,14 +158,6 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 #define DEBUG_MACRO(x)
 #endif
 
-
-long long cpucycles(void) {
-  unsigned long long result;
-  asm volatile(".byte 15;.byte 49;shlq $32,%%rdx;orq %%rdx,%%rax"
-    : "=a" (result) ::  "%rdx");
-  return result;
-}
-
 size_t hex2bin (void *bin, const char hex[]) {
 	size_t len;
 	unsigned int x;

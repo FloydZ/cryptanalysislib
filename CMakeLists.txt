@@ -3,9 +3,7 @@ project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 20)
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_CXX_STANDARD 17)
-endif()
+
 
 # needed for nvim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
@@ -77,8 +75,6 @@ set(MALLOC_LIBRARY "")
 #set(SANITIZE_FLAG "-fsanitize=address")
 set(SANITIZE_FLAG "")
 
-#set(ADDITIONAL_FLAGS "-DUSE_AVX2  -fno-inline")
-set(ADDITIONAL_FLAGS "-DUSE_AVX2")
 
 set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings")
 #set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
@@ -87,8 +83,23 @@ set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-set(DEBUG_FLAGS "-g -Og -DDEBUG -mavx2 -mbmi ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+if(APPLE)
+    include_directories(/opt/homebrew/opt/libomp/include)
+    include_directories(/opt/homebrew/include)
+    link_directories(/opt/homebrew/opt/libomp/link)
+    link_directories(/usr/local/lib)
+    link_directories(/usr/lib)
+    link_directories(/opt/homebrew/lib)
+
+    set(ADDITIONAL_FLAGS "-DUSE_ARM")
+    set(DEBUG_FLAGS "-g -Og -DDEBUG ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+    set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+else()
+    set(ADDITIONAL_FLAGS "-DUSE_AVX2")
+    #set(ADDITIONAL_FLAGS "-DUSE_AVX2  -fno-inline")
+    set(DEBUG_FLAGS "-g -Og -DDEBUG -march=native -mavx2 -mbmi ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+    set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+endif()
 
 # TODO simplify to only one flag
 # note that fplll is missing

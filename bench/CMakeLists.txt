@@ -1,5 +1,3 @@
-set(COMPILE_BENCH_FLAGS -Ofast -march=native)
-
 add_subdirectory(combinations)
 add_subdirectory(container)
 add_subdirectory(labeltype)

@@ -1023,6 +1023,7 @@ public:
 		}
 	}
 
+#ifdef USE_AVX2
 	/// TODO explain
 	/// \param v3
 	/// \param v1
@@ -1044,7 +1045,6 @@ public:
 		}
 
 		uint32_t i = 0;
-#ifdef USE_AVX2
 		if constexpr(activate_avx2) {
 			for (; i + 4 <= internal_limbs; i += 4) {
 				__m256i t = add_mod3_limb256(_mm256_lddqu_si256((__m256i *) &v1.__data[i]),
@@ -1052,7 +1052,6 @@ public:
 				_mm256_storeu_si256((__m256i *) &v3.__data[i], t);
 			}
 		}
-#endif
 
 		for (; i+2 <= internal_limbs; i += 2) {
 			__uint128_t t = add_mod3_limb128(*((__uint128_t *)&v1.__data[i]), *((__uint128_t *)&v2.__data[i]));
@@ -1063,6 +1062,7 @@ public:
 			v3.__data[i] = add_mod3_limb(v1.__data[i], v2.__data[i]);
 		}
 	}
+#endif
 
 	// generic add: v3 = v1 + v2 between k_lower and k_upper
 	inline static void add(kAryPackedContainer_T &v3, kAryPackedContainer_T const &v1, kAryPackedContainer_T const &v2,
@@ -3061,6 +3061,7 @@ public:
 		head.store(nullptr);
 	}
 
+#if defined(__x86_64__)
 	// only needed for the C version.
 	int CAS(void **mem, void *o, void *n) {
 		int res;
@@ -3071,7 +3072,11 @@ public:
 			: "=a" (res) : "m" (*mem), "a" (o), "d" (n));
 		return res;
 	}
-
+#else
+	int CAS(void **mem, void *o, void *n) {
+		// TODO
+	}
+#endif
 
 	/// insert front, unsorted
 	void insert(T *a) {

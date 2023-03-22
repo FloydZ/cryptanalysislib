@@ -1,5 +1,5 @@
 #TESTS Flags
-set(COMPILE_TEST_FLAGS -g -pthread -march=native)
+set(COMPILE_TEST_FLAGS -g -pthread)
 
 file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 foreach(testfile ${TEST_SOURCES})

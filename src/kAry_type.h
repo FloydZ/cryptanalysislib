@@ -331,7 +331,9 @@ T abs(T in){
 	if constexpr (std::is_integral<T>::value == true) {
 		return __builtin_llabs(in);
 	} else {
-		return T(__builtin_llabs(in.data()));
+		// TODO apple is crying that double is not an integral type...
+		return 0;
+		// return T(__builtin_llabs(in.data()));
 	}
 }
 

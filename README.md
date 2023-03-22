@@ -32,9 +32,15 @@ make
 
 ## MacOS
 ```bash
-brew install cmake make tbb gcc googletest autoconf automake libtool googlebenchmark
+brew install cmake make tbb gcc googletest autoconf automake libtool google-benchmark gcc libomp
 ```
 Follow this (Guide)[https://mac.r-project.org/openmp/] to install openmp on osx.
+
+Somehow Apple is not supporting static linking? so you need to execute the following command once:
+```bash
+cd deps/m4ri
+sudo make install
+```
 
 ## Windows: 
 I wish you luck with this one.
