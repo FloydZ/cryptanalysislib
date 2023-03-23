@@ -585,7 +585,7 @@ constexpr uint64_t const_log(const uint64_t x) { return uint64_t(log_cf_begin((x
 // termination
 template <typename T>
 constexpr bool feq(T x, T y) {
-	return abs(x - y) <= std::numeric_limits<T>::epsilon();
+	return std::fabs(x - y) <= std::numeric_limits<T>::epsilon();
 }
 
 template <typename T>

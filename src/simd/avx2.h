@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef __x86_64__
 #include <immintrin.h>
 #include <cstdint>
 #include <cstdio>
@@ -12,7 +13,7 @@ union U256i {
 };
 
 /// prints a `__m256i` as 8 `u32`
-static void print_m256i_u32(const __m256i v){
+void print_m256i_u32(const __m256i v){
     const U256i u = { v };
 
     for (uint32_t i = 0; i < 8; ++i) {
@@ -22,3 +23,4 @@ static void print_m256i_u32(const __m256i v){
 	
 	printf("\n");
 }
+#endif

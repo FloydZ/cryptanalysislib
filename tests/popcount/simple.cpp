@@ -3,8 +3,8 @@
 #include <immintrin.h>
 
 #include "popcount/x86.h"
-#include "avx2/avx2.h"
 #include "random.h"
+#include "simd/avx2.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
