@@ -10,6 +10,7 @@
 #include <immintrin.h>
 
 #include "random.h"
+#include "helper.h"
 
 /// TODO merge those global macros with `helper.h`
 

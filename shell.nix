@@ -27,7 +27,8 @@ stdenv.mkDerivation {
 	ripgrep
 	flamegraph
 	gdb
-    #linuxKernel.packages.linux_6_0.perf
+    linuxKernel.packages.linux_6_0.perf
+	pprof
 	valgrind
 	massif-visualizer
   ];
