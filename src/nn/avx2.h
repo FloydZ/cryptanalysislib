@@ -221,7 +221,6 @@ public:
 template<const WindowedAVX2_Config &config>
 class WindowedAVX2 {
 public:
-
 	constexpr static size_t n = config.n;
 	constexpr static size_t r = config.r;
 	constexpr static size_t N = config.N;
@@ -2951,6 +2950,11 @@ public:
 
 
 #ifdef __AVX512F__
+	alignas(64) const __m512i avx512_weight32 = _mm512_set1_epi32(d+1);
+	alignas(64) const __m512i avx512_weight64 = _mm512_set1_epi64(d+1);
+	alignas(64) const __m512i avx512_exact_weight32 = _mm512_set1_epi32(d);
+	alignas(64) const __m512i avx512_exact_weight64 = _mm512_set1_epi64(d);
+
 	__m512i	popcount_avx512_32(const __m512i in) {
 		return _mm512_popcnt_epi32(in);
 	}
@@ -2959,12 +2963,52 @@ public:
 		return _mm512_popcnt_epi64(in);
 	}
 
+	///
+	/// NOTE: upper bound `d` is inclusive
+	/// \param in
+	/// \return
+	template<bool exact=false>
+	int compare_512_32(const __m512i in1, const __m512i in2) {
+		if constexpr(EXACT) {
+			return _mm512_cmpeq_epi32_mask(in1, in2);
+		} else {
+			const __m512i tmp1 = _mm512_xor_si512(in1, in2);
+			const __m512i pop = popcount_avx512_32(tmp1);
 
-	void bruteforce_avx2_512_32_8x8(const size_t e1,
-	                                const size_t e2) noexcept {
-		ASSERT(n <= 256);
-		ASSERT(n > 128);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
+			if constexpr (exact) {
+				return _mm512_cmpeq_epi32_mask(avx512_exact_weight32, pop);
+			} else  {
+				return _mm512_cmpgt_epi32_mask(avx512_weight32, pop);
+			}
+		}
+	}
+
+	///
+	/// NOTE: upper bound `d` is inclusive
+	/// \param in
+	/// \return
+	template<bool exact=false>
+	int compare_512_64(const __m512i in1, const __m512i in2) {
+		if constexpr(EXACT) {
+			return _mm512_cmpeq_epi64_mask(in1, in2);
+		} else {
+			const __m512i tmp1 = _mm512_xor_si512(in1, in2);
+			const __m512i pop = popcount_avx512_32(tmp1);
+
+			if constexpr (exact) {
+				return _mm512_cmpeq_epi64_mask(avx512_exact_weight64, pop);
+			} else  {
+				return _mm512_cmpgt_epi64_mask(avx512_weight64, pop);
+			}
+		}
+	}
+
+	///
+	///
+	void bruteforce_avx512_32_16x16(const size_t e1,
+	                              const size_t e2) noexcept {
+		ASSERT(n <= 32);
+		ASSERT(ELEMENT_NR_LIMBS == 1);
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -2974,16 +3018,32 @@ public:
 
 		ASSERT(d < 16);
 
-		uint32_t *ptr_l = (uint32_t *)L1;
+		__m512i *ptr_l = (__m512i *)L1;
+		const __m512i perm = _mm512_setr_epi32(15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
 
-		/// difference of the memory location in the right list
-		const __m256i loadr1 = _mm256_setr_epi32(0, 8, 16, 24, 32, 40, 48, 56);
-		const __m256i shuffl = _mm256_setr_epi32(7, 0, 1, 2, 3, 4, 5, 6);
+		for (size_t i = 0; i < (e1+15)/16; i++) {
+			const __m512i li = _mm512_load_si512(ptr_l);
+			__m512i *ptr_r = (__m512i *)L2;
 
-		alignas(32) uint8_t m1s[64];
+			for (size_t j = 0; j < (e2+15)/16; j++) {
+				__m512i ri = _mm512_load_si512(ptr_r);
+				const int m = compare_512_32(li, ri);
 
-		// TODO
+				if (m) {
+					const size_t jprime = j*16;
+					const size_t iprime = i*16;
+
+					if (compare_u64_ptr((T *) (L1 + iprime), (T *)(L2 + jprime))) {
+						// TODO
+						printf("k\n");
+					}
+				}
+				
+				ri = _mm512_permutexvar_epi32(perm, ri);
+			}
+ 		}
 	}
+
 #endif
 };
 
