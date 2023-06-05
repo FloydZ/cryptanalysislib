@@ -40,9 +40,21 @@
 class WindowedAVX2_Config {
 private:
 	// disable the normal constructor
-	WindowedAVX2_Config() : n(0), r(0), N(0), k(0), d(0), dk(0), LIST_SIZE(0), epsilon(0), BRUTEFORCE_THRESHOLD(0) {}
+	WindowedAVX2_Config() : n(0), r(0), N(0), k(0), d(0), dk(0), dk_bruteforce_weight(0),
+							dk_bruteforce_size(0),
+							LIST_SIZE(0), epsilon(0), BRUTEFORCE_THRESHOLD(0) {}
 public:
-	const uint32_t n, r, N, k, d, dk, LIST_SIZE, epsilon, BRUTEFORCE_THRESHOLD;
+	const uint32_t 	n, 						// length of the input vectors
+		  			r,						// number of limbs to seperate n on (number of levels)
+					N,  					// number of leaves per leve
+					k, 						// size of each limb
+					d, 						// weight difference to match on the golden solution
+					dk,						// weight difference to match on each limb
+					dk_bruteforce_weight,   // max. weight differenve to allow on each limb during the bruteforce step
+					dk_bruteforce_size,     // number of bits to check `dk_bruteforce_weight` on, should be 32/64
+					LIST_SIZE, 				// list size on scale
+					epsilon, 
+					BRUTEFORCE_THRESHOLD;   // max. number of elements to be in both lists, until we switch to the bruteforce
 	constexpr WindowedAVX2_Config(const uint32_t n,
 	                              const uint32_t r,
 	                              const uint32_t N,
@@ -51,9 +63,15 @@ public:
 	                              const uint32_t dk,
 	                              const uint32_t d,
 	                              const uint32_t epsilon,
-	                              const uint32_t bf) noexcept :
-	   n(n), r(r), N(N), k(k), d(d), dk(dk), LIST_SIZE(ls), epsilon(epsilon), BRUTEFORCE_THRESHOLD(bf) {};
+	                              const uint32_t bf,
+								  const uint32_t dk_bruteforce_weight=0,
+								  const uint32_t dk_bruteforce_size=0) noexcept :
+	   n(n), r(r), N(N), k(k), d(d), dk(dk), dk_bruteforce_weight(dk_bruteforce_weight),
+		dk_bruteforce_size(dk_bruteforce_size),
+		LIST_SIZE(ls), epsilon(epsilon), BRUTEFORCE_THRESHOLD(bf) {};
 
+	///
+	/// helper function, only printing the internal parameters
 	void print() const noexcept {
 		std::cout
 		    << "n: " << n
@@ -62,6 +80,8 @@ public:
 			<< ",k " << k
 			<< ",|L|: " << LIST_SIZE
 			<< ", dk: " << dk
+			<< ", dk_bruteforce_size: " << dk_bruteforce_size
+			<< ", dk_bruteforce_weight: " << dk_bruteforce_weight
 			<< ", d: " << d
 			<< ", e: " << epsilon
 			<< ", bf: " << BRUTEFORCE_THRESHOLD
@@ -70,7 +90,9 @@ public:
 	}
 };
 
-///
+/// unrolled bruteforce step.
+/// stack: uint64_t[64]
+/// a1-a8, b1-b7: __m256i
 #define BRUTEFORCE256_32_8x8_STEP(stack, a1, a2, a3, a4, a5, a6, a7, a8, b1, b2, b3, b4, b5, b6, b7, b8)    \
 	stack[ 0] = (uint8_t)compare_256_32(a1, b1); \
 	stack[ 1] = (uint8_t)compare_256_32(a1, b2); \
@@ -138,7 +160,7 @@ public:
 	stack[63] = (uint8_t)compare_256_32(a8, b8)
 
 
-
+///
 #define BRUTEFORCE256_64_4x4_STEP(stack, a0, a1, a2, a3, b0, b1, b2, b3)    \
 	stack[ 0] = (uint8_t)compare_256_64(a0, b0); 	\
 	stack[ 1] = (uint8_t)compare_256_64(a0, b1); 	\
@@ -232,13 +254,18 @@ public:
 	constexpr static uint64_t epsilon = config.epsilon;
 	constexpr static uint64_t BRUTEFORCE_THRESHHOLD = config.BRUTEFORCE_THRESHOLD;
 
-	// only exact matching in the bruteforce step, if set to `true`
+	/// Additional  performance tuning parameters
+	constexpr static uint32_t dk_bruteforce_size = config.dk_bruteforce_size;
+	constexpr static uint32_t dk_bruteforce_weight = config.dk_bruteforce_weight;
+
+	/// only exact matching in the bruteforce step, if set to `true`
+	/// This means that only EXACTLY equal elements are searched for
 	constexpr static bool EXACT = false;
 
 	/// in each step of the NN search only the exact weight dk is accepted
-	constexpr static bool NN_EQUAL = false;
+	constexpr static bool NN_EQUAL = true;
 	/// in each step of the NN search all elements <= dk are accepted
-	constexpr static bool NN_LOWER = true;
+	constexpr static bool NN_LOWER = false;
 	/// in each step of the NN search all elements dk-epsilon <= wt <= dk+epsilon are accepted
 	constexpr static bool NN_BOUNDS = false;
 
@@ -258,6 +285,7 @@ public:
 	~WindowedAVX2() {
 		/// probably its ok to assert some stuff here
 		static_assert(k <= n);
+		static_assert(dk_bruteforce_size >= dk_bruteforce_weight);
 
 		if (L1) { free(L1); }
 		if (L2) { free(L2); }
@@ -390,7 +418,7 @@ public:
 		}
 	}
 
-	///
+	/// TODO explain
 	/// \param mask
 	/// \return
 	__m256i bit_mask_64(const uint64_t mask) {
@@ -466,9 +494,9 @@ public:
 
 	/// pretty much the same as `shuffle_down_64` but accepts permutation mask bigger than 2**4 up to
 	/// 2**8, meaning this function returns 2 permutations for at most 2 * 4  uint64_t limbs.
-	/// \param higher
-	/// \param lower
-	/// \param mask
+	/// \param higher: output parameterm, contains the higher/last 4 permutations
+	/// \param lower:  output parameter, contain the lower/first 4 permutations
+	/// \param mask: input parameter
 	void shuffle_down_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) const noexcept {
 		// make sure only sane inputs make it.
 		ASSERT(mask < (1u<<8u));
@@ -551,16 +579,6 @@ public:
 		higher = _mm256_cvtepu8_epi64(bytevec2);
 	}
 
-	//constexpr static uint8_t popcount_table[256] = {0 ,1 ,1 ,2 ,1 ,2 ,2 ,3 ,1 ,2 ,2 ,3 ,2 ,3 ,3 ,4 ,1 ,2 ,2 ,3 ,2 ,3 ,3 ,4 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,1 ,2 ,2 ,3 ,2 ,3 ,3 ,4 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,1 ,2 ,2 ,3 ,2 ,3 ,3 ,4 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,4 ,5 ,5 ,6 ,5 ,6 ,6 ,7 ,1 ,2 ,2 ,3 ,2 ,3 ,3 ,4 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,4 ,5 ,5 ,6 ,5 ,6 ,6 ,7 ,2 ,3 ,3 ,4 ,3 ,4 ,4 ,5 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,4 ,5 ,5 ,6 ,5 ,6 ,6 ,7 ,3 ,4 ,4 ,5 ,4 ,5 ,5 ,6 ,4 ,5 ,5 ,6 ,5 ,6 ,6 ,7 ,4 ,5 ,5 ,6 ,5 ,6 ,6 ,7 ,5 ,6 ,6 ,7 ,6 ,7 ,7 };
-	//inline static __m256i popcount_avx2_32_v2(const __m256i vec) noexcept {
-	//	const static __m256i low_mask = _mm256_set1_epi16(0xff);
-	//	const __m256i lo  = _mm256_and_si256(vec, low_mask);
-	//	const __m256i hi  = _mm256_and_si256(_mm256_srli_epi16(vec, 8), low_mask);
-	//	const __m256i pop1 = _mm256_i32gather_epi32((uint32_t *)popcount_table, lo, 1);
-	//	const __m256i pop2 = _mm256_i32gather_epi32((uint32_t *)popcount_table, hi, 1);
-	//	return _mm256_and_si256(_mm256_add_epi8(pop1, pop2), low_mask);
-	//}
-
 	alignas(32) const __m256i avx_nn_k_mask = k < 32 ? _mm256_set1_epi32((uint32_t)(1ull << (k%32)) - 1ull) :
 	                                          k < 64 ? _mm256_set1_epi64x((1ull << (k%64)) - 1ull) :
 	                                                   _mm256_set1_epi32(0);
@@ -578,31 +596,21 @@ public:
 	alignas(32) const __m256i avx_exact_weight32 = _mm256_set1_epi32(d);
 	alignas(32) const __m256i avx_exact_weight64 = _mm256_set1_epi64x(d);
 
-	alignas(32) const __m256i low_mask = _mm256_set1_epi8(0x0f);
-	alignas(32) const __m256i lookup = _mm256_setr_epi8(
-			/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
-			/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
-			/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
-			/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
-			/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
-			/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
-			/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
-			/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
-	);
 
-	alignas(32) uint32_t popcount_helper[8];
-	__m256i popcount_avx2_32_old(const __m256i vec) noexcept {
-		STORE256((__m256i *)popcount_helper, vec);	
-		
-		for (uint32_t i = 0; i < 8; i++) {
-			popcount_helper[i] = __builtin_popcount(popcount_helper[i]);
-		}
-
-		return LOAD256((__m256i *)popcount_helper);
-	}
-	
+	/// AVX2 popcount, which computes the popcount of each of the 32bit limbs
+	/// seperatly.
 	__m256i popcount_avx2_32(const __m256i vec) noexcept {
 		const __m256i low_mask = _mm256_set1_epi8(0x0f);
+		const __m256i lookup = _mm256_setr_epi8(
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+		);
 		const __m256i lo  = _mm256_and_si256(vec, low_mask);
 		const __m256i hi  = _mm256_and_si256(_mm256_srli_epi16(vec, 4), low_mask);
 		const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
@@ -619,9 +627,47 @@ public:
 		ret = _mm256_add_epi8(ret, _mm256_and_si256(_mm256_srli_epi32(local, 24), mask));
 		return ret;
 	}
-	
+
+	__m256i popcount_avx2_32_old(const __m256i vec) noexcept {
+		const __m256i low_mask = _mm256_set1_epi8(0x0f);
+		const __m256i lookup = _mm256_setr_epi8(
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+		);
+		const __m256i lo  = _mm256_and_si256(vec, low_mask);
+		const __m256i hi  = _mm256_and_si256(_mm256_srli_epi16(vec, 4), low_mask);
+		const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
+		const __m256i popcnt2 = _mm256_shuffle_epi8(lookup, hi);
+		__m256i local = _mm256_add_epi8(popcnt1, popcnt2);
+
+		const __m256i mask1 = _mm256_set1_epi64x(uint32_t(-1ul));
+		const __m256i mask2 = _mm256_set1_epi64x(uint64_t(uint32_t(-1ul)) << 32u);
+		const __m256i zero = _mm256_setzero_si256();
+		const __m256i c1 =_mm256_sad_epu8 (local&mask1, zero);
+		const __m256i c2 = _mm256_slli_epi64(_mm256_sad_epu8 (local&mask2, zero), 32);
+		const __m256i ret = c1 ^ c2;
+		return ret;
+	}
+
 	/// special popcount which popcounts on 4 * 64 bit limbs in parallel
 	__m256i popcount_avx2_64(const __m256i vec) noexcept {
+		const __m256i low_mask = _mm256_set1_epi8(0x0f);
+		const __m256i lookup = _mm256_setr_epi8(
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+		);
 	    const __m256i lo  = _mm256_and_si256(vec, low_mask);
 	    const __m256i hi  = _mm256_and_si256(_mm256_srli_epi16(vec, 4), low_mask);
 	    const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
@@ -630,8 +676,21 @@ public:
 		const __m256i ret =_mm256_sad_epu8 (local, _mm256_setzero_si256());
 		return ret;
 	}
-	__m256i popcount_avx2_64_simple(const __m256i vec) noexcept {
+
+	/// first implementation of the avx popcount.
+	/// DO NOT USE IT, its slower
+	__m256i popcount_avx2_64_old(const __m256i vec) noexcept {
 		const __m256i low_mask = _mm256_set1_epi8(0x0f);
+		const __m256i lookup = _mm256_setr_epi8(
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+		);
 		const __m256i lo = _mm256_and_si256(vec, low_mask);
 		const __m256i hi = _mm256_and_si256(_mm256_srli_epi16(vec, 4), low_mask);
 		const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
@@ -650,11 +709,14 @@ public:
 		return ret;
 	}
 
-	__m256i popcount_avx2_64_(const __m256i v) noexcept {
+
+
+	/// Source:https://github.com/WojciechMula/sse-popcount/blob/master/popcnt-avx2-harley-seal.cpp
+	/// Implementation of the harley-Seal algorithm
+	__m256i popcount_avx2_64_old_v2(const __m256i v) noexcept {
 		const __m256i m1 = _mm256_set1_epi8(0x55);
 		const __m256i m2 = _mm256_set1_epi8(0x33);
 		const __m256i m4 = _mm256_set1_epi8(0x0F);
-		
 		const __m256i t1 = _mm256_sub_epi8(v,       (_mm256_srli_epi16(v,  1) & m1));
 		const __m256i t2 = _mm256_add_epi8(t1 & m2, (_mm256_srli_epi16(t1, 2) & m2));
 		const __m256i t3 = _mm256_add_epi8(t2, _mm256_srli_epi16(t2, 4)) & m4;
@@ -1795,6 +1857,8 @@ public:
 	}
 
 	/// NOTE: this is hyper optimized for the case if there is only one solution with extremely low weight.
+	/// \param e1 size of the list L1
+	/// \param e2 size of the list L2
 	void bruteforce_avx2_256_32_8x8(const size_t e1,
 	                                const size_t e2) noexcept {
 		ASSERT(n <= 256);
@@ -1804,8 +1868,8 @@ public:
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
 
-		ASSERT(e1 >= 64);
-		ASSERT(e2 >= 64);
+		//ASSERT(e1 >= 64);
+		//ASSERT(e2 >= 64);
 
 		ASSERT(d < 16);
 
@@ -2204,7 +2268,7 @@ public:
 			const uint32_t pos = __builtin_ctz(wt);
 			std::swap(to[i], from[pos]);
 
-			// clear the set bit to not double check it.
+			// clear the set bit.
 			wt ^= 1u << pos;
 		}
 
@@ -2596,7 +2660,7 @@ public:
 
 		const size_t min_e = (std::min(e1, e2) + 4*u - 1);
 		for (; i+(4*u) <= min_e; i += (4*u), ptr_L1 += (4*u), org_ptr_L1 += (4*u),
-											ptr_L2 += (4*u), org_ptr_L2 += (4*u)) {
+											 ptr_L2 += (4*u), org_ptr_L2 += (4*u)) {
 			uint64_t wt_L1 = 0, wt_L2 = 0;
 
 			#pragma unroll
@@ -2641,10 +2705,10 @@ public:
 	/// \param z random element to match on
 	template<const uint32_t limb, const uint32_t u>
 	void avx2_sort_nn_on_double64(const size_t e1,
-							       const size_t e2,
-								   size_t &new_e1,
-	                               size_t &new_e2,
-								   const uint64_t z) noexcept {
+							      const size_t e2,
+								  size_t &new_e1,
+	                              size_t &new_e2,
+								  const uint64_t z) noexcept {
 		static_assert(u <= 16);
 		static_assert(u > 0);
 		ASSERT(limb <= ELEMENT_NR_LIMBS);
@@ -2670,7 +2734,7 @@ public:
 
 		const size_t min_e = (std::min(e1, e2) + 4*u - 1);
 		for (; i+(4*u) <= min_e; i += (4*u), ptr_L1 += (4*u), org_ptr_L1 += (4*u),
-											ptr_L2 += (4*u), org_ptr_L2 += (4*u)) {
+											 ptr_L2 += (4*u), org_ptr_L2 += (4*u)) {
 			uint32_t wt_L1 = 0, wt_L2 = 0;
 
 			#pragma unroll
@@ -2705,7 +2769,8 @@ public:
 	/// \param e1 end of list L1
 	/// \param e2 end of list L2
 	template<const uint32_t level>
-	void avx2_nn_internal(const size_t e1, const size_t e2) {
+	void avx2_nn_internal(const size_t e1,
+	                      const size_t e2) noexcept {
 		ASSERT(e1 <= LIST_SIZE);
 		ASSERT(e2 <= LIST_SIZE);
 
@@ -2744,14 +2809,18 @@ public:
 			}
 
 			if ((new_e1 < BRUTEFORCE_THRESHHOLD) || (new_e2 < BRUTEFORCE_THRESHHOLD)) {
+#ifdef DEBUG
+				std::cout << level << " " << new_e1 << " " << e1 << " " << new_e2 << " " << e2 << "\n";
+#endif
 				bruteforce(new_e1, new_e2);
 				return;
 			}
 
 			for (uint32_t i = 0; i < N; i++) {
 #ifdef DEBUG
-				if (i == 0)
-					std::cout << level << " " << i << " " << new_e1 << " " << e1 <<" " << new_e2 << " " << e2 << "\n";
+				if (i == 0) {
+					std::cout << level << " " << i << " " << new_e1 << " " << e1 << " " << new_e2 << " " << e2 << "\n";
+				}
 #endif
 
 				avx2_nn_internal<level - 1>(new_e1, new_e2);
@@ -2766,7 +2835,11 @@ public:
 		}
 	}
 
-	void avx2_nn(const size_t e1=LIST_SIZE, const size_t e2=LIST_SIZE) {
+	/// core entry function
+	/// \param e1
+	/// \param e2
+	void avx2_nn(const size_t e1=LIST_SIZE,
+	             const size_t e2=LIST_SIZE) noexcept {
 		//config.print();
 		//madvise(L1, LIST_SIZE*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL | MADV_HUGEPAGE);
 		//madvise(L2, LIST_SIZE*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL | MADV_HUGEPAGE);
@@ -2955,10 +3028,16 @@ public:
 	alignas(64) const __m512i avx512_exact_weight32 = _mm512_set1_epi32(d);
 	alignas(64) const __m512i avx512_exact_weight64 = _mm512_set1_epi64(d);
 
+	///
+	/// \param in
+	/// \return
 	__m512i	popcount_avx512_32(const __m512i in) {
 		return _mm512_popcnt_epi32(in);
 	}
 
+	///
+	/// \param in
+	/// \return
 	__m512i	popcount_avx512_64(const __m512i in) {
 		return _mm512_popcnt_epi64(in);
 	}
@@ -3004,9 +3083,10 @@ public:
 	}
 
 	///
-	///
+	/// \param e1
+	/// \param e2
 	void bruteforce_avx512_32_16x16(const size_t e1,
-	                              const size_t e2) noexcept {
+	                               const size_t e2) noexcept {
 		ASSERT(n <= 32);
 		ASSERT(ELEMENT_NR_LIMBS == 1);
 		constexpr size_t s1 = 0, s2 = 0;
@@ -3038,12 +3118,43 @@ public:
 						printf("k\n");
 					}
 				}
-				
+
+				// shuffle 
 				ri = _mm512_permutexvar_epi32(perm, ri);
 			}
  		}
 	}
 
+	/// NOTE: assumes T=uint64
+	/// NOTE: only matches weight dk on uint32_t
+	/// NOTE: dont call this function at first.
+	/// NOTE: the current implementation will overflow the given e1, e2 in multiples of u*4
+	/// NOTE: make sure that `new_e1` and `new_e2` are zero
+	/// \tparam limb current limb
+	/// \tparam u number of checks to unroll
+	/// \param e1 end of List L1
+	/// \param e2 end of List L2
+	/// \param new_e1 new end of List L1
+	/// \param new_e2 new end of List L2
+	/// \param z random element to match on
+	template<const uint32_t limb, const uint32_t u>
+	void avx512_sort_nn_on_double32(const size_t e1,
+								    const size_t e2,
+								    size_t &new_e1,
+								    size_t &new_e2,
+								    const uint64_t z) noexcept {
+		static_assert(u <= 8);
+		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		ASSERT(e1 <= LIST_SIZE);
+		ASSERT(e2 <= LIST_SIZE);
+		ASSERT(k <= 32);
+		ASSERT(new_e1 == 0);
+		ASSERT(new_e2 == 0);
+		ASSERT(dk <= 16);
+
+
+	}
 #endif
 };
 
