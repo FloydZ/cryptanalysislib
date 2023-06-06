@@ -7,7 +7,7 @@
 #include "nn/nn.h"
 
 constexpr size_t LS = 1u << 20u;
-constexpr size_t d = 16;
+constexpr size_t d = 1;
 constexpr size_t dk = 22;
 constexpr static WindowedAVX2_Config config{256, 4, 300, 64, LS, dk, d, 0, 512};
 WindowedAVX2<config> algo{};

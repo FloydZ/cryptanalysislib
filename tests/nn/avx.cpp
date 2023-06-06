@@ -605,7 +605,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double32) {
 	size_t e11 = algo1.avx2_sort_nn_on32_simple<0>(LS, z, algo1.L1);
 	size_t e12 = algo1.avx2_sort_nn_on32_simple<0>(LS, z, algo1.L2);
 	size_t e21=0, e22=0;
-	algo2.avx2_sort_nn_on_double32<0, 8>(LS, LS, e21, e22, z);
+	algo2.avx2_sort_nn_on_double32<0, 7>(LS, LS, e21, e22, z);
 	EXPECT_EQ(e11, e21);
 	EXPECT_EQ(e12, e22);
 
@@ -657,7 +657,132 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double32) {
 	}
 }
 
+TEST(NearestNeighborAVX, avx2_sort_nn_on_double32_allcorrect) {
+	/// special test in which every elements should be marked as correct by the NN
+	constexpr size_t LS = 1u << 12u;
+	constexpr uint32_t dk = 10;
+	constexpr static WindowedAVX2_Config config{256, 8, 1, 32, LS, dk, 12, 0, 512};
+	WindowedAVX2<config> algo1{};
+	algo1.generate_special_instance();
 
+	uint32_t z;
+	size_t e1=LS, e2=LS, new_e1=0, new_e2=0;
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	algo1.avx2_sort_nn_on_double32<0, 1>(e1, e2, new_e1, new_e2, z);
+	EXPECT_EQ(new_e1, LS);
+	EXPECT_EQ(new_e2, LS);
+	new_e1 = 0; new_e2 = 0;
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	algo1.avx2_sort_nn_on_double32<0, 2>(e1, e2, new_e1, new_e2, z);
+	EXPECT_EQ(new_e1, LS);
+	EXPECT_EQ(new_e2, LS);
+	new_e1 = 0; new_e2 = 0;
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	algo1.avx2_sort_nn_on_double32<0, 4>(e1, e2, new_e1, new_e2, z);
+	EXPECT_EQ(new_e1, LS);
+	EXPECT_EQ(new_e2, LS);
+
+	new_e1 = 0; new_e2 = 0;
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	algo1.avx2_sort_nn_on_double32<1, 1>(e1, e2, new_e1, new_e2, z);
+	EXPECT_EQ(new_e1, LS);
+	EXPECT_EQ(new_e2, LS);
+	new_e1 = 0; new_e2 = 0;
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	algo1.avx2_sort_nn_on_double32<1, 2>(e1, e2, new_e1, new_e2, z);
+	EXPECT_EQ(new_e1, LS);
+	EXPECT_EQ(new_e2, LS);
+	new_e1 = 0; new_e2 = 0;
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	algo1.avx2_sort_nn_on_double32<1, 4>(e1, e2, new_e1, new_e2, z);
+	EXPECT_EQ(new_e1, LS);
+	EXPECT_EQ(new_e2, LS);
+}
+
+TEST(NearestNeighborAVX, avx2_sort_nn_on_32_allcorrect) {
+	/// special test in which every elements should be marked as correct by the NN
+	constexpr size_t LS = 1u << 12u;
+	constexpr uint32_t dk = 10;
+	constexpr static WindowedAVX2_Config config{256, 8, 1, 32, LS, dk, 12, 0, 512};
+	WindowedAVX2<config> algo1{};
+	algo1.generate_special_instance();
+
+	uint32_t z;
+	size_t e1=LS,new_e1=0;
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on32<0>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS);
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on32<1>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS);
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on32<2>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS);
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on32<3>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS);
+
+	algo1.L1[fastrandombytes_uint64()%LS][0] = -1ull;
+	algo1.L1[fastrandombytes_uint64()%LS][1] = -1ull;
+	algo1.L1[fastrandombytes_uint64()%LS][2] = -1ull;
+	algo1.L1[fastrandombytes_uint64()%LS][3] = -1ull;
+
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on32<0>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS-1);
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on32<1>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS-1);
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on32<2>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS-1);
+	z = fastrandombytes_weighted<uint32_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on32<3>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS-1);
+}
+
+
+TEST(NearestNeighborAVX, avx2_sort_nn_on_64_allcorrect) {
+	/// special test in which every elements should be marked as correct by the NN
+	constexpr size_t LS = 1u << 14u;
+	constexpr uint32_t dk = 10;
+	constexpr static WindowedAVX2_Config config{256, 4, 1, 64, LS, dk, 12, 0, 512};
+	WindowedAVX2<config> algo1{};
+	algo1.generate_special_instance();
+
+	uint64_t z;
+	size_t e1=LS,new_e1=0;
+	z = fastrandombytes_weighted<uint64_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on64<0>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS);
+	z = fastrandombytes_weighted<uint64_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on64<1>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS);
+	z = fastrandombytes_weighted<uint64_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on64<2>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS);
+	z = fastrandombytes_weighted<uint64_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on64<3>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS);
+
+	algo1.L1[fastrandombytes_uint64()%LS][0] = -1ull;
+	algo1.L1[fastrandombytes_uint64()%LS][1] = -1ull;
+	algo1.L1[fastrandombytes_uint64()%LS][2] = -1ull;
+	algo1.L1[fastrandombytes_uint64()%LS][3] = -1ull;
+
+	z = fastrandombytes_weighted<uint64_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on64<0>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS-1);
+	z = fastrandombytes_weighted<uint64_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on64<1>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS-1);
+	z = fastrandombytes_weighted<uint64_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on64<2>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS-1);
+	z = fastrandombytes_weighted<uint64_t>(dk);
+	new_e1 = algo1.avx2_sort_nn_on64<3>(e1, z, algo1.L1);
+	EXPECT_EQ(new_e1, LS-1);
+}
 // k is not a multiple of 32
 TEST(NearestNeighborAVX, avx2_sort_nn_on32_k) {
 	constexpr size_t LS = 1u << 18u;
@@ -883,17 +1008,30 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	//constexpr static WindowedAVX2_Config config{256, 4, 300, 64, LS, 20, 20, 0, 5000};
 
 	// NN_LOWER all find all solutions
-	//constexpr static WindowedAVX2_Config config{256, 4, 100, 64, LS, 25, 14, 0, 512}; //44s
+	//constexpr static WindowedAVX2_Config config{256, 4, 100, 64, LS, 25, 14, 0, 512}; // 44s
 	//constexpr static WindowedAVX2_Config config{256, 4, 150, 64, LS, 24, 14, 0, 512}; // 51s
-	constexpr static WindowedAVX2_Config config{256, 4, 300, 64, LS, 23, 14, 0, 512}; //2
+	//constexpr static WindowedAVX2_Config config{256, 4, 300, 64, LS, 23, 14, 0, 512}; // 33.9s
+	//constexpr static WindowedAVX2_Config config{256, 4, 330, 64, LS, 23, 14, 0, 10000}; // 35,5
+	//constexpr static WindowedAVX2_Config config{256, 4, 600, 64, LS, 22, 14, 0, 512};
+
+	// NN_LOWER find all solutions
+	//constexpr static WindowedAVX2_Config config{256, 8, 100, 32, LS, 11, 14, 0, 1000}; // 69
+	//constexpr static WindowedAVX2_Config config{256, 8, 250, 32, LS, 10, 14, 0, 512}; // 57s
+	//constexpr static WindowedAVX2_Config config{256, 8, 250, 32, LS, 10, 14, 0, 1000}; // 30,1 27
+	//constexpr static WindowedAVX2_Config config{256, 8, 220, 32, LS, 10, 14, 0, 1000}; // 9/10: 19.17
+	//constexpr static WindowedAVX2_Config config{256, 8, 200, 32, LS, 10, 14, 0, 1000}; //10/10 in 11.61 9/10 in 19.16
+	//constexpr static WindowedAVX2_Config config{256, 8, 180, 32, LS, 10, 14, 0, 1000}; // 9/10 in 13.273
+	constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000}; // 9/10 in 13.563
+	//constexpr static WindowedAVX2_Config config{256, 8, 120, 32, LS, 10, 14, 0, 1000}; // 10/10 in 5.3 8/10 in 11.7
+	//constexpr static WindowedAVX2_Config config{256, 8, 500, 32, LS, 9, 14, 0, 512}; //
 
 	// NN_EQUAL: (NOT correct I think)
-	//constexpr static WindowedAVX2_Config config{256, 4, 300, 64, LS, 25, 14, 0, 512}; //
+	//constexpr static WindowedAVX2_Config config{256, 4, 1000, 64, LS, 23, 14, 0, 512}; // 3/10 and 109
 	//constexpr static WindowedAVX2_Config config{256, 4, 150, 64, LS, 24, 14, 0, 512}; // 51s
 
 	WindowedAVX2<config> algo{};
-	algo.generate_random_instance();
 
+	algo.generate_random_instance();
 	constexpr uint32_t nr_tries = 10;
 	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {

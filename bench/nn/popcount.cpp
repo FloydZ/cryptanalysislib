@@ -80,7 +80,6 @@ static void BM_popcount_avx2_64_old_v2(benchmark::State& state) {
 BENCHMARK(BM_popcount_avx2_64)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_popcount_avx2_64_old)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_popcount_avx2_64_old_v2)->RangeMultiplier(2)->Range(128, LS)->Complexity();
-
 BENCHMARK(BM_popcount_avx2_32)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_popcount_avx2_32_old)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 

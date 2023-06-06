@@ -267,14 +267,45 @@ static int fastrandombytes(void *buf, size_t n) noexcept {
 	return xorshf96_fastrandombytes(buf, n);
 }
 
+///
+/// \param i
 static void random_seed(uint64_t i) noexcept {
 	xorshf96_random_seed(i);
 }
 
+///
+/// \return
 static uint64_t fastrandombytes_uint64() noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
 
+/// creates a weight w uint64_t
+/// \param w
+/// \return
+template<typename T>
+static T fastrandombytes_weighted(const uint32_t w) noexcept {
+	T ret = (1u << w) - 1u;
+	for (uint32_t i = 0; i < w; ++i) {
+		const size_t to_pos = fastrandombytes_uint64() % ((sizeof(T)*8) - i);
+		const size_t from_pos = i;
+
+		const T from_mask = 1u << from_pos;
+		const T to_mask = 1u << to_pos;
+
+		const T from_read = (ret & from_mask) >> from_pos;
+		const T to_read = (ret & to_mask) >> to_pos;
+
+		ret ^= (-from_read ^ ret) & (1ul << to_pos);
+		ret ^= (-to_read ^ ret) & (1ul << from_pos);
+	}
+
+	return ret;
+}
+
+///
+/// \tparam T
+/// \tparam bits
+/// \return
 template<typename T, const uint32_t bits>
 static inline T fastrandombits() noexcept {
 	constexpr uint32_t Tbits = sizeof(T)*8;
