@@ -389,6 +389,17 @@ TEST(Bruteforce, avx2_256_64_4x4) {
 	}
 }
 
+TEST(Bruteforce, avx2_256_64_4x4_rearrange) {
+	constexpr size_t LS = 652;
+	constexpr static WindowedAVX2_Config config__{256, 4, 1, 64, LS, 10, 14, 0, 512};
+	WindowedAVX2<config__> algo{};
+	algo.generate_random_instance();
+	algo.transpose(LS);
+	algo.bruteforce_avx2_256_64_4x4_rearrange<LS>(LS, LS);
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+}
+
 
 TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 	constexpr size_t LS = 1u << 18u;
@@ -1021,7 +1032,9 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	//constexpr static WindowedAVX2_Config config{256, 8, 220, 32, LS, 10, 14, 0, 1000}; // 9/10: 19.17
 	//constexpr static WindowedAVX2_Config config{256, 8, 200, 32, LS, 10, 14, 0, 1000}; //10/10 in 11.61 9/10 in 19.16
 	//constexpr static WindowedAVX2_Config config{256, 8, 180, 32, LS, 10, 14, 0, 1000}; // 9/10 in 13.273
-	constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000}; // 9/10 in 13.563
+	//constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000}; // 9/10 in 13.563
+	constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000, 10}; // 10/10 in 7s,10s
+	//constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000, 5}; // 7/10: 14s
 	//constexpr static WindowedAVX2_Config config{256, 8, 120, 32, LS, 10, 14, 0, 1000}; // 10/10 in 5.3 8/10 in 11.7
 	//constexpr static WindowedAVX2_Config config{256, 8, 500, 32, LS, 9, 14, 0, 512}; //
 
@@ -1031,7 +1044,8 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 
 	WindowedAVX2<config> algo{};
 
-	algo.generate_random_instance();
+	constexpr bool solution = false;
+	algo.generate_random_instance(solution);
 	constexpr uint32_t nr_tries = 10;
 	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {
@@ -1041,7 +1055,7 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 
 		free(algo.L1);
 		free(algo.L2);
-		algo.generate_random_instance();
+		algo.generate_random_instance(solution);
 	}
 
 	EXPECT_EQ(sols, nr_tries);
