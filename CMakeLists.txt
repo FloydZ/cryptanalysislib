@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.11)
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -12,6 +12,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
       ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
+include(FetchContent)
 include(ExternalProject)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -33,6 +34,16 @@ ExternalProject_Add(m4ri_project
         INSTALL_COMMAND   ""
         TEST_COMMAND      ""
 )
+
+#FetchContent_Declare(
+#	tracy
+#	GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+#	GIT_TAG master
+#	GIT_SHALLOW TRUE
+#	GIT_PROGRESS TRUE
+#)
+#
+#FetchContent_MakeAvailable (tracy)
 
 add_custom_target (
         CRYPTANALYSISLIB_BUILD_SCRIPT
@@ -95,10 +106,12 @@ if(APPLE)
     set(DEBUG_FLAGS "-g -Og -DDEBUG ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 else()
-    set(ADDITIONAL_FLAGS "-DUSE_AVX2")
-    #set(ADDITIONAL_FLAGS "-DUSE_AVX2  -fno-inline")
-    set(DEBUG_FLAGS "-g -Og -DDEBUG -march=native -mavx2 -mbmi ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-    set(OPTIMIZE_FLAGS "-march=native -mavx2 -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+    #set(ADDITIONAL_FLAGS "-DUSE_AVX2 -fno-inline")
+    set(ADDITIONAL_FLAGS "-DUSE_AVX2 ")
+
+    set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
+    set(DEBUG_FLAGS "-g -O0 -DDEBUG -march=native -mavx2 -mavx -mbmi ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+    set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 endif()
 
 # TODO simplify to only one flag

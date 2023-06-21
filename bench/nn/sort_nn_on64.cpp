@@ -5,7 +5,7 @@
 #define ENABLE_BENCHMARK
 #include "nn/avx2.h"
 
-constexpr size_t LS = 1u << 18u;
+constexpr size_t LS = 1u << 24u;
 constexpr size_t d = 16;
 constexpr size_t dk = 22;
 constexpr static WindowedAVX2_Config config{256, 4, 200, 64, LS, dk, d, 0, 512};

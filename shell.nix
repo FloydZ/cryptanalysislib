@@ -15,7 +15,7 @@ stdenv.mkDerivation {
 	cmake 
 	clang
 	clang-tools
-	#cudaPackages_11_0.cudatoolkit 
+	# cudaPackages_11_0.cudatoolkit 
 	gtest 
 	gbenchmark 
 	gmp 
@@ -27,7 +27,8 @@ stdenv.mkDerivation {
 	ripgrep
 	flamegraph
 	gdb
-    #linuxKernel.packages.linux_6_0.perf
+    # linuxKernel.packages.linux_6_0.perf
+	pprof
 	valgrind
 	massif-visualizer
   ];
