@@ -84,7 +84,7 @@ set(MALLOC_LIBRARY "")
 
 # possible sanitzers = -fsanitize=[address,leak,thread,memory,undefined]
 #set(SANITIZE_FLAG "-fsanitize=address")
-set(SANITIZE_FLAG "")
+set(SANITIZE_FLAGS "")
 
 
 set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings")
@@ -111,7 +111,7 @@ else()
 
     set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
     set(DEBUG_FLAGS "-g -O0 -DDEBUG -march=native -mavx2 -mavx -mbmi ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-    set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
 # TODO simplify to only one flag
