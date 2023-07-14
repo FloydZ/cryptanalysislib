@@ -8,6 +8,8 @@
 #include "random.h"
 
 #if __cplusplus > 201709L
+#include <concepts>
+
 ///
 /// \tparam T	Datacontainer to hold atleast one value%q
 /// \tparam T2  Data container of the size at least 2*T. Needed to store the multiplication<T2>
@@ -20,9 +22,10 @@ concept kAry_TypeAble =
 			t * t;
 			t % t;
 			t % a;
-			{t + t} -> std::convertible_to<T2>;
-			{t * t} -> std::convertible_to<T2>;
-			{t} -> std::convertible_to<T2>;
+	        // TODO
+			//{t + t} -> std::convertible_to<T2>;
+			//{t * t} -> std::convertible_to<T2>;
+			//{t} -> std::convertible_to<T2>;
 			sizeof(T) < sizeof(T2);
 };
 #endif

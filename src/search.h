@@ -688,7 +688,7 @@ size_t LowerBoundInterpolationSearch(const  T*__buckets,
 
 /// Implementation Idea taken from wikipedia: `https://en.wikipedia.org/wiki/Interpolation_search`
 /// This search algorithm assumes a lot.
-///		T mus implement
+///		T must implement
 /// 			<	Operator
 /// \tparam ForwardIt	Iterator, must be random access_iterator
 /// \tparam Extract		Hash/Extractor function
@@ -698,7 +698,9 @@ size_t LowerBoundInterpolationSearch(const  T*__buckets,
 /// \param h			instantiation of the extractor/hash function
 /// \return
 template<typename ForwardIt, typename Extract>
-	requires std::random_access_iterator<ForwardIt>
+#if __cplusplus > 201709L
+//TODO	requires std::random_access_iterator<ForwardIt>
+#endif
 ForwardIt LowerBoundInterpolationSearch(ForwardIt first, ForwardIt last, const typename ForwardIt::value_type &key_, Extract e) noexcept {
 	using diff_type = typename std::iterator_traits<ForwardIt>::difference_type;
 	using T = typename ForwardIt::value_type;

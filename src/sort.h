@@ -26,6 +26,8 @@
 #include "sort.h"
 #include "ska_sort.hpp"
 
+
+#if __cplusplus > 201709L
 template<class List>
 concept HashMapListAble = requires(List l) {
 	// we need some basic data types
@@ -42,9 +44,10 @@ concept HashMapListAble = requires(List l) {
 	requires requires(const size_t s){
 		l.data_label(s);
 		//l.data_value(s);
-		{ l.size() } -> std::convertible_to<size_t>;
+		//TODO{ l.size() } -> std::convertible_to<size_t>;
 	};
 };
+#endif
 
 // LSD radix sort, taken from valentin vasseur
 template<typename T, bool use_idx>
@@ -573,9 +576,11 @@ template<const ConfigParallelBucketSort &config,
 				typename ArgumentLimbType,              // container of the `l`-part
 				typename ExternalIndexType,             // container of the indices which point into the baselists
 				ArgumentLimbType (* HashFkt)(uint64_t)> // TODO describe
+#if __cplusplus > 201709L
 requires HashMapListAble<ExternalList> &&
          std::is_integral<ArgumentLimbType>::value &&
          std::is_integral<ExternalIndexType>::value
+#endif
 class ParallelBucketSort {
 public:
 	/// nomenclature:

@@ -68,14 +68,14 @@ concept ElementAble = requires(Value v, Label l) {
 
 
 	// we also have to enforce the existence of some constexpr functions.
-	{ Value::binary() } -> std::convertible_to<bool>;
-	{ Value::size() } -> std::convertible_to<uint32_t>;
-	{ Value::limbs() } -> std::convertible_to<uint32_t>;
-	{ Value::bytes() } -> std::convertible_to<uint32_t>;
-	{ Label::binary() } -> std::convertible_to<bool>;
-	{ Label::size() } -> std::convertible_to<uint32_t>;
-	{ Label::limbs() } -> std::convertible_to<uint32_t>;
-	{ Label::bytes() } -> std::convertible_to<uint32_t>;
+	//{ Value::binary() } -> std::convertible_to<bool>;
+	//{ Value::size() } -> std::convertible_to<uint32_t>;
+	//{ Value::limbs() } -> std::convertible_to<uint32_t>;
+	//{ Value::bytes() } -> std::convertible_to<uint32_t>;
+	//{ Label::binary() } -> std::convertible_to<bool>;
+	//{ Label::size() } -> std::convertible_to<uint32_t>;
+	//{ Label::limbs() } -> std::convertible_to<uint32_t>;
+	//{ Label::bytes() } -> std::convertible_to<uint32_t>;
 };
 #endif
 

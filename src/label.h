@@ -15,7 +15,7 @@ concept LabelAble = requires(Container c) {
 	// requires std::integral<typename Container::DataType>;
 
 	// we need to enforce the existence of some fields
-	{ Container::LENGTH } -> std::convertible_to<uint32_t>;
+	//{ Container::LENGTH } -> std::convertible_to<uint32_t>;
 
 	requires requires(const unsigned int i) {
 		c[i];
@@ -35,10 +35,10 @@ concept LabelAble = requires(Container c) {
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
-	{ Container::binary() } -> std::convertible_to<bool>;
-	{ Container::size() } -> std::convertible_to<uint32_t>;
-	{ Container::limbs() } -> std::convertible_to<uint32_t>;
-	{ Container::bytes() } -> std::convertible_to<uint32_t>;
+	//{ Container::binary() } -> std::convertible_to<bool>;
+	//{ Container::size() } -> std::convertible_to<uint32_t>;
+	//{ Container::limbs() } -> std::convertible_to<uint32_t>;
+	//{ Container::bytes() } -> std::convertible_to<uint32_t>;
 };
 #endif
 
