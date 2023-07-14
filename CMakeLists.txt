@@ -84,7 +84,7 @@ set(MALLOC_LIBRARY "")
 
 # possible sanitzers = -fsanitize=[address,leak,thread,memory,undefined]
 #set(SANITIZE_FLAG "-fsanitize=address")
-set(SANITIZE_FLAG "")
+set(SANITIZE_FLAGS "")
 
 
 set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings")
