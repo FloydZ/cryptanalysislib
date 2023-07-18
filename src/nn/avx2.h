@@ -13,8 +13,6 @@
 #include "helper.h"
 
 /// TODO merge those global macros with `helper.h`
-
-
 ///
 #define LOAD_ALIGNED
 #ifdef LOAD_ALIGNED
@@ -31,10 +29,6 @@
 #define STORE256(ptr, x) _mm256_storeu_si256(ptr, x)
 #endif
 
-
-#ifndef ASSERT
-#define ASSERT(x) assert(x)
-#endif
 
 /// TODO rename
 class WindowedAVX2_Config {
@@ -76,8 +70,8 @@ public:
 		std::cout
 		    << "n: " << n
 			<< ",r: " << r
-			<< ",N " << N
-			<< ",k " << k
+			<< ",N: " << N
+			<< ",k: " << k
 			<< ",|L|: " << LIST_SIZE
 			<< ", dk: " << dk
 			<< ", dk_bruteforce_size: " << dk_bruteforce_size
@@ -85,7 +79,6 @@ public:
 			<< ", d: " << d
 			<< ", e: " << epsilon
 			<< ", bf: " << BRUTEFORCE_THRESHOLD
-			<< ", k: " << n/r
 			<< "\n";
 	}
 };
@@ -277,13 +270,16 @@ public:
 	using Element = T[ELEMENT_NR_LIMBS];
 
 	/// TODO must be passed as an argument
-	/// The Probability that a element will end up in the subsequent list.
 	constexpr static bool USE_REARRANGE = false;
+
+	/// The Probability that a element will end up in the subsequent list.
 	constexpr static double survive_prob = 0.025;
 	constexpr static uint32_t BUCKET_SIZE = 1024;
 	alignas(32) uint64_t LB[BUCKET_SIZE * ELEMENT_NR_LIMBS];
 	alignas(32) uint64_t RB[BUCKET_SIZE * ELEMENT_NR_LIMBS];
 
+	// if a solution found stop all further computations
+	constexpr static bool EARLY_EXIT = false;
 	// instance
 	alignas(64) Element *L1 = nullptr, *L2 = nullptr;
 
@@ -408,6 +404,10 @@ public:
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
 		L1 = (Element *)aligned_alloc(64, list_size);
 		L2 = (Element *)aligned_alloc(64, list_size);
+
+		// reset number of solutions
+		solutions_nr = 0;
+
 		ASSERT(L1);
 		ASSERT(L2);
 		if (create_zero) {
@@ -424,6 +424,9 @@ public:
 		L2 = (Element *)aligned_alloc(4096, list_size);
 		ASSERT(L1);
 		ASSERT(L2);
+
+		// reset number of solutions
+		solutions_nr = 0;
 
 		generate_random_lists(L1);
 		generate_random_lists(L2);
@@ -2394,6 +2397,7 @@ public:
 		const __m256i zero = _mm256_set1_epi32(0);
 
 		size_t i = s1;
+        #pragma unroll 2
 		for (; i < s1 + e1; i += 16, ptr_l += 16) {
 			const __m256i l1 = _mm256_load_si256((const __m256i *)(ptr_l +  0));
 			const __m256i l2 = _mm256_load_si256((const __m256i *)(ptr_l +  4));
@@ -3452,7 +3456,7 @@ public:
 					avx2_nn_internal<level - 1>(new_e1, new_e2);
 				}
 
-				if (unlikely(solutions_nr)) {
+				if (unlikely(solutions_nr)){
 #if DEBUG
 					std::cout << "sol: " << level << " " << i << " " << new_e1 << " " << new_e2 << "\n";
 #endif
@@ -3484,170 +3488,6 @@ public:
 			}
 		}
 	}
-
-	/// simple test function
-	bool run() noexcept {
-		return 1;
-		//Element *ptr = (Element *) malloc(10 * sizeof(T) * ELEMENT_NR_LIMBS);
-		//for (int i = 0; i < 2; ++i) {
-		//	ptr[i][0] = i;
-		//}
-		//const __m256i tmpa = shuffle_down_64(0b1010);
-		//const __m256i tmpb = shuffle_up_64(0b1010);
-		//__m256i tmp1, tmp2;
-		//shuffle_down_2_64(tmp1, tmp2, 0b10100101);
-		//shuffle_up_2_64(tmp1, tmp2, 0b10100101);
-
-		//const __m256i gt_mask = _mm256_setr_epi32(-1, 0, -1, 0, -1, 0, 0, -1);
-		//int wt = _mm256_movemask_ps((__m256) gt_mask);
-		//swap_64(wt, ptr, ptr);
-		//free(ptr);
-
-		random_seed(time(NULL));
-		generate_random_instance();
-		
-		//bruteforce_32(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_32(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_64(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_64_1x1(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_64_uxv<4,4>(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_64_uxv_shuffle<4,4>(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_128(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_256(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_256_ux4<8>(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_256_32_ux8<2>(LIST_SIZE, LIST_SIZE);
-		bruteforce_avx2_256_32_8x8(LIST_SIZE, LIST_SIZE);
-		//bruteforce_avx2_256_64_4x4(LIST_SIZE, LIST_SIZE);
-		//avx2_nn(LIST_SIZE, LIST_SIZE);
-		bool correct = all_solutions_correct();
-		if (solutions_nr == 0) {
-			std::cout << "no sol\n";
-		}
-
-		if (correct == 0) {
-			std::cout << "wrong\n";
-		}
-
-		ASSERT(correct);
-		ASSERT(solutions_nr == 1);
-		return correct;
-	}
-
-	uint64_t bench() {
-		random_seed(time(NULL));
-		generate_random_instance();
-		uint64_t ret = 0;
-
-		clock_t t = clock();
-		//bruteforce_avx2_64(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_64: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_128(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_128: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_ux4<2>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_ux4<2>: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_ux4<4>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_ux4<4>: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_ux4<8>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_ux4<8>: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_32_ux8<2>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_32_ux8<2>: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_32_ux8<4>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_32_ux8<4>: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_32_ux8<8>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_32_ux8<8>: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_32_8x8(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_32_8x8: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_64_4x4(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_64_4x4: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_256_v2(LIST_SIZE, LIST_SIZE);
-		//std::cout << "bruteforce_avx2_256_v2: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_64_1x1(LIST_SIZE, LIST_SIZE);
-		//std::cout << "avx_64_1x1: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_64_uxv<4,4>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "avx_64_4x4: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-		
-		//t = clock();
-		//bruteforce_avx2_64_uxv<8,8>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "avx_64_8x8: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_64_uxv_shuffle<4,4>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "avx_64_4x4_shuffle: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		//t = clock();
-		//bruteforce_avx2_64_uxv_shuffle<8,8>(LIST_SIZE, LIST_SIZE);
-		//std::cout << "avx_64_8x8_shuffle: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		//ret += solutions_nr;
-		//solutions_nr = 0;
-
-		t = clock();
-		avx2_nn(LIST_SIZE, LIST_SIZE);
-		std::cout << "avx2_nn<2>: " << double(clock() - t)/CLOCKS_PER_SEC << "\n";
-		ret += solutions_nr;
-		std::cout << "sols: " << solutions_nr << "\n";
-		return ret;
-	}
-
 
 #ifdef __AVX512F__
 	alignas(64) const __m512i avx512_weight32 = _mm512_set1_epi32(d+1);
