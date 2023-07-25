@@ -91,7 +91,7 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 	return _mm256_set1_epi32(1);
 }
 
-/// NOTE: this function computes the `a` bitstring of length `n` and weight `p`
+/// NOTE: this function computes the `a`-th bitstring of length `n` and weight `p`
 /// given the a-th step enumerating the list,
 /// return the indicis of the a-th error vector.
 /// \tparam n length of the bitstring
@@ -100,6 +100,8 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 /// \param rows rows[i] is the position of the i-th bit
 template<const uint32_t n, const uint32_t p>
 inline void biject(size_t a, uint16_t rows[p]) noexcept {
+	static_assert(p < 3, "not implemented");
+
 	size_t wn = n;
 	if constexpr (p == 1) {
 		wn -= opt_max_bc<size_t, 1>(a, wn);

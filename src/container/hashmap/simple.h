@@ -26,10 +26,11 @@ public:
 			bucketsize(bucketsize), nrbuckets(nrbuckets) {};
 };
 
-/// NOTE: only valid for SternMO, this means that no `l-part` whatsoever is saved. Only the indices of the list entries.
+/// NOTE: Only valid for SternMO, this means that no `l-part` whatsoever is saved.
+/// NOTE: Only the indices of the list entries can be saved in here.
 /// \tparam T			base type of the l-part (unused)
 /// \tparam listType	base type of the list elements
-/// \tparam config
+/// \tparam config		`SimpleHashmapConfig` object
 /// \tparam HashFkt		internal hash function to use.
 template<typename T,
 		typename listType,
@@ -152,36 +153,32 @@ public:
 	}
 
 	/// prints a single index
-	/// \param index
+	/// \param index the element to pirnt
 	/// \return nothing
-	constexpr void print(size_t index) const noexcept {
+	constexpr void print(const size_t index) const noexcept {
 		ASSERT(index < total_size);
 		printf("%d %d\n",
 		       __internal_hashmap_array[index].first,
 		       __internal_hashmap_array[index].second);
 	}
 
-	/// can be called with any amount of threads
-	/// overwrites the internal datat array
+	/// NOTE: can be called with only a single thread
+	/// overwrites the internal data array
 	/// with zero initialized elements.
 	constexpr void clear() noexcept {
 		memset(__internal_load_array, 0, nrbuckets*sizeof(load_type));
-		//for (uint64_t i = 0; i < nrbuckets; i++) {
-		//	__internal_load_array[i] = 0;
-		//}
 	}
 
-	/// TODO
-	/// \param e
-	/// \return
-	constexpr index_type load(T &e) const noexcept {
+	/// returns the load of the bucket, where the given element whould hashed into
+	/// \param e bucket/bucket of the element e
+	/// \return the load
+	constexpr index_type load(const T &e) const noexcept {
 		const size_t index = HashFkt(e);
 		ASSERT(index < nrbuckets);
 		return __internal_load_array[index];
 	}
 
-	/// NOTE: only single threaded. Most likely you want to call
-	///			this function only by a single thread
+	/// NOTE: only single threaded.
 	/// \return the load, the number of buckets which are not empty
 	constexpr index_type load() const noexcept {
 		index_type ret = index_type(0);
