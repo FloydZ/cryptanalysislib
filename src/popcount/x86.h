@@ -112,7 +112,8 @@ static __m256i popcount_avx2_64(const __m256i vec) noexcept {
 
 	const __m256i mask2 = _mm256_set1_epi64x(0xff);
 	__m256i ret;
-	
+
+	// TODO implement improvement
 	ret = _mm256_add_epi8(local, _mm256_srli_epi32(local,  8));
 	ret = _mm256_add_epi8(ret, _mm256_srli_epi32(ret,  16));
 	ret = _mm256_add_epi8(ret, _mm256_srli_epi64(ret,  32));

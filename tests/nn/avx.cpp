@@ -1019,11 +1019,20 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	//constexpr static WindowedAVX2_Config config{256, 4, 300, 64, LS, 20, 20, 0, 5000};
 
 	// NN_LOWER all find all solutions
-	//constexpr static WindowedAVX2_Config config{256, 4, 100, 64, LS, 25, 14, 0, 512}; // 44s
-	//constexpr static WindowedAVX2_Config config{256, 4, 150, 64, LS, 24, 14, 0, 512}; // 51s
-	//constexpr static WindowedAVX2_Config config{256, 4, 300, 64, LS, 23, 14, 0, 512}; // 33.9s
-	//constexpr static WindowedAVX2_Config config{256, 4, 330, 64, LS, 23, 14, 0, 10000}; // 35,5
+	//constexpr static WindowedAVX2_Config config{256, 4, 100, 64, LS, 25, 14, 0, 512}; 	// 44s
+	//constexpr static WindowedAVX2_Config config{256, 4, 150, 64, LS, 24, 14, 0, 512}; 	// 51s
+	//constexpr static WindowedAVX2_Config config{256, 4, 300, 64, LS, 23, 14, 0, 512}; 	// 33.9s
+	//constexpr static WindowedAVX2_Config config{256, 4, 330, 64, LS, 23, 14, 0, 10000}; 	// 35,5
 	//constexpr static WindowedAVX2_Config config{256, 4, 600, 64, LS, 22, 14, 0, 512};
+	//constexpr static WindowedAVX2_Config config{256, 4, 1146, 64, LS, 20, 14, 0, 1024};	// 6/10in 40s
+	//constexpr static WindowedAVX2_Config config{256, 4, 15146, 64, LS, 19, 14, 0, 1024};	// 93s
+	//constexpr static WindowedAVX2_Config config{256, 4, 4000, 64, LS, 19, 14, 0, 1024};//7/10 in 63
+
+	// NOT WORKING: Theoretically the best configuration
+	//constexpr static WindowedAVX2_Config config{256, 4, 5731, 64, LS, 22, 14, 0, 1000};
+	//constexpr static WindowedAVX2_Config config{256, 8, 15, 32, LS, 13, 14, 0, 1024};
+	//constexpr static WindowedAVX2_Config config{256, 4, 44, 64, LS, 31, 14, 0, 1024};
+
 
 	// NN_LOWER find all solutions
 	//constexpr static WindowedAVX2_Config config{256, 8, 100, 32, LS, 11, 14, 0, 1000}; // 69
@@ -1032,8 +1041,9 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	//constexpr static WindowedAVX2_Config config{256, 8, 220, 32, LS, 10, 14, 0, 1000}; // 9/10: 19.17
 	//constexpr static WindowedAVX2_Config config{256, 8, 200, 32, LS, 10, 14, 0, 1000}; //10/10 in 11.61 9/10 in 19.16
 	//constexpr static WindowedAVX2_Config config{256, 8, 180, 32, LS, 10, 14, 0, 1000}; // 9/10 in 13.273
-	//constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000}; // 9/10 in 13.563
-	constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000, 10}; // 10/10 in 7s,10s
+	constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000}; // 9/10 in 13.563
+	//constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000, 10}; // 10/10 in 7s,10s
+	//constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000, 8}; // 8.2
 	//constexpr static WindowedAVX2_Config config{256, 8, 150, 32, LS, 10, 14, 0, 1000, 5}; // 7/10: 14s
 	//constexpr static WindowedAVX2_Config config{256, 8, 120, 32, LS, 10, 14, 0, 1000}; // 10/10 in 5.3 8/10 in 11.7
 	//constexpr static WindowedAVX2_Config config{256, 8, 500, 32, LS, 9, 14, 0, 512}; //
@@ -1043,8 +1053,10 @@ TEST(NearestNeighborAVX, MO1284Params_n256_r4) {
 	//constexpr static WindowedAVX2_Config config{256, 4, 150, 64, LS, 24, 14, 0, 512}; // 51s
 
 	WindowedAVX2<config> algo{};
+	config.print();
 
-	constexpr bool solution = false;
+	/// if set to false, no solution will be inserted. Good to get worst case runtimes
+	constexpr bool solution = true;
 	algo.generate_random_instance(solution);
 	constexpr uint32_t nr_tries = 10;
 	uint32_t sols = 0;
@@ -1070,7 +1082,7 @@ TEST(NearestNeighborAVX, MO431Params_n84_r3) {
 	WindowedAVX2<config2> algokek{};
 	algokek.generate_random_instance();
 
-	constexpr uint32_t nr_tries = 1;
+	constexpr uint32_t nr_tries = 10;
 	uint32_t sols = 0;
 	for (size_t i = 0; i < nr_tries; i++) {
 		algokek.avx2_nn(LS, LS);
@@ -1083,16 +1095,6 @@ TEST(NearestNeighborAVX, MO431Params_n84_r3) {
 	}
 
 	EXPECT_EQ(sols, nr_tries);
-}
-
-TEST(NearestNeighborAVX, Dev) {
-	constexpr static WindowedAVX2_Config config{256, 4, 500, 64, 1u<<20, 21, 14, 0, 512};
-	WindowedAVX2<config> algo{};
-	algo.generate_random_instance();
-	algo.run();
-	EXPECT_EQ(algo.solutions_nr, 1);
-	EXPECT_EQ(algo.all_solutions_correct(), true);
-	//algo.bench();
 }
 
 #ifdef __AVX512F__
