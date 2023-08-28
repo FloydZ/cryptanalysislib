@@ -89,6 +89,8 @@ set(MALLOC_LIBRARY "")
 #set(SANITIZE_FLAG "-fsanitize=address")
 set(SANITIZE_FLAGS "")
 
+#set(INLINE_FLAGS "-fno-inline")
+set(INLINE_FLAGS "")
 
 set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings")
 #set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
@@ -111,16 +113,15 @@ if(APPLE)
 else()
 
 if("avx2" IN_LIST _available_vector_units_list)
-    #set(ADDITIONAL_FLAGS "-DUSE_AVX2 -fno-inline")
-    set(ADDITIONAL_FLAGS "-DUSE_AVX2 ")
+	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 ")
 endif()
 
 if("avx512f" IN_LIST _available_vector_units_list)
     set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
-    set(DEBUG_FLAGS "-g -O1 -DDEBUG -march=native -mavx2 -mavx -mbmi ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
-    set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
+    set(DEBUG_FLAGS "-g -O1 -DDEBUG -march=native ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
 # TODO simplify to only one flag
@@ -135,6 +136,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # Set additionally our own debug/optimisation compiler/linkage flags. Maybe not he nicest way, but by far the easiest.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
