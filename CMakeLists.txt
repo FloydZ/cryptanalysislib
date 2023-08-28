@@ -124,9 +124,8 @@ endif()
 	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
-# TODO simplify to only one flag
 # note that fplll is missing
-set(LINK_TEST_FLAGS -lgtest -pthread gmpxx libm4ri.a m png tbb -lbenchmark)
+set(LINK_TEST_FLAGS -lgtest -pthread gmpxx libm4ri.a m png)
 set(LINK_BENCH_FLAGS -lgtest -pthread gmpxx libm4ri.a m png tbb -lbenchmark)
 
 
@@ -136,7 +135,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # Set additionally our own debug/optimisation compiler/linkage flags. Maybe not he nicest way, but by far the easiest.
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_FLAGS}")
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")

@@ -2,6 +2,7 @@
 #define SMALLSECRETLWE_RANDOM_H
 
 #include <cstdint>
+#include <stddef.h>
 
 static uint64_t random_x=123456789u, random_y=362436069u, random_z=521288629u;
 

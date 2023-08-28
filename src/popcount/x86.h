@@ -62,5 +62,37 @@ static __m256i popcount_avx2_64(const __m256i vec) noexcept {
 	return ret;
 }
 
+static inline uint32_t hammingweight_mod2_limb256(__m256i v) {
+	const __m256i lookup = _mm256_setr_epi8(0, 1, 1, 2, 1, 2, 2, 3, 1, 2,
+	                                        2, 3, 2, 3, 3, 4, 0, 1, 1, 2, 1, 2, 2, 3,
+	                                        1, 2, 2, 3, 2, 3, 3, 4);
+	const __m256i low_mask = _mm256_set1_epi8(0x0f);
+	const __m256i lo =_mm256_and_si256(v,low_mask);
+	const __m256i hi = _mm256_and_si256( _mm256_srli_epi32(v, 4), low_mask);
+	const __m256i popcnt1 = _mm256_shuffle_epi8(lookup,lo);
+	const __m256i popcnt2 = _mm256_shuffle_epi8(lookup,hi);
+	const __m256i total = _mm256_add_epi8(popcnt1,popcnt2);
+
+	const __m256i final = _mm256_sad_epu8(total, _mm256_setzero_si256());
+
+	// propably not fast
+	alignas(32) static uint64_t vec[4];
+	_mm256_store_si256((__m256i *)vec , final);
+	return vec[0] + vec[1] + vec[2] + vec[3];
+}
+static inline __m256i hammingweight_mod2_limb256_nonacc(__m256i v) {
+	const __m256i lookup = _mm256_setr_epi8(0, 1, 1, 2, 1, 2, 2, 3, 1, 2,
+	                                        2, 3, 2, 3, 3, 4, 0, 1, 1, 2, 1, 2, 2, 3,
+	                                        1, 2, 2, 3, 2, 3, 3, 4);
+	const __m256i low_mask = _mm256_set1_epi8(0x0f);
+	const __m256i lo = _mm256_and_si256(v, low_mask);
+	const __m256i hi = _mm256_and_si256(_mm256_srli_epi32(v, 4), low_mask);
+	const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
+	const __m256i popcnt2 = _mm256_shuffle_epi8(lookup, hi);
+	const __m256i total = _mm256_add_epi8(popcnt1, popcnt2);
+
+	const __m256i final = _mm256_sad_epu8(total, _mm256_setzero_si256());
+	return final;
+}
 
 #endif

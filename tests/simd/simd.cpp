@@ -15,6 +15,12 @@ TEST(u64_2, a) {
 }
 #endif
 
+TEST(uint8x32_t, alles) {
+	uint8x32_t t1, t2, t3;
+	t1.random();
+	t1.print();
+}
+
 int main(int argc, char **argv) {
 	random_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
