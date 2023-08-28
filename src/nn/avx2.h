@@ -769,10 +769,13 @@ public:
 		ASSERT(lr < LIST_SIZE);
 #ifdef DEBUG
 		uint32_t wt = 0;
-		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; i++) {
+		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS-1; i++) {
 			wt += __builtin_popcountll(L1[li][i] ^ L2[lr][i]);
 		}
 
+
+		uint64_t mask = n%64 == 0 ? uint64_t (-1) : ((1ul << (n%64)) - 1ul);
+		wt += __builtin_popcountll((L1[li][ELEMENT_NR_LIMBS-1] ^ L2[lr][ELEMENT_NR_LIMBS-1]) & mask);
 		ASSERT(wt <= d);
 #endif
 
@@ -1085,7 +1088,7 @@ public:
 
 		// we need 32bit limbs
 		using TT = uint32_t; // NOTE do not change.
-		using Element2 = T[3];
+		using Element2 = TT[4];
 		Element2 *LL1 = (Element2 *)L1;
 		Element2 *LL2 = (Element2 *)L2;
 		for (size_t i = s1; i < e1; i++) {
@@ -1096,10 +1099,10 @@ public:
 						found_solution(i, j);
 					}
 				} else {
-					const uint32_t t =  (__builtin_popcountll(LL1[i][0] ^ LL2[j][0]) <= d) +
-										(__builtin_popcountll(LL1[i][1] ^ LL2[j][1]) <= d) +
-										(__builtin_popcountll(LL1[i][2] ^ LL2[j][2]) <= d);
-					if (t == 3){
+					const uint32_t t =  __builtin_popcount(LL1[i][0] ^ LL2[j][0]) +
+										__builtin_popcount(LL1[i][1] ^ LL2[j][1]) +
+										__builtin_popcount(LL1[i][2] ^ LL2[j][2]);
+					if (t <= d){
 						found_solution(i, j);
 					}
 				}
