@@ -1,6 +1,10 @@
 #ifndef NN_CODE_WINDOWED_AVX2_H
 #define NN_CODE_WINDOWED_AVX2_H
 
+#ifndef USE_AVX2
+#error "no avx2"
+#endif
+
 #include <cstdint>
 #include <cstdlib>
 #include <vector>
@@ -12,9 +16,7 @@
 #include "nn/nn.h"
 
 
-/// unrolled bruteforce step. Compares the 8 32bit limbs of each a_i with each limb of each b_i
-/// NOTE: uses avx2
-/// NOTE:
+/// unrolled bruteforce step.
 /// stack: uint64_t[64]
 /// a1-a8, b1-b7: __m256i
 #define BRUTEFORCE256_32_8x8_STEP(stack, a1, a2, a3, a4, a5, a6, a7, a8, b1, b2, b3, b4, b5, b6, b7, b8)    \
@@ -196,8 +198,616 @@ class NN_AVX2 {
 	constexpr static bool NN_BOUNDS = false;
 public:
 
+<<<<<<< HEAD
 	alignas(32) const __m256i avx_nn_k_mask = k < 32 ? _mm256_set1_epi32((uint32_t) (1ull << (k % 32)) - 1ull) : k < 64 ? _mm256_set1_epi64x((1ull << (k % 64)) - 1ull)
 																														: _mm256_set1_epi32(0);
+=======
+	/// Base types
+	using T = uint64_t; // NOTE do not change.
+	constexpr static size_t T_BITSIZE = sizeof(T) * 8;
+	constexpr static size_t ELEMENT_NR_LIMBS = (n + T_BITSIZE - 1) / T_BITSIZE;
+	using Element = T[ELEMENT_NR_LIMBS];
+
+	/// TODO must be passed as an argument
+	constexpr static bool USE_REARRANGE = false;
+
+	/// The Probability that a element will end up in the subsequent list.
+	constexpr static double survive_prob = 0.025;
+	constexpr static uint32_t BUCKET_SIZE = 1024;
+	alignas(32) uint64_t LB[BUCKET_SIZE * ELEMENT_NR_LIMBS];
+	alignas(32) uint64_t RB[BUCKET_SIZE * ELEMENT_NR_LIMBS];
+
+	// if a solution found stop all further computations
+	constexpr static bool EARLY_EXIT = false;
+	// instance
+	alignas(64) Element *L1 = nullptr, *L2 = nullptr;
+
+	// solution
+	size_t solution_l = 0, solution_r = 0, solutions_nr = 0;
+	std::vector<std::pair<size_t, size_t>> solutions;
+
+	~WindowedAVX2() noexcept {
+		/// probably its ok to assert some stuff here
+		static_assert(k <= n);
+		// TODO static_assert(dk_bruteforce_size >= dk_bruteforce_weight);
+
+		if (L1) { free(L1); }
+		if (L2) { free(L2); }
+	}
+
+	/// transposes the two lists into the two buckets
+	void transpose(const size_t list_size) {
+		if constexpr (!USE_REARRANGE) {
+			ASSERT(false);
+		}
+
+		ASSERT(list_size <= BUCKET_SIZE);
+		for (size_t i = 0; i < list_size; i++) {
+			for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
+				LB[i + j*list_size] = L1[i][j];
+				RB[i + j*list_size] = L2[i][j];
+			}
+		}
+	}
+
+	/// choose a random element e1 s.t. \wt(e1) < d, and set e2 = 0
+	/// \param e1 output value
+	/// \param e2 output value
+	static void generate_golden_element_simple(Element &e1, Element &e2) noexcept {
+		constexpr T mask = n % T_BITSIZE == 0 ? T(-1) : ((1ul << n % T_BITSIZE) - 1ul);
+		while (true) {
+			uint32_t wt = 0;
+			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS - 1; i++) {
+				e1[i] = fastrandombytes_uint64();
+				e2[i] = 0;
+				wt += __builtin_popcount(e1[i]);
+			}
+
+			e1[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
+			e2[ELEMENT_NR_LIMBS - 1] = 0;
+			wt += __builtin_popcount(e1[ELEMENT_NR_LIMBS-1]);
+
+			if (wt < d)
+				return;
+		}
+	}
+
+	/// chooses e1 completely random and e2 a weight d vector. finally e2 = e2 ^ e1
+	/// \param e1 input/output
+	/// \param e2 input/output
+	static void generate_golden_element(Element &e1, Element &e2) noexcept {
+		constexpr T mask = n % T_BITSIZE == 0 ? T(-1) : ((1ul << n % T_BITSIZE) - 1ul);
+		static_assert(n > d);
+		static_assert(64 > d);
+
+		// clear e1, e2
+		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; ++i) {
+			e1[i] = 0;
+			e2[i] = 0;
+		}
+
+		// choose e2;
+		e2[0] = (1ull << d) - 1ull;
+		for (uint32_t i = 0; i < d; ++i) {
+			const uint32_t pos = fastrandombytes_uint64() % (n - i - 1);
+
+			const uint32_t from_limb = 0;
+			const uint32_t from_pos = i;
+			const T from_mask = 1u << from_pos;
+
+			const uint32_t to_limb = pos / T_BITSIZE;
+			const uint32_t to_pos = pos % T_BITSIZE;
+			const T to_mask = 1u << to_pos;
+
+			const T from_read = (e2[from_limb] & from_mask) >> from_pos;
+			const T to_read = (e2[to_limb] & to_mask) >> to_pos;
+			e2[to_limb] ^= (-from_read ^ e2[to_limb]) & (1ul << to_pos);
+			e2[from_limb] ^= (-to_read ^ e2[from_limb]) & (1ul << from_pos);
+		}
+
+		uint32_t wt = 0;
+		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS - 1; i++) {
+			e1[i] = fastrandombytes_uint64();
+			e2[i] ^= e1[i];
+			wt += __builtin_popcountll(e1[i] ^ e2[i]);
+		}
+
+		e1[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
+		e2[ELEMENT_NR_LIMBS - 1] ^= e1[ELEMENT_NR_LIMBS - 1];
+		wt += __builtin_popcountll(e1[ELEMENT_NR_LIMBS-1] ^ e2[ELEMENT_NR_LIMBS-1]);
+		ASSERT(wt = d);
+	}
+
+	/// simply chooses an uniform random element
+	/// \param e
+	static void generate_random_element(Element &e) noexcept {
+		constexpr T mask = n%T_BITSIZE == 0 ? T(-1) : ((1ul << n%T_BITSIZE) - 1ul);
+		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS-1; i++) {
+			e[i] = fastrandombytes_uint64();
+		}
+
+		e[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
+	}
+
+	/// generate a random list
+	/// \param L
+	static void generate_random_lists(Element *L) noexcept {
+		for (size_t i = 0; i < LIST_SIZE; i++) {
+			generate_random_element(L[i]);
+		}
+	}
+
+	/// generate
+	/// \param insert_sol
+	void generate_special_instance(bool insert_sol=true, bool create_zero=true) noexcept {
+		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
+		L1 = (Element *)aligned_alloc(64, list_size);
+		L2 = (Element *)aligned_alloc(64, list_size);
+
+		// reset number of solutions
+		solutions_nr = 0;
+
+		ASSERT(L1);
+		ASSERT(L2);
+		if (create_zero) {
+			memset(L1, 0, list_size);
+			memset(L2, 0, list_size);
+		}
+	}
+
+	/// generate a random instance, just for testing and debugging
+	/// \param insert_sol if false, no solution will inserted, this is just for quick testing/benchmarking
+	void generate_random_instance(bool insert_sol=true) noexcept {
+		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
+		L1 = (Element *)aligned_alloc(4096, list_size);
+		L2 = (Element *)aligned_alloc(4096, list_size);
+		ASSERT(L1);
+		ASSERT(L2);
+
+		// reset number of solutions
+		solutions_nr = 0;
+
+		generate_random_lists(L1);
+		generate_random_lists(L2);
+
+		/// fill the stuff with randomness, I'm to lazy for tail management
+		if constexpr (USE_REARRANGE) {
+			for (size_t i = 0; i < BUCKET_SIZE; ++i) {
+				LB[i] = fastrandombytes_uint64();
+				RB[i] = fastrandombytes_uint64();
+			}
+		}
+
+		/// only insert the solution if wanted.
+		if (!insert_sol)
+			return;
+
+		// generate solution:
+		solution_l = fastrandombytes_uint64() % LIST_SIZE;
+		solution_r = fastrandombytes_uint64() % LIST_SIZE;
+		//std::cout << "sols at: " << solution_l << " " << solution_r << "\n";
+
+		if constexpr (EXACT) {
+			Element sol;
+			generate_random_element(sol);
+
+			// inject the solution
+			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; ++i) {
+				L1[solution_l][i] = sol[i];
+				L2[solution_r][i] = sol[i];
+			}
+		} else {
+			Element sol1, sol2;
+			generate_golden_element(sol1, sol2);
+			// inject the solution
+			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; ++i) {
+				L1[solution_l][i] = sol1[i];
+				L2[solution_r][i] = sol2[i];
+			}
+		}
+
+
+	}
+
+	/// TODO explain
+	/// \param mask
+	/// \return
+	__m256i bit_mask_64(const uint64_t mask) {
+		ASSERT(mask < (1u<<8u));
+
+		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+		expanded_mask *= 0xFFU;
+		// the identity shuffle for vpermps, packed to one index per byte
+		const uint64_t identity_indices = 0x0706050403020100;
+		uint64_t wanted_indices = identity_indices & expanded_mask;
+		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
+		const __m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
+		return shufmask;
+	}
+
+	/// returns a permutation that shuffles down a mask on 32bit limbs
+	/// e.g INPUT: 0b10000001
+	///				<-    256    ->
+	///    OUTPUT: [  0 ,..., 7, 0]
+	///		   MSB <-32->
+	/// 		   <-  8 limbs   ->
+	/// to apply the resulting __m256i permutation use:
+	///			const uint64_t shuffle = 0b1000001;
+	/// 		const __m256i permuted_data = _mm256_permutevar8x32_ps(data, shuffle);
+	/// \param mask bit mask. Must be smaller than 2**8
+	/// \return the permutation
+	__m256i shuffle_down_32(const uint64_t mask) const noexcept {
+		// make sure only sane inputs make it.
+		ASSERT(mask < (1u<<8u));
+
+		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+		// mask |= mask<<1 | mask<<2 | ... | mask<<7;
+		expanded_mask *= 0xFFU;
+		// ABC... -> AAAAAAAABBBBBBBBCCCCCCCC...: replicate each bit to fill its byte
+
+		// the identity shuffle for vpermps, packed to one index per byte
+		const uint64_t identity_indices = 0x0706050403020100;
+		uint64_t wanted_indices = _pext_u64(identity_indices, expanded_mask);
+
+		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
+		const __m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
+		return shufmask;
+	}
+
+	/// returns a permutation that shuffles down a mask on 32bit limbs
+	/// e.g INPUT: 0b1001
+	///				<-     256   ->
+	///    OUTPUT: [  0  , 0, 3, 0]
+	///		   MSB <-64->
+	/// 		   <-  4 limbs   ->
+	/// to apply the resulting __m256i permutation use:
+	///			const uint64_t shuffle = 0b1000001;
+	/// 		const __m256i permuted_data = _mm256_permutevar4x64_pd(data, shuffle);
+	/// \param mask bit mask. Must be smaller than 2**4
+	/// \return the permutation
+	__m256i shuffle_down_64(const uint64_t mask) const noexcept {
+		// make sure only sane inputs make it.
+		ASSERT(mask < (1u<<4u));
+
+		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);  
+		// mask |= mask<<1 | mask<<2 | ... | mask<<7;
+		expanded_mask *= 0xFFU;  
+		// ABC... -> AAAAAAAABBBBBBBBCCCCCCCC...: replicate each bit to fill its byte
+		
+		// the identity shuffle for vpermps, packed to one index per byte
+		const uint64_t identity_indices = 0x0706050403020100;    
+		uint64_t wanted_indices = _pext_u64(identity_indices, expanded_mask);
+
+		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
+		const __m256i shufmask = _mm256_cvtepu8_epi64(bytevec);
+		return shufmask;
+	}
+
+	/// pretty much the same as `shuffle_down_64` but accepts permutation mask bigger than 2**4 up to
+	/// 2**8, meaning this function returns 2 permutations for at most 2 * 4  uint64_t limbs.
+	/// \param higher: output parameterm, contains the higher/last 4 permutations
+	/// \param lower:  output parameter, contain the lower/first 4 permutations
+	/// \param mask: input parameter
+	void shuffle_down_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) const noexcept {
+		// make sure only sane inputs make it.
+		ASSERT(mask < (1u<<8u));
+
+		/// see the description of this magic in `shuffle_down_64`
+		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+		expanded_mask *= 0xFFU;
+		const uint64_t identity_indices = 0x0302010003020100;
+		uint64_t wanted_indices = _pext_u64(identity_indices, expanded_mask);
+
+		const __m128i bytevec1 = _mm_cvtsi32_si128(uint16_t(wanted_indices));
+		const __m128i bytevec2 = _mm_cvtsi32_si128(uint16_t(wanted_indices >> 16));
+		lower = _mm256_cvtepu8_epi64(bytevec1);
+		higher = _mm256_cvtepu8_epi64(bytevec2);
+	}
+
+	/// same as shuffle up, but instead a compressed array is expanded according to mask
+	/// EXAMPLE: INPUT: 0b10100001
+	/// 		<-      256        ->
+	/// OUTPUT: [  2  , 0, 1, ..., 0]
+	///			<-32->
+	///			<-    8  limbs     ->
+	/// USAGE:
+	///			const uint64_t shuffle = 0b1000001;
+	/// 		const __m256i permuted_data = _mm256_permutevar8x32_ps(data, shuffle);
+	/// \param mask
+	/// \return
+	__m256i shuffle_up_32(const uint64_t mask) const noexcept {
+		ASSERT(mask < (1u<<8u));
+
+		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+		expanded_mask *= 0xFFU;
+		const uint64_t identity_indices = 0x0706050403020100;
+		uint64_t wanted_indices = _pdep_u64(identity_indices, expanded_mask);
+
+		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
+		const __m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
+		return shufmask;
+	}
+
+	/// same as shuffle up, but instead a compressed array is expanded according to mask
+	/// EXAMPLE: INPUT: 0b1010
+	/// 		<-     256    ->
+	/// OUTPUT: [  1  , 0, 0, 0]
+	///			<-64->
+	///			<-   4 limbs  ->
+	/// USAGE:
+	///			const uint64_t shuffle = 0b1000001;
+	/// 		const __m256i permuted_data = _mm256_permutevar4x64_pd(data, shuffle);
+	/// \param mask
+	/// \return
+	__m256i shuffle_up_64(const uint64_t mask) const noexcept {
+		ASSERT(mask < (1u<<4u));
+
+		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+		expanded_mask *= 0xFFU;
+		const uint64_t identity_indices = 0x03020100;
+		uint64_t wanted_indices = _pdep_u64(identity_indices, expanded_mask);
+
+		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
+		const __m256i shufmask = _mm256_cvtepu8_epi64(bytevec);
+		return shufmask;
+	}
+
+	/// similar to `shuffle_up_64`, but instead it can shuffle up to 8 64bit
+	///	limbs in parallel. Therefore it needs to return 2 __m256i
+	/// \param mask
+	void shuffle_up_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) const noexcept {
+		ASSERT(mask < (1u<<8u));
+
+		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+		expanded_mask *= 0xFFU;
+		const uint64_t identity_indices = 0x03020100;
+		uint64_t wanted_indices1 = _pdep_u64(identity_indices, expanded_mask & ((1ul << 32u) - 1));
+		uint64_t wanted_indices2 = _pdep_u64(identity_indices, expanded_mask >> 32u);
+
+		const __m128i bytevec1 = _mm_cvtsi32_si128(wanted_indices1);
+		const __m128i bytevec2 = _mm_cvtsi32_si128(wanted_indices2);
+		lower = _mm256_cvtepu8_epi64(bytevec1);
+		higher = _mm256_cvtepu8_epi64(bytevec2);
+	}
+
+	alignas(32) const __m256i avx_nn_k_mask = k < 32 ? _mm256_set1_epi32((uint32_t)(1ull << (k%32)) - 1ull) :
+	                                          k < 64 ? _mm256_set1_epi64x((1ull << (k%64)) - 1ull) :
+	                                                   _mm256_set1_epi32(0);
+
+	/// AVX2 popcount, which computes the popcount of each of the 32bit limbs
+	/// seperatly.
+	__m256i popcount_avx2_32(const __m256i vec) const noexcept {
+		const __m256i low_mask = _mm256_set1_epi8(0x0f);
+		const __m256i lookup = _mm256_setr_epi8(
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+		);
+		const __m256i lo  = _mm256_and_si256(vec, low_mask);
+		const __m256i hi  = _mm256_and_si256(_mm256_srli_epi16(vec, 4), low_mask);
+		const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
+		const __m256i popcnt2 = _mm256_shuffle_epi8(lookup, hi);
+		__m256i local = _mm256_setzero_si256();
+		local = _mm256_add_epi8(local, popcnt1);
+		local = _mm256_add_epi8(local, popcnt2);
+
+		// not the best
+		const __m256i mask = _mm256_set1_epi32(0xff);
+		__m256i ret = _mm256_and_si256(local, mask);
+		ret = _mm256_add_epi8(ret, _mm256_and_si256(_mm256_srli_epi32(local,  8), mask));
+		ret = _mm256_add_epi8(ret, _mm256_and_si256(_mm256_srli_epi32(local, 16), mask));
+		ret = _mm256_add_epi8(ret, _mm256_and_si256(_mm256_srli_epi32(local, 24), mask));
+		return ret;
+	}
+
+	__m256i popcount_avx2_32_old(const __m256i vec) const noexcept {
+		const __m256i low_mask = _mm256_set1_epi8(0x0f);
+		const __m256i lookup = _mm256_setr_epi8(
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+		);
+		const __m256i lo  = _mm256_and_si256(vec, low_mask);
+		const __m256i hi  = _mm256_and_si256(_mm256_srli_epi16(vec, 4), low_mask);
+		const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
+		const __m256i popcnt2 = _mm256_shuffle_epi8(lookup, hi);
+		__m256i local = _mm256_add_epi8(popcnt1, popcnt2);
+
+		const __m256i mask1 = _mm256_set1_epi64x(uint32_t(-1ul));
+		const __m256i mask2 = _mm256_set1_epi64x(uint64_t(uint32_t(-1ul)) << 32u);
+		const __m256i zero = _mm256_setzero_si256();
+		const __m256i c1 =_mm256_sad_epu8 (local&mask1, zero);
+		const __m256i c2 = _mm256_slli_epi64(_mm256_sad_epu8 (local&mask2, zero), 32);
+		const __m256i ret = c1 ^ c2;
+		return ret;
+	}
+
+	/// special popcount which popcounts on 4 * 64 bit limbs in parallel
+	__m256i popcount_avx2_64(const __m256i vec) const noexcept {
+		const __m256i low_mask = _mm256_set1_epi8(0x0f);
+		const __m256i lookup = _mm256_setr_epi8(
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+		);
+	    const __m256i lo  = _mm256_and_si256(vec, low_mask);
+	    const __m256i hi  = _mm256_and_si256(_mm256_srli_epi16(vec, 4), low_mask);
+	    const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
+	    const __m256i popcnt2 = _mm256_shuffle_epi8(lookup, hi);
+	    const __m256i local = _mm256_add_epi8(popcnt2, popcnt1);
+		const __m256i ret =_mm256_sad_epu8 (local, _mm256_setzero_si256());
+		return ret;
+	}
+
+	/// first implementation of the avx popcount.
+	/// DO NOT USE IT, its slower
+	__m256i popcount_avx2_64_old(const __m256i vec) const noexcept {
+		const __m256i low_mask = _mm256_set1_epi8(0x0f);
+		const __m256i lookup = _mm256_setr_epi8(
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+				/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+				/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+				/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+				/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+		);
+		const __m256i lo = _mm256_and_si256(vec, low_mask);
+		const __m256i hi = _mm256_and_si256(_mm256_srli_epi16(vec, 4), low_mask);
+		const __m256i popcnt1 = _mm256_shuffle_epi8(lookup, lo);
+		const __m256i popcnt2 = _mm256_shuffle_epi8(lookup, hi);
+		__m256i local = _mm256_setzero_si256();
+		local = _mm256_add_epi8(local, popcnt1);
+		local = _mm256_add_epi8(local, popcnt2);
+
+		const __m256i mask2 = _mm256_set1_epi64x(0xff);
+		__m256i ret;
+
+		ret = _mm256_add_epi8(local, _mm256_srli_epi32(local, 8));
+		ret = _mm256_add_epi8(ret, _mm256_srli_epi32(ret, 16));
+		ret = _mm256_add_epi8(ret, _mm256_srli_epi64(ret, 32));
+		ret = _mm256_and_si256(ret, mask2);
+		return ret;
+	}
+
+
+
+	/// Source:https://github.com/WojciechMula/sse-popcount/blob/master/popcnt-avx2-harley-seal.cpp
+	/// Implementation of the harley-Seal algorithm
+	__m256i popcount_avx2_64_old_v2(const __m256i v) const noexcept {
+		const __m256i m1 = _mm256_set1_epi8(0x55);
+		const __m256i m2 = _mm256_set1_epi8(0x33);
+		const __m256i m4 = _mm256_set1_epi8(0x0F);
+		const __m256i t1 = _mm256_sub_epi8(v,       (_mm256_srli_epi16(v,  1) & m1));
+		const __m256i t2 = _mm256_add_epi8(t1 & m2, (_mm256_srli_epi16(t1, 2) & m2));
+		const __m256i t3 = _mm256_add_epi8(t2, _mm256_srli_epi16(t2, 4)) & m4;
+		return _mm256_sad_epu8(t3, _mm256_setzero_si256());
+	}
+
+	/// adds `li` and `lr` to the solutions list.
+	/// an additional final check for correctness is done.
+	void found_solution(const size_t li,
+	                    const size_t lr) noexcept {
+		ASSERT(li < LIST_SIZE);
+		ASSERT(lr < LIST_SIZE);
+#ifdef DEBUG
+		uint32_t wt = 0;
+		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; i++) {
+			wt += __builtin_popcountll(L1[li][i] ^ L2[lr][i]);
+		}
+
+		ASSERT(wt <= d);
+#endif
+
+		//std::cout << solutions_nr << "\n";
+		solutions.resize(solutions_nr + 1);
+#ifdef ENABLE_BENCHMARK
+		solutions[0] = std::pair<size_t, size_t>{li, lr};
+#else
+		solutions[solutions_nr++] = std::pair<size_t, size_t>{li, lr};
+#endif
+	}
+
+	// checks whether all submitted solutions are correct
+	bool all_solutions_correct() const noexcept {
+		if (solutions_nr == 0)
+			return false;
+		
+		for (uint32_t i = 0; i < solutions_nr; i++) {
+			bool equal = true;
+			if constexpr (EXACT) {
+				for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
+					equal &= L1[solutions[i].first][j] == L2[solutions[i].second][j];
+				}
+			} else {
+				uint32_t wt = 0;
+				for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
+					wt += __builtin_popcountll(L1[solutions[i].first][j] ^ L2[solutions[i].second][j]);
+				}
+
+				equal = wt <= d;
+			}
+
+			if (!equal)
+				return false;
+		}
+
+		return true;
+	}
+
+	/// checks whether a,b are a solution or not
+	/// NOTE: upper bound `d` is inclusive
+	bool compare_u32(const uint32_t a, const uint32_t b) const noexcept {
+		if constexpr(EXACT) {
+			return a == b;
+		} else {
+			return uint32_t(__builtin_popcount(a ^ b)) <= d;
+		}
+	}
+
+	/// checks whether a,b are a solution or not
+	/// NOTE: upper bound `d` is inclusive
+	/// \param a first value
+	/// \param b second value
+	/// \return
+	bool compare_u64(const uint64_t a, const uint64_t b) const noexcept {
+		if constexpr(EXACT) {
+			return a == b;
+		} else {
+			return uint32_t(__builtin_popcountll(a ^ b)) <= d;
+		}
+	}
+
+	/// compares the limbs from the given pointer on.
+	/// \param a first pointer
+	/// \param b second pointer
+	/// \return true if the limbs following the pointer are within distance `d`
+	///			false else
+	template <const uint32_t s=0>
+	bool compare_u64_ptr(const uint64_t *a, const uint64_t *b) const noexcept {
+		if constexpr (!USE_REARRANGE) {
+			ASSERT((T) a < (T) (L1 + LIST_SIZE));
+			ASSERT((T) b < (T) (L2 + LIST_SIZE));
+		}
+		if constexpr(EXACT) {
+			for (uint32_t i = s; i < ELEMENT_NR_LIMBS; i++) {
+				if (a[i] != b[i])
+					return false;
+			}
+
+			return true;
+		} else {
+			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
+			uint32_t wt = 0;
+			for (uint32_t i = s; i < ELEMENT_NR_LIMBS; i++) {
+				wt += __builtin_popcountll(a[i] ^ b[i]);
+			}
+
+			ASSERT(!(a[ELEMENT_NR_LIMBS - 1] & mask));
+			ASSERT(!(b[ELEMENT_NR_LIMBS - 1] & mask));
+
+			// TODO maybe some flag?
+			return wt <= d;
+			//return wt == d;
+		}
+	}
+>>>>>>> db58c43e457288b782cc9f34b784761dba39629c
 
 	///
 	/// NOTE: upper bound `d` is inclusive
@@ -1594,6 +2204,7 @@ public:
 		const __m256i zero = _mm256_set1_epi32(0);
 
 		size_t i = s1;
+        #pragma unroll 2
 		for (; i < s1 + e1; i += 16, ptr_l += 16) {
 			const __m256i l1 = _mm256_load_si256((const __m256i *)(ptr_l +  0));
 			const __m256i l2 = _mm256_load_si256((const __m256i *)(ptr_l +  4));
@@ -2653,7 +3264,7 @@ public:
 					avx2_nn_internal<level - 1>(new_e1, new_e2);
 				}
 
-				if (unlikely(solutions_nr)) {
+				if (unlikely(solutions_nr)){
 #if DEBUG
 					std::cout << "sol: " << level << " " << i << " " << new_e1 << " " << new_e2 << "\n";
 #endif
@@ -2663,6 +3274,32 @@ public:
 		}
 	}
 
+<<<<<<< HEAD
+=======
+	/// core entry function
+	/// \param e1
+	/// \param e2
+	void avx2_nn(const size_t e1=LIST_SIZE,
+	             const size_t e2=LIST_SIZE) noexcept {
+		//config.print();
+		//madvise(L1, LIST_SIZE*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL | MADV_HUGEPAGE);
+		//madvise(L2, LIST_SIZE*sizeof(T)*ELEMENT_NR_LIMBS, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL | MADV_HUGEPAGE);
+		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
+
+		for (size_t i = 0; i < P*N; ++i) {
+			if constexpr(32 < n and n <= 256) {
+				avx2_nn_internal<r>(e1, e2);
+	 		} else {
+				ASSERT(false);
+			}
+			if (solutions_nr > 0) {
+				//std::cout << "outer: " << i << "\n";
+				break;
+			}
+		}
+	}
+
+>>>>>>> db58c43e457288b782cc9f34b784761dba39629c
 #ifdef __AVX512F__
 	alignas(64) const __m512i avx512_weight32 = _mm512_set1_epi32(d+1);
 	alignas(64) const __m512i avx512_weight64 = _mm512_set1_epi64(d+1);

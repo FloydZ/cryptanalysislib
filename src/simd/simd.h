@@ -1,12 +1,14 @@
 #ifndef CRYPTANALYSISLIB_SIMD_H
 #define CRYPTANALYSISLIB_SIMD_H
 
-#ifdef __x86_64_
+#ifdef USE_AVX2
 #include <immintrin.h>
 using u64_2 = __m128;
+
+#include "simd/avx2.h"
 #endif
 
-#ifdef __APPLE__
+#ifdef USE_NEON
 #include <arm_neon.h>
 using u64_2 = uint64x2_t;
 

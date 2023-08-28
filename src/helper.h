@@ -522,7 +522,9 @@ constexpr void constexpr_for_passing_index(F& f) {
 
 
 
-
+///
+/// \param num
+/// \return
 __device__ __host__
 constexpr int32_t cceil(float num) {
 	return (static_cast<float>(static_cast<int32_t>(num)) == num)
@@ -530,6 +532,9 @@ constexpr int32_t cceil(float num) {
 	       : static_cast<int32_t>(num) + ((num > 0) ? 1 : 0);
 }
 
+///
+/// \param num
+/// \return
 __device__ __host__
 constexpr int64_t cceil(double num) {
 	return (static_cast<double>(static_cast<int32_t>(num)) == num)
@@ -834,6 +839,7 @@ typename std::conditional<(ll <= 8), uint8_t,
 		>::type
 >::type;
 
+///
 template <uint64_t n>
 using TypeTemplate =
 typename std::conditional<(n <= 0xFF), uint8_t,
@@ -1110,4 +1116,20 @@ static void print_binary(T a, const size_t len = sizeof(T)*8) {
 
 	printf("\n");
 }
+
+
+static inline uint64_t cpucycles(void)
+{
+#if defined __GNUC__ && !defined __clang__
+	uint32_t hi, lo;
+
+	_mm_lfence();
+	__asm__ __volatile__ ("rdtsc" : "=d" (hi), "=a" (lo) : : );
+	return ((uint64_t)hi << 32) | (uint64_t)lo;
+#else
+	_mm_lfence();
+	return __rdtsc();
+#endif
+}
+
 #endif //SMALLSECRETLWE_HELPER_H
