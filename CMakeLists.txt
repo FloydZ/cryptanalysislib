@@ -16,6 +16,9 @@ include(FetchContent)
 include(ExternalProject)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+include("deps/cmake_optimize_for_architecture/OptimizeForArchitecture.cmake")
+OptimizeForArchitecture()
+
 # include the external projects 'fplll', 'g6k', 'abseil' and 'tcmalloc'
 #ExternalProject_Add(fplll_project
 #        SOURCE_DIR        ${CMAKE_SOURCE_DIR}/deps/fplll
@@ -106,11 +109,17 @@ if(APPLE)
     set(DEBUG_FLAGS "-g -O1 -DDEBUG ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 else()
+
+if("avx2" IN_LIST _available_vector_units_list)
     #set(ADDITIONAL_FLAGS "-DUSE_AVX2 -fno-inline")
     set(ADDITIONAL_FLAGS "-DUSE_AVX2 ")
+endif()
 
+if("avx512f" IN_LIST _available_vector_units_list)
     set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
     set(DEBUG_FLAGS "-g -O1 -DDEBUG -march=native -mavx2 -mavx -mbmi ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+endif()
+
     set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
