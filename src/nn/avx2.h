@@ -167,8 +167,7 @@
 
 
 template<const NN_Config &config>
-class NN_AVX2 {
-	friend class NN<config>;
+class NN_AVX2 : NN<config> {
 
 	constexpr static size_t n = config.n;
 	constexpr static size_t r = config.r;
@@ -185,18 +184,35 @@ class NN_AVX2 {
 	constexpr static uint32_t dk_bruteforce_size = config.dk_bruteforce_size;
 	constexpr static uint32_t dk_bruteforce_weight = config.dk_bruteforce_weight;
 
+	using T = typename NN<config>::T;
+	using Element = typename NN<config>::Element;
+	
+	using NN<config> ::L1;
+	using NN<config> ::L2;
+	using NN<config> ::RB;
+	using NN<config> ::LB;
+	using NN<config> ::found_solution;
+	using NN<config> ::solutions;
+	using NN<config> ::solutions_nr;
+	using NN<config> ::ELEMENT_NR_LIMBS;
 
-	/// only exact matching in the bruteforce step, if set to `true`
-	/// This means that only EXACTLY equal elements are searched for
-	constexpr static bool EXACT = false;
+	using NN<config> ::compare_u64_ptr;
+	using NN<config> ::compare_u64;
+	using NN<config> ::compare_u32;
 
-	/// in each step of the NN search only the exact weight dk is accepted
-	constexpr static bool NN_EQUAL = false;
-	/// in each step of the NN search all elements <= dk are accepted
-	constexpr static bool NN_LOWER = true;
-	/// in each step of the NN search all elements dk-epsilon <= wt <= dk+epsilon are accepted
-	constexpr static bool NN_BOUNDS = false;
-public:
+	using NN<config> ::bruteforce_32;
+	using NN<config> ::bruteforce_128;
+	using NN<config> ::bruteforce_256;
+
+	using NN<config> ::survive_prob;
+	using NN<config> ::BUCKET_SIZE;
+	using NN<config> ::USE_REARRANGE;
+	using NN<config> ::EXACT;
+	using NN<config> ::NN_EQUAL;
+	using NN<config> ::NN_LOWER;
+	using NN<config> ::NN_BOUNDS;
+
+	public:
 
 	alignas(32) const __m256i avx_nn_k_mask = k < 32 ? _mm256_set1_epi32((uint32_t) (1ull << (k % 32)) - 1ull) : k < 64 ? _mm256_set1_epi64x((1ull << (k % 64)) - 1ull)
 																														: _mm256_set1_epi32(0);
@@ -1715,7 +1731,7 @@ public:
 	/// \param ctr
 	/// \return
 	size_t swap_avx_64(const __m256i gt_mask, const size_t ctr,
-			Element *__restrict__ ptr, Element *__restrict__ L) const noexcept {
+					   Element *__restrict__ ptr, Element *__restrict__ L) const noexcept {
 		ASSERT(n <= 64);
 		ASSERT(n > 32);
 

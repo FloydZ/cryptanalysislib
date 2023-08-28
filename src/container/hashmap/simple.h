@@ -45,10 +45,10 @@ class SimpleHashMap {
 	// sadly in the current form useless
 	using cache_type = std::pair<T, listType>;
 	constexpr static bool use_insert_cache = false;
-	constexpr static uint16_t insert_cache_size = 32;
-	cache_type insert_cache[insert_cache_size];
-	uint16_t insert_cache_counter = 0;
-	StaticSort<insert_cache_size> staticSort;
+	//constexpr static uint16_t insert_cache_size = 32;
+	//cache_type insert_cache[insert_cache_size];
+	//uint16_t insert_cache_counter = 0;
+	//StaticSort<insert_cache_size> staticSort;
 
 	// size per bucket
 	constexpr static size_t bucketsize = config.bucketsize;
@@ -73,27 +73,27 @@ public:
 		}
 
 		// first sort the shit
-		staticSort(insert_cache, [](const cache_type &a1, const cache_type &a2) {
-			return a1.first < a2.first;
-		});
+		//staticSort(insert_cache, [](const cache_type &a1, const cache_type &a2) {
+		//	return a1.first < a2.first;
+		//});
 
-		for (uint16_t i = 0; i < insert_cache_counter; i++) {
-			const auto index = insert_cache[i].first;
-			const auto list_index = insert_cache[i].second;
-			size_t load = __internal_load_array[index];
+		//for (uint16_t i = 0; i < insert_cache_counter; i++) {
+		//	const auto index = insert_cache[i].first;
+		//	const auto list_index = insert_cache[i].second;
+		//	size_t load = __internal_load_array[index];
 
-			// early exit
-			if (load == bucketsize-1) {
-				continue;
-			}
+		//	// early exit
+		//	if (load == bucketsize-1) {
+		//		continue;
+		//	}
 
-			__internal_load_array[index] += 1;
-			ASSERT(load < bucketsize);
+		//	__internal_load_array[index] += 1;
+		//	ASSERT(load < bucketsize);
 
-			__internal_hashmap_array[index*bucketsize + load] = list_index;
-		}
+		//	__internal_hashmap_array[index*bucketsize + load] = list_index;
+		//}
 
-		insert_cache_counter = 0;
+		//insert_cache_counter = 0;
 	}
 
 
@@ -108,15 +108,15 @@ public:
 		ASSERT(index < nrbuckets);
 
 		if constexpr (use_insert_cache) {
-			insert_cache[insert_cache_counter++] = cache_type{index, list_index};
-			if (insert_cache_counter >= insert_cache_size){
-				insert_cache_flush();
-			}
-
+			//insert_cache[insert_cache_counter++] = cache_type{index, list_index};
+			//if (insert_cache_counter >= insert_cache_size){
+			//	insert_cache_flush();
+			//}
+			ASSERT(false);
 			return;
 		} else {
 			size_t load = __internal_load_array[index];
-			// early exit, if its already full
+			// early exit, if it's already full
 			if (load == bucketsize)
 				return ;
 
