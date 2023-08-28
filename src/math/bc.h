@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <immintrin.h>
 #include <assert.h>
 
 
@@ -55,6 +54,9 @@ inline T opt_max_bc(const T a, const uint32_t n) {
 	return -1;
 }
 
+#ifdef USE_AVX2
+#include <immintrin.h>
+
 /// same as `opt_max_bc` only doing 8 at the same time.
 /// NOTE: w/k must be smaller than 5
 template<typename T, const uint32_t k>
@@ -90,6 +92,7 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 	// will never happen
 	return _mm256_set1_epi32(1);
 }
+#endif
 
 /// NOTE: this function computes the `a` bitstring of length `n` and weight `p`
 /// given the a-th step enumerating the list,
@@ -125,6 +128,7 @@ inline void biject(size_t a, uint16_t rows[p]) noexcept {
 	ASSERT(false);
 }
 
+#ifdef USE_AVX2
 /// NOTE: this function computes the `a` bitstring of length `n` and weight `p`,
 ///			but for 8 32-bit limbs at the same time.
 /// NOTE: a < 2**32
@@ -159,3 +163,4 @@ inline void biject_avx(__m256i a, __m256i rows[p]) noexcept {
 
 	ASSERT(false);
 }
+#endif

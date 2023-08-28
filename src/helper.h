@@ -14,9 +14,11 @@
 #include <vector>       // for __level_translation_array
 #include <array>
 #include <cmath>
-//#include <concepts>     // for std::integral
 #include <type_traits>  // for std::convertable_to
 #include <cassert>
+#include <inttypes.h>
+
+#include "cpucycles.h"
 
 #ifndef __CUDACC__
 #define __device__
@@ -693,11 +695,34 @@ constexpr FloatingPoint constexpr_pow(
 	       0;
 }
 
+/// Entropy function
 /// \param x input
 /// \return H[x] := -x*Log2[x] - (1 - x)*Log2[1 - x];
 double HH(const double x) {
 	return -x*log2(x) - (1.-x)*log2(1.-x);
 }
+
+/// if AVX2 is available we want to enable aligned LOAD/STORE
+#ifdef USE_AVX2
+#define LOAD_ALIGNED
+#define STORE_ALIGNED
+#endif
+
+/// if defined: all loads must be 32Bytes aligned
+#ifdef LOAD_ALIGNED
+#define LOAD256(x) _mm256_lddqu_si256(x)
+#else
+#define LOAD256(x) _mm256_load_si256(x)
+#endif
+
+/// if defined: all stores must be 32Bytes aligned
+#ifdef STORE_ALIGNED
+#define STORE256(ptr, x) _mm256_store_si256(ptr, x)
+#else
+#define STORE256(ptr, x) _mm256_storeu_si256(ptr, x)
+#endif
+
+
 
 
 /// access function for the global array.
@@ -1015,7 +1040,6 @@ public:
 				data ^= (__uint128_t(v[hlimb]) << (128-l));
 			}
 
-
 			if constexpr(flip == 0) {
 				return data >> l;
 			} else {
@@ -1080,7 +1104,7 @@ public:
 template<typename T>
 static void print_binary(T a, const size_t len = sizeof(T)*8) {
 	for (uint32_t i = 0; i < len; i++) {
-		printf("%lu", a & 1ul);
+		printf("%" PRIu64, a & 1ul);
 		a >>= 1;
 	}
 
