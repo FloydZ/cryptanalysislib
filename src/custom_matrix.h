@@ -789,11 +789,11 @@ mzd_t *matrix_init_split(const mzd_t *A, const mzd_t *s, const uint32_t nkl, con
 	mzd_t *r = mzd_init(A->nrows, padding);
 
 	for (uint32_t row = 0; row < uint32_t(A->nrows); row++) {
-		for (uint col = 0; col < nkl; ++col) {
+		for (uint32_t col = 0; col < nkl; ++col) {
 			mzd_write_bit(r, row, col, mzd_read_bit(A, row, col));
 		}
 
-		for (int col = nkl; col < A->ncols; ++col) {
+		for (uint32_t col = nkl; col < uint32_t(A->ncols); ++col) {
 			mzd_write_bit(r, row, col+c, mzd_read_bit(A, row, col));
 		}
 

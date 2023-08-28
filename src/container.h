@@ -3074,7 +3074,8 @@ public:
 	}
 #else
 	int CAS(void **mem, void *o, void *n) {
-		// TODO
+		// TODO ,ove alll of this into seperate class
+		return 0;
 	}
 #endif
 
