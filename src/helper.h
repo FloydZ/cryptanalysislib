@@ -1117,19 +1117,4 @@ static void print_binary(T a, const size_t len = sizeof(T)*8) {
 	printf("\n");
 }
 
-
-static inline uint64_t cpucycles(void)
-{
-#if defined __GNUC__ && !defined __clang__
-	uint32_t hi, lo;
-
-	_mm_lfence();
-	__asm__ __volatile__ ("rdtsc" : "=d" (hi), "=a" (lo) : : );
-	return ((uint64_t)hi << 32) | (uint64_t)lo;
-#else
-	_mm_lfence();
-	return __rdtsc();
-#endif
-}
-
 #endif //SMALLSECRETLWE_HELPER_H
