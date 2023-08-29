@@ -1,6 +1,7 @@
 #ifndef DECODING_POPCOUNT_H
 #define DECODING_POPCOUNT_H
 
+#include <stdint.h>
 
 ///
 struct popcount_config {

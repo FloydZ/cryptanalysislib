@@ -25,38 +25,6 @@
 #define __host__
 #endif
 
-#if __AVX2__
-#include <immintrin.h>
-#include <emmintrin.h>
-
-//
-#if CUSTOM_ALIGNMENT
-#define MM256_LOAD(x) _mm256_load_ps(x)
-#define MM256_STORE(x, y) _mm256_store_ps(x, y)
-#else
-#define MM256_LOAD(x) _mm256_loadu_ps(x)
-#define MM256_STORE(x, y) _mm256_storeu_ps(x, y)
-#endif
-
-
-#define MM256_LOAD_UNALIGNED(x) _mm256_loadu_ps(x)
-#define MM256_STORE_UNALIGNED(x, y) _mm256_storeu_ps(x, y)
-
-// Load instruction which do not touch the cache
-#define MM256_STREAM_LOAD256(x) _mm256_stream_load_si256(x)
-#define MM256_STREAM_LOAD128(x) _mm_stream_load_si128(x)
-#define MM256_STREAM_LOAD64(x)  __asm volatile("movntdq %0, (%1)\n\t"       \
-												:                           \
-												: "x" (x), "r" (y)          \
-												: "memory");
-// Write instructions which do not touch the cache
-#define MM256_STREAM256(x, y) _mm256_stream_load_si256(x, y)
-#define MM256_STREAM128(x, y) _mm_stream_si128(x)
-#define MM256_STREAM64(x, y)  __asm volatile("movntdq %0, (%1)\n\t"         \
-												:                           \
-												: "x" (y), "r" (x)          \
-												: "memory");
-#endif // end __AVX2__
 
 #if defined(NUMBER_THREADS) && NUMBER_THREADS > 1
 #define OMP_BARRIER _Pragma("omp barrier")

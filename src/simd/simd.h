@@ -2,7 +2,11 @@
 #define CRYPTANALYSISLIB_SIMD_H
 
 #include <cstdint>
+#include <cinttypes>
+
+#include "helper.h"
 #include "random.h"
+
 
 #ifdef USE_AVX2
 
@@ -72,46 +76,108 @@ inline uinuint8x32_t add(uint8x32_t out,
 
 
 /// functions which are shared among all implementations.
-inline uint8x32_t uint8x32_t::random(){
-	uint8x32_t ret;
-	for (uint32_t i = 0; i < 4; i++) {
-		ret.v64[i] = fastrandombytes_uint64();
+inline void uint8x32_t::print(bool binary, bool hex){
+	/// make sure that only one is defined
+	ASSERT(binary + hex < 2);
+
+	if (binary) {
+		for (uint32_t i = 0; i < 32; i++) {
+			printbinary(this->v8[i]);
+		}
+
+		return;
 	}
 
-	return ret;
-}
-inline uint16x16_t uint16x16_t::random(){
-	uint16x16_t ret;
-	for (uint32_t i = 0; i < 4; i++) {
-		ret.v64[i] = fastrandombytes_uint64();
+	if (hex) {
+		for (uint32_t i = 0; i < 32; i++) {
+			printf("%hhx ", this->v8[i]);
+		}
+
+		return;
 	}
 
-	return ret;
-}
-inline uint32x8_t uint32x8_t::random(){
-	uint32x8_t ret;
-	for (uint32_t i = 0; i < 4; i++) {
-		ret.v64[i] = fastrandombytes_uint64();
-	}
-
-	return ret;
-}
-inline uint64x4_t uint64x4_t::random(){
-	uint64x4_t ret;
-	for (uint32_t i = 0; i < 4; i++) {
-		ret.v64[i] = fastrandombytes_uint64();
-	}
-
-	return ret;
-}
-
-inline uint8x32_t uint8x32_t::print(){
-	uint8x32_t ret;
 	for (uint32_t i = 0; i < 32; i++) {
 		printf("%u ", this->v8[i]);
 	}
 	printf("\n");
-
-	return ret;
 }
+
+inline void uint16x16_t::print(bool binary, bool hex){
+	/// make sure that only one is defined
+	ASSERT(binary + hex < 2);
+
+	if (binary) {
+		for (uint32_t i = 0; i < 16; i++) {
+			printbinary(this->v16[i]);
+		}
+
+		return;
+	}
+
+	if (hex) {
+		for (uint32_t i = 0; i < 16; i++) {
+			printf("%hx ", this->v16[i]);
+		}
+
+		return;
+	}
+
+	for (uint32_t i = 0; i < 16; i++) {
+		printf("%u ", this->v16[i]);
+	}
+	printf("\n");
+}
+
+inline void uint32x8_t::print(bool binary, bool hex){
+	/// make sure that only one is defined
+	ASSERT(binary + hex < 2);
+
+	if (binary) {
+		for (uint32_t i = 0; i < 8; i++) {
+			printbinary(this->v32[i]);
+		}
+
+		return;
+	}
+
+	if (hex) {
+		for (uint32_t i = 0; i < 8; i++) {
+			printf("%x ", this->v32[i]);
+		}
+
+		return;
+	}
+
+	for (uint32_t i = 0; i < 8; i++) {
+		printf("%u ", this->v32[i]);
+	}
+	printf("\n");
+}
+
+inline void uint64x4_t::print(bool binary, bool hex){
+	/// make sure that only one is defined
+	ASSERT(binary + hex < 2);
+
+	if (binary) {
+		for (uint32_t i = 0; i < 4; i++) {
+			printbinary(this->v64[i]);
+		}
+
+		return;
+	}
+
+	if (hex) {
+		for (uint32_t i = 0; i < 4; i++) {
+			printf("%lx ", this->v64[i]);
+		}
+
+		return;
+	}
+
+	for (uint32_t i = 0; i < 4; i++) {
+		printf("%" PRIu64 " ", this->v64[i]);
+	}
+	printf("\n");
+}
+
 #endif//CRYPTANALYSISLIB_SIMD_H

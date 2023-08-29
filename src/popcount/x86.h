@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_POPCOUNT_X86_H
 #define CRYPTANALYSISLIB_POPCOUNT_X86_H
 
+#include <immintrin.h>
 #include "helper.h"
 
 
