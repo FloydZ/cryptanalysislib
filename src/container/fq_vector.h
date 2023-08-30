@@ -27,9 +27,9 @@ requires(T t) {
 
 
 ///
-/// \tparam T
-/// \tparam n
-/// \tparam q
+/// \tparam T base type
+/// \tparam n size of the fq vector space=number of elements
+/// \tparam q field size
 template<class T, const uint32_t n, const uint32_t q>
 class kAryContainer_Meta {
 protected:
@@ -72,7 +72,7 @@ public:
 
 	/// checks if every dimension is zero
 	/// \return true/false
-	[[nodiscard]] bool is_zero() const noexcept {
+	[[nodiscard]] constexpr bool is_zero() const noexcept {
 		for (uint32_t i = 0; i < LENGTH; ++i) {
 			if(__data[i] != T(0))
 				return false;
@@ -83,7 +83,7 @@ public:
 
 	/// calculate the hamming weight
 	/// \return the hamming weight
-	[[nodiscard]] inline uint32_t weight() const noexcept {
+	[[nodiscard]] constexpr inline uint32_t weight() const noexcept {
 		uint32_t r = 0;
 		for (uint32_t i = 0; i < LENGTH; ++i) {
 			if (__data[i] != 0)
@@ -95,22 +95,24 @@ public:
 	/// swap coordinate i, j, boundary checks are done
 	/// \param i coordinate
 	/// \param j coordinate
-	void swap(const uint32_t i, const uint32_t j) noexcept {
+	constexpr void swap(const uint32_t i, const uint32_t j) noexcept {
 		ASSERT(i < LENGTH && j < LENGTH);
 		SWAP(__data[i], __data[j]);
 	}
 
 	/// *-1
 	/// \param i
-	void flip(const uint32_t i) noexcept {
+	constexpr void flip(const uint32_t i) noexcept {
 		ASSERT(i < LENGTH);
 		__data[i] *= -1;
+		__data[i] += q;
+		__data[i] %= q;
 	}
 
 	/// negate every coordinate between [k_lower, k_higher)
-	/// \param k_lower lower dimension
-	/// \param k_upper higher dimension
-	inline void neg(const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	/// \param k_lower lower dimension inclusive
+	/// \param k_upper higher dimension, exclusive
+	constexpr inline void neg(const uint32_t k_lower, const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= LENGTH &&k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -122,9 +124,9 @@ public:
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
-	/// \param k_lower lower dimension
-	/// \param k_upper higher dimension
-	inline static void mul(kAryContainer_Meta &v3,
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
+	constexpr inline static void mul(kAryContainer_Meta &v3,
 						   const kAryContainer_Meta &v1,
 						   const kAryContainer_Meta &v2,
 						   const uint32_t k_lower=0,
@@ -140,9 +142,9 @@ public:
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
-	/// \param k_lower lower dimension
-	/// \param k_upper higher dimension
-	inline static void add(kAryContainer_Meta &v3,
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
+	constexpr inline static void add(kAryContainer_Meta &v3,
 						   const kAryContainer_Meta &v1,
 						   const kAryContainer_Meta &v2,
 						   const uint32_t k_lower=0,
@@ -158,11 +160,11 @@ public:
 	/// \param v3 output
 	/// \param v1 input
 	/// \param v2 input
-	/// \param k_lower lower dimension
-	/// \param k_upper higher dimension
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
 	/// \param norm = max norm of an dimension which is allowed.
 	/// \return true if the element needs to be filtered out. False else.
-	inline static bool add(kAryContainer_Meta &v3,
+	constexpr inline static bool add(kAryContainer_Meta &v3,
 						   kAryContainer_Meta const &v1,
 						   kAryContainer_Meta const &v2,
 						   const uint32_t k_lower,
@@ -183,10 +185,10 @@ public:
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
-	/// \param k_lower lower dimension
-	/// \param k_upper higher dimension
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
 	/// \return true if the elements needs to be filled out. False else.
-	inline static void sub(kAryContainer_Meta &v3,
+	constexpr inline static void sub(kAryContainer_Meta &v3,
 						   kAryContainer_Meta const &v1,
 						   kAryContainer_Meta const &v2,
 						   const uint32_t k_lower=0,
@@ -202,11 +204,11 @@ public:
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
-	/// \param k_lower lower dimension
-	/// \param k_upper higher dimension
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
 	/// \param norm filter every element out if hte norm is bigger than `norm`
 	/// \return true if the elements needs to be filter out. False if not
-	inline static bool sub(kAryContainer_Meta &v3,
+	constexpr inline static bool sub(kAryContainer_Meta &v3,
 						   kAryContainer_Meta const &v1,
 						   kAryContainer_Meta const &v2,
 						   const uint32_t k_lower,
@@ -226,10 +228,10 @@ public:
 
 	/// \param v1 input container
 	/// \param v2 input container
-	/// \param k_lower lower dimension
-	/// \param k_upper higher dimension
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
 	/// \return v1 == v2 on the coordinates [k_lower, k_higher)
-	inline static bool cmp(kAryContainer_Meta const &v1,
+	constexpr inline static bool cmp(kAryContainer_Meta const &v1,
 						   kAryContainer_Meta const &v2,
 						   const uint32_t k_lower=0,
 						   const uint32_t k_upper=LENGTH) noexcept {
@@ -249,9 +251,9 @@ public:
 	/// coordinates in v1.
 	/// \param v1 output container
 	/// \param v2 input container
-	/// \param k_lower lower bound coordinate wise
-	/// \param k_upper higher bound coordinate wise
-	inline static void set(kAryContainer_Meta &v1,
+	/// \param k_lower lower bound coordinate wise, inclusive
+	/// \param k_upper higher bound coordinate wise, exclusive
+	constexpr inline static void set(kAryContainer_Meta &v1,
 						   kAryContainer_Meta const &v2,
 						   const uint32_t k_lower=0,
 						   const uint32_t k_upper=LENGTH) noexcept {
@@ -264,20 +266,20 @@ public:
 	}
 
 	/// \param obj to compare to
-	/// \param k_lower lower coordinate bound
-	/// \param k_upper higher coordinate bound
+	/// \param k_lower lower coordinate bound, inclusive
+	/// \param k_upper higher coordinate bound, exclusive
 	/// \return this == obj on the coordinates [k_lower, k_higher)
-	bool is_equal(kAryContainer_Meta const &obj,
+	constexpr bool is_equal(kAryContainer_Meta const &obj,
 				  const uint32_t k_lower=0,
 				  const uint32_t k_upper=LENGTH) const noexcept {
 		return cmp(this, obj, k_lower, k_upper);
 	}
 
 	/// \param obj to compare to
-	/// \param k_lower lower bound coordinate wise
-	/// \param k_upper higher bound coordinate wise
+	/// \param k_lower lower bound coordinate wise, inclusive
+	/// \param k_upper higher bound coordinate wise, exclusive
 	/// \return this > obj on the coordinates [k_lower, k_higher)
-	bool is_greater(kAryContainer_Meta const &obj,
+	constexpr bool is_greater(kAryContainer_Meta const &obj,
 					const uint32_t k_lower=0,
 					const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_upper <= LENGTH && "ERROR is_greater not correct k_upper");
@@ -295,10 +297,10 @@ public:
 	}
 
 	/// \param obj to compare to
-	/// \param k_lower lower bound coordinate wise
-	/// \param k_upper higher bound coordinate wise
+	/// \param k_lower lower bound coordinate wise, inclusive
+	/// \param k_upper higher bound coordinate wise, exclusive
 	/// \return this < obj on the coordinates [k_lower, k_higher)
-	bool is_lower(kAryContainer_Meta const &obj,
+	constexpr bool is_lower(kAryContainer_Meta const &obj,
 				  const uint32_t k_lower=0,
 				  const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_upper <= LENGTH && "ERROR is_lower not correct k_upper");
@@ -327,9 +329,9 @@ public:
 		}
 
 		// TODO correct?
-
 		return *this;
 	}
+
 	/// access operator
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
@@ -343,9 +345,9 @@ public:
 	};
 
 	/// prints this container between the limbs [k_lower, k_higher)
-	/// \param k_lower lower bound
-	/// \param k_upper higher bound
-	void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
+	/// \param k_lower lower bound, inclusive
+	/// \param k_upper higher bound, exclusive
+	constexpr void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << __data[i] << " ";
@@ -374,15 +376,12 @@ public:
 
 	/// sets all elements in the array to the given
 	/// \param data
-	const void set(const T data) noexcept {
+	constexpr void set(const T data) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = 0; i < n; ++i) {
 			__data[i] = data;
 		}
 	}
-
-	/// TODO remove
-	T get_type() noexcept { return __data[0]; }
 protected:
 	std::array<T, LENGTH> __data;
 };
@@ -404,8 +403,6 @@ public:
 	using kAryContainer_Meta<T, n, q>::size;
 	using kAryContainer_Meta<T, n, q>::get;
 	using kAryContainer_Meta<T, n, q>::set;
-
-
 };
 
 /// specialized class for representing stuff on 8 bit
@@ -421,7 +418,10 @@ class kAryContainer_T<uint8_t, n, 4> : public kAryContainer_Meta<uint8_t, n, 4> 
 	///
 	///
 public:
+	/// this is just needed, because Im lazy
 	constexpr static uint32_t q = 4;
+
+	/// needed typedefs
 	using T = uint8_t;
 	using DataType = T;
 	using kAryContainer_Meta<T, n, q>::LENGTH;
@@ -455,42 +455,42 @@ private:
 
 	public:
 
-	///
-	/// \tparam T
+	/// mod operations
+	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
 	/// \return
 	template<typename T>
-	[[nodiscard]] static inline T mod_T(const T a) noexcept {
+	[[nodiscard]] constexpr static inline T mod_T(const T a) noexcept {
 		return a & mask_4;
 	}
 
 	///
-	/// \tparam T
+	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
 	/// \param b
 	/// \return
 	template<typename T>
-	[[nodiscard]] static inline T add_T(const T a, const T b) noexcept {
+	[[nodiscard]] constexpr static inline T add_T(const T a, const T b) noexcept {
 		return (a + b) & mask_4;
 	}
 
 	///
-	/// \tparam T
+	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
 	/// \param b
 	/// \return
 	template<typename T>
-	[[nodiscard]] static inline T sub_T(const T a, const T b) noexcept {
+	[[nodiscard]] constexpr static inline T sub_T(const T a, const T b) noexcept {
 		return (a - b + mask_q) & mask_4;
 	}
 
 	///
-	/// \tparam T
+	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
 	/// \param b
 	/// \return
 	template<typename T>
-	[[nodiscard]] static inline T mul_T(const T a, const T b) noexcept {
+	[[nodiscard]] constexpr static inline T mul_T(const T a, const T b) noexcept {
 		constexpr uint32_t nr_limbs = sizeof(T);
 		__uint128_t mask = 0xf;
 		__uint128_t c = 0u;
@@ -554,7 +554,7 @@ private:
 		}
 	}
 
-	///
+	/// NOTE: inplace
 	/// \param out
 	/// \param in1
 	static inline void mod(kAryContainer_T &out , const kAryContainer_T &in1) noexcept {

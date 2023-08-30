@@ -8,15 +8,15 @@
 #include "random.h"
 
 
-#ifdef USE_AVX2
+#if defined(USE_AVX2)
 
 #include "simd/avx2.h"
 
-#elifdef USE_NEON
+#elif defined(USE_NEON)
 
 #include "simd/neon.h"
 
-#elifdef USE_RISCV
+#elif defined(USE_RISCV)
 
 #include "simd/riscv.h"
 
@@ -76,7 +76,7 @@ inline uinuint8x32_t add(uint8x32_t out,
 
 
 /// functions which are shared among all implementations.
-inline void uint8x32_t::print(bool binary, bool hex){
+constexpr inline void uint8x32_t::print(bool binary, bool hex){
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 

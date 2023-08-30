@@ -1,0 +1,6 @@
+#ifndef CRYPTANALYSISLIB_MATRIX_H
+#define CRYPTANALYSISLIB_MATRIX_H
+
+#include "matrix/fq_matrix.h"
+
+#endif//CRYPTANALYSISLIB_MATRIX_H

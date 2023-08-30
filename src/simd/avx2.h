@@ -39,6 +39,12 @@
 												: "memory");
 
 
+union U256i {
+	__m256i v;
+	uint32_t a[8];
+	uint64_t b[4];
+};
+
 struct uint8x32_t {
 	union {
 		uint8_t  v8 [32];
@@ -48,9 +54,11 @@ struct uint8x32_t {
 		__m256i v256;
 	};
 
+	constexpr uint8x32_t() noexcept = default;
+
 	///
 	/// \return
-	inline uint8x32_t random(){
+	static inline uint8x32_t random(){
 		uint8x32_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -59,12 +67,12 @@ struct uint8x32_t {
 	///
 	/// \param binary
 	/// \param hex
-	inline void print(bool binary=false, bool hex=false);
+	constexpr inline void print(bool binary=false, bool hex=false);
 
 	///
 	/// \param a
 	/// \return
-	static inline uint8x32_t set1(const uint8_t a) {
+	constexpr static inline uint8x32_t set1(const uint8_t a) {
 		uint8x32_t out;
 		out.v256 = _mm256_set1_epi8(a);
 		return out;

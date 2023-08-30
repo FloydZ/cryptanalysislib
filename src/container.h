@@ -13,6 +13,8 @@
 // local includes
 #include "random.h"
 #include "helper.h"
+#include "simd/simd.h"
+#include "popcount/x86.h"
 
 // external includes
 #include "m4ri/m4ri.h"
@@ -1892,22 +1894,22 @@ public:
 	AT head;
 };
 
-
-template<typename T, uint32_t length>
-std::ostream& operator<< (std::ostream &out, const kAryContainer_T<T, length> &obj) {
-	for (uint64_t i = 0; i < obj.get_size(); ++i) {
-		out << obj[i] << " ";
-	}
-	return out;
-}
-
-template<class T, const T MOD, uint32_t length>
-std::ostream& operator<< (std::ostream &out, const kAryPackedContainer_T<T, MOD, length> &obj) {
-	for (uint64_t i = 0; i < obj.size(); ++i) {
-		out << unsigned(obj[i]);
-	}
-	return out;
-}
+// TODO implement in class
+//template<typename T, uint32_t length>
+//std::ostream& operator<< (std::ostream &out, const kAryContainer_T<T, length> &obj) {
+//	for (uint64_t i = 0; i < obj.get_size(); ++i) {
+//		out << obj[i] << " ";
+//	}
+//	return out;
+//}
+//
+//template<class T, const T MOD, uint32_t length>
+//std::ostream& operator<< (std::ostream &out, const kAryPackedContainer_T<T, MOD, length> &obj) {
+//	for (uint64_t i = 0; i < obj.size(); ++i) {
+//		out << unsigned(obj[i]);
+//	}
+//	return out;
+//}
 
 template<uint32_t length>
 std::ostream& operator<< (std::ostream &out, const BinaryContainer<length> &obj) {
