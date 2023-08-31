@@ -6,6 +6,7 @@
 #include "helper.h"
 #include "random.h"
 #include "container/fq_packed_vector.h"
+#include "container/fq_vector.h"
 
 /// TODO comments an alle functionen
 /// matrix implementation which is row major
@@ -20,7 +21,10 @@ public:
 	static constexpr uint32_t COLS = ncols;
 
 	// Types
-	using RowType = kAryPackedContainer_T<T, ncols, q>;
+	using RowType = typename std::conditional<packed,
+	                                          kAryContainer_T<T, ncols, q>,
+	                                          kAryPackedContainer_T<T, ncols, q>
+	                                          >;
 	using DataType = typename RowType::DataType;
 	using InternalRowType = RowType;
 

@@ -128,6 +128,7 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 #define DEBUG_MACRO(x)
 #endif
 
+/// TODO move
 size_t hex2bin (void *bin, const char hex[]) {
 	size_t len;
 	unsigned int x;
