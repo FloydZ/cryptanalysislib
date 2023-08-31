@@ -30,14 +30,14 @@ requires(T t) {
 /// \tparam T base type
 /// \tparam n size of the fq vector space=number of elements
 /// \tparam q field size
-template<class T, const uint32_t n, const uint32_t q>
+template<typename T, const uint32_t n, const uint32_t q>
 class kAryContainer_Meta {
-protected:
+public:
 	// internal data length. Used in the template system to pass through this information
 	constexpr static uint32_t LENGTH = n;
 	constexpr static uint32_t MODULUS = q;
+	constexpr static uint16_t internal_limbs = n;
 
-public:
 	// Needed for the internal template system.
 	typedef T DataType;
 	typedef T ContainerLimbType;
@@ -46,7 +46,7 @@ public:
 	/// \return nothing
 	constexpr inline void zero() noexcept {
 		LOOP_UNROLL();
-		for (unsigned int i = 0; i < LENGTH; i++){
+		for (uint32_t i = 0; i < LENGTH; i++){
 			__data[i] = T(0);
 		}
 	}
@@ -112,7 +112,8 @@ public:
 	/// negate every coordinate between [k_lower, k_higher)
 	/// \param k_lower lower dimension inclusive
 	/// \param k_upper higher dimension, exclusive
-	constexpr inline void neg(const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	constexpr inline void neg(const uint32_t k_lower=0,
+	                          const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= LENGTH &&k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -136,6 +137,24 @@ public:
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] * v2.__data[i]) % q;
+		}
+	}
+
+	/// \param v3 output container
+	/// \param v1 input container
+	/// \param v2 input container
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
+	constexpr inline static void scalar(kAryContainer_Meta &v3,
+									 const kAryContainer_Meta &v1,
+									 const DataType v2,
+									 const uint32_t k_lower=0,
+									 const uint32_t k_upper=LENGTH) noexcept {
+		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
+
+		LOOP_UNROLL();
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
+			v3.__data[i] = (v1.__data[i] * v2) % q;
 		}
 	}
 
@@ -370,9 +389,12 @@ public:
 	/// returns the underlying data container
 	__FORCEINLINE__ std::array<T, LENGTH>& data() noexcept { return __data; }
 	__FORCEINLINE__ const std::array<T, LENGTH>& data() const noexcept { return __data; }
-	const T data(const size_t index) const noexcept { ASSERT(index < LENGTH && "wrong index"); return __data[index]; }
-	const T get(const size_t index) const noexcept { ASSERT(index < LENGTH && "wrong index"); return __data[index]; }
-	const void set(const size_t index, const T data) noexcept { ASSERT(index < LENGTH && "wrong index"); __data[index] = data; }
+	constexpr T data(const size_t index) const noexcept { ASSERT(index < LENGTH && "wrong index"); return __data[index]; }
+	constexpr T get(const size_t index) const noexcept { ASSERT(index < LENGTH && "wrong index"); return __data[index]; }
+	constexpr void set(const T data, const size_t index) noexcept {
+		ASSERT(index < LENGTH);
+		__data[index] = data;
+	}
 
 	/// sets all elements in the array to the given
 	/// \param data
@@ -394,12 +416,18 @@ template<class T, const uint32_t n, const uint32_t q>
 	requires kAryContainerAble<T>
 class kAryContainer_T : public kAryContainer_Meta<T, n, q> {
 public:
+	/// needed constants
 	using kAryContainer_Meta<T, n, q>::LENGTH;
 	using kAryContainer_Meta<T, n, q>::MODULUS;
-	using kAryContainer_Meta<T, n, q>::DataType;
-	using kAryContainer_Meta<T, n, q>::ContainerLimbType;
+
+	/// needed typedefs
+	using typename kAryContainer_Meta<T, n, q>::DataType;
+	using typename kAryContainer_Meta<T, n, q>::ContainerLimbType;
+
+	/// needed fields
 	using kAryContainer_Meta<T, n, q>::__data;
 
+	/// needed functions
 	using kAryContainer_Meta<T, n, q>::size;
 	using kAryContainer_Meta<T, n, q>::get;
 	using kAryContainer_Meta<T, n, q>::set;

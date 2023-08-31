@@ -24,7 +24,7 @@ public:
 	using RowType = typename std::conditional<packed,
 	                                          kAryContainer_T<T, ncols, q>,
 	                                          kAryPackedContainer_T<T, ncols, q>
-	                                          >;
+	                                          >::type;
 	using DataType = typename RowType::DataType;
 	using InternalRowType = RowType;
 

@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <cmath>
 #include <assert.h>
 
+#include "helper.h"
 
 /// NOTE: there is an avx2 version below
 /// NOTE: w/k must be smaller than 5

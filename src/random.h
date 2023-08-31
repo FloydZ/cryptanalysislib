@@ -135,19 +135,18 @@ static inline T fastrandombits() noexcept {
 }
 
 #ifdef USE_AVX2
-
 #include <immintrin.h>
 ///
 /// \return
 static __m256i fastrandombytes_m256i() noexcept {
 	constexpr uint32_t UINT64_POOL_SIZE = 128;
-	alignas(64) static uint64_t tmp[UINT64_POOL_SIZE*4];
+	alignas(256) static uint64_t tmp[UINT64_POOL_SIZE*4];
 	__m256i *tmp64 = (__m256i *)tmp;
 
 	static size_t counter = 0;
 
 	if (counter == 0){
-		xorshf96_fastrandombytes_uint64_array(tmp, UINT64_POOL_SIZE * 8 );
+		xorshf96_fastrandombytes_uint64_array(tmp, UINT64_POOL_SIZE * 4u * 8u);
 		counter = UINT64_POOL_SIZE;
 	}
 

@@ -73,7 +73,30 @@ inline uinuint8x32_t add(uint8x32_t out,
 }
 #endif // no SIMD uinit available
 
+///
+inline uint8x32_t operator+ (const uint8x32_t& lhs, const uint8x32_t& rhs) {
+	return uint8x32_t::add(lhs, rhs);
+}
 
+inline uint8x32_t operator- (const uint8x32_t& lhs, const uint8x32_t& rhs) {
+	return uint8x32_t::sub(lhs, rhs);
+}
+
+inline uint8x32_t operator& (const uint8x32_t& lhs, const uint8x32_t& rhs) {
+	return uint8x32_t::and_(lhs, rhs);
+}
+
+inline uint8x32_t operator^ (const uint8x32_t& lhs, const uint8x32_t& rhs) {
+	return uint8x32_t::xor_(lhs, rhs);
+}
+
+inline uint8x32_t operator| (const uint8x32_t& lhs, const uint8x32_t& rhs) {
+	return uint8x32_t::or_(lhs, rhs);
+}
+
+inline uint8x32_t operator~ (const uint8x32_t& lhs) {
+	return uint8x32_t::not_(lhs);
+}
 
 /// functions which are shared among all implementations.
 constexpr inline void uint8x32_t::print(bool binary, bool hex){
