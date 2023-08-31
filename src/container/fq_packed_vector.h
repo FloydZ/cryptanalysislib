@@ -639,9 +639,9 @@ public:
 	using kAryPackedContainer_Meta<T, n ,q>::is_full;
 	using kAryPackedContainer_Meta<T, n ,q>::activate_avx2;
 
-	using kAryPackedContainer_Meta<T, n ,q>::ContainerLimbType;
-	using kAryPackedContainer_Meta<T, n ,q>::LimbType;
-	using kAryPackedContainer_Meta<T, n ,q>::LabelContainerType;
+	using typename kAryPackedContainer_Meta<T, n ,q>::ContainerLimbType;
+	using typename kAryPackedContainer_Meta<T, n ,q>::LimbType;
+	using typename kAryPackedContainer_Meta<T, n ,q>::LabelContainerType;
 	// minimal internal datatype to present an element.
 	using DataType = LogTypeTemplate<bits_per_number>;
 	

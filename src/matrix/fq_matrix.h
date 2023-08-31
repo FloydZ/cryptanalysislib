@@ -27,12 +27,29 @@ public:
 	// Variables
 	std::array<RowType, nrows> __data;
 
-	/// sets an entry in a martix
+	/// copies the input matrix
+	/// \param A input matrix
+	constexpr void copy(const FqMatrix_Meta &A) {
+		// __data.copy(A.__data, sizeof __data);
+		memcpy(__data.data(), A.__data.data(), nrows*sizeof(RowType));
+	}
+
+	/// sets all entries in a matrix
+	/// \param data value to set all cells to
+	constexpr void set(DataType data) noexcept {
+		for (uint32_t i = 0; i < ROWS; ++i) {
+			for (uint32_t j = 0; j < COLS; ++j) {
+				__data[i].set(data, j);
+			}
+		}
+	}
+
+	/// sets an entry in a matrix
 	/// \param data value to set the cell to
 	/// \param i row
 	/// \param j column
-	void set(DataType data, const uint32_t i, const uint32_t j) noexcept {
-		ASSERT(i < nrows && j <= ncols);
+	constexpr void set(DataType data, const uint32_t i, const uint32_t j) noexcept {
+		ASSERT(i < ROWS && j <= COLS);
 		ASSERT(data < q);
 		__data[i].set(data, j);
 	}
@@ -72,14 +89,14 @@ public:
 	///  "010202120..."
 	/// e.g. one big string, without any `\n\0`
 	/// \param data input data
-	constexpr FqMatrix_Meta(const char* data) noexcept {
+	constexpr FqMatrix_Meta(const char* data, const uint32_t cols=ncols) noexcept {
 		clear();
 
 		char input[2] = {0};
 
 		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols; ++j) {
-				strncpy(input, data + i * ncols + j, 1);
+			for (uint32_t j = 0; j < cols; ++j) {
+				strncpy(input, data + i * cols + j, 1);
 				const int a = atoi(input);
 
 				ASSERT(a < q);
@@ -399,7 +416,7 @@ public:
 	/// swap to columns
 	/// \param i column 1
 	/// \param j column 2
-	constexpr void swap_cols(const uint16_t i, const uint16_t j) {
+	constexpr void swap_cols(const uint16_t i, const uint16_t j) noexcept {
 		ASSERT(i < ncols);
 		ASSERT(j < ncols);
 
@@ -420,9 +437,10 @@ public:
 	}
 
 	/// swap rows
-	/// \param i
-	/// \param j
-	void swap_rows(const uint16_t i, const uint16_t j) {
+	/// \param i first row
+	/// \param j second row
+	constexpr void swap_rows(const uint16_t i,
+	                         const uint16_t j) noexcept {
 		ASSERT(i < nrows && j < nrows);
 		if (i == j)
 			return;
@@ -435,8 +453,13 @@ public:
 	/// choose and apply a new random permutation
 	/// \param AT transposed matrix
 	/// \param permutation given permutation (is overwritten)
-	/// \param len length of the permutaiton
-	void permute_cols(FqMatrix_Meta &AT, uint32_t *permutation, const uint32_t len) {
+	/// \param len length of the permutation
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
+	constexpr void permute_cols(FqMatrix_Meta<Tprime, nrows, ncols, qprime> &AT,
+	                            uint32_t *permutation,
+	                            const uint32_t len) noexcept {
+		ASSERT(ncols >= len);
+
 		transpose(AT, *this);
 		for (uint32_t i = 0; i < len; ++i) {
 			uint32_t pos = fastrandombytes_uint64() % (len - i);
@@ -448,45 +471,94 @@ public:
 
 			AT.swap_rows(i, i+pos);
 		}
-		transpose(*this, AT);
 
+		transpose(*this, AT);
 	}
 
-	void append_syndromT(const FqMatrix_Meta &syndromT, const uint32_t col) {
-		ASSERT(syndromT.ncols == nrows);
+	/// appending the syndrome as the last column
+	/// \param syndromeT syndrome colum
+	/// \param col
+	template<typename Tprime, const uint32_t ncols_prime, const uint32_t qprime>
+	void append_syndromeT(const FqMatrix_Meta<Tprime, 1, ncols_prime, qprime> &syndrome_T,
+	                      const uint32_t col) noexcept {
+		ASSERT(syndrome_T.ncols == nrows);
 		for (uint32_t i = 0; i < nrows; ++i) {
-			set(syndromT.get(0, i), i, col);
+			set(syndrome_T.get(0, i), i, col);
 		}
 	}
 
-	uint32_t weight_column(const uint32_t col) {
+	/// compute the weight of a column
+	/// \param col column
+	/// \return hamming weight
+	[[nodiscard]] constexpr inline uint32_t weight_column(const uint32_t col) const noexcept {
+		ASSERT(col < ncols);
 		uint32_t weight = 0;
 		for (uint32_t i = 0; i < nrows; ++i) {
 			weight += __data[i][col];
 		}
+
 		return weight;
 	}
 
 	/// this is the multiplication if the input vector is in row format
-	/// \param out
-	/// \param v
-	void matrix_vector_mul(FqMatrix_Meta &out, const FqMatrix_Meta<T, 1, ncols, q> &v) {
+	/// NOTE: this function is inplace
+	/// NOTE: this = this*v (result is written into the first row)
+	/// NOTE: technically that's not correct as the output is a row vector
+	/// 		whereas the container is a full matrix
+	/// this = this*v
+	/// \param v vector
+	constexpr void matrix_vector_mul(const FqMatrix_Meta<T, 1, ncols, q> &v) noexcept {
+		FqMatrix_Meta tmp;
 		for (uint32_t i = 0; i < nrows; ++i) {
+			/// uint32_t to make sure that no overflow happens
 			uint32_t sum = 0;
 			for (uint32_t j = 0; j < ncols; ++j) {
-				/// TOOO
-				uint32_t a = get(i,j);
+				uint32_t a = get(i, j);
 				uint32_t b = v.get(0, j);
 				uint32_t c = (a*b)%q;
 				sum += c;
 			}
-			out.set(sum%3, 0, i);
+
+			sum = sum % q;
+			tmp.set(sum, 0, i);
 		}
+
+		this->copy(tmp);
 	}
 
-	void matrix_vector_mul(FqMatrix_Meta<T, nrows, ncols, q> &out,
-	                       const FqMatrix_Meta<T, nrows, ncols, q> v) {
+	/// this is the multiplication if the input vector is in col format
+	/// NOTE: this function is inplace
+	/// NOTE: this = this*v (result is written into the first colum)
+	/// NOTE: technically that's not correct as the output is a col vector
+	/// 		whereas the container is a full matrix
+	/// \param v vector
+	constexpr void matrix_col_vector_mul(const FqMatrix_Meta<T, ncols, 1, q> &v) noexcept {
+		FqMatrix_Meta tmp;
+		for (uint32_t i = 0; i < nrows; ++i) {
+			/// uint32_t to make sure that no overflow happens
+			uint32_t sum = 0;
+			for (uint32_t j = 0; j < ncols; ++j) {
+				uint32_t a = get(i, j);
+				uint32_t b = v.get(j, 0);
+				uint32_t c = (a*b)%q;
+				sum += c;
+			}
 
+			sum = sum % q;
+			tmp.set(sum, i, 0);
+		}
+
+		this->copy(tmp);
+	}
+
+	/// this is the multiplication if the input vector is in row format
+	/// NOTE: in comparison to the other matrix vector multiplication
+	/// 	this function write the result into a separate output vector
+	/// NOTE: out = this*v
+	/// \param out output column vector
+	/// \param v input row vector
+	constexpr void matrix_vector_mul(FqMatrix_Meta<T, nrows, 1, q> &out,
+	                       const FqMatrix_Meta<T, 1, ncols, q> &v) noexcept {
 		for (uint32_t i = 0; i < nrows; ++i) {
 			uint32_t sum = 0;
 			for (uint32_t j = 0; j < ncols; ++j) {
@@ -495,37 +567,60 @@ public:
 				uint32_t c = (a*b)%q;
 				sum += c;
 			}
-			out.set(sum%3, 0, i);
+
+			sum = sum % q;
+			out.set(sum, i, 0);
 		}
 	}
 
-	template<const uint32_t nrows1, const uint32_t ncols1>
-	void matrix_vector_mul(FqMatrix_Meta<T, nrows, ncols, q> &out,
-	                       const FqMatrix_Meta<T, nrows, ncols, q> v) {
+	/// this is the multiplication if the input vector is in row format
+	/// NOTE: in comparison to the other matrix vector multiplication
+	/// 	this function write the result into a separate output vector
+	/// NOTE: out = this*v
+	/// \param out output column vector
+	/// \param v input column vector
+	constexpr void matrix_col_vector_mul(FqMatrix_Meta<T, nrows, 1u, q> &out,
+	                           const FqMatrix_Meta<T, nrows, 1u, q> v) noexcept {
+		FqMatrix_Meta<T, nrows, 1u, q> tmp;
 		for (uint32_t i = 0; i < nrows; ++i) {
 			uint32_t sum = 0;
+			uint32_t b = v.get(i, 0);
 			for (uint32_t j = 0; j < ncols; ++j) {
 				uint32_t a = get(i, j);
-				uint32_t b = v.get(j);
 				uint32_t c = (a*b)%q;
 				sum += c;
 			}
-			out.set(sum%3, i);
+
+			sum = sum % q;
+			tmp.set(sum, i, 0);
 		}
+
+		out.copy(tmp);
 	}
 
-	///
-	void radomize() {
-		for (std::size_t i = 0; i < nrows-1; i++){
-			if (fastrandombytes_uint64()%2 == 1)
-				RowType::add(__data[i], __data[i], __data[nrows-1]);
-		}
 
-
-		for (uint32_t i = 0; i < 3*nrows; ++i) {
-			uint32_t j1 = fastrandombytes_uint64() % nrows;
-			uint32_t j2 = fastrandombytes_uint64() % nrows;
-			RowType::add(__data[j1], __data[j1], __data[j2]);
+	/// out = this*in
+	/// \param out output matrix of size [nrows, ncols']
+	/// \param v input matrix of size [ncols, ncols']
+	template<const uint32_t ncols_prime>
+	constexpr void matrix_matrix_mul(FqMatrix_Meta<T, nrows, ncols_prime, q> &out,
+	                       			 const FqMatrix_Meta<T, ncols, ncols_prime, q> in) noexcept {
+		// over all columns in `in`
+		for (uint32_t i = 0; i < ncols_prime; ++i) {
+			// for each row in *this
+			for (uint32_t j = 0; j < nrows; ++j) {
+				uint32_t sum = 0;
+				// for each element in the row
+				for (uint32_t k = 0; k < ncols; ++k) {
+					uint32_t a = get(j, k);
+					uint32_t b = in.get(k, i);
+					uint32_t c = (a*b)%q;
+					sum += c;
+				}
+				uint32_t tmp = out.get(j, i);
+				tmp = (tmp + sum) % q;
+				out.set(sum, j, i);
+			}
 		}
 	}
 
@@ -658,7 +753,10 @@ public:
 	/// \param fix_col		up to which rang should the matrix be solved?
 	/// \param look_ahead   how many coordinated is the algorithm allowed to look ahead.
 	/// \return the new rang of the matrix.
-	uint32_t fix_gaus(uint32_t *permutation, const uint32_t rang, const uint32_t fix_col, const uint32_t lookahead) noexcept {
+	uint32_t fix_gaus(uint32_t *permutation,
+	                  const uint32_t rang,
+	                  const uint32_t fix_col,
+	                  const uint32_t lookahead) noexcept {
 		for (uint32_t b = rang; b < fix_col; ++b) {
 			bool found = false;
 			// find a column in which a one is found

@@ -213,7 +213,7 @@ TEST(FqMatrix, gaus) {
 	ASSERT_GT(rank, 0);
 
 	//std::cout << rank << std::endl;
-	m.print();
+	//m.print();
 
 	for (uint32_t i = 0; i < nrows; ++i) {
 		for (uint32_t j = 0; j < rank; ++j) {
@@ -249,6 +249,75 @@ TEST(FqMatrix, fixgaus) {
 				continue;
 			}
 			ASSERT_EQ(m.get(i, j), 0u);
+		}
+	}
+}
+
+TEST(FqMatrix, inplace_matrix_vector_mult) {
+	using V = FqMatrix<T, 1, ncols, q>;
+	using VT = FqMatrix<T, ncols, 1, q>;
+	V v = V{};
+	VT vt = VT{};
+	M m  = M{};
+
+	m.random();
+	v.set(0);
+	m.matrix_vector_mul(v);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			ASSERT_EQ(m.get(i, j), 0u);
+		}
+	}
+
+	m.random();
+	m.matrix_col_vector_mul(vt);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			ASSERT_EQ(m.get(i, j), 0u);
+		}
+	}
+}
+
+TEST(FqMatrix, matrix_vector_mult) {
+	using V = FqMatrix<T, 1, ncols, q>;
+	using VT = FqMatrix<T, nrows, 1, q>;
+	V v = V{};
+	VT vt = VT{};
+	M m = M{};
+
+	m.random();
+	v.set(0);
+	vt.random();
+	m.matrix_vector_mul(vt, v);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		ASSERT_EQ(vt.get(i, 0u), 0u);
+	}
+
+	vt.set(0);
+	v.random();
+	m.matrix_col_vector_mul(vt, vt);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		ASSERT_EQ(vt.get(i, 0), 0u);
+	}
+}
+
+TEST(FqMatrix, matrix_matrix_mult) {
+	constexpr uint32_t ncols_prime = 120;
+	using Min = FqMatrix<T, ncols, ncols_prime, q>;
+	using Mout = FqMatrix<T, nrows, ncols_prime, q>;
+
+	M m = M{};
+	Min m_in = Min{};
+	Mout m_out = Mout{};
+
+	m.random();
+	m_out.random();
+	m_in.zero();
+
+	m.matrix_matrix_mul(m_out, m_in);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols_prime; ++j) {
+			ASSERT_EQ(m_out.get(i, j), 0u);
 		}
 	}
 }
