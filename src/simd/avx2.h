@@ -252,7 +252,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t andnot(const uint8x32_t in1,
 	                                const uint8x32_t in2) {
 		uint8x32_t out;
-		out.v256 = (__m256i) __builtin_ia32_andnotsi256 ((__v4di)in1.v256, (__v4di)in2.v256);
+		// TODO only valid in gcc
+		//out.v256 = (__m256i) __builtin_ia32_andnotsi256 ((__v4di)in1.v256, (__v4di)in2.v256);
 		return out;
 	}
 

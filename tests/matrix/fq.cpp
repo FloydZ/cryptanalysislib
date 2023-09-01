@@ -322,6 +322,30 @@ TEST(FqMatrix, matrix_matrix_mult) {
 	}
 }
 
+TEST(FqMatrix, permute) {
+	M m = M{};
+	MT mt = MT{};
+	uint32_t perms[ncols];
+	for (uint32_t i = 0; i < ncols; ++i) {
+		perms[i] = i;
+	}
+
+	m.identity();
+	mt.identity();
+	m.permute_cols(mt, perms, ncols);
+
+	// m.print();
+	// mt.print();
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			if (i == j) {
+				EXPECT_EQ(m.get(i, j), mt.get(i, j));
+				continue;
+			}
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	random_seed(time(0));
     InitGoogleTest(&argc, argv);

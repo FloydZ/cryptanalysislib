@@ -46,7 +46,7 @@ public:
 	/// \param data
 	/// \param size
 	/// \return
-	template<class T, popcount_config config = config>
+	template<class T, popcount_config &config>
 	requires std::integral<T>
 	constexpr static uint32_t count(T *__restrict__ data, const size_t size) noexcept {
 		// ASSERT(uint64_t(data) % config.alignment);

@@ -38,6 +38,16 @@ public:
 		memcpy(__data.data(), A.__data.data(), nrows*sizeof(RowType));
 	}
 
+	///
+	/// \return
+	constexpr void identity(const DataType val=1) noexcept {
+		clear();
+
+		for (uint32_t i = 0; i < std::min(nrows, ncols); ++i) {
+			set(val, i, i);
+		}
+	}
+
 	/// sets all entries in a matrix
 	/// \param data value to set all cells to
 	constexpr void set(DataType data) noexcept {
@@ -110,29 +120,6 @@ public:
 		}
 	}
 
-	/// TODO move this into the special F3 implementation
-	/// constructor: read from string. The string should be of the format:
-	///  "010202120..."
-	/// e.g. one big string, without any `\n\0`
-	/// \param data input data
-	//constexpr FqMatrix(const char* data) noexcept {
-	//	clear();
-
-	//	for (uint32_t i = 0; i < nrows; ++i) {
-	//		for (uint32_t j = 0; j < ncols; ++j) {
-	//			if (data[i*ncols + j] == '0') {
-	//				set(DataType(0), i, j);
-	//			} else if (data[i*ncols + j] == '1') {
-	//				set(DataType(1), i, j);
-	//			} else if (data[i*ncols + j] == '2') {
-	//				set(DataType(2), i, j);
-	//			} else {
-	//				ASSERT(false);
-	//			}
-	//		}
-	//	}
-	//}
-
 	/// clears the matrix
 	/// \return
 	constexpr void clear() noexcept {
@@ -158,7 +145,7 @@ public:
 	/// \param B output
 	/// \param A input
 	constexpr static void transpose(FqMatrix_Meta<T, ncols, nrows, q> &B,
-	                      const FqMatrix_Meta<T, nrows, ncols, q> &A) noexcept {
+	                      FqMatrix_Meta<T, nrows, ncols, q> &A) noexcept {
 		for (uint32_t row = 0; row < nrows; ++row) {
 			for (uint32_t col = 0; col < ncols; ++col) {
 				const DataType data = A.get(row, col);
@@ -166,32 +153,6 @@ public:
 			}
 		}
 	}
-
-	///
-	/// \tparam RowTypeB
-	/// \tparam RowTypeA
-	/// \param B
-	/// \param A
-	//template<class RowTypeB, class  RowTypeA>
-	//static void transpose2(FqMatrix<RowTypeB> &B, const FqMatrix<RowTypeA> &A) {
-	//	ASSERT(B.nrows == A.ncols && B.ncols == A.nrows);
-
-	//	constexpr DataType mask = 3;
-	//	for (uint32_t row = 0; row < A.nrows; ++row) {
-	//		uint32_t pos = 0;
-	//		for (uint32_t rowl = 0; rowl < RowTypeA::limbs(); ++rowl) {
-	//			DataType data = A.__data[row].limb(rowl);
-
-	//			const uint32_t limit = rowl == RowTypeA::limbs() - 1 ? (A.ncols%64) : 32;
-	//			for (uint32_t i = 0; i < limit; ++i) {
-	//				B.set(data&mask, pos+i, row);
-	//				data >>= 2;
-	//			}
-
-	//			pos += 32;
-	//		}
-	//	}
-	//}
 
 	/// submatrix transpose within the full matrix. Meaning the
 	/// output matrix must have at least the size of the input matrix.
@@ -201,7 +162,7 @@ public:
 	/// \param scol start column (inclusive)
 	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
 	constexpr static void transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime> &B,
-	                      const FqMatrix_Meta &A,
+	                      FqMatrix_Meta &A,
 						  const uint32_t srow, const uint32_t scol) {
 		ASSERT(srow < nrows);
 		ASSERT(scol < ncols);
@@ -276,6 +237,7 @@ public:
 		}
 	}
 
+	/// NOTE this re-alignes the output to (0, 0)
 	/// \param B output matrix
 	/// \param A input matrix
 	/// \param srow start row (inclusive, of A)
@@ -454,17 +416,17 @@ public:
 		__data[j] = tmp;
 	}
 
+	/// TODO test
 	/// choose and apply a new random permutation
 	/// \param AT transposed matrix
 	/// \param permutation given permutation (is overwritten)
 	/// \param len length of the permutation
-	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
-	constexpr void permute_cols(FqMatrix_Meta<Tprime, nrows, ncols, qprime> &AT,
+	constexpr void permute_cols(FqMatrix_Meta<T, ncols, nrows, q> &AT,
 	                            uint32_t *permutation,
 	                            const uint32_t len) noexcept {
 		ASSERT(ncols >= len);
 
-		transpose(AT, *this);
+		this->transpose(AT, *this, 0, 0);
 		for (uint32_t i = 0; i < len; ++i) {
 			uint32_t pos = fastrandombytes_uint64() % (len - i);
 			ASSERT(i+pos < len);
@@ -476,7 +438,7 @@ public:
 			AT.swap_rows(i, i+pos);
 		}
 
-		transpose(*this, AT);
+		FqMatrix_Meta<T, ncols, nrows, q>::transpose(*this, AT, 0, 0);
 	}
 
 	/// appending the syndrome as the last column
@@ -562,7 +524,7 @@ public:
 	/// \param out output column vector
 	/// \param v input row vector
 	constexpr void matrix_vector_mul(FqMatrix_Meta<T, nrows, 1, q> &out,
-	                       const FqMatrix_Meta<T, 1, ncols, q> &v) noexcept {
+									 const FqMatrix_Meta<T, 1, ncols, q> &v) noexcept {
 		for (uint32_t i = 0; i < nrows; ++i) {
 			uint32_t sum = 0;
 			for (uint32_t j = 0; j < ncols; ++j) {
@@ -574,6 +536,28 @@ public:
 
 			sum = sum % q;
 			out.set(sum, i, 0);
+		}
+	}
+
+	/// this is the multiplication if the input vector is in row format
+	/// NOTE: in comparison to the other matrix vector multiplication
+	/// 	this function write the result into a separate output vector
+	/// NOTE: out = this*v
+	/// \param out output column vector
+	/// \param v input row vector
+	constexpr void matrix_row_vector_mul(FqMatrix_Meta<T, 1, nrows, q> &out,
+	                       const FqMatrix_Meta<T, 1, ncols, q> &v) noexcept {
+		for (uint32_t i = 0; i < nrows; ++i) {
+			uint32_t sum = 0;
+			for (uint32_t j = 0; j < ncols; ++j) {
+				uint32_t a = get(i, j);
+				uint32_t b = v.get(0, j);
+				uint32_t c = (a*b)%q;
+				sum += c;
+			}
+
+			sum = sum % q;
+			out.set(sum, 0, i);
 		}
 	}
 
@@ -665,7 +649,7 @@ public:
 /// \tparam nrows number of rows
 /// \tparam ncols number of columns
 template<typename T, const uint32_t nrows, const uint32_t ncols, const uint32_t q>
-class FqMatrix: public  FqMatrix_Meta<T, nrows, ncols, q>{
+class FqMatrix: public FqMatrix_Meta<T, nrows, ncols, q>{
 public:
 };
 
@@ -682,6 +666,7 @@ class FqMatrix<T, nrows, ncols, 3> : public  FqMatrix_Meta<T, nrows, ncols, 3> {
 
 	/// needed type definitions
 	using typename FqMatrix_Meta<T, nrows,ncols, q>::RowType;
+	using typename FqMatrix_Meta<T, nrows,ncols, q>::DataType;
 
 	/// needed vars
 	using FqMatrix_Meta<T, nrows,ncols, q>::__data;
@@ -693,6 +678,7 @@ class FqMatrix<T, nrows, ncols, 3> : public  FqMatrix_Meta<T, nrows, ncols, 3> {
 	using FqMatrix_Meta<T, nrows,ncols, q>::set;
 	using FqMatrix_Meta<T, nrows,ncols, q>::swap_rows;
 	using FqMatrix_Meta<T, nrows,ncols, q>::swap_cols;
+	using FqMatrix_Meta<T, nrows,ncols, q>::clear;
 public:
 
 	///
@@ -792,5 +778,27 @@ public:
 		return ROWS;
 	}
 
+	/// TODO move this into the special F3 implementation
+	/// constructor: read from string. The string should be of the format:
+	///  "010202120..."
+	/// e.g. one big string, without any `\n\0`
+	/// \param data input data
+	constexpr FqMatrix(const char* data) noexcept {
+		clear();
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols; ++j) {
+				if (data[i*ncols + j] == '0') {
+					set(DataType(0), i, j);
+				} else if (data[i*ncols + j] == '1') {
+					set(DataType(1), i, j);
+				} else if (data[i*ncols + j] == '2') {
+					set(DataType(2), i, j);
+				} else {
+					ASSERT(false);
+				}
+			}
+		}
+	}
 };
 #endif//DECODING_MATRIX_H
