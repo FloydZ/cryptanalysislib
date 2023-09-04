@@ -17,8 +17,7 @@ concept LabelAble = requires(Container c) {
 	// we need to enforce the existence of some fields
 	//{ Container::LENGTH } -> std::convertible_to<uint32_t>;
 
-	requires requires(const unsigned int i) {
-		c[i];
+	requires requires(const unsigned int i) { c[i];
 		c.random();
 		c.zero();
 		c.is_equal(c, i, i);

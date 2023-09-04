@@ -99,7 +99,7 @@ public:
 };
 
 class CombinationsMeta {
-	/// Base Class: Dont use it normaly. 
+	/// Base Class: Dont use it normally.
 	/// This class provides some helpers nothing more.
 
 protected:

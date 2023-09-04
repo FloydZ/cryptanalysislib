@@ -8,7 +8,6 @@
 #include "container/fq_packed_vector.h"
 #include "container/fq_vector.h"
 
-/// TODO comments an alle functionen
 /// matrix implementation which is row major
 /// \tparam T base type something like `uint32_t` or `uint64_t`
 /// \tparam nrows number of rows
@@ -75,6 +74,13 @@ public:
 	[[nodiscard]] constexpr DataType get(const uint32_t i, const uint32_t j) const noexcept {
 		ASSERT(i < nrows && j <= ncols);
 		return __data[i][j];
+	}
+
+	/// \param i row number (zero indexed)
+	/// \return a const ref to a row
+	[[nodiscard]] constexpr const RowType& get(const uint32_t i) const noexcept {
+		ASSERT(i < nrows);
+		return __data[i];
 	}
 
 	/// \return the number of `T` each row is made of
@@ -416,7 +422,6 @@ public:
 		__data[j] = tmp;
 	}
 
-	/// TODO test
 	/// choose and apply a new random permutation
 	/// \param AT transposed matrix
 	/// \param permutation given permutation (is overwritten)

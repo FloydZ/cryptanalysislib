@@ -5,7 +5,7 @@
 
 // TODO:
 //  - implement alignment  options
-//  - compare opertors
+//  - compare operators
 
 struct ConfigTriple {
 	const bool swap12 = false;
@@ -15,6 +15,7 @@ struct ConfigTriple {
 	// default constructor
 	constexpr ConfigTriple() : swap12(false), swap23(false), swap13(false) {}
 };
+
 
 /// Simple extension of the std::pair data type. Probably one could have used `std::tuple`, but
 /// i want to experiment a little bit with automatic alignment optimizations.

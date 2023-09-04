@@ -516,7 +516,8 @@ constexpr int64_t cceil(double num) {
 /// \param kk n over k
 /// \return nn over kk
 __device__ __host__
-constexpr inline uint64_t bc(uint64_t nn, uint64_t kk) noexcept {
+constexpr inline uint64_t bc(const uint64_t nn,
+           					 const uint64_t kk) noexcept {
 	return
 			(kk > nn  ) ? 0 :       // out of range
 			(kk == 0 || kk == nn  ) ? 1 :       // edge
@@ -530,7 +531,8 @@ constexpr inline uint64_t bc(uint64_t nn, uint64_t kk) noexcept {
 /// \param nn
 /// \param kk
 /// \return \sum n over i
-constexpr uint64_t sum_bc(uint64_t nn, uint64_t kk) {
+constexpr uint64_t sum_bc(const uint64_t nn,
+                          const uint64_t kk) noexcept {
 	uint64_t sum = 0;
 	for (uint64_t i = 1; i <= kk; ++i) {
 		sum += bc(nn, i);
@@ -542,7 +544,7 @@ constexpr uint64_t sum_bc(uint64_t nn, uint64_t kk) {
 
 /// \param n input
 /// \return ceil(log2(x)), only useful if you need the number of bits needed
-constexpr uint64_t constexpr_bits_log2(uint64_t n) {
+constexpr uint64_t constexpr_bits_log2(uint64_t n) noexcept {
 	return n <= 1 ? 0 : 1 + constexpr_bits_log2((n + 1) / 2);
 }
 

@@ -123,6 +123,11 @@ class kAryPackedContainer_Meta {
 		}
 	}
 
+	/// \return nothing
+	constexpr inline void clear() noexcept {
+		zero();
+	}
+
 	/// set everything to one
 	/// \param a lower bound, inclusive
 	/// \param b higher bound, exclusive
@@ -243,6 +248,14 @@ class kAryPackedContainer_Meta {
 	}
 
 
+	/// v1 += v1
+	/// \param v2 input/output
+	/// \param v1 input
+	constexpr inline static void add(kAryPackedContainer_Meta &v1,
+									 kAryPackedContainer_Meta const &v2) noexcept {
+		add(v1, v1, v2, 0, LENGTH);
+	}
+
 	/// v3 = v1 + v2
 	/// \param v3 output
 	/// \param v1 input
@@ -264,7 +277,7 @@ class kAryPackedContainer_Meta {
 	                       kAryPackedContainer_Meta const &v2,
 	                       const uint32_t k_lower, const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-		for (unsigned int i = k_lower; i < k_upper; i++) {
+		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);
 			v3.set(data % MODULUS, i);
 		}
@@ -283,12 +296,20 @@ class kAryPackedContainer_Meta {
 	                       kAryPackedContainer_Meta const &v2,
 	                       const uint32_t k_lower, const uint32_t k_upper, const uint32_t filter2) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-		for (unsigned int i = k_lower; i < k_upper; i++) {
+		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);
 			v3.set(data % MODULUS, i);
 		}
 
 		return v3.filter2_mod3(filter2);
+	}
+
+	/// v1 += v1
+	/// \param v2 input/output
+	/// \param v1 input
+	constexpr inline static void sub(kAryPackedContainer_Meta &v1,
+									 kAryPackedContainer_Meta const &v2) noexcept {
+		sub(v1, v1, v2, 0, LENGTH);
 	}
 
 	/// v3 = v1 - v2 mod q
@@ -525,26 +546,6 @@ class kAryPackedContainer_Meta {
 		std::cout << "\n";
 	}
 
-#ifdef USE_AVX2
-	/// TODO either remove or move to uint32x8_t
-	/// \param t
-	static void print(const __m256i t) noexcept {
-		constexpr static uint64_t mask = (uint64_t (1u) << bits_per_number)-1;
-		int64_t datas[4] = {_mm256_extract_epi64(t, 0), _mm256_extract_epi64(t, 1),
-		                    _mm256_extract_epi64(t, 2), _mm256_extract_epi64(t, 3)};
-
-		for (uint32_t j = 0; j < 4; j++) {
-			uint64_t data = datas[j];
-			for (int i = 0; i < (sizeof(uint64_t)*8/bits_per_number); ++i) {
-				std::cout << unsigned(data & mask);
-				data >>= bits_per_number;
-			}
-		}
-		std::cout << "\n";
-	}
-#endif
-
-
 	/// print the `pos
 	/// \param data
 	/// \param k_lower inclusive
@@ -563,7 +564,7 @@ class kAryPackedContainer_Meta {
 
 	/// print the `pos
 	/// \param k_lower inclusive
-	/// \param k_higher exlusive
+	/// \param k_higher exclusive
 	void print_binary(const uint16_t k_lower, const uint16_t k_higher) const noexcept {
 		for (int i = k_lower; i < k_higher; ++i) {
 			std::cout << unsigned(get(i)&1);
@@ -930,7 +931,7 @@ public:
 	inline static void sub(kAryPackedContainer_T &v3, kAryPackedContainer_T const &v1, kAryPackedContainer_T const &v2,
 						   const uint32_t k_lower, const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-		for (unsigned int i = k_lower; i < k_upper; i++) {
+		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i)) + MODULUS;
 			v3.set(data % MODULUS, i);
 		}

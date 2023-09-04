@@ -31,7 +31,7 @@ requires(T t) {
 /// \tparam n size of the fq vector space=number of elements
 /// \tparam q field size
 template<typename T, const uint32_t n, const uint32_t q>
-class kAryContainer_Meta {
+class kAryContainerMeta {
 public:
 	// internal data length. Used in the template system to pass through this information
 	constexpr static uint32_t LENGTH = n;
@@ -49,6 +49,11 @@ public:
 		for (uint32_t i = 0; i < LENGTH; i++){
 			__data[i] = T(0);
 		}
+	}
+
+	/// \return nothing
+	constexpr inline void clear() noexcept {
+		zero();
 	}
 
 	/// set everything one
@@ -122,16 +127,30 @@ public:
 		}
 	}
 
+	///
+	/// \param v1
+	/// \param v2
+	/// \param k_lower
+	/// \param k_upper
+	/// \return
+	constexpr inline static void mul(kAryContainerMeta &v1,
+									 const kAryContainerMeta &v2,
+									 const uint32_t k_lower=0,
+									 const uint32_t k_upper=LENGTH) noexcept {
+		mul(v1, v1, v2, k_lower, k_upper);
+	}
+
+	/// component wise multiplication
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
 	/// \param k_lower lower dimension, inclusive
 	/// \param k_upper higher dimension, exclusive
-	constexpr inline static void mul(kAryContainer_Meta &v3,
-						   const kAryContainer_Meta &v1,
-						   const kAryContainer_Meta &v2,
-						   const uint32_t k_lower=0,
-						   const uint32_t k_upper=LENGTH) noexcept {
+	constexpr inline static void mul(kAryContainerMeta &v3,
+						    		 const kAryContainerMeta &v1,
+						    		 const kAryContainerMeta &v2,
+						    		 const uint32_t k_lower=0,
+						    		 const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -140,13 +159,26 @@ public:
 		}
 	}
 
+	///
+	/// \param v1
+	/// \param v2
+	/// \param k_lower
+	/// \param k_upper
+	/// \return
+	constexpr inline static void scalar(kAryContainerMeta &v1,
+									 const DataType v2,
+									 const uint32_t k_lower=0,
+									 const uint32_t k_upper=LENGTH) noexcept {
+		scalar(v1, v1, v2, k_lower, k_upper);
+	}
+
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
 	/// \param k_lower lower dimension, inclusive
 	/// \param k_upper higher dimension, exclusive
-	constexpr inline static void scalar(kAryContainer_Meta &v3,
-									 const kAryContainer_Meta &v1,
+	constexpr inline static void scalar(kAryContainerMeta &v3,
+									 const kAryContainerMeta &v1,
 									 const DataType v2,
 									 const uint32_t k_lower=0,
 									 const uint32_t k_upper=LENGTH) noexcept {
@@ -158,14 +190,26 @@ public:
 		}
 	}
 
+	///
+	/// \param v1
+	/// \param v2
+	/// \param k_lower
+	/// \param k_upper
+	/// \return
+	constexpr inline static void add(kAryContainerMeta &v1,
+									 const kAryContainerMeta &v2,
+									 const uint32_t k_lower=0,
+									 const uint32_t k_upper=LENGTH) noexcept {
+		add(v1, v1, v2, k_lower, k_upper);
+	}
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
 	/// \param k_lower lower dimension, inclusive
 	/// \param k_upper higher dimension, exclusive
-	constexpr inline static void add(kAryContainer_Meta &v3,
-						   const kAryContainer_Meta &v1,
-						   const kAryContainer_Meta &v2,
+	constexpr inline static void add(kAryContainerMeta &v3,
+						   const kAryContainerMeta &v1,
+						   const kAryContainerMeta &v2,
 						   const uint32_t k_lower=0,
 						   const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
@@ -183,9 +227,9 @@ public:
 	/// \param k_upper higher dimension, exclusive
 	/// \param norm = max norm of an dimension which is allowed.
 	/// \return true if the element needs to be filtered out. False else.
-	constexpr inline static bool add(kAryContainer_Meta &v3,
-						   kAryContainer_Meta const &v1,
-						   kAryContainer_Meta const &v2,
+	constexpr inline static bool add(kAryContainerMeta &v3,
+	                                 kAryContainerMeta const &v1,
+	                                 kAryContainerMeta const &v2,
 						   const uint32_t k_lower,
 						   const uint32_t k_upper,
 						   const uint32_t norm) noexcept {
@@ -201,15 +245,28 @@ public:
 		return false;
 	}
 
+	///
+	/// \param v1
+	/// \param v2
+	/// \param k_lower
+	/// \param k_upper
+	/// \return
+	constexpr inline static void sub(kAryContainerMeta &v1,
+									 const kAryContainerMeta &v2,
+									 const uint32_t k_lower=0,
+									 const uint32_t k_upper=LENGTH) noexcept {
+		sub(v1, v1, v2, k_lower, k_upper);
+	}
+
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
 	/// \param k_lower lower dimension, inclusive
 	/// \param k_upper higher dimension, exclusive
 	/// \return true if the elements needs to be filled out. False else.
-	constexpr inline static void sub(kAryContainer_Meta &v3,
-						   kAryContainer_Meta const &v1,
-						   kAryContainer_Meta const &v2,
+	constexpr inline static void sub(kAryContainerMeta &v3,
+	                                 kAryContainerMeta const &v1,
+	                                 kAryContainerMeta const &v2,
 						   const uint32_t k_lower=0,
 						   const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
@@ -227,9 +284,9 @@ public:
 	/// \param k_upper higher dimension, exclusive
 	/// \param norm filter every element out if hte norm is bigger than `norm`
 	/// \return true if the elements needs to be filter out. False if not
-	constexpr inline static bool sub(kAryContainer_Meta &v3,
-						   kAryContainer_Meta const &v1,
-						   kAryContainer_Meta const &v2,
+	constexpr inline static bool sub(kAryContainerMeta &v3,
+	                                 kAryContainerMeta const &v1,
+	                                 kAryContainerMeta const &v2,
 						   const uint32_t k_lower,
 						   const uint32_t k_upper,
 						   const uint32_t norm) noexcept {
@@ -250,8 +307,8 @@ public:
 	/// \param k_lower lower dimension, inclusive
 	/// \param k_upper higher dimension, exclusive
 	/// \return v1 == v2 on the coordinates [k_lower, k_higher)
-	constexpr inline static bool cmp(kAryContainer_Meta const &v1,
-						   kAryContainer_Meta const &v2,
+	constexpr inline static bool cmp(kAryContainerMeta const &v1,
+	                                 kAryContainerMeta const &v2,
 						   const uint32_t k_lower=0,
 						   const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
@@ -272,8 +329,8 @@ public:
 	/// \param v2 input container
 	/// \param k_lower lower bound coordinate wise, inclusive
 	/// \param k_upper higher bound coordinate wise, exclusive
-	constexpr inline static void set(kAryContainer_Meta &v1,
-						   kAryContainer_Meta const &v2,
+	constexpr inline static void set(kAryContainerMeta &v1,
+	                                 kAryContainerMeta const &v2,
 						   const uint32_t k_lower=0,
 						   const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
@@ -288,7 +345,7 @@ public:
 	/// \param k_lower lower coordinate bound, inclusive
 	/// \param k_upper higher coordinate bound, exclusive
 	/// \return this == obj on the coordinates [k_lower, k_higher)
-	constexpr bool is_equal(kAryContainer_Meta const &obj,
+	constexpr bool is_equal(kAryContainerMeta const &obj,
 				  const uint32_t k_lower=0,
 				  const uint32_t k_upper=LENGTH) const noexcept {
 		return cmp(this, obj, k_lower, k_upper);
@@ -298,7 +355,7 @@ public:
 	/// \param k_lower lower bound coordinate wise, inclusive
 	/// \param k_upper higher bound coordinate wise, exclusive
 	/// \return this > obj on the coordinates [k_lower, k_higher)
-	constexpr bool is_greater(kAryContainer_Meta const &obj,
+	constexpr bool is_greater(kAryContainerMeta const &obj,
 					const uint32_t k_lower=0,
 					const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_upper <= LENGTH && "ERROR is_greater not correct k_upper");
@@ -319,7 +376,7 @@ public:
 	/// \param k_lower lower bound coordinate wise, inclusive
 	/// \param k_upper higher bound coordinate wise, exclusive
 	/// \return this < obj on the coordinates [k_lower, k_higher)
-	constexpr bool is_lower(kAryContainer_Meta const &obj,
+	constexpr bool is_lower(kAryContainerMeta const &obj,
 				  const uint32_t k_lower=0,
 				  const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_upper <= LENGTH && "ERROR is_lower not correct k_upper");
@@ -340,7 +397,7 @@ public:
 	/// copy operator
 	/// \param obj to copy from
 	/// \return this
-	kAryContainer_Meta& operator =(kAryContainer_Meta const &obj) noexcept {
+	kAryContainerMeta & operator =(kAryContainerMeta const &obj) noexcept {
 		ASSERT(size() == obj.size() && "äh?");
 
 		if (likely(this != &obj)) { // self-assignment check expected
@@ -414,30 +471,30 @@ protected:
 /// \tparam length number of elements
 template<class T, const uint32_t n, const uint32_t q>
 	requires kAryContainerAble<T>
-class kAryContainer_T : public kAryContainer_Meta<T, n, q> {
+class kAryContainer_T : public kAryContainerMeta<T, n, q> {
 public:
 	/// needed constants
-	using kAryContainer_Meta<T, n, q>::LENGTH;
-	using kAryContainer_Meta<T, n, q>::MODULUS;
+	using kAryContainerMeta<T, n, q>::LENGTH;
+	using kAryContainerMeta<T, n, q>::MODULUS;
 
 	/// needed typedefs
-	using typename kAryContainer_Meta<T, n, q>::DataType;
-	using typename kAryContainer_Meta<T, n, q>::ContainerLimbType;
+	using typename kAryContainerMeta<T, n, q>::DataType;
+	using typename kAryContainerMeta<T, n, q>::ContainerLimbType;
 
 	/// needed fields
-	using kAryContainer_Meta<T, n, q>::__data;
+	using kAryContainerMeta<T, n, q>::__data;
 
 	/// needed functions
-	using kAryContainer_Meta<T, n, q>::size;
-	using kAryContainer_Meta<T, n, q>::get;
-	using kAryContainer_Meta<T, n, q>::set;
+	using kAryContainerMeta<T, n, q>::size;
+	using kAryContainerMeta<T, n, q>::get;
+	using kAryContainerMeta<T, n, q>::set;
 };
 
 /// specialized class for representing stuff on 8 bit
 /// NOTE: this implements the representation padded (e.g. every number gets 8 bit)
 template<const uint32_t n>
 	requires kAryContainerAble<uint8_t>
-class kAryContainer_T<uint8_t, n, 4> : public kAryContainer_Meta<uint8_t, n, 4>  {
+class kAryContainer_T<uint8_t, n, 4> : public kAryContainerMeta<uint8_t, n, 4>  {
 	/// this class implements the following representation
 	///
 	/// [ ||| ]
@@ -452,15 +509,15 @@ public:
 	/// needed typedefs
 	using T = uint8_t;
 	using DataType = T;
-	using kAryContainer_Meta<T, n, q>::LENGTH;
-	using kAryContainer_Meta<T, n, q>::MODULUS;
-	// using kAryContainer_Meta<T, n, q>::DataType;
-	using typename kAryContainer_Meta<T, n, q>::ContainerLimbType;
-	using kAryContainer_Meta<T, n, q>::__data;
+	using kAryContainerMeta<T, n, q>::LENGTH;
+	using kAryContainerMeta<T, n, q>::MODULUS;
+	// using kAryContainerMeta<T, n, q>::DataType;
+	using typename kAryContainerMeta<T, n, q>::ContainerLimbType;
+	using kAryContainerMeta<T, n, q>::__data;
 
-	using kAryContainer_Meta<T, n, q>::get;
-	using kAryContainer_Meta<T, n, q>::set;
-	using kAryContainer_Meta<T, n, q>::random;
+	using kAryContainerMeta<T, n, q>::get;
+	using kAryContainerMeta<T, n, q>::set;
+	using kAryContainerMeta<T, n, q>::random;
 
 private:
 	// helper sizes
