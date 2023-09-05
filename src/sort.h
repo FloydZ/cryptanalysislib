@@ -28,25 +28,28 @@
 
 
 #if __cplusplus > 201709L
-template<class List>
-concept HashMapListAble = requires(List l) {
+//<class List>
+//concept HashMapListAble = requires(List l) {
 	// we need some basic data types
-	typename List::ValueType;
-	typename List::LabelType;
-	typename List::ElementType;
-	typename List::MatrixType;
-	typename List::LabelContainerType;
+	/// TODO not working with simple list
+	//typename List::ValueType;
+	//typename List::LabelType;
+	//typename List::ElementType;
+	//typename List::MatrixType;
+	//typename List::LabelContainerType;
 
-	// check that the element and therefore the value and label also fullfil all requirements.
+	//List::ElementType;
+
+	// check that the element and therefore the value and label also fulfill all requirements.
 	// requires ListAble<typename List::ElementType>;
 
 	// The following functions are needed.
-	requires requires(const size_t s){
-		l.data_label(s);
+	//requires requires(const size_t s){
+		//l.data_label(s);
 		//l.data_value(s);
 		//TODO{ l.size() } -> std::convertible_to<size_t>;
-	};
-};
+	//};
+//};
 #endif
 
 // LSD radix sort, taken from valentin vasseur
@@ -577,7 +580,7 @@ template<const ConfigParallelBucketSort &config,
 				typename ExternalIndexType,             // container of the indices which point into the baselists
 				ArgumentLimbType (* HashFkt)(uint64_t)> // TODO describe
 #if __cplusplus > 201709L
-requires HashMapListAble<ExternalList> &&
+requires //HashMapListAble<ExternalList> &&
          std::is_integral<ArgumentLimbType>::value &&
          std::is_integral<ExternalIndexType>::value
 #endif
@@ -739,7 +742,7 @@ private:
 	// directly check if the weight threshold exceeded.
 	constexpr static bool SAVE_FULL_128BIT               = config.SAVE_FULL_128BIT;
 
-	// Set this flag to true to extend the fundamental datastructure by an additional datatype (__uint128_t) to hold
+	// Set this flag to true to extend the fundamental datastructures by an additional datatype (__uint128_t) to hold
 	// additional information.
 	constexpr static uint8_t EXTEND_TO_TRIPLE            = config.EXTEND_TO_TRIPLE;
 
@@ -748,7 +751,7 @@ private:
 	constexpr static bool USE_PREFETCH_SWITCH            = config.USE_PREFETCH_SWITCH;
 
 	// Get loose of the split of the `__bucket` array and secure the buckets' insertion process
-	// by setting the load factor with a atomic store/load value.
+	// by setting the load factor with an atomic store/load value.
 	constexpr static bool USE_ATOMIC_LOAD_SWITCH         = config.USE_ATOMIC_LOAD_SWITCH;
 
 	// If this flag is set, the whole finding procedure is not using any access to the

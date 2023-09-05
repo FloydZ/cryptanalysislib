@@ -43,13 +43,22 @@ namespace internal {
 	/// helper function. This enforces the compiler to emit a `vmovdqu` instruction
 	/// \param ptr pointer to data.
 	///				No alignment needed
-	/// 			but 32 bytes should be redeable
+	/// 			but 32 bytes should be readable
 	/// \return unaligned `__m256i`
 	constexpr static inline __m256i_u unaligned_load_wrapper(__m256i_u const *ptr) {
 		return *ptr;
 	}
+
+	/// helper function. This enforces the compiler to emite a unaligned instruction
+	/// \param ptr pointer to data
+	/// \param data data to store
+	/// \return nothing
+	constexpr static inline void unaligned_store_wrapper(__m256i_u *ptr, __m256i_u data) {
+		*ptr = data;
+	}
 }
 
+/// TODO remove
 union U256i {
 	__m256i v;
 	uint32_t a[8];
@@ -135,15 +144,15 @@ struct uint8x32_t {
 		return out;
 	}
 
-	///
+	/// sets all 32 8bit limbs to `a`
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t set1(const uint8_t __A) {
+	[[nodiscard]] constexpr static inline uint8x32_t set1(const uint8_t a) {
 		uint8x32_t out;
-		out =  uint8x32_t::set(__A, __A, __A, __A, __A, __A, __A, __A,
-		                       __A, __A, __A, __A, __A, __A, __A, __A,
-		                       __A, __A, __A, __A, __A, __A, __A, __A,
-		                       __A, __A, __A, __A, __A, __A, __A, __A);
+		out =  uint8x32_t::set(a, a, a, a, a, a, a, a,
+		                      a, a, a, a, a, a, a, a,
+		                      a, a, a, a, a, a, a, a,
+		                      a, a, a, a, a, a, a, a);
 		return out;
 	}
 
@@ -151,7 +160,7 @@ struct uint8x32_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
-	template<const bool aligned>
+	template<const bool aligned=false>
 	constexpr static inline uint8x32_t load(const void *ptr) {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
@@ -186,7 +195,7 @@ struct uint8x32_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
-	template<const bool aligned>
+	template<const bool aligned=false>
 	constexpr static inline void store(void *ptr, const uint8x32_t in) {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
@@ -209,7 +218,7 @@ struct uint8x32_t {
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr, const uint8x32_t in) {
 		auto *ptr256 = (__m256i_u *)ptr;
-		*ptr256 = in.v256;
+		internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
 	///

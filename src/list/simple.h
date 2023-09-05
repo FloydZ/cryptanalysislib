@@ -30,7 +30,7 @@ private:
 	size_t load;
 
 public:
-	typedef Element ElementType;
+	using ElementType = Element;
 
 	///
 	/// \param thread_block
@@ -59,7 +59,7 @@ public:
 	/// \param i
 	/// \return
 	Element &operator[](const size_t i) noexcept {
-		ASSERT(i < load);
+		ASSERT(i < size);
 		return this->__data[i];
 	}
 
@@ -67,7 +67,7 @@ public:
 	/// \param i
 	/// \return
 	const Element &operator[](const size_t i) const noexcept {
-		ASSERT(i < load);
+		ASSERT(i < size);
 		return this->__data[i];
 	}
 

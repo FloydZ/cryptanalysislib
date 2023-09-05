@@ -42,6 +42,8 @@ public:
 	typedef T DataType;
 	typedef T ContainerLimbType;
 
+	typedef kAryContainerMeta ContainerType;
+
 	/// zeros our the whole container
 	/// \return nothing
 	constexpr inline void zero() noexcept {
@@ -90,10 +92,13 @@ public:
 	/// \return the hamming weight
 	[[nodiscard]] constexpr inline uint32_t weight() const noexcept {
 		uint32_t r = 0;
+
+		LOOP_UNROLL();
 		for (uint32_t i = 0; i < LENGTH; ++i) {
-			if (__data[i] != 0)
-				r += 1;
+			if (__data[i] > 0)
+				r += 1u;
 		}
+
 		return r;
 	}
 
@@ -123,7 +128,7 @@ public:
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
-			__data[i] = ((T(0) - __data[i]) + q) % q;
+			__data[i] = (q - __data[i]) % q;
 		}
 	}
 
@@ -287,9 +292,9 @@ public:
 	constexpr inline static bool sub(kAryContainerMeta &v3,
 	                                 kAryContainerMeta const &v1,
 	                                 kAryContainerMeta const &v2,
-						   const uint32_t k_lower,
-						   const uint32_t k_upper,
-						   const uint32_t norm) noexcept {
+						   			 const uint32_t k_lower,
+						   			 const uint32_t k_upper,
+						   			 const uint32_t norm) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -348,7 +353,7 @@ public:
 	constexpr bool is_equal(kAryContainerMeta const &obj,
 				  const uint32_t k_lower=0,
 				  const uint32_t k_upper=LENGTH) const noexcept {
-		return cmp(this, obj, k_lower, k_upper);
+		return cmp(*this, obj, k_lower, k_upper);
 	}
 
 	/// \param obj to compare to
@@ -426,7 +431,7 @@ public:
 	constexpr void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
-			std::cout << __data[i] << " ";
+			std::cout << (unsigned)__data[i] << " ";
 		}
 		std::cout << "\n";
 	}
@@ -446,8 +451,8 @@ public:
 	/// returns the underlying data container
 	__FORCEINLINE__ std::array<T, LENGTH>& data() noexcept { return __data; }
 	__FORCEINLINE__ const std::array<T, LENGTH>& data() const noexcept { return __data; }
-	constexpr T data(const size_t index) const noexcept { ASSERT(index < LENGTH && "wrong index"); return __data[index]; }
-	constexpr T get(const size_t index) const noexcept { ASSERT(index < LENGTH && "wrong index"); return __data[index]; }
+	constexpr T data(const size_t index) const noexcept { ASSERT(index < LENGTH); return __data[index]; }
+	constexpr T get(const size_t index) const noexcept { ASSERT(index < LENGTH); return __data[index]; }
 	constexpr void set(const T data, const size_t index) noexcept {
 		ASSERT(index < LENGTH);
 		__data[index] = data;
@@ -480,14 +485,25 @@ public:
 	/// needed typedefs
 	using typename kAryContainerMeta<T, n, q>::DataType;
 	using typename kAryContainerMeta<T, n, q>::ContainerLimbType;
+	using typename kAryContainerMeta<T, n, q>::ContainerType;
 
 	/// needed fields
 	using kAryContainerMeta<T, n, q>::__data;
 
 	/// needed functions
-	using kAryContainerMeta<T, n, q>::size;
 	using kAryContainerMeta<T, n, q>::get;
 	using kAryContainerMeta<T, n, q>::set;
+	using kAryContainerMeta<T, n, q>::neg;
+	using kAryContainerMeta<T, n, q>::random;
+	using kAryContainerMeta<T, n, q>::zero;
+	using kAryContainerMeta<T, n, q>::is_equal;
+	using kAryContainerMeta<T, n, q>::is_greater;
+	using kAryContainerMeta<T, n, q>::is_lower;
+	using kAryContainerMeta<T, n, q>::cmp;
+	using kAryContainerMeta<T, n, q>::print;
+	using kAryContainerMeta<T, n, q>::size;
+	using kAryContainerMeta<T, n, q>::data;
+	using kAryContainerMeta<T, n, q>::is_zero;
 };
 
 /// specialized class for representing stuff on 8 bit
@@ -513,11 +529,25 @@ public:
 	using kAryContainerMeta<T, n, q>::MODULUS;
 	// using kAryContainerMeta<T, n, q>::DataType;
 	using typename kAryContainerMeta<T, n, q>::ContainerLimbType;
+	using typename kAryContainerMeta<T, n, q>::ContainerType;
 	using kAryContainerMeta<T, n, q>::__data;
 
+	/// needed functions
 	using kAryContainerMeta<T, n, q>::get;
 	using kAryContainerMeta<T, n, q>::set;
+	using kAryContainerMeta<T, n, q>::neg;
 	using kAryContainerMeta<T, n, q>::random;
+	using kAryContainerMeta<T, n, q>::zero;
+	using kAryContainerMeta<T, n, q>::is_equal;
+	using kAryContainerMeta<T, n, q>::is_greater;
+	using kAryContainerMeta<T, n, q>::is_lower;
+	using kAryContainerMeta<T, n, q>::cmp;
+	using kAryContainerMeta<T, n, q>::print;
+	using kAryContainerMeta<T, n, q>::size;
+	using kAryContainerMeta<T, n, q>::data;
+	using kAryContainerMeta<T, n, q>::is_zero;
+	using kAryContainerMeta<T, n, q>::add;
+	using kAryContainerMeta<T, n, q>::sub;
 
 private:
 	// helper sizes

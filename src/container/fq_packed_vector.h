@@ -31,6 +31,9 @@ std::is_integral<T>::value && requires(T t) {
 template<class T, const uint32_t n, const uint32_t q>
 class kAryPackedContainer_Meta {
 	public:
+
+	typedef kAryPackedContainer_Meta ContainerType;
+
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T)*8;
 	// number of bits needed to represent MOD

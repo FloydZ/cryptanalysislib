@@ -174,20 +174,20 @@ public:
 	void changelist_chase(std::pair<uint16_t,uint16_t> *ret) {
 		int r = 0, j = 0;
 
-		uint32_t tmp[w];
+		uint32_t tmp[w+1];
 		for (uint32_t i = 0; i < w; ++i) {
 			tmp[i] = n-chase_a[i]-1;
 		}
 
-		for (uint32_t i = 0; i < bc(n, w); ++i) {
+		for (uint32_t i = 0; i < chase_size; ++i) {
 			//print_chase_state(r, j);
 			chase(&r, &j);
+			ASSERT(j < w);
 
-			ret[i].first = j;//tmp[j];
+			ret[i].first = j;
 			ret[i].second = n-chase_a[j]-1;
 
 			tmp[j] = n-chase_a[j]-1;
-			//printf("%d %d %d \n", ret[i].first, ret[i].second, j);
 		}
 	}
 
@@ -247,7 +247,7 @@ public:
 	                                const uint32_t q,
 	                                const uint32_t w) :
 	    n(n), q(q), qm1(q-1), w(w) {
-		chase_size = bc(n, w);
+		chase_size = bc(n, w) - 1;
 		gray_size = compute_gray_size();
 
 		/// init the restricted gray code

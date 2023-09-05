@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "matrix/matrix.h"
-//#include "test.h"
+#include "container/fq_vector.h"
 
 
 using ::testing::EmptyTestEventListener;
@@ -217,11 +217,7 @@ TEST(FqMatrix, gaus) {
 
 	for (uint32_t i = 0; i < nrows; ++i) {
 		for (uint32_t j = 0; j < rank; ++j) {
-			if (i == j) {
-				ASSERT_EQ(m.get(i, j), 1u);
-				continue;
-			}
-			ASSERT_EQ(m.get(i, j), 0u);
+			ASSERT_EQ(m.get(i, j), i==j);
 		}
 	}
 }
@@ -345,6 +341,36 @@ TEST(FqMatrix, permute) {
 		}
 	}
 }
+
+TEST(FqMatrix, matrix_row_vector_mul2) {
+	using ValueType = kAryContainer_T<uint8_t, ncols, q>;
+	using LabelType = kAryContainer_T<uint8_t, nrows, q>;
+	M m = M{};
+	auto v = ValueType {};
+	auto l = LabelType {};
+	m.random();
+	l.random();
+	v.zero();
+
+	m.template matrix_row_vector_mul2<LabelType, ValueType>(l, v);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		EXPECT_EQ(l.get(i), 0);
+	}
+
+	l.zero();
+	v.random();
+	m.matrix_row_vector_mul2(l, v);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		uint64_t sum = 0;
+		for (uint32_t j = 0; j < ncols; ++j) {
+			sum += v.get(j) * m.get(i, j);
+		}
+
+		sum = sum % q;
+		EXPECT_EQ(l.get(i), sum);
+	}
+}
+
 
 int main(int argc, char **argv) {
 	random_seed(time(0));
