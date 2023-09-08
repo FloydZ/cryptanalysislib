@@ -17,7 +17,8 @@ concept LabelAble = requires(Container c) {
 	// we need to enforce the existence of some fields
 	//{ Container::LENGTH } -> std::convertible_to<uint32_t>;
 
-	requires requires(const unsigned int i) { c[i];
+	requires requires(const uint32_t i) {
+		c[i];
 		c.random();
 		c.zero();
 		c.is_equal(c, i, i);
@@ -31,13 +32,16 @@ concept LabelAble = requires(Container c) {
 		c.print(i, i);
 		c.data();
 		c.is_zero();
+
+		c.print_binary(i, i);
+		c.print(i, i);
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
-	//{ Container::binary() } -> std::convertible_to<bool>;
-	//{ Container::size() } -> std::convertible_to<uint32_t>;
-	//{ Container::limbs() } -> std::convertible_to<uint32_t>;
-	//{ Container::bytes() } -> std::convertible_to<uint32_t>;
+	{ Container::binary() } -> std::convertible_to<bool>;
+	{ Container::size() } -> std::convertible_to<uint32_t>;
+	{ Container::limbs() } -> std::convertible_to<uint32_t>;
+	{ Container::bytes() } -> std::convertible_to<uint32_t>;
 };
 #endif
 

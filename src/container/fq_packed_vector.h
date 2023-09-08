@@ -29,6 +29,9 @@ std::is_integral<T>::value && requires(T t) {
 /// \param n = number of elemtns
 /// \param q = modulus
 template<class T, const uint32_t n, const uint32_t q>
+#if __cplusplus > 201709L
+	requires std::is_integral<T>::value
+#endif
 class kAryPackedContainer_Meta {
 	public:
 
@@ -264,8 +267,8 @@ class kAryPackedContainer_Meta {
 	/// \param v1 input
 	/// \param v2 input
 	constexpr inline static void add(kAryPackedContainer_Meta &v3,
-	                       kAryPackedContainer_Meta const &v1,
-	                       kAryPackedContainer_Meta const &v2) noexcept {
+	                       			 kAryPackedContainer_Meta const &v1,
+	                       			 kAryPackedContainer_Meta const &v2) noexcept {
 		add(v3, v1, v2, 0, LENGTH);
 	}
 
@@ -276,9 +279,10 @@ class kAryPackedContainer_Meta {
 	/// \param k_lower lower limit inclusive
 	/// \param k_upper upper limit exclusive
 	constexpr inline static void add(kAryPackedContainer_Meta &v3,
-	                       kAryPackedContainer_Meta const &v1,
-	                       kAryPackedContainer_Meta const &v2,
-	                       const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	                       			 kAryPackedContainer_Meta const &v1,
+	                       			 kAryPackedContainer_Meta const &v2,
+	                       			 const uint32_t k_lower,
+	                                 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);
@@ -286,30 +290,9 @@ class kAryPackedContainer_Meta {
 		}
 	}
 
-	/// generic add: v3 = v1 + v2 between k_lower and k_upper with filter method
-	/// \param v3
-	/// \param v1
-	/// \param v2
-	/// \param k_lower
-	/// \param k_upper
-	/// \param filter2
-	/// \return
-	constexpr inline static bool add(kAryPackedContainer_Meta &v3,
-	                       kAryPackedContainer_Meta const &v1,
-	                       kAryPackedContainer_Meta const &v2,
-	                       const uint32_t k_lower, const uint32_t k_upper, const uint32_t filter2) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = v1.get(i) + v2.get(i);
-			v3.set(data % MODULUS, i);
-		}
-
-		return v3.filter2_mod3(filter2);
-	}
-
-	/// v1 += v1
-	/// \param v2 input/output
-	/// \param v1 input
+	/// v1 -= v2
+	/// \param v1 input/output
+	/// \param v2 input
 	constexpr inline static void sub(kAryPackedContainer_Meta &v1,
 									 kAryPackedContainer_Meta const &v2) noexcept {
 		sub(v1, v1, v2, 0, LENGTH);
@@ -321,21 +304,22 @@ class kAryPackedContainer_Meta {
 	/// \param v1 input
 	/// \param v2 input
 	constexpr inline static void sub(kAryPackedContainer_Meta &v3,
-	                       kAryPackedContainer_Meta const &v1,
-	                       kAryPackedContainer_Meta const &v2) noexcept {
+	                       			 kAryPackedContainer_Meta const &v1,
+	                       			 kAryPackedContainer_Meta const &v2) noexcept {
 		sub(v3, v1, v2, 0, LENGTH);
 	}
 
-	/// v3 = v1 - v2
+	/// v3 = v1 - v2 between [k_lower, k_upper)
 	/// \param v3 output
 	/// \param v1 input
 	/// \param v2 input
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	constexpr inline static void sub(kAryPackedContainer_Meta &v3,
-	                       kAryPackedContainer_Meta const &v1,
-	                       kAryPackedContainer_Meta const &v2,
-	                       const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	                       			 kAryPackedContainer_Meta const &v1,
+	                       			 kAryPackedContainer_Meta const &v2,
+	                       			 const uint32_t k_lower,
+	                                 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i));
@@ -354,7 +338,8 @@ class kAryPackedContainer_Meta {
 	constexpr inline static void mul(kAryPackedContainer_Meta &v3,
 									 kAryPackedContainer_Meta const &v1,
 									 kAryPackedContainer_Meta const &v2,
-									 const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
+									 const uint32_t k_lower=0,
+	                                 const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = (v1.get(i) * v2.get(i)) % MODULUS;
@@ -369,9 +354,10 @@ class kAryPackedContainer_Meta {
 	/// \param k_lower lower limit inclusive
 	/// \param k_upper upper limit exclusive
 	constexpr inline static void scalar(kAryPackedContainer_Meta &v3,
-						   kAryPackedContainer_Meta const &v1,
-	                       DataType v2,
-						   const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
+						   				kAryPackedContainer_Meta const &v1,
+	                       				const DataType v2,
+						   				const uint32_t k_lower=0,
+	                                    const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = (v1.get(i) * v2) % MODULUS;
@@ -379,15 +365,15 @@ class kAryPackedContainer_Meta {
 		}
 	}
 
-	///
-	/// \param v1
-	/// \param v2
+	/// \param v1 input
+	/// \param v2 input
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
-	/// \return
+	/// \return v1 == v2 between [k_lower, k_upper)
 	constexpr inline static bool cmp(kAryPackedContainer_Meta const &v1,
-	                       kAryPackedContainer_Meta const &v2,
-	                       const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	                       			 kAryPackedContainer_Meta const &v2,
+	                       			 const uint32_t k_lower,
+	                                 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			if (v1.get(i) != v2.get(i))
@@ -396,33 +382,34 @@ class kAryPackedContainer_Meta {
 		return true;
 	}
 
-	///
-	/// \param v1
-	/// \param v2
+	/// v1 = v2 between [k_lower, k_upper)
+	/// \param v1 output
+	/// \param v2 input
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
-	constexpr inline static void set(kAryPackedContainer_Meta &v1, kAryPackedContainer_Meta const &v2,
-	                       const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	constexpr inline static void set(kAryPackedContainer_Meta &v1,
+	                                 kAryPackedContainer_Meta const &v2,
+	                       			 const uint32_t k_lower,
+	                                 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			v1.set(v2.get(i), i);
 		}
 	}
 
-	///
 	/// \param obj
-	/// \return
+	/// \return this == obj
 	constexpr bool is_equal(kAryPackedContainer_Meta const &obj) const noexcept {
 		return cmp(*this, obj, 0, LENGTH);
 	}
 
-	///
 	/// \param obj
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
-	/// \return
+	/// \return this == obj between [k_lower, k_upper)
 	constexpr bool is_equal(kAryPackedContainer_Meta const &obj,
-	              const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	              			const uint32_t k_lower,
+	                        const uint32_t k_upper) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
@@ -430,11 +417,12 @@ class kAryPackedContainer_Meta {
 	/// \param obj
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
-	/// \return
+	/// \return this > obj [k_lower, k_upper)
 	constexpr bool is_greater(kAryPackedContainer_Meta const &obj,
-	                const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	                		  const uint32_t k_lower,
+	                          const uint32_t k_upper) const noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-		for (unsigned int i = k_upper; i > k_lower; i++) {
+		for (uint32_t i = k_upper; i > k_lower; i++) {
 			if (get(i-1) < obj.get(i-1))
 				return false;
 		}
@@ -446,26 +434,28 @@ class kAryPackedContainer_Meta {
 	/// \param obj
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
-	/// \return
-	constexpr bool is_lower(kAryPackedContainer_Meta const &obj, const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	/// \return this < obj [k_lower, k_upper)
+	constexpr bool is_lower(kAryPackedContainer_Meta const &obj,
+	                        const uint32_t k_lower,
+	                        const uint32_t k_upper) const noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-		for (unsigned int i = k_lower; i < k_upper; i++) {
+		for (uint32_t i = k_lower; i < k_upper; i++) {
 			if(get(i) > obj.get(i))
 				return false;
 		}
 		return true;
 	}
 
-	/// add on full length and return the weight only between [l, h]
-	/// \param v3
-	/// \param v1
-	/// \param v2
-	/// \param l
-	/// \param h
-	/// \return
-	static uint16_t add_only_upper_weight_partly(kAryPackedContainer_Meta &v3,
-	                                             kAryPackedContainer_Meta &v1,
-	                                             kAryPackedContainer_Meta &v2,
+	/// add on full length and return the weight only between [l, h)
+	/// \param v3 = v1 + v2
+	/// \param v1 input
+	/// \param v2 input
+	/// \param l lower limit
+	/// \param h upper limit
+	/// \return weight of v3 between [l, h)
+	constexpr static uint16_t add_only_upper_weight_partly(kAryPackedContainer_Meta &v3,
+	                                             const kAryPackedContainer_Meta &v1,
+	                                             const kAryPackedContainer_Meta &v2,
 	                                             const uint32_t l, const uint32_t h) noexcept {
 		uint16_t weight = 0;
 		add(v3, v1, v2);
@@ -476,24 +466,10 @@ class kAryPackedContainer_Meta {
 		return weight;
 	}
 
-	///
-	/// \tparam l
-	/// \tparam h
-	/// \param v3
-	/// \param v1
-	/// \param v2
-	/// \return
-	template<const uint32_t l, const uint32_t h>
-	static uint16_t add_only_weight_partly(kAryPackedContainer_Meta &v3,
-	                                       kAryPackedContainer_Meta &v1,
-	                                       kAryPackedContainer_Meta &v2) noexcept {
-		// TODO
-		return 0;
-	}
-
-	///
-	/// \param i
+	/// shifts this by i to the left
+	/// \param i amount to shift
 	constexpr void left_shift(const uint32_t i) noexcept {
+		ASSERT(i < LENGTH);
 		for (uint32_t j = LENGTH; j > i; j--) {
 			set(get(j-i-1), j-1);
 		}
@@ -504,6 +480,20 @@ class kAryPackedContainer_Meta {
 		}
 	}
 
+	/// shifts this by i to the left
+	/// \param i amount to shift
+	constexpr void right_shift(const uint32_t i) noexcept {
+		ASSERT(i < LENGTH);
+		for (uint32_t j = 0; j < n - i; j--) {
+			const auto data = get(i + j);
+			set(data, j);
+		}
+
+		// clear the rest.
+		for (uint32_t j = 0; j < i; j++) {
+			set(0, n-j-1u);
+		}
+	}
 
 	///
 	/// \param obj
@@ -511,21 +501,16 @@ class kAryPackedContainer_Meta {
 	kAryPackedContainer_Meta& operator =(kAryPackedContainer_Meta const &obj) noexcept {
 		ASSERT(size() == obj.size() && "äh?");
 
-		if (likely(this != &obj)) { // self-assignment check expected
+		if (likely(this != &obj)) {
 			__data = obj.__data;
 		}
 
 		return *this;
 	}
 
-	///
-	void print() const noexcept {
-		print(0, LENGTH);
-	}
-
-	/// prints ternary
-	/// \param k_lower
-	/// \param k_upper
+	/// prints between [k_lower, k_upper )
+	/// \param k_lower lower limit
+	/// \param k_upper upper limit
 	void print(const uint32_t k_lower, const uint32_t k_upper) const noexcept {
 		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
@@ -568,7 +553,7 @@ class kAryPackedContainer_Meta {
 	/// print the `pos
 	/// \param k_lower inclusive
 	/// \param k_higher exclusive
-	void print_binary(const uint16_t k_lower, const uint16_t k_higher) const noexcept {
+	void print_binary(const uint32_t k_lower, const uint32_t k_higher) const noexcept {
 		for (int i = k_lower; i < k_higher; ++i) {
 			std::cout << unsigned(get(i)&1);
 			std::cout << unsigned((get(i)>>1)&1);
@@ -621,7 +606,10 @@ class kAryPackedContainer_Meta {
 /// \param n = number of elemtns
 /// \param q = modulus
 template<class T, const uint32_t n, const uint32_t q>
-	requires kAryPackedContainerAble<T>
+#if __cplusplus > 201709L
+	requires kAryPackedContainerAble<T> &&
+             std::is_integral<T>::value
+#endif
 class kAryPackedContainer_T : public kAryPackedContainer_Meta<T, n ,q> {
 	/// Nomenclature:
 	///     Number 	:= actual data one wants to save % MODULUS
@@ -661,7 +649,10 @@ public:
 ///
 /// partly specialized class for q=3
 template<class T, const uint32_t n>
-	requires kAryPackedContainerAble<T>
+#if __cplusplus > 201709L
+requires kAryPackedContainerAble<T> &&
+		 std::is_integral<T>::value
+#endif
 class kAryPackedContainer_T<T, n, 3> : public kAryPackedContainer_Meta<T, n, 3> {
 public:
 	/// this is just defined, because Im lazy
@@ -726,9 +717,9 @@ public:
 	}
 
 #ifdef USE_AVX2
-	///
-	/// \param a
-	/// \return
+	/// computes the hamming weight of a ternary vector
+	/// \param a input
+	/// \return a mod 3, in every coordinate
 	static inline uint16_t hammingweight_mod3_limb256(const __m256i a) noexcept {
 		constexpr __uint128_t c1_128 = __uint128_t(6148914691236517205u)   << 64 | 6148914691236517205u;
 		constexpr __uint128_t c2_128 = __uint128_t(12297829382473034410u)  << 64 | 12297829382473034410u;
@@ -743,7 +734,7 @@ public:
 #endif
 
 	/// negates the vector on all coordinates
-	inline void neg() noexcept {
+	constexpr inline void neg() noexcept {
 		if constexpr (internal_limbs == 1) {
 			__data[0] = neg_mod3_limb(__data[0]);
 			return;
@@ -771,7 +762,7 @@ public:
 	/// \tparam k_lower lower limit inclusive
 	/// \tparam k_upper uuper limit exclusive
 	template<uint32_t k_lower, uint32_t k_upper>
-	inline void neg() noexcept {
+	constexpr inline void neg() noexcept {
 		static_assert(k_upper <= LENGTH && k_lower < k_upper);
 
 		constexpr uint32_t ll = 2*k_lower/bits_per_limb;
@@ -800,7 +791,7 @@ public:
 	/// negates one limb
 	/// \param a input limb
 	/// \return negative limb
-	static inline T neg_mod3_limb(const T a) noexcept {
+	constexpr static inline T neg_mod3_limb(const T a) noexcept {
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
 		constexpr T c1 = T(6148914691236517205u);
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
@@ -809,14 +800,14 @@ public:
 		const T e1 = a&c1; // filter the ones
 		const T e2 = a&c2; // filter the twos
 
-		// reshifts everything to the correct place
+		// re-shifts everything to the correct place
 		return (e1 << 1) ^ (e2 >> 1);
 	}
 
-	///
-	/// \param a
-	/// \return
-	static inline __uint128_t neg_mod3_limb128(const __uint128_t a) noexcept {
+	/// negate a on every coordinate
+	/// \param a input
+	/// \return -a
+	constexpr static inline __uint128_t neg_mod3_limb128(const __uint128_t a) noexcept {
 		constexpr __uint128_t c2 = __uint128_t(12297829382473034410u)  << 64 | 12297829382473034410u;
 		constexpr __uint128_t c1 = __uint128_t(6148914691236517205u)   << 64 | 6148914691236517205u;
 
@@ -826,9 +817,9 @@ public:
 	}
 
 #ifdef USE_AVX2
-	///
-	/// \param a
-	/// \return
+	/// negate a on every coordinate
+	/// \param a input
+	/// \return -a
 	static inline __m256i neg_mod3_limb256(const __m256i a) noexcept {
 		const static __m256i c1 = _mm256_set_epi64x(6148914691236517205u,6148914691236517205u,6148914691236517205u,6148914691236517205u);
 		const static __m256i c2 = _mm256_set_epi64x(12297829382473034410u,12297829382473034410u,12297829382473034410u,12297829382473034410u);
@@ -846,7 +837,7 @@ public:
 	/// calculates a mod 3 on everything number
 	/// \param a
 	/// \return
-	static inline T mod3_limb(const T a) noexcept {
+	constexpr static inline T mod3_limb(const T a) noexcept {
 		const T e = mod3_limb_withoutcorrection(a);
 
 		// fix the overflow on coordinate 32
@@ -858,7 +849,7 @@ public:
 	/// same as mod3_limb but without the correction of the last entry
 	/// \param a
 	/// \return
-	static inline T mod3_limb_withoutcorrection(const T a) noexcept {
+	constexpr static inline T mod3_limb_withoutcorrection(const T a) noexcept {
 		// int(0b1100110011001100110011001100110011001100110011001100110011001100)
 		constexpr T f = T(14757395258967641292u);
 		// int(0b001100110011001100110011001100100110011001100110011001100110011)
@@ -883,10 +874,10 @@ public:
 		return e;
 	}
 
-	///
+	/// NOTE: every coordinate can be at most 4
 	/// \param a
-	/// \return
-	static inline __uint128_t mod3_limb128(const __uint128_t a) noexcept {
+	/// \return a mod 3, in every coordinate
+	constexpr static inline __uint128_t mod3_limb128(const __uint128_t a) noexcept {
 		const __uint128_t e = mod3_limb_withoutcorrection(a);
 
 		// fix the overflow on
@@ -905,22 +896,25 @@ public:
 	/// \param x input number
 	/// \param y output number
 	/// \return x-y in every number
-	static inline T sub_mod3_limb(const T x, const T y) noexcept {
+	constexpr static inline T sub_mod3_limb(const T x,
+	                                        const T y) noexcept {
 		return add_mod3_limb(x, neg_mod3_limb(y));
 	}
 
-	/// \param x
-	/// \param y
-	/// \return
-	static inline __uint128_t sub_mod3_limb128(const __uint128_t x, const __uint128_t y) noexcept {
+	/// \param x: input
+	/// \param y: input
+	/// \return x-y, on every coordinate
+	constexpr static inline __uint128_t sub_mod3_limb128(const __uint128_t x,
+	                                                     const __uint128_t y) noexcept {
 		return add_mod3_limb128(x, neg_mod3_limb128(y));
 	}
 
 #ifdef USE_AVX2
-	/// \param x
-	/// \param y
-	/// \return
-	static inline __m256i sub_mod3_limb256(const __m256i x, const __m256i y) noexcept {
+	/// \param x ; input
+	/// \param y ; input
+	/// \return x - y
+	static inline __m256i sub_mod3_limb256(const __m256i x,
+	                                       const __m256i y) noexcept {
 		return add_mod3_limb256(x, neg_mod3_limb256(y));
 	}
 #endif
@@ -931,8 +925,11 @@ public:
 	/// \param v2 input
 	/// \param k_lower
 	/// \param k_upper
-	inline static void sub(kAryPackedContainer_T &v3, kAryPackedContainer_T const &v1, kAryPackedContainer_T const &v2,
-						   const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	constexpr inline static void sub(kAryPackedContainer_T &v3,
+	                                 kAryPackedContainer_T const &v1,
+	                                 kAryPackedContainer_T const &v2,
+						   			 const uint32_t k_lower,
+	                                 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i)) + MODULUS;
@@ -941,10 +938,12 @@ public:
 	}
 
 	///
-	/// \param v3
-	/// \param v1
-	/// \param v2
-	inline static void sub(kAryPackedContainer_T &v3, kAryPackedContainer_T const &v1, kAryPackedContainer_T const &v2) noexcept {
+	/// \param v3 output: = v1 - v2
+	/// \param v1 input:
+	/// \param v2 input:
+	constexpr inline static void sub(kAryPackedContainer_T &v3,
+	                                 kAryPackedContainer_T const &v1,
+	                                 kAryPackedContainer_T const &v2) noexcept {
 		if constexpr (internal_limbs == 1) {
 			v3.__data[0] = sub_mod3_limb(v1.__data[0], v2.__data[0]);
 			return;
@@ -976,22 +975,24 @@ public:
 		}
 	}
 
-	///
+	/// NOTE: this function, does not reduce anything.
+	/// only call it if you know, that now overflow happens
 	/// \tparam TT
-	/// \param a
-	/// \param b
-	/// \return
+	/// \param a input
+	/// \param b input
+	/// \return a+b
 	template<typename TT>
-	static inline TT add_mod3_limb_no_overflow(const TT a, const TT b) noexcept {
+	constexpr static inline TT add_mod3_limb_no_overflow(const TT a,
+	                                                     const TT b) noexcept {
 		// we know that no overflow will happen, So no 2+2=1
 		return a+b;
 	}
 
-	///
 	/// \param x input first number
 	/// \param y input second number
 	/// \return x+y in every number
-	static inline T add_mod3_limb(const T x, const T y) noexcept {
+	constexpr static inline T add_mod3_limb(const T x,
+	                                        const T y) noexcept {
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr T c2 = T(12297829382473034410u);
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
@@ -1015,11 +1016,11 @@ public:
 		return r0 ^ r1;
 	}
 
-	///
-	/// \param x
-	/// \param y
-	/// \return
-	static inline __uint128_t add_mod3_limb128(const __uint128_t x, const __uint128_t y) noexcept {
+	/// \param x input
+	/// \param y input
+	/// \return x+y mod 3, in every coordinate
+	constexpr static inline __uint128_t add_mod3_limb128(const __uint128_t x,
+	                                                     const __uint128_t y) noexcept {
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr __uint128_t c2  = __uint128_t(12297829382473034410u) << 64 | 12297829382473034410u;
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
@@ -1041,19 +1042,20 @@ public:
 
 #ifdef USE_AVX2
 	/// this function assumes that a,b \in [0,1], so there is no 2.
-	/// \param a
-	/// \param b
-	/// \return
-	static inline __m256i add_mod3_limb_no_overflow(const __m256i a, const __m256i b) noexcept {
+	/// \param a input
+	/// \param b input
+	/// \return a+b
+	constexpr static inline __m256i add_mod3_limb_no_overflow(const __m256i a,
+	                                                          const __m256i b) noexcept {
 		// no overflow will happen.
 		return _mm256_add_epi64(a,b);
 	}
 
-	///
-	/// \param x
-	/// \param y
-	/// \return
-	static inline __m256i add_mod3_limb256(const __m256i x, const __m256i y) noexcept {
+	/// \param x input
+	/// \param y input
+	/// \return x+y mod3
+	static inline __m256i add_mod3_limb256(const __m256i x,
+	                                       const __m256i y) noexcept {
 		const static __m256i c1 = _mm256_set_epi64x(6148914691236517205ull,6148914691236517205ull,6148914691236517205ull,6148914691236517205ull);
 		const static __m256i c2 = _mm256_set_epi64x(12297829382473034410ull,12297829382473034410ull,12297829382473034410ull,12297829382473034410ull);
 
@@ -1075,13 +1077,12 @@ public:
 
 
 #ifdef USE_AVX2
-	/// TODO explain
-	/// \param v3
-	/// \param v1
-	/// \param v2
-	inline static void add(kAryPackedContainer_T &v3,
-	                       kAryPackedContainer_T const &v1,
-	                       kAryPackedContainer_T const &v2) noexcept {
+	/// \param v3 output = v1 + v2 mod3
+	/// \param v1 input
+	/// \param v2 input
+	constexpr inline static void add(kAryPackedContainer_T &v3,
+	                       			 kAryPackedContainer_T const &v1,
+	                       			 kAryPackedContainer_T const &v2) noexcept {
 		if constexpr (internal_limbs == 1) {
 			v3.__data[0] = add_mod3_limb(v1.__data[0], v2.__data[0]);
 			return;
@@ -1115,16 +1116,16 @@ public:
 	}
 #endif
 	/// optimised version of the function above.
-	/// \tparam l
-	/// \tparam h
-	/// \param v3
-	/// \param v1
-	/// \param v2
-	/// \return
+	/// \tparam l lower limit, inclusive
+	/// \tparam h upper limit, exclusive
+	/// \param v3 output = v1 + v2, between [l, h)
+	/// \param v1 input
+	/// \param v2 input
+	/// \return hamming weight
 	template<const uint32_t l, const uint32_t h>
-	static uint16_t add_only_weight_partly(kAryPackedContainer_T &v3,
-	                                       kAryPackedContainer_T &v1,
-	                                       kAryPackedContainer_T &v2) noexcept {
+	constexpr static uint16_t add_only_weight_partly(kAryPackedContainer_T &v3,
+	                                       			 kAryPackedContainer_T &v1,
+	                                       			 kAryPackedContainer_T &v2) noexcept {
 		constexpr uint32_t llimb = l/numbers_per_limb;
 		constexpr uint32_t hlimb = h/numbers_per_limb;
 		constexpr T lmask = ~((T(1u) << (l*bits_per_number)) - 1);
@@ -1158,10 +1159,9 @@ public:
 		return weight;
 	}
 
-	/// returns 2*a, input must be reduced mod 3
-	/// \param a
-	/// \return
-	static inline T times2_mod3_limb(const T a) noexcept {
+	/// \param a input
+	/// \return 2*a, input must be reduced mod 3
+	constexpr static inline T times2_mod3_limb(const T a) noexcept {
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
 		constexpr T t1 = T(6148914691236517205);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
@@ -1176,7 +1176,7 @@ public:
 
 	/// \param a element to check.
 	/// \return true if `a` contains a two at any coordinate
-	static inline bool filter2_mod3_limb(const T a) noexcept {
+	constexpr static inline bool filter2_mod3_limb(const T a) noexcept {
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr T m = T(12297829382473034410u);
 		return (a&m) != 0;
@@ -1185,7 +1185,7 @@ public:
 	/// \param a element to check
 	/// \param limit
 	/// \return returns the number of two in the limb
-	static inline uint32_t filter2count_mod3_limb(const T a) noexcept {
+	constexpr static inline uint32_t filter2count_mod3_limb(const T a) noexcept {
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr T m = T(12297829382473034410ull);
 		return __builtin_popcountll(a&m);
@@ -1194,7 +1194,7 @@ public:
 	///
 	/// \param a
 	/// \return
-	static inline uint32_t filter2count_mod3_limb128(const __uint128_t a) noexcept {
+	constexpr static inline uint32_t filter2count_mod3_limb128(const __uint128_t a) noexcept {
 		constexpr __uint128_t m = __uint128_t(12297829382473034410u) << 64 ^ 12297829382473034410u;
 		const __uint128_t am = a&m;
 		return __builtin_popcountll(am>>64) + __builtin_popcountll(am);
@@ -1206,7 +1206,7 @@ public:
 	/// \param limit how many twos are in total allowed
 	/// \return return the twos in a[k_lower, k_upper].
 	template<const uint16_t k_lower, const uint16_t k_upper>
-	static inline uint32_t filter2count_range_mod3_limb(const T a) noexcept {
+	constexpr static inline uint32_t filter2count_range_mod3_limb(const T a) noexcept {
 		static_assert(k_lower != 0 && k_lower < k_upper && k_upper <= LENGTH);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr T m = T(12297829382473034410u);
@@ -1214,10 +1214,10 @@ public:
 		return __builtin_popcountll(a&mask&m);
 	}
 
-	/// TODO explain
+	/// counts the number of twos upto `k_upper` (exclusive)
 	/// \tparam kupper
 	template<const uint16_t k_upper>
-	inline uint32_t filter2count_range_mod3() {
+	constexpr inline uint32_t filter2count_range_mod3() {
 		static_assert(k_upper <= LENGTH);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr T m = T(12297829382473034410u);
@@ -1237,12 +1237,13 @@ public:
 		return ctr + __builtin_popcountll(__data[limb-1]&mask&m);
 	}
 
-	///
-	/// \tparam k_upper
-	/// \param a
-	/// \return
+	/// counts the number of twos in a single limb
+	/// upto `k_upper` (exclusive)
+	/// \tparam k_upper upper limit
+	/// \param a input
+	/// \return number of twos
 	template<const uint16_t k_upper>
-	static inline uint32_t filter2count_range_mod3_limb(const T a) noexcept {
+	constexpr static inline uint32_t filter2count_range_mod3_limb(const T a) noexcept {
 		ASSERT(0 < k_upper && k_upper <= LENGTH);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr T m = T(12297829382473034410u);
@@ -1256,7 +1257,7 @@ public:
 	/// \param limit number of two allowed in the container.
 	/// \return true if the element contains more than `limit` twos
 	///			false otherwise
-	inline bool filter2_mod3(const uint32_t limit) const noexcept {
+	constexpr inline bool filter2_mod3(const uint32_t limit) const noexcept {
 		uint32_t ctr = 0;
 		for (uint32_t i = 0; i < internal_limbs; ++i) {
 			ctr += filter2count_mod3_limb(__data[i]);
@@ -1270,7 +1271,7 @@ public:
 	/// v3 = 2*v1
 	/// \param v3 output
 	/// \param v1 input
-	inline void times2_mod3(kAryPackedContainer_T &v3, const kAryPackedContainer_T &v1) const noexcept {
+	constexpr inline void times2_mod3(kAryPackedContainer_T &v3, const kAryPackedContainer_T &v1) const noexcept {
 		uint32_t i = 0;
 		for (; i < internal_limbs; i++){
 			v3.__data[i] = times2_mod3_limb(v1.__data[i]);

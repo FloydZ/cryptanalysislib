@@ -21,7 +21,7 @@
 // Internal imports
 #include "helper.h"
 #include "triple.h"
-#include "list.h"
+#include "list/list.h"
 #include "search.h"
 #include "sort.h"
 #include "ska_sort.hpp"

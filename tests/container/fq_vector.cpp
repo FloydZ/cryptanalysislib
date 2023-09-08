@@ -22,6 +22,7 @@ TEST(test, simple) {
 constexpr uint32_t n = 127;
 constexpr uint32_t q = 4;
 using K4 = kAryContainer_T<uint8_t, n, q>;
+using K7 = kAryContainer_T<uint8_t, n, 7>;
 
 TEST(F4, random) {
 	K4 t = K4();
@@ -306,6 +307,21 @@ TEST(F4, scalar) {
 	for (uint32_t i = 0; i < n; i++){
 		EXPECT_EQ(t3.get(i), (t1.get(i) * t2) % q);
 	}
+}
+
+
+
+
+TEST(F7, mod_T) {
+	EXPECT_EQ(K7::mod_T<uint32_t>(0), 0);
+	EXPECT_EQ(K7::mod_T<uint32_t>(1), 1);
+	EXPECT_EQ(K7::mod_T<uint32_t>(2), 2);
+	EXPECT_EQ(K7::mod_T<uint32_t>(3), 3);
+	EXPECT_EQ(K7::mod_T<uint32_t>(4), 4);
+	EXPECT_EQ(K7::mod_T<uint32_t>(5), 5);
+	EXPECT_EQ(K7::mod_T<uint32_t>(6), 6);
+	EXPECT_EQ(K7::mod_T<uint32_t>(7), 0);
+	EXPECT_EQ(K7::mod_T<uint32_t>(8), 1);
 }
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

@@ -1,42 +1,28 @@
-#ifndef CRYPTANALYSISLIB_LIST_SIMPLE_H
-#define CRYPTANALYSISLIB_LIST_SIMPLE_H
+#ifndef CRYPTANALYSISLIB_LIST_SIMPLE_LIMB_H
+#define CRYPTANALYSISLIB_LIST_SIMPLE_LIMB_H
 
 #include <cstdint>
 #include <cstddef>
 
 #include "helper.h"
 
-#if __cplusplus > 201709L
-///
-/// \tparam Container
-template<class Container>
-concept ParallelListSimpleAble = requires(Container c) {
-	requires requires(const uint32_t i) {
-		c[i];
-		c.zero();
-	};
-};
-#endif
-
 /// most simple list
-/// \tparam Element, can be anything.
-///		Does not need to be a `Element`
-/// 	that's the reason, why we have a single concept only for this class
-template<class Element, const size_t __size>
+/// \tparam T: must be a
+template<class T, const size_t __size>
 #if __cplusplus > 201709L
-requires ParallelListSimpleAble<Element>
+	requires std::is_integral_v<T>
 #endif
-class ParallelListSimple {
+class ParallelListSimpleLimb {
 private:
 	uint32_t threads;
 	uint32_t thread_block;
 	size_t load;
 
 public:
-	using ElementType = Element;
+	using ElementType = T;
 
 	/// \param thread_block number of elements per thread
-	constexpr  ParallelListSimple(const uint32_t threads=1) noexcept
+	constexpr  ParallelListSimpleLimb(const uint32_t threads=1) noexcept
 	    : threads(threads), thread_block(__size/threads), load(0) {
 	}
 
@@ -55,19 +41,18 @@ public:
 	/// \return the number of elements each thread enumerates
 	[[nodiscard]] constexpr inline size_t size(const uint32_t tid) const noexcept { return thread_block; }
 
-	constexpr inline Element &at(const size_t i) noexcept {
+	constexpr inline ElementType &at(const size_t i) noexcept {
 		ASSERT(i < size());
 		return this->__data[i];
 	}
-	constexpr inline const Element &at(const size_t i) const noexcept {
+	constexpr inline const ElementType &at(const size_t i) const noexcept {
 		ASSERT(i <size());
 		return this->__data[i];
 	}
-
 	/// NOTE: boundary checks are done
 	/// \param i
 	/// \return the i-th element in the list
-	Element &operator[](const size_t i) noexcept {
+	ElementType &operator[](const size_t i) noexcept {
 		ASSERT(i < __size);
 		return __data[i];
 	}
@@ -75,7 +60,7 @@ public:
 	/// NOTE: boundary checks are done
 	/// \param i
 	/// \return the i-th elementin the list
-	const Element &operator[](const size_t i) const noexcept {
+	const ElementType &operator[](const size_t i) const noexcept {
 		ASSERT(i < __size);
 		return this->__data[i];
 	}
@@ -124,8 +109,8 @@ public:
 	auto end() noexcept { return __data.end(); }
 
 	/// returns the size in bytes
-	[[nodiscard]] __FORCEINLINE__ constexpr uint64_t bytes() noexcept { return __size*sizeof(Element); }
+	[[nodiscard]] __FORCEINLINE__ constexpr uint64_t bytes() noexcept { return __size*sizeof(T); }
 
-	alignas(PAGE_SIZE) std::array<Element, __size> __data;
+	alignas(PAGE_SIZE) std::array<T, __size> __data;
 };
-#endif//CRYPTANALYSISLIB_LIST_SIMPLE_H
+#endif//CRYPTANALYSISLIB_LIST_SIMPLE_LIMB_H

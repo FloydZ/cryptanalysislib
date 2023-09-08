@@ -15,14 +15,11 @@
 template<class Container>
 concept ValueAble = requires(Container c) {
 	typename Container::DataType;
-	
-	// This is sadly not true for kAryType
-	// requires std::integral<typename Container::DataType>;
 
 	// we need to enforce the existence of some fields
 	//TODO { Container::LENGTH } -> std::convertible_to<uint32_t>;
 
-	requires requires(const unsigned int i) {
+	requires requires(const uint32_t i) {
 		c[i];
 		c.random();
 		c.zero();
@@ -37,13 +34,16 @@ concept ValueAble = requires(Container c) {
 		c.print(i, i);
 		c.data();
 		c.is_zero();
+
+		c.print_binary(i, i);
+		c.print(i, i);
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
-	//{ Container::binary() } -> std::convertible_to<bool>;
-	//{ Container::size() } -> std::convertible_to<uint32_t>;
-	//{ Container::limbs() } -> std::convertible_to<uint32_t>;
-	//{ Container::bytes() } -> std::convertible_to<uint32_t>;
+	{ Container::binary() } -> std::convertible_to<bool>;
+	{ Container::size() } -> std::convertible_to<uint32_t>;
+	{ Container::limbs() } -> std::convertible_to<uint32_t>;
+	{ Container::bytes() } -> std::convertible_to<uint32_t>;
 };
 #endif
 
@@ -99,48 +99,73 @@ public:
 	/// set v3= v1 + v2 iff. \forall r \in \[ k_lower, k_higher ) |v3[r]| < norm.
 	/// IMPORTANT: if the 'norm' requirement is not met by all coordinates, e.g. on coordinate is bigger then the norm
 	/// the calculations will stop and the resulting 'v3' will __NOT__ be correct.
-	/// \param v3
-	/// \param v1
-	/// \param v2
-	/// \param norm
+	/// \param v3 output: v3 = v1+v2
+	/// \param v1 input:
+	/// \param v2 input:
+	/// \param norm max norm:
+	///				if norm == -1u, its ignored
+	/// 			returns: true if |v3| >= norm
+	/// 			returns: else false
 	/// \param k_lower	__MUST__ be >= 0 __AND__ < k_higher. All calculations are done including this coordinate.
 	/// \param k_higher	__MUST__ be >= 0 __AND__ > k_lower __AND__ <= length. All calculations are done excluding this coordinate.
 	/// \return		true if the resulting 'v3' __MUST__ __NOT__ be added to the list.
 	///				false else.
-    static inline bool add(Value_T &v3, Value_T const &v1, Value_T const &v2,
-                    const uint64_t k_lower=0, const uint64_t k_higher=LENGTH, const uint32_t norm=-1) noexcept {
+    constexpr static inline bool add(Value_T &v3,
+	                       			 Value_T const &v1,
+	                       			 Value_T const &v2,
+	                       			 const uint64_t k_lower=0,
+	                       			 const uint64_t k_higher=LENGTH,
+	                       			 const uint32_t norm=-1) noexcept {
 		return Container::add(v3.__data, v1.__data, v2.__data, k_lower, k_higher, norm);
 	}
 
 
 	/// same as add. Only for subtraction. Note that it does not filter things
-	/// \param v3 ouput. is overwritten
+	/// \param v3 output. is overwritten
 	/// \param v1 input
 	/// \param v2 input
 	/// \param k_lower lower coordinate
-	/// \param k_higher upper
-	/// \return
-	static inline void sub(Value_T &v3, Value_T const &v1, Value_T const &v2,
-	                const uint64_t k_lower=0, const uint64_t k_higher=LENGTH) noexcept {
+	/// \param k_higher upper coordinate
+	constexpr static inline void sub(Value_T &v3,
+	                                 Value_T const &v1,
+	                                 Value_T const &v2,
+	                				 const uint64_t k_lower=0,
+	                                 const uint64_t k_higher=LENGTH) noexcept {
 		Container::sub(v3.__data, v1.__data, v2.__data, k_lower, k_higher);
 	}
 
 
-	/// negate all coordinates
-	inline void neg(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) noexcept {
+	/// negate all coordinates on: [k_lower, k_upper)
+	/// \param k_lower lower coordinate
+	/// \param k_upper upper coordinate
+	constexpr inline void neg(const uint64_t k_lower=0,
+	                          const uint64_t k_upper=LENGTH) noexcept {
 		__data.neg(k_lower, k_upper);
 	}
 
 	/// i think this does a 3 way comparison.
-	inline static bool cmp(Value_T const &v1, Value_T const &v2,
-	                       const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) noexcept {
+	/// \param v1 input
+	/// \param v2 input
+	/// \param k_lower lower coordinate
+	/// \param k_upper upper coordinate
+	/// \return v1[k_lower, k_upper) == v2[k_lower, k_upper)
+	constexpr inline static bool cmp(Value_T const &v1,
+	                                 Value_T const &v2,
+	                                 const uint64_t k_lower=0,
+	                                 const uint64_t k_upper=LENGTH) noexcept {
 		return Container::cmp(v1.__data, v2.__data, k_lower, k_upper);
 
 	}
 
-	/// v1 = v3 between the coordinates [k_lower, k_upper)
-	inline static void set(Value_T &v1, Value_T const &v2,
-	                       const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) {
+	/// v1 = v2 between the coordinates [k_lower, k_upper)
+	/// \param v1 input
+	/// \param v2  input
+	/// \param k_lower lower coordinate
+	/// \param k_upper upper coordinate
+	constexpr inline static void set(Value_T &v1,
+	                                 Value_T const &v2,
+	                       			 const uint64_t k_lower=0,
+	                                 const uint64_t k_upper=LENGTH) {
 		Container::set(v1.__data, v2.__data, k_lower, k_upper);
 	}
 
@@ -177,7 +202,9 @@ public:
 	/// \param k_lower lower limit
 	/// \param k_upper upper limit
 	/// \return true/false
-	inline bool is_equal(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
+	constexpr inline bool is_equal(const Value_T &obj,
+	                               const uint32_t k_lower=0,
+	                               const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < k_upper);
 
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
@@ -193,26 +220,30 @@ public:
 	/// \param k_lower  lower limit
 	/// \param k_upper  upper limit
 	/// \return true/false
-	inline bool is_greater(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
+	constexpr inline bool is_greater(const Value_T &obj,
+	                                 const uint32_t k_lower=0,
+	                                 const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < k_upper);
 		return __data.is_greater(obj.data(), k_lower, k_upper);
 	}
 
 	/// same as "is_greater"
-	inline bool is_lower(const Value_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
+	constexpr inline bool is_lower(const Value_T &obj,
+	                               const uint32_t k_lower=0,
+	                               const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < k_upper);
 		return __data.is_lower(obj.data(), k_lower, k_upper);
 	}
 
 	/// \return true/false
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_equal(const Value_T &obj) const noexcept {
+	constexpr inline bool is_equal(const Value_T &obj) const noexcept {
 		return __data.template is_equal<k_lower, k_upper>(obj.__data);
 	}
 
 	/// \return this > obj between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_greater(const Value_T &obj) const noexcept {
+	constexpr inline bool is_greater(const Value_T &obj) const noexcept {
 		return __data.template is_greater<k_lower, k_upper>(obj.__data);
 	}
 
@@ -223,8 +254,12 @@ public:
 	}
 
 	/// print the data
-	void print(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) const noexcept { __data.print(k_lower, k_upper); }
+	void print(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) const noexcept {
+		__data.print(k_lower, k_upper);
+	}
 
+	///
+	/// \return
 	__FORCEINLINE__ constexpr static bool binary() noexcept { return Container::binary(); }
 	__FORCEINLINE__ constexpr static uint64_t size() noexcept { return Container::size(); }
 	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return Container::limbs(); }

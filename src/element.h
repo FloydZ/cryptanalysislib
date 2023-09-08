@@ -22,11 +22,16 @@ using namespace fplll;
 #if __cplusplus > 201709L
 template<class Value, class Label, class Matrix>
 concept ElementAble = requires(Value v, Label l) {
+	/// needed typedefs
 	typename Value::ContainerType;
 	typename Label::ContainerType;
 
 	requires ValueAble<typename Value::ContainerType>;
 	requires LabelAble<typename Label::ContainerType>;
+
+	/// needed variables.
+	Value::LENGTH;
+	Label::LENGTH;
 
 	// Value requirements
 	requires requires(const uint32_t i) {
@@ -36,15 +41,17 @@ concept ElementAble = requires(Value v, Label l) {
 		v.is_equal(v, i, i);
 		v.is_greater(v, i, i);
 		v.is_lower(v, i, i);
-		Value::add(v, v, v, i, i, i);
+		Value::add(v, v, v, i, i);
 		Value::sub(v, v, v, i, i);
 		Value::set(v, v, i, i);
 		Value::cmp(v, v, i, i);
 		v.neg(i, i);
-		v.print(i, i);
 		v.size();
 		v.data();
 		v.is_zero();
+
+		v.print(i, i);
+		v.print_binary(i, i);
 	};
 
 	// Label requirements
@@ -60,22 +67,24 @@ concept ElementAble = requires(Value v, Label l) {
 		Label::set(l, l, i, i);
 		Label::cmp(l, l, i, i);
 		l.neg(i, i);
-		l.print(i, i);
 		l.size();
 		l.data();
 		v.is_zero();
+
+		l.print(i, i);
+		l.print_binary(i, i);
 	};
 
 
 	// we also have to enforce the existence of some constexpr functions.
-	//{ Value::binary() } -> std::convertible_to<bool>;
-	//{ Value::size() } -> std::convertible_to<uint32_t>;
-	//{ Value::limbs() } -> std::convertible_to<uint32_t>;
-	//{ Value::bytes() } -> std::convertible_to<uint32_t>;
-	//{ Label::binary() } -> std::convertible_to<bool>;
-	//{ Label::size() } -> std::convertible_to<uint32_t>;
-	//{ Label::limbs() } -> std::convertible_to<uint32_t>;
-	//{ Label::bytes() } -> std::convertible_to<uint32_t>;
+	{ Value::binary() } -> std::convertible_to<bool>;
+	{ Value::size() } -> std::convertible_to<uint32_t>;
+	{ Value::limbs() } -> std::convertible_to<uint32_t>;
+	{ Value::bytes() } -> std::convertible_to<uint32_t>;
+	{ Label::binary() } -> std::convertible_to<bool>;
+	{ Label::size() } -> std::convertible_to<uint32_t>;
+	{ Label::limbs() } -> std::convertible_to<uint32_t>;
+	{ Label::bytes() } -> std::convertible_to<uint32_t>;
 };
 #endif
 
@@ -87,7 +96,7 @@ template<class Value, class Label, class Matrix>
 #endif
 class Element_T {
 public:
-	// Internal Datatypes
+	// Internal Datatype
 	typedef Value ValueType;
 	typedef Label LabelType;
 	typedef Matrix MatrixType;
@@ -171,7 +180,8 @@ public:
 	/// \param m
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
-	bool is_correct(const Matrix_T<Matrix> &m, const bool rewrite=false) const noexcept {
+	constexpr bool is_correct(const Matrix_T<Matrix> &m,
+	                		 const bool rewrite=false) const noexcept {
     	Label tmp = label;
     	recalculate_label(m);
 
@@ -194,17 +204,23 @@ public:
     /// \return 	'true' if the elements needs to be filtered out. E.g. it \exists a coordinate r s.t. |Value[r]| > norm.
     ///					it also stops the calculation so the result __MUST__ __NOT__ be correct in this case.
     ///				else 'false'
-    static bool add(Element_T &e3, Element_T const &e1, Element_T const &e2,
-                    const uint32_t k_lower, const uint32_t k_upper, const uint32_t norm=-1) noexcept {
+    constexpr static bool add(Element_T &e3,
+	                          Element_T const &e1,
+	                          Element_T const &e2,
+	                          const uint32_t k_lower,
+	                          const uint32_t k_upper,
+	                          const uint32_t norm=-1) noexcept {
         Label::add(e3.label, e1.label, e2.label, k_lower, k_upper);
 	    return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
     }
 
 	/// same as the function above but always return false, meaning to NOT filter out this element.
 	///  Useful if you do not want to filter in your tree and want additional performance.
-	static void add(Element_T &e3, Element_T const &e1, Element_T const &e2) noexcept {
-		LabelContainerType::add(e3.label.data(), e1.label.data(), e2.label.data());
-		ValueContainerType::add(e3.value.data(), e1.value.data(), e2.value.data());
+	constexpr static void add(Element_T &e3,
+	                          Element_T const &e1,
+	                          Element_T const &e2) noexcept {
+		LabelContainerType::add(e3.label, e1.label, e2.label);
+		ValueContainerType::add(e3.value, e1.value, e2.value);
 	}
 
     /// checks if this.label == obj.label on the coordinates [k_lower, k_upper]
@@ -212,40 +228,40 @@ public:
     /// \param k_lower  lower coordinate
     /// \param k_upper  higher coordinate
     /// \return true/false
-    inline bool is_equal(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
+    constexpr inline bool is_equal(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
 	    // No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
 		return label.is_equal(obj.label, k_lower, k_upper);
     }
 
 	/// \return this->label > obj.label between the coordinates [k_lower, ..., k_upper]
-	inline bool is_greater(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
+	constexpr inline bool is_greater(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_greater(...)'
 		return label.is_greater(obj.label, k_lower, k_upper);
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
-    inline bool is_lower(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
+    constexpr inline bool is_lower(const Element_T &obj, const uint32_t k_lower=0, const uint32_t k_upper=LabelLENGTH) const noexcept {
 	    // No need to assert, because everything will be done inside the called function 'value.is_lower(...)'
         return label.is_lower(obj.label, k_lower, k_upper);
     }
 
 	/// \return true/false
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_equal(const Element_T &obj) const noexcept {
+	constexpr inline bool is_equal(const Element_T &obj) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
 		return label.template is_equal<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label > obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_greater(const Element_T &obj) const noexcept {
+	constexpr inline bool is_greater(const Element_T &obj) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_greater(...)'
 		return label.template is_greater<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	inline bool is_lower(const Element_T &obj) const noexcept {
+	constexpr inline bool is_lower(const Element_T &obj) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_lower(...)'
 		return label.template is_lower<k_lower, k_upper>(obj.label);
 	}
@@ -268,7 +284,7 @@ public:
 
 	///
 	/// \return true if either the value or label is zero on all coordinates
-	bool is_zero() const noexcept {
+	[[nodiscard]] constexpr bool is_zero() const noexcept {
 		bool ret = false;
 
 		ret |= value.is_zero();
@@ -330,7 +346,7 @@ public:
 	__FORCEINLINE__ const auto* get_label_container_ptr() const noexcept { return label.data().data().data(); }
 	__FORCEINLINE__ const auto* get_value_container_ptr() const noexcept { return value.data().data().data(); }
 
-private:
+public:
 	Label label;
 	Value value;
 };

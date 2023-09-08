@@ -54,7 +54,6 @@ class ListEnumerationFqMultiFullLength {
 public:
 	/// needed type definitions
 	using List = ListType;
-	//using LabelType = typename ListType::ElementType;
 	using ElementType = typename ListType::ElementType;
 
 	/// needed variables
@@ -166,6 +165,7 @@ public:
 		return false;
 	}
 
+	/// this version is special made for fq prange
 	/// q-1 Symbols on the full length
 	/// the reason this function takes the list is, that different enumeration strategies
 	/// need a different amount of lists
@@ -178,8 +178,6 @@ public:
 	/// \param size_limit
 	template<class MatrixT>
 	void multiFullLength(List &L1, const MatrixT &HT, const size_t size_limit) noexcept {
-		L1.clear();
-
 		LabelType vec, tmp;
 		vec.zero();
 
@@ -271,6 +269,96 @@ public:
 			LabelType::scalar(tmp, HT.get(a), q-tmp_vec[a]);
 			LabelType::add(vec, vec, tmp);
 			LabelType::add(vec, vec, HT.get(b));
+			tmp_vec[a] = 0;
+			tmp_vec[b] = 1;
+		}
+	}
+
+
+	/// this version is special made for fq siebing
+	/// q-1 Symbols on the full length
+	/// the reason this function takes the list is, that different enumeration strategies
+	/// need a different amount of lists
+	/// \tparam MatrixT
+	/// \tparam n length to enumerate (this is not the code length)
+	/// \tparam q field size
+	/// \tparam w max hamming weight to enumerate
+	/// \param L1 output list
+	/// \param HT
+	/// \param size_limit
+	template<class MatrixT, typename Element, class HashMap>
+	void multiFullLengthSieving(List &L1,
+	                            const MatrixT &HT,
+	                            HashMap *hm,
+	                            const size_t size_limit) noexcept {
+		LabelType tmp;
+		Element vec;
+		vec.zero();
+
+		/// hashmap stuff
+		uint32_t tid = 0;
+		using IndexType = HashMap::IndexType;
+		using LPartType = HashMap::T;
+		IndexType npos[1];
+
+		/// compute the first element
+		for (uint32_t i = 0; i < w; ++i) {
+			vec.value[i] = 1u;
+			LabelType::add(vec.label, vec.label, HT.get(i));
+		}
+
+
+		std::vector<uint32_t> current_set(w, 0);
+		for (uint32_t i = 0; i < w; ++i) {
+			current_set[i] = i;
+		}
+
+		size_t ctr = 0;
+
+		/// iterate over all
+		for (uint32_t i = 0; i < chase_size; ++i) {
+			for (uint32_t j = 0; j < gray_size-1; ++j) {
+				/// TODO ugly
+				/// ein weg das ganze zu anbstrahiern ist eine `extractor class`
+				/// es gibt dann fuer jede der 3 funktionen in dieser klasse eine eigene API
+				const LPartType data = *((LPartType *)(vec.label.data().data()));
+				npos[0] = ctr;
+				hm->insert(data, npos, tid);
+				L1[ctr++] = vec;
+				if (ctr >= size_limit) {
+					return;
+				}
+
+				const uint32_t cs = current_set[gray_cl[j]];
+				vec.value[cs] = (tmp_vec[cs] + 1) % q;
+				LabelType::add(vec.label, vec.label, HT.get(cs));
+
+				/// NOTE: this is stupid, but needed. The gray code enumeration
+				/// also enumerates zeros. Therefore we need to fix them
+				if (tmp_vec[cs] == 0) {
+					vec.value[cs] += 1;
+					LabelType::add(vec.label, vec.label, HT.get(cs));
+				}
+			}
+
+			const LPartType data = *((LPartType *)(vec.label.data().data()));
+			npos[0] = ctr;
+			hm->insert(data, npos, tid);
+			L1[ctr++] = vec;
+			if (ctr >= size_limit) {
+				return;
+			}
+
+			/// advance the current set by one
+			const uint32_t j = chase_cl[i].first;
+			ASSERT(j < w);
+			const uint32_t a = current_set[j];
+			const uint32_t b = chase_cl[i].second;
+			current_set[j] = b;
+
+			LabelType::scalar(tmp, HT.get(a), q-tmp_vec[a]);
+			LabelType::add(vec.label, vec.label, tmp);
+			LabelType::add(vec.label, vec.label, HT.get(b));
 			tmp_vec[a] = 0;
 			tmp_vec[b] = 1;
 		}
