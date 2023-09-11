@@ -297,8 +297,8 @@ public:
 
 		/// hashmap stuff
 		uint32_t tid = 0;
-		using IndexType = HashMap::IndexType;
-		using LPartType = HashMap::T;
+		using IndexType = typename HashMap::IndexType;
+		using LPartType = typename HashMap::T;
 		IndexType npos[1];
 
 		/// compute the first element

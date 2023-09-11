@@ -489,6 +489,9 @@ public:
 		__data[j] = tmp;
 	}
 
+	/// TODO check the following things:
+	/// 	- is transposing really faster?
+	/// 	- one can skip the first transpose, if one applies the additional permutation also in `fix_gaus`
 	/// choose and apply a new random permutation
 	/// \param AT transposed matrix
 	/// \param permutation given permutation (is overwritten)
@@ -974,4 +977,5 @@ public:
 		}
 	}
 };
+
 #endif//DECODING_MATRIX_H

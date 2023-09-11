@@ -80,7 +80,7 @@ struct uint8x32_t {
 
 	///
 	/// \return
-	static inline uint8x32_t random(){
+	static inline uint8x32_t random() {
 		uint8x32_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -89,7 +89,7 @@ struct uint8x32_t {
 	///
 	/// \param binary
 	/// \param hex
-	constexpr inline void print(bool binary=false, bool hex=false);
+	constexpr inline void print(bool binary=false, bool hex=false) const;
 
 	///
 	/// \param __q31
@@ -318,6 +318,34 @@ struct uint8x32_t {
 		out.v256 = _mm256_xor_si256(tho, out.v256);
 		return out;
 	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x32_t slli(const uint8x32_t in1,
+														  const uint8_t in2) {
+		ASSERT(in2 <= 8);
+		uint8x32_t out;
+		uint8x32_t mask = set1((1u << in2) - 1u);
+		out = uint8x32_t::and_(in1, mask);
+		out.v256 = _mm256_slli_epi16(out.v256, in2);
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x32_t slri(const uint8x32_t in1,
+														  const uint8_t in2) {
+		ASSERT(in2 <= 8);
+		const uint8x32_t mask = set1( ((1u << (8u-in2)) - 1u) << in2);
+		uint8x32_t out;
+		out = uint8x32_t::and_(in1, mask);
+		out.v256 = _mm256_srli_epi16(out.v256, in2);
+		return out;
+	}
 };
 
 struct uint16x16_t {
@@ -340,7 +368,7 @@ struct uint16x16_t {
 	///
 	/// \param binary
 	/// \param hex
-	inline void print(bool binary=false, bool hex=false);
+	inline void print(bool binary=false, bool hex=false) const;
 
 	///
 	/// \param a
@@ -518,7 +546,7 @@ struct uint32x8_t {
 	///
 	/// \param binary
 	/// \param hex
-	inline void print(bool binary=false, bool hex=false);
+	inline void print(bool binary=false, bool hex=false) const;
 
 	///
 	/// \param a
@@ -696,7 +724,7 @@ struct uint64x4_t {
 	///
 	/// \param binary
 	/// \param hex
-	inline void print(bool binary=false, bool hex=false);
+	inline void print(bool binary=false, bool hex=false) const;
 
 	///
 	/// \param a

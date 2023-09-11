@@ -98,8 +98,15 @@ inline uint8x32_t operator~ (const uint8x32_t& lhs) {
 	return uint8x32_t::not_(lhs);
 }
 
+inline uint8x32_t operator>> (const uint8x32_t& lhs, const uint32_t rhs) {
+	return uint8x32_t::slri(lhs, rhs);
+}
+inline uint8x32_t operator<< (const uint8x32_t& lhs, const uint32_t rhs) {
+	return uint8x32_t::slli(lhs, rhs);
+}
+
 /// functions which are shared among all implementations.
-constexpr inline void uint8x32_t::print(bool binary, bool hex){
+constexpr inline void uint8x32_t::print(bool binary, bool hex) const {
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 
@@ -125,7 +132,7 @@ constexpr inline void uint8x32_t::print(bool binary, bool hex){
 	printf("\n");
 }
 
-inline void uint16x16_t::print(bool binary, bool hex){
+inline void uint16x16_t::print(bool binary, bool hex) const {
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 
@@ -151,7 +158,7 @@ inline void uint16x16_t::print(bool binary, bool hex){
 	printf("\n");
 }
 
-inline void uint32x8_t::print(bool binary, bool hex){
+inline void uint32x8_t::print(bool binary, bool hex) const {
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 
@@ -177,7 +184,7 @@ inline void uint32x8_t::print(bool binary, bool hex){
 	printf("\n");
 }
 
-inline void uint64x4_t::print(bool binary, bool hex){
+inline void uint64x4_t::print(bool binary, bool hex) const {
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 
