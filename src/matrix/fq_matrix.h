@@ -47,7 +47,7 @@ template<typename T,
          const uint32_t nrows,
          const uint32_t ncols,
          const uint32_t q,
-         const bool packed=true>
+         const bool packed=false>
 class FqMatrix_Meta {
 public:
 	static constexpr uint32_t ROWS = nrows;
@@ -55,8 +55,8 @@ public:
 
 	// Types
 	using RowType = typename std::conditional<packed,
-	                                          kAryContainer_T<T, ncols, q>,
-	                                          kAryPackedContainer_T<T, ncols, q>
+	                                          kAryPackedContainer_T<T, ncols, q>,
+	                                          kAryContainer_T<T, ncols, q>
 	                                          >::type;
 	using DataType = typename RowType::DataType;
 	using InternalRowType = RowType;
@@ -178,6 +178,30 @@ public:
 	constexpr void random() noexcept {
 		for (uint32_t row = 0; row < nrows; ++row) {
 			__data[row].random();
+		}
+	}
+
+	/// simple additions
+	/// \param out output
+	/// \param in1 input
+	/// \param in2 input
+	constexpr static void add(FqMatrix_Meta &out,
+	                          const FqMatrix_Meta &in1,
+	                          const FqMatrix_Meta &in2) noexcept {
+		for (uint32_t i = 0; i < nrows; ++i) {
+			RowType::add(out.__data[i], in1.get(i), in2.get(i));
+		}
+	}
+
+	/// simple subtract
+	/// \param out output
+	/// \param in1 input
+	/// \param in2 input
+	constexpr static void sub(FqMatrix_Meta &out,
+							  const FqMatrix_Meta &in1,
+							  const FqMatrix_Meta &in2) noexcept {
+		for (uint32_t i = 0; i < nrows; ++i) {
+			RowType::sub(out.__data[i], in1.get(i), in2.get(i));
 		}
 	}
 
@@ -324,7 +348,7 @@ public:
 	}
 
 	/// simple gaussian elimination
-	/// \param stop
+	/// \param stop stop the elimination in the following row
 	/// \return
 	[[nodiscard]] constexpr uint32_t gaus(const uint32_t stop = -1) noexcept {
 		const std::size_t  m = ncols -1;
@@ -436,6 +460,59 @@ public:
 		}
 #endif
 		return b;
+	}
+
+	/// TODO currently not implemented
+	/// \tparam r
+	/// \param r_stop
+	/// \return
+	template<const uint32_t r>
+	constexpr uint32_t m4ri(const uint32_t r_stop) noexcept {
+		static_assert(r > 0);
+		constexpr uint32_t qm1 = q-1;
+		ASSERT(false);
+
+		/// computes q**r
+		constexpr auto compute_size = [](){
+			size_t tmp = qm1;
+			for (uint32_t i = 0; i < r - 1; i++) {
+				tmp *= qm1;
+			}
+
+			return tmp;
+		};
+
+		/// data container
+		//static RowType buckets[compute_size()];
+
+		///
+		constexpr auto compute_index =
+		        [&](const size_t row_index, const size_t col_index) {
+			size_t ret = 0;
+			for (uint32_t i = 0; i < r; ++i) {
+
+			}
+		};
+
+		/// init the buckets
+		constexpr auto init = [&](const uint32_t start_row) {
+			ASSERT(start_row + r <= nrows);
+			for (uint32_t i = 0; i < qm1; ++i) {
+				size_t offset = 0;
+
+				// simply copy each row
+				for (uint32_t j = 0; j < r; ++j) {
+					//buckets[offset] = get(start_row + j);
+					offset += q;
+				}
+
+				for (uint32_t j = 0; j < r; ++j) {
+
+				}
+			}
+		};
+
+		return 0;
 	}
 
 	/// swap to elements within the matrix

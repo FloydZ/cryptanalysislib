@@ -511,26 +511,11 @@ class kAryPackedContainer_Meta {
 	/// prints between [k_lower, k_upper )
 	/// \param k_lower lower limit
 	/// \param k_upper upper limit
-	void print(const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << unsigned(get(i));
 		}
-		std::cout << "\n";
-	}
-
-	/// prints also ternary
-	/// \tparam TT
-	/// \param in
-	template<typename TT>
-	static void print(const TT in) noexcept {
-		constexpr static TT mask = (TT(1u) << bits_per_number)-1;
-		TT data = in;
-		for (int i = 0; i < (sizeof(TT)*8/bits_per_number); ++i) {
-			std::cout << unsigned(data&mask);
-			data >>= bits_per_number;
-		}
-
 		std::cout << "\n";
 	}
 
@@ -539,10 +524,10 @@ class kAryPackedContainer_Meta {
 	/// \param k_lower inclusive
 	/// \param k_higher exclusive
 	void static print_binary(const uint64_t data,
-	                         const uint16_t k_lower,
-	                         const uint16_t k_higher) noexcept {
+	                         const uint16_t k_lower=0,
+	                         const uint16_t k_higher=LENGTH) noexcept {
 		uint64_t d = data;
-		for (int i = k_lower; i < k_higher; ++i) {
+		for (uint32_t i = k_lower; i < k_higher; ++i) {
 			std::cout << unsigned(d&1);
 			std::cout << unsigned((d>>1)&1);
 			d >>= 2;
@@ -553,8 +538,8 @@ class kAryPackedContainer_Meta {
 	/// print the `pos
 	/// \param k_lower inclusive
 	/// \param k_higher exclusive
-	void print_binary(const uint32_t k_lower, const uint32_t k_higher) const noexcept {
-		for (int i = k_lower; i < k_higher; ++i) {
+	void print_binary(const uint32_t k_lower=0, const uint32_t k_higher=LENGTH) const noexcept {
+		for (uint32_t i = k_lower; i < k_higher; ++i) {
 			std::cout << unsigned(get(i)&1);
 			std::cout << unsigned((get(i)>>1)&1);
 		}
@@ -571,7 +556,7 @@ class kAryPackedContainer_Meta {
 	/// \param i
 	/// \return
 	DataType operator [](size_t i) noexcept {
-		ASSERT(i < LENGTH && "wrong access index");
+		ASSERT(i < LENGTH );
 		return get(i);
 	}
 
@@ -579,7 +564,7 @@ class kAryPackedContainer_Meta {
 	/// \param i
 	/// \return
 	DataType operator [](const size_t i) const noexcept {
-		ASSERT(i < LENGTH && "wrong access index");
+		ASSERT(i < LENGTH );
 		return get(i);
 	};
 

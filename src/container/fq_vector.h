@@ -94,11 +94,11 @@ public:
 
 	/// calculate the hamming weight
 	/// \return the hamming weight
-	[[nodiscard]] constexpr inline uint32_t weight() const noexcept {
+	[[nodiscard]] constexpr inline uint32_t weight(const uint32_t l=0, const uint32_t h=LENGTH) const noexcept {
 		uint32_t r = 0;
 
 		LOOP_UNROLL();
-		for (uint32_t i = 0; i < LENGTH; ++i) {
+		for (uint32_t i = l; i < h; ++i) {
 			if (__data[i] > 0)
 				r += 1u;
 		}
@@ -364,8 +364,8 @@ public:
 	constexpr bool is_greater(kAryContainerMeta const &obj,
 					const uint32_t k_lower=0,
 					const uint32_t k_upper=LENGTH) const noexcept {
-		ASSERT(k_upper <= LENGTH && "ERROR is_greater not correct k_upper");
-		ASSERT(k_lower < k_upper && "ERROR is_greater not correct k_lower");
+		ASSERT(k_upper <= LENGTH);
+		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
@@ -385,8 +385,8 @@ public:
 	constexpr bool is_lower(kAryContainerMeta const &obj,
 				  const uint32_t k_lower=0,
 				  const uint32_t k_upper=LENGTH) const noexcept {
-		ASSERT(k_upper <= LENGTH && "ERROR is_lower not correct k_upper");
-		ASSERT(k_lower < k_upper && "ERROR is_lower not correct k_lower");
+		ASSERT(k_upper <= LENGTH);
+		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
@@ -460,11 +460,11 @@ public:
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
 	T& operator [](const size_t i) noexcept {
-		ASSERT(i < LENGTH && "wrong access index");
+		ASSERT(i < LENGTH);
 		return __data[i];
 	}
 	const T& operator [](const size_t i) const noexcept {
-		ASSERT(i < LENGTH && "wrong access index");
+		ASSERT(i < LENGTH);
 		return __data[i];
 	};
 
@@ -480,7 +480,7 @@ public:
 				data >>= 1;
 			}
 		}
-		std::cout << "\n";
+		std::cout << std::endl;
 	}
 
 	/// prints this container between the limbs [k_lower, k_higher)
@@ -491,7 +491,7 @@ public:
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << (unsigned)__data[i] << " ";
 		}
-		std::cout << "\n";
+		std::cout << std::endl;
 	}
 
 	/// iterators
@@ -618,8 +618,9 @@ private:
 	static constexpr __uint128_t mask_4 = (__uint128_t(0x0303030303030303ULL) << 64UL) | (__uint128_t(0x0303030303030303ULL));
 	static constexpr __uint128_t mask_q = (__uint128_t(0x0404040404040404ULL) << 64UL) | (__uint128_t(0x0404040404040404ULL));
 
-	public:
+public:
 
+	/// TODO all these functions should be implemented in the base class too
 	/// mod operations
 	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
@@ -629,6 +630,14 @@ private:
 		return a & mask_4;
 	}
 
+	/// mod operations
+	/// \tparam T type (probably uint64_t or uint32_t)
+	/// \param a
+	/// \return a%q, component wise
+	template<typename T>
+	[[nodiscard]] constexpr static inline T neg_T(const T a) noexcept {
+		return (mask_q - a) & mask_4;
+	}
 	///
 	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
@@ -759,7 +768,9 @@ private:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
+	static inline void add(kAryContainer_T &out,
+	                       const kAryContainer_T &in1,
+	                       const kAryContainer_T &in2) noexcept {
 		add(out.__data.data(), in1.__data.data(), in2.__data.data());
 	}
 

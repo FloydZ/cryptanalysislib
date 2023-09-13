@@ -3,6 +3,17 @@
 
 #include "list/common.h"
 
+template<class InnerElement, const uint32_t nri>
+class Parallel_List_IndexElement_Wrapper_T {
+public:
+	using LabelType = typename InnerElement::LabelType;
+
+	/// additional Typedefs
+	using IndexType = std::array<uint32_t, nri>;
+	using InternalElementType = std::pair<LabelType, IndexType>;
+};
+
+
 /// nearly the same as
 ///		 `Parallel_List_T`
 /// with the main difference that this list only saves the label,
@@ -10,217 +21,77 @@
 /// NOTE: does not track the load
 /// \tparam Element
 template<class Element, uint32_t nri>
-#if __cplusplus > 201709L
-	requires ListElementAble<Element>
-#endif
-class Parallel_List_IndexElement_T {
-private:
-	// disable the empty constructor. So you have to specify a rough size of the list. This is for optimisations reasons.
-	Parallel_List_IndexElement_T() : nr_elements(0) {};
-
+class Parallel_List_IndexElement_T :
+	public MetaListT<Element>
+{
 public:
-	/// Basic typedefs
-	typedef Element ElementType;
-	typedef typename ElementType::ValueType ValueType;
-	typedef typename ElementType::LabelType LabelType;
-
-	typedef typename ElementType::ValueContainerType ValueContainerType;
-	typedef typename ElementType::LabelContainerType LabelContainerType;
-
-	typedef typename ElementType::ValueContainerLimbType ValueContainerLimbType;
-	typedef typename ElementType::LabelContainerLimbType LabelContainerLimbType;
-
-	typedef typename ElementType::ValueDataType ValueDataType;
-	typedef typename ElementType::LabelDataType LabelDataType;
-
-	typedef typename ElementType::MatrixType MatrixType;
+	/// needed typedefs
+	using typename MetaListT<Element>::ElementType;
+	using typename MetaListT<Element>::ValueType;
+	using typename MetaListT<Element>::LabelType;
+	using typename MetaListT<Element>::ValueContainerLimbType;
+	using typename MetaListT<Element>::LabelContainerLimbType;
+	using typename MetaListT<Element>::ValueContainerType;
+	using typename MetaListT<Element>::LabelContainerType;
+	using typename MetaListT<Element>::ValueDataType;
+	using typename MetaListT<Element>::LabelDataType;
+	using typename MetaListT<Element>::MatrixType;
 
 	/// additional Typedefs
 	using IndexType = std::array<uint32_t, nri>;
 	using InternalElementType = std::pair<LabelType, IndexType>;
 
-	/// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
-	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
+	/// needed values
+	using MetaListT<Element>::__load;
+	using MetaListT<Element>::__size;
+	using MetaListT<Element>::__threads;
+	using MetaListT<Element>::__thread_block_size;
 
-	///
-	constexpr ~Parallel_List_IndexElement_T() noexcept {}
+	using MetaListT<Element>::ValueLENGTH;
+	using MetaListT<Element>::LabelLENGTH;
+
+	using MetaListT<Element>::ElementBytes;
+	using MetaListT<Element>::ValueBytes;
+	using MetaListT<Element>::LabelBytes;
+
+	/// needed functions
+	using MetaListT<Element>::size;
+	using MetaListT<Element>::set_size;
+	using MetaListT<Element>::threads;
+	using MetaListT<Element>::set_threads;
+	using MetaListT<Element>::thread_block_size;
+	using MetaListT<Element>::set_thread_block_size;
+	using MetaListT<Element>::resize;
+	using MetaListT<Element>::load;
+	using MetaListT<Element>::set_load;
+	using MetaListT<Element>::start_pos;
+	using MetaListT<Element>::end_pos;
+	using MetaListT<Element>::data;
+	using MetaListT<Element>::data_value;
+	using MetaListT<Element>::data_label;
+	using MetaListT<Element>::at;
+	using MetaListT<Element>::set;
+	using MetaListT<Element>::print;
+	using MetaListT<Element>::print_binary;
+	using MetaListT<Element>::begin;
+	using MetaListT<Element>::end;
+	using MetaListT<Element>::zero;
+	using MetaListT<Element>::erase;
+
+private:
+	// disable the empty constructor. So you have to specify a rough size of the list. This is for optimisations reasons.
+	Parallel_List_IndexElement_T() : MetaListT<Element>() {};
+
+public:
 
 	/// \param size total number of elements in the list
 	/// \param threads
 	/// \param thread_block
 	constexpr explicit Parallel_List_IndexElement_T(const size_t size,
-										  			const uint32_t threads,
-										  			const size_t thread_block) noexcept :
-			nr_elements(size), thread_block(thread_block), threads(threads)
+										  			const uint32_t threads) noexcept :
+	       MetaListT<Element>(size, threads, false)
 	{
-		ASSERT(threads > 0);
-		ASSERT(size > 0);
-		ASSERT(thread_block > 0);
-		ASSERT(thread_block <= size);
 		__data.resize(size);
-	}
-
-	/// \return size the size of the list
-	[[nodiscard]] constexpr size_t size() const noexcept { return nr_elements; }
-	/// \return the number of elements each thread enumerates
-	[[nodiscard]] constexpr inline size_t size(const uint32_t tid) const noexcept { return thread_block; }
-
-	/// Useless function, as this list class does not track its load
-	[[nodiscard]] constexpr size_t get_load() const noexcept { return 0; }
-	constexpr void set_load(const size_t l) noexcept { (void)l; }
-
-	// returning the range in which one thread is allowed to operate
-	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid) const noexcept { ASSERT(tid < threads); return tid * thread_block; };
-	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid) const noexcept  { ASSERT(tid < threads); return (tid+1) * thread_block; };
-
-	/// useless, as not really implementable, so actually they return the index
-	inline auto& data_value(const size_t i) noexcept {  ASSERT(i < nr_elements); return __data[i].second; }
-	inline const auto& data_value(const size_t i) const noexcept { ASSERT(i < nr_elements); return __data[i].second; }
-	/// Only these function do make sense
-	inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < nr_elements); return __data[i].first; }
-	inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < nr_elements); return __data[i].first; }
-
-	/// operator overloading
-	constexpr inline Element &at(const size_t i) noexcept {
-		ASSERT(i < size());
-		return this->__data[i];
-	}
-	constexpr inline const Element &at(const size_t i) const noexcept {
-		ASSERT(i <size());
-		return this->__data[i];
-	}
-	inline Element &operator[](const size_t i) noexcept { ASSERT(i < size()); return this->__data[i]; }
-	const inline Element &operator[](const size_t i) const noexcept {ASSERT(i < size()); return this->__data[i]; }
-
-	/// print the `pos` element
-	/// 	label between [label_k_lower, label_k_upper)
-	/// 	value between [value_k_lower, value_k_upper)
-	/// \param pos position of the element in the list to print
-	/// \param value_k_lower inclusive
-	/// \param value_k_higher exclusive
-	/// \param label_k_lower inclusive
-	/// \param label_k_higher exclusive
-	void print_binary(const uint64_t pos,
-					  const uint32_t value_k_lower,
-					  const uint32_t value_k_higher,
-					  const uint32_t label_k_lower,
-					  const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
-
-		std::cout << data_value(pos) << std::endl;
-		data_label(pos).print_binary(label_k_lower, label_k_higher);
-	}
-
-	/// print the `pos` element
-	/// 	label between [label_k_lower, label_k_upper)
-	/// 	value between [value_k_lower, value_k_upper)
-	/// \param pos position of the element in the list to print
-	/// \param value_k_lower inclusive
-	/// \param value_k_higher exclusive
-	/// \param label_k_lower inclusive
-	/// \param label_k_higher exclusive
-	void print(const uint64_t pos,
-			   const uint32_t value_k_lower,
-			   const uint32_t value_k_higher,
-			   const uint32_t label_k_lower,
-			   const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
-
-		std::cout << data_value(pos) << std::endl;
-		data_label(pos).print(label_k_lower, label_k_higher);
-	}
-
-	/// print the element between [start, end) s.t.:
-	/// 	label between [label_k_lower, label_k_upper)
-	/// 	value between [value_k_lower, value_k_upper)
-	/// \param pos position of the element in the list to print
-	/// \param value_k_lower inclusive
-	/// \param value_k_higher exclusive
-	/// \param label_k_lower inclusive
-	/// \param label_k_higher exclusive
-	void print(const uint32_t value_k_lower,
-			   const uint32_t value_k_higher,
-			   const uint32_t label_k_lower,
-			   const uint32_t label_k_higher,
-			   const size_t start,
-			   const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= nr_elements);
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
-
-		for (size_t i = start; i < end; ++i) {
-			print(i, value_k_lower, value_k_higher,
-				  label_k_lower, label_k_higher);
-		}
-	}
-
-	/// print the element binary between [start, end) s.t.:
-	/// 	label between [label_k_lower, label_k_upper)
-	/// 	value between [value_k_lower, value_k_upper)
-	/// \param pos position of the element in the list to print
-	/// \param value_k_lower inclusive
-	/// \param value_k_higher exclusive
-	/// \param label_k_lower inclusive
-	/// \param label_k_higher exclusive
-	void print_binary(const uint32_t value_k_lower,
-					  const uint32_t value_k_higher,
-					  const uint32_t label_k_lower,
-					  const uint32_t label_k_higher,
-					  const size_t start,
-					  const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= nr_elements);
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
-
-		for (size_t i = start; i < end; ++i) {
-			print_binary(i, value_k_lower, value_k_higher,
-						 label_k_lower, label_k_higher);
-		}
-	}
-
-	/// copy operator
-	/// \param other
-	/// \return
-	inline Parallel_List_IndexElement_T& operator=(const Parallel_List_IndexElement_T& other) noexcept {
-		// Guard self assignment
-		if (this == &other)
-			return *this;
-
-		nr_elements = other.size();
-		thread_block = other.thread_block;
-		threads = other.threads;
-
-		memcpy(__data, other.data(), nr_elements*sizeof(InternalElementType));
-		return *this;
-	}
-
-	/// copy function
-	/// \param out
-	/// \param in
-	/// \param tid
-	inline void static copy(Parallel_List_IndexElement_T &out,
-	                        const Parallel_List_IndexElement_T &in,
-	                        const uint32_t tid) noexcept {
-		out.nr_elements = in.size();
-		out.thread_block = in.thread_block;
-
-		const std::size_t s = in.start_pos(tid);
-		const std::size_t c = in.end_pos(tid);
-
-		memcpy(out.__data+s, in.__data+s, c*sizeof(InternalElementType));
 	}
 
 	/// not implemented
@@ -232,7 +103,7 @@ public:
 	/// \param tid thread number
 	/// \param sym byte to overwrite the memory with.
 	void zero(const uint32_t tid, const uint8_t sym=0) noexcept {
-		ASSERT(tid < threads);
+		ASSERT(tid < threads());
 
 		uint64_t s = start_pos(tid);
 		uint64_t l = end_pos(tid) - s;
@@ -242,7 +113,7 @@ public:
 	/// zero out the i-th element.
 	/// \param i
 	void zero_element(size_t i) noexcept {
-		ASSERT(i < nr_elements);
+		ASSERT(i < size());
 		__data[i].first.zero();
 		__data[i].second = 0;
 	}
@@ -263,7 +134,7 @@ public:
 	                           const uint32_t tid) noexcept {
 		ASSERT(tid < threads);
 
-		if (load >= thread_block)
+		if (load >= thread_block_size())
 			return;
 
 		LabelType::add(__data[start_pos(tid) + load].first, l1, l2);
@@ -271,26 +142,6 @@ public:
 		__data[start_pos(tid) + load].second[1] = i2;
 		load += 1;
 	}
-
-	/// some useful stuff
-	auto begin() noexcept { return __data.begin(); }
-	auto end() noexcept { return __data.end(); }
-
-	/// return the number of bytes needed for this list
-	[[nodiscard]] constexpr uint64_t bytes() const noexcept {
-		return __data.size() * sizeof(InternalElementType);
-	}
-
-public:
-
-	/// total numbers of elements the list can holds
-	size_t nr_elements;
-
-	/// number of elements each thread needs to handle
-	size_t thread_block;
-
-	/// number of threads, which can access the list in parallel
-	uint32_t threads;
 
 	/// data container
 	alignas(PAGE_SIZE) std::vector<InternalElementType> __data;

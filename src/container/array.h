@@ -5,7 +5,7 @@
 #include <initializer_list>
 #include <type_traits>
 #include <utility>
-#include <assert.h>
+#include <cassert>
 
 #include "helper.h"
 

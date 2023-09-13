@@ -39,7 +39,7 @@ concept ValueListEnumerationFqAble =  requires(Container c) {
 /// \tparam LabelType
 /// \tparam ValueType
 /// \tparam n
-/// \tparam q
+/// \tparam q base field size
 /// \tparam w weight to enumerate, this is *NOT* the w of the challenge
 template<class ListType,
          class LabelType,
@@ -285,15 +285,22 @@ public:
 	/// \tparam w max hamming weight to enumerate
 	/// \param L1 output list
 	/// \param HT
+	/// \param hm
 	/// \param size_limit
-	template<class MatrixT, typename Element, class HashMap>
+	/// \param e  /// TODO das alles mal genau formulieren in concepts
+	/// \param h
+	template<class MatrixT, typename Element, class HashMap, typename Extractor>
 	void multiFullLengthSieving(List &L1,
 	                            const MatrixT &HT,
 	                            HashMap *hm,
-	                            const size_t size_limit) noexcept {
+	                            const size_t size_limit,
+	                            LabelType &syndrome,
+	                            Extractor &e) noexcept {
 		LabelType tmp;
 		Element vec;
 		vec.zero();
+		/// add the syndrome
+		vec.label = syndrome;
 
 		/// hashmap stuff
 		uint32_t tid = 0;
@@ -303,7 +310,7 @@ public:
 
 		/// compute the first element
 		for (uint32_t i = 0; i < w; ++i) {
-			vec.value[i] = 1u;
+			vec.value.set(1, i);
 			LabelType::add(vec.label, vec.label, HT.get(i));
 		}
 
@@ -313,16 +320,42 @@ public:
 			current_set[i] = i;
 		}
 
+		auto check = [&]() {
+#ifdef DEBUG
+			//vec.print();
+			/// TEST for correctness
+			auto H = HT.transpose();
+			LabelType tmpl;
+			H.matrix_row_vector_mul2(tmpl, vec.value);
+			LabelType::add(tmpl, tmpl, syndrome);
+
+			if (!tmpl.is_equal(vec.label)) {
+				tmpl.print();
+				vec.print();
+				std::cout <<std::endl;
+				HT.print();
+			}
+
+			ASSERT(tmpl.is_equal(vec.label));
+
+			uint32_t tmp_vec_ctr = vec.value.weight();
+			if (tmp_vec_ctr != w) {
+				vec.print();
+			}
+			ASSERT(tmp_vec_ctr == w);
+#endif
+		};
+
 		size_t ctr = 0;
 
 		/// iterate over all
+		/// TODO chase size is not fully correct
 		for (uint32_t i = 0; i < chase_size; ++i) {
 			for (uint32_t j = 0; j < gray_size-1; ++j) {
-				/// TODO ugly
-				/// ein weg das ganze zu anbstrahiern ist eine `extractor class`
-				/// es gibt dann fuer jede der 3 funktionen in dieser klasse eine eigene API
-				const LPartType data = *((LPartType *)(vec.label.data().data()));
+				check();
+
 				npos[0] = ctr;
+				const LPartType data = e(vec.label);
 				hm->insert(data, npos, tid);
 				L1[ctr++] = vec;
 				if (ctr >= size_limit) {
@@ -330,21 +363,24 @@ public:
 				}
 
 				const uint32_t cs = current_set[gray_cl[j]];
-				vec.value[cs] = (tmp_vec[cs] + 1) % q;
+				vec.value.set((vec.value[cs] + 1) % q, cs);
 				LabelType::add(vec.label, vec.label, HT.get(cs));
 
 				/// NOTE: this is stupid, but needed. The gray code enumeration
 				/// also enumerates zeros. Therefore we need to fix them
-				if (tmp_vec[cs] == 0) {
-					vec.value[cs] += 1;
+				if (vec.value[cs] == 0) {
+					//vec.value[cs] += 1;
+					vec.value.set(1, cs);
 					LabelType::add(vec.label, vec.label, HT.get(cs));
 				}
 			}
 
-			const LPartType data = *((LPartType *)(vec.label.data().data()));
+			check();
+			const LPartType data = e(vec.label);
 			npos[0] = ctr;
 			hm->insert(data, npos, tid);
 			L1[ctr++] = vec;
+
 			if (ctr >= size_limit) {
 				return;
 			}
@@ -356,11 +392,16 @@ public:
 			const uint32_t b = chase_cl[i].second;
 			current_set[j] = b;
 
-			LabelType::scalar(tmp, HT.get(a), q-tmp_vec[a]);
-			LabelType::add(vec.label, vec.label, tmp);
+			ASSERT(vec.value[a]);
+			// LabelType::scalar(tmp, HT.get(a), q-vec.value[a]);
+			// LabelType::add(vec.label, vec.label, tmp);
+			LabelType::scalar(tmp, HT.get(a), vec.value[a]);
+			LabelType::sub(vec.label, vec.label, tmp);
 			LabelType::add(vec.label, vec.label, HT.get(b));
-			tmp_vec[a] = 0;
-			tmp_vec[b] = 1;
+			//vec.value[a] = 0;
+			//vec.value[b] = 1;
+			vec.value.set(0, a);
+			vec.value.set(1, b);
 		}
 	}
 };

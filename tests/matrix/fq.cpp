@@ -21,6 +21,7 @@ constexpr uint32_t ncols = 110;
 using M  = FqMatrix<T, nrows, ncols, q>;
 using MT = FqMatrix<T, ncols, nrows, q>;
 
+
 TEST(FqMatrix, Init) {
 	M m = M{};
 }
@@ -60,6 +61,51 @@ TEST(FqMatrix, zero) {
 
 	finish:
 	EXPECT_EQ(allzero, true);
+}
+
+TEST(FqMatrix, add) {
+	M m1 = M{}, m2 = M{}, m3 = M{};
+	m1.random();
+	m2.zero();
+	m3.random();
+
+	M::add(m3, m1, m2);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			EXPECT_EQ(m3.get(i, j), m1.get(i, j));
+		}
+	}
+
+
+	m1.random(); m2.random(); m3.random();
+	M::add(m3, m1, m2);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			EXPECT_EQ(m3.get(i, j), (m1.get(i, j) + m2.get(i, j)) % q);
+		}
+	}
+}
+
+TEST(FqMatrix, sub) {
+	M m1 = M{}, m2 = M{}, m3 = M{};
+	m1.random();
+	m2.zero();
+	m3.random();
+
+	M::sub(m3, m1, m2);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			EXPECT_EQ(m3.get(i, j), m1.get(i, j));
+		}
+	}
+
+	m1.random(); m2.random(); m3.random();
+	M::sub(m3, m1, m2);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			EXPECT_EQ(m3.get(i, j), (m1.get(i, j) - m2.get(i, j) + q) % q);
+		}
+	}
 }
 
 TEST(FqMatrix, InitFromString) {

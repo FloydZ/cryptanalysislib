@@ -21,186 +21,73 @@
 #endif
 
 
-
 /// Mother of all lists
 /// \tparam Element
 template<class Element>
-#if __cplusplus > 201709L
-requires ListElementAble<Element>
-#endif
-class List_T {
+class List_T : public MetaListT<Element> {
+public:
+	/// needed typedefs
+	using typename MetaListT<Element>::ElementType;
+	using typename MetaListT<Element>::ValueType;
+	using typename MetaListT<Element>::LabelType;
+	using typename MetaListT<Element>::ValueContainerLimbType;
+	using typename MetaListT<Element>::LabelContainerLimbType;
+	using typename MetaListT<Element>::ValueContainerType;
+	using typename MetaListT<Element>::LabelContainerType;
+	using typename MetaListT<Element>::ValueDataType;
+	using typename MetaListT<Element>::LabelDataType;
+	using typename MetaListT<Element>::MatrixType;
+
+	/// needed values
+	using MetaListT<Element>::__load;
+	using MetaListT<Element>::__size;
+	using MetaListT<Element>::__data;
+	using MetaListT<Element>::__threads;
+	using MetaListT<Element>::__thread_block_size;
+
+	using MetaListT<Element>::ValueLENGTH;
+	using MetaListT<Element>::LabelLENGTH;
+
+	using MetaListT<Element>::ElementBytes;
+	using MetaListT<Element>::ValueBytes;
+	using MetaListT<Element>::LabelBytes;
+
+	/// needed functions
+	using MetaListT<Element>::size;
+	using MetaListT<Element>::set_size;
+	using MetaListT<Element>::threads;
+	using MetaListT<Element>::set_threads;
+	using MetaListT<Element>::thread_block_size;
+	using MetaListT<Element>::set_thread_block_size;
+	using MetaListT<Element>::resize;
+	using MetaListT<Element>::load;
+	using MetaListT<Element>::set_load;
+	using MetaListT<Element>::start_pos;
+	using MetaListT<Element>::end_pos;
+	using MetaListT<Element>::data;
+	using MetaListT<Element>::data_value;
+	using MetaListT<Element>::data_label;
+	using MetaListT<Element>::at;
+	using MetaListT<Element>::set;
+	using MetaListT<Element>::print;
+	using MetaListT<Element>::print_binary;
+	using MetaListT<Element>::begin;
+	using MetaListT<Element>::end;
+	using MetaListT<Element>::zero;
+	using MetaListT<Element>::erase;
+
 private:
 	// disable the empty constructor. So you have to specify a rough size of the list.
 	// This is for optimisations reasons.
-	List_T() : load(0), threads(1) {};
+	List_T() : MetaListT<Element>() {};
 
 public:
-	typedef Element ElementType;
-	typedef typename Element::ValueType ValueType;
-	typedef typename Element::LabelType LabelType;
-
-	typedef typename Element::ValueType::ContainerLimbType ValueContainerLimbType;
-	typedef typename Element::LabelType::ContainerLimbType LabelContainerLimbType;
-
-	typedef typename Element::ValueContainerType ValueContainerType;
-	typedef typename Element::LabelContainerType LabelContainerType;
-
-	typedef typename Element::ValueDataType ValueDataType;
-	typedef typename Element::LabelDataType LabelDataType;
-
-	typedef typename Element::MatrixType MatrixType;
-
-	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
-	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
 
 	/// Base constructor. The empty one is disabled.
-	/// \param number of elements in the list
+	/// \param nr_element of elements in the list
+	/// \param threads  number of threads, which work on parallel on the list
 	constexpr List_T(const size_t nr_element, const uint32_t threads=1) noexcept
-	    : load(0), threads(threads) {
-		__data.resize(nr_element);
-	}
-
-	/// \return size the size of the list
-	[[nodiscard]] constexpr size_t size() const noexcept { return __data.size(); }
-	/// \return the number of elements each thread enumerates
-	[[nodiscard]] constexpr size_t size(const uint32_t tid) const noexcept { return __data.size(); } // TODO not correct
-
-	/// set/get the load factor
-	[[nodiscard]] size_t get_load() const noexcept { return load; }
-	void set_load(size_t l) noexcept { load = l; }
-
-	/// returning the range in which one thread is allowed to operate
-	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid) const noexcept { return tid*(__data.size()/threads); };
-	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid) const noexcept { return( tid+1)*(__data.size()/threads); };
-
-	/// Get a const pointer. Sometimes useful if one ones to tell the kernel how to access memory.
-	constexpr inline auto* data() noexcept{ return __data.data(); }
-	const auto* data() const noexcept { return __data.data(); }
-
-	/// wrapper
-	constexpr inline ValueType& data_value(const size_t i) noexcept {  ASSERT(i < __data.size()); return __data[i].get_value(); }
-	constexpr inline const ValueType& data_value(const size_t i) const noexcept { ASSERT(i < __data.size()); return __data[i].get_value(); }
-	constexpr inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < __data.size()); return __data[i].get_label(); }
-	constexpr inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < __data.size()); return __data[i].get_label(); }
-
-	/// operator overloading
-	constexpr inline Element &at(const size_t i) noexcept {
-		ASSERT(i < load);
-		return __data[i];
-	}
-	constexpr inline const Element &at(const size_t i) const noexcept {
-		ASSERT(i < load);
-		return __data[i];
-	}
-	constexpr inline Element &operator[](const size_t i) noexcept {
-		ASSERT(i < load);
-		return __data[i];
-	}
-	constexpr inline const Element &operator[](const size_t i) const noexcept {
-		ASSERT(i < load);
-		return __data[i];
-	}
-
-	void set_data(Element &e, const uint64_t i) { ASSERT(i <size()); __data[i] = e; }
-
-	/// print the `pos` element
-	/// 	label between [label_k_lower, label_k_upper)
-	/// 	value between [value_k_lower, value_k_upper)
-	/// \param pos position of the element in the list to print
-	/// \param value_k_lower inclusive
-	/// \param value_k_higher exclusive
-	/// \param label_k_lower inclusive
-	/// \param label_k_higher exclusive
-	void print_binary(const uint64_t pos,
-					  const uint32_t value_k_lower,
-					  const uint32_t value_k_higher,
-					  const uint32_t label_k_lower,
-					  const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
-
-		data_value(pos).print_binary(value_k_lower, value_k_higher);
-		data_label(pos).print_binary(label_k_lower, label_k_higher);
-	}
-
-	/// print the `pos` element
-	/// 	label between [label_k_lower, label_k_upper)
-	/// 	value between [value_k_lower, value_k_upper)
-	/// \param pos position of the element in the list to print
-	/// \param value_k_lower inclusive
-	/// \param value_k_higher exclusive
-	/// \param label_k_lower inclusive
-	/// \param label_k_higher exclusive
-	void print(const uint64_t pos,
-			   const uint32_t value_k_lower,
-			   const uint32_t value_k_higher,
-			   const uint32_t label_k_lower,
-			   const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
-
-		data_value(pos).print(value_k_lower, value_k_higher);
-		data_label(pos).print(label_k_lower, label_k_higher);
-	}
-
-	/// print the element between [start, end) s.t.:
-	/// 	label between [label_k_lower, label_k_upper)
-	/// 	value between [value_k_lower, value_k_upper)
-	/// \param pos position of the element in the list to print
-	/// \param value_k_lower inclusive
-	/// \param value_k_higher exclusive
-	/// \param label_k_lower inclusive
-	/// \param label_k_higher exclusive
-	void print(const uint32_t value_k_lower,
-			   const uint32_t value_k_higher,
-			   const uint32_t label_k_lower,
-			   const uint32_t label_k_higher,
-			   const size_t start,
-			   const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= __data.size());
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
-
-		for (size_t i = start; i < end; ++i) {
-			print(i, value_k_lower, value_k_higher,
-				  label_k_lower, label_k_higher);
-		}
-	}
-
-	/// print the element binary between [start, end) s.t.:
-	/// 	label between [label_k_lower, label_k_upper)
-	/// 	value between [value_k_lower, value_k_upper)
-	/// \param pos position of the element in the list to print
-	/// \param value_k_lower inclusive
-	/// \param value_k_higher exclusive
-	/// \param label_k_lower inclusive
-	/// \param label_k_higher exclusive
-	void print_binary(const uint32_t value_k_lower,
-					  const uint32_t value_k_higher,
-					  const uint32_t label_k_lower,
-					  const uint32_t label_k_higher,
-					  const size_t start,
-					  const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= __data.size());
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
-
-		for (size_t i = start; i < end; ++i) {
-			print_binary(i, value_k_lower, value_k_higher,
-						 label_k_lower, label_k_higher);
-		}
-	}
+			: MetaListT<Element>(nr_element, threads) {}
 
 	/// checks if all elements in the list fullfil the equation: 	label == value*m
 	/// \param m 		the matrix.
@@ -208,7 +95,7 @@ public:
 	/// \return 		true if ech element is correct.
 	bool is_correct(const Matrix_T<MatrixType> &m, const bool rewrite=false) {
 		bool ret = false;
-		for (int i = 0; i < get_load(); ++i) {
+		for (int i = 0; i < load(); ++i) {
 			ret |= __data[i].is_correct(m, rewrite);
 			if ((ret) && (!rewrite))
 				return ret;
@@ -333,7 +220,7 @@ public:
 
 	/// sort the list. only valid in the binary case
 	inline void sort_level_binary(const uint32_t k_lower, const uint32_t k_higher) {
-		ASSERT(get_load() > 0);
+		ASSERT(load() > 0);
 
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
@@ -627,7 +514,7 @@ public:
 	/// \return if its sorted
 	bool is_sorted(const uint64_t k_lower,
 				   const uint64_t k_higher) const {
-		for (uint64_t i = 1; i < get_load(); ++i) {
+		for (uint64_t i = 1; i < load(); ++i) {
 			if (__data[i-1].is_equal(__data[i], k_lower, k_higher)) {
 				continue;
 			}
@@ -712,42 +599,10 @@ public:
 		load++;
 	}
 
-	/// set the element at position i to zero.
-	/// \param i
-	void zero(const size_t i) {
-		ASSERT(i < get_load()); __data[i].zero();
-	}
-
-	/// remove the element at pos i.
-	/// \param i
-	void erase(const size_t i) {
-		ASSERT(i < get_load()); __data.erase(__data.begin()+i); load -= 1;
-	}
-
-	/// resize the list. Note only the sanity check, if the list is already big enough, is made. If not enough mem
-	/// is allocatable it will through an exception.
-	/// \param size		new size
-	void resize(const size_t size) {
-		if (size > __data.size() && size > load) {
-			__data.resize(size);
-		}
-	}
-
-	/// some useful stuff
-	auto begin() noexcept { return __data.begin(); }
-	auto end() noexcept { return __data.end(); }
 
 private:
-	// just a small counter for the '_generate' function. __MUST__ be ignored.
+	/// TODO remove
 	size_t internal_counter = 0;
-
-	/// load factor of the list
-	size_t load;
-
-	uint32_t threads;
-
-	/// internal data representation of the list.
-	alignas(PAGE_SIZE) std::vector<Element> __data;
 };
 
 #endif//DECODING_LIST_H

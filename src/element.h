@@ -48,6 +48,7 @@ concept ElementAble = requires(Value v, Label l) {
 		v.neg(i, i);
 		v.size();
 		v.data();
+		v.bytes();
 		v.is_zero();
 
 		v.print(i, i);
@@ -69,7 +70,8 @@ concept ElementAble = requires(Value v, Label l) {
 		l.neg(i, i);
 		l.size();
 		l.data();
-		v.is_zero();
+		l.bytes();
+		l.is_zero();
 
 		l.print(i, i);
 		l.print_binary(i, i);
@@ -127,6 +129,12 @@ public:
         value.zero();
         label.zero();
     }
+
+	///
+	void random() noexcept {
+		value.random();
+		label.random();
+	}
 
     /// returns the position of the i-th which is zero counted from left, where the first start '0' are skipped
 	/// \param i		pos
@@ -214,7 +222,6 @@ public:
 	    return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
     }
 
-	/// same as the function above but always return false, meaning to NOT filter out this element.
 	///  Useful if you do not want to filter in your tree and want additional performance.
 	constexpr static void add(Element_T &e3,
 	                          Element_T const &e1,
@@ -223,6 +230,13 @@ public:
 		ValueContainerType::add(e3.value, e1.value, e2.value);
 	}
 
+	///  Useful if you do not want to filter in your tree and want additional performance.
+	constexpr static void sub(Element_T &e3,
+							  Element_T const &e1,
+							  Element_T const &e2) noexcept {
+		LabelContainerType::sub(e3.label, e1.label, e2.label);
+		ValueContainerType::sub(e3.value, e1.value, e2.value);
+	}
     /// checks if this.label == obj.label on the coordinates [k_lower, k_upper]
     /// \param obj		second element
     /// \param k_lower  lower coordinate
@@ -305,12 +319,40 @@ public:
 		return *this;
 	}
 
+	/// prints stuff
+	void print() const noexcept {
+		label.print();
+		value.print();
+	}
+
 	/// print the internal data
 	/// \param k_lower lower dimension
 	/// \param k_upper upper dimension
-	void print(const uint64_t k_lower, const uint64_t k_upper) const noexcept {
-		label.print(k_lower, k_upper);
-		value.print(k_lower, k_upper);
+	void print(const uint64_t k_lower_label,
+			   const uint64_t k_upper_label,
+			   const uint64_t k_lower_value,
+			   const uint64_t k_upper_value) const noexcept {
+		label.print(k_lower_label, k_upper_label);
+		value.print(k_lower_value, k_upper_value);
+	}
+
+	/// prints stuff
+	void print_binary() const noexcept {
+		label.print_binary();
+		value.print_binary();
+	}
+
+	/// print the internal data
+	/// \param k_lower_label
+	/// \param k_upper_label
+	/// \param k_lower_value
+	/// \param k_upper_value
+	void print_binary(const uint64_t k_lower_label,
+	           		  const uint64_t k_upper_label,
+	           		  const uint64_t k_lower_value,
+	           		  const uint64_t k_upper_value) const noexcept {
+		label.print_binary(k_lower_label, k_upper_label);
+		value.print_binary(k_lower_value, k_upper_value);
 	}
 
 	Value& get_value() noexcept { return value; }

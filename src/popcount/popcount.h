@@ -37,7 +37,7 @@ public:
 		} else if constexpr(sizeof(T) == 8) {
 			return  __builtin_popcountll(data);
 		} else {
-			throw ;
+			ASSERT(false);
 		}
 	}
 

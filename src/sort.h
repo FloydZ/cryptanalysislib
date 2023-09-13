@@ -1225,6 +1225,75 @@ public:
 		}
 	}
 
+	/// TODO the function above should call this one
+	/// This function is exactly the same as above, with the only change, that
+	/// its allowing for a custom hash function. THis is useful, if during the
+	/// algorithm your hash function changes
+	/// \param data l part of the label IMPORTANT MUST BE ONE LIMB
+	/// \param pos	pointer to the array which should be copied into the internal data structure to loop up elements in the baselists
+	/// \param tid	thread_id
+	template<class Hasher>
+	void custom_insert(const ArgumentLimbType data,
+	                   const IndexType *npos,
+	                   const uint32_t tid,
+	                   Hasher &CustomHashFkt) noexcept {
+		ASSERT(tid < config.nr_threads);
+		const BucketHashType bid = CustomHashFkt(data);
+		LoadType load;
+
+		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
+			// in this case we do not access the 'load' array. This reduces the caches
+			// misses by one. Instead, we do a linear search over the buckets to find a empty space
+			load = find_next_empty_slot<true>(bid, tid);
+		} else {
+			if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+				load = inc_bucket_load(tid, bid);
+			} else {
+				load = get_bucket_load(tid, bid);
+			}
+		}
+
+		// early exit if a bucket is full.
+		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			if (size_b <= uint64_t(load)) {
+				return;
+			}
+		} else {
+			if (size_t - uint64_t(load) == 0) {
+				return;
+			}
+		}
+
+		// calculated the final index within the array of elements which will be returned to the tree construction.
+		const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
+		if constexpr (!USE_ATOMIC_LOAD_SWITCH && USE_LOAD_IN_FIND_SWITCH) {
+			// we need to increase the load factor only at this point if we do not use atomics.
+			inc_bucket_load(tid, bid);
+		}
+
+		// A little if ... else ... mess. But actually we just write the element and the indices of the baselists into the correct places.
+		if constexpr (CACHE_STREAM_SWITCH) {
+			MM256_STREAM64(&(__buckets[bucketOffset].first), uint64_t (data));
+			if constexpr (nri == 1) {
+				MM256_STREAM64(&__buckets[bucketOffset].second, npos);
+			} else if constexpr (nri == 2) {
+				MM256_STREAM128(&__buckets[bucketOffset].second, npos);
+			} else {
+				memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
+			}
+		} else {
+			__buckets[bucketOffset].first = data;
+			if constexpr (nri == 1) {
+				__buckets[bucketOffset].second[0] = npos [0];
+			} else if constexpr (nri == 2) {
+				__buckets[bucketOffset].second[0] = npos[0];
+				__buckets[bucketOffset].second[1] = npos[1];
+			} else {
+				memcpy(&__buckets[bucketOffset].second, npos, nri * sizeof(IndexType));
+			}
+		}
+	}
+
 	/// Only sort a single bucket. Make sure that you call this function for every bucket.
 	// Assumes more buckets than threads
 	void sort_bucket(const BucketHashType bid) noexcept {
@@ -1366,7 +1435,7 @@ public:
 	}
 
 
-		// returns -1 on error/nothing found. Else the position.
+	// returns -1 on error/nothing found. Else the position.
 	// IMPORTANT: load` is the actual load + bid*size_b
 	BucketIndexType find(const ArgumentLimbType &data, LoadType &load) const noexcept {
 		const BucketHashType bid = HashFkt(data);
@@ -1489,6 +1558,62 @@ public:
 		ASSERT(0);
 		return 0;
 	}
+
+
+	/// TODO the function above should call this one
+	/// This function is exactly the same as above, with the only change, that
+	/// its allowing for a custom hash function. THis is useful, if during the
+	/// algorithm your hash function changes
+	/// returns -1 on error/nothing found. Else the position.
+	/// IMPORTANT: load` is the actual load + bid*size_b
+	/// \param data
+	/// \param load
+	/// \return
+	template<class Hasher>
+	BucketIndexType find(const ArgumentLimbType &data,
+	                     LoadType &load,
+	                     Hasher &CustomHashFkt) const noexcept {
+		const BucketHashType bid = CustomHashFkt(data);
+		const BucketIndexType boffset = bid * size_b;// start index of the bucket in the internal data structure
+
+		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
+			// in this case we do not access the 'load' array. This reduces the caches
+			// misses by one. Instead, we do a linear search over the buckets to find a empty space
+			load = find_next_empty_slot<false>(bid, 0);
+		} else {
+			// last index within the bucket.
+			// IMPORTANT: Note that we need the full bucket load and not just
+			// the load of a bucket for a thread.
+			if constexpr ((b1 == b2) || USE_LOAD_IN_FIND_SWITCH) {
+				load = get_bucket_load(bid);
+			} else {
+				load = size_b;
+			}
+		}
+
+		ASSERT(bid < nrb && boffset < nrb * size_b && load < nrb * size_b);
+
+		// fastpath. Meaning that there was nothing to sort on.
+		if constexpr (b2 == b1) {
+			if (load != 0) {
+				// Prefetch data. The idea is that we know that in the special case where we dont have to sort, every element
+				// in the bucket is a match.
+				if constexpr (USE_PREFETCH_SWITCH) {
+					__builtin_prefetch(__buckets.data() + boffset, 0, 0);
+				}
+
+				// Check if the last element is really not a -1.
+				// NOTE: this check makes probably no sense after a few runs of the algorithm.
+				// ASSERT(__buckets[boffset + load - 1].first != ArgumentLimbType(-1));
+
+				load += boffset;
+				return boffset;
+			}
+
+			return -1;
+		}
+	}
+
 
 	// Diese funktion muss
 	//  - npos anpassen
