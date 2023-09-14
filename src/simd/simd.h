@@ -12,7 +12,7 @@
 
 #include "simd/avx2.h"
 
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 
 #include "simd/neon.h"
 

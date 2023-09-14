@@ -7,13 +7,7 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-#if __APPLE__
-TEST(u64_2, a) {
-	u64_2 a = u64_2{1,1};
-	a = xorb(a, a);
-	print(a);
-}
-#endif
+constexpr size_t TESTS=100;
 
 TEST(uint8x32_t, set) {
 	uint8x32_t t1 = uint8x32_t::set1(0);
@@ -83,6 +77,22 @@ TEST(uint8x32_t, logic) {
 	for (uint32_t i = 0; i < 32; ++i) {
 		EXPECT_EQ(t3.v8[i] , uint8_t(-1u));
 	}
+
+	t3 = uint8x32_t::mullo(t1, t2);
+	for (uint32_t i = 0; i < 32; ++i) {
+		EXPECT_EQ(t3.v8[i] , 0);
+	}
+
+	t3 = uint8x32_t::slli(t1, 1);
+	for (uint32_t i = 0; i < 32; ++i) {
+		EXPECT_EQ(t3.v8[i] , 0);
+	}
+
+	t3 = uint8x32_t::slli(t2, 1);
+	for (uint32_t i = 0; i < 32; ++i) {
+		EXPECT_EQ(t3.v8[i] , 2);
+	}
+
 }
 
 TEST(uint8x32_t, random) {
@@ -121,6 +131,7 @@ TEST(uint8x32_t, alinged_load) {
 		EXPECT_EQ(t1.v8[0], 0u);
 	}
 }
+
 
 int main(int argc, char **argv) {
 	random_seed(time(NULL));

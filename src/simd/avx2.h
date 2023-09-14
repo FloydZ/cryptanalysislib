@@ -80,7 +80,7 @@ struct uint8x32_t {
 
 	///
 	/// \return
-	static inline uint8x32_t random() {
+	static inline uint8x32_t random() noexcept {
 		uint8x32_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
