@@ -150,9 +150,9 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t set1(const uint8_t a) {
 		uint8x32_t out;
 		out =  uint8x32_t::set(a, a, a, a, a, a, a, a,
-		                      a, a, a, a, a, a, a, a,
-		                      a, a, a, a, a, a, a, a,
-		                      a, a, a, a, a, a, a, a);
+		                       a, a, a, a, a, a, a, a,
+		                       a, a, a, a, a, a, a, a,
+		                       a, a, a, a, a, a, a, a);
 		return out;
 	}
 

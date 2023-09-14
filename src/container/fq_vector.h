@@ -8,13 +8,9 @@
 
 #include "helper.h"
 #include "random.h"
-#include "simd/avx2.h"
 #include "simd/simd.h"
 #include "popcount/popcount.h"
 
-#if defined(USE_AVX2)
-#include <immintrin.h>
-#endif
 
 /// Concept for base data type.
 /// \tparam T
