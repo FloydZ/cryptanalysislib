@@ -2,7 +2,7 @@
 #include <cstdint>
 
 #include "glue_m4ri.h"
-#include "custom_matrix.h"
+#include "matrix/custom_m4ri.h"
 #include "test.h"
 
 using ::testing::EmptyTestEventListener;

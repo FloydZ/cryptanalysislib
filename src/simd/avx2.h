@@ -368,7 +368,7 @@ struct uint16x16_t {
 	///
 	/// \param binary
 	/// \param hex
-	inline void print(bool binary=false, bool hex=false) const;
+	constexpr inline void print(bool binary=false, bool hex=false) const;
 
 	///
 	/// \param a
@@ -546,7 +546,7 @@ struct uint32x8_t {
 	///
 	/// \param binary
 	/// \param hex
-	inline void print(bool binary=false, bool hex=false) const;
+	constexpr inline void print(bool binary=false, bool hex=false) const;
 
 	///
 	/// \param a
@@ -724,7 +724,7 @@ struct uint64x4_t {
 	///
 	/// \param binary
 	/// \param hex
-	inline void print(bool binary=false, bool hex=false) const;
+	constexpr inline void print(bool binary=false, bool hex=false) const;
 
 	///
 	/// \param a

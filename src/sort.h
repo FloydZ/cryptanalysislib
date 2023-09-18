@@ -265,7 +265,7 @@ public:
 		constexpr uint64_t shift = b0 % LabelContainerType::limb_bits_width();
 
 		MADIVE((void *) L.data(), L.get_load() * Element::size() / 8, POSIX_MADV_WILLNEED | MADV_SEQUENTIAL);
-		for (uint64_t i = 0; i < L.get_load(); ++i) {
+		for (uint64_t i = 0; i < L.load(); ++i) {
 			// get the label
 			const Label &e = L[i].get_label();
 
@@ -316,7 +316,7 @@ public:
 		const uint64_t shift = k_lower % LabelContainerType::limb_bits_width();
 
 		MADIVE((void *) L.data(), L.get_load() * Element::size() / 8, POSIX_MADV_WILLNEED | MADV_SEQUENTIAL);
-		for (uint64_t i = 0; i < L.get_load(); ++i) {
+		for (uint64_t i = 0; i < L.load(); ++i) {
 			// get the label
 			const Label &e = L[i].get_label();
 

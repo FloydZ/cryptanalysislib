@@ -76,6 +76,7 @@ public:
 	using MetaListT<Element>::begin;
 	using MetaListT<Element>::end;
 	using MetaListT<Element>::zero;
+	using MetaListT<Element>::reset;
 	using MetaListT<Element>::erase;
 
 private:
@@ -132,7 +133,7 @@ public:
 	                           const uint32_t i2,
 							   uint64_t &load,
 	                           const uint32_t tid) noexcept {
-		ASSERT(tid < threads);
+		ASSERT(tid < __threads);
 
 		if (load >= thread_block_size())
 			return;

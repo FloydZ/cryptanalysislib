@@ -99,7 +99,6 @@ concept ListAble = requires(List l) {
 		l.sort();
 		/// i = thread id
 		l.zero(i);
-		l.zero();
 		l.random(i);
 		l.random();
 
@@ -120,6 +119,8 @@ private:
 	// disable the empty constructor. So you have to specify a rough size of the list.
 	// This is for optimisations reasons.
 	MetaListT() : __load(0), __size(0), __threads(1) {};
+
+	/// TODO make the load factor for each thread
 protected:
 	/// load factor of the list
 	size_t __load;
@@ -196,6 +197,8 @@ public:
 
 	typedef typename Element::MatrixType MatrixType;
 
+	using LoadType = size_t;
+
 	// internal data types lengths
 	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
 	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
@@ -206,7 +209,7 @@ public:
 	constexpr static uint64_t LabelBytes = LabelType::bytes();
 
 	/// \return size the size of the list
-	[[nodiscard]] constexpr size_t size() const noexcept { return __data.size(); }
+	[[nodiscard]] constexpr size_t size() const noexcept { return __size; }
 	/// \return the number of elements each thread enumerates
 	[[nodiscard]] constexpr size_t size(const uint32_t tid) const noexcept {
 		if (tid == threads()-1) {
@@ -253,12 +256,12 @@ public:
 	/// wrapper
 	constexpr inline ValueType* data_value() noexcept { return (ValueType *)(((uint8_t *)ptr()) + LabelBytes); }
 	constexpr inline const ValueType* data_value() const noexcept { return (ValueType *)(((uint8_t *)ptr()) + LabelBytes); }
-	constexpr inline LabelType* data_label() noexcept { return (LabelType *)ptr(); }
-	constexpr inline const LabelType* data_label() const noexcept { return (LabelType *)ptr(); }
-	constexpr inline ValueType& data_value(const size_t i) noexcept {  ASSERT(i < __data.size()); return __data[i].get_value(); }
-	constexpr inline const ValueType& data_value(const size_t i) const noexcept { ASSERT(i < __data.size()); return __data[i].get_value(); }
-	constexpr inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < __data.size()); return __data[i].get_label(); }
-	constexpr inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < __data.size()); return __data[i].get_label(); }
+	constexpr inline LabelType* data_label() noexcept { return (LabelType *)__data.data(); }
+	constexpr inline const LabelType* data_label() const noexcept { return (const LabelType *)__data.data(); }
+	constexpr inline ValueType& data_value(const size_t i) noexcept {  ASSERT(i < __size); return __data[i].get_value(); }
+	constexpr inline const ValueType& data_value(const size_t i) const noexcept { ASSERT(i < __size); return __data[i].get_value(); }
+	constexpr inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < __size); return __data[i].get_label(); }
+	constexpr inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < __size); return __data[i].get_label(); }
 
 	/// operator overloading
 	constexpr inline Element &at(const size_t i) noexcept {
@@ -378,18 +381,19 @@ public:
 		}
 	}
 
-	/// set the element at position i to zero.
-	/// \param i
-	void zero(const size_t i) {
-		ASSERT(i < size());
-		__data[i].zero();
-	}
-
 	/// zeros the whole list
-	void zero() {
+	/// and resets the load
+	void zero(const uint32_t tid) {
 		for (size_t i = 0; i < size(); ++i) {
 			__data[i].zero();
 		}
+
+		set_load(0);
+	}
+
+	/// this only sets the load counter to zero
+	void reset(const uint32_t tid) {
+		set_load(0);
 	}
 
 	/// remove the element at pos i.

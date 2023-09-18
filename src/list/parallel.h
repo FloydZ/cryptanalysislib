@@ -24,6 +24,8 @@ public:
 	using typename MetaListT<Element>::LabelDataType;
 	using typename MetaListT<Element>::MatrixType;
 
+	using typename MetaListT<Element>::LoadType;
+
 	/// needed values
 	using MetaListT<Element>::__load;
 	using MetaListT<Element>::__size;
@@ -55,6 +57,9 @@ public:
 	using MetaListT<Element>::data_label;
 	using MetaListT<Element>::at;
 	using MetaListT<Element>::set;
+	using MetaListT<Element>::zero;
+	using MetaListT<Element>::reset;
+
 	using MetaListT<Element>::print;
 	using MetaListT<Element>::print_binary;
 private:
@@ -114,7 +119,9 @@ public:
 	/// \param out
 	/// \param in
 	/// \param tid
-	inline void static copy(Parallel_List_T &out, const Parallel_List_T &in , const uint32_t tid) noexcept {
+	inline void static copy(Parallel_List_T &out,
+	                        const Parallel_List_T &in,
+	                        const uint32_t tid) noexcept {
 		out.nr_elements = in.size();
 		out.thread_block = in.thread_block;
 
@@ -162,6 +169,15 @@ public:
 	/// iterator are useless in this class
 	auto begin() noexcept { return nullptr; }
 	auto end() noexcept { return nullptr; }
+
+	constexpr inline ValueType* data_value() noexcept { return (ValueType *)(((uint8_t *)__data_value) + LabelBytes); }
+	constexpr inline const ValueType* data_value() const noexcept { return (ValueType *)(((uint8_t *)__data_value) + LabelBytes); }
+	constexpr inline LabelType* data_label() noexcept { return (LabelType *)__data_label; }
+	constexpr inline const LabelType* data_label() const noexcept { return (const LabelType *)__data_label; }
+	constexpr inline ValueType& data_value(const size_t i) noexcept {  ASSERT(i < __size); return __data_value[i]; }
+	constexpr inline const ValueType& data_value(const size_t i) const noexcept { ASSERT(i < __size); return __data_value[i]; }
+	constexpr inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < __size); return __data_label[i]; }
+	constexpr inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < __size); return __data_label[i]; }
 
 	/// number of bytes the list contains of
 	/// \return

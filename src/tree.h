@@ -15,7 +15,7 @@
 #include "label.h"
 #include "element.h"
 #include "matrix.h"
-#include "list.h"
+#include "list/list.h"
 
 #if __cplusplus > 201709L
 /// IDEA: extend the tree syntax to arbitrary hashmaps.

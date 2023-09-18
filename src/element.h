@@ -226,8 +226,8 @@ public:
 	constexpr static void add(Element_T &e3,
 	                          Element_T const &e1,
 	                          Element_T const &e2) noexcept {
-		LabelContainerType::add(e3.label, e1.label, e2.label);
-		ValueContainerType::add(e3.value, e1.value, e2.value);
+		Label::add(e3.label, e1.label, e2.label);
+		Value::add(e3.value, e1.value, e2.value);
 	}
 
 	///  Useful if you do not want to filter in your tree and want additional performance.

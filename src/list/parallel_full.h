@@ -155,7 +155,7 @@ public:
 	/// \param hash hash function
 	template<typename Hash>
 	void sort(uint32_t tid, Hash hash, const size_t size=-1) noexcept {
-		ASSERT(tid < threads);
+		ASSERT(tid < __threads);
 
 		const auto e = size == size_t(-1) ? end_pos(tid) : size;
 		sort(start_pos(tid), e, hash);
@@ -265,17 +265,6 @@ public:
 		return std::pair<uint64_t, uint64_t>(start_index, end_index);
 	}
 
-	/// overwrites every element with the byte sym
-	/// \param tid thread number
-	/// \param sym byte to overwrite the memory with.
-	void zero(const uint32_t tid, const uint8_t sym=0) noexcept {
-		ASSERT(tid < threads);
-
-		uint64_t s = start_pos(tid);
-		uint64_t l = end_pos(tid) - s;
-		memset((void *) (uint64_t(__data.data()) + s), sym, l);
-	}
-
 	/// zero out the i-th element.
 	/// \param i
 	void zero_element(size_t i) noexcept {
@@ -293,7 +282,7 @@ public:
 						const Element &e2,
 						LoadType &load,
 						const uint32_t tid) noexcept {
-		ASSERT(tid < threads);
+		ASSERT(tid < __threads);
 
 		if (load >= thread_block_size())
 			return;

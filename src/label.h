@@ -29,7 +29,6 @@ concept LabelAble = requires(Container c) {
 		Container::set(c, c, i, i);
 		Container::cmp(c, c, i, i);
 		c.neg(i, i);
-		c.print(i, i);
 		c.data();
 		c.is_zero();
 
@@ -146,6 +145,12 @@ public:
 	bool is_zero() const noexcept{
 		return __data.is_zero();
 	}
+
+	/// print the data in binary
+	void print_binary(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) const noexcept {
+		__data.print_binary(k_lower, k_upper);
+	}
+
 	/// print the data
 	void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept { __data.print(k_lower, k_upper); }
 

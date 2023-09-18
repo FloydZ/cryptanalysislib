@@ -1,9 +1,9 @@
 #include "b63.h"
 #include "counters/perf_events.h"
 
+#include "matrix/custom_m4ri.h"
 #include <helper.h>
 #include <label.h>
-#include "custom_matrix.h"
 
 constexpr uint64_t n = 640;
 constexpr uint64_t k = 512;

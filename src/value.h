@@ -31,7 +31,6 @@ concept ValueAble = requires(Container c) {
 		Container::set(c, c, i, i);
 		Container::cmp(c, c, i, i);
 		c.neg(i, i);
-		c.print(i, i);
 		c.data();
 		c.is_zero();
 
@@ -251,6 +250,11 @@ public:
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	inline bool is_lower(const Value_T &obj) const noexcept {
 		return __data.template is_lower<k_lower, k_upper>(obj.__data);
+	}
+
+	/// print the data in binary
+	void print_binary(const uint64_t k_lower=0, const uint64_t k_upper=LENGTH) const noexcept {
+		__data.print_binary(k_lower, k_upper);
 	}
 
 	/// print the data

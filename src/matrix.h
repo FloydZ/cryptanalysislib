@@ -13,7 +13,7 @@
 #include <cmath>
 
 
-
+/// TODO either merge with 'matrix/matrix.h' or delete it
 template<class Matrix>
 class Matrix_T {
 public:

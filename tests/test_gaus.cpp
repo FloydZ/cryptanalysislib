@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstdint>
 
-#include "custom_matrix.h"
+#include "matrix/custom_m4ri.h"
 //#include "test.h"
 
 constexpr uint64_t n = 640;

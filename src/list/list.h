@@ -38,6 +38,8 @@ public:
 	using typename MetaListT<Element>::LabelDataType;
 	using typename MetaListT<Element>::MatrixType;
 
+	using typename MetaListT<Element>::LoadType;
+
 	/// needed values
 	using MetaListT<Element>::__load;
 	using MetaListT<Element>::__size;
@@ -537,14 +539,14 @@ public:
 	/// Note: if the list is full, every new element is silently discarded.
 	/// \param e	Element to add
 	void append(Element &e) {
-		if (load < size()) {
+		if (load() <= size()) {
 			// wrong, increases effective size of container, use custom element copy function instead
-			__data[load] = e;
+			__data[load()] = e;
 		} else {
 			__data.push_back(e);
 		}
 
-		load++;
+		set_load(load() + 1);
 	}
 
 	/// append e1+e2|full_length to list
@@ -563,11 +565,11 @@ public:
 	/// \return
 	template<const uint64_t approx_size>
 	int add_and_append(const Element &e1, const Element &e2, const uint32_t norm=-1) {
-		if (load < approx_size) {
-			Element::add(__data[load], e1, e2, 0, LabelLENGTH, norm);
-			load += 1;
+		if (load() < approx_size) {
+			Element::add(__data[load()], e1, e2, 0, LabelLENGTH, norm);
+			__load += 1;
 		}
-		return approx_size-load;
+		return approx_size-load();
 		// ignore every element which could not be added to the list.
 	}
 

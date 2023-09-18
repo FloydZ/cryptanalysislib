@@ -5,27 +5,26 @@
 #include "m4ri/mzd.h"
 #include "helper.h"
 #include "random.h"
+#include "simd/simd.h"
 
 #include <type_traits>
 #include <utility>
 #include <array>
 #include <memory>
 
-#include <omp.h>
-
-#ifdef USE_AVX2
-#include <immintrin.h>
-#include <emmintrin.h>
-#endif
 
 #define MATRIX_AVX_PADDING(len) (((len + 255) / 256) * 256)
 
 #define MAX_K 8
 #define WORD_SIZE (8 * sizeof(word))
 
+/// private forward definition
+mzd_t *_mzd_transpose(mzd_t *DST, mzd_t const *A);
 
-// TODO, create a class out of this
-typedef struct customMatrixData {
+/// additional overlay over the `mpz_t` class for the following two reasons:
+/// 	- row size is chosen as an multiple of 256 for SIMD operations
+/// 	- custom row operations
+struct customMatrixData {
 	uint32_t **rev;
 	uint32_t **diff;
 
@@ -35,90 +34,56 @@ typedef struct customMatrixData {
 	uint32_t working_nr_cols;
 
 	alignas(64) uint64_t *lookup_table;
-} customMatrixData;
-
-typedef struct matrix_perm_t {
-	// The swap operations in LAPACK format.
-	uint16_t *values;
-
-   	// The length of the swap array.
-	size_t length;
-} matrix_perm;
-
-matrix_perm* matrix_perm_init(const size_t length) {
-	matrix_perm *P = (matrix_perm *)aligned_alloc(64, sizeof(matrix_perm));
-	P->values = (uint16_t *)aligned_alloc(64, sizeof(uint16_t) * length);
-	P->length = length;
-
-	if (P == nullptr || P->values == nullptr) {
-		std::cout << "Alloc Error\n";
-		exit(1);
-	}
-
-	for (uint32_t i = 0; i < length; ++i) {
-		P->values[i] = i;
-	}
-
-	return P;
-}
-
-void inline matrix_random(matrix_perm *P) {
-	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
-		word pos = fastrandombytes_uint64() % (P->length - i);
-
-		ASSERT(i+pos < uint64_t(P->length));
-		std::swap(P->values[i], P->values[i+pos]);
-	}
-}
-
-void inline mzp_random(mzp_t *P) {
-	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
-		word pos = fastrandombytes_uint64() % (P->length - i);
-
-		ASSERT(i+pos < uint64_t(P->length));
-		std::swap(P->values[i], P->values[i+pos]);
-	}
-}
+};
 
 
-
-// implementation taken from gray_code.c
-// a = #rows, b = #cols
+/// implementation taken from gray_code.c
+/// chooses the optimal `r` for the method of the 4 russians
+/// a = #rows, b = #cols
 constexpr int matrix_opt_k(const int a, const int b) noexcept {
 	return  MIN(__M4RI_MAXKAY, MAX(1, (int)(0.75 * (1 + const_log(MIN(a, b))))));
 }
 
-inline void xor_avx1_new(const uint8_t *x,
-                         const uint8_t *y,
-                         uint8_t *z,
+/// z = x^y;
+/// nn = number of bytes*32 = number of uint256
+inline void xor_avx1_new(const uint8_t *__restrict__ x,
+                         const uint8_t *__restrict__ y,
+                         uint8_t *__restrict__ z,
                          unsigned nn) noexcept {
-	for (uint32_t i = 0; i < nn; i += 1) {
-#ifdef USE_AVX2
 #ifdef USE_AVX2_SPECIAL_ALIGNMENT
-		__m256i x_avx = _mm256_load_si256((__m256i *)x + i);
-		__m256i y_avx = _mm256_load_si256((__m256i *)y + i);
-		__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-		_mm256_store_si256((__m256i *)z + i, z_avx);
+	constexpr bool special_alignment = true;
 #else
-		__m256 x_avx = _mm256_loadu_ps((float*)x + 8*i);
-		__m256 y_avx = _mm256_loadu_ps((float*)y + 8*i);
-		__m256 z_avx = _mm256_xor_ps(x_avx,y_avx);
-		_mm256_storeu_ps((float*)z + 8*i, z_avx);
+	constexpr bool special_alignment = false;
 #endif
-#else
-		((uint64_t *)z)[4*i] = ((uint64_t *)x)[4*i] ^ ((uint64_t *)y)[4*i];
-		((uint64_t *)z)[4*i+1] = ((uint64_t *)x)[4*i+1] ^ ((uint64_t *)y)[4*i+1];
-		((uint64_t *)z)[4*i+2] = ((uint64_t *)x)[4*i+2] ^ ((uint64_t *)y)[4*i+2];
-		((uint64_t *)z)[4*i+3] = ((uint64_t *)x)[4*i+3] ^ ((uint64_t *)y)[4*i+3];
-#endif
+
+	LOOP_UNROLL()
+	for (uint32_t i = 0; i < nn; i += 1) {
+		const uint8x32_t x_avx = uint8x32_t::template load<special_alignment>(x + 32*i);
+		const uint8x32_t y_avx = uint8x32_t::template load<special_alignment>(y + 32*i);
+		const uint8x32_t z_avx = x_avx ^ y_avx;
+		uint8x32_t::template store<special_alignment>(z + 32*i, z_avx);
 	}
 }
-// TODO AVX2
+
+/// row: i ^= j
+/// \param out input/output matrix
+/// \param i input/output row
+/// \param j input row
 void mzd_row_xor(mzd_t *out,
                  const rci_t i,
                  const rci_t j) noexcept {
 	ASSERT(out->nrows > i && out->nrows > j);
-	for (uint32_t l = 0; l < uint32_t(out->width); ++l) {
+	uint32_t l = 0;
+
+	LOOP_UNROLL()
+	for (; l+4 < uint32_t(out->width); l+=4) {
+		const uint8x32_t x_avx = uint8x32_t::load(out->rows[j] + 4*l);
+		const uint8x32_t y_avx = uint8x32_t::load(out->rows[i] + 4*l);
+		const uint8x32_t z_avx = x_avx ^ y_avx;
+		uint8x32_t::store(out->rows[i] + 4*l, z_avx);
+	}
+
+	for (; l < uint32_t(out->width); ++l) {
 		out->rows[i][l] ^= out->rows[j][l];
 	}
 }
@@ -131,29 +96,21 @@ inline void matrix_swap_rows_new(mzd_t *__restrict__ M,
 	std::swap(M->rows[i], M->rows[j]);
 }
 
-// in comparison to `matrix_swap_rows_new` this changes the content and not just the pointesr
-inline void matrix_swap_rows_new2(mzd_t *__restrict__ M,
-                                  const size_t i,
-                                  const size_t j) noexcept {
-	const size_t cols = M->ncols;
-	const size_t cols_padded_ymm = MATRIX_AVX_PADDING(cols) / 256;
-
-	xor_avx1_new((uint8_t *) M->rows[i], (uint8_t *) M->rows[j], (uint8_t *) M->rows[i], cols_padded_ymm);
-	xor_avx1_new((uint8_t *) M->rows[j], (uint8_t *) M->rows[i], (uint8_t *) M->rows[j], cols_padded_ymm);
-	xor_avx1_new((uint8_t *) M->rows[i], (uint8_t *) M->rows[j], (uint8_t *) M->rows[i], cols_padded_ymm);
-}
-
 /// custom function to append in_matrix to out_matrix.
-/// \param out_matrix
-/// \param in_matrix
-/// \param start_r
-/// \param start_c
-void mzd_append(mzd_t *out_matrix, const mzd_t *const in_matrix, const int start_r, const int start_c) noexcept {
+/// needed by bjmm.h
+/// \param out_matrix input/output
+/// \param in_matrix input
+/// \param start_r start row; offset from the in_matrix
+/// \param start_c start column offset from the out_matrix
+void mzd_append(mzd_t *__restrict__ out_matrix,
+                const mzd_t *__restrict__ const in_matrix,
+                const uint32_t start_r,
+                const uint32_t start_c) noexcept {
 	assert(out_matrix->nrows > start_r);
 	assert(out_matrix->ncols > start_c);
 	assert(out_matrix->nrows - start_r == in_matrix->nrows);
-	for (int row = 0; row < in_matrix->nrows; ++row) {
-		for (int col = 0; col < in_matrix->ncols; ++col) {
+	for (uint32_t row = 0; row < in_matrix->nrows; ++row) {
+		for (uint32_t col = 0; col < in_matrix->ncols; ++col) {
 			auto bit = mzd_read_bit(in_matrix, row, col);
 			mzd_write_bit(out_matrix, row + start_r, col + start_c, bit);
 		}
@@ -161,7 +118,6 @@ void mzd_append(mzd_t *out_matrix, const mzd_t *const in_matrix, const int start
 }
 
 
-mzd_t *_mzd_transpose(mzd_t *DST, mzd_t const *A);
 
 mzd_t *matrix_transpose(mzd_t *DST, mzd_t const *A) noexcept {
 	if (DST == NULL) {
@@ -304,7 +260,10 @@ void matrix_create_random_permutation(mzd_t *A, mzp_t *P) noexcept {
 	mzd_free(AT);
 }
 
-// optimized version to which you have additionally pass the transposed, So its not created/freed every time
+/// optimized version to which you have additionally pass the transposed, So its not created/freed every time
+/// \param A
+/// \param AT
+/// \param P
 void matrix_create_random_permutation(mzd_t *__restrict__ A,
                                       mzd_t *__restrict__ AT,
                                       mzp_t *__restrict__ P) noexcept {
@@ -322,7 +281,14 @@ void matrix_create_random_permutation(mzd_t *__restrict__ A,
 	matrix_transpose(A, AT);
 }
 
-
+///
+/// \param M
+/// \param r
+/// \param c
+/// \param rows
+/// \param cols
+/// \param k
+/// \return
 static size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
                               const size_t r,
                               const size_t c,
@@ -367,7 +333,16 @@ static size_t matrix_gauss_submatrix(mzd_t *__restrict__ M,
 	return j - c;
 }
 
-// specialised gaus which looks ahead in the l window
+/// specialised gaus which looks ahead in the l window
+/// \param M
+/// \param r
+/// \param c
+/// \param rows
+/// \param cols
+/// \param rstop
+/// \param lwin_start
+/// \param k
+/// \return
 inline size_t matrix_gauss_submatrix_opt(mzd_t *__restrict__ M,
                                          const size_t r,
                                          const size_t c,
@@ -448,6 +423,13 @@ inline size_t matrix_gauss_submatrix_opt(mzd_t *__restrict__ M,
 	return j - c;
 }
 
+///
+/// \param M
+/// \param r
+/// \param cols
+/// \param k
+/// \param T
+/// \param diff
 void matrix_make_table(mzd_t *__restrict__ M,
                        const size_t r,
                        const size_t cols,
@@ -471,7 +453,12 @@ void matrix_make_table(mzd_t *__restrict__ M,
 	}
 }
 
-
+///
+/// \param M
+/// \param x
+/// \param y
+/// \param nn
+/// \return
 uint64_t matrix_read_bits(mzd_t *M,
                       const size_t x,
                       const size_t y,
@@ -487,7 +474,15 @@ uint64_t matrix_read_bits(mzd_t *M,
 	return temp >> (WORD_SIZE - nn);
 }
 
-
+///
+/// \param M
+/// \param rstart
+/// \param cstart
+/// \param rstop
+/// \param k
+/// \param cols
+/// \param T
+/// \param rev
 void matrix_process_rows(mzd_t *__restrict__ M,
                          const size_t rstart,
                          const size_t cstart,
@@ -670,9 +665,12 @@ size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
 	return rstop;
 }
 
-
-
-
+///
+/// \param M
+/// \param k
+/// \param rstop
+/// \param matrix_data
+/// \return
 size_t matrix_echelonize_partial(mzd_t *M,
                                  const size_t k,
                                  const size_t rstop,
@@ -734,7 +732,7 @@ void matrix_build_gray_code(uint32_t **rev, uint32_t **diff) noexcept {
 	}
 }
 
-// special copy, which can be useful if you working with avx alignment
+/// special copy, which can be useful if you're working with avx alignment
 mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) noexcept {
 	if (N == P) {
 		return N;
@@ -756,6 +754,9 @@ mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) noexcept {
 	return N;
 }
 
+///
+/// \param nr_columns
+/// \return
 customMatrixData* init_matrix_data(int nr_columns) noexcept {
 	// this should be alignend
 	customMatrixData *matrix_data = (customMatrixData *) malloc(sizeof(customMatrixData));
@@ -1112,11 +1113,6 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 		} 
 	}
 	
-	
-	// std::cout << unitctr << " " << nkl-unitctr << "\n";
-
-	// mzd_print(A);
-	// std::cout << "\n";
 	return nkl;
 }
 #endif //SMALLSECRETLWE_CUSTOM_MATRIX_H

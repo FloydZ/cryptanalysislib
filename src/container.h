@@ -1681,10 +1681,15 @@ public:
 		return *this;
 	}
 
+	/// wrapper around `print`
+	void print_binary(const uint32_t k_lower=0, const uint32_t k_upper=length) const noexcept {
+		print(k_lower, k_upper);
+	}
+
 	/// print some information
 	/// \param k_lower lower limit to print (included)
 	/// \param k_upper higher limit to print (not included)
-	void print(const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	void print(const uint32_t k_lower=0, const uint32_t k_upper=length) const noexcept {
 		ASSERT(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << data(i) << "";

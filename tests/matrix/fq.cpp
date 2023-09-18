@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstdint>
 
-#include "matrix/matrix.h"
+#include "matrix/fq_matrix.h"
 #include "container/fq_vector.h"
 
 
