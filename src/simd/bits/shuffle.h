@@ -1,6 +1,10 @@
 #ifndef DECODING_SHUFFLE_H
 #define DECODING_SHUFFLE_H
 
+#ifndef USE_AVX2
+#error "no avx"
+#endif
+
 #include <immintrin.h>
 
 #include "helper.h"
