@@ -2119,7 +2119,7 @@
 		constexpr uint32_t u = 8;
 		constexpr uint32_t off = u*4;
 		for (; i+off <= e1; i += off, ptr += off, org_ptr += off) {
-			__m256i ptr_tmp0 = _mm256_i64gather_epi64((ptr +  0), offset, 8);
+			__m256i ptr_tmp0 = _mm256_i64gather_epi64((const uint64_t *)(ptr +  0), offset, 8);
 			ptr_tmp0 = _mm256_xor_si256(ptr_tmp0, z256);
 			if constexpr (k < 64) { ptr_tmp0 = _mm256_and_si256(ptr_tmp0, avx_nn_k_mask); }
 			__m256i ptr_tmp1 = _mm256_i64gather_epi64((const uint64_t *)(ptr +  4), offset, 8);
