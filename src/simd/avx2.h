@@ -281,7 +281,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t add(const uint8x32_t in1,
-	                             const uint8x32_t in2) {
+	                             						 const uint8x32_t in2) {
 		uint8x32_t out;
 		out.v256 = (__m256i) ((__v32qu)in1.v256 + (__v32qu)in2.v256);
 		return out;
@@ -292,7 +292,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t sub(const uint8x32_t in1,
-	                             const uint8x32_t in2) {
+	                             						 const uint8x32_t in2) {
 		uint8x32_t out;
 		out.v256 = (__m256i) ((__v32qu)in1.v256 - (__v32qu)in2.v256);
 		return out;
@@ -334,12 +334,13 @@ struct uint8x32_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t slli(const uint8x32_t in1,
+	[[nodiscard]] static inline uint8x32_t slli(const uint8x32_t in1,
 														  const uint8_t in2) {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
 		uint8x32_t mask = set1((1u << in2) - 1u);
 		out = uint8x32_t::and_(in1, mask);
+		//out.v256 = (__m256i)__builtin_ia32_psllwi256 ((__v16hi)out.v256, in2);
 		out.v256 = _mm256_slli_epi16(out.v256, in2);
 		return out;
 	}
@@ -348,7 +349,7 @@ struct uint8x32_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t slri(const uint8x32_t in1,
+	[[nodiscard]] static inline uint8x32_t slri(const uint8x32_t in1,
 														  const uint8_t in2) {
 		ASSERT(in2 <= 8);
 		const uint8x32_t mask = set1( ((1u << (8u-in2)) - 1u) << in2);

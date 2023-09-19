@@ -157,7 +157,6 @@ jobs:
         ./bench/value/bench_b63_value_add                             -j  | tee benchmark_bench_b63_value_add.json                      &&
         ./bench/value/bench_b63_value_move_operator                   -j  | tee benchmark_bench_b63_value_move_operator.json
 
-        ./bench/sort/bench_b63_sort_gbench_sort  --benchmark_format=json  | tee benchmark_bench_b63_sort_gbench_sort.json               &&
 
     - name: benchmark_bench_b63_sort_gbench_sort
       uses: benchmark-action/github-action-benchmark@v1

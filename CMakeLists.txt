@@ -85,7 +85,7 @@ set(VALUE_FLAG "")
 #set(MALLOC_LIBRARY tcmalloc)
 set(MALLOC_LIBRARY "")
 
-# possible sanitzers = -fsanitize=[address,leak,thread,memory,undefined]
+# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 #set(SANITIZE_FLAG "-fsanitize=address")
 set(SANITIZE_FLAGS "")
 
@@ -124,9 +124,10 @@ endif()
 	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
+# TODO merge with one
 # note that fplll is missing
 set(LINK_TEST_FLAGS -lgtest -pthread gmpxx libm4ri.a m png)
-set(LINK_BENCH_FLAGS -lgtest -pthread gmpxx libm4ri.a m png tbb -lbenchmark)
+set(LINK_BENCH_FLAGS -lgtest -pthread gmpxx libm4ri.a m png)
 
 
 # Set additionally our own debug/optimisation compiler/linkage flags. Maybe not he nicest way, but by far the easiest.
