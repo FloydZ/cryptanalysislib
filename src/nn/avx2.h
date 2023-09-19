@@ -84,7 +84,7 @@
 				return _mm256_cmp_epi64_mask(avx_weight64, pop, 6);
 #else
 				const __m256i tmp2 = _mm256_cmpgt_epi64(avx_weight64, pop);
-				return _mm256_movemask_pd((__m256) tmp2);
+				return _mm256_movemask_pd((__m256d) tmp2);
 #endif
 			}
 
@@ -2119,28 +2119,28 @@
 		constexpr uint32_t u = 8;
 		constexpr uint32_t off = u*4;
 		for (; i+off <= e1; i += off, ptr += off, org_ptr += off) {
-			__m256i ptr_tmp0 = _mm256_i64gather_epi64(ptr +  0, offset, 8);
+			__m256i ptr_tmp0 = _mm256_i64gather_epi64((ptr +  0), offset, 8);
 			ptr_tmp0 = _mm256_xor_si256(ptr_tmp0, z256);
 			if constexpr (k < 64) { ptr_tmp0 = _mm256_and_si256(ptr_tmp0, avx_nn_k_mask); }
-			__m256i ptr_tmp1 = _mm256_i64gather_epi64(ptr +  4, offset, 8);
+			__m256i ptr_tmp1 = _mm256_i64gather_epi64((uint64_t *)(ptr +  4), offset, 8);
 			ptr_tmp1 = _mm256_xor_si256(ptr_tmp1, z256);
 			if constexpr (k < 64) { ptr_tmp1 = _mm256_and_si256(ptr_tmp1, avx_nn_k_mask); }
-			__m256i ptr_tmp2 = _mm256_i64gather_epi64(ptr +  8, offset, 8);
+			__m256i ptr_tmp2 = _mm256_i64gather_epi64((uint64_t *)(ptr +  8), offset, 8);
 			ptr_tmp2 = _mm256_xor_si256(ptr_tmp2, z256);
 			if constexpr (k < 64) { ptr_tmp2 = _mm256_and_si256(ptr_tmp2, avx_nn_k_mask); }
-			__m256i ptr_tmp3 = _mm256_i64gather_epi64(ptr + 12, offset, 8);
+			__m256i ptr_tmp3 = _mm256_i64gather_epi64((uint64_t *)(ptr + 12), offset, 8);
 			ptr_tmp3 = _mm256_xor_si256(ptr_tmp3, z256);
 			if constexpr (k < 64) { ptr_tmp3 = _mm256_and_si256(ptr_tmp3, avx_nn_k_mask); }
-			__m256i ptr_tmp4 = _mm256_i64gather_epi64(ptr + 16, offset, 8);
+			__m256i ptr_tmp4 = _mm256_i64gather_epi64((uint64_t *)(ptr + 16), offset, 8);
 			ptr_tmp4 = _mm256_xor_si256(ptr_tmp4, z256);
 			if constexpr (k < 64) { ptr_tmp4 = _mm256_and_si256(ptr_tmp4, avx_nn_k_mask); }
-			__m256i ptr_tmp5 = _mm256_i64gather_epi64(ptr + 20, offset, 8);
+			__m256i ptr_tmp5 = _mm256_i64gather_epi64((uint64_t *)(ptr + 20), offset, 8);
 			ptr_tmp5 = _mm256_xor_si256(ptr_tmp5, z256);
 			if constexpr (k < 64) { ptr_tmp5 = _mm256_and_si256(ptr_tmp5, avx_nn_k_mask); }
-			__m256i ptr_tmp6 = _mm256_i64gather_epi64(ptr + 24, offset, 8);
+			__m256i ptr_tmp6 = _mm256_i64gather_epi64((uint64_t *)(ptr + 24), offset, 8);
 			ptr_tmp6 = _mm256_xor_si256(ptr_tmp6, z256);
 			if constexpr (k < 64) { ptr_tmp6 = _mm256_and_si256(ptr_tmp6, avx_nn_k_mask); }
-			__m256i ptr_tmp7 = _mm256_i64gather_epi64(ptr + 28, offset, 8);
+			__m256i ptr_tmp7 = _mm256_i64gather_epi64(((uint64_t *)ptr + 28), offset, 8);
 			ptr_tmp7 = _mm256_xor_si256(ptr_tmp7, z256);
 			if constexpr (k < 64) { ptr_tmp7 = _mm256_and_si256(ptr_tmp7, avx_nn_k_mask); }
 
@@ -2179,7 +2179,7 @@
 
 		// #pragma unroll 4
 		for (; i < (e1+3)/4; i++, ptr += 4, org_ptr += 4) {
-			const __m256i ptr_tmp = _mm256_i64gather_epi64(ptr, offset, 8);
+			const __m256i ptr_tmp = _mm256_i64gather_epi64((uint64_t *)ptr, offset, 8);
 			__m256i tmp = _mm256_xor_si256(ptr_tmp, z256);
 			if constexpr (k < 64) { tmp = _mm256_and_si256(tmp, avx_nn_k_mask); }
 			const __m256i tmp_pop = popcount_avx2_64(tmp);

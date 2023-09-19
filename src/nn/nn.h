@@ -13,7 +13,7 @@
 #include "helper.h"
 
 #ifdef USE_AVX2
-#import "popcount/avx2.h"
+#include "popcount/avx2.h"
 
 /// unrolled bruteforce step.
 /// stack: uint64_t[64]
