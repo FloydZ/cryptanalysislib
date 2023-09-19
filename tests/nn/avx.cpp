@@ -1040,7 +1040,7 @@ TEST(NearestNeighborAVX, MO431Params_n84_r3) {
 }
 #endif
 
-#ifdef __AVX512F__
+#ifdef USE_AVX512
 TEST(Bruteforce, avx512_32_8x8) {
 	constexpr static NN_Config config{32, 1, 1, 1, LS, 2, 4, 0, 512};
 	NN<config> algo{};
