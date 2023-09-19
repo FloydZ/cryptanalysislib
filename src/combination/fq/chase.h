@@ -243,9 +243,9 @@ public:
 	/// \param n length
 	/// \param q field size
 	/// \param w max hamming weight to enumerate
-	constexpr Combinations_Fq_Chase(const uint32_t n,
-	                                const uint32_t q,
-	                                const uint32_t w) :
+	Combinations_Fq_Chase(const uint32_t n,
+	                      const uint32_t q,
+	                      const uint32_t w) :
 	    n(n), q(q), qm1(q-1), w(w) {
 		chase_size = bc(n, w) - 1;
 		gray_size = compute_gray_size();
