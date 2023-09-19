@@ -69,18 +69,17 @@ build_test:
     - make test_binary_256
     - ./tests/binary/test_binary_256
 
-# TODO
-#    - make test_binary_32_align
-#    - ./tests/binary/test_binary_32_align
-#
-#    - make test_binary_64_align
-#    - ./tests/binary/test_binary_64_align
-#
-#    - make test_binary_128_align
-#    - ./tests/binary/test_binary_128_align
-#
-#    - make test_binary_256_align
-#    - ./tests/binary/test_binary_256_align
+    - make test_binary_32_align
+    - ./tests/binary/test_binary_32_align
+
+    - make test_binary_64_align
+    - ./tests/binary/test_binary_64_align
+
+    - make test_binary_128_align
+    - ./tests/binary/test_binary_128_align
+
+    - make test_binary_256_align
+    - ./tests/binary/test_binary_256_align
 
     - make test_build_tree
     - ./tests/test_build_tree

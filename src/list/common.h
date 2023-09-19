@@ -29,6 +29,9 @@ concept ListElementAble = requires(Element a) {
 						 typename Element::MatrixType
 	                     >;
 
+	a.label;
+	a.value;
+
 	requires requires(const size_t i) {
 		a.bytes();
 		a.binary(); 				// checks if the underlying container is binary
@@ -53,11 +56,13 @@ concept ListElementAble = requires(Element a) {
 
 /// this concept enforces the needed
 /// 	- functions
-/// 	- typdefs
+/// 	- typedefs
 /// a list must implement
 /// \tparam List
 template<class List>
 concept ListAble = requires(List l) {
+	typename List::ElementType;
+
 	/// size stuff
 	requires requires(const uint32_t i) {
 		/// returns the size
@@ -383,7 +388,7 @@ public:
 
 	/// zeros the whole list
 	/// and resets the load
-	void zero(const uint32_t tid) {
+	void zero(const uint32_t tid=0) {
 		for (size_t i = 0; i < size(); ++i) {
 			__data[i].zero();
 		}
@@ -392,7 +397,7 @@ public:
 	}
 
 	/// this only sets the load counter to zero
-	void reset(const uint32_t tid) {
+	void reset(const uint32_t tid=0) {
 		set_load(0);
 	}
 

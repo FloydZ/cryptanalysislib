@@ -2,10 +2,8 @@
 #include <cstdint>
 #include <bitset>
 
-// Hack for testing private functions (C++ god)
-//#define private public
-
 #include "element.h"
+#include "matrix/fq_matrix.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -21,9 +19,9 @@ constexpr uint32_t G_n = 20;
 
 
 TEST(Internals, Size) {
-	using BinaryValue     = Value_T<BinaryContainer<G_k + G_l>>;
-	using BinaryLabel     = Label_T<BinaryContainer<G_n - G_k>>;
-	using BinaryMatrix    = mzd_t *;
+	using BinaryValue     = BinaryContainer<G_k + G_l>;
+	using BinaryLabel     = BinaryContainer<G_n - G_k>;
+	using BinaryMatrix    = FqMatrix<uint64_t, G_k + G_l, G_n-G_k, 2>;
 	using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 
 	BinaryElement e;

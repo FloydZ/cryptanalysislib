@@ -316,6 +316,7 @@ public:
 	const T get_value() const noexcept { return __value; }
 	const T value() const noexcept { return __value; }
 	const T data() const noexcept { return __value; }
+	const uint32_t bits() const noexcept { return constexpr_bits_log2(q); }
 	constexpr static T modulo() noexcept { return q; }
 
 private:

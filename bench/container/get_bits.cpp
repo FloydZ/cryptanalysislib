@@ -3,9 +3,6 @@
 
 #include "../bench_config.h"
 
-#include <helper.h>
-#include <label.h>
-
 B63_BASELINE(SoImplemented, nn) {
 	BinaryContainer<n> v1{};
 	int32_t k = 0, res=0;

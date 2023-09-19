@@ -4,25 +4,26 @@
 #include "counters/perf_events.h"
 
 #include "../bench_config.h"
-#include <helper.h>
-#include <list.h>
+#include "helper.h"
+#include "list/list.h"
+#include "matrix/matrix.h"
 
 
-using BinaryValue     = Value_T<BinaryContainer<n>>;
-using BinaryLabel     = Label_T<BinaryContainer<n>>;
-using BinaryMatrix    = mzd_t *;
+using BinaryValue     = BinaryContainer<n>;
+using BinaryLabel     = BinaryContainer<n>;
+using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2>;
 using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList      = List_T<BinaryElement>;
+
 
 B63_BASELINE(NotFindBinary, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		mzd_t *H = mzd_init(n, n);
-		Matrix_T<mzd_t *> B(H);
+		BinaryMatrix B;
+		B.random();
 		l.generate_base_random(n, B);
-		mzd_free(H);
 
 		// make sure we will never find the value
 		e.zero();
@@ -35,36 +36,15 @@ B63_BASELINE(NotFindBinary, nn) {
 	B63_KEEP(res);
 }
 
-/*
-B63_BENCHMARK(NotFindInterpolated, n) {
-	BinaryList l{n};
-	BinaryElement e{};
-	uint64_t k_lower, k_higher;
-	B63_SUSPEND {
-		mzd_t *H = mzd_init(n, n);
-		Matrix_T<mzd_t *> B(H);
-		l.generate_base_random(n, B);
-		mzd_free(H);
-		translate_level(&k_lower, &k_higher, -1);
-		l.sort_level(k_lower, k_higher);
-
-		e.zero();
-	}
-
-	int32_t res = l.search_level_interpolated(e, k_lower, k_higher);
-	B63_KEEP(res);
-}
-*/
-
 B63_BENCHMARK(NotFindBinaryCustom, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		mzd_t *H = mzd_init(n, n);
-		Matrix_T<mzd_t *> B(H);
+		BinaryMatrix B;
+		B.random();
 		l.generate_base_random(n, B);
-		mzd_free(H);
+
 		translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 		l.sort_level(k_lower, k_higher);
 
@@ -75,17 +55,15 @@ B63_BENCHMARK(NotFindBinaryCustom, nn) {
 	B63_KEEP(res);
 }
 
-
 B63_BENCHMARK(FindEnd, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
 	uint64_t k_lower, k_higher;
 
 	B63_SUSPEND {
-		mzd_t *H = mzd_init(n, n);
-		Matrix_T<mzd_t *> B(H);
+		BinaryMatrix B;
+		B.random();
 		l.generate_base_random(n, B);
-		mzd_free(H);
 
 		// make sure we will find the element at the end
 		e.zero();
@@ -104,10 +82,9 @@ B63_BENCHMARK(FindBegin, nn) {
 	uint64_t k_lower, k_higher;
 
 	B63_SUSPEND {
-		mzd_t *H = mzd_init(n, n);
-		Matrix_T<mzd_t *> B(H);
+		BinaryMatrix B;
+		B.random();
 		l.generate_base_random(n, B);
-		mzd_free(H);
 
 		// make sure we will find the element at the beginning
 		e.zero();
@@ -127,10 +104,9 @@ B63_BENCHMARK(FindEndCustom, nn) {
 	uint64_t k_lower, k_higher;
 
 	B63_SUSPEND {
-		mzd_t *H = mzd_init(n, n);
-		Matrix_T<mzd_t *> B(H);
+		BinaryMatrix B;
+		B.random();
 		l.generate_base_random(n, B);
-		mzd_free(H);
 
 		// make sure we will find the element at the end
 		e.zero();
@@ -149,10 +125,9 @@ B63_BENCHMARK(FindBeginCustom, nn) {
 	uint64_t k_lower, k_higher;
 
 	B63_SUSPEND {
-		mzd_t *H = mzd_init(n, n);
-		Matrix_T<mzd_t *> B(H);
+		BinaryMatrix B;
+		B.random();
 		l.generate_base_random(n, B);
-		mzd_free(H);
 
 		// make sure we will find the element at the beginning
 		e.zero();

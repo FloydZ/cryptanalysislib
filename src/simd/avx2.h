@@ -202,7 +202,7 @@ struct uint8x32_t {
 			return;
 		}
 
-		aligned_store(ptr, in);
+		unaligned_store(ptr, in);
 	}
 
 	///
@@ -305,18 +305,29 @@ struct uint8x32_t {
 	static inline uint8x32_t mullo(const uint8x32_t in1,
 	                               const uint8x32_t in2) {
 		uint8x32_t out;
-		const __m256i maskl = _mm256_set1_epi16(0x000f);
-		const __m256i maskh = _mm256_set1_epi16(0x0f00);
+		const __m256i maskl = _mm256_set1_epi16(0x00ff);
+		const __m256i maskh = _mm256_set1_epi16(0xff00);
 
 		const __m256i in1l = _mm256_and_si256(in1.v256, maskl);
 		const __m256i in2l = _mm256_and_si256(in2.v256, maskl);
 		const __m256i in1h = _mm256_srli_epi16(_mm256_and_si256(in1.v256, maskh), 8u);
 		const __m256i in2h = _mm256_srli_epi16(_mm256_and_si256(in2.v256, maskh), 8u);
 
+		/// TODO replace mul with: ((__v16hu)__A * (__v16hu)__B);
 		out.v256 = _mm256_mullo_epi16(in1l, in2l);
 		const __m256i tho = _mm256_slli_epi16(_mm256_mullo_epi16(in1h, in2h), 8u);
 		out.v256 = _mm256_xor_si256(tho, out.v256);
 		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	static inline uint8x32_t mullo(const uint8x32_t in1,
+								   const uint8_t in2) {
+		uint8x32_t rs = uint8x32_t::set1(in2);
+		return uint8x32_t::mullo(in1, rs);
 	}
 
 	///

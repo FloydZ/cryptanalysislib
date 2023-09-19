@@ -12,6 +12,10 @@
 #include <array>
 #include <memory>
 
+/// TODO: dass alles in `binary_matrix` aufgehen lassen
+
+
+
 
 #define MATRIX_AVX_PADDING(len) (((len + 255) / 256) * 256)
 
@@ -41,7 +45,7 @@ struct customMatrixData {
 /// chooses the optimal `r` for the method of the 4 russians
 /// a = #rows, b = #cols
 constexpr int matrix_opt_k(const int a, const int b) noexcept {
-	return  MIN(__M4RI_MAXKAY, MAX(1, (int)(0.75 * (1 + const_log(MIN(a, b))))));
+	return  std::min(__M4RI_MAXKAY, std::max(1, (int)(0.75 * (1 + const_log(std::min(a, b))))));
 }
 
 /// z = x^y;
@@ -604,27 +608,20 @@ size_t matrix_echelonize_partial_opt(mzd_t *M,
 	return r;
 }
 
-// additionally, to the m4ri algorithm a fix is applied if m4ri fails
+///
 /// \param M
-/// \param k			m4ri k
+/// \param rang
 /// \param rstop
-/// \param matrix_data
-/// \param cstart
-/// \param fix_col 		how many columns must be solved at the end of this function. Must be != 0
-/// \param look_ahead 	how many the algorithm must start ahead of `fix_col` to search for a pivo element. Can be zero
+/// \param fix_col
+/// \param look_ahead
 /// \param permutation
 /// \return
-size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
-                                         const size_t k,
-                                         const size_t rstop,
-										 customMatrixData *__restrict__ matrix_data,
-                                         const size_t cstart,
-										 const size_t fix_col,
-                                         const size_t look_ahead,
-                                         mzp_t *__restrict__ permutation) noexcept {
-	size_t rang = matrix_echelonize_partial(M, k, rstop, matrix_data, cstart);
-	// printf("%d %d\n", rang, rstop);
-
+static size_t matrix_fix_gaus(mzd_t *__restrict__ M,
+							  const size_t rang,
+							  const size_t rstop,
+							  const size_t fix_col,
+							  const size_t look_ahead,
+							  mzp_t *__restrict__ permutation) noexcept {
 	for (size_t b = rang; b < rstop; ++b) {
 		bool found = false;
 		// find a column where in the last row is a one
@@ -647,7 +644,7 @@ size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
 					mzd_row_xor(M, i, b);
 				}
 			}
-			
+
 			// and solve it below
 			for (size_t i = b+1; i < M->nrows; ++i) {
 				if (mzd_read_bit(M, i, b)) {
@@ -660,9 +657,29 @@ size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
 		}
 	}
 
-	// return the full rang, if we archived it.
-	// return fix_col;
 	return rstop;
+}
+
+// additionally, to the m4ri algorithm a fix is applied if m4ri fails
+/// \param M
+/// \param k			m4ri k
+/// \param rstop
+/// \param matrix_data
+/// \param cstart
+/// \param fix_col 		how many columns must be solved at the end of this function. Must be != 0
+/// \param look_ahead 	how many the algorithm must start ahead of `fix_col` to search for a pivo element. Can be zero
+/// \param permutation
+/// \return
+size_t matrix_echelonize_partial_plusfix(mzd_t *__restrict__ M,
+                                         const size_t k,
+                                         const size_t rstop,
+										 customMatrixData *__restrict__ matrix_data,
+                                         const size_t cstart,
+										 const size_t fix_col,
+                                         const size_t look_ahead,
+                                         mzp_t *__restrict__ permutation) noexcept {
+	size_t rang = matrix_echelonize_partial(M, k, rstop, matrix_data, cstart);
+	return matrix_fix_gaus(M, rang, rstop, fix_col, look_ahead, permutation);
 }
 
 ///

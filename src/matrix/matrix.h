@@ -10,16 +10,17 @@
 
 
 #if __cplusplus > 201709L
-///
+/// These are only needed for the matrix/matrix
+/// and matrix/vector multiplication
 /// \tparam LabelType
 template<class LabelType>
 concept LabelTypeAble = requires(LabelType c) {
 	LabelType::LENGTH;
 
-	requires requires(const unsigned int i) {
+	requires requires(const uint32_t i) {
 		c[i];
 		c.get(i);
-		c.set(i);
+		c.set(i, i);
 	};
 };
 
@@ -28,10 +29,50 @@ template<class ValueType>
 concept ValueTypeAble = requires(ValueType c) {
 	ValueType::LENGTH;
 
-	requires requires(const unsigned int i) {
+	requires requires(const uint32_t i) {
 		c[i];
 		c.get(i);
+		c.set(i, i);
+	};
+};
+
+/// The following functions need to be implemented by
+/// all matrix types
+template<class MatrixType>
+concept MatrixAble = requires(MatrixType c) {
+	requires requires(const uint32_t i) {
+		c.get(i, i);
+		c.get(i);
+		c.set(i, i, i);
 		c.set(i);
+		c.copy(c);
+
+		c.clear();
+		c.zero();
+		c.identity();
+		c.fill(i);
+		c.random();
+
+		c.weight_column(i);
+
+		MatrixType::augment(c, c);
+
+		MatrixType::add(c, c, c);
+		MatrixType::sub(c, c, c);
+		// TODO allow for different types MatrixType::transpose(c, c);
+		//MatrixType::sub_transpose(c, c, i, i);
+		//MatrixType::sub_matrix(c, c, i, i, i, i);
+
+		//TODO c.matrix_vector_mul(c);
+		//TODO c.matrix_matrix_mul(c);
+
+		c.gaus();
+		//TODO c.fix_gaus(*i, i, i, i);
+		//TODO c.m4ri();
+
+		c.swap(i, i, i, i);
+		c.swap_cols(i, i);
+		c.swap_rows(i, i);
 	};
 };
 #endif
@@ -154,11 +195,6 @@ public:
 		}
 	}
 
-	/// \return the number of `T` each row is made of
-	[[nodiscard]] constexpr uint32_t limbs_per_row() const noexcept {
-		return RowType::internal_limbs;
-	}
-
 	/// clears the matrix
 	/// \return
 	constexpr void clear() noexcept {
@@ -177,6 +213,15 @@ public:
 	constexpr void random() noexcept {
 		for (uint32_t row = 0; row < nrows; ++row) {
 			__data[row].random();
+		}
+	}
+
+	/// fills the matrix with a symbol
+	constexpr void fill(const T in) noexcept {
+		for (uint32_t row = 0; row < nrows; ++row) {
+			for (uint32_t col = 0; col < ncols; ++col) {
+				set(in, row, col);
+			}
 		}
 	}
 
@@ -889,6 +934,20 @@ public:
 		}
 		std::cout << " " << name << "\n";
 	}
+
+	/// some simple functions
+	constexpr bool binary() noexcept { return false; }
+
+	/// these two functions exist, as there are maybe matrix implementations
+	/// you want to wrap, which are not constant sized
+	constexpr uint32_t rows() noexcept { return ROWS; }
+	constexpr uint32_t cols() noexcept { return COLS; }
+
+	/// \return the number of `T` each row is made of
+	[[nodiscard]] constexpr uint32_t limbs_per_row() const noexcept {
+		return RowType::internal_limbs;
+	}
+
 };
 
 

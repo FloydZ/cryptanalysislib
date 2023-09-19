@@ -2,9 +2,7 @@
 #include "counters/perf_events.h"
 
 #include "../bench_config.h"
-
-#include <helper.h>
-#include <value.h>
+#include "helper.h"
 
 B63_BASELINE(add, nn) {
 	kAryValue v1{}, v2{}, v3{};

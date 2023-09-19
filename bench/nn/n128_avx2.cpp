@@ -9,8 +9,8 @@
 constexpr size_t LS = 1u << 14u;
 constexpr size_t d = 6;
 constexpr size_t dk = 12;
-constexpr static WindowedAVX2_Config config{128, 4, 300, 32, LS, dk, d, 0, 512};
-WindowedAVX2<config> algo{};
+constexpr static NN_Config config{128, 4, 300, 32, LS, dk, d, 0, 512};
+NN<config> algo{};
 
 static void BM_bruteforce_128(benchmark::State& state) {
 	for (auto _ : state) {
@@ -19,13 +19,13 @@ static void BM_bruteforce_128(benchmark::State& state) {
 	state.SetComplexityN(state.range(0));
 }
 
+#ifdef USE_AVX2
 static void BM_bruteforce_avx2_128(benchmark::State& state) {
 	for (auto _ : state) {
 		algo.bruteforce_avx2_128(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
-
 
 static void BM_bruteforce_avx2_128_32_2_uxv_4x4(benchmark::State& state) {
 	for (auto _ : state) {
@@ -41,10 +41,12 @@ static void BM_bruteforce_avx2_128_32_2_uxv_8x8(benchmark::State& state) {
 	state.SetComplexityN(state.range(0));
 }
 
-BENCHMARK(BM_bruteforce_128)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_bruteforce_avx2_128)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_bruteforce_avx2_128_32_2_uxv_4x4)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_bruteforce_avx2_128_32_2_uxv_8x8)->RangeMultiplier(2)->Range(128, LS)->Complexity();
+#endif
+
+BENCHMARK(BM_bruteforce_128)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 
 int main(int argc, char** argv) {
 	random_seed(time(NULL));

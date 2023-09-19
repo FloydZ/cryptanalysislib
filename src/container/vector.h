@@ -1,12 +1,16 @@
-#ifndef CRYPTANALYZELIB_VECTOR
-#define CRYPTANALYZELIB_VECTOR
+#ifndef CRYPTANALYZELIB_CONTAINER_VECTOR
+#define CRYPTANALYZELIB_CONTAINER_VECTOR
+
+#include <cstdint>
+#include "container/common.h"
+
 
 /// simple data container holding `length` Ts
 /// \tparam T base type
 /// \tparam length number of elements
 template<class T, uint32_t length>
 	requires kAryContainerAble<T>
-class kAryContainer_T {
+class Vector {
 public:
 
 	// Needed for the internal template system.
@@ -98,8 +102,11 @@ public:
 	/// \param v2 input container
 	/// \param k_lower lower dimension
 	/// \param k_upper higher dimension
-	inline static void add(kAryContainer_T &v3, kAryContainer_T const &v1, kAryContainer_T const &v2,
-	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
+	inline static void add(Vector &v3,
+	                       Vector const &v1,
+	                       Vector const &v2,
+	                       const uint32_t k_lower=0,
+	                       const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -115,8 +122,11 @@ public:
 	/// \param k_upper higher dimension
 	/// \param norm = max norm of an dimension which is allowed.
 	/// \return true if the element needs to be filtered out. False else.
-	inline static bool add(kAryContainer_T &v3, kAryContainer_T const &v1, kAryContainer_T const &v2,
-	                       const uint32_t k_lower, const uint32_t k_upper,
+	inline static bool add(Vector &v3,
+	                       Vector const &v1,
+	                       Vector const &v2,
+	                       const uint32_t k_lower,
+	                       const uint32_t k_upper,
 	                       const uint32_t norm) noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
@@ -136,8 +146,11 @@ public:
 	/// \param k_lower lower dimension
 	/// \param k_upper higher dimension
 	/// \return true if the elements needs to be filled out. False else.
-	inline static void sub(kAryContainer_T &v3, kAryContainer_T const &v1, kAryContainer_T const &v2,
-	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
+	inline static void sub(Vector &v3,
+	                       Vector const &v1,
+	                       Vector const &v2,
+	                       const uint32_t k_lower=0,
+	                       const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -153,8 +166,11 @@ public:
 	/// \param k_upper higher dimension
 	/// \param norm filter every element out if hte norm is bigger than `norm`
 	/// \return true if the elements needs to be filter out. False if not
-	inline static bool sub(kAryContainer_T &v3, kAryContainer_T const &v1, kAryContainer_T const &v2,
-	                       const uint32_t k_lower, const uint32_t k_upper,
+	inline static bool sub(Vector &v3,
+	                       Vector const &v1,
+	                       Vector const &v2,
+	                       const uint32_t k_lower,
+	                       const uint32_t k_upper,
 	                       const uint32_t norm) noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
@@ -173,8 +189,10 @@ public:
 	/// \param k_lower lower dimension
 	/// \param k_upper higher dimension
 	/// \return v1 == v2 on the coordinates [k_lower, k_higher)
-	inline static bool cmp(kAryContainer_T const &v1, kAryContainer_T const &v2,
-	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
+	inline static bool cmp(Vector const &v1,
+	                       Vector const &v2,
+	                       const uint32_t k_lower=0,
+	                       const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -191,8 +209,10 @@ public:
 	/// \param v2 input container
 	/// \param k_lower lower bound coordinate wise
 	/// \param k_upper higher bound coordinate wise
-	inline static void set(kAryContainer_T &v1, kAryContainer_T const &v2,
-	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) noexcept {
+	inline static void set(Vector &v1,
+	                       Vector const &v2,
+	                       const uint32_t k_lower=0,
+	                       const uint32_t k_upper=LENGTH) noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -205,8 +225,9 @@ public:
 	/// \param k_lower lower coordinate bound
 	/// \param k_upper higher coordinate bound
 	/// \return this == obj on the coordinates [k_lower, k_higher)
-	bool is_equal(kAryContainer_T const &obj,
-	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
+	bool is_equal(Vector const &obj,
+	              const uint32_t k_lower=0,
+	              const uint32_t k_upper=LENGTH) const noexcept {
 		return cmp(this, obj, k_lower, k_upper);
 	}
 
@@ -214,10 +235,11 @@ public:
 	/// \param k_lower lower bound coordinate wise
 	/// \param k_upper higher bound coordinate wise
 	/// \return this > obj on the coordinates [k_lower, k_higher)
-	bool is_greater(kAryContainer_T const &obj,
-	                       const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
-		ASSERT(k_upper <= length && "ERROR is_greater not correct k_upper");
-		ASSERT(k_lower < k_upper && "ERROR is_greater not correct k_lower");
+	bool is_greater(Vector const &obj,
+	                const uint32_t k_lower=0,
+	                const uint32_t k_upper=LENGTH) const noexcept {
+		ASSERT(k_upper <= length);
+		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
@@ -234,10 +256,11 @@ public:
 	/// \param k_lower lower bound coordinate wise
 	/// \param k_upper higher bound coordinate wise
 	/// \return this < obj on the coordinates [k_lower, k_higher)
-	bool is_lower(kAryContainer_T const &obj,
-	                     const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
-		ASSERT(k_upper <= length && "ERROR is_lower not correct k_upper");
-		ASSERT(k_lower < k_upper && "ERROR is_lower not correct k_lower");
+	bool is_lower(Vector const &obj,
+	              const uint32_t k_lower=0,
+	              const uint32_t k_upper=LENGTH) const noexcept {
+		ASSERT(k_upper <= length);
+		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
@@ -255,18 +278,18 @@ public:
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
 	T& operator [](size_t i) noexcept {
-		ASSERT(i < length && "wrong access index");
+		ASSERT(i < length);
 		return __data[i];
 	}
 	const T& operator [](const size_t i) const noexcept {
-		ASSERT(i < length && "wrong access index");
+		ASSERT(i < length);
 		return __data[i];
 	};
 
 	/// copy operator
 	/// \param obj to copy from
 	/// \return this
-	kAryContainer_T& operator =(kAryContainer_T const &obj) noexcept {
+	Vector& operator =(Vector const &obj) noexcept {
 		ASSERT(size() == obj.size() && "äh?");
 
 		if (likely(this != &obj)) { // self-assignment check expected
@@ -279,7 +302,7 @@ public:
 	/// prints this container between the limbs [k_lower, k_higher)
 	/// \param k_lower lower bound
 	/// \param k_upper higher bound
-	void print(const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < length && k_upper < length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << __data[i] << " ";
@@ -287,6 +310,21 @@ public:
 		std::cout << "\n";
 	}
 
+	/// prints this container between the limbs [k_lower, k_higher)
+	/// \param k_lower lower bound
+	/// \param k_upper higher bound
+	void print_binary(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
+		ASSERT(k_lower < length && k_upper < length && k_lower < k_upper);
+		for (uint64_t i = k_lower; i < k_upper; ++i) {
+			auto data = __data[i];
+			for (uint32_t j = 0; j < T::bits(); ++j) {
+				std::cout << (data & 1u) << " ";
+				data >>= 1u;
+			}
+		}
+		std::cout << "\n";
+	}
+	
 	/// iterators
 	auto begin() noexcept { return __data.begin();}
 	const auto begin() const noexcept { return __data.begin();}

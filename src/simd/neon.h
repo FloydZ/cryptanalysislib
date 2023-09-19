@@ -279,6 +279,11 @@ struct uint8x32_t {
 		return out;
 	}
 
+	static inline uint8x32_t mullo(const uint8x32_t in1,
+								   const uint8_t in2) {
+		uint8x32_t rs = uint8x32_t::set1(in2);
+		return uint8x32_t::mullo(in1, rs);
+	}
 
 	///
 	/// \param in1

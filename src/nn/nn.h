@@ -8,9 +8,162 @@
 #include <cassert>
 #include <iostream>
 
+
 #include "random.h"
 #include "helper.h"
 
+#ifdef USE_AVX2
+#import "popcount/avx2.h"
+
+/// unrolled bruteforce step.
+/// stack: uint64_t[64]
+/// a1-a8, b1-b7: __m256i
+#define BRUTEFORCE256_32_8x8_STEP(stack, a1, a2, a3, a4, a5, a6, a7, a8, b1, b2, b3, b4, b5, b6, b7, b8)    \
+	stack[ 0] = (uint8_t)compare_256_32(a1, b1); \
+	stack[ 1] = (uint8_t)compare_256_32(a1, b2); \
+	stack[ 2] = (uint8_t)compare_256_32(a1, b3); \
+	stack[ 3] = (uint8_t)compare_256_32(a1, b4); \
+	stack[ 4] = (uint8_t)compare_256_32(a1, b5); \
+	stack[ 5] = (uint8_t)compare_256_32(a1, b6); \
+	stack[ 6] = (uint8_t)compare_256_32(a1, b7); \
+	stack[ 7] = (uint8_t)compare_256_32(a1, b8); \
+	stack[ 8] = (uint8_t)compare_256_32(a2, b1); \
+	stack[ 9] = (uint8_t)compare_256_32(a2, b2); \
+	stack[10] = (uint8_t)compare_256_32(a2, b3); \
+	stack[11] = (uint8_t)compare_256_32(a2, b4); \
+	stack[12] = (uint8_t)compare_256_32(a2, b5); \
+	stack[13] = (uint8_t)compare_256_32(a2, b6); \
+	stack[14] = (uint8_t)compare_256_32(a2, b7); \
+	stack[15] = (uint8_t)compare_256_32(a2, b8); \
+	stack[16] = (uint8_t)compare_256_32(a3, b1); \
+	stack[17] = (uint8_t)compare_256_32(a3, b2); \
+	stack[18] = (uint8_t)compare_256_32(a3, b3); \
+	stack[19] = (uint8_t)compare_256_32(a3, b4); \
+	stack[20] = (uint8_t)compare_256_32(a3, b5); \
+	stack[21] = (uint8_t)compare_256_32(a3, b6); \
+	stack[22] = (uint8_t)compare_256_32(a3, b7); \
+	stack[23] = (uint8_t)compare_256_32(a3, b8); \
+	stack[24] = (uint8_t)compare_256_32(a4, b1); \
+	stack[25] = (uint8_t)compare_256_32(a4, b2); \
+	stack[26] = (uint8_t)compare_256_32(a4, b3); \
+	stack[27] = (uint8_t)compare_256_32(a4, b4); \
+	stack[28] = (uint8_t)compare_256_32(a4, b5); \
+	stack[29] = (uint8_t)compare_256_32(a4, b6); \
+	stack[30] = (uint8_t)compare_256_32(a4, b7); \
+	stack[31] = (uint8_t)compare_256_32(a4, b8); \
+	stack[32] = (uint8_t)compare_256_32(a5, b1); \
+	stack[33] = (uint8_t)compare_256_32(a5, b2); \
+	stack[34] = (uint8_t)compare_256_32(a5, b3); \
+	stack[35] = (uint8_t)compare_256_32(a5, b4); \
+	stack[36] = (uint8_t)compare_256_32(a5, b5); \
+	stack[37] = (uint8_t)compare_256_32(a5, b6); \
+	stack[38] = (uint8_t)compare_256_32(a5, b7); \
+	stack[39] = (uint8_t)compare_256_32(a5, b8); \
+	stack[40] = (uint8_t)compare_256_32(a6, b1); \
+	stack[41] = (uint8_t)compare_256_32(a6, b2); \
+	stack[42] = (uint8_t)compare_256_32(a6, b3); \
+	stack[43] = (uint8_t)compare_256_32(a6, b4); \
+	stack[44] = (uint8_t)compare_256_32(a6, b5); \
+	stack[45] = (uint8_t)compare_256_32(a6, b6); \
+	stack[46] = (uint8_t)compare_256_32(a6, b7); \
+	stack[47] = (uint8_t)compare_256_32(a6, b8); \
+	stack[48] = (uint8_t)compare_256_32(a7, b1); \
+	stack[49] = (uint8_t)compare_256_32(a7, b2); \
+	stack[50] = (uint8_t)compare_256_32(a7, b3); \
+	stack[51] = (uint8_t)compare_256_32(a7, b4); \
+	stack[52] = (uint8_t)compare_256_32(a7, b5); \
+	stack[53] = (uint8_t)compare_256_32(a7, b6); \
+	stack[54] = (uint8_t)compare_256_32(a7, b7); \
+	stack[55] = (uint8_t)compare_256_32(a7, b8); \
+	stack[56] = (uint8_t)compare_256_32(a8, b1); \
+	stack[57] = (uint8_t)compare_256_32(a8, b2); \
+	stack[58] = (uint8_t)compare_256_32(a8, b3); \
+	stack[59] = (uint8_t)compare_256_32(a8, b4); \
+	stack[60] = (uint8_t)compare_256_32(a8, b5); \
+	stack[61] = (uint8_t)compare_256_32(a8, b6); \
+	stack[62] = (uint8_t)compare_256_32(a8, b7); \
+	stack[63] = (uint8_t)compare_256_32(a8, b8)
+
+
+///
+#define BRUTEFORCE256_64_4x4_STEP(stack, a0, a1, a2, a3, b0, b1, b2, b3)    \
+	stack[ 0] = (uint8_t)compare_256_64(a0, b0); 	\
+	stack[ 1] = (uint8_t)compare_256_64(a0, b1); 	\
+	stack[ 2] = (uint8_t)compare_256_64(a0, b2); 	\
+	stack[ 3] = (uint8_t)compare_256_64(a0, b3); 	\
+	stack[ 4] = (uint8_t)compare_256_64(a1, b0); 	\
+	stack[ 5] = (uint8_t)compare_256_64(a1, b1); 	\
+	stack[ 6] = (uint8_t)compare_256_64(a1, b2); 	\
+	stack[ 7] = (uint8_t)compare_256_64(a1, b3); 	\
+	stack[ 8] = (uint8_t)compare_256_64(a2, b0); 	\
+	stack[ 9] = (uint8_t)compare_256_64(a2, b1); 	\
+	stack[10] = (uint8_t)compare_256_64(a2, b2); 	\
+	stack[11] = (uint8_t)compare_256_64(a2, b3); 	\
+	stack[12] = (uint8_t)compare_256_64(a3, b0); 	\
+	stack[13] = (uint8_t)compare_256_64(a3, b1); 	\
+	stack[14] = (uint8_t)compare_256_64(a3, b2); 	\
+	stack[15] = (uint8_t)compare_256_64(a3, b3); 	\
+	b0 = _mm256_permute4x64_epi64(b0, 0b00111001); 	\
+	b1 = _mm256_permute4x64_epi64(b1, 0b00111001); 	\
+	b2 = _mm256_permute4x64_epi64(b2, 0b00111001); 	\
+	b3 = _mm256_permute4x64_epi64(b3, 0b00111001); 	\
+	stack[16] = (uint8_t)compare_256_64(a0, b0); 	\
+	stack[17] = (uint8_t)compare_256_64(a0, b1); 	\
+	stack[18] = (uint8_t)compare_256_64(a0, b2); 	\
+	stack[19] = (uint8_t)compare_256_64(a0, b3); 	\
+	stack[20] = (uint8_t)compare_256_64(a1, b0); 	\
+	stack[21] = (uint8_t)compare_256_64(a1, b1); 	\
+	stack[22] = (uint8_t)compare_256_64(a1, b2); 	\
+	stack[23] = (uint8_t)compare_256_64(a1, b3); 	\
+	stack[24] = (uint8_t)compare_256_64(a2, b0); 	\
+	stack[25] = (uint8_t)compare_256_64(a2, b1); 	\
+	stack[26] = (uint8_t)compare_256_64(a2, b2); 	\
+	stack[27] = (uint8_t)compare_256_64(a2, b3); 	\
+	stack[28] = (uint8_t)compare_256_64(a3, b0); 	\
+	stack[29] = (uint8_t)compare_256_64(a3, b1); 	\
+	stack[30] = (uint8_t)compare_256_64(a3, b2); 	\
+	stack[31] = (uint8_t)compare_256_64(a3, b3); 	\
+	b0 = _mm256_permute4x64_epi64(b0, 0b00111001); 	\
+	b1 = _mm256_permute4x64_epi64(b1, 0b00111001); 	\
+	b2 = _mm256_permute4x64_epi64(b2, 0b00111001); 	\
+	b3 = _mm256_permute4x64_epi64(b3, 0b00111001); 	\
+	stack[32] = (uint8_t)compare_256_64(a0, b0); 	\
+	stack[33] = (uint8_t)compare_256_64(a0, b1); 	\
+	stack[34] = (uint8_t)compare_256_64(a0, b2); 	\
+	stack[35] = (uint8_t)compare_256_64(a0, b3); 	\
+	stack[36] = (uint8_t)compare_256_64(a1, b0); 	\
+	stack[37] = (uint8_t)compare_256_64(a1, b1); 	\
+	stack[38] = (uint8_t)compare_256_64(a1, b2); 	\
+	stack[39] = (uint8_t)compare_256_64(a1, b3); 	\
+	stack[40] = (uint8_t)compare_256_64(a2, b0); 	\
+	stack[41] = (uint8_t)compare_256_64(a2, b1); 	\
+	stack[42] = (uint8_t)compare_256_64(a2, b2); 	\
+	stack[43] = (uint8_t)compare_256_64(a2, b3); 	\
+	stack[44] = (uint8_t)compare_256_64(a3, b0); 	\
+	stack[45] = (uint8_t)compare_256_64(a3, b1); 	\
+	stack[46] = (uint8_t)compare_256_64(a3, b2); 	\
+	stack[47] = (uint8_t)compare_256_64(a3, b3); 	\
+	b0 = _mm256_permute4x64_epi64(b0, 0b00111001); 	\
+	b1 = _mm256_permute4x64_epi64(b1, 0b00111001); 	\
+	b2 = _mm256_permute4x64_epi64(b2, 0b00111001); 	\
+	b3 = _mm256_permute4x64_epi64(b3, 0b00111001); 	\
+	stack[48] = (uint8_t)compare_256_64(a0, b0); 	\
+	stack[49] = (uint8_t)compare_256_64(a0, b1); 	\
+	stack[50] = (uint8_t)compare_256_64(a0, b2); 	\
+	stack[51] = (uint8_t)compare_256_64(a0, b3); 	\
+	stack[52] = (uint8_t)compare_256_64(a1, b0); 	\
+	stack[53] = (uint8_t)compare_256_64(a1, b1); 	\
+	stack[54] = (uint8_t)compare_256_64(a1, b2); 	\
+	stack[55] = (uint8_t)compare_256_64(a1, b3); 	\
+	stack[56] = (uint8_t)compare_256_64(a2, b0); 	\
+	stack[57] = (uint8_t)compare_256_64(a2, b1); 	\
+	stack[58] = (uint8_t)compare_256_64(a2, b2); 	\
+	stack[59] = (uint8_t)compare_256_64(a2, b3); 	\
+	stack[60] = (uint8_t)compare_256_64(a3, b0); 	\
+	stack[61] = (uint8_t)compare_256_64(a3, b1); 	\
+	stack[62] = (uint8_t)compare_256_64(a3, b2); 	\
+	stack[63] = (uint8_t)compare_256_64(a3, b3);
+#endif
 
 /// configuration for the following algorithm: https://arxiv.org/abs/2102.02597
 class NN_Config {
@@ -570,8 +723,8 @@ public:
 	/// core entry function for the implementation of the Esser, Kuebler, Zweydinger NN algorithm
 	/// \param e1 size of the left list
 	/// \param e2 size of the right list
-	void run(const size_t e1=LIST_SIZE,
-	         const size_t e2=LIST_SIZE) noexcept {
+	constexpr void run(const size_t e1=LIST_SIZE,
+	                   const size_t e2=LIST_SIZE) noexcept {
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
 
 		for (size_t i = 0; i < P*N; ++i) {
@@ -589,10 +742,15 @@ public:
 			}
 		}
 	}
+
+	constexpr void nn(const size_t e1=LIST_SIZE,
+	                  const size_t e2=LIST_SIZE) noexcept {
+		run(e1, e2);
+	}
+#ifdef USE_AVX2
+	#include "avx2.h"
+#endif
 };
 
-#ifdef USE_AVX2
-#include "avx2.h"
-#endif
 
 #endif //SMALLSECRETLWE_NN_H

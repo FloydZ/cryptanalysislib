@@ -3,15 +3,13 @@
 
 #include "helper.h"
 #include "random.h"
-#include "simd/avx2.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-#if __x86_64__
-TEST(U256, uint32_t) {
-	U256i kek;
-	print_m256i_u32(kek);
+#if USE_AVX2
+#include "simd/avx2.h"
+TEST(Bla, uint32_t) {
 }
 #endif
 

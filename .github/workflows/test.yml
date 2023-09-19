@@ -115,33 +115,50 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
     - name: Bench
       run: cd build && 
-        ./bench/sort/bench_b63_sort_gbench_sort  --benchmark_format=json  | tee benchmark_bench_b63_sort_gbench_sort.json               &&
-        ./bench/combinations/bench_b63_combinations_binary            -j  | tee benchmark_bench_b63_combinations_binary .json           &&
+        ./bench/combinations/bench_b63_combinations_binary            -j  | tee benchmark_bench_b63_combinations_binary.json            &&
         ./bench/combinations/bench_b63_combinations_ternary           -j  | tee benchmark_bench_b63_combinations_ternary.json           &&
-        ./bench/combinations/bench_b63_container_get_bits             -j  | tee benchmark_bench_b63_container_get_bits.json             &&
-        ./bench/combinations/bench_b63_container_kAryPackedContainer  -j  | tee benchmark_bench_b63_container_kAryPackedContainer.json  &&
-        ./bench/combinations/bench_b63_label_add                      -j  | tee benchmark_bench_b63_label_add.json                      &&
-        ./bench/combinations/bench_b63_label_add_level                -j  | tee benchmark_bench_b63_label_add_level.json                &&
-        ./bench/combinations/bench_b63_label_equal_level              -j  | tee benchmark_bench_b63_label_equal_level.json              &&
-        ./bench/combinations/bench_b63_label_sub                      -j  | tee benchmark_bench_b63_label_sub.json                      &&
-        ./bench/combinations/bench_b63_label_sub_level                -j  | tee benchmark_bench_b63_label_sub_level.json                &&
-        ./bench/combinations/bench_b63_labeltype_add                  -j  | tee benchmark_bench_b63_labeltype_add.json                  &&
-        ./bench/combinations/bench_b63_labeltype_sub                  -j  | tee benchmark_bench_b63_labeltype_sub.json                  &&
-        ./bench/combinations/bench_b63_list_binarysearch              -j  | tee benchmark_bench_b63_list_binarysearchjson               &&
-        ./bench/combinations/bench_b63_list_search                    -j  | tee benchmark_bench_b63_list_search.json                    &&
-        ./bench/combinations/bench_b63_list_sort                      -j  | tee benchmark_bench_b63_list_sort                           &&
-        ./bench/combinations/bench_b63_mem_malloc_free                -j  | tee benchmark_bench_b63_mem_malloc_free.json                &&
-        ./bench/combinations/bench_b63_search_binarysearch            -j  | tee benchmark_bench_b63_search_binarysearch.json            &&
-        ./bench/combinations/bench_b63_search_internal_parallel_bucket_search -j  | tee benchmark_bench_b63_search_internal_parallel_bucket_search.json &&
-        ./bench/combinations/bench_b63_sort_binarycontainer_single_limb       -j  | tee benchmark_bench_b63_sort_binarycontainer_single_limb.json       &&
-        ./bench/combinations/bench_b63_sort_internal_parallel_bucket_sort     -j  | tee benchmark_bench_b63_sort_internal_parallel_bucket_sort.json     &&
-        ./bench/combinations/bench_b63_sort_sort                      -j  | tee benchmark_bench_b63_sort_sort.json                      &&
-        ./bench/combinations/bench_stl_stl                            -j  | tee benchmark_bench_stl_stl.json                            &&
-        ./bench/combinations/bench_b63_value_absolute                 -j  | tee benchmark_bench_b63_value_absolute.json                 &&
-        ./bench/combinations/bench_b63_value_add                      -j  | tee benchmark_bench_b63_value_add.json                      &&
-        ./bench/combinations/bench_b63_value_move_operator            j  | tee benchmark_bench_b63_value_move_operator.json
+        
+        ./bench/container/bench_b63_container_get_bits                -j  | tee benchmark_bench_b63_container_get_bits.json             &&
+        ./bench/container/bench_b63_container_kAryPackedContainer     -j  | tee benchmark_bench_b63_container_kAryPackedContainer.json  &&
+        
+        ./bench/label/bench_b63_label_add                             -j  | tee benchmark_bench_b63_label_add.json                      &&
+        ./bench/label/bench_b63_label_add_level                       -j  | tee benchmark_bench_b63_label_add_level.json                &&
+        ./bench/label/bench_b63_label_equal_level                     -j  | tee benchmark_bench_b63_label_equal_level.json              &&
+        ./bench/label/bench_b63_label_sub                             -j  | tee benchmark_bench_b63_label_sub.json                      &&
+        ./bench/label/bench_b63_label_sub_level                       -j  | tee benchmark_bench_b63_label_sub_level.json                &&
+        
+        ./bench/labeltype/bench_b63_labeltype_add                     -j  | tee benchmark_bench_b63_labeltype_add.json                  &&
+        ./bench/labeltype/bench_b63_labeltype_sub                     -j  | tee benchmark_bench_b63_labeltype_sub.json                  &&
+        
+        ./bench/list/bench_b63_list_binarysearch                      -j  | tee benchmark_bench_b63_list_binarysearchjson               &&
+        ./bench/list/bench_b63_list_search                            -j  | tee benchmark_bench_b63_list_search.json                    &&
+        ./bench/list/bench_b63_list_sort                              -j  | tee benchmark_bench_b63_list_sort                           &&
+        
+        ./bench/matrix/bench_b63_matrix/gaus                          -j  | tee benchmark_bench_b63_matrix_gaus                         &&
+        
+        ./bench/mem/bench_b63_mem_malloc_free                         -j  | tee benchmark_bench_b63_mem_malloc_free.json                &&
+        
+        ./bench/nn/bench_b63_nn_avx2                                  -j  | tee benchmark_bench_b63_nn_avx2.json                        &&
+        ./bench/nn/bench_b63_nn_bruteforce                            -j  | tee benchmark_bench_b63_nn_bruteforce.json                  &&
+        ./bench/nn/bench_b63_nn_n128_avx2                             -j  | tee benchmark_bench_b63_nn_n128_avx2.json                   &&
+        ./bench/nn/bench_b63_nn_opt                                   -j  | tee benchmark_bench_b63_nn_opt.json                         &&
+        ./bench/nn/bench_b63_nn_popcount                              -j  | tee benchmark_bench_b63_nn_popcount.json                    &&
+        ./bench/nn/bench_b63_nn_sort_nn_on32                          -j  | tee benchmark_bench_b63_nn_sort_nn_on32.json                &&
+        ./bench/nn/bench_b63_nn_sort_nn_on64                          -j  | tee benchmark_bench_b63_nn_sort_nn_on64.json                &&
+        
+        ./bench/search/bench_b63_search_binarysearch                  -j  | tee benchmark_bench_b63_search_binarysearch.json            &&
+        ./bench/search/bench_b63_search_internal_parallel_bucket_search  -j  | tee benchmark_bench_b63_search_internal_parallel_bucket_search.json &&
+        
+        ./bench/sort/bench_b63_sort_binarycontainer_single_limb       -j  | tee benchmark_bench_b63_sort_binarycontainer_single_limb.json       &&
+        ./bench/sort/bench_b63_sort_internal_parallel_bucket_sort     -j  | tee benchmark_bench_b63_sort_internal_parallel_bucket_sort.json     &&
+        ./bench/sort/bench_b63_sort_sort                              -j  | tee benchmark_bench_b63_sort_sort.json                      &&
+        ./bench/sort/bench_stl_stl                                    -j  | tee benchmark_bench_stl_stl.json                            &&
+        ./bench/value/bench_b63_value_absolute                        -j  | tee benchmark_bench_b63_value_absolute.json                 &&
+        ./bench/value/bench_b63_value_add                             -j  | tee benchmark_bench_b63_value_add.json                      &&
+        ./bench/value/bench_b63_value_move_operator                   -j  | tee benchmark_bench_b63_value_move_operator.json
 
-    
+        ./bench/sort/bench_b63_sort_gbench_sort  --benchmark_format=json  | tee benchmark_bench_b63_sort_gbench_sort.json               &&
+
     - name: benchmark_bench_b63_sort_gbench_sort
       uses: benchmark-action/github-action-benchmark@v1
       with:

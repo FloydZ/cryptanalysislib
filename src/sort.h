@@ -8,14 +8,12 @@
 #include <cstddef>
 #include <limits>
 #include <atomic>
-
-// C imports
-#include <omp.h>
-#include <stddef.h>
+#include <cstddef>
 
 #if defined(SORT_PARALLEL)
 #include <execution>        // parallel/sequential sort
 #include <algorithm>
+#include <omp.h>
 #endif
 
 // Internal imports
@@ -24,35 +22,18 @@
 #include "list/list.h"
 #include "search.h"
 #include "sort.h"
+#include "thread/thread.h"
 #include "ska_sort.hpp"
 
 
-#if __cplusplus > 201709L
-//<class List>
-//concept HashMapListAble = requires(List l) {
-	// we need some basic data types
-	/// TODO not working with simple list
-	//typename List::ValueType;
-	//typename List::LabelType;
-	//typename List::ElementType;
-	//typename List::MatrixType;
-	//typename List::LabelContainerType;
-
-	//List::ElementType;
-
-	// check that the element and therefore the value and label also fulfill all requirements.
-	// requires ListAble<typename List::ElementType>;
-
-	// The following functions are needed.
-	//requires requires(const size_t s){
-		//l.data_label(s);
-		//l.data_value(s);
-		//TODO{ l.size() } -> std::convertible_to<size_t>;
-	//};
-//};
-#endif
-
-// LSD radix sort, taken from valentin vasseur
+/// LSD radix sort, taken from valentin vasseur
+/// \tparam T
+/// \tparam use_idx
+/// \param array
+/// \param idx
+/// \param aux
+/// \param aux2
+/// \param len /
 template<typename T, bool use_idx>
 void vv_radix_sort(T *array, size_t *idx, T *aux, size_t *aux2, size_t len) {
 	constexpr uint32_t BITS = sizeof(T)*8;
@@ -271,7 +252,7 @@ public:
 
 			// calc stuff
 			//const LimbType data = e.data().get_bits(b0, b2);
-			const LimbType data = e.data().get_bits(lower_limb, higher_limb, lmask, rmask, shift);
+			const LimbType data = e.get_bits(lower_limb, higher_limb, lmask, rmask, shift);
 			const uint64_t j = data & mask1;
 			ASSERT(j < n_buckets);
 
@@ -374,7 +355,7 @@ public:
 			  uint64_t *upper,
 	          uint16_t i0 = b0,
 			  uint16_t i2 = b2) {
-		const LimbType data = target.data().get_bits(i0, i2);
+		const LimbType data = target.get_bits(i0, i2);
 		const uint64_t j = data & mask1;
 		ASSERT(j < n_buckets);
 
@@ -1922,7 +1903,7 @@ public:
 	uint64_t load() const noexcept {
 		uint64_t load = 0;
 
-		if (omp_get_thread_num() == 0) {
+		if (Thread::get_tid() == 0) {
 
 #pragma omp critical
 			{

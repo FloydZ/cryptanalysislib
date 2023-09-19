@@ -3,8 +3,6 @@
 
 #include "../bench_config.h"
 
-#include <helper.h>
-#include <value.h>
 
 B63_BASELINE(copy, nn) {
 	kAryValue v1{}, v2{};

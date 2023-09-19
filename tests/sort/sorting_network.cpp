@@ -1,29 +1,14 @@
 #include <gtest/gtest.h>
 #include <cstdint>
-#include <immintrin.h>
 
-#include "sort/sorting_network.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 using namespace std;
 
-union U256i {
-    __m256i v;
-    uint32_t a[8];
-};
-
-void print_U256i(const __m256i v){
-    const U256i u = { v };
-
-    for (const auto i : u.a) {
-        printf("%d ", i);
-	}
-
-	printf("\n");
-}
-
-
+#ifdef USE_AVX2
+#include <immintrin.h>
+#include "sort/sorting_network.h"
 
 // SRC: https://drops.dagstuhl.de/opus/volltexte/2021/13775/pdf/LIPIcs-SEA-2021-3.pdf
 TEST(SortingNetwork, Ints8) {
@@ -43,7 +28,7 @@ TEST(SortingNetwork, Ints8) {
 	mask = _mm256_movemask_ps((__m256) c);
 	EXPECT_EQ(mask, (1u << 8u) - 1u);
 }
-
+#endif
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

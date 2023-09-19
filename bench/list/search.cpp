@@ -3,10 +3,8 @@
 
 #include "../bench_config.h"
 
-#include <helper.h>
-#include <list.h>
-
-#ifdef USE_FPLLL
+#include "helper.h"
+#include "list/list.h"
 
 B63_BASELINE(NotFind, nn) {
 	kAryList l{n};
@@ -14,7 +12,7 @@ B63_BASELINE(NotFind, nn) {
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
 		kAryMatrix m;
-		m.gen_identity(n);
+		m.identity();
 		l.generate_base_random(n, m);
 
 		// make sure we will never find the value
@@ -34,29 +32,6 @@ B63_BASELINE(NotFind, nn) {
 	B63_KEEP(res);
 }
 
-// TODO
-//B63_BENCHMARK(NotFindParallel, nn) {
-//	kAryList l{n};
-//	kAryElement e{};
-//	B63_SUSPEND {
-//		kAryMatrix m;
-//		m.gen_identity(n);
-//		l.generate_base(n, m);
-//
-//		e.zero();
-//	}
-//
-//	int32_t res = 0;
-//
-//	l.search_parallel(e, __level_translation_array);
-//
-//	B63_SUSPEND {
-//		res += 1;
-//	}
-//
-//	B63_KEEP(res);
-//}
-
 B63_BENCHMARK(FindEnd, nn) {
 	kAryList l{n};
 	kAryElement e{};
@@ -64,7 +39,7 @@ B63_BENCHMARK(FindEnd, nn) {
 
 	B63_SUSPEND {
 		kAryMatrix m;
-		m.gen_identity(n);
+		m.identity(1);
 		l.generate_base_random(n, m);
 
 		// make sure we will find the element at the end
@@ -95,7 +70,7 @@ B63_BENCHMARK(FindBegin, nn) {
 		l.append(e);
 
 		kAryMatrix m;
-		m.gen_identity(n);
+		m.identity(1);
 		l.generate_base_random(n, m);
 
 		translate_level(&k_lower, &k_higher, -1, __level_translation_array);
@@ -112,9 +87,6 @@ B63_BENCHMARK(FindBegin, nn) {
 
 	B63_KEEP(res);
 }
-#else 
-B63_BASELINE(DoNothing, nn) {}
-#endif
 
 int main(int argc, char **argv) {
 	B63_RUN_WITH("time,lpe:cycles,lpe:instructions,lpe:ref-cycles,lpe:context-switches,lpe:cs", argc, argv);

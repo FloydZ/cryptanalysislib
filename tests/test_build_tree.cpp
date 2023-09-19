@@ -5,8 +5,6 @@
 
 #include "helper.h"
 #include "kAry_type.h"
-#include "tree.h"
-#include "test.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

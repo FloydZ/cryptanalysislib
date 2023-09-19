@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "test.h"
+#include "search.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -39,24 +40,6 @@ ContainerT random_data(std::vector<ContainerT> &data) {
 	assert(std::is_sorted(data.begin(), data.end()));
 	return data[solution_index];//fastrandombytes_uint64() % SIZE;
 }
-
-// Source wikipedia
-//TEST(lower_bound_interpolation_search1, simple) {
-//	std::vector<ContainerT> data;
-//	ContainerT search = random_data(data);
-//
-//	for(auto &a : data)
-//		std::cout << a << " ";
-//	std::cout << "\n";
-//
-//	auto a = lower_bound_interpolation_search1(data.begin(), data.end(), search,
-//	                                           [](const ContainerT &e1) -> ContainerT {
-//		                                           return e1;
-//	                                           }
-//	);
-//
-//	EXPECT_EQ(solution_index, distance(data.begin(), a));
-//}
 
 // source: https://medium.com/@vgasparyan1995/interpolation-search-a-generic-implementation-in-c-part-2-164d2c9f55fa
 TEST(lower_bound_interpolation_search2, simple) {
@@ -125,23 +108,6 @@ TEST(lower_bound_monobound_binary_search, simple) {
 	EXPECT_EQ(solution_index, b);
 	EXPECT_EQ(solution_index, distance(data.begin(), a));
 }
-
-//TEST(upper_bound_adaptive_binary_search, simple) {
-//	std::vector<ContainerT> data;
-//	ContainerT search = random_data(data);
-//
-//	for(auto &a : data)
-//		std::cout << a << " ";
-//	std::cout << "\n";
-//
-//	auto a = upper_bound_adaptive_binary_search(data.begin(), data.end(), search,
-//        [](const ContainerT &e1) -> ContainerT {
-//            return e1;
-//        }
-//	);
-//
-//	EXPECT_EQ(solution_index, distance(data.begin(), a));
-//}
 
 TEST(InterpolationSearch, simple) {
 	std::vector<ContainerT> data;

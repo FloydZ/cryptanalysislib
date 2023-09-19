@@ -3,8 +3,7 @@
 #include <bitset>
 
 #include "helper.h"
-#include "label.h"
-#include "../test.h"
+#include "binary.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -25,8 +24,8 @@ TEST(CmpSimple2, Simple_Everything_False) {
 
 	b1.zero(); b2.one();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
+	for (int k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
+		for (int k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
 			uint64_t limb = BinaryContainerTest::round_down_to_limb(k_lower);
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 			EXPECT_EQ(false, BinaryContainerTest::cmp_simple2(b1, b2, limb, mask));
@@ -40,8 +39,8 @@ TEST(CmpSimple2, Simple_Everything_True) {
 
 	b1.zero(); b2.zero();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
+	for (int k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
+		for (int k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
 			uint64_t limb = BinaryContainerTest::round_down_to_limb(k_lower);
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 			EXPECT_EQ(true, BinaryContainerTest::cmp_simple2(b1, b2, limb, mask));
@@ -58,7 +57,7 @@ TEST(CmpSimple2, OffByOne_Lower_One) {
 	b1[0] = true;
 	uint64_t limb  = 0;
 	uint64_t mask  = BinaryContainerTest::higher_mask(0);
-	uint64_t mask2 = BinaryContainerTest::lower_mask(b1.size()-1);
+	uint64_t mask2 = BinaryContainerTest::lower_mask(BinaryContainerTest::size()-1);
 	mask &= mask2;
 
 	EXPECT_EQ(1, b1[0]);

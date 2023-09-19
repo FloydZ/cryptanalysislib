@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_POPCOUNT_X86_H
 #define CRYPTANALYSISLIB_POPCOUNT_X86_H
 
+#if !defined(USE_AVX2)
+#error "no avx"
+#endif
+
 #include <immintrin.h>
 #include "helper.h"
 

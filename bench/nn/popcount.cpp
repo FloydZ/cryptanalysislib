@@ -9,9 +9,10 @@
 constexpr size_t LS = 1u << 18u;
 constexpr size_t d = 16;
 constexpr size_t dk = 22;
-constexpr static WindowedAVX2_Config config{256, 4, 200, 32, LS, dk, d, 0, 512};
-WindowedAVX2<config> algo{};
+constexpr static NN_Config config{256, 4, 200, 32, LS, dk, d, 0, 512};
+NN<config> algo{};
 
+#ifdef USE_AVX2
 __m256i *ptr;
 static void BM_popcount_avx2_32(benchmark::State& state) {
 	__m256i tmp;
@@ -82,15 +83,19 @@ BENCHMARK(BM_popcount_avx2_64_old)->RangeMultiplier(2)->Range(128, LS)->Complexi
 BENCHMARK(BM_popcount_avx2_64_old_v2)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_popcount_avx2_32)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_popcount_avx2_32_old)->RangeMultiplier(2)->Range(128, LS)->Complexity();
-
+#endif
 
 int main(int argc, char** argv) {
 	random_seed(time(NULL));
 	algo.generate_random_instance();
+
+#ifdef USE_AVX2
 	ptr = (__m256i *)algo.L1;
+#endif
 
     ::benchmark::Initialize(&argc, argv);
-    if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;
+    if (::benchmark::ReportUnrecognizedArguments(argc, argv))
+		return 1;
     ::benchmark::RunSpecifiedBenchmarks();
     ::benchmark::Shutdown();
     return 0;

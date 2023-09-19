@@ -312,6 +312,13 @@ struct uint8x32_t {
 	}
 
 	///
+	static inline uint8x32_t mullo(const uint8x32_t in1,
+	                               const uint8_t in2) {
+		uint8x32_t rs = uint8x32_t::set1(in2);
+		return uint8x32_t::mullo(in1, rs);
+	}
+
+	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -381,9 +388,30 @@ struct uint64x4_t {
 	constexpr inline void print(bool binary=false, bool hex=false) const;
 };
 
+bool operator==(const uint8x32_t& a, const uint8x32_t& b){
+	for (uint32_t i = 0; i < 32; i++) {
+		if (a.v8[i] != b.v8[i]) {
+			return false;
+		}
+	}
+
+	return true;
+}
 #endif // no SIMD uinit available
 
 ///
+inline uint8x32_t operator* (const uint8x32_t& lhs, const uint8x32_t& rhs) {
+	return uint8x32_t::mullo(lhs, rhs);
+}
+
+inline uint8x32_t operator* (const uint8x32_t& lhs, const uint8_t & rhs) {
+	return uint8x32_t::mullo(lhs, rhs);
+}
+
+inline uint8x32_t operator* (const uint8_t & lhs, const uint8x32_t & rhs) {
+	return uint8x32_t::mullo(rhs, lhs);
+}
+
 inline uint8x32_t operator+ (const uint8x32_t& lhs, const uint8x32_t& rhs) {
 	return uint8x32_t::add(lhs, rhs);
 }

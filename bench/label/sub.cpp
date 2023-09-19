@@ -2,9 +2,7 @@
 #include "counters/perf_events.h"
 
 #include "../bench_config.h"
-
-#include <helper.h>
-#include <label.h>
+#include "helper.h"
 
 B63_BASELINE(sub, nn) {
 	kAryLabel v1{}, v2{}, v3{};

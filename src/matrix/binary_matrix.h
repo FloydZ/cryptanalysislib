@@ -19,6 +19,7 @@ public:
 	using DataType = uint8_t;
 	mzd_t *__data;
 	customMatrixData *__matrix_data;
+	const uint32_t m4ri_k = matrix_opt_k(nrows, ncols);
 
 	/// needed functions
 	using FqMatrix_Meta<T, nrows,ncols, q>::set;
@@ -42,6 +43,7 @@ public:
 
 	/// copy constructor
 	constexpr FqMatrix(const FqMatrix &A) noexcept {
+		__data = matrix_init(nrows, ncols);
 		matrix_copy(__data, A.__data);
 		__matrix_data = init_matrix_data(ncols);
 	}
@@ -134,18 +136,79 @@ public:
 	}
 
 	/// direct transpose of the full matrix
+	/// NOTE: no expansion is possible
 	/// \param B output
 	/// \param A input
-	constexpr static void transpose(FqMatrix_Meta<T, ncols, nrows, q> &B,
-									FqMatrix_Meta<T, nrows, ncols, q> &A) noexcept {
-		/// TODO
+	constexpr static void transpose(FqMatrix<T, ncols, nrows, q> &B,
+									FqMatrix<T, nrows, ncols, q> &A) noexcept {
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols; ++j) {
+				const auto data = A.get(i, j);
+				B.set(data, j, i);
+			}
+		}
+		// TODO matrix_transpose(B.__data, A.__data);
+	}
+
+	/// direct transpose of the full matrix
+	/// NOTE: no expansion is possible
+	/// \param B output
+	/// \param A input
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
+	constexpr static void transpose(FqMatrix<Tprime, nrows_prime, ncols_prime, qprime> &B,
+									FqMatrix<T, nrows, ncols, q> &A,
+	                                const uint32_t srow,
+	                                const uint32_t scol) noexcept {
+		ASSERT(srow < nrows);
+		ASSERT(scol < ncols);
+		// checks must be transposed to
+		ASSERT(scol < nrows_prime);
+		ASSERT(srow < ncols_prime);
+		ASSERT(ncols <= nrows_prime);
+		ASSERT(nrows <= ncols_prime);
+
+		for (uint32_t i = srow; i < nrows; ++i) {
+			for (uint32_t j = scol; j < ncols; ++j) {
+				const auto data = A.get(i, j);
+				B.set(data, j, i);
+			}
+		}
+	}
+
+	/// NOTE this re-aligns the output to (0, 0)
+	/// \param B output matrix
+	/// \param A input matrix
+	/// \param srow start row (inclusive, of A)
+	/// \param scol start col (inclusive, of A)
+	/// \param erow end row (exclusive, of A)
+	/// \param ecol end col (exclusive, of A)
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
+	static constexpr void sub_matrix(FqMatrix<Tprime, nrows_prime, ncols_prime, qprime> &B,
+									 const FqMatrix &A,
+									 const uint32_t srow, const uint32_t scol,
+									 const uint32_t erow, const uint32_t ecol) {
+		ASSERT(srow < erow);
+		ASSERT(scol < ecol);
+		ASSERT(srow < nrows);
+		ASSERT(scol < ncols);
+		ASSERT(erow <= nrows);
+		ASSERT(ecol <= ncols);
+		ASSERT(erow-srow <= nrows_prime);
+		ASSERT(ecol-scol <= ncols_prime);
+
+		for (uint32_t row = srow; row < erow; ++row) {
+			for (uint32_t col = scol; col < ecol; ++col) {
+				const DataType data = A.get(row, col);
+				B.set(data, row-srow, col-scol);
+			}
+		}
 	}
 
 	/// swap to columns
 	/// \param i column 1
 	/// \param j column 2
 	constexpr void swap_cols(const uint16_t i, const uint16_t j) noexcept {
-		/// TODO
+		mzd_col_swap(__data, i, j);
 	}
 
 	/// swap rows
@@ -153,16 +216,35 @@ public:
 	/// \param j second row
 	constexpr void swap_rows(const uint16_t i,
 							 const uint16_t j) noexcept {
-		/// TODO
+		mzd_row_swap(__data, i, j);
 	}
 
-	constexpr void permute_cols(FqMatrix_Meta<T, ncols, nrows, q> &AT,
-								uint32_t *permutation,
+	constexpr void permute_cols(FqMatrix<T, ncols, nrows, q> &AT,
+								int *permutation,
 								const uint32_t len) noexcept {
-		/// TODO
+		uint64_t data[2];
+		mzp_t *P = (mzp_t *)data;
+		P->length = len;
+		P->values = permutation;
+		matrix_create_random_permutation(__data, AT.__data, P);
 	}
 
-	constexpr void matrix_vector_mul(const FqMatrix_Meta<T, 1, ncols, q> &v) noexcept {
+	constexpr uint32_t gaus(const uint32_t stop=nrows) noexcept {
+		return matrix_echelonize_partial(__data, m4ri_k, stop, __matrix_data, 0);
+	}
+
+	[[nodiscard]] constexpr uint32_t fix_gaus(int *__restrict__ permutation,
+											  const uint32_t rang,
+											  const uint32_t fix_col,
+											  const uint32_t lookahead) noexcept {
+		uint64_t data[2];
+		mzp_t *P = (mzp_t *)data;
+		P->length = ncols;
+		P->values = permutation;
+		return matrix_fix_gaus(__data, rang, fix_col, fix_col, lookahead, P);
+	}
+
+	constexpr void matrix_vector_mul(const FqMatrix<T, 1, ncols, q> &v) noexcept {
 		/// TODO
 	}
 
@@ -178,6 +260,8 @@ public:
 	                     bool syndrome=false) const noexcept {
 		mzd_print(__data);
 	}
+
+	constexpr bool binary() noexcept { return true; }
 };
 
 #endif//CRYPTANALYSISLIB_BINARYMATRIX_H

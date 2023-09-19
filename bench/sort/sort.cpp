@@ -3,8 +3,8 @@
 
 #include "../bench_config.h"
 
+#include "container/binary_packed_vector.h"
 #include <helper.h>
-#include <container.h>
 //#include <sort.h>
 #include "sort/sort.h"
 

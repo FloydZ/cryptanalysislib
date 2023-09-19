@@ -3,8 +3,8 @@
 
 #include "../bench_config.h"
 
+#include "container/binary_packed_vector.h"
 #include <helper.h>
-#include <container.h>
 #include <sort.h>
 
 constexpr static uint64_t sssize = 63;

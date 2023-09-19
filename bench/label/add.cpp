@@ -3,10 +3,6 @@
 
 #include "../bench_config.h"
 
-#include <helper.h>
-#include <label.h>
-
-
 B63_BASELINE(add, nn) {
 	kAryLabel v1{}, v2{}, v3{};
 	B63_SUSPEND {

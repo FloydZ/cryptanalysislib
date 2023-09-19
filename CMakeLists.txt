@@ -92,7 +92,7 @@ set(SANITIZE_FLAGS "")
 #set(INLINE_FLAGS "-fno-inline")
 set(INLINE_FLAGS "")
 
-set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings")
+set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings -Wno-absolute-value")
 #set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 

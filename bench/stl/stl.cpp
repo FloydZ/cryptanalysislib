@@ -5,19 +5,20 @@
 #include "b63.h"
 #include "counters/perf_events.h"
 
-#include <helper.h>
-#include <container.h>
-#include <list.h>
-#include <sort.h>
+#include "container/binary_packed_vector.h"
+#include "helper.h"
+#include "list/list.h"
+#include "matrix/fq_matrix.h"
+#include "sort.h"
 
 constexpr uint64_t lsize = (1<<20);
 
 constexpr uint32_t l = 20;
-using ContainerA        = BinaryContainer<k + l>;
-using ContainerB        = BinaryContainer<n - 20>;
-using DecodingValue     = Value_T<BinaryContainer<k + l>>;
-using DecodingLabel     = Label_T<BinaryContainer<n - 20>>;
-using DecodingMatrix    = mzd_t *;
+using ContainerA        = BinaryContainer<k>;
+using ContainerB        = BinaryContainer<n>;
+using DecodingValue     = BinaryContainer<k>;
+using DecodingLabel     = BinaryContainer<n>;
+using DecodingMatrix    = FqMatrix<uint64_t, n, k, 2>;
 using DecodingElement   = Element_T<DecodingValue, DecodingLabel, DecodingMatrix>;
 using DecodingList      = List_T<DecodingElement>;
 

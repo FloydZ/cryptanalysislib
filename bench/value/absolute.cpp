@@ -2,12 +2,10 @@
 #include "counters/perf_events.h"
 
 #include "../bench_config.h"
+#include "helper.h"
 
-#include <helper.h>
-#include <cstdint>
-#include <value.h>
 
-/// custom abs fuction
+/// custom abs function
 #define cabs(y, x) tmp = x >> 15u; \
 				x ^= tmp; \
 				x += tmp & 1u; \

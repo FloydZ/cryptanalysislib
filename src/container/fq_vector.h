@@ -8,18 +8,9 @@
 
 #include "helper.h"
 #include "random.h"
+#include "container/common.h"
 #include "simd/simd.h"
 #include "popcount/popcount.h"
-
-
-/// Concept for base data type.
-/// \tparam T
-template<typename T>
-concept kAryContainerAble =
-requires(T t) {
-	t ^ t;
-	T(0);
-};
 
 
 ///
@@ -120,6 +111,229 @@ public:
 		__data[i] %= q;
 	}
 
+private:
+
+	/// mod operations
+	/// NOTE: generic operation
+	/// \tparam T type (probably uint64_t or uint32_t)
+	/// \param a
+	/// \return a%q, component wise
+	template<typename TT>
+	[[nodiscard]] constexpr static inline TT mod_T(const TT a) noexcept {
+		static_assert(sizeof(TT) <= 16);
+		static_assert(sizeof(TT) >= sizeof(T));
+		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
+		constexpr uint32_t nr_bits = sizeof(T) * 8u;
+		constexpr __uint128_t mask = (1ull << nr_bits) - 1ull;
+
+		__uint128_t c = 0u;
+		for (uint32_t i = 0; i < nr_limbs; i++) {
+			const T a1 = (a >> (nr_bits * i)) & mask;
+			c ^= (a1 % q) << (nr_bits * i);
+		}
+
+		/// note implicit call
+		return c;
+	}
+
+	/// helper function
+	/// vectorized version
+	/// \param a
+	/// \return a%q component wise
+	[[nodiscard]] constexpr static inline uint8x32_t mod256_T(const uint8x32_t a) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint8x32_t ret;
+		const T *data = (const T *)&a;
+		T *ret_data = (T *)&ret;
+		for (uint8_t i = 0; i < nr_limbs; ++i) {
+			ret_data[i] = data[i]%q;
+		}
+
+		return ret;
+	}
+
+	/// neg operations
+	/// NOTE: generic operation
+	/// \tparam T type (probably uint64_t or uint32_t)
+	/// \param a
+	/// \return a%q, component wise
+	template<typename TT>
+	[[nodiscard]] constexpr static inline TT neg_T(const TT a) noexcept {
+		static_assert(sizeof(TT) <= 16);
+		static_assert(sizeof(TT) >= sizeof(T));
+		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
+		constexpr uint32_t nr_bits = sizeof(T) * 8u;
+		constexpr __uint128_t mask = (__uint128_t(1ull) << nr_bits) - 1ull;
+
+		__uint128_t c = 0u;
+		for (uint32_t i = 0; i < nr_limbs; i++) {
+			const T a1 = (a >> (nr_bits * i)) & mask;
+			c ^= ((q - a1) % q) << (nr_bits * i);
+		}
+
+		/// note implicit call
+		return c;
+	}
+
+	///
+	/// \tparam T type (probably uint64_t or uint32_t)
+	/// \param a input
+	/// \param b input
+	/// \return a + b, component wise
+	template<typename TT>
+	[[nodiscard]] constexpr static inline TT add_T(const TT a, const TT b) noexcept {
+		static_assert(sizeof(TT) <= 16);
+		static_assert(sizeof(TT) >= sizeof(T));
+		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
+		constexpr uint32_t nr_bits = sizeof(T) * 8u;
+		constexpr __uint128_t mask = (__uint128_t(1ull) << nr_bits) - 1ull;
+
+		__uint128_t c = 0u;
+		for (uint32_t i = 0; i < nr_limbs; i++) {
+			const T a1 = (a >> (nr_bits * i)) & mask;
+			const T b1 = (b >> (nr_bits * i)) & mask;
+			c ^= ((a1 + b1) % q) << (nr_bits * i);
+		}
+
+		/// note implicit call
+		return c;
+	}
+
+	///
+	/// \tparam T type (probably uint64_t or uint32_t)
+	/// \param a
+	/// \param b
+	/// \return a - b
+	template<typename TT>
+	[[nodiscard]] constexpr static inline TT sub_T(const TT a, const TT b) noexcept {
+		static_assert(sizeof(TT) <= 16);
+		static_assert(sizeof(TT) >= sizeof(T));
+		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
+		constexpr uint32_t nr_bits = sizeof(T) * 8u;
+		constexpr __uint128_t mask = (__uint128_t(1ull) << nr_bits) - 1ull;
+
+		__uint128_t c = 0u;
+		for (uint32_t i = 0; i < nr_limbs; i++) {
+			const T a1 = (a >> (nr_bits * i)) & mask;
+			const T b1 = (b >> (nr_bits * i)) & mask;
+			c ^= ((a1 - b1) % q) << (nr_bits * i);
+		}
+
+		/// note implicit call
+		return c;
+	}
+
+	///
+	/// \tparam T type (probably uint64_t or uint32_t)
+	/// \param a
+	/// \param b
+	/// \return a*b component wise
+	template<typename TT>
+	[[nodiscard]] constexpr static inline TT mul_T(const TT a, const TT b) noexcept {
+		static_assert(sizeof(TT) <= 16);
+		static_assert(sizeof(TT) >= sizeof(T));
+		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
+		constexpr uint32_t nr_bits = sizeof(T) * 8u;
+		constexpr __uint128_t mask = (__uint128_t(1ull) << nr_bits) - 1ull;
+
+		__uint128_t c = 0u;
+		for (uint32_t i = 0; i < nr_limbs; i++) {
+			const T a1 = (a >> (nr_bits * i)) & mask;
+			const T b1 = (b >> (nr_bits * i)) & mask;
+			c ^= ((a1 * b1) % q) << (nr_bits * i);
+		}
+
+		/// note implicit call
+		return c;
+	}
+
+	/// helper function
+	/// vectorized version
+	/// \param a in
+	/// \param b in
+	/// \return a+b, component wise
+	[[nodiscard]] constexpr static inline uint8x32_t add256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint8x32_t ret;
+		const T *a_data = (const T *)&a;
+		const T *b_data = (const T *)&b;
+		T *ret_data = (T *)&ret;
+		for (uint8_t i = 0; i < nr_limbs; ++i) {
+			ret_data[i] = (a_data[i] + b_data[i])%q;
+		}
+
+		return ret;
+	}
+
+	/// helper function
+	/// vectorized version
+	/// \param a in
+	/// \param b in
+	/// \return a-b, component wise
+	[[nodiscard]] constexpr static inline uint8x32_t sub256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint8x32_t ret;
+		const T *a_data = (const T *)&a;
+		const T *b_data = (const T *)&b;
+		T *ret_data = (T *)&ret;
+		for (uint8_t i = 0; i < nr_limbs; ++i) {
+			ret_data[i] = (a_data[i] - b_data[i])%q;
+		}
+
+		return ret;
+	}
+
+	/// helper function
+	/// vectorized version
+	/// \param a in
+	/// \param b in
+	/// \return a*b, component wise
+	[[nodiscard]] constexpr static inline uint8x32_t mul256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint8x32_t ret;
+		const T *a_data = (const T *)&a;
+		const T *b_data = (const T *)&b;
+		T *ret_data = (T *)&ret;
+		for (uint8_t i = 0; i < nr_limbs; ++i) {
+			ret_data[i] = (a_data[i] * b_data[i])%q;
+		}
+
+		return ret;
+	}
+
+public:
+
+	/// NOTE: inplace
+	/// computes mod q
+	/// \param out = in1 % q
+	/// \param in1: input vector
+	constexpr static inline void mod(T *out, const T *in1) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t tmp = mod256_T(a);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = mod_T<T>(in1[i]);
+		}
+	}
+
+	/// NOTE: inplace
+	/// computes mod q
+	/// \param out = in1 % q
+	/// \param in1: input vector
+	constexpr static inline void mod(kAryContainerMeta &out, const kAryContainerMeta &in1) noexcept {
+		mod((T *)out.__data.data(), (const T *)in1.__data.data());
+	}
+
 	/// negate every coordinate between [k_lower, k_higher)
 	/// \param k_lower lower dimension inclusive
 	/// \param k_upper higher dimension, exclusive
@@ -133,35 +347,147 @@ public:
 		}
 	}
 
-	/// v1 = v1*v2 between [k_lower, k_upper)
-	/// \param v1 output/input
-	/// \param v2 input
-	/// \param k_lower lower bound: inclusive
-	/// \param k_upper upper bound: exclusive
-	constexpr inline static void mul(kAryContainerMeta &v1,
-									 const kAryContainerMeta &v2,
-									 const uint32_t k_lower=0,
-									 const uint32_t k_upper=LENGTH) noexcept {
-		mul(v1, v1, v2, k_lower, k_upper);
+	/// vector addition
+	/// \param out = in1 + in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void add(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = add256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = add_T<T>(in1[i], in2[i]);
+		}
 	}
 
-	/// component wise multiplication
+	/// vector addition
+	/// \param out = in1 + in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void add(kAryContainerMeta &out,
+						   const kAryContainerMeta &in1,
+						   const kAryContainerMeta &in2) noexcept {
+		add((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
+	}
+
+	/// \param v3 output
+	/// \param v1 input
+	/// \param v2 input
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
+	/// \param norm = max norm of an dimension which is allowed.
+	/// \return true if the element needs to be filtered out. False else.
+	constexpr inline static bool add(kAryContainerMeta &v3,
+									 kAryContainerMeta const &v1,
+									 kAryContainerMeta const &v2,
+									 const uint32_t k_lower,
+									 const uint32_t k_upper,
+									 const uint32_t norm=-1) noexcept {
+		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
+
+		LOOP_UNROLL();
+		for (uint64_t i = k_lower; i < k_upper; ++i) {
+			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
+			if ((abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
+				return true;
+		}
+
+		return false;
+	}
+
+	/// vector subtract
+	/// \param out = in1 - in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void sub(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = sub256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = sub_T<T>(in1[i], in2[i]);
+		}
+	}
+
+	/// vector subtract
+	/// \param out = in1 - in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void sub(kAryContainerMeta &out,
+	                       const kAryContainerMeta &in1,
+	                       const kAryContainerMeta &in2) noexcept {
+		sub((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
+	}
+
 	/// \param v3 output container
 	/// \param v1 input container
 	/// \param v2 input container
 	/// \param k_lower lower dimension, inclusive
 	/// \param k_upper higher dimension, exclusive
-	constexpr inline static void mul(kAryContainerMeta &v3,
-						    		 const kAryContainerMeta &v1,
-						    		 const kAryContainerMeta &v2,
-						    		 const uint32_t k_lower=0,
-						    		 const uint32_t k_upper=LENGTH) noexcept {
+	/// \param norm filter every element out if hte norm is bigger than `norm`
+	/// \return true if the elements needs to be filter out. False if not
+	constexpr inline static bool sub(kAryContainerMeta &v3,
+									 kAryContainerMeta const &v1,
+									 kAryContainerMeta const &v2,
+									 const uint32_t k_lower,
+									 const uint32_t k_upper,
+									 const uint32_t norm=-1) noexcept {
 		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
-			v3.__data[i] = (v1.__data[i] * v2.__data[i]) % q;
+			v3.__data[i] = (v1.__data[i] - v2.__data[i] + q) % q;
+			if ((abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
+				return true;
 		}
+
+		return false;
+	}
+
+	/// components-wise vector multiplication
+	/// \param out = in1*in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void mul(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = mul256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = mul_T<T>(in1[i], in2[i]);
+		}
+	}
+
+	/// components-wise vector multiplication
+	/// \param out = in1*in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void mul(kAryContainerMeta &out,
+	                       const kAryContainerMeta &in1,
+	                       const kAryContainerMeta &in2) noexcept {
+		mul((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
 	}
 
 	/// v1 = v1*v2 between [k_lower, k_upper)
@@ -192,116 +518,6 @@ public:
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] * v2) % q;
 		}
-	}
-
-	/// v1 = v1 + v2, between [k_lower, k_upper)
-	/// \param v1 output/input
-	/// \param v2 input
-	/// \param k_lower lower bound: inclusive
-	/// \param k_upper upper bound: exclusive
-	constexpr inline static void add(kAryContainerMeta &v1,
-									 const kAryContainerMeta &v2,
-									 const uint32_t k_lower=0,
-									 const uint32_t k_upper=LENGTH) noexcept {
-		add(v1, v1, v2, k_lower, k_upper);
-	}
-	/// \param v3 output container
-	/// \param v1 input container
-	/// \param v2 input container
-	/// \param k_lower lower dimension, inclusive
-	/// \param k_upper higher dimension, exclusive
-	constexpr inline static void add(kAryContainerMeta &v3,
-						   const kAryContainerMeta &v1,
-						   const kAryContainerMeta &v2,
-						   const uint32_t k_lower=0,
-						   const uint32_t k_upper=LENGTH) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-
-		LOOP_UNROLL();
-		for (uint32_t i = k_lower; i < k_upper; ++i) {
-			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
-		}
-	}
-
-	/// \param v3 output
-	/// \param v1 input
-	/// \param v2 input
-	/// \param k_lower lower dimension, inclusive
-	/// \param k_upper higher dimension, exclusive
-	/// \param norm = max norm of an dimension which is allowed.
-	/// \return true if the element needs to be filtered out. False else.
-	constexpr inline static bool add(kAryContainerMeta &v3,
-	                                 kAryContainerMeta const &v1,
-	                                 kAryContainerMeta const &v2,
-						   const uint32_t k_lower,
-						   const uint32_t k_upper,
-						   const uint32_t norm) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-
-		LOOP_UNROLL();
-		for (uint64_t i = k_lower; i < k_upper; ++i) {
-			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
-			if ((abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
-				return true;
-		}
-
-		return false;
-	}
-
-	/// v1 = v1 - v2, between [k_lower, k_upper)
-	/// \param v1 output/input
-	/// \param v2 input
-	/// \param k_lower lower bound: inclusive
-	/// \param k_upper upper bound: exclusive
-	constexpr inline static void sub(kAryContainerMeta &v1,
-									 const kAryContainerMeta &v2,
-									 const uint32_t k_lower=0,
-									 const uint32_t k_upper=LENGTH) noexcept {
-		sub(v1, v1, v2, k_lower, k_upper);
-	}
-
-	/// \param v3 output container
-	/// \param v1 input container
-	/// \param v2 input container
-	/// \param k_lower lower dimension, inclusive
-	/// \param k_upper higher dimension, exclusive
-	/// \return true if the elements needs to be filled out. False else.
-	constexpr inline static void sub(kAryContainerMeta &v3,
-	                                 kAryContainerMeta const &v1,
-	                                 kAryContainerMeta const &v2,
-						   const uint32_t k_lower=0,
-						   const uint32_t k_upper=LENGTH) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-
-		LOOP_UNROLL();
-		for (uint32_t i = k_lower; i < k_upper; ++i) {
-			v3.__data[i] = (v1.__data[i] - v2.__data[i] + q) % q;
-		}
-	}
-
-	/// \param v3 output container
-	/// \param v1 input container
-	/// \param v2 input container
-	/// \param k_lower lower dimension, inclusive
-	/// \param k_upper higher dimension, exclusive
-	/// \param norm filter every element out if hte norm is bigger than `norm`
-	/// \return true if the elements needs to be filter out. False if not
-	constexpr inline static bool sub(kAryContainerMeta &v3,
-	                                 kAryContainerMeta const &v1,
-	                                 kAryContainerMeta const &v2,
-						   			 const uint32_t k_lower,
-						   			 const uint32_t k_upper,
-						   			 const uint32_t norm) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
-
-		LOOP_UNROLL();
-		for (uint32_t i = k_lower; i < k_upper; ++i) {
-			v3.__data[i] = (v1.__data[i] - v2.__data[i] + q) % q;
-			if ((abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
-				return true;
-		}
-
-		return false;
 	}
 
 	/// \param v1 input container
@@ -552,7 +768,6 @@ public:
 	/// needed functions
 	using kAryContainerMeta<T, n, q>::get;
 	using kAryContainerMeta<T, n, q>::set;
-	using kAryContainerMeta<T, n, q>::neg;
 	using kAryContainerMeta<T, n, q>::random;
 	using kAryContainerMeta<T, n, q>::zero;
 	using kAryContainerMeta<T, n, q>::is_equal;
@@ -563,6 +778,12 @@ public:
 	using kAryContainerMeta<T, n, q>::size;
 	using kAryContainerMeta<T, n, q>::data;
 	using kAryContainerMeta<T, n, q>::is_zero;
+
+	/// needed arithmetic
+	using kAryContainerMeta<T, n, q>::mod;
+	using kAryContainerMeta<T, n, q>::neg;
+	using kAryContainerMeta<T, n, q>::add;
+	using kAryContainerMeta<T, n, q>::sub;
 };
 
 /// NOTE: this implements the representation padded (e.g. every number gets 8 bit)
@@ -588,7 +809,6 @@ public:
 	/// needed functions
 	using kAryContainerMeta<T, n, q>::get;
 	using kAryContainerMeta<T, n, q>::set;
-	using kAryContainerMeta<T, n, q>::neg;
 	using kAryContainerMeta<T, n, q>::random;
 	using kAryContainerMeta<T, n, q>::zero;
 	using kAryContainerMeta<T, n, q>::is_equal;
@@ -599,24 +819,21 @@ public:
 	using kAryContainerMeta<T, n, q>::size;
 	using kAryContainerMeta<T, n, q>::data;
 	using kAryContainerMeta<T, n, q>::is_zero;
-	using kAryContainerMeta<T, n, q>::add;
-	using kAryContainerMeta<T, n, q>::sub;
 	using kAryContainerMeta<T, n, q>::ptr;
 
+	/// needed arith
+	using kAryContainerMeta<T, n, q>::neg;
+	using kAryContainerMeta<T, n, q>::mod;
+	using kAryContainerMeta<T, n, q>::add;
+	using kAryContainerMeta<T, n, q>::sub;
+
 private:
-	// helper sizes
-	static constexpr uint32_t limb_u32 	= (n + 	3u)/ 4u;
-	static constexpr uint32_t limb_u64 	= (n + 	7u)/ 8u;
-	static constexpr uint32_t limb_u128 = (n + 15u)/16u;
-	static constexpr uint32_t limb_u256 = (n + 31u)/32u;
-	
 	// helper masks
 	static constexpr __uint128_t mask_4 = (__uint128_t(0x0303030303030303ULL) << 64UL) | (__uint128_t(0x0303030303030303ULL));
 	static constexpr __uint128_t mask_q = (__uint128_t(0x0404040404040404ULL) << 64UL) | (__uint128_t(0x0404040404040404ULL));
 
 public:
 
-	/// TODO all these functions should be implemented in the base class too
 	/// mod operations
 	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
@@ -715,48 +932,85 @@ public:
 		return uint8x32_t::and_(tmp, mask256_4);
 	}
 
+	/// scalar multiplication
+	/// \param out = in1*in2
+	/// \param in1 output: vector
+	/// \param in2 output: scalar
+	template<typename T>
+	static inline void scalar(uint8_t *out, const uint8_t *in1, const T in2) noexcept {
+		ASSERT(in2 <= q);
+		uint32_t i = 0;
+
+		const uint8x32_t b = uint8x32_t::set1(in2);
+
+		LOOP_UNROLL()
+		for (; i+32 < n; i+=32) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t tmp = mul256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		LOOP_UNROLL()
+		for (; i < n; i+=1) {
+			out[i] = mul_T<uint8_t>(in1[i], in2);
+		}
+	}
+
+	/// scalar multiplication
+	/// \param out output = in1*in2
+	/// \param in1 input: vector
+	/// \param in2 input: scalar
+	template<typename T>
+	static inline void scalar(kAryContainer_T &out, const kAryContainer_T &in1, const T in2) noexcept {
+		scalar<T>(out.__data.data(), in1.__data.data(), in2);
+	}
+
 	/// NOTE: inplace
 	/// computes mod q
 	/// \param out = in1 % q
-	/// \param in1: input vecot
-	static inline void mod(uint8_t *out, const uint8_t *in1) noexcept {
+	/// \param in1: input vector
+	constexpr static inline void mod(T *out, const T *in1) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
 		uint32_t i = 0;
-		for (; i < limb_u256; ++i) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + 32*i);
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
 			const uint8x32_t tmp = mod256_T(a);
-			uint8x32_t::unaligned_store(out + 32*i, tmp);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = mod_T<T>(in1[i]);
 		}
 	}
 
 	/// NOTE: inplace
 	/// computes mod q
 	/// \param out = in1 % q
-	/// \param in1: input vecot
-	static inline void mod(kAryContainer_T &out , const kAryContainer_T &in1) noexcept {
-		mod(out.__data.data(), in1.__data.data());
+	/// \param in1: input vector
+	constexpr static inline void mod(kAryContainer_T &out,
+	                                 const kAryContainer_T &in1) noexcept {
+		mod((T *)out.__data.data(), (const T *)in1.__data.data());
 	}
 
 	/// vector addition
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
+	static inline void add(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
 		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
 
 			const uint8x32_t tmp = add256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		// NOTE: this is only correct if the inputs where already reduced
-		for (; i + 8 < n; i+=8) {
-			*((uint64_t *)(out+i)) = add_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
+			uint8x32_t::store(out + i, tmp);
 		}
 
 		for (; i < n; i+=1) {
-			out[i] = add_T<uint8_t >(in1[i], in2[i]);
+			out[i] = add_T<T>(in1[i], in2[i]);
 		}
 	}
 
@@ -765,31 +1019,29 @@ public:
 	/// \param in1 input: vector
 	/// \param in2 input: vector
 	static inline void add(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
-		add(out.__data.data(), in1.__data.data(), in2.__data.data());
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		add((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
 	}
 
 	/// vector subtract
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
+	static inline void sub(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
 		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
 
 			const uint8x32_t tmp = sub256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		for (; i + 8 < n; i+=8) {
-			*((uint64_t *)(out+i)) = sub_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
+			uint8x32_t::store(out + i, tmp);
 		}
 
 		for (; i < n; i+=1) {
-			out[i] = sub_T<uint8_t>(in1[i], in2[i]);
+			out[i] = sub_T<T>(in1[i], in2[i]);
 		}
 	}
 
@@ -797,30 +1049,30 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
-		sub(out.__data.data(), in1.__data.data(), in2.__data.data());
+	static inline void sub(kAryContainer_T &out,
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		sub((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
 	}
 
 	/// components-wise vector multiplication
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
+	static inline void mul(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
 		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
 
 			const uint8x32_t tmp = mul256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
+			uint8x32_t::store(out + i, tmp);
 		}
 
-		//for (; i + 8 < n; i+=8) {
-		//	*((uint64_t *)(out+i)) = mul_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
-		//}
-
 		for (; i < n; i+=1) {
-			out[i] = mul_T<uint8_t>(in1[i], in2[i]);
+			out[i] = mul_T<T>(in1[i], in2[i]);
 		}
 	}
 
@@ -828,37 +1080,10 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
-		mul(out.__data.data(), in1.__data.data(), in2.__data.data());
-	}
-
-	/// scalar multiplication
-	/// \param out = in1*in2
-	/// \param in1 output: vector
-	/// \param in2 output: scalar
-	template<typename T>
-	static inline void scalar(uint8_t *out, const uint8_t *in1, const T in2) noexcept {
-		uint32_t i = 0;
-
-		const uint8x32_t b = uint8x32_t::set1(in2);
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t tmp = mul256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		for (; i < n; i+=1) {
-			out[i] = mul_T<uint8_t>(in1[i], in2);
-		}
-	}
-
-	/// scalar multiplication
-	/// \param out = in1*in2
-	/// \param in1 output: vector
-	/// \param in2 output: scalar
-	template<typename T>
-	static inline void scalar(kAryContainer_T &out, const kAryContainer_T &in1, const T in2) noexcept {
-		scalar<T>(out.__data.data(), in1.__data.data(), in2);
+	static inline void mul(kAryContainer_T &out,
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		mul((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
 	}
 };
 
@@ -902,17 +1127,10 @@ public:
 	using kAryContainerMeta<T, n, q>::ptr;
 
 private:
-	// helper sizes
-	static constexpr uint32_t limb_u32 	= (n + 	3u)/ 4u;
-	static constexpr uint32_t limb_u64 	= (n + 	7u)/ 8u;
-	static constexpr uint32_t limb_u128 = (n + 15u)/16u;
-	static constexpr uint32_t limb_u256 = (n + 31u)/32u;
-
 	// helper masks
 	static constexpr __uint128_t mask_7 = (__uint128_t(0x0707070707070707ULL) << 64UL) | (__uint128_t(0x0707070707070707ULL));
 	static constexpr __uint128_t mask_5 = (__uint128_t(0x0505050505050505ULL) << 64UL) | (__uint128_t(0x0505050505050505ULL));
 	static constexpr __uint128_t mask_3 = (__uint128_t(0x0303030303030303ULL) << 64UL) | (__uint128_t(0x0303030303030303ULL));
-	static constexpr __uint128_t mask_1 = (__uint128_t(0x0101010101010101ULL) << 64UL) | (__uint128_t(0x0101010101010101ULL));
 	static constexpr __uint128_t mask_f = (__uint128_t(0x0f0f0f0f0f0f0f0fULL) << 64UL) | (__uint128_t(0x0f0f0f0f0f0f0f0fULL));
 
 public:
@@ -952,7 +1170,7 @@ public:
 	/// \return a - b
 	template<typename T>
 	[[nodiscard]] constexpr static inline T sub_T(const T a, const T b) noexcept {
-		return mod_T(a + (mask_7 - b));
+		return mod_T(a + (mask_5 - b));
 	}
 
 	///
@@ -978,13 +1196,17 @@ public:
 	/// vectorized version, input are 32x 8Bit vectors
 	/// \param a
 	/// \return a%q component wise
-	static inline uint8x32_t mod256_T(const uint8x32_t aa) noexcept {
-		const uint8x32_t mask256_7 = uint8x32_t::set1(0x07);
-		const uint8x32_t mask256_1 = uint8x32_t::set1(0x01);
+	constexpr static inline uint8x32_t mod256_T(const uint8x32_t aa) noexcept {
+		constexpr uint8x32_t mask256_3 = uint8x32_t::set1(0x03);
+		constexpr uint8x32_t mask256_5 = uint8x32_t::set1(0x05);
+		constexpr uint8x32_t mask256_7 = uint8x32_t::set1(0x07);
+		constexpr uint8x32_t mask256_f = uint8x32_t::set1(0x0f);
 		uint8x32_t a = aa;
-		a = ((a >> 3) & mask256_7) + (a & mask256_7);
-		a = ((a >> 3) & mask256_7) + (a & mask256_7);
-		a = ((((a + mask256_1) >> 3) & mask256_7) + a) & mask256_7;
+		a = (3*((a >> 3) & mask256_f)) + (a & mask256_7);
+		a = (3*((a >> 3) & mask256_7)) + (a & mask256_7);
+		const uint8x32_t mask1 = ((a + mask256_3) >> 3) & mask256_7;
+		const uint8x32_t mask2 = (mask1 & mask256_5) ^ ((mask1 << 2u) & mask256_5);
+		a = a - mask2;
 		return a;
 	}
 
@@ -1003,8 +1225,8 @@ public:
 	/// \param b in
 	/// \return a-b, component wise
 	static inline uint8x32_t sub256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
-		const uint8x32_t mask256_7 = uint8x32_t::set1(0x07);
-		return mod256_T(uint8x32_t::add(a, uint8x32_t::sub(mask256_7, b)));
+		const uint8x32_t mask256_5 = uint8x32_t::set1(0x05);
+		return mod256_T(uint8x32_t::add(a, uint8x32_t::sub(mask256_5, b)));
 	}
 
 	/// helper function
@@ -1014,122 +1236,6 @@ public:
 	/// \return a*b, component wise
 	static inline uint8x32_t mul256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
 		return mod256_T(uint8x32_t::mullo(a, b));
-	}
-
-	/// NOTE: inplace
-	/// computes mod q
-	/// \param out = in1 % q
-	/// \param in1: input vecot
-	static inline void mod(uint8_t *out, const uint8_t *in1) noexcept {
-		uint32_t i = 0;
-		/// TODO loop unrolling, tail managment
-		for (; i < limb_u256; ++i) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + 32*i);
-			const uint8x32_t tmp = mod256_T(a);
-			uint8x32_t::unaligned_store(out + 32*i, tmp);
-		}
-	}
-
-	/// NOTE: inplace
-	/// computes mod q
-	/// \param out = in1 % q
-	/// \param in1: input vecot
-	static inline void mod(kAryContainer_T &out , const kAryContainer_T &in1) noexcept {
-		mod(out.__data.data(), in1.__data.data());
-	}
-
-	/// vector addition
-	/// \param out = in1 + in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void add(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
-		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
-
-			const uint8x32_t tmp = add256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		// NOTE: this is only correct if the inputs where already reduced
-		for (; i + 8 < n; i+=8) {
-			*((uint64_t *)(out+i)) = add_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
-		}
-
-		for (; i < n; i+=1) {
-			out[i] = add_T<uint8_t >(in1[i], in2[i]);
-		}
-	}
-
-	/// vector addition
-	/// \param out = in1 + in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void add(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
-		add(out.__data.data(), in1.__data.data(), in2.__data.data());
-	}
-
-	/// vector subtract
-	/// \param out = in1 - in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void sub(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
-		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
-
-			const uint8x32_t tmp = sub256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		for (; i + 8 < n; i+=8) {
-			*((uint64_t *)(out+i)) = sub_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
-		}
-
-		for (; i < n; i+=1) {
-			out[i] = sub_T<uint8_t>(in1[i], in2[i]);
-		}
-	}
-
-	/// vector subtract
-	/// \param out = in1 - in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void sub(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
-		sub(out.__data.data(), in1.__data.data(), in2.__data.data());
-	}
-
-	/// components-wise vector multiplication
-	/// \param out = in1*in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void mul(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
-		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
-
-			const uint8x32_t tmp = mul256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		//for (; i + 8 < n; i+=8) {
-		//	*((uint64_t *)(out+i)) = mul_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
-		//}
-
-		for (; i < n; i+=1) {
-			out[i] = mul_T<uint8_t>(in1[i], in2[i]);
-		}
-	}
-
-	/// components-wise vector multiplication
-	/// \param out = in1*in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void mul(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
-		mul(out.__data.data(), in1.__data.data(), in2.__data.data());
 	}
 
 	/// scalar multiplication
@@ -1159,6 +1265,128 @@ public:
 	template<typename T>
 	static inline void scalar(kAryContainer_T &out, const kAryContainer_T &in1, const T in2) noexcept {
 		scalar<T>(out.__data.data(), in1.__data.data(), in2);
+	}
+
+
+	/// NOTE: inplace
+	/// computes mod q
+	/// \param out = in1 % q
+	/// \param in1: input vector
+	constexpr static inline void mod(T *out, const T *in1) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t tmp = mod256_T(a);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = mod_T<T>(in1[i]);
+		}
+	}
+
+	/// NOTE: inplace
+	/// computes mod q
+	/// \param out = in1 % q
+	/// \param in1: input vector
+	constexpr static inline void mod(kAryContainer_T &out,
+									 const kAryContainer_T &in1) noexcept {
+		mod((T *)out.__data.data(), (const T *)in1.__data.data());
+	}
+
+	/// vector addition
+	/// \param out = in1 + in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void add(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = add256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = add_T<T>(in1[i], in2[i]);
+		}
+	}
+
+	/// vector addition
+	/// \param out = in1 + in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void add(kAryContainer_T &out,
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		add((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
+	}
+
+	/// vector subtract
+	/// \param out = in1 - in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void sub(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = sub256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = sub_T<T>(in1[i], in2[i]);
+		}
+	}
+
+	/// vector subtract
+	/// \param out = in1 - in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void sub(kAryContainer_T &out,
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		sub((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
+	}
+
+	/// components-wise vector multiplication
+	/// \param out = in1*in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void mul(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = mul256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = mul_T<T>(in1[i], in2[i]);
+		}
+	}
+
+	/// components-wise vector multiplication
+	/// \param out = in1*in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void mul(kAryContainer_T &out,
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		mul((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
 	}
 };
 
@@ -1202,16 +1430,9 @@ public:
 	using kAryContainerMeta<T, n, q>::ptr;
 
 private:
-	// helper sizes
-	static constexpr uint32_t limb_u32 	= (n + 	3u)/ 4u;
-	static constexpr uint32_t limb_u64 	= (n + 	7u)/ 8u;
-	static constexpr uint32_t limb_u128 = (n + 15u)/16u;
-	static constexpr uint32_t limb_u256 = (n + 31u)/32u;
-
 	// helper masks
-	static constexpr __uint128_t mask_7 = (__uint128_t(0x0707070707070707ULL) << 64UL) | (__uint128_t(0x0707070707070707ULL));
 	static constexpr __uint128_t mask_1 = (__uint128_t(0x0101010101010101ULL) << 64UL) | (__uint128_t(0x0101010101010101ULL));
-	//static constexpr __uint128_t mask_f = (__uint128_t(0x0f0f0f0f0f0f0f0fULL) << 64UL) | (__uint128_t(0x0f0f0f0f0f0f0f0fULL));
+	static constexpr __uint128_t mask_7 = (__uint128_t(0x0707070707070707ULL) << 64UL) | (__uint128_t(0x0707070707070707ULL));
 
 public:
 
@@ -1314,122 +1535,6 @@ public:
 		return mod256_T(uint8x32_t::mullo(a, b));
 	}
 
-	/// NOTE: inplace
-	/// computes mod q
-	/// \param out = in1 % q
-	/// \param in1: input vecot
-	static inline void mod(uint8_t *out, const uint8_t *in1) noexcept {
-		uint32_t i = 0;
-		/// TODO loop unrolling, tail managment
-		for (; i < limb_u256; ++i) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + 32*i);
-			const uint8x32_t tmp = mod256_T(a);
-			uint8x32_t::unaligned_store(out + 32*i, tmp);
-		}
-	}
-
-	/// NOTE: inplace
-	/// computes mod q
-	/// \param out = in1 % q
-	/// \param in1: input vecot
-	static inline void mod(kAryContainer_T &out , const kAryContainer_T &in1) noexcept {
-		mod(out.__data.data(), in1.__data.data());
-	}
-
-	/// vector addition
-	/// \param out = in1 + in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void add(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
-		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
-
-			const uint8x32_t tmp = add256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		// NOTE: this is only correct if the inputs where already reduced
-		for (; i + 8 < n; i+=8) {
-			*((uint64_t *)(out+i)) = add_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
-		}
-
-		for (; i < n; i+=1) {
-			out[i] = add_T<uint8_t >(in1[i], in2[i]);
-		}
-	}
-
-	/// vector addition
-	/// \param out = in1 + in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void add(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
-		add(out.__data.data(), in1.__data.data(), in2.__data.data());
-	}
-
-	/// vector subtract
-	/// \param out = in1 - in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void sub(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
-		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
-
-			const uint8x32_t tmp = sub256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		for (; i + 8 < n; i+=8) {
-			*((uint64_t *)(out+i)) = sub_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
-		}
-
-		for (; i < n; i+=1) {
-			out[i] = sub_T<uint8_t>(in1[i], in2[i]);
-		}
-	}
-
-	/// vector subtract
-	/// \param out = in1 - in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void sub(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
-		sub(out.__data.data(), in1.__data.data(), in2.__data.data());
-	}
-
-	/// components-wise vector multiplication
-	/// \param out = in1*in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void mul(uint8_t *out, const uint8_t *in1, const uint8_t *in2) noexcept {
-		uint32_t i = 0;
-		for (; i+32 < n; i+=32) {
-			const uint8x32_t a = uint8x32_t::unaligned_load(in1 + i);
-			const uint8x32_t b = uint8x32_t::unaligned_load(in2 + i);
-
-			const uint8x32_t tmp = mul256_T(a, b);
-			uint8x32_t::unaligned_store(out + i, tmp);
-		}
-
-		//for (; i + 8 < n; i+=8) {
-		//	*((uint64_t *)(out+i)) = mul_T<uint64_t>(*((uint64_t *)(in1 + i)), *((uint64_t *)(in2 + i)));
-		//}
-
-		for (; i < n; i+=1) {
-			out[i] = mul_T<uint8_t>(in1[i], in2[i]);
-		}
-	}
-
-	/// components-wise vector multiplication
-	/// \param out = in1*in2
-	/// \param in1 input: vector
-	/// \param in2 input: vector
-	static inline void mul(kAryContainer_T &out, const kAryContainer_T &in1, const kAryContainer_T &in2) noexcept {
-		mul(out.__data.data(), in1.__data.data(), in2.__data.data());
-	}
-
 	/// scalar multiplication
 	/// \param out = in1*in2
 	/// \param in1 output: vector
@@ -1458,5 +1563,135 @@ public:
 	static inline void scalar(kAryContainer_T &out, const kAryContainer_T &in1, const T in2) noexcept {
 		scalar<T>(out.__data.data(), in1.__data.data(), in2);
 	}
+
+
+	/// NOTE: inplace
+	/// computes mod q
+	/// \param out = in1 % q
+	/// \param in1: input vector
+	constexpr static inline void mod(T *out, const T *in1) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t tmp = mod256_T(a);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = mod_T<T>(in1[i]);
+		}
+	}
+
+	/// NOTE: inplace
+	/// computes mod q
+	/// \param out = in1 % q
+	/// \param in1: input vector
+	constexpr static inline void mod(kAryContainer_T &out,
+									 const kAryContainer_T &in1) noexcept {
+		mod((T *)out.__data.data(), (const T *)in1.__data.data());
+	}
+
+	/// vector addition
+	/// \param out = in1 + in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void add(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = add256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = add_T<T>(in1[i], in2[i]);
+		}
+	}
+
+	/// vector addition
+	/// \param out = in1 + in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void add(kAryContainer_T &out,
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		add((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
+	}
+
+	/// vector subtract
+	/// \param out = in1 - in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void sub(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = sub256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = sub_T<T>(in1[i], in2[i]);
+		}
+	}
+
+	/// vector subtract
+	/// \param out = in1 - in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void sub(kAryContainer_T &out,
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		sub((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
+	}
+
+	/// components-wise vector multiplication
+	/// \param out = in1*in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void mul(T *out, const T *in1, const T *in2) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint32_t i = 0;
+		for (; i+nr_limbs < n; i+=nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load(in1 + i);
+			const uint8x32_t b = uint8x32_t::load(in2 + i);
+
+			const uint8x32_t tmp = mul256_T(a, b);
+			uint8x32_t::store(out + i, tmp);
+		}
+
+		for (; i < n; i+=1) {
+			out[i] = mul_T<T>(in1[i], in2[i]);
+		}
+	}
+
+	/// components-wise vector multiplication
+	/// \param out = in1*in2
+	/// \param in1 input: vector
+	/// \param in2 input: vector
+	static inline void mul(kAryContainer_T &out,
+						   const kAryContainer_T &in1,
+						   const kAryContainer_T &in2) noexcept {
+		mul((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
+	}
 };
+
+template<typename T, const uint32_t n, const uint32_t q>
+std::ostream& operator<< (std::ostream &out, const kAryContainer_T<T, n, q> &obj) {
+	for (uint64_t i = 0; i < obj.size(); ++i) {
+		out << unsigned (obj[i]);
+	}
+	return out;
+}
 #endif

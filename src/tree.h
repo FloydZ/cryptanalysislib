@@ -10,12 +10,11 @@
 
 // internal includes
 #include "kAry_type.h"
-#include "container.h"
-#include "value.h"
-#include "label.h"
+#include "container/vector.h"
 #include "element.h"
-#include "matrix.h"
+#include "matrix/matrix.h"
 #include "list/list.h"
+#include "thread/thread.h"
 
 #if __cplusplus > 201709L
 /// IDEA: extend the tree syntax to arbitrary hashmaps.
@@ -55,26 +54,25 @@ concept TreeAble = requires(List l){
 	typename List::MatrixType;
 
 	// make sure the underlying data structs are useful
-	requires ListAble<typename List::ElementType>;
+	requires ListAble<List>;
+	requires ListElementAble<typename List::ElementType>;
 
 	// function requirements
-	requires requires(const uint32_t u32, const uint64_t u64, const size_t s,
-			typename List::ElementType &e,
-			const Matrix_T<typename List::MatrixType> &m) {
+	requires requires(const uint32_t u32,
+	                  const uint64_t u64,
+	                  const size_t s,
+	                  typename List::ElementType &e) {
 		l[u32];
 		List(u64);  // constructor
-		// is_correct
-		//l.generate_base_random(u64, m);
-		//l.generate_base_lex(u64, m);
 		l.sort_level(u64, u64);
 		l.sort_level(u32, u32, u32);
-		//l.search_level(e, u64, u64);
-		//l.sort_parallel(e);
-		//l.search_parallel(e);
-		//l.search(e);
-		//l.append(e);
-		//l.add_and_append(e, e, u32);
-		//l.add_and_append(e, e, u64, u64, u32);
+
+		l.search_level(e, u64, u64);
+		l.search(e);
+		l.append(e);
+		l.add_and_append(e, e, u32);
+		l.add_and_append(e, e, u64, u64, u32);
+
 		l.size();
 		l.zero(s);
 		l.erase(s);
@@ -157,7 +155,8 @@ public:
     ///				[0, 10, 20, ... 100]
     ///			means: that on the first lvl the lists are matched on the coordinates 0-9 (9 inclusive)
     ///         and so on
-    explicit Tree_T(const unsigned int d, const Matrix_T<MatrixType> &A,
+    explicit Tree_T(const unsigned int d,
+	                const MatrixType &A,
 					const unsigned int baselist_size, // 10
 					const std::vector<uint64_t> &level_translation_array,
 					const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept :
@@ -186,8 +185,10 @@ public:
 	///				[0, 10, 20, ... 100]
 	///			means: that on the first lvl the lists are matched on the coordinates 0-9 (9 inclusive)
 	///         and so on
-	explicit Tree_T(const unsigned int d, const Matrix_T<MatrixType> &A,
-	                const List &b1, const List &b2,
+	explicit Tree_T(const unsigned int d,
+	                const MatrixType &A,
+	                const List &b1,
+	                const List &b2,
 	                const unsigned int baselist_size,
 	                std::vector<uint64_t> &level_translation_array) noexcept :
 			matrix(A),
@@ -540,15 +541,15 @@ public:
 	    MADIVE((void *)L1.data(), L1.get_size() * ElementType::size()/8, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
 	    MADIVE((void *)L2.data(), L2.get_size() * ElementType::size()/8, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
 
-		while (i < L1.get_load() && j < L2.get_load()) {
+		while (i < L1.load() && j < L2.load()) {
 			if (L2[j].is_greater(L1[i], k_lower1, k_upper1))
 				i++;
 			else if (L1[i].is_greater(L2[j], k_lower1, k_upper1))
 				j++;
 			else {
 				uint64_t i_max, j_max;
-				for (i_max = i + 1; i_max < L1.get_load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
-				for (j_max = j + 1; j_max < L2.get_load() && L2[j].is_equal(L2[j_max], k_lower1, k_upper1); j_max++) {}
+				for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
+				for (j_max = j + 1; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower1, k_upper1); j_max++) {}
 
 				uint64_t jprev = j;
 
@@ -604,22 +605,16 @@ public:
     	uint64_t i= 0,j = 0;
 	    const uint32_t filter = -1; //translate_filter(0);
 
-	    if ((!target.data().is_zero()) && (prepare)) {
-		    for (size_t s = 0; s < L2.get_load(); ++s) {
-			    LabelType::sub(L2[s].get_label(), L2[s].get_label(), target, k_lower, k_upper);
+	    if ((!target.is_zero()) && (prepare)) {
+		    for (size_t s = 0; s < L2.load(); ++s) {
+			    LabelType::sub(L2[s].label, L2[s].label, target, k_lower, k_upper);
 		    }
 	    }
 
 	    L1.sort_level(k_lower, k_upper);
 	    L2.sort_level(k_lower, k_upper);
 
-//		L1.print(0, 100);
-//		L2.print(0, 100);
-
-	    MADIVE((void *)L1.data(), L1.get_size() * ElementType::size()/8, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
-		MADIVE((void *)L2.data(), L2.get_size() * ElementType::size()/8, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
-
-	    while (i < L1.get_load() && j < L2.get_load()) {
+	    while (i < L1.load() && j < L2.load()) {
 		    if (L2[j].is_greater(L1[i], k_lower, k_upper))
 			    i++;
 
@@ -629,8 +624,8 @@ public:
 		    else {
 			    uint64_t i_max, j_max;
 			    // if elements are equal find max index in each list, such that they remain equal
-			    for (i_max = i + 1; i_max < L1.get_load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
-			    for (j_max = j + 1; j_max < L2.get_load() && L2[j].is_equal(L2[j_max], k_lower, k_upper); j_max++) {}
+			    for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
+			    for (j_max = j + 1; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower, k_upper); j_max++) {}
 
 			    uint64_t jprev = j;
 
@@ -688,28 +683,28 @@ public:
 	                             const uint64_t k_lower1, const uint64_t k_upper1, const uint64_t k_lower2, const uint64_t k_upper2,
 	                             const bool prepare=true) noexcept {
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2
-		        && L1.get_load() > 0 && L2.get_load() > 0 && L3.get_load() > 0 && L4.get_load() > 0);
+		        && L1.load() > 0 && L2.load() > 0 && L3.load() > 0 && L4.load() > 0);
 		// Intermediate Element, List, Target
 		List iL{0};
 		LabelType R, zero; R.random(); zero.zero();
 
 		// prepare baselists
-	    if ((!target.data().is_zero()) && (prepare)) {
-		    for (int i = 0; i < L2.get_load(); ++i) {
-		    	LabelType::add(L2[i].get_label(), L2[i].get_label(), R, k_lower1, k_upper1);
+	    if ((!target.is_zero()) && (prepare)) {
+		    for (int i = 0; i < L2.load(); ++i) {
+		    	LabelType::add(L2[i].label, L2[i].label, R, k_lower1, k_upper1);
 		    }
 
-		    for (int i = 0; i < L4.get_load(); ++i) {
-			    LabelType::sub(L4[i].get_label(), L4[i].get_label(), R, k_lower1, k_upper1);
+		    for (int i = 0; i < L4.load(); ++i) {
+			    LabelType::sub(L4[i].label, L4[i].label, R, k_lower1, k_upper1);
 			    // add is on the full length
-			    LabelType::sub(L4[i].get_label(), L4[i].get_label(), target, k_lower1, k_upper2);
+			    LabelType::sub(L4[i].label, L4[i].label, target, k_lower1, k_upper2);
 		    }
 	    }
 
 		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, false);
 
 		// early exit
-		if (iL.get_load() == 0)
+		if (iL.load() == 0)
 			return;
 
 		// Now run the merge procedure for the right part of the tree.
@@ -760,29 +755,30 @@ public:
 	                             const LabelType &target,
 	                             const uint64_t k_lower1, const uint64_t k_upper1, const uint64_t k_lower2, const uint64_t k_upper2,
 	                             bool prepare=true) noexcept {
-		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 <= k_upper2 && L1.get_load() > 0 && L2.get_load() > 0);
+		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 <= k_upper2 && L1.load() > 0 && L2.load() > 0);
 		// Intermediate Element, List, Target
 		List iL{0};
 		LabelType R, zero;
-		R.data().random(); zero.data().zero();
+		R.random(); zero.zero();
 
 		// prepare list L2.
-		if ((!target.data().is_zero()) && (prepare)) {
-			for (int i = 0; i < L2.get_load(); ++i) {
-				LabelType::add(L2[i].get_label(), L2[i].get_label(), R, k_lower1, k_upper1);
+		if ((!target.is_zero()) && (prepare)) {
+			for (size_t i = 0; i < L2.load(); ++i) {
+				LabelType::add(L2[i].label, L2[i].label, R, k_lower1, k_upper1);
 			}
 		}
 
 		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, false);
 
 		// early exit
-		if (iL.get_load() == 0)
+		if (iL.load() == 0) {
 			return;
+		}
 
 		// prepare list L2 as L4
-		if ((!target.data().is_zero()) && (prepare)) {
-			for (int i = 0; i < L2.get_load(); ++i) {
-				LabelType::sub(L2[i].get_label(), L2[i].get_label(), target, k_lower1, k_upper2);
+		if ((!target.is_zero()) && (prepare)) {
+			for (size_t i = 0; i < L2.load(); ++i) {
+				LabelType::sub(L2[i].label, L2[i].label, target, k_lower1, k_upper2);
 			}
 		}
 
@@ -814,8 +810,8 @@ public:
 
 		// Intermediate Target
 		LabelType R, R1, R3, R5, R13, R57, zero;
-		R1.data().random(); R3.data().random(); R5.data().random(); zero.data().zero();
-		R13.data().random(); R57.data().random();
+		R1.random(); R3.random(); R5.random(); zero.zero();
+		R13.random(); R57.random();
 		LabelType::add(R, R1, R3, k_lower1, k_upper1);
 		LabelType::add(R, R, R5, k_lower1, k_upper1);
 		LabelType::add(R, R, R13, k_lower2, k_upper2);
@@ -823,28 +819,28 @@ public:
 
 		std::vector<LabelType> vr{{zero, zero}};
 		// prepare Lists
-		if (!target.data().is_zero()) {
-			for (int k = 0; k < L[1].get_load(); ++k) {
-				LabelType::add(L[1][k].get_label(), L[1][k].get_label(), R1, k_lower1, k_upper1);
+		if (!target.is_zero()) {
+			for (size_t k = 0; k < L[1].load(); ++k) {
+				LabelType::add(L[1][k].label, L[1][k].label, R1, k_lower1, k_upper1);
 			}
 
-			for (int k = 0; k < L[3].get_load(); ++k) {
-				LabelType::add(L[3][k].get_label(), L[3][k].get_label(), R3, k_lower1, k_upper1);
-				LabelType::add(L[3][k].get_label(), L[3][k].get_label(), R13, k_lower2, k_upper2);
+			for (size_t k = 0; k < L[3].load(); ++k) {
+				LabelType::add(L[3][k].label, L[3][k].label, R3,  k_lower1, k_upper1);
+				LabelType::add(L[3][k].label, L[3][k].label, R13, k_lower2, k_upper2);
 			}
 
-			for (int k = 0; k < L[5].get_load(); ++k) {
-				LabelType::add(L[5][k].get_label(), L[5][k].get_label(), R5, k_lower1, k_upper1);
+			for (size_t k = 0; k < L[5].load(); ++k) {
+				LabelType::add(L[5][k].label, L[5][k].label, R5, k_lower1, k_upper1);
 			}
 
-			for (int k = 0; k < L[7].get_load(); ++k) {
-				LabelType::sub(L[7][k].get_label(), L[7][k].get_label(), R, k_lower1, k_upper1);
+			for (size_t k = 0; k < L[7].load(); ++k) {
+				LabelType::sub(L[7][k].label, L[7][k].label, R, k_lower1, k_upper1);
 				// add the target on the full length
-				LabelType::add(L[7][k].get_label(), L[7][k].get_label(), target, k_lower1, k_upper3);
+				LabelType::add(L[7][k].label, L[7][k].label, target, k_lower1, k_upper3);
 			}
 		}
 
-		for (int k = 0; k < 3; k += 2) {
+		for (uint32_t k = 0; k < 3; k += 2) {
 			List &L1    = L[k*2];
 			List &L2    = L[k*2 + 1];
 			List &iL    = L[8 + k/2];      // Intermediate list for the normal join
@@ -873,19 +869,23 @@ public:
 	/// \param k_lower
 	/// \param k_middle
 	/// \param k_upper
-	static void cross_product(List &out, const List &in1, const List &in2,
-	                          const uint64_t k_lower, const uint64_t k_middle, const uint64_t k_upper) noexcept {
+	static void cross_product(List &out,
+	                          const List &in1,
+	                          const List &in2,
+	                          const uint64_t k_lower,
+	                          const uint64_t k_middle,
+	                          const uint64_t k_upper) noexcept {
     	ASSERT(k_lower < k_middle && k_middle < k_upper && 0 < k_middle);
 
-    	const uint64_t size = in1.get_size()* in2.get_size();
+    	const uint64_t size = in1.size()* in2.size();
     	out.resize(size);
     	out.set_load(size);
 
     	uint64_t counter = 0;
-		for (uint64_t i = 0; i < in1.get_size(); ++i) {
-			for (uint64_t j = 0; j < in2.get_size(); ++j) {
-				ValueContainerType::set(out[counter].get_value().data(), in1[i].get_value().data(), k_lower, k_middle);
-				ValueContainerType::set(out[counter].get_value().data(), in2[j].get_value().data(), k_middle, k_upper);
+		for (uint64_t i = 0; i < in1.size(); ++i) {
+			for (uint64_t j = 0; j < in2.size(); ++j) {
+				ValueContainerType::set(out[counter].value(), in1[i].valu, k_lower, k_middle);
+				ValueContainerType::set(out[counter].value(), in2[j].valu, k_middle, k_upper);
 
 				counter += 1;
 			}
@@ -1045,7 +1045,7 @@ private:
     }
 
     /// NTRU / LWE / decoding matrix
-	const Matrix_T<MatrixType> matrix;
+	const MatrixType matrix;
 
     /// array to translate lvl x to upper and lower bound
 	const std::vector<uint64_t> level_translation_array;
@@ -1187,7 +1187,7 @@ public:
 		typedef typename HMOut::IndexType   HMOutIndexType;
 
 		// thread id
-		const uint32_t tid = config.threads == 1 ? 0 : omp_get_thread_num();
+		const uint32_t tid = config.threads == 1 ? 0 : Thread::get_tid();
 
 		// list offsets for threads
 		const size_t spos = L2.start_pos(tid);
@@ -1233,7 +1233,7 @@ public:
 		static_assert(sizeof...(HMs) == config.d+1);
 
 		// thread id
-		const uint32_t tid = config.threads == 1 ? 0 : omp_get_thread_num();
+		const uint32_t tid = config.threads == 1 ? 0 : Thread::get_tid();
 
 		// generate intermediate targets
 		LabelType targets[config.d];

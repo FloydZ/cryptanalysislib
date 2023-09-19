@@ -4,10 +4,10 @@
 #include "../bench_config.h"
 #include <helper.h>
 #include "random.h"
-#include <container.h>
+#include "container/fq_packed_vector.h"
 
 constexpr uint64_t ctr = 10;
-using Row = kAryPackedContainer_T<uint64_t, 3, 255>;
+using Row = kAryPackedContainer_T<uint64_t, 255, 3>;
 
 B63_BASELINE(add, nn) {
 	Row a, b, c;

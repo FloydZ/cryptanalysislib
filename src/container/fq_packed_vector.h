@@ -576,6 +576,8 @@ class kAryPackedContainer_Meta {
 
 	std::array<T, internal_limbs>& data() noexcept { return __data; }
 	const std::array<T, internal_limbs>& data() const noexcept { return __data; }
+
+	/// TODO use the reference class trick as in binary_vector.h
 	//T& data(const size_t index) { ASSERT(index < length && "wrong index"); return __data[index]; }
 	const T data(const size_t index) const noexcept { ASSERT(index < LENGTH && "wrong index"); return __data[index]; }
 	T limb(const size_t index) { ASSERT(index < LENGTH && "wrong index"); return __data[index]; }
@@ -1264,4 +1266,11 @@ public:
 	}
 };
 
+template<typename T, const uint32_t n, const uint32_t q>
+std::ostream& operator<< (std::ostream &out, const kAryPackedContainer_T<T, n, q> &obj) {
+	for (uint64_t i = 0; i < obj.size(); ++i) {
+		out << unsigned (obj[i]);
+	}
+	return out;
+}
 #endif

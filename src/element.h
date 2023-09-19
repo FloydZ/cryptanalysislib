@@ -13,13 +13,89 @@ using namespace fplll;
 #endif
 
 // local includes
+#include "container/binary_packed_vector.h"
 #include "helper.h"
-#include "container.h"
-#include "value.h"
-#include "label.h"
-#include "matrix.h"
+#include "matrix/matrix.h"
 
 #if __cplusplus > 201709L
+
+///
+/// \tparam Container
+template<class Container>
+concept LabelAble = requires(Container c) {
+	typename Container::DataType;
+
+	// TODO this is not true for kAryType
+	// requires std::integral<typename Container::DataType>;
+
+	// we need to enforce the existence of some fields
+	Container::LENGTH;
+
+	requires requires(const uint32_t i) {
+		c[i];
+		c.get(i);
+		c.set(i, i);
+		c.random();
+		c.zero();
+		c.is_equal(c, i, i);
+		c.is_greater(c, i, i);
+		c.is_lower(c, i, i);
+		Container::add(c, c, c, i, i);
+		Container::sub(c, c, c, i, i);
+		Container::set(c, c, i, i);
+		Container::cmp(c, c, i, i);
+		c.neg(i, i);
+		c.data();
+		c.is_zero();
+
+		c.print_binary(i, i);
+		c.print(i, i);
+	};
+
+	// we also have to enforce the existence of some constexpr functions.
+	{ Container::binary() } -> std::convertible_to<bool>;
+	{ Container::size() } -> std::convertible_to<uint32_t>;
+	{ Container::limbs() } -> std::convertible_to<uint32_t>;
+	{ Container::bytes() } -> std::convertible_to<uint32_t>;
+};
+
+/// Requirements for a base data container.
+/// \tparam Container
+template<class Container>
+concept ValueAble = requires(Container c) {
+	typename Container::DataType;
+
+	// we need to enforce the existence of some fields
+	Container::LENGTH;
+
+	requires requires(const uint32_t i) {
+		c[i];
+		c.get(i);
+		c.set(i, i);
+		c.random();
+		c.zero();
+		c.is_equal(c, i, i);
+		c.is_greater(c, i, i);
+		c.is_lower(c, i, i);
+		Container::add(c, c, c, i, i);
+		Container::sub(c, c, c, i, i);
+		Container::set(c, c, i, i);
+		Container::cmp(c, c, i, i);
+		c.neg(i, i);
+		c.data();
+		c.is_zero();
+
+		c.print_binary(i, i);
+		c.print(i, i);
+	};
+
+	// we also have to enforce the existence of some constexpr functions.
+	{ Container::binary() } -> std::convertible_to<bool>;
+	{ Container::size() } -> std::convertible_to<uint32_t>;
+	{ Container::limbs() } -> std::convertible_to<uint32_t>;
+	{ Container::bytes() } -> std::convertible_to<uint32_t>;
+};
+
 template<class Value, class Label, class Matrix>
 concept ElementAble = requires(Value v, Label l) {
 	/// needed typedefs
@@ -28,6 +104,8 @@ concept ElementAble = requires(Value v, Label l) {
 
 	requires ValueAble<typename Value::ContainerType>;
 	requires LabelAble<typename Label::ContainerType>;
+
+	requires MatrixAble<Matrix>;
 
 	/// needed variables.
 	Value::LENGTH;
@@ -172,7 +250,7 @@ public:
 
 	/// generate a random element.
 	/// \param m 	Matrix
-	void random(const Matrix_T<Matrix> &m) noexcept {
+	void random(const Matrix &m) noexcept {
 		value.random();
 		recalculate_label(m);
 	}
@@ -180,15 +258,16 @@ public:
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
-    void recalculate_label(const Matrix_T<Matrix> &m) noexcept {
-	    new_vector_matrix_product<Label, Value, Matrix>(label, value, m);
+    void recalculate_label(const Matrix &m) noexcept {
+	    // new_vector_matrix_product<Label, Value, Matrix>(label, value, m);
+		m.matrix_row_vector_mul2(label, value);
 	}
 
 	/// checks if label == value*m
 	/// \param m
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
-	constexpr bool is_correct(const Matrix_T<Matrix> &m,
+	constexpr bool is_correct(const Matrix &m,
 	                		 const bool rewrite=false) const noexcept {
     	Label tmp = label;
     	recalculate_label(m);
@@ -382,11 +461,12 @@ public:
 	__FORCEINLINE__ const auto& get_label_container() const noexcept { return label.data(); }
 	__FORCEINLINE__ const auto& get_value_container() const noexcept { return value.data(); }
 
-	__FORCEINLINE__ auto* get_label_container_ptr() noexcept { return label.data().data().data(); }
-	__FORCEINLINE__ auto* get_value_container_ptr() noexcept { return value.data().data().data(); }
+	/// TODO replace with ptr
+	__FORCEINLINE__ auto* get_label_container_ptr() noexcept { return label.data().data(); }
+	__FORCEINLINE__ auto* get_value_container_ptr() noexcept { return value.data().data(); }
 
-	__FORCEINLINE__ const auto* get_label_container_ptr() const noexcept { return label.data().data().data(); }
-	__FORCEINLINE__ const auto* get_value_container_ptr() const noexcept { return value.data().data().data(); }
+	__FORCEINLINE__ const auto* get_label_container_ptr() const noexcept { return label.data().data(); }
+	__FORCEINLINE__ const auto* get_value_container_ptr() const noexcept { return value.data().data(); }
 
 public:
 	Label label;

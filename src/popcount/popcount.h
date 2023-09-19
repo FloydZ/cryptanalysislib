@@ -1,9 +1,10 @@
 #ifndef DECODING_POPCOUNT_H
 #define DECODING_POPCOUNT_H
 
-#include <stdint.h>
+#include <cstdint>
+#include "helper.h"
 
-///
+/// TODO use this
 struct popcount_config {
 public:
 	// TODO move this into custom alignment class
@@ -46,7 +47,7 @@ public:
 	/// \param data
 	/// \param size
 	/// \return
-	template<class T, popcount_config &config>
+	template<class T>
 	requires std::integral<T>
 	constexpr static uint32_t count(T *__restrict__ data, const size_t size) noexcept {
 		// ASSERT(uint64_t(data) % config.alignment);
@@ -60,7 +61,7 @@ public:
 };
 
 #ifdef USE_AVX2
-#include "popcount/x86.h"
+#include "popcount/avx2.h"
 #endif
 
 #endif//DECODING_POPCOUNT_H

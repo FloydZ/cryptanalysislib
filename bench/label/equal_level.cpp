@@ -3,8 +3,7 @@
 
 #include "../bench_config.h"
 
-#include <helper.h>
-#include <label.h>
+#include "helper.h"
 
 B63_BASELINE(equal_alllevel, nn) {
 	kAryLabel v1{}, v2{};

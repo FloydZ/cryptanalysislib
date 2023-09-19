@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstdint>
 
-#include "test.h"
+#include "container/fq_packed_vector.h"
 #include "helper.h"
 #include "random.h"
 
@@ -14,7 +14,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using Row = kAryPackedContainer_T<uint64_t, 3, 32>;
+using Row = kAryPackedContainer_T<uint64_t, 32, 3>;
 
 // return true if correct, false if not
 bool correct(const uint64_t t, const uint64_t a, const uint64_t b) {
@@ -36,7 +36,7 @@ bool correct(const uint64_t t, const uint64_t a, const uint64_t b) {
 }
 
 bool correct128(const __uint128_t t, const __uint128_t a, const __uint128_t b) {
-	using Row = kAryPackedContainer_T<uint64_t, 3, 64>;
+	using Row = kAryPackedContainer_T<uint64_t, 64, 3>;
 	Row row1, row2, row3; row3.zero();
 	row1.__data[0] = a;
 	row1.__data[1] = a >> 64;
@@ -48,7 +48,7 @@ bool correct128(const __uint128_t t, const __uint128_t a, const __uint128_t b) {
 	for (uint32_t i = 0; i < Row::LENGTH; i++) {
 		if ((data&3) != row3.get(i)) {
 			row3.print();
-			Row::print(t);
+			// t.print();
 			return false;
 		}
 
@@ -80,7 +80,7 @@ bool correct256(const __m256i t, const __m256i a, const __m256i b) {
 				row1.print();
 				row2.print();
 				row3.print();
-				Row::print(t);
+				// t.print();
 				return false;
 			}
 
@@ -92,14 +92,13 @@ bool correct256(const __m256i t, const __m256i a, const __m256i b) {
 }
 #endif
 
-TEST(kAryPackedContainer, test) {
+TEST(kAryPackedContainer3, test) {
 	uint64_t a = 0b10010110, b = 0b00010101, t;
 	t =  Row::add_mod3_limb(a, b);
 	EXPECT_EQ(true, correct(t, a, b));
 }
 
-// TODO Benchmark
-TEST(kAryPackedContainer, hammingweight_mod3_limb) {
+TEST(kAryPackedContainer3, hammingweight_mod3_limb) {
 	uint64_t a = 0;
 	EXPECT_EQ(0, Row::hammingweight_mod3_limb(a));
 	a = 1;
@@ -124,7 +123,7 @@ TEST(kAryPackedContainer, hammingweight_mod3_limb) {
 #endif
 }
 
-TEST(kAryPackedContainer, times2_mod3_limb) {
+TEST(kAryPackedContainer3, times2_mod3_limb) {
 	Row row1;
 	uint64_t t;
 	row1.zero();
@@ -144,7 +143,7 @@ TEST(kAryPackedContainer, times2_mod3_limb) {
 	//Row::print(t);
 }
 
-TEST(kAryPackedContainer, neg_mod3_limb) {
+TEST(kAryPackedContainer3, neg_mod3_limb) {
 	Row row1;
 	uint64_t t;
 	row1.zero();
@@ -165,7 +164,7 @@ TEST(kAryPackedContainer, neg_mod3_limb) {
 
 }
 
-TEST(kAryPackedContainer, sub_mod3_limb) {
+TEST(kAryPackedContainer3, sub_mod3_limb) {
 	Row row1, row2;
 	uint64_t t = 0;
 	row1.zero(); row2.zero();
@@ -213,7 +212,7 @@ TEST(kAryPackedContainer, sub_mod3_limb) {
 
 }
 
-TEST(kAryPackedContainer, add_mod3_limb) {
+TEST(kAryPackedContainer3, add_mod3_limb) {
 	Row row1, row2;
 	uint64_t t;
 	row1.zero(); row2.zero();
@@ -257,7 +256,7 @@ TEST(kAryPackedContainer, add_mod3_limb) {
 	//Row::print(t);
 }
 
-TEST(kAryPackedContainer, add_mod3_limb128) {
+TEST(kAryPackedContainer3, add_mod3_limb128) {
 	__uint128_t row1, row2, t;
 	row1 = 0; row2 = 0;
 
@@ -281,7 +280,7 @@ TEST(kAryPackedContainer, add_mod3_limb128) {
 }
 
 #ifdef USE_AVX2
-TEST(kAryPackedContainer, add_mod3_limb256) {
+TEST(kAryPackedContainer3, add_mod3_limb256) {
 	__m256i row1 = _mm256_set_epi64x(0,0,0,0), row2 = _mm256_set_epi64x(0,0,0,0), t;
 
 	t =  Row::add_mod3_limb256(row1, row2);

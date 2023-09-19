@@ -2,12 +2,12 @@
 
 #include "helper.h"
 #include "random.h"
-#include "list/enumeration/ternary.h"
+//TODO #include "list/enumeration/ternary.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-TEST(uint8x32_t, set) {
+TEST(TODO, set) {
 }
 
 int main(int argc, char **argv) {

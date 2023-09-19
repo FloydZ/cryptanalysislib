@@ -3,14 +3,15 @@
 #include <cstdlib>
 
 #define ENABLE_BENCHMARK
-#include "nn/avx2.h"
+#include "nn/nn.h"
 
 constexpr size_t LS = 1u << 24u;
 constexpr size_t d = 16;
 constexpr size_t dk = 22;
-constexpr static WindowedAVX2_Config config{256, 4, 200, 64, LS, dk, d, 0, 512};
-WindowedAVX2<config> algo{};
+constexpr static NN_Config config{256, 4, 200, 64, LS, dk, d, 0, 512};
+NN<config> algo{};
 
+#ifdef USE_AVX2
 // Define another benchmark
 static void BM_avx2_sort_nn_on64_simple_0(benchmark::State& state) {
 	for (auto _ : state) {
@@ -69,6 +70,7 @@ BENCHMARK(BM_avx2_sort_nn_on64_0)->RangeMultiplier(2)->Range(1024, 1u<<18)->Comp
 BENCHMARK(BM_avx2_sort_nn_on64_1)->RangeMultiplier(2)->Range(1024, 1u<<18)->Complexity();
 BENCHMARK(BM_avx2_sort_nn_on_double64_0)->RangeMultiplier(2)->Range(1024, 1u<<18)->Complexity();
 BENCHMARK(BM_avx2_sort_nn_on_double64_1)->RangeMultiplier(2)->Range(1024, 1u<<18)->Complexity();
+#endif
 
 int main(int argc, char** argv) {
 	random_seed(time(NULL));

@@ -46,8 +46,8 @@
 int main(int argc, char** argv) {
 	random_seed(time(NULL));
 	constexpr uint64_t LS = 1ul << BENCH_LS;
-	constexpr static WindowedAVX2_Config config{BENCH_n, BENCH_R, BENCH_N, BENCH_K, LS, BENCH_DELTA, BENCH_GAMMA, 0, BENCH_BF};
-	WindowedAVX2<config> algo{};
+	constexpr static NN_Config config{BENCH_n, BENCH_R, BENCH_N, BENCH_K, LS, BENCH_DELTA, BENCH_GAMMA, 0, BENCH_BF};
+	NN<config> algo{};
 	config.print();
 
 	constexpr bool solution = true;
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 		algo.generate_random_instance(solution);
 
 		uint64_t t1 = clock();
-		algo.avx2_nn(LS, LS);
+		algo.nn(LS, LS);
 		time += clock() - t1;
 		sols += algo.solutions_nr;
 

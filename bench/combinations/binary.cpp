@@ -3,9 +3,9 @@
 
 #include "../bench_config.h"
 
-#include <helper.h>
-#include <combinations.h>
-#include <list.h>
+#include "helper.h"
+#include "combinations.h"
+#include "list/list.h"
 
 #define COMBINATIONS_SIZE_LOG 100u
 #define COMBINATIONS_SIZE_k   5u
