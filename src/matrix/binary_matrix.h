@@ -35,6 +35,12 @@ public:
 		__matrix_data = init_matrix_data(ncols);
 	}
 
+	/// constructor for M4RI
+	constexpr FqMatrix(mzd_t *in) noexcept {
+		static_assert(sizeof(T) == 8);
+		__data = in;
+	}
+
 	/// simple deconstructor
 	constexpr ~FqMatrix() noexcept {
 		mzd_free(__data);
@@ -62,7 +68,7 @@ public:
 	/// \param data data to set
 	/// \param i row
 	/// \param j colum
-	constexpr void set(const DataType data, const uint32_t i, const uint32_t j) noexcept {
+	constexpr void set(const uint32_t data, const uint32_t i, const uint32_t j) noexcept {
 		mzd_write_bit(__data, i, j, data);
 	}
 
@@ -115,6 +121,22 @@ public:
 		}
 	}
 
+	constexpr void fill(const uint32_t data) noexcept {
+		ASSERT(data < 2);
+		if (data == 0) {
+			clear();
+			return;
+		}
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < limbs_per_row() - 1u; ++j) {
+				__data->rows[i][j] = T(-1ull);
+			}
+
+			__data->rows[i][limbs_per_row() - 1u] = +(-1ull) & __data->high_bitmask;
+		}
+	}
+
 	/// simple additions
 	/// \param out output
 	/// \param in1 input
@@ -133,6 +155,11 @@ public:
 							  const FqMatrix &in1,
 							  const FqMatrix &in2) noexcept {
 		mzd_add(out.__data, in1.__data, in2.__data);
+	}
+
+	constexpr static FqMatrix augment(const FqMatrix &in1, const FqMatrix &in2) {
+		/// TODO
+		return in1;
 	}
 
 	/// direct transpose of the full matrix

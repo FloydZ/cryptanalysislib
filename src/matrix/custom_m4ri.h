@@ -25,6 +25,16 @@
 /// private forward definition
 mzd_t *_mzd_transpose(mzd_t *DST, mzd_t const *A);
 
+uint32_t hamming_weight_column(mzd_t *ptr, const uint32_t col) {
+	uint32_t ret = 0;
+	for (uint32_t i = 0; i < ptr->nrows; ++i) {
+		ret += mzd_read_bit(ptr, i, col);
+	}
+
+	return ret;
+}
+
+
 /// additional overlay over the `mpz_t` class for the following two reasons:
 /// 	- row size is chosen as an multiple of 256 for SIMD operations
 /// 	- custom row operations
