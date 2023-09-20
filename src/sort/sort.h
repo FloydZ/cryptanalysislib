@@ -3,7 +3,10 @@
 
 #include "crumsort.h"
 #include "quadsort.h"
-// TODO #include "ska_sort.h"
+#include "ska_sort.h"
+#include "crumsort.h"
+#include "robinhoodsort.h"
+#include "quadsort.h"
 #include "vergesort.h"
 
 #ifdef USE_AVX2

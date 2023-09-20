@@ -4,8 +4,7 @@
 #include "../bench_config.h"
 
 #include "container/binary_packed_vector.h"
-#include <helper.h>
-//#include <sort.h>
+#include "helper.h"
 #include "sort/sort.h"
 
 
@@ -22,7 +21,7 @@ B63_BASELINE(Std_Sort, nn) {
 
 	B63_SUSPEND {
 		data.resize(SIZE_LIST);
-		for (int i = 0; i < nn; ++i) {
+		for (size_t i = 0; i < nn; ++i) {
 			data[i].random();
 		}
 	}
@@ -33,15 +32,15 @@ B63_BASELINE(Std_Sort, nn) {
 	B63_KEEP(data[0].data()[0]);
 }
 
-
 B63_BENCHMARK(crumsort, nn) {
 	std::vector<ContainerT> data;
 	B63_SUSPEND {
 		data.resize(SIZE_LIST);
-		for (int i = 0; i < nn; ++i) {
+		for (size_t i = 0; i < nn; ++i) {
 			data[i].random();
 		}
 	}
+
 	crumsort<ContainerT>(data.data(), SIZE_LIST, [](const ContainerT *a, const ContainerT *b){
 		return a->is_greater<k_lower, k_higher>(*b);
 	});
@@ -49,22 +48,68 @@ B63_BENCHMARK(crumsort, nn) {
 	B63_KEEP(data[0].data()[0]);
 }
 
+B63_BENCHMARK(quadsort, nn) {
+    std::vector<ContainerT> data;
+    B63_SUSPEND {
+        data.resize(SIZE_LIST);
+        for (size_t i = 0; i < nn; ++i) {
+            data[i].random();
+        }
+    }
 
-//B63_BENCHMARK(quadsort, nn) {
-//	std::vector<ContainerT> data;
-//	B63_SUSPEND {
-//		data.resize(SIZE_LIST);
-//		for (int i = 0; i < nn; ++i) {
-//			data[i].random();
-//		}
-//	}
+    quadsort<ContainerT>(data.data(), SIZE_LIST, [](const ContainerT *a, const ContainerT *b){
+        return a->is_greater<k_lower, k_higher>(*b);
+    });
+
+    B63_KEEP(data[0].data()[0]);
+}
+
+B63_BENCHMARK(SKASort, nn) {
+	std::vector<ContainerT> data;
+	B63_SUSPEND {
+		data.resize(SIZE_LIST);
+		for (size_t i = 0; i < nn; ++i) {
+			data[i].random();
+		}
+	}
+
+	ska_sort(data.begin(), data.end(), [](const ContainerT &a){
+		constexpr uint64_t mask = (1ul << (k_higher - k_lower)) - 1ull;
+		return (a.data()[0] >> k_lower) & mask;
+	});
+	B63_KEEP(data[0].data()[0]);
+}
+
+B63_BENCHMARK(VergeSort, nn) {
+    std::vector<ContainerT> data;
+    B63_SUSPEND {
+        data.resize(SIZE_LIST);
+        for (size_t i = 0; i < nn; ++i) {
+            data[i].random();
+        }
+    }
+
+    vergesort::vergesort(data.begin(), data.end(), [](const ContainerT &in1, const ContainerT &in2){
+        return in1.is_greater<k_lower, k_higher>(in2);
+    });
+    B63_KEEP(data[0].data()[0]);
+}
+
+// NOTE: currently not implemented
+//B63_BENCHMARK(RobinHoodSort, nn) {
+//    std::vector<ContainerT> data;
+//    B63_SUSPEND {
+//        data.resize(SIZE_LIST);
+//        for (size_t i = 0; i < nn; ++i) {
+//            data[i].random();
+//        }
+//    }
 //
-//	quadsort<ContainerT>(data.data(), SIZE_LIST, [](const ContainerT *a, const ContainerT *b){
-//		return a->is_greater<k_lower, k_higher>(*b);
-//	});
-//	B63_KEEP(data[0].data()[0]);
+//	rhmergesort<ContainerT>(data.data(), SIZE_LIST, [](const ContainerT *a, const ContainerT *b){
+//        return a->is_greater<k_lower, k_higher>(*b);
+//    });
+//    B63_KEEP(data[0].data()[0]);
 //}
-
 
 int main(int argc, char **argv) {
 	srand(time(NULL));

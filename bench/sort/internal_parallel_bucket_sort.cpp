@@ -77,46 +77,6 @@ B63_BENCHMARK(SKASort, n) {
 	B63_KEEP(data[0]);
 }
 
-B63_BENCHMARK(vv_radix_sort, n) {
-	vector<ContainerT> data;
-	B63_SUSPEND {
-		random_data(data, n);
-	}
-
-	vv_radix_sort(data);
-
-	assert(std::is_sorted(data.begin(), data.end()));
-	B63_KEEP(data[0]);
-}
-
-//
-//B63_BENCHMARK(pdqsort, n) {
-//	vector<ContainerT> data;
-//	B63_SUSPEND {
-//		random_data(data, n);
-//	}
-//
-//	pdqsort(data.begin(), data.end(),
-//         [](const auto &e1, const auto &e2) {
-//	         return (e1&mask) < (e2&mask);
-//         }
-//	);
-//
-//	assert(std::is_sorted(data.begin(), data.end()));
-//	B63_KEEP(data[0]);
-//}
-//
-//B63_BENCHMARK(pdqsort_branchless, n) {
-//	vector<ContainerT> data;
-//	B63_SUSPEND {
-//		random_data(data, n);
-//	}
-//
-//
-//	pdqsort_branchless(data.begin(), data.end());
-//	assert(std::is_sorted(data.begin(), data.end()));
-//	B63_KEEP(data[0]);
-//}
 
 
 

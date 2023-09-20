@@ -86,14 +86,13 @@ set(VALUE_FLAG "")
 set(MALLOC_LIBRARY "")
 
 # possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
-#set(SANITIZE_FLAG "-fsanitize=address")
-set(SANITIZE_FLAGS "")
+set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
+#set(SANITIZE_FLAGS "")
 
 #set(INLINE_FLAGS "-fno-inline")
 set(INLINE_FLAGS "")
 
 set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings ")
-#set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
