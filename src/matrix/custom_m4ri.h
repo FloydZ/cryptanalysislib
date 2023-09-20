@@ -25,6 +25,14 @@
 /// private forward definition
 mzd_t *_mzd_transpose(mzd_t *DST, mzd_t const *A);
 
+uint32_t hamming_weight(mzd_t *ptr, const uint32_t row=0) {
+	uint32_t ret = 0;
+	for (uint32_t i = 0; i < ptr->ncols; ++i) {
+		ret += mzd_read_bit(ptr, row, i);
+	}
+
+	return ret;
+}
 uint32_t hamming_weight_column(mzd_t *ptr, const uint32_t col) {
 	uint32_t ret = 0;
 	for (uint32_t i = 0; i < ptr->nrows; ++i) {

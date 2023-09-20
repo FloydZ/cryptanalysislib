@@ -68,7 +68,7 @@ public:
 	/// \param data data to set
 	/// \param i row
 	/// \param j colum
-	constexpr void set(const uint32_t data, const uint32_t i, const uint32_t j) noexcept {
+	constexpr void set(const bool data, const uint32_t i, const uint32_t j) noexcept {
 		mzd_write_bit(__data, i, j, data);
 	}
 
@@ -170,7 +170,7 @@ public:
 									FqMatrix<T, nrows, ncols, q> &A) noexcept {
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols; ++j) {
-				const auto data = A.get(i, j);
+				const bool data = A.get(i, j);
 				B.set(data, j, i);
 			}
 		}
@@ -196,7 +196,7 @@ public:
 
 		for (uint32_t i = srow; i < nrows; ++i) {
 			for (uint32_t j = scol; j < ncols; ++j) {
-				const auto data = A.get(i, j);
+				const bool data = A.get(i, j);
 				B.set(data, j, i);
 			}
 		}
@@ -225,7 +225,7 @@ public:
 
 		for (uint32_t row = srow; row < erow; ++row) {
 			for (uint32_t col = scol; col < ecol; ++col) {
-				const DataType data = A.get(row, col);
+				const bool data = A.get(row, col);
 				B.set(data, row-srow, col-scol);
 			}
 		}
