@@ -1597,15 +1597,18 @@ public:
 
 		// pointer to the limb
 		LimbType     *wp;
+
 		// bit position in the whole data array.
-		const size_t 	        mask_pos;
+		const size_t 	   mask_pos;
 
 		// left undefined
 		reference();
 
 	public:
-		reference(BinaryContainer &b, size_t pos) : mask_pos(mask(pos)){
-			wp = &b.data().data()[round_down_to_limb(pos)];
+		reference(const BinaryContainer &b, const size_t pos) : mask_pos(mask(pos)) {
+			// honestly thats cheating. We drop the const qualifier here, s.t.
+			// we can get a const reference
+			wp = (LimbType *)&b.data().data()[round_down_to_limb(pos)];
 		}
 
 #if __cplusplus >= 201103L
@@ -1662,19 +1665,19 @@ public:
 		ASSERT(pos < LENGTH);
 		reference(*this, pos) = data;
 	}
-	constexpr reference get(const size_t pos) {
+	[[nodiscard]] constexpr reference get(const size_t pos) {
 		ASSERT(pos < LENGTH);
 		return reference(*this, pos);
 	}
-	constexpr const reference get(const size_t pos) const {
+	[[nodiscard]] constexpr const reference get(const size_t pos) const {
+		ASSERT(pos < LENGTH);
+		return (const reference)reference(*this, pos);
+	}
+	[[nodiscard]] constexpr reference operator[](const size_t pos) noexcept {
 		ASSERT(pos < LENGTH);
 		return reference(*this, pos);
 	}
-	constexpr reference operator[](const size_t pos) noexcept {
-		ASSERT(pos < LENGTH);
-		return reference(*this, pos);
-	}
-	constexpr bool operator[](const size_t pos) const noexcept {
+	[[nodiscard]] constexpr bool operator[](const size_t pos) const noexcept {
 		ASSERT(pos < LENGTH);
 		return (__data[round_down_to_limb(pos)] & mask(pos)) != 0;
 	}

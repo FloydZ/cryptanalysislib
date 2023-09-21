@@ -18,12 +18,25 @@ using T = uint64_t;
 constexpr uint32_t q = 5;
 constexpr uint32_t nrows = 100;
 constexpr uint32_t ncols = 110;
-using M  = FqMatrix<T, nrows, ncols, q>;
-using MT = FqMatrix<T, ncols, nrows, q>;
+
+constexpr bool packed = true;
+using M  = FqMatrix<T, nrows, ncols, q, packed>;
+using MT = FqMatrix<T, ncols, nrows, q, packed>;
 
 
 TEST(FqMatrix, Init) {
 	M m = M{};
+}
+
+TEST(FqMatrix, SubScription) {
+	M m = M{};
+	m.random();
+
+	for (uint32_t i = 0; i < M::ROWS; ++i) {
+		for (uint32_t j = 0; j < M::COLS; ++j) {
+			ASSERT_EQ(m[i][j], m.get(i, j));
+		}
+	}
 }
 
 TEST(FqMatrix, random) {
@@ -182,9 +195,7 @@ TEST(FqMatrix, sub_Transpose_extended) {
 	constexpr uint32_t scol = 10;
 	constexpr uint32_t erow = 95;
 	constexpr uint32_t ecol = 90;
-	//using MT = FqMatrix<T, ncols-srow, nrows-scol, q>;
-	//using MT = FqMatrix<T, ncols, nrows, q>;
-	using MT = FqMatrix<T, ecol-scol, erow-srow, q>;
+	using MT = FqMatrix<T, ecol-scol, erow-srow, q, packed>;
 	M m = M{};
 	MT mt = MT{};
 	m.random();
@@ -210,7 +221,7 @@ TEST(FqMatrix, sub_Transpose_extended) {
 TEST(FqMatrix, subTranspose) {
 	constexpr uint32_t srow = 10;
 	constexpr uint32_t scol = 10;
-	using MT = FqMatrix<T, ncols-srow, nrows-scol, q>;
+	using MT = FqMatrix<T, ncols-srow, nrows-scol, q, packed>;
 
 	M m = M{};
 	MT mt = MT{};
@@ -234,7 +245,7 @@ TEST(FqMatrix, subMatrix) {
 	constexpr uint32_t scol = 10;
 	constexpr uint32_t erow = nrows;
 	constexpr uint32_t ecol = ncols;
-	using MT = FqMatrix<T, erow-srow, ecol-scol, q>;
+	using MT = FqMatrix<T, erow-srow, ecol-scol, q, packed>;
 
 	M m = M{};
 	MT mt = MT{};
@@ -296,8 +307,8 @@ TEST(FqMatrix, fixgaus) {
 }
 
 TEST(FqMatrix, inplace_matrix_vector_mult) {
-	using V = FqMatrix<T, 1, ncols, q>;
-	using VT = FqMatrix<T, ncols, 1, q>;
+	using V = FqMatrix<T, 1, ncols, q, packed>;
+	using VT = FqMatrix<T, ncols, 1, q, packed>;
 	V v = V{};
 	VT vt = VT{};
 	M m  = M{};
@@ -321,8 +332,8 @@ TEST(FqMatrix, inplace_matrix_vector_mult) {
 }
 
 TEST(FqMatrix, matrix_vector_mult) {
-	using V = FqMatrix<T, 1, ncols, q>;
-	using VT = FqMatrix<T, nrows, 1, q>;
+	using V = FqMatrix<T, 1, ncols, q, packed>;
+	using VT = FqMatrix<T, nrows, 1, q, packed>;
 	V v = V{};
 	VT vt = VT{};
 	M m = M{};
@@ -345,8 +356,8 @@ TEST(FqMatrix, matrix_vector_mult) {
 
 TEST(FqMatrix, matrix_matrix_mult) {
 	constexpr uint32_t ncols_prime = 120;
-	using Min = FqMatrix<T, ncols, ncols_prime, q>;
-	using Mout = FqMatrix<T, nrows, ncols_prime, q>;
+	using Min = FqMatrix<T, ncols, ncols_prime, q, packed>;
+	using Mout = FqMatrix<T, nrows, ncols_prime, q, packed>;
 
 	M m = M{};
 	Min m_in = Min{};

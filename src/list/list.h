@@ -53,14 +53,14 @@ public:
 	using MetaListT<Element>::size;
 	using MetaListT<Element>::set_size;
 	using MetaListT<Element>::threads;
+	using MetaListT<Element>::start_pos;
+	using MetaListT<Element>::end_pos;
 	using MetaListT<Element>::set_threads;
 	using MetaListT<Element>::thread_block_size;
 	using MetaListT<Element>::set_thread_block_size;
 	using MetaListT<Element>::resize;
 	using MetaListT<Element>::load;
 	using MetaListT<Element>::set_load;
-	using MetaListT<Element>::start_pos;
-	using MetaListT<Element>::end_pos;
 	using MetaListT<Element>::data;
 	using MetaListT<Element>::data_value;
 	using MetaListT<Element>::data_label;
@@ -72,6 +72,7 @@ public:
 	using MetaListT<Element>::end;
 	using MetaListT<Element>::zero;
 	using MetaListT<Element>::erase;
+	using MetaListT<Element>::insert;
 
 	///
 	/// \param e element to search for
@@ -665,7 +666,6 @@ public:
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
 		set_load(load() + 1);
 	}
-
 
 private:
 	/// TODO remove

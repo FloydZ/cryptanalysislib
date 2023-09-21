@@ -57,7 +57,7 @@ public:
 	using ElementType = typename ListType::ElementType;
 
 	/// needed variables
-	Combinations_Fq_Chase c = Combinations_Fq_Chase(n, q, w);
+	constexpr static Combinations_Fq_Chase c = Combinations_Fq_Chase<n, q, w>();
 	const size_t chase_size = c.chase_size;
 	const size_t gray_size = c.gray_size;
 	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(chase_size);
@@ -275,7 +275,7 @@ public:
 	}
 
 
-	/// this version is special made for fq siebing
+	/// this version is special made for fq sieving
 	/// q-1 Symbols on the full length
 	/// the reason this function takes the list is, that different enumeration strategies
 	/// need a different amount of lists

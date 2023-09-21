@@ -40,11 +40,14 @@ concept ValueTypeAble = requires(ValueType c) {
 /// all matrix types
 template<class MatrixType>
 concept MatrixAble = requires(MatrixType c) {
-	requires requires(const uint32_t i) {
+	typename MatrixType::DataType;
+
+	requires requires(const uint32_t i,
+	                  const typename MatrixType::DataType a) {
 		c.get(i, i);
 		c.get(i);
-		c.set(i, i, i);
-		c.set(i);
+		c.set(a, i, i);
+		c.set(a);
 		c.copy(c);
 
 		c.clear();
@@ -98,15 +101,19 @@ public:
 			kAryPackedContainer_T<T, ncols, q>,
 			kAryContainer_T<T, ncols, q>
 	>::type;
-	using DataType = typename RowType::DataType;
+	typedef typename RowType::DataType DataType;
 	using InternalRowType = RowType;
 
 	// Variables
 	std::array<RowType, nrows> __data;
 
+	constexpr FqMatrix_Meta() noexcept {
+		clear();
+	}
+
 	/// copy constructor
 	/// \param A
-	FqMatrix_Meta(const FqMatrix_Meta &A) noexcept {
+	constexpr FqMatrix_Meta(const FqMatrix_Meta &A) noexcept {
 		clear();
 
 		for (uint32_t row = 0; row < nrows; ++row) {
@@ -114,11 +121,6 @@ public:
 				__data[row].data()[col] = A.__data[row].data(col);
 			}
 		}
-	}
-
-	/// empty constructor
-	constexpr FqMatrix_Meta() noexcept {
-		clear();
 	}
 
 	/// constructor: read from string. The string should be of the format:
@@ -185,6 +187,25 @@ public:
 		return __data[i];
 	}
 
+	/// \param i row number (zero indexed)
+	/// \return a mut ref to a row
+	[[nodiscard]] constexpr RowType& get(const uint32_t i) noexcept {
+
+		ASSERT(i < nrows);
+		return __data[i];
+	}
+
+	/// \param i row number (zero indexed)
+	/// \return a const ref to a row
+	[[nodiscard]] constexpr const RowType& operator[](const uint32_t i) const noexcept {
+		return get(i);
+	}
+
+	/// \param i row number (zero indexed)
+	/// \return a mut ref to a row
+	[[nodiscard]] constexpr RowType& operator[](const uint32_t i) noexcept {
+		return get(i);
+	}
 	/// creates an identity matrix
 	/// \return
 	constexpr void identity(const DataType val=1) noexcept {
@@ -310,8 +331,8 @@ public:
 	/// \param A input matrix
 	/// \param srow start row (inclusive, of A)
 	/// \param scol start col (inclusive, of A)
-	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
-	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packedprime>
+	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime> &B,
 										const FqMatrix_Meta &A,
 										const uint32_t srow,
 										const uint32_t scol) noexcept {
@@ -336,8 +357,8 @@ public:
 	/// \param scol start col (inclusive, of A)
 	/// \param erow end row (exclusive, of A)
 	/// \param ecol end col (exclusive, of A)
-	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
-	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packedprime>
+	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime> &B,
 										const FqMatrix_Meta &A,
 										const uint32_t srow, const uint32_t scol,
 										const uint32_t erow, const uint32_t ecol) noexcept {
@@ -368,8 +389,8 @@ public:
 	/// \param scol start col (inclusive, of A)
 	/// \param erow end row (exclusive, of A)
 	/// \param ecol end col (exclusive, of A)
-	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
-	static constexpr void sub_matrix(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packedprime>
+	static constexpr void sub_matrix(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime> &B,
 									 const FqMatrix_Meta &A,
 									 const uint32_t srow, const uint32_t scol,
 									 const uint32_t erow, const uint32_t ecol)
@@ -667,7 +688,7 @@ public:
 		// copy the first matrix
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols; ++j) {
-				const auto data = A.get(i, j);
+				const DataType data = A.get(i, j);
 				ret.set(data, i, j);
 			}
 		}
@@ -675,7 +696,7 @@ public:
 		// copy the second matrix
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols_prime; ++j) {
-				const auto data = B.get(i, j);
+				const DataType data = B.get(i, j);
 				ret.set(data, i, j+ncols);
 			}
 		}
@@ -707,15 +728,15 @@ public:
 		FqMatrix_Meta tmp;
 		for (uint32_t i = 0; i < nrows; ++i) {
 			/// uint32_t to make sure that no overflow happens
-			uint32_t sum = 0;
+			DataType sum = 0;
 			for (uint32_t j = 0; j < ncols; ++j) {
 				uint32_t a = get(i, j);
 				uint32_t b = v.get(0, j);
 				uint32_t c = (a*b)%q;
 				sum += c;
+				sum %= q;
 			}
 
-			sum = sum % q;
 			tmp.set(sum, 0, i);
 		}
 
@@ -806,7 +827,7 @@ public:
 	requires LabelTypeAble<LabelType> &&
 			 ValueTypeAble<ValueType>
 #endif
-	constexpr void matrix_row_vector_mul2(LabelType &out, ValueType &in) const noexcept {
+	constexpr void matrix_row_vector_mul2(LabelType &out, const ValueType &in) const noexcept {
 		constexpr uint32_t IN_COLS = ValueType::LENGTH;
 		constexpr uint32_t OUT_COLS = LabelType::LENGTH;
 		static_assert(IN_COLS == COLS);
@@ -835,7 +856,7 @@ public:
 	/// \param v input column vector
 	constexpr void matrix_col_vector_mul(FqMatrix_Meta<T, nrows, 1u, q, packed> &out,
 										 const FqMatrix_Meta<T, nrows, 1u, q, packed> v) noexcept {
-		FqMatrix_Meta<T, nrows, 1u, q> tmp;
+		FqMatrix_Meta<T, nrows, 1u, q, packed> tmp;
 		for (uint32_t i = 0; i < nrows; ++i) {
 			uint32_t sum = 0;
 			uint32_t b = v.get(i, 0);

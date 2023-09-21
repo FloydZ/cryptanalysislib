@@ -16,7 +16,7 @@ public:
 
 	/// needed typedefs
 	using RowType = T*;
-	using DataType = uint8_t;
+	using DataType = bool;
 	mzd_t *__data;
 	customMatrixData *__matrix_data;
 	const uint32_t m4ri_k = matrix_opt_k(nrows, ncols);

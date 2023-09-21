@@ -32,7 +32,7 @@ concept ListElementAble = requires(Element a) {
 	a.label;
 	a.value;
 
-	requires requires(const size_t i) {
+	requires requires(const size_t i, const typename Element::MatrixType &m) {
 		a.bytes();
 		a.binary(); 				// checks if the underlying container is binary
 		a.zero();
@@ -48,8 +48,8 @@ concept ListElementAble = requires(Element a) {
 		a.print();
 		a.print_binary(i, i, i, i);
 
-		/// TODO wie templted man function hier template<class M> a.random();
-
+		a.random();
+		a.random(m);
 	};
 };
 
@@ -62,6 +62,11 @@ concept ListElementAble = requires(Element a) {
 template<class List>
 concept ListAble = requires(List l) {
 	typename List::ElementType;
+
+	/// insert//append stuff
+	requires requires(const size_t pos, const uint32_t tid, const typename List::ElementType &e) {
+		l.insert(e, pos, tid);
+	};
 
 	/// size stuff
 	requires requires(const uint32_t i) {
@@ -274,7 +279,7 @@ public:
 		return __data[i];
 	}
 	constexpr inline const Element &at(const size_t i) const noexcept {
-		ASSERT(i < __load);
+		ASSERT(i < size());
 		return __data[i];
 	}
 	constexpr inline Element &operator[](const size_t i) noexcept {
@@ -282,7 +287,7 @@ public:
 		return __data[i];
 	}
 	constexpr inline const Element &operator[](const size_t i) const noexcept {
-		ASSERT(i < __load);
+		ASSERT(i < size());
 		return __data[i];
 	}
 
@@ -434,5 +439,24 @@ public:
 	[[nodiscard]] constexpr size_t bytes() const noexcept {
 		return size()*sizeof(Element);
 	}
+
+	/// insert an element into the list past the load factor
+	/// \param e element to insert
+	/// \param pos is a relative position to the thread id
+	/// \param tid thread id
+	constexpr void insert(const Element &e, const size_t pos, const uint32_t tid=0) noexcept {
+		const size_t spos = start_pos(tid);
+		__data[spos + pos] = e;
+	}
 };
+
+
+template<typename Element>
+std::ostream& operator<< (std::ostream &out, const MetaListT<Element> &obj) {
+	for (size_t i = 0; i < obj.size(); ++i) {
+		out << obj[i] << std::endl;
+	}
+	return out;
+}
+
 #endif //DECODING_LIST_COMMON_H

@@ -7,6 +7,7 @@
 #include <cstddef>
 
 #include "static_sort.h"
+#include "container/hashmap/common.h"
 #include "helper.h"
 
 ///

@@ -88,7 +88,7 @@ struct uint8x32_t {
 		                char __q11, char __q10, char __q09, char __q08,
 		                char __q07, char __q06, char __q05, char __q04,
 		                char __q03, char __q02, char __q01, char __q00){
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		out.v8[ 0] = __q31;
 		out.v8[ 1] = __q30;
 		out.v8[ 2] = __q29;
@@ -128,7 +128,7 @@ struct uint8x32_t {
 	/// \param a
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t set1(const uint8_t a) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		out =  uint8x32_t::set(a, a, a, a, a, a, a, a,
 		                       a, a, a, a, a, a, a, a,
 		                       a, a, a, a, a, a, a, a,
@@ -153,7 +153,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	constexpr static inline uint8x32_t aligned_load(const void *ptr) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		const uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 3; i++) {
 			out.v64[i] = ptr64[i];
@@ -166,7 +166,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	constexpr static inline uint8x32_t unaligned_load(const void *ptr) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		const uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 3; i++) {
 			out.v64[i] = ptr64[i];
@@ -214,7 +214,7 @@ struct uint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t xor_(const uint8x32_t in1,
 	                              const uint8x32_t in2) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = in1.v64[i] ^ in2.v64[i];
 		}
@@ -227,7 +227,7 @@ struct uint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t and_(const uint8x32_t in1,
 	                              const uint8x32_t in2) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = in1.v64[i] & in2.v64[i];
 		}
@@ -240,7 +240,7 @@ struct uint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t or_(const uint8x32_t in1,
 						  const uint8x32_t in2) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = in1.v64[i] | in2.v64[i];
 		}
@@ -253,7 +253,7 @@ struct uint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t andnot(const uint8x32_t in1,
 	                                const uint8x32_t in2) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
 		}
@@ -264,7 +264,7 @@ struct uint8x32_t {
 	/// \param in1
 	/// \return
 	constexpr static inline uint8x32_t not_(const uint8x32_t in1) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = ~in1.v64[i];
 		}
@@ -278,7 +278,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t add(
 						const uint8x32_t in1,
 	                    const uint8x32_t in2) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 32; i++) {
 			out.v8[i] = in1.v8[i] + in2.v8[i];
 		}
@@ -291,7 +291,7 @@ struct uint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t sub(const uint8x32_t in1,
 	                             const uint8x32_t in2) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 32; i++) {
 			out.v8[i] = in1.v8[i] - in2.v8[i];
 		}
@@ -304,7 +304,7 @@ struct uint8x32_t {
 	/// \return
 	static inline uint8x32_t mullo(const uint8x32_t in1,
 	                               const uint8x32_t in2) {
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 8; i++) {
 			out.v8[i] = in1.v8[i] * in2.v8[i];
 		}
@@ -325,7 +325,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t slli(const uint8x32_t in1,
 														  const uint8_t in2) {
 		ASSERT(in2 <= 8);
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 32; i++) {
 			out.v8[i] = in1.v8[i] << in2;
 		}
@@ -339,7 +339,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t slri(const uint8x32_t in1,
 														  const uint8_t in2) {
 		ASSERT(in2 <= 8);
-		uint8x32_t out;
+		uint8x32_t out = {0};
 		for (uint32_t i = 0; i < 32; i++) {
 			out.v8[i] = in1.v8[i] >> in2;
 		}

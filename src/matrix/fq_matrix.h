@@ -14,7 +14,6 @@ template<typename T,
          const bool packed=false>
 class FqMatrix: public FqMatrix_Meta<T, nrows, ncols, q, packed>{
 public:
-	/// simply inherit everything
 };
 
 /// matrix implementation which is row major
@@ -27,7 +26,7 @@ template<typename T,
          const uint32_t ncols,
          const bool packed>
 class FqMatrix<T, nrows, ncols, 3, packed> : public  FqMatrix_Meta<T, nrows, ncols, 3, packed> {
-
+public:
 	/// this is just defined, because Im lazy
 	static constexpr uint32_t q = 3;
 
@@ -46,8 +45,10 @@ class FqMatrix<T, nrows, ncols, 3, packed> : public  FqMatrix_Meta<T, nrows, nco
 	using FqMatrix_Meta<T, nrows,ncols, q>::swap_rows;
 	using FqMatrix_Meta<T, nrows,ncols, q>::swap_cols;
 	using FqMatrix_Meta<T, nrows,ncols, q>::clear;
-public:
 
+	constexpr FqMatrix() noexcept {
+		clear();
+	}
 	///
 	/// \param stop row to stop with the elimination
 	/// \return number of rows systemize

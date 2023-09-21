@@ -3,67 +3,97 @@
 #include "helper.h"
 #include "random.h"
 #include "combination/fq/chase.h"
-#include "list/enumeration/fq.h"
-#include "math/ipow.h"
+#include "list/enumeration/fq_new.h"
+#include "list/list.h"
+#include "container/fq_vector.h"
+#include "matrix/fq_matrix.h"
+#include "sort.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
-constexpr uint32_t n = 6, q = 3, w = 3;
+
+constexpr uint32_t n = 20;
+constexpr uint32_t l = 10;
+constexpr uint32_t q = 3;
+constexpr uint32_t w = 2;
+
+constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();
+
+using T = uint8_t;
+using Value = kAryContainer_T<T, n, q>;
+using Label = kAryContainer_T<T, n, q>;
+using Matrix = FqMatrix<T, n, n, q>;
+using Element = Element_T<Value, Label, Matrix>;
+using List = List_T<Element>;
+constexpr static ConfigParallelBucketSort chm1{0, l, l, l, l, 1, 1, n-l, l, 0};
 
 
-TEST(Fq, grey) {
-	auto c = Combinations_Fq_Chase(n,q,w);
-	const size_t size = c.gray_size;
-	uint16_t *cl = (uint16_t *)malloc(size * sizeof(uint16_t));
-	ASSERT(cl);
-	c.changelist_mixed_radix_grey(cl);
-	for (int i = 0; i < size; ++i) {
-		printf("%d ", cl[i]);
-	}
-	printf("\n");
+using LPartType = uint16_t;
+using IndexType = uint16_t;
 
-	free(cl);
+inline static LPartType DummyHash(uint64_t a) noexcept {
+	constexpr __uint128_t mask = (1ull << (l)) - 1ull;
+	return a&mask;
 }
+using HMType = ParallelBucketSort<chm1, List, LPartType, IndexType, &DummyHash>;
 
-TEST(Fq, chase) {
-	auto c = Combinations_Fq_Chase(n,q,w);
-	const size_t size = c.chase_size;
-	uint16_t *cl = (uint16_t *)malloc(size * sizeof(uint16_t));
-	ASSERT(cl);
+TEST(Fq, single_list) {
+	List L(list_size);
+	Matrix HT;
+	HT.random();
+	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT};
+	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 
-	int r = 0, j = 0;
-	for (uint32_t i = 0; i < bc(n, w); ++i) {
-		c.print_chase_state(r, j);
-		c.chase(&r, &j);
-		/// TODO check
-	}
-
-	free(cl);
-}
-
-TEST(Fq, changelist_chase) {
-	auto c = Combinations_Fq_Chase(n,q,w);
-	constexpr size_t size = bc(n, w);
-	auto cl = std::array<std::pair<uint16_t, uint16_t>, size>();
-
-	c.changelist_chase(cl.data());
-	for (uint32_t i = 0; i < bc(n, w); ++i) {
-		/// TODO check
+	for (size_t i = 0; i < list_size; ++i) {
+		ASSERT_EQ(L.data_value(i).weight(), w);
 	}
 }
 
-TEST(Fq, build_list) {
-	auto c = Combinations_Fq_Chase(n,q,w);
-	constexpr size_t size = bc(n, w);
-	auto chase_cl = std::array<std::pair<uint16_t, uint16_t>, size>();
-	uint16_t *gray_cl = (uint16_t *)malloc(size * sizeof(uint16_t));
+TEST(Fq, single_hashmap) {
+	HMType hm;
+	List L(list_size);
+	auto extractor = [](const Label l){
+		return l.ptr()[0];
+	};
 
-	c.changelist_mixed_radix_grey(gray_cl);
-	c.changelist_chase(chase_cl.data());
-	c.build_list(gray_cl, chase_cl.data());
+	Matrix HT;
+	HT.random();
 
-	for (uint32_t i = 0; i < bc(n, w); ++i) {
-		/// TODO check
+	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT};
+	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
+
+	for (size_t i = 0; i < list_size; ++i) {
+		const auto data = extractor(L.data_label(i));
+		IndexType load=0,
+		          pos = hm.find(data, load);
+
+		// make sure we found something
+		ASSERT_NE(pos, IndexType(-1));
+	}
+}
+
+TEST(Fq, two_lists) {
+	constexpr size_t list_size = compute_combinations_fq_chase_list_size<n/2, q, w>();
+	List L1(list_size);
+	List L2(list_size);
+
+	Matrix HT;
+	HT.random();
+
+	ListEnumerateMultiFullLength<List, n/2, q, w> enumerator{HT};
+	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n/2);
+
+	for (size_t i = 0; i < list_size; ++i) {
+		ASSERT_EQ(L1.data_value(i).weight(), w);
+		ASSERT_EQ(L2.data_value(i).weight(), w);
+
+		for(uint32_t j = 0; j < n/2; j++) {
+			ASSERT_EQ(L1.data_value(i).get(j + n/2), 0);
+			ASSERT_EQ(L2.data_value(i).get(j), 0);
+		}
+
+		ASSERT_EQ(L1.data_label(i).is_zero(), false);
+		ASSERT_EQ(L2.data_label(i).is_zero(), false);
 	}
 }
 

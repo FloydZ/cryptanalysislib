@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <limits>
 #include <atomic>
-#include <cstddef>
 
 #if defined(SORT_PARALLEL)
 #include <execution>        // parallel/sequential sort
@@ -24,6 +23,7 @@
 #include "sort.h"
 #include "thread/thread.h"
 #include "ska_sort.hpp"
+#include "container/hashmap/common.h"
 
 
 /// Sorts the labels in the list like this:
@@ -279,9 +279,9 @@ struct ConfigParallelBucketSort {
 
 	uint8_t lvl;
 
-	/// number of additional l window shifts which needs to be saved in one element.
-	/// Note that l window is not exactly the same as the l in Dumer.
-	/// IM = Indyk Motwani
+	// number of additional l window shifts which needs to be saved in one element.
+	// Note that l window is not exactly the same as the l in Dumer.
+	// IM = Indyk Motwani
 	uint8_t IM_nr_views;
 
 	// for description of these flags look at the implementation of `ParallelBucketSort`

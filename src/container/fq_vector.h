@@ -217,7 +217,7 @@ private:
 		for (uint32_t i = 0; i < nr_limbs; i++) {
 			const T a1 = (a >> (nr_bits * i)) & mask;
 			const T b1 = (b >> (nr_bits * i)) & mask;
-			c ^= ((a1 - b1) % q) << (nr_bits * i);
+			c ^= ((a1 + ( q- b1)) % q) << (nr_bits * i);
 		}
 
 		/// note implicit call
@@ -280,7 +280,7 @@ private:
 		const T *b_data = (const T *)&b;
 		T *ret_data = (T *)&ret;
 		for (uint8_t i = 0; i < nr_limbs; ++i) {
-			ret_data[i] = (a_data[i] - b_data[i])%q;
+			ret_data[i] = (a_data[i] + (q - b_data[i]))%q;
 		}
 
 		return ret;

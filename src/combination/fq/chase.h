@@ -5,21 +5,51 @@
 #include <vector>
 #include "math/ipow.h"
 
+/// needed to compute the list size before initializing the enumerator
+/// \tparam n length to enumerate
+/// \tparam q base field size
+/// \tparam w hamming weight to enumerate: NOTE: can be zero, for Prange
+/// \return list size
+template<const uint32_t n, const uint32_t q, const uint32_t w>
+constexpr size_t compute_combinations_fq_chase_list_size() {
+	static_assert(n > w);
+	static_assert(q > 1);
+	size_t size=1;
+	for (uint64_t i = 0; i < w; i++) {
+		size *= (q-1);
+	}
 
+	// just make sure that we do not return zero.
+	return std::max(size, uint64_t(1ull)) * (bc(n, w) - 1);
+}
+
+/// TODO erklaredn, dass das hier chase + grey ist
+/// \tparam n length to enumerate
+/// \tparam q base field size
+/// \tparam w hamming weight to enumerate
+template<uint32_t n, const uint32_t q, const uint32_t w>
 class Combinations_Fq_Chase {
 //private:
 public:
-	/// length to enumerate
-	const uint32_t n;
-
 	/// max value to enumerate
-	const uint32_t q, qm1;
+	constexpr static uint32_t qm1 = q-1;
 
-	/// max hamming weight to enumerate
-	const uint32_t w;
+	/// \return  number of elements in the gray code
+	constexpr static size_t compute_gray_size() noexcept {
+		uint64_t sum = 1;
 
-	size_t chase_size;
-	size_t gray_size;
+		for (uint64_t i = 0; i < w; i++) {
+			sum *= qm1;
+		}
+
+		// just make sure that we do not return zero.
+		return std::max(sum, uint64_t(1ull));
+	}
+
+	constexpr static size_t chase_size = bc(n, w) - 1;
+	constexpr static size_t gray_size = compute_gray_size();
+	
+	constexpr static size_t LIST_SIZE = chase_size * gray_size;
 
 	/// TODO this is the output container
 	std::vector<uint32_t> a;
@@ -32,23 +62,8 @@ public:
 	std::vector<int> chase_w;
 	std::vector<int> chase_a;
 
-	/// \return  number of elements in the gray code
-	constexpr size_t compute_gray_size() noexcept{
-		uint64_t sum = 1;
-		//for (uint64_t i = 1; i <= w; ++i) {
-		//	uint64_t tmp = bc(w, i);
-		//	for (uint64_t j = 0; j < i; ++j) {
-		//		tmp *= q;
-		//	}
-		//	sum += tmp;
-		//}
 
-		for (uint64_t i = 0; i < w; i++) {
-			sum *= qm1;
-		}
-		// just make sure that we do not return zero.
-		return std::max(sum, uint64_t(1));
-	}
+
 	/// just for debugging
 	/// \param two_changes
 	void print_state(int two_changes=false) {
@@ -69,6 +84,9 @@ public:
 		printf(" j:%d\n", print_j);
 	}
 
+	///
+	/// \param r
+	/// \param j
 	void print_chase_state(int r, int j) {
 		for (int i = w-1; i >= 0; i--) {
 			printf("%u", n-chase_a[i]-1);
@@ -133,9 +151,9 @@ public:
 		int j;
 		for (j = *r; !chase_w[j]; j++) {
 			int b = chase_a[j] + 1;
-			int n = chase_a[j + 1];
-			if (b < (chase_w[j + 1] ? n - (2 - (n & 1u)) : n)) {
-				if ((b & 1) == 0 && b + 1 < n) {
+			int nn = chase_a[j + 1];
+			if (b < (chase_w[j + 1] ? nn - (2 - (nn & 1u)) : nn)) {
+				if ((b & 1) == 0 && b + 1 < nn) {
 					b++;
 				}
 
@@ -243,12 +261,7 @@ public:
 	/// \param n length
 	/// \param q field size
 	/// \param w max hamming weight to enumerate
-	Combinations_Fq_Chase(const uint32_t n,
-	                      const uint32_t q,
-	                      const uint32_t w) :
-	    n(n), q(q), qm1(q-1), w(w) {
-		chase_size = bc(n, w) - 1;
-		gray_size = compute_gray_size();
+	Combinations_Fq_Chase() {
 
 		/// init the restricted gray code
 		a.resize(n);

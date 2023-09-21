@@ -10,7 +10,7 @@
 #include "vergesort.h"
 
 #ifdef USE_AVX2
-#include "sorting_network.h"
+#include "sort/sorting_network/avx2.h"
 #endif
 
 #endif //SMALLSECRETLWE_METASORT_H

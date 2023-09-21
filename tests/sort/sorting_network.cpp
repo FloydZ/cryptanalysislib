@@ -7,8 +7,8 @@ using ::testing::Test;
 using namespace std;
 
 #ifdef USE_AVX2
+#include "sort/sorting_network/avx2.h"
 #include <immintrin.h>
-#include "sort/sorting_network.h"
 
 // SRC: https://drops.dagstuhl.de/opus/volltexte/2021/13775/pdf/LIPIcs-SEA-2021-3.pdf
 TEST(SortingNetwork, Ints8) {

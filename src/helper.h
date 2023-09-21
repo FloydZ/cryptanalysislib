@@ -853,6 +853,9 @@ void printbinary(T a,
 
 
 #if __cplusplus > 201709L
+/// this concept enforces the needed functions/typedefs/variables
+/// needed by the `Extractor` for the `Value`
+/// \tparam Value
 template<class Value>
 concept ExtractorValueAble = requires(Value v) {
 	typename Value::ContainerLimbType;
@@ -861,6 +864,18 @@ concept ExtractorValueAble = requires(Value v) {
 	// `ValueType` must be able to return a pointer to the underlying data.
 	v.ptr();
 };
+
+/// this concept enforces the needed functions/typedefs the Extractor class needs to implement.
+/// \tparam Extractor
+template<class Extractor>
+concept ExtractorAble = requires(Extractor e) {
+	typename Extractor::Value;
+
+	requires requires(Extractor::Value &l, const uint32_t i) {
+		e.extracts(l, i, i);
+	};
+};
+
 #endif
 
 /// Helper class for extracting and adding bits in specific windows.
@@ -873,6 +888,7 @@ template<typename ValueType, typename ArgumentLimbType>
 #endif
 class WindowExtractor {
 public:
+	typedef ValueType Value;
 	typedef typename ValueType::ContainerLimbType ContainerLimbType;
 	constexpr static uint32_t BITSIZE = sizeof(ContainerLimbType)*8;
 
