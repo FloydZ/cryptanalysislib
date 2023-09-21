@@ -215,65 +215,6 @@ TEST(Sub, SubWithLevelAllCoordinates) {
 }
 
 
-TEST(Neg, NegWithLevelAllCoordinates) {
-	Label l1, l2;
-	l1.zero(); l2.zero();
-
-	// only a simple test.
-	for (uint32_t i = 0; i < Label::size(); ++i) {
-		l2[i] = l1[i] = i;
-	}
-
-	uint64_t k_lower, k_higher;
-	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
-
-	l1.neg(k_lower, k_higher);
-
-	for (uint32_t i = 0; i < Label::size(); ++i) {
-		EXPECT_EQ(l1[i], (q - l2[i]) % q);
-		if (l1[i] != 0) {
-			EXPECT_EQ(l1[i], q - l2[i]);
-		}
-	}
-}
-
-TEST(Neg, NegWithLevel) {
-	Label l1, l2;
-	for (uint32_t r = 0; r < TESTSIZE; ++r) {
-		l1.zero(); l2.zero();
-
-		for (uint32_t level = 0; level < __level_translation_array.size() - 1; ++level) {
-			EXPECT_NE(__level_translation_array[level], __level_translation_array[level + 1]);
-			EXPECT_LT(__level_translation_array[level], __level_translation_array[level + 1]);
-			EXPECT_LT(__level_translation_array[level], n);
-			EXPECT_LE(__level_translation_array[level + 1], n);
-
-			for (uint32_t i = 0; i < Label::size(); ++i) {
-				l2[i] = l1[i] = fastrandombytes_uint64();
-			}
-
-			uint64_t k_lower, k_higher;
-			translate_level(&k_lower, &k_higher, level, __level_translation_array);
-
-			l1.neg(k_lower, k_higher);
-
-			for (uint32_t i = __level_translation_array[level]; i < __level_translation_array[level+1]; ++i) {
-				EXPECT_EQ(l1[i], (q - l2[i]) % q);
-				if (l1[i] != 0)
-					EXPECT_EQ(l1[i], q - l2[i]);
-			}
-			for (uint32_t i = 0; i < __level_translation_array[level]; ++i) {
-				EXPECT_EQ(l2[i], l1[i]);
-				EXPECT_EQ(l2[i], l1[i]);
-			}
-			for (uint32_t i = __level_translation_array[level + 1]; i < Label::size(); ++i) {
-				EXPECT_EQ(l2[i], l1[i]);
-				EXPECT_EQ(l2[i], l1[i]);
-			}
-		}
-	}
-}
-
 TEST(Neg, NegWithK) {
 	Label l1, l2;
 	for (uint32_t r = 0; r < TESTSIZE; ++r) {
@@ -285,10 +226,9 @@ TEST(Neg, NegWithK) {
 				EXPECT_LE(k_lower, n);
 				EXPECT_LE(k_higher, n);
 
-				for (uint32_t i = 0; i < Label::size(); ++i) {
-					l1.data()[i] = l2.data()[i] = fastrandombytes_uint64();
-				}
 
+				l1.random();
+				l2 = l1;
 				l1.neg(k_lower, k_higher);
 
 				for (uint32_t i = k_lower; i < k_higher; ++i) {

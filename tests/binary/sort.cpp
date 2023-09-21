@@ -1,13 +1,22 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <cstdio>
-#include <cstdint>
 #include <bitset>
 
-#include "binary.h"
-#include "helper.h"
+#include "element.h"
+#include "matrix/matrix.h"
+#include "list/list.h"
+#include "matrix/fq_matrix.h"
+#include "tree.h"
 #include "sort.h"
 
+constexpr uint32_t n  = 50;
+using BinaryValue     = BinaryContainer<n>;
+using BinaryLabel     = BinaryContainer<n>;
+using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2>;
+using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
+using BinaryList      = List_T<BinaryElement>;
+using BinaryTree      = Tree_T<BinaryList>;
 constexpr uint64_t ListSize = 2;
 
 using ::testing::EmptyTestEventListener;
@@ -30,9 +39,6 @@ TEST(Bucket_Sort, get_data) {
 		std::cout << L[i].label;
 		std::cout << L[i].label.get_bits(0, 8) << "\n";
 		std::cout << std::bitset<64>(L[i].label.get_bits(0, 8)) << "\n";
-
-		std::cout << L[i].label.get_bits(60, 68) << "\n";
-		std::cout << std::bitset<64>(L[i].label.get_bits(60, 68)) << "\n";
 	}
 }
 
@@ -40,7 +46,8 @@ TEST(Bucket_Sort, asdasd) {
 	BinaryMatrix A;
 	A.identity();
 
-	BinaryList L{0}; L.generate_base_random(ListSize, A);
+	BinaryList L{0};
+	L.generate_base_random(ListSize, A);
 	L.set_load(ListSize);
 
 	auto *a = new Bucket_Sort<BinaryList, 200, 2, 4, n>{};

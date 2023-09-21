@@ -120,9 +120,9 @@ TEST(InterpolationSearch, simple) {
 			}
 	);
 
-	for(auto &a : data)
-		std::cout << a << " ";
-	std::cout << "\n" << search << "\n" << a << "\n";
+	//for(auto &a : data)
+	//	std::cout << a << " ";
+	//std::cout << "\n" << search << "\n" << a << "\n";
 
 	EXPECT_EQ(solution_index, a);
 }
@@ -138,9 +138,9 @@ TEST(InterpolationSearch, iterator) {
 			}
 	);
 
-	for(auto &a : data)
-		std::cout << a << " ";
-	std::cout << "\n" << search << "\n" << std::distance(data.begin(), a) << "\n";
+	//for(auto &a : data)
+	//	std::cout << a << " ";
+	//std::cout << "\n" << search << "\n" << std::distance(data.begin(), a) << "\n";
 
 	EXPECT_EQ(solution_index, std::distance(data.begin(), a));
 }

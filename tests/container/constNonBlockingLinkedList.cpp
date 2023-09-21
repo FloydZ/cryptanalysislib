@@ -5,10 +5,10 @@
 #include <vector>
 #include <thread>
 
+#include "../test.h"
+#include "container/linked_list.h"
 #include "helper.h"
 #include "kAry_type.h"
-#include "test.h"
-#include "container/linked_list.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -19,7 +19,7 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 constexpr uint64_t N = 1000;
-constexpr uint64_t T = 1;
+constexpr uint64_t TT = 1;
 struct TestStruct {
 	uint64_t data;
 	std::atomic<TestStruct *> next;
@@ -46,8 +46,8 @@ TestStruct *new_data(const uint32_t tid = -1){
 
 template<class LinkedList>
 void Fill(LinkedList &ll){
-	std::vector<std::thread> pool(T);
-	for (int i = 0; i < T; ++i) {
+	std::vector<std::thread> pool(TT);
+	for (size_t i = 0; i < TT; ++i) {
 		pool[i] = std::thread([&ll](){
 			for (int j = 0; j < N; ++j) {
 				uint32_t tid = std::hash<std::thread::id>{}(std::this_thread::get_id());

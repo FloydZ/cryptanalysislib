@@ -8,7 +8,6 @@
 #include "list/parallel_full.h"
 #include "list/parallel_index.h"
 #include "matrix/matrix.h"
-#include "combinations.h"
 
 #include <iterator>
 #include <vector>           // main data container
@@ -210,7 +209,11 @@ public:
 #endif
 	constexpr void generate_base_random(const uint64_t k,
 	                                    const Matrix &m) noexcept {
-		for (int i = 0; i < k; ++i) {
+		/// somehow we shoud be sure that the list is big enoug
+		__data.resize(k);
+		set_size(k);
+
+		for (size_t i = 0; i < k; ++i) {
 			// by default this creates a complete random 'Element' with 'Value' coordinates \in \[0,1\]
 			Element e{};
 			e.random(m);    // this 'random' function takes care of the vector-matrix multiplication.
@@ -218,7 +221,7 @@ public:
 		}
 	}
 
-	/// create a list of lexicographical ordered elements (where the values are lexicographical ordered).
+	/// create a list following the chase sequence
 	/// IMPORTANT; No special trick is applied, so every Element needs a fill Matrix-vector multiplication.
 	/// \param number_of_elements
 	/// \param ones 				hamming weight of the 'Value' of all elements
@@ -227,9 +230,9 @@ public:
 #if __cplusplus > 201709L
 		requires MatrixAble<Matrix>
 #endif
-	constexpr void generate_base_lex(const uint64_t number_of_elements,
-	                                 const uint64_t ones,
-	                                 const Matrix &m) noexcept {
+	constexpr void generate_base(const uint64_t number_of_elements,
+	                             const uint64_t ones,
+	                             const Matrix &m) noexcept {
 		ASSERT(internal_counter == 0 && "already initialised");
 		Element e{}; e.zero();
 
@@ -237,17 +240,17 @@ public:
 		load = number_of_elements;
 
 		const uint64_t n = e.value_size();
-		Combinations_Lexicographic<decltype(e.get_value().data().get_type())> c{n, ones};
-		c.left_init(e.get_value().data().data().data());
-		while(c.left_step(e.get_value().data().data().data()) != 0) {
-			if (internal_counter >= size())
-				return;
+		// TODO replace with fq_chase combinarion Combinations_Lexicographic<decltype(e.get_value().data().get_type())> c{n, ones};
+		//c.left_init(e.get_value().data().data().data());
+		//while(c.left_step(e.get_value().data().data().data()) != 0) {
+		//	if (internal_counter >= size())
+		//		return;
 
-			new_vector_matrix_product<LabelType, ValueType, MatrixType>(e.get_label(), e.get_value(), m);
+		//	new_vector_matrix_product<LabelType, ValueType, MatrixType>(e.get_label(), e.get_value(), m);
 
-			__data[internal_counter] = e;
-			internal_counter += 1;
-		}
+		//	__data[internal_counter] = e;
+		//	internal_counter += 1;
+		//}
 	}
 
 	/// \param level				current lvl within the tree.

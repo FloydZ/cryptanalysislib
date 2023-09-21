@@ -85,19 +85,20 @@ TEST(SearchBinary, Simple) {
 
 	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
 
-	for (uint64_t k_lower = 0; k_lower < n; ++k_lower) {
-		for (uint64_t k_upper = k_lower+5; k_upper < k_lower + 6; ++k_upper) {
-			if ((k_lower%64) + 6 >= 64)
+	for (uint32_t k_lower = 0; k_lower < n; ++k_lower) {
+		for (uint32_t k_upper = k_lower+5; k_upper < std::min(k_lower + 6u, BinaryLabel::LENGTH) ; ++k_upper) {
+			if ((k_lower%64u) + 6u >= 64u) {
 				continue;
+			}
 
-			for (uint64_t pos = 0; pos < 1; ++pos) {
+			for (uint32_t pos = 0u; pos < 1u; ++pos) {
 				BinaryElement e; e.random(A);
 				L[pos] = e;
 
 				// first sort it
 				L.sort_level(k_lower, k_upper);
 
-				// the do different indepentend searches
+				// the do different independent searches
 				bpos  = L.search_level_binary_simple(e, k_lower, k_upper);
 				nbpos = L.search_level(e, k_lower, k_upper);
 				EXPECT_EQ(bpos, nbpos);
@@ -110,7 +111,7 @@ TEST(SearchBinary, Complex) {
 	uint64_t bpos, nbpos;
 	BinaryList L{0};
 	BinaryMatrix A;
-	A.identity(n);
+	A.identity();
 
 	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
 
@@ -131,7 +132,6 @@ TEST(SearchBinary, Complex) {
 		}
 	}
 }
-
 
 TEST(SearchBinaryCustom, Simple) {
 	uint64_t bpos, nbpos;

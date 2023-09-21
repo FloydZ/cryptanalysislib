@@ -3,8 +3,8 @@
 
 #include "../bench_config.h"
 
-#include <helper.h>
-#include <combinations.h>
+#include "helper.h"
+#include "combination/ternary.h"
 
 #define COMBINATIONS_SIZE_LOG 20u
 #define COMBINATIONS_SIZE (1u<<COMBINATIONS_SIZE_LOG)

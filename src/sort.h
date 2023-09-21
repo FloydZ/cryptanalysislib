@@ -16,14 +16,14 @@
 #endif
 
 // Internal imports
+#include "container/hashmap/common.h"
+#include "container/triple.h"
 #include "helper.h"
-#include "triple.h"
 #include "list/list.h"
 #include "search.h"
+#include "ska_sort.hpp"
 #include "sort.h"
 #include "thread/thread.h"
-#include "ska_sort.hpp"
-#include "container/hashmap/common.h"
 
 
 /// Sorts the labels in the list like this:
@@ -56,7 +56,10 @@ public:
 	std::array <uint32_t, n_buckets> buckets_load = {{0}};
 
 	void hash(List &L) {
-		ASSERT(Label::size() >= b2 && b0 < b1 && b1 <= b2 && b2 - b0 <= 64);
+		ASSERT(Label::size() >= b2);
+		ASSERT(b0 < b1);
+		ASSERT(b1 <= b2);
+		ASSERT(b2 - b0 <= 64);
 
 		for (uint32_t i = 0; i < n_buckets; ++i) {
 			buckets_load[i] = 0;

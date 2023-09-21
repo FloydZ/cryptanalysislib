@@ -538,15 +538,12 @@ public:
 		L1.sort_level(k_lower1, k_upper1);
 		L2.sort_level(k_lower1, k_upper1);
 
-	    MADIVE((void *)L1.data(), L1.get_size() * ElementType::size()/8, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
-	    MADIVE((void *)L2.data(), L2.get_size() * ElementType::size()/8, POSIX_MADV_WILLNEED | POSIX_MADV_SEQUENTIAL);
-
 		while (i < L1.load() && j < L2.load()) {
-			if (L2[j].is_greater(L1[i], k_lower1, k_upper1))
+			if (L2[j].is_greater(L1[i], k_lower1, k_upper1)) {
 				i++;
-			else if (L1[i].is_greater(L2[j], k_lower1, k_upper1))
+			} else if (L1[i].is_greater(L2[j], k_lower1, k_upper1)) {
 				j++;
-			else {
+			} else {
 				uint64_t i_max, j_max;
 				for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
 				for (j_max = j + 1; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower1, k_upper1); j_max++) {}
@@ -564,7 +561,7 @@ public:
 							break;
 						}
 
-						for (int l = boundaries.first; l < boundaries.second; ++l) {
+						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
 							out.add_and_append(e, iL[l], filter);
 						}
 					}
@@ -615,13 +612,11 @@ public:
 	    L2.sort_level(k_lower, k_upper);
 
 	    while (i < L1.load() && j < L2.load()) {
-		    if (L2[j].is_greater(L1[i], k_lower, k_upper))
-			    i++;
-
-		    else if (L1[i].is_greater(L2[j], k_lower, k_upper))
-			    j++;
-
-		    else {
+		    if (L2[j].is_greater(L1[i], k_lower, k_upper)) {
+				i++;
+			} else if (L1[i].is_greater(L2[j], k_lower, k_upper)) {
+				j++;
+			} else {
 			    uint64_t i_max, j_max;
 			    // if elements are equal find max index in each list, such that they remain equal
 			    for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
@@ -658,7 +653,6 @@ public:
 	//| k_lower   |  k_higher | | k_lower   |  k_higher | |          |            | |          |            | Level 0
 	//+-----------+-----------+ +-----------+-----------+ +----------+------------+ +----------+------------+
 	//           L_1                       L_2                      L_3                       L_4
-	//
 	///
 	/// \param out output list. All targets which are a solution to the 4 kxor problem.
 	/// \param L1 	(sorted)
@@ -668,8 +662,9 @@ public:
 	/// \param target
 	/// \param lta
     static void streamjoin4lists(List &out, List &L1, List &L2, List &L3, List &L4,
-	                        const LabelType &target, const std::vector<uint64_t> &lta,
-	                        const bool prepare=true) noexcept {
+	                        	 const LabelType &target,
+	                             const std::vector<uint64_t> &lta,
+	                        	 const bool prepare=true) noexcept {
 		ASSERT(lta.size() == 3);
 		// limits: k_lower1, k_upper1 for the lowest level tree. And k_lower2, k_upper2 for highest level. There are
 		// only two levels..., so obviously k_upper1=k_lower2
@@ -678,23 +673,36 @@ public:
 		streamjoin4lists(out, L1, L2, L3, L4, target, k_lower1, k_upper1, k_lower2, k_upper2, prepare);
     }
 
+	/// TODO
+	/// \param out
+	/// \param L1
+	/// \param L2
+	/// \param L3
+	/// \param L4
+	/// \param target
+	/// \param k_lower1
+	/// \param k_upper1
+	/// \param k_lower2
+	/// \param k_upper2
+	/// \param prepare
 	static void streamjoin4lists(List &out, List &L1, List &L2, List &L3, List &L4,
 	                             const LabelType &target,
-	                             const uint64_t k_lower1, const uint64_t k_upper1, const uint64_t k_lower2, const uint64_t k_upper2,
+	                             const uint64_t k_lower1, const uint64_t k_upper1,
+	                             const uint64_t k_lower2, const uint64_t k_upper2,
 	                             const bool prepare=true) noexcept {
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2
 		        && L1.load() > 0 && L2.load() > 0 && L3.load() > 0 && L4.load() > 0);
 		// Intermediate Element, List, Target
-		List iL{0};
+		List iL{L1.size()*4};
 		LabelType R, zero; R.random(); zero.zero();
 
 		// prepare baselists
 	    if ((!target.is_zero()) && (prepare)) {
-		    for (int i = 0; i < L2.load(); ++i) {
+		    for (size_t i = 0; i < L2.load(); ++i) {
 		    	LabelType::add(L2[i].label, L2[i].label, R, k_lower1, k_upper1);
 		    }
 
-		    for (int i = 0; i < L4.load(); ++i) {
+		    for (size_t i = 0; i < L4.load(); ++i) {
 			    LabelType::sub(L4[i].label, L4[i].label, R, k_lower1, k_upper1);
 			    // add is on the full length
 			    LabelType::sub(L4[i].label, L4[i].label, target, k_lower1, k_upper2);
@@ -704,8 +712,9 @@ public:
 		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, false);
 
 		// early exit
-		if (iL.load() == 0)
+		if (iL.load() == 0) {
 			return;
+		}
 
 		// Now run the merge procedure for the right part of the tree.
 		twolevel_streamjoin(out, iL, L3, L4, k_lower1, k_upper1, k_lower2, k_upper2);
@@ -757,7 +766,7 @@ public:
 	                             bool prepare=true) noexcept {
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 <= k_upper2 && L1.load() > 0 && L2.load() > 0);
 		// Intermediate Element, List, Target
-		List iL{0};
+		List iL{out.size()*2};
 		LabelType R, zero;
 		R.random(); zero.zero();
 
@@ -804,8 +813,8 @@ public:
 
 		// Intermediate List
 		// 2 for the first Level, 2 for the second level
-		for (int k = 0; k < 4; ++k) {
-			L.push_back(List{0});
+		for (uint32_t k = 0; k < 4; ++k) {
+			L.push_back(List{out.size()*2});
 		}
 
 		// Intermediate Target

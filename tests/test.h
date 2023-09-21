@@ -15,11 +15,12 @@ constexpr uint32_t n    = 20;
 constexpr uint32_t k    = 20;
 constexpr uint32_t q    = 3;
 constexpr uint32_t d    = 2;
+using T 				= uint8_t;
 using kAryType          = kAry_Type_T<uint32_t, uint64_t, q>;
 //TODO using kAryContainer     = kAryContainer_T<kAryType, n, q>;
 //TODO using kAryContainer2    = kAryContainer_T<kAryType, k, q>;
-using kAryContainer     = kAryContainer_T<uint8_t , n, q>;
-using kAryContainer2    = kAryContainer_T<uint8_t , k, q>;
+using kAryContainer     = kAryContainer_T<T, n, q>;
+using kAryContainer2    = kAryContainer_T<T, k, q>;
 using Label             = kAryContainer2;
 using Value             = kAryContainer;
 

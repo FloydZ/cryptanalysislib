@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <iostream>
-#include <cstdint>
 
 #include "container/fq_packed_vector.h"
 #include "helper.h"
@@ -18,15 +17,18 @@ using Row = kAryPackedContainer_T<uint64_t, 32, 3>;
 
 // return true if correct, false if not
 bool correct(const uint64_t t, const uint64_t a, const uint64_t b) {
-	Row row1, row2, row3; row3.zero();
+	Row row1, row2, row3;
+	row1.zero(); row2.zero(); row3.zero();
 	row1.__data[0] = a;
 	row2.__data[0] = b;
 
 	Row::add(row3, row1, row2);
-
 	uint64_t data = t;
 	for (uint32_t i = 0; i < Row::LENGTH; i++) {
-		if ((data&3) != row3.get(i)) {
+		if ((data&3u) != row3.get(i)) {
+			row1.print();
+			row2.print();
+			row3.print();
 			return false;
 		}
 
@@ -59,7 +61,7 @@ bool correct128(const __uint128_t t, const __uint128_t a, const __uint128_t b) {
 
 #ifdef USE_AVX2
 bool correct256(const __m256i t, const __m256i a, const __m256i b) {
-	using Row = kAryPackedContainer_T<uint64_t, 3, 128>;
+	using Row = kAryPackedContainer_T<uint64_t, 128, 3>;
 	Row row1, row2, row3; row3.zero();
 	row1.__data[0] = _mm256_extract_epi64(a, 0);
 	row1.__data[1] = _mm256_extract_epi64(a, 1);

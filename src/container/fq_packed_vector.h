@@ -664,11 +664,10 @@ public:
 	/// needed
 	using kAryPackedContainer_Meta<T, n ,q>::LENGTH;
 	using kAryPackedContainer_Meta<T, n ,q>::MODULUS;
-	
+	using kAryPackedContainer_Meta<T, n ,q>::__data;
+
 
 	typedef kAryPackedContainer_T<T, n, q> ContainerType;
-	// internal data
-	std::array<T, internal_limbs> __data;
 public:
 
 	/// calculates the hamming weight of one limb.
@@ -1266,6 +1265,14 @@ public:
 	}
 };
 
+
+///
+/// \tparam T
+/// \tparam n
+/// \tparam q
+/// \param out
+/// \param obj
+/// \return
 template<typename T, const uint32_t n, const uint32_t q>
 std::ostream& operator<< (std::ostream &out, const kAryPackedContainer_T<T, n, q> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {

@@ -1,9 +1,8 @@
 #include <gtest/gtest.h>
-#include <cstdint>
 
+#include "../test.h"
 #include "glue_m4ri.h"
 #include "matrix/custom_m4ri.h"
-#include "test.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
