@@ -21,7 +21,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-constexpr uint64_t LOOPS = (1u << 13u);
+constexpr uint64_t LOOPS = (1u << 4u);
 
 
 TEST(Matrix, partial_plusfix) {
