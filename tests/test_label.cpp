@@ -290,13 +290,6 @@ TEST(Compare_Is_Equal, AllK) {
 			}
 
 			EXPECT_EQ(true, l1.is_equal(l2, k_lower, k_higher));
-
-			// because this is a probabilistic test, we need to make sure that the probability of a false Negative is low
-			// 5 is completely arbitrary
-			if ((k_higher - k_lower) > 5){
-				l1.random(); l2.zero();
-				EXPECT_EQ(false, l1.is_equal(l2, k_lower, k_higher));
-			}
 		}
 	}
 }

@@ -2,8 +2,8 @@
 #define CRYPTANALYSISLIB_SHA1_H
 
 #include "macros.h"
-#include "memcpy.h"
-#include "memset.h"
+#include "mem/memcpy.h"
+#include "mem/memset.h"
 
 constexpr int get_string_size(const uint8_t *input, int i = 0) {
     return input[i] == '\0' ? i : get_string_size(input, i+1);

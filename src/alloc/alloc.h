@@ -1,6 +1,7 @@
 #ifndef SMALLSECRETLWE_ALLOC_H
 #define SMALLSECRETLWE_ALLOC_H
 
+///
 struct Blk {
 public:
 	void *ptr;
@@ -19,7 +20,7 @@ constexpr size_t roundToAligned(const size_t n) noexcept {
 }
 
 
-///
+/// concept of an allocator
 template<class T>
 concept Allocator = requires(T a, Blk b, size_t n) {
 	{ a.allocate(n) }   -> std::convertible_to<Blk>;
@@ -27,6 +28,8 @@ concept Allocator = requires(T a, Blk b, size_t n) {
 	{ a.owns(b) }       -> std::convertible_to<Blk>;
 };
 
+/// Simple Stack Allocator
+/// \tparam s
 template<size_t s>
 class StackAllocator {
 	uint8_t _d[s];
@@ -63,6 +66,9 @@ public:
 	}
 };
 
+///
+/// \tparam Parent
+/// \tparam s
 template <class Parent, const size_t s>
 class FreeListAllocator {
 	struct Node {
@@ -98,6 +104,9 @@ public:
 
 };
 
+///
+/// \tparam Primary
+/// \tparam Fallback
 template<class Primary, class Fallback>
 class FallbackAllocator : private Primary, private Fallback {
 public:
@@ -121,23 +130,33 @@ public:
 	}
 };
 
+///
+/// \tparam Parent
+/// \tparam Prefix
+/// \tparam Suffix
 template<class Parent, class Prefix, class Suffix = void>
 class AffixAllocator {
 	// TODO optional prefix and suffix, construct/destroy appropriate, debug, stats, info
 };
 
+///
+/// \tparam SmallAllocator
+/// \tparam LargeAllocator
+/// \tparam Threshold
 template<class SmallAllocator, class LargeAllocator, const size_t Threshold>
 class Segregator {
 	constexpr Blk allocate(const size_t n) {
-		if (n >= Threshold)
+		if (n >= Threshold) {
 			return LargeAllocator::allocate(n);
+		}
 
 		return SmallAllocator::allocate(n);
 	}
 
 	constexpr void deallocate(Blk b) {
-		if (b.len>= Threshold)
+		if (b.len>= Threshold) {
 			return LargeAllocator::deallocate(b);
+		}
 
 		return SmallAllocator::deallocate(b);
 	}
