@@ -1,13 +1,16 @@
 #ifndef SMALLSECRETLWE_ALLOC_H
 #define SMALLSECRETLWE_ALLOC_H
 
-///
+/// replacement for *void
+/// instead of just give a pointer, all allocators do return
+/// a block `blk` of memory.
 struct Blk {
 public:
 	void *ptr;
 	size_t len;
 };
 
+/// helper function. That's only useful for debugging
 std::ostream& operator<< (std::ostream &out, const Blk &obj) {
 	std::cout << obj.ptr << " " << obj.len << "\n";
 	return out;
@@ -20,6 +23,14 @@ constexpr size_t roundToAligned(const size_t n) noexcept {
 }
 
 
+struct AllocatorConfig {
+	/// the base pointer to the internal data struct are always to 16bytes aligned
+	constexpr static size_t base_alignment = 16;
+
+	///
+	constexpr static size_t alignment = 16;
+} AllocatorConfig;
+
 /// concept of an allocator
 template<class T>
 concept Allocator = requires(T a, Blk b, size_t n) {
@@ -29,8 +40,8 @@ concept Allocator = requires(T a, Blk b, size_t n) {
 };
 
 /// Simple Stack Allocator
-/// \tparam s
-template<size_t s>
+/// allocates `s` bytes on the stack
+template<size_t s, const struct AllocatorConfig=AllocatorConfig>
 class StackAllocator {
 	uint8_t _d[s];
 	uint8_t *_p;

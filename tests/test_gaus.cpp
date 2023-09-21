@@ -38,10 +38,9 @@ TEST(Matrix, partial_plusfix) {
 	mzp_t *P = mzp_init(n);
 	
 	constexpr uint32_t l = 10;
-	constexpr uint32_t m4ri_k = 5;
+	constexpr uint32_t m4ri_k = 4;
 
 	customMatrixData *cmd = init_matrix_data(n);
-
 
 	for (uint64_t f = 0; f < LOOPS; f++) {
 		matrix_create_random_permutation(A, AT, P);

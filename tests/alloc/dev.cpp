@@ -9,7 +9,8 @@ using ::testing::Test;
 using namespace std;
 
 
-TEST(VVSort, Ints32) {
+TEST(StackAllocator, Simple) {
+	StackAllocator<16> s;
 }
 
 int main(int argc, char **argv) {
