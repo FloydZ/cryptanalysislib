@@ -98,11 +98,11 @@ void mzd_row_xor(mzd_t *out,
 	uint32_t l = 0;
 
 	LOOP_UNROLL()
-	for (; l+4 < uint32_t(out->width); l+=4) {
-		const uint8x32_t x_avx = uint8x32_t::load(out->rows[j] + 4*l);
-		const uint8x32_t y_avx = uint8x32_t::load(out->rows[i] + 4*l);
+	for (; l+4 <= uint32_t(out->width); l+=4) {
+		const uint8x32_t x_avx = uint8x32_t::load(out->rows[j] + l);
+		const uint8x32_t y_avx = uint8x32_t::load(out->rows[i] + l);
 		const uint8x32_t z_avx = x_avx ^ y_avx;
-		uint8x32_t::store(out->rows[i] + 4*l, z_avx);
+		uint8x32_t::store(out->rows[i] + l, z_avx);
 	}
 
 	for (; l < uint32_t(out->width); ++l) {
