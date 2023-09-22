@@ -4,9 +4,6 @@
 [submodule "deps/fplll"]
 	path = deps/fplll
 	url = https://github.com/fplll/fplll
-[submodule "deps/ska_sort"]
-	path = deps/ska_sort
-	url = https://github.com/skarupke/ska_sort
 [submodule "deps/b63"]
 	path = deps/b63
 	url = https://github.com/FloydZ/b63
