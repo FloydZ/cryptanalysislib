@@ -45,11 +45,11 @@ TestStruct *new_data(const uint32_t tid = -1){
 }
 
 template<class LinkedList>
-void Fill(LinkedList &ll){
+void Fill(LinkedList &ll) {
 	std::vector<std::thread> pool(TT);
 	for (size_t i = 0; i < TT; ++i) {
 		pool[i] = std::thread([&ll](){
-			for (int j = 0; j < N; ++j) {
+			for (size_t j = 0; j < N; ++j) {
 				uint32_t tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
 				//auto d = new_data(tid);
 				auto d = new_data();
@@ -63,11 +63,22 @@ void Fill(LinkedList &ll){
 	}
 }
 
+template<class LinkedList>
+void clear(LinkedList &ll) {
+	auto n1 = ll.head.load();
+	auto n2 = ll.head.load();
+	while (n1 != nullptr) {
+		n2 = n1->next.load();
+		delete n1;
+		n1 = n2;
+	}
+}
 
 TEST(LinkedList, LinkedList) {
 	auto ll = ConstNonBlockingLinkedList<TestStruct, compare>();
 	Fill(ll);
-	ll.print();
+	//ll.print();
+	clear(ll);
 }
 
 TEST(LinkedList, MiddleNode) {
@@ -76,6 +87,7 @@ TEST(LinkedList, MiddleNode) {
 	auto middle = ll.middle_node();
 	std::cout << middle->data << "\n";
 
+	clear(ll);
 }
 
 int main(int argc, char **argv) {

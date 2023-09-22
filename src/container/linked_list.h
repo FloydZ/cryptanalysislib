@@ -20,10 +20,12 @@ namespace cryptanalysislib {
 
 };
 
-// https://www.cs.purdue.edu/homes/xyzhang/fall14/lock_free_set.pdf
-// https://moodycamel.com/blog/2014/solving-the-aba-problem-for-lock-free-free-lists
-// https://users.fmi.uni-jena.de/~nwk/LockFree.pdf
-// IMPORTANT: T must implement a field next
+/// https://www.cs.purdue.edu/homes/xyzhang/fall14/lock_free_set.pdf
+/// https://moodycamel.com/blog/2014/solving-the-aba-problem-for-lock-free-free-lists
+/// https://users.fmi.uni-jena.de/~nwk/LockFree.pdf
+/// IMPORTANT: T must implement a field next, thats kind of stupid
+/// \tparam T
+/// \tparam c
 template<typename T, int (*c)(const T*, const T*)>
 class ConstNonBlockingLinkedList {
 private:
