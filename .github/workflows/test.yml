@@ -84,7 +84,7 @@ jobs:
         ./tests/list/test_list_parallel
         ./tests/list/test_list_parallel_full
         ./tests/list/test_list_parallel_index
-        ./tests/list/enumerate/test_list_enumeration_fq
+        ./tests/list/enumeration/test_list_enumeration_fq
         ./tests/matrix/test_matrix_binary
         ./tests/matrix/test_matrix_custom_m4ri
         ./tests/matrix/test_matrix_fq
