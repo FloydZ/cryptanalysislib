@@ -10,9 +10,6 @@
 [submodule "deps/b63"]
 	path = deps/b63
 	url = https://github.com/FloydZ/b63
-[submodule "deps/Static-Sort"]
-	path = deps/Static-Sort
-	url = https://github.com/Vectorized/Static-Sort
 [submodule "deps/cmake_optimize_for_architecture"]
 	path = deps/cmake_optimize_for_architecture
 	url = https://github.com/FloydZ/cmake_optimize_for_architecture.git
