@@ -66,6 +66,7 @@ TEST(Bucket_Sort, asdasd) {
 
 	std::cout << L[0].get_label();
 	std::cout << bucket << " " << lower << " " << upper << "\n";
+	delete a;
 }
 
 template<const uint32_t l, const uint32_t h>

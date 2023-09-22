@@ -54,7 +54,7 @@ public:
 	
 	constexpr static size_t LIST_SIZE = chase_size * gray_size;
 
-	/// TODO this is the output container
+	/// NOTE: this is the output container for `mixed_radix_grey`
 	std::vector<uint32_t> a;
 
 	/// stuff for the mixed radix enumeration
@@ -64,28 +64,6 @@ public:
 	/// stuff for the chase sequence
 	std::vector<int> chase_w;
 	std::vector<int> chase_a;
-
-
-
-	/// just for debugging
-	/// \param two_changes
-	void print_state(int two_changes=false) {
-		for (uint32_t i = 0; i < n; i++) {
-			printf("%u", a[i]);
-		}
-		if (two_changes)
-			printf(" t");
-		printf("\n");
-	}
-
-	///
-	/// \param print_j
-	void print_state(uint32_t print_j) {
-		for (uint32_t i = 0; i < n; i++) {
-			printf("%u", a[i]);
-		}
-		printf(" j:%d\n", print_j);
-	}
 
 	///
 	/// \param r
@@ -97,12 +75,11 @@ public:
 		printf(" r:%d j:%d\n", r, j);
 	}
 
-	///
+	/// NOTE: probably unused
 	/// \return 1 if the sequence is still valid
-	/// 	    0 if the sequence is finidhed
+	/// 	    0 if the sequence is finished
 	int mixed_radix_grey() {
-		while (1) {
-			print_state(0);
+		while (true) {
 			uint32_t j = f[0];
 			f[0] = 0;
 			if (j == n)
@@ -129,8 +106,7 @@ public:
 		uint32_t j = 0;
 		size_t ctr = 0;
 
-		while (true) {
-			// print_state(j);
+		while (ctr < gray_size) {
 			j = f[0];
 			f[0] = 0;
 			ret[ctr++] = j;
@@ -195,7 +171,7 @@ public:
 	void changelist_chase(std::pair<uint16_t,uint16_t> *ret) {
 		int r = 0, j = 0;
 
-		uint32_t tmp[w+1];
+		uint32_t tmp[w+1] = {0};
 		for (uint32_t i = 0; i < w; ++i) {
 			tmp[i] = n-chase_a[i]-1;
 		}
@@ -209,53 +185,6 @@ public:
 			ret[i].second = n-chase_a[j]-1;
 
 			tmp[j] = n-chase_a[j]-1;
-		}
-	}
-
-	/// ignore this function
-	/// \param gray_cl
-	/// \param chase_cl
-	void build_list(const uint16_t *gray_cl,
-	                const std::pair<uint16_t,uint16_t> *chase_cl){
-		/// init
-		std::vector<uint32_t > vec(n, 0);
-		for (uint32_t i = 0; i < w; ++i) {
-			vec[i] = 1u;
-		}
-
-		std::vector<uint32_t> current_set(w, 0);
-		for (uint32_t i = 0; i < w; ++i) {
-			current_set[i] = i;
-		}
-
-		auto print_state_ = [&]() {
-		  for (int k = 0; k < n; ++k) {
-			  printf("%d", vec[k]);
-		  }
-		  //printf(" gcl: %d\n", gray_cl[j]);
-		  printf("\n");
-		};
-		/// iterate over all
-		for (uint32_t i = 0; i < chase_size; ++i) {
-			for (uint32_t j = 0; j < gray_size-1; ++j) {
-				print_state_();
-
-				/// TODO change this is to the normal vector addition
-				vec[current_set[gray_cl[j]]] = (vec[current_set[gray_cl[j]]] + 1u) % q;
-				vec[current_set[gray_cl[j]]] = std::max(1u, vec[current_set[gray_cl[j]]]);
-		    }
-
-			print_state_();
-
-			/// advance the current set by one
-			const uint32_t j = chase_cl[i].first;
-			const uint32_t a = current_set[j];
-			const uint32_t b = chase_cl[i].second;
-			current_set[j] = b;
-
-			/// TODO replace to the normal vector addition
-			vec[a] = 0;//(vec[a] + 1u) % q;
-			vec[b] = 1;
 		}
 	}
 

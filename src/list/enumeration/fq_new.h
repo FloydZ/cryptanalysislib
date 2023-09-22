@@ -164,12 +164,16 @@ public:
 		ASSERT(gray_size > 0);
 		ASSERT(LIST_SIZE >= list_size);
 
-		chase.changelist_mixed_radix_grey(gray_cl.data());
+		if constexpr (q>2) chase.changelist_mixed_radix_grey(gray_cl.data());
 		chase.changelist_chase(chase_cl.data());
 	}
 };
 
-
+///
+/// \tparam ListType
+/// \tparam n
+/// \tparam q
+/// \tparam w
 template<class ListType,
 		 const uint32_t n,
 		 const uint32_t q,

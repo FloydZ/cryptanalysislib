@@ -3,12 +3,7 @@
 
 #include "random.h"
 #include "helper.h"
-#include "sort/crumsort.h"
-#include "sort/quadsort.h"
-#include "sort/robinhoodsort.h"
-#include "sort/ska_sort.h"
-#include "sort/vergesort.h"
-#include "sort/vv_radixsort.h"
+#include "sort/sort.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -96,6 +91,18 @@ TEST(VVSort, Ints32) {
 
     free(array8);
 }
+
+#ifdef USE_AVX2
+TEST(DJBSORT, Ints32) {
+	int32_t *array8 = generate_list<int32_t>(listsize);
+	int32_sort(array8, listsize);
+
+	for (size_t i = 0; i < listsize-1; ++i) {
+		ASSERT_LE(array8[i], array8[i+1]);
+	}
+	free(array8);
+}
+#endif
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

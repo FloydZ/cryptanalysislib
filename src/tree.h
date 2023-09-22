@@ -1084,11 +1084,12 @@ private:
 };
 
 /// \param out
-/// \param obj
-/// \return
+/// \param obj tree objext
 template<class List>
 std::ostream &operator<<(std::ostream &out, const Tree_T<List> &obj) {
+	/// print each list
     for (uint64_t i = 0; i < obj.get_size(); ++i) {
+		out << "List: " << i << std::endl;
         out << obj[i];
     }
 

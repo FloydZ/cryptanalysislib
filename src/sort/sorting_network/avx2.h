@@ -1,9 +1,10 @@
 #pragma once
 
-#include <immintrin.h>
 #ifndef USE_AVX2
 #error "no avx"
 #endif
+
+#include <immintrin.h>
 
 // SRC https://github.com/simd-sorting/fast-and-robust/blob/master/avx2_sort_demo/avx2sort.h
 #define COEX(a, b){                                                   		   \

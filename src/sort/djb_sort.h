@@ -1,8 +1,24 @@
-#include "int32_sort.h"
+#ifndef CRYPTANALYSISLIB_SORT_DJBSORT
+#define CRYPTANALYSISLIB_SORT_DJBSORT
+
+#include <stdint.h>
 #define int32 int32_t
 
 #include <immintrin.h>
-#include "int32_minmax_x86.c"
+
+#define int32_MINMAX(a,b) \
+do { \
+  int32 temp1; \
+  asm( \
+    "cmpl %1,%0\n\t" \
+    "mov %0,%2\n\t" \
+    "cmovg %1,%0\n\t" \
+    "cmovg %2,%1\n\t" \
+    : "+r"(a), "+r"(b), "=r"(temp1) \
+    : \
+    : "cc" \
+  ); \
+} while(0)
 
 typedef __m256i int32x8;
 #define int32x8_load(z) _mm256_loadu_si256((__m256i *) (z))
@@ -1182,3 +1198,4 @@ void int32_sort(int32 *x,long long n)
   if (j + 2 <= n)
     int32_MINMAX(x[j],x[j+1]);
 }
+#endif
