@@ -179,7 +179,7 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 //    Element el2{};
 //    for (size_t i = 0; i < t[0].load(); ++i) {
 //		for (size_t j = 0; j < t[1].load(); ++j) {
-//			if (t[0][i].is_equal(t[1][j], 0)) {
+//			if (t[0][i].is_equal(t[1][j], 0)) { // TODO probably those bounds here are not correct
 //				Element::add(el, t[0][i], t[1][j]);
 //				for (size_t o = 0; o < t[2].load(); ++o) {
 //					if (el.is_equal(t[2][o], 1)) {
