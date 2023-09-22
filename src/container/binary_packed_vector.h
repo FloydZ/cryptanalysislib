@@ -137,7 +137,10 @@ public:
 	// given the i-th bit this function will return a bits mask where the higher (n-i)bits are set.
 	constexpr static LimbType higher_mask(const uint16_t i) noexcept {
 		ASSERT(i <= length);
-		return (~((LimbType(1) << (i%limb_bits_width())) - 1));
+		if ((i%limb_bits_width())==0)
+			return LimbType(-1);
+
+		return (~((LimbType(1u) << (i%limb_bits_width())) - 1));
 	}
 
 	// given the i-th bit this function will return a bits mask where the lower 'n-i' bits are set. Everything will be

@@ -5,19 +5,9 @@
 #include <cstdint>
 #include <bitset>
 
-#define SSLWE_CONFIG_SET
-#define G_l                     0u                  // unused Parameter
-#define G_k                     0u                  // unused Parameter
-#define G_d                     0u                  // unused Parameter
-#define G_n                     64u
-#define LOG_Q                   1u                  // unused Parameter
-#define G_q                     1u                  // unused Parameter
-#define G_w                     1u                  // unused Parameter
-#define SORT_INCREASING_ORDER
-#define VALUE_BINARY
-
-// alder..
-//#define private public
+constexpr uint32_t n = 64;
+#define N_DEFINED
+#define NNN 64
 
 #include "../binary.h"
 

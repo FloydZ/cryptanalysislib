@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <cstdint>
 #include <bitset>
 
 #include "helper.h"
@@ -17,15 +16,20 @@ using BinaryContainerTest = BinaryContainer<n>;
 using BinaryContainerTest2 = BinaryContainer<10*n>;
 
 // Allow the tests only for smaller bit length
-#if n <= 64
+#if defined(NNN) && NNN <= 64
+
 TEST(CmpSimple2, Simple_Everything_False) {
 	BinaryContainerTest b1;
 	BinaryContainerTest b2;
 
 	b1.zero(); b2.one();
 
-	for (int k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
+			if ((k_lower/64) < (k_higher/64)) {
+				break;
+			}
+
 			uint64_t limb = BinaryContainerTest::round_down_to_limb(k_lower);
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 			EXPECT_EQ(false, BinaryContainerTest::cmp_simple2(b1, b2, limb, mask));
@@ -39,8 +43,12 @@ TEST(CmpSimple2, Simple_Everything_True) {
 
 	b1.zero(); b2.zero();
 
-	for (int k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
+			if ((k_lower/64) < (k_higher/64)) {
+				break;
+			}
+
 			uint64_t limb = BinaryContainerTest::round_down_to_limb(k_lower);
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 			EXPECT_EQ(true, BinaryContainerTest::cmp_simple2(b1, b2, limb, mask));
@@ -62,9 +70,9 @@ TEST(CmpSimple2, OffByOne_Lower_One) {
 
 	EXPECT_EQ(1, b1[0]);
 	EXPECT_EQ(false, BinaryContainerTest::cmp_simple2(b1, b2, limb, mask));
-	for (int j = 1; j < b1.size(); ++j) {
+	for (uint32_t j = 1; j < BinaryContainerTest::size(); ++j) {
 		limb = BinaryContainerTest::round_down_to_limb(0);
-		mask = BinaryContainerTest::higher_mask(j) & BinaryContainerTest::lower_mask2(b1.size());
+		mask = BinaryContainerTest::higher_mask(j) & BinaryContainerTest::lower_mask2(BinaryContainerTest::size());
 		EXPECT_EQ(true, BinaryContainerTest::cmp_simple2(b1, b2, limb, mask));
 	}
 }
@@ -75,13 +83,16 @@ TEST(CmpSimple2_is_equal_simple2, Complex_One) {
 
 	b1.zero();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
+			if ((k_lower/64) < (k_higher/64)) {
+				break;
+			}
 			uint64_t limb = BinaryContainerTest::round_down_to_limb(k_lower);
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 
 			b2.zero();
-			for (int i = k_lower; i < k_higher; ++i) {
+			for (uint32_t i = k_lower; i < k_higher; ++i) {
 				b2[i] = true;
 			}
 
@@ -99,8 +110,11 @@ TEST(is_greater_simple2, Simple_Everything_False) {
 
 	b1.zero(); b2.one();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
+			if ((k_lower/64) < (k_higher/64)) {
+				break;
+			}
 			uint64_t limb = 0;
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 
@@ -116,8 +130,11 @@ TEST(is_greater_simple2, Simple_Everything_True) {
 
 	b1.one(); b2.zero();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < BinaryContainerTest::size(); ++k_higher) {
+			if ((k_lower/64) < (k_higher/64)) {
+				break;
+			}
 			uint64_t limb = 0;
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 
@@ -134,10 +151,13 @@ TEST(is_greater_simple2, Complex_One) {
 	uint64_t mask;
 	b1.zero();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size()-1; ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < BinaryContainerTest::size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < BinaryContainerTest::size()-1; ++k_higher) {
+			if ((k_lower/64) < (k_higher/64)) {
+				break;
+			}
 			b2.zero();
-			for (int i = 0; i < k_higher; ++i) {
+			for (uint32_t i = 0; i < k_higher; ++i) {
 				b2[i] = true;
 			}
 
@@ -145,35 +165,35 @@ TEST(is_greater_simple2, Complex_One) {
 			mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask2(k_higher);
 			EXPECT_EQ(false, b1.is_greater_simple2(b2, limb, mask));
 
-			mask = BinaryContainerTest::higher_mask(k_higher) & BinaryContainerTest::lower_mask2(b1.size());
+			mask = BinaryContainerTest::higher_mask(k_higher) & BinaryContainerTest::lower_mask2(BinaryContainerTest::size());
 			EXPECT_EQ(false, b1.is_greater_simple2(b2, limb, mask));
 
 			mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask2(k_higher);
 			EXPECT_EQ(true, b2.is_greater_simple2(b1, limb, mask));
 
-			if (k_higher < b1.size() - 1){
+			if (k_higher < BinaryContainerTest::size() - 1){
 				b1[k_higher] = true;
-				mask = BinaryContainerTest::higher_mask(k_higher) & BinaryContainerTest::lower_mask2(b1.size()-1);
+				mask = BinaryContainerTest::higher_mask(k_higher) & BinaryContainerTest::lower_mask2(BinaryContainerTest::size()-1);
 				EXPECT_EQ(true, b1.is_greater_simple2(b2, 0, mask));
 				b1.zero();
 			}
 
 
 			b2.zero();
-			for (int i = k_higher; i < b2.size(); ++i) {
+			for (uint32_t i = k_higher; i < b2.size(); ++i) {
 				b2[i] = true;
 			}
 
 			mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask2(k_higher);
 			EXPECT_EQ(false, b1.is_greater_simple2(b2, limb, mask));
 
-			mask = BinaryContainerTest::higher_mask(k_higher) & BinaryContainerTest::lower_mask2(b1.size());
+			mask = BinaryContainerTest::higher_mask(k_higher) & BinaryContainerTest::lower_mask2(BinaryContainerTest::size());
 			EXPECT_EQ(false, b1.is_greater_simple2(b2, limb, mask));
 
 			mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask2(k_higher);
 			EXPECT_EQ(false, b2.is_greater_simple2(b1, limb, mask));
 
-			if (k_higher < b1.size() - 1){
+			if (k_higher < BinaryContainerTest::size() - 1){
 				mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher+1);
 				EXPECT_EQ(true, b2.is_greater_simple2(b1, 0, mask));
 				EXPECT_EQ(false, b1.is_greater_simple2(b2, 0, mask));
@@ -190,11 +210,11 @@ TEST(is_greater_ext2, Complex_One) {
 	uint64_t lower, upper, lmask, umask;
 	b1.zero();
 
-	for (int k_lower  = 0; k_lower < BinaryContainerTest2::size(); ++k_lower) {
+	for (uint32_t k_lower  = 0; k_lower < BinaryContainerTest2::size(); ++k_lower) {
 		// + 65 so we always increase the counter the size of a limb
-		for (int k_higher = k_lower + 64; k_higher < BinaryContainerTest2::size()-64; ++k_higher) {
+		for (uint32_t k_higher = k_lower + 64; k_higher < BinaryContainerTest2::size()-64; ++k_higher) {
 			b2.zero();
-			for (int i = 0; i < k_higher; ++i) {
+			for (uint32_t i = 0; i < k_higher; ++i) {
 				b2[i] = true;
 			}
 
@@ -208,16 +228,16 @@ TEST(is_greater_ext2, Complex_One) {
 			lower = BinaryContainerTest2::round_down_to_limb(k_higher);
 			upper = BinaryContainerTest2::round_down_to_limb(BinaryContainerTest2::size()-1);
 			lmask = BinaryContainerTest2::higher_mask(k_higher);
-			umask = BinaryContainerTest2::lower_mask2(b1.size());
+			umask = BinaryContainerTest2::lower_mask2(BinaryContainerTest2::size());
 			EXPECT_EQ(false, b1.is_greater_ext2(b2, lower, upper, lmask, umask));
 
-			if (k_higher < b1.size() - 1){
+			if (k_higher < BinaryContainerTest2::size() - 1){
 				b1[k_higher] = true;
 
 				lower = BinaryContainerTest2::round_down_to_limb(k_higher);
-				upper = BinaryContainerTest2::round_down_to_limb(b1.size()-1);
+				upper = BinaryContainerTest2::round_down_to_limb(BinaryContainerTest2::size()-1);
 				lmask = BinaryContainerTest2::higher_mask(k_higher);
-				umask = BinaryContainerTest2::lower_mask2(b1.size());
+				umask = BinaryContainerTest2::lower_mask2(BinaryContainerTest2::size());
 				EXPECT_EQ(true, b1.is_greater_ext2(b2, lower, upper, lmask, umask));
 				EXPECT_EQ(false, b2.is_greater_ext2(b1, lower, upper, lmask, umask));
 

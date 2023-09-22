@@ -19,7 +19,7 @@ using ::testing::UnitTest;
 
 TEST(Internals, access) {
 	BinaryContainer<n> b;
-	for (uint32_t i = 0; i < BinaryContainer<100, unsigned long>::size(); ++i) {
+	for (uint32_t i = 0; i < BinaryContainer<n>::size(); ++i) {
 		// this is the explicit cast steps to the final result.
 		auto bit = b[i];
 		bool bbit = bool(bit);
@@ -35,11 +35,11 @@ TEST(Internals, access_pass_through) {
 	b2.random();
 
 	EXPECT_EQ(b1.size(), b2.size());
-	for (uint32_t i = 0; i < BinaryContainer<100, unsigned long>::size(); ++i) {
+	for (uint32_t i = 0; i < BinaryContainer<n>::size(); ++i) {
 		b2[i] = b1[i];
 	}
 
-	for (uint32_t i = 0; i < BinaryContainer<100, unsigned long>::size(); ++i) {
+	for (uint32_t i = 0; i < BinaryContainer<n>::size(); ++i) {
 		EXPECT_EQ(b2[i], b1[i]);
 	}
 }

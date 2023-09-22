@@ -9,7 +9,10 @@
 #include "matrix/fq_matrix.h"
 #include "tree.h"
 
+#ifndef N_DEFINED
 constexpr uint32_t n  = 100;
+#endif
+
 using BinaryValue     = BinaryContainer<n>;
 using BinaryLabel     = BinaryContainer<n>;
 using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2>;

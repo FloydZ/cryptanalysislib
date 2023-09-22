@@ -100,9 +100,11 @@ public:
 	}
 
 	/// custom written binary search. Idea Taken from `https://academy.realm.io/posts/how-we-beat-cpp-stl-binary-search/`
-	constexpr inline uint64_t search_level_binary_custom_simple(const Element &e,
-	                                                            const uint64_t k_lower,
-	                                                            const uint64_t k_higher) const noexcept {
+	/// simple means: k_lower, k_upper must be in the same limb
+	/// return -1 if nothing found
+	constexpr inline size_t search_level_binary_custom_simple(const Element &e,
+	                                                          const uint64_t k_lower,
+	                                                          const uint64_t k_higher) const noexcept {
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
 		const uint64_t upper = T::round_down_to_limb(k_higher);
@@ -124,7 +126,8 @@ public:
 			size = half;
 			low = v.is_lower_simple2(s, lower, mask) ? other_low : low;
 		}
-		return (low != load()) ? low : -1;
+
+		return (low != load()) ? low : -1ul;
 	}
 
 private:
