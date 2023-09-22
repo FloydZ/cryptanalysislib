@@ -10,7 +10,21 @@ using namespace std;
 
 
 TEST(StackAllocator, Simple) {
-	StackAllocator<16> s;
+	constexpr size_t size = 16;
+	StackAllocator<size> s;
+	Blk b = s.allocate(size);
+	auto *ptr = (uint8_t *)b.ptr;
+	for(size_t i = 0; i < size; i++) {
+		ptr[i] = i;
+	}
+
+	ASSERT_EQ(s.owns(b), true);
+	Blk b2{((uint8_t *)b.ptr)+size, b.len};
+	ASSERT_EQ(s.owns(b2), false);
+	s.deallocateAll();
+
+	ASSERT_EQ(s.owns(b),  false);
+	ASSERT_EQ(s.owns(b2), false);
 }
 
 int main(int argc, char **argv) {

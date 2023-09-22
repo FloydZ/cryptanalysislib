@@ -259,7 +259,6 @@ public:
 	/// procedure.
 	/// \param m Matrix
     void recalculate_label(const Matrix &m) noexcept {
-	    // new_vector_matrix_product<Label, Value, Matrix>(label, value, m);
 		m.matrix_row_vector_mul2(label, value);
 	}
 

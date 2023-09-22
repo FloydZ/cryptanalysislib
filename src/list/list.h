@@ -209,9 +209,10 @@ public:
 #endif
 	constexpr void generate_base_random(const uint64_t k,
 	                                    const Matrix &m) noexcept {
-		/// somehow we shoud be sure that the list is big enoug
+		/// somehow we should be sure that the list is big enough
 		__data.resize(k);
 		set_size(k);
+		set_load(0);
 
 		for (size_t i = 0; i < k; ++i) {
 			// by default this creates a complete random 'Element' with 'Value' coordinates \in \[0,1\]

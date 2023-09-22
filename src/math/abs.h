@@ -4,13 +4,18 @@
 #include <type_traits>
 #include <limits>
 
-template<typename T>
-requires
-    std::is_arithmetic<T>::value
-constexpr T abs(T x) {
-    return x >= 0 ? x : -x;
-}
+namespace cryptanalysislib {
+	/// rater important, as it also works with unsigned values, without a warning
+	/// \tparam T
+	/// \param x
+	/// \return
+	template<typename T>
+	    requires std::is_arithmetic<T>::value
+	constexpr T abs(T x) {
+		return x >= 0 ? x : -x;
+	}
 
+}
 
 template<typename T>
 requires

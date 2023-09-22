@@ -11,6 +11,7 @@
 #include "container/common.h"
 #include "simd/simd.h"
 #include "popcount/popcount.h"
+#include "math/abs.h"
 
 
 ///
@@ -396,7 +397,7 @@ public:
 		LOOP_UNROLL();
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
-			if ((abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
+			if ((cryptanalysislib::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
 				return true;
 		}
 
@@ -452,7 +453,7 @@ public:
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] - v2.__data[i] + q) % q;
-			if ((abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
+			if ((cryptanalysislib::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
 				return true;
 		}
 

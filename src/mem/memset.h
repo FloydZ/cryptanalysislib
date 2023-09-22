@@ -20,8 +20,9 @@ namespace cryptanalysislib {
 				return;
 			}
 
-			out[pos] = in;
-			memcpy(out, in, len , pos+1);
+			for (size_t i = pos; i < len; ++i) {
+				out[i] = in;
+			}
 		}
  	}
 

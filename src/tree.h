@@ -15,6 +15,7 @@
 #include "matrix/matrix.h"
 #include "list/list.h"
 #include "thread/thread.h"
+#include "matrix/fq_matrix.h"
 
 #if __cplusplus > 201709L
 /// IDEA: extend the tree syntax to arbitrary hashmaps.
@@ -149,7 +150,7 @@ public:
     /// a non-recursive k-List algorithm.
     /// \param d depth of the tree.
     /// \param A Matrix
-    /// \param baselist_size size of the baselists to generate
+    /// \param baselist_size size of the baselists to generate (log)
     /// \param level_translation_array array containing the limits of the coorditates to merge on each lvl.
     ///         Example:
     ///				[0, 10, 20, ... 100]
@@ -165,8 +166,8 @@ public:
 			level_filter_array(level_filter_array)
     {
         ASSERT(d > 0 && "at least level 1");
-        for (int i = 0; i < d + additional_baselists; ++i) {
-            List a{0};
+        for (uint32_t i = 0; i < d + additional_baselists; ++i) {
+            List a{1u << baselist_size};
             lists.push_back(a);
         }
 
@@ -596,11 +597,21 @@ public:
 	    join2lists(out, L1, L2, target, lta[0], lta[1], prepare);
     }
 
-	static void join2lists(List &out, List &L1, List &L2, const LabelType &target,
-	                           uint64_t k_lower, uint64_t k_upper, bool prepare=true) noexcept {
+	///
+	/// \param out
+	/// \param L1
+	/// \param L2
+	/// \param target
+	/// \param k_lower
+	/// \param k_upper
+	/// \param prepare
+	static void join2lists(List &out, List &L1, List &L2,
+	                       const LabelType &target,
+	                       const uint32_t k_lower, const uint32_t k_upper,
+	                       bool prepare=true) noexcept {
     	ASSERT(k_lower < k_upper && 0 < k_upper);
     	uint64_t i= 0,j = 0;
-	    const uint32_t filter = -1; //translate_filter(0);
+	    const uint32_t filter = -1;
 
 	    if ((!target.is_zero()) && (prepare)) {
 		    for (size_t s = 0; s < L2.load(); ++s) {
@@ -878,7 +889,7 @@ public:
 	/// \param k_lower
 	/// \param k_middle
 	/// \param k_upper
-	static void cross_product(List &out,
+	static size_t cross_product(List &out,
 	                          const List &in1,
 	                          const List &in2,
 	                          const uint64_t k_lower,
@@ -893,12 +904,14 @@ public:
     	uint64_t counter = 0;
 		for (uint64_t i = 0; i < in1.size(); ++i) {
 			for (uint64_t j = 0; j < in2.size(); ++j) {
-				ValueContainerType::set(out[counter].value(), in1[i].valu, k_lower, k_middle);
-				ValueContainerType::set(out[counter].value(), in2[j].valu, k_middle, k_upper);
+				ValueContainerType::set(out[counter].value, in1[i].value, k_lower, k_middle);
+				ValueContainerType::set(out[counter].value, in2[j].value, k_middle, k_upper);
 
 				counter += 1;
 			}
 		}
+
+		return counter;
     }
 
     // const and non-const list access functions.
@@ -980,7 +993,7 @@ private:
 	    translate_level(&k_lower0, &k_higher0, 0, level_translation_array);
 
         uint64_t i = 0, j = 0;
-        while (i < lists[0].get_load() && j < lists[1].get_load()) {
+        while (i < lists[0].load() && j < lists[1].load()) {
             if (lists[1][j].is_greater(lists[0][i], k_lower0, k_higher0))
                 i++;
 
@@ -990,8 +1003,8 @@ private:
             else {
                 uint64_t i_max, j_max;
                 // if elements are equal find max index in each list, such that they remain equal
-                for (i_max = i + 1; i_max < lists[0].get_load() && lists[0][i].is_equal(lists[0][i_max], k_lower0, k_higher0); i_max++) {}
-                for (j_max = j + 1; j_max < lists[1].get_load() && lists[1][j].is_equal(lists[1][j_max], k_lower0, k_higher0); j_max++) {}
+                for (i_max = i + 1; i_max < lists[0].load() && lists[0][i].is_equal(lists[0][i_max], k_lower0, k_higher0); i_max++) {}
+                for (j_max = j + 1; j_max < lists[1].load() && lists[1][j].is_equal(lists[1][j_max], k_lower0, k_higher0); j_max++) {}
 
                 // for each matching tuple
                 uint64_t jprev = j;

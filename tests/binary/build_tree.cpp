@@ -25,9 +25,9 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO more limbs n>64 not working
+
 TEST(TreeTest, join2lists) {
-	unsigned int basesize = 15;//15
+	unsigned int basesize = 15;
 	BinaryMatrix A;
 	A.identity();
 
@@ -146,51 +146,6 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_GT(out.load(),1u<<9);
 	EXPECT_LT(out.load(),1u<<11);
 }
-
-//TEST(TreeTest, join8lists) {
-//	unsigned int basesize = 10;
-//	BinaryMatrix A;
-//	A.identity();
-//
-//	const std::vector<uint64_t> ta{{0, n/4, n/2, n}};
-//	uint64_t k_lower=0, k_higher=0;
-//
-//	BinaryList out{1u<<basesize};
-//	std::vector<BinaryList> L;
-//	for (uint32_t k = 0; k < 8; k++) {
-//		BinaryList L_i{1u<<(basesize+2)};
-//		L_i.generate_base_random(1u << basesize, A);
-//		L.push_back(L_i);
-//	}
-//
-//	BinaryLabel target {};
-//	target.zero();
-//	target.random();
-//
-//	BinaryTree::streamjoin8lists(out, L, target, ta);
-//
-//	auto right=true;
-//	int wrong=0;
-//	for(uint64_t i = 0;i < out.load();++i) {
-//		std::cout << out[i];
-//		out[i].recalculate_label(A);
-//		std::cout << out[i];
-//
-//		for (uint32_t j = 0; j < 2; ++j) {
-//			translate_level(&k_lower, &k_higher, j, ta);
-//			if (!(BinaryLabel::cmp(out[i].get_label(), target, k_lower, k_higher))) {
-//				right = false;
-//				wrong++;
-//			}
-//		}
-//	}
-//
-//	EXPECT_GT(out.load(), 0);
-//	EXPECT_EQ(0, wrong);
-//	EXPECT_EQ(right, true);
-//	EXPECT_GT(out.load(),1u<<9);
-//	EXPECT_LT(out.load(),1u<<11);
-//}
 
 
 #ifndef EXTERNAL_MAIN

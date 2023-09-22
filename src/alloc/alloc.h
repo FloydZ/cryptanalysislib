@@ -1,6 +1,9 @@
 #ifndef SMALLSECRETLWE_ALLOC_H
 #define SMALLSECRETLWE_ALLOC_H
 
+
+#include "mem/memset.h"
+
 /// replacement for *void
 /// instead of just give a pointer, all allocators do return
 /// a block `blk` of memory.
@@ -27,28 +30,40 @@ struct AllocatorConfig {
 	/// the base pointer to the internal data struct are always to 16bytes aligned
 	constexpr static size_t base_alignment = 16;
 
-	///
-	constexpr static size_t alignment = 16;
-} AllocatorConfig;
+	/// all pointers (Blks) returned do have this alignment
+	constexpr static size_t alignment = 1;
+
+	/// if set, all allocs are callocs
+	constexpr static bool calloc = true;
+
+	/// if set, after memory was free, it will be zerod
+	constexpr static bool zero_after_free = true;
+} allocatorConfig;
 
 /// concept of an allocator
 template<class T>
 concept Allocator = requires(T a, Blk b, size_t n) {
 	{ a.allocate(n) }   -> std::convertible_to<Blk>;
-	{ a.deallocate(b) } -> std::convertible_to<Blk>;
-	{ a.owns(b) }       -> std::convertible_to<Blk>;
+	a.deallocate(b);
+	a.deallocateAll();
+	a.owns(b);
 };
 
 /// Simple Stack Allocator
 /// allocates `s` bytes on the stack
-template<size_t s, const struct AllocatorConfig=AllocatorConfig>
+template<size_t s, const struct AllocatorConfig=allocatorConfig>
 class StackAllocator {
-	uint8_t _d[s];
-	uint8_t *_p;
+	using T = uint8_t;
+
+	alignas(allocatorConfig.alignment) T _d[s];
+	T *_p;
 
 public:
 	StackAllocator() : _p(_d) {}
 
+	///
+	/// \param n
+	/// \return
 	constexpr Blk allocate(const size_t n) noexcept {
 		auto n1 = roundToAligned(n);
 		if (n1 > (_d + s) - _p) {
@@ -56,25 +71,45 @@ public:
 		}
 
 		Blk result = {_p, n};
+		if constexpr (allocatorConfig.calloc) {
+			cryptanalysislib::template memset<T>(_p, T(0), n);
+		}
+
 		_p += n1;
 		return result;
 	}
 
+	///
+	/// \param b
+	/// \return
 	constexpr void deallocate(Blk b) noexcept {
 		// a little stupid. But the allocator is only to deallocate something
-		// if its the last element in the stack
-		if ( (uint8_t *)((size_t)b.ptr + roundToAligned(b.len)) == _p) {
-			_p = (uint8_t *)b.ptr;
+		// if it's the last element in the stack
+		if ( (T *)((size_t)b.ptr + roundToAligned(b.len)) == _p) {
+			if constexpr (allocatorConfig.zero_after_free) {
+				cryptanalysislib::memset(_p, T(0), (size_t)_p - (size_t)_d);
+			}
+			_p = (T *)b.ptr;
 		}
 	}
 
-	constexpr bool owns(Blk b) noexcept {
-		return b.ptr >= _d && b.ptr < _d + s;
-	}
-
+	///
+	/// \return
 	constexpr void deallocateAll() noexcept {
+		if constexpr (allocatorConfig.zero_after_free) {
+			cryptanalysislib::memset(_d, T(0), _p - _d);
+		}
+
 		_p = _d;
 	}
+
+	///
+	/// \param b
+	/// \return
+	constexpr bool owns(Blk b) noexcept {
+		return b.ptr >= _d && b.ptr < _p;
+	}
+
 };
 
 ///

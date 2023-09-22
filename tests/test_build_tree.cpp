@@ -5,6 +5,8 @@
 
 #include "helper.h"
 #include "kAry_type.h"
+#include "tree.h"
+#include "matrix/fq_matrix.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -14,214 +16,140 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-#ifdef USE_FPLLL
+constexpr uint32_t n    = 15;
+constexpr uint32_t k    = 15;
+constexpr uint32_t q    = 3;
 
-TEST(TreeTest, BuildTreeTest1) {
-    //FixME: Testing mit Identity does only work for q<1<<8 as Value type is uint8_t, also filtering makes problems for higher q
-    //maybe implement a switch to turn of filtering for debugging purposes?
-    const uint64_t d=1;
-    unsigned int basesize=10;
-	fplll::ZZ_mat<kAryType> A_(n, n);
-	//A_.gen_uniform(4);
-	//A_.fill(0);
-	A_.gen_identity(n);
-	Matrix_T<fplll::ZZ_mat<kAryType>> A{A_};
+using T 			= uint8_t;
+using Matrix 		= FqMatrix<T, n, k, q>;
+using Value     	= kAryContainer_T<T, n, q>;
+using Label    		= kAryContainer_T<T, k, q>;
+using Element		= Element_T<Value, Label, Matrix>;
+using List			= List_T<Element>;
+using Tree			= Tree_T<List>;
 
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base(1u << 5u, A);
-//    t[1].generate_base(1u << 5u, A);
-//    t[0].sort_level(0);
-//    t[1].sort_level(0);
-//    t.join_stream(0);
-    __level_translation_array[1]=5;
-    __level_translation_array[2]=10;
-    __level_translation_array[3]=15;
-    __level_translation_array[4]=20;
 
-	Tree t{d, A, basesize, __level_translation_array, __level_filter_array};
+
+
+TEST(TreeTest, join2lists) {
+	unsigned int basesize = 18;
+	Matrix A;
+	A.identity();
+
+	const std::vector<uint64_t> ta{{0, n}};
 	uint64_t k_lower, k_higher;
+	translate_level(&k_lower, &k_higher, 0, ta);
+
+	List out{1u<<basesize}, l1{0}, l2{0};
+	l1.generate_base_random(1u << basesize, A);
+	l2.generate_base_random(1u << basesize, A);
 
 	Label target {};
-    target.zero();
-    target.random();
-    //std::cout<<"target is "<<target<<"\n";
-    t.build_tree(target);
-	//std::cout << "bla" << t[0] << "\n";
+	target.zero();
+	target.random();
 
-    //std::cout<<"\nResultsize: "<<t[d+1].get_load();
-    auto right=true;
-    int wrong=0;
-    for(uint64_t i = 0;i<t[d+1].get_load();++i) {
-        t[d+1][i].recalculate_label(A);
-        //std::cout<<"\n"<<t[d+1][i];
-        for(int j =0;j<d;++j) {
-	        translate_level(&k_lower, &k_higher, j, __level_translation_array);
+	Tree::join2lists(out, l1, l2, target, ta);
 
-	        if (!(Label::cmp(t[d + 1][i].get_label(), target, k_lower, k_higher))) {
-		        right = false;
-		        // std::cout << "\n" << t[d + 1][i].get_label();
-		        wrong++;
-	        }
-        }
-    }
+	auto right=true;
+	int wrong=0;
+	for(uint64_t i = 0;i < out.load();++i) {
+		out[i].recalculate_label(A);
+		if (!(Label::cmp(out[i].label, target, k_lower, k_higher))) {
+			right = false;
+			wrong++;
+		}
+	}
 
-    EXPECT_EQ(0, wrong);
-    EXPECT_EQ(right, true);
-    EXPECT_GT(t[d+1].get_load(),1u<<(basesize-1));
-    EXPECT_LT(t[d+1].get_load(),1u<<(basesize+1));
+	EXPECT_GT(out.load(), 0);
+	EXPECT_EQ(0, wrong);
+	EXPECT_EQ(right, true);
+	EXPECT_GT(out.load(),1u<<9);
+	EXPECT_LT(out.load(),1u<<11);
 }
 
-TEST(TreeTest, RestoreBaselists) {
-    const uint64_t d=4;
-    unsigned int basesize=10;
-	fplll::ZZ_mat<kAryType> A_(n, n);
-	//A.gen_uniform(4);
-	//A.fill(0);
-	A_.gen_identity(n);
-	const Matrix_T<fplll::ZZ_mat<kAryType>> A{A_};
+TEST(TreeTest, join4lists) {
+	uint32_t basesize = 10u;
+	Matrix A;
+	A.identity();
 
-    __level_translation_array[1]=5;
-    __level_translation_array[2]=10;
-    __level_translation_array[3]=15;
-    __level_translation_array[4]=20;
+	const std::vector<uint64_t> ta{{0, n/2, n}};
+	uint64_t k_lower=0, k_higher=0;
 
-	Tree t{d, A, basesize, __level_translation_array, __level_filter_array};
-	Tree t2{d, A, basesize, __level_translation_array, __level_filter_array};
+	List out{1u<<12}, l1{0}, l2{0}, l3{0}, l4{0};
+	l1.generate_base_random(1u << basesize, A);
+	l2.generate_base_random(1u << basesize, A);
+	l3.generate_base_random(1u << basesize, A);
+	l4.generate_base_random(1u << basesize, A);
 
-    t[0].set_load(0);
-    t[1].set_load(0);
-    t[0].generate_base_random(1u<<basesize, A);
-    t[1].generate_base_random(1u<<basesize, A);
-    t[0].sort_level(-1, __level_translation_array);
-    t[1].sort_level(-1, __level_translation_array);
-    t2[0].generate_base_random(1u<<basesize, A);
-    t2[1].generate_base_random(1u<<basesize, A);
-    Label target {};
-    target.random();
-    for(uint64_t i=0;i<t[0].get_load();++i) {
-        t2[0][i] = t[0][i];
-        t2[1][i] = t[1][i];
-    }
-    t.build_tree(target, false);
-    uint64_t wrong1=0;
-    uint64_t wrong2=0;
-    bool correct=true;
-    t[0].sort_level(-1, __level_translation_array);
-    t[1].sort_level(-1, __level_translation_array);
-    for(uint64_t i=0;i<t[0].get_load();++i) {
-        if (!(t2[0][i].is_equal(t[0][i]))) {
-            correct = false;
-            wrong1++;
-        }
-        if(!(t2[1][i].is_equal(t[1][i]))){
-            correct = false;
-            wrong2++;
-        }
-    }
+	Label target {};
+	target.zero();
+	target.random();
 
-    EXPECT_EQ(correct,true);
-    EXPECT_EQ(wrong1,0);
-    EXPECT_EQ(wrong2,0);
+	Tree::streamjoin4lists(out, l1, l2, l3, l4, target, ta);
+
+	auto right=true;
+	int wrong=0;
+	for(uint64_t i = 0;i < out.load();++i) {
+		// std::cout << out[i];
+		out[i].recalculate_label(A);
+		// std::cout << out[i];
+
+		for (uint32_t j = 0; j < 2; ++j) {
+			translate_level(&k_lower, &k_higher, j, ta);
+			if (!(Label::cmp(out[i].label, target, k_lower, k_higher))) {
+				right = false;
+				wrong++;
+			}
+		}
+	}
+
+	EXPECT_GT(out.load(), 0);
+	EXPECT_EQ(0, wrong);
+	EXPECT_EQ(right, true);
+	EXPECT_GT(out.load(),1u<<9);
+	EXPECT_LT(out.load(),1u<<11);
 }
 
-TEST(TreeTest, RestoreLabelSingleList) {
-    const uint64_t d=4;
-    unsigned int basesize=10;
+TEST(TreeTest, join4lists_with2lists) {
+	unsigned int basesize = 10;
+	Matrix A;
+	A.identity();
 
-	fplll::ZZ_mat<kAryType> A_(n, n);
-	//A_.gen_uniform(4);
-	//A_.fill(0);
-	A_.gen_identity(n);
-	const Matrix_T<fplll::ZZ_mat<kAryType>> A{A_};
+	const std::vector<uint64_t> ta{{0, n/2, n}};
+	uint64_t k_lower=0, k_higher=0;
 
-    __level_translation_array[1]=5;
-    __level_translation_array[2]=10;
-    __level_translation_array[3]=15;
-    __level_translation_array[4]=20;
+	List out{1u<<basesize}, l1{0}, l2{0}, l3{0}, l4{0};
+	l1.generate_base_random(1u << basesize, A);
+	l2.generate_base_random(1u << basesize, A);
 
-	Tree t{d, A, basesize, __level_translation_array, __level_filter_array};
+	Label target {};
+	target.zero();
+	target.random();
 
-	t[0].set_load(0);
-    t[1].set_load(0);
-    t[0].generate_base_random(1u<<basesize, A);
-    t[1].generate_base_random(1u<<basesize, A);
+	Tree::streamjoin4lists_twolists(out, l1, l2, target, ta);
 
-    Label target {};
-    target.random();
-    Element tmp {};
-    t.build_tree(target, false);
+	auto right=true;
+	int wrong=0;
+	for(uint64_t i = 0;i < out.load();++i) {
+		// std::cout << out[i];
+		out[i].recalculate_label(A);
+		// std::cout << out[i];
 
-    uint64_t wrong=0;
-    bool correct=true;
-    for(uint64_t i=0;i<t[d+1].get_load();++i) {
-        tmp.get_label()=t[d+1][i].get_label();
-        t[d+1][i].recalculate_label(A_);
+		for (int j = 0; j < 2; ++j) {
+			translate_level(&k_lower, &k_higher, j, ta);
+			if (!(Label::cmp(out[i].get_label(), target, k_lower, k_higher))) {
+				right = false;
+				wrong++;
+			}
+		}
+	}
 
-        if (!(t[d+1][i].is_equal(tmp))) {
-            correct = false;
-            wrong++;
-        }
-
-    }
-
-    EXPECT_EQ(correct,true);
-    EXPECT_EQ(wrong,0);
+	EXPECT_GT(out.load(), 0);
+	EXPECT_EQ(0, wrong);
+	EXPECT_EQ(right, true);
+	EXPECT_GT(out.load(),1u<<9);
+	EXPECT_LT(out.load(),1u<<11);
 }
-
-TEST(TreeTest, RestoreLabelTwoLists) {
-	// @ Andre diese test gibt halt irgendwie keinen Sinn. Da ja der letzt join auf level 0, das heißt die koordinaten 15-20 nicht gematch werden.
-	// Es geht unten weiter
-    const uint64_t d=4;
-    unsigned int basesize=10;
-	fplll::ZZ_mat<kAryType> A_(n, n);
-	//A_.gen_uniform(4);
-	//A_.fill(0);
-	A_.gen_identity(n);
-	const Matrix_T<fplll::ZZ_mat<kAryType>> A{A_};
-
-    __level_translation_array[1]=5;
-    __level_translation_array[2]=10;
-    __level_translation_array[3]=15;
-    __level_translation_array[4]=20;
-
-	Tree t{d, A, basesize, __level_translation_array, __level_filter_array};
-
-	t[0].set_load(0);
-    t[1].set_load(0);
-    t[0].generate_base_random(1u<<basesize, A);
-    t[1].generate_base_random(1u<<basesize, A);
-
-	Label target{};
-    target.random();
-    Element tmp {};
-    t.build_tree(target, false,true);
-
-    uint64_t wrong=0;
-    bool correct=true;
-    for (int a=0;a<2;++a)
-        for(uint64_t i=0;i<t[d+a].get_load();++i) {
-            tmp.get_label() = t[d+a][i].get_label();
-	        t[d+a][i].recalculate_label(A_);
-
-	        // Da nicht auf den letzten 5 Koordinaten nicht gematched wird ist die Zeile:
-	        //      if (!(t[d+a][i].is_equal(tmp, -1))) {
-	        // nicht richtig, da ja noch nciht auf der vollen länge gematched wurde. Das witzige is a=1 wurde schon komplett gematched.
-	        if (!(t[d+a][i].is_equal(tmp, 0, 15))) {
-            	// std::cout << tmp;
-	            // std::cout << t[d+a][i];
-	            // std::cout << "\n\n";
-
-	            correct = false;
-                wrong++;
-            }
-        }
-
-    EXPECT_EQ(correct,true);
-    EXPECT_EQ(wrong,0);
-}
-
-#endif
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
