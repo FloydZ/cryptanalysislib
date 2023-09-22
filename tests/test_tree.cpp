@@ -100,7 +100,7 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 	A.random();
 
 	static std::vector<uint64_t> __level_translation_array{{0, n/2, n}};
-	Tree t{2, A, 10, __level_translation_array, __level_filter_array};
+	Tree t{2, A, 11, __level_translation_array, __level_filter_array};
 
     t[0].generate_base_random(1u << 12u, A);
     t[1].generate_base_random(1u << 12u, A);
@@ -119,17 +119,19 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 
     uint64_t num = 0;
     Element el{};
-    for (size_t i = 0; i < t[0].load(); ++i)
-        for (size_t j = 0; j < t[1].load(); ++j) {
-            if (t[0][i].is_equal(t[1][j], 0)) {
-                Element::add(el, t[0][i], t[1][j]);
+    for (size_t i = 0; i < t[0].load(); ++i) {
+		for (size_t j = 0; j < t[1].load(); ++j) {
+			if (t[0][i].is_equal(t[1][j], 0)) {
+				Element::add(el, t[0][i], t[1][j]);
 
-                for (int o = 0; o < t[2].load(); ++o)
-                    if (el.is_equal(t[2][o], 1))
-                        num++;
-
-            }
-        }
+				for (size_t o = 0; o < t[2].load(); ++o) {
+					if (el.is_equal(t[2][o], 1)) {
+						num++;
+					}
+				}
+			}
+		}
+	}
 
     t.join_stream(1);
 
@@ -141,7 +143,8 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 //	Matrix A;
 //	A.random();
 //
-//	constexpr size_t base_size = 4;
+//	constexpr size_t base_size = 12;
+//	static std::vector<uint64_t> __level_translation_array{{0, n/3, 2*n/3, n}};
 //    Tree t{3, A, 10, __level_translation_array, __level_filter_array};
 //
 //    t[0].set_load(0);
@@ -149,8 +152,8 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 //    t[0].generate_base_random(1u << base_size, A);
 //    t[1].generate_base_random(1u << base_size, A);
 //
-//    t[0].sort_level(0);
-//    t[1].sort_level(0);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
 //    t.join_stream(0);
 //
 //    t[0].set_load(0);
@@ -158,38 +161,39 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 //    t[0].generate_base_random(1u << base_size, A);
 //    t[1].generate_base_random(1u << base_size, A);
 //
-//    t[2].sort_level(1);
-//    t[0].sort_level(0);
-//    t[1].sort_level(0);
+//    t[2].sort_level(1, __level_translation_array);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
 //    t.join_stream(1);
 //
 //    t[0].set_load(0);
 //    t[1].set_load(0);
 //    t[0].generate_base_random(1u << base_size, A);
 //    t[1].generate_base_random(1u << base_size, A);
-//    t[0].sort_level(0);
-//    t[1].sort_level(0);
-//    t[3].sort_level(2);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
+//    t[3].sort_level(2, __level_translation_array);
 //
 //    uint64_t num = 0;
 //    Element el{};
 //    Element el2{};
-//    for (size_t i = 0; i < t[0].load(); ++i)
-//        for (size_t j = 0; j < t[1].load(); ++j) {
-//            if (t[0][i].is_equal(t[1][j], 0)) {
-//                Element::add(el, t[0][i], t[1][j]);
-//                for (size_t o = 0; o < t[2].load(); ++o) {
-//                    if (el.is_equal(t[2][o], 1)) {
-//                        Element::add(el2, el, t[2][o]);
-//                        for (size_t r = 0; r < t[3].load(); ++r)
-//                            if (el2.is_equal(t[3][r], 2)) {
-//
-//                                num++;
-//                            }
-//                    }
-//                }
-//            }
-//        }
+//    for (size_t i = 0; i < t[0].load(); ++i) {
+//		for (size_t j = 0; j < t[1].load(); ++j) {
+//			if (t[0][i].is_equal(t[1][j], 0)) {
+//				Element::add(el, t[0][i], t[1][j]);
+//				for (size_t o = 0; o < t[2].load(); ++o) {
+//					if (el.is_equal(t[2][o], 1)) {
+//						Element::add(el2, el, t[2][o]);
+//						for (size_t r = 0; r < t[3].load(); ++r) {
+//							if (el2.is_equal(t[3][r], 2)) {
+//								num++;
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
 //    t.join_stream(2);
 //
 //	EXPECT_NE(0, num);
@@ -200,15 +204,16 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 //	Matrix A;
 //	A.random();
 //
-//	constexpr size_t base_size = 3;
+//	constexpr size_t base_size = 6;
+//	static std::vector<uint64_t> __level_translation_array{{0, n/4, n/2, 3*n/4, n}};
 //    Tree t{4, A, 10, __level_translation_array, __level_filter_array};
 //
 //    t[0].set_load(0);
 //    t[1].set_load(0);
 //    t[0].generate_base_random(1u << base_size, A);
 //    t[1].generate_base_random(1u << base_size, A);
-//    t[0].sort_level(0);
-//    t[1].sort_level(0);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
 //    t.join_stream(0);
 //
 //    t[0].set_load(0);
@@ -216,52 +221,55 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 //    t[0].generate_base_random(1u << base_size, A);
 //    t[1].generate_base_random(1u << base_size, A);
 //
-//    t[2].sort_level(1);
-//    t[0].sort_level(0);
-//    t[1].sort_level(0);
+//    t[2].sort_level(1, __level_translation_array);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
 //    t.join_stream(1);
 //
 //    t[0].set_load(0);
 //    t[1].set_load(0);
 //    t[0].generate_base_random(1u << base_size, A);
 //    t[1].generate_base_random(1u << base_size, A);
-//    t[0].sort_level(0);
-//    t[1].sort_level(0);
-//    t[3].sort_level(2);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
+//    t[3].sort_level(2, __level_translation_array);
 //    t.join_stream(2);
 //
 //    t[0].set_load(0);
 //    t[1].set_load(0);
 //    t[0].generate_base_random(1u << base_size, A);
 //    t[1].generate_base_random(1u << base_size, A);
-//    t[0].sort_level(0);
-//    t[1].sort_level(0);
-//    t[4].sort_level(3);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
+//    t[4].sort_level(3, __level_translation_array);
 //
 //    uint64_t num = 0;
 //    Element el{};
 //    Element el2{};
 //    Element el3{};
-//    for (size_t i = 0; i < t[0].load(); ++i)
-//        for (size_t j = 0; j < t[1].load(); ++j) {
-//            if (t[0][i].is_equal(t[1][j], 0)) {
-//                Element::add(el, t[0][i], t[1][j]);
-//                for (size_t o = 0; o < t[2].load(); ++o) {
-//                    if (el.is_equal(t[2][o], 1)) {
-//                        Element::add(el2, el, t[2][o]);
-//                        for (size_t r = 0; r < t[3].load(); ++r)
-//                            if (el2.is_equal(t[3][r], 2)) {
-//                                Element::add(el3, el2, t[3][r]);
-//                                for (size_t w = 0; w < t[4].load(); ++w) {
-//                                    if (el3.is_equal(t[4][w], 3)) {
-//                                        num++;
-//                                    }
-//                                }
-//                            }
-//                    }
-//                }
-//            }
-//        }
+//    for (size_t i = 0; i < t[0].load(); ++i) {
+//		for (size_t j = 0; j < t[1].load(); ++j) {
+//			if (t[0][i].is_equal(t[1][j], 0)) {
+//				Element::add(el, t[0][i], t[1][j]);
+//				for (size_t o = 0; o < t[2].load(); ++o) {
+//					if (el.is_equal(t[2][o], 1)) {
+//						Element::add(el2, el, t[2][o]);
+//						for (size_t r = 0; r < t[3].load(); ++r) {
+//							if (el2.is_equal(t[3][r], 2)) {
+//								Element::add(el3, el2, t[3][r]);
+//								for (size_t w = 0; w < t[4].load(); ++w) {
+//									if (el3.is_equal(t[4][w], 3)) {
+//										num++;
+//									}
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
+//
 //    t.join_stream(3);
 //
 //	EXPECT_NE(0, num);

@@ -665,6 +665,7 @@ public:
 
 			// this __MUST__ be a copy.
 			__data.push_back(t);
+			__size += 1;
 		}
 
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.

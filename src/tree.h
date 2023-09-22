@@ -1096,7 +1096,8 @@ std::ostream &operator<<(std::ostream &out, const Tree_T<List> &obj) {
 }
 
 
-
+/// TODO not finished
+/// maybe thats something:https://github.com/veselink1/refl-cpp
 struct ExtendenTreeConfig {
 public:
 	const uint32_t n = 100;
