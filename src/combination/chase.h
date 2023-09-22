@@ -5,6 +5,13 @@
 #include <vector>
 #include "helper.h"
 
+/// functions/fields an enumerator must implement
+/// \tparam Enumerator
+template<typename Enumerator>
+concept EnumeratorAble = requires(Enumerator e) {
+	e.step();
+};
+
 /// needed to compute the list size before initializing the enumerator
 /// \tparam n length to enumerate
 /// \tparam q base field size
