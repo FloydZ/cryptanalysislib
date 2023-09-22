@@ -75,10 +75,10 @@ TEST(TreeTest, JoinRandomListsLevel0) {
 	A.random();
 
 	static std::vector<uint64_t> __level_translation_array{{0, n}};
-    Tree t{2, A, 4u, __level_translation_array, __level_filter_array};
+    Tree t{2, A, 10u, __level_translation_array, __level_filter_array};
 
-    t[0].generate_base_random(1u << 12u, A);
-    t[1].generate_base_random(1u << 12u, A);
+    t[0].generate_base_random(1u << 14u, A);
+    t[1].generate_base_random(1u << 14u, A);
     t[0].sort_level(0, __level_translation_array);
     t[1].sort_level(0, __level_translation_array);
 
