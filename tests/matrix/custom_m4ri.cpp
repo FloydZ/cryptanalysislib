@@ -51,6 +51,9 @@ TEST(CustomMatrix, Test) {
 
 	auto t = matrix_echelonize_partial(M, 4, 99, data);
 	std::cout << t << "\n";
+
+	free_matrix_data(data);
+	mzd_free(M);
 }
 
 int main(int argc, char **argv) {
