@@ -4,11 +4,10 @@
 #include "../bench_config.h"
 
 #include "container/binary_packed_vector.h"
-#include <helper.h>
-#include <sort.h>
+#include "helper.h"
+#include "sort/sort.h"
+#include "sort.h"
 
-#include "ska_sort.hpp"
-//#include "pdqsort/pdqsort.h"
 
 using namespace std;
 
