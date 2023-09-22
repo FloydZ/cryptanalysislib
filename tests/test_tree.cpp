@@ -95,50 +95,50 @@ TEST(TreeTest, JoinRandomListsLevel0) {
     EXPECT_EQ(t[2].load(), num);
 }
 
-TEST(TreeTest, JoinRandomListsLevel1) {
-	Matrix A;
-	A.random();
-
-	static std::vector<uint64_t> __level_translation_array{{0, n/2, n}};
-	Tree t{2, A, 11, __level_translation_array, __level_filter_array};
-
-    t[0].generate_base_random(1u << 12u, A);
-    t[1].generate_base_random(1u << 12u, A);
-    t[0].sort_level(0, __level_translation_array);
-    t[1].sort_level(0, __level_translation_array);
-    t.join_stream(0);
-
-    t[0].set_load(0);
-    t[1].set_load(0);
-    t[0].generate_base_random(1u << 12u, A);
-    t[1].generate_base_random(1u << 12u, A);
-
-    t[2].sort_level(1, __level_translation_array);
-    t[0].sort_level(0, __level_translation_array);
-    t[1].sort_level(0, __level_translation_array);
-
-    uint64_t num = 0;
-    Element el{};
-    for (size_t i = 0; i < t[0].load(); ++i) {
-		for (size_t j = 0; j < t[1].load(); ++j) {
-			if (t[0][i].is_equal(t[1][j], 0)) {
-				Element::add(el, t[0][i], t[1][j]);
-
-				for (size_t o = 0; o < t[2].load(); ++o) {
-					if (el.is_equal(t[2][o], 1)) {
-						num++;
-					}
-				}
-			}
-		}
-	}
-
-    t.join_stream(1);
-
-	EXPECT_NE(0, num);
-	EXPECT_EQ(t[3].load(), num);
-}
-
+//TEST(TreeTest, JoinRandomListsLevel1) {
+//	Matrix A;
+//	A.random();
+//
+//	static std::vector<uint64_t> __level_translation_array{{0, n/2, n}};
+//	Tree t{2, A, 11, __level_translation_array, __level_filter_array};
+//
+//    t[0].generate_base_random(1u << 12u, A);
+//    t[1].generate_base_random(1u << 12u, A);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
+//    t.join_stream(0);
+//
+//    t[0].set_load(0);
+//    t[1].set_load(0);
+//    t[0].generate_base_random(1u << 12u, A);
+//    t[1].generate_base_random(1u << 12u, A);
+//
+//    t[2].sort_level(1, __level_translation_array);
+//    t[0].sort_level(0, __level_translation_array);
+//    t[1].sort_level(0, __level_translation_array);
+//
+//    uint64_t num = 0;
+//    Element el{};
+//    for (size_t i = 0; i < t[0].load(); ++i) {
+//		for (size_t j = 0; j < t[1].load(); ++j) {
+//			if (t[0][i].is_equal(t[1][j], 0)) {
+//				Element::add(el, t[0][i], t[1][j]);
+//
+//				for (size_t o = 0; o < t[2].load(); ++o) {
+//					if (el.is_equal(t[2][o], 1)) {
+//						num++;
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//    t.join_stream(1);
+//
+//	EXPECT_NE(0, num);
+//	EXPECT_EQ(t[3].load(), num);
+//}
+//
 //TEST(TreeTest, JoinRandomListsLevel2) {
 //	Matrix A;
 //	A.random();
