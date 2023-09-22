@@ -21,7 +21,7 @@
 #include "helper.h"
 #include "list/list.h"
 #include "search.h"
-#include "ska_sort.hpp"
+#include "sort/ska_sort.h"
 #include "sort.h"
 #include "thread/thread.h"
 
