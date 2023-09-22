@@ -89,7 +89,8 @@ jobs:
         ./tests/matrix/test_matrix_custom_m4ri
         ./tests/matrix/test_matrix_fq
         ./tests/popcount/test_popcount_simple
-        ./tests/simd/test_simd
+        ./tests/simd/test_simd_simd
+        ./tests/simd/test_simd_avx
         ./tests/sort/test_sorting_algorithms
         ./tests/sort/test_sorting_network
         ./tests/thread/test_thread
