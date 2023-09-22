@@ -78,24 +78,13 @@ public:
 	   MetaListT<Element>(size, threads, false)
 	{
 		if (no_values == false) {
-			__data_value = (ValueType *) cryptanalysislib_aligned_malloc(size * sizeof(ValueType), PAGE_SIZE);
-			if (__data_value == NULL) {
-				ASSERT("could not alloc __data_value");
-				exit(1);
-			}
-
-			memset(__data_value, 0, size * sizeof(ValueType));
+			__data_value.resize(size);
+			memset(__data_value.data(), 0, size * sizeof(ValueType));
 		}
 
-		__data_label = (LabelType *)cryptanalysislib_aligned_malloc(size*sizeof(LabelType), PAGE_SIZE);
-		if (__data_label == NULL) {
-			ASSERT("could not alloc __data_label");
-			exit(1);
-		}
-
-		memset(__data_label, 0, size*sizeof(LabelType));
+		__data_label.resize(size);
+		memset(__data_label.data(), 0, size*sizeof(LabelType));
 	}
-
 
 	/// single threaded memcpy
 	/// \param other
@@ -170,10 +159,11 @@ public:
 	auto begin() noexcept { return nullptr; }
 	auto end() noexcept { return nullptr; }
 
-	constexpr inline ValueType* data_value() noexcept { return (ValueType *)(((uint8_t *)__data_value) + LabelBytes); }
-	constexpr inline const ValueType* data_value() const noexcept { return (ValueType *)(((uint8_t *)__data_value) + LabelBytes); }
-	constexpr inline LabelType* data_label() noexcept { return (LabelType *)__data_label; }
-	constexpr inline const LabelType* data_label() const noexcept { return (const LabelType *)__data_label; }
+	constexpr inline ValueType* data_value() noexcept { return (ValueType *)__data_value.data() ; }
+	constexpr inline const ValueType* data_value() const noexcept { return (ValueType *)__data_value.data(); }
+	constexpr inline LabelType* data_label() noexcept { return (LabelType *)__data_label.data(); }
+	constexpr inline const LabelType* data_label() const noexcept { return (const LabelType *)__data_label.data(); }
+
 	constexpr inline ValueType& data_value(const size_t i) noexcept {  ASSERT(i < __size); return __data_value[i]; }
 	constexpr inline const ValueType& data_value(const size_t i) const noexcept { ASSERT(i < __size); return __data_value[i]; }
 	constexpr inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < __size); return __data_label[i]; }
@@ -192,8 +182,8 @@ public:
 	}
 
 public:
-	ValueType *__data_value = nullptr;
-	LabelType *__data_label = nullptr;
+	alignas(PAGE_SIZE) std::vector<ValueType> __data_value;
+	alignas(PAGE_SIZE) std::vector<LabelType> __data_label;
 };
 
 
