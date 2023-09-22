@@ -6,6 +6,7 @@
 
 #include "helper.h"
 #include "list/common.h"
+#include "list/enumeration/enumeration.h"
 #include "container/hashmap/common.h"
 
 ///

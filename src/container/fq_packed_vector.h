@@ -4,11 +4,12 @@
 #include <array>
 #include <cstdint>
 #include <atomic>
-#include <stddef.h>
+#include <cstddef>
 
 #include "helper.h"
 #include "random.h"
 #include "popcount/popcount.h"
+#include "container/binary_packed_vector.h"
 
 #if defined(USE_AVX2)
 #include <immintrin.h>
@@ -632,6 +633,17 @@ public:
 	// base constructor
 	constexpr kAryPackedContainer_T () = default;
 };
+
+/// lel, C++ metaprogramming is king
+/// \tparam n
+template<const uint32_t n>
+class kAryPackedContainer_T<uint64_t, n, 2>: public BinaryContainer<n, uint64_t> {
+public:
+	/// this is just defined, because Im lazy
+	static constexpr uint32_t q = 2;
+};
+
+
 
 ///
 /// partly specialized class for q=3

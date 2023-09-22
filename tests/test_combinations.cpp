@@ -4,7 +4,7 @@
 #include <array>
 
 #include "m4ri/m4ri.h"
-#include "combination/binary.h"
+#include "combination/chase.h"
 #include "test.h"
 
 using ::testing::EmptyTestEventListener;

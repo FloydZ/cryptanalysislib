@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <cstddef>
 
+#include "combination/chase.h"
 #include "helper.h"
-#include "combination/fq/chase.h"
 
 #if __cplusplus > 201709L
 ///

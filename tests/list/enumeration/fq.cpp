@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 
+#include "combination/chase.h"
+#include "container/fq_vector.h"
 #include "helper.h"
-#include "random.h"
-#include "combination/fq/chase.h"
 #include "list/enumeration/fq_new.h"
 #include "list/list.h"
-#include "container/fq_vector.h"
 #include "matrix/fq_matrix.h"
+#include "random.h"
 #include "sort.h"
 
 using ::testing::InitGoogleTest;

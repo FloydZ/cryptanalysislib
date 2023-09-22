@@ -4,7 +4,7 @@
 #include "../bench_config.h"
 
 #include "helper.h"
-#include "combination/binary.h"
+#include "combination/chase.h"
 #include "list/list.h"
 
 #define COMBINATIONS_SIZE_LOG 100u

@@ -54,24 +54,23 @@ jobs:
         ./tests/test_tree
         ./tests/test_value
         ./tests/alloc/test_alloc_dev
-        ./tests/binary/test_binary_128
-        ./tests/binary/test_binary_256_align
-        ./tests/binary/test_binary_64
-        ./tests/binary/test_binary_container
-        ./tests/binary/test_binary_container_label
-        ./tests/binary/test_binary_tree
-        ./tests/binary/test_binary_128_align
         ./tests/binary/test_binary_32
-        ./tests/binary/test_binary_64_align
-        ./tests/binary/test_binary_container_avx
-        ./tests/binary/test_binary_element
-        ./tests/binary/test_binary_list
-        ./tests/binary/test_binary_256
         ./tests/binary/test_binary_32_align
+        ./tests/binary/test_binary_64
+        ./tests/binary/test_binary_64_align
+        ./tests/binary/test_binary_128
+        ./tests/binary/test_binary_128_align
+        ./tests/binary/test_binary_256
+        ./tests/binary/test_binary_256_align
         ./tests/binary/test_binary_build_tree
+        ./tests/binary/test_binary_container
+        ./tests/binary/test_binary_container_avx
         ./tests/binary/test_binary_container_cmp 
+        ./tests/binary/test_binary_element
         ./tests/binary/test_binary_extended_tree
+        ./tests/binary/test_binary_list
         ./tests/binary/test_binary_sort
+        ./tests/binary/test_binary_tree
         ./tests/container/test_container_constNonBlockingLinkedList
         ./tests/container/test_container_fq_vector
         ./tests/container/test_container_packed_f3

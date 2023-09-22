@@ -1,7 +1,7 @@
 #ifndef CRYPTANALYSISLIB_TERNARY_H
 #define CRYPTANALYSISLIB_TERNARY_H
 
-#include "combination/binary.h"
+#include "combination/chase.h"
 
 
 // TODO replace with fq combinariont
