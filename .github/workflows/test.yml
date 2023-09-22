@@ -93,7 +93,8 @@ jobs:
         ./tests/simd/test_simd_avx
         ./tests/sort/test_sort_sorting_algorithms
         ./tests/sort/test_sort_sorting_network
-        ./tests/thread/test_thread
+        ./tests/thread/test_thread_simple
+        ./tests/thread/test_thread_omp
 
 
   Benchmark:
