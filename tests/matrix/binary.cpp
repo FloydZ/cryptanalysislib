@@ -15,7 +15,7 @@ using ::testing::UnitTest;
 
 using T = uint64_t;
 constexpr uint32_t q = 2;
-constexpr uint32_t nrows = 256; // TODO
+constexpr uint32_t nrows = 256;
 constexpr uint32_t ncols = 256;
 using M  = FqMatrix<T, nrows, ncols, q>;
 using MT = FqMatrix<T, ncols, nrows, q>;

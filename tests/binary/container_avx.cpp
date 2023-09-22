@@ -20,7 +20,6 @@ using ::testing::UnitTest;
 
 #ifdef USE_AVX2
 
-// TODO CI not working
 TEST(AddAVX2, Full_Length_Zero) {
 	BinaryContainer<n> b1;
 	BinaryContainer<n> b2;

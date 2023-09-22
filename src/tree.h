@@ -684,7 +684,7 @@ public:
 		streamjoin4lists(out, L1, L2, L3, L4, target, k_lower1, k_upper1, k_lower2, k_upper2, prepare);
     }
 
-	/// TODO
+	/// TODO explain
 	/// \param out
 	/// \param L1
 	/// \param L2
@@ -1182,7 +1182,7 @@ public:
 	typedef typename List::MatrixType MatrixType;
 
 	// TODO generalize
-	using ArgumentLimbType = uint64_t;
+	using ArgumentLimbType = ValueDataType;
 	using Extractor = WindowExtractor<LabelType, ArgumentLimbType>;
 
 	// internal data types lengths

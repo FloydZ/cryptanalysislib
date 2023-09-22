@@ -19,8 +19,6 @@ constexpr uint32_t k = 100;
 
 constexpr uint32_t q = 3;
 using kAryType          = kAry_Type_T<uint32_t, uint64_t, q>;
-/// TODO support this using kAryContainer     = Vector<kAryType, n>;
-/// TODO support this using kAryContainer2    = Vector<kAryType, k>;
 using kAryContainer     = kAryContainer_T<uint8_t, n, q>;
 using kAryContainer2    = kAryContainer_T<uint8_t, k, q>;
 using kAryLabel         = kAryContainer2;

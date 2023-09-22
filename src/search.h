@@ -584,7 +584,7 @@ ForwardIt upper_bound_adaptive_binary_search(ForwardIt first, ForwardIt last, co
 		while (true) {
 			if (std::distance(first, bot) >= std::distance(top, last)) {
 				top = last;
-				std::advance(top, -std::distance(first, bot)); // TODO maybe -1?
+				std::advance(top, -std::distance(first, bot));
 				break;
 			}
 			std::advance(bot, std::distance(first, top));
@@ -699,7 +699,7 @@ size_t LowerBoundInterpolationSearch(const  T*__buckets,
 /// \return
 template<typename ForwardIt, typename Extract>
 #if __cplusplus > 201709L
-//TODO	requires std::random_access_iterator<ForwardIt>
+	requires std::random_access_iterator<ForwardIt>
 #endif
 ForwardIt LowerBoundInterpolationSearch(ForwardIt first, ForwardIt last, const typename ForwardIt::value_type &key_, Extract e) noexcept {
 	using diff_type = typename std::iterator_traits<ForwardIt>::difference_type;

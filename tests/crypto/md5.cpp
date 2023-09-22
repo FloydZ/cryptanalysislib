@@ -2,7 +2,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <cstdio>
-#include <cstdint>
 
 #include "helper.h"
 #include "random.h"
@@ -19,9 +18,9 @@ using ::testing::UnitTest;
 
 //using namespace cryptanalysislib;
 
-// TEST(MD5, simple) {
+TEST(MD5, simple) {
 // 	constexpr MD5 hash_value = MD5("Hello World");
-// }
+}
 
 
 int main(int argc, char **argv) {

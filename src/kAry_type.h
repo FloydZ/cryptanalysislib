@@ -22,10 +22,6 @@ concept kAry_TypeAble =
 			t * t;
 			t % t;
 			t % a;
-	        // TODO
-			//{t + t} -> std::convertible_to<T2>;
-			//{t * t} -> std::convertible_to<T2>;
-			//{t} -> std::convertible_to<T2>;
 			sizeof(T) < sizeof(T2);
 };
 #endif
