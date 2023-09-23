@@ -536,7 +536,7 @@ constexpr inline void uint64x4_t::print(bool binary, bool hex) const {
 
 	if (hex) {
 		for (uint32_t i = 0; i < 4; i++) {
-			printf("%lx ", this->v64[i]);
+			printf("%" PRIu64 " ", this->v64[i]);
 		}
 
 		return;

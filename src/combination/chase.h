@@ -27,7 +27,7 @@ constexpr size_t compute_combinations_fq_chase_list_size() {
 	}
 
 	// just make sure that we do not return zero.
-	return std::max(size, uint64_t(1ull)) * (bc(n, w) - 1);
+	return std::max(size, size_t(1ull)) * (bc(n, w) - 1);
 }
 
 /// This class enumerates a normal chase sequence of weight w. This means

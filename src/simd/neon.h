@@ -4,6 +4,19 @@
 #include <arm_neon.h>
 #include <cstdint>
 
+#ifdef __GNUC__
+#include <arm_fp16.h>
+#include <arm_bf16.h>
+#include <stdint.h>
+typedef __Uint8x8_t   __uint8x8_t;
+typedef __Uint8x16_t  __uint8x16_t;
+typedef __Uint16x4_t  __uint16x4_t;
+typedef __Uint16x8_t  __uint16x8_t;
+typedef __Uint32x2_t  __uint32x2_t;
+typedef __Uint32x4_t  __uint32x4_t;
+typedef __Uint64x1_t  __uint64x1_t;
+typedef __Uint64x2_t  __uint64x2_t;
+#else
 typedef __attribute__((neon_vector_type(8))) uint8_t  __uint8x8_t;
 typedef __attribute__((neon_vector_type(16))) uint8_t __uint8x16_t;
 typedef __attribute__((neon_vector_type(16)))  int8_t __int8x16_t;
@@ -13,6 +26,8 @@ typedef __attribute__((neon_vector_type(2))) uint32_t __uint32x2_t;
 typedef __attribute__((neon_vector_type(4))) uint32_t __uint32x4_t;
 typedef __attribute__((neon_vector_type(1))) uint64_t __uint64x1_t;
 typedef __attribute__((neon_vector_type(2))) uint64_t __uint64x2_t;
+#endif
+
 
 struct uint8x32_t {
 	union {
@@ -119,7 +134,11 @@ struct uint8x32_t {
 		uint8x32_t out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
+#ifdef __GNUC__
+			out.v128[i] = (__uint8x16_t) vldrq_p128(ptr128);
+#else
 			out.v128[i] = (__uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
 		}
 		return out;
 	}
@@ -133,7 +152,11 @@ struct uint8x32_t {
 		uint8x32_t out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
+#ifdef __GNUC__
+			out.v128[i] = (__uint8x16_t) vldrq_p128(ptr128);
+#else
 			out.v128[i] = (__uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
 		}
 		return out;
 	}
@@ -160,7 +183,11 @@ struct uint8x32_t {
 		auto *ptr128 = (poly128_t *)ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __GNUC__
+			vstrq_p128(ptr128, (poly128_t)in.v128[i]);
+#else
 			__builtin_neon_vstrq_p128(ptr128, (poly128_t)in.v128[i]);
+#endif
 		}
 	}
 
@@ -171,7 +198,11 @@ struct uint8x32_t {
 		auto *ptr128 = (poly128_t *)ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __GNUC__
+			vstrq_p128(ptr128, (poly128_t)in.v128[i]);
+#else
 			__builtin_neon_vstrq_p128(ptr128, (poly128_t)in.v128[i]);
+#endif
 		}
 	}
 
@@ -297,7 +328,11 @@ struct uint8x32_t {
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __GNUC__
+			//TODO out.v128[i] = vshlq_v(in1.v128[i], (__int8x16_t)tmp.v128[0], 48u);
+#else
 			out.v128[i] = __builtin_neon_vshlq_v(in1.v128[i], (__int8x16_t)tmp.v128[0], 48u);
+#endif
 		}
 
 		return out;
@@ -315,7 +350,11 @@ struct uint8x32_t {
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __GNUC__
+			//TODO out.v128[i] = vshlq_v(in1.v128[i], (__int8x16_t)tmp.v128[0], 48u);
+#else
 			out.v128[i] = __builtin_neon_vshlq_v(in1.v128[i], (__int8x16_t)tmp.v128[0], 48u);
+#endif
 		}
 
 		return out;
