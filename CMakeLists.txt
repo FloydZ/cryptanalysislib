@@ -19,6 +19,10 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 include("deps/cmake_optimize_for_architecture/OptimizeForArchitecture.cmake")
 OptimizeForArchitecture()
 
+# only for the CI
+include_directories("benchmark/include")
+link_directories("benchmark/build/src")
+
 # include the external projects 'fplll', 'g6k', 'abseil' and 'tcmalloc'
 #ExternalProject_Add(fplll_project
 #        SOURCE_DIR        ${CMAKE_SOURCE_DIR}/deps/fplll
