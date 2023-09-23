@@ -1,5 +1,7 @@
 name: test
 
+
+
 on:
   push:
     branches: [ "master" ]
@@ -12,7 +14,13 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [ g++-10, g++-11, g++-12 ]
+
+    name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v3
