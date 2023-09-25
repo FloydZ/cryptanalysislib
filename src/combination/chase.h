@@ -128,6 +128,8 @@ public:
 				f[j+1] = j + 1;
 			}
 		}
+
+		return 0;
 	}
 
 	/// \param r helper value, init with 0

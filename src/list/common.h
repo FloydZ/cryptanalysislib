@@ -228,6 +228,7 @@ public:
 
 		return __thread_block_size;
 	}
+
 	/// set the size
 	constexpr void set_size(const size_t new_size) noexcept {
 		resize(new_size);
