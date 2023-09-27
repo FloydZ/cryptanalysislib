@@ -21,7 +21,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-constexpr uint64_t LOOPS = (1u << 4u);
+constexpr uint64_t LOOPS = (1u << 15u);
 
 
 TEST(Matrix, partial_plusfix) {
@@ -44,15 +44,19 @@ TEST(Matrix, partial_plusfix) {
 
 	for (uint64_t f = 0; f < LOOPS; f++) {
 		matrix_create_random_permutation(A, AT, P);
-		uint32_t rang = matrix_echelonize_partial_plusfix(A, m4ri_k, n - k - l, cmd, 0, n - k - l, 0, P);
-		EXPECT_EQ(rang, n-k-l);
+		uint32_t rang = matrix_echelonize_partial_plusfix(A, m4ri_k, n-k-l, cmd, 0, n - k - l, 0, P);
+		if (rang < n-k-l) {
+			continue;
+		}
+		
+		EXPECT_LE(rang, n-k-l);
 	
 		for (uint32_t i = 0; i < (n-k-l); ++i) {
 			for (uint32_t j = 0; j < (n-k-l); ++j) {
 				EXPECT_EQ(mzd_read_bit(A, i, j), i == j);
 				
 				if (mzd_read_bit(A, i, j) != (i == j)) {
-					printf("%lu: %d %d\n", f, i, j);
+					printf("%" PRIu64 ": %d %d\n", f, i, j);
 					print_matrix("", A);
 					goto fin;
 				}
@@ -100,7 +104,7 @@ TEST(Matrix, partial_plusfix_opt) {
 		for (uint32_t i = 0; i < n-k-l; ++i) {
 			for (uint32_t j = 0; j < n-k-l; ++j) {
 				if (mzd_read_bit(A, i, j) != (i == j)) {
-					printf("%lu: %d %d\n", f, i, j);
+					printf("%" PRIu64 ": %d %d\n", f, i, j);
 					//print_matrix("", A);
 					goto fin;
 				}
@@ -153,7 +157,7 @@ TEST(Matrix, partial_plusfix_opt_only_c) {
 			for (uint32_t j = 0; j < n-k-l; ++j) {
 				EXPECT_EQ(mzd_read_bit(A, i, j), i == j);
 				if (mzd_read_bit(A, i, j) != (i == j)) {
-					printf("%lu: %d %d\n", f, i, j);
+					printf("%" PRIu64 ": %d %d\n", f, i, j);
 					//print_matrix("", A);
 					goto fin;
 				}

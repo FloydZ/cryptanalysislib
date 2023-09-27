@@ -4,7 +4,7 @@
 #include <arm_neon.h>
 #include <cstdint>
 
-#ifdef __GNUC__
+#ifndef __clang__
 #include <arm_fp16.h>
 #include <arm_bf16.h>
 #include <stdint.h>

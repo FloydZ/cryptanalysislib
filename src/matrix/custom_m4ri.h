@@ -646,8 +646,6 @@ static size_t matrix_fix_gaus(mzd_t *__restrict__ M,
 		for (size_t i = fix_col+look_ahead; i < size_t(M->ncols); ++i) {
 			if (mzd_read_bit(M, b, i)) {
 				found = true;
-				// if (i == b)
-				// 	break;
 
 				std::swap(permutation->values[i-look_ahead], permutation->values[b]);
 				mzd_col_swap(M, b, i);
@@ -670,8 +668,9 @@ static size_t matrix_fix_gaus(mzd_t *__restrict__ M,
 				}
 			}
 		} else {
-			// if we were not able to fix the gaussian elimination, we return the original rang which was solved
-			return rang;
+			// if we were not able to fix the gaussian elimination, we return 
+			// how far we got
+			return b;
 		}
 	}
 

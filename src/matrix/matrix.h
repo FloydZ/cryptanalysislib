@@ -63,8 +63,8 @@ concept MatrixAble = requires(MatrixType c) {
 		MatrixType::add(c, c, c);
 		MatrixType::sub(c, c, c);
 		// TODO allow for different types MatrixType::transpose(c, c);
-		//MatrixType::sub_transpose(c, c, i, i);
-		//MatrixType::sub_matrix(c, c, i, i, i, i);
+		MatrixType::sub_transpose(c, c, i, i);
+		MatrixType::sub_matrix(c, c, i, i, i, i);
 
 		//TODO c.matrix_vector_mul(c);
 		//TODO c.matrix_matrix_mul(c);
@@ -149,6 +149,24 @@ public:
 	constexpr void copy(const FqMatrix_Meta &A) {
 		// __data.copy(A.__data, sizeof __data);
 		memcpy(__data.data(), A.__data.data(), nrows*sizeof(RowType));
+	}
+
+
+	/// copy a smaller matrix into to big matrix
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packed_prime>
+	constexpr void copy_sub(const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed_prime> &A,
+							const uint32_t srow, const uint32_t scol) {
+		static_assert(nrows_prime <= nrows);
+		static_assert(ncols_prime <= ncols);
+		ASSERT(nrows_prime + srow <= nrows);
+		ASSERT(ncols_prime + scol <= ncols);
+
+		for (uint32_t i = 0; i < nrows_prime; i++) {
+			for (uint32_t j = 0; j < ncols_prime; j++) {
+				const DataType data = A.get(i, j);
+				set(i + srow, j + scol, data);
+			}	
+		}
 	}
 
 	/// sets all entries in a matrix
@@ -270,6 +288,22 @@ public:
 		}
 	}
 
+	/// simple scalar operations: A*in
+	constexpr void scalar(const DataType in) noexcept {
+		for (uint32_t i = 0; i < nrows; i++) {
+			RowType::scalar(__data[i], __data[i], in);
+		}
+	}
+
+	/// simple scalar operations: A*in
+	constexpr static void scalar(FqMatrix_Meta &out,
+								 const FqMatrix_Meta &in,
+								 const DataType scalar) noexcept {
+		for (uint32_t i = 0; i < nrows; i++) {
+			RowType::scalar(out.__data[i], in.__data[i], scalar);
+		}
+	}
+
 	/// direct transpose of the full matrix
 	constexpr FqMatrix_Meta<T, ncols, nrows, q> transpose() const noexcept {
 		FqMatrix_Meta<T, ncols, nrows, q> ret;
@@ -283,6 +317,7 @@ public:
 
 		return ret;
 	}
+
 
 	/// direct transpose of the full matrix
 	/// \param B output
