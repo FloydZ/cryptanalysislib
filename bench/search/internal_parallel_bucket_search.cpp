@@ -4,8 +4,8 @@
 #include "../bench_config.h"
 
 #include "container/binary_packed_vector.h"
-#include "search.h"
-#include <helper.h>
+#include "search/search.h"
+#include "helper.h"
 
 using namespace std;
 constexpr static uint64_t SIZE = 1<<20;

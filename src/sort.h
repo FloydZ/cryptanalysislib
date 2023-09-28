@@ -20,7 +20,7 @@
 #include "container/triple.h"
 #include "helper.h"
 #include "list/list.h"
-#include "search.h"
+#include "search/search.h"
 #include "sort/ska_sort.h"
 #include "sort.h"
 #include "thread/thread.h"

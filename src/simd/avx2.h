@@ -9,6 +9,7 @@
 #include <cstdio>
 
 #include "helper.h"
+#include "popcount/avx2.h"
 
 //
 #if CUSTOM_ALIGNMENT
@@ -358,6 +359,19 @@ struct uint8x32_t {
 		out.v256 = _mm256_srli_epi16(out.v256, in2);
 		return out;
 	}
+
+	static inline int gt(const uint8x32_t in1, const uint8x32_t in2) {
+
+	}
+
+	static inline int cmp(const uint8x32_t in1, const uint8x32_t in2) {
+
+	}
+
+	static inline uint8x32_t popcnt(const uint8x32_t in) {
+
+	}
+
 };
 
 struct uint16x16_t {
@@ -536,6 +550,21 @@ struct uint16x16_t {
 		out.v256 = _mm256_mullo_epi16(in1.v256, in2.v256);
 		return out;
 	}
+
+
+
+	static inline int gt(const uint16x16_t in1, const uint16x16_t in2) {
+
+	}
+
+	static inline int cmp(const uint16x16_t in1, const uint16x16_t in2) {
+
+	}
+
+	static inline uint16x16_t popcnt(const uint16x16_t in) {
+
+	}
+
 };
 
 struct uint32x8_t {
@@ -714,6 +743,38 @@ struct uint32x8_t {
 		out.v256 = _mm256_mullo_epi16(in1.v256, in2.v256);
 		return out;
 	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	static inline int gt(const uint32x8_t in1, const uint32x8_t in2) {
+		const __m256i tmp = _mm256_cmpgt_epi32(in1.v256, in2.v256);
+		return _mm256_movemask_ps(tmp);
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	static inline int cmp(const uint32x8_t in1, const uint32x8_t in2) {
+		const __m256i tmp = _mm256_cmpeq_epi32(in1.v256, in2.v256);
+		return _mm256_movemask_ps(tmp);
+	}
+
+	///
+	/// \param in
+	/// \return
+	static inline uint32x8_t popcnt(const uint32x8_t in) {
+		uint32x8_t ret;
+
+#ifdef USE_AVX512
+		ret.v256 = _mm256_popcnt_epi32(in.v256);
+#else
+		ret.v256 = popcount_avx2_32(in.v256);
+#endif
+		return ret;
+	}
 };
 
 struct uint64x4_t {
@@ -891,6 +952,33 @@ struct uint64x4_t {
 		ASSERT(false);
 		uint64x4_t out;
 		return out;
+	}
+
+	static inline uint64x4_t permute(const uint64x4_t in1, const uint32_t in2) {
+		uint64x4_t ret;
+		ret.v256 = _mm256_permute4x64_epi64(in1.v256, in2);
+		return ret;
+	}
+
+	static inline int gt(const uint64x4_t in1, const uint64x4_t in2) {
+		const __m256i tmp = _mm256_cmpgt_epi64(in1.v256, in2.v256);
+		return _mm256_movemask_pd(tmp);
+	}
+
+	static inline int cmp(const uint64x4_t in1, const uint64x4_t in2) {
+		const __m256i tmp = _mm256_cmpeq_epi64(in1.v256, in2.v256);
+		return _mm256_movemask_pd(tmp);
+	}
+
+	static inline uint64x4_t popcnt(const uint64x4_t in) {
+		uint64x4_t ret;
+
+#ifdef USE_AVX512
+		ret.v256 = _mm256_popcnt_epi64(in.v256);
+#else
+		ret.v256 = popcount_avx2_64(in.v256);
+#endif
+		return ret;
 	}
 };
 

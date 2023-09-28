@@ -11,6 +11,7 @@
 
 #include "random.h"
 #include "helper.h"
+#include "simd/simd.h"
 
 #ifdef USE_AVX2
 #include "popcount/avx2.h"
@@ -558,7 +559,7 @@ public:
 	/// \param e1 end index of list 1
 	/// \param e2 end index list 2
 	void bruteforce_32(const size_t e1,
-					   const size_t e2) noexcept {
+	                   const size_t e2) noexcept {
 		ASSERT(n <= 32);
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
@@ -568,7 +569,7 @@ public:
 		constexpr uint32_t limb_pos = 0;
 
 		for (size_t i = s1; i < e1; ++i) {
-			for (size_t j = s2; j < s2+e2; ++j) {
+			for (size_t j = s2; j < s2 + e2; ++j) {
 				if (compare_u32(L1[i][limb_pos], L2[j][limb_pos])) {
 					found_solution(i, j);
 				}
@@ -583,7 +584,7 @@ public:
 	/// \param s2 start index list 2
 	/// \param e2 end index list 2
 	void bruteforce_64(const size_t e1,
-					   const size_t e2) noexcept {
+	                   const size_t e2) noexcept {
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -612,16 +613,16 @@ public:
 	/// \param e1 end index of list 1
 	/// \param e2 end index list 2
 	void bruteforce_96(const size_t e1,
-					   const size_t e2) noexcept {
+	                   const size_t e2) noexcept {
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
 
 		// we need 32bit limbs
-		using TT = uint32_t; // NOTE do not change.
+		using TT = uint32_t;// NOTE do not change.
 		using Element2 = T[3];
-		Element2 *LL1 = (Element2 *)L1;
-		Element2 *LL2 = (Element2 *)L2;
+		Element2 *LL1 = (Element2 *) L1;
+		Element2 *LL2 = (Element2 *) L2;
 		for (size_t i = s1; i < e1; i++) {
 			for (size_t j = s2; j < e2; j++) {
 				if constexpr (EXACT) {
@@ -630,14 +631,13 @@ public:
 						found_solution(i, j);
 					}
 				} else {
-					const uint32_t t =  (__builtin_popcountll(LL1[i][0] ^ LL2[j][0]) <= d) +
-										(__builtin_popcountll(LL1[i][1] ^ LL2[j][1]) <= d) +
-										(__builtin_popcountll(LL1[i][2] ^ LL2[j][2]) <= d);
-					if (t == 3){
+					const uint32_t t = (__builtin_popcountll(LL1[i][0] ^ LL2[j][0]) <= d) +
+					                   (__builtin_popcountll(LL1[i][1] ^ LL2[j][1]) <= d) +
+					                   (__builtin_popcountll(LL1[i][2] ^ LL2[j][2]) <= d);
+					if (t == 3) {
 						found_solution(i, j);
 					}
 				}
-
 			}
 		}
 	}
@@ -647,7 +647,7 @@ public:
 	/// \param e1 end index of list 1
 	/// \param e2 end index list 2
 	void bruteforce_128(const size_t e1,
-						const size_t e2) noexcept {
+	                    const size_t e2) noexcept {
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -667,7 +667,7 @@ public:
 	/// \param e1 end index of list 1
 	/// \param e2 end index list 2
 	void bruteforce_256(const size_t e1,
-						const size_t e2) noexcept {
+	                    const size_t e2) noexcept {
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -689,8 +689,8 @@ public:
 	/// \return
 	template<const uint32_t limb>
 	size_t sort_nn_on32(const size_t e1,
-						const uint64_t z,
-						Element *__restrict__ L) const noexcept {
+	                    const uint64_t z,
+	                    Element *__restrict__ L) const noexcept {
 		//TODO
 		return 0;
 	}
@@ -703,8 +703,8 @@ public:
 	/// \return
 	template<const uint32_t limb>
 	size_t sort_nn_on64(const size_t e1,
-						const uint64_t z,
-						Element *__restrict__ L) const noexcept {
+	                    const uint64_t z,
+	                    Element *__restrict__ L) const noexcept {
 		//TODO
 		return 0;
 	}
@@ -723,12 +723,12 @@ public:
 	/// core entry function for the implementation of the Esser, Kuebler, Zweydinger NN algorithm
 	/// \param e1 size of the left list
 	/// \param e2 size of the right list
-	constexpr void run(const size_t e1=LIST_SIZE,
-	                   const size_t e2=LIST_SIZE) noexcept {
+	constexpr void run(const size_t e1 = LIST_SIZE,
+	                   const size_t e2 = LIST_SIZE) noexcept {
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
 
-		for (size_t i = 0; i < P*N; ++i) {
-			if constexpr(32 < n and n <= 256) {
+		for (size_t i = 0; i < P * N; ++i) {
+			if constexpr (32 < n and n <= 256) {
 #ifdef USE_AVX2
 				avx2_nn_internal<r>(e1, e2);
 #else
@@ -743,13 +743,431 @@ public:
 		}
 	}
 
-	constexpr void nn(const size_t e1=LIST_SIZE,
-	                  const size_t e2=LIST_SIZE) noexcept {
+	///
+	/// \param e1
+	/// \param e2
+	/// \return
+	constexpr void nn(const size_t e1 = LIST_SIZE,
+	                  const size_t e2 = LIST_SIZE) noexcept {
 		run(e1, e2);
 	}
 #ifdef USE_AVX2
-	#include "avx2.h"
+#include "avx2.h"
 #endif
+
+	///////////////////////////// SIMD \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+	/// \tparam exact if set to true: a simple equality check is done
+	/// \param in1 first input
+	/// \param in2 second input
+	/// \return compresses equality check:
+	///			[bit0 = in1.v32[0] == in2.v32[0],
+	/// 						....,
+	/// 		 bit7 = in1.v32[7] == in2.v32[7]]
+	template<const bool exact = false>
+	int compare_256_32(const uint32x8_t in1,
+	                   const uint32x8_t in2) const noexcept {
+		if constexpr (exact) {
+			return uint32x8_t::cmp(in1, in2);
+		}
+
+		const uint32x8_t pop = uint32x8_t::popcnt(in1 ^ in2);
+
+		if constexpr (dk_bruteforce_weight > 0) {
+			if constexpr (EXACT) {
+				const uint32x8_t weight = uint32x8_t::set1(dk_bruteforce_weight);
+				return weight == pop;
+			} else {
+				const uint32x8_t weight = uint32x8_t::set1(dk_bruteforce_weight + 1);
+				return weight < pop;
+			}
+
+			// just to make sure that the compiler will not compiler the
+			// following code
+			return 0;
+		}
+
+		if constexpr (EXACT) {
+			const uint32x8_t weight = uint32x8_t::set1(d);
+			return weight == pop;
+		} else {
+			const uint32x8_t weight = uint32x8_t::set1(d + 1);
+			return weight < pop;
+		}
+	}
+
+	/// \tparam exact if set to true: a simple equality check is done
+	/// \param in1 first input
+	/// \param in2 second input
+	/// \return compresses equality check:
+	///			[bit0 = in1.v32[0] == in2.v32[0],
+	/// 						....,
+	/// 		 bit7 = in1.v32[7] == in2.v32[7]]
+	template<const bool exact = false>
+	int compare_256_64(const uint64x4_t in1,
+	                   const uint64x4_t in2) const noexcept {
+		if constexpr (exact) {
+			return uint64x4_t::cmp(in1, in2);
+		}
+
+		const uint64x4_t pop = uint64x4_t::popcnt(in1 ^ in2);
+
+		if constexpr (dk_bruteforce_weight > 0) {
+			if constexpr (EXACT) {
+				const uint64x4_t weight = uint64x4_t::set1(dk_bruteforce_weight);
+				return weight == pop;
+			} else {
+				const uint64x4_t weight = uint64x4_t::set1(dk_bruteforce_weight + 1);
+				return weight < pop;
+			}
+
+			// just to make sure that the compiler will not compiler the
+			// following code
+			return 0;
+		}
+
+		if constexpr (EXACT) {
+			const uint64x4_t weight = uint64x4_t::set1(d);
+			return weight == pop;
+		} else {
+			const uint64x4_t weight = uint64x4_t::set1(d + 1);
+			return weight < pop;
+		}
+	}
+
+
+	/// bruteforce the two lists between the given start and end indices.
+	/// NOTE: only compares a single 32 bit column of the list. But its
+	///			still possible
+	/// NOTE: only in limb comparison possible. inter limb (e.g. bit 23...43) is impossible.
+	/// NOTE: uses avx2
+	/// NOTE: only a single 32bit element is compared.
+	/// \param e1 end index of list 1
+	/// \param e2 end index list 2
+	void bruteforce_simd_32(const size_t e1,
+							const size_t e2) noexcept {
+		ASSERT(n <= 32);
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+		ASSERT(d < 16);
+
+		/// difference of the memory location in the right list
+		const uint32x8_t loadr = uint32x8_t::setr(0, 1, 2, 3, 4, 5, 6, 7);
+
+		for (size_t i = s1; i < e1; ++i) {
+			// NOTE: implicit typecast because T = uint64
+			const uint32x8_t li = uint32x8_t::set1(L1[i][0]);
+
+			/// NOTE: only possible because L2 is a continuous memory block
+			const uint32_t *ptr_r = (uint32_t *)L2;
+
+			for (size_t j = s2; j < s2+(e2+7)/8; ++j, ptr_r += 16) {
+				const uint32x8_t ri = uint32x8_t::gather((const int *)ptr_r, loadr, 8);
+				const int m = compare_256_32(li, ri);
+
+				if (m) {
+					const size_t jprime = j*8 + __builtin_ctz(m);
+					if (compare_u64_ptr((T *)(L1 + i), (T *)(L2 + jprime))) {
+						//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
+						found_solution(i, jprime);
+					}
+				}
+			}
+		}
+	}
+
+	/// bruteforce the two lists between the given start and end indices.
+	/// NOTE: uses avx2
+	/// NOTE: only compares a single 64 bit column of the list. But its
+	///			still possible
+	/// NOTE: only in limb comparison possible. inter limb (e.g. bit 43...83) is impossible.
+	/// \param e1 end index of list 1
+	/// \param e2 end index list 2
+	void bruteforce_simd_64(const size_t e1,
+							const size_t e2) noexcept {
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(n <= 64);
+		ASSERT(n > 32);
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+
+		/// strive is the number of bytes to the next element
+		constexpr uint32_t stride = 8;
+
+		/// difference of the memory location in the right list
+		const uint32x4_t loadr = { (1ull << 32u), (2ul) | (3ull << 32u) };
+
+		for (size_t i = s1; i < e1; ++i) {
+			const uint64x4_t li = uint64x4_t::set1(L1[i][0]);
+
+			/// NOTE: only possible because L2 is a continuous memory block
+			T *ptr_r = (T *)L2;
+
+			for (size_t j = s2; j < s2+(e2+3)/4; ++j, ptr_r += 4) {
+				const uint64x4_t ri = uint64x4_t::set1((const long long int *)ptr_r, loadr, stride);
+				const int m = compare_256_64<true>(li, ri);
+
+				if (m) {
+					const size_t jprime = j*4+__builtin_ctz(m);
+
+					if (compare_u64_ptr((T *)(L1 + i), (T *)(L2 + jprime))) {
+						//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
+						found_solution(i, jprime);
+					}
+				}
+			}
+		}
+	}
+
+	/// NOTE: in comparison to the other version `bruteforce_avx2_64` this implementation
+	///			assumes that the elements to compare are fully compared on all n variables
+	///  		e.g. ELEMENT_NR_LIMBS == 1
+	/// \param e1 end index of list 1
+	/// \param e2 end index list 2
+	void bruteforce_simd_64_1x1(const size_t e1,
+								const size_t e2) noexcept {
+		ASSERT(ELEMENT_NR_LIMBS == 1);
+		ASSERT(n <= 64);
+		ASSERT(n > 32);
+
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+
+
+		for (size_t i = s1; i < e1; ++i) {
+			const uint64x4_t li = uint64x4_t::set1(L1[i][0]);
+
+			/// NOTE: only possible because L2 is a continuous memory block
+			uint64x4_t *ptr_r = (uint64x4_t *)L2;
+
+			for (size_t j = s2; j < s2+(e2+3)/4; ++j, ptr_r += 1) {
+				const uint64x4_t ri = uint64x4_t::load(ptr_r);
+				const int m = compare_256_64<true>(li, ri);
+
+				if (m) {
+					const size_t jprime = j*4 + __builtin_ctz(m);
+
+					if (compare_u64_ptr((T *)(L1 + i), (T *)(L2 + jprime))) {
+						found_solution(i, jprime);
+					}
+				}
+			}
+		}
+	}
+
+
+	/// NOTE: in comparison to the other version `bruteforce_avx2_64` this implementation
+	///			assumes that the elements to compare are fully compared on all n variables
+	///  		e.g. ELEMENT_NR_LIMBS == 1
+	/// NOTE: compared to `bruteforce_avx2_64_1x1` this unrolls `u` elementes in the left
+	///			list and `v` elements on the right.
+	/// \param e1 end index of list 1
+	/// \param e2 end index list 2
+	template<const uint32_t u, const uint32_t v>
+	void bruteforce_simd_64_uxv(const size_t e1,
+								const size_t e2) noexcept {
+		ASSERT(ELEMENT_NR_LIMBS == 1);
+		ASSERT(n <= 64);
+		ASSERT(n >= 33);
+
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+
+		uint64x4_t lii[u], rii[v];
+
+		for (size_t i = s1; i < e1; i += u) {
+
+			#pragma unroll
+			for (uint32_t j = 0; j < u; ++j) {
+				lii[j] = uint64x4_t::set1(L1[i + j][0]);
+			}
+
+			/// NOTE: only possible because L2 is a continuous memory block
+			uint64x4_t *ptr_r = (uint64x4_t *)L2;
+
+			for (size_t j = s2; j < s2+(e2+3)/4; j += v, ptr_r += v) {
+
+				#pragma unroll
+				for (uint32_t s = 0; s < v; ++s) {
+					rii[s] = uint64x4_t::load(ptr_r + s);
+				}
+
+				#pragma unroll
+				for (uint32_t a1 = 0; a1 < u; ++a1) {
+					const uint64x4_t tmp1 = lii[a1];
+
+					#pragma unroll
+					for (uint32_t a2 = 0; a2 < v; ++a2) {
+						const uint64x4_t tmp2 = rii[a2];
+						const int m = compare_256_64<true>(tmp1, tmp2);
+
+						if (m) {
+							const size_t jprime = j*4 + a2*4 + __builtin_ctz(m);
+							const size_t iprime = i + a1;
+
+							if (compare_u64_ptr((T *)(L1 + iprime), (T *)(L2 + jprime))) {
+								found_solution(iprime, jprime);
+							}
+						} // if
+					} // for v
+				} // for u
+			} // for right list
+		} // for left list
+	}
+
+
+	/// NOTE: in comparison to the other version `bruteforce_avx2_64` this implementation
+	///			assumes that the elements to compare are fully compared on all n variables
+	///  		e.g. ELEMENT_NR_LIMBS == 1
+	/// NOTE: compared to `bruteforce_avx2_64_1x1` this unrolls `u` elements in the left
+	///			list and `v` elements on the right.
+	/// NOTE: compared to `bruteforce_avx2_64_uxv` this function is not only comparing 1
+	///			element of the left list with u elements from the right. Side
+	///			Internally the loop is unrolled to compare u*4 elements to v on the right
+	/// NOTE: assumes the input list to of length multiple of 16
+	/// \param e1 end index of list 1
+	/// \param e2 end index list 2
+	template<const uint32_t u, const uint32_t v>
+	void bruteforce_simd_64_uxv_shuffle(const size_t e1,
+										const size_t e2) noexcept {
+		ASSERT(ELEMENT_NR_LIMBS == 1);
+		ASSERT(n <= 64);
+		ASSERT(n >= 33);
+
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+
+		uint64x4_t lii[u], rii[v];
+		uint64x4_t *ptr_l = (uint64x4_t *)L1;
+
+		for (size_t i = s1; i < s1 + (e1+3)/4; i += u, ptr_l += u) {
+
+			#pragma unroll
+			for (uint32_t j = 0; j < u; ++j) {
+				lii[j] = uint64x4_t::load(ptr_l + j);
+			}
+
+			/// NOTE: only possible because L2 is a continuous memory block
+			uint64x4_t *ptr_r = (uint64x4_t *)L2;
+
+			for (size_t j = s2; j < s2+(e2+3)/4; j += v, ptr_r += v) {
+
+				#pragma unroll
+				for (uint32_t s = 0; s < v; ++s) {
+					rii[s] = uint64x4_t::load(ptr_r + s);
+				}
+
+				#pragma unroll
+				for (uint32_t a1 = 0; a1 < u; ++a1) {
+					const uint64x4_t tmp1 = lii[a1];
+
+					#pragma unroll
+					for (uint32_t a2 = 0; a2 < v; ++a2) {
+						uint64x4_t tmp2 = rii[a2];
+						int m = compare_256_64<true>(tmp1, tmp2);
+						if (m) {
+							const size_t jprime = j*4 + a2*4 + __builtin_ctz(m);
+							const size_t iprime = i*4 + a1*4 + __builtin_ctz(m);
+							if (compare_u64_ptr((T *)(L1 + iprime), (T *)(L2 + jprime))) {
+								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
+								found_solution(iprime, jprime);
+							}
+						}
+
+						tmp2 = uint64x4_t::permute(tmp2, 0b10010011);
+						m = compare_256_64<true>(tmp1, tmp2);
+						if (m) {
+							const size_t jprime = j*4 + a2*4 + __builtin_ctz(m) + 3;
+							const size_t iprime = i*4 + a1*4 + __builtin_ctz(m);
+							if (compare_u64_ptr((T *)(L1 + iprime), (T *)(L2 + jprime))) {
+								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
+								found_solution(iprime, jprime);
+							}
+						}
+
+						tmp2 = uint64x4_t::permute(tmp2, 0b10010011);
+						m = compare_256_64<true>(tmp1, tmp2);
+						if (m) {
+							const size_t jprime = j*4 + a2*4 + __builtin_ctz(m) + 2;
+							const size_t iprime = i*4 + a1*4+ __builtin_ctz(m);
+							if (compare_u64_ptr((T *)(L1 + iprime), (T *)(L2 + jprime))) {
+								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
+								found_solution(iprime, jprime);
+							}
+						}
+
+						tmp2 = uint64x4_t::permute(tmp2, 0b10010011);
+						m = compare_256_64<true>(tmp1, tmp2);
+						if (m) {
+							const size_t jprime = j*4 + a2*4 + __builtin_ctz(m) + 1;
+							const size_t iprime = i*4 + a1*4 + __builtin_ctz(m);
+							if (compare_u64_ptr((T *)(L1 + iprime), (T *)(L2 + jprime))) {
+								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
+								found_solution(iprime, jprime);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+	/// bruteforce the two lists between the given start and end indices.
+	/// NOTE: uses avx2
+	/// NOTE: only in limb comparison possible. inter limb (e.g. bit 43...83) is impossible.
+	/// \param e1 end index of list 1
+	/// \param e2 end index list 2
+	void bruteforce_simd_128(const size_t e1,
+							 const size_t e2) noexcept {
+
+		ASSERT(n <= 128);
+		ASSERT(n > 64);
+		ASSERT(2 == ELEMENT_NR_LIMBS);
+		constexpr size_t s1 = 0, s2 = 0;
+		ASSERT(e1 >= s1);
+		ASSERT(e2 >= s2);
+
+		/// difference of the memory location in the right list
+		const uint32x4_t loadr1 = {       (2ull << 32u), (4ul) | (6ull << 32u)};
+		const uint32x4_t loadr2 = {1ull | (3ull << 32u), (5ul) | (7ull << 32u)};
+
+		/// allowed weight to match on
+		const uint64x4_t weight = uint64x4_t::set1(0);
+
+		for (size_t i = s1; i < e1; ++i) {
+			const uint64x4_t li1 = uint64x4_t::set1(L1[i][0]);
+			const uint64x4_t li2 = uint64x4_t::set1(L1[i][1]);
+
+			/// NOTE: only possible because L2 is a continuous memory block
+			/// NOTE: reset every loop
+			T *ptr_r = (T *)L2;
+
+			for (size_t j = s2; j < s2+(e2+3)/4; ++j, ptr_r += 8) {
+				const uint64x4_t ri = uint64x4_t::gather((const long long int *)ptr_r, loadr1, 8);
+				const int m1 = compare_256_64(li1, ri);
+
+				if (m1) {
+					const uint64x4_t ri = uint64x4_t::gather((const long long int *)ptr_r, loadr2, 8);
+					const int m1 = compare_256_64(li2, ri);
+
+					if (m1) {
+						const size_t jprime = j*4;
+
+						if (compare_u64_ptr((T *)(L1 + i), (T *)(L2 + jprime))) {
+							//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
+							found_solution(i, jprime + __builtin_ctz(m1));
+						} // if
+					}
+				}
+			}
+		}
+	}
 };
 
 
