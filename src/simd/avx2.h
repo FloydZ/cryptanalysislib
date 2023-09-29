@@ -66,6 +66,76 @@ union U256i {
 	uint64_t b[4];
 };
 
+
+
+
+struct uint32x4_t {
+	union {
+		uint8_t  v8 [16];
+		uint16_t v16[ 8];
+		uint32_t v32[ 4];
+		uint64_t v64[ 2];
+		__m128i  v128;
+	};
+
+	constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+		uint32x4_t ret;
+		ret.v32[0] = d;
+		ret.v32[1] = c;
+		ret.v32[2] = b;
+		ret.v32[3] = a;
+		return ret;
+	}
+
+	constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+		uint32x4_t ret;
+		ret.v32[0] = a;
+		ret.v32[1] = b;
+		ret.v32[2] = c;
+		ret.v32[3] = d;
+		return ret;
+	}
+
+	constexpr static inline uint32x4_t set(uint64_t a, uint64_t b) {
+		uint32x4_t ret;
+		ret.v64[0] = b;
+		ret.v64[1] = a;
+		return ret;
+	}
+
+	constexpr static inline uint32x4_t setr(uint64_t a, uint64_t b) {
+		uint32x4_t ret;
+		ret.v64[0] = a;
+		ret.v64[1] = b;
+		return ret;
+	}
+};
+
+struct uint64x2_t {
+	union {
+		uint8_t  v8 [16];
+		uint16_t v16[ 8];
+		uint32_t v32[ 4];
+		uint64_t v64[ 2];
+		__m128i  v128;
+	};
+
+	constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
+		uint64x2_t ret;
+		ret.v64[0] = b;
+		ret.v64[1] = a;
+		return ret;
+	}
+
+	constexpr static inline uint64x2_t setr(uint64_t a, uint64_t b) {
+		uint64x2_t ret;
+		ret.v64[0] = a;
+		ret.v64[1] = b;
+		return ret;
+	}
+};
+
+
 struct uint8x32_t {
 	union {
 		uint8_t  v8 [32];
@@ -360,16 +430,30 @@ struct uint8x32_t {
 		return out;
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline int gt(const uint8x32_t in1, const uint8x32_t in2) {
-
+		const __m256i tmp = (__m256i)((__v32qs)in1.v256 > (__v32qs)in2.v256);
+		return __builtin_ia32_pmovmskb256((__v32qi)tmp);
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline int cmp(const uint8x32_t in1, const uint8x32_t in2) {
-
+		const __m256i tmp = (__m256i)((__v32qi)in1.v256 == (__v32qi)in2.v256);
+		return __builtin_ia32_pmovmskb256((__v32qi)tmp);
 	}
 
+	///
+	/// \param in
+	/// \return
 	static inline uint8x32_t popcnt(const uint8x32_t in) {
-
+		uint8x32_t ret;
+		return ret;
 	}
 
 };
@@ -409,7 +493,7 @@ struct uint16x16_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
-	template<const bool aligned>
+	template<const bool aligned=false>
 	static inline uint16x16_t load(const void *ptr) {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
@@ -440,7 +524,7 @@ struct uint16x16_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
-	template<const bool aligned>
+	template<const bool aligned=false>
 	static inline void store(void *ptr, const uint16x16_t in) {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
@@ -468,7 +552,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint16x16_t xor_(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t xor_(const uint16x16_t in1,
 							const uint16x16_t in2) {
 		uint16x16_t out;
 		out.v256 = _mm256_xor_si256(in1.v256, in2.v256);
@@ -479,7 +563,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint16x16_t and_(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t and_(const uint16x16_t in1,
 							const uint16x16_t in2) {
 		uint16x16_t out;
 		out.v256 = _mm256_and_si256(in1.v256, in2.v256);
@@ -490,7 +574,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint16x16_t or_(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t or_(const uint16x16_t in1,
 						   const uint16x16_t in2) {
 		uint16x16_t out;
 		out.v256 = _mm256_or_si256(in1.v256, in2.v256);
@@ -501,7 +585,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint16x16_t andnot(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t andnot(const uint16x16_t in1,
 							  const uint16x16_t in2) {
 		uint16x16_t out;
 		out.v256 = _mm256_andnot_si256(in1.v256, in2.v256);
@@ -511,7 +595,7 @@ struct uint16x16_t {
 	///
 	/// \param in1
 	/// \return
-	inline uint16x16_t not_(const uint16x16_t in1) {
+	[[nodiscard]] static inline uint16x16_t not_(const uint16x16_t in1) {
 		uint16x16_t out;
 		const __m256i minus_one = _mm256_set1_epi8(-1);
 		out.v256 = _mm256_xor_si256(in1.v256, minus_one);
@@ -522,7 +606,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint16x16_t add(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t add(const uint16x16_t in1,
 						   const uint16x16_t in2) {
 		uint16x16_t out;
 		out.v256 = _mm256_add_epi16(in1.v256, in2.v256);
@@ -533,7 +617,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint16x16_t sub(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t sub(const uint16x16_t in1,
 						   const uint16x16_t in2) {
 		uint16x16_t out;
 		out.v256 = _mm256_sub_epi16(in1.v256, in2.v256);
@@ -544,25 +628,75 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint16x16_t mullo(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t mullo(const uint16x16_t in1,
 							 const uint16x16_t in2) {
 		uint16x16_t out;
 		out.v256 = _mm256_mullo_epi16(in1.v256, in2.v256);
 		return out;
 	}
 
-
-
-	static inline int gt(const uint16x16_t in1, const uint16x16_t in2) {
-
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	static inline uint16x16_t mullo(const uint16x16_t in1,
+								   const uint8_t in2) {
+		auto rs = uint16x16_t::set1(in2);
+		return mullo(in1, rs);
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] static inline uint16x16_t slli(const uint16x16_t in1,
+												const uint8_t in2) {
+		ASSERT(in2 <= 8);
+		uint16x16_t out;
+		uint16x16_t mask = set1((1u << in2) - 1u);
+		out = uint16x16_t::and_(in1, mask);
+		//out.v256 = (__m256i)__builtin_ia32_psllwi256 ((__v16hi)out.v256, in2);
+		out.v256 = _mm256_slli_epi16(out.v256, in2);
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] static inline uint16x16_t slri(const uint16x16_t in1,
+												const uint8_t in2) {
+		ASSERT(in2 <= 8);
+		const uint16x16_t mask = set1( ((1u << (8u-in2)) - 1u) << in2);
+		uint16x16_t out;
+		out = uint16x16_t::and_(in1, mask);
+		out.v256 = _mm256_srli_epi16(out.v256, in2);
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	static constexpr inline int gt(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+		const __m256i tmp = (__m256i)((__v16hi)in1.v256 > (__v16hi)in2.v256);
+		return 0; /// TODO
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline int cmp(const uint16x16_t in1, const uint16x16_t in2) {
-
+		return 0; /// TODO
 	}
 
+	///
+	/// \param in
+	/// \return
 	static inline uint16x16_t popcnt(const uint16x16_t in) {
-
+		uint16x16_t ret;
+		return ret;
 	}
 
 };
@@ -590,19 +724,61 @@ struct uint32x8_t {
 	constexpr inline void print(bool binary=false, bool hex=false) const;
 
 	///
+	/// \param a0
+	/// \param a1
+	/// \param a2
+	/// \param a3
+	/// \param a4
+	/// \param a5
+	/// \param a6
+	/// \param a7
+	/// \return
+	constexpr inline static uint32x8_t set(const uint32_t a0,
+	                                       const uint32_t a1,
+							  			   const uint32_t a2,
+							  			   const uint32_t a3,
+							  			   const uint32_t a4,
+							  			   const uint32_t a5,
+							  			   const uint32_t a6,
+							  			   const uint32_t a7) {
+		uint32x8_t out;
+		out.v256 = __extension__ (__m256i)(__v8si){(int)a7,(int)a6,(int)a5,(int)a4,(int)a3,(int)a2,(int)a1,(int)a0};
+		return out;
+	}
+
+	///
+	/// \param a0
+	/// \param a1
+	/// \param a2
+	/// \param a3
+	/// \param a4
+	/// \param a5
+	/// \param a6
+	/// \param a7
+	/// \return
+	constexpr inline static uint32x8_t setr(const uint32_t a0,
+									 const uint32_t a1,
+									 const uint32_t a2,
+									 const uint32_t a3,
+									 const uint32_t a4,
+									 const uint32_t a5,
+									 const uint32_t a6,
+									 const uint32_t a7) {
+		return set(a7,a6,a5,a4,a3,a2,a1,a0);
+	}
+
+	///
 	/// \param a
 	/// \return
-	static inline uint32x8_t set1(const uint32_t a) {
-		uint32x8_t out;
-		out.v256 = _mm256_set1_epi32(a);
-		return out;
+	[[nodiscard]] constexpr static inline uint32x8_t set1(const uint32_t a) {
+		return set(a,a,a,a,a,a,a,a);
 	}
 
 	///
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
-	template<const bool aligned>
+	template<const bool aligned=false>
 	static inline uint32x8_t load(const void *ptr) {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
@@ -633,7 +809,7 @@ struct uint32x8_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
-	template<const bool aligned>
+	template<const bool aligned=false>
 	static inline void store(void *ptr, const uint32x8_t in) {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
@@ -661,7 +837,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint32x8_t xor_(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t xor_(const uint32x8_t in1,
 						   const uint32x8_t in2) {
 		uint32x8_t out;
 		out.v256 = _mm256_xor_si256(in1.v256, in2.v256);
@@ -672,7 +848,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint32x8_t and_(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t and_(const uint32x8_t in1,
 						   const uint32x8_t in2) {
 		uint32x8_t out;
 		out.v256 = _mm256_and_si256(in1.v256, in2.v256);
@@ -683,7 +859,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint32x8_t or_(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t or_(const uint32x8_t in1,
 						  const uint32x8_t in2) {
 		uint32x8_t out;
 		out.v256 = _mm256_or_si256(in1.v256, in2.v256);
@@ -694,7 +870,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint32x8_t andnot(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t andnot(const uint32x8_t in1,
 							 const uint32x8_t in2) {
 		uint32x8_t out;
 		out.v256 = _mm256_andnot_si256(in1.v256, in2.v256);
@@ -704,7 +880,7 @@ struct uint32x8_t {
 	///
 	/// \param in1
 	/// \return
-	inline uint32x8_t not_(const uint32x8_t in1) {
+	[[nodiscard]] static inline uint32x8_t not_(const uint32x8_t in1) {
 		uint32x8_t out;
 		const __m256i minus_one = _mm256_set1_epi8(-1);
 		out.v256 = _mm256_xor_si256(in1.v256, minus_one);
@@ -715,7 +891,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint32x8_t add(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t add(const uint32x8_t in1,
 						  const uint32x8_t in2) {
 		uint32x8_t out;
 		out.v256 = _mm256_add_epi32(in1.v256, in2.v256);
@@ -726,7 +902,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint32x8_t sub(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t sub(const uint32x8_t in1,
 						  const uint32x8_t in2) {
 		uint32x8_t out;
 		out.v256 = _mm256_sub_epi32(in1.v256, in2.v256);
@@ -737,7 +913,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint32x8_t mullo(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t mullo(const uint32x8_t in1,
 							const uint32x8_t in2) {
 		uint32x8_t out;
 		out.v256 = _mm256_mullo_epi16(in1.v256, in2.v256);
@@ -748,9 +924,48 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t mullo(const uint32x8_t in1,
+	                                                       const uint32_t in2) {
+		auto m = uint32x8_t::set1(in2);
+		return mullo(in1, m);
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] static inline uint32x8_t slli(const uint32x8_t in1,
+	                                             const uint8_t in2) {
+		ASSERT(in2 <= 8);
+		uint32x8_t out;
+		uint32x8_t mask = set1((1u << in2) - 1u);
+		out = uint32x8_t::and_(in1, mask);
+		//out.v256 = (__m256i)__builtin_ia32_psllwi256 ((__v16hi)out.v256, in2);
+		out.v256 = _mm256_slli_epi32(out.v256, in2);
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] static inline uint32x8_t slri(const uint32x8_t in1,
+	                                             const uint8_t in2) {
+		ASSERT(in2 <= 8);
+		const uint32x8_t mask = set1( ((1u << (8u-in2)) - 1u) << in2);
+		uint32x8_t out;
+		out = uint32x8_t::and_(in1, mask);
+		out.v256 = _mm256_srli_epi32(out.v256, in2);
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline int gt(const uint32x8_t in1, const uint32x8_t in2) {
-		const __m256i tmp = _mm256_cmpgt_epi32(in1.v256, in2.v256);
-		return _mm256_movemask_ps(tmp);
+		const __m256i tmp = (__m256i)((__v8si)in1.v256 > (__v8si)in2.v256);
+		return __builtin_ia32_movmskps256((__v8sf)tmp);
 	}
 
 	///
@@ -773,6 +988,27 @@ struct uint32x8_t {
 #else
 		ret.v256 = popcount_avx2_32(in.v256);
 #endif
+		return ret;
+	}
+
+	/// \tparam scale
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) {
+		uint32x8_t ret;
+		ret.v256 = _mm256_i32gather_epi32(ptr, data.v256, scale);
+		return ret;
+	}
+
+	///
+	/// \param in
+	/// \param perm
+	/// \return
+	static inline uint32x8_t permute(const uint32x8_t in, const uint32x8_t perm) {
+		uint32x8_t ret;
+		ret.v256 = (__m256i)__builtin_ia32_permvarsi256((__v8si)in.v256, (__v8si)perm.v256);
 		return ret;
 	}
 };
@@ -801,18 +1037,38 @@ struct uint64x4_t {
 
 	///
 	/// \param a
+	/// \param b
+	/// \param c
+	/// \param d
 	/// \return
-	static inline uint64x4_t set1(const uint64_t a) {
+	constexpr static inline uint64x4_t set(const uint64_t a, const uint64_t b, const uint64_t c, const uint64_t d){
 		uint64x4_t out;
-		out.v256 = _mm256_set1_epi64x(a);
+		out.v256 = __extension__ (__m256i)(__v4di){ (long long)d, (long long)c, (long long)b, (long long)a };
 		return out;
+	}
+
+	///
+	/// \param a
+	/// \param b
+	/// \param c
+	/// \param d
+	/// \return
+	constexpr static inline uint64x4_t setr(const uint64_t a, const uint64_t b, const uint64_t c, const uint64_t d){
+		return set(d, c, b, a);
+	}
+
+	///
+	/// \param a
+	/// \return
+	constexpr static inline uint64x4_t set1(const uint64_t a) {
+		return set(a,a,a,a);
 	}
 
 	///
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
-	template<const bool aligned>
+	template<const bool aligned=false>
 	static inline uint64x4_t load(const void *ptr) {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
@@ -843,7 +1099,7 @@ struct uint64x4_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
-	template<const bool aligned>
+	template<const bool aligned=false>
 	static inline void store(void *ptr, const uint64x4_t in) {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
@@ -871,7 +1127,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint64x4_t xor_(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t xor_(const uint64x4_t in1,
 						   const uint64x4_t in2) {
 		uint64x4_t out;
 		out.v256 = _mm256_xor_si256(in1.v256, in2.v256);
@@ -882,7 +1138,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint64x4_t and_(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t and_(const uint64x4_t in1,
 						   const uint64x4_t in2) {
 		uint64x4_t out;
 		out.v256 = _mm256_and_si256(in1.v256, in2.v256);
@@ -893,7 +1149,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint64x4_t or_(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t or_(const uint64x4_t in1,
 						  const uint64x4_t in2) {
 		uint64x4_t out;
 		out.v256 = _mm256_or_si256(in1.v256, in2.v256);
@@ -904,7 +1160,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint64x4_t andnot(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t andnot(const uint64x4_t in1,
 							 const uint64x4_t in2) {
 		uint64x4_t out;
 		out.v256 = _mm256_andnot_si256(in1.v256, in2.v256);
@@ -914,7 +1170,7 @@ struct uint64x4_t {
 	///
 	/// \param in1
 	/// \return
-	inline uint64x4_t not_(const uint64x4_t in1) {
+	[[nodiscard]] static inline uint64x4_t not_(const uint64x4_t in1) {
 		uint64x4_t out;
 		const __m256i minus_one = _mm256_set1_epi8(-1);
 		out.v256 = _mm256_xor_si256(in1.v256, minus_one);
@@ -925,7 +1181,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint64x4_t add(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t add(const uint64x4_t in1,
 						  const uint64x4_t in2) {
 		uint64x4_t out;
 		out.v256 = _mm256_add_epi64(in1.v256, in2.v256);
@@ -936,7 +1192,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint64x4_t sub(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t sub(const uint64x4_t in1,
 						  const uint64x4_t in2) {
 		uint64x4_t out;
 		out.v256 = _mm256_sub_epi64(in1.v256, in2.v256);
@@ -947,29 +1203,81 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	inline uint64x4_t mullo(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t mullo(const uint64x4_t in1,
 							const uint64x4_t in2) {
-		ASSERT(false);
+		uint64x4_t out; /// TODO
+		return out;
+	}
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t mullo(const uint64x4_t in1,
+	                                                       const uint64_t in2) {
+		auto m = uint64x4_t::set1(in2);
+		return mullo(in1, m);
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] static inline uint64x4_t slli(const uint64x4_t in1,
+	                                            const uint8_t in2) {
+		ASSERT(in2 <= 8);
 		uint64x4_t out;
+		uint64x4_t mask = set1((1u << in2) - 1u);
+		out = uint64x4_t::and_(in1, mask);
+		out.v256 = _mm256_slli_epi64(out.v256, in2);
 		return out;
 	}
 
-	static inline uint64x4_t permute(const uint64x4_t in1, const uint32_t in2) {
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] static inline uint64x4_t slri(const uint64x4_t in1,
+	                                            const uint8_t in2) {
+		ASSERT(in2 <= 8);
+		const uint64x4_t mask = set1( ((1u << (8u-in2)) - 1u) << in2);
+		uint64x4_t out;
+		out = uint64x4_t::and_(in1, mask);
+		out.v256 = _mm256_srli_epi64(out.v256, in2);
+		return out;
+	}
+
+	///
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<const uint32_t in2>
+	static inline uint64x4_t permute(const uint64x4_t in1) {
 		uint64x4_t ret;
 		ret.v256 = _mm256_permute4x64_epi64(in1.v256, in2);
 		return ret;
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline int gt(const uint64x4_t in1, const uint64x4_t in2) {
-		const __m256i tmp = _mm256_cmpgt_epi64(in1.v256, in2.v256);
-		return _mm256_movemask_pd(tmp);
+		const auto tmp =(__m256i)((__v4di)in1.v256 > (__v4di)in2.v256);
+		return __builtin_ia32_movmskpd256((__v4df)tmp);
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline int cmp(const uint64x4_t in1, const uint64x4_t in2) {
 		const __m256i tmp = _mm256_cmpeq_epi64(in1.v256, in2.v256);
 		return _mm256_movemask_pd(tmp);
 	}
 
+	///
+	/// \param in
+	/// \return
 	static inline uint64x4_t popcnt(const uint64x4_t in) {
 		uint64x4_t ret;
 
@@ -980,11 +1288,28 @@ struct uint64x4_t {
 #endif
 		return ret;
 	}
-};
 
-bool operator==(const uint8x32_t& a, const uint8x32_t& b){
-	const __m256i tmp = _mm256_cmpeq_epi8(a.v256, b.v256);
-	const int mask = _mm256_movemask_epi8(tmp);
-	return mask == 0xffffffff;
-}
+	/// \tparam scale
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	static inline uint64x4_t gather(const void *ptr, const uint32x4_t data) {
+		uint64x4_t ret;
+		ret.v256 = _mm256_i32gather_epi64(ptr, data.v128, scale);
+		return ret;
+	}
+
+	/// \tparam scale
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	static inline uint64x4_t gather(const void *ptr, const uint64x4_t data) {
+		uint64x4_t ret;
+
+		ret.v256 = _mm256_i64gather_epi64(ptr, data.v256, scale);
+		return ret;
+	}
+};
 

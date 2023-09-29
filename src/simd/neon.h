@@ -710,13 +710,11 @@ struct uint16x16_t {
 
 	static inline int cmp(const uint16x16_t in1, const uint16x16_t in2) {
 		return 0; // TODO
-
 	}
 
 	static inline uint16x16_t popcnt(const uint16x16_t in) {
 		return in; // TODO
 	}
-
 };
 
 struct uint32x8_t {
@@ -1299,20 +1297,36 @@ struct uint64x4_t {
 		return out;
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline uint64x4_t permute(const uint64x4_t in1, const uint32_t in2) {
 		uint64x4_t ret;
 		return ret;
 	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline int gt(const uint64x4_t in1, const uint64x4_t in2) {
 		int ret = 0;
 		return ret;
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	static inline int cmp(const uint64x4_t in1, const uint64x4_t in2) {
 		int ret = 0;
 		return ret;
 	}
 
+	///
+	/// \param in
+	/// \return
 	static inline uint64x4_t popcnt(const uint64x4_t in) {
 		uint64x4_t ret;
 		return ret;

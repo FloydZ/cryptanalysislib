@@ -8,6 +8,7 @@
 #include "random.h"
 
 
+
 #if defined(USE_AVX2)
 
 #include "simd/avx2.h"
@@ -22,6 +23,33 @@
 
 #else
 
+
+struct uint32x4_t {
+	union {
+		uint8_t  v8 [16];
+		uint16_t v16[ 8];
+		uint32_t v32[ 4];
+		uint64_t v64[ 2];
+		__m128i  v128;
+	};
+
+	constexpr static inline uint32x4_t set(uint64_t a, uint64_t b) {
+		uint32x4_t ret;
+		ret.v64[0] = a;
+		ret.v64[1] = b;
+		return ret;
+	}
+};
+
+struct uint64x2_t {
+	union {
+		uint8_t  v8 [16];
+		uint16_t v16[ 8];
+		uint32_t v32[ 4];
+		uint64_t v64[ 2];
+		__m128i  v128;
+	};
+};
 struct uint8x32_t {
 	union {
 		uint8_t  v8 [32];
@@ -549,7 +577,6 @@ inline uint8x32_t operator<< (const uint8x32_t& lhs, const uint32_t rhs) {
 }
 
 
-
 inline uint16x16_t operator* (const uint16x16_t& lhs, const uint16x16_t& rhs) {
 	return uint16x16_t::mullo(lhs, rhs);
 }
@@ -623,7 +650,7 @@ inline uint32x8_t operator<< (const uint32x8_t& lhs, const uint32_t rhs) {
 inline uint64x4_t operator* (const uint64x4_t& lhs, const uint64x4_t& rhs) {
 	return uint64x4_t::mullo(lhs, rhs);
 }
-inline uint64x4_t operator* (const uint64x4_t& lhs, const uint8_t & rhs) {
+inline uint64x4_t operator* (const uint64x4_t& lhs, const uint64_t & rhs) {
 	return uint64x4_t::mullo(lhs, rhs);
 }
 inline uint64x4_t operator* (const uint8_t & lhs, const uint64x4_t & rhs) {
@@ -659,13 +686,13 @@ int operator==(const uint8x32_t& a, const uint8x32_t& b){
 	return uint8x32_t::cmp(a, b);
 }
 int operator!=(const uint8x32_t& a, const uint8x32_t& b){
-	return 0xff ^ uint8x32_t::cmp(a, b);
+	return 0xffffffff ^ uint8x32_t::cmp(a, b);
 }
 int operator<(const uint8x32_t& a, const uint8x32_t& b){
-	return uint8x32_t::gt(a, b);
+	return uint8x32_t::gt(b, a);
 }
 int operator>(const uint8x32_t& a, const uint8x32_t& b){
-	return 0xff ^ uint8x32_t::gt(a, b);
+	return uint8x32_t::gt(b, a);
 }
 
 
@@ -673,13 +700,13 @@ int operator==(const uint16x16_t& a, const uint16x16_t& b){
 	return uint16x16_t::cmp(a, b);
 }
 int operator!=(const uint16x16_t& a, const uint16x16_t& b){
-	return 0xff ^ uint16x16_t::cmp(a, b);
+	return 0xffff ^ uint16x16_t::cmp(a, b);
 }
 int operator<(const uint16x16_t& a, const uint16x16_t& b){
-	return uint16x16_t::gt(a, b);
+	return uint16x16_t::gt(b, a);
 }
 int operator>(const uint16x16_t& a, const uint16x16_t& b){
-	return 0xff ^ uint16x16_t::gt(a, b);
+	return uint16x16_t::gt(a, b);
 }
 
 
@@ -690,23 +717,23 @@ int operator!=(const uint32x8_t& a, const uint32x8_t& b){
 	return 0xff ^ uint32x8_t::cmp(a, b);
 }
 int operator<(const uint32x8_t& a, const uint32x8_t& b){
-	return uint32x8_t::gt(a, b);
+	return uint32x8_t::gt(b, a);
 }
 int operator>(const uint32x8_t& a, const uint32x8_t& b){
-	return 0xff ^ uint32x8_t::gt(a, b);
+	return uint32x8_t::gt(a, b);
 }
 
 int operator==(const uint64x4_t & a, const uint64x4_t& b){
 	return uint64x4_t::cmp(a, b);
 }
 int operator!=(const uint64x4_t& a, const uint64x4_t& b){
-	return 0xff ^ uint64x4_t::cmp(a, b);
+	return 0xf ^ uint64x4_t::cmp(a, b);
 }
 int operator<(const uint64x4_t& a, const uint64x4_t& b){
-	return uint64x4_t::gt(a, b);
+	return uint64x4_t::gt(b, a);
 }
 int operator>(const uint64x4_t& a, const uint64x4_t& b){
-	return 0xff ^ uint64x4_t::gt(a, b);
+	return uint64x4_t::gt(a, b);
 }
 
 
