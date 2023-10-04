@@ -332,8 +332,9 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t andnot(const uint8x32_t in1,
 	                                const uint8x32_t in2) {
 		uint8x32_t out;
-		// TODO only valid in gcc
-		//out.v256 = (__m256i) __builtin_ia32_andnotsi256 ((__v4di)in1.v256, (__v4di)in2.v256);
+		// TODO only valid in clang
+
+		out.v256 = (__m256i) __builtin_ia32_andnotsi256 ((__v4di)in1.v256, (__v4di)in2.v256);
 		return out;
 	}
 
@@ -370,24 +371,31 @@ struct uint8x32_t {
 	}
 
 	/// 8 bit mul lo
-	/// \param in1
+	/// \param in1 first input
 	/// \param in2
-	/// \return
-	static inline uint8x32_t mullo(const uint8x32_t in1,
+	/// \return in1*in2
+	[[nodiscard]] static inline uint8x32_t mullo(const uint8x32_t in1,
 	                               const uint8x32_t in2) {
 		uint8x32_t out;
-		const __m256i maskl = _mm256_set1_epi16(0x00ff);
-		const __m256i maskh = _mm256_set1_epi16(0xff00);
+		__m256i tmp;
+		const __m256i maskl = _mm256_set1_epi16((short)0x00ff);
+		const __m256i maskh = _mm256_set1_epi16((short)0xff00);
 
 		const __m256i in1l = _mm256_and_si256(in1.v256, maskl);
 		const __m256i in2l = _mm256_and_si256(in2.v256, maskl);
 		const __m256i in1h = _mm256_srli_epi16(_mm256_and_si256(in1.v256, maskh), 8u);
 		const __m256i in2h = _mm256_srli_epi16(_mm256_and_si256(in2.v256, maskh), 8u);
 
-		/// TODO replace mul with: ((__v16hu)__A * (__v16hu)__B);
-		out.v256 = _mm256_mullo_epi16(in1l, in2l);
-		const __m256i tho = _mm256_slli_epi16(_mm256_mullo_epi16(in1h, in2h), 8u);
-		out.v256 = _mm256_xor_si256(tho, out.v256);
+		out.v256 = (__m256i)((__v16hu)in1l * (__v16hu)in2l);
+		tmp = (__m256i)((__v16hu)in1h * (__v16hu)in2h);
+
+#ifndef __clang__
+  		tmp = (__m256i)__builtin_ia32_psllwi256 ((__v16hi)tmp, 8u);
+#else
+  		tmp = (__m256i)ia32_psllwi256 ((__v16hi)tmp, 8u);
+#endif
+
+		out.v256 = _mm256_xor_si256(tmp, out.v256);
 		return out;
 	}
 
@@ -453,6 +461,7 @@ struct uint8x32_t {
 	/// \return
 	static inline uint8x32_t popcnt(const uint8x32_t in) {
 		uint8x32_t ret;
+		
 		return ret;
 	}
 
@@ -974,7 +983,7 @@ struct uint32x8_t {
 	/// \return
 	static inline int cmp(const uint32x8_t in1, const uint32x8_t in2) {
 		const __m256i tmp = _mm256_cmpeq_epi32(in1.v256, in2.v256);
-		return _mm256_movemask_ps(tmp);
+		return _mm256_movemask_ps((__m256)tmp);
 	}
 
 	///
@@ -1279,7 +1288,7 @@ struct uint64x4_t {
 	/// \return
 	static inline int cmp(const uint64x4_t in1, const uint64x4_t in2) {
 		const __m256i tmp = _mm256_cmpeq_epi64(in1.v256, in2.v256);
-		return _mm256_movemask_pd(tmp);
+		return _mm256_movemask_pd((__m256d)tmp);
 	}
 
 	///

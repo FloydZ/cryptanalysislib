@@ -62,7 +62,6 @@ static __m256i popcount_avx2_64(const __m256i vec) noexcept {
     local = _mm256_add_epi8(local, popcnt1);
     local = _mm256_add_epi8(local, popcnt2);
 
-	const __m256i mask2 = _mm256_set1_epi64x(0xff);
 	const __m256i ret =_mm256_sad_epu8 (local, _mm256_setzero_si256());
 	return ret;
 }

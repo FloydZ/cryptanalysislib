@@ -110,7 +110,7 @@ public:
 	// the same as above only rounding down
 	// 13 -> 0
 	constexpr static uint16_t round_down(uint16_t in) noexcept { return round_down_to_limb(in) * limb_bits_width(); }
-	constexpr static const uint16_t round_down_to_limb(uint16_t in) { return (in/limb_bits_width()); }
+	constexpr static uint16_t round_down_to_limb(uint16_t in) { return (in/limb_bits_width()); }
 
 	// calculate from a bit position 'i' the mask to set it.
 	constexpr static LimbType mask(uint16_t i) noexcept {

@@ -680,7 +680,8 @@ inline uint64x4_t operator>> (const uint64x4_t& lhs, const uint32_t rhs) {
 inline uint64x4_t operator<< (const uint64x4_t& lhs, const uint32_t rhs) {
 	return uint64x4_t::slli(lhs, rhs);
 }
-//////////////////////////////////////////////////////////\
+
+/* 					 comparison									*/
 
 int operator==(const uint8x32_t& a, const uint8x32_t& b){
 	return uint8x32_t::cmp(a, b);
