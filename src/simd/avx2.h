@@ -461,7 +461,7 @@ struct uint8x32_t {
 	/// \return
 	static inline uint8x32_t popcnt(const uint8x32_t in) {
 		uint8x32_t ret;
-		
+		ret.v256 = popcount_avx2_8(in.v256);
 		return ret;
 	}
 
@@ -489,13 +489,30 @@ struct uint16x16_t {
 	/// \param hex
 	constexpr inline void print(bool binary=false, bool hex=false) const;
 
+	[[nodiscard]] constexpr static inline uint16x16_t set(short __q15, short __q14, short __q13, short __q12,
+		  												  short __q11, short __q10, short __q09, short __q08,
+		  												  short __q07, short __q06, short __q05, short __q04,
+		  												  short __q03, short __q02, short __q01, short __q00) {
+		uint16x16_t out;
+		out.v256 = __extension__ (__m256i)(__v16hi){
+	  		__q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07,
+	  		__q08, __q09, __q10, __q11, __q12, __q13, __q14, __q15
+	  	};
+		return out;
+	}
+
+	[[nodiscard]] constexpr static inline uint16x16_t setr(short __q15, short __q14, short __q13, short __q12,
+		  												   short __q11, short __q10, short __q09, short __q08,
+		  												   short __q07, short __q06, short __q05, short __q04,
+		  												   short __q03, short __q02, short __q01, short __q00) {
+		return uint16x16_t::set(__q00,__q01,__q02,__q03,__q04,__q05,__q06,__q07,__q08,__q09,__q10,__q11,__q12,__q13,__q14,__q15);
+	}
+
 	///
 	/// \param a
 	/// \return
-	static inline uint16x16_t set1(const uint16_t a) {
-		uint16x16_t out;
-		out.v256 = _mm256_set1_epi16(a);
-		return out;
+	constexpr static inline uint16x16_t set1(const uint16_t a) {
+		return uint16x16_t::set(a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a);
 	}
 
 	///
@@ -648,7 +665,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	static inline uint16x16_t mullo(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t mullo(const uint16x16_t in1,
 								   const uint8_t in2) {
 		auto rs = uint16x16_t::set1(in2);
 		return mullo(in1, rs);
@@ -658,14 +675,17 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] static inline uint16x16_t slli(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t slli(const uint16x16_t in1,
 												const uint8_t in2) {
 		ASSERT(in2 <= 8);
 		uint16x16_t out;
 		uint16x16_t mask = set1((1u << in2) - 1u);
 		out = uint16x16_t::and_(in1, mask);
-		//out.v256 = (__m256i)__builtin_ia32_psllwi256 ((__v16hi)out.v256, in2);
+#ifndef __clang__
+		out.v256 = (__m256i)__builtin_ia32_psllwi256 ((__v16hi)out.v256, in2);
+#else 
 		out.v256 = _mm256_slli_epi16(out.v256, in2);
+#endif
 		return out;
 	}
 
@@ -673,13 +693,17 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] static inline uint16x16_t slri(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t slri(const uint16x16_t in1,
 												const uint8_t in2) {
 		ASSERT(in2 <= 8);
 		const uint16x16_t mask = set1( ((1u << (8u-in2)) - 1u) << in2);
 		uint16x16_t out;
 		out = uint16x16_t::and_(in1, mask);
+#ifndef __clang__
+  		out.v256 = (__m256i)__builtin_ia32_psrlwi256 ((__v16hi)out.v256, in2);
+#else
 		out.v256 = _mm256_srli_epi16(out.v256, in2);
+#endif
 		return out;
 	}
 
@@ -688,8 +712,15 @@ struct uint16x16_t {
 	/// \param in2
 	/// \return
 	static constexpr inline int gt(const uint16x16_t in1, const uint16x16_t in2) noexcept {
-		const __m256i tmp = (__m256i)((__v16hi)in1.v256 > (__v16hi)in2.v256);
-		return 0; /// TODO
+		uint16x16_t tmp;
+		tmp.v256 = (__m256i)((__v16hi)in1.v256 > (__v16hi)in2.v256);
+	
+		int ret = 0;
+		for (uint16_t i = 0; i < 16; i++) {
+			ret ^= (tmp.v16[i] != 0) << i;	
+		}
+
+		return ret;
 	}
 
 	///
@@ -697,7 +728,15 @@ struct uint16x16_t {
 	/// \param in2
 	/// \return
 	static inline int cmp(const uint16x16_t in1, const uint16x16_t in2) {
-		return 0; /// TODO
+		uint16x16_t tmp;
+		tmp.v256 = (__m256i)((__v16hi)in1.v256 == (__v16hi)in2.v256);
+	
+		int ret = 0;
+		for (uint16_t i = 0; i < 16; i++) {
+			ret ^= (tmp.v16[i] != 0) << i;	
+		}
+
+		return ret;
 	}
 
 	///
@@ -705,6 +744,7 @@ struct uint16x16_t {
 	/// \return
 	static inline uint16x16_t popcnt(const uint16x16_t in) {
 		uint16x16_t ret;
+		ret.v256 = popcount_avx2_16(in.v256);
 		return ret;
 	}
 
@@ -1007,7 +1047,7 @@ struct uint32x8_t {
 	template<const uint32_t scale = 1>
 	static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) {
 		uint32x8_t ret;
-		ret.v256 = _mm256_i32gather_epi32(ptr, data.v256, scale);
+		ret.v256 = _mm256_i32gather_epi32((int *)ptr, data.v256, scale);
 		return ret;
 	}
 
@@ -1311,8 +1351,9 @@ struct uint64x4_t {
 	/// \return
 	template<const uint32_t scale = 1>
 	static inline uint64x4_t gather(const void *ptr, const uint32x4_t data) {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		uint64x4_t ret;
-		ret.v256 = _mm256_i32gather_epi64(ptr, data.v128, scale);
+		ret.v256 = _mm256_i32gather_epi64((long long *)ptr, data.v128, scale);
 		return ret;
 	}
 
@@ -1322,9 +1363,10 @@ struct uint64x4_t {
 	/// \return
 	template<const uint32_t scale = 1>
 	static inline uint64x4_t gather(const void *ptr, const uint64x4_t data) {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		uint64x4_t ret;
 
-		ret.v256 = _mm256_i64gather_epi64(ptr, data.v256, scale);
+		ret.v256 = _mm256_i64gather_epi64((long long *)ptr, data.v256, scale);
 		return ret;
 	}
 };

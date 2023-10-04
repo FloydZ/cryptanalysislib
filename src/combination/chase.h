@@ -298,6 +298,7 @@ public:
 
 	// REMINDER: Make sure to set A on all limbs on zero.
 	void left_init(T *A) {
+		(void) A;
 		two_changes_binary_o.clear();
 		two_changes_binary_d.clear();
 		two_changes_binary_n.clear();
