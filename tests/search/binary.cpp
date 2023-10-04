@@ -115,7 +115,7 @@ TEST(upper_bound_adaptive_binary_search, simple) {
 												 }
 	);
 
-	EXPECT_EQ(solution_index, a);
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
 }
 
 int main(int argc, char **argv) {

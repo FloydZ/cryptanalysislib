@@ -555,7 +555,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t xor_(const uint16x16_t in1,
 							const uint16x16_t in2) {
 		uint16x16_t out;
-		out.v256 = _mm256_xor_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 ^ in2.v256;
 		return out;
 	}
 
@@ -566,7 +566,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t and_(const uint16x16_t in1,
 							const uint16x16_t in2) {
 		uint16x16_t out;
-		out.v256 = _mm256_and_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 & in2.v256;
 		return out;
 	}
 
@@ -577,7 +577,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t or_(const uint16x16_t in1,
 						   const uint16x16_t in2) {
 		uint16x16_t out;
-		out.v256 = _mm256_or_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 | in2.v256;
 		return out;
 	}
 
@@ -585,10 +585,10 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t andnot(const uint16x16_t in1,
+	[[nodiscard]] static inline uint16x16_t andnot(const uint16x16_t in1,
 							  const uint16x16_t in2) {
 		uint16x16_t out;
-		out.v256 = _mm256_andnot_si256(in1.v256, in2.v256);
+		out.v256 = ~(in1.v256 & in2.v256);
 		return out;
 	}
 
@@ -598,7 +598,7 @@ struct uint16x16_t {
 	[[nodiscard]] static inline uint16x16_t not_(const uint16x16_t in1) {
 		uint16x16_t out;
 		const __m256i minus_one = _mm256_set1_epi8(-1);
-		out.v256 = _mm256_xor_si256(in1.v256, minus_one);
+		out.v256 = in1.v256 ^ minus_one;
 		return out;
 	}
 
@@ -606,10 +606,10 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t add(const uint16x16_t in1,
+	[[nodiscard]] static inline uint16x16_t add(const uint16x16_t in1,
 						   const uint16x16_t in2) {
 		uint16x16_t out;
-		out.v256 = _mm256_add_epi16(in1.v256, in2.v256);
+		out.v256 = (__m256i)((__v16hu)in1.v256 + (__v16hu)in2.v256);
 		return out;
 	}
 
@@ -618,9 +618,9 @@ struct uint16x16_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t sub(const uint16x16_t in1,
-						   const uint16x16_t in2) {
+						   								  const uint16x16_t in2) {
 		uint16x16_t out;
-		out.v256 = _mm256_sub_epi16(in1.v256, in2.v256);
+		out.v256 = (__m256i)((__v16hu)in1.v256 - (__v16hu)in2.v256);
 		return out;
 	}
 
@@ -631,7 +631,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t mullo(const uint16x16_t in1,
 							 const uint16x16_t in2) {
 		uint16x16_t out;
-		out.v256 = _mm256_mullo_epi16(in1.v256, in2.v256);
+		out.v256 = (__m256i)((__v16hu)in1.v256 * (__v16hu)in2.v256);
 		return out;
 	}
 
@@ -840,7 +840,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t xor_(const uint32x8_t in1,
 						   const uint32x8_t in2) {
 		uint32x8_t out;
-		out.v256 = _mm256_xor_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 ^ in2.v256;
 		return out;
 	}
 
@@ -851,7 +851,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t and_(const uint32x8_t in1,
 						   const uint32x8_t in2) {
 		uint32x8_t out;
-		out.v256 = _mm256_and_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 & in2.v256;
 		return out;
 	}
 
@@ -862,7 +862,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t or_(const uint32x8_t in1,
 						  const uint32x8_t in2) {
 		uint32x8_t out;
-		out.v256 = _mm256_or_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 | in2.v256;
 		return out;
 	}
 
@@ -870,20 +870,20 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t andnot(const uint32x8_t in1,
+	[[nodiscard]] static inline uint32x8_t andnot(const uint32x8_t in1,
 							 const uint32x8_t in2) {
 		uint32x8_t out;
-		out.v256 = _mm256_andnot_si256(in1.v256, in2.v256);
+		out.v256 = (__m256i)(~(__v4du)in1.v256 & (__v4du)in2.v256);
 		return out;
 	}
 
 	///
 	/// \param in1
 	/// \return
-	[[nodiscard]] static inline uint32x8_t not_(const uint32x8_t in1) {
+	[[nodiscard]] constexpr static inline uint32x8_t not_(const uint32x8_t in1) {
 		uint32x8_t out;
-		const __m256i minus_one = _mm256_set1_epi8(-1);
-		out.v256 = _mm256_xor_si256(in1.v256, minus_one);
+		constexpr uint32x8_t minus_one = uint32x8_t::set1(-1);
+		out.v256 = in1.v256 ^ minus_one.v256;
 		return out;
 	}
 
@@ -892,9 +892,9 @@ struct uint32x8_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t add(const uint32x8_t in1,
-						  const uint32x8_t in2) {
+	                                                     const uint32x8_t in2) {
 		uint32x8_t out;
-		out.v256 = _mm256_add_epi32(in1.v256, in2.v256);
+		out.v256 =  (__m256i)((__v8su)in1.v256 + (__v8su)in2.v256);
 		return out;
 	}
 
@@ -903,9 +903,9 @@ struct uint32x8_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t sub(const uint32x8_t in1,
-						  const uint32x8_t in2) {
+						  								 const uint32x8_t in2) {
 		uint32x8_t out;
-		out.v256 = _mm256_sub_epi32(in1.v256, in2.v256);
+		out.v256 = (__m256i)((__v8su)in1.v256 - (__v8su)in2.v256);
 		return out;
 	}
 
@@ -916,7 +916,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t mullo(const uint32x8_t in1,
 							const uint32x8_t in2) {
 		uint32x8_t out;
-		out.v256 = _mm256_mullo_epi16(in1.v256, in2.v256);
+		out.v256= (__m256i)((__v8su)in1.v256 * (__v8su)in2.v256);
 		return out;
 	}
 
@@ -1130,7 +1130,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t xor_(const uint64x4_t in1,
 						   const uint64x4_t in2) {
 		uint64x4_t out;
-		out.v256 = _mm256_xor_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 ^ in2.v256;
 		return out;
 	}
 
@@ -1139,9 +1139,9 @@ struct uint64x4_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t and_(const uint64x4_t in1,
-						   const uint64x4_t in2) {
+	                                                      const uint64x4_t in2) {
 		uint64x4_t out;
-		out.v256 = _mm256_and_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 & in2.v256;
 		return out;
 	}
 
@@ -1150,9 +1150,9 @@ struct uint64x4_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t or_(const uint64x4_t in1,
-						  const uint64x4_t in2) {
+						  								 const uint64x4_t in2) {
 		uint64x4_t out;
-		out.v256 = _mm256_or_si256(in1.v256, in2.v256);
+		out.v256 = in1.v256 | in2.v256;
 		return out;
 	}
 
@@ -1160,10 +1160,10 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t andnot(const uint64x4_t in1,
+	[[nodiscard]]  static inline uint64x4_t andnot(const uint64x4_t in1,
 							 const uint64x4_t in2) {
 		uint64x4_t out;
-		out.v256 = _mm256_andnot_si256(in1.v256, in2.v256);
+		out.v256 = (__m256i)(~(__v4du)in1.v256 & (__v4du)in2.v256);
 		return out;
 	}
 
@@ -1172,8 +1172,8 @@ struct uint64x4_t {
 	/// \return
 	[[nodiscard]] static inline uint64x4_t not_(const uint64x4_t in1) {
 		uint64x4_t out;
-		const __m256i minus_one = _mm256_set1_epi8(-1);
-		out.v256 = _mm256_xor_si256(in1.v256, minus_one);
+		constexpr uint64x4_t minus_one = uint64x4_t::set1(-1);
+		out.v256 = in1.v256 ^ minus_one.v256;
 		return out;
 	}
 
@@ -1184,7 +1184,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t add(const uint64x4_t in1,
 						  const uint64x4_t in2) {
 		uint64x4_t out;
-		out.v256 = _mm256_add_epi64(in1.v256, in2.v256);
+		out.v256 =  (__m256i)((__v4du)in1.v256 + (__v4du)in2.v256);
 		return out;
 	}
 
@@ -1195,7 +1195,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t sub(const uint64x4_t in1,
 						  const uint64x4_t in2) {
 		uint64x4_t out;
-		out.v256 = _mm256_sub_epi64(in1.v256, in2.v256);
+		out.v256 = (__m256i)((__v4du)in1.v256 - (__v4du)in2.v256);
 		return out;
 	}
 
@@ -1205,7 +1205,14 @@ struct uint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t mullo(const uint64x4_t in1,
 							const uint64x4_t in2) {
-		uint64x4_t out; /// TODO
+		uint64x4_t out;
+#ifdef USE_AVX512
+		out.v256 = (__m256i) ((__v4du) in1.v256 * (__v4du) in2.v256);
+#else
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] * in2.v[i];
+		}
+#endif
 		return out;
 	}
 	///

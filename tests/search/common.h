@@ -9,7 +9,7 @@ T random_data(std::vector<T> &data,
               size_t &solution_index,
               const size_t size,
               const T __mask=0) {
-	const T mask = __mask == 0 ? -1ull : __mask;
+	const T mask = __mask == 0 ? T(-1ull) : __mask;
 
 	data.resize(size);
 	for (uint64_t i = 0; i < size; ++i) {

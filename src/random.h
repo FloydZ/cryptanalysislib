@@ -84,15 +84,14 @@ static void random_seed(uint64_t i) noexcept {
 	xorshf96_random_seed(i);
 }
 
-///
-/// \return
+/// \return a uniform random `uint64_t`
 static uint64_t fastrandombytes_uint64() noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
 
-///
+/// simple C++ wrapper.
 /// \tparam T
-/// \return
+/// \return a type T uniform random element
 template<typename T>
 static inline T fastrandombytes_T() noexcept {
 	return xorshf96_fastrandombytes_uint64();

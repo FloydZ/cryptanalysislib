@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.9)
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -22,6 +22,10 @@ OptimizeForArchitecture()
 # only for the CI
 include_directories("benchmark/include")
 link_directories("benchmark/build/src")
+
+
+
+find_package(OpenMP)
 
 # include the external projects 'fplll', 'g6k', 'abseil' and 'tcmalloc'
 #ExternalProject_Add(fplll_project
@@ -88,8 +92,8 @@ if(APPLE)
 
     set(ADDITIONAL_FLAGS "-DUSE_ARM -march=native ")
 
-    set(DEBUG_FLAGS "-g -DDEBUG ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-    set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+    set(DEBUG_FLAGS "-g -DDEBUG ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+    set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 else()
 
 if("avx2" IN_LIST _available_vector_units_list)
@@ -100,32 +104,23 @@ if("avx512f" IN_LIST _available_vector_units_list)
     set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
 endif()
 
-    set(DEBUG_FLAGS "-g -O0 -DDEBUG -march=native ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
+set(DEBUG_FLAGS "-g -O0 -DDEBUG -march=native ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
-# TODO merge with one
-# note that fplll is missing
+# NOTE: fplll is missing
 set(LINK_TEST_FLAGS -lgtest -pthread gmpxx libm4ri.a m png)
-set(LINK_BENCH_FLAGS -lgtest -pthread gmpxx libm4ri.a m png)
+if(OpenMP_CXX_FOUND)
+	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_CXX)
+endif()
 
-
-# Set additionally our own debug/optimisation compiler/linkage flags. Maybe not he nicest way, but by far the easiest.
+# Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
+# he nicest way, but by far the easiest.
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 
-# MAIN SOURCE FILES
-set(SRCS src/config/config.cpp)
-
-# add_library(small_secret_lwe_library STATIC ${SRCS})
-# add_dependencies(small_secret_lwe_library fplll_project m4ri_project)
-# target_compile_options(small_secret_lwe_library PRIVATE ${VALUE_FLAG})
-
-# add_library(small_secret_lwe_binary_library STATIC ${SRCS})
-# add_dependencies(small_secret_lwe_binary_library fplll_project)
-# target_compile_options(small_secret_lwe_binary_library PRIVATE -DVALUE_BINARY)
 
 # now check if we have to add the cuda runtime
 include(CheckLanguage)
@@ -150,7 +145,8 @@ if(CMAKE_CUDA_COMPILER)
     endif()
 
 
-    # fall back, if one does not directly have a CUDA rdy card, but rather a optimus (internal laptop) card.
+    # fall back, if one does not directly have a CUDA ready card, but rather a 
+	# optimus (internal laptop) card.
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
         set(CMAKE_CUDA_ARCHITECTURES 61)
     endif()
@@ -159,7 +155,7 @@ if(CMAKE_CUDA_COMPILER)
     #target_link_libraries(test_cuda ${LINK_TEST_FLAGS} fplll m4ri gmpxx gmp)
 endif()
 
-# add subdirectories
+# add sub directories
 add_subdirectory(src)
 add_subdirectory(bench)
 add_subdirectory(tests)

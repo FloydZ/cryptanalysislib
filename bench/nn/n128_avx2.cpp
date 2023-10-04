@@ -19,32 +19,30 @@ static void BM_bruteforce_128(benchmark::State& state) {
 	state.SetComplexityN(state.range(0));
 }
 
-#ifdef USE_AVX2
-static void BM_bruteforce_avx2_128(benchmark::State& state) {
+static void BM_bruteforce_simd_128(benchmark::State& state) {
 	for (auto _ : state) {
-		algo.bruteforce_avx2_128(state.range(0), state.range(0));
+		algo.bruteforce_simd_128(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
 
-static void BM_bruteforce_avx2_128_32_2_uxv_4x4(benchmark::State& state) {
+static void BM_bruteforce_simd_128_32_2_uxv_4x4(benchmark::State& state) {
 	for (auto _ : state) {
-		algo.bruteforce_avx2_128_32_2_uxv<4, 4>(state.range(0), state.range(0));
+		algo.bruteforce_simd_128_32_2_uxv<4, 4>(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
 
-static void BM_bruteforce_avx2_128_32_2_uxv_8x8(benchmark::State& state) {
+static void BM_bruteforce_simd_128_32_2_uxv_8x8(benchmark::State& state) {
 	for (auto _ : state) {
-		algo.bruteforce_avx2_128_32_2_uxv<8, 8>(state.range(0), state.range(0));
+		algo.bruteforce_simd_128_32_2_uxv<8, 8>(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
 
-BENCHMARK(BM_bruteforce_avx2_128)->RangeMultiplier(2)->Range(128, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_128_32_2_uxv_4x4)->RangeMultiplier(2)->Range(128, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_128_32_2_uxv_8x8)->RangeMultiplier(2)->Range(128, LS)->Complexity();
-#endif
+BENCHMARK(BM_bruteforce_simd_128)->RangeMultiplier(2)->Range(128, LS)->Complexity();
+BENCHMARK(BM_bruteforce_simd_128_32_2_uxv_4x4)->RangeMultiplier(2)->Range(128, LS)->Complexity();
+BENCHMARK(BM_bruteforce_simd_128_32_2_uxv_8x8)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 
 BENCHMARK(BM_bruteforce_128)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 

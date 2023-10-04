@@ -264,7 +264,8 @@ public:
 	alignas(32) uint64_t RB[BUCKET_SIZE * ELEMENT_NR_LIMBS];
 
 	// instance
-	alignas(64) Element *L1 = nullptr, *L2 = nullptr;
+	alignas(64) Element *L1 = nullptr,
+	                    *L2 = nullptr;
 
 	// solution
 	size_t solution_l = 0, solution_r = 0, solutions_nr = 0;
@@ -728,7 +729,7 @@ public:
 		for (size_t i = 0; i < P * N; ++i) {
 			if constexpr (32 < n and n <= 256) {
 #ifdef USE_AVX2
-				avx2_nn_internal<r>(e1, e2);
+				//TODO avx2_nn_internal<r>(e1, e2);
 #else
 				nn_internal<r>(e1, e2);
 #endif

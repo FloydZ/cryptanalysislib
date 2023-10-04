@@ -7,7 +7,7 @@
 
 #include <cstdint>
 #if defined(USE_OMP)
-#include <omp>
+#include <omp.h>
 #endif
 
 class Thread {
@@ -23,6 +23,6 @@ public:
 		return 0;
 	}
 #endif
-
 };
+
 #endif//CRYPTANALYSISLIB_THREAD_H

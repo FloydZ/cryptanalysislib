@@ -142,7 +142,7 @@ B63_BENCHMARK(Khuong_bin_search, nn) {
 		search = random_data(data, nn);
 	}
 	for (uint32_t i = 0; i < nn; ++i) {
-		pos += Khuong_bin_search(data, search);
+		pos += Khuong_bin_search(data.data(), SIZE, search);
 	}
 	B63_KEEP(pos);
 }
