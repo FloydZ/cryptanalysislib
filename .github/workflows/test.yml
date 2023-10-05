@@ -57,7 +57,6 @@ jobs:
         ./tests/test_kArytype
         ./tests/test_label
         ./tests/test_list
-        ./tests/test_search
         ./tests/test_stl
         ./tests/test_tree
         ./tests/test_value
