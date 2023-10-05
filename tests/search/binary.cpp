@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "search/binary.h"
 #include "search/search.h"
 #include "common.h"
 
@@ -110,6 +111,20 @@ TEST(upper_bound_adaptive_binary_search, simple) {
 	T search = random_data(data, solution_index, SIZE, MASK);
 
 	auto a = upper_bound_adaptive_binary_search(data.begin(), data.end(), search,
+												 [](const T &e1) -> T {
+												   return e1;
+												 }
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
+
+TEST(branchless_lower_bound, simple) {
+	std::vector<T> data;
+	size_t solution_index;
+	T search = random_data(data, solution_index, SIZE, MASK);
+
+	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 												 [](const T &e1) -> T {
 												   return e1;
 												 }
