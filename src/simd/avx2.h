@@ -1262,9 +1262,9 @@ struct uint64x4_t {
 		uint64x4_t out;
 #ifdef USE_AVX512
 		out.v256 = (__m256i) ((__v4du) in1.v256 * (__v4du) in2.v256);
-#else
+#else 
 		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] * in2.v[i];
+			out.v64[i] = in1.v64[i] * in2.v64[i];
 		}
 #endif
 		return out;
