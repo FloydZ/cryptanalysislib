@@ -27,14 +27,14 @@ uint64_t helper_list_is_every_element_value_unique(const List &l){
 
 	uint64_t errors = 0;
 	const uint64_t vs = l[0].value_size();
-	for (int i = 0; i < l.load(); ++i) {
-		for (int j = 0; j < l.load(); ++j) {
+	for (uint64_t i = 0; i < l.load(); ++i) {
+		for (uint64_t j = 0; j < l.load(); ++j) {
 			// skip element if their are the same
 			if (i == j)
 				continue;
 
 			bool equal = true;
-			for (int k = 0; k < vs; ++k) {
+			for (uint64_t k = 0; k < vs; ++k) {
 				if (l[i].get_value().data()[k] != l[j].get_value().data()[k]) {
 					equal = false;
 					break;

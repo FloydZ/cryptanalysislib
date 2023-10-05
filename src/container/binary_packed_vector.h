@@ -1493,12 +1493,12 @@ public:
 	///		mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask2(k_higher);
 	///		b1.is_lower_simple2(b2, limb, mask);
 	inline bool is_lower_simple2(BinaryContainer const &obj, const uint32_t limb, const LimbType mask) const noexcept {
-		ASSERT(limb < limbs() < length && mask != 0);
+		ASSERT((limb < limbs() < length) && mask != 0);
 		return ((__data[limb]&mask) < (obj.__data[limb]&mask));
 	}
 
 	inline bool is_lower_equal_simple2(BinaryContainer const &obj, const uint32_t limb, const LimbType mask) const noexcept {
-		ASSERT(limb < limbs() < length && mask != 0);
+		ASSERT((limb < limbs() < length) && mask != 0);
 		return ((__data[limb]&mask) <= (obj.__data[limb]&mask));
 	}
 

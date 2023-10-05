@@ -9,7 +9,7 @@ B63_BASELINE(equal_alllevel, nn) {
 	kAryLabel v1{}, v2{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
@@ -17,7 +17,7 @@ B63_BASELINE(equal_alllevel, nn) {
 		translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		res += v1.is_equal(v2, k_lower, k_higher);
@@ -36,16 +36,16 @@ B63_BENCHMARK(equal_level1, nn) {
 	uint64_t k_lower, k_higher;
 
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
 		translate_level(&k_lower, &k_higher, 0, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
-	for (; res < n; res++) {
+	for (; res < nn; res++) {
 		res += v1.is_equal(v2, k_lower, k_higher);
 	}
 
@@ -62,7 +62,7 @@ B63_BENCHMARK(equal_level2, nn) {
 	uint64_t k_lower, k_higher;
 
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
@@ -70,7 +70,7 @@ B63_BENCHMARK(equal_level2, nn) {
 		translate_level(&k_lower, &k_higher, 1, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		res += v1.is_equal(v2, k_lower, k_higher);
@@ -89,7 +89,7 @@ B63_BENCHMARK(equal_level3, nn) {
 	uint64_t k_lower, k_higher;
 
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
@@ -97,7 +97,7 @@ B63_BENCHMARK(equal_level3, nn) {
 		translate_level(&k_lower, &k_higher, 2, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		res += v1.is_equal(v2, k_lower, k_higher);

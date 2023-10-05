@@ -2,6 +2,7 @@
 #include "counters/perf_events.h"
 
 #include "../bench_config.h"
+#include <cstdint>
 
 
 B63_BASELINE(copy, nn) {
@@ -10,7 +11,7 @@ B63_BASELINE(copy, nn) {
 		v1.data()[0] = 1;
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		v1 = v2;
@@ -36,7 +37,7 @@ B63_BENCHMARK(move, nn) {
 		v1.data()[0] = 1;
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		v1 = std::move(v2);

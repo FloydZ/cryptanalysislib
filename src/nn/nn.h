@@ -312,8 +312,9 @@ public:
 			e2[ELEMENT_NR_LIMBS - 1] = 0;
 			wt += __builtin_popcount(e1[ELEMENT_NR_LIMBS - 1]);
 
-			if (wt < d)
+			if (wt < d) {
 				return;
+			}
 		}
 	}
 
@@ -360,7 +361,7 @@ public:
 		e1[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
 		e2[ELEMENT_NR_LIMBS - 1] ^= e1[ELEMENT_NR_LIMBS - 1];
 		wt += __builtin_popcountll(e1[ELEMENT_NR_LIMBS - 1] ^ e2[ELEMENT_NR_LIMBS - 1]);
-		ASSERT(wt = d);
+		ASSERT(wt == d);
 	}
 
 	/// simply chooses an uniform random element
@@ -1429,7 +1430,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1442,7 +1443,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1454,7 +1455,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1467,7 +1468,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp) {
 					ASSERT(__builtin_popcount(m1s_tmp) == 1);
 					const uint32_t m1s_ctz = __builtin_ctz(m1s_tmp);
@@ -1552,7 +1553,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1566,7 +1567,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1580,7 +1581,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1594,7 +1595,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1608,7 +1609,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1622,7 +1623,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1636,7 +1637,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp == 0) {
 					continue;
 				}
@@ -1650,7 +1651,7 @@ public:
 					m1s[mi] = tmp ? tmp^m1s_mask : 0;
 				}
 
-				m1s_tmp = _mm256_movemask_ps((__m256) LOAD256((__m256i *)m1s));
+				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp) {
 					// TODO limitation. Welche?
 					ASSERT(__builtin_popcount(m1s_tmp) == 1);

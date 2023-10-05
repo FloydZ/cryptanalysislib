@@ -3,7 +3,9 @@ and our second [paper](https://eprint.iacr.org/2022/1329).
 
 Requirements
 -----
-Basically you need a `C++20` rdy compiler, `cmake 3.10` and `autoconf` for building `fplll, m4ri`. For testing and benchmarking you need `gtest` and `googlebenchmark`.
+Basically you need a `C++20` rdy compiler, `cmake 3.10` and `autoconf` for 
+building `fplll, m4ri`. For testing and benchmarking you need `gtest` and 
+`googlebenchmark`.
 
 ## Arch Linux:
 ```bash
@@ -49,8 +51,12 @@ How to build
 ------
 ```bash
 git clone --recurse-submodules -j4 https://github.com/FloydZ/cryptanalysislib
-cd cryptanalysislib && mkdir build && cd build && cmake ..
+cd cryptanalysislib && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release
 ```
+
+A few notes on the cmake flags:
+- for debugging you can also pass `-DCMAKE_BUILD_TYPE=Debug`.
+- if you do not pass any flag (so neither `Debug`, nor `Release`) and optimized build without SIMD will be compiled
 
 List of compiler flags
 -------

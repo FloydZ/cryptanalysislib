@@ -6,6 +6,7 @@
 #include "container/binary_packed_vector.h"
 #include "search/search.h"
 #include "helper.h"
+#include <cstdint>
 
 using namespace std;
 constexpr static uint64_t SIZE = 1<<20;
@@ -18,8 +19,8 @@ using ContainerT = uint64_t;
 constexpr static ContainerT mask = ((ContainerT(1) << k_higher) - 1) ^ ((ContainerT(1) << k_lower) -1);
 
 ContainerT random_data(std::vector<ContainerT> &data, const uint64_t size) {
-	data.resize(SIZE);
-	for (int i = 0; i < SIZE; ++i) {
+	data.resize(size);
+	for (uint64_t i = 0; i < size; ++i) {
 		data[i] = fastrandombytes_uint64() & mask;
 	}
 
@@ -42,7 +43,7 @@ B63_BASELINE(lower_bound, nn) {
 		search = random_data(data, nn);
 	}
 
-	for (int i = 0; i < nn; ++i) {
+	for (uint64_t i = 0; i < nn; ++i) {
 		auto r = std::lower_bound(data.begin(), data.end(), search,
 		                          [](const auto &e1, const auto &e2) {
 			                          return (e1&mask) < (e2&mask);

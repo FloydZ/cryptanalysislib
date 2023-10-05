@@ -125,8 +125,8 @@ TEST(branchless_lower_bound, simple) {
 	T search = random_data(data, solution_index, SIZE, MASK);
 
 	auto a = branchless_lower_bound(data.begin(), data.end(), search,
-												 [](const T &e1) -> T {
-												   return e1;
+												 [](const T &e1, const T &e2) -> T {
+												   return e1 < e2;
 												 }
 	);
 

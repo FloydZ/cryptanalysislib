@@ -3,6 +3,7 @@
 
 #include "../bench_config.h"
 
+#include <cstdint>
 #include <helper.h>
 #include <kAry_type.h>
 
@@ -14,7 +15,7 @@ B63_BASELINE(sub_operator, nn) {
 		l2 = rand();
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		l3 = l1 - l2 - l3 - res;

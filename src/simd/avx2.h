@@ -78,7 +78,7 @@ struct uint32x4_t {
 		__m128i  v128;
 	};
 
-	constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+	[[nodiscard]] constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
 		uint32x4_t ret;
 		ret.v32[0] = d;
 		ret.v32[1] = c;
@@ -87,7 +87,7 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+	[[nodiscard]] constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
 		uint32x4_t ret;
 		ret.v32[0] = a;
 		ret.v32[1] = b;
@@ -96,14 +96,14 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	constexpr static inline uint32x4_t set(uint64_t a, uint64_t b) {
+	[[nodiscard]] constexpr static inline uint32x4_t set(uint64_t a, uint64_t b) {
 		uint32x4_t ret;
 		ret.v64[0] = b;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	constexpr static inline uint32x4_t setr(uint64_t a, uint64_t b) {
+	[[nodiscard]] constexpr static inline uint32x4_t setr(uint64_t a, uint64_t b) {
 		uint32x4_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = b;
@@ -120,14 +120,14 @@ struct uint64x2_t {
 		__m128i  v128;
 	};
 
-	constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
+	[[nodiscard]] constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
 		uint64x2_t ret;
 		ret.v64[0] = b;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	constexpr static inline uint64x2_t setr(uint64_t a, uint64_t b) {
+	[[nodiscard]] constexpr static inline uint64x2_t setr(uint64_t a, uint64_t b) {
 		uint64x2_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = b;
@@ -1060,6 +1060,11 @@ struct uint32x8_t {
 		ret.v256 = (__m256i)__builtin_ia32_permvarsi256((__v8si)in.v256, (__v8si)perm.v256);
 		return ret;
 	}
+
+
+	[[nodiscard]] static inline uint8_t move(const uint32x8_t in1) {
+		return _mm256_movemask_ps((__m256)in1.v256);
+	}
 };
 
 struct uint64x4_t {
@@ -1368,6 +1373,11 @@ struct uint64x4_t {
 
 		ret.v256 = _mm256_i64gather_epi64((long long *)ptr, data.v256, scale);
 		return ret;
+	}
+
+
+	[[nodiscard]] static inline uint8_t move(const uint64x4_t in1) {
+		return _mm256_movemask_pd((__m256d)in1.v256);
 	}
 };
 

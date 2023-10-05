@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <vector>
 #include <array>
 
@@ -25,7 +26,7 @@ using DecodingList      = List_T<DecodingElement>;
 // std_sort
 B63_BASELINE(ListConstructor, nn) {
 	uint32_t res = 0;
-	for (int i = 0; i < nn; ++i) {
+	for (uint64_t i = 0; i < nn; ++i) {
 		DecodingList L(nn*lsize);
 		L.set_load(nn*lsize);
 		res += L[0].get_label_container_ptr()[0];
@@ -36,7 +37,7 @@ B63_BASELINE(ListConstructor, nn) {
 
 B63_BENCHMARK(ListMalloc, nn) {
 	uint32_t res = 0;
-	for (int i = 0; i < nn; ++i) {
+	for (uint64_t i = 0; i < nn; ++i) {
 		DecodingElement *L = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
 		res += L[0].get_label_container_ptr()[0];
 		free(L);
@@ -55,7 +56,7 @@ B63_BENCHMARK(CopyClass, nn) {
 		L2.set_load(nn*lsize);
 	}
 
-	for (int i = 0; i < nn; ++i) {
+	for (uint64_t i = 0; i < nn; ++i) {
 		L1 = L2;
 		res += L1[0].get_label_container_ptr()[0];
 		L1[0].get_label_container_ptr()[0] += rand();
@@ -69,7 +70,7 @@ B63_BENCHMARK(CopyMalloc, nn) {
 	DecodingElement *L2 = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
 
 	uint32_t res = 0;
-	for (int i = 0; i < nn; ++i) {
+	for (uint64_t i = 0; i < nn; ++i) {
 		memcpy(L1, L2, sizeof(DecodingElement)*nn*lsize);
 		res += L1[0].get_label_container_ptr()[0];
 		L1[0].get_label_container_ptr()[0] += rand();
