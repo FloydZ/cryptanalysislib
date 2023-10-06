@@ -389,8 +389,9 @@ public:
 
 	// M4RI (method Of The 4 Russians) glue code.
 	// export/import function
-	void to_m4ri(word *a) const noexcept {
+	word* to_m4ri(word *a) const noexcept {
 		a = __data.data();
+		return a;
 	}
 	void column_from_m4ri(const mzd_t *H, const uint32_t col) noexcept {
 		ASSERT(uint64_t(H->ncols) > uint64_t(col));
@@ -433,6 +434,8 @@ public:
 
 	inline void neg(const uint16_t k_lower, const uint16_t k_upper) noexcept {
 		// do nothing.
+		(void)k_lower;
+		(void)k_upper;
 	}
 
 	// full length addition.

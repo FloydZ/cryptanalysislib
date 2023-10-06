@@ -585,25 +585,30 @@ public:
 		/// data container
 		//static RowType buckets[compute_size()];
 
-		///
+		/// computes the index within the precomputation table
 		constexpr auto compute_index =
-				[&](const size_t row_index, const size_t col_index) {
-				  size_t ret = 0;
-				  for (uint32_t i = 0; i < r; ++i) {
+			[&](const size_t row_index, const size_t col_index) {
+			  size_t ret = 0;
 
-				  }
-				};
+			  (void) row_index;
+			  (void) col_index;
+			  for (uint32_t i = 0; i < r; ++i) {
+
+			  }
+
+			  return ret;
+		};
 
 		/// init the buckets
 		constexpr auto init = [&](const uint32_t start_row) {
 		  ASSERT(start_row + r <= nrows);
 		  for (uint32_t i = 0; i < qm1; ++i) {
-			  size_t offset = 0;
+			  //size_t offset = 0;
 
 			  // simply copy each row
 			  for (uint32_t j = 0; j < r; ++j) {
 				  //buckets[offset] = get(start_row + j);
-				  offset += q;
+				  //offset += q;
 			  }
 
 			  for (uint32_t j = 0; j < r; ++j) {
@@ -612,7 +617,7 @@ public:
 		  }
 		};
 
-		return 0;
+		return r_stop;
 	}
 
 	/// swap to elements within the matrix
@@ -960,6 +965,24 @@ public:
 						 bool compress_spaces=false,
 						 bool syndrome=false) const noexcept {
 		constexpr uint32_t bits = constexpr_bits_log2(q);
+		if (binary) {
+			for (uint32_t j = 0; j < ncols; ++j) {
+				for (uint32_t i = 0; i < nrows; ++i) {
+					if (transposed) {
+						print_binary(get(i, j), bits);
+					} else {
+						print_binary(get(j, i), bits);
+					}
+
+					if (not compress_spaces) {
+						std::cout << " ";
+					}
+				}
+			}
+			return;
+
+		}
+
 		if (transposed) {
 			for (uint32_t j = 0; j < ncols; ++j) {
 				for (uint32_t i = 0; i < nrows; ++i) {

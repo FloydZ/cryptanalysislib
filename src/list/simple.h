@@ -19,6 +19,7 @@ concept ParallelListSimpleAble = requires(Container c) {
 #endif
 
 /// most simple list
+/// load factor is not multithreaded
 /// \tparam Element, can be anything.
 ///		Does not need to be a `Element`
 /// 	that's the reason, why we have a single concept only for this class
@@ -55,6 +56,7 @@ public:
 	/// set the size
 	/// NOTE: not implementable as this list has a static size
 	constexpr void set_size(const size_t new_size) noexcept {
+		(void)new_size;
 	}
 
 	/// get the load parameter

@@ -76,7 +76,7 @@ set(SANITIZE_FLAGS "")
 #set(INLINE_FLAGS "-fno-inline")
 set(INLINE_FLAGS "")
 
-set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs")
+set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.

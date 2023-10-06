@@ -549,9 +549,9 @@ class kAryPackedContainer_Meta {
 
 	// iterators.
 	auto begin() noexcept { return __data.begin();}
-	const auto begin() const noexcept { return __data.begin();}
+	auto begin() const noexcept { return __data.begin();}
 	auto end() noexcept { return __data.end();}
-	const auto end() const noexcept { return __data.end();}
+	auto end() const noexcept { return __data.end();}
 
 	///
 	/// \param i

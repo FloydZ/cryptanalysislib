@@ -2,6 +2,7 @@
 #define CRYPTANALYZELIB_CONTAINER_VECTOR
 
 #include <cstdint>
+#include "helper.h"
 #include "container/common.h"
 
 
@@ -327,9 +328,9 @@ public:
 	
 	/// iterators
 	auto begin() noexcept { return __data.begin();}
-	const auto begin() const noexcept { return __data.begin();}
+	auto begin() const noexcept { return __data.begin();}
 	auto end() noexcept { return __data.end();}
-	const auto end() const noexcept { return __data.end();}
+	auto end() const noexcept { return __data.end();}
 
 	// this data container is never binary
 	__FORCEINLINE__ constexpr static bool binary() noexcept { return false; }

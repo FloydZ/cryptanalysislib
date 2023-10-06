@@ -433,12 +433,12 @@ public:
 	Value& get_value() noexcept { return value; }
 	const Value& get_value() const noexcept { return value; }
 	auto get_value(const size_t i) noexcept { ASSERT(i < value.size()); return value.data(i); }
-	const auto get_value(const size_t i) const noexcept { ASSERT(i < value.size()); return value.data(i); }
+	auto get_value(const size_t i) const noexcept { ASSERT(i < value.size()); return value.data(i); }
 
 	Label& get_label() noexcept { return label; }
 	const Label& get_label() const noexcept { return label; }
 	auto get_label(const uint64_t i) noexcept { ASSERT(i < label.size()); return label.data(i); }
-	const auto get_label(const uint64_t i) const noexcept { ASSERT(i < label.size()); return label.data(i); }
+	auto get_label(const uint64_t i) const noexcept { ASSERT(i < label.size()); return label.data(i); }
 
 	void set_value(const Value &v) noexcept { value = v; }
 	void set_label(const Label &l) noexcept { label = l; }

@@ -130,10 +130,9 @@ private:
 	// This is for optimisations reasons.
 	MetaListT() : __load(0), __size(0), __threads(1) {};
 
-	/// TODO make the load factor for each thread
 protected:
 	/// load factor of the list
-	size_t __load;
+	std::vector<size_t> __load;
 
 	/// total size of the list
 	size_t __size;
@@ -151,9 +150,12 @@ public:
 	/// only valid constructor
 	///
 	constexpr MetaListT(const size_t size, const uint32_t threads=1, bool init_data=true) noexcept
-			: __load(0), __size(size), __threads(threads), __thread_block_size(size/threads) {
+			: __load(threads), __size(size), __threads(threads), __thread_block_size(size/threads) {
 		if (init_data) {
 			__data.resize(size);
+			for (uint32_t i = 0; i < threads; i++) {
+				__load[i] = 0;
+			}
 		}
 	}
 
@@ -239,8 +241,8 @@ public:
 	constexpr void resize(const size_t new_size) noexcept { return __data.resize(new_size); }
 
 	/// set/get the load factor
-	[[nodiscard]] size_t load() const noexcept { return __load; }
-	void set_load(size_t l) noexcept { __load = l; }
+	[[nodiscard]] constexpr size_t load(const uint32_t tid=0) const noexcept { ASSERT(tid < threads()); return __load[tid]; }
+	constexpr void set_load(const size_t l, const uint32_t tid=0) noexcept { ASSERT(tid < threads()); __load[tid] = l; }
 
 	/// returning the range in which one thread is allowed to operate
 	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid) const noexcept { return tid*(__data.size()/__threads); };
@@ -254,15 +256,20 @@ public:
 	/// some setter/getter
 	[[nodiscard]] uint32_t threads() const noexcept { return __threads; }
 	[[nodiscard]] size_t thread_block_size() const noexcept { return __thread_block_size; }
-	void set_threads(const uint32_t new_threads) noexcept {
+	/// NOTE: this functions resets the load factors
+	constexpr void set_threads(const uint32_t new_threads) noexcept {
 		__threads = new_threads;
 		__thread_block_size = size()/__threads;
+		__load.resize(new_threads);
+		for (uint32_t i = 0; i < new_threads; i++) {
+			__load[i] = 0;
+		}
 	}
-	void set_thread_block_size(const size_t a) noexcept {  __thread_block_size = a; }
+	constexpr void set_thread_block_size(const size_t a) noexcept {  __thread_block_size = a; }
 
 	/// Get a const pointer. Sometimes useful if one ones to tell the kernel how to access memory.
 	constexpr inline auto* data() noexcept{ return __data.data(); }
-	const auto* data() const noexcept { return __data.data(); }
+	constexpr const auto* data() const noexcept { return __data.data(); }
 
 	/// wrapper
 	constexpr inline ValueType* data_value() noexcept { return (ValueType *)(((uint8_t *)ptr()) + LabelBytes); }
@@ -395,24 +402,27 @@ public:
 	/// zeros the whole list
 	/// and resets the load
 	void zero(const uint32_t tid=0) {
-		for (size_t i = 0; i < size(); ++i) {
+		const size_t spos = start_pos(tid);
+		const size_t epos = end_pos(tid);
+
+		for (size_t i = spos; i < epos; ++i) {
 			__data[i].zero();
 		}
 
-		set_load(0);
+		set_load(0, tid);
 	}
 
 	/// this only sets the load counter to zero
 	void reset(const uint32_t tid=0) {
-		set_load(0);
+		set_load(0, tid);
 	}
 
 	/// remove the element at pos i.
 	/// \param i
-	void erase(const size_t i) {
+	void erase(const size_t i, const uint32_t tid=0) {
 		ASSERT(i < size());
 		__data.erase(__data.begin()+i);
-		__load -= 1;
+		__load[tid] -= 1;
 	}
 
 	/// generates a random element
