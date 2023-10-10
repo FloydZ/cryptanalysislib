@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "list/common.h"
+#include "sort/sort.h"
 
 /// This implements a data struct which can hold arbitrary amount of labels and values in two different lists.
 ///  	To separate the labels and values from each others, means that we are able to faster enumerate over only the labels
@@ -129,13 +130,23 @@ public:
 
 	///
 	/// \tparam Hash hash function type, needed for the bucket sort
-	/// \param tid thread id
 	/// \param start start point= first element to sort
 	/// \param end  end point = last element to sort
 	/// \param hash hash function
 	template<typename Hash>
-	void sort(uint32_t tid, const size_t start, const size_t end, Hash hash) noexcept {
-		ASSERT(0);
+	void sort(const size_t start, const size_t end, Hash hash) noexcept {
+		ska_sort(__data_value + start, __data_value + end, hash);
+	}
+
+	///
+	/// \tparam Hash hash function type, needed for the bucket sort
+	/// \param tid thread id 
+	/// \param hash hash function
+	template<typename Hash>
+	void sort(uint32_t tid, Hash hash) noexcept {
+		const size_t start = start_pos(tid);
+		const size_t end = start_pos(tid);
+		ska_sort(__data_value + start, __data_value + end, hash);
 	}
 
 	/// zero a list

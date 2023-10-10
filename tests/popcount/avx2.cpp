@@ -10,8 +10,57 @@ using ::testing::Test;
 constexpr size_t stack_size = 10;
 
 #ifdef USE_AVX2
-#include "popcount/avx2.h"
+#include "popcount/popcount.h"
 #include "simd/avx2.h"
+
+TEST(AVX2, uint8_t) {
+	__m256i a = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7,0, 1, 2, 3, 4, 5, 6, 7,
+	                             0, 1, 2, 3, 4, 5, 6, 7,0, 1, 2, 3, 4, 5, 6, 7);
+	__m256i b = popcount_avx2_8(a);
+
+	uint32x8_t c;
+	c.v256 = b;
+	EXPECT_EQ(c.v8[ 0], 0);
+	EXPECT_EQ(c.v8[ 1], 1);
+	EXPECT_EQ(c.v8[ 2], 1);
+	EXPECT_EQ(c.v8[ 3], 2);
+	EXPECT_EQ(c.v8[ 4], 1);
+	EXPECT_EQ(c.v8[ 5], 2);
+	EXPECT_EQ(c.v8[ 6], 2);
+	EXPECT_EQ(c.v8[ 7], 3);
+	EXPECT_EQ(c.v8[ 8], 0);
+	EXPECT_EQ(c.v8[ 9], 1);
+	EXPECT_EQ(c.v8[10], 1);
+	EXPECT_EQ(c.v8[11], 2);
+	EXPECT_EQ(c.v8[12], 1);
+	EXPECT_EQ(c.v8[13], 2);
+	EXPECT_EQ(c.v8[14], 2);
+	EXPECT_EQ(c.v8[15], 3);
+}
+
+TEST(AVX2, uint16_t) {
+	__m256i a = _mm256_setr_epi16(0, 1, 2, 3, 4, 5, 6, 7,0, 1, 2, 3, 4, 5, 6, 7);
+	__m256i b = popcount_avx2_16(a);
+
+	uint32x8_t c;
+	c.v256 = b;
+	EXPECT_EQ(c.v16[ 0], 0);
+	EXPECT_EQ(c.v16[ 1], 1);
+	EXPECT_EQ(c.v16[ 2], 1);
+	EXPECT_EQ(c.v16[ 3], 2);
+	EXPECT_EQ(c.v16[ 4], 1);
+	EXPECT_EQ(c.v16[ 5], 2);
+	EXPECT_EQ(c.v16[ 6], 2);
+	EXPECT_EQ(c.v16[ 7], 3);
+	EXPECT_EQ(c.v16[ 8], 0);
+	EXPECT_EQ(c.v16[ 9], 1);
+	EXPECT_EQ(c.v16[10], 1);
+	EXPECT_EQ(c.v16[11], 2);
+	EXPECT_EQ(c.v16[12], 1);
+	EXPECT_EQ(c.v16[13], 2);
+	EXPECT_EQ(c.v16[14], 2);
+	EXPECT_EQ(c.v16[15], 3);
+}
 
 TEST(AVX2, uint32_t) {
 	__m256i a = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);

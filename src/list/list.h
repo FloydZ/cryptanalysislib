@@ -7,6 +7,7 @@
 #include "list/parallel.h"
 #include "list/parallel_full.h"
 #include "list/parallel_index.h"
+#include "list/enumeration/fq_new.h"
 #include "matrix/matrix.h"
 
 #include <iterator>
@@ -33,6 +34,7 @@ public:
 	typedef typename MetaListT<Element>::MatrixType MatrixType;
 
 	using typename MetaListT<Element>::LoadType;
+	using List = List_T<Element>;
 
 	/// needed values
 	using MetaListT<Element>::__load;
@@ -235,15 +237,15 @@ public:
 		requires MatrixAble<Matrix>
 #endif
 	constexpr void generate_base(const uint64_t number_of_elements,
-	                             const uint64_t ones,
 	                             const Matrix &m) noexcept {
-		ASSERT(internal_counter == 0 && "already initialised");
-		Element e{}; e.zero();
 
-		__data.resize(number_of_elements);
-		load = number_of_elements;
+		/// TODO correct those numbers and import them from matrix?
+		constexpr uint32_t n = LabelType::size();
+		constexpr uint32_t w = LabelType::size();
+		constexpr uint32_t q = LabelType::size();
+		const auto mt = m.transpose();
 
-		const uint64_t n = e.value_size();
+		auto enumerator = ListEnumerateMultiFullLength<List, n, q, w>(mt, number_of_elements);
 		// TODO replace with fq_chase combinarion Combinations_Lexicographic<decltype(e.get_value().data().get_type())> c{n, ones};
 		//c.left_init(e.get_value().data().data().data());
 		//while(c.left_step(e.get_value().data().data().data()) != 0) {

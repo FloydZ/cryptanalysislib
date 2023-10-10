@@ -37,9 +37,16 @@ public:
 	}
 
 	/// \return size the size of the list
-	[[nodiscard]] constexpr inline size_t size() const noexcept { return size; }
+	[[nodiscard]] constexpr inline size_t size() const noexcept { return __size; }
 	/// \return the number of elements each thread enumerates
-	[[nodiscard]] constexpr inline size_t size(const uint32_t tid) const noexcept { return thread_block; }
+	[[nodiscard]] constexpr inline size_t size(const uint32_t tid) const noexcept {
+		ASSERT(tid < threads);
+		if (tid == (threads - 1)) {
+			return thread_block + (__size - (threads*thread_block));
+		}
+
+		return thread_block; 
+	}
 
 	constexpr inline ElementType &at(const size_t i) noexcept {
 		ASSERT(i < size());

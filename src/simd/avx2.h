@@ -9,36 +9,10 @@
 #include <immintrin.h>
 
 #include "helper.h"
-#include "popcount/avx2.h"
+#include "popcount/popcount.h"
 #include "random.h"
 
-//
-#if CUSTOM_ALIGNMENT
-#define MM256_LOAD(x) _mm256_load_ps(x)
-#define MM256_STORE(x, y) _mm256_store_ps(x, y)
-#else
-#define MM256_LOAD(x) _mm256_loadu_ps(x)
-#define MM256_STORE(x, y) _mm256_storeu_ps(x, y)
-#endif
-
-
-#define MM256_LOAD_UNALIGNED(x) _mm256_loadu_ps(x)
-#define MM256_STORE_UNALIGNED(x, y) _mm256_storeu_ps(x, y)
-
-// Load instruction which do not touch the cache
-#define MM256_STREAM_LOAD256(x) _mm256_stream_load_si256(x)
-#define MM256_STREAM_LOAD128(x) _mm_stream_load_si128(x)
-#define MM256_STREAM_LOAD64(x) __asm volatile("movntdq %0, (%1)\n\t" \
-	                                          :                      \
-	                                          : "x"(x), "r"(y)       \
-	                                          : "memory");
-// Write instructions which do not touch the cache
-#define MM256_STREAM256(x, y) _mm256_stream_load_si256(x, y)
-#define MM256_STREAM128(x, y) _mm_stream_si128(x)
-#define MM256_STREAM64(x, y) __asm volatile("movntdq %0, (%1)\n\t" \
-	                                        :                      \
-	                                        : "x"(y), "r"(x)       \
-	                                        : "memory");
+using namespace cryptanalysislib::popcount::internal;
 
 namespace internal {
 	/// helper function. This enforces the compiler to emit a `vmovdqu` instruction
@@ -159,7 +133,7 @@ struct uint8x32_t {
 
 	/// NOTE: currently cannot be constexpr
 	/// \return
-	[[nodiscard]] static inline uint8x32_t random() noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t random() noexcept {
 		uint8x32_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -220,6 +194,20 @@ struct uint8x32_t {
 		        __q24, __q25, __q26, __q27, __q28, __q29, __q30, __q31};
 
 		return out;
+	}
+
+	[[nodiscard]] constexpr static inline uint8x32_t setr(char __q31, char __q30, char __q29, char __q28,
+														  char __q27, char __q26, char __q25, char __q24,
+														  char __q23, char __q22, char __q21, char __q20,
+														  char __q19, char __q18, char __q17, char __q16,
+														  char __q15, char __q14, char __q13, char __q12,
+														  char __q11, char __q10, char __q09, char __q08,
+														  char __q07, char __q06, char __q05, char __q04,
+														  char __q03, char __q02, char __q01, char __q00) noexcept {
+		return set(__q00,__q01,__q02,__q03,__q04,__q05,__q06,__q07,__q08,
+		           __q09,__q10,__q11,__q12,__q13,__q14,__q15,__q16,__q17,
+		           __q18,__q19,__q20,__q21,__q22,__q23,__q24,__q25,__q26,
+		           __q27,__q28,__q29,__q30,__q31);
 	}
 
 	/// sets all 32 8bit limbs to `a`
@@ -475,7 +463,7 @@ struct uint8x32_t {
 	///
 	/// \param in
 	/// \return
-	static inline uint8x32_t popcnt(const uint8x32_t in) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t popcnt(const uint8x32_t in) noexcept {
 		uint8x32_t ret;
 		ret.v256 = popcount_avx2_8(in.v256);
 		return ret;
@@ -493,7 +481,7 @@ struct uint16x16_t {
 
 	///
 	/// \return
-	inline uint16x16_t random() noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t random() noexcept {
 		uint16x16_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -764,7 +752,7 @@ struct uint16x16_t {
 	///
 	/// \param in
 	/// \return
-	[[nodiscard]] static inline uint16x16_t popcnt(const uint16x16_t in) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t popcnt(const uint16x16_t in) noexcept {
 		uint16x16_t ret;
 		ret.v256 = popcount_avx2_16(in.v256);
 		return ret;
@@ -782,7 +770,7 @@ struct uint32x8_t {
 
 	///
 	/// \return
-	[[nodiscard]] inline uint32x8_t random() noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t random() noexcept {
 		uint32x8_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -804,13 +792,13 @@ struct uint32x8_t {
 	/// \param a7
 	/// \return
 	[[nodiscard]] constexpr inline static uint32x8_t set(const uint32_t a0,
-	                                       const uint32_t a1,
-	                                       const uint32_t a2,
-	                                       const uint32_t a3,
-	                                       const uint32_t a4,
-	                                       const uint32_t a5,
-	                                       const uint32_t a6,
-	                                       const uint32_t a7) noexcept {
+	                                                     const uint32_t a1,
+	                                       				 const uint32_t a2,
+	                                       				 const uint32_t a3,
+	                                       				 const uint32_t a4,
+	                                       				 const uint32_t a5,
+	                                       				 const uint32_t a6,
+	                                       				 const uint32_t a7) noexcept {
 		uint32x8_t out;
 		out.v256 = __extension__(__m256i)(__v8si){(int) a7, (int) a6, (int) a5, (int) a4, (int) a3, (int) a2, (int) a1, (int) a0};
 		return out;
@@ -827,13 +815,13 @@ struct uint32x8_t {
 	/// \param a7
 	/// \return
 	[[nodiscard]] constexpr inline static uint32x8_t setr(const uint32_t a0,
-	                                        const uint32_t a1,
-	                                        const uint32_t a2,
-	                                        const uint32_t a3,
-	                                        const uint32_t a4,
-	                                        const uint32_t a5,
-	                                        const uint32_t a6,
-	                                        const uint32_t a7) noexcept {
+	                                        			  const uint32_t a1,
+	                                        			  const uint32_t a2,
+	                                        			  const uint32_t a3,
+	                                        			  const uint32_t a4,
+	                                        			  const uint32_t a5,
+	                                        			  const uint32_t a6,
+	                                        			  const uint32_t a7) noexcept {
 		return set(a7, a6, a5, a4, a3, a2, a1, a0);
 	}
 
@@ -1070,7 +1058,7 @@ struct uint32x8_t {
 	///
 	/// \param in
 	/// \return
-	[[nodiscard]] static inline uint32x8_t popcnt(const uint32x8_t in) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t popcnt(const uint32x8_t in) noexcept {
 		uint32x8_t ret;
 
 #ifdef USE_AVX512
@@ -1136,7 +1124,7 @@ struct uint64x4_t {
 
 	///
 	/// \return
-	[[nodiscard]] static inline uint64x4_t random() noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t random() noexcept {
 		uint64x4_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -1154,9 +1142,9 @@ struct uint64x4_t {
 	/// \param d
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t set(const uint64_t a,
-			const uint64_t b,
-			const uint64_t c,
-			const uint64_t d) noexcept {
+														 const uint64_t b,
+														 const uint64_t c,
+														 const uint64_t d) noexcept {
 		uint64x4_t out;
 		out.v256 = __extension__(__m256i)(__v4di){(long long) d, (long long) c, (long long) b, (long long) a};
 		return out;
@@ -1411,7 +1399,6 @@ struct uint64x4_t {
 
 	///
 	/// \param in1
-	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline int cmp(const uint64x4_t in1, const uint64x4_t in2) noexcept {
 #ifndef __clang__
@@ -1426,7 +1413,7 @@ struct uint64x4_t {
 	///
 	/// \param in
 	/// \return
-	static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
+	constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
 
 #ifdef USE_AVX512

@@ -1,8 +1,9 @@
 #ifndef CRYPTANALYSISLIB_FQ_NEW_H
 #define CRYPTANALYSISLIB_FQ_NEW_H
 
-/// needed for std::nullptr_t
-#include <cstddef>
+
+#include <cstddef>     	// needed for std::nullptr_t
+#include <functional>	// needed for std::invoke
 
 #include "helper.h"
 #include "list/common.h"
