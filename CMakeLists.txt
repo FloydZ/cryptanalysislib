@@ -91,7 +91,7 @@ if(APPLE)
     link_directories(/usr/lib)
     link_directories(/opt/homebrew/lib)
 
-    set(ADDITIONAL_FLAGS "-DUSE_ARM -march=native ")
+    set(ADDITIONAL_FLAGS "-DUSE_ARM -march=native -flax-vector-converstions ")
 
 	set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -fpermissive -DDEBUG ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")

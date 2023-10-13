@@ -1,6 +1,7 @@
 #ifndef SMALLSECRETLWE_RANDOM_H
 #define SMALLSECRETLWE_RANDOM_H
 
+#include <_types/_uint64_t.h>
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
@@ -10,19 +11,18 @@
 static uint64_t random_x=123456789u, random_y=362436069u, random_z=521288629u;
 
 // Sowas von nicht sicher, Aber egal.
-constexpr static inline void xorshf96_random_seed(const uint64_t i) noexcept {
+static inline void xorshf96_random_seed(const uint64_t i) noexcept {
 	random_x += i;
 	random_y = random_x*4095834;
 	random_z = random_x + random_y*98798234;
 }
 
-constexpr static inline uint64_t xorshf96() noexcept {          //period 2^96-1
-	uint64_t t;
+static inline uint64_t xorshf96() noexcept {          //period 2^96-1
 	random_x ^= random_x << 16u;
 	random_x ^= random_x >> 5u;
 	random_x ^= random_x << 1u;
 
-	t = random_x;
+	const uint64_t t = random_x;
 	random_x = random_y;
 	random_y = random_z;
 	random_z = t ^ random_x ^ random_y;
@@ -32,7 +32,7 @@ constexpr static inline uint64_t xorshf96() noexcept {          //period 2^96-1
 
 /// n = size of buffer in bytes
 /// reutrn 0 on success
-constexpr static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept{
+static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept{
 	uint64_t *a = (uint64_t *)buf;
 
 	const uint32_t rest = n%8;
@@ -56,12 +56,12 @@ constexpr static inline int xorshf96_fastrandombytes(void *buf, const size_t n) 
 
 /// n = bytes
 /// returns 0 on success
-constexpr inline static int xorshf96_fastrandombytes_uint64_array(uint64_t *buf, const size_t n) noexcept {
+inline static int xorshf96_fastrandombytes_uint64_array(uint64_t *buf, const size_t n) noexcept {
 	xorshf96_fastrandombytes(buf, n);
 	return 0;
 }
 
-constexpr static inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
+static inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
 	constexpr uint32_t UINT64_POOL_SIZE = 512;    // page should be 512 * 8 Byte
 	static uint64_t tmp[UINT64_POOL_SIZE];
 	static size_t counter = 0;
@@ -79,18 +79,18 @@ constexpr static inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
 /// \param buf out
 /// \param n size in bytes
 /// \return 0 on success, 1 on error
-constexpr static inline int fastrandombytes(void *buf, const size_t n) noexcept {
+static inline int fastrandombytes(void *buf, const size_t n) noexcept {
 	return xorshf96_fastrandombytes(buf, n);
 }
 
 /// seed the random instance
 /// \param seed
-constexpr static inline void random_seed(uint64_t seed) noexcept {
+static inline void random_seed(uint64_t seed) noexcept {
 	xorshf96_random_seed(seed);
 }
 
 /// \return a uniform random `uint64_t`
-constexpr static uint64_t fastrandombytes_uint64() noexcept {
+static uint64_t fastrandombytes_uint64() noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
 
@@ -112,7 +112,7 @@ template<typename T>
 #if __cplusplus > 201709L
 	requires std::is_integral_v<T>
 #endif
-constexpr static T fastrandombytes_weighted(const uint32_t w) noexcept {
+static T fastrandombytes_weighted(const uint32_t w) noexcept {
 	assert(w < (sizeof(T)*8));
 
 	T ret = (1u << w) - 1u;
@@ -142,7 +142,7 @@ template<typename T, const uint32_t bits>
 #if __cplusplus > 201709L
 	requires std::is_integral_v<T>
 #endif
-constexpr static inline T fastrandombits() noexcept {
+static inline T fastrandombits() noexcept {
 	constexpr uint32_t Tbits = sizeof(T)*8;
 	constexpr T mask = (T(1u) << bits) - T(1u);
 	static_assert(Tbits >= bits);
@@ -154,7 +154,7 @@ constexpr static inline T fastrandombits() noexcept {
 #include <immintrin.h>
 ///
 /// \return
-constexpr static __m256i fastrandombytes_m256i() noexcept {
+static __m256i fastrandombytes_m256i() noexcept {
 	constexpr uint32_t UINT64_POOL_SIZE = 128;
 	alignas(256) static uint64_t tmp[UINT64_POOL_SIZE*4];
 	__m256i *tmp64 = (__m256i *)tmp;
