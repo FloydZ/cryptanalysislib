@@ -53,7 +53,6 @@ jobs:
         ./tests/test_build_tree
         ./tests/test_combinations
         ./tests/test_element
-        ./tests/test_gaus
         ./tests/test_kArytype
         ./tests/test_label
         ./tests/test_list
@@ -95,7 +94,13 @@ jobs:
         ./tests/matrix/test_matrix_binary
         ./tests/matrix/test_matrix_custom_m4ri
         ./tests/matrix/test_matrix_fq
+        ./tests/nn/test_nn_simd
+        ./tests/nn/test_nn_simple
         ./tests/popcount/test_popcount_simple
+        ./tests/popcount/test_popcount_avx2
+        ./tests/search/test_search_binary
+        ./tests/search/test_search_interpolation
+        ./tests/search/test_search_linear
         ./tests/simd/test_simd_simd
         ./tests/sort/test_sort_sorting_algorithms
         ./tests/sort/test_sort_sorting_network

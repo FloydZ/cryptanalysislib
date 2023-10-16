@@ -1,7 +1,6 @@
 #ifndef SMALLSECRETLWE_RANDOM_H
 #define SMALLSECRETLWE_RANDOM_H
 
-#include <_types/_uint64_t.h>
 #include <cstdint>
 #include <cstddef>
 #include <cassert>

@@ -578,8 +578,8 @@ void parity_check_matrix_to_generator_matrix(mzd_t *generator, const mzd_t *pari
 	const uint32_t n = parity_check->ncols;
 	const uint32_t k = n - parity_check->nrows;
 
-	ASSERT(k == generator->nrows);
-	ASSERT(n == generator->ncols);
+	ASSERT(k == (uint32_t)generator->nrows);
+	ASSERT(n == (uint32_t)generator->ncols);
 
 	// force a identiy matrix on the first n-k coordinates of the parity check matrix
 	for (uint32_t i = 0; i < n-k; i++) {
@@ -622,8 +622,8 @@ void generator_matrix_to_parity_check_matrix(mzd_t *parity_check, const mzd_t *g
 	const uint32_t n = generator->ncols;
 	const uint32_t k = generator->nrows;
 
-	ASSERT(n-k  == parity_check->nrows);
-	ASSERT(n    == parity_check->ncols);
+	ASSERT(n-k  == (uint32_t)parity_check->nrows);
+	ASSERT(n    == (uint32_t)parity_check->ncols);
 
 	// force a identy matrix in the last k coordinates of the genertor matrix
 	for (uint32_t i = 0; i < k; i++) {
@@ -644,8 +644,8 @@ void generator_matrix_to_parity_check_matrix(mzd_t *parity_check, const mzd_t *g
 		// for all columns
 		for (uint32_t i = 0; i < k; i++) {
 			// for all rows
-			const uint32_t bit = mzd_read_bit(generator, i, n-k+j);
-			mzd_write_bit(parity_check, j, i, bit);
+			const uint32_t bit = mzd_read_bit(generator, (int)i, n-k+j);
+			mzd_write_bit(parity_check, (int)j, (int)i, bit);
 		}
 	}
 
@@ -653,10 +653,10 @@ void generator_matrix_to_parity_check_matrix(mzd_t *parity_check, const mzd_t *g
 	for (uint32_t i = 0; i < n-k; i++) {
 		for (uint32_t j = 0; j < n-k; j++) {
 			if (i == j) {
-				mzd_write_bit(parity_check, i, j, 1);
+				mzd_write_bit(parity_check, (int)i, (int)j, 1);
 			}
 
-			mzd_write_bit(parity_check, i, j, 0);
+			mzd_write_bit(parity_check, (int)i, (int)j, 0);
 		}
 	}
 }
