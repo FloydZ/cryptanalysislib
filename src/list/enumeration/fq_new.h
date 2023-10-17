@@ -21,7 +21,7 @@ template<class ListType,
 		const uint32_t q,
 		const uint32_t w>
 #if __cplusplus > 201709L
-requires ListAble<ListType>
+	requires ListAble<ListType>
 #endif
 class ListEnumeration_Meta {
 public:

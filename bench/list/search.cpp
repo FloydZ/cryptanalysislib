@@ -23,7 +23,9 @@ B63_BASELINE(NotFind, nn) {
 
 	int32_t res = 0;
 
-	l.search_level(e, k_lower, k_higher);
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level(e, k_lower, k_higher);
+	}
 
 	B63_SUSPEND {
 		res += 1;
@@ -50,7 +52,9 @@ B63_BENCHMARK(FindEnd, nn) {
 
 	int32_t res = 0;
 
-	l.search_level(e, k_lower, k_higher);
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level(e, k_lower, k_higher);
+	}
 
 	B63_SUSPEND {
 		res += 1;
@@ -79,7 +83,9 @@ B63_BENCHMARK(FindBegin, nn) {
 
 	int32_t res = 0;
 
-	l.search_level(e, k_lower, k_higher);
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level(e, k_lower, k_higher);
+	}
 
 	B63_SUSPEND {
 		res += 1;

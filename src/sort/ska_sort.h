@@ -753,9 +753,11 @@ inline void unroll_loop_four_times(It begin, size_t iteration_count, Func && to_
     case 3:
         to_call(begin);
         ++begin;
+		__attribute__ ((fallthrough));
     case 2:
         to_call(begin);
         ++begin;
+		__attribute__ ((fallthrough));
     case 1:
         to_call(begin);
     }

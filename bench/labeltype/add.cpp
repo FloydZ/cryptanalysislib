@@ -13,10 +13,12 @@ B63_BASELINE(add_operator, nn) {
 		l2 = rand();
 	}
 
-	int32_t res = 0;
+	uint32_t res = 0;
 
 	for (; res < nn; res++) {
-		l3 = l1 + l2 + l3 + res;
+		l3 = l1;
+		l3 = l3 + l2;
+		l3 = l3 + res;
 	}
 
 	B63_SUSPEND {

@@ -9,12 +9,14 @@
 #include "helper.h"
 #include "random.h"
 #include "popcount/popcount.h"
+#include "simd/simd.h"
 #include "container/binary_packed_vector.h"
 
 #if defined(USE_AVX2)
 #include <immintrin.h>
 #endif
 
+#if __cplusplus > 201709L
 /// Concept for the base data type
 /// \tparam T
 template<typename T>
@@ -23,6 +25,7 @@ std::is_integral<T>::value && requires(T t) {
 	t ^ t;
 	t + t;
 };
+#endif
 
 /// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
 /// Meta class, contains all important meta definitions.
@@ -726,8 +729,10 @@ public:
 
 		const __m256i ac1 = _mm256_and_si256(a, c1); // filter the ones
 		const __m256i ac2 = _mm256_and_si256(a, c2); // filter the twos
-
-		return hammingweight_mod2_limb256(ac1) + hammingweight_mod2_limb256(ac2);
+		
+		ASSERT(false);
+		return 0;
+		// TODO return hammingweight_mod2_limb256(ac1) + hammingweight_mod2_limb256(ac2);
 	}
 #endif
 

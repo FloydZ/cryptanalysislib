@@ -37,15 +37,20 @@ template<typename T, typename T2, const T q>
 #endif
 class kAry_Type_T {
 public:
-	kAry_Type_T() noexcept {
+	constexpr kAry_Type_T() noexcept {
 		static_assert(q > 1);
 		__value = 0;
 	};
 
-	kAry_Type_T(const uint16_t i) noexcept {
+	constexpr kAry_Type_T(const uint16_t i) noexcept {
 		static_assert(q > 2);
 		__value = i % q;
 	};
+
+	constexpr kAry_Type_T(const kAry_Type_T &in) {
+		static_assert(q > 2);
+		this->__value = in.__value;
+	}
 
 	///
 	void random() noexcept {
@@ -203,17 +208,18 @@ public:
 	///
 	/// \param obj
 	/// \return
-	kAry_Type_T<T, T2, q> &operator=(kAry_Type_T<T, T2, q> const &obj) noexcept {
+	constexpr kAry_Type_T<T, T2, q> &operator=(kAry_Type_T<T, T2, q> const &obj) noexcept {
 		if (this != &obj) {
 			__value = obj.__value;
 		}
+
 		return *this;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	kAry_Type_T<T, T2, q> &operator=(uint32_t const obj) noexcept {
+	constexpr kAry_Type_T<T, T2, q> &operator=(uint32_t const obj) noexcept {
 		__value = obj % q;
 		return *this;
 	}
@@ -221,7 +227,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	kAry_Type_T<T, T2, q> &operator=(uint64_t const obj) noexcept {
+	constexpr kAry_Type_T<T, T2, q> &operator=(uint64_t const obj) noexcept {
 		__value = obj % q;
 		return *this;
 	}

@@ -105,7 +105,7 @@ TEST(AssignmentTest, Copy) {
 	v1 = v2;
 	EXPECT_EQ(1, v1[0]);
 
-	for (int i = 1; i < v1.size(); ++i) {
+	for (uint64_t i = 1; i < v1.size(); ++i) {
 		EXPECT_EQ(0, v1[i]);
 	}
 }
@@ -131,14 +131,14 @@ TEST(AssignmentTest, Copy3) {
 	Value v2{};
 	v1.zero();
 	v1.data()[0] = 1;
-	for (int i = 0; i < v1.size(); ++i) {
+	for (uint64_t i = 0; i < v1.size(); ++i) {
 		v2.data()[i] = i;
 	}
 
 	v2 = v1;
 	EXPECT_EQ(1, v2[0]);
 
-	for (int i = 1; i < v2.size(); ++i) {
+	for (uint64_t i = 1; i < v2.size(); ++i) {
 		EXPECT_EQ(0, v2[i]);
 	}
 }
@@ -154,7 +154,7 @@ TEST(AssignmentTest, Move) {
 
 	EXPECT_EQ(1, v1[0]);
 
-	for (int i = 1; i < v1.size(); ++i) {
+	for (uint64_t i = 1; i < v1.size(); ++i) {
 		EXPECT_EQ(0, v1[i]);
 	}
 }
@@ -181,7 +181,7 @@ TEST(AssignmentTest, Move3) {
 	Value v2{};
 	v1.zero();
 	v1.data()[0] = 1;
-	for (int i = 0; i < v1.size(); ++i) {
+	for (uint64_t i = 0; i < v1.size(); ++i) {
 		v2.data()[i] = i;
 	}
 
@@ -189,7 +189,7 @@ TEST(AssignmentTest, Move3) {
 
 	EXPECT_EQ(1, v2[0]);
 
-	for (int i = 1; i < v2.size(); ++i) {
+	for (uint64_t i = 1; i < v2.size(); ++i) {
 		EXPECT_EQ(0, v2[i]);
 	}
 }

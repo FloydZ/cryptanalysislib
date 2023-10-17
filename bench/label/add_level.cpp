@@ -87,7 +87,7 @@ B63_BENCHMARK(add_level3, nn) {
 	kAryLabel v1{}, v2{}, v3{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		for (int i = 0; i < k; ++i) {
+		for (uint64_t i = 0; i < k; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}

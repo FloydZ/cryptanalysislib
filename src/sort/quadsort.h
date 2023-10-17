@@ -131,10 +131,13 @@ void tiny_sort(VAR *array, size_t nmemb, CMPFUNC cmp)
 			pta = array;
 			x = cmp(pta, pta + 1) > 0; y = !x; swap = pta[y]; pta[0] = pta[x]; pta[1] = swap; pta++;
 			x = cmp(pta, pta + 1) > 0; y = !x; swap = pta[y]; pta[0] = pta[x]; pta[1] = swap;
+			__attribute__ ((fallthrough));
 		case 2:
 			pta = array;
 			x = cmp(pta, pta + 1) > 0; y = !x; swap = pta[y]; pta[0] = pta[x]; pta[1] = swap;
+			__attribute__ ((fallthrough));
 		case 1:
+			__attribute__ ((fallthrough));
 		case 0:
 			return;
 	}
@@ -426,7 +429,7 @@ size_t quad_swap(VAR *array, size_t nmemb, CMPFUNC cmp)
 					pts = pta;
 					goto reversed;
 				}
-
+				__attribute__ ((fallthrough));
 			default:
 			not_ordered:
 				x = !v1;
@@ -513,13 +516,20 @@ size_t quad_swap(VAR *array, size_t nmemb, CMPFUNC cmp)
 
 		switch (nmemb % 8)
 		{
-			case 7: if (cmp(pta + 5, pta + 6) <= 0) break;
-			case 6: if (cmp(pta + 4, pta + 5) <= 0) break;
-			case 5: if (cmp(pta + 3, pta + 4) <= 0) break;
-			case 4: if (cmp(pta + 2, pta + 3) <= 0) break;
-			case 3: if (cmp(pta + 1, pta + 2) <= 0) break;
-			case 2: if (cmp(pta + 0, pta + 1) <= 0) break;
-			case 1: if (cmp(pta - 1, pta + 0) <= 0) break;
+			case 7: if (cmp(pta + 5, pta + 6) <= 0) { break; }
+				__attribute__ ((fallthrough));
+			case 6: if (cmp(pta + 4, pta + 5) <= 0) { break; }
+				__attribute__ ((fallthrough));
+			case 5: if (cmp(pta + 3, pta + 4) <= 0) { break; }
+				__attribute__ ((fallthrough));
+			case 4: if (cmp(pta + 2, pta + 3) <= 0) { break; }
+				__attribute__ ((fallthrough));
+			case 3: if (cmp(pta + 1, pta + 2) <= 0) { break; }
+				__attribute__ ((fallthrough));
+			case 2: if (cmp(pta + 0, pta + 1) <= 0) { break; }
+				__attribute__ ((fallthrough));
+			case 1: if (cmp(pta - 1, pta + 0) <= 0) { break; }
+				__attribute__ ((fallthrough));
 			case 0:
 				quad_reversal(pts, pta + nmemb % 8 - 1);
 
@@ -569,8 +579,7 @@ void cross_merge(VAR *dest, VAR *from, size_t left, size_t right, CMPFUNC cmp)
 	tpl = ptr - 1;
 	tpr = tpl + right;
 
-	if (cmp(ptl + 15, ptr) > 0 && cmp(ptl, ptr + 15) <= 0 && cmp(tpl, tpr - 15) > 0 && cmp(tpl - 15, tpr) <= 0)
-	{
+	if (cmp(ptl + 15, ptr) > 0 && cmp(ptl, ptr + 15) <= 0 && cmp(tpl, tpr - 15) > 0 && cmp(tpl - 15, tpr) <= 0) {
 		parity_merge(dest, from, left, right, cmp);
 		return;
 	}
@@ -578,17 +587,14 @@ void cross_merge(VAR *dest, VAR *from, size_t left, size_t right, CMPFUNC cmp)
 	ptd = dest;
 	tpd = dest + left + right - 1;
 
-	while (tpl - ptl > 8 && tpr - ptr > 8)
-	{
-		ptl8_ptr: if (cmp(ptl + 7, ptr) <= 0)
-		{
+	while (tpl - ptl > 8 && tpr - ptr > 8) {
+		ptl8_ptr: if (cmp(ptl + 7, ptr) <= 0) {
 			loop = 8; do *ptd++ = *ptl++; while (--loop);
 			
 			if (tpl - ptl > 8) {goto ptl8_ptr;} break;
 		}
 
-		ptl_ptr8: if (cmp(ptl, ptr + 7) > 0)
-		{
+		ptl_ptr8: if (cmp(ptl, ptr + 7) > 0) {
 			loop = 8; do *ptd++ = *ptr++; while (--loop);
 
 			if (tpr - ptr > 8) {goto ptl_ptr8;} break;
@@ -1150,29 +1156,25 @@ void blit_merge(VAR *array, VAR *swap, size_t swap_size, size_t nmemb, size_t bl
 ///////////////////////////////////////////////////////////////////////////////
 
 template<typename VAR, class CMPFUNC>
-void quadsort(void *array, size_t nmemb, CMPFUNC cmp)
+void quadsort(void *array, const size_t nmemb, CMPFUNC cmp)
 {
 	VAR *pta = (VAR *) array;
 
-	if (nmemb < 32)
-	{
-		VAR swap[nmemb];
+	if (nmemb < 32) {
+		VAR swap[32];
 
 		tail_swap(pta, swap, nmemb, cmp);
 	}
-	else if (quad_swap(pta, nmemb, cmp) == 0)
-	{
+	else if (quad_swap(pta, nmemb, cmp) == 0) {
 		VAR *swap = NULL;
 		size_t block, swap_size = 32;
 
-		while (swap_size * 4 <= nmemb)
-		{
+		while (swap_size * 4 <= nmemb) {
 			swap_size *= 4;
 		}
 		swap = (VAR *) malloc(swap_size * sizeof(VAR));
 
-		if (swap == NULL)
-		{
+		if (swap == NULL) {
 			VAR stack[512];
 
 			tail_merge(pta, stack, 32, nmemb, 32, cmp);

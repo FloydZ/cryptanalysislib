@@ -1,6 +1,7 @@
 #ifndef SMALLSECRETLWE_CONTAINER_H
 #define SMALLSECRETLWE_CONTAINER_H
 
+#include "simd/avx2.h"
 #include <array>
 #include <cstdint>
 #include <atomic>
@@ -35,6 +36,7 @@ else if((limb1&mask) op2 (limb2&mask))                              \
 
 
 
+#if __cplusplus > 201709L
 /// Concept fot the base data type
 /// \tparam T
 template<typename T>
@@ -44,12 +46,15 @@ std::is_integral<T>::value && requires(T t) {
 	t & t;
 	t | t;
 };
+#endif
 
 
 /// \tparam length
 /// \tparam LimbType
 template<uint32_t length, typename LimbType=uint64_t>
+#if __cplusplus > 201709L
 	requires BinaryContainerAble<LimbType>
+#endif
 class BinaryContainer {
 public:
 
@@ -449,77 +454,77 @@ public:
 		add(*this, *this, v, k_lower, k_upper);
 	}
 
-	constexpr static void add(LimbType *v5, LimbType const *v1, LimbType const *v2, LimbType const *v3, LimbType const *v4, const uint32_t limbs) noexcept {
-		int64_t i = 0;
-
-#ifdef USE_AVX2
+	/// v5 = v1 ^ v2 ^ v3 ^ v4
+	/// \tparam align: if set to `true` the internal simd functions will use 
+	///                aligned instructions.
+	template<const bool align=false>
+	constexpr static void add(LimbType *v5,
+							  LimbType const *v1,
+							  LimbType const *v2,
+							  LimbType const *v3,
+							  LimbType const *v4,
+							  const uint32_t limbs) noexcept {
+		uint32_t i = 0;
+		constexpr uint32_t limb_size = sizeof(LimbType);
 		LOOP_UNROLL()
-		for (; i+4 <= limbs; i+=4) {
-			// we need to access the memory unaligned
-			__m256 x_avx = MM256_LOAD((float*)v1 + 2*i);
-			__m256 y_avx = MM256_LOAD((float*)v2 + 2*i);
-			__m256 y1_avx = MM256_LOAD((float*)v3 + 2*i);
-			__m256 y2_avx = MM256_LOAD((float*)v4 + 2*i);
-			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-			_mm256_xor_ps(z_avx, y1_avx);
-			_mm256_xor_ps(z_avx, y2_avx);
-
-			MM256_STORE((float*)v5 + 2*i, z_avx);
+		for (; i+limb_size <= limbs; i+=limb_size) {
+			uint32x8_t x_  = uint32x8_t::load<align>(v1 + i);
+			uint32x8_t y_  = uint32x8_t::load<align>(v2 + i);
+			uint32x8_t y1_ = uint32x8_t::load<align>(v3 + i);
+			uint32x8_t y2_ = uint32x8_t::load<align>(v4 + i);
+			uint32x8_t z_ = x_ ^ y_ ^ y1_ ^ y2_;
+			uint32x8_t::store(v5 + i, z_);
 		}
-#endif
 
 		for (; i < limbs; ++i) {
 			v5[i] = v1[i] ^ v2[i] ^ v3[i] ^ v4[i];
 		}
 	}
 
-	constexpr static void add(LimbType *v4, LimbType const *v1, LimbType const *v2, LimbType const *v3, const uint32_t limbs) noexcept {
-		int64_t i = 0;
+	/// v4 = v1 ^ v2 ^ v3
+	/// \tparam align: if set to `true` the internal simd functions will use 
+	///                aligned instructions.
+	template<const bool align=false>
+	constexpr static void add(LimbType *v4, 
+							  LimbType const *v1,
+							  LimbType const *v2,
+							  LimbType const *v3,
+							  const uint32_t limbs) noexcept {
+		uint64_t i = 0;
+		constexpr uint32_t limb_size = sizeof(LimbType);
 
-#ifdef USE_AVX2
 		LOOP_UNROLL()
-		for (; i+4 <= limbs; i+=4) {
-			// we need to access the memory unaligned
-			__m256 x_avx = MM256_LOAD((float*)v1 + 2*i);
-			__m256 y_avx = MM256_LOAD((float*)v2 + 2*i);
-			__m256 y1_avx = MM256_LOAD((float*)v3 + 2*i);
-			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-			_mm256_xor_ps(z_avx, y1_avx);
-			MM256_STORE((float*)v4 + 2*i, z_avx);
+		for (; i+limb_size <= limbs; i+=limb_size) {
+			uint32x8_t x_  = uint32x8_t::load<align>(v1 + i);
+			uint32x8_t y_  = uint32x8_t::load<align>(v2 + i);
+			uint32x8_t y1_ = uint32x8_t::load<align>(v3 + i);
+			uint32x8_t z_ = x_ ^ y_ ^ y1_;
+			uint32x8_t::store(v4 + i, z_);
 		}
-#endif
 
 		for (; i < limbs; ++i) {
 			v4[i] = v1[i] ^ v2[i] ^ v3[i];
 		}
 	}
 
-	// full length addition
-	constexpr static void add(LimbType *v3, LimbType const *v1, LimbType const *v2, const uint32_t limbs) noexcept {
-		int64_t i = 0;
-
-#ifdef USE_AVX2
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-		LOOP_UNROLL()
-		for (; i < limbs/4; i++) {
-			__m256i x_avx = _mm256_load_si256((__m256i *)v1 + i);
-			__m256i y_avx = _mm256_load_si256((__m256i *)v2 + i);
-			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-			_mm256_store_si256((__m256i *)v3 + i, z_avx);
-		}
-		i*=4;
-#else
+	/// v3 = v1 ^ v2
+	/// \tparam align: if set to `true` the internal simd functions will use 
+	///                aligned instructions.
+	template<const bool align=false>
+	constexpr static void add(LimbType *v3, 
+							  LimbType const *v1, 
+							  LimbType const *v2,
+							  const uint32_t limbs) noexcept {
+		uint64_t i = 0;
+		constexpr uint32_t limb_size = sizeof(LimbType);
 
 		LOOP_UNROLL()
-		for (; i+4 <= limbs; i+=4) {
-			// we need to access the memory unaligned
-			__m256 x_avx = MM256_LOAD((float*)v1 + 2*i);
-			__m256 y_avx = MM256_LOAD((float*)v2 + 2*i);
-			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-			MM256_STORE((float*)v3 + 2*i, z_avx);
+		for (; i+limb_size <= limbs; i+=limb_size) {
+			uint32x8_t x_  = uint32x8_t::load<align>(v1 + i);
+			uint32x8_t y_  = uint32x8_t::load<align>(v2 + i);
+			uint32x8_t z_ = x_ ^ y_;
+			uint32x8_t::store(v3 + i, z_);
 		}
-#endif
-#endif
 
 		for (; i < limbs; ++i) {
 			v3[i] = v1[i] ^ v2[i];
@@ -527,76 +532,32 @@ public:
 	}
 
 	// full length addition
-	constexpr static void add(LimbType *v3, LimbType const *v1, LimbType const *v2) noexcept {
-		int64_t i = 0;
-
-#ifdef USE_AVX2
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-		LOOP_UNROLL()
-		for (; i < limbs()/4; i++) {
-			__m256i x_avx = _mm256_load_si256((__m256i *)v1 + i);
-			__m256i y_avx = _mm256_load_si256((__m256i *)v2 + i);
-			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-			_mm256_store_si256((__m256i *)v3 + i, z_avx);
-		}
-		i*=4;
-#else
-		LOOP_UNROLL()
-		for (; i+4 < limbs(); i+=4) {
-			// we need to access the memory unaligned
-			__m256 x_avx = MM256_LOAD_UNALIGNED((float*)v1 + 2*i);
-			__m256 y_avx = MM256_LOAD_UNALIGNED((float*)v2 + 2*i);
-			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-			MM256_STORE_UNALIGNED((float*)v3 + 2*i, z_avx);
-		}
-#endif
-#endif
-
-		for (; i < limbs(); ++i) {
-			v3[i] = v1[i] ^ v2[i];
-		}
+	constexpr static void add(LimbType *v3,
+							  LimbType const *v1,
+							  LimbType const *v2) noexcept {
+		return add(v3, v1, v2, limbs());
 	}
 
-	static void add_withoutasm(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
+	static void add_withoutasm(BinaryContainer &v3,
+							   BinaryContainer const &v1,
+							   BinaryContainer const &v2) noexcept {
 		for (uint32_t i = 0; i < limbs(); ++i) {
 			v3.__data[i] = v1.__data[i] ^ v2.__data[i];
 		}
 	}
 
 	//  IMPORTANT: this function does a full length addition
-	__FORCEINLINE__ static void add(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
-		constexpr uint32_t upper = limbs();
-		uint32_t i = 0;
-#ifdef USE_AVX2
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-		LOOP_UNROLL()
-		for (; i < upper/4; i++) {
-			__m256i x_avx = _mm256_load_si256((__m256i *)v1.ptr() + i);
-			__m256i y_avx = _mm256_load_si256((__m256i *)v2.ptr() + i);
-			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-			_mm256_store_si256((__m256i *)v3.ptr() + i, z_avx);
-		}
-		i*=4;
-#else
-		LOOP_UNROLL()
-		for (; i+4 < upper; i+=4) {
-			// we need to access the memory unaligned
-			__m256 x_avx = MM256_LOAD_UNALIGNED((float*)v1.ptr() + 2*i);
-			__m256 y_avx = MM256_LOAD_UNALIGNED((float*)v2.ptr() + 2*i);
-			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-			MM256_STORE_UNALIGNED((float*)v3.ptr() + 2*i, z_avx);
-		}
-#endif
-#endif
-		LOOP_UNROLL()
-		for (; i < upper; ++i) {
-			v3.__data[i] = v1.__data[i] ^ v2.__data[i];
-		}
+	__FORCEINLINE__ static void add(BinaryContainer &v3, 
+									BinaryContainer const &v1, 
+									BinaryContainer const &v2) noexcept {
+		add(v3.ptr(), v1.ptr(), v2.ptr());
 	}
 
 	// add between the coordinate l, h
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	__FORCEINLINE__ static void add(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
+	__FORCEINLINE__ static void add(BinaryContainer &v3, 
+								    BinaryContainer const &v1,
+								    BinaryContainer const &v2) noexcept {
 		constexpr LimbType lmask        = higher_mask(k_lower%limb_bits_width());
 		constexpr LimbType rmask        = lower_mask2(k_upper%limb_bits_width());
 		constexpr uint32_t lower_limb   = k_lower / limb_bits_width();
@@ -619,45 +580,24 @@ public:
 			v3.__data[i] = v1.__data[i] ^ v2.__data[i];
 		}
 
-		LimbType tmp1 = (v1.__data[lower_limb] ^ v2.__data[lower_limb]) & lmask;
-		LimbType tmp2 = (v1.__data[higher_limb] ^ v2.__data[higher_limb]) & rmask;
-		LimbType tmp11 = (v3.__data[lower_limb] & ~(lmask));
+		LimbType tmp1  = (v1.__data[lower_limb]  ^ v2.__data[lower_limb]) & lmask;
+		LimbType tmp2  = (v1.__data[higher_limb] ^ v2.__data[higher_limb]) & rmask;
+		LimbType tmp11 = (v3.__data[lower_limb]  & ~(lmask));
 		LimbType tmp21 = (v3.__data[higher_limb] & ~(rmask));
 
-		v3.__data[lower_limb] = tmp1^tmp11;
-		v3.__data[higher_limb]= tmp2^tmp21;
-
-//		uint32_t i = 0;
-//#ifdef USE_AVX2
-//#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-//		LOOP_UNROLL()
-//		for (; i < upper/4; i++) {
-//			__m256i x_avx = _mm256_load_si256((__m256i *)v1.ptr() + i);
-//			__m256i y_avx = _mm256_load_si256((__m256i *)v2.ptr() + i);
-//			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-//			_mm256_store_si256((__m256i *)v3.ptr() + i, z_avx);
-//		}
-//		i*=4;
-//#else
-//		LOOP_UNROLL()
-//		for (; i+4 < upper; i+=4) {
-//			// we need to access the memory unaligned
-//			__m256 x_avx = MM256_LOAD_UNALIGNED((float*)v1.ptr() + 2*i);
-//			__m256 y_avx = MM256_LOAD_UNALIGNED((float*)v2.ptr() + 2*i);
-//			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-//			MM256_STORE_UNALIGNED((float*)v3.ptr() + 2*i, z_avx);
-//		}
-//#endif
-//#endif
-//		LOOP_UNROLL()
-//		for (; i < upper; ++i) {
-//			v3.__data[i] = v1.__data[i] ^ v2.__data[i];
-//		}
+		v3.__data[lower_limb]  = tmp1^tmp11;
+		v3.__data[higher_limb] = tmp2^tmp21;
 	}
 
 	/// same as the function below.
-	template<const uint32_t llimb, const uint32_t ulimb, const LimbType lmask, const LimbType rmask>
-	static void add(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
+	template<const uint32_t llimb, 
+			 const uint32_t ulimb, 
+			 const LimbType lmask, 
+			 const LimbType rmask,
+			 const bool align=false>
+	static void add(BinaryContainer &v3, 
+					BinaryContainer const &v1,
+					BinaryContainer const &v2) noexcept {
 		if constexpr (llimb == ulimb) {
 			constexpr LimbType mask = (lmask & rmask);
 			LimbType tmp1 = (v3.__data[llimb] & ~(mask));
@@ -668,28 +608,15 @@ public:
 
 		uint32_t i = llimb+1;
 
-#ifdef USE_AVX2
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-		LOOP_UNROLL()
-		for (; i < ulimb/4; i++) {
-			__m256i x_avx = _mm256_load_si256((__m256i *)v1.__data.data() + i);
-			__m256i y_avx = _mm256_load_si256((__m256i *)v2.__data.data() + i);
-			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-			_mm256_store_si256((__m256i *)v3.__data.data() + i, z_avx);
-		}
-		i*=4;
-#else
-		LOOP_UNROLL()
+		constexpr uint32_t limb_size = sizeof(LimbType);
 
-		for (; i+4 < ulimb; i+=4) {
-			// we need to access the memory unaligned
-			__m256 x_avx = MM256_LOAD_UNALIGNED((float*)v1.__data.data() + 2*i);
-			__m256 y_avx = MM256_LOAD_UNALIGNED((float*)v2.__data.data() + 2*i);
-			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-			MM256_STORE_UNALIGNED((float*)v3.__data.data() + 2*i, z_avx);
+		LOOP_UNROLL()
+		for (; i+limb_size <= ulimb; i+=limb_size) {
+			uint32x8_t x_  = uint32x8_t::load<align>(v1.ptr() + i);
+			uint32x8_t y_  = uint32x8_t::load<align>(v2.ptr() + i);
+			uint32x8_t z_ = x_ ^ y_;
+			uint32x8_t::store(v3.ptr() + i, z_);
 		}
-#endif
-#endif
 
 		LOOP_UNROLL();
 		for (; i < ulimb; ++i) {
@@ -714,8 +641,14 @@ public:
 	/// \tparam lmask	bit mask for llimb
 	/// \tparam rmask	bit mask for ulimb
 	/// \return nothing
-	template<const uint32_t llimb, const uint32_t ulimb, const LimbType lmask, const LimbType rmask>
-	constexpr static void add(LimbType *v3, LimbType const *v1, LimbType const *v2) noexcept {
+	template<const uint32_t llimb, 
+			 const uint32_t ulimb, 
+			 const LimbType lmask, 
+			 const LimbType rmask,
+			 const bool align=false>
+	constexpr static void add(LimbType *v3,
+							  LimbType const *v1,
+							  LimbType const *v2) noexcept {
 		if constexpr (llimb == ulimb) {
 			constexpr LimbType mask = (lmask & rmask);
 			LimbType tmp1 = (v3[llimb] & ~(mask));
@@ -726,27 +659,15 @@ public:
 
 		int32_t i = llimb+1;
 
-#ifdef USE_AVX2
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
+		constexpr uint32_t limb_size = sizeof(LimbType);
+
 		LOOP_UNROLL()
-		for (; i < ulimb/4; i++) {
-			__m256i x_avx = _mm256_load_si256((__m256i *)v1 + i);
-			__m256i y_avx = _mm256_load_si256((__m256i *)v2 + i);
-			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-			_mm256_store_si256((__m256i *)v3 + i, z_avx);
+		for (; i+limb_size <= ulimb; i+=limb_size) {
+			uint32x8_t x_  = uint32x8_t::load<align>(v1 + i);
+			uint32x8_t y_  = uint32x8_t::load<align>(v2 + i);
+			uint32x8_t z_ = x_ ^ y_;
+			uint32x8_t::store(v3 + i, z_);
 		}
-		i*=4;
-#else
-		LOOP_UNROLL()
-		for (; i+4 < ulimb; i+=4) {
-			// we need to access the memory unaligned
-			__m256 x_avx = MM256_LOAD((float*)v1 + 2*i);
-			__m256 y_avx = MM256_LOAD((float*)v2 + 2*i);
-			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-			MM256_STORE((float*)v3 + 2*i, z_avx);
-		}
-#endif
-#endif
 
 		LOOP_UNROLL();
 		for (; i < ulimb; ++i) {
@@ -766,41 +687,14 @@ public:
 	/// \tparam ulimb	max limb to calc the hamming weight
 	/// \tparam rmask	mask to apply before calc the weight.
 	/// \return
-	template<const uint32_t ulimb,const LimbType rmask>
-	inline static uint32_t add_only_upper_weight_partly(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
+	template<const uint32_t ulimb, 
+			 const LimbType rmask>
+	inline static uint32_t add_only_upper_weight_partly(
+							BinaryContainer &v3,
+							BinaryContainer const &v1,
+							BinaryContainer const &v2) noexcept {
 		int32_t i = 0;
 		uint32_t hm = 0;
-
-// AVX optimisation disable, because i dont know a good way to calculate the hamming weight of one
-#ifdef USE_AVX2
-		__m256i acc = _mm256_setzero_si256();
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-		LOOP_UNROLL()
-		for (; i < ulimb/4; i++) {
-			__m256i x_avx = _mm256_load_si256((__m256i *)v1.ptr() + i);
-			__m256i y_avx = _mm256_load_si256((__m256i *)v2.ptr() + i);
-			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-			acc = _mm256_add_epi64(acc, _mm256_sad_epu8(hammingweight_mod2_limb256_nonacc(z_avx), _mm256_setzero_si256()));
-			_mm256_store_si256((__m256i *)v3.ptr() + i, z_avx);
-		}
-
-		i*=4;
-#else
-        LOOP_UNROLL()
-        for (; i+4 < ulimb; i+=4) {
-            // we need to access the memory unaligned
-            __m256 x_avx = MM256_LOAD((float*)v1.ptr() + 2*i);
-            __m256 y_avx = MM256_LOAD((float*)v2.ptr() + 2*i);
-            __m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-	        acc = _mm256_add_epi64(acc, _mm256_sad_epu8(hammingweight_mod2_limb256_nonacc((__m256i)z_avx), _mm256_setzero_si256()));
-	        MM256_STORE((float*)v3.ptr() + 2*i, z_avx);
-        }
-#endif
-		hm += (uint64_t)(_mm256_extract_epi64(acc, 0));
-		hm += (uint64_t)(_mm256_extract_epi64(acc, 1));
-		hm += (uint64_t)(_mm256_extract_epi64(acc, 2));
-		hm += (uint64_t)(_mm256_extract_epi64(acc, 3));
-#endif
 
 		LOOP_UNROLL();
 		for (; i < ulimb; ++i) {
@@ -812,8 +706,12 @@ public:
 		return hm + popcount(v3.__data[ulimb] & rmask);
 	}
 
-	template<const uint32_t ulimb,const LimbType rmask>
-	inline static uint32_t add_only_upper_weight_partly_withoutasm(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
+	template<const uint32_t ulimb, 
+		     const LimbType rmask>
+	inline static uint32_t add_only_upper_weight_partly_withoutasm(
+								BinaryContainer &v3,
+								BinaryContainer const &v1,
+								BinaryContainer const &v2) noexcept {
 		uint32_t i = 0;
 		uint32_t hm = 0;
 
@@ -830,7 +728,10 @@ public:
 	}
 
 	template<const uint32_t j>
-	inline static uint32_t add_only_upper_weight_partly_withoutasm(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
+	inline static uint32_t add_only_upper_weight_partly_withoutasm(
+								BinaryContainer &v3,
+								BinaryContainer const &v1,
+								BinaryContainer const &v2) noexcept {
 		constexpr uint32_t ulimb         = round_down_to_limb(j - 1);
 		constexpr static LimbType rmask = lower_mask2(j);
 
@@ -849,8 +750,13 @@ public:
 		return hm + popcount(v3.__data[ulimb] & rmask);
 	}
 
-	template<const uint32_t ulimb,const LimbType rmask, const uint32_t early_exit>
-	static uint32_t add_only_upper_weight_partly_withoutasm_earlyexit(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
+	template<const uint32_t ulimb,
+			 const LimbType rmask,
+			 const uint32_t early_exit>
+	static uint32_t add_only_upper_weight_partly_withoutasm_earlyexit(
+						BinaryContainer &v3,
+						BinaryContainer const &v1,
+						BinaryContainer const &v2) noexcept {
 		uint32_t hm = 0;
 
 		LOOP_UNROLL();
@@ -865,33 +771,27 @@ public:
 		return hm + popcount(v3.__data[ulimb] & rmask);
 	}
 
-	// TODO optimize
-	template<const uint32_t ulimb,const LimbType rmask, const uint32_t early_exit>
-	static uint32_t add_only_upper_weight_partly_earlyexit(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
+	// 
+	template<const uint32_t ulimb,
+			 const LimbType rmask,
+			 const uint32_t early_exit,
+			 const bool align=false>
+	static uint32_t add_only_upper_weight_partly_earlyexit(
+						BinaryContainer &v3,
+						BinaryContainer const &v1,
+						BinaryContainer const &v2) noexcept {
 		uint32_t hm = 0;
 		uint32_t i = 0;
-#ifdef USE_AVX2
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-		LOOP_UNROLL()
-		for (; i < ulimb/4; i++) {
-			__m256i x_avx = _mm256_load_si256((__m256i *)v1.__data.data() + i);
-			__m256i y_avx = _mm256_load_si256((__m256i *)v2.__data.data() + i);
-			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-			_mm256_store_si256((__m256i *)v3.__data.data() + i, z_avx);
-		}
-		i*=4;
-#else
-		LOOP_UNROLL()
 
-		for (; i+4 < ulimb; i+=4) {
-			// we need to access the memory unaligned
-			__m256 x_avx = MM256_LOAD_UNALIGNED((float*)v1.__data.data() + 2*i);
-			__m256 y_avx = MM256_LOAD_UNALIGNED((float*)v2.__data.data() + 2*i);
-			__m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-			MM256_STORE_UNALIGNED((float*)v3.__data.data() + 2*i, z_avx);
+		constexpr uint32_t limb_size = sizeof(LimbType);
+
+		LOOP_UNROLL()
+		for (; i+limb_size <= ulimb; i+=limb_size) {
+			uint32x8_t x_  = uint32x8_t::load<align>(v1.ptr() + i);
+			uint32x8_t y_  = uint32x8_t::load<align>(v2.ptr() + i);
+			uint32x8_t z_ = x_ ^ y_;
+			uint32x8_t::store(v3.ptr() + i, z_);
 		}
-#endif
-#endif
 
 		LOOP_UNROLL();
 		for (; i < ulimb; ++i) {
@@ -920,30 +820,6 @@ public:
 		int32_t i = 0;
 		uint32_t hm = 0;
 
-// AVX optimisation disable, because i dont know a good way to calculate the hamming weight of one
-//#ifdef USE_AVX2
-//		#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-//		LOOP_UNROLL()
-//		for (; i < ulimb/4; i++) {
-//			__m256i x_avx = _mm256_load_si256((__m256i *)v1 + i);
-//			__m256i y_avx = _mm256_load_si256((__m256i *)v2 + i);
-//			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-//			_mm256_store_si256((__m256i *)v3.__data.data() + i, z_avx);
-//		}
-//
-//		i*=4;
-//#else
-//        LOOP_UNROLL()
-//        for (; i+4 < ulimb; i+=4) {
-//            // we need to access the memory unaligned
-//            __m256 x_avx = MM256_LOAD((float*)v1 + 2*i);
-//            __m256 y_avx = MM256_LOAD((float*)v2 + 2*i);
-//            __m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-//            MM256_STORE((float*)v3 + 2*i, z_avx);
-//        }
-//#endif
-//#endif
-
 		LOOP_UNROLL();
 		for (; i < ulimb; ++i) {
 			v3[i] = v1[i] ^ v2[i];
@@ -957,8 +833,12 @@ public:
 	/// calculates the sumfof v3= v1+v2 on the partly length
 	/// \tparam ulimb	max limb to calculate the weight on the full length of each limb
 	/// \tparam rmask	mask which cancel out unwanted bits on the last
-    template<const uint32_t ulimb, const LimbType rmask>
-    constexpr static void add_only_upper(LimbType *v3, LimbType const *v1, LimbType const *v2) noexcept {
+    template<const uint32_t ulimb, 
+			 const LimbType rmask,
+			 const bool align=false>
+    constexpr static void add_only_upper(LimbType *v3,
+										 LimbType const *v1,
+										 LimbType const *v2) noexcept {
         if constexpr (0 == ulimb) {
             v3[0] = (v1[0] ^ v2[0]) & rmask;
             return;
@@ -966,31 +846,18 @@ public:
 
         int32_t i = 0;
 
-#ifdef USE_AVX2
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
+		constexpr uint32_t limb_size = sizeof(LimbType);
+
 		LOOP_UNROLL()
-		for (; i < ulimb/4; i++) {
-			__m256i x_avx = _mm256_load_si256((__m256i *)v1 + i);
-			__m256i y_avx = _mm256_load_si256((__m256i *)v2 + i);
-			__m256i z_avx = _mm256_xor_si256(x_avx, y_avx);
-			_mm256_store_si256((__m256i *)v3 + i, z_avx);
+		for (; i+limb_size <= ulimb; i+=limb_size) {
+			uint32x8_t x_  = uint32x8_t::load<align>(v1 + i);
+			uint32x8_t y_  = uint32x8_t::load<align>(v2 + i);
+			uint32x8_t z_ = x_ ^ y_;
+			uint32x8_t::store(v3 + i, z_);
 		}
 
-		i*=4;
-#else
-        LOOP_UNROLL()
-        for (; i+4 < ulimb; i+=4) {
-            // we need to access the memory unaligned
-            __m256 x_avx = MM256_LOAD((float*)v1 + 2*i);
-            __m256 y_avx = MM256_LOAD((float*)v2 + 2*i);
-            __m256 z_avx = _mm256_xor_ps(x_avx, y_avx);
-            MM256_STORE((float*)v3 + 2*i, z_avx);
-        }
-#endif
-#endif
-
         LOOP_UNROLL();
-        for (; i < ulimb; ++i) {
+        for (; i < ulimb; ++i) { 
             v3[i] = v1[i] ^ v2[i];
         }
 
@@ -1293,8 +1160,10 @@ public:
 	}
 
 	///  out[s: ] = in[0:s]
-	static inline void shift_right(BinaryContainer &out, const BinaryContainer &in, const uint32_t s) noexcept {
-		for (int j = 0; j < s; ++j) {
+	static inline void shift_right(BinaryContainer &out,
+								   const BinaryContainer &in,
+								   const uint32_t s) noexcept {
+		for (uint32_t j = 0; j < s; ++j) {
 			out.write_bit(j+s, in.get_bit_shifted(j));
 		}
 	}
@@ -1495,8 +1364,12 @@ public:
 	///		uint64_t limb = 0;
 	///		mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask2(k_higher);
 	///		b1.is_lower_simple2(b2, limb, mask);
-	inline bool is_lower_simple2(BinaryContainer const &obj, const uint32_t limb, const LimbType mask) const noexcept {
-		ASSERT((limb < limbs() < length) && mask != 0);
+	inline bool is_lower_simple2(BinaryContainer const &obj,
+								 const uint32_t limb, 
+								 const LimbType mask) const noexcept {
+		ASSERT(limb < limbs());
+		ASSERT(limbs() < length);
+		ASSERT(mask != 0);
 		return ((__data[limb]&mask) < (obj.__data[limb]&mask));
 	}
 

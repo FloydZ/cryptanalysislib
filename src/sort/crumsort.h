@@ -554,10 +554,9 @@ void fulcrum_partition(VAR *array,
 }
 
 template<typename VAR, typename CMPFUNC>
-void crumsort(void *array, size_t nmemb, CMPFUNC cmp)
+void crumsort(void *array, const size_t nmemb, CMPFUNC cmp)
 {
-	if (nmemb <= 132)
-	{
+	if (nmemb <= 132) {
 		return quadsort<VAR>(array, nmemb, cmp);
 	}
 	VAR *pta = (VAR *) array;
@@ -566,25 +565,25 @@ void crumsort(void *array, size_t nmemb, CMPFUNC cmp)
 #else
 	size_t swap_size = 128;
 
-	while (swap_size * swap_size <= nmemb)
-	{
+	while (swap_size * swap_size <= nmemb) {
 		swap_size *= 4;
 	}
 #endif
-	VAR swap[swap_size];
+	VAR *swap = (VAR *)malloc(swap_size * sizeof(VAR));
 
 	crum_analyze(pta, swap, swap_size, nmemb, cmp);
+	free(swap);
 }
 
 template<typename VAR, typename CMPFUNC>
-void crumsort_swap(void *array, void *swap, size_t swap_size, size_t nmemb, CMPFUNC cmp)
-{
-	if (nmemb <= 132)
-	{
+void crumsort_swap(void *array,
+				   void *swap,
+				   const size_t swap_size,
+				   size_t nmemb, 
+				   CMPFUNC cmp) {
+	if (nmemb <= 132) {
 		quadsort_swap(array, swap, swap_size, nmemb, cmp);
-	}
-	else
-	{
+	} else {
 		VAR *pta = (VAR *) array;
 		VAR *pts = (VAR *) swap;
 

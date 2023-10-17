@@ -133,7 +133,7 @@ struct uint8x32_t {
 
 	/// NOTE: currently cannot be constexpr
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t random() noexcept {
+	[[nodiscard]] static inline uint8x32_t random() noexcept {
 		uint8x32_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -481,7 +481,7 @@ struct uint16x16_t {
 
 	///
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t random() noexcept {
+	[[nodiscard]] static inline uint16x16_t random() noexcept {
 		uint16x16_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -770,7 +770,7 @@ struct uint32x8_t {
 
 	///
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t random() noexcept {
+	[[nodiscard]] static inline uint32x8_t random() noexcept {
 		uint32x8_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -1124,7 +1124,7 @@ struct uint64x4_t {
 
 	///
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t random() noexcept {
+	[[nodiscard]] static inline uint64x4_t random() noexcept {
 		uint64x4_t ret;
 		ret.v256 = fastrandombytes_m256i();
 		return ret;
@@ -1417,7 +1417,7 @@ struct uint64x4_t {
 		uint64x4_t ret;
 
 #ifdef USE_AVX512
-		ret.v256 = _mm256_popcnt_epi64(in.v256);
+  		ret.v256 = (__m256i) __builtin_ia32_vpopcountq_v4di ((__v4di)in.v256);
 #else
 		ret.v256 = popcount_avx2_64(in.v256);
 #endif

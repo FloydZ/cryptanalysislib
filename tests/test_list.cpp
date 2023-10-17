@@ -44,7 +44,6 @@ uint64_t helper_list_is_every_element_value_unique(const List &l){
 			if (equal){
 				errors += 1;
 			}
-
 		}
 	}
 
@@ -169,7 +168,7 @@ TEST(SearchBoundaries, BeginLevel0) {
 
 	l.generate_base_random(TEST_BASE_LIST_SIZE, mm);
 
-	Element zero{}, *ret;
+	Element zero{};
 	zero.zero();
 
 	for (size_t i = 0; i < add_size; ++i) {
