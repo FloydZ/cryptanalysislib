@@ -193,6 +193,50 @@ struct uint8x32_t {
 		return out;
 	}
 
+	[[nodiscard]] constexpr static inline uint8x32_t setr(char __q31, char __q30, char __q29, char __q28,
+		                char __q27, char __q26, char __q25, char __q24,
+		                char __q23, char __q22, char __q21, char __q20,
+		                char __q19, char __q18, char __q17, char __q16,
+		                char __q15, char __q14, char __q13, char __q12,
+		                char __q11, char __q10, char __q09, char __q08,
+		                char __q07, char __q06, char __q05, char __q04,
+		                char __q03, char __q02, char __q01, char __q00){
+		uint8x32_t out = {0};
+		out.v8[31] = __q31;
+		out.v8[30] = __q30;
+		out.v8[29] = __q29;
+		out.v8[28] = __q28;
+		out.v8[27] = __q27;
+		out.v8[26] = __q26;
+		out.v8[25] = __q25;
+		out.v8[24] = __q24;
+		out.v8[23] = __q23;
+		out.v8[22] = __q22;
+		out.v8[21] = __q21;
+		out.v8[20] = __q20;
+		out.v8[19] = __q19;
+		out.v8[18] = __q18;
+		out.v8[17] = __q17;
+		out.v8[16] = __q16;
+		out.v8[15] = __q15;
+		out.v8[14] = __q14;
+		out.v8[13] = __q13;
+		out.v8[12] = __q12;
+		out.v8[11] = __q11;
+		out.v8[10] = __q10;
+		out.v8[ 9] = __q09;
+		out.v8[ 8] = __q08;
+		out.v8[ 7] = __q07;
+		out.v8[ 6] = __q06;
+		out.v8[ 5] = __q05;
+		out.v8[ 4] = __q04;
+		out.v8[ 3] = __q03;
+		out.v8[ 2] = __q02;
+		out.v8[ 1] = __q01;
+		out.v8[ 0] = __q00;
+		return out;
+	}
+
 	/// sets all 32 8bit limbs to `a`
 	/// \param a
 	/// \return
