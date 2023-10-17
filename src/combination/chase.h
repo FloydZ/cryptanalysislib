@@ -27,7 +27,7 @@ constexpr size_t compute_combinations_fq_chase_list_size() {
 	}
 
 	// just make sure that we do not return zero.
-	return std::max(size, uint64_t(1ull)) * (bc(n, w) - 1);
+	return std::max(size, size_t(1ull)) * (bc(n, w) - 1);
 }
 
 /// This class enumerates a normal chase sequence of weight w. This means
@@ -128,6 +128,8 @@ public:
 				f[j+1] = j + 1;
 			}
 		}
+
+		return 0;
 	}
 
 	/// \param r helper value, init with 0
@@ -296,6 +298,7 @@ public:
 
 	// REMINDER: Make sure to set A on all limbs on zero.
 	void left_init(T *A) {
+		(void) A;
 		two_changes_binary_o.clear();
 		two_changes_binary_d.clear();
 		two_changes_binary_n.clear();

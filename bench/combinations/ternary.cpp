@@ -17,7 +17,7 @@ B63_BASELINE(Combinations_Chase, nn) {
 		c.left_init(data);
 	}
 
-	int32_t res = 0, i;
+	size_t res = 0, i;
 
 	for (; (res < nn) && (i != 0); res++) {
 		i = c.left_step(data);

@@ -28,6 +28,7 @@ namespace cryptanalysislib {
 	class array {
 	public:
 		using const_iterator = const T *const;
+		using iterator = T *const;
 
 		/// default constructor
 		constexpr array() {}
@@ -69,13 +70,10 @@ namespace cryptanalysislib {
 			return this->operator[](n);
 		}
 
-		constexpr const_iterator begin() const noexcept { return &m_data[0]; }
-
-		constexpr const_iterator cbegin() const noexcept { return &m_data[0]; }
-
-		constexpr const_iterator end() const noexcept { return &m_data[N]; }
-
-		constexpr const_iterator cend() const noexcept { return &m_data[N]; }
+		constexpr iterator begin() const noexcept { return &m_data[0]; }
+		constexpr iterator cbegin() const noexcept { return &m_data[0]; }
+		constexpr iterator end() const noexcept { return &m_data[N]; }
+		constexpr iterator cend() const noexcept { return &m_data[N]; }
 
 		// map a function over an array (or two)
 		template<typename F>

@@ -871,7 +871,7 @@ template<class Extractor>
 concept ExtractorAble = requires(Extractor e) {
 	typename Extractor::Value;
 
-	requires requires(Extractor::Value &l, const uint32_t i) {
+	requires requires(typename Extractor::Value &l, const uint32_t i) {
 		e.extracts(l, i, i);
 	};
 };

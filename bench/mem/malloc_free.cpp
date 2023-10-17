@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <iostream>
 #include <vector>
 // #include <omp.h>
@@ -42,7 +43,7 @@ void parallelMalloc(int parallelism, int mallocCnt = 10000000) {
 B63_BASELINE(Malloc, nn) {
 	std::vector<char*> ptrStore(nn);
 
-	int32_t res = 0;
+	uint64_t res = 0;
 	for (; res < nn; ++res) {
 		ptrStore[res] = ((char*)malloc(100 * sizeof(char)));
 	}
@@ -63,7 +64,7 @@ B63_BASELINE(Malloc, nn) {
 B63_BENCHMARK(Free, nn) {
 	std::vector<char*> ptrStore(nn);
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 
 	B63_SUSPEND {

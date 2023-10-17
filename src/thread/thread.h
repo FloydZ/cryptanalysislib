@@ -6,14 +6,14 @@
 ///
 
 #include <cstdint>
-#if defined(USE_OMP)
-#include <omp>
+#if defined(_OPENMP)
+#include <omp.h>
 #endif
 
 class Thread {
 public:
-#if defined(USE_OPENMP)
-	constexpr static uint32_t get_tid() noexcept {
+#if defined(_OPENMP)
+	static uint32_t get_tid() noexcept {
 		return omp_get_thread_num();
 	}
 #else
@@ -23,6 +23,6 @@ public:
 		return 0;
 	}
 #endif
-
 };
+
 #endif//CRYPTANALYSISLIB_THREAD_H

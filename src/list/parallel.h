@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "list/common.h"
+#include "sort/sort.h"
 
 /// This implements a data struct which can hold arbitrary amount of labels and values in two different lists.
 ///  	To separate the labels and values from each others, means that we are able to faster enumerate over only the labels
@@ -75,7 +76,8 @@ public:
 	constexpr explicit Parallel_List_T(const size_t size,
 									   const uint32_t threads,
 									   bool no_values=false) noexcept :
-	   MetaListT<Element>(size, threads, false)
+	   MetaListT<Element>(size, threads, false),
+	   no_values(no_values)
 	{
 		if (no_values == false) {
 			__data_value.resize(size);
@@ -128,13 +130,23 @@ public:
 
 	///
 	/// \tparam Hash hash function type, needed for the bucket sort
-	/// \param tid thread id
 	/// \param start start point= first element to sort
 	/// \param end  end point = last element to sort
 	/// \param hash hash function
 	template<typename Hash>
-	void sort(uint32_t tid, const size_t start, const size_t end, Hash hash) noexcept {
-		ASSERT(0);
+	void sort(const size_t start, const size_t end, Hash hash) noexcept {
+		ska_sort(__data_value + start, __data_value + end, hash);
+	}
+
+	///
+	/// \tparam Hash hash function type, needed for the bucket sort
+	/// \param tid thread id 
+	/// \param hash hash function
+	template<typename Hash>
+	void sort(uint32_t tid, Hash hash) noexcept {
+		const size_t start = start_pos(tid);
+		const size_t end = start_pos(tid);
+		ska_sort(__data_value + start, __data_value + end, hash);
 	}
 
 	/// zero a list
@@ -181,9 +193,24 @@ public:
 		return size() * (sizeof(ValueType) + sizeof(LabelType));
 	}
 
-public:
+
+	/// insert an element into the list past the load factor
+	/// \param e element to insert
+	/// \param pos is a relative position to the thread id
+	/// \param tid thread id
+	constexpr void insert(const Element &e, const size_t pos, const uint32_t tid=0) noexcept {
+		const size_t spos = start_pos(tid);
+		if (!no_values) {
+			__data_value[spos + pos] = e.value;
+		}
+		__data_label[spos + pos] = e.label;
+	}
+
+private:
 	alignas(PAGE_SIZE) std::vector<ValueType> __data_value;
 	alignas(PAGE_SIZE) std::vector<LabelType> __data_label;
+
+	const bool no_values = false;
 };
 
 

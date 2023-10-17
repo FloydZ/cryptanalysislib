@@ -11,7 +11,7 @@ B63_BASELINE(sub_alllevel, nn) {
 	kAryLabel v1{}, v2{}, v3{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
@@ -19,7 +19,7 @@ B63_BASELINE(sub_alllevel, nn) {
 		translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		kAryLabel::sub(v3, v1, v2, k_lower, k_higher);
@@ -37,7 +37,7 @@ B63_BENCHMARK(sub_level1, nn) {
 	kAryLabel v1{}, v2{}, v3{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
@@ -45,7 +45,7 @@ B63_BENCHMARK(sub_level1, nn) {
 		translate_level(&k_lower, &k_higher, 0, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		kAryLabel::sub(v3, v1, v2, k_lower, k_higher);
@@ -63,7 +63,7 @@ B63_BENCHMARK(sub_level2, nn) {
 	kAryLabel v1{}, v2{}, v3{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
@@ -71,7 +71,7 @@ B63_BENCHMARK(sub_level2, nn) {
 		translate_level(&k_lower, &k_higher, 1, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		kAryLabel::sub(v3, v1, v2, k_lower, k_higher);
@@ -89,7 +89,7 @@ B63_BENCHMARK(sub_level3, nn) {
 	kAryLabel v1{}, v2{}, v3{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
@@ -97,7 +97,7 @@ B63_BENCHMARK(sub_level3, nn) {
 		translate_level(&k_lower, &k_higher, 2, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		kAryLabel::sub(v3, v1, v2, k_lower, k_higher);

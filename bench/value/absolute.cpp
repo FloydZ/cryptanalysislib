@@ -3,6 +3,7 @@
 
 #include "../bench_config.h"
 #include "helper.h"
+#include <cstdint>
 
 
 /// custom abs function
@@ -19,7 +20,7 @@ B63_BASELINE(abs, nn) {
 		v2 = rand();
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		v2 = abs(v1);
@@ -45,7 +46,7 @@ B63_BENCHMARK(cabs, nn) {
 		v2 = rand();
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		cabs(v2, v1);

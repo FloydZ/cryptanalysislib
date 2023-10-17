@@ -16,10 +16,11 @@ B63_BASELINE(Simple, nn) {
 
 	int32_t res = 0;
 
-	l.sort_level(-1, __level_translation_array);
-
-	B63_SUSPEND {
-		res += 1;
+	for (uint64_t i = 0; i < nn; i++) {
+		l.sort_level(-1, __level_translation_array);
+		B63_SUSPEND {
+			res += 1;
+		}
 	}
 
 	B63_KEEP(res);

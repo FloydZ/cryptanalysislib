@@ -32,7 +32,10 @@ B63_BASELINE(NotFindBinary, nn) {
 		l.sort_level(k_lower, k_higher);
 	}
 
-	uint64_t res = l.search_level_binary(e, k_lower, k_higher);
+	uint64_t res = 0;
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level_binary(e, k_lower, k_higher);
+	}
 	B63_KEEP(res);
 }
 
@@ -51,7 +54,10 @@ B63_BENCHMARK(NotFindBinaryCustom, nn) {
 		e.zero();
 	}
 
-	int32_t res = l.search_level_binary_custom(e, k_lower, k_higher);
+	uint64_t res = 0;
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level_binary_custom(e, k_lower, k_higher);
+	}
 	B63_KEEP(res);
 }
 
@@ -72,7 +78,10 @@ B63_BENCHMARK(FindEnd, nn) {
 		l.sort_level(k_lower, k_higher);
 	}
 
-	int32_t res = l.search_level_binary(e, k_lower, k_higher);
+	uint64_t res = 0;
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level_binary(e, k_lower, k_higher);
+	}
 	B63_KEEP(res);
 }
 
@@ -94,7 +103,10 @@ B63_BENCHMARK(FindBegin, nn) {
 		l.sort_level(k_lower, k_higher);
 	}
 
-	int32_t res = l.search_level_binary(e, k_lower, k_higher);
+	uint64_t res = 0;
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level_binary(e, k_lower, k_higher);
+	}
 	B63_KEEP(res);
 }
 
@@ -115,7 +127,10 @@ B63_BENCHMARK(FindEndCustom, nn) {
 		l.sort_level(k_lower, k_higher);
 	}
 
-	int32_t res = l.search_level_binary_custom(e, k_lower, k_higher);
+	uint64_t res = 0;
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level_binary_custom(e, k_lower, k_higher);
+	}
 	B63_KEEP(res);
 }
 
@@ -137,7 +152,10 @@ B63_BENCHMARK(FindBeginCustom, nn) {
 		l.sort_level(k_lower, k_higher);
 	}
 
-	int32_t res = l.search_level_binary_custom(e, k_lower, k_higher);
+	uint64_t res = 0;
+	for (uint64_t i = 0; i < nn; i++) {
+		res += l.search_level_binary_custom(e, k_lower, k_higher);
+	}
 	B63_KEEP(res);
 }
 

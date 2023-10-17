@@ -10,7 +10,7 @@
 	/// \return
 	template<const bool exact=false>
 	int compare_256_32(const __m256i in1, const __m256i in2) const noexcept {
-		if constexpr(EXACT) {
+		if constexpr(exact) {
 			const __m256i tmp2 = _mm256_cmpeq_epi32(in1, in2);
 			return _mm256_movemask_ps((__m256) tmp2);
 		}
@@ -56,8 +56,8 @@
 	template<bool exact=false>
 	int compare_256_64(const __m256i in1, const __m256i in2) const noexcept {
 		if constexpr(EXACT) {
-			const __m256i tmp2 = _mm256_cmpeq_epi32(in1, in2);
-			return _mm256_movemask_ps((__m256) tmp2);
+			const __m256i tmp2 = _mm256_cmpeq_epi64(in1, in2);
+			return _mm256_movemask_pd((__m256) tmp2);
 		}
 
 		const __m256i tmp1 = _mm256_xor_si256(in1, in2);
@@ -76,7 +76,7 @@
 				return _mm256_cmp_epi64_mask(avx_exact_weight64, pop, 0);
 #else
 				const __m256i tmp2 = _mm256_cmpeq_epi64(avx_exact_weight64, pop);
-				return _mm256_movemask_ps((__m256) tmp2);
+				return _mm256_movemask_pd((__m256) tmp2);
 #endif
 			} else  {
 				const __m256i avx_weight64 = _mm256_set1_epi64x(dk_bruteforce_weight+1);
@@ -581,70 +581,7 @@
 		} // i: enumerate left side
 	} // end func
 
-	/// bruteforce the two lists between the given start and end indices.
-	/// NOTE: uses avx2
-	/// NOTE: only in limb comparison possible. inter limb (e.g. bit 43...83) is impossible.
-	/// NOTE: assumes that list size is multiple of 4.
-	/// NOTE: this check every element on the left against 4 on the right
-	/// \param e1 end index of list 1
-	/// \param e2 end index list 2
-	void bruteforce_avx2_256(const size_t e1,
-	                         const size_t e2) noexcept {
 
-		ASSERT(n <= 256);
-		ASSERT(n > 128);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
-		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
-
-		/// difference of the memory location in the right list
-		const __m128i loadr1 = {       (4ull << 32u), ( 8ul) | (12ull << 32u)};
-		const __m128i loadr2 = {1ull | (5ull << 32u), ( 9ul) | (13ull << 32u)};
-		const __m128i loadr3 = {2ull | (6ull << 32u), (10ul) | (14ull << 32u)};
-		const __m128i loadr4 = {3ull | (7ull << 32u), (11ul) | (15ull << 32u)};
-
-		/// allowed weight to match on
-		const __m256i weight = _mm256_setr_epi64x(0, 0, 0, 0);
-
-		for (size_t i = s1; i < e1; ++i) {
-			const __m256i li1 = _mm256_set1_epi64x(L1[i][0]);
-			const __m256i li2 = _mm256_set1_epi64x(L1[i][1]);
-			const __m256i li3 = _mm256_set1_epi64x(L1[i][2]);
-			const __m256i li4 = _mm256_set1_epi64x(L1[i][3]);
-
-			/// NOTE: only possible because L2 is a continuous memory block
-			/// NOTE: reset every loop
-			T *ptr_r = (T *)L2;
-
-			for (size_t j = s2; j < s2+(e2+3)/4; ++j, ptr_r += 16) {
-				const __m256i ri = _mm256_i32gather_epi64((const long long int *)ptr_r, loadr1, 8);
-				const int m1 = compare_256_64(li1, ri);
-
-				if (m1) {
-					const __m256i ri = _mm256_i32gather_epi64((const long long int *)ptr_r, loadr2, 8);
-					const int m1 = compare_256_64(li2, ri);
-
-					if (m1) {
-						const __m256i ri = _mm256_i32gather_epi64((const long long int *)ptr_r, loadr3, 8);
-						const int m1 = compare_256_64(li3, ri);
-
-						if (m1) {
-							const __m256i ri = _mm256_i32gather_epi64((const long long int *)ptr_r, loadr4, 8);
-							const int m1 = compare_256_64(li4, ri);
-							if (m1) {
-								const size_t jprime = j*4 + __builtin_ctz(m1);
-								if (compare_u64_ptr((T *)(L1 + i), (T *)(L2 + jprime))) {
-									//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
-									found_solution(i, jprime);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 
 	/// bruteforce the two lists between the given start and end indices.
 	/// NOTE: uses avx2

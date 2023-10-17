@@ -3,9 +3,11 @@
 
 #include <cstdint>
 #include <cinttypes>
+#include <sys/types.h>
 
 #include "helper.h"
 #include "random.h"
+
 
 
 #if defined(USE_AVX2)
@@ -21,6 +23,73 @@
 #include "simd/riscv.h"
 
 #else
+
+
+struct uint32x4_t {
+	union {
+		uint8_t  v8 [16];
+		uint16_t v16[ 8];
+		uint32_t v32[ 4];
+		uint64_t v64[ 2];
+	};
+
+	[[nodiscard]] constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+		uint32x4_t ret;
+		ret.v32[0] = d;
+		ret.v32[1] = c;
+		ret.v32[2] = b;
+		ret.v32[3] = a;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+		uint32x4_t ret;
+		ret.v32[0] = a;
+		ret.v32[1] = b;
+		ret.v32[2] = c;
+		ret.v32[3] = d;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x4_t set(uint64_t a, uint64_t b) {
+		uint32x4_t ret;
+		ret.v64[0] = b;
+		ret.v64[1] = a;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x4_t setr(uint64_t a, uint64_t b) {
+		uint32x4_t ret;
+		ret.v64[0] = a;
+		ret.v64[1] = b;
+		return ret;
+	}
+};
+
+struct uint64x2_t {
+	union {
+		uint8_t  v8 [16];
+		uint16_t v16[ 8];
+		uint32_t v32[ 4];
+		uint64_t v64[ 2];
+	};
+
+
+	[[nodiscard]] constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
+		uint64x2_t ret;
+		ret.v64[0] = b;
+		ret.v64[1] = a;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint64x2_t setr(uint64_t a, uint64_t b) {
+		uint64x2_t ret;
+		ret.v64[0] = a;
+		ret.v64[1] = b;
+		return ret;
+	}
+};
+
 
 struct uint8x32_t {
 	union {
@@ -305,7 +374,7 @@ struct uint8x32_t {
 	static inline uint8x32_t mullo(const uint8x32_t in1,
 	                               const uint8x32_t in2) {
 		uint8x32_t out = {0};
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < 32; i++) {
 			out.v8[i] = in1.v8[i] * in2.v8[i];
 		}
 		return out;
@@ -345,6 +414,44 @@ struct uint8x32_t {
 		}
 		return out;
 	}
+
+
+	static inline int cmp(const uint8x32_t in1, const uint8x32_t in2) {
+		int ret = 0;
+		for (uint32_t i = 0; i < 32; i++){
+			ret ^= (in1.v8[i] == in2.v8[i]) << i;
+		}
+
+		return ret;
+	}
+
+	static inline int gt(const uint8x32_t in1, const uint8x32_t in2) {
+		int ret = 0;
+		for (uint32_t i = 0; i < 32; i++){
+			ret ^= (in1.v8[i] < in2.v8[i]) << i;
+		}
+
+		return ret;
+	}
+
+	static inline uint8x32_t popcnt(const uint8x32_t in) {
+		uint8x32_t ret;
+
+		for(uint32_t i = 0; i < 32; i++) {
+			ret.v8[i] = __builtin_popcount(in.v8[i]);
+		}
+		return ret;
+	}
+	
+	[[nodiscard]] static inline uint32_t move(const uint8x32_t in1) {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < 32; i++) {
+			ret ^= in1.v8[i] >> 7;
+		}
+
+		return ret;
+	}
+
 };
 
 struct uint16x16_t {
@@ -359,8 +466,296 @@ struct uint16x16_t {
 	/// \param binary
 	/// \param hex
 	constexpr inline void print(bool binary=false, bool hex=false) const;
-};
 
+	[[nodiscard]] constexpr static inline uint16x16_t set(
+			const uint16_t a0,const uint16_t a1,const uint16_t a2,const uint16_t a3,
+			const uint16_t a4,const uint16_t a5,const uint16_t a6,const uint16_t a7,
+			const uint16_t a8,const uint16_t a9,const uint16_t a10,const uint16_t a11,
+			const uint16_t a12,const uint16_t a13,const uint16_t a14,const uint16_t a15) {
+		uint16x16_t out;
+		out.v16[ 0] = a0;
+		out.v16[ 1] = a1;
+		out.v16[ 2] = a2;
+		out.v16[ 3] = a3;
+		out.v16[ 4] = a4;
+		out.v16[ 5] = a5;
+		out.v16[ 6] = a6;
+		out.v16[ 7] = a7;
+		out.v16[ 8] = a8;
+		out.v16[ 9] = a9;
+		out.v16[10] = a10;
+		out.v16[11] = a11;
+		out.v16[12] = a12;
+		out.v16[13] = a13;
+		out.v16[14] = a14;
+		out.v16[15] = a15;
+		return out;
+	}
+
+	[[nodiscard]] constexpr static inline uint16x16_t setr(
+			const uint16_t a0,const uint16_t a1,const uint16_t a2,const uint16_t a3,
+			const uint16_t a4,const uint16_t a5,const uint16_t a6,const uint16_t a7,
+			const uint16_t a8,const uint16_t a9,const uint16_t a10,const uint16_t a11,
+			const uint16_t a12,const uint16_t a13,const uint16_t a14,const uint16_t a15) {
+		return uint16x16_t::set(a15,a14,a13,a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1,a0);
+	}
+
+	/// sets all 32 8bit limbs to `a`
+	/// \param a
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t set1(const uint16_t a) {
+		uint16x16_t out = {0};
+		out =  uint16x16_t::set(a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+		return out;
+	}
+
+	///
+	/// \tparam aligned
+	/// \param ptr
+	/// \return
+	template<const bool aligned=false>
+	constexpr static inline uint16x16_t load(const void *ptr) {
+		if constexpr (aligned) {
+			return aligned_load(ptr);
+		}
+
+		return unaligned_load(ptr);
+	}
+
+	///
+	/// \param ptr
+	/// \return
+	constexpr static inline uint16x16_t aligned_load(const void *ptr) {
+		uint16x16_t out = {0};
+		const uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 3; i++) {
+			out.v64[i] = ptr64[i];
+		}
+		return out;
+	}
+
+
+	///
+	/// \param ptr
+	/// \return
+	constexpr static inline uint16x16_t unaligned_load(const void *ptr) {
+		uint16x16_t out = {0};
+		const uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 3; i++) {
+			out.v64[i] = ptr64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \tparam aligned
+	/// \param ptr
+	/// \param in
+	template<const bool aligned=false>
+	constexpr static inline void store(void *ptr, const uint16x16_t in) {
+		if constexpr (aligned) {
+			aligned_store(ptr, in);
+			return;
+		}
+
+		aligned_store(ptr, in);
+	}
+
+	///
+	/// \param ptr
+	/// \param in
+	static inline void aligned_store(void *ptr, const uint16x16_t in) {
+		uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 4; i++) {
+			ptr64[i] = in.v64[i];
+		}
+	}
+
+	///
+	/// \param ptr
+	/// \param in
+	constexpr static inline void unaligned_store(void *ptr, const uint16x16_t in) {
+		uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 4; i++) {
+			ptr64[i] = in.v64[i];
+		}
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t xor_(const uint16x16_t in1,
+	                              const uint16x16_t in2) {
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t and_(const uint16x16_t in1,
+	                              const uint16x16_t in2) {
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] & in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t or_(const uint16x16_t in1,
+						  const uint16x16_t in2) {
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] | in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t andnot(const uint16x16_t in1,
+	                                const uint16x16_t in2) {
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \return
+	constexpr static inline uint16x16_t not_(const uint16x16_t in1) {
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = ~in1.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t add(
+						const uint16x16_t in1,
+	                    const uint16x16_t in2) {
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 16; i++) {
+			out.v16[i] = in1.v16[i] + in2.v16[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t sub(const uint16x16_t in1,
+	                             const uint16x16_t in2) {
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 16; i++) {
+			out.v16[i] = in1.v16[i] - in2.v16[i];
+		}
+		return out;
+	}
+
+	/// 8 bit mul lo
+	/// \param in1
+	/// \param in2
+	/// \return
+	static inline uint16x16_t mullo(const uint16x16_t in1,
+	                               const uint16x16_t in2) {
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 16; i++) {
+			out.v16[i] = in1.v16[i] * in2.v16[i];
+		}
+		return out;
+	}
+
+	///
+	static inline uint16x16_t mullo(const uint16x16_t in1,
+	                               const uint8_t in2) {
+		uint16x16_t rs = uint16x16_t::set1(in2);
+		return uint16x16_t::mullo(in1, rs);
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t slli(const uint16x16_t in1,
+														  const uint8_t in2) {
+		ASSERT(in2 <= 16);
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 16; i++) {
+			out.v16[i] = in1.v16[i] << in2;
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t slri(const uint16x16_t in1,
+														  const uint16_t in2) {
+		ASSERT(in2 <= 8);
+		uint16x16_t out = {0};
+		for (uint32_t i = 0; i < 16; i++) {
+			out.v16[i] = in1.v16[i] >> in2;
+		}
+		return out;
+	}
+
+	static inline int cmp(const uint16x16_t in1, const uint16x16_t in2) {
+		int ret = 0;
+		for (uint32_t i = 0; i < 16; i++){
+			ret ^= (in1.v16[i] == in2.v16[i]) << i;
+		}
+
+		return ret;
+	}
+
+	static inline int gt(const uint16x16_t in1, const uint16x16_t in2) {
+		int ret = 0;
+		for (uint32_t i = 0; i < 16; i++){
+			ret ^= (in1.v16[i] < in2.v16[i]) << i;
+		}
+
+		return ret;
+	}
+
+	static inline uint16x16_t popcnt(const uint16x16_t in) {
+		uint16x16_t ret;
+
+		for(uint32_t i = 0; i < 16; i++) {
+			ret.v16[i] = __builtin_popcount(in.v16[i]);
+		}
+		return ret;
+	}
+
+
+	[[nodiscard]] static inline uint16_t move(const uint16x16_t in1) {
+		uint16_t ret = 0;
+		for (uint32_t i = 0; i < 16; i++) {
+			ret ^= in1.v16[i] >> 15;
+		}
+
+		return ret;
+	}
+};
 
 struct uint32x8_t {
 	union {
@@ -373,6 +768,309 @@ struct uint32x8_t {
 	/// \param binary
 	/// \param hex
 	constexpr inline void print(bool binary=false, bool hex=false) const;
+
+	[[nodiscard]] constexpr static inline uint32x8_t set(
+			const uint32_t a0,const uint32_t a1,const uint32_t a2,const uint32_t a3,
+			const uint32_t a4,const uint32_t a5,const uint32_t a6,const uint32_t a7) {
+		uint32x8_t out;
+		out.v32[ 0] = a0;
+		out.v32[ 1] = a1;
+		out.v32[ 2] = a2;
+		out.v32[ 3] = a3;
+		out.v32[ 4] = a4;
+		out.v32[ 5] = a5;
+		out.v32[ 6] = a6;
+		out.v32[ 7] = a7;
+		return out;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x8_t setr(
+			const uint32_t a0,const uint32_t a1,const uint32_t a2,const uint32_t a3,
+			const uint32_t a4,const uint32_t a5,const uint32_t a6,const uint32_t a7) {
+		return uint32x8_t::set(a7,a6,a5,a4,a3,a2,a1,a0);
+	}
+
+	/// \param a
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t set1(const uint16_t a) {
+		uint32x8_t out = {0};
+		out =  uint32x8_t::set(a, a, a, a, a, a, a, a);
+		return out;
+	}
+
+	///
+	/// \tparam aligned
+	/// \param ptr
+	/// \return
+	template<const bool aligned=false>
+	constexpr static inline uint32x8_t load(const void *ptr) {
+		if constexpr (aligned) {
+			return aligned_load(ptr);
+		}
+
+		return unaligned_load(ptr);
+	}
+
+	///
+	/// \param ptr
+	/// \return
+	constexpr static inline uint32x8_t aligned_load(const void *ptr) {
+		uint32x8_t out = {0};
+		const uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 3; i++) {
+			out.v64[i] = ptr64[i];
+		}
+		return out;
+	}
+
+
+	///
+	/// \param ptr
+	/// \return
+	constexpr static inline uint32x8_t unaligned_load(const void *ptr) {
+		uint32x8_t out = {0};
+		const uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 3; i++) {
+			out.v64[i] = ptr64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \tparam aligned
+	/// \param ptr
+	/// \param in
+	template<const bool aligned=false>
+	constexpr static inline void store(void *ptr, const uint32x8_t in) {
+		if constexpr (aligned) {
+			aligned_store(ptr, in);
+			return;
+		}
+
+		aligned_store(ptr, in);
+	}
+
+	///
+	/// \param ptr
+	/// \param in
+	static inline void aligned_store(void *ptr, const uint32x8_t in) {
+		uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 4; i++) {
+			ptr64[i] = in.v64[i];
+		}
+	}
+
+	///
+	/// \param ptr
+	/// \param in
+	constexpr static inline void unaligned_store(void *ptr, const uint32x8_t in) {
+		uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 4; i++) {
+			ptr64[i] = in.v64[i];
+		}
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t xor_(const uint32x8_t in1,
+	                              const uint32x8_t in2) {
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t and_(const uint32x8_t in1,
+	                              const uint32x8_t in2) {
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] & in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t or_(const uint32x8_t in1,
+						  const uint32x8_t in2) {
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] | in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t andnot(const uint32x8_t in1,
+	                                const uint32x8_t in2) {
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \return
+	constexpr static inline uint32x8_t not_(const uint32x8_t in1) {
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = ~in1.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t add(
+						const uint32x8_t in1,
+	                    const uint32x8_t in2) {
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v32[i] = in1.v32[i] + in2.v32[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t sub(const uint32x8_t in1,
+	                             const uint32x8_t in2) {
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v32[i] = in1.v32[i] - in2.v32[i];
+		}
+		return out;
+	}
+
+	/// 8 bit mul lo
+	/// \param in1
+	/// \param in2
+	/// \return
+	static inline uint32x8_t mullo(const uint32x8_t in1,
+	                               const uint32x8_t in2) {
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v32[i] = in1.v32[i] * in2.v32[i];
+		}
+		return out;
+	}
+
+	///
+	static inline uint32x8_t mullo(const uint32x8_t in1,
+	                               const uint8_t in2) {
+		uint32x8_t rs = uint32x8_t::set1(in2);
+		return uint32x8_t::mullo(in1, rs);
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t slli(const uint32x8_t in1,
+														  const uint32_t in2) {
+		ASSERT(in2 <= 32);
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v32[i] = in1.v32[i] << in2;
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t slri(const uint32x8_t in1,
+														  const uint16_t in2) {
+		ASSERT(in2 <= 8);
+		uint32x8_t out = {0};
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v32[i] = in1.v32[i] >> in2;
+		}
+		return out;
+	}
+
+	static inline int cmp(const uint32x8_t in1, const uint32x8_t in2) {
+		int ret = 0;
+		for (uint32_t i = 0; i < 8; i++){
+			ret ^= (in1.v32[i] == in2.v32[i]) << i;
+		}
+
+		return ret;
+	}
+
+	static inline int gt(const uint32x8_t in1, const uint32x8_t in2) {
+		int ret = 0;
+		for (uint32_t i = 0; i < 8; i++){
+			ret ^= (in1.v32[i] < in2.v32[i]) << i;
+		}
+
+		return ret;
+	}
+
+	static inline uint32x8_t popcnt(const uint32x8_t in) {
+		uint32x8_t ret;
+
+		for(uint32_t i = 0; i < 8; i++) {
+			ret.v32[i] = __builtin_popcount(in.v32[i]);
+		}
+		return ret;
+	}
+
+	/// \tparam scale
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) {
+		uint32x8_t ret;
+		const uint32_t *ptr32 = (uint32_t *)ptr;
+		for(uint32_t i = 0; i < 8; i++) {
+			ret.v32[i] = ptr32[data.v32[i * scale]];
+		}
+
+		return ret;
+	}
+
+	///
+	/// \param in
+	/// \param perm
+	/// \return
+	static inline uint32x8_t permute(const uint32x8_t in, const uint32x8_t perm) {
+		uint32x8_t ret;
+		for(uint32_t i = 0; i < 8; i++) {
+			ret.v32[i] = in.v32[perm.v32[i]];
+		}
+		return ret;
+	}
+
+
+	[[nodiscard]] static inline uint8_t move(const uint32x8_t in1) {
+		uint8_t ret = 0;
+		for (uint32_t i = 0; i < 8; i++) {
+			ret ^= in1.v32[i] >> 31;
+		}
+
+		return ret;
+	}
 };
 
 struct uint64x4_t {
@@ -382,66 +1080,548 @@ struct uint64x4_t {
 		uint32_t v32[ 8];
 		uint64_t v64[ 4];
 	};
+
 	///
 	/// \param binary
 	/// \param hex
 	constexpr inline void print(bool binary=false, bool hex=false) const;
-};
 
-bool operator==(const uint8x32_t& a, const uint8x32_t& b){
-	for (uint32_t i = 0; i < 32; i++) {
-		if (a.v8[i] != b.v8[i]) {
-			return false;
+	[[nodiscard]] constexpr static inline uint64x4_t set(
+			const uint64_t a0,const uint64_t a1,const uint64_t a2,const uint64_t a3) {
+		uint64x4_t out;
+		out.v64[ 0] = a0;
+		out.v64[ 1] = a1;
+		out.v64[ 2] = a2;
+		out.v64[ 3] = a3;
+		return out;
+	}
+
+	[[nodiscard]] constexpr static inline uint64x4_t setr(
+			const uint32_t a0,const uint32_t a1,const uint32_t a2,const uint32_t a3) {
+		return uint64x4_t::set(a3,a2,a1,a0);
+	}
+
+	/// \param a
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t set1(const uint16_t a) {
+		uint64x4_t out = {0};
+		out =  uint64x4_t::set(a, a, a, a);
+		return out;
+	}
+
+	///
+	/// \tparam aligned
+	/// \param ptr
+	/// \return
+	template<const bool aligned=false>
+	constexpr static inline uint64x4_t load(const void *ptr) {
+		if constexpr (aligned) {
+			return aligned_load(ptr);
+		}
+
+		return unaligned_load(ptr);
+	}
+
+	///
+	/// \param ptr
+	/// \return
+	constexpr static inline uint64x4_t aligned_load(const void *ptr) {
+		uint64x4_t out = {0};
+		const uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 3; i++) {
+			out.v64[i] = ptr64[i];
+		}
+		return out;
+	}
+
+
+	///
+	/// \param ptr
+	/// \return
+	constexpr static inline uint64x4_t unaligned_load(const void *ptr) {
+		uint64x4_t out = {0};
+		const uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 3; i++) {
+			out.v64[i] = ptr64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \tparam aligned
+	/// \param ptr
+	/// \param in
+	template<const bool aligned=false>
+	constexpr static inline void store(void *ptr, const uint64x4_t in) {
+		if constexpr (aligned) {
+			aligned_store(ptr, in);
+			return;
+		}
+
+		aligned_store(ptr, in);
+	}
+
+	///
+	/// \param ptr
+	/// \param in
+	static inline void aligned_store(void *ptr, const uint64x4_t in) {
+		uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 4; i++) {
+			ptr64[i] = in.v64[i];
 		}
 	}
 
-	return true;
-}
+	///
+	/// \param ptr
+	/// \param in
+	constexpr static inline void unaligned_store(void *ptr, const uint64x4_t in) {
+		uint64_t *ptr64 = (uint64_t *)ptr;
+		for (uint32_t i = 0; i < 4; i++) {
+			ptr64[i] = in.v64[i];
+		}
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t xor_(const uint64x4_t in1,
+	                              const uint64x4_t in2) {
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t and_(const uint64x4_t in1,
+	                              const uint64x4_t in2) {
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] & in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t or_(const uint64x4_t in1,
+						  const uint64x4_t in2) {
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] | in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t andnot(const uint64x4_t in1,
+	                                const uint64x4_t in2) {
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \return
+	constexpr static inline uint64x4_t not_(const uint64x4_t in1) {
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = ~in1.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t add(
+						const uint64x4_t in1,
+	                    const uint64x4_t in2) {
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] + in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t sub(const uint64x4_t in1,
+	                             const uint64x4_t in2) {
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] - in2.v64[i];
+		}
+		return out;
+	}
+
+	/// 8 bit mul lo
+	/// \param in1
+	/// \param in2
+	/// \return
+	static inline uint64x4_t mullo(const uint64x4_t in1,
+	                               const uint64x4_t in2) {
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] * in2.v64[i];
+		}
+		return out;
+	}
+
+	///
+	static inline uint64x4_t mullo(const uint64x4_t in1,
+	                               const uint8_t in2) {
+		uint64x4_t rs = uint64x4_t::set1(in2);
+		return uint64x4_t::mullo(in1, rs);
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t slli(const uint64x4_t in1,
+														  const uint64_t in2) {
+		ASSERT(in2 <= 64);
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 4; i++) {
+			out.v64[i] = in1.v64[i] << in2;
+		}
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t slri(const uint64x4_t in1,
+														  const uint64_t in2) {
+		ASSERT(in2 <= 64);
+		uint64x4_t out = {0};
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v64[i] = in1.v64[i] >> in2;
+		}
+		return out;
+	}
+
+	static inline int cmp(const uint64x4_t in1, const uint64x4_t in2) {
+		int ret = 0;
+		for (uint8_t i = 0; i < 4; i++){
+			ret ^= (in1.v64[i] == in2.v64[i]) << i;
+		}
+
+		return ret;
+	}
+
+	static inline int gt(const uint64x4_t in1, const uint64x4_t in2) {
+		int ret = 0;
+		for (uint32_t i = 0; i < 4; i++){
+			ret ^= (in1.v64[i] < in2.v64[i]) << i;
+		}
+
+		return ret;
+	}
+
+	static inline uint64x4_t popcnt(const uint64x4_t in) {
+		uint64x4_t ret;
+
+		for(uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = __builtin_popcountll(in.v64[i]);
+		}
+		return ret;
+	}
+
+	/// \tparam scale
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	static inline uint64x4_t gather(const void *ptr, const uint64x4_t data) {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+
+		uint64x4_t ret;
+		const uint64_t *ptr64 = (uint64_t *)ptr;
+		for(uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = ptr64[data.v64[i * scale]];
+		}
+
+		return ret;
+	}
+	
+	/// \tparam scale
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	static inline uint64x4_t gather(const void *ptr, const uint32x4_t data) {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		uint64x4_t ret;
+		const uint64_t *ptr64 = (uint64_t *)ptr;
+		for(uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = ptr64[data.v32[i * scale]];
+		}
+		return ret;
+	}
+
+
+
+	///
+	/// \param in
+	/// \param perm
+	/// \return
+	static inline uint64x4_t permute(const uint64x4_t in, const uint64x4_t perm) {
+		uint64x4_t ret;
+		for(uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = in.v64[perm.v64[i]];
+		}
+		return ret;
+	}
+
+	///
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<const uint32_t in2>
+	static inline uint64x4_t permute(const uint64x4_t in1) {
+		uint64x4_t ret;
+
+		for(uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = in1.v64[(in2 >> (2*i)) & 0b11];
+		}
+		return ret;
+	}
+
+	[[nodiscard]] static inline uint8_t move(const uint64x4_t in1) {
+		uint8_t ret = 0;
+		for (uint32_t i = 0; i < 4; i++) {
+			ret ^= in1.v64[i] >> 63;
+		}
+
+		return ret;
+	}
+};
+
+
+
 #endif // no SIMD uinit available
 
 ///
 inline uint8x32_t operator* (const uint8x32_t& lhs, const uint8x32_t& rhs) {
 	return uint8x32_t::mullo(lhs, rhs);
 }
-
 inline uint8x32_t operator* (const uint8x32_t& lhs, const uint8_t & rhs) {
 	return uint8x32_t::mullo(lhs, rhs);
 }
-
 inline uint8x32_t operator* (const uint8_t & lhs, const uint8x32_t & rhs) {
 	return uint8x32_t::mullo(rhs, lhs);
 }
-
 inline uint8x32_t operator+ (const uint8x32_t& lhs, const uint8x32_t& rhs) {
 	return uint8x32_t::add(lhs, rhs);
 }
-
 inline uint8x32_t operator- (const uint8x32_t& lhs, const uint8x32_t& rhs) {
 	return uint8x32_t::sub(lhs, rhs);
 }
-
 inline uint8x32_t operator& (const uint8x32_t& lhs, const uint8x32_t& rhs) {
 	return uint8x32_t::and_(lhs, rhs);
 }
-
 inline uint8x32_t operator^ (const uint8x32_t& lhs, const uint8x32_t& rhs) {
 	return uint8x32_t::xor_(lhs, rhs);
 }
-
 inline uint8x32_t operator| (const uint8x32_t& lhs, const uint8x32_t& rhs) {
 	return uint8x32_t::or_(lhs, rhs);
 }
-
 inline uint8x32_t operator~ (const uint8x32_t& lhs) {
 	return uint8x32_t::not_(lhs);
 }
-
 inline uint8x32_t operator>> (const uint8x32_t& lhs, const uint32_t rhs) {
 	return uint8x32_t::slri(lhs, rhs);
 }
 inline uint8x32_t operator<< (const uint8x32_t& lhs, const uint32_t rhs) {
 	return uint8x32_t::slli(lhs, rhs);
 }
+
+
+inline uint16x16_t operator* (const uint16x16_t& lhs, const uint16x16_t& rhs) {
+	return uint16x16_t::mullo(lhs, rhs);
+}
+inline uint16x16_t operator* (const uint16x16_t& lhs, const uint8_t & rhs) {
+	return uint16x16_t::mullo(lhs, rhs);
+}
+inline uint16x16_t operator* (const uint8_t & lhs, const uint16x16_t & rhs) {
+	return uint16x16_t::mullo(rhs, lhs);
+}
+inline uint16x16_t operator+ (const uint16x16_t& lhs, const uint16x16_t& rhs) {
+	return uint16x16_t::add(lhs, rhs);
+}
+inline uint16x16_t operator- (const uint16x16_t& lhs, const uint16x16_t& rhs) {
+	return uint16x16_t::sub(lhs, rhs);
+}
+inline uint16x16_t operator& (const uint16x16_t& lhs, const uint16x16_t& rhs) {
+	return uint16x16_t::and_(lhs, rhs);
+}
+inline uint16x16_t operator^ (const uint16x16_t& lhs, const uint16x16_t& rhs) {
+	return uint16x16_t::xor_(lhs, rhs);
+}
+inline uint16x16_t operator| (const uint16x16_t& lhs, const uint16x16_t& rhs) {
+	return uint16x16_t::or_(lhs, rhs);
+}
+inline uint16x16_t operator~ (const uint16x16_t& lhs) {
+	return uint16x16_t::not_(lhs);
+}
+inline uint16x16_t operator>> (const uint16x16_t& lhs, const uint32_t rhs) {
+	return uint16x16_t::slri(lhs, rhs);
+}
+inline uint16x16_t operator<< (const uint16x16_t& lhs, const uint32_t rhs) {
+	return uint16x16_t::slli(lhs, rhs);
+}
+
+
+inline uint32x8_t operator* (const uint32x8_t& lhs, const uint32x8_t& rhs) {
+	return uint32x8_t::mullo(lhs, rhs);
+}
+inline uint32x8_t operator* (const uint32x8_t& lhs, const uint8_t & rhs) {
+	return uint32x8_t::mullo(lhs, rhs);
+}
+inline uint32x8_t operator* (const uint8_t & lhs, const uint32x8_t & rhs) {
+	return uint32x8_t::mullo(rhs, lhs);
+}
+inline uint32x8_t operator+ (const uint32x8_t& lhs, const uint32x8_t& rhs) {
+	return uint32x8_t::add(lhs, rhs);
+}
+inline uint32x8_t operator- (const uint32x8_t& lhs, const uint32x8_t& rhs) {
+	return uint32x8_t::sub(lhs, rhs);
+}
+inline uint32x8_t operator& (const uint32x8_t& lhs, const uint32x8_t& rhs) {
+	return uint32x8_t::and_(lhs, rhs);
+}
+inline uint32x8_t operator^ (const uint32x8_t& lhs, const uint32x8_t& rhs) {
+	return uint32x8_t::xor_(lhs, rhs);
+}
+inline uint32x8_t operator| (const uint32x8_t& lhs, const uint32x8_t& rhs) {
+	return uint32x8_t::or_(lhs, rhs);
+}
+inline uint32x8_t operator~ (const uint32x8_t& lhs) {
+	return uint32x8_t::not_(lhs);
+}
+inline uint32x8_t operator>> (const uint32x8_t& lhs, const uint32_t rhs) {
+	return uint32x8_t::slri(lhs, rhs);
+}
+inline uint32x8_t operator<< (const uint32x8_t& lhs, const uint32_t rhs) {
+	return uint32x8_t::slli(lhs, rhs);
+}
+
+
+inline uint64x4_t operator* (const uint64x4_t& lhs, const uint64x4_t& rhs) {
+	return uint64x4_t::mullo(lhs, rhs);
+}
+inline uint64x4_t operator* (const uint64x4_t& lhs, const uint64_t & rhs) {
+	return uint64x4_t::mullo(lhs, rhs);
+}
+inline uint64x4_t operator* (const uint8_t & lhs, const uint64x4_t & rhs) {
+	return uint64x4_t::mullo(rhs, lhs);
+}
+inline uint64x4_t operator+ (const uint64x4_t& lhs, const uint64x4_t& rhs) {
+	return uint64x4_t::add(lhs, rhs);
+}
+inline uint64x4_t operator- (const uint64x4_t& lhs, const uint64x4_t& rhs) {
+	return uint64x4_t::sub(lhs, rhs);
+}
+inline uint64x4_t operator& (const uint64x4_t& lhs, const uint64x4_t& rhs) {
+	return uint64x4_t::and_(lhs, rhs);
+}
+inline uint64x4_t operator^ (const uint64x4_t& lhs, const uint64x4_t& rhs) {
+	return uint64x4_t::xor_(lhs, rhs);
+}
+inline uint64x4_t operator| (const uint64x4_t& lhs, const uint64x4_t& rhs) {
+	return uint64x4_t::or_(lhs, rhs);
+}
+inline uint64x4_t operator~ (const uint64x4_t& lhs) {
+	return uint64x4_t::not_(lhs);
+}
+inline uint64x4_t operator>> (const uint64x4_t& lhs, const uint32_t rhs) {
+	return uint64x4_t::slri(lhs, rhs);
+}
+inline uint64x4_t operator<< (const uint64x4_t& lhs, const uint32_t rhs) {
+	return uint64x4_t::slli(lhs, rhs);
+}
+
+/* 					 comparison									*/
+
+int operator==(const uint8x32_t& a, const uint8x32_t& b){
+	return uint8x32_t::cmp(a, b);
+}
+int operator!=(const uint8x32_t& a, const uint8x32_t& b){
+	return 0xffffffff ^ uint8x32_t::cmp(a, b);
+}
+int operator<(const uint8x32_t& a, const uint8x32_t& b){
+	return uint8x32_t::gt(b, a);
+}
+int operator>(const uint8x32_t& a, const uint8x32_t& b){
+	return uint8x32_t::gt(b, a);
+}
+
+
+int operator==(const uint16x16_t& a, const uint16x16_t& b){
+	return uint16x16_t::cmp(a, b);
+}
+int operator!=(const uint16x16_t& a, const uint16x16_t& b){
+	return 0xffff ^ uint16x16_t::cmp(a, b);
+}
+int operator<(const uint16x16_t& a, const uint16x16_t& b){
+	return uint16x16_t::gt(b, a);
+}
+int operator>(const uint16x16_t& a, const uint16x16_t& b){
+	return uint16x16_t::gt(a, b);
+}
+
+
+int operator==(const uint32x8_t& a, const uint32x8_t& b){
+	return uint32x8_t::cmp(a, b);
+}
+int operator!=(const uint32x8_t& a, const uint32x8_t& b){
+	return 0xff ^ uint32x8_t::cmp(a, b);
+}
+int operator<(const uint32x8_t& a, const uint32x8_t& b){
+	return uint32x8_t::gt(b, a);
+}
+int operator>(const uint32x8_t& a, const uint32x8_t& b){
+	return uint32x8_t::gt(a, b);
+}
+
+int operator==(const uint64x4_t & a, const uint64x4_t& b){
+	return uint64x4_t::cmp(a, b);
+}
+int operator!=(const uint64x4_t& a, const uint64x4_t& b){
+	return 0xf ^ uint64x4_t::cmp(a, b);
+}
+int operator<(const uint64x4_t& a, const uint64x4_t& b){
+	return uint64x4_t::gt(b, a);
+}
+int operator>(const uint64x4_t& a, const uint64x4_t& b){
+	return uint64x4_t::gt(a, b);
+}
+
+
+
+
+
+////////////////////////////////////////////////////////////
+
 
 /// functions which are shared among all implementations.
 constexpr inline void uint8x32_t::print(bool binary, bool hex) const {
@@ -536,7 +1716,7 @@ constexpr inline void uint64x4_t::print(bool binary, bool hex) const {
 
 	if (hex) {
 		for (uint32_t i = 0; i < 4; i++) {
-			printf("%lx ", this->v64[i]);
+			printf("%" PRIu64 " ", this->v64[i]);
 		}
 
 		return;

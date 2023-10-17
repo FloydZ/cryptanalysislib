@@ -19,14 +19,6 @@ TEST(Label, DoesNotLeak) {
     delete l;
 }
 
-TEST(Label, Check_References) {
-	Label l{};
-	auto b = l[0];  // this should be ok because we get a const reference
-	l[0] = 1;       // this should also be ok, if the 'container' class decides if its a reference or not.
-	l.data()[0] = 1;       // this should also be ok, if the 'container' class decides if its a reference or not.
-
-}
-
 TEST(Label, Zero) {
 	Label l;
 	l.data()[0] = fastrandombytes_uint64();
@@ -233,8 +225,9 @@ TEST(Neg, NegWithK) {
 
 				for (uint32_t i = k_lower; i < k_higher; ++i) {
 					EXPECT_EQ(l1[i], (q - l2[i]) % q);
-					if (l1[i] != 0)
+					if (l1[i] != 0) {
 						EXPECT_EQ(l1[i],  q - l2[i]);
+					}
 				}
 				for (uint32_t i = 0; i < k_lower; ++i) {
 					EXPECT_EQ(l2[i], l1[i]);

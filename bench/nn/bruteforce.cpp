@@ -20,110 +20,111 @@ static void BM_bruteforce_256(benchmark::State& state) {
 	state.SetComplexityN(state.range(0));
 }
 
-#ifdef USE_AVX2
-static void BM_bruteforce_avx2_256(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_ux4_1(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_ux4<1>(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_ux4_2(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_ux4<2>(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_ux4_4(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_ux4<4>(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_ux4_8(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_ux4<8>(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-
-
-static void BM_bruteforce_avx2_256_32_ux8_1(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_32_ux8<1>(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_32_ux8_2(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_32_ux8<2>(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_32_ux8_4(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_32_ux8<4>(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_32_ux8_8(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_32_ux8<8>(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-
-static void BM_bruteforce_avx2_256_32_8x8(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_32_8x8(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_64_4x4(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_64_4x4(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-static void BM_bruteforce_avx2_256_v2(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_avx2_256_v2(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
-BENCHMARK(BM_bruteforce_avx2_256)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-
-BENCHMARK(BM_bruteforce_avx2_256_ux4_1)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_256_ux4_2)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_256_ux4_4)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_256_ux4_8)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-
-BENCHMARK(BM_bruteforce_avx2_256_32_ux8_1)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_256_32_ux8_2)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_256_32_ux8_4)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_256_32_ux8_8)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-
-BENCHMARK(BM_bruteforce_avx2_256_32_8x8)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_256_64_4x4)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-BENCHMARK(BM_bruteforce_avx2_256_v2)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
-#endif
+// TODO BENCHMARK comparisoin against simd
+//#ifdef USE_AVX2
+//static void BM_bruteforce_avx2_256(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_ux4_1(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_ux4<1>(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_ux4_2(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_ux4<2>(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_ux4_4(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_ux4<4>(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_ux4_8(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_ux4<8>(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//
+//
+//static void BM_bruteforce_avx2_256_32_ux8_1(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_32_ux8<1>(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_32_ux8_2(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_32_ux8<2>(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_32_ux8_4(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_32_ux8<4>(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_32_ux8_8(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_32_ux8<8>(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//
+//static void BM_bruteforce_avx2_256_32_8x8(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_32_8x8(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_64_4x4(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_64_4x4(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//static void BM_bruteforce_avx2_256_v2(benchmark::State& state) {
+//	for (auto _ : state) {
+//		algo.bruteforce_avx2_256_v2(state.range(0), state.range(0));
+//	}
+//	state.SetComplexityN(state.range(0));
+//}
+//
+//BENCHMARK(BM_bruteforce_avx2_256)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//
+//BENCHMARK(BM_bruteforce_avx2_256_ux4_1)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//BENCHMARK(BM_bruteforce_avx2_256_ux4_2)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//BENCHMARK(BM_bruteforce_avx2_256_ux4_4)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//BENCHMARK(BM_bruteforce_avx2_256_ux4_8)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//
+//BENCHMARK(BM_bruteforce_avx2_256_32_ux8_1)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//BENCHMARK(BM_bruteforce_avx2_256_32_ux8_2)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//BENCHMARK(BM_bruteforce_avx2_256_32_ux8_4)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//BENCHMARK(BM_bruteforce_avx2_256_32_ux8_8)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//
+//BENCHMARK(BM_bruteforce_avx2_256_32_8x8)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//BENCHMARK(BM_bruteforce_avx2_256_64_4x4)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//BENCHMARK(BM_bruteforce_avx2_256_v2)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
+//#endif
 
 BENCHMARK(BM_bruteforce_256)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
 

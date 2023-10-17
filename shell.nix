@@ -16,6 +16,9 @@ stdenv.mkDerivation {
 	clang_16
 	clang-tools_16
 	llvm_16
+	llvmPackages_16.libcxx
+	llvmPackages_16.openmp
+	gcc
 	gtest
 	gbenchmark 
 	gmp 

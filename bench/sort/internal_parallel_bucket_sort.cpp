@@ -7,6 +7,7 @@
 #include "helper.h"
 #include "sort/sort.h"
 #include "sort.h"
+#include <cstdint>
 
 
 using namespace std;
@@ -20,9 +21,10 @@ constexpr static uint32_t k_higher = 16;
 using ContainerT = uint32_t;
 constexpr static ContainerT mask = ((ContainerT(1) << k_higher) - 1) ^ ((ContainerT(1) << k_lower) -1);
 
-void random_data(std::vector<ContainerT> &data, const uint64_t size) {
+void random_data(std::vector<ContainerT> &data, 
+		const uint64_t size) {
 	data.resize(SIZE);
-	for (int i = 0; i < SIZE; ++i) {
+	for (uint64_t i = 0; i < size; ++i) {
 		data[i] = fastrandombytes_uint64() & mask;
 	}
 }

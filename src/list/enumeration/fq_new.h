@@ -1,8 +1,9 @@
 #ifndef CRYPTANALYSISLIB_FQ_NEW_H
 #define CRYPTANALYSISLIB_FQ_NEW_H
 
-/// needed for std::nullptr_t
-#include <cstddef>
+
+#include <cstddef>     	// needed for std::nullptr_t
+#include <functional>	// needed for std::invoke
 
 #include "helper.h"
 #include "list/common.h"
@@ -20,7 +21,7 @@ template<class ListType,
 		const uint32_t q,
 		const uint32_t w>
 #if __cplusplus > 201709L
-requires ListAble<ListType>
+	requires ListAble<ListType>
 #endif
 class ListEnumeration_Meta {
 public:
@@ -58,7 +59,13 @@ public:
 	// the syndrome, if given, will be added into the sequence at the beginning
 	const Label *syndrome = nullptr;
 
+	/// NOTE: these elements must be public available as we need them to 
+	/// recover the full solution.
+	Element element1, element2;
 
+	/// needed for reconstruction
+	constexpr Element& get_first() noexcept { return element1; }
+	constexpr Element& get_second() noexcept { return element2; }
 
 	/// checks for the correctness of the computed label.
 	/// e.g. it checks it l == HT*e
@@ -190,8 +197,12 @@ public:
 	using ListEnumeration_Meta<ListType, n, q, w>::check;
 	using ListEnumeration_Meta<ListType, n, q, w>::insert_hashmap;
 	using ListEnumeration_Meta<ListType, n, q, w>::insert_list;
+	using ListEnumeration_Meta<ListType, n, q, w>::get_first;
+	using ListEnumeration_Meta<ListType, n, q, w>::get_second;
 
 	/// needed variables
+	using ListEnumeration_Meta<ListType, n, q, w>::element1;
+	using ListEnumeration_Meta<ListType, n, q, w>::element2;
 	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
 	using ListEnumeration_Meta<ListType, n, q, w>::HT;
 	using ListEnumeration_Meta<ListType, n, q, w>::chase_size;
@@ -200,6 +211,7 @@ public:
 	using ListEnumeration_Meta<ListType, n, q, w>::chase_cl;
 	using ListEnumeration_Meta<ListType, n, q, w>::list_size;
 	using ListEnumeration_Meta<ListType, n, q, w>::LIST_SIZE;
+
 
 	/// empty constructor
 	///
@@ -231,13 +243,15 @@ public:
 	/// \param hm hashmap
 	/// \param e extractor
 	/// \param p predicate function
+	/// \return true/false if the golden element was found or not (only if
+	///  		predicate was given)
 	template<typename HashMap, typename Extractor, typename Predicate>
 #if __cplusplus > 201709L
 	requires (std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
 	         (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
 			 (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
 #endif
-	void run(ListType *L1=nullptr,
+	bool run(ListType *L1=nullptr,
 	         ListType *L2=nullptr,
 	         const uint32_t offset=0,
 	         const uint32_t tid=0,
@@ -249,7 +263,6 @@ public:
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
-		Element element, element2;
 
 		// check if the second list is enabled
 		const bool sL1 = L1 != nullptr;
@@ -259,14 +272,14 @@ public:
 
 		/// add the syndrome, if needed
 		if (syndrome != nullptr) {
-			element.label = *syndrome;
+			element1.label = *syndrome;
 		}
 
 		/// compute the first element
 		for (uint32_t i = 0; i < w; ++i) {
 			if (sL1) {
-				element.value.set(1, i);
-				Label::add(element.label, element.label, HT.get(i));
+				element1.value.set(1, i);
+				Label::add(element1.label, element1.label, HT.get(i));
 			}
 			if (sL2) {
 				element2.value.set(1, i+offset);
@@ -313,34 +326,34 @@ public:
 		/// iterate over all sequences
 		for (uint32_t i = 0; i < chase_size; ++i) {
 			for (uint32_t j = 0; j < gray_size - 1; ++j) {
-				if (sL1) check(element.label, element.value);
+				if (sL1) check(element1.label, element1.value);
 				if (sL2) check(element2.label, element2.value, false);
 
-				if constexpr (sP) if(std::invoke(p, element.label)) return;
-				if constexpr (sHM) insert_hashmap(hm, e, element, ctr, tid);
-				if (sL1) insert_list(L1, element, ctr, tid);
+				if constexpr (sP) if(std::invoke(*p, element1.label)) return 1;
+				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+				if (sL1) insert_list(L1, element1, ctr, tid);
 				if (sL2) insert_list(L2, element2, ctr, tid);
 
 				ctr += 1;
 				if (ctr >= list_size) {
-					return;
+					return 0;
 				}
 
-				if (sL1) gray_step(element, j, 0);
+				if (sL1) gray_step(element1, j, 0);
 				if (sL2) gray_step(element2, j, offset);
 			}
 
-			if (sL1) check(element.label, element.value);
+			if (sL1) check(element1.label, element1.value);
 			if (sL2) check(element2.label, element2.value, false);
 
-			if constexpr (sP) if(std::invoke(p, element.label)) return;
-			if constexpr (sHM) insert_hashmap(hm, e, element, ctr, tid);
-			if (sL1) insert_list(L1, element, ctr, tid);
+			if constexpr (sP) if(std::invoke(*p, element1.label)) return 1;
+			if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+			if (sL1) insert_list(L1, element1, ctr, tid);
 			if (sL2) insert_list(L2, element2, ctr, tid);
 
 			ctr += 1;
 			if (ctr >= list_size) {
-				return;
+				return 0;
 			}
 
 			/// advance the current set by one
@@ -350,12 +363,13 @@ public:
 			const uint32_t b = chase_cl[i].second;
 			current_set[j] = b;
 
-			if(sL1) chase_step(element, a, b, 0);
+			if(sL1) chase_step(element1, a, b, 0);
 			if(sL2) chase_step(element2, a, b, offset);
 		}
 
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);
+		return 0;
 	}
 };
 

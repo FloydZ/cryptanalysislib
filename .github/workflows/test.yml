@@ -1,5 +1,7 @@
 name: test
 
+
+
 on:
   push:
     branches: [ "master" ]
@@ -12,7 +14,13 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        compiler: [ g++-10, g++-11, g++-12, clang++-11, clang++-12, clang++-13, clang++-14, clang++-15, clang++-16 ]
+
+    name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v3
@@ -45,11 +53,9 @@ jobs:
         ./tests/test_build_tree
         ./tests/test_combinations
         ./tests/test_element
-        ./tests/test_gaus
         ./tests/test_kArytype
         ./tests/test_label
         ./tests/test_list
-        ./tests/test_search
         ./tests/test_stl
         ./tests/test_tree
         ./tests/test_value
@@ -88,9 +94,14 @@ jobs:
         ./tests/matrix/test_matrix_binary
         ./tests/matrix/test_matrix_custom_m4ri
         ./tests/matrix/test_matrix_fq
+        ./tests/nn/test_nn_simd
+        ./tests/nn/test_nn_simple
         ./tests/popcount/test_popcount_simple
+        ./tests/popcount/test_popcount_avx2
+        ./tests/search/test_search_binary
+        ./tests/search/test_search_interpolation
+        ./tests/search/test_search_linear
         ./tests/simd/test_simd_simd
-        ./tests/simd/test_simd_avx
         ./tests/sort/test_sort_sorting_algorithms
         ./tests/sort/test_sort_sorting_network
         ./tests/thread/test_thread_simple

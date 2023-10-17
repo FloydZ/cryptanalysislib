@@ -4,8 +4,8 @@
 #include "../bench_config.h"
 
 #include "container/binary_packed_vector.h"
-#include <helper.h>
-#include <search.h>
+#include "helper.h"
+#include "search/search.h"
 
 using ContainerT = uint64_t;
 

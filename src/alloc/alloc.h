@@ -1,7 +1,7 @@
 #ifndef SMALLSECRETLWE_ALLOC_H
 #define SMALLSECRETLWE_ALLOC_H
 
-
+#include <iostream>
 #include "mem/memset.h"
 
 /// replacement for *void
@@ -51,7 +51,7 @@ concept Allocator = requires(T a, Blk b, size_t n) {
 
 /// Simple Stack Allocator
 /// allocates `s` bytes on the stack
-template<size_t s, const struct AllocatorConfig=allocatorConfig>
+template<size_t s, const struct AllocatorConfig &allocatorConfig=allocatorConfig>
 class StackAllocator {
 	using T = uint8_t;
 

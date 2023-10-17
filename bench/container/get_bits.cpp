@@ -2,10 +2,11 @@
 #include "counters/perf_events.h"
 
 #include "../bench_config.h"
+#include <cstdint>
 
 B63_BASELINE(SoImplemented, nn) {
 	BinaryContainer<n> v1{};
-	int32_t k = 0, res=0;
+	uint64_t k = 0, res=0;
 	uint64_t i, j, r;
 	for (; k < nn*100000; k++) {
 		B63_SUSPEND {
@@ -34,7 +35,7 @@ B63_BENCHMARK(SoImplementedInline, nn) {
 	LimbType lmask, rmask;
 	int64_t lower_limb, higher_limb, shift;
 
-	int32_t k = 0, res=0, r;
+	uint64_t k = 0, res=0, r;
 	uint64_t i, j;
 	for (; k < nn*100000; k++) {
 		B63_SUSPEND {
@@ -68,7 +69,7 @@ B63_BENCHMARK(Old, nn) {
 	T v1{};
 	typedef typename T::ContainerLimbType LimbType;
 
-	int32_t k = 0, res=0;
+	uint64_t k = 0, res=0;
 	uint64_t i, j;
 	for (; k < nn*100000; k++) {
 		B63_SUSPEND {

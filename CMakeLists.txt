@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.11)
+# 3.20 is needed because of C++23
+cmake_minimum_required(VERSION 3.20)
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 
 
 # needed for nvim
@@ -18,6 +19,14 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 include("deps/cmake_optimize_for_architecture/OptimizeForArchitecture.cmake")
 OptimizeForArchitecture()
+
+# only for the CI
+include_directories("benchmark/include")
+link_directories("benchmark/build/src")
+
+
+
+find_package(OpenMP)
 
 # include the external projects 'fplll', 'g6k', 'abseil' and 'tcmalloc'
 #ExternalProject_Add(fplll_project
@@ -38,15 +47,6 @@ ExternalProject_Add(m4ri_project
         TEST_COMMAND      ""
 )
 
-#FetchContent_Declare(
-#	tracy
-#	GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-#	GIT_TAG master
-#	GIT_SHALLOW TRUE
-#	GIT_PROGRESS TRUE
-#)
-#
-#FetchContent_MakeAvailable (tracy)
 
 add_custom_target (
         CRYPTANALYSISLIB_BUILD_SCRIPT
@@ -54,18 +54,11 @@ add_custom_target (
 )
 
 
-# only for the CI
-include_directories("benchmark/include")
-link_directories("benchmark/build/src")
-
 # include directories
 include_directories("deps/fplll/fplll")
 include_directories("deps/fplll")
 include_directories("deps/b63/include/b63")
 include_directories("deps/m4ri")
-include_directories("deps/ska_sort")
-include_directories("deps/ska_sort")
-include_directories("deps/Static-Sort/include")
 include_directories("src")
 include_directories("/usr/local/include")
 
@@ -73,26 +66,18 @@ link_directories("deps/fplll/fplll/.libs")
 link_directories("deps/m4ri/.libs")
 link_directories("/usr/local/lib")
 
-# some helper variables
-# possible values are: [-DVALUE_KARY, -DVALUE_BINARY]
-# the first enables a k-ary implementation of the class 'Value'
-# the second sets the class 'Value' on a binary vector
-# set(VALUE_FLAG -DVALUE_BINARY)
-# set(VALUE_FLAG -DVALUE_KARY)
-set(VALUE_FLAG "")
-
 # two possible options. 'tcmalloc' is the standard google malloc implementation
 #set(MALLOC_LIBRARY tcmalloc)
 set(MALLOC_LIBRARY "")
 
 # possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
-set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
-#set(SANITIZE_FLAGS "")
+#set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
+set(SANITIZE_FLAGS "")
 
 #set(INLINE_FLAGS "-fno-inline")
 set(INLINE_FLAGS "")
 
-set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings ")
+set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
@@ -106,9 +91,10 @@ if(APPLE)
     link_directories(/usr/lib)
     link_directories(/opt/homebrew/lib)
 
-    set(ADDITIONAL_FLAGS "-DUSE_ARM")
-    set(DEBUG_FLAGS "-g -DDEBUG ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-    set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+    set(ADDITIONAL_FLAGS "-DUSE_ARM -march=native -flax-vector-converstions ")
+
+	set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -fpermissive -DDEBUG ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+    set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 else()
 
 if("avx2" IN_LIST _available_vector_units_list)
@@ -119,32 +105,23 @@ if("avx512f" IN_LIST _available_vector_units_list)
     set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
 endif()
 
-    set(DEBUG_FLAGS "-g -O0 -DDEBUG -march=native ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${VALUE_FLAG} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
+set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic  -DDEBUG -march=native ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
-# TODO merge with one
-# note that fplll is missing
+# NOTE: fplll is missing
 set(LINK_TEST_FLAGS -lgtest -pthread gmpxx libm4ri.a m png)
-set(LINK_BENCH_FLAGS -lgtest -pthread gmpxx libm4ri.a m png)
+if(OpenMP_CXX_FOUND)
+	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_CXX)
+endif()
 
-
-# Set additionally our own debug/optimisation compiler/linkage flags. Maybe not he nicest way, but by far the easiest.
+# Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
+# he nicest way, but by far the easiest.
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 
-# MAIN SOURCE FILES
-set(SRCS src/config/config.cpp)
-
-# add_library(small_secret_lwe_library STATIC ${SRCS})
-# add_dependencies(small_secret_lwe_library fplll_project m4ri_project)
-# target_compile_options(small_secret_lwe_library PRIVATE ${VALUE_FLAG})
-
-# add_library(small_secret_lwe_binary_library STATIC ${SRCS})
-# add_dependencies(small_secret_lwe_binary_library fplll_project)
-# target_compile_options(small_secret_lwe_binary_library PRIVATE -DVALUE_BINARY)
 
 # now check if we have to add the cuda runtime
 include(CheckLanguage)
@@ -169,7 +146,8 @@ if(CMAKE_CUDA_COMPILER)
     endif()
 
 
-    # fall back, if one does not directly have a CUDA rdy card, but rather a optimus (internal laptop) card.
+    # fall back, if one does not directly have a CUDA ready card, but rather a 
+	# optimus (internal laptop) card.
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
         set(CMAKE_CUDA_ARCHITECTURES 61)
     endif()
@@ -178,7 +156,7 @@ if(CMAKE_CUDA_COMPILER)
     #target_link_libraries(test_cuda ${LINK_TEST_FLAGS} fplll m4ri gmpxx gmp)
 endif()
 
-# add subdirectories
+# add sub directories
 add_subdirectory(src)
 add_subdirectory(bench)
 add_subdirectory(tests)

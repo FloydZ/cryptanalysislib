@@ -6,13 +6,13 @@
 B63_BASELINE(add, nn) {
 	kAryLabel v1{}, v2{}, v3{};
 	B63_SUSPEND {
-		for (int i = 0; i < k; ++i) {
+		for (uint64_t i = 0; i < k; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		kAryLabel::add(v3, v1, v2, 0, k);

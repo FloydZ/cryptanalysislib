@@ -3,12 +3,13 @@
 
 #include "../bench_config.h"
 #include "helper.h"
+#include <cstdint>
 
 B63_BASELINE(add, nn) {
 	kAryValue v1{}, v2{}, v3{};
 	uint64_t k_lower, k_higher;
 	B63_SUSPEND {
-		for (int i = 0; i < n; ++i) {
+		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
 			v2.data()[i] = i;
 		}
@@ -16,7 +17,7 @@ B63_BASELINE(add, nn) {
 		translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	}
 
-	int32_t res = 0;
+	uint64_t res = 0;
 
 	for (; res < nn; res++) {
 		kAryValue::add(v3, v1, v2, k_lower, k_higher);

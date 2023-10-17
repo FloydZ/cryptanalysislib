@@ -27,16 +27,20 @@ mzd_t *_mzd_transpose(mzd_t *DST, mzd_t const *A);
 
 uint32_t hamming_weight(mzd_t *ptr, const uint32_t row=0) {
 	uint32_t ret = 0;
-	for (uint32_t i = 0; i < ptr->ncols; ++i) {
-		ret += mzd_read_bit(ptr, row, i);
+
+	// NOTE: don't change the type
+	for (int i = 0; i < ptr->ncols; ++i) {
+		ret += mzd_read_bit(ptr, (int)row, i);
 	}
 
 	return ret;
 }
 uint32_t hamming_weight_column(mzd_t *ptr, const uint32_t col) {
 	uint32_t ret = 0;
-	for (uint32_t i = 0; i < ptr->nrows; ++i) {
-		ret += mzd_read_bit(ptr, i, col);
+
+	// NOTE: don't change the type
+	for (int i = 0; i < ptr->nrows; ++i) {
+		ret += mzd_read_bit(ptr, i, (int)col);
 	}
 
 	return ret;
@@ -128,13 +132,15 @@ void mzd_append(mzd_t *__restrict__ out_matrix,
                 const mzd_t *__restrict__ const in_matrix,
                 const uint32_t start_r,
                 const uint32_t start_c) noexcept {
-	assert(out_matrix->nrows > start_r);
-	assert(out_matrix->ncols > start_c);
-	assert(out_matrix->nrows - start_r == in_matrix->nrows);
-	for (uint32_t row = 0; row < in_matrix->nrows; ++row) {
-		for (uint32_t col = 0; col < in_matrix->ncols; ++col) {
+	assert((uint32_t)out_matrix->nrows > start_r);
+	assert((uint32_t)out_matrix->ncols > start_c);
+	assert(out_matrix->nrows - (int)start_r == in_matrix->nrows);
+
+	// NOTE: don't change the type
+	for (int row = 0; row < in_matrix->nrows; ++row) {
+		for (int col = 0; col < in_matrix->ncols; ++col) {
 			auto bit = mzd_read_bit(in_matrix, row, col);
-			mzd_write_bit(out_matrix, row + start_r, col + start_c, bit);
+			mzd_write_bit(out_matrix, row + (int)start_r, col + (int)start_c, bit);
 		}
 	}
 }
@@ -142,7 +148,7 @@ void mzd_append(mzd_t *__restrict__ out_matrix,
 
 
 mzd_t *matrix_transpose(mzd_t *DST, mzd_t const *A) noexcept {
-	if (DST == NULL) {
+	if (DST == nullptr) {
 		DST = mzd_init(A->ncols, A->nrows);
 	} else if (__M4RI_UNLIKELY(DST->nrows < A->ncols || DST->ncols < A->nrows)) {
 		m4ri_die("mzd_transpose: Wrong size for return matrix.\n");
@@ -156,7 +162,7 @@ mzd_t *matrix_transpose(mzd_t *DST, mzd_t const *A) noexcept {
 	if (__M4RI_LIKELY(!mzd_is_windowed(DST) && !mzd_is_windowed(A)))
 		return _mzd_transpose(DST, A);
 	int A_windowed = mzd_is_windowed(A);
-	if (A_windowed) A = mzd_copy(NULL, A);
+	if (A_windowed) A = mzd_copy(nullptr, A);
 	if (__M4RI_LIKELY(!mzd_is_windowed(DST)))
 		_mzd_transpose(DST, A);
 	else {
@@ -646,8 +652,6 @@ static size_t matrix_fix_gaus(mzd_t *__restrict__ M,
 		for (size_t i = fix_col+look_ahead; i < size_t(M->ncols); ++i) {
 			if (mzd_read_bit(M, b, i)) {
 				found = true;
-				// if (i == b)
-				// 	break;
 
 				std::swap(permutation->values[i-look_ahead], permutation->values[b]);
 				mzd_col_swap(M, b, i);
@@ -658,20 +662,21 @@ static size_t matrix_fix_gaus(mzd_t *__restrict__ M,
 		// if something found, fix this row by adding it to each row where a 1 one.
 		if (found) {
 			for (size_t i = 0; i < b; ++i) {
-				if (mzd_read_bit(M, i, b)) {
+				if (mzd_read_bit(M, (int)i, (int)b)) {
 					mzd_row_xor(M, i, b);
 				}
 			}
 
 			// and solve it below
-			for (size_t i = b+1; i < M->nrows; ++i) {
-				if (mzd_read_bit(M, i, b)) {
-					mzd_row_xor(M, i, b);
+			for (size_t i = b+1; i < (size_t)M->nrows; ++i) {
+				if (mzd_read_bit(M, (int)i, (int)b)) {
+					mzd_row_xor(M, (int)i, (int)b);
 				}
 			}
 		} else {
-			// if we were not able to fix the gaussian elimination, we return the original rang which was solved
-			return rang;
+			// if we were not able to fix the gaussian elimination, we return 
+			// how far we got
+			return b;
 		}
 	}
 
@@ -1063,8 +1068,8 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 	for (uint32_t i = 0; i < c; ++i) {
 		const uint32_t pos1 = perm[i];
 		const uint32_t pos2 = perm[n-k-l+i];
-		ASSERT(pos1 < P->length);
-		ASSERT(pos2 < P->length);
+		ASSERT(pos1 < (uint32_t)P->length);
+		ASSERT(pos2 < (uint32_t)P->length);
 
 		std::swap(P->values[pos1], P->values[pos2]);
 		mzd_row_swap(AT, pos1, pos2);
@@ -1120,11 +1125,11 @@ size_t matrix_echelonize_partial_plusfix_opt_onlyc(
 		bool found = false;
 		// find a column where in the last row is a one
 		for (size_t i = n-k-l; i < n; ++i) {
-			if (mzd_read_bit(A, b, i)) {
+			if (mzd_read_bit(A, (int)b, (int)i)) {
 				found = true;
 
 				std::swap(P->values[i], P->values[b]);
-				mzd_col_swap(A, b, i);
+				mzd_col_swap(A, (int)b, (int)i);
 				break;
 			}
 		}

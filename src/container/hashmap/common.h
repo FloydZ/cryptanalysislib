@@ -1,6 +1,7 @@
-#ifndef CRYPTANALYSISLIB_COMMON_H
-#define CRYPTANALYSISLIB_COMMON_H
+#ifndef CRYPTANALYSISLIB_HASHMAP_COMMON_H
+#define CRYPTANALYSISLIB_HASHMAP_COMMON_H
 
+#if __cplusplus > 201709L
 template<typename HashMap>
 concept HashMapAble = requires(HashMap hm) {
 	/// needed typedefs
@@ -21,5 +22,6 @@ concept HashMapAble = requires(HashMap hm) {
 		// TODO kp geth nicht hm.find(ddd, lll);
 	};
 };
+#endif
 
-#endif//CRYPTANALYSISLIB_COMMON_H
+#endif//CRYPTANALYSISLIB_HASHMAP_COMMON_H
