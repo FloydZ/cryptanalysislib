@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <cstdint>
 
-#define TEST_BASE_LIST_SIZE 100
+#define TEST_BASE_LIST_SIZE (1u << 18u)
 #define TEST_BASE_LIST_ADDITIONAL_SIZE TEST_BASE_LIST_SIZE/10
 
 #include "test.h"
