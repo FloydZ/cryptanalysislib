@@ -313,7 +313,7 @@ public:
 
 		// this stupid approach needs to be done, because if w is not dividing n the last bits would be unused.
 		buckets_windows.resize(k+1);
-		for (int i = 0; i < k; ++i) {
+		for (uint64_t i = 0; i < k; ++i) {
 			buckets_windows[i] = i*length/k;
 		}
 		buckets_windows[k] = length;
@@ -322,16 +322,16 @@ public:
 		zero();
 
 		// for every window.
-		for (int i = 0; i < k; ++i) {
+		for (uint64_t i = 0; i < k; ++i) {
 			uint64_t cur_offset = buckets_windows[i];
 			uint64_t windows_length = buckets_windows[i+1] - buckets_windows[i];
 
-			for (int j = 0; j < w; ++j) {
+			for (uint64_t j = 0; j < w; ++j) {
 				write_bit(cur_offset + j, true);
 			}
 
 			// now permute
-			for (int l = 0; l < windows_length; ++l) {
+			for (uint64_t l = 0; l < windows_length; ++l) {
 				uint64_t pos = random_limb() % (windows_length - l);
 				auto t = get_bit_shifted(cur_offset + l);
 				write_bit(cur_offset + l, get_bit_shifted(cur_offset+l+pos));
@@ -343,12 +343,12 @@ public:
 	void random_with_weight(const uint64_t w) noexcept {
 		zero();
 
-		for (int i = 0; i < w; ++i) {
+		for (uint64_t i = 0; i < w; ++i) {
 			write_bit(i, true);
 		}
 
 		// now permute
-		for (int i = 0; i < length; ++i) {
+		for (uint64_t i = 0; i < length; ++i) {
 			uint64_t pos = random_limb() % (length - i);
 			bool t = get_bit_shifted(i);
 			write_bit(i, get_bit_shifted(i+pos));
