@@ -1,7 +1,6 @@
 #ifndef SMALLSECRETLWE_CONTAINER_H
 #define SMALLSECRETLWE_CONTAINER_H
 
-#include "simd/avx2.h"
 #include <array>
 #include <cstdint>
 #include <atomic>
