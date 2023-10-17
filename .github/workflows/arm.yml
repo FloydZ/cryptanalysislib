@@ -8,12 +8,20 @@ on:
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        compiler: [ g++-10, g++-11, g++-12, clang++-11, clang++-12, clang++-13,]
-
-
-    runs-on: ubuntu-latest
+        arch: [armv6l, armv7l, aarch64]
+        include:
+        - arch: armv6l
+          cpu: arm1176
+          base_image: raspios_lite:latest
+        - arch: armv7l
+          cpu: cortex-a7
+          base_image: raspios_lite:latest
+        - arch: aarch64
+          cpu: cortex-a53
+          base_image: raspios_lite_arm64:latest
     steps:
       - uses: actions/checkout@v4:with
     - uses: pguyot/arm-runner-action@v2.5.2
