@@ -36,6 +36,12 @@ private:
 public:
 	using ElementType = Element;
 
+	/// well technically that's not correct, but we fake it, as some other
+	/// data structures need it, like `ListEnumerationMeta`
+	using ValueType = Element;
+	using LabelType = Element;
+	using MatrixType = Element;
+
 	/// \param thread_block number of elements per thread
 	constexpr  ParallelListSimple(const uint32_t threads=1) noexcept
 	    : __threads(threads), __thread_block_size(__size/threads), __load(0) {

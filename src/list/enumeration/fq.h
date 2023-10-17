@@ -1,152 +1,360 @@
-#ifndef CRYPTANALYSISLIB_FQ_LIST_ENUMERATION_H
-#define CRYPTANALYSISLIB_FQ_LIST_ENUMERATION_H
+#ifndef CRYPTANALYSISLIB_FQ_NEW_H
+#define CRYPTANALYSISLIB_FQ_NEW_H
 
-#include <cstdint>
-#include <cstddef>
+
+#include <cstddef>     	// needed for std::nullptr_t
+#include <functional>	// needed for std::invoke
+
+#include "helper.h"
+#include "list/common.h"
+#include "list/enumeration/enumeration.h"
+#include "container/hashmap/common.h"
 
 #include "combination/chase.h"
-#include "helper.h"
-
-
-// TODO remove this file and replace it with fq_new
-#if __cplusplus > 201709L
-///
-/// \tparam Container
-template<class Container>
-concept ValueListEnumerationFqAble =  requires(Container c) {
-	//typename Container::ElementType;
-
-	requires requires(const unsigned int i) {
-		c[i];
-		c.random();
-		c.zero();
-		c.one();
-		c.clear();
-
-		/// TODO erkennt es nihct
-		//Container::add(c, c);
-		//Container::sub(c, c);
-		//Container::add(c, c, c);
-		//Container::sub(c, c, c);
-		//Container::scalar(c, c, i) -> c;
-		//Container::scalar(c, i);
-		//Container::set(i, i);
-		//Container::set(i);
-	};
-};
-#endif
 
 ///
-/// \tparam ListType
-/// \tparam LabelType
-/// \tparam ValueType
-/// \tparam n
-/// \tparam q base field size
-/// \tparam w weight to enumerate, this is *NOT* the w of the challenge
+/// \tparam ListType BaseList Type
+/// \tparam n length to enumerate
+/// \tparam q field size. q-1 is the max value to enumerate
+/// \tparam w weight to enumerate
+/// 		if w == 2: only a chase sequence will enumerated
 template<class ListType,
-         class LabelType,
-         class ValueType,
-         const uint32_t n,
-         const uint32_t q,
-         const uint32_t w>
+		const uint32_t n,
+		const uint32_t q,
+		const uint32_t w>
 #if __cplusplus > 201709L
-	requires ValueListEnumerationFqAble<ValueType>
+	requires ListAble<ListType>
 #endif
-class ListEnumerationFqMultiFullLength {
+class ListEnumeration_Meta {
 public:
-	/// needed type definitions
-	using List = ListType;
-	using ElementType = typename ListType::ElementType;
+	/// needed typedef
+	typedef ListType List;
+	typedef typename ListType::ElementType Element;
+	typedef typename ListType::ValueType Value;
+	typedef typename ListType::LabelType Label;
+	typedef typename ListType::MatrixType Matrix;
 
 	/// needed variables
-	constexpr static Combinations_Fq_Chase c = Combinations_Fq_Chase<n, q, w>();
-	const size_t chase_size = c.chase_size;
-	const size_t gray_size = c.gray_size;
+	// this generates a grey code sequence, e.g. a sequence in which
+	// two consecutive elements only differ in a single position
+	Combinations_Fq_Chase<n, q, w> chase = Combinations_Fq_Chase<n, q, w>{};
+	constexpr static size_t chase_size = Combinations_Fq_Chase<n, q, w>::chase_size;
+	constexpr static size_t gray_size  = Combinations_Fq_Chase<n, q, w>::gray_size;
+
+	/// this can be used to specify the size of the input list
+	/// e.g. its the maximum number of elements this class enumerates
+	constexpr static size_t LIST_SIZE  = Combinations_Fq_Chase<n, q, w>::LIST_SIZE;
+
+	// this can be se to something else as `LIST_SIZE`, if one wants to only
+	// enumerate a part of the sequence
+	const size_t list_size = 0;
+
+	// change list for the chase sequence
 	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(chase_size);
-	uint16_t *gray_cl = (uint16_t *)malloc(chase_size * sizeof(uint16_t));
+	// change list for the gray code sequence
+	std::vector<uint16_t> gray_cl = std::vector<uint16_t>(gray_size);
 
-	/// super important this is needed to recover the solution
-	std::vector<uint8_t> tmp_vec;
-	LabelType vec;
+	// the transposed matrix
+	const Matrix &HT;
 
-	/// enable the constexpt constructor
-	constexpr ListEnumerationFqMultiFullLength() : tmp_vec(n, 0) {
-		static_assert(n && q);
+	/// can be optionally passed:
+	// the syndrome, if given, will be added into the sequence at the beginning
+	const Label *syndrome = nullptr;
 
-		/// this is needed, as prange can be called with w=0
-		if constexpr (w == 0) {
-			return;
+	/// NOTE: these elements must be public available as we need them to 
+	/// recover the full solution.
+	Element element1, element2;
+
+	/// needed for reconstruction
+	constexpr Element& get_first() noexcept { return element1; }
+	constexpr Element& get_second() noexcept { return element2; }
+
+	/// checks for the correctness of the computed label.
+	/// e.g. it checks it l == HT*e
+	/// \param l computed label
+	/// \param e error vector resulting in the label
+	/// \return true/false
+	bool check(const Label &label, const Value &error, bool add_syndrome=true) noexcept {
+#ifdef DEBUG
+	  	/// TEST for correctness
+		auto H = HT.transpose();
+		Label tmpl;
+
+		H.matrix_row_vector_mul2(tmpl, error);
+		if (syndrome != nullptr && add_syndrome) {
+			Label::add(tmpl, tmpl, *syndrome);
 		}
-		c.changelist_mixed_radix_grey(gray_cl);
-		c.changelist_chase(chase_cl.data());
+
+		if (!tmpl.is_equal(label)) {
+			std::cout << std::endl << "ERROR: (SHOULD, IS)" << std::endl;
+			tmpl.print();
+			label.print();
+			std::cout <<std::endl;
+			error.print();
+			std::cout <<std::endl;
+			HT.print();
+		}
+
+		ASSERT(tmpl.is_equal(label));
+
+		uint32_t tmp_vec_ctr = error.weight();
+		if (tmp_vec_ctr != w) {
+			error.print();
+		}
+		ASSERT(tmp_vec_ctr == w);
+#endif
+		return true;
 	}
 
-	constexpr ~ListEnumerationFqMultiFullLength() {
-		free(gray_cl);
+
+	/// abstract insertion handler for list
+	/// \param L base list to insert to
+	/// \param element element to insert
+	/// \param ctr position to insert it (relative to tid)
+	/// \param tid thread inline
+	void insert_list(ListType *L,
+	                 const Element &element,
+	                 const size_t ctr,
+	                 const uint32_t tid) {
+		// nothing to inset
+		if (L == nullptr) {
+			return;
+		}
+
+		L->insert(element, ctr, tid);
+	}
+
+	/// abstract insertion handler fo hashmap
+	/// \tparam HashMap
+	/// \tparam Extractor
+	/// \param hm
+	/// \param e
+	template<class HashMap, typename Extractor>
+#if __cplusplus > 201709L
+	requires (std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+			 (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
+#endif
+	void insert_hashmap(HashMap *hm,
+	                    Extractor *e,
+	                    const Element &element,
+	                    const size_t ctr,
+	                    const uint32_t tid) {
+		if constexpr (! std::is_same_v<std::nullptr_t , HashMap>) {
+			// nothing to inset
+			if (hm == nullptr) {
+				return;
+			}
+
+			using IndexType = typename HashMap::IndexType;
+			using LPartType = typename HashMap::T;
+			IndexType npos[1];
+			npos[0] = ctr;
+
+			const LPartType data = std::invoke(*e, element.label);
+			hm->insert(data, npos, tid);
+		}
 	}
 
 	///
-	/// \tparam MatrixT
 	/// \param HT
+	/// \param list_size
 	/// \param syndrome
-	/// \param size_limit
-	/// \param weight_limit
-	/// \return
-	template<class MatrixT>
-	bool run(const MatrixT &HT,
-	         const LabelType &syndrome,
-	         const size_t size_limit,
-	         const uint32_t weight_limit) noexcept {
-		vec = syndrome;
-		LabelType tmp;
+	ListEnumeration_Meta(const Matrix &HT,
+	                     const size_t list_size=0,
+	                     const Label *syndrome= nullptr) :
+	    HT(HT), syndrome(syndrome), list_size((list_size==size_t(0)) ? LIST_SIZE : list_size)  {
+		/// some sanity checks
+		/// NOTE: its allowed to call this class with `w=0`, which is needed for Prange
+		static_assert(n > w);
+		static_assert(q > 1);
+		static_assert(n <= Value::LENGTH);
 
-		for (uint32_t i = 0; i < n; ++i) { tmp_vec[i] = 0; }
+		static_assert(chase_size >= 0);
+		static_assert(gray_size > 0);
+		ASSERT(LIST_SIZE >= list_size);
+
+		if constexpr (q>2) chase.changelist_mixed_radix_grey(gray_cl.data());
+		chase.changelist_chase(chase_cl.data());
+	}
+};
+
+/// TODO describe whats enumerated
+/// \tparam ListType
+/// \tparam n
+/// \tparam q
+/// \tparam w
+template<class ListType,
+		 const uint32_t n,
+		 const uint32_t q,
+		 const uint32_t w>
+class ListEnumerateMultiFullLength: public ListEnumeration_Meta<ListType, n, q, w> {
+public:
+	/// needed typedefs
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Element Element;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Matrix Matrix;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Value Value;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Label Label;
+
+	/// needed functions
+	using ListEnumeration_Meta<ListType, n, q, w>::check;
+	using ListEnumeration_Meta<ListType, n, q, w>::insert_hashmap;
+	using ListEnumeration_Meta<ListType, n, q, w>::insert_list;
+	using ListEnumeration_Meta<ListType, n, q, w>::get_first;
+	using ListEnumeration_Meta<ListType, n, q, w>::get_second;
+
+	/// needed variables
+	using ListEnumeration_Meta<ListType, n, q, w>::element1;
+	using ListEnumeration_Meta<ListType, n, q, w>::element2;
+	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
+	using ListEnumeration_Meta<ListType, n, q, w>::HT;
+	using ListEnumeration_Meta<ListType, n, q, w>::chase_size;
+	using ListEnumeration_Meta<ListType, n, q, w>::gray_size;
+	using ListEnumeration_Meta<ListType, n, q, w>::gray_cl;
+	using ListEnumeration_Meta<ListType, n, q, w>::chase_cl;
+	using ListEnumeration_Meta<ListType, n, q, w>::list_size;
+	using ListEnumeration_Meta<ListType, n, q, w>::LIST_SIZE;
+
+
+	/// empty constructor
+	/// \param HT transposed parity check matrix
+	/// \param list_size max numbers of elements to enumerate.
+	/// 			if set to 0: the complete sequence will be enumerated.
+	/// \param syndrome additional element which is added to all list elements
+	ListEnumerateMultiFullLength(const Matrix &HT,
+	                             const size_t list_size=0,
+	                             const Label *syndrome= nullptr) :
+	    ListEnumeration_Meta<ListType, n, q, w>(HT, list_size, syndrome) {
+	}
+
+	///
+	/// \tparam HashMap
+	/// \tparam Extractor extractor lambda
+	/// 		- can be NULL
+	/// \tparam Predicate Function. NOTE: can be
+	///			- nullptr_t
+	/// 		- std::invokable. if this returns true, the function returns
+	/// \param L1 first list. NOTE:
+	/// 		- the syndrome is only added into the first list
+	/// 		- or nullptr_t
+	/// \param L2 second list. NOTE:
+	/// 		- can be nullptr_t
+	/// 		- otherwise it will compute the error with and offset
+	/// \param offset
+	/// 		- number of position between the MITM strategy
+	/// \param tid thread id
+	/// \param hm hashmap
+	/// \param e extractor
+	/// \param p predicate function
+	/// \return true/false if the golden element was found or not (only if
+	///  		predicate was given)
+	template<typename HashMap, typename Extractor, typename Predicate>
+#if __cplusplus > 201709L
+	requires (std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+	         (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
+			 (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+#endif
+	bool run(ListType *L1=nullptr,
+	         ListType *L2=nullptr,
+	         const uint32_t offset=0,
+	         const uint32_t tid=0,
+	         HashMap *hm=nullptr,
+	         Extractor *e=nullptr,
+	         Predicate *p= nullptr) {
+		/// some security checks
+		ASSERT(n+offset <= Value::LENGTH);
+
+		/// counter of how many elements already added to the list
+		size_t ctr = 0;
+
+		// check if the lists are enabled
+		const bool sL1 = L1 != nullptr;
+		const bool sL2 = L2 != nullptr;
+		constexpr bool sHM = !std::is_same_v<std::nullptr_t, HashMap>;
+		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
+
+		/// add the syndrome, if needed
+		if (syndrome != nullptr) {
+			element1.label = *syndrome;
+		}
 
 		/// compute the first element
 		for (uint32_t i = 0; i < w; ++i) {
-			tmp_vec[i] = 1u;
-			LabelType::add(vec, vec, HT.get(i));
+			if (sL1) {
+				element1.value.set(1, i);
+				Label::add(element1.label, element1.label, HT.get(i));
+			}
+			if (sL2) {
+				element2.value.set(1, i+offset);
+				Label::add(element2.label, element2.label, HT.get(i+offset));
+			}
 		}
 
+		/// to keep track of the set positions of the grey code.
 		std::vector<uint32_t> current_set(w, 0);
 		for (uint32_t i = 0; i < w; ++i) {
 			current_set[i] = i;
 		}
 
-		size_t ctr = 0;
+		// helper lambdas
+		auto gray_step = [&current_set, this](Element &element, const size_t j, const uint32_t off) {
+		  const uint32_t cs = current_set[gray_cl[j]];
+		  element.value.set((element.value[cs + off] + 1) % q, cs + off);
+		  Label::add(element.label, element.label, HT.get(cs + off));
 
-		/// iterate over all
+		  /// NOTE: this is stupid, but needed. The gray code enumeration
+		  /// also enumerates zeros. Therefore we need to fix them
+		  if (element.value[cs + off] == 0) {
+			  element.value.set(1, cs + off);
+			  Label::add(element.label, element.label, HT.get(cs + off));
+		  }
+		};
+
+		auto chase_step = [&current_set, this](Element &element,
+				const uint32_t a,
+				const uint32_t b,
+				const uint32_t off) {
+		  /// make really sure that the the chase
+		  /// sequence is correct.
+		  ASSERT(element.value[a + off]);
+
+		  Label tmp;
+		  Label::scalar(tmp, HT.get(a + off), (q-element.value[a + off]) % q);
+		  Label::add(element.label, element.label, tmp);
+		  Label::add(element.label, element.label, HT.get(b + off));
+		  element.value.set(0, off + a);
+		  element.value.set(1, off + b);
+		};
+
+		/// iterate over all sequences
 		for (uint32_t i = 0; i < chase_size; ++i) {
-			for (uint32_t j = 0; j < gray_size-1; ++j) {
-				const uint32_t weight = vec.weight();
-				if (weight <= weight_limit) {
-					return true;
-				}
+			for (uint32_t j = 0; j < gray_size - 1; ++j) {
+				if (sL1) check(element1.label, element1.value);
+				if (sL2) check(element2.label, element2.value, false);
+
+				if constexpr (sP) if(std::invoke(*p, element1.label)) return true;
+				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+				if (sL1) insert_list(L1, element1, ctr, tid);
+				if (sL2) insert_list(L2, element2, ctr, tid);
 
 				ctr += 1;
-				if (ctr >= size_limit) {
+				if (ctr >= list_size) {
 					return false;
 				}
 
-				const uint32_t cs = current_set[gray_cl[j]];
-				tmp_vec[cs] = (tmp_vec[cs] + 1u) % q;
-				LabelType::add(vec, vec, HT.get(cs));
-
-				/// NOTE: this is stupid, but needed. The gray code enumeration
-				/// also enumerates zeros. Therefore we need to fix them
-				if (tmp_vec[cs] == 0) {
-					tmp_vec[cs] += 1;
-					LabelType::add(vec, vec, HT.get(cs));
-				}
+				if (sL1) gray_step(element1, j, 0);
+				if (sL2) gray_step(element2, j, offset);
 			}
 
-			const uint32_t weight = vec.weight();
-			if (weight <= weight_limit) {
-				return true;
-			}
+			if (sL1) check(element1.label, element1.value);
+			if (sL2) check(element2.label, element2.value, false);
+
+			if constexpr (sP) if(std::invoke(*p, element1.label)) return true;
+			if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+			if (sL1) insert_list(L1, element1, ctr, tid);
+			if (sL2) insert_list(L2, element2, ctr, tid);
 
 			ctr += 1;
-			if (ctr >= size_limit) {
+			if (ctr >= list_size) {
 				return false;
 			}
 
@@ -157,254 +365,14 @@ public:
 			const uint32_t b = chase_cl[i].second;
 			current_set[j] = b;
 
-			LabelType::scalar(tmp, HT.get(a), q-tmp_vec[a]);
-			LabelType::add(vec, vec, tmp);
-			LabelType::add(vec, vec, HT.get(b));
-			tmp_vec[a] = 0;
-			tmp_vec[b] = 1;
+			if(sL1) chase_step(element1, a, b, 0);
+			if(sL2) chase_step(element2, a, b, offset);
 		}
 
+		/// make sure that all elements where generated
+		ASSERT(ctr == LIST_SIZE);
 		return false;
 	}
-
-	/// this version is special made for fq prange
-	/// q-1 Symbols on the full length
-	/// the reason this function takes the list is, that different enumeration strategies
-	/// need a different amount of lists
-	/// \tparam MatrixT
-	/// \tparam n length to enumerate (this is not the code length)
-	/// \tparam q field size
-	/// \tparam w max hamming weight to enumerate
-	/// \param L1 output list
-	/// \param HT
-	/// \param size_limit
-	template<class MatrixT>
-	void multiFullLength(List &L1, const MatrixT &HT, const size_t size_limit) noexcept {
-		LabelType vec, tmp;
-		vec.zero();
-
-		/// compute the first element
-		std::vector<uint8_t> tmp_vec(n, 0);
-		for (uint32_t i = 0; i < w; ++i) {
-			tmp_vec[i] = 1u;
-			LabelType::add(vec, vec, HT.get(i));
-		}
-
-		std::vector<uint32_t> current_set(w, 0);
-		for (uint32_t i = 0; i < w; ++i) {
-			current_set[i] = i;
-		}
-
-		auto check = [&]() {
-#ifdef DEBUG
-		  /// TEST for correctness
-		  auto H = HT.transpose();
-		  LabelType tmpl;
-		  ValueType tmpv;
-		  tmpv.clear();
-		  for (uint32_t l = 0; l < n; ++l) {
-			  tmpv[l] = tmp_vec[l];
-		  }
-		  H.matrix_row_vector_mul2(tmpl, tmpv);
-
-		  if (!tmpl.is_equal(vec)) {
-			  tmpl.print();
-			  vec.print();
-			  std::cout <<std::endl;
-			  HT.print();
-		  }
-
-		  ASSERT(tmpl.is_equal(vec));
-
-		  uint32_t tmp_vec_ctr = 0;
-		  for (uint32_t l = 0; l < n; ++l) {
-			  tmp_vec_ctr += (tmp_vec[l] > 0);
-		  }
-		  ASSERT(tmp_vec_ctr == w);
-#endif
-		};
-
-		auto print_info = [&]() {
-			for (uint32_t i = 0; i < n; i++) {
-				printf("%d", tmp_vec[i]);
-			}
-			printf("\n");
-		};
-
-		size_t ctr = 0;
-
-		/// iterate over all
-		for (uint32_t i = 0; i < chase_size; ++i) {
-			for (uint32_t j = 0; j < gray_size-1; ++j) {
-				check();
-				L1[ctr++] = vec;
-				if (ctr >= size_limit) {
-					return;
-				}
-
-				const uint32_t cs = current_set[gray_cl[j]];
-				tmp_vec[cs] = (tmp_vec[cs] + 1u) % q;
-				LabelType::add(vec, vec, HT.get(cs));
-
-				/// NOTE: this is stupid, but needed. The gray code enumeration
-				/// also enumerates zeros. Therefore we need to fix them
-				if (tmp_vec[cs] == 0) {
-					tmp_vec[cs] += 1;
-					LabelType::add(vec, vec, HT.get(cs));
-				}
-
-			}
-
-			check();
-			L1[ctr++] = vec;
-			if (ctr >= size_limit) {
-				return;
-			}
-
-			/// advance the current set by one
-			const uint32_t j = chase_cl[i].first;
-			ASSERT(j < w);
-			const uint32_t a = current_set[j];
-			const uint32_t b = chase_cl[i].second;
-			current_set[j] = b;
-
-			LabelType::scalar(tmp, HT.get(a), q-tmp_vec[a]);
-			LabelType::add(vec, vec, tmp);
-			LabelType::add(vec, vec, HT.get(b));
-			tmp_vec[a] = 0;
-			tmp_vec[b] = 1;
-		}
-	}
-
-
-	/// this version is special made for fq sieving
-	/// q-1 Symbols on the full length
-	/// the reason this function takes the list is, that different enumeration strategies
-	/// need a different amount of lists
-	/// \tparam MatrixT
-	/// \tparam n length to enumerate (this is not the code length)
-	/// \tparam q field size
-	/// \tparam w max hamming weight to enumerate
-	/// \param L1 output list
-	/// \param HT
-	/// \param hm
-	/// \param size_limit
-	/// \param e  /// TODO das alles mal genau formulieren in concepts
-	/// \param h
-	template<class MatrixT, typename Element, class HashMap, typename Extractor>
-	void multiFullLengthSieving(List &L1,
-	                            const MatrixT &HT,
-	                            HashMap *hm,
-	                            const size_t size_limit,
-	                            LabelType &syndrome,
-	                            Extractor &e) noexcept {
-		LabelType tmp;
-		Element vec;
-		vec.zero();
-		/// add the syndrome
-		vec.label = syndrome;
-
-		/// hashmap stuff
-		uint32_t tid = 0;
-		using IndexType = typename HashMap::IndexType;
-		using LPartType = typename HashMap::T;
-		IndexType npos[1];
-
-		/// compute the first element
-		for (uint32_t i = 0; i < w; ++i) {
-			vec.value.set(1, i);
-			LabelType::add(vec.label, vec.label, HT.get(i));
-		}
-
-
-		std::vector<uint32_t> current_set(w, 0);
-		for (uint32_t i = 0; i < w; ++i) {
-			current_set[i] = i;
-		}
-
-		auto check = [&]() {
-#ifdef DEBUG
-			//vec.print();
-			/// TEST for correctness
-			auto H = HT.transpose();
-			LabelType tmpl;
-			H.matrix_row_vector_mul2(tmpl, vec.value);
-			LabelType::add(tmpl, tmpl, syndrome);
-
-			if (!tmpl.is_equal(vec.label)) {
-				tmpl.print();
-				vec.print();
-				std::cout <<std::endl;
-				HT.print();
-			}
-
-			ASSERT(tmpl.is_equal(vec.label));
-
-			uint32_t tmp_vec_ctr = vec.value.weight();
-			if (tmp_vec_ctr != w) {
-				vec.print();
-			}
-			ASSERT(tmp_vec_ctr == w);
-#endif
-		};
-
-		size_t ctr = 0;
-
-		/// iterate over all
-		/// TODO chase size is not fully correct
-		for (uint32_t i = 0; i < chase_size; ++i) {
-			for (uint32_t j = 0; j < gray_size-1; ++j) {
-				check();
-
-				npos[0] = ctr;
-				const LPartType data = e(vec.label);
-				hm->insert(data, npos, tid);
-				L1[ctr++] = vec;
-				if (ctr >= size_limit) {
-					return;
-				}
-
-				const uint32_t cs = current_set[gray_cl[j]];
-				vec.value.set((vec.value[cs] + 1) % q, cs);
-				LabelType::add(vec.label, vec.label, HT.get(cs));
-
-				/// NOTE: this is stupid, but needed. The gray code enumeration
-				/// also enumerates zeros. Therefore we need to fix them
-				if (vec.value[cs] == 0) {
-					//vec.value[cs] += 1;
-					vec.value.set(1, cs);
-					LabelType::add(vec.label, vec.label, HT.get(cs));
-				}
-			}
-
-			check();
-			const LPartType data = e(vec.label);
-			npos[0] = ctr;
-			hm->insert(data, npos, tid);
-			L1[ctr++] = vec;
-
-			if (ctr >= size_limit) {
-				return;
-			}
-
-			/// advance the current set by one
-			const uint32_t j = chase_cl[i].first;
-			ASSERT(j < w);
-			const uint32_t a = current_set[j];
-			const uint32_t b = chase_cl[i].second;
-			current_set[j] = b;
-
-			ASSERT(vec.value[a]);
-			// LabelType::scalar(tmp, HT.get(a), q-vec.value[a]);
-			// LabelType::add(vec.label, vec.label, tmp);
-			LabelType::scalar(tmp, HT.get(a), vec.value[a]);
-			LabelType::sub(vec.label, vec.label, tmp);
-			LabelType::add(vec.label, vec.label, HT.get(b));
-			//vec.value[a] = 0;
-			//vec.value[b] = 1;
-			vec.value.set(0, a);
-			vec.value.set(1, b);
-		}
-	}
 };
-#endif//CRYPTANALYSISLIB_FQ_LIST_ENUMERATION_H
+
+#endif//CRYPTANALYSISLIB_FQ_NEW_H

@@ -2,12 +2,12 @@
 #define DECODING_LIST_H
 
 #include "list/common.h"
-#include "list/simple.h"
-#include "list/simple_limb.h"
+#include "list/enumeration/fq.h"
 #include "list/parallel.h"
 #include "list/parallel_full.h"
 #include "list/parallel_index.h"
-#include "list/enumeration/fq_new.h"
+#include "list/simple.h"
+#include "list/simple_limb.h"
 #include "matrix/matrix.h"
 
 #include <iterator>

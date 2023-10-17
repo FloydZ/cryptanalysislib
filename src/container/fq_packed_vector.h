@@ -171,6 +171,16 @@ class kAryPackedContainer_Meta {
 		}
 	}
 
+	/// computes the hamming weight
+	[[nodiscard]] constexpr uint32_t popcount() const noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < size(); i++) {
+			ret += get(i) > 0;
+		}
+
+		return ret;
+	}
+
 	/// return the positions of the first p bits/numbers set
 	/// \param out output: array of the first p positions set in the container
 	/// \param p maximum bits!=0 to find

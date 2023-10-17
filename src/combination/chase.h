@@ -62,35 +62,25 @@ public:
 	constexpr static size_t LIST_SIZE = chase_size * gray_size;
 
 	/// NOTE: this is the output container for `mixed_radix_grey`
-	std::vector<uint32_t> a;
+	std::array<uint32_t, n> a;
 
 	/// stuff for the mixed radix enumeration
-	std::vector<uint32_t> f;
-	std::vector<uint32_t> s; // sentinel
+	std::array<uint32_t, n + 1> f;
+	std::array<uint32_t, n> s; // sentinel
 
 	/// stuff for the chase sequence
-	std::vector<int> chase_w;
-	std::vector<int> chase_a;
-
-	///
-	/// \param r
-	/// \param j
-	void print_chase_state(int r, int j) {
-		for (int i = w-1; i >= 0; i--) {
-			printf("%u", n-chase_a[i]-1);
-		}
-		printf(" r:%d j:%d\n", r, j);
-	}
-
+	std::array<int, w + 1> chase_w;
+	std::array<int, w + 1> chase_a;
 	/// NOTE: probably unused
 	/// \return 1 if the sequence is still valid
 	/// 	    0 if the sequence is finished
-	int mixed_radix_grey() {
+	constexpr bool mixed_radix_grey() {
 		while (true) {
 			uint32_t j = f[0];
 			f[0] = 0;
-			if (j == n)
-				return 0;
+			if (j == n) {
+				return false;
+			}
 
 			a[j] = (a[j] + 1) % q;
 
@@ -101,7 +91,7 @@ public:
 			}
 		}
 
-		return 1;
+		return true;
 	}
 
 	/// NOTE: this enumerates on a length w NOT on length n
@@ -109,7 +99,7 @@ public:
 	/// NOTE: the input must be of size sum_bc(w, w)*q**w
 	/// NOTE: returns 0 on success
 	/// NOTE: only enumerates to q-1
-	int changelist_mixed_radix_grey(uint16_t *ret) {
+	constexpr int changelist_mixed_radix_grey(uint16_t *ret) noexcept {
 		uint32_t j = 0;
 		size_t ctr = 0;
 
@@ -134,7 +124,7 @@ public:
 
 	/// \param r helper value, init with 0
 	/// \param jj returns the change position
-	void chase(int *r, int *jj) {
+	constexpr void chase(int *r, int *jj) noexcept {
 		bool found_r = false;
 		int j;
 		for (j = *r; !chase_w[j]; j++) {
@@ -177,7 +167,7 @@ public:
 
 	/// NOTE: this function inverts the output of the chase sequence
 	/// \param ret
-	void changelist_chase(std::pair<uint16_t,uint16_t> *ret) {
+	constexpr void changelist_chase(std::pair<uint16_t,uint16_t> *ret) {
 		int r = 0, j = 0;
 
 		uint32_t tmp[w+1] = {0};
@@ -202,31 +192,23 @@ public:
 	/// \param n length
 	/// \param q field size
 	/// \param w max hamming weight to enumerate
-	Combinations_Fq_Chase() {
-
+	constexpr Combinations_Fq_Chase() noexcept {
 		/// init the restricted gray code
-		a.resize(n);
-		f.resize(n + 1);
-		s.resize(n);
-
 		for (uint32_t i = 0; i < n; ++i) {
 			a[i] = 0;
 			f[i] = i;
 			s[i] = qm1-1;
 		}
-
 		f[n] = n;
 
 		/// init the chase sequence
-		chase_a.resize(w+1);
-		chase_w.resize(w+1);
 		for (uint32_t i = 0; i < w + 1; ++i) {
 			chase_a[i] = n - (w - i);
 			chase_w[i] = true;
 		}
 	}
 
-	/// return
+	/// return TODO
 	constexpr uint32_t step() {
 		return 1;
 	}
