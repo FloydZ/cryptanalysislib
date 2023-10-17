@@ -249,10 +249,6 @@ TEST(F4, add) {
 
 	t1.random();
 	t2.random();
-	//for (uint32_t i = 0; i < n; i++){
-	//	t1.set(i, fastrandombytes_uint64());
-	//	t2.set(i, fastrandombytes_uint64());
-	//}
 
 	K4::add(t3, t2, t1);
 	for (uint32_t i = 0; i < n; i++){
@@ -282,11 +278,6 @@ TEST(F4, mul) {
 	t3.zero();
 	t1.random();
 	t2.random();
-
-	//for (uint32_t i = 0; i < n; i++){
-	//	t1.set(i, fastrandombytes_uint64());
-	//	t2.set(i, fastrandombytes_uint64());
-	//}
 
 	K4::mul(t3, t1, t2);
 	for (uint32_t i = 0; i < n; i++){
@@ -799,7 +790,6 @@ TEST(F5, sub256_T) {
 	const uint8x32_t t2 = uint8x32_t::set1(2);
 	const uint8x32_t t3 = uint8x32_t::set1(3);
 	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
 
 	EXPECT_EQ(K5::sub256_T(t0, t0), t0);
 	EXPECT_EQ(K5::sub256_T(t0, t1), t4);

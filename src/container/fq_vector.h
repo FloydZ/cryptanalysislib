@@ -1499,8 +1499,8 @@ public:
 	/// \param a
 	/// \return a%q component wise
 	static inline uint8x32_t mod256_T(const uint8x32_t aa) noexcept {
-		const uint8x32_t mask256_7 = uint8x32_t::set1(0x07);
-		const uint8x32_t mask256_1 = uint8x32_t::set1(0x01);
+		constexpr uint8x32_t mask256_7 = uint8x32_t::set1(0x07);
+		constexpr uint8x32_t mask256_1 = uint8x32_t::set1(0x01);
 		uint8x32_t a = aa;
 		a = ((a >> 3) & mask256_7) + (a & mask256_7);
 		a = ((a >> 3) & mask256_7) + (a & mask256_7);

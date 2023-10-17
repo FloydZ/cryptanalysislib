@@ -423,14 +423,11 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t slri(const uint8x32_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
-		const uint8x32_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
-		uint8x32_t out;
-		out = uint8x32_t::and_(in1, mask);
-#ifndef __clang__
+		const uint8x32_t mask1 = set1(((1u << (8u - in2)) - 1u) << in2);
+		const uint8x32_t mask2 = set1((1u << (8u - in2)) - 1u);
+		uint8x32_t out = uint8x32_t::and_(in1, mask1);
 		out.v256 = (__m256i) __builtin_ia32_psrlwi256((__v16hi) out.v256, in2);
-#else
-		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
-#endif
+		out = uint8x32_t::and_(out, mask2);
 		return out;
 	}
 
@@ -440,11 +437,7 @@ struct uint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline int gt(const uint8x32_t in1, const uint8x32_t in2) noexcept {
 		const __m256i tmp = (__m256i) ((__v32qs) in1.v256 > (__v32qs) in2.v256);
-#ifndef __clang__
 		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
-#else
-		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
-#endif
 	}
 
 	///
@@ -1415,9 +1408,12 @@ struct uint64x4_t {
 	/// \return
 	constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
-
 #ifdef USE_AVX512
-  		ret.v256 = (__m256i) __builtin_ia32_vpopcountq_v4di ((__v4di)in.v256);
+#ifdef __clang__
+		ret.v256 = (__m256i) __builtin_ia32_vpopcntq_256((__v4di)in.v256);
+#else
+  		ret.v256 = (__m256i) __builtin_ia32_vpopcountq_v4di((__v4di)in.v256);
+#endif
 #else
 		ret.v256 = popcount_avx2_64(in.v256);
 #endif
