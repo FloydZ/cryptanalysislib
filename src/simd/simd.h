@@ -268,7 +268,7 @@ struct uint8x32_t {
 	constexpr static inline uint8x32_t aligned_load(const void *ptr) {
 		uint8x32_t out = {0};
 		const uint64_t *ptr64 = (uint64_t *)ptr;
-		for (uint32_t i = 0; i < 3; i++) {
+		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = ptr64[i];
 		}
 		return out;
@@ -281,7 +281,7 @@ struct uint8x32_t {
 	constexpr static inline uint8x32_t unaligned_load(const void *ptr) {
 		uint8x32_t out = {0};
 		const uint64_t *ptr64 = (uint64_t *)ptr;
-		for (uint32_t i = 0; i < 3; i++) {
+		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = ptr64[i];
 		}
 		return out;
