@@ -8,11 +8,12 @@
 
 /// See Paul Khuong's
 /// https://www.pvk.ca/Blog/2012/07/03/binary-search-star-eliminates-star-branch-mispredictions/
+/// NOTE: probably wrong
 /// \tparam T
 /// \param list
 /// \param len_list
 /// \param value
-/// \return
+/// \return -1 on error
 template<typename T>
 static size_t Khuong_bin_search(const T *list,
                                 const size_t len_list,
@@ -32,7 +33,7 @@ static size_t Khuong_bin_search(const T *list,
 		if (mid < value) low += len;
 	}
 
-	return (*low == value) ? low - list : low - list + 1;
+	return (*low == value) ? (low-list): -1;
 }
 
 ///
@@ -50,19 +51,20 @@ ForwardIt upper_bound_standard_binary_search(ForwardIt first,
                                              const T &key_,
                                              Hash h) noexcept {
 	const auto count = std::distance(first, last);
-	if (count == 0)
+	if (count <= 1) {
 		return first;
+	}
 
 	const auto key = h(key_);
 	auto bot = first;
-	auto mid = first;
+	auto mid = last;
 	auto top = last;
 	std::advance(top, -1);
 
 	while (bot < top) {
 		const auto step = std::distance(bot, top)/2;
 		mid = top;
-		std::advance(top, -step);
+		std::advance(mid, -step);
 
 		if (key < h(*mid)) {
 			top = mid;
@@ -432,115 +434,6 @@ size_t monobound_quaternary_search(const T *array,
 		}
 	}
 	return -1;
-}
-
-
-///
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
-template<class ForwardIt, class T, class Hash>
-ForwardIt upper_bound_monobound_interpolated_search(ForwardIt first, ForwardIt last, T &key_, Hash h) noexcept {
-	/// TODO
-}
-
-///
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
-template<typename ForwardIt, typename T, typename Hash>
-ForwardIt upper_bound_adaptive_binary_search(ForwardIt first,
-                                             ForwardIt last,
-                                             const T &key_,
-                                             Hash h) noexcept {
-	static uint64_t balance;
-	static ForwardIt i = first;
-	ForwardIt bot, top, mid;
-	auto count = std::distance(first, last);
-	const auto key = h(key_);
-
-	if ((balance > 32) || (count <= 64)) {
-		bot = first;
-		top = last;
-		goto adaptive_binary_search_monobound;
-	}
-
-
-	bot = i;
-	top = bot;
-	std::advance(top, 32);
-
-	if (key >= h(*bot)) {
-		while (true) {
-			if (std::distance(first, bot) >= std::distance(top, last)) {
-				top = last;
-				std::advance(top, -std::distance(first, bot));
-				break;
-			}
-			std::advance(bot, std::distance(first, top));
-
-			if (key < h(*bot)) {
-				std::advance(bot, -std::distance(first, top));
-				break;
-			}
-			std::advance(top, std::distance(first, top));
-		}
-	} else {
-		while (true) {
-			if (h(*bot) < h(*top)) {
-				top = bot;
-				bot = first;
-				break;
-			}
-
-			std::advance(first, std::distance(first, top));
-
-			if (key >= h(*bot)) {
-				break;
-			}
-
-			std::advance(top, std::distance(first, top));
-
-		}
-	}
-
-	adaptive_binary_search_monobound:
-	while (std::distance(first, top) > 3) {
-		const auto mid = std::distance(first, top)/2;
-		auto it = bot;
-		std::advance(it, mid);
-		if (key >= h(*it)) {
-			std::advance(bot, mid);
-		}
-
-		std::advance(top, -mid);
-
-	}
-
-	balance = i > bot ? i-bot : bot - i;
-	i = bot;
-	while(top > first) {
-		std::prev(top);
-
-		auto it = bot;
-		std::advance(it, std::distance(first, top));
-		if (key == h(*it)) {
-			std::advance(bot, std::distance(first, top));
-			return bot;
-		}
-	}
-
-	return last;
 }
 
 /* Copyright Malte Skarupke 2023.

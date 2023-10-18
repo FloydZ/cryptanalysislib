@@ -11,8 +11,8 @@
 #include "tree.h"
 
 
-constexpr uint32_t n    = 20;
-constexpr uint32_t k    = 20;
+constexpr uint32_t n    = 30;
+constexpr uint32_t k    = 30;
 constexpr uint32_t q    = 3;
 constexpr uint32_t d    = 2;
 using T 				= uint8_t;

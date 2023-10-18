@@ -546,7 +546,7 @@ public:
 
 	/// \param e
 	/// \return	a tuple indicating the start and end indices within the list. start == end == load indicating nothing found,
-	constexpr std::pair<uint64_t, uint64_t>
+	constexpr std::pair<size_t, size_t>
 	        search_boundaries(const Element &e,
 	                  		  const uint64_t k_lower,
 	                          const uint64_t k_higher) noexcept {
@@ -569,7 +569,7 @@ public:
 			end_index += 1;
 		}
 
-		return std::pair<uint64_t, uint64_t>(start_index, end_index);
+		return std::pair<size_t, size_t>{start_index, end_index};
 	}
 
 	/// A little helper function to check if a list is sorted. This is very useful to assert specific states within

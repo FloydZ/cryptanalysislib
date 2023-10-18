@@ -318,7 +318,7 @@ public:
 		}
 	}
 
-	/// chooses e1 completely random and e2 a weight d vector. finally e2 = e2 ^ e1
+	/// chooses e1 completely random and e2 a weight d vector.
 	/// \param e1 input/output
 	/// \param e2 input/output
 	static void generate_golden_element(Element &e1, Element &e2) noexcept {
@@ -335,33 +335,39 @@ public:
 		// choose e2;
 		e2[0] = (1ull << d) - 1ull;
 		for (uint32_t i = 0; i < d; ++i) {
-			const uint32_t pos = fastrandombytes_uint64() % (n - i - 1);
+			 uint32_t pos = i;
+			 while (pos == i) {
+				pos = fastrandombytes_uint64() % (n - i - 1);
+			 }
 
 			const uint32_t from_limb = 0;
 			const uint32_t from_pos = i;
-			const T from_mask = 1u << from_pos;
+			const T from_mask = 1ull << from_pos;
 
 			const uint32_t to_limb = pos / T_BITSIZE;
 			const uint32_t to_pos = pos % T_BITSIZE;
-			const T to_mask = 1u << to_pos;
+			const T to_mask = 1ull << to_pos;
 
 			const T from_read = (e2[from_limb] & from_mask) >> from_pos;
 			const T to_read = (e2[to_limb] & to_mask) >> to_pos;
-			e2[to_limb] ^= (-from_read ^ e2[to_limb]) & (1ul << to_pos);
-			e2[from_limb] ^= (-to_read ^ e2[from_limb]) & (1ul << from_pos);
+			//e2[to_limb]   ^= (-from_read ^ e2[to_limb]) & (1ul << to_pos);
+			//e2[from_limb] ^= (-to_read ^ e2[from_limb]) & (1ul << from_pos);
+			e2[to_limb]   = ((e2[to_limb]   & ~to_mask)   | (from_read << to_pos));
+			e2[from_limb] = ((e2[from_limb] & ~from_mask) | (to_read << from_pos));
 		}
 
 		uint32_t wt = 0;
 		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS - 1; i++) {
+			wt += __builtin_popcountll(e2[i]);
 			e1[i] = fastrandombytes_uint64();
 			e2[i] ^= e1[i];
-			wt += __builtin_popcountll(e1[i] ^ e2[i]);
 		}
+
+		wt += __builtin_popcountll(e2[ELEMENT_NR_LIMBS - 1]);
+		ASSERT(wt == d);
 
 		e1[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
 		e2[ELEMENT_NR_LIMBS - 1] ^= e1[ELEMENT_NR_LIMBS - 1];
-		wt += __builtin_popcountll(e1[ELEMENT_NR_LIMBS - 1] ^ e2[ELEMENT_NR_LIMBS - 1]);
-		ASSERT(wt == d);
 	}
 
 	/// simply chooses an uniform random element
@@ -401,8 +407,8 @@ public:
 	/// \param insert_sol if false, no solution will inserted, this is just for quick testing/benchmarking
 	void generate_random_instance(bool insert_sol = true) noexcept {
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
-		L1 = (Element *) aligned_alloc(4096, list_size);
-		L2 = (Element *) aligned_alloc(4096, list_size);
+		L1 = (Element *) aligned_alloc(PAGE_SIZE, list_size);
+		L2 = (Element *) aligned_alloc(PAGE_SIZE, list_size);
 		ASSERT(L1);
 		ASSERT(L2);
 
@@ -436,7 +442,7 @@ public:
 				L2[solution_r][i] = sol[i];
 			}
 		} else {
-			Element sol1, sol2;
+			Element sol1 = {0}, sol2 = {0};
 			generate_golden_element(sol1, sol2);
 			// inject the solution
 			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; ++i) {
@@ -802,7 +808,7 @@ public:
 	/// 						....,
 	/// 		 bit7 = in1.v32[7] == in2.v32[7]]
 	template<const bool exact = false>
-	int compare_256_64(const uint64x4_t in1,
+	[[nodiscard]] int compare_256_64(const uint64x4_t in1,
 	                   const uint64x4_t in2) const noexcept {
 		if constexpr (exact) {
 			return uint64x4_t::cmp(in1, in2);
@@ -835,9 +841,7 @@ public:
 
 
 	/// bruteforce the two lists between the given start and end indices.
-	/// NOTE: only compares a single 32 bit column of the list. But its
-	///			still possible
-	/// NOTE: only in limb comparison possible. inter limb (e.g. bit 23...43) is impossible.
+	/// NOTE: only compares a single 32 bit column of the list.
 	/// NOTE: uses avx2
 	/// NOTE: only a single 32bit element is compared.
 	/// \param e1 end index of list 1
@@ -861,6 +865,7 @@ public:
 			const uint32_t *ptr_r = (uint32_t *)L2;
 
 			for (size_t j = s2; j < s2+(e2+7)/8; ++j, ptr_r += 16) {
+				/// NOTE the 8: this is needed, als internally all limbs are T=uint64_t
 				const uint32x8_t ri = uint32x8_t::template gather<8>((const int *)ptr_r, loadr);
 				const int m = compare_256_32(li, ri);
 
@@ -1219,9 +1224,9 @@ public:
 		ASSERT(e2 >= s2);
 
 		/// some constants
-		constexpr uint8x32_t zero = uint8x32_t::set1(0);
+		constexpr uint8x32_t zero   = uint8x32_t::set1(0);
 		constexpr uint32x8_t shuffl = uint32x8_t::setr(7, 0, 1, 2, 3, 4, 5, 6);
-		constexpr uint32x8_t loadr = uint32x8_t::setr(0, 4, 8, 12, 16, 20, 24, 28);
+		constexpr uint32x8_t loadr  = uint32x8_t::setr(0, 4, 8, 12, 16, 20, 24, 28);
 		constexpr size_t ptr_ctr_l = u*8,
 		                 ptr_ctr_r = v*8;
 		constexpr size_t ptr_inner_ctr_l = 8*4,
@@ -1233,25 +1238,25 @@ public:
 		/// container for the solutions masks
 		constexpr uint32_t size_m1 = std::max(u*v, 32u);
 		alignas(32) uint8_t m1[size_m1] = {0}; /// NOTE: init with 0 is important
-		uint32x8_t *m1_256 = (uint32x8_t *)m1;
+		auto *m1_256 = (uint32x8_t *)m1;
 
-		uint32_t *ptr_l = (uint32_t *)L1;
+		auto *ptr_l = (uint32_t *)L1;
 		for (size_t i = s1; i < s1 + e1; i += ptr_ctr_l, ptr_l += ptr_ctr_l*4) {
 
 			#pragma unroll
 			for (uint32_t s = 0; s < u; ++s) {
-				lii_1[s] = uint32x8_t::template gather<4>((const int *)(ptr_l + s*ptr_inner_ctr_l + 0), loadr);
-				lii_2[s] = uint32x8_t::template gather<4>((const int *)(ptr_l + s*ptr_inner_ctr_l + 1), loadr);
+				lii_1[s] = uint32x8_t::template gather<4>(ptr_l + s*ptr_inner_ctr_l + 0, loadr);
+				lii_2[s] = uint32x8_t::template gather<4>(ptr_l + s*ptr_inner_ctr_l + 1, loadr);
 			}
 
-			uint32_t *ptr_r = (uint32_t *)L2;
+			auto *ptr_r = (uint32_t *)L2;
 			for (size_t j = s2; j < s2 + e2; j += ptr_ctr_r, ptr_r += ptr_ctr_r*4) {
 
 				// load the fi
 				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
-					rii_1[s] = uint32x8_t::template gather<4>((const int *)(ptr_r + s*ptr_inner_ctr_r + 0), loadr);
-					rii_2[s] = uint32x8_t::template gather<4>((const int *)(ptr_r + s*ptr_inner_ctr_r + 1), loadr);
+					rii_1[s] = uint32x8_t::template gather<4>(ptr_r + s*ptr_inner_ctr_r + 0, loadr);
+					rii_2[s] = uint32x8_t::template gather<4>(ptr_r + s*ptr_inner_ctr_r + 1, loadr);
 				}
 
 				/// Do the 8x8 shuffle
@@ -1276,7 +1281,7 @@ public:
 					}
 
 					// early exit
-					uint32_t mask = zero < uint8x32_t::load(m1);
+					uint32_t mask = uint8x32_t::load(m1) > zero;
 					if (unlikely(mask == 0)) {
 						continue;
 					}
@@ -1292,7 +1297,7 @@ public:
 
 
 					// early exit from the second limb computations
-					mask = zero < uint8x32_t::load(m1);
+					mask = uint8x32_t::load(m1) > zero;
 					if (likely(mask == 0)) {
 						continue;
 					}
@@ -2042,8 +2047,8 @@ public:
 				uint64x4_t r4 = uint64x4_t::template gather<8>((const long long int *)(ptr_r + 48), loadr1);
 
 				BRUTEFORCE256_64_4x4_STEP2(m1s, l1, l2, l3, l4, r1, r2, r3, r4);
-				uint32_t m1s1 = zero < uint8x32_t::load(m1s +  0);
-				uint32_t m1s2 = zero < uint8x32_t::load(m1s + 32);
+				uint32_t m1s1 = uint8x32_t::load(m1s +  0) > zero;
+				uint32_t m1s2 = uint8x32_t::load(m1s + 32) > zero;
 
 				if (m1s1 != 0) { bruteforce_avx2_256_64_4x4_helper< 0>(m1s1, m1s, ptr_l, ptr_r, i, j); }
 				if (m1s2 != 0) { bruteforce_avx2_256_64_4x4_helper<32>(m1s2, m1s, ptr_l, ptr_r, i, j); }
