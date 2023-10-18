@@ -98,7 +98,7 @@ if(APPLE)
 else()
 
 if("avx2" IN_LIST _available_vector_units_list)
-	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 ")
+	#set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 ")
 endif()
 
 if("avx512f" IN_LIST _available_vector_units_list)
