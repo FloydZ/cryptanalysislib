@@ -7,15 +7,17 @@ on:
     branches: [ "master" ]
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        compiler: [ g++-10, g++-11, g++-12, clang++-11, clang++-12, clang++-13, clang++-14, clang++-15, clang++-16 ]
+        include:
+          - os: macos-latest
+            TARGET: x86_64-apple-darwin
+            COMPILER: clang
+            LINKER: clang
 
     name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
     runs-on: ${{ matrix.os }}
