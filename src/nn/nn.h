@@ -318,7 +318,7 @@ public:
 		}
 	}
 
-	/// chooses e1 completely random and e2 a weight d vector. finally e2 = e2 ^ e1
+	/// chooses e1 completely random and e2 a weight d vector.
 	/// \param e1 input/output
 	/// \param e2 input/output
 	static void generate_golden_element(Element &e1, Element &e2) noexcept {
@@ -335,33 +335,39 @@ public:
 		// choose e2;
 		e2[0] = (1ull << d) - 1ull;
 		for (uint32_t i = 0; i < d; ++i) {
-			const uint32_t pos = fastrandombytes_uint64() % (n - i - 1);
+			 uint32_t pos = i;
+			 while (pos == i) {
+				pos = fastrandombytes_uint64() % (n - i - 1);
+			 }
 
 			const uint32_t from_limb = 0;
 			const uint32_t from_pos = i;
-			const T from_mask = 1u << from_pos;
+			const T from_mask = 1ull << from_pos;
 
 			const uint32_t to_limb = pos / T_BITSIZE;
 			const uint32_t to_pos = pos % T_BITSIZE;
-			const T to_mask = 1u << to_pos;
+			const T to_mask = 1ull << to_pos;
 
 			const T from_read = (e2[from_limb] & from_mask) >> from_pos;
 			const T to_read = (e2[to_limb] & to_mask) >> to_pos;
-			e2[to_limb] ^= (-from_read ^ e2[to_limb]) & (1ul << to_pos);
-			e2[from_limb] ^= (-to_read ^ e2[from_limb]) & (1ul << from_pos);
+			//e2[to_limb]   ^= (-from_read ^ e2[to_limb]) & (1ul << to_pos);
+			//e2[from_limb] ^= (-to_read ^ e2[from_limb]) & (1ul << from_pos);
+			e2[to_limb]   = ((e2[to_limb]   & ~to_mask)   | (from_read << to_pos));
+			e2[from_limb] = ((e2[from_limb] & ~from_mask) | (to_read << from_pos));
 		}
 
 		uint32_t wt = 0;
 		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS - 1; i++) {
+			wt += __builtin_popcountll(e2[i]);
 			e1[i] = fastrandombytes_uint64();
 			e2[i] ^= e1[i];
-			wt += __builtin_popcountll(e1[i] ^ e2[i]);
 		}
+
+		wt += __builtin_popcountll(e2[ELEMENT_NR_LIMBS - 1]);
+		ASSERT(wt == d);
 
 		e1[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
 		e2[ELEMENT_NR_LIMBS - 1] ^= e1[ELEMENT_NR_LIMBS - 1];
-		wt += __builtin_popcountll(e1[ELEMENT_NR_LIMBS - 1] ^ e2[ELEMENT_NR_LIMBS - 1]);
-		ASSERT(wt == d);
 	}
 
 	/// simply chooses an uniform random element
@@ -401,8 +407,8 @@ public:
 	/// \param insert_sol if false, no solution will inserted, this is just for quick testing/benchmarking
 	void generate_random_instance(bool insert_sol = true) noexcept {
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
-		L1 = (Element *) aligned_alloc(4096, list_size);
-		L2 = (Element *) aligned_alloc(4096, list_size);
+		L1 = (Element *) aligned_alloc(PAGE_SIZE, list_size);
+		L2 = (Element *) aligned_alloc(PAGE_SIZE, list_size);
 		ASSERT(L1);
 		ASSERT(L2);
 
@@ -422,8 +428,8 @@ public:
 			return;
 
 		// generate solution:
-		solution_l = 0;//fastrandombytes_uint64() % LIST_SIZE;
-		solution_r = 0;//fastrandombytes_uint64() % LIST_SIZE;
+		solution_l = fastrandombytes_uint64() % LIST_SIZE;
+		solution_r = fastrandombytes_uint64() % LIST_SIZE;
 		//std::cout << "sols at: " << solution_l << " " << solution_r << "\n";
 
 		if constexpr (EXACT) {
@@ -436,7 +442,7 @@ public:
 				L2[solution_r][i] = sol[i];
 			}
 		} else {
-			Element sol1, sol2;
+			Element sol1 = {0}, sol2 = {0};
 			generate_golden_element(sol1, sol2);
 			// inject the solution
 			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; ++i) {
