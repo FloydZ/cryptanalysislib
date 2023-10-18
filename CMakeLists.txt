@@ -83,7 +83,7 @@ set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-if(APPLE)
+IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
     include_directories(/opt/homebrew/opt/libomp/include)
     include_directories(/opt/homebrew/include)
     link_directories(/opt/homebrew/opt/libomp/link)
