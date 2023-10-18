@@ -27,9 +27,9 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install Software
-      run: |
-        sudo apt-get install -y libmpfr-dev libpng-dev libtbb-dev
+#    - name: Install Software
+#      run: |
+#        sudo apt-get install -y libmpfr-dev libpng-dev libtbb-dev
     
     - name: Install Google Benchmark
       run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
