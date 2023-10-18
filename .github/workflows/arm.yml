@@ -17,7 +17,7 @@ jobs:
         cpu: cortex-a53
         commands: |
             # sudo apt-get install -y libmpfr-dev libpng-dev libtbb-dev
-            sud apt install -y cmake make
+            sudo apt install -y cmake make
             git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
             sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
             cmake --build ${{github.workspace}}/build --config Debug
