@@ -143,7 +143,7 @@ TEST(uint8x32_t, logic) {
 		EXPECT_EQ(t3.v8[i] , 0);
 	}
 
-	t3 = uint8x32_t::slri(t2, 1);
+	t3 = uint8x32_t::slli(t2, 1);
 	for (uint32_t i = 0; i < 32; ++i) {
 		EXPECT_EQ(t3.v8[i] , 2);
 	}
