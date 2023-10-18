@@ -1,4 +1,4 @@
-name: Test aarch64 cpu option
+name: arm
 
 on:
   push:
