@@ -27,8 +27,10 @@ jobs:
             sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
             # cd ${{github.workspace}}
             echo $(pwd)
-            git submodule init
-            git submodule update --recursive --init
+            cd /cryptanalysislib
+            echo $(pwd)
+            #git submodule init
+            #git submodule update --recursive --init
             mkdir -p build
             mkdir -p cmake-build-release
             mkdir -p cmake-build-debug
