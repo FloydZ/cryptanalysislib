@@ -19,6 +19,7 @@ jobs:
 
     - uses: pguyot/arm-runner-action@HEAD
       with:
+        bind_mount_repository: true
         base_image: raspios_lite_arm64:latest
         cpu: cortex-a53
         commands: |
