@@ -259,7 +259,7 @@ public:
 	         const uint32_t tid=0,
 	         HashMap *hm=nullptr,
 	         Extractor *e=nullptr,
-	         Predicate *p= nullptr) {
+	         Predicate *p=nullptr) {
 		/// some security checks
 		ASSERT(n+offset <= Value::LENGTH);
 
@@ -272,6 +272,10 @@ public:
 		constexpr bool sHM = !std::is_same_v<std::nullptr_t, HashMap>;
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
+		/// clear stuff, needed if this functions is called multiple times
+		element1.value.zero();
+		if (sL2) { element2.zero(); }
+
 		/// add the syndrome, if needed
 		if (syndrome != nullptr) {
 			element1.label = *syndrome;
@@ -279,10 +283,12 @@ public:
 
 		/// compute the first element
 		for (uint32_t i = 0; i < w; ++i) {
-			if (sL1) {
-				element1.value.set(1, i);
-				Label::add(element1.label, element1.label, HT.get(i));
-			}
+			/// NOTE we need to compute always this element, even if we
+			/// do not save it in a list. Because otherwise we could not
+			/// only use the predicate in this function.
+			element1.value.set(1, i);
+			Label::add(element1.label, element1.label, HT.get(i));
+
 			if (sL2) {
 				element2.value.set(1, i+offset);
 				Label::add(element2.label, element2.label, HT.get(i+offset));
@@ -328,7 +334,7 @@ public:
 		/// iterate over all sequences
 		for (uint32_t i = 0; i < chase_size; ++i) {
 			for (uint32_t j = 0; j < gray_size - 1; ++j) {
-				if (sL1) check(element1.label, element1.value);
+				check(element1.label, element1.value);
 				if (sL2) check(element2.label, element2.value, false);
 
 				if constexpr (sP) if(std::invoke(*p, element1.label)) return true;
@@ -341,11 +347,11 @@ public:
 					return false;
 				}
 
-				if (sL1) gray_step(element1, j, 0);
+				gray_step(element1, j, 0);
 				if (sL2) gray_step(element2, j, offset);
 			}
 
-			if (sL1) check(element1.label, element1.value);
+			check(element1.label, element1.value);
 			if (sL2) check(element2.label, element2.value, false);
 
 			if constexpr (sP) if(std::invoke(*p, element1.label)) return true;
@@ -365,7 +371,7 @@ public:
 			const uint32_t b = chase_cl[i].second;
 			current_set[j] = b;
 
-			if(sL1) chase_step(element1, a, b, 0);
+			chase_step(element1, a, b, 0);
 			if(sL2) chase_step(element2, a, b, offset);
 		}
 

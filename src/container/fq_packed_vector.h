@@ -754,12 +754,7 @@ public:
 		}
 
 		uint32_t i = 0;
-//#ifdef USE_AVX2
-//		for (; i+4 <= internal_limbs; i += 4){
-//			__m256i t = neg_mod3_limb256(*((__m256i *)&__data[i]));
-//			*((__m256i *)&__data[i]) = t;
-//		}
-//#endif
+
 		for (; i+2 <= internal_limbs; i += 2) {
 			__uint128_t t = neg_mod3_limb128(*((__uint128_t *)&__data[i]));
 			*((__uint128_t *)&__data[i]) = t;
@@ -771,7 +766,6 @@ public:
 
 	}
 
-	///
 	/// \tparam k_lower lower limit inclusive
 	/// \tparam k_upper uuper limit exclusive
 	template<uint32_t k_lower, uint32_t k_upper>

@@ -387,7 +387,7 @@ template<const ConfigParallelBucketSort &config,
 				class ExternalList,                     // TODO describe
 				typename ArgumentLimbType,              // container of the `l`-part
 				typename ExternalIndexType,             // container of the indices which point into the baselists
-				ArgumentLimbType (* HashFkt)(uint64_t)> // TODO describe
+				ArgumentLimbType (* HashFkt)(__uint128_t)> // TODO describe
 #if __cplusplus > 201709L
 requires //HashMapListAble<ExternalList> &&
          std::is_integral<ArgumentLimbType>::value &&
@@ -442,8 +442,10 @@ private:
 	/// \param alignment			= 128, alignment in bits
 	/// \param sizeofindicesinbytes	= 32
 	/// \return	number of indicies to archive alignment
-	constexpr static uint32_t BucketAlignment(const uint32_t i, const uint32_t alignment,
-	                                          const uint32_t sizeofindicesinbytes, const uint32_t sizeofarginbytes) {
+	constexpr static uint32_t BucketAlignment(const uint32_t i,
+	                                          const uint32_t alignment,
+	                                          const uint32_t sizeofindicesinbytes,
+	                                          const uint32_t sizeofarginbytes) {
 		const uint32_t bytes  = i * sizeofindicesinbytes;
 		const uint32_t bytes2 = ((bytes + alignment - 1)/alignment)*alignment;
 		const uint32_t Anri   = (bytes2-sizeofarginbytes)/sizeofindicesinbytes;
@@ -567,9 +569,15 @@ private:
 	// `load` factor, but rather checking via a linear search if a element is found or not
 	constexpr static bool USE_HIGH_WEIGHT_SWITCH         = config.USE_HIGH_WEIGHT_SWITCH;
 
-	// If this flag is set, the internal datastructure are forced to be packed, s.t. every
+	// If this flag is set, the internal data structure are forced to be packed, s.t. every
 	// alignment of the internal fields are disregarded.
 	constexpr static bool USE_PACKED_SWITCH              = config.USE_PACKED_SWITCH;
+
+	/// TODO move to config
+	/// TODO not fully implemented
+	// if this flag is set, the highest bit in the load factor will be used to denote if a
+	// bucket is sorted. If the bit is not set, the find function will sort it.
+	constexpr static bool USE_SORTING_NETWORK_DECODED_IN_LOAD = false;
 
 	// Indyk Motwani Nearest Neighbor Search:
 	// How many additional l windows should this hashmap hold?
@@ -698,6 +706,7 @@ public:
 		ASSERT(bid < nrb);
 
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
+			ASSERT(USE_SORTING_NETWORK_DECODED_IN_LOAD && "not impl");
 			// because I want to reduce the atomic loads I do not check before inserting elements,
 			// which leads to an overflow of the load factor
 			// do not use this function to insert elements.
@@ -706,9 +715,20 @@ public:
 		}
 
 		if constexpr (nrt != 1) {
-			return acc_buckets_load[bid];
+			auto ret = acc_buckets_load[bid];
+			if constexpr (USE_SORTING_NETWORK_DECODED_IN_LOAD) {
+				constexpr LoadInternalType mask = (LoadInternalType(1ul) << (constexpr_bits_log2(nrb) + 1u)) - LoadInternalType (1ul);
+				return ret & mask;
+			}
+
+			return ret;
 		} else {
-			return buckets_load[bid];
+			auto ret= buckets_load[bid];
+			if constexpr (USE_SORTING_NETWORK_DECODED_IN_LOAD) {
+				constexpr ArrayLoadInternalType mask = (ArrayLoadInternalType(1ul) << (constexpr_bits_log2(nrb) + 1u)) - ArrayLoadInternalType (1ul);
+				return ret & mask;
+			}
+			return ret;
 		}
 	}
 
@@ -799,6 +819,10 @@ public:
 
 		if constexpr(nrt != 1 && !USE_ATOMIC_LOAD_SWITCH && USE_LOAD_IN_FIND_SWITCH) {
 			acc_buckets_load.resize(nrb);
+		}
+
+		if constexpr (!USE_LOAD_IN_FIND_SWITCH && USE_SORTING_NETWORK_DECODED_IN_LOAD){
+			ASSERT(false && "makes no sense");
 		}
 
 		// Make sure the internal stuff is only printed once.
