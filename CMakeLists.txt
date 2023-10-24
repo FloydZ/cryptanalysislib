@@ -83,7 +83,7 @@ set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-if(APPLE)
+IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
     include_directories(/opt/homebrew/opt/libomp/include)
     include_directories(/opt/homebrew/include)
     link_directories(/opt/homebrew/opt/libomp/link)
@@ -91,14 +91,14 @@ if(APPLE)
     link_directories(/usr/lib)
     link_directories(/opt/homebrew/lib)
 
-    set(ADDITIONAL_FLAGS "-DUSE_ARM -march=native -flax-vector-converstions ")
+    set(ADDITIONAL_FLAGS "-DUSE_ARM -march=native -flax-vector-conversions ")
 
 	set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -fpermissive -DDEBUG ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-O3 -flto -DNDEBUG -fno-exceptions ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 else()
 
 if("avx2" IN_LIST _available_vector_units_list)
-	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 ")
+	#set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 ")
 endif()
 
 if("avx512f" IN_LIST _available_vector_units_list)

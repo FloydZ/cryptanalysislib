@@ -740,9 +740,7 @@ public:
 		const __m256i ac1 = _mm256_and_si256(a, c1); // filter the ones
 		const __m256i ac2 = _mm256_and_si256(a, c2); // filter the twos
 		
-		ASSERT(false);
-		return 0;
-		// TODO return hammingweight_mod2_limb256(ac1) + hammingweight_mod2_limb256(ac2);
+		return hammingweight_mod2_limb256(ac1) + hammingweight_mod2_limb256(ac2);
 	}
 #endif
 

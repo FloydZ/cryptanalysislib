@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_POPCOUNT_H
 
 #include <cstdint>
+#include <concepts>
 #include "helper.h"
 
 
@@ -19,9 +20,9 @@ namespace cryptanalysislib::popcount {
 	/// \tparam T base data type
 	/// \param data input data type
 	/// \return hamming weight (popcount) of the input vector
-	template<class T>
+	template<typename T>
 #if __cplusplus > 201709L
-		requires std::integral<T>
+		requires std::is_integral<T>::value
 #endif
 	constexpr inline uint32_t popcount(const T data) noexcept {
 		if constexpr(sizeof(T) < 8) {
@@ -39,7 +40,7 @@ namespace cryptanalysislib::popcount {
 	/// \return hamming weight (popcount) of the input vector
 	template<class T>
 #if __cplusplus > 201709L
-		requires std::integral<T>
+		requires std::is_integral<T>::value
 #endif
 	constexpr uint64_t popcount(const T *__restrict__ data, const size_t size) noexcept {
 		uint32_t sum = 0;

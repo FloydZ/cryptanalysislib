@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <immintrin.h>
 #include <iostream>
 
 #include "random.h"
@@ -10,6 +9,7 @@ using ::testing::Test;
 constexpr size_t stack_size = 10;
 
 #ifdef USE_AVX2
+#include <immintrin.h>
 #include "popcount/popcount.h"
 #include "simd/avx2.h"
 

@@ -2,6 +2,7 @@
 #include <algorithm>
 
 #include "random.h"
+#include "helper.h"
 
 
 template<typename T>
@@ -22,7 +23,8 @@ T random_data(std::vector<T> &data,
 			  }
 	);
 
-	assert(std::is_sorted(data.begin(), data.end()));
-	solution_index = fastrandombytes_uint64() & size;
+	ASSERT(std::is_sorted(data.begin(), data.end()));
+	//ASSERT(std::is_sorted(data.end(), data.begin()));
+	solution_index = fastrandombytes_uint64() % size;
 	return data[solution_index];
 }

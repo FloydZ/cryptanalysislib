@@ -907,7 +907,7 @@ public:
 	/// \param b in
 	/// \return a+b, component wise
 	static inline uint8x32_t add256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
-		const uint8x32_t mask256_4 = uint8x32_t::set1(0x03);
+		constexpr uint8x32_t mask256_4 = uint8x32_t::set1(0x03);
 		return uint8x32_t::and_(uint8x32_t::add(a, b), mask256_4);
 	}
 

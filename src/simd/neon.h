@@ -9,6 +9,7 @@
 #include "helper.h"
 #include "random.h"
 
+// TODO clang++ not working
 #ifndef __clang__
 #include <arm_bf16.h>
 #include <arm_fp16.h>
@@ -113,7 +114,7 @@ inline uint32_t _mm_movemask_epi8(const uint8x16_t input) {
 }
 
 inline uint32_t _mm_movemask_epi16(const uint16x8_t input) {
-	static const int16_t shift[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+	constexpr int16_t shift[8] = {0, 1, 2, 3, 4, 5, 6, 7};
     uint16x8_t tmp = vshrq_n_u16(input, 15);
     return vaddvq_u16(vshlq_u16(tmp, vld1q_s16(shift)));
 }
@@ -122,7 +123,7 @@ inline uint32_t _mm_movemask_epi16(const uint16x8_t input) {
 // corresponding packed single-precision (32-bit) floating-point element in a.
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movemask_ps
 inline uint32_t _mm_movemask_epi32(const uint32x4_t input) {
-    static const int32_t shift[4] = {0, 1, 2, 3};
+	constexpr int32_t shift[4] = {0, 1, 2, 3};
     uint32x4_t tmp = vshrq_n_u32(input, 31);
     return vaddvq_u32(vshlq_u32(tmp, vld1q_s32(shift)));
 }
@@ -500,8 +501,9 @@ struct uint8x32_t {
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			out.v128[i] = vshrq_n_u8(in1.v128[i], in2);
+#ifdef __clang__
+			//out.v128[i] = vshrq_n_u8(in1.v128[i], in2);
+  			out.v128[i] = (uint8x16_t) __builtin_neon_vshrq_n_v((__uint8x16_t)in1.v128[i], in2, 48);
 #else
 			out.v128[i] = __builtin_neon_vshrq_n_u8(in1.v128[i], in2);
 #endif
@@ -516,7 +518,7 @@ struct uint8x32_t {
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
 			const __uint8x16_t tmp = vcgtq_u8(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #else
@@ -534,7 +536,7 @@ struct uint8x32_t {
 		
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
 			const __uint8x16_t tmp = vceqq_u8(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #else

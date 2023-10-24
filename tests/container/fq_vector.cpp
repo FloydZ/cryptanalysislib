@@ -20,8 +20,7 @@ TEST(test, simple) {
 }
 
 constexpr uint32_t n = 127;
-constexpr uint32_t q = 4;
-using K4 = kAryContainer_T<uint8_t, n, q>;
+using K4 = kAryContainer_T<uint8_t, n, 4>;
 using K5 = kAryContainer_T<uint8_t, n, 5>;
 using K7 = kAryContainer_T<uint8_t, n, 7>;
 
@@ -30,7 +29,7 @@ TEST(F4, random) {
 	t.random();
 	t.print();
 	for (uint32_t i = 0; i < n; i++){
-    	EXPECT_LE(t.get(i), q);
+    	EXPECT_LE(t.get(i), 4);
 	}
 }
 
@@ -237,7 +236,7 @@ TEST(F4, mod) {
 
 	K4::mod(t2, t1);
 	for (uint32_t i = 0; i < n; i++){
-		EXPECT_LE(t2.get(i), q);
+		EXPECT_LE(t2.get(i), 4);
 	}
 }
 
@@ -250,9 +249,9 @@ TEST(F4, add) {
 	t1.random();
 	t2.random();
 
-	K4::add(t3, t2, t1);
-	for (uint32_t i = 0; i < n; i++){
-		EXPECT_EQ(t3.get(i), (t1.get(i) + t2.get(i)) % q);
+	K4::add(t3, t1, t2);
+	for (uint32_t i = 0; i < n; i++) {
+		EXPECT_EQ(t3.get(i), (t1.get(i) + t2.get(i)) % 4);
 	}
 }
 
@@ -281,7 +280,7 @@ TEST(F4, mul) {
 
 	K4::mul(t3, t1, t2);
 	for (uint32_t i = 0; i < n; i++){
-		EXPECT_EQ(t3.get(i), (t1.get(i) * t2.get(i)) % q);
+		EXPECT_EQ(t3.get(i), (t1.get(i) * t2.get(i)) % 4);
 	}
 }
 
@@ -290,10 +289,10 @@ TEST(F4, scalar) {
 	K4 t3 = K4();
 	t3.zero();
 	t1.random();
-	const uint8_t t2 = rand() % q;
+	const uint8_t t2 = rand() % 4;
 	K4::scalar<uint8_t >(t3, t1, t2);
 	for (uint32_t i = 0; i < n; i++) {
-		EXPECT_EQ(t3.get(i), (t1.get(i) * t2) % q);
+		EXPECT_EQ(t3.get(i), (t1.get(i) * t2) % 4);
 	}
 }
 

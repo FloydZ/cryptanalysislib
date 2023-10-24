@@ -75,5 +75,16 @@ constexpr static __m256i popcount_avx2_64(const __m256i vec) noexcept {
   	return (__m256i)__builtin_ia32_psadbw256((__v32qi)local, (__v32qi)__extension__ (__m256i)(__v4di){ 0, 0, 0, 0 });
 }
 
+/// TODO merge
+static inline uint32_t hammingweight_mod2_limb256(__m256i vec) {
+	POPCOUNT_HELPER_MACRO()
+	const __m256i local = (__m256i)((__v32qu)popcnt1 + (__v32qu)popcnt2);
+	const __m256i final = (__m256i)__builtin_ia32_psadbw256((__v32qi)local, (__v32qi)__extension__ (__m256i)(__v4di){ 0, 0, 0, 0 });
+
+	// probably not fast
+	alignas(32) static uint64_t bla[4];
+	_mm256_store_si256((__m256i *)bla , final);
+	return bla[0] + bla[1] + bla[2] + bla[3];
+}
 #undef POPCOUNT_HELPER_MACRO
 #endif
