@@ -449,7 +449,7 @@ struct uint8x32_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t slri(const uint8x32_t in1,
+	[[nodiscard]] constexpr static inline uint8x32_t srli(const uint8x32_t in1,
 														  const uint8_t in2) {
 		ASSERT(in2 <= 8);
 		uint8x32_t out ;
@@ -753,7 +753,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t slri(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t srli(const uint16x16_t in1,
 														  const uint16_t in2) {
 		ASSERT(in2 <= 8);
 		uint16x16_t out;
@@ -1043,7 +1043,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t slri(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t srli(const uint32x8_t in1,
 														  const uint16_t in2) {
 		ASSERT(in2 <= 8);
 		uint32x8_t out;
@@ -1354,7 +1354,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t slri(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t srli(const uint64x4_t in1,
 														  const uint64_t in2) {
 		ASSERT(in2 <= 64);
 		uint64x4_t out;
@@ -1494,7 +1494,7 @@ inline uint8x32_t operator~ (const uint8x32_t& lhs) {
 	return uint8x32_t::not_(lhs);
 }
 inline uint8x32_t operator>> (const uint8x32_t& lhs, const uint32_t rhs) {
-	return uint8x32_t::slri(lhs, rhs);
+	return uint8x32_t::srli(lhs, rhs);
 }
 inline uint8x32_t operator<< (const uint8x32_t& lhs, const uint32_t rhs) {
 	return uint8x32_t::slli(lhs, rhs);
@@ -1529,7 +1529,7 @@ inline uint16x16_t operator~ (const uint16x16_t& lhs) {
 	return uint16x16_t::not_(lhs);
 }
 inline uint16x16_t operator>> (const uint16x16_t& lhs, const uint32_t rhs) {
-	return uint16x16_t::slri(lhs, rhs);
+	return uint16x16_t::srli(lhs, rhs);
 }
 inline uint16x16_t operator<< (const uint16x16_t& lhs, const uint32_t rhs) {
 	return uint16x16_t::slli(lhs, rhs);
@@ -1599,7 +1599,7 @@ inline uint64x4_t operator~ (const uint64x4_t& lhs) {
 	return uint64x4_t::not_(lhs);
 }
 inline uint64x4_t operator>> (const uint64x4_t& lhs, const uint32_t rhs) {
-	return uint64x4_t::slri(lhs, rhs);
+	return uint64x4_t::srli(lhs, rhs);
 }
 inline uint64x4_t operator<< (const uint64x4_t& lhs, const uint32_t rhs) {
 	return uint64x4_t::slli(lhs, rhs);

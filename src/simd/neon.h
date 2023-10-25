@@ -494,7 +494,7 @@ struct uint8x32_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t slri(const uint8x32_t in1,
+	[[nodiscard]] constexpr static inline uint8x32_t srli(const uint8x32_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
@@ -875,7 +875,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t slri(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t srli(const uint16x16_t in1,
 	                                                       const uint16_t in2) noexcept {
 		ASSERT(in2 <= 16);
 		uint16x16_t out;
@@ -1238,7 +1238,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t slri(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t srli(const uint32x8_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
@@ -1592,7 +1592,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t slri(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t srli(const uint64x4_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint64x4_t out;
