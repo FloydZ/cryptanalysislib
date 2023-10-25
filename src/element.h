@@ -66,25 +66,43 @@ concept ValueAble = requires(Container c) {
 	Container::LENGTH;
 
 	requires requires(const uint32_t i) {
+		/// init/getter/setter
 		c[i];
 		c.get(i);
 		c.set(i, i);
+		Container::set(c, c, i, i);
 		c.random();
 		c.zero();
-		c.is_equal(c, i, i);
-		c.is_greater(c, i, i);
-		c.is_lower(c, i, i);
-		Container::add(c, c, c, i, i);
-		Container::sub(c, c, c, i, i);
-		Container::set(c, c, i, i);
-		Container::cmp(c, c, i, i);
-		c.neg(i, i);
 		c.data();
+
+		/// comparison
+		Container::cmp(c, c, i, i);
+		c.is_equal(c, i, i);
+		c.is_equal(c);
+		c.is_greater(c, i, i);
+		c.is_greater(c);
+		c.is_lower(c, i, i);
+		c.is_lower(c);
+		c.is_zero(i, i);
 		c.is_zero();
 
+		/// arithmetic
+		Container::add(c, c, c, i, i);
+		Container::sub(c, c, c, i, i);
+		c.neg(i, i);
+
+		/// printing stuff
 		c.print_binary(i, i);
 		c.print(i, i);
+
 	};
+
+	/// TODO
+	//template<typename T>
+	//requires requires(const T i) {
+	//	/// limb arithmetic stuf
+	//	kContainer::add_T
+	//};
 
 	// we also have to enforce the existence of some constexpr functions.
 	{ Container::binary() } -> std::convertible_to<bool>;

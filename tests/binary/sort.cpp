@@ -62,7 +62,7 @@ TEST(Bucket_Sort, asdasd) {
 	}
 
 	uint64_t bucket, lower, upper;
-	auto t = a->find(L[0].get_label(), &bucket, &lower, &upper);
+	// auto t = a->find(L[0].get_label(), &bucket, &lower, &upper);
 
 	std::cout << L[0].get_label();
 	std::cout << bucket << " " << lower << " " << upper << "\n";

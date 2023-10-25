@@ -1008,7 +1008,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t slri(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t srli(const uint32x8_t in1,
 	                                            const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		const uint32x8_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
@@ -1103,6 +1103,25 @@ struct uint32x8_t {
 #else
   		return __builtin_ia32_movmskps256 ((__v8sf)in.v256);
 #endif
+	}
+
+	/// src: https://stackoverflow.com/questions/36932240/avx2-what-is-the-most-efficient-way-to-pack-left-based-on-a-mask
+	/// input:
+	/// 	mask: 0b010101010
+	/// output: a permutation mask s.t, applied on in =  [ x0, x1, x2, x3, x4, x5, x6, x7 ],
+	/// 			uint32x8_t::permute(in, permutation_mask) will result int
+	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
+	[[nodiscard]] static inline uint32x8_t pack( const uint32_t mask) noexcept {
+
+		uint32x8_t ret;
+		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+		expanded_mask *= 0xFFU;
+		const uint64_t identity_indices = 0x0706050403020100;
+		uint64_t wanted_indices = _pext_u64(identity_indices, expanded_mask);
+
+		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
+		ret.v256 = _mm256_cvtepu8_epi32(bytevec);
+		return ret;
 	}
 };
 

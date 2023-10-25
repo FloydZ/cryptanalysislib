@@ -28,7 +28,7 @@ namespace cryptanalysislib {
 	class array {
 	public:
 		using const_iterator = const T *const;
-		using iterator = T *const;
+		using iterator = T *;
 
 		/// default constructor
 		constexpr array() {}

@@ -97,10 +97,11 @@ public:
 	static constexpr uint32_t COLS = ncols;
 
 	// Types
-	using RowType = typename std::conditional<packed,
+	using __RowType = typename std::conditional<packed,
 			kAryPackedContainer_T<T, ncols, q>,
 			kAryContainer_T<T, ncols, q>
 	>::type;
+	typedef __RowType RowType;
 	typedef typename RowType::DataType DataType;
 	using InternalRowType = RowType;
 

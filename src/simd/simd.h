@@ -1564,7 +1564,7 @@ inline uint32x8_t operator~ (const uint32x8_t& lhs) {
 	return uint32x8_t::not_(lhs);
 }
 inline uint32x8_t operator>> (const uint32x8_t& lhs, const uint32_t rhs) {
-	return uint32x8_t::slri(lhs, rhs);
+	return uint32x8_t::srli(lhs, rhs);
 }
 inline uint32x8_t operator<< (const uint32x8_t& lhs, const uint32_t rhs) {
 	return uint32x8_t::slli(lhs, rhs);

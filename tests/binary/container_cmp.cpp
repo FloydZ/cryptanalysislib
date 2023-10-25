@@ -17,7 +17,6 @@ using BinaryContainerTest2 = BinaryContainer<10*n>;
 
 // Allow the tests only for smaller bit length
 #if defined(NNN) && NNN <= 64
-
 TEST(CmpSimple2, Simple_Everything_False) {
 	BinaryContainerTest b1;
 	BinaryContainerTest b2;
@@ -268,8 +267,8 @@ TEST(is_lower_simple2, Simple_Everything_False) {
 
 	b1.zero(); b2.one();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
 			uint64_t limb = 0;
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 
@@ -285,8 +284,8 @@ TEST(is_lower_simple2, Simple_Everything_True) {
 
 	b1.one(); b2.zero();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
 			uint64_t limb = 0;
 			uint64_t mask = BinaryContainerTest::higher_mask(k_lower) & BinaryContainerTest::lower_mask(k_higher);
 
@@ -304,10 +303,10 @@ TEST(is_lower_simple2, Complex_One) {
 	uint64_t mask;
 	b1.zero();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 1; k_higher < b1.size()-1; ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size()-1; ++k_higher) {
 			b2.zero();
-			for (int i = 0; i < k_higher; ++i) {
+			for (uint32_t i = 0; i < k_higher; ++i) {
 				b2[i] = true;
 			}
 
@@ -359,8 +358,8 @@ TEST(is_lower_ext2, Simple_Everything_False) {
 
 	b1.zero(); b2.one();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 65; k_higher < b1.size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 65; k_higher < b1.size(); ++k_higher) {
 			const uint64_t lower = BinaryContainerTest2::round_down_to_limb(k_lower);
 			const uint64_t upper = BinaryContainerTest2::round_down_to_limb(k_higher);
 			const uint64_t lmask = BinaryContainerTest2::higher_mask(k_lower);
@@ -378,8 +377,8 @@ TEST(is_lower_ext2, Simple_Everything_True) {
 
 	b1.one(); b2.zero();
 
-	for (int k_lower  = 0; k_lower < b1.size(); ++k_lower) {
-		for (int k_higher = k_lower + 65; k_higher < b1.size(); ++k_higher) {
+	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
+		for (uint32_t k_higher = k_lower + 65; k_higher < b1.size(); ++k_higher) {
 			const uint64_t lower = BinaryContainerTest2::round_down_to_limb(k_lower);
 			const uint64_t upper = BinaryContainerTest2::round_down_to_limb(k_higher);
 			const uint64_t lmask = BinaryContainerTest2::higher_mask(k_lower);
@@ -398,9 +397,9 @@ TEST(is_lower_ext2, Complex_One) {
 	uint64_t lower, upper, lmask, umask;
 	b1.zero();
 
-	for (int k_lower  = 0; k_lower < BinaryContainerTest2::size(); ++k_lower) {
+	for (uint32_t k_lower  = 0; k_lower < BinaryContainerTest2::size(); ++k_lower) {
 		// + 65 so we always increase the counter the size of a limb
-		for (int k_higher = k_lower + 64; k_higher < BinaryContainerTest2::size()-64; ++k_higher) {
+		for (uint32_t k_higher = k_lower + 64; k_higher < BinaryContainerTest2::size()-64; ++k_higher) {
 			b2.zero();
 			for (int i = 0; i < k_higher; ++i) {
 				b2[i] = true;
@@ -435,7 +434,7 @@ TEST(is_lower_ext2, Complex_One) {
 
 			b1.zero();
 			b2.zero();
-			for (int i = k_higher; i < b2.size(); ++i) {
+			for (uint32_t i = k_higher; i < b2.size(); ++i) {
 				b2[i] = true;
 			}
 

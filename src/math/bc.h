@@ -2,9 +2,10 @@
 
 #include <cstdint>
 #include <cmath>
-#include <assert.h>
+#include <cassert>
 
 #include "helper.h"
+#include "simd/simd.h"
 
 /// NOTE: there is an avx2 version below
 /// NOTE: w/k must be smaller than 5
@@ -168,3 +169,72 @@ inline void biject_avx(__m256i a, __m256i rows[p]) noexcept {
 	ASSERT(false);
 }
 #endif
+
+
+/// TODO erklaeren
+/// \tparam T
+/// \tparam k
+/// \param a
+/// \param n
+/// \return
+template<typename T, const uint32_t k>
+inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
+	static_assert(k < 5, "sorry not implemented");
+	if constexpr(k == 1) {
+		return a;
+	}
+
+	if constexpr (k == 2) {
+		// integer version
+		const uint32x8_t onei = uint32x8_t::set1(1u);
+		const uint32x8_t t1i = uint32x8_t::slli(a, 3u);
+		const uint32x8_t t2i = t1i + onei;
+		const __m256  t2f = _mm256_cvtepi32_ps(t2i.v256);
+		const __m256  t3f = _mm256_sqrt_ps(t2f);
+		uint32x8_t t3i;
+		t3i.v256 =  _mm256_cvtps_epi32(_mm256_floor_ps(t3f));
+		const uint32x8_t t4i = t3i + onei;
+		const uint32x8_t t5i = uint32x8_t::srli(t4i, 1);
+		return t5i;
+	}
+
+	// will never happen
+	ASSERT(false);
+	return uint32x8_t::set1(1);
+}
+
+
+/// TODO erklaeren
+/// \tparam n
+/// \tparam p
+/// \param a
+/// \param rows
+template<const uint32_t n, const uint32_t p>
+inline void biject_simd(uint32x8_t a, uint32x8_t rows[p]) noexcept {
+	static_assert(p < 3, "not implemented");
+
+	const uint32x8_t one = uint32x8_t::set1(1u);
+	uint32x8_t wn =  uint32x8_t::set1(n);
+	if constexpr (p == 1) {
+		rows[0] = opt_max_bc_simd<size_t, 1>(a, wn);
+		return;
+	}
+
+	if constexpr (p == 2) {
+		// w == 2
+		wn = opt_max_bc_simd<size_t, 2>(a, wn);
+
+		// a -= ((wn-1u) *(wn-2u)) >> 1u;
+		uint32x8_t tmp1 = wn - one;
+		uint32x8_t tmp2 = wn * tmp1;
+		tmp2 = tmp2 >> 1;
+		a = a - tmp2;
+		rows[0] = wn;
+
+		//
+		rows[1] = opt_max_bc_simd<size_t, 1>(a, wn);
+		return;
+	}
+
+	ASSERT(false);
+}

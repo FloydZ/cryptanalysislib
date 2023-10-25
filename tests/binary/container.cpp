@@ -917,8 +917,10 @@ TEST(Cmp, Complex_One) {
 				b2[i] = true;
 			}
 
-			if (k_lower > 0)
+			if (k_lower > 0u) {
 				EXPECT_EQ(true, BinaryContainer<n>::cmp(b1, b2, 0, k_lower));
+			}
+
 			EXPECT_EQ(false, BinaryContainer<n>::cmp(b1, b2, k_lower, k_higher));
 			EXPECT_EQ(true, BinaryContainer<n>::cmp(b1, b2, k_higher, b1.size()));
 
@@ -929,8 +931,9 @@ TEST(Cmp, Complex_One) {
 			for (uint32_t i = k_higher; i < b2.size(); ++i) {
 				b2[i] = true;
 			}
-			if (k_lower > 0)
+			if (k_lower > 0) {
 				EXPECT_EQ(true, BinaryContainer<n>::cmp(b1, b2, 0, k_lower));
+			}
 			EXPECT_EQ(true, BinaryContainer<n>::cmp(b1, b2, k_lower, k_higher));
 			EXPECT_EQ(false, BinaryContainer<n>::cmp(b1, b2, k_higher, b1.size()));
 		}
@@ -952,8 +955,9 @@ TEST(Cmp, Complex_Zero) {
 			for (uint32_t i = k_lower; i < k_higher; ++i) {
 				b2[i] = true;
 			}
-			if (k_lower > 0)
+			if (k_lower > 0) {
 				EXPECT_EQ(false, BinaryContainer<n>::cmp(b1, b2, 0, k_lower));
+			}
 
 			EXPECT_EQ(true, BinaryContainer<n>::cmp(b1, b2, k_lower, k_higher));
 			EXPECT_EQ(false, BinaryContainer<n>::cmp(b1, b2, k_higher, b1.size()));
@@ -979,8 +983,9 @@ TEST(Cmp, Special_OffByOne_Lower_Zero) {
 		EXPECT_EQ(1, b1[i]);
 		EXPECT_EQ(false, TestBinaryContainer::cmp(b1, b2, 0, size));
 
-		if (i > 0)
-			EXPECT_EQ(false, TestBinaryContainer::cmp(b1, b2, 0, i+1));
+		if (i > 0) {
+			EXPECT_EQ(false, TestBinaryContainer::cmp(b1, b2, 0, i + 1));
+		}
 
 		for (uint32_t j = i+1; j < size; ++j) {
 			EXPECT_EQ(true, TestBinaryContainer::cmp(b1, b2, j, size));
@@ -1003,8 +1008,9 @@ TEST(Cmp, Special_OffByOne_Lower_One) {
 		EXPECT_EQ(1, b1[i]);
 		EXPECT_EQ(false, TestBinaryContainer::cmp(b1, b2, 0, size));
 
-		if (i > 0)
-			EXPECT_EQ(false, TestBinaryContainer::cmp(b1, b2, 0, i+1));
+		if (i > 0) {
+			EXPECT_EQ(false, TestBinaryContainer::cmp(b1, b2, 0, i + 1));
+		}
 
 		for (uint32_t j = i+1; j < size; ++j) {
 			EXPECT_EQ(false, TestBinaryContainer::cmp(b1, b2, j, size));

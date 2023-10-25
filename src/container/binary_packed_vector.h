@@ -268,7 +268,7 @@ public:
 
 	// seth the whole array to 'fff...fff'
 	void one() noexcept {
-		for (int i = 0; i < limbs(); ++i) {
+		for (uint32_t i = 0; i < limbs(); ++i) {
 			__data[i] = ~(__data[i] & 0);
 		}
 	}
@@ -289,7 +289,7 @@ public:
 		__data[lower] |= minus_one & lmask;
 		__data[upper] |= minus_one & umask;
 
-		for (int i = lower+1; i < upper; ++i) {
+		for (uint32_t i = lower+1; i < upper; ++i) {
 			__data[i] = ~(__data[i] & 0);
 		}
 	}
@@ -1152,7 +1152,7 @@ public:
 		} else {                // the two offsets lay in two different limbs
 			v1.__data[upper] = (v1.__data[upper] & ~rmask) | (v2.__data[upper] & rmask);
 			v1.__data[lower] = (v1.__data[lower] & ~lmask) | (v2.__data[lower] & lmask);
-			for(uint64_t i = upper-1; i > lower; i--) {
+			for(uint64_t i = upper-1ul; i > lower; i--) {
 				v1.data()[i] = v2.data()[i];
 			}
 		}
@@ -1638,6 +1638,9 @@ public:
 
 	__FORCEINLINE__ std::array<LimbType, compute_limbs()>& data() noexcept { return __data; };
 	__FORCEINLINE__ const std::array<LimbType, compute_limbs()>& data() const noexcept { return __data; };
+
+	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
+	__FORCEINLINE__  static constexpr bool optimized() noexcept { return true; };
 
 private:
 	// actual data container.

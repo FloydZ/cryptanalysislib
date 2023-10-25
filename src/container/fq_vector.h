@@ -192,8 +192,8 @@ private:
 
 		__uint128_t c = 0u;
 		for (uint32_t i = 0; i < nr_limbs; i++) {
-			const T a1 = (a >> (nr_bits * i)) & mask;
-			const T b1 = (b >> (nr_bits * i)) & mask;
+			const TT a1 = (a >> (nr_bits * i)) & mask;
+			const TT b1 = (b >> (nr_bits * i)) & mask;
 			c ^= ((a1 + b1) % q) << (nr_bits * i);
 		}
 
@@ -739,6 +739,9 @@ public:
 			__data[i] = data;
 		}
 	}
+
+	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
+	__FORCEINLINE__  static constexpr bool optimized() noexcept { return true; };
 protected:
 	std::array<T, LENGTH> __data;
 };
@@ -1086,6 +1089,9 @@ public:
 						   const kAryContainer_T &in2) noexcept {
 		mul((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
 	}
+
+	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
+	__FORCEINLINE__  static constexpr bool optimized() noexcept { return true; };
 };
 
 
@@ -1389,6 +1395,9 @@ public:
 						   const kAryContainer_T &in2) noexcept {
 		mul((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
 	}
+
+	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
+	__FORCEINLINE__  static constexpr bool optimized() noexcept { return true; };
 };
 
 
@@ -1686,6 +1695,9 @@ public:
 						   const kAryContainer_T &in2) noexcept {
 		mul((T *)out.__data.data(), (const T *)in1.__data.data(), (const T *)in2.__data.data());
 	}
+
+	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
+	__FORCEINLINE__  static constexpr bool optimized() noexcept { return true; };
 };
 
 template<typename T, const uint32_t n, const uint32_t q>

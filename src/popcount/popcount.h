@@ -26,9 +26,12 @@ namespace cryptanalysislib::popcount {
 #endif
 	constexpr inline uint32_t popcount(const T data) noexcept {
 		if constexpr(sizeof(T) < 8) {
-			return __builtin_popcount(data);
+			return __builtin_popcountl(data);
 		} else if constexpr(sizeof(T) == 8) {
 			return  __builtin_popcountll(data);
+		} else if constexpr(sizeof(T) == 16) {
+			return  __builtin_popcountll((uint64_t )data) +
+					__builtin_popcountll(data >> 64u);
 		} else {
 			ASSERT(false);
 		}

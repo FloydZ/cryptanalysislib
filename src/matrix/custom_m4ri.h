@@ -114,6 +114,26 @@ void mzd_row_xor(mzd_t *out,
 	}
 }
 
+/// out[i] ^= in[j]
+void mzd_row_xor(mzd_t *out,
+				 const rci_t i,
+                 mzd_t *in,
+				 const rci_t j) noexcept {
+	ASSERT(out->nrows > i && in->nrows > j);
+	uint32_t l = 0;
+
+	LOOP_UNROLL()
+	for (; l+4 <= uint32_t(out->width); l+=4) {
+		const uint8x32_t x_avx = uint8x32_t::load(out->rows[j] + l);
+		const uint8x32_t y_avx = uint8x32_t::load(in->rows[i] + l);
+		const uint8x32_t z_avx = x_avx ^ y_avx;
+		uint8x32_t::store(out->rows[i] + l, z_avx);
+	}
+
+	for (; l < uint32_t(out->width); ++l) {
+		out->rows[i][l] ^= in->rows[j][l];
+	}
+}
 // Is this really smart?
 // this changes only the pointer not the content
 inline void matrix_swap_rows_new(mzd_t *__restrict__ M,

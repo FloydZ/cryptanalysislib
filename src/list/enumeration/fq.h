@@ -112,7 +112,7 @@ public:
 	/// \param element element to insert
 	/// \param ctr position to insert it (relative to tid)
 	/// \param tid thread inline
-	void insert_list(ListType *L,
+	constexpr inline void insert_list(ListType *L,
 	                 const Element &element,
 	                 const size_t ctr,
 	                 const uint32_t tid) {
@@ -273,7 +273,7 @@ public:
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
 		/// clear stuff, needed if this functions is called multiple times
-		element1.value.zero();
+		element1.zero();
 		if (sL2) { element2.zero(); }
 
 		/// add the syndrome, if needed
@@ -337,7 +337,7 @@ public:
 				check(element1.label, element1.value);
 				if (sL2) check(element2.label, element2.value, false);
 
-				if constexpr (sP) if(std::invoke(*p, element1.label)) return true;
+				if constexpr (sP) { if(std::invoke(*p, element1.label)) { return true; }}
 				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 				if (sL1) insert_list(L1, element1, ctr, tid);
 				if (sL2) insert_list(L2, element2, ctr, tid);
@@ -354,7 +354,7 @@ public:
 			check(element1.label, element1.value);
 			if (sL2) check(element2.label, element2.value, false);
 
-			if constexpr (sP) if(std::invoke(*p, element1.label)) return true;
+			if constexpr (sP) { if(std::invoke(*p, element1.label)) { return true; }}
 			if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 			if (sL1) insert_list(L1, element1, ctr, tid);
 			if (sL2) insert_list(L2, element2, ctr, tid);

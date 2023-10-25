@@ -31,7 +31,7 @@ constexpr static ConfigParallelBucketSort chm1{0, l, l, l, l, 1, 1, n-l, l, 0};
 using LPartType = uint16_t;
 using IndexType = uint16_t;
 
-inline static LPartType DummyHash(uint64_t a) noexcept {
+inline static LPartType DummyHash(__uint128_t a) noexcept {
 	constexpr __uint128_t mask = (1ull << (l)) - 1ull;
 	return a&mask;
 }

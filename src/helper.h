@@ -300,19 +300,29 @@ void*  cryptanalysislib_hugepage_malloc(const size_t size) {
 }
 #endif
 
-// simple version of the complex constexpr loop down below.
-template<std::size_t N> struct num { static const constexpr auto value = N; };
 
-template <class F, std::size_t... Is>
-void constexpr_for(F func, std::index_sequence<Is...>) {
-	using expander = int[];
-	(void)expander{0, ((void)func(num<Is>{}), 0)...};
+/// Usage:
+///		// simple version of the complex constexpr loop down below.
+///		template<std::size_t N> struct num { static const constexpr auto value = N; };
+///
+///		template <class F, std::size_t... Is>
+///		void constexpr_for(F func, std::index_sequence<Is...>) {
+///			using expander = int[];
+///			(void)expander{0, ((void)func(num<Is>{}), 0)...};
+///		}
+///
+///		template <std::size_t N, typename F>
+///		void constexpr_for(F func) {
+///			constexpr_for(func, std::make_index_sequence<N>());
+///		}
+template <auto Start, auto End, auto Inc, class F>
+constexpr void constexpr_for(F&& f) {
+	if constexpr (Start < End) {
+		f(std::integral_constant<decltype(Start), Start>());
+		constexpr_for<Start + Inc, End, Inc>(f);
+	}
 }
 
-template <std::size_t N, typename F>
-void constexpr_for(F func) {
-	constexpr_for(func, std::make_index_sequence<N>());
-}
 
 /// jeah complex meta programming. My approach to have something like a constexpr loop.
 /// \tparam for_start
@@ -426,72 +436,8 @@ private:
 	}
 };
 
-/// Metaprogramming Style of the for-loop:
-///     for (size_t i = 0; i < count-1 ; i++) {
-///         ret r = functor(functor_types);
-///     }
-/// \tparam count: number of loops
-/// \tparam ret : return type of the function
-/// \tparam functor: actual function to execute
-/// \tparam sequence_width
-/// \tparam functor_types
-/// \param functor_args
-/// \return
-template<size_t count, typename ret, typename functor, size_t sequence_width = 70, typename... functor_types>
-inline ret static_for(functor_types&&... functor_args) {
-	return static_for_impl<0, count-1, ret, functor, sequence_width, functor_types...>::
-	loop(std::forward<functor_types>(functor_args)...);
-}
 
-template<size_t start, size_t end, typename functor, size_t sequence_width = 70, typename... functor_types>
-inline void static_for(functor_types&&... functor_args) {
-	static_for_impl<start, end, void, functor, sequence_width, functor_types...>::
-	loop(std::forward<functor_types>(functor_args)...);
-}
-
-template <auto Start, auto End, auto Inc, class F>
-constexpr inline void constexpr_for(F&& f) noexcept {
-	if constexpr (Start < End) {
-		f(std::integral_constant<decltype(Start), Start>());
-		constexpr_for<Start + Inc, End, Inc>(f);
-	}
-}
-
-/// constexpr loop, with passing the current index as template to
-/// the functions
-/// \tparam Start
-/// \tparam End
-/// \tparam Inc
-/// \tparam F
-/// \param f
-/// \return
-template <const uint32_t Start,
-          const uint32_t End,
-          const uint32_t Inc,
-          class F>
-constexpr void constexpr_for_passing_index(F& f) {
-	if constexpr (Start < End) {
-		f.template operator() <Start>() ;
-		constexpr_for<Start + Inc, End, Inc>(f);
-	}
-}
-
-// The same as the C++ templated, but for loops in C
-#define CRYPTANALYSELIB_REPEAT_10(x) x CRYPTANALYSELIB_REPEAT_9(x)
-#define CRYPTANALYSELIB_REPEAT_9(x) x CRYPTANALYSELIB_REPEAT_8(x)
-#define CRYPTANALYSELIB_REPEAT_8(x) x CRYPTANALYSELIB_REPEAT_7(x)
-#define CRYPTANALYSELIB_REPEAT_7(x) x CRYPTANALYSELIB_REPEAT_6(x)
-#define CRYPTANALYSELIB_REPEAT_6(x) x CRYPTANALYSELIB_REPEAT_5(x)
-#define CRYPTANALYSELIB_REPEAT_5(x) x CRYPTANALYSELIB_REPEAT_4(x)
-#define CRYPTANALYSELIB_REPEAT_4(x) x CRYPTANALYSELIB_REPEAT_3(x)
-#define CRYPTANALYSELIB_REPEAT_3(x) x CRYPTANALYSELIB_REPEAT_2(x)
-#define CRYPTANALYSELIB_REPEAT_2(x) x CRYPTANALYSELIB_REPEAT_1(x)
-#define CRYPTANALYSELIB_REPEAT_1(x) x
-#define CRYPTANALYSELIB_REPEAT(x, N) CRYPTANALYSELIB_REPEAT_##N (x)
-
-
-
-///
+/// TODO move to math
 /// \param num
 /// \return
 __device__ __host__
@@ -501,7 +447,7 @@ constexpr int32_t cceil(float num) {
 	       : static_cast<int32_t>(num) + ((num > 0) ? 1 : 0);
 }
 
-///
+/// TODO move to math
 /// \param num
 /// \return
 __device__ __host__
@@ -527,9 +473,7 @@ constexpr inline uint64_t bc(const uint64_t nn,
 			(bc(nn - 1, kk) * nn) / (nn - kk);      //  path to k=n-1 is faster
 }
 
-/// Sumer over all binomial coefficients nn over i, with i <= kk
-/// \param nn
-/// \param kk
+/// Sums:over all binomial coefficients nn over i, with i <= kk
 /// \return \sum n over i
 constexpr uint64_t sum_bc(const uint64_t nn,
                           const uint64_t kk) noexcept {
