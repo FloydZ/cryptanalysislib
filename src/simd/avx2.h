@@ -420,7 +420,7 @@ struct uint8x32_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t slri(const uint8x32_t in1,
+	[[nodiscard]] constexpr static inline uint8x32_t srli(const uint8x32_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		const uint8x32_t mask1 = set1(((1u << (8u - in2)) - 1u) << in2);
@@ -696,7 +696,7 @@ struct uint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t slri(const uint16x16_t in1,
+	[[nodiscard]] constexpr static inline uint16x16_t srli(const uint16x16_t in1,
 	                                                       const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		const uint16x16_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
@@ -1367,7 +1367,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t slri(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t srli(const uint64x4_t in1,
 	                                            const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		const uint64x4_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
