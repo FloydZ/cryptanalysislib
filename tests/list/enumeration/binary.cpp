@@ -14,7 +14,7 @@ using ::testing::Test;
 
 constexpr uint32_t n = 20;
 constexpr uint32_t l = 10;
-constexpr uint32_t q = 4;
+constexpr uint32_t q = 2;
 constexpr uint32_t w = 1;
 
 constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();

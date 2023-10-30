@@ -31,7 +31,7 @@ stdenv.mkDerivation {
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
 	flamegraph
 	gdb
-    linuxKernel.packages.linux_6_4.perf
+    linuxKernel.packages.linux_6_5.perf
 	pprof
 	valgrind
 	massif-visualizer

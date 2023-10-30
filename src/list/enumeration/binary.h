@@ -1,5 +1,5 @@
-#ifndef CRYPTANALYSISLIB_FQ_ENUMERATION_H
-#define CRYPTANALYSISLIB_FQ_ENUMERATION_H
+#ifndef CRYPTANALYSISLIB_BINARY_ENUMERATION_H
+#define CRYPTANALYSISLIB_BINARY_ENUMERATION_H
 
 
 #include <cstddef>     	// needed for std::nullptr_t
@@ -12,20 +12,16 @@
 
 #include "combination/chase.h"
 
-///
 /// \tparam ListType BaseList Type
 /// \tparam n length to enumerate
-/// \tparam q field size. q-1 is the max value to enumerate
 /// \tparam w weight to enumerate
-/// 		if w == 2: only a chase sequence will enumerated
 template<class ListType,
 		const uint32_t n,
-		const uint32_t q,
 		const uint32_t w>
 #if __cplusplus > 201709L
 	requires ListAble<ListType>
 #endif
-class ListEnumeration_Meta {
+class BinaryListEnumeration_Meta {
 public:
 	/// needed typedef
 	typedef ListType List;
@@ -381,4 +377,4 @@ public:
 	}
 };
 
-#endif//CRYPTANALYSISLIB_FQ_ENUMERATION_H
+#endif//CRYPTANALYSISLIB_BINARY_ENUMERATION_H
