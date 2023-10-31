@@ -1034,18 +1034,31 @@ public:
 	}
 };
 
-///
-/// \tparam T
-/// \param a
-/// \param len
+/// \tparam T base type
+/// \param a number to print
+/// \param len number of bits to print
 template<typename T>
-static void print_binary(T a, const size_t len = sizeof(T)*8) {
+static void print_binary(T a, const size_t len = sizeof(T)*8, const char* end = "\n") {
 	for (uint32_t i = 0; i < len; i++) {
 		printf("%" PRIu64, a & 1ul);
 		a >>= 1;
 	}
 
-	printf("\n");
+	printf("%s", end);
 }
 
+/// \tparam T base type
+/// \param a number to print
+/// \param len number of bits to print
+template<typename T>
+static void print_binary(T *a, const size_t len) {
+	constexpr uint32_t bits = sizeof(T) * 8;
+	const uint32_t limbs = (len+bits-1) / bits;
+
+	for (uint32_t i = 0; i < limbs-1u; ++i) {
+		print_binary<T>(a[i], bits, "");
+	}
+
+	print_binary<T>(a[limbs - 1u], len%bits);
+}
 #endif //SMALLSECRETLWE_HELPER_H

@@ -1,188 +1,23 @@
 #ifndef CRYPTANALYSISLIB_FQ_ENUMERATION_H
 #define CRYPTANALYSISLIB_FQ_ENUMERATION_H
 
+#ifndef CRYPTANALYSISLIB_LIST_ENUMERATION_H
+#error "dont use include <list/enumeration/fq.h>, use include <list/enumeration/enumeration.h> instead"
+#endif
 
-#include <cstddef>     	// needed for std::nullptr_t
-#include <functional>	// needed for std::invoke
 
-#include "helper.h"
-#include "list/common.h"
 #include "list/enumeration/enumeration.h"
-#include "container/hashmap/common.h"
-
 #include "combination/chase.h"
 
-///
-/// \tparam ListType BaseList Type
-/// \tparam n length to enumerate
-/// \tparam q field size. q-1 is the max value to enumerate
-/// \tparam w weight to enumerate
-/// 		if w == 2: only a chase sequence will enumerated
-template<class ListType,
-		const uint32_t n,
-		const uint32_t q,
-		const uint32_t w>
-#if __cplusplus > 201709L
-	requires ListAble<ListType>
-#endif
-class ListEnumeration_Meta {
-public:
-	/// needed typedef
-	typedef ListType List;
-	typedef typename ListType::ElementType Element;
-	typedef typename ListType::ValueType Value;
-	typedef typename ListType::LabelType Label;
-	typedef typename ListType::MatrixType Matrix;
 
-	/// needed variables
-	// this generates a grey code sequence, e.g. a sequence in which
-	// two consecutive elements only differ in a single position
-	Combinations_Fq_Chase<n, q, w> chase = Combinations_Fq_Chase<n, q, w>{};
-	constexpr static size_t chase_size = Combinations_Fq_Chase<n, q, w>::chase_size;
-	constexpr static size_t gray_size  = Combinations_Fq_Chase<n, q, w>::gray_size;
-
-	/// this can be used to specify the size of the input list
-	/// e.g. its the maximum number of elements this class enumerates
-	constexpr static size_t LIST_SIZE  = Combinations_Fq_Chase<n, q, w>::LIST_SIZE;
-
-	// this can be se to something else as `LIST_SIZE`, if one wants to only
-	// enumerate a part of the sequence
-	const size_t list_size = 0;
-
-	// change list for the chase sequence
-	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(chase_size);
-	// change list for the gray code sequence
-	std::vector<uint16_t> gray_cl = std::vector<uint16_t>(gray_size);
-
-	// the transposed matrix
-	const Matrix &HT;
-
-	/// can be optionally passed:
-	// the syndrome, if given, will be added into the sequence at the beginning
-	const Label *syndrome = nullptr;
-
-	/// NOTE: these elements must be public available as we need them to 
-	/// recover the full solution.
-	Element element1, element2;
-
-	/// needed for reconstruction
-	constexpr Element& get_first() noexcept { return element1; }
-	constexpr Element& get_second() noexcept { return element2; }
-
-	/// checks for the correctness of the computed label.
-	/// e.g. it checks it l == HT*e
-	/// \param l computed label
-	/// \param e error vector resulting in the label
-	/// \return true/false
-	bool check(const Label &label, const Value &error, bool add_syndrome=true) noexcept {
-#ifdef DEBUG
-	  	/// TEST for correctness
-		auto H = HT.transpose();
-		Label tmpl;
-
-		H.matrix_row_vector_mul2(tmpl, error);
-		if (syndrome != nullptr && add_syndrome) {
-			Label::add(tmpl, tmpl, *syndrome);
-		}
-
-		if (!tmpl.is_equal(label)) {
-			std::cout << std::endl << "ERROR: (SHOULD, IS)" << std::endl;
-			tmpl.print();
-			label.print();
-			std::cout <<std::endl;
-			error.print();
-			std::cout <<std::endl;
-			HT.print();
-		}
-
-		ASSERT(tmpl.is_equal(label));
-
-		uint32_t tmp_vec_ctr = error.weight();
-		if (tmp_vec_ctr != w) {
-			error.print();
-		}
-		ASSERT(tmp_vec_ctr == w);
-#endif
-		return true;
-	}
-
-
-	/// abstract insertion handler for list
-	/// \param L base list to insert to
-	/// \param element element to insert
-	/// \param ctr position to insert it (relative to tid)
-	/// \param tid thread inline
-	constexpr inline void insert_list(ListType *L,
-	                 const Element &element,
-	                 const size_t ctr,
-	                 const uint32_t tid) {
-		// nothing to inset
-		if (L == nullptr) {
-			return;
-		}
-
-		L->insert(element, ctr, tid);
-	}
-
-	/// abstract insertion handler fo hashmap
-	/// \tparam HashMap
-	/// \tparam Extractor
-	/// \param hm
-	/// \param e
-	template<class HashMap, typename Extractor>
-#if __cplusplus > 201709L
-	requires (std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-			 (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
-#endif
-	void insert_hashmap(HashMap *hm,
-	                    Extractor *e,
-	                    const Element &element,
-	                    const size_t ctr,
-	                    const uint32_t tid) {
-		if constexpr (! std::is_same_v<std::nullptr_t , HashMap>) {
-			// nothing to inset
-			if (hm == nullptr) {
-				return;
-			}
-
-			using IndexType = typename HashMap::IndexType;
-			using LPartType = typename HashMap::T;
-			IndexType npos[1];
-			npos[0] = ctr;
-
-			const LPartType data = std::invoke(*e, element.label);
-			hm->insert(data, npos, tid);
-		}
-	}
-
-	///
-	/// \param HT
-	/// \param list_size
-	/// \param syndrome
-	ListEnumeration_Meta(const Matrix &HT,
-	                     const size_t list_size=0,
-	                     const Label *syndrome= nullptr) :
-	    HT(HT), syndrome(syndrome), list_size((list_size==size_t(0)) ? LIST_SIZE : list_size)  {
-		/// some sanity checks
-		/// NOTE: its allowed to call this class with `w=0`, which is needed for Prange
-		static_assert(n > w);
-		static_assert(q > 1);
-		static_assert(n <= Value::LENGTH);
-
-		static_assert(chase_size >= 0);
-		static_assert(gray_size > 0);
-		ASSERT(LIST_SIZE >= list_size);
-
-		if constexpr (q>2) chase.changelist_mixed_radix_grey(gray_cl.data());
-		chase.changelist_chase(chase_cl.data());
-	}
-};
-
-/// TODO describe whats enumerated
+/// This class enumerates each element of length `n`.
+/// Enumerating means:
+/// 	a chase sequence is enumerated to select `w` out of `n` positions
+/// 	on those `w` positions a grey code is used to enumerate all q-1 symbols
 /// \tparam ListType
-/// \tparam n
-/// \tparam q
-/// \tparam w
+/// \tparam n length to enumerate
+/// \tparam q field size, e.g. enumeration symbols = {0, ..., q-1}
+/// \tparam w weight to enumerate
 template<class ListType,
 		 const uint32_t n,
 		 const uint32_t q,
@@ -207,13 +42,26 @@ public:
 	using ListEnumeration_Meta<ListType, n, q, w>::element2;
 	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
 	using ListEnumeration_Meta<ListType, n, q, w>::HT;
-	using ListEnumeration_Meta<ListType, n, q, w>::chase_size;
-	using ListEnumeration_Meta<ListType, n, q, w>::gray_size;
-	using ListEnumeration_Meta<ListType, n, q, w>::gray_cl;
-	using ListEnumeration_Meta<ListType, n, q, w>::chase_cl;
-	using ListEnumeration_Meta<ListType, n, q, w>::list_size;
-	using ListEnumeration_Meta<ListType, n, q, w>::LIST_SIZE;
 
+	/// needed variables
+	// this generates a grey code sequence, e.g. a sequence in which
+	// two consecutive elements only differ in a single position
+	Combinations_Fq_Chase<n, q, w> chase = Combinations_Fq_Chase<n, q, w>{};
+	constexpr static size_t chase_size = Combinations_Fq_Chase<n, q, w>::chase_size;
+	constexpr static size_t gray_size  = Combinations_Fq_Chase<n, q, w>::gray_size;
+
+	/// this can be used to specify the size of the input list
+	/// e.g. its the maximum number of elements this class enumerates
+	constexpr static size_t LIST_SIZE  = Combinations_Fq_Chase<n, q, w>::LIST_SIZE;
+
+	// this can be se to something else as `LIST_SIZE`, if one wants to only
+	// enumerate a part of the sequence
+	const size_t list_size = 0;
+
+	// change list for the chase sequence
+	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(chase_size);
+	// change list for the gray code sequence
+	std::vector<uint16_t> gray_cl = std::vector<uint16_t>(gray_size);
 
 	/// empty constructor
 	/// \param HT transposed parity check matrix
@@ -223,7 +71,15 @@ public:
 	ListEnumerateMultiFullLength(const Matrix &HT,
 	                             const size_t list_size=0,
 	                             const Label *syndrome= nullptr) :
-	    ListEnumeration_Meta<ListType, n, q, w>(HT, list_size, syndrome) {
+	    		ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+	            list_size((list_size==size_t(0)) ? LIST_SIZE : list_size) {
+
+		static_assert(chase_size >= 0);
+		static_assert(gray_size > 0);
+		ASSERT(LIST_SIZE >= list_size);
+
+		if constexpr (q>2) chase.changelist_mixed_radix_grey(gray_cl.data());
+		chase.template changelist_chase<false>(chase_cl.data());
 	}
 
 	///
@@ -273,6 +129,7 @@ public:
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
 		/// clear stuff, needed if this functions is called multiple times
+		/// e.g. in every ISD algorithm
 		element1.zero();
 		if (sL2) { element2.zero(); }
 
@@ -315,13 +172,14 @@ public:
 		  }
 		};
 
-		auto chase_step = [&current_set, this](Element &element,
+		auto chase_step = [this](Element &element,
 				const uint32_t a,
 				const uint32_t b,
 				const uint32_t off) {
 		  /// make really sure that the the chase
 		  /// sequence is correct.
 		  ASSERT(element.value[a + off]);
+		  ASSERT(std::abs((int)a - (int)b) <= (int)w);
 
 		  Label tmp;
 		  Label::scalar(tmp, HT.get(a + off), (q-element.value[a + off]) % q);
@@ -365,11 +223,11 @@ public:
 			}
 
 			/// advance the current set by one
-			const uint32_t j = chase_cl[i].first;
-			ASSERT(j < w);
-			const uint32_t a = current_set[j];
+			const uint32_t a = chase_cl[i].first;
 			const uint32_t b = chase_cl[i].second;
-			current_set[j] = b;
+			for (uint32_t j = 0; j < w; ++j) {
+				if (current_set[j] == a) {current_set[j] = b;}
+			}
 
 			chase_step(element1, a, b, 0);
 			if(sL2) chase_step(element2, a, b, offset);

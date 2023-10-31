@@ -1526,7 +1526,7 @@ public:
 
 		if constexpr(nrt == 1){
 			memset(__buckets.data(), -1, nrb * size_b * sizeof(BucketEntry));
-			// std::fill(__buckets.begin(), __buckets.end(), -1);
+			//std::fill(__buckets.begin(), __buckets.end(), InternalPair(-1, -1));
 		}
 	}
 

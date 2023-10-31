@@ -2,7 +2,7 @@
 #define DECODING_LIST_H
 
 #include "list/common.h"
-#include "list/enumeration/fq.h"
+#include "list/enumeration/enumeration.h"
 #include "list/parallel.h"
 #include "list/parallel_full.h"
 #include "list/parallel_index.h"

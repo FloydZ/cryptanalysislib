@@ -62,7 +62,10 @@ public:
 	/// generates random coordinates
 	/// \param k_lower lower coordinate to start from
 	/// \param k_higher higher coordinate to stop. Not included.
-	void random(uint32_t k_lower=0, uint32_t k_higher=LENGTH) noexcept {
+	void random(const uint32_t k_lower=0, const uint32_t k_higher=LENGTH) noexcept {
+		ASSERT(k_lower < k_higher);
+		ASSERT(k_higher <= LENGTH);
+
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; i++){
 			__data[i] = fastrandombytes_uint64() % q;
@@ -71,10 +74,15 @@ public:
 
 	/// checks if every dimension is zero
 	/// \return true/false
-	[[nodiscard]] constexpr bool is_zero() const noexcept {
-		for (uint32_t i = 0; i < LENGTH; ++i) {
-			if(__data[i] != T(0))
+	[[nodiscard]] constexpr bool is_zero(const uint32_t k_lower=0, const uint32_t k_higher=LENGTH) const noexcept {
+		ASSERT(k_lower < k_higher);
+		ASSERT(k_higher <= LENGTH);
+
+		LOOP_UNROLL();
+		for (uint32_t i = k_lower; i < k_higher; ++i) {
+			if(__data[i] != T(0)) {
 				return false;
+			}
 		}
 
 		return true;

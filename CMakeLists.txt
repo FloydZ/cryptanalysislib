@@ -105,7 +105,7 @@ if("avx512f" IN_LIST _available_vector_units_list)
     set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
 endif()
 
-set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic  -DDEBUG -march=native ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+    set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic  -DDEBUG -march=native -fconcepts-diagnostics-depth=10  ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 

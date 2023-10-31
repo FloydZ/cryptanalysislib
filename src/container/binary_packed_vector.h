@@ -370,10 +370,13 @@ public:
 		}
 	}
 
-	bool is_zero() const noexcept {
+	[[nodiscard]] constexpr bool is_zero(const uint32_t lower=0,
+	                                     const uint32_t upper=LENGTH) const noexcept {
+		/// TODO
 		for (uint32_t i = 0; i < limbs(); ++i) {
-			if(__data[i] != 0)
+			if(__data[i] != 0) {
 				return false;
+			}
 		}
 
 		return true;
@@ -1170,7 +1173,9 @@ public:
 	/// checks whether this == obj on the interval [k_lower, ..., k_upper]
 	/// the level of the calling 'list' object.
 	/// \return
-	inline bool is_equal(const BinaryContainer &obj, const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	inline bool is_equal(const BinaryContainer &obj,
+	                     const uint32_t k_lower=0,
+	                     const uint32_t k_upper=LENGTH) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
@@ -1221,7 +1226,9 @@ public:
 
 	/// implements a strict comparison. Call this function if you dont know what to call. Its the most generic implementaion
 	/// and it works for all input.s
-	inline bool is_greater(BinaryContainer const &obj, const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	inline bool is_greater(BinaryContainer const &obj,
+	                       const uint32_t k_lower=0,
+	                       const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 		int64_t lower = round_down_to_limb(k_lower);
 		int64_t upper = round_down_to_limb(k_upper-1);
@@ -1289,7 +1296,9 @@ public:
 
 	/// main comparison function for the < operator. If you dont know what function to use, use this one. Its the most generic
 	/// implementation and works for all inputs.
-	inline bool is_lower(BinaryContainer const &obj, const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	inline bool is_lower(BinaryContainer const &obj,
+	                     const uint32_t k_lower=0,
+	                     const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 		int64_t lower = round_down_to_limb(k_lower);
 		int64_t upper = round_down_to_limb(k_upper-1);
