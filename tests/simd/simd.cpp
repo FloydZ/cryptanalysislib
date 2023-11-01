@@ -153,7 +153,7 @@ TEST(uint8x32_t, logic) {
 TEST(uint8x32_t, slri) {
 	for (uint8_t j = 0; j < 8; j++) {
 		const uint8x32_t t1 = uint8x32_t::set1(1u << j);
-		const uint8x32_t t2 = uint8x32_t::slri(t1, j);
+		const uint8x32_t t2 = uint8x32_t::srli(t1, j);
 		for (uint32_t i = 0; i < 32; ++i) {
 			EXPECT_EQ(t2.v8[i], 1);
 		}
@@ -161,7 +161,7 @@ TEST(uint8x32_t, slri) {
 
 	/// special case for j = 8
 	const uint8x32_t t1 = uint8x32_t::set1((1u << 7u) - 1u);
-	const uint8x32_t t2 = uint8x32_t::slri(t1, 8);
+	const uint8x32_t t2 = uint8x32_t::srli(t1, 8);
 	for (uint32_t i = 0; i < 32; ++i) {
 		EXPECT_EQ(t2.v8[i], 0);
 	}
