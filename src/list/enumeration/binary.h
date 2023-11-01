@@ -148,9 +148,7 @@ public:
 		  /// sequence is correct.
 		  ASSERT(element.value[a + off]);
 
-		  Label tmp;
-		  Label::scalar(tmp, HT.get(a + off), (q-element.value[a + off]) % q);
-		  Label::add(element.label, element.label, tmp);
+		  Label::add(element.label, element.label, HT.get(a + off));
 		  Label::add(element.label, element.label, HT.get(b + off));
 		  element.value.set(0, off + a);
 		  element.value.set(1, off + b);

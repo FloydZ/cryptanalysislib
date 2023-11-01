@@ -127,11 +127,6 @@ public:
 									  const Element &element,
 									  const size_t ctr,
 									  const uint32_t tid=0) {
-		// nothing to inset
-		if (L == nullptr) {
-			return;
-		}
-
 		L->insert(element, ctr, tid);
 	}
 

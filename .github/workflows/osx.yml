@@ -145,7 +145,6 @@ jobs:
     - name: Bench
       run: cd build && 
         ./bench/combinations/bench_b63_combinations_binary            -j  | tee benchmark_bench_b63_combinations_binary.json            &&
-        ./bench/combinations/bench_b63_combinations_ternary           -j  | tee benchmark_bench_b63_combinations_ternary.json           &&
         
         ./bench/container/bench_b63_container_get_bits                -j  | tee benchmark_bench_b63_container_get_bits.json             &&
         ./bench/container/bench_b63_container_kAryPackedContainer     -j  | tee benchmark_bench_b63_container_kAryPackedContainer.json  &&

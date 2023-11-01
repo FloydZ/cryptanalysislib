@@ -27,7 +27,7 @@ constexpr size_t compute_combinations_fq_chase_list_size() {
 	}
 
 	// just make sure that we do not return zero.
-	return std::max(size, size_t(1ull)) * (bc(n, w) - 1);
+	return std::max(size-1ul, size_t(1ul)) * (bc(n, w));
 }
 
 /// \tparam T base limb type of the input array.
@@ -91,7 +91,7 @@ class Combinations_Binary_Chase {
 
 public:
 	/// max length of the sequence
-	constexpr static size_t chase_size = bc(n, w) - 1;
+	constexpr static size_t chase_size = bc(n, w);
 
 	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
 	constexpr static inline void WRITE_BIT(T *v, const size_t i, const uint64_t b) noexcept {
@@ -164,13 +164,13 @@ public:
 	/// \param ret input/output array containing ``
 	/// \return nothing
 	template<bool write=true>
-	constexpr void changelist(std::pair<uint16_t,uint16_t> *ret, const size_t listsize) {
+	constexpr void changelist(std::pair<uint16_t,uint16_t> *ret, const size_t listsize=0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
 
 		left_step<write>(NULL, &ret[0].first, &ret[0].second);
 		for (uint32_t i = 0; i < size; ++i) {
 			bool c = left_step<write>(nullptr, &ret[i].first, &ret[i].second);
-			ASSERT(c == true);
+			ASSERT(c == (i != size-1u));
 			ASSERT(ret[i].first < n);
 			ASSERT(ret[i].second < n);
 		}
@@ -239,7 +239,7 @@ class Combinations_Fq_Chase {
 		}
 
 		// just make sure that we do not return zero.
-		return std::max(sum, uint64_t(1ull));
+		return std::max(sum - 1ul, uint64_t(1ul));
 	}
 
 
@@ -254,7 +254,7 @@ class Combinations_Fq_Chase {
 	Combinations_Binary_Chase<uint64_t , n, w> chase;
 
 public:
-	constexpr static size_t chase_size = bc(n, w) - 1;
+	constexpr static size_t chase_size = bc(n, w);
 	constexpr static size_t gray_size = compute_gray_size();
 
 	constexpr static size_t LIST_SIZE = chase_size * gray_size;
@@ -272,8 +272,9 @@ public:
 			j = f[0];
 			f[0] = 0;
 			ret[ctr++] = j;
-			if (j == w)
+			if (j == w) {
 				return 0;
+			}
 
 			a[j] = (a[j] + 1) % (qm1);
 
@@ -291,7 +292,7 @@ public:
 	/// \return nothing
 	template<bool write=true>
 	constexpr void changelist_chase(std::pair<uint16_t,uint16_t> *ret) {
-		chase.changelist(ret);
+		chase.template changelist<write>(ret);
 	}
 
 	///
