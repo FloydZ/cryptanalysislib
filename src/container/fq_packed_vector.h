@@ -10,7 +10,6 @@
 #include "random.h"
 #include "popcount/popcount.h"
 #include "simd/simd.h"
-#include "container/binary_packed_vector.h"
 
 #if defined(USE_AVX2)
 #include <immintrin.h>

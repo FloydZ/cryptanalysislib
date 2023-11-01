@@ -1,5 +1,5 @@
-#ifndef SMALLSECRETLWE_HELPER_H
-#define SMALLSECRETLWE_HELPER_H
+#ifndef CRYPTANALYSISLIB_HELPER_H
+#define CRYPTANALYSISLIB_HELPER_H
 
 // should be passed via gcc/clang command line
 // currently activated for syntax highlighting

@@ -30,8 +30,8 @@ TEST(BinaryMatrix, random) {
 	m.random();
 
 	bool atleast_one_not_zero = false;
-	for (int i = 0; i < nrows; ++i) {
-		for (int j = 0; j < ncols; ++j) {
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
 			if (m.get(i, j) > 0) {
 				atleast_one_not_zero = true;
 				goto finish;

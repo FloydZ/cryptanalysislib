@@ -1,5 +1,5 @@
-#ifndef SMALLSECRETLWE_CONTAINER_H
-#define SMALLSECRETLWE_CONTAINER_H
+#ifndef CRYPTANALYSISLIB_BINARYPACKEDCONTAINER_H
+#define CRYPTANALYSISLIB_BINARYPACKEDCONTAINER_H
 
 #include <array>
 #include <cstdint>
@@ -14,9 +14,10 @@
 #include "popcount/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
+#include "matrix/binary_matrix.h"
 
-// external includes
-#include "m4ri/m4ri.h"
+using namespace cryptanalysislib::internal::matrix;
+
 
 // TODO C++ 20 comparsion operator
 // C macro for implementing multi limb comparison.
@@ -59,11 +60,13 @@ public:
 
 	// Internal Types needed for the template system.
 	typedef LimbType ContainerLimbType;
+	typedef LimbType T;
 	typedef BinaryContainer<length, LimbType> ContainerType;
 	typedef bool DataType;
 
 	// internal data length. Need to export it for the template system.
 	constexpr static uint32_t LENGTH = length;
+	constexpr static uint32_t RADIX = sizeof(LimbType) * 8;
 	constexpr static LimbType minus_one = LimbType(-1);
 private:
 	constexpr static uint64_t popcount(LimbType x) noexcept {
@@ -219,9 +222,8 @@ public:
 		}
 	}
 
-	inline constexpr void write_bit(const uint16_t pos, const uint8_t bit) noexcept {
-#define __WRITE_BIT(w, spot, value) ((w) = (((w) & ~(m4ri_one << (spot))) | (__M4RI_CONVERT_TO_WORD(value) << (spot))))
-		__WRITE_BIT(__data[pos/m4ri_radix], pos%m4ri_radix, bit);
+	constexpr inline void write_bit(const uint16_t pos, const bool b) noexcept {
+		__data[pos/RADIX] = ((__data[pos/RADIX] & ~(1ull << (pos%RADIX))) | (T(b) << (pos%RADIX)));
 	}
 
 	inline constexpr void set_bit(const uint16_t pos) noexcept {
@@ -396,23 +398,25 @@ public:
 
 	// M4RI (method Of The 4 Russians) glue code.
 	// export/import function
-	word* to_m4ri(word *a) const noexcept {
+	uint64_t* to_m4ri(uint64_t *a) const noexcept {
 		a = __data.data();
 		return a;
 	}
-	void column_from_m4ri(const mzd_t *H, const uint32_t col) noexcept {
-		ASSERT(uint64_t(H->ncols) > uint64_t(col));
-		for (int i = 0; i < H->nrows; ++i) {
-			write_bit(i, mzd_read_bit(H, i, col));
-		}
-	}
-	void column_from_m4ri(const mzd_t *H, const uint32_t col, const uint32_t srow) noexcept {
-		ASSERT(uint64_t(H->ncols) > uint64_t(col));
-		for (int i = srow; i < H->nrows; ++i) {
-			write_bit(i-srow, mzd_read_bit(H, i, col));
-		}
-	}
-	void from_m4ri(const word *a) noexcept {
+
+	// TODO
+	//void column_from_m4ri(const mzd_t *H, const uint32_t col) noexcept {
+	//	ASSERT(uint64_t(H->ncols) > uint64_t(col));
+	//	for (int i = 0; i < H->nrows; ++i) {
+	//		write_bit(i, mzd_read_bit(H, i, col));
+	//	}
+	//}
+	//void column_from_m4ri(const mzd_t *H, const uint32_t col, const uint32_t srow) noexcept {
+	//	ASSERT(uint64_t(H->ncols) > uint64_t(col));
+	//	for (int i = srow; i < H->nrows; ++i) {
+	//		write_bit(i-srow, mzd_read_bit(H, i, col));
+	//	}
+	//}
+	void from_m4ri(const uint64_t *a) noexcept {
 		for (uint32_t i = 0; i < limbs(); ++i) {
 			__data[i] = a[i];
 		}

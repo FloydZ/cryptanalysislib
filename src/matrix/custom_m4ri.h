@@ -1,8 +1,6 @@
 #ifndef SMALLSECRETLWE_CUSTOM_MATRIX_H
 #define SMALLSECRETLWE_CUSTOM_MATRIX_H
 
-#include "m4ri/m4ri.h"
-#include "m4ri/mzd.h"
 #include "helper.h"
 #include "random.h"
 #include "simd/simd.h"
@@ -47,93 +45,10 @@ uint32_t hamming_weight_column(mzd_t *ptr, const uint32_t col) {
 }
 
 
-/// additional overlay over the `mpz_t` class for the following two reasons:
-/// 	- row size is chosen as an multiple of 256 for SIMD operations
-/// 	- custom row operations
-struct customMatrixData {
-	uint32_t **rev;
-	uint32_t **diff;
-
-	// Unpadded number of columns
-	uint32_t real_nr_cols;
-
-	uint32_t working_nr_cols;
-
-	alignas(64) uint64_t *lookup_table;
-};
 
 
-/// implementation taken from gray_code.c
-/// chooses the optimal `r` for the method of the 4 russians
-/// a = #rows, b = #cols
-constexpr int matrix_opt_k(const int a, const int b) noexcept {
-	return  std::min(__M4RI_MAXKAY, std::max(1, (int)(0.75 * (1 + const_log(std::min(a, b))))));
-}
 
-/// z = x^y;
-/// nn = number of bytes*32 = number of uint256
-inline void xor_avx1_new(const uint8_t *__restrict__ x,
-                         const uint8_t *__restrict__ y,
-                         uint8_t *__restrict__ z,
-                         unsigned nn) noexcept {
-#ifdef USE_AVX2_SPECIAL_ALIGNMENT
-	constexpr bool special_alignment = true;
-#else
-	constexpr bool special_alignment = false;
-#endif
 
-	LOOP_UNROLL()
-	for (uint32_t i = 0; i < nn; i += 1) {
-		const uint8x32_t x_avx = uint8x32_t::template load<special_alignment>(x + 32*i);
-		const uint8x32_t y_avx = uint8x32_t::template load<special_alignment>(y + 32*i);
-		const uint8x32_t z_avx = x_avx ^ y_avx;
-		uint8x32_t::template store<special_alignment>(z + 32*i, z_avx);
-	}
-}
-
-/// row: i ^= j
-/// \param out input/output matrix
-/// \param i input/output row
-/// \param j input row
-void mzd_row_xor(mzd_t *out,
-                 const rci_t i,
-                 const rci_t j) noexcept {
-	ASSERT(out->nrows > i && out->nrows > j);
-	uint32_t l = 0;
-
-	LOOP_UNROLL()
-	for (; l+4 <= uint32_t(out->width); l+=4) {
-		const uint8x32_t x_avx = uint8x32_t::load(out->rows[j] + l);
-		const uint8x32_t y_avx = uint8x32_t::load(out->rows[i] + l);
-		const uint8x32_t z_avx = x_avx ^ y_avx;
-		uint8x32_t::store(out->rows[i] + l, z_avx);
-	}
-
-	for (; l < uint32_t(out->width); ++l) {
-		out->rows[i][l] ^= out->rows[j][l];
-	}
-}
-
-/// out[i] ^= in[j]
-void mzd_row_xor(mzd_t *out,
-				 const rci_t i,
-                 mzd_t *in,
-				 const rci_t j) noexcept {
-	ASSERT(out->nrows > i && in->nrows > j);
-	uint32_t l = 0;
-
-	LOOP_UNROLL()
-	for (; l+4 <= uint32_t(out->width); l+=4) {
-		const uint8x32_t x_avx = uint8x32_t::load(out->rows[j] + l);
-		const uint8x32_t y_avx = uint8x32_t::load(in->rows[i] + l);
-		const uint8x32_t z_avx = x_avx ^ y_avx;
-		uint8x32_t::store(out->rows[i] + l, z_avx);
-	}
-
-	for (; l < uint32_t(out->width); ++l) {
-		out->rows[i][l] ^= in->rows[j][l];
-	}
-}
 // Is this really smart?
 // this changes only the pointer not the content
 inline void matrix_swap_rows_new(mzd_t *__restrict__ M,
@@ -157,8 +72,8 @@ void mzd_append(mzd_t *__restrict__ out_matrix,
 	assert(out_matrix->nrows - (int)start_r == in_matrix->nrows);
 
 	// NOTE: don't change the type
-	for (int row = 0; row < in_matrix->nrows; ++row) {
-		for (int col = 0; col < in_matrix->ncols; ++col) {
+	for (uint32_t row = 0; row < in_matrix->nrows; ++row) {
+		for (uint32_t col = 0; col < in_matrix->ncols; ++col) {
 			auto bit = mzd_read_bit(in_matrix, row, col);
 			mzd_write_bit(out_matrix, row + (int)start_r, col + (int)start_c, bit);
 		}
@@ -167,33 +82,7 @@ void mzd_append(mzd_t *__restrict__ out_matrix,
 
 
 
-mzd_t *matrix_transpose(mzd_t *DST, mzd_t const *A) noexcept {
-	if (DST == nullptr) {
-		DST = mzd_init(A->ncols, A->nrows);
-	} else if (__M4RI_UNLIKELY(DST->nrows < A->ncols || DST->ncols < A->nrows)) {
-		m4ri_die("mzd_transpose: Wrong size for return matrix.\n");
-	} else {
-		/** it seems this is taken care of in the subroutines, re-enable if running into problems **/
-		// mzd_set_ui(DST,0);
-	}
 
-	if (A->nrows == 0 || A->ncols == 0) return mzd_copy(DST, A);
-
-	if (__M4RI_LIKELY(!mzd_is_windowed(DST) && !mzd_is_windowed(A)))
-		return _mzd_transpose(DST, A);
-	int A_windowed = mzd_is_windowed(A);
-	if (A_windowed) A = mzd_copy(nullptr, A);
-	if (__M4RI_LIKELY(!mzd_is_windowed(DST)))
-		_mzd_transpose(DST, A);
-	else {
-		mzd_t *D = mzd_init(DST->nrows, DST->ncols);
-		_mzd_transpose(D, A);
-		mzd_copy(DST, D);
-		mzd_free(D);
-	}
-	if (A_windowed) mzd_free((mzd_t *)A);
-	return DST;
-}
 
 // The same as `mzd_concat` but with the oddity that a new matrix with avx padding is generated if necessary.
 // This is sometimes called augment
@@ -234,7 +123,7 @@ mzd_t *matrix_down_shift_into_matrix(mzd_t *out, const mzd_t *in, const uint32_t
 		out = mzd_init(in->nrows, in->nrows);
 	}
 
-	for (int j = 0; j < in->nrows; ++j) {
+	for (uint32_t j = 0; j < in->nrows; ++j) {
 		mzd_write_bit(out, (j + i) % in->nrows, col, mzd_read_bit(in, j, 0));
 	}
 
@@ -251,7 +140,7 @@ mzd_t *matrix_up_shift_into_matrix(mzd_t *out, const mzd_t *in, const uint32_t c
 		out = mzd_init(in->nrows, in->nrows);
 	}
 
-	for (int j = 0; j < in->nrows; ++j) {
+	for (uint32_t j = 0; j < in->nrows; ++j) {
 		mzd_write_bit(out, j, col, mzd_read_bit(in, (j + i) % in->nrows, 0));
 	}
 
@@ -267,7 +156,7 @@ mzd_t *matrix_down_shift(mzd_t *out, const mzd_t *in, uint32_t i) noexcept {
 		out = mzd_init(in->nrows, in->ncols);
 	}
 
-	for (int j = 0; j < in->nrows; ++j) {
+	for (uint32_t j = 0; j < in->nrows; ++j) {
 		mzd_write_bit(out, (j + i) % in->nrows, 0, mzd_read_bit(in, j, 0));
 	}
 
@@ -283,7 +172,7 @@ mzd_t *matrix_up_shift(mzd_t *out, const mzd_t *in, uint32_t i) noexcept {
 		out = mzd_init(in->nrows, in->ncols);
 	}
 
-	for (int j = 0; j < in->nrows; ++j) {
+	for (uint32_t j = 0; j < in->nrows; ++j) {
 		mzd_write_bit(out, j, 0, mzd_read_bit(in, (j + i) % in->nrows, 0));
 	}
 
@@ -308,26 +197,7 @@ void matrix_create_random_permutation(mzd_t *A, mzp_t *P) noexcept {
 	mzd_free(AT);
 }
 
-/// optimized version to which you have additionally pass the transposed, So its not created/freed every time
-/// \param A
-/// \param AT
-/// \param P
-void matrix_create_random_permutation(mzd_t *__restrict__ A,
-                                      mzd_t *__restrict__ AT,
-                                      mzp_t *__restrict__ P) noexcept {
-	matrix_transpose(AT, A);
 
-	// dont permute the last column since it is the syndrome
-	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
-		word pos = fastrandombytes_uint64() % (P->length - i);
-
-		ASSERT(i+pos < uint32_t(P->length));
-		std::swap(P->values[i], P->values[i+pos]);
-		mzd_row_swap(AT, i, i+pos);
-		//matrix_swap_rows_new2(AT, i, i+pos);
-	}
-	matrix_transpose(A, AT);
-}
 
 ///
 /// \param M
@@ -814,33 +684,7 @@ mzd_t *matrix_copy(mzd_t *N, mzd_t const *P) noexcept {
 	return N;
 }
 
-///
-/// \param nr_columns
-/// \return
-customMatrixData* init_matrix_data(int nr_columns) noexcept {
-	// this should be alignend
-	customMatrixData *matrix_data = (customMatrixData *) malloc(sizeof(customMatrixData));
 
-	matrix_data->real_nr_cols = nr_columns;
-	matrix_data->working_nr_cols = nr_columns;  // this can be overwritten
-
-	matrix_alloc_gray_code(&matrix_data->rev, &matrix_data->diff);
-	matrix_build_gray_code(matrix_data->rev, matrix_data->diff);
-
-	matrix_data->lookup_table = (uint64_t *)aligned_alloc(4096, (MATRIX_AVX_PADDING(nr_columns) / 8) * (1<<MAX_K));
-	return matrix_data;
-}
-
-void free_matrix_data(customMatrixData* matrix_data) noexcept {
-	matrix_free_gray_code(matrix_data->rev, matrix_data->diff);
-	free(matrix_data->lookup_table);
-	free(matrix_data);
-}
-
-mzd_t *matrix_init(rci_t r, rci_t c) noexcept {
-	auto padding = MATRIX_AVX_PADDING(c);
-	return mzd_init(r, padding);
-}
 
 /// ein versuch die matrix so zu splitten, dass die H matrix 256 alignent ist.
 mzd_t *matrix_init_split(const mzd_t *A, const mzd_t *s, const uint32_t nkl, const uint32_t c) noexcept {
