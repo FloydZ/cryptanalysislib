@@ -16,8 +16,6 @@
 #include "simd/simd.h"
 #include "matrix/binary_matrix.h"
 
-using namespace cryptanalysislib::internal::matrix;
-
 
 // TODO C++ 20 comparsion operator
 // C macro for implementing multi limb comparison.
@@ -394,40 +392,6 @@ public:
 					return;
 			}
 		}
-	}
-
-	// M4RI (method Of The 4 Russians) glue code.
-	// export/import function
-	uint64_t* to_m4ri(uint64_t *a) const noexcept {
-		a = __data.data();
-		return a;
-	}
-
-	// TODO
-	//void column_from_m4ri(const mzd_t *H, const uint32_t col) noexcept {
-	//	ASSERT(uint64_t(H->ncols) > uint64_t(col));
-	//	for (int i = 0; i < H->nrows; ++i) {
-	//		write_bit(i, mzd_read_bit(H, i, col));
-	//	}
-	//}
-	//void column_from_m4ri(const mzd_t *H, const uint32_t col, const uint32_t srow) noexcept {
-	//	ASSERT(uint64_t(H->ncols) > uint64_t(col));
-	//	for (int i = srow; i < H->nrows; ++i) {
-	//		write_bit(i-srow, mzd_read_bit(H, i, col));
-	//	}
-	//}
-	void from_m4ri(const uint64_t *a) noexcept {
-		for (uint32_t i = 0; i < limbs(); ++i) {
-			__data[i] = a[i];
-		}
-	}
-	void to_m4ri(mzd_t *a) noexcept {
-		ASSERT(a->nrows == 1 && a->ncols > 0);
-		to_m4ri(a->rows[0]);
-	}
-	void from_m4ri(const mzd_t *a) noexcept {
-		ASSERT(a->nrows == 1 && a->ncols > 0);
-		from_m4ri(a->rows[0]);
 	}
 
 	// swap the two bits i, j

@@ -219,7 +219,7 @@ TEST(BinaryMatrix, fixgaus) {
 	M m = M{};
 	m.random();
 
-	int perm[ncols]= {0};
+	uint32_t perm[ncols]= {0};
 	for (uint32_t i = 0; i < ncols; ++i) {
 		perm[i] = i;
 	}
@@ -245,7 +245,7 @@ TEST(BinaryMatrix, fixgaus) {
 TEST(BinaryMatrix, permute) {
 	M m = M{};
 	MT mt = MT{};
-	int perms[ncols];
+	uint32_t perms[ncols];
 	for (uint32_t i = 0; i < ncols; ++i) {
 		perms[i] = i;
 	}
