@@ -71,8 +71,8 @@ link_directories("/usr/local/lib")
 set(MALLOC_LIBRARY "")
 
 # possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
-#set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
-set(SANITIZE_FLAGS "")
+set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
+#set(SANITIZE_FLAGS "")
 
 #set(INLINE_FLAGS "-fno-inline")
 set(INLINE_FLAGS "")

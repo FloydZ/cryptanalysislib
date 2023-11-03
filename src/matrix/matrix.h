@@ -648,14 +648,17 @@ public:
 
 		RowType tmp;
 		tmp.zero();
-		for (uint32_t row = 0; row < nrows; ++row)
+		for (uint32_t row = 0; row < nrows; ++row) {
 			tmp.set(__data[row].get(i), row);
+		}
 
-		for (uint32_t row = 0; row < nrows; ++row)
+		for (uint32_t row = 0; row < nrows; ++row) {
 			__data[row].set(__data[row].get(j), i);
+		}
 
-		for (uint32_t row = 0; row < nrows; ++row)
+		for (uint32_t row = 0; row < nrows; ++row) {
 			__data[row].set(tmp.get(row), j);
+		}
 	}
 
 	/// swap rows
@@ -664,8 +667,9 @@ public:
 	constexpr void swap_rows(const uint16_t i,
 							 const uint16_t j) noexcept {
 		ASSERT(i < nrows && j < nrows);
-		if (i == j)
+		if (i == j) {
 			return;
+		}
 
 		RowType tmp = __data[i];
 		__data[i] = __data[j];

@@ -49,13 +49,7 @@ uint32_t hamming_weight_column(mzd_t *ptr, const uint32_t col) {
 
 
 
-// Is this really smart?
-// this changes only the pointer not the content
-inline void matrix_swap_rows_new(mzd_t *__restrict__ M,
-                                 const size_t i,
-                                 const size_t j) noexcept {
-	std::swap(M->rows[i], M->rows[j]);
-}
+
 
 /// custom function to append in_matrix to out_matrix.
 /// needed by bjmm.h
@@ -179,23 +173,7 @@ mzd_t *matrix_up_shift(mzd_t *out, const mzd_t *in, uint32_t i) noexcept {
 	return out;
 }
 
-// create A with `mzp_t *A = mzp_init(length)
-// input permutation `A` should have initilaised with: `for(int i = 0; i < A->length; i++) A->value[i] = i` or something.
-void matrix_create_random_permutation(mzd_t *A, mzp_t *P) noexcept {
-	mzd_t * AT= mzd_init(A->ncols,A->nrows);
-	mzd_transpose(AT, A);
-	// dont permute the last column since it is the syndrome
-	for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
-		word pos = fastrandombytes_uint64() % (P->length - i);
 
-		ASSERT(i+pos < uint64_t(P->length));
-		std::swap(P->values[i], P->values[i+pos]);
-
-		mzd_row_swap(AT, i, i+pos);
-	}
-	mzd_transpose(A, AT);
-	mzd_free(AT);
-}
 
 
 

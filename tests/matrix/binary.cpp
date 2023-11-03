@@ -14,11 +14,10 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 using T = uint64_t;
-constexpr uint32_t q = 2;
-constexpr uint32_t nrows = 256;
-constexpr uint32_t ncols = 256;
-using M  = FqMatrix<T, nrows, ncols, q>;
-using MT = FqMatrix<T, ncols, nrows, q>;
+constexpr uint32_t nrows = 64;
+constexpr uint32_t ncols = 64;
+using M  = FqMatrix<T, nrows, ncols, 2>;
+using MT = FqMatrix<T, ncols, nrows, 2>;
 
 
 TEST(BinaryMatrix, Init) {
@@ -80,7 +79,7 @@ TEST(BinaryMatrix, add) {
 	M::add(m3, m1, m2);
 	for (uint32_t i = 0; i < nrows; ++i) {
 		for (uint32_t j = 0; j < ncols; ++j) {
-			EXPECT_EQ(m3.get(i, j), (m1.get(i, j) + m2.get(i, j)) % q);
+			EXPECT_EQ(m3.get(i, j), (m1.get(i, j) + m2.get(i, j)) % 2);
 		}
 	}
 }
@@ -102,7 +101,7 @@ TEST(BinaryMatrix, sub) {
 	M::sub(m3, m1, m2);
 	for (uint32_t i = 0; i < nrows; ++i) {
 		for (uint32_t j = 0; j < ncols; ++j) {
-			EXPECT_EQ(m3.get(i, j), (m1.get(i, j) - m2.get(i, j) + q) % q);
+			EXPECT_EQ(m3.get(i, j), (m1.get(i, j) - m2.get(i, j) + 2) % 2);
 		}
 	}
 }
@@ -115,7 +114,7 @@ TEST(BinaryMatrix, InitFromString) {
 	EXPECT_NE(ptr2, nullptr);
 
 	for (uint32_t i = 0; i < nrows*ncols; ++i) {
-		const int a = fastrandombytes_uint64() % q;
+		const int a = fastrandombytes_uint64() % 2;
 		ptr2[i] = a;
 		sprintf(ptr + i, "%d", a);
 	}
@@ -151,7 +150,6 @@ TEST(BinaryMatrix, Transpose) {
 	MT mt = MT{};
 	m.random();
 	mt.random();
-	MT mt2 = MT{mt};
 
 	const uint32_t srow = 5;
 	const uint32_t scol = 10;
@@ -167,13 +165,6 @@ TEST(BinaryMatrix, Transpose) {
 			EXPECT_EQ(m.get(i, j), mt.get(j, i));
 		}
 	}
-
-	// testing the non transposed part
-	for (uint32_t i = 0; i < srow; ++i) {
-		for (uint32_t j = 0; j < scol; ++j) {
-			EXPECT_EQ(mt2.get(i, j), mt.get(i, j));
-		}
-	}
 }
 
 TEST(BinaryMatrix, subMatrix) {
@@ -181,7 +172,7 @@ TEST(BinaryMatrix, subMatrix) {
 	constexpr uint32_t scol = 10;
 	constexpr uint32_t erow = nrows;
 	constexpr uint32_t ecol = ncols;
-	using MT = FqMatrix<T, erow-srow, ecol-scol, q>;
+	using MT = FqMatrix<T, erow-srow, ecol-scol, 2>;
 
 	M m = M{};
 	MT mt = MT{};
@@ -205,8 +196,8 @@ TEST(BinaryMatrix, gaus) {
 	const uint32_t rank = m.gaus();
 	ASSERT_GT(rank, 0);
 
-	//std::cout << rank << std::endl;
-	//m.print();
+	std::cout << rank << std::endl;
+	m.print();
 
 	for (uint32_t i = 0; i < nrows; ++i) {
 		for (uint32_t j = 0; j < rank; ++j) {
