@@ -1,6 +1,3 @@
-[submodule "deps/m4ri"]
-	path = deps/m4ri
-	url = https://bitbucket.org/malb/m4ri
 [submodule "deps/fplll"]
 	path = deps/fplll
 	url = https://github.com/fplll/fplll
