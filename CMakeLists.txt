@@ -37,16 +37,6 @@ find_package(OpenMP)
 #        TEST_COMMAND      ""
 #)
 
-ExternalProject_Add(m4ri_project
-        SOURCE_DIR        ${CMAKE_SOURCE_DIR}/deps/m4ri
-        CONFIGURE_COMMAND cd <SOURCE_DIR> && autoreconf --install
-        COMMAND           cd <SOURCE_DIR> && ./configure
-        BUILD_COMMAND     cd <SOURCE_DIR> && make -j8
-        INSTALL_COMMAND   ""
-        TEST_COMMAND      ""
-)
-
-
 add_custom_target (
         CRYPTANALYSISLIB_BUILD_SCRIPT
         COMMAND ./${CMAKE_SOURCE_DIR}/build.sh
@@ -57,12 +47,10 @@ add_custom_target (
 include_directories("deps/fplll/fplll")
 include_directories("deps/fplll")
 include_directories("deps/b63/include/b63")
-include_directories("deps/m4ri")
 include_directories("src")
 include_directories("/usr/local/include")
 
 link_directories("deps/fplll/fplll/.libs")
-link_directories("deps/m4ri/.libs")
 link_directories("/usr/local/lib")
 
 # two possible options. 'tcmalloc' is the standard google malloc implementation
@@ -109,7 +97,7 @@ endif()
 endif()
 
 # NOTE: fplll is missing
-set(LINK_TEST_FLAGS -lgtest -pthread gmpxx libm4ri.a m png)
+set(LINK_TEST_FLAGS -lgtest -pthread)
 if(OpenMP_CXX_FOUND)
 	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_CXX)
 endif()
@@ -152,7 +140,7 @@ if(CMAKE_CUDA_COMPILER)
     endif()
 
     #add_executable(test_cuda tests/test_cuda.cu)
-    #target_link_libraries(test_cuda ${LINK_TEST_FLAGS} fplll m4ri gmpxx gmp)
+    #target_link_libraries(test_cuda ${LINK_TEST_FLAGS})
 endif()
 
 # add sub directories
