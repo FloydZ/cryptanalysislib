@@ -20,7 +20,9 @@
 /// \tparam ncols number of columns
 template<typename T, const uint32_t __nrows, const uint32_t __ncols>
 class FqMatrix<T, __nrows, __ncols, 2, true>: private FqMatrix_Meta<T, __nrows, __ncols, 2, true> {
-private:
+public:
+	using RowT = BinaryContainer<__ncols, T>;
+
 	constexpr static uint32_t RADIX = sizeof(T) * 8u;
 	constexpr static uint32_t MAX_K = 8ul;
 	constexpr static T one  = T(1ul);
@@ -129,8 +131,8 @@ private:
 		free(lookup_table);
 	}
 
-	std::array<T, block_words> __data;
 public:
+	std::array<T, block_words> __data;
 	/// that's only because I'm lazy
 	static constexpr uint32_t q = 2;
 
@@ -138,12 +140,6 @@ public:
 	using RowType = T*;
 	using DataType = bool;
 	const uint32_t m4ri_k = matrix_opt_k(nrows, ncols);
-
-	/// TODO write ownfunctins
-	/// needed functions
-	using FqMatrix_Meta<T, nrows,ncols, q>::identity;
-	using FqMatrix_Meta<T, nrows,ncols, q>::weight_column;
-	using FqMatrix_Meta<T, nrows,ncols, q>::swap;
 
 	/// simple constructor
 	constexpr FqMatrix() noexcept {
@@ -264,6 +260,13 @@ public:
 			}
 
 			__data[i*padded_limbs + limbs_per_row() - 1u] = fastrandombytes_uint64() & high_bitmask;
+		}
+	}
+
+	constexpr void identity() noexcept {
+		clear();
+		for (uint32_t i = 0; i < std::min(ncols, nrows); i++) {
+			set(1, i, i);
 		}
 	}
 
@@ -1608,6 +1611,26 @@ public:
 		swap_rows(__data.data(), i, j);
 	}
 
+
+	constexpr void permute_cols(FqMatrix<T, ncols, nrows, q> &AT,
+								uint32_t *permutation,
+								const uint32_t len) noexcept {
+		ASSERT(ncols >= len);
+
+		this->transpose(AT, *this, 0, 0);
+		for (uint32_t i = 0; i < len; ++i) {
+			uint32_t pos = fastrandombytes_uint64() % (len - i);
+			ASSERT(i+pos < len);
+
+			auto tmp = permutation[i];
+			permutation[i] = permutation[i+pos];
+			permutation[pos+i] = tmp;
+
+			AT.swap_rows(i, i+pos);
+		}
+
+		FqMatrix<T, ncols, nrows,q>::transpose(*this, AT, 0, 0);
+	}
 	/// optimized version to which you have additionally pass the transposed.
 	/// So its not created/freed every time
 	/// \param A input matrix which should be randomly permuted
@@ -1622,7 +1645,7 @@ public:
 		for (uint32_t i = 0; i < uint32_t(P.length-1); ++i) {
 			uint64_t pos = fastrandombytes_uint64() % (P.length - i);
 
-			ASSERT(i+pos < uint32_t(P->length));
+			ASSERT(i+pos < uint32_t(P.length));
 			std::swap(P.values[i], P.values[i+pos]);
 			swap_rows(AT, i, i+pos);
 		}
@@ -1630,29 +1653,16 @@ public:
 		transpose(A, AT);
 	}
 
-
 	/// create A with `mzp_t *A = mzp_init(length)
 	/// input permutation `A` should have initilaised with: `for(int i = 0; i < A->length; i++) A->value[i] = i` or something.
 	/// \param A
 	/// \param P
-	void matrix_create_random_permutation(FqMatrix &A, Permutation *__restrict__ P) noexcept {
+	inline void matrix_create_random_permutation(Permutation &P) noexcept {
 		FqMatrix<T, nrows, ncols, 2> AT;
-		create_random_permutation(A, AT, P);
-	}
-	///
-	/// \param AT
-	/// \param permutation
-	/// \param len
-	/// \return
-	constexpr inline void permute_cols(FqMatrix<T, ncols, nrows, q> &AT,
-								uint32_t *permutation,
-								const uint32_t len) noexcept {
-		uint64_t data[2] = {0};
-		Permutation *P = (Permutation *)data;
-		P->length = len;
-		P->values = permutation;
 		create_random_permutation(*this, AT, P);
 	}
+
+
 
 	///
 	/// \param M
@@ -2010,6 +2020,117 @@ public:
 
 		return rstop;
 	}
+
+
+	/// NOTE: the input matrix must be systemized
+	/// \tparam c
+	/// \tparam max_row
+	/// \return
+	template<const uint32_t c, const uint32_t max_row>
+	[[nodiscard]] constexpr uint32_t markov_gaus(Permutation &P) noexcept {
+		static_assert(c > 0);
+		static_assert(max_row > 0);
+		static_assert(max_row <= nrows);
+#ifdef DEBUG
+		auto check_correctness = [this](){
+		  constexpr uint32_t mmin = std::min({ncols, nrows, max_row});
+		  for (uint32_t i = 0; i < mmin; ++i) {
+			  for (uint32_t j = 0; j < mmin; ++j) {
+				  if (get(i,j) != (i == j)) {
+					  print();
+				  }
+				  ASSERT(get(i, j) == (i == j));
+			  }
+		  }
+		};
+		check_correctness();
+#endif
+		uint32_t additional_to_solve = 0;
+
+		/// chose a new random permutation on only c coordinates
+		std::array<uint32_t, c> perm;
+		for (uint32_t i = 0; i < c; ++i) {
+			perm[i] = fastrandombytes_uint64() % ncols;
+		}
+
+		/// apply the random permutation
+		for (uint32_t i = 0; i < c; ++i) {
+			std::swap(P.values[i], P.values[perm[i]]);
+			swap_cols(i, perm[i]);
+
+			///
+			if (perm[i] < max_row) {
+				swap_rows(i, perm[i]);
+			}
+		}
+
+		/// fix the wrong columns
+		for (uint32_t i = 0; i < c; ++i) {
+			/// pivoting
+			if (get(i, i) != 1u) {
+				/// try to find from below
+				for (uint32_t j = i+1; j < c; ++j) {
+					if (get(j, i) == 1u) {
+						swap_rows(j, i);
+						goto found;
+					}
+				}
+
+				/// if we are here, we failed to find a pivot element in colum i
+				/// in the first rows. Now we permute in a unity column from between
+				/// [c, max_row).
+				/// We simply use the first free one
+				const uint32_t column_to_take = c + additional_to_solve;
+				additional_to_solve += 1u;
+				std::swap(P.values[i], P.values[column_to_take]);
+				perm[i] = c;
+				swap_cols(i, column_to_take);
+				swap_rows(i, column_to_take);
+
+				// now we can skip the rest, as there is already a unity vector
+				continue ;
+			}
+
+			found:
+
+			ASSERT(get(i, i));
+			/// first clear above
+			for (uint32_t j = 0; j < nrows; ++j) {
+				if (i == j) continue ;
+
+				if (get(j, i)) {
+					RowT::add(row(j), row(j), row(i));
+				}
+			}
+		}
+
+		/// last but not least
+		for (uint32_t i = 0; i < additional_to_solve; ++i) {
+			/// pivoting
+			for (uint32_t j = max_row; j < nrows; ++j) {
+				if (get(j, i+c) == 1u) {
+					swap_rows(j, i+c);
+					goto found2;
+				}
+			}
+
+			return 0;
+
+			found2:
+			for (uint32_t j = 0; j < nrows; ++j) {
+				if ((c+i) == j) continue ;
+				if (get(j, i+c)) {
+					RowT::add(row(j), row(j), row(i+c));
+				}
+			}
+		}
+
+#ifdef DEBUG
+		check_correctness();
+#endif
+		return max_row;
+	}
+
 
 	// additionally, to the m4ri algorithm a fix is applied if m4ri fails
 	/// \param M

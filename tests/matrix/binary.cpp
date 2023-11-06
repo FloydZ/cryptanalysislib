@@ -14,10 +14,10 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 using T = uint64_t;
-constexpr uint32_t nrows = 64;
-constexpr uint32_t ncols = 64;
-using M  = FqMatrix<T, nrows, ncols, 2>;
-using MT = FqMatrix<T, ncols, nrows, 2>;
+constexpr uint32_t nrows = 30;
+constexpr uint32_t ncols = 50;
+using M  = FqMatrix<T, nrows, ncols, 2, true>;
+using MT = FqMatrix<T, ncols, nrows, 2, true>;
 
 
 TEST(BinaryMatrix, Init) {
@@ -40,6 +40,25 @@ TEST(BinaryMatrix, random) {
 
 	finish:
 	EXPECT_EQ(atleast_one_not_zero, true);
+}
+
+TEST(BinaryMatrix, identity) {
+	M m = M{};
+	m.random();
+	m.identity();
+
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			EXPECT_EQ(m.get(i, j), (i == j));
+		}
+	}
+
+	m.clear();
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			EXPECT_EQ(m.get(i, j), 0);
+		}
+	}
 }
 
 TEST(BinaryMatrix, zero) {
@@ -206,27 +225,47 @@ TEST(BinaryMatrix, gaus) {
 	}
 }
 
-TEST(BinaryMatrix, matrix_echelonize_partial_plusfix_opt) {
-	M m = M{};
-	MT mt = MT{};
-	m.random();
-
-	mzp_t *P = mzp_init(ncols);
+TEST(BinaryMatrix, markov_gaus) {
 	constexpr uint32_t l = 10;
-	const uint32_t rank = m.template matrix_echelonize_partial_plusfix_opt
-	        <ncols, nrows, l>
-	                      (m, mt, 3, l, P);
-	ASSERT_GT(rank, 0);
+	constexpr uint32_t c = 5;
+	M m = M{};
+	Permutation P(ncols);
+	uint32_t rank;
 
-	std::cout << rank << std::endl;
-	m.print();
+	while (true) {
+		m.random();
+		rank = m.gaus(nrows-l);
+		ASSERT_GT(rank, 0);
 
-	for (uint32_t i = 0; i < nrows; ++i) {
-		for (uint32_t j = 0; j < rank; ++j) {
-			ASSERT_EQ(m.get(i, j), i==j);
+		if (rank >= nrows - l) { break; }
+	}
+
+	uint32_t ctr = 0;
+	for (uint32_t k = 0; k < 10000; ++k) {
+		uint32_t rank2 = m.markov_gaus<c, nrows-l>(P);
+		if (rank2 == 0) {
+			ctr += 1;
+			while (true) {
+				m.random();
+				rank = m.gaus(nrows-l);
+				ASSERT_GT(rank, 0);
+
+				if (rank >= nrows - l) { break; }
+			}
+			continue ;
+		}
+		ASSERT_EQ(rank, rank2);
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < nrows-l; ++j) {
+				ASSERT_EQ(m.get(i, j), i==j);
+			}
 		}
 	}
+
+	ASSERT_LE(ctr, 10);
 }
+
 
 TEST(BinaryMatrix, fixgaus) {
 	M m = M{};

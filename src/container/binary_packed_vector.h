@@ -480,7 +480,7 @@ public:
 	/// \tparam align: if set to `true` the internal simd functions will use 
 	///                aligned instructions.
 	template<const bool align=false>
-	constexpr static void add(LimbType *v3, 
+	constexpr static inline void add(LimbType *v3,
 							  LimbType const *v1, 
 							  LimbType const *v2,
 							  const uint32_t limbs) noexcept {

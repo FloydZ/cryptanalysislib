@@ -16,9 +16,9 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 using T = uint64_t;
-constexpr uint32_t q = 5;
-constexpr uint32_t nrows = 50;
-constexpr uint32_t ncols = 100;
+constexpr uint32_t q = 3;
+constexpr uint32_t nrows = 25;
+constexpr uint32_t ncols = 50;
 
 constexpr bool packed = true;
 using M  = FqMatrix<T, nrows, ncols, q, packed>;
@@ -27,6 +27,7 @@ using MT = FqMatrix<T, ncols, nrows, q, packed>;
 
 TEST(FqMatrix, Init) {
 	M m = M{};
+	(void)m;
 }
 
 TEST(FqMatrix, SubScription) {
@@ -45,8 +46,8 @@ TEST(FqMatrix, random) {
 	m.random();
 
 	bool atleast_one_not_zero = false;
-	for (int i = 0; i < nrows; ++i) {
-		for (int j = 0; j < ncols; ++j) {
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
 			if (m.get(i, j) > 0) {
 				atleast_one_not_zero = true;
 				goto finish;
@@ -201,7 +202,6 @@ TEST(FqMatrix, sub_Transpose_extended) {
 	MT mt = MT{};
 	m.random();
 	mt.random();
-	MT mt2 = MT{mt};
 
 
 	EXPECT_GT(nrows, srow);
@@ -282,24 +282,28 @@ TEST(FqMatrix, gaus) {
 
 TEST(FqMatrix, markov_gaus) {
 	constexpr uint32_t l = 10;
-	constexpr uint32_t c = 10;
+	constexpr uint32_t c = 5;
 	M m = M{};
 	Permutation P(ncols);
+	uint32_t rank = 0;
+
 	while (true) {
 		m.random();
-		const uint32_t rank = m.gaus();
+		rank = m.gaus(nrows-l);
 		ASSERT_GT(rank, 0);
 		if (rank >= nrows - l) { break; }
 	}
 
-	m.markov_gaus<c, nrows-l>(P);
-	//std::cout << rank << std::endl;
-	//m.print();
+	for (uint32_t k = 0; k < 1000; ++k) {
+		uint32_t rank2 = m.markov_gaus<c, nrows-l>(P);
+		ASSERT_EQ(rank, rank2);
 
-	for (uint32_t i = 0; i < nrows; ++i) {
-		for (uint32_t j = 0; j < nrows-l; ++j) {
-			ASSERT_EQ(m.get(i, j), i==j);
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < nrows-l; ++j) {
+				ASSERT_EQ(m.get(i, j), i==j);
+			}
 		}
+
 	}
 }
 
@@ -455,7 +459,8 @@ TEST(FqMatrix, matrix_row_vector_mul2) {
 
 
 int main(int argc, char **argv) {
-	random_seed(time(0));
+	//random_seed(time(0));
+	random_seed(0);
     InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -139,9 +139,11 @@ public:
 				strncpy(input, data + i * cols + j, 1);
 				const int a = atoi(input);
 
-				ASSERT(a < q);
+				ASSERT(a >= 0);
+				const uint32_t aa = a;
+				ASSERT(aa < q);
 
-				set(DataType(a), i, j);
+				set(DataType(aa), i, j);
 			}
 		}
 	}
@@ -149,8 +151,8 @@ public:
 	/// copies the input matrix
 	/// \param A input matrix
 	constexpr void copy(const FqMatrix_Meta &A) {
-		// __data.copy(A.__data, sizeof __data);
-		memcpy(__data.data(), A.__data.data(), nrows*sizeof(RowType));
+		//memcpy(__data.data(), A.__data.data(), nrows*sizeof(RowType));
+		std::copy(A.__data.begin(), A.__data.end(), __data.begin());
 	}
 
 
@@ -458,8 +460,6 @@ public:
 		uint32_t row = 0;
 		for(uint32_t col = 0; (col < m) && (row < nrows) && (row < stop); col++) {
 			int sel = -1;
-			DataType inv = get(row, col);
-			inv = (0u-inv+q) % q;
 			// get pivot element
 			for (uint32_t i = row; i < nrows; i++) {
 				if (get(i, col) == 1u) {
@@ -528,6 +528,8 @@ public:
 						swap_cols(col, b);
 						if (row != b)
 							swap_rows(b, row);
+
+						break;
 					}
 				}
 			}
@@ -634,16 +636,20 @@ public:
 		static_assert(max_row <= nrows);
 #ifdef DEBUG
 		auto check_correctness = [this](){
-		  constexpr uint32_t mmin = std::min(ncols, nrows);
-			for (uint32_t i = 0; i < mmin; ++i) {
-				for (uint32_t j = 0; j < mmin; ++j) {
+			for (uint32_t i = 0; i < nrows; ++i) {
+				for (uint32_t j = 0; j < max_row; ++j) {
+					if(get(i, j) != (i == j)){
+						print();
+					}
+
 					ASSERT(get(i, j) == (i == j));
 				}
 			}
 		};
 		check_correctness();
 #endif
-
+		uint32_t additional_to_solve = 0;
+		RowType tmp;
 
 		/// chose a new random permutation on only c coordinates
 		std::array<uint32_t, c> perm;
@@ -651,58 +657,102 @@ public:
 			perm[i] = fastrandombytes_uint64() % ncols;
 		}
 
+		/// apply the random permutation
 		for (uint32_t i = 0; i < c; ++i) {
-			/// that is the easy case: do nothing.
-			/// if we are below n-k-l we will not permute anything
-			if (perm[i] < max_row) {
-				continue ;
-			}
-
 			std::swap(P.values[i], P.values[perm[i]]);
 			swap_cols(i, perm[i]);
-		}
 
-		RowType tmp;
+			///
+			if (perm[i] < max_row) {
+				swap_rows(i, perm[i]);
+			}
+		}
 
 		/// fix the wrong columns
 		for (uint32_t i = 0; i < c; ++i) {
-			/// again easy part: nothing to do.
-			if (perm[i] < max_row) {
+			/// NOTE: we cannot simply skip unity vectors,
+			/// as we can alter it
+			//if (perm[i] < max_row) {
+			//	continue ;
+			//}
+
+			/// pivoting
+			if (get(i, i) != 1u) {
+				/// try to find from below
+				for (uint32_t j = i+1; j < c; ++j) {
+					if (__data[j][i] == 1u) {
+						swap_rows(j, i);
+						goto found;
+					}
+
+					if (__data[j][i] == (q - 1u)) {
+						swap_rows(j, i);
+						__data[i].neg();
+						goto found;
+					}
+				}
+
+				/// if we are here, we failed to find a pivot element in colum i
+				/// in the first rows. Now we permute in a unity column from between
+				/// [c, max_row).
+				/// We simply use the first free one
+				const uint32_t column_to_take = c + additional_to_solve;
+				additional_to_solve += 1u;
+				std::swap(P.values[i], P.values[column_to_take]);
+				perm[i] = c;
+				swap_cols(i, column_to_take);
+				swap_rows(i, column_to_take);
+
+				// now we can skip the rest, as there is already a unity vector
 				continue ;
 			}
 
-			/// pivoting
-			if(! __data[i][i]) {
-				bool found = false;
-				for (uint32_t j = 0; j < max_row; ++j) {
-					if (__data[j][i] > 0) {
-						found = true;
-					}
+			found:
+			// TODO: currently only 1 and q-1 are pivot rows
+			//const DataType scal = get(i, i);
+			//ASSERT(scal);
+			//if (scal > 1u) {
+			//	RowType::scalar(tmp, __data[i], scal-1u);
+			//	tmp.print();
+			//	RowType::add(__data[i], __data[i], tmp);
+			//}
 
-					swap_rows(j, i);
-				}
-				ASSERT(found);
-			}
-
-			const DataType scal = get(i, i);
-			ASSERT(scal);
-			RowType::scalar(tmp, __data[i], q-scal);
-			RowType::add(__data[i], __data[i], tmp);
-
+			ASSERT(get(i, i));
 			/// first clear above
-			for (uint32_t j = 0; j < i; ++j) {
+			for (uint32_t j = 0; j < nrows; ++j) {
+				if (i == j) continue ;
 				uint32_t scal = get(j, i);
 				if (scal) {
-					RowType::scalar(tmp, __data[j], q-scal);
+					RowType::scalar(tmp, __data[i], q-scal);
 					RowType::add(__data[j], __data[j], tmp);
 				}
 			}
+		}
 
-			/// next clear below
-			for (uint32_t j = i+1u; j < max_row; ++j) {
-				uint32_t scal = get(j, i);
+		/// last but not least
+		for (uint32_t i = 0; i < additional_to_solve; ++i) {
+			/// pivoting
+			for (uint32_t j = max_row; j < nrows; ++j) {
+				if (__data[j][i+c] == 1u) {
+					swap_rows(j, i+c);
+					goto found2;
+				}
+
+				if (__data[j][i+c] == (q - 1u)) {
+					swap_rows(j, i+c);
+					__data[i+c].neg();
+					goto found2;
+				}
+			}
+
+			return c+i;
+
+			found2:
+			for (uint32_t j = 0; j < nrows; ++j) {
+				if ((c+i) == j) continue ;
+				uint32_t scal = get(j, i+c);
 				if (scal) {
-					RowType::scalar(tmp, __data[j], q-scal);
+					RowType::scalar(tmp, __data[i+c], q-scal);
 					RowType::add(__data[j], __data[j], tmp);
 				}
 			}
@@ -739,18 +789,17 @@ public:
 		if (i == j)
 			return;
 
-		RowType tmp;
-		tmp.zero();
+		std::array<DataType, nrows> col{};
 		for (uint32_t row = 0; row < nrows; ++row) {
-			tmp.set(__data[row].get(i), row);
+			col[row] = get(row, i);
 		}
 
 		for (uint32_t row = 0; row < nrows; ++row) {
-			__data[row].set(__data[row].get(j), i);
+			set(get(row, j), row, i);
 		}
 
 		for (uint32_t row = 0; row < nrows; ++row) {
-			__data[row].set(tmp.get(row), j);
+			set(col[row], row, j);
 		}
 	}
 
