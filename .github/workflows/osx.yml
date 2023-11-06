@@ -99,7 +99,6 @@ jobs:
         ./tests/list/enumeration/test_list_enumeration_fq
         ./tests/list/enumeration/test_list_enumeration_binary
         ./tests/matrix/test_matrix_binary
-        ./tests/matrix/test_matrix_custom_m4ri
         ./tests/matrix/test_matrix_fq
         ./tests/nn/test_nn_simd
         ./tests/nn/test_nn_simple

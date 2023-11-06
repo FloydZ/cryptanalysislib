@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
+set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 23)
 
 
@@ -15,7 +15,6 @@ endif()
 
 include(FetchContent)
 include(ExternalProject)
-set(CMAKE_VERBOSE_MAKEFILE ON)
 
 include("deps/cmake_optimize_for_architecture/OptimizeForArchitecture.cmake")
 OptimizeForArchitecture()

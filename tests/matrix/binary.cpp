@@ -206,6 +206,28 @@ TEST(BinaryMatrix, gaus) {
 	}
 }
 
+TEST(BinaryMatrix, matrix_echelonize_partial_plusfix_opt) {
+	M m = M{};
+	MT mt = MT{};
+	m.random();
+
+	mzp_t *P = mzp_init(ncols);
+	constexpr uint32_t l = 10;
+	const uint32_t rank = m.template matrix_echelonize_partial_plusfix_opt
+	        <ncols, nrows, l>
+	                      (m, mt, 3, l, P);
+	ASSERT_GT(rank, 0);
+
+	std::cout << rank << std::endl;
+	m.print();
+
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < rank; ++j) {
+			ASSERT_EQ(m.get(i, j), i==j);
+		}
+	}
+}
+
 TEST(BinaryMatrix, fixgaus) {
 	M m = M{};
 	m.random();
