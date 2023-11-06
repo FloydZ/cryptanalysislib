@@ -8,10 +8,10 @@
 #include <memory>
 
 #include "helper.h"
-#include "random.h"
-#include "simd/simd.h"
 #include "matrix/fq_matrix.h"
 #include "permutation/permutation.h"
+#include "random.h"
+#include "simd/simd.h"
 
 
 /// matrix implementation which wrapped mzd
@@ -19,7 +19,7 @@
 /// \tparam nrows number of rows
 /// \tparam ncols number of columns
 template<typename T, const uint32_t __nrows, const uint32_t __ncols>
-class FqMatrix<T, __nrows, __ncols, 2>: private FqMatrix_Meta<T, __nrows, __ncols, 2> {
+class FqMatrix<T, __nrows, __ncols, 2, true>: private FqMatrix_Meta<T, __nrows, __ncols, 2, true> {
 private:
 	constexpr static uint32_t RADIX = sizeof(T) * 8u;
 	constexpr static uint32_t MAX_K = 8ul;
@@ -1615,15 +1615,15 @@ public:
 	/// \param P
 	void create_random_permutation(FqMatrix<T, ncols, nrows, 2> &A,
 								   FqMatrix<T, nrows, ncols, 2> &AT,
-								   mzp_t *__restrict__ P) noexcept {
+	                               Permutation &P) noexcept {
 		transpose(AT, A);
 
 		// dont permute the last column since it is the syndrome
-		for (uint32_t i = 0; i < uint32_t(P->length-1); ++i) {
-			uint64_t pos = fastrandombytes_uint64() % (P->length - i);
+		for (uint32_t i = 0; i < uint32_t(P.length-1); ++i) {
+			uint64_t pos = fastrandombytes_uint64() % (P.length - i);
 
 			ASSERT(i+pos < uint32_t(P->length));
-			std::swap(P->values[i], P->values[i+pos]);
+			std::swap(P.values[i], P.values[i+pos]);
 			swap_rows(AT, i, i+pos);
 		}
 		
@@ -1635,7 +1635,7 @@ public:
 	/// input permutation `A` should have initilaised with: `for(int i = 0; i < A->length; i++) A->value[i] = i` or something.
 	/// \param A
 	/// \param P
-	void matrix_create_random_permutation(FqMatrix &A, mzp_t *__restrict__ P) noexcept {
+	void matrix_create_random_permutation(FqMatrix &A, Permutation *__restrict__ P) noexcept {
 		FqMatrix<T, nrows, ncols, 2> AT;
 		create_random_permutation(A, AT, P);
 	}
@@ -1648,7 +1648,7 @@ public:
 								uint32_t *permutation,
 								const uint32_t len) noexcept {
 		uint64_t data[2] = {0};
-		mzp_t *P = (mzp_t *)data;
+		Permutation *P = (Permutation *)data;
 		P->length = len;
 		P->values = permutation;
 		create_random_permutation(*this, AT, P);
@@ -1973,7 +1973,7 @@ public:
 								  const size_t rstop,
 								  const size_t fix_col,
 								  const size_t look_ahead,
-								  mzp_t *__restrict__ permutation) noexcept {
+	                                        Permutation *__restrict__ permutation) noexcept {
 		for (size_t b = rang; b < rstop; ++b) {
 			bool found = false;
 			// find a column where in the last row is a one
@@ -2027,7 +2027,7 @@ public:
 	                                         const size_t cstart,
 											 const size_t fix_col,
 	                                         const size_t look_ahead,
-	                                         mzp_t *__restrict__ permutation) noexcept {
+	                                                                 Permutation *__restrict__ permutation) noexcept {
 		size_t rang = matrix_echelonize_partial(M, k, rstop, cstart);
 		return matrix_fix_gaus(M, rang, rstop, fix_col, look_ahead, permutation);
 	}
@@ -2044,7 +2044,7 @@ public:
 			FqMatrix &AT,
 			const size_t m4ri_k,
 	        const size_t max_column,
-			mzp_t *__restrict__ P) noexcept {
+	        Permutation *__restrict__ P) noexcept {
 		constexpr uint32_t nkl  = n-k-l;
 		constexpr uint16_t zero = uint16_t(-1);
 
@@ -2172,7 +2172,7 @@ public:
 			FqMatrix &AT,
 			const size_t m4ri_k,
 	        const size_t max_column,
-			mzp_t *__restrict__ P) noexcept {
+	        Permutation *__restrict__ P) noexcept {
 		constexpr uint32_t nkl  = n-k-l;
 		constexpr uint16_t zero = uint16_t(-1);
 		// constexpr uint32_t mod = k+l;
@@ -2320,7 +2320,7 @@ public:
 											  const uint32_t fix_col,
 											  const uint32_t lookahead) noexcept {
 		uint64_t data[2] = {0};
-		mzp_t *P = (mzp_t *)data;
+		Permutation *P = (Permutation *)data;
 		P->length = ncols;
 		P->values = permutation;
 		return matrix_fix_gaus(*this, rang, fix_col, fix_col, lookahead, P);

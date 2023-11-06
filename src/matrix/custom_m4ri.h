@@ -17,7 +17,6 @@
 
 #define MATRIX_AVX_PADDING(len) (((len + 255) / 256) * 256)
 
-#define MAX_K 8
 #define WORD_SIZE (8 * sizeof(word))
 
 /// private forward definition

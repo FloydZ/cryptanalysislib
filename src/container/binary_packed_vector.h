@@ -14,7 +14,6 @@
 #include "popcount/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
-#include "matrix/binary_matrix.h"
 
 
 // TODO C++ 20 comparsion operator

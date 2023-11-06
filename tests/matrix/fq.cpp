@@ -4,6 +4,7 @@
 
 #include "matrix/fq_matrix.h"
 #include "container/fq_vector.h"
+#include "permutation/permutation.h"
 
 
 using ::testing::EmptyTestEventListener;
@@ -16,8 +17,8 @@ using ::testing::UnitTest;
 
 using T = uint64_t;
 constexpr uint32_t q = 5;
-constexpr uint32_t nrows = 100;
-constexpr uint32_t ncols = 110;
+constexpr uint32_t nrows = 50;
+constexpr uint32_t ncols = 100;
 
 constexpr bool packed = true;
 using M  = FqMatrix<T, nrows, ncols, q, packed>;
@@ -278,6 +279,30 @@ TEST(FqMatrix, gaus) {
 		}
 	}
 }
+
+TEST(FqMatrix, markov_gaus) {
+	constexpr uint32_t l = 10;
+	constexpr uint32_t c = 10;
+	M m = M{};
+	Permutation P(ncols);
+	while (true) {
+		m.random();
+		const uint32_t rank = m.gaus();
+		ASSERT_GT(rank, 0);
+		if (rank >= nrows - l) { break; }
+	}
+
+	m.markov_gaus<c, nrows-l>(P);
+	//std::cout << rank << std::endl;
+	//m.print();
+
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < nrows-l; ++j) {
+			ASSERT_EQ(m.get(i, j), i==j);
+		}
+	}
+}
+
 
 TEST(FqMatrix, fixgaus) {
 	M m = M{};

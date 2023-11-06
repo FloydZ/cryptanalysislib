@@ -7,6 +7,7 @@
 #include "random.h"
 #include "container/fq_packed_vector.h"
 #include "container/fq_vector.h"
+#include "permutation/permutation.h"
 
 
 #if __cplusplus > 201709L
@@ -619,6 +620,98 @@ public:
 		};
 
 		return r_stop;
+	}
+
+
+	/// NOTE: the input matrix must be systemized
+	/// \tparam c
+	/// \tparam max_row
+	/// \return
+	template<const uint32_t c, const uint32_t max_row>
+	[[nodiscard]] constexpr uint32_t markov_gaus(Permutation &P) noexcept {
+		static_assert(c > 0);
+		static_assert(max_row > 0);
+		static_assert(max_row <= nrows);
+#ifdef DEBUG
+		auto check_correctness = [this](){
+		  constexpr uint32_t mmin = std::min(ncols, nrows);
+			for (uint32_t i = 0; i < mmin; ++i) {
+				for (uint32_t j = 0; j < mmin; ++j) {
+					ASSERT(get(i, j) == (i == j));
+				}
+			}
+		};
+		check_correctness();
+#endif
+
+
+		/// chose a new random permutation on only c coordinates
+		std::array<uint32_t, c> perm;
+		for (uint32_t i = 0; i < c; ++i) {
+			perm[i] = fastrandombytes_uint64() % ncols;
+		}
+
+		for (uint32_t i = 0; i < c; ++i) {
+			/// that is the easy case: do nothing.
+			/// if we are below n-k-l we will not permute anything
+			if (perm[i] < max_row) {
+				continue ;
+			}
+
+			std::swap(P.values[i], P.values[perm[i]]);
+			swap_cols(i, perm[i]);
+		}
+
+		RowType tmp;
+
+		/// fix the wrong columns
+		for (uint32_t i = 0; i < c; ++i) {
+			/// again easy part: nothing to do.
+			if (perm[i] < max_row) {
+				continue ;
+			}
+
+			/// pivoting
+			if(! __data[i][i]) {
+				bool found = false;
+				for (uint32_t j = 0; j < max_row; ++j) {
+					if (__data[j][i] > 0) {
+						found = true;
+					}
+
+					swap_rows(j, i);
+				}
+				ASSERT(found);
+			}
+
+			const DataType scal = get(i, i);
+			ASSERT(scal);
+			RowType::scalar(tmp, __data[i], q-scal);
+			RowType::add(__data[i], __data[i], tmp);
+
+			/// first clear above
+			for (uint32_t j = 0; j < i; ++j) {
+				uint32_t scal = get(j, i);
+				if (scal) {
+					RowType::scalar(tmp, __data[j], q-scal);
+					RowType::add(__data[j], __data[j], tmp);
+				}
+			}
+
+			/// next clear below
+			for (uint32_t j = i+1u; j < max_row; ++j) {
+				uint32_t scal = get(j, i);
+				if (scal) {
+					RowType::scalar(tmp, __data[j], q-scal);
+					RowType::add(__data[j], __data[j], tmp);
+				}
+			}
+		}
+
+#ifdef DEBUG
+		check_correctness();
+#endif
+		return max_row;
 	}
 
 	/// swap to elements within the matrix
