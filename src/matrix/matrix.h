@@ -670,44 +670,42 @@ public:
 
 		/// fix the wrong columns
 		for (uint32_t i = 0; i < c; ++i) {
-			/// NOTE: we cannot simply skip unity vectors,
-			/// as we can alter it
-			//if (perm[i] < max_row) {
-			//	continue ;
-			//}
-
+			bool found = false;
 			/// pivoting
 			if (get(i, i) != 1u) {
 				/// try to find from below
 				for (uint32_t j = i+1; j < c; ++j) {
 					if (__data[j][i] == 1u) {
 						swap_rows(j, i);
-						goto found;
+						found = true;
+						break;
 					}
 
 					if (__data[j][i] == (q - 1u)) {
 						swap_rows(j, i);
 						__data[i].neg();
-						goto found;
+						found = true;
+						break;
 					}
 				}
 
-				/// if we are here, we failed to find a pivot element in colum i
-				/// in the first rows. Now we permute in a unity column from between
-				/// [c, max_row).
-				/// We simply use the first free one
-				const uint32_t column_to_take = c + additional_to_solve;
-				additional_to_solve += 1u;
-				std::swap(P.values[i], P.values[column_to_take]);
-				perm[i] = c;
-				swap_cols(i, column_to_take);
-				swap_rows(i, column_to_take);
+				if (!found) {
+					/// if we are here, we failed to find a pivot element in colum i
+					/// in the first rows. Now we permute in a unity column from between
+					/// [c, max_row).
+					/// We simply use the first free one
+					const uint32_t column_to_take = c + additional_to_solve;
+					additional_to_solve += 1u;
+					std::swap(P.values[i], P.values[column_to_take]);
+					perm[i] = c;
+					swap_cols(i, column_to_take);
+					swap_rows(i, column_to_take);
 
-				// now we can skip the rest, as there is already a unity vector
-				continue ;
+					// now we can skip the rest, as there is already a unity vector
+					continue;
+				}
 			}
 
-			found:
 			// TODO: currently only 1 and q-1 are pivot rows
 			//const DataType scal = get(i, i);
 			//ASSERT(scal);
@@ -731,21 +729,26 @@ public:
 
 		/// last but not least
 		for (uint32_t i = 0; i < additional_to_solve; ++i) {
+			bool found = false;
 			/// pivoting
 			for (uint32_t j = max_row; j < nrows; ++j) {
 				if (__data[j][i+c] == 1u) {
 					swap_rows(j, i+c);
-					goto found2;
+					found = true;
+					break;
 				}
 
 				if (__data[j][i+c] == (q - 1u)) {
 					swap_rows(j, i+c);
 					__data[i+c].neg();
-					goto found2;
+					found = true;
+					break;
 				}
 			}
 
-			return c+i;
+			/// TODO not fully finished see the binary case
+			if (!found)
+				return c+i;
 
 			found2:
 			for (uint32_t j = 0; j < nrows; ++j) {
