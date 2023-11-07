@@ -58,6 +58,7 @@ concept MatrixAble = requires(MatrixType c) {
 		c.random();
 
 		c.weight_column(i);
+		c.weight_row(i);
 
 		MatrixType::augment(c, c);
 
@@ -72,7 +73,7 @@ concept MatrixAble = requires(MatrixType c) {
 
 		c.gaus();
 		//TODO c.fix_gaus(*i, i, i, i);
-		//TODO c.m4ri();
+		c.m4ri();
 
 		c.swap(i, i, i, i);
 		c.swap_cols(i, i);
@@ -189,7 +190,7 @@ public:
 	/// \param j column
 	constexpr void set(DataType data, const uint32_t i, const uint32_t j) noexcept {
 		ASSERT(i < ROWS && j <= COLS);
-		ASSERT(data < q);
+		ASSERT((uint32_t)data < q);
 		__data[i].set(data, j);
 	}
 
@@ -902,6 +903,19 @@ public:
 		uint32_t weight = 0;
 		for (uint32_t i = 0; i < nrows; ++i) {
 			weight += get(i, col) > 0;
+		}
+
+		return weight;
+	}
+
+	/// compute the hamming weight of a row
+	/// \param row
+	/// \return hamming weight
+	[[nodiscard]] constexpr inline uint32_t weight_row(const uint32_t row) const noexcept {
+		ASSERT(row < nrows);
+		uint32_t weight = 0;
+		for (uint32_t i = 0; i < ncols; ++i) {
+			weight += get(row, i) > 0;
 		}
 
 		return weight;

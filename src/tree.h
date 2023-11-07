@@ -9,10 +9,10 @@
 #endif
 
 // internal includes
+#include "matrix/binary_matrix.h"
 #include "kAry_type.h"
 #include "container/vector.h"
 #include "element.h"
-#include "matrix/matrix.h"
 #include "list/list.h"
 #include "thread/thread.h"
 #include "matrix/fq_matrix.h"

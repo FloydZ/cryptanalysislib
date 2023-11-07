@@ -4,12 +4,11 @@
 #include <cstdint>
 
 #include "tree.h"
-#include "m4ri/m4ri.h"
 
 constexpr uint32_t n  = 20;
 using BinaryValue     = BinaryContainer<n>;
 using BinaryLabel     = BinaryContainer<n>;
-using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2>;
+using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2, true>;
 using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList      = List_T<BinaryElement>;
 using BinaryTree      = Tree_T<BinaryList>;

@@ -12,7 +12,9 @@
 #include "permutation/permutation.h"
 #include "random.h"
 #include "simd/simd.h"
+#include "popcount/popcount.h"
 
+using namespace cryptanalysislib;
 
 /// matrix implementation which wrapped mzd
 /// \tparam T MUST be uint64_t
@@ -46,7 +48,12 @@ public:
 
 	constexpr static T high_bitmask = -1ul >> ((RADIX - (ncols%RADIX)) %RADIX);
 	constexpr static uint32_t block_words = nrows * padded_limbs;
-	
+
+
+	/// TODO
+	using FqMatrix_Meta<T, nrows, ncols, 2, true>::matrix_row_vector_mul2;
+
+
 	unsigned flb(unsigned long x) {
 		if (x < 1) return 0;
 		return (8 * sizeof(unsigned long)) - __builtin_clzl(x) - 1;
@@ -217,6 +224,13 @@ public:
 	}
 
 	///
+	/// \param data
+	/// \return
+	constexpr inline void set(const bool data) {
+		fill(data);
+	}
+
+	///
 	/// \param j
 	/// \return
 	constexpr T* operator[](const uint32_t j){
@@ -318,6 +332,32 @@ public:
 
 			__data[i*padded_limbs + limbs_per_row() - 1u] = +(-1ull) & high_bitmask;
 		}
+	}
+
+	///
+	/// \param col
+	/// \return
+	constexpr inline uint32_t weight_column(const uint32_t col) const noexcept {
+		ASSERT(col < ncols);
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < nrows; ++i) {
+			ret += get(i, col);
+		}
+
+		return ret;
+	}
+
+	///
+	/// \param rrow
+	/// \return
+	constexpr inline uint32_t weight_row(const uint32_t rrow) const noexcept {
+		ASSERT(rrow < nrows);
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < limbs; ++i) {
+			ret += popcount::template popcount<T>(row(rrow)[i]);
+		}
+
+		return ret;
 	}
 
 	///
@@ -1450,6 +1490,34 @@ public:
 		}
 	}
 
+
+	/// TODO optimize
+	/// only transpose a sub-matrix.
+	/// NOTE: in contrast to the above function, is this function realigning the
+	/// the output. Meaning the output is written starting from (0,0)
+	/// \param B output matrix
+	/// \param A input matrix
+	/// \param srow start row (inclusive, of A)
+	/// \param scol start col (inclusive, of A)
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packedprime>
+	constexpr static void sub_transpose(FqMatrix<Tprime, nrows_prime, ncols_prime, qprime, packedprime> &B,
+										const FqMatrix &A,
+										const uint32_t srow,
+										const uint32_t scol) noexcept {
+		ASSERT(srow < nrows);
+		ASSERT(scol < ncols);
+		// checks must be transposed to
+		ASSERT(scol < nrows_prime);
+		ASSERT(srow < ncols_prime);
+
+		for (uint32_t row = srow; row < nrows; ++row) {
+			for (uint32_t col = scol; col < ncols; ++col) {
+				const DataType data = A.get(row, col);
+				B.set(data, col- scol, row- srow);
+			}
+		}
+	}
+
 	/// NOTE this re-aligns the output to (0, 0)
 	/// \param B output matrix
 	/// \param A input matrix
@@ -1641,16 +1709,39 @@ public:
 		}
 	}
 
+	///
+	/// \param A
+	/// \param i
+	/// \param j
+	/// \return
 	constexpr static inline void swap_rows(FqMatrix &A,
 	                                       const uint16_t i,
 										   const uint16_t j) noexcept {
 		swap_rows(A.__data.data(), i, j);
 	}
+
+	///
+	/// \param i
+	/// \param j
+	/// \return
 	constexpr inline void swap_rows(const uint16_t i,
 										   const uint16_t j) noexcept {
 		swap_rows(__data.data(), i, j);
 	}
 
+	/// swap to elements within the matrix
+	/// \param i1 row of the first element
+	/// \param j1 column of the first element
+	/// \param i2 row of the second element
+	/// \param j2 column of the second element
+	constexpr void swap(const uint16_t i1,
+						const uint16_t j1,
+						const uint16_t i2,
+						const uint16_t j2) noexcept {
+		uint32_t tmp = get(i1, j1);
+		set(get(i2, j2), i1, i2);
+		set(tmp, i2, j2);
+	}
 
 	constexpr void permute_cols(FqMatrix<T, ncols, nrows, q> &AT,
 								uint32_t *permutation,
@@ -2123,6 +2214,12 @@ public:
 	}
 
 	///
+	/// \param stop
+	/// \return
+	constexpr inline uint32_t m4ri(const uint32_t stop=nrows) noexcept {
+		return matrix_echelonize_partial(*this, stop, 0);
+	}
+	///
 	/// \param permutation
 	/// \param rang
 	/// \param fix_col
@@ -2144,11 +2241,12 @@ public:
 	}
 
 	constexpr static void print_matrix(const std::string &name,
-							 const FqMatrix &A,
-							 const uint32_t start_row=-1u,
-							 const uint32_t end_row=-1u,
-							 const uint32_t start_col=-1u,
-							 const uint32_t end_col=-1u) noexcept {
+	                                   const FqMatrix &A,
+	                                   const bool compress_spaces=false,
+						 			   const uint32_t start_row=-1u,
+						 			   const uint32_t end_row=-1u,
+						 			   const uint32_t start_col=-1u,
+						 			   const uint32_t end_col=-1u) noexcept {
 		const uint32_t sstart_row = start_row == -1u ? 0 : start_row;
 		const uint32_t eend_row = end_row == -1u ? A.nrows : end_row;
 
@@ -2166,12 +2264,14 @@ public:
 					std::cout << " ";
 				}
 
-				if (((j+1) % 4 == 0) && ((j+1) % RADIX == 0)) {
-					std::cout << "|";
-				}
+				if (!compress_spaces) {
+					if (((j + 1) % 4 == 0) && ((j + 1) % RADIX == 0)) {
+						std::cout << "|";
+					}
 
-				if (((j+1) % 4 == 0) && ((j+1) % RADIX != 0)) {
-					std::cout << ":";
+					if (((j + 1) % 4 == 0) && ((j + 1) % RADIX != 0)) {
+						std::cout << ":";
+					}
 				}
 
 			}
@@ -2184,17 +2284,23 @@ public:
 
 	/// prints the current matrix
 	/// \param name postpend the name of the matrix
-	/// \param binary print as binary
 	/// \param compress_spaces if true, do not print spaces between the elements
 	/// \param syndrome if true, print the last line as the syndrome
 	constexpr void print(const std::string &name="",
-	                     bool binary=true,
 	                     bool transposed=false,
 	                     bool compress_spaces=false,
 	                     bool syndrome=false) const noexcept {
-		print_matrix(name, *this);
+		(void)syndrome;
+		if (transposed) {
+			FqMatrix<T, ncols, nrows, 2> AT;
+			transpose(AT, *this);
+			print_matrix(name, AT);
+		} else {
+			print_matrix(name, *this);
+		}
 	}
 
+	/// \return if this matrix is binary
 	constexpr bool binary() noexcept { return true; }
 };
 

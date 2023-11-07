@@ -1122,7 +1122,7 @@ public:
 		} else {                // the two offsets lay in two different limbs
 			v1.__data[upper] = (v1.__data[upper] & ~rmask) | (v2.__data[upper] & rmask);
 			v1.__data[lower] = (v1.__data[lower] & ~lmask) | (v2.__data[lower] & lmask);
-			for(uint64_t i = upper-1ul; i > lower; i--) {
+			for(uint32_t i = upper-1ul; i > lower; i--) {
 				v1.data()[i] = v2.data()[i];
 			}
 		}
