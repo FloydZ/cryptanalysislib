@@ -572,7 +572,7 @@ public:
 	/// \param r_stop
 	/// \return
 	template<const uint32_t r>
-	constexpr uint32_t m4ri(const uint32_t r_stop) noexcept {
+	constexpr uint32_t m4ri(const uint32_t r_stop=nrows) noexcept {
 		static_assert(r > 0);
 		constexpr uint32_t qm1 = q-1;
 		ASSERT(false);
