@@ -1,4 +1,3 @@
-add_subdirectory(combinations)
 add_subdirectory(container)
 add_subdirectory(labeltype)
 add_subdirectory(label)
