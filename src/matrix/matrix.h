@@ -571,7 +571,7 @@ public:
 	/// \tparam r
 	/// \param r_stop
 	/// \return
-	template<const uint32_t r>
+	template<const uint32_t r = 4>
 	constexpr uint32_t m4ri(const uint32_t r_stop=nrows) noexcept {
 		static_assert(r > 0);
 		constexpr uint32_t qm1 = q-1;
