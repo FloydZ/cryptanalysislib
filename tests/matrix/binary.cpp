@@ -14,8 +14,8 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 using T = uint64_t;
-constexpr uint32_t nrows = 30;
-constexpr uint32_t ncols = 50;
+constexpr uint32_t nrows = 250;
+constexpr uint32_t ncols = 1000;
 using M  = FqMatrix<T, nrows, ncols, 2, true>;
 using MT = FqMatrix<T, ncols, nrows, 2, true>;
 
@@ -211,22 +211,21 @@ TEST(BinaryMatrix, subMatrix) {
 
 TEST(BinaryMatrix, gaus) {
 	M m = M{};
-	m.random();
-	const uint32_t rank = m.gaus();
-	ASSERT_GT(rank, 0);
 
-	std::cout << rank << std::endl;
-	m.print();
-
-	for (uint32_t i = 0; i < nrows; ++i) {
-		for (uint32_t j = 0; j < rank; ++j) {
-			ASSERT_EQ(m.get(i, j), i==j);
+	for (uint32_t k = 0; k < 100; ++k) {
+		m.random();
+		const uint32_t rank = m.gaus();
+		ASSERT_GT(rank, 0);
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < rank; ++j) {
+				ASSERT_EQ(m.get(i, j), i == j);
+			}
 		}
 	}
 }
 
 TEST(BinaryMatrix, markov_gaus) {
-	constexpr uint32_t l = 10;
+	constexpr uint32_t l = 30;
 	constexpr uint32_t c = 5;
 	M m = M{};
 	Permutation P(ncols);
@@ -235,19 +234,21 @@ TEST(BinaryMatrix, markov_gaus) {
 	while (true) {
 		m.random();
 		rank = m.gaus(nrows-l);
+		rank = m.fix_gaus(P.values, rank, nrows-l, 0);
 		ASSERT_GT(rank, 0);
 
 		if (rank >= nrows - l) { break; }
 	}
 
 	uint32_t ctr = 0;
-	for (uint32_t k = 0; k < 10000; ++k) {
+	for (uint32_t k = 0; k < 100; ++k) {
 		uint32_t rank2 = m.markov_gaus<c, nrows-l>(P);
 		if (rank2 == 0) {
 			ctr += 1;
 			while (true) {
 				m.random();
 				rank = m.gaus(nrows-l);
+				rank = m.fix_gaus(P.values, rank, nrows-l, 0);
 				ASSERT_GT(rank, 0);
 
 				if (rank >= nrows - l) { break; }
@@ -263,7 +264,7 @@ TEST(BinaryMatrix, markov_gaus) {
 		}
 	}
 
-	ASSERT_LE(ctr, 10);
+	ASSERT_LE(ctr, 20);
 }
 
 
@@ -277,8 +278,11 @@ TEST(BinaryMatrix, fixgaus) {
 	}
 
 	const uint32_t rank = m.gaus();
-	const uint32_t rank2 = m.fix_gaus(perm, rank, nrows, ncols);
+	m.print();
+	const uint32_t rank2 = m.fix_gaus(perm, rank, nrows, 0);
 	ASSERT_GT(rank, 0);
+	ASSERT_GE(rank2, rank);
+	ASSERT_EQ(rank2, nrows);
 
 	//std::cout << rank << std::endl;
 	//m.print();

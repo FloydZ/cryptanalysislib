@@ -89,7 +89,7 @@ static inline void random_seed(uint64_t seed) noexcept {
 }
 
 /// \return a uniform random `uint64_t`
-static uint64_t fastrandombytes_uint64() noexcept {
+static inline uint64_t fastrandombytes_uint64() noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
 

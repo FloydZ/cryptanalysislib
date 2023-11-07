@@ -7,8 +7,8 @@
 using T = uint64_t;
 constexpr uint32_t nrows = 256;
 constexpr uint32_t ncols = 1024;
-using M  = FqMatrix<T, nrows, ncols, 2, true>;
-using MT = FqMatrix<T, ncols, nrows, 2, true>;
+using M  = FqMatrix<T, nrows, ncols, 5, true>;
+using MT = FqMatrix<T, ncols, nrows, 5, true>;
 
 constexpr uint32_t l = 25;
 constexpr uint32_t c = 20;
