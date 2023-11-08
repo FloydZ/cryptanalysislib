@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <gtest/gtest.h>
 
 #include "combination/chase.h"
@@ -22,9 +23,9 @@ constexpr uint32_t w = 2;
 
 constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();
 
-using T = uint8_t;
-using Value = kAryContainer_T<T, n, q>;
-using Label = kAryContainer_T<T, n, q>;
+using T = uint64_t;
+using Value = kAryPackedContainer_T<T, n, q>;
+using Label = kAryPackedContainer_T<T, n, q>;
 using Matrix = FqMatrix<T, n, n, q>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
@@ -44,7 +45,7 @@ TEST(Chase, first) {
 	constexpr uint32_t element_limbs = (n + 63)/64;
 	uint16_t pos1, pos2;
 	uint16_t epos1, epos2;
-	Combinations_Binary_Chase<word, n, w> c;
+	Combinations_Binary_Chase<T, n, w> c;
 
 	uint64_t *w1 = (uint64_t *)malloc(element_limbs * 8),
 			 *w2 = (uint64_t *)malloc(element_limbs * 8);
@@ -55,7 +56,7 @@ TEST(Chase, first) {
 		bool ret = c.left_step(w2, &epos1, &epos2);
 		EXPECT_EQ(true, ret);
 
-		Combinations_Binary_Chase<word, n, w>::__diff(w1, w2, element_limbs, &pos1, &pos2);
+		Combinations_Binary_Chase<T, n, w>::__diff(w1, w2, element_limbs, &pos1, &pos2);
 
 		int diff = (int)pos1 - int(pos2);
 		EXPECT_LE(std::abs(diff), w);

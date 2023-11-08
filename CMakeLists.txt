@@ -85,7 +85,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 else()
 
 if("avx2" IN_LIST _available_vector_units_list)
-	#set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 ")
+	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 ")
 endif()
 
 if("avx512f" IN_LIST _available_vector_units_list)
@@ -98,9 +98,9 @@ endif()
 
 # NOTE: fplll is missing
 set(LINK_TEST_FLAGS -lgtest -pthread)
-if(OpenMP_CXX_FOUND)
-	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_CXX)
-endif()
+#if(OpenMP_CXX_FOUND)
+#	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_C)
+#endif()
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
 # he nicest way, but by far the easiest.

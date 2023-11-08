@@ -870,7 +870,7 @@ struct uint32x8_t {
 			return;
 		}
 
-		aligned_store(ptr, in);
+		unaligned_store(ptr, in);
 	}
 
 	///

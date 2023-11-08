@@ -23,8 +23,8 @@ constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();
 constexpr size_t chase_size = bc(n, w);
 
 using T = uint8_t;
-using Value = kAryContainer_T<T, n, q>;
-using Label = kAryContainer_T<T, n, q>;
+using Value = kAryPackedContainer_T<T, n, q>;
+using Label = kAryPackedContainer_T<T, n, q>;
 using Matrix = FqMatrix<T, n, n, q>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
@@ -56,8 +56,9 @@ TEST(ListEnumerateMultiFullLength, single_list) {
 TEST(ListEnumerateMultiFullLength, single_hashmap) {
 	HMType hm;
 	List L(list_size);
-	auto extractor = [](const Label l){
-		return l.ptr()[0];
+	auto extractor = [](const Label label){
+		constexpr uint64_t mask = (1ul << l) - 1ul;
+		return (label.ptr()[0]) & mask;
 	};
 
 	Matrix HT;

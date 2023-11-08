@@ -21,13 +21,6 @@ stdenv.mkDerivation {
 	gcc
 	gtest
 	gbenchmark 
-	gmp 
-	tbb 
-	libpng 
-	mpfr 
-	fplll 
-	ninja
-	ripgrep
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
 	flamegraph
 	gdb

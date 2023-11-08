@@ -235,7 +235,7 @@ TEST(BinaryMatrix, markov_gaus) {
 	while (true) {
 		m.random();
 		rank = m.gaus(nrows-l);
-		rank = m.fix_gaus(P.values, rank, nrows-l, 0);
+		rank = m.fix_gaus(P.values, rank, nrows-l);
 		ASSERT_GT(rank, 0);
 
 		if (rank >= nrows - l) { break; }
@@ -249,7 +249,7 @@ TEST(BinaryMatrix, markov_gaus) {
 			while (true) {
 				m.random();
 				rank = m.gaus(nrows-l);
-				rank = m.fix_gaus(P.values, rank, nrows-l, 0);
+				rank = m.fix_gaus(P.values, rank, nrows-l);
 				ASSERT_GT(rank, 0);
 
 				if (rank >= nrows - l) { break; }
@@ -280,7 +280,7 @@ TEST(BinaryMatrix, fixgaus) {
 
 	const uint32_t rank = m.gaus();
 	m.print();
-	const uint32_t rank2 = m.fix_gaus(perm, rank, nrows, 0);
+	const uint32_t rank2 = m.fix_gaus(perm, rank, nrows);
 	ASSERT_GT(rank, 0);
 	ASSERT_GE(rank2, rank);
 	ASSERT_EQ(rank2, nrows);

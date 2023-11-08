@@ -20,10 +20,10 @@ public:
 	uint32_t length;
 
 	Permutation(uint32_t length) {
-		values = (uint32_t *)malloc(sizeof(uint32_t) * length);
-		length = length;
+		this->values = (uint32_t *)malloc(sizeof(uint32_t) * length);
+		this->length = length;
 		for (uint32_t i = 0; i < length; ++i) {
-			values[i] = i;
+			this->values[i] = i;
 		}
 	}
 

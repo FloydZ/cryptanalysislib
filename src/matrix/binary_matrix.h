@@ -1440,8 +1440,8 @@ public:
 	/// NOTE: no expansion is possible
 	/// \param B output
 	/// \param A input
-	constexpr static void transpose(FqMatrix<T, ncols, nrows, q> &B,
-									FqMatrix<T, nrows, ncols, q> &A) noexcept {
+	constexpr static void transpose(FqMatrix<T, ncols, nrows, q, true> &B,
+									FqMatrix<T, nrows, ncols, q, true> &A) noexcept {
 		// TODO currently segfaulting for n=100, n-k=30
 		//if constexpr (sizeof(T) == 8) {
 		//	_mzd_transpose(B.__data.data(), A.__data.data(),
@@ -2227,8 +2227,7 @@ public:
 	/// \return
 	[[nodiscard]] constexpr uint32_t fix_gaus(uint32_t *__restrict__ permutation,
 											  const uint32_t rang,
-											  const uint32_t fix_col,
-											  const uint32_t lookahead) noexcept {
+											  const uint32_t fix_col) noexcept {
 		Permutation P(ncols);
 		for (uint32_t i = 0; i < ncols; ++i) {
 			P.values[i] = permutation[i];
@@ -2289,14 +2288,14 @@ public:
 	constexpr void print(const std::string &name="",
 	                     bool transposed=false,
 	                     bool compress_spaces=false,
-	                     bool syndrome=false) const noexcept {
+	                     bool syndrome=false) noexcept {
 		(void)syndrome;
 		if (transposed) {
-			FqMatrix<T, ncols, nrows, 2> AT;
-			transpose(AT, *this);
-			print_matrix(name, AT);
+			FqMatrix<T, ncols, nrows, 2, true> AT;
+			FqMatrix<T, nrows, ncols, 2, true>::transpose(AT, *this);
+			FqMatrix<T, ncols, nrows, 2, true>::print_matrix(name, AT, compress_spaces);
 		} else {
-			print_matrix(name, *this);
+			print_matrix(name, *this, compress_spaces);
 		}
 	}
 
