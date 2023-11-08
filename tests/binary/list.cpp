@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#define TEST_BASE_LIST_SIZE 100
-#define TEST_BASE_LIST_ADDITIONAL_SIZE TEST_BASE_LIST_SIZE/10
+#define TEST_BASE_LIST_SIZE 1000
+#define TEST_BASE_LIST_ADDITIONAL_SIZE ((TEST_BASE_LIST_SIZE)/10)
 
 #include "helper.h"
 #include "list/list.h"
@@ -14,6 +14,7 @@ using ::testing::TestEventListeners;
 using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
+
 
 ///
 /// \param l
@@ -52,8 +53,9 @@ uint64_t helper_list_is_every_element_value_unique(const BinaryList &L){
 uint64_t helper_check_weight_of_value(const BinaryList &l, const uint64_t e1, const uint64_t em1) {
 	typedef typename BinaryElement::ValueDataType T;
 
-	if (l.load() == 0)
+	if (l.load() == 0) {
 		return 0;
+	}
 
 	uint64_t errors = 0;
 	const uint64_t vs = l[0].value_size();

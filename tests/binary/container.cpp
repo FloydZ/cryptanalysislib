@@ -1206,8 +1206,9 @@ TEST(weight, Simple_Everything_True) {
 		EXPECT_EQ(k_lower, b1.weight());
 		EXPECT_EQ(k_lower, b1.weight(0, k_lower));
 		EXPECT_EQ(k_lower, b1.weight(0, b1.size()));
-		if (k_lower + 1 < b1.size())
-			EXPECT_EQ(0, b1.weight(k_lower +1, b1.size()));
+		if (k_lower + 1 < b1.size()) {
+			EXPECT_EQ(0, b1.weight(k_lower + 1, b1.size()));
+		}
 	}
 }
 

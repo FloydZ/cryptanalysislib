@@ -246,7 +246,7 @@ TEST(is_greater_ext2, Complex_One) {
 
 			b1.zero();
 			b2.zero();
-			for (int i = k_higher; i < b2.size(); ++i) {
+			for (uint32_t i = k_higher; i < b2.size(); ++i) {
 				b2[i] = true;
 			}
 
@@ -330,7 +330,7 @@ TEST(is_lower_simple2, Complex_One) {
 
 			b1.zero();
 			b2.zero();
-			for (int i = k_higher; i < b2.size(); ++i) {
+			for (uint32_t i = k_higher; i < b2.size(); ++i) {
 				b2[i] = true;
 			}
 
@@ -401,7 +401,7 @@ TEST(is_lower_ext2, Complex_One) {
 		// + 65 so we always increase the counter the size of a limb
 		for (uint32_t k_higher = k_lower + 64; k_higher < BinaryContainerTest2::size()-64; ++k_higher) {
 			b2.zero();
-			for (int i = 0; i < k_higher; ++i) {
+			for (uint32_t i = 0; i < k_higher; ++i) {
 				b2[i] = true;
 			}
 
