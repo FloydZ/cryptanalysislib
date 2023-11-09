@@ -603,9 +603,9 @@ public:
 
 		/// data container
 		constexpr uint32_t precompute_size = compute_size();
-		static RowType table[precompute_size];
+		RowType table[precompute_size];
 		table[0].clear();
-		static std::array<bool, precompute_size> computed;
+		std::array<bool, precompute_size> computed;
 
 		/// computes the index within the pre computation table
 		/// \param row_index: left start row
