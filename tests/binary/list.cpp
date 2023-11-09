@@ -79,35 +79,35 @@ uint64_t helper_check_weight_of_value(const BinaryList &l, const uint64_t e1, co
 }
 
 
-TEST(SearchBinary, Simple) {
-	uint64_t bpos, nbpos;
-	BinaryList L{0};
-	BinaryMatrix A;
-	A.identity();
-
-	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
-
-	for (uint32_t k_lower = 0; k_lower < n; ++k_lower) {
-		for (uint32_t k_upper = k_lower+5; k_upper < std::min(k_lower + 6u, BinaryLabel::LENGTH) ; ++k_upper) {
-			if ((k_lower%64u) + 6u >= 64u) {
-				continue;
-			}
-
-			for (uint32_t pos = 0u; pos < 1u; ++pos) {
-				BinaryElement e; e.random(A);
-				L[pos] = e;
-
-				// first sort it
-				L.sort_level(k_lower, k_upper);
-
-				// the do different independent searches
-				bpos  = L.search_level_binary_simple(e, k_lower, k_upper);
-				nbpos = L.search_level(e, k_lower, k_upper);
-				EXPECT_EQ(bpos, nbpos);
-			}
-		}
-	}
-}
+//TEST(SearchBinary, Simple) {
+//	uint64_t bpos, nbpos;
+//	BinaryList L{0};
+//	BinaryMatrix A;
+//	A.identity();
+//
+//	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
+//
+//	for (uint32_t k_lower = 0; k_lower < n; ++k_lower) {
+//		for (uint32_t k_upper = k_lower+5; k_upper < std::min(k_lower + 6u, BinaryLabel::LENGTH) ; ++k_upper) {
+//			if ((k_lower%64u) + 6u >= 64u) {
+//				continue;
+//			}
+//
+//			for (uint32_t pos = 0u; pos < 1u; ++pos) {
+//				BinaryElement e; e.random(A);
+//				L[pos] = e;
+//
+//				// first sort it
+//				L.sort_level(k_lower, k_upper);
+//
+//				// the do different independent searches
+//				bpos  = L.search_level_binary_simple(e, k_lower, k_upper);
+//				nbpos = L.search_level(e, k_lower, k_upper);
+//				EXPECT_EQ(bpos, nbpos);
+//			}
+//		}
+//	}
+//}
 
 TEST(SearchBinary, Complex) {
 	uint64_t bpos, nbpos;

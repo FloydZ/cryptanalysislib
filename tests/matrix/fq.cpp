@@ -280,6 +280,23 @@ TEST(FqMatrix, gaus) {
 	}
 }
 
+
+TEST(FqMatrix, m4ri) {
+	M m = M{};
+	m.random();
+	const uint32_t rank = m.m4ri();
+	ASSERT_GT(rank, 0);
+
+	//std::cout << rank << std::endl;
+	//m.print();
+
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < rank; ++j) {
+			ASSERT_EQ(m.get(i, j), i==j);
+		}
+	}
+}
+
 TEST(FqMatrix, markov_gaus) {
 	constexpr uint32_t l = 10;
 	constexpr uint32_t c = 5;

@@ -253,10 +253,24 @@ public:
 		clear();
 	}
 
-	/// generates a fully random matrix
+	/// generates a fully random matrix with full rank
 	constexpr void random() noexcept {
+		clear();
 		for (uint32_t row = 0; row < nrows; ++row) {
 			__data[row].random();
+		}
+
+		for (uint32_t i = 0; i < std::min(nrows, ncols); i++) {
+			set(1, i, i);
+		}
+
+		for (uint32_t row = 0; row < std::min(ncols, nrows); ++row) {
+			for (uint32_t col = 0; col < std::min(nrows, ncols); ++col) {
+				if (row != col) { continue; }
+				if ((fastrandombytes_uint64() & 1u) == 1u){
+					RowType::add(__data[col], __data[col], __data[row]);
+				}
+			}
 		}
 	}
 
@@ -572,57 +586,165 @@ public:
 	/// \param r_stop
 	/// \return
 	template<const uint32_t r = 4>
-	constexpr uint32_t m4ri(const uint32_t r_stop=nrows) noexcept {
+	constexpr uint32_t m4ri(const uint32_t rstop=nrows) noexcept {
 		static_assert(r > 0);
-		constexpr uint32_t qm1 = q-1;
-		ASSERT(false);
 
 		/// computes q**r
 		constexpr auto compute_size = [](){
-		  size_t tmp = qm1;
-		  for (uint32_t i = 0; i < r - 1; i++) {
-			  tmp *= qm1;
-		  }
+			size_t ret = 0;
+			size_t multiplier = q;
+			for (uint32_t i = 0; i < r; i++) {
+				  ret += multiplier;
+				  multiplier *= q;
+			}
 
-		  return tmp;
+			return ret;
 		};
 
 		/// data container
-		//static RowType buckets[compute_size()];
+		constexpr uint32_t precompute_size = compute_size();
+		static RowType table[precompute_size];
+		table[0].clear();
+		static std::array<bool, precompute_size> computed;
 
-		/// computes the index within the precomputation table
-		constexpr auto compute_index =
-			[&](const size_t row_index, const size_t col_index) {
-			  size_t ret = 0;
+		/// computes the index within the pre computation table
+		/// \param row_index: left start row
+		/// \param col_index: left start column
+		auto compute_index =
+		[&](const size_t row_index, const size_t col_index, const uint32_t kk) {
+			size_t ret = 0;
+			size_t multiplier = 1;
+			for (uint32_t i = 0; i < kk; ++i) {
+				DataType a = get(row_index, col_index + i);
+				ret += multiplier * ((q - a) % q);
+			    multiplier *= q;
+			}
 
-			  (void) row_index;
-			  (void) col_index;
-			  for (uint32_t i = 0; i < r; ++i) {
-
-			  }
-
-			  return ret;
+			ASSERT(ret < precompute_size);
+			return ret;
 		};
 
-		/// init the buckets
-		constexpr auto init = [&](const uint32_t start_row) {
-		  ASSERT(start_row + r <= nrows);
-		  for (uint32_t i = 0; i < qm1; ++i) {
-			  //size_t offset = 0;
+		/// \param pos position with in the `Table`. computed by `compute_index`
+		/// \param row top left point to start the systematization
+		/// \param col top left point to start the systematization
+		/// \param start_row = top left point which is already a unity matrix on a kk x kk square
+		auto compute_table_entry =
+		[&](const size_t pos, const uint32_t row, const uint32_t col,
+		    const uint32_t start_row, const uint32_t kk) {
+			alignas(32) RowType tmp;
 
-			  // simply copy each row
-			  for (uint32_t j = 0; j < r; ++j) {
-				  //buckets[offset] = get(start_row + j);
-				  //offset += q;
-			  }
+			// the fist row must be unrolled to overwrite the previous entry
+		  	DataType a = get(row, col);
+		  	a = (q - a % q);
+		  	RowType::scalar(table[pos], __data[start_row], a);
+	        for (uint32_t i = 1; i < kk; ++i) {
+				DataType a = get(row, col + i);
+				if (a == 0) { continue ;}
+				a = (q - a % q);
+				RowType::scalar(tmp, __data[start_row + i], a);
+				RowType::add(table[pos], table[pos], tmp);
+	        }
 
-			  for (uint32_t j = 0; j < r; ++j) {
+			computed[pos] = true;
+	    };
 
-			  }
-		  }
+
+		/// \param row top left point of the systematized submatrix
+		/// \param col top left point of the systematized submatrix
+		/// \param kk size of the systemized submatrix
+		/// \param rstart
+		auto process_rows =
+		[&](const uint32_t row, const uint32_t col, const uint32_t kk, const uint32_t rstart, const uint32_t rstop){
+		    ASSERT(rstart <= rstop);
+			for (uint32_t i = rstart; i < rstop; i++) {
+			    size_t pos = compute_index(i, col, kk);
+			    if (!computed[pos]) {
+					compute_table_entry(pos, i, col, row, kk);
+			    }
+
+				RowType::add(__data[i], __data[i], table[pos]);
+		    }
 		};
 
-		return r_stop;
+		/// computes the gaus on a kk x kk square starting from (row, col)
+		/// NOTE: kk = r normally
+		auto sub_gaus =
+		[&](const uint32_t row, const uint32_t col, const uint32_t kk){
+		    alignas(32) RowType tmp;
+		    for (uint32_t i = row; i < row+kk; ++i) {
+		        uint32_t sel = -1u;
+		        const uint32_t current_col = col+i-row;
+				/// pivoting
+				for (uint32_t pivot_row = i; pivot_row < nrows; pivot_row++) {
+					if (get(pivot_row, current_col) == 1u) {
+						sel = pivot_row;
+						break;
+					}
+
+					if (get(pivot_row, current_col) == (q-1u)) {
+						sel = pivot_row;
+						__data[pivot_row].neg();
+						break;
+					}
+				}
+
+		        /// no pivot found
+		        if (sel == -1u) { return i-row; }
+
+		        swap_rows(i, sel);
+
+				/// if the pivot row is taken from outside of the kk x kk square
+				/// we need to resolve it
+				if (sel >= row + kk) {
+					for (uint32_t j = col; j < col+kk; ++j) {
+						if (j == i) { continue; }
+
+						const DataType a = get(i, j);
+						if (a == 0) { continue; }
+
+						// negate
+						DataType c = (q - a) % q;
+						RowType::scalar(tmp, __data[row+j-col], c);
+						RowType::add(__data[i], __data[i], tmp);
+					}
+				}
+
+		        /// solve the column in the kk x kk square
+		        for (uint32_t j = row; j < row+kk; ++j) {
+			        if (j == i) { continue; }
+
+					const DataType a = get(j, current_col);
+					if (a == 0) { continue; }
+					// negate
+					DataType c = (q - a) % q;
+					RowType::scalar(tmp, __data[i], c);
+					RowType::add(__data[j], __data[j], tmp);
+		        }
+		    }
+
+			return kk;
+		};
+
+		uint32_t row=0, col=0, kk=r;
+		while (col < rstop) {
+			std::fill(computed.begin(), computed.end(), 0);
+			if (col + kk > rstop) { kk = rstop - col; }
+			const uint32_t kbar = sub_gaus(row, col, kk);
+
+			if (kk != kbar) { break ;}
+
+			if (kbar > 0) {
+				/// process below
+				process_rows(row, col, kk, row + kbar, nrows);
+				/// process above
+				process_rows(row, col, kk, 0, row);
+			}
+
+			row += kbar;
+			col += kbar;
+		}
+
+		return col;
 	}
 
 
@@ -748,10 +870,10 @@ public:
 			}
 
 			/// TODO not fully finished see the binary case
-			if (!found)
+			if (!found) {
 				return c+i;
+			}
 
-			found2:
 			for (uint32_t j = 0; j < nrows; ++j) {
 				if ((c+i) == j) continue ;
 				uint32_t scal = get(j, i+c);
@@ -849,6 +971,23 @@ public:
 		FqMatrix_Meta<T, ncols, nrows, q, packed>::transpose(*this, AT, 0, 0);
 	}
 
+	/// NOTE: is slower than the implementation utilizing the
+	/// \param permutation
+	/// \param len
+	/// \return
+	constexpr void permute_cols(uint32_t *permutation,
+								const uint32_t len) noexcept {
+		for (uint32_t i = 0; i < len; ++i) {
+			uint32_t pos = fastrandombytes_uint64() % (len - i);
+			ASSERT(i+pos < len);
+
+			auto tmp = permutation[i];
+			permutation[i] = permutation[i+pos];
+			permutation[pos+i] = tmp;
+
+			swap_cols(i, i+pos);
+		}
+	}
 	/// appending the syndrome as the last column
 	/// \param syndromeT syndrome colum
 	/// \param col
@@ -1131,6 +1270,7 @@ public:
 		constexpr uint32_t bits = constexpr_bits_log2(q);
 		if (binary) {
 			for (uint32_t j = 0; j < ncols; ++j) {
+				//std::cout << std::setw(3) << j << ": ";
 				for (uint32_t i = 0; i < nrows; ++i) {
 					if (transposed) {
 						print_binary(get(i, j), bits);
@@ -1149,6 +1289,7 @@ public:
 
 		if (transposed) {
 			for (uint32_t j = 0; j < ncols; ++j) {
+				//std::cout << std::setw(3) << j << ": ";
 				for (uint32_t i = 0; i < nrows; ++i) {
 					std::cout << int(get(i, j));
 					if (not compress_spaces) {
@@ -1159,6 +1300,7 @@ public:
 			}
 		} else {
 			for (uint32_t i = 0; i < nrows; ++i) {
+				//std::cout << std::setw(3) << i << ": ";
 				for (uint32_t j = 0; j < ncols; ++j) {
 					std::cout << int(get(i, j));
 					if (not compress_spaces) {
