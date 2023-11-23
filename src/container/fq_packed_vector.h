@@ -92,7 +92,7 @@ class kAryPackedContainer_Meta {
 	/// sets the `i`-th number to `data`
 	/// \param data value to set the array on
 	/// \param i -th number to overwrite
-	/// \retutn nothing
+	/// \return nothing
 	constexpr void set(const DataType data, const uint32_t i) noexcept {
 		ASSERT(i < LENGTH);
 		const uint16_t off = i/numbers_per_limb;
@@ -108,7 +108,7 @@ class kAryPackedContainer_Meta {
 	/// sets the `i`-th number to `data`
 	/// \param data value to set the array on
 	/// \param i -th number to overwrite
-	/// \retutn nothing
+	/// \return nothing
 	constexpr void set(const DataType data) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = 0; i < n; ++i) {
@@ -729,6 +729,8 @@ public:
 	typedef kAryPackedContainer_T<T, n, q> ContainerType;
 
 	/// some functions
+	using kAryPackedContainer_Meta<T, n ,q>::get;
+	using kAryPackedContainer_Meta<T, n ,q>::set;
 	using kAryPackedContainer_Meta<T, n ,q>::is_equal;
 	using kAryPackedContainer_Meta<T, n ,q>::is_greater;
 	using kAryPackedContainer_Meta<T, n ,q>::is_lower;
@@ -784,8 +786,18 @@ public:
 	}
 #endif
 
-	constexpr inline void neg(const uint32_t lower, const uint32_t upper){
-		ASSERT(false);
+	/// TODO optimize
+	/// \param lower
+	/// \param upper
+	/// \return
+	constexpr inline void neg(const uint32_t lower, const uint32_t upper) {
+		ASSERT(lower <= upper);
+		ASSERT(upper <= n);
+
+		for (uint32_t i = lower; i < upper; ++i) {
+			const uint32_t data = (q - get(i)) % q;
+			set(data, i);
+		}
 	}
 
 	/// negates the vector on all coordinates
@@ -1334,7 +1346,8 @@ public:
 	/// \return
 	template<typename TT>
 	constexpr inline static TT add_T(const TT in1, const TT in2) {
-		// TODO
+		// TODO not finished
+	    return in1 + in2;
 	}
 
 

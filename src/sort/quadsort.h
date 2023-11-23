@@ -241,7 +241,6 @@ void parity_merge(VAR *dest, VAR *from, size_t left, size_t right, CMPFUNC cmp)
 {
 	VAR *ptl, *ptr, *tpl, *tpr, *tpd, *ptd;
 
-	size_t x, y;
 	ptl = from;
 	ptr = from + left;
 	ptd = dest;
@@ -279,21 +278,19 @@ void parity_merge(VAR *dest, VAR *from, size_t left, size_t right, CMPFUNC cmp)
 
 
 template<typename VAR, typename CMPFUNC>
-void parity_swap_sixteen(VAR *array, VAR *swap, CMPFUNC cmp)
-{
+void parity_swap_sixteen(VAR *array, VAR *swap, CMPFUNC cmp) {
 	VAR *ptl, *ptr, *pts;
-	size_t x, y;
 	quad_swap_four(array +  0, cmp);
 	quad_swap_four(array +  4, cmp);
 	quad_swap_four(array +  8, cmp);
 	quad_swap_four(array + 12, cmp);
 
-	if (cmp(array + 3, array + 4) <= 0 && cmp(array + 7, array + 8) <= 0 && cmp(array + 11, array + 12) <= 0)
-	{
+	if (cmp(array + 3, array + 4) <= 0 && cmp(array + 7, array + 8) <= 0 && cmp(array + 11, array + 12) <= 0) {
 		return;
 	}
-	parity_merge_four(array + 0, swap + 0, x, y, ptl, ptr, pts, cmp);
-	parity_merge_four(array + 8, swap + 8, x, y, ptl, ptr, pts, cmp);
+
+	parity_merge_four(array + 0, swap + 0, (void), (void), ptl, ptr, pts, cmp);
+	parity_merge_four(array + 8, swap + 8, (void), (void), ptl, ptr, pts, cmp);
 
 	parity_merge(array, swap, 8, 8, cmp);
 }
@@ -385,9 +382,8 @@ template<typename VAR, typename CMPFUNC>
 void quad_swap_merge(VAR *array, VAR *swap, CMPFUNC cmp)
 {
 	VAR *pts, *ptl, *ptr;
-	size_t x, y;
-	parity_merge_two(array + 0, swap + 0, x, y, ptl, ptr, pts, cmp);
-	parity_merge_two(array + 4, swap + 4, x, y, ptl, ptr, pts, cmp);
+	parity_merge_two(array + 0, swap + 0, (void), (void), ptl, ptr, pts, cmp);
+	parity_merge_two(array + 4, swap + 4, (void), (void), ptl, ptr, pts, cmp);
 
 	parity_merge_four(swap, array, x, y, ptl, ptr, pts, cmp);
 }
@@ -573,7 +569,6 @@ void cross_merge(VAR *dest, VAR *from, size_t left, size_t right, CMPFUNC cmp)
 {
 	VAR *ptl, *tpl, *ptr, *tpr, *ptd, *tpd;
 	size_t loop;
-	size_t x, y;
 	ptl = from;
 	ptr = from + left;
 	tpl = ptr - 1;

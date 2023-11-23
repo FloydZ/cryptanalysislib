@@ -32,7 +32,7 @@ public:
 
 	/// needed type definitions
 	using typename FqMatrix_Meta<T, nrows,ncols, q, packed>::RowType;
-	using FqMatrix_Meta<T, nrows,ncols, q, packed>::DataType;
+	using typename FqMatrix_Meta<T, nrows,ncols, q, packed>::DataType;
 
 	/// needed vars
 	using FqMatrix_Meta<T, nrows,ncols, q, packed>::__data;

@@ -84,9 +84,8 @@ template <unsigned NumElements> class StaticSort
 		}
 	};
 	
-	template <class A, class C, int I, int M> struct PS <A, C, I, M, 1>
-	{
-		inline PS(A &a, C c) {}
+	template <class A, class C, int I, int M> struct PS <A, C, I, M, 1> {
+		inline PS(A &a, C c) { (void)a; (void)c; }
 	};
 	
 public:
@@ -182,8 +181,8 @@ template <unsigned NumElements> class StaticTimSort
 	template <class A, class C> struct Intro
 	{
 		template <class T>
-		static inline void reverse(T _, A &a)
-		{
+		static inline void reverse(T _, A &a) {
+			(void)_;
 			if (NumElements > 1) {
 				unsigned left = 0, right = NumElements - 1;
 				while (left < right) {

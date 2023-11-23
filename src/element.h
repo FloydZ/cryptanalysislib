@@ -229,6 +229,13 @@ public:
 		label.random();
 	}
 
+	/// generate a random element.
+	/// \param m 	Matrix
+	void random(const MatrixType &m) noexcept {
+		value.random();
+		recalculate_label(m);
+	}
+
     /// returns the position of the i-th which is zero counted from left, where the first start '0' are skipped
 	/// \param i		pos
 	/// \param start
@@ -263,17 +270,10 @@ public:
 		return uint64_t(-1);
 	}
 
-	/// generate a random element.
-	/// \param m 	Matrix
-	void random(const Matrix &m) noexcept {
-		value.random();
-		recalculate_label(m);
-	}
-
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
-    void recalculate_label(const Matrix &m) noexcept {
+    void recalculate_label(const MatrixType &m) noexcept {
 		m.matrix_row_vector_mul2(label, value);
 	}
 
@@ -281,7 +281,7 @@ public:
 	/// \param m
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
-	constexpr bool is_correct(const Matrix &m,
+	constexpr bool is_correct(const MatrixType &m,
 	                		 const bool rewrite=false) const noexcept {
     	Label tmp = label;
     	recalculate_label(m);
@@ -463,7 +463,7 @@ public:
 
 
 	/// returns true of both underlying data structs are binary
-	constexpr static bool binary() noexcept { return Label::binary() & Value::binary(); }
+	constexpr static bool binary() noexcept { return Label::binary() && Value::binary(); }
 	constexpr static uint32_t label_size() noexcept { return Label::size(); }
 	constexpr static uint32_t value_size() noexcept { return Value::size(); }
 	constexpr static uint32_t size() noexcept { return Value::size()+Label::size(); }

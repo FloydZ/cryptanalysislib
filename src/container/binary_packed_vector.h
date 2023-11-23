@@ -369,11 +369,21 @@ public:
 		}
 	}
 
-	[[nodiscard]] constexpr bool is_zero(const uint32_t lower=0,
-	                                     const uint32_t upper=LENGTH) const noexcept {
-		/// TODO
+	[[nodiscard]] constexpr inline bool is_zero() const noexcept {
 		for (uint32_t i = 0; i < limbs(); ++i) {
 			if(__data[i] != 0) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	[[nodiscard]] constexpr inline bool is_zero(const uint32_t lower,
+	                                     const uint32_t upper) const noexcept {
+		ASSERT(upper <= length);
+		for (uint32_t i = lower; i < upper; ++i) {
+			if(get(i) != 0) {
 				return false;
 			}
 		}
