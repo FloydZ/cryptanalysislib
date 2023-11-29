@@ -463,10 +463,10 @@ public:
 
         //NOTE: resize odlzyko list to expected size
         for (uint64_t i = 0; i < in.get_load(); ++i) {
-            int num_border_cases = 0;
+            uint64_t num_border_cases = 0;
             //remember index of current bdd-element via value field of odl-list
             el.get_value().data()[0] = i;
-            for (int j = 0; j < n + l; ++j) {
+            for (uint32_t j = 0; j < (n+l); ++j) {
                 auto coordinate = in[i].get_label().data()[j].get_value();
 
                 //if border case, remember position
@@ -1240,6 +1240,9 @@ public:
 	// variadic type of the function above
 	template<const ExtendenTreeConfig &config, const uint32_t cl, class HMOut, class HMIn, class... HMs>
 	static void streamJoin_internal(HMOut *out, HMIn *in, const List &L2) {
+		(void)out;
+		(void)in;
+		(void)L2;
 		// TODO finish implementing constexpr size_t n = sizeof...(HMs);
 	}
 

@@ -150,11 +150,7 @@ public:
 	/// \param m 		the matrix.
 	/// \param rewrite 	if set to true, all labels within each element will we overwritten by the recalculated.
 	/// \return 		true if ech element is correct.
-	template<class Matrix>
-#if __cplusplus > 201709L
-		requires MatrixAble<Matrix>
-#endif
-	constexpr bool is_correct(const Matrix &m,
+	constexpr bool is_correct(const MatrixType &m,
 	                          const bool rewrite=false) noexcept {
 		bool ret = false;
 		for (size_t i = 0; i < load(); ++i) {
@@ -208,12 +204,8 @@ public:
 	/// for each element a new value is randomly choosen and the label is calculated by a matrix-vector-multiplication.
 	/// \param k amount of 'Elements' to add to the list.
 	/// \param m base matrix to calculate the 'Labels' corresponding to a 'Value'
-	template<class Matrix>
-#if __cplusplus > 201709L
-		requires MatrixAble<Matrix>
-#endif
 	constexpr void generate_base_random(const uint64_t k,
-	                                    const Matrix &m) noexcept {
+	                                    const MatrixType &m) noexcept {
 		/// somehow we should be sure that the list is big enough
 		__data.resize(k);
 		set_size(k);
@@ -232,12 +224,8 @@ public:
 	/// \param number_of_elements
 	/// \param ones 				hamming weight of the 'Value' of all elements
 	/// \param m
-	template<class Matrix>
-#if __cplusplus > 201709L
-		requires MatrixAble<Matrix>
-#endif
 	constexpr void generate_base(const uint64_t number_of_elements,
-	                             const Matrix &m) noexcept {
+	                             const MatrixType &m) noexcept {
 
 		/// TODO correct those numbers and import them from matrix?
 		constexpr uint32_t n = LabelType::size();
@@ -539,9 +527,16 @@ public:
 	//        return distance(__data.begin(), r);
 	//    }
 
-	constexpr bool search(const Element &e) {
-		/// TODO
-		return false;
+	/// TODO: optimize if already sorted
+	/// \param e
+	/// \return
+	constexpr size_t search(const Element &e) {
+		for (size_t i = 0; i < load; ++i) {
+			if (__data[i] == e) {
+				return i;
+			}
+		}
+		return -1u;
 	}
 
 	/// \param e
@@ -660,8 +655,9 @@ public:
 			auto b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
 			// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
 			// exists for which it holds: |data[load].value[r]| >= norm
-			if (b == true)
+			if (b == true) {
 				return;
+			}
 		} else {
 			Element t{};
 			auto b = Element::add(t, e1, e2, k_lower, k_higher, norm);

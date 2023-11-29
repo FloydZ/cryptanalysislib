@@ -228,6 +228,10 @@ public:
 						const uint32_t k_lower,
 						const uint32_t k_higher,
 						bool sort=false) noexcept {
+		if (sort) {
+			sort_level(k_lower, k_higher);
+		}
+
 		auto r = std::find_if(__data.begin(),
 							  __data.end(),
 							  [&e, k_lower, k_higher](const Element &c) {

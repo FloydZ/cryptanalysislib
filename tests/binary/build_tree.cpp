@@ -10,6 +10,7 @@
 
 
 constexpr uint32_t n  = 20;
+
 using BinaryValue     = BinaryContainer<n>;
 using BinaryLabel     = BinaryContainer<n>;
 using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2>;

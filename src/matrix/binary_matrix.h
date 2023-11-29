@@ -32,6 +32,8 @@ public:
 
 	constexpr static uint32_t ncols = __ncols;
 	constexpr static uint32_t nrows = __nrows;
+	constexpr static uint32_t COLS = __ncols;
+	constexpr static uint32_t ROWS = __nrows;
 
 	// number of limbs needed
 	constexpr static uint32_t limbs = (ncols + RADIX -1u) / RADIX;
@@ -49,11 +51,9 @@ public:
 	constexpr static T high_bitmask = -1ul >> ((RADIX - (ncols%RADIX)) %RADIX);
 	constexpr static uint32_t block_words = nrows * padded_limbs;
 
-
-	/// TODO
-	using FqMatrix_Meta<T, nrows, ncols, 2, true>::matrix_row_vector_mul2;
-
-
+	///
+	/// \param x
+	/// \return
 	unsigned flb(unsigned long x) {
 		if (x < 1) return 0;
 		return (8 * sizeof(unsigned long)) - __builtin_clzl(x) - 1;
@@ -508,9 +508,35 @@ public:
 		add(out, in1, in2);
 	}
 
-	constexpr static FqMatrix augment(const FqMatrix &in1,
-			const FqMatrix &in2) noexcept {
-		/// TODO
+	/// TODO test
+	/// \param in1
+	/// \param in2
+	/// \return
+	template<typename Tprime,
+	         const uint32_t nrows_prime,
+	         const uint32_t ncols_prime>
+	constexpr static FqMatrix<T, nrows, ncols + ncols_prime, 2>
+	        augment(const FqMatrix &in1,
+			        const FqMatrix<Tprime, nrows_prime, ncols_prime, 2> &in2) noexcept {
+		/// NOTE: we allow not equally sized matrices to augment,
+		/// but the augmented matrix we be zero extended
+		static_assert(nrows_prime <=nrows);
+		FqMatrix<T, nrows, ncols + ncols_prime, 2> ret;
+		ret.clear();
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols; ++j) {
+				const T data = in1.get(i, j);
+				ret.set(data, i, j);
+			}
+		}
+
+		for (uint32_t i = 0; i < nrows_prime; ++i) {
+			for (uint32_t j = 0; j < ncols_prime; ++j) {
+				const T data = in2.get(i, j);
+				ret.set(data, i, ncols + j);
+			}
+		}
 		return in1;
 	}
 
@@ -1441,7 +1467,7 @@ public:
 	/// \param B output
 	/// \param A input
 	constexpr static void transpose(FqMatrix<T, ncols, nrows, q, true> &B,
-									FqMatrix<T, nrows, ncols, q, true> &A) noexcept {
+									const FqMatrix<T, nrows, ncols, q, true> &A) noexcept {
 		// TODO currently segfaulting for n=100, n-k=30
 		//if constexpr (sizeof(T) == 8) {
 		//	_mzd_transpose(B.__data.data(), A.__data.data(),
@@ -2236,7 +2262,42 @@ public:
 	}
 
 	constexpr void matrix_vector_mul(const FqMatrix<T, 1, ncols, q> &v) noexcept {
+		(void)v;
 		/// TODO
+	}
+
+
+	/// special version of the row_vector multiplication
+	/// in which the input/output are not matrices but
+	/// vectors.
+	/// \tparam LabelType must fulfill the following function
+	///					get(i), set(i)
+	/// \tparam ValueType must fulfill the following function
+	/// 				get(i), set(i), ::LENGTH
+	/// \param out
+	/// \param in
+	/// \return
+	template<class LabelType, class ValueType>
+#if __cplusplus > 201709L
+	requires LabelTypeAble<LabelType> &&
+			 ValueTypeAble<ValueType>
+#endif
+	constexpr void matrix_row_vector_mul2(LabelType &out, const ValueType &in) const noexcept {
+		constexpr uint32_t IN_COLS = ValueType::LENGTH;
+		constexpr uint32_t OUT_COLS = LabelType::LENGTH;
+		static_assert(IN_COLS == COLS);
+		static_assert(OUT_COLS == ROWS);
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			uint64_t sum = 0;
+			for (uint32_t j = 0; j < ncols; ++j) {
+				uint32_t a = get(i, j);
+				uint32_t b = in.get(j);
+				uint32_t c = a&b;
+				sum ^= c;
+			}
+			out.set(sum, i);
+		}
 	}
 
 	constexpr static void print_matrix(const std::string &name,
@@ -2268,7 +2329,7 @@ public:
 						std::cout << "|";
 					}
 
-					if (((j + 1) % 4 == 0) && ((j + 1) % RADIX != 0)) {
+					if (((j + 1) % 4 == 0) && ((j + 1) % RADIX != 0) && ((j+1) != eend_col)) {
 						std::cout << ":";
 					}
 				}
@@ -2288,7 +2349,7 @@ public:
 	constexpr void print(const std::string &name="",
 	                     bool transposed=false,
 	                     bool compress_spaces=false,
-	                     bool syndrome=false) noexcept {
+	                     bool syndrome=false) const noexcept {
 		(void)syndrome;
 		if (transposed) {
 			FqMatrix<T, ncols, nrows, 2, true> AT;
