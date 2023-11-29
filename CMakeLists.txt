@@ -96,11 +96,8 @@ endif()
 	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
-# NOTE: fplll is missing
-set(LINK_TEST_FLAGS -lgtest -pthread)
-#if(OpenMP_CXX_FOUND)
-#	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_C)
-#endif()
+# TODO: fplll is missing
+set(LINK_TEST_FLAGS -lgtest -pthread OpenMP::OpenMP_CXX)
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
 # he nicest way, but by far the easiest.

@@ -100,8 +100,6 @@ class kAryPackedContainer_Meta {
 
 		T bla = (number_mask&T(data%MODULUS)) << spot;
 		T val = __data[off] & (~(number_mask << spot));
-		//std::cout << numbers_per_limb << " " << bits_per_number << " " << (uint16_t)const_log(q) << std::endl;
-		// std::cout << unsigned (data) << " " << off << " " << spot << " " << i << std::endl;
 		__data[off] = bla | val;
 	}
 
