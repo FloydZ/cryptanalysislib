@@ -24,6 +24,20 @@ using K4 = kAryContainer_T<uint8_t, n, 4>;
 using K5 = kAryContainer_T<uint8_t, n, 5>;
 using K7 = kAryContainer_T<uint8_t, n, 7>;
 
+/// A field for which no optimized implementation exists
+//TODOusing KGeneric = kAryContainer_T<uint8_t, n, 9>;
+//TODO
+//TODO
+//TODOTEST(FGeneric, mod_T) {
+//TODO	EXPECT_EQ(KGeneric::mod_T<uint32_t>(4), 0);
+//TODO	EXPECT_EQ(KGeneric::mod_T<uint32_t>(0), 0);
+//TODO	EXPECT_EQ(KGeneric::mod_T<uint32_t>(1), 1);
+//TODO	EXPECT_EQ(KGeneric::mod_T<uint32_t>(2), 2);
+//TODO	EXPECT_EQ(KGeneric::mod_T<uint32_t>(3), 3);
+//TODO}
+
+
+
 TEST(F4, random) {
 	K4 t = K4();
 	t.random();

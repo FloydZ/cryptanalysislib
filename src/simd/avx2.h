@@ -1158,7 +1158,10 @@ struct uint64x4_t {
 														 const uint64_t c,
 														 const uint64_t d) noexcept {
 		uint64x4_t out;
-		out.v256 = __extension__(__m256i)(__v4di){(long long) d, (long long) c, (long long) b, (long long) a};
+		out.v256 = __extension__(__m256i)(__v4di){(long long) d,
+		                                          (long long) c,
+		                                          (long long) b,
+		                                          (long long) a};
 		return out;
 	}
 
@@ -1353,12 +1356,12 @@ struct uint64x4_t {
 	                                            const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint64x4_t out;
-		uint64x4_t mask = set1((1u << in2) - 1u);
-		out = uint64x4_t::and_(in1, mask);
+		// uint64x4_t mask = set1((1u << in2) - 1u);
+		// out = uint64x4_t::and_(in1, mask);
 #ifndef __clang__
-  		out.v256 = (__m256i)__builtin_ia32_psllqi256 ((__v4di)out.v256, in2);
+  		out.v256 = (__m256i)__builtin_ia32_psllqi256 ((__v4di)in1.v256, in2);
 #else
-		out.v256 = _mm256_slli_epi64(out.v256, in2);
+		out.v256 = _mm256_slli_epi64(in1.v256, in2);
 #endif
 		return out;
 	}
@@ -1368,15 +1371,15 @@ struct uint64x4_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t srli(const uint64x4_t in1,
-	                                            const uint8_t in2) noexcept {
+	                                            		  const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
-		const uint64x4_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
+		//const uint64x4_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
 		uint64x4_t out;
-		out = uint64x4_t::and_(in1, mask);
+		//out = uint64x4_t::and_(in1, mask);
 #ifndef __clang__
-  		out.v256 = (__m256i)__builtin_ia32_psrlqi256 ((__v4di)out.v256, in2);
+  		out.v256 = (__m256i)__builtin_ia32_psrlqi256 ((__v4di)in1.v256, in2);
 #else
-		out.v256 = _mm256_srli_epi64(out.v256, in2);
+		out.v256 = _mm256_srli_epi64(in1.v256, in2);
 #endif
 		return out;
 	}

@@ -46,9 +46,9 @@ template <typename T, typename T2>
     requires std::is_arithmetic_v<T> &&
              std::is_integral_v<T2>
 constexpr T kthrt(T x, T guess, const T2 k) {
-    return  feq(guess, (T{k-1} * guess + x / ipow(x, k-1) / T{3})) ?
+    return  feq(guess, (static_cast<T>(k-1) * guess + x / ipow(x, k-1) / T{3})) ?
             guess :
-            kthrt(x, (T{k-1} * guess + x / ipow(x, k-1)) / T{k}, k);
+            kthrt(x, (static_cast<T>(k-1) * guess + x / ipow(x, k-1)) / static_cast<T>(k), k);
 }
 
 // cube root by Newton-Raphson method

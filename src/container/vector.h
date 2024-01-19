@@ -343,9 +343,6 @@ public:
 	__FORCEINLINE__ const std::array<T, length>& data() const noexcept { return __data; }
 	//T& data(const uint64_t index) { ASSERT(index < length && "wrong index"); return __data[index]; }
 	const T data(const uint64_t index) const noexcept { ASSERT(index < length && "wrong index"); return __data[index]; }
-
-	/// TODO remove
-	T get_type() noexcept {return __data[0]; }
 private:
 	std::array<T, length> __data;
 };

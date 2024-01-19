@@ -11,21 +11,28 @@ struct Blk {
 public:
 	void *ptr;
 	size_t len;
+
+	/// checks whether the Blk of memory is valid or not
+	/// \returns false if either ptr == nullptr or the length is zero.
+	constexpr bool valid() {
+		return (ptr != nullptr) && (len != 0);
+	}
+
+	friend std::ostream& operator<<(std::ostream& os, Blk const &tc) {
+		return os << tc.ptr << ":" << tc.len;
+	}
 };
 
-/// helper function. That's only useful for debugging
-std::ostream& operator<< (std::ostream &out, const Blk &obj) {
-	std::cout << obj.ptr << " " << obj.len << "\n";
-	return out;
-}
-
-// TODO move to helper.h und template it
+///
+/// \tparam alignment in bytes
+/// \param n input to align up to a multiple of `alignment`
+/// \return the up aligned value
+template<const size_t alignment = 256>
 constexpr size_t roundToAligned(const size_t n) noexcept {
-	constexpr size_t alignment = 16;
 	return ((n + alignment - 1)/alignment)*alignment;
 }
 
-
+///
 struct AllocatorConfig {
 	/// the base pointer to the internal data struct are always to 16bytes aligned
 	constexpr static size_t base_alignment = 16;
@@ -50,23 +57,29 @@ concept Allocator = requires(T a, Blk b, size_t n) {
 };
 
 /// Simple Stack Allocator
-/// allocates `s` bytes on the stack
-template<size_t s, const struct AllocatorConfig &allocatorConfig=allocatorConfig>
+/// \tparam s  allocates `s` bytes on the stack
+/// \tparam allocatorConfig
+template<size_t s,
+        const struct AllocatorConfig &allocatorConfig=allocatorConfig>
 class StackAllocator {
+	/// minimal datatype = 1 byte
 	using T = uint8_t;
 
-	alignas(allocatorConfig.alignment) T _d[s];
+
+	/// data storage, good old stack
+	alignas(allocatorConfig.base_alignment) T _d[s];
+	/// pointer to the currently free=non-allocated memory
 	T *_p;
-
 public:
-	StackAllocator() : _p(_d) {}
+	constexpr StackAllocator() : _p(_d) {}
 
-	///
-	/// \param n
+	/// \param n allocate n bytes
 	/// \return
+	/// 	success: a Blk of memory of size n bytes.
+	/// 	error:   a Blk containing {nullptr, 0}
 	constexpr Blk allocate(const size_t n) noexcept {
-		auto n1 = roundToAligned(n);
-		if (n1 > (_d + s) - _p) {
+		const size_t n1 = roundToAligned<allocatorConfig.alignment>(n);
+		if (n1 > (uintptr_t)(_d + s) - (uintptr_t)_p) {
 			return {nullptr, 0};
 		}
 
@@ -85,7 +98,8 @@ public:
 	constexpr void deallocate(Blk b) noexcept {
 		// a little stupid. But the allocator is only to deallocate something
 		// if it's the last element in the stack
-		if ( (T *)((size_t)b.ptr + roundToAligned(b.len)) == _p) {
+		const size_t bla = roundToAligned<allocatorConfig.alignment>(b.len);
+		if ( (T *)((size_t)b.ptr + bla) == _p) {
 			if constexpr (allocatorConfig.zero_after_free) {
 				cryptanalysislib::memset(_p, T(0), (size_t)_p - (size_t)_d);
 			}
@@ -112,40 +126,65 @@ public:
 
 };
 
+/// FreeList = makes use of Freeing memory previously
+/// allocated by `parent`
 ///
-/// \tparam Parent
-/// \tparam s
-template <class Parent, const size_t s>
+/// \tparam Parent allocator for each node
+/// \tparam s exact size of the allocator
+template <Allocator Parent, const size_t size>
 class FreeListAllocator {
 	struct Node {
 		Node *next;
 	};
 
 	Parent _parent;
-	Node _root;
-
+	Node *_root = nullptr;
 public:
+
+	///
+	/// \param n
+	/// \return
 	constexpr Blk allocate(const size_t n) noexcept {
-		if (n == s && _root) {
+		if (n == size && (_root != nullptr)) {
 			Blk b = {_root, n};
-			_root = *_root.next;
+			_root = _root->next;
 			return b;
 		}
 
 		return _parent.allocate(n);
 	}
 
-	constexpr void deallocate(Blk b) {
-		if (b.len != s)
+	///
+	/// \param b
+	/// \return
+	constexpr void deallocate(const Blk &b) {
+		if (b.len != size) {
 			return _parent.deallocate(b);
+		}
 
 		auto p = (Node *)b.ptr;
 		p->next = _root;
-		_root *p;
+		_root = p;
 	}
 
-	constexpr bool owns(Blk b) {
-		return b.len == s || _parent.owns(b);
+	/// iterate through the list and deallocate through
+	/// the parent allocator
+	/// \return
+	constexpr void deallocateAll() noexcept {
+		const Node *c = _root;
+		while (c != nullptr) {
+			const Node *next = c->next;
+			_parent.deallocate({(void *)c, size});
+			c = next;
+		}
+
+		_parent.deallocateAll();
+	}
+
+	/// \param b memory blk
+	/// \returns true if the memory blk is owned by this allocator
+	constexpr bool owns(const Blk &b) {
+		return (b.len == size) || _parent.owns(b);
 	}
 
 };
@@ -158,17 +197,19 @@ class FallbackAllocator : private Primary, private Fallback {
 public:
 	constexpr Blk allocate(const size_t n) {
 		Blk r = Primary::allocate(n);
-		if (r.ptr == nullptr)
+		if (r.ptr == nullptr) {
 			r = Fallback::allocate(n);
+		}
 
 		return r;
 	}
 
 	constexpr void deallocate(Blk b) {
-		if (Primary::owns(b))
+		if (Primary::owns(b)) {
 			Primary::deallocate(b);
-		else
+		} else {
 			Fallback::deallocate(b);
+		}
 	}
 
 	constexpr bool owns(const Blk b) {
@@ -176,40 +217,161 @@ public:
 	}
 };
 
-///
-/// \tparam Parent
-/// \tparam Prefix
-/// \tparam Suffix
-template<class Parent, class Prefix, class Suffix = void>
+/// Special Allocator, which does not allocate anything but adds
+/// debug information, stats and very importantly it allocates
+/// a predix and a suffix around the underlying memory allocation.
+/// \tparam A base allocator
+/// \tparam Prefix type to allocate before the memory allocation
+/// \tparam Suffix type to allocate after the memory allocation
+template<Allocator A,
+         class Prefix,
+         class Suffix = void>
 class AffixAllocator {
-	// TODO optional prefix and suffix, construct/destroy appropriate, debug, stats, info
+	constexpr static size_t compute() {
+		if constexpr (std::is_void_v<Suffix>) {
+			return 0;
+		} else {
+			return sizeof(Suffix);
+		}
+	}
+	// sizes if bytes
+	constexpr static size_t prefix_bytes = sizeof(Prefix);
+	constexpr static size_t suffix_bytes = compute();
+	A allocator;
+
+	// some stats
+	size_t nr_allocations = 0;
+	size_t nr_deallocations = 0;
+	size_t nr_own = 0;
+public:
+	///
+	/// \param n
+	/// \return
+	constexpr Blk allocate(const size_t n) {
+		Blk b = allocator.allocate(n + prefix_bytes + suffix_bytes);
+		if (!b.valid()) {
+			return b;
+		}
+
+		nr_allocations += 1;
+		std::cout << "Allocated: " << b << ", nr_allocations: " << nr_allocations << std::endl;
+
+		return {(void *)((uintptr_t )b.ptr + prefix_bytes), n};
+	}
+
+	///
+	/// \param b
+	/// \return
+	constexpr void deallocate(Blk b) {
+		nr_deallocations += 1;
+		const Blk bprime = {(void *)((uintptr_t )b.ptr - prefix_bytes), b.len + prefix_bytes + suffix_bytes};
+		std::cout << "DeAllocated: " << bprime << ", nr_deallocations: " << nr_deallocations << std::endl;
+		if (allocator.owns(bprime)) {
+			allocator.deallocate(bprime);
+		}
+	}
+
+	///
+	/// \return
+	constexpr void deallocateAll() {
+		allocator.deallocateAll();
+	}
+
+	///
+	/// \param b
+	/// \return
+	constexpr bool owns(const Blk b) {
+		nr_own += 1;
+		const Blk bprime = {(void *)((uintptr_t )b.ptr - prefix_bytes), b.len + prefix_bytes + suffix_bytes};
+		std::cout << "owns: " << bprime << ", nr_own: " << nr_own << std::endl;
+		return allocator.owns(bprime);
+	}
 };
 
 ///
 /// \tparam SmallAllocator
 /// \tparam LargeAllocator
 /// \tparam Threshold
-template<class SmallAllocator, class LargeAllocator, const size_t Threshold>
+template<class SmallAllocator,
+         class LargeAllocator,
+         const size_t Threshold>
 class Segregator {
+	SmallAllocator smallAllocator;
+	LargeAllocator largeAllocator;
+
+public:
+	///
+	/// \param n
+	/// \return
 	constexpr Blk allocate(const size_t n) {
 		if (n >= Threshold) {
-			return LargeAllocator::allocate(n);
+			return largeAllocator.allocate(n);
 		}
 
-		return SmallAllocator::allocate(n);
+		return smallAllocator.allocate(n);
 	}
 
-	constexpr void deallocate(Blk b) {
+	///
+	/// \param b
+	/// \return
+	constexpr void deallocate(const Blk &b) {
 		if (b.len>= Threshold) {
-			return LargeAllocator::deallocate(b);
+			return largeAllocator.deallocate(b);
 		}
 
-		return SmallAllocator::deallocate(b);
+		return smallAllocator.deallocate(b);
 	}
 
-	constexpr bool owns(const Blk b) {
-		return LargeAllocator::owns(b) || SmallAllocator::owns(b);
+	///
+	/// \return
+	constexpr void deallocateAll() {
+		largeAllocator.deallocateAll();
+		smallAllocator.deallocateAll();
+	}
+
+	///
+	/// \param b
+	/// \return
+	constexpr bool owns(const Blk &b) {
+		return largeAllocator.owns(b) || smallAllocator.owns(b);
 	}
 };
 
-#endif //SMALLSECRETLWE_ALLOC_H
+/// simple page allocator. It can only allocate a single page
+template<const size_t page_alignment=1u << 12u>
+class PageMallocator {
+	constexpr static size_t page_size = 1u << 12u;
+	constexpr static uintptr_t MASK = ~(page_size - 1u);
+public:
+	///
+	/// \param n
+	/// \return
+	constexpr Blk allocate() {
+		void *ptr = std::aligned_alloc(page_alignment, page_size);
+		return {ptr, ptr == nullptr ? 0 : page_size};
+	}
+
+	///
+	/// \param b
+	/// \return
+	constexpr void deallocate(const Blk &b) {
+		if (owns(b)) {
+			std::free(b.ptr);
+		}
+	}
+
+	///
+	/// \return
+	constexpr void deallocateAll() {
+		/// well nothing
+	}
+
+	///
+	/// \param b
+	/// \return
+	constexpr bool owns(const Blk &b) {
+		return ((uintptr_t )b.ptr) & MASK;
+	}
+};
+
+#endif //CRYPTANALYSISLIB_ALLOC_H

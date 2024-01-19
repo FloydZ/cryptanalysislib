@@ -15,7 +15,7 @@ public:
 	uint32_t *values;
 
 	/**
-	* The length of the swap array.
+	* The length of the swap const_array.
 	*/
 	uint32_t length;
 

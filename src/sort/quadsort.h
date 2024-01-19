@@ -26,7 +26,7 @@
 /*
 	quadsort 1.2.1.2
 */
-// When sorting an array of pointers, like a string array, the QUAD_CACHE needs
+// When sorting an const_array of pointers, like a string const_array, the QUAD_CACHE needs
 // to be set for proper performance when sorting large arrays.
 // quadsort_prim() can be used to sort arrays of 32 and 64 bit integers
 // without a comparison function or cache restrictions.
@@ -779,7 +779,7 @@ void partial_forward_merge(VAR *array, VAR *swap, size_t nmemb, size_t block, CM
 template<typename VAR, typename CMPFUNC>
 void partial_backward_merge(VAR *array, VAR *swap, size_t nmemb, size_t block, CMPFUNC cmp)
 {
-	VAR *tpl, *tpa, *tpr; // tail pointer left, array, right
+	VAR *tpl, *tpa, *tpr; // tail pointer left, const_array, right
 	size_t loop, x, y;
 
 	if (nmemb == block)

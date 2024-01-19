@@ -11,9 +11,8 @@
 
 #include "helper.h"
 #include "list/enumeration/enumeration.h"
-
 #include "combination/chase.h"
-
+#include "math/bc.h"
 
 /// TODO describe whats enumerated
 /// \tparam ListType

@@ -7,6 +7,7 @@
 
 #include "helper.h"
 #include "random.h"
+#include "print/print.h"
 
 
 
@@ -1675,7 +1676,7 @@ constexpr inline void uint8x32_t::print(bool binary, bool hex) const {
 
 	if (binary) {
 		for (uint32_t i = 0; i < 32; i++) {
-			printbinary(this->v8[i]);
+			print_binary(this->v8[i]);
 		}
 
 		return;
@@ -1701,7 +1702,7 @@ constexpr inline void uint16x16_t::print(bool binary, bool hex) const {
 
 	if (binary) {
 		for (uint32_t i = 0; i < 16; i++) {
-			printbinary(this->v16[i]);
+			print_binary(this->v16[i]);
 		}
 
 		return;
@@ -1727,7 +1728,7 @@ constexpr inline void uint32x8_t::print(bool binary, bool hex) const {
 
 	if (binary) {
 		for (uint32_t i = 0; i < 8; i++) {
-			printbinary(this->v32[i]);
+			print_binary(this->v32[i]);
 		}
 
 		return;
@@ -1753,7 +1754,7 @@ constexpr inline void uint64x4_t::print(bool binary, bool hex) const {
 
 	if (binary) {
 		for (uint32_t i = 0; i < 4; i++) {
-			printbinary(this->v64[i]);
+			print_binary(this->v64[i]);
 		}
 
 		return;

@@ -175,7 +175,7 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap) {
 	Matrix HT;
 	HT.random();
 	ListEnumerateSinglePartialSingle<List, n, q, mitm_w, noreps_w, split> enumerator{q-1, HT};
-	enumerator.template run<nullptr_t, nullptr_t>(L1, L2, L3, L4);
+	enumerator.template run<std::nullptr_t, std::nullptr_t>(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		ASSERT_EQ(L1.data_value(i).weight(), mitm_w + noreps_w);
@@ -194,7 +194,7 @@ TEST(ListEnumerateMultiDisjointBlock, simple_nohashmap) {
 	Matrix HT;
 	HT.random();
 	ListEnumerateMultiDisjointBlock<List, n, q, mitm_w, noreps_w, split> enumerator{HT};
-	enumerator.template run<nullptr_t, nullptr_t>(L1, L2, L3, L4);
+	enumerator.template run<std::nullptr_t, std::nullptr_t>(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		ASSERT_EQ(L1.data_value(i).weight(), mitm_w + noreps_w);

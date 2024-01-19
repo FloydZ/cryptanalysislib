@@ -30,9 +30,9 @@ B63_BENCHMARK(add_mod3_limb, nn) {
 	}
 
 	for (uint32_t i = 0; i < ctr*nn; i++) {
-		c = Row::add_mod3_limb(a, b);
-		a = Row::add_mod3_limb(b, c);
-		b = Row::add_mod3_limb(a, c);
+		c = Row::add_T(a, b);
+		a = Row::add_T(b, c);
+		b = Row::add_T(a, c);
 	}
 
 	B63_KEEP(a);
@@ -46,31 +46,45 @@ B63_BENCHMARK(add_mod3_limb128, nn) {
 	}
 
 	for (uint32_t i = 0; i < ctr*nn/2; i++) {
-		c = Row::add_mod3_limb128(a, b);
-		a = Row::add_mod3_limb128(b, c);
-		b = Row::add_mod3_limb128(a, c);
+		c = Row::add_T<__uint128_t>(a, b);
+		a = Row::add_T<__uint128_t>(b, c);
+		b = Row::add_T<__uint128_t>(a, c);
 	}
 
 	B63_KEEP(a);
 }
 
-#ifdef USE_AVX2
 B63_BENCHMARK(add_mod3_limb256, nn) {
-	__m256i a, b, c;
+	uint64x4_t a, b, c;
 	B63_SUSPEND {
-		a = _mm256_set_epi64x(fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64());
-		b = _mm256_set_epi64x(fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64());
+		a = uint64x4_t::random();
+		b = uint64x4_t::random();
 	}
 
 	for (uint32_t i = 0; i < ctr*nn/4; i++) {
-		c = Row::add_mod3_limb256(a, b);
-		a = Row::add_mod3_limb256(b, c);
-		b = Row::add_mod3_limb256(a, c);
+		c = Row::add256_T(a, b);
+		a = Row::add256_T(b, c);
+		b = Row::add256_T(a, c);
 	}
 
 	B63_KEEP(a);
 }
-#endif
+
+B63_BENCHMARK(add_mod3_limb256_nooverflow, nn) {
+	uint64x4_t a, b, c;
+	B63_SUSPEND {
+		a = uint64x4_t::random();
+		b = uint64x4_t::random();
+	}
+
+	for (uint32_t i = 0; i < ctr*nn/4; i++) {
+		c = Row::add256_T_no_overflow(a, b);
+		a = Row::add256_T_no_overflow(b, c);
+		b = Row::add256_T_no_overflow(a, c);
+	}
+
+	B63_KEEP(a);
+}
 
 B63_BENCHMARK(sub_mod3_limb, nn) {
 	uint64_t a, b, c;
@@ -80,9 +94,9 @@ B63_BENCHMARK(sub_mod3_limb, nn) {
 	}
 
 	for (uint32_t i = 0; i < ctr*nn; i++) {
-		c = Row::sub_mod3_limb(a, b);
-		a = Row::sub_mod3_limb(b, c);
-		b = Row::sub_mod3_limb(a, c);
+		c = Row::sub_T(a, b);
+		a = Row::sub_T(b, c);
+		b = Row::sub_T(a, c);
 	}
 
 	B63_KEEP(a);
@@ -96,31 +110,29 @@ B63_BENCHMARK(sub_mod3_limb128, nn) {
 	}
 
 	for (uint32_t i = 0; i < ctr*nn/2; i++) {
-		c = Row::sub_mod3_limb128(a, b);
-		a = Row::sub_mod3_limb128(b, c);
-		b = Row::sub_mod3_limb128(a, c);
+		c = Row::sub_T<__uint128_t>(a, b);
+		a = Row::sub_T<__uint128_t>(b, c);
+		b = Row::sub_T<__uint128_t>(a, c);
 	}
 
 	B63_KEEP(a);
 }
 
-#ifdef USE_AVX2
 B63_BENCHMARK(sub_mod3_limb256, nn) {
-	__m256i a, b, c;
+	uint64x4_t a, b, c;
 	B63_SUSPEND {
-		a = _mm256_set_epi64x(fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64());
-		b = _mm256_set_epi64x(fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64());
+		a = uint64x4_t::random();
+		b = uint64x4_t::random();
 	}
 
 	for (uint32_t i = 0; i < ctr*nn/4; i++) {
-		c = Row::sub_mod3_limb256(a, b);
-		a = Row::sub_mod3_limb256(b, c);
-		b = Row::sub_mod3_limb256(a, c);
+		c = Row::sub256_T(a, b);
+		a = Row::sub256_T(b, c);
+		b = Row::sub256_T(a, c);
 	}
 
 	B63_KEEP(a);
 }
-#endif
 
 
 B63_BENCHMARK(hammingweight_mod3_limb, nn) {
@@ -130,7 +142,7 @@ B63_BENCHMARK(hammingweight_mod3_limb, nn) {
 		B63_SUSPEND {
 			a = fastrandombytes_uint64();
 		}
-		weight += Row::hammingweight_mod3_limb(a);
+		weight += Row::wt_T(a);
 	}
 
 	B63_KEEP(weight);
@@ -143,9 +155,7 @@ B63_BENCHMARK(hammingweight_mod3_limb128, nn) {
 		a = fastrandombytes_uint64();
 	}
 	for (uint32_t i = 0; i < ctr*nn/2; i++) {
-
-
-		weight += Row::hammingweight_mod3_limb128(a);
+		weight += Row::wt_T<__uint128_t>(a);
 	}
 
 	B63_KEEP(weight);
@@ -153,15 +163,15 @@ B63_BENCHMARK(hammingweight_mod3_limb128, nn) {
 
 #ifdef USE_AVX2
 B63_BENCHMARK(hammingweight_mod3_limb256, nn) {
-	__m256i a;
-	uint64_t weight = fastrandombytes_uint64();
+	uint64x4_t a;
+	uint64_t weight = 0;
 
 	B63_SUSPEND {
-		a = _mm256_set_epi64x(fastrandombytes_uint64(), fastrandombytes_uint64(), fastrandombytes_uint64(),fastrandombytes_uint64());
+		a = uint64x4_t::random();
 	}
 
 	for (uint32_t i = 0; i < ctr*nn/4; i++) {
-		weight += Row::hammingweight_mod3_limb256(a);
+		weight += Row::wt256_T(a);
 	}
 
 	B63_KEEP(weight);

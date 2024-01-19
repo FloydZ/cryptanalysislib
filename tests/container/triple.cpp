@@ -17,7 +17,7 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 // NOT implemented
-// using Triple = triple<uint64_t, std::array<uint32_t, 2>, Label>;
+// using Triple = triple<uint64_t, std::const_array<uint32_t, 2>, Label>;
 // 
 // TEST(Triple, first) {
 // 	Triple a{};

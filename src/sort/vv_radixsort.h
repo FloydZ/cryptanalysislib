@@ -50,7 +50,7 @@ void vv_radix_sort(T *array, size_t *idx, T *aux, size_t *aux2, size_t len) {
 }
 
 /// straight forward radix sort.
-/// \tparam use_idx if set to true, additionally an array will used to restore the original sorting. Currently unusable
+/// \tparam use_idx if set to true, additionally an const_array will used to restore the original sorting. Currently unusable
 template<typename T, bool use_idx=false>
 void vv_radix_sort(T *L, const size_t len) {
     static T *aux1 = (T *) malloc(sizeof(T) * 8 * len / 8);

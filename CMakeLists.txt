@@ -1,21 +1,39 @@
-# 3.20 is needed because of C++23
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)  		# 3.20 is needed because of C++23
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 23)
 
+# options
+option(USE_TCMALLOC "Enable tcmalloc" OFF)
+option(USE_SANITIZER "Enable memory sanitizer" OFF)
+option(USE_NOINLINE "Enable -fno-inline" OFF)
 
-# needed for nvim
+# 
+set(default_build_type "Release")
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# needed for nvim autocompletion
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 if(CMAKE_EXPORT_COMPILE_COMMANDS)
   set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES 
       ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
+# import needed  
 include(FetchContent)
 include(ExternalProject)
+include(CheckCXXCompilerFlag) 	# check for compiler optimization flags
+include(CheckIPOSupported)  	# check for -flto
+include(CheckLanguage) 			# needed for `check_language(CUDA)`
 
+# local 
 include("deps/cmake_optimize_for_architecture/OptimizeForArchitecture.cmake")
 OptimizeForArchitecture()
 
@@ -23,48 +41,97 @@ OptimizeForArchitecture()
 include_directories("benchmark/include")
 link_directories("benchmark/build/src")
 
+# TODO unset(COMPILER_SUPPORTS_MARCH_NATIVE CACHE)
+check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
+check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)
+check_cxx_compiler_flag(-fsanitize=address COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+check_cxx_compiler_flag(-fsanitize=memory COMPILER_SUPPORTS_SANITIZE_MEMORY)
+check_ipo_supported(RESULT lto_supported OUTPUT error)
+check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC) # TODO
+
+# find needed packages: the good thing only is: we only have a single external
+# dependencies. 
+enable_testing()
+find_package(OpenMP REQUIRED)
+find_package(Threads REQUIRED)
+find_package(GTest) 
+find_package(benchmark)
+find_package(Git QUIET)
+
+# init the submodules
+if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    execute_process(COMMAND ${GIT_EXECUTABLE} submodule sync
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
+    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+        message(FATAL_ERROR "git submodule update sync failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+    endif()
+
+    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
+    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+        message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+    endif()
+endif()
 
 
-find_package(OpenMP)
-
-# include the external projects 'fplll', 'g6k', 'abseil' and 'tcmalloc'
-#ExternalProject_Add(fplll_project
-#        SOURCE_DIR        ${CMAKE_SOURCE_DIR}/deps/fplll
-#        CONFIGURE_COMMAND cd <SOURCE_DIR> && ./autogen.sh
-#        COMMAND           cd <SOURCE_DIR> && ./configure
-#        BUILD_COMMAND     cd <SOURCE_DIR> && make -j8
-#        INSTALL_COMMAND   ""
-#        TEST_COMMAND      ""
-#)
-
+# this is my try to enforce a builder script which runs with the: `cmake ..`
+# command. TODO currently not working.
 add_custom_target (
-        CRYPTANALYSISLIB_BUILD_SCRIPT
-        COMMAND ./${CMAKE_SOURCE_DIR}/build.sh
+	CRYPTANALYSISLIB_BUILD_SCRIPT
+	COMMAND ./${CMAKE_SOURCE_DIR}/build.sh
 )
 
-
-# include directories
-include_directories("deps/fplll/fplll")
-include_directories("deps/fplll")
+# global include directories
 include_directories("deps/b63/include/b63")
 include_directories("src")
 include_directories("/usr/local/include")
 
-link_directories("deps/fplll/fplll/.libs")
+# global link directories
 link_directories("/usr/local/lib")
 
 # two possible options. 'tcmalloc' is the standard google malloc implementation
-#set(MALLOC_LIBRARY tcmalloc)
-set(MALLOC_LIBRARY "")
+if(USE_TCMALLOC)
+	message(STATUS "Using tcmalloc")
+	set(MALLOC_LIBRARY_FLAGS "tcmalloc")
+endif()
 
-# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
-set(SANITIZER_FLAGS "-fsanitize=address -fno-omit-frame-pointer")
-#set(SANITIZE_FLAGS "")
+if(USE_SANITIZER)
+	message(STATUS "Using address sanitize")
+	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
+	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
+endif()
 
-#set(INLINE_FLAGS "-fno-inline")
-set(INLINE_FLAGS "")
+if(USE_NOINLINE AND COMPILER_SUPPORTS_NO_INLINE)
+	message(STATUS "Using address sanitize")
+	set(INLINE_FLAGS "-fno-inline")
+endif()
 
-set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
+if(CMAKE_BUILD_TYPE MATCHES Release)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native -O3 -g0")
+  if(COMPILER_SUPPORTS_MARCH_NATIVE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+  endif()
+  if(lto_supported)
+    message(STATUS "IPO / LTO enabled")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+  endif()
+elseif(CMAKE_BUILD_TYPE MATCHES MinSizeRel)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native -Os -g0")
+  if(COMPILER_SUPPORTS_MARCH_NATIVE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+  endif()
+  if(lto_supported)
+    message(STATUS "IPO / LTO enabled")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+  endif()
+else() # Debug, RelWithDebInfo, etc
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare")
+  message(STATUS "Building in Debug mode!")
+endif()
+
+set(ALLOWED_WARNINGS " -fconstexpr-steps=99999999 -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
@@ -93,11 +160,15 @@ endif()
 #endif()
 
     set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic  -DDEBUG -march=native ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -flto -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-g -march=native -mavx2 -mavx -mbmi2 -O3 -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${OPENMP_FLAG} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
-# TODO: fplll is missing
-set(LINK_TEST_FLAGS -lgtest -pthread OpenMP::OpenMP_CXX)
+set(LINK_TEST_FLAGS 
+	GTest::gtest 
+	GTest::gtest_main 
+	Threads::Threads 
+	OpenMP::OpenMP_CXX
+)
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
 # he nicest way, but by far the easiest.
@@ -108,7 +179,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 
 
 # now check if we have to add the cuda runtime
-include(CheckLanguage)
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
@@ -142,6 +212,11 @@ endif()
 
 # add sub directories
 add_subdirectory(src)
-add_subdirectory(bench)
-add_subdirectory(tests)
+
+if (benchmark_FOUND)
+	add_subdirectory(bench)
+endif()
+if (GTest_FOUND)
+	add_subdirectory(tests)
+endif()
 

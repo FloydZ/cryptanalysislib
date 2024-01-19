@@ -732,7 +732,7 @@ public:
 	static inline int _mzd_transpose_Nxjx64(T *__restrict__ t,
 											int n) {
 		int j = 1;
-		int mi = 0;// Index into the transpose_mask array.
+		int mi = 0;// Index into the transpose_mask const_array.
 	
 		while (j < n)// Don't swap with entirely undefined data (where [D] exists entirely of
 		             // non-existant rows).

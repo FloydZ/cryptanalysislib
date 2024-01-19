@@ -1,130 +1,91 @@
-//
-// Created by duda on 9/20/23.
-//
-
-#ifndef DECODING_AVX2_H
-#define DECODING_AVX2_H
+#ifndef CRYTPANALYSISLIB_HASHMAP_AVX2_H
+#define CRYTPANALYSISLIB_HASHMAP_AVX2_H
 
 #include <immintrin.h>
 #include <cstdint>
 #include <array>
 
-
 #include "container/hashmap/common.h"
+#include "simd/simd.h"
 
-class AVXHashMap {
+/// TODO all this values as constructio
+class SIMDHashMapConfig {
 public:
-	using T         = __m256i;
-	using lLimbType = uint32_t;
-	using LoadType = uint32_t;
+	const uint32_t bucket_size = 10;
+	const uint32_t nr_buckets = 1<<4;
+	const uint32_t low = 0;
+	const uint32_t high = 0;
+	const uint32_t threads = 1;
 
-	struct __attribute__ ((packed)) DataContainer {
-		// how man 32 bit values fit into this
-		constexpr static size_t elements = 8;
+	constexpr SIMDHashMapConfig(const uint64_t bucket_size,
+								const uint64_t nr_buckets,
+	                            const uint32_t low,
+	                            const uint32_t high,
+								const uint32_t threads = 1u) :
+			bucket_size(bucket_size), nr_buckets(nr_buckets),
+	        low(low), high(high),threads(threads) {};
+};
 
-		// data container
-		union {
-			__m256i data;
-			uint32_t data32[8];
-		};
 
-		DataContainer() : data32() {}
-		DataContainer(__m256i d) {
-			data = d;
-		}
-	};
+
+template<const SIMDHashMapConfig &config>
+class SIMDHashMap {
+public:
+	using T         = uint32x8_t;
+
+	// must be chosen in such a way that `l` bits fit into it.
+	using TLimbType = uint32_t;
+	using LoadType 	= uint32_t;
+
+	constexpr static size_t nr_elements_container = 8; // uin
 
 	// number of indices to be able to save in the hashmap
-	constexpr static size_t nri 	= 1;
-	constexpr static size_t nri_mult= nri+1;
+	constexpr static size_t nri 	= 2;
+	constexpr static size_t nri_mult= nri;
 
 	// number of buckets
-	constexpr static size_t nrb     = 1u << 10u;
+	constexpr static size_t nrb     = config.nr_buckets;
 
 	// number of elements in each bucket
-	constexpr static size_t sizeb   = 4;
-
-	constexpr static size_t nr_elements_container = DataContainer::elements;
+	constexpr static size_t sizeb   = config.bucket_size;
 
 	// needed for the hashmap
-	constexpr static uint32_t low   = 0, high = 10;
+	constexpr static uint32_t low = config.low,
+	                          high = config.high;
 
-	// data
-	std::array<DataContainer[2], nrb*sizeb> __buckets;
-	std::array<LoadType, nrb>               __load;
-
-	// Factor this out, so we can get messy with pdep_u64 vs. variable-shift
-	static inline __m256i unpack_24b_shufmask(unsigned int packed_mask) noexcept {
-#ifdef __amd64__
-		uint64_t want_bytes = _pdep_u64(packed_mask, 0x0707070707070707);  // deposit every 3bit index in a separate byte
-		__m128i bytevec = _mm_cvtsi64_si128(want_bytes);
-		__m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
-#else
-		// alternative: broadcast / variable-shift.  Requires a vector constant, though.
-		// This strategy is probably better if the packed mask is coming directly from memory, esp. on Skylake where variable-shift is cheap
-		__m256i indices = _mm256_set1_epi32(packed_mask);
-		__m256i m = _mm256_sllv_epi32(indices, _mm256_setr_epi32(29, 26, 23, 20, 17, 14, 11, 8));
-		__m256i shufmask = _mm256_srli_epi32(m, 29);
-#endif
-		return shufmask;
-	}
-
-	// old version, using packed 3bit groups, instead of each in a separate byte
-	static inline __m256 compress256_32bit(__m256 src, unsigned int mask /* from movmskps */) noexcept {
-		unsigned expanded_mask = _pdep_u32(mask, 0b001'001'001'001'001'001'001'001);
-		expanded_mask += (expanded_mask<<1) + (expanded_mask<<2);  // ABC -> AAABBBCCC: triplicate each bit
-		// + instead of | lets the compiler implement it with a multiply by 7
-
-		const unsigned identity_indices = 0b111'110'101'100'011'010'001'000;    // the identity shuffle for vpermps, packed
-		unsigned wanted_indices = _pext_u32(identity_indices, expanded_mask);   // just the indices we want, contiguous in the low 24 bits or less.
-
-		// unpack the same as we would for the LUT version
-		__m256i shufmask = unpack_24b_shufmask(wanted_indices);
-		return _mm256_permutevar8x32_ps(src, shufmask);
-	}
-
-	static inline __m256 compress256(__m256 src, unsigned int mask /* from movmskps */) noexcept {
-		//return compress256_32bit(src, mask);
-		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);  // unpack each bit to a byte
-		expanded_mask *= 0xFFU;  // mask |= mask<<1 | mask<<2 | ... | mask<<7;
-		// ABC... -> AAAAAAAABBBBBBBBCCCCCCCC...: replicate each bit to fill its byte
-
-		const uint64_t identity_indices = 0x0706050403020100;    // the identity shuffle for vpermps, packed to one index per byte
-		uint64_t wanted_indices = _pext_u64(identity_indices, expanded_mask);
-
-		__m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
-		__m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
-
-		return _mm256_permutevar8x32_ps(src, shufmask);
-	}
+	// first is for the data, second index is for the index within the base list.
+	std::array<T [nri], nrb*sizeb> __buckets;
+	// load for each bucket
+	std::array<LoadType, nrb>     __load;
 
 	// we need different hash functions
 	// This is the simplest version of a hash function. It extracts the bits between l and h
 	// and returns them with zero alignment
 	template<const uint32_t l, const uint32_t h>
-	constexpr inline static lLimbType HashSimple(const uint64_t a) noexcept {
+	constexpr inline static TLimbType HashSimple(const uint64_t a) noexcept {
 		static_assert(l < h);
 		static_assert(h < 64);
 		constexpr uint64_t mask = (~((uint64_t(1u) << l) - 1u)) &
-								  ((uint64_t(1u) << h) - 1u);
+								  ( (uint64_t(1u) << h) - 1u);
 		return (uint64_t(a) & mask) >> l;
 	}
 
 	// Broadcast on every 32 bit limb within the avx register
 	template<const uint32_t l, const uint32_t h>
-	constexpr inline static __m256i HashBroadCast(const uint64_t a) noexcept {
-		const lLimbType b = HashSimple<l, h>(a);
-		return _mm256_set1_epi32(b);
+	constexpr inline static T HashBroadCast(const uint64_t a) noexcept {
+		const TLimbType b = HashSimple<l, h>(a);
+		return T::set1(b);
 	}
 
-	//
+	///
 	template<const uint32_t l, const uint32_t h>
-	constexpr inline static __m256i HashAVX(const DataContainer &a) noexcept {
-		constexpr lLimbType mask1 = (~((lLimbType(1u) << l) - 1u)) & ((lLimbType(1u) << h) - 1u);
-		const __m256i   mask2 = _mm256_setr_epi32(mask1, mask1, mask1, mask1, mask1, mask1, mask1, mask1);
-		return _mm256_srli_epi32(_mm256_xor_si256(a.data, mask2), l);
+	constexpr inline static T HashAVX(const T &a) noexcept {
+		constexpr TLimbType mask1 = (~((TLimbType(1u) << l) - 1u)) & ((TLimbType(1u) << h) - 1u);
+		constexpr T mask2 = T::set1(mask1);
+		return (a & mask2) >> l;
 	}
 
+	/// doesnt clear anything, but only sets the load factors to zero.
 	void clear() {
 		for (size_t i = 0; i < __load.size(); ++i) {
 			__load[0] = 0;
@@ -132,80 +93,96 @@ public:
 	}
 
 	// return 'load' factor
-	constexpr inline LoadType get_load(const lLimbType bid) noexcept{
+	constexpr inline LoadType get_load(const TLimbType bid) noexcept{
+		ASSERT(bid < nrb);
 		return __load[bid];
 	}
 
+	///
+	/// \param bucket_index
+	/// \param inner_bucket_index
+	/// \param bid
+	/// \param load
+	/// \return
 	constexpr inline void bucket_offset(size_t &bucket_index,
 										size_t &inner_bucket_index,
-										const lLimbType bid,
-										const lLimbType load) {
+										const TLimbType bid,
+										const TLimbType load) {
+		ASSERT(bid < nrb);
+		ASSERT(load < sizeb);
+
+		// you need to multiply it with 2, because each bucket element
+		// consists of 1 data element and one index element.
 		bucket_index = nri_mult*bid*sizeb + load;
 		inner_bucket_index = bucket_index%nr_elements_container;
 		bucket_index = bucket_index/nr_elements_container;
 	}
 
 
-	inline void bucket_offset_avx(DataContainer &bucket_index,
-								  DataContainer &inner_bucket_index,
-								  const __m256i bid,
-								  const __m256i load) {
-
-		// TODO mul 2 missing
-		const static __m256i avxsizeb = _mm256_setr_epi32(sizeb, sizeb, sizeb, sizeb, sizeb, sizeb, sizeb, sizeb);
+	///
+	/// \param bucket_index
+	/// \param inner_bucket_index
+	/// \param bid
+	/// \param load
+	inline void bucket_offset_avx(T &bucket_index,
+								  T &inner_bucket_index,
+								  const T bid,
+								  const T load) {
+		constexpr static T avxsizeb = T::set1(sizeb);
 
 		// mod 8 is the same as &7
-		const static __m256i avxmod   = _mm256_setr_epi32(7,7,7,7,7,7,7,7);
+		constexpr static T avxmod   = T::set1(7u);
 
 		// for the multiplication times 2/3 to get the exact array entry positions
-		const static __m256i avxmul   = _mm256_setr_epi32(nri_mult, nri_mult, nri_mult, nri_mult, nri_mult, nri_mult, nri_mult, nri_mult);
+		constexpr static T avxmul   = T::set1(nri_mult);
 
-		bucket_index.data = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(bid, avxsizeb), avxmul), load);
-		inner_bucket_index.data = _mm256_srli_epi32(bucket_index.data, 3);
-		bucket_index.data = _mm256_and_epi32(bucket_index.data, avxmod);
+		bucket_index = (bid*avxsizeb*avxmul) + load;
+		inner_bucket_index = bucket_index & avxmod;
+		bucket_index = bucket_index >> 3u;
 	}
 
 	// insert a single element
-	void insert_simple(const lLimbType data, const lLimbType index) noexcept {
-		const lLimbType bid  = HashSimple<low, high>(data);
-		const lLimbType load = get_load(bid);
+	void insert_simple(const TLimbType data, const TLimbType index) noexcept {
+		const TLimbType bid  = HashSimple<low, high>(data);
+		const TLimbType load = get_load(bid);
 
-		// TODO check if faster to simply overwrite an other element in the bucket
-		if (load >= sizeb)
+		// early exit
+		if (load >= sizeb) {
 			return;
+		}
 
 		size_t bucket_index, inner_bucket_index;
 		bucket_offset(bucket_index, inner_bucket_index, bid, load);
 
-		__buckets[bucket_index + 0]->data32[inner_bucket_index] = data;
-		__buckets[bucket_index + 1]->data32[inner_bucket_index] = index;
+		__buckets[bucket_index][0].v32[inner_bucket_index] = data;
+		__buckets[bucket_index][1].v32[inner_bucket_index] = index;
 	}
 
 	// nearly fullly avx implementation
-	void insert_avx(const DataContainer &data,
-					const DataContainer &index,
-					const __m256i load) noexcept {
-		const __m256i bid = HashAVX<low, high>(data);
-		DataContainer bucket_index, inner_bucket_index;
+	void insert_avx(const T &data,
+					const T &index,
+					const T &load) noexcept {
+		const T bid = HashAVX<low, high>(data);
+		T bucket_index, inner_bucket_index;
 		bucket_offset_avx(bucket_index, inner_bucket_index, bid, load);
 
+		// TODO replace with scatter operations from simd wrapper
 		for (uint32_t i = 0; i < nr_elements_container; i++) {
-			__buckets[bucket_index.data32[i] + 0]->data32[inner_bucket_index.data32[i]] = data.data32[i];
-			__buckets[bucket_index.data32[i] + 1]->data32[inner_bucket_index.data32[i]] = index.data32[i];
-
+			__buckets[bucket_index.v32[i]][0].v32[inner_bucket_index.v32[i]] = data.v32[i];
+			__buckets[bucket_index.v32[i]][1].v32[inner_bucket_index.v32[i]] = index.v32[i];
 		}
 	}
 
-	void insert(const DataContainer &data, const DataContainer &index) noexcept {
-		const __m256i bid = HashAVX<low, high>(data);
+	void insert(const T &data, const T &index) noexcept {
+		const T bid = HashAVX<low, high>(data);
 		for (uint32_t i = 0; i < nr_elements_container; i++) {
-			const lLimbType load = get_load(bid[i]);
+			const TLimbType load = get_load(bid.v32[i]);
 			size_t bucket_index, inner_bucket_index;
-			bucket_offset(bucket_index, inner_bucket_index, bid[i], load);
+			bucket_offset(bucket_index, inner_bucket_index, bid.v32[i], load);
 
-			__buckets[bucket_index + 0]->data32[inner_bucket_index] = data.data32[i];
-			__buckets[bucket_index + 1]->data32[inner_bucket_index] = index.data32[i];
+			__buckets[bucket_index][0].v32[inner_bucket_index] = data.v32[i];
+			__buckets[bucket_index][1].v32[inner_bucket_index] = index.v32[i];
 		}
 	}
 };
-#endif//DECODING_AVX2_H
+#endif

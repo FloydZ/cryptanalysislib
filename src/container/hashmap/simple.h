@@ -14,35 +14,37 @@
 class SimpleHashMapConfig {
 private:
 	// Disable the simple constructor
-	constexpr SimpleHashMapConfig() : bucketsize(0), nrbuckets(0) {};
+	constexpr SimpleHashMapConfig() : bucketsize(0), nrbuckets(0), threads(1) {};
 
 public:
 	const uint64_t bucketsize;
 	const uint64_t nrbuckets;
+	const uint32_t threads;
 
 	/// only activate the constexpr constructor
 	/// \param bucketsize
 	/// \param nrbuckets
 	constexpr SimpleHashMapConfig(const uint64_t bucketsize,
-	                              const uint64_t nrbuckets) :
-			bucketsize(bucketsize), nrbuckets(nrbuckets) {};
+	                              const uint64_t nrbuckets,
+	                              const uint32_t threads = 1u) :
+			bucketsize(bucketsize), nrbuckets(nrbuckets), threads(threads) {};
 };
 
-/// NOTE: Only valid for SternMO, this means that no `l-part` whatsoever is saved.
 /// NOTE: Only the indices of the list entries can be saved in here.
-/// \tparam T			base type of the l-part (unused)
-/// \tparam listType	base type of the list elements
+/// \tparam keyType		base type of the input keys
+/// \tparam valueType	base type of the values to save in the list
 /// \tparam config		`SimpleHashmapConfig` object
 /// \tparam HashFkt		internal hash function to use.
-template<typename T,
-		typename listType,
+template<
+        typename keyType,
+        typename valueType,
 		const SimpleHashMapConfig &config,
-		size_t (* HashFkt)(const uint64_t)>
+		size_t (* HashFkt)(const keyType)>
 class SimpleHashMap {
-	using data_type          = listType;
-	using internal_data_type = T;
+	using data_type          = valueType;
 	using index_type         = size_t;
 
+public:
 	// size per bucket
 	constexpr static size_t bucketsize = config.bucketsize;
 
@@ -52,34 +54,15 @@ class SimpleHashMap {
 	// total number of elements in the HM
 	constexpr static size_t total_size = bucketsize * nrbuckets;
 	
-	/// TODO pass the flag via the config.
-	using load_type          = typename std::conditional<false,
-	                                                    std::atomic<TypeTemplate<bucketsize>>,
-	                                                    TypeTemplate<bucketsize>>::type;
+	constexpr static bool multithreaded = config.threads > 1u;
+	using load_type = typename std::conditional<multithreaded,
+	                                            std::atomic<TypeTemplate<bucketsize>>,
+	                                            TypeTemplate<bucketsize>>::type;
 
-
-	// sadly in the current form useless
-	using cache_type = std::pair<T, listType>;
-	constexpr static bool use_insert_cache = false;
-	//constexpr static uint16_t insert_cache_size = 32;
-	//cache_type insert_cache[insert_cache_size];
-	//uint16_t insert_cache_counter = 0;
-	//StaticSort<insert_cache_size> staticSort;
-
-public:
 	/// constructor. Zero initializing everything
 	constexpr SimpleHashMap() noexcept :
 			__internal_hashmap_array(),
 			__internal_load_array() {}
-
-
-	///
-	/// \return
-	constexpr void insert_cache_flush() noexcept {
-		if constexpr (!use_insert_cache) {
-			return;
-		}
-	}
 
 
 	/// hashes down `e` (Element) to an index where to store
@@ -87,30 +70,53 @@ public:
 	/// NOTE: Boundary checks are performed in debug mode.
 	/// \param e element to insert
 	/// \return nothing
-	constexpr void insert(const T &e, const listType list_index) noexcept {
+	constexpr void insert(const keyType &e, const valueType value) noexcept {
 		// hash down the element to the index
 		const size_t index = HashFkt(e);
 		ASSERT(index < nrbuckets);
 
-	    size_t load = __internal_load_array[index];
-	    // early exit, if it's already full
-	    if (load == bucketsize) {
-	    	return ;
+
+		size_t load;
+		if constexpr (multithreaded) {
+			load = __internal_load_array[index].fetch_add(1u);
+
+			// early exit and reset
+			if (load >= bucketsize) {
+				/// NOTE maybe overkill. Is it possible without the atomic store?
+				__internal_load_array[index].store(bucketsize);
+				return ;
+			}
+		} else {
+			load = __internal_load_array[index];
+
+			// early exit, if it's already full
+			if (load == bucketsize) {
+				return ;
+			}
 		}
 
-	    //_mm_stream_si32((int *)__internal_load_array.data() + index, load+1);
-	    __internal_load_array[index] += 1;
-	    ASSERT(load < bucketsize);
 
-	    //_mm_stream_si32((int *)__internal_hashmap_array.data() + index*bucketsize + load, list_index);
-	    __internal_hashmap_array[index*bucketsize + load] = list_index;
+		// just some debugging checks
+		ASSERT(load < bucketsize);
+		if constexpr (! multithreaded) {
+			__internal_load_array[index] += 1;
+		}
+
+		/// NOTE: this store never needs to be atomic, as the position was
+		/// computed atomically.
+		if constexpr (std::is_bounded_array_v<data_type>) {
+			memcpy(__internal_hashmap_array[index*bucketsize + load], value, sizeof(data_type));
+		} else {
+			__internal_hashmap_array[index*bucketsize + load] = value;
+		}
+
 	}
 
 	/// Quite same to `probe` but instead it will directly return
 	/// the position of the element.
 	/// \param e Element to hash down.
-	/// \return the position within the internal array of `e`
-	constexpr index_type find(const T &e) const noexcept {
+	/// \return the position within the internal const_array of `e`
+	constexpr index_type find(const keyType &e) const noexcept {
 		const index_type index = HashFkt(e);
 		ASSERT(index < nrbuckets);
 		// return the index instead of the actual element, to
@@ -122,34 +128,34 @@ public:
 	/// it with one thread.
 	/// \return nothing
 	constexpr void print() const noexcept {
-		for (index_type i = 0; i < total_size; i++) {
-			printf("%d %d\n",
-			       __internal_hashmap_array[i].first,
-			       __internal_hashmap_array[i].second);
+		for (index_type i = 0; i < nrbuckets; i++) {
+			std::cout << "Bucket: " << i << ", load: " << size_t(__internal_load_array[i]) << "\n";
+
+			for (index_type j = 0; j < bucketsize; j++) {
+				print(i*bucketsize + j);
+			}
 		}
 	}
 
 	/// prints a single index
-	/// \param index the element to pirnt
+	/// \param index the element to print
 	/// \return nothing
 	constexpr void print(const size_t index) const noexcept {
 		ASSERT(index < total_size);
-		printf("%d %d\n",
-		       __internal_hashmap_array[index].first,
-		       __internal_hashmap_array[index].second);
+		printf("%d\n", __internal_hashmap_array[index]);
 	}
 
 	/// NOTE: can be called with only a single thread
-	/// overwrites the internal data array
+	/// overwrites the internal data const_array
 	/// with zero initialized elements.
 	constexpr void clear() noexcept {
 		memset(__internal_load_array, 0, nrbuckets*sizeof(load_type));
 	}
 
-	/// returns the load of the bucket, where the given element whould hashed into
+	/// returns the load of the bucket, where the given element would hashed into
 	/// \param e bucket/bucket of the element e
 	/// \return the load
-	constexpr index_type load(const T &e) const noexcept {
+	constexpr index_type load(const keyType &e) const noexcept {
 		const size_t index = HashFkt(e);
 		ASSERT(index < nrbuckets);
 		return __internal_load_array[index];
@@ -166,9 +172,25 @@ public:
 		return ret;
 	}
 
-	// internal array
-	alignas(32) data_type __internal_hashmap_array[total_size];
-	alignas(32) load_type __internal_load_array[nrbuckets];
+	/// prints some basic information about the hashmap
+	constexpr void info() const noexcept {
+		std::cout << "total_size:" << total_size
+				  << ", total_size_byts:" << sizeof(__internal_hashmap_array) + sizeof(__internal_load_array)
+		          << ", nrbuckets:" << nrbuckets
+				  << ", bucketsize:" << bucketsize
+				  << ", multithreaded: " << multithreaded;
+
+		if constexpr (multithreaded) {
+			std::cout << " (Threads:" << config.threads
+			          << ", lockfree:" << __internal_load_array[0].is_always_lock_free << ")";
+		}
+
+		std::cout << "\n";
+	}
+
+	// internal const_array
+	alignas(1024) data_type __internal_hashmap_array[total_size];
+	alignas(1024) load_type __internal_load_array[nrbuckets];
 };
 
 #endif //SMALLSECRETLWE_SIMPLE_H

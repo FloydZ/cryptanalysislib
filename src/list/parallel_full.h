@@ -11,7 +11,7 @@
 
 /// same the class
 ///		`Parallel_List_T`
-/// with the big difference that Elements = <Label, Value> are stored within the same array.
+/// with the big difference that Elements = <Label, Value> are stored within the same const_array.
 /// Additionally the thread parallel access is further implemented
 /// In comparison to different approach this dataset does not track its load factors. It leaves this work completely to
 ///		the calling function.
@@ -92,7 +92,7 @@ public:
 	/// needs to be benchmarked against std::sort()
 	/// \param start 	start position in `seq` to start from
 	/// \param length 	number of elements to sort
-	/// \param seq 		array to sort
+	/// \param seq 		const_array to sort
 	/// \param flag 	sorting direction.
 	void bitonic_sort_par(int start, int length, int *seq, int flag) {
 		int i;
@@ -196,27 +196,27 @@ public:
 		using T = LabelContainerType;
 
 		const uint64_t lower = T::round_down_to_limb(i);
-		//const uint64_t upper = T::round_down_to_limb(j);
-		//ASSERT(lower == upper); // TODO
+		const uint64_t upper = T::round_down_to_limb(j);
 
-		const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
+		if (lower == upper) {
+			const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
 
-		if constexpr (USE_STD_SORT) {
-			std::sort(__data.begin() + start_pos(tid),
-					  __data.begin() + end_pos(tid),
-					  [lower, mask](const auto &e1, const auto &e2) {
-						return e1.get_label().data().is_lower_simple2(e2.get_label().data(), lower, mask);
-					  }
-			);
+			if constexpr (USE_STD_SORT) {
+				std::sort(__data.begin() + start_pos(tid),
+				    __data.begin() + end_pos(tid),
+				    [lower, mask](const auto &e1, const auto &e2) {
+					    return e1.get_label().data().is_lower_simple2(e2.get_label().data(), lower, mask);
+				    });
+			} else {
+				ska_sort(__data.begin() + start_pos(tid),
+				    __data.begin() + end_pos(tid),
+				    [lower, mask](const Element &e) {
+					    return e.get_label_container_ptr()[lower] & mask;
+				    });
+			}
 		} else {
-			ska_sort(__data.begin() + start_pos(tid),
-					 __data.begin() + end_pos(tid),
-					 [lower, mask](const Element &e) {
-					   return e.get_label_container_ptr()[lower] & mask;
-					 }
-			);
+			/// TODO
 		}
-
 	}
 
 	/// does what the name suggest.

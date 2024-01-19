@@ -72,7 +72,7 @@ public:
 	/// \param size of the whole list
 	/// \param threads number of threads access this list
 	/// \param thread_block size of each block for each thread.
-	/// \param no_value do not allocate the value array
+	/// \param no_value do not allocate the value const_array
 	constexpr explicit Parallel_List_T(const size_t size,
 									   const uint32_t threads,
 									   bool no_values=false) noexcept :

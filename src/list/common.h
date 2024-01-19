@@ -81,6 +81,7 @@ concept ListAble = requires(List l) {
 
 		l.load();
 		l.set_load(i);
+		l.inc_load();
 	};
 
 	/// access functions
@@ -159,21 +160,6 @@ public:
 		}
 	}
 
-	/// Single threaded copy
-	constexpr inline MetaListT& operator=(const MetaListT& other) noexcept {
-		// Guard self assignment
-		if (this == &other)
-			return *this;
-
-		__size = other.__size;
-		__thread_block_size = other.__thread_block_size;
-		__threads = other.__threads;
-		__load = other.__load;
-
-		__data = other.__data;
-		return *this;
-	}
-
 	/// parallel copy
 	/// \param out
 	/// \param in
@@ -243,6 +229,7 @@ public:
 	/// set/get the load factor
 	[[nodiscard]] constexpr size_t load(const uint32_t tid=0) const noexcept { ASSERT(tid < threads()); return __load[tid]; }
 	constexpr void set_load(const size_t l, const uint32_t tid=0) noexcept { ASSERT(tid < threads()); __load[tid] = l; }
+	constexpr void inc_load(const uint32_t tid=0) noexcept { ASSERT(tid < threads()); __load[tid] += 1; }
 
 	/// returning the range in which one thread is allowed to operate
 	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid) const noexcept { return tid*(__data.size()/__threads); };

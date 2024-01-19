@@ -66,4 +66,16 @@ constexpr T log(T x) {
     }
 }
 
+template<typename T>
+requires std::is_arithmetic_v<T>
+constexpr T log2(T x) {
+	return log(x)/log(2.);
+}
+
+/// \param n input
+/// \return ceil(log2(x)), only useful if you need the number of bits needed
+constexpr uint64_t bits_log2(uint64_t n) noexcept {
+	return n <= 1 ? 0 : 1 + bits_log2((n + 1) / 2);
+}
+
 #endif //CRYPTANALYSISLIB_LOG_H

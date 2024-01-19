@@ -21,7 +21,7 @@ template<typename T>
 requires
     std::is_floating_point<T>::value
 constexpr T fabs(T x) {
-    return abs(x);
+    return cryptanalysislib::abs(x);
 }
 
 // test whether values are within machine epsilon, used for algorithm

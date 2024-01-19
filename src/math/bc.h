@@ -7,6 +7,35 @@
 #include "helper.h"
 #include "simd/simd.h"
 
+/// Binomial coefficient
+/// \param nn n over k
+/// \param kk n over k
+/// \return nn over kk
+__device__ __host__
+constexpr inline uint64_t bc(const uint64_t nn,
+							 const uint64_t kk) noexcept {
+	return
+		(kk > nn  ) ? 0 :       			// out of range
+		(kk == 0 || kk == nn  ) ? 1 :       // edge
+		(kk == 1 || kk == nn - 1) ? nn :    // first
+		(kk + kk < nn  ) ?           		// recursive:
+		(bc(nn - 1, kk - 1) * nn) / kk :    //  path to k=1   is faster
+		(bc(nn - 1, kk) * nn) / (nn - kk);	//  path to k=n-1 is faster
+}
+
+/// Sums:over all binomial coefficients nn over i, with i <= kk
+/// \return \sum n over i
+constexpr uint64_t sum_bc(const uint64_t nn,
+						  const uint64_t kk) noexcept {
+	uint64_t sum = 0;
+	for (uint64_t i = 1; i <= kk; ++i) {
+		sum += bc(nn, i);
+	}
+
+	// just make sure that we do not return zero.
+	return std::max(sum, uint64_t(1));
+}
+
 /// NOTE: there is an avx2 version below
 /// NOTE: w/k must be smaller than 5
 /// \param a input number
@@ -65,6 +94,8 @@ inline T opt_max_bc(const T a, const uint32_t n) {
 template<typename T, const uint32_t k>
 inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 	static_assert(k < 5, "sorry not implemented");
+	(void )n;
+
 	if constexpr(k == 1) {
 		return a;
 	}
@@ -90,6 +121,10 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 		//const __m256 t3 = _mm256_add_ps(t2, one);
 		//const __m256 t4 = _mm256_div_ps(t3, _mm256_set1_ps(2.));
 		//return _mm256_floor_ps(t4);
+	}
+
+	if constexpr (k == 3) {
+		ASSERT(0);
 	}
 
 	// will never happen
@@ -179,6 +214,7 @@ inline void biject_avx(__m256i a, __m256i rows[p]) noexcept {
 /// \return
 template<typename T, const uint32_t k>
 inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
+	(void )n;
 	static_assert(k < 5, "sorry not implemented");
 	if constexpr(k == 1) {
 		return a;

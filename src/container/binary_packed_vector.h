@@ -15,8 +15,6 @@
 #include "random.h"
 #include "simd/simd.h"
 
-
-// TODO C++ 20 comparsion operator
 // C macro for implementing multi limb comparison.
 #define BINARYCONTAINER_COMPARE(limb1, limb2, op1, op2) \
 if (limb1 op1 limb2)                                    \
@@ -265,7 +263,7 @@ public:
 		}
 	}
 
-	// seth the whole array to 'fff...fff'
+	// seth the whole const_array to 'fff...fff'
 	void one() noexcept {
 		for (uint32_t i = 0; i < limbs(); ++i) {
 			__data[i] = ~(__data[i] & 0);
@@ -355,7 +353,7 @@ public:
 		}
 	}
 
-	/// set the whole data array on random data.
+	/// set the whole data const_array on random data.
 	void random() noexcept {
 		constexpr uint64_t apply_mask = length%limb_bits_width()==0 ? lower_mask(length)-1 : lower_mask(length);
 
@@ -809,7 +807,7 @@ public:
 		return hm + popcount(v3[ulimb] & rmask);
 	}
 
-	/// calculates the sumfof v3= v1+v2 on the partly length
+	/// calculates the sum of v3= v1+v2 on the partly length
 	/// \tparam ulimb	max limb to calculate the weight on the full length of each limb
 	/// \tparam rmask	mask which cancel out unwanted bits on the last
     template<const uint32_t ulimb, 
@@ -1462,7 +1460,7 @@ public:
 		// pointer to the limb
 		LimbType     *wp;
 
-		// bit position in the whole data array.
+		// bit position in the whole data const_array.
 		const size_t 	   mask_pos;
 
 		// left undefined

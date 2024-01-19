@@ -91,7 +91,7 @@ TEST(Add, signed_simple) {
 	kAryType l2;
 	kAryType l3;
 
-	for (int i = 0; i < TESTSIZE; ++i) {
+	for (size_t i = 0; i < TESTSIZE; ++i) {
 		int64_t t1 = fastrandombytes_uint64()% q;
 		int64_t t2 = fastrandombytes_uint64()% q;
 
@@ -110,7 +110,7 @@ TEST(Add, uint64_t) {
 	kAryType l2;
 	kAryType l3;
 
-	for (int i = 0; i < TESTSIZE; ++i) {
+	for (size_t i = 0; i < TESTSIZE; ++i) {
 		uint64_t t1 = (fastrandombytes_uint64() * fastrandombytes_uint64());
 		uint64_t t2 = (fastrandombytes_uint64() * fastrandombytes_uint64());
 

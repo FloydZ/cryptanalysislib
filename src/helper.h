@@ -21,8 +21,12 @@
 #include "cpucycles.h"
 
 #ifndef __CUDACC__
+#ifndef __device__
 #define __device__
+#endif
+#ifndef __host__
 #define __host__
+#endif
 #endif
 
 
@@ -55,10 +59,6 @@
 #else
 #define OUTER_MULTITHREADED_WRITE(x)
 #endif
-
-// variables needed
-std::atomic<bool> finished;
-std::atomic<uint64_t> outerloops_all;
 
 // Enable performance logging. Aka function return some useful performance information
 #ifdef PERFORMANCE_LOGGING
@@ -128,82 +128,6 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 #define DEBUG_MACRO(x)
 #endif
 
-/// TODO move to something usefull
-size_t hex2bin (void *bin, const char hex[]) {
-	size_t len;
-	unsigned int x;
-	uint8_t *p = (uint8_t*)bin;
-
-	len = strlen(hex);
-
-	if ((len & 1) != 0) {
-		return 0;
-	}
-
-	for (size_t i = 0; i < len; i++) {
-		if (isxdigit((int)hex[i]) == 0) {
-			return 0;
-		}
-	}
-
-	for (size_t i = 0; i < len / 2; i++) {
-		sscanf(&hex[i * 2], "%2x", &x);
-		p[i] = (uint8_t)x;
-	}
-
-	return len / 2;
-}
-
-
-// returns the smallest multiple of `alignment` that is greater of equal to size
-constexpr size_t cryptanalysislib_align(const size_t size, const size_t alignment) {
-	ASSERT(size > 0);
-	ASSERT(alignment > 0);
-	const size_t t1 = (size/alignment) + 1;
-	const size_t t2 = t1 * alignment;
-
-	return t2;
-}
-
-
-// Mem functions
-static __FORCEINLINE__ void* cryptanalysislib_align_up(const void * address, size_t alignment) {
-	return (void *)((((intptr_t)address) + ((intptr_t)alignment) - 1) & (-((intptr_t)alignment)));
-}
-
-static __FORCEINLINE__ void* cryptanalysislib_aligned_malloc(size_t size, size_t alignment) {
-	void * address = malloc(size + sizeof(short) + alignment - 1);
-	if (address != NULL) {
-		void * aligned_address = cryptanalysislib_align_up((void *)((intptr_t)address + (intptr_t)(sizeof(short))), alignment);
-		((short *)aligned_address)[-1] = (short)((intptr_t)aligned_address - (intptr_t)address);
-
-		return aligned_address;
-	}
-
-	return NULL;
-}
-
-/**
- * Taken from: https://github.com/embeddedartistry/libmemory/blob/master/src/aligned_malloc.c
- * aligned_free works like free(), but we work backwards from the returned
- * pointer to find the correct offset and pointer location to return to free()
- * Note that it is VERY BAD to call free() on an aligned_malloc() pointer.
- */
-void cryptanalysislib_aligned_free(void* ptr) {
-	ASSERT(ptr);
-
-	/*
-	 * Walk backwards from the passed-in pointer to get the pointer offset
-	 * We convert to an offset_t pointer and rely on pointer math to get the data
-	 */
-	uint64_t offset = uint64_t(*((uint64_t *)(uint64_t(ptr) - 1)));
-
-	/*
-	 * Once we have the offset, we can get our original pointer and call free
-	 */
-	void* pt = (void*)((uint8_t*)ptr - offset);
-	free(pt);
-}
 
 #ifdef FORCE_HPAGE
 // normal page, 4KiB, buts its forced to be an huge page
@@ -323,335 +247,19 @@ constexpr void constexpr_for(F&& f) {
 	}
 }
 
-
-/// jeah complex meta programming. My approach to have something like a constexpr loop.
-/// \tparam for_start
-/// \tparam for_end
-/// \tparam ret
-/// \tparam functor
-/// \tparam sequence_width
-/// \tparam functor_types
-template<size_t for_start, size_t for_end, typename ret, typename functor, size_t sequence_width, typename... functor_types>
-struct static_for_impl {
-	static inline ret loop(functor_types&&... functor_args) {
-		// The main sequence point is created, and then we call "next" on each point inside
-		using sequence = point<for_start, for_end>;
-		return next<sequence>
-				(std::integral_constant<bool, sequence::is_end_point_>(),
-				 std::forward<functor_types>(functor_args)...);
-	}
-
-private:
-
-	// A point is a node of an n-ary tree
-	template<size_t pt_start, size_t pt_end> struct point {
-		static constexpr size_t start_        { pt_start };
-		static constexpr size_t end_          { pt_end };
-		static constexpr size_t count_        { end_ - start_ + 1 };
-		static constexpr bool is_end_point_   { count_ <= sequence_width };
-
-		static constexpr size_t sequence_count() {
-			return points_in_sequence(sequence_width) > sequence_width ? sequence_width : points_in_sequence(sequence_width);
-		}
-
-	private:
-		// Calculates the start and end indexes for a child node
-		static constexpr size_t child_start(size_t index) {
-			return index == 0 ? pt_start : child_end(index - 1) + 1;
-		}
-		static constexpr size_t child_end(size_t index) {
-			return index == sequence_count() - 1
-					? pt_end : pt_start + points_in_sequence(sequence_count()) * (index + 1) -
-						(index < count_
-							 ? 1 : 0);
-		}
-		static constexpr size_t points_in_sequence(size_t max) {
-			return count_ / max + (
-					(count_ % max) > 0
-					? 1 : 0);
-		}
-
-	public:
-		// Generates child nodes when needed
-		template<size_t index> using child_point = point<child_start(index), child_end(index)>;
-	};
-
-	// flat_for is used to instantiate a section of our our main static_for::loop
-	// A point is used to specify which numbers this instance of flat_for will use
-	template<size_t flat_start, size_t flat_end, class flat_functor> struct flat_for {
-		// This is the entry point for flat_for
-		static inline ret flat_loop(functor_types&&... functor_args) {
-			return flat_next(std::integral_constant<size_t, flat_start>(),
-			          std::forward<functor_types>(functor_args)...);
-		}
-
-	private:
-		// Loop termination
-		static inline void flat_next
-				(std::integral_constant<size_t, flat_end + 1>, functor_types&&...) {}
-
-		// Loop function that calls the function passed to it, as well as recurses
-		template<size_t index>
-		static inline ret flat_next
-				(std::integral_constant<size_t, index>, functor_types&&... functor_args) {
-			ret r = flat_functor::template func<index>(std::forward<functor_types>(functor_args)...);
-			flat_next(std::integral_constant<size_t, index + 1>(),
-			          std::forward<functor_types>(functor_args)...);
-
-			return r;
-		}
-	};
-
-	// This is what gets called when we run flat_for on a point
-	// It will recurse to more finer grained point until the points are no bigger than sequence_width
-	template<typename sequence>
-	struct flat_sequence {
-		template<size_t index>
-		static inline ret func(functor_types&&... functor_args) {
-			using pt = typename sequence::template child_point<index>;
-			return next<pt>
-					(std::integral_constant<bool, pt::is_end_point_>(),
-					 std::forward<functor_types>(functor_args)...);
-		}
-	};
-
-	// The true_type function is called when our sequence is small enough to run out
-	// and call the main functor that was provided to us
-	template<typename sequence>
-	static inline ret next
-			(std::true_type, functor_types&&... functor_args) {
-		ret r = flat_for<sequence::start_, sequence::end_, functor>::
-		flat_loop(std::forward<functor_types>(functor_args)...);
-		return r;
-	}
-
-	// The false_type function is called when our sequence is still too big, and we need to
-	// run an internal flat_for loop on the child sequence_points
-	template<typename sequence>
-	static inline ret next
-			(std::false_type, functor_types&&... functor_args) {
-		ret r = flat_for<0, sequence::sequence_count() - 1, flat_sequence<sequence>>::
-		flat_loop(std::forward<functor_types>(functor_args)...);
-		return r;
-	}
-};
-
-
-/// TODO move to math
-/// \param num
-/// \return
-__device__ __host__
-constexpr int32_t cceil(float num) {
-	return (static_cast<float>(static_cast<int32_t>(num)) == num)
-	       ? static_cast<int32_t>(num)
-	       : static_cast<int32_t>(num) + ((num > 0) ? 1 : 0);
-}
-
-/// TODO move to math
-/// \param num
-/// \return
-__device__ __host__
-constexpr int64_t cceil(double num) {
-	return (static_cast<double>(static_cast<int32_t>(num)) == num)
-	       ? static_cast<int64_t>(num)
-	       : static_cast<int64_t>(num) + ((num > 0) ? 1 : 0);
-}
-
-/// Binomial coefficient
-/// \param nn n over k
-/// \param kk n over k
-/// \return nn over kk
-__device__ __host__
-constexpr inline uint64_t bc(const uint64_t nn,
-           					 const uint64_t kk) noexcept {
-	return
-			(kk > nn  ) ? 0 :       // out of range
-			(kk == 0 || kk == nn  ) ? 1 :       // edge
-			(kk == 1 || kk == nn - 1) ? nn :       // first
-			(kk + kk < nn  ) ?           // recursive:
-			(bc(nn - 1, kk - 1) * nn) / kk :       //  path to k=1   is faster
-			(bc(nn - 1, kk) * nn) / (nn - kk);      //  path to k=n-1 is faster
-}
-
-/// Sums:over all binomial coefficients nn over i, with i <= kk
-/// \return \sum n over i
-constexpr uint64_t sum_bc(const uint64_t nn,
-                          const uint64_t kk) noexcept {
-	uint64_t sum = 0;
-	for (uint64_t i = 1; i <= kk; ++i) {
-		sum += bc(nn, i);
-	}
-
-	// just make sure that we do not return zero.
-	return std::max(sum, uint64_t(1));
-}
-
-/// \param n input
-/// \return ceil(log2(x)), only useful if you need the number of bits needed
-constexpr uint64_t constexpr_bits_log2(uint64_t n) noexcept {
-	return n <= 1 ? 0 : 1 + constexpr_bits_log2((n + 1) / 2);
-}
-
-// taken from https://github.com/kthohr/gcem/blob/master/include/gcem_incl/log.hpp
-__device__ __host__
-constexpr double log_cf_main(const double xx, const int depth) noexcept { return( depth < 25 ? double(2*depth - 1) - uint64_t(depth*depth)*xx/log_cf_main(xx,depth+1) : double(2*depth - 1) );}
-__device__ __host__
-constexpr double log_cf_begin(const double x) { return( double(2)*x/log_cf_main(x*x,1) ); }
-__device__ __host__
-constexpr uint64_t const_log(const uint64_t x) { return uint64_t(log_cf_begin((x - double(1))/(x + double(1))) ); }
-//__host__ __device__
-//constexpr double const_log(const double x) { return log_cf_begin((x - double(1))/(x + double(1))) ; }
-
-// SOURCE: https://github.com/elbeno/constexpr/blob/master/src/include/cx_math.h
-// test whether values are within machine epsilon, used for algorithm
-// termination
-template <typename T>
-constexpr bool feq(T x, T y) {
-	return std::fabs(x - y) <= std::numeric_limits<T>::epsilon();
-}
-
-template <typename T>
-constexpr T constexpr_internal_exp(T x, T sum, T n, int i, T t) {
-	return feq(sum, sum + t/n) ?
-	       sum : constexpr_internal_exp(x, sum + t/n, n * i, i+1, t * x);
-}
-
-template <typename FloatingPoint>
-constexpr FloatingPoint constexpr_exp(
-		FloatingPoint x,
-		typename std::enable_if<std::is_floating_point<FloatingPoint>::value>::type* = nullptr){
-	return true ? constexpr_internal_exp(x, FloatingPoint{1}, FloatingPoint{1}, 2, x) :
-	       0;
-}
-
-template <typename Integral>
-constexpr double constexpr_exp(
-		Integral x,
-		typename std::enable_if<std::is_integral<Integral>::value>::type* = nullptr) {
-	return constexpr_internal_exp<double>(x, 1.0, 1.0, 2, x);
-}
-
-
-template <typename T>
-constexpr T constexpr_internal_log_iter(T x, T y) {
-	return y + T{2} * (x - constexpr_exp(y)) / (x + constexpr_exp(y));
-}
-template <typename T>
-constexpr T constexpr_internal_log(T x, T y) {
-	return feq(y, constexpr_internal_log_iter(x, y)) ? y : constexpr_internal_log(x, constexpr_internal_log_iter(x, y));
-}
-
-constexpr long double e() {
-	return 2.71828182845904523536l;
-}
-// For numerical stability, constrain the domain to be x > 0.25 && x < 1024
-// - multiply/divide as necessary. To achieve the desired recursion depth
-// constraint, we need to account for the max double. So we'll divide by
-// e^5. If you want to compute a compile-time log of huge or tiny long
-// doubles, YMMV.
-// if x <= 1, we will multiply by e^5 repeatedly until x > 1
-template <typename T>
-constexpr T logGT(T x) {
-	return x > T{0.25} ? constexpr_internal_log(x, T{0}) :
-	       logGT<T>(x * e() * e() * e() * e() * e()) - T{5};
-}
-// if x >= 2e10, we will divide by e^5 repeatedly until x < 2e10
-template <typename T>
-constexpr T logLT(T x) {
-	return x < T{1024} ? constexpr_internal_log(x, T{0}) :
-	       logLT<T>(x / (e() * e() * e() * e() * e())) + T{5};
-}
-
-template <typename FloatingPoint>
-constexpr FloatingPoint constexpr_log(
-		FloatingPoint x,
-		typename std::enable_if<std::is_floating_point<FloatingPoint>::value>::type* = nullptr) {
-	return x < 0 ? 0 :
-	       x >= FloatingPoint{1024} ? logLT(x) : logGT(x);
-}
-
-template <typename Integral>
-constexpr double constexpr_log(
-		Integral x,
-		typename std::enable_if<std::is_integral<Integral>::value>::type* = nullptr) {
-	return log(static_cast<double>(x));
-}
-
-//----------------------------------------------------------------------------
-// other logarithms
-template <typename FloatingPoint>
-constexpr FloatingPoint constexpr_log10(
-		FloatingPoint x,
-		typename std::enable_if<std::is_floating_point<FloatingPoint>::value>::type* = nullptr) {
-	return constexpr_log(x)/constexpr_log(FloatingPoint{10});
-}
-template <typename Integral>
-constexpr double constexpr_log10(
-		Integral x,
-		typename std::enable_if<std::is_integral<Integral>::value>::type* = nullptr){
-	return constexpr_log10(static_cast<double>(x));
-}
-
-template <typename FloatingPoint>
-constexpr FloatingPoint constexpr_log2(
-		FloatingPoint x,
-		typename std::enable_if<std::is_floating_point<FloatingPoint>::value>::type* = nullptr){
-	return constexpr_log(x)/ constexpr_log(FloatingPoint{2});
-}
-template <typename Integral>
-constexpr double constexpr_log2(
-		Integral x,
-		typename std::enable_if<std::is_integral<Integral>::value>::type* = nullptr){
-	return constexpr_log2(static_cast<double>(x));
-}
-
-// pow: compute x^y
-// a = x^y = (exp(log(x)))^y = exp(log(x)*y)
-template <typename FloatingPoint>
-constexpr FloatingPoint constexpr_pow(
-		FloatingPoint x, FloatingPoint y,
-		typename std::enable_if<std::is_floating_point<FloatingPoint>::value>::type* = nullptr) {
-	return true ? constexpr_exp(constexpr_log(x)*y) :
-	       0;
-}
-
-/// Entropy function
-/// \param x input
-/// \return H[x] := -x*Log2[x] - (1 - x)*Log2[1 - x];
-double HH(const double x) {
-	return -x*log2(x) - (1.-x)*log2(1.-x);
-}
-
-/// if AVX2 is available we want to enable aligned LOAD/STORE
-#ifdef USE_AVX2
-#define LOAD_ALIGNED
-#define STORE_ALIGNED
-#endif
-
-/// if defined: all loads must be 32Bytes aligned
-#ifdef LOAD_ALIGNED
-#define LOAD256(x) _mm256_lddqu_si256(x)
-#else
-#define LOAD256(x) _mm256_load_si256(x)
-#endif
-
-/// if defined: all stores must be 32Bytes aligned
-#ifdef STORE_ALIGNED
-#define STORE256(ptr, x) _mm256_store_si256(ptr, x)
-#else
-#define STORE256(ptr, x) _mm256_storeu_si256(ptr, x)
-#endif
-
-
-
-
-/// access function for the global array.
-/// \param level
+/// NOTE: one day I should remove this function.
+///		-> rewrite the level_translation_array as an class, implementing all of this
+/// access function for the const_array level_translation_array
+/// \param lower return value: lower limit to match on (inclusive)
+/// \param upper return valur: upper limit to match on (exclusive)
+/// \param level current level with the k-tree algorithm
+/// \param level_translation_array
 /// \return if level >= 0:
 ///				return the lower/upper bound as normal.
 ///			if level == -1:
 ///				return on all bits
-static void translate_level(uint64_t *lower, uint64_t *upper, const uint32_t level,
+static void translate_level(uint64_t *lower,
+                            uint64_t *upper, const uint32_t level,
                          const std::vector<uint64_t> &level_translation_array) noexcept {
 	ASSERT(lower != NULL && upper != NULL);
 
@@ -662,140 +270,88 @@ static void translate_level(uint64_t *lower, uint64_t *upper, const uint32_t lev
 		return;
 	}
 
-	// we __MUST__ check this after the 'if' clause, because otherwise this would catch the -1 test case
-	ASSERT(level <= level_translation_array.size()-1 && "wrong level");
+	// we __MUST__ check this after the 'if' clause,
+	// because otherwise this would catch the -1 test case
+	ASSERT(level <= level_translation_array.size()-1u);
 
 	*lower = level_translation_array[level];
-	*upper = level_translation_array[level+1];
+	*upper = level_translation_array[level+1u];
 }
 
-/// translates an array 'level_filter_array' = (e.g.) [4, 0, 0] into a 'norm' = (e.g.) 2, s.t. every 'Value' with a
+/// translates an const_array 'level_filter_array' = (e.g.) [4, 0, 0] into a 'norm' = (e.g.) 2, s.t. every 'Value' with a
 /// coordinate which is absolute bigger than 'Norm' needs to be filtered out.
 /// assumes to count from the top to the bottom of the tree in increasing order. So the root is in lvl 0.
 /// \param const lvl = current lvl
 /// \param const level_filter_array input parameter
 static uint32_t translate_filter(const uint8_t lvl, const uint16_t nr2,
 										   const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept {
-//	const uint32_t max_lvl = level_filter_array.size();
-//
-//	// some sanity check
-//	ASSERT(max_lvl > 0);
-//	ASSERT(max_lvl >= lvl);
-
-	if (level_filter_array[lvl][2] > 0)
+	if (level_filter_array[lvl][2] > 0) {
 		// this case is the case we allow twos
 		return nr2;
-	else
+	} else {
 		// we don't allow twos
 		return uint32_t(-1);
+	}
 }
 
 /// print some information about the current instance.
 static void ident() {
-#if defined(CONFIG_AM_MINIMAL)
-	std::cout << "TEST SMALL\n";
-#elif defined(CONFIG_AM_TOY)
-	std::cout << "TEST TOY\n";
-#elif defined(CONFIG_TEMPLATE)
-	std::cout << "TEST TEMPLATE\n";
-#else
-	std::cout << "Non Standard Configuration\n";
-#endif
-#ifdef G_G_d
-	std::cout << "d = " << G_d << "\n";
-#endif
-#ifdef G_G_n
-	std::cout << "n = " << G_n << "\n";
-#endif
-#ifdef LOG_Q
-	std::cout << "LOG(q) = " << LOG_Q << "\n";
-#endif
-#ifdef G_q
-	std::cout << "q = " << G_q << "\n";
-#endif
-#ifdef G_w
-	std::cout << "w = " << G_w << "\n";
-#endif
-
 #ifdef CUSTOM_ALIGNMENT
-	std::cout << "DEFINED CUSTOM_ALIGNMENT" << "\n";
+	std::cout << "DEFINED CUSTOM_ALIGNMENT" << std::endl;
 #endif
 #ifdef BINARY_CONTAINER_ALIGNMENT
-	std::cout << "DEFINED BINARY_CONTAINER_ALIGNMENT" << "\n";
+	std::cout << "DEFINED BINARY_CONTAINER_ALIGNMENT" << std::endl;
 #endif
 #ifdef USE_PREFETCH
-	std::cout << "DEFINED USE_PREFETCH" << "\n";
+	std::cout << "DEFINED USE_PREFETCH" << std::endl;
 #endif
 #ifdef USE_BRANCH_PREDICTION
-	std::cout << "DEFINED USE_BRANCH_PREDICTION" << "\n";
+	std::cout << "DEFINED USE_BRANCH_PREDICTION" << std::endl;
 #endif
-#ifdef VALUE_BINARY
-	std::cout << "DEFINED Binary" << "\n";
-#elif defined(VALUE_KARY)
-	std::cout << "DEFINED kAry" << "\n";
-#else
-	std::cout << "DEFINED no Binary no kAray ERROR" << "\n";
-#endif
+
+	std::cout << "cryptanalysislib 0.0.1" << std::endl;
 }
 
 
-/// Templates for the win.
+
+/// Translates a given bit length into the minimal
+/// data type, which can hold this many bits.
+/// NOTE: only unsigned datatypes are used.
 ///	Usage:
-/// using Data
-template <uint32_t ll>
+/// 	using T = LogTypeTemplate<16>::type; // holding `uint16_t`
+template <uint32_t n>
 using LogTypeTemplate =
-typename std::conditional<(ll <= 8), uint8_t,
-		typename std::conditional<(ll <= 16), uint16_t,
-				typename std::conditional<(ll <= 32), uint32_t,
-						typename std::conditional<(ll <= 64), uint64_t,
-							__uint128_t
-						>::type
-				>::type
+typename std::conditional<(n <= 8), uint8_t,
+	typename std::conditional<(n <= 16), uint16_t,
+		typename std::conditional<(n <= 32), uint32_t,
+			typename std::conditional<(n <= 64), uint64_t,
+				__uint128_t
+			>::type
 		>::type
+	>::type
 >::type;
 
-///
+/// Translates a given number into the minimal datatype which
+/// is capable of holding this datatype
 template <uint64_t n>
 using TypeTemplate =
 typename std::conditional<(n <= 0xFF), uint8_t,
-		typename std::conditional<(n <= 0xFFFF), uint16_t,
-				typename std::conditional<(n <= 0xFFFFFFFF), uint32_t,
-						uint64_t
-				>::type
+	typename std::conditional<(n <= 0xFFFF), uint16_t,
+		typename std::conditional<(n <= 0xFFFFFFFF), uint32_t,
+			typename std::conditional<(n <= 0xFFFFFFFFFFFFFFFF), uint64_t,
+				__uint128_t
+            >::type
 		>::type
+	>::type
 >::type;
 
-/// IMPORTANT
-///		assumes x != 0
-///		assumes x is an int or unsigned int
-#define Count_Trailing_Zeros(x) __builtin_ctz(x);
-
-/// simple helper function for printing binary data.
-/// \tparam T	type to print. Should be an arithmetic type.
-/// \param a	value to print
-/// \param l1	print a space at this position
-/// \param l2	print a space at this position
-template<typename T>
-#if __cplusplus > 201709L
-	requires std::is_arithmetic_v<T>
-#endif
-void printbinary(T a,
-				 const uint16_t l1=std::numeric_limits<uint16_t>::max(),
-				 const uint16_t l2=std::numeric_limits<uint16_t>::max()) noexcept {
-	const T mask = 1;
-	for (uint16_t i = 0; i < sizeof(T)*8; ++i) {
-		if (a & mask) {
-			std::cout << "1";
-		} else {
-			std::cout << "0";
-		}
-		a >>= 1;
-		if ((i == l1 - 1) || (i == l2 - 1))
-			std::cout << " ";
-	}
-}
 
 
+
+/// TODO when rewriting all the decoding algorithms:
+/// 	rewrite also this
+///		remove the flip
+///		simplify code
 #if __cplusplus > 201709L
 /// this concept enforces the needed functions/typedefs/variables
 /// needed by the `Extractor` for the `Value`
@@ -1034,31 +590,5 @@ public:
 	}
 };
 
-/// \tparam T base type
-/// \param a number to print
-/// \param len number of bits to print
-template<typename T>
-static void print_binary(T a, const size_t len = sizeof(T)*8, const char* end = "\n") {
-	for (uint32_t i = 0; i < len; i++) {
-		printf("%" PRIu64, a & 1ul);
-		a >>= 1;
-	}
 
-	printf("%s", end);
-}
-
-/// \tparam T base type
-/// \param a number to print
-/// \param len number of bits to print
-template<typename T>
-static void print_binary(T *a, const size_t len) {
-	constexpr uint32_t bits = sizeof(T) * 8;
-	const uint32_t limbs = (len+bits-1) / bits;
-
-	for (uint32_t i = 0; i < limbs-1u; ++i) {
-		print_binary<T>(a[i], bits, "");
-	}
-
-	print_binary<T>(a[limbs - 1u], len%bits);
-}
 #endif //SMALLSECRETLWE_HELPER_H

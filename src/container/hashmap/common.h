@@ -19,7 +19,7 @@ concept HashMapAble = requires(HashMap hm) {
                       const uint32_t tid) {
 		hm.hash(d);
 		hm.insert(d, ii, tid);
-		// TODO kp geth nicht hm.find(ddd, lll);
+		// TODO hm.find(d, l);
 	};
 };
 #endif

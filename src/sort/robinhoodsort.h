@@ -43,7 +43,7 @@ static void merge(T *a, size_t l, size_t n, T *aux) {
 #endif
 }
 
-// Merge array x of size n, if units of length block are pre-sorted
+// Merge const_array x of size n, if units of length block are pre-sorted
 template<typename T>
 static void mergefrom(T *x, size_t n, size_t block, T *aux) {
 #if QUADMERGE
@@ -67,7 +67,7 @@ static void count(T *x, size_t n, T min, size_t range) {
 			for (size_t j=0; j<count[i]; j++)
 				*x++ = min+i;
 	} else {
-		// Count, and zero the array
+		// Count, and zero the const_array
 		for (size_t i=0; i<n; i++) { count[x[i]-min]++; x[i]=0; }
 		// Write differences to x
 		x[0] = min;
@@ -81,7 +81,7 @@ static void count(T *x, size_t n, T min, size_t range) {
 	free(count);
 }
 
-// The main attraction. Sort array of ints with length n.
+// The main attraction. Sort const_array of ints with length n.
 template<typename T>
 void rhsort32(T *array, size_t n) {
 	T *x = array, *xb=x;  // Stolen blocks go to xb
@@ -112,7 +112,7 @@ void rhsort32(T *array, size_t n) {
 	T *aux = (T *)malloc((sz>n?sz:n)*sizeof(T)); // >=n for merges later
 	for (size_t i=0; i<sz; i++) aux[i] = s;
 
-	// Main loop: insert array entries into buffer
+	// Main loop: insert const_array entries into buffer
 #define POS(E) ((size_t)(uint32_t)((E)-min) >> sh)
 	for (size_t i=0; i<n; i++) {
 		T e = x[i];               // Entry to be inserted
@@ -159,7 +159,7 @@ void rhsort32(T *array, size_t n) {
 	}
 #undef POS
 
-	// Move all values from the buffer back to the array
+	// Move all values from the buffer back to the const_array
 	// Use xt += to convince the compiler to make it branchless
 	while (aux[--sz] == s);
 	sz++;

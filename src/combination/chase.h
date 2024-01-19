@@ -3,7 +3,9 @@
 
 #include <cstdint>
 #include <vector>
+
 #include "helper.h"
+#include "math/bc.h"
 
 /// functions/fields an enumerator must implement
 /// \tparam Enumerator
@@ -30,11 +32,11 @@ constexpr size_t compute_combinations_fq_chase_list_size() {
 	return std::max(size-1ul, size_t(1ul)) * (bc(n, w));
 }
 
-/// \tparam T base limb type of the input array.
+/// \tparam T base limb type of the input const_array.
 /// 			Most likely always `uint64_t`
 /// \tparam n number of positions to enumerate
 /// \tparam w weight to enumerate
-/// \tparam start offset to start the enumeration process
+/// \tparam start offset to start the enumeration process (in bits)
 template<typename T,
 		const uint32_t n,
 		const uint32_t w,
@@ -63,7 +65,7 @@ class Combinations_Binary_Chase {
 	constexpr static uint32_t RADIX = sizeof(T) * 8;
 
 
-	/// TODO
+	/// computes a single round of the chase sequence
 	/// \param b
 	inline void left_round(const uint64_t b) noexcept {
 		ASSERT(b < two_changes_binary_o.size());
@@ -75,11 +77,6 @@ class Combinations_Binary_Chase {
 		two_changes_binary_p[b] = 0;
 	}
 
-	/// TODO
-	/// \tparam write
-	/// \param A
-	/// \param b
-	/// \param bit
 	/// \return
 	template<const bool write=true>
 	inline uint64_t left_write(T *A, const uint32_t b, const int bit) noexcept {
@@ -97,16 +94,14 @@ public:
 	constexpr static inline void WRITE_BIT(T *v, const size_t i, const uint64_t b) noexcept {
 		v[i/RADIX] = ((v[i/RADIX] & ~(1ull << (i%RADIX))) | (T(b) << (i%RADIX)));
 	}
-	constexpr static inline uint64_t GET_BIT(const T *v, const size_t i) noexcept {
-		return __M4RI_GET_BIT(v[i / RADIX], i % RADIX);
-	}
 
+	///
 	constexpr Combinations_Binary_Chase() noexcept {
 		static_assert(n > w);
 		reset();
 	};
 
-
+	/// resets the
 	void reset() noexcept {
 		two_changes_binary_o.fill(0);
 		two_changes_binary_d.fill(0);
@@ -122,7 +117,7 @@ public:
 	}
 
 	/// computes one step in the cache sequence
-	/// \param A  input array = limbs needed to represent 'n' bits.
+	/// \param A  input const_array = limbs needed to represent 'n' bits.
 	/// \param init if True: if the first element in the cache sequence is going to be generated,
 	/// 			  False: else
 	/// \return false if the end of the sequence is reached
@@ -161,7 +156,7 @@ public:
 		return true;
 	}
 
-	/// \param ret input/output array containing ``
+	/// \param ret input/output const_array containing ``
 	/// \return nothing
 	template<bool write=true>
 	constexpr void changelist(std::pair<uint16_t,uint16_t> *ret, const size_t listsize=0) {
@@ -191,7 +186,7 @@ public:
 					   uint16_t *pos2) noexcept {
 		uint8_t sols = 0;                       // solution counter. Should be at most 2 if Chase generation is used.
 		uint32_t sol;                           // bit position of the change
-		uint16_t* sol_ptr[2] = {pos1, pos2};    // easy access to the solution array
+		uint16_t* sol_ptr[2] = {pos1, pos2};    // easy access to the solution const_array
 
 		for (uint32_t i = 0; i < limbs; ++i) {
 			// get the diff of the current limb
@@ -288,7 +283,7 @@ public:
 		return 0;
 	}
 
-	/// \param ret input/output array containing ``
+	/// \param ret input/output const_array containing ``
 	/// \return nothing
 	template<bool write=true>
 	constexpr void changelist_chase(std::pair<uint16_t,uint16_t> *ret) {

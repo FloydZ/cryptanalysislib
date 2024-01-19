@@ -310,8 +310,8 @@ struct ConfigParallelBucketSort {
 
 	// if set to true, the internal structure of the hashmap changes a lot.
 	//      The internal `LoadType` is change to `std::atomic<LoadType>`.
-	//      The above-mentioned splitting the array into chunks for each thread is aldo dismissed
-	//      Instead we can use the array as the hashmap directly because, we lock the write access to each bucket through the load.
+	//      The above-mentioned splitting the const_array into chunks for each thread is aldo dismissed
+	//      Instead we can use the const_array as the hashmap directly because, we lock the write access to each bucket through the load.
 	//      Sorting is not needed afterwards
 	bool USE_ATOMIC_LOAD_SWITCH         = false;
 
@@ -477,9 +477,9 @@ public:
 
 	// We choose the optimal data container for every occasion.
 	// This is the Type which is exported to the outside and denotes the maximum number of elements a bucket can hold.
-	// Must be the same as IndexType, because `load` means always an absolute position within the array.
+	// Must be the same as IndexType, because `load` means always an absolute position within the const_array.
 	using LoadType              = IndexType;
-	// In contrast to `LoadType` this type does not include the absolute position within the array, but only the
+	// In contrast to `LoadType` this type does not include the absolute position within the const_array, but only the
 	// relative within the bucket. Can be smaller than `IndexType`
 	using LoadInternalType      = typename std::conditional<config.USE_ATOMIC_LOAD_SWITCH,
 	                                                    std::atomic<TypeTemplate<size_b>>,
@@ -542,7 +542,7 @@ private:
 	//((b1 != b2) && (size_t<15)) ? true : false;
 	constexpr static bool LINEARSEARCH_SWITCH           = config.LINEARSEARCH_SWITCH;
 
-	// if set to true an additional mem fetch the load array will be made.
+	// if set to true an additional mem fetch the load const_array will be made.
 	constexpr static bool USE_LOAD_IN_FIND_SWITCH       = config.USE_LOAD_IN_FIND_SWITCH;
 
 	// if set to true most of the load/write instruction will be replaced with instructions which to not touch a cache
@@ -561,7 +561,7 @@ private:
 	// The idea behind is to optimize the `traversing` a bucket, when a match is found.
 	constexpr static bool USE_PREFETCH_SWITCH            = config.USE_PREFETCH_SWITCH;
 
-	// Get loose of the split of the `__bucket` array and secure the buckets' insertion process
+	// Get loose of the split of the `__bucket` const_array and secure the buckets' insertion process
 	// by setting the load factor with an atomic store/load value.
 	constexpr static bool USE_ATOMIC_LOAD_SWITCH         = config.USE_ATOMIC_LOAD_SWITCH;
 
@@ -589,7 +589,7 @@ private:
 	constexpr static uint32_t IM_bits       = IM_bits_view*IM_nr_views;
 
 	// some little helper functions:
-	// returns the offset of a thread into the load array
+	// returns the offset of a thread into the load const_array
 	inline uint64_t thread_offset(const uint32_t tid) const noexcept{ return tid * nrt; }
 
 	inline uint64_t bucket_offset(const BucketHashType bid) const noexcept { return bid * size_b; }
@@ -629,7 +629,7 @@ private:
 		acc_buckets_load[bid] = load;
 	}
 
-	/// \param index position to check in the __buckets array
+	/// \param index position to check in the __buckets const_array
 	/// \return if the element is zero or not
 	bool is_zero(const uint64_t index) const noexcept {
 		ASSERT(index < nrb *size_b);
@@ -640,7 +640,7 @@ private:
 	///								false: find the next empty slot per bucket
 	/// \param bid bucket id
 	/// \param tid thread id
-	/// \return the next empty slot in the array
+	/// \return the next empty slot in the const_array
 	template<const bool insert>
 	inline LoadType find_next_empty_slot(const BucketHashType bid, const uint32_t tid) const noexcept {
 		// make sure the function is only called in the correct setting
@@ -717,7 +717,7 @@ public:
 		if constexpr (nrt != 1) {
 			auto ret = acc_buckets_load[bid];
 			if constexpr (USE_SORTING_NETWORK_DECODED_IN_LOAD) {
-				constexpr LoadInternalType mask = (LoadInternalType(1ul) << (constexpr_bits_log2(nrb) + 1u)) - LoadInternalType (1ul);
+				constexpr LoadInternalType mask = (LoadInternalType(1ul) << (bits_log2(nrb) + 1u)) - LoadInternalType (1ul);
 				return ret & mask;
 			}
 
@@ -725,7 +725,7 @@ public:
 		} else {
 			auto ret= buckets_load[bid];
 			if constexpr (USE_SORTING_NETWORK_DECODED_IN_LOAD) {
-				constexpr ArrayLoadInternalType mask = (ArrayLoadInternalType(1ul) << (constexpr_bits_log2(nrb) + 1u)) - ArrayLoadInternalType (1ul);
+				constexpr ArrayLoadInternalType mask = (ArrayLoadInternalType(1ul) << (bits_log2(nrb) + 1u)) - ArrayLoadInternalType (1ul);
 				return ret & mask;
 			}
 			return ret;
@@ -804,7 +804,7 @@ public:
 		}
 
 		if constexpr (LINEARSEARCH_SWITCH) {
-			// only allow to remove the load factor array if linear search is active
+			// only allow to remove the load factor const_array if linear search is active
 			static_assert(!USE_LOAD_IN_FIND_SWITCH);
 		}
 
@@ -885,7 +885,7 @@ public:
 		const uint64_t s_tid = tid * b_tid;        // Starting point of each process
 		// Starting point of the list pointer. Points to the first Label within the list.
 
-		// Instead of access the array each time in the loop, we increment an number by the length between two l-parts
+		// Instead of access the const_array each time in the loop, we increment an number by the length between two l-parts
 		uint64_t Lptr = (uint64_t) L.data_label() + (s_tid * size_label) + (loffset64 *8);
 
 		ArgumentLimbType data;
@@ -968,7 +968,7 @@ public:
 		}
 	}
 
-	// same as above but do not touch the load array
+	// same as above but do not touch the load const_array
 	template<class Extractor>
 	void traverse_hash(const List &L, const uint64_t load, const uint32_t tid, Extractor e) noexcept {
 		ASSERT(tid < config.nr_threads);
@@ -998,7 +998,7 @@ public:
 	}
 
 	/// \param data l part of the label IMPORTANT MUST BE ONE LIMB
-	/// \param pos	pointer to the array which should be copied into the internal data structure to loop up elements in the baselists
+	/// \param pos	pointer to the const_array which should be copied into the internal data structure to loop up elements in the baselists
 	/// \param tid	thread_id
 	void insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) noexcept {
 		ASSERT(tid < config.nr_threads);
@@ -1006,7 +1006,7 @@ public:
 		LoadType load;
 
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
-			// in this case we do not access the 'load' array. This reduces the caches
+			// in this case we do not access the 'load' const_array. This reduces the caches
 			// misses by one. Instead, we do a linear search over the buckets to find a empty space
 			load = find_next_empty_slot<true>(bid, tid);
 		} else {
@@ -1028,7 +1028,7 @@ public:
 			}
 		}
 
-		// calculated the final index within the array of elements which will be returned to the tree construction.
+		// calculated the final index within the const_array of elements which will be returned to the tree construction.
 		const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
 		if constexpr (!USE_ATOMIC_LOAD_SWITCH && USE_LOAD_IN_FIND_SWITCH) {
 			// we need to increase the load factor only at this point if we do not use atomics.
@@ -1063,7 +1063,7 @@ public:
 	/// its allowing for a custom hash function. THis is useful, if during the
 	/// algorithm your hash function changes
 	/// \param data l part of the label IMPORTANT MUST BE ONE LIMB
-	/// \param pos	pointer to the array which should be copied into the internal data structure to loop up elements in the baselists
+	/// \param pos	pointer to the const_array which should be copied into the internal data structure to loop up elements in the baselists
 	/// \param tid	thread_id
 	template<class Hasher>
 	void custom_insert(const ArgumentLimbType data,
@@ -1075,7 +1075,7 @@ public:
 		LoadType load;
 
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
-			// in this case we do not access the 'load' array. This reduces the caches
+			// in this case we do not access the 'load' const_array. This reduces the caches
 			// misses by one. Instead, we do a linear search over the buckets to find a empty space
 			load = find_next_empty_slot<true>(bid, tid);
 		} else {
@@ -1097,7 +1097,7 @@ public:
 			}
 		}
 
-		// calculated the final index within the array of elements which will be returned to the tree construction.
+		// calculated the final index within the const_array of elements which will be returned to the tree construction.
 		const BucketIndexType bucketOffset = bucket_offset(tid, bid) + load;
 		if constexpr (!USE_ATOMIC_LOAD_SWITCH && USE_LOAD_IN_FIND_SWITCH) {
 			// we need to increase the load factor only at this point if we do not use atomics.
@@ -1180,7 +1180,7 @@ public:
 		}
 
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
-			// in this case we cannot simply query the `load` array.
+			// in this case we cannot simply query the `load` const_array.
 			// We need to `recalculate the load for each bucket and each on the fly new
 			// Additionally, we also break up the thread `boundaries` and allow each thread
 			// to access areas of other threads.
@@ -1214,7 +1214,7 @@ public:
 			}
 
 			// NOTE: Instead of the normal routine we do not have to accumulate the load
-			//          into a separate accumulate array.
+			//          into a separate accumulate const_array.
 			return;
 		}
 
@@ -1275,7 +1275,7 @@ public:
 		const BucketIndexType boffset = bid * size_b;   // start index of the bucket in the internal data structure
 
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
-			// in this case we do not access the 'load' array. This reduces the caches
+			// in this case we do not access the 'load' const_array. This reduces the caches
 			// misses by one. Instead, we do a linear search over the buckets to find a empty space
 			load = find_next_empty_slot<false>(bid, 0);
 		} else {
@@ -1410,7 +1410,7 @@ public:
 		const BucketIndexType boffset = bid * size_b;// start index of the bucket in the internal data structure
 
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
-			// in this case we do not access the 'load' array. This reduces the caches
+			// in this case we do not access the 'load' const_array. This reduces the caches
 			// misses by one. Instead, we do a linear search over the buckets to find a empty space
 			load = find_next_empty_slot<false>(bid, 0);
 		} else {
@@ -1452,11 +1452,11 @@ public:
 	//  - npos anpassen
 	//  - pos danach inkrementieren.
 	/// this function traverses from a given position until the value [b1, b2] changes. This is done by
-	///		first: copy the current positions array into the output array `npos`
+	///		first: copy the current positions const_array into the output const_array `npos`
 	/// \tparam lvl the starting point from which `npos` is copied from.
 	/// \tparam ctr how many elements are copied.
 	/// \param pos	current position of a match on the coordinates [b1, ..., b2) between `data` and __buckets[pos].first
-	/// \param npos	output array if length `nri`
+	/// \param npos	output const_array if length `nri`
 	/// \return
 	template<uint8_t lvl, uint8_t ctr>
 	ArgumentLimbType traverse(const ArgumentLimbType &data, IndexType &pos, IndexType *npos, const LoadType &load) const noexcept {
@@ -1466,7 +1466,7 @@ public:
 			return pos;
 		}
 
-		// This memcpy copies the indices (= positions of elements within the baselist) into the output array `npos`
+		// This memcpy copies the indices (= positions of elements within the baselist) into the output const_array `npos`
 		// the position and length of what needs to be copies is specified by the template parameters `lvl` and `ctr`.
 		// Whereas `lvl` specifies the starting position of the memcpy and `ctr` the length.
 		memcpy(&npos[lvl], __buckets[pos].second.data(), ctr * sizeof(IndexType));
@@ -1505,7 +1505,7 @@ public:
 	/// IMPORTANT: Only call this function by exactly one thread.
 	void reset() noexcept {
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
-			// only in this case reset everything except the load array.
+			// only in this case reset everything except the load const_array.
 			memset(__buckets.data(), -1, __buckets.size() * sizeof(BucketEntry));
 			return;
 		}
@@ -1536,7 +1536,7 @@ public:
 		ASSERT((tid * chunks_size) < (nrb*size_b));
 
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
-			// in this case reset everything except the load array.
+			// in this case reset everything except the load const_array.
 			memset((void *) (uint64_t(__buckets.data()) + (tid * chunks_size * sizeof(BucketEntry))),
 			       -1, chunks_size * sizeof(BucketEntry));
 			return;
@@ -1553,7 +1553,7 @@ public:
 		memset((void *) (uint64_t(buckets_load.data()) + (tid * nrb * sizeof(LoadInternalType))),
 		       0, nrb * sizeof(LoadInternalType));
 
-		// We do not have to reset the accumulated load array nor the buckets, because we don't depend on the
+		// We do not have to reset the accumulated load const_array nor the buckets, because we don't depend on the
 		// data written there in the case were we have multiple threads. Only in the case were we have to go into the sorting
 		// function we have to reset the buckets.
 		if constexpr((b2 != b1) && (nrt != 1)){
@@ -1645,7 +1645,7 @@ public:
 	}
 
 	// check if each bucket is correctly sorted
-	// input argument is the starting position within the `__buckets` array
+	// input argument is the starting position within the `__buckets` const_array
 	bool check_sorted(const uint64_t start, const uint64_t load) const noexcept {
 		ASSERT(start < (nrb*size_b));
 		uint64_t i = start;
@@ -1790,6 +1790,3 @@ public:
 	}
 };
 #endif //SMALLSECRETLWE_SORT_H
-
-
-

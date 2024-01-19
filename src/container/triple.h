@@ -1,16 +1,17 @@
-#ifndef SMALLSECRETLWE_TRIPLE_H
-#define SMALLSECRETLWE_TRIPLE_H
+#ifndef CRYPTANALYSISLIB_TRIPLE_H
+#define CRYPTANALYSISLIB_TRIPLE_H
 
 #include <type_traits>
 
-// TODO:
-//  - implement alignment  options
-//  - compare operators
-
+///
 struct ConfigTriple {
 	const bool swap12 = false;
 	const bool swap23 = false;
 	const bool swap13 = false;
+
+	const size_t alignment_first = 1u;
+	const size_t alignment_second = 1u;
+	const size_t alignment_third = 1u;
 
 	// default constructor
 	constexpr ConfigTriple() : swap12(false), swap23(false), swap13(false) {}
@@ -35,9 +36,9 @@ public:
 	using third_type    = typename std::conditional<config.swap13, T1, T3>::type;
 
 	/// automatic alignment deduction.
-	first_type first;
-	second_type second;
-	third_type third;
+	alignas(config.alignment_first) first_type first;
+	alignas(config.alignment_second) second_type second;
+	alignas(config.alignment_third) third_type third;
 
 	/// simple constructor.
 	constexpr triple() noexcept :
@@ -56,11 +57,13 @@ public:
 		first(a), second(b), third(c) {}
 
 	/// copy constructor
-	//constexpr triple(const triple&) = default;
+	constexpr triple(const triple&) = default;
 
 	/// move constructor
-	//constexpr triple(triple&&) = default;
+	constexpr triple(triple&&) = default;
 
+	///
+	/// \return
 	constexpr auto get_first() noexcept {
 		if constexpr(config.swap12) {
 			return second;
@@ -69,11 +72,28 @@ public:
 		return false;
 	}
 
+	///
+	/// \param t
+	/// \return
 	constexpr void swap(const triple &t) noexcept {
 		std::swap(first, t.first);
 		std::swap(second, t.second);
 		std::swap(third, t.third);
 	}
-};
 
-#endif //SMALLSECRETLWE_TRIPLE_H
+	///
+	/// \param b
+	/// \return
+	bool operator==(const triple& b) const {
+		return (first == b.first) &&
+		       (second == b.second) &&
+		       (third == b.third);
+	}
+
+	friend std::ostream& operator<<(std::ostream& os, triple const &tc) {
+		return os << "first: " << tc.first
+		          << ", second: " << tc.second
+				  << ", third: " << tc.third << std::endl;
+	}
+};
+#endif

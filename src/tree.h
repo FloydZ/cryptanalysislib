@@ -17,6 +17,9 @@
 #include "thread/thread.h"
 #include "matrix/fq_matrix.h"
 
+// needed for `ExtendedTree`
+#include "container/hashmap.h"
+
 #if __cplusplus > 201709L
 /// IDEA: extend the tree syntax to arbitrary hashmaps.
 template<class HM>
@@ -151,7 +154,7 @@ public:
     /// \param d depth of the tree.
     /// \param A Matrix
     /// \param baselist_size size of the baselists to generate (log)
-    /// \param level_translation_array array containing the limits of the coorditates to merge on each lvl.
+    /// \param level_translation_array const_array containing the limits of the coorditates to merge on each lvl.
     ///         Example:
     ///				[0, 10, 20, ... 100]
     ///			means: that on the first lvl the lists are matched on the coordinates 0-9 (9 inclusive)
@@ -180,8 +183,8 @@ public:
 	/// \param A				Matrix. Connection between label and value.
 	/// \param b1				first baselist
 	/// \param b2				second baselist
-	/// \param baselist_size	size of the baselists
-	/// \param level_translation_array array containing the limits of the coorditates to merge on each lvl.
+	/// \param baselist_size	size of the baselists in log2
+	/// \param level_translation_array const_array containing the limits of the coorditates to merge on each lvl.
 	///         Example:
 	///				[0, 10, 20, ... 100]
 	///			means: that on the first lvl the lists are matched on the coordinates 0-9 (9 inclusive)
@@ -190,7 +193,7 @@ public:
 	                const MatrixType &A,
 	                const List &b1,
 	                const List &b2,
-	                const unsigned int baselist_size,
+	                const uint32_t baselist_size,
 	                std::vector<uint64_t> &level_translation_array) noexcept :
 			matrix(A),
 			level_translation_array(level_translation_array)
@@ -199,7 +202,7 @@ public:
 		lists.push_back(b1);
 		lists.push_back(b2);
 
-		for (int i = 2; i < d + additional_baselists; ++i) {
+		for (uint32_t i = 2; i < d + additional_baselists; ++i) {
 			List a{0};
 			lists.push_back(a);
 		}
@@ -257,8 +260,8 @@ public:
         }
 
         // adjust last intermediate target of each level, such that targets of each level add up the the true target
-        for (int i = 0; i < depth - 1; ++i) {
-            for (int j = 0; j < intermediat_level_limit(i); ++j) {
+        for (uint32_t i = 0; i < depth - 1; ++i) {
+            for (uint32_t j = 0; j < intermediat_level_limit(i); ++j) {
 	            translate_level(&k_lower, &k_higher, -1, level_translation_array);
 
 	            LabelType::sub(intermediate_targets[i][intermediat_level_limit(i)],
@@ -270,7 +273,7 @@ public:
         // start joining the lists
         for (uint32_t i = 0; i < (1ULL << (this->depth - 1)); ++i) {
             // calc number of trailing zeros of i, which indicates to which level we have to join
-            int join_to_level = Count_Trailing_Zeros(i + 1);
+            int join_to_level = __builtin_ctz(i + 1);
 
             // prepare the base-lists, as the join itself just checks for *equality* on all levels and performs only *addition* of labels
             prepare_lists(i, intermediate_targets);
@@ -356,14 +359,14 @@ public:
 
         // negate corresponding parts of the labels
         for (uint64_t ind = 0; ind < lists[0].get_load(); ++ind) {
-	        for (int k = 0; k < amount_negates; ++k) {
+	        for (uint32_t k = 0; k < amount_negates; ++k) {
 		        translate_level(&k_lower, &k_higher, k + 1, level_translation_array);
 		        lists[0][ind].get_label().neg(k_lower, k_higher);
 	        }
         }
 
         // calculate number of old targets to eliminate from baselists
-        int old_targets = Count_Trailing_Zeros(second - 1);
+        const uint32_t old_targets = __builtin_ctz(second - 1);
 
         // determine which parts of the labels have to be negate
         amount_negates = count_carry_propagates(second);
@@ -376,7 +379,7 @@ public:
 	                       intermediate_targets[j][((second - 1u) >> (j + 1u)) - 1], k_lower, k_higher);
             }
 
-            for (int k = 0; k < amount_negates; ++k) {
+            for (uint32_t k = 0; k < amount_negates; ++k) {
 	            translate_level(&k_lower, &k_higher, k, level_translation_array);
 	            lists[1][ind].get_label().neg(k_lower, k_higher);
             }
@@ -400,7 +403,7 @@ public:
 
             // negate corresponding parts of the labels
             for (uint64_t ind = 0; ind < lists[0].get_load(); ++ind) {
-	            for (int k = 0; k < amount_negates; ++k) {
+	            for (uint32_t k = 0; k < amount_negates; ++k) {
 		            translate_level(&k_lower, &k_higher, k+1, level_translation_array);
 		            lists[0][ind].get_label().neg(k_lower, k_higher);
 	            }
@@ -418,8 +421,8 @@ public:
             }
         } else {
             // calculate number of old targets to eliminate from baselists and number of new intermediate targets to add
-            int old_targets = Count_Trailing_Zeros(second - 1);
-            int new_targets = Count_Trailing_Zeros(second + 1);
+            const uint32_t old_targets = __builtin_ctz(second - 1);
+            const uint32_t new_targets = __builtin_ctz(second + 1);
 
             // determine which parts of the labels have to be negated
             // IMPORTANT: the second-2 is within the function. Is this intuitively?
@@ -433,7 +436,7 @@ public:
 	                           intermediate_targets[j][((second - 1u) >> (j + 1u)) - 1], k_lower, k_higher);
                 }
 
-                for (int k = 0; k < amount_negates; ++k) {
+                for (uint32_t k = 0; k < amount_negates; ++k) {
 	                translate_level(&k_lower, &k_higher, k+1, level_translation_array);
 	                lists[1][ind].get_label().neg(k_lower, k_higher);
                 }
@@ -499,25 +502,25 @@ public:
         }
     }
 
-    // IMPORTANT: The two lists L1, L2 __MUST__ be prepared befpr calling this function.
-	//                                                 Out
-	//                                      +----------------------+
-	//                                      |           |          |
-	//                                      +----------------------+
-	// Merge on k_upper                                 |
-	//                        +-------------------------+-------------------------+  Stream Merge
-	//                        |                Merge on target                    |
-	//            +-----------------------+                          + - - - - - --- - - - - +
-	//            |           |           | Intermediate List        |            |          | NOT Saved
-	//            +-----------+-----------+                          +- - - - - - | - - - - -+
-	//                       i_L                                                  |  Merge on k_lower
-	//                                                              +-------------+-----------+
-	//                                                              |    merge on equal       |
-	//                                                   +-----------------------+ +-----------------------+
-	//                                                   |          |            | |          |            |
-	//                                                   +----------+------------+ +----------+------------+
-	//                                                  k_lower1   L_1      k_upper2         L_2      k_upper2
-	//                                                            k_upper1=k_lower2
+    /// IMPORTANT: The two lists L1, L2 __MUST__ be prepared befor calling this function.
+	///                                                 Out
+	///                                      +----------------------+
+	///                                      |           |          |
+	///                                      +----------------------+
+	/// Merge on k_upper                                 |
+	///                        +-------------------------+-------------------------+  Stream Merge
+	///                        |                Merge on target                    |
+	///            +-----------------------+                          + - - - - - --- - - - - +
+	///            |           |           | Intermediate List        |            |          | NOT Saved
+	///            +-----------+-----------+                          +- - - - - - | - - - - -+
+	///                       i_L                                                  |  Merge on k_lower
+	///                                                              +-------------+-----------+
+	///                                                              |    merge on equal       |
+	///                                                   +-----------------------+ +-----------------------+
+	///                                                   |          |            | |          |            |
+	///                                                   +----------+------------+ +----------+------------+
+	///                                                  k_lower1   L_1      k_upper2         L_2      k_upper2
+	///                                                            k_upper1=k_lower2
     /// \param out			Output list
     /// \param iL			Input list, will be sorted on [k_lower2, k_upper2]
     /// \param L1			Input list, will be sorted on [k_lower1, k_upper1]
@@ -590,7 +593,7 @@ public:
     /// \param out 	Output List
     /// \param L1 	Input List (sorted)
     /// \param L2 	Input List (will be changed. Target is added to every element in it.)
-    /// \param ta __MUST__ be an uint64_t array containing two elements. The first will be used as the lower cooridnate bound to match the elements on, where as the latter one will be the upper bound.
+    /// \param ta __MUST__ be an uint64_t const_array containing two elements. The first will be used as the lower cooridnate bound to match the elements on, where as the latter one will be the upper bound.
     static void join2lists(List &out, List &L1, List &L2, const LabelType &target,
 							const std::vector<uint64_t> &lta, const bool prepare=true) noexcept {
     	ASSERT(lta.size() >=1 );
@@ -731,29 +734,29 @@ public:
 		twolevel_streamjoin(out, iL, L3, L4, k_lower1, k_upper1, k_lower2, k_upper2);
 	}
 
-	// Schematic view on the Algorithm.
-	// The algorithm ignores any facts about th weight, nor does it guess the output size.
-	// The intermediate list `iL` is created every time you call this function. So if called repeatedly, maybe write it yourself, or set the list to static.
-	// The difference to the function `streamjoin4lists` is that the lists `L3` and `L4` are simulated on the fly. This
-	// means that list `L1` and `L2` are used for this.
-	//                                                  Out
-	//                                       +-----------+----------+
-	//                                       | k_lower   |  k_higher|                                         Level 2
-	//                                       +----------------------+
-	// Merge on k_upper                                  |
-	//                         +-------------------------+-------------------------+  Stream Merge
-	//                         |                Merge on target                    |
-	//             +-----------------------+                          + - - - - - - - - - - - +
-	//             | k_lower   |  k_higher | Intermediate List        |            |          |               Level 1
-	//             +-----------------------+ Will be save.            +- - - - - - - - - - - -+ NOT Saved
-	// Merge on k_lower        |                                                   |
-	//            +------------+------------+                        +-------------+-----------+
-	//            |      Merge on random R  |                        |    merge on R+target    |
-	//+-----------------------+ +-----------------------+ + - - - - - - - - - - - + + - - - - - - - - - - - +
-	//| k_lower   |  k_higher | | k_lower   |  k_higher | | NOT SAVED/PASSED      | | NOT_SAVED/PASSED      | Level 0
-	//+-----------------------+ +-----------------------+ +- - - - - - - - - - - -+ +- - - - - - - - - - - -+
-	//           L_1                       L_2                      L_1                       L_4
-	//
+	/// Schematic view on the Algorithm.
+	/// The algorithm ignores any facts about th weight, nor does it guess the output size.
+	/// The intermediate list `iL` is created every time you call this function. So if called repeatedly, maybe write it yourself, or set the list to static.
+	/// The difference to the function `streamjoin4lists` is that the lists `L3` and `L4` are simulated on the fly. This
+	/// means that list `L1` and `L2` are used for this.
+	///                                                  Out
+	///                                       +-----------+----------+
+	///                                       | k_lower   |  k_higher|                                         Level 2
+	///                                       +----------------------+
+	/// Merge on k_upper                                  |
+	///                         +-------------------------+-------------------------+  Stream Merge
+	///                         |                Merge on target                    |
+	///             +-----------------------+                          + - - - - - - - - - - - +
+	///             | k_lower   |  k_higher | Intermediate List        |            |          |               Level 1
+	///             +-----------------------+ Will be save.            +- - - - - - - - - - - -+ NOT Saved
+	/// Merge on k_lower        |                                                   |
+	///            +------------+------------+                        +-------------+-----------+
+	///            |      Merge on random R  |                        |    merge on R+target    |
+	///+-----------------------+ +-----------------------+ + - - - - - - - - - - - + + - - - - - - - - - - - +
+	///| k_lower   |  k_higher | | k_lower   |  k_higher | | NOT SAVED/PASSED      | | NOT_SAVED/PASSED      | Level 0
+	///+-----------------------+ +-----------------------+ +- - - - - - - - - - - -+ +- - - - - - - - - - - -+
+	///           L_1                       L_2                      L_1                       L_4
+	///
 	///
 	/// \param out output list. All targets which are a solution to the 4 kxor problem.
 	/// \param L1 	(sorted)
@@ -810,7 +813,7 @@ public:
 	/// \param out		output lists
 	/// \param L		input lists, L must contain 8 Lists
 	/// \param target	target to match on
-	/// \param lta		translation array with the limits to match on, for each lvl
+	/// \param lta		translation const_array with the limits to match on, for each lvl
 	static void streamjoin8lists(List &out, std::vector<List> &L, const LabelType &target,
 	                             const std::vector<uint64_t> &lta) noexcept {
 		ASSERT(lta.size() == 4 && L.size() == 8);
@@ -1069,10 +1072,10 @@ private:
     /// NTRU / LWE / decoding matrix
 	const MatrixType matrix;
 
-    /// array to translate lvl x to upper and lower bound
+    /// const_array to translate lvl x to upper and lower bound
 	const std::vector<uint64_t> level_translation_array;
 
-	/// array to translate lvl x to filter
+	/// const_array to translate lvl x to filter
 	const std::vector<std::vector<uint8_t>> level_filter_array;
 
 	/// minimum nr of 2 in an element till we discard it
@@ -1120,8 +1123,7 @@ template <size_t... Is>
 struct index_list {};
 
 // Collects internal details for generating index ranges [MIN, MAX)
-namespace detail
-{
+namespace detail {
 	// Declare primary template for index range builder
 	template <size_t MIN, size_t N, size_t... Is>
 	struct range_builder;
@@ -1163,7 +1165,6 @@ using get_type_at_t = typename get_type_at_helper<I, Ts...>::type;
 
 template <typename...> struct type_list {};
 
-
 template<class List>
 #if __cplusplus > 201709L
 	requires TreeAble<List>
@@ -1183,116 +1184,235 @@ public:
 
 	typedef typename List::MatrixType MatrixType;
 
-	// TODO generalize
-	using ArgumentLimbType = ValueDataType;
-	using Extractor = WindowExtractor<LabelType, ArgumentLimbType>;
-
 	// internal data types lengths
 	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
 	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
 
-	// Hashes
-	template<const uint32_t l, const uint32_t h, typename T1, typename T2>
-	static T1 Hash(T2 a) {
-		constexpr T2 mask = (~((T2(1u) << l) - 1u)) &
-							( (T2(1u)  << h) - 1u);
-		return (a&mask)>>l;
+	/// TODO get from a config
+	constexpr static uint32_t threads = 1;
+	constexpr static uint32_t depth = 3;
+	// NOTE: both are one bigger that needed. This is due to the implemention
+	// which defines the type for an (not needed) hashmap for the final list.
+	// NOTE: both are in reverse order....
+	// NOTE: the 12 is fake, but it needs to be bigger than 11...
+	constexpr static std::array<uint32_t, depth+2u> matches = {12, 11, 7, 5, 0};
+
+	// The last value is therefore just reversed
+	constexpr static std::array<uint32_t, depth+1u> bucketsizes = {4, 5, 6, 6};
+	constexpr static uint32_t n = LabelType::LENGTH;
+
+	using __Key 	= LabelType;
+	/// get the max bits/coordinates to match on.
+	constexpr static uint32_t g_lower = matches[matches.size() - 1u];
+	constexpr static uint32_t g_upper = matches[0];
+	using __Value 	= LogTypeTemplate<g_upper - g_lower>; // NOTE no const_array type
+
+	/// internal bit extractor function
+	/// \tparam l lower coordinate to match on (included)
+	/// \tparam h upper coordinate to match on (not included)
+	/// \param a
+	/// \return
+	template<const uint32_t l, const uint32_t h>
+	static inline size_t extractor(const LabelType a) noexcept {
+		static_assert(h < 128);
+		static_assert(l < h);
+
+		constexpr __uint128_t mask = (~((uint64_t(1) << l) - 1u)) & ((uint64_t(1) << h) - 1u);
+		return ((*((__uint128_t *)a.ptr())) & mask)>>l;
 	}
 
-	// first lvl of stream join, write the output elements into a hashmap.
-	template<const ExtendenTreeConfig &config, const uint32_t cl, class HMOut, class HMIn>
-	static void streamJoin_internal(HMOut &out, HMIn &in, const List &L2) {
-		// internal data types of the hashmap
-		typedef typename HMIn::H            HMInHashType;
-		typedef typename HMIn::T            HMInType;
-		typedef typename HMIn::IndexType    HMInIndexType;
-		typedef typename HMOut::H           HMOutHashType;
-		typedef typename HMOut::T           HMOutType;
-		typedef typename HMOut::IndexType   HMOutIndexType;
+	/// in contrast to the base function `streamjoin_internal` does this function
+	/// allocate all needed structures on its own. E.g the needed hashmaps
+	/// \tparam l lower coordinate to match on
+	/// \tparam h upper coordinate to match on
+	/// \param out out list
+	/// \param in1 in list
+	/// \param in2 in list
+	template<const uint32_t l, const uint32_t h, const size_t bucketsize>
+	static void join2lists(List &out, List &in1, List &in2) {
+		static_assert(h > l);
+		static_assert(h <= n);
+		ASSERT(in1.threads() == in2.threads());
+		ASSERT(in1.threads() == out.threads());
+		ASSERT(in1.threads() == threads);
 
-		// thread id
-		const uint32_t tid = config.threads == 1 ? 0 : Thread::get_tid();
 
-		// list offsets for threads
-		const size_t spos = L2.start_pos(tid);
-		const size_t epos = L2.end_pos(tid);
+		// key/value typedef for the hashmap
+		using Key 	= LabelType;
+		using Value = LogTypeTemplate<h-l>;
+		constexpr static SimpleHashMapConfig s = SimpleHashMapConfig{bucketsize, 1u << (h - l), threads};
+		using HM = SimpleHashMap<Key, Value, s, &extractor<l, h>>;
+		HM *hm = new HM{};
+		hm->info();
 
-		auto extractor = [] (const LabelType &e) {
-			return Extractor::template extract<config.MatchingOffset - config.l[cl+1], config.MatchingOffset - config.l[cl]>(e);
-		};
+		#pragma omp parallel default(none) shared(out, in1, in2, hm) num_threads(threads)
+		{
+			const uint32_t tid = 0; // TODO omp_get_thread_num();
+			const size_t size1 = in1.load(tid);
+			const size_t size2 = in2.load(tid);
 
-		// helper variables
-		HMOutIndexType npos[2];
-		HMInIndexType load, pos;
+			// first hash the left list
+			#pragma omp for
+			for (size_t i = 0; i < size1; ++i) {
+				hm->insert(in1[i].label, i);
+			}
 
-		for (npos[1] = spos; npos[1] < epos; npos[1]++) {
-			auto extracted_label = extractor(L2.data_label(npos[1]));
-			HMInType data = in.hash(extracted_label);
-			pos = in.find1(data, load);
+			const size_t thread_offset = out.start_pos(tid);
+			const size_t max_insertion = out.end_pos(tid);
+			bool not_full = true;
+			size_t insertion_counter = 0;
+			ElementType tmp;
 
-			while (pos < load) {
-				HMInIndexType data1 = in.template traverse<0, 1>(data, pos, npos, load);
-				out.insert1(data1, npos, tid);
+			// next search for collisions
+			#pragma omp for
+			for (size_t i = 0; i < size2; ++i) {
+				// this is stupid, but needed due to the omp loop
+				if (not_full) {
+					const size_t index = extractor<l, h>(in2[i].label);
+					const size_t base_index = index*bucketsize;
+
+					for (size_t j = base_index; j < base_index+hm->__internal_load_array[index]; ++j) {
+						ASSERT(j < hm->total_size);
+
+						ElementType::add(tmp, in1[hm->__internal_hashmap_array[j]], in2[i]);
+						out[thread_offset + insertion_counter] = tmp;
+						insertion_counter += 1;
+						out.inc_load(tid);
+
+						// asserting correctness
+						for (uint32_t bla = l; bla < h; bla++) {
+							ASSERT(tmp.value[bla] == 0);
+						}
+
+						if (insertion_counter >= max_insertion) {
+							not_full = false;
+							break;
+						}
+					}
+				}
 			}
 		}
+
+
+		delete hm;
 	}
 
-	// variadic type of the function above
-	template<const ExtendenTreeConfig &config, const uint32_t cl, class HMOut, class HMIn, class... HMs>
-	static void streamJoin_internal(HMOut *out, HMIn *in, const List &L2) {
-		(void)out;
-		(void)in;
-		(void)L2;
-		// TODO finish implementing constexpr size_t n = sizeof...(HMs);
-	}
 
-	///
-	/// \tparam config
-	/// \tparam cl		current lvl
-	/// \tparam HM
-	/// \tparam HMs
-	/// \param L1
-	/// \param L2
-	/// \param target
-	template<const ExtendenTreeConfig &config, uint32_t cl, typename ...HMs>
-	static void streamjoin(List &L1, List &L2, const LabelType &target) {
-		static_assert(cl < config.d);
-		static_assert(sizeof...(HMs) == config.d+1);
+	/// current_depth = depth - (depth which needs to be build)
+	/// sadly current_depth needs to count backwards
+	template<const uint32_t current_depth, typename HMOut, typename HMIn>
+	static void streamjoin_internal(HMOut *out, HMIn *in, const List &L2) {
+		static_assert(current_depth <= depth);
+		using ValueOut = __Value[1u << (depth - current_depth)];
+		// we are at the final merge
+		if constexpr (current_depth < 1u) {
+			std::cout << "final list\n";
+			return;
+		} else {
+			/// fill the out list
+			// #pragma omp parallel default(none) shared(out, in, L2) num_threads(threads)
+			{
+				const uint32_t tid = 0; //omp_get_thread_num();
+				const size_t size2 = L2.load(tid);
+				// const size_t thread_offset = L2.start_pos(tid);
+				constexpr uint32_t h = matches[current_depth - 1u],
+				                   l = matches[current_depth];
+				constexpr size_t bucketsize = bucketsizes[current_depth];
+				// constexpr __Value mask = (1ul << (g_upper - g_lower)) -1ul;
 
-		// thread id
-		const uint32_t tid = config.threads == 1 ? 0 : Thread::get_tid();
 
-		// generate intermediate targets
-		LabelType targets[config.d];
-		for (uint32_t i = 0; i < config.d-1; ++i) {
-			targets[i].random();
+				// next search for collisions
+				// #pragma omp for
+				for (size_t i = 0; i < size2; ++i) {
+					const size_t index = extractor<l, h>(L2[i].label);
+					const size_t base_index = index*bucketsize;
+
+					/// TODO
+					for (size_t j = base_index; j < base_index+in->__internal_load_array[index]; ++j) {
+						ASSERT(j < in->total_size);
+
+						// asserting correctness
+						// constexpr __Value dbg_mask = (1ul << (h - l)) - 1ul;
+						for (uint32_t bla = l; bla < h; bla++) {
+						}
+					} //
+				} // for list2
+			} // pragma omp
+
+
+			/// prepare the next lvl
+			using ValueNextOut = __Value[1u << (depth - current_depth + 1u)];
+			constexpr static SimpleHashMapConfig sNextOut = SimpleHashMapConfig {
+			    bucketsizes[current_depth],
+			    1ul << (matches[current_depth - 1u] - matches[current_depth]),
+			    threads
+			};
+			using HMNextOut = SimpleHashMap<
+			    __Key, ValueNextOut, sNextOut,
+			    &extractor<g_lower, g_upper>
+			>;
+
+			// only allocate the next hashmap if its not for the final list
+			HMNextOut *hmNextOut = nullptr;
+			if constexpr (current_depth == 1u) {
+				hmNextOut = new HMNextOut{};
+			}
+
+			streamjoin_internal<current_depth - 1u>(hmNextOut, out, L2);
 		}
-		targets[config.d-1] = target;
-
-		// TODO add first intermediate target.
-
-		// create the first hash map and hash the first list.
-		using HM = get_type_at_t<0, HMs...>;
+	}
 
 
-		auto *hm = new HM();
-		hm->reset(tid);
-		OMP_BARRIER
+	/// level 0 = baselist
+	/// this wrapper is only needed to translate the input list L1 into an hashmap
+	/// boundaries of the current level are:
+	///		h = matches[current_depth]
+	/// 	l = matches[current_depth + 1]
+	/// TODO target and intermediate targets
+	static void streamjoin(List &L1, List &L2, const LabelType &target) {
+		(void) target;
+		// fill the first hashmap
+		constexpr uint32_t current_depth = depth;
+		constexpr static SimpleHashMapConfig sIn = SimpleHashMapConfig{
+		    bucketsizes[current_depth],
+		    1ul << (matches[current_depth] - matches[current_depth + 1u]),
+		    threads
+		};
+		using ValueIn 	= __Value[1];
+		using HMIn 		= SimpleHashMap<
+		    __Key, ValueIn, sIn,
+		    &extractor<g_lower, g_upper>
+		>;
+		HMIn *hm = new HMIn{};
 
-		// this hashes the first list into the first hashmap
-		hm->hash1(L1, L1.size(tid), tid, [](const LabelType&e) -> ArgumentLimbType {
-			return Extractor::template extract<config.MatchingOffset - config.l[1], config.MatchingOffset>(e);
-		});
+		//#pragma omp parallel default(none) shared(hm) num_threads(threads)
+		{
+			const uint32_t tid = 0;
+			ValueIn pos;
+			const size_t start_pos = L1.start_pos(tid);
+			const size_t end_pos = L1.end_pos(tid);
 
+			for (size_t i = start_pos; i < end_pos; ++i) {
+				pos[0] = i;
+				hm->insert(L1[i].value, pos);
+			}
+		}
 
-		using HM2 = get_type_at_t<1, HMs...>;
-		auto *hm2 = new HM2();
+		constexpr static SimpleHashMapConfig sOut = SimpleHashMapConfig{
+				bucketsizes[current_depth],
+				1ul << (matches[current_depth-1] - matches[current_depth]),
+				threads
+		};
+		using ValueOut 	= __Value[2];
+		using HMOut = SimpleHashMap<
+		    __Key, ValueOut, sOut,
+		    &extractor<g_lower, g_upper>
+		>;
+		HMOut *hmout = new HMOut{};
 
-		// test
-		// using HMs2 = typename selector<std::tuple<HMs...>, index_range<0, 1>>::type;
-
-
-		streamJoin_internal<config, cl+1, HM2, HM, HMs...>(hm2, hm, L2);
+		streamjoin_internal<depth - 1u>(hmout, hm, L2);
+		delete hm;
+		delete hmout;
 	}
 };
 

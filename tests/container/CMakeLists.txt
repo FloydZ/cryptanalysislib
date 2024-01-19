@@ -5,4 +5,7 @@ foreach(testfile ${TEST_SOURCES})
     add_executable(test_container_${file} ${testfile})
     target_compile_options(test_container_${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(test_container_${file} ${LINK_TEST_FLAGS})
+	add_test(AllTests test_container_${file})
 endforeach(testfile ${TEST_SOURCES})
+
+add_subdirectory(hashmap)

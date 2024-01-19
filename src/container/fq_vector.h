@@ -12,6 +12,7 @@
 #include "simd/simd.h"
 #include "popcount/popcount.h"
 #include "math/abs.h"
+#include "math/log.h"
 
 
 ///
@@ -696,7 +697,7 @@ public:
 		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			unsigned data = (unsigned)__data[i];
-			for (int j = 0; j < constexpr_bits_log2(q); ++j) {
+			for (uint32_t j = 0; j < bits_log2(q); ++j) {
 				std::cout << (data&1u) << " ";
 				data >>= 1;
 			}
@@ -739,7 +740,7 @@ public:
 		__data[index] = data;
 	}
 
-	/// sets all elements in the array to the given
+	/// sets all elements in the const_array to the given
 	/// \param data
 	constexpr void set(const T data) noexcept {
 		LOOP_UNROLL();

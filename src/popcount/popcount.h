@@ -38,8 +38,8 @@ namespace cryptanalysislib::popcount {
 	}
 
 	/// \tparam T base type
-	/// \param data pointer to the array
-	/// \param size number of elements in the array
+	/// \param data pointer to the const_array
+	/// \param size number of elements in the const_array
 	/// \return hamming weight (popcount) of the input vector
 	template<class T>
 #if __cplusplus > 201709L

@@ -19,7 +19,7 @@
 /**
  * A Functor class to create a sort for fixed sized arrays/containers with a
  * compile time generated Bose-Nelson sorting network.
- * \tparam NumElements  The number of elements in the array or container to sort.
+ * \tparam NumElements  The number of elements in the const_array or container to sort.
  */
 template <unsigned NumElements> class StaticSort
 {
@@ -90,8 +90,8 @@ template <unsigned NumElements> class StaticSort
 	
 public:
 	/**
-	 * Sorts the array/container arr.
-	 * \param  arr  The array/container to be sorted.
+	 * Sorts the const_array/container arr.
+	 * \param  arr  The const_array/container to be sorted.
 	 */
 	template <class Container>
 	inline void operator() (Container &arr) const
@@ -100,8 +100,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array arr.
-	 * \param  arr  The array to be sorted.
+	 * Sorts the const_array arr.
+	 * \param  arr  The const_array to be sorted.
 	 */
 	template <class T>
 	inline void operator() (T *arr) const
@@ -110,8 +110,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array/container arr.
-	 * \param  arr     The array/container to be sorted.
+	 * Sorts the const_array/container arr.
+	 * \param  arr     The const_array/container to be sorted.
 	 * \tparam Compare The less than comparator.
 	 */
 	template <class Container, class Compare>
@@ -122,8 +122,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array arr.
-	 * \param  arr     The array to be sorted.
+	 * Sorts the const_array arr.
+	 * \param  arr     The const_array to be sorted.
 	 * \tparam Compare The less than comparator.
 	 */
 	template <class T, class Compare>
@@ -134,8 +134,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array/container arr.
-	 * \param  arr     The array/container to be sorted.
+	 * Sorts the const_array/container arr.
+	 * \param  arr     The const_array/container to be sorted.
 	 * \tparam Compare The less than comparator.
 	 */
 	template <class Container, class Compare>
@@ -146,8 +146,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array arr.
-	 * \param  arr     The array to be sorted.
+	 * Sorts the const_array arr.
+	 * \param  arr     The const_array to be sorted.
 	 * \tparam Compare The less than comparator.
 	 */
 	template <class T, class Compare>
@@ -162,9 +162,9 @@ public:
 /**
  * A Functor class to create a sort for fixed sized arrays/containers with a
  * compile time generated Bose-Nelson sorting network.
- * Inspired by TimSort, this scans through the array first.
+ * Inspired by TimSort, this scans through the const_array first.
  * It skips the sorting-network if it is strictly increasing or decreasing. ;)
- * \tparam NumElements  The number of elements in the array or container to sort.
+ * \tparam NumElements  The number of elements in the const_array or container to sort.
  */
 template <unsigned NumElements> class StaticTimSort
 {
@@ -229,8 +229,8 @@ template <unsigned NumElements> class StaticTimSort
 	
 public:
 	/**
-	 * Sorts the array/container arr.
-	 * \param  arr  The array/container to be sorted.
+	 * Sorts the const_array/container arr.
+	 * \param  arr  The const_array/container to be sorted.
 	 */
 	template <class Container>
 	inline void operator() (Container &arr) const
@@ -240,8 +240,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array arr.
-	 * \param  arr  The array to be sorted.
+	 * Sorts the const_array arr.
+	 * \param  arr  The const_array to be sorted.
 	 */
 	template <class T>
 	inline void operator() (T *arr) const
@@ -251,8 +251,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array/container arr.
-	 * \param  arr     The array/container to be sorted.
+	 * Sorts the const_array/container arr.
+	 * \param  arr     The const_array/container to be sorted.
 	 * \tparam Compare The less than comparator.
 	 */
 	template <class Container, class Compare>
@@ -264,8 +264,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array arr.
-	 * \param  arr     The array to be sorted.
+	 * Sorts the const_array arr.
+	 * \param  arr     The const_array to be sorted.
 	 * \tparam Compare The less than comparator.
 	 */
 	template <class T, class Compare>
@@ -277,8 +277,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array/container arr.
-	 * \param  arr     The array/container to be sorted.
+	 * Sorts the const_array/container arr.
+	 * \param  arr     The const_array/container to be sorted.
 	 * \tparam Compare The less than comparator.
 	 */
 	template <class Container, class Compare>
@@ -290,8 +290,8 @@ public:
 	}
 	
 	/**
-	 * Sorts the array arr.
-	 * \param  arr     The array to be sorted.
+	 * Sorts the const_array arr.
+	 * \param  arr     The const_array to be sorted.
 	 * \tparam Compare The less than comparator.
 	 */
 	template <class T, class Compare>
