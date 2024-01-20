@@ -159,7 +159,7 @@ public:
 			if (sL2) check(element2.label, element2.value, false);
 
 			if constexpr (sP) { if(std::invoke(*p, element1.label)) { return true; }}
-			if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+			if constexpr (sHM) { insert_hashmap(hm, e, element1, ctr, tid); }
 			if (sL1) insert_list(L1, element1, ctr, tid);
 			if (sL2) insert_list(L2, element2, ctr, tid);
 

@@ -45,6 +45,12 @@ class SimpleHashMap {
 	using index_type         = size_t;
 
 public:
+	typedef keyType 	T;
+
+	// TODO make sure that is general enough
+	typedef size_t 		LoadType;
+	typedef size_t 		IndexType;
+
 	// size per bucket
 	constexpr static size_t bucketsize = config.bucketsize;
 
@@ -64,6 +70,17 @@ public:
 			__internal_hashmap_array(),
 			__internal_load_array() {}
 
+	///
+	/// \param e
+	/// \param value
+	/// \param tid
+	/// \return
+	constexpr void insert(const keyType &e,
+			const valueType value,
+			const uint32_t tid) noexcept {
+		/// TODO
+		insert(e, value);
+	}
 
 	/// hashes down `e` (Element) to an index where to store
 	/// the element.
@@ -124,6 +141,15 @@ public:
 		return index*nrbuckets;
 	}
 
+	constexpr index_type find(const keyType &e, index_type &__load) const noexcept {
+		const index_type index = HashFkt(e);
+		ASSERT(index < nrbuckets);
+		__load = __internal_load_array[index];
+		// return the index instead of the actual element, to
+		// reduce the size of the returned element.
+		return index*nrbuckets;
+	}
+
 	/// prints the content of each bucket
 	/// it with one thread.
 	/// \return nothing
@@ -135,6 +161,11 @@ public:
 				print(i*bucketsize + j);
 			}
 		}
+	}
+
+	/// match the api
+	constexpr size_t hash(const keyType &e) const noexcept {
+		return HashFkt(e);
 	}
 
 	/// prints a single index

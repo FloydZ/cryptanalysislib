@@ -1267,10 +1267,13 @@ public:
 		return boffset;
 	}
 
+	BucketIndexType _find(const ArgumentLimbType data, LoadType &load) const noexcept {
+		return find(data, load);
+	}
 
 	// returns -1 on error/nothing found. Else the position.
 	// IMPORTANT: load` is the actual load + bid*size_b
-	BucketIndexType find(const ArgumentLimbType &data, LoadType &load) const noexcept {
+	BucketIndexType find(const ArgumentLimbType data, LoadType &load) const noexcept {
 		const BucketHashType bid = HashFkt(data);
 		const BucketIndexType boffset = bid * size_b;   // start index of the bucket in the internal data structure
 

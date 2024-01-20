@@ -1,8 +1,10 @@
+#include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
 
 #include "combination/chase.h"
 #include "container/fq_vector.h"
+#include "container/hashmap/simple.h"
 #include "helper.h"
 #include "list/enumeration/enumeration.h"
 #include "list/list.h"
@@ -33,13 +35,21 @@ constexpr static ConfigParallelBucketSort chm1{0, l, l, l, l, 1, 1, n-l, l, 0};
 
 
 using LPartType = uint16_t;
-using IndexType = uint16_t;
+using IndexType = size_t;
 
 inline static LPartType DummyHash(__uint128_t a) noexcept {
 	constexpr __uint128_t mask = (1ull << (l)) - 1ull;
 	return a&mask;
 }
 using HMType = ParallelBucketSort<chm1, List, LPartType, IndexType, &DummyHash>;
+
+// TODO the current API is not supported by simplehashmap
+//inline static size_t DummyHash(const LPartType a) noexcept {
+//	constexpr __uint128_t mask = (1ull << (l)) - 1ull;
+//	return a&mask;
+//}
+//constexpr static SimpleHashMapConfig simple{10, 1u<<l,1};
+//using HMType = SimpleHashMap<LPartType, IndexType, simple, DummyHash>;
 
 TEST(Chase, first) {
 	constexpr uint32_t element_limbs = (n + 63)/64;
@@ -104,7 +114,8 @@ TEST(F2, single_hashmap) {
 	HT.random();
 
 	BinaryListEnumerateMultiFullLength<List, n, w> enumerator{HT};
-	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
+	enumerator.run<HMType, decltype(extractor), std::nullptr_t>
+		(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		const auto data = extractor(L.data_label(i));

@@ -35,8 +35,6 @@ jobs:
             mkdir -p build
             mkdir -p cmake-build-release
             mkdir -p cmake-build-debug
-            chmod +x ./build.sh
-            ./build.sh
             cd build
             cmake ..
             make

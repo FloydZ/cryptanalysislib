@@ -34,6 +34,17 @@ struct uint32x4_t {
 		uint64_t v64[ 2];
 	};
 
+	///
+	/// \return
+	static inline uint32x4_t random() {
+		uint32x4_t ret;
+		for (uint32_t i=0; i<2; i++) {
+			ret.v64[i] = fastrandombytes_uint64();
+		}
+
+		return ret;
+	}
+
 	[[nodiscard]] constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
 		uint32x4_t ret;
 		ret.v32[0] = d;
@@ -75,6 +86,16 @@ struct uint64x2_t {
 		uint64_t v64[ 2];
 	};
 
+	///
+	/// \return
+	static inline uint64x2_t random() {
+		uint64x2_t ret;
+		for (uint32_t i=0; i<2; i++) {
+			ret.v64[i] = fastrandombytes_uint64();
+		}
+
+		return ret;
+	}
 
 	[[nodiscard]] constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
 		uint64x2_t ret;
@@ -158,7 +179,7 @@ struct uint8x32_t {
 		                								 uint8_t __q11, uint8_t __q10, uint8_t __q09, uint8_t __q08,
 		                								 uint8_t __q07, uint8_t __q06, uint8_t __q05, uint8_t __q04,
 		                								 uint8_t __q03, uint8_t __q02, uint8_t __q01, uint8_t __q00) {
-		uint8x32_t out = {0};
+		uint8x32_t out;
 		out.v8[ 0] = __q31;
 		out.v8[ 1] = __q30;
 		out.v8[ 2] = __q29;
@@ -508,6 +529,17 @@ struct uint16x16_t {
 	};
 
 	///
+	/// \return
+	static inline uint16x16_t random() {
+		uint16x16_t ret;
+		for (uint32_t i=0; i<4; i++) {
+			ret.v64[i] = fastrandombytes_uint64();
+		}
+
+		return ret;
+	}
+
+	///
 	/// \param binary
 	/// \param hex
 	constexpr inline void print(bool binary=false, bool hex=false) const;
@@ -810,6 +842,18 @@ struct uint32x8_t {
 		uint32_t v32[ 8];
 		uint64_t v64[ 4];
 	};
+
+	///
+	/// \return
+	static inline uint32x8_t random() {
+		uint32x8_t ret;
+		for (uint32_t i=0; i<4; i++) {
+			ret.v64[i] = fastrandombytes_uint64();
+		}
+
+		return ret;
+	}
+
 	///
 	/// \param binary
 	/// \param hex
@@ -1126,6 +1170,17 @@ struct uint64x4_t {
 		uint32_t v32[ 8];
 		uint64_t v64[ 4];
 	};
+
+	///
+	/// \return
+	static inline uint64x4_t random() {
+		uint64x4_t ret;
+		for (uint32_t i=0; i<4; i++) {
+			ret.v64[i] = fastrandombytes_uint64();
+		}
+
+		return ret;
+	}
 
 	///
 	/// \param binary
