@@ -29,7 +29,7 @@ B63_BASELINE(ListConstructor, nn) {
 	for (uint64_t i = 0; i < nn; ++i) {
 		DecodingList L(nn*lsize);
 		L.set_load(nn*lsize);
-		res += L[0].get_label_container_ptr()[0];
+		res += L[0].label_ptr(0);
 	}
 
 	B63_KEEP(res);
@@ -39,7 +39,7 @@ B63_BENCHMARK(ListMalloc, nn) {
 	uint32_t res = 0;
 	for (uint64_t i = 0; i < nn; ++i) {
 		DecodingElement *L = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
-		res += L[0].get_label_container_ptr()[0];
+		res += L[0].label_ptr(0);
 		free(L);
 	}
 
@@ -58,8 +58,8 @@ B63_BENCHMARK(CopyClass, nn) {
 
 	for (uint64_t i = 0; i < nn; ++i) {
 		L1 = L2;
-		res += L1[0].get_label_container_ptr()[0];
-		L1[0].get_label_container_ptr()[0] += rand();
+		res += L1[0].label_ptr(0);
+		L1[0].label_ptr()[0] += rand();
 	}
 
 	B63_KEEP(res);
@@ -72,8 +72,8 @@ B63_BENCHMARK(CopyMalloc, nn) {
 	uint32_t res = 0;
 	for (uint64_t i = 0; i < nn; ++i) {
 		memcpy(L1, L2, sizeof(DecodingElement)*nn*lsize);
-		res += L1[0].get_label_container_ptr()[0];
-		L1[0].get_label_container_ptr()[0] += rand();
+		res += L1[0].label_ptr(0);
+		L1[0].label_ptr()[0] += rand();
 	}
 
 	free(L1);

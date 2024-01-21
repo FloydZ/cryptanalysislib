@@ -6,7 +6,7 @@
 #endif
 
 #if !defined(CRYPTANALYSISLIB_POPCOUNT_H)
-#error "Do not inlcude this library directly. Use: `#include <popcount/popcount.h>`"
+#error "Do not include this library directly. Use: `#include <popcount/popcount.h>`"
 #endif
 
 #include <immintrin.h>
@@ -66,25 +66,6 @@ constexpr static __m256i popcount_avx2_32(const __m256i vec) noexcept {
 	ret = (__m256i)((__v32qu)ret + (__v32qu)((__v4du)((__m256i)__builtin_ia32_psrldi256((__v8si)local, 16)) & (__v4du)mask));
 	ret = (__m256i)((__v32qu)ret + (__v32qu)((__v4du)((__m256i)__builtin_ia32_psrldi256((__v8si)local, 24)) & (__v4du)mask));
 	return ret;
-}
-
-/// special popcount which popcounts on 4 * 64 bit limbs in parallel
-constexpr static __m256i popcount_avx2_64(const __m256i vec) noexcept {
-	POPCOUNT_HELPER_MACRO()
-  	const __m256i local = (__m256i)((__v32qu)popcnt1 + (__v32qu)popcnt2);
-  	return (__m256i)__builtin_ia32_psadbw256((__v32qi)local, (__v32qi)__extension__ (__m256i)(__v4di){ 0, 0, 0, 0 });
-}
-
-/// TODO merge
-static inline uint32_t hammingweight_mod2_limb256(__m256i vec) {
-	POPCOUNT_HELPER_MACRO()
-	const __m256i local = (__m256i)((__v32qu)popcnt1 + (__v32qu)popcnt2);
-	const __m256i final = (__m256i)__builtin_ia32_psadbw256((__v32qi)local, (__v32qi)__extension__ (__m256i)(__v4di){ 0, 0, 0, 0 });
-
-	// probably not fast
-	alignas(32) static uint64_t bla[4];
-	_mm256_store_si256((__m256i *)bla , final);
-	return bla[0] + bla[1] + bla[2] + bla[3];
 }
 #undef POPCOUNT_HELPER_MACRO
 #endif

@@ -215,7 +215,34 @@ public:
 				    });
 			}
 		} else {
-			/// TODO
+			/// TODO testen und benchmarken
+			const T j_mask  = T::lower_mask(j);
+			const T i_mask = T::higher_mask(i);
+			const uint32_t i_shift = i % (sizeof(T) * 8u);
+			const uint32_t j_shift = (sizeof(T) * 8u) - i_shift;
+
+
+			if constexpr (USE_STD_SORT) {
+				std::sort(__data.begin() + start_pos(tid),
+						  __data.begin() + end_pos(tid),
+						  [lower, upper, i_mask, j_mask, i_shift, j_shift]
+				          (const auto &e1, const auto &e2) {
+					          const T data1 = ((e1.ptr(lower) & i_mask) >> i_shift) ^
+					                          ((e1.ptr(upper) & j_mask) >> j_shift);
+					          const T data2 = ((e2.ptr(lower) & i_mask) >> i_shift) ^
+											  ((e2.ptr(upper) & j_mask) >> j_shift);
+
+					          return data1 < data2;
+						  });
+			} else {
+				ska_sort(__data.begin() + start_pos(tid),
+						 __data.begin() + end_pos(tid),
+						 [lower, upper, i_mask, j_mask, i_shift, j_shift]
+				         (const Element &e) { // TODO diesen ptr(i) fuer dasd inte limb ausfuhren
+					         return ((e.ptr(lower) & i_mask) >> i_shift) ^
+					                ((e.ptr(upper) & j_mask) >> j_shift);
+						 });
+			}
 		}
 	}
 
@@ -258,8 +285,9 @@ public:
 													const uint32_t tid) noexcept {
 		uint64_t end_index;
 		uint64_t start_index = search_level(e, k_lower, k_higher, tid);
-		if (start_index == uint64_t(-1))
+		if (start_index == uint64_t(-1)) {
 			return std::pair<uint64_t, uint64_t>(-1, -1);
+		}
 
 		// get the upper index
 		end_index = start_index + 1;
@@ -272,6 +300,7 @@ public:
 	/// zero out the i-th element.
 	/// \param i
 	void zero_element(size_t i) noexcept {
+		/// TODO rename
 		ASSERT(i < size());
 		__data[i].zero();
 	}

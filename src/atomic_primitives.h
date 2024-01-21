@@ -143,5 +143,16 @@ int _CAS2(volatile uint64_t *ptr, uint64_t *cmp1, uint64_t *cmp2, uint64_t val1,
 #else
 #define PAUSE()
 #endif
+
+
+inline void cmov(const uint64_t a, const uint64_t b) noexcept {
+	asm volatile (
+			"cmova %0 %1\n\t"
+			: "=r" (a)
+			: "r" (b)
+	);
+}
+
+
 #endif
 

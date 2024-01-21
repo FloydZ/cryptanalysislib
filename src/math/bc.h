@@ -225,15 +225,10 @@ inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
 		const uint32x8_t onei = uint32x8_t::set1(1u);
 		const uint32x8_t t1i = uint32x8_t::slli(a, 3u);
 		const uint32x8_t t2i = t1i + onei;
-#ifdef USE_AVX2
-		// TODO not finished
-		const __m256  t2f = _mm256_cvtepi32_ps(t2i.v256);
-		const __m256  t3f = _mm256_sqrt_ps(t2f);
-#endif
+		const f32x8_t  t2f = f32x8_t(t2i);
+		const f32x8_t  t3f = f32x8_t::sqrt(t2f);
 		uint32x8_t t3i;
-#ifdef USE_AVX2
-		t3i.v256 =  _mm256_cvtps_epi32(_mm256_floor_ps(t3f));
-#endif
+		t3i = f32x8_t::uint32x8(f32x8_t::floor(t3f));
 		const uint32x8_t t4i = t3i + onei;
 		const uint32x8_t t5i = uint32x8_t::srli(t4i, 1);
 		return t5i;

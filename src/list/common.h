@@ -184,8 +184,8 @@ public:
 	typedef typename Element::ValueType ValueType;
 	typedef typename Element::LabelType LabelType;
 
-	typedef typename Element::ValueType::ContainerLimbType ValueContainerLimbType;
-	typedef typename Element::LabelType::ContainerLimbType LabelContainerLimbType;
+	typedef typename Element::ValueType::LimbType ValueLimbType;
+	typedef typename Element::LabelType::LimbType LabelLimbType;
 
 	typedef typename Element::ValueContainerType ValueContainerType;
 	typedef typename Element::LabelContainerType LabelContainerType;

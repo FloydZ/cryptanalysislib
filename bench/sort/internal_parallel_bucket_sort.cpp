@@ -14,14 +14,13 @@ using namespace std;
 
 constexpr static uint64_t SIZE = 1<<22;
 
-constexpr static uint32_t ssize = 32;
 constexpr static uint32_t k_lower = 0;
 constexpr static uint32_t k_higher = 16;
 
-using ContainerT = uint32_t;
-constexpr static ContainerT mask = ((ContainerT(1) << k_higher) - 1) ^ ((ContainerT(1) << k_lower) -1);
+using T = uint32_t;
+constexpr static T mask = ((T(1) << k_higher) - 1) ^ ((T(1) << k_lower) -1);
 
-void random_data(std::vector<ContainerT> &data, 
+void random_data(std::vector<T> &data,
 		const uint64_t size) {
 	data.resize(SIZE);
 	for (uint64_t i = 0; i < size; ++i) {
@@ -31,7 +30,7 @@ void random_data(std::vector<ContainerT> &data,
 
 // std_sort
 B63_BASELINE(Std_Sort, n) {
-	vector<ContainerT> data;
+	vector<T> data;
 	B63_SUSPEND {
 		random_data(data, n);
 	}
@@ -47,7 +46,7 @@ B63_BASELINE(Std_Sort, n) {
 }
 
 B63_BENCHMARK(std_stable_sort, n) {
-	vector<ContainerT> data;
+	vector<T> data;
 	B63_SUSPEND {
 		random_data(data, n);
 	}
@@ -63,7 +62,7 @@ B63_BENCHMARK(std_stable_sort, n) {
 }
 
 B63_BENCHMARK(SKASort, n) {
-	vector<ContainerT> data;
+	vector<T> data;
 	B63_SUSPEND {
 		random_data(data, n);
 	}

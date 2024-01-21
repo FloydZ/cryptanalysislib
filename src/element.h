@@ -28,25 +28,53 @@ concept LabelAble = requires(Container c) {
 	// we need to enforce the existence of some fields
 	Container::LENGTH;
 
-	requires requires(const uint32_t i) {
+	requires requires(const uint32_t i,
+	                  const size_t s) {
 		c[i];
 		c.get(i);
 		c.set(i, i);
 		c.random();
 		c.zero();
+		c.data();
+		c.ptr();
+		c.ptr(s);
+
 		c.is_equal(c, i, i);
+		c.is_equal(c);
 		c.is_greater(c, i, i);
+		c.is_greater(c);
 		c.is_lower(c, i, i);
+		c.is_lower(c);
+		c.is_zero(i, i);
+		c.is_zero();
+		c.neg(i, i);
+
 		Container::add(c, c, c, i, i);
 		Container::sub(c, c, c, i, i);
 		Container::set(c, c, i, i);
 		Container::cmp(c, c, i, i);
-		c.neg(i, i);
-		c.data();
-		c.is_zero();
 
 		c.print_binary(i, i);
 		c.print(i, i);
+	};
+
+	/// limb arithmetic stuff
+	requires requires(const typename Container::LimbType a,
+	                  const uint8x32_t b) {
+		Container::add_T(a, a);
+		Container::sub_T(a, a);
+		Container::mod_T(a);
+		Container::mul_T(a, a);
+		Container::neg_T(a);
+		Container::scalar_T(a, a);
+		Container::wt_T(a);
+
+		// simd stuff
+		Container::add256_T(b, b);
+		Container::sub256_T(b, b);
+		Container::mod256_T(b);
+		Container::mul256_T(b, b);
+		Container::neg256_T(b);
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
@@ -61,11 +89,13 @@ concept LabelAble = requires(Container c) {
 template<class Container>
 concept ValueAble = requires(Container c) {
 	typename Container::DataType;
+	typename Container::LimbType;
 
 	// we need to enforce the existence of some fields
 	Container::LENGTH;
 
-	requires requires(const uint32_t i) {
+	requires requires(const uint32_t i,
+	                  const size_t s) {
 		/// init/getter/setter
 		c[i];
 		c.get(i);
@@ -74,6 +104,8 @@ concept ValueAble = requires(Container c) {
 		c.random();
 		c.zero();
 		c.data();
+		c.ptr();
+		c.ptr(s);
 
 		/// comparison
 		Container::cmp(c, c, i, i);
@@ -94,15 +126,26 @@ concept ValueAble = requires(Container c) {
 		/// printing stuff
 		c.print_binary(i, i);
 		c.print(i, i);
-
 	};
 
-	/// TODO
-	//template<typename T>
-	//requires requires(const T i) {
-	//	/// limb arithmetic stuf
-	//	kContainer::add_T
-	//};
+	/// limb arithmetic stuff
+	requires requires(const typename Container::LimbType a,
+	                  const uint8x32_t b) {
+		Container::add_T(a, a);
+		Container::sub_T(a, a);
+		Container::mod_T(a);
+		Container::mul_T(a, a);
+		Container::neg_T(a);
+		Container::scalar_T(a, a);
+		Container::wt_T(a);
+
+		// simd stuff
+		Container::add256_T(b, b);
+		Container::sub256_T(b, b);
+		Container::mod256_T(b);
+		Container::mul256_T(b, b);
+		Container::neg256_T(b);
+	};
 
 	// we also have to enforce the existence of some constexpr functions.
 	{ Container::binary() } -> std::convertible_to<bool>;
@@ -121,65 +164,6 @@ concept ElementAble = requires(Value v, Label l) {
 	requires LabelAble<typename Label::ContainerType>;
 
 	requires MatrixAble<Matrix>;
-
-	/// needed variables.
-	Value::LENGTH;
-	Label::LENGTH;
-
-	// Value requirements
-	requires requires(const uint32_t i) {
-		v[i];
-		v.random();
-		v.zero();
-		v.is_equal(v, i, i);
-		v.is_greater(v, i, i);
-		v.is_lower(v, i, i);
-		Value::add(v, v, v, i, i);
-		Value::sub(v, v, v, i, i);
-		Value::set(v, v, i, i);
-		Value::cmp(v, v, i, i);
-		v.neg(i, i);
-		v.size();
-		v.data();
-		v.bytes();
-		v.is_zero();
-
-		v.print(i, i);
-		v.print_binary(i, i);
-	};
-
-	// Label requirements
-	requires requires(const uint32_t i) {
-		l[i];
-		l.random();
-		l.zero();
-		l.is_equal(l, i, i);
-		l.is_greater(l, i, i);
-		l.is_lower(l, i, i);
-		Label::add(l, l, l, i, i);
-		Label::sub(l, l, l, i, i);
-		Label::set(l, l, i, i);
-		Label::cmp(l, l, i, i);
-		l.neg(i, i);
-		l.size();
-		l.data();
-		l.bytes();
-		l.is_zero();
-
-		l.print(i, i);
-		l.print_binary(i, i);
-	};
-
-
-	// we also have to enforce the existence of some constexpr functions.
-	{ Value::binary() } -> std::convertible_to<bool>;
-	{ Value::size() } -> std::convertible_to<uint32_t>;
-	{ Value::limbs() } -> std::convertible_to<uint32_t>;
-	{ Value::bytes() } -> std::convertible_to<uint32_t>;
-	{ Label::binary() } -> std::convertible_to<bool>;
-	{ Label::size() } -> std::convertible_to<uint32_t>;
-	{ Label::limbs() } -> std::convertible_to<uint32_t>;
-	{ Label::bytes() } -> std::convertible_to<uint32_t>;
 };
 #endif
 
@@ -202,8 +186,8 @@ public:
 	typedef typename Value::DataType ValueDataType;
 	typedef typename Label::DataType LabelDataType;
 
-	typedef typename Value::ContainerLimbType ValueContainerLimbType;
-	typedef typename Label::ContainerLimbType LabelContainerLimbType;
+	typedef typename Value::LimbType ValueLimbType;
+	typedef typename Label::LimbType LabelLimbType;
 
 	// internal data types lengths
 	constexpr static uint32_t ValueLENGTH = Value::LENGTH;
@@ -362,14 +346,12 @@ public:
 	/// \return this->label > obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr inline bool is_greater(const Element_T &obj) const noexcept {
-		// No need to assert, because everything will be done inside the called function 'value.is_greater(...)'
 		return label.template is_greater<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr inline bool is_lower(const Element_T &obj) const noexcept {
-		// No need to assert, because everything will be done inside the called function 'value.is_lower(...)'
 		return label.template is_lower<k_lower, k_upper>(obj.label);
 	}
 
@@ -413,7 +395,7 @@ public:
 	}
 
 	/// prints stuff
-	void print() const noexcept {
+	constexpr void print() const noexcept {
 		label.print();
 		value.print();
 	}
@@ -421,7 +403,7 @@ public:
 	/// print the internal data
 	/// \param k_lower lower dimension
 	/// \param k_upper upper dimension
-	void print(const uint64_t k_lower_label,
+	constexpr void print(const uint64_t k_lower_label,
 			   const uint64_t k_upper_label,
 			   const uint64_t k_lower_value,
 			   const uint64_t k_upper_value) const noexcept {
@@ -430,7 +412,7 @@ public:
 	}
 
 	/// prints stuff
-	void print_binary() const noexcept {
+	constexpr void print_binary() const noexcept {
 		label.print_binary();
 		value.print_binary();
 	}
@@ -440,7 +422,7 @@ public:
 	/// \param k_upper_label
 	/// \param k_lower_value
 	/// \param k_upper_value
-	void print_binary(const uint64_t k_lower_label,
+	constexpr void print_binary(const uint64_t k_lower_label,
 	           		  const uint64_t k_upper_label,
 	           		  const uint64_t k_lower_value,
 	           		  const uint64_t k_upper_value) const noexcept {
@@ -469,19 +451,12 @@ public:
 	constexpr static uint32_t size() noexcept { return Value::size()+Label::size(); }
 	constexpr static uint32_t bytes() noexcept { return ValueContainerType::copyable_ssize()+LabelContainerType::copyable_ssize(); }
 
-	__FORCEINLINE__ auto& get_label_container() noexcept { return label.data(); }
-	__FORCEINLINE__ auto& get_value_container() noexcept { return value.data(); }
+	///
+	__FORCEINLINE__ constexpr auto* label_ptr() noexcept { return label.ptr(); }
+	__FORCEINLINE__ constexpr auto* value_ptr() noexcept { return value.ptr(); }
 
-	__FORCEINLINE__ const auto& get_label_container() const noexcept { return label.data(); }
-	__FORCEINLINE__ const auto& get_value_container() const noexcept { return value.data(); }
-
-	/// TODO replace with ptr
-	__FORCEINLINE__ auto* get_label_container_ptr() noexcept { return label.data().data(); }
-	__FORCEINLINE__ auto* get_value_container_ptr() noexcept { return value.data().data(); }
-
-	__FORCEINLINE__ const auto* get_label_container_ptr() const noexcept { return label.data().data(); }
-	__FORCEINLINE__ const auto* get_value_container_ptr() const noexcept { return value.data().data(); }
-
+	__FORCEINLINE__ constexpr auto label_ptr(const size_t i) noexcept { return label.ptr(i); }
+	__FORCEINLINE__ constexpr auto value_ptr(const size_t i) noexcept { return value.ptr(i); }
 public:
 	Label label;
 	Value value;

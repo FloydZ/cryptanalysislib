@@ -11,13 +11,13 @@
 constexpr static uint64_t sssize = 63;
 constexpr static uint64_t k_lower = 30;
 constexpr static uint64_t k_higher = sssize;
-using ContainerT = BinaryContainer<sssize>;
+using T = BinaryContainer<sssize>;
 
 constexpr uint64_t SIZE_LIST = 1ull << 20;
 
 // std_sort
 B63_BASELINE(Std_Sort, nn) {
-	std::vector<ContainerT> data;
+	std::vector<T> data;
 
 	B63_SUSPEND {
 		data.resize(SIZE_LIST);
@@ -26,14 +26,14 @@ B63_BASELINE(Std_Sort, nn) {
 		}
 	}
 
-	std::sort(data.begin(), data.end(), [](const ContainerT &a, const ContainerT &b){
+	std::sort(data.begin(), data.end(), [](const T &a, const T &b){
 		return a.is_greater<k_lower, k_higher>(b);
 	});
 	B63_KEEP(data[0].data()[0]);
 }
 
 B63_BENCHMARK(crumsort, nn) {
-	std::vector<ContainerT> data;
+	std::vector<T> data;
 	B63_SUSPEND {
 		data.resize(SIZE_LIST);
 		for (size_t i = 0; i < nn; ++i) {
@@ -41,7 +41,7 @@ B63_BENCHMARK(crumsort, nn) {
 		}
 	}
 
-	crumsort<ContainerT>(data.data(), SIZE_LIST, [](const ContainerT *a, const ContainerT *b){
+	crumsort<T>(data.data(), SIZE_LIST, [](const T *a, const T *b){
 		return a->is_greater<k_lower, k_higher>(*b);
 	});
 
@@ -49,7 +49,7 @@ B63_BENCHMARK(crumsort, nn) {
 }
 
 B63_BENCHMARK(quadsort, nn) {
-    std::vector<ContainerT> data;
+    std::vector<T> data;
     B63_SUSPEND {
         data.resize(SIZE_LIST);
         for (size_t i = 0; i < nn; ++i) {
@@ -57,7 +57,7 @@ B63_BENCHMARK(quadsort, nn) {
         }
     }
 
-    quadsort<ContainerT>(data.data(), SIZE_LIST, [](const ContainerT *a, const ContainerT *b){
+    quadsort<T>(data.data(), SIZE_LIST, [](const T *a, const T *b){
         return a->is_greater<k_lower, k_higher>(*b);
     });
 
@@ -65,7 +65,7 @@ B63_BENCHMARK(quadsort, nn) {
 }
 
 B63_BENCHMARK(SKASort, nn) {
-	std::vector<ContainerT> data;
+	std::vector<T> data;
 	B63_SUSPEND {
 		data.resize(SIZE_LIST);
 		for (size_t i = 0; i < nn; ++i) {
@@ -73,7 +73,7 @@ B63_BENCHMARK(SKASort, nn) {
 		}
 	}
 
-	ska_sort(data.begin(), data.end(), [](const ContainerT &a){
+	ska_sort(data.begin(), data.end(), [](const T &a){
 		constexpr uint64_t mask = (1ul << (k_higher - k_lower)) - 1ull;
 		return (a.data()[0] >> k_lower) & mask;
 	});
@@ -81,7 +81,7 @@ B63_BENCHMARK(SKASort, nn) {
 }
 
 B63_BENCHMARK(VergeSort, nn) {
-    std::vector<ContainerT> data;
+    std::vector<T> data;
     B63_SUSPEND {
         data.resize(SIZE_LIST);
         for (size_t i = 0; i < nn; ++i) {
@@ -89,15 +89,15 @@ B63_BENCHMARK(VergeSort, nn) {
         }
     }
 
-    vergesort::vergesort(data.begin(), data.end(), [](const ContainerT &in1, const ContainerT &in2){
+    vergesort::vergesort(data.begin(), data.end(), [](const T &in1, const T &in2){
         return in1.is_greater<k_lower, k_higher>(in2);
     });
     B63_KEEP(data[0].data()[0]);
 }
 
-// NOTE: currently not implemented
+// TODO: currently not implemented
 //B63_BENCHMARK(RobinHoodSort, nn) {
-//    std::vector<ContainerT> data;
+//    std::vector<T> data;
 //    B63_SUSPEND {
 //        data.resize(SIZE_LIST);
 //        for (size_t i = 0; i < nn; ++i) {
@@ -105,7 +105,7 @@ B63_BENCHMARK(VergeSort, nn) {
 //        }
 //    }
 //
-//	rhmergesort<ContainerT>(data.data(), SIZE_LIST, [](const ContainerT *a, const ContainerT *b){
+//	rhmergesort<T>(data.data(), SIZE_LIST, [](const T *a, const T *b){
 //        return a->is_greater<k_lower, k_higher>(*b);
 //    });
 //    B63_KEEP(data[0].data()[0]);

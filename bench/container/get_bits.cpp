@@ -30,7 +30,7 @@ B63_BENCHMARK(SoImplementedInline, nn) {
 	using T = BinaryContainer<n>;
 
 	T v1{};
-	typedef typename T::ContainerLimbType LimbType;
+	typedef typename T::LimbType LimbType;
 
 	LimbType lmask, rmask;
 	int64_t lower_limb, higher_limb, shift;
@@ -67,7 +67,7 @@ B63_BENCHMARK(Old, nn) {
 	using T = BinaryContainer<n>;
 
 	T v1{};
-	typedef typename T::ContainerLimbType LimbType;
+	typedef typename T::LimbType LimbType;
 
 	uint64_t k = 0, res=0;
 	uint64_t i, j;

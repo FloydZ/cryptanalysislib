@@ -70,15 +70,16 @@ public:
 			__internal_hashmap_array(),
 			__internal_load_array() {}
 
-	///
-	/// \param e
-	/// \param value
-	/// \param tid
+	/// the simple hashmap ignores the thread id.
+	/// Which is nice.
+	/// \param e key element (hashed down = index within the internal array)
+	/// \param value element to insert
+	/// \param tid (ignored) can be anything
 	/// \return
 	constexpr void insert(const keyType &e,
-			const valueType value,
-			const uint32_t tid) noexcept {
-		/// TODO
+						  const valueType value,
+						  const uint32_t tid) noexcept {
+		(void)tid;
 		insert(e, value);
 	}
 

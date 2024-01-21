@@ -597,19 +597,6 @@ class kAryPackedContainer_Meta {
 		}
 	}
 
-	///
-	/// \param obj
-	/// \return
-	kAryPackedContainer_Meta& operator =(kAryPackedContainer_Meta const &obj) noexcept {
-		ASSERT(size() == obj.size() && "äh?");
-
-		if (likely(this != &obj)) {
-			__data = obj.__data;
-		}
-
-		return *this;
-	}
-
 	/// prints between [k_lower, k_upper )
 	/// \param k_lower lower limit
 	/// \param k_upper upper limit
@@ -687,7 +674,14 @@ class kAryPackedContainer_Meta {
 	// get raw access to the underlying data.
 	T* ptr() noexcept { return __data.data(); }
 	const T* ptr() const noexcept { return __data.data(); }
-
+	__FORCEINLINE__ T ptr(const size_t i) noexcept {
+		ASSERT(i < limbs());
+		return __data[i];
+	};
+	const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
+		ASSERT(i < limbs());
+		return __data[i];
+	};
 	// returns `false` as this class implements a generic arithmetic
 	__FORCEINLINE__  static constexpr bool optimized() noexcept { return false; };
 };

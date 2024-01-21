@@ -10,10 +10,10 @@
 #include "print/print.h"
 
 
-
 #if defined(USE_AVX2)
 
 #include "simd/avx2.h"
+#include "simd/float/avx2.h"
 
 #elif defined(USE_ARM)
 
@@ -574,7 +574,7 @@ struct uint16x16_t {
 			const uint16_t a4,const uint16_t a5,const uint16_t a6,const uint16_t a7,
 			const uint16_t a8,const uint16_t a9,const uint16_t a10,const uint16_t a11,
 			const uint16_t a12,const uint16_t a13,const uint16_t a14,const uint16_t a15) {
-		return uint16x16_t::set(a15,a14,a13,a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1,a0);
+		return uint16x16_t::setr(a15,a14,a13,a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1,a0);
 	}
 
 	/// sets all 32 8bit limbs to `a`
@@ -1519,7 +1519,8 @@ struct uint64x4_t {
 
 
 
-#endif // no SIMD uinit available
+#include "simd/float/simd.h"
+#endif // no SIMD unit available
 
 ///
 inline uint8x32_t operator* (const uint8x32_t& lhs, const uint8x32_t& rhs) {
@@ -1828,5 +1829,10 @@ constexpr inline void uint64x4_t::print(bool binary, bool hex) const {
 	}
 	printf("\n");
 }
+
+
+
+
+
 
 #endif//CRYPTANALYSISLIB_SIMD_H

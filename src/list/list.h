@@ -25,8 +25,8 @@ public:
 	typedef typename MetaListT<Element>::ElementType ElementType;
 	typedef typename MetaListT<Element>::ValueType ValueType;
 	typedef typename MetaListT<Element>::LabelType LabelType;
-	typedef typename MetaListT<Element>::ValueContainerLimbType ValueContainerLimbType;
-	typedef typename MetaListT<Element>::LabelContainerLimbType LabelContainerLimbType;
+	typedef typename MetaListT<Element>::ValueLimbType ValueLimbType;
+	typedef typename MetaListT<Element>::LabelLimbType LabelLimbType;
 	typedef typename MetaListT<Element>::ValueContainerType ValueContainerType;
 	typedef typename MetaListT<Element>::LabelContainerType LabelContainerType;
 	typedef typename MetaListT<Element>::ValueDataType ValueDataType;

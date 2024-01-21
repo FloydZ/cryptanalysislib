@@ -32,7 +32,7 @@ public:
 
 	// Needed for the internal template system.
 	typedef T DataType;
-	typedef T ContainerLimbType;
+	typedef T LimbType;
 
 	typedef kAryContainerMeta ContainerType;
 
@@ -63,7 +63,8 @@ public:
 	/// generates random coordinates
 	/// \param k_lower lower coordinate to start from
 	/// \param k_higher higher coordinate to stop. Not included.
-	void random(const uint32_t k_lower=0, const uint32_t k_higher=LENGTH) noexcept {
+	void random(const uint32_t k_lower=0,
+	            const uint32_t k_higher=LENGTH) noexcept {
 		ASSERT(k_lower < k_higher);
 		ASSERT(k_higher <= LENGTH);
 
@@ -75,7 +76,8 @@ public:
 
 	/// checks if every dimension is zero
 	/// \return true/false
-	[[nodiscard]] constexpr bool is_zero(const uint32_t k_lower=0, const uint32_t k_higher=LENGTH) const noexcept {
+	[[nodiscard]] constexpr bool is_zero(const uint32_t k_lower=0,
+	                                     const uint32_t k_higher=LENGTH) const noexcept {
 		ASSERT(k_lower < k_higher);
 		ASSERT(k_higher <= LENGTH);
 
@@ -91,13 +93,15 @@ public:
 
 	/// calculate the hamming weight
 	/// \return the hamming weight
-	[[nodiscard]] constexpr inline uint32_t weight(const uint32_t l=0, const uint32_t h=LENGTH) const noexcept {
+	[[nodiscard]] constexpr inline uint32_t weight(const uint32_t l=0,
+	                                               const uint32_t h=LENGTH) const noexcept {
 		uint32_t r = 0;
 
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; ++i) {
-			if (__data[i] > 0)
+			if (__data[i] > 0) {
 				r += 1u;
+			}
 		}
 
 		return r;
@@ -106,7 +110,8 @@ public:
 	/// swap coordinate i, j, boundary checks are done
 	/// \param i coordinate
 	/// \param j coordinate
-	constexpr void swap(const uint32_t i, const uint32_t j) noexcept {
+	constexpr void swap(const uint32_t i,
+	                    const uint32_t j) noexcept {
 		ASSERT(i < LENGTH && j < LENGTH);
 		SWAP(__data[i], __data[j]);
 	}
@@ -121,14 +126,12 @@ public:
 		__data[i] %= q;
 	}
 
-private:
-
 	/// mod operations
 	/// NOTE: generic operation
 	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
 	/// \return a%q, component wise
-	template<typename TT>
+	template<typename TT=DataType >
 	[[nodiscard]] constexpr static inline TT mod_T(const TT a) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		static_assert(sizeof(TT) >= sizeof(T));
@@ -146,21 +149,31 @@ private:
 		return c;
 	}
 
-	/// helper function
-	/// vectorized version
-	/// \param a
-	/// \return a%q component wise
-	[[nodiscard]] constexpr static inline uint8x32_t mod256_T(const uint8x32_t a) noexcept {
-		constexpr uint32_t nr_limbs = 32u/sizeof(T);
 
-		uint8x32_t ret;
-		const T *data = (const T *)&a;
-		T *ret_data = (T *)&ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
-			ret_data[i] = data[i]%q;
+
+	/// wt operations
+	/// NOTE: generic operation, not really fast
+	/// \tparam T type (probably uint64_t or uint32_t)
+	/// \param a
+	/// \return a%q, component wise
+	template<typename TT=DataType >
+	[[nodiscard]] constexpr static inline uint32_t wt_T(const TT a) noexcept {
+		static_assert(sizeof(TT) <= 16);
+		static_assert(sizeof(TT) >= sizeof(T));
+		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
+		constexpr uint32_t nr_bits = sizeof(T) * 8u;
+		constexpr __uint128_t mask = (__uint128_t(1ull) << nr_bits) - 1ull;
+
+		uint32_t wt = 0;
+		for (uint32_t i = 0; i < nr_limbs; i++) {
+			const T a1 = (a >> (nr_bits * i)) & mask;
+			if (a1) {
+				wt += 1u;
+			}
 		}
 
-		return ret;
+		/// note implicit call
+		return wt;
 	}
 
 	/// neg operations
@@ -168,7 +181,7 @@ private:
 	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
 	/// \return a%q, component wise
-	template<typename TT>
+	template<typename TT=DataType>
 	[[nodiscard]] constexpr static inline TT neg_T(const TT a) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		static_assert(sizeof(TT) >= sizeof(T));
@@ -191,8 +204,9 @@ private:
 	/// \param a input
 	/// \param b input
 	/// \return a + b, component wise
-	template<typename TT>
-	[[nodiscard]] constexpr static inline TT add_T(const TT a, const TT b) noexcept {
+	template<typename TT=DataType>
+	[[nodiscard]] constexpr static inline TT add_T(const TT a,
+	                                               const TT b) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		static_assert(sizeof(TT) >= sizeof(T));
 		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
@@ -215,8 +229,9 @@ private:
 	/// \param a
 	/// \param b
 	/// \return a - b
-	template<typename TT>
-	[[nodiscard]] constexpr static inline TT sub_T(const TT a, const TT b) noexcept {
+	template<typename TT=DataType>
+	[[nodiscard]] constexpr static inline TT sub_T(const TT a,
+	                                               const TT b) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		static_assert(sizeof(TT) >= sizeof(T));
 		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
@@ -239,8 +254,9 @@ private:
 	/// \param a
 	/// \param b
 	/// \return a*b component wise
-	template<typename TT>
-	[[nodiscard]] constexpr static inline TT mul_T(const TT a, const TT b) noexcept {
+	template<typename TT=DataType>
+	[[nodiscard]] constexpr static inline TT mul_T(const TT a,
+	                                               const TT b) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		static_assert(sizeof(TT) >= sizeof(T));
 		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
@@ -258,12 +274,37 @@ private:
 		return c;
 	}
 
+	///
+	/// \tparam T type (probably uint64_t or uint32_t)
+	/// \param a
+	/// \param b
+	/// \return a*b component wise
+	template<typename TT=DataType >
+	[[nodiscard]] constexpr static inline TT scalar_T(const TT a,
+	                                                  const TT b) noexcept {
+		static_assert(sizeof(TT) <= 16);
+		static_assert(sizeof(TT) >= sizeof(T));
+		constexpr uint32_t nr_limbs = sizeof(TT)/sizeof(T);
+		constexpr uint32_t nr_bits = sizeof(T) * 8u;
+		constexpr __uint128_t mask = (__uint128_t(1ull) << nr_bits) - 1ull;
+
+		__uint128_t c = 0u;
+		for (uint32_t i = 0; i < nr_limbs; i++) {
+			const T a1 = (a >> (nr_bits * i)) & mask;
+			c ^= ((a1 * b) % q) << (nr_bits * i);
+		}
+
+		/// note implicit call
+		return c;
+	}
+
 	/// helper function
 	/// vectorized version
 	/// \param a in
 	/// \param b in
 	/// \return a+b, component wise
-	[[nodiscard]] constexpr static inline uint8x32_t add256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t add256_T(const uint8x32_t a,
+	                                                          const uint8x32_t b) noexcept {
 		constexpr uint32_t nr_limbs = 32u/sizeof(T);
 
 		uint8x32_t ret;
@@ -282,7 +323,8 @@ private:
 	/// \param a in
 	/// \param b in
 	/// \return a-b, component wise
-	[[nodiscard]] constexpr static inline uint8x32_t sub256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t sub256_T(const uint8x32_t a,
+	                                                          const uint8x32_t b) noexcept {
 		constexpr uint32_t nr_limbs = 32u/sizeof(T);
 
 		uint8x32_t ret;
@@ -301,7 +343,8 @@ private:
 	/// \param a in
 	/// \param b in
 	/// \return a*b, component wise
-	[[nodiscard]] constexpr static inline uint8x32_t mul256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t mul256_T(const uint8x32_t a,
+	                                                          const uint8x32_t b) noexcept {
 		constexpr uint32_t nr_limbs = 32u/sizeof(T);
 
 		uint8x32_t ret;
@@ -315,7 +358,40 @@ private:
 		return ret;
 	}
 
-public:
+	/// helper function
+	/// vectorized version
+	/// \param a in
+	/// \param b in
+	/// \return a*b, component wise
+	[[nodiscard]] constexpr static inline uint8x32_t neg256_T(const uint8x32_t a) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint8x32_t ret;
+		const T *a_data = (const T *)&a;
+		T *ret_data = (T *)&ret;
+		for (uint8_t i = 0; i < nr_limbs; ++i) {
+			ret_data[i] = (q - a_data[i])%q;
+		}
+
+		return ret;
+	}
+
+	/// helper function
+	/// vectorized version
+	/// \param a
+	/// \return a%q component wise
+	[[nodiscard]] constexpr static inline uint8x32_t mod256_T(const uint8x32_t a) noexcept {
+		constexpr uint32_t nr_limbs = 32u/sizeof(T);
+
+		uint8x32_t ret;
+		const T *data = (const T *)&a;
+		T *ret_data = (T *)&ret;
+		for (uint8_t i = 0; i < nr_limbs; ++i) {
+			ret_data[i] = data[i]%q;
+		}
+
+		return ret;
+	}
 
 	/// NOTE: inplace
 	/// computes mod q
@@ -340,7 +416,8 @@ public:
 	/// computes mod q
 	/// \param out = in1 % q
 	/// \param in1: input vector
-	constexpr static inline void mod(kAryContainerMeta &out, const kAryContainerMeta &in1) noexcept {
+	constexpr static inline void mod(kAryContainerMeta &out,
+	                                 const kAryContainerMeta &in1) noexcept {
 		mod((T *)out.__data.data(), (const T *)in1.__data.data());
 	}
 
@@ -417,7 +494,9 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(T *out, const T *in1, const T *in2) noexcept {
+	static inline void sub(T *out,
+	                       const T *in1,
+	                       const T *in2) noexcept {
 		constexpr uint32_t nr_limbs = 32u/sizeof(T);
 
 		uint32_t i = 0;
@@ -473,7 +552,9 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(T *out, const T *in1, const T *in2) noexcept {
+	static inline void mul(T *out,
+	                       const T *in1,
+	                       const T *in2) noexcept {
 		constexpr uint32_t nr_limbs = 32u/sizeof(T);
 
 		uint32_t i = 0;
@@ -665,19 +746,6 @@ public:
 		return true;
 	}
 
-	/// copy operator
-	/// \param obj to copy from
-	/// \return this
-	kAryContainerMeta & operator =(kAryContainerMeta const &obj) noexcept {
-		ASSERT(size() == obj.size() && "äh?");
-
-		if (likely(this != &obj)) { // self-assignment check expected
-			__data = obj.__data;
-		}
-
-		return *this;
-	}
-
 	/// access operator
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
@@ -693,7 +761,8 @@ public:
 	/// prints this container in binary between the limbs [k_lower, k_higher)
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper higher bound, exclusive
-	constexpr void print_binary(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
+	constexpr void print_binary(const uint32_t k_lower=0,
+	                            const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			unsigned data = (unsigned)__data[i];
@@ -708,7 +777,8 @@ public:
 	/// prints this container between the limbs [k_lower, k_higher)
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper higher bound, exclusive
-	constexpr void print(const uint32_t k_lower=0, const uint32_t k_upper=LENGTH) const noexcept {
+	constexpr void print(const uint32_t k_lower=0,
+	                     const uint32_t k_upper=LENGTH) const noexcept {
 		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << (unsigned)__data[i] << " ";
@@ -731,6 +801,15 @@ public:
 	/// returns the underlying data container
 	__FORCEINLINE__ constexpr T* ptr() noexcept { return __data.data(); }
 	__FORCEINLINE__ constexpr const T* ptr() const noexcept { return __data.data(); }
+	__FORCEINLINE__ T ptr(const size_t i) noexcept {
+		ASSERT(i < limbs());
+		return __data[i];
+	};
+	const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
+		ASSERT(i < limbs());
+		return __data[i];
+	};
+
 	__FORCEINLINE__ std::array<T, LENGTH>& data() noexcept { return __data; }
 	__FORCEINLINE__ const std::array<T, LENGTH>& data() const noexcept { return __data; }
 	constexpr T data(const size_t index) const noexcept { ASSERT(index < LENGTH); return __data[index]; }
@@ -772,7 +851,7 @@ public:
 
 	/// needed typedefs
 	using typename kAryContainerMeta<T, n, q>::DataType;
-	using typename kAryContainerMeta<T, n, q>::ContainerLimbType;
+	using typename kAryContainerMeta<T, n, q>::LimbType;
 	using typename kAryContainerMeta<T, n, q>::ContainerType;
 
 	/// needed fields
@@ -815,7 +894,7 @@ public:
 	using DataType = T;
 	using kAryContainerMeta<T, n, q>::LENGTH;
 	using kAryContainerMeta<T, n, q>::MODULUS;
-	using typename kAryContainerMeta<T, n, q>::ContainerLimbType;
+	using typename kAryContainerMeta<T, n, q>::LimbType;
 	using typename kAryContainerMeta<T, n, q>::ContainerType;
 	using kAryContainerMeta<T, n, q>::__data;
 
@@ -1120,7 +1199,7 @@ public:
 	using DataType = T;
 	using kAryContainerMeta<T, n, q>::LENGTH;
 	using kAryContainerMeta<T, n, q>::MODULUS;
-	using typename kAryContainerMeta<T, n, q>::ContainerLimbType;
+	using typename kAryContainerMeta<T, n, q>::LimbType;
 	using typename kAryContainerMeta<T, n, q>::ContainerType;
 	using kAryContainerMeta<T, n, q>::__data;
 
@@ -1426,7 +1505,7 @@ public:
 	using DataType = T;
 	using kAryContainerMeta<T, n, q>::LENGTH;
 	using kAryContainerMeta<T, n, q>::MODULUS;
-	using typename kAryContainerMeta<T, n, q>::ContainerLimbType;
+	using typename kAryContainerMeta<T, n, q>::LimbType;
 	using typename kAryContainerMeta<T, n, q>::ContainerType;
 	using kAryContainerMeta<T, n, q>::__data;
 
