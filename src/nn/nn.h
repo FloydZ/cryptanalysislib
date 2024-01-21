@@ -12,156 +12,6 @@
 #include "helper.h"
 #include "simd/simd.h"
 
-/// unrolled bruteforce step.
-/// stack: uint64_t[64]
-/// a1-a8, b1-b7: __m256i
-#define BRUTEFORCE256_32_8x8_STEP(stack, a1, a2, a3, a4, a5, a6, a7, a8, b1, b2, b3, b4, b5, b6, b7, b8)    \
-	stack[ 0] = (uint8_t)compare_256_32(a1, b1); \
-	stack[ 1] = (uint8_t)compare_256_32(a1, b2); \
-	stack[ 2] = (uint8_t)compare_256_32(a1, b3); \
-	stack[ 3] = (uint8_t)compare_256_32(a1, b4); \
-	stack[ 4] = (uint8_t)compare_256_32(a1, b5); \
-	stack[ 5] = (uint8_t)compare_256_32(a1, b6); \
-	stack[ 6] = (uint8_t)compare_256_32(a1, b7); \
-	stack[ 7] = (uint8_t)compare_256_32(a1, b8); \
-	stack[ 8] = (uint8_t)compare_256_32(a2, b1); \
-	stack[ 9] = (uint8_t)compare_256_32(a2, b2); \
-	stack[10] = (uint8_t)compare_256_32(a2, b3); \
-	stack[11] = (uint8_t)compare_256_32(a2, b4); \
-	stack[12] = (uint8_t)compare_256_32(a2, b5); \
-	stack[13] = (uint8_t)compare_256_32(a2, b6); \
-	stack[14] = (uint8_t)compare_256_32(a2, b7); \
-	stack[15] = (uint8_t)compare_256_32(a2, b8); \
-	stack[16] = (uint8_t)compare_256_32(a3, b1); \
-	stack[17] = (uint8_t)compare_256_32(a3, b2); \
-	stack[18] = (uint8_t)compare_256_32(a3, b3); \
-	stack[19] = (uint8_t)compare_256_32(a3, b4); \
-	stack[20] = (uint8_t)compare_256_32(a3, b5); \
-	stack[21] = (uint8_t)compare_256_32(a3, b6); \
-	stack[22] = (uint8_t)compare_256_32(a3, b7); \
-	stack[23] = (uint8_t)compare_256_32(a3, b8); \
-	stack[24] = (uint8_t)compare_256_32(a4, b1); \
-	stack[25] = (uint8_t)compare_256_32(a4, b2); \
-	stack[26] = (uint8_t)compare_256_32(a4, b3); \
-	stack[27] = (uint8_t)compare_256_32(a4, b4); \
-	stack[28] = (uint8_t)compare_256_32(a4, b5); \
-	stack[29] = (uint8_t)compare_256_32(a4, b6); \
-	stack[30] = (uint8_t)compare_256_32(a4, b7); \
-	stack[31] = (uint8_t)compare_256_32(a4, b8); \
-	stack[32] = (uint8_t)compare_256_32(a5, b1); \
-	stack[33] = (uint8_t)compare_256_32(a5, b2); \
-	stack[34] = (uint8_t)compare_256_32(a5, b3); \
-	stack[35] = (uint8_t)compare_256_32(a5, b4); \
-	stack[36] = (uint8_t)compare_256_32(a5, b5); \
-	stack[37] = (uint8_t)compare_256_32(a5, b6); \
-	stack[38] = (uint8_t)compare_256_32(a5, b7); \
-	stack[39] = (uint8_t)compare_256_32(a5, b8); \
-	stack[40] = (uint8_t)compare_256_32(a6, b1); \
-	stack[41] = (uint8_t)compare_256_32(a6, b2); \
-	stack[42] = (uint8_t)compare_256_32(a6, b3); \
-	stack[43] = (uint8_t)compare_256_32(a6, b4); \
-	stack[44] = (uint8_t)compare_256_32(a6, b5); \
-	stack[45] = (uint8_t)compare_256_32(a6, b6); \
-	stack[46] = (uint8_t)compare_256_32(a6, b7); \
-	stack[47] = (uint8_t)compare_256_32(a6, b8); \
-	stack[48] = (uint8_t)compare_256_32(a7, b1); \
-	stack[49] = (uint8_t)compare_256_32(a7, b2); \
-	stack[50] = (uint8_t)compare_256_32(a7, b3); \
-	stack[51] = (uint8_t)compare_256_32(a7, b4); \
-	stack[52] = (uint8_t)compare_256_32(a7, b5); \
-	stack[53] = (uint8_t)compare_256_32(a7, b6); \
-	stack[54] = (uint8_t)compare_256_32(a7, b7); \
-	stack[55] = (uint8_t)compare_256_32(a7, b8); \
-	stack[56] = (uint8_t)compare_256_32(a8, b1); \
-	stack[57] = (uint8_t)compare_256_32(a8, b2); \
-	stack[58] = (uint8_t)compare_256_32(a8, b3); \
-	stack[59] = (uint8_t)compare_256_32(a8, b4); \
-	stack[60] = (uint8_t)compare_256_32(a8, b5); \
-	stack[61] = (uint8_t)compare_256_32(a8, b6); \
-	stack[62] = (uint8_t)compare_256_32(a8, b7); \
-	stack[63] = (uint8_t)compare_256_32(a8, b8)
-
-
-#if 0
-///
-#define BRUTEFORCE256_64_4x4_STEP(stack, a0, a1, a2, a3, b0, b1, b2, b3)    \
-	stack[ 0] = (uint8_t)compare_256_64(a0, b0); 	\
-	stack[ 1] = (uint8_t)compare_256_64(a0, b1); 	\
-	stack[ 2] = (uint8_t)compare_256_64(a0, b2); 	\
-	stack[ 3] = (uint8_t)compare_256_64(a0, b3); 	\
-	stack[ 4] = (uint8_t)compare_256_64(a1, b0); 	\
-	stack[ 5] = (uint8_t)compare_256_64(a1, b1); 	\
-	stack[ 6] = (uint8_t)compare_256_64(a1, b2); 	\
-	stack[ 7] = (uint8_t)compare_256_64(a1, b3); 	\
-	stack[ 8] = (uint8_t)compare_256_64(a2, b0); 	\
-	stack[ 9] = (uint8_t)compare_256_64(a2, b1); 	\
-	stack[10] = (uint8_t)compare_256_64(a2, b2); 	\
-	stack[11] = (uint8_t)compare_256_64(a2, b3); 	\
-	stack[12] = (uint8_t)compare_256_64(a3, b0); 	\
-	stack[13] = (uint8_t)compare_256_64(a3, b1); 	\
-	stack[14] = (uint8_t)compare_256_64(a3, b2); 	\
-	stack[15] = (uint8_t)compare_256_64(a3, b3); 	\
-	b0 = _mm256_permute4x64_epi64(b0, 0b00111001); 	\
-	b1 = _mm256_permute4x64_epi64(b1, 0b00111001); 	\
-	b2 = _mm256_permute4x64_epi64(b2, 0b00111001); 	\
-	b3 = _mm256_permute4x64_epi64(b3, 0b00111001); 	\
-	stack[16] = (uint8_t)compare_256_64(a0, b0); 	\
-	stack[17] = (uint8_t)compare_256_64(a0, b1); 	\
-	stack[18] = (uint8_t)compare_256_64(a0, b2); 	\
-	stack[19] = (uint8_t)compare_256_64(a0, b3); 	\
-	stack[20] = (uint8_t)compare_256_64(a1, b0); 	\
-	stack[21] = (uint8_t)compare_256_64(a1, b1); 	\
-	stack[22] = (uint8_t)compare_256_64(a1, b2); 	\
-	stack[23] = (uint8_t)compare_256_64(a1, b3); 	\
-	stack[24] = (uint8_t)compare_256_64(a2, b0); 	\
-	stack[25] = (uint8_t)compare_256_64(a2, b1); 	\
-	stack[26] = (uint8_t)compare_256_64(a2, b2); 	\
-	stack[27] = (uint8_t)compare_256_64(a2, b3); 	\
-	stack[28] = (uint8_t)compare_256_64(a3, b0); 	\
-	stack[29] = (uint8_t)compare_256_64(a3, b1); 	\
-	stack[30] = (uint8_t)compare_256_64(a3, b2); 	\
-	stack[31] = (uint8_t)compare_256_64(a3, b3); 	\
-	b0 = _mm256_permute4x64_epi64(b0, 0b00111001); 	\
-	b1 = _mm256_permute4x64_epi64(b1, 0b00111001); 	\
-	b2 = _mm256_permute4x64_epi64(b2, 0b00111001); 	\
-	b3 = _mm256_permute4x64_epi64(b3, 0b00111001); 	\
-	stack[32] = (uint8_t)compare_256_64(a0, b0); 	\
-	stack[33] = (uint8_t)compare_256_64(a0, b1); 	\
-	stack[34] = (uint8_t)compare_256_64(a0, b2); 	\
-	stack[35] = (uint8_t)compare_256_64(a0, b3); 	\
-	stack[36] = (uint8_t)compare_256_64(a1, b0); 	\
-	stack[37] = (uint8_t)compare_256_64(a1, b1); 	\
-	stack[38] = (uint8_t)compare_256_64(a1, b2); 	\
-	stack[39] = (uint8_t)compare_256_64(a1, b3); 	\
-	stack[40] = (uint8_t)compare_256_64(a2, b0); 	\
-	stack[41] = (uint8_t)compare_256_64(a2, b1); 	\
-	stack[42] = (uint8_t)compare_256_64(a2, b2); 	\
-	stack[43] = (uint8_t)compare_256_64(a2, b3); 	\
-	stack[44] = (uint8_t)compare_256_64(a3, b0); 	\
-	stack[45] = (uint8_t)compare_256_64(a3, b1); 	\
-	stack[46] = (uint8_t)compare_256_64(a3, b2); 	\
-	stack[47] = (uint8_t)compare_256_64(a3, b3); 	\
-	b0 = _mm256_permute4x64_epi64(b0, 0b00111001); 	\
-	b1 = _mm256_permute4x64_epi64(b1, 0b00111001); 	\
-	b2 = _mm256_permute4x64_epi64(b2, 0b00111001); 	\
-	b3 = _mm256_permute4x64_epi64(b3, 0b00111001); 	\
-	stack[48] = (uint8_t)compare_256_64(a0, b0); 	\
-	stack[49] = (uint8_t)compare_256_64(a0, b1); 	\
-	stack[50] = (uint8_t)compare_256_64(a0, b2); 	\
-	stack[51] = (uint8_t)compare_256_64(a0, b3); 	\
-	stack[52] = (uint8_t)compare_256_64(a1, b0); 	\
-	stack[53] = (uint8_t)compare_256_64(a1, b1); 	\
-	stack[54] = (uint8_t)compare_256_64(a1, b2); 	\
-	stack[55] = (uint8_t)compare_256_64(a1, b3); 	\
-	stack[56] = (uint8_t)compare_256_64(a2, b0); 	\
-	stack[57] = (uint8_t)compare_256_64(a2, b1); 	\
-	stack[58] = (uint8_t)compare_256_64(a2, b2); 	\
-	stack[59] = (uint8_t)compare_256_64(a2, b3); 	\
-	stack[60] = (uint8_t)compare_256_64(a3, b0); 	\
-	stack[61] = (uint8_t)compare_256_64(a3, b1); 	\
-	stack[62] = (uint8_t)compare_256_64(a3, b2); 	\
-	stack[63] = (uint8_t)compare_256_64(a3, b3);
-#endif
 
 
 /// configuration for the following algorithm: https://arxiv.org/abs/2102.02597
@@ -172,17 +22,32 @@ private:
 				  dk_bruteforce_size(0),
 				  LIST_SIZE(0), epsilon(0), BRUTEFORCE_THRESHOLD(0) {}
 public:
-	const uint32_t 	n, 						// length of the input vectors
-	r,						// number of limbs to separate n on (number of levels)
-	N,  					// number of leaves per leve
-	k, 						// size of each limb
-	d, 						// weight difference to match on the golden solution
-	dk,						// weight difference to match on each limb
-	dk_bruteforce_weight,   // max. weight different to allow on each limb during the bruteforce step
-	dk_bruteforce_size,     // number of bits to check `dk_bruteforce_weight` on, should be 32/64
-	LIST_SIZE, 				// list size on scale
-	epsilon,
-			BRUTEFORCE_THRESHOLD;   // max. number of elements to be in both lists, until we switch to the bruteforce
+	const uint32_t 	n, 			// length of the input vectors
+		r,						// number of limbs to separate n on (number of levels)
+		N,  					// number of leaves per leve
+		k, 						// size of each limb
+		d, 						// weight difference to match on the golden solution
+		dk,						// weight difference to match on each limb
+		dk_bruteforce_weight,   // max. weight different to allow on each limb during the bruteforce step
+		dk_bruteforce_size,     // number of bits to check `dk_bruteforce_weight` on, should be 32/64
+		LIST_SIZE, 				// list size on scale
+		epsilon,
+		BRUTEFORCE_THRESHOLD;   // max. number of elements to be in both lists, until we switch to the bruteforce
+	
+	// special bucket config. If set to true the algorithm will switch from a 
+	// column approach to a row approach if the expected number of elements in 
+	// the next iteration will be below `BUCKET_SIZE`.
+	// The normal aproach: column approach: is fetch the current limb of the 
+	// row to analyse via a gather instruction and search for close elements
+	// on these columns. In the `row` approach the reamining < `BUCKET_SIZE`
+	// elements are saved in a transposed fasion. Thus we can now to a aligned 
+	// load to fetch the first 4-64-limbs (= 64 columns) of 4 distinct rows with
+	// one simd instruction, and hence to a fast check if the golden element 
+	// is in the buckets.
+	const bool USE_REARRANGE = false;
+	const double survive_prob = 0.025;
+	const uint32_t BUCKET_SIZE = 1024;
+
 	constexpr NN_Config(const uint32_t n,
 						const uint32_t r,
 						const uint32_t N,
@@ -202,19 +67,19 @@ public:
 	/// helper function, only printing the internal parameters
 	void print() const noexcept {
 		std::cout
-				<< "n: " << n
-				<< ",r: " << r
-				<< ",N " << N
-				<< ",k " << k
-				<< ",|L|: " << LIST_SIZE
-				<< ", dk: " << dk
-				<< ", dk_bruteforce_size: " << dk_bruteforce_size
-				<< ", dk_bruteforce_weight: " << dk_bruteforce_weight
-				<< ", d: " << d
-				<< ", e: " << epsilon
-				<< ", bf: " << BRUTEFORCE_THRESHOLD
-				<< ", k: " << n/r
-				<< "\n";
+			<< "n: " << n
+			<< ",r: " << r
+			<< ",N " << N
+			<< ",k " << k
+			<< ",|L|: " << LIST_SIZE
+			<< ", dk: " << dk
+			<< ", dk_bruteforce_size: " << dk_bruteforce_size
+			<< ", dk_bruteforce_weight: " << dk_bruteforce_weight
+			<< ", d: " << d
+			<< ", e: " << epsilon
+			<< ", bf: " << BRUTEFORCE_THRESHOLD
+			<< ", k: " << n/r
+			<< "\n";
 	}
 };
 
@@ -255,13 +120,12 @@ public:
 	constexpr static size_t ELEMENT_NR_LIMBS = (n + T_BITSIZE - 1) / T_BITSIZE;
 	using Element = T[ELEMENT_NR_LIMBS];
 
-	/// TODO must be passed as an argument
 	/// The Probability that a element will end up in the subsequent list.
-	constexpr static bool USE_REARRANGE = false;
-	constexpr static double survive_prob = 0.025;
-	constexpr static uint32_t BUCKET_SIZE = 1024;
-	alignas(32) uint64_t LB[BUCKET_SIZE * ELEMENT_NR_LIMBS];
-	alignas(32) uint64_t RB[BUCKET_SIZE * ELEMENT_NR_LIMBS];
+	constexpr static bool USE_REARRANGE 	= config.USE_REARRANGE;
+	constexpr static double survive_prob 	= config.survive_prob;
+	constexpr static uint32_t BUCKET_SIZE 	= config.BUCKET_SIZE;
+	alignas(64) uint64_t LB[USE_REARRANGE ? BUCKET_SIZE * ELEMENT_NR_LIMBS : 1u];
+	alignas(64) uint64_t RB[USE_REARRANGE ? BUCKET_SIZE * ELEMENT_NR_LIMBS : 1u];
 
 	// instance
 	alignas(64) Element *L1 = nullptr,
@@ -274,7 +138,7 @@ public:
 	~NN() noexcept {
 		/// probably its ok to assert some stuff here
 		static_assert(k <= n);
-		// TODO static_assert(dk_bruteforce_size >= dk_bruteforce_weight);
+		static_assert(dk_bruteforce_size >= dk_bruteforce_weight);
 
 		if (L1) { free(L1); }
 		if (L2) { free(L2); }
@@ -284,6 +148,7 @@ public:
 	void transpose(const size_t list_size) {
 		if constexpr (!USE_REARRANGE) {
 			ASSERT(false);
+			return;
 		}
 
 		ASSERT(list_size <= BUCKET_SIZE);
@@ -694,11 +559,85 @@ public:
 	/// \param L
 	/// \return
 	template<const uint32_t limb>
-	size_t sort_nn_on32(const size_t e1,
+	size_t simd_sort_nn_on32(const size_t e1,
 	                    const uint64_t z,
-	                    Element *__restrict__ L) const noexcept {
-		//TODO
-		return 0;
+	                    Element *__restrict__ L) noexcept {
+		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		ASSERT(e1 <= LIST_SIZE);
+		ASSERT(k <= 32);
+
+
+		/// just a shorter name, im lazy.
+		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
+
+		size_t i = 0;
+		alignas(32) const uint32x8_t z256 		= uint32x8_t::set1(z);
+		alignas(32) constexpr uint32x8_t offset = uint32x8_t::setr(0*enl, 1*enl, 2*enl, 3*enl,
+		                                                     	   4*enl, 5*enl, 6*enl, 7*enl);
+		// size of the output list
+		size_t ctr = 0;
+
+		/// NOTE: i need 2 ptr tracking the current position, because of the
+		/// limb shift
+		Element *ptr = (Element *)(((uint8_t *)L) + limb*4);
+		Element *org_ptr = L;
+
+		constexpr uint32_t u = 4;
+		constexpr uint32_t off = u*8;
+		for (; i+off <= e1; i += off, ptr += off, org_ptr += off) {
+			uint32x8_t ptr_tmp0 = _mm256_i32gather_epi32((const int *)(ptr +  0), offset, 8);
+			ptr_tmp0 ^= z256;
+			if constexpr (k < 32) { ptr_tmp0 = _mm256_and_si256(ptr_tmp0, avx_nn_k_mask); }
+			uint32x8_t ptr_tmp1 = _mm256_i32gather_epi32((const int *)(ptr +  8), offset, 8);
+			ptr_tmp1 ^= z256;
+			if constexpr (k < 32) { ptr_tmp1 = _mm256_and_si256(ptr_tmp1, avx_nn_k_mask); }
+			uint32x8_t ptr_tmp2 = _mm256_i32gather_epi32((const int *)(ptr + 16), offset, 8);
+			ptr_tmp2 ^= z256;
+			if constexpr (k < 32) { ptr_tmp2 = _mm256_and_si256(ptr_tmp2, avx_nn_k_mask); }
+			uint32x8_t ptr_tmp3 = _mm256_i32gather_epi32((const int *)(ptr + 24), offset, 8);
+			ptr_tmp3 ^= z256;
+			if constexpr (k < 32) { ptr_tmp3 = _mm256_and_si256(ptr_tmp3, avx_nn_k_mask); }
+
+			uint32_t wt = 0;
+			uint32x8_t tmp_pop = popcount_32(ptr_tmp0);
+			wt = compare_nn_on32(tmp_pop);
+
+			tmp_pop = popcount_avx2_32(ptr_tmp1);
+			wt ^= compare_nn_on32(tmp_pop) << 8u;
+
+			tmp_pop = popcount_avx2_32(ptr_tmp2);
+			wt ^= compare_nn_on32(tmp_pop) << 16u;
+
+			tmp_pop = popcount_avx2_32(ptr_tmp3);
+			wt ^= compare_nn_on32(tmp_pop) << 24u;
+
+			if (wt) {
+				ctr += swap_ctz(wt, L + ctr, org_ptr);
+			}
+		}
+
+		// tail work
+		// #pragma unroll 4
+		for (; i+8 < e1+7; i+=8, ptr += 8, org_ptr += 8) {
+			const uint32x8_t ptr_tmp = _mm256_i32gather_epi32((const int *)ptr, offset, 8);
+			uint32x8_t tmp = _mm256_xor_si256(ptr_tmp, z256);
+			if constexpr (k < 32) {
+				tmp = _mm256_and_si256(tmp, avx_nn_k_mask);
+			}
+			const uint32x8_t tmp_pop = popcount_avx2_32(tmp);
+			const int wt = compare_nn_on32(tmp_pop);
+
+			ASSERT(wt < 1u << 8u);
+			// now `wt` contains the incises of matches. Meaning if bit 1 in 
+			// `wt` is set (and bit 0 not), we need to swap the second (0 indexed) 
+			// uint64_t from L + ctr with the first element from L + i.
+			// The core problem is, that we need 64bit indices and not just 32bit
+			if (wt) {
+				ctr += swap<8>(wt, L + ctr, org_ptr);
+			}
+		}
+
+		return ctr;
 	}
 
 	///
@@ -804,9 +743,9 @@ public:
 	/// \param in1 first input
 	/// \param in2 second input
 	/// \return compresses equality check:
-	///			[bit0 = in1.v32[0] == in2.v32[0],
+	///			[bit0 = in1.v64[0] == in2.v64[0],
 	/// 						....,
-	/// 		 bit7 = in1.v32[7] == in2.v32[7]]
+	/// 		 bit3 = in1.v64[3] == in2.v64[3]]
 	template<const bool exact = false>
 	[[nodiscard]] int compare_256_64(const uint64x4_t in1,
 	                   const uint64x4_t in2) const noexcept {
@@ -1714,6 +1653,82 @@ public:
 		}
 	}
 
+	/// unrolled bruteforce step.
+	/// stack: uint64_t[64]
+	/// a1-a8, b1-b7: __m256i
+	inline void BRUTEFORCE256_32_8x8_STEP(
+			uint8_t * stack,
+			const uint32x8_t a1, const uint32x8_t a2, const uint32x8_t a3, const uint32x8_t a4, 
+			const uint32x8_t a5, const uint32x8_t a6, const uint32x8_t a7, const uint32x8_t a8,
+			const uint32x8_t b1, const uint32x8_t b2, const uint32x8_t b3, const uint32x8_t b4,
+			const uint32x8_t b5, const uint32x8_t b6, const uint32x8_t b7, const uint32x8_t b8){ 
+		stack[ 0] = (uint8_t)compare_256_32(a1, b1); \
+		stack[ 1] = (uint8_t)compare_256_32(a1, b2); \
+		stack[ 2] = (uint8_t)compare_256_32(a1, b3); \
+		stack[ 3] = (uint8_t)compare_256_32(a1, b4); \
+		stack[ 4] = (uint8_t)compare_256_32(a1, b5); \
+		stack[ 5] = (uint8_t)compare_256_32(a1, b6); \
+		stack[ 6] = (uint8_t)compare_256_32(a1, b7); \
+		stack[ 7] = (uint8_t)compare_256_32(a1, b8); \
+		stack[ 8] = (uint8_t)compare_256_32(a2, b1); \
+		stack[ 9] = (uint8_t)compare_256_32(a2, b2); \
+		stack[10] = (uint8_t)compare_256_32(a2, b3); \
+		stack[11] = (uint8_t)compare_256_32(a2, b4); \
+		stack[12] = (uint8_t)compare_256_32(a2, b5); \
+		stack[13] = (uint8_t)compare_256_32(a2, b6); \
+		stack[14] = (uint8_t)compare_256_32(a2, b7); \
+		stack[15] = (uint8_t)compare_256_32(a2, b8); \
+		stack[16] = (uint8_t)compare_256_32(a3, b1); \
+		stack[17] = (uint8_t)compare_256_32(a3, b2); \
+		stack[18] = (uint8_t)compare_256_32(a3, b3); \
+		stack[19] = (uint8_t)compare_256_32(a3, b4); \
+		stack[20] = (uint8_t)compare_256_32(a3, b5); \
+		stack[21] = (uint8_t)compare_256_32(a3, b6); \
+		stack[22] = (uint8_t)compare_256_32(a3, b7); \
+		stack[23] = (uint8_t)compare_256_32(a3, b8); \
+		stack[24] = (uint8_t)compare_256_32(a4, b1); \
+		stack[25] = (uint8_t)compare_256_32(a4, b2); \
+		stack[26] = (uint8_t)compare_256_32(a4, b3); \
+		stack[27] = (uint8_t)compare_256_32(a4, b4); \
+		stack[28] = (uint8_t)compare_256_32(a4, b5); \
+		stack[29] = (uint8_t)compare_256_32(a4, b6); \
+		stack[30] = (uint8_t)compare_256_32(a4, b7); \
+		stack[31] = (uint8_t)compare_256_32(a4, b8); \
+		stack[32] = (uint8_t)compare_256_32(a5, b1); \
+		stack[33] = (uint8_t)compare_256_32(a5, b2); \
+		stack[34] = (uint8_t)compare_256_32(a5, b3); \
+		stack[35] = (uint8_t)compare_256_32(a5, b4); \
+		stack[36] = (uint8_t)compare_256_32(a5, b5); \
+		stack[37] = (uint8_t)compare_256_32(a5, b6); \
+		stack[38] = (uint8_t)compare_256_32(a5, b7); \
+		stack[39] = (uint8_t)compare_256_32(a5, b8); \
+		stack[40] = (uint8_t)compare_256_32(a6, b1); \
+		stack[41] = (uint8_t)compare_256_32(a6, b2); \
+		stack[42] = (uint8_t)compare_256_32(a6, b3); \
+		stack[43] = (uint8_t)compare_256_32(a6, b4); \
+		stack[44] = (uint8_t)compare_256_32(a6, b5); \
+		stack[45] = (uint8_t)compare_256_32(a6, b6); \
+		stack[46] = (uint8_t)compare_256_32(a6, b7); \
+		stack[47] = (uint8_t)compare_256_32(a6, b8); \
+		stack[48] = (uint8_t)compare_256_32(a7, b1); \
+		stack[49] = (uint8_t)compare_256_32(a7, b2); \
+		stack[50] = (uint8_t)compare_256_32(a7, b3); \
+		stack[51] = (uint8_t)compare_256_32(a7, b4); \
+		stack[52] = (uint8_t)compare_256_32(a7, b5); \
+		stack[53] = (uint8_t)compare_256_32(a7, b6); \
+		stack[54] = (uint8_t)compare_256_32(a7, b7); \
+		stack[55] = (uint8_t)compare_256_32(a7, b8); \
+		stack[56] = (uint8_t)compare_256_32(a8, b1); \
+		stack[57] = (uint8_t)compare_256_32(a8, b2); \
+		stack[58] = (uint8_t)compare_256_32(a8, b3); \
+		stack[59] = (uint8_t)compare_256_32(a8, b4); \
+		stack[60] = (uint8_t)compare_256_32(a8, b5); \
+		stack[61] = (uint8_t)compare_256_32(a8, b6); \
+		stack[62] = (uint8_t)compare_256_32(a8, b7); \
+		stack[63] = (uint8_t)compare_256_32(a8, b8);
+	}
+
+
 	/// NOTE: this is hyper optimized for the case if there is only one solution with extremely low weight.
 	/// \param e1 size of the list L1
 	/// \param e2 size of the list L2
@@ -1875,20 +1890,25 @@ public:
 		}
 	}
 
-	/// TODO explain
-	/// \tparam off
-	/// \param m1sx
-	/// \param m1s
-	/// \param ptr_l
-	/// \param ptr_r
-	/// \param i
-	/// \param j
+	/// \tparam off: either 0 or 32, depening of the lower, or upper 32 elements
+	/// from the ouput of `BRUTEFORCE256_64_4x4_STEP2` is analysed for a collision
+	/// \param m1sx compressed `uint32_t[32]`, with a the k-th bit in `m1sx` is 
+	/// 	set, <=> uint32_t[k] != 0; This allows for fast checking for non 
+	/// 	solutions. As the calling function assumes that in expectation no 
+	/// 	close elements will be found.
+	/// \param m1s: output of `BRUTEFORCE256_64_4x4_STEP2`
+	/// \param ptr_l pointer to the first element of the check in the left list
+	/// \param ptr_r pointer to the first element of the check in the right list 
+	/// \param i left list counter
+	/// \param j right list counter
 	template<const uint32_t off>
-	void bruteforce_avx2_256_64_4x4_helper(uint32_t m1sx,
+	inline void bruteforce_avx2_256_64_4x4_helper(uint32_t m1sx,
 										   const uint8_t *__restrict__ m1s,
 										   const uint64_t *__restrict__ ptr_l,
 										   const uint64_t *__restrict__ ptr_r,
 										   const size_t i, const size_t j) noexcept {
+		static_assert(off % 32 == 0);
+
 		while (m1sx > 0) {
 			const uint32_t ctz1 = __builtin_ctz(m1sx);
 			const uint32_t ctz = off + ctz1;
@@ -1912,19 +1932,24 @@ public:
 		}
 	}
 
-	/// TODO explain
-	/// \param stack
-	/// \param a0
-	/// \param a1
-	/// \param a2
-	/// \param a3
-	/// \param b0
-	/// \param b1
-	/// \param b2
-	/// \param b3
-	void BRUTEFORCE256_64_4x4_STEP2(uint8_t* stack,
-									uint64x4_t a0, uint64x4_t a1, uint64x4_t a2, uint64x4_t a3,
-									uint64x4_t b0, uint64x4_t b1, uint64x4_t b2, uint64x4_t b3) noexcept {
+	/// this function takes each of the 64-bit limbs of all the a_i and compares
+	/// them against each of the 64-bit of the b_i
+	/// \param stack output: the bit k \in [0,..,3] at index [i*4 + j*16]
+	/// 	(with i = 0, ..., 3 and j = 0, ..., 3)
+	/// 	is set if a_i_k == b_j_{j_k % 4} (maybe not equal but close, depending on the exact config of the algorithm.)
+	///	where a_i_k is the k-64-bit-limb of a_i is.
+	///	NOTE: this is hyper optimized for the case, where no solution is expected.
+	/// \param a0 const input  
+	/// \param a1 const input 
+	/// \param a2 const input 
+	/// \param a3 const input 
+	/// \param b0 input, is permuted! 
+	/// \param b1 input, is permuted! 
+	/// \param b2 input, is permuted! 
+	/// \param b3 input, is permuted! 
+	inline void BRUTEFORCE256_64_4x4_STEP2(uint8_t* stack,
+			const uint64x4_t a0, const uint64x4_t a1, const uint64x4_t a2, const uint64x4_t a3,
+			uint64x4_t b0, uint64x4_t b1, uint64x4_t b2, uint64x4_t b3) noexcept {
 		stack[0] = (uint8_t) compare_256_64(a0, b0);
 		stack[1] = (uint8_t) compare_256_64(a0, b1);
 		stack[2] = (uint8_t) compare_256_64(a0, b2);
@@ -2006,8 +2031,9 @@ public:
 	/// NOTE: this is hyper optimized for the case if there is only one solution.
 	/// NOTE: uses avx2
 	/// NOTE: hardcoded unroll parameter of 4
-	/// NOTE: only checks the first limb. If this passes the weight check all others are checked
-	/// 		within `check_solution`
+	/// NOTE: only checks the first limb. If this passes the weight check all 
+	/// 	others are checked within `check_solution`.
+	/// NOTE: 
 	/// \param e1 end index of list 1
 	/// \param e2 end index of list 2
 	void bruteforce_simd_256_64_4x4(const size_t e1,
@@ -2024,7 +2050,7 @@ public:
 		T *ptr_l = (T *)L1;
 
 		/// difference of the memory location in the right list
-		const uint32x4_t loadr1 = uint32x4_t::setr(       (4ull << 32u), ( 8ul) | (12ull << 32u));
+		const uint32x4_t loadr1 = uint32x4_t::setr((4ull << 32u), ( 8ul) | (12ull << 32u));
 		alignas(32) uint8_t m1s[64];
 
 		/// allowed weight to match on
@@ -2047,8 +2073,9 @@ public:
 				uint64x4_t r4 = uint64x4_t::template gather<8>((const long long int *)(ptr_r + 48), loadr1);
 
 				BRUTEFORCE256_64_4x4_STEP2(m1s, l1, l2, l3, l4, r1, r2, r3, r4);
-				uint32_t m1s1 = uint8x32_t::load(m1s +  0) > zero;
-				uint32_t m1s2 = uint8x32_t::load(m1s + 32) > zero;
+				/// NOTE: we can load the data aligned.
+				uint32_t m1s1 = uint8x32_t::load<true>(m1s +  0) > zero;
+				uint32_t m1s2 = uint8x32_t::load<true>(m1s + 32) > zero;
 
 				if (m1s1 != 0) { bruteforce_avx2_256_64_4x4_helper< 0>(m1s1, m1s, ptr_l, ptr_r, i, j); }
 				if (m1s2 != 0) { bruteforce_avx2_256_64_4x4_helper<32>(m1s2, m1s, ptr_l, ptr_r, i, j); }
@@ -2096,9 +2123,12 @@ public:
 
 			m1sx ^= 1u << ctz1;
 		}
+
 	}
 	/// NOTE: this is hyper optimized for the case if there is only one solution.
-	///
+	/// NOTE: this assumes that the `last` list (whatever the last is: normally 
+	/// 	its the list with < BUCKET_SIZE elements) is in the REARRANGE/TRANSPOSED
+	/// 	buckets/
 	/// \param e1 end index of list 1
 	/// \param e2 end index of list 2
 	template<const uint32_t bucket_size>
@@ -2113,6 +2143,7 @@ public:
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
 		ASSERT(dk < 32);
+		ASSERT(USE_REARRANGE);
 
 		/// NOTE is already aligned
 		T *ptr_l = (T *)LB;

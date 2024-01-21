@@ -1626,6 +1626,10 @@ inline uint32x8_t operator>> (const uint32x8_t& lhs, const uint32_t rhs) {
 inline uint32x8_t operator<< (const uint32x8_t& lhs, const uint32_t rhs) {
 	return uint32x8_t::slli(lhs, rhs);
 }
+inline uint32x8_t operator^= (uint32x8_t& lhs, const uint32x8_t& rhs) {
+	lhs = uint32x8_t::xor_(lhs, rhs);
+	return lhs;
+}
 
 
 inline uint64x4_t operator* (const uint64x4_t& lhs, const uint64x4_t& rhs) {
