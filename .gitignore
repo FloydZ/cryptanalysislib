@@ -1,5 +1,6 @@
 .vimspector.json
 .cache/
+cmake-build-debugsanitizer/
 deps/NTRU/
 deps/NTRUEncrypt/
 deps/coordinates.sage.py
