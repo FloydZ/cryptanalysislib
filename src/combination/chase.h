@@ -29,7 +29,7 @@ constexpr size_t compute_combinations_fq_chase_list_size() {
 	}
 
 	// just make sure that we do not return zero.
-	return std::max(size-1ul, size_t(1ul)) * (bc(n, w));
+	return std::max(size, size_t(1ul)) * (bc(n, w));
 }
 
 /// \tparam T base limb type of the input const_array.
@@ -225,6 +225,7 @@ class Combinations_Fq_Chase {
 	/// max value to enumerate
 	constexpr static uint32_t qm1 = q-1;
 
+	/// TODO merge with the global funcin
 	/// \return  number of elements in the gray code
 	constexpr static size_t compute_gray_size() noexcept {
 		uint64_t sum = 1;
@@ -234,7 +235,7 @@ class Combinations_Fq_Chase {
 		}
 
 		// just make sure that we do not return zero.
-		return std::max(sum - 1ul, uint64_t(1ul));
+		return std::max(sum-1, uint64_t(1ul));
 	}
 
 
@@ -252,7 +253,8 @@ public:
 	constexpr static size_t chase_size = bc(n, w);
 	constexpr static size_t gray_size = compute_gray_size();
 
-	constexpr static size_t LIST_SIZE = chase_size * gray_size;
+	// TODO explaon the +1 and the -1 in `compute_gray_size`
+	constexpr static size_t LIST_SIZE = chase_size * (gray_size + 1u);
 
 	/// NOTE: this enumerates on a length w NOT on length n
 	/// NOTE: you have to free this stuff yourself

@@ -44,62 +44,9 @@ jobs:
 
     - name: Test
       working-directory: ${{github.workspace}}/build
-      run: |
-        ./tests/test_build_tree
-        ./tests/test_element
-        ./tests/test_kArytype
-        ./tests/test_label
-        ./tests/test_list
-        ./tests/test_stl
-        ./tests/test_tree
-        ./tests/test_value
-        ./tests/alloc/test_alloc_dev
-        ./tests/binary/test_binary_32
-        ./tests/binary/test_binary_32_align
-        ./tests/binary/test_binary_64
-        ./tests/binary/test_binary_64_align
-        ./tests/binary/test_binary_128
-        ./tests/binary/test_binary_128_align
-        ./tests/binary/test_binary_256
-        ./tests/binary/test_binary_256_align
-        ./tests/binary/test_binary_build_tree
-        ./tests/binary/test_binary_container
-        ./tests/binary/test_binary_container_avx
-        ./tests/binary/test_binary_container_cmp 
-        ./tests/binary/test_binary_element
-        ./tests/binary/test_binary_extended_tree
-        ./tests/binary/test_binary_list
-        ./tests/binary/test_binary_sort
-        ./tests/binary/test_binary_tree
-        ./tests/container/test_container_constNonBlockingLinkedList
-        ./tests/container/test_container_fq_vector
-        ./tests/container/test_container_packed_f3
-        ./tests/container/test_container_simple
-        ./tests/container/test_container_triple
-        ./tests/container/test_container_packed_f3
-        ./tests/crypto/test_crypto_md5
-        ./tests/crypto/test_crypto_sha1
-        ./tests/list/test_list_common
-        ./tests/list/test_list_list
-        ./tests/list/test_list_parallel
-        ./tests/list/test_list_parallel_full
-        ./tests/list/test_list_parallel_index
-        ./tests/list/enumeration/test_list_enumeration_fq
-        ./tests/list/enumeration/test_list_enumeration_binary
-        ./tests/matrix/test_matrix_binary
-        ./tests/matrix/test_matrix_fq
-        ./tests/nn/test_nn_simd
-        ./tests/nn/test_nn_simple
-        ./tests/popcount/test_popcount_simple
-        ./tests/popcount/test_popcount_avx2
-        ./tests/search/test_search_binary
-        ./tests/search/test_search_interpolation
-        ./tests/search/test_search_linear
-        ./tests/simd/test_simd_simd
-        ./tests/sort/test_sort_sorting_algorithms
-        ./tests/sort/test_sort_sorting_network
-        ./tests/thread/test_thread_simple
-        ./tests/thread/test_thread_omp
+      run: ctest -C Debug -V
+
+
   Benchmark:
     runs-on: ubuntu-latest
 

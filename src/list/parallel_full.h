@@ -22,8 +22,8 @@ public:
 	using typename MetaListT<Element>::ElementType;
 	using typename MetaListT<Element>::ValueType;
 	using typename MetaListT<Element>::LabelType;
-	using typename MetaListT<Element>::ValueContainerLimbType;
-	using typename MetaListT<Element>::LabelContainerLimbType;
+	using typename MetaListT<Element>::ValueLimbType;
+	using typename MetaListT<Element>::LabelLimbType;
 	using typename MetaListT<Element>::ValueContainerType;
 	using typename MetaListT<Element>::LabelContainerType;
 	using typename MetaListT<Element>::ValueDataType;

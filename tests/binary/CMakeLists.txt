@@ -28,22 +28,23 @@ target_compile_options(test_binary_256 PUBLIC ${COMPILE_TEST_FLAGS})
 target_link_libraries(test_binary_256 ${LINK_TEST_FLAGS})
 add_test(AllTests test_binary_256)
 
-add_executable(test_binary_32_align 32/32_align.cpp)
-target_compile_options(test_binary_32_align PUBLIC ${COMPILE_TEST_FLAGS})
-target_link_libraries(test_binary_32_align ${LINK_TEST_FLAGS})
-add_test(AllTests test_binary_32_align)
-
-add_executable(test_binary_64_align 64/64_align.cpp)
-target_compile_options(test_binary_64_align PUBLIC ${COMPILE_TEST_FLAGS})
-target_link_libraries(test_binary_64_align ${LINK_TEST_FLAGS})
-add_test(AllTests test_binary_64_align)
-
-add_executable(test_binary_128_align 128/128_align.cpp)
-target_compile_options(test_binary_128_align PUBLIC ${COMPILE_TEST_FLAGS})
-target_link_libraries(test_binary_128_align ${LINK_TEST_FLAGS})
-add_test(AllTests test_binary_128_align)
-
-add_executable(test_binary_256_align 256/256_align.cpp)
-target_compile_options(test_binary_256_align PUBLIC ${COMPILE_TEST_FLAGS})
-target_link_libraries(test_binary_256_align ${LINK_TEST_FLAGS})
-add_test(AllTests test_binary_256_align)
+# is basically removed from code
+# add_executable(test_binary_32_align 32/32_align.cpp)
+# target_compile_options(test_binary_32_align PUBLIC ${COMPILE_TEST_FLAGS})
+# target_link_libraries(test_binary_32_align ${LINK_TEST_FLAGS})
+# add_test(AllTests test_binary_32_align)
+#
+# add_executable(test_binary_64_align 64/64_align.cpp)
+# target_compile_options(test_binary_64_align PUBLIC ${COMPILE_TEST_FLAGS})
+# target_link_libraries(test_binary_64_align ${LINK_TEST_FLAGS})
+# add_test(AllTests test_binary_64_align)
+#
+# add_executable(test_binary_128_align 128/128_align.cpp)
+# target_compile_options(test_binary_128_align PUBLIC ${COMPILE_TEST_FLAGS})
+# target_link_libraries(test_binary_128_align ${LINK_TEST_FLAGS})
+# add_test(AllTests test_binary_128_align)
+#
+# add_executable(test_binary_256_align 256/256_align.cpp)
+# target_compile_options(test_binary_256_align PUBLIC ${COMPILE_TEST_FLAGS})
+# target_link_libraries(test_binary_256_align ${LINK_TEST_FLAGS})
+# add_test(AllTests test_binary_256_align)

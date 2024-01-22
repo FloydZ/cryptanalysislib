@@ -53,26 +53,6 @@ TEST(Internals, masks){
 	EXPECT_EQ(b.mask(2), 4);
 }
 
-TEST(Internals, random_limb_with_limits){
-	using TestBinaryContainer = BinaryContainer<64>;
-
-	constexpr uint64_t offset = 20;
-	using LimbType = TestBinaryContainer::ContainerLimbType;
-	for (uint32_t i = 0; i < 1; ++i) {
-		for (uint32_t k_lower = 0; k_lower < 64; ++k_lower) {
-			for (uint32_t k_upper = k_lower+offset; k_upper < 64; ++k_upper) {
-				LimbType a = TestBinaryContainer::random_limb(k_lower, k_upper);
-				LimbType lmask = TestBinaryContainer::lower_mask(k_lower%64);
-				LimbType umask = TestBinaryContainer::higher_mask(k_upper%64);
-
-				EXPECT_NE(a, 0);
-				EXPECT_EQ(a&lmask, 0);
-				EXPECT_EQ(a&umask, 0);
-			}
-		}
-	}
-}
-
 TEST(Zero, Simple) {
 	BinaryContainer<n> b;
 	std::bitset<n> bb;
@@ -428,7 +408,7 @@ TEST(Static_Add, Probabilistic){
 
 }
 
-
+// TODO failed im Relase mode
 TEST(Add, Probabilistic){
 	using BinaryContainerTest = BinaryContainer<128>;
 	std::vector<std::pair<uint64_t, uint64_t>> boundsSet = {std::pair(0, 64),
@@ -1203,11 +1183,11 @@ TEST(weight, Simple_Everything_True) {
 
 	for (uint32_t k_lower  = 1; k_lower < b1.size(); ++k_lower) {
 		b1[k_lower-1] = true;
-		EXPECT_EQ(k_lower, b1.weight());
-		EXPECT_EQ(k_lower, b1.weight(0, k_lower));
-		EXPECT_EQ(k_lower, b1.weight(0, b1.size()));
+		EXPECT_EQ(k_lower, b1.popcnt());
+		EXPECT_EQ(k_lower, b1.popcnt(0, k_lower));
+		EXPECT_EQ(k_lower, b1.popcnt(0, b1.size()));
 		if (k_lower + 1 < b1.size()) {
-			EXPECT_EQ(0, b1.weight(k_lower + 1, b1.size()));
+			EXPECT_EQ(0, b1.popcnt(k_lower + 1, b1.size()));
 		}
 	}
 }

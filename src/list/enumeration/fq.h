@@ -344,16 +344,16 @@ public:
 
 		// helper lambdas
 		auto gray_step = [&current_set, this](Element &element, const size_t j, const uint32_t off) {
-		  const uint32_t cs = current_set[gray_cl[j]];
-		  element.value.set((element.value[cs + off] + 1) % q, cs + off);
-		  Label::add(element.label, element.label, HT.get(cs + off));
+			const uint32_t cs = current_set[gray_cl[j]];
+			element.value.set((element.value[cs + off] + 1) % q, cs + off);
+			Label::add(element.label, element.label, HT.get(cs + off));
 
-		  /// NOTE: this is stupid, but needed. The gray code enumeration
-		  /// also enumerates zeros. Therefore we need to fix them
-		  if (element.value[cs + off] == 0) {
-			  element.value.set(1, cs + off);
-			  Label::add(element.label, element.label, HT.get(cs + off));
-		  }
+			/// NOTE: this is stupid, but needed. The gray code enumeration
+			/// also enumerates zeros. Therefore we need to fix them
+			if (element.value[cs + off] == 0) {
+				  element.value.set(1, cs + off);
+				  Label::add(element.label, element.label, HT.get(cs + off));
+			}
 		};
 
 		auto chase_step = [this](Element &element,

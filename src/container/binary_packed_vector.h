@@ -1525,8 +1525,8 @@ public:
 	}
 
 	// calculates the weight = hamming weight of the data container.
-	inline uint32_t weight() const noexcept {
-		return weight(0, length);
+	inline uint32_t popcnt() const noexcept {
+		return popcnt(0, length);
 	}
 
 	// calcs the weight up to (include) ilumb at early exits if its bigger than early exit.
@@ -1544,7 +1544,7 @@ public:
 		return hm + popcount(__data[ulimb] & rmask);
 	}
 
-	uint32_t weight(const uint32_t k_lower, const uint32_t k_upper) const noexcept {
+	uint32_t popcnt(const uint32_t k_lower, const uint32_t k_upper) const noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 		const uint32_t lower = round_down_to_limb(k_lower);
 		const uint32_t upper = round_down_to_limb(k_upper-1);
@@ -1571,7 +1571,7 @@ public:
 	}
 
 	template<const uint32_t lower, const uint32_t upper, const T l_mask, const T u_mask>
-	constexpr uint32_t weight() const noexcept {
+	constexpr uint32_t popcnt() const noexcept {
 		ASSERT(lower <= upper);
 		uint32_t weight = 0;
 

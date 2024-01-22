@@ -37,6 +37,7 @@ jobs:
             mkdir -p cmake-build-debug
             cd build
             cmake ..
-            make
-            ./tests/test_build_tree
+            make -j24
+            ctest -C Debug -V  
             test `uname -m` = 'aarch64'
+          

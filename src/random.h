@@ -61,17 +61,18 @@ inline static int xorshf96_fastrandombytes_uint64_array(uint64_t *buf, const siz
 }
 
 static inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
-	constexpr uint32_t UINT64_POOL_SIZE = 512;    // page should be 512 * 8 Byte
-	static uint64_t tmp[UINT64_POOL_SIZE];
-	static size_t counter = 0;
+	return xorshf96();
+	//constexpr uint32_t UINT64_POOL_SIZE = 512;    // page should be 512 * 8 Byte
+	//static uint64_t tmp[UINT64_POOL_SIZE];
+	//static size_t counter = 0;
 
-	if (counter == 0){
-		xorshf96_fastrandombytes_uint64_array(tmp, UINT64_POOL_SIZE * 8 );
-		counter = UINT64_POOL_SIZE;
-	}
+	//if (counter == 0){
+	//	xorshf96_fastrandombytes_uint64_array(tmp, UINT64_POOL_SIZE * 8 );
+	//	counter = UINT64_POOL_SIZE;
+	//}
 
-	counter -= 1;
-	return tmp[counter];
+	//counter -= 1;
+	//return tmp[counter];
 }
 
 ///
@@ -154,19 +155,23 @@ static inline T fastrandombits() noexcept {
 ///
 /// \return
 static __m256i fastrandombytes_m256i() noexcept {
-	constexpr uint32_t UINT64_POOL_SIZE = 128;
-	alignas(256) static uint64_t tmp[UINT64_POOL_SIZE*4];
-	__m256i *tmp64 = (__m256i *)tmp;
+	__m256i data;
+	xorshf96_fastrandombytes_uint64_array((uint64_t *)&data, 4u * 8u);
+	return data;
 
-	static size_t counter = 0;
+	//constexpr uint32_t UINT64_POOL_SIZE = 128;
+	//alignas(256) static uint64_t tmp[UINT64_POOL_SIZE*4];
+	//__m256i *tmp64 = (__m256i *)tmp;
 
-	if (counter == 0){
-		xorshf96_fastrandombytes_uint64_array(tmp, UINT64_POOL_SIZE * 4u * 8u);
-		counter = UINT64_POOL_SIZE;
-	}
+	//static size_t counter = 0;
 
-	counter -= 1;
-	return tmp64[counter];
+	//if (counter == 0){
+	//	xorshf96_fastrandombytes_uint64_array(tmp, UINT64_POOL_SIZE * 4u * 8u);
+	//	counter = UINT64_POOL_SIZE;
+	//}
+
+	//counter -= 1;
+	//return tmp64[counter];
 }
 
 #endif

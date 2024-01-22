@@ -52,7 +52,7 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+	[[nodiscard]] constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
 		uint32x4_t ret;
 		ret.v32[0] = d;
 		ret.v32[1] = c;
@@ -61,7 +61,7 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+	[[nodiscard]] constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
 		uint32x4_t ret;
 		ret.v32[0] = a;
 		ret.v32[1] = b;
@@ -434,8 +434,20 @@ struct uint8x32_t {
 	///
 	/// \param in1
 	/// \param in2
-	/// \return
-	[[nodiscard]] constexpr static inline int gt(const uint8x32_t in1, const uint8x32_t in2) noexcept {
+	/// \return in1 > in2 uncompressed
+	[[nodiscard]] constexpr static inline uint8x32_t gt_(const uint8x32_t in1,
+												 const uint8x32_t in2) noexcept {
+		uint8x32_t ret;
+		ret.v256 = (__m256i) ((__v32qs) in1.v256 > (__v32qs) in2.v256);
+		return ret;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return in1 > in2 compressed
+	[[nodiscard]] constexpr static inline int gt(const uint8x32_t in1,
+	                                             const uint8x32_t in2) noexcept {
 		const __m256i tmp = (__m256i) ((__v32qs) in1.v256 > (__v32qs) in2.v256);
 		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
@@ -443,14 +455,22 @@ struct uint8x32_t {
 	///
 	/// \param in1
 	/// \param in2
+	/// \return in1 == in2 compressed
+	[[nodiscard]] constexpr static inline uint8x32_t cmp_(const uint8x32_t in1,
+														 const uint8x32_t in2) noexcept {
+		uint8x32_t ret;
+		ret.v256 = (__m256i) ((__v32qs) in1.v256 == (__v32qs) in2.v256);
+		return ret;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline int cmp(const uint8x32_t in1, const uint8x32_t in2) noexcept {
+	[[nodiscard]] constexpr static inline int cmp(const uint8x32_t in1,
+	                                              const uint8x32_t in2) noexcept {
 		const __m256i tmp = (__m256i) ((__v32qi) in1.v256 == (__v32qi) in2.v256);
-#ifndef __clang__
 		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
-#else
-		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
-#endif
 	}
 
 	///
@@ -710,6 +730,17 @@ struct uint16x16_t {
 		return out;
 	}
 
+
+	/// \param in1
+	/// \param in2
+	/// \return in1 > in2 uncompressed
+	[[nodiscard]] constexpr static inline uint16x16_t gt_(const uint16x16_t in1,
+	                                                      const uint16x16_t in2) noexcept {
+		uint16x16_t ret;
+		ret.v256 = (__m256i) ((__v16hi) in1.v256 > (__v16hi) in2.v256);
+		return ret;
+	}
+
 	/// NOTE: this is a function which cannot be vectorized
 	/// \param in1
 	/// \param in2
@@ -723,6 +754,16 @@ struct uint16x16_t {
 			ret ^= (tmp.v16[i] != 0) << i;
 		}
 
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return in1 == in2 uncompressed
+	[[nodiscard]] constexpr static inline uint16x16_t cmp_(const uint16x16_t in1,
+														  const uint16x16_t in2) noexcept {
+		uint16x16_t ret;
+		ret.v256 = (__m256i) ((__v16hi) in1.v256 == (__v16hi) in2.v256);
 		return ret;
 	}
 
@@ -1025,14 +1066,32 @@ struct uint32x8_t {
 	///
 	/// \param in1
 	/// \param in2
+	/// \return in1 > in2 uncompress
+	[[nodiscard]] constexpr static inline uint32x8_t gt_(const uint32x8_t in1,
+	                                                    const uint32x8_t in2) noexcept {
+		uint32x8_t ret;
+		ret.v256 = (__m256i) ((__v8si) in1.v256 > (__v8si) in2.v256);
+		return  ret;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline int gt(const uint32x8_t in1, const uint32x8_t in2) noexcept {
 		const __m256i tmp = (__m256i) ((__v8si) in1.v256 > (__v8si) in2.v256);
-#ifndef __clang__
 		return __builtin_ia32_movmskps256((__v8sf) tmp);
-#else
-		return __builtin_ia32_movmskps256((__v8sf) tmp);
-#endif
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return in1 == in2 uncompress
+	[[nodiscard]] constexpr static inline uint32x8_t cmp_(const uint32x8_t in1,
+														 const uint32x8_t in2) noexcept {
+		uint32x8_t ret;
+		ret.v256 = (__m256i) ((__v8si) in1.v256 == (__v8si) in2.v256);
+		return  ret;
 	}
 
 	///
@@ -1391,11 +1450,18 @@ struct uint64x4_t {
 	template<const uint32_t in2>
 	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in1) noexcept {
 		uint64x4_t ret;
-#ifndef __clang__
   		ret.v256 = ((__m256i) __builtin_ia32_permdi256 ((__v4di)(__m256i)(in1.v256), (int)(in2)));
-#else
-		ret.v256 = _mm256_permute4x64_epi64(in1.v256, in2);
-#endif
+		return ret;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return in1 > in2 uncompressed
+	[[nodiscard]] constexpr static inline uint64x4_t gt_(const uint64x4_t in1,
+	                                                    const uint64x4_t in2) noexcept {
+		uint64x4_t ret;
+		ret.v256 = (__m256i) ((__v4di) in1.v256 > (__v4di) in2.v256);
 		return ret;
 	}
 
@@ -1405,11 +1471,18 @@ struct uint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline int gt(const uint64x4_t in1, const uint64x4_t in2) noexcept {
 		const auto tmp = (__m256i) ((__v4di) in1.v256 > (__v4di) in2.v256);
-#ifndef __clang__
 		return __builtin_ia32_movmskpd256((__v4df) tmp);
-#else
-		return __builtin_ia32_movmskpd256((__v4df) tmp);
-#endif
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return in1 == in2 uncompressed
+	[[nodiscard]] constexpr static inline uint64x4_t cmp_(const uint64x4_t in1,
+														const uint64x4_t in2) noexcept {
+		uint64x4_t ret;
+		ret.v256 = (__m256i) ((__v4di) in1.v256 == (__v4di) in2.v256);
+		return ret;
 	}
 
 	///

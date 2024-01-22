@@ -481,6 +481,21 @@ struct uint8x32_t {
 		return out;
 	}
 
+	static inline uint8x32_t cmp_(const uint8x32_t in1, const uint8x32_t in2) {
+		uint8x32_t ret;
+		for (uint32_t i = 0; i < 32; i++){
+			ret.v8[i] = in1.v8[i] == in2.v8[i];
+		}
+		return ret;
+	}
+
+	static inline uint8x32_t gt_(const uint8x32_t in1, const uint8x32_t in2) {
+		uint8x32_t ret;
+		for (uint32_t i = 0; i < 32; i++){
+			ret.v8[i] = in1.v8[i] > in2.v8[i];
+		}
+		return ret;
+	}
 
 	static inline int cmp(const uint8x32_t in1, const uint8x32_t in2) {
 		int ret = 0;
@@ -494,7 +509,7 @@ struct uint8x32_t {
 	static inline int gt(const uint8x32_t in1, const uint8x32_t in2) {
 		int ret = 0;
 		for (uint32_t i = 0; i < 32; i++){
-			ret ^= (in1.v8[i] < in2.v8[i]) << i;
+			ret ^= (in1.v8[i] > in2.v8[i]) << i;
 		}
 
 		return ret;
@@ -794,6 +809,24 @@ struct uint16x16_t {
 			out.v16[i] = in1.v16[i] >> in2;
 		}
 		return out;
+	}
+
+	static inline uint16x16_t cmp_(const uint16x16_t in1, const uint16x16_t in2) {
+		uint16x16_t ret;
+		for (uint32_t i = 0; i < 16; i++){
+			ret.v16[i] = in1.v16[i] == in2.v16[i];
+		}
+
+		return ret;
+	}
+
+	static inline uint16x16_t gt_(const uint16x16_t in1, const uint16x16_t in2) {
+		uint16x16_t ret;
+		for (uint32_t i = 0; i < 16; i++){
+			ret.v16[i] = in1.v16[i] == in2.v16[i];
+		}
+
+		return ret;
 	}
 
 	static inline uint32_t cmp(const uint16x16_t in1, const uint16x16_t in2) {
@@ -1096,6 +1129,24 @@ struct uint32x8_t {
 			out.v32[i] = in1.v32[i] >> in2;
 		}
 		return out;
+	}
+
+	static inline uint32x8_t cmp_(const uint32x8_t in1, const uint32x8_t in2) {
+		uint32x8_t ret;
+		for (uint32_t i = 0; i < 8; i++){
+			ret.v32[i] = in1.v32[i] == in2.v32[i];
+		}
+
+		return ret;
+	}
+
+	static inline uint32x8_t gt_(const uint32x8_t in1, const uint32x8_t in2) {
+		uint32x8_t ret;
+		for (uint32_t i = 0; i < 8; i++){
+			ret.v32[i] = in1.v32[i] > in2.v32[i];
+		}
+
+		return ret;
 	}
 
 	static inline uint32_t cmp(const uint32x8_t in1, const uint32x8_t in2) {
@@ -1420,6 +1471,23 @@ struct uint64x4_t {
 		return out;
 	}
 
+	static inline uint64x4_t cmp_(const uint64x4_t in1, const uint64x4_t in2) {
+		uint64x4_t ret;
+		for (uint8_t i = 0; i < 4; i++){
+			ret.v64[i] = in1.v64[i] == in2.v64[i];
+		}
+		return ret;
+	}
+
+	static inline uint64x4_t gt_(const uint64x4_t in1, const uint64x4_t in2) {
+		uint64x4_t ret;
+		for (uint32_t i = 0; i < 4; i++){
+			ret.v64[i]= in1.v64[i] > in2.v64[i];
+		}
+
+		return ret;
+	}
+
 	static inline uint32_t cmp(const uint64x4_t in1, const uint64x4_t in2) {
 		uint32_t ret = 0;
 		for (uint8_t i = 0; i < 4; i++){
@@ -1556,6 +1624,18 @@ inline uint8x32_t operator>> (const uint8x32_t& lhs, const uint32_t rhs) {
 inline uint8x32_t operator<< (const uint8x32_t& lhs, const uint32_t rhs) {
 	return uint8x32_t::slli(lhs, rhs);
 }
+inline uint8x32_t operator^= (uint8x32_t& lhs, const uint8x32_t& rhs) {
+	lhs = uint8x32_t::xor_(lhs, rhs);
+	return lhs;
+}
+inline uint8x32_t operator&= (uint8x32_t& lhs, const uint8x32_t& rhs) {
+	lhs = uint8x32_t::and_(lhs, rhs);
+	return lhs;
+}
+inline uint8x32_t operator|= (uint8x32_t& lhs, const uint8x32_t& rhs) {
+	lhs = uint8x32_t::or_(lhs, rhs);
+	return lhs;
+}
 
 
 inline uint16x16_t operator* (const uint16x16_t& lhs, const uint16x16_t& rhs) {
@@ -1591,7 +1671,18 @@ inline uint16x16_t operator>> (const uint16x16_t& lhs, const uint32_t rhs) {
 inline uint16x16_t operator<< (const uint16x16_t& lhs, const uint32_t rhs) {
 	return uint16x16_t::slli(lhs, rhs);
 }
-
+inline uint16x16_t operator^= (uint16x16_t& lhs, const uint16x16_t& rhs) {
+	lhs = uint16x16_t::xor_(lhs, rhs);
+	return lhs;
+}
+inline uint16x16_t operator&= (uint16x16_t& lhs, const uint16x16_t& rhs) {
+	lhs = uint16x16_t::and_(lhs, rhs);
+	return lhs;
+}
+inline uint16x16_t operator|= (uint16x16_t& lhs, const uint16x16_t& rhs) {
+	lhs = uint16x16_t::or_(lhs, rhs);
+	return lhs;
+}
 
 inline uint32x8_t operator* (const uint32x8_t& lhs, const uint32x8_t& rhs) {
 	return uint32x8_t::mullo(lhs, rhs);
@@ -1630,6 +1721,14 @@ inline uint32x8_t operator^= (uint32x8_t& lhs, const uint32x8_t& rhs) {
 	lhs = uint32x8_t::xor_(lhs, rhs);
 	return lhs;
 }
+inline uint32x8_t operator&= (uint32x8_t& lhs, const uint32x8_t& rhs) {
+	lhs = uint32x8_t::and_(lhs, rhs);
+	return lhs;
+}
+inline uint32x8_t operator|= (uint32x8_t& lhs, const uint32x8_t& rhs) {
+	lhs = uint32x8_t::or_(lhs, rhs);
+	return lhs;
+}
 
 
 inline uint64x4_t operator* (const uint64x4_t& lhs, const uint64x4_t& rhs) {
@@ -1665,6 +1764,18 @@ inline uint64x4_t operator>> (const uint64x4_t& lhs, const uint32_t rhs) {
 inline uint64x4_t operator<< (const uint64x4_t& lhs, const uint32_t rhs) {
 	return uint64x4_t::slli(lhs, rhs);
 }
+inline uint64x4_t operator^= (uint64x4_t& lhs, const uint64x4_t& rhs) {
+	lhs = uint64x4_t::xor_(lhs, rhs);
+	return lhs;
+}
+inline uint64x4_t operator&= (uint64x4_t& lhs, const uint64x4_t& rhs) {
+	lhs = uint64x4_t::and_(lhs, rhs);
+	return lhs;
+}
+inline uint64x4_t operator|= (uint64x4_t& lhs, const uint64x4_t& rhs) {
+	lhs = uint64x4_t::or_(lhs, rhs);
+	return lhs;
+}
 
 /* 					 comparison									*/
 
@@ -1678,7 +1789,7 @@ int operator<(const uint8x32_t& a, const uint8x32_t& b){
 	return uint8x32_t::gt(b, a);
 }
 int operator>(const uint8x32_t& a, const uint8x32_t& b){
-	return uint8x32_t::gt(b, a);
+	return uint8x32_t::gt(a, b);
 }
 
 

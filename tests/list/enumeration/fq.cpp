@@ -14,6 +14,7 @@ using ::testing::InitGoogleTest;
 using ::testing::Test;
 
 constexpr uint32_t n = 20;
+constexpr uint32_t k = 2;
 constexpr uint32_t l = 10;
 constexpr uint32_t q = 4;
 constexpr uint32_t w = 1;
@@ -24,11 +25,11 @@ constexpr size_t chase_size = bc(n, w);
 
 using T = uint8_t;
 using Value = kAryPackedContainer_T<T, n, q>;
-using Label = kAryPackedContainer_T<T, n, q>;
-using Matrix = FqMatrix<T, n, n, q>;
+using Label = kAryPackedContainer_T<T, n-k, q>;
+using Matrix = FqMatrix<T, n, n-k, q>; // NOTE this is the transposed type
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
-constexpr static ConfigParallelBucketSort chm1{0, l, l, l, l, 1, 1, n-l, l, 0};
+constexpr static ConfigParallelBucketSort chm1{0, l, l, l, 1u<<l, 1, 1, n-l, l, 0};
 
 
 using LPartType = uint16_t;
@@ -45,11 +46,13 @@ TEST(ListEnumerateMultiFullLength, single_list) {
 	List L(list_size);
 	Matrix HT;
 	HT.random();
-	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT};
+	Label syndrome; syndrome.random();
+	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
 	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		EXPECT_EQ(L.data_value(i).weight(), w);
+		EXPECT_EQ(L.data_value(i).popcnt(), w);
+		EXPECT_EQ(L.data_label(i).is_zero(), false);
 	}
 }
 
@@ -64,10 +67,14 @@ TEST(ListEnumerateMultiFullLength, single_hashmap) {
 	Matrix HT;
 	HT.random();
 
-	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT};
+	Label syndrome; syndrome.random();
+	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
 	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
+		EXPECT_EQ(L.data_value(i).popcnt(), w);
+		EXPECT_EQ(L.data_label(i).is_zero(), false);
+
 		const auto data = extractor(L.data_label(i));
 		IndexType load=0,
 		          pos = hm.find(data, load);
@@ -85,12 +92,13 @@ TEST(ListEnumerateMultiFullLength, two_lists) {
 	Matrix HT;
 	HT.random();
 
-	ListEnumerateMultiFullLength<List, n/2, q, w> enumerator{HT};
+	Label syndrome; syndrome.random();
+	ListEnumerateMultiFullLength<List, n/2, q, w> enumerator{HT, 0, &syndrome};
 	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n/2);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		EXPECT_EQ(L1.data_value(i).weight(), w);
-		EXPECT_EQ(L2.data_value(i).weight(), w);
+		EXPECT_EQ(L1.data_value(i).popcnt(), w);
+		EXPECT_EQ(L2.data_value(i).popcnt(), w);
 
 		for(uint32_t j = 0; j < n/2; j++) {
 			EXPECT_EQ(L1.data_value(i).get(j + n/2), 0);
@@ -98,7 +106,7 @@ TEST(ListEnumerateMultiFullLength, two_lists) {
 		}
 
 		EXPECT_EQ(L1.data_label(i).is_zero(), false);
-		EXPECT_EQ(L2.data_label(i).is_zero(), false);
+		// NOTE: this can happen in such small matrices: EXPECT_EQ(L2.data_label(i).is_zero(), false);
 	}
 }
 
@@ -111,8 +119,9 @@ TEST(ListEnumerateSingleFullLength, single_list) {
 	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 
 	for (size_t i = 0; i < chase_size; ++i) {
-		std::cout << i << " " << L.data_value(i).weight() << std::endl;
-		ASSERT_EQ(L.data_value(i).weight(), w);
+		std::cout << i << " " << L.data_value(i).popcnt() << std::endl;
+		ASSERT_EQ(L.data_value(i).popcnt(), w);
+		EXPECT_EQ(L.data_label(i).is_zero(), false);
 	}
 }
 
@@ -151,8 +160,8 @@ TEST(ListEnumerateSingleFullLength, two_lists) {
 	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n/2);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).weight(), w);
-		ASSERT_EQ(L2.data_value(i).weight(), w);
+		ASSERT_EQ(L1.data_value(i).popcnt(), w);
+		ASSERT_EQ(L2.data_value(i).popcnt(), w);
 
 		for(uint32_t j = 0; j < n/2; j++) {
 			ASSERT_EQ(L1.data_value(i).get(j + n/2), 0);
@@ -178,10 +187,10 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap) {
 	enumerator.template run<std::nullptr_t, std::nullptr_t>(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).weight(), mitm_w + noreps_w);
-		ASSERT_EQ(L2.data_value(i).weight(), mitm_w + noreps_w);
-		ASSERT_EQ(L3.data_value(i).weight(), mitm_w + noreps_w);
-		ASSERT_EQ(L4.data_value(i).weight(), mitm_w + noreps_w);
+		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
 	}
 }
 
@@ -197,10 +206,10 @@ TEST(ListEnumerateMultiDisjointBlock, simple_nohashmap) {
 	enumerator.template run<std::nullptr_t, std::nullptr_t>(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).weight(), mitm_w + noreps_w);
-		ASSERT_EQ(L2.data_value(i).weight(), mitm_w + noreps_w);
-		ASSERT_EQ(L3.data_value(i).weight(), mitm_w + noreps_w);
-		ASSERT_EQ(L4.data_value(i).weight(), mitm_w + noreps_w);
+		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
 	}
 }
 int main(int argc, char **argv) {

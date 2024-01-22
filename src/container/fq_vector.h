@@ -93,7 +93,7 @@ public:
 
 	/// calculate the hamming weight
 	/// \return the hamming weight
-	[[nodiscard]] constexpr inline uint32_t weight(const uint32_t l=0,
+	[[nodiscard]] constexpr inline uint32_t popcnt(const uint32_t l=0,
 	                                               const uint32_t h=LENGTH) const noexcept {
 		uint32_t r = 0;
 

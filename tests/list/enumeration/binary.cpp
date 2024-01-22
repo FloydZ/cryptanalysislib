@@ -31,7 +31,7 @@ using Label = kAryPackedContainer_T<T, n, q>;
 using Matrix = FqMatrix<T, n, n, q>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
-constexpr static ConfigParallelBucketSort chm1{0, l, l, l, l, 1, 1, n-l, l, 0};
+constexpr static ConfigParallelBucketSort chm1{0, l, l, l, 1u<<l, 1, 1, n-l, l, 0};
 
 
 using LPartType = uint16_t;
@@ -99,7 +99,7 @@ TEST(F2, single_list) {
 	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		EXPECT_EQ(L.data_value(i).weight(), w);
+		EXPECT_EQ(L.data_value(i).popcnt(), w);
 	}
 }
 
@@ -139,8 +139,8 @@ TEST(F2, two_lists) {
 	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n/2);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).weight(), w);
-		ASSERT_EQ(L2.data_value(i).weight(), w);
+		ASSERT_EQ(L1.data_value(i).popcnt(), w);
+		ASSERT_EQ(L2.data_value(i).popcnt(), w);
 
 		for(uint32_t j = 0; j < n/2; j++) {
 			ASSERT_EQ(L1.data_value(i).get(j + n/2), 0);

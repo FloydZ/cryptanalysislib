@@ -47,7 +47,7 @@ TEST(Internals, Size) {
 	std::cout << "Size CValueD: " << sizeof(c1.data()) << "\n";
 	std::cout << "Size CLabelD: " << sizeof(c2.data()) << "\n";
 
-	std::cout << "PointerOffset:   " << e.get_label_container_ptr() - e.get_value_container_ptr() << "\n";
+	std::cout << "PointerOffset:   " << e.label_ptr() - e.value_ptr() << "\n";
 }
 
 #ifndef EXTERNAL_MAIN

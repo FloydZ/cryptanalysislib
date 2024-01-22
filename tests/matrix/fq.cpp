@@ -17,8 +17,8 @@ using ::testing::UnitTest;
 
 using T = uint64_t;
 constexpr uint32_t q = 3;
-constexpr uint32_t nrows = 25;
-constexpr uint32_t ncols = 50;
+constexpr uint32_t nrows = 110;
+constexpr uint32_t ncols = 120;
 
 constexpr bool packed = true;
 using M  = FqMatrix<T, nrows, ncols, q, packed>;
@@ -287,12 +287,9 @@ TEST(FqMatrix, m4ri) {
 	const uint32_t rank = m.m4ri();
 	ASSERT_GT(rank, 0);
 
-	//std::cout << rank << std::endl;
-	//m.print();
-
-	for (uint32_t i = 0; i < nrows; ++i) {
+	for (uint32_t i = 0; i < rank; ++i) {
 		for (uint32_t j = 0; j < rank; ++j) {
-			ASSERT_EQ(m.get(i, j), i==j);
+			EXPECT_EQ((bool)m.get(i, j), i==j);
 		}
 	}
 }

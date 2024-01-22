@@ -42,11 +42,11 @@ message(STATUS _available_vector_units_list)
 include_directories("benchmark/include")
 link_directories("benchmark/build/src")
 
-# TODO unset(COMPILER_SUPPORTS_MARCH_NATIVE CACHE)
 check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)
-check_cxx_compiler_flag(-fsanitize=address COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+check_cxx_compiler_flag(-fsanitize=address COMPILER_SUPPORTS_SANITIZE_ADDRESS) # TODO support not recognized
 check_cxx_compiler_flag(-fsanitize=memory COMPILER_SUPPORTS_SANITIZE_MEMORY)
+check_cxx_compiler_flag(-fconstexpr-steps=91 COMPILER_SUPPORTS_CONSTEXPR_COST)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC) # TODO
 
@@ -98,41 +98,47 @@ if(USE_TCMALLOC)
 	set(MALLOC_LIBRARY_FLAGS "tcmalloc")
 endif()
 
-if(USE_SANITIZER)
+if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
 endif()
 
 if(USE_NOINLINE AND COMPILER_SUPPORTS_NO_INLINE)
-	message(STATUS "Using address sanitize")
+	message(STATUS "not inlining")
 	set(INLINE_FLAGS "-fno-inline")
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES Release)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native -O3 -g0")
-  if(COMPILER_SUPPORTS_MARCH_NATIVE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-  endif()
-  if(lto_supported)
-    message(STATUS "IPO / LTO enabled")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-  endif()
-elseif(CMAKE_BUILD_TYPE MATCHES MinSizeRel)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native -Os -g0")
-  if(COMPILER_SUPPORTS_MARCH_NATIVE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-  endif()
-  if(lto_supported)
-    message(STATUS "IPO / LTO enabled")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-  endif()
-else() # Debug, RelWithDebInfo, etc
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare")
-  message(STATUS "Building in Debug mode!")
+if (COMPILER_SUPPORTS_CONSTEXPR_COST)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
 endif()
 
-set(ALLOWED_WARNINGS " -fconstexpr-steps=99999999 -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
+if(lto_supported)
+  message(STATUS "IPO / LTO enabled")
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
+# TODO falsche flaggen C anstatt CXX
+#if(CMAKE_BUILD_TYPE MATCHES Release)
+#  set(CMAKE_CX_FLAGS "${CMAKE_C_FLAGS} -mtune=native -O3 -g0")
+#  if(COMPILER_SUPPORTS_MARCH_NATIVE)
+#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+#  endif()
+#elseif(CMAKE_BUILD_TYPE MATCHES MinSizeRel)
+#  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native -Os -g0")
+#  if(COMPILER_SUPPORTS_MARCH_NATIVE)
+#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+#  endif()
+#  if(lto_supported)
+#    message(STATUS "IPO / LTO enabled")
+#    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+#  endif()
+#else() # Debug, RelWithDebInfo, etc
+#  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare")
+#  message(STATUS "Building in Debug mode!")
+#endif()
+
+set(ALLOWED_WARNINGS "  -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
@@ -173,9 +179,7 @@ set(LINK_TEST_FLAGS
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
 # he nicest way, but by far the easiest.
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 
 

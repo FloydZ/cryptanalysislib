@@ -42,32 +42,6 @@ TEST(Bucket_Sort, get_data) {
 	}
 }
 
-TEST(Bucket_Sort, asdasd) {
-	BinaryMatrix A;
-	A.identity();
-
-	BinaryList L{0};
-	L.generate_base_random(ListSize, A);
-	L.set_load(ListSize);
-
-	auto *a = new Bucket_Sort<BinaryList, 200, 2, 4, n>{};
-	a->hash(L);
-
-	for (size_t i = 0; i < a->n_buckets; ++i) {
-		std::cout << "bucket: " << i << ":\n";
-		for (size_t j = 0; j < a->buckets_load[i]; ++j) {
-			std::cout << a->buckets[i][j].first << ":\t " << std::bitset<n>(a->buckets[i][j].second) << " \n";
-		}
-		std::cout << "\n";
-	}
-
-	uint64_t bucket, lower, upper;
-	// auto t = a->find(L[0].get_label(), &bucket, &lower, &upper);
-
-	std::cout << L[0].get_label();
-	std::cout << bucket << " " << lower << " " << upper << "\n";
-	delete a;
-}
 
 template<const uint32_t l, const uint32_t h>
 static uint64_t HashSearch(uint64_t a) {

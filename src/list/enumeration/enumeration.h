@@ -108,10 +108,11 @@ public:
 
 		ASSERT(tmpl.is_equal(label));
 
-		uint32_t tmp_vec_ctr = error.weight();
+		uint32_t tmp_vec_ctr = error.popcnt();
 		if (tmp_vec_ctr != w) {
 			error.print();
 		}
+
 		ASSERT(tmp_vec_ctr == w);
 #endif
 		return true;

@@ -6,7 +6,7 @@
 #endif
 
 #if !defined(CRYPTANALYSISLIB_POPCOUNT_H)
-#error "Do not include this library directly. Use: `#include <popcount/popcount.h>`"
+#error "Do not include this file directly. Use: `#include <popcount/popcount.h>`"
 #endif
 
 #include <immintrin.h>
@@ -59,7 +59,7 @@ constexpr static __m256i popcount_avx2_32(const __m256i vec) noexcept {
   	const __m256i local = (__m256i)((__v32qu)popcnt1 + (__v32qu)popcnt2);
 
 	// not the best
-  	const __m256i mask = __extension__ (__m256i)(__v16hi){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+  	const __m256i mask = __extension__ (__m256i)(__v8si){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
 
   	__m256i ret = (__m256i)((__v4du)local & (__v4du)mask);
 	ret = (__m256i)((__v32qu)ret + (__v32qu)((__v4du)((__m256i)__builtin_ia32_psrldi256((__v8si)local,  8)) & (__v4du)mask));
@@ -67,5 +67,13 @@ constexpr static __m256i popcount_avx2_32(const __m256i vec) noexcept {
 	ret = (__m256i)((__v32qu)ret + (__v32qu)((__v4du)((__m256i)__builtin_ia32_psrldi256((__v8si)local, 24)) & (__v4du)mask));
 	return ret;
 }
+
+/// special popcount which popcounts on 4 * 64 bit limbs in parallel
+constexpr static __m256i popcount_avx2_64(const __m256i vec) noexcept {
+	POPCOUNT_HELPER_MACRO()
+	const __m256i local = (__m256i)((__v32qu)popcnt1 + (__v32qu)popcnt2);
+	return (__m256i)__builtin_ia32_psadbw256((__v32qi)local, (__v32qi)__extension__ (__m256i)(__v4di){ 0, 0, 0, 0 });
+}
+
 #undef POPCOUNT_HELPER_MACRO
 #endif

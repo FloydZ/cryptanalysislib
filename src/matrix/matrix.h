@@ -585,7 +585,7 @@ public:
 	/// \tparam r
 	/// \param r_stop
 	/// \return
-	template<const uint32_t r = 4>
+	template<const uint32_t r=4>
 	constexpr uint32_t m4ri(const uint32_t rstop=nrows) noexcept {
 		static_assert(r > 0);
 
@@ -649,8 +649,8 @@ public:
 	    };
 
 
-		/// \param row top left point of the systematized submatrix
-		/// \param col top left point of the systematized submatrix
+		/// \param row top left point of the systematized sub-matrix
+		/// \param col top left point of the systematized sub-matrix
 		/// \param kk size of the systemized submatrix
 		/// \param rstart
 		auto process_rows =
@@ -672,8 +672,11 @@ public:
 		[&](const uint32_t row, const uint32_t col, const uint32_t kk){
 		    alignas(32) RowType tmp;
 		    for (uint32_t i = row; i < row+kk; ++i) {
+				retry:
+
 		        uint32_t sel = -1u;
 		        const uint32_t current_col = col+i-row;
+
 				/// pivoting
 				for (uint32_t pivot_row = i; pivot_row < nrows; pivot_row++) {
 					if (get(pivot_row, current_col) == 1u) {
@@ -709,7 +712,17 @@ public:
 					}
 				}
 
-		        /// solve the column in the kk x kk square
+				/// this is stupid: while fixing the pivot row, it can happen that
+				/// the pivot element gets zero out. We catch this case and restart.
+				if (get(i, current_col) == 0) goto retry;
+
+				// one final fixup
+				if (get(i, current_col) != 1) {
+					RowType::scalar(tmp, __data[current_col], (q - get(i, current_col) % q));
+					RowType::add(__data[i], __data[i], tmp);
+				}
+
+				/// solve the column in the kk x kk square
 		        for (uint32_t j = row; j < row+kk; ++j) {
 			        if (j == i) { continue; }
 
@@ -720,7 +733,7 @@ public:
 					RowType::scalar(tmp, __data[i], c);
 					RowType::add(__data[j], __data[j], tmp);
 		        }
-		    }
+			}
 
 			return kk;
 		};

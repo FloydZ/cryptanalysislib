@@ -63,13 +63,13 @@ TEST(AVX2, uint16_t) {
 }
 
 TEST(AVX2, uint32_t) {
-	__m256i a = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+	__m256i a = _mm256_setr_epi32(0, 0xffffffff, 2, 3, 4, 5, 6, 7);
 	__m256i b = popcount_avx2_32(a);
 
 	uint32x8_t c;
 	c.v256 = b;
 	EXPECT_EQ(c.v32[0], 0);
-	EXPECT_EQ(c.v32[1], 1);
+	EXPECT_EQ(c.v32[1], 32);
 	EXPECT_EQ(c.v32[2], 1);
 	EXPECT_EQ(c.v32[3], 2);
 	EXPECT_EQ(c.v32[4], 1);
