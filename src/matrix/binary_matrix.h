@@ -155,7 +155,7 @@ public:
 	/// needed typedefs
 	using RowType = T*;
 	using DataType = bool;
-	const uint32_t m4ri_k = matrix_opt_k(nrows, ncols);
+	uint32_t m4ri_k = matrix_opt_k(nrows, ncols);
 
 	/// simple constructor
 	constexpr FqMatrix() noexcept {
@@ -177,8 +177,12 @@ public:
 		init_matrix_data();
 	}
 
-	/// constructor reading from string
 	constexpr FqMatrix(const char* data, const uint32_t cols=ncols) noexcept {
+		from_string(data, cols);
+	}
+
+	/// constructor reading from string
+	constexpr void from_string(const char* data, const uint32_t cols=ncols) noexcept {
 		init_matrix_data();
 		clear();
 
@@ -513,15 +517,15 @@ public:
 	/// \param in2
 	/// \return
 	template<typename Tprime,
-	         const uint32_t nrows_prime,
-	         const uint32_t ncols_prime>
-	constexpr static FqMatrix<T, nrows, ncols + ncols_prime, 2>
-	        augment(const FqMatrix &in1,
-			        const FqMatrix<Tprime, nrows_prime, ncols_prime, 2> &in2) noexcept {
+			const uint32_t nrows_prime,
+			const uint32_t ncols_prime>
+	constexpr static FqMatrix<T, nrows, ncols + ncols_prime, q, true>
+	augment(const FqMatrix &in1,
+			const FqMatrix<Tprime, nrows_prime, ncols_prime, q, true> &in2) noexcept {
 		/// NOTE: we allow not equally sized matrices to augment,
 		/// but the augmented matrix we be zero extended
 		static_assert(nrows_prime <=nrows);
-		FqMatrix<T, nrows, ncols + ncols_prime, 2> ret;
+		FqMatrix<T, nrows, ncols + ncols_prime, q, true> ret;
 		ret.clear();
 
 		for (uint32_t i = 0; i < nrows; ++i) {
@@ -537,7 +541,41 @@ public:
 				ret.set(data, i, ncols + j);
 			}
 		}
-		return in1;
+
+		return ret;
+	}
+
+	/// TODO test
+	/// \param in1
+	/// \param in2
+	/// \return
+	template<typename Tprime,
+	         const uint32_t nrows_prime,
+	         const uint32_t ncols_prime>
+	constexpr static FqMatrix<T, nrows, ncols + ncols_prime, q, true>
+	        augment(FqMatrix<T, nrows, ncols + ncols_prime, q, true> &ret,
+	        		const FqMatrix &in1,
+			        const FqMatrix<Tprime, nrows_prime, ncols_prime, q, true> &in2) noexcept {
+		/// NOTE: we allow not equally sized matrices to augment,
+		/// but the augmented matrix we be zero extended
+		static_assert(nrows_prime <=nrows);
+		ret.clear();
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols; ++j) {
+				const T data = in1.get(i, j);
+				ret.set(data, i, j);
+			}
+		}
+
+		for (uint32_t i = 0; i < nrows_prime; ++i) {
+			for (uint32_t j = 0; j < ncols_prime; ++j) {
+				const T data = in2.get(i, j);
+				ret.set(data, i, ncols + j);
+			}
+		}
+
+		return ret;
 	}
 
 	/**
@@ -1477,19 +1515,34 @@ public:
 
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols; ++j) {
-				const bool data = A.get(i, j);
+				const DataType data = A.get(i, j);
 				B.set(data, j, i);
 			}
 		}
 	}
 
+	constexpr FqMatrix<T, ncols, nrows, q, true> transpose (){
+		FqMatrix<T, ncols, nrows, q, true> ret;
+		transpose(ret, *this);
+		return ret;
+	}
+
+
 	/// direct transpose of the full matrix
 	/// NOTE: no expansion is possible
-	/// \param B output
-	/// \param A input
+	///
+	/// \tparam Tprime
+	/// \tparam nrows_prime
+	/// \tparam ncols_prime
+	/// \tparam qprime
+	/// \param B
+	/// \param A
+	/// \param srow
+	/// \param scol
+	/// \return
 	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
-	constexpr static void transpose(FqMatrix<Tprime, nrows_prime, ncols_prime, qprime> &B,
-									FqMatrix<T, nrows, ncols, q> &A,
+	constexpr static void transpose(FqMatrix<Tprime, nrows_prime, ncols_prime, qprime, true> &B,
+									FqMatrix<T, nrows, ncols, q, true> &A,
 	                                const uint32_t srow,
 	                                const uint32_t scol) noexcept {
 		ASSERT(srow < nrows);
@@ -1720,6 +1773,7 @@ public:
 		constexpr uint32_t CTR = alignment/RADIX;
 		uint32_t l = 0;
 
+		/// TODO change everything: s.t. this can all be alligend operation
 		LOOP_UNROLL()
 		for (; l+CTR <= padded_limbs; l+=CTR) {
 			const uint8x32_t x_avx = uint8x32_t::load(out + i*padded_limbs + l);
@@ -1770,24 +1824,24 @@ public:
 	}
 
 	constexpr void permute_cols(FqMatrix<T, ncols, nrows, q> &AT,
-								uint32_t *permutation,
-								const uint32_t len) noexcept {
-		ASSERT(ncols >= len);
+								Permutation &P) noexcept {
+		ASSERT(ncols >= P.length);
 
 		this->transpose(AT, *this, 0, 0);
-		for (uint32_t i = 0; i < len; ++i) {
-			uint32_t pos = fastrandombytes_uint64() % (len - i);
-			ASSERT(i+pos < len);
+		for (uint32_t i = 0; i < P.length; ++i) {
+			uint32_t pos = fastrandombytes_uint64() % (P.length - i);
+			ASSERT(i+pos < P.length);
 
-			auto tmp = permutation[i];
-			permutation[i] = permutation[i+pos];
-			permutation[pos+i] = tmp;
+			auto tmp = P.values[i];
+			P.values[i] = P.values[i+pos];
+			P.values[pos+i] = tmp;
 
 			AT.swap_rows(i, i+pos);
 		}
 
 		FqMatrix<T, ncols, nrows,q>::transpose(*this, AT, 0, 0);
 	}
+
 	/// optimized version to which you have additionally pass the transposed.
 	/// So its not created/freed every time
 	/// \param A input matrix which should be randomly permuted
@@ -2063,7 +2117,7 @@ public:
 	/// \param look_ahead
 	/// \param permutation
 	/// \return
-	constexpr static size_t matrix_fix_gaus(FqMatrix &M,
+	constexpr static size_t fix_gaus(FqMatrix &M,
 								  			const size_t rang,
 								  			const size_t rstop,
 	                                        Permutation &permutation) noexcept {
@@ -2135,7 +2189,10 @@ public:
 		/// chose a new random permutation on only c coordinates
 		std::array<uint32_t, c> perm;
 		for (uint32_t i = 0; i < c; ++i) {
-			perm[i] = fastrandombytes_uint64() % ncols;
+			/// NOTE: this is a dirty hack, we append the syndrome,
+			/// hence the -1
+			/// MABYE fix thsi
+			perm[i] = fastrandombytes_uint64() % (ncols - 1u);
 		}
 
 		/// apply the random permutation
@@ -2143,9 +2200,10 @@ public:
 			std::swap(P.values[i], P.values[perm[i]]);
 			swap_cols(i, perm[i]);
 
-			///
+			/// directly swap it back if its in the information set.
 			if (perm[i] < max_row) {
 				swap_rows(i, perm[i]);
+				std::swap(P.values[i], P.values[perm[i]]);
 			}
 		}
 
@@ -2251,14 +2309,12 @@ public:
 	/// \param fix_col
 	/// \param lookahead
 	/// \return
-	[[nodiscard]] constexpr uint32_t fix_gaus(uint32_t *__restrict__ permutation,
+	[[nodiscard]] constexpr uint32_t fix_gaus(Permutation &P,
 											  const uint32_t rang,
-											  const uint32_t fix_col) noexcept {
-		Permutation P(ncols);
-		for (uint32_t i = 0; i < ncols; ++i) {
-			P.values[i] = permutation[i];
-		}
-		return matrix_fix_gaus(*this, rang, fix_col, P);
+											  const uint32_t fix_col,
+	                                          const uint32_t lookahead=0) noexcept {
+		return fix_gaus(*this, rang, fix_col, P);
+
 	}
 
 	constexpr void matrix_vector_mul(const FqMatrix<T, 1, ncols, q> &v) noexcept {

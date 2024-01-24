@@ -19,8 +19,9 @@ public:
 	*/
 	uint32_t length;
 
-	Permutation(uint32_t length) {
+	Permutation(const uint32_t length) noexcept {
 		this->values = (uint32_t *)malloc(sizeof(uint32_t) * length);
+		ASSERT(values);
 		this->length = length;
 		for (uint32_t i = 0; i < length; ++i) {
 			this->values[i] = i;
