@@ -51,6 +51,48 @@ using HMType = ParallelBucketSort<chm1, List, LPartType, IndexType, &DummyHash>;
 //constexpr static SimpleHashMapConfig simple{10, 1u<<l,1};
 //using HMType = SimpleHashMap<LPartType, IndexType, simple, DummyHash>;
 
+TEST(Chase, __new3) {
+	constexpr int nn = 10;
+	constexpr int p = 3;
+
+	uint32_t ctr = 0;
+	uint32_t p1 = 1, p2 = 2;
+	uint32_t x = 7u;
+	do {
+		print_binary(x, 10);
+		std::cout << p1 << " " << p2 << std::endl;
+
+		next3<nn, p>(&p1, &p2);
+		x ^= (1u << p1);
+		x ^= (1u << p2);
+		ctr += 1;
+	} while (ctr <= bc(nn, p)+5u);
+
+	print_binary(x, 10);
+	std::cout << p1 << " " << p2 << " " << ctr << " " << bc(nn, p) << std::endl;
+}
+
+TEST(Chase, __new) {
+	constexpr int nn = 10;
+	constexpr int p = 2;
+
+	uint32_t ctr = 0;
+	uint32_t p1 = 0, p2 = 1;
+	uint32_t x = 3u;
+	do {
+		print_binary(x, 10);
+		std::cout << p1 << " " << p2 << std::endl;
+
+		next2<nn, p>(&p1, &p2);
+		x ^= (1u << p1);
+		x ^= (1u << p2);
+		ctr += 1;
+	} while (ctr <= bc(nn, p)+5u);
+
+	print_binary(x, 10);
+	std::cout << p1 << " " << p2 << " " << ctr << " " << bc(nn, p) << std::endl;
+}
+
 TEST(Chase, first) {
 	constexpr uint32_t element_limbs = (n + 63)/64;
 	uint16_t pos1, pos2;

@@ -108,6 +108,50 @@ TEST(Segregator, Simple) {
 	// ASSERT_EQ(s.owns(b),  false);
 	// ASSERT_EQ(s.owns(b2), false);
 }
+
+TEST(PageMallocator, Simple) {
+	constexpr size_t size = 1u<<12;
+	constexpr size_t page_alignment = 1u<<10;
+
+	PageMallocator<page_alignment, size> s;
+	Blk b = s.allocate();
+
+	ASSERT_EQ(b.valid(), true);
+	auto *ptr = (uint8_t *)b.ptr;
+	for(size_t i = 0; i < size; i++) {
+		ptr[i] = i;
+	}
+	ASSERT_EQ(s.owns(b), true);
+	s.deallocate(b);
+}
+
+TEST(FreeListPageMallocator, Simple) {
+	constexpr size_t size = 1u<<12;
+	constexpr size_t page_alignment = 1u<<10;
+
+	FreeListPageMallocator<page_alignment, size> s;
+	Blk b = s.allocate();
+
+	ASSERT_EQ(b.valid(), true);
+	auto *ptr = (uint8_t *)b.ptr;
+	for(size_t i = 0; i < size; i++) {
+		ptr[i] = i;
+	}
+	ASSERT_EQ(s.owns(b), true);
+	s.deallocate(b);
+}
+
+TEST(STDAllocatorWrapper, simple) {
+	constexpr size_t size = 1u<<12;
+	constexpr size_t page_alignment = 1u<<10;
+
+	using T = uint64_t;
+	using Allocator = FreeListPageMallocator<page_alignment, size>;
+	using WrapperAllocator = STDAllocatorWrapper<T, Allocator>;
+	WrapperAllocator s;
+
+	T *ret = WrapperAllocator ::allocate(s, size);
+}
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

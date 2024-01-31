@@ -2,7 +2,9 @@
 #define SMALLSECRETLWE_ALLOC_H
 
 #include <iostream>
+#include <limits>
 #include "mem/memset.h"
+#include "container/queue.h"
 
 /// replacement for *void
 /// instead of just give a pointer, all allocators do return
@@ -11,6 +13,9 @@ struct Blk {
 public:
 	void *ptr;
 	size_t len;
+
+	constexpr Blk() noexcept: ptr(nullptr), len(0) {}
+	constexpr Blk(void *ptr, size_t len) noexcept: ptr(ptr), len(len) {}
 
 	/// checks whether the Blk of memory is valid or not
 	/// \returns false if either ptr == nullptr or the length is zero.
@@ -45,6 +50,10 @@ struct AllocatorConfig {
 
 	/// if set, after memory was free, it will be zerod
 	constexpr static bool zero_after_free = true;
+
+	/// TODO implement hint = a addr to which the new allocation should be close
+	/// enforce that every allocator obeys a given hint.
+	constexpr static bool obey_hint = false;
 } allocatorConfig;
 
 /// concept of an allocator
@@ -338,15 +347,15 @@ public:
 };
 
 /// simple page allocator. It can only allocate a single page
-template<const size_t page_alignment=1u << 12u>
+template<const size_t page_alignment=1u << 12u,
+         const size_t page_size = 1u << 12u>
 class PageMallocator {
-	constexpr static size_t page_size = 1u << 12u;
 	constexpr static uintptr_t MASK = ~(page_size - 1u);
 public:
 	///
 	/// \param n
 	/// \return
-	constexpr Blk allocate() {
+	constexpr Blk allocate() noexcept {
 		void *ptr = std::aligned_alloc(page_alignment, page_size);
 		return {ptr, ptr == nullptr ? 0 : page_size};
 	}
@@ -354,7 +363,7 @@ public:
 	///
 	/// \param b
 	/// \return
-	constexpr void deallocate(const Blk &b) {
+	constexpr void deallocate(const Blk &b) noexcept {
 		if (owns(b)) {
 			std::free(b.ptr);
 		}
@@ -362,16 +371,147 @@ public:
 
 	///
 	/// \return
-	constexpr void deallocateAll() {
+	constexpr void deallocateAll() noexcept {
 		/// well nothing
 	}
 
 	///
 	/// \param b
 	/// \return
-	constexpr bool owns(const Blk &b) {
+	constexpr bool owns(const Blk &b) noexcept {
 		return ((uintptr_t )b.ptr) & MASK;
 	}
 };
+
+
+
+/// taken from:https://raw.githubusercontent.com/codecryptanalysis/mccl/main/mccl/core/collection.hpp
+/// - modified to not use exceptions
+/// - modified to use the new allocation interface
+/// memory allocator pool for fixed size pages
+/// do not use page_allocator before static members have been initialized
+/// freeing pages after end of main (i.e. during static deconstructors) leads to undefined behaviour
+template<const size_t _page_alignment=1u << 12u,
+		 const size_t _page_size = 1u << 12u,
+         typename PAllocator =
+                 PageMallocator<_page_alignment, _page_size>>
+class FreeListPageMallocator {
+public:
+	typedef concurrent_queue<Blk> queue_type;
+	static constexpr std::size_t page_size = _page_size;
+	static constexpr std::size_t page_alignment() noexcept { return _page_alignment; }
+	constexpr static uintptr_t MASK = ~(page_size - 1u);
+
+private:
+	// freed pages are not returned to heap
+	// but stored in queue for future page allocations instead
+	// only at program end all pages are freed
+	struct _static_helper {
+		// concurrent queue to store freed pages
+		queue_type _queue;
+		std::size_t _alignment = _page_alignment;
+		std::mutex _mutex;
+
+		constexpr _static_helper() noexcept {}
+
+		// free queue at program end
+		constexpr ~_static_helper() noexcept {
+			Blk p;
+			while (_queue.try_pop_front(p)) {
+				allocator.deallocate(p);
+			}
+
+			ASSERT(_queue.size() == 0);
+		}
+	};
+	static inline PAllocator allocator;
+	static inline _static_helper _helper{};
+public:
+
+	///
+	/// \param n
+	/// \return
+	constexpr Blk allocate() noexcept {
+		return allocator.allocate();
+	}
+
+	///
+	/// \param b
+	/// \return
+	constexpr void deallocate(const Blk &b) noexcept {
+		if (owns(b)) {
+			_helper._queue.push_back(b);
+		}
+	}
+
+	///
+	/// \return
+	constexpr void deallocateAll() noexcept {
+		/// well nothing
+	}
+
+	///
+	/// \param b
+	/// \return
+	constexpr bool owns(const Blk &b) noexcept {
+		return allocator.owns(b);
+	}
+};
+
+
+
+/// wrapper class to expose a interface for algorithms in the std libraray
+template<typename T,
+         typename Allocator>
+class STDAllocatorWrapper {
+public:
+	typedef STDAllocatorWrapper<T, Allocator> allocator_type;
+	typedef STDAllocatorWrapper<T, Allocator> Alloc;
+	typedef T value_type;
+	typedef T* pointer;
+	typedef const T* const_pointer;
+	typedef void* void_pointer;
+	typedef const void* const_void_pointer;
+	typedef size_t size_type;
+
+	[[nodiscard]] static constexpr pointer allocate(allocator_type &a, size_type n){
+		return nullptr;
+	}
+
+	[[nodiscard]] static constexpr pointer allocate(allocator_type &a,
+	                                                size_type n,
+	                                                const_void_pointer hint){
+		return nullptr;
+	}
+
+	// C++23 feature
+	// [[nodiscard]] static constexpr std::allocation_result<pointer, size_type>
+	//     allocate_at_least( Alloc& a, size_type n ) {
+	//
+	// }
+
+	static constexpr void deallocate( Alloc& a, pointer p, size_type n ) {
+
+	}
+
+	template< class TT, class... Args >
+	static constexpr void construct( Alloc& a, TT* p, Args&&... args ) {
+
+	}
+
+	template<class TT>
+	static constexpr void destroy( Alloc& a, TT* p ) {
+
+	}
+
+	static constexpr size_type max_size( const Alloc& a ) noexcept {
+		return std::numeric_limits<size_t>::max();
+	}
+
+	static constexpr Alloc select_on_container_copy_construction( const Alloc& a ) {
+
+	}
+};
+
 
 #endif //CRYPTANALYSISLIB_ALLOC_H

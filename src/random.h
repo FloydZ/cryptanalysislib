@@ -60,6 +60,7 @@ inline static int xorshf96_fastrandombytes_uint64_array(uint64_t *buf, const siz
 	return 0;
 }
 
+/// TODO segfault in release mode
 static inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
 	return xorshf96();
 	//constexpr uint32_t UINT64_POOL_SIZE = 512;    // page should be 512 * 8 Byte
@@ -152,7 +153,7 @@ static inline T fastrandombits() noexcept {
 
 #ifdef USE_AVX2
 #include <immintrin.h>
-///
+/// TODO segfault in release mode
 /// \return
 static __m256i fastrandombytes_m256i() noexcept {
 	__m256i data;

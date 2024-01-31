@@ -24,9 +24,6 @@ namespace cryptanalysislib {
 	constexpr config_array std_config_array = config_array();
 
 
-	/// TODO steal: page_vector from:https://github.com/codecryptanalysis/mccl/blob/main/mccl/core/collection.hpp
-	///   wird wohl zeit fuer einE zweite implementierung: die also
-	///   und in vector
 	/// \tparam T
 	/// \tparam N
 	/// \tparam config

@@ -307,6 +307,76 @@ public:
 	}
 };
 
+template<const uint32_t n, const uint32_t p>
+void next3(uint32_t *c1, uint32_t *c2) {
+	static_assert(n > p);
+	static_assert(p > 0);
+
+	static bool jumps[p] = {false};
+	// last_pos[0] = slow ctr
+	// last_pos[1] = middle ctr
+	static uint32_t last_pos[p] = {0};
+	static uint32_t cp = 1;
+
+	/// jump the middle/fast ctr back to the slow
+	for (uint32_t i = 0; i < p; i++) {
+		if (jumps[i]) {
+			*c1 = n - 1u;
+			*c2 = last_pos[cp] + 1u;
+			jumps[i] = false;
+			return;
+		}
+	}
+
+	/// step with slow/middle ctr
+	for (int32_t i = (p-1); i >= 0; i--) {
+		if (*c2 == (n - 1u)) {
+			*c1 = last_pos[cp];
+			*c2 = last_pos[cp] + 1u;
+			last_pos[cp] += 1;
+
+			jumps[cp] = true;
+			cp -= 1u * (last_pos[cp] == (n - 1u - cp));
+			return;
+		}
+	}
+
+
+	*c1 = *c2;
+	*c2 += 1u;
+	return;
+}
+
+// only generated the change list
+//https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIM9KuADJ4DJgAcj4ARpjEIADMAOykAA6oCoRODB7evv7SaRmOAiFhkSwxcUm2mPbFDEIETMQEOT5%2BATV1WY3NBKUR0bEJyQpNLW15nWN9A%2BWVIwCUtqhexMjsHObxocjeWADUJvFuyGP4gsfYJhoAgje3BJgsKQZPx6cCYwdeoQTxZgA%2BgQDgxSAc0Axvr9BADgQcUlcHn9QZhVAQzBAYf8gSCAFTILjg7Fw/HIMyLI6JKx3G4AThmjmQByiqE8B20PhSR3iABEDlQxEpjjT7hoGU0mT8/qSDgYxoDCjz%2BRoRQ91eKAPTajlcg4EBCYAVMb4OYgspjIADW%2BtQ%2BsNBwUtFQAHcNXS8FQDhBOS9KSZqe76QSuMrQQcALQHLheNW08XB8lh%2BUERXpI6WaOx%2BKi%2Bn033c478wW0YU5oPi4iYAhrBjRuNiukB3kaxvazWOp7cl2EBD2o1O10QgjEd2e70EszKovehgRmOLf2B%2BNN8Uh5Mm1OFBt5tdJmcptMKDMWLM7hPiw9K6wzrjnxv5vUzkdeTDn1d0qs14h1u/llfNq29LtgcaKEBCAj4PU7rauOEDrkWM4QHOC4HEuuZapq9JfrWByqv%2BbZYYkLbxo2CF8gck7vpOJ63tmGGftWuF/rmxGtiiTxjBAkLfCiUQGOh7o8U8qgpOaKIMHWt4aPhDHCWiYkHCihYUWY94PAcmlKYIw7mjOsnuiSuIIqG%2BngikU63u%2B6B2gGDH0mE6JqScknmVcEDmAAbCkRIZt5FINlpQW6bRFEsUGxEHC6CB0Ea3EjjybgzvxTCLIFWk4T%2BJkngizmsbyHDLLQnAAKy8H4HBaKQqCcElljWI6qzrEa2w8KQBCaIVyxWiAJUaPonCSOVnXVZwvAKCA/UdZVhWkHAsBIGgLyxWQFDcagy30HEwBcACfB0E8xATRAUQjVEoTNAAnpwbXncwxCXQA8lE2iYA4N28EtbCCI9DC0NdM2kFgUReMAbhiKWH1A88hjAOIgP4FWDh4AAbpgE2A2ib1eE8UN/LUI20HgUTEFdHhYCNI54CwH3LFQBjAAoABqeCYC6j0pIwUP8IIIhiOwUgyIIigqOogO6ESBhGCgN6WPoxMTZAyyoCk9QYxGj3xJGLBMCjqja7rqhTrwqBo8QxB4FgisQMsdhvfULgMO4njtHowShIMFTDEShSZAIkx%2BD76R%2BwwcxDHERJ28jAi9BMLt5JHtT2z04z9B78ze7YqcB3oMwtGHXsR7bTUbBIRWlcNgM1RwByqAAHJ5EaeZIBzAMgzK7QAdFOEC4IQJAZvEXCLLw01aIupA9X1A0cENpAVVV1fjZN7WdRPxUcGYleL2Nq8zRPZsZM4khAA
+template<const uint32_t n, const uint32_t p>
+void next2(uint32_t *c1, uint32_t *c2) {
+	static bool jump = false;
+	static uint32_t last_pos = 0;
+
+	/// jump the fast ctr back to the slow
+	if (jump) {
+		*c1 = n - 1u;
+		*c2 = last_pos + 1u;
+		jump = false;
+		return;
+	}
+
+	/// step with the slow ctr
+	if (*c2 == (n-1u)) {
+		*c1 = last_pos;
+		*c2 = last_pos + 1u;
+		last_pos += 1;
+
+		jump = true;
+		return;
+	}
+
+
+	*c1 = *c2;
+	*c2 += 1u;
+	return;
+}
 
 
 #endif//CRYPTANALYSISLIB_CHASE_H
