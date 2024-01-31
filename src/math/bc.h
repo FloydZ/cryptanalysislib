@@ -227,8 +227,7 @@ inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
 		const uint32x8_t t2i = t1i + onei;
 		const f32x8_t  t2f = f32x8_t(t2i);
 		const f32x8_t  t3f = f32x8_t::sqrt(t2f);
-		uint32x8_t t3i;
-		t3i = f32x8_t::uint32x8(f32x8_t::floor(t3f));
+		const uint32x8_t t3i = f32x8_t::uint32x8(f32x8_t::floor(t3f));
 		const uint32x8_t t4i = t3i + onei;
 		const uint32x8_t t5i = uint32x8_t::srli(t4i, 1);
 		return t5i;
@@ -257,6 +256,8 @@ inline void biject_simd(uint32x8_t a, uint32x8_t rows[p]) noexcept {
 	}
 
 	if constexpr (p == 2) {
+		//biject_avx<n, p>(a.v256, (__m256i *)rows);
+
 		// w == 2
 		wn = opt_max_bc_simd<size_t, 2>(a, wn);
 

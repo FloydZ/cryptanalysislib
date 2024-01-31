@@ -131,6 +131,10 @@ public:
 	/// e.g. one big string, without any `\n\0`
 	/// \param data input data
 	constexpr FqMatrix_Meta(const char* data, const uint32_t cols=ncols) noexcept {
+		from_string(data, cols);
+	}
+
+	constexpr void from_string(const char* data, const uint32_t cols=ncols) noexcept {
 		clear();
 
 		char input[2] = {0};
@@ -518,6 +522,7 @@ public:
 		return row;
 	}
 
+	/// TODO accept Permutation for Fq case
 	/// \param permutation	currently column permutation of the input matrix. Its needed because we might rearrange
 	///						columns to further execute the gaussian elimination
 	/// \param rang			current rang of the matrix.

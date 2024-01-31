@@ -1035,12 +1035,12 @@ struct uint32x8_t {
 	                                            const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint32x8_t out;
-		uint32x8_t mask = set1((1u << in2) - 1u);
-		out = uint32x8_t::and_(in1, mask);
+		//uint32x8_t mask = set1((1u << in2) - 1u);
+		//out = uint32x8_t::and_(in1, mask);
 #ifndef __clang__
-		out.v256 = (__m256i)__builtin_ia32_psllwi256 ((__v16hi)out.v256, in2);
+		out.v256 = (__m256i)__builtin_ia32_psllwi256 ((__v16hi)in1.v256, in2);
 #else
-		out.v256 = _mm256_slli_epi32(out.v256, in2);
+		out.v256 = _mm256_slli_epi32(in1.v256, in2);
 #endif
 		return out;
 	}
@@ -1052,13 +1052,13 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t srli(const uint32x8_t in1,
 	                                            const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
-		const uint32x8_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
+		//const uint32x8_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
 		uint32x8_t out;
-		out = uint32x8_t::and_(in1, mask);
+		//out = uint32x8_t::and_(in1, mask);
 #ifndef __clang__
-  		out.v256 = (__m256i)__builtin_ia32_psrldi256 ((__v8si)out.v256, in2);
+  		out.v256 = (__m256i)__builtin_ia32_psrldi256 ((__v8si)in1.v256, in2);
 #else
-		out.v256 = _mm256_srli_epi32(out.v256, in2);
+		out.v256 = _mm256_srli_epi32(in1.v256, in2);
 #endif
 		return out;
 	}

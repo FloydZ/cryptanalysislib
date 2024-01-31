@@ -22,7 +22,7 @@ struct f32x8_t {
 		}
 	}
 
-	constexpr f32x8_t(const uint32x8_t in) {
+	constexpr inline f32x8_t(const uint32x8_t in) noexcept {
 		v = _mm256_cvtepi32_ps(in.v256);
 	}
 
