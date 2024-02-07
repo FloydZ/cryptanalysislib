@@ -1,9 +1,9 @@
 #ifndef PRIMITIVES_H
 #define PRIMITIVES_H
 
-#include <stdint.h>
+#include <cstdint>
+#include <memory>
 
-#if defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ > 7
 /**
  * An atomic fetch-and-add.
  */
@@ -68,84 +68,8 @@
  */
 #define ACQUIRE(ptr) __atomic_load_n(ptr, __ATOMIC_ACQUIRE)
 
-#else /** Non-GCC or old GCC. */
-#if defined(__x86_64__) || defined(_M_X64_)
-
-#define FAA __sync_fetch_and_add
-#define FAAcs __sync_fetch_and_add
-
-static inline int _compare_and_swap(void ** ptr, void ** expected, void * desired) {
-  void * oldval = *expected;
-  void * newval = __sync_val_compare_and_swap(ptr, oldval, desired);
-
-  if (newval == oldval) {
-    return 1;
-  } else {
-    *expected = newval;
-    return 0;
-  }
-}
-#define CAS(ptr, expected, desired) \
-  _compare_and_swap((void **) (ptr), (void **) (expected), (void *) (desired))
-#define CAScs CAS
-#define CASra CAS
-#define CASa  CAS
-
-#define SWAP __sync_lock_test_and_set
-#define SWAPra SWAP
-
-#define ACQUIRE(p) ({ \
-  __typeof__(*(p)) __ret = *p; \
-  __asm__("":::"memory"); \
-  __ret; \
-})
-
-#define RELEASE(p, v) do {\
-  __asm__("":::"memory"); \
-  *p = v; \
-} while (0)
-#define FENCE() __sync_synchronize()
-
-#endif
-#endif
-
-#if defined(__x86_64__) || defined(_M_X64_)
-#define PAUSE() __asm__ ("pause")
-
-static inline
-int _CAS2(volatile uint64_t *ptr, uint64_t *cmp1, uint64_t *cmp2, uint64_t val1, uint64_t val2) {
-  char success;
-  long tmp1 = *cmp1;
-  long tmp2 = *cmp2;
-
-  __asm__ __volatile__(
-      "lock cmpxchg16b %1\n"
-      "setz %0"
-      : "=q" (success), "+m" (*ptr), "+a" (tmp1), "+d" (tmp2)
-      : "b" (val1), "c" (val2)
-      : "cc" );
-
-  *cmp1 = tmp1;
-  *cmp2 = tmp2;
-  return success;
-}
-#define CAS2(p, o1, o2, n1, n2) \
-  _CAS2((volatile long *) p, (long *) o1, (long *) o2, (long) n1, (long) n2)
-
-#define BTAS(ptr, bit) ({ \
-  char __ret; \
-  __asm__ __volatile__( \
-      "lock btsq %2, %0; setnc %1" \
-      : "+m" (*ptr), "=r" (__ret) : "ri" (bit) : "cc" ); \
-  __ret; \
-})
-
-#else
-#define PAUSE()
-#endif
-
-
-inline void cmov(const uint64_t a, const uint64_t b) noexcept {
+// TODO
+inline void cmov(uint64_t a, const uint64_t b) noexcept {
 	asm volatile (
 			"cmova %0 %1\n\t"
 			: "=r" (a)
@@ -153,6 +77,31 @@ inline void cmov(const uint64_t a, const uint64_t b) noexcept {
 	);
 }
 
+struct one_byte_mutex {
+	inline void lock() noexcept {
+		if (state.exchange(locked, std::memory_order_acquire) == unlocked) {
+			return;
+		}
 
+		while (state.exchange(sleeper, std::memory_order_acquire) != unlocked) {
+			// C++ wait 
+			state.wait(sleeper, std::memory_order_relaxed);
+		}
+	}
+	
+	///
+	inline void unlock() noexcept {
+		if (state.exchange(unlocked, std::memory_order_release) == sleeper) {
+			state.notify_one();
+		}
+	}
+
+private:
+	std::atomic<uint8_t> state{ unlocked };
+
+	static constexpr uint8_t unlocked = 0;
+	static constexpr uint8_t locked  = 0b01;
+	static constexpr uint8_t sleeper = 0b10;
+};
 #endif
 

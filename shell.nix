@@ -6,6 +6,7 @@ stdenv.mkDerivation {
   src = ./.;
 
   buildInputs = [ 
+    cmake
   	git 
 	libtool 
 	autoconf 

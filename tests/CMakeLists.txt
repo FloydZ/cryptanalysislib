@@ -10,6 +10,7 @@ foreach(testfile ${TEST_SOURCES})
 endforeach(testfile ${TEST_SOURCES})
 
 add_subdirectory(alloc)
+add_subdirectory(atomic)
 add_subdirectory(binary)
 add_subdirectory(container)
 add_subdirectory(crypto)

@@ -104,4 +104,5 @@ explain:
 - matrix
 - triple
 - hashmap
-
+- mccd mem tracker
+- mccl: hashmap neu streiben ohne load factor, indem die hash funk ein rotate einbaut
