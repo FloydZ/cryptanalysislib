@@ -39,7 +39,7 @@ template<
         typename keyType,
         typename valueType,
 		const SimpleHashMapConfig &config,
-		size_t (* HashFkt)(const keyType)>
+        class Hash>
 class SimpleHashMap {
 	using data_type          = valueType;
 	using index_type         = size_t;
@@ -76,7 +76,7 @@ public:
 	/// \param value element to insert
 	/// \param tid (ignored) can be anything
 	/// \return
-	constexpr void insert(const keyType &e,
+	constexpr inline void insert(const keyType &e,
 						  const valueType value,
 						  const uint32_t tid) noexcept {
 		(void)tid;
@@ -88,9 +88,8 @@ public:
 	/// NOTE: Boundary checks are performed in debug mode.
 	/// \param e element to insert
 	/// \return nothing
-	constexpr void insert(const keyType &e, const valueType value) noexcept {
-		// hash down the element to the index
-		const size_t index = HashFkt(e);
+	constexpr inline void insert(const keyType &e, const valueType value) noexcept {
+		const size_t index = hash(e);
 		ASSERT(index < nrbuckets);
 
 
@@ -130,25 +129,39 @@ public:
 
 	}
 
+	constexpr inline valueType* ptr() noexcept {
+		return __internal_hashmap_array;
+	}
+
+	constexpr inline valueType ptr(const load_type i) noexcept {
+		ASSERT(i < total_size);
+		return __internal_hashmap_array[i];
+	}
+
 	/// Quite same to `probe` but instead it will directly return
 	/// the position of the element.
 	/// \param e Element to hash down.
 	/// \return the position within the internal const_array of `e`
-	constexpr index_type find(const keyType &e) const noexcept {
-		const index_type index = HashFkt(e);
+	constexpr inline index_type find(const keyType &e) const noexcept {
+		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
 		return index*nrbuckets;
 	}
 
-	constexpr index_type find(const keyType &e, index_type &__load) const noexcept {
-		const index_type index = HashFkt(e);
+	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
+		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
 		__load = __internal_load_array[index];
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
 		return index*nrbuckets;
+	}
+
+	/// match the api
+	constexpr inline size_t hash(const keyType &e) const noexcept {
+		return Hash::operator()(e);
 	}
 
 	/// prints the content of each bucket
@@ -162,11 +175,6 @@ public:
 				print(i*bucketsize + j);
 			}
 		}
-	}
-
-	/// match the api
-	constexpr size_t hash(const keyType &e) const noexcept {
-		return HashFkt(e);
 	}
 
 	/// prints a single index
@@ -188,7 +196,7 @@ public:
 	/// \param e bucket/bucket of the element e
 	/// \return the load
 	constexpr index_type load(const keyType &e) const noexcept {
-		const size_t index = HashFkt(e);
+		const size_t index = hash(e);
 		ASSERT(index < nrbuckets);
 		return __internal_load_array[index];
 	}

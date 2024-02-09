@@ -1241,7 +1241,7 @@ public:
 		using Key 	= LabelType;
 		using Value = LogTypeTemplate<h-l>;
 		constexpr static SimpleHashMapConfig s = SimpleHashMapConfig{bucketsize, 1u << (h - l), threads};
-		using HM = SimpleHashMap<Key, Value, s, &extractor<l, h>>;
+		using HM = SimpleHashMap<Key, Value, s, HashD<LabelType, l, h>>;
 		HM *hm = new HM{};
 		hm->info();
 
@@ -1349,7 +1349,7 @@ public:
 			};
 			using HMNextOut = SimpleHashMap<
 			    __Key, ValueNextOut, sNextOut,
-			    &extractor<g_lower, g_upper>
+			        HashD<LabelType, g_lower, g_upper>
 			>;
 
 			// only allocate the next hashmap if its not for the final list
@@ -1381,7 +1381,7 @@ public:
 		using ValueIn 	= __Value[1];
 		using HMIn 		= SimpleHashMap<
 		    __Key, ValueIn, sIn,
-		    &extractor<g_lower, g_upper>
+			HashD<LabelType, g_lower, g_upper>
 		>;
 		HMIn *hm = new HMIn{};
 
@@ -1406,7 +1406,7 @@ public:
 		using ValueOut 	= __Value[2];
 		using HMOut = SimpleHashMap<
 		    __Key, ValueOut, sOut,
-		    &extractor<g_lower, g_upper>
+			HashD<LabelType, g_lower, g_upper>
 		>;
 		HMOut *hmout = new HMOut{};
 

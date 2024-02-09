@@ -50,7 +50,7 @@ public:
 	typedef size_t 		IndexType;
 
 	// size per bucket
-	constexpr static size_t bucketsize = (64u/sizeof(T));
+	constexpr static size_t bucketsize = (64u/sizeof(valueType));
 	constexpr static size_t internal_bucketsize = bucketsize - 1u;
 
 	// number of buckets
@@ -95,25 +95,24 @@ public:
 
 		size_t load;
 		if constexpr (multithreaded) {
-			load = FAA(__array + index*bucketsize + internal_bucketsize, 1);
+			load = FAA(__array.data() + index*bucketsize + internal_bucketsize, 1);
 
 			// early exit and reset
-			if (load >= bucketsize) {
-				/// NOTE maybe overkill. Is it possible without the atomic store?
-				return ;
+			if (load >= internal_bucketsize) {
+				return;
 			}
 		} else {
 			load = __array[index*bucketsize + internal_bucketsize];
 
 			// early exit, if it's already full
-			if (load == bucketsize) {
+			if (load == internal_bucketsize) {
 				return ;
 			}
 		}
 
 
 		// just some debugging checks
-		ASSERT(load < bucketsize);
+		ASSERT(load < internal_bucketsize);
 		if constexpr (! multithreaded) {
 			__array[index*bucketsize + internal_bucketsize] += 1;
 		}
@@ -126,6 +125,15 @@ public:
 			__array[index*bucketsize + load] = value;
 		}
 
+	}
+
+	constexpr inline valueType* ptr() noexcept {
+		return __array;
+	}
+
+	constexpr inline valueType ptr(const load_type i) noexcept {
+		ASSERT(i < total_size);
+		return __array[i];
 	}
 
 	/// Quite same to `probe` but instead it will directly return
@@ -151,7 +159,7 @@ public:
 	
 	/// match the api
 	constexpr inline size_t hash(const keyType &e) const noexcept {
-		return Hash(e);
+		return Hash::operator()(e);
 	}
 
 	/// prints the content of each bucket
@@ -179,7 +187,9 @@ public:
 	/// overwrites the internal data const_array
 	/// with zero initialized elements.
 	constexpr inline void clear() noexcept {
-		// empty function
+		for (size_t i = 0; i < nrbuckets; i++) {
+			__array[i*bucketsize + internal_bucketsize] = 0;
+		}
 	}
 
 	/// returns the load of the bucket, where the given element would hashed into
