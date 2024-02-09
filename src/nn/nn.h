@@ -1,5 +1,5 @@
-#ifndef SMALLSECRETLWE_NN_H
-#define SMALLSECRETLWE_NN_H
+#ifndef CRYPTANALYSISLIB_NN_H
+#define CRYPTANALYSISLIB_NN_H
 
 #include <cstdint>
 #include <cstdlib>
