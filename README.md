@@ -106,3 +106,6 @@ explain:
 - hashmap
 - mccd mem tracker
 - mccl: hashmap neu streiben ohne load factor, indem die hash funk ein rotate einbaut
+- matrix: more tests via constexpr loops
+- binary_matrix aufräumen
+- reduce all matrix multiplication algorithm into a single one.

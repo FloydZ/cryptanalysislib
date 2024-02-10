@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_BINARYMATRIX_H
 
 #include <algorithm>
+#include <iomanip>
 #include <type_traits>
 #include <utility>
 #include <array>
@@ -24,6 +25,7 @@ template<typename T, const uint32_t __nrows, const uint32_t __ncols>
 class FqMatrix<T, __nrows, __ncols, 2, true>: private FqMatrix_Meta<T, __nrows, __ncols, 2, true> {
 public:
 	using RowT = BinaryContainer<__ncols, T>;
+	using MatrixType = FqMatrix<T, __nrows, __ncols, 2, true>;
 
 	constexpr static uint32_t RADIX = sizeof(T) * 8u;
 	constexpr static uint32_t MAX_K = 8ul;
@@ -131,7 +133,6 @@ public:
 		}
 	}
 
-
 	///
 	/// \param nr_columns
 	/// \return
@@ -151,6 +152,7 @@ public:
 	std::array<T, block_words> __data;
 	/// that's only because I'm lazy
 	static constexpr uint32_t q = 2;
+	static constexpr bool packed = true;
 
 	/// needed typedefs
 	using RowType = T*;
@@ -277,10 +279,13 @@ public:
 
 	/// clears the matrix
 	/// \return
-	constexpr void zero() noexcept {
-		clear();
+	constexpr void zero() noexcept { clear(); }
+	constexpr void zero_row(const uint32_t row) noexcept {
+		ASSERT(row < nrows);
+		for (uint32_t i = 0; i < padded_limbs; ++i) {
+			__data[row*padded_limbs + i] = 0;
+		}
 	}
-
 	/// generates a fully random matrix
 	constexpr void random() noexcept {
 		clear();
@@ -1521,7 +1526,7 @@ public:
 		}
 	}
 
-	constexpr FqMatrix<T, ncols, nrows, q, true> transpose (){
+	constexpr FqMatrix<T, ncols, nrows, q, true> transpose() const noexcept {
 		FqMatrix<T, ncols, nrows, q, true> ret;
 		transpose(ret, *this);
 		return ret;
@@ -2191,7 +2196,7 @@ public:
 		for (uint32_t i = 0; i < c; ++i) {
 			/// NOTE: this is a dirty hack, we append the syndrome,
 			/// hence the -1
-			/// MABYE fix thsi
+			/// MABYE fix this
 			perm[i] = fastrandombytes_uint64() % (ncols - 1u);
 		}
 
@@ -2303,6 +2308,26 @@ public:
 	constexpr inline uint32_t m4ri(const uint32_t stop=nrows) noexcept {
 		return matrix_echelonize_partial(*this, stop, 0);
 	}
+
+	/// creates a random row with weight w
+	constexpr inline void random_row_with_weight(const uint32_t row, const uint32_t w) {
+		ASSERT(row < nrows);
+
+		zero_row(row);
+
+		for (uint64_t i = 0; i < w; ++i) {
+			set(true, row, i);
+		}
+
+		// now permute
+		for (uint64_t i = 0; i < ncols; ++i) {
+			uint64_t pos = fastrandombytes_uint64() % (ncols - i);
+			bool t = get(row, i);
+			set(get(row, i+pos), row, i);
+			set(t, row, i+pos);
+		}
+	}
+
 	///
 	/// \param permutation
 	/// \param rang
@@ -2317,12 +2342,58 @@ public:
 
 	}
 
-	constexpr void matrix_vector_mul(const FqMatrix<T, 1, ncols, q> &v) noexcept {
-		(void)v;
-		/// TODO
+	/// compute C = this*B
+	template<const uint32_t ncols_prime>
+	constexpr static void mul(
+	        FqMatrix<T, nrows, ncols_prime, q, packed> &C,
+			const FqMatrix<T, nrows, ncols, q, packed> &A,
+	        const FqMatrix<T, ncols, ncols_prime, q, packed> &B) noexcept {
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols_prime; ++j) {
+				uint64_t sum = 0;
+				for (uint32_t k = 0; k < ncols; ++k) {
+					uint32_t a = A.get(i, k);
+					uint32_t b = B.get(k, j);
+					uint32_t c = a&b;
+					sum ^= c;
+				}
+
+				C.set(sum, i, j);
+			}
+		}
+	}
+
+	/// allows for transposed input
+	template<const uint32_t ncols_prime>
+	constexpr static void mul(
+			FqMatrix<T, nrows, ncols_prime, q, packed> &C,
+			const FqMatrix<T, nrows, ncols, q, packed> &A,
+			const FqMatrix<T, ncols_prime, ncols, q, packed> &B) noexcept {
+		MatrixType::template mul<ncols_prime>(C, A, B.transpose());
+	}
+
+	/// ret = this * B
+	template<const uint32_t ncols_prime>
+	constexpr const FqMatrix<T, nrows, ncols_prime, q, packed> mul(
+			  const FqMatrix<T, ncols, ncols_prime, q, packed> &B) const noexcept {
+		FqMatrix<T, nrows, ncols_prime, q, packed> ret;
+		MatrixType::template mul<ncols_prime>(ret, *this, B);
+		return ret;
+	}
+
+	/// same as above but allows B to be transposed
+	template<const uint32_t ncols_prime>
+	constexpr const FqMatrix<T, nrows, ncols_prime, q, packed> mul(
+			  const FqMatrix<T, ncols_prime, ncols, q, packed> &B) const noexcept {
+		FqMatrix<T, nrows, ncols_prime, q, packed> ret;
+		const auto BT = B.transpose();
+		MatrixType::template mul<ncols_prime>(ret, *this, BT);
+		return ret;
 	}
 
 
+	/// TODO simplify and rename to just `mul`
 	/// special version of the row_vector multiplication
 	/// in which the input/output are not matrices but
 	/// vectors.
@@ -2363,6 +2434,8 @@ public:
 						 			   const uint32_t end_row=-1u,
 						 			   const uint32_t start_col=-1u,
 						 			   const uint32_t end_col=-1u) noexcept {
+
+		const bool print_row_number = false;
 		const uint32_t sstart_row = start_row == -1u ? 0 : start_row;
 		const uint32_t eend_row = end_row == -1u ? A.nrows : end_row;
 
@@ -2371,8 +2444,12 @@ public:
 
 		std::cout << name << "\n" << std::endl;
 		for (uint32_t i = sstart_row; i < eend_row; ++i) {
-			//std::cout << std::setw(4) << i << ": [";
-			std::cout << "[";
+			if (print_row_number) {
+				std::cout << std::setw(4) << i << ": [";
+			} else {
+				std::cout << "[";
+			}
+
 			for (uint32_t j = sstart_col; j < eend_col; ++j) {
 				if (A.get(i, j)) {
 					std::cout << "1";

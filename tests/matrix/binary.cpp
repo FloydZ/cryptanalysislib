@@ -235,7 +235,7 @@ TEST(BinaryMatrix, markov_gaus) {
 	while (true) {
 		m.random();
 		rank = m.gaus(nrows-l);
-		rank = m.fix_gaus(P.values, rank, nrows-l);
+		rank = m.fix_gaus(P, rank, nrows-l);
 		ASSERT_GT(rank, 0);
 
 		if (rank >= nrows - l) { break; }
@@ -249,7 +249,7 @@ TEST(BinaryMatrix, markov_gaus) {
 			while (true) {
 				m.random();
 				rank = m.gaus(nrows-l);
-				rank = m.fix_gaus(P.values, rank, nrows-l);
+				rank = m.fix_gaus(P, rank, nrows-l);
 				ASSERT_GT(rank, 0);
 
 				if (rank >= nrows - l) { break; }
@@ -273,14 +273,11 @@ TEST(BinaryMatrix, fixgaus) {
 	M m = M{};
 	m.random();
 
-	uint32_t perm[ncols]= {0};
-	for (uint32_t i = 0; i < ncols; ++i) {
-		perm[i] = i;
-	}
+	Permutation P(ncols);
 
 	const uint32_t rank = m.gaus();
 	m.print();
-	const uint32_t rank2 = m.fix_gaus(perm, rank, nrows);
+	const uint32_t rank2 = m.fix_gaus(P, rank, nrows);
 	ASSERT_GT(rank, 0);
 	ASSERT_GE(rank2, rank);
 	ASSERT_EQ(rank2, nrows);
@@ -302,14 +299,11 @@ TEST(BinaryMatrix, fixgaus) {
 TEST(BinaryMatrix, permute) {
 	M m = M{};
 	MT mt = MT{};
-	uint32_t perms[ncols];
-	for (uint32_t i = 0; i < ncols; ++i) {
-		perms[i] = i;
-	}
+	Permutation P(ncols);
 
 	m.identity();
 	mt.identity();
-	m.permute_cols(mt, perms, ncols);
+	m.permute_cols(mt, P);
 
 	// m.print();
 	// mt.print();

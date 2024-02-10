@@ -1243,7 +1243,7 @@ public:
 		constexpr static SimpleHashMapConfig s = SimpleHashMapConfig{bucketsize, 1u << (h - l), threads};
 		using HM = SimpleHashMap<Key, Value, s, HashD<LabelType, l, h>>;
 		HM *hm = new HM{};
-		hm->info();
+		hm->print();
 
 		#pragma omp parallel default(none) shared(out, in1, in2, hm) num_threads(threads)
 		{

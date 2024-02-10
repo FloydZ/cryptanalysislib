@@ -46,6 +46,7 @@ class SimpleHashMap {
 
 public:
 	typedef keyType 	T;
+	Hash hashclass = Hash{};
 
 	// TODO make sure that is general enough
 	typedef size_t 		LoadType;
@@ -133,9 +134,14 @@ public:
 		return __internal_hashmap_array;
 	}
 
-	constexpr inline valueType ptr(const load_type i) noexcept {
+	using inner_data_type = std::remove_all_extents<data_type>::type;
+	constexpr inline inner_data_type ptr(const load_type i) noexcept {
 		ASSERT(i < total_size);
-		return __internal_hashmap_array[i];
+		if constexpr (std::is_bounded_array_v<data_type>) {
+			return (inner_data_type)__internal_hashmap_array[i];
+		} else {
+			return (valueType)__internal_hashmap_array[i];
+		}
 	}
 
 	/// Quite same to `probe` but instead it will directly return
@@ -150,6 +156,7 @@ public:
 		return index*nrbuckets;
 	}
 
+
 	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
 		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
@@ -161,28 +168,7 @@ public:
 
 	/// match the api
 	constexpr inline size_t hash(const keyType &e) const noexcept {
-		return Hash::operator()(e);
-	}
-
-	/// prints the content of each bucket
-	/// it with one thread.
-	/// \return nothing
-	constexpr void print() const noexcept {
-		for (index_type i = 0; i < nrbuckets; i++) {
-			std::cout << "Bucket: " << i << ", load: " << size_t(__internal_load_array[i]) << "\n";
-
-			for (index_type j = 0; j < bucketsize; j++) {
-				print(i*bucketsize + j);
-			}
-		}
-	}
-
-	/// prints a single index
-	/// \param index the element to print
-	/// \return nothing
-	constexpr void print(const size_t index) const noexcept {
-		ASSERT(index < total_size);
-		printf("%d\n", __internal_hashmap_array[index]);
+		return hashclass(e);
 	}
 
 	/// NOTE: can be called with only a single thread
@@ -213,11 +199,13 @@ public:
 	}
 
 	/// prints some basic information about the hashmap
-	constexpr void info() const noexcept {
+	constexpr void print() const noexcept {
 		std::cout << "total_size:" << total_size
 				  << ", total_size_byts:" << sizeof(__internal_hashmap_array) + sizeof(__internal_load_array)
 		          << ", nrbuckets:" << nrbuckets
 				  << ", bucketsize:" << bucketsize
+				  << ", sizeof(keyType): " << sizeof(keyType)
+				  << ", sizeof(valueType): " << sizeof(valueType)
 				  << ", multithreaded: " << multithreaded;
 
 		if constexpr (multithreaded) {

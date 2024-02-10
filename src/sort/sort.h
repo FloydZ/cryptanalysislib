@@ -2,12 +2,8 @@
 #define SMALLSECRETLWE_METASORT_H
 
 #include "common.h"
-#include "crumsort.h"
-#include "quadsort.h"
 #include "ska_sort.h"
-#include "crumsort.h"
 #include "robinhoodsort.h"
-#include "quadsort.h"
 #include "vergesort.h"
 #include "vv_radixsort.h"
 

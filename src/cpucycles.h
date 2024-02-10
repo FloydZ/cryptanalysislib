@@ -1,6 +1,8 @@
 #ifndef DECODING_CPUCYCLES_H
 #define DECODING_CPUCYCLES_H
 
+#include <stdio.h>
+
 #if defined(USE_ARM)
 long long cpucycles(void) {
 	unsigned long long result;

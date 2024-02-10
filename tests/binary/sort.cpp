@@ -50,7 +50,7 @@ static uint64_t HashSearch(uint64_t a) {
 }
 
 template<const uint32_t l, const uint32_t h>
-static uint64_t Hash(uint64_t a) {
+static uint64_t Hash2(uint64_t a) {
 	return HashSearch<l, h>(a) >> l;
 }
 
@@ -75,7 +75,7 @@ constexpr static ConfigParallelBucketSort chm2{b0, b1-5, b2, size_bucket, uint64
 
 #ifdef USE_OMP
 TEST(ParallelBucketSort, first) {
-	using HM1Type = ParallelBucketSort<chm1, BinaryList2, LPartType, IndexType, &Hash<0, 0+number_bucket>>;
+	using HM1Type = ParallelBucketSort<chm1, BinaryList2, LPartType, IndexType, &Hash2<0, 0+number_bucket>>;
 	auto *hm = new HM1Type();
 	using Extractor = WindowExtractor<BinaryLabel, LPartType>;
 	auto extractor = [](const BinaryLabel &label1) -> LPartType {
@@ -122,7 +122,7 @@ TEST(ParallelBucketSort, first) {
 }
 
 TEST(ParallelBucketSort, need2sort) {
-	using HM1Type = ParallelBucketSort<chm2, BinaryList2, LPartType, IndexType, &Hash<0, 0+number_bucket>>;
+	using HM1Type = ParallelBucketSort<chm2, BinaryList2, LPartType, IndexType, &Hash2<0, 0+number_bucket>>;
 	auto *hm = new HM1Type();
 	using Extractor = WindowExtractor<BinaryLabel, LPartType>;
 	auto extractor = [](const BinaryLabel &label1) -> LPartType {

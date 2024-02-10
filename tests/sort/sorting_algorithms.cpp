@@ -21,31 +21,6 @@ T* generate_list(const size_t len) {
 	return array;
 }
 
-TEST(CrumSort, Ints8) {
-	uint8_t *array8 = generate_list<uint8_t>(listsize);
-	crumsort<uint8_t >(array8, listsize, [](const uint8_t *a, const uint8_t *b){
-		return (*a) - (*b);
-	});
-
-    for (size_t i = 0; i < listsize-1; ++i) {
-        ASSERT_LE(array8[i], array8[i+1]);
-    }
-	free(array8);
-}
-
-TEST(QuadSort, Ints8) {
-    uint8_t *array8 = generate_list<uint8_t>(listsize);
-	quadsort<uint8_t>(array8, listsize, [](uint8_t *a, uint8_t *b){
-		return *a < *b;
-	});
-
-	for (size_t i = 0; i < listsize-1; ++i) {
-		ASSERT_GE(array8[i], array8[i+1]);
-	}
-
-	free(array8);
-}
-
 TEST(RobinHoodSort, Ints8) {
     uint8_t *array8 = generate_list<uint8_t>(listsize);
 	rhmergesort<uint8_t>(array8, listsize);

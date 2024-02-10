@@ -49,6 +49,8 @@ public:
 	typedef size_t 		LoadType;
 	typedef size_t 		IndexType;
 
+	Hash hashclass = Hash{};
+
 	// size per bucket
 	constexpr static size_t bucketsize = (64u/sizeof(valueType));
 	constexpr static size_t internal_bucketsize = bucketsize - 1u;
@@ -159,28 +161,9 @@ public:
 	
 	/// match the api
 	constexpr inline size_t hash(const keyType &e) const noexcept {
-		return Hash::operator()(e);
-	}
-
-	/// prints the content of each bucket
-	/// it with one thread.
-	/// \return nothing
-	constexpr inline void print() const noexcept {
-		for (index_type i = 0; i < nrbuckets; i++) {
-			std::cout << "Bucket: " << i << ", load: " << size_t(load(i)) << "\n";
-
-			for (index_type j = 0; j < bucketsize; j++) {
-				print(i*bucketsize + j);
-			}
-		}
-	}
-
-	/// prints a single index
-	/// \param index the element to print
-	/// \return nothing
-	constexpr inline  void print(const size_t index) const noexcept {
-		ASSERT(index < total_size);
-		printf("%d\n", __array[index]);
+		// NOTE: this can be simplified as soon as gcc supports C++23 where 
+		// static operator()() functions are allowed
+		return hashclass(e);
 	}
 
 	/// NOTE: can be called with only a single thread
@@ -213,11 +196,13 @@ public:
 	}
 
 	/// prints some basic information about the hashmap
-	constexpr void info() const noexcept {
+	constexpr void print() const noexcept {
 		std::cout << "total_size:" << total_size
 				  << ", total_size_byts:" << sizeof(__array)
 		          << ", nrbuckets:" << nrbuckets
 				  << ", bucketsize:" << bucketsize
+				  << ", sizeof(keyType): " << sizeof(keyType)
+				  << ", sizeof(valueType): " << sizeof(valueType)
 				  << ", multithreaded: " << multithreaded;
 
 		if constexpr (multithreaded) {

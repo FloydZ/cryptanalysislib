@@ -32,38 +32,6 @@ B63_BASELINE(Std_Sort, nn) {
 	B63_KEEP(data[0].data()[0]);
 }
 
-B63_BENCHMARK(crumsort, nn) {
-	std::vector<T> data;
-	B63_SUSPEND {
-		data.resize(SIZE_LIST);
-		for (size_t i = 0; i < nn; ++i) {
-			data[i].random();
-		}
-	}
-
-	crumsort<T>(data.data(), SIZE_LIST, [](const T *a, const T *b){
-		return a->is_greater<k_lower, k_higher>(*b);
-	});
-
-	B63_KEEP(data[0].data()[0]);
-}
-
-B63_BENCHMARK(quadsort, nn) {
-    std::vector<T> data;
-    B63_SUSPEND {
-        data.resize(SIZE_LIST);
-        for (size_t i = 0; i < nn; ++i) {
-            data[i].random();
-        }
-    }
-
-    quadsort<T>(data.data(), SIZE_LIST, [](const T *a, const T *b){
-        return a->is_greater<k_lower, k_higher>(*b);
-    });
-
-    B63_KEEP(data[0].data()[0]);
-}
-
 B63_BENCHMARK(SKASort, nn) {
 	std::vector<T> data;
 	B63_SUSPEND {

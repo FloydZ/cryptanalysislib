@@ -16,31 +16,39 @@ struct f32x8_t {
 		__m256 v;
 	};
 
-	constexpr f32x8_t() {
+	constexpr inline f32x8_t() noexcept {
 		for (uint32_t i = 0; i < 8u; ++i) {
 			f[i] = 0.f;
 		}
 	}
 
 	constexpr inline f32x8_t(const uint32x8_t in) noexcept {
-		v = _mm256_cvtepi32_ps(in.v256);
+#ifdef __clang__
+  		v = (__m256)__builtin_convertvector((__v8si)in.v256, __v8sf);
+#else
+  		v = (__m256)__builtin_ia32_cvtdq2ps256 ((__v8si) in.v256);
+#endif
 	}
 
-	constexpr static uint32x8_t uint32x8(const f32x8_t in) {
+	constexpr static inline uint32x8_t uint32x8(const f32x8_t in) noexcept {
 		uint32x8_t ret;
-		ret.v256 = _mm256_cvtps_epi32(in.v);
+  		ret.v256 = (__m256i)__builtin_ia32_cvtps2dq256 ((__v8sf) in.v);
 		return ret;
 	}
 
-	constexpr static f32x8_t floor(const f32x8_t in) {
+	constexpr static inline f32x8_t floor(const f32x8_t in) noexcept {
 		f32x8_t ret;
+#ifdef __clang__
 		ret.v = _mm256_floor_ps(in.v);
+#else
+		ret.v = ((__m256) __builtin_ia32_roundps256 ((__v8sf)(__m256)(in.v), (int)(_MM_FROUND_FLOOR)));
+#endif
 		return ret;
 	}
 
-	constexpr static f32x8_t sqrt(const f32x8_t in) {
+	constexpr static inline f32x8_t sqrt(const f32x8_t in) noexcept {
 		f32x8_t ret;
-		ret.v = _mm256_sqrt_ps(in.v);
+  		ret.v = (__m256) __builtin_ia32_sqrtps256 ((__v8sf)in.v);
 		return ret;
 	}
 };
@@ -53,19 +61,19 @@ struct f64x4_t {
 		__m256d v;
 	};
 
-	constexpr f64x4_t() {
+	constexpr inline f64x4_t() noexcept {
 		for (uint32_t i = 0; i < 4u; ++i) {
 			d[i] = 0.;
 		}
 	}
 
-	constexpr f64x4_t(const uint64x4_t in) {
+	constexpr inline f64x4_t(const uint64x4_t in) noexcept {
 		for (uint32_t i = 0; i < 4u; ++i) {
 			d[i] = (double)in.v64[i];
 		}
 	}
 
-	constexpr static uint64x4_t uint64x4(const f64x4_t in) {
+	constexpr static inline uint64x4_t uint64x4(const f64x4_t in) noexcept {
 		uint64x4_t ret;
 		for (uint32_t i = 0; i < 4u; ++i) {
 			ret.v64[i] = std::floor(in.d[i]);
@@ -74,15 +82,20 @@ struct f64x4_t {
 		return ret;
 	}
 
-	constexpr static f64x4_t floor(const f64x4_t in) {
+	constexpr static inline f64x4_t floor(const f64x4_t in) noexcept {
 		f64x4_t ret;
+#ifdef __clang__
 		ret.v = _mm256_floor_pd(in.v);
+#else
+  		ret.v = ((__m256d) __builtin_ia32_roundpd256 ((__v4df)(__m256d)(in.v), (int)(_MM_FROUND_FLOOR)));
+#endif
 		return ret;
 	}
 
-	constexpr static f64x4_t sqrt(const f64x4_t in) {
+	constexpr static inline f64x4_t sqrt(const f64x4_t in) noexcept {
 		f64x4_t ret;
-		ret.v = _mm256_sqrt_pd(in.v);
+
+  		ret.v = (__m256d) __builtin_ia32_sqrtpd256 ((__v4df)in.v);
 		return ret;
 	}
 };
