@@ -69,11 +69,9 @@ jobs:
       run:
         sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
 
-    - name: Run build.sh
-      run: ./build.sh
-      
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
     - name: Bench
       run: cd build && 
         ./bench/container/bench_b63_container_get_bits                -j  | tee benchmark_bench_b63_container_get_bits.json             &&
