@@ -129,13 +129,23 @@ public:
 
 	}
 
+	///
+	/// \return
 	constexpr inline valueType* ptr() noexcept {
 		return __array;
 	}
 
-	constexpr inline valueType ptr(const load_type i) noexcept {
+	///
+	/// \param i
+	/// \return
+	using inner_data_type = std::remove_all_extents<data_type>::type;
+	constexpr inline inner_data_type ptr(const load_type i) noexcept {
 		ASSERT(i < total_size);
-		return __array[i];
+		if constexpr (std::is_bounded_array_v<data_type>) {
+			return (inner_data_type)__array[i];
+		} else {
+			return (valueType)__array[i];
+		}
 	}
 
 	/// Quite same to `probe` but instead it will directly return
@@ -150,15 +160,29 @@ public:
 		return index*nrbuckets;
 	}
 
+	///
+	/// \param e
+	/// \param __load
+	/// \return
 	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
 		const index_type index = HashFkt(e);
 		ASSERT(index < nrbuckets);
 		__load = load(index);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
-		return index*nrbuckets;
+		return index*bucketsize;
 	}
-	
+
+	///
+	/// \param e
+	/// \param __load
+	/// \return
+	constexpr inline index_type find_without_hash(const keyType &e, index_type &__load) const noexcept {
+		ASSERT(e < nrbuckets);
+		__load = load(e);
+		return e*bucketsize;
+	}
+
 	/// match the api
 	constexpr inline size_t hash(const keyType &e) const noexcept {
 		// NOTE: this can be simplified as soon as gcc supports C++23 where 
@@ -173,6 +197,12 @@ public:
 		for (size_t i = 0; i < nrbuckets; i++) {
 			__array[i*bucketsize + internal_bucketsize] = 0;
 		}
+	}
+
+	/// internal function
+	constexpr inline index_type load_without_hash(const keyType &e) const noexcept {
+		ASSERT(e < nrbuckets);
+		return __array[e*bucketsize + internal_bucketsize];
 	}
 
 	/// returns the load of the bucket, where the given element would hashed into

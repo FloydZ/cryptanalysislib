@@ -98,7 +98,7 @@ private:
 
 	/// finds the position of `data` within the linked list
 	/// internal function, dont use it.
-	constexpr inline void pos(const T &data) {
+	inline void pos(const T &data) noexcept {
 		Node *__pred, *__succ, *__curr, *__next;
 		__pred = pred;
 		retry:
@@ -173,12 +173,10 @@ public:
 	}
 
 	///
-	constexpr ~FreeList(){
-
-	}
+	constexpr ~FreeList(){}
 
 	/// return 0 on success, 1 else
-	constexpr inline int insert(const T &data) {
+	inline int insert(const T &data) noexcept {
 		Node *__pred, *__curr, *__node;
 
 		if constexpr (USE_BUFFER) {

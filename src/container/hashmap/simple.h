@@ -11,23 +11,12 @@
 #include "helper.h"
 
 ///
-class SimpleHashMapConfig {
-private:
-	// Disable the simple constructor
-	constexpr SimpleHashMapConfig() : bucketsize(0), nrbuckets(0), threads(1) {};
-
+struct SimpleHashMapConfig {
 public:
+	/// NOTE no constructor as not neded
 	const uint64_t bucketsize;
 	const uint64_t nrbuckets;
 	const uint32_t threads;
-
-	/// only activate the constexpr constructor
-	/// \param bucketsize
-	/// \param nrbuckets
-	constexpr SimpleHashMapConfig(const uint64_t bucketsize,
-	                              const uint64_t nrbuckets,
-	                              const uint32_t threads = 1u) :
-			bucketsize(bucketsize), nrbuckets(nrbuckets), threads(threads) {};
 };
 
 /// NOTE: Only the indices of the list entries can be saved in here.
@@ -130,10 +119,15 @@ public:
 
 	}
 
+	///
+	/// \return
 	constexpr inline valueType* ptr() noexcept {
 		return __internal_hashmap_array;
 	}
 
+	///
+	/// \param i
+	/// \return
 	using inner_data_type = std::remove_all_extents<data_type>::type;
 	constexpr inline inner_data_type ptr(const load_type i) noexcept {
 		ASSERT(i < total_size);
@@ -153,17 +147,30 @@ public:
 		ASSERT(index < nrbuckets);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
-		return index*nrbuckets;
+		return index*bucketsize;
 	}
 
-
+	///
+	/// \param e
+	/// \param __load
+	/// \return
 	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
 		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
 		__load = __internal_load_array[index];
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
-		return index*nrbuckets;
+		return index*bucketsize;
+	}
+
+	///
+	/// \param e
+	/// \param __load
+	/// \return
+	constexpr inline index_type find_without_hash(const keyType &e, index_type &__load) const noexcept {
+		ASSERT(e < nrbuckets);
+		__load = __internal_load_array[e];
+		return e*nrbuckets;
 	}
 
 	/// match the api
@@ -174,14 +181,20 @@ public:
 	/// NOTE: can be called with only a single thread
 	/// overwrites the internal data const_array
 	/// with zero initialized elements.
-	constexpr void clear() noexcept {
+	constexpr inline void clear() noexcept {
 		memset(__internal_load_array, 0, nrbuckets*sizeof(load_type));
+	}
+
+	/// internal function
+	constexpr inline index_type load_without_hash(const keyType &e) const noexcept {
+		ASSERT(e < nrbuckets);
+		return __internal_load_array[e];
 	}
 
 	/// returns the load of the bucket, where the given element would hashed into
 	/// \param e bucket/bucket of the element e
 	/// \return the load
-	constexpr index_type load(const keyType &e) const noexcept {
+	constexpr inline index_type load(const keyType &e) const noexcept {
 		const size_t index = hash(e);
 		ASSERT(index < nrbuckets);
 		return __internal_load_array[index];
@@ -189,7 +202,7 @@ public:
 
 	/// NOTE: only single threaded.
 	/// \return the load, the number of buckets which are not empty
-	constexpr index_type load() const noexcept {
+	constexpr inline index_type load() const noexcept {
 		index_type ret = index_type(0);
 		for (index_type i = 0; i < nrbuckets; i++) {
 			ret +=__internal_load_array[i];

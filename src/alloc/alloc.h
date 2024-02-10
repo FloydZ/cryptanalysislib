@@ -475,7 +475,7 @@ public:
 	typedef size_t size_type;
 
 	[[nodiscard]] static constexpr pointer allocate(allocator_type &a, size_type n){
-		return nullptr;
+		return nullptr; // TODO implement
 	}
 
 	[[nodiscard]] static constexpr pointer allocate(allocator_type &a,
@@ -490,21 +490,21 @@ public:
 	//
 	// }
 
-	static constexpr void deallocate( Alloc& a, pointer p, size_type n ) {
+	static constexpr void deallocate(Alloc& a, pointer p, size_type n) {
 
 	}
 
 	template< class TT, class... Args >
-	static constexpr void construct( Alloc& a, TT* p, Args&&... args ) {
+	static constexpr void construct(Alloc& a, TT* p, Args&&... args) {
 
 	}
 
 	template<class TT>
-	static constexpr void destroy( Alloc& a, TT* p ) {
+	static constexpr void destroy(Alloc& a, TT* p) {
 
 	}
 
-	static constexpr size_type max_size( const Alloc& a ) noexcept {
+	static constexpr size_type max_size(const Alloc& a) noexcept {
 		return std::numeric_limits<size_t>::max();
 	}
 
