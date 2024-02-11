@@ -30,10 +30,10 @@ template<
 		const SimpleHashMapConfig &config,
         class Hash>
 class SimpleHashMap {
+public:
 	using data_type          = valueType;
 	using index_type         = size_t;
 
-public:
 	typedef keyType 	T;
 	Hash hashclass = Hash{};
 
@@ -129,10 +129,10 @@ public:
 	/// \param i
 	/// \return
 	using inner_data_type = std::remove_all_extents<data_type>::type;
-	constexpr inline inner_data_type ptr(const load_type i) noexcept {
+	constexpr inline inner_data_type* ptr(const index_type i) noexcept {
 		ASSERT(i < total_size);
 		if constexpr (std::is_bounded_array_v<data_type>) {
-			return (inner_data_type)__internal_hashmap_array[i];
+			return (inner_data_type *)__internal_hashmap_array[i];
 		} else {
 			return (valueType)__internal_hashmap_array[i];
 		}
@@ -170,7 +170,7 @@ public:
 	constexpr inline index_type find_without_hash(const keyType &e, index_type &__load) const noexcept {
 		ASSERT(e < nrbuckets);
 		__load = __internal_load_array[e];
-		return e*nrbuckets;
+		return e*bucketsize;
 	}
 
 	/// match the api

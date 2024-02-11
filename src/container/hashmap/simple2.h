@@ -139,7 +139,7 @@ public:
 	/// \param i
 	/// \return
 	using inner_data_type = std::remove_all_extents<data_type>::type;
-	constexpr inline inner_data_type ptr(const load_type i) noexcept {
+	constexpr inline inner_data_type ptr(const index_type i) noexcept {
 		ASSERT(i < total_size);
 		if constexpr (std::is_bounded_array_v<data_type>) {
 			return (inner_data_type)__array[i];
