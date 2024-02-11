@@ -1,8 +1,6 @@
 #ifndef CRYPTANALYSISLIB_SIMD_NEON_H
 #define CRYPTANALYSISLIB_SIMD_NEON_H
 
-#include <_types/_uint32_t.h>
-#include <_types/_uint64_t.h>
 #include <arm_neon.h>
 #include <cstdint>
 

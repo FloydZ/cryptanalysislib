@@ -1443,7 +1443,14 @@ bool ska_sort_copy(It begin, It end, OutIt buffer_begin, ExtractKey && key)
         return false;
     }
     else
+	{
+
+#if defined(__clang__) && !defined (__APPLE__)
         return detail::RadixSorter<typename std::result_of<ExtractKey(decltype(*begin))>::type>::sort(begin, end, buffer_begin, key);
+#else 
+        return detail::RadixSorter<typename std::invoke_result<ExtractKey(decltype(*begin))>::type>::sort(begin, end, buffer_begin, key);
+#endif
+	}
 }
 template<typename It, typename OutIt>
 bool ska_sort_copy(It begin, It end, OutIt buffer_begin)
