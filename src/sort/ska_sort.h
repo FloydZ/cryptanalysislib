@@ -1433,7 +1433,7 @@ template<typename It, typename OutIt, typename ExtractKey>
 bool ska_sort_copy(It begin, It end, OutIt buffer_begin, ExtractKey && key)
 {
     std::ptrdiff_t num_elements = end - begin;
-#ifdef __clang__
+#if defined(__clang__) && !defined (__APPLE__)
     if (num_elements < 128 || detail::radix_sort_pass_count<typename std::result_of<ExtractKey(decltype(*begin))>> >= 8)
 #else 
     if (num_elements < 128 || detail::radix_sort_pass_count<typename std::invoke_result<ExtractKey(decltype(*begin))>> >= 8)

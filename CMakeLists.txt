@@ -125,7 +125,7 @@ message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
-IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
+IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") 
 	message(STATUS "ARM CPU detected")
     include_directories(/opt/homebrew/opt/libomp/include)
     include_directories(/opt/homebrew/include)
