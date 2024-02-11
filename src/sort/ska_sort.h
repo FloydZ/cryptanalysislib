@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <tuple>
 #include <utility>
+#include <functional>
 
 namespace detail
 {
