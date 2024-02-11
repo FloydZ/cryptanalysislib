@@ -116,7 +116,6 @@ public:
 		} else {
 			__internal_hashmap_array[index*bucketsize + load] = value;
 		}
-
 	}
 
 	///
@@ -129,7 +128,10 @@ public:
 	/// \param i
 	/// \return
 	using inner_data_type = std::remove_all_extents<data_type>::type;
-	constexpr inline inner_data_type* ptr(const index_type i) noexcept {
+	using ret_type = typename std::conditional<std::is_bounded_array_v<data_type>,
+	                                            inner_data_type*,
+	                                            valueType>::type;
+	constexpr inline ret_type ptr(const index_type i) noexcept {
 		ASSERT(i < total_size);
 		if constexpr (std::is_bounded_array_v<data_type>) {
 			return (inner_data_type *)__internal_hashmap_array[i];

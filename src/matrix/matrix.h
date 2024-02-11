@@ -178,8 +178,11 @@ public:
 		}
 	}
 
+	/// TODO
 	constexpr inline void random_row_with_weight(const uint32_t row, const uint32_t w) {
+		ASSERT(false);	
 	}
+
 	/// sets all entries in a matrix
 	/// \param data value to set all cells to
 	constexpr void set(DataType data) noexcept {
