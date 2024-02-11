@@ -412,10 +412,10 @@ private:
 		std::size_t _alignment = _page_alignment;
 		std::mutex _mutex;
 
-		constexpr _static_helper() noexcept {}
+		_static_helper() noexcept {}
 
 		// free queue at program end
-		constexpr ~_static_helper() noexcept {
+		~_static_helper() noexcept {
 			Blk p;
 			while (_queue.try_pop_front(p)) {
 				allocator.deallocate(p);

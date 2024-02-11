@@ -118,26 +118,6 @@ if(lto_supported)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-# TODO falsche flaggen C anstatt CXX
-#if(CMAKE_BUILD_TYPE MATCHES Release)
-#  set(CMAKE_CX_FLAGS "${CMAKE_C_FLAGS} -mtune=native -O3 -g0")
-#  if(COMPILER_SUPPORTS_MARCH_NATIVE)
-#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-#  endif()
-#elseif(CMAKE_BUILD_TYPE MATCHES MinSizeRel)
-#  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native -Os -g0")
-#  if(COMPILER_SUPPORTS_MARCH_NATIVE)
-#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-#  endif()
-#  if(lto_supported)
-#    message(STATUS "IPO / LTO enabled")
-#    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-#  endif()
-#else() # Debug, RelWithDebInfo, etc
-#  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare")
-#  message(STATUS "Building in Debug mode!")
-#endif()
-
 set(ALLOWED_WARNINGS "  -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
@@ -145,6 +125,7 @@ set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 # for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
+	message(STATUS "ARM CPU detected")
     include_directories(/opt/homebrew/opt/libomp/include)
     include_directories(/opt/homebrew/include)
     link_directories(/opt/homebrew/opt/libomp/link)
@@ -158,7 +139,8 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     set(OPTIMIZE_FLAGS "-O3 -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 else()
 
-if("avx2" IN_LIST _available_vector_units_list)
+if(_available_vector_units_list AND "avx2" IN_LIST _available_vector_units_list)
+	message(STATUS "AVX2 CPU detected")
 	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 -march=native")
 endif()
 # TODO checking the CI
