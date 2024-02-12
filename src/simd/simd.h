@@ -1279,7 +1279,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	[[noexcept]] constexpr static inline uint64x4_t aligned_load(const void *ptr) {
+	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const void *ptr) {
 		uint64x4_t out;
 		const uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -1539,7 +1539,7 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const uint32x4_t data) {
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const cryptanalysislib::uint32x4_t data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		uint64x4_t ret;
 		const uint8_t *ptr8 = (uint8_t *)ptr;
@@ -1555,7 +1555,7 @@ struct uint64x4_t {
 	/// \param in
 	/// \param perm
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in, const uint64x4_t perm) {
+	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in, const uint64x4_t perm) noexcept {
 		uint64x4_t ret;
 		for(uint32_t i = 0; i < 4; i++) {
 			ret.v64[i] = in.v64[perm.v64[i]];
@@ -1568,7 +1568,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \return
 	template<const uint32_t in2>
-	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in1) {
+	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in1) noexcept {
 		uint64x4_t ret;
 
 		for(uint32_t i = 0; i < 4; i++) {
@@ -1577,7 +1577,7 @@ struct uint64x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint8_t move(const uint64x4_t in1) {
+	[[nodiscard]] constexpr static inline uint8_t move(const uint64x4_t in1) noexcept {
 		uint8_t ret = 0;
 		for (uint32_t i = 0; i < 4; i++) {
 			ret ^= in1.v64[i] >> 63;
