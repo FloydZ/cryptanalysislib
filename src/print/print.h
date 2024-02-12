@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_PRINT_H
 #define CRYPTANALYSISLIB_PRINT_H
 
+#include <_types/_uint64_t.h>
 #include <type_traits>
 #include <iostream>
 #include <limits>
@@ -15,7 +16,7 @@ static void print_binary(T a,
                          const size_t len = sizeof(T)*8u,
                          const char* end = "\n") {
 	for (uint32_t i = 0; i < len; i++) {
-		printf("%" PRIu64, a & 1ul);
+		printf("%" PRIu64, uint64_t(a & 1u));
 		a >>= 1u;
 	}
 

@@ -1912,8 +1912,8 @@ public:
 		ASSERT(e2 >= s2);
 
 		/// difference of the memory location in the right list
-		constexpr uint32x4_t loadr1 = uint32x4_t::setr(0u, 2u, 4u, 6u);
-		constexpr uint32x4_t loadr2 = uint32x4_t::setr(1u, 3u, 5u, 7u);
+		constexpr cryptanalysislib::uint32x4_t loadr1 = cryptanalysislib::uint32x4_t::setr(0u, 2u, 4u, 6u);
+		constexpr cryptanalysislib::uint32x4_t loadr2 = cryptanalysislib::uint32x4_t::setr(1u, 3u, 5u, 7u);
 
 		for (size_t i = s1; i < e1; ++i) {
 			const uint64x4_t li1 = uint64x4_t::set1(L1[i][0]);
@@ -2109,10 +2109,10 @@ public:
 		ASSERT(e2 >= s2);
 
 		/// difference of the memory location in the right list
-		constexpr uint32x4_t loadr1 = uint32x4_t::setr(       (4ull << 32u), ( 8ul) | (12ull << 32u));
-		constexpr uint32x4_t loadr2 = uint32x4_t::setr(1ull | (5ull << 32u), ( 9ul) | (13ull << 32u));
-		constexpr uint32x4_t loadr3 = uint32x4_t::setr(2ull | (6ull << 32u), (10ul) | (14ull << 32u));
-		constexpr uint32x4_t loadr4 = uint32x4_t::setr(3ull | (7ull << 32u), (11ul) | (15ull << 32u));
+		constexpr cryptanalysislib::uint32x4_t loadr1 = cryptanalysislib::uint32x4_t::setr(       (4ull << 32u), ( 8ul) | (12ull << 32u));
+		constexpr cryptanalysislib::uint32x4_t loadr2 = cryptanalysislib::uint32x4_t::setr(1ull | (5ull << 32u), ( 9ul) | (13ull << 32u));
+		constexpr cryptanalysislib::uint32x4_t loadr3 = cryptanalysislib::uint32x4_t::setr(2ull | (6ull << 32u), (10ul) | (14ull << 32u));
+		constexpr cryptanalysislib::uint32x4_t loadr4 = cryptanalysislib::uint32x4_t::setr(3ull | (7ull << 32u), (11ul) | (15ull << 32u));
 
 		for (size_t i = s1; i < e1; ++i) {
 			const uint64x4_t li1 = uint64x4_t::set1(L1[i][0]);
@@ -2177,10 +2177,10 @@ public:
 		ASSERT(e2 >= s2);
 
 		/// difference of the memory location in the right list
-		constexpr uint32x4_t loadr1 = uint32x4_t::setr(       (4ull << 32u), ( 8ul) | (12ull << 32u));
-		constexpr uint32x4_t loadr2 = uint32x4_t::setr(1ull | (5ull << 32u), ( 9ul) | (13ull << 32u));
-		constexpr uint32x4_t loadr3 = uint32x4_t::setr(2ull | (6ull << 32u), (10ul) | (14ull << 32u));
-		constexpr uint32x4_t loadr4 = uint32x4_t::setr(3ull | (7ull << 32u), (11ul) | (15ull << 32u));
+		constexpr cryptanalysislib::uint32x4_t loadr1 = cryptanalysislib::uint32x4_t::setr(       (4ull << 32u), ( 8ul) | (12ull << 32u));
+		constexpr cryptanalysislib::uint32x4_t loadr2 = cryptanalysislib::uint32x4_t::setr(1ull | (5ull << 32u), ( 9ul) | (13ull << 32u));
+		constexpr cryptanalysislib::uint32x4_t loadr3 = cryptanalysislib::uint32x4_t::setr(2ull | (6ull << 32u), (10ul) | (14ull << 32u));
+		constexpr cryptanalysislib::uint32x4_t loadr4 = cryptanalysislib::uint32x4_t::setr(3ull | (7ull << 32u), (11ul) | (15ull << 32u));
 
 		alignas(128) uint64x4_t li[u*4u];
 		alignas(32) uint32_t m1s[8] = {0}; // this clearing is important
@@ -2892,7 +2892,7 @@ public:
 		T *ptr_l = (T *)L1;
 
 		/// difference of the memory location in the right list
-		const uint32x4_t loadr1 = uint32x4_t::setr((4ull << 32u), ( 8ul) | (12ull << 32u));
+		const cryptanalysislib::uint32x4_t loadr1 = cryptanalysislib::uint32x4_t::setr((4ull << 32u), ( 8ul) | (12ull << 32u));
 		alignas(32) uint8_t m1s[64];
 
 		/// allowed weight to match on

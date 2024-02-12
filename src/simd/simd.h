@@ -18,13 +18,15 @@
 #elif defined(USE_ARM)
 
 #include "simd/neon.h"
-
+// TODO #include "simd/float/neon.h"
+#include "simd/float/simd.h"
 #elif defined(USE_RISCV)
 
 #include "simd/riscv.h"
 
 #else
 
+nanamespace cryptanalysislib {
 
 struct uint32x4_t {
 	union {
@@ -111,7 +113,7 @@ struct uint64x2_t {
 		return ret;
 	}
 };
-
+}
 
 struct uint8x32_t {
 	union {
@@ -123,7 +125,7 @@ struct uint8x32_t {
 
 	///
 	/// \return
-	static inline uint8x32_t random() {
+	static inline uint8x32_t random() noexcept {
 		uint8x32_t ret;
 		for (uint32_t i=0; i<4; i++) {
 			ret.v64[i] = fastrandombytes_uint64();
@@ -178,7 +180,7 @@ struct uint8x32_t {
 		                								 uint8_t __q15, uint8_t __q14, uint8_t __q13, uint8_t __q12,
 		                								 uint8_t __q11, uint8_t __q10, uint8_t __q09, uint8_t __q08,
 		                								 uint8_t __q07, uint8_t __q06, uint8_t __q05, uint8_t __q04,
-		                								 uint8_t __q03, uint8_t __q02, uint8_t __q01, uint8_t __q00) {
+		                								 uint8_t __q03, uint8_t __q02, uint8_t __q01, uint8_t __q00) noexcept {
 		uint8x32_t out;
 		out.v8[ 0] = __q31;
 		out.v8[ 1] = __q30;
@@ -222,7 +224,7 @@ struct uint8x32_t {
 														 uint8_t __q15, uint8_t __q14, uint8_t __q13, uint8_t __q12,
 														 uint8_t __q11, uint8_t __q10, uint8_t __q09, uint8_t __q08,
 														 uint8_t __q07, uint8_t __q06, uint8_t __q05, uint8_t __q04,
-														 uint8_t __q03, uint8_t __q02, uint8_t __q01, uint8_t __q00) {
+														 uint8_t __q03, uint8_t __q02, uint8_t __q01, uint8_t __q00) noexcept {
 		uint8x32_t out;
 		out.v8[31] = __q31;
 		out.v8[30] = __q30;
@@ -262,7 +264,7 @@ struct uint8x32_t {
 	/// sets all 32 8bit limbs to `a`
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t set1(const uint8_t a) {
+	[[nodiscard]] constexpr static inline uint8x32_t set1(const uint8_t a) noexcept {
 		uint8x32_t out;
 		out =  uint8x32_t::set(a, a, a, a, a, a, a, a,
 		                       a, a, a, a, a, a, a, a,
@@ -276,7 +278,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned=false>
-	constexpr static inline uint8x32_t load(const void *ptr) {
+	constexpr static inline uint8x32_t load(const void *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -287,7 +289,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint8x32_t aligned_load(const void *ptr) {
+	constexpr static inline uint8x32_t aligned_load(const void *ptr) noexcept {
 		uint8x32_t out;
 		const uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -300,7 +302,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint8x32_t unaligned_load(const void *ptr) {
+	constexpr static inline uint8x32_t unaligned_load(const void *ptr) noexcept {
 		uint8x32_t out;
 		const uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -314,7 +316,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \param in
 	template<const bool aligned=false>
-	constexpr static inline void store(void *ptr, const uint8x32_t in) {
+	constexpr static inline void store(void *ptr, const uint8x32_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -326,7 +328,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	static inline void aligned_store(void *ptr, const uint8x32_t in) {
+	static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
 		uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -336,7 +338,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr, const uint8x32_t in) {
+	constexpr static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
 		uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -348,7 +350,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t xor_(const uint8x32_t in1,
-	                              const uint8x32_t in2) {
+	                              const uint8x32_t in2) noexcept {
 		uint8x32_t out;
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = in1.v64[i] ^ in2.v64[i];
@@ -361,7 +363,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t and_(const uint8x32_t in1,
-	                              const uint8x32_t in2) {
+	                              const uint8x32_t in2) noexcept {
 		uint8x32_t out;
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = in1.v64[i] & in2.v64[i];
@@ -387,7 +389,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t andnot(const uint8x32_t in1,
-	                                const uint8x32_t in2) {
+	                                const uint8x32_t in2) noexcept {
 		uint8x32_t out;
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
@@ -398,7 +400,7 @@ struct uint8x32_t {
 	///
 	/// \param in1
 	/// \return
-	constexpr static inline uint8x32_t not_(const uint8x32_t in1) {
+	constexpr static inline uint8x32_t not_(const uint8x32_t in1) noexcept {
 		uint8x32_t out;
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = ~in1.v64[i];
@@ -412,7 +414,7 @@ struct uint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t add(
 						const uint8x32_t in1,
-	                    const uint8x32_t in2) {
+	                    const uint8x32_t in2) noexcept {
 		uint8x32_t out;
 		for (uint32_t i = 0; i < 32; i++) {
 			out.v8[i] = in1.v8[i] + in2.v8[i];
@@ -425,7 +427,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t sub(const uint8x32_t in1,
-	                             const uint8x32_t in2) {
+	                             const uint8x32_t in2) noexcept {
 		uint8x32_t out;
 		for (uint32_t i = 0; i < 32; i++) {
 			out.v8[i] = in1.v8[i] - in2.v8[i];
@@ -438,7 +440,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	static inline uint8x32_t mullo(const uint8x32_t in1,
-	                               const uint8x32_t in2) {
+	                               const uint8x32_t in2) noexcept {
 		uint8x32_t out;
 		for (uint32_t i = 0; i < 32; i++) {
 			out.v8[i] = in1.v8[i] * in2.v8[i];
@@ -448,7 +450,7 @@ struct uint8x32_t {
 
 	///
 	static inline uint8x32_t mullo(const uint8x32_t in1,
-	                               const uint8_t in2) {
+	                               const uint8_t in2) noexcept {
 		uint8x32_t rs = uint8x32_t::set1(in2);
 		return uint8x32_t::mullo(in1, rs);
 	}
@@ -458,7 +460,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t slli(const uint8x32_t in1,
-														  const uint8_t in2) {
+														  const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
 		for (uint32_t i = 0; i < 32; i++) {
@@ -472,7 +474,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t srli(const uint8x32_t in1,
-														  const uint8_t in2) {
+														  const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out ;
 		for (uint32_t i = 0; i < 32; i++) {
@@ -481,7 +483,7 @@ struct uint8x32_t {
 		return out;
 	}
 
-	static inline uint8x32_t cmp_(const uint8x32_t in1, const uint8x32_t in2) {
+	static inline uint8x32_t cmp_(const uint8x32_t in1, const uint8x32_t in2) noexcept {
 		uint8x32_t ret;
 		for (uint32_t i = 0; i < 32; i++){
 			ret.v8[i] = in1.v8[i] == in2.v8[i];
@@ -489,7 +491,7 @@ struct uint8x32_t {
 		return ret;
 	}
 
-	static inline uint8x32_t gt_(const uint8x32_t in1, const uint8x32_t in2) {
+	static inline uint8x32_t gt_(const uint8x32_t in1, const uint8x32_t in2) noexcept {
 		uint8x32_t ret;
 		for (uint32_t i = 0; i < 32; i++){
 			ret.v8[i] = in1.v8[i] > in2.v8[i];
@@ -497,7 +499,7 @@ struct uint8x32_t {
 		return ret;
 	}
 
-	static inline int cmp(const uint8x32_t in1, const uint8x32_t in2) {
+	static inline int cmp(const uint8x32_t in1, const uint8x32_t in2) noexcept {
 		int ret = 0;
 		for (uint32_t i = 0; i < 32; i++){
 			ret ^= (in1.v8[i] == in2.v8[i]) << i;
@@ -976,7 +978,7 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \param in
-	static inline void aligned_store(void *ptr, const uint32x8_t in) {
+	constexpr static inline void aligned_store(void *ptr, const uint32x8_t in) {
 		uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -1048,7 +1050,7 @@ struct uint32x8_t {
 	///
 	/// \param in1
 	/// \return
-	constexpr static inline uint32x8_t not_(const uint32x8_t in1) {
+	[[nodiscard]] constexpr static inline uint32x8_t not_(const uint32x8_t in1) {
 		uint32x8_t out;
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = ~in1.v64[i];
@@ -1087,7 +1089,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	static inline uint32x8_t mullo(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t mullo(const uint32x8_t in1,
 	                               const uint32x8_t in2) {
 		uint32x8_t out;
 		for (uint32_t i = 0; i < 8; i++) {
@@ -1097,7 +1099,7 @@ struct uint32x8_t {
 	}
 
 	///
-	static inline uint32x8_t mullo(const uint32x8_t in1,
+	[[nodiscard]] constexpr static inline uint32x8_t mullo(const uint32x8_t in1,
 	                               const uint8_t in2) {
 		uint32x8_t rs = uint32x8_t::set1(in2);
 		return uint32x8_t::mullo(in1, rs);
@@ -1131,7 +1133,7 @@ struct uint32x8_t {
 		return out;
 	}
 
-	static inline uint32x8_t cmp_(const uint32x8_t in1, const uint32x8_t in2) {
+	[[nodiscard]] constexpr static inline uint32x8_t cmp_(const uint32x8_t in1, const uint32x8_t in2) {
 		uint32x8_t ret;
 		for (uint32_t i = 0; i < 8; i++){
 			ret.v32[i] = in1.v32[i] == in2.v32[i];
@@ -1140,7 +1142,7 @@ struct uint32x8_t {
 		return ret;
 	}
 
-	static inline uint32x8_t gt_(const uint32x8_t in1, const uint32x8_t in2) {
+	[[nodiscard]] constexpr static inline uint32x8_t gt_(const uint32x8_t in1, const uint32x8_t in2) {
 		uint32x8_t ret;
 		for (uint32_t i = 0; i < 8; i++){
 			ret.v32[i] = in1.v32[i] > in2.v32[i];
@@ -1149,7 +1151,7 @@ struct uint32x8_t {
 		return ret;
 	}
 
-	static inline uint32_t cmp(const uint32x8_t in1, const uint32x8_t in2) {
+	[[nodiscard]] constexpr static inline uint32_t cmp(const uint32x8_t in1, const uint32x8_t in2) {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < 8; i++){
 			ret ^= (in1.v32[i] == in2.v32[i]) << i;
@@ -1158,7 +1160,7 @@ struct uint32x8_t {
 		return ret;
 	}
 
-	static inline uint32_t gt(const uint32x8_t in1, const uint32x8_t in2) {
+	[[nodiscard]] constexpr static inline uint32_t gt(const uint32x8_t in1, const uint32x8_t in2) {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < 8; i++){
 			ret ^= (in1.v32[i] > in2.v32[i]) << i;
@@ -1167,7 +1169,7 @@ struct uint32x8_t {
 		return ret;
 	}
 
-	static inline uint32x8_t popcnt(const uint32x8_t in) {
+	[[nodiscard]] constexpr static inline uint32x8_t popcnt(const uint32x8_t in) {
 		uint32x8_t ret;
 
 		for(uint32_t i = 0; i < 8; i++) {
@@ -1181,7 +1183,7 @@ struct uint32x8_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) {
+	[[nodiscard]] constexpr static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) {
 		uint32x8_t ret;
 		const uint8_t *ptr8 = (uint8_t *)ptr;
 		for(uint32_t i = 0; i < 8; i++) {
@@ -1195,7 +1197,7 @@ struct uint32x8_t {
 	/// \param in
 	/// \param perm
 	/// \return
-	static inline uint32x8_t permute(const uint32x8_t in, const uint32x8_t perm) {
+	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in, const uint32x8_t perm) {
 		uint32x8_t ret;
 		for(uint32_t i = 0; i < 8; i++) {
 			ret.v32[i] = in.v32[perm.v32[i] & 0x7];
@@ -1266,7 +1268,7 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned=false>
-	constexpr static inline uint64x4_t load(const void *ptr) {
+	[[nodiscard]] constexpr static inline uint64x4_t load(const void *ptr) {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1277,7 +1279,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint64x4_t aligned_load(const void *ptr) {
+	[[noexcept]] constexpr static inline uint64x4_t aligned_load(const void *ptr) {
 		uint64x4_t out;
 		const uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -1290,7 +1292,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint64x4_t unaligned_load(const void *ptr) {
+	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const void *ptr) {
 		uint64x4_t out;
 		const uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -1316,7 +1318,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \param in
-	static inline void aligned_store(void *ptr, const uint64x4_t in) {
+	constexpr static inline void aligned_store(void *ptr, const uint64x4_t in) {
 		uint64_t *ptr64 = (uint64_t *)ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -1388,7 +1390,7 @@ struct uint64x4_t {
 	///
 	/// \param in1
 	/// \return
-	constexpr static inline uint64x4_t not_(const uint64x4_t in1) {
+	[[nodiscard]] constexpr static inline uint64x4_t not_(const uint64x4_t in1) {
 		uint64x4_t out;
 		for (uint32_t i = 0; i < 4; i++) {
 			out.v64[i] = ~in1.v64[i];
@@ -1427,7 +1429,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	static inline uint64x4_t mullo(const uint64x4_t in1,
+	[[nodiscard]] constexpr static inline uint64x4_t mullo(const uint64x4_t in1,
 	                               const uint64x4_t in2) {
 		uint64x4_t out;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -1471,7 +1473,7 @@ struct uint64x4_t {
 		return out;
 	}
 
-	static inline uint64x4_t cmp_(const uint64x4_t in1, const uint64x4_t in2) {
+	[[nodiscard]] constexpr static inline uint64x4_t cmp_(const uint64x4_t in1, const uint64x4_t in2) {
 		uint64x4_t ret;
 		for (uint8_t i = 0; i < 4; i++){
 			ret.v64[i] = in1.v64[i] == in2.v64[i];
@@ -1479,7 +1481,7 @@ struct uint64x4_t {
 		return ret;
 	}
 
-	static inline uint64x4_t gt_(const uint64x4_t in1, const uint64x4_t in2) {
+	[[nodiscard]] constexpr static inline uint64x4_t gt_(const uint64x4_t in1, const uint64x4_t in2) {
 		uint64x4_t ret;
 		for (uint32_t i = 0; i < 4; i++){
 			ret.v64[i]= in1.v64[i] > in2.v64[i];
@@ -1488,7 +1490,7 @@ struct uint64x4_t {
 		return ret;
 	}
 
-	static inline uint32_t cmp(const uint64x4_t in1, const uint64x4_t in2) {
+	[[nodiscard]] constexpr static inline uint32_t cmp(const uint64x4_t in1, const uint64x4_t in2) {
 		uint32_t ret = 0;
 		for (uint8_t i = 0; i < 4; i++){
 			ret ^= (in1.v64[i] == in2.v64[i]) << i;
@@ -1497,7 +1499,7 @@ struct uint64x4_t {
 		return ret;
 	}
 
-	static inline uint32_t gt(const uint64x4_t in1, const uint64x4_t in2) {
+	[[nodiscard]] constexpr static inline uint32_t gt(const uint64x4_t in1, const uint64x4_t in2) {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < 4; i++){
 			ret ^= (in1.v64[i] > in2.v64[i]) << i;
@@ -1506,7 +1508,7 @@ struct uint64x4_t {
 		return ret;
 	}
 
-	static inline uint64x4_t popcnt(const uint64x4_t in) {
+	[[nodiscard]] constexpr static inline uint64x4_t popcnt(const uint64x4_t in) {
 		uint64x4_t ret;
 
 		for(uint32_t i = 0; i < 4; i++) {
@@ -1520,7 +1522,7 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	static inline uint64x4_t gather(const void *ptr, const uint64x4_t data) {
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const uint64x4_t data) {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 
 		uint64x4_t ret;
@@ -1537,7 +1539,7 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	static inline uint64x4_t gather(const void *ptr, const uint32x4_t data) {
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const uint32x4_t data) {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		uint64x4_t ret;
 		const uint8_t *ptr8 = (uint8_t *)ptr;
@@ -1553,7 +1555,7 @@ struct uint64x4_t {
 	/// \param in
 	/// \param perm
 	/// \return
-	static inline uint64x4_t permute(const uint64x4_t in, const uint64x4_t perm) {
+	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in, const uint64x4_t perm) {
 		uint64x4_t ret;
 		for(uint32_t i = 0; i < 4; i++) {
 			ret.v64[i] = in.v64[perm.v64[i]];
@@ -1566,7 +1568,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \return
 	template<const uint32_t in2>
-	static inline uint64x4_t permute(const uint64x4_t in1) {
+	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in1) {
 		uint64x4_t ret;
 
 		for(uint32_t i = 0; i < 4; i++) {
@@ -1575,7 +1577,7 @@ struct uint64x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] static inline uint8_t move(const uint64x4_t in1) {
+	[[nodiscard]] constexpr static inline uint8_t move(const uint64x4_t in1) {
 		uint8_t ret = 0;
 		for (uint32_t i = 0; i < 4; i++) {
 			ret ^= in1.v64[i] >> 63;

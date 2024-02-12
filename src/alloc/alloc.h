@@ -3,8 +3,20 @@
 
 #include <iostream>
 #include <limits>
+#include <cstdlib>
+#include <malloc/_malloc.h>
 #include "mem/memset.h"
 #include "container/queue.h"
+
+namespace cryptanalysislib {
+	void* aligned_alloc( std::size_t alignment, std::size_t size ){
+#ifdef __APPLE__
+		return aligned_alloc(alignment, size);
+#else
+		return std::aligned_alloc(alignment, size);
+#endif
+	}
+}
 
 /// replacement for *void
 /// instead of just give a pointer, all allocators do return
@@ -356,7 +368,7 @@ public:
 	/// \param n
 	/// \return
 	constexpr Blk allocate() noexcept {
-		void *ptr = std::aligned_alloc(page_alignment, page_size);
+		void *ptr = cryptanalysislib::aligned_alloc(page_alignment, page_size);
 		return {ptr, ptr == nullptr ? 0 : page_size};
 	}
 

@@ -175,7 +175,7 @@ B63_BENCHMARK(LowerBoundInterpolationSearch, nn) {
 int main(int argc, char **argv) {
 	random_seed(time(NULL));
 
-	uint64_t search;
+	size_t search;
 	random_data(data, search, SIZE, NR_SOLS, MASK);
 	B63_RUN_WITH("lpe:cycles,lpe:branches,lpe:branch-misses,lpe:cache-misses,lpe:cache-references,lpe:instructions", argc, argv);
 	return 0;

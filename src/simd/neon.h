@@ -31,9 +31,94 @@ typedef __attribute__((neon_vector_type(1))) uint64_t __uint64x1_t;
 typedef __attribute__((neon_vector_type(2))) uint64_t __uint64x2_t;
 #endif
 
+namespace cryptanalysislib {
+struct uint32x4_t {
+	union {
+		uint8_t v8[16];
+		uint16_t v16[8];
+		uint32_t v32[4];
+		uint64_t v64[2];
+		__uint32x4_t v128;
+	};
+
+	[[nodiscard]] constexpr static inline uint32x4_t set1(uint32_t a) {
+		uint32x4_t ret;
+		ret.v32[0] = a;
+		ret.v32[1] = a;
+		ret.v32[2] = a;
+		ret.v32[3] = a;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+		uint32x4_t ret;
+		ret.v32[0] = d;
+		ret.v32[1] = c;
+		ret.v32[2] = b;
+		ret.v32[3] = a;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+		uint32x4_t ret;
+		ret.v32[0] = a;
+		ret.v32[1] = b;
+		ret.v32[2] = c;
+		ret.v32[3] = d;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x4_t set(uint64_t a, uint64_t b) {
+		uint32x4_t ret;
+		ret.v64[0] = b;
+		ret.v64[1] = a;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x4_t setr(uint64_t a, uint64_t b) {
+		uint32x4_t ret;
+		ret.v64[0] = a;
+		ret.v64[1] = b;
+		return ret;
+	}
+};
+
+struct uint64x2_t {
+	union {
+		uint8_t v8[16];
+		uint16_t v16[8];
+		uint32_t v32[4];
+		uint64_t v64[2];
+		__uint64x2_t v128;
+	};
+
+	[[nodiscard]] constexpr static inline uint64x2_t set1(uint64_t a) {
+		uint64x2_t ret;
+		ret.v64[0] = a;
+		ret.v64[1] = a;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
+		uint64x2_t ret;
+		ret.v64[0] = b;
+		ret.v64[1] = a;
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint64x2_t setr(uint64_t a, uint64_t b) {
+		uint64x2_t ret;
+		ret.v64[0] = a;
+		ret.v64[1] = b;
+		return ret;
+	}
+};
+};
+
 /// taken from: https://github.com/DLTcollab/sse2neon/blob/de2817727c72fc2f4ce9f54e2db6e40ce0548414/sse2neon.h#L4540
 /// helper function, which collects the sign bits of each 8 bit limb
-inline uint32_t _mm_movemask_epi8(const uint8x16_t input) {
+constexpr inline uint32_t _mm_movemask_epi8(const uint8x16_t input) noexcept {
+#ifdef __clang__
     // Use increasingly wide shifts+adds to collect the sign bits together.
     // Since the widening shifts would be rather confusing to follow in little
     // endian, everything will be illustrated in big endian order instead. This
@@ -109,29 +194,52 @@ inline uint32_t _mm_movemask_epi8(const uint8x16_t input) {
     //                      d2
     // Note: Little endian would return the correct value 4b (01001011) instead.
     return vgetq_lane_u8(paired64, 0) | ((int) vgetq_lane_u8(paired64, 8) << 8);
+#else
+	uint16x8_t high_bits = (uint16x8_t) __builtin_aarch64_lshrv16qi_uus((int8x16_t)input, 7);
+	uint32x4_t paired16  = (uint32x4_t) __builtin_aarch64_ssra_nv8hi(high_bits, high_bits, 7);
+	uint64x2_t paired32  = (uint64x2_t) __builtin_aarch64_usra_nv4si_uuus (paired16, paired16, 14);
+	uint8x16_t paired64  = (uint8x16_t) __builtin_aarch64_usra_nv2di_uuus (paired32, paired32, 28);
+	return paired64[0] | paired64[8] << 8;
+#endif
 }
 
-inline uint32_t _mm_movemask_epi16(const uint16x8_t input) {
+constexpr inline uint32_t _mm_movemask_epi16(const uint16x8_t input) noexcept {
 	constexpr int16_t shift[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+#ifdef __clang__
     uint16x8_t tmp = vshrq_n_u16(input, 15);
     return vaddvq_u16(vshlq_u16(tmp, vld1q_s16(shift)));
+#else
+
+    uint16x8_t tmp = __builtin_aarch64_lshrv8hi_uus(input, 15);
+    return __builtin_aarch64_reduc_plus_scal_v8hi_uu(__builtin_aarch64_ushlv8hi_uus(tmp, __builtin_aarch64_ld1v8hi(shift)));
+#endif
 }
 	
 // Set each bit of mask dst based on the most significant bit of the
 // corresponding packed single-precision (32-bit) floating-point element in a.
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movemask_ps
-inline uint32_t _mm_movemask_epi32(const uint32x4_t input) {
+constexpr inline uint32_t _mm_movemask_epi32(const uint32x4_t input) noexcept {
 	constexpr int32_t shift[4] = {0, 1, 2, 3};
+#ifdef __clang__
     uint32x4_t tmp = vshrq_n_u32(input, 31);
     return vaddvq_u32(vshlq_u32(tmp, vld1q_s32(shift)));
+#else
+    uint32x4_t tmp = __builtin_aarch64_lshrv4si_uus(input, 31);
+    return __builtin_aarch64_reduc_plus_scal_v4si_uu(__builtin_aarch64_ushlv4si_uus(tmp, __builtin_aarch64_ld1v4si(shift)));
+#endif
 }
 
 // Set each bit of mask dst based on the most significant bit of the
 // corresponding packed double-precision (64-bit) floating-point element in a.
 // https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movemask_pd
-inline uint32_t _mm_movemask_epi64(const uint64x2_t input){
+constexpr inline uint32_t _mm_movemask_epi64(const uint64x2_t input) noexcept {
+#ifdef __clang__
     uint64x2_t high_bits = vshrq_n_u64(input, 63);
     return (uint32_t) (vgetq_lane_u64(high_bits, 0) | (vgetq_lane_u64(high_bits, 1) << 1));
+#else
+    uint64x2_t high_bits = __builtin_aarch64_lshrv2di_uus(input, 63);
+    return (uint32_t) ((high_bits[0]) | (high_bits[1] << 1));
+#endif
 }
 
 struct uint8x32_t {
@@ -496,15 +604,15 @@ struct uint8x32_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
+#ifdef __clang__
+		uint8x16_t helper = vdupq_n_u8(in2);
+#else
+		uint8x16_t helper = (uint8x16_t) {in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2};
+#endif
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifdef __clang__
-			//out.v128[i] = vshrq_n_u8(in1.v128[i], in2);
-  			out.v128[i] = (uint8x16_t) __builtin_neon_vshrq_n_v((__uint8x16_t)in1.v128[i], in2, 48);
-#else
-			out.v128[i] = __builtin_neon_vshrq_n_u8(in1.v128[i], in2);
-#endif
+			out.v128[i] = vshlq_u8(in1.v128[i], helper);
 		}
 
 		return out;
@@ -520,7 +628,7 @@ struct uint8x32_t {
 			const __uint8x16_t tmp = vcgtq_u8(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #else
-			const __uint8x16_t tmp = __builtin_neon_vcgtq_u8(in1.v128[i], in2.v128[i]);
+			const __uint8x16_t tmp = in1.v128[i] > in2.v128[i];
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #endif
 		}
@@ -538,7 +646,7 @@ struct uint8x32_t {
 			const __uint8x16_t tmp = vceqq_u8(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #else
-			const __uint8x16_t tmp = __builtin_neon_vceqq_u8(in1.v128[i], in2.v128[i]);
+			const __uint8x16_t tmp = in1.v128[i] == in2.v128[i];
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #endif
 		}
@@ -551,10 +659,10 @@ struct uint8x32_t {
 		
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
 			out.v128[i] = vcntq_u8(in.v128[i]);
 #else
-			out.v128[i] = __builtin_neon_vcntq_u8(in.v128[i]);
+			out.v128[i] = __builtin_aarch64_popcountv16qi(in.v128[i]);
 #endif
 		}
 
@@ -710,7 +818,7 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \param in
-	static inline void aligned_store(void *ptr, const uint16x16_t in) noexcept {
+	constexpr static inline void aligned_store(void *ptr, const uint16x16_t in) noexcept {
 		auto *ptr128 = (poly128_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -855,15 +963,14 @@ struct uint16x16_t {
 	                                                       const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint16x16_t out;
-
-
+#ifdef __clang__
+		int16x8_t helper = vdupq_n_s16(in2);
+#else 
+		int16x8_t helper = (int16x8_t){in2,in2,in2,in2,in2,in2,in2,in2};
+#endif
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			out.v128[i] = vshlq_n_u16(in1.v128[i], in2);
-#else
-			out.v128[i] = __builtin_neon_vshlq_n_16(in1.v128[i], in2);
-#endif
+			out.v128[i] = vshlq_u16(in1.v128[i], helper);
 		}
 
 		return out;
@@ -877,30 +984,29 @@ struct uint16x16_t {
 	                                                       const uint16_t in2) noexcept {
 		ASSERT(in2 <= 16);
 		uint16x16_t out;
-
+#ifdef __clang__
+		int16x8_t helper = vdupq_n_s16(-in2);
+#else 
+		int16x8_t helper = (int16x8_t){-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2};
+#endif
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			out.v128[i] = vshrq_n_u16(in1.v128[i], in2);
-#else
-			out.v128[i] = __builtin_neon_vshrq_n_u16(in1.v128[i], in2);
-#endif
+			out.v128[i] = vshlq_u16(in1.v128[i], helper);
 		}
 
 		return out;
 	}
 
-
-	static inline int gt(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+	constexpr static inline int gt(const uint16x16_t in1, const uint16x16_t in2) noexcept {
 		uint32_t ret = 0;
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
 			const __uint16x8_t tmp = vcgtq_u16(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi16(tmp) << i*8;
 #else
-			const __uint16x8_t tmp = __builtin_neon_vcgtq_16(in1.v128[i], in2.v128[i]);
+			const __uint16x8_t tmp = in1.v128[i] > in2.v128[i];
     		ret ^= _mm_movemask_epi16(tmp) << i*8;
 #endif
 		}
@@ -908,16 +1014,31 @@ struct uint16x16_t {
 		return ret;
 	}
 
-	static inline int cmp(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+	constexpr static inline uint16x16_t gt_(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+		uint16x16_t ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcgtq_u16(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] > in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline int cmp(const uint16x16_t in1, const uint16x16_t in2) noexcept {
 		uint32_t ret = 0;
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
 			const __uint16x8_t tmp = vceqq_u16(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi16(tmp) << i*8;
 #else
-			const __uint16x8_t tmp = __builtin_neon_vcgeq_u16(in1.v128[i], in2.v128[i]);
+			const __uint16x8_t tmp = in1.v128[i] == in2.v128[i];
     		ret ^= _mm_movemask_epi16(tmp) << i*8;
 #endif
 		}
@@ -925,19 +1046,38 @@ struct uint16x16_t {
 		return ret;
 	}
 
-	static inline uint16x16_t popcnt(const uint16x16_t in) noexcept {
-		uint16x16_t out;
-		__uint16x8_t mask = vdupq_n_u16(0xff);
-		
+	constexpr static inline uint16x16_t cmp_(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+		uint16x16_t ret;
+
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
+			ret.v128[i] = vceqq_u16(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] == in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline uint16x16_t popcnt(const uint16x16_t in) noexcept {
+		uint16x16_t out;
+		
+#ifdef __clang__
+		__uint16x8_t mask = vdupq_n_u16(0xff);
+#else 
+		__uint16x8_t mask = (__uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+#endif
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
 			const __uint16x8_t tmp = (__uint16x8_t)vcntq_u8((__uint8x16_t)in.v128[i]);
 			out.v128[i] = vaddq_u16(vshrq_n_u16(tmp, 8), vandq_u16(tmp, mask));
 
 #else
-			const __uint16x8_t tmp = (__uint16x8_t)__builtin_neon_vcntq_u8((__uint8x16_t)in.v128[i]);
-			out.v128[i] = vaddq_u16(vshrq_n_u16(tmp, 8), vandq_u16(tmp, mask));
+			const __uint16x8_t tmp = (__uint16x8_t)__builtin_aarch64_popcountv16qi((__uint8x16_t)in.v128[i]);
+			out.v128[i] = vshrq_n_u16(tmp, 8) + vandq_u16(tmp, mask);
 #endif
 		}
 
@@ -1060,7 +1200,7 @@ struct uint32x8_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
-	template<const bool aligned = false>
+	template<const bool aligned=true>
 	constexpr static inline void store(void *ptr, const uint32x8_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
@@ -1219,14 +1359,15 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
+#ifdef __clang__
+		int32x4_t helper = vdupq_n_s32(in2);
+#else
+		int32x4_t helper = (int32x4_t){in2,in2,in2,in2};
+#endif
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			out.v128[i] = vshlq_n_u32(in1.v128[i], in2);
-#else
-			out.v128[i] = __builtin_neon_vshlq_n_u32(in1.v128[i], in2);
-#endif
+			out.v128[i] = vshlq_u32(in1.v128[i], helper);
 		}
 
 		return out;
@@ -1240,69 +1381,139 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
-
+#ifdef __clang__
+		int32x4_t helper = vdupq_n_s32(-in2);
+#else
+		int32x4_t helper = (int32x4_t){-in2,-in2,-in2,-in2};
+#endif
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			out.v128[i] = vshrq_n_u32(in1.v128[i], in2);
-#else
-			out.v128[i] = __builtin_neon_vshrq_n_u32(in1.v128[i], in2);
-#endif
+			out.v128[i] = vshlq_u32(in1.v128[i], helper);
 		}
 
 		return out;
 	}
 
 
-	static inline int gt(const uint32x8_t in1, const uint32x8_t in2) noexcept {
+	constexpr static inline int gt(const uint32x8_t in1, const uint32x8_t in2) noexcept {
 		uint32_t ret = 0;
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
 			const __uint32x4_t tmp = vcgtq_u32(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi32(tmp) << i*4;
 #else
-			const __uint32x4_t tmp = __builtin_neon_vcgtq_u32(in1.v128[i], in2.v128[i]);
+			const __uint32x4_t tmp = in1.v128[i] > in2.v128[i];
     		ret ^= _mm_movemask_epi32(tmp) << i*4;
 #endif
 		}
 
 		return ret;
 	}
+	
+	constexpr static inline uint32x8_t gt_(const uint32x8_t in1, const uint32x8_t in2) noexcept {
+		uint32x8_t ret;
 
-	static inline int cmp(const uint32x8_t in1, const uint32x8_t in2) noexcept {
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcgtq_u32(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] > in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline int cmp(const uint32x8_t in1, const uint32x8_t in2) noexcept {
 		uint32_t ret = 0;
 		
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
 			const __uint32x4_t tmp = vceqq_u32(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi32(tmp) << i*4;
 #else
-			const __uint32x4_t tmp = __builtin_neon_vceqq_u32(in1.v128[i], in2.v128[i]);
+			const __uint32x4_t tmp = in1.v128[i] == in2.v128[i];
     		ret ^= _mm_movemask_epi32(tmp) << i*4;
 #endif
 		}
 
 		return ret;
 	}
-
-	static inline uint32x8_t popcnt(const uint32x8_t in) {
-		uint32x8_t out;
-		__uint16x8_t mask = vdupq_n_u16(0xff);
+	constexpr static inline uint32x8_t cmp_(const uint32x8_t in1, const uint32x8_t in2) noexcept {
+		uint32x8_t ret;
 		
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
+			ret.v128[i] = vceqq_u32(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] == in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint16_t move(const uint32x8_t in1) noexcept {
+		uint16_t ret = 0;
+		for (uint32_t i = 0; i < 2; i++) {
+    		ret ^= _mm_movemask_epi32(in1.v128[i]) << i*8;
+		}
+
+		return ret;
+	}
+	
+	// TODO arm instruction
+	/// \tparam scale
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) {
+		uint32x8_t ret;
+		const uint8_t *ptr8 = (uint8_t *)ptr;
+		for(uint32_t i = 0; i < 8; i++) {
+			ret.v32[i] = *(uint32_t *)(ptr8 + data.v32[i]*scale);
+		}
+
+		return ret;
+	}
+
+	/// TODO
+	/// \param in
+	/// \param perm
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in, const uint32x8_t perm) {
+		uint32x8_t ret;
+		for(uint32_t i = 0; i < 8; i++) {
+			ret.v32[i] = in.v32[perm.v32[i] & 0x7];
+		}
+		return ret;
+	}
+
+	constexpr static inline uint32x8_t popcnt(const uint32x8_t in) {
+		uint32x8_t out;
+#ifdef __clang__
+		__uint16x8_t mask = vdupq_n_u16(0xff);
+#else
+		__uint16x8_t mask = (__uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+#endif
+		
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
 			const __uint16x8_t tmp1 = (__uint16x8_t)vcntq_u8((__uint8x16_t)in.v128[i]);
 			const __uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
 			out.v128[i] = vaddq_u32(vshrq_n_u32((__uint32x4_t)tmp2, 16), (__uint32x4_t)tmp2);
 #else
 
-			const __uint16x8_t tmp1 = (__uint16x8_t)__builtin_neon_vcntq_u8((__uint8x16_t)in.v128[i]);
-			const __uint16x8_t tmp2 = __builtin_neon_vaddq_u16(__builtin_neon_vshrq_n_u16(tmp1, 8), __builtin_neon_vandq_u16(tmp1, mask));
-			out.v128[i] = __builtin_neon_vaddq_u32(__builtin_neon_vshrq_n_u32((__uint32x4_t)tmp2, 16), (__uint32x4_t)tmp2);
+			const __uint16x8_t tmp1 = (__uint16x8_t)__builtin_aarch64_popcountv16qi((__uint8x16_t)in.v128[i]);
+			const __uint16x8_t tmp2 = __builtin_aarch64_lshrv8hi_uus(tmp1, 8) + (tmp1 & mask);
+			out.v128[i] = __builtin_aarch64_lshrv4si_uus((__uint32x4_t)tmp2, 16) + (__uint32x4_t)tmp2;
 #endif
 		}
 
@@ -1322,7 +1533,7 @@ struct uint64x4_t {
 
 	///
 	/// \return
-	inline uint64x4_t random() {
+	static inline uint64x4_t random() {
 		uint64x4_t ret;
 		for (uint32_t i = 0; i < 4; ++i) {
 			ret.v64[i] = fastrandombytes_uint64();
@@ -1357,7 +1568,7 @@ struct uint64x4_t {
 	///
 	/// \param a
 	/// \return
-	static inline uint64x4_t set1(const uint64_t a) {
+	constexpr static inline uint64x4_t set1(const uint64_t a) noexcept {
 		return uint64x4_t::set(a, a, a, a);
 	}
 
@@ -1365,8 +1576,8 @@ struct uint64x4_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
-	template<const bool aligned>
-	static inline uint64x4_t load(const void *ptr) noexcept {
+	template<const bool aligned=true>
+	constexpr static inline uint64x4_t load(const void *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1377,7 +1588,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	static inline uint64x4_t aligned_load(const void *ptr) noexcept {
+	constexpr static inline uint64x4_t aligned_load(const void *ptr) noexcept {
 		auto *ptr128 = (poly128_t *) ptr;
 		uint64x4_t out;
 		LOOP_UNROLL()
@@ -1394,7 +1605,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	static inline uint64x4_t unaligned_load(const void *ptr) noexcept {
+	constexpr static inline uint64x4_t unaligned_load(const void *ptr) noexcept {
 		auto *ptr128 = (poly128_t *) ptr;
 		uint64x4_t out;
 		for (uint32_t i = 0; i < 2u; ++i) {
@@ -1411,8 +1622,8 @@ struct uint64x4_t {
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
-	template<const bool aligned>
-	static inline void store(void *ptr, const uint64x4_t in) noexcept {
+	template<const bool aligned=true>
+	constexpr static inline void store(void *ptr, const uint64x4_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -1424,7 +1635,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \param in
-	static inline void aligned_store(void *ptr, 
+	constexpr static inline void aligned_store(void *ptr, 
 									 const uint64x4_t in) noexcept {
 		auto *ptr128 = (poly128_t *) ptr;
 		LOOP_UNROLL()
@@ -1440,7 +1651,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \param in
-	static inline void unaligned_store(void *ptr,
+	constexpr static inline void unaligned_store(void *ptr,
 									   const uint64x4_t in) noexcept {
 		auto *ptr128 = (poly128_t *) ptr;
 		LOOP_UNROLL()
@@ -1573,14 +1784,15 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		uint64x4_t out;
+#ifdef __clang__
+		int64x2_t helper = vdupq_n_s64(in2);
+#else
+		int64x2_t helper = (int64x2_t){in2, in2};
+#endif
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			out.v128[i] = vshlq_n_u64(in1.v128[i], in2);
-#else
-			out.v128[i] = __builtin_neon_vshlq_n_u64(in1.v128[i], in2);
-#endif
+			out.v128[i] = vshlq_u64(in1.v128[i], helper);
 		}
 
 		return out;
@@ -1594,14 +1806,15 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint64x4_t out;
+#ifdef __clang__
+		int64x2_t helper = vdupq_n_s64(-in2);
+#else
+		int64x2_t helper = (int64x2_t){-in2, -in2};
+#endif
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			out.v128[i] = vshrq_n_u64(in1.v128[i], in2);
-#else
-			out.v128[i] = __builtin_neon_vshrq_n_u64(in1.v128[i], in2);
-#endif
+			out.v128[i] = vshlq_u64(in1.v128[i], helper);
 		}
 
 		return out;
@@ -1611,7 +1824,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	static inline uint64x4_t permute(const uint64x4_t in1,
+	constexpr static inline uint64x4_t permute(const uint64x4_t in1,
 									 const uint32_t in2) noexcept {
 		uint64x4_t ret;
 		ASSERT(0);
@@ -1622,18 +1835,58 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	static inline int gt(const uint64x4_t in1, 
+	constexpr static inline int gt(const uint64x4_t in1, 
 						 const uint64x4_t in2) noexcept {
 		int ret = 0;
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
+#ifdef __clang__
 			const __uint64x2_t tmp = vcgtq_u64(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi64(tmp) << i*2;
 #else
-			const __uint64x2_t tmp = __builtin_neon_vcgtq_u64(in1.v128[i], in2.v128[i]);
+			const __uint64x2_t tmp = in1.v128[i] > in2.v128[i];
     		ret ^= _mm_movemask_epi64(tmp) << i*2;
+#endif
+		}
+		return ret;
+	}
+	
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline uint64x4_t gt_(const uint64x4_t in1, 
+						 const uint64x4_t in2) noexcept {
+		uint64x4_t ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcgtq_u64(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] > in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline int cmp(const uint64x4_t in1, const uint64x4_t in2) noexcept {
+		int ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const __uint64x2_t tmp = vceqq_u64(in1.v128[i], in2.v128[i]);
+    		ret ^= _mm_movemask_epi64(tmp) << i*4;
+#else
+			const __uint64x2_t tmp = in1.v128[i] == in2.v128[i];
+    		ret ^= _mm_movemask_epi64(tmp) << i*4;
 #endif
 		}
 		return ret;
@@ -1643,18 +1896,73 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	static inline int cmp(const uint64x4_t in1, const uint64x4_t in2) noexcept {
-		int ret = 0;
+	constexpr static inline uint64x4_t cmp_(const uint64x4_t in1, const uint64x4_t in2) noexcept {
+		uint64x4_t ret ;
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			const __uint64x2_t tmp = vceqq_u64(in1.v128[i], in2.v128[i]);
-    		ret ^= _mm_movemask_epi64(tmp) << i*4;
+#ifdef __clang__
+			ret.v128[i] = vceqq_u64(in1.v128[i], in2.v128[i]);
 #else
-			const __uint64x2_t tmp = __builtin_neon_vceqq_u64(in1.v128[i], in2.v128[i]);
-    		ret ^= _mm_movemask_epi64(tmp) << i*4;
+			ret.v128[i] = in1.v128[i] == in2.v128[i];
 #endif
+		}
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint8_t move(const uint64x4_t in1) noexcept {
+		uint8_t ret = 0;
+		for (uint32_t i = 0; i < 2; i++) {
+    		ret ^= _mm_movemask_epi64(in1.v128[i]) << i*4;
+		}
+
+		return ret;
+	}
+	
+	/// TODO
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const cryptanalysislib::uint32x4_t data) {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+
+		uint64x4_t ret;
+		const uint8_t *ptr8 = (uint8_t *)ptr;
+		for(uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = *(uint64_t *)(ptr8 + data.v32[i] * scale);
+		}
+
+		return ret;
+	}
+
+	/// TODO
+	/// \param ptr
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const uint64x4_t data) {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+
+		uint64x4_t ret;
+		const uint8_t *ptr8 = (uint8_t *)ptr;
+		for(uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = *(uint64_t *)(ptr8 + data.v64[i] * scale);
+		}
+
+		return ret;
+	}
+
+	/// TODO
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<const uint32_t in2>
+	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in1) {
+		uint64x4_t ret;
+
+		for(uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = in1.v64[(in2 >> (2*i)) & 0b11];
 		}
 		return ret;
 	}
@@ -1662,9 +1970,13 @@ struct uint64x4_t {
 	///
 	/// \param in
 	/// \return
-	static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
+	constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
+#ifdef __clang 
 		__uint16x8_t mask = vdupq_n_u16(0xff);
+#else
+		__uint16x8_t mask = (__uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+#endif
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -1675,6 +1987,7 @@ struct uint64x4_t {
 			ret.v128[i] = vaddq_u64(vshrq_n_u64((__uint64x2_t)tmp3, 32), (__uint64x2_t)tmp3);
 #else
 			// TODO
+			ASSERT(false);
 #endif
 		}
 		return ret;

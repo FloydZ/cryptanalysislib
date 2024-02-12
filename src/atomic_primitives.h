@@ -3,6 +3,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <atomic>
+
 
 /**
  * An atomic fetch-and-add.

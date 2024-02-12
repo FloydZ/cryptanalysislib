@@ -34,6 +34,8 @@ namespace internal {
 }// namespace internal
 
 
+namespace cryptanalysislib {
+
 struct uint32x4_t {
 	union {
 		uint8_t v8[16];
@@ -115,7 +117,7 @@ struct uint64x2_t {
 		return ret;
 	}
 };
-
+}
 
 struct uint8x32_t {
 	union {

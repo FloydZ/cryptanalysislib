@@ -1,14 +1,14 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "container/hashmap.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
 using K = uint32_t;
 using V = uint64_t;
-
+#ifdef USE_AVX2
+#include "container/hashmap.h"
 /// TODO further testing
 TEST(SimdHashMap, simple) {
 	constexpr uint32_t l = 4;
@@ -34,7 +34,7 @@ TEST(SimdHashMap, simple) {
 	//	}
 	//}
 }
-
+#endif
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
