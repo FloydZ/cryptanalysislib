@@ -1,20 +1,15 @@
 name: test
 
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+on: [push]
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04, ubuntu-20.04,  ]
         compiler: [ g++-10, g++-11, g++-12, clang++-11, clang++-12, clang++-13, clang++-14, clang++-15, clang++-16 ]
 
     name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
@@ -37,10 +32,10 @@ jobs:
         sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
     
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config Debug
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Test
       working-directory: ${{github.workspace}}/build
@@ -113,26 +108,3 @@ jobs:
         ./bench/value/bench_b63_value_add                             -j  | tee benchmark_bench_b63_value_add.json                      &&
         ./bench/value/bench_b63_value_move_operator                   -j  | tee benchmark_bench_b63_value_move_operator.json
 
-    #- name: benchmark_bench_b63_sort_gbench_sort
-    #  uses: benchmark-action/github-action-benchmark@v1
-    #  with:
-    #    tool: 'googlecpp'
-    #    output-file-path: build/benchmark_bench_b63_sort_gbench_sort.json
-    #    github-token: ${{ secrets.GITHUB_TOKEN }}
-    #    auto-push: true
-    #    alert-threshold: '200%'
-    #    comment-on-alert: true
-    #    fail-on-alert: true
-    #    alert-comment-cc-users: '@FloydZ'
-    #
-    #      #    - name: benchmark_bench_b63_combinations_binary
-    #      #      uses: benchmark-action/github-action-benchmark@v1
-    #      #      with:
-    #      #        tool: 'googlecpp'
-    #      #        output-file-path: build/benchmark_bench_b63_combinations_binary.json
-    #      #        github-token: ${{ secrets.GITHUB_TOKEN }}
-    #      #        auto-push: true
-    #      #        alert-threshold: '200%'
-    #      #        comment-on-alert: true
-    #      #        fail-on-alert: true
-    #      #        alert-comment-cc-users: '@FloydZ'
