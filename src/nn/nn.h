@@ -266,8 +266,8 @@ public:
 	/// \param insert_sol
 	void generate_special_instance(bool insert_sol = true, bool create_zero = true) noexcept {
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
-		L1 = (Element *) aligned_alloc(64, list_size);
-		L2 = (Element *) aligned_alloc(64, list_size);
+		L1 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
+		L2 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
 		ASSERT(L1);
 		ASSERT(L2);
 		if (create_zero) {
@@ -280,8 +280,8 @@ public:
 	/// \param insert_sol if false, no solution will inserted, this is just for quick testing/benchmarking
 	void generate_random_instance(bool insert_sol = true) noexcept {
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
-		L1 = (Element *) aligned_alloc(PAGE_SIZE, list_size);
-		L2 = (Element *) aligned_alloc(PAGE_SIZE, list_size);
+		L1 = (Element *) cryptanalysislib::aligned_alloc(PAGE_SIZE, list_size);
+		L2 = (Element *) cryptanalysislib::aligned_alloc(PAGE_SIZE, list_size);
 		ASSERT(L1);
 		ASSERT(L2);
 

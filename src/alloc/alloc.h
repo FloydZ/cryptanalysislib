@@ -4,7 +4,6 @@
 #include <iostream>
 #include <limits>
 #include <cstdlib>
-#include <malloc/_malloc.h>
 #include "mem/memset.h"
 #include "container/queue.h"
 

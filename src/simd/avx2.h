@@ -1522,7 +1522,7 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const uint32x4_t data) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const cryptanalysislib::uint32x4_t data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		uint64x4_t ret;
 #ifndef __clang__

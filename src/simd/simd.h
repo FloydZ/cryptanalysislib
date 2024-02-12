@@ -26,7 +26,7 @@
 
 #else
 
-nanamespace cryptanalysislib {
+namespace cryptanalysislib {
 
 struct uint32x4_t {
 	union {
@@ -113,7 +113,7 @@ struct uint64x2_t {
 		return ret;
 	}
 };
-}
+};
 
 struct uint8x32_t {
 	union {
