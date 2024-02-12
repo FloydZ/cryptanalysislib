@@ -2,6 +2,8 @@ name: osx
 env:
   BUILD_TYPE: Release
 
+on: [push]
+
 jobs:
   build:
     strategy:
