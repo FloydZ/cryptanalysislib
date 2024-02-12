@@ -1,11 +1,4 @@
 name: osx
-
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-
 env:
   BUILD_TYPE: Release
 
@@ -30,15 +23,15 @@ jobs:
     - name: Install Software (HomeBrew)
       run: |
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        brew install autoconf automake libtool libomp llvm
+        brew install autoconf automake libtool libomp llvm googletest
 
     - name: Install Google Benchmark
-      run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
+      run: git clone --depth=1 --single-branch --branch v1.8.3 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
 
-    - name: Install gtest
-      run: |
-        chmod +x ./.github/install_gtest_osx.sh
-        sudo ./.github/install_gtest_osx.sh
+        #    - name: Install gtest
+        #      run: |
+        #        chmod +x ./.github/install_gtest_osx.sh
+        #        sudo ./.github/install_gtest_osx.sh
 
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -D CMAKE_C_COMPILER=$(brew --prefix llvm)/bin/clang -D CMAKE_CXX_COMPILER=$(brew --prefix llvm)/bin/clang
@@ -50,94 +43,3 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       run: ctest -C Debug -V
-
-
-  Benchmark:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
-    - name: Install Software
-      run: |
-        sudo apt-get install -y libmpfr-dev libpng-dev libtbb-dev
-    
-    - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-    
-    - name: Install Google Benchmark
-      run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
-
-    - name: Install gtest
-      run:
-        sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
-      
-    - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-    
-    - name: Bench
-      run: cd build && 
-        ./bench/container/bench_b63_container_get_bits                -j  | tee benchmark_bench_b63_container_get_bits.json             &&
-        ./bench/container/bench_b63_container_kAryPackedContainer     -j  | tee benchmark_bench_b63_container_kAryPackedContainer.json  &&
-        
-        ./bench/label/bench_b63_label_add                             -j  | tee benchmark_bench_b63_label_add.json                      &&
-        ./bench/label/bench_b63_label_add_level                       -j  | tee benchmark_bench_b63_label_add_level.json                &&
-        ./bench/label/bench_b63_label_equal_level                     -j  | tee benchmark_bench_b63_label_equal_level.json              &&
-        ./bench/label/bench_b63_label_sub                             -j  | tee benchmark_bench_b63_label_sub.json                      &&
-        ./bench/label/bench_b63_label_sub_level                       -j  | tee benchmark_bench_b63_label_sub_level.json                &&
-        
-        ./bench/labeltype/bench_b63_labeltype_add                     -j  | tee benchmark_bench_b63_labeltype_add.json                  &&
-        ./bench/labeltype/bench_b63_labeltype_sub                     -j  | tee benchmark_bench_b63_labeltype_sub.json                  &&
-        
-        ./bench/list/bench_b63_list_binarysearch                      -j  | tee benchmark_bench_b63_list_binarysearchjson               &&
-        ./bench/list/bench_b63_list_search                            -j  | tee benchmark_bench_b63_list_search.json                    &&
-        ./bench/list/bench_b63_list_sort                              -j  | tee benchmark_bench_b63_list_sort                           &&
-        
-        ./bench/matrix/bench_b63_matrix/gaus                          -j  | tee benchmark_bench_b63_matrix_gaus                         &&
-        
-        ./bench/mem/bench_b63_mem_malloc_free                         -j  | tee benchmark_bench_b63_mem_malloc_free.json                &&
-        
-        ./bench/nn/bench_b63_nn_avx2                                  -j  | tee benchmark_bench_b63_nn_avx2.json                        &&
-        ./bench/nn/bench_b63_nn_bruteforce                            -j  | tee benchmark_bench_b63_nn_bruteforce.json                  &&
-        ./bench/nn/bench_b63_nn_n128_avx2                             -j  | tee benchmark_bench_b63_nn_n128_avx2.json                   &&
-        ./bench/nn/bench_b63_nn_opt                                   -j  | tee benchmark_bench_b63_nn_opt.json                         &&
-        ./bench/nn/bench_b63_nn_popcount                              -j  | tee benchmark_bench_b63_nn_popcount.json                    &&
-        ./bench/nn/bench_b63_nn_sort_nn_on32                          -j  | tee benchmark_bench_b63_nn_sort_nn_on32.json                &&
-        ./bench/nn/bench_b63_nn_sort_nn_on64                          -j  | tee benchmark_bench_b63_nn_sort_nn_on64.json                &&
-        
-        ./bench/search/bench_b63_search_binarysearch                  -j  | tee benchmark_bench_b63_search_binarysearch.json            &&
-        ./bench/search/bench_b63_search_internal_parallel_bucket_search  -j  | tee benchmark_bench_b63_search_internal_parallel_bucket_search.json &&
-        
-        ./bench/sort/bench_b63_sort_binarycontainer_single_limb       -j  | tee benchmark_bench_b63_sort_binarycontainer_single_limb.json       &&
-        ./bench/sort/bench_b63_sort_internal_parallel_bucket_sort     -j  | tee benchmark_bench_b63_sort_internal_parallel_bucket_sort.json     &&
-        ./bench/sort/bench_b63_sort_sort                              -j  | tee benchmark_bench_b63_sort_sort.json                      &&
-        ./bench/sort/bench_stl_stl                                    -j  | tee benchmark_bench_stl_stl.json                            &&
-        ./bench/value/bench_b63_value_absolute                        -j  | tee benchmark_bench_b63_value_absolute.json                 &&
-        ./bench/value/bench_b63_value_add                             -j  | tee benchmark_bench_b63_value_add.json                      &&
-        ./bench/value/bench_b63_value_move_operator                   -j  | tee benchmark_bench_b63_value_move_operator.json
-
-    #- name: benchmark_bench_b63_sort_gbench_sort
-    #  uses: benchmark-action/github-action-benchmark@v1
-    #  with:
-    #    tool: 'googlecpp'
-    #    output-file-path: build/benchmark_bench_b63_sort_gbench_sort.json
-    #    github-token: ${{ secrets.GITHUB_TOKEN }}
-    #    auto-push: true
-    #    alert-threshold: '200%'
-    #    comment-on-alert: true
-    #    fail-on-alert: true
-    #    alert-comment-cc-users: '@FloydZ'
-    #
-    #      #    - name: benchmark_bench_b63_combinations_binary
-    #      #      uses: benchmark-action/github-action-benchmark@v1
-    #      #      with:
-    #      #        tool: 'googlecpp'
-    #      #        output-file-path: build/benchmark_bench_b63_combinations_binary.json
-    #      #        github-token: ${{ secrets.GITHUB_TOKEN }}
-    #      #        auto-push: true
-    #      #        alert-threshold: '200%'
-    #      #        comment-on-alert: true
-    #      #        fail-on-alert: true
-    #      #        alert-comment-cc-users: '@FloydZ'

@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 23)
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SANITIZER "Enable memory sanitizer" OFF)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
+option(USE_LTO "Enable -flto" OFF)
 
 # 
 set(default_build_type "Release")
@@ -113,7 +114,7 @@ if (COMPILER_SUPPORTS_CONSTEXPR_COST)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
 endif()
 
-if(lto_supported)
+if(lto_supported AND USE_LTO)
   message(STATUS "IPO / LTO enabled")
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
