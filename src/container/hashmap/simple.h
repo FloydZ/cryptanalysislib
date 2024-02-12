@@ -6,6 +6,7 @@
 #include <utility>
 #include <cstddef>
 
+#include "atomic_primitives.h"
 #include "sort/sorting_network/common.h"
 #include "container/hashmap/common.h"
 #include "helper.h"
@@ -49,11 +50,10 @@ public:
 
 	// total number of elements in the HM
 	constexpr static size_t total_size = bucketsize * nrbuckets;
-	
+
+	constexpr static uint32_t threads = config.threads;
 	constexpr static bool multithreaded = config.threads > 1u;
-	using load_type = typename std::conditional<multithreaded,
-	                                            std::atomic<TypeTemplate<bucketsize>>,
-	                                            TypeTemplate<bucketsize>>::type;
+	using load_type = TypeTemplate<bucketsize>;
 
 	/// constructor. Zero initializing everything
 	constexpr SimpleHashMap() noexcept :
@@ -82,16 +82,13 @@ public:
 		const size_t index = hash(e);
 		ASSERT(index < nrbuckets);
 
-
 		size_t load;
 		if constexpr (multithreaded) {
-			load = __internal_load_array[index].fetch_add(1u);
-
+			load = FAA(__internal_load_array + index, 1);
 			// early exit and reset
 			if (load >= bucketsize) {
-				/// NOTE maybe overkill. Is it possible without the atomic store?
-				__internal_load_array[index].store(bucketsize);
-				return ;
+				__internal_load_array[index] = bucketsize;
+				return;
 			}
 		} else {
 			load = __internal_load_array[index];
@@ -187,6 +184,21 @@ public:
 		memset(__internal_load_array, 0, nrbuckets*sizeof(load_type));
 	}
 
+	/// multithreaded clear
+	/// NOTE: cannot be `constexpr`
+	inline void clear(uint32_t tid) noexcept {
+		if constexpr (config.threads == 1) {
+			(void) tid;
+			clear();
+			return;
+		}
+
+		const size_t start = tid * nrbuckets/config.threads;
+		const size_t bytes = nrbuckets*sizeof(load_type)/config.threads;
+		memset(__internal_load_array + start, 0, bytes);
+		#pragma omp barrier
+	}
+
 	/// internal function
 	constexpr inline index_type load_without_hash(const keyType &e) const noexcept {
 		ASSERT(e < nrbuckets);
@@ -221,14 +233,15 @@ public:
 				  << ", bucketsize:" << bucketsize
 				  << ", sizeof(keyType): " << sizeof(keyType)
 				  << ", sizeof(valueType): " << sizeof(valueType)
+				  << ", sizeof(load_type): " << sizeof(load_type)
+				  << ", sizeof(index_type): " << sizeof(index_type)
 				  << ", multithreaded: " << multithreaded;
 
 		if constexpr (multithreaded) {
-			std::cout << " (Threads:" << config.threads
-			          << ", lockfree:" << __internal_load_array[0].is_always_lock_free << ")";
+			std::cout << " (Threads:" << config.threads;
 		}
 
-		std::cout << "\n";
+		std::cout << std::endl;
 	}
 
 	// internal const_array

@@ -63,10 +63,7 @@ public:
 	constexpr static size_t internal_total_size = internal_bucketsize * nrbuckets;
 	
 	constexpr static bool multithreaded = config.threads > 1u;
-	using load_type = typename std::conditional<multithreaded,
-	                                            std::atomic<TypeTemplate<bucketsize>>,
-	                                            TypeTemplate<bucketsize>>::type;
-	
+
 	/// constructor. Zero initializing everything
 	constexpr Simple2HashMap() noexcept :
 			__array() {}
@@ -199,6 +196,20 @@ public:
 		}
 	}
 
+	/// multithreaded clear
+	constexpr inline void clear(uint32_t tid) noexcept {
+		if constexpr (config.threads == 1) {
+			(void) tid;
+			clear();
+			return;
+		}
+
+		const size_t start = tid * nrbuckets/config.threads;
+		const size_t end   = (tid + 1) * nrbuckets/config.threads;
+		for (size_t i = start; i < end; i++) {
+			__array[i*bucketsize + internal_bucketsize] = 0;
+		}
+	}
 	/// internal function
 	constexpr inline index_type load_without_hash(const keyType &e) const noexcept {
 		ASSERT(e < nrbuckets);
