@@ -575,7 +575,8 @@ struct uint8x32_t {
 #ifdef __clang__
 		uint8x16_t helper = vdupq_n_u8(-in2);
 #else
-		uint8x16_t helper = (uint8x16_t) {-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2};
+		const short in3 = (short)-in2;
+		uint8x16_t helper = (uint8x16_t) {-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3};
 #endif
 
 		LOOP_UNROLL()
@@ -596,7 +597,7 @@ struct uint8x32_t {
 			const uint8x16_t tmp = vcgtq_u8(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #else
-			const __uint8x16_t tmp = in1.v128[i] > in2.v128[i];
+			const uint8x16_t tmp = in1.v128[i] > in2.v128[i];
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #endif
 		}
@@ -614,7 +615,7 @@ struct uint8x32_t {
 			const uint8x16_t tmp = vceqq_u8(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #else
-			const __uint8x16_t tmp = in1.v128[i] == in2.v128[i];
+			const uint8x16_t tmp = in1.v128[i] == in2.v128[i];
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #endif
 		}
@@ -955,7 +956,8 @@ struct uint16x16_t {
 #ifdef __clang__
 		int16x8_t helper = vdupq_n_s16(-in2);
 #else 
-		int16x8_t helper = (int16x8_t){-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2};
+		const short in3 = (short)-in2;
+		int16x8_t helper = (int16x8_t){-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3};
 #endif
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {

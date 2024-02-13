@@ -49,6 +49,7 @@ check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)
 check_cxx_compiler_flag(-fsanitize=address COMPILER_SUPPORTS_SANITIZE_ADDRESS) # TODO support not recognized
 check_cxx_compiler_flag(-fsanitize=memory COMPILER_SUPPORTS_SANITIZE_MEMORY)
 check_cxx_compiler_flag(-fconstexpr-steps=91 COMPILER_SUPPORTS_CONSTEXPR_COST)
+check_cxx_compiler_flag(-fno-exceptions COMPILER_SUPPORTS_NO_EXCEPTION)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC) # TODO
 
@@ -131,7 +132,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES 
 	message(STATUS "ARM CPU detected")
     set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
 	set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -fpermissive -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-    set(OPTIMIZE_FLAGS "-O3 -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+    set(OPTIMIZE_FLAGS "-O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 else()
 
 if(_available_vector_units_list AND "avx2" IN_LIST _available_vector_units_list)
@@ -144,7 +145,7 @@ endif()
 #endif()
 
     set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic -DDEBUG ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-	set(OPTIMIZE_FLAGS "-g -march=native -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-g -march=native -DNDEBUG ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
 endif()
 
 set(LINK_TEST_FLAGS 

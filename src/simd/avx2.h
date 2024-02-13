@@ -96,22 +96,22 @@ struct _uint64x2_t {
 		__m128i v128;
 	};
 
-	[[nodiscard]] constexpr static inline uint64x2_t set1(uint64_t a) {
-		uint64x2_t ret;
+	[[nodiscard]] constexpr static inline _uint64x2_t set1(uint64_t a) {
+		_uint64x2_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
-		uint64x2_t ret;
+	[[nodiscard]] constexpr static inline _uint64x2_t set(uint64_t a, uint64_t b) {
+		_uint64x2_t ret;
 		ret.v64[0] = b;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint64x2_t setr(uint64_t a, uint64_t b) {
-		uint64x2_t ret;
+	[[nodiscard]] constexpr static inline _uint64x2_t setr(uint64_t a, uint64_t b) {
+		_uint64x2_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = b;
 		return ret;
