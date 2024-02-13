@@ -2,7 +2,6 @@
 #define CRYPTANALYSISLIB_POPCOUNT_H
 
 #include <cstdint>
-#include <concepts>
 #include "helper.h"
 
 
