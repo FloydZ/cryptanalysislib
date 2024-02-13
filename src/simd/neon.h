@@ -575,8 +575,8 @@ struct uint8x32_t {
 #ifdef __clang__
 		uint8x16_t helper = vdupq_n_u8(-in2);
 #else
-		const short in3 = (short)-in2;
-		uint8x16_t helper = (uint8x16_t) {-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3};
+		const short int in3 = (short)-in2;
+		uint8x16_t helper = (uint8x16_t) {in3,in3,in3,in3,in3,in3,in3,in3,in3,in3,in3,in3,in3,in3,in3,in3};
 #endif
 
 		LOOP_UNROLL()
@@ -956,8 +956,8 @@ struct uint16x16_t {
 #ifdef __clang__
 		int16x8_t helper = vdupq_n_s16(-in2);
 #else 
-		const short in3 = (short)-in2;
-		int16x8_t helper = (int16x8_t){-in3,-in3,-in3,-in3,-in3,-in3,-in3,-in3};
+		const short int in3 = (short)-in2;
+		int16x8_t helper = (int16x8_t){in3,in3,in3,in3,in3,in3,in3,in3};
 #endif
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -1470,7 +1470,7 @@ struct uint32x8_t {
 #ifdef __clang__
 		uint16x8_t mask = vdupq_n_u16(0xff);
 #else
-		uint16x8_t mask = (__uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+		uint16x8_t mask = (uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
 #endif
 		
 		LOOP_UNROLL()
