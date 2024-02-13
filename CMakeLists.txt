@@ -161,6 +161,11 @@ set(LINK_TEST_FLAGS
 	OpenMP::OpenMP_CXX
 )
 
+# on apple we need to add standard library???
+#if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+#	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} c++)
+#endif()
+
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
 # he nicest way, but by far the easiest.
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
