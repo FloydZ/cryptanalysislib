@@ -387,14 +387,16 @@ TEST(Static_Add, Probabilistic){
 					ASSERT_EQ(b3.get_bit_shifted(k), (f>>k) & 1);
 				}
 			}
+
 			for(uint64_t k = k_lower; k < k_upper; k++){
 				if(k < 64){
 					ASSERT_EQ(b3.get_bit_shifted(k), ((a^c) >> k) & 1);
 				}
 				else {
-					ASSERT_EQ(b3.get_bit_shifted(k), ((b^d) >> k) & 1);
+					ASSERT_EQ(b3.get_bit_shifted(k), ((b^d) >> (k-64)) & 1);
 				}
 			}
+
 			for(uint64_t k = k_upper; k < 128; k++){
 				if(k < 64){
 					ASSERT_EQ(b3.get_bit_shifted(k), (e>>k) & 1);
@@ -405,10 +407,8 @@ TEST(Static_Add, Probabilistic){
 			}
 		}
 	}
-
 }
 
-// TODO failed im Relase mode
 TEST(Add, Probabilistic){
 	using BinaryContainerTest = BinaryContainer<128>;
 	std::vector<std::pair<uint64_t, uint64_t>> boundsSet = {std::pair(0, 64),
@@ -442,7 +442,7 @@ TEST(Add, Probabilistic){
 					ASSERT_EQ(b1.get_bit_shifted(k), (a>>k) & 1);
 				}
 				else {
-					ASSERT_EQ(b1.get_bit_shifted(k), (b>>k) & 1);
+					ASSERT_EQ(b1.get_bit_shifted(k), (b>>(k-64)) & 1);
 				}
 			}
 			for(uint64_t k = k_lower; k < k_upper; k++){
@@ -450,7 +450,7 @@ TEST(Add, Probabilistic){
 					ASSERT_EQ(b1.get_bit_shifted(k), ((a^c) >> k) & 1);
 				}
 				else {
-					ASSERT_EQ(b1.get_bit_shifted(k), ((b^d) >> k) & 1);
+					ASSERT_EQ(b1.get_bit_shifted(k), ((b^d) >> (k - 64)) & 1);
 				}
 			}
 			for(uint64_t k = k_upper; k < 128; k++){
@@ -458,7 +458,7 @@ TEST(Add, Probabilistic){
 					ASSERT_EQ(b1.get_bit_shifted(k), (a>>k) & 1);
 				}
 				else {
-					ASSERT_EQ(b1.get_bit_shifted(k), (b>>k) & 1);
+					ASSERT_EQ(b1.get_bit_shifted(k), (b>>(k - 64)) & 1);
 				}
 			}
 		}

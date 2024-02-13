@@ -142,8 +142,7 @@ size_t standard_binary_search(const T *array,
 
 		if (key < array[mid]) {
 			top = mid - 1;
-		}
-		else {
+		} else {
 			bot = mid;
 		}
 	}

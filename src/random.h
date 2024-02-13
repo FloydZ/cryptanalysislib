@@ -153,26 +153,13 @@ static inline T fastrandombits() noexcept {
 
 #ifdef USE_AVX2
 #include <immintrin.h>
-/// TODO segfault in release mode
 /// \return
 static __m256i fastrandombytes_m256i() noexcept {
-	__m256i data;
-	xorshf96_fastrandombytes_uint64_array((uint64_t *)&data, 4u * 8u);
-	return data;
-
-	//constexpr uint32_t UINT64_POOL_SIZE = 128;
-	//alignas(256) static uint64_t tmp[UINT64_POOL_SIZE*4];
-	//__m256i *tmp64 = (__m256i *)tmp;
-
-	//static size_t counter = 0;
-
-	//if (counter == 0){
-	//	xorshf96_fastrandombytes_uint64_array(tmp, UINT64_POOL_SIZE * 4u * 8u);
-	//	counter = UINT64_POOL_SIZE;
-	//}
-
-	//counter -= 1;
-	//return tmp64[counter];
+	alignas(32) uint64_t data[4];
+	__m256i ret;
+	xorshf96_fastrandombytes_uint64_array((uint64_t *)data, 4u * 8u);
+	ret = _mm256_load_si256((__m256i *)data);
+	return ret;
 }
 
 #endif

@@ -157,7 +157,7 @@ public:
 
 	// shifted.
 	constexpr bool get_bit_shifted(const uint16_t i) const noexcept {
-		return (__data[round_down_to_limb(i)] & mask(i)) >> i;
+		return (__data[round_down_to_limb(i)] & mask(i)) >> (i % 64);
 	}
 
 	// return the bits [i,..., j) in one limb

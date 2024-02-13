@@ -4,7 +4,7 @@
 #include "../bench_config.h"
 #include "container/linkedlist/linkedlist.h"
 
-constexpr uint64_t N = 1000000;
+constexpr uint64_t N = 100;
 constexpr uint64_t THREADS = 6;
 
 struct TestStruct {
@@ -30,7 +30,7 @@ B63_BASELINE(Base, nn) {
 		for (size_t i = 0; i < THREADS; ++i) {
 			pool[i] = std::thread([&i, &linked_list]() {
 				TestStruct t;
-				for (size_t j = 0; j < N; ++j) {
+				for (size_t j = 1; j < N; ++j) {
 					t.data = j + i * N;
 					linked_list.insert(t);
 				}
@@ -44,7 +44,7 @@ B63_BASELINE(Base, nn) {
 		for (size_t i = 0; i < THREADS; ++i) {
 			pool[i] = std::thread([&i, &linked_list, &ret]() {
 				TestStruct t;
-				for (size_t j = 0; j < N; ++j) {
+				for (size_t j = 1; j < N; ++j) {
 					t.data = j + i * N;
 					ret += linked_list.remove(t);
 				}
@@ -56,14 +56,9 @@ B63_BASELINE(Base, nn) {
 		}
 	}
 
-
 	B63_KEEP(ret);
 }
 
-
-//B63_BENCHMARK(BaseAndInternalArray, nn) {
-//
-//}
 
 int main(int argc, char **argv) {
 	srand(time(NULL));
