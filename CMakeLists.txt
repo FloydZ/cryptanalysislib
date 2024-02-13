@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.20)  		# 3.20 is needed because of C++23
+cmake_minimum_required(VERSION 3.20)  		# 3.20 is needed because of C++20
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # options
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
