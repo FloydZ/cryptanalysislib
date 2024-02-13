@@ -32,15 +32,13 @@ template<
         class Hash>
 class SimpleHashMap {
 public:
-	using data_type          = valueType;
-	using index_type         = size_t;
+	using data_type         = valueType;
+	using key_type          = keyType;
+	using index_type        = size_t;
+	using load_type 		= TypeTemplate<config.bucketsize>;
 
-	typedef keyType 	T;
 	Hash hashclass = Hash{};
 
-	// TODO make sure that is general enough
-	typedef size_t 		LoadType;
-	typedef size_t 		IndexType;
 
 	// size per bucket
 	constexpr static size_t bucketsize = config.bucketsize;
@@ -53,7 +51,6 @@ public:
 
 	constexpr static uint32_t threads = config.threads;
 	constexpr static bool multithreaded = config.threads > 1u;
-	using load_type = TypeTemplate<bucketsize>;
 
 	/// constructor. Zero initializing everything
 	constexpr SimpleHashMap() noexcept :
@@ -67,7 +64,7 @@ public:
 	/// \param tid (ignored) can be anything
 	/// \return
 	constexpr inline void insert(const keyType &e,
-						  const valueType value,
+						  const valueType &value,
 						  const uint32_t tid) noexcept {
 		(void)tid;
 		insert(e, value);
@@ -78,7 +75,7 @@ public:
 	/// NOTE: Boundary checks are performed in debug mode.
 	/// \param e element to insert
 	/// \return nothing
-	constexpr inline void insert(const keyType &e, const valueType value) noexcept {
+	constexpr inline void insert(const keyType &e, const valueType &value) noexcept {
 		const size_t index = hash(e);
 		ASSERT(index < nrbuckets);
 
@@ -153,7 +150,7 @@ public:
 	/// \param e
 	/// \param __load
 	/// \return
-	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
+	constexpr inline index_type find(const keyType &e, load_type &__load) const noexcept {
 		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
 		__load = __internal_load_array[index];
@@ -166,7 +163,7 @@ public:
 	/// \param e
 	/// \param __load
 	/// \return
-	constexpr inline index_type find_without_hash(const keyType &e, index_type &__load) const noexcept {
+	constexpr inline index_type find_without_hash(const keyType &e, load_type &__load) const noexcept {
 		ASSERT(e < nrbuckets);
 		__load = __internal_load_array[e];
 		return e*bucketsize;

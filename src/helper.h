@@ -331,6 +331,20 @@ typename std::conditional<(n <= 8), uint8_t,
 	>::type
 >::type;
 
+template <const uint32_t n, const uint32_t m>
+using MinLogTypeTemplate =
+
+		typename std::conditional<(n <= m), LogTypeTemplate<m>,
+			typename std::conditional<(n <= 8), uint8_t,
+					typename std::conditional<(n <= 16), uint16_t,
+							typename std::conditional<(n <= 32), uint32_t,
+									typename std::conditional<(n <= 64), uint64_t,
+											__uint128_t
+									>::type
+							>::type
+					>::type
+			>::type
+      	>::type;
 /// Translates a given number into the minimal datatype which
 /// is capable of holding this datatype
 template <uint64_t n>

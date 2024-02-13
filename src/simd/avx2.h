@@ -801,6 +801,7 @@ struct uint32x8_t {
 		uint16_t v16[16];
 		uint32_t v32[8];
 		uint64_t v64[4];
+		cryptanalysislib::_uint32x4_t v128[2];
 		__m256i v256;
 	};
 

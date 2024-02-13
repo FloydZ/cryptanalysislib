@@ -40,6 +40,7 @@ template<
 		class Hash>
 class Simple2HashMap {
 	using data_type          = valueType;
+	using key_type           = keyType;
 	using index_type         = size_t;
 
 public:

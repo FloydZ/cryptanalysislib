@@ -18,7 +18,7 @@ Usage:
 
 ```C
 using K = uint32_t; // just an example, can be whatever you want
-using V = uint64_t; // just an example, can be whatever you watn
+using V = uint64_t; // just an example, can be whatever you want
 
 // needed hashfunction, which only returns the lower `l` bits
 template<const uint32_t l>
