@@ -1,27 +1,35 @@
 #include <gtest/gtest.h>
+#include <iostream>
+#include <cstdio>
+#include <cstdint>
 
 #include "helper.h"
 #include "random.h"
 #include "simd/simd.h"
 
+using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
 using ::testing::Test;
+using ::testing::TestEventListeners;
+using ::testing::TestInfo;
+using ::testing::TestPartResult;
+using ::testing::UnitTest;
 
 constexpr size_t TESTS=100;
 
-TEST(uint8x32_t, random) {
+TEST(TTuint8x32_t, TTrandom) {
 	uint8x32_t t1;
 	t1.random();
 
-	bool atleast_one_not_zero = false;
+	uint32_t atleast_one_not_zero = false;
 	for (uint32_t i = 0; i < 32; ++i) {
 		if (t1.v8[i] > 0) {
 			atleast_one_not_zero = true;
-			break;
+		//	break;
 		}
 	}
 
-	EXPECT_EQ(atleast_one_not_zero, true);
+	ASSERT_EQ(atleast_one_not_zero, true);
 }
 
 TEST(uint8x32_t, set1) {
@@ -168,7 +176,6 @@ TEST(uint8x32_t, slri) {
 }
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

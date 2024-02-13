@@ -129,15 +129,7 @@ message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") 
 	message(STATUS "ARM CPU detected")
-    include_directories(/opt/homebrew/opt/libomp/include)
-    include_directories(/opt/homebrew/include)
-    link_directories(/opt/homebrew/opt/libomp/link)
-    link_directories(/usr/local/lib)
-    link_directories(/usr/lib)
-    link_directories(/opt/homebrew/lib)
-
-    set(ADDITIONAL_FLAGS "-DUSE_ARM -march=native -flax-vector-conversions -march=native")
-
+    set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
 	set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -fpermissive -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-O3 -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
 else()
@@ -162,16 +154,21 @@ set(LINK_TEST_FLAGS
 	OpenMP::OpenMP_CXX
 )
 
-# on apple we need to add standard library???
-#if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-#	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} c++)
-#endif()
-
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
 # he nicest way, but by far the easiest.
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 
+# on apple we need to add standard library???
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libc++")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libc++")
+	elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		# set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libstdc++")
+		# set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libstdc++")
+	endif()
+endif()
 
 # now check if we have to add the cuda runtime
 check_language(CUDA)

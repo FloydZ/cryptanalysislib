@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <cinttypes>
-#include <sys/types.h>
 
 #include "helper.h"
 #include "random.h"
@@ -28,7 +27,7 @@
 
 namespace cryptanalysislib {
 
-struct uint32x4_t {
+struct _uint32x4_t {
 	union {
 		uint8_t  v8 [16];
 		uint16_t v16[ 8];
@@ -38,8 +37,8 @@ struct uint32x4_t {
 
 	///
 	/// \return
-	static inline uint32x4_t random() {
-		uint32x4_t ret;
+	static inline _uint32x4_t random() {
+		_uint32x4_t ret;
 		for (uint32_t i=0; i<2; i++) {
 			ret.v64[i] = fastrandombytes_uint64();
 		}
@@ -47,8 +46,8 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+		_uint32x4_t ret;
 		ret.v32[0] = d;
 		ret.v32[1] = c;
 		ret.v32[2] = b;
@@ -56,8 +55,8 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {
+		_uint32x4_t ret;
 		ret.v32[0] = a;
 		ret.v32[1] = b;
 		ret.v32[2] = c;
@@ -65,22 +64,22 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t set(uint64_t a, uint64_t b) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t set(uint64_t a, uint64_t b) {
+		_uint32x4_t ret;
 		ret.v64[0] = b;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t setr(uint64_t a, uint64_t b) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t setr(uint64_t a, uint64_t b) {
+		_uint32x4_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = b;
 		return ret;
 	}
 };
 
-struct uint64x2_t {
+struct _uint64x2_t {
 	union {
 		uint8_t  v8 [16];
 		uint16_t v16[ 8];
@@ -90,8 +89,8 @@ struct uint64x2_t {
 
 	///
 	/// \return
-	static inline uint64x2_t random() {
-		uint64x2_t ret;
+	static inline _uint64x2_t random() {
+		_uint64x2_t ret;
 		for (uint32_t i=0; i<2; i++) {
 			ret.v64[i] = fastrandombytes_uint64();
 		}
@@ -99,15 +98,15 @@ struct uint64x2_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
-		uint64x2_t ret;
+	[[nodiscard]] constexpr static inline _uint64x2_t set(uint64_t a, uint64_t b) {
+		_uint64x2_t ret;
 		ret.v64[0] = b;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint64x2_t setr(uint64_t a, uint64_t b) {
-		uint64x2_t ret;
+	[[nodiscard]] constexpr static inline _uint64x2_t setr(uint64_t a, uint64_t b) {
+		_uint64x2_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = b;
 		return ret;
@@ -1539,7 +1538,7 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const cryptanalysislib::uint32x4_t data) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const cryptanalysislib::_uint32x4_t data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		uint64x4_t ret;
 		const uint8_t *ptr8 = (uint8_t *)ptr;

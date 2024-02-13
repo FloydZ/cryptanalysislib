@@ -1148,23 +1148,23 @@ public:
 	constexpr inline static void sub(kAryPackedContainer_T &v3,
 	                                 kAryPackedContainer_T const &v1,
 	                                 kAryPackedContainer_T const &v2) noexcept {
-		if constexpr (internal_limbs == 1) {
-			v3.__data[0] = sub_T(v1.__data[0], v2.__data[0]);
-			return;
-		} else if constexpr ((internal_limbs == 2) && (sizeof(T) == 8)) {
-			__uint128_t t = sub_T<__uint128_t>(*((__uint128_t *)v1.__data.data()), *((__uint128_t *)v2.__data.data()));
-			*((__uint128_t *)v3.__data.data()) = t;
-			return;
-		}
+		//if constexpr (internal_limbs == 1) {
+		//	v3.__data[0] = sub_T(v1.__data[0], v2.__data[0]);
+		//	return;
+		//} else if constexpr ((internal_limbs == 2) && (sizeof(T) == 8)) {
+		//	__uint128_t t = sub_T<__uint128_t>(*((__uint128_t *)v1.__data.data()), *((__uint128_t *)v2.__data.data()));
+		//	*((__uint128_t *)v3.__data.data()) = t;
+		//	return;
+		//}
 
-		uint32_t i = 0;
-		if constexpr(activate_avx2) {
-			for (; i + limbs_per_simd_limb <= internal_limbs; i += limbs_per_simd_limb) {
-				const uint64x4_t t = sub256_T(uint64x4_t::unaligned_load((uint64x4_t *) &v1.__data[i]),
-				                              uint64x4_t::unaligned_load((uint64x4_t *) &v2.__data[i]));
-				uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[i], t);
-			}
-		}
+		uint32_t i = 0; // TODO not working on ARM apple
+		//if constexpr(activate_avx2) {
+		//	for (; i + limbs_per_simd_limb <= internal_limbs; i += limbs_per_simd_limb) {
+		//		const uint64x4_t t = sub256_T(uint64x4_t::unaligned_load((uint64x4_t *) &v1.__data[i]),
+		//		                              uint64x4_t::unaligned_load((uint64x4_t *) &v2.__data[i]));
+		//		uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[i], t);
+		//	}
+		//}
 
 		for (; i < internal_limbs; i++) {
 			v3.__data[i] = sub_T(v1.__data[i], v2.__data[i]);

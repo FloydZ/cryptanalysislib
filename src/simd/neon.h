@@ -7,42 +7,18 @@
 #include "helper.h"
 #include "random.h"
 
-// TODO clang++ not working
-#ifndef __clang__
-#include <arm_bf16.h>
-#include <arm_fp16.h>
-#include <stdint.h>
-typedef __Uint8x8_t  __uint8x8_t;
-typedef __Uint8x16_t __uint8x16_t;
-typedef __Uint16x4_t __uint16x4_t;
-typedef __Uint16x8_t __uint16x8_t;
-typedef __Uint32x2_t __uint32x2_t;
-typedef __Uint32x4_t __uint32x4_t;
-typedef __Uint64x1_t __uint64x1_t;
-typedef __Uint64x2_t __uint64x2_t;
-#else
-typedef __attribute__((neon_vector_type(8))) uint8_t  __uint8x8_t;
-typedef __attribute__((neon_vector_type(16))) uint8_t __uint8x16_t;
-typedef __attribute__((neon_vector_type(4))) uint16_t __uint16x4_t;
-typedef __attribute__((neon_vector_type(8))) uint16_t __uint16x8_t;
-typedef __attribute__((neon_vector_type(2))) uint32_t __uint32x2_t;
-typedef __attribute__((neon_vector_type(4))) uint32_t __uint32x4_t;
-typedef __attribute__((neon_vector_type(1))) uint64_t __uint64x1_t;
-typedef __attribute__((neon_vector_type(2))) uint64_t __uint64x2_t;
-#endif
-
 namespace cryptanalysislib {
-struct uint32x4_t {
+struct _uint32x4_t {
 	union {
 		uint8_t v8[16];
 		uint16_t v16[8];
 		uint32_t v32[4];
 		uint64_t v64[2];
-		__uint32x4_t v128;
+		uint32x4_t v128;
 	};
 
-	[[nodiscard]] constexpr static inline uint32x4_t set1(uint32_t a) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t set1(uint32_t a) {
+		_uint32x4_t ret;
 		ret.v32[0] = a;
 		ret.v32[1] = a;
 		ret.v32[2] = a;
@@ -50,8 +26,8 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+		_uint32x4_t ret;
 		ret.v32[0] = d;
 		ret.v32[1] = c;
 		ret.v32[2] = b;
@@ -59,8 +35,8 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+		_uint32x4_t ret;
 		ret.v32[0] = a;
 		ret.v32[1] = b;
 		ret.v32[2] = c;
@@ -68,46 +44,46 @@ struct uint32x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t set(uint64_t a, uint64_t b) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t set(uint64_t a, uint64_t b) {
+		_uint32x4_t ret;
 		ret.v64[0] = b;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x4_t setr(uint64_t a, uint64_t b) {
-		uint32x4_t ret;
+	[[nodiscard]] constexpr static inline _uint32x4_t setr(uint64_t a, uint64_t b) {
+		_uint32x4_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = b;
 		return ret;
 	}
 };
 
-struct uint64x2_t {
+struct _uint64x2_t {
 	union {
 		uint8_t v8[16];
 		uint16_t v16[8];
 		uint32_t v32[4];
 		uint64_t v64[2];
-		__uint64x2_t v128;
+		uint64x2_t v128;
 	};
 
-	[[nodiscard]] constexpr static inline uint64x2_t set1(uint64_t a) {
-		uint64x2_t ret;
+	[[nodiscard]] constexpr static inline _uint64x2_t set1(uint64_t a) {
+		_uint64x2_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint64x2_t set(uint64_t a, uint64_t b) {
-		uint64x2_t ret;
+	[[nodiscard]] constexpr static inline _uint64x2_t set(uint64_t a, uint64_t b) {
+		_uint64x2_t ret;
 		ret.v64[0] = b;
 		ret.v64[1] = a;
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint64x2_t setr(uint64_t a, uint64_t b) {
-		uint64x2_t ret;
+	[[nodiscard]] constexpr static inline _uint64x2_t setr(uint64_t a, uint64_t b) {
+		_uint64x2_t ret;
 		ret.v64[0] = a;
 		ret.v64[1] = b;
 		return ret;
@@ -248,7 +224,7 @@ struct uint8x32_t {
 		uint16_t v16[16];
 		uint32_t v32[8];
 		uint64_t v64[4];
-		__uint8x16_t v128[2];
+		uint8x16_t v128[2];
 	};
 
 
@@ -392,9 +368,9 @@ struct uint8x32_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (__uint8x16_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint8x16_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (__uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 		}
 		return out;
@@ -410,9 +386,9 @@ struct uint8x32_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (__uint8x16_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint8x16_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (__uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 		}
 		return out;
@@ -437,14 +413,10 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \param in
 	static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
-		auto *ptr128 = (poly128_t *) ptr;
+		auto *ptr128 = (uint8x16_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			vstrq_p128(ptr128, (poly128_t) in.v128[i]);
-#else
-			__builtin_neon_vstrq_p128(ptr128, (poly128_t) in.v128[i]);
-#endif
+			ptr128[i] = in.v128[i];
 		}
 	}
 
@@ -452,14 +424,10 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
-		auto *ptr128 = (poly128_t *) ptr;
+		auto *ptr128 = (uint8x16_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			vstrq_p128(ptr128, (poly128_t) in.v128[i]);
-#else
-			__builtin_neon_vstrq_p128(ptr128, (poly128_t) in.v128[i]);
-#endif
+			ptr128[i] = in.v128[i];
 		}
 	}
 
@@ -589,7 +557,7 @@ struct uint8x32_t {
 			out.v128[i] = vshlq_n_u8(in1.v128[i], in2);
 #else
 			const uint8x32_t tmp = uint8x32_t::set1(in2);
-			out.v128[i] = __builtin_neon_vshlq_v(in1.v128[i], (__uint8x16_t) tmp.v128[0], 48u);
+			out.v128[i] = __builtin_neon_vshlq_v(in1.v128[i], (uint8x16_t) tmp.v128[0], 48u);
 #endif
 		}
 
@@ -605,9 +573,9 @@ struct uint8x32_t {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
 #ifdef __clang__
-		uint8x16_t helper = vdupq_n_u8(in2);
+		uint8x16_t helper = vdupq_n_u8(-in2);
 #else
-		uint8x16_t helper = (uint8x16_t) {in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2,in2};
+		uint8x16_t helper = (uint8x16_t) {-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2,-in2};
 #endif
 
 		LOOP_UNROLL()
@@ -625,7 +593,7 @@ struct uint8x32_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint8x16_t tmp = vcgtq_u8(in1.v128[i], in2.v128[i]);
+			const uint8x16_t tmp = vcgtq_u8(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #else
 			const __uint8x16_t tmp = in1.v128[i] > in2.v128[i];
@@ -643,7 +611,7 @@ struct uint8x32_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint8x16_t tmp = vceqq_u8(in1.v128[i], in2.v128[i]);
+			const uint8x16_t tmp = vceqq_u8(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi8(tmp) << i*16;
 #else
 			const __uint8x16_t tmp = in1.v128[i] == in2.v128[i];
@@ -676,7 +644,7 @@ struct uint16x16_t {
 		uint16_t v16[16];
 		uint32_t v32[8];
 		uint64_t v64[4];
-		__uint16x8_t v128[2];
+		uint16x8_t v128[2];
 	};
 
 	///
@@ -774,9 +742,9 @@ struct uint16x16_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (__uint16x8_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint16x8_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (__uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 		}
 		return out;
@@ -792,9 +760,9 @@ struct uint16x16_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (__uint16x8_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint16x8_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (__uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 		}
 		return out;
@@ -1003,10 +971,10 @@ struct uint16x16_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint16x8_t tmp = vcgtq_u16(in1.v128[i], in2.v128[i]);
+			const uint16x8_t tmp = vcgtq_u16(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi16(tmp) << i*8;
 #else
-			const __uint16x8_t tmp = in1.v128[i] > in2.v128[i];
+			const uint16x8_t tmp = in1.v128[i] > in2.v128[i];
     		ret ^= _mm_movemask_epi16(tmp) << i*8;
 #endif
 		}
@@ -1035,10 +1003,10 @@ struct uint16x16_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint16x8_t tmp = vceqq_u16(in1.v128[i], in2.v128[i]);
+			const uint16x8_t tmp = vceqq_u16(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi16(tmp) << i*8;
 #else
-			const __uint16x8_t tmp = in1.v128[i] == in2.v128[i];
+			const uint16x8_t tmp = in1.v128[i] == in2.v128[i];
     		ret ^= _mm_movemask_epi16(tmp) << i*8;
 #endif
 		}
@@ -1065,18 +1033,18 @@ struct uint16x16_t {
 		uint16x16_t out;
 		
 #ifdef __clang__
-		__uint16x8_t mask = vdupq_n_u16(0xff);
+		uint16x8_t mask = vdupq_n_u16(0xff);
 #else 
-		__uint16x8_t mask = (__uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+		uint16x8_t mask = (uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
 #endif
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint16x8_t tmp = (__uint16x8_t)vcntq_u8((__uint8x16_t)in.v128[i]);
+			const uint16x8_t tmp = (uint16x8_t)vcntq_u8((uint8x16_t)in.v128[i]);
 			out.v128[i] = vaddq_u16(vshrq_n_u16(tmp, 8), vandq_u16(tmp, mask));
 
 #else
-			const __uint16x8_t tmp = (__uint16x8_t)__builtin_aarch64_popcountv16qi((__uint8x16_t)in.v128[i]);
+			const uint16x8_t tmp = (uint16x8_t)__builtin_aarch64_popcountv16qi((uint8x16_t)in.v128[i]);
 			out.v128[i] = vshrq_n_u16(tmp, 8) + vandq_u16(tmp, mask);
 #endif
 		}
@@ -1091,7 +1059,7 @@ struct uint32x8_t {
 		uint16_t v16[16];
 		uint32_t v32[8];
 		uint64_t v64[4];
-		__uint32x4_t v128[2];
+		uint32x4_t v128[2];
 	};
 
 	///
@@ -1169,9 +1137,9 @@ struct uint32x8_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (__uint32x4_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint32x4_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (__uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 		}
 		return out;
@@ -1187,9 +1155,9 @@ struct uint32x8_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (__uint32x4_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint32x4_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (__uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 		}
 		return out;
@@ -1401,10 +1369,10 @@ struct uint32x8_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint32x4_t tmp = vcgtq_u32(in1.v128[i], in2.v128[i]);
+			const uint32x4_t tmp = vcgtq_u32(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi32(tmp) << i*4;
 #else
-			const __uint32x4_t tmp = in1.v128[i] > in2.v128[i];
+			const uint32x4_t tmp = in1.v128[i] > in2.v128[i];
     		ret ^= _mm_movemask_epi32(tmp) << i*4;
 #endif
 		}
@@ -1433,10 +1401,10 @@ struct uint32x8_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint32x4_t tmp = vceqq_u32(in1.v128[i], in2.v128[i]);
+			const uint32x4_t tmp = vceqq_u32(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi32(tmp) << i*4;
 #else
-			const __uint32x4_t tmp = in1.v128[i] == in2.v128[i];
+			const uint32x4_t tmp = in1.v128[i] == in2.v128[i];
     		ret ^= _mm_movemask_epi32(tmp) << i*4;
 #endif
 		}
@@ -1498,22 +1466,22 @@ struct uint32x8_t {
 	constexpr static inline uint32x8_t popcnt(const uint32x8_t in) {
 		uint32x8_t out;
 #ifdef __clang__
-		__uint16x8_t mask = vdupq_n_u16(0xff);
+		uint16x8_t mask = vdupq_n_u16(0xff);
 #else
-		__uint16x8_t mask = (__uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+		uint16x8_t mask = (__uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
 #endif
 		
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint16x8_t tmp1 = (__uint16x8_t)vcntq_u8((__uint8x16_t)in.v128[i]);
-			const __uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
-			out.v128[i] = vaddq_u32(vshrq_n_u32((__uint32x4_t)tmp2, 16), (__uint32x4_t)tmp2);
+			const uint16x8_t tmp1 = (uint16x8_t)vcntq_u8((uint8x16_t)in.v128[i]);
+			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
+			out.v128[i] = vaddq_u32(vshrq_n_u32((uint32x4_t)tmp2, 16), (uint32x4_t)tmp2);
 #else
 
-			const __uint16x8_t tmp1 = (__uint16x8_t)__builtin_aarch64_popcountv16qi((__uint8x16_t)in.v128[i]);
-			const __uint16x8_t tmp2 = __builtin_aarch64_lshrv8hi_uus(tmp1, 8) + (tmp1 & mask);
-			out.v128[i] = __builtin_aarch64_lshrv4si_uus((__uint32x4_t)tmp2, 16) + (__uint32x4_t)tmp2;
+			const uint16x8_t tmp1 = (uint16x8_t)__builtin_aarch64_popcountv16qi((uint8x16_t)in.v128[i]);
+			const uint16x8_t tmp2 = __builtin_aarch64_lshrv8hi_uus(tmp1, 8) + (tmp1 & mask);
+			out.v128[i] = __builtin_aarch64_lshrv4si_uus((uint32x4_t)tmp2, 16) + (uint32x4_t)tmp2;
 #endif
 		}
 
@@ -1528,7 +1496,7 @@ struct uint64x4_t {
 		uint16_t v16[16];
 		uint32_t v32[8];
 		uint64_t v64[4];
-		__uint64x2_t v128[2];
+		uint64x2_t v128[2];
 	};
 
 	///
@@ -1594,9 +1562,9 @@ struct uint64x4_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (__uint64x2_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint64x2_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (__uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 		}
 		return out;
@@ -1610,9 +1578,9 @@ struct uint64x4_t {
 		uint64x4_t out;
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (__uint64x2_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint64x2_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (__uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 		}
 		return out;
@@ -1842,10 +1810,10 @@ struct uint64x4_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint64x2_t tmp = vcgtq_u64(in1.v128[i], in2.v128[i]);
+			const uint64x2_t tmp = vcgtq_u64(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi64(tmp) << i*2;
 #else
-			const __uint64x2_t tmp = in1.v128[i] > in2.v128[i];
+			const uint64x2_t tmp = in1.v128[i] > in2.v128[i];
     		ret ^= _mm_movemask_epi64(tmp) << i*2;
 #endif
 		}
@@ -1882,10 +1850,10 @@ struct uint64x4_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
-			const __uint64x2_t tmp = vceqq_u64(in1.v128[i], in2.v128[i]);
+			const uint64x2_t tmp = vceqq_u64(in1.v128[i], in2.v128[i]);
     		ret ^= _mm_movemask_epi64(tmp) << i*4;
 #else
-			const __uint64x2_t tmp = in1.v128[i] == in2.v128[i];
+			const uint64x2_t tmp = in1.v128[i] == in2.v128[i];
     		ret ^= _mm_movemask_epi64(tmp) << i*4;
 #endif
 		}
@@ -1924,7 +1892,7 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const cryptanalysislib::uint32x4_t data) {
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const cryptanalysislib::_uint32x4_t data) {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 
 		uint64x4_t ret;
@@ -1973,18 +1941,18 @@ struct uint64x4_t {
 	constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
 #ifdef __clang 
-		__uint16x8_t mask = vdupq_n_u16(0xff);
+		uint16x8_t mask = vdupq_n_u16(0xff);
 #else
-		__uint16x8_t mask = (__uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+		uint16x8_t mask = (uint16x8_t){0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
 #endif
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__
-			const __uint16x8_t tmp1 = (__uint16x8_t)vcntq_u8((__uint8x16_t)in.v128[i]);
-			const __uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
-			const __uint32x4_t tmp3 = vaddq_u32(vshrq_n_u32((__uint32x4_t)tmp2, 16), (__uint32x4_t)tmp2);
-			ret.v128[i] = vaddq_u64(vshrq_n_u64((__uint64x2_t)tmp3, 32), (__uint64x2_t)tmp3);
+			const uint16x8_t tmp1 = (uint16x8_t)vcntq_u8((uint8x16_t)in.v128[i]);
+			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
+			const uint32x4_t tmp3 = vaddq_u32(vshrq_n_u32((uint32x4_t)tmp2, 16), (uint32x4_t)tmp2);
+			ret.v128[i] = vaddq_u64(vshrq_n_u64((uint64x2_t)tmp3, 32), (uint64x2_t)tmp3);
 #else
 			// TODO
 			ASSERT(false);

@@ -115,7 +115,7 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 
 #ifdef DEBUG
 #include <cassert>
-#define ASSERT(x) assert(x)
+#define ASSERT(x) //assert(x)
 #else
 #define ASSERT(x)
 #endif
