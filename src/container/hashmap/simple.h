@@ -134,6 +134,10 @@ public:
 		}
 	}
 
+	constexpr inline ret_type operator[](const index_type i) noexcept {
+		return ptr(i);
+	}
+
 	/// Quite same to `probe` but instead it will directly return
 	/// the position of the element.
 	/// \param e Element to hash down.
