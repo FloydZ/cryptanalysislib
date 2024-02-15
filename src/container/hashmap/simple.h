@@ -134,6 +134,7 @@ public:
 		}
 	}
 
+	/// calls ptr
 	constexpr inline ret_type operator[](const index_type i) noexcept {
 		return ptr(i);
 	}
