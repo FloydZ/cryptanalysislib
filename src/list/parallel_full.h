@@ -1,12 +1,13 @@
 #ifndef DECODING_LIST_PARALLEL_FULL_H
 #define DECODING_LIST_PARALLEL_FULL_H
 
-#include <iterator>
-#include <vector>           // main data container
-#include <algorithm>        // search/find routines
+#include <algorithm>// search/find routines
 #include <cassert>
+#include <iterator>
+#include <vector>// main data container
 
 #include "list/common.h"
+#include "sort/sort.h"
 
 
 /// same the class
@@ -71,68 +72,33 @@ public:
 
 private:
 	// disable the empty constructor. So you have to specify a rough size of the list. This is for optimisations reasons.
-	Parallel_List_FullElement_T() : MetaListT<Element>() {};
+	Parallel_List_FullElement_T() : MetaListT<Element>(){};
 
 public:
-
-
 	// somehow make such flags configurable
-	constexpr static bool USE_STD_SORT = false;
+	constexpr static bool USE_STD_SORT = true;
 
 	/// multithreaded constructor
 	constexpr explicit Parallel_List_FullElement_T(const size_t size,
-	                                               const uint32_t threads=1) noexcept :
-	   MetaListT<Element>(size, threads)
-	{}
+	                                               const uint32_t threads = 1) noexcept : MetaListT<Element>(size, threads) {}
 
-
-
-#ifdef  _OPENMP
-	/// src: https://www.cs.rutgers.edu/~venugopa/parallel_summer2012/bitonic_openmp.html
-	/// needs to be benchmarked against std::sort()
-	/// \param start 	start position in `seq` to start from
-	/// \param length 	number of elements to sort
-	/// \param seq 		const_array to sort
-	/// \param flag 	sorting direction.
-	void bitonic_sort_par(int start, int length, int *seq, int flag) {
-		int i;
-		int split_length;
-
-		if (length == 1)
-			return;
-
-		if (length % 2 !=0 ) {
-			printf("The length of a (sub)sequence is not divided by 2.\n");
-			exit(0);
-		}
-
-		split_length = length / 2;
-
-		// bitonic split
-#pragma omp parallel for default(none) shared(seq, flag, start, split_length) private(i)
-		for (i = start; i < start + split_length; i++) {
-			if (flag == 1) {
-				if (seq[i] > seq[i + split_length])
-					std::swap(seq[i], seq[i + split_length]);
-			}
-			else {
-				if (seq[i] < seq[i + split_length])
-					std::swap(seq[i], seq[i + split_length]);
-			}
-		}
-
-
-		// if (split_length > m) {
-		// m is the size of sub part-> n/numThreads
-		if (threads > 2) {
-			bitonic_sort_par(start, split_length, seq, flag);
-			bitonic_sort_par(start + split_length, split_length, seq, flag);
+	constexpr void random() noexcept {
+		for (size_t i = 0; i < size(); ++i) {
+			__data[i].random();
 		}
 	}
-#endif
 
-	constexpr void sort() noexcept {
-		ASSERT(0);
+	constexpr void random(MatrixType &m) noexcept {
+		for (size_t i = 0; i < size(); ++i) {
+			__data[i].random(&m);
+		}
+	}
+
+	///
+	constexpr void sort(const size_t s = 0, const size_t e = __size) noexcept {
+		ASSERT(e <= size());
+		//std::sort(std::advance(begin(), s), std::advance(begin(), e));
+		std::sort(begin(), end());
 	}
 
 	/// generic hash function
@@ -142,58 +108,20 @@ public:
 	/// \param e	upper bound of the sorting algorithm
 	/// \param hash
 	template<typename Hash>
-	void sort(LoadType s, LoadType e, Hash hash) noexcept {
+	constexpr void sort(Hash &hash, const size_t s = 0, const size_t e = __size) noexcept {
+		ASSERT(e <= size());
 		ska_sort(__data.begin() + s,
-				 __data.begin() + e,
-				 hash
-		);
-	}
-
-	/// the same as the function above but it will sort on all coordinates.`
-	/// \tparam Hash
-	/// \param tid thread id
-	/// \param hash hash function
-	template<typename Hash>
-	void sort(uint32_t tid, Hash hash, const size_t size=-1) noexcept {
-		ASSERT(tid < __threads);
-
-		const auto e = size == size_t(-1) ? end_pos(tid) : size;
-		sort(start_pos(tid), e, hash);
+		         __data.begin() + e,
+		         hash);
 	}
 
 	/// \param i lower coordinate in the label used as the sorting index
 	/// \param j upper   .....
+	/// \param tid thread id
 	void sort_level(const uint32_t i, const uint32_t j) noexcept {
 		ASSERT(i < j);
 		using T = LabelContainerType;
-
-		//constexpr uint64_t upper = T::round_down_to_limb(j);
-		constexpr uint64_t lower = T::round_down_to_limb(i);
-		const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
-		if constexpr (USE_STD_SORT) {
-			std::sort(__data.begin(),
-					  __data.end(),
-					  [lower, mask](const auto &e1, const auto &e2) {
-						return e1.get_label().data().is_lower_simple2(e2.get_label().data(), lower, mask);
-					  }
-			);
-		} else {
-			ska_sort(__data.begin(),
-					 __data.end(),
-					 [lower, mask](const Element &e) {
-					   return e.get_label_container_ptr()[lower] & mask;
-					 }
-			);
-		}
-
-	}
-
-	/// \param i lower coordinate in the label used as the sorting index
-	/// \param j upper   .....
-	/// \param tid thread id
-	void sort_level(const uint32_t i, const uint32_t j, const uint32_t tid) noexcept {
-		ASSERT(i < j);
-		using T = LabelContainerType;
+		using Limb = LabelLimbType;
 
 		const uint64_t lower = T::round_down_to_limb(i);
 		const uint64_t upper = T::round_down_to_limb(j);
@@ -202,46 +130,43 @@ public:
 			const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
 
 			if constexpr (USE_STD_SORT) {
-				std::sort(__data.begin() + start_pos(tid),
-				    __data.begin() + end_pos(tid),
-				    [lower, mask](const auto &e1, const auto &e2) {
-					    return e1.get_label().data().is_lower_simple2(e2.get_label().data(), lower, mask);
-				    });
+				std::sort(__data.begin(),
+				          __data.end(),
+				          [lower, mask](const auto &e1, const auto &e2) {
+					          return (e1.label_ptr(lower) & mask) < (e2.label_ptr(lower) & mask);
+				          });
 			} else {
-				ska_sort(__data.begin() + start_pos(tid),
-				    __data.begin() + end_pos(tid),
-				    [lower, mask](const Element &e) {
-					    return e.get_label_container_ptr()[lower] & mask;
-				    });
+				ska_sort(__data.begin(),
+				         __data.end(),
+				         [lower, mask](const Element &e) {
+					         return e.label_ptr(lower) & mask;
+				         });
 			}
 		} else {
-			/// TODO testen und benchmarken
-			const T j_mask  = T::lower_mask(j);
-			const T i_mask = T::higher_mask(i);
-			const uint32_t i_shift = i % (sizeof(T) * 8u);
-			const uint32_t j_shift = (sizeof(T) * 8u) - i_shift;
+			const Limb j_mask = T::lower_mask(j);
+			const Limb i_mask = T::higher_mask(i);
+			const uint32_t i_shift = i % (sizeof(Limb) * 8u);
+			const uint32_t j_shift = (sizeof(Limb) * 8u) - i_shift;
 
 
 			if constexpr (USE_STD_SORT) {
-				std::sort(__data.begin() + start_pos(tid),
-						  __data.begin() + end_pos(tid),
-						  [lower, upper, i_mask, j_mask, i_shift, j_shift]
-				          (const auto &e1, const auto &e2) {
-					          const T data1 = ((e1.ptr(lower) & i_mask) >> i_shift) ^
-					                          ((e1.ptr(upper) & j_mask) >> j_shift);
-					          const T data2 = ((e2.ptr(lower) & i_mask) >> i_shift) ^
-											  ((e2.ptr(upper) & j_mask) >> j_shift);
+				std::sort(__data.begin(),
+				          __data.end(),
+				          [lower, upper, i_mask, j_mask, i_shift, j_shift](const auto &e1, const auto &e2) {
+					          const Limb data1 = ((e1.label_ptr(lower) & i_mask) >> i_shift) ^
+					                             ((e1.label_ptr(upper) & j_mask) >> j_shift);
+					          const Limb data2 = ((e2.label_ptr(lower) & i_mask) >> i_shift) ^
+					                             ((e2.label_ptr(upper) & j_mask) >> j_shift);
 
 					          return data1 < data2;
-						  });
+				          });
 			} else {
-				ska_sort(__data.begin() + start_pos(tid),
-						 __data.begin() + end_pos(tid),
-						 [lower, upper, i_mask, j_mask, i_shift, j_shift]
-				         (const Element &e) { // TODO diesen ptr(i) fuer dasd inte limb ausfuhren
-					         return ((e.ptr(lower) & i_mask) >> i_shift) ^
-					                ((e.ptr(upper) & j_mask) >> j_shift);
-						 });
+				ska_sort(__data.begin(),
+				         __data.end(),
+				         [lower, upper, i_mask, j_mask, i_shift, j_shift](const Element &e) {
+					         return ((e.label_ptr(lower) & i_mask) >> i_shift) ^
+					                ((e.label_ptr(upper) & j_mask) >> j_shift);
+				         });
 			}
 		}
 	}
@@ -252,24 +177,23 @@ public:
 	/// \param k_higher higher coordinate the elements must be equal
 	/// \return the position of the first (lower) element which is equal to e. -1 if nothing found
 	size_t search_level(const Element &e,
-						const uint32_t k_lower,
-						const uint32_t k_higher,
-						bool sort=false) noexcept {
+	                    const uint32_t k_lower,
+	                    const uint32_t k_higher,
+	                    bool sort = false) noexcept {
 		if (sort) {
 			sort_level(k_lower, k_higher);
 		}
 
 		auto r = std::find_if(__data.begin(),
-							  __data.end(),
-							  [&e, k_lower, k_higher](const Element &c) {
-								return e.is_equal(c, k_lower, k_higher);
-							  }
-		);
+		                      __data.end(),
+		                      [&e, k_lower, k_higher](const Element &c) {
+			                      return e.is_equal(c, k_lower, k_higher);
+		                      });
 
 		const auto dist = distance(__data.begin(), r);
 
 		if (r == __data.end())
-			return -1; // nothing found
+			return -1;// nothing found
 
 		if (!__data[dist].is_equal(e, k_lower, k_higher))
 			return -1;
@@ -280,9 +204,9 @@ public:
 	/// \param e	element to search for
 	/// \return	a tuple indicating the start and end indices within the list. start == end == load indicating nothing found,
 	std::pair<uint64_t, uint64_t> search_boundaries(const Element &e,
-													const uint32_t k_lower,
-													const uint32_t k_higher,
-													const uint32_t tid) noexcept {
+	                                                const uint32_t k_lower,
+	                                                const uint32_t k_higher,
+	                                                const uint32_t tid) noexcept {
 		uint64_t end_index;
 		uint64_t start_index = search_level(e, k_lower, k_higher, tid);
 		if (start_index == uint64_t(-1)) {
@@ -299,8 +223,7 @@ public:
 
 	/// zero out the i-th element.
 	/// \param i
-	void zero_element(size_t i) noexcept {
-		/// TODO rename
+	void zero(size_t i) noexcept {
 		ASSERT(i < size());
 		__data[i].zero();
 	}
@@ -312,9 +235,9 @@ public:
 	/// \param load load factor = number of elements currently in the list.
 	/// \param tid thread number
 	void add_and_append(const Element &e1,
-						const Element &e2,
-						LoadType &load,
-						const uint32_t tid) noexcept {
+	                    const Element &e2,
+	                    LoadType &load,
+	                    const uint32_t tid) noexcept {
 		ASSERT(tid < __threads);
 
 		if (load >= thread_block_size())
@@ -333,8 +256,8 @@ public:
 	/// \param load current load of the list
 	/// \param tid thread id inserting this element.
 	void add_and_append(const LabelType &l1, const ValueType &v1,
-						const LabelType &l2, const ValueType &v2,
-						LoadType &load, const uint32_t tid) noexcept {
+	                    const LabelType &l2, const ValueType &v2,
+	                    LoadType &load, const uint32_t tid) noexcept {
 		ASSERT(tid < threads);
 
 		if (load >= thread_block_size())
@@ -344,15 +267,8 @@ public:
 		LabelType::add(data_label(start_pos(tid) + load), l1, l2);
 		load += 1;
 	}
-
-
-	// returning the start pointer for each thread
-	inline LabelType* start_label_ptr(const uint32_t tid) noexcept { return (LabelType *)(((uint64_t)&__data[start_pos(tid)]) + ValueBytes); };
-
 };
 
-
-///
 /// \tparam Element
 /// \param out
 /// \param obj

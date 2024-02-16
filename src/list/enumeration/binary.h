@@ -6,23 +6,24 @@
 #error "dont use include <list/enumeration/binary.h>, use include <list/enumeration/enumeration.h> instead"
 #endif
 
-#include <cstddef>     	// needed for std::nullptr_t
-#include <functional>	// needed for std::invoke
+#include <cstddef>   // needed for std::nullptr_t
+#include <functional>// needed for std::invoke
 
+#include "combination/chase.h"
 #include "helper.h"
 #include "list/enumeration/enumeration.h"
-#include "combination/chase.h"
 #include "math/bc.h"
 
-/// TODO describe whats enumerated
+/// This class enumerates vectors of length n and weight w, whereas each
+/// nonzero position is enumerated from 1,...,q-1
 /// \tparam ListType
-/// \tparam n
-/// \tparam q
-/// \tparam w
+/// \tparam n vector length
+/// \tparam q field size
+/// \tparam w weight
 template<class ListType,
-		 const uint32_t n,
-		 const uint32_t w>
-class BinaryListEnumerateMultiFullLength: public ListEnumeration_Meta<ListType, n, 2, w> {
+         const uint32_t n,
+         const uint32_t w>
+class BinaryListEnumerateMultiFullLength : public ListEnumeration_Meta<ListType, n, 2, w> {
 public:
 	/// Im lazy
 	constexpr static uint32_t q = 2;
@@ -48,7 +49,7 @@ public:
 
 
 	/// TODO enforce this in all concepts
-	using T = uint64_t; //Value::T;
+	using T = uint64_t;//Value::T;
 
 	////
 	Combinations_Binary_Chase<T, n, w> chase = Combinations_Binary_Chase<T, n, w>();
@@ -63,10 +64,9 @@ public:
 	/// 			if set to 0: the complete sequence will be enumerated.
 	/// \param syndrome additional element which is added to all list elements
 	BinaryListEnumerateMultiFullLength(const Matrix &HT,
-	                             const size_t list_size=0,
-	                             const Label *syndrome= nullptr) :
-	    ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	    list_size((list_size==size_t(0)) ? LIST_SIZE : list_size)       {
+	                                   const size_t list_size = 0,
+	                                   const Label *syndrome = nullptr) : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+	                                                                      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 		chase.template changelist<false>(cL.data(), this->list_size);
 	}
 
@@ -93,19 +93,19 @@ public:
 	///  		predicate was given)
 	template<typename HashMap, typename Extractor, typename Predicate>
 #if __cplusplus > 201709L
-	requires (std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	         (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
-			 (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
+	            (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
 #endif
-	bool run(ListType *L1=nullptr,
-	         ListType *L2=nullptr,
-	         const uint32_t offset=0,
-	         const uint32_t tid=0,
-	         HashMap *hm=nullptr,
-	         Extractor *e=nullptr,
-	         Predicate *p=nullptr) {
+	bool run(ListType *L1 = nullptr,
+	         ListType *L2 = nullptr,
+	         const uint32_t offset = 0,
+	         const uint32_t tid = 0,
+	         HashMap *hm = nullptr,
+	         Extractor *e = nullptr,
+	         Predicate *p = nullptr) {
 		/// some security checks
-		ASSERT(n+offset <= Value::LENGTH);
+		ASSERT(n + offset <= Value::LENGTH);
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -134,23 +134,23 @@ public:
 			Label::add(element1.label, element1.label, HT.get(i));
 
 			if (sL2) {
-				element2.value.set(1, i+offset);
-				Label::add(element2.label, element2.label, HT.get(i+offset));
+				element2.value.set(1, i + offset);
+				Label::add(element2.label, element2.label, HT.get(i + offset));
 			}
 		}
 
 		auto chase_step = [this](Element &element,
-				const uint32_t a,
-				const uint32_t b,
-				const uint32_t off) {
-		  /// make really sure that the the chase
-		  /// sequence is correct.
-		  ASSERT(element.value[a + off]);
+		                         const uint32_t a,
+		                         const uint32_t b,
+		                         const uint32_t off) {
+			/// make really sure that the the chase
+			/// sequence is correct.
+			ASSERT(element.value[a + off]);
 
-		  Label::add(element.label, element.label, HT.get(a + off));
-		  Label::add(element.label, element.label, HT.get(b + off));
-		  element.value.set(0, off + a);
-		  element.value.set(1, off + b);
+			Label::add(element.label, element.label, HT.get(a + off));
+			Label::add(element.label, element.label, HT.get(b + off));
+			element.value.set(0, off + a);
+			element.value.set(1, off + b);
 		};
 
 		/// iterate over all sequences
@@ -158,7 +158,9 @@ public:
 			check(element1.label, element1.value);
 			if (sL2) check(element2.label, element2.value, false);
 
-			if constexpr (sP) { if(std::invoke(*p, element1.label)) { return true; }}
+			if constexpr (sP) {
+				if (std::invoke(*p, element1.label)) { return true; }
+			}
 			if constexpr (sHM) { insert_hashmap(hm, e, element1, ctr, tid); }
 			if (sL1) insert_list(L1, element1, ctr, tid);
 			if (sL2) insert_list(L2, element2, ctr, tid);
@@ -169,7 +171,7 @@ public:
 			const uint32_t a = cL[i].first;
 			const uint32_t b = cL[i].second;
 			chase_step(element1, a, b, 0);
-			if(sL2) chase_step(element2, a, b, offset);
+			if (sL2) chase_step(element2, a, b, offset);
 		}
 
 		/// make sure that all elements where generated

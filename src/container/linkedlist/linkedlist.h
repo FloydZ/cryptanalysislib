@@ -5,29 +5,26 @@
 
 #include "helper.h"
 
-/// Once further improvements are developed we can use this
-class FreeListConfig {
-public:
-};
-
 /// main src: https://moodycamel.com/blog/2014/solving-the-aba-problem-for-lock-free-free-lists
 /// (sorted) Lock Free Double Linked List
 /// Note:
 ///		- at all time each value T is only allowed once in the list.
 ///			e.g. if you run std::fill(...) you destroy the list
-///
+///		- cannot insert the same value as head. Thus you can insert
+/// 		a custom head via the constructor, which is smaller than every element
+/// 		you insert and will never be deleted.
 /// IMPROVEMENTS:
-/// 	TODO cannot insert the same value as head
-/// 	TODO introduce Free Node which or direct delete
+/// 	- introduce Free Node which or direct delete
+///
 /// \tparam T
 template<typename T>
-	requires std::copyable<T> && std::three_way_comparable<T>
+    requires std::copyable<T> && std::three_way_comparable<T>
 struct FreeList {
 private:
 	/// internal struct
 	struct Node {
-		Node() : next(nullptr), prev(nullptr) { }
-		Node(T data) : next(nullptr), prev(nullptr), data(data) { }
+		Node() : next(nullptr), prev(nullptr) {}
+		Node(T data) : next(nullptr), prev(nullptr), data(data) {}
 
 		std::atomic<Node *> next;
 		std::atomic<Node *> prev;
@@ -38,18 +35,18 @@ private:
 	struct Iterator {
 	public:
 		using iterator_category = std::bidirectional_iterator_tag;
-		using difference_type 	= std::ptrdiff_t;
-		using value_type 		= T;
-		using pointer 			= T*;
-		using reference 		= T&;
-		using internal_pointer  = Node*;
+		using difference_type = std::ptrdiff_t;
+		using value_type = T;
+		using pointer = T *;
+		using reference = T &;
+		using internal_pointer = Node *;
 
 		Iterator(internal_pointer ptr) : m_ptr(ptr) {}
 		reference operator*() const { return m_ptr->data; }
 		pointer operator->() { return &(m_ptr->data); }
 
 		// Prefix increment
-		Iterator& operator++() {
+		Iterator &operator++() {
 			m_ptr = m_ptr->next.load();
 			return *this;
 		}
@@ -61,8 +58,8 @@ private:
 			return tmp;
 		}
 
-		friend bool operator== (const Iterator& a, const Iterator& b) { return a.m_ptr == b.m_ptr; };
-		friend bool operator!= (const Iterator& a, const Iterator& b) { return a.m_ptr != b.m_ptr; };
+		friend bool operator==(const Iterator &a, const Iterator &b) { return a.m_ptr == b.m_ptr; };
+		friend bool operator!=(const Iterator &a, const Iterator &b) { return a.m_ptr != b.m_ptr; };
 
 	private:
 		internal_pointer m_ptr;
@@ -75,18 +72,18 @@ private:
 
 
 	/// internal pointers
-	Node *head = nullptr,	// start of the linked list
-	     *tail = nullptr,	// end of the linked list
-		 *__free = nullptr, // start of a second linked list of removed (but not freed) elements
-		 *curr = nullptr, 	//
-		 *pred = nullptr;	//
+	Node *head = nullptr,                           // start of the linked list
+	        *tail = nullptr,                        // end of the linked list
+	                *__free = nullptr,              // start of a second linked list of removed (but not freed) elements
+	                        *curr = nullptr,        //
+	                                *pred = nullptr;//
 
 	/// pointer stuff: we need to mark/tag pointers to counter the ABA problem
 	constexpr static uintptr_t UNMARK_MASK = ~1;
 	constexpr static uintptr_t MARK_BIT = 1;
-	constexpr inline Node* getpointer(const Node *ptr) noexcept { return (Node *)((uintptr_t)ptr & UNMARK_MASK); }
-	constexpr inline bool ismarked(const Node *ptr) noexcept { return (((uintptr_t)ptr ) & MARK_BIT) != 0; }
-	constexpr inline Node* setmark(const Node *ptr) noexcept { return (Node *)(((uintptr_t)ptr) | MARK_BIT ); }
+	constexpr inline Node *getpointer(const Node *ptr) noexcept { return (Node *) ((uintptr_t) ptr & UNMARK_MASK); }
+	constexpr inline bool ismarked(const Node *ptr) noexcept { return (((uintptr_t) ptr) & MARK_BIT) != 0; }
+	constexpr inline Node *setmark(const Node *ptr) noexcept { return (Node *) (((uintptr_t) ptr) | MARK_BIT); }
 
 	/// allocate the first `LEN` nodes into this buffer,
 	constexpr static bool USE_BUFFER = false;
@@ -101,8 +98,8 @@ private:
 	inline void pos(const T &data) noexcept {
 		Node *__pred, *__succ, *__curr, *__next;
 		__pred = pred;
-		retry:
-		while(ismarked(__pred->next.load()) || data <= __pred->data) {
+	retry:
+		while (ismarked(__pred->next.load()) || data <= __pred->data) {
 			__pred = __pred->prev.load();
 		}
 		__curr = getpointer(__pred->next.load());
@@ -112,7 +109,7 @@ private:
 			__succ = __curr->next.load();
 			while (ismarked(__succ)) {
 				__succ = getpointer(__succ);
-				if (!__pred->next.compare_exchange_weak(__curr, __succ)){
+				if (!__pred->next.compare_exchange_weak(__curr, __succ)) {
 					__next = __pred->next.load();
 					if (ismarked(__next)) {
 						goto retry;
@@ -173,7 +170,7 @@ public:
 	}
 
 	///
-	constexpr ~FreeList(){}
+	constexpr ~FreeList() {}
 
 	/// return 0 on success, 1 else
 	inline int insert(const T &data) noexcept {
@@ -215,7 +212,7 @@ public:
 				__size.fetch_add(1u);
 				return 0;
 			}
-		} while(true);
+		} while (true);
 	}
 
 	/// returns 1 if element is in list, 0 else
@@ -227,7 +224,7 @@ public:
 
 		assert(__curr->data <= data);
 
-		while(data > __curr->data) {
+		while (data > __curr->data) {
 			__curr = getpointer(__curr->next.load());
 		}
 
@@ -257,7 +254,7 @@ public:
 				if (__node->next.compare_exchange_weak(__succ, __markedsucc)) {
 					break;
 				}
-			} while(1);
+			} while (1);
 
 			if (!__pred->next.compare_exchange_weak(__node, __succ)) {
 				__node = curr;
@@ -267,7 +264,7 @@ public:
 			__node->free = __free;
 			__free = __node;
 			return 0;
-		} while(true);
+		} while (true);
 	}
 
 	///
@@ -290,25 +287,25 @@ public:
 
 	/// clears the whole list
 	constexpr void clear() noexcept {
-		Node *curr = head->next.load(), *next;
+		Node *__curr = head->next.load(), *next;
 
-		while (getpointer(curr) != nullptr) {
-			next = curr->next.load();
+		while (getpointer(__curr) != nullptr) {
+			next = __curr->next.load();
 			//make sure that we do not clear the tail
 			if ((getpointer(next) == nullptr)) {
 				break;
 			}
-			remove(curr->data);
+			remove(__curr->data);
 
 			// for sure not correct
-			curr = next;
+			__curr = next;
 		}
 
 		clean();
 	}
 
 	/// print
-	constexpr void print(const bool backward=false) const noexcept{
+	constexpr void print(const bool backward = false) const noexcept {
 		if (backward) {
 			Node *next = tail;
 			while (next != nullptr) {
@@ -322,7 +319,6 @@ public:
 				next = next->next.load();
 			}
 		}
-
 	}
 };
 #endif

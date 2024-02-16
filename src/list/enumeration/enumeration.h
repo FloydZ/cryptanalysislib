@@ -1,13 +1,13 @@
 #ifndef CRYPTANALYSISLIB_LIST_ENUMERATION_H
 #define CRYPTANALYSISLIB_LIST_ENUMERATION_H
 
-#include <cstddef>     	// needed for std::nullptr_t
-#include <functional>	// needed for std::invoke
+#include <cstddef>   // needed for std::nullptr_t
+#include <functional>// needed for std::invoke
 
+#include "container/hashmap/common.h"
 #include "helper.h"
 #include "list/common.h"
 #include "list/enumeration/enumeration.h"
-#include "container/hashmap/common.h"
 
 #include "combination/chase.h"
 /// list enumeration type
@@ -29,7 +29,7 @@ enum ListIteration {
 template<class List>
 concept ListEnumeration_ListAble = requires(List c) {
 	/// should return the List
-	c.size() -> size_t;
+	c.size()->size_t;
 	c.clear();
 };
 
@@ -37,7 +37,7 @@ concept ListEnumeration_ListAble = requires(List c) {
 template<class List>
 concept ListEnumeration_ChangeListAble = requires(List c) {
 	/// should return the ChangeList
-	c.size() -> size_t;
+	c.size()->size_t;
 	c.clear();
 };
 #endif
@@ -50,11 +50,11 @@ concept ListEnumeration_ChangeListAble = requires(List c) {
 /// \tparam w weight to enumerate
 /// 		if w == 2: only a chase sequence will enumerated
 template<class ListType,
-		const uint32_t n,
-		const uint32_t q,
-		const uint32_t w>
+         const uint32_t n,
+         const uint32_t q,
+         const uint32_t w>
 #if __cplusplus > 201709L
-requires ListAble<ListType>
+    requires ListAble<ListType>
 #endif
 class ListEnumeration_Meta {
 public:
@@ -77,15 +77,15 @@ public:
 	Element element1, element2;
 
 	/// needed for reconstruction
-	constexpr Element& get_first() noexcept { return element1; }
-	constexpr Element& get_second() noexcept { return element2; }
+	constexpr Element &get_first() noexcept { return element1; }
+	constexpr Element &get_second() noexcept { return element2; }
 
 	/// checks for the correctness of the computed label.
 	/// e.g. it checks it l == HT*e
 	/// \param l computed label
 	/// \param e error vector resulting in the label
 	/// \return true/false
-	bool check(const Label &label, const Value &error, bool add_syndrome=true) noexcept {
+	bool check(const Label &label, const Value &error, bool add_syndrome = true) noexcept {
 #ifdef DEBUG
 		/// TEST for correctness
 		auto H = HT.transpose();
@@ -97,12 +97,13 @@ public:
 		}
 
 		if (!tmpl.is_equal(label)) {
-			std::cout << std::endl << "ERROR: (SHOULD, IS)" << std::endl;
+			std::cout << std::endl
+			          << "ERROR: (SHOULD, IS)" << std::endl;
 			tmpl.print();
 			label.print();
-			std::cout <<std::endl;
+			std::cout << std::endl;
 			error.print();
-			std::cout <<std::endl;
+			std::cout << std::endl;
 			HT.print();
 		}
 
@@ -125,9 +126,9 @@ public:
 	/// \param ctr position to insert it (relative to tid)
 	/// \param tid thread inline
 	constexpr inline void insert_list(ListType *L,
-									  const Element &element,
-									  const size_t ctr,
-									  const uint32_t tid=0) {
+	                                  const Element &element,
+	                                  const size_t ctr,
+	                                  const uint32_t tid = 0) {
 		L->insert(element, ctr, tid);
 	}
 
@@ -138,26 +139,25 @@ public:
 	/// \param e
 	template<class HashMap, typename Extractor>
 #if __cplusplus > 201709L
-	requires (std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	(std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
+	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
 #endif
 	void insert_hashmap(HashMap *hm,
-						Extractor *e,
-						const Element &element,
-						const size_t ctr,
-						const uint32_t tid=0) {
-		if constexpr (! std::is_same_v<std::nullptr_t , HashMap>) {
+	                    Extractor *e,
+	                    const Element &element,
+	                    const size_t ctr,
+	                    const uint32_t tid = 0) {
+		if constexpr (!std::is_same_v<std::nullptr_t, HashMap>) {
 			// nothing to inset
 			if (hm == nullptr) {
 				return;
 			}
 
-			using IndexType = typename HashMap::IndexType;
-			using LPartType = typename HashMap::T;
-			IndexType npos[1];
+			using IndexType = typename HashMap::data_type;
+			IndexType npos;
 			npos[0] = ctr;
 
-			const LPartType data = std::invoke(*e, element.label);
+			const auto data = std::invoke(*e, element.label);
 			hm->insert(data, npos, tid);
 		}
 	}
@@ -167,8 +167,7 @@ public:
 	/// \param list_size
 	/// \param syndrome
 	constexpr ListEnumeration_Meta(const Matrix &HT,
-						 const Label *syndrome= nullptr) :
-			 HT(HT), syndrome(syndrome) {
+	                               const Label *syndrome = nullptr) : HT(HT), syndrome(syndrome) {
 		/// some sanity checks
 		/// NOTE: its allowed to call this class with `w=0`, which is needed for Prange
 		static_assert(n > w);
@@ -177,7 +176,7 @@ public:
 	}
 };
 
-#include "list/enumeration/fq.h"
 #include "list/enumeration/binary.h"
+#include "list/enumeration/fq.h"
 
 #endif//CRYPTANALYSISLIB_LIST_ENUMERATION_H
