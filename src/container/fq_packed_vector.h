@@ -982,7 +982,8 @@ public:
 		const TT ac1 = a & c1;// filter the ones
 		const TT ac2 = a & c2;// filter the twos
 
-		return __builtin_popcountll(ac1) + __builtin_popcountll(ac2);
+		return cryptanalysislib::popcount::template popcount<TT>(ac1) +
+		       cryptanalysislib::popcount::template popcount<TT>(ac2);
 	}
 
 	/// computes the hamming weight of a ternary vector
@@ -1391,7 +1392,7 @@ public:
 	constexpr static inline uint32_t filter2count_T(const TT a) noexcept {
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16u ? (TT(12297829382473034410ull) << 64u) | TT(12297829382473034410ull) : TT(12297829382473034410ull);
-		return __builtin_popcountll(a & m);
+		return cryptanalysislib::popcount::template popcount<TT>(a & m);
 	}
 
 	/// \tparam k_lower lower limit in coordinates to check if twos exist
@@ -1405,7 +1406,7 @@ public:
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16u ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
 		constexpr TT mask = ((TT(1u) << (2u * k_lower)) - 1u) & ((TT(1u) << (2u * k_upper)) - 1u);
-		return __builtin_popcountll(a & mask & m);
+		return cryptanalysislib::popcount::template popcount<TT>(a & mask & m);
 	}
 
 	/// counts the number of twos upto `k_upper` (exclusive)
@@ -1419,16 +1420,16 @@ public:
 		constexpr uint32_t limb = std::max(1, (k_upper + numbers_per_limb - 1) / numbers_per_limb);
 
 		if constexpr (limb == 1) {
-			return __builtin_popcountll(__data[0] & mask & m);
+			return cryptanalysislib::popcount::template popcount<TT>(__data[0] & mask & m);
 		}
 
 		uint32_t ctr = 0;
-#pragma unroll
+		#pragma unroll
 		for (uint32_t i = 0; i < limb - 1; ++i) {
-			ctr += __builtin_popcountll(__data[i] & m);
+			ctr += cryptanalysislib::popcount::template popcount<TT>(__data[i] & m);
 		}
 
-		return ctr + __builtin_popcountll(__data[limb - 1] & mask & m);
+		return ctr + cryptanalysislib::popcount::template popcount<TT>(__data[limb - 1] & mask & m);
 	}
 
 	/// counts the number of twos in a single limb
@@ -1444,7 +1445,7 @@ public:
 		constexpr TT mm = (TT(1u) << (2u * k_upper)) - 1u;
 		constexpr TT mask = m & mm;
 
-		return __builtin_popcountll(a & mask);
+		return cryptanalysislib::popcount::template popcount<TT>(a & mask);
 	}
 
 	/// checks whether an element needs be filtered or not.

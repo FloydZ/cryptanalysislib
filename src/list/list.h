@@ -85,9 +85,9 @@ public:
 	                                                     const uint64_t k_higher) const noexcept {
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
-		//const uint64_t upper = T::round_down_to_limb(k_higher);
+		const uint64_t upper = T::round_down_to_limb(k_higher);
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
-		// TODO ASSERT(lower == upper);
+		ASSERT(lower == upper);
 
 		auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
 		                          [lower, mask](const Element &c1, const Element &c2) {
@@ -212,38 +212,11 @@ public:
 		for (size_t i = 0; i < k; ++i) {
 			// by default this creates a complete random 'Element' with 'Value' coordinates \in \[0,1\]
 			Element e{};
-			e.random(m);// this 'random' function takes care of the vector-matrix multiplication.
+			e.random(m);
 			append(e);
 		}
 	}
 
-	/// create a list following the chase sequence
-	/// IMPORTANT; No special trick is applied, so every Element needs a fill Matrix-vector multiplication.
-	/// \param number_of_elements
-	/// \param ones 				hamming weight of the 'Value' of all elements
-	/// \param m
-	constexpr void generate_base(const uint64_t number_of_elements,
-	                             const MatrixType &m) noexcept {
-
-		/// TODO correct those numbers and import them from matrix?
-		constexpr uint32_t n = LabelType::size();
-		constexpr uint32_t w = LabelType::size();
-		constexpr uint32_t q = LabelType::size();
-		const auto mt = m.transpose();
-
-		auto enumerator = ListEnumerateMultiFullLength<List, n, q, w>(mt, number_of_elements);
-		// TODO replace with fq_chase combinarion Combinations_Lexicographic<decltype(e.get_value().data().get_type())> c{n, ones};
-		//c.left_init(e.get_value().data().data().data());
-		//while(c.left_step(e.get_value().data().data().data()) != 0) {
-		//	if (internal_counter >= size())
-		//		return;
-
-		//	new_vector_matrix_product<LabelType, ValueType, MatrixType>(e.get_label(), e.get_value(), m);
-
-		//	__data[internal_counter] = e;
-		//	internal_counter += 1;
-		//}
-	}
 
 	/// \param level				current lvl within the tree.
 	/// \param level_translation
@@ -337,16 +310,16 @@ private:
 		using T = LabelContainerType;
 
 		const uint64_t lower = T::round_down_to_limb(k_lower);
-		//const uint64_t upper = T::round_down_to_limb(k_higher);
-		// TODO ASSERT(lower == upper);
+		const uint64_t upper = T::round_down_to_limb(k_higher);
+		ASSERT(lower == upper);
 
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
 		std::sort(__data.begin(), __data.begin() + load,
 		          [lower, mask](const auto &e1, const auto &e2) {
 #if !defined(SORT_INCREASING_ORDER)
-			          return e1.get_label().data().is_lower_simple2(e2.get_label().data(), lower, mask);
+			          return e1.get_label().is_lower_simple2(e2.get_label(), lower, mask);
 #else
-			        return e1.get_label().data().is_greater_simple2(e2.get_label().data(), lower, mask);
+			        return e1.get_label().is_greater_simple2(e2.get_label(), lower, mask);
 #endif
 		          });
 	}

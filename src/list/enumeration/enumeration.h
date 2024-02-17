@@ -91,7 +91,7 @@ public:
 		auto H = HT.transpose();
 		Label tmpl;
 
-		H.matrix_row_vector_mul2(tmpl, error);
+		H.mul(tmpl, error);
 		if (syndrome != nullptr && add_syndrome) {
 			Label::add(tmpl, tmpl, *syndrome);
 		}

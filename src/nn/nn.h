@@ -135,10 +135,15 @@ public:
 	alignas(64) uint64_t LB[USE_REARRANGE ? BUCKET_SIZE * ELEMENT_NR_LIMBS : 1u];
 	alignas(64) uint64_t RB[USE_REARRANGE ? BUCKET_SIZE * ELEMENT_NR_LIMBS : 1u];
 
-	// if set to true the final solution  is accecpted if
+	// if set to true the final solution  is accepted if
 	// its weight is <=w.
 	// if false the final solution is only correct if == w
 	constexpr static bool FINAL_SOL_WEIGHT = true;
+
+	// if set to true, speciallizes functions which compute both lists at
+	// the sametime
+	constexpr static bool USE_DOUBLE_SEARCH = false;
+
 	// instance
 	alignas(64) Element *L1 = nullptr,
 	                    *L2 = nullptr;
@@ -452,13 +457,14 @@ public:
 		return bit_limit;
 	}
 
-	/// TODO explain
-	///
-	/// \tparam bucket_size
-	/// \param wt
-	/// \param to
-	/// \param from
-	/// \return
+	/// Helper function: used be `simd_sort_nn_on32_rearrange` or similar.
+	/// Basically it transpose a set of possible solutions into a Bucket
+	/// \tparam bucket_size max number of elements in a bucket
+	/// \param wt solution indicies in `from`. E.g. a 1 in `wt` says that this position
+	///			in `from` is a valid solution
+	/// \param to: output bucket
+	/// \param from: input
+	/// \return number of solutions found
 	template<const uint32_t bucket_size>
 	constexpr inline size_t swap_ctz_rearrange(uint32_t wt,
 	                                           T *__restrict__ to,
@@ -472,7 +478,7 @@ public:
 		for (uint32_t i = 0; i < bit_limit; ++i) {
 			const uint32_t pos = __builtin_ctz(wt);
 
-#pragma unroll
+			#pragma unroll
 			for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
 				ASSERT(i + j * bucket_size < (ELEMENT_NR_LIMBS * bucket_size));
 				to[i + j * bucket_size] = from[pos][j];
@@ -691,15 +697,13 @@ public:
 				if constexpr (EXACT) {
 					const uint32_t t = (LL1[i][0] == LL2[j][0]) & (LL1[i][1] == LL2[j][1]) & (LL1[i][1] == LL2[j][1]);
 					if (t) {
-						// TODO found_solution(i, j);
+						found_solution(i, j);
 					}
 				} else {
 					const uint32_t t = (popcount::popcount(LL1[i][0] ^ LL2[j][0]) <= d) +
 					                   (popcount::popcount(LL1[i][1] ^ LL2[j][1]) <= d) +
 					                   (popcount::popcount(LL1[i][2] ^ LL2[j][2]) <= d);
 					if (t == 3) {
-						/// TDOD cannot use found_solution, as its casts its internally into a uint64_t
-
 						solutions.resize(solutions_nr + 1);
 						solutions[solutions_nr++] = std::pair<size_t, size_t>{i, j};
 					}
@@ -1127,9 +1131,8 @@ public:
 	/// NOTE: assumes T=uint64
 	/// NOTE: only matches weight dk on uint64_t
 	/// NOTE: hardcoded unroll parameter u=8
-	/// NOTE: this version rearranges the elements in the list L
-	///       in the following manner:
-	///				TODO
+	/// NOTE: this version rearranges the elements in the list L into buckets
+	/// 		thus transposing them into buckets
 	/// \param: e1 end index
 	/// \param: random value z
 	/// \param: L: input list
@@ -1438,15 +1441,21 @@ public:
 
 			if constexpr (k <= 32) {
 				const uint32_t z = fastrandombytes_uint64();
-				/// TODO als flag via config
-				// simd_sort_nn_on_double32<r-level, 4>(e1, e2, new_e1, new_e2, z);
-				new_e1 = simd_sort_nn_on32<r - level>(e1, z, L1);
-				new_e2 = simd_sort_nn_on32<r - level>(e2, z, L2);
+				if constexpr (USE_DOUBLE_SEARCH) {
+					simd_sort_nn_on_double32<r-level, 4>(e1, e2, new_e1, new_e2, z);
+				}
+				else {
+					new_e1 = simd_sort_nn_on32<r - level>(e1, z, L1);
+					new_e2 = simd_sort_nn_on32<r - level>(e2, z, L2);
+				}
 			} else if constexpr (k <= 64) {
 				const uint64_t z = fastrandombytes_uint64();
-				//simd_sort_nn_on_double64<r-level, 4>(e1, e2, new_e1, new_e2, z);
-				new_e1 = simd_sort_nn_on64<r - level>(e1, z, L1);
-				new_e2 = simd_sort_nn_on64<r - level>(e2, z, L2);
+				if constexpr (USE_DOUBLE_SEARCH) {
+					simd_sort_nn_on_double64<r-level, 4>(e1, e2, new_e1, new_e2, z);
+				} else {
+					new_e1 = simd_sort_nn_on64<r - level>(e1, z, L1);
+					new_e2 = simd_sort_nn_on64<r - level>(e2, z, L2);
+				}
 			} else {
 				ASSERT(false);
 			}
@@ -1952,14 +1961,16 @@ public:
 		}            // left for loop
 	}
 
-	/// TODO explain
-	/// \tparam u
-	/// \tparam v
-	/// \param mask
+	/// helper functions which is capable to identify full solutions
+	///	after a series of multiple nn steps
+	/// \tparam u max unrolling parameter of the left list
+	/// \tparam v max unrolling parameter of the right list
+	/// \param mask of possible solutions. A `1` in the mask correspond
+	/// 		to an index of a possible solution in the two lists.
 	/// \param m1
 	/// \param round
-	/// \param i
-	/// \param j
+	/// \param i found indext
+	/// \param j found index
 	template<const uint32_t u, const uint32_t v>
 	void bruteforce_simd_32_2_uxv_helper(uint32_t mask,
 	                                     const uint8_t *__restrict__ m1,
@@ -2316,14 +2327,14 @@ public:
 		const uint32_t m1s_mask = 1u << 31;
 
 		for (size_t i = s1; i < s1 + e1; i += u) {
-// Example u = 2
-// li[0] = L[0][0]
-// li[1] = L[1][0]
-// li[2] = L[0][1]
-// ...
-#pragma unroll
+			// Example u = 2
+			// li[0] = L[0][0]
+			// li[1] = L[1][0]
+			// li[2] = L[0][1]
+			// ...
+			#pragma unroll
 			for (uint32_t ui = 0; ui < u; ui++) {
-#pragma unroll
+				#pragma unroll
 				for (uint32_t uii = 0; uii < 8; uii++) {
 					const uint32_t tmp = ((uint32_t *) L1[i + ui])[uii];
 					li[ui + uii * u] = uint32x8_t::set1(tmp);
@@ -2337,7 +2348,7 @@ public:
 
 			for (size_t j = s2; j < s2 + (e2 + 7) / 8; ++j, ptr_r += 64) {
 				loadr = loadr1;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[0 * u + mi], ri);
@@ -2351,7 +2362,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[1 * u + mi], ri);
@@ -2365,7 +2376,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[2 * u + mi], ri);
@@ -2379,7 +2390,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[3 * u + mi], ri);
@@ -2393,7 +2404,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[4 * u + mi], ri);
@@ -2407,7 +2418,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[5 * u + mi], ri);
@@ -2421,7 +2432,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[6 * u + mi], ri);
@@ -2435,7 +2446,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[7 * u + mi], ri);
@@ -2444,7 +2455,6 @@ public:
 
 				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp) {
-					// TODO limitation. Welche?
 					ASSERT(popcount::template popcount<uint32_t>(m1s_tmp) == 1);
 					const uint32_t m1s_ctz = __builtin_ctz(m1s_tmp);
 					const uint32_t bla = __builtin_ctz(m1s[m1s_ctz]);
@@ -2459,10 +2469,12 @@ public:
 		}
 	}
 
-	/// TODO explain
+	/// specialized helper function which is capable of recovering solutions
+	/// after multiple internal runs of `brutefroce_simd_256_32_8x8`
 	/// \tparam off
 	/// \tparam rotation
-	/// \param m1sx
+	/// \param m1sx a set bit in this corresponds to a partial solution in
+	/// 		in the two lists
 	/// \param m1s
 	/// \param ptr_l
 	/// \param ptr_r
@@ -2956,7 +2968,7 @@ public:
 			for (uint32_t s = 0; s < ELEMENT_NR_LIMBS; s++) {
 				const T t1 = ptr_l[off_l + s * bucket_size];
 				const T t2 = ptr_r[off_r + s * bucket_size];
-				wt += __builtin_popcountll(t1 ^ t2);
+				wt += popcount::popcount(t1 ^ t2);
 			}
 
 			ASSERT(wt);

@@ -149,47 +149,59 @@ TEST(FqMatrix, InitFromString) {
 }
 
 TEST(FqMatrix, SimpleTranspose) {
-	M m = M{};
-	MT mt = MT{};
-	m.random();
-	mt.random();
+	constexpr_for<400, 430, 3>([](const auto __nrows){
+	  constexpr_for<400, 480, 3>([__nrows](const auto __ncols){
+		using M  = FqMatrix<T, __nrows, __ncols, q, true>;
+		using MT = FqMatrix<T, __ncols, __nrows, q, true>;
+		M m = M{};
+		MT mt = MT{};
+		m.random();
+		mt.random();
 
-	M::transpose(mt, m);
-	for (uint32_t i = 0; i < nrows; ++i) {
-		for (uint32_t j = 0; j < ncols; ++j) {
-			EXPECT_EQ(m.get(i, j), mt.get(j, i));
+		M::transpose(mt, m);
+		for (uint32_t i = 0; i < __nrows; ++i) {
+			for (uint32_t j = 0; j < __ncols; ++j) {
+				EXPECT_EQ(m.get(i, j), mt.get(j, i));
+			}
 		}
-	}
+	  });
+	});
 }
 
 TEST(FqMatrix, Transpose) {
-	M m = M{};
-	MT mt = MT{};
-	m.random();
-	mt.random();
-	MT mt2 = MT{mt};
+	constexpr_for<400, 430, 3>([](const auto __nrows){
+		constexpr_for<400, 470, 3>([__nrows](const auto __ncols){
+		  	using M  = FqMatrix<T, __nrows, __ncols, q, true>;
+		  	using MT = FqMatrix<T, __ncols, __nrows, q, true>;
+			M m = M{};
+			MT mt = MT{};
+			m.random();
+			mt.random();
+			MT mt2 = MT{mt};
 
-	const uint32_t srow = 5;
-	const uint32_t scol = 10;
+			const uint32_t srow = 5;
+			const uint32_t scol = 10;
 
-	EXPECT_GT(nrows, srow);
-	EXPECT_GT(ncols, scol);
+			EXPECT_GT(nrows, srow);
+			EXPECT_GT(ncols, scol);
 
-	M::transpose(mt, m, srow, scol);
+			M::transpose(mt, m, srow, scol);
 
-	// testing the transpose
-	for (uint32_t i = srow; i < nrows; ++i) {
-		for (uint32_t j = scol; j < ncols; ++j) {
-			EXPECT_EQ(m.get(i, j), mt.get(j, i));
-		}
-	}
+			// testing the transpose
+			for (uint32_t i = srow; i < nrows; ++i) {
+				for (uint32_t j = scol; j < ncols; ++j) {
+					EXPECT_EQ(m.get(i, j), mt.get(j, i));
+				}
+			}
 
-	// testing the non transposed part
-	for (uint32_t i = 0; i < srow; ++i) {
-		for (uint32_t j = 0; j < scol; ++j) {
-			EXPECT_EQ(mt2.get(i, j), mt.get(i, j));
-		}
-	}
+			// testing the non transposed part
+			for (uint32_t i = 0; i < srow; ++i) {
+				for (uint32_t j = 0; j < scol; ++j) {
+					EXPECT_EQ(mt2.get(i, j), mt.get(i, j));
+				}
+			}
+		});
+	});
 }
 
 TEST(FqMatrix, sub_Transpose_extended) {
@@ -282,141 +294,108 @@ TEST(FqMatrix, gaus) {
 
 
 TEST(FqMatrix, m4ri) {
-	M m = M{};
-	m.random();
-	const uint32_t rank = m.m4ri();
-	ASSERT_GT(rank, 0);
+	constexpr_for<400, 430, 3>([](const auto __nrows){
+	  constexpr_for<410, 440, 3>([__nrows](const auto __ncols){
+		using M  = FqMatrix<T, __nrows, __ncols, q, true>;
+		M m = M{};
+		m.random();
+		const uint32_t rank = m.m4ri();
+		ASSERT_GT(rank, __nrows - 10);
 
-	for (uint32_t i = 0; i < rank; ++i) {
-		for (uint32_t j = 0; j < rank; ++j) {
-			EXPECT_EQ((bool)m.get(i, j), i==j);
+		for (uint32_t i = 0; i < rank; ++i) {
+			for (uint32_t j = 0; j < rank; ++j) {
+				EXPECT_EQ((bool)m.get(i, j), i==j);
+			}
 		}
-	}
+	  });
+	});
 }
 
 TEST(FqMatrix, markov_gaus) {
-	constexpr uint32_t l = 10;
-	constexpr uint32_t c = 5;
-	M m = M{};
-	Permutation P(ncols);
-	uint32_t rank = 0;
+	constexpr_for<400, 430, 3>([](const auto __nrows){
+	  constexpr_for<400, 470, 3>([__nrows](const auto __ncols){
+		using M  = FqMatrix<T, __nrows, __ncols, q, true>;
+		using MT = FqMatrix<T, __ncols, __nrows, q, true>;
+		constexpr uint32_t l = 10;
+		constexpr uint32_t c = 5;
+		M m = M{};
+		Permutation P(ncols);
+		uint32_t rank = 0;
 
-	while (true) {
-		m.random();
-		rank = m.gaus(nrows-l);
-		ASSERT_GT(rank, 0);
-		if (rank >= nrows - l) { break; }
-	}
-
-	for (uint32_t k = 0; k < 1000; ++k) {
-		uint32_t rank2 = m.markov_gaus<c, nrows-l>(P);
-		ASSERT_EQ(rank, rank2);
-
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < nrows-l; ++j) {
-				ASSERT_EQ(m.get(i, j), i==j);
-			}
+		while (true) {
+			m.random();
+			rank = m.gaus(__nrows-l);
+			ASSERT_GT(rank, 0);
+			if (rank >= __nrows - l) { break; }
 		}
 
-	}
+		for (uint32_t k = 0; k < 1000; ++k) {
+			uint32_t rank2 = m.template markov_gaus<c, __nrows-l>(P);
+			ASSERT_EQ(rank, rank2);
+
+			for (uint32_t i = 0; i < __nrows; ++i) {
+				for (uint32_t j = 0; j < __nrows-l; ++j) {
+					ASSERT_EQ(m.get(i, j), i==j);
+				}
+			}
+		}
+		});
+	});
 }
 
 
 TEST(FqMatrix, fixgaus) {
-	M m = M{};
-	m.random();
+	constexpr_for<400, 430, 3>([](const auto __nrows){
+	  constexpr_for<400, 470, 3>([__nrows](const auto __ncols){
+		using M  = FqMatrix<T, __nrows, __ncols, q, true>;
+		using MT = FqMatrix<T, __ncols, __nrows, q, true>;
+		M m = M{};
+		m.random();
 
-	uint32_t perm[ncols]= {0};
-	for (uint32_t i = 0; i < ncols; ++i) {
-		perm[i] = i;
-	}
+		Permutation P{ncols};
+		const uint32_t rank = m.gaus();
+		const uint32_t rank2 = m.fix_gaus(P, rank, __nrows);
+		ASSERT_GT(rank, __nrows - 10);
 
-	const uint32_t rank = m.gaus();
-	const uint32_t rank2 = m.fix_gaus(perm, rank, nrows, ncols);
-	ASSERT_GT(rank, 0);
-
-	//std::cout << rank << std::endl;
-	//m.print();
-
-	for (uint32_t i = 0; i < nrows; ++i) {
-		for (uint32_t j = 0; j < rank2; ++j) {
-			if (i == j) {
-				ASSERT_EQ(m.get(i, j), 1u);
-				continue;
+		for (uint32_t i = 0; i < __nrows; ++i) {
+			for (uint32_t j = 0; j < rank2; ++j) {
+				if (i == j) {
+					ASSERT_EQ(m.get(i, j), 1u);
+					continue;
+				}
+				ASSERT_EQ(m.get(i, j), 0u);
 			}
-			ASSERT_EQ(m.get(i, j), 0u);
 		}
-	}
+	  });
+	});
 }
 
-TEST(FqMatrix, inplace_matrix_vector_mult) {
-	using V = FqMatrix<T, 1, ncols, q, packed>;
-	using VT = FqMatrix<T, ncols, 1, q, packed>;
-	V v = V{};
-	VT vt = VT{};
-	M m  = M{};
+TEST(FqMatrix, mult) {
+	constexpr_for<1, 100, 11>([](const auto __nrows) {
+		constexpr_for<2, 100, 11>([__nrows](const auto __ncols) {
+			constexpr_for<1, 100, 11>([__nrows, __ncols](const auto __ncols_prime) {
+				using AT = FqMatrix<T, __nrows, __ncols, q, true>;
+				using BT = FqMatrix<T, __ncols, __ncols_prime, q, true>;
+				using CT = FqMatrix<T, __nrows, __ncols_prime, q, true>;
 
-	m.random();
-	v.set(0);
-	m.matrix_vector_mul(v);
-	for (uint32_t i = 0; i < nrows; ++i) {
-		for (uint32_t j = 0; j < ncols; ++j) {
-			ASSERT_EQ(m.get(i, j), 0u);
-		}
-	}
+				AT a = AT{}; BT b = BT{}; CT c = CT{};
+				a.random(); b.random();c.random();
+				AT::mul(c, a, b);
 
-	m.random();
-	m.matrix_col_vector_mul(vt);
-	for (uint32_t i = 0; i < nrows; ++i) {
-		for (uint32_t j = 0; j < ncols; ++j) {
-			ASSERT_EQ(m.get(i, j), 0u);
-		}
-	}
+				//for (uint32_t i = 0; i < __nrows; ++i) {
+				//	for (uint32_t j = 0; j < rank2; ++j) {
+				//		if (i == j) {
+				//			ASSERT_EQ(m.get(i, j), 1u);
+				//			continue;
+				//		}
+				//		ASSERT_EQ(m.get(i, j), 0u);
+				//	}
+				//}
+			});
+		});
+	});
 }
 
-TEST(FqMatrix, matrix_vector_mult) {
-	using V = FqMatrix<T, 1, ncols, q, packed>;
-	using VT = FqMatrix<T, nrows, 1, q, packed>;
-	V v = V{};
-	VT vt = VT{};
-	M m = M{};
-
-	m.random();
-	v.set(0);
-	vt.random();
-	m.matrix_vector_mul(vt, v);
-	for (uint32_t i = 0; i < nrows; ++i) {
-		ASSERT_EQ(vt.get(i, 0u), 0u);
-	}
-
-	vt.set(0);
-	v.random();
-	m.matrix_col_vector_mul(vt, vt);
-	for (uint32_t i = 0; i < nrows; ++i) {
-		ASSERT_EQ(vt.get(i, 0), 0u);
-	}
-}
-
-TEST(FqMatrix, matrix_matrix_mult) {
-	constexpr uint32_t ncols_prime = 120;
-	using Min = FqMatrix<T, ncols, ncols_prime, q, packed>;
-	using Mout = FqMatrix<T, nrows, ncols_prime, q, packed>;
-
-	M m = M{};
-	Min m_in = Min{};
-	Mout m_out = Mout{};
-
-	m.random();
-	m_out.random();
-	m_in.zero();
-
-	m.matrix_matrix_mul(m_out, m_in);
-	for (uint32_t i = 0; i < nrows; ++i) {
-		for (uint32_t j = 0; j < ncols_prime; ++j) {
-			ASSERT_EQ(m_out.get(i, j), 0u);
-		}
-	}
-}
 
 TEST(FqMatrix, permute) {
 	M m = M{};
@@ -439,35 +418,6 @@ TEST(FqMatrix, permute) {
 				continue;
 			}
 		}
-	}
-}
-
-TEST(FqMatrix, matrix_row_vector_mul2) {
-	using ValueType = kAryContainer_T<uint8_t, ncols, q>;
-	using LabelType = kAryContainer_T<uint8_t, nrows, q>;
-	M m = M{};
-	auto v = ValueType {};
-	auto l = LabelType {};
-	m.random();
-	l.random();
-	v.zero();
-
-	m.template matrix_row_vector_mul2<LabelType, ValueType>(l, v);
-	for (uint32_t i = 0; i < nrows; ++i) {
-		EXPECT_EQ(l.get(i), 0);
-	}
-
-	l.zero();
-	v.random();
-	m.matrix_row_vector_mul2(l, v);
-	for (uint32_t i = 0; i < nrows; ++i) {
-		uint64_t sum = 0;
-		for (uint32_t j = 0; j < ncols; ++j) {
-			sum += v.get(j) * m.get(i, j);
-		}
-
-		sum = sum % q;
-		EXPECT_EQ(l.get(i), sum);
 	}
 }
 

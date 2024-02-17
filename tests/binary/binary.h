@@ -25,7 +25,6 @@ static std::vector<uint64_t> __level_translation_array{{0, 5, 10, 15, n}};
 #ifdef EXTERNAL_MAIN
 #define TESTSIZE 100
 
-//TODO not available for n=100 #include "build_tree.cpp"
 #include "container.cpp"
 #include "container_avx.cpp"
 #include "container_cmp.cpp"

@@ -12,11 +12,8 @@
 #include <string.h>
 #include <cstdint>      // needed for uint8_t and so on
 #include <vector>       // for __level_translation_array
-#include <array>
-#include <cmath>
 #include <type_traits>  // for std::convertable_to
 #include <cassert>
-#include <inttypes.h>
 
 #include "cpucycles.h"
 

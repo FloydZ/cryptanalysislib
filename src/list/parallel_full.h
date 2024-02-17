@@ -97,8 +97,7 @@ public:
 	///
 	constexpr void sort(const size_t s = 0, const size_t e = __size) noexcept {
 		ASSERT(e <= size());
-		//std::sort(std::advance(begin(), s), std::advance(begin(), e));
-		std::sort(begin(), end());
+		std::sort(begin() + s, begin() + e);
 	}
 
 	/// generic hash function

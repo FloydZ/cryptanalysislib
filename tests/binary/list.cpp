@@ -81,8 +81,6 @@ uint64_t helper_check_weight_of_value(const BinaryList &l, const uint64_t e1, co
 	return errors;
 }
 
-
-// TODO this test fails on the CI, because of some weird error
 TEST(SearchBinary, Simple) {
 	uint64_t bpos, nbpos;
 	BinaryList L{0};
@@ -113,7 +111,6 @@ TEST(SearchBinary, Simple) {
 	}
 }
 
-// TODO fails in ci because of wrong instruction
 TEST(SearchBinary, Complex) {
 	uint64_t bpos, nbpos;
 	BinaryList L{0};
@@ -143,36 +140,6 @@ TEST(SearchBinary, Complex) {
 	}
 }
 
-// TODO not correct
-//TEST(SearchBinaryCustom, Simple) {
-//	size_t bpos, nbpos;
-//	BinaryList L{0};
-//	BinaryMatrix A;
-//	A.identity();
-//
-//	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
-//
-//	for (uint32_t k_lower = 0; k_lower < 10; ++k_lower) {
-//		for (uint32_t k_upper = k_lower+5; k_upper < k_lower+6; ++k_upper) {
-//			if ((k_lower/64) < (k_upper/64)) {
-//				continue;
-//			}
-//
-//			for (uint32_t pos = 0; pos < 2; ++pos) {
-//				BinaryElement e; e.random(A);
-//				L[pos] = e;
-//
-//				// first sort it
-//				L.sort_level(k_lower, k_upper);
-//
-//				// the do different independent searches
-//				bpos  = L.search_level_binary_custom_simple(e, k_lower, k_upper);
-//				nbpos = L.search_level(e, k_lower, k_upper);
-//				EXPECT_EQ(bpos, nbpos);
-//			}
-//		}
-//	}
-//}
 
 #if n > 256
 // otherwise is this test not make any sense.

@@ -33,6 +33,7 @@ public:
 	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Matrix Matrix;
 	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Value Value;
 	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Label Label;
+	typedef typename Label::LimbType T;
 
 	/// needed functions
 	using ListEnumeration_Meta<ListType, n, q, w>::check;
@@ -46,10 +47,6 @@ public:
 	using ListEnumeration_Meta<ListType, n, q, w>::element2;
 	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
 	using ListEnumeration_Meta<ListType, n, q, w>::HT;
-
-
-	/// TODO enforce this in all concepts
-	using T = uint64_t;//Value::T;
 
 	////
 	Combinations_Binary_Chase<T, n, w> chase = Combinations_Binary_Chase<T, n, w>();

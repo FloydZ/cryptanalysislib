@@ -101,10 +101,10 @@ TEST(AVX2, uint64_t_random) {
 
 		uint32x8_t c;
 		c.v256 = b;
-		EXPECT_EQ(c.v64[0], __builtin_popcountll(r1));
-		EXPECT_EQ(c.v64[1], __builtin_popcountll(r2));
-		EXPECT_EQ(c.v64[2], __builtin_popcountll(r3));
-		EXPECT_EQ(c.v64[3], __builtin_popcountll(r4));
+		EXPECT_EQ(c.v64[0], popcount::popcount(r1));
+		EXPECT_EQ(c.v64[1], popcount::popcount(r2));
+		EXPECT_EQ(c.v64[2], popcount::popcount(r3));
+		EXPECT_EQ(c.v64[3], popcount::popcount(r4));
 	}
 }
 #endif

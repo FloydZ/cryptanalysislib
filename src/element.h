@@ -258,7 +258,7 @@ public:
 	/// procedure.
 	/// \param m Matrix
 	void recalculate_label(const MatrixType &m) noexcept {
-		m.matrix_row_vector_mul2(label, value);
+		m.mul(label, value);
 	}
 
 	/// checks if label == value*m
