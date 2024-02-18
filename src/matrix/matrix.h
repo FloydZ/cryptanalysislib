@@ -1281,7 +1281,7 @@ public:
 	}
 
 	/// prints the current matrix
-	/// \param name postpend the name of the matrix
+	/// \param name postfix the name of the matrix
 	/// \param binary print as binary
 	/// \param compress_spaces if true, do not print spaces between the elements
 	/// \param syndrome if true, print the last line as the syndrome
@@ -1340,7 +1340,10 @@ public:
 				}
 			}
 		}
-		std::cout << " " << name << "\n";
+
+		if (name.length() > 0) {
+			std::cout << " " << name << "\n";
+		}
 	}
 
 	/// some simple functions
