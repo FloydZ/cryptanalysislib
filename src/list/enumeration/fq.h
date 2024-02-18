@@ -260,7 +260,6 @@ public:
 		static_assert(gray_size > 0);
 		ASSERT(LIST_SIZE >= list_size);
 
-		/// TODO think of something nicer
 		if constexpr (w > 0) {
 			if constexpr (q > 2) chase.changelist_mixed_radix_grey(gray_cl.data());
 			chase.template changelist_chase<false>(chase_cl.data());

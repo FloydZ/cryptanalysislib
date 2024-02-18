@@ -3,11 +3,11 @@
 
 #include <cstdint>
 
-#include "helper.h"
-#include "random.h"
 #include "container/fq_packed_vector.h"
 #include "container/fq_vector.h"
+#include "helper.h"
 #include "permutation/permutation.h"
+#include "random.h"
 
 
 #if __cplusplus > 201709L
@@ -44,6 +44,10 @@ concept MatrixAble = requires(MatrixType c) {
 	typename MatrixType::DataType;
 
 	requires requires(const uint32_t i,
+	                  const uint32_t *ii,
+	                  MatrixType &m,
+					  const MatrixType &cm,
+	                  Permutation &P,
 	                  const typename MatrixType::DataType a) {
 		c.get(i, i);
 		c.get(i);
@@ -64,15 +68,17 @@ concept MatrixAble = requires(MatrixType c) {
 
 		MatrixType::add(c, c, c);
 		MatrixType::sub(c, c, c);
-		// TODO allow for different types MatrixType::transpose(c, c);
 		MatrixType::sub_transpose(c, c, i, i);
 		MatrixType::sub_matrix(c, c, i, i, i, i);
 
-		//TODO c.matrix_vector_mul(c);
-		//TODO c.matrix_matrix_mul(c);
+		// The problem is that the following to function to not take
+		// `FqMatrix_Meta` as an arguments but `FqMatrix_Meta<T, ....>`
+		// and this breaks the concept for whatever reason.
+		//MatrixType::transpose(c, c);
+		//MatrixType::mul(m, m, m);
 
 		c.gaus();
-		//TODO c.fix_gaus(*i, i, i, i);
+		c.fix_gaus(P, i, i);
 		c.m4ri();
 
 		c.swap(i, i, i, i);
@@ -89,10 +95,10 @@ concept MatrixAble = requires(MatrixType c) {
 /// \tparam ncols number of columns
 /// \tparam q base field size
 template<typename T,
-		const uint32_t nrows,
-		const uint32_t ncols,
-		const uint32_t q,
-		const bool packed=false>
+         const uint32_t nrows,
+         const uint32_t ncols,
+         const uint32_t q,
+         const bool packed = false>
 class FqMatrix_Meta {
 public:
 	static constexpr uint32_t ROWS = nrows;
@@ -100,12 +106,12 @@ public:
 
 	// Types
 	using __RowType = typename std::conditional<packed,
-			kAryPackedContainer_T<T, ncols, q>,
-			kAryContainer_T<T, ncols, q>
-	>::type;
+	                                            kAryPackedContainer_T<T, ncols, q>,
+	                                            kAryContainer_T<T, ncols, q>>::type;
 	typedef __RowType RowType;
 	typedef typename RowType::DataType DataType;
 	using InternalRowType = RowType;
+	using MatrixType = FqMatrix_Meta<T, nrows, ncols, q, packed>;
 
 	// Variables
 	std::array<RowType, nrows> __data;
@@ -130,11 +136,15 @@ public:
 	///  "010202120..."
 	/// e.g. one big string, without any `\n\0`
 	/// \param data input data
-	constexpr FqMatrix_Meta(const char* data, const uint32_t cols=ncols) noexcept {
+	constexpr FqMatrix_Meta(const char *data, const uint32_t cols = ncols) noexcept {
 		from_string(data, cols);
 	}
 
-	constexpr void from_string(const char* data, const uint32_t cols=ncols) noexcept {
+	///
+	/// \param data
+	/// \param cols
+	/// \return
+	constexpr void from_string(const char *data, const uint32_t cols = ncols) noexcept {
 		clear();
 
 		char input[2] = {0};
@@ -156,7 +166,6 @@ public:
 	/// copies the input matrix
 	/// \param A input matrix
 	constexpr void copy(const FqMatrix_Meta &A) {
-		//memcpy(__data.data(), A.__data.data(), nrows*sizeof(RowType));
 		std::copy(A.__data.begin(), A.__data.end(), __data.begin());
 	}
 
@@ -164,7 +173,7 @@ public:
 	/// copy a smaller matrix into to big matrix
 	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packed_prime>
 	constexpr void copy_sub(const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed_prime> &A,
-							const uint32_t srow, const uint32_t scol) {
+	                        const uint32_t srow, const uint32_t scol) {
 		static_assert(nrows_prime <= nrows);
 		static_assert(ncols_prime <= ncols);
 		ASSERT(nrows_prime + srow <= nrows);
@@ -174,13 +183,25 @@ public:
 			for (uint32_t j = 0; j < ncols_prime; j++) {
 				const DataType data = A.get(i, j);
 				set(i + srow, j + scol, data);
-			}	
+			}
 		}
 	}
 
-	/// TODO
+	/// generates a random row with exactly weigh w
 	constexpr inline void random_row_with_weight(const uint32_t row, const uint32_t w) {
-		ASSERT(false);	
+		zero_row(row);
+
+		for (uint64_t i = 0; i < w; ++i) {
+			set(fastrandombytes_uint64() % q, row, i);
+		}
+
+		// now permute
+		for (uint64_t i = 0; i < ncols; ++i) {
+			uint64_t pos = fastrandombytes_uint64() % (ncols - i);
+			bool t = get(row, i);
+			set(get(row, i + pos), row, i);
+			set(t, row, i + pos);
+		}
 	}
 
 	/// sets all entries in a matrix
@@ -199,7 +220,7 @@ public:
 	/// \param j column
 	constexpr void set(DataType data, const uint32_t i, const uint32_t j) noexcept {
 		ASSERT(i < ROWS && j <= COLS);
-		ASSERT((uint32_t)data < q);
+		ASSERT((uint32_t) data < q);
 		__data[i].set(data, j);
 	}
 
@@ -214,14 +235,14 @@ public:
 
 	/// \param i row number (zero indexed)
 	/// \return a const ref to a row
-	[[nodiscard]] constexpr const RowType& get(const uint32_t i) const noexcept {
+	[[nodiscard]] constexpr const RowType &get(const uint32_t i) const noexcept {
 		ASSERT(i < nrows);
 		return __data[i];
 	}
 
 	/// \param i row number (zero indexed)
 	/// \return a mut ref to a row
-	[[nodiscard]] constexpr RowType& get(const uint32_t i) noexcept {
+	[[nodiscard]] constexpr RowType &get(const uint32_t i) noexcept {
 
 		ASSERT(i < nrows);
 		return __data[i];
@@ -229,18 +250,18 @@ public:
 
 	/// \param i row number (zero indexed)
 	/// \return a const ref to a row
-	[[nodiscard]] constexpr const RowType& operator[](const uint32_t i) const noexcept {
+	[[nodiscard]] constexpr const RowType &operator[](const uint32_t i) const noexcept {
 		return get(i);
 	}
 
 	/// \param i row number (zero indexed)
 	/// \return a mut ref to a row
-	[[nodiscard]] constexpr RowType& operator[](const uint32_t i) noexcept {
+	[[nodiscard]] constexpr RowType &operator[](const uint32_t i) noexcept {
 		return get(i);
 	}
 	/// creates an identity matrix
 	/// \return
-	constexpr void identity(const DataType val=1) noexcept {
+	constexpr void identity(const DataType val = 1) noexcept {
 		clear();
 
 		for (uint32_t i = 0; i < std::min(nrows, ncols); ++i) {
@@ -262,6 +283,14 @@ public:
 		clear();
 	}
 
+
+	constexpr void zero_row(const uint32_t row) noexcept {
+		ASSERT(row < nrows);
+		for (uint32_t i = 0; i < ncols; ++i) {
+			set(0, row, i);
+		}
+	}
+
 	/// generates a fully random matrix with full rank
 	constexpr void random() noexcept {
 		clear();
@@ -275,8 +304,8 @@ public:
 
 		for (uint32_t row = 0; row < std::min(ncols, nrows); ++row) {
 			for (uint32_t col = 0; col < std::min(nrows, ncols); ++col) {
-				if (row != col) { continue; }
-				if ((fastrandombytes_uint64() & 1u) == 1u){
+				if (row == col) { continue; }
+				if ((fastrandombytes_uint64() & 1u) == 1u) {
 					RowType::add(__data[col], __data[col], __data[row]);
 				}
 			}
@@ -297,8 +326,8 @@ public:
 	/// \param in1 input
 	/// \param in2 input
 	constexpr static void add(FqMatrix_Meta &out,
-							  const FqMatrix_Meta &in1,
-							  const FqMatrix_Meta &in2) noexcept {
+	                          const FqMatrix_Meta &in1,
+	                          const FqMatrix_Meta &in2) noexcept {
 		for (uint32_t i = 0; i < nrows; ++i) {
 			RowType::add(out.__data[i], in1.get(i), in2.get(i));
 		}
@@ -309,8 +338,8 @@ public:
 	/// \param in1 input
 	/// \param in2 input
 	constexpr static void sub(FqMatrix_Meta &out,
-							  const FqMatrix_Meta &in1,
-							  const FqMatrix_Meta &in2) noexcept {
+	                          const FqMatrix_Meta &in1,
+	                          const FqMatrix_Meta &in2) noexcept {
 		for (uint32_t i = 0; i < nrows; ++i) {
 			RowType::sub(out.__data[i], in1.get(i), in2.get(i));
 		}
@@ -325,8 +354,8 @@ public:
 
 	/// simple scalar operations: A*in
 	constexpr static void scalar(FqMatrix_Meta &out,
-								 const FqMatrix_Meta &in,
-								 const DataType scalar) noexcept {
+	                             const FqMatrix_Meta &in,
+	                             const DataType scalar) noexcept {
 		for (uint32_t i = 0; i < nrows; i++) {
 			RowType::scalar(out.__data[i], in.__data[i], scalar);
 		}
@@ -351,7 +380,7 @@ public:
 	/// \param B output
 	/// \param A input
 	constexpr static void transpose(FqMatrix_Meta<T, ncols, nrows, q, packed> &B,
-									FqMatrix_Meta<T, nrows, ncols, q, packed> &A) noexcept {
+	                                const FqMatrix_Meta<T, nrows, ncols, q, packed> &A) noexcept {
 		for (uint32_t row = 0; row < nrows; ++row) {
 			for (uint32_t col = 0; col < ncols; ++col) {
 				const DataType data = A.get(row, col);
@@ -368,9 +397,7 @@ public:
 	/// \param scol start column (inclusive)
 	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
 	constexpr static void transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
-									FqMatrix_Meta &A,
-									const uint32_t srow,
-									const uint32_t scol) noexcept {
+	                                FqMatrix_Meta &A, const uint32_t srow, const uint32_t scol) noexcept {
 		ASSERT(srow < nrows);
 		ASSERT(scol < ncols);
 		// checks must be transposed to
@@ -396,9 +423,9 @@ public:
 	/// \param scol start col (inclusive, of A)
 	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packedprime>
 	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime> &B,
-										const FqMatrix_Meta &A,
-										const uint32_t srow,
-										const uint32_t scol) noexcept {
+	                                    const FqMatrix_Meta &A,
+	                                    const uint32_t srow,
+	                                    const uint32_t scol) noexcept {
 		ASSERT(srow < nrows);
 		ASSERT(scol < ncols);
 		// checks must be transposed to
@@ -408,7 +435,7 @@ public:
 		for (uint32_t row = srow; row < nrows; ++row) {
 			for (uint32_t col = scol; col < ncols; ++col) {
 				const DataType data = A.get(row, col);
-				B.set(data, col- scol, row- srow);
+				B.set(data, col - scol, row - srow);
 			}
 		}
 	}
@@ -422,9 +449,9 @@ public:
 	/// \param ecol end col (exclusive, of A)
 	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packedprime>
 	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime> &B,
-										const FqMatrix_Meta &A,
-										const uint32_t srow, const uint32_t scol,
-										const uint32_t erow, const uint32_t ecol) noexcept {
+	                                    const FqMatrix_Meta &A,
+	                                    const uint32_t srow, const uint32_t scol,
+	                                    const uint32_t erow, const uint32_t ecol) noexcept {
 		ASSERT(srow < erow);
 		ASSERT(scol < ecol);
 		ASSERT(srow < nrows);
@@ -434,13 +461,13 @@ public:
 		// checks must be transposed to
 		ASSERT(scol < nrows_prime);
 		ASSERT(srow < ncols_prime);
-		ASSERT(ecol-scol <= nrows_prime);
-		ASSERT(erow-srow <= ncols_prime);
+		ASSERT(ecol - scol <= nrows_prime);
+		ASSERT(erow - srow <= ncols_prime);
 
 		for (uint32_t row = srow; row < erow; ++row) {
 			for (uint32_t col = scol; col < ecol; ++col) {
 				const DataType data = A.get(row, col);
-				B.set(data, col-scol, row-srow);
+				B.set(data, col - scol, row - srow);
 			}
 		}
 	}
@@ -454,23 +481,22 @@ public:
 	/// \param ecol end col (exclusive, of A)
 	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packedprime>
 	static constexpr void sub_matrix(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime> &B,
-									 const FqMatrix_Meta &A,
-									 const uint32_t srow, const uint32_t scol,
-									 const uint32_t erow, const uint32_t ecol)
-	noexcept {
+	                                 const FqMatrix_Meta &A,
+	                                 const uint32_t srow, const uint32_t scol,
+	                                 const uint32_t erow, const uint32_t ecol) noexcept {
 		ASSERT(srow < erow);
 		ASSERT(scol < ecol);
 		ASSERT(srow < nrows);
 		ASSERT(scol < ncols);
 		ASSERT(erow <= nrows);
 		ASSERT(ecol <= ncols);
-		ASSERT(erow-srow <= nrows_prime);
-		ASSERT(ecol-scol <= ncols_prime);
+		ASSERT(erow - srow <= nrows_prime);
+		ASSERT(ecol - scol <= ncols_prime);
 
 		for (uint32_t row = srow; row < erow; ++row) {
 			for (uint32_t col = scol; col < ecol; ++col) {
 				const DataType data = A.get(row, col);
-				B.set(data, row-srow, col-scol);
+				B.set(data, row - srow, col - scol);
 			}
 		}
 	}
@@ -479,10 +505,10 @@ public:
 	/// \param stop stop the elimination in the following row
 	/// \return
 	[[nodiscard]] constexpr uint32_t gaus(const uint32_t stop = -1) noexcept {
-		const std::size_t  m = ncols -1;
+		const std::size_t m = ncols - 1;
 		alignas(32) RowType tmp;
 		uint32_t row = 0;
-		for(uint32_t col = 0; (col < m) && (row < nrows) && (row < stop); col++) {
+		for (uint32_t col = 0; (col < m) && (row < nrows) && (row < stop); col++) {
 			int sel = -1;
 			// get pivot element
 			for (uint32_t i = row; i < nrows; i++) {
@@ -491,7 +517,7 @@ public:
 					break;
 				}
 
-				if (get(i, col) == (q-1u)) {
+				if (get(i, col) == (q - 1u)) {
 					sel = i;
 					// neg the row
 					__data[i].neg();
@@ -507,7 +533,7 @@ public:
 			swap_rows(sel, row);
 
 			/// solve all remaining coordinates (iterate over all rows)
-			for(uint32_t i = 0; i < nrows; i++) {
+			for (uint32_t i = 0; i < nrows; i++) {
 				if (i == row) {
 					continue;
 				}
@@ -527,29 +553,27 @@ public:
 		return row;
 	}
 
-	/// TODO accept Permutation for Fq case
 	/// \param permutation	currently column permutation of the input matrix. Its needed because we might rearrange
 	///						columns to further execute the gaussian elimination
 	/// \param rang			current rang of the matrix.
 	/// \param fix_col		up to which rang should the matrix be solved?
 	/// \param look_ahead   how many coordinated is the algorithm allowed to look ahead.
 	/// \return the new rang of the matrix.
-	[[nodiscard]] constexpr uint32_t fix_gaus(uint32_t *permutation,
-											  const uint32_t rang,
-											  const uint32_t fix_col,
-											  const uint32_t lookahead) noexcept {
+	[[nodiscard]] constexpr uint32_t fix_gaus(Permutation &P,
+	                                          const uint32_t rang,
+	                                          const uint32_t fix_col) noexcept {
 		RowType tmp;
 		uint32_t b = rang;
 		for (; b < fix_col; ++b) {
 			bool found = false;
 
 			// find a column in which a one is found
-			for (uint32_t col = b ; col < lookahead; ++col) {
-				for (uint32_t row=b; row<b+1; row++) {
+			for (uint32_t col = b; col < ncols; ++col) {
+				for (uint32_t row = b; row < b + 1; row++) {
 					if (get(row, col) == 1u) {
 						found = true;
 
-						std::swap(permutation[col], permutation[b]);
+						std::swap(P.values[col], P.values[b]);
 						swap_cols(col, b);
 						if (row != b)
 							swap_rows(b, row);
@@ -566,12 +590,12 @@ public:
 						continue;
 					}
 
-					if(get(i, b) == 0) {
+					if (get(i, b) == 0) {
 						continue;
 					}
 
 					// negate
-					DataType a = (q -get(i, b)) % q;
+					DataType a = (q - get(i, b)) % q;
 					RowType::scalar(tmp, __data[b], a);
 					RowType::add(__data[i], __data[i], tmp);
 				}
@@ -584,28 +608,27 @@ public:
 #ifdef DEBUG
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < b; ++j) {
-				ASSERT(get(i, j) == (i==j));
+				ASSERT(get(i, j) == (i == j));
 			}
 		}
 #endif
 		return b;
 	}
 
-	/// TODO currently not implemented
 	/// \tparam r
 	/// \param r_stop
 	/// \return
-	template<const uint32_t r=4>
-	constexpr uint32_t m4ri(const uint32_t rstop=nrows) noexcept {
+	template<const uint32_t r = 4>
+	constexpr uint32_t m4ri(const uint32_t rstop = nrows) noexcept {
 		static_assert(r > 0);
 
 		/// computes q**r
-		constexpr auto compute_size = [](){
+		constexpr auto compute_size = []() {
 			size_t ret = 0;
 			size_t multiplier = q;
 			for (uint32_t i = 0; i < r; i++) {
-				  ret += multiplier;
-				  multiplier *= q;
+				ret += multiplier;
+				multiplier *= q;
 			}
 
 			return ret;
@@ -621,42 +644,42 @@ public:
 		/// \param row_index: left start row
 		/// \param col_index: left start column
 		auto compute_index =
-		[&](const size_t row_index, const size_t col_index, const uint32_t kk) {
-			size_t ret = 0;
-			size_t multiplier = 1;
-			for (uint32_t i = 0; i < kk; ++i) {
-				DataType a = get(row_index, col_index + i);
-				ret += multiplier * ((q - a) % q);
-			    multiplier *= q;
-			}
+		        [&](const size_t row_index, const size_t col_index, const uint32_t kk) {
+			        size_t ret = 0;
+			        size_t multiplier = 1;
+			        for (uint32_t i = 0; i < kk; ++i) {
+				        DataType a = get(row_index, col_index + i);
+				        ret += multiplier * ((q - a) % q);
+				        multiplier *= q;
+			        }
 
-			ASSERT(ret < precompute_size);
-			return ret;
-		};
+			        ASSERT(ret < precompute_size);
+			        return ret;
+		        };
 
 		/// \param pos position with in the `Table`. computed by `compute_index`
 		/// \param row top left point to start the systematization
 		/// \param col top left point to start the systematization
 		/// \param start_row = top left point which is already a unity matrix on a kk x kk square
 		auto compute_table_entry =
-		[&](const size_t pos, const uint32_t row, const uint32_t col,
-		    const uint32_t start_row, const uint32_t kk) {
-			alignas(32) RowType tmp;
+		        [&](const size_t pos, const uint32_t row, const uint32_t col,
+		            const uint32_t start_row, const uint32_t kk) {
+			        alignas(32) RowType tmp;
 
-			// the fist row must be unrolled to overwrite the previous entry
-		  	DataType a = get(row, col);
-		  	a = (q - a % q);
-		  	RowType::scalar(table[pos], __data[start_row], a);
-	        for (uint32_t i = 1; i < kk; ++i) {
-				DataType a = get(row, col + i);
-				if (a == 0) { continue ;}
-				a = (q - a % q);
-				RowType::scalar(tmp, __data[start_row + i], a);
-				RowType::add(table[pos], table[pos], tmp);
-	        }
+			        // the fist row must be unrolled to overwrite the previous entry
+			        DataType a = get(row, col);
+			        a = (q - a % q);
+			        RowType::scalar(table[pos], __data[start_row], a);
+			        for (uint32_t i = 1; i < kk; ++i) {
+				        DataType a = get(row, col + i);
+				        if (a == 0) { continue; }
+				        a = (q - a % q);
+				        RowType::scalar(tmp, __data[start_row + i], a);
+				        RowType::add(table[pos], table[pos], tmp);
+			        }
 
-			computed[pos] = true;
-	    };
+			        computed[pos] = true;
+		        };
 
 
 		/// \param row top left point of the systematized sub-matrix
@@ -664,97 +687,97 @@ public:
 		/// \param kk size of the systemized submatrix
 		/// \param rstart
 		auto process_rows =
-		[&](const uint32_t row, const uint32_t col, const uint32_t kk, const uint32_t rstart, const uint32_t rstop){
-		    ASSERT(rstart <= rstop);
-			for (uint32_t i = rstart; i < rstop; i++) {
-			    size_t pos = compute_index(i, col, kk);
-			    if (!computed[pos]) {
-					compute_table_entry(pos, i, col, row, kk);
-			    }
+		        [&](const uint32_t row, const uint32_t col, const uint32_t kk, const uint32_t rstart, const uint32_t rstop) {
+			        ASSERT(rstart <= rstop);
+			        for (uint32_t i = rstart; i < rstop; i++) {
+				        size_t pos = compute_index(i, col, kk);
+				        if (!computed[pos]) {
+					        compute_table_entry(pos, i, col, row, kk);
+				        }
 
-				RowType::add(__data[i], __data[i], table[pos]);
-		    }
-		};
+				        RowType::add(__data[i], __data[i], table[pos]);
+			        }
+		        };
 
 		/// computes the gaus on a kk x kk square starting from (row, col)
 		/// NOTE: kk = r normally
 		auto sub_gaus =
-		[&](const uint32_t row, const uint32_t col, const uint32_t kk){
-		    alignas(32) RowType tmp;
-		    for (uint32_t i = row; i < row+kk; ++i) {
-				retry:
+		        [&](const uint32_t row, const uint32_t col, const uint32_t kk) {
+			        alignas(32) RowType tmp;
+			        for (uint32_t i = row; i < row + kk; ++i) {
+			        retry:
 
-		        uint32_t sel = -1u;
-		        const uint32_t current_col = col+i-row;
+				        uint32_t sel = -1u;
+				        const uint32_t current_col = col + i - row;
 
-				/// pivoting
-				for (uint32_t pivot_row = i; pivot_row < nrows; pivot_row++) {
-					if (get(pivot_row, current_col) == 1u) {
-						sel = pivot_row;
-						break;
-					}
+				        /// pivoting
+				        for (uint32_t pivot_row = i; pivot_row < nrows; pivot_row++) {
+					        if (get(pivot_row, current_col) == 1u) {
+						        sel = pivot_row;
+						        break;
+					        }
 
-					if (get(pivot_row, current_col) == (q-1u)) {
-						sel = pivot_row;
-						__data[pivot_row].neg();
-						break;
-					}
-				}
+					        if (get(pivot_row, current_col) == (q - 1u)) {
+						        sel = pivot_row;
+						        __data[pivot_row].neg();
+						        break;
+					        }
+				        }
 
-		        /// no pivot found
-		        if (sel == -1u) { return i-row; }
+				        /// no pivot found
+				        if (sel == -1u) { return i - row; }
 
-		        swap_rows(i, sel);
+				        swap_rows(i, sel);
 
-				/// if the pivot row is taken from outside of the kk x kk square
-				/// we need to resolve it
-				if (sel >= row + kk) {
-					for (uint32_t j = col; j < col+kk; ++j) {
-						if (j == i) { continue; }
+				        /// if the pivot row is taken from outside of the kk x kk square
+				        /// we need to resolve it
+				        if (sel >= row + kk) {
+					        for (uint32_t j = col; j < col + kk; ++j) {
+						        if (j == i) { continue; }
 
-						const DataType a = get(i, j);
-						if (a == 0) { continue; }
+						        const DataType a = get(i, j);
+						        if (a == 0) { continue; }
 
-						// negate
-						DataType c = (q - a) % q;
-						RowType::scalar(tmp, __data[row+j-col], c);
-						RowType::add(__data[i], __data[i], tmp);
-					}
-				}
+						        // negate
+						        DataType c = (q - a) % q;
+						        RowType::scalar(tmp, __data[row + j - col], c);
+						        RowType::add(__data[i], __data[i], tmp);
+					        }
+				        }
 
-				/// this is stupid: while fixing the pivot row, it can happen that
-				/// the pivot element gets zero out. We catch this case and restart.
-				if (get(i, current_col) == 0) goto retry;
+				        /// this is stupid: while fixing the pivot row, it can happen that
+				        /// the pivot element gets zero out. We catch this case and restart.
+				        if (get(i, current_col) == 0) goto retry;
 
-				// one final fixup
-				if (get(i, current_col) != 1) {
-					RowType::scalar(tmp, __data[current_col], (q - get(i, current_col) % q));
-					RowType::add(__data[i], __data[i], tmp);
-				}
+				        // one final fixup
+				        if (get(i, current_col) != 1) {
+					        RowType::scalar(tmp, __data[current_col], (q - get(i, current_col) % q));
+					        RowType::add(__data[i], __data[i], tmp);
+				        }
 
-				/// solve the column in the kk x kk square
-		        for (uint32_t j = row; j < row+kk; ++j) {
-			        if (j == i) { continue; }
+				        /// solve the column in the kk x kk square
+				        for (uint32_t j = row; j < row + kk; ++j) {
+					        if (j == i) { continue; }
 
-					const DataType a = get(j, current_col);
-					if (a == 0) { continue; }
-					// negate
-					DataType c = (q - a) % q;
-					RowType::scalar(tmp, __data[i], c);
-					RowType::add(__data[j], __data[j], tmp);
-		        }
-			}
+					        const DataType a = get(j, current_col);
+					        if (a == 0) { continue; }
+					        // negate
+					        DataType c = (q - a) % q;
+					        RowType::scalar(tmp, __data[i], c);
+					        RowType::add(__data[j], __data[j], tmp);
+				        }
+			        }
 
-			return kk;
-		};
+			        return kk;
+		        };
 
-		uint32_t row=0, col=0, kk=r;
+		uint32_t row = 0, col = 0, kk = r;
 		while (col < rstop) {
 			std::fill(computed.begin(), computed.end(), 0);
 			if (col + kk > rstop) { kk = rstop - col; }
 			const uint32_t kbar = sub_gaus(row, col, kk);
 
-			if (kk != kbar) { break ;}
+			if (kk != kbar) { break; }
 
 			if (kbar > 0) {
 				/// process below
@@ -781,10 +804,10 @@ public:
 		static_assert(max_row > 0);
 		static_assert(max_row <= nrows);
 #ifdef DEBUG
-		auto check_correctness = [this](){
+		auto check_correctness = [this]() {
 			for (uint32_t i = 0; i < nrows; ++i) {
 				for (uint32_t j = 0; j < max_row; ++j) {
-					if(get(i, j) != (i == j)){
+					if (get(i, j) != (i == j)) {
 						print();
 					}
 
@@ -820,7 +843,7 @@ public:
 			/// pivoting
 			if (get(i, i) != 1u) {
 				/// try to find from below
-				for (uint32_t j = i+1; j < c; ++j) {
+				for (uint32_t j = i + 1; j < c; ++j) {
 					if (__data[j][i] == 1u) {
 						swap_rows(j, i);
 						found = true;
@@ -864,10 +887,10 @@ public:
 			ASSERT(get(i, i));
 			/// first clear above
 			for (uint32_t j = 0; j < nrows; ++j) {
-				if (i == j) continue ;
+				if (i == j) continue;
 				uint32_t scal = get(j, i);
 				if (scal) {
-					RowType::scalar(tmp, __data[i], q-scal);
+					RowType::scalar(tmp, __data[i], q - scal);
 					RowType::add(__data[j], __data[j], tmp);
 				}
 			}
@@ -878,30 +901,29 @@ public:
 			bool found = false;
 			/// pivoting
 			for (uint32_t j = max_row; j < nrows; ++j) {
-				if (__data[j][i+c] == 1u) {
-					swap_rows(j, i+c);
+				if (__data[j][i + c] == 1u) {
+					swap_rows(j, i + c);
 					found = true;
 					break;
 				}
 
-				if (__data[j][i+c] == (q - 1u)) {
-					swap_rows(j, i+c);
-					__data[i+c].neg();
+				if (__data[j][i + c] == (q - 1u)) {
+					swap_rows(j, i + c);
+					__data[i + c].neg();
 					found = true;
 					break;
 				}
 			}
 
-			/// TODO not fully finished see the binary case
 			if (!found) {
-				return c+i;
+				return c + i;
 			}
 
 			for (uint32_t j = 0; j < nrows; ++j) {
-				if ((c+i) == j) continue ;
-				uint32_t scal = get(j, i+c);
+				if ((c + i) == j) continue;
+				uint32_t scal = get(j, i + c);
 				if (scal) {
-					RowType::scalar(tmp, __data[i+c], q-scal);
+					RowType::scalar(tmp, __data[i + c], q - scal);
 					RowType::add(__data[j], __data[j], tmp);
 				}
 			}
@@ -919,9 +941,9 @@ public:
 	/// \param i2 row of the second element
 	/// \param j2 column of the second element
 	constexpr void swap(const uint16_t i1,
-						const uint16_t j1,
-						const uint16_t i2,
-						const uint16_t j2) noexcept {
+	                    const uint16_t j1,
+	                    const uint16_t i2,
+	                    const uint16_t j2) noexcept {
 		uint32_t tmp = get(i1, j1);
 		set(get(i2, j2), i1, i2);
 		set(tmp, i2, j2);
@@ -956,7 +978,7 @@ public:
 	/// \param i first row
 	/// \param j second row
 	constexpr void swap_rows(const uint16_t i,
-							 const uint16_t j) noexcept {
+	                         const uint16_t j) noexcept {
 		ASSERT(i < nrows && j < nrows);
 		if (i == j) {
 			return;
@@ -967,28 +989,25 @@ public:
 		__data[j] = tmp;
 	}
 
-	/// TODO check the following things:
-	/// 	- is transposing really faster?
-	/// 	- one can skip the first transpose, if one applies the additional permutation also in `fix_gaus`
 	/// choose and apply a new random permutation
 	/// \param AT transposed matrix
 	/// \param permutation given permutation (is overwritten)
 	/// \param len length of the permutation
 	constexpr void permute_cols(FqMatrix_Meta<T, ncols, nrows, q, packed> &AT,
-								uint32_t *permutation,
-								const uint32_t len) noexcept {
+	                            uint32_t *permutation,
+	                            const uint32_t len) noexcept {
 		ASSERT(ncols >= len);
 
 		this->transpose(AT, *this, 0, 0);
 		for (uint32_t i = 0; i < len; ++i) {
 			uint32_t pos = fastrandombytes_uint64() % (len - i);
-			ASSERT(i+pos < len);
+			ASSERT(i + pos < len);
 
 			auto tmp = permutation[i];
-			permutation[i] = permutation[i+pos];
-			permutation[pos+i] = tmp;
+			permutation[i] = permutation[i + pos];
+			permutation[pos + i] = tmp;
 
-			AT.swap_rows(i, i+pos);
+			AT.swap_rows(i, i + pos);
 		}
 
 		FqMatrix_Meta<T, ncols, nrows, q, packed>::transpose(*this, AT, 0, 0);
@@ -999,28 +1018,16 @@ public:
 	/// \param len
 	/// \return
 	constexpr void permute_cols(uint32_t *permutation,
-								const uint32_t len) noexcept {
+	                            const uint32_t len) noexcept {
 		for (uint32_t i = 0; i < len; ++i) {
 			uint32_t pos = fastrandombytes_uint64() % (len - i);
-			ASSERT(i+pos < len);
+			ASSERT(i + pos < len);
 
 			auto tmp = permutation[i];
-			permutation[i] = permutation[i+pos];
-			permutation[pos+i] = tmp;
+			permutation[i] = permutation[i + pos];
+			permutation[pos + i] = tmp;
 
-			swap_cols(i, i+pos);
-		}
-	}
-	/// appending the syndrome as the last column
-	/// \param syndromeT syndrome colum
-	/// \param col
-	template<typename Tprime, const uint32_t qprime>
-	constexpr void append_syndromeT(const FqMatrix_Meta<Tprime, nrows, 1, qprime, packed> &syndrome_T,
-									const uint32_t col) noexcept {
-		ASSERT(syndrome_T.ROWS == nrows);
-		for (uint32_t i = 0; i < nrows; ++i) {
-			auto data = syndrome_T.get(i, 0);
-			__data[i].set(data, col);
+			swap_cols(i, i + pos);
 		}
 	}
 
@@ -1032,10 +1039,10 @@ public:
 	/// \param B
 	/// \return
 	template<const uint32_t ncols_prime>
-	constexpr static FqMatrix_Meta<T, nrows, ncols+ncols_prime, q, packed>
+	constexpr static FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, packed>
 	augment(const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
-			const FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &B) noexcept {
-		FqMatrix_Meta<T, nrows, ncols+ncols_prime, q, packed> ret;
+	        const FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &B) noexcept {
+		FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, packed> ret;
 		ret.clear();
 
 		// copy the first matrix
@@ -1050,7 +1057,7 @@ public:
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols_prime; ++j) {
 				const DataType data = B.get(i, j);
-				ret.set(data, i, j+ncols);
+				ret.set(data, i, j + ncols);
 			}
 		}
 
@@ -1083,186 +1090,35 @@ public:
 		return weight;
 	}
 
-	/// this is the multiplication if the input vector is in row format
-	/// NOTE: this function is inplace
-	/// NOTE: this = this*v (result is written into the first row)
-	/// NOTE: technically that's not correct as the output is a row vector
-	/// 		whereas the container is a full matrix
-	/// this = this*v
-	/// \param v vector
-	constexpr void matrix_vector_mul(const FqMatrix_Meta<T, 1, ncols, q, packed> &v) noexcept {
-		FqMatrix_Meta tmp;
-		for (uint32_t i = 0; i < nrows; ++i) {
-			/// uint32_t to make sure that no overflow happens
-			DataType sum = 0;
-			for (uint32_t j = 0; j < ncols; ++j) {
-				uint32_t a = get(i, j);
-				uint32_t b = v.get(0, j);
-				uint32_t c = (a*b)%q;
-				sum += c;
-				sum %= q;
-			}
-
-			tmp.set(sum, 0, i);
-		}
-
-		this->copy(tmp);
-	}
-
-	/// this is the multiplication if the input vector is in col format
-	/// NOTE: this function is inplace
-	/// NOTE: this = this*v (result is written into the first colum)
-	/// NOTE: technically that's not correct as the output is a col vector
-	/// 		whereas the container is a full matrix
-	/// \param v vector
-	constexpr void matrix_col_vector_mul(const FqMatrix_Meta<T, ncols, 1, q, packed> &v) noexcept {
-		FqMatrix_Meta tmp;
-		for (uint32_t i = 0; i < nrows; ++i) {
-			/// uint32_t to make sure that no overflow happens
-			uint32_t sum = 0;
-			for (uint32_t j = 0; j < ncols; ++j) {
-				uint32_t a = get(i, j);
-				uint32_t b = v.get(j, 0);
-				uint32_t c = (a*b)%q;
-				sum += c;
-			}
-
-			sum = sum % q;
-			tmp.set(sum, i, 0);
-		}
-
-		this->copy(tmp);
-	}
-
-	/// this is the multiplication if the input vector is in row format
-	/// NOTE: in comparison to the other matrix vector multiplication
-	/// 	this function write the result into a separate output vector
-	/// NOTE: out = this*v
-	/// \param out output column vector
-	/// \param v input row vector
-	constexpr void matrix_vector_mul(FqMatrix_Meta<T, nrows, 1, q, packed> &out,
-									 const FqMatrix_Meta<T, 1, ncols, q, packed> &v) const noexcept {
-		for (uint32_t i = 0; i < nrows; ++i) {
-			uint32_t sum = 0;
-			for (uint32_t j = 0; j < ncols; ++j) {
-				uint32_t a = get(i, j);
-				uint32_t b = v.get(0, j);
-				uint32_t c = (a*b)%q;
-				sum += c;
-			}
-
-			sum = sum % q;
-			out.set(sum, i, 0);
-		}
-	}
-
-	/// this is the multiplication if the input vector is in row format
-	/// NOTE: in comparison to the other matrix vector multiplication
-	/// 	this function write the result into a separate output vector
-	/// NOTE: out = this*v
-	/// \param out output column vector
-	/// \param v input row vector
-	constexpr void matrix_row_vector_mul(FqMatrix_Meta<T, 1, nrows, q, packed> &out,
-										 const FqMatrix_Meta<T, 1, ncols, q, packed> &v) const noexcept {
-		for (uint32_t i = 0; i < nrows; ++i) {
-			uint32_t sum = 0;
-			for (uint32_t j = 0; j < ncols; ++j) {
-				uint32_t a = get(i, j);
-				uint32_t b = v.get(0, j);
-				uint32_t c = (a*b)%q;
-				sum += c;
-			}
-
-			sum = sum % q;
-			out.set(sum, 0, i);
-		}
-	}
-
-	/// special version of the row_vector multiplication
-	/// in which the input/output are not matrices but
-	/// vectors.
-	/// \tparam LabelType must fulfill the following function
-	///					get(i), set(i)
-	/// \tparam ValueType must fulfill the following function
-	/// 				get(i), set(i), ::LENGTH
-	/// \param out
-	/// \param in
-	/// \return
-	template<class LabelType, class ValueType>
-#if __cplusplus > 201709L
-	requires LabelTypeAble<LabelType> &&
-			 ValueTypeAble<ValueType>
-#endif
-	constexpr void matrix_row_vector_mul2(LabelType &out, const ValueType &in) const noexcept {
-		constexpr uint32_t IN_COLS = ValueType::LENGTH;
-		constexpr uint32_t OUT_COLS = LabelType::LENGTH;
-		static_assert(IN_COLS == COLS);
-		static_assert(OUT_COLS == ROWS);
-
-		for (uint32_t i = 0; i < nrows; ++i) {
-			uint64_t sum = 0;
-			for (uint32_t j = 0; j < ncols; ++j) {
-				uint32_t a = get(i, j);
-				uint32_t b = in.get(j);
-				uint32_t c = (a*b)%q;
-				sum += c;
-				sum %= q;
-			}
-
-			sum = sum % q;
-			out.set(sum, i);
-		}
-	}
-
-	/// this is the multiplication if the input vector is in row format
-	/// NOTE: in comparison to the other matrix vector multiplication
-	/// 	this function write the result into a separate output vector
-	/// NOTE: out = this*v
-	/// \param out output column vector
-	/// \param v input column vector
-	constexpr void matrix_col_vector_mul(FqMatrix_Meta<T, nrows, 1u, q, packed> &out,
-										 const FqMatrix_Meta<T, nrows, 1u, q, packed> v) noexcept {
-		FqMatrix_Meta<T, nrows, 1u, q, packed> tmp;
-		for (uint32_t i = 0; i < nrows; ++i) {
-			uint32_t sum = 0;
-			uint32_t b = v.get(i, 0);
-			for (uint32_t j = 0; j < ncols; ++j) {
-				uint32_t a = get(i, j);
-				uint32_t c = (a*b)%q;
-				sum += c;
-			}
-
-			sum = sum % q;
-			tmp.set(sum, i, 0);
-		}
-
-		out.copy(tmp);
-	}
-
-
-	/// out = this*in
-	/// \param out output matrix of size [nrows, ncols']
-	/// \param v input matrix of size [ncols, ncols']
+	/// compute C = this*B
 	template<const uint32_t ncols_prime>
-	constexpr void matrix_matrix_mul(FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &out,
-									 const FqMatrix_Meta<T, ncols, ncols_prime, q, packed> in) noexcept {
-		// over all columns in `in`
-		for (uint32_t i = 0; i < ncols_prime; ++i) {
-			// for each row in *this
-			for (uint32_t j = 0; j < nrows; ++j) {
-				uint32_t sum = 0;
-				// for each element in the row
+	constexpr static void mul(
+			FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &C,
+			const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
+			const FqMatrix_Meta<T, ncols, ncols_prime, q, packed> &B) noexcept {
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols_prime; ++j) {
+				uint64_t sum = 0;
 				for (uint32_t k = 0; k < ncols; ++k) {
-					uint32_t a = get(j, k);
-					uint32_t b = in.get(k, i);
-					uint32_t c = (a*b)%q;
+					uint32_t a = A.get(i, k);
+					uint32_t b = B.get(k, j);
+					uint32_t c = (a * b) % q;
 					sum += c;
 				}
-				uint32_t tmp = out.get(j, i);
-				tmp = (tmp + sum) % q;
-				out.set(sum, j, i);
+
+				C.set(sum % q, i, j);
 			}
 		}
+	}
+
+	/// allows for transposed input
+	template<const uint32_t ncols_prime>
+	constexpr static void mul_transposed(
+			FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &C,
+			const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
+			const FqMatrix_Meta<T, ncols_prime, ncols, q, packed> &B) noexcept {
+		MatrixType::template mul<ncols_prime>(C, A, B.transpose());
 	}
 
 	///
@@ -1280,16 +1136,49 @@ public:
 		return true;
 	}
 
+	/// special version of the row_vector multiplication
+	/// in which the input/output are not matrices but
+	/// vectors.
+	/// \tparam LabelType must fulfill the following function
+	///					get(i), set(i)
+	/// \tparam ValueType must fulfill the following function
+	/// 				get(i), set(i), ::LENGTH
+	/// \param out
+	/// \param in
+	/// \return
+	template<class LabelType, class ValueType>
+#if __cplusplus > 201709L
+	requires LabelTypeAble<LabelType> &&
+			 ValueTypeAble<ValueType>
+#endif
+	constexpr void mul(LabelType &out, const ValueType &in) const noexcept {
+		constexpr uint32_t IN_COLS = ValueType::LENGTH;
+		constexpr uint32_t OUT_COLS = LabelType::LENGTH;
+		static_assert(IN_COLS == COLS);
+		static_assert(OUT_COLS == ROWS);
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			uint64_t sum = 0;
+			for (uint32_t j = 0; j < ncols; ++j) {
+				uint32_t a = get(i, j);
+				uint32_t b = in.get(j);
+				uint32_t c = (a * b) % q;
+				sum += c;
+			}
+			out.set(sum%q, i);
+		}
+	}
+
 	/// prints the current matrix
 	/// \param name postfix the name of the matrix
 	/// \param binary print as binary
 	/// \param compress_spaces if true, do not print spaces between the elements
 	/// \param syndrome if true, print the last line as the syndrome
-	constexpr void print(const std::string &name="",
-						 bool binary=false,
-						 bool transposed=false,
-						 bool compress_spaces=false,
-						 bool syndrome=false) const noexcept {
+	constexpr void print(const std::string &name = "",
+	                     bool binary = false,
+	                     bool transposed = false,
+	                     bool compress_spaces = false,
+	                     bool syndrome = false) const noexcept {
 		constexpr uint32_t bits = bits_log2(q);
 		if (binary) {
 			for (uint32_t j = 0; j < ncols; ++j) {
@@ -1307,7 +1196,6 @@ public:
 				}
 			}
 			return;
-
 		}
 
 		if (transposed) {
@@ -1318,7 +1206,6 @@ public:
 					if (not compress_spaces) {
 						std::cout << " ";
 					}
-
 				}
 			}
 		} else {
@@ -1358,7 +1245,6 @@ public:
 	[[nodiscard]] constexpr uint32_t limbs_per_row() const noexcept {
 		return RowType::internal_limbs;
 	}
-
 };
 
 

@@ -9,7 +9,7 @@ foreach(testfile ${TEST_SOURCES})
 	add_test(AllTests ${file})
 endforeach(testfile ${TEST_SOURCES})
 
-#TODO add_subdirectory(alloc)
+add_subdirectory(alloc)
 add_subdirectory(atomic)
 add_subdirectory(binary)
 add_subdirectory(container)

@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cmath>
 #include <immintrin.h>
 
 struct f32x8_t {

@@ -2,6 +2,7 @@
 #define DECODING_CPUCYCLES_H
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #if defined(USE_ARM)
 long long cpucycles(void) {

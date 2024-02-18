@@ -13,9 +13,11 @@
 
 #include "simd/avx2.h"
 #include "simd/float/avx2.h"
+#if defined(USE_AVX512)
+#include "simd/avx512.h"
+#endif
 
 #elif defined(USE_ARM)
-
 #include "simd/neon.h"
 // TODO #include "simd/float/neon.h"
 #include "simd/float/simd.h"
@@ -520,7 +522,7 @@ struct uint8x32_t {
 		uint8x32_t ret;
 
 		for(uint32_t i = 0; i < 32; i++) {
-			ret.v8[i] = __builtin_popcount(in.v8[i]);
+			ret.v8[i] = popcount::popcount(in.v8[i]);
 		}
 		return ret;
 	}
@@ -852,7 +854,7 @@ struct uint16x16_t {
 		uint16x16_t ret;
 
 		for(uint32_t i = 0; i < 16; i++) {
-			ret.v16[i] = __builtin_popcount(in.v16[i]);
+			ret.v16[i] = popcount::popcoun(in.v16[i]);
 		}
 		return ret;
 	}
@@ -1172,7 +1174,7 @@ struct uint32x8_t {
 		uint32x8_t ret;
 
 		for(uint32_t i = 0; i < 8; i++) {
-			ret.v32[i] = __builtin_popcount(in.v32[i]);
+			ret.v32[i] = popcount::popcount(in.v32[i]);
 		}
 		return ret;
 	}
@@ -1511,7 +1513,7 @@ struct uint64x4_t {
 		uint64x4_t ret;
 
 		for(uint32_t i = 0; i < 4; i++) {
-			ret.v64[i] = __builtin_popcountll(in.v64[i]);
+			ret.v64[i] = popcount::popcount(in.v64[i]);
 		}
 		return ret;
 	}
@@ -1639,6 +1641,7 @@ inline uint8x32_t operator|= (uint8x32_t& lhs, const uint8x32_t& rhs) {
 }
 
 
+///
 inline uint16x16_t operator* (const uint16x16_t& lhs, const uint16x16_t& rhs) {
 	return uint16x16_t::mullo(lhs, rhs);
 }
@@ -1685,6 +1688,8 @@ inline uint16x16_t operator|= (uint16x16_t& lhs, const uint16x16_t& rhs) {
 	return lhs;
 }
 
+
+///
 inline uint32x8_t operator* (const uint32x8_t& lhs, const uint32x8_t& rhs) {
 	return uint32x8_t::mullo(lhs, rhs);
 }
@@ -1732,6 +1737,7 @@ inline uint32x8_t operator|= (uint32x8_t& lhs, const uint32x8_t& rhs) {
 }
 
 
+///
 inline uint64x4_t operator* (const uint64x4_t& lhs, const uint64x4_t& rhs) {
 	return uint64x4_t::mullo(lhs, rhs);
 }
@@ -1778,8 +1784,8 @@ inline uint64x4_t operator|= (uint64x4_t& lhs, const uint64x4_t& rhs) {
 	return lhs;
 }
 
-/* 					 comparison									*/
 
+/* 					 comparison									*/
 int operator==(const uint8x32_t& a, const uint8x32_t& b){
 	return uint8x32_t::cmp(a, b);
 }
@@ -1794,6 +1800,7 @@ int operator>(const uint8x32_t& a, const uint8x32_t& b){
 }
 
 
+///
 int operator==(const uint16x16_t& a, const uint16x16_t& b){
 	return uint16x16_t::cmp(a, b);
 }
@@ -1808,6 +1815,7 @@ int operator>(const uint16x16_t& a, const uint16x16_t& b){
 }
 
 
+///
 int operator==(const uint32x8_t& a, const uint32x8_t& b){
 	return uint32x8_t::cmp(a, b);
 }
@@ -1833,9 +1841,6 @@ int operator<(const uint64x4_t& a, const uint64x4_t& b){
 int operator>(const uint64x4_t& a, const uint64x4_t& b){
 	return uint64x4_t::gt(a, b);
 }
-
-
-
 
 
 ////////////////////////////////////////////////////////////
@@ -1946,9 +1951,5 @@ constexpr inline void uint64x4_t::print(bool binary, bool hex) const {
 	printf("\n");
 }
 
-
-
-
-
-
+#include "simd/generic.h"
 #endif//CRYPTANALYSISLIB_SIMD_H

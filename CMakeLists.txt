@@ -79,14 +79,6 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
     endif()
 endif()
 
-
-# this is my try to enforce a builder script which runs with the: `cmake ..`
-# command. TODO currently not working.
-add_custom_target (
-	CRYPTANALYSISLIB_BUILD_SCRIPT
-	COMMAND ./${CMAKE_SOURCE_DIR}/build.sh
-)
-
 # global include directories
 include_directories("deps/b63/include/b63")
 include_directories("src")
@@ -121,7 +113,7 @@ if(lto_supported AND USE_LTO)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-set(ALLOWED_WARNINGS "  -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
+set(ALLOWED_WARNINGS " -Wno-zero-length-array -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
@@ -135,14 +127,14 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES 
     set(OPTIMIZE_FLAGS "-O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
 
-	#if(_available_vector_units_list AND "avx2" IN_LIST _available_vector_units_list)
-	#	message(STATUS "AVX2 CPU detected")
-	#	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 -march=native")
-	#endif()
+if(_available_vector_units_list AND "avx2" IN_LIST _available_vector_units_list)
+	message(STATUS "AVX2 CPU detected")
+	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 -march=native")
+endif()
 # TODO checking the CI
-#if("avx512f" IN_LIST _available_vector_units_list)
-#    set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
-#endif()
+if("avx512f" IN_LIST _available_vector_units_list)
+    set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
+endif()
 
     set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic -DDEBUG ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 	set(OPTIMIZE_FLAGS "-g -march=native -DNDEBUG ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")

@@ -1,22 +1,22 @@
 #ifndef SMALLSECRETLWE_RANDOM_H
 #define SMALLSECRETLWE_RANDOM_H
 
-#include <cstdint>
-#include <cstddef>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
 /// super random values
-static uint64_t random_x=123456789u, random_y=362436069u, random_z=521288629u;
+static uint64_t random_x = 123456789u, random_y = 362436069u, random_z = 521288629u;
 
 // Sowas von nicht sicher, Aber egal.
 static inline void xorshf96_random_seed(const uint64_t i) noexcept {
 	random_x += i;
-	random_y = random_x*4095834;
-	random_z = random_x + random_y*98798234;
+	random_y = random_x * 4095834;
+	random_z = random_x + random_y * 98798234;
 }
 
-static inline uint64_t xorshf96() noexcept {          //period 2^96-1
+static inline uint64_t xorshf96() noexcept {//period 2^96-1
 	random_x ^= random_x << 16u;
 	random_x ^= random_x >> 5u;
 	random_x ^= random_x << 1u;
@@ -31,11 +31,11 @@ static inline uint64_t xorshf96() noexcept {          //period 2^96-1
 
 /// n = size of buffer in bytes
 /// reutrn 0 on success
-static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept{
-	uint64_t *a = (uint64_t *)buf;
+static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept {
+	uint64_t *a = (uint64_t *) buf;
 
-	const uint32_t rest = n%8;
-	const size_t limit = n/8;
+	const uint32_t rest = n % 8;
+	const size_t limit = n / 8;
 	size_t i = 0;
 
 	for (; i < limit; ++i) {
@@ -43,11 +43,11 @@ static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept{
 	}
 
 	// last limb
-	uint8_t *b = (uint8_t *)buf;
+	uint8_t *b = (uint8_t *) buf;
 	b += n - rest;
 	uint64_t limb = xorshf96();
 	for (size_t j = 0; j < rest; ++j) {
-		b[j] = (limb >> (j*8u)) & 0xFFu;
+		b[j] = (limb >> (j * 8u)) & 0xFFu;
 	}
 
 	return 0;
@@ -60,20 +60,9 @@ inline static int xorshf96_fastrandombytes_uint64_array(uint64_t *buf, const siz
 	return 0;
 }
 
-/// TODO segfault in release mode
+///
 inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
 	return xorshf96();
-	//constexpr uint32_t UINT64_POOL_SIZE = 512;    // page should be 512 * 8 Byte
-	//static uint64_t tmp[UINT64_POOL_SIZE];
-	//static size_t counter = 0;
-
-	//if (counter == 0){
-	//	xorshf96_fastrandombytes_uint64_array(tmp, UINT64_POOL_SIZE * 8 );
-	//	counter = UINT64_POOL_SIZE;
-	//}
-
-	//counter -= 1;
-	//return tmp[counter];
 }
 
 ///
@@ -100,7 +89,7 @@ static inline uint64_t fastrandombytes_uint64() noexcept {
 /// \return a type T uniform random element
 template<typename T>
 #if __cplusplus > 201709L
-	requires std::is_integral_v<T>
+    requires std::is_integral_v<T>
 #endif
 static inline T fastrandombytes_T() noexcept {
 	return xorshf96_fastrandombytes_uint64();
@@ -111,14 +100,14 @@ static inline T fastrandombytes_T() noexcept {
 /// \return
 template<typename T>
 #if __cplusplus > 201709L
-	requires std::is_integral_v<T>
+    requires std::is_integral_v<T>
 #endif
 static T fastrandombytes_weighted(const uint32_t w) noexcept {
-	assert(w < (sizeof(T)*8));
+	assert(w < (sizeof(T) * 8));
 
 	T ret = (1u << w) - 1u;
 	for (uint32_t i = 0; i < w; ++i) {
-		const size_t to_pos = fastrandombytes_uint64() % ((sizeof(T)*8) - i);
+		const size_t to_pos = fastrandombytes_uint64() % ((sizeof(T) * 8) - i);
 		const size_t from_pos = i;
 
 		const T from_mask = 1u << from_pos;
@@ -133,34 +122,4 @@ static T fastrandombytes_weighted(const uint32_t w) noexcept {
 
 	return ret;
 }
-
-/// NOTE: formally thats not uniform distribution as there is depending on the 
-/// input mask, a bias. But how cares.
-/// \tparam T return type
-/// \tparam bits number of random bits
-/// \return `bits` many random bit
-template<typename T, const uint32_t bits>
-#if __cplusplus > 201709L
-	requires std::is_integral_v<T>
-#endif
-static inline T fastrandombits() noexcept {
-	constexpr uint32_t Tbits = sizeof(T)*8;
-	constexpr T mask = (T(1u) << bits) - T(1u);
-	static_assert(Tbits >= bits);
-
-	return T(xorshf96_fastrandombytes_uint64()) & mask;
-}
-
-#ifdef USE_AVX2
-#include <immintrin.h>
-/// \return
-static __m256i fastrandombytes_m256i() noexcept {
-	alignas(32) uint64_t data[4];
-	__m256i ret;
-	xorshf96_fastrandombytes_uint64_array((uint64_t *)data, 4u * 8u);
-	ret = _mm256_load_si256((__m256i *)data);
-	return ret;
-}
-
-#endif
-#endif //SMALLSECRETLWE_RANDOM_H
+#endif//SMALLSECRETLWE_RANDOM_H

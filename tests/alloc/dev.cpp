@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "random.h"
-#include "helper.h"
 #include "alloc/alloc.h"
+#include "helper.h"
+#include "random.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -15,17 +15,17 @@ TEST(StackAllocator, Simple) {
 	Blk b = s.allocate(size);
 	ASSERT_EQ(b.valid(), true);
 
-	auto *ptr = (uint8_t *)b.ptr;
-	for(size_t i = 0; i < size; i++) {
+	auto *ptr = (uint8_t *) b.ptr;
+	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 
 	ASSERT_EQ(s.owns(b), true);
-	Blk b2{((uint8_t *)b.ptr)+size, b.len};
+	Blk b2{((uint8_t *) b.ptr) + size, b.len};
 	ASSERT_EQ(s.owns(b2), false);
 	s.deallocateAll();
 
-	ASSERT_EQ(s.owns(b),  false);
+	ASSERT_EQ(s.owns(b), false);
 	ASSERT_EQ(s.owns(b2), false);
 }
 
@@ -36,8 +36,8 @@ TEST(FreeListAllocator, Simple) {
 	Blk b = s.allocate(size);
 	ASSERT_EQ(b.valid(), true);
 
-	auto *ptr = (uint8_t *)b.ptr;
-	for(size_t i = 0; i < size; i++) {
+	auto *ptr = (uint8_t *) b.ptr;
+	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 
@@ -49,38 +49,40 @@ TEST(FreeListAllocator, Simple) {
 	// checking the free list, while debugging you should see, that in
 	// the last loop the memory is not allocated anymore. But reused
 	// from the FreeList
-	Blk bb[total_size/size];
-	for (uint32_t i = 0; i < (total_size/size); ++i) {
+	Blk bb[total_size / size];
+	for (uint32_t i = 0; i < (total_size / size); ++i) {
 		bb[i] = s.allocate(size);
 	}
-	for (uint32_t i = 0; i < (total_size/size); ++i) {
+	for (uint32_t i = 0; i < (total_size / size); ++i) {
 		s.deallocate(bb[i]);
 	}
-	for (uint32_t i = 0; i < (total_size/size); ++i) {
+	for (uint32_t i = 0; i < (total_size / size); ++i) {
 		bb[i] = s.allocate(size);
 	}
 }
 
 TEST(AffixAllocator, Simple) {
 	constexpr size_t size = 16;
-	struct TestStruct { uint64_t tmp; };
+	struct TestStruct {
+		uint64_t tmp;
+	};
 	AffixAllocator<StackAllocator<1024>, TestStruct> s;
 	Blk b = s.allocate(size);
 	ASSERT_EQ(b.valid(), true);
 
-	auto *ptr = (uint8_t *)b.ptr;
-	for(size_t i = 0; i < size; i++) {
+	auto *ptr = (uint8_t *) b.ptr;
+	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 
 	ASSERT_EQ(s.owns(b), true);
 	s.deallocate(b);
 	ASSERT_EQ(s.owns(b), false);
-	Blk b2{((uint8_t *)b.ptr)-size, b.len};
+	Blk b2{((uint8_t *) b.ptr) - size, b.len};
 	ASSERT_EQ(s.owns(b2), false);
 	s.deallocateAll();
 
-	ASSERT_EQ(s.owns(b),  false);
+	ASSERT_EQ(s.owns(b), false);
 	ASSERT_EQ(s.owns(b2), false);
 }
 
@@ -88,21 +90,22 @@ TEST(AffixAllocator, Simple) {
 TEST(Segregator, Simple) {
 	constexpr size_t size = 16;
 	Segregator<FreeListAllocator<StackAllocator<1024>, 16>,
-	        	StackAllocator<4096>,
-	            128> s;
+	           StackAllocator<4096>,
+	           128>
+	        s;
 	Blk b = s.allocate(size);
 	ASSERT_EQ(b.valid(), true);
 
-	auto *ptr = (uint8_t *)b.ptr;
-	for(size_t i = 0; i < size; i++) {
+	auto *ptr = (uint8_t *) b.ptr;
+	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 
 	ASSERT_EQ(s.owns(b), true);
-	s.deallocate(b); // FreeList Deallocate
+	s.deallocate(b);// FreeList Deallocate
 	ASSERT_EQ(s.owns(b), true);
-	Blk b2{((uint8_t *)b.ptr)-size, b.len};
-	ASSERT_EQ(s.owns(b2), true); // well technically not true
+	Blk b2{((uint8_t *) b.ptr) - size, b.len};
+	ASSERT_EQ(s.owns(b2), true);// well technically not true
 	s.deallocateAll();
 
 	// ASSERT_EQ(s.owns(b),  false);
@@ -110,15 +113,15 @@ TEST(Segregator, Simple) {
 }
 
 TEST(PageMallocator, Simple) {
-	constexpr size_t size = 1u<<12;
-	constexpr size_t page_alignment = 1u<<10;
+	constexpr size_t size = 1u << 12;
+	constexpr size_t page_alignment = 1u << 10;
 
 	PageMallocator<page_alignment, size> s;
 	Blk b = s.allocate();
 
 	ASSERT_EQ(b.valid(), true);
-	auto *ptr = (uint8_t *)b.ptr;
-	for(size_t i = 0; i < size; i++) {
+	auto *ptr = (uint8_t *) b.ptr;
+	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 	ASSERT_EQ(s.owns(b), true);
@@ -126,15 +129,15 @@ TEST(PageMallocator, Simple) {
 }
 
 TEST(FreeListPageMallocator, Simple) {
-	constexpr size_t size = 1u<<12;
-	constexpr size_t page_alignment = 1u<<10;
+	constexpr size_t size = 1u << 12;
+	constexpr size_t page_alignment = 1u << 10;
 
 	FreeListPageMallocator<page_alignment, size> s;
 	Blk b = s.allocate();
 
 	ASSERT_EQ(b.valid(), true);
-	auto *ptr = (uint8_t *)b.ptr;
-	for(size_t i = 0; i < size; i++) {
+	auto *ptr = (uint8_t *) b.ptr;
+	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 	ASSERT_EQ(s.owns(b), true);
@@ -142,21 +145,18 @@ TEST(FreeListPageMallocator, Simple) {
 }
 
 TEST(STDAllocatorWrapper, simple) {
-	constexpr size_t size = 1u<<12;
-	constexpr size_t page_alignment = 1u<<10;
+	constexpr size_t size = 1u << 12;
+	constexpr size_t page_alignment = 1u << 10;
 
 	using T = uint64_t;
-	using Allocator = FreeListPageMallocator<page_alignment, size>;
+	using Allocator = StackAllocator<size>;
 	using WrapperAllocator = STDAllocatorWrapper<T, Allocator>;
 	WrapperAllocator s;
 
-	T *ret = WrapperAllocator ::allocate(s, size);
+	T *ret = WrapperAllocator::allocate(s, size);
+	ASSERT_NE(ret, nullptr);
 }
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }
-
-
-
-

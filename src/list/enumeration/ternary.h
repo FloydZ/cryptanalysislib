@@ -617,7 +617,6 @@ public:
 		L1.data_value()[spos].get_bits_set(P1, pp); L2.data_value()[spos].get_bits_set(P2, pp);
 		L3.data_value()[spos].get_bits_set(P3, pp); L4.data_value()[spos].get_bits_set(P4, pp);
 
-		// TODO multithreading
 		switch (config.listIteration) {
 			case SingleFullLength: {
 				// Set the first element.
@@ -699,7 +698,6 @@ public:
 						LeftRight_end = epos /*cL1.size()*/,
 						RepsLess_end = cL2.size();
 
-				// TODO
 				//if constexpr(config.threads != 1) {
 				//	TranslatePos2ChangeList(LeftRight_begin, RepsLess_begin, LeftRight_end, RepsLess_end, spos+1);
 				//}
@@ -779,7 +777,6 @@ public:
 				}
 
 				OMP_BARRIER
-				// TODO optimize
 				for(size_t j = spos; j < epos; j++) {
 					L3.data_label(j).template neg<n-k-l+l1, n-k>();
 					L2.data_label(j).template neg<n-k-l, n-k-l+l1>();
@@ -821,7 +818,6 @@ public:
 					}
 				}
 
-				// TODO optimize
 				for(size_t j = spos; j < epos; j++) {
 					L2.data_label(j).neg(n-k-l, n-k);
 				}
@@ -838,7 +834,6 @@ public:
 				constexpr uint64_t NrOfTwos = bc(len-config.nr1, config.nr2);
 				ASSERT(L1.size() == (NrOfOnes*NrOfTwos));
 
-				// TODO make available for every thread. So precompute this thing for every thread, to safe mem.
 				// build up lookup table for the sums of twos.
 				std::array<Label, k+l> lookup;
 				for (uint32_t i = 0; i < k+l; ++i) {
@@ -856,7 +851,6 @@ public:
 				}
 
 				// ... then the twos
-				// TODO das ist noch nicht voll korrekt, weil die 2en nicht direkt hinter den einsen
 				for (uint32_t i = config.nr1; i < + config.nr1+config.nr2; ++i) {
 					Label::add(L1.data_label(0), L1.data_label(0), lookup[P1[i]]);
 					Label::add(L2.data_label(0), L2.data_label(0), lookup[P1[i]+ offset]);
@@ -918,7 +912,6 @@ public:
 					}
 				}
 
-				// TODO not correct.
 				L3 = L1;
 				L4 = L2;
 				for(uint64_t j = spos; j < epos; j++) {
@@ -963,7 +956,6 @@ public:
 					}
 				}
 
-				// TODO optimize
 				for (size_t j = spos; j < epos; j++) {
 					L2.data_label(j).neg(n - k - l, n - k);
 				}
@@ -988,7 +980,6 @@ public:
 				}
 
 
-				// FIXME optimize. currently this is for the n=100 instance responsible for 2%..
 				for(size_t j = spos; j < epos; j++) {
 					L3.data_label(j).template neg<n-k-l+l1, n-k>();
 					L2.data_label(j).template neg<n-k-l, n-k-l+l1>();

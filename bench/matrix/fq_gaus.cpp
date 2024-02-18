@@ -21,7 +21,7 @@ B63_BASELINE(markov_gaus, nn) {
 		while (true) {
 			m.random();
 			rank = m.gaus(nrows-l);
-			rank = m.fix_gaus(P.values, rank, nrows-l, 0);
+			rank = m.fix_gaus(P, rank, nrows-l);
 			if (rank >= nrows - l) { break; }
 		}
 	}
@@ -46,7 +46,7 @@ B63_BENCHMARK(gaus, nn) {
 	for (uint64_t i = 0; i < nn; i++) {
 		m.permute_cols(mt, P.values, P.length);
 		uint32_t rank2 = m.gaus();
-		rank2 = m.fix_gaus(P.values, rank2, nrows-l, ncols);
+		rank2 = m.fix_gaus(P, rank2, nrows-l);
 		keep += rank2;
 		keep += m.get(10, 10);
 	}
