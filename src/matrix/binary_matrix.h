@@ -1429,7 +1429,7 @@ public:
 
 	/// allows for transposed input
 	template<const uint32_t ncols_prime>
-	constexpr static void mul_tranposed(
+	constexpr static void mul_transposed(
 	        FqMatrix<T, nrows, ncols_prime, q, packed> &C,
 	        const FqMatrix<T, nrows, ncols, q, packed> &A,
 	        const FqMatrix<T, ncols_prime, ncols, q, packed> &B) noexcept {
@@ -1491,6 +1491,7 @@ public:
 	constexpr static void print_matrix(const std::string &name,
 	                                   const FqMatrix &A,
 	                                   const bool compress_spaces = false,
+									   const bool new_line = false,
 	                                   const uint32_t start_row = -1u,
 	                                   const uint32_t end_row = -1u,
 	                                   const uint32_t start_col = -1u,
@@ -1503,8 +1504,9 @@ public:
 		const uint32_t sstart_col = start_col == -1u ? 0 : start_col;
 		const uint32_t eend_col = end_col == -1u ? A.ncols : end_col;
 
-		std::cout << name << "\n"
-		          << std::endl;
+		if (!name.empty()) {
+			std::cout << name << "\n" << std::endl;
+		}
 		for (uint32_t i = sstart_row; i < eend_row; ++i) {
 			if (print_row_number) {
 				std::cout << std::setw(4) << i << ": [";
@@ -1530,10 +1532,14 @@ public:
 				}
 			}
 
-			std::cout << "]\n";
+			std::cout << "]";
+			if ((eend_row - sstart_row) > 1){
+				std::cout << std::endl;
+			}
 		}
 
-		std::cout << std::endl;
+		if (new_line)
+			std::cout << std::endl;
 	}
 
 	/// prints the current matrix
@@ -1541,7 +1547,8 @@ public:
 	/// \param compress_spaces if true, do not print spaces between the elements
 	/// \param syndrome if true, print the last line as the syndrome
 	constexpr void print(const std::string &name = "",
-	                     bool transposed = false,
+	                     bool new_line = false,
+						 bool transposed = false,
 	                     bool compress_spaces = false,
 	                     bool syndrome = false) const noexcept {
 		(void) syndrome;
@@ -1550,7 +1557,7 @@ public:
 			FqMatrix<T, nrows, ncols, 2, true>::transpose(AT, *this);
 			FqMatrix<T, ncols, nrows, 2, true>::print_matrix(name, AT, compress_spaces);
 		} else {
-			print_matrix(name, *this, compress_spaces);
+			print_matrix(name, *this, compress_spaces, new_line);
 		}
 	}
 
