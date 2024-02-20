@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include "helper.h"
+#include "popcount/popcount.h"
 #include "print/print.h"
 #include "random.h"
 
@@ -136,6 +137,8 @@ namespace cryptanalysislib {
 		}
 	};
 };// namespace cryptanalysislib
+
+using namespace cryptanalysislib;
 
 struct uint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
