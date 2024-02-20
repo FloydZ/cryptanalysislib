@@ -669,7 +669,12 @@ struct uint16x16_t {
 		uint16x8_t v128[2];
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
