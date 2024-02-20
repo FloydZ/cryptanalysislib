@@ -427,7 +427,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
+	constexpr static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
 		auto *ptr128 = (uint8x16_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -551,8 +551,8 @@ struct uint8x32_t {
 		return out;
 	}
 
-	static inline uint8x32_t mullo(const uint8x32_t in1,
-	                               const uint8_t in2) {
+	[[nodiscard]] constexpr static inline uint8x32_t mullo(const uint8x32_t in1,
+	                                                       const uint8_t in2) {
 		uint8x32_t rs = uint8x32_t::set1(in2);
 		return uint8x32_t::mullo(in1, rs);
 	}
@@ -944,8 +944,8 @@ struct uint16x16_t {
 		return out;
 	}
 
-	static inline uint16x16_t mullo(const uint16x16_t in1,
-	                                const uint8_t in2) {
+	[[nodiscard]] constexpr static inline uint16x16_t mullo(const uint16x16_t in1,
+	                                                        const uint8_t in2) {
 		uint16x16_t rs = uint16x16_t::set1(in2);
 		return uint16x16_t::mullo(in1, rs);
 	}
@@ -1352,8 +1352,8 @@ struct uint32x8_t {
 		return out;
 	}
 
-	static inline uint32x8_t mullo(const uint32x8_t in1,
-	                               const uint8_t in2) {
+	[[nodiscard]] constexpr static inline uint32x8_t mullo(const uint32x8_t in1,
+	                                                       const uint8_t in2) {
 		uint32x8_t rs = uint32x8_t::set1(in2);
 		return uint32x8_t::mullo(in1, rs);
 	}
