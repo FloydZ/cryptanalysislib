@@ -35,6 +35,8 @@ namespace cryptanalysislib {
 		using limb_type = uint32_t;
 
 		union {
+			uint32_t d[4];
+
 			uint8_t v8[16];
 			uint16_t v16[8];
 			uint32_t v32[4];
@@ -91,15 +93,22 @@ namespace cryptanalysislib {
 	};
 
 	struct _uint64x2_t {
-		constexpr uint32_t LIMBS = 2;
+		constexpr static uint32_t LIMBS = 2;
 		using limb_type = uint64_t;
 
 		union {
+			uint64_t d[2];
+
 			uint8_t v8[16];
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
 		};
+
+		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
 
 		///
 		/// \return
@@ -133,6 +142,8 @@ struct uint8x32_t {
 	using limb_type = uint8_t;
 
 	union {
+		uint8_t d[32];
+
 		uint8_t v8[32];
 		uint16_t v16[16];
 		uint32_t v32[8];
@@ -562,6 +573,8 @@ struct uint16x16_t {
 	using limb_type = uint16_t;
 
 	union {
+		uint16_t d[16];
+
 		uint8_t v8[32];
 		uint16_t v16[16];
 		uint32_t v32[8];
@@ -903,6 +916,8 @@ struct uint32x8_t {
 	using limb_type = uint32_t;
 
 	union {
+		uint32_t d[8];
+
 		uint8_t v8[32];
 		uint16_t v16[16];
 		uint32_t v32[8];
@@ -1258,6 +1273,8 @@ struct uint64x4_t {
 	using limb_type = uint64_t;
 
 	union {
+		uint64_t d[4];
+
 		uint8_t v8[32];
 		uint16_t v16[16];
 		uint32_t v32[8];

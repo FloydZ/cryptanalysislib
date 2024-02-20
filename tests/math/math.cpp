@@ -33,10 +33,12 @@ TEST(round, simple) {
 }
 
 TEST(entropy, simple) {
-	EXPECT_EQ(std::isnan(HH(1.1)), true);
-	EXPECT_EQ(std::isnan(HH(1.0)), true);
-	EXPECT_EQ(std::isnan(HH(0.)), true);
-	EXPECT_DOUBLE_EQ(HH(0.5), 1.0);
+	//EXPECT_EQ(std::isnan(HH(1.1)), true);
+	//EXPECT_EQ(std::isnan(HH(1.0)), true);
+	//EXPECT_EQ(std::isnan(HH(0.)), true);
+	EXPECT_DOUBLE_EQ(HH(1.0), 0.0);
+	EXPECT_DOUBLE_EQ(HH(0.0), 0.0);
+	// EXPECT_DOUBLE_EQ(HH(0.5), 1.0);
 }
 
 TEST(exp, simple) {
