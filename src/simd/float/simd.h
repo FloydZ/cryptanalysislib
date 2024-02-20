@@ -1,9 +1,11 @@
 #ifndef CRYPTANALYSISLIB_FLOAT_SIMD_H
 #define CRYPTANALYSISLIB_FLOAT_SIMD_H
 
+#include <cmath>
+#include <cstdint>
 struct f32x8_t {
 	union {
-		float  f[8];
+		float f[8];
 		double d[4];
 	};
 
@@ -15,9 +17,8 @@ struct f32x8_t {
 
 	constexpr f32x8_t(const uint32x8_t in) {
 		for (uint32_t i = 0; i < 8u; ++i) {
-			f[i] = (float)in.v32[i];
+			f[i] = (float) in.v32[i];
 		}
-
 	}
 
 	constexpr static uint32x8_t uint32x8(const f32x8_t in) {
@@ -51,7 +52,7 @@ struct f32x8_t {
 
 struct f64x4_t {
 	union {
-		float  f[8];
+		float f[8];
 		double d[4];
 	};
 
@@ -63,9 +64,8 @@ struct f64x4_t {
 
 	constexpr f64x4_t(const uint64x4_t in) {
 		for (uint32_t i = 0; i < 4u; ++i) {
-			d[i] = (float)in.v64[i];
+			d[i] = (float) in.v64[i];
 		}
-
 	}
 
 	constexpr static uint64x4_t uint64x4(const f64x4_t in) {

@@ -21,7 +21,7 @@ constexpr static size_t compute_gray_size() noexcept {
 	for (uint64_t i = 0; i < w; i++) { sum *= q - 1; }
 
 	// just make sure that we do not return zero.
-	return std::max(sum, size_t(1ul));
+	return std::max(size_t(sum), size_t(1ul));
 }
 
 /// needed to compute the list size before initializing the enumerator

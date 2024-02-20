@@ -31,7 +31,7 @@ int compare_256_64(const __m256i in1, const __m256i in2) noexcept {
 			return _mm256_cmp_epi64_mask(avx_exact_weight64, pop, 0);
 #else
 			const __m256i tmp2 = _mm256_cmpeq_epi64(avx_exact_weight64, pop);
-			return _mm256_movemask_pd((__m256) tmp2);
+			return _mm256_movemask_pd((__m256d) tmp2);
 #endif
 		} else {
 			const __m256i avx_weight64 = _mm256_set1_epi64x(dk_bruteforce_weight + 1);

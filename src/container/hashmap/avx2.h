@@ -96,12 +96,17 @@ public:
 
 	/// doesnt clear anything, but only sets the load factors to zero.
 	void clear(const uint32_t tid) {
+		const size_t start = tid * __load.size() / config.threads;
+		const size_t end = (tid + 1) * __load.size() / config.threads;
+		for (size_t i = start; i < end; ++i) {
+			__load[i] = 0;
+		}
 	}
 
 	/// doesnt clear anything, but only sets the load factors to zero.
-	void clear() {
+	constexpr void clear() {
 		for (size_t i = 0; i < __load.size(); ++i) {
-			__load[0] = 0;
+			__load[i] = 0;
 		}
 	}
 

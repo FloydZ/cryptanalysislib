@@ -111,10 +111,13 @@ public:
 		}
 	}
 
-	template<typename SIMD>
-	constexpr inline void insert(const keyType &e, const valueType &value) noexcept {
-		const size_t index = hash(e);
-		ASSERT(index < nrbuckets);
+	///
+	template<class SIMD>
+	//	TODO require the internal SIMD type: write concept
+	constexpr inline void insert_simd(const SIMD &e, const SIMD &value) noexcept {
+		for (uint32_t i = 0; i < SIMD::LIMBS; i++) {
+			insert(e[i], value[i]);
+		}
 	}
 
 	///

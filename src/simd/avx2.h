@@ -135,6 +135,9 @@ struct uint8x32_t {
 	using limb_type = uint8_t;
 
 	union {
+		// compatibility with TxN_t
+		uint8_t d[32];
+
 		uint8_t v8[32];
 		uint16_t v16[16];
 		uint32_t v32[8];
@@ -142,9 +145,13 @@ struct uint8x32_t {
 		__m256i v256;
 	};
 
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
 	/// Example of how the constexpr implementation works:
 	/// https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGEgBykrgAyeAyYAHI%2BAEaYxCCSZqQADqgKhE4MHt6%2BASlpGQKh4VEssfGJtpj2jgJCBEzEBNk%2BflyBdpgOmfWNBMWRMXEJSQoNTS257bbj/WGDZcOJAJS2qF7EyOwc5gDMYcjeWADUJrtuY/iCAHQIZ9gmGgCCewdHmKfneCwsYQTEYVu90eLzM%2BwYhy8JzObmQlycwOeILGxC8DmOXj%2B/lUuzMAH0CKcAOxWJEaACcXgYmWJpJeFMelKxBOOxwAbv5TgBWCy4kxcgAiZzpjMZmMEXAAbCy2VL%2BRY5YLhSDRRTxQRcTK%2BTzjv5%2BULdiKGWq/pLJDKzfLjpJ9cqyeTGXi8SwzFzJXh2a7JXb6Q6iQa6azWSCg8c0AwxphVMliMcxkxHMhjmFaPMMVicfjCaoSHiIOGxunBNjNYSwlxSCqKaGa7W6/WC4T1SWs8mGGZlrSqw6TcXMyz1gQfaryYPrmyvZ8BccIE6XW68J2oE62ZJ0F5luXx5P%2BdgZyu1xuwmZt27lsPjeSAPRXscTt1T47O%2BfSnPEPHpL0QLf3yWkNsnr%2B56Gt2jLEJgBAbAwxyDhefpCmSvo3le3bIdybjJI0rDHMk/yoTe6HgZBxAMN2jZRjGcYNImbapuERYEC2LJUmIeDAOE6B4rQqBMOg%2BYCIWbKoHg6DHAAVLhxCdiYJKgRSTBeEQ4mSTuuzTrOzpeh6YnLJJcFihmpYwYp%2BkUneqnThJ/xeqZ163opp6So%2Bz5elxPHrh%2BeBfhpL7abp/zAUaPbkkRUHGUOIH2jJCFPKGIZBsh%2BFXuhmHENhen2mh/IYVhLBtmRAkEBRsbxjRKZpkJIkYswqbsZgnFjCQmAQJVolWWQYaFQxTFlgw0myVFFJzlpynWQ%2BZzqcNC7if5xC2e1Flto5Ppxf6KprZF9JPOR0axq1xxFWMEDNiyYmDv%2Bjbdad5YXV1J2EmJx63RGTZ/EZfVds8ob8LGx1va2HoTccGjCsm1i4p8bjHKRhpg5YE24v1gZ1pdzb9oSTCPmjpYgCALG1Rxbm8d%2BDBcKcljJmJiMrSjd2Ga20RY/TBK4/jbGE9xxPHuTFiU9Tm0NnTfZGUmQPY1muNvnmTD/tEgXxbW4ss3jNXs/VH5EOBEDnWG8tfUG0XrTFIJ/McLBMGEEBIwrnUvcVDHvY%2BXBmHqAtBjtlH3eF8qkYKj4yRYIMbcjrIe7GXvlj7%2Br%2BySQcBjbYdXb1ZhR37QMB3HF6xUGh0EFAXs6TrN0AaQfU06yMZ/FQEDmCnrroNlpFmEk3s8iDgp6y8/ocKstCcFyvB%2BBwWikKgnBuNY1hxusmwfHsPCkAQmg96sADWIC7Ls1waP4kiSkSkhEv4GhH0ff59xwkiD8vo%2BcLwCggBoi/L6scCwEgaAsMkdBxOQlCf9/eg8RgBcFxKQLAbI8BbAAGp4EwAAdwAPLJEYJwBeNBaBFWIA/CA0Qb7RDCI0AAnmg3gBDmDECIYg6I2guhL24LwT%2BbBBCIIYLQEhw9eBYGiF4YAbgxC0Afgw8BmBzZGHEJw8BeBwLdDZJgIRI8oxdEUtsBefxqg31TNENKlCPBYBvv8b4pDVhUAMMABQsCEHINQcI/gggRBiHYFIGQghFAqHUJI3QFYDBGBQJPSw%2Bg8DRAfpAVYqBcKZCEQAWnNmyVQZhjhRMQbsXgqA5HEABFgEJVsqg1EyC4Bg7hPCtAkESIIhSBilHKBIJ%2BqR0i1CyMUqYZS6mFAYJUoY8QuBP06N0OosxJhtDKb0hpvQmgdMWF0npAymlDJmH0CZ1TumrAUDPLYEhe792vpIseHBjiqH8JKKJZpjjAGQEmUB1wEkQFwIQEg5NdhcGWLwehWhlhrw3lvLk/guDknJO0fw3yj4/OkBfK%2Bpcb67Pvo/Z%2BnDX4wEQCAQcyRFJ/34l/H%2BxAIisG2Aco5JyzkXK3mYXg9U7mZL0HY4QohxDOKpW4tQN8vGkHgWlZIxj9BbIhTszgiDFIosJKgKg%2BzDnHMkKc85xxLnXI8BioBDynkvJfh8ze1xN7qo1Zqzll9tkjyhbYGFryV7apJdyvVd9YVvNWOk9IzhJBAA%3D
-
 	constexpr uint8x32_t() noexcept = default;
 
 	/// NOTE: currently cannot be constexpr
@@ -506,12 +513,25 @@ struct uint16x16_t {
 	using limb_type = uint16_t;
 
 	union {
+		// compatibility with TxN_t
+		uint16_t d[16];
+
 		uint8_t v8[32];
 		uint16_t v16[16];
 		uint32_t v32[8];
 		uint64_t v64[4];
 		__m256i v256;
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return
@@ -831,6 +851,11 @@ struct uint32x8_t {
 		cryptanalysislib::_uint32x4_t v128[2];
 		__m256i v256;
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return
@@ -1236,12 +1261,20 @@ struct uint64x4_t {
 	using limb_type = uint64_t;
 
 	union {
+		// compatibility with TxN_t
+		uint64_t d[4];
+
 		uint8_t v8[32];
 		uint16_t v16[16];
 		uint32_t v32[8];
 		uint64_t v64[4];
 		__m256i v256;
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return

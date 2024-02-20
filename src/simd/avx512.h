@@ -22,6 +22,9 @@ struct uint8x64_t {
 	using limb_type = uint8_t;
 
 	union {
+		// compatibility with TxN_t
+		uint8_t d[64];
+
 		uint8_t v8[64];
 		uint16_t v16[32];
 		uint32_t v32[16];
@@ -30,6 +33,11 @@ struct uint8x64_t {
 		__m512i v256[2];
 		__m512i v512;
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return
@@ -349,6 +357,9 @@ struct uint16x32_t {
 	using limb_type = uint16_t;
 
 	union {
+		// compatibility with TxN_t
+		uint16_t d[32];
+
 		uint8_t v8[64];
 		uint16_t v16[32];
 		uint32_t v32[16];
@@ -357,6 +368,11 @@ struct uint16x32_t {
 		__m512i v256[2];
 		__m512i v512;
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return
@@ -591,6 +607,9 @@ struct uint32x16_t {
 	using limb_type = uint32_t;
 
 	union {
+		// compatibility with TxN_t
+		uint32_t d[16];
+
 		uint8_t v8[64];
 		uint16_t v16[32];
 		uint32_t v32[16];
@@ -599,6 +618,11 @@ struct uint32x16_t {
 		__m512i v256[2];
 		__m512i v512;
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return
@@ -814,12 +838,14 @@ struct uint32x16_t {
 	}
 };
 
-
 struct uint64x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint64_t;
 
 	union {
+		// compatibility with TxN_t
+		uint64_t d[8];
+
 		uint8_t v8[64];
 		uint16_t v16[32];
 		uint32_t v32[16];
@@ -828,6 +854,11 @@ struct uint64x8_t {
 		__m512i v256[2];
 		__m512i v512;
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return

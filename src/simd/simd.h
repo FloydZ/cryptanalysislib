@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_SIMD_H
 
 #include <cinttypes>
+#include <cmath>
 #include <cstdint>
 
 #include "helper.h"
@@ -30,7 +31,7 @@
 namespace cryptanalysislib {
 
 	struct _uint32x4_t {
-		constexpr uint32_t LIMBS = 4;
+		constexpr static uint32_t LIMBS = 4;
 		using limb_type = uint32_t;
 
 		union {
@@ -39,6 +40,11 @@ namespace cryptanalysislib {
 			uint32_t v32[4];
 			uint64_t v64[2];
 		};
+
+		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
 
 		///
 		/// \return
@@ -132,6 +138,11 @@ struct uint8x32_t {
 		uint32_t v32[8];
 		uint64_t v64[4];
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return
@@ -557,6 +568,11 @@ struct uint16x16_t {
 		uint64_t v64[4];
 	};
 
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
 	///
 	/// \return
 	static inline uint16x16_t random() {
@@ -865,7 +881,7 @@ struct uint16x16_t {
 		uint16x16_t ret;
 
 		for (uint32_t i = 0; i < 16; i++) {
-			ret.v16[i] = cryptanalysislib::popcount::popcoun(in.v16[i]);
+			ret.v16[i] = cryptanalysislib::popcount::popcount(in.v16[i]);
 		}
 		return ret;
 	}
@@ -892,6 +908,12 @@ struct uint32x8_t {
 		uint32_t v32[8];
 		uint64_t v64[4];
 	};
+
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return
@@ -1188,7 +1210,7 @@ struct uint32x8_t {
 		uint32x8_t ret;
 
 		for (uint32_t i = 0; i < 8; i++) {
-			ret.v32[i] = popcount::popcount(in.v32[i]);
+			ret.v32[i] = cryptanalysislib::popcount::popcount(in.v32[i]);
 		}
 		return ret;
 	}
@@ -1241,6 +1263,11 @@ struct uint64x4_t {
 		uint32_t v32[8];
 		uint64_t v64[4];
 	};
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
 
 	///
 	/// \return
@@ -1530,7 +1557,7 @@ struct uint64x4_t {
 		uint64x4_t ret;
 
 		for (uint32_t i = 0; i < 4; i++) {
-			ret.v64[i] = popcount::popcount(in.v64[i]);
+			ret.v64[i] = cryptanalysislib::popcount::popcount(in.v64[i]);
 		}
 		return ret;
 	}
@@ -1609,251 +1636,251 @@ struct uint64x4_t {
 #endif// no SIMD unit available
 
 ///
-inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8x32_t &rhs) {
 	return uint8x32_t::mullo(lhs, rhs);
 }
-inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8_t &rhs) {
 	return uint8x32_t::mullo(lhs, rhs);
 }
-inline uint8x32_t operator*(const uint8_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8_t &lhs, const uint8x32_t &rhs) {
 	return uint8x32_t::mullo(rhs, lhs);
 }
-inline uint8x32_t operator+(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator+(const uint8x32_t &lhs, const uint8x32_t &rhs) {
 	return uint8x32_t::add(lhs, rhs);
 }
-inline uint8x32_t operator-(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator-(const uint8x32_t &lhs, const uint8x32_t &rhs) {
 	return uint8x32_t::sub(lhs, rhs);
 }
-inline uint8x32_t operator&(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator&(const uint8x32_t &lhs, const uint8x32_t &rhs) {
 	return uint8x32_t::and_(lhs, rhs);
 }
-inline uint8x32_t operator^(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator^(const uint8x32_t &lhs, const uint8x32_t &rhs) {
 	return uint8x32_t::xor_(lhs, rhs);
 }
-inline uint8x32_t operator|(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator|(const uint8x32_t &lhs, const uint8x32_t &rhs) {
 	return uint8x32_t::or_(lhs, rhs);
 }
-inline uint8x32_t operator~(const uint8x32_t &lhs) {
+constexpr inline uint8x32_t operator~(const uint8x32_t &lhs) {
 	return uint8x32_t::not_(lhs);
 }
-inline uint8x32_t operator>>(const uint8x32_t &lhs, const uint32_t rhs) {
+constexpr inline uint8x32_t operator>>(const uint8x32_t &lhs, const uint32_t rhs) {
 	return uint8x32_t::srli(lhs, rhs);
 }
-inline uint8x32_t operator<<(const uint8x32_t &lhs, const uint32_t rhs) {
+constexpr inline uint8x32_t operator<<(const uint8x32_t &lhs, const uint32_t rhs) {
 	return uint8x32_t::slli(lhs, rhs);
 }
-inline uint8x32_t operator^=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator^=(uint8x32_t &lhs, const uint8x32_t &rhs) {
 	lhs = uint8x32_t::xor_(lhs, rhs);
 	return lhs;
 }
-inline uint8x32_t operator&=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator&=(uint8x32_t &lhs, const uint8x32_t &rhs) {
 	lhs = uint8x32_t::and_(lhs, rhs);
 	return lhs;
 }
-inline uint8x32_t operator|=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator|=(uint8x32_t &lhs, const uint8x32_t &rhs) {
 	lhs = uint8x32_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-inline uint16x16_t operator*(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint16x16_t &rhs) {
 	return uint16x16_t::mullo(lhs, rhs);
 }
-inline uint16x16_t operator*(const uint16x16_t &lhs, const uint8_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint8_t &rhs) {
 	return uint16x16_t::mullo(lhs, rhs);
 }
-inline uint16x16_t operator*(const uint8_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint8_t &lhs, const uint16x16_t &rhs) {
 	return uint16x16_t::mullo(rhs, lhs);
 }
-inline uint16x16_t operator+(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator+(const uint16x16_t &lhs, const uint16x16_t &rhs) {
 	return uint16x16_t::add(lhs, rhs);
 }
-inline uint16x16_t operator-(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator-(const uint16x16_t &lhs, const uint16x16_t &rhs) {
 	return uint16x16_t::sub(lhs, rhs);
 }
-inline uint16x16_t operator&(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator&(const uint16x16_t &lhs, const uint16x16_t &rhs) {
 	return uint16x16_t::and_(lhs, rhs);
 }
-inline uint16x16_t operator^(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator^(const uint16x16_t &lhs, const uint16x16_t &rhs) {
 	return uint16x16_t::xor_(lhs, rhs);
 }
-inline uint16x16_t operator|(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator|(const uint16x16_t &lhs, const uint16x16_t &rhs) {
 	return uint16x16_t::or_(lhs, rhs);
 }
-inline uint16x16_t operator~(const uint16x16_t &lhs) {
+constexpr inline uint16x16_t operator~(const uint16x16_t &lhs) {
 	return uint16x16_t::not_(lhs);
 }
-inline uint16x16_t operator>>(const uint16x16_t &lhs, const uint32_t rhs) {
+constexpr inline uint16x16_t operator>>(const uint16x16_t &lhs, const uint32_t rhs) {
 	return uint16x16_t::srli(lhs, rhs);
 }
-inline uint16x16_t operator<<(const uint16x16_t &lhs, const uint32_t rhs) {
+constexpr inline uint16x16_t operator<<(const uint16x16_t &lhs, const uint32_t rhs) {
 	return uint16x16_t::slli(lhs, rhs);
 }
-inline uint16x16_t operator^=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator^=(uint16x16_t &lhs, const uint16x16_t &rhs) {
 	lhs = uint16x16_t::xor_(lhs, rhs);
 	return lhs;
 }
-inline uint16x16_t operator&=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator&=(uint16x16_t &lhs, const uint16x16_t &rhs) {
 	lhs = uint16x16_t::and_(lhs, rhs);
 	return lhs;
 }
-inline uint16x16_t operator|=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator|=(uint16x16_t &lhs, const uint16x16_t &rhs) {
 	lhs = uint16x16_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-inline uint32x8_t operator*(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint32x8_t &rhs) {
 	return uint32x8_t::mullo(lhs, rhs);
 }
-inline uint32x8_t operator*(const uint32x8_t &lhs, const uint8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint8_t &rhs) {
 	return uint32x8_t::mullo(lhs, rhs);
 }
-inline uint32x8_t operator*(const uint8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint8_t &lhs, const uint32x8_t &rhs) {
 	return uint32x8_t::mullo(rhs, lhs);
 }
-inline uint32x8_t operator+(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator+(const uint32x8_t &lhs, const uint32x8_t &rhs) {
 	return uint32x8_t::add(lhs, rhs);
 }
-inline uint32x8_t operator-(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator-(const uint32x8_t &lhs, const uint32x8_t &rhs) {
 	return uint32x8_t::sub(lhs, rhs);
 }
-inline uint32x8_t operator&(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator&(const uint32x8_t &lhs, const uint32x8_t &rhs) {
 	return uint32x8_t::and_(lhs, rhs);
 }
-inline uint32x8_t operator^(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator^(const uint32x8_t &lhs, const uint32x8_t &rhs) {
 	return uint32x8_t::xor_(lhs, rhs);
 }
-inline uint32x8_t operator|(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator|(const uint32x8_t &lhs, const uint32x8_t &rhs) {
 	return uint32x8_t::or_(lhs, rhs);
 }
-inline uint32x8_t operator~(const uint32x8_t &lhs) {
+constexpr inline uint32x8_t operator~(const uint32x8_t &lhs) {
 	return uint32x8_t::not_(lhs);
 }
-inline uint32x8_t operator>>(const uint32x8_t &lhs, const uint32_t rhs) {
+constexpr inline uint32x8_t operator>>(const uint32x8_t &lhs, const uint32_t rhs) {
 	return uint32x8_t::srli(lhs, rhs);
 }
-inline uint32x8_t operator<<(const uint32x8_t &lhs, const uint32_t rhs) {
+constexpr inline uint32x8_t operator<<(const uint32x8_t &lhs, const uint32_t rhs) {
 	return uint32x8_t::slli(lhs, rhs);
 }
-inline uint32x8_t operator^=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator^=(uint32x8_t &lhs, const uint32x8_t &rhs) {
 	lhs = uint32x8_t::xor_(lhs, rhs);
 	return lhs;
 }
-inline uint32x8_t operator&=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator&=(uint32x8_t &lhs, const uint32x8_t &rhs) {
 	lhs = uint32x8_t::and_(lhs, rhs);
 	return lhs;
 }
-inline uint32x8_t operator|=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator|=(uint32x8_t &lhs, const uint32x8_t &rhs) {
 	lhs = uint32x8_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64x4_t &rhs) {
 	return uint64x4_t::mullo(lhs, rhs);
 }
-inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64_t &rhs) {
 	return uint64x4_t::mullo(lhs, rhs);
 }
-inline uint64x4_t operator*(const uint8_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint8_t &lhs, const uint64x4_t &rhs) {
 	return uint64x4_t::mullo(rhs, lhs);
 }
-inline uint64x4_t operator+(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator+(const uint64x4_t &lhs, const uint64x4_t &rhs) {
 	return uint64x4_t::add(lhs, rhs);
 }
-inline uint64x4_t operator-(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator-(const uint64x4_t &lhs, const uint64x4_t &rhs) {
 	return uint64x4_t::sub(lhs, rhs);
 }
-inline uint64x4_t operator&(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator&(const uint64x4_t &lhs, const uint64x4_t &rhs) {
 	return uint64x4_t::and_(lhs, rhs);
 }
-inline uint64x4_t operator^(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator^(const uint64x4_t &lhs, const uint64x4_t &rhs) {
 	return uint64x4_t::xor_(lhs, rhs);
 }
-inline uint64x4_t operator|(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator|(const uint64x4_t &lhs, const uint64x4_t &rhs) {
 	return uint64x4_t::or_(lhs, rhs);
 }
-inline uint64x4_t operator~(const uint64x4_t &lhs) {
+constexpr inline uint64x4_t operator~(const uint64x4_t &lhs) {
 	return uint64x4_t::not_(lhs);
 }
-inline uint64x4_t operator>>(const uint64x4_t &lhs, const uint32_t rhs) {
+constexpr inline uint64x4_t operator>>(const uint64x4_t &lhs, const uint32_t rhs) {
 	return uint64x4_t::srli(lhs, rhs);
 }
-inline uint64x4_t operator<<(const uint64x4_t &lhs, const uint32_t rhs) {
+constexpr inline uint64x4_t operator<<(const uint64x4_t &lhs, const uint32_t rhs) {
 	return uint64x4_t::slli(lhs, rhs);
 }
-inline uint64x4_t operator^=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator^=(uint64x4_t &lhs, const uint64x4_t &rhs) {
 	lhs = uint64x4_t::xor_(lhs, rhs);
 	return lhs;
 }
-inline uint64x4_t operator&=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator&=(uint64x4_t &lhs, const uint64x4_t &rhs) {
 	lhs = uint64x4_t::and_(lhs, rhs);
 	return lhs;
 }
-inline uint64x4_t operator|=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator|=(uint64x4_t &lhs, const uint64x4_t &rhs) {
 	lhs = uint64x4_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 /* 					 comparison									*/
-int operator==(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr int operator==(const uint8x32_t &a, const uint8x32_t &b) {
 	return uint8x32_t::cmp(a, b);
 }
-int operator!=(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr int operator!=(const uint8x32_t &a, const uint8x32_t &b) {
 	return 0xffffffff ^ uint8x32_t::cmp(a, b);
 }
-int operator<(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr int operator<(const uint8x32_t &a, const uint8x32_t &b) {
 	return uint8x32_t::gt(b, a);
 }
-int operator>(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr int operator>(const uint8x32_t &a, const uint8x32_t &b) {
 	return uint8x32_t::gt(a, b);
 }
 
 
 ///
-int operator==(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr int operator==(const uint16x16_t &a, const uint16x16_t &b) {
 	return uint16x16_t::cmp(a, b);
 }
-int operator!=(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr int operator!=(const uint16x16_t &a, const uint16x16_t &b) {
 	return 0xffff ^ uint16x16_t::cmp(a, b);
 }
-int operator<(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr int operator<(const uint16x16_t &a, const uint16x16_t &b) {
 	return uint16x16_t::gt(b, a);
 }
-int operator>(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr int operator>(const uint16x16_t &a, const uint16x16_t &b) {
 	return uint16x16_t::gt(a, b);
 }
 
 
 ///
-int operator==(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr int operator==(const uint32x8_t &a, const uint32x8_t &b) {
 	return uint32x8_t::cmp(a, b);
 }
-int operator!=(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr int operator!=(const uint32x8_t &a, const uint32x8_t &b) {
 	return 0xff ^ uint32x8_t::cmp(a, b);
 }
-int operator<(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr int operator<(const uint32x8_t &a, const uint32x8_t &b) {
 	return uint32x8_t::gt(b, a);
 }
-int operator>(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr int operator>(const uint32x8_t &a, const uint32x8_t &b) {
 	return uint32x8_t::gt(a, b);
 }
 
-int operator==(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr int operator==(const uint64x4_t &a, const uint64x4_t &b) {
 	return uint64x4_t::cmp(a, b);
 }
-int operator!=(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr int operator!=(const uint64x4_t &a, const uint64x4_t &b) {
 	return 0xf ^ uint64x4_t::cmp(a, b);
 }
-int operator<(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr int operator<(const uint64x4_t &a, const uint64x4_t &b) {
 	return uint64x4_t::gt(b, a);
 }
-int operator>(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr int operator>(const uint64x4_t &a, const uint64x4_t &b) {
 	return uint64x4_t::gt(a, b);
 }
 

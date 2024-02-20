@@ -122,6 +122,15 @@ public:
 	}
 
 	///
+	template<class SIMD>
+	//	TODO require the internal SIMD type: write concept
+	constexpr inline void insert_simd(const SIMD &e, const SIMD &value) noexcept {
+		for (uint32_t i = 0; i < SIMD::LIMBS; i++) {
+			insert(e[i], value[i]);
+		}
+	}
+
+	///
 	/// \return
 	constexpr inline valueType *ptr() noexcept {
 		return __array;
