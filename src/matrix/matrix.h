@@ -1148,8 +1148,8 @@ public:
 	/// \return
 	template<class LabelType, class ValueType>
 #if __cplusplus > 201709L
-	requires LabelTypeAble<LabelType> &&
-	        ValueTypeAble<ValueType>
+	    requires LabelTypeAble<LabelType> &&
+	             ValueTypeAble<ValueType>
 #endif
 	constexpr void mul(LabelType &out, const ValueType &in) const noexcept {
 		constexpr uint32_t IN_COLS = ValueType::LENGTH;

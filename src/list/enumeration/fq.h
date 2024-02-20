@@ -94,16 +94,16 @@ public:
 	///  		predicate was given)
 	template<typename HashMap, typename Extractor, typename Predicate>
 #if __cplusplus > 201709L
-	requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	        (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&(std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) && (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
 #endif
-	                bool run(ListType *L1 = nullptr,
-	                         ListType *L2 = nullptr,
-	                         const uint32_t offset = 0,
-	                         const uint32_t tid = 0,
-	                         HashMap *hm = nullptr,
-	                         Extractor *e = nullptr,
-	                         Predicate *p = nullptr) {
+	bool run(ListType *L1 = nullptr,
+	         ListType *L2 = nullptr,
+	         const uint32_t offset = 0,
+	         const uint32_t tid = 0,
+	         HashMap *hm = nullptr,
+	         Extractor *e = nullptr,
+	         Predicate *p = nullptr) {
 		/// some security checks
 		ASSERT(n + offset <= Value::LENGTH);
 
@@ -287,16 +287,16 @@ public:
 	///  		predicate was given)
 	template<typename HashMap, typename Extractor, typename Predicate>
 #if __cplusplus > 201709L
-	requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	        (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&(std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) && (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
 #endif
-	                bool run(ListType *L1 = nullptr,
-	                         ListType *L2 = nullptr,
-	                         const uint32_t offset = 0,
-	                         const uint32_t tid = 0,
-	                         HashMap *hm = nullptr,
-	                         Extractor *e = nullptr,
-	                         Predicate *p = nullptr) {
+	bool run(ListType *L1 = nullptr,
+	         ListType *L2 = nullptr,
+	         const uint32_t offset = 0,
+	         const uint32_t tid = 0,
+	         HashMap *hm = nullptr,
+	         Extractor *e = nullptr,
+	         Predicate *p = nullptr) {
 		/// some security checks
 		ASSERT(n + offset <= Value::LENGTH);
 
@@ -541,16 +541,16 @@ public:
 	///  		predicate was given)
 	template<typename HashMap, typename Extractor>
 #if __cplusplus > 201709L
-	requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	        (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
+	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
 #endif
-	                bool run(ListType &L1,
-	                         ListType &L2,
-	                         ListType &L3,
-	                         ListType &L4,
-	                         const uint32_t tid = 0,
-	                         HashMap *hm = nullptr,
-	                         Extractor *e = nullptr) {
+	bool run(ListType &L1,
+	         ListType &L2,
+	         ListType &L3,
+	         ListType &L4,
+	         const uint32_t tid = 0,
+	         HashMap *hm = nullptr,
+	         Extractor *e = nullptr) {
 		Element element3, element4;
 		Label tmp;
 
@@ -775,14 +775,14 @@ public:
 	///  		predicate was given)
 	template<typename HashMap, typename Extractor>
 #if __cplusplus > 201709L
-	requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	        (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
+	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
 #endif
-	                bool run(ListType &L1, ListType &L2,
-	                         ListType &L3, ListType &L4,
-	                         const uint32_t tid = 0,
-	                         HashMap *hm = nullptr,
-	                         Extractor *e = nullptr) {
+	bool run(ListType &L1, ListType &L2,
+	         ListType &L3, ListType &L4,
+	         const uint32_t tid = 0,
+	         HashMap *hm = nullptr,
+	         Extractor *e = nullptr) {
 		Element element3, element4;
 
 		/// clear stuff, needed if this functions is called multiple times

@@ -366,7 +366,7 @@ template<class Extractor>
 concept ExtractorAble = requires(Extractor e) {
 	typename Extractor::Value;
 
-	requires requires(typename Extractor::Value & l, const uint32_t i) {
+	requires requires(typename Extractor::Value &l, const uint32_t i) {
 		e.extracts(l, i, i);
 	};
 };
@@ -378,10 +378,10 @@ concept ExtractorAble = requires(Extractor e) {
 /// \tparam ArgumentLimbType
 template<typename ValueType, typename ArgumentLimbType>
 #if __cplusplus > 201709L
-requires ExtractorValueAble<ValueType> &&
-        std::is_integral<ArgumentLimbType>::value
+    requires ExtractorValueAble<ValueType> &&
+             std::is_integral<ArgumentLimbType>::value
 #endif
-        class WindowExtractor {
+class WindowExtractor {
 public:
 	typedef ValueType Value;
 	typedef typename ValueType::ContainerLimbType ContainerLimbType;

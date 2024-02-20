@@ -164,10 +164,9 @@ size_t LowerBoundInterpolationSearch(const T *__buckets,
 /// \return
 template<typename ForwardIt, typename Extract>
 #if __cplusplus > 201709L
-requires std::random_access_iterator<ForwardIt>
+    requires std::random_access_iterator<ForwardIt>
 #endif
-        ForwardIt LowerBoundInterpolationSearch(ForwardIt first, ForwardIt last, const typename ForwardIt::value_type &key_, Extract e)
-noexcept {
+ForwardIt LowerBoundInterpolationSearch(ForwardIt first, ForwardIt last, const typename ForwardIt::value_type &key_, Extract e) noexcept {
 	using diff_type = typename std::iterator_traits<ForwardIt>::difference_type;
 	using T = typename ForwardIt::value_type;
 

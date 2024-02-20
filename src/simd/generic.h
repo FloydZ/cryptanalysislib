@@ -13,7 +13,7 @@ using namespace cryptanalysislib;
 
 ///
 template<typename T, const uint32_t N>
-requires std::is_integral_v<T>
+    requires std::is_integral_v<T>
 class TxN_t {
 public:
 	constexpr static size_t lb = sizeof(T);
@@ -28,7 +28,7 @@ public:
 	constexpr static bool simd256_enable = simd256_limbs > 0;
 #ifdef USE_AVX512
 	constexpr static bool simd512_enable = simd512_limbs > 0;
-#else 
+#else
 	constexpr static bool simd512_enable = false;
 #endif
 
@@ -50,7 +50,7 @@ public:
 	                                  typename std::conditional<lb == 2u, uint32x16_t,
 	                                                            typename std::conditional<lb == 4u, uint16x32_t,
 	                                                                                      typename std::conditional<lb == 8u, uint64x8_t, void>::type>::type>::type>::type;
-#else 
+#else
 	using simd512_type = sisimd256_type;
 #endif
 
