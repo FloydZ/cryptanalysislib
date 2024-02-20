@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "helper.h"
-#include "random.h"
 #include "math/math.h"
+#include "random.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;

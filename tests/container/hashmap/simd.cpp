@@ -9,6 +9,7 @@ using K = uint32_t;
 using V = uint64_t;
 
 #include "container/hashmap.h"
+#ifdef USE_AVX2
 TEST(SimdHashMap, simple) {
 	constexpr uint32_t l = 4;
 	constexpr uint32_t bucket_size = 8;
@@ -47,7 +48,7 @@ TEST(SimdHashMap, avxInsert) {
 		EXPECT_EQ(hm.load(i), bucket_size);
 	}
 }
-
+#endif
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

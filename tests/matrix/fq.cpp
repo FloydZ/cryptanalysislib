@@ -301,7 +301,7 @@ TEST(FqMatrix, gaus) {
 TEST(FqMatrix, m4ri) {
 	constexpr_for<400, 430, 3>([](const auto __nrows) {
 		constexpr_for<410, 440, 3>([__nrows](const auto __ncols) {
-			if constexpr (__nrows <= __ncols){
+			if constexpr (__nrows <= __ncols) {
 				using M = FqMatrix<T, __nrows, __ncols, q, true>;
 				M m = M{};
 				m.random();

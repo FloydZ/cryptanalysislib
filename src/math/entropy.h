@@ -13,7 +13,7 @@ constexpr double HH(const double x) noexcept {
 	if (x >= 1.)
 		return 0.;
 
-	return -x*log2(x) - (1.-x)*log2(1.-x);
+	return -x * log2(x) - (1. - x) * log2(1. - x);
 }
 
 #endif//CRYPTANALYSISLIB_MATH_ENTROPY_H
