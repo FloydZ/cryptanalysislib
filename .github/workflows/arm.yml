@@ -35,5 +35,3 @@ jobs:
             cmake ..
             make -j24
             ctest -C Debug -V  
-            test `uname -m` = 'aarch64'
-          

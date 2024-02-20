@@ -223,19 +223,6 @@ void *cryptanalysislib_hugepage_malloc(const size_t size) {
 
 
 /// Usage:
-///		// simple version of the complex constexpr loop down below.
-///		template<std::size_t N> struct num { static const constexpr auto value = N; };
-///
-///		template <class F, std::size_t... Is>
-///		void constexpr_for(F func, std::index_sequence<Is...>) {
-///			using expander = int[];
-///			(void)expander{0, ((void)func(num<Is>{}), 0)...};
-///		}
-///
-///		template <std::size_t N, typename F>
-///		void constexpr_for(F func) {
-///			constexpr_for(func, std::make_index_sequence<N>());
-///		}
 template<auto Start, auto End, auto Inc, class F>
 constexpr void constexpr_for(F &&f) {
 	if constexpr (Start < End) {

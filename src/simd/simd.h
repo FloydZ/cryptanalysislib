@@ -30,6 +30,9 @@
 namespace cryptanalysislib {
 
 	struct _uint32x4_t {
+		constexpr uint32_t LIMBS = 4;
+		using limb_type = uint32_t;
+
 		union {
 			uint8_t v8[16];
 			uint16_t v16[8];
@@ -82,6 +85,9 @@ namespace cryptanalysislib {
 	};
 
 	struct _uint64x2_t {
+		constexpr uint32_t LIMBS = 2;
+		using limb_type = uint64_t;
+
 		union {
 			uint8_t v8[16];
 			uint16_t v16[8];
@@ -117,6 +123,9 @@ namespace cryptanalysislib {
 };// namespace cryptanalysislib
 
 struct uint8x32_t {
+	constexpr static uint32_t LIMBS = 32;
+	using limb_type = uint8_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];
@@ -522,7 +531,7 @@ struct uint8x32_t {
 		uint8x32_t ret;
 
 		for (uint32_t i = 0; i < 32; i++) {
-			ret.v8[i] = popcount::popcount(in.v8[i]);
+			ret.v8[i] = cryptanalysislib::popcount::popcount(in.v8[i]);
 		}
 		return ret;
 	}
@@ -538,6 +547,9 @@ struct uint8x32_t {
 };
 
 struct uint16x16_t {
+	constexpr static uint32_t LIMBS = 16;
+	using limb_type = uint16_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];
@@ -853,7 +865,7 @@ struct uint16x16_t {
 		uint16x16_t ret;
 
 		for (uint32_t i = 0; i < 16; i++) {
-			ret.v16[i] = popcount::popcoun(in.v16[i]);
+			ret.v16[i] = cryptanalysislib::popcount::popcoun(in.v16[i]);
 		}
 		return ret;
 	}
@@ -871,6 +883,9 @@ struct uint16x16_t {
 };
 
 struct uint32x8_t {
+	constexpr static uint32_t LIMBS = 8;
+	using limb_type = uint32_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];
@@ -1217,6 +1232,9 @@ struct uint32x8_t {
 };
 
 struct uint64x4_t {
+	constexpr static uint32_t LIMBS = 4;
+	using limb_type = uint64_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];

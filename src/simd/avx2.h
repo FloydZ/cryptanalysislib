@@ -42,6 +42,9 @@ namespace internal {
 namespace cryptanalysislib {
 
 	struct _uint32x4_t {
+		constexpr static uint32_t LIMBS = 4;
+		using limb_type = uint32_t;
+
 		union {
 			uint8_t v8[16];
 			uint16_t v16[8];
@@ -93,6 +96,9 @@ namespace cryptanalysislib {
 	};
 
 	struct _uint64x2_t {
+		constexpr static uint32_t LIMBS = 2;
+		using limb_type = uint64_t;
+
 		union {
 			uint8_t v8[16];
 			uint16_t v16[8];
@@ -125,6 +131,9 @@ namespace cryptanalysislib {
 }// namespace cryptanalysislib
 
 struct uint8x32_t {
+	constexpr static uint32_t LIMBS = 32;
+	using limb_type = uint8_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];
@@ -493,6 +502,9 @@ struct uint8x32_t {
 };
 
 struct uint16x16_t {
+	constexpr static uint32_t LIMBS = 16;
+	using limb_type = uint16_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];
@@ -805,7 +817,13 @@ struct uint16x16_t {
 };
 
 struct uint32x8_t {
+	constexpr static uint32_t LIMBS = 8;
+	using limb_type = uint32_t;
+
 	union {
+		// compatibility to TxN_t
+		uint32_t d[8];
+
 		uint8_t v8[32];
 		uint16_t v16[16];
 		uint32_t v32[8];
@@ -1214,6 +1232,9 @@ struct uint32x8_t {
 };
 
 struct uint64x4_t {
+	constexpr static uint32_t LIMBS = 4;
+	using limb_type = uint64_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];

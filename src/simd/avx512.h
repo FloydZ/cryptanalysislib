@@ -18,6 +18,9 @@ typedef char __v64qi_u __attribute__((__vector_size__(64), __may_alias__, __alig
 
 
 struct uint8x64_t {
+	constexpr static uint32_t LIMBS = 64;
+	using limb_type = uint8_t;
+
 	union {
 		uint8_t v8[64];
 		uint16_t v16[32];
@@ -282,11 +285,7 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t andnot(const uint8x64_t in1,
 	                                                        const uint8x64_t in2) noexcept {
 		uint8x64_t out;
-#ifndef __clang__
-		out.v512 = (__m512i) __builtin_ia32_andnotsi256((__v4di) in1.v512, (__v4di) in2.v512);
-#else
 		out.v512 = (__m512i) (~(__v16su) in1.v512 & (__v16su) in2.v512);
-#endif
 		return out;
 	}
 
@@ -346,6 +345,9 @@ struct uint8x64_t {
 };
 
 struct uint16x32_t {
+	constexpr static uint32_t LIMBS = 32;
+	using limb_type = uint16_t;
+
 	union {
 		uint8_t v8[64];
 		uint16_t v16[32];
@@ -525,11 +527,7 @@ struct uint16x32_t {
 	[[nodiscard]] constexpr static inline uint16x32_t andnot(const uint16x32_t in1,
 	                                                         const uint16x32_t in2) noexcept {
 		uint16x32_t out;
-#ifndef __clang__
-		out.v512 = (__m512i) __builtin_ia32_andnotsi256((__v4di) in1.v512, (__v4di) in2.v512);
-#else
 		out.v512 = (__m512i) (~(__v16su) in1.v512 & (__v16su) in2.v512);
-#endif
 		return out;
 	}
 
@@ -588,8 +586,10 @@ struct uint16x32_t {
 	}
 };
 
-
 struct uint32x16_t {
+	constexpr static uint32_t LIMBS = 16;
+	using limb_type = uint32_t;
+
 	union {
 		uint8_t v8[64];
 		uint16_t v16[32];
@@ -755,11 +755,7 @@ struct uint32x16_t {
 	[[nodiscard]] constexpr static inline uint32x16_t andnot(const uint32x16_t in1,
 	                                                         const uint32x16_t in2) noexcept {
 		uint32x16_t out;
-#ifndef __clang__
-		out.v512 = (__m512i) __builtin_ia32_andnotsi256((__v4di) in1.v512, (__v4di) in2.v512);
-#else
 		out.v512 = (__m512i) (~(__v16su) in1.v512 & (__v16su) in2.v512);
-#endif
 		return out;
 	}
 
@@ -820,6 +816,9 @@ struct uint32x16_t {
 
 
 struct uint64x8_t {
+	constexpr static uint32_t LIMBS = 8;
+	using limb_type = uint64_t;
+
 	union {
 		uint8_t v8[64];
 		uint16_t v16[32];
@@ -985,11 +984,7 @@ struct uint64x8_t {
 	[[nodiscard]] constexpr static inline uint64x8_t andnot(const uint64x8_t in1,
 	                                                        const uint64x8_t in2) noexcept {
 		uint64x8_t out;
-#ifndef __clang__
-		out.v512 = (__m512i) __builtin_ia32_andnotsi256((__v4di) in1.v512, (__v4di) in2.v512);
-#else
 		out.v512 = (__m512i) (~(__v16su) in1.v512 & (__v16su) in2.v512);
-#endif
 		return out;
 	}
 

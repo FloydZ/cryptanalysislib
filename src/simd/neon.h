@@ -8,87 +8,92 @@
 #include "random.h"
 
 namespace cryptanalysislib {
-struct _uint32x4_t {
-	union {
-		uint8_t v8[16];
-		uint16_t v16[8];
-		uint32_t v32[4];
-		uint64_t v64[2];
-		uint32x4_t v128;
+	struct _uint32x4_t {
+		constexpr static uint32_t LIMBS = 4;
+		using limb_type = uint32_t;
+
+		union {
+			uint8_t v8[16];
+			uint16_t v16[8];
+			uint32_t v32[4];
+			uint64_t v64[2];
+			uint32x4_t v128;
+		};
+
+		[[nodiscard]] constexpr static inline _uint32x4_t set1(uint32_t a) {
+			_uint32x4_t ret;
+			ret.v32[0] = a;
+			ret.v32[1] = a;
+			ret.v32[2] = a;
+			ret.v32[3] = a;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+			_uint32x4_t ret;
+			ret.v32[0] = d;
+			ret.v32[1] = c;
+			ret.v32[2] = b;
+			ret.v32[3] = a;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+			_uint32x4_t ret;
+			ret.v32[0] = a;
+			ret.v32[1] = b;
+			ret.v32[2] = c;
+			ret.v32[3] = d;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint32x4_t set(uint64_t a, uint64_t b) {
+			_uint32x4_t ret;
+			ret.v64[0] = b;
+			ret.v64[1] = a;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint32x4_t setr(uint64_t a, uint64_t b) {
+			_uint32x4_t ret;
+			ret.v64[0] = a;
+			ret.v64[1] = b;
+			return ret;
+		}
 	};
 
-	[[nodiscard]] constexpr static inline _uint32x4_t set1(uint32_t a) {
-		_uint32x4_t ret;
-		ret.v32[0] = a;
-		ret.v32[1] = a;
-		ret.v32[2] = a;
-		ret.v32[3] = a;
-		return ret;
-	}
+	struct _uint64x2_t {
+		constexpr static uint32_t LIMBS = 2;
+		using limb_type = uint64_t;
+		union {
+			uint8_t v8[16];
+			uint16_t v16[8];
+			uint32_t v32[4];
+			uint64_t v64[2];
+			uint64x2_t v128;
+		};
 
-	[[nodiscard]] constexpr static inline _uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
-		_uint32x4_t ret;
-		ret.v32[0] = d;
-		ret.v32[1] = c;
-		ret.v32[2] = b;
-		ret.v32[3] = a;
-		return ret;
-	}
+		[[nodiscard]] constexpr static inline _uint64x2_t set1(uint64_t a) {
+			_uint64x2_t ret;
+			ret.v64[0] = a;
+			ret.v64[1] = a;
+			return ret;
+		}
 
-	[[nodiscard]] constexpr static inline _uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
-		_uint32x4_t ret;
-		ret.v32[0] = a;
-		ret.v32[1] = b;
-		ret.v32[2] = c;
-		ret.v32[3] = d;
-		return ret;
-	}
+		[[nodiscard]] constexpr static inline _uint64x2_t set(uint64_t a, uint64_t b) {
+			_uint64x2_t ret;
+			ret.v64[0] = b;
+			ret.v64[1] = a;
+			return ret;
+		}
 
-	[[nodiscard]] constexpr static inline _uint32x4_t set(uint64_t a, uint64_t b) {
-		_uint32x4_t ret;
-		ret.v64[0] = b;
-		ret.v64[1] = a;
-		return ret;
-	}
-
-	[[nodiscard]] constexpr static inline _uint32x4_t setr(uint64_t a, uint64_t b) {
-		_uint32x4_t ret;
-		ret.v64[0] = a;
-		ret.v64[1] = b;
-		return ret;
-	}
-};
-
-struct _uint64x2_t {
-	union {
-		uint8_t v8[16];
-		uint16_t v16[8];
-		uint32_t v32[4];
-		uint64_t v64[2];
-		uint64x2_t v128;
+		[[nodiscard]] constexpr static inline _uint64x2_t setr(uint64_t a, uint64_t b) {
+			_uint64x2_t ret;
+			ret.v64[0] = a;
+			ret.v64[1] = b;
+			return ret;
+		}
 	};
-
-	[[nodiscard]] constexpr static inline _uint64x2_t set1(uint64_t a) {
-		_uint64x2_t ret;
-		ret.v64[0] = a;
-		ret.v64[1] = a;
-		return ret;
-	}
-
-	[[nodiscard]] constexpr static inline _uint64x2_t set(uint64_t a, uint64_t b) {
-		_uint64x2_t ret;
-		ret.v64[0] = b;
-		ret.v64[1] = a;
-		return ret;
-	}
-
-	[[nodiscard]] constexpr static inline _uint64x2_t setr(uint64_t a, uint64_t b) {
-		_uint64x2_t ret;
-		ret.v64[0] = a;
-		ret.v64[1] = b;
-		return ret;
-	}
-};
 };
 
 /// taken from: https://github.com/DLTcollab/sse2neon/blob/de2817727c72fc2f4ce9f54e2db6e40ce0548414/sse2neon.h#L4540
@@ -219,6 +224,9 @@ constexpr inline uint32_t _mm_movemask_epi64(const uint64x2_t input) noexcept {
 }
 
 struct uint8x32_t {
+	constexpr static uint32_t LIMBS = 32;
+	using limb_type = uint8_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];
@@ -640,6 +648,9 @@ struct uint8x32_t {
 };
 
 struct uint16x16_t {
+	constexpr static uint32_t LIMBS = 16;
+	using limb_type = uint16_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];
@@ -1056,6 +1067,9 @@ struct uint16x16_t {
 };
 
 struct uint32x8_t {
+	constexpr static uint32_t LIMBS = 8;
+	using limb_type = uint32_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];
@@ -1493,6 +1507,9 @@ struct uint32x8_t {
 };
 
 struct uint64x4_t {
+	constexpr static uint32_t LIMBS = 4;
+	using limb_type = uint64_t;
+
 	union {
 		uint8_t v8[32];
 		uint16_t v16[16];

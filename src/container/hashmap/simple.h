@@ -111,6 +111,12 @@ public:
 		}
 	}
 
+	template<typename SIMD>
+	constexpr inline void insert(const keyType &e, const valueType &value) noexcept {
+		const size_t index = hash(e);
+		ASSERT(index < nrbuckets);
+	}
+
 	///
 	/// \return
 	constexpr inline valueType *ptr() noexcept {

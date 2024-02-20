@@ -16,6 +16,9 @@ template<typename T, const uint32_t N>
     requires std::is_integral_v<T>
 class TxN_t {
 public:
+	constexpr static uint32_t LIMBS = N;
+	using limb_type = T;
+
 	constexpr static size_t lb = sizeof(T);
 	constexpr static size_t limb_bits = sizeof(T) * 8;
 	constexpr static size_t total_bits = limb_bits * N;
@@ -51,7 +54,8 @@ public:
 	                                                            typename std::conditional<lb == 4u, uint16x32_t,
 	                                                                                      typename std::conditional<lb == 8u, uint64x8_t, void>::type>::type>::type>::type;
 #else
-	using simd512_type = sisimd256_type;
+	/// just a dummy value
+	using simd512_type = simd256_type;
 #endif
 
 	union {
@@ -369,4 +373,15 @@ inline TxN_t<T, N> operator|=(TxN_t<T, N> &lhs, const TxN_t<T, N> &rhs) {
 	lhs = TxN_t<T, N>::or_(lhs, rhs);
 	return lhs;
 }
+
+
+template<>
+class TxN_t<uint64_t, 4> : public uint64x4_t {};
+template<>
+class TxN_t<uint32_t, 8> : public uint32x8_t {};
+template<>
+class TxN_t<uint16_t, 16> : public uint16x16_t {};
+template<>
+class TxN_t<uint8_t, 32> : public uint8x32_t {};
+
 #endif//CRYPTANALYSISLIB_GENERIC_H

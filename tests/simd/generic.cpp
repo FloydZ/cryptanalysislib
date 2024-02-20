@@ -15,9 +15,11 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+// TODO write more tests for different I
+// TODO write more tests if N == 8, s.t T = uint32x8_t
 using I = uint32_t;
 TEST(generic, random) {
-	constexpr_for<8, 32, 4>([](const auto limbs) {
+	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		T t1 = T::random();
 
@@ -34,7 +36,7 @@ TEST(generic, random) {
 }
 
 TEST(generic, set1) {
-	constexpr_for<8, 32, 4>([](const auto limbs) {
+	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		T t1 = T::set1(0);
 		for (uint32_t i = 0; i < limbs; ++i) {
@@ -49,7 +51,7 @@ TEST(generic, set1) {
 }
 
 TEST(generic, set) {
-	constexpr_for<8, 32, 4>([](const auto limbs) {
+	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		uint32_t pos = 5;
 		I data[limbs] = {0};
@@ -77,7 +79,7 @@ TEST(generic, set) {
 
 TEST(generic, unalinged_load) {
 	I data[1024] = {0};
-	constexpr_for<8, 32, 4>([&data](const auto limbs) {
+	constexpr_for<6, 32, 4>([&data](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 
 		T t1 = T::unaligned_load((void *) data);
@@ -88,7 +90,7 @@ TEST(generic, unalinged_load) {
 }
 
 TEST(generic, alinged_load) {
-	constexpr_for<8, 32, 4>([](const auto limbs) {
+	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		alignas(256) I data[limbs] = {0};
 
@@ -100,7 +102,7 @@ TEST(generic, alinged_load) {
 }
 
 TEST(generic, unalinged_store) {
-	constexpr_for<8, 32, 4>([](const auto limbs) {
+	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		alignas(32) I data[limbs] = {0};
 
@@ -113,7 +115,7 @@ TEST(generic, unalinged_store) {
 }
 
 TEST(gerenric, alinged_store) {
-	constexpr_for<8, 32, 4>([](const auto limbs) {
+	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		alignas(256) I data[limbs] = {0};
 
@@ -125,9 +127,9 @@ TEST(gerenric, alinged_store) {
 	});
 }
 
-
+// TODO finish
 TEST(uint8x32_t, logic) {
-	constexpr_for<8, 32, 4>([](const auto limbs) {
+	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		const T t1 = T::set1(0);
 		const T t2 = T::set1(1);

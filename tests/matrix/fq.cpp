@@ -375,35 +375,36 @@ TEST(FqMatrix, fixgaus) {
 	});
 }
 
-TEST(FqMatrix, mult) {
-	constexpr_for<1, 100, 11>([](const auto __nrows) {
-		constexpr_for<2, 100, 11>([__nrows](const auto __ncols) {
-			constexpr_for<1, 100, 11>([__nrows, __ncols](const auto __ncols_prime) {
-				using AT = FqMatrix<T, __nrows, __ncols, q, true>;
-				using BT = FqMatrix<T, __ncols, __ncols_prime, q, true>;
-				using CT = FqMatrix<T, __nrows, __ncols_prime, q, true>;
-
-				AT a = AT{};
-				BT b = BT{};
-				CT c = CT{};
-				a.random();
-				b.random();
-				c.random();
-				AT::mul(c, a, b);
-
-				//for (uint32_t i = 0; i < __nrows; ++i) {
-				//	for (uint32_t j = 0; j < rank2; ++j) {
-				//		if (i == j) {
-				//			ASSERT_EQ(m.get(i, j), 1u);
-				//			continue;
-				//		}
-				//		ASSERT_EQ(m.get(i, j), 0u);
-				//	}
-				//}
-			});
-		});
-	});
-}
+// test is only valid on clang. Gcc has problems compiling it.
+//TEST(FqMatrix, mult) {
+//	constexpr_for<1, 100, 11>([](const auto __nrows) {
+//		constexpr_for<2, 100, 11>([__nrows](const auto __ncols) {
+//			constexpr_for<1, 100, 11>([__nrows, __ncols](const auto __ncols_prime) {
+//				using AT = FqMatrix<T, __nrows, __ncols, q, true>;
+//				using BT = FqMatrix<T, __ncols, __ncols_prime, q, true>;
+//				using CT = FqMatrix<T, __nrows, __ncols_prime, q, true>;
+//
+//				AT a = AT{};
+//				BT b = BT{};
+//				CT c = CT{};
+//				a.random();
+//				b.random();
+//				c.random();
+//				AT::mul(c, a, b);
+//
+//				//for (uint32_t i = 0; i < __nrows; ++i) {
+//				//	for (uint32_t j = 0; j < rank2; ++j) {
+//				//		if (i == j) {
+//				//			ASSERT_EQ(m.get(i, j), 1u);
+//				//			continue;
+//				//		}
+//				//		ASSERT_EQ(m.get(i, j), 0u);
+//				//	}
+//				//}
+//			});
+//		});
+//	});
+//}
 
 
 TEST(FqMatrix, permute) {
