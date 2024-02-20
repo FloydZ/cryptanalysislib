@@ -15,6 +15,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+#ifdef USE_AVX512
 TEST(uint8x64_t, TTrandom) {
 	uint8x64_t t1 = uint8x64_t::random();
 
@@ -170,7 +171,7 @@ TEST(uint8x64_t, logic) {
 //		EXPECT_EQ(t2.v8[i], 0);
 //	}
 //}
-
+#endif
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
