@@ -478,7 +478,7 @@ public:
 		for (uint32_t i = 0; i < bit_limit; ++i) {
 			const uint32_t pos = __builtin_ctz(wt);
 
-			#pragma unroll
+#pragma unroll
 			for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
 				ASSERT(i + j * bucket_size < (ELEMENT_NR_LIMBS * bucket_size));
 				to[i + j * bucket_size] = from[pos][j];
@@ -1442,16 +1442,15 @@ public:
 			if constexpr (k <= 32) {
 				const uint32_t z = fastrandombytes_uint64();
 				if constexpr (USE_DOUBLE_SEARCH) {
-					simd_sort_nn_on_double32<r-level, 4>(e1, e2, new_e1, new_e2, z);
-				}
-				else {
+					simd_sort_nn_on_double32<r - level, 4>(e1, e2, new_e1, new_e2, z);
+				} else {
 					new_e1 = simd_sort_nn_on32<r - level>(e1, z, L1);
 					new_e2 = simd_sort_nn_on32<r - level>(e2, z, L2);
 				}
 			} else if constexpr (k <= 64) {
 				const uint64_t z = fastrandombytes_uint64();
 				if constexpr (USE_DOUBLE_SEARCH) {
-					simd_sort_nn_on_double64<r-level, 4>(e1, e2, new_e1, new_e2, z);
+					simd_sort_nn_on_double64<r - level, 4>(e1, e2, new_e1, new_e2, z);
 				} else {
 					new_e1 = simd_sort_nn_on64<r - level>(e1, z, L1);
 					new_e2 = simd_sort_nn_on64<r - level>(e2, z, L2);
@@ -2327,14 +2326,14 @@ public:
 		const uint32_t m1s_mask = 1u << 31;
 
 		for (size_t i = s1; i < s1 + e1; i += u) {
-			// Example u = 2
-			// li[0] = L[0][0]
-			// li[1] = L[1][0]
-			// li[2] = L[0][1]
-			// ...
-			#pragma unroll
+// Example u = 2
+// li[0] = L[0][0]
+// li[1] = L[1][0]
+// li[2] = L[0][1]
+// ...
+#pragma unroll
 			for (uint32_t ui = 0; ui < u; ui++) {
-				#pragma unroll
+#pragma unroll
 				for (uint32_t uii = 0; uii < 8; uii++) {
 					const uint32_t tmp = ((uint32_t *) L1[i + ui])[uii];
 					li[ui + uii * u] = uint32x8_t::set1(tmp);
@@ -2348,7 +2347,7 @@ public:
 
 			for (size_t j = s2; j < s2 + (e2 + 7) / 8; ++j, ptr_r += 64) {
 				loadr = loadr1;
-				#pragma unroll
+#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[0 * u + mi], ri);
@@ -2362,7 +2361,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-				#pragma unroll
+#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[1 * u + mi], ri);
@@ -2376,7 +2375,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-				#pragma unroll
+#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[2 * u + mi], ri);
@@ -2390,7 +2389,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-				#pragma unroll
+#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[3 * u + mi], ri);
@@ -2404,7 +2403,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-				#pragma unroll
+#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[4 * u + mi], ri);
@@ -2418,7 +2417,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-				#pragma unroll
+#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[5 * u + mi], ri);
@@ -2432,7 +2431,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-				#pragma unroll
+#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[6 * u + mi], ri);
@@ -2446,7 +2445,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-				#pragma unroll
+#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[7 * u + mi], ri);

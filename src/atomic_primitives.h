@@ -94,14 +94,14 @@
 	}
 #else
 
-#define CMOVE_MACRO(version) 							\
-template<typename T, const bool test = false> 			\
-inline T cmov##version(T a, const T b) noexcept {		\
-	if (a != b) {										\
-		a = b;											\
-	} 													\
-	return a;											\
-}
+#define CMOVE_MACRO(version)                          \
+	template<typename T, const bool test = false>     \
+	inline T cmov##version(T a, const T b) noexcept { \
+		if (a != b) {                                 \
+			a = b;                                    \
+		}                                             \
+		return a;                                     \
+	}
 #endif
 
 CMOVE_MACRO(a)

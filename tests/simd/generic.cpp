@@ -1,7 +1,7 @@
+#include <cstdint>
+#include <cstdio>
 #include <gtest/gtest.h>
 #include <iostream>
-#include <cstdio>
-#include <cstdint>
 
 #include "helper.h"
 #include "random.h"
@@ -17,118 +17,118 @@ using ::testing::UnitTest;
 
 using I = uint32_t;
 TEST(generic, random) {
-	constexpr_for<8, 32, 4>([](const auto limbs){
-	    using T = TxN_t<I, limbs>;
-	  	T t1 = T::random();
+	constexpr_for<8, 32, 4>([](const auto limbs) {
+		using T = TxN_t<I, limbs>;
+		T t1 = T::random();
 
-	  	uint32_t atleast_one_not_zero = false;
-	  	for (uint32_t i = 0; i < limbs; ++i) {
-			  if (t1.d[i] > 0) {
-				  atleast_one_not_zero = true;
-				  //	break;
-			  }
-	  	}
+		uint32_t atleast_one_not_zero = false;
+		for (uint32_t i = 0; i < limbs; ++i) {
+			if (t1.d[i] > 0) {
+				atleast_one_not_zero = true;
+				//	break;
+			}
+		}
 
-	  	ASSERT_EQ(atleast_one_not_zero, true);
+		ASSERT_EQ(atleast_one_not_zero, true);
 	});
 }
 
 TEST(generic, set1) {
-	constexpr_for<8, 32, 4>([](const auto limbs){
-	  using T = TxN_t<I, limbs>;
-	  T t1 = T::set1(0);
-	  for (uint32_t i = 0; i < limbs; ++i) {
-		  EXPECT_EQ(t1.d[i] , 0);
-	  }
+	constexpr_for<8, 32, 4>([](const auto limbs) {
+		using T = TxN_t<I, limbs>;
+		T t1 = T::set1(0);
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t1.d[i], 0);
+		}
 
-	  T t2 = T::set1(1);
-	  for (uint32_t i = 0; i < limbs; ++i) {
-		  EXPECT_EQ(t2.d[i] , 1);
-	  }
+		T t2 = T::set1(1);
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t2.d[i], 1);
+		}
 	});
 }
 
 TEST(generic, set) {
-	constexpr_for<8, 32, 4>([](const auto limbs){
-	  using T = TxN_t<I, limbs>;
-	  uint32_t pos = 5;
-	  I data[limbs] = {0};
-	  data[pos] = 1;
-	  T t1 = T::setr(data);
+	constexpr_for<8, 32, 4>([](const auto limbs) {
+		using T = TxN_t<I, limbs>;
+		uint32_t pos = 5;
+		I data[limbs] = {0};
+		data[pos] = 1;
+		T t1 = T::setr(data);
 
-	  for (uint32_t i = 0; i < limbs; ++i) {
-		  if (i == pos){
-			  EXPECT_EQ(t1.d[i] , 1);
-			  continue;
-		  }
-		  EXPECT_EQ(t1.d[i] , 0);
-	  }
+		for (uint32_t i = 0; i < limbs; ++i) {
+			if (i == pos) {
+				EXPECT_EQ(t1.d[i], 1);
+				continue;
+			}
+			EXPECT_EQ(t1.d[i], 0);
+		}
 
-	  //t1 = T::set(data);
-	  //for (uint32_t i = 0; i < limbs; ++i) {
-	//	  if (i == (limbs-pos)){
-	//		  EXPECT_EQ(t1.d[i] , 1);
-	//		  continue;
-	//	  }
-	//	  EXPECT_EQ(t1.d[i] , 0);
-	  //}
+		//t1 = T::set(data);
+		//for (uint32_t i = 0; i < limbs; ++i) {
+		//	  if (i == (limbs-pos)){
+		//		  EXPECT_EQ(t1.d[i] , 1);
+		//		  continue;
+		//	  }
+		//	  EXPECT_EQ(t1.d[i] , 0);
+		//}
 	});
 }
 
 TEST(generic, unalinged_load) {
 	I data[1024] = {0};
-	constexpr_for<8, 32, 4>([&data](const auto limbs){
-	  using T = TxN_t<I, limbs>;
+	constexpr_for<8, 32, 4>([&data](const auto limbs) {
+		using T = TxN_t<I, limbs>;
 
-	  T t1 = T::unaligned_load((void *)data);
-	  for (uint32_t i = 0; i < limbs; ++i) {
-		  EXPECT_EQ(t1.d[i], 0u);
-	  }
+		T t1 = T::unaligned_load((void *) data);
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t1.d[i], 0u);
+		}
 	});
 }
 
 TEST(generic, alinged_load) {
-	constexpr_for<8, 32, 4>([](const auto limbs){
-	  using T = TxN_t<I, limbs>;
-	  alignas(256) I data[limbs] = {0};
+	constexpr_for<8, 32, 4>([](const auto limbs) {
+		using T = TxN_t<I, limbs>;
+		alignas(256) I data[limbs] = {0};
 
-	  T t1 = T::aligned_load((void *)data);
-	  for (uint32_t i = 0; i < limbs; ++i) {
-		  EXPECT_EQ(t1.d[i], 0u);
-	  }
+		T t1 = T::aligned_load((void *) data);
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t1.d[i], 0u);
+		}
 	});
 }
 
 TEST(generic, unalinged_store) {
-	constexpr_for<8, 32, 4>([](const auto limbs){
-	  using T = TxN_t<I, limbs>;
-	  alignas(32)I data[limbs] = {0};
+	constexpr_for<8, 32, 4>([](const auto limbs) {
+		using T = TxN_t<I, limbs>;
+		alignas(32) I data[limbs] = {0};
 
-	  T t1 = T::random();
-	  T::unaligned_store(data, t1);
-	  for (uint32_t i = 0; i < limbs; ++i) {
-		  EXPECT_EQ(t1.d[i], data[i]);
-	  }
+		T t1 = T::random();
+		T::unaligned_store(data, t1);
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t1.d[i], data[i]);
+		}
 	});
 }
 
 TEST(gerenric, alinged_store) {
-	constexpr_for<8, 32, 4>([](const auto limbs){
-	  using T = TxN_t<I, limbs>;
-	  alignas(256) I data[limbs] = {0};
+	constexpr_for<8, 32, 4>([](const auto limbs) {
+		using T = TxN_t<I, limbs>;
+		alignas(256) I data[limbs] = {0};
 
-	  T t1 = T::random();
-	  T::aligned_store(data, t1);
-	  for (uint32_t i = 0; i < limbs; ++i) {
-		  EXPECT_EQ(t1.d[i], data[i]);
-	  }
+		T t1 = T::random();
+		T::aligned_store(data, t1);
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t1.d[i], data[i]);
+		}
 	});
 }
 
 
 TEST(uint8x32_t, logic) {
-	constexpr_for<8, 32, 4>([](const auto limbs){
-	  	using T = TxN_t<I, limbs>;
+	constexpr_for<8, 32, 4>([](const auto limbs) {
+		using T = TxN_t<I, limbs>;
 		const T t1 = T::set1(0);
 		const T t2 = T::set1(1);
 		T t3 = T::set1(2);

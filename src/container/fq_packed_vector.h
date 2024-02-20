@@ -24,9 +24,9 @@
 template<typename T>
 concept kAryPackedContainerAble =
         std::is_integral<T>::value && requires(T t) {
-	        t ^ t;
-	        t + t;
-        };
+	t ^ t;
+	t + t;
+};
 #endif
 
 /// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
@@ -36,9 +36,9 @@ concept kAryPackedContainerAble =
 /// \param q = modulus
 template<class T, const uint32_t n, const uint32_t q>
 #if __cplusplus > 201709L
-    requires std::is_integral<T>::value
+requires std::is_integral<T>::value
 #endif
-class kAryPackedContainer_Meta {
+        class kAryPackedContainer_Meta {
 public:
 	typedef kAryPackedContainer_Meta ContainerType;
 
@@ -866,10 +866,10 @@ public:
 /// \param q = modulus
 template<class T, const uint32_t n, const uint32_t q>
 #if __cplusplus > 201709L
-    requires kAryPackedContainerAble<T> &&
-             std::is_integral<T>::value
+requires kAryPackedContainerAble<T> &&
+        std::is_integral<T>::value
 #endif
-class kAryPackedContainer_T : public kAryPackedContainer_Meta<T, n, q> {
+        class kAryPackedContainer_T : public kAryPackedContainer_Meta<T, n, q> {
 	/// Nomenclature:
 	///     Number 	:= actual data one wants to save % MODULUS
 	///		Limb 	:= Underlying data container holding at max sizeof(T)/log2(MODULUS) many numbers.
@@ -925,10 +925,10 @@ public:
 /// partly specialized class for q=3
 template<const uint32_t n>
 #if __cplusplus > 201709L
-    requires kAryPackedContainerAble<uint64_t> &&
-             std::is_integral<uint64_t>::value
+requires kAryPackedContainerAble<uint64_t> &&
+        std::is_integral<uint64_t>::value
 #endif
-class kAryPackedContainer_T<uint64_t, n, 3> : public kAryPackedContainer_Meta<uint64_t, n, 3> {
+        class kAryPackedContainer_T<uint64_t, n, 3> : public kAryPackedContainer_Meta<uint64_t, n, 3> {
 public:
 	/// this is just defined, because Im lazy
 	static constexpr uint32_t q = 3;
@@ -1424,7 +1424,7 @@ public:
 		}
 
 		uint32_t ctr = 0;
-		#pragma unroll
+#pragma unroll
 		for (uint32_t i = 0; i < limb - 1; ++i) {
 			ctr += cryptanalysislib::popcount::template popcount<TT>(__data[i] & m);
 		}

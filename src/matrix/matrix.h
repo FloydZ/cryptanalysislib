@@ -46,7 +46,7 @@ concept MatrixAble = requires(MatrixType c) {
 	requires requires(const uint32_t i,
 	                  const uint32_t *ii,
 	                  MatrixType &m,
-					  const MatrixType &cm,
+	                  const MatrixType &cm,
 	                  Permutation &P,
 	                  const typename MatrixType::DataType a) {
 		c.get(i, i);
@@ -1093,9 +1093,9 @@ public:
 	/// compute C = this*B
 	template<const uint32_t ncols_prime>
 	constexpr static void mul(
-			FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &C,
-			const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
-			const FqMatrix_Meta<T, ncols, ncols_prime, q, packed> &B) noexcept {
+	        FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &C,
+	        const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
+	        const FqMatrix_Meta<T, ncols, ncols_prime, q, packed> &B) noexcept {
 
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols_prime; ++j) {
@@ -1115,9 +1115,9 @@ public:
 	/// allows for transposed input
 	template<const uint32_t ncols_prime>
 	constexpr static void mul_transposed(
-			FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &C,
-			const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
-			const FqMatrix_Meta<T, ncols_prime, ncols, q, packed> &B) noexcept {
+	        FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &C,
+	        const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
+	        const FqMatrix_Meta<T, ncols_prime, ncols, q, packed> &B) noexcept {
 		MatrixType::template mul<ncols_prime>(C, A, B.transpose());
 	}
 
@@ -1149,7 +1149,7 @@ public:
 	template<class LabelType, class ValueType>
 #if __cplusplus > 201709L
 	requires LabelTypeAble<LabelType> &&
-			 ValueTypeAble<ValueType>
+	        ValueTypeAble<ValueType>
 #endif
 	constexpr void mul(LabelType &out, const ValueType &in) const noexcept {
 		constexpr uint32_t IN_COLS = ValueType::LENGTH;
@@ -1165,7 +1165,7 @@ public:
 				uint32_t c = (a * b) % q;
 				sum += c;
 			}
-			out.set(sum%q, i);
+			out.set(sum % q, i);
 		}
 	}
 

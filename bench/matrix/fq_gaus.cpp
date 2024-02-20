@@ -1,13 +1,13 @@
 #include "b63.h"
 #include "counters/perf_events.h"
 
-#include <vector>
 #include "matrix/binary_matrix.h"
+#include <vector>
 
 using T = uint64_t;
 constexpr uint32_t nrows = 256;
 constexpr uint32_t ncols = 1024;
-using M  = FqMatrix<T, nrows, ncols, 5, true>;
+using M = FqMatrix<T, nrows, ncols, 5, true>;
 using MT = FqMatrix<T, ncols, nrows, 5, true>;
 
 constexpr uint32_t l = 25;
@@ -20,15 +20,15 @@ B63_BASELINE(markov_gaus, nn) {
 	B63_SUSPEND {
 		while (true) {
 			m.random();
-			rank = m.gaus(nrows-l);
-			rank = m.fix_gaus(P, rank, nrows-l);
+			rank = m.gaus(nrows - l);
+			rank = m.fix_gaus(P, rank, nrows - l);
 			if (rank >= nrows - l) { break; }
 		}
 	}
 
 	uint64_t keep = 0;
 	for (uint64_t i = 0; i < nn; i++) {
-		keep += m.markov_gaus<c, nrows-l>(P);
+		keep += m.markov_gaus<c, nrows - l>(P);
 		keep += m.get(10, 10);
 	}
 	B63_KEEP(keep);
@@ -46,7 +46,7 @@ B63_BENCHMARK(gaus, nn) {
 	for (uint64_t i = 0; i < nn; i++) {
 		m.permute_cols(mt, P.values, P.length);
 		uint32_t rank2 = m.gaus();
-		rank2 = m.fix_gaus(P, rank2, nrows-l);
+		rank2 = m.fix_gaus(P, rank2, nrows - l);
 		keep += rank2;
 		keep += m.get(10, 10);
 	}
@@ -65,7 +65,7 @@ B63_BENCHMARK(m4ri, nn) {
 	uint64_t keep = 0;
 	for (uint64_t i = 0; i < nn; i++) {
 		m.permute_cols(mt, P.values, P.length);
-		uint32_t rank2 = m.template m4ri<2>(nrows -l);
+		uint32_t rank2 = m.template m4ri<2>(nrows - l);
 		keep += rank2;
 		keep += m.get(10, 10);
 	}
