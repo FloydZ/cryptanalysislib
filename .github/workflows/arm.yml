@@ -18,6 +18,7 @@ jobs:
         bind_mount_repository: true
         base_image: raspios_lite_arm64:latest
         cpu: cortex-a53
+        image_additional_mb: 512
         commands: |
             sudo apt-get install -y cmake make git autoconf libtool libgmp-dev libgmp10
             git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
