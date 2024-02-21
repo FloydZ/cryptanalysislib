@@ -11,8 +11,8 @@ jobs:
         include:
           - os: macos-latest
             TARGET: x86_64-apple-darwin
-            COMPILER: clang
-            LINKER: clang
+            COMPILER: [clang, gcc]
+            LINKER: [clang, gcc]
 
     name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
     runs-on: ${{ matrix.os }}
