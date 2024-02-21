@@ -9,7 +9,7 @@ jobs:
         # ubuntu 20 doesnt support c++20
         #os: [ubuntu-22.04, ubuntu-20.04]
         os: [ubuntu-22.04]
-        compiler: [ g++-10, g++-11, g++-12, clang++-11, clang++-12, clang++-13, clang++-14, clang++-15, clang++-16 ]
+        compiler: [ g++-10, clang++-11, clang++-12, clang++-13, clang++-14, clang++-15]
         build_type: [Release, Debug]
 
     name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }} in ${{ matrix.build_type }} mode.
@@ -22,8 +22,7 @@ jobs:
 
     - name: Install Software
       run: |
-        sudo apt-get install -y libtbb-dev
-    
+        sudo apt-get install -y libtbb-dev llvm-11 clang-11 llvm-12 clang-12 llvm-13 clang-13 llvm-14 clang-14 llvm-15 clang-15 gcc-10    
     - name: Install Google Benchmark
       run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
 
@@ -31,16 +30,10 @@ jobs:
       run:
         sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
 
-    - name: Install compiler
-      id: install_cc
-      uses: rlalik/setup-cpp-compiler@master
-      with:
-        compiler: ${{ matrix.compiler }}
 
     - name: Configure CMake
       env:
-        CC: ${{ steps.install_cc.outputs.cc }}
-        CXX: ${{ steps.install_cc.outputs.cxx }}
+        CXX: ${{ matrix.compiler }}
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
 
     - name: Build

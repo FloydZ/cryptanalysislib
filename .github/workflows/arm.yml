@@ -2,8 +2,6 @@ name: arm
 
 on: [push]
 
-env:
-  BUILD_TYPE: Release
 
 jobs:
   build:
@@ -28,9 +26,9 @@ jobs:
             mkdir -p cmake-build-debug
             cd cmake-build-debug
             cmake .. -DCMAKE_BUILD_TYPE=Debug
-            make -j12
+            make -j
             ctest -C Debug -V  
             cd ../cmake-build-release
             cmake .. -DCMAKE_BUILD_TYPE=Release
-            make -j12
+            make -j
             ctest -C Debug -V  
