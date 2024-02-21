@@ -30,10 +30,17 @@ jobs:
     - name: Install gtest
       run:
         sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
-    
+
+    - name: Install compiler
+      id: install_cc
+      uses: rlalik/setup-cpp-compiler@master
+      with:
+        compiler: ${{ matrix.compiler }}
+
     - name: Configure CMake
       env:
-        CXX: ${{ matrix.compiler }}
+        CC: ${{ steps.install_cc.outputs.cc }}
+        CXX: ${{ steps.install_cc.outputs.cxx }}
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
 
     - name: Build
