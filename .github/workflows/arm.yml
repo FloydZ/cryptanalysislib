@@ -27,10 +27,10 @@ jobs:
             mkdir -p cmake-build-release
             mkdir -p cmake-build-debug
             cd cmake-build-debug
-            cmake ..
-            make -j12 -DCMAKE_BUILD_TYPE=Debug
+            cmake .. -DCMAKE_BUILD_TYPE=Debug
+            make -j12
             ctest -C Debug -V  
             cd ../cmake-build-release
-            cmake ..
-            make -j12 -DCMAKE_BUILD_TYPE=Release
+            cmake .. -DCMAKE_BUILD_TYPE=Release
+            make -j12
             ctest -C Debug -V  
