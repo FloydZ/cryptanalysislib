@@ -112,7 +112,7 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 
 #ifdef DEBUG
 #include <cassert>
-#ifdef USE_NEON
+#ifdef USE_ARM
 #define ASSERT(x)// TODO thats the BUG. GCC on arm this is not constexpr
 #else
 #define ASSERT(x) assert(x)
