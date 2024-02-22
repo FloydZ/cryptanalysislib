@@ -9,7 +9,7 @@
 #include <cstdint>
 
 using namespace std;
-constexpr static uint64_t SIZE = 1<<20;
+constexpr static uint64_t SIZE = 1<<14;
 
 constexpr static uint32_t asize = 64;
 constexpr static uint32_t k_lower = 0;

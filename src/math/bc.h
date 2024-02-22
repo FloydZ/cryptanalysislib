@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cstdint>
-#include <cmath>
 #include <cassert>
+#include <cmath>
+#include <cstdint>
 
 #include "helper.h"
 #include "simd/simd.h"
@@ -11,22 +11,23 @@
 /// \param nn n over k
 /// \param kk n over k
 /// \return nn over kk
-__device__ __host__
-constexpr inline uint64_t bc(const uint64_t nn,
-							 const uint64_t kk) noexcept {
-	return
-		(kk > nn  ) ? 0 :       			// out of range
-		(kk == 0 || kk == nn  ) ? 1 :       // edge
-		(kk == 1 || kk == nn - 1) ? nn :    // first
-		(kk + kk < nn  ) ?           		// recursive:
-		(bc(nn - 1, kk - 1) * nn) / kk :    //  path to k=1   is faster
-		(bc(nn - 1, kk) * nn) / (nn - kk);	//  path to k=n-1 is faster
+__device__ __host__ constexpr inline uint64_t bc(const uint64_t nn,
+                                                 const uint64_t kk) noexcept {
+	return (kk > nn) ? 0 :// out of range
+	               (kk == 0 || kk == nn) ? 1
+	                                     :// edge
+	               (kk == 1 || kk == nn - 1) ? nn
+	                                         :// first
+	               (kk + kk < nn) ?           // recursive:
+	               (bc(nn - 1, kk - 1) * nn) / kk
+	                              :                  //  path to k=1   is faster
+	               (bc(nn - 1, kk) * nn) / (nn - kk);//  path to k=n-1 is faster
 }
 
 /// Sums:over all binomial coefficients nn over i, with i <= kk
 /// \return \sum n over i
 constexpr uint64_t sum_bc(const uint64_t nn,
-						  const uint64_t kk) noexcept {
+                          const uint64_t kk) noexcept {
 	uint64_t sum = 0;
 	for (uint64_t i = 1; i <= kk; ++i) {
 		sum += bc(nn, i);
@@ -46,7 +47,7 @@ template<typename T, const uint32_t k>
 inline T opt_max_bc(const T a, const uint32_t n) {
 	static_assert(k < 5, "sorry not implemented");
 
-	if constexpr(k == 1) {
+	if constexpr (k == 1) {
 		return n - k - a;
 	}
 
@@ -61,7 +62,7 @@ inline T opt_max_bc(const T a, const uint32_t n) {
 
 	if constexpr (k == 3) {
 		if (a == 1)
-			return n-k-1;
+			return n - k - 1;
 
 		float x = a;
 		float t1 = sqrtf(729.f * x * x);
@@ -70,15 +71,15 @@ inline T opt_max_bc(const T a, const uint32_t n) {
 		float ctr2 = t3;
 		int ctr = int(ctr2);
 
-		return  n - ctr - k;
+		return n - ctr - k;
 	}
 
 	if constexpr (k == 4) {
 		const float x = a;
 		const float t1 = __builtin_floorf(__builtin_sqrtf(24.f * x + 1.f));
 		const float t2 = __builtin_floorf(__builtin_sqrtf(4.f * t1 + 5.f));
-		uint32_t ctr = (t2 + 3.f)/ 2.f - 3;
-		return  n - ctr - k;
+		uint32_t ctr = (t2 + 3.f) / 2.f - 3;
+		return n - ctr - k;
 	}
 
 
@@ -94,9 +95,9 @@ inline T opt_max_bc(const T a, const uint32_t n) {
 template<typename T, const uint32_t k>
 inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 	static_assert(k < 5, "sorry not implemented");
-	(void )n;
+	(void) n;
 
-	if constexpr(k == 1) {
+	if constexpr (k == 1) {
 		return a;
 	}
 
@@ -105,9 +106,9 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 		const __m256i onei = _mm256_set1_epi32(1);
 		const __m256i t1i = _mm256_slli_epi32(a, 3);
 		const __m256i t2i = _mm256_add_epi32(t1i, onei);
-		const __m256  t2f = _mm256_cvtepi32_ps(t2i);
-		const __m256  t3f = _mm256_sqrt_ps(t2f);
-		const __m256i t3i =  _mm256_cvtps_epi32(_mm256_floor_ps(t3f));
+		const __m256 t2f = _mm256_cvtepi32_ps(t2i);
+		const __m256 t3f = _mm256_sqrt_ps(t2f);
+		const __m256i t3i = _mm256_cvtps_epi32(_mm256_floor_ps(t3f));
 		const __m256i t4i = _mm256_add_epi32(t3i, onei);
 		const __m256i t5i = _mm256_srli_epi32(t4i, 1);
 		return t5i;
@@ -154,7 +155,7 @@ inline void biject(size_t a, uint16_t rows[p]) noexcept {
 	if constexpr (p == 2) {
 		// w == 2
 		wn -= opt_max_bc<size_t, 2>(a, wn);
-		a -= ((wn-1u) *(wn-2u)) >> 1u;
+		a -= ((wn - 1u) * (wn - 2u)) >> 1u;
 
 		wn -= 1u;
 		rows[0] = wn;
@@ -181,7 +182,7 @@ inline void biject_avx(__m256i a, __m256i rows[p]) noexcept {
 	static_assert(p < 3, "not implemented");
 
 	const __m256i one = _mm256_set1_epi32(1);
-	__m256i wn =  _mm256_set1_epi32(n);
+	__m256i wn = _mm256_set1_epi32(n);
 	if constexpr (p == 1) {
 		rows[0] = opt_max_bc_avx<size_t, 1>(a, wn);
 		return;
@@ -206,17 +207,17 @@ inline void biject_avx(__m256i a, __m256i rows[p]) noexcept {
 #endif
 
 
-/// TODO erklaeren
-/// \tparam T
-/// \tparam k
-/// \param a
-/// \param n
-/// \return
+/// special binomial coefficient. But instead of computing the binomial
+/// coefficient it computes on the maximal ctr < n, s.t. k+ctr over k <= a
+/// \tparam T base type.
+/// \tparam k number of bit position
+/// \param a input
+/// \param n input
 template<typename T, const uint32_t k>
 inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
-	(void )n;
+	(void) n;
 	static_assert(k < 5, "sorry not implemented");
-	if constexpr(k == 1) {
+	if constexpr (k == 1) {
 		return a;
 	}
 
@@ -225,8 +226,8 @@ inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
 		const uint32x8_t onei = uint32x8_t::set1(1u);
 		const uint32x8_t t1i = uint32x8_t::slli(a, 3u);
 		const uint32x8_t t2i = t1i + onei;
-		const f32x8_t  t2f = f32x8_t(t2i);
-		const f32x8_t  t3f = f32x8_t::sqrt(t2f);
+		const f32x8_t t2f = f32x8_t(t2i);
+		const f32x8_t t3f = f32x8_t::sqrt(t2f);
 		const uint32x8_t t3i = f32x8_t::uint32x8(f32x8_t::floor(t3f));
 		const uint32x8_t t4i = t3i + onei;
 		const uint32x8_t t5i = uint32x8_t::srli(t4i, 1);
@@ -238,18 +239,20 @@ inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
 	return uint32x8_t::set1(1);
 }
 
-
-/// TODO erklaeren
-/// \tparam n
-/// \tparam p
-/// \param a
-/// \param rows
+/// bijection between the numbers mod bc(n,p) and the numbers with
+/// n bits and weight p. Returns the the positions of the ones in
+/// the `rows` array.
+/// NOTE: does 8 bijections at once
+/// \tparam n total number of bits
+/// \tparam p total number of weight
+/// \param a input numbers in a avx register
+/// \param rows output
 template<const uint32_t n, const uint32_t p>
 inline void biject_simd(uint32x8_t a, uint32x8_t rows[p]) noexcept {
 	static_assert(p < 3, "not implemented");
 
 	const uint32x8_t one = uint32x8_t::set1(1u);
-	uint32x8_t wn =  uint32x8_t::set1(n);
+	uint32x8_t wn = uint32x8_t::set1(n);
 	if constexpr (p == 1) {
 		rows[0] = opt_max_bc_simd<size_t, 1>(a, wn);
 		return;

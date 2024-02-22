@@ -1,0 +1,46 @@
+name: osx
+env:
+  BUILD_TYPE: Release
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            TARGET: x86_64-apple-darwin
+            COMPILER: clang
+            LINKER: clang
+
+    name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install Software (HomeBrew)
+      run: |
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        brew install autoconf automake libtool libomp llvm googletest
+
+    - name: Install Google Benchmark
+      run: git clone --depth=1 --single-branch --branch v1.8.3 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
+
+        #    - name: Install gtest
+        #      run: |
+        #        chmod +x ./.github/install_gtest_osx.sh
+        #        sudo ./.github/install_gtest_osx.sh
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -D CMAKE_CXX_COMPILER=$(brew --prefix llvm)/bin/clang++
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config Debug
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: ctest -C Debug -V

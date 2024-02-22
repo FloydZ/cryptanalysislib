@@ -1,13 +1,15 @@
-cmake_minimum_required(VERSION 3.20)  		# 3.20 is needed because of C++23
+cmake_minimum_required(VERSION 3.20)  		# 3.20 is needed because of C++20
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # options
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SANITIZER "Enable memory sanitizer" OFF)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
+option(USE_LTO "Enable -flto" OFF)
 
 # 
 set(default_build_type "Release")
@@ -47,6 +49,7 @@ check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)
 check_cxx_compiler_flag(-fsanitize=address COMPILER_SUPPORTS_SANITIZE_ADDRESS) # TODO support not recognized
 check_cxx_compiler_flag(-fsanitize=memory COMPILER_SUPPORTS_SANITIZE_MEMORY)
 check_cxx_compiler_flag(-fconstexpr-steps=91 COMPILER_SUPPORTS_CONSTEXPR_COST)
+check_cxx_compiler_flag(-fno-exceptions COMPILER_SUPPORTS_NO_EXCEPTION)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC) # TODO
 
@@ -75,14 +78,6 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
         message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
     endif()
 endif()
-
-
-# this is my try to enforce a builder script which runs with the: `cmake ..`
-# command. TODO currently not working.
-add_custom_target (
-	CRYPTANALYSISLIB_BUILD_SCRIPT
-	COMMAND ./${CMAKE_SOURCE_DIR}/build.sh
-)
 
 # global include directories
 include_directories("deps/b63/include/b63")
@@ -113,12 +108,12 @@ if (COMPILER_SUPPORTS_CONSTEXPR_COST)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
 endif()
 
-if(lto_supported)
+if(lto_supported AND USE_LTO)
   message(STATUS "IPO / LTO enabled")
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-set(ALLOWED_WARNINGS "  -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
+set(ALLOWED_WARNINGS " -Wno-zero-length-array -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
 set(GCC_HELPER_FLAGS "-fvar-tracking-assignments")
 
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
@@ -127,17 +122,9 @@ message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 # -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") 
 	message(STATUS "ARM CPU detected")
-    include_directories(/opt/homebrew/opt/libomp/include)
-    include_directories(/opt/homebrew/include)
-    link_directories(/opt/homebrew/opt/libomp/link)
-    link_directories(/usr/local/lib)
-    link_directories(/usr/lib)
-    link_directories(/opt/homebrew/lib)
-
-    set(ADDITIONAL_FLAGS "-DUSE_ARM -march=native -flax-vector-conversions -march=native")
-
+    set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
 	set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -fpermissive -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-    set(OPTIMIZE_FLAGS "-O3 -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAG} ${ADDITIONAL_FLAGS}")
+    set(OPTIMIZE_FLAGS "-O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
 
 if(_available_vector_units_list AND "avx2" IN_LIST _available_vector_units_list)
@@ -150,7 +137,7 @@ endif()
 #endif()
 
     set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic -DDEBUG ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-	set(OPTIMIZE_FLAGS "-g -march=native -DNDEBUG -fno-exceptions ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZE_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-g -march=native -DNDEBUG ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 endif()
 
 set(LINK_TEST_FLAGS 
@@ -165,6 +152,16 @@ set(LINK_TEST_FLAGS
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")
 
+# on apple we need to add standard library???
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libc++")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libc++")
+	elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		# set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libstdc++")
+		# set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libstdc++")
+	endif()
+endif()
 
 # now check if we have to add the cuda runtime
 check_language(CUDA)

@@ -26,7 +26,7 @@ B63_BASELINE(Std_Sort, nn) {
 		}
 	}
 
-	std::sort(data.begin(), data.end(), [](const T &a, const T &b){
+	std::sort(data.begin(), data.end(), [](const T &a, const T &b) {
 		return a.is_greater<k_lower, k_higher>(b);
 	});
 	B63_KEEP(data[0].data()[0]);
@@ -41,7 +41,7 @@ B63_BENCHMARK(SKASort, nn) {
 		}
 	}
 
-	ska_sort(data.begin(), data.end(), [](const T &a){
+	ska_sort(data.begin(), data.end(), [](const T &a) {
 		constexpr uint64_t mask = (1ul << (k_higher - k_lower)) - 1ull;
 		return (a.data()[0] >> k_lower) & mask;
 	});
@@ -49,35 +49,20 @@ B63_BENCHMARK(SKASort, nn) {
 }
 
 B63_BENCHMARK(VergeSort, nn) {
-    std::vector<T> data;
-    B63_SUSPEND {
-        data.resize(SIZE_LIST);
-        for (size_t i = 0; i < nn; ++i) {
-            data[i].random();
-        }
-    }
+	std::vector<T> data;
+	B63_SUSPEND {
+		data.resize(SIZE_LIST);
+		for (size_t i = 0; i < nn; ++i) {
+			data[i].random();
+		}
+	}
 
-    vergesort::vergesort(data.begin(), data.end(), [](const T &in1, const T &in2){
-        return in1.is_greater<k_lower, k_higher>(in2);
-    });
-    B63_KEEP(data[0].data()[0]);
+	vergesort::vergesort(data.begin(), data.end(), [](const T &in1, const T &in2) {
+		return in1.is_greater<k_lower, k_higher>(in2);
+	});
+	B63_KEEP(data[0].data()[0]);
 }
 
-// TODO: currently not implemented
-//B63_BENCHMARK(RobinHoodSort, nn) {
-//    std::vector<T> data;
-//    B63_SUSPEND {
-//        data.resize(SIZE_LIST);
-//        for (size_t i = 0; i < nn; ++i) {
-//            data[i].random();
-//        }
-//    }
-//
-//	rhmergesort<T>(data.data(), SIZE_LIST, [](const T *a, const T *b){
-//        return a->is_greater<k_lower, k_higher>(*b);
-//    });
-//    B63_KEEP(data[0].data()[0]);
-//}
 
 int main(int argc, char **argv) {
 	srand(time(NULL));

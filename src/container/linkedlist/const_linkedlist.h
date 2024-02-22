@@ -11,12 +11,12 @@
 /// 		Hence the ABA problem is not a thing
 /// unsorted single-linked list
 /// \tparam T
-template<typename T>
+template<typename T, class A = std::atomic<T>>
 class ConstFreeList {
 private:
 	struct Node {
-		Node() : next(nullptr) { }
-		Node(T data) : next(nullptr), data(data) { }
+		Node() : next(nullptr) {}
+		Node(T data) : next(nullptr), data(data) {}
 
 		std::atomic<Node *> next;
 		T data;
@@ -25,18 +25,18 @@ private:
 	struct Iterator {
 	public:
 		using iterator_category = std::forward_iterator_tag;
-		using difference_type 	= std::ptrdiff_t;
-		using value_type 		= T;
-		using pointer 			= T*;
-		using reference 		= T&;
-		using internal_pointer  = Node*;
+		using difference_type = std::ptrdiff_t;
+		using value_type = T;
+		using pointer = T *;
+		using reference = T &;
+		using internal_pointer = Node *;
 
 		Iterator(internal_pointer ptr) : m_ptr(ptr) {}
 		reference operator*() const { return m_ptr->data; }
 		pointer operator->() { return &(m_ptr->data); }
 
 		// Prefix increment
-		Iterator& operator++() {
+		Iterator &operator++() {
 			m_ptr = m_ptr->next.load();
 			return *this;
 		}
@@ -48,8 +48,8 @@ private:
 			return tmp;
 		}
 
-		friend bool operator== (const Iterator& a, const Iterator& b) { return a.m_ptr == b.m_ptr; };
-		friend bool operator!= (const Iterator& a, const Iterator& b) { return a.m_ptr != b.m_ptr; };
+		friend bool operator==(const Iterator &a, const Iterator &b) { return a.m_ptr == b.m_ptr; };
+		friend bool operator!=(const Iterator &a, const Iterator &b) { return a.m_ptr != b.m_ptr; };
 
 	private:
 		internal_pointer m_ptr;
@@ -62,28 +62,19 @@ private:
 
 	/// keep track of the size of the linked list
 	std::atomic<size_t> __size = 0;
-
-
 	std::atomic<Node *> head;
 
-
 	// return the last element in the list.
-	Node *__traverse() {
-		Node *c = head.load();
-		while (c != nullptr and c->next.load() != nullptr){
-			c = c->next.load();
-		}
-
-		return c;
+	A *__traverse() {
 	}
+
 public:
 	Iterator begin() { return Iterator(head); }
 	Iterator end() { return nullptr; }
 
 	constexpr ConstFreeList() noexcept {
 		/// create an empty element
-		head.store(new Node);
-		head.load()->next = nullptr;
+		head.store(nullptr);
 	}
 
 	/// returns 1 if element is in list, 0 else
@@ -116,40 +107,26 @@ public:
 		return 0;
 	}
 
-
-	/// insert back, unsorted
-	/// returns zero on success, cannot fail
-	constexpr int insert_back(const T &data) noexcept{
-		auto new_tail = new Node(data);
-		new_tail->next = nullptr;
-
-		Node *current_tail = __traverse();
-		current_tail->next.store(new_tail);/// TODO not finished (not atomic)
-
-		__size.fetch_add(1u);
-		return 0;
-	}
-
 	/// insert sorted
 	/// returns zero on success, cannot fail
 	constexpr int insert(const T &data) noexcept {
-		(void)data;
-		return 0;
+		return insert_front(data);
 	}
 
 	/// IMPORTANT: this function is not thread safe
 	/// this clears the whole data struct
 	constexpr void clear() noexcept {
-		Node *c = head.load(),
-				*next;
+		Node *c = head.load(), *next;
 		while (c != nullptr) {
 			next = c->next.load();
 			delete c;
 			c = next;
 		}
+
+		__size = 0;
 	}
 
-	constexpr size_t size() noexcept {return __size; }
+	constexpr size_t size() noexcept { return __size; }
 	constexpr void print() noexcept {
 		auto next = head.load();
 		while (next != nullptr) {

@@ -10,10 +10,10 @@
 #include "list/simple_limb.h"
 #include "matrix/matrix.h"
 
-#include <iterator>
-#include <vector>           // main data container
-#include <algorithm>        // search/find routines
+#include <algorithm>// search/find routines
 #include <cassert>
+#include <iterator>
+#include <vector>// main data container
 
 
 /// Mother of all lists
@@ -85,15 +85,14 @@ public:
 	                                                     const uint64_t k_higher) const noexcept {
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
-		//const uint64_t upper = T::round_down_to_limb(k_higher);
+		const uint64_t upper = T::round_down_to_limb(k_higher);
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
-		// TODO ASSERT(lower == upper);
+		ASSERT(lower == upper);
 
 		auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
-								  [lower, mask](const Element &c1, const Element &c2) {
-									return c1.label.is_lower_simple2(c2.label, lower, mask);
-								  }
-		);
+		                          [lower, mask](const Element &c1, const Element &c2) {
+			                          return c1.label.is_lower_simple2(c2.label, lower, mask);
+		                          });
 
 		const auto dist = distance(__data.begin(), r);
 		if (r == __data.begin() + load()) { return -1; }
@@ -135,66 +134,65 @@ public:
 private:
 	// disable the empty constructor. So you have to specify a rough size of the list.
 	// This is for optimisations reasons.
-	List_T() : MetaListT<Element>() {};
+	List_T() : MetaListT<Element>(){};
 
 public:
-
 	/// Base constructor. The empty one is disabled.
 	/// \param nr_element of elements in the list
 	/// \param threads  number of threads, which work on parallel on the list
 	constexpr List_T(const size_t nr_element,
-	                 const uint32_t threads=1) noexcept
-			: MetaListT<Element>(nr_element, threads) {}
+	                 const uint32_t threads = 1) noexcept
+	    : MetaListT<Element>(nr_element, threads) {}
 
 	/// checks if all elements in the list fullfil the equation: 	label == value*m
 	/// \param m 		the matrix.
 	/// \param rewrite 	if set to true, all labels within each element will we overwritten by the recalculated.
 	/// \return 		true if ech element is correct.
 	constexpr bool is_correct(const MatrixType &m,
-	                          const bool rewrite=false) noexcept {
+	                          const bool rewrite = false) noexcept {
 		bool ret = false;
 		for (size_t i = 0; i < load(); ++i) {
 			ret |= __data[i].is_correct(m, rewrite);
-			if ((ret) && (!rewrite))
+			if ((ret) && (!rewrite)) {
 				return ret;
+			}
 		}
 
 		return ret;
 	}
 
 	/// Andres Code
-	constexpr  void static odl_merge(std::vector<std::pair<uint64_t,uint64_t>>&target,
+	constexpr void static odl_merge(std::vector<std::pair<uint64_t, uint64_t>> &target,
 	                                const List_T &L1,
 	                                const List_T &L2,
 	                                int klower = 0,
-						  int kupper = -1) noexcept {
+	                                int kupper = -1) noexcept {
 		if (kupper == -1 && L1.get_load() > 0)
 			kupper = L1[0].label_size();
 		uint64_t i = 0, j = 0;
 		target.resize(0);
 		while (i < L1.get_load() && j < L2.get_load()) {
-			if (L2[j].is_greater(L1[i], klower,kupper))
+			if (L2[j].is_greater(L1[i], klower, kupper))
 				i++;
 
-			else if (L1[i].is_greater(L2[j], klower,kupper))
+			else if (L1[i].is_greater(L2[j], klower, kupper))
 				j++;
 
 			else {
 				uint64_t i_max, j_max;
 				// if elements are equal find max index in each list, such that they remain equal
-				for (i_max = i + 1; i_max < L1.get_load() && L1[i].is_equal(L1[i_max], klower,kupper); i_max++) {}
-				for (j_max = j + 1; j_max < L2.get_load() && L2[j].is_equal(L2[j_max], klower,kupper); j_max++) {}
+				for (i_max = i + 1; i_max < L1.get_load() && L1[i].is_equal(L1[i_max], klower, kupper); i_max++) {}
+				for (j_max = j + 1; j_max < L2.get_load() && L2[j].is_equal(L2[j_max], klower, kupper); j_max++) {}
 
 				// store each matching tuple
 				int jprev = j;
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						std::pair<uint64_t,uint64_t > a;
-						a.first=L1[i].get_value();
-						a.second=L2[j].get_value();
+						std::pair<uint64_t, uint64_t> a;
+						a.first = L1[i].get_value();
+						a.second = L2[j].get_value();
 						target.push_back(a);
 					}
-
 				}
 			}
 		}
@@ -214,38 +212,11 @@ public:
 		for (size_t i = 0; i < k; ++i) {
 			// by default this creates a complete random 'Element' with 'Value' coordinates \in \[0,1\]
 			Element e{};
-			e.random(m);    // this 'random' function takes care of the vector-matrix multiplication.
+			e.random(m);
 			append(e);
 		}
 	}
 
-	/// create a list following the chase sequence
-	/// IMPORTANT; No special trick is applied, so every Element needs a fill Matrix-vector multiplication.
-	/// \param number_of_elements
-	/// \param ones 				hamming weight of the 'Value' of all elements
-	/// \param m
-	constexpr void generate_base(const uint64_t number_of_elements,
-	                             const MatrixType &m) noexcept {
-
-		/// TODO correct those numbers and import them from matrix?
-		constexpr uint32_t n = LabelType::size();
-		constexpr uint32_t w = LabelType::size();
-		constexpr uint32_t q = LabelType::size();
-		const auto mt = m.transpose();
-
-		auto enumerator = ListEnumerateMultiFullLength<List, n, q, w>(mt, number_of_elements);
-		// TODO replace with fq_chase combinarion Combinations_Lexicographic<decltype(e.get_value().data().get_type())> c{n, ones};
-		//c.left_init(e.get_value().data().data().data());
-		//while(c.left_step(e.get_value().data().data().data()) != 0) {
-		//	if (internal_counter >= size())
-		//		return;
-
-		//	new_vector_matrix_product<LabelType, ValueType, MatrixType>(e.get_label(), e.get_value(), m);
-
-		//	__data[internal_counter] = e;
-		//	internal_counter += 1;
-		//}
-	}
 
 	/// \param level				current lvl within the tree.
 	/// \param level_translation
@@ -258,16 +229,15 @@ public:
 
 	/// sort the list
 	constexpr void sort_level(const uint32_t k_lower, const uint32_t k_higher) noexcept {
-		std::sort(__data.begin(), __data.begin()+load(),
-				  [k_lower, k_higher](const auto &e1, const auto &e2) {
+		std::sort(__data.begin(), __data.begin() + load(),
+		          [k_lower, k_higher](const auto &e1, const auto &e2) {
 
 #if !defined(SORT_INCREASING_ORDER)
-					return e1.is_lower(e2, k_lower, k_higher);
+			          return e1.is_lower(e2, k_lower, k_higher);
 #else
-					return e1.is_greater(e2, k_lower, k_higher);
+			        return e1.is_greater(e2, k_lower, k_higher);
 #endif
-				  }
-		);
+		          });
 
 		ASSERT(is_sorted(k_lower, k_higher));
 	}
@@ -278,17 +248,16 @@ public:
 	/// \param tid
 	constexpr void sort_level(const uint32_t k_lower,
 	                          const uint32_t k_higher,
-	                          const uint32_t tid) noexcept{
-		std::sort(__data.begin()+start_pos(tid), __data.begin()+end_pos(tid),
-				  [k_lower, k_higher](const auto &e1, const auto &e2) {
+	                          const uint32_t tid) noexcept {
+		std::sort(__data.begin() + start_pos(tid), __data.begin() + end_pos(tid),
+		          [k_lower, k_higher](const auto &e1, const auto &e2) {
 
 #if !defined(SORT_INCREASING_ORDER)
-					return e1.is_lower(e2, k_lower, k_higher);
+			          return e1.is_lower(e2, k_lower, k_higher);
 #else
-					return e1.is_greater(e2, k_lower, k_higher);
+			        return e1.is_greater(e2, k_lower, k_higher);
 #endif
-				  }
-		);
+		          });
 
 		ASSERT(is_sorted(k_lower, k_higher));
 	}
@@ -324,15 +293,13 @@ private:
 		const uint64_t umask = T::lower_mask(k_higher);
 
 		std::sort(__data.begin(), __data.begin() + load,
-				  [lower, upper, lmask, umask](const auto &e1, const auto &e2) {
+		          [lower, upper, lmask, umask](const auto &e1, const auto &e2) {
 #if !defined(SORT_INCREASING_ORDER)
-					return e1.get_label().data().is_lower_ext2(e2.get_label().data(), lower, upper, lmask, umask);
+			          return e1.get_label().data().is_lower_ext2(e2.get_label().data(), lower, upper, lmask, umask);
 #else
-					return e1.get_label().data().is_greater_ext2(e2.get_label().data(), lower, upper, lmask, umask);
+			        return e1.get_label().data().is_greater_ext2(e2.get_label().data(), lower, upper, lmask, umask);
 #endif
-				  }
-		);
-
+		          });
 	}
 
 	/// IMPORTANT: DO NOT CALL THIS FUNCTION directly. Use `sort_level` instead.
@@ -343,19 +310,18 @@ private:
 		using T = LabelContainerType;
 
 		const uint64_t lower = T::round_down_to_limb(k_lower);
-		//const uint64_t upper = T::round_down_to_limb(k_higher);
-		// TODO ASSERT(lower == upper);
+		const uint64_t upper = T::round_down_to_limb(k_higher);
+		ASSERT(lower == upper);
 
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
 		std::sort(__data.begin(), __data.begin() + load,
-				  [lower, mask](const auto &e1, const auto &e2) {
+		          [lower, mask](const auto &e1, const auto &e2) {
 #if !defined(SORT_INCREASING_ORDER)
-					return e1.get_label().data().is_lower_simple2(e2.get_label().data(), lower, mask);
+			          return e1.get_label().is_lower_simple2(e2.get_label(), lower, mask);
 #else
-					return e1.get_label().data().is_greater_simple2(e2.get_label().data(), lower, mask);
+			        return e1.get_label().is_greater_simple2(e2.get_label(), lower, mask);
 #endif
-				  }
-		);
+		          });
 	}
 
 public:
@@ -366,7 +332,7 @@ public:
 	constexpr inline size_t search_level_binary(const Element &e,
 	                                            const uint32_t k_lower,
 	                                            const uint32_t k_higher,
-									  			const bool sort = false) noexcept {
+	                                            const bool sort = false) noexcept {
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
 		const uint64_t upper = T::round_down_to_limb(k_higher);
@@ -398,10 +364,9 @@ private:
 		ASSERT(lower != upper);
 
 		auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
-								  [lower, upper, lmask, umask](const Element &c1, const Element &c2) {
-									return c1.label.is_lower_ext2(c2.label, lower, upper, lmask, umask);
-								  }
-		);
+		                          [lower, upper, lmask, umask](const Element &c1, const Element &c2) {
+			                          return c1.label.is_lower_ext2(c2.label, lower, upper, lmask, umask);
+		                          });
 
 		const auto dist = distance(__data.begin(), r);
 		if (r == __data.begin() + load()) { return -1; }
@@ -419,7 +384,7 @@ public:
 	constexpr inline uint64_t search_level_binary_custom(const Element &e,
 	                                                     const uint64_t k_lower,
 	                                                     const uint64_t k_higher,
-											   			 const bool sort = false) noexcept {
+	                                                     const bool sort = false) noexcept {
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
 		const uint64_t upper = T::round_down_to_limb(k_higher);
@@ -477,14 +442,13 @@ public:
 	constexpr size_t search_level(const Element &e,
 	                              const uint64_t k_lower,
 	                              const uint64_t k_higher,
-	                              bool sort=false) noexcept {
+	                              bool sort = false) noexcept {
 		if constexpr (Element::binary()) {
 			return search_level_binary(e, k_lower, k_higher, sort);
 		} else {
 			auto r = std::find_if(__data.begin(), __data.begin() + load(), [&e, k_lower, k_higher](const Element &c) {
-									return e.is_equal(c, k_lower, k_higher);
-								  }
-			);
+				return e.is_equal(c, k_lower, k_higher);
+			});
 
 			const auto dist = distance(__data.begin(), r);
 
@@ -500,34 +464,7 @@ public:
 		}
 	}
 
-	// TODO vll als klasse extended
-	//	size_t search_parallel(const Element &e) {
-	//        auto r = std::find_if(std::execution::par, __data.begin(), __data.end(),
-	//                              [&e](const Element *c) { return c->get_value() == e.get_value(); });
-	//        if (r == std::end(__data)) { // nothing found
-	//            return -1;
-	//        }
-	//
-	//        return distance(__data.begin(), r);
-	//    }
-
-
-	//    uint64_t search_parallel_level(const Element &e, const uint64_t level, const std::vector<uint64_t> &vec) {
-	//        uint64_t k_lower, k_higher;
-	//        translate_level(&k_lower, &k_higher, level, vec);
-	//
-	//        auto r = std::find_if(std::execution::par, __data.begin(), __data.end(),
-	//                              [e, k_lower, k_higher](const Element *c) {
-	//                                    return e.is_equal(*c, k_lower, k_higher);
-	//                                });
-	//        if (r == std::end(__data)) { // nothing found
-	//            return -1;
-	//        }
-	//
-	//        return distance(__data.begin(), r);
-	//    }
-
-	/// TODO: optimize if already sorted
+	/// NOTE: this is a stupid linear search
 	/// \param e
 	/// \return
 	constexpr size_t search(const Element &e) {
@@ -542,12 +479,12 @@ public:
 	/// \param e
 	/// \return	a tuple indicating the start and end indices within the list. start == end == load indicating nothing found,
 	constexpr std::pair<size_t, size_t>
-	        search_boundaries(const Element &e,
-	                  		  const uint64_t k_lower,
-	                          const uint64_t k_higher) noexcept {
+	search_boundaries(const Element &e,
+	                  const uint64_t k_lower,
+	                  const uint64_t k_higher) noexcept {
 		uint64_t end_index;
 		uint64_t start_index;
-		if constexpr (!Element::binary()){
+		if constexpr (!Element::binary()) {
 			start_index = search_level(e, k_lower, k_higher);
 		} else {
 			start_index = search_level_binary(e, k_lower, k_higher);
@@ -575,16 +512,16 @@ public:
 	constexpr bool is_sorted(const uint64_t k_lower,
 	                         const uint64_t k_higher) const {
 		for (uint64_t i = 1; i < load(); ++i) {
-			if (__data[i-1].is_equal(__data[i], k_lower, k_higher)) {
+			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
 				continue;
 			}
 
 #if !defined(SORT_INCREASING_ORDER)
-			if (!__data[i-1].is_lower(__data[i], k_lower, k_higher)){
+			if (!__data[i - 1].is_lower(__data[i], k_lower, k_higher)) {
 				return false;
 			}
 #else
-			if (!__data[i-1].is_greater(__data[i], k_lower, k_higher)){
+			if (!__data[i - 1].is_greater(__data[i], k_lower, k_higher)) {
 				return false;
 			}
 #endif
@@ -595,7 +532,7 @@ public:
 
 	///
 	constexpr void sort() noexcept {
-		/// TODO
+		std::sort(__data.begin(), __data.end());
 	}
 
 	/// appends the element e to the list. Note that the list keeps track of its load. So you dont have to do anyting.
@@ -617,7 +554,7 @@ public:
 	/// \param e2 second element
 	constexpr void add_and_append(const Element &e1,
 	                              const Element &e2,
-	                              const uint32_t norm=-1) noexcept {
+	                              const uint32_t norm = -1) noexcept {
 		add_and_append(e1, e2, 0, LabelLENGTH, norm);
 	}
 
@@ -631,12 +568,12 @@ public:
 	template<const uint64_t approx_size>
 	constexpr int add_and_append(const Element &e1,
 	                             const Element &e2,
-	                             const uint32_t norm=-1) noexcept {
+	                             const uint32_t norm = -1) noexcept {
 		if (load() < approx_size) {
 			Element::add(__data[load()], e1, e2, 0, LabelLENGTH, norm);
 			__load += 1;
 		}
-		return approx_size-load();
+		return approx_size - load();
 		// ignore every element which could not be added to the list.
 	}
 
@@ -650,7 +587,7 @@ public:
 	                              const Element &e2,
 	                              const uint32_t k_lower,
 	                              const uint32_t k_higher,
-	                              const uint32_t norm=-1) noexcept {
+	                              const uint32_t norm = -1) noexcept {
 		if (load() < this->size()) {
 			auto b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
 			// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
@@ -661,8 +598,9 @@ public:
 		} else {
 			Element t{};
 			auto b = Element::add(t, e1, e2, k_lower, k_higher, norm);
-			if (b == true)
+			if (b == true) {
 				return;
+			}
 
 			// this __MUST__ be a copy.
 			__data.push_back(t);
@@ -674,8 +612,6 @@ public:
 	}
 
 private:
-	/// TODO remove
-	size_t internal_counter = 0;
 };
 
 #endif//DECODING_LIST_H

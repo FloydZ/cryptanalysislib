@@ -1,11 +1,12 @@
 #ifndef CRYPTANALYSISLIB_BINARY_H
 #define CRYPTANALYSISLIB_BINARY_H
 
+#include <bit>
 #include <cstddef>
 #include <cstdint>
-#include <bit>
 #include <functional>
 
+#include "atomic_primitives.h"
 #include "helper.h"
 #include "math/log.h"
 
@@ -20,7 +21,7 @@
 template<typename T>
 static size_t Khuong_bin_search(const T *list,
                                 const size_t len_list,
-								const T value) {
+                                const T value) {
 	if (len_list <= 1) {
 		return 0;
 	}
@@ -36,7 +37,7 @@ static size_t Khuong_bin_search(const T *list,
 		if (mid < value) low += len;
 	}
 
-	return (*low == value) ? (low-list): -1;
+	return (*low == value) ? (low - list) : -1;
 }
 
 ///
@@ -65,7 +66,7 @@ ForwardIt upper_bound_standard_binary_search(ForwardIt first,
 	std::advance(top, -1);
 
 	while (bot < top) {
-		const auto step = std::distance(bot, top)/2;
+		const auto step = std::distance(bot, top) / 2;
 		mid = top;
 		std::advance(mid, -step);
 
@@ -109,8 +110,7 @@ ForwardIt lower_bound_standard_binary_search(ForwardIt first,
 		if (h(*it) < key) {
 			first = ++it;
 			count -= step + 1;
-		}
-		else
+		} else
 			count = step;
 	}
 	return first;
@@ -142,8 +142,7 @@ size_t standard_binary_search(const T *array,
 
 		if (key < array[mid]) {
 			top = mid - 1;
-		}
-		else {
+		} else {
 			bot = mid;
 		}
 	}
@@ -198,7 +197,7 @@ size_t doubletapped_binary_search(const T *array,
                                   T key) noexcept {
 	size_t mid = array_size, bot = 0;
 
-	while (mid > 2)	{
+	while (mid > 2) {
 		if (key >= array[bot + mid / 2]) {
 			bot += mid++ / 2;
 		}
@@ -231,14 +230,14 @@ ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
 	auto count = std::distance(first, last);
 	const auto key = h(key_);
 	auto bot = first;
-	auto  it = first;
+	auto it = first;
 	auto top = last;
 	std::advance(top, -1);
 	if (count == 0)
 		return last;
 
-	while(count > 1) {
-		const auto midc = count/2;
+	while (count > 1) {
+		const auto midc = count / 2;
 		it = bot;
 
 		std::advance(it, midc);
@@ -273,15 +272,15 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
 	auto count = std::distance(first, last);
 	const auto key = h(key_);
 	auto bot = first;
-	auto  it = last;
+	auto it = last;
 	auto top = last;
 	std::advance(top, -1);
 
 	if (count == 0)
 		return last;
 
-	while(count > 1) {
-		const auto mid = count/2;
+	while (count > 1) {
+		const auto mid = count / 2;
 		it = top;
 
 		std::advance(it, -mid);
@@ -297,7 +296,7 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
 		while (key == h(*top)) {
 			top -= 1;
 		}
-		return top +=1;
+		return top += 1;
 	}
 
 	return last;
@@ -369,7 +368,7 @@ ForwardIt tripletapped_binary_search(ForwardIt first,
 		count = std::distance(first, top);
 	}
 
-	while(count--) {
+	while (count--) {
 		if (key_ == *(bot + count)) {
 			return bot + count;
 		}
@@ -387,7 +386,7 @@ ForwardIt tripletapped_binary_search(ForwardIt first,
 template<typename T>
 size_t tripletapped_binary_search(const T *array,
                                   const size_t array_size,
-                                  const  T key) noexcept {
+                                  const T key) noexcept {
 	if (array_size == 0) {
 		return -1;
 	}
@@ -430,8 +429,7 @@ size_t monobound_quaternary_search(const T *array,
 			if (key >= array[bot + mid]) {
 				bot += mid;
 			}
-		}
-		else {
+		} else {
 			bot += mid * 2;
 
 			if (key >= array[bot + mid]) {
@@ -479,40 +477,48 @@ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.*/
 
-//  https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGErqSuADJ4DJgAcj4ARpjEIABsAQAOqAqETgwe3r7%2BpClpjgIhYZEsMXGJtpj2hQxCBEzEBFk%2BflwBdpgOGfWNBMUR0bEJHQ1NLTnttmP9oYNlw4kAlLaoXsTI7BzmAMyhyN5YANQmO27ICgT4gqfYJhoAgrv7h5gnZ5fotHhRAHQIt3uTzMewYBy8x1ObjEwBIhAQLEBj2eYNe7zcADcukRiEinsiQVgaGEjsgWKgMQB9eKSCBMUhHKJLI7oVAnADsFiOTAULCOGM8TEc9COEBOZjMZIpTHFAFYNHKuCZZW4GMq3ARzGYjiBxWZTgARXES0VMZm6rXG7UQJlLU5ckzsg1HADuCDomAgGjtOysyP9DwA9IGvKECDTKQRSeSqV4FExgJ7Q4II1H6aSBJcjsnw5JI4zmY6/UHA0cy9GKdTaemmfagcHy0diJgCOsGNy649g46DUC%2B48c6mKximBBB3m0wy0Aws%2BP81Ep5mozmdmZ8wQAhmZ8uw6v12ZmQxUJhVJsklGi/2AJw8vkCgzCt4QIGNxtagiYLOKhnmWX6lVqiqmoSte9xXlqUojnKGg/mYso7OqgEalqoEaFeFogTsRpaqadr%2BuBaEYWYVqihuKx6iREAEAesHEThNp4fiV4%2BsWjbNq2xDtkwnZPE6/YPHOUaQbQY5hkO6bTrOYkToyi7btmu5rlGG5yVJgh7spB5HEeJ5nhenLXre/KCo%2Boovq%2BZbvp%2BUbfnK/6quqwH6vhYEQTGtDQbB8GIY5KEuYReqGpRZqoehFH0WRtGUdR5GWvRtb4Sx5lluxbYdr6fZ8QGQIfiwSQPpgUIEAAnkkjCsG8ACSBAMiVZXMGwRwACq1aV5WNW4eV4pJH6qEkxBHNVjLEIYyAIPQCgKJStCoC6sSUlEawMOgEBDTEwChKQyUWTtu1lkNrhbY8e0nTtPXNeK8Qjt4mBHQ8p0PeWnVJJd5jxBmeWNJghYGcd5afCAIBpAAXpg%2Bb0EYBAIO8zquEcAC0jKYBtaoZX9ZZ4FQooQ8AUMw4aRzehyxauWhqWcUcrg8a5WX4vd/1XIDINg1GlyYC9BMAyAUSEJSVAzSQEA41DSUBo2mOimzL1gGABPC9Db1vR9SRfTayOhMqFhS8qBoMtdXjfT9rE7fLCOcx%2BHOWEcSpo/TFkS0LjC4wrWEE0Tl7%2BQRV7k%2B2VO26T4G09tjZSzDRxczzBCUpsdCO5DCCi3br7raEYdw4j2u22%2BtONvwA0QKHgYE/qvrhxbRwy279pl%2BzRxF1hRxaR7Sfi1jEBoJ9zZqyjmva7Kuv8mIBtLEboVgSn7bWOb7PU2hNO9ujr7BsJ3ehIn2cL0nPtIyj4pch3KtdwAVBPetD991NB48zPzgYBeMyAWIOCQUKCbcl1r8T23nUwXhENyYcogjTBONT8U0ZpzWIAtJaK1Qi/AnhAcicDXCIIZFwDQXgGRcwmgoV%2B0lIy3EQevcs28ub4EuKNT0cCEHkRCv7J0HAVi0E4LKXgfgOBaFIKgTgbgp5WwUGsDYbxdg8FIAQTQjCVgAGsQCSCvL8dkOx2R/g0AADlUWYdkqj2jsn0JwSQbCJFcM4LwBQIAYLiI4Yw0gcBYBIAPh6MgFB26oDyo4kAwAuCrj4HQD8xAzE2iMTzZgxBiqcFEcExoxUADyURtDYnCbwDubBBDRIYLQMJVjSBYCiF4YA0JaC0DMdwXgWAWCGGAOILJ%2BBmzdCxMUzhJ4uh/y2KIsM1QjHfCAVEjwWAjEEGIHgFgiSVj8wTAoAAangTALpon1USTIQQIgxDsCkIs%2BQSg1BGN0AEAwRgUB8JsF0sxkAVioHPBkYp8NPiGlMJYawZgFTw2iTsXgFJYiDKwCc1BnRujOAgK4CYfg4KBGWgMUo5QEi6PyOkAQQKQAgphbUcFQwKi6N%2BbUXo4xPCtARbKKoNQegzBRQsNF0w%2BjwpBRQpoJLIXxHZCsAR6xNgSCYSwwxWTuEcCOKoVR8R4Y0iOMAZAyBrY7F%2BNaXAhASDih2FwJYvBLFaBHqQGR8oJXxDMJIdkV4dFmC4Oo6QzCOAGNIOwzhXLTHmLERIlVxqzAcotSYm1ViVVYn8RkWRQA%3D%3D
-/// TODO special cmov instruction , and branchless interpolation search
+///  https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGErqSuADJ4DJgAcj4ARpjEIABsAQAOqAqETgwe3r7%2BpClpjgIhYZEsMXGJtpj2hQxCBEzEBFk%2BflwBdpgOGfWNBMUR0bEJHQ1NLTnttmP9oYNlw4kAlLaoXsTI7BzmAMyhyN5YANQmO27ICgT4gqfYJhoAgrv7h5gnZ5fotHhRAHQIt3uTzMewYBy8x1ObjEwBIhAQLEBj2eYNe7zcADcukRiEinsiQVgaGEjsgWKgMQB9eKSCBMUhHKJLI7oVAnADsFiOTAULCOGM8TEc9COEBOZjMZIpTHFAFYNHKuCZZW4GMq3ARzGYjiBxWZTgARXES0VMZm6rXG7UQJlLU5ckzsg1HADuCDomAgGjtOysyP9DwA9IGvKECDTKQRSeSqV4FExgJ7Q4II1H6aSBJcjsnw5JI4zmY6/UHA0cy9GKdTaemmfagcHy0diJgCOsGNy649g46DUC%2B48c6mKximBBB3m0wy0Aws%2BP81Ep5mozmdmZ8wQAhmZ8uw6v12ZmQxUJhVJsklGi/2AJw8vkCgzCt4QIGNxtagiYLOKhnmWX6lVqiqmoSte9xXlqUojnKGg/mYso7OqgEalqoEaFeFogTsRpaqadr%2BuBaEYWYVqihuKx6iREAEAesHEThNp4fiV4%2BsWjbNq2xDtkwnZPE6/YPHOUaQbQY5hkO6bTrOYkToyi7btmu5rlGG5yVJgh7spB5HEeJ5nhenLXre/KCo%2Boovq%2BZbvp%2BUbfnK/6quqwH6vhYEQTGtDQbB8GIY5KEuYReqGpRZqoehFH0WRtGUdR5GWvRtb4Sx5lluxbYdr6fZ8QGQIfiwSQPpgUIEAAnkkjCsG8ACSBAMiVZXMGwRwACq1aV5WNW4eV4pJH6qEkxBHNVjLEIYyAIPQCgKJStCoC6sSUlEawMOgEBDTEwChKQyUWTtu1lkNrhbY8e0nTtPXNeK8Qjt4mBHQ8p0PeWnVJJd5jxBmeWNJghYGcd5afCAIBpAAXpg%2Bb0EYBAIO8zquEcAC0jKYBtaoZX9ZZ4FQooQ8AUMw4aRzehyxauWhqWcUcrg8a5WX4vd/1XIDINg1GlyYC9BMAyAUSEJSVAzSQEA41DSUBo2mOimzL1gGABPC9Db1vR9SRfTayOhMqFhS8qBoMtdXjfT9rE7fLCOcx%2BHOWEcSpo/TFkS0LjC4wrWEE0Tl7%2BQRV7k%2B2VO26T4G09tjZSzDRxczzBCUpsdCO5DCCi3br7raEYdw4j2u22%2BtONvwA0QKHgYE/qvrhxbRwy279pl%2BzRxF1hRxaR7Sfi1jEBoJ9zZqyjmva7Kuv8mIBtLEboVgSn7bWOb7PU2hNO9ujr7BsJ3ehIn2cL0nPtIyj4pch3KtdwAVBPetD991NB48zPzgYBeMyAWIOCQUKCbcl1r8T23nUwXhENyYcogjTBONT8U0ZpzWIAtJaK1Qi/AnhAcicDXCIIZFwDQXgGRcwmgoV%2B0lIy3EQevcs28ub4EuKNT0cCEHkRCv7J0HAVi0E4LKXgfgOBaFIKgTgbgp5WwUGsDYbxdg8FIAQTQjCVgAGsQCSCvL8dkOx2R/g0AADlUWYdkqj2jsn0JwSQbCJFcM4LwBQIAYLiI4Yw0gcBYBIAPh6MgFB26oDyo4kAwAuCrj4HQD8xAzE2iMTzZgxBiqcFEcExoxUADyURtDYnCbwDubBBDRIYLQMJVjSBYCiF4YA0JaC0DMdwXgWAWCGGAOILJ%2BBmzdCxMUzhJ4uh/y2KIsM1QjHfCAVEjwWAjEEGIHgFgiSVj8wTAoAAangTALpon1USTIQQIgxDsCkIs%2BQSg1BGN0AEAwRgUB8JsF0sxkAVioHPBkYp8NPiGlMJYawZgFTw2iTsXgFJYiDKwCc1BnRujOAgK4CYfg4KBGWgMUo5QEi6PyOkAQQKQAgphbUcFQwKi6N%2BbUXo4xPCtARbKKoNQegzBRQsNF0w%2BjwpBRQpoJLIXxHZCsAR6xNgSCYSwwxWTuEcCOKoVR8R4Y0iOMAZAyBrY7F%2BNaXAhASDih2FwJYvBLFaBHqQGR8oJXxDMJIdkV4dFmC4Oo6QzCOAGNIOwzhXLTHmLERIlVxqzAcotSYm1ViVVYn8RkWRQA%3D%3D
+/// \tparam It iterator typ
+/// \tparam T  base typ
+/// \tparam Cmp  comparison operator
+/// \param begin
+/// \param end
+/// \param value
+/// \param compare
+/// \return
 template<typename It, typename T, typename Cmp>
 It branchless_lower_bound(It begin,
                           It end,
                           const T &value,
-                          Cmp && compare) {
-    std::size_t length = end - begin;
-    if (length == 0) {
+                          Cmp &&compare) {
+	std::size_t length = end - begin;
+	if (length == 0) {
 		return end;
 	}
 
-    std::size_t step = std::bit_floor(length);
+	std::size_t step = std::bit_floor(length);
 
-    if (step != length && compare(begin[step], value)) {
-        length -= step + 1;
-        if (length == 0) {
+	if (step != length && compare(begin[step], value)) {
+		length -= step + 1;
+		if (length == 0) {
 			return end;
 		}
 
-        step = std::bit_ceil(length);
-        begin = end - step;
-    }
+		step = std::bit_ceil(length);
+		begin = end - step;
+	}
 
-    for (step /= 2; step != 0; step /= 2) {
-        if (compare(begin[step], value)) {
+	for (step /= 2; step != 0; step /= 2) {
+		if (compare(begin[step], value)) {
 			begin += step;
 		}
-    }
-    return begin + compare(*begin, value);
+	}
+
+	return begin + compare(*begin, value);
 }
 
 template<typename It, typename T>
-It branchless_lower_bound(It begin, It end, const T & value) {
-    return branchless_lower_bound(begin, end, value, std::less<>{});
+It branchless_lower_bound(It begin, It end, const T &value) {
+	return branchless_lower_bound(begin, end, value, std::less<>{});
 }
-#endif //CRYPTANALYSISLIB_BINARY_H
+#endif//CRYPTANALYSISLIB_BINARY_H

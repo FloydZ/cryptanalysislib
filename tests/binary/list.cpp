@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
 
 #define TEST_BASE_LIST_SIZE 1000
-#define TEST_BASE_LIST_ADDITIONAL_SIZE ((TEST_BASE_LIST_SIZE)/10)
+#define TEST_BASE_LIST_ADDITIONAL_SIZE ((TEST_BASE_LIST_SIZE) / 10)
 
+#include "binary.h"
 #include "helper.h"
 #include "list/list.h"
-#include "binary.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -19,7 +19,7 @@ using ::testing::UnitTest;
 ///
 /// \param l
 /// \return the number of elements which are duplicate
-uint64_t helper_list_is_every_element_value_unique(const BinaryList &L){
+uint64_t helper_list_is_every_element_value_unique(const BinaryList &L) {
 	if (L.load() == 0)
 		return 0;
 
@@ -39,10 +39,9 @@ uint64_t helper_list_is_every_element_value_unique(const BinaryList &L){
 				}
 			}
 
-			if (equal){
+			if (equal) {
 				errors += 1;
 			}
-
 		}
 	}
 
@@ -60,7 +59,7 @@ uint64_t helper_check_weight_of_value(const BinaryList &l, const uint64_t e1, co
 	uint64_t errors = 0;
 	const uint64_t vs = l[0].value_size();
 	for (size_t i = 0; i < l.load(); ++i) {
-		uint64_t counted_ones  = 0;
+		uint64_t counted_ones = 0;
 		uint64_t counted_mones = 0;
 
 		for (size_t j = 0; j < vs; ++j) {
@@ -77,12 +76,10 @@ uint64_t helper_check_weight_of_value(const BinaryList &l, const uint64_t e1, co
 			errors += 1;
 		}
 	}
-	
+
 	return errors;
 }
 
-
-// TODO this test fails on the CI, because of some weird error
 TEST(SearchBinary, Simple) {
 	uint64_t bpos, nbpos;
 	BinaryList L{0};
@@ -92,20 +89,21 @@ TEST(SearchBinary, Simple) {
 	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
 
 	for (uint32_t k_lower = 0; k_lower < n; ++k_lower) {
-		for (uint32_t k_upper = k_lower+5; k_upper < std::min(k_lower + 6u, BinaryLabel::LENGTH) ; ++k_upper) {
-			if ((k_lower%64u) + 6u >= 64u) {
+		for (uint32_t k_upper = k_lower + 5; k_upper < std::min(k_lower + 6u, BinaryLabel::LENGTH); ++k_upper) {
+			if ((k_lower % 64u) + 6u >= 64u) {
 				continue;
 			}
 
 			for (uint32_t pos = 0u; pos < 1u; ++pos) {
-				BinaryElement e; e.random(A);
+				BinaryElement e;
+				e.random(A);
 				L[pos] = e;
 
 				// first sort it
 				L.sort_level(k_lower, k_upper);
 
 				// the do different independent searches
-				bpos  = L.search_level_binary_simple(e, k_lower, k_upper);
+				bpos = L.search_level_binary_simple(e, k_lower, k_upper);
 				nbpos = L.search_level(e, k_lower, k_upper);
 				EXPECT_EQ(bpos, nbpos);
 			}
@@ -113,7 +111,6 @@ TEST(SearchBinary, Simple) {
 	}
 }
 
-// TODO fails in ci because of wrong instruction
 TEST(SearchBinary, Complex) {
 	uint64_t bpos, nbpos;
 	BinaryList L{0};
@@ -123,19 +120,20 @@ TEST(SearchBinary, Complex) {
 	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
 
 	for (uint64_t k_lower = 0; k_lower < n; ++k_lower) {
-		for (uint64_t k_upper = k_lower+1; k_upper < n; ++k_upper) {
-			if (k_lower/64 < (k_upper/64)) {
+		for (uint64_t k_upper = k_lower + 1; k_upper < n; ++k_upper) {
+			if (k_lower / 64 < (k_upper / 64)) {
 				continue;
 			}
 			for (uint64_t pos = 0; pos < 1; ++pos) {
-				BinaryElement e; e.random(A);
+				BinaryElement e;
+				e.random(A);
 				L[pos] = e;
 
 				// first sort it
 				L.sort_level(k_lower, k_upper);
 
 				// the do different independent searches
-				bpos  = L.search_level_binary(e, k_lower, k_upper);
+				bpos = L.search_level_binary(e, k_lower, k_upper);
 				nbpos = L.search_level(e, k_lower, k_upper);
 				EXPECT_EQ(bpos, nbpos);
 			}
@@ -143,36 +141,6 @@ TEST(SearchBinary, Complex) {
 	}
 }
 
-// TODO not correct
-//TEST(SearchBinaryCustom, Simple) {
-//	size_t bpos, nbpos;
-//	BinaryList L{0};
-//	BinaryMatrix A;
-//	A.identity();
-//
-//	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
-//
-//	for (uint32_t k_lower = 0; k_lower < 10; ++k_lower) {
-//		for (uint32_t k_upper = k_lower+5; k_upper < k_lower+6; ++k_upper) {
-//			if ((k_lower/64) < (k_upper/64)) {
-//				continue;
-//			}
-//
-//			for (uint32_t pos = 0; pos < 2; ++pos) {
-//				BinaryElement e; e.random(A);
-//				L[pos] = e;
-//
-//				// first sort it
-//				L.sort_level(k_lower, k_upper);
-//
-//				// the do different independent searches
-//				bpos  = L.search_level_binary_custom_simple(e, k_lower, k_upper);
-//				nbpos = L.search_level(e, k_lower, k_upper);
-//				EXPECT_EQ(bpos, nbpos);
-//			}
-//		}
-//	}
-//}
 
 #if n > 256
 // otherwise is this test not make any sense.
@@ -184,13 +152,14 @@ TEST(SortLevelExt, Simple) {
 
 
 	for (uint64_t k_lower = 0; k_lower < n; k_lower += 110) {
-		for (uint64_t k_upper = k_lower+128; k_upper < n; k_upper += 90) {
+		for (uint64_t k_upper = k_lower + 128; k_upper < n; k_upper += 90) {
 			L.resize(0);
 			L.generate_base_random(TEST_BASE_LIST_SIZE, A);
 
 
 			for (uint64_t pos = 0; pos < 1; ++pos) {
-				BinaryElement e; e.random(A);
+				BinaryElement e;
+				e.random(A);
 				L[pos] = e;
 
 				// first sort it

@@ -14,6 +14,16 @@ concept EnumeratorAble = requires(Enumerator e) {
 	e.step();
 };
 
+/// \return  number of elements in the gray code
+template<const uint32_t w, const uint32_t q>
+constexpr static size_t compute_gray_size() noexcept {
+	uint64_t sum = 1;
+	for (uint64_t i = 0; i < w; i++) { sum *= q - 1; }
+
+	// just make sure that we do not return zero.
+	return std::max(size_t(sum), size_t(1ul));
+}
+
 /// needed to compute the list size before initializing the enumerator
 /// \tparam n length to enumerate
 /// \tparam q base field size
@@ -23,13 +33,10 @@ template<const uint32_t n, const uint32_t q, const uint32_t w>
 constexpr size_t compute_combinations_fq_chase_list_size() {
 	static_assert(n > w);
 	static_assert(q > 1);
-	size_t size=1;
-	for (uint64_t i = 0; i < w; i++) {
-		size *= (q-1);
-	}
+	size_t size = compute_gray_size<w, q>();
 
 	// just make sure that we do not return zero.
-	return std::max(size, size_t(1ul)) * (bc(n, w));
+	return std::max(size, size_t(1ul)) * bc(n, w);
 }
 
 /// \tparam T base limb type of the input const_array.
@@ -38,11 +45,11 @@ constexpr size_t compute_combinations_fq_chase_list_size() {
 /// \tparam w weight to enumerate
 /// \tparam start offset to start the enumeration process (in bits)
 template<typename T,
-		const uint32_t n,
-		const uint32_t w,
-		const uint32_t start=0>
+         const uint32_t n,
+         const uint32_t w,
+         const uint32_t start = 0>
 #if __cplusplus > 201709L
-requires std::is_integral_v<T>
+    requires std::is_integral_v<T>
 #endif
 class Combinations_Binary_Chase {
 	/*
@@ -53,13 +60,13 @@ class Combinations_Binary_Chase {
 	 *  This is the data struct which is used in the BJMM/MMT algorithm.
 	 */
 	// data for the two functions: 'two_changes_binary_left_init', 'two_changes_binary_left_init'
-	std::array<uint64_t, n> two_changes_binary_o;   // offset from the left most position
-	std::array<int64_t, n>  two_changes_binary_d;   // direction set bit is moving
-	std::array<uint64_t, n> two_changes_binary_n;   // length of current part of the sequence
-	std::array<uint64_t, n> two_changes_binary_p;   // current position of the bit in the current part
-	uint64_t two_changes_binary_b = 0;      		// how many permutations already processed
-	bool init = true;								// if set to true the next call to `left_step`
-													// will init the given pointer
+	std::array<uint64_t, n> two_changes_binary_o;// offset from the left most position
+	std::array<int64_t, n> two_changes_binary_d; // direction set bit is moving
+	std::array<uint64_t, n> two_changes_binary_n;// length of current part of the sequence
+	std::array<uint64_t, n> two_changes_binary_p;// current position of the bit in the current part
+	uint64_t two_changes_binary_b = 0;           // how many permutations already processed
+	bool init = true;                            // if set to true the next call to `left_step`
+	                                             // will init the given pointer
 
 	// number of bits in one limb
 	constexpr static uint32_t RADIX = sizeof(T) * 8;
@@ -70,15 +77,15 @@ class Combinations_Binary_Chase {
 	inline void left_round(const uint64_t b) noexcept {
 		ASSERT(b < two_changes_binary_o.size());
 
-		two_changes_binary_o[b] = two_changes_binary_o[b-1] + two_changes_binary_d[b-1] *
-															  (two_changes_binary_p[b-1]%2 ? two_changes_binary_n[b-1]-1 : two_changes_binary_p[b-1]+1);
-		two_changes_binary_d[b] = two_changes_binary_d[b-1] * (two_changes_binary_p[b-1]%2 ? -1 : 1);
-		two_changes_binary_n[b] = two_changes_binary_n[b-1] - two_changes_binary_p[b-1] - 1;
+		two_changes_binary_o[b] = two_changes_binary_o[b - 1] + two_changes_binary_d[b - 1] *
+		                                                                (two_changes_binary_p[b - 1] % 2 ? two_changes_binary_n[b - 1] - 1 : two_changes_binary_p[b - 1] + 1);
+		two_changes_binary_d[b] = two_changes_binary_d[b - 1] * (two_changes_binary_p[b - 1] % 2 ? -1 : 1);
+		two_changes_binary_n[b] = two_changes_binary_n[b - 1] - two_changes_binary_p[b - 1] - 1;
 		two_changes_binary_p[b] = 0;
 	}
 
 	/// \return
-	template<const bool write=true>
+	template<const bool write = true>
 	inline uint64_t left_write(T *A, const uint32_t b, const int bit) noexcept {
 		ASSERT(b < two_changes_binary_o.size());
 		uint64_t ret = start + two_changes_binary_o[b] + two_changes_binary_p[b] * two_changes_binary_d[b];
@@ -92,7 +99,7 @@ public:
 
 	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
 	constexpr static inline void WRITE_BIT(T *v, const size_t i, const uint64_t b) noexcept {
-		v[i/RADIX] = ((v[i/RADIX] & ~(1ull << (i%RADIX))) | (T(b) << (i%RADIX)));
+		v[i / RADIX] = ((v[i / RADIX] & ~(1ull << (i % RADIX))) | (T(b) << (i % RADIX)));
 	}
 
 	///
@@ -122,10 +129,10 @@ public:
 	/// 			  False: else
 	/// \return false if the end of the sequence is reached
 	///         true if the end of the sequence is NOT reached
-	template<bool write=true>
+	template<bool write = true>
 	bool left_step(T *A, uint16_t *pos1, uint16_t *pos2) noexcept {
 		uint16_t pos = 0;
-		if (!init) { // cleanup of the previous round
+		if (!init) {// cleanup of the previous round
 			do {
 				pos = left_write<write>(A, two_changes_binary_b, 0);
 			} while (++two_changes_binary_p[two_changes_binary_b] > (two_changes_binary_n[two_changes_binary_b] + two_changes_binary_b - w) && two_changes_binary_b--);
@@ -133,7 +140,7 @@ public:
 
 		init = false;
 		*pos1 = pos;
-		if (two_changes_binary_p[0] > n-w) {
+		if (two_changes_binary_p[0] > n - w) {
 			return false;
 		}
 
@@ -148,24 +155,24 @@ public:
 		}
 
 		*pos2 = pos;
-		if (two_changes_binary_p[0] > n-w) {
+		if (two_changes_binary_p[0] > n - w) {
 			return false;
 		}
 
-		two_changes_binary_b = w-1ul;
+		two_changes_binary_b = w - 1ul;
 		return true;
 	}
 
 	/// \param ret input/output const_array containing ``
 	/// \return nothing
-	template<bool write=true>
-	constexpr void changelist(std::pair<uint16_t,uint16_t> *ret, const size_t listsize=0) {
+	template<bool write = true>
+	constexpr void changelist(std::pair<uint16_t, uint16_t> *ret, const size_t listsize = 0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
 
 		left_step<write>(NULL, &ret[0].first, &ret[0].second);
 		for (uint32_t i = 0; i < size; ++i) {
 			bool c = left_step<write>(nullptr, &ret[i].first, &ret[i].second);
-			ASSERT(c == (i != size-1u));
+			ASSERT(c == (i != size - 1u));
 			ASSERT(ret[i].first < n);
 			ASSERT(ret[i].second < n);
 		}
@@ -180,33 +187,33 @@ public:
 	/// \param pos1 output: first bit position where 'p` and `p_old` differs
 	/// \param pos2 output: second bit position
 	static void __diff(const T *p,
-					   const T *p_old,
-					   const uint32_t limbs,
-					   uint16_t *pos1,
-					   uint16_t *pos2) noexcept {
-		uint8_t sols = 0;                       // solution counter. Should be at most 2 if Chase generation is used.
-		uint32_t sol;                           // bit position of the change
-		uint16_t* sol_ptr[2] = {pos1, pos2};    // easy access to the solution const_array
+	                   const T *p_old,
+	                   const uint32_t limbs,
+	                   uint16_t *pos1,
+	                   uint16_t *pos2) noexcept {
+		uint8_t sols = 0;                   // solution counter. Should be at most 2 if Chase generation is used.
+		uint32_t sol;                       // bit position of the change
+		uint16_t *sol_ptr[2] = {pos1, pos2};// easy access to the solution const_array
 
 		for (uint32_t i = 0; i < limbs; ++i) {
 			// get the diff of the current limb
 			T x = p[i] ^ p_old[i];
 			// loop as long we found ones in the limb. (Maybe we have two ones in on limb)
 			while (x != 0 && sols < 2) {
-				sol = ffsll(x)-1;
+				sol = ffsll(x) - 1;
 				// clear the bit
-				x ^= (uint64_t (1) << sol);
+				x ^= (uint64_t(1) << sol);
 
 				// now check if the bit was already set in p_old. If so we know the new zero pos (pos1).
 				// if not we know that the bit was set in p. So we know pos2. Na we ignore this now. Doesnt matter
 				// where the zero or the one is.
-				const uint64_t pos = i*RADIX + sol;
+				const uint64_t pos = i * RADIX + sol;
 				*(sol_ptr[sols]) = pos;
 				sols += 1;
 			}
 
 			// early exit.
-			if(sols == 2) {
+			if (sols == 2) {
 				break;
 			}
 		}
@@ -223,37 +230,26 @@ public:
 template<uint32_t n, const uint32_t q, const uint32_t w>
 class Combinations_Fq_Chase {
 	/// max value to enumerate
-	constexpr static uint32_t qm1 = q-1;
-
-	/// TODO merge with the global funcin
-	/// \return  number of elements in the gray code
-	constexpr static size_t compute_gray_size() noexcept {
-		uint64_t sum = 1;
-
-		for (uint64_t i = 0; i < w; i++) {
-			sum *= qm1;
-		}
-
-		// just make sure that we do not return zero.
-		return std::max(sum-1, uint64_t(1ul));
-	}
-
+	constexpr static uint32_t qm1 = q - 1;
 
 	/// NOTE: this is the output container for `mixed_radix_grey`
 	std::array<uint32_t, n> a;
 
 	/// stuff for the mixed radix enumeration
 	std::array<uint32_t, n + 1> f;
-	std::array<uint32_t, n> s; // sentinel
+	std::array<uint32_t, n> s;// sentinel
 
 	/// stuff for the chase sequence
-	Combinations_Binary_Chase<uint64_t , n, w> chase;
+	Combinations_Binary_Chase<uint64_t, n, w> chase;
 
 public:
 	constexpr static size_t chase_size = bc(n, w);
-	constexpr static size_t gray_size = compute_gray_size();
 
-	// TODO explaon the +1 and the -1 in `compute_gray_size`
+	// the -1u is needed, because we already enumerated the 1...10...0 vector
+	// which is the first vector
+	constexpr static size_t gray_size = compute_gray_size<w, q>() - 1u;
+
+	// So here things become tricky. As we substracted one, we need to add one
 	constexpr static size_t LIST_SIZE = chase_size * (gray_size + 1u);
 
 	/// NOTE: this enumerates on a length w NOT on length n
@@ -276,9 +272,9 @@ public:
 			a[j] = (a[j] + 1) % (qm1);
 
 			if (a[j] == s[j]) {
-				s[j] = (s[j]-1 + qm1) % qm1;
-				f[j] = f[j+1];
-				f[j+1] = j + 1;
+				s[j] = (s[j] - 1 + qm1) % qm1;
+				f[j] = f[j + 1];
+				f[j + 1] = j + 1;
 			}
 		}
 
@@ -287,8 +283,8 @@ public:
 
 	/// \param ret input/output const_array containing ``
 	/// \return nothing
-	template<bool write=true>
-	constexpr void changelist_chase(std::pair<uint16_t,uint16_t> *ret) {
+	template<bool write = true>
+	constexpr void changelist_chase(std::pair<uint16_t, uint16_t> *ret) {
 		chase.template changelist<write>(ret);
 	}
 
@@ -301,7 +297,7 @@ public:
 		for (uint32_t i = 0; i < n; ++i) {
 			a[i] = 0;
 			f[i] = i;
-			s[i] = qm1-1;
+			s[i] = qm1 - 1;
 		}
 		f[n] = n;
 	}
@@ -329,7 +325,7 @@ void next3(uint32_t *c1, uint32_t *c2) {
 	}
 
 	/// step with slow/middle ctr
-	for (int32_t i = (p-1); i >= 0; i--) {
+	for (int32_t i = (p - 1); i >= 0; i--) {
 		if (*c2 == (n - 1u)) {
 			*c1 = last_pos[cp];
 			*c2 = last_pos[cp] + 1u;
@@ -363,7 +359,7 @@ void next2(uint32_t *c1, uint32_t *c2) {
 	}
 
 	/// step with the slow ctr
-	if (*c2 == (n-1u)) {
+	if (*c2 == (n - 1u)) {
 		*c1 = last_pos;
 		*c2 = last_pos + 1u;
 		last_pos += 1;

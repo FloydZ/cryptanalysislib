@@ -1,15 +1,15 @@
 #ifndef SMALLSECRETLWE_SIMPLE_H
 #define SMALLSECRETLWE_SIMPLE_H
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <utility>
-#include <cstddef>
 
 #include "atomic_primitives.h"
-#include "sort/sorting_network/common.h"
 #include "container/hashmap/common.h"
 #include "helper.h"
+#include "sort/sorting_network/common.h"
 
 ///
 struct SimpleHashMapConfig {
@@ -28,19 +28,17 @@ public:
 template<
         typename keyType,
         typename valueType,
-		const SimpleHashMapConfig &config,
+        const SimpleHashMapConfig &config,
         class Hash>
 class SimpleHashMap {
 public:
-	using data_type          = valueType;
-	using index_type         = size_t;
+	using data_type = valueType;
+	using key_type = keyType;
+	using index_type = size_t;
+	using load_type = TypeTemplate<config.bucketsize>;
 
-	typedef keyType 	T;
 	Hash hashclass = Hash{};
 
-	// TODO make sure that is general enough
-	typedef size_t 		LoadType;
-	typedef size_t 		IndexType;
 
 	// size per bucket
 	constexpr static size_t bucketsize = config.bucketsize;
@@ -53,12 +51,10 @@ public:
 
 	constexpr static uint32_t threads = config.threads;
 	constexpr static bool multithreaded = config.threads > 1u;
-	using load_type = TypeTemplate<bucketsize>;
 
 	/// constructor. Zero initializing everything
-	constexpr SimpleHashMap() noexcept :
-			__internal_hashmap_array(),
-			__internal_load_array() {}
+	constexpr SimpleHashMap() noexcept : __internal_hashmap_array(),
+	                                     __internal_load_array() {}
 
 	/// the simple hashmap ignores the thread id.
 	/// Which is nice.
@@ -67,9 +63,9 @@ public:
 	/// \param tid (ignored) can be anything
 	/// \return
 	constexpr inline void insert(const keyType &e,
-						  const valueType value,
-						  const uint32_t tid) noexcept {
-		(void)tid;
+	                             const valueType &value,
+	                             const uint32_t tid) noexcept {
+		(void) tid;
 		insert(e, value);
 	}
 
@@ -78,7 +74,7 @@ public:
 	/// NOTE: Boundary checks are performed in debug mode.
 	/// \param e element to insert
 	/// \return nothing
-	constexpr inline void insert(const keyType &e, const valueType value) noexcept {
+	constexpr inline void insert(const keyType &e, const valueType &value) noexcept {
 		const size_t index = hash(e);
 		ASSERT(index < nrbuckets);
 
@@ -95,29 +91,38 @@ public:
 
 			// early exit, if it's already full
 			if (load == bucketsize) {
-				return ;
+				return;
 			}
 		}
 
 
 		// just some debugging checks
 		ASSERT(load < bucketsize);
-		if constexpr (! multithreaded) {
+		if constexpr (!multithreaded) {
 			__internal_load_array[index] += 1;
 		}
 
 		/// NOTE: this store never needs to be atomic, as the position was
 		/// computed atomically.
 		if constexpr (std::is_bounded_array_v<data_type>) {
-			memcpy(__internal_hashmap_array[index*bucketsize + load], value, sizeof(data_type));
+			memcpy(__internal_hashmap_array[index * bucketsize + load], value, sizeof(data_type));
 		} else {
-			__internal_hashmap_array[index*bucketsize + load] = value;
+			__internal_hashmap_array[index * bucketsize + load] = value;
+		}
+	}
+
+	///
+	template<class SIMD>
+	//	TODO require the internal SIMD type: write concept
+	constexpr inline void insert_simd(const SIMD &e, const SIMD &value) noexcept {
+		for (uint32_t i = 0; i < SIMD::LIMBS; i++) {
+			insert(e[i], value[i]);
 		}
 	}
 
 	///
 	/// \return
-	constexpr inline valueType* ptr() noexcept {
+	constexpr inline valueType *ptr() noexcept {
 		return __internal_hashmap_array;
 	}
 
@@ -126,15 +131,20 @@ public:
 	/// \return
 	using inner_data_type = std::remove_all_extents<data_type>::type;
 	using ret_type = typename std::conditional<std::is_bounded_array_v<data_type>,
-	                                            inner_data_type*,
-	                                            valueType>::type;
+	                                           inner_data_type *,
+	                                           valueType>::type;
 	constexpr inline ret_type ptr(const index_type i) noexcept {
 		ASSERT(i < total_size);
 		if constexpr (std::is_bounded_array_v<data_type>) {
-			return (inner_data_type *)__internal_hashmap_array[i];
+			return (inner_data_type *) __internal_hashmap_array[i];
 		} else {
-			return (valueType)__internal_hashmap_array[i];
+			return (valueType) __internal_hashmap_array[i];
 		}
+	}
+
+	/// calls ptr
+	constexpr inline ret_type operator[](const index_type i) noexcept {
+		return ptr(i);
 	}
 
 	/// Quite same to `probe` but instead it will directly return
@@ -146,30 +156,30 @@ public:
 		ASSERT(index < nrbuckets);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
-		return index*bucketsize;
+		return index * bucketsize;
 	}
 
 	///
 	/// \param e
 	/// \param __load
 	/// \return
-	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
+	constexpr inline index_type find(const keyType &e, load_type &__load) const noexcept {
 		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
 		__load = __internal_load_array[index];
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
-		return index*bucketsize;
+		return index * bucketsize;
 	}
 
 	///
 	/// \param e
 	/// \param __load
 	/// \return
-	constexpr inline index_type find_without_hash(const keyType &e, index_type &__load) const noexcept {
+	constexpr inline index_type find_without_hash(const keyType &e, load_type &__load) const noexcept {
 		ASSERT(e < nrbuckets);
 		__load = __internal_load_array[e];
-		return e*bucketsize;
+		return e * bucketsize;
 	}
 
 	/// match the api
@@ -181,7 +191,7 @@ public:
 	/// overwrites the internal data const_array
 	/// with zero initialized elements.
 	constexpr inline void clear() noexcept {
-		memset(__internal_load_array, 0, nrbuckets*sizeof(load_type));
+		memset(__internal_load_array, 0, nrbuckets * sizeof(load_type));
 	}
 
 	/// multithreaded clear
@@ -193,10 +203,10 @@ public:
 			return;
 		}
 
-		const size_t start = tid * nrbuckets/config.threads;
-		const size_t bytes = nrbuckets*sizeof(load_type)/config.threads;
+		const size_t start = tid * nrbuckets / config.threads;
+		const size_t bytes = nrbuckets * sizeof(load_type) / config.threads;
 		memset(__internal_load_array + start, 0, bytes);
-		#pragma omp barrier
+#pragma omp barrier
 	}
 
 	/// internal function
@@ -219,7 +229,7 @@ public:
 	constexpr inline index_type load() const noexcept {
 		index_type ret = index_type(0);
 		for (index_type i = 0; i < nrbuckets; i++) {
-			ret +=__internal_load_array[i];
+			ret += __internal_load_array[i];
 		}
 
 		return ret;
@@ -228,14 +238,14 @@ public:
 	/// prints some basic information about the hashmap
 	constexpr void print() const noexcept {
 		std::cout << "total_size:" << total_size
-				  << ", total_size_byts:" << sizeof(__internal_hashmap_array) + sizeof(__internal_load_array)
+		          << ", total_size_byts:" << sizeof(__internal_hashmap_array) + sizeof(__internal_load_array)
 		          << ", nrbuckets:" << nrbuckets
-				  << ", bucketsize:" << bucketsize
-				  << ", sizeof(keyType): " << sizeof(keyType)
-				  << ", sizeof(valueType): " << sizeof(valueType)
-				  << ", sizeof(load_type): " << sizeof(load_type)
-				  << ", sizeof(index_type): " << sizeof(index_type)
-				  << ", multithreaded: " << multithreaded;
+		          << ", bucketsize:" << bucketsize
+		          << ", sizeof(keyType): " << sizeof(keyType)
+		          << ", sizeof(valueType): " << sizeof(valueType)
+		          << ", sizeof(load_type): " << sizeof(load_type)
+		          << ", sizeof(index_type): " << sizeof(index_type)
+		          << ", multithreaded: " << multithreaded;
 
 		if constexpr (multithreaded) {
 			std::cout << " (Threads:" << config.threads;
@@ -249,4 +259,4 @@ public:
 	alignas(1024) load_type __internal_load_array[nrbuckets];
 };
 
-#endif //SMALLSECRETLWE_SIMPLE_H
+#endif//SMALLSECRETLWE_SIMPLE_H
