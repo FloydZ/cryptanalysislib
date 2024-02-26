@@ -46,6 +46,8 @@ public:
 	using FqMatrix_Meta<T, nrows, ncols, q, packed>::swap_cols;
 	using FqMatrix_Meta<T, nrows, ncols, q, packed>::clear;
 	using FqMatrix_Meta<T, nrows, ncols, q, packed>::transpose;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed>::column_popcnt;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed>::row_popcnt;
 };
 
 

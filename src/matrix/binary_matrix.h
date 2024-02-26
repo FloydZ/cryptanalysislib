@@ -240,6 +240,14 @@ public:
 	///
 	/// \param j
 	/// \return
+	constexpr const T *operator[](const uint32_t j) const {
+		ASSERT(j < nrows);
+		return row(j);
+	}
+
+	///
+	/// \param j
+	/// \return
 	constexpr T *operator[](const uint32_t j) {
 		ASSERT(j < nrows);
 		return row(j);
@@ -352,7 +360,7 @@ public:
 	///
 	/// \param col
 	/// \return
-	constexpr inline uint32_t weight_column(const uint32_t col) const noexcept {
+	constexpr inline uint32_t column_popcnt(const uint32_t col) const noexcept {
 		ASSERT(col < ncols);
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < nrows; ++i) {
@@ -365,7 +373,7 @@ public:
 	///
 	/// \param rrow
 	/// \return
-	constexpr inline uint32_t weight_row(const uint32_t rrow) const noexcept {
+	constexpr inline uint32_t row_popcnt(const uint32_t rrow) const noexcept {
 		ASSERT(rrow < nrows);
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < limbs; ++i) {
@@ -375,6 +383,22 @@ public:
 		return ret;
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static bool is_equal(const FqMatrix &in1,
+	                               const FqMatrix &in2) noexcept {
+		for (uint32_t i = 0; i < nrows; i++) {
+			for (uint32_t j = 0; j < in1.limbs; j++) {
+				if (in1.__data[i * padded_limbs + j] != in2.__data[i * padded_limbs]) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
 	///
 	/// \param in
 	/// \return
@@ -549,6 +573,39 @@ public:
 			for (uint32_t j = 0; j < ncols_prime; ++j) {
 				const T data = in2.get(i, j);
 				ret.set(data, i, ncols + j);
+			}
+		}
+
+		return ret;
+	}
+
+	///
+	/// \tparam Tprime
+	/// \tparam ncols_prime
+	/// \tparam qprime
+	/// \param A
+	/// \param B
+	/// \return
+	template<const uint32_t ncols_prime>
+	constexpr static FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, packed>
+	augment(const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
+			const FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &B) noexcept {
+		FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, packed> ret;
+		ret.clear();
+
+		// copy the first matrix
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols; ++j) {
+				const DataType data = A.get(i, j);
+				ret.set(data, i, j);
+			}
+		}
+
+		// copy the second matrix
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols_prime; ++j) {
+				const DataType data = B.get(i, j);
+				ret.set(data, i, j + ncols);
 			}
 		}
 

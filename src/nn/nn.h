@@ -68,7 +68,7 @@ public:
 
 	///
 	/// helper function, only printing the internal parameters
-	void print() const noexcept {
+	constexpr void print() const noexcept {
 		std::cout
 		        << "n: " << n
 		        << ",r: " << r
@@ -424,7 +424,7 @@ public:
 
 		uint32_t nctr = 0;
 
-#pragma unroll
+		#pragma unroll
 		for (uint32_t i = 0; i < limit; ++i) {
 			if (wt & 1u) {
 				std::swap(to[nctr++], from[i]);
@@ -478,7 +478,7 @@ public:
 		for (uint32_t i = 0; i < bit_limit; ++i) {
 			const uint32_t pos = __builtin_ctz(wt);
 
-#pragma unroll
+			#pragma unroll
 			for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
 				ASSERT(i + j * bucket_size < (ELEMENT_NR_LIMBS * bucket_size));
 				to[i + j * bucket_size] = from[pos][j];

@@ -256,7 +256,7 @@ public:
 	                                                                list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 
 		static_assert(chase_size >= 0);
-		static_assert(gray_size > 0);
+		static_assert(gray_size >= 0);
 		ASSERT(LIST_SIZE >= list_size);
 
 		if constexpr (w > 0) {

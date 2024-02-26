@@ -88,6 +88,14 @@ public:
 		}
 	}
 
+	constexpr void random(const uint32_t tid) noexcept {
+		const size_t start = start_pos(tid);
+		const size_t end = end_pos(tid);
+		for (size_t i = start; i < end; ++i) {
+			__data[i].random();
+		}
+	}
+
 	constexpr void random(MatrixType &m) noexcept {
 		for (size_t i = 0; i < size(); ++i) {
 			__data[i].random(&m);

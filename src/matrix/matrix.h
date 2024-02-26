@@ -61,8 +61,8 @@ concept MatrixAble = requires(MatrixType c) {
 		c.fill(i);
 		c.random();
 
-		c.weight_column(i);
-		c.weight_row(i);
+		c.column_popcnt(i);
+		c.row_popcnt(i);
 
 		MatrixType::augment(c, c);
 
@@ -362,8 +362,8 @@ public:
 	}
 
 	/// direct transpose of the full matrix
-	constexpr FqMatrix_Meta<T, ncols, nrows, q> transpose() const noexcept {
-		FqMatrix_Meta<T, ncols, nrows, q> ret;
+	constexpr FqMatrix_Meta<T, ncols, nrows, q, packed> transpose() const noexcept {
+		FqMatrix_Meta<T, ncols, nrows, q, packed> ret;
 		ret.zero();
 		for (uint32_t row = 0; row < nrows; ++row) {
 			for (uint32_t col = 0; col < ncols; ++col) {
@@ -568,7 +568,8 @@ public:
 			bool found = false;
 
 			// find a column in which a one is found
-			for (uint32_t col = b; col < ncols; ++col) {
+			// -1 because of the syndrome
+			for (uint32_t col = b; col < ncols - 1; ++col) {
 				for (uint32_t row = b; row < b + 1; row++) {
 					if (get(row, col) == 1u) {
 						found = true;
@@ -994,18 +995,17 @@ public:
 	/// \param permutation given permutation (is overwritten)
 	/// \param len length of the permutation
 	constexpr void permute_cols(FqMatrix_Meta<T, ncols, nrows, q, packed> &AT,
-	                            uint32_t *permutation,
-	                            const uint32_t len) noexcept {
-		ASSERT(ncols >= len);
+	                            Permutation &P) noexcept {
+		ASSERT(ncols >= P.length);
 
 		this->transpose(AT, *this, 0, 0);
-		for (uint32_t i = 0; i < len; ++i) {
-			uint32_t pos = fastrandombytes_uint64() % (len - i);
-			ASSERT(i + pos < len);
+		for (uint32_t i = 0; i < P.length; ++i) {
+			uint32_t pos = fastrandombytes_uint64() % (P.length - i);
+			ASSERT(i + pos < P.length);
 
-			auto tmp = permutation[i];
-			permutation[i] = permutation[i + pos];
-			permutation[pos + i] = tmp;
+			auto tmp = P.values[i];
+			P.values[i] = P.values[i + pos];
+			P.values[pos + i] = tmp;
 
 			AT.swap_rows(i, i + pos);
 		}
@@ -1017,15 +1017,14 @@ public:
 	/// \param permutation
 	/// \param len
 	/// \return
-	constexpr void permute_cols(uint32_t *permutation,
-	                            const uint32_t len) noexcept {
-		for (uint32_t i = 0; i < len; ++i) {
-			uint32_t pos = fastrandombytes_uint64() % (len - i);
-			ASSERT(i + pos < len);
+	constexpr void permute_cols(Permutation &P) noexcept {
+		for (uint32_t i = 0; i < P.length; ++i) {
+			uint32_t pos = fastrandombytes_uint64() % (P.length - i);
+			ASSERT(i + pos < P.length);
 
-			auto tmp = permutation[i];
-			permutation[i] = permutation[i + pos];
-			permutation[pos + i] = tmp;
+			auto tmp = P.values[i];
+			P.values[i] = P.values[i + pos];
+			P.values[pos + i] = tmp;
 
 			swap_cols(i, i + pos);
 		}
@@ -1064,10 +1063,42 @@ public:
 		return ret;
 	}
 
+	/// \param in1
+	/// \param in2
+	/// \return
+	template<typename Tprime,
+			const uint32_t nrows_prime,
+			const uint32_t ncols_prime>
+	constexpr static FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, true>
+	augment(FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, true> &ret,
+			const FqMatrix_Meta &in1,
+			const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, q, true> &in2) noexcept {
+		/// NOTE: we allow not equally sized matrices to augment,
+		/// but the augmented matrix we be zero extended
+		static_assert(nrows_prime <= nrows);
+		ret.clear();
+
+		for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t j = 0; j < ncols; ++j) {
+				const T data = in1.get(i, j);
+				ret.set(data, i, j);
+			}
+		}
+
+		for (uint32_t i = 0; i < nrows_prime; ++i) {
+			for (uint32_t j = 0; j < ncols_prime; ++j) {
+				const T data = in2.get(i, j);
+				ret.set(data, i, ncols + j);
+			}
+		}
+
+		return ret;
+	}
+
 	/// compute the hamming weight of a column
 	/// \param col column
 	/// \return hamming weight
-	[[nodiscard]] constexpr inline uint32_t weight_column(const uint32_t col) const noexcept {
+	[[nodiscard]] constexpr inline uint32_t column_popcnt(const uint32_t col) const noexcept {
 		ASSERT(col < ncols);
 		uint32_t weight = 0;
 		for (uint32_t i = 0; i < nrows; ++i) {
@@ -1080,7 +1111,7 @@ public:
 	/// compute the hamming weight of a row
 	/// \param row
 	/// \return hamming weight
-	[[nodiscard]] constexpr inline uint32_t weight_row(const uint32_t row) const noexcept {
+	[[nodiscard]] constexpr inline uint32_t row_popcnt(const uint32_t row) const noexcept {
 		ASSERT(row < nrows);
 		uint32_t weight = 0;
 		for (uint32_t i = 0; i < ncols; ++i) {
@@ -1243,6 +1274,10 @@ public:
 
 	/// \return the number of `T` each row is made of
 	[[nodiscard]] constexpr uint32_t limbs_per_row() const noexcept {
+		return RowType::internal_limbs;
+	}
+
+	[[nodiscard]] static constexpr uint32_t limbs() noexcept {
 		return RowType::internal_limbs;
 	}
 };
