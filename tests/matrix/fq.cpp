@@ -417,14 +417,11 @@ TEST(FqMatrix, gaus) {
 TEST(FqMatrix, permute) {
 	M m = M{};
 	MT mt = MT{};
-	uint32_t perms[ncols];
-	for (uint32_t i = 0; i < ncols; ++i) {
-		perms[i] = i;
-	}
+	Permutation P(ncols);
 
 	m.identity();
 	mt.identity();
-	m.permute_cols(mt, perms, ncols);
+	m.permute_cols(mt, P);
 
 	// m.print();
 	// mt.print();

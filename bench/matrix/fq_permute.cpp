@@ -24,7 +24,7 @@ B63_BASELINE(permute_with_transpose, nn) {
 
 	uint64_t keep = 0;
 	for (uint64_t i = 0; i < nn; i++) {
-		m.permute_cols(mt, P.values, ncols);
+		m.permute_cols(mt, P);
 		keep += m.get(i%nrows, 10);
 		keep += P.values[i%ncols];
 	}
@@ -40,7 +40,7 @@ B63_BENCHMARK(permute_without, nn) {
 
 	uint64_t keep = 0;
 	for (uint64_t i = 0; i < nn; i++) {
-		m.permute_cols(P.values, ncols);
+		m.permute_cols(P);
 		keep += m.get(i%nrows, 10);
 		keep += P.values[i%ncols];
 	}
