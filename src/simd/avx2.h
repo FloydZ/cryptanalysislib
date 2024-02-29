@@ -1243,7 +1243,6 @@ struct uint32x8_t {
 	/// 			uint32x8_t::permute(in, permutation_mask) will result int
 	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
 	[[nodiscard]] static inline uint32x8_t pack(const uint32_t mask) noexcept {
-
 		uint32x8_t ret;
 		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
 		expanded_mask *= 0xFFU;

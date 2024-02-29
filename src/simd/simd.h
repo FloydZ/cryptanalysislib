@@ -1274,6 +1274,18 @@ struct uint32x8_t {
 
 		return ret;
 	}
+
+
+	/// input:
+	/// 	mask: 0b010101010
+	/// output: a permutation mask s.t, applied on in =  [ x0, x1, x2, x3, x4, x5, x6, x7 ],
+	/// 			uint32x8_t::permute(in, permutation_mask) will result int
+	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
+	[[nodiscard]] static inline uint32x8_t pack(const uint32_t mask) noexcept {
+		uint32x8_t ret;
+		// TODO
+		return ret;
+	}
 };
 
 struct uint64x4_t {

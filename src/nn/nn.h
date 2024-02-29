@@ -68,21 +68,21 @@ public:
 
 	///
 	/// helper function, only printing the internal parameters
-	constexpr void print() const noexcept {
+	void print() const noexcept {
 		std::cout
-		        << "n: " << n
-		        << ",r: " << r
-		        << ",N " << N
-		        << ",k " << k
-		        << ",|L|: " << LIST_SIZE
-		        << ", dk: " << dk
-		        << ", dk_bruteforce_size: " << dk_bruteforce_size
-		        << ", dk_bruteforce_weight: " << dk_bruteforce_weight
-		        << ", d: " << d
-		        << ", e: " << epsilon
-		        << ", bf: " << BRUTEFORCE_THRESHOLD
-		        << ", k: " << n / r
-		        << "\n";
+		        << "{ \"n\": " << n
+		        << ", \"r\": " << r
+		        << ", \"N\":" << N
+		        << ", \"k\":" << k
+		        << ", \"|L|\": " << LIST_SIZE
+		        << ", \"dk\n:" << dk
+		        << ", \"dk_bruteforce_size\": " << dk_bruteforce_size
+		        << ", \"dk_bruteforce_weight\": " << dk_bruteforce_weight
+		        << ", \"d\": " << d
+		        << ", \"e\": " << epsilon
+		        << ", \"bf\": " << BRUTEFORCE_THRESHOLD
+		        << ", \"k\": " << n / r
+		        << std::endl;
 	}
 };
 
