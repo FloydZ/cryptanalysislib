@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <utility>
+#include <array>
 
 #include "atomic_primitives.h"
 #include "container/hashmap/common.h"

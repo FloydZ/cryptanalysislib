@@ -5,6 +5,11 @@
 #include <stdlib.h>
 #include <type_traits>
 
+#include "math/log.h"
+#include "popcount/popcount.h"
+
+using namespace cryptanalysislib::popcount;
+
 template<typename T = uint64_t,
          const uint32_t l = 0,
          const uint32_t h = 8u * sizeof(T),
@@ -31,7 +36,7 @@ public:
 			/// \return bucket index in the hashmap (so only l positions are hashed)
 
 			/// trivial case: q is a power of two
-			if constexpr (popcount::popcount(q) == 1) {
+			if constexpr (cryptanalysislib::popcount::popcount(q) == 1) {
 				constexpr T mask = (1ull << (l*qbits)) - 1ull;
 				return a&mask;
 			}

@@ -375,4 +375,23 @@ void next2(uint32_t *c1, uint32_t *c2) {
 }
 
 
+template<const uint32_t n, const uint32_t p>
+void next1(uint32_t *c1, uint32_t *c2) {
+	*c1 += 1;
+	*c2 += 1;
+}
+
+template<const uint32_t n, const uint32_t p>
+void next_chase(uint32_t *c1, uint32_t *c2) {
+	static_assert(p > 0);
+	static_assert(n > p);
+	if constexpr (p == 1) {
+		next1<n, p>(c1, c2);
+	} else if constexpr (p == 2) {
+		next2<n, p>(c1, c2);
+	} else if constexpr (p == 3) {
+		next3<n, p>(c1, c2);
+	}
+}
+
 #endif//CRYPTANALYSISLIB_CHASE_H
