@@ -35,4 +35,11 @@ vector extensions the following specialisations are provides which wrap:
 - `T=uint16_t`: `uint16x8_t`, `uint16x16_t`
 - `T=uint32_t`: `uint32x4_t`, `uint32x8_t`
 - `T=uint64_t`: `uint64x2_t`, `uint64x4_t`
+ 
 
+ TODO:
+ =====
+
+ - riscv backeend
+ - uint16x8, uint8x16_t in neon, avx
+ - cvtepu8 in neon und noch mehr zero extend
