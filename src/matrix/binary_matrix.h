@@ -1330,7 +1330,6 @@ public:
 			/// directly swap it back if its in the information set.
 			if (perm[i] < max_row) {
 				swap_rows(i, perm[i]);
-				std::swap(P.values[i], P.values[perm[i]]);
 			}
 		}
 
@@ -1389,12 +1388,14 @@ public:
 				}
 			}
 
-			/// this is really slow. maybe not so goot idea
+			/// this is really slow. maybe not so good idea
 			if (!found) {
 				/// pivoting second try
 				for (uint32_t j = max_row; j < ncols; ++j) {
 					if (get(i + c, j) == 1u) {
 						swap_cols(j, i + c);
+						std::swap(P.values[j], P.values[i + c]);
+
 						found = true;
 						break;
 					}

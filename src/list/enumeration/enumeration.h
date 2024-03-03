@@ -167,7 +167,8 @@ public:
 	/// \param list_size
 	/// \param syndrome
 	constexpr ListEnumeration_Meta(const Matrix &HT,
-	                               const Label *syndrome = nullptr) : HT(HT), syndrome(syndrome) {
+	                               const Label *syndrome = nullptr)
+	    : HT(HT), syndrome(syndrome) {
 		/// some sanity checks
 		/// NOTE: its allowed to call this class with `w=0`, which is needed for Prange
 		static_assert(n > w);

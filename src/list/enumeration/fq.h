@@ -252,8 +252,9 @@ public:
 	/// \param syndrome additional element which is added to all list elements
 	ListEnumerateMultiFullLength(const Matrix &HT,
 	                             const size_t list_size = 0,
-	                             const Label *syndrome = nullptr) : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	                                                                list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+	                             const Label *syndrome = nullptr)
+	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+	      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 
 		static_assert(chase_size >= 0);
 		static_assert(gray_size >= 0);

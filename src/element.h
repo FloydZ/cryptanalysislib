@@ -69,12 +69,12 @@ concept LabelAble = requires(Container c) {
 		Container::scalar_T(a, a);
 		Container::popcnt_T(a);
 
-		// simd stuff
-		Container::add256_T(b, b);
-		Container::sub256_T(b, b);
-		Container::mod256_T(b);
-		Container::mul256_T(b, b);
-		Container::neg256_T(b);
+		// simd stuff // TODO
+		//Container::add256_T(b, b);
+		//Container::sub256_T(b, b);
+		//Container::mod256_T(b);
+		//Container::mul256_T(b, b);
+		//Container::neg256_T(b);
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
@@ -139,12 +139,12 @@ concept ValueAble = requires(Container c) {
 		Container::scalar_T(a, a);
 		Container::popcnt_T(a);
 
-		// simd stuff
-		Container::add256_T(b, b);
-		Container::sub256_T(b, b);
-		Container::mod256_T(b);
-		Container::mul256_T(b, b);
-		Container::neg256_T(b);
+		// simd stuff // TODO
+		//Container::add256_T(b, b);
+		//Container::sub256_T(b, b);
+		//Container::mod256_T(b);
+		//Container::mul256_T(b, b);
+		//Container::neg256_T(b);
 	};
 
 	// we also have to enforce the existence of some constexpr functions.

@@ -120,6 +120,10 @@ public:
 		}
 	}
 
+	constexpr inline load_type load_ptr() noexcept {
+		return __internal_load_array;
+	}
+
 	///
 	/// \return
 	constexpr inline valueType *ptr() noexcept {
