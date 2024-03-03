@@ -32,11 +32,11 @@ public:
 
 	/// checks whether the Blk of memory is valid or not
 	/// \returns false if either ptr == nullptr or the length is zero.
-	constexpr bool valid() {
+	constexpr bool valid() const noexcept {
 		return (ptr != nullptr) && (len != 0);
 	}
 
-	friend std::ostream &operator<<(std::ostream &os, Blk const &tc) {
+	friend std::ostream &operator<<(std::ostream &os, Blk const &tc) noexcept {
 		return os << tc.ptr << ":" << tc.len;
 	}
 };

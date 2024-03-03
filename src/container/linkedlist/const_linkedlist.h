@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_CONST_LINKEDLIST_H
 
 #include <atomic>
+#include <cstdlib>
 
 /// Source:
 ///  https://www.cs.purdue.edu/homes/xyzhang/fall14/lock_free_set.pdf
@@ -48,8 +49,12 @@ private:
 			return tmp;
 		}
 
-		friend bool operator==(const Iterator &a, const Iterator &b) { return a.m_ptr == b.m_ptr; };
-		friend bool operator!=(const Iterator &a, const Iterator &b) { return a.m_ptr != b.m_ptr; };
+		friend bool operator==(const Iterator &a, const Iterator &b) { 
+			return a.m_ptr == b.m_ptr;
+		};
+		friend bool operator!=(const Iterator &a, const Iterator &b) {
+			return a.m_ptr != b.m_ptr; 
+		};
 
 	private:
 		internal_pointer m_ptr;
@@ -107,7 +112,7 @@ public:
 		return 0;
 	}
 
-	/// insert sorted
+	/// insert unsorted
 	/// returns zero on success, cannot fail
 	constexpr int insert(const T &data) noexcept {
 		return insert_front(data);
@@ -126,8 +131,8 @@ public:
 		__size = 0;
 	}
 
-	constexpr size_t size() noexcept { return __size; }
-	constexpr void print() noexcept {
+	constexpr size_t size() const noexcept { return __size; }
+	constexpr void print() const noexcept {
 		auto next = head.load();
 		while (next != nullptr) {
 			std::cout << next->data << "\n";

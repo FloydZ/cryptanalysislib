@@ -66,7 +66,9 @@ concept ListAble = requires(List l) {
 	typename List::ElementType;
 
 	/// insert//append stuff
-	requires requires(const size_t pos, const uint32_t tid, const typename List::ElementType &e) {
+	requires requires(const size_t pos, 
+			const uint32_t tid, 
+			const typename List::ElementType &e) {
 		l.insert(e, pos, tid);
 	};
 

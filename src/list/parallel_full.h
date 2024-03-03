@@ -199,11 +199,13 @@ public:
 
 		const auto dist = distance(__data.begin(), r);
 
-		if (r == __data.end())
+		if (r == __data.end()) {
 			return -1;// nothing found
+		}
 
-		if (!__data[dist].is_equal(e, k_lower, k_higher))
+		if (!__data[dist].is_equal(e, k_lower, k_higher)) {
 			return -1;
+		}
 
 		return dist;
 	}

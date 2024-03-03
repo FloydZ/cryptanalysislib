@@ -98,7 +98,8 @@ public:
 	constexpr static size_t chase_size = bc(n, w);
 
 	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
-	constexpr static inline void WRITE_BIT(T *v, const size_t i, const uint64_t b) noexcept {
+	constexpr static inline void WRITE_BIT(T *v, 
+			const size_t i, const uint64_t b) noexcept {
 		v[i / RADIX] = ((v[i / RADIX] & ~(1ull << (i % RADIX))) | (T(b) << (i % RADIX)));
 	}
 
@@ -374,13 +375,14 @@ void next2(uint32_t *c1, uint32_t *c2) {
 	return;
 }
 
-
+///
 template<const uint32_t n, const uint32_t p>
 void next1(uint32_t *c1, uint32_t *c2) {
 	*c1 += 1;
 	*c2 += 1;
 }
 
+///
 template<const uint32_t n, const uint32_t p>
 void next_chase(uint32_t *c1, uint32_t *c2) {
 	static_assert(p > 0);

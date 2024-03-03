@@ -5,8 +5,7 @@
 
 
 #include "../test.h"
-#include "container/linkedlist/const_linkedlist.h"
-#include "container/linkedlist/linkedlist.h"
+#include "container/linkedlist.h"
 #include "helper.h"
 #include "kAry_type.h"
 
