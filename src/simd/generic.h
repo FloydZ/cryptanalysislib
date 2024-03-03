@@ -4,6 +4,7 @@
 #ifndef CRYPTANALYSISLIB_SIMD_H
 #error "dont inlcude this file. Use `#include \"simd/simd.h\"`."
 #endif
+
 #include <type_traits>
 
 #include "popcount/popcount.h"
@@ -19,11 +20,11 @@ public:
 	constexpr static uint32_t LIMBS = N;
 	using limb_type = T;
 
-	constexpr static size_t lb = sizeof(T);
-	constexpr static size_t limb_bits = sizeof(T) * 8;
-	constexpr static size_t total_bits = limb_bits * N;
-	constexpr static size_t simd256_limbs = total_bits / 256;
-	constexpr static size_t simd512_limbs = total_bits / 512;
+	constexpr static std::size_t lb = sizeof(T);
+	constexpr static std::size_t limb_bits = sizeof(T) * 8;
+	constexpr static std::size_t total_bits = limb_bits * N;
+	constexpr static std::size_t simd256_limbs = total_bits / 256;
+	constexpr static std::size_t simd512_limbs = total_bits / 512;
 
 	constexpr static uint32_t nr_limbs_in_simd256 = 256 / limb_bits;
 	constexpr static uint32_t nr_limbs_in_simd512 = 512 / limb_bits;
@@ -86,7 +87,8 @@ public:
 		}
 		printf("\n");
 	}
-	static inline TxN_t random() noexcept {
+	
+	[[nodiscard]] static inline TxN_t random() noexcept {
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = fastrandombytes_uint64();
