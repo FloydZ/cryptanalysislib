@@ -40,9 +40,22 @@ namespace internal {
 
 
 namespace cryptanalysislib {
+	struct _uint16x8_t;
+	struct _uint32x4_t;
+	struct _uint64x2_t;
+
 	struct _uint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
+
+		constexpr inline _uint8x16_t& operator=(const _uint16x8_t& b) noexcept;
+		constexpr inline _uint8x16_t& operator=(const _uint32x4_t& b) noexcept;
+		constexpr inline _uint8x16_t& operator=(const _uint64x2_t& b) noexcept;
+
+		constexpr _uint8x16_t() noexcept {}
+		constexpr _uint8x16_t(const _uint16x8_t &b) noexcept;
+		constexpr _uint8x16_t(const _uint32x4_t &b) noexcept;
+		constexpr _uint8x16_t(const _uint64x2_t &b) noexcept;
 
 		union {
 			// compatibility to `TxN_t`
@@ -149,6 +162,15 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 8;
 		using limb_type = uint16_t;
 
+		constexpr inline _uint16x8_t& operator=(const _uint8x16_t& b) noexcept;
+		constexpr inline _uint16x8_t& operator=(const _uint32x4_t& b) noexcept;
+		constexpr inline _uint16x8_t& operator=(const _uint64x2_t& b) noexcept;
+
+		constexpr _uint16x8_t() noexcept {}
+		constexpr _uint16x8_t(const _uint8x16_t &b) noexcept;
+		constexpr _uint16x8_t(const _uint32x4_t &b) noexcept;
+		constexpr _uint16x8_t(const _uint64x2_t &b) noexcept;
+
 		union {
 			// compatibility to `TxN_t`
 			uint16_t d[8];
@@ -225,9 +247,19 @@ namespace cryptanalysislib {
 			return ret;
 		}
 	};
+
 	struct _uint32x4_t {
 		constexpr static uint32_t LIMBS = 4;
 		using limb_type = uint32_t;
+
+		constexpr inline _uint32x4_t& operator=(const _uint8x16_t& b) noexcept;
+		constexpr inline _uint32x4_t& operator=(const _uint16x8_t& b) noexcept;
+		constexpr inline _uint32x4_t& operator=(const _uint64x2_t& b) noexcept;
+
+		constexpr _uint32x4_t() noexcept {}
+		constexpr _uint32x4_t(const _uint8x16_t &b) noexcept;
+		constexpr _uint32x4_t(const _uint16x8_t &b) noexcept;
+		constexpr _uint32x4_t(const _uint64x2_t &b) noexcept;
 
 		union {
 			uint8_t v8[16];
@@ -282,6 +314,15 @@ namespace cryptanalysislib {
 	struct _uint64x2_t {
 		constexpr static uint32_t LIMBS = 2;
 		using limb_type = uint64_t;
+
+		constexpr inline _uint64x2_t& operator=(const _uint8x16_t& b) noexcept;
+		constexpr inline _uint64x2_t& operator=(const _uint16x8_t& b) noexcept;
+		constexpr inline _uint64x2_t& operator=(const _uint32x4_t& b) noexcept;
+
+		constexpr _uint64x2_t() noexcept {}
+		constexpr _uint64x2_t(const _uint8x16_t &b) noexcept;
+		constexpr _uint64x2_t(const _uint16x8_t &b) noexcept;
+		constexpr _uint64x2_t(const _uint32x4_t &b) noexcept;
 
 		union {
 			uint8_t v8[16];
@@ -1044,7 +1085,7 @@ struct uint32x8_t {
 	///
 	/// \return
 	[[nodiscard]] static inline uint32x8_t random() noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 		for (size_t i = 0; i < 4; ++i) {
 			ret.v64[i] = fastrandombytes_uint64();
 		}
@@ -1074,7 +1115,7 @@ struct uint32x8_t {
 	                                                     const uint32_t a5,
 	                                                     const uint32_t a6,
 	                                                     const uint32_t a7) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		out.v256 = __extension__(__m256i)(__v8si){(int) a7, (int) a6, (int) a5, (int) a4, (int) a3, (int) a2, (int) a1, (int) a0};
 		return out;
 	}
@@ -1124,7 +1165,7 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const void *ptr) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		auto *ptr256 = (__m256i *) ptr;
 		out.v256 = *ptr256;
 		return out;
@@ -1134,7 +1175,7 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const void *ptr) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		__m256i_u const *ptr256 = (__m256i_u const *) ptr;
 		const __m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
 		out.v256 = tmp;
@@ -1177,7 +1218,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t xor_(const uint32x8_t in1,
 	                                                      const uint32x8_t in2) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		out.v256 = in1.v256 ^ in2.v256;
 		return out;
 	}
@@ -1188,7 +1229,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t and_(const uint32x8_t in1,
 	                                                      const uint32x8_t in2) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		out.v256 = in1.v256 & in2.v256;
 		return out;
 	}
@@ -1199,7 +1240,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t or_(const uint32x8_t in1,
 	                                                     const uint32x8_t in2) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		out.v256 = in1.v256 | in2.v256;
 		return out;
 	}
@@ -1210,7 +1251,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t andnot(const uint32x8_t in1,
 	                                                        const uint32x8_t in2) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		out.v256 = (__m256i) (~(__v4du) in1.v256 & (__v4du) in2.v256);
 		return out;
 	}
@@ -1219,7 +1260,7 @@ struct uint32x8_t {
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t not_(const uint32x8_t in1) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		constexpr uint32x8_t minus_one = uint32x8_t::set1(-1);
 		out.v256 = in1.v256 ^ minus_one.v256;
 		return out;
@@ -1231,7 +1272,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t add(const uint32x8_t in1,
 	                                                     const uint32x8_t in2) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		out.v256 = (__m256i) ((__v8su) in1.v256 + (__v8su) in2.v256);
 		return out;
 	}
@@ -1242,7 +1283,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t sub(const uint32x8_t in1,
 	                                                     const uint32x8_t in2) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		out.v256 = (__m256i) ((__v8su) in1.v256 - (__v8su) in2.v256);
 		return out;
 	}
@@ -1253,7 +1294,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t mullo(const uint32x8_t in1,
 	                                                       const uint32x8_t in2) noexcept {
-		uint32x8_t out;
+		uint32x8_t out{};
 		out.v256 = (__m256i) ((__v8su) in1.v256 * (__v8su) in2.v256);
 		return out;
 	}
@@ -1275,7 +1316,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t slli(const uint32x8_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
-		uint32x8_t out;
+		uint32x8_t out{};
 		//uint32x8_t mask = set1((1u << in2) - 1u);
 		//out = uint32x8_t::and_(in1, mask);
 #ifndef __clang__
@@ -1294,7 +1335,7 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		//const uint32x8_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
-		uint32x8_t out;
+		uint32x8_t out{};
 		//out = uint32x8_t::and_(in1, mask);
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrldi256((__v8si) in1.v256, in2);
@@ -1310,7 +1351,7 @@ struct uint32x8_t {
 	/// \return in1 > in2 uncompress
 	[[nodiscard]] constexpr static inline uint32x8_t gt_(const uint32x8_t in1,
 	                                                     const uint32x8_t in2) noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 		ret.v256 = (__m256i) ((__v8si) in1.v256 > (__v8si) in2.v256);
 		return ret;
 	}
@@ -1330,7 +1371,7 @@ struct uint32x8_t {
 	/// \return in1 == in2 uncompress
 	[[nodiscard]] constexpr static inline uint32x8_t cmp_(const uint32x8_t in1,
 	                                                      const uint32x8_t in2) noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 		ret.v256 = (__m256i) ((__v8si) in1.v256 == (__v8si) in2.v256);
 		return ret;
 	}
@@ -1352,7 +1393,7 @@ struct uint32x8_t {
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t popcnt(const uint32x8_t in) noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 
 #ifdef USE_AVX512
 #ifndef __clang__
@@ -1372,7 +1413,7 @@ struct uint32x8_t {
 	/// \return
 	template<const uint32_t scale = 1>
 	[[nodiscard]] constexpr static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 
 #ifndef __clang__
 		ret.v256 = (__m256i) __builtin_ia32_gathersiv8si((__v8si) _mm256_setzero_si256(),
@@ -1406,7 +1447,7 @@ struct uint32x8_t {
 	/// \param perm
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in, const uint32x8_t perm) noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((__v8si) in.v256, (__v8si) perm.v256);
 		return ret;
 	}
@@ -1427,7 +1468,7 @@ struct uint32x8_t {
 	/// 			uint32x8_t::permute(in, permutation_mask) will result int
 	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
 	[[nodiscard]] static inline uint32x8_t pack(const uint32_t mask) noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
 		expanded_mask *= 0xFFU;
 		const uint64_t identity_indices = 0x0706050403020100;
@@ -1440,7 +1481,7 @@ struct uint32x8_t {
 
 
 	[[nodiscard]] static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 		ret.v256 = _mm256_cvtepu8_epi32(in.v128);
 		return ret;
 	}

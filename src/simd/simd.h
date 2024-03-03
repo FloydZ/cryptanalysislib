@@ -1598,7 +1598,8 @@ struct uint64x4_t {
 	/// \return
 	[[nodiscard]] static inline uint64x4_t random() noexcept {
 		uint64x4_t ret;
-		for (uint32_t i = 0; i < 4; i++) {			ret.v64[i] = fastrandombytes_uint64();
+		for (uint32_t i = 0; i < 4; i++) {
+			ret.v64[i] = fastrandombytes_uint64();
 		}
 
 		return ret;

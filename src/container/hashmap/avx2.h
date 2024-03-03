@@ -191,7 +191,7 @@ public:
 	void insert_simd(const T &data,
 	                 const T &index) noexcept {
 		const T bid = HashAVX<low, high>(data);
-		T bucket_index, inner_bucket_index, load;
+		T bucket_index{}, inner_bucket_index{}, load{};
 		bucket_offset_avx(bucket_index, inner_bucket_index, bid, load);
 
 		for (uint32_t i = 0; i < nr_elements_container; i++) {

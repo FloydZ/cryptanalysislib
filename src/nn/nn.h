@@ -2316,7 +2316,7 @@ public:
 		/// difference of the memory location in the right list
 		constexpr uint32x8_t loadr1 = uint32x8_t::setr(0u, 8u, 16u, 24u, 32u, 40u, 48u, 56u);
 		constexpr uint32x8_t loadr_add = uint32x8_t::set1(1u);
-		uint32x8_t loadr;
+		uint32x8_t loadr{};
 
 		alignas(32) uint32x8_t li[u * 8u];
 		alignas(32) uint32_t m1s[8] = {0};// this clearing is important

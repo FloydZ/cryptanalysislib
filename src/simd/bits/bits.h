@@ -30,49 +30,6 @@ constexpr inline T pdep(const T a, const T mask) noexcept {
 	return dst;
 }
 
-#ifdef USE_AVX2
-/// \param mask
-/// \return an avx register containing the i-th bit of the input zero extend to 32bits
-// 				in the i-th 32bit limb
-inline __m256i bit_mask_64_avx2(const uint64_t mask) noexcept {
-	ASSERT(mask < (1u << 8u));
-
-	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
-	expanded_mask *= 0xFFU;
-	// the identity shuffle for vpermps, packed to one index per byte
-	const uint64_t identity_indices = 0x0706050403020100;
-	uint64_t wanted_indices = identity_indices & expanded_mask;
-
-	// copies the input into the lower 64bits of the sse register
-	const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
-	// Zero extend packed unsigned 8-bit integers in "a" to packed
-	// 32-bit integers, and store the results in "dst".
-	const __m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
-	return shufmask;
-}
-#endif
-
-/// \param mask
-/// \return an avx register containing the i-th bit of the input zero extend to 32bits
-// 				in the i-th 32bit limb
-constexpr inline uint32x8_t bit_mask_64(const uint64_t mask) noexcept {
-	ASSERT(mask < (1u << 8u));
-
-	uint64_t expanded_mask = pdep<uint64_t>(mask, 0x0101010101010101);
-	expanded_mask *= 0xFFU;
-	// the identity shuffle for vpermps, packed to one index per byte
-	const uint64_t identity_indices = 0x0706050403020100;
-	uint64_t wanted_indices = identity_indices & expanded_mask;
-
-	// copies the input into the lower 64bits of the sse register
-	cryptanalysislib::_uint64x2_t bytevec;
-	bytevec[0] = wanted_indices;
-
-	const cryptanalysislib::_uint8x16_t bytevec2 = bytevec;
-	// Zero extend packed unsigned 8-bit integers in "a" to packed
-	// 32-bit integers, and store the results in "dst".
-	uint32x8_t shufmask = uint32x8_t::cvtepu8(bytevec2);
-	return shufmask;
-}
+// TODO
 // using _pdep_u32 = pdep<uint32_t>;
 #endif

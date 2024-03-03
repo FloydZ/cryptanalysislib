@@ -32,7 +32,7 @@ struct f32x8_t {
 	}
 
 	constexpr static inline uint32x8_t uint32x8(const f32x8_t in) noexcept {
-		uint32x8_t ret;
+		uint32x8_t ret{};
 		ret.v256 = (__m256i) __builtin_ia32_cvtps2dq256((__v8sf) in.v);
 		return ret;
 	}
