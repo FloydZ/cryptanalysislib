@@ -58,8 +58,23 @@ B63_BENCHMARK(VergeSort, nn) {
 	}
 
 	vergesort::vergesort(data.begin(), data.end(), [](const T &in1, const T &in2) {
-		return in1.is_greater<k_lower, k_higher>(in2);
+	  return in1.is_greater<k_lower, k_higher>(in2);
 	});
+	B63_KEEP(data[0].data()[0]);
+}
+
+B63_BENCHMARK(TimSort, nn) {
+	std::vector<T> data;
+	B63_SUSPEND {
+		data.resize(SIZE_LIST);
+		for (size_t i = 0; i < nn; ++i) {
+			data[i].random();
+		}
+	}
+
+	gfx::timsort(data.begin(), data.end(), [](const T &in1, const T &in2) {
+		return in1.is_greater<k_lower, k_higher>(in2);
+	}, {});
 	B63_KEEP(data[0].data()[0]);
 }
 

@@ -8,28 +8,237 @@
 #include "random.h"
 
 namespace cryptanalysislib {
+	struct _uint8x16_t {
+		constexpr static uint32_t LIMBS = 16;
+		using limb_type = uint8_t;
+
+		union {
+			// compatibility to `TxN_t`
+			uint8_t d[16];
+
+			uint8_t v8[16];
+			uint16_t v16[8];
+			uint32_t v32[4];
+			uint64_t v64[2];
+		};
+
+		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		///
+		/// \return
+		static inline _uint8x16_t random() noexcept {
+			_uint8x16_t ret;
+			for (uint32_t i = 0; i < 2; i++) {
+				ret.v64[i] = fastrandombytes_uint64();
+			}
+
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint8x16_t set(
+				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+			_uint8x16_t ret;
+			ret.v32[0] = d;
+			ret.v32[1] = c;
+			ret.v32[2] = b;
+			ret.v32[3] = a;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint8x16_t setr(
+				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+			_uint8x16_t ret;
+			ret.v32[0] = a;
+			ret.v32[1] = b;
+			ret.v32[2] = c;
+			ret.v32[3] = d;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint8x16_t set(
+				uint8_t a, uint8_t b, uint8_t c, uint8_t d,
+				uint8_t e, uint8_t f, uint8_t g, uint8_t h,
+				uint8_t i, uint8_t j, uint8_t k, uint8_t l,
+				uint8_t m, uint8_t n, uint8_t o, uint8_t p
+		) noexcept {
+			_uint8x16_t ret;
+			ret.v8[ 0] = p;
+			ret.v8[ 1] = o;
+			ret.v8[ 2] = n;
+			ret.v8[ 3] = m;
+			ret.v8[ 4] = l;
+			ret.v8[ 5] = k;
+			ret.v8[ 6] = j;
+			ret.v8[ 7] = i;
+			ret.v8[ 8] = h;
+			ret.v8[ 9] = g;
+			ret.v8[10] = f;
+			ret.v8[11] = e;
+			ret.v8[12] = d;
+			ret.v8[13] = c;
+			ret.v8[14] = b;
+			ret.v8[15] = a;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint8x16_t setr(
+				uint8_t a, uint8_t b, uint8_t c, uint8_t d,
+				uint8_t e, uint8_t f, uint8_t g, uint8_t h,
+				uint8_t i, uint8_t j, uint8_t k, uint8_t l,
+				uint8_t m, uint8_t n, uint8_t o, uint8_t p
+		) noexcept {
+			_uint8x16_t ret;
+			ret.v8[ 0] = a;
+			ret.v8[ 1] = b;
+			ret.v8[ 2] = c;
+			ret.v8[ 3] = d;
+			ret.v8[ 4] = e;
+			ret.v8[ 5] = f;
+			ret.v8[ 6] = g;
+			ret.v8[ 7] = h;
+			ret.v8[ 8] = i;
+			ret.v8[ 9] = j;
+			ret.v8[10] = k;
+			ret.v8[11] = l;
+			ret.v8[12] = m;
+			ret.v8[13] = n;
+			ret.v8[14] = o;
+			ret.v8[15] = p;
+			return ret;
+		}
+	};
+
+	struct _uint16x8_t {
+		constexpr static uint32_t LIMBS = 8;
+		using limb_type = uint16_t;
+
+		union {
+			// compatibility to `TxN_t`
+			uint16_t d[8];
+
+			uint8_t v8[16];
+			uint16_t v16[8];
+			uint32_t v32[4];
+			uint64_t v64[2];
+		};
+
+		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		///
+		/// \return
+		static inline _uint16x8_t random() noexcept {
+			_uint16x8_t ret;
+			for (uint32_t i = 0; i < 2; i++) {
+				ret.v64[i] = fastrandombytes_uint64();
+			}
+
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint16x8_t set(
+				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+			_uint16x8_t ret;
+			ret.v32[0] = d;
+			ret.v32[1] = c;
+			ret.v32[2] = b;
+			ret.v32[3] = a;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint16x8_t setr(
+				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+			_uint16x8_t ret;
+			ret.v32[0] = a;
+			ret.v32[1] = b;
+			ret.v32[2] = c;
+			ret.v32[3] = d;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint16x8_t set(
+				uint16_t a, uint16_t b, uint16_t c, uint16_t d,
+				uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
+			_uint16x8_t ret;
+			ret.v16[0] = h;
+			ret.v16[1] = g;
+			ret.v16[2] = f;
+			ret.v16[3] = e;
+			ret.v16[4] = d;
+			ret.v16[5] = c;
+			ret.v16[6] = b;
+			ret.v16[7] = a;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint16x8_t setr(
+				uint16_t a, uint16_t b, uint16_t c, uint16_t d,
+				uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
+			_uint16x8_t ret;
+			ret.v64[0] = a;
+			ret.v64[1] = b;
+			ret.v64[2] = c;
+			ret.v64[3] = d;
+			ret.v64[4] = e;
+			ret.v64[5] = f;
+			ret.v64[6] = g;
+			ret.v64[7] = h;
+			return ret;
+		}
+	};
+
 	struct _uint32x4_t {
 		constexpr static uint32_t LIMBS = 4;
 		using limb_type = uint32_t;
 
 		union {
+			// compatibility to `TxN_t`
+			uint32_t d[4];
+
 			uint8_t v8[16];
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
-			uint32x4_t v128;
 		};
 
-		[[nodiscard]] constexpr static inline _uint32x4_t set1(uint32_t a) {
+		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		///
+		/// \return
+		static inline _uint32x4_t random() noexcept {
 			_uint32x4_t ret;
-			ret.v32[0] = a;
-			ret.v32[1] = a;
-			ret.v32[2] = a;
-			ret.v32[3] = a;
+			for (uint32_t i = 0; i < 2; i++) {
+				ret.v64[i] = fastrandombytes_uint64();
+			}
+
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint32x4_t set(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+		[[nodiscard]] constexpr static inline _uint32x4_t set(
+				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint32x4_t ret;
 			ret.v32[0] = d;
 			ret.v32[1] = c;
@@ -38,7 +247,8 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+		[[nodiscard]] constexpr static inline _uint32x4_t setr(
+				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint32x4_t ret;
 			ret.v32[0] = a;
 			ret.v32[1] = b;
@@ -47,14 +257,16 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint32x4_t set(uint64_t a, uint64_t b) {
+		[[nodiscard]] constexpr static inline _uint32x4_t set(
+				uint64_t a, uint64_t b) noexcept {
 			_uint32x4_t ret;
 			ret.v64[0] = b;
 			ret.v64[1] = a;
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint32x4_t setr(uint64_t a, uint64_t b) {
+		[[nodiscard]] constexpr static inline _uint32x4_t setr(
+				uint64_t a, uint64_t b) noexcept {
 			_uint32x4_t ret;
 			ret.v64[0] = a;
 			ret.v64[1] = b;
@@ -65,29 +277,47 @@ namespace cryptanalysislib {
 	struct _uint64x2_t {
 		constexpr static uint32_t LIMBS = 2;
 		using limb_type = uint64_t;
+
 		union {
+			uint64_t d[2];
+
 			uint8_t v8[16];
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
-			uint64x2_t v128;
 		};
 
-		[[nodiscard]] constexpr static inline _uint64x2_t set1(uint64_t a) {
+		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		///
+		/// \return
+		static inline _uint64x2_t random() noexcept {
 			_uint64x2_t ret;
-			ret.v64[0] = a;
-			ret.v64[1] = a;
+			for (uint32_t i = 0; i < 2; i++) {
+				ret.v64[i] = fastrandombytes_uint64();
+			}
+
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint64x2_t set(uint64_t a, uint64_t b) {
+		[[nodiscard]] constexpr static inline _uint64x2_t set(
+				uint64_t a, uint64_t b) noexcept{
 			_uint64x2_t ret;
 			ret.v64[0] = b;
 			ret.v64[1] = a;
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint64x2_t setr(uint64_t a, uint64_t b) {
+		[[nodiscard]] constexpr static inline _uint64x2_t setr(
+				uint64_t a, uint64_t b) noexcept {
 			_uint64x2_t ret;
 			ret.v64[0] = a;
 			ret.v64[1] = b;
@@ -238,7 +468,12 @@ struct uint8x32_t {
 		uint8x16_t v128[2];
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -1101,7 +1336,12 @@ struct uint32x8_t {
 		uint32x4_t v128[2];
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -1548,7 +1788,12 @@ struct uint64x4_t {
 		uint64x2_t v128[2];
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}

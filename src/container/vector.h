@@ -11,5 +11,5 @@
 /// \tparam T base type
 /// \tparam size number of elements
 template<typename T, const size_t size>
-using page_vector =std::vector<T, STDAllocatorWrapper<T, FreeListPageMallocator<1u << 12u, size> >>;
+using page_vector = std::vector<T, STDAllocatorWrapper<T, FreeListPageMallocator<1u << 12u, size> >>;
 #endif

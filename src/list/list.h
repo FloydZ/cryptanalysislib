@@ -80,16 +80,18 @@ public:
 	/// \param k_lower lower limit
 	/// \param k_higher higher limit
 	/// \return the position within the
-	constexpr inline uint64_t search_level_binary_simple(const Element &e,
-	                                                     const uint64_t k_lower,
-	                                                     const uint64_t k_higher) const noexcept {
+	constexpr inline uint64_t search_level_binary_simple(
+			const Element &e,
+	        const uint64_t k_lower,
+	        const uint64_t k_higher) const noexcept {
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
 		const uint64_t upper = T::round_down_to_limb(k_higher);
 		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
 		ASSERT(lower == upper);
 
-		auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
+		auto r = std::lower_bound(__data.begin(),
+				__data.begin() + load(), e,
 		                          [lower, mask](const Element &c1, const Element &c2) {
 			                          return c1.label.is_lower_simple2(c2.label, lower, mask);
 		                          });

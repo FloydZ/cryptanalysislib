@@ -15,7 +15,6 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-constexpr size_t TESTS = 100;
 
 TEST(TTuint8x32_t, TTrandom) {
 	uint8x32_t t1;

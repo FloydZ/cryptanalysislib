@@ -1,34 +1,16 @@
 #ifndef CRYPTANALYSISLIB_SIMD_SHUFFLE_H
 #define CRYPTANALYSISLIB_SIMD_SHUFFLE_H
 
-#ifndef USE_AVX2
-#error "no avx"
+#ifndef CRYPTANALYSISLIB_SIMD_H
+#error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
 
-#include <immintrin.h>
-
+#include <cstdint>
 #include "helper.h"
 
-/// \param mask
-/// \return an avx register containing the i-th bit of the input zero extend to 32bits
-// 				in the i-th 32bit limb
-inline __m256i bit_mask_64(const uint64_t mask) noexcept {
-	ASSERT(mask < (1u << 8u));
 
-	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
-	expanded_mask *= 0xFFU;
-	// the identity shuffle for vpermps, packed to one index per byte
-	const uint64_t identity_indices = 0x0706050403020100;
-	uint64_t wanted_indices = identity_indices & expanded_mask;
-
-	// copies the input into the lower 64bits of the sse register
-	const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
-	// Zero extend packed unsigned 8-bit integers in "a" to packed
-	// 32-bit integers, and store the results in "dst".
-	const __m256i shufmask = _mm256_cvtepu8_epi32(bytevec);
-	return shufmask;
-}
-
+#ifdef USE_AVX2
+#include <immintrin.h>
 /// returns a permutation that shuffles down a mask on 32bit limbs
 /// e.g INPUT: 0b10000001
 ///				<-    256    ->
@@ -173,4 +155,6 @@ const void shuffle_up_2_64(__m256i &higher, __m256i &lower, const uint64_t mask)
 	lower = _mm256_cvtepu8_epi64(bytevec1);
 	higher = _mm256_cvtepu8_epi64(bytevec2);
 }
+
+#endif
 #endif//DECODING_SHUFFLE_H

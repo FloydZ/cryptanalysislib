@@ -128,7 +128,7 @@ public:
 		ASSERT(0);
 	}
 
-	///
+	/// NOTE: single threaded
 	/// \tparam Hash hash function type, needed for the bucket sort
 	/// \param start start point= first element to sort
 	/// \param end  end point = last element to sort
@@ -138,7 +138,7 @@ public:
 		ska_sort(__data_value + start, __data_value + end, hash);
 	}
 
-	///
+	/// NOTE: single threded
 	/// \tparam Hash hash function type, needed for the bucket sort
 	/// \param tid thread id 
 	/// \param hash hash function

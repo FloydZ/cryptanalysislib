@@ -31,7 +31,7 @@ public:
 
 	/// set the internal load factor
 	/// \param l new load
-	void set_load(const size_t l) noexcept {
+	constexpr void set_load(const size_t l) noexcept {
 		ASSERT(l <= __size);
 		load = l;
 	}
@@ -48,18 +48,24 @@ public:
 		return thread_block; 
 	}
 
-	constexpr inline ElementType &at(const size_t i) noexcept {
+	/// NOTE: boundary checks are done
+	///
+	[[nodiscard]] constexpr inline ElementType &at(const size_t i) noexcept {
 		ASSERT(i < size());
 		return this->__data[i];
 	}
-	constexpr inline const ElementType &at(const size_t i) const noexcept {
+
+	/// NOTE: boundary checks are done
+	///
+	[[nodiscard]] constexpr inline const ElementType &at(const size_t i) const noexcept {
 		ASSERT(i <size());
 		return this->__data[i];
 	}
+
 	/// NOTE: boundary checks are done
 	/// \param i
 	/// \return the i-th element in the list
-	ElementType &operator[](const size_t i) noexcept {
+	[[nodiscard]] ElementType &operator[](const size_t i) noexcept {
 		ASSERT(i < __size);
 		return __data[i];
 	}
@@ -67,7 +73,7 @@ public:
 	/// NOTE: boundary checks are done
 	/// \param i
 	/// \return the i-th elementin the list
-	const ElementType &operator[](const size_t i) const noexcept {
+	[[nodiscard]] const ElementType &operator[](const size_t i) const noexcept {
 		ASSERT(i < __size);
 		return this->__data[i];
 	}
@@ -87,7 +93,7 @@ public:
 	/// \return
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid) const noexcept {
 		ASSERT(tid < threads);
-		return( tid+1)*thread_block;
+		return (tid+1)*thread_block;
 	};
 
 	/// zeros all elements
@@ -116,8 +122,11 @@ public:
 	auto end() noexcept { return __data.end(); }
 
 	/// returns the size in bytes
-	[[nodiscard]] __FORCEINLINE__ constexpr uint64_t bytes() noexcept { return __size*sizeof(T); }
+	[[nodiscard]] __FORCEINLINE__ constexpr uint64_t bytes() noexcept { 
+		return __size*sizeof(T); 
+	}
 
 	alignas(PAGE_SIZE) std::array<T, __size> __data;
 };
+
 #endif//CRYPTANALYSISLIB_LIST_SIMPLE_LIMB_H

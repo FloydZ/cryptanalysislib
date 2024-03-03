@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "robinhoodsort.h"
+#include "timsort.h"
 #include "ska_sort.h"
 #include "vergesort.h"
 #include "vv_radixsort.h"

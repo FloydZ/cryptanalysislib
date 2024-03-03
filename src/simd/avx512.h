@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <immintrin.h>
 
+#include "helper.h"
 #include "random.h"
 
 typedef char __v64qi_u __attribute__((__vector_size__(64), __may_alias__, __aligned__(1)));
@@ -34,7 +35,11 @@ struct uint8x64_t {
 		__m512i v512;
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -369,7 +374,12 @@ struct uint16x32_t {
 		__m512i v512;
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -619,7 +629,12 @@ struct uint32x16_t {
 		__m512i v512;
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -855,7 +870,12 @@ struct uint64x8_t {
 		__m512i v512;
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
