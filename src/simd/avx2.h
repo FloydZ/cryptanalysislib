@@ -52,6 +52,8 @@ namespace cryptanalysislib {
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
+
+			__m128i v128;
 		};
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) noexcept {
@@ -1437,7 +1439,7 @@ struct uint32x8_t {
 	}
 
 
-	[[nodiscard]] static inline uint32x8_t cvtepu8(const _uint8x16_t in) noexcept {
+	[[nodiscard]] static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
 		uint32x8_t ret;
 		ret.v256 = _mm256_cvtepu8_epi32(in.v128);
 		return ret;
