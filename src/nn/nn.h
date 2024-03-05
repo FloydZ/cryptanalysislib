@@ -424,7 +424,7 @@ public:
 
 		uint32_t nctr = 0;
 
-		#pragma unroll
+#pragma unroll
 		for (uint32_t i = 0; i < limit; ++i) {
 			if (wt & 1u) {
 				std::swap(to[nctr++], from[i]);
@@ -478,7 +478,7 @@ public:
 		for (uint32_t i = 0; i < bit_limit; ++i) {
 			const uint32_t pos = __builtin_ctz(wt);
 
-			#pragma unroll
+#pragma unroll
 			for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
 				ASSERT(i + j * bucket_size < (ELEMENT_NR_LIMBS * bucket_size));
 				to[i + j * bucket_size] = from[pos][j];
@@ -2029,7 +2029,7 @@ public:
 		                 ptr_inner_ctr_r = 8 * 4;
 
 		/// container for the unrolling
-		uint32x8_t lii_1[u], rii_1[v], lii_2[u], rii_2[v];
+		uint32x8_t lii_1[u]{}, rii_1[v]{}, lii_2[u]{}, rii_2[v]{};
 
 		/// container for the solutions masks
 		/// the init with zero is important, as otherwise the
@@ -2318,7 +2318,7 @@ public:
 		constexpr uint32x8_t loadr_add = uint32x8_t::set1(1u);
 		uint32x8_t loadr{};
 
-		alignas(32) uint32x8_t li[u * 8u];
+		alignas(32) uint32x8_t li[u * 8u]{};
 		alignas(32) uint32_t m1s[8] = {0};// this clearing is important
 
 		/// allowed weight to match on

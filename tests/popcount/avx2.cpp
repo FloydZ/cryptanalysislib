@@ -18,7 +18,7 @@ TEST(AVX2, uint8_t) {
 	                             0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7);
 	__m256i b = popcount_avx2_8(a);
 
-	uint32x8_t c;
+	uint32x8_t c{};
 	c.v256 = b;
 	EXPECT_EQ(c.v8[0], 0);
 	EXPECT_EQ(c.v8[1], 1);
@@ -42,7 +42,7 @@ TEST(AVX2, uint16_t) {
 	__m256i a = _mm256_setr_epi16(0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7);
 	__m256i b = popcount_avx2_16(a);
 
-	uint32x8_t c;
+	uint32x8_t c{};
 	c.v256 = b;
 	EXPECT_EQ(c.v16[0], 0);
 	EXPECT_EQ(c.v16[1], 1);
@@ -66,7 +66,7 @@ TEST(AVX2, uint32_t) {
 	__m256i a = _mm256_setr_epi32(0, 0xffffffff, 2, 3, 4, 5, 6, 7);
 	__m256i b = popcount_avx2_32(a);
 
-	uint32x8_t c;
+	uint32x8_t c{};
 	c.v256 = b;
 	EXPECT_EQ(c.v32[0], 0);
 	EXPECT_EQ(c.v32[1], 32);
@@ -82,7 +82,7 @@ TEST(AVX2, uint64_t) {
 	__m256i a = _mm256_setr_epi64x(0, 1, 3, 7);
 	__m256i b = popcount_avx2_64(a);
 
-	uint32x8_t c;
+	uint32x8_t c{};
 	c.v256 = b;
 	EXPECT_EQ(c.v64[0], 0);
 	EXPECT_EQ(c.v64[1], 1);
@@ -99,7 +99,7 @@ TEST(AVX2, uint64_t_random) {
 		__m256i a = _mm256_setr_epi64x(r1, r2, r3, r4);
 		__m256i b = popcount_avx2_64(a);
 
-		uint32x8_t c;
+		uint32x8_t c{};
 		c.v256 = b;
 		EXPECT_EQ(c.v64[0], popcount::popcount(r1));
 		EXPECT_EQ(c.v64[1], popcount::popcount(r2));

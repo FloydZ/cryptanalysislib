@@ -1,5 +1,5 @@
-#ifndef PRIMITIVES_H
-#define PRIMITIVES_H
+#ifndef CRYPTANALYSISLIB_PRIMITIVES_H
+#define CRYPTANALYSISLIB_PRIMITIVES_H
 
 #include <atomic>
 #include <cstdint>
