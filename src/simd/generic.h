@@ -87,9 +87,9 @@ public:
 		}
 		printf("\n");
 	}
-	
+
 	[[nodiscard]] static inline TxN_t random() noexcept {
-		TxN_t ret;
+		TxN_t ret{};
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = fastrandombytes_uint64();
 		}
@@ -99,7 +99,7 @@ public:
 
 	[[nodiscard]] constexpr static inline TxN_t set(const T *data) noexcept {
 		ASSERT(data);
-		TxN_t ret;
+		TxN_t ret{};
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data[N - i - 1];
 		}
@@ -108,7 +108,7 @@ public:
 
 	[[nodiscard]] constexpr static inline TxN_t setr(const T *data) noexcept {
 		ASSERT(data);
-		TxN_t ret;
+		TxN_t ret{};
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data[i];
 		}
@@ -116,7 +116,7 @@ public:
 	}
 
 	[[nodiscard]] constexpr static inline TxN_t set1(const T data) noexcept {
-		TxN_t ret;
+		TxN_t ret{};
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data;
 		}
@@ -136,7 +136,7 @@ public:
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline TxN_t aligned_load(const void *ptr) noexcept {
-		TxN_t ret;
+		TxN_t ret{};
 
 		T *ptrT = (T *) ptr;
 		uint32_t i = 0;
@@ -171,7 +171,7 @@ public:
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline TxN_t unaligned_load(const void *ptr) noexcept {
-		TxN_t ret;
+		TxN_t ret{};
 
 		T *ptrT = (T *) ptr;
 		uint32_t i = 0;
@@ -285,7 +285,7 @@ public:
 	/// \return
 	[[nodiscard]] constexpr static inline TxN_t xor_(const TxN_t in1,
 	                                                 const TxN_t in2) noexcept {
-		TxN_t out;
+		TxN_t out{};
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {

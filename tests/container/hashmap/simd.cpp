@@ -34,7 +34,7 @@ TEST(SimdHashMap, avxInsert) {
 	using HM = SIMDHashMap<s>;
 	HM hm = HM{};
 
-	uint32x8_t data, index;
+	uint32x8_t data{}, index{};
 	for (uint64_t i = 0; i < ((1u << l) * bucket_size / 8); ++i) {
 		for (uint32_t j = 0; j < 8; ++j) {
 			data.v32[j] = i * 8 + j;
