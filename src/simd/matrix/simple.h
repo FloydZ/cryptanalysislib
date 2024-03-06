@@ -5,7 +5,7 @@ class uint1x64x64_T {
 	uint64_t data[64];
 
 	constexpr static void transpose(uint64_t *out, uint64_t *in) noexcept {
-		constexpr static uint64_t masks[6][2] = {
+		constexpr uint64_t masks[6][2] = {
 		        {0x5555555555555555, 0xAAAAAAAAAAAAAAAA},
 		        {0x3333333333333333, 0xCCCCCCCCCCCCCCCC},
 		        {0x0F0F0F0F0F0F0F0F, 0xF0F0F0F0F0F0F0F0},

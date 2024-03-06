@@ -2433,7 +2433,7 @@ struct uint64x4_t {
 			case 1: ret.v128[0] = in1.v128[1]; break;
 			case 2: ret.v128[0] = in2.v128[0]; break;
 			case 3: ret.v128[0] = in2.v128[1]; break;
-			default: ret.v128[0] = {0};
+			default: ret.v64[0] = 0; ret.v64[1] = 0;
 		}
 
 		switch ((in3>>4)&0xf) {
@@ -2441,7 +2441,7 @@ struct uint64x4_t {
 			case 1: ret.v128[1] = in1.v128[1]; break;
 			case 2: ret.v128[1] = in2.v128[0]; break;
 			case 3: ret.v128[1] = in2.v128[1]; break;
-			default: ret.v128[1] = {0};
+			default: ret.v64[2] = 0; ret.v64[3] = 0;
 		}
 		return ret;
 	}
