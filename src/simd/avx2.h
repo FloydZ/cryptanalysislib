@@ -1106,7 +1106,7 @@ struct uint16x16_t {
 	/// \tparam in2
 	/// \param in1
 	/// \return
-	template<uint8_t imm>
+	template<uint32_t imm>
 	[[nodiscard]] constexpr static inline uint16x16_t blend(const uint16x16_t in1,
 	                                                        const uint16x16_t in2) noexcept {
 		uint16x16_t ret{};
