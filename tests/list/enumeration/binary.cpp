@@ -65,9 +65,11 @@ TEST(Chase, __new) {
 	uint32_t ctr = 0;
 	uint32_t p1 = 0, p2 = 1;
 	uint32_t x = 3u;
+	uint16_t rows[p] = {0};
 	do {
-		// print_binary(x, 10);
-		// std::cout << p1 << " " << p2 << std::endl;
+		print_binary(x, 10);
+		biject<n, p>(ctr, rows)	;
+		std::cout << p1 << " " << p2 << " | " << rows[0] << ":" << rows[1] << std::endl;
 
 		next2<nn, p>(&p1, &p2);
 		x ^= (1u << p1);
