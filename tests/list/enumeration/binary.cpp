@@ -68,7 +68,7 @@ TEST(Chase, __new) {
 	uint16_t rows[p] = {0};
 	do {
 		print_binary(x, 10);
-		biject<n, p>(ctr, rows)	;
+		biject<n, p>(ctr, rows);
 		std::cout << p1 << " " << p2 << " | " << rows[0] << ":" << rows[1] << std::endl;
 
 		next2<nn, p>(&p1, &p2);
