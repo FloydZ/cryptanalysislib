@@ -1,8 +1,8 @@
 #include "b63.h"
 #include "counters/perf_events.h"
 
-#include "helper.h"
 #include "combination/chase.h"
+#include "helper.h"
 
 using T = uint64_t;
 constexpr uint32_t n = 256;
@@ -13,7 +13,7 @@ constexpr size_t list_size = bc(n, p) - 1;
 constexpr uint32_t element_limbs = (n + 63) / 64;
 
 B63_BASELINE(Combinations_Binary_Chase, nn) {
-	uint64_t w1[element_limbs+1] = {0}, w2[element_limbs];
+	uint64_t w1[element_limbs + 1] = {0}, w2[element_limbs];
 	uint64_t res = 0;
 
 	uint16_t pos1, pos2;
@@ -36,7 +36,7 @@ B63_BENCHMARK(add_level1, nn) {
 	chase<n, p> c{};
 
 	for (; res < nn; res++) {
-		c.enumerate([&](uint16_t p1, uint16_t p2) __attribute__((force_inline)){
+		c.enumerate([&](uint16_t p1, uint16_t p2) __attribute__((force_inline)) {
 			res += p1 + p2;
 			B63_KEEP(res);
 		});

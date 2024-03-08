@@ -47,7 +47,7 @@ TEST(Chase, p1) {
 	uint16_t rows[p] = {0};
 	//print_binary(x, nn, "");
 
-	c.enumerate([&](uint16_t p1, uint16_t p2){
+	c.enumerate([&](uint16_t p1, uint16_t p2) {
 		c.biject(ctr, rows);
 		x ^= (1u << p1);
 		x ^= (1u << p2);
@@ -71,12 +71,12 @@ TEST(Chase, p2) {
 	uint16_t rows[p] = {0};
 	//print_binary(x, nn, "");
 
-	c.enumerate([&](uint16_t p1, uint16_t p2){
+	c.enumerate([&](uint16_t p1, uint16_t p2) {
 		c.biject(ctr, rows);
-	    x ^= (1u << p1);
-	    x ^= (1u << p2);
-	    //print_binary(x, nn, "");
-	    //std::cout << ": " << p1 << " " << p2 << " | " << rows[0] << ":" << rows[1] << std::endl;
+		x ^= (1u << p1);
+		x ^= (1u << p2);
+		//print_binary(x, nn, "");
+		//std::cout << ": " << p1 << " " << p2 << " | " << rows[0] << ":" << rows[1] << std::endl;
 
 		uint32_t y = x;
 		for (uint32_t i = 0; i < p; ++i) {
@@ -100,20 +100,20 @@ TEST(Chase, p3) {
 	uint16_t rows[p] = {0};
 	//print_binary(x, nn, "");
 
-	c.enumerate([&](uint16_t p1, uint16_t p2){
-	  c.biject(ctr, rows);
-	  x ^= (1u << p1);
-	  x ^= (1u << p2);
-	  print_binary(x, nn, "");
-	  std::cout << ": " << p1 << " " << p2 << " | " << rows[0] << ":" << rows[1] << ":" << rows[2] << ", " << ctr << std::endl;
+	c.enumerate([&](uint16_t p1, uint16_t p2) {
+		c.biject(ctr, rows);
+		x ^= (1u << p1);
+		x ^= (1u << p2);
+		print_binary(x, nn, "");
+		std::cout << ": " << p1 << " " << p2 << " | " << rows[0] << ":" << rows[1] << ":" << rows[2] << ", " << ctr << std::endl;
 
-	  uint32_t y = x;
-	  for (uint32_t i = 0; i < p; ++i) {
-	  	  const uint32_t ctz = __builtin_ctz(y);
-	  	  //EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]) || (ctz == rows[2]));
-	  	  y ^= 1u << ctz;
-	  }
-	  ctr += 1;
+		uint32_t y = x;
+		for (uint32_t i = 0; i < p; ++i) {
+			const uint32_t ctz = __builtin_ctz(y);
+			//EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]) || (ctz == rows[2]));
+			y ^= 1u << ctz;
+		}
+		ctr += 1;
 	});
 
 	EXPECT_EQ(ctr, bc(nn, p));

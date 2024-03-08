@@ -1,9 +1,9 @@
 #ifndef CRYPTANALYSISLIB_COMBINATION_CHASE_H
 #define CRYPTANALYSISLIB_COMBINATION_CHASE_H
 
+#include <array>
 #include <cstdint>
 #include <vector>
-#include <array>
 
 #include "helper.h"
 #include "math/bc.h"
@@ -50,7 +50,7 @@ template<typename T,
          const uint32_t w,
          const uint32_t start = 0>
 #if __cplusplus > 201709L
-    requires std::is_integral_v<T>
+requires std::is_integral_v<T>
 #endif
 class Combinations_Binary_Chase {
 	/*
@@ -99,8 +99,8 @@ public:
 	constexpr static size_t chase_size = bc(n, w);
 
 	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
-	constexpr static inline void WRITE_BIT(T *v, 
-			const size_t i, const uint64_t b) noexcept {
+	constexpr static inline void WRITE_BIT(T *v,
+	                                       const size_t i, const uint64_t b) noexcept {
 		v[i / RADIX] = ((v[i / RADIX] & ~(1ull << (i % RADIX))) | (T(b) << (i % RADIX)));
 	}
 
@@ -399,7 +399,7 @@ public:
 //}
 
 
-template<const uint32_t n, const uint32_t p, const uint32_t q=2>
+template<const uint32_t n, const uint32_t p, const uint32_t q = 2>
 class chase {
 	using T = uint16_t;
 	// TODO reset und wie machen wir das wenn wir mehrerer solcher fks hintereinander callen
@@ -409,7 +409,7 @@ class chase {
 
 public:
 	template<typename F>
-	constexpr static inline void enumerate1(T* idx, F&& f) noexcept {
+	constexpr static inline void enumerate1(T *idx, F &&f) noexcept {
 		if constexpr (q == 2) {
 			for (idx[0] = p; idx[0] < n; ++idx[0]) {
 				f(idx[0], idx[0] - 1);
@@ -424,16 +424,16 @@ public:
 		}
 	}
 
-	template< typename F>
-	constexpr static inline void enumerate2(T *idx, F&& f, const uint32_t off0=0) noexcept {
+	template<typename F>
+	constexpr static inline void enumerate2(T *idx, F &&f, const uint32_t off0 = 0) noexcept {
 		for (idx[0] = off0; idx[0] < n;) {
-			const uint32_t start = idx[0] == 0 ? p: idx[0] + 2;
+			const uint32_t start = idx[0] == 0 ? p : idx[0] + 2;
 			for (idx[1] = start; idx[1] < n; idx[1] += 1) {
 				f(idx[1], idx[1] - 1);
 			}
 
 			idx[0] += 1;
-			if (idx[0] >= n-1) { break; }
+			if (idx[0] >= n - 1) { break; }
 
 			f(idx[0], idx[0] - 1);
 			idx[1] -= 1;
@@ -444,21 +444,21 @@ public:
 			}
 
 			idx[0] += 1;
-			if (idx[0] >= n-1) { break; }
+			if (idx[0] >= n - 1) { break; }
 			idx[1] += 1;
 
-			f(idx[0]+1, idx[0] - 1);
+			f(idx[0] + 1, idx[0] - 1);
 		}
 	}
 
 	template<typename F>
-	constexpr static inline void enumerate3(T *idx, F&& f) noexcept {
+	constexpr static inline void enumerate3(T *idx, F &&f) noexcept {
 		idx[1] = 1;
 		idx[2] = 2;
 		for (idx[0] = 0; idx[0] < n;) {
-			enumerate2(idx +1, f, idx[0] + 1);
+			enumerate2(idx + 1, f, idx[0] + 1);
 			idx[0] += 1;
-			if (idx[0] >= n-1) { break; }
+			if (idx[0] >= n - 1) { break; }
 			f(idx[0], idx[0] - 1);
 			idx[1] -= 1;
 
@@ -476,7 +476,7 @@ public:
 				}
 
 				idx[1] -= 1;
-				f(idx[1]-1, idx[1]+1);
+				f(idx[1] - 1, idx[1] + 1);
 				idx[2] -= 1;
 				idx[1] -= 1;
 			}
@@ -489,7 +489,7 @@ public:
 	}
 
 	template<typename F>
-	constexpr inline void enumerate(F&& f) noexcept {
+	constexpr inline void enumerate(F &&f) noexcept {
 		static_assert(p > 0 && n > p);
 		if constexpr (p == 1) {
 			return enumerate1(idx, f);
@@ -508,41 +508,41 @@ public:
 
 	template<const uint32_t nn, const uint32_t pp>
 	inline void biject2(uint64_t a, uint16_t rows[2]) noexcept {
-		constexpr uint64_t n2 = 2*nn;
-		constexpr uint64_t n22 = 2*nn - 2;
-		constexpr uint64_t np = nn*pp;
-		constexpr int64_t nnn = (1-n2) * (1-n2);
+		constexpr uint64_t n2 = 2 * nn;
+		constexpr uint64_t n22 = 2 * nn - 2;
+		constexpr uint64_t np = nn * pp;
+		constexpr int64_t nnn = (1 - n2) * (1 - n2);
 
 		/// https://www.wolframalpha.com/input?i=a+%3D%3D+%28sum+%28n+-+1-+k%29%2C+k%3D0+to+x%29%2C+solve+for+x
-		const double pos1 = __builtin_sqrt(nnn - double(a<<3));
-		const double pos = (pos1 + n2 - 3.)/ 2.;
+		const double pos1 = __builtin_sqrt(nnn - double(a << 3));
+		const double pos = (pos1 + n2 - 3.) / 2.;
 		const uint32_t t = np - __builtin_ceil(pos) - pp;
 		rows[0] = t;
 
-		const uint32_t t2 = (-1*(t+1)*(t-n22)) >> 1;
+		const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
 
 		const bool dir = t & 1ul;
-		uint32_t t3 = !dir ? nn - (t2 -a): t2 - a + t;
+		uint32_t t3 = !dir ? nn - (t2 - a) : t2 - a + t;
 		rows[1] = t3;
 	}
 
 	template<const uint32_t nn, const uint32_t pp>
 	inline void biject2_down(uint64_t a, uint16_t rows[2]) noexcept {
-		constexpr uint64_t n2 = 2*nn;
-		constexpr uint64_t n22 = 2*nn - 2;
-		constexpr uint64_t np = nn*pp;
-		constexpr int64_t nnn = (1-n2) * (1-n2);
+		constexpr uint64_t n2 = 2 * nn;
+		constexpr uint64_t n22 = 2 * nn - 2;
+		constexpr uint64_t np = nn * pp;
+		constexpr int64_t nnn = (1 - n2) * (1 - n2);
 
 		/// https://www.wolframalpha.com/input?i=a+%3D%3D+%28sum+%28n+-+1-+k%29%2C+k%3D0+to+x%29%2C+solve+for+x
-		const double pos1 = __builtin_sqrt(nnn - double(a<<3));
-		const double pos = (pos1 + n2 - 3.)/ 2.;
-		const uint32_t t =np - __builtin_ceil(pos) - pp;
-		rows[0] =  n - 2 - t;
+		const double pos1 = __builtin_sqrt(nnn - double(a << 3));
+		const double pos = (pos1 + n2 - 3.) / 2.;
+		const uint32_t t = np - __builtin_ceil(pos) - pp;
+		rows[0] = n - 2 - t;
 
-		const uint32_t t2 = (-1*(t+1)*(t-n22)) >> 1;
+		const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
 
 		const bool dir = t & 1ul;
-		uint32_t t3 = !dir ? nn - (t2 -a): t2 - a + t;
+		uint32_t t3 = !dir ? nn - (t2 - a) : t2 - a + t;
 		rows[1] = n - 2 - t3;
 	}
 
@@ -557,26 +557,26 @@ public:
 		}
 
 		if constexpr (p == 3) {
-			constexpr uint64_t np = bc(n-1, p-1);
-			constexpr uint64_t n2 = 2*np;
-			constexpr uint64_t n22 = 2*np - 2;
-			constexpr int64_t nnn = (1-n2) * (1-n2);
-			const double pos1 = __builtin_sqrt(nnn - double(a<<3));
-			const double pos = (pos1 + n2 - 3.)/ 2.;
-			const uint32_t t = 2*np - __builtin_ceil(pos) - 2;
+			constexpr uint64_t np = bc(n - 1, p - 1);
+			constexpr uint64_t n2 = 2 * np;
+			constexpr uint64_t n22 = 2 * np - 2;
+			constexpr int64_t nnn = (1 - n2) * (1 - n2);
+			const double pos1 = __builtin_sqrt(nnn - double(a << 3));
+			const double pos = (pos1 + n2 - 3.) / 2.;
+			const uint32_t t = 2 * np - __builtin_ceil(pos) - 2;
 			rows[0] = t;
 
-			const uint32_t t2 = (-1*(t+1)*(t-n22)) >> 1;
+			const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
 
-			if (a % (np-1) > 0 || a == 0) {
+			if (a % (np - 1) > 0 || a == 0) {
 				if (t & 1u) {
-					biject2_down<n-1, p-1>(a%np, rows+1);
+					biject2_down<n - 1, p - 1>(a % np, rows + 1);
 				} else {
-					biject2<n-1, p-1>(a%np, rows+1);
+					biject2<n - 1, p - 1>(a % np, rows + 1);
 				}
 
 				for (uint32_t i = 0; i < 2; ++i) {
-					rows[i+1] += 1;
+					rows[i + 1] += 1;
 				}
 			}
 		}
