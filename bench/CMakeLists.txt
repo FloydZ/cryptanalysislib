@@ -1,6 +1,7 @@
 add_subdirectory(container)
-add_subdirectory(labeltype)
+add_subdirectory(enumeration)
 add_subdirectory(label)
+add_subdirectory(labeltype)
 add_subdirectory(value)
 add_subdirectory(list)
 add_subdirectory(mem)

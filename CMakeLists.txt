@@ -147,7 +147,9 @@ set(LINK_TEST_FLAGS
 	OpenMP::OpenMP_CXX
 )
 
-# Set additionally our own debug/optimization compiler/linkage flags. Maybe not 
+set(LINK_BENCH_FLAGS benchmark::benchmark)
+
+# Set additionally our own debug/optimization compiler/linkage flags. Maybe not
 # he nicest way, but by far the easiest.
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPTIMIZE_FLAGS}")

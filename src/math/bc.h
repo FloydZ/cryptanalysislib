@@ -54,7 +54,7 @@ inline T opt_max_bc(const T a, const uint32_t n) {
 	if constexpr (k == 2) {
 		const T b = 8 * a + 1;
 		const double s = __builtin_sqrt(b);
-		const auto s1 = s + 1;
+		const auto s1 = s + 1.;
 		const auto s2 = s1 / 2.;
 		const uint32_t t = __builtin_floor(s2);
 		return n - t - 1;

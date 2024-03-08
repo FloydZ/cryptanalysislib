@@ -26,7 +26,7 @@ static void print_binary(T a,
 /// \param a number to print
 /// \param len number of bits to print
 template<typename T>
-static void print_binary(T *a, const size_t len) {
+static void print_binary(T *a, const size_t len, const char *end="\n") {
 	constexpr uint32_t bits = sizeof(T) * 8;
 	const uint32_t limbs = (len+bits-1) / bits;
 
@@ -34,6 +34,6 @@ static void print_binary(T *a, const size_t len) {
 		print_binary<T>(a[i], bits, "");
 	}
 
-	print_binary<T>(a[limbs - 1u], len%bits);
+	print_binary<T>(a[limbs - 1u], len%bits, end);
 }
 #endif//CRYPTANALYSISLIB_PRINT_H
