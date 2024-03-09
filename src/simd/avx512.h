@@ -469,8 +469,11 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t rol1(const uint8x64_t input) noexcept {
 		uint8x64_t ret;
 		// lanes order: 1, 2, 3, 0 => 0b00_11_10_01
-		const __m512i permuted = _mm512_shuffle_i32x4(input, input, 0x39);
-		return _mm512_alignr_epi8(permuted, input, 1);
+  		const __m512i permuted = ((__m512i)__builtin_ia32_shuf_i32x4((__v16si)(__m512i)(input), \
+                                      (__v16si)(__m512i)(input), (int)(0x39)));
+
+  		ret.v512 = ((__m512i)__builtin_ia32_palignr512((__v64qi)(__m512i)(permuted), \
+                                      (__v64qi)(__m512i)(input), (int)(1)))
 		return ret;
 	}
 };
