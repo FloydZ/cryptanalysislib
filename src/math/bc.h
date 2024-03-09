@@ -7,6 +7,8 @@
 #include "helper.h"
 #include "simd/simd.h"
 
+#include "math/bc/simd.h"
+
 /// Binomial coefficient
 /// \param nn n over k
 /// \param kk n over k
