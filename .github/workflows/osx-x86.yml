@@ -25,6 +25,7 @@ jobs:
     - name: Install Software (HomeBrew)
       run: |
         sudo rm /usr/local/bin/2to3
+        sudo rm /usr/local/bin/2to3-3.12
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
         brew install --force autoconf automake libtool libomp llvm googletest google-benchmark
 
