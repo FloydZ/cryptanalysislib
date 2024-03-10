@@ -1,4 +1,4 @@
-#ifndef CRYPTANALYSISLIB_SIMD_NEON_H
+ifndef CRYPTANALYSISLIB_SIMD_NEON_H
 #define CRYPTANALYSISLIB_SIMD_NEON_H
 
 #include <arm_neon.h>
@@ -11,6 +11,11 @@ namespace cryptanalysislib {
 	struct _uint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
+
+		constexpr _uint8x16_t() noexcept {}
+		constexpr _uint8x16_t(const _uint16x8_t &b) noexcept;
+		constexpr _uint8x16_t(const _uint32x4_t &b) noexcept;
+		constexpr _uint8x16_t(const _uint64x2_t &b) noexcept;
 
 		union {
 			// compatibility to `TxN_t`
@@ -120,6 +125,11 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 8;
 		using limb_type = uint16_t;
 
+		constexpr _uint16x8_t() noexcept {}
+		constexpr _uint16x8_t(const _uint8x16_t &b) noexcept;
+		constexpr _uint16x8_t(const _uint32x4_t &b) noexcept;
+		constexpr _uint16x8_t(const _uint64x2_t &b) noexcept;
+
 		union {
 			// compatibility to `TxN_t`
 			uint16_t d[8];
@@ -206,6 +216,11 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 4;
 		using limb_type = uint32_t;
 
+		constexpr _uint32x4_t() noexcept {}
+		constexpr _uint32x4_t(const _uint8x16_t &b) noexcept;
+		constexpr _uint32x4_t(const _uint16x8_t &b) noexcept;
+		constexpr _uint32x4_t(const _uint64x2_t &b) noexcept;
+
 		union {
 			// compatibility to `TxN_t`
 			uint32_t d[4];
@@ -277,6 +292,11 @@ namespace cryptanalysislib {
 	struct _uint64x2_t {
 		constexpr static uint32_t LIMBS = 2;
 		using limb_type = uint64_t;
+
+		constexpr _uint64x2_t() noexcept {}
+		constexpr _uint64x2_t(const _uint8x16_t &b) noexcept;
+		constexpr _uint64x2_t(const _uint16x8_t &b) noexcept;
+		constexpr _uint64x2_t(const _uint32x4_t &b) noexcept;
 
 		union {
 			uint64_t d[2];

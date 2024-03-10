@@ -1,7 +1,12 @@
 #ifndef CRYPTANALYSISLIB_MATH_BC_SIMD_H
 #define CRYPTANALYSISLIB_MATH_BC_SIMD_H
 
-#include <stdint.h>
+#include <cstdint>
+#include <cstdlib>
+
+#include "helper.h"
+
+/// TODO enable it for different SIMD arch, then AVX512
 namespace cryptanalysislib::internal {
 	constexpr size_t primes_count = 64;
 	constexpr size_t factorials_count = 66;

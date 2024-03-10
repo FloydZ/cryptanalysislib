@@ -36,9 +36,7 @@ include(CheckIPOSupported)  	# check for -flto
 include(CheckLanguage) 			# needed for `check_language(CUDA)`
 
 # local 
-include("deps/cmake_optimize_for_architecture/OptimizeForArchitecture.cmake")
-OptimizeForArchitecture()
-message(STATUS _available_vector_units_list)
+include("deps/cmake_optimize_for_architecture/HostOptimizations.cmake")
 
 # only for the CI
 include_directories("benchmark/include")
@@ -127,13 +125,12 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES 
     set(OPTIMIZE_FLAGS "-O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
 
-if(_available_vector_units_list AND "avx2" IN_LIST _available_vector_units_list)
-	message(STATUS "AVX2 CPU detected")
-	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 -march=native")
-endif()
-# TODO checking the CI
+#if(_available_vector_units_list AND "avx2" IN_LIST _available_vector_units_list)
+#	message(STATUS "AVX2 CPU detected")
+#	set(AVX2_FLAGS "-DUSE_AVX2 -mavx2 -mavx -mbmi2 -march=native")
+#endif()
 #if("avx512f" IN_LIST _available_vector_units_list)
-    set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
+#set(AVX512_FLAGS "-DUSE_AVX512 -mavx512f -mavx512dq  -mavx512bf16 -mavx512cd  -mavx512bw -mavx512vl -mavx512vbmi -mavx512ifma -mavx512vbmi2 -mavx512vnni -mavx512bitalg -mavx512vpopcntdq")
 #endif()
 
     set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic -DDEBUG ${INLINE_FLAGS} ${AVX2_FLAGS} ${AVX512_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")

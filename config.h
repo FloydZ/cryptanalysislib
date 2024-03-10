@@ -1,0 +1,16 @@
+#ifndef CMAKE_CACHE_CONFIG
+#define CMAKE_CACHE_CONFIG
+
+#define DATA_CACHE_LEVEL1_SIZE 49152
+#define DATA_CACHE_LEVEL2_SIZE 1310720
+#define DATA_CACHE_LEVEL3_SIZE 12582912
+#endif
+#define USE_SSE2
+#define USE_SSE3
+#define USE_SSSE3
+#define USE_SSE41
+#define USE_SSE42
+#define USE_AVX
+#define USE_FMA
+#define USE_BMI2
+#define USE_AVX2
