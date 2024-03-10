@@ -70,6 +70,12 @@ TEST(root, simple) {
 	// NOT WORKING: EXPECT_EQ(kthrt(27., 2), 3);
 }
 
+#ifdef USE_AVX512
+TEST(bc, avx512) {
+	EXPECT_EQ(simd_binom(10, 2), bc(10, 2));
+}
+#endif
+
 TEST(big_int, simple) {
 	BigInt one = BigInt{1};
 	BigInt zero = BigInt{};
