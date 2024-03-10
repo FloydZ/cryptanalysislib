@@ -33,6 +33,8 @@ jobs:
         sudo rm -f /usr/local/bin/python3.12
         sudo rm -f /usr/local/bin/pydoc3
         sudo rm -f /usr/local/bin/pydoc3.12
+        sudo rm -f /usr/local/bin/python3-config
+        sudo rm -f /usr/local/bin/python3.12-config
 
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
         brew install libomp llvm googletest google-benchmark
