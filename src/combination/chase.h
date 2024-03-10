@@ -408,6 +408,11 @@ class chase {
 	static_assert(q >= 2);
 
 public:
+	constexpr size_t list_size() const noexcept {
+		return compute_combinations_fq_chase_list_size<n, q, p>();
+	}
+
+
 	template<typename F>
 	constexpr static inline void enumerate1(T *idx, F &&f) noexcept {
 		if constexpr (q == 2) {
@@ -490,8 +495,11 @@ public:
 
 	template<typename F>
 	constexpr inline void enumerate(F &&f) noexcept {
-		static_assert(p > 0 && n > p);
-		if constexpr (p == 1) {
+		static_assert(n > p);
+		if constexpr (p == 0) {
+			// catch for prange
+			return;
+		} else if constexpr (p == 1) {
 			return enumerate1(idx, f);
 		} else if constexpr (p == 2) {
 			return enumerate2(idx, f);

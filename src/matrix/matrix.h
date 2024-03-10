@@ -64,8 +64,6 @@ concept MatrixAble = requires(MatrixType c) {
 		c.column_popcnt(i);
 		c.row_popcnt(i);
 
-		MatrixType::augment(c, c);
-
 		MatrixType::add(c, c, c);
 		MatrixType::sub(c, c, c);
 		MatrixType::sub_transpose(c, c, i, i);
@@ -1032,63 +1030,38 @@ public:
 
 	///
 	/// \tparam Tprime
+	/// \tparam nrows_prime
 	/// \tparam ncols_prime
-	/// \tparam qprime
-	/// \param A
-	/// \param B
-	/// \return
-	template<const uint32_t ncols_prime>
-	constexpr static FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, packed>
-	augment(const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
-	        const FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &B) noexcept {
-		FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, packed> ret;
-		ret.clear();
-
-		// copy the first matrix
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols; ++j) {
-				const DataType data = A.get(i, j);
-				ret.set(data, i, j);
-			}
-		}
-
-		// copy the second matrix
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols_prime; ++j) {
-				const DataType data = B.get(i, j);
-				ret.set(data, i, j + ncols);
-			}
-		}
-
-		return ret;
-	}
-
+	/// \tparam ncols_prime2
+	/// \param ret
 	/// \param in1
 	/// \param in2
 	/// \return
 	template<typename Tprime,
-			const uint32_t nrows_prime,
-			const uint32_t ncols_prime>
-	constexpr static FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, true>
-	augment(FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, true> &ret,
-			const FqMatrix_Meta &in1,
-			const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, q, true> &in2) noexcept {
+	         const uint32_t nrows_prime,
+	         const uint32_t ncols_prime,
+	         const uint32_t ncols_prime2
+	         >
+	constexpr static FqMatrix_Meta<T, nrows, ncols_prime + ncols_prime2, q, packed>
+	augment(FqMatrix_Meta<T, nrows, ncols_prime + ncols_prime2, q, packed> &ret,
+	        const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, q, packed> &in1,
+	        const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime2, q, packed> &in2) noexcept {
 		/// NOTE: we allow not equally sized matrices to augment,
 		/// but the augmented matrix we be zero extended
 		static_assert(nrows_prime <= nrows);
 		ret.clear();
 
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols; ++j) {
+		for (uint32_t i = 0; i < nrows_prime; ++i) {
+			for (uint32_t j = 0; j < ncols_prime; ++j) {
 				const T data = in1.get(i, j);
 				ret.set(data, i, j);
 			}
 		}
 
 		for (uint32_t i = 0; i < nrows_prime; ++i) {
-			for (uint32_t j = 0; j < ncols_prime; ++j) {
+			for (uint32_t j = 0; j < ncols_prime2; ++j) {
 				const T data = in2.get(i, j);
-				ret.set(data, i, ncols + j);
+				ret.set(data, i, ncols_prime + j);
 			}
 		}
 
@@ -1277,6 +1250,7 @@ public:
 		return RowType::internal_limbs;
 	}
 
+	///
 	[[nodiscard]] static constexpr uint32_t limbs() noexcept {
 		return RowType::internal_limbs;
 	}

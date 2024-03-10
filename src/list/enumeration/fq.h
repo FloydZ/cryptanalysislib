@@ -243,7 +243,7 @@ public:
 	// change list for the chase sequence
 	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(chase_size);
 	// change list for the gray code sequence
-	std::vector<uint16_t> gray_cl = std::vector<uint16_t>(gray_size);
+	std::vector<uint16_t> gray_cl = std::vector<uint16_t>(std::max(1ul, gray_size));
 
 	/// empty constructor
 	/// \param HT transposed parity check matrix

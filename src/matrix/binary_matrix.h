@@ -38,7 +38,6 @@ public:
 	constexpr static uint32_t COLS = __ncols;
 	constexpr static uint32_t ROWS = __nrows;
 
-
 	// number of limbs needed
 	constexpr static uint32_t limbs = (ncols + RADIX - 1u) / RADIX;
 
@@ -54,8 +53,6 @@ public:
 	constexpr static T high_bitmask = -1ul >> ((RADIX - (ncols % RADIX)) % RADIX);
 	constexpr static uint32_t block_words = nrows * padded_limbs;
 
-
-	///
 	/// \param x start row
 	/// \param y start col
 	/// \param n num bits <= RADIX
@@ -80,7 +77,7 @@ public:
 	/// \param y
 	/// \param nn
 	/// \return
-	constexpr static uint64_t matrix_read_bits(FqMatrix &M,
+	constexpr static inline uint64_t matrix_read_bits(FqMatrix &M,
 	                                           const size_t x,
 	                                           const size_t y,
 	                                           const size_t nn) noexcept {
@@ -580,97 +577,31 @@ public:
 		add(out, in1, in2);
 	}
 
-	/// \param in1
-	/// \param in2
-	/// \return
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
-	         const uint32_t ncols_prime>
-	constexpr static FqMatrix<T, nrows, ncols + ncols_prime, q, true>
-	augment(const FqMatrix &in1,
-	        const FqMatrix<Tprime, nrows_prime, ncols_prime, q, true> &in2) noexcept {
+	         const uint32_t ncols_prime,
+	         const uint32_t ncols_prime2
+	         >
+	constexpr static FqMatrix<T, nrows, ncols_prime + ncols_prime2, q, true>
+	augment(FqMatrix<T, nrows, ncols_prime + ncols_prime2, q, true> &ret,
+	        const FqMatrix<Tprime, nrows_prime, ncols_prime, q, true> &in1,
+	        const FqMatrix<Tprime, nrows_prime, ncols_prime2, q, true> &in2) noexcept {
 		/// NOTE: we allow not equally sized matrices to augment,
 		/// but the augmented matrix we be zero extended
 		static_assert(nrows_prime <= nrows);
-		FqMatrix<T, nrows, ncols + ncols_prime, q, true> ret;
 		ret.clear();
 
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols; ++j) {
+		for (uint32_t i = 0; i < nrows_prime; ++i) {
+			for (uint32_t j = 0; j < ncols_prime; ++j) {
 				const T data = in1.get(i, j);
 				ret.set(data, i, j);
 			}
 		}
 
 		for (uint32_t i = 0; i < nrows_prime; ++i) {
-			for (uint32_t j = 0; j < ncols_prime; ++j) {
+			for (uint32_t j = 0; j < ncols_prime2; ++j) {
 				const T data = in2.get(i, j);
-				ret.set(data, i, ncols + j);
-			}
-		}
-
-		return ret;
-	}
-
-	///
-	/// \tparam Tprime
-	/// \tparam ncols_prime
-	/// \tparam qprime
-	/// \param A
-	/// \param B
-	/// \return
-	template<const uint32_t ncols_prime>
-	constexpr static FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, packed>
-	augment(const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
-	        const FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &B) noexcept {
-		FqMatrix_Meta<T, nrows, ncols + ncols_prime, q, packed> ret;
-		ret.clear();
-
-		// copy the first matrix
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols; ++j) {
-				const DataType data = A.get(i, j);
-				ret.set(data, i, j);
-			}
-		}
-
-		// copy the second matrix
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols_prime; ++j) {
-				const DataType data = B.get(i, j);
-				ret.set(data, i, j + ncols);
-			}
-		}
-
-		return ret;
-	}
-
-	/// \param in1
-	/// \param in2
-	/// \return
-	template<typename Tprime,
-	         const uint32_t nrows_prime,
-	         const uint32_t ncols_prime>
-	constexpr static FqMatrix<T, nrows, ncols + ncols_prime, q, true>
-	augment(FqMatrix<T, nrows, ncols + ncols_prime, q, true> &ret,
-	        const FqMatrix &in1,
-	        const FqMatrix<Tprime, nrows_prime, ncols_prime, q, true> &in2) noexcept {
-		/// NOTE: we allow not equally sized matrices to augment,
-		/// but the augmented matrix we be zero extended
-		static_assert(nrows_prime <= nrows);
-		ret.clear();
-
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols; ++j) {
-				const T data = in1.get(i, j);
-				ret.set(data, i, j);
-			}
-		}
-
-		for (uint32_t i = 0; i < nrows_prime; ++i) {
-			for (uint32_t j = 0; j < ncols_prime; ++j) {
-				const T data = in2.get(i, j);
-				ret.set(data, i, ncols + j);
+				ret.set(data, i, ncols_prime + j);
 			}
 		}
 
@@ -1336,8 +1267,7 @@ public:
 		std::array<uint32_t, c> perm;
 		for (uint32_t i = 0; i < c; ++i) {
 			/// NOTE: this is a dirty hack, we append the syndrome,
-			/// hence the -1
-			/// MABYE fix this
+			/// hence the -1, MAYBE: fix this
 			perm[i] = fastrandombytes_uint64() % (ncols - 1u);
 		}
 
@@ -1389,7 +1319,8 @@ public:
 				if (i == j) continue;
 
 				if (get(j, i)) {
-					RowT::add(row(j), row(j), row(i));
+					row_xor(j, i);
+					// RowT::add(row(j), row(j), row(i));
 				}
 			}
 		}
@@ -1421,12 +1352,17 @@ public:
 				}
 			}
 
-			ASSERT(found);
+			if (!found){
+				std::cout << i << std::endl;
+				print();
+				ASSERT(found);
+			}
 
 			for (uint32_t j = 0; j < nrows; ++j) {
 				if ((c + i) == j) continue;
 				if (get(j, i + c)) {
-					RowT::add(row(j), row(j), row(i + c));
+					// RowT::add(row(j), row(j), row(i + c));
+					row_xor(j, i + c);
 				}
 			}
 		}
