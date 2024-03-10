@@ -43,7 +43,7 @@ struct uint8x64_t {
 		__m512i v512;
 	};
 
-	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -370,7 +370,7 @@ struct uint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x64_t popcnt(const uint8x64_t in1) noexcept {
 		uint8x64_t ret;
-		ret.v512 = (__m512i) __builtin_ia32_vpopcntb_512((__v64qi)in1.v512);
+		ret.v512 = (__m512i) __builtin_ia32_vpopcntb_512((__v64qi) in1.v512);
 		return ret;
 	}
 
@@ -393,7 +393,7 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t min(const uint8x64_t in1,
 	                                                     const uint8x64_t in2) noexcept {
 		uint8x64_t ret;
-		ret.v512 = (__m512i)__builtin_elementwise_min((__v64qs)in1.v512, (__v64qs)in2.v512);
+		ret.v512 = (__m512i) __builtin_elementwise_min((__v64qs) in1.v512, (__v64qs) in2.v512);
 		return ret;
 	}
 
@@ -401,9 +401,9 @@ struct uint8x64_t {
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x64_t max(const uint8x64_t in1,
-														 const uint8x64_t in2) noexcept {
+	                                                     const uint8x64_t in2) noexcept {
 		uint8x64_t ret;
-		ret.v512 = (__m512i)__builtin_elementwise_max((__v64qs)in1.v512, (__v64qs)in2.v512);
+		ret.v512 = (__m512i) __builtin_elementwise_max((__v64qs) in1.v512, (__v64qs) in2.v512);
 		return ret;
 	}
 
@@ -411,7 +411,7 @@ struct uint8x64_t {
 	                                                                         const uint8_t in2) noexcept;
 
 	/// SOURCE: https://github.com/WojciechMula/toys/blob/master/avx512-galois/transpose.cpp
-    /// Each 64-bit word holds 8x8 bit matrix:
+	/// Each 64-bit word holds 8x8 bit matrix:
 	/// LSB                   MSB
 	/// [a0|b0|c0|d0|e0|f0|g0|h0] byte 0
 	/// [a1|b1|c1|d1|e1|f1|g1|h1]
@@ -434,17 +434,17 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t transpose(const uint8x64_t input) noexcept {
 		uint8x64_t ret;
 		const __m512i select = __extension__(__m512i)(__v8di){
-		    static_cast<long long>(0x8040201008040201ull),
-		    static_cast<long long>(0x8040201008040201ull),
-		    static_cast<long long>(0x8040201008040201ull),
-		    static_cast<long long>(0x8040201008040201ull),
-		    static_cast<long long>(0x8040201008040201ull),
-		    static_cast<long long>(0x8040201008040201ull),
-		    static_cast<long long>(0x8040201008040201ull),
-		    static_cast<long long>(0x8040201008040201ull),
+		        static_cast<long long>(0x8040201008040201ull),
+		        static_cast<long long>(0x8040201008040201ull),
+		        static_cast<long long>(0x8040201008040201ull),
+		        static_cast<long long>(0x8040201008040201ull),
+		        static_cast<long long>(0x8040201008040201ull),
+		        static_cast<long long>(0x8040201008040201ull),
+		        static_cast<long long>(0x8040201008040201ull),
+		        static_cast<long long>(0x8040201008040201ull),
 		};
-		ret.v512 = ((__m512i)__builtin_ia32_vgf2p8affineqb_v64qi((__v64qi)(__m512i)(select), \
-		                                               (__v64qi)(__m512i)(input.v512),(char)(0x00)));
+		ret.v512 = ((__m512i) __builtin_ia32_vgf2p8affineqb_v64qi((__v64qi) (__m512i) (select),
+		                                                          (__v64qi) (__m512i) (input.v512), (char) (0x00)));
 		return ret;
 	}
 
@@ -454,12 +454,11 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t reverse(const uint8x64_t input) noexcept {
 		uint8x64_t ret;
 		const long long __d = bit_shuffle_const(7, 6, 5, 4, 3, 2, 1, 0);
-		const __m512i select = __extension__(__m512i)(__v8di){ __d, __d, __d, __d, __d, __d, __d, __d };
-		ret.v512 = ((__m512i)__builtin_ia32_vgf2p8affineqb_v64qi((__v64qi)(__m512i)(select), \
-		                                               (__v64qi)(__m512i)(input.v512),(char)(0x00)));
+		const __m512i select = __extension__(__m512i)(__v8di){__d, __d, __d, __d, __d, __d, __d, __d};
+		ret.v512 = ((__m512i) __builtin_ia32_vgf2p8affineqb_v64qi((__v64qi) (__m512i) (select),
+		                                                          (__v64qi) (__m512i) (input.v512), (char) (0x00)));
 		return ret;
 	}
-
 
 
 	/// source:https://github.com/WojciechMula/toys/blob/master/avx512/avx512bw-rotate-by1.cpp
@@ -497,7 +496,7 @@ struct uint16x32_t {
 		__m512i v512;
 	};
 
-	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -739,7 +738,7 @@ struct uint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x32_t popcnt(const uint16x32_t in1) noexcept {
 		uint16x32_t ret;
-		ret.v512 = (__m512i) __builtin_ia32_vpopcntw_512((__v32hi)in1.v512);
+		ret.v512 = (__m512i) __builtin_ia32_vpopcntw_512((__v32hi) in1.v512);
 		return ret;
 	}
 
@@ -779,7 +778,7 @@ struct uint32x16_t {
 		__m512i v512;
 	};
 
-	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -1007,7 +1006,7 @@ struct uint32x16_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t mullo(const uint32x16_t in1,
-															const uint8_t in2) noexcept {
+	                                                        const uint8_t in2) noexcept {
 		const uint32x16_t rs = uint32x16_t::set1(in2);
 		return uint32x16_t::mullo(in1, rs);
 	}
@@ -1017,7 +1016,7 @@ struct uint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t popcnt(const uint32x16_t in1) noexcept {
 		uint32x16_t ret;
-		ret.v512 = (__m512i)__builtin_ia32_vpopcntd_512((__v16si)in1.v512);
+		ret.v512 = (__m512i) __builtin_ia32_vpopcntd_512((__v16si) in1.v512);
 		return ret;
 	}
 
@@ -1040,7 +1039,7 @@ struct uint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t conflict(const uint32x16_t in1) noexcept {
 		uint32x16_t ret;
-		ret.v512 = (__m512i) __builtin_ia32_vpconflictsi_512 ((__v16si)in1.v512);
+		ret.v512 = (__m512i) __builtin_ia32_vpconflictsi_512((__v16si) in1.v512);
 		return ret;
 	}
 };
@@ -1067,7 +1066,7 @@ struct uint64x8_t {
 		__m512i v512;
 	};
 
-	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -1296,7 +1295,7 @@ struct uint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t popcnt(const uint64x8_t in1) noexcept {
 		uint64x8_t ret;
-		ret.v512 = (__m512i)__builtin_ia32_vpopcntq_512((__v8di)in1.v512);
+		ret.v512 = (__m512i) __builtin_ia32_vpopcntq_512((__v8di) in1.v512);
 		return ret;
 	}
 
@@ -1318,7 +1317,7 @@ struct uint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t conflict(const uint64x8_t in1) noexcept {
 		uint64x8_t ret;
-		ret.v512 = (__m512i) __builtin_ia32_vpconflictdi_512 ((__v8di)in1.v512);
+		ret.v512 = (__m512i) __builtin_ia32_vpconflictdi_512((__v8di) in1.v512);
 		return ret;
 	}
 
@@ -1329,7 +1328,7 @@ struct uint64x8_t {
 	[[nodiscard]] constexpr static inline uint64x8_t hadd_epu8(const uint64x8_t in1) noexcept {
 		uint64x8_t ret;
 		constexpr uint64x8_t zero = uint64x8_t::set1(0);
-		ret.v512 = (__m512i) __builtin_ia32_psadbw512 ((__v64qi)in1.v512, (__v64qi)zero.v512);
+		ret.v512 = (__m512i) __builtin_ia32_psadbw512((__v64qi) in1.v512, (__v64qi) zero.v512);
 		return ret;
 	}
 
@@ -1356,7 +1355,7 @@ struct uint64x8_t {
 /// \param in2
 /// \return
 [[nodiscard]] constexpr inline uint8x64_t uint8x64_t::find_first_byte_in_lane(const uint8x64_t in1,
-																		 const uint8_t in2) noexcept {
+                                                                              const uint8_t in2) noexcept {
 	uint32x16_t tmp1;
 
 	uint8x64_t tmp = uint8x64_t::set1(in2);
@@ -1367,11 +1366,6 @@ struct uint64x8_t {
 	tmp = uint8x64_t::and_(tmp, uint8x64_t::not_(tmpp));
 	return uint8x64_t::popcnt(tmp);
 }
-
-
-
-
-
 
 
 ///
