@@ -27,7 +27,7 @@ jobs:
         sudo rm /usr/local/bin/2to3
         sudo rm /usr/local/bin/2to3-3.12
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        brew install python3 --force
+        brew link --overwrite python@3.12
         brew install libomp llvm googletest google-benchmark --force 
 
         #     - name: Install Google Benchmark
