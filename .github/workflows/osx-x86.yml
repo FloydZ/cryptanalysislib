@@ -27,6 +27,7 @@ jobs:
         sudo rm -f /usr/local/bin/2to3
         sudo rm -f /usr/local/bin/2to3-3.12
         sudo rm -f /usr/local/bin/idle3
+        sudo rm -f /usr/local/bin/idle3.12
         sudo rm -f /usr/local/bin/python
         sudo rm -f /usr/local/bin/python3
         sudo rm -f /usr/local/bin/python3.12
