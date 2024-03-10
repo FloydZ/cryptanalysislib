@@ -1467,7 +1467,7 @@ struct uint32x8_t {
 	/// output: a permutation mask s.t, applied on in =  [ x0, x1, x2, x3, x4, x5, x6, x7 ],
 	/// 			uint32x8_t::permute(in, permutation_mask) will result int
 	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
-	[[nodiscard]] static inline uint32x8_t pack(const uint32_t mask) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t pack(const uint32_t mask) noexcept {
 		uint32x8_t ret{};
 		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
 		expanded_mask *= 0xFFU;
@@ -1480,9 +1480,9 @@ struct uint32x8_t {
 	}
 
 
-	[[nodiscard]] static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
 		uint32x8_t ret{};
-		ret.v256 = _mm256_cvtepu8_epi32(in.v128);
+		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256 ((__v16qi)in.v128);
 		return ret;
 	}
 };

@@ -7,7 +7,9 @@
 #include "helper.h"
 #include "simd/simd.h"
 
+#ifdef USE_AVX512
 #include "math/bc/simd.h"
+#endif
 
 /// Binomial coefficient
 /// \param nn n over k

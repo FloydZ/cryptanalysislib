@@ -1561,9 +1561,13 @@ struct uint32x8_t {
 	/// output: a permutation mask s.t, applied on in =  [ x0, x1, x2, x3, x4, x5, x6, x7 ],
 	/// 			uint32x8_t::permute(in, permutation_mask) will result int
 	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
-	[[nodiscard]] static inline uint32x8_t pack(const uint32_t mask) noexcept {
-		uint32x8_t ret;
-		// TODO
+	[[nodiscard]] static inline uint32x8_t pack(uint32_t mask) noexcept {
+		uint32x8_t ret = uint32x8_t::set1(0);
+		for (uint32_t i = 0; (i < 8) && (mask != 0); i++ ) {
+			const uint32_t pos = __builtin_ctz(mask);
+			ret[i] = pos;
+			mask ^= 1u << pos;
+		}
 		return ret;
 	}
 
@@ -2553,7 +2557,7 @@ void transpose_64x64(uint64_t *out, uint64_t *in) {
 		out[i] = in[i];
 	}
 
-	for (uint32_t d = 5; d >= 0; d--) {
+	for (int32_t d = 5; d >= 0; d--) {
 		const uint32_t s = 1 << d;
 
 		for (uint32_t i = 0; i < 64; i += s * 2) {
