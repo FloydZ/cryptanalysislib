@@ -24,11 +24,15 @@ jobs:
 
     - name: Install Software (HomeBrew)
       run: |
-        sudo rm /usr/local/bin/2to3
-        sudo rm /usr/local/bin/2to3-3.12
+        sudo rm -f /usr/local/bin/2to3
+        sudo rm -f /usr/local/bin/2to3-3.12
+        sudo rm -f /usr/local/bin/idle3
+        sudo rm -f /usr/local/bin/python
+        sudo rm -f /usr/local/bin/python3
+        sudo rm -f /usr/local/bin/python3.12
+
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        brew unlink python@3.12
-        brew install libomp llvm googletest google-benchmark --force 
+        brew install libomp llvm googletest google-benchmark
 
         #     - name: Install Google Benchmark
         #       run: git clone --depth=1 --single-branch --branch v1.8.3 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
