@@ -740,7 +740,7 @@ struct uint8x32_t {
 		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128((__v16qi) lane0, (__v16qi) _mm_setzero_si128());
 		const __m256i populated_0th_byte = (__m256i) __builtin_shufflevector((__v2di) tmp, (__v2di) tmp, 0, 1, 2, 3);
 		const __m256i eq = (__m256i) ((__v32qi) in.v256 == (__v32qi) populated_0th_byte);
-		return __builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
+		return (uint32_t)__builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
 	}
 
 	///
