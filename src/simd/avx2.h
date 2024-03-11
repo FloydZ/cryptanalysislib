@@ -731,6 +731,40 @@ struct uint8x32_t {
 		ret.v256 = popcount_avx2_8(in.v256);
 		return ret;
 	}
+
+	/// checks if all bytes are equal
+	/// source: https://github.com/WojciechMula/toys/tree/master/simd-all-bytes-equal
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
+		// no cost, 0th lane is mapped to an XMM reg
+		const __m128i lane0 = __builtin_shufflevector((__v4di)in.v256, (__v4di)in.v256, 0, 1);
+		const __m128i tmp   = (__m128i)__builtin_ia32_pshufb128((__v16qi)lane0, (__v16qi)_mm_setzero_si128());
+		const __m256i populated_0th_byte = (__m256i) __builtin_shufflevector((__v2di)tmp, (__v2di)tmp, 0, 1, 2, 3);
+		const __m256i eq = (__m256i)((__v32qi)in.v256 == (__v32qi)populated_0th_byte);
+		return __builtin_ia32_pmovmskb256((__v32qi)eq) == 0xffffffff;
+	}
+
+	///
+	/// source:  https://github.com/WojciechMula/toys/blob/master/simd-basic/reverse-bytes/reverse.avx2.cpp
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool reverse8(const uint8x32_t in) noexcept {
+		// extract 128-bit lanes
+		const __m128i lo = ((__m128i)__builtin_ia32_extract128i256((__v4di)(__m256i)(in.v256), (int)(0)));
+		const __m128i hi = ((__m128i)__builtin_ia32_extract128i256((__v4di)(__m256i)(in.v256), (int)(1)));
+
+		// reverse them using SSE instructions
+		const __m128i indices = __extension__(__m128i)(__v16qi){0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+		const __m128i lo_rev = (__m128i)__builtin_ia32_pshufb128((__v16qi)lo, (__v16qi)indices);
+		const __m128i hi_rev = (__m128i)__builtin_ia32_pshufb128((__v16qi)hi, (__v16qi)indices);
+
+		// build the new AVX2 vector
+		__m256i ret = __builtin_shufflevector((__v2di)hi_rev, (__v2di)hi_rev, 0, 1, -1, -1);
+		ret = ((__m256i)__builtin_ia32_insert128i256((__v4di)(__m256i)(ret), \
+		                                        (__v2di)(__m128i)(lo_rev), (int)(1)));
+		return ret;
+	}
 };
 
 struct uint16x16_t {
@@ -1482,7 +1516,11 @@ struct uint32x8_t {
 
 	[[nodiscard]] constexpr static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
 		uint32x8_t ret{};
+#ifdef __clang__
+		ret.v256 = (__m256i)__builtin_convertvector((__v8hi)in.v128, __v8si);
+#else
 		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256 ((__v16qi)in.v128);
+#endif
 		return ret;
 	}
 };

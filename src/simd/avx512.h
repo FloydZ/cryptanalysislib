@@ -460,17 +460,95 @@ struct uint8x64_t {
 		return ret;
 	}
 
-
+	///
 	/// source:https://github.com/WojciechMula/toys/blob/master/avx512/avx512bw-rotate-by1.cpp
-	/// needs avx512
+	/// needs `avx512bw`
 	/// \param input
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x64_t rol1(const uint8x64_t input) noexcept {
+	[[nodiscard]] constexpr static inline uint8x64_t ror1(const uint8x64_t input) noexcept {
 		uint8x64_t ret;
 		// lanes order: 1, 2, 3, 0 => 0b00_11_10_01
-		const __m512i permuted = _mm512_shuffle_i32x4(input, input, 0x39);
-		return _mm512_alignr_epi8(permuted, input, 1);
+		const __m512i permuted = (__m512i)__builtin_ia32_shuf_i32x4((__v16si)(__m512i)(input.v512), \
+		                                     (__v16si)(__m512i)(input.v512), (int)(0x39));
+		ret.v512 = ((__m512i)__builtin_ia32_palignr512((__v64qi)(__m512i)(permuted), \
+		                                     (__v64qi)(__m512i)(input.v512), (int)(1)));
 		return ret;
+	}
+
+	/// needs `avx512bw`
+	/// source:  http://0x80.pl/notesen/2021-02-02-all-bytes-in-reg-are-equal.html
+	/// \param input
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint8x64_t input) noexcept {
+		const __m128i lane0 = (__m128i)__builtin_shufflevector(input.v512, input.v512, 0, 1);
+		const __m512i populated_0th_byte = _mm512_broadcastb_epi8(lane0);
+		const __m512i populated_0t_byte =  (__m512i)__builtin_shufflevector((__v16qi)lane0, (__v16qi)lane0,
+												0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+												0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+												0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+												0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+		const __mmask16 mask =_mm512_cmp_epi32_mask((input.v512), (populated_0t_byte), _MM_CMPINT_EQ);
+		return __builtin_ia32_kortestchi ((__mmask16)mask, (__mmask16)mask);
+	}
+
+	/// source: https://github.com/WojciechMula/toys/tree/master/simd-basic/reverse-bytes
+	/// \param input
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x64_t reverse8(const uint8x64_t input) noexcept {
+#if defined(USE_AVX512VBMI)
+		const __m512i indices_byte = _mm512_set_epi64(
+		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,
+		        0x1011121314151617llu, 0x18191a1b1c1d1e1fllu,
+		        0x2021222324252627llu, 0x28292a2b2c2d2e2fllu,
+		        0x3031323334353637llu, 0x38393a3b3c3d3e3fllu
+		);
+
+		return _mm512_permutexvar_epi8(indices_byte, input.v512);
+#elif defined(USE_AVX512BW)
+		// 1. reverse order of 128-bit lanes
+		const __m512i indices = _mm512_setr_epi32(
+		        12, 13, 14, 15,
+		        8,  9, 10, 11,
+		        4,  5,  6,  7,
+		        0,  1,  2,  3);
+		const __m512i swap_128 = _mm512_permutexvar_epi32(indices, v);
+
+		// 2. reverse order of bytes within 128-bit lanes
+		const __m512i indices_byte = _mm512_set_epi64(
+		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,
+		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,
+		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,
+		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu
+		);
+
+		return _mm512_shuffle_epi8(swap_128, indices_byte);
+#else
+		uint8x64_t ret;
+		// 1. reverse order of 32-bit words in register
+		const __m512i indices = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+		const __m512i swap_32 = _mm512_permutexvar_epi32(indices, v);
+
+		// 2. reverse order of 16-bit words within 32-bit lanes
+		// swap_32 = [ a | b | c | d ] x 16
+		// swap_16 = [ c | d | a | b ] x 16
+		const __m512i swap_16 = _mm512_rol_epi32(swap_32, 16);
+
+		// 3. reverse bytes within 16-bit words
+
+		// swap_16 = [ c | d | a | b ] x 16
+		//      t0 = [ 0 | c | d | a ] x 16
+		//      t1 = [ d | a | b | 0 ] x 16
+		const __m512i t0    = _mm512_srli_epi32(swap_16, 8);
+		const __m512i t1    = _mm512_slli_epi32(swap_16, 8);
+
+		//   mask0 = [ 0 | ff| 0 | ff] x 16
+		const __m512i mask0 = _mm512_set1_epi32(0x00ff00ff);
+
+		//  result = (mask0 and t0) or (not mask0 and t1)
+		//         = [ d | c | b | a]
+		ret.v512 = _mm512_ternarylogic_epi32(mask0, t0, t1, 0xca);
+		return ret;
+#endif
 	}
 };
 
@@ -1041,6 +1119,19 @@ struct uint32x16_t {
 		uint32x16_t ret;
 		ret.v512 = (__m512i) __builtin_ia32_vpconflictsi_512((__v16si) in1.v512);
 		return ret;
+	}
+
+	/// needs `AVX512F`, wrapper around `_mm4512_shuffle_i32x3`
+	/// \param input
+	/// \return
+	template<const uint32_t imm>
+	[[nodiscard]] constexpr static inline uint32x16_t shuffle_32x4(const uint32x16_t in1,
+	                                                               const uint32x16_t in2) noexcept {
+		uint32x16_t ret;
+		ret.v512 = ((__m512i)__builtin_ia32_shuf_i32x4((__v16si)(__m512i)(in1.v512), \
+                                      (__v16si)(__m512i)(in2.v512), (int)(imm)));
+		return ret;
+
 	}
 };
 
