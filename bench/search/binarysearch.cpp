@@ -33,7 +33,7 @@ B63_BASELINE(Std_lowerbound, nn) {
 								  [](const T e1, const T e2) {
 			return (e1&MASK) < (e2&MASK);
 		});
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 	const uint64_t keep = search + errors;
 	B63_KEEP(keep);
@@ -50,7 +50,7 @@ B63_BENCHMARK(upper_bound_standard_binary_search, nn) {
 			}
 		);
 
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 	const uint64_t keep = search + errors;
 	B63_KEEP(keep);
@@ -67,7 +67,7 @@ B63_BENCHMARK(lower_bound_standard_binary_search, nn) {
 			}
 		);
 
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 	const uint64_t keep = search + errors;
 	B63_KEEP(keep);
@@ -84,7 +84,7 @@ B63_BENCHMARK(upper_bound_monobound_binary_search, nn) {
 			}
 		);
 
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 	const uint64_t keep = search + errors;
 	B63_KEEP(keep);
@@ -101,7 +101,7 @@ B63_BENCHMARK(lower_bound_monobound_binary_search, nn) {
 			}
 		);
 
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 	const uint64_t keep = search + errors;
 	B63_KEEP(keep);
@@ -118,7 +118,7 @@ B63_BENCHMARK(tripletapped_binary_search, nn) {
 			}
 		);
 
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 	const uint64_t keep = search + errors;
 	B63_KEEP(keep);
@@ -135,7 +135,7 @@ B63_BENCHMARK(branchless_lower_bound, nn) {
 			}
 		);
 
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 
 	const uint64_t keep = search + errors;
@@ -150,7 +150,7 @@ B63_BENCHMARK(lower_bound_interpolation_search2, nn) {
 		auto v = lower_bound_interpolation_search2(data.begin(), data.end(), data[search],
 			[](const T e1) -> T { return e1&MASK; }
 		);
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 
 	const uint64_t keep = search + errors;
@@ -165,7 +165,7 @@ B63_BENCHMARK(LowerBoundInterpolationSearch, nn) {
 		auto v = LowerBoundInterpolationSearch(data.begin(), data.end(), data[search],
 		     [](const T e1) -> T { return e1&MASK; }
 		);
-		errors += std::distance(data.begin(), v) == search;
+		errors += (uint64_t)std::distance(data.begin(), v) == search;
 	}
 
 	const uint64_t keep = search + errors;

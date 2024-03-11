@@ -567,14 +567,14 @@ public:
 		if constexpr (p == 3) {
 			constexpr uint64_t np = bc(n - 1, p - 1);
 			constexpr uint64_t n2 = 2 * np;
-			constexpr uint64_t n22 = 2 * np - 2;
+			// constexpr uint64_t n22 = 2 * np - 2;
 			constexpr int64_t nnn = (1 - n2) * (1 - n2);
 			const double pos1 = __builtin_sqrt(nnn - double(a << 3));
 			const double pos = (pos1 + n2 - 3.) / 2.;
 			const uint32_t t = 2 * np - __builtin_ceil(pos) - 2;
 			rows[0] = t;
 
-			const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
+			// TODO not finished const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
 
 			if (a % (np - 1) > 0 || a == 0) {
 				if (t & 1u) {

@@ -275,15 +275,20 @@ public:
 	/// zero (`create_zero==1`) or normal
 	/// \param insert_sol
 	void generate_special_instance(bool insert_sol = true, bool create_zero = true) noexcept {
+		if (insert_sol && !create_zero) {
+			generate_random_instance();
+		}
+
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
 		L1 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
 		L2 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
-		ASSERT(L1);
-		ASSERT(L2);
-		if (create_zero) {
+		ASSERT(L1); ASSERT(L2);
+
+		if (create_zero && !insert_sol) {
 			memset(L1, 0, list_size);
 			memset(L2, 0, list_size);
 		}
+
 	}
 
 	/// generate a random instance, just for testing and debugging
@@ -1509,16 +1514,6 @@ public:
 				}
 			}
 		}
-	}
-
-	/// runs the Esser, Kübler, Zweydinger NN on a the two lists
-	/// dont call ths function normally.
-	/// \tparam level current level of the
-	/// \param e1 end of list L1
-	/// \param e2 end of list L2
-	template<const uint32_t level>
-	void nn_internal(const size_t e1,
-	                 const size_t e2) noexcept {
 	}
 
 	/// core entry function for the implementation of the Esser, Kuebler, Zweydinger NN algorithm

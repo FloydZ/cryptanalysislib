@@ -34,7 +34,7 @@ include(CheckCXXCompilerFlag) 	# check for compiler optimization flags
 include(CheckIPOSupported)  	# check for -flto
 include(CheckLanguage) 			# needed for `check_language(CUDA)`
 
-# local 
+# local cmake includes
 include("deps/cmake_optimize_for_architecture/HostOptimizations.cmake")
 
 # only for the CI
@@ -110,7 +110,11 @@ if(lto_supported AND USE_LTO)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-set(ALLOWED_WARNINGS " -Wno-zero-length-array -Wno-vla-extension -Wno-unused-function -Wno-overlength-strings -Wno-unknown-pragmas -Wno-unused-local-typedefs -Wno-invalid-constexpr")
+# -Wno-zero-length-array: needed, because in the simd layer we sometimes need to allocate stuff like
+#   simd512_type v512[simd512_limbs];
+# and if the type is < 512 bits, then this must be zero
+# -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
+set(ALLOWED_WARNINGS " -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
 
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 
@@ -125,7 +129,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES 
 else()
 
     set(DEBUG_FLAGS "-g -O0 -Wall -Wextra -Wpedantic -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-	set(OPTIMIZE_FLAGS "-g -march=native -DNDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-march=native -DNDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 endif()
 
 set(LINK_TEST_FLAGS 

@@ -10,9 +10,6 @@ constexpr uint32_t ncols = 1024;
 using M  = FqMatrix<T, nrows, ncols, 5, true>;
 using MT = FqMatrix<T, ncols, nrows, 5, true>;
 
-constexpr uint32_t l = 25;
-constexpr uint32_t c = 20;
-
 B63_BASELINE(permute_with_transpose, nn) {
 	M m = M{};
 	MT mt = MT{};

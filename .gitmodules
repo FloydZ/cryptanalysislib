@@ -6,4 +6,4 @@
 	url = https://github.com/FloydZ/b63
 [submodule "deps/cmake_optimize_for_architecture"]
 	path = deps/cmake_optimize_for_architecture
-	url = https://github.com/FloydZ/cmake_optimize_for_architecture.git
+	url = git@github.com:FloydZ/cmake_optimize_for_architecture.git

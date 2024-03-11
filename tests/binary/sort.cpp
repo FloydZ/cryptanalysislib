@@ -17,7 +17,6 @@ using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2>;
 using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList      = List_T<BinaryElement>;
 using BinaryTree      = Tree_T<BinaryList>;
-constexpr uint64_t ListSize = 2;
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -58,8 +57,6 @@ static uint64_t Hash2(uint64_t a) {
 constexpr uint64_t size_bucket = 2000, number_bucket = 15;
 constexpr uint32_t b0 = 0, b1 = number_bucket, b2 = number_bucket;
 constexpr uint32_t threads = 8;
-constexpr uint64_t LSize = 10553600;
-constexpr uint64_t loops = 100;
 
 
 using BinaryList2 = Parallel_List_T<BinaryElement>;
@@ -74,6 +71,9 @@ constexpr static ConfigParallelBucketSort chm2{b0, b1-5, b2, size_bucket, uint64
                                                true, false, false, true};
 
 #ifdef USE_OMP
+
+constexpr uint64_t LSize = 10553600;
+constexpr uint64_t loops = 100;
 TEST(ParallelBucketSort, first) {
 	using HM1Type = ParallelBucketSort<chm1, BinaryList2, LPartType, IndexType, &Hash2<0, 0+number_bucket>>;
 	auto *hm = new HM1Type();

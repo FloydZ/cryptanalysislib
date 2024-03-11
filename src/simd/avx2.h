@@ -48,9 +48,9 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
 
-		constexpr inline _uint8x16_t& operator=(const _uint16x8_t& b) noexcept;
-		constexpr inline _uint8x16_t& operator=(const _uint32x4_t& b) noexcept;
-		constexpr inline _uint8x16_t& operator=(const _uint64x2_t& b) noexcept;
+		constexpr inline _uint8x16_t &operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint8x16_t &operator=(const _uint32x4_t &b) noexcept;
+		constexpr inline _uint8x16_t &operator=(const _uint64x2_t &b) noexcept;
 
 		constexpr _uint8x16_t() noexcept {}
 		constexpr _uint8x16_t(const _uint16x8_t &b) noexcept;
@@ -86,7 +86,7 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint8x16_t set(
-				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint8x16_t ret;
 			ret.v32[0] = d;
 			ret.v32[1] = c;
@@ -96,7 +96,7 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint8x16_t setr(
-				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint8x16_t ret;
 			ret.v32[0] = a;
 			ret.v32[1] = b;
@@ -106,22 +106,21 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint8x16_t set(
-				uint8_t a, uint8_t b, uint8_t c, uint8_t d,
-				uint8_t e, uint8_t f, uint8_t g, uint8_t h,
-				uint8_t i, uint8_t j, uint8_t k, uint8_t l,
-				uint8_t m, uint8_t n, uint8_t o, uint8_t p
-				) noexcept {
+		        uint8_t a, uint8_t b, uint8_t c, uint8_t d,
+		        uint8_t e, uint8_t f, uint8_t g, uint8_t h,
+		        uint8_t i, uint8_t j, uint8_t k, uint8_t l,
+		        uint8_t m, uint8_t n, uint8_t o, uint8_t p) noexcept {
 			_uint8x16_t ret;
-			ret.v8[ 0] = p;
-			ret.v8[ 1] = o;
-			ret.v8[ 2] = n;
-			ret.v8[ 3] = m;
-			ret.v8[ 4] = l;
-			ret.v8[ 5] = k;
-			ret.v8[ 6] = j;
-			ret.v8[ 7] = i;
-			ret.v8[ 8] = h;
-			ret.v8[ 9] = g;
+			ret.v8[0] = p;
+			ret.v8[1] = o;
+			ret.v8[2] = n;
+			ret.v8[3] = m;
+			ret.v8[4] = l;
+			ret.v8[5] = k;
+			ret.v8[6] = j;
+			ret.v8[7] = i;
+			ret.v8[8] = h;
+			ret.v8[9] = g;
 			ret.v8[10] = f;
 			ret.v8[11] = e;
 			ret.v8[12] = d;
@@ -132,22 +131,21 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint8x16_t setr(
-				uint8_t a, uint8_t b, uint8_t c, uint8_t d,
-				uint8_t e, uint8_t f, uint8_t g, uint8_t h,
-				uint8_t i, uint8_t j, uint8_t k, uint8_t l,
-				uint8_t m, uint8_t n, uint8_t o, uint8_t p
-				) noexcept {
+		        uint8_t a, uint8_t b, uint8_t c, uint8_t d,
+		        uint8_t e, uint8_t f, uint8_t g, uint8_t h,
+		        uint8_t i, uint8_t j, uint8_t k, uint8_t l,
+		        uint8_t m, uint8_t n, uint8_t o, uint8_t p) noexcept {
 			_uint8x16_t ret;
-			ret.v8[ 0] = a;
-			ret.v8[ 1] = b;
-			ret.v8[ 2] = c;
-			ret.v8[ 3] = d;
-			ret.v8[ 4] = e;
-			ret.v8[ 5] = f;
-			ret.v8[ 6] = g;
-			ret.v8[ 7] = h;
-			ret.v8[ 8] = i;
-			ret.v8[ 9] = j;
+			ret.v8[0] = a;
+			ret.v8[1] = b;
+			ret.v8[2] = c;
+			ret.v8[3] = d;
+			ret.v8[4] = e;
+			ret.v8[5] = f;
+			ret.v8[6] = g;
+			ret.v8[7] = h;
+			ret.v8[8] = i;
+			ret.v8[9] = j;
 			ret.v8[10] = k;
 			ret.v8[11] = l;
 			ret.v8[12] = m;
@@ -162,9 +160,9 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 8;
 		using limb_type = uint16_t;
 
-		constexpr inline _uint16x8_t& operator=(const _uint8x16_t& b) noexcept;
-		constexpr inline _uint16x8_t& operator=(const _uint32x4_t& b) noexcept;
-		constexpr inline _uint16x8_t& operator=(const _uint64x2_t& b) noexcept;
+		constexpr inline _uint16x8_t &operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint16x8_t &operator=(const _uint32x4_t &b) noexcept;
+		constexpr inline _uint16x8_t &operator=(const _uint64x2_t &b) noexcept;
 
 		constexpr _uint16x8_t() noexcept {}
 		constexpr _uint16x8_t(const _uint8x16_t &b) noexcept;
@@ -198,7 +196,7 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint16x8_t set(
-				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint16x8_t ret;
 			ret.v32[0] = d;
 			ret.v32[1] = c;
@@ -208,7 +206,7 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint16x8_t setr(
-				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint16x8_t ret;
 			ret.v32[0] = a;
 			ret.v32[1] = b;
@@ -218,8 +216,8 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint16x8_t set(
-				uint16_t a, uint16_t b, uint16_t c, uint16_t d,
-				uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
+		        uint16_t a, uint16_t b, uint16_t c, uint16_t d,
+		        uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
 			_uint16x8_t ret;
 			ret.v16[0] = h;
 			ret.v16[1] = g;
@@ -233,8 +231,8 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint16x8_t setr(
-				uint16_t a, uint16_t b, uint16_t c, uint16_t d,
-				uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
+		        uint16_t a, uint16_t b, uint16_t c, uint16_t d,
+		        uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
 			_uint16x8_t ret;
 			ret.v64[0] = a;
 			ret.v64[1] = b;
@@ -252,9 +250,9 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 4;
 		using limb_type = uint32_t;
 
-		constexpr inline _uint32x4_t& operator=(const _uint8x16_t& b) noexcept;
-		constexpr inline _uint32x4_t& operator=(const _uint16x8_t& b) noexcept;
-		constexpr inline _uint32x4_t& operator=(const _uint64x2_t& b) noexcept;
+		constexpr inline _uint32x4_t &operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint32x4_t &operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint32x4_t &operator=(const _uint64x2_t &b) noexcept;
 
 		constexpr _uint32x4_t() noexcept {}
 		constexpr _uint32x4_t(const _uint8x16_t &b) noexcept;
@@ -315,9 +313,9 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 2;
 		using limb_type = uint64_t;
 
-		constexpr inline _uint64x2_t& operator=(const _uint8x16_t& b) noexcept;
-		constexpr inline _uint64x2_t& operator=(const _uint16x8_t& b) noexcept;
-		constexpr inline _uint64x2_t& operator=(const _uint32x4_t& b) noexcept;
+		constexpr inline _uint64x2_t &operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint64x2_t &operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint64x2_t &operator=(const _uint32x4_t &b) noexcept;
 
 		constexpr _uint64x2_t() noexcept {}
 		constexpr _uint64x2_t(const _uint8x16_t &b) noexcept;
@@ -738,32 +736,34 @@ struct uint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
 		// no cost, 0th lane is mapped to an XMM reg
-		const __m128i lane0 = __builtin_shufflevector((__v4di)in.v256, (__v4di)in.v256, 0, 1);
-		const __m128i tmp   = (__m128i)__builtin_ia32_pshufb128((__v16qi)lane0, (__v16qi)_mm_setzero_si128());
-		const __m256i populated_0th_byte = (__m256i) __builtin_shufflevector((__v2di)tmp, (__v2di)tmp, 0, 1, 2, 3);
-		const __m256i eq = (__m256i)((__v32qi)in.v256 == (__v32qi)populated_0th_byte);
-		return __builtin_ia32_pmovmskb256((__v32qi)eq) == 0xffffffff;
+		const __m128i lane0 = __builtin_shufflevector((__v4di) in.v256, (__v4di) in.v256, 0, 1);
+		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128((__v16qi) lane0, (__v16qi) _mm_setzero_si128());
+		const __m256i populated_0th_byte = (__m256i) __builtin_shufflevector((__v2di) tmp, (__v2di) tmp, 0, 1, 2, 3);
+		const __m256i eq = (__m256i) ((__v32qi) in.v256 == (__v32qi) populated_0th_byte);
+		return __builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
 	}
 
 	///
 	/// source:  https://github.com/WojciechMula/toys/blob/master/simd-basic/reverse-bytes/reverse.avx2.cpp
 	/// \param in
 	/// \return
-	[[nodiscard]] constexpr static inline bool reverse8(const uint8x32_t in) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t reverse8(const uint8x32_t in) noexcept {
 		// extract 128-bit lanes
-		const __m128i lo = ((__m128i)__builtin_ia32_extract128i256((__v4di)(__m256i)(in.v256), (int)(0)));
-		const __m128i hi = ((__m128i)__builtin_ia32_extract128i256((__v4di)(__m256i)(in.v256), (int)(1)));
+		const __m128i lo = ((__m128i) __builtin_ia32_extract128i256((__v4di) (__m256i) (in.v256), (int) (0)));
+		const __m128i hi = ((__m128i) __builtin_ia32_extract128i256((__v4di) (__m256i) (in.v256), (int) (1)));
 
 		// reverse them using SSE instructions
 		const __m128i indices = __extension__(__m128i)(__v16qi){0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-		const __m128i lo_rev = (__m128i)__builtin_ia32_pshufb128((__v16qi)lo, (__v16qi)indices);
-		const __m128i hi_rev = (__m128i)__builtin_ia32_pshufb128((__v16qi)hi, (__v16qi)indices);
+		const __m128i lo_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) lo, (__v16qi) indices);
+		const __m128i hi_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) hi, (__v16qi) indices);
 
 		// build the new AVX2 vector
-		__m256i ret = __builtin_shufflevector((__v2di)hi_rev, (__v2di)hi_rev, 0, 1, -1, -1);
-		ret = ((__m256i)__builtin_ia32_insert128i256((__v4di)(__m256i)(ret), \
-		                                        (__v2di)(__m128i)(lo_rev), (int)(1)));
-		return ret;
+		__m256i ret = __builtin_shufflevector((__v2di) hi_rev, (__v2di) hi_rev, 0, 1, -1, -1);
+		ret = ((__m256i) __builtin_ia32_insert128i256((__v4di) (__m256i) (ret),
+		                                              (__v2di) (__m128i) (lo_rev), (int) (1)));
+		uint8x32_t ret2;
+		ret2.v256 = ret;
+		return ret2;
 	}
 };
 
@@ -1517,9 +1517,9 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
 		uint32x8_t ret{};
 #ifdef __clang__
-		ret.v256 = (__m256i)__builtin_convertvector((__v8hi)in.v128, __v8si);
+		ret.v256 = (__m256i) __builtin_convertvector((__v8hi) in.v128, __v8si);
 #else
-		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256 ((__v16qi)in.v128);
+		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256((__v16qi) in.v128);
 #endif
 		return ret;
 	}
@@ -1932,9 +1932,6 @@ struct uint64x4_t {
 #endif
 	}
 };
-
-
-
 
 
 #endif

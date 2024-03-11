@@ -43,7 +43,7 @@
 #endif
 
 
-int main(int argc, char** argv) {
+int main() {
 	random_seed(time(NULL));
 	constexpr uint64_t LS = 1ul << BENCH_LS;
 	constexpr static NN_Config config{BENCH_n, BENCH_R, BENCH_N, BENCH_K, LS, BENCH_DELTA, BENCH_GAMMA, 0, BENCH_BF};
