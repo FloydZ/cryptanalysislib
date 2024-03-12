@@ -739,19 +739,19 @@ struct uint8x32_t {
 		// no cost, 0th lane is mapped to an XMM reg
 		const __m128i lane0 = __builtin_shufflevector((__v4di) in.v256, (__v4di) in.v256, 0, 1);
 		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128((__v16qi) lane0,
-				(__v16qi) __extension__ (__m128i)(__v4si){ 0, 0, 0, 0 });
+		                                                       (__v16qi) __extension__(__m128i)(__v4si){0, 0, 0, 0});
 		const __m256i populated_0th_byte = (__m256i) __builtin_shufflevector((__v2di) tmp, (__v2di) tmp, 0, 1, 2, 3);
 		const __m256i eq = (__m256i) ((__v32qi) in.v256 == (__v32qi) populated_0th_byte);
-		return (uint32_t)__builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
-#else     
-  		const __m128i lane0 = (__m128i)__builtin_ia32_si_si256((__v8si)in.v256);
-		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128 ((__v16qi)lane0,
-				(__v16qi)__extension__ (__m128i)(__v4si){ 0, 0, 0, 0 });
-		const __m256i populated_0th_byte = (__m256i)__builtin_shufflevector(
-				(__v2di)tmp, (__v2di)tmp, 0, 1, 2, 3);
-		const __m256i eq = (__m256i)((__v32qi)in.v256 == (__v32qi)populated_0th_byte);
-		return (uint32_t)__builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
-#endif 
+		return (uint32_t) __builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
+#else
+		const __m128i lane0 = (__m128i) __builtin_ia32_si_si256((__v8si) in.v256);
+		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128((__v16qi) lane0,
+		                                                       (__v16qi) __extension__(__m128i)(__v4si){0, 0, 0, 0});
+		const __m256i populated_0th_byte = (__m256i) __builtin_shufflevector(
+		        (__v2di) tmp, (__v2di) tmp, 0, 1, 2, 3);
+		const __m256i eq = (__m256i) ((__v32qi) in.v256 == (__v32qi) populated_0th_byte);
+		return (uint32_t) __builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
+#endif
 	}
 
 	///
@@ -769,7 +769,11 @@ struct uint8x32_t {
 		const __m128i hi_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) hi, (__v16qi) indices);
 
 		// build the new AVX2 vector
+#ifdef __clang__
 		__m256i ret = __builtin_shufflevector((__v2di) hi_rev, (__v2di) hi_rev, 0, 1, -1, -1);
+#else 
+    	__m256i ret = __builtin_ia32_si256_si((__v4si)hi_rev);
+#endif
 		ret = ((__m256i) __builtin_ia32_insert128i256((__v4di) (__m256i) (ret),
 		                                              (__v2di) (__m128i) (lo_rev), (int) (1)));
 		uint8x32_t ret2;
@@ -1520,13 +1524,13 @@ struct uint32x8_t {
 		expanded_mask *= 0xFFU;
 		const uint64_t identity_indices = 0x0706050403020100;
 		uint64_t wanted_indices = __builtin_ia32_pext_di(identity_indices, expanded_mask);
-		const __m128i bytevec = __extension__ (__m128i)(__v2di){0, (long long int)wanted_indices};
+		const __m128i bytevec = __extension__(__m128i)(__v2di){0, (long long int) wanted_indices};
 #ifdef __clang__
-		ret.v256 = (__m256i) __builtin_convertvector((__v8hi)bytevec, __v8si);
+		ret.v256 = (__m256i) __builtin_convertvector((__v8hi) bytevec, __v8si);
 #else
-		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256((__v16qi)bytevec);
+		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256((__v16qi) bytevec);
 #endif
-#else 
+#else
 		ASSERT(false);
 #endif
 		return ret;
