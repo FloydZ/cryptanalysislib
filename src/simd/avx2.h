@@ -1,7 +1,7 @@
 #ifndef CRYPTANALYSISLIB_SIMD_AVX2_H
 #define CRYPTANALYSISLIB_SIMD_AVX2_H
 
-#ifndef CRYPTANALYSISLIB_SIMD_H
+#ifndef CRYPTANALYSISLIB_D_H
 #error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
 
@@ -231,17 +231,17 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint16x8_t setr(
-		        uint16_t a, uint16_t b, uint16_t c, uint16_t d,
-		        uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
+		        uint8_t a, uint8_t b, uint8_t c, uint8_t d,
+		        uint8_t e, uint8_t f, uint8_t g, uint8_t h) noexcept {
 			_uint16x8_t ret;
-			ret.v64[0] = a;
-			ret.v64[1] = b;
-			ret.v64[2] = c;
-			ret.v64[3] = d;
-			ret.v64[4] = e;
-			ret.v64[5] = f;
-			ret.v64[6] = g;
-			ret.v64[7] = h;
+			ret.v8[0] = a;
+			ret.v8[1] = b;
+			ret.v8[2] = c;
+			ret.v8[3] = d;
+			ret.v8[4] = e;
+			ret.v8[5] = f;
+			ret.v8[6] = g;
+			ret.v8[7] = h;
 			return ret;
 		}
 	};
@@ -747,8 +747,10 @@ struct uint8x32_t {
   		const __m128i lane0 = (__m128i)__builtin_ia32_si_si256((__v8si)in.v256);
 		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128 ((__v16qi)lane0,
 				(__v16qi)__extension__ (__m128i)(__v4si){ 0, 0, 0, 0 });
-		const __m256i populated_0th_byte = (__m256i)__builtin_shufflevector(
-				(__v2di)tmp, (__v2di)tmp, 0, 1, 2, 3);
+  		const __m256i populated_0th_byte = ((__m256i) __builtin_ia32_vinsertf128_si256 (
+					(__v8si)(__m256i)( __builtin_ia32_si256_si ((__v4si)tmp)),
+					(__v4si)(__m128i)(tmp),
+					(int)(O)))
 		const __m256i eq = (__m256i)((__v32qi)in.v256 == (__v32qi)populated_0th_byte);
 		return (uint32_t)__builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
 #endif
@@ -772,7 +774,7 @@ struct uint8x32_t {
 #ifdef __clang__
 		__m256i ret = __builtin_shufflevector((__v2di) hi_rev, (__v2di) hi_rev, 0, 1, -1, -1);
 #else
-		__m256i ret = __builtin_ia32_si256_si((__v8si) hi_rev);
+		__m256i ret = __builtin_ia32_si256_si((__v4si) hi_rev);
 #endif
 		ret = ((__m256i) __builtin_ia32_insert128i256((__v4di) (__m256i) (ret),
 		                                              (__v2di) (__m128i) (lo_rev), (int) (1)));
