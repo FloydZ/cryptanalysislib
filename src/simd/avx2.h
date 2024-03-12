@@ -1,7 +1,7 @@
 #ifndef CRYPTANALYSISLIB_SIMD_AVX2_H
 #define CRYPTANALYSISLIB_SIMD_AVX2_H
 
-#ifndef CRYPTANALYSISLIB_D_H
+#ifndef CRYPTANALYSISLIB_SIMD_H
 #error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
 
