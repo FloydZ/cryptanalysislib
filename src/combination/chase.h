@@ -413,22 +413,24 @@ public:
 	}
 
 
+	///
+	/// \tparam F
+	/// \param idx
+	/// \param f
+	/// \return
 	template<typename F>
 	constexpr static inline void enumerate1(T *idx, F &&f) noexcept {
-		if constexpr (q == 2) {
-			for (idx[0] = p; idx[0] < n; ++idx[0]) {
-				f(idx[0], idx[0] - 1);
-			}
-		} else {
-			for (idx[0] = p; idx[0] < n; ++idx[0]) {
-				f(idx[0], idx[0] - 1);
-				for (idx[1] = 0; idx[1] < q; ++idx[1]) {
-					f(idx[0], idx[0]);
-				}
-			}
+		for (idx[0] = p; idx[0] < n; ++idx[0]) {
+			f(idx[0], idx[0] - 1);
 		}
 	}
 
+	///
+	/// \tparam F
+	/// \param idx
+	/// \param f
+	/// \param off0
+	/// \return
 	template<typename F>
 	constexpr static inline void enumerate2(T *idx, F &&f, const uint32_t off0 = 0) noexcept {
 		for (idx[0] = off0; idx[0] < n;) {
@@ -456,6 +458,11 @@ public:
 		}
 	}
 
+	///
+	/// \tparam F
+	/// \param idx
+	/// \param f
+	/// \return
 	template<typename F>
 	constexpr static inline void enumerate3(T *idx, F &&f) noexcept {
 		idx[1] = 1;

@@ -1353,8 +1353,6 @@ public:
 			}
 
 			if (!found){
-				std::cout << i << std::endl;
-				print();
 				ASSERT(found);
 			}
 
@@ -2499,6 +2497,11 @@ public:
 
 	/// \return if this matrix is binary
 	constexpr bool binary() noexcept { return true; }
+
+	constexpr inline T limb(const uint32_t row,
+							const uint32_t limb) const noexcept {
+		return __data[row *padded_limbs + limb];
+	}
 };
 
 #endif//CRYPTANALYSISLIB_BINARYMATRIX_H

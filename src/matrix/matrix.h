@@ -190,13 +190,14 @@ public:
 		zero_row(row);
 
 		for (uint64_t i = 0; i < w; ++i) {
-			set(fastrandombytes_uint64() % q, row, i);
+			const uint64_t data = fastrandombytes_uint64();
+			set(1 + (data % (q-1)), row, i);
 		}
 
 		// now permute
 		for (uint64_t i = 0; i < ncols; ++i) {
 			uint64_t pos = fastrandombytes_uint64() % (ncols - i);
-			bool t = get(row, i);
+			auto t = get(row, i);
 			set(get(row, i + pos), row, i);
 			set(t, row, i + pos);
 		}
@@ -822,7 +823,7 @@ public:
 		/// chose a new random permutation on only c coordinates
 		std::array<uint32_t, c> perm;
 		for (uint32_t i = 0; i < c; ++i) {
-			perm[i] = fastrandombytes_uint64() % ncols;
+			perm[i] = fastrandombytes_uint64() % (ncols - 1);
 		}
 
 		/// apply the random permutation
@@ -862,7 +863,7 @@ public:
 					/// in the first rows. Now we permute in a unity column from between
 					/// [c, max_row).
 					/// We simply use the first free one
-					const uint32_t column_to_take = c + additional_to_solve;
+					const uint32_t column_to_take = max_row - 1u - additional_to_solve;
 					additional_to_solve += 1u;
 					std::swap(P.values[i], P.values[column_to_take]);
 					perm[i] = c;
@@ -895,34 +896,37 @@ public:
 			}
 		}
 
+
 		/// last but not least
-		for (uint32_t i = 0; i < additional_to_solve; ++i) {
+		for (int32_t i = additional_to_solve; i > 0; --i) {
 			bool found = false;
 			/// pivoting
-			for (uint32_t j = max_row; j < nrows; ++j) {
-				if (__data[j][i + c] == 1u) {
-					swap_rows(j, i + c);
+			for (uint32_t j = max_row - i; j < ncols; ++j) {
+				if (__data[max_row - i][j] == 1u) {
+					swap_cols(j, max_row - i);
+					std::swap(P.values[j], P.values[max_row - i]);
 					found = true;
 					break;
 				}
 
-				if (__data[j][i + c] == (q - 1u)) {
-					swap_rows(j, i + c);
-					__data[i + c].neg();
+				if (__data[max_row - i][j] == (q-1)) {
+					swap_cols(j, max_row - i);
+					std::swap(P.values[j], P.values[max_row - i]);
+					__data[max_row - i].neg();
 					found = true;
 					break;
 				}
 			}
 
 			if (!found) {
-				return c + i;
+				return max_row - i;
 			}
 
 			for (uint32_t j = 0; j < nrows; ++j) {
-				if ((c + i) == j) continue;
-				uint32_t scal = get(j, i + c);
+				if ((max_row - i) == j) continue;
+				uint32_t scal = get(j, max_row - i);
 				if (scal) {
-					RowType::scalar(tmp, __data[i + c], q - scal);
+					RowType::scalar(tmp, __data[max_row - i], q - scal);
 					RowType::add(__data[j], __data[j], tmp);
 				}
 			}
@@ -1238,20 +1242,26 @@ public:
 	}
 
 	/// some simple functions
-	constexpr bool binary() noexcept { return false; }
+	constexpr bool inline binary() noexcept { return false; }
 
 	/// these two functions exist, as there are maybe matrix implementations
 	/// you want to wrap, which are not constant sized
-	constexpr uint32_t rows() noexcept { return ROWS; }
-	constexpr uint32_t cols() noexcept { return COLS; }
+	constexpr inline uint32_t rows() noexcept { return ROWS; }
+	constexpr inline uint32_t cols() noexcept { return COLS; }
+
+	constexpr inline T limb(const uint32_t row,
+	                        const uint32_t limb) const noexcept {
+		ASSERT(row < ROWS);
+		return __data[row].ptr(limb);
+	}
 
 	/// \return the number of `T` each row is made of
-	[[nodiscard]] constexpr uint32_t limbs_per_row() const noexcept {
+	[[nodiscard]] constexpr inline uint32_t limbs_per_row() const noexcept {
 		return RowType::internal_limbs;
 	}
 
 	///
-	[[nodiscard]] static constexpr uint32_t limbs() noexcept {
+	[[nodiscard]] static constexpr inline uint32_t limbs() noexcept {
 		return RowType::internal_limbs;
 	}
 };
