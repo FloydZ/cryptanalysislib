@@ -735,12 +735,23 @@ struct uint8x32_t {
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
+#ifdef __clang__
 		// no cost, 0th lane is mapped to an XMM reg
 		const __m128i lane0 = __builtin_shufflevector((__v4di) in.v256, (__v4di) in.v256, 0, 1);
-		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128((__v16qi) lane0, (__v16qi) _mm_setzero_si128());
+		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128((__v16qi) lane0,
+				(__v16qi) __extension__ (__m128i)(__v4si){ 0, 0, 0, 0 });
 		const __m256i populated_0th_byte = (__m256i) __builtin_shufflevector((__v2di) tmp, (__v2di) tmp, 0, 1, 2, 3);
 		const __m256i eq = (__m256i) ((__v32qi) in.v256 == (__v32qi) populated_0th_byte);
 		return (uint32_t)__builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
+#else     
+  		const __m128i lane0 = (__m128i)__builtin_ia32_si_si256((__v8si)in.v256);
+		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128 ((__v16qi)lane0,
+				(__v16qi)__extension__ (__m128i)(__v4si){ 0, 0, 0, 0 });
+		const __m256i populated_0th_byte = (__m256i)__builtin_shufflevector(
+				(__v2di)tmp, (__v2di)tmp, 0, 1, 2, 3);
+		const __m256i eq = (__m256i)((__v32qi)in.v256 == (__v32qi)populated_0th_byte);
+		return (uint32_t)__builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
+#endif 
 	}
 
 	///
@@ -1495,6 +1506,7 @@ struct uint32x8_t {
 #endif
 	}
 
+	/// needs BMI2
 	/// src: https://stackoverflow.com/questions/36932240/avx2-what-is-the-most-efficient-way-to-pack-left-based-on-a-mask
 	/// input:
 	/// 	mask: 0b010101010
@@ -1503,13 +1515,20 @@ struct uint32x8_t {
 	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
 	[[nodiscard]] constexpr static inline uint32x8_t pack(const uint32_t mask) noexcept {
 		uint32x8_t ret{};
-		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+#ifdef USE_BMI2
+		uint64_t expanded_mask = __builtin_ia32_pdep_di(mask, 0x0101010101010101);
 		expanded_mask *= 0xFFU;
 		const uint64_t identity_indices = 0x0706050403020100;
-		uint64_t wanted_indices = _pext_u64(identity_indices, expanded_mask);
-
-		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
-		ret.v256 = _mm256_cvtepu8_epi32(bytevec);
+		uint64_t wanted_indices = __builtin_ia32_pext_di(identity_indices, expanded_mask);
+		const __m128i bytevec = __extension__ (__m128i)(__v2di){0, (long long int)wanted_indices};
+#ifdef __clang__
+		ret.v256 = (__m256i) __builtin_convertvector((__v8hi)bytevec, __v8si);
+#else
+		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256((__v16qi)bytevec);
+#endif
+#else 
+		ASSERT(false);
+#endif
 		return ret;
 	}
 
