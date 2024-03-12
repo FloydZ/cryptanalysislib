@@ -1353,8 +1353,6 @@ public:
 			}
 
 			if (!found){
-				std::cout << i << std::endl;
-				print();
 				ASSERT(found);
 			}
 

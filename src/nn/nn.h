@@ -82,6 +82,9 @@ public:
 		        << ", \"e\": " << epsilon
 		        << ", \"bf\": " << BRUTEFORCE_THRESHOLD
 		        << ", \"k\": " << n / r
+				<< ", \"USE_REARRANGE\": " << USE_REARRANGE
+				<< ", \"survive_prop\": " << survive_prob
+				<< ", \"BUCKET_SIZE\": " << BUCKET_SIZE
 		        << " }" << std::endl;
 	}
 };
@@ -135,12 +138,11 @@ public:
 	alignas(64) uint64_t LB[USE_REARRANGE ? BUCKET_SIZE * ELEMENT_NR_LIMBS : 1u];
 	alignas(64) uint64_t RB[USE_REARRANGE ? BUCKET_SIZE * ELEMENT_NR_LIMBS : 1u];
 
-	// if set to true the final solution  is accepted if
-	// its weight is <=w.
+	// if set to true the final solution is accepted, if its weight is <= w.
 	// if false the final solution is only correct if == w
 	constexpr static bool FINAL_SOL_WEIGHT = true;
 
-	// if set to true, speciallizes functions which compute both lists at
+	// if set to true, specializes functions which compute both lists at
 	// the sametime
 	constexpr static bool USE_DOUBLE_SEARCH = false;
 
@@ -605,7 +607,9 @@ public:
 	/// \param e2
 	void bruteforce(const size_t e1,
 	                const size_t e2) noexcept {
-		if constexpr (32 < n and n <= 64) {
+		if constexpr (n <= 32) {
+			bruteforce_32(e1, e2);
+		} else if constexpr (32 < n and n <= 64) {
 			bruteforce_simd_64_uxv<4, 4>(e1, e2);
 		} else if constexpr (64 < n and n <= 96) {
 			bruteforce_96(e1, e2);
