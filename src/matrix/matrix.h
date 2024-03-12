@@ -1242,20 +1242,26 @@ public:
 	}
 
 	/// some simple functions
-	constexpr bool binary() noexcept { return false; }
+	constexpr bool inline binary() noexcept { return false; }
 
 	/// these two functions exist, as there are maybe matrix implementations
 	/// you want to wrap, which are not constant sized
-	constexpr uint32_t rows() noexcept { return ROWS; }
-	constexpr uint32_t cols() noexcept { return COLS; }
+	constexpr inline uint32_t rows() noexcept { return ROWS; }
+	constexpr inline uint32_t cols() noexcept { return COLS; }
+
+	constexpr inline T limb(const uint32_t row,
+	                        const uint32_t limb) const noexcept {
+		ASSERT(row < ROWS);
+		return __data[row].ptr(limb);
+	}
 
 	/// \return the number of `T` each row is made of
-	[[nodiscard]] constexpr uint32_t limbs_per_row() const noexcept {
+	[[nodiscard]] constexpr inline uint32_t limbs_per_row() const noexcept {
 		return RowType::internal_limbs;
 	}
 
 	///
-	[[nodiscard]] static constexpr uint32_t limbs() noexcept {
+	[[nodiscard]] static constexpr inline uint32_t limbs() noexcept {
 		return RowType::internal_limbs;
 	}
 };
