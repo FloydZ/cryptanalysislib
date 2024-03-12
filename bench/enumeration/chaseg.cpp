@@ -50,13 +50,13 @@ static void BM_biject(benchmark::State &state) {
 }
 
 static void BM_biject_simd(benchmark::State &state) {
-	uint32x8_t j = uint32x8_t::setr(0,1,2,3,4,5,6,7);
+	uint32x8_t j = uint32x8_t::setr(0, 1, 2, 3, 4, 5, 6, 7);
 	const uint32x8_t eight = uint32x8_t::set1(8);
 	uint32x8_t rows[p]{};
 	for (auto _: state) {
 		for (size_t i = 0; i < (list_size - 1) / 8; ++i) {
 			biject_simd<n, p>(j, rows);
-			benchmark::DoNotOptimize(j = j+eight);
+			benchmark::DoNotOptimize(j = j + eight);
 		}
 	}
 }

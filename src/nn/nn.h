@@ -282,13 +282,13 @@ public:
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
 		L1 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
 		L2 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
-		ASSERT(L1); ASSERT(L2);
+		ASSERT(L1);
+		ASSERT(L2);
 
 		if (create_zero && !insert_sol) {
 			memset(L1, 0, list_size);
 			memset(L2, 0, list_size);
 		}
-
 	}
 
 	/// generate a random instance, just for testing and debugging

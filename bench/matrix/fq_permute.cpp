@@ -1,13 +1,13 @@
 #include "b63.h"
 #include "counters/perf_events.h"
 
-#include <vector>
 #include "matrix/binary_matrix.h"
+#include <vector>
 
 using T = uint64_t;
 constexpr uint32_t nrows = 256;
 constexpr uint32_t ncols = 1024;
-using M  = FqMatrix<T, nrows, ncols, 5, true>;
+using M = FqMatrix<T, nrows, ncols, 5, true>;
 using MT = FqMatrix<T, ncols, nrows, 5, true>;
 
 B63_BASELINE(permute_with_transpose, nn) {
@@ -22,8 +22,8 @@ B63_BASELINE(permute_with_transpose, nn) {
 	uint64_t keep = 0;
 	for (uint64_t i = 0; i < nn; i++) {
 		m.permute_cols(mt, P);
-		keep += m.get(i%nrows, 10);
-		keep += P.values[i%ncols];
+		keep += m.get(i % nrows, 10);
+		keep += P.values[i % ncols];
 	}
 	B63_KEEP(keep);
 }
@@ -38,8 +38,8 @@ B63_BENCHMARK(permute_without, nn) {
 	uint64_t keep = 0;
 	for (uint64_t i = 0; i < nn; i++) {
 		m.permute_cols(P);
-		keep += m.get(i%nrows, 10);
-		keep += P.values[i%ncols];
+		keep += m.get(i % nrows, 10);
+		keep += P.values[i % ncols];
 	}
 	B63_KEEP(keep);
 }

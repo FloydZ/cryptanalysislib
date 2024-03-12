@@ -523,23 +523,23 @@ public:
 
 	template<class TT, class... Args>
 	static constexpr void construct(Alloc &a, TT *p, Args &&...args) {
-		(void)a;
-		(void)p;
+		(void) a;
+		(void) p;
 	}
 
 	template<class TT>
 	static constexpr void destroy(Alloc &a, TT *p) {
-		(void)a;
-		(void)p;
+		(void) a;
+		(void) p;
 	}
 
 	static constexpr size_type max_size(const Alloc &a) noexcept {
-		(void)a;
+		(void) a;
 		return std::numeric_limits<size_t>::max();
 	}
 
 	static constexpr Alloc select_on_container_copy_construction(const Alloc &a) {
-		(void)a;
+		(void) a;
 	}
 };
 

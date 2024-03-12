@@ -1,7 +1,7 @@
-#include <cstdlib>
-#include <ctime>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <ctime>
 
 //#define ENABLE_BENCHMARK
 #include "nn/nn.h"
@@ -68,8 +68,8 @@ int main() {
 	algo.L1 = nullptr;
 	algo.L2 = nullptr;
 
-	double ctime = ((double)time/((double)ITERS))/CLOCKS_PER_SEC;
+	double ctime = ((double) time / ((double) ITERS)) / CLOCKS_PER_SEC;
 	printf("sols: %d\n", sols);
 	printf("time: %f\n", ctime);
-    return sols;
+	return sols;
 }
