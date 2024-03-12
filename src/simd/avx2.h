@@ -750,7 +750,7 @@ struct uint8x32_t {
   		const __m256i populated_0th_byte = ((__m256i) __builtin_ia32_vinsertf128_si256 (
 					(__v8si)(__m256i)( __builtin_ia32_si256_si ((__v4si)tmp)),
 					(__v4si)(__m128i)(tmp),
-					(int)(O)))
+					(int)(1)));
 		const __m256i eq = (__m256i)((__v32qi)in.v256 == (__v32qi)populated_0th_byte);
 		return (uint32_t)__builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
 #endif
