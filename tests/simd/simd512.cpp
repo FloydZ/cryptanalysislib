@@ -171,6 +171,22 @@ TEST(uint8x64_t, logic) {
 //		EXPECT_EQ(t2.v8[i], 0);
 //	}
 //}
+
+
+TEST(uint8x64_t, popcnt) {
+	auto t1 = uint8x64_t::set1(4);
+	auto t2 = uint8x64_t::popcnt(t1);
+	for (uint32_t i = 0; i < 64; ++i) {
+		EXPECT_EQ(t2.v8[i], 1);
+	}
+
+
+	auto t3 = uint8x64_t::lzcnt(t1);
+	for (uint32_t i = 0; i < 64; ++i) {
+		EXPECT_EQ(t3.v8[i], 2);
+	}
+}
+
 #endif
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

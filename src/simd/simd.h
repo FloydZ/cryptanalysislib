@@ -20,6 +20,15 @@ struct uint16x16_t;
 struct uint32x8_t;
 struct uint64x4_t;
 struct uint128x2_t;
+#define bit_shuffle_const(b0, b1, b2, b3, b4, b5, b6, b7) \
+	((uint64_t(uint8_t(1 << b0)) << (7 * 8)) |            \
+	 (uint64_t(uint8_t(1 << b1)) << (6 * 8)) |            \
+	 (uint64_t(uint8_t(1 << b2)) << (5 * 8)) |            \
+	 (uint64_t(uint8_t(1 << b3)) << (4 * 8)) |            \
+	 (uint64_t(uint8_t(1 << b4)) << (3 * 8)) |            \
+	 (uint64_t(uint8_t(1 << b5)) << (2 * 8)) |            \
+	 (uint64_t(uint8_t(1 << b6)) << (1 * 8)) |            \
+	 (uint64_t(uint8_t(1 << b7)) << (0 * 8)))
 
 #if defined(USE_AVX2)
 
@@ -1558,9 +1567,13 @@ struct uint32x8_t {
 	/// output: a permutation mask s.t, applied on in =  [ x0, x1, x2, x3, x4, x5, x6, x7 ],
 	/// 			uint32x8_t::permute(in, permutation_mask) will result int
 	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
-	[[nodiscard]] static inline uint32x8_t pack(const uint32_t mask) noexcept {
-		uint32x8_t ret;
-		// TODO
+	[[nodiscard]] static inline uint32x8_t pack(uint32_t mask) noexcept {
+		uint32x8_t ret = uint32x8_t::set1(0);
+		for (uint32_t i = 0; (i < 8) && (mask != 0); i++ ) {
+			const uint32_t pos = __builtin_ctz(mask);
+			ret[i] = pos;
+			mask ^= 1u << pos;
+		}
 		return ret;
 	}
 
@@ -2565,4 +2578,83 @@ namespace cryptanalysislib {
 #include "simd/bits/bits.h"
 #include "simd/generic.h"
 #include "simd/matrix/simple.h"
+void transpose8(unsigned char A[8], int m, int n,
+                unsigned char B[8]) {
+	unsigned x, y, t;
+
+	// Load the array and pack it into x and y.
+
+	x = (A[0] << 24) | (A[m] << 16) | (A[2 * m] << 8) | A[3 * m];
+	y = (A[4 * m] << 24) | (A[5 * m] << 16) | (A[6 * m] << 8) | A[7 * m];
+
+	t = (x ^ (x >> 7)) & 0x00AA00AA;
+	x = x ^ t ^ (t << 7);
+	t = (y ^ (y >> 7)) & 0x00AA00AA;
+	y = y ^ t ^ (t << 7);
+
+	t = (x ^ (x >> 14)) & 0x0000CCCC;
+	x = x ^ t ^ (t << 14);
+	t = (y ^ (y >> 14)) & 0x0000CCCC;
+	y = y ^ t ^ (t << 14);
+
+	t = (x & 0xF0F0F0F0) | ((y >> 4) & 0x0F0F0F0F);
+	y = ((x << 4) & 0xF0F0F0F0) | (y & 0x0F0F0F0F);
+	x = t;
+
+	B[0] = x >> 24;
+	B[n] = x >> 16;
+	B[2 * n] = x >> 8;
+	B[3 * n] = x;
+	B[4 * n] = y >> 24;
+	B[5 * n] = y >> 16;
+	B[6 * n] = y >> 8;
+	B[7 * n] = y;
+}
+
+/// input: in, a 64x64 matrix over GF(2)
+/// output: out, transpose of in
+void transpose_64x64(uint64_t *out, uint64_t *in) {
+	const static uint64_t masks[6][2] = {
+	        {0x5555555555555555, 0xAAAAAAAAAAAAAAAA},
+	        {0x3333333333333333, 0xCCCCCCCCCCCCCCCC},
+	        {0x0F0F0F0F0F0F0F0F, 0xF0F0F0F0F0F0F0F0},
+	        {0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00},
+	        {0x0000FFFF0000FFFF, 0xFFFF0000FFFF0000},
+	        {0x00000000FFFFFFFF, 0xFFFFFFFF00000000}};
+
+	for (uint64_t i = 0; i < 64; i++) {
+		out[i] = in[i];
+	}
+
+	for (int32_t d = 5; d >= 0; d--) {
+		const uint32_t s = 1 << d;
+
+		for (uint32_t i = 0; i < 64; i += s * 2) {
+			for (uint32_t j = i; j < i + s; j++) {
+				const uint64_t x = (out[j] & masks[d][0]) | ((out[j + s] & masks[d][0]) << s);
+				const uint64_t y = ((out[j] & masks[d][1]) >> s) | (out[j + s] & masks[d][1]);
+				out[j + 0] = x;
+				out[j + s] = y;
+			}
+		}
+	}
+}
+
+
+// inplace
+inline void transpose64(uint64_t a[64]) noexcept {
+	for (uint64_t j = 32, m = 0x00000000FFFFFFFF; j; j >>= 1, m ^= m << j) {
+		for (uint64_t k = 0; k < 64; k = ((k | j) + 1) & ~j) {
+			uint64_t t = (a[k] ^ (a[k | j] >> j)) & m;
+			a[k] ^= t;
+			a[k | j] ^= (t << j);
+		}
+	}
+}
+
+// TODO
+//struct b256x64_T
+
+#include "simd/bits/bits.h"
+#include "simd/generic.h"
 #endif//CRYPTANALYSISLIB_SIMD_H

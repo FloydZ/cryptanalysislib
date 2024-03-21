@@ -8,6 +8,10 @@
 #include "random.h"
 
 namespace cryptanalysislib {
+	struct _uint16x8_t;
+	struct _uint32x4_t;
+	struct _uint64x2_t;
+
 	struct _uint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
@@ -20,7 +24,6 @@ namespace cryptanalysislib {
 		constexpr _uint8x16_t(const _uint16x8_t &b) noexcept;
 		constexpr _uint8x16_t(const _uint32x4_t &b) noexcept;
 		constexpr _uint8x16_t(const _uint64x2_t &b) noexcept;
-		
 		union {
 			// compatibility to `TxN_t`
 			uint8_t d[16];
@@ -132,7 +135,6 @@ namespace cryptanalysislib {
 		constexpr inline _uint16x8_t &operator=(const _uint8x16_t &b) noexcept;
 		constexpr inline _uint16x8_t &operator=(const _uint32x4_t &b) noexcept;
 		constexpr inline _uint16x8_t &operator=(const _uint64x2_t &b) noexcept;
-
 		constexpr _uint16x8_t() noexcept {}
 		constexpr _uint16x8_t(const _uint8x16_t &b) noexcept;
 		constexpr _uint16x8_t(const _uint32x4_t &b) noexcept;

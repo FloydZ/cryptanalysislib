@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_COMBINATION_CHASE_H
 #define CRYPTANALYSISLIB_COMBINATION_CHASE_H
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -98,8 +99,8 @@ public:
 	constexpr static size_t chase_size = bc(n, w);
 
 	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
-	constexpr static inline void WRITE_BIT(T *v, 
-			const size_t i, const uint64_t b) noexcept {
+	constexpr static inline void WRITE_BIT(T *v,
+	                                       const size_t i, const uint64_t b) noexcept {
 		v[i / RADIX] = ((v[i / RADIX] & ~(1ull << (i % RADIX))) | (T(b) << (i % RADIX)));
 	}
 
@@ -304,96 +305,362 @@ public:
 	}
 };
 
-template<const uint32_t n, const uint32_t p>
-void next3(uint32_t *c1, uint32_t *c2) {
-	static_assert(n > p);
-	static_assert(p > 0);
+// TODO is sadly wrong is counting certain elements double
+//template<const uint32_t n, const uint32_t p>
+//void next3(uint32_t *c1, uint32_t *c2) {
+//	static_assert(n > p);
+//	static_assert(p > 0);
+//
+//	static bool jumps[p] = {false};
+//	// last_pos[0] = slow ctr
+//	// last_pos[1] = middle ctr
+//	static uint32_t last_pos[p] = {0};
+//	static uint32_t cp = 1;
+//
+//	/// jump the middle/fast ctr back to the slow
+//	for (uint32_t i = 0; i < p; i++) {
+//		if (jumps[i]) {
+//			*c1 = n - 1u;
+//			*c2 = last_pos[cp] + 1u;
+//			jumps[i] = false;
+//			return;
+//		}
+//	}
+//
+//	/// step with slow/middle ctr
+//	for (int32_t i = (p - 1); i >= 0; i--) {
+//		if (*c2 == (n - 1u)) {
+//			*c1 = last_pos[cp];
+//			*c2 = last_pos[cp] + 1u;
+//			last_pos[cp] += 1;
+//
+//			jumps[cp] = true;
+//			cp -= 1u * (last_pos[cp] == (n - 1u - cp));
+//			return;
+//		}
+//	}
+//
+//
+//	*c1 = *c2;
+//	*c2 += 1u;
+//	return;
+//}
+//
+//// only generated the change list
+////https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIM9KuADJ4DJgAcj4ARpjEIADMAOykAA6oCoRODB7evv7SaRmOAiFhkSwxcUm2mPbFDEIETMQEOT5%2BATV1WY3NBKUR0bEJyQpNLW15nWN9A%2BWVIwCUtqhexMjsHObxocjeWADUJvFuyGP4gsfYJhoAgje3BJgsKQZPx6cCYwdeoQTxZgA%2BgQDgxSAc0Axvr9BADgQcUlcHn9QZhVAQzBAYf8gSCAFTILjg7Fw/HIMyLI6JKx3G4AThmjmQByiqE8B20PhSR3iABEDlQxEpjjT7hoGU0mT8/qSDgYxoDCjz%2BRoRQ91eKAPTajlcg4EBCYAVMb4OYgspjIADW%2BtQ%2BsNBwUtFQAHcNXS8FQDhBOS9KSZqe76QSuMrQQcALQHLheNW08XB8lh%2BUERXpI6WaOx%2BKi%2Bn033c478wW0YU5oPi4iYAhrBjRuNiukB3kaxvazWOp7cl2EBD2o1O10QgjEd2e70EszKovehgRmOLf2B%2BNN8Uh5Mm1OFBt5tdJmcptMKDMWLM7hPiw9K6wzrjnxv5vUzkdeTDn1d0qs14h1u/llfNq29LtgcaKEBCAj4PU7rauOEDrkWM4QHOC4HEuuZapq9JfrWByqv%2BbZYYkLbxo2CF8gck7vpOJ63tmGGftWuF/rmxGtiiTxjBAkLfCiUQGOh7o8U8qgpOaKIMHWt4aPhDHCWiYkHCihYUWY94PAcmlKYIw7mjOsnuiSuIIqG%2BngikU63u%2B6B2gGDH0mE6JqScknmVcEDmAAbCkRIZt5FINlpQW6bRFEsUGxEHC6CB0Ea3EjjybgzvxTCLIFWk4T%2BJkngizmsbyHDLLQnAAKy8H4HBaKQqCcElljWI6qzrEa2w8KQBCaIVyxWiAJUaPonCSOVnXVZwvAKCA/UdZVhWkHAsBIGgLyxWQFDcagy30HEwBcACfB0E8xATRAUQjVEoTNAAnpwbXncwxCXQA8lE2iYA4N28EtbCCI9DC0NdM2kFgUReMAbhiKWH1A88hjAOIgP4FWDh4AAbpgE2A2ib1eE8UN/LUI20HgUTEFdHhYCNI54CwH3LFQBjAAoABqeCYC6j0pIwUP8IIIhiOwUgyIIigqOogO6ESBhGCgN6WPoxMTZAyyoCk9QYxGj3xJGLBMCjqja7rqhTrwqBo8QxB4FgisQMsdhvfULgMO4njtHowShIMFTDEShSZAIkx%2BD76R%2BwwcxDHERJ28jAi9BMLt5JHtT2z04z9B78ze7YqcB3oMwtGHXsR7bTUbBIRWlcNgM1RwByqAAHJ5EaeZIBzAMgzK7QAdFOEC4IQJAZvEXCLLw01aIupA9X1A0cENpAVVV1fjZN7WdRPxUcGYleL2Nq8zRPZsZM4khAA
+//template<const uint32_t n, const uint32_t p>
+//void next2(uint32_t *c1, uint32_t *c2) {
+//	static bool jump = false;
+//	static uint32_t last_pos = 0;
+//
+//	/// jump the fast ctr back to the slow
+//	if (jump) {
+//		*c1 = n - 1u;
+//		*c2 = last_pos + 1u;
+//		jump = false;
+//		return;
+//	}
+//
+//	/// step with the slow ctr
+//	if (*c2 == (n - 1u)) {
+//		*c1 = last_pos;
+//		*c2 = last_pos + 1u;
+//		last_pos += 1;
+//
+//		jump = true;
+//		return;
+//	}
+//
+//
+//	*c1 = *c2;
+//	*c2 += 1u;
+//	return;
+//}
+//
+/////
+//template<const uint32_t n, const uint32_t p>
+//void next1(uint32_t *c1, uint32_t *c2) {
+//	*c1 += 1;
+//	*c2 += 1;
+//}
+//
+/////
+//template<const uint32_t n, const uint32_t p>
+//void next_chase(uint32_t *c1, uint32_t *c2) {
+//	static_assert(p > 0);
+//	static_assert(n > p);
+//	if constexpr (p == 1) {
+//		next1<n, p>(c1, c2);
+//	} else if constexpr (p == 2) {
+//		next2<n, p>(c1, c2);
+//	} else if constexpr (p == 3) {
+//		next3<n, p>(c1, c2);
+//	}
+//}
 
-	static bool jumps[p] = {false};
-	// last_pos[0] = slow ctr
-	// last_pos[1] = middle ctr
-	static uint32_t last_pos[p] = {0};
-	static uint32_t cp = 1;
 
-	/// jump the middle/fast ctr back to the slow
-	for (uint32_t i = 0; i < p; i++) {
-		if (jumps[i]) {
-			*c1 = n - 1u;
-			*c2 = last_pos[cp] + 1u;
-			jumps[i] = false;
+template<const uint32_t n, const uint32_t p, const uint32_t q = 2>
+class enumerate_t {
+	using T = uint16_t;
+	T idx[16] = {0};
+
+public:
+	constexpr size_t list_size() const noexcept {
+		return compute_combinations_fq_chase_list_size<n, q, p>();
+	}
+
+	template<typename F>
+	constexpr inline void enumerate(F &&f) noexcept {
+		static_assert(n > p);
+		if constexpr (p == 0) {
+			// catch for prange
 			return;
+		} else if constexpr (p == 1) {
+			return enumerate1(idx, f);
+		} else if constexpr (p == 2) {
+			return enumerate2(idx, f);
+		} else if constexpr (p == 3) {
+			return enumerate3(idx, f);
 		}
 	}
 
-	/// step with slow/middle ctr
-	for (int32_t i = (p - 1); i >= 0; i--) {
-		if (*c2 == (n - 1u)) {
-			*c1 = last_pos[cp];
-			*c2 = last_pos[cp] + 1u;
-			last_pos[cp] += 1;
+	template<typename F>
+	constexpr static inline void enumerate1(T *idx, F &&f) noexcept {
+		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
+			f(idx);
+		}
+	}
 
-			jumps[cp] = true;
-			cp -= 1u * (last_pos[cp] == (n - 1u - cp));
+	template<typename F>
+	constexpr static inline void enumerate2(T *idx, F &&f) noexcept {
+		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
+			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
+				f(idx);
+			}
+		}
+	}
+
+	template<typename F>
+	constexpr static inline void enumerate3(T *idx, F &&f) noexcept {
+		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
+			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
+				for (idx[2] = idx[1] + 1; idx[2] < n; ++idx[2]) {
+					f(idx);
+				}
+			}
+		}
+	}
+
+	template<typename F>
+	constexpr static inline void enumerate4(T *idx, F &&f) noexcept {
+		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
+			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
+				for (idx[2] = idx[1] + 1; idx[2] < n; ++idx[2]) {
+					for (idx[3] = idx[2] + 1; idx[3] < n; ++idx[3]) {
+						f(idx);
+					}
+				}
+			}
+		}
+	}
+};
+template<const uint32_t n, const uint32_t p, const uint32_t q = 2>
+class chase {
+	using T = uint16_t;
+	// TODO reset und wie machen wir das wenn wir mehrerer solcher fks hintereinander callen
+	T idx[16] = {0};
+
+	static_assert(q >= 2);
+
+public:
+	constexpr size_t list_size() const noexcept {
+		return compute_combinations_fq_chase_list_size<n, q, p>();
+	}
+
+
+	///
+	/// \tparam F
+	/// \param idx
+	/// \param f
+	/// \return
+	template<typename F>
+	constexpr static inline void enumerate1(T *idx, F &&f) noexcept {
+		for (idx[0] = p; idx[0] < n; ++idx[0]) {
+			f(idx[0], idx[0] - 1);
+		}
+	}
+
+	///
+	/// \tparam F
+	/// \param idx
+	/// \param f
+	/// \param off0
+	/// \return
+	template<typename F>
+	constexpr static inline void enumerate2(T *idx, F &&f, const uint32_t off0 = 0) noexcept {
+		for (idx[0] = off0; idx[0] < n;) {
+			const uint32_t start = idx[0] == 0 ? p : idx[0] + 2;
+			for (idx[1] = start; idx[1] < n; idx[1] += 1) {
+				f(idx[1], idx[1] - 1);
+			}
+
+			idx[0] += 1;
+			if (idx[0] >= n - 1) { break; }
+
+			f(idx[0], idx[0] - 1);
+			idx[1] -= 1;
+
+
+			for (; idx[1] > idx[0] + 1; idx[1] -= 1) {
+				f(idx[1], idx[1] - 1);
+			}
+
+			idx[0] += 1;
+			if (idx[0] >= n - 1) { break; }
+			idx[1] += 1;
+
+			f(idx[0] + 1, idx[0] - 1);
+		}
+	}
+
+	///
+	/// \tparam F
+	/// \param idx
+	/// \param f
+	/// \return
+	template<typename F>
+	constexpr static inline void enumerate3(T *idx, F &&f) noexcept {
+		idx[1] = 1;
+		idx[2] = 2;
+		for (idx[0] = 0; idx[0] < n;) {
+			enumerate2(idx + 1, f, idx[0] + 1);
+			idx[0] += 1;
+			if (idx[0] >= n - 1) { break; }
+			f(idx[0], idx[0] - 1);
+			idx[1] -= 1;
+
+			for (; idx[2] > idx[0] + 2;) {
+				for (; idx[1] > idx[0] + 1; idx[1] -= 1) {
+					f(idx[1], idx[1] - 1);
+				}
+
+				f(idx[2], idx[2] - 1);
+				idx[2] -= 1;
+				idx[1] += 1;
+
+				for (; idx[1] < idx[2]; idx[1] += 1) {
+					f(idx[1], idx[1] - 1);
+				}
+
+				idx[1] -= 1;
+				f(idx[1] - 1, idx[1] + 1);
+				idx[2] -= 1;
+				idx[1] -= 1;
+			}
+
+			f(idx[0], idx[0] + 3);
+			idx[0] += 1;
+			idx[1] += 1;
+			idx[2] += 1;
+		}
+	}
+
+	template<typename F>
+	constexpr inline void enumerate(F &&f) noexcept {
+		static_assert(n > p);
+		if constexpr (p == 0) {
+			// catch for prange
 			return;
+		} else if constexpr (p == 1) {
+			return enumerate1(idx, f);
+		} else if constexpr (p == 2) {
+			return enumerate2(idx, f);
+		} else if constexpr (p == 3) {
+			return enumerate3(idx, f);
 		}
 	}
 
 
-	*c1 = *c2;
-	*c2 += 1u;
-	return;
-}
-
-// only generated the change list
-//https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIM9KuADJ4DJgAcj4ARpjEIADMAOykAA6oCoRODB7evv7SaRmOAiFhkSwxcUm2mPbFDEIETMQEOT5%2BATV1WY3NBKUR0bEJyQpNLW15nWN9A%2BWVIwCUtqhexMjsHObxocjeWADUJvFuyGP4gsfYJhoAgje3BJgsKQZPx6cCYwdeoQTxZgA%2BgQDgxSAc0Axvr9BADgQcUlcHn9QZhVAQzBAYf8gSCAFTILjg7Fw/HIMyLI6JKx3G4AThmjmQByiqE8B20PhSR3iABEDlQxEpjjT7hoGU0mT8/qSDgYxoDCjz%2BRoRQ91eKAPTajlcg4EBCYAVMb4OYgspjIADW%2BtQ%2BsNBwUtFQAHcNXS8FQDhBOS9KSZqe76QSuMrQQcALQHLheNW08XB8lh%2BUERXpI6WaOx%2BKi%2Bn033c478wW0YU5oPi4iYAhrBjRuNiukB3kaxvazWOp7cl2EBD2o1O10QgjEd2e70EszKovehgRmOLf2B%2BNN8Uh5Mm1OFBt5tdJmcptMKDMWLM7hPiw9K6wzrjnxv5vUzkdeTDn1d0qs14h1u/llfNq29LtgcaKEBCAj4PU7rauOEDrkWM4QHOC4HEuuZapq9JfrWByqv%2BbZYYkLbxo2CF8gck7vpOJ63tmGGftWuF/rmxGtiiTxjBAkLfCiUQGOh7o8U8qgpOaKIMHWt4aPhDHCWiYkHCihYUWY94PAcmlKYIw7mjOsnuiSuIIqG%2BngikU63u%2B6B2gGDH0mE6JqScknmVcEDmAAbCkRIZt5FINlpQW6bRFEsUGxEHC6CB0Ea3EjjybgzvxTCLIFWk4T%2BJkngizmsbyHDLLQnAAKy8H4HBaKQqCcElljWI6qzrEa2w8KQBCaIVyxWiAJUaPonCSOVnXVZwvAKCA/UdZVhWkHAsBIGgLyxWQFDcagy30HEwBcACfB0E8xATRAUQjVEoTNAAnpwbXncwxCXQA8lE2iYA4N28EtbCCI9DC0NdM2kFgUReMAbhiKWH1A88hjAOIgP4FWDh4AAbpgE2A2ib1eE8UN/LUI20HgUTEFdHhYCNI54CwH3LFQBjAAoABqeCYC6j0pIwUP8IIIhiOwUgyIIigqOogO6ESBhGCgN6WPoxMTZAyyoCk9QYxGj3xJGLBMCjqja7rqhTrwqBo8QxB4FgisQMsdhvfULgMO4njtHowShIMFTDEShSZAIkx%2BD76R%2BwwcxDHERJ28jAi9BMLt5JHtT2z04z9B78ze7YqcB3oMwtGHXsR7bTUbBIRWlcNgM1RwByqAAHJ5EaeZIBzAMgzK7QAdFOEC4IQJAZvEXCLLw01aIupA9X1A0cENpAVVV1fjZN7WdRPxUcGYleL2Nq8zRPZsZM4khAA
-template<const uint32_t n, const uint32_t p>
-void next2(uint32_t *c1, uint32_t *c2) {
-	static bool jump = false;
-	static uint32_t last_pos = 0;
-
-	/// jump the fast ctr back to the slow
-	if (jump) {
-		*c1 = n - 1u;
-		*c2 = last_pos + 1u;
-		jump = false;
-		return;
+	inline void biject1(uint64_t a, uint16_t rows[1]) noexcept {
+		ASSERT(a < n);
+		rows[0] = a;
 	}
 
-	/// step with the slow ctr
-	if (*c2 == (n - 1u)) {
-		*c1 = last_pos;
-		*c2 = last_pos + 1u;
-		last_pos += 1;
+	template<const uint32_t nn, const uint32_t pp>
+	inline void biject2(uint64_t a, uint16_t rows[2]) noexcept {
+		constexpr uint64_t n2 = 2 * nn;
+		constexpr uint64_t n22 = 2 * nn - 2;
+		constexpr uint64_t np = nn * pp;
+		constexpr int64_t nnn = (1 - n2) * (1 - n2);
 
-		jump = true;
-		return;
+		/// https://www.wolframalpha.com/input?i=a+%3D%3D+%28sum+%28n+-+1-+k%29%2C+k%3D0+to+x%29%2C+solve+for+x
+		const double pos1 = __builtin_sqrt(nnn - double(a << 3));
+		const double pos = (pos1 + n2 - 3.) / 2.;
+		const uint32_t t = np - __builtin_ceil(pos) - pp;
+		rows[0] = t;
+
+		const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
+
+		const bool dir = t & 1ul;
+		uint32_t t3 = !dir ? nn - (t2 - a) : t2 - a + t;
+		rows[1] = t3;
 	}
 
+	template<const uint32_t nn, const uint32_t pp>
+	inline void biject2_down(uint64_t a, uint16_t rows[2]) noexcept {
+		constexpr uint64_t n2 = 2 * nn;
+		constexpr uint64_t n22 = 2 * nn - 2;
+		constexpr uint64_t np = nn * pp;
+		constexpr int64_t nnn = (1 - n2) * (1 - n2);
 
-	*c1 = *c2;
-	*c2 += 1u;
-	return;
-}
+		/// https://www.wolframalpha.com/input?i=a+%3D%3D+%28sum+%28n+-+1-+k%29%2C+k%3D0+to+x%29%2C+solve+for+x
+		const double pos1 = __builtin_sqrt(nnn - double(a << 3));
+		const double pos = (pos1 + n2 - 3.) / 2.;
+		const uint32_t t = np - __builtin_ceil(pos) - pp;
+		rows[0] = n - 2 - t;
 
-///
-template<const uint32_t n, const uint32_t p>
-void next1(uint32_t *c1, uint32_t *c2) {
-	*c1 += 1;
-	*c2 += 1;
-}
+		const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
 
-///
-template<const uint32_t n, const uint32_t p>
-void next_chase(uint32_t *c1, uint32_t *c2) {
-	static_assert(p > 0);
-	static_assert(n > p);
-	if constexpr (p == 1) {
-		next1<n, p>(c1, c2);
-	} else if constexpr (p == 2) {
-		next2<n, p>(c1, c2);
-	} else if constexpr (p == 3) {
-		next3<n, p>(c1, c2);
+		const bool dir = t & 1ul;
+		uint32_t t3 = !dir ? nn - (t2 - a) : t2 - a + t;
+		rows[1] = n - 2 - t3;
 	}
-}
+
+	inline void biject(uint64_t a, uint16_t rows[p]) noexcept {
+		static_assert(p <= 3, "not implemented");
+		if constexpr (p == 1) {
+			return biject1(a, rows);
+		}
+
+		if constexpr (p == 2) {
+			biject2<n, p>(a, rows);
+		}
+
+		if constexpr (p == 3) {
+			constexpr uint64_t np = bc(n - 1, p - 1);
+			constexpr uint64_t n2 = 2 * np;
+			// constexpr uint64_t n22 = 2 * np - 2;
+			constexpr int64_t nnn = (1 - n2) * (1 - n2);
+			const double pos1 = __builtin_sqrt(nnn - double(a << 3));
+			const double pos = (pos1 + n2 - 3.) / 2.;
+			const uint32_t t = 2 * np - __builtin_ceil(pos) - 2;
+			rows[0] = t;
+
+			// TODO not finished const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
+
+			if (a % (np - 1) > 0 || a == 0) {
+				if (t & 1u) {
+					biject2_down<n - 1, p - 1>(a % np, rows + 1);
+				} else {
+					biject2<n - 1, p - 1>(a % np, rows + 1);
+				}
+
+				for (uint32_t i = 0; i < 2; ++i) {
+					rows[i + 1] += 1;
+				}
+			}
+		}
+	}
+};
 
 #endif//CRYPTANALYSISLIB_CHASE_H

@@ -8,8 +8,6 @@
 #include "math/log.h"
 #include "popcount/popcount.h"
 
-using namespace cryptanalysislib::popcount;
-
 template<typename T = uint64_t,
          const uint32_t l = 0,
          const uint32_t h = 8u * sizeof(T),
@@ -19,6 +17,7 @@ class Hash {
 	static_assert(q >= 2);
 	static_assert(l < h);
 	static_assert(h <= (sizeof(T) * 8u));
+
 public:
 	constexpr inline size_t operator()(const T &a) const noexcept {
 		if constexpr (q == 2) {
@@ -37,15 +36,15 @@ public:
 
 			/// trivial case: q is a power of two
 			if constexpr (cryptanalysislib::popcount::popcount(q) == 1) {
-				constexpr T mask = (1ull << (l*qbits)) - 1ull;
-				return a&mask;
+				constexpr T mask = ((1ull << ((h-l) * qbits)) - 1ull) << l;
+				return a & mask;
 			}
 
 			/// not so trivial case
-			constexpr uint32_t lower = 0, upper = l*qbits;
-			constexpr T mask   			= (~((T(1ul) << lower) - 1ul)) & ((T(1ul) << upper) - 1ul);
-			constexpr T mask_q 			= (1ull << qbits) - 1ull;
-			constexpr uint32_t loops 	= l >> 1u;
+			constexpr uint32_t lower = 0, upper = l * qbits;
+			constexpr T mask = (~((T(1ul) << lower) - 1ul)) & ((T(1ul) << upper) - 1ul);
+			constexpr T mask_q = (1ull << qbits) - 1ull;
+			constexpr uint32_t loops = l >> 1u;
 
 			uint64_t ctr = q;
 			T tmp = (a & mask) >> lower;
@@ -54,7 +53,7 @@ public:
 			#pragma unroll
 			for (uint32_t i = 1u; i < loops; ++i) {
 				tmp >>= qbits;
-				ret += ctr * (tmp&mask_q);
+				ret += ctr * (tmp & mask_q);
 				ctr *= q;
 			}
 

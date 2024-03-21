@@ -26,7 +26,7 @@
 	        _mm256_castsi256_ps(a), _mm256_castsi256_ps(b), mask));
 
 // optimized sorting network for two vectors, that is 16 ints
-inline void sortingnetwork_sort_u32x16(__m256i &v1, __m256i &v2) {
+inline void sortingnetwork_sort_u32x16(__m256i &v1, __m256i &v2) noexcept {
 	COEX32(v1, v2); /* step 1 */
 
 	v2 = _mm256_shuffle_epi32(v2, _MM_SHUFFLE(2, 3, 0, 1)); /* step 2 */

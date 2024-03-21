@@ -1,16 +1,15 @@
-#ifndef SMALLSECRETLWE_SIMPLE2_H
-#define SMALLSECRETLWE_SIMPLE2_H
+#ifndef CRYPTANALYSISLIB_HASHMAP_SIMPLE2_H
+#define CRYPTANALYSISLIB_HASHMAP_SIMPLE2_H
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <utility>
-#include <array>
 
 #include "atomic_primitives.h"
 #include "container/hashmap/common.h"
 #include "helper.h"
-#include "sort/sorting_network/common.h"
 
 ///
 class Simple2HashMapConfig {

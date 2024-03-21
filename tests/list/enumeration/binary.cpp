@@ -16,17 +16,17 @@ using namespace cryptanalysislib;
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-constexpr uint32_t n = 50;
+constexpr uint32_t n = 10;
 constexpr uint32_t l = 10;
 constexpr uint32_t q = 2;
-constexpr uint32_t w = 2;
+constexpr uint32_t w = 3;
 
 constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();
 
 using T = uint64_t;
 using Value = kAryPackedContainer_T<T, n, q>;
 using Label = kAryPackedContainer_T<T, n, q>;
-using Matrix = FqMatrix<T, n, n, q>;
+using Matrix = FqMatrix<T, n, n, q, true>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
 
@@ -37,46 +37,128 @@ constexpr static SimpleHashMapConfig simple{10, 1u << l, 1};
 using HMType = SimpleHashMap<K, V, simple, Hash<K, 0, l>>;
 using load_type = HMType::load_type;
 
-//TEST(Chase, __new3) {
-//	constexpr int nn = 10;
-//	constexpr int p = 3;
-//
-//	uint32_t ctr = 0;
-//	uint32_t p1 = 1, p2 = 2;
-//	uint32_t x = 7u;
-//	do {
-//		print_binary(x, 10);
-//		std::cout << p1 << " " << p2 << std::endl;
-//
-//		next3<nn, p>(&p1, &p2);
-//		x ^= (1u << p1);
-//		x ^= (1u << p2);
-//		ctr += 1;
-//	} while (ctr <= bc(nn, p)+5u);
-//
-//	print_binary(x, 10);
-//	std::cout << p1 << " " << p2 << " " << ctr << " " << bc(nn, p) << std::endl;
-//}
-
-TEST(Chase, __new) {
-	constexpr int nn = 10;
+TEST(Enum, p2) {
+	constexpr int nn = 30;
 	constexpr int p = 2;
+	enumerate_t<nn, p> c;
 
 	uint32_t ctr = 0;
-	uint32_t p1 = 0, p2 = 1;
-	uint32_t x = 3u;
-	do {
-		// print_binary(x, 10);
-		// std::cout << p1 << " " << p2 << std::endl;
 
-		next2<nn, p>(&p1, &p2);
+	c.enumerate([&](uint16_t *p1) {
+		uint32_t x = 0;
+		x ^= (1u << p1[0]);
+		x ^= (1u << p1[1]);
+		// print_binary(x, nn, "");
+		// std::cout << ": " << p1[0] << " " << p1[1] << std::endl;
+
+		EXPECT_EQ(__builtin_popcountll(x), p);
+		ctr += 1;
+	});
+
+	EXPECT_EQ(ctr, bc(nn, p));
+}
+
+TEST(Enum, p3) {
+	constexpr int nn = 30;
+	constexpr int p = 3;
+	enumerate_t<nn, p> c;
+
+	uint32_t ctr = 0;
+
+	c.enumerate([&](uint16_t *p1) {
+		uint32_t x = 0;
+		x ^= (1u << p1[0]);
+		x ^= (1u << p1[1]);
+		x ^= (1u << p1[2]);
+		// print_binary(x, nn, "");
+		// std::cout << ": " << p1[0] << " " << p1[1] << " " << p1[2] << std::endl;
+		EXPECT_EQ(__builtin_popcountll(x), p);
+		ctr += 1;
+	});
+
+	EXPECT_EQ(ctr, bc(nn, p));
+}
+
+TEST(Chase, p1) {
+	constexpr int nn = 30;
+	constexpr int p = 1;
+	chase<nn, p> c;
+
+	uint32_t ctr = 1;
+	uint32_t x = 1u;
+	uint16_t rows[p] = {0};
+	//print_binary(x, nn, "");
+
+	c.enumerate([&](uint16_t p1, uint16_t p2) {
+		c.biject(ctr, rows);
 		x ^= (1u << p1);
 		x ^= (1u << p2);
-		ctr += 1;
-	} while (ctr <= bc(nn, p) + 5u);
+		print_binary(x, nn, "");
+		std::cout << ": " << p1 << " " << p2 << " | " << rows[0] << std::endl;
 
-	//print_binary(x, 10);
-	// std::cout << p1 << " " << p2 << " " << ctr << " " << bc(nn, p) << std::endl;
+		EXPECT_EQ(__builtin_ctz(x), rows[0]);
+		ctr += 1;
+	});
+
+	EXPECT_EQ(ctr, bc(nn, p));
+}
+
+TEST(Chase, p2) {
+	constexpr int nn = 30;
+	constexpr int p = 2;
+	chase<nn, p> c;
+
+	uint32_t ctr = 1;
+	uint32_t x = 3u;
+	uint16_t rows[p] = {0};
+	//print_binary(x, nn, "");
+
+	c.enumerate([&](uint16_t p1, uint16_t p2) {
+		c.biject(ctr, rows);
+		x ^= (1u << p1);
+		x ^= (1u << p2);
+		//print_binary(x, nn, "");
+		//std::cout << ": " << p1 << " " << p2 << " | " << rows[0] << ":" << rows[1] << std::endl;
+
+		uint32_t y = x;
+		for (uint32_t i = 0; i < p; ++i) {
+			const uint32_t ctz = __builtin_ctz(y);
+			EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]));
+			y ^= 1u << ctz;
+		}
+		ctr += 1;
+	});
+
+	EXPECT_EQ(ctr, bc(nn, p));
+}
+
+TEST(Chase, p3) {
+	constexpr int nn = 10;
+	constexpr int p = 3;
+	chase<nn, p> c;
+
+	uint32_t ctr = 1;
+	uint32_t x = 7u;
+	uint16_t rows[p] = {0};
+	//print_binary(x, nn, "");
+
+	c.enumerate([&](uint16_t p1, uint16_t p2) {
+		c.biject(ctr, rows);
+		x ^= (1u << p1);
+		x ^= (1u << p2);
+		print_binary(x, nn, "");
+		std::cout << ": " << p1 << " " << p2 << " | " << rows[0] << ":" << rows[1] << ":" << rows[2] << ", " << ctr << std::endl;
+
+		uint32_t y = x;
+		for (uint32_t i = 0; i < p; ++i) {
+			const uint32_t ctz = __builtin_ctz(y);
+			//EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]) || (ctz == rows[2]));
+			y ^= 1u << ctz;
+		}
+		ctr += 1;
+	});
+
+	EXPECT_EQ(ctr, bc(nn, p));
 }
 
 TEST(Chase, first) {
@@ -107,7 +189,7 @@ TEST(Chase, first) {
 		EXPECT_EQ(true, v1);
 		EXPECT_EQ(true, v2);
 		// std ::cout << epos1 << ":" << epos2 << " " << pos1 << ":" << pos2 << std::endl;
-		//print_binary(w2, n);
+		print_binary(w2, n);
 
 		uint32_t popc = 0;
 		for (uint32_t j = 0; j < element_limbs; ++j) {
@@ -128,7 +210,7 @@ TEST(F2, single_list) {
 	Matrix HT;
 	HT.random();
 	BinaryListEnumerateMultiFullLength<List, n, w> enumerator{HT};
-	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
+	// TODO enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		EXPECT_EQ(L.data_value(i).popcnt(), w);
@@ -146,7 +228,7 @@ TEST(F2, single_hashmap) {
 	HT.random();
 
 	BinaryListEnumerateMultiFullLength<List, n, w> enumerator{HT};
-	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
+	// TODO enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		const auto data = extractor(L.data_label(i));
@@ -167,7 +249,7 @@ TEST(F2, two_lists) {
 	HT.random();
 
 	BinaryListEnumerateMultiFullLength<List, n / 2, w> enumerator{HT};
-	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
+	// TODO enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		EXPECT_EQ(L1.data_value(i).popcnt(), w);

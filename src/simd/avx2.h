@@ -231,14 +231,14 @@ namespace cryptanalysislib {
 		        uint16_t a, uint16_t b, uint16_t c, uint16_t d,
 		        uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
 			_uint16x8_t ret;
-			ret.v64[0] = a;
-			ret.v64[1] = b;
-			ret.v64[2] = c;
-			ret.v64[3] = d;
-			ret.v64[4] = e;
-			ret.v64[5] = f;
-			ret.v64[6] = g;
-			ret.v64[7] = h;
+			ret.v8[0] = a;
+			ret.v8[1] = b;
+			ret.v8[2] = c;
+			ret.v8[3] = d;
+			ret.v8[4] = e;
+			ret.v8[5] = f;
+			ret.v8[6] = g;
+			ret.v8[7] = h;
 			return ret;
 		}
 	};
@@ -775,6 +775,59 @@ struct uint8x32_t {
 		uint8x32_t ret{};
 		ret.v256 = (__m256i) __builtin_ia32_pblendvb256((__v32qi) in1.v256, (__v32qi) in2.v256, (__v32qi) in3.v256);
 		return ret;
+	}
+
+	/// checks if all bytes are equal
+	/// source: https://github.com/WojciechMula/toys/tree/master/simd-all-bytes-equal
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
+#ifdef __clang__
+		// no cost, 0th lane is mapped to an XMM reg
+		const __m128i lane0 = __builtin_shufflevector((__v4di) in.v256, (__v4di) in.v256, 0, 1);
+		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128((__v16qi) lane0,
+		                                                       (__v16qi) __extension__(__m128i)(__v4si){0, 0, 0, 0});
+		const __m256i populated_0th_byte = (__m256i) __builtin_shufflevector((__v2di) tmp, (__v2di) tmp, 0, 1, 2, 3);
+		const __m256i eq = (__m256i) ((__v32qi) in.v256 == (__v32qi) populated_0th_byte);
+		return (uint32_t) __builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
+#else
+		const __m128i lane0 = (__m128i) __builtin_ia32_si_si256((__v8si) in.v256);
+		const __m128i tmp = (__m128i) __builtin_ia32_pshufb128((__v16qi) lane0,
+		                                                       (__v16qi) __extension__(__m128i)(__v4si){0, 0, 0, 0});
+		const __m256i populated_0th_byte = ((__m256i) __builtin_ia32_vinsertf128_si256(
+		        (__v8si) (__m256i) (__builtin_ia32_si256_si((__v4si) tmp)),
+		        (__v4si) (__m128i) (tmp),
+		        (int) (1)));
+		const __m256i eq = (__m256i) ((__v32qi) in.v256 == (__v32qi) populated_0th_byte);
+		return (uint32_t) __builtin_ia32_pmovmskb256((__v32qi) eq) == 0xffffffff;
+#endif
+	}
+
+	///
+	/// source:  https://github.com/WojciechMula/toys/blob/master/simd-basic/reverse-bytes/reverse.avx2.cpp
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x32_t reverse8(const uint8x32_t in) noexcept {
+		// extract 128-bit lanes
+		const __m128i lo = ((__m128i) __builtin_ia32_extract128i256((__v4di) (__m256i) (in.v256), (int) (0)));
+		const __m128i hi = ((__m128i) __builtin_ia32_extract128i256((__v4di) (__m256i) (in.v256), (int) (1)));
+
+		// reverse them using SSE instructions
+		const __m128i indices = __extension__(__m128i)(__v16qi){0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+		const __m128i lo_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) lo, (__v16qi) indices);
+		const __m128i hi_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) hi, (__v16qi) indices);
+
+		// build the new AVX2 vector
+#ifdef __clang__
+		__m256i ret = __builtin_shufflevector((__v2di) hi_rev, (__v2di) hi_rev, 0, 1, -1, -1);
+#else
+		__m256i ret = (__m256i)__builtin_ia32_si256_si((__v4si) hi_rev);
+#endif
+		ret = ((__m256i) __builtin_ia32_insert128i256((__v4di) (__m256i) (ret),
+		                                              (__v2di) (__m128i) (lo_rev), (int) (1)));
+		uint8x32_t ret2;
+		ret2.v256 = ret;
+		return ret2;
 	}
 };
 
@@ -1578,28 +1631,40 @@ struct uint32x8_t {
 #endif
 	}
 
+	/// needs BMI2
 	/// src: https://stackoverflow.com/questions/36932240/avx2-what-is-the-most-efficient-way-to-pack-left-based-on-a-mask
 	/// input:
 	/// 	mask: 0b010101010
 	/// output: a permutation mask s.t, applied on in =  [ x0, x1, x2, x3, x4, x5, x6, x7 ],
 	/// 			uint32x8_t::permute(in, permutation_mask) will result int
 	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
-	[[nodiscard]] static inline uint32x8_t pack(const uint32_t mask) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t pack(const uint32_t mask) noexcept {
 		uint32x8_t ret{};
-		uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
+#ifdef USE_BMI2
+		uint64_t expanded_mask = __builtin_ia32_pdep_di(mask, 0x0101010101010101);
 		expanded_mask *= 0xFFU;
 		const uint64_t identity_indices = 0x0706050403020100;
-		uint64_t wanted_indices = _pext_u64(identity_indices, expanded_mask);
-
-		const __m128i bytevec = _mm_cvtsi64_si128(wanted_indices);
-		ret.v256 = _mm256_cvtepu8_epi32(bytevec);
+		uint64_t wanted_indices = __builtin_ia32_pext_di(identity_indices, expanded_mask);
+		const __m128i bytevec = __extension__(__m128i)(__v2di){0, (long long int) wanted_indices};
+#ifdef __clang__
+		ret.v256 = (__m256i) __builtin_convertvector((__v8hi) bytevec, __v8si);
+#else
+		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256((__v16qi) bytevec);
+#endif
+#else
+		ASSERT(false);
+#endif
 		return ret;
 	}
 
 
-	[[nodiscard]] static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
 		uint32x8_t ret{};
-		ret.v256 = _mm256_cvtepu8_epi32(in.v128);
+#ifdef __clang__
+		ret.v256 = (__m256i) __builtin_convertvector((__v8hi) in.v128, __v8si);
+#else
+		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256((__v16qi) in.v128);
+#endif
 		return ret;
 	}
 };
@@ -2056,6 +2121,7 @@ struct uint128x2_t {
 	constexpr static uint32_t LIMBS = 2;
 	using limb_type = __uint128_t;
 
+<<<<<<< HEAD
 	union {
 		// compatibility with TxN_t
 		__uint128_t d[2];
@@ -2118,4 +2184,6 @@ struct uint128x2_t {
 };
 
 
+=======
+>>>>>>> master
 #endif
