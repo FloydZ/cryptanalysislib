@@ -36,7 +36,7 @@ public:
 
 			/// trivial case: q is a power of two
 			if constexpr (cryptanalysislib::popcount::popcount(q) == 1) {
-				constexpr T mask = (1ull << (l * qbits)) - 1ull;
+				constexpr T mask = ((1ull << ((h-l) * qbits)) - 1ull) << l;
 				return a & mask;
 			}
 
@@ -50,7 +50,7 @@ public:
 			T tmp = (a & mask) >> lower;
 			T ret = tmp & mask_q;
 
-#pragma unroll
+			#pragma unroll
 			for (uint32_t i = 1u; i < loops; ++i) {
 				tmp >>= qbits;
 				ret += ctr * (tmp & mask_q);

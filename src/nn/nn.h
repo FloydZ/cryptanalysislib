@@ -72,17 +72,20 @@ public:
 		std::cout
 		        << "{ \"n\": " << n
 		        << ", \"r\": " << r
-		        << ", \"N\":" << N
-		        << ", \"k\":" << k
+		        << ", \"N\": " << N
+		        << ", \"k\": " << k
 		        << ", \"|L|\": " << LIST_SIZE
-		        << ", \"dk\n:" << dk
+		        << ", \"dk\": " << dk
 		        << ", \"dk_bruteforce_size\": " << dk_bruteforce_size
 		        << ", \"dk_bruteforce_weight\": " << dk_bruteforce_weight
 		        << ", \"d\": " << d
 		        << ", \"e\": " << epsilon
 		        << ", \"bf\": " << BRUTEFORCE_THRESHOLD
 		        << ", \"k\": " << n / r
-		        << std::endl;
+				<< ", \"USE_REARRANGE\": " << USE_REARRANGE
+				<< ", \"survive_prop\": " << survive_prob
+				<< ", \"BUCKET_SIZE\": " << BUCKET_SIZE
+		        << " }" << std::endl;
 	}
 };
 
@@ -135,12 +138,11 @@ public:
 	alignas(64) uint64_t LB[USE_REARRANGE ? BUCKET_SIZE * ELEMENT_NR_LIMBS : 1u];
 	alignas(64) uint64_t RB[USE_REARRANGE ? BUCKET_SIZE * ELEMENT_NR_LIMBS : 1u];
 
-	// if set to true the final solution  is accepted if
-	// its weight is <=w.
+	// if set to true the final solution is accepted, if its weight is <= w.
 	// if false the final solution is only correct if == w
 	constexpr static bool FINAL_SOL_WEIGHT = true;
 
-	// if set to true, speciallizes functions which compute both lists at
+	// if set to true, specializes functions which compute both lists at
 	// the sametime
 	constexpr static bool USE_DOUBLE_SEARCH = false;
 
@@ -275,12 +277,17 @@ public:
 	/// zero (`create_zero==1`) or normal
 	/// \param insert_sol
 	void generate_special_instance(bool insert_sol = true, bool create_zero = true) noexcept {
+		if (insert_sol && !create_zero) {
+			generate_random_instance();
+		}
+
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
 		L1 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
 		L2 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
 		ASSERT(L1);
 		ASSERT(L2);
-		if (create_zero) {
+
+		if (create_zero && !insert_sol) {
 			memset(L1, 0, list_size);
 			memset(L2, 0, list_size);
 		}
@@ -561,7 +568,8 @@ public:
 	/// \return true if the limbs following the pointer are within distance `d`
 	///			false else
 	template<const uint32_t s = 0>
-	bool compare_u64_ptr(const uint64_t *a, const uint64_t *b) const noexcept {
+	[[nodiscard]] constexpr inline bool compare_u64_ptr(const uint64_t *a,
+	                                                    const uint64_t *b) const noexcept {
 		if constexpr (!USE_REARRANGE) {
 			ASSERT((T) a < (T) (L1 + LIST_SIZE));
 			ASSERT((T) b < (T) (L2 + LIST_SIZE));
@@ -599,9 +607,13 @@ public:
 	/// \param e2
 	void bruteforce(const size_t e1,
 	                const size_t e2) noexcept {
-		if constexpr (32 < n and n <= 64) {
+		if constexpr (n <= 32) {
+			bruteforce_32(e1, e2);
+		} else if constexpr (32 < n and n <= 64) {
 			bruteforce_simd_64_uxv<4, 4>(e1, e2);
-		} else if constexpr (64 < n and n <= 128) {
+		} else if constexpr (64 < n and n <= 96) {
+			bruteforce_96(e1, e2);
+		} else if constexpr (96 < n and n <= 128) {
 			bruteforce_simd_128_32_2_uxv<4, 4>(e1, e2);
 		} else if constexpr (128 < n and n <= 256) {
 			// TODO optimal value
@@ -1468,14 +1480,14 @@ public:
 			if (unlikely(new_e1 == 0 or new_e2 == 0)) { return; }
 
 			if ((new_e1 < BRUTEFORCE_THRESHHOLD) || (new_e2 < BRUTEFORCE_THRESHHOLD)) {
-				DEBUG_MACRO(std::cout << level << " " << new_e1 << " " << e1 << " " << new_e2 << " " << e2 << "\n";)
+				// DEBUG_MACRO(std::cout << level << " " << new_e1 << " " << e1 << " " << new_e2 << " " << e2 << "\n";)
 				bruteforce(new_e1, new_e2);
 				return;
 			}
 
 			for (uint32_t i = 0; i < N; i++) {
 				if (i == 0) {
-					DEBUG_MACRO(std::cout << level << " " << i << " " << new_e1 << " " << e1 << " " << new_e2 << " " << e2 << "\n";)
+					// DEBUG_MACRO(std::cout << level << " " << i << " " << new_e1 << " " << e1 << " " << new_e2 << " " << e2 << "\n";)
 				}
 
 				/// predict the future:
@@ -1511,16 +1523,6 @@ public:
 		}
 	}
 
-	/// runs the Esser, Kübler, Zweydinger NN on a the two lists
-	/// dont call ths function normally.
-	/// \tparam level current level of the
-	/// \param e1 end of list L1
-	/// \param e2 end of list L2
-	template<const uint32_t level>
-	void nn_internal(const size_t e1,
-	                 const size_t e2) noexcept {
-	}
-
 	/// core entry function for the implementation of the Esser, Kuebler, Zweydinger NN algorithm
 	/// \param e1 size of the left list
 	/// \param e2 size of the right list
@@ -1544,7 +1546,7 @@ public:
 	/// \param e1
 	/// \param e2
 	/// \return
-	constexpr void nn(const size_t e1 = LIST_SIZE,
+	constexpr inline void nn(const size_t e1 = LIST_SIZE,
 	                  const size_t e2 = LIST_SIZE) noexcept {
 		run(e1, e2);
 	}
@@ -1999,8 +2001,9 @@ public:
 		}
 	}
 
+	/// NTE:
 	/// bruteforce the two lists between the given start and end indices.
-	/// NOTE: uses avx2
+	/// NOTE: uses simd
 	/// NOTE: only in limb comparison possible. inter limb (e.g. bit 43...83) is impossible.
 	/// NOTE: checks weight d on the first 2 limbs. Then direct checking.
 	/// NOTE: unrolls the left loop by u and the right by v
@@ -2028,6 +2031,10 @@ public:
 		constexpr size_t ptr_inner_ctr_l = 8 * 4,
 		                 ptr_inner_ctr_r = 8 * 4;
 
+		if ((e1-s1 < ptr_ctr_l)  || (e2-s2 < ptr_ctr_r)) {
+			return bruteforce_128(e1, e2);
+		}
+
 		/// container for the unrolling
 		uint32x8_t lii_1[u]{}, rii_1[v]{}, lii_2[u]{}, rii_2[v]{};
 
@@ -2037,40 +2044,39 @@ public:
 		alignas(32) uint8_t m1[roundToAligned<32>(u * v)] = {0};
 
 		auto *ptr_l = (uint32_t *) L1;
-		for (size_t i = s1; i < s1 + e1; i += ptr_ctr_l, ptr_l += ptr_ctr_l * 4) {
-
-#pragma unroll
+		for (size_t i = s1; i < (s1 + e1 - ptr_ctr_l); i += ptr_ctr_l, ptr_l += ptr_ctr_l * 4) {
+			#pragma unroll
 			for (uint32_t s = 0; s < u; ++s) {
 				lii_1[s] = uint32x8_t::template gather<4>(ptr_l + s * ptr_inner_ctr_l + 0, loadr);
 				lii_2[s] = uint32x8_t::template gather<4>(ptr_l + s * ptr_inner_ctr_l + 1, loadr);
 			}
 
 			auto *ptr_r = (uint32_t *) L2;
-			for (size_t j = s2; j < (s2 + e2); j += ptr_ctr_r, ptr_r += ptr_ctr_r * 4) {
+			for (size_t j = s2; j < (s2 + e2 - ptr_ctr_r); j += ptr_ctr_r, ptr_r += ptr_ctr_r * 4) {
 
-// load the fi
-#pragma unroll
+				// load the fi
+				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
 					rii_1[s] = uint32x8_t::template gather<4>(ptr_r + s * ptr_inner_ctr_r + 0, loadr);
 					rii_2[s] = uint32x8_t::template gather<4>(ptr_r + s * ptr_inner_ctr_r + 1, loadr);
 				}
 
-/// Do the 8x8 shuffle
-#pragma unroll
+				/// Do the 8x8 shuffle
+				#pragma unroll
 				for (uint32_t l = 0; l < 8; ++l) {
 					if (l > 0) {
-// shuffle the right side
-#pragma unroll
+						// shuffle the right side
+						#pragma unroll
 						for (uint32_t s2s = 0; s2s < v; ++s2s) {
 							rii_1[s2s] = uint32x8_t::permute(rii_1[s2s], shuffl);
 							rii_2[s2s] = uint32x8_t::permute(rii_2[s2s], shuffl);
 						}
 					}
 
-// compare the first limb
-#pragma unroll
+					// compare the first limb
+					#pragma unroll
 					for (uint32_t f1 = 0; f1 < u; ++f1) {
-#pragma unroll
+						#pragma unroll
 						for (uint32_t f2 = 0; f2 < v; ++f2) {
 							m1[f1 * u + f2] = compare_256_32(lii_1[f1], rii_1[f2]);
 						}
@@ -2082,10 +2088,10 @@ public:
 						continue;
 					}
 
-// second limb
-#pragma unroll
+					// second limb
+					#pragma unroll
 					for (uint32_t f1 = 0; f1 < u; ++f1) {
-#pragma unroll
+						#pragma unroll
 						for (uint32_t f2 = 0; f2 < v; ++f2) {
 							m1[f1 * u + f2] &= compare_256_32(lii_2[f1], rii_2[f2]);
 						}
@@ -3048,7 +3054,7 @@ public:
 	/// NOTE: only works if exact matching is active
 	/// \param e1 end index of list 1
 	/// \param e2 end index list 2
-	void bruteforce_asimd_256_v2(const size_t e1,
+	void bruteforce_simd_256_v2(const size_t e1,
 	                             const size_t e2,
 	                             const size_t s1,
 	                             const size_t s2) noexcept {

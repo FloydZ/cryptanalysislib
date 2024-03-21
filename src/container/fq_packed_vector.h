@@ -112,7 +112,7 @@ public:
 	/// access the i-th coordinate/number/element
 	/// \param i coordinate to access.
 	/// \return the number you wanted to access, shifted down to the lowest bits.
-	constexpr DataType get(const uint16_t i) const noexcept {
+	constexpr inline DataType get(const uint16_t i) const noexcept {
 		// needs 5 instructions. So 64*5 for the whole limb
 		ASSERT(i < LENGTH);
 		return DataType((__data[i / numbers_per_limb] >> ((i % numbers_per_limb) * bits_per_number)) & number_mask);
@@ -122,7 +122,7 @@ public:
 	/// \param data value to set the const_array n
 	/// \param i -th number to overwrite
 	/// \return nothing
-	constexpr void set(const DataType data, const uint32_t i) noexcept {
+	constexpr inline void set(const DataType data, const uint32_t i) noexcept {
 		ASSERT(i < LENGTH);
 		const uint16_t off = i / numbers_per_limb;
 		const uint16_t spot = (i % numbers_per_limb) * bits_per_number;

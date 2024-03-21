@@ -1,7 +1,7 @@
-#include <cstdlib>
-#include <ctime>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <ctime>
 
 //#define ENABLE_BENCHMARK
 #include "nn/nn.h"
@@ -43,7 +43,7 @@
 #endif
 
 
-int main(int argc, char** argv) {
+int main() {
 	random_seed(time(NULL));
 	constexpr uint64_t LS = 1ul << BENCH_LS;
 	constexpr static NN_Config config{BENCH_n, BENCH_R, BENCH_N, BENCH_K, LS, BENCH_DELTA, BENCH_GAMMA, 0, BENCH_BF};
@@ -68,8 +68,8 @@ int main(int argc, char** argv) {
 	algo.L1 = nullptr;
 	algo.L2 = nullptr;
 
-	double ctime = ((double)time/((double)ITERS))/CLOCKS_PER_SEC;
+	double ctime = ((double) time / ((double) ITERS)) / CLOCKS_PER_SEC;
 	printf("sols: %d\n", sols);
 	printf("time: %f\n", ctime);
-    return sols;
+	return sols;
 }

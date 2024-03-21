@@ -79,8 +79,9 @@ public:
 	constexpr static bool USE_STD_SORT = true;
 
 	/// multithreaded constructor
-	constexpr explicit Parallel_List_FullElement_T(const size_t size,
-	                                               const uint32_t threads = 1) noexcept : MetaListT<Element>(size, threads) {}
+	constexpr explicit Parallel_List_FullElement_T(const size_t _size,
+	                                               const uint32_t threads = 1) noexcept :
+	   MetaListT<Element>(_size, threads) {}
 
 	constexpr void random() noexcept {
 		for (size_t i = 0; i < size(); ++i) {

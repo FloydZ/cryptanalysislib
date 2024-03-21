@@ -37,6 +37,48 @@ constexpr static SimpleHashMapConfig simple{10, 1u << l, 1};
 using HMType = SimpleHashMap<K, V, simple, Hash<K, 0, l>>;
 using load_type = HMType::load_type;
 
+TEST(Enum, p2) {
+	constexpr int nn = 30;
+	constexpr int p = 2;
+	enumerate_t<nn, p> c;
+
+	uint32_t ctr = 0;
+
+	c.enumerate([&](uint16_t *p1) {
+		uint32_t x = 0;
+		x ^= (1u << p1[0]);
+		x ^= (1u << p1[1]);
+		// print_binary(x, nn, "");
+		// std::cout << ": " << p1[0] << " " << p1[1] << std::endl;
+
+		EXPECT_EQ(__builtin_popcountll(x), p);
+		ctr += 1;
+	});
+
+	EXPECT_EQ(ctr, bc(nn, p));
+}
+
+TEST(Enum, p3) {
+	constexpr int nn = 30;
+	constexpr int p = 3;
+	enumerate_t<nn, p> c;
+
+	uint32_t ctr = 0;
+
+	c.enumerate([&](uint16_t *p1) {
+		uint32_t x = 0;
+		x ^= (1u << p1[0]);
+		x ^= (1u << p1[1]);
+		x ^= (1u << p1[2]);
+		// print_binary(x, nn, "");
+		// std::cout << ": " << p1[0] << " " << p1[1] << " " << p1[2] << std::endl;
+		EXPECT_EQ(__builtin_popcountll(x), p);
+		ctr += 1;
+	});
+
+	EXPECT_EQ(ctr, bc(nn, p));
+}
+
 TEST(Chase, p1) {
 	constexpr int nn = 30;
 	constexpr int p = 1;

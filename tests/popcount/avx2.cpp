@@ -6,12 +6,13 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-constexpr size_t stack_size = 10;
 
 #ifdef USE_AVX2
 #include "popcount/popcount.h"
 #include "simd/simd.h"
 #include <immintrin.h>
+
+constexpr size_t stack_size = 10;
 
 TEST(AVX2, uint8_t) {
 	__m256i a = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7,

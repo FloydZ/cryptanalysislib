@@ -20,7 +20,7 @@ This repository aims to provide a STL which a few unique tweakes:
 
 Requirements
 ============
-Basically you need a `C++20` rdy compiler, `cmake 3.10`.For testing and 
+Basically you need a `C++20` rdy compiler, `cmake 3.20`. For testing and 
 benchmarking you need `gtest` and `googlebenchmark`.
 
 ## Arch Linux:
@@ -53,15 +53,11 @@ make
 
 ## MacOS
 ```bash
-brew install cmake make tbb gcc googletest autoconf automake libtool google-benchmark gcc libomp
+brew install cmake make googletest autoconf automake libtool google-benchmark gcc libomp
 ```
-Follow this (Guide)[https://mac.r-project.org/openmp/] to install openmp on osx.
 
-Somehow Apple is not supporting static linking? so you need to execute the following command once:
-```bash
-cd deps/m4ri
-sudo make install
-```
+Make sure that you use `clang` for the compilation via adding `-DCMAKE_CXX_COMPILER=clang++` 
+to the `cmake` command.
 
 ## Windows: 
 I wish you luck with this one.
@@ -72,6 +68,8 @@ How to build
 git clone --recurse-submodules -j4 https://github.com/FloydZ/cryptanalysislib
 cd cryptanalysislib && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release
 ```
+
+
 
 A few notes on the cmake flags:
 - for debugging you can also pass `-DCMAKE_BUILD_TYPE=Debug`.
