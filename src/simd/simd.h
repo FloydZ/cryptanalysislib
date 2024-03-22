@@ -24,7 +24,7 @@
 
 #include "simd/avx2.h"
 #include "simd/float/avx2.h"
-#if defined(USE_AVX512)
+#if defined(USE_AVX512F)
 #include "simd/avx512.h"
 #endif
 

@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "reflection/reflection.h"
-
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -10,6 +8,10 @@ using ::testing::TestEventListeners;
 using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
+
+#ifdef __clang__
+#include "reflection/reflection.h"
+
 
 struct Person {
 	std::string first_name;
@@ -93,7 +95,7 @@ TEST(reflection, replace3) {
 	const auto c2 = cryptanalysislib::reflection::replace(c, a);
 	std::cout << c2.f1 << " " << c2.f2 << " " << c2.f4 << std::endl;
 }
-
+#endif
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 

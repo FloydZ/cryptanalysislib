@@ -1519,6 +1519,18 @@ public:
 		return hm + popcnt_T(__data[ulimb] & rmask);
 	}
 
+	/// TODO add to concept and add to kAryTypes
+	constexpr static inline uint32_t dist(const BinaryContainer &a,
+	                                      const BinaryContainer &b) noexcept {
+		uint32_t ret = 0;
+		// TODO simd
+		for (uint32_t i = 0; i < limbs(); ++i) {
+			ret += popcnt_T(a.__data[i] ^ b.__data[i]);
+		}
+
+		return ret;
+	}
+
 	uint32_t popcnt(const uint32_t k_lower = 0, const uint32_t k_upper = length) const noexcept {
 		ASSERT(k_upper <= length && k_lower < k_upper);
 		const uint32_t lower = round_down_to_limb(k_lower);

@@ -60,7 +60,7 @@
 
 /**
  * A store with a preceding release fence to ensure all previous load
- * and stores completes before the current store is visiable.
+ * and stores completes before the current store is visible.
  */
 #define RELEASE(ptr, val) __atomic_store_n(ptr, val, __ATOMIC_RELEASE)
 

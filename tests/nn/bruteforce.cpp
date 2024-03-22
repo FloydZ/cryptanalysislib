@@ -28,15 +28,15 @@ TEST(Bruteforce, n64) {
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 }
 
-// TEST(Bruteforce, n96) {
-// 	constexpr static NN_Config config{64, 3, 1, 32, LS, 2, 5, 0, 512};
-// 	NN<config> algo{};
-// 	algo.generate_random_instance();
-// 	algo.bruteforce_96(LS, LS);
-//
-// 	EXPECT_EQ(algo.solutions_nr, 1);
-// 	EXPECT_EQ(algo.all_solutions_correct(), true);
-// }
+TEST(Bruteforce, n96) {
+	constexpr static NN_Config config{96, 3, 1, 32, LS, 10, 5, 0, 512};
+	NN<config, uint32_t> algo{};
+	algo.generate_random_instance();
+	algo.bruteforce_96(LS, LS);
+
+	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+}
 
 TEST(Bruteforce, n128) {
 	constexpr static NN_Config config{128, 2, 1, 64, LS, 10, 20, 0, 512};

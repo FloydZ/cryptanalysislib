@@ -95,7 +95,7 @@ public:
 	}
 
 	/// doesnt clear anything, but only sets the load factors to zero.
-	void clear(const uint32_t tid) {
+	constexpr void clear(const uint32_t tid) noexcept {
 		const size_t start = tid * __load.size() / config.threads;
 		const size_t end = (tid + 1) * __load.size() / config.threads;
 		for (size_t i = start; i < end; ++i) {
@@ -104,7 +104,7 @@ public:
 	}
 
 	/// doesnt clear anything, but only sets the load factors to zero.
-	constexpr void clear() {
+	constexpr void clear() noexcept {
 		for (size_t i = 0; i < __load.size(); ++i) {
 			__load[i] = 0;
 		}
@@ -139,7 +139,7 @@ public:
 	constexpr inline void bucket_offset(size_t &bucket_index,
 	                                    size_t &inner_bucket_index,
 	                                    const TLimbType bid,
-	                                    const TLimbType load) {
+	                                    const TLimbType load) noexcept {
 		ASSERT(bid < nrb);
 		ASSERT(load < sizeb);
 
@@ -154,14 +154,14 @@ public:
 	/// \param inner_bucket_index
 	/// \param bid
 	/// \param load
-	inline void bucket_offset_avx(T &bucket_index,
+	constexpr inline void bucket_offset_avx(T &bucket_index,
 	                              T &inner_bucket_index,
 	                              const T bid,
-	                              const T load) {
-		constexpr static T avxsizeb = T::set1(sizeb);
+	                              const T load) noexcept {
+		constexpr T avxsizeb = T::set1(sizeb);
 
 		// mod 8 is the same as &7
-		constexpr static T avxmod = T::set1(7u);
+		constexpr T avxmod = T::set1(7u);
 
 		bucket_index = (bid * avxsizeb) + load;
 		inner_bucket_index = bucket_index & avxmod;
@@ -169,7 +169,8 @@ public:
 	}
 
 	// insert a single element
-	void insert_simple(const TLimbType data, const TLimbType index) noexcept {
+	constexpr void insert_simple(const TLimbType data,
+	                             const TLimbType index) noexcept {
 		const TLimbType bid = HashSimple<low, high>(data);
 		const TLimbType _load = load(bid);
 
@@ -188,7 +189,7 @@ public:
 	}
 
 	// nearly fullly avx implementation
-	void insert_simd(const T &data,
+	constexpr void insert_simd(const T &data,
 	                 const T &index) noexcept {
 		const T bid = HashAVX<low, high>(data);
 		T bucket_index{}, inner_bucket_index{}, load{};
