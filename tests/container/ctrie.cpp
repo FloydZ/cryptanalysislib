@@ -17,6 +17,7 @@ using K = uint64_t;
 using V = uint64_t;
 using CTrie = CacheTrie<K, V>;
 constexpr size_t limit = 1000;
+constexpr size_t THREADS = 2;
 
 uint64_t hash(const uint64_t i) { return i; }
 
@@ -64,6 +65,47 @@ TEST(Ctrie, lookup) {
 	}
 
 	EXPECT_EQ(c.lookup(limit), 0);
+}
+
+TEST(Ctrie, multithreaded_insert) {
+	CTrie c{};
+	std::vector<std::thread> pool(THREADS);
+
+	for (size_t t = 0; t < THREADS; ++t) {
+		pool[t] = std::thread([t, &c]() {
+		  for (size_t i = 0; i < limit; ++i) {
+			  c.insert(t*limit + i, t*limit + i);
+		  }
+		});
+	}
+
+	for (auto &t: pool) {
+		t.join();
+	}
+
+	for (size_t i = 1; i < THREADS*limit; ++i) {
+		EXPECT_EQ(c.lookup(i), i);
+	}
+}
+
+TEST(Ctrie, multithreaded_lookup) {
+	CTrie c{};
+	std::vector<std::thread> pool(THREADS);
+
+	for (size_t i = 0; i < THREADS*limit; ++i) {
+		c.insert(i, i);
+	}
+	for (size_t t = 0; t < THREADS; ++t) {
+		pool[t] = std::thread([t, &c]() {
+			for (size_t i = 0; i < limit; ++i) {
+				EXPECT_EQ(c.lookup(t*limit + i), t*limit + i);
+			}
+		});
+	}
+
+	for (auto &t: pool) {
+		t.join();
+	}
 }
 
 TEST(Ctrie, fast_insert) {

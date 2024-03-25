@@ -5,11 +5,9 @@
 /// see scala code: https://github.com/reactors-io/reactors/blob/master/reactors-common/jvm/src/main/scala/io/reactors/common/concurrent/CacheTrie.scala
 
 /// TODO/Ideas:
-/// the whole pointer annotating paring with computational jump/goto table
-/// KeyCompareClass
 /// all new in function wrappen: darauf avhten das alignmet und pointer stimmen
 /// anstatt pointer: referenzen: viel spass
-/// mask schreiben die ANode und ANNode catched
+/// debug funcitons schreiben, die den Ctrie plotten
 
 
 
@@ -21,32 +19,25 @@
 #include "helper.h"
 #include "math/log.h"
 #include "atomic_primitives.h"
+#include "hashmap/growth_policy.h"
 
-template<class K, class V>
-class SNode_t {
-public:
-	uint64_t hash = 0;
-	K key;
-	V value;
-	void *txn = nullptr;
-};
-
+// zero is reserved for nullptr
 #define ANodeValue  0b0001
 #define ANNodeValue 0b0010
-#define AANodeValue 0b0011 // special value matching
-#define SNodeValue  0b0100
-#define ENodeValue  0b0101
-#define FNodeValue  0b0110
-#define LNodeValue  0b1000
-#define XNodeValue  0b1001
+#define SNodeValue  0b0011
+#define LNodeValue  0b0100
+#define XNodeValue  0b0101
+#define ENodeValue  0b0110
+#define FNodeValue  0b0111
 #define FullValue   0b1111
+#define NFullValue  (~FullValue)
 
 #define isFVNode(ptr) (ptr == nullptr)
 #define isFSNode(ptr) ((uintptr_t )ptr == (uintptr_t )0)
 
 #define isANode(ptr)  ((((uintptr_t)ptr) & FullValue) == ANodeValue)
 #define isANNode(ptr) ((((uintptr_t)ptr) & FullValue) == ANNodeValue)
-#define isAANode(ptr) ((((uintptr_t)ptr) & AANodeValue)) // special: checks if either ANode or ANNode
+#define isAANode(ptr) (isANode(ptr) || isANNode(ptr))
 #define isSNode(ptr)  ((((uintptr_t)ptr) & FullValue) == SNodeValue)
 #define isENode(ptr)  ((((uintptr_t)ptr) & FullValue) == ENodeValue)
 #define isFNode(ptr)  ((((uintptr_t)ptr) & FullValue) == FNodeValue)
@@ -61,30 +52,104 @@ public:
 #define maskLNode(ptr)  ((ptr) = (LNode *) ((uintptr_t)(ptr) ^ LNodeValue))
 #define maskXNode(ptr)  ((ptr) = (XNode *) ((uintptr_t)(ptr) ^ XNodeValue))
 
-#define accessNode(ptr) ((uintptr_t )ptr & 0xfffffffffffffff8)
-#define isNode(ptr)     ((uintptr_t )ptr & FullValue)
+#define accessNode(ptr) ((uintptr_t )ptr & NFullValue)
+#define accessType(ptr) ((uintptr_t )ptr & FullValue)
+#define isNode(ptr) 	((accessType(ptr)) || (ptr == nullptr))
 
-#define NUMBER_CPUS 1 // TODO
+/// TODO
+#define NUMBER_CPUS 1
 
-// #if NUMBER_CPUS == 1
-// #define READ(ptr, pos) 	((void *)((uintptr_t *)(ptr))[pos])
-// #define READ_TXN(ptr) 	(*((void *)(uintptr_t *)(((uint8_t *)ptr) + 24)))
-// #define READ_WIDE(ptr) 	(*((void *)(uintptr_t *)(((uint8_t *)ptr) + 40)))
-//
-// #define READ_A_COUNT(ptr) 	(*(uintptr_t *)(((uint8_t *)ptr) + (16*8))))
-// #define READ_AN_COUNT(ptr) 	(*uintptr_t *)(((uint8_t *)ptr) + (4*8))))
-//
-// #define CAS_(ptr, pos, ov, nv) 	(*((void *)((uintptr_t *)(ptr)) + (pos), (uintptr_t *)ov, (uintptr_t)nv))
-// #define CAS_WIDE(ptr, ov, nv) 	(*((void *)((uintptr_t *)(((uint8_t *)ptr) + 40u)), (uintptr_t *)ov, (uintptr_t)nv))
-// #define CAS_TXN(ptr, ov, nv) 	(*((void *)((uintptr_t *)(((uint8_t *)ptr) + 24u)), (uintptr_t *)ov, (uintptr_t)nv))
-//
-// #define CAS_CACHE(ov, nv) 		(*((void *)(uintptr_t *)&cache_ptr, (uintptr_t *)ov, (uintptr_t)nv))
-//
-// #define CAS_A_COUNT(ptr, ov, nv) 	(* ((uintptr_t *)(((uint8_t *)ptr) + (16u*8u))) = nv);
-// #define CAS_AN_COUNT(ptr, ov, nv) 	(* ((uintptr_t *)(((uint8_t *)ptr) + (4u*8u))) = nv);
-//
-// #define WRITE(ptr, pos, nv) (((uintptr_t *)ptr)[pos] = (uintptr_t )nv);
-// #else
+#if NUMBER_CPUS == 1
+// inlined wrapper for `CAS_`
+constexpr inline bool __CAS_(uintptr_t *ptr,
+                             const size_t pos,
+                             const uintptr_t *ov,
+                             const uintptr_t nv) noexcept{
+	(void)ov;
+	ptr[pos] = nv;
+	return true;
+}
+
+// inlined wrapper for `CAS_WIDE`
+constexpr inline bool __CAS_WIDE_(uint8_t *ptr,
+							 const uintptr_t *ov,
+							 const uintptr_t nv) noexcept{
+	auto *ptr2 = (uintptr_t *)(ptr + 40u);
+	if (*ptr2 == *ov) {
+		*ptr2 = nv;
+		return true;
+	}
+	return false;
+}
+
+// inlined wrapper for `CAS_WIDE`
+constexpr inline bool __CAS_TXN_(uint8_t *ptr,
+								 const uintptr_t *ov,
+								 const uintptr_t nv) noexcept{
+	auto *ptr2 = (uintptr_t *)(ptr + 24u);
+	if (*ptr2 == *ov) {
+		*ptr2 = nv;
+		return true;
+	}
+
+	return false;
+}
+
+// inlined wrapper for `CAS_CACHE`
+constexpr inline bool __CAS_CACHE_(uintptr_t *ptr,
+								  const uintptr_t *ov,
+								  const uintptr_t nv) noexcept{
+	auto *ptr2 = (uintptr_t *)(ptr);
+	if (*ptr2 == *ov) {
+		*ptr2 = nv;
+		return true;
+	}
+
+	return false;
+}
+
+// inlined wrapper for `CAS_A_COUNT`
+constexpr inline bool __CAS_A_COUNT_(uint8_t *ptr,
+								 	 const uintptr_t *ov,
+								 	 const uintptr_t nv) noexcept{
+	auto *ptr2 = (uintptr_t *)(ptr + 16u * 8u);
+	if (*ptr2 == *ov) {
+		*ptr2 = nv;
+		return true;
+	}
+	return false;
+}
+
+// inlined wrapper for `CAS_AN_COUNT`
+constexpr inline bool __CAS_AN_COUNT_(uint8_t *ptr,
+									 const uintptr_t *ov,
+									 const uintptr_t nv) noexcept{
+	auto *ptr2 = (uintptr_t *)(ptr + 4u * 8u);
+	if (*ptr2 == *ov) {
+		*ptr2 = nv;
+		return true;
+	}
+	return false;
+}
+
+
+#define READ(ptr, pos) 	((void *)((uintptr_t *)(ptr))[pos])
+#define READ_TXN(ptr) 	((void *)(*((uintptr_t *)(((uint8_t *)ptr) + 24))))
+#define READ_WIDE(ptr) 	((void *)(*((uintptr_t *)(((uint8_t *)ptr) + 40))))
+
+#define READ_A_COUNT(ptr) 	(*(uintptr_t *)(((uint8_t *)ptr) + (16*8)))
+#define READ_AN_COUNT(ptr) 	(*(uintptr_t *)(((uint8_t *)ptr) + (4*8)))
+
+#define CAS_(ptr, pos, ov, nv)  (__CAS_((uintptr_t *)(ptr), (pos), (uintptr_t *)(ov), (uintptr_t) (nv)))
+#define CAS_WIDE(ptr, ov, nv) 	(__CAS_WIDE_((uint8_t *)(ptr), (uintptr_t *)(ov), (uintptr_t )(nv)))
+#define CAS_TXN(ptr, ov, nv) 	(__CAS_TXN_((uint8_t *)(ptr), (uintptr_t *)(ov), (uintptr_t )(nv)))
+#define CAS_CACHE(ptr, ov, nv)  (__CAS_CACHE_((uintptr_t *)&cache_ptr, (uintptr_t *)(ov), (uintptr_t)(nv)))
+
+#define CAS_A_COUNT(ptr, ov, nv) 	(__CAS_A_COUNT_((uint8_t *)(ptr),  (uintptr_t *)(ov), (uintptr_t )(nv)))
+#define CAS_AN_COUNT(ptr, ov, nv) 	(__CAS_AN_COUNT_((uint8_t *)(ptr), (uintptr_t *)(ov), (uintptr_t )(nv)))
+
+#define WRITE(ptr, pos, nv) (((uintptr_t *)ptr)[pos] = (uintptr_t )nv);
+#else
 #define READ(ptr, pos) 	((void *)ACQUIRE(((uintptr_t *)(ptr)) + (pos)))
 #define READ_TXN(ptr) 	((void *)ACQUIRE((uintptr_t *)(((uint8_t *)ptr) + 24)))
 #define READ_WIDE(ptr) 	((void *)ACQUIRE((uintptr_t *)(((uint8_t *)ptr) + 40)))
@@ -95,18 +160,38 @@ public:
 #define CAS_(ptr, pos, ov, nv) 	((void *)CAS(((uintptr_t *)(ptr)) + (pos), (uintptr_t *)ov, (uintptr_t)nv))
 #define CAS_WIDE(ptr, ov, nv) 	((void *)CAS(((uintptr_t *)(((uint8_t *)ptr) + 40u)), (uintptr_t *)ov, (uintptr_t)nv))
 #define CAS_TXN(ptr, ov, nv) 	((void *)CAS(((uintptr_t *)(((uint8_t *)ptr) + 24u)), (uintptr_t *)ov, (uintptr_t)nv))
-
-#define CAS_CACHE(ov, nv) 		((void *)CAS((uintptr_t *)&cache_ptr, (uintptr_t *)ov, (uintptr_t)nv))
+#define CAS_CACHE(ptr, ov, nv) 	((void *)CAS((uintptr_t *)&cache_ptr, (uintptr_t *)ov, (uintptr_t)nv))
 
 #define CAS_A_COUNT(ptr, ov, nv) 	((void *)CAS(((uintptr_t *)(((uint8_t *)ptr) + (16*8u))), (uintptr_t *)ov, (uintptr_t)nv))
 #define CAS_AN_COUNT(ptr, ov, nv) 	((void *)CAS(((uintptr_t *)(((uint8_t *)ptr) + (4*8u))), (uintptr_t *)ov, (uintptr_t)nv))
 
 #define WRITE(ptr, pos, nv) (STORE(((uintptr_t *)(((uintptr_t *)ptr) + pos)), (uintptr_t )nv))
-//#endif
+#endif
 
 
-template<class K, class V>
+template<class K, // key
+         class V, // value
+		 class KeyHash = std::hash<K>,
+         class KeyEqual = std::equal_to<K>,
+		 class GrowthPolicy = cryptanalysislib::hh::power_of_two_growth_policy<2>
+         >
 class CacheTrie {
+	/// typedefs
+	using value_type = K;
+	using key_type = V;
+	using size_type = size_t;
+	using difference_type = std::ptrdiff_t;
+	using hasher = KeyHash;
+	using key_equal = KeyEqual;
+
+	template<typename T_alloc>
+	using allocator_type = std::allocator<T_alloc>;
+	using reference = value_type &;
+	using const_reference = const value_type &;
+	using pointer = value_type *;
+	using const_pointer = const value_type *;
+
+	/// CORE VARIABLES
 	constexpr static uint32_t alignment = 32;
 	constexpr static uint32_t wayness = 16;
 	constexpr static uint32_t wMask = (1u << bits_log2(wayness)) - 1u;
@@ -114,9 +199,9 @@ class CacheTrie {
 	constexpr static uint32_t threads = 1;
 
 	/// some flags to enable/disable features
-	constexpr static bool useCompression = true;
-	constexpr static bool useCounters = true;
-	constexpr static bool useCache = true;
+	constexpr static bool useCompression = false; // TODO
+	constexpr static bool useCounters = false;
+	constexpr static bool useCache = false;
 
 	class ANNode {
 		void *data [bits_log2(wayness)] = {nullptr};
@@ -194,7 +279,14 @@ class CacheTrie {
 		}
 	};
 
-	using SNode = SNode_t<K, V>;
+	class SNode {
+	public:
+		uint64_t hash = 0;
+		K key;
+		V value;
+		void *txn = nullptr;
+	};
+
 	class FNode {
 	public:
 		void *frozen;
@@ -233,8 +325,8 @@ class CacheTrie {
 		uint32_t level;
 	};
 
-	void *FVNode = nullptr;
-	void *FSNode = nullptr;
+	void *FVNode = (void *)0; // TODO 1
+	void *FSNode = (void *)0;
 
 	void *cache_ptr = nullptr;
 	size_t cache_size = 0;
@@ -244,16 +336,9 @@ class CacheTrie {
 	alignas(alignment) void* root[wayness+1] = { nullptr };
 	alignas(alignment) void* rawRoot = nullptr;
 
+	/////////////////////////////// ALLOC ///////////////////////////////////
 	inline void* createCacheArray(const uint32_t level) noexcept {
 		return aligned_alloc(alignment, sizeof(void *) * (1 + (1u << level)));
-	}
-
-	constexpr inline uint64_t H(const K key) const noexcept {
-		return key; // TODO
-	}
-
-	[[nodiscard]] constexpr inline uint32_t spread(const uint32_t h) const noexcept {
-		return (h ^ (h >> 16u)) & 0x7fffffff;
 	}
 
 	constexpr inline ANode* createWideArray() noexcept {
@@ -266,6 +351,41 @@ class CacheTrie {
 		auto *ret = (ANNode *)new (std::align_val_t(alignment)) ANNode{};
 		maskANNode(ret);
 		return (ANNode *)ret;
+	}
+
+	constexpr inline SNode *createSNode(SNode *oldsn_) noexcept {
+		auto *oldsn = (SNode *) accessNode(oldsn_);
+		auto *n = new (std::align_val_t(alignment)) SNode {oldsn->hash, oldsn->key, oldsn->value, nullptr};
+		maskSNode(n);
+		return n;
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	constexpr inline std::size_t hash_key(const K &key) const noexcept {
+		return hasher{}(key);
+	}
+
+	bool checkAANode(void *ptr) {
+		if (ptr == nullptr) {
+			return true;
+		}
+
+		if (!isAANode(ptr)) {
+			return true;
+		}
+
+		if (isANNode(ptr)) {
+			return true; // TODO
+		}
+
+		auto *a = (ANode *) accessNode(ptr);
+		for (uint32_t i = 0; i < a->size(); i++) {
+			if (!isNode(a->at(i))) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	constexpr inline size_t usedLength(void *ptr) const {
@@ -362,6 +482,7 @@ public:
 			return;
 		}
 
+		ASSERT(false); // TODO
 		if (cache == nullptr) {
 			// Only create the cache if the entry is at least level 12,
 			// since the expectation on the number of elements is ~80.
@@ -370,7 +491,7 @@ public:
 				auto **cn = (CacheNode **)createCacheArray(8);
 				cn[0] = new (std::align_val_t(alignment)) CacheNode{nullptr, 8};
 				void *np = nullptr;
-				CAS_CACHE(&np, cn);
+				CAS_CACHE(cache_ptr, &np, cn);
 				void * newCache = cache_ptr;
 				inhabitCache(newCache, nv, hash, cacheeLevel);
 			}
@@ -389,6 +510,8 @@ public:
 	}
 
 	void sampleAndUpdateCache(void *cache, void *stats) {
+		(void)cache;
+		(void)stats;
 		ASSERT(false);
 	}
 
@@ -417,9 +540,10 @@ public:
 	}
 
 	// recursively count the number of used pointers
-	void sequentialFixCount(ANode *array) {
-		ASSERT(isNode(array));
+	void sequentialFixCount(ANode *array_) {
+		ASSERT(isNode(array_));
 
+		auto *array = (ANode *) accessNode(array_);
     	uint32_t i = 0;
     	uint64_t count = 0;
     	while (i < array->size()) {
@@ -514,10 +638,11 @@ public:
 		return false;
 	}
 
-	void *compressFrozen(void *frozen, const uint32_t level) {
+	void *compressFrozen(void *frozen_, const uint32_t level) {
 		void *single;
+		void *frozen = (void *)accessNode(frozen_);
 		uint32_t i = 0;
-		while(i < usedLength(frozen)) {
+		while(i < usedLength(frozen_)) {
 			void *old = READ(frozen, i);
 			if (!isFVNode(old)) {
 				if ((single == nullptr) && isSNode(old)) {
@@ -526,14 +651,14 @@ public:
 				} else {
 					// There are at least 2 nodes that are not FVNode.
 					// Unfortunately, the node was modified before it was completely frozen.
-					if (usedLength(frozen) == 16) {
+					if (usedLength(frozen_) == 16) {
 						ANode *wide = createWideArray();
-						sequentialTransfer(frozen, wide, level);
+						sequentialTransfer(frozen_, wide, level);
 						sequentialFixCount(wide);
 						return wide;
 					} else {
 						void *narrow = createNarrowArray();
-						sequentialTransferNarrow(frozen, narrow, level);
+						sequentialTransferNarrow(frozen_, narrow, level);
 						sequentialFixCount((ANode *)narrow);
 						return narrow;
 					}
@@ -544,8 +669,7 @@ public:
 		}
 
 		if (single != nullptr) {
-			auto *oldsn = (SNode *) accessNode(single);
-			single = new (std::align_val_t(alignment)) SNode {oldsn->hash, oldsn->key, oldsn->value, nullptr};
+			single = createSNode((SNode *)single);
 			maskSNode(single);
 		}
 
@@ -613,6 +737,7 @@ public:
 
 		const ANode *current = (ANode *) accessNode(current_);
 		uint32_t i = 0;
+		// TODO jump list
 		while (i < usedLength(current_)) {
 			void *node = READ(current, i);
 			ASSERT(isNode(node));
@@ -672,11 +797,12 @@ public:
 			} else {
 				ASSERT(false);
 			}
-			i += 1;
+
+			i += 1u;
 		}
 	}
 
-	void* freezeAndCompress(void *cache, void *current, const uint32_t level) {
+	void* freezeAndCompress(void *cache, void *current, const uint32_t level) noexcept {
 		void *single = nullptr;
 		uint32_t i = 0;
 		while (i < usedLength(current)) {
@@ -688,9 +814,7 @@ public:
 				if (!CAS_(current, i, (uintptr_t)&node, FVNode))  {
 					i -= 1;
 				}
-			} else 
-
-			if (isSNode(node)) {
+			} else if (isSNode(node)) {
 				auto *sn = (SNode *)accessNode(node);
 				void *txn = READ_TXN(sn);
 				if (txn == nullptr) {
@@ -716,9 +840,7 @@ public:
 					CAS_(current, i, (uintptr_t)&node, txn);
 					i -= 1;
 				}
-			} else
-
-			if (isLNode(node)) {
+			} else if (isLNode(node)) {
 				// Freeze list node.
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then we must reinspect the current slot.
@@ -727,9 +849,7 @@ public:
 				maskFNode(fnode);
 				CAS_(current, i, (uintptr_t)&node, fnode);
 				i -= 1;
-			} else
-
-			if (isANode(node)) {
+			} else if (isANode(node)) {
 				// Freeze the array node.
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then reinspect the current slot.
@@ -738,35 +858,25 @@ public:
 				maskFNode(fnode);
 				CAS_(current, i, (uintptr_t)&node, fnode);
 				i -= 1;
-			} else
-
-			if (isFrozenL(node)) {
+			} else if (isFrozenL(node)) {
 				// We can skip, another thread previously helped with freezing this node.
 				single = current;
-			} else
-
-			if (isFNode(node)) {
+			} else if (isFNode(node)) {
 				// We still need to freeze the subtree recursively.
 				single = current;
 				auto *a = (FNode *)accessNode(node);
 				void *subnode = a->frozen;
 				freeze(cache, subnode);
-			} else
-
-			if (node == FVNode) {
+			} else if (node == FVNode) {
 				// We can continue, another thread already froze this slot.
 				single = current;
-			} else 
-
-			if (isENode(node)) {
+			} else if (isENode(node)) {
 				// If some other txn is in progress, help complete it,
 				// then restart from the current position.
 				single = current;
 				completeExpansion(cache, node);
 				i -= 1;
-			} else 
-
-			if (isXNode(node)) {
+			} else if (isXNode(node)) {
 				// It some other txn is in progress, help complete it,
 				// then restart from the current position.
 				single = current;
@@ -780,10 +890,7 @@ public:
 		}
 
 		if (isSNode(single)) {
-			auto *oldsn = (SNode *) accessNode(single);
-			auto *single = new (std::align_val_t(alignment)) SNode{oldsn->hash, oldsn->key, oldsn->value};
-			maskSNode(single);
-			return single;
+			return createSNode((SNode *)single);
 		} 
 
 		 if (single != nullptr) {
@@ -803,9 +910,9 @@ public:
 		
 		auto *w = (ANode *)accessNode(wide);
 		if(w->at(pos) == nullptr) {
-			w->at(pos) = sn;
+			w->at(pos) = sn_;
 		} else {
-			sequentialInsert(sn, wide, level, pos);
+			sequentialInsert(sn_, wide, level, pos);
 		}
 	}
 	
@@ -818,17 +925,18 @@ public:
 		if (isSNode(old)) {
 			wide->at(pos) = newNarrowOrWideNodeUsingFreshThatsNeedsCountFix((SNode *)old, sn, level + 4);
 		} else if (isANode(old)) {
-			auto *oldan = (ANode *) old;
+			auto *oldan_ = (ANode *)old;
+			ANode *oldan = (ANode *) accessNode(oldan_);
 			const uint64_t npos = (sn->hash >> (level + 4)) & (usedLength(oldan) - 1);
 			if (oldan->at(npos) == nullptr) {
-				oldan->at(npos) = sn;
-			} else if (usedLength(oldan) == 4) {
+				oldan->at(npos) = sn_;
+			} else if (usedLength(oldan_) == 4) {
 				void *an = createWideArray();
-				sequentialTransfer(oldan, an, level + 4);
+				sequentialTransfer(oldan_, an, level + 4);
 				wide->at(pos)= an;
-				sequentialInsert(sn, wide, level, pos);
+				sequentialInsert(sn_, wide_, level, pos);
 			} else {
-				sequentialInsert(sn, oldan, level + 4, npos);
+				sequentialInsert(sn_, oldan_, level + 4, npos);
 			}
 		} else if (isLNode(old)) {
 			wide->at(pos) = newListNarrowOrWideNode((LNode *)old, sn->hash, sn->key, sn->value, level + 4);
@@ -852,7 +960,7 @@ public:
     	  } else if (isFrozenS(node)) {
     	    // We can copy it over to the wide node.
     	    auto *oldsn = (SNode *) accessNode(node);
-    	    auto *sn = new (std::align_val_t(alignment)) SNode(oldsn->hash, oldsn->key, oldsn->value);
+    	    auto *sn =  new (std::align_val_t(alignment)) SNode{oldsn->hash, oldsn->key, oldsn->value, nullptr};
     	    const uint32_t pos = (sn->hash >> level) & mask;
 			maskSNode(sn);
     	    if (wide->at(pos) == nullptr) {
@@ -862,10 +970,11 @@ public:
 			}
     	  } else if (isFrozenL(node)) {
     	    auto *fn = (FNode *)accessNode(node);
-    	    auto *tail = (LNode *)fn->frozen;
+    	    auto *tail = (LNode *) accessNode((fn->frozen));
     	    while (tail != nullptr) {
     	      auto *sn = new (std::align_val_t(alignment)) SNode{tail->hash, tail->key, tail->value, nullptr};
     	      const uint32_t pos = (sn->hash >> level) & mask;
+			  maskSNode(sn);
     	      sequentialInsert(sn, wide_, level, pos);
     	      tail = tail->next;
     	    }
@@ -915,7 +1024,9 @@ public:
 		auto *tail = (LNode *) accessNode(oldln);
 		LNode *ln = nullptr;
 		while (tail != nullptr) {
+			// TODO das ist ein fetter mem leak
 			ln = new (std::align_val_t(alignment)) LNode{tail->hash, tail->key, tail->value, nullptr};
+			maskLNode(ln);
 			tail = tail->next;
 		}
 		
@@ -998,7 +1109,7 @@ public:
 	
 	void *newNarrowOrWideNodeThatNeedsCountFix(const uint64_t h1, const K k1, const V v1,
 			const uint64_t h2, const K k2, const V v2,
-			const uint32_t level) {
+			const uint32_t level) noexcept {
 
 		auto *sn1 = new (std::align_val_t(alignment)) SNode {h1, k1, v1};
 		auto *sn2 = new (std::align_val_t(alignment)) SNode {h2, k2, v2};
@@ -1007,7 +1118,9 @@ public:
 		return newNarrowOrWiedeNodeUsingFreshThatsNeedsCountFix(sn1, sn2, level);
 	}
 
-	void *newNarrowOrWideNodeUsingFreshThatsNeedsCountFix(SNode *sn1_, SNode *sn2_, const uint32_t level) {
+	void *newNarrowOrWideNodeUsingFreshThatsNeedsCountFix(SNode *sn1_,
+	                                                      SNode *sn2_,
+	                                                      const uint32_t level) noexcept {
 		ASSERT(isNode(sn1_));
 		ASSERT(isNode(sn2_));
 		auto *sn1 = (SNode *) accessNode(sn1_);
@@ -1025,10 +1138,10 @@ public:
 			const uint32_t pos2_ = (sn2->hash >> level) & (4 - 1);
 			if (pos1_ != pos2_) {
 				ANNode *an = createNarrowArray(); // node already masked
-				const uint32_t pos1__ = (sn1->hash >> level) & (usedLength(an) - 1u);
-				const uint32_t pos2__ = (sn2->hash >> level) & (usedLength(an) - 1u);
-				an->at(pos1__) = sn1;
-				an->at(pos2__) = sn2;
+				const uint32_t pos11 = (sn1->hash >> level) & (usedLength(an) - 1u);
+				const uint32_t pos21 = (sn2->hash >> level) & (usedLength(an) - 1u);
+				an->at(pos11) = sn1;
+				an->at(pos21) = sn2;
 				return an;
 			} else {
 				ANode *an = createWideArray(); // NOTE: node already masked
@@ -1040,14 +1153,17 @@ public:
 		}
 	}
 
-	LNode *newListNodeWithoutKey(void *result, LNode *oldln_, const uint64_t hash, const K k) {
+	LNode *newListNodeWithoutKey(LNode **nn,
+	        					 LNode *oldln_,
+	                             const uint64_t hash,
+	                             const K k) noexcept {
+		(void)hash; // its really not used
 		ASSERT(isNode(oldln_));
-		result = nullptr;
 		auto *tail = (LNode *) accessNode(oldln_);
 		while (tail != nullptr) {
-			if (tail->key == k) {
+			if (KeyEqual{}(tail->key, k)) {
 				// Only reallocate list if the key must be removed.
-				result = (void *)tail->value;
+				void *result = (void *)tail->value;
 				LNode *ln = nullptr;
 				tail = (LNode *)accessNode(oldln_);
 				while (tail != nullptr) {
@@ -1055,20 +1171,29 @@ public:
 						ln = new (std::align_val_t(alignment)) LNode(tail->hash, tail->key, tail->value, ln);
 						maskLNode(ln);
 					}
-					tail = tail->next;
+
+					tail = (LNode *)accessNode((uintptr_t *)(tail->next));
 				}
-	
-				return ln;
+
+				*nn = ln;
+				return (LNode *)result;
 			}
 	
 			tail = tail->next;
 		}
-	
-		return oldln_;
+
+		*nn = oldln_;
+		return nullptr;
 	}
 
 	V fast_lookup(const K key) noexcept {
-		const uint64_t hash = H(key);
+		const uint64_t hash = (key);
+		auto t = fast_lookup(key, hash);
+
+		return t.first;
+	}
+
+	std::pair<V, bool> fast_lookup(const K key, const uint64_t hash) noexcept {
 		if constexpr (!useCache) {
 			return lookup(key, hash, 0, rawRoot, cache_ptr);
 		}
@@ -1090,10 +1215,11 @@ public:
 			auto *oldsn = (SNode *) accessNode(cachee);
 			void *txn = READ_TXN(oldsn);
 			if (txn == nullptr) {
-				if ((oldsn->hash == hash) && oldsn->key == key) {
-					return oldsn->value;
+				if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
+					return std::make_pair<V, bool>(
+					        std::move(oldsn->value), true);
 				} else {
-					return 0;// TODO
+					return std::make_pair<V, bool>(V{}, false);
 				}
 			} else {
 				// The single node is either frozen or scheduled for modification
@@ -1101,21 +1227,22 @@ public:
 			}
 		} else if (isAANode(cachee)){
 			auto *an = (ANode *) (accessNode(cachee));
-			const uint32_t pos = (hash >> level) & mask;
-			void *old = READ(an, pos);
+			const uint32_t pos_ = (hash >> level) & mask;
+			void *old = READ(an, pos_);
 			if (old == nullptr) {
 				// the key is not present in the cache trie
-				return 0;
+				return std::make_pair<V, bool>(V{}, false);
 			} else if (isSNode(cachee)) {
 				auto *oldsn = (SNode *) accessNode(cachee);
 				void *txn = READ_TXN(oldsn);
 				if (txn == nullptr) {
 					// The single node is up-to-date.
 					// Check if the key is contained in the single node.
-					if ((oldsn->hash == hash) && oldsn->key == key) {
-						return oldsn->value;
+					if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
+						return std::make_pair<V, bool>(
+						        std::move(oldsn->value), true);
 					} else {
-						return 0;// TODO probably std::make_pair<T, bool>{0, false};
+						return std::make_pair<V, bool>(V{}, false);
 					}
 				} else {
 					// The single node is either frozen or scheduled for modification
@@ -1129,26 +1256,27 @@ public:
 					// Check if the key is contained in the list node.
 					auto *tail = (LNode *)accessNode(old);
 					while (tail != nullptr) {
-						if (tail->hash == hash && tail->key == key) {
-							return tail->value;
+						if ((tail->hash == hash) && (key_equal{}(tail->key, key))) {
+							return std::make_pair<V, bool>(
+							        std::move(tail->value), false);
 						}
 
 						tail = tail->next;
 					}
 
-					return 0; // TODO
+					return std::make_pair<V, bool>(V{}, false);
 				} else if (isFNode(old) || isFVNode(old)) {
 					// Array node contains a frozen node, so it is obsolete -- do slow lookup.
 					return lookup(key, hash, 0, rawRoot, cache_ptr);
 				} else if (isENode(old)) {
 					auto *en = (ENode *) accessNode(old);
 					completeExpansion(cache_ptr, en);
-					return fast_lookup(key);
+					return fast_lookup(key, hash);
 				} else if (isXNode(old)) {
 					// Help complete the transaction.
 					auto *xn = (XNode *) accessNode(old);
 					completeCompression(cache_ptr, xn);
-					return fast_lookup(key);
+					return fast_lookup(key, hash);
 				} else {
 					// error
 					ASSERT(false);
@@ -1156,100 +1284,136 @@ public:
 			} // if old == nullptr
 		} // if cachee == nullptr
 
-		return 0; // TODO
+		ASSERT(false);
+		return std::make_pair<V, bool>(V{}, false);
 	}
 
-	V lookup(const K key, const uint64_t hash, uint64_t level, void *cur_, void *cache= nullptr) noexcept {
+	std::pair<V, bool> lookup(const K key, const uint64_t hash, uint64_t level, void *cur_, void *cache= nullptr) noexcept {
 		ASSERT(cur_ != nullptr);
 		ASSERT(isNode(cur_));
+		if constexpr (useCache) {
+			if ((cache != nullptr) && ((1u << level) == (cache_size - 1u))) {
+				inhabitCache(cache, cur_, hash, level);
+			}
+		}
 
-		// TODO cache
 		auto *cur = (uintptr_t *) accessNode(cur_);
 		uint64_t mask = usedLength(cur_) - 1;
 		const size_t pos = (hash >> level) & mask;
 		void *old = READ(cur, pos);
-		if ((old == nullptr) || isFVNode(old)) {
-			return 0;// TODO not correct
-		} else if (isANode(old) || isANNode(old)) {
+
+		ANode *told = (ANode *) accessNode(old);
+		ANode *tcur = (ANode *) accessNode(cur);
+
+		void *ptr, *frozen;
+		const uint32_t cachelevel = (cache == nullptr) ? 0 : 32 - __builtin_clz(1);
+		void *lookup_jump_table[] = {
+				&&lookup_nullptr, &&lookup_anode, &&lookup_aanode,
+				&&lookup_snode, &&lookup_lnode, &&lookup_xnode,
+		        &&lookup_enode, &&lookup_fnode};
+
+
+		ASSERT(isNode(old));
+		goto *lookup_jump_table[accessType(old)];
+
+
+		lookup_nullptr:
+			return std::make_pair<V, bool>(V{}, false);
+
+	    lookup_anode:
+		lookup_aanode:
 			return lookup(key, hash, level + lW, old, cache);
-		} else if (isSNode(old)) {
-			// TODO
-			const uint32_t cachelevel = (cache == nullptr) ? 0 : 32 - __builtin_clz(1);
+
+	    lookup_snode:
 			if ((level < cachelevel) || (level >= cachelevel + 8)){
 				recordCacheMiss();
 			}
 
-			const SNode *oldsn = (SNode *) accessNode(old);
-			if ((oldsn->key == key) && (oldsn->hash == hash)) {
-				return oldsn->value;
+			ptr = (void *) accessNode(old);
+		    if (cache != nullptr && ((1u << (level + 4u)) == (cache_size - 1u))) {
+			    // println(s"about to inhabit for single node -- ${level + 4} vs $cacheLevel")
+			    inhabitCache(cache, old, hash, level + 4u);
+		    }
+
+			if ((key_equal{}(((SNode *)ptr)->key, key)) && (((SNode *)ptr)->hash == hash)) {
+				return std::make_pair<V, bool>(
+			            std::move(((SNode *)ptr)->value), true);
 			}
 
-			return 0; // TODO not correct
-		} else if (isLNode(old)) {
-			// TODO cache
+			return std::make_pair<V, bool>(V{}, false);
+	    lookup_lnode:
+		    if constexpr (useCache) {
+			    if ((level < cachelevel) || (level >= (cachelevel + 8))) {
+				// A potential cache miss -- we need to check the cache state.
+				recordCacheMiss();
+			    }
+		    }
 
-			const LNode *oldln = (LNode *)accessNode(old);
-			if (oldln->hash == hash){
-				auto *tail = (LNode *)oldln;
+			ptr = (void *)accessNode(old);
+			if (((LNode *)ptr)->hash == hash){
+				auto *tail = (LNode *)ptr;
 				while(tail != nullptr) {
-					if ((oldln->key == key) && (oldln->hash == hash)) {
-						return oldln->value;
+					if ((key_equal{}(((LNode *)ptr)->key, key)) && (((LNode *)ptr)->hash == hash)) {
+						return std::make_pair<V, bool>(
+					        std::move(((LNode *)ptr)->value), true);
 					}
 
 					tail = (LNode *)accessNode(tail->next);
 				}
 			}
 
-			return 0; // TODO not correct
-		} else if (isENode(old)) {
-			const ENode *ptr = (ENode *) accessNode(old);
-			return lookup(key, hash, level + 4, ptr->narrow, cache);
-		} else if (isXNode(old)) {
-			const XNode *ptr = (XNode *) accessNode(old);
-			return lookup(key, hash, level + 4, ptr->stale, cache);
-		} else if (isFNode(old)) {
-			const FNode *ptr = (FNode *) accessNode(old);
-			void *frozen = ptr->frozen;
-			if (isSNode(frozen)) {
-				// Unexpected case (should never be frozen):
-				ASSERT(false);
-			} else if (isLNode(frozen)) {
+			return std::make_pair<V, bool>(V{}, false);
+
+		lookup_enode:
+			ptr = (void *) accessNode(old);
+			return lookup(key, hash, level + 4, ((ENode *)ptr)->narrow, cache);
+
+		lookup_xnode:
+			ptr = (void *) accessNode(old);
+			return lookup(key, hash, level + 4, ((XNode *)ptr)->stale, cache);
+
+	    lookup_fnode:
+			ptr = (void *) accessNode(old);
+			frozen = ((FNode *)ptr)->frozen;
+			if (isLNode(frozen)) {
 				auto *ln = (LNode *) accessNode(frozen);
 				if (ln->hash != hash) {
-					return 0; // TODO
+					return std::make_pair<V, bool>(V{}, false);
 				} else {
 					LNode *tail = ln;
 					while (tail != nullptr) {
-						if ((tail->key == key) || (tail->key == key)) {
-							return tail->value;
+						if (key_equal {}(tail->key, key) ) {
+							return std::make_pair<V, bool>(
+						        std::move(tail->value), true);
 						}
 
 						tail = (LNode *)accessNode(tail->next);
 					}
 
-					return 0; // TODO
+					return std::make_pair<V, bool>(V{}, false);
 				}
 			} else if (isANode(frozen)) {
 				lookup(key, hash, level + 4, frozen, cache);
 			} else {
 				ASSERT(false);
 			}
-			return lookup(key, hash, level + lW, ptr->frozen);
-		} else {
-			ASSERT(false);
-		}
+			return lookup(key, hash, level + lW, ((FNode *)ptr)->frozen);
+
+		ASSERT(false);
+		return std::make_pair<V, bool>(V{}, false);
 	}
 
 	V lookup(const K key) noexcept {
-		return lookup(key, H(key), 0, rawRoot, cache_ptr);
+		auto t = lookup(key, hash_key(key), 0, rawRoot, cache_ptr);
+		return t.first;
 	}
 
 	///
-	void fast_insert(const K key, const V value, const uint64_t hash) {
+	void fast_insert(const K key, const V value, const std::size_t hash) {
 		fast_insert(key, value, hash, cache_ptr, cache_ptr);
 	}
 
-	void fast_insert(const K key, const V value, const uint64_t hash, void *cache, void *prevCache) {
+	void fast_insert(const K key, const V value, const std::size_t hash, void *cache, void *prevCache) {
 		if constexpr(!useCache) {
 			insert(key, value);
 		}
@@ -1263,21 +1427,35 @@ public:
 		const uint32_t pos = 1u + (hash & mask);
 		void *cachee = READ(cache, pos);
 		const uint32_t level = 31u - __builtin_clz(len - 1);
-		if (cachee == nullptr) {
+
+		auto *stats = (CacheNode *)READ(cache, 0);
+		auto *parentCache = stats->parent;
+
+		void *fast_insert_jump_table[] = {
+				&&fast_insert_nullptr, &&fast_insert_anode, &&fast_insert_aanode, &&fast_insert_snode,
+		};
+		goto *fast_insert_jump_table[accessType(cachee)];
+
+		fast_insert_nullptr:
 			// Inconclusive -- retry one cache layer above.
-			auto *stats = (CacheNode *)READ(cache, 0);
-			auto *parentCache = stats->parent;
-			fast_insert(key, value, hash, parentCache, cache);
-		} else if (isAANode(cachee)) {
+		    return fast_insert(key, value, hash, parentCache, cache);
+
+	    fast_insert_snode:
+			// Need a reference to the parent array node -- retry one cache level above.
+			return fast_insert(key, value, hash, parentCache, cache);
+
+		fast_insert_anode:
+		fast_insert_aanode:
 			// Read from the array node.
 			void *an = (void *) accessNode(cachee);
-			const uint64_t mask = usedLength(cachee) - 1u;
-			const uint32_t pos = (hash >> level) & mask;
-			void *old = READ(an, pos);
+			const uint64_t mask_ = usedLength(cachee) - 1u;
+			const uint32_t pos_ = (hash >> level) & mask_;
+			void *old = READ(an, pos_);
 			if (old == nullptr) {
 				// Try to write the single node directly.
 				auto *sn = new (std::align_val_t(alignment))SNode{hash, key, value, nullptr};
-				if (CAS_(an, pos, old, sn)) {
+			    maskSNode(sn);
+				if (CAS_(an, pos_, old, sn)) {
 					incrementCount(an);
 					return;
 				} else {
@@ -1294,97 +1472,104 @@ public:
 				void *txn = READ_TXN(oldsn);
 				if (txn == nullptr) {
 					// No other transaction in progress.
-					if ((oldsn->hash == hash) && ((oldsn->key == key))) {
+					if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
 						// Replace this key in the parent.
 						auto *sn = new (std::align_val_t(alignment)) SNode{hash, key, value, nullptr};
+					    maskSNode(sn);
 						void *np = nullptr;
 						if (CAS_TXN(oldsn, &np, sn)) {
-							CAS_(an, pos, oldsn, sn);
+							CAS_(an, pos_, oldsn, sn);
 							// Note: must not increment the count here.
 						} else {
-							fast_insert(key, value, hash, cache, prevCache);
+							return fast_insert(key, value, hash, cache, prevCache);
 						}
 					} else if (usedLength(an) == 4) {
 						// Must expand, but cannot do so without the parent.
 						// Retry one cache level above.
-						auto *stats = (CacheNode *)READ(cache, 0);
-						void* parentCache = stats->parent;
-						fast_insert(key, value, hash, parentCache, cache);
+						return fast_insert(key, value, hash, parentCache, cache);
 					} else {
 						// Create an array node at the next level and replace the single node.
 						auto *nnode = newNarrowOrWideNode(oldsn->hash, oldsn->key, oldsn->value, hash, key, value, level + 4);
 						void *np = nullptr;
 						if (CAS_TXN(oldsn, &np, nnode)) {
-							CAS_(an, pos, oldsn, nnode);
+							CAS_(an, pos_, oldsn, nnode);
 						} else {
-							fast_insert(key, value, hash, cache, prevCache);
+							return fast_insert(key, value, hash, cache, prevCache);
 						}
 					}
 				} else if (txn == FSNode) { // TODO fsnode = NoTxn = nullpt
 					// Must restart from the root, to find the transaction node, and help.
-					insert(key, value);
+					return insert(key, value);
 				} else {
 					// Complete the current transaction, and retry.
 					CAS_(an, pos, old, txn);
-					fast_insert(key, value, hash, cache, prevCache);
+				    return fast_insert(key, value, hash, cache, prevCache);
 				}
 			} else {
 				// Must restart from the root, to find the transaction node, and help.
-				insert(key, value);
+				return insert(key, value);
 			}
-		} else if (isSNode(cachee)) {
-			// Need a reference to the parent array node -- retry one cache level above.
-			auto *stats = (CacheNode *)READ(cache, 0);
-			void *parentCache = stats->parent;
-			fast_insert(key, value, hash, parentCache, cache);
-		} else {
-			// sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
-			ASSERT(false);
-		}
+
+		// sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
+		ASSERT(false);
 	}
 
 	bool insert(const K key, const V value, const uint64_t hash,
 	            const uint64_t level, void *cur_, void *prev_,
-	            void *cache= nullptr){
+	            void *cache= nullptr) {
 		if ((cache != nullptr) && ((1 << level) == (cache_size - 1))) {
 			inhabitCache(cache, cur_, hash, level);
 		}
 
 		ASSERT(cur_ != nullptr);
 		ASSERT(isNode(cur_));
+		ASSERT(checkAANode(cur_));
 		void *cur = (uintptr_t *) accessNode(cur_);
 		const uint64_t mask = usedLength(cur_) - 1u;
 		const size_t pos = (hash >> level) & mask;
 		void *old = READ(cur, pos);
 
-		insert_start:
-		ASSERT(isNode(old) || (old == nullptr));
+		ANode *told = (ANode *) accessNode(old);
+		ANode *tcur = (ANode *) accessNode(cur);
 
-		if (old == nullptr) {
+		ASSERT(isNode(old) || (old == nullptr));
+		ASSERT(checkAANode(old));
+
+		void *tmp = nullptr;
+		SNode *o = nullptr;
+		const uint32_t cacheLevel = cache == nullptr ? 0 : __builtin_clz(cache_size - 1u);
+
+		void *insert_jump_table[] = {
+		        &&insert_nullptr, &&insert_anode, &&insert_aanode,
+		        &&insert_snode, &&insert_lnode, &&insert_xnode, &&insert_enode};
+		goto *insert_jump_table[accessType(old)];
+
+		insert_nullptr:
 			// Fast-path -- CAS the node into the empty position.
-			const uint32_t cacheLevel = cache == nullptr ? 0 : __builtin_clz(cache_size - 1u);
 			if (level < cacheLevel || level >= cacheLevel + 8) {
 				recordCacheMiss();
 			}
 
-			auto sn = new (std::align_val_t(alignment)) SNode{hash, key, value, nullptr};
-			maskSNode(sn);
+			o = new (std::align_val_t(alignment)) SNode{hash, key, value, nullptr};
+			maskSNode(o);
 
-			if (CAS_(cur, pos, (uintptr_t)&old, sn)) {
-				auto *k = (ANode *)cur;
+			if (CAS_(cur, pos, (uintptr_t)&old, o)) {
 				incrementCount(cur_);
 				return true;
 			}
 
 			return insert(key, value, hash, level, cur_, prev_, cache);
-		} else if (isANode(old) || isAANode(old)) {
+
+		insert_aanode:
+		insert_anode:
 			// repeat the search on the next level
 			return insert(key, value, hash, level + lW, old, cur_, cache);
-		} else if (isSNode(old)) {
-			const SNode *o = (SNode *) accessNode(old);
-			void *txn = READ_TXN(o);
-			if (txn == nullptr){
-				if (o->key == key){
+
+		insert_snode:
+			o = (SNode *) accessNode(old);
+			tmp = READ_TXN(o);
+			if (tmp == nullptr){
+				if (KeyEqual{}(o->key, key)){
 					auto sn = new (std::align_val_t(alignment)) SNode{hash, key, value, nullptr};
 					maskSNode(sn);
 
@@ -1426,44 +1611,44 @@ public:
 					return insert(key, value, hash, level, cur_, prev_, cache);
 
 				} // old->key == k
-			} // txn == 0
-			else if (txn == FSNode) {
+			} else if (tmp == FSNode) { // txn == FSNode
 				// We landed into the middle of another transaction.
 				// We must restart from the top, find the transaction node and help.
-				goto insert_start;
+				return insert(key, value, hash, level, cur_, prev_, cache);
 			} else {
 				// The single node had been scheduled for replacement by some thread.
 				// We need to help, then retry.
-				CAS_(cur, pos, (uintptr_t)&old, txn);
+				CAS_(cur, pos, (uintptr_t)&old, tmp);
 				return insert(key, value, hash, level, cur_, prev_, cache);
 			}
-		} else if (isLNode(old)) {
-			void *nn = newListNarrowOrWideNode((LNode *)old, hash, key, value, level + lW);
-			if (CAS_(cur, pos, (uintptr_t)&old, nn)) { return true;}
-			return insert(key, value, hash, level, cur_, prev_, cache);
-		} else if (isENode(old)) {
-			completeExpansion(cache, (ENode *)old);
-			// goto insert_start;
-			return false;
-		} else if (isXNode(old)) {
-			completeCompression(cache, (XNode *)old);
-			// goto insert_start;
-			return false;
-		} else {
 			ASSERT(false);
-		}
 
-		return false;
+		insert_lnode:
+			tmp = newListNarrowOrWideNode((LNode *)old, hash, key, value, level + lW);
+			if (CAS_(cur, pos, (uintptr_t)&old, tmp)) { return true;}
+			return insert(key, value, hash, level, cur_, prev_, cache);
+
+	    insert_enode:
+			completeExpansion(cache, (ENode *)old);
+			// restart
+			return false;
+
+	    insert_xnode:
+			completeCompression(cache, (XNode *)old);
+		    // restart
+			return false;
+
+		ASSERT(false);
 	}
 
 	void insert(const K key, const V value) {
-		if (!insert(key, value, H(value), 0, rawRoot, nullptr)) {
+		if (!insert(key, value, hash_key(value), 0, rawRoot, nullptr)) {
 			insert(key, value);
 		}
 	}
 
 	void* remove(const K key,
-	             const uint64_t hash,
+	             const std::size_t hash,
 	             const uint32_t level,
 	             void *current_,
 	             void *parent_, void *cache) {
@@ -1484,7 +1669,7 @@ public:
 			void *txn = READ_TXN(oldsn);
 			if (txn == nullptr) {
 				// There is no other transaction in progress.
-				if ((oldsn->hash == hash) && (oldsn->key == key)) {
+				if ((oldsn->hash == hash) && (key_equal {}(oldsn->key, key))) {
 					// The same key, remove it.
 					const uintptr_t *ptr = nullptr;
 					if (CAS_TXN(oldsn, &ptr, nullptr)) {
@@ -1511,8 +1696,8 @@ public:
 			}
 		} else if (isLNode(old)) {
 			auto *oldln = (LNode *) accessNode(old);
-			void *nn = nullptr;
-			void *result = newListNodeWithoutKey(nn, oldln, hash, key);
+			LNode *nn = nullptr;
+			void *result = newListNodeWithoutKey(&nn, oldln, hash, key);
 			if (CAS_(current, pos, (uintptr_t)&oldln, nn)) {
 				return result;
 			} else {
@@ -1528,16 +1713,109 @@ public:
 			return remove(key, hash, level, current_, parent_, cache);
 		}
 
+		ASSERT(false);
 		return nullptr;
 	}
 
-	void* remove(const K key) {
-		void *val = nullptr;
-		while (val == nullptr) {
-			val = remove(key, H(key), 0, rawRoot, nullptr, cache_ptr);
+	V* remove(const K key) {
+		return (V *)remove(key, hash_key(key), 0, rawRoot, nullptr, cache_ptr);
+	}
+
+	V* fast_remove(const K key, const uint64_t hash, void *cache, void *prevCache, const uint64_t ascends) {
+		if constexpr (!useCache) {
+			return remove(key);
 		}
 
-		return val;
+		if (cache == nullptr) {
+			return remove(key);
+		}
+
+
+		const size_t len = usedLength(cache_size);
+		const uint64_t mask = len - 1u - 1u;
+		const uint32_t pos = 1 + (hash & mask);
+		void *cachee = READ(cache, pos);
+		const uint32_t level = 31u - __builtin_clz(len - 1);
+		if (cachee == nullptr) {
+			// Inconclusive -- must retry one cache level above.
+			auto *stats = (CacheNode *)READ(cache, 0);
+			void *parentCache = stats->parent;
+			return fast_remove(key, hash, parentCache, cache, ascends + 1u);
+		} else if (isAANode(cachee)) {
+			// Read from an array node.
+			auto *an = (ANode *)cachee;
+			uint64_t mask = usedLength(an) - 1;
+			uint32_t pos = (hash >> level) & mask;
+			void *old = READ(an, pos);
+			if (old == nullptr) {
+				// The key does not exist.
+				if (ascends > 1) {
+					recordCacheMiss();
+				}
+				return nullptr;
+			} else if (isAANode(old)) {
+				// Continue searching recursively.
+				auto *oldan = (ANode *)old;
+				void *res = slowRemove(key, hash, level + 4, oldan, an, prevCache);
+				if (res == nullptr) {
+					fastRemove(key, hash, cache, prevCache, ascends);
+				} else {
+					return res;
+				}
+			} else if (isSNode(old)) {
+				auto *oldsn = (SNode *) accessNode(old);
+				void *txn = READ_TXN(oldsn);
+				if (txn == nullptr) {
+					// No other transaction in progress.
+					if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
+						// Remove the key.
+						void *np = nullptr;
+						if (CAS_TXN(oldsn, &np, nullptr)) {
+							CAS_(an, pos, oldsn, nullptr);
+							decrementCount(an);
+							if (ascends > 1) {
+								recordCacheMiss();
+							}
+							if (isCompressible(an)) {
+								compressDescend(rawRoot, nullptr, hash, 0);
+							}
+							// TODO wie löschen
+							return oldsn->value;
+						} else {
+							fast_remove(key, hash, cache, prevCache, ascends);
+						}
+					} else {
+						// The key does not exist.
+						if (ascends > 1) {
+							recordCacheMiss();
+						}
+						return nullptr;
+					}
+					// TODO == FSNOde
+				} else if (txn == nullptr) {
+					// Must restart from the root, to find the transaction node, and help.
+					return remove(key, hash);
+				} else {
+					// Complete the current transaction, and retry.
+					CAS_(an, pos, oldsn, txn);
+					return fast_remove(key, hash, cache, prevCache, ascends);
+				}
+			} else {
+				// Must restart from the root, to find the transaction node, and help.
+				slowRemove(key, hash);
+			}
+		} else if (isSNode(cachee)) {
+			// Need parent array node -- retry one cache level above.
+			auto *stats = (CacheNode *)READ(cache, 0);
+			void *parentCache = stats->parent;
+			return fast_remove(key, hash, parentCache, cache, ascends + 1);
+		} else {
+			// sys.error(s"Unexpected case -- $cachee is not supposed to be cached.");
+			ASSERT(false);
+		}
+
+		ASSERT(false);
+		return nullptr;
 	}
 };
 
