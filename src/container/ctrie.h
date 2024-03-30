@@ -29,11 +29,10 @@
 #define XNodeValue  0b0101
 #define ENodeValue  0b0110
 #define FNodeValue  0b0111
+#define FVNodeValue 0b1000
+#define FSNodeValue 0b1001
 #define FullValue   0b1111
 #define NFullValue  (~FullValue)
-
-#define isFVNode(ptr) (ptr == nullptr)
-#define isFSNode(ptr) ((uintptr_t )ptr == (uintptr_t )0)
 
 #define isANode(ptr)  ((((uintptr_t)ptr) & FullValue) == ANodeValue)
 #define isANNode(ptr) ((((uintptr_t)ptr) & FullValue) == ANNodeValue)
@@ -44,6 +43,9 @@
 #define isLNode(ptr)  ((((uintptr_t)ptr) & FullValue) == LNodeValue)
 #define isXNode(ptr)  ((((uintptr_t)ptr) & FullValue) == XNodeValue)
 
+#define isFVNode(ptr) ((((uintptr_t)ptr) & FullValue) == FVNodeValue)
+#define isFSNode(ptr) ((((uintptr_t)ptr) & FullValue) == FSNodeValue)
+
 #define maskANode(ptr)  ((ptr) = (ANode *) ((uintptr_t)(ptr) ^ ANodeValue))
 #define maskANNode(ptr) ((ptr) = (ANNode *)((uintptr_t)(ptr) ^ ANNodeValue))
 #define maskSNode(ptr)  ((ptr) = (SNode *) ((uintptr_t)(ptr) ^ SNodeValue))
@@ -51,6 +53,9 @@
 #define maskFNode(ptr)  ((ptr) = (FNode *) ((uintptr_t)(ptr) ^ FNodeValue))
 #define maskLNode(ptr)  ((ptr) = (LNode *) ((uintptr_t)(ptr) ^ LNodeValue))
 #define maskXNode(ptr)  ((ptr) = (XNode *) ((uintptr_t)(ptr) ^ XNodeValue))
+
+#define maskFVNode(ptr) ((ptr) = (void  *) ((uintptr_t)(ptr) ^ FVNodeValue))
+#define maskFSNode(ptr) ((ptr) = (void  *) ((uintptr_t)(ptr) ^ FSNodeValue))
 
 #define accessNode(ptr) ((uintptr_t )ptr & NFullValue)
 #define accessType(ptr) ((uintptr_t )ptr & FullValue)
@@ -213,6 +218,7 @@ class CacheTrie {
 		}
 
 		constexpr void*& at(const std::size_t i) noexcept {
+			ASSERT(i < 4);
 			return data[i];
 		}
 
@@ -238,6 +244,7 @@ class CacheTrie {
 		}
 
 		constexpr void*& at(const std::size_t i) noexcept {
+			ASSERT(i < 16);
 			return data[i];
 		}
 
@@ -298,7 +305,7 @@ class CacheTrie {
 		uint64_t parentpos;
 		ANode *narrow;
 		uint64_t hash;
-		uint64_t level;
+		uint32_t level;
 		ANode *wide;
 	};
 
@@ -319,14 +326,13 @@ class CacheTrie {
 	class XNode {
 	public:
 		void *parent;
-		uint32_t parentpos;
+		uint64_t parentPos;
 		void * stale;
 		uint64_t hash;
 		uint32_t level;
 	};
 
-	void *FVNode = (void *)0; // TODO 1
-	void *FSNode = (void *)0;
+
 
 	void *cache_ptr = nullptr;
 	size_t cache_size = 0;
@@ -337,6 +343,12 @@ class CacheTrie {
 	alignas(alignment) void* rawRoot = nullptr;
 
 	/////////////////////////////// ALLOC ///////////////////////////////////
+
+	size_t lnodes = 0;
+	size_t snodes = 0;
+	std::vector<LNode> lnode_cache{};
+	std::vector<SNode> snode_cache{1};
+
 	inline void* createCacheArray(const uint32_t level) noexcept {
 		return aligned_alloc(alignment, sizeof(void *) * (1 + (1u << level)));
 	}
@@ -353,12 +365,111 @@ class CacheTrie {
 		return (ANNode *)ret;
 	}
 
+	///
+	/// \param oldsn_
+	/// \return
+	constexpr inline SNode *createSNode(LNode *oldsn_) noexcept {
+		auto *oldsn = (LNode *) accessNode(oldsn_);
+		return createSNode(oldsn->hash, oldsn->key, oldsn->value);
+	}
+
+	///
+	/// \param oldsn_
+	/// \return
 	constexpr inline SNode *createSNode(SNode *oldsn_) noexcept {
 		auto *oldsn = (SNode *) accessNode(oldsn_);
-		auto *n = new (std::align_val_t(alignment)) SNode {oldsn->hash, oldsn->key, oldsn->value, nullptr};
+		return createSNode(oldsn->hash, oldsn->key, oldsn->value);
+	}
+
+	///
+	/// \param hash
+	/// \param key
+	/// \param v
+	/// \return
+	constexpr inline SNode *createSNode(const std::size_t hash,
+	                                    const K &key,
+	                                    const V &v,
+	                                    void *ptr=nullptr) noexcept {
+		if (snodes >= snode_cache.size()) {
+			snode_cache.resize(snode_cache.size() * 2u);
+		}
+		auto *n = new (std::align_val_t(alignment)) SNode {hash, key, v, ptr};
+		// auto *n = ((SNode *)snode_cache.data()) + snodes;
+		// snodes += 1;
+		// n->hash = hash;
+		// n->key = key;
+		// n->value = v;
+		// n->txn = ptr;
 		maskSNode(n);
 		return n;
 	}
+
+	///
+	/// \param node_
+	/// \param next
+	/// \return
+	constexpr inline LNode *createLNode(SNode *node_, LNode *next=nullptr) noexcept {
+		auto *node = (SNode *) accessNode(node_);
+		return createLNode(node->hash, node->key, node->value, next);
+	}
+
+	///
+	/// \param node_
+	/// \param next
+	/// \return
+	constexpr inline LNode *createLNode(LNode *node_, LNode *next=nullptr) noexcept {
+		auto *node = (LNode *) accessNode(node_);
+		return createLNode(node->hash, node->key, node->value, next);
+	}
+
+	///
+	/// \param hash
+	/// \param key
+	/// \param value
+	/// \param next
+	/// \return
+	constexpr inline LNode *createLNode(const std::size_t hash,
+	                                    const K &key, const V &value,
+	                                    LNode *next=nullptr) noexcept {
+		auto *n = new (std::align_val_t(alignment)) LNode {hash, key, value, next};
+		maskLNode(n);
+		return n;
+	}
+
+	///
+	/// \param node
+	/// \return
+	constexpr inline FNode *createFNode(void *node) noexcept {
+		auto *fnode = new (std::align_val_t(alignment)) FNode(node);
+		maskFNode(fnode);
+		return fnode;
+	}
+
+	constexpr inline ENode *createENode(
+				ANode *parent,
+				uint64_t parentpos,
+				ANode *narrow,
+				uint64_t hash,
+				uint32_t level,
+				ANode *wide=nullptr
+	        ) noexcept {
+		auto *en = new (std::align_val_t(alignment)) ENode{parent, parentpos, narrow, hash, level, wide};
+		maskENode(en);
+		return en;
+	}
+
+	constexpr inline XNode *createXNode(
+			void *parent,
+			uint64_t parentPos,
+			void *current,
+			uint64_t hash,
+			uint32_t level
+	) noexcept {
+		auto *xn = new (std::align_val_t(alignment)) XNode {parent, parentPos, current, hash, level};
+		maskXNode(xn);
+		return xn;
+	}
+
 
 	////////////////////////////////////////////////////////////////////////
 	constexpr inline std::size_t hash_key(const K &key) const noexcept {
@@ -400,6 +511,7 @@ class CacheTrie {
 		}
 
 		ASSERT(false);
+		return -1; // to please the compiler
 	}
 
 	bool isFrozenS(void *ptr) const {
@@ -590,6 +702,10 @@ public:
 	}
 
 	bool compressingSingleLevel(void *cache, void *current, void *parent, const uint64_t hash, const uint32_t level) {
+		if constexpr (!useCompression) {
+			ASSERT(false);
+		}
+
 		if (parent == nullptr) {
 			return false;
 		}
@@ -598,11 +714,16 @@ public:
 			return false;
 		}
 
+		ASSERT(isNode(current));
+		ASSERT(isNode(parent));
+
 		const uint64_t parentMask = usedLength(parent) - 1u;
 		const uint32_t parentPos = (hash >> (level - 4u)) & parentMask;
 
-		auto *xn = new (std::align_val_t(alignment)) XNode {parent, parentPos, current, hash, level};
-		maskXNode(xn);
+		//auto *xn = new (std::align_val_t(alignment)) XNode {parent, parentPos, current, hash, level};
+		// maskXNode(xn);
+		auto *xn = createXNode(parent, parentPos, current, hash, level);
+
 		if (CAS_(parent, parentPos, (uintptr_t)&current, xn)) {
 			return completeCompression(cache, xn);
 		} else {
@@ -611,6 +732,12 @@ public:
 	}
 
 	void compressAscend(void *cache, void *current, void *parent, const uint64_t hash, const uint32_t level) {
+		ASSERT(isNode(current));
+		ASSERT(isNode(parent));
+		if constexpr (!useCompression) {
+			return;
+		}
+
 		if (compressingSingleLevel(cache, current, parent, hash, level)) {
 			// Continue compressing if possible.
 			// Investigate if full ascend is feasible.
@@ -619,6 +746,13 @@ public:
 	}
 
 	bool compressDescend(void *current, void *parent, const uint64_t hash, const uint32_t level) {
+		ASSERT(isNode(current));
+		ASSERT(isNode(parent));
+
+		if constexpr (!useCompression) {
+			return false;
+		}
+
 		// Dive into the cache starting from the root for the given hash,
 		// and compress as much as possible.
 		const uint64_t pos = (hash >> level) & (usedLength(current) - 1u);
@@ -639,6 +773,8 @@ public:
 	}
 
 	void *compressFrozen(void *frozen_, const uint32_t level) {
+		ASSERT(isNode(frozen_));
+
 		void *single;
 		void *frozen = (void *)accessNode(frozen_);
 		uint32_t i = 0;
@@ -670,7 +806,6 @@ public:
 
 		if (single != nullptr) {
 			single = createSNode((SNode *)single);
-			maskSNode(single);
 		}
 
 		return single;
@@ -679,16 +814,20 @@ public:
 	void completeExpansion(void *cache, ENode *enode_){
 		ASSERT(isNode(enode_));
 		auto *enode = (ENode *) accessNode(enode_);
+		ASSERT(isNode(enode->parent));
     	void *parent = (void *)accessNode(enode->parent);
+
     	uint64_t parentpos = enode->parentpos;
     	uint32_t level = enode->level;
 
     	// First, freeze the subtree beneath the narrow node.
     	void *narrow = enode->narrow;
+		ASSERT(isNode(narrow));
     	freeze(cache, narrow);
 
     	// Second, populate the target array, and CAS it into the parent.
     	void *wide = createWideArray();
+		ASSERT(isNode(wide));
     	sequentialTransfer(narrow, wide, level);
     	sequentialFixCount((ANode *)wide);
 
@@ -710,10 +849,12 @@ public:
 	}
 
 	bool completeCompression(void *cache, XNode *xn_) {
+		ASSERT(isNode(xn_));
 		auto *xn = (XNode *) accessNode(xn_);
 		void *parent_ = (void *) xn->parent;
+		ASSERT(isNode(parent_));
 		void *parent = (void *) accessNode(xn->parent);
-		const uint64_t parentPos = xn->parentpos;
+		const uint64_t parentPos = xn->parentPos;
 		const uint32_t level = xn->level;
 
 		// First, freeze and compress the subtree below.
@@ -737,24 +878,25 @@ public:
 
 		const ANode *current = (ANode *) accessNode(current_);
 		uint32_t i = 0;
+		const void *np = nullptr;
+		const uint32_t len = usedLength(current_);
 		// TODO jump list
-		while (i < usedLength(current_)) {
+		while (i < len) {
 			void *node = READ(current, i);
 			ASSERT(isNode(node));
 			if (node == nullptr) {
 				//  Freeze null.
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then reinspect the current slot.
-				if (!CAS_(current, i, (uintptr_t)&node, FVNode)) { i -= 1; }
+				if (!CAS_(current, i, (uintptr_t)&node, FVNodeValue)) { i -= 1; }
 			} else if (isSNode(node)) {
 				auto *sn = (SNode *) accessNode(node);
 				void *txn = READ_TXN(sn);
 				if (txn == nullptr) {
-					void *ptr = nullptr;
 					// Freeze single node.
 					// If it fails, then either someone helped or another txn is in progress.
 					// If another txn is in progress, then we must reinspect the current slot.
-					if (!CAS_TXN(sn, (uintptr_t)&ptr, FSNode)) { i -= 1; }
+					if (!CAS_TXN(sn, (uintptr_t)&np, FSNodeValue)) { i -= 1; }
 				} else if (isFSNode(txn)) {
 					// We can skip, another thread previously froze this node.
 				} else {
@@ -767,13 +909,15 @@ public:
 				// Freeze list node.
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then we must reinspect the current slot.
-				CAS_(current, i, (uintptr_t)&node, node);
+				auto *fnode_ = createFNode(node);
+				CAS_(current, i, (uintptr_t)&node, fnode_);
 				i -= 1;
-			} else if (isANode(node) || isANNode(node)) {
+			} else if (isAANode(node)) {
 				// Freeze the array node.
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then reinspect the current slot.
-				CAS_(current, i, (uintptr_t)&node, node);
+				auto *fnode_ = createFNode(node);
+				CAS_(current, i, (uintptr_t)&node, fnode_);
 				i -= 1;
 			} else if (isFrozenL(node)) {
 				// We can skip, another thread previously helped with freezing this node.
@@ -781,6 +925,7 @@ public:
 				// We still need to freeze the subtree recursively.
 				const FNode *fnode = (FNode *) accessNode(node);
 				void *subnode = fnode->frozen;
+				ASSERT(isNode(subnode));
 				freeze(cache, subnode);
 			} else if (isFVNode(node)) {
 				// We can continue, another thread already froze this slot.
@@ -803,6 +948,8 @@ public:
 	}
 
 	void* freezeAndCompress(void *cache, void *current, const uint32_t level) noexcept {
+		ASSERT(isNode(current));
+		ASSERT(false); // currently not working as current is referenced directly
 		void *single = nullptr;
 		uint32_t i = 0;
 		while (i < usedLength(current)) {
@@ -811,18 +958,18 @@ public:
 				// Freeze null.
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then reinspect the current slot.
-				if (!CAS_(current, i, (uintptr_t)&node, FVNode))  {
+				if (!CAS_(current, i, (uintptr_t)&node, FVNodeValue))  {
 					i -= 1;
 				}
 			} else if (isSNode(node)) {
 				auto *sn = (SNode *)accessNode(node);
 				void *txn = READ_TXN(sn);
 				if (txn == nullptr) {
-					void *ptr = nullptr;
+					const void *ptr = nullptr;
 					// Freeze single node.
 					// If it fails, then either someone helped or another txn is in progress.
 					// If another txn is in progress, then we must reinspect the current slot.
-					if (!CAS_TXN(sn, (uintptr_t)&ptr, FSNode)) { i -= 1; }
+					if (!CAS_TXN(sn, (uintptr_t)&ptr, FSNodeValue)) { i -= 1; }
 					else {
 						if (single == nullptr) {
 							single = sn;
@@ -845,8 +992,7 @@ public:
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then we must reinspect the current slot.
 				single = current;
-				auto *fnode = new (std::align_val_t(alignment)) FNode(node);
-				maskFNode(fnode);
+				auto *fnode = createFNode(node);
 				CAS_(current, i, (uintptr_t)&node, fnode);
 				i -= 1;
 			} else if (isANode(node)) {
@@ -854,8 +1000,7 @@ public:
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then reinspect the current slot.
 				single = current;
-				auto *fnode = new (std::align_val_t(alignment)) FNode(node);
-				maskFNode(fnode);
+				auto *fnode = createFNode(node);
 				CAS_(current, i, (uintptr_t)&node, fnode);
 				i -= 1;
 			} else if (isFrozenL(node)) {
@@ -867,7 +1012,7 @@ public:
 				auto *a = (FNode *)accessNode(node);
 				void *subnode = a->frozen;
 				freeze(cache, subnode);
-			} else if (node == FVNode) {
+			} else if (isFVNode(node)) {
 				// We can continue, another thread already froze this slot.
 				single = current;
 			} else if (isENode(node)) {
@@ -919,21 +1064,23 @@ public:
 	void sequentialInsert(SNode *sn_, void *wide_, const uint32_t level, const uint32_t pos) {
 		auto *wide = (ANode *) accessNode(wide_);
 		auto *sn = (SNode *) accessNode(sn_);
-		ASSERT(isAANode(wide));
+		ASSERT(isAANode(wide_));
+		ASSERT(isNode(sn_));
 
 		void *old = wide->at(pos);
+		ASSERT(isNode(old));
 		if (isSNode(old)) {
-			wide->at(pos) = newNarrowOrWideNodeUsingFreshThatsNeedsCountFix((SNode *)old, sn, level + 4);
+			wide->at(pos) = newNarrowOrWideNodeUsingFreshThatsNeedsCountFix((SNode *)old, sn_, level + 4);
 		} else if (isANode(old)) {
 			auto *oldan_ = (ANode *)old;
 			ANode *oldan = (ANode *) accessNode(oldan_);
-			const uint64_t npos = (sn->hash >> (level + 4)) & (usedLength(oldan) - 1);
+			const uint64_t npos = (sn->hash >> (level + 4)) & (usedLength(oldan_) - 1);
 			if (oldan->at(npos) == nullptr) {
 				oldan->at(npos) = sn_;
 			} else if (usedLength(oldan_) == 4) {
-				void *an = createWideArray();
-				sequentialTransfer(oldan_, an, level + 4);
-				wide->at(pos)= an;
+				void *an_ = createWideArray();
+				sequentialTransfer(oldan_, an_, level + 4);
+				wide->at(pos)= an_;
 				sequentialInsert(sn_, wide_, level, pos);
 			} else {
 				sequentialInsert(sn_, oldan_, level + 4, npos);
@@ -955,41 +1102,45 @@ public:
 		const uint64_t len = usedLength(source_);
     	while (i < len) {
     	  void *node = source->at(i);
+		  ASSERT(isNode(node));
+
     	  if (isFVNode(node)) {
     	    // We can skip, the slot was empty.
     	  } else if (isFrozenS(node)) {
     	    // We can copy it over to the wide node.
-    	    auto *oldsn = (SNode *) accessNode(node);
-    	    auto *sn =  new (std::align_val_t(alignment)) SNode{oldsn->hash, oldsn->key, oldsn->value, nullptr};
-    	    const uint32_t pos = (sn->hash >> level) & mask;
-			maskSNode(sn);
+			auto *sn_ = createSNode((SNode *)node);
+    	    const uint32_t pos = (((SNode *) accessNode(node))->hash >> level) & mask;
     	    if (wide->at(pos) == nullptr) {
-				wide->at(pos) = sn;
+				wide->at(pos) = sn_;
 			} else { 
-				sequentialInsert(sn, wide_, level, pos);
+				sequentialInsert(sn_, wide_, level, pos);
 			}
     	  } else if (isFrozenL(node)) {
     	    auto *fn = (FNode *)accessNode(node);
+			ASSERT(isNode(fn->frozen));
     	    auto *tail = (LNode *) accessNode((fn->frozen));
+
     	    while (tail != nullptr) {
-    	      auto *sn = new (std::align_val_t(alignment)) SNode{tail->hash, tail->key, tail->value, nullptr};
-    	      const uint32_t pos = (sn->hash >> level) & mask;
-			  maskSNode(sn);
-    	      sequentialInsert(sn, wide_, level, pos);
-    	      tail = tail->next;
+			  auto *sn_ = createSNode((LNode *)tail);
+    	      const uint32_t pos = (((LNode *)tail)->hash >> level) & mask;
+    	      sequentialInsert(sn_, wide_, level, pos);
+			  ASSERT(isNode(tail->next));
+    	      tail = (LNode *) accessNode(tail->next);
     	    }
     	  } else if (isFNode(node)) {
     	    auto *fn = (FNode *)accessNode(node);
+			ASSERT(isNode(fn->frozen));
     	    sequentialTransfer(fn->frozen, wide_, level);
     	  } else {
 			  ASSERT(false);
     	  }
+
     	  i += 1;
     	}
 	}
 
 	void sequentialTransferNarrow(void *source_, void *narrow_, const uint32_t level) {
-		// its really not used
+		// it's really not used
 		(void)level;
 		ASSERT(isAANode(source_));
 		ASSERT(isAANode(narrow_));
@@ -999,17 +1150,16 @@ public:
 		uint32_t i = 0;
 		while(i < 4) {
 			void *node = source->at(i);
+			ASSERT(isNode(node));
 			if (isFVNode(node)){
 				// we can skip, this was empty
 			} else if (isFrozenS(node)) {
-				auto *oldsn = (SNode *)accessNode(node);
-				auto *sn = new (std::align_val_t(alignment)) SNode(oldsn->hash, oldsn->key, oldsn->value);
-				maskSNode(sn);
-				narrow->at(i) = sn;
+				auto *sn_ = createSNode((SNode *)node);
+				narrow->at(i) = sn_;
 			} else if (isFrozenL(node)) {
 				auto *o = (FNode *)accessNode(node);
-				auto *sn = (LNode *)o->frozen;
-				narrow->at(i) = sn;
+				ASSERT(isNode(o->frozen));
+				narrow->at(i) = (LNode *)o->frozen;
 			} else {
 				ASSERT(false);
 			}
@@ -1025,47 +1175,37 @@ public:
 		LNode *ln = nullptr;
 		while (tail != nullptr) {
 			// TODO das ist ein fetter mem leak
-			ln = new (std::align_val_t(alignment)) LNode{tail->hash, tail->key, tail->value, nullptr};
-			maskLNode(ln);
+			ln = createLNode(tail, nullptr);
 			tail = tail->next;
 		}
 		
-		if (ln->hash == hash) {
-			maskLNode(ln);
-			auto *l = new (std::align_val_t(alignment)) LNode{hash, k, v, ln};
-			maskLNode(l);
-			return l;
+		if (((LNode *)(accessNode(ln)))->hash == hash) {
+			return createLNode(hash, k, v, ln);
 		} else {
 			ANode *an_ = createWideArray();
 			auto *an = (ANode *)accessNode(an_);
 			uint32_t pos1 = (ln->hash >> level) & (usedLength(an_) - 1u);
 			an->at(pos1) = ln;
-			auto *sn = new (std::align_val_t(alignment)) SNode{hash, k, v, nullptr};
-			maskSNode(sn);
+			auto *sn = createSNode(hash, k, v, nullptr);
 			sequentialInsert(sn, an_, level);
 			sequentialFixCount(an_);
 			return an_;
 		}
 	}
 
-	void *newNarrowOrWideNode(const uint64_t h1, const K k1, const V v1,
-											   const uint64_t h2, const K k2, const V v2,
-											   const uint32_t level) {
-		auto *sn1 = new (std::align_val_t(alignment)) SNode {h1, k1, v1, nullptr};
-		auto *sn2 = new (std::align_val_t(alignment)) SNode {h2, k2, v2, nullptr};
-		maskSNode(sn1);
-		maskSNode(sn2);
+	void *newNarrowOrWideNode(const std::size_t h1, const K k1, const V v1,
+							  const std::size_t h2, const K k2, const V v2,
+							  const uint32_t level) {
+		auto *sn1 = createSNode(h1, k1, v1);
+		auto *sn2 = createSNode(h2, k2, v2);
 		return newNarrowOrWideNodeUsingFresh(sn1, sn2, level);
 	}
 
 	void* newListNarrowOrWideNode(const uint64_t h1, const K k1, const V v1,
 			const uint64_t h2, const K k2, const V v2,
 			const uint32_t level) {
-
-		auto *sn1 = new (std::align_val_t(alignment)) SNode {h1, k1, v1, nullptr};
-		auto *sn2 = new (std::align_val_t(alignment)) SNode {h2, k2, v2, nullptr};
-		maskSNode(sn1);
-		maskSNode(sn2);
+		auto *sn1 = createSNode(h1, k1, v1);
+		auto *sn2 = createSNode(h2, k2, v2);
 		return newNarrowOrWideNodeUsingFresh(sn1, sn2, level);
 	}
 
@@ -1076,12 +1216,11 @@ public:
 		auto *sn2 = (SNode *) accessNode(sn2_);
 
 		if (sn1->hash == sn2->hash) {
-			auto *ln1 = new (std::align_val_t(alignment)) LNode{sn1};
-			auto *ln2 = new (std::align_val_t(alignment)) LNode{sn2};
-			ln2->next = ln1;
-			maskLNode(ln1);
-			maskLNode(ln2);
+			auto *ln1 = createLNode(sn1_);
+			auto *ln2 = createLNode(sn1_);
+			((LNode *)accessNode(ln2))->next = ln1;
 
+			// TODO delete this via API
 			delete sn1;
 			delete sn2;
 			return ln2;
@@ -1098,11 +1237,11 @@ public:
 				an->size(2);
 				return an_;
 			} else {
-				ANode *an = createWideArray(); // NOTE: already masked
-				sequentialInsert(sn1_, an, level);
-				sequentialInsert(sn2_, an, level);
-				sequentialFixCount(an);
-				return an;
+				ANode *an_ = createWideArray(); // NOTE: already masked
+				sequentialInsert(sn1_, an_, level);
+				sequentialInsert(sn2_, an_, level);
+				sequentialFixCount(an_);
+				return an_;
 			}
 		}
 	}
@@ -1110,11 +1249,8 @@ public:
 	void *newNarrowOrWideNodeThatNeedsCountFix(const uint64_t h1, const K k1, const V v1,
 			const uint64_t h2, const K k2, const V v2,
 			const uint32_t level) noexcept {
-
-		auto *sn1 = new (std::align_val_t(alignment)) SNode {h1, k1, v1};
-		auto *sn2 = new (std::align_val_t(alignment)) SNode {h2, k2, v2};
-		maskSNode(sn1);
-		maskSNode(sn2);
+		auto *sn1 = createSNode(h1, k1, v1);
+		auto *sn2 = createSNode(h2, k2, v2);
 		return newNarrowOrWiedeNodeUsingFreshThatsNeedsCountFix(sn1, sn2, level);
 	}
 
@@ -1126,29 +1262,28 @@ public:
 		auto *sn1 = (SNode *) accessNode(sn1_);
 		auto *sn2 = (SNode *) accessNode(sn2_);
 		if (sn1->hash == sn2->hash) {
-			auto *ln1 = new (std::align_val_t(alignment)) LNode(sn1);
-			auto *ln2 = new (std::align_val_t(alignment)) LNode{sn2};
-			ln2->next = ln1;
-			ASSERT(false);
-			maskLNode(ln1);
-			maskLNode(ln2);
+			auto *ln1 = createLNode(sn1_);
+			auto *ln2 = createLNode(sn1_);
+			((LNode *)accessNode(ln2))->next = ln1;
 			return ln2;
 		} else {
 			const uint32_t pos1_ = (sn1->hash >> level) & (4 - 1);
 			const uint32_t pos2_ = (sn2->hash >> level) & (4 - 1);
 			if (pos1_ != pos2_) {
-				ANNode *an = createNarrowArray(); // node already masked
-				const uint32_t pos11 = (sn1->hash >> level) & (usedLength(an) - 1u);
-				const uint32_t pos21 = (sn2->hash >> level) & (usedLength(an) - 1u);
-				an->at(pos11) = sn1;
-				an->at(pos21) = sn2;
-				return an;
+				ANNode *an_ = createNarrowArray(); // node already masked
+				const uint32_t pos11 = (sn1->hash >> level) & (usedLength(an_) - 1u);
+				const uint32_t pos21 = (sn2->hash >> level) & (usedLength(an_) - 1u);
+
+				auto *an = (ANNode *) accessNode(an_);
+				an->at(pos11) = sn1_;
+				an->at(pos21) = sn2_;
+				return an_;
 			} else {
-				ANode *an = createWideArray(); // NOTE: node already masked
-				sequentialInsert(sn1, an, level);
-				sequentialInsert(sn2, an, level);
-				sequentialFixCount(an);
-				return an;
+				ANode *an_ = createWideArray(); // NOTE: node already masked
+				sequentialInsert(sn1_, an_, level);
+				sequentialInsert(sn2_, an_, level);
+				sequentialFixCount(an_);
+				return an_;
 			}
 		}
 	}
@@ -1156,7 +1291,7 @@ public:
 	LNode *newListNodeWithoutKey(LNode **nn,
 	        					 LNode *oldln_,
 	                             const uint64_t hash,
-	                             const K k) noexcept {
+	                             const K &k) noexcept {
 		(void)hash; // its really not used
 		ASSERT(isNode(oldln_));
 		auto *tail = (LNode *) accessNode(oldln_);
@@ -1167,9 +1302,9 @@ public:
 				LNode *ln = nullptr;
 				tail = (LNode *)accessNode(oldln_);
 				while (tail != nullptr) {
-					if (tail->key != k) {
-						ln = new (std::align_val_t(alignment)) LNode(tail->hash, tail->key, tail->value, ln);
-						maskLNode(ln);
+			  		// TODO free ln if needed
+					if (!KeyEqual{}(tail->key, k)) {
+						ln = createLNode(tail);
 					}
 
 					tail = (LNode *)accessNode((uintptr_t *)(tail->next));
@@ -1353,9 +1488,9 @@ public:
 			if (((LNode *)ptr)->hash == hash){
 				auto *tail = (LNode *)ptr;
 				while(tail != nullptr) {
-					if ((key_equal{}(((LNode *)ptr)->key, key)) && (((LNode *)ptr)->hash == hash)) {
+					if ((key_equal{}(((LNode *)tail)->key, key)) && (((LNode *)tail)->hash == hash)) {
 						return std::make_pair<V, bool>(
-					        std::move(((LNode *)ptr)->value), true);
+					        std::move(((LNode *)tail)->value), true);
 					}
 
 					tail = (LNode *)accessNode(tail->next);
@@ -1415,7 +1550,7 @@ public:
 
 	void fast_insert(const K key, const V value, const std::size_t hash, void *cache, void *prevCache) {
 		if constexpr(!useCache) {
-			insert(key, value);
+			return insert(key, value);
 		}
 
 		if (cache == nullptr) {
@@ -1431,6 +1566,7 @@ public:
 		auto *stats = (CacheNode *)READ(cache, 0);
 		auto *parentCache = stats->parent;
 
+		const void *np = nullptr;
 		void *fast_insert_jump_table[] = {
 				&&fast_insert_nullptr, &&fast_insert_anode, &&fast_insert_aanode, &&fast_insert_snode,
 		};
@@ -1453,8 +1589,7 @@ public:
 			void *old = READ(an, pos_);
 			if (old == nullptr) {
 				// Try to write the single node directly.
-				auto *sn = new (std::align_val_t(alignment))SNode{hash, key, value, nullptr};
-			    maskSNode(sn);
+			    auto *sn = createSNode(hash, key, value, nullptr);
 				if (CAS_(an, pos_, old, sn)) {
 					incrementCount(an);
 					return;
@@ -1474,11 +1609,9 @@ public:
 					// No other transaction in progress.
 					if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
 						// Replace this key in the parent.
-						auto *sn = new (std::align_val_t(alignment)) SNode{hash, key, value, nullptr};
-					    maskSNode(sn);
-						void *np = nullptr;
+						auto *sn = createSNode(hash, key, value, nullptr);
 						if (CAS_TXN(oldsn, &np, sn)) {
-							CAS_(an, pos_, oldsn, sn);
+							CAS_(an, pos_, old, sn);
 							// Note: must not increment the count here.
 						} else {
 							return fast_insert(key, value, hash, cache, prevCache);
@@ -1492,12 +1625,12 @@ public:
 						auto *nnode = newNarrowOrWideNode(oldsn->hash, oldsn->key, oldsn->value, hash, key, value, level + 4);
 						void *np = nullptr;
 						if (CAS_TXN(oldsn, &np, nnode)) {
-							CAS_(an, pos_, oldsn, nnode);
+							CAS_(an, pos_, old, nnode);
 						} else {
 							return fast_insert(key, value, hash, cache, prevCache);
 						}
 					}
-				} else if (txn == FSNode) { // TODO fsnode = NoTxn = nullpt
+				} else if (isFSNode(txn)) {
 					// Must restart from the root, to find the transaction node, and help.
 					return insert(key, value);
 				} else {
@@ -1550,9 +1683,7 @@ public:
 				recordCacheMiss();
 			}
 
-			o = new (std::align_val_t(alignment)) SNode{hash, key, value, nullptr};
-			maskSNode(o);
-
+			o = createSNode(hash, key, value, nullptr);
 			if (CAS_(cur, pos, (uintptr_t)&old, o)) {
 				incrementCount(cur_);
 				return true;
@@ -1569,13 +1700,11 @@ public:
 			o = (SNode *) accessNode(old);
 			tmp = READ_TXN(o);
 			if (tmp == nullptr){
-				if (KeyEqual{}(o->key, key)){
-					auto sn = new (std::align_val_t(alignment)) SNode{hash, key, value, nullptr};
-					maskSNode(sn);
-
+				if ((hash == o->hash) && (KeyEqual{}(o->key, key))){
+					auto *sn_ = createSNode(hash, key, value, nullptr);
 					const uintptr_t *ptr = nullptr;
-					if (CAS_TXN(o, &ptr, sn)) {
-						CAS_(cur, pos, (uintptr_t)&old, sn);
+					if (CAS_TXN(o, &ptr, sn_)) {
+						CAS_(cur, pos, (uintptr_t)&old, sn_);
 						return true;
 					}
 
@@ -1586,14 +1715,13 @@ public:
 					const uint32_t prev_length = usedLength(prev_);
 					const uint64_t pmask = prev_length - 1u;
 					const uint32_t ppos = (hash >> (level - 4u)) & pmask;
-					auto en = new (std::align_val_t(alignment)) ENode{(ANode *)prev_, ppos, (ANode *)cur_, hash, level, nullptr};
-					ENode *en2 = en;
-					maskENode(en);
-
+				    auto *en_ = createENode((ANode *)prev_, ppos, (ANode *)cur_, hash, level, nullptr);
+				    auto *en = (ENode *)accessNode(en_);
 					auto *tmp_parent = (ANode *) accessNode(prev_);
-					if(CAS_(tmp_parent, ppos, (uintptr_t)&cur_, en)) {
-						completeExpansion(cache, en);
-						const auto wide = READ_WIDE(en2);
+
+					if(CAS_(tmp_parent, ppos, (uintptr_t)&cur_, en_)) {
+						completeExpansion(cache, en_);
+						const auto wide = READ_WIDE(en);
 						return insert(key, value, hash, level, (void *)wide, prev_, cache);
 					} else {
 						return insert(key, value, hash, level, cur_, prev_, cache);
@@ -1611,7 +1739,7 @@ public:
 					return insert(key, value, hash, level, cur_, prev_, cache);
 
 				} // old->key == k
-			} else if (tmp == FSNode) { // txn == FSNode
+			} else if (isFSNode(tmp)) { // txn == FSNode
 				// We landed into the middle of another transaction.
 				// We must restart from the top, find the transaction node and help.
 				return insert(key, value, hash, level, cur_, prev_, cache);

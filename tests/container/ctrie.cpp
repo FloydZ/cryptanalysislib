@@ -16,7 +16,7 @@ using ::testing::UnitTest;
 using K = uint64_t;
 using V = uint64_t;
 using CTrie = CacheTrie<K, V>;
-constexpr size_t limit = 1000;
+constexpr size_t limit = 1u << 20u;
 constexpr size_t THREADS = 2;
 
 uint64_t hash(const uint64_t i) { return i; }
@@ -73,9 +73,9 @@ TEST(Ctrie, multithreaded_insert) {
 
 	for (size_t t = 0; t < THREADS; ++t) {
 		pool[t] = std::thread([t, &c]() {
-		  for (size_t i = 0; i < limit; ++i) {
-			  c.insert(t*limit + i, t*limit + i);
-		  }
+			for (size_t i = 0; i < limit; ++i) {
+				c.insert(t*limit + i, t*limit + i);
+			}
 		});
 	}
 

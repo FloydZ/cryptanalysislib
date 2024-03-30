@@ -7,7 +7,7 @@ using V = uint64_t;
 using K = uint64_t;
 using CTrie = CacheTrie<K, V>;
 
-constexpr size_t list_size =  1u<<20;
+constexpr size_t list_size =  1u<<14;
 constexpr V f(V i) {
 	return i*i/2;
 }
