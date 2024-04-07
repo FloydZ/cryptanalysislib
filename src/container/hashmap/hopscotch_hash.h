@@ -976,6 +976,7 @@ namespace tsl {
 				if (value == nullptr) {
 					// Couldnt fin key;
 					ASSERT(false);
+					return T{};
 				} else {
 					return *value;
 				}
