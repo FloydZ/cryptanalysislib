@@ -29,6 +29,7 @@ namespace cryptanalysislib {
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
+			uint8x16_t v128;
 		};
 
 		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
@@ -123,6 +124,78 @@ namespace cryptanalysislib {
 			ret.v8[15] = p;
 			return ret;
 		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline _uint8x16_t load(const void *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
+		}
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline _uint8x16_t aligned_load(const void *ptr) noexcept {
+			auto *ptr128 = (poly128_t *) ptr;
+			_uint8x16_t out;
+#ifndef __clang__
+			out.v128 = (uint8x16_t) vldrq_p128(ptr128);
+#else
+			out.v128 = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
+			return out;
+		}
+
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline _uint8x16_t unaligned_load(const void *ptr) noexcept {
+			auto *ptr128 = (poly128_t *) ptr;
+			_uint8x16_t out;
+#ifndef __clang__
+			out.v128[0] = (uint8x16_t) vldrq_p128(ptr128);
+#else
+			out.v128[0] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
+			return out;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(void *ptr, const _uint8x16_t in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(void *ptr, const _uint8x16_t in) noexcept {
+			auto *ptr128 = (uint8x16_t *) ptr;
+			*ptr128 = in.v128;
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const _uint8x16_t in) noexcept {
+			auto *ptr128 = (uint8x16_t *) ptr;
+			*ptr128 = in.v128;
+		}
 	};
 
 	struct _uint16x8_t {
@@ -142,6 +215,7 @@ namespace cryptanalysislib {
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
+			uint16x8_t v128;
 		};
 
 		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
@@ -214,6 +288,78 @@ namespace cryptanalysislib {
 			ret.v64[7] = h;
 			return ret;
 		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline _uint16x8_t load(const void *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
+		}
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline _uint16x8_t aligned_load(const void *ptr) noexcept {
+			auto *ptr128 = (poly128_t *) ptr;
+			_uint16x8_t out;
+#ifndef __clang__
+			out.v128 = (uint16x8_t) vldrq_p128(ptr128);
+#else
+			out.v128 = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
+			return out;
+		}
+
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline _uint16x8_t unaligned_load(const void *ptr) noexcept {
+			auto *ptr128 = (poly128_t *) ptr;
+			_uint16x8_t out;
+#ifndef __clang__
+			out.v128 = (uint16x8_t) vldrq_p128(ptr128);
+#else
+			out.v128 = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
+			return out;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(void *ptr, const _uint16x8_t in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(void *ptr, const _uint16x8_t in) noexcept {
+			auto *ptr128 = (uint16x8_t *) ptr;
+			*ptr128 = in.v128;
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const _uint16x8_t in) noexcept {
+			auto *ptr128 = (uint16x8_t *) ptr;
+			*ptr128 = in.v128;
+		}
 	};
 
 	struct _uint32x4_t {
@@ -233,6 +379,7 @@ namespace cryptanalysislib {
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
+			uint32x4_t v128;
 		};
 
 		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
@@ -291,6 +438,78 @@ namespace cryptanalysislib {
 			ret.v64[1] = b;
 			return ret;
 		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline _uint32x4_t load(const void *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
+		}
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline _uint32x4_t aligned_load(const void *ptr) noexcept {
+			auto *ptr128 = (poly128_t *) ptr;
+			_uint8x16_t out;
+#ifndef __clang__
+			out.v128 = (uint32x4_t) vldrq_p128(ptr128);
+#else
+			out.v128 = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
+			return out;
+		}
+
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline _uint32x4_t unaligned_load(const void *ptr) noexcept {
+			auto *ptr128 = (poly128_t *) ptr;
+			_uint8x16_t out;
+#ifndef __clang__
+			out.v128 = (uint32x4_t) vldrq_p128(ptr128);
+#else
+			out.v128 = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
+			return out;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(void *ptr, const _uint32x4_t in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(void *ptr, const _uint32x4_t in) noexcept {
+			auto *ptr128 = (_uint32x4_t *) ptr;
+			*ptr128 = in.v128;
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const _uint32x4_t in) noexcept {
+			auto *ptr128 = (_uint32x4_t *) ptr;
+			*ptr128 = in.v128;
+		}
 	};
 
 	struct _uint64x2_t {
@@ -309,6 +528,7 @@ namespace cryptanalysislib {
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
+			uint64x2_t v128;
 		};
 
 		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
@@ -346,6 +566,78 @@ namespace cryptanalysislib {
 			ret.v64[0] = a;
 			ret.v64[1] = b;
 			return ret;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline _uint64x2_t load(const void *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
+		}
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline _uint64x2_t aligned_load(const void *ptr) noexcept {
+			auto *ptr128 = (poly128_t *) ptr;
+			_uint8x16_t out;
+#ifndef __clang__
+			out.v128 = (uint64x2_t) vldrq_p128(ptr128);
+#else
+			out.v128 = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
+			return out;
+		}
+
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline _uint64x2_t unaligned_load(const void *ptr) noexcept {
+			auto *ptr128 = (poly128_t *) ptr;
+			_uint8x16_t out;
+#ifndef __clang__
+			out.v128 = (uint64x2_t) vldrq_p128(ptr128);
+#else
+			out.v128 = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
+#endif
+			return out;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(void *ptr, const _uint64x2_t in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(void *ptr, const _uint64x2_t in) noexcept {
+			auto *ptr128 = (uint64x2_t *) ptr;
+			*ptr128 = in.v128;
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const _uint8x16_t in) noexcept {
+			auto *ptr128 = (uint64x2_t *) ptr;
+			*ptr128 = in.v128;
 		}
 	};
 };// namespace cryptanalysislib

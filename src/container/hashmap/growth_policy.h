@@ -46,8 +46,7 @@ namespace cryptanalysislib::hh {
 		}
 
 		if (min_bucket_count_in_out > 0) {
-			min_bucket_count_in_out =
-			        round_up_to_power_of_two(min_bucket_count_in_out);
+			min_bucket_count_in_out = round_up_to_power_of_two(min_bucket_count_in_out);
 			m_mask = min_bucket_count_in_out - 1;
 		} else {
 			m_mask = 0;
@@ -90,10 +89,6 @@ namespace cryptanalysislib::hh {
 	void clear() noexcept { m_mask = 0; }
 
 	private:
-
-
-	private:
-
 		static_assert((GrowthFactor >= 2) &&
 		              (cryptanalysislib::popcount::popcount(GrowthFactor) == 1),
 		              "GrowthFactor must be a power of two >= 2.");

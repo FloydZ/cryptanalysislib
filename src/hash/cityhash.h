@@ -13,8 +13,6 @@
 #endif
 
 namespace cryptanalysislib::hash {
-
-
 	// Some primes between 2^63 and 2^64 for various uses.
 	constexpr static uint64_t k0 = 0xc3a5c85c97cb3127ULL;
 	constexpr static uint64_t k1 = 0xb492b66fbe98f273ULL;
@@ -23,6 +21,17 @@ namespace cryptanalysislib::hash {
 	// Magic numbers for 32-bit hashing.  Copied from Murmur3.
 	constexpr inline static const uint32_t c1 = 0xcc9e2d51;
 	static const uint32_t c2 = 0x1b873593;
+
+	constexpr inline uint64_t bswap64(const uint64_t x) {
+		return ((x << 56) & 0xff00000000000000UL) |
+		       ((x << 40) & 0x00ff000000000000UL) |
+		       ((x << 24) & 0x0000ff0000000000UL) |
+		       ((x <<  8) & 0x000000ff00000000UL) |
+		       ((x >>  8) & 0x00000000ff000000UL) |
+		       ((x >> 24) & 0x0000000000ff0000UL) |
+		       ((x >> 40) & 0x000000000000ff00UL) |
+		       ((x >> 56) & 0x00000000000000ffUL);
+	}
 
 	// Hash 128 input bits down to 64 bits of output.
 	// This is intended to be a reasonably good hash function.
@@ -257,11 +266,11 @@ namespace cryptanalysislib::hash {
 		uint64_t h = fetch64(s + len - 16) * mul;
 		uint64_t u = Rotate(a + g, 43) + (Rotate(b, 30) + c) * 9;
 		uint64_t v = ((a + g) ^ d) + f + 1;
-		uint64_t w = bswap_64((u + v) * mul) + h;
+		uint64_t w = bswap64((u + v) * mul) + h;
 		uint64_t x = Rotate(e + f, 42) + c;
-		uint64_t y = (bswap_64((v + w) * mul) + g) * mul;
+		uint64_t y = (bswap64((v + w) * mul) + g) * mul;
 		uint64_t z = e + f + c;
-		a = bswap_64((x + z) * mul + y) + b;
+		a = bswap64((x + z) * mul + y) + b;
 		b = ShiftMix((z + a) * mul + d + h) * mul;
 		return b + x;
 	}
@@ -459,9 +468,9 @@ namespace cryptanalysislib::hash {
     g += e;                                     \
     e += z;                                     \
     g += x;                                     \
-    z = _mm_crc32_u64(z, b + g);                \
-    y = _mm_crc32_u64(y, e + h);                \
-    x = _mm_crc32_u64(x, f + a);                \
+    z = __builtin_ia32_crc32di(z, b + g);       \
+    y = __builtin_ia32_crc32di(y, e + h);       \
+    x = __builtin_ia32_crc32di(x, f + a);       \
     e = Rotate(e, r);                           \
     c += e;                                     \
     s += 40

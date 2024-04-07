@@ -5,10 +5,8 @@
 /// see scala code: https://github.com/reactors-io/reactors/blob/master/reactors-common/jvm/src/main/scala/io/reactors/common/concurrent/CacheTrie.scala
 
 /// TODO/Ideas:
-/// all new in function wrappen: darauf avhten das alignmet und pointer stimmen
-/// anstatt pointer: referenzen: viel spass
 /// debug funcitons schreiben, die den Ctrie plotten
-
+/// remove recursion
 
 
 #include <array>
@@ -332,6 +330,21 @@ class CacheTrie {
 		uint32_t level;
 	};
 
+	///////////////////////////// Allocation Cache //////////////////////////////
+
+	template<class Node>
+	class AllocationCacheNode {
+	public:
+		std::vector<Node> data;
+		Node *next = nullptr;
+	};
+
+	std::size_t allocation_cache_startsize = 4;
+	std::size_t snodes = 0;
+	AllocationCacheNode<SNode> snodes_cache;
+	GrowthPolicy snodes_gp;
+
+	/////////////////////////////////////////////////////////////////////////////
 
 
 	void *cache_ptr = nullptr;
@@ -342,12 +355,64 @@ class CacheTrie {
 	alignas(alignment) void* root[wayness+1] = { nullptr };
 	alignas(alignment) void* rawRoot = nullptr;
 
-	/////////////////////////////// ALLOC ///////////////////////////////////
 
-	size_t lnodes = 0;
-	size_t snodes = 0;
-	std::vector<LNode> lnode_cache{};
-	std::vector<SNode> snode_cache{1};
+	/////////////////////////////// CHECK ///////////////////////////////////
+
+	/// checks if `ptr` is a data node and if so if all childs are `sane`
+	constexpr bool checkAANode(const void *ptr) const noexcept {
+		if (ptr == nullptr) {
+			return true;
+		}
+
+		if (!isAANode(ptr)) {
+			return true;
+		}
+
+		if (isANode(ptr)) {
+			auto *a = (ANode *) accessNode(ptr);
+			for (uint32_t i = 0; i < a->size(); i++) {
+				if (!isNode(a->at(i))) {
+					return false;
+				}
+			}
+
+			const uint32_t len = usedLength(ptr);
+			for (uint32_t i = 0; i < len; i++) {
+				if (a->at(i) == nullptr) {
+					continue;
+				}
+
+				uintptr_t d = (uintptr_t)(a->at(i));
+				if ((d < 1024) && (d > 9)) {
+					return false;
+				}
+			}
+		} else if (isANNode(ptr)) {
+			auto *a = (ANNode *) accessNode(ptr);
+			for (uint32_t i = 0; i < a->size(); i++) {
+				if (!isNode(a->at(i))) {
+					return false;
+				}
+			}
+
+			const uint32_t len = usedLength(ptr);
+			for (uint32_t i = 0; i < len; i++) {
+				if (a->at(i) == nullptr) {
+					continue;
+				}
+
+				uintptr_t d = (uintptr_t)(a->at(i));
+				if ((d < 1024) && (d > 9)) {
+					return false;
+				}
+			}
+		} else {
+			return false;
+		}
+		return true;
+	}
+
+	/////////////////////////////// ALLOC //////////////////////////////////
 
 	inline void* createCacheArray(const uint32_t level) noexcept {
 		return aligned_alloc(alignment, sizeof(void *) * (1 + (1u << level)));
@@ -355,12 +420,14 @@ class CacheTrie {
 
 	constexpr inline ANode* createWideArray() noexcept {
 		auto *ret = (ANode *)new (std::align_val_t(alignment)) ANode{};
+		memset(ret, 0, sizeof(ANode));
 		maskANode(ret);
 		return (ANode *)ret;
 	}
 
 	constexpr inline ANNode* createNarrowArray() noexcept {
 		auto *ret = (ANNode *)new (std::align_val_t(alignment)) ANNode{};
+		memset(ret, 0, sizeof(ANNode));
 		maskANNode(ret);
 		return (ANNode *)ret;
 	}
@@ -390,16 +457,22 @@ class CacheTrie {
 	                                    const K &key,
 	                                    const V &v,
 	                                    void *ptr=nullptr) noexcept {
-		if (snodes >= snode_cache.size()) {
-			snode_cache.resize(snode_cache.size() * 2u);
+		size_t pos = FAA(&snodes, 1ul);
+
+		if (pos >= snodes_cache.data.size()) {
+			// snode_cache.resize(snodes * 2u);
+
 		}
+
+		pos = snodes_gp.bucket_for_hash(pos);
+		// TODO: das problem ist das resize: das verschiebt
 		auto *n = new (std::align_val_t(alignment)) SNode {hash, key, v, ptr};
-		// auto *n = ((SNode *)snode_cache.data()) + snodes;
-		// snodes += 1;
-		// n->hash = hash;
-		// n->key = key;
-		// n->value = v;
-		// n->txn = ptr;
+		//auto *n = (SNode *)(&(snode_cache[snodes]));
+		//snodes += 1;
+		//n->hash = hash;
+		//n->key = key;
+		//n->value = v;
+		//n->txn = ptr;
 		maskSNode(n);
 		return n;
 	}
@@ -409,6 +482,8 @@ class CacheTrie {
 	/// \param next
 	/// \return
 	constexpr inline LNode *createLNode(SNode *node_, LNode *next=nullptr) noexcept {
+		ASSERT(isNode(node_));
+		ASSERT(isNode(next));
 		auto *node = (SNode *) accessNode(node_);
 		return createLNode(node->hash, node->key, node->value, next);
 	}
@@ -418,6 +493,8 @@ class CacheTrie {
 	/// \param next
 	/// \return
 	constexpr inline LNode *createLNode(LNode *node_, LNode *next=nullptr) noexcept {
+		ASSERT(isNode(node_));
+		ASSERT(isNode(next));
 		auto *node = (LNode *) accessNode(node_);
 		return createLNode(node->hash, node->key, node->value, next);
 	}
@@ -440,6 +517,7 @@ class CacheTrie {
 	/// \param node
 	/// \return
 	constexpr inline FNode *createFNode(void *node) noexcept {
+		ASSERT(isNode(node));
 		auto *fnode = new (std::align_val_t(alignment)) FNode(node);
 		maskFNode(fnode);
 		return fnode;
@@ -453,6 +531,10 @@ class CacheTrie {
 				uint32_t level,
 				ANode *wide=nullptr
 	        ) noexcept {
+
+		ASSERT(isNode(parent));
+		ASSERT(isNode(narrow));
+		ASSERT(isNode(wide));
 		auto *en = new (std::align_val_t(alignment)) ENode{parent, parentpos, narrow, hash, level, wide};
 		maskENode(en);
 		return en;
@@ -465,6 +547,8 @@ class CacheTrie {
 			uint64_t hash,
 			uint32_t level
 	) noexcept {
+		ASSERT(isNode(parent));
+		ASSERT(isNode(current));
 		auto *xn = new (std::align_val_t(alignment)) XNode {parent, parentPos, current, hash, level};
 		maskXNode(xn);
 		return xn;
@@ -476,30 +560,7 @@ class CacheTrie {
 		return hasher{}(key);
 	}
 
-	bool checkAANode(void *ptr) {
-		if (ptr == nullptr) {
-			return true;
-		}
-
-		if (!isAANode(ptr)) {
-			return true;
-		}
-
-		if (isANNode(ptr)) {
-			return true; // TODO
-		}
-
-		auto *a = (ANode *) accessNode(ptr);
-		for (uint32_t i = 0; i < a->size(); i++) {
-			if (!isNode(a->at(i))) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	constexpr inline size_t usedLength(void *ptr) const {
+	constexpr inline size_t usedLength(const void *ptr) const noexcept {
 		ASSERT(((uintptr_t )ptr));
 		ASSERT(isNode(ptr));
 		if (isANode(ptr)){
@@ -577,7 +638,7 @@ class CacheTrie {
 	}
 public:
 
-	constexpr CacheTrie() noexcept {
+	constexpr CacheTrie() noexcept : snodes_gp(allocation_cache_startsize) {
 		// this is hideous: we need to mark the root node as an A node
 		rawRoot = (void *)root;
 		maskANode(rawRoot);
@@ -812,6 +873,9 @@ public:
 	}
 
 	void completeExpansion(void *cache, ENode *enode_){
+		/// TODO here is some problem:
+		///  if I remove all the assert this function generates a wrongfull state in which some nodes are not correctly moved
+		///  this results is segfault in `sequentialTransfer`. THe errors are probably generated in `freeze`
 		ASSERT(isNode(enode_));
 		auto *enode = (ENode *) accessNode(enode_);
 		ASSERT(isNode(enode->parent));
@@ -823,13 +887,19 @@ public:
     	// First, freeze the subtree beneath the narrow node.
     	void *narrow = enode->narrow;
 		ASSERT(isNode(narrow));
+		ASSERT(checkAANode(narrow));
     	freeze(cache, narrow);
+		ASSERT(checkAANode(narrow));
 
     	// Second, populate the target array, and CAS it into the parent.
     	void *wide = createWideArray();
 		ASSERT(isNode(wide));
+		ASSERT(checkAANode(wide));
     	sequentialTransfer(narrow, wide, level);
+		ASSERT(checkAANode(wide));
+		ASSERT(checkAANode(narrow));
     	sequentialFixCount((ANode *)wide);
+		ASSERT(checkAANode(wide));
 
 		void *ptr = nullptr;
     	// If this CAS fails, then somebody else already committed the wide array.
@@ -879,9 +949,9 @@ public:
 		const ANode *current = (ANode *) accessNode(current_);
 		uint32_t i = 0;
 		const void *np = nullptr;
-		const uint32_t len = usedLength(current_);
+		const uint32_t len = 0;
 		// TODO jump list
-		while (i < len) {
+		while (i < usedLength(current_)) {
 			void *node = READ(current, i);
 			ASSERT(isNode(node));
 			if (node == nullptr) {
@@ -1100,16 +1170,17 @@ public:
 		auto *wide = (ANode *) accessNode(wide_);
 		const uint64_t mask = usedLength(wide_) - 1u;
 		const uint64_t len = usedLength(source_);
-    	while (i < len) {
+    	while (i < len) { // TODO goto jumps
     	  void *node = source->at(i);
 		  ASSERT(isNode(node));
+		  ANode *tmp_node = (ANode *) accessNode(node);
 
     	  if (isFVNode(node)) {
     	    // We can skip, the slot was empty.
     	  } else if (isFrozenS(node)) {
     	    // We can copy it over to the wide node.
 			auto *sn_ = createSNode((SNode *)node);
-    	    const uint32_t pos = (((SNode *) accessNode(node))->hash >> level) & mask;
+    	    const uint32_t pos = (((SNode *) accessNode(sn_))->hash >> level) & mask;
     	    if (wide->at(pos) == nullptr) {
 				wide->at(pos) = sn_;
 			} else { 
@@ -1132,6 +1203,7 @@ public:
 			ASSERT(isNode(fn->frozen));
     	    sequentialTransfer(fn->frozen, wide_, level);
     	  } else {
+			// sys.error("Unexpected case -- source array node should have been frozen.")
 			  ASSERT(false);
     	  }
 
@@ -1674,7 +1746,12 @@ public:
 
 		void *insert_jump_table[] = {
 		        &&insert_nullptr, &&insert_anode, &&insert_aanode,
-		        &&insert_snode, &&insert_lnode, &&insert_xnode, &&insert_enode};
+		        &&insert_snode, &&insert_lnode, &&insert_xnode, &&insert_enode,
+		        // fv node is also mapped to fnode
+		 		&&insert_fnode, &&insert_fnode};
+
+		// NOTE: FSNode is invalid
+		ASSERT(accessType(old) < 9);
 		goto *insert_jump_table[accessType(old)];
 
 		insert_nullptr:
@@ -1742,7 +1819,7 @@ public:
 			} else if (isFSNode(tmp)) { // txn == FSNode
 				// We landed into the middle of another transaction.
 				// We must restart from the top, find the transaction node and help.
-				return insert(key, value, hash, level, cur_, prev_, cache);
+				return false; // restart
 			} else {
 				// The single node had been scheduled for replacement by some thread.
 				// We need to help, then retry.
@@ -1758,13 +1835,14 @@ public:
 
 	    insert_enode:
 			completeExpansion(cache, (ENode *)old);
-			// restart
-			return false;
+			return false; // restart
 
 	    insert_xnode:
 			completeCompression(cache, (XNode *)old);
-		    // restart
-			return false;
+			return false; // restart
+
+	    insert_fnode:
+		    return false; // restart
 
 		ASSERT(false);
 	}

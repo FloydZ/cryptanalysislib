@@ -91,16 +91,16 @@ if(USE_TCMALLOC)
 endif()
 
 #TOS
-if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+#if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
-endif()
+#endif()
 
-#if(USE_NOINLINE AND COMPILER_SUPPORTS_NO_INLINE)
+if(USE_NOINLINE AND COMPILER_SUPPORTS_NO_INLINE)
 	message(STATUS "not inlining")
 	set(INLINE_FLAGS "-fno-inline")
-#endif()
+endif()
 
 if (COMPILER_SUPPORTS_CONSTEXPR_COST)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
