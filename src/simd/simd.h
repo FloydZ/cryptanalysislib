@@ -46,6 +46,7 @@ namespace cryptanalysislib {
 	struct _uint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
+		using simd_type = _uint8x16_t;
 
 		constexpr inline _uint8x16_t &operator=(const _uint16x8_t &b) noexcept;
 		constexpr inline _uint8x16_t &operator=(const _uint32x4_t &b) noexcept;
@@ -87,8 +88,17 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+		[[nodiscard]] constexpr static inline _uint8x16_t set1(
+				const uint8_t a) noexcept {
+			simd_type ret;
+			for (uint32_t i = 0; i < LIMBS; ++i) {
+				ret[i] = a;
+			}
+			return ret;
+		}
 		[[nodiscard]] constexpr static inline _uint8x16_t set(
-		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+		        const uint32_t a, const uint32_t b,
+		        const uint32_t c, const uint32_t d) noexcept {
 			_uint8x16_t ret;
 			ret.v32[0] = d;
 			ret.v32[1] = c;
@@ -98,7 +108,8 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint8x16_t setr(
-		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
+		        const uint32_t a, const uint32_t b,
+		        const uint32_t c, const uint32_t d) noexcept {
 			_uint8x16_t ret;
 			ret.v32[0] = a;
 			ret.v32[1] = b;
@@ -156,11 +167,84 @@ namespace cryptanalysislib {
 			ret.v8[15] = p;
 			return ret;
 		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline simd_type load(const void *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
+		}
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline simd_type aligned_load(const void *ptr) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			simd_type out;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				out[i] = ptrd[i];
+			}
+			return out;
+		}
+
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline simd_type unaligned_load(const void *ptr) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			simd_type out;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				out[i] = ptrd[i];
+			}
+			return out;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(void *ptr, const simd_type in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(void *ptr, const simd_type in) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ptrd[i] = in[i];
+			}
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const simd_type in) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ptrd[i] = in[i];
+			}
+		}
 	};
 
 	struct _uint16x8_t {
 		constexpr static uint32_t LIMBS = 8;
 		using limb_type = uint16_t;
+		using simd_type = _uint16x8_t;
 
 		constexpr inline _uint16x8_t &operator=(const _uint8x16_t &b) noexcept;
 		constexpr inline _uint16x8_t &operator=(const _uint32x4_t &b) noexcept;
@@ -251,11 +335,84 @@ namespace cryptanalysislib {
 			ret.v64[7] = h;
 			return ret;
 		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline simd_type load(const void *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
+		}
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline simd_type aligned_load(const void *ptr) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			simd_type out;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				out[i] = ptrd[i];
+			}
+			return out;
+		}
+
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline simd_type unaligned_load(const void *ptr) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			simd_type out;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				out[i] = ptrd[i];
+			}
+			return out;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(void *ptr, const simd_type in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(void *ptr, const simd_type in) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ptrd[i] = in[i];
+			}
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const simd_type in) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ptrd[i] = in[i];
+			}
+		}
 	};
 
 	struct _uint32x4_t {
 		constexpr static uint32_t LIMBS = 4;
 		using limb_type = uint32_t;
+		using simd_type = _uint32x4_t;
 
 		constexpr inline _uint32x4_t &operator=(const _uint8x16_t &b) noexcept;
 		constexpr inline _uint32x4_t &operator=(const _uint16x8_t &b) noexcept;
@@ -332,11 +489,84 @@ namespace cryptanalysislib {
 			ret.v64[1] = b;
 			return ret;
 		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline simd_type load(const void *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
+		}
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline simd_type aligned_load(const void *ptr) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			simd_type out;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				out[i] = ptrd[i];
+			}
+			return out;
+		}
+
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline simd_type unaligned_load(const void *ptr) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			simd_type out;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				out[i] = ptrd[i];
+			}
+			return out;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(void *ptr, const simd_type in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(void *ptr, const simd_type in) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ptrd[i] = in[i];
+			}
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const simd_type in) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ptrd[i] = in[i];
+			}
+		}
 	};
 
 	struct _uint64x2_t {
 		constexpr static uint32_t LIMBS = 2;
 		using limb_type = uint64_t;
+		using simd_type = _uint64x2_t;
 
 		constexpr inline _uint64x2_t &operator=(const _uint8x16_t &b) noexcept;
 		constexpr inline _uint64x2_t &operator=(const _uint16x8_t &b) noexcept;
@@ -391,6 +621,78 @@ namespace cryptanalysislib {
 			ret.v64[0] = a;
 			ret.v64[1] = b;
 			return ret;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline simd_type load(const void *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
+		}
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline simd_type aligned_load(const void *ptr) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			simd_type out;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				out[i] = ptrd[i];
+			}
+			return out;
+		}
+
+
+		///
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline simd_type unaligned_load(const void *ptr) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			simd_type out;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				out[i] = ptrd[i];
+			}
+			return out;
+		}
+
+		///
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(void *ptr, const simd_type in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(void *ptr, const simd_type in) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ptrd[i] = in[i];
+			}
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const simd_type in) noexcept {
+			auto *ptrd = (limb_type *) ptr;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ptrd[i] = in[i];
+			}
 		}
 	};
 };// namespace cryptanalysislib

@@ -115,7 +115,7 @@ namespace cryptanalysislib {
 				out = (uint8_t *)(((uintptr_t)out) & -0x40);
 				out = (uint8_t *)((uintptr_t)out - (uintptr_t)out2);
 
-				while (out != 0) {
+				while (out != nullptr) {
 					uint8x64_t::aligned_store((uint8_t *)((uintptr_t)out + (uintptr_t)out2), t);
 					out	+= 0x40;
 				}
@@ -139,10 +139,11 @@ namespace cryptanalysislib {
 		                      const T in,
 		                      const size_t bytes) {
 			/// TODO case T != uint8
-#ifdef USE_AVX512BW
-			memsetU512BW(out, in, bytes);
-			return;
-#endif
+// Disabled because of the stupid CI
+//#ifdef USE_AVX512BW
+//			memsetU512BW(out, in, bytes);
+//			return;
+//#endif
 			memset256((uint8_t *)out, (uint8_t)in, bytes);
 		}
 	} // end internal
