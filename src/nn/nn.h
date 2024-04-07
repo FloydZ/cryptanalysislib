@@ -62,9 +62,11 @@ public:
 	                    const uint32_t epsilon,
 	                    const uint32_t bf,
 	                    const uint32_t dk_bruteforce_weight = 0,
-	                    const uint32_t dk_bruteforce_size = 0) noexcept : n(n), r(r), N(N), k(k), d(d), dk(dk), dk_bruteforce_weight(dk_bruteforce_weight),
-	                                                                      dk_bruteforce_size(dk_bruteforce_size),
-	                                                                      LIST_SIZE(ls), epsilon(epsilon), BRUTEFORCE_THRESHOLD(bf){};
+	                    const uint32_t dk_bruteforce_size = 0,
+	                    const bool USE_REARRANGE=false) noexcept :
+	    n(n), r(r), N(N), k(k), d(d), dk(dk), dk_bruteforce_weight(dk_bruteforce_weight),
+	    dk_bruteforce_size(dk_bruteforce_size), LIST_SIZE(ls), epsilon(epsilon), BRUTEFORCE_THRESHOLD(bf),
+	    USE_REARRANGE(USE_REARRANGE){};
 
 	///
 	/// helper function, only printing the internal parameters
@@ -90,7 +92,7 @@ public:
 };
 
 
-template<const NN_Config &config>
+template<const NN_Config &config, typename T=uint64_t >
 class NN {
 public:
 	constexpr static size_t n = config.n;
@@ -126,7 +128,6 @@ public:
 	alignas(32) constexpr static uint64x4_t SIMD_NN_K_MASK64 = uint64x4_t::set1((1ul << (k % 64u)) - 1ul);
 
 	/// Base types
-	using T = uint64_t;// NOTE do not change.
 	constexpr static size_t T_BITSIZE = sizeof(T) * 8;
 	constexpr static size_t ELEMENT_NR_LIMBS = (n + T_BITSIZE - 1) / T_BITSIZE;
 	using Element = T[ELEMENT_NR_LIMBS];
@@ -154,11 +155,11 @@ public:
 	size_t solution_l = 0, solution_r = 0, solutions_nr = 0;
 	std::vector<std::pair<size_t, size_t>> solutions;
 
-	~NN() noexcept {
-		/// probably its ok to assert some stuff here
-		static_assert(k <= n);
-		static_assert(dk_bruteforce_size >= dk_bruteforce_weight);
+	/// probably its ok to assert some stuff here
+	static_assert(k <= n);
+	static_assert(dk_bruteforce_size >= dk_bruteforce_weight);
 
+	~NN() noexcept {
 		if (L1) { free(L1); }
 		if (L2) { free(L2); }
 	}
@@ -700,21 +701,19 @@ public:
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
 
-		// we need 32bit limbs
-		using Element2 = uint32_t[3];
-		Element2 *LL1 = (Element2 *) L1;
-		Element2 *LL2 = (Element2 *) L2;
 		for (size_t i = s1; i < e1; i++) {
 			for (size_t j = s2; j < e2; j++) {
 				if constexpr (EXACT) {
-					const uint32_t t = (LL1[i][0] == LL2[j][0]) & (LL1[i][1] == LL2[j][1]) & (LL1[i][1] == LL2[j][1]);
+					const uint32_t t = (L1[i][0] == L2[j][0]) &
+					                   (L1[i][1] == L2[j][1]) &
+					                   (L1[i][1] == L2[j][1]);
 					if (t) {
 						found_solution(i, j);
 					}
 				} else {
-					const uint32_t t = (popcount::popcount(LL1[i][0] ^ LL2[j][0]) <= d) +
-					                   (popcount::popcount(LL1[i][1] ^ LL2[j][1]) <= d) +
-					                   (popcount::popcount(LL1[i][2] ^ LL2[j][2]) <= d);
+					const uint32_t t = (popcount::popcount(L1[i][0] ^ L2[j][0]) <= d) +
+					                   (popcount::popcount(L1[i][1] ^ L2[j][1]) <= d) +
+					                   (popcount::popcount(L1[i][2] ^ L2[j][2]) <= d);
 					if (t == 3) {
 						solutions.resize(solutions_nr + 1);
 						solutions[solutions_nr++] = std::pair<size_t, size_t>{i, j};
@@ -2243,7 +2242,7 @@ public:
 				}
 
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr2);
 					const uint32_t tmp = compare_256_64(li[1 * u + mi], ri);
@@ -2255,7 +2254,7 @@ public:
 					continue;
 				}
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr3);
 					const uint32_t tmp = compare_256_64(li[2 * u + mi], ri);
@@ -2268,7 +2267,7 @@ public:
 				}
 
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr4);
 					const uint32_t tmp = compare_256_64(li[3 * u + mi], ri);
@@ -2276,8 +2275,7 @@ public:
 				}
 
 				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
-				if (m1s_tmp) {
-					ASSERT(popcount::template popcount<uint32_t>(m1s_tmp) == 1);
+				while (m1s_tmp) {
 					const uint32_t m1s_ctz = __builtin_ctz(m1s_tmp);
 					const uint32_t bla = __builtin_ctz(m1s[m1s_ctz]);
 					const size_t iprime = i + m1s_ctz;
@@ -2286,6 +2284,8 @@ public:
 					if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 						found_solution(iprime, jprime);
 					}
+
+					m1s_tmp ^= 1u << m1s_ctz;
 				}
 			}
 		}

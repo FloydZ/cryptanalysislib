@@ -7,7 +7,7 @@
 
 #include "container/queue.h"
 #include "helper.h"
-#include "mem/memset.h"
+#include "memory/memory.h"
 
 namespace cryptanalysislib {
 	void *aligned_alloc(std::size_t alignment, std::size_t size) {

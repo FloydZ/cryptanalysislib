@@ -5,7 +5,7 @@
 #error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
 
-#ifndef USE_AVX512
+#ifndef USE_AVX512F
 #error "no avx512 enabled."
 #endif
 
@@ -15,7 +15,10 @@
 #include "helper.h"
 #include "random.h"
 
+#ifdef __clang__
+/// what this is needed?
 typedef char __v64qi_u __attribute__((__vector_size__(64), __may_alias__, __aligned__(1)));
+#endif
 
 struct uint16x32_t;
 struct uint32x16_t;
@@ -66,6 +69,34 @@ struct uint8x64_t {
 	/// \param binary
 	/// \param hex
 	constexpr inline void print(bool binary = false, bool hex = false) const;
+
+	///
+	[[nodiscard]] constexpr static inline uint8x64_t set (
+			int __A, int __B, int __C, int __D,
+			int __E, int __F, int __G, int __H,
+			int __I, int __J, int __K, int __L,
+			int __M, int __N, int __O, int __P) noexcept
+	{
+		uint8x64_t ret;
+		ret.v512 = __extension__ (__m512i)(__v16si)
+				{ __P, __O, __N, __M, __L, __K, __J, __I,
+				  __H, __G, __F, __E, __D, __C, __B, __A };
+		return ret;
+	}
+
+	///
+	[[nodiscard]] constexpr static inline uint8x64_t setr (
+	        int __A, int __B, int __C, int __D,
+	        int __E, int __F, int __G, int __H,
+	        int __I, int __J, int __K, int __L,
+	        int __M, int __N, int __O, int __P) noexcept
+	{
+		uint8x64_t ret;
+		ret.v512 = __extension__ (__m512i)(__v16si)
+		{ __A, __B, __C, __D, __E, __F, __G, __H,
+		  __I, __J, __K, __L, __M, __N, __O, __P};
+		return ret;
+	}
 
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x64_t set(
@@ -370,7 +401,11 @@ struct uint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x64_t popcnt(const uint8x64_t in1) noexcept {
 		uint8x64_t ret;
+#ifdef __clang__
 		ret.v512 = (__m512i) __builtin_ia32_vpopcntb_512((__v64qi) in1.v512);
+#else
+  		ret.v512 = (__m512i) __builtin_ia32_vpopcountb_v64qi ((__v64qi)in1.v512);
+#endif
 		return ret;
 	}
 
@@ -393,7 +428,14 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t min(const uint8x64_t in1,
 	                                                     const uint8x64_t in2) noexcept {
 		uint8x64_t ret;
+#ifdef __clang__
 		ret.v512 = (__m512i) __builtin_elementwise_min((__v64qs) in1.v512, (__v64qs) in2.v512);
+#else 
+  		ret.v512 = (__m512i) __builtin_ia32_pminsb512_mask ((__v64qi)in1.v512,
+						  (__v64qi)in2.v512,
+						  (__v64qi)  __extension__ (__m512i)(__v8di){ 0, 0, 0, 0, 0, 0, 0, 0 },
+						  (__mmask64) -1);
+#endif
 		return ret;
 	}
 
@@ -403,12 +445,16 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t max(const uint8x64_t in1,
 	                                                     const uint8x64_t in2) noexcept {
 		uint8x64_t ret;
+#ifdef __clang__
 		ret.v512 = (__m512i) __builtin_elementwise_max((__v64qs) in1.v512, (__v64qs) in2.v512);
+#else
+  		ret.v512 = (__m512i) __builtin_ia32_pmaxsb512_mask ((__v64qi)in1.v512,
+						  (__v64qi)in2.v512,
+						  (__v64qi) __extension__ (__m512i)(__v8di){ 0, 0, 0, 0, 0, 0, 0, 0 },
+						  (__mmask64) -1);
+#endif
 		return ret;
 	}
-
-	[[nodiscard]] constexpr static inline uint8x64_t find_first_byte_in_lane(const uint8x64_t in1,
-	                                                                         const uint8_t in2) noexcept;
 
 	/// SOURCE: https://github.com/WojciechMula/toys/blob/master/avx512-galois/transpose.cpp
 	/// Each 64-bit word holds 8x8 bit matrix:
@@ -468,10 +514,27 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t ror1(const uint8x64_t input) noexcept {
 		uint8x64_t ret;
 		// lanes order: 1, 2, 3, 0 => 0b00_11_10_01
+#ifdef __clang__
 		const __m512i permuted = (__m512i) __builtin_ia32_shuf_i32x4((__v16si) (__m512i) (input.v512),
 		                                                             (__v16si) (__m512i) (input.v512), (int) (0x39));
 		ret.v512 = ((__m512i) __builtin_ia32_palignr512((__v64qi) (__m512i) (permuted),
 		                                                (__v64qi) (__m512i) (input.v512), (int) (1)));
+#else
+
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Winit-self"
+		  __m512i Y = Y;
+		#pragma GCC diagnostic pop
+
+  		const __m512i permuted = ((__m512i)  __builtin_ia32_shuf_i32x4_mask ((__v16si)(__m512i)(input.v512),\
+      								(__v16si)(__m512i)(input.v512), (int)(0x39),\
+    								(__v16si)(__m512i)Y,\
+    								(__mmask16)-1));
+
+  		ret.v512 = ((__m512i) __builtin_ia32_palignr512 ((__v8di)(__m512i)(permuted),	\
+											(__v8di)(__m512i)(input.v512),			    \
+											(int)((1) * 8)));
+#endif
 		return ret;
 	}
 
@@ -480,15 +543,32 @@ struct uint8x64_t {
 	/// \param input
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const uint8x64_t input) noexcept {
+#ifdef __clang__
 		const __m128i lane0 = (__m128i) __builtin_shufflevector(input.v512, input.v512, 0, 1);
 		const __m512i populated_0th_byte = _mm512_broadcastb_epi8(lane0);
-		const __m512i populated_0t_byte = (__m512i) __builtin_shufflevector((__v16qi) lane0, (__v16qi) lane0,
-		                                                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		                                                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		                                                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		                                                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-		const __mmask16 mask = _mm512_cmp_epi32_mask((input.v512), (populated_0t_byte), _MM_CMPINT_EQ);
+		const __mmask16 mask = _mm512_cmp_epi32_mask((input.v512), (populated_0th_byte), _MM_CMPINT_EQ);
 		return __builtin_ia32_kortestchi((__mmask16) mask, (__mmask16) mask);
+#else 
+
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Winit-self"
+		  __m512i Y = Y;
+		#pragma GCC diagnostic pop
+
+		const __m128i lane0 = (__m128i) __builtin_shufflevector(input.v512, input.v512, 0, 1);
+  		const __m512i populated_0th_byte = (__m512i) __builtin_ia32_pbroadcastb512_mask ((__v16qi)lane0,
+						       					(__v64qi)Y,
+						       					(__mmask64) -1);
+		// const __m512i populated_0th_byte = (__m512i) __builtin_shufflevector((__v16qi) lane0, (__v16qi) lane0,
+		//                                                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		//                                                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		//                                                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		//                                                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  		const __mmask16 mask = (__mmask16)__builtin_ia32_cmpd512_mask((__v16si)input.v512,
+						  			(__v16si)populated_0th_byte, _MM_CMPINT_EQ,
+						  			(__mmask16) -1);
+		return __builtin_ia32_kortestchi((__mmask16) mask, (__mmask16) mask);
+#endif
 	}
 
 	/// source: https://github.com/WojciechMula/toys/tree/master/simd-basic/reverse-bytes
@@ -502,15 +582,18 @@ struct uint8x64_t {
 		        0x2021222324252627llu, 0x28292a2b2c2d2e2fllu,
 		        0x3031323334353637llu, 0x38393a3b3c3d3e3fllu);
 
-		return _mm512_permutexvar_epi8(indices_byte, input.v512);
+		uint8x64_t ret;
+		ret.v512 = _mm512_permutexvar_epi8(indices_byte, input.v512);
+		return ret;
 #elif defined(USE_AVX512BW)
+#ifdef __clang__
 		// 1. reverse order of 128-bit lanes
 		const __m512i indices = _mm512_setr_epi32(
 		        12, 13, 14, 15,
 		        8, 9, 10, 11,
 		        4, 5, 6, 7,
 		        0, 1, 2, 3);
-		const __m512i swap_128 = _mm512_permutexvar_epi32(indices, v);
+		const __m512i swap_128 = _mm512_permutexvar_epi32(indices, input.v512);
 
 		// 2. reverse order of bytes within 128-bit lanes
 		const __m512i indices_byte = _mm512_set_epi64(
@@ -519,7 +602,37 @@ struct uint8x64_t {
 		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,
 		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu);
 
-		return _mm512_shuffle_epi8(swap_128, indices_byte);
+		uint8x64_t ret;
+		ret.v512 = _mm512_shuffle_epi8(swap_128, indices_byte);
+		return ret;
+#else
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Winit-self"
+		  __m512i Y = Y;
+		#pragma GCC diagnostic pop
+
+		// 1. reverse order of 128-bit lanes
+		const __m512i indices = __extension__ (__m512i)(__v16si)
+				{3,2,1,0,7,6,4,3,
+				 11,10,9,8,15,14,13,12};
+  		const __m512i swap_128  = (__m512i)__builtin_ia32_permvarsi512_mask((__v16si)indices,
+						     (__v16si)input.v512,
+						     (__v16si)Y, (__mmask16) -1);
+
+		// 2. reverse order of bytes within 128-bit lanes
+  		const __m512i indices_byte = __extension__ (__m512i) (__v8di)
+		       {0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,
+		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,
+		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,
+		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu};
+
+		uint8x64_t ret;
+		ret.v512 = (__m512i) __builtin_ia32_pshufb512_mask ((__v64qi)swap_128,
+						  (__v64qi)indices_byte,
+						  (__v64qi)Y,
+						  (__mmask64) -1);
+		return ret;
+#endif
 #else
 		uint8x64_t ret;
 		// 1. reverse order of 32-bit words in register
@@ -547,6 +660,30 @@ struct uint8x64_t {
 		ret.v512 = _mm512_ternarylogic_epi32(mask0, t0, t1, 0xca);
 		return ret;
 #endif
+	}
+
+
+	/// finds the first limb in lane which is equal to in2
+	/// SOURCE: http://0x80.pl/notesen/2023-02-06-avx512-find-first-byte-in-lane.html
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr inline static uint8x64_t find_first_byte_in_lane(const uint8x64_t in1,
+	                                                                  const uint8_t in2) noexcept {
+		uint8x64_t tmp1 = uint8x64_t::setr(
+				0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,
+				0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,
+				0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,
+				1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1
+		);
+
+		uint8x64_t tmp = uint8x64_t::set1(in2);
+		constexpr uint8x64_t one = uint8x64_t::set1(1u);
+		tmp = uint8x64_t::xor_(tmp, in1);
+		uint8x64_t tmpp = uint8x64_t::xor_(uint8x64_t::min(one, tmp), one);
+		tmp = uint8x64_t::sub(tmpp, tmp1);
+		tmp = uint8x64_t::and_(tmp, uint8x64_t::not_(tmpp));
+		return uint8x64_t::popcnt(tmp);
 	}
 };
 
@@ -814,7 +951,11 @@ struct uint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x32_t popcnt(const uint16x32_t in1) noexcept {
 		uint16x32_t ret;
+#ifdef __clang__
 		ret.v512 = (__m512i) __builtin_ia32_vpopcntw_512((__v32hi) in1.v512);
+#else
+  		ret.v512 = (__m512i) __builtin_ia32_vpopcountw_v32hi ((__v32hi)in1.v512);
+#endif
 		return ret;
 	}
 
@@ -1092,7 +1233,11 @@ struct uint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t popcnt(const uint32x16_t in1) noexcept {
 		uint32x16_t ret;
-		ret.v512 = (__m512i) __builtin_ia32_vpopcntd_512((__v16si) in1.v512);
+#ifdef __clang__
+		ret.v512 = (__m512i) __builtin_ia32_vpopcntd_512((__v16si)in1.v512);
+#else
+  		ret.v512 = (__m512i) __builtin_ia32_vpopcountd_v16si ((__v16si)in1.v512);
+#endif
 		return ret;
 	}
 
@@ -1115,19 +1260,43 @@ struct uint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t conflict(const uint32x16_t in1) noexcept {
 		uint32x16_t ret;
+#ifdef __clang__
 		ret.v512 = (__m512i) __builtin_ia32_vpconflictsi_512((__v16si) in1.v512);
+#else
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Winit-self"
+		  __m512i Y = Y;
+		#pragma GCC diagnostic pop
+
+  		ret.v512 = (__m512i)__builtin_ia32_vpconflictsi_512_mask ((__v16si)in1.v512,
+					       (__v16si)Y,
+					       (__mmask16) -1);
+#endif
 		return ret;
 	}
 
-	/// needs `AVX512F`, wrapper around `_mm4512_shuffle_i32x3`
+	/// needs `AVX512F`, wrapper around `_mm512_shuffle_i32x4`
 	/// \param input
 	/// \return
 	template<const uint32_t imm>
 	[[nodiscard]] constexpr static inline uint32x16_t shuffle_32x4(const uint32x16_t in1,
 	                                                               const uint32x16_t in2) noexcept {
 		uint32x16_t ret;
+#ifdef __clang__
 		ret.v512 = ((__m512i) __builtin_ia32_shuf_i32x4((__v16si) (__m512i) (in1.v512),
 		                                                (__v16si) (__m512i) (in2.v512), (int) (imm)));
+#else
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Winit-self"
+		  __m512i Y = Y;
+		#pragma GCC diagnostic pop
+
+  		ret.v512 = (__m512i) __builtin_ia32_shuf_i32x4_mask ((__v16si)in1.v512,
+						   (__v16si)in2.v512,
+						   imm,
+						   (__v16si)Y,
+						   (__mmask16) -1);
+#endif
 		return ret;
 	}
 };
@@ -1383,7 +1552,11 @@ struct uint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t popcnt(const uint64x8_t in1) noexcept {
 		uint64x8_t ret;
+#ifdef __clang__
 		ret.v512 = (__m512i) __builtin_ia32_vpopcntq_512((__v8di) in1.v512);
+#else
+		ret.v512 = (__m512i) __builtin_ia32_vpopcountq_v8di(in1.v512);
+#endif
 		return ret;
 	}
 
@@ -1405,7 +1578,13 @@ struct uint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t conflict(const uint64x8_t in1) noexcept {
 		uint64x8_t ret;
+#ifdef __clang__
 		ret.v512 = (__m512i) __builtin_ia32_vpconflictdi_512((__v8di) in1.v512);
+#else
+		ret.v512 = (__m512i) __builtin_ia32_vpconflictdi_512_mask ((__v8di)in1.v512,
+					       (__v8di) __extension__ (__m512i)(__v8di){ 0, 0, 0, 0, 0, 0, 0, 0 },
+					       (__mmask8) -1);
+#endif
 		return ret;
 	}
 
@@ -1435,29 +1614,10 @@ struct uint64x8_t {
 	}
 };
 
-/// TODO TEST
-/// TODO move in class and make static
-/// finds the first limb in lane which is equal to in2
-/// SOURCE: http://0x80.pl/notesen/2023-02-06-avx512-find-first-byte-in-lane.html
-/// \param in1
-/// \param in2
-/// \return
-[[nodiscard]] constexpr inline uint8x64_t uint8x64_t::find_first_byte_in_lane(const uint8x64_t in1,
-                                                                              const uint8_t in2) noexcept {
-	uint32x16_t tmp1;
-
-	uint8x64_t tmp = uint8x64_t::set1(in2);
-	constexpr uint8x64_t one = uint8x64_t::set1(1u);
-	tmp = uint8x64_t::xor_(tmp, in1);
-	uint8x64_t tmpp = uint8x64_t::xor_(uint8x64_t::min(one, tmp), one);
-	tmp = uint8x64_t::sub(tmpp, tmp1);
-	tmp = uint8x64_t::and_(tmp, uint8x64_t::not_(tmpp));
-	return uint8x64_t::popcnt(tmp);
-}
 
 
 ///
-inline uint8x64_t operator*(const uint8x64_t &lhs, const uint8x64_t &rhs) {
+uint8x64_t operator*(const uint8x64_t &lhs, const uint8x64_t &rhs) {
 	return uint8x64_t::mullo(lhs, rhs);
 }
 inline uint8x64_t operator*(const uint8x64_t &lhs, const uint8_t &rhs) {

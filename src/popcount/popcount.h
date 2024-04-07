@@ -4,18 +4,12 @@
 #include <cstdint>
 #include "helper.h"
 
+#ifdef USE_AVX2
+#include "popcount/avx2.h"
+#endif
 
 /// namespace containing popcount algorithms
 namespace cryptanalysislib::popcount {
-
-	/// specialized avx2 popcount instructions
-	namespace internal {
-#ifdef USE_AVX2
-    #include "popcount/avx2.h"
-#endif
-	};
-
-	///
 	/// \tparam T base data type
 	/// \param data input data type
 	/// \return hamming weight (popcount) of the input vector

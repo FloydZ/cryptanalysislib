@@ -90,11 +90,12 @@ if(USE_TCMALLOC)
 	set(MALLOC_LIBRARY_FLAGS "tcmalloc")
 endif()
 
-if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+#TOS
+#if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
-endif()
+#endif()
 
 if(USE_NOINLINE AND COMPILER_SUPPORTS_NO_INLINE)
 	message(STATUS "not inlining")
@@ -114,7 +115,7 @@ endif()
 #   simd512_type v512[simd512_limbs];
 # and if the type is < 512 bits, then this must be zero
 # -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
-set(ALLOWED_WARNINGS " -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
+set(ALLOWED_WARNINGS "  -Wno-gnu-label-as-value -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
 
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 
@@ -124,7 +125,7 @@ message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") 
 	message(STATUS "ARM CPU detected")
     set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
-	set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -fpermissive -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
 

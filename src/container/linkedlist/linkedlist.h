@@ -130,7 +130,7 @@ private:
 
 			/// set
 			if (data <= __curr->data) {
-				assert(__pred->data < __curr->data);
+				ASSERT(__pred->data < __curr->data);
 				pred = __pred;
 				curr = __curr;
 				return;

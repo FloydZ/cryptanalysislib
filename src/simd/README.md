@@ -26,7 +26,7 @@ This container provides all operations like:
 - Scatter/Table lookups, Permutations
 - Memory stores/loads
 
-Additionally for the 3 main architectures `x86`, `arm` and `neon` and their 
+Additionally, for the 3 main architectures `x86`, `arm` and `neon` and their 
 vector extensions the following specialisations are provides which wrap:
 - `x86`: `__m128i`, `__m256i` and `__m512i`
 - `arm-neon`: `uint8x16`, ...

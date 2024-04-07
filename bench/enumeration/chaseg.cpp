@@ -1,7 +1,6 @@
 #include <benchmark/benchmark.h>
 
 #include "combination/chase.h"
-#include "helper.h"
 #include "math/bc.h"
 
 using T = uint64_t;

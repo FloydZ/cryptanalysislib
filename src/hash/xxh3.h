@@ -34,6 +34,9 @@ Original xxHash copyright notice:
 xxHash - Extremely Fast Hash algorithm
 Header File
 Copyright (C) 2012-2020 Yann Collet
+
+Some adaptions by
+ Floyd Zweydinger
 */
 
 #pragma once
@@ -63,10 +66,12 @@ template <typename T>
 concept BytesType = requires (const T& bytes) {
   { std::data(bytes) };
   requires BytePtrType<decltype(std::data(bytes))>;
-  // -> std::convertible_to is not supported widely enough
   { static_cast<size_t>(std::size(bytes)) };
 };
 
+/// endianness
+/// \param x
+/// \return
 inline constexpr uint32_t swap32(uint32_t x) noexcept {
   return ((x << 24) & 0xff000000) | ((x << 8) & 0x00ff0000) |
          ((x >> 8) & 0x0000ff00) | ((x >> 24) & 0x000000ff);
