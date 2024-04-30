@@ -642,6 +642,14 @@ namespace cryptanalysislib {
 	};
 };// namespace cryptanalysislib
 
+// implementation of `_mm_shuffle_epi16`
+﻿constexpr inline uint16x8_t shuffle_epi16(const uint16x8_t a, const uint16x8_t b) {
+    const uint16x8_t tmp = b*2;
+    const uint16x8_t s  = tmp ^ vshrq_n_u16(tmp, -8);
+    const uint16x8_t ss = vaddq_u16(s, vdupq_n_u16(0x100));
+    return shuffle_epi8(a, ss);
+}
+
 /// taken from: https://github.com/DLTcollab/sse2neon/blob/de2817727c72fc2f4ce9f54e2db6e40ce0548414/sse2neon.h#L4540
 /// helper function, which collects the sign bits of each 8 bit limb
 constexpr inline uint32_t _mm_movemask_epi8(const uint8x16_t input) noexcept {
