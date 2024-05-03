@@ -139,7 +139,7 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 
 /// NOTE: this function computes the `a`-th bitstring of length `n` and weight `p`
 /// given the a-th step enumerating the list,
-/// return the indicis of the a-th error vector.
+/// return the indices of the a-th error vector.
 /// \tparam n length of the bitstring
 /// \tparam p weight of the bitstring
 /// \param a input value
@@ -218,9 +218,9 @@ inline void biject_avx(__m256i a, __m256i rows[p]) noexcept {
 /// \param a input
 /// \param n input
 template<typename T, const uint32_t k>
-inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
+constexpr inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
 	(void) n;
-	static_assert(k < 5, "sorry not implemented");
+	static_assert(k < 3, "sorry not implemented");
 	if constexpr (k == 1) {
 		return a;
 	}
@@ -243,6 +243,19 @@ inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t n) {
 	return uint32x8_t::set1(1);
 }
 
+template<typename T, const uint32_t k, const uint32_t p>
+constexpr auto precomute_max_bc_table() {
+	std::array<std::array<T, k>, p> lookup_table;
+
+	constexpr_for<1, p+1, 1>([&lookup_table](const auto i) {
+		for (uint32_t j = 0; j < k; ++j) {
+			  lookup_table[i-1u][j] = k - opt_max_bc<T, i>(j, k) - 1;
+		}
+	});
+
+	return lookup_table;
+}
+
 /// bijection between the numbers mod bc(n,p) and the numbers with
 /// n bits and weight p. Returns the the positions of the ones in
 /// the `rows` array.
@@ -263,8 +276,6 @@ inline void biject_simd(uint32x8_t a, uint32x8_t rows[p]) noexcept {
 	}
 
 	if constexpr (p == 2) {
-		//biject_avx<n, p>(a.v256, (__m256i *)rows);
-
 		// w == 2
 		wn = opt_max_bc_simd<size_t, 2>(a, wn);
 
@@ -281,4 +292,34 @@ inline void biject_simd(uint32x8_t a, uint32x8_t rows[p]) noexcept {
 	}
 
 	ASSERT(false);
+}
+
+template<const uint32_t n, const uint32_t p>
+inline void biject_simd_lookup(uint32x8_t a, uint32x8_t rows[p]) noexcept {
+	static_assert(p < 3, "not implemented");
+	using T = uint32_t;
+	static std::array<std::array<T, n>, p> lookup = precomute_max_bc_table<T, n, p>();
+
+	const uint32x8_t one = uint32x8_t::set1(1u);
+	uint32x8_t wn = uint32x8_t::set1(n);
+	if constexpr (p == 1) {
+		rows[0] = a;
+		return;
+	}
+
+	if constexpr (p == 2) {
+		// w == 2
+		wn = uint32x8_t::template gather<4>(lookup[1].data(), a);
+
+		// a -= ((wn-1u) *(wn-2u)) >> 1u;
+		uint32x8_t tmp1 = wn - one;
+		uint32x8_t tmp2 = wn * tmp1;
+		tmp2 = tmp2 >> 1;
+		a = a - tmp2;
+		rows[0] = wn;
+
+		//
+		rows[1] = uint32x8_t::template gather<4>(lookup[0].data(), a);
+		return;
+	}
 }

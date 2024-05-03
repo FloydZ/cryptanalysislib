@@ -70,8 +70,8 @@ struct C {
 };
 
 TEST(reflection, as) {
-	constexpr static auto a = A{.f1 = "Hello", .f2 = "World"};
-	constexpr static auto b = B{.f3 = "Hello", .f4 = "World"};
+	//constexpr static auto a = A{.f1 = "Hello", .f2 = "World"};
+	//constexpr static auto b = B{.f3 = "Hello", .f4 = "World"};
 
 	// f1 and f2 are taken from a f4 is taken from b, f3 is ignored.
 	// TODO darwin const auto c = cryptanalysislib::reflection::as<C>(a, b);
@@ -88,8 +88,8 @@ TEST(reflection, replace2) {
 }
 
 TEST(reflection, replace3) {
-	constexpr static auto a = A{.f1 = "Hello", .f2 = "World"};
-	constexpr static auto c = C{.f1 = "C++", .f2 = "is", .f4 = "great"};
+	//constexpr static auto a = A{.f1 = "Hello", .f2 = "World"};
+	//constexpr static auto c = C{.f1 = "C++", .f2 = "is", .f4 = "great"};
 
 	// The fields f1 and f2 are replaced with the fields f1 and f2 in a.
 	// TODO darwin const auto c2 = cryptanalysislib::reflection::replace(c, a);

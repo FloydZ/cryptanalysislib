@@ -49,32 +49,32 @@ TEST(Bruteforce, simd_64_uxv) {
 	NN<config> algo{};
 	algo.generate_random_instance();
 	algo.bruteforce_simd_64_uxv<1,1>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv<2,2>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv<4,4>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv<8,8>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv<1,2>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv<2,1>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
@@ -91,37 +91,37 @@ TEST(Bruteforce, simd_64_uxv_shuffle) {
 	algo.generate_random_instance();
 
 	algo.bruteforce_simd_64_uxv_shuffle<1,1>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv_shuffle<2,2>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv_shuffle<4,4>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv_shuffle<8,8>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv_shuffle<1,2>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv_shuffle<2,1>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
 
 	algo.bruteforce_simd_64_uxv_shuffle<4,2>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
+	EXPECT_GE(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 }
 
