@@ -8,7 +8,7 @@
 
 #include "atomic_primitives.h"
 #include "helper.h"
-#include "math/log.h"
+#include "math/math.h"
 
 /// See Paul Khuong's
 /// https://www.pvk.ca/Blog/2012/07/03/binary-search-star-eliminates-star-branch-mispredictions/

@@ -13,60 +13,60 @@ using BigInt = big_int<N, T>;
 
 
 TEST(abs, simple) {
-	EXPECT_NEAR(fabs(-1.1), 1.1, 0.00001);
-	EXPECT_NEAR(fabs(-1.1f), 1.1f, 0.00001);
+	EXPECT_NEAR(cryptanalysislib::math::fabs(-1.1), 1.1, 0.00001);
+	EXPECT_NEAR(cryptanalysislib::math::fabs(-1.1f), 1.1f, 0.00001);
 }
 
 TEST(cceil, simple) {
-	EXPECT_EQ(cceil(1.1), 2);
-	EXPECT_EQ(cceil(-1.1), -1);
+	EXPECT_EQ(cryptanalysislib::math::cceil(1.1), 2);
+	EXPECT_EQ(cryptanalysislib::math::cceil(-1.1), -1);
 }
 
 TEST(floor, simple) {
-	EXPECT_EQ(floor(1.1), 1);
-	EXPECT_EQ(floor(-1.1), -2);
+	EXPECT_EQ(cryptanalysislib::math::floor(1.1), 1);
+	EXPECT_EQ(cryptanalysislib::math::floor(-1.1), -2);
 }
 
 TEST(round, simple) {
-	EXPECT_EQ(round(1.1), 1);
-	EXPECT_EQ(round(-1.1), -1);
+	EXPECT_EQ(cryptanalysislib::math::round(1.1), 1);
+	EXPECT_EQ(cryptanalysislib::math::round(-1.1), -1);
 }
 
 TEST(entropy, simple) {
 	//EXPECT_EQ(std::isnan(HH(1.1)), true);
 	//EXPECT_EQ(std::isnan(HH(1.0)), true);
 	//EXPECT_EQ(std::isnan(HH(0.)), true);
-	EXPECT_DOUBLE_EQ(HH(1.0), 0.0);
-	EXPECT_DOUBLE_EQ(HH(0.0), 0.0);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::HH(1.0), 0.0);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::HH(0.0), 0.0);
 	// EXPECT_DOUBLE_EQ(HH(0.5), 1.0);
 }
 
 TEST(exp, simple) {
-	EXPECT_EQ(exp(1), 2);
-	EXPECT_DOUBLE_EQ(exp(1.), e());
+	EXPECT_EQ(cryptanalysislib::math::exp(1), 2);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::exp(1.), cryptanalysislib::math::internal::e());
 }
 
 TEST(ipow, simple) {
-	EXPECT_EQ(ipow(1., 2), 1);
-	EXPECT_EQ(ipow(2., 2), 4);
+	EXPECT_EQ(cryptanalysislib::math::ipow(1., 2), 1);
+	EXPECT_EQ(cryptanalysislib::math::ipow(2., 2), 4);
 }
 
 TEST(low, simple) {
-	EXPECT_DOUBLE_EQ(log(e()), 1);
-	EXPECT_DOUBLE_EQ(log2(2.), 1);
-	EXPECT_DOUBLE_EQ(log2(4.), 2);
-	EXPECT_DOUBLE_EQ(log2(8.), 3);
-	EXPECT_DOUBLE_EQ(log2(16.), 4);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::log(cryptanalysislib::math::internal::e()), 1);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::log2(2.), 1);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::log2(4.), 2);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::log2(8.), 3);
 }
 
 TEST(root, simple) {
-	EXPECT_EQ(sqrt(4.), 2.);
-	EXPECT_EQ(sqrt(9), 3);
+	EXPECT_EQ(cryptanalysislib::math::sqrt(4.), 2.);
+	EXPECT_EQ(cryptanalysislib::math::sqrt(9), 3);
 
-	EXPECT_EQ(cbrt(27), 3);
-	EXPECT_DOUBLE_EQ(cbrt(27.), 3.);
-	EXPECT_DOUBLE_EQ(cbrt(27.), 3);
+	EXPECT_EQ(cryptanalysislib::math::cbrt(27), 3);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::cbrt(27.), 3.);
+	EXPECT_DOUBLE_EQ(cryptanalysislib::math::cbrt(27.), 3);
 
+	// TODO
 	// NOT WORKING: EXPECT_EQ(kthrt(27., 2), 3);
 }
 

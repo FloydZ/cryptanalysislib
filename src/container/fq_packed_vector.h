@@ -8,7 +8,7 @@
 
 #include "container/binary_packed_vector.h"
 #include "helper.h"
-#include "math/log.h"
+#include "math/math.h"
 #include "popcount/popcount.h"
 #include "random.h"
 #include "simd/simd.h"

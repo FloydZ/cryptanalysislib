@@ -37,9 +37,10 @@ include(CheckLanguage) 			# needed for `check_language(CUDA)`
 # local cmake includes
 include("deps/cmake_optimize_for_architecture/HostOptimizations.cmake")
 
+# TODO can be removed?
 # only for the CI
-include_directories("benchmark/include")
-link_directories("benchmark/build/src")
+# include_directories("benchmark/include")
+# link_directories("benchmark/build/src")
 
 check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)

@@ -2,10 +2,9 @@
 #define CRYPTANALYSISLIB_SIMPLE_H
 
 #include <cstdint>
-#include <stdlib.h>
 #include <type_traits>
 
-#include "math/log.h"
+#include "math/math.h"
 #include "popcount/popcount.h"
 
 template<typename T = uint64_t,

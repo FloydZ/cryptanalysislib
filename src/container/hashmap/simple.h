@@ -8,8 +8,6 @@
 
 #include "atomic_primitives.h"
 #include "helper.h"
-//#include "container/hashmap/common.h"
-//#include "sort/sorting_network/common.h"
 
 ///
 struct SimpleHashMapConfig {

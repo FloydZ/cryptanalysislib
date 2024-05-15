@@ -974,9 +974,9 @@ namespace tsl {
 				const T* value =
 				        find_value_impl(key, hash, m_buckets + bucket_for_hash(hash));
 				if (value == nullptr) {
-					// Couldnt fin key;
+					// TODO Couldnt find key;
 					ASSERT(false);
-					return T{};
+					return *value;
 				} else {
 					return *value;
 				}

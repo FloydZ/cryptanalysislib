@@ -9,8 +9,26 @@
 #include "helper.h"
 #include "memory/memory.h"
 
+///
+/// \tparam alignment in bytes
+/// \param n input to align up to a multiple of `alignment`
+/// \return the up aligned value
+template<const size_t alignment = 256>
+constexpr size_t roundToAligned(const size_t n) noexcept {
+	return ((n + alignment - 1) / alignment) * alignment;
+}
+
 namespace cryptanalysislib {
 	void *aligned_alloc(std::size_t alignment, std::size_t size) {
+		// just to please the compiler
+		if (size < alignment) {
+			size = alignment;
+		}
+
+		if ((size % alignment) != 0) {
+			size = ((size + alignment - 1) / alignment) * alignment;
+		}
+
 #ifdef __APPLE__
 		return aligned_alloc(alignment, size);
 #else
@@ -41,14 +59,6 @@ public:
 	}
 };
 
-///
-/// \tparam alignment in bytes
-/// \param n input to align up to a multiple of `alignment`
-/// \return the up aligned value
-template<const size_t alignment = 256>
-constexpr size_t roundToAligned(const size_t n) noexcept {
-	return ((n + alignment - 1) / alignment) * alignment;
-}
 
 ///
 struct AllocatorConfig {
@@ -521,12 +531,24 @@ public:
 		a.allocator.deAllocate(b);
 	}
 
+	/// TODO
+	/// \tparam TT
+	/// \tparam Args
+	/// \param a
+	/// \param p
+	/// \param args
+	/// \return
 	template<class TT, class... Args>
 	static constexpr void construct(Alloc &a, TT *p, Args &&...args) {
 		(void) a;
 		(void) p;
 	}
 
+	///
+	/// \tparam TT
+	/// \param a
+	/// \param p
+	/// \return
 	template<class TT>
 	static constexpr void destroy(Alloc &a, TT *p) {
 		(void) a;

@@ -1709,7 +1709,7 @@ struct uint32x8_t {
 	/// sets all 32 8bit limbs to `a`
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t set1(const uint8_t a) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t set1(const uint32_t a) noexcept {
 		uint32x8_t out;
 		out = uint32x8_t::set(a, a, a, a, a, a, a, a);
 		return out;

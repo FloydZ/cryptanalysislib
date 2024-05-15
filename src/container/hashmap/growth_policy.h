@@ -17,7 +17,7 @@
 #include "helper.h"
 #include "binary.h"
 #include "popcount/popcount.h"
-#include "math/log.h"
+#include "math/math.h"
 
 namespace cryptanalysislib::hh {
 	/**
