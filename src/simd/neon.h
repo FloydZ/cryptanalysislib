@@ -643,7 +643,7 @@ namespace cryptanalysislib {
 };// namespace cryptanalysislib
 
 // implementation of `_mm_shuffle_epi16`
-﻿constexpr inline uint16x8_t shuffle_epi16(const uint16x8_t a, const uint16x8_t b) {
+inline uint16x8_t shuffle_epi16(const uint16x8_t a, const uint16x8_t b) {
     const uint16x8_t tmp = b*2;
     const uint16x8_t s  = tmp ^ vshrq_n_u16(tmp, -8);
     const uint16x8_t ss = vaddq_u16(s, vdupq_n_u16(0x100));
