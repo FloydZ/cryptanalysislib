@@ -16,6 +16,10 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
 
+		constexpr inline _uint8x16_t &operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint8x16_t &operator=(const _uint32x4_t &b) noexcept;
+		constexpr inline _uint8x16_t &operator=(const _uint64x2_t &b) noexcept;
+
 		constexpr _uint8x16_t() noexcept {}
 		constexpr _uint8x16_t(const _uint16x8_t &b) noexcept;
 		constexpr _uint8x16_t(const _uint32x4_t &b) noexcept;
