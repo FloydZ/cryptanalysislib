@@ -57,6 +57,14 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+		[[nodiscard]] constexpr static inline _uint8x16_t set1(const uint8_t i) noexcept {
+			_uint8x16_t ret;
+			for (uint32_t j = 0; j < 16u; ++j) {
+				ret.v8[j] = i;
+			}
+			return ret;
+		}
+
 		[[nodiscard]] constexpr static inline _uint8x16_t set(
 				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint8x16_t ret;
