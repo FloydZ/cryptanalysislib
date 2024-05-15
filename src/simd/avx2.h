@@ -49,9 +49,6 @@ namespace internal {
 
 
 namespace cryptanalysislib {
-	struct _uint16x8_t;
-	struct _uint32x4_t;
-	struct _uint64x2_t;
 
 	struct _uint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
@@ -315,8 +312,8 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint16x8_t setr(
-		        uint8_t a, uint8_t b, uint8_t c, uint8_t d,
-		        uint8_t e, uint8_t f, uint8_t g, uint8_t h) noexcept {
+		        uint16_t a, uint16_t b, uint16_t c, uint16_t d,
+		        uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
 			_uint16x8_t ret;
 			ret.v8[0] = a;
 			ret.v8[1] = b;
@@ -582,14 +579,17 @@ struct uint8x32_t {
 		__m256i v256;
 	};
 
+	/// https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGEgBykrgAyeAyYAHI%2BAEaYxCCSZqQADqgKhE4MHt6%2BASlpGQKh4VEssfGJtpj2jgJCBEzEBNk%2BflyBdpgOmfWNBMWRMXEJSQoNTS257bbj/WGDZcOJAJS2qF7EyOwc5gDMYcjeWADUJrtuY/iCAHQIZ9gmGgCCewdHmKfneCwsYQTEYVu90eLzM%2BwYhy8JzObmQlycwOeILGxC8DmOXj%2B/lUuzMAH0CKcAOxWJEaACcXgYmWJpJeFMelKxBOOxwAbv5TgBWCy4kxcgAiZzpjMZmMEXAAbCy2VL%2BRY5YLhSDRRTxQRcTK%2BTzjv5%2BULdiKGWq/pLJDKzfLjpJ9cqyeTGXi8SwzFzJXh2a7JXb6Q6iQa6azWSCg8c0AwxphVMliMcxkxHMhjmFaPMMVicfjCaoSHiIOGxunBNjNYSwlxSCqKaGa7W6/WC4T1SWs8mGGZlrSqw6TcXMyz1gQfaryYPrmyvZ8BccIE6XW68J2oE62ZJ0F5luXx5P%2BdgZyu1xuwmZt27lsPjeSAPRXscTt1T47O%2BfSnPEPHpL0QLf3yWkNsnr%2B56Gt2jLEJgBAbAwxyDhefpCmSvo3le3bIdybjJI0rDHMk/yoTe6HgZBxAMN2jZRjGcYNImbapuERYEC2LJUmIeDAOE6B4rQqBMOg%2BYCIWbKoHg6DHAAVLhxCdiYJKgRSTBeEQ4mSTuuzTrOzpeh6YnLJJcFihmpYwYp%2BkUneqnThJ/xeqZ163opp6So%2Bz5elxPHrh%2BeBfhpL7abp/zAUaPbkkRUHGUOIH2jJCFPKGIZBsh%2BFXuhmHENhen2mh/IYVhLBtmRAkEBRsbxjRKZpkJIkYswqbsZgnFjCQmAQJVolWWQYaFQxTFlgw0myVFFJzlpynWQ%2BZzqcNC7if5xC2e1Flto5Ppxf6KprZF9JPOR0axq1xxFWMEDNiyYmDv%2Bjbdad5YXV1J2EmJx63RGTZ/EZfVds8ob8LGx1va2HoTccGjCsm1i4p8bjHKRhpg5YE24v1gZ1pdzb9oSTCPmjpYgCALG1Rxbm8d%2BDBcKcljJmJiMrSjd2Ga20RY/TBK4/jbGE9xxPHuTFiU9Tm0NnTfZGUmQPY1muNvnmTD/tEgXxbW4ss3jNXs/VH5EOBEDnWG8tfUG0XrTFIJ/McLBMGEEBIwrnUvcVDHvY%2BXBmHqAtBjtlH3eF8qkYKj4yRYIMbcjrIe7GXvlj7%2Br%2BySQcBjbYdXb1ZhR37QMB3HF6xUGh0EFAXs6TrN0AaQfU06yMZ/FQEDmCnrroNlpFmEk3s8iDgp6y8/ocKstCcFyvB%2BBwWikKgnBuNY1hxusmwfHsPCkAQmg96sADWIC7Ls1waP4kiSkSkhEv4GhH0ff59xwkiD8vo%2BcLwCggBoi/L6scCwEgaAsMkdBxOQlCf9/eg8RgBcFxKQLAbI8BbAAGp4EwAAdwAPLJEYJwBeNBaBFWIA/CA0Qb7RDCI0AAnmg3gBDmDECIYg6I2guhL24LwT%2BbBBCIIYLQEhw9eBYGiF4YAbgxC0Afgw8BmBzZGHEJw8BeBwLdDZJgIRI8oxdEUtsBefxqg31TNENKlCPBYBvv8b4pDVhUAMMABQsCEHINQcI/gggRBiHYFIGQghFAqHUJI3QFYDBGBQJPSw%2Bg8DRAfpAVYqBcKZCEQAWnNmyVQZhjhRMQbsXgqA5HEABFgEJVsqg1EyC4Bg7hPCtAkESIIhSBilHKBIJ%2BqR0i1CyMUqYZS6mFAYJUoY8QuBP06N0OosxJhtDKb0hpvQmgdMWF0npAymlDJmH0CZ1TumrAUDPLYEhe792vpIseHBjiqH8JKKJZpjjAGQEmUB1wEkQFwIQEg5NdhcGWLwehWhlhrw3lvLk/guDknJO0fw3yj4/OkBfK%2Bpcb67Pvo/Z%2BnDX4wEQCAQcyRFJ/34l/H%2BxAIisG2Aco5JyzkXK3mYXg9U7mZL0HY4QohxDOKpW4tQN8vGkHgWlZIxj9BbIhTszgiDFIosJKgKg%2BzDnHMkKc85xxLnXI8BioBDynkvJfh8ze1xN7qo1Zqzll9tkjyhbYGFryV7apJdyvVd9YVvNWOk9IzhJBAA%3D
+	constexpr uint8x32_t() noexcept = default;
+	constexpr uint8x32_t(const uint16x16_t &b) noexcept;
+	constexpr uint8x32_t(const uint32x8_t &b) noexcept;
+	constexpr uint8x32_t(const uint64x4_t &b) noexcept;
+	constexpr uint8x32_t(const uint128x2_t &b) noexcept;
+
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
-
-	/// Example of how the constexpr implementation works:
-	/// https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGEgBykrgAyeAyYAHI%2BAEaYxCCSZqQADqgKhE4MHt6%2BASlpGQKh4VEssfGJtpj2jgJCBEzEBNk%2BflyBdpgOmfWNBMWRMXEJSQoNTS257bbj/WGDZcOJAJS2qF7EyOwc5gDMYcjeWADUJrtuY/iCAHQIZ9gmGgCCewdHmKfneCwsYQTEYVu90eLzM%2BwYhy8JzObmQlycwOeILGxC8DmOXj%2B/lUuzMAH0CKcAOxWJEaACcXgYmWJpJeFMelKxBOOxwAbv5TgBWCy4kxcgAiZzpjMZmMEXAAbCy2VL%2BRY5YLhSDRRTxQRcTK%2BTzjv5%2BULdiKGWq/pLJDKzfLjpJ9cqyeTGXi8SwzFzJXh2a7JXb6Q6iQa6azWSCg8c0AwxphVMliMcxkxHMhjmFaPMMVicfjCaoSHiIOGxunBNjNYSwlxSCqKaGa7W6/WC4T1SWs8mGGZlrSqw6TcXMyz1gQfaryYPrmyvZ8BccIE6XW68J2oE62ZJ0F5luXx5P%2BdgZyu1xuwmZt27lsPjeSAPRXscTt1T47O%2BfSnPEPHpL0QLf3yWkNsnr%2B56Gt2jLEJgBAbAwxyDhefpCmSvo3le3bIdybjJI0rDHMk/yoTe6HgZBxAMN2jZRjGcYNImbapuERYEC2LJUmIeDAOE6B4rQqBMOg%2BYCIWbKoHg6DHAAVLhxCdiYJKgRSTBeEQ4mSTuuzTrOzpeh6YnLJJcFihmpYwYp%2BkUneqnThJ/xeqZ163opp6So%2Bz5elxPHrh%2BeBfhpL7abp/zAUaPbkkRUHGUOIH2jJCFPKGIZBsh%2BFXuhmHENhen2mh/IYVhLBtmRAkEBRsbxjRKZpkJIkYswqbsZgnFjCQmAQJVolWWQYaFQxTFlgw0myVFFJzlpynWQ%2BZzqcNC7if5xC2e1Flto5Ppxf6KprZF9JPOR0axq1xxFWMEDNiyYmDv%2Bjbdad5YXV1J2EmJx63RGTZ/EZfVds8ob8LGx1va2HoTccGjCsm1i4p8bjHKRhpg5YE24v1gZ1pdzb9oSTCPmjpYgCALG1Rxbm8d%2BDBcKcljJmJiMrSjd2Ga20RY/TBK4/jbGE9xxPHuTFiU9Tm0NnTfZGUmQPY1muNvnmTD/tEgXxbW4ss3jNXs/VH5EOBEDnWG8tfUG0XrTFIJ/McLBMGEEBIwrnUvcVDHvY%2BXBmHqAtBjtlH3eF8qkYKj4yRYIMbcjrIe7GXvlj7%2Br%2BySQcBjbYdXb1ZhR37QMB3HF6xUGh0EFAXs6TrN0AaQfU06yMZ/FQEDmCnrroNlpFmEk3s8iDgp6y8/ocKstCcFyvB%2BBwWikKgnBuNY1hxusmwfHsPCkAQmg96sADWIC7Ls1waP4kiSkSkhEv4GhH0ff59xwkiD8vo%2BcLwCggBoi/L6scCwEgaAsMkdBxOQlCf9/eg8RgBcFxKQLAbI8BbAAGp4EwAAdwAPLJEYJwBeNBaBFWIA/CA0Qb7RDCI0AAnmg3gBDmDECIYg6I2guhL24LwT%2BbBBCIIYLQEhw9eBYGiF4YAbgxC0Afgw8BmBzZGHEJw8BeBwLdDZJgIRI8oxdEUtsBefxqg31TNENKlCPBYBvv8b4pDVhUAMMABQsCEHINQcI/gggRBiHYFIGQghFAqHUJI3QFYDBGBQJPSw%2Bg8DRAfpAVYqBcKZCEQAWnNmyVQZhjhRMQbsXgqA5HEABFgEJVsqg1EyC4Bg7hPCtAkESIIhSBilHKBIJ%2BqR0i1CyMUqYZS6mFAYJUoY8QuBP06N0OosxJhtDKb0hpvQmgdMWF0npAymlDJmH0CZ1TumrAUDPLYEhe792vpIseHBjiqH8JKKJZpjjAGQEmUB1wEkQFwIQEg5NdhcGWLwehWhlhrw3lvLk/guDknJO0fw3yj4/OkBfK%2Bpcb67Pvo/Z%2BnDX4wEQCAQcyRFJ/34l/H%2BxAIisG2Aco5JyzkXK3mYXg9U7mZL0HY4QohxDOKpW4tQN8vGkHgWlZIxj9BbIhTszgiDFIosJKgKg%2BzDnHMkKc85xxLnXI8BioBDynkvJfh8ze1xN7qo1Zqzll9tkjyhbYGFryV7apJdyvVd9YVvNWOk9IzhJBAA%3D
-	constexpr uint8x32_t() noexcept = default;
 
 	/// NOTE: currently cannot be constexpr
 	/// \return
@@ -658,6 +658,40 @@ struct uint8x32_t {
 		return out;
 	}
 
+	///
+	/// \param __q31
+	/// \param __q30
+	/// \param __q29
+	/// \param __q28
+	/// \param __q27
+	/// \param __q26
+	/// \param __q25
+	/// \param __q24
+	/// \param __q23
+	/// \param __q22
+	/// \param __q21
+	/// \param __q20
+	/// \param __q19
+	/// \param __q18
+	/// \param __q17
+	/// \param __q16
+	/// \param __q15
+	/// \param __q14
+	/// \param __q13
+	/// \param __q12
+	/// \param __q11
+	/// \param __q10
+	/// \param __q09
+	/// \param __q08
+	/// \param __q07
+	/// \param __q06
+	/// \param __q05
+	/// \param __q04
+	/// \param __q03
+	/// \param __q02
+	/// \param __q01
+	/// \param __q00
+	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t setr(char __q31, char __q30, char __q29, char __q28,
 	                                                      char __q27, char __q26, char __q25, char __q24,
 	                                                      char __q23, char __q22, char __q21, char __q20,
@@ -948,6 +982,19 @@ struct uint8x32_t {
 		return ret;
 	}
 
+
+	/// wrapper around: `_mm256_blend_epi8`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x32_t blend(const uint8x32_t in1,
+	                                                       const uint8x32_t in2,
+	                                                       const uint8x32_t in3) noexcept {
+		uint8x32_t ret{};
+		ret.v256 = (__m256i) __builtin_ia32_pblendvb256((__v32qi) in1.v256, (__v32qi) in2.v256, (__v32qi) in3.v256);
+		return ret;
+	}
+
 	/// checks if all bytes are equal
 	/// source: https://github.com/WojciechMula/toys/tree/master/simd-all-bytes-equal
 	/// \param in
@@ -1016,6 +1063,12 @@ struct uint16x16_t {
 		uint64_t v64[4];
 		__m256i v256;
 	};
+
+	constexpr uint16x16_t() noexcept = default;
+	constexpr uint16x16_t(const uint8x32_t &b) noexcept;
+	constexpr uint16x16_t(const uint32x8_t &b) noexcept;
+	constexpr uint16x16_t(const uint64x4_t &b) noexcept;
+	constexpr uint16x16_t(const uint128x2_t &b) noexcept;
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
 		ASSERT(i < LIMBS);
@@ -1327,6 +1380,19 @@ struct uint16x16_t {
 		return ret;
 	}
 
+	/// wrapper around: `_mm256_blend_epi32`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<uint32_t imm>
+	[[nodiscard]] constexpr static inline uint16x16_t blend(const uint16x16_t in1,
+	                                                        const uint16x16_t in2) noexcept {
+		uint16x16_t ret{};
+		ret.v256 = ((__m256i) __builtin_ia32_pblendw256((__v16hi) (__m256i) (in1.v256),
+		                                                (__v16hi) (__m256i) (in2.v256), (int) (imm)));
+		return ret;
+	}
+
 	///
 	/// \param in
 	/// \return
@@ -1349,9 +1415,15 @@ struct uint32x8_t {
 		uint16_t v16[16];
 		uint32_t v32[8];
 		uint64_t v64[4];
-		cryptanalysislib::_uint32x4_t v128[2];
+		// TODO cryptanalysislib::_uint32x4_t v128[2];
 		__m256i v256;
 	};
+
+	constexpr uint32x8_t() noexcept = default;
+	constexpr uint32x8_t(const uint8x32_t &b) noexcept;
+	constexpr uint32x8_t(const uint16x16_t &b) noexcept;
+	constexpr uint32x8_t(const uint64x4_t &b) noexcept;
+	constexpr uint32x8_t(const uint128x2_t &b) noexcept;
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
@@ -1725,6 +1797,53 @@ struct uint32x8_t {
 		}
 	}
 
+	/// wrapper around: `_mm256_blend_epi32`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<uint8_t imm>
+	[[nodiscard]] constexpr static inline uint32x8_t blend(const uint32x8_t in1,
+	                                                       const uint32x8_t in2) noexcept {
+		uint32x8_t ret{};
+		ret.v256 = ((__m256i) __builtin_ia32_pblendd256((__v8si) (__m256i) (in1.v256),
+		                                                (__v8si) (__m256i) (in2.v256), (int) (imm)));
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_unpacklo_epi64`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t unpacklo(const uint32x8_t in1,
+	                                                          const uint32x8_t in2) noexcept {
+		uint32x8_t ret{};
+		ret.v256 = (__m256i) __builtin_shufflevector((__v8si) in1.v256, (__v8si) in2.v256, 0, 8 + 0, 1, 8 + 1, 4, 8 + 4, 5, 8 + 5);
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_unpacklo_epi64`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t unpackhi(const uint32x8_t in1,
+	                                                          const uint32x8_t in2) noexcept {
+		uint32x8_t ret{};
+		ret.v256 = (__m256i) __builtin_shufflevector((__v8si) in1.v256, (__v8si) in2.v256, 2, 8 + 2, 3, 8 + 3, 6, 8 + 6, 7, 8 + 7);
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_permute2x128_si256`
+	/// TODO
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<const uint32_t in3>
+	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in1,
+	                                                         const uint32x8_t in2) noexcept {
+		uint32x8_t ret{};
+		return ret;
+	}
+
 	///
 	/// \param in
 	/// \param perm
@@ -1796,6 +1915,12 @@ struct uint64x4_t {
 		uint64_t v64[4];
 		__m256i v256;
 	};
+
+	constexpr inline uint64x4_t() noexcept = default;
+	constexpr inline uint64x4_t(const uint8x32_t &b) noexcept;
+	constexpr inline uint64x4_t(const uint16x16_t &b) noexcept;
+	constexpr inline uint64x4_t(const uint32x8_t &b) noexcept;
+	constexpr inline uint64x4_t(const uint128x2_t &b) noexcept;
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
 		ASSERT(i < LIMBS);
@@ -2061,7 +2186,41 @@ struct uint64x4_t {
 		return out;
 	}
 
-	///
+	/// wrapper around: `_mm256_unpacklo_epi64`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t unpacklo(const uint64x4_t in1,
+	                                                          const uint64x4_t in2) noexcept {
+		uint64x4_t ret{};
+		ret.v256 = (__m256i) __builtin_shufflevector((__v4di) in1.v256, (__v4di) in2.v256, 0, 4 + 0, 2, 4 + 2);
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_unpacklo_epi64`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t unpackhi(const uint64x4_t in1,
+	                                                          const uint64x4_t in2) noexcept {
+		uint64x4_t ret{};
+		ret.v256 = (__m256i) __builtin_shufflevector((__v4di) in1.v256, (__v4di) in1.v256, 1, 4 + 1, 3, 4 + 3);
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_permute2x128_si256`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<const uint32_t in3>
+	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in1,
+	                                                         const uint64x4_t in2) noexcept {
+		uint64x4_t ret{};
+		ret.v256 = ((__m256i) __builtin_ia32_permti256((__v4di) (__m256i) (in1.v256), (__m256i) (in2.v256), (int) (in3)));
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_permute4x64_epi64`
 	/// \tparam in2
 	/// \param in1
 	/// \return
@@ -2197,5 +2356,73 @@ struct uint64x4_t {
 	}
 };
 
+struct uint128x2_t {
+	constexpr static uint32_t LIMBS = 2;
+	using limb_type = __uint128_t;
 
+<<<<<<< HEAD
+	union {
+		// compatibility with TxN_t
+		__uint128_t d[2];
+
+		uint8_t v8[32];
+		uint16_t v16[16];
+		uint32_t v32[8];
+		uint64_t v64[4];
+		__uint128_t v128[2];
+		__m256i v256;
+	};
+
+	constexpr uint128x2_t() noexcept = default;
+	constexpr uint128x2_t(const uint8x32_t &b) noexcept;
+	constexpr uint128x2_t(const uint16x16_t &b) noexcept;
+	constexpr uint128x2_t(const uint32x8_t &b) noexcept;
+	constexpr uint128x2_t(const uint64x4_t &b) noexcept;
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	/// NOTE: currently cannot be constexpr
+	/// \return
+	[[nodiscard]] static inline uint128x2_t random() noexcept {
+		uint128x2_t ret{};
+		for (size_t i = 0; i < 4; ++i) {
+			ret.v64[i] = fastrandombytes_uint64();
+		}
+		return ret;
+	}
+
+	///
+	/// \param binary
+	/// \param hex
+	constexpr inline void print(bool binary = false, bool hex = false) const;
+
+	/// wrapper around: `_mm256_bslli_epi128`
+	/// \tparam imm
+	/// \param in1
+	/// \return
+	template<const uint8_t imm>
+	[[nodiscard]] constexpr static uint128x2_t slli(const uint128x2_t in1) {
+		uint128x2_t ret{};
+		ret.v256 = ((__m256i) __builtin_ia32_pslldqi256_byteshift((__v4di) (__m256i) (in1.v256), (int) (imm)));
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_bslli_epi128`
+	/// \tparam imm
+	/// \param in1
+	/// \return
+	template<const uint8_t imm>
+	[[nodiscard]] constexpr static uint128x2_t srli(const uint128x2_t in1) {
+		uint128x2_t ret{};
+		ret.v256 = ((__m256i) __builtin_ia32_psrldqi256_byteshift((__m256i) (in1.v256), (int) (imm)));
+		return ret;
+	}
+};
+
+
+=======
+>>>>>>> master
 #endif

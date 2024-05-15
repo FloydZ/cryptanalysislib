@@ -26,7 +26,6 @@ TEST(HashMap, simd) {
 			data[j] = i;
 			index[j] = i + 1;
 		}
-
 		// TODO hm.insert_simd(data, index);
 	}
 

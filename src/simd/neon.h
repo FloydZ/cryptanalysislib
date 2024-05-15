@@ -24,7 +24,6 @@ namespace cryptanalysislib {
 		constexpr _uint8x16_t(const _uint16x8_t &b) noexcept;
 		constexpr _uint8x16_t(const _uint32x4_t &b) noexcept;
 		constexpr _uint8x16_t(const _uint64x2_t &b) noexcept;
-
 		union {
 			// compatibility to `TxN_t`
 			uint8_t d[16];
@@ -214,6 +213,9 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 8;
 		using limb_type = uint16_t;
 
+		constexpr inline _uint16x8_t &operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint16x8_t &operator=(const _uint32x4_t &b) noexcept;
+		constexpr inline _uint16x8_t &operator=(const _uint64x2_t &b) noexcept;
 		constexpr _uint16x8_t() noexcept {}
 		constexpr _uint16x8_t(const _uint8x16_t &b) noexcept;
 		constexpr _uint16x8_t(const _uint32x4_t &b) noexcept;
@@ -378,6 +380,10 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 4;
 		using limb_type = uint32_t;
 
+		constexpr inline _uint32x4_t &operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint32x4_t &operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint32x4_t &operator=(const _uint64x2_t &b) noexcept;
+
 		constexpr _uint32x4_t() noexcept {}
 		constexpr _uint32x4_t(const _uint8x16_t &b) noexcept;
 		constexpr _uint32x4_t(const _uint16x8_t &b) noexcept;
@@ -527,6 +533,10 @@ namespace cryptanalysislib {
 	struct _uint64x2_t {
 		constexpr static uint32_t LIMBS = 2;
 		using limb_type = uint64_t;
+
+		constexpr inline _uint64x2_t &operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint64x2_t &operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint64x2_t &operator=(const _uint32x4_t &b) noexcept;
 
 		constexpr _uint64x2_t() noexcept {}
 		constexpr _uint64x2_t(const _uint8x16_t &b) noexcept;
@@ -793,6 +803,12 @@ struct uint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint8_t;
 
+	constexpr uint8x32_t() noexcept = default;
+	constexpr uint8x32_t(const uint16x16_t &b) noexcept;
+	constexpr uint8x32_t(const uint32x8_t &b) noexcept;
+	constexpr uint8x32_t(const uint64x4_t &b) noexcept;
+	constexpr uint8x32_t(const uint128x2_t &b) noexcept;
+
 	union {
 		// compatibility with txn_t
 		uint8_t d[32];
@@ -813,8 +829,6 @@ struct uint8x32_t {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
-
-	constexpr uint8x32_t() noexcept {}
 
 	///
 	/// \param binary
@@ -1209,6 +1223,24 @@ struct uint8x32_t {
 		return ret;
 	}
 
+	/// wrapper around: `_mm256_blend_epi8`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x32_t blend(const uint8x32_t in1,
+	                                                       const uint8x32_t in2,
+	                                                       const uint8x32_t in3) noexcept {
+		uint8x32_t ret{};
+		for (uint32_t i = 0; i < 32; i++) {
+			if (in3.v8[i]) {
+				ret.v8[i] = in1.v8[i];
+			} else {
+				ret.v8[i] = in2.v8[i];
+			}
+		}
+		return ret;
+	}
+
 	[[nodiscard]] constexpr static inline uint8x32_t popcnt(const uint8x32_t in) noexcept {
 		uint8x32_t out;
 
@@ -1229,6 +1261,12 @@ struct uint16x16_t {
 	constexpr static uint32_t LIMBS = 16;
 	using limb_type = uint16_t;
 
+	constexpr uint16x16_t() noexcept = default;
+	constexpr uint16x16_t(const uint8x32_t &b) noexcept;
+	constexpr uint16x16_t(const uint32x8_t &b) noexcept;
+	constexpr uint16x16_t(const uint64x4_t &b) noexcept;
+	constexpr uint16x16_t(const uint128x2_t &b) noexcept;
+	
 	union {
 		// compatibility with txn_t
 		uint16_t d[16];
@@ -1633,6 +1671,25 @@ struct uint16x16_t {
 		return ret;
 	}
 
+
+	/// wrapper around: `_mm256_blend_epi32`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<uint32_t imm>
+	[[nodiscard]] constexpr static inline uint16x16_t blend(const uint16x16_t in1,
+	                                                        const uint16x16_t in2) noexcept {
+		uint16x16_t ret{};
+		for (uint32_t i = 0; i < 16; i++) {
+			if (imm & (1u << (i%8))) {
+				ret.v16[i] = in2.v16[i];
+			} else {
+				ret.v16[i] = in1.v16[i];
+			}
+		}
+		return ret;
+	}
+
 	constexpr static inline uint16x16_t popcnt(const uint16x16_t in) noexcept {
 		uint16x16_t out;
 
@@ -1660,6 +1717,12 @@ struct uint16x16_t {
 struct uint32x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint32_t;
+
+	constexpr uint32x8_t() noexcept = default;
+	constexpr uint32x8_t(const uint8x32_t &b) noexcept;
+	constexpr uint32x8_t(const uint16x16_t &b) noexcept;
+	constexpr uint32x8_t(const uint64x4_t &b) noexcept;
+	constexpr uint32x8_t(const uint128x2_t &b) noexcept;
 
 	union {
 		// compatibility with txn_t
@@ -2071,6 +2134,94 @@ struct uint32x8_t {
 		return ret;
 	}
 
+	///
+	/// \tparam scale
+	/// \param ptr
+	/// \param offset
+	/// \param data
+	/// \return
+	template<const uint32_t scale = 1>
+	constexpr static inline void scatter(const void *ptr, const uint32x8_t offset, const uint32x8_t data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		const uint8_t *ptr8 = (uint8_t *) ptr;
+		for (uint32_t i = 0; i < 8; i++) {
+			*(uint32_t *) (ptr8 + offset.v32[i] * scale) = data.v32[i];
+		}
+	}
+
+	/// wrapper around: `_mm256_blend_epi32`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<uint8_t imm>
+	[[nodiscard]] constexpr static inline uint32x8_t blend(const uint32x8_t in1,
+	                                                       const uint32x8_t in2) noexcept {
+		uint32x8_t ret{};
+		for (uint32_t i = 0; i < 7; i++) {
+			if (imm & (1u << i)) {
+				ret.v32[i] = in2.v32[i];
+			} else {
+				ret.v32[i] = in1.v32[i];
+			}
+		}
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_unpacklo_epi64`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t unpacklo(const uint32x8_t in1,
+	                                                          const uint32x8_t in2) noexcept {
+		uint32x8_t ret{};
+		ret.v64[0] = in1.v64[0];
+		ret.v64[1] = in2.v64[0];
+		ret.v64[2] = in1.v64[2];
+		ret.v64[3] = in2.v64[2];
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_unpacklo_epi64`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t unpackhi(const uint32x8_t in1,
+	                                                          const uint32x8_t in2) noexcept {
+		uint32x8_t ret{};
+		ret.v64[0] = in1.v64[1];
+		ret.v64[1] = in2.v64[1];
+		ret.v64[2] = in1.v64[3];
+		ret.v64[3] = in2.v64[3];
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_permute2x128_si256`
+	/// TODO
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<const uint32_t in3>
+	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in1,
+	                                                         const uint32x8_t in2) noexcept {
+		uint32x8_t ret{};
+		switch (in3&0xf) {
+			case 0: ret.v128[0] = in1.v128[0]; break;
+			case 1: ret.v128[0] = in1.v128[1]; break;
+			case 2: ret.v128[0] = in2.v128[0]; break;
+			case 3: ret.v128[0] = in2.v128[1]; break;
+			default: ret.v128[0] = {0};
+		}
+
+		switch ((in3>>4)&0xf) {
+			case 0: ret.v128[1] = in1.v128[0]; break;
+			case 1: ret.v128[1] = in1.v128[1]; break;
+			case 2: ret.v128[1] = in2.v128[0]; break;
+			case 3: ret.v128[1] = in2.v128[1]; break;
+			default: ret.v128[1] = {0};
+		}
+		return ret;
+	}
+
 	/// TODO
 	/// \param in
 	/// \param perm
@@ -2112,6 +2263,12 @@ struct uint32x8_t {
 struct uint64x4_t {
 	constexpr static uint32_t LIMBS = 4;
 	using limb_type = uint64_t;
+
+	constexpr inline uint64x4_t() noexcept = default;
+	constexpr inline uint64x4_t(const uint8x32_t &b) noexcept;
+	constexpr inline uint64x4_t(const uint16x16_t &b) noexcept;
+	constexpr inline uint64x4_t(const uint32x8_t &b) noexcept;
+	constexpr inline uint64x4_t(const uint128x2_t &b) noexcept;
 
 	union {
 		// compatibility with txn_t
@@ -2427,17 +2584,6 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	constexpr static inline uint64x4_t permute(const uint64x4_t in1,
-	                                           const uint32_t in2) noexcept {
-		uint64x4_t ret;
-		ASSERT(0);
-		return ret;
-	}
-
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
 	constexpr static inline int gt(const uint64x4_t in1,
 	                               const uint64x4_t in2) noexcept {
 		int ret = 0;
@@ -2555,7 +2701,70 @@ struct uint64x4_t {
 
 		return ret;
 	}
+	
+	/// wrapper around: `_mm256_unpacklo_epi64`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t unpacklo(const uint64x4_t in1,
+	                                                          const uint64x4_t in2) noexcept {
+		uint64x4_t ret{};
+		ret.v64[0] = in1.v64[0];
+		ret.v64[1] = in2.v64[0];
+		ret.v64[2] = in1.v64[2];
+		ret.v64[3] = in2.v64[2];
+		return ret;
+	}
 
+	/// wrapper around: `_mm256_unpacklo_epi64`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t unpackhi(const uint64x4_t in1,
+	                                                          const uint64x4_t in2) noexcept {
+		uint64x4_t ret{};
+		ret.v64[0] = in1.v64[1];
+		ret.v64[1] = in2.v64[1];
+		ret.v64[2] = in1.v64[3];
+		ret.v64[3] = in2.v64[3];
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_permute2x128_si256`
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<const uint32_t in3>
+	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in1,
+	                                                         const uint64x4_t in2) noexcept {
+		uint64x4_t ret{};
+		switch (in3&0xf) {
+			case 0: ret.v128[0] = in1.v128[0]; break;
+			case 1: ret.v128[0] = in1.v128[1]; break;
+			case 2: ret.v128[0] = in2.v128[0]; break;
+			case 3: ret.v128[0] = in2.v128[1]; break;
+			default: ret.v64[0] = 0; ret.v64[1] = 0;
+		}
+
+		switch ((in3>>4)&0xf) {
+			case 0: ret.v128[1] = in1.v128[0]; break;
+			case 1: ret.v128[1] = in1.v128[1]; break;
+			case 2: ret.v128[1] = in2.v128[0]; break;
+			case 3: ret.v128[1] = in2.v128[1]; break;
+			default: ret.v64[2] = 0; ret.v64[3] = 0;
+		}
+		return ret;
+	}
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline uint64x4_t permute(const uint64x4_t in1,
+	                                           const uint32_t in2) noexcept {
+		uint64x4_t ret;
+		ASSERT(0);
+		return ret;
+	}
 	/// TODO
 	/// \tparam in2
 	/// \param in1
@@ -2597,4 +2806,67 @@ struct uint64x4_t {
 	}
 };
 
+struct uint128x2_t {
+	constexpr static uint32_t LIMBS = 2;
+	using limb_type = __uint128_t;
+
+	union {
+		// compatibility with TxN_t
+		__uint128_t d[2];
+
+		uint8_t v8[32];
+		uint16_t v16[16];
+		uint32_t v32[8];
+		uint64_t v64[4];
+		uint64x2_t v128[2];
+	};
+
+	constexpr uint128x2_t() noexcept = default;
+	constexpr uint128x2_t(const uint8x32_t &b) noexcept;
+	constexpr uint128x2_t(const uint16x16_t &b) noexcept;
+	constexpr uint128x2_t(const uint32x8_t &b) noexcept;
+	constexpr uint128x2_t(const uint64x4_t &b) noexcept;
+
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	/// NOTE: currently cannot be constexpr
+	/// \return
+	[[nodiscard]] static inline uint128x2_t random() noexcept {
+		uint128x2_t ret{};
+		for (size_t i = 0; i < 4; ++i) {
+			ret.v64[i] = fastrandombytes_uint64();
+		}
+		return ret;
+	}
+
+	///
+	/// \param binary
+	/// \param hex
+	constexpr inline void print(bool binary = false, bool hex = false) const;
+
+	/// wrapper around: `_mm256_bslli_epi128`
+	/// \tparam imm
+	/// \param in1
+	/// \return
+	template<const uint8_t imm>
+	[[nodiscard]] constexpr static uint128x2_t slli(const uint128x2_t in1) {
+		uint128x2_t ret{};
+		// TODO
+		return ret;
+	}
+
+	/// wrapper around: `_mm256_bslli_epi128`
+	/// \tparam imm
+	/// \param in1
+	/// \return
+	template<const uint8_t imm>
+	[[nodiscard]] constexpr static uint128x2_t srli(const uint128x2_t in1) {
+		uint128x2_t ret{};
+		// TODO
+		return ret;
+	}
+};
 #endif
