@@ -160,9 +160,9 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128[0] = (uint8x16_t) vldrq_p128(ptr128);
+			out.v128 = (uint8x16_t) vldrq_p128(ptr128);
 #else
-			out.v128[0] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128 = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
 			return out;
 		}
@@ -278,14 +278,14 @@ namespace cryptanalysislib {
 				uint16_t a, uint16_t b, uint16_t c, uint16_t d,
 				uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
 			_uint16x8_t ret;
-			ret.v64[0] = a;
-			ret.v64[1] = b;
-			ret.v64[2] = c;
-			ret.v64[3] = d;
-			ret.v64[4] = e;
-			ret.v64[5] = f;
-			ret.v64[6] = g;
-			ret.v64[7] = h;
+			ret.v16[0] = a;
+			ret.v16[1] = b;
+			ret.v16[2] = c;
+			ret.v16[3] = d;
+			ret.v16[4] = e;
+			ret.v16[5] = f;
+			ret.v16[6] = g;
+			ret.v16[7] = h;
 			return ret;
 		}
 
@@ -500,7 +500,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void aligned_store(void *ptr, const _uint32x4_t in) noexcept {
 			auto *ptr128 = (_uint32x4_t *) ptr;
-			*ptr128 = in.v128;
+			*ptr128 = in;
 		}
 
 		///
@@ -508,7 +508,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void unaligned_store(void *ptr, const _uint32x4_t in) noexcept {
 			auto *ptr128 = (_uint32x4_t *) ptr;
-			*ptr128 = in.v128;
+			*ptr128 = in;
 		}
 	};
 
@@ -643,7 +643,7 @@ namespace cryptanalysislib {
 };// namespace cryptanalysislib
 
 /// taken from: https://github.com/DLTcollab/sse2neon/blob/de2817727c72fc2f4ce9f54e2db6e40ce0548414/sse2neon.h#L4540
-/// helper function, which collects the sign bits of each 8 bit limb
+/// helper function, which collects the sign bits of each 8 bit limbs
 constexpr inline uint32_t _mm_movemask_epi8(const uint8x16_t input) noexcept {
 #ifdef __clang__
 	// Use increasingly wide shifts+adds to collect the sign bits together.
