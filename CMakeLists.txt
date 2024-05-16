@@ -35,7 +35,7 @@ include(CheckIPOSupported)  	# check for -flto
 include(CheckLanguage) 			# needed for `check_language(CUDA)`
 
 # local cmake includes
-include("deps/cmake_optimize_for_architecture/HostOptimizations.cmake")
+include("deps/cmake_optimize_for_architecture/Optimizations.cmake")
 
 # only for the CI
 include_directories("/opt/homebrew/include/")

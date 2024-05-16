@@ -6,10 +6,9 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-constexpr size_t LS = 1u << 10u;
+constexpr size_t LS = 1u << 14u;
 
 TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
-	constexpr size_t LS = 1u << 18u;
 	constexpr static NN_Config config{256, 4, 320, 64, LS, 22, 16, 0, 512};
 	NN<config> algo{};
 	algo.generate_random_instance();
