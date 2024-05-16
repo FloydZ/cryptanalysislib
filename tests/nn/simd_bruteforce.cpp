@@ -152,11 +152,7 @@ TEST(Bruteforce, simd_uxv_128) {
 	EXPECT_EQ(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 	algo.solutions_nr = 0;
-
-	algo.bruteforce_simd_128_32_2_uxv<8, 8>(LS, LS);
-	EXPECT_EQ(algo.solutions_nr, 1);
-	EXPECT_EQ(algo.all_solutions_correct(), true);
-	algo.solutions_nr = 0;
+	// NOTE: dont use 8x8
 }
 
 

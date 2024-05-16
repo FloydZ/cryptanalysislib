@@ -897,7 +897,7 @@ struct uint8x32_t {
 		return out;
 	}
 
-	///
+	/// NOTE: signed comparison
 	/// \param in1
 	/// \param in2
 	/// \return in1 > in2 uncompressed
@@ -908,7 +908,7 @@ struct uint8x32_t {
 		return ret;
 	}
 
-	///
+	/// NOTE: signed comparison
 	/// \param in1
 	/// \param in2
 	/// \return in1 > in2 compressed

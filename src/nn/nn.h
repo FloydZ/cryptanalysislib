@@ -235,8 +235,6 @@ public:
 
 			const T from_read = (e2[from_limb] & from_mask) >> from_pos;
 			const T to_read = (e2[to_limb] & to_mask) >> to_pos;
-			//e2[to_limb]   ^= (-from_read ^ e2[to_limb]) & (1ul << to_pos);
-			//e2[from_limb] ^= (-to_read ^ e2[from_limb]) & (1ul << from_pos);
 			e2[to_limb] = ((e2[to_limb] & ~to_mask) | (from_read << to_pos));
 			e2[from_limb] = ((e2[from_limb] & ~from_mask) | (to_read << from_pos));
 		}
@@ -320,8 +318,8 @@ public:
 		}
 
 		// generate solution:
-		solution_l = 6; //fastrandombytes_uint64() % LIST_SIZE;
-		solution_r = 0;// fastrandombytes_uint64() % LIST_SIZE;
+		solution_l = fastrandombytes_uint64() % LIST_SIZE;
+		solution_r = fastrandombytes_uint64() % LIST_SIZE;
 		DEBUG_MACRO(std::cout << "sols at: " << solution_l << " " << solution_r << "\n";)
 
 		if constexpr (EXACT) {
@@ -1802,9 +1800,9 @@ public:
 							}
 						}// if
 					}    // for v
-				}        // for u
-			}            // for right list
-		}                // for left list
+				} // for u
+			} // for right list
+		} // for left list
 	}
 
 
@@ -1825,9 +1823,9 @@ public:
 	                                    const size_t e2) noexcept {
 		static_assert(sizeof(T) == 8);
 		static_assert((v > 0) && (u > 0));
-		ASSERT(ELEMENT_NR_LIMBS == 1);
-		ASSERT(n <= 64);
-		ASSERT(n >= 33);
+		static_assert(ELEMENT_NR_LIMBS == 1);
+		static_assert(n <= 64);
+		static_assert(n >= 33);
 
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
@@ -1838,7 +1836,7 @@ public:
 
 		for (size_t i = s1; i < s1 + (e1 + 3) / 4; i += u, ptr_l += u) {
 
-#pragma unroll
+			#pragma unroll
 			for (uint32_t s = 0; s < u; ++s) {
 				lii[s] = uint64x4_t::load(ptr_l + s);
 			}
@@ -1848,16 +1846,16 @@ public:
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; j += v, ptr_r += v) {
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
 					rii[s] = uint64x4_t::load(ptr_r + s);
 				}
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t a1 = 0; a1 < u; ++a1) {
 					const uint64x4_t tmp1 = lii[a1];
 
-#pragma unroll
+					#pragma unroll
 					for (uint32_t a2 = 0; a2 < v; ++a2) {
 						uint64x4_t tmp2 = rii[a2];
 						int m = compare_256_64(tmp1, tmp2);
@@ -2015,27 +2013,30 @@ public:
 	                                  const size_t s2 = 0) noexcept {
 		static_assert((u <= 8) && (u > 0));
 		static_assert((v <= 8) && (v > 0));
-		ASSERT(n <= 128);
-		ASSERT(n > 64);
-		ASSERT(2 == ELEMENT_NR_LIMBS);
+		static_assert(n <= 128);
+		static_assert(n > 64);
+		static_assert(2 == ELEMENT_NR_LIMBS);
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
 
 		/// some constants
-		constexpr uint8x32_t zero = uint8x32_t::set1(0);
-		constexpr uint32x8_t shuffl = uint32x8_t::setr(7, 0, 1, 2, 3, 4, 5, 6);
+		constexpr uint8x32_t zero  = uint8x32_t::set1(0);
+		constexpr uint32x8_t shuffl= uint32x8_t::setr(7, 0, 1, 2, 3, 4, 5, 6);
 		constexpr uint32x8_t loadr = uint32x8_t::setr(0, 4, 8, 12, 16, 20, 24, 28);
 		constexpr size_t ptr_ctr_l = u * 8,
 		                 ptr_ctr_r = v * 8;
 		constexpr size_t ptr_inner_ctr_l = 8 * 4,
 		                 ptr_inner_ctr_r = 8 * 4;
 
-		if ((e1-s1 < ptr_ctr_l)  || (e2-s2 < ptr_ctr_r)) {
+		if (((e1-s1) < ptr_ctr_l) || ((e2-s2) < ptr_ctr_r)) {
 			return bruteforce_128(e1, e2);
 		}
 
 		/// container for the unrolling
-		uint32x8_t lii_1[u]{}, rii_1[v]{}, lii_2[u]{}, rii_2[v]{};
+		uint32x8_t lii_1[u]{},  // first 32 bits of the left list (8 elements)
+		           rii_1[v]{},  // right list
+		           lii_2[u]{},  // second 32 bits of the left list (8 elements)
+		           rii_2[v]{};
 
 		/// container for the solutions masks
 		/// the init with zero is important, as otherwise the
@@ -2043,7 +2044,8 @@ public:
 		alignas(32) uint8_t m1[roundToAligned<32>(u * v)] = {0};
 
 		auto *ptr_l = (uint32_t *) L1;
-		for (size_t i = s1; i < (s1 + e1 - ptr_ctr_l); i += ptr_ctr_l, ptr_l += ptr_ctr_l * 4) {
+		for (size_t i = s1; (i + ptr_ctr_l) <= (s1 + e1); i += ptr_ctr_l, ptr_l += ptr_ctr_l * 4) {
+			// load the left list
 			#pragma unroll
 			for (uint32_t s = 0; s < u; ++s) {
 				lii_1[s] = uint32x8_t::template gather<4>(ptr_l + s * ptr_inner_ctr_l + 0, loadr);
@@ -2051,9 +2053,8 @@ public:
 			}
 
 			auto *ptr_r = (uint32_t *) L2;
-			for (size_t j = s2; j < (s2 + e2 - ptr_ctr_r); j += ptr_ctr_r, ptr_r += ptr_ctr_r * 4) {
-
-				// load the fi
+			for (size_t j = s2; (j + ptr_ctr_r) <= (s2 + e2); j += ptr_ctr_r, ptr_r += ptr_ctr_r * 4) {
+				// load the right list
 				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
 					rii_1[s] = uint32x8_t::template gather<4>(ptr_r + s * ptr_inner_ctr_r + 0, loadr);
@@ -2082,7 +2083,7 @@ public:
 					}
 
 					// early exit
-					uint32_t mask = uint8x32_t::load(m1) > zero;
+					uint32_t mask = ~(uint8x32_t::load(m1) == zero);
 					if (unlikely(mask == 0)) {
 						continue;
 					}
@@ -2098,8 +2099,8 @@ public:
 
 
 					// early exit from the second limb computations
-					mask = uint8x32_t::load(m1) > zero;
-					if (likely(mask == 0)) {
+					mask = ~(uint8x32_t::load(m1) == zero);
+					if (mask == 0) {
 						continue;
 					}
 
@@ -2228,7 +2229,7 @@ public:
 			T *ptr_r = (T *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; ++j, ptr_r += 16) {
-				//#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr1);
 					const uint32_t tmp = compare_256_64(li[0 * u + mi], ri);
@@ -2657,8 +2658,8 @@ public:
 
 				BRUTEFORCE256_64_4x4_STEP2(m1s, l1, l2, l3, l4, r1, r2, r3, r4);
 				/// NOTE: we can load the data aligned.
-				uint32_t m1s1 = uint8x32_t::load<true>(m1s + 0) > zero;
-				uint32_t m1s2 = uint8x32_t::load<true>(m1s + 32) > zero;
+				uint32_t m1s1 = ~(uint8x32_t::load<true>(m1s + 0) == zero);
+				uint32_t m1s2 = ~(uint8x32_t::load<true>(m1s + 32) == zero);
 
 				if (m1s1 != 0) { bruteforce_avx2_256_64_4x4_helper<0>(m1s1, m1s, ptr_l, ptr_r, i, j); }
 				if (m1s2 != 0) { bruteforce_avx2_256_64_4x4_helper<32>(m1s2, m1s, ptr_l, ptr_r, i, j); }
