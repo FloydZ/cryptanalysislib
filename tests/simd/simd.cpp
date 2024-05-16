@@ -17,8 +17,7 @@ using ::testing::UnitTest;
 
 
 TEST(TTuint8x32_t, TTrandom) {
-	uint8x32_t t1;
-	t1.random();
+	uint8x32_t t1 = uint8x32_t::random();
 
 	uint32_t atleast_one_not_zero = false;
 	for (uint32_t i = 0; i < 32; ++i) {
