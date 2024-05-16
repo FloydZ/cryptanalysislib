@@ -157,7 +157,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint8x16_t) vldrq_p128(ptr128);
+			out.v128 = (uint8x16_t) (*ptr128);
 #else
 			out.v128 = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -172,7 +172,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint8x16_t) vldrq_p128(ptr128);
+			out.v128 = (uint8x16_t) (*ptr128);
 #else
 			out.v128 = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -321,7 +321,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint16x8_t out;
 #ifndef __clang__
-			out.v128 = (uint16x8_t) vldrq_p128(ptr128);
+			out.v128 = (uint16x8_t) (*ptr128);
 #else
 			out.v128 = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -336,7 +336,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint16x8_t out;
 #ifndef __clang__
-			out.v128 = (uint16x8_t) vldrq_p128(ptr128);
+			out.v128 = (uint16x8_t) (*ptr128);
 #else
 			out.v128 = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -471,7 +471,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint32x4_t) vldrq_p128(ptr128);
+			out.v128 = (uint32x4_t) (*ptr128);
 #else
 			out.v128 = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -486,7 +486,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint32x4_t) vldrq_p128(ptr128);
+			out.v128 = (uint32x4_t) (*ptr128);
 #else
 			out.v128 = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -600,7 +600,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint64x2_t) vldrq_p128(ptr128);
+			out.v128 = (uint64x2_t) (*ptr128);
 #else
 			out.v128 = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -615,7 +615,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint64x2_t) vldrq_p128(ptr128);
+			out.v128 = (uint64x2_t) (*ptr128);
 #else
 			out.v128 = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
