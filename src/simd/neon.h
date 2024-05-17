@@ -2090,7 +2090,7 @@ struct uint32x8_t {
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
 			const uint16x8_t tmp1 = (uint16x8_t) vcntq_u8((uint8x16_t) in.v128[i]);
-			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask/v128));
+			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask.v128));
 			out.v128[i] = vaddq_u32(vshrq_n_u32((uint32x4_t) tmp2, 16), (uint32x4_t) tmp2);
 #else
 
