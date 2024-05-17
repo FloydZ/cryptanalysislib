@@ -30,7 +30,15 @@ namespace cryptanalysislib {
 		}
 
 #ifdef __APPLE__
-		return aligned_alloc(alignment, size);
+		void *ret;
+		if (posix_memalign(&ret, alignment, size))
+			return nullptr;
+
+		return ret;
+		// const size_t off = alignment - 1;
+		// void *mem = malloc(size + off);
+		// void *ptr = (void *)(((uintptr_t)mem+off) & ~ (uintptr_t)off);
+		// return ptr;
 #else
 		return std::aligned_alloc(alignment, size);
 #endif

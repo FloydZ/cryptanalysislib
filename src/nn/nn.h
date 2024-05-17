@@ -583,12 +583,14 @@ public:
 
 			return true;
 		} else {
-			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
 			uint32_t wt = 0;
 			for (uint32_t i = s; i < ELEMENT_NR_LIMBS; i++) {
 				wt += popcount::popcount(a[i] ^ b[i]);
 			}
 
+#ifdef DEBUG
+			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
+#endif
 			ASSERT(!(a[ELEMENT_NR_LIMBS - 1] & mask));
 			ASSERT(!(b[ELEMENT_NR_LIMBS - 1] & mask));
 

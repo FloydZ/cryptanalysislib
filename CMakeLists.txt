@@ -92,12 +92,12 @@ if(USE_TCMALLOC)
 	set(MALLOC_LIBRARY_FLAGS "tcmalloc")
 endif()
 
-#TOS
-#if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+#TODO
+if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
-#endif()
+endif()
 
 if(USE_NOINLINE AND COMPILER_SUPPORTS_NO_INLINE)
 	message(STATUS "not inlining")
@@ -117,7 +117,8 @@ endif()
 #   simd512_type v512[simd512_limbs];
 # and if the type is < 512 bits, then this must be zero
 # -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
-set(ALLOWED_WARNINGS "  -Wno-gnu-label-as-value -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
+# -Wno-unknown-pragmas: needed for `#pragma unroll`
+set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-gnu-label-as-value -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
 
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 

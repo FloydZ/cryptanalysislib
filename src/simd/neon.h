@@ -251,6 +251,14 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+		[[nodiscard]] constexpr static inline _uint16x8_t set1(const uint16_t a) noexcept {
+			_uint16x8_t ret;
+			for (uint32_t i = 0; i < 8; ++i) {
+				ret.v16[i] = a;
+			}
+			return ret;
+		}
+
 		[[nodiscard]] constexpr static inline _uint16x8_t set(
 				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint16x8_t ret;
@@ -415,6 +423,14 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+		[[nodiscard]] constexpr static inline _uint32x4_t set1(const uint32_t a) noexcept {
+			_uint32x4_t ret;
+			for (uint32_t i = 0; i < 4; ++i) {
+				ret.v32[i] = a;
+			}
+			return ret;
+		}
+
 		[[nodiscard]] constexpr static inline _uint32x4_t set(
 				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint32x4_t ret;
@@ -561,6 +577,14 @@ namespace cryptanalysislib {
 				ret.v64[i] = fastrandombytes_uint64();
 			}
 
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint64x2_t set1(const uint64_t a) noexcept {
+			_uint64x2_t ret;
+			for (uint32_t i = 0; i < 2; ++i) {
+				ret.v64[i] = a;
+			}
 			return ret;
 		}
 
@@ -1158,16 +1182,11 @@ struct uint8x32_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
-#ifdef __clang__
-		uint8x16_t helper = vdupq_n_u8(-in2);
-#else
-		const short int in3 = (short) -in2;
-		uint8x16_t helper = (uint8x16_t){in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3};
-#endif
+		cryptanalysislib::_uint8x16_t helper = cryptanalysislib::_uint8x16_t::set1(-in2);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u8(in1.v128[i], helper);
+			out.v128[i] = vshlq_u8(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -1534,14 +1553,10 @@ struct uint16x16_t {
 	                                                       const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint16x16_t out;
-#ifdef __clang__
-		int16x8_t helper = vdupq_n_s16(in2);
-#else
-		int16x8_t helper = (int16x8_t){in2, in2, in2, in2, in2, in2, in2, in2};
-#endif
+		cryptanalysislib::_uint16x8_t helper = cryptanalysislib::_uint16x8_t::set1(in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u16(in1.v128[i], helper);
+			out.v128[i] = vshlq_u16(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -1555,15 +1570,10 @@ struct uint16x16_t {
 	                                                       const uint16_t in2) noexcept {
 		ASSERT(in2 <= 16);
 		uint16x16_t out;
-#ifdef __clang__
-		int16x8_t helper = vdupq_n_s16(-in2);
-#else
-		const short int in3 = (short) -in2;
-		int16x8_t helper = (int16x8_t){in3, in3, in3, in3, in3, in3, in3, in3};
-#endif
+		cryptanalysislib::_uint16x8_t helper = cryptanalysislib::_uint16x8_t::set1(-in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u16(in1.v128[i], helper);
+			out.v128[i] = vshlq_u16(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -1636,20 +1646,17 @@ struct uint16x16_t {
 	constexpr static inline uint16x16_t popcnt(const uint16x16_t in) noexcept {
 		uint16x16_t out;
 
-#ifdef __clang__
-		uint16x8_t mask = vdupq_n_u16(0xff);
-#else
-		uint16x8_t mask = (uint16x8_t){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-#endif
+		cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);
+
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
 			const uint16x8_t tmp = (uint16x8_t) vcntq_u8((uint8x16_t) in.v128[i]);
-			out.v128[i] = vaddq_u16(vshrq_n_u16(tmp, 8), vandq_u16(tmp, mask));
+			out.v128[i] = vaddq_u16(vshrq_n_u16(tmp, 8), vandq_u16(tmp, mask.v128));
 
 #else
 			const uint16x8_t tmp = (uint16x8_t) __builtin_aarch64_popcountv16qi((uint8x16_t) in.v128[i]);
-			out.v128[i] = vshrq_n_u16(tmp, 8) + vandq_u16(tmp, mask);
+			out.v128[i] = vshrq_n_u16(tmp, 8) + vandq_u16(tmp, mask.v128);
 #endif
 		}
 
@@ -1947,15 +1954,11 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
-#ifdef __clang__
-		int32x4_t helper = vdupq_n_s32(in2);
-#else
-		int32x4_t helper = (int32x4_t){in2, in2, in2, in2};
-#endif
+		cryptanalysislib::_uint32x4_t helper = cryptanalysislib::_uint32x4_t::set1(in2);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u32(in1.v128[i], helper);
+			out.v128[i] = vshlq_u32(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -1969,14 +1972,10 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
-#ifdef __clang__
-		int32x4_t helper = vdupq_n_s32(-in2);
-#else
-		int32x4_t helper = (int32x4_t){-in2, -in2, -in2, -in2};
-#endif
+		cryptanalysislib::_uint32x4_t helper = cryptanalysislib::_uint32x4_t::set1(-in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u32(in1.v128[i], helper);
+			out.v128[i] = vshlq_u32(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -2085,22 +2084,18 @@ struct uint32x8_t {
 
 	constexpr static inline uint32x8_t popcnt(const uint32x8_t in) {
 		uint32x8_t out;
-#ifdef __clang__
-		uint16x8_t mask = vdupq_n_u16(0xff);
-#else
-		uint16x8_t mask = (uint16x8_t){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-#endif
+		const cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
 			const uint16x8_t tmp1 = (uint16x8_t) vcntq_u8((uint8x16_t) in.v128[i]);
-			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
+			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask/v128));
 			out.v128[i] = vaddq_u32(vshrq_n_u32((uint32x4_t) tmp2, 16), (uint32x4_t) tmp2);
 #else
 
 			const uint16x8_t tmp1 = (uint16x8_t) __builtin_aarch64_popcountv16qi((uint8x16_t) in.v128[i]);
-			const uint16x8_t tmp2 = __builtin_aarch64_lshrv8hi_uus(tmp1, 8) + (tmp1 & mask);
+			const uint16x8_t tmp2 = __builtin_aarch64_lshrv8hi_uus(tmp1, 8) + (tmp1 & mask.v128);
 			out.v128[i] = __builtin_aarch64_lshrv4si_uus((uint32x4_t) tmp2, 16) + (uint32x4_t) tmp2;
 #endif
 		}
@@ -2387,15 +2382,11 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		uint64x4_t out;
-#ifdef __clang__
-		int64x2_t helper = vdupq_n_s64(in2);
-#else
-		int64x2_t helper = (int64x2_t){in2, in2};
-#endif
+		const cryptanalysislib::_uint64x2_t helper = cryptanalysislib::_uint64x2_t::set1(in2);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u64(in1.v128[i], helper);
+			out.v128[i] = vshlq_u64(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -2409,15 +2400,11 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint64x4_t out;
-#ifdef __clang__
-		int64x2_t helper = vdupq_n_s64(-in2);
-#else
-		int64x2_t helper = (int64x2_t){-in2, -in2};
-#endif
+		const cryptanalysislib::_uint64x2_t helper = cryptanalysislib::_uint64x2_t::set1(in2);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u64(in1.v128[i], helper);
+			out.v128[i] = vshlq_u64(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -2430,7 +2417,10 @@ struct uint64x4_t {
 	constexpr static inline uint64x4_t permute(const uint64x4_t in1,
 	                                           const uint32_t in2) noexcept {
 		uint64x4_t ret;
-		ASSERT(0);
+		(void) in1;
+		(void) in2;
+
+		ASSERT(0); // TODO
 		return ret;
 	}
 
@@ -2575,17 +2565,14 @@ struct uint64x4_t {
 	/// \return
 	constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
-#ifdef __clang
-		uint16x8_t mask = vdupq_n_u16(0xff);
-#else
-		uint16x8_t mask = (uint16x8_t){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-#endif
+
+		const cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__
 			const uint16x8_t tmp1 = (uint16x8_t) vcntq_u8((uint8x16_t) in.v128[i]);
-			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
+			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask.v128));
 			const uint32x4_t tmp3 = vaddq_u32(vshrq_n_u32((uint32x4_t) tmp2, 16), (uint32x4_t) tmp2);
 			ret.v128[i] = vaddq_u64(vshrq_n_u64((uint64x2_t) tmp3, 32), (uint64x2_t) tmp3);
 #else
