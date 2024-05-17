@@ -1875,7 +1875,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) + 3;
+							const size_t jprime = j * 4 + a2 * 4 + ((__builtin_ctz(m) + 3) % 4);
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
@@ -1886,7 +1886,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) + 2;
+							const size_t jprime = j * 4 + a2 * 4 + ((__builtin_ctz(m) + 2) % 4);
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
@@ -1897,7 +1897,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) + 1;
+							const size_t jprime = j * 4 + a2 * 4 + ((__builtin_ctz(m) + 1) % 4);
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
