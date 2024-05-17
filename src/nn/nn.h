@@ -295,7 +295,7 @@ public:
 	/// generate a random instance, just for testing and debugging
 	/// \param insert_sol if false, no solution will inserted, this is just for quick testing/benchmarking
 	void generate_random_instance(bool insert_sol = true) noexcept {
-		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
+		constexpr size_t list_size = ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T);
 		L1 = (Element *) cryptanalysislib::aligned_alloc(PAGE_SIZE, list_size);
 		L2 = (Element *) cryptanalysislib::aligned_alloc(PAGE_SIZE, list_size);
 		ASSERT(L1);
@@ -367,7 +367,7 @@ public:
 	}
 
 	// checks whether all submitted solutions are correct
-	bool all_solutions_correct() const noexcept {
+	[[nodiscard]] constexpr bool all_solutions_correct() const noexcept {
 		if (solutions_nr == 0) {
 			return false;
 		}
@@ -396,7 +396,7 @@ public:
 
 	/// checks whether a,b are a solution or not
 	/// NOTE: upper bound `d` is inclusive
-	bool compare_u32(const uint32_t a, const uint32_t b) const noexcept {
+	[[nodiscard]] bool compare_u32(const uint32_t a, const uint32_t b) const noexcept {
 		if constexpr (EXACT) {
 			return a == b;
 		} else {
@@ -409,7 +409,7 @@ public:
 	/// \param a first value
 	/// \param b second value
 	/// \return
-	bool compare_u64(const uint64_t a, const uint64_t b) const noexcept {
+	[[nodiscard]] bool compare_u64(const uint64_t a, const uint64_t b) const noexcept {
 		if constexpr (EXACT) {
 			return a == b;
 		} else {
@@ -430,7 +430,7 @@ public:
 
 		uint32_t nctr = 0;
 
-#pragma unroll
+		#pragma unroll
 		for (uint32_t i = 0; i < limit; ++i) {
 			if (wt & 1u) {
 				std::swap(to[nctr++], from[i]);
@@ -503,7 +503,7 @@ public:
 	/// \return a integer mask with only at most the first 8 bits are set:
 	/// 		bit x == 1 <=> (limb x == dk || limb x < dk || dk-eps < limb x < dk+eps)
 	///			depending on the exact config
-	constexpr inline uint32_t compare_nn_on32(const uint32x8_t tmp) const noexcept {
+	[[nodiscard]] constexpr inline uint32_t compare_nn_on32(const uint32x8_t tmp) const noexcept {
 		// sanity check: we only can compute one of those settings.
 		static_assert(NN_EQUAL + NN_LOWER + NN_BOUNDS == 1);
 
@@ -537,7 +537,7 @@ public:
 	/// \return a integer mask with only at most the first 4 bits are set:
 	/// 		bit x == 1 <=> (limb x == dk || limb x < dk || dk-eps < limb x < dk+eps)
 	///			depending on the exact config
-	constexpr inline uint32_t compare_nn_on64(const uint64x4_t tmp) const noexcept {
+	[[nodiscard]] constexpr inline uint32_t compare_nn_on64(const uint64x4_t tmp) const noexcept {
 		static_assert(NN_EQUAL + NN_LOWER + NN_BOUNDS == 1);
 		if constexpr (NN_EQUAL) {
 			constexpr uint64x4_t avx_nn_weight64 = uint64x4_t::set1(dk);
@@ -570,8 +570,9 @@ public:
 	[[nodiscard]] constexpr inline bool compare_u64_ptr(const uint64_t *a,
 	                                                    const uint64_t *b) const noexcept {
 		if constexpr (!USE_REARRANGE) {
-			ASSERT((T) a < (T) (L1 + LIST_SIZE));
-			ASSERT((T) b < (T) (L2 + LIST_SIZE));
+			// we need to allow `<=` as a could be the first element
+			ASSERT((T) a <= (T) (L1 + LIST_SIZE));
+			ASSERT((T) b <= (T) (L2 + LIST_SIZE));
 		}
 
 		if constexpr (EXACT) {
@@ -787,7 +788,7 @@ public:
 
 		/// NOTE: i need 2 ptr tracking the current position, because of the
 		/// limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 4);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 4);
 		Element *org_ptr = L;
 
 		for (size_t i = s1; i < (e1 + 7) / 8; i++, ptr += 8, org_ptr += 8) {
@@ -836,7 +837,7 @@ public:
 
 		/// NOTE: i need 2 ptr tracking the current position, because of the
 		/// limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 4);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 4);
 		Element *org_ptr = L;
 
 		constexpr uint32_t u = 4;
@@ -921,7 +922,7 @@ public:
 
 		/// NOTE: i need 2 ptr tracking the current position, because of the
 		/// limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 4);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 4);
 		Element *org_ptr = L;
 
 		constexpr uint32_t u = 4;
@@ -1005,7 +1006,7 @@ public:
 
 		/// NOTE: i need 2 ptr tracking the current position, because of the
 		/// limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 8);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 8);
 		Element *org_ptr = L;
 
 		// #pragma unroll 4
@@ -1054,7 +1055,7 @@ public:
 		size_t ctr = 0;
 
 		/// NOTE: I need 2 ptrs tracking the current position, because of the limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 8);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 8);
 		Element *org_ptr = L;
 
 		constexpr uint32_t u = 8;
@@ -1123,7 +1124,7 @@ public:
 			uint64x4_t ptr_tmp = uint64x4_t::template gather<8>(ptr, offset);
 			ptr_tmp ^= z256;
 			if constexpr (k < 64) { ptr_tmp &= SIMD_NN_K_MASK64; }
-			const uint64x4_t tmp_pop = uint64x4_t::popcnt(ptr_tmp);
+			const auto tmp_pop = uint64x4_t::popcnt(ptr_tmp);
 			const uint32_t wt = compare_nn_on64(tmp_pop) << 28u;
 			ASSERT(wt < (1u << 4u));
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
@@ -1167,7 +1168,7 @@ public:
 		size_t ctr = 0;
 
 		/// NOTE: I need 2 ptrs tracking the current position, because of the limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 8);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 8);
 		Element *org_ptr = L;
 
 		constexpr uint32_t u = 8;
@@ -1289,9 +1290,9 @@ public:
 		                                                           4 * enl, 5 * enl, 6 * enl, 7 * enl);
 
 		/// NOTE: I need 2 ptrs tracking the current position, because of the limb shift
-		Element *ptr_L1 = (Element *) (((uint8_t *) L1) + limb * 4);
+		auto *ptr_L1 = (Element *) (((uint8_t *) L1) + limb * 4);
 		Element *org_ptr_L1 = L1;
-		Element *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 4);
+		auto *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 4);
 		Element *org_ptr_L2 = L2;
 
 		constexpr uint32_t off = 8 * u;
@@ -1391,17 +1392,17 @@ public:
 		alignas(32) constexpr uint64x4_t offset = uint64x4_t::setr(0 * enl, 1 * enl, 2 * enl, 3 * enl);
 
 		/// NOTE: I need 2 ptrs tracking the current position, because of the limb shift
-		Element *ptr_L1 = (Element *) (((uint8_t *) L1) + limb * 8);
+		auto *ptr_L1 = (Element *) (((uint8_t *) L1) + limb * 8);
 		Element *org_ptr_L1 = L1;
-		Element *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 8);
+		auto *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 8);
 		Element *org_ptr_L2 = L2;
 
 		const size_t min_e = (std::min(e1, e2) + 4 * u - 1);
-		for (; i + (4 * u) <= min_e; i += (4 * u), ptr_L1 += (4 * u), org_ptr_L1 += (4 * u),
-		                             ptr_L2 += (4 * u), org_ptr_L2 += (4 * u)) {
+		for (; i + (4*u) <= min_e; i+=(4*u), ptr_L1+=(4*u), org_ptr_L1+=(4*u),
+		                             ptr_L2+=(4*u), org_ptr_L2+=(4*u)) {
 			uint32_t wt_L1 = 0, wt_L2 = 0;
 
-#pragma unroll
+			#pragma unroll
 			for (uint32_t j = 0; j < u; ++j) {
 				/// left list
 				uint64x4_t ptr_tmp_L1 = uint64x4_t::template gather<8>(ptr_L1 + 4 * j, offset);
@@ -1489,7 +1490,7 @@ public:
 
 				/// predict the future:
 				if constexpr (USE_REARRANGE) {
-					const uint32_t next_size = uint32_t(survive_prob * double(new_e1));
+					const auto next_size = uint32_t(survive_prob * double(new_e1));
 					if (next_size < BUCKET_SIZE) {
 						size_t new_new_e1, new_new_e2;
 						if constexpr (k <= 32) {
@@ -1559,7 +1560,7 @@ public:
 	/// 						....,
 	/// 		 bit7 = in1.v32[7] == in2.v32[7]]
 	template<const bool exact = false>
-	constexpr int compare_256_32(const uint32x8_t in1,
+	[[nodiscard]] constexpr int compare_256_32(const uint32x8_t in1,
 	                             const uint32x8_t in2) const noexcept {
 		if constexpr (exact) {
 			return uint32x8_t::cmp(in1, in2);
@@ -1727,7 +1728,7 @@ public:
 			const uint64x4_t li = uint64x4_t::set1(L1[i][0]);
 
 			/// NOTE: only possible because L2 is a continuous memory block
-			uint64x4_t *ptr_r = (uint64x4_t *) L2;
+			auto *ptr_r = (uint64x4_t *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; ++j, ptr_r += 1) {
 				const uint64x4_t ri = uint64x4_t::load(ptr_r);
@@ -1773,7 +1774,7 @@ public:
 			}
 
 			/// NOTE: only possible because L2 is a continuous memory block
-			uint64x4_t *ptr_r = (uint64x4_t *) L2;
+			auto *ptr_r = (uint64x4_t *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; j += v, ptr_r += v) {
 
@@ -1858,7 +1859,7 @@ public:
 					#pragma unroll
 					for (uint32_t a2 = 0; a2 < v; ++a2) {
 						uint64x4_t tmp2 = rii[a2];
-						int m = compare_256_64(tmp1, tmp2);
+						uint32_t m = compare_256_64(tmp1, tmp2);
 						if (m) {
 							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m);
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
@@ -1872,7 +1873,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) - 1;
+							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) + 3;
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
@@ -1883,7 +1884,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) - 2;
+							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) + 2;
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
@@ -1894,7 +1895,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) - 3;
+							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) + 1;
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
@@ -2187,8 +2188,8 @@ public:
 	template<uint32_t u>
 	void bruteforce_simd_256_ux4(const size_t e1,
 	                             const size_t e2) noexcept {
-		static_assert(u > 0, "");
-		static_assert(u <= 8, "");
+		static_assert(u > 0);
+		static_assert(u <= 8);
 		static_assert(n <= 256);
 		static_assert(n > 128);
 		static_assert(4 == ELEMENT_NR_LIMBS);
@@ -2307,8 +2308,8 @@ public:
 	                                const size_t e2,
 	                                const size_t s1 = 0,
 	                                const size_t s2 = 0) noexcept {
-		static_assert(u > 0, "");
-		static_assert(u <= 8, "");
+		static_assert(u > 0);
+		static_assert(u <= 8);
 
 		ASSERT(n <= 256);
 		ASSERT(n > 128);
@@ -2349,7 +2350,7 @@ public:
 
 			/// NOTE: only possible because L2 is a continuous memory block
 			/// NOTE: reset every loop
-			uint32_t *ptr_r = (uint32_t *) L2;
+			auto *ptr_r = (uint32_t *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 7) / 8; ++j, ptr_r += 64) {
 				loadr = loadr1;
@@ -2787,14 +2788,14 @@ public:
 
 		/// allowed weight to match on
 		const uint64x4_t zero = uint64x4_t::set1(0);
-		uint64x4_t *ptr_l = (uint64x4_t *) L1;
+		auto *ptr_l = (uint64x4_t *) L1;
 
 		for (size_t i = s1; i < e1; ++i, ptr_l += 1) {
 			const uint64x4_t li1 = uint64x4_t::load(ptr_l);
 
 			/// NOTE: only possible because L2 is a continuous memory block
 			/// NOTE: reset every loop
-			uint64x4_t *ptr_r = (uint64x4_t *) L2;
+			auto *ptr_r = (uint64x4_t *) L2;
 
 			for (size_t j = s2; j < s2 + e2; ++j, ptr_r += 1) {
 				const uint64x4_t ri = uint64x4_t::load(ptr_r);

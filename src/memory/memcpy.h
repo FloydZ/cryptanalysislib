@@ -145,13 +145,19 @@ namespace cryptanalysislib {
 
 			memcpyU256(out, in, bytes);
 		}
-
 #endif
+
+		///
+		/// \tparam T
+		/// \param out
+		/// \param in
+		/// \param bytes
+		/// \return
 		template<typename T>
  		constexpr void memcpy(T *out, 
 				const T *in, 
 				const size_t bytes) {
-			uint8_t *in2 = (uint8_t *)in;
+			auto *in2 = (uint8_t *)in;
 #ifdef USE_AVX512BW
 			memcpyU512BW((uint8_t *)out, in2, bytes);
 #else
@@ -160,6 +166,13 @@ namespace cryptanalysislib {
 		}
  	}
 
+	/// VERY IMPORTANT NOTE: in comparison to the original the last arguments is
+	/// is not the number of bytes but the number of elements
+	/// \tparam T
+	/// \param out
+	/// \param in
+	/// \param len number of elements
+	/// \return nothing
 	template<typename T>
 	constexpr void memcpy(T *out, T *in, size_t len) {
 		internal::memcpy(out, in, len*sizeof(T));

@@ -12,7 +12,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 	constexpr static NN_Config config{256, 4, 320, 64, LS, 22, 16, 0, 512};
 	NN<config> algo{};
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	const uint64_t z = fastrandombytes_uint64();
 	size_t e1 = algo.simd_sort_nn_on64_simple<0>(LS, z, algo.L1);
@@ -28,7 +28,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	e1 = algo.simd_sort_nn_on64_simple<1>(LS, z, algo.L1);
 	e2 = algo.simd_sort_nn_on64<1>(LS, z, algo.L2);
@@ -43,7 +43,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	e1 = algo.simd_sort_nn_on64_simple<2>(LS, z, algo.L1);
 	e2 = algo.simd_sort_nn_on64<2>(LS, z, algo.L2);
@@ -59,7 +59,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	e1 =algo.simd_sort_nn_on64_simple<3>(LS, z, algo.L1);
 	e2 =algo.simd_sort_nn_on64<3>(LS, z, algo.L2);
@@ -80,8 +80,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double64) {
 	algo1.generate_random_instance();
 	// once needed
 	algo2.generate_random_instance();
-	memcpy(algo2.L1, algo1.L1, LS*4*8);
-	memcpy(algo2.L2, algo1.L2, LS*4*8);
+	memcpy(algo2.L1, algo1.L1, LS);
+	memcpy(algo2.L2, algo1.L2, LS);
 
 	const uint64_t z = fastrandombytes_uint64();
 	size_t e11 = algo1.simd_sort_nn_on64_simple<0>(LS, z, algo1.L1);
@@ -101,8 +101,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double64) {
 	free(algo1.L1);
 	free(algo1.L2);
 	algo1.generate_random_instance();
-	memcpy(algo2.L1, algo1.L1, LS*4*8);
-	memcpy(algo2.L2, algo1.L2, LS*4*8);
+	memcpy(algo2.L1, algo1.L1, LS);
+	memcpy(algo2.L2, algo1.L2, LS);
 	e21=0, e22=0;
 
 	e11 = algo1.simd_sort_nn_on64_simple<1>(LS, z, algo1.L1);
@@ -121,8 +121,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double64) {
 	free(algo1.L1);
 	free(algo1.L2);
 	algo1.generate_random_instance();
-	memcpy(algo2.L1, algo1.L1, LS*4*8);
-	memcpy(algo2.L2, algo1.L2, LS*4*8);
+	memcpy(algo2.L1, algo1.L1, LS);
+	memcpy(algo2.L2, algo1.L2, LS);
 	e21=0, e22=0;
 
 	e11 = algo1.simd_sort_nn_on64_simple<2>(LS, z, algo1.L1);
@@ -144,7 +144,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 	constexpr static NN_Config config{256, 8, 320, 32, LS, 10, 8, 0, 512};
 	NN<config> algo{};
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	uint32_t z = fastrandombytes_uint64();
 	size_t e1 = algo.simd_sort_nn_on32_simple<0>(LS, z, algo.L1);
@@ -160,7 +160,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	z = fastrandombytes_uint64();
 	e1 = algo.simd_sort_nn_on32_simple<1>(LS, z, algo.L1);
@@ -176,7 +176,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	z = fastrandombytes_uint64();
 	e1 = algo.simd_sort_nn_on32_simple<2>(LS, z, algo.L1);
@@ -193,7 +193,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	z = fastrandombytes_uint64();
 	e1 =algo.simd_sort_nn_on32_simple<3>(LS, z, algo.L1);
@@ -215,8 +215,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double32) {
 	algo1.generate_random_instance();
 	// once needed
 	algo2.generate_random_instance();
-	memcpy(algo2.L1, algo1.L1, LS*4*8);
-	memcpy(algo2.L2, algo1.L2, LS*4*8);
+	memcpy(algo2.L1, algo1.L1, LS);
+	memcpy(algo2.L2, algo1.L2, LS);
 
 	const uint64_t z = fastrandombytes_uint64();
 	size_t e11 = algo1.simd_sort_nn_on32_simple<0>(LS, z, algo1.L1);
@@ -236,8 +236,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double32) {
 	free(algo1.L1);
 	free(algo1.L2);
 	algo1.generate_random_instance();
-	memcpy(algo2.L1, algo1.L1, LS*4*8);
-	memcpy(algo2.L2, algo1.L2, LS*4*8);
+	memcpy(algo2.L1, algo1.L1, LS);
+	memcpy(algo2.L2, algo1.L2, LS);
 	e21=0, e22=0;
 
 	e11 = algo1.simd_sort_nn_on32_simple<1>(LS, z, algo1.L1);
@@ -408,7 +408,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 	constexpr static NN_Config config{256, 8, 320, 28, LS, 8, 4, 0, 512};
 	NN<config> algo{};
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	uint32_t z = fastrandombytes_uint64();
 	size_t e1 = algo.simd_sort_nn_on32_simple<0>(LS, z, algo.L1);
@@ -424,7 +424,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	z = fastrandombytes_uint64();
 	e1 = algo.simd_sort_nn_on32_simple<1>(LS, z, algo.L1);
@@ -440,7 +440,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	z = fastrandombytes_uint64();
 	e1 = algo.simd_sort_nn_on32_simple<2>(LS, z, algo.L1);
@@ -457,7 +457,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	z = fastrandombytes_uint64();
 	e1 =algo.simd_sort_nn_on32_simple<3>(LS, z, algo.L1);
@@ -476,7 +476,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on64_k) {
 	constexpr static NN_Config config{256, 4, 320, 58, LS, 18, 16, 0, 512};
 	NN<config> algo{};
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	const uint64_t z = fastrandombytes_uint64();
 	size_t e1 = algo.simd_sort_nn_on64_simple<0>(LS, z, algo.L1);
@@ -492,7 +492,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on64_k) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	e1 = algo.simd_sort_nn_on64_simple<1>(LS, z, algo.L1);
 	e2 = algo.simd_sort_nn_on64<1>(LS, z, algo.L2);
@@ -507,7 +507,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on64_k) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	e1 = algo.simd_sort_nn_on64_simple<2>(LS, z, algo.L1);
 	e2 = algo.simd_sort_nn_on64<2>(LS, z, algo.L2);
@@ -523,7 +523,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on64_k) {
 	free(algo.L1);
 	free(algo.L2);
 	algo.generate_random_instance();
-	memcpy(algo.L1, algo.L2, LS*4*8);
+	memcpy(algo.L1, algo.L2, LS);
 
 	e1 =algo.simd_sort_nn_on64_simple<3>(LS, z, algo.L1);
 	e2 =algo.simd_sort_nn_on64<3>(LS, z, algo.L2);
