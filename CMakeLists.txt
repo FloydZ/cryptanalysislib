@@ -118,7 +118,7 @@ endif()
 # and if the type is < 512 bits, then this must be zero
 # -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
 # -Wno-unknown-pragmas: needed for `#pragma unroll`
-set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-gnu-label-as-value -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
+set(ALLOWED_WARNINGS " -Wno-c11-extensions -Wno-unknown-pragmas -Wno-gnu-label-as-value -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
 
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 
@@ -141,9 +141,11 @@ set(LINK_TEST_FLAGS
 	GTest::gtest_main 
 	Threads::Threads 
 	OpenMP::OpenMP_CXX
+    # TODO think about if this is really needed
+    atomic
 )
 
-set(LINK_BENCH_FLAGS benchmark::benchmark)
+set(LINK_BENCH_FLAGS benchmark::benchmark atomic)
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not
 # he nicest way, but by far the easiest.
