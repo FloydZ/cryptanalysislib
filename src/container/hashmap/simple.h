@@ -133,7 +133,7 @@ public:
 	///
 	/// \param i
 	/// \return
-	using inner_data_type = std::remove_all_extents<data_type>::type;
+	using inner_data_type = typename std::remove_all_extents<data_type>::type;
 	using ret_type = typename std::conditional<std::is_bounded_array_v<data_type>,
 	                                           inner_data_type *,
 	                                           valueType>::type;

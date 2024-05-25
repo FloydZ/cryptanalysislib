@@ -42,6 +42,7 @@ public:
 	constexpr static uint32_t limbs = (ncols + RADIX - 1u) / RADIX;
 
 	// number of limbs actually allocated
+	// TODO: write a SIMD abstraction layer (static global function?) which gives you the max aligment the computer supports.
 	constexpr static uint32_t alignment = 256;// NOTE: currently that's chosen for avx
 	constexpr static uint32_t fraction = alignment / RADIX;
 	constexpr static uint32_t padded_limbs = ((ncols + alignment - 1u) / alignment) * fraction;
@@ -205,11 +206,13 @@ public:
 	}
 
 	/// copy constructor
-	constexpr FqMatrix(const FqMatrix &A) noexcept {
+	constexpr FqMatrix(const FqMatrix &A) noexcept :
+		FqMatrix_Meta<T, nrows, ncols, 2, true>() {
 		std::copy(A.__data.begin(), A.__data.end(), __data.begin());
 		init_matrix_data();
 	}
-
+	
+	// constructor from a string
 	constexpr FqMatrix(const char *data, const uint32_t cols = ncols) noexcept {
 		from_string(data, cols);
 	}

@@ -221,6 +221,7 @@ public:
 	                                     const ArgumentAlloc &alloc = ArgumentAlloc(),
 	                                     const double max_load_factor = 1) noexcept
 	    : EntryAlloc(alloc), Hasher(hash), Equal(equal) {
+		(void)max_load_factor;
 		rehash(bucket_count);
 	}
 
@@ -461,7 +462,7 @@ public:
 
 	template<class K, class U = ValueSelect,
 	         typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
-	constexpr inline ValueSelect::value_type &operator[](K &&key) noexcept {
+	constexpr inline typename ValueSelect::value_type &operator[](K &&key) noexcept {
 		ASSERT(false);
 	}
 
