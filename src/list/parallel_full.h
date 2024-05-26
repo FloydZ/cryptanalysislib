@@ -73,7 +73,7 @@ public:
 private:
 	// disable the empty constructor. So you have to specify a rough size of the list. This is for optimisations reasons.
 	Parallel_List_FullElement_T() : MetaListT<Element>(){};
-
+	
 public:
 	// somehow make such flags configurable
 	constexpr static bool USE_STD_SORT = true;
@@ -104,7 +104,7 @@ public:
 	}
 
 	///
-	constexpr void sort(const size_t s = 0, const size_t e = __size) noexcept {
+	constexpr void sort(const size_t s, const size_t e) noexcept {
 		ASSERT(e <= size());
 		std::sort(begin() + s, begin() + e);
 	}
@@ -116,7 +116,7 @@ public:
 	/// \param e	upper bound of the sorting algorithm
 	/// \param hash
 	template<typename Hash>
-	constexpr void sort(Hash &hash, const size_t s = 0, const size_t e = __size) noexcept {
+	constexpr void sort(Hash &hash, const size_t s, const size_t e) noexcept {
 		ASSERT(e <= size());
 		ska_sort(__data.begin() + s,
 		         __data.begin() + e,
