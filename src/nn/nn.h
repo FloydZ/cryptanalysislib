@@ -644,6 +644,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_32(const size_t e1,
 	                   const size_t e2) noexcept {
+        ZoneScoped;
 		ASSERT(n <= 32);
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
@@ -669,6 +670,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_64(const size_t e1,
 	                   const size_t e2) noexcept {
+        ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -698,6 +700,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_96(const size_t e1,
 	                   const size_t e2) noexcept {
+        ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -730,6 +733,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_128(const size_t e1,
 	                    const size_t e2) noexcept {
+        ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -750,6 +754,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_256(const size_t e1,
 	                    const size_t e2) noexcept {
+        ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -772,10 +777,11 @@ public:
 	size_t simd_sort_nn_on32_simple(const size_t e1,
 	                                const uint32_t z,
 	                                Element *__restrict__ L) const noexcept {
+        ZoneScoped;
 		static_assert(sizeof(T) == 8);
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 32);
+		static_assert(limb <= ELEMENT_NR_LIMBS);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 32);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -814,17 +820,18 @@ public:
 
 	///
 	/// \tparam limb
-	/// \param e1
-	/// \param z
+	/// \param e1 size of the list
+	/// \param z random element
 	/// \param L
 	/// \return
 	template<const uint32_t limb>
 	size_t simd_sort_nn_on32(const size_t e1,
 	                         const uint32_t z,
 	                         Element *__restrict__ L) noexcept {
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+        ZoneScoped;
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 32);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 32);
 
 
 		/// just a shorter name, im lazy.
@@ -991,11 +998,11 @@ public:
 	size_t simd_sort_nn_on64_simple(const size_t e1,
 	                                const uint64_t z,
 	                                Element *__restrict__ L) const noexcept {
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		ZoneScoped;
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 64);
+		static_assert(k > 32);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 64);
-		ASSERT(k > 32);
-
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1041,10 +1048,11 @@ public:
 	size_t simd_sort_nn_on64(const size_t e1,
 	                         const uint64_t z,
 	                         Element *__restrict__ L) const noexcept {
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		ZoneScoped;
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 64);
+		static_assert(k > 32);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 64);
-		ASSERT(k > 32);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1154,6 +1162,7 @@ public:
 	                                   const uint64_t z,
 	                                   Element *__restrict__ L,
 	                                   T *B) const noexcept {
+		ZoneScoped;
 		ASSERT(limb <= ELEMENT_NR_LIMBS);
 		ASSERT(e1 <= LIST_SIZE);
 		ASSERT(k <= 64);
@@ -1272,6 +1281,7 @@ public:
 	                              size_t &new_e1,
 	                              size_t &new_e2,
 	                              const uint32_t z) noexcept {
+		ZoneScoped;
 		static_assert(u <= 4);
 		static_assert(u > 0);
 		ASSERT(limb <= ELEMENT_NR_LIMBS);
@@ -1376,13 +1386,14 @@ public:
 	                              size_t &new_e1,
 	                              size_t &new_e2,
 	                              const uint64_t z) noexcept {
+		ZoneScoped;
 		static_assert(u <= 16);
 		static_assert(u > 0);
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 64);
+		static_assert(k > 32);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 64);
-		ASSERT(k > 32);
 		ASSERT(new_e1 == 0);
 		ASSERT(new_e2 == 0);
 
@@ -1440,6 +1451,7 @@ public:
 	template<const uint32_t level>
 	void simd_nn_internal(const size_t e1,
 	                      const size_t e2) noexcept {
+		ZoneScoped;
 		ASSERT(e1 <= LIST_SIZE);
 		ASSERT(e2 <= LIST_SIZE);
 
@@ -1641,11 +1653,12 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_simd_32(const size_t e1,
 	                        const size_t e2) noexcept {
-		ASSERT(n <= 32);
+		ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
+		static_assert(n <= 32);
+		static_assert(d < 16);
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
-		ASSERT(d < 16);
 
 		/// difference of the memory location in the right list
 		const uint32x8_t loadr = uint32x8_t::setr(0, 1, 2, 3, 4, 5, 6, 7);
@@ -1682,9 +1695,10 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_simd_64(const size_t e1,
 	                        const size_t e2) noexcept {
+		ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(n <= 64);
-		ASSERT(n > 32);
+		static_assert(n <= 64);
+		static_assert(n > 32);
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
 
@@ -1717,6 +1731,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_simd_64_1x1(const size_t e1,
 	                            const size_t e2) noexcept {
+		ZoneScoped;
 		ASSERT(ELEMENT_NR_LIMBS == 1);
 		ASSERT(n <= 64);
 		ASSERT(n > 32);
@@ -1758,6 +1773,7 @@ public:
 	template<const uint32_t u, const uint32_t v>
 	void bruteforce_simd_64_uxv(const size_t e1,
 	                            const size_t e2) noexcept {
+		ZoneScoped;
 		ASSERT(ELEMENT_NR_LIMBS == 1);
 		ASSERT(n <= 64);
 		ASSERT(n >= 33);
@@ -1824,6 +1840,7 @@ public:
 	template<const uint32_t u, const uint32_t v>
 	void bruteforce_simd_64_uxv_shuffle(const size_t e1,
 	                                    const size_t e2) noexcept {
+		ZoneScoped;
 		static_assert(sizeof(T) == 8);
 		static_assert((v > 0) && (u > 0));
 		static_assert(ELEMENT_NR_LIMBS == 1);
@@ -1919,6 +1936,7 @@ public:
 	void bruteforce_simd_128(const size_t e1,
 	                         const size_t e2) noexcept {
 
+		ZoneScoped;
 		ASSERT(n <= 128);
 		ASSERT(n > 64);
 		ASSERT(2 == ELEMENT_NR_LIMBS);
@@ -2014,6 +2032,7 @@ public:
 	                                  const size_t e2,
 	                                  const size_t s1 = 0,
 	                                  const size_t s2 = 0) noexcept {
+		ZoneScoped;
 		static_assert((u <= 8) && (u > 0));
 		static_assert((v <= 8) && (v > 0));
 		static_assert(n <= 128);
@@ -2125,7 +2144,7 @@ public:
 	                         const size_t e2,
 	                         const size_t s1 = 0,
 	                         const size_t s2 = 0) noexcept {
-
+		ZoneScoped;
 		ASSERT(n <= 256);
 		ASSERT(n > 128);
 		ASSERT(4 == ELEMENT_NR_LIMBS);
@@ -2190,6 +2209,7 @@ public:
 	template<uint32_t u>
 	void bruteforce_simd_256_ux4(const size_t e1,
 	                             const size_t e2) noexcept {
+		ZoneScoped;
 		static_assert(u > 0);
 		static_assert(u <= 8);
 		static_assert(n <= 256);
@@ -2310,6 +2330,7 @@ public:
 	                                const size_t e2,
 	                                const size_t s1 = 0,
 	                                const size_t s2 = 0) noexcept {
+		ZoneScoped;
 		static_assert(u > 0);
 		static_assert(u <= 8);
 
@@ -2627,6 +2648,7 @@ public:
 	                                const size_t e2,
 	                                const size_t s1 = 0,
 	                                const size_t s2 = 0) noexcept {
+		ZoneScoped;
 		ASSERT(n <= 256);
 		ASSERT(4 == ELEMENT_NR_LIMBS);
 		ASSERT(e1 >= s1);
@@ -2677,6 +2699,7 @@ public:
 	                                                 const uint64_t *__restrict__ ptr_l,
 	                                                 const uint64_t *__restrict__ ptr_r,
 	                                                 const size_t i, const size_t j) noexcept {
+		ZoneScoped;
 		while (m1sx > 0) {
 			const uint32_t ctz1 = __builtin_ctz(m1sx);
 			const uint32_t ctz = off + ctz1;
@@ -2710,6 +2733,7 @@ public:
 			m1sx ^= 1u << ctz1;
 		}
 	}
+
 	/// NOTE: this is hyper optimized for the case if there is only one solution.
 	/// NOTE: this assumes that the `last` list (whatever the last is: normally
 	/// 	its the list with < BUCKET_SIZE elements) is in the REARRANGE/TRANSPOSED
@@ -2721,6 +2745,7 @@ public:
 	                                          const size_t e2,
 	                                          const size_t s1 = 0,
 	                                          const size_t s2 = 0) noexcept {
+		ZoneScoped;
 		ASSERT(e1 <= bucket_size);
 		ASSERT(e2 <= bucket_size);
 		ASSERT(n <= 256);
@@ -2750,7 +2775,7 @@ public:
 			/// reset right list pointer
 			T *ptr_r = (T *) RB;
 
-#pragma unroll 4
+			#pragma unroll 4
 			for (size_t j = s1; j < s2 + e2; j += 16, ptr_r += 16) {
 				uint64x4_t r1 = uint64x4_t::template load<true>(ptr_r + 0);
 				uint64x4_t r2 = uint64x4_t::template load<true>(ptr_r + 4);
@@ -2781,6 +2806,7 @@ public:
 	                             const size_t e2,
 	                             const size_t s1,
 	                             const size_t s2) noexcept {
+		ZoneScoped;
 		ASSERT(EXACT);
 		ASSERT(n <= 256);
 		ASSERT(n > 128);

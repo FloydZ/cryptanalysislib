@@ -73,6 +73,9 @@ TEST(Bruteforce, n256) {
 }
 
 int main(int argc, char **argv) {
+#if TRACY_ENABLE==1
+	std::cout << "Tracy Enabled" << std::endl;
+#endif
 	random_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

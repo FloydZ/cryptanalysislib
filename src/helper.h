@@ -341,4 +341,8 @@ using TypeTemplate =
                                                                                       typename std::conditional<(n <= 0xFFFFFFFFFFFFFFFF), uint64_t,
                                                                                                                 __uint128_t>::type>::type>::type>::type;
 
+
+// tracy stuff
+#include <tracy/Tracy.hpp>
+
 #endif//SMALLSECRETLWE_HELPER_H
