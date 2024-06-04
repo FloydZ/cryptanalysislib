@@ -10,6 +10,7 @@ option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SANITIZER "Enable memory sanitizer" OFF)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable -flto" OFF)
+option(USE_TRACY "Enable tracy profiling" ON)
 
 set(default_build_type "Release")
 
@@ -61,22 +62,14 @@ find_package(GTest)
 find_package(benchmark)
 find_package(Git QUIET)
 
-# init the submodules
-#if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-#    execute_process(COMMAND ${GIT_EXECUTABLE} submodule sync
-#                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
-#    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-#        message(FATAL_ERROR "git submodule update sync failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-#    endif()
-#
-#    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-#                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
-#    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-#        message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-#    endif()
-#endif()
+FetchContent_Declare(
+	tracy
+	GIT_REPOSITORY 	https://github.com/wolfpld/tracy
+	GIT_TAG 		master
+	GIT_SHALLOW 	TRUE
+	GIT_PROGRESS 	TRUE
+)
+FetchContent_MakeAvailable(tracy)
 
 # global include directories
 include_directories("deps/b63/include/b63")
@@ -146,6 +139,12 @@ set(LINK_TEST_FLAGS
 )
 
 set(LINK_BENCH_FLAGS benchmark::benchmark atomic)
+
+if(USE_TRACY)
+	message(STATUS "Using tracy")
+	list(APPEND LINK_TEST_FLAGS TracyClient)
+	list(APPEND LINK_BENCH_FLAGS TracyClient)
+endif()
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not
 # he nicest way, but by far the easiest.

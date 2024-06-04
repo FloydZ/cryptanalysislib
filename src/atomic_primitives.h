@@ -1,10 +1,11 @@
 #ifndef CRYPTANALYSISLIB_PRIMITIVES_H
 #define CRYPTANALYSISLIB_PRIMITIVES_H
 
-#include <atomic>
+// #include <atomic>
 #include <cstdint>
 #include <memory>
 
+// TODO write a include guard for this
 // #ifdef USE_STD_ATOMIC
 
 /**
