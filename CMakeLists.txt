@@ -135,7 +135,7 @@ set(LINK_TEST_FLAGS
 	Threads::Threads 
 	OpenMP::OpenMP_CXX
     # TODO think about if this is really needed
-    atomic
+	# atomic
 )
 
 set(LINK_BENCH_FLAGS benchmark::benchmark atomic)
