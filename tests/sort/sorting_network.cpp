@@ -103,6 +103,53 @@ TEST(SortingNetwork, uint32x16_t) {
 	mask = _mm256_movemask_ps((__m256) c);
 	EXPECT_EQ(mask, (1u << 8u) - 1u);
 }
+
+TEST(SortingNetwork, uint8x16_t) {
+	uint8_t d_in[16], d_out[16];
+	for (uint32_t i = 0; i < 2; ++i) {
+		((uint64_t *)d_in)[i] = fastrandombytes_uint64();
+	}
+
+	const __m128i insr = _mm_load_si128((__m128i *) d_in);
+	const __m128i outr = sortingnetwork_sort_u8x16(insr);
+	_mm_store_si128((__m128i *) d_out, outr);
+	for (uint32_t i = 0; i < 15; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+
+TEST(SortingNetwork, uint8x32_t) {
+	const uint8_t datas1[32] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
+	const uint8_t datas2[32] = {31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0};
+	uint8_t datas3[32];
+	__m128i ins1 = _mm_load_si128((__m128i *)datas2 + 0);
+	__m128i ins2 = _mm_load_si128((__m128i *)datas2 + 1);
+
+	sortingnetwork_sort_u8x32(&ins1, &ins2);
+	_mm_store_si128((__m128i *)datas3 + 0, ins1);
+	_mm_store_si128((__m128i *)datas3 + 1, ins2);
+	for (uint32_t i = 0; i < 32; i++) {
+		EXPECT_EQ(datas3[i], datas1[i]);
+	}
+}
+#endif
+
+#ifdef USE_AVX512F
+TEST(SortingNetwork, uint64x16_t) {
+	uint64_t d_in[16], d_out[16];
+	for (uint32_t i = 0; i < 16; ++i) {
+		d_in[i] = fastrandombytes_uint64();
+	}
+
+	__m512i a = _mm512_loadu_si512((__m512i *)(d_in + 0));
+	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 8));
+	sortingnetwork_sort_u64x16(a, b);
+	_mm512_storeu_si512((__m512i *)(d_out + 0), a);
+	_mm512_storeu_si512((__m512i *)(d_out + 8), b);
+	for (uint32_t i = 0; i < 15; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
 #endif
 
 int main(int argc, char **argv) {

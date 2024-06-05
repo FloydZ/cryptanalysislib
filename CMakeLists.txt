@@ -10,6 +10,9 @@ option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SANITIZER "Enable memory sanitizer" OFF)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable -flto" OFF)
+option(USE_PROFILE "Enable profile guided optmization" OFF)
+option(USE_POLLY "Enable polly loop optimization" OFF)
+option(USE_BOLT "Enable bolt binary optmization" OFF)
 option(USE_TRACY "Enable tracy profiling" ON)
 
 set(default_build_type "Release")
@@ -138,7 +141,10 @@ set(LINK_TEST_FLAGS
 	# atomic
 )
 
-set(LINK_BENCH_FLAGS benchmark::benchmark atomic)
+set(LINK_BENCH_FLAGS 
+	benchmark::benchmark 
+	# atomic
+)
 
 if(USE_TRACY)
 	message(STATUS "Using tracy")

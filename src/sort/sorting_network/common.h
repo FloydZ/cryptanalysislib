@@ -5,6 +5,9 @@
 #include "sort/sorting_network/avx2.h"
 #endif
 
+#ifdef USE_AVX512F
+#include "sort/sorting_network/avx512.h"
+#endif
 /*
  Adapted from the Bose-Nelson Sorting network code from:
  https://github.com/atinm/bose-nelson/blob/master/bose-nelson.c
