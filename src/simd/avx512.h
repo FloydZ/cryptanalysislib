@@ -28,7 +28,7 @@ struct uint8x64_t {
 	constexpr static uint32_t LIMBS = 64;
 	using limb_type = uint8_t;
 
-	constexpr uint8x64_t() noexcept {}
+	constexpr uint8x64_t() noexcept = default;
 	constexpr uint8x64_t(const uint16x32_t &b) noexcept;
 	constexpr uint8x64_t(const uint32x16_t &b) noexcept;
 	constexpr uint8x64_t(const uint64x8_t &b) noexcept;
@@ -41,8 +41,8 @@ struct uint8x64_t {
 		uint16_t v16[32];
 		uint32_t v32[16];
 		uint64_t v64[8];
-		// cryptanalysislib::_uint8x16_t v128[4];
-		__m512i v256[2];
+		cryptanalysislib::_uint8x16_t v128[4];
+		__m256i v256[2];
 		__m512i v512;
 	};
 
@@ -691,7 +691,7 @@ struct uint16x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint16_t;
 
-	constexpr uint16x32_t() noexcept {}
+	constexpr uint16x32_t() noexcept = default;
 	constexpr uint16x32_t(const uint8x64_t &b) noexcept;
 	constexpr uint16x32_t(const uint32x16_t &b) noexcept;
 	constexpr uint16x32_t(const uint64x8_t &b) noexcept;
@@ -704,7 +704,7 @@ struct uint16x32_t {
 		uint16_t v16[32];
 		uint32_t v32[16];
 		uint64_t v64[8];
-		// cryptanalysislib::_uint8x16_t v128[4];
+		cryptanalysislib::_uint16x8_t v128[4];
 		__m512i v256[2];
 		__m512i v512;
 	};
@@ -977,7 +977,7 @@ struct uint32x16_t {
 	constexpr static uint32_t LIMBS = 16;
 	using limb_type = uint32_t;
 
-	constexpr uint32x16_t() noexcept {}
+	constexpr uint32x16_t() noexcept = default;
 	constexpr uint32x16_t(const uint8x64_t &b) noexcept;
 	constexpr uint32x16_t(const uint16x32_t &b) noexcept;
 	constexpr uint32x16_t(const uint64x8_t &b) noexcept;
@@ -990,7 +990,7 @@ struct uint32x16_t {
 		uint16_t v16[32];
 		uint32_t v32[16];
 		uint64_t v64[8];
-		// cryptanalysislib::_uint8x16_t v128[4];
+		cryptanalysislib::_uint32x4_t v128[4];
 		__m512i v256[2];
 		__m512i v512;
 	};
@@ -1305,7 +1305,7 @@ struct uint64x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint64_t;
 
-	constexpr uint64x8_t() noexcept {}
+	constexpr uint64x8_t() noexcept = default;
 	constexpr uint64x8_t(const uint8x64_t &b) noexcept;
 	constexpr uint64x8_t(const uint32x16_t &b) noexcept;
 	constexpr uint64x8_t(const uint16x32_t &b) noexcept;
@@ -1318,7 +1318,7 @@ struct uint64x8_t {
 		uint16_t v16[32];
 		uint32_t v32[16];
 		uint64_t v64[8];
-		// cryptanalysislib::_uint8x16_t v128[4];
+		cryptanalysislib::_uint64x2_t v128[4];
 		__m512i v256[2];
 		__m512i v512;
 	};
