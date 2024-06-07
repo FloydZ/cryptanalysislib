@@ -1228,7 +1228,7 @@ struct uint8x32_t {
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
-		for (uint32 i = 1; i < 31; ++i) {
+		for (uint32_t i = 1; i < 31; ++i) {
 			if (in.v32[0] != in.v32[i]) {
 				return false;
 			}
