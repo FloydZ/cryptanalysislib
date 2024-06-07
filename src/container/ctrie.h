@@ -15,7 +15,7 @@
 #include <sys/types.h>
 
 #include "helper.h"
-#include "math/log.h"
+#include "math/math.h"
 #include "atomic_primitives.h"
 #include "hashmap/growth_policy.h"
 

@@ -235,8 +235,6 @@ public:
 
 			const T from_read = (e2[from_limb] & from_mask) >> from_pos;
 			const T to_read = (e2[to_limb] & to_mask) >> to_pos;
-			//e2[to_limb]   ^= (-from_read ^ e2[to_limb]) & (1ul << to_pos);
-			//e2[from_limb] ^= (-to_read ^ e2[from_limb]) & (1ul << from_pos);
 			e2[to_limb] = ((e2[to_limb] & ~to_mask) | (from_read << to_pos));
 			e2[from_limb] = ((e2[from_limb] & ~from_mask) | (to_read << from_pos));
 		}
@@ -297,9 +295,9 @@ public:
 	/// generate a random instance, just for testing and debugging
 	/// \param insert_sol if false, no solution will inserted, this is just for quick testing/benchmarking
 	void generate_random_instance(bool insert_sol = true) noexcept {
-		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
-		L1 = (Element *) cryptanalysislib::aligned_alloc(PAGE_SIZE, list_size);
-		L2 = (Element *) cryptanalysislib::aligned_alloc(PAGE_SIZE, list_size);
+		constexpr size_t list_size = ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T);
+		L1 = (Element *) cryptanalysislib::aligned_alloc(CUSTOM_PAGE_SIZE, list_size);
+		L2 = (Element *) cryptanalysislib::aligned_alloc(CUSTOM_PAGE_SIZE, list_size);
 		ASSERT(L1);
 		ASSERT(L2);
 
@@ -369,7 +367,7 @@ public:
 	}
 
 	// checks whether all submitted solutions are correct
-	bool all_solutions_correct() const noexcept {
+	[[nodiscard]] constexpr bool all_solutions_correct() const noexcept {
 		if (solutions_nr == 0) {
 			return false;
 		}
@@ -398,7 +396,7 @@ public:
 
 	/// checks whether a,b are a solution or not
 	/// NOTE: upper bound `d` is inclusive
-	bool compare_u32(const uint32_t a, const uint32_t b) const noexcept {
+	[[nodiscard]] bool compare_u32(const uint32_t a, const uint32_t b) const noexcept {
 		if constexpr (EXACT) {
 			return a == b;
 		} else {
@@ -411,7 +409,7 @@ public:
 	/// \param a first value
 	/// \param b second value
 	/// \return
-	bool compare_u64(const uint64_t a, const uint64_t b) const noexcept {
+	[[nodiscard]] bool compare_u64(const uint64_t a, const uint64_t b) const noexcept {
 		if constexpr (EXACT) {
 			return a == b;
 		} else {
@@ -432,7 +430,7 @@ public:
 
 		uint32_t nctr = 0;
 
-#pragma unroll
+		#pragma unroll
 		for (uint32_t i = 0; i < limit; ++i) {
 			if (wt & 1u) {
 				std::swap(to[nctr++], from[i]);
@@ -505,7 +503,7 @@ public:
 	/// \return a integer mask with only at most the first 8 bits are set:
 	/// 		bit x == 1 <=> (limb x == dk || limb x < dk || dk-eps < limb x < dk+eps)
 	///			depending on the exact config
-	constexpr inline uint32_t compare_nn_on32(const uint32x8_t tmp) const noexcept {
+	[[nodiscard]] constexpr inline uint32_t compare_nn_on32(const uint32x8_t tmp) const noexcept {
 		// sanity check: we only can compute one of those settings.
 		static_assert(NN_EQUAL + NN_LOWER + NN_BOUNDS == 1);
 
@@ -539,7 +537,7 @@ public:
 	/// \return a integer mask with only at most the first 4 bits are set:
 	/// 		bit x == 1 <=> (limb x == dk || limb x < dk || dk-eps < limb x < dk+eps)
 	///			depending on the exact config
-	constexpr inline uint32_t compare_nn_on64(const uint64x4_t tmp) const noexcept {
+	[[nodiscard]] constexpr inline uint32_t compare_nn_on64(const uint64x4_t tmp) const noexcept {
 		static_assert(NN_EQUAL + NN_LOWER + NN_BOUNDS == 1);
 		if constexpr (NN_EQUAL) {
 			constexpr uint64x4_t avx_nn_weight64 = uint64x4_t::set1(dk);
@@ -572,8 +570,9 @@ public:
 	[[nodiscard]] constexpr inline bool compare_u64_ptr(const uint64_t *a,
 	                                                    const uint64_t *b) const noexcept {
 		if constexpr (!USE_REARRANGE) {
-			ASSERT((T) a < (T) (L1 + LIST_SIZE));
-			ASSERT((T) b < (T) (L2 + LIST_SIZE));
+			// we need to allow `<=` as a could be the first element
+			ASSERT((T) a <= (T) (L1 + LIST_SIZE));
+			ASSERT((T) b <= (T) (L2 + LIST_SIZE));
 		}
 
 		if constexpr (EXACT) {
@@ -584,12 +583,14 @@ public:
 
 			return true;
 		} else {
-			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
 			uint32_t wt = 0;
 			for (uint32_t i = s; i < ELEMENT_NR_LIMBS; i++) {
 				wt += popcount::popcount(a[i] ^ b[i]);
 			}
 
+#ifdef DEBUG
+			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
+#endif
 			ASSERT(!(a[ELEMENT_NR_LIMBS - 1] & mask));
 			ASSERT(!(b[ELEMENT_NR_LIMBS - 1] & mask));
 
@@ -643,6 +644,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_32(const size_t e1,
 	                   const size_t e2) noexcept {
+        ZoneScoped;
 		ASSERT(n <= 32);
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
@@ -668,6 +670,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_64(const size_t e1,
 	                   const size_t e2) noexcept {
+        ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -697,6 +700,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_96(const size_t e1,
 	                   const size_t e2) noexcept {
+        ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -729,6 +733,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_128(const size_t e1,
 	                    const size_t e2) noexcept {
+        ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -749,6 +754,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_256(const size_t e1,
 	                    const size_t e2) noexcept {
+        ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -771,10 +777,11 @@ public:
 	size_t simd_sort_nn_on32_simple(const size_t e1,
 	                                const uint32_t z,
 	                                Element *__restrict__ L) const noexcept {
+        ZoneScoped;
 		static_assert(sizeof(T) == 8);
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 32);
+		static_assert(limb <= ELEMENT_NR_LIMBS);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 32);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -789,7 +796,7 @@ public:
 
 		/// NOTE: i need 2 ptr tracking the current position, because of the
 		/// limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 4);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 4);
 		Element *org_ptr = L;
 
 		for (size_t i = s1; i < (e1 + 7) / 8; i++, ptr += 8, org_ptr += 8) {
@@ -813,17 +820,18 @@ public:
 
 	///
 	/// \tparam limb
-	/// \param e1
-	/// \param z
+	/// \param e1 size of the list
+	/// \param z random element
 	/// \param L
 	/// \return
 	template<const uint32_t limb>
 	size_t simd_sort_nn_on32(const size_t e1,
 	                         const uint32_t z,
 	                         Element *__restrict__ L) noexcept {
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+        ZoneScoped;
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 32);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 32);
 
 
 		/// just a shorter name, im lazy.
@@ -838,7 +846,7 @@ public:
 
 		/// NOTE: i need 2 ptr tracking the current position, because of the
 		/// limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 4);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 4);
 		Element *org_ptr = L;
 
 		constexpr uint32_t u = 4;
@@ -923,7 +931,7 @@ public:
 
 		/// NOTE: i need 2 ptr tracking the current position, because of the
 		/// limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 4);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 4);
 		Element *org_ptr = L;
 
 		constexpr uint32_t u = 4;
@@ -990,11 +998,11 @@ public:
 	size_t simd_sort_nn_on64_simple(const size_t e1,
 	                                const uint64_t z,
 	                                Element *__restrict__ L) const noexcept {
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		ZoneScoped;
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 64);
+		static_assert(k > 32);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 64);
-		ASSERT(k > 32);
-
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1007,7 +1015,7 @@ public:
 
 		/// NOTE: i need 2 ptr tracking the current position, because of the
 		/// limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 8);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 8);
 		Element *org_ptr = L;
 
 		// #pragma unroll 4
@@ -1040,10 +1048,11 @@ public:
 	size_t simd_sort_nn_on64(const size_t e1,
 	                         const uint64_t z,
 	                         Element *__restrict__ L) const noexcept {
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		ZoneScoped;
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 64);
+		static_assert(k > 32);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 64);
-		ASSERT(k > 32);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1056,7 +1065,7 @@ public:
 		size_t ctr = 0;
 
 		/// NOTE: I need 2 ptrs tracking the current position, because of the limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 8);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 8);
 		Element *org_ptr = L;
 
 		constexpr uint32_t u = 8;
@@ -1125,7 +1134,7 @@ public:
 			uint64x4_t ptr_tmp = uint64x4_t::template gather<8>(ptr, offset);
 			ptr_tmp ^= z256;
 			if constexpr (k < 64) { ptr_tmp &= SIMD_NN_K_MASK64; }
-			const uint64x4_t tmp_pop = uint64x4_t::popcnt(ptr_tmp);
+			const auto tmp_pop = uint64x4_t::popcnt(ptr_tmp);
 			const uint32_t wt = compare_nn_on64(tmp_pop) << 28u;
 			ASSERT(wt < (1u << 4u));
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
@@ -1153,6 +1162,7 @@ public:
 	                                   const uint64_t z,
 	                                   Element *__restrict__ L,
 	                                   T *B) const noexcept {
+		ZoneScoped;
 		ASSERT(limb <= ELEMENT_NR_LIMBS);
 		ASSERT(e1 <= LIST_SIZE);
 		ASSERT(k <= 64);
@@ -1169,7 +1179,7 @@ public:
 		size_t ctr = 0;
 
 		/// NOTE: I need 2 ptrs tracking the current position, because of the limb shift
-		Element *ptr = (Element *) (((uint8_t *) L) + limb * 8);
+		auto *ptr = (Element *) (((uint8_t *) L) + limb * 8);
 		Element *org_ptr = L;
 
 		constexpr uint32_t u = 8;
@@ -1271,6 +1281,7 @@ public:
 	                              size_t &new_e1,
 	                              size_t &new_e2,
 	                              const uint32_t z) noexcept {
+		ZoneScoped;
 		static_assert(u <= 4);
 		static_assert(u > 0);
 		ASSERT(limb <= ELEMENT_NR_LIMBS);
@@ -1291,9 +1302,9 @@ public:
 		                                                           4 * enl, 5 * enl, 6 * enl, 7 * enl);
 
 		/// NOTE: I need 2 ptrs tracking the current position, because of the limb shift
-		Element *ptr_L1 = (Element *) (((uint8_t *) L1) + limb * 4);
+		auto *ptr_L1 = (Element *) (((uint8_t *) L1) + limb * 4);
 		Element *org_ptr_L1 = L1;
-		Element *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 4);
+		auto *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 4);
 		Element *org_ptr_L2 = L2;
 
 		constexpr uint32_t off = 8 * u;
@@ -1375,13 +1386,14 @@ public:
 	                              size_t &new_e1,
 	                              size_t &new_e2,
 	                              const uint64_t z) noexcept {
+		ZoneScoped;
 		static_assert(u <= 16);
 		static_assert(u > 0);
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(limb <= ELEMENT_NR_LIMBS);
+		static_assert(k <= 64);
+		static_assert(k > 32);
 		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 64);
-		ASSERT(k > 32);
 		ASSERT(new_e1 == 0);
 		ASSERT(new_e2 == 0);
 
@@ -1393,17 +1405,17 @@ public:
 		alignas(32) constexpr uint64x4_t offset = uint64x4_t::setr(0 * enl, 1 * enl, 2 * enl, 3 * enl);
 
 		/// NOTE: I need 2 ptrs tracking the current position, because of the limb shift
-		Element *ptr_L1 = (Element *) (((uint8_t *) L1) + limb * 8);
+		auto *ptr_L1 = (Element *) (((uint8_t *) L1) + limb * 8);
 		Element *org_ptr_L1 = L1;
-		Element *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 8);
+		auto *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 8);
 		Element *org_ptr_L2 = L2;
 
 		const size_t min_e = (std::min(e1, e2) + 4 * u - 1);
-		for (; i + (4 * u) <= min_e; i += (4 * u), ptr_L1 += (4 * u), org_ptr_L1 += (4 * u),
-		                             ptr_L2 += (4 * u), org_ptr_L2 += (4 * u)) {
+		for (; i + (4*u) <= min_e; i+=(4*u), ptr_L1+=(4*u), org_ptr_L1+=(4*u),
+		                             ptr_L2+=(4*u), org_ptr_L2+=(4*u)) {
 			uint32_t wt_L1 = 0, wt_L2 = 0;
 
-#pragma unroll
+			#pragma unroll
 			for (uint32_t j = 0; j < u; ++j) {
 				/// left list
 				uint64x4_t ptr_tmp_L1 = uint64x4_t::template gather<8>(ptr_L1 + 4 * j, offset);
@@ -1439,6 +1451,7 @@ public:
 	template<const uint32_t level>
 	void simd_nn_internal(const size_t e1,
 	                      const size_t e2) noexcept {
+		ZoneScoped;
 		ASSERT(e1 <= LIST_SIZE);
 		ASSERT(e2 <= LIST_SIZE);
 
@@ -1491,7 +1504,7 @@ public:
 
 				/// predict the future:
 				if constexpr (USE_REARRANGE) {
-					const uint32_t next_size = uint32_t(survive_prob * double(new_e1));
+					const auto next_size = uint32_t(survive_prob * double(new_e1));
 					if (next_size < BUCKET_SIZE) {
 						size_t new_new_e1, new_new_e2;
 						if constexpr (k <= 32) {
@@ -1561,7 +1574,7 @@ public:
 	/// 						....,
 	/// 		 bit7 = in1.v32[7] == in2.v32[7]]
 	template<const bool exact = false>
-	constexpr int compare_256_32(const uint32x8_t in1,
+	[[nodiscard]] constexpr int compare_256_32(const uint32x8_t in1,
 	                             const uint32x8_t in2) const noexcept {
 		if constexpr (exact) {
 			return uint32x8_t::cmp(in1, in2);
@@ -1640,11 +1653,12 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_simd_32(const size_t e1,
 	                        const size_t e2) noexcept {
-		ASSERT(n <= 32);
+		ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
+		static_assert(n <= 32);
+		static_assert(d < 16);
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
-		ASSERT(d < 16);
 
 		/// difference of the memory location in the right list
 		const uint32x8_t loadr = uint32x8_t::setr(0, 1, 2, 3, 4, 5, 6, 7);
@@ -1681,9 +1695,10 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_simd_64(const size_t e1,
 	                        const size_t e2) noexcept {
+		ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(n <= 64);
-		ASSERT(n > 32);
+		static_assert(n <= 64);
+		static_assert(n > 32);
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
 
@@ -1716,6 +1731,7 @@ public:
 	/// \param e2 end index list 2
 	void bruteforce_simd_64_1x1(const size_t e1,
 	                            const size_t e2) noexcept {
+		ZoneScoped;
 		ASSERT(ELEMENT_NR_LIMBS == 1);
 		ASSERT(n <= 64);
 		ASSERT(n > 32);
@@ -1729,7 +1745,7 @@ public:
 			const uint64x4_t li = uint64x4_t::set1(L1[i][0]);
 
 			/// NOTE: only possible because L2 is a continuous memory block
-			uint64x4_t *ptr_r = (uint64x4_t *) L2;
+			auto *ptr_r = (uint64x4_t *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; ++j, ptr_r += 1) {
 				const uint64x4_t ri = uint64x4_t::load(ptr_r);
@@ -1757,6 +1773,7 @@ public:
 	template<const uint32_t u, const uint32_t v>
 	void bruteforce_simd_64_uxv(const size_t e1,
 	                            const size_t e2) noexcept {
+		ZoneScoped;
 		ASSERT(ELEMENT_NR_LIMBS == 1);
 		ASSERT(n <= 64);
 		ASSERT(n >= 33);
@@ -1775,7 +1792,7 @@ public:
 			}
 
 			/// NOTE: only possible because L2 is a continuous memory block
-			uint64x4_t *ptr_r = (uint64x4_t *) L2;
+			auto *ptr_r = (uint64x4_t *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; j += v, ptr_r += v) {
 
@@ -1802,9 +1819,9 @@ public:
 							}
 						}// if
 					}    // for v
-				}        // for u
-			}            // for right list
-		}                // for left list
+				} // for u
+			} // for right list
+		} // for left list
 	}
 
 
@@ -1823,11 +1840,12 @@ public:
 	template<const uint32_t u, const uint32_t v>
 	void bruteforce_simd_64_uxv_shuffle(const size_t e1,
 	                                    const size_t e2) noexcept {
+		ZoneScoped;
 		static_assert(sizeof(T) == 8);
 		static_assert((v > 0) && (u > 0));
-		ASSERT(ELEMENT_NR_LIMBS == 1);
-		ASSERT(n <= 64);
-		ASSERT(n >= 33);
+		static_assert(ELEMENT_NR_LIMBS == 1);
+		static_assert(n <= 64);
+		static_assert(n >= 33);
 
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
@@ -1838,7 +1856,7 @@ public:
 
 		for (size_t i = s1; i < s1 + (e1 + 3) / 4; i += u, ptr_l += u) {
 
-#pragma unroll
+			#pragma unroll
 			for (uint32_t s = 0; s < u; ++s) {
 				lii[s] = uint64x4_t::load(ptr_l + s);
 			}
@@ -1848,19 +1866,19 @@ public:
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; j += v, ptr_r += v) {
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
 					rii[s] = uint64x4_t::load(ptr_r + s);
 				}
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t a1 = 0; a1 < u; ++a1) {
 					const uint64x4_t tmp1 = lii[a1];
 
-#pragma unroll
+					#pragma unroll
 					for (uint32_t a2 = 0; a2 < v; ++a2) {
 						uint64x4_t tmp2 = rii[a2];
-						int m = compare_256_64(tmp1, tmp2);
+						uint32_t m = compare_256_64(tmp1, tmp2);
 						if (m) {
 							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m);
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
@@ -1874,7 +1892,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) - 1;
+							const size_t jprime = j * 4 + a2 * 4 + ((__builtin_ctz(m) + 3) % 4);
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
@@ -1885,7 +1903,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) - 2;
+							const size_t jprime = j * 4 + a2 * 4 + ((__builtin_ctz(m) + 2) % 4);
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
@@ -1896,7 +1914,7 @@ public:
 						tmp2 = uint64x4_t::template permute<0b10010011>(tmp2);
 						m = compare_256_64(tmp1, tmp2);
 						if (m) {
-							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m) - 3;
+							const size_t jprime = j * 4 + a2 * 4 + ((__builtin_ctz(m) + 1) % 4);
 							const size_t iprime = i * 4 + a1 * 4 + __builtin_ctz(m);
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
@@ -1918,6 +1936,7 @@ public:
 	void bruteforce_simd_128(const size_t e1,
 	                         const size_t e2) noexcept {
 
+		ZoneScoped;
 		ASSERT(n <= 128);
 		ASSERT(n > 64);
 		ASSERT(2 == ELEMENT_NR_LIMBS);
@@ -2013,29 +2032,33 @@ public:
 	                                  const size_t e2,
 	                                  const size_t s1 = 0,
 	                                  const size_t s2 = 0) noexcept {
+		ZoneScoped;
 		static_assert((u <= 8) && (u > 0));
 		static_assert((v <= 8) && (v > 0));
-		ASSERT(n <= 128);
-		ASSERT(n > 64);
-		ASSERT(2 == ELEMENT_NR_LIMBS);
+		static_assert(n <= 128);
+		static_assert(n > 64);
+		static_assert(2 == ELEMENT_NR_LIMBS);
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
 
 		/// some constants
-		constexpr uint8x32_t zero = uint8x32_t::set1(0);
-		constexpr uint32x8_t shuffl = uint32x8_t::setr(7, 0, 1, 2, 3, 4, 5, 6);
+		constexpr uint8x32_t zero  = uint8x32_t::set1(0);
+		constexpr uint32x8_t shuffl= uint32x8_t::setr(7, 0, 1, 2, 3, 4, 5, 6);
 		constexpr uint32x8_t loadr = uint32x8_t::setr(0, 4, 8, 12, 16, 20, 24, 28);
 		constexpr size_t ptr_ctr_l = u * 8,
 		                 ptr_ctr_r = v * 8;
 		constexpr size_t ptr_inner_ctr_l = 8 * 4,
 		                 ptr_inner_ctr_r = 8 * 4;
 
-		if ((e1-s1 < ptr_ctr_l)  || (e2-s2 < ptr_ctr_r)) {
+		if (((e1-s1) < ptr_ctr_l) || ((e2-s2) < ptr_ctr_r)) {
 			return bruteforce_128(e1, e2);
 		}
 
 		/// container for the unrolling
-		uint32x8_t lii_1[u]{}, rii_1[v]{}, lii_2[u]{}, rii_2[v]{};
+		uint32x8_t lii_1[u]{},  // first 32 bits of the left list (8 elements)
+		           rii_1[v]{},  // right list
+		           lii_2[u]{},  // second 32 bits of the left list (8 elements)
+		           rii_2[v]{};
 
 		/// container for the solutions masks
 		/// the init with zero is important, as otherwise the
@@ -2043,7 +2066,8 @@ public:
 		alignas(32) uint8_t m1[roundToAligned<32>(u * v)] = {0};
 
 		auto *ptr_l = (uint32_t *) L1;
-		for (size_t i = s1; i < (s1 + e1 - ptr_ctr_l); i += ptr_ctr_l, ptr_l += ptr_ctr_l * 4) {
+		for (size_t i = s1; (i + ptr_ctr_l) <= (s1 + e1); i += ptr_ctr_l, ptr_l += ptr_ctr_l * 4) {
+			// load the left list
 			#pragma unroll
 			for (uint32_t s = 0; s < u; ++s) {
 				lii_1[s] = uint32x8_t::template gather<4>(ptr_l + s * ptr_inner_ctr_l + 0, loadr);
@@ -2051,9 +2075,8 @@ public:
 			}
 
 			auto *ptr_r = (uint32_t *) L2;
-			for (size_t j = s2; j < (s2 + e2 - ptr_ctr_r); j += ptr_ctr_r, ptr_r += ptr_ctr_r * 4) {
-
-				// load the fi
+			for (size_t j = s2; (j + ptr_ctr_r) <= (s2 + e2); j += ptr_ctr_r, ptr_r += ptr_ctr_r * 4) {
+				// load the right list
 				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
 					rii_1[s] = uint32x8_t::template gather<4>(ptr_r + s * ptr_inner_ctr_r + 0, loadr);
@@ -2082,7 +2105,7 @@ public:
 					}
 
 					// early exit
-					uint32_t mask = uint8x32_t::load(m1) > zero;
+					uint32_t mask = ~(uint8x32_t::load(m1) == zero);
 					if (unlikely(mask == 0)) {
 						continue;
 					}
@@ -2098,8 +2121,8 @@ public:
 
 
 					// early exit from the second limb computations
-					mask = uint8x32_t::load(m1) > zero;
-					if (likely(mask == 0)) {
+					mask = ~(uint8x32_t::load(m1) == zero);
+					if (mask == 0) {
 						continue;
 					}
 
@@ -2121,7 +2144,7 @@ public:
 	                         const size_t e2,
 	                         const size_t s1 = 0,
 	                         const size_t s2 = 0) noexcept {
-
+		ZoneScoped;
 		ASSERT(n <= 256);
 		ASSERT(n > 128);
 		ASSERT(4 == ELEMENT_NR_LIMBS);
@@ -2186,12 +2209,12 @@ public:
 	template<uint32_t u>
 	void bruteforce_simd_256_ux4(const size_t e1,
 	                             const size_t e2) noexcept {
-		static_assert(u > 0, "");
-		static_assert(u <= 8, "");
-
-		ASSERT(n <= 256);
-		ASSERT(n > 128);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
+		ZoneScoped;
+		static_assert(u > 0);
+		static_assert(u <= 8);
+		static_assert(n <= 256);
+		static_assert(n > 128);
+		static_assert(4 == ELEMENT_NR_LIMBS);
 		constexpr size_t s1 = 0, s2 = 0;
 		ASSERT(e1 >= s1);
 		ASSERT(e2 >= s2);
@@ -2229,7 +2252,7 @@ public:
 			T *ptr_r = (T *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; ++j, ptr_r += 16) {
-				//#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr1);
 					const uint32_t tmp = compare_256_64(li[0 * u + mi], ri);
@@ -2307,8 +2330,9 @@ public:
 	                                const size_t e2,
 	                                const size_t s1 = 0,
 	                                const size_t s2 = 0) noexcept {
-		static_assert(u > 0, "");
-		static_assert(u <= 8, "");
+		ZoneScoped;
+		static_assert(u > 0);
+		static_assert(u <= 8);
 
 		ASSERT(n <= 256);
 		ASSERT(n > 128);
@@ -2349,7 +2373,7 @@ public:
 
 			/// NOTE: only possible because L2 is a continuous memory block
 			/// NOTE: reset every loop
-			uint32_t *ptr_r = (uint32_t *) L2;
+			auto *ptr_r = (uint32_t *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 7) / 8; ++j, ptr_r += 64) {
 				loadr = loadr1;
@@ -2470,286 +2494,6 @@ public:
 						found_solution(iprime, jprime);
 					}
 				}
-			}
-		}
-	}
-
-	/// specialized helper function which is capable of recovering solutions
-	/// after multiple internal runs of `brutefroce_simd_256_32_8x8`
-	/// \tparam off
-	/// \tparam rotation
-	/// \param m1sx a set bit in this corresponds to a partial solution in
-	/// 		in the two lists
-	/// \param m1s
-	/// \param ptr_l
-	/// \param ptr_r
-	/// \param i
-	/// \param j
-	template<const uint32_t off, const uint32_t rotation>
-	void bruteforce_avx2_256_32_8x8_helper(uint32_t m1sx,
-	                                       const uint8_t *m1s,
-	                                       const uint32_t *ptr_l,
-	                                       const uint32_t *ptr_r,
-	                                       const size_t i, const size_t j) noexcept {
-		static_assert(rotation < 8);
-		static_assert(off % 32 == 0);
-
-		while (m1sx > 0) {
-			const uint32_t ctz1 = __builtin_ctz(m1sx);
-			const uint32_t ctz = off + ctz1;
-			const uint32_t m1sc = m1s[ctz];
-			const uint32_t m1sc_ctz = __builtin_ctz(m1sc);
-
-			const uint32_t test_j = ctz % 8;
-			const uint32_t test_i = ctz / 8;
-
-			// NOTE: the signed is important
-			const int32_t off_l = test_i * 8 + m1sc_ctz;
-			const int32_t off_r = test_j * 8 + (8 - rotation + m1sc_ctz) % 8;
-
-			const uint64_t *test_tl = (uint64_t *) (ptr_l + off_l * 8);
-			const uint64_t *test_tr = (uint64_t *) (ptr_r + off_r * 8);
-			if (compare_u64_ptr(test_tl, test_tr)) {
-				found_solution(i + off_l, j + off_r);
-			}
-
-			m1sx ^= 1u << ctz1;
-		}
-	}
-
-	/// unrolled bruteforce step.
-	/// stack: uint64_t[64]
-	/// a1-a8, b1-b7: __m256i
-	inline void BRUTEFORCE256_32_8x8_STEP(
-	        uint8_t *stack,
-	        const uint32x8_t a1, const uint32x8_t a2, const uint32x8_t a3, const uint32x8_t a4,
-	        const uint32x8_t a5, const uint32x8_t a6, const uint32x8_t a7, const uint32x8_t a8,
-	        const uint32x8_t b1, const uint32x8_t b2, const uint32x8_t b3, const uint32x8_t b4,
-	        const uint32x8_t b5, const uint32x8_t b6, const uint32x8_t b7, const uint32x8_t b8) {
-		stack[0] = (uint8_t) compare_256_32(a1, b1);
-		stack[1] = (uint8_t) compare_256_32(a1, b2);
-		stack[2] = (uint8_t) compare_256_32(a1, b3);
-		stack[3] = (uint8_t) compare_256_32(a1, b4);
-		stack[4] = (uint8_t) compare_256_32(a1, b5);
-		stack[5] = (uint8_t) compare_256_32(a1, b6);
-		stack[6] = (uint8_t) compare_256_32(a1, b7);
-		stack[7] = (uint8_t) compare_256_32(a1, b8);
-		stack[8] = (uint8_t) compare_256_32(a2, b1);
-		stack[9] = (uint8_t) compare_256_32(a2, b2);
-		stack[10] = (uint8_t) compare_256_32(a2, b3);
-		stack[11] = (uint8_t) compare_256_32(a2, b4);
-		stack[12] = (uint8_t) compare_256_32(a2, b5);
-		stack[13] = (uint8_t) compare_256_32(a2, b6);
-		stack[14] = (uint8_t) compare_256_32(a2, b7);
-		stack[15] = (uint8_t) compare_256_32(a2, b8);
-		stack[16] = (uint8_t) compare_256_32(a3, b1);
-		stack[17] = (uint8_t) compare_256_32(a3, b2);
-		stack[18] = (uint8_t) compare_256_32(a3, b3);
-		stack[19] = (uint8_t) compare_256_32(a3, b4);
-		stack[20] = (uint8_t) compare_256_32(a3, b5);
-		stack[21] = (uint8_t) compare_256_32(a3, b6);
-		stack[22] = (uint8_t) compare_256_32(a3, b7);
-		stack[23] = (uint8_t) compare_256_32(a3, b8);
-		stack[24] = (uint8_t) compare_256_32(a4, b1);
-		stack[25] = (uint8_t) compare_256_32(a4, b2);
-		stack[26] = (uint8_t) compare_256_32(a4, b3);
-		stack[27] = (uint8_t) compare_256_32(a4, b4);
-		stack[28] = (uint8_t) compare_256_32(a4, b5);
-		stack[29] = (uint8_t) compare_256_32(a4, b6);
-		stack[30] = (uint8_t) compare_256_32(a4, b7);
-		stack[31] = (uint8_t) compare_256_32(a4, b8);
-		stack[32] = (uint8_t) compare_256_32(a5, b1);
-		stack[33] = (uint8_t) compare_256_32(a5, b2);
-		stack[34] = (uint8_t) compare_256_32(a5, b3);
-		stack[35] = (uint8_t) compare_256_32(a5, b4);
-		stack[36] = (uint8_t) compare_256_32(a5, b5);
-		stack[37] = (uint8_t) compare_256_32(a5, b6);
-		stack[38] = (uint8_t) compare_256_32(a5, b7);
-		stack[39] = (uint8_t) compare_256_32(a5, b8);
-		stack[40] = (uint8_t) compare_256_32(a6, b1);
-		stack[41] = (uint8_t) compare_256_32(a6, b2);
-		stack[42] = (uint8_t) compare_256_32(a6, b3);
-		stack[43] = (uint8_t) compare_256_32(a6, b4);
-		stack[44] = (uint8_t) compare_256_32(a6, b5);
-		stack[45] = (uint8_t) compare_256_32(a6, b6);
-		stack[46] = (uint8_t) compare_256_32(a6, b7);
-		stack[47] = (uint8_t) compare_256_32(a6, b8);
-		stack[48] = (uint8_t) compare_256_32(a7, b1);
-		stack[49] = (uint8_t) compare_256_32(a7, b2);
-		stack[50] = (uint8_t) compare_256_32(a7, b3);
-		stack[51] = (uint8_t) compare_256_32(a7, b4);
-		stack[52] = (uint8_t) compare_256_32(a7, b5);
-		stack[53] = (uint8_t) compare_256_32(a7, b6);
-		stack[54] = (uint8_t) compare_256_32(a7, b7);
-		stack[55] = (uint8_t) compare_256_32(a7, b8);
-		stack[56] = (uint8_t) compare_256_32(a8, b1);
-		stack[57] = (uint8_t) compare_256_32(a8, b2);
-		stack[58] = (uint8_t) compare_256_32(a8, b3);
-		stack[59] = (uint8_t) compare_256_32(a8, b4);
-		stack[60] = (uint8_t) compare_256_32(a8, b5);
-		stack[61] = (uint8_t) compare_256_32(a8, b6);
-		stack[62] = (uint8_t) compare_256_32(a8, b7);
-		stack[63] = (uint8_t) compare_256_32(a8, b8);
-	}
-
-
-	/// NOTE: this is hyper optimized for the case if there is only one solution with extremely low weight.
-	/// \param e1 size of the list L1
-	/// \param e2 size of the list L2
-	void bruteforce_simd_256_32_8x8(const size_t e1,
-	                                const size_t e2,
-	                                const size_t s1 = 0,
-	                                const size_t s2 = 0) noexcept {
-		ASSERT(n <= 256);
-		ASSERT(n > 128);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
-		ASSERT(d < 16);
-
-		uint32_t *ptr_l = (uint32_t *) L1;
-
-		/// difference of the memory location in the right list
-		constexpr uint32x8_t loadr1 = uint32x8_t::setr(0, 8, 16, 24, 32, 40, 48, 56);
-		constexpr uint32x8_t shuffl = uint32x8_t::setr(7, 0, 1, 2, 3, 4, 5, 6);
-
-		alignas(32) uint8_t m1s[64];
-
-		/// helper to detect zeros
-		const uint8x32_t zero = uint8x32_t::set1(0);
-
-		for (size_t i = s1; i < s1 + e1; i += 64, ptr_l += 512) {
-			const uint32x8_t l1 = uint32x8_t::template gather<4>((const int *) (ptr_l + 0), loadr1);
-			const uint32x8_t l2 = uint32x8_t::template gather<4>((const int *) (ptr_l + 64), loadr1);
-			const uint32x8_t l3 = uint32x8_t::template gather<4>((const int *) (ptr_l + 128), loadr1);
-			const uint32x8_t l4 = uint32x8_t::template gather<4>((const int *) (ptr_l + 192), loadr1);
-			const uint32x8_t l5 = uint32x8_t::template gather<4>((const int *) (ptr_l + 256), loadr1);
-			const uint32x8_t l6 = uint32x8_t::template gather<4>((const int *) (ptr_l + 320), loadr1);
-			const uint32x8_t l7 = uint32x8_t::template gather<4>((const int *) (ptr_l + 384), loadr1);
-			const uint32x8_t l8 = uint32x8_t::template gather<4>((const int *) (ptr_l + 448), loadr1);
-
-			uint32_t *ptr_r = (uint32_t *) L2;
-			for (size_t j = s1; j < s2 + e2; j += 64, ptr_r += 512) {
-				uint32x8_t r1 = uint32x8_t::template gather<4>((const int *) (ptr_r + 0), loadr1);
-				uint32x8_t r2 = uint32x8_t::template gather<4>((const int *) (ptr_r + 64), loadr1);
-				uint32x8_t r3 = uint32x8_t::template gather<4>((const int *) (ptr_r + 128), loadr1);
-				uint32x8_t r4 = uint32x8_t::template gather<4>((const int *) (ptr_r + 192), loadr1);
-				uint32x8_t r5 = uint32x8_t::template gather<4>((const int *) (ptr_r + 256), loadr1);
-				uint32x8_t r6 = uint32x8_t::template gather<4>((const int *) (ptr_r + 320), loadr1);
-				uint32x8_t r7 = uint32x8_t::template gather<4>((const int *) (ptr_r + 384), loadr1);
-				uint32x8_t r8 = uint32x8_t::template gather<4>((const int *) (ptr_r + 448), loadr1);
-
-				BRUTEFORCE256_32_8x8_STEP(m1s, l1, l2, l3, l4, l5, l6, l7, l8, r1, r2, r3, r4, r5, r6, r7, r8);
-				uint32_t m1s1 = zero != uint8x32_t::load(m1s + 0);
-				uint32_t m1s2 = zero != uint8x32_t::load(m1s + 32);
-				if (m1s1 != 0) { bruteforce_avx2_256_32_8x8_helper<0, 0>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_avx2_256_32_8x8_helper<32, 0>(m1s2, m1s, ptr_l, ptr_r, i, j); }
-
-
-				r1 = uint32x8_t::permute(r1, shuffl);
-				r2 = uint32x8_t::permute(r2, shuffl);
-				r3 = uint32x8_t::permute(r3, shuffl);
-				r4 = uint32x8_t::permute(r4, shuffl);
-				r5 = uint32x8_t::permute(r5, shuffl);
-				r6 = uint32x8_t::permute(r6, shuffl);
-				r7 = uint32x8_t::permute(r7, shuffl);
-				r8 = uint32x8_t::permute(r8, shuffl);
-
-				BRUTEFORCE256_32_8x8_STEP(m1s, l1, l2, l3, l4, l5, l6, l7, l8, r1, r2, r3, r4, r5, r6, r7, r8);
-				m1s1 = zero != uint8x32_t::load(m1s + 0);
-				m1s2 = zero != uint8x32_t::load(m1s + 32);
-				if (m1s1 != 0) { bruteforce_avx2_256_32_8x8_helper<0, 1>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_avx2_256_32_8x8_helper<32, 1>(m1s2, m1s, ptr_l, ptr_r, i, j); }
-
-				r1 = uint32x8_t::permute(r1, shuffl);
-				r2 = uint32x8_t::permute(r2, shuffl);
-				r3 = uint32x8_t::permute(r3, shuffl);
-				r4 = uint32x8_t::permute(r4, shuffl);
-				r5 = uint32x8_t::permute(r5, shuffl);
-				r6 = uint32x8_t::permute(r6, shuffl);
-				r7 = uint32x8_t::permute(r7, shuffl);
-				r8 = uint32x8_t::permute(r8, shuffl);
-
-				BRUTEFORCE256_32_8x8_STEP(m1s, l1, l2, l3, l4, l5, l6, l7, l8, r1, r2, r3, r4, r5, r6, r7, r8);
-				m1s1 = zero != uint8x32_t::load(m1s + 0);
-				m1s2 = zero != uint8x32_t::load(m1s + 32);
-				if (m1s1 != 0) { bruteforce_avx2_256_32_8x8_helper<0, 2>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_avx2_256_32_8x8_helper<32, 2>(m1s2, m1s, ptr_l, ptr_r, i, j); }
-
-				r1 = uint32x8_t::permute(r1, shuffl);
-				r2 = uint32x8_t::permute(r2, shuffl);
-				r3 = uint32x8_t::permute(r3, shuffl);
-				r4 = uint32x8_t::permute(r4, shuffl);
-				r5 = uint32x8_t::permute(r5, shuffl);
-				r6 = uint32x8_t::permute(r6, shuffl);
-				r7 = uint32x8_t::permute(r7, shuffl);
-				r8 = uint32x8_t::permute(r8, shuffl);
-
-				BRUTEFORCE256_32_8x8_STEP(m1s, l1, l2, l3, l4, l5, l6, l7, l8, r1, r2, r3, r4, r5, r6, r7, r8);
-				m1s1 = zero != uint8x32_t::load(m1s + 0);
-				m1s2 = zero != uint8x32_t::load(m1s + 32);
-				if (m1s1 != 0) { bruteforce_avx2_256_32_8x8_helper<0, 3>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_avx2_256_32_8x8_helper<32, 3>(m1s2, m1s, ptr_l, ptr_r, i, j); }
-
-				r1 = uint32x8_t::permute(r1, shuffl);
-				r2 = uint32x8_t::permute(r2, shuffl);
-				r3 = uint32x8_t::permute(r3, shuffl);
-				r4 = uint32x8_t::permute(r4, shuffl);
-				r5 = uint32x8_t::permute(r5, shuffl);
-				r6 = uint32x8_t::permute(r6, shuffl);
-				r7 = uint32x8_t::permute(r7, shuffl);
-				r8 = uint32x8_t::permute(r8, shuffl);
-
-				BRUTEFORCE256_32_8x8_STEP(m1s, l1, l2, l3, l4, l5, l6, l7, l8, r1, r2, r3, r4, r5, r6, r7, r8);
-				m1s1 = zero != uint8x32_t::load(m1s + 0);
-				m1s2 = zero != uint8x32_t::load(m1s + 32);
-				if (m1s1 != 0) { bruteforce_avx2_256_32_8x8_helper<0, 4>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_avx2_256_32_8x8_helper<32, 4>(m1s2, m1s, ptr_l, ptr_r, i, j); }
-
-				r1 = uint32x8_t::permute(r1, shuffl);
-				r2 = uint32x8_t::permute(r2, shuffl);
-				r3 = uint32x8_t::permute(r3, shuffl);
-				r4 = uint32x8_t::permute(r4, shuffl);
-				r5 = uint32x8_t::permute(r5, shuffl);
-				r6 = uint32x8_t::permute(r6, shuffl);
-				r7 = uint32x8_t::permute(r7, shuffl);
-				r8 = uint32x8_t::permute(r8, shuffl);
-
-				BRUTEFORCE256_32_8x8_STEP(m1s, l1, l2, l3, l4, l5, l6, l7, l8, r1, r2, r3, r4, r5, r6, r7, r8);
-				m1s1 = zero != uint8x32_t::load(m1s + 0);
-				m1s2 = zero != uint8x32_t::load(m1s + 32);
-				if (m1s1 != 0) { bruteforce_avx2_256_32_8x8_helper<0, 5>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_avx2_256_32_8x8_helper<32, 5>(m1s2, m1s, ptr_l, ptr_r, i, j); }
-
-				r1 = uint32x8_t::permute(r1, shuffl);
-				r2 = uint32x8_t::permute(r2, shuffl);
-				r3 = uint32x8_t::permute(r3, shuffl);
-				r4 = uint32x8_t::permute(r4, shuffl);
-				r5 = uint32x8_t::permute(r5, shuffl);
-				r6 = uint32x8_t::permute(r6, shuffl);
-				r7 = uint32x8_t::permute(r7, shuffl);
-				r8 = uint32x8_t::permute(r8, shuffl);
-
-				BRUTEFORCE256_32_8x8_STEP(m1s, l1, l2, l3, l4, l5, l6, l7, l8, r1, r2, r3, r4, r5, r6, r7, r8);
-				m1s1 = zero != uint8x32_t::load(m1s + 0);
-				m1s2 = zero != uint8x32_t::load(m1s + 32);
-				if (m1s1 != 0) { bruteforce_avx2_256_32_8x8_helper<0, 6>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_avx2_256_32_8x8_helper<32, 6>(m1s2, m1s, ptr_l, ptr_r, i, j); }
-
-				r1 = uint32x8_t::permute(r1, shuffl);
-				r2 = uint32x8_t::permute(r2, shuffl);
-				r3 = uint32x8_t::permute(r3, shuffl);
-				r4 = uint32x8_t::permute(r4, shuffl);
-				r5 = uint32x8_t::permute(r5, shuffl);
-				r6 = uint32x8_t::permute(r6, shuffl);
-				r7 = uint32x8_t::permute(r7, shuffl);
-				r8 = uint32x8_t::permute(r8, shuffl);
-
-				BRUTEFORCE256_32_8x8_STEP(m1s, l1, l2, l3, l4, l5, l6, l7, l8, r1, r2, r3, r4, r5, r6, r7, r8);
-				m1s1 = zero != uint8x32_t::load(m1s + 0);
-				m1s2 = zero != uint8x32_t::load(m1s + 32);
-				if (m1s1 != 0) { bruteforce_avx2_256_32_8x8_helper<0, 7>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_avx2_256_32_8x8_helper<32, 7>(m1s2, m1s, ptr_l, ptr_r, i, j); }
 			}
 		}
 	}
@@ -2904,6 +2648,7 @@ public:
 	                                const size_t e2,
 	                                const size_t s1 = 0,
 	                                const size_t s2 = 0) noexcept {
+		ZoneScoped;
 		ASSERT(n <= 256);
 		ASSERT(4 == ELEMENT_NR_LIMBS);
 		ASSERT(e1 >= s1);
@@ -2938,8 +2683,8 @@ public:
 
 				BRUTEFORCE256_64_4x4_STEP2(m1s, l1, l2, l3, l4, r1, r2, r3, r4);
 				/// NOTE: we can load the data aligned.
-				uint32_t m1s1 = uint8x32_t::load<true>(m1s + 0) > zero;
-				uint32_t m1s2 = uint8x32_t::load<true>(m1s + 32) > zero;
+				uint32_t m1s1 = ~(uint8x32_t::load<true>(m1s + 0) == zero);
+				uint32_t m1s2 = ~(uint8x32_t::load<true>(m1s + 32) == zero);
 
 				if (m1s1 != 0) { bruteforce_avx2_256_64_4x4_helper<0>(m1s1, m1s, ptr_l, ptr_r, i, j); }
 				if (m1s2 != 0) { bruteforce_avx2_256_64_4x4_helper<32>(m1s2, m1s, ptr_l, ptr_r, i, j); }
@@ -2954,6 +2699,7 @@ public:
 	                                                 const uint64_t *__restrict__ ptr_l,
 	                                                 const uint64_t *__restrict__ ptr_r,
 	                                                 const size_t i, const size_t j) noexcept {
+		ZoneScoped;
 		while (m1sx > 0) {
 			const uint32_t ctz1 = __builtin_ctz(m1sx);
 			const uint32_t ctz = off + ctz1;
@@ -2987,6 +2733,7 @@ public:
 			m1sx ^= 1u << ctz1;
 		}
 	}
+
 	/// NOTE: this is hyper optimized for the case if there is only one solution.
 	/// NOTE: this assumes that the `last` list (whatever the last is: normally
 	/// 	its the list with < BUCKET_SIZE elements) is in the REARRANGE/TRANSPOSED
@@ -2998,6 +2745,7 @@ public:
 	                                          const size_t e2,
 	                                          const size_t s1 = 0,
 	                                          const size_t s2 = 0) noexcept {
+		ZoneScoped;
 		ASSERT(e1 <= bucket_size);
 		ASSERT(e2 <= bucket_size);
 		ASSERT(n <= 256);
@@ -3027,7 +2775,7 @@ public:
 			/// reset right list pointer
 			T *ptr_r = (T *) RB;
 
-#pragma unroll 4
+			#pragma unroll 4
 			for (size_t j = s1; j < s2 + e2; j += 16, ptr_r += 16) {
 				uint64x4_t r1 = uint64x4_t::template load<true>(ptr_r + 0);
 				uint64x4_t r2 = uint64x4_t::template load<true>(ptr_r + 4);
@@ -3058,6 +2806,7 @@ public:
 	                             const size_t e2,
 	                             const size_t s1,
 	                             const size_t s2) noexcept {
+		ZoneScoped;
 		ASSERT(EXACT);
 		ASSERT(n <= 256);
 		ASSERT(n > 128);
@@ -3067,14 +2816,14 @@ public:
 
 		/// allowed weight to match on
 		const uint64x4_t zero = uint64x4_t::set1(0);
-		uint64x4_t *ptr_l = (uint64x4_t *) L1;
+		auto *ptr_l = (uint64x4_t *) L1;
 
 		for (size_t i = s1; i < e1; ++i, ptr_l += 1) {
 			const uint64x4_t li1 = uint64x4_t::load(ptr_l);
 
 			/// NOTE: only possible because L2 is a continuous memory block
 			/// NOTE: reset every loop
-			uint64x4_t *ptr_r = (uint64x4_t *) L2;
+			auto *ptr_r = (uint64x4_t *) L2;
 
 			for (size_t j = s2; j < s2 + e2; ++j, ptr_r += 1) {
 				const uint64x4_t ri = uint64x4_t::load(ptr_r);

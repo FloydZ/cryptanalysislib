@@ -145,7 +145,7 @@ public:
 	}
 
 	/// data container
-	alignas(PAGE_SIZE) std::vector<InternalElementType> __data;
+	alignas(CUSTOM_PAGE_SIZE) std::vector<InternalElementType> __data;
 };
 
 

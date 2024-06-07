@@ -10,6 +10,10 @@ option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SANITIZER "Enable memory sanitizer" OFF)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable -flto" OFF)
+option(USE_PROFILE "Enable profile guided optmization" OFF)
+option(USE_POLLY "Enable polly loop optimization" OFF)
+option(USE_BOLT "Enable bolt binary optmization" OFF)
+option(USE_TRACY "Enable tracy profiling" OFF)
 
 set(default_build_type "Release")
 
@@ -35,10 +39,12 @@ include(CheckIPOSupported)  	# check for -flto
 include(CheckLanguage) 			# needed for `check_language(CUDA)`
 
 # local cmake includes
-include("deps/cmake_optimize_for_architecture/HostOptimizations.cmake")
+include("deps/cmake_optimize_for_architecture/Optimizations.cmake")
 
 # only for the CI
+include_directories("/opt/homebrew/include/")
 include_directories("benchmark/include")
+link_directories("/opt/homebrew/lib")
 link_directories("benchmark/build/src")
 
 check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
@@ -59,22 +65,14 @@ find_package(GTest)
 find_package(benchmark)
 find_package(Git QUIET)
 
-# init the submodules
-#if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-#    execute_process(COMMAND ${GIT_EXECUTABLE} submodule sync
-#                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
-#    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-#        message(FATAL_ERROR "git submodule update sync failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-#    endif()
-#
-#    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-#                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
-#    if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-#        message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-#    endif()
-#endif()
+FetchContent_Declare(
+	tracy
+	GIT_REPOSITORY 	https://github.com/wolfpld/tracy
+	GIT_TAG 		master
+	GIT_SHALLOW 	TRUE
+	GIT_PROGRESS 	TRUE
+)
+FetchContent_MakeAvailable(tracy)
 
 # global include directories
 include_directories("deps/b63/include/b63")
@@ -85,19 +83,19 @@ include_directories("/usr/local/include")
 link_directories("/usr/local/lib")
 
 # two possible options. 'tcmalloc' is the standard google malloc implementation
-if(USE_TCMALLOC)
+if(${USE_TCMALLOC})
 	message(STATUS "Using tcmalloc")
 	set(MALLOC_LIBRARY_FLAGS "tcmalloc")
 endif()
 
-#TOS
-#if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+#TODO
+if(${USE_SANITIZER} AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
-#endif()
+endif()
 
-if(USE_NOINLINE AND COMPILER_SUPPORTS_NO_INLINE)
+if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
 	message(STATUS "not inlining")
 	set(INLINE_FLAGS "-fno-inline")
 endif()
@@ -106,7 +104,7 @@ if (COMPILER_SUPPORTS_CONSTEXPR_COST)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
 endif()
 
-if(lto_supported AND USE_LTO)
+if(${USE_LTO} AND lto_supported)
   message(STATUS "IPO / LTO enabled")
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
@@ -115,7 +113,8 @@ endif()
 #   simd512_type v512[simd512_limbs];
 # and if the type is < 512 bits, then this must be zero
 # -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
-set(ALLOWED_WARNINGS "  -Wno-gnu-label-as-value -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
+# -Wno-unknown-pragmas: needed for `#pragma unroll`
+set(ALLOWED_WARNINGS " -Wno-c11-extensions -Wno-unknown-pragmas -Wno-gnu-label-as-value -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
 
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 
@@ -138,9 +137,21 @@ set(LINK_TEST_FLAGS
 	GTest::gtest_main 
 	Threads::Threads 
 	OpenMP::OpenMP_CXX
+    # TODO think about if this is really needed
+	# atomic
 )
 
-set(LINK_BENCH_FLAGS benchmark::benchmark)
+set(LINK_BENCH_FLAGS 
+	benchmark::benchmark 
+	# atomic
+)
+
+if(${USE_TRACY})
+	message(STATUS "Using tracy")
+	list(APPEND LINK_TEST_FLAGS TracyClient)
+	list(APPEND LINK_BENCH_FLAGS TracyClient)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_TRACY")
+endif()
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not
 # he nicest way, but by far the easiest.
@@ -153,8 +164,8 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libc++")
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libc++")
 	elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-		# set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libstdc++")
-		# set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libstdc++")
+		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libstdc++")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libstdc++")
 	endif()
 endif()
 

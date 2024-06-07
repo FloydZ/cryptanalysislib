@@ -463,6 +463,7 @@ public:
 	template<class K, class U = ValueSelect,
 	         typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
 	constexpr inline typename ValueSelect::value_type &operator[](K &&key) noexcept {
+		// TODO implement
 		ASSERT(false);
 	}
 
@@ -470,8 +471,9 @@ public:
 		size_t index = hash_policy.bucket_for_hash(hash_object(key));
 		EntryPointer it = entries + ptrdiff_t(index);
 		for (int8_t distance = 0; it->distance_from_desired >= distance; ++distance, ++it) {
-			if (compares_equal(key, it->value))
+			if (compares_equal(key, it->value)) {
 				return {it};
+			}
 		}
 		return end();
 	}

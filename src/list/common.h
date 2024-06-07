@@ -147,7 +147,7 @@ protected:
 	size_t __thread_block_size;
 
 	/// internal data representation of the list.
-	alignas(PAGE_SIZE) std::vector<Element> __data;
+	alignas(CUSTOM_PAGE_SIZE) std::vector<Element> __data;
 
 public:
 	/// only valid constructor

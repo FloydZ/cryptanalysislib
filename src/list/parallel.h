@@ -207,8 +207,8 @@ public:
 	}
 
 private:
-	alignas(PAGE_SIZE) std::vector<ValueType> __data_value;
-	alignas(PAGE_SIZE) std::vector<LabelType> __data_label;
+	alignas(CUSTOM_PAGE_SIZE) std::vector<ValueType> __data_value;
+	alignas(CUSTOM_PAGE_SIZE) std::vector<LabelType> __data_label;
 
 	const bool no_values = false;
 };

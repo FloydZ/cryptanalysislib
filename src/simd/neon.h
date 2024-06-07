@@ -157,7 +157,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint8x16_t) vldrq_p128(ptr128);
+			out.v128 = (uint8x16_t) (*ptr128);
 #else
 			out.v128 = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -169,13 +169,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _uint8x16_t unaligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (uint8_t *) ptr;
+			auto *ptr128 = (uint8x16_t *) ptr;
 			_uint8x16_t out;
-#ifndef __clang__
-			out.v128 = (uint8x16_t) vld1q_u8(ptr128);
-#else
-			out.v128 = *((uint8x16_t *)ptr128);
-#endif
+			out.v128 = (uint8x16_t) *ptr128;
 			return out;
 		}
 
@@ -251,6 +247,14 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+		[[nodiscard]] constexpr static inline _uint16x8_t set1(const uint16_t a) noexcept {
+			_uint16x8_t ret;
+			for (uint32_t i = 0; i < 8; ++i) {
+				ret.v16[i] = a;
+			}
+			return ret;
+		}
+
 		[[nodiscard]] constexpr static inline _uint16x8_t set(
 				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint16x8_t ret;
@@ -321,7 +325,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint16x8_t out;
 #ifndef __clang__
-			out.v128 = (uint16x8_t) vldrq_p128(ptr128);
+			out.v128 = (uint16x8_t) (*ptr128);
 #else
 			out.v128 = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -336,7 +340,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint16x8_t out;
 #ifndef __clang__
-			out.v128 = (uint16x8_t) vldrq_p128(ptr128);
+			out.v128 = (uint16x8_t) (*ptr128);
 #else
 			out.v128 = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -415,6 +419,14 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+		[[nodiscard]] constexpr static inline _uint32x4_t set1(const uint32_t a) noexcept {
+			_uint32x4_t ret;
+			for (uint32_t i = 0; i < 4; ++i) {
+				ret.v32[i] = a;
+			}
+			return ret;
+		}
+
 		[[nodiscard]] constexpr static inline _uint32x4_t set(
 				uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint32x4_t ret;
@@ -471,7 +483,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint32x4_t) vldrq_p128(ptr128);
+			out.v128 = (uint32x4_t) (*ptr128);
 #else
 			out.v128 = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -486,7 +498,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint32x4_t) vldrq_p128(ptr128);
+			out.v128 = (uint32x4_t) (*ptr128);
 #else
 			out.v128 = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -564,6 +576,14 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+		[[nodiscard]] constexpr static inline _uint64x2_t set1(const uint64_t a) noexcept {
+			_uint64x2_t ret;
+			for (uint32_t i = 0; i < 2; ++i) {
+				ret.v64[i] = a;
+			}
+			return ret;
+		}
+
 		[[nodiscard]] constexpr static inline _uint64x2_t set(
 				uint64_t a, uint64_t b) noexcept{
 			_uint64x2_t ret;
@@ -600,7 +620,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint64x2_t) vldrq_p128(ptr128);
+			out.v128 = (uint64x2_t) (*ptr128);
 #else
 			out.v128 = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -615,7 +635,7 @@ namespace cryptanalysislib {
 			auto *ptr128 = (poly128_t *) ptr;
 			_uint8x16_t out;
 #ifndef __clang__
-			out.v128 = (uint64x2_t) vldrq_p128(ptr128);
+			out.v128 = (uint64x2_t) (*ptr128);
 #else
 			out.v128 = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
 #endif
@@ -654,8 +674,16 @@ namespace cryptanalysislib {
 	};
 };// namespace cryptanalysislib
 
+// implementation of `_mm_shuffle_epi16`
+inline uint16x8_t shuffle_epi16(const uint16x8_t a, const uint16x8_t b) {
+    const uint16x8_t tmp = b*2;
+    const uint16x8_t s  = tmp ^ vshlq_n_u16(tmp, 8);
+    const uint16x8_t ss = vaddq_u16(s, vdupq_n_u16(0x100));
+    return ss; // TODO shuffle_epi8(a, ss);
+}
+
 /// taken from: https://github.com/DLTcollab/sse2neon/blob/de2817727c72fc2f4ce9f54e2db6e40ce0548414/sse2neon.h#L4540
-/// helper function, which collects the sign bits of each 8 bit limb
+/// helper function, which collects the sign bits of each 8 bit limbs
 constexpr inline uint32_t _mm_movemask_epi8(const uint8x16_t input) noexcept {
 #ifdef __clang__
 	// Use increasingly wide shifts+adds to collect the sign bits together.
@@ -1150,16 +1178,11 @@ struct uint8x32_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
-#ifdef __clang__
-		uint8x16_t helper = vdupq_n_u8(-in2);
-#else
-		const short int in3 = (short) -in2;
-		uint8x16_t helper = (uint8x16_t){in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3, in3};
-#endif
+		cryptanalysislib::_uint8x16_t helper = cryptanalysislib::_uint8x16_t::set1(-in2);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u8(in1.v128[i], helper);
+			out.v128[i] = vshlq_u8(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -1199,6 +1222,19 @@ struct uint8x32_t {
 		}
 
 		return ret;
+	}
+
+	/// TODO
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
+		for (uint32 i = 1; i < 31; ++i) {
+			if (in.v32[0] != in.v32[i]) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	[[nodiscard]] constexpr static inline uint8x32_t popcnt(const uint8x32_t in) noexcept {
@@ -1526,14 +1562,10 @@ struct uint16x16_t {
 	                                                       const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint16x16_t out;
-#ifdef __clang__
-		int16x8_t helper = vdupq_n_s16(in2);
-#else
-		int16x8_t helper = (int16x8_t){in2, in2, in2, in2, in2, in2, in2, in2};
-#endif
+		cryptanalysislib::_uint16x8_t helper = cryptanalysislib::_uint16x8_t::set1(in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u16(in1.v128[i], helper);
+			out.v128[i] = vshlq_u16(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -1547,15 +1579,10 @@ struct uint16x16_t {
 	                                                       const uint16_t in2) noexcept {
 		ASSERT(in2 <= 16);
 		uint16x16_t out;
-#ifdef __clang__
-		int16x8_t helper = vdupq_n_s16(-in2);
-#else
-		const short int in3 = (short) -in2;
-		int16x8_t helper = (int16x8_t){in3, in3, in3, in3, in3, in3, in3, in3};
-#endif
+		cryptanalysislib::_uint16x8_t helper = cryptanalysislib::_uint16x8_t::set1(-in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u16(in1.v128[i], helper);
+			out.v128[i] = vshlq_u16(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -1628,20 +1655,17 @@ struct uint16x16_t {
 	constexpr static inline uint16x16_t popcnt(const uint16x16_t in) noexcept {
 		uint16x16_t out;
 
-#ifdef __clang__
-		uint16x8_t mask = vdupq_n_u16(0xff);
-#else
-		uint16x8_t mask = (uint16x8_t){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-#endif
+		cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);
+
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
 			const uint16x8_t tmp = (uint16x8_t) vcntq_u8((uint8x16_t) in.v128[i]);
-			out.v128[i] = vaddq_u16(vshrq_n_u16(tmp, 8), vandq_u16(tmp, mask));
+			out.v128[i] = vaddq_u16(vshrq_n_u16(tmp, 8), vandq_u16(tmp, mask.v128));
 
 #else
 			const uint16x8_t tmp = (uint16x8_t) __builtin_aarch64_popcountv16qi((uint8x16_t) in.v128[i]);
-			out.v128[i] = vshrq_n_u16(tmp, 8) + vandq_u16(tmp, mask);
+			out.v128[i] = vshrq_n_u16(tmp, 8) + vandq_u16(tmp, mask.v128);
 #endif
 		}
 
@@ -1721,7 +1745,7 @@ struct uint32x8_t {
 	/// sets all 32 8bit limbs to `a`
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t set1(const uint8_t a) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t set1(const uint32_t a) noexcept {
 		uint32x8_t out;
 		out = uint32x8_t::set(a, a, a, a, a, a, a, a);
 		return out;
@@ -1939,15 +1963,11 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
-#ifdef __clang__
-		int32x4_t helper = vdupq_n_s32(in2);
-#else
-		int32x4_t helper = (int32x4_t){in2, in2, in2, in2};
-#endif
+		cryptanalysislib::_uint32x4_t helper = cryptanalysislib::_uint32x4_t::set1(in2);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u32(in1.v128[i], helper);
+			out.v128[i] = vshlq_u32(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -1961,14 +1981,10 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
-#ifdef __clang__
-		int32x4_t helper = vdupq_n_s32(-in2);
-#else
-		int32x4_t helper = (int32x4_t){-in2, -in2, -in2, -in2};
-#endif
+		cryptanalysislib::_uint32x4_t helper = cryptanalysislib::_uint32x4_t::set1(-in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u32(in1.v128[i], helper);
+			out.v128[i] = vshlq_u32(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -2077,22 +2093,18 @@ struct uint32x8_t {
 
 	constexpr static inline uint32x8_t popcnt(const uint32x8_t in) {
 		uint32x8_t out;
-#ifdef __clang__
-		uint16x8_t mask = vdupq_n_u16(0xff);
-#else
-		uint16x8_t mask = (uint16x8_t){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-#endif
+		const cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __clang__
 			const uint16x8_t tmp1 = (uint16x8_t) vcntq_u8((uint8x16_t) in.v128[i]);
-			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
+			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask.v128));
 			out.v128[i] = vaddq_u32(vshrq_n_u32((uint32x4_t) tmp2, 16), (uint32x4_t) tmp2);
 #else
 
 			const uint16x8_t tmp1 = (uint16x8_t) __builtin_aarch64_popcountv16qi((uint8x16_t) in.v128[i]);
-			const uint16x8_t tmp2 = __builtin_aarch64_lshrv8hi_uus(tmp1, 8) + (tmp1 & mask);
+			const uint16x8_t tmp2 = __builtin_aarch64_lshrv8hi_uus(tmp1, 8) + (tmp1 & mask.v128);
 			out.v128[i] = __builtin_aarch64_lshrv4si_uus((uint32x4_t) tmp2, 16) + (uint32x4_t) tmp2;
 #endif
 		}
@@ -2379,15 +2391,11 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		uint64x4_t out;
-#ifdef __clang__
-		int64x2_t helper = vdupq_n_s64(in2);
-#else
-		int64x2_t helper = (int64x2_t){in2, in2};
-#endif
+		const cryptanalysislib::_uint64x2_t helper = cryptanalysislib::_uint64x2_t::set1(in2);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u64(in1.v128[i], helper);
+			out.v128[i] = vshlq_u64(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -2401,15 +2409,11 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint64x4_t out;
-#ifdef __clang__
-		int64x2_t helper = vdupq_n_s64(-in2);
-#else
-		int64x2_t helper = (int64x2_t){-in2, -in2};
-#endif
+		const cryptanalysislib::_uint64x2_t helper = cryptanalysislib::_uint64x2_t::set1(in2);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vshlq_u64(in1.v128[i], helper);
+			out.v128[i] = vshlq_u64(in1.v128[i], helper.v128);
 		}
 
 		return out;
@@ -2422,7 +2426,10 @@ struct uint64x4_t {
 	constexpr static inline uint64x4_t permute(const uint64x4_t in1,
 	                                           const uint32_t in2) noexcept {
 		uint64x4_t ret;
-		ASSERT(0);
+		(void) in1;
+		(void) in2;
+
+		ASSERT(0); // TODO
 		return ret;
 	}
 
@@ -2567,17 +2574,14 @@ struct uint64x4_t {
 	/// \return
 	constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
-#ifdef __clang
-		uint16x8_t mask = vdupq_n_u16(0xff);
-#else
-		uint16x8_t mask = (uint16x8_t){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-#endif
+
+		const cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__
 			const uint16x8_t tmp1 = (uint16x8_t) vcntq_u8((uint8x16_t) in.v128[i]);
-			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask));
+			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask.v128));
 			const uint32x4_t tmp3 = vaddq_u32(vshrq_n_u32((uint32x4_t) tmp2, 16), (uint32x4_t) tmp2);
 			ret.v128[i] = vaddq_u64(vshrq_n_u64((uint64x2_t) tmp3, 32), (uint64x2_t) tmp3);
 #else

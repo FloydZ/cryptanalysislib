@@ -17,8 +17,7 @@ using ::testing::UnitTest;
 
 
 TEST(TTuint8x32_t, TTrandom) {
-	uint8x32_t t1;
-	t1.random();
+	uint8x32_t t1 = uint8x32_t::random();
 
 	uint32_t atleast_one_not_zero = false;
 	for (uint32_t i = 0; i < 32; ++i) {
@@ -173,6 +172,25 @@ TEST(uint8x32_t, slri) {
 		EXPECT_EQ(t2.v8[i], 0);
 	}
 }
+
+TEST(uint8x32_t, all_equal) {
+	for (uint8_t j = 0; j < 255; j++) {
+		const uint8x32_t t1 = uint8x32_t::set1(j);
+		EXPECT_EQ(true, uint8x32_t::all_equal(t1));
+	}
+}
+
+
+//TEST(uint8x32_t, reverse8) {
+//	uint8_t d[32];
+//	for (uint32_t i = 0; i < 32; ++i) { d[i] = i; }
+//
+//	const uint8x32_t t1 = uint8x32_t::template load<false>(d);
+//	const uint8x32_t t2 = uint8x32_t::reverse8(t1);
+//	for (uint32_t i = 0; i < 32; ++i) {
+//		EXPECT_EQ(d[32 - i -1], t2.v32[i]);
+//	}
+//}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

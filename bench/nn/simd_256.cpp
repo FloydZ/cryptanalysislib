@@ -1,4 +1,4 @@
-#include "benchmark/benchmark.h"
+#include <benchmark/benchmark.h>
 #include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
@@ -82,10 +82,9 @@ void bruteforce_avx2_256(const Element *L1,
 
 static void BM_avx2_256(benchmark::State &state) {
 	using Element = typename NN<config>::Element;
-	using T = typename NN<config>::T;
 
 	for (auto _: state) {
-		bruteforce_avx2_256<Element, T>(algo.L1, algo.L2, state.range(0), state.range(0));
+		bruteforce_avx2_256<Element, uint64_t>(algo.L1, algo.L2, state.range(0), state.range(0));
 		algo.solution_l = si;
 		algo.solution_l = sj;
 	}
@@ -117,12 +116,6 @@ static void BM_simd_256_32_ux8(benchmark::State &state) {
 	state.SetComplexityN(state.range(0));
 }
 
-static void BM_simd_256_32_8x8(benchmark::State &state) {
-	for (auto _: state) {
-		algo.bruteforce_simd_256_32_8x8(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
 
 static void BM_simd_256_64_4x4(benchmark::State &state) {
 	for (auto _: state) {
@@ -134,7 +127,6 @@ static void BM_simd_256_64_4x4(benchmark::State &state) {
 BENCHMARK(BM_simd_256)->RangeMultiplier(2)->Range(128, 1u << 16)->Complexity();
 BENCHMARK(BM_simd_256_ux4)->RangeMultiplier(2)->Range(128, 1u << 16)->Complexity();
 BENCHMARK(BM_simd_256_32_ux8)->RangeMultiplier(2)->Range(128, 1u << 16)->Complexity();
-BENCHMARK(BM_simd_256_32_8x8)->RangeMultiplier(2)->Range(128, 1u << 16)->Complexity();
 BENCHMARK(BM_simd_256_64_4x4)->RangeMultiplier(2)->Range(1024, 1u << 16)->Complexity();
 
 int main(int argc, char **argv) {

@@ -1,5 +1,4 @@
-#include "benchmark/benchmark.h"
-
+#include <benchmark/benchmark.h>
 #include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
@@ -86,13 +85,6 @@ static void BM_bruteforce_simd_256_32_ux8_8(benchmark::State& state) {
 }
 
 
-static void BM_bruteforce_simd_256_32_8x8(benchmark::State& state) {
-	for (auto _ : state) {
-		algo.bruteforce_simd_256_32_8x8(state.range(0), state.range(0));
-	}
-	state.SetComplexityN(state.range(0));
-}
-
 static void BM_bruteforce_simd_256_64_4x4(benchmark::State& state) {
 	for (auto _ : state) {
 		algo.bruteforce_simd_256_64_4x4(state.range(0), state.range(0));
@@ -112,7 +104,6 @@ BENCHMARK(BM_bruteforce_simd_256_32_ux8_2)->RangeMultiplier(2)->Range(1024, LS)-
 BENCHMARK(BM_bruteforce_simd_256_32_ux8_4)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
 BENCHMARK(BM_bruteforce_simd_256_32_ux8_8)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
 
-BENCHMARK(BM_bruteforce_simd_256_32_8x8)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
 BENCHMARK(BM_bruteforce_simd_256_64_4x4)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
 
 BENCHMARK(BM_bruteforce_256)->RangeMultiplier(2)->Range(1024, LS)->Complexity();

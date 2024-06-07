@@ -499,9 +499,9 @@ public:
 	}
 
 	// internal data containers
-	alignas(PAGE_SIZE) std::vector<BucketEntry> __buckets;
-	alignas(PAGE_SIZE) ArrayLoadInternalType buckets_load;
-	alignas(PAGE_SIZE) std::vector<LoadInternalType> acc_buckets_load;
+	alignas(CUSTOM_PAGE_SIZE) std::vector<BucketEntry> __buckets;
+	alignas(CUSTOM_PAGE_SIZE) ArrayLoadInternalType buckets_load;
+	alignas(CUSTOM_PAGE_SIZE) std::vector<LoadInternalType> acc_buckets_load;
 
 	ParallelBucketSort() noexcept {
 		//NOTE only correct if not ternary static_assert((uint64_t(nrb)*uint64_t(size_b)) < uint64_t(std::numeric_limits<IndexType>::max()));
