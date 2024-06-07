@@ -170,7 +170,7 @@ public:
 	void init_matrix_data() noexcept {
 		matrix_alloc_gray_code(&rev, &diff);
 		matrix_build_gray_code(rev, diff);
-		lookup_table = (uint64_t *) cryptanalysislib::aligned_alloc(PAGE_SIZE, (padded_limbs * sizeof(T)) * (1ul << MAX_K));
+		lookup_table = (uint64_t *) cryptanalysislib::aligned_alloc(CUSTOM_PAGE_SIZE, (padded_limbs * sizeof(T)) * (1ul << MAX_K));
 	}
 
 	///

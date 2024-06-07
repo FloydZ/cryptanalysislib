@@ -1,6 +1,9 @@
 #ifndef CRYPTANALYSISLIB_HELPER_H
 #define CRYPTANALYSISLIB_HELPER_H
 
+// TODO rename this to `cryptanalysislib.h`
+
+
 // should be passed via gcc/clang command line
 // currently activated for syntax highlighting
 //#define USE_LOOP_UNROLL
@@ -138,13 +141,16 @@ do {													\
 #endif
 
 
+// NOTE: needed to rename `PAGE_SIZE` to `CUSTOM_PAGE_SIZE`, as apple in
+// its infinite wisdom have a global variable called `PAGE_SIZE`.
 #ifdef FORCE_HPAGE
 // normal page, 4KiB, buts its forced to be an huge page
-#define PAGE_SIZE (1 << 21)
+#define CUSTOM_PAGE_SIZE (1 << 21)
 #else
 // normal page, 4KiB
-#define PAGE_SIZE (1 << 12)
+#define CUSTOM_PAGE_SIZE (1 << 12)
 #endif
+
 // huge page, 2MiB
 #define HPAGE_SIZE (1 << 21)
 
@@ -180,7 +186,7 @@ static void check_huge_page(void *ptr) {
 
 	// each entry is 8 bytes long
 	uint64_t ent;
-	if (pread(pagemap_fd, &ent, sizeof(ent), ((uintptr_t) ptr) / PAGE_SIZE * 8) != sizeof(ent)) {
+	if (pread(pagemap_fd, &ent, sizeof(ent), ((uintptr_t) ptr) / CUSTOM_PAGE_SIZE * 8) != sizeof(ent)) {
 		std::cout << "could not read from pagemap\n";
 	}
 
@@ -343,6 +349,10 @@ using TypeTemplate =
 
 
 // tracy stuff
+#ifdef USE_TRACY
 #include <tracy/Tracy.hpp>
+#else
+#define ZoneScoped
+#endif
 
 #endif//SMALLSECRETLWE_HELPER_H

@@ -13,7 +13,7 @@ option(USE_LTO "Enable -flto" OFF)
 option(USE_PROFILE "Enable profile guided optmization" OFF)
 option(USE_POLLY "Enable polly loop optimization" OFF)
 option(USE_BOLT "Enable bolt binary optmization" OFF)
-option(USE_TRACY "Enable tracy profiling" ON)
+option(USE_TRACY "Enable tracy profiling" OFF)
 
 set(default_build_type "Release")
 
@@ -83,19 +83,19 @@ include_directories("/usr/local/include")
 link_directories("/usr/local/lib")
 
 # two possible options. 'tcmalloc' is the standard google malloc implementation
-if(USE_TCMALLOC)
+if(${USE_TCMALLOC})
 	message(STATUS "Using tcmalloc")
 	set(MALLOC_LIBRARY_FLAGS "tcmalloc")
 endif()
 
 #TODO
-if(USE_SANITIZER AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+if(${USE_SANITIZER} AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
 endif()
 
-if(USE_NOINLINE AND COMPILER_SUPPORTS_NO_INLINE)
+if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
 	message(STATUS "not inlining")
 	set(INLINE_FLAGS "-fno-inline")
 endif()
@@ -104,7 +104,7 @@ if (COMPILER_SUPPORTS_CONSTEXPR_COST)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
 endif()
 
-if(lto_supported AND USE_LTO)
+if(${USE_LTO} AND lto_supported)
   message(STATUS "IPO / LTO enabled")
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
@@ -146,10 +146,11 @@ set(LINK_BENCH_FLAGS
 	# atomic
 )
 
-if(USE_TRACY)
+if(${USE_TRACY})
 	message(STATUS "Using tracy")
 	list(APPEND LINK_TEST_FLAGS TracyClient)
 	list(APPEND LINK_BENCH_FLAGS TracyClient)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_TRACY")
 endif()
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not
@@ -163,8 +164,8 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libc++")
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libc++")
 	elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-		# set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libstdc++")
-		# set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libstdc++")
+		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libstdc++")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libstdc++")
 	endif()
 endif()
 

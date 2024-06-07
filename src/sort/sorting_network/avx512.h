@@ -13,11 +13,34 @@
 #include <stdint.h>
 
 
+// NOTE:
+#ifdef __clang__
 #define compare_and_swap16(a, b, a1, b1) \
 	{                                    \
 		a1 = __builtin_elementwise_min(a, b);     \
 		b1 = __builtin_elementwise_max(a, b);     \
 	}
+#else
+/// NOTE: this is stupid. gcc does strange thing.
+/// TODO: MAYBE: move into simd wrapper as a custom funciton?
+/// \return
+constexpr inline __m512i
+__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+__mm512_undefined_epi32 (void) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winit-self"
+	__m512i __Y = __Y;
+#pragma GCC diagnostic pop
+	return __Y;
+}
+
+#define compare_and_swap16(a, b, a1, b1) \
+	{                                    \
+		a1 = __builtin_ia32_pminsq512_mask ((__v8di)(a), (__v8di)(b), (__v8di)__mm512_undefined_epi32 (), (__mmask8) -1);     \
+		b1 = __builtin_ia32_pmaxsq512_mask ((__v8di)(a), (__v8di)(b), (__v8di)__mm512_undefined_epi32 (), (__mmask8) -1);     \
+	}
+
+#endif
 
 static int64_t __attribute__((aligned(64))) indexc[8] = {0, 8, 1, 9, 2, 10, 3, 11};
 static int64_t __attribute__((aligned(64))) indexd[8] = {4, 12, 5, 13, 6, 14, 7, 15};
@@ -36,6 +59,15 @@ static int64_t __attribute__((aligned(64))) indexd[8] = {4, 12, 5, 13, 6, 14, 7,
 		a = _mm512_mask_loadu_epi64(a, maska, data);           \
 		b = _mm512_mask_loadu_epi64(b, maskb, data + 8);       \
 	}
+
+/// small little helper to be able to compile this on gcc
+#ifndef __clang__ 
+#define __builtin_ia32_vpermi2varq512(__A, __I, __B) 			\
+(__m512i) __builtin_ia32_vpermt2varq512_mask ((__v8di)(__I),	\
+						       				  (__v8di)(__A),	\
+						       				  (__v8di)(__B), 	\
+						       				  (__mmask8) -1);
+#endif
 
 constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) {
 	__m512i a1, b1;
@@ -97,4 +129,11 @@ constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) 
 	b = __builtin_ia32_vpermi2varq512(a1, *(const __m512i *)(indexc), b1);
 	a = __builtin_ia32_vpermi2varq512(a1, *(const __m512i *)(indexd), b1);
 }
+
+
+// cleanup macros
+#ifndef __clang__ 
+#undef __builtin_ia32_vpermi2varq512
+#endif
+
 #endif

@@ -277,6 +277,6 @@ public:
 	}
 
 private:
-	alignas(PAGE_SIZE) std::array<Element, __size> __data;
+	alignas(CUSTOM_PAGE_SIZE) std::array<Element, __size> __data;
 };
 #endif//CRYPTANALYSISLIB_LIST_SIMPLE_H

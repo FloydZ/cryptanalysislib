@@ -126,7 +126,7 @@ public:
 		return __size*sizeof(T); 
 	}
 
-	alignas(PAGE_SIZE) std::array<T, __size> __data;
+	alignas(CUSTOM_PAGE_SIZE) std::array<T, __size> __data;
 };
 
 #endif//CRYPTANALYSISLIB_LIST_SIMPLE_LIMB_H

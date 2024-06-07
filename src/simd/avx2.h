@@ -716,7 +716,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t unaligned_load(const void *ptr) noexcept {
-		__m256i_u const *ptr256 = (__m256i_u const *) ptr;
+		auto const *ptr256 = (__m256i_u const *) ptr;
 		const __m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
 		uint8x32_t out;
 		out.v256 = tmp;
