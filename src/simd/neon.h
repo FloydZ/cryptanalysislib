@@ -1224,6 +1224,19 @@ struct uint8x32_t {
 		return ret;
 	}
 
+	/// TODO
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
+		for (uint32 i = 1; i < 31; ++i) {
+			if (in.v32[0] != in.v32[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	[[nodiscard]] constexpr static inline uint8x32_t popcnt(const uint8x32_t in) noexcept {
 		uint8x32_t out;
 
