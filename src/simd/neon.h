@@ -169,13 +169,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _uint8x16_t unaligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (poly128_t *) ptr;
+			auto *ptr128 = (uint8x16_t *) ptr;
 			_uint8x16_t out;
-#ifndef __clang__
-			out.v128 = (uint8x16_t) (*ptr128);
-#else
-			out.v128 = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
-#endif
+			out.v128 = (uint8x16_t) *ptr128;
 			return out;
 		}
 

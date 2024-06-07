@@ -83,6 +83,11 @@ namespace cryptanalysislib {
 			return d[i];
 		}
 
+		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
 		///
 		/// \return
 		static inline _uint8x16_t random() noexcept {

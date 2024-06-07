@@ -462,7 +462,7 @@ public:
 
 	template<class K, class U = ValueSelect,
 	         typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
-	constexpr inline ValueSelect::value_type &operator[](K &&key) noexcept {
+	constexpr inline typename ValueSelect::value_type &operator[](K &&key) noexcept {
 		// TODO implement
 		ASSERT(false);
 	}
