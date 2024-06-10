@@ -18,6 +18,8 @@
 #include "math/math.h"
 #include "atomic_primitives.h"
 #include "hashmap/growth_policy.h"
+#include "alloc/cache.h"
+
 
 // zero is reserved for nullptr
 #define ANodeValue  0b0001
@@ -40,7 +42,6 @@
 #define isFNode(ptr)  ((((uintptr_t)ptr) & FullValue) == FNodeValue)
 #define isLNode(ptr)  ((((uintptr_t)ptr) & FullValue) == LNodeValue)
 #define isXNode(ptr)  ((((uintptr_t)ptr) & FullValue) == XNodeValue)
-
 #define isFVNode(ptr) ((((uintptr_t)ptr) & FullValue) == FVNodeValue)
 #define isFSNode(ptr) ((((uintptr_t)ptr) & FullValue) == FSNodeValue)
 
@@ -201,10 +202,12 @@ class CacheTrie {
 	constexpr static uint32_t lW = 4;
 	constexpr static uint32_t threads = 1;
 
+	// TODO enable
 	/// some flags to enable/disable features
-	constexpr static bool useCompression = false; // TODO
+	constexpr static bool useCompression = false;
 	constexpr static bool useCounters = false;
 	constexpr static bool useCache = false;
+
 
 	class ANNode {
 		void *data [bits_log2(wayness)] = {nullptr};
@@ -332,17 +335,8 @@ class CacheTrie {
 
 	///////////////////////////// Allocation Cache //////////////////////////////
 
-	template<class Node>
-	class AllocationCacheNode {
-	public:
-		std::vector<Node> data;
-		Node *next = nullptr;
-	};
-
-	std::size_t allocation_cache_startsize = 4;
-	std::size_t snodes = 0;
-	AllocationCacheNode<SNode> snodes_cache;
-	GrowthPolicy snodes_gp;
+	using SCacheAllocator = CacheAllocator<SNode>;
+	SCacheAllocator sll{};
 
 	/////////////////////////////////////////////////////////////////////////////
 
@@ -354,7 +348,6 @@ class CacheTrie {
 	/// +1, because we need to fake that the root is a `ANode`
 	alignas(alignment) void* root[wayness+1] = { nullptr };
 	alignas(alignment) void* rawRoot = nullptr;
-
 
 	/////////////////////////////// CHECK ///////////////////////////////////
 
@@ -382,7 +375,7 @@ class CacheTrie {
 					continue;
 				}
 
-				uintptr_t d = (uintptr_t)(a->at(i));
+				auto d = (uintptr_t)(a->at(i));
 				if ((d < 1024) && (d > 9)) {
 					return false;
 				}
@@ -401,7 +394,7 @@ class CacheTrie {
 					continue;
 				}
 
-				uintptr_t d = (uintptr_t)(a->at(i));
+				auto d = (uintptr_t)(a->at(i));
 				if ((d < 1024) && (d > 9)) {
 					return false;
 				}
@@ -457,22 +450,14 @@ class CacheTrie {
 	                                    const K &key,
 	                                    const V &v,
 	                                    void *ptr=nullptr) noexcept {
-		size_t pos = FAA(&snodes, 1ul);
+		// auto *n = (SNode *) malloc(sizeof(SNode));
 
-		if (pos >= snodes_cache.data.size()) {
-			// snode_cache.resize(snodes * 2u);
-
-		}
-
-		pos = snodes_gp.bucket_for_hash(pos);
-		// TODO: das problem ist das resize: das verschiebt
-		auto *n = new (std::align_val_t(alignment)) SNode {hash, key, v, ptr};
-		//auto *n = (SNode *)(&(snode_cache[snodes]));
-		//snodes += 1;
-		//n->hash = hash;
-		//n->key = key;
-		//n->value = v;
-		//n->txn = ptr;
+		// holy shit that is really slow
+		auto *n = sll.allocate();
+		n->hash = hash;
+		n->key = key;
+		n->value = v;
+		n->txn = ptr;
 		maskSNode(n);
 		return n;
 	}
@@ -638,7 +623,7 @@ class CacheTrie {
 	}
 public:
 
-	constexpr CacheTrie() noexcept : snodes_gp(allocation_cache_startsize) {
+	constexpr CacheTrie() noexcept {
 		// this is hideous: we need to mark the root node as an A node
 		rawRoot = (void *)root;
 		maskANode(rawRoot);
@@ -655,7 +640,6 @@ public:
 			return;
 		}
 
-		ASSERT(false); // TODO
 		if (cache == nullptr) {
 			// Only create the cache if the entry is at least level 12,
 			// since the expectation on the number of elements is ~80.
@@ -949,7 +933,6 @@ public:
 		const ANode *current = (ANode *) accessNode(current_);
 		uint32_t i = 0;
 		const void *np = nullptr;
-		const uint32_t len = 0;
 		// TODO jump list
 		while (i < usedLength(current_)) {
 			void *node = READ(current, i);
@@ -1162,6 +1145,10 @@ public:
 		}
 	}
 
+	///
+	/// \param source_
+	/// \param wide_
+	/// \param level
 	void sequentialTransfer(void *source_, void *wide_, const uint32_t level) {
     	uint32_t i = 0;
 		ASSERT(isAANode(source_));
@@ -1170,47 +1157,50 @@ public:
 		auto *wide = (ANode *) accessNode(wide_);
 		const uint64_t mask = usedLength(wide_) - 1u;
 		const uint64_t len = usedLength(source_);
-    	while (i < len) { // TODO goto jumps
-    	  void *node = source->at(i);
-		  ASSERT(isNode(node));
-		  ANode *tmp_node = (ANode *) accessNode(node);
+		while (i < len) {
+			void *node = source->at(i);
+			ASSERT(isNode(node));
+			// auto *tmp_node = (ANode *) accessNode(node);
 
-    	  if (isFVNode(node)) {
-    	    // We can skip, the slot was empty.
-    	  } else if (isFrozenS(node)) {
-    	    // We can copy it over to the wide node.
-			auto *sn_ = createSNode((SNode *)node);
-    	    const uint32_t pos = (((SNode *) accessNode(sn_))->hash >> level) & mask;
-    	    if (wide->at(pos) == nullptr) {
-				wide->at(pos) = sn_;
-			} else { 
-				sequentialInsert(sn_, wide_, level, pos);
+			if (isFVNode(node)) {
+				// We can skip, the slot was empty.
+			} else if (isFrozenS(node)) {
+				// We can copy it over to the wide node.
+				auto *sn_ = createSNode((SNode *)node);
+				const uint32_t pos = (((SNode *) accessNode(sn_))->hash >> level) & mask;
+				if (wide->at(pos) == nullptr) {
+					wide->at(pos) = sn_;
+				} else {
+					sequentialInsert(sn_, wide_, level, pos);
+				}
+			} else if (isFrozenL(node)) {
+				auto *fn = (FNode *)accessNode(node);
+				ASSERT(isNode(fn->frozen));
+				auto *tail = (LNode *) accessNode((fn->frozen));
+
+				while (tail != nullptr) {
+					auto *sn_ = createSNode((LNode *)tail);
+					const uint32_t pos = (((LNode *)tail)->hash >> level) & mask;
+					sequentialInsert(sn_, wide_, level, pos);
+					ASSERT(isNode(tail->next));
+					tail = (LNode *) accessNode(tail->next);
+				}
+			} else if (isFNode(node)) {
+				auto *fn = (FNode *)accessNode(node);
+				ASSERT(isNode(fn->frozen));
+				sequentialTransfer(fn->frozen, wide_, level);
+			} else {
+				ASSERT(false);
 			}
-    	  } else if (isFrozenL(node)) {
-    	    auto *fn = (FNode *)accessNode(node);
-			ASSERT(isNode(fn->frozen));
-    	    auto *tail = (LNode *) accessNode((fn->frozen));
 
-    	    while (tail != nullptr) {
-			  auto *sn_ = createSNode((LNode *)tail);
-    	      const uint32_t pos = (((LNode *)tail)->hash >> level) & mask;
-    	      sequentialInsert(sn_, wide_, level, pos);
-			  ASSERT(isNode(tail->next));
-    	      tail = (LNode *) accessNode(tail->next);
-    	    }
-    	  } else if (isFNode(node)) {
-    	    auto *fn = (FNode *)accessNode(node);
-			ASSERT(isNode(fn->frozen));
-    	    sequentialTransfer(fn->frozen, wide_, level);
-    	  } else {
-			// sys.error("Unexpected case -- source array node should have been frozen.")
-			  ASSERT(false);
-    	  }
-
-    	  i += 1;
-    	}
+			i += 1;
+		}
 	}
 
+	///
+	/// \param source_
+	/// \param narrow_
+	/// \param level
 	void sequentialTransferNarrow(void *source_, void *narrow_, const uint32_t level) {
 		// it's really not used
 		(void)level;
@@ -1240,6 +1230,13 @@ public:
 		}
 	}
 
+	///
+	/// \param oldln
+	/// \param hash
+	/// \param k
+	/// \param v
+	/// \param level
+	/// \return
 	void* newListNarrowOrWideNode(LNode *oldln, const uint64_t hash,
 	                              const K k, const V v, const uint32_t level) {
 		ASSERT(isNode(oldln));
@@ -1265,6 +1262,15 @@ public:
 		}
 	}
 
+	///
+	/// \param h1
+	/// \param k1
+	/// \param v1
+	/// \param h2
+	/// \param k2
+	/// \param v2
+	/// \param level
+	/// \return
 	void *newNarrowOrWideNode(const std::size_t h1, const K k1, const V v1,
 							  const std::size_t h2, const K k2, const V v2,
 							  const uint32_t level) {
@@ -1509,16 +1515,17 @@ public:
 		const size_t pos = (hash >> level) & mask;
 		void *old = READ(cur, pos);
 
-		ANode *told = (ANode *) accessNode(old);
-		ANode *tcur = (ANode *) accessNode(cur);
+		// just for debugging
+		// ANode *told = (ANode *) accessNode(old);
+		// ANode *tcur = (ANode *) accessNode(cur);
 
 		void *ptr, *frozen;
 		const uint32_t cachelevel = (cache == nullptr) ? 0 : 32 - __builtin_clz(1);
 		void *lookup_jump_table[] = {
 				&&lookup_nullptr, &&lookup_anode, &&lookup_aanode,
 				&&lookup_snode, &&lookup_lnode, &&lookup_xnode,
-		        &&lookup_enode, &&lookup_fnode};
-
+		        &&lookup_enode, &&lookup_fnode
+		};
 
 		ASSERT(isNode(old));
 		goto *lookup_jump_table[accessType(old)];
@@ -1734,8 +1741,9 @@ public:
 		const size_t pos = (hash >> level) & mask;
 		void *old = READ(cur, pos);
 
-		ANode *told = (ANode *) accessNode(old);
-		ANode *tcur = (ANode *) accessNode(cur);
+		// just for debugging
+		// ANode *told = (ANode *) accessNode(old);
+		// ANode *tcur = (ANode *) accessNode(cur);
 
 		ASSERT(isNode(old) || (old == nullptr));
 		ASSERT(checkAANode(old));
