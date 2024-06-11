@@ -450,10 +450,10 @@ class CacheTrie {
 	                                    const K &key,
 	                                    const V &v,
 	                                    void *ptr=nullptr) noexcept {
-		// auto *n = (SNode *) malloc(sizeof(SNode));
+		auto *n = (SNode *) malloc(sizeof(SNode));
 
 		// holy shit that is really slow
-		auto *n = sll.allocate();
+		// auto *n = sll.allocate();
 		n->hash = hash;
 		n->key = key;
 		n->value = v;

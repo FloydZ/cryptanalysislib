@@ -63,6 +63,22 @@ TEST(SortingNetwork, timsort_constexpr) {
 }
 
 #ifdef USE_AVX2
+
+TEST(SortingNetwork, unt64x8_t) {
+	__m256i z1 = _mm256_setr_epi64x(0, 1, 2, 3);
+	__m256i z2 = _mm256_setr_epi64x(4, 5, 6, 7);
+	const __m256i y1 = z1;
+	const __m256i y2 = z2;
+	sortingnetwork_sort_i64x8(z1, z2);
+	__m256i c = _mm256_cmpeq_epi64(y1, z1);
+	int mask = _mm256_movemask_ps((__m256) c);
+	EXPECT_EQ(mask, (1u << 8u) - 1u);
+
+	c = _mm256_cmpeq_epi64(y2, z2);
+	mask = _mm256_movemask_ps((__m256) c);
+	EXPECT_EQ(mask, (1u << 8u) - 1u);
+}
+
 // SRC: https://drops.dagstuhl.de/opus/volltexte/2021/13775/pdf/LIPIcs-SEA-2021-3.pdf
 TEST(SortingNetwork, uint32x8_t) {
 	__m256i z = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
@@ -130,6 +146,32 @@ TEST(SortingNetwork, uint8x32_t) {
 	_mm_store_si128((__m128i *)datas3 + 1, ins2);
 	for (uint32_t i = 0; i < 32; i++) {
 		EXPECT_EQ(datas3[i], datas1[i]);
+	}
+}
+
+TEST(SortingNetwork, int32x128_t) {
+	uint32_t data[128];
+	for (uint32_t i = 0; i < 128; ++i) {
+		data[i] = fastrandombytes_uint64() % (1u << 31);
+	}
+
+	sortingnetwork_sort_i32x128((__m256i *)data);
+
+	for (uint32_t i = 0; i < 127; ++i) {
+		EXPECT_LE(data[i], data[i + 1])	;
+	}
+}
+
+TEST(SortingNetwork, uint32x128_t) {
+	uint32_t data[128];
+	for (uint32_t i = 0; i < 128; ++i) {
+		data[i] = fastrandombytes_uint64();
+	}
+
+	sortingnetwork_sort_u32x128((__m256i *)data);
+
+	for (uint32_t i = 0; i < 127; ++i) {
+		EXPECT_LE(data[i], data[i + 1])	;
 	}
 }
 #endif
