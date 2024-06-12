@@ -16,11 +16,21 @@ template<typename T, class A = std::atomic<T>>
 class ConstFreeList {
 private:
 	struct Node {
-		Node() : next(nullptr) {}
-		Node(T data) : next(nullptr), data(data) {}
+		Node() noexcept : next(nullptr) {}
+		Node(T data) noexcept : next(nullptr), data(data) {}
 
 		std::atomic<Node *> next;
 		T data;
+
+	public:
+		bool operator==(const Node &b) const noexcept {
+			return (uintptr_t)data == (uintptr_t)b.data;
+		}
+
+		constexpr Node(Node &t) noexcept {
+			this->next.store(t.next.load());
+			this->data = t.data;
+		}
 	};
 
 	struct Iterator {
