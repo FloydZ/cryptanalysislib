@@ -66,14 +66,14 @@ find_package(benchmark)
 find_package(Git QUIET)
 
 if(${USE_TRACY})
-#	FetchContent_Declare(
-#		tracy
-#		GIT_REPOSITORY 	https://github.com/wolfpld/tracy
-#		GIT_TAG 		master
-#		GIT_SHALLOW 	TRUE
-#		GIT_PROGRESS 	TRUE
-#	)
-#	FetchContent_MakeAvailable(tracy)
+	FetchContent_Declare(
+		tracy
+		GIT_REPOSITORY 	https://github.com/wolfpld/tracy
+		GIT_TAG 		master
+		GIT_SHALLOW 	TRUE
+		GIT_PROGRESS 	TRUE
+	)
+	FetchContent_MakeAvailable(tracy)
 endif ()
 
 # global include directories
@@ -147,12 +147,12 @@ set(LINK_BENCH_FLAGS
 	# atomic
 )
 
-# if(${USE_TRACY})
-# 	message(STATUS "Using tracy")
-# 	list(APPEND LINK_TEST_FLAGS TracyClient)
-# 	list(APPEND LINK_BENCH_FLAGS TracyClient)
-# 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_TRACY")
-# endif()
+if(${USE_TRACY})
+	message(STATUS "Using tracy")
+	list(APPEND LINK_TEST_FLAGS TracyClient)
+	list(APPEND LINK_BENCH_FLAGS TracyClient)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_TRACY")
+endif()
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not
 # he nicest way, but by far the easiest.
