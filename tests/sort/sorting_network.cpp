@@ -177,7 +177,7 @@ constexpr bool check_correctness(const T *data, const uint32_t n) {
 }
 
 TEST(SortingNetwork, f32xX_t) {
-	constexpr size_t size = 10;
+	constexpr size_t size = 16;
 	__m256 data[size] = {0};
 	float *d = (float *)data;
 	for (size_t i = 0; i < size * 8; ++i) {
@@ -202,9 +202,13 @@ TEST(SortingNetwork, f32xX_t) {
 	ASSERT_EQ(check_correctness((float *)data, 64), true);
 	sortingnetwork_sort_f32x72(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
 	ASSERT_EQ(check_correctness((float *)data, 72), true);
+
+
+	sortingnetwork_sort_f32x128(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+	ASSERT_EQ(check_correctness((float *) data, 128), true);
 }
 TEST(SortingNetwork, u32xX_t) {
-	constexpr size_t size = 10;
+	constexpr size_t size = 16;
 	__m256i data[size] = {0};
 	auto *d = (uint32_t *) data;
 	for (size_t i = 0; i < size * 8; ++i) {
@@ -229,6 +233,9 @@ TEST(SortingNetwork, u32xX_t) {
 	ASSERT_EQ(check_correctness((uint32_t *) data, 64), true);
 	sortingnetwork_sort_u32x72(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
 	ASSERT_EQ(check_correctness((uint32_t *) data, 72), true);
+
+	sortingnetwork_sort_u32x128(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 128), true);
 }
 
 TEST(SortingNetwork, int32x128_t) {
@@ -250,7 +257,7 @@ TEST(SortingNetwork, uint32x128_t) {
 		data[i] = fastrandombytes_uint64();
 	}
 
-	sortingnetwork_sort_u32x128((__m256i *)data);
+	sortingnetwork_sort_u32x128_2((__m256i *)data);
 
 	for (uint32_t i = 0; i < 127; ++i) {
 		EXPECT_LE(data[i], data[i + 1])	;

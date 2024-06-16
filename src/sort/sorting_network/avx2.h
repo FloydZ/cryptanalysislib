@@ -633,7 +633,7 @@ static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c
 	h = sortingnetwork_aftermerge_ ## MULT1(h); \
 }
 
-#define sortingnetwork_sort8(NEW_MULT,MULT4,MULT2,MULT1,REG)			\
+#define sortingnetwork_sort8(NEW_MULT,MULT4,MULT2,MULT1,REG) \
 static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h) { \
 	REG tmp;                                        \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 		\
@@ -749,24 +749,24 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 //	sortingnetwork_aftermerge_8V(a, b, c, d, e, f, g, h);
 //	sortingnetwork_aftermerge_ ## MULT7(i, j, k, l, m, n, o);
 //}
-//
-////----------------------------------------------------------------------------------------------------------------------
-//static inline void sortingnetwork_sort_16(REG   &a, REG  &b, REG  &c, REG  &d, REG  &e, REG  &f, REG  &g, REG  &h, REG  &i, REG  &j, REG  &k, REG  &l, REG m, REG  &n, REG  &o, REG  &p)
-//{
-//	sortingnetwork_sort_8V(a, b, c, d, e, f, g, h);
-//	sortingnetwork_sort_8V(i, j, k, l, m, n, o, p);
-//	sortingnetwork_permute_minmax_ ## MULT2(a, p);
-//	sortingnetwork_permute_minmax_ ## MULT2(b, o);
-//	sortingnetwork_permute_minmax_ ## MULT2(c, n);
-//	sortingnetwork_permute_minmax_ ## MULT2(d, m);
-//	sortingnetwork_permute_minmax_ ## MULT2(e, l);
-//	sortingnetwork_permute_minmax_ ## MULT2(f, k);
-//	sortingnetwork_permute_minmax_ ## MULT2(g, j);
-//	sortingnetwork_permute_minmax_ ## MULT2(h, i);
-//	sortingnetwork_aftermerge_8V(a, b, c, d, e, f, g, h);
-//	sortingnetwork_aftermerge_8V(i, j, k, l, m, n, o, p);
-//}
-//
+
+
+#define sortingnetwork_sort16(NEW_MULT,MULT8,MULT2,REG)	\
+static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o, REG &p){ \
+	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); \
+	sortingnetwork_sort_ ## MULT8(i, j, k, l, m, n, o, p); \
+	sortingnetwork_permute_minmax_ ## MULT2(a, p); \
+	sortingnetwork_permute_minmax_ ## MULT2(b, o); \
+	sortingnetwork_permute_minmax_ ## MULT2(c, n); \
+	sortingnetwork_permute_minmax_ ## MULT2(d, m); \
+	sortingnetwork_permute_minmax_ ## MULT2(e, l); \
+	sortingnetwork_permute_minmax_ ## MULT2(f, k); \
+	sortingnetwork_permute_minmax_ ## MULT2(g, j); \
+	sortingnetwork_permute_minmax_ ## MULT2(h, i); \
+	sortingnetwork_aftermerge_ ## MULT8 (a, b, c, d, e, f, g, h); \
+	sortingnetwork_aftermerge_ ## MULT8 (i, j, k, l, m, n, o, p); \
+}
+
 ////----------------------------------------------------------------------------------------------------------------------
 //static inline void sortingnetwork_sort_17(REG   &a, REG  &b, REG  &c, REG  &d, REG  &e, REG  &f, REG  &g, REG  &h,
 //                                 REG   &i, REG  &j, REG  &k, REG  &l, REG m, REG  &n, REG  &o, REG  &p,
@@ -923,6 +923,8 @@ sortingnetwork_sort9(f32x72,f32x64,f32x16,f32x8,__m256)
 sortingnetwork_sort9(u32x72,u32x64,u32x16,u32x8,__m256i)
 
 
+sortingnetwork_sort16(f32x128,f32x64,f32x16,__m256)
+sortingnetwork_sort16(u32x128,u32x64,u32x16,__m256i)
 
 /* merge columns without transposition */
 #define ASC(a, b, c, d, e, f, g, h)                                    \
@@ -1167,7 +1169,7 @@ constexpr void sortingnetwork_sort_i32x128(__m256i *v) noexcept{
 /// sorts 128 u32 elements
 /// \param v
 /// \return
-constexpr void sortingnetwork_sort_u32x128(__m256i *v) noexcept{
+constexpr void sortingnetwork_sort_u32x128_2(__m256i *v) noexcept{
 	sort_16_int_column_wise_u(v);
 	merge_8_columns_with_16_elements_u(v);
 }
