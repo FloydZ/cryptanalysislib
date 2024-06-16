@@ -111,7 +111,8 @@ concept ListAble = requires(List l) {
 
 	/// arithmetic/algorithm stuff
 	requires requires(const uint32_t i) {
-		l.sort();
+		// TODO l.sort();
+
 		/// i = thread id
 		l.zero(i);
 		l.random(i);

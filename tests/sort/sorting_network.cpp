@@ -63,6 +63,22 @@ TEST(SortingNetwork, timsort_constexpr) {
 }
 
 #ifdef USE_AVX2
+
+TEST(SortingNetwork, unt64x8_t) {
+	__m256i z1 = _mm256_setr_epi64x(0, 1, 2, 3);
+	__m256i z2 = _mm256_setr_epi64x(4, 5, 6, 7);
+	const __m256i y1 = z1;
+	const __m256i y2 = z2;
+	sortingnetwork_sort_i64x8(z1, z2);
+	__m256i c = _mm256_cmpeq_epi64(y1, z1);
+	int mask = _mm256_movemask_ps((__m256) c);
+	EXPECT_EQ(mask, (1u << 8u) - 1u);
+
+	c = _mm256_cmpeq_epi64(y2, z2);
+	mask = _mm256_movemask_ps((__m256) c);
+	EXPECT_EQ(mask, (1u << 8u) - 1u);
+}
+
 // SRC: https://drops.dagstuhl.de/opus/volltexte/2021/13775/pdf/LIPIcs-SEA-2021-3.pdf
 TEST(SortingNetwork, uint32x8_t) {
 	__m256i z = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
@@ -189,30 +205,56 @@ TEST(SortingNetwork, f32xX_t) {
 }
 TEST(SortingNetwork, u32xX_t) {
 	constexpr size_t size = 10;
-    __m256i data[size] = {0};
-	auto *d = (uint32_t *)data;
+	__m256i data[size] = {0};
+	auto *d = (uint32_t *) data;
 	for (size_t i = 0; i < size * 8; ++i) {
 		d[i] = fastrandombytes_uint64();
 	}
 
 	data[0] = sortingnetwork_sort_u32x8(data[0]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 8), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 8), true);
 	sortingnetwork_sort_u32x16(data[0], data[1]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 16), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 16), true);
 	sortingnetwork_sort_u32x24(data[0], data[1], data[2]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 24), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 24), true);
 	sortingnetwork_sort_u32x32(data[0], data[1], data[2], data[3]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 32), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 32), true);
 	sortingnetwork_sort_u32x40(data[0], data[1], data[2], data[3], data[4]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 40), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 40), true);
 	sortingnetwork_sort_u32x48(data[0], data[1], data[2], data[3], data[4], data[5]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 48), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 48), true);
 	sortingnetwork_sort_u32x56(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 56), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 56), true);
 	sortingnetwork_sort_u32x64(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 64), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 64), true);
 	sortingnetwork_sort_u32x72(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
-	ASSERT_EQ(check_correctness((uint32_t *)data, 72), true);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 72), true);
+}
+
+TEST(SortingNetwork, int32x128_t) {
+	uint32_t data[128];
+	for (uint32_t i = 0; i < 128; ++i) {
+		data[i] = fastrandombytes_uint64() % (1u << 31);
+	}
+
+	sortingnetwork_sort_i32x128((__m256i *)data);
+
+	for (uint32_t i = 0; i < 127; ++i) {
+		EXPECT_LE(data[i], data[i + 1])	;
+	}
+}
+
+TEST(SortingNetwork, uint32x128_t) {
+	uint32_t data[128];
+	for (uint32_t i = 0; i < 128; ++i) {
+		data[i] = fastrandombytes_uint64();
+	}
+
+	sortingnetwork_sort_u32x128((__m256i *)data);
+
+	for (uint32_t i = 0; i < 127; ++i) {
+		EXPECT_LE(data[i], data[i + 1])	;
+	}
 }
 #endif
 

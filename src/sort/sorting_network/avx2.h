@@ -94,6 +94,10 @@
 		b = _mm256_max_epu32(tmp, b); 	  \
 	}
 
+#define COEX64X4(a,b,c,e,t)			\
+	t = _mm256_cmpgt_epi64(a,b);	\
+	c = _mm256_blendv_pd(a, b, t);	\
+	e = _mm256_blendv_pd(b, a, t);
 
 // float32
 #define COEX_f32x8(a, b, tmp)             \
@@ -103,6 +107,47 @@
 		b = _mm256_max_ps(tmp, b);     	  \
 	}
 
+static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0) {
+	__m256i a1,b1,t;
+	COEX64X4(a0,b0,a1,b1,t)
+	a0 = a1;
+	b0 = _mm256_shuffle_pd(b1, b1, 0b0101);
+
+	COEX64X4(a0,b0,a1,b1,t)
+	a0 = _mm256_shuffle_pd(a1, b1, 0b1010);
+	b0 = _mm256_shuffle_pd(a1, b1, 0b0101);
+
+	COEX64X4(a0,b0,a1,b1,t)
+
+	a1 = _mm256_permute4x64_epi64(a1, 0b11011000);
+	b1 = _mm256_permute4x64_epi64(b1, 0b01100011);
+	a0 = _mm256_blend_pd(a1, b1, 0b1010);
+	b0 = _mm256_blend_pd(a1, b1, 0b0101);
+	b0 = _mm256_permute4x64_epi64(b0, 0b01101100);
+
+	COEX64X4(a0,b0,a1,b1,t)
+
+	a0 = _mm256_blend_pd(a1, b1, 0b1100);
+	b0 = _mm256_blend_pd(a1, b1, 0b0011);
+	a0 = _mm256_permute4x64_epi64(a0, 0b10110100);
+	b0 = _mm256_permute4x64_epi64(b0, 0b00011110);
+
+	COEX64X4(a0,b0,a1,b1,t)
+
+	b1 = _mm256_permute4x64_epi64(b1,0b10110001);
+	a0 = _mm256_blend_pd(a1, b1, 0b1010);
+	b0 = _mm256_blend_pd(a1, b1, 0b0101);
+	b0 = _mm256_permute4x64_epi64(b0, 0b10110001);
+
+	COEX64X4(a0,b0,a1,b1,t)
+
+	b1 = _mm256_permute4x64_epi64(b1,0b01001110);
+	a0 = _mm256_blend_pd(a1, b1, 0b1100);
+	b0 = _mm256_blend_pd(a1, b1, 0b0011);
+
+	b0 = _mm256_permute4x64_epi64(b0, 0b01110010);
+	a0 = _mm256_permute4x64_epi64(a0, 0b11011000);
+}
 
 #define SHUFFLE_2_VECS(a, b, mask)         \
 	_mm256_castps_si256(_mm256_shuffle_ps( \
@@ -233,7 +278,6 @@ constexpr static inline __m256i sortingnetwork_sort_u32x8(__m256i &input) noexce
 		__m256i perm_neigh_max = _mm256_max_epu32(input, perm_neigh);
 		input = _mm256_blend_ps(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
-
 	return input;
 }
 
@@ -366,10 +410,6 @@ constexpr static inline void sortingnetwork_sort_u8x32(__m128i *a,
     *b = sortingnetwork_sort_u8x16(*b);
     sortingnetwork_mergesort_u8x32(a, b);
 }
-
-
-
-
 
 
 /// floating point stuff
@@ -881,4 +921,261 @@ sortingnetwork_aftermerge8(f32x64,f32x16,f32x8,__m256)
 sortingnetwork_aftermerge8(u32x64,u32x16,u32x8,__m256i)
 sortingnetwork_sort9(f32x72,f32x64,f32x16,f32x8,__m256)
 sortingnetwork_sort9(u32x72,u32x64,u32x16,u32x8,__m256i)
+
+
+
+/* merge columns without transposition */
+#define ASC(a, b, c, d, e, f, g, h)                                    \
+  (((h < 7) << 7) | ((g < 6) << 6) | ((f < 5) << 5) | ((e < 4) << 4) | \
+      ((d < 3) << 3) | ((c < 2) << 2) | ((b < 1) << 1) | (a < 0))
+
+#define REVERSE_VEC(vec){                                              \
+    vec = _mm256_permutevar8x32_epi32(                                 \
+        vec, _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0));}
+
+#define COEX_SHUFFLE(vec, a, b, c, d, e, f, g, h, MASK){               \
+    constexpr int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
+    __m256i shuffled = _mm256_shuffle_epi32(vec, shuffle_mask);        \
+    __m256i min = _mm256_min_epi32(shuffled, vec);                     \
+    __m256i max = _mm256_max_epi32(shuffled, vec);                     \
+    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    vec = _mm256_blend_epi32(min, max, blend_mask);}
+
+#define COEX_PERMUTE(vec, a, b, c, d, e, f, g, h, MASK){               \
+    __m256i permute_mask = _mm256_setr_epi32(a, b, c, d, e, f, g, h);  \
+    __m256i permuted = _mm256_permutevar8x32_epi32(vec, permute_mask); \
+    __m256i min = _mm256_min_epi32(permuted, vec);                     \
+    __m256i max = _mm256_max_epi32(permuted, vec);                     \
+    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    vec = _mm256_blend_epi32(min, max, blend_mask);}
+
+/* sort 8 columns, each containing 16 int, with Green's 60 modules network */
+#define SORT_16_INT_COLUMNS_WISE(S)							\
+constexpr inline                         					\
+void sort_16_int_column_wise_ ##S (__m256i* vecs) noexcept {\
+	/* step 1 */											\
+	COEX(vecs[0], vecs[1]); COEX(vecs[2], vecs[3]);			\
+	COEX(vecs[4], vecs[5]); COEX(vecs[6], vecs[7]);			\
+	COEX(vecs[8], vecs[9]); COEX(vecs[10], vecs[11]);		\
+	COEX(vecs[12], vecs[13]); COEX(vecs[14], vecs[15]);		\
+	/* step 2 */											\
+	COEX(vecs[0], vecs[2]); COEX(vecs[1], vecs[3]);			\
+	COEX(vecs[4], vecs[6]); COEX(vecs[5], vecs[7]);			\
+	COEX(vecs[8], vecs[10]); COEX(vecs[9], vecs[11]);		\
+	COEX(vecs[12], vecs[14]); COEX(vecs[13], vecs[15]);		\
+	/* step 3 */											\
+	COEX(vecs[0], vecs[4]); COEX(vecs[1], vecs[5]);			\
+	COEX(vecs[2], vecs[6]); COEX(vecs[3], vecs[7]);			\
+	COEX(vecs[8], vecs[12]); COEX(vecs[9], vecs[13]);		\
+	COEX(vecs[10], vecs[14]); COEX(vecs[11], vecs[15]);		\
+	/* step 4 */ 											\
+	COEX(vecs[0], vecs[8]); COEX(vecs[1], vecs[9]);			\
+	COEX(vecs[2], vecs[10]); COEX(vecs[3], vecs[11]);		\
+	COEX(vecs[4], vecs[12]); COEX(vecs[5], vecs[13]);		\
+	COEX(vecs[6], vecs[14]); COEX(vecs[7], vecs[15]);		\
+	/* step 5 */											\
+	COEX(vecs[5], vecs[10]); COEX(vecs[6], vecs[9]);		\
+	COEX(vecs[3], vecs[12]); COEX(vecs[7], vecs[11]);		\
+	COEX(vecs[13], vecs[14]); COEX(vecs[4], vecs[8]);		\
+	COEX(vecs[1], vecs[2]);									\
+	/* step 6 */											\
+	COEX(vecs[1], vecs[4]); COEX(vecs[7], vecs[13]);		\
+	COEX(vecs[2], vecs[8]); COEX(vecs[11], vecs[14]);		\
+	/* step 7 */											\
+	COEX(vecs[2], vecs[4]); COEX(vecs[5], vecs[6]);			\
+	COEX(vecs[9], vecs[10]); COEX(vecs[11], vecs[13]);		\
+	COEX(vecs[3], vecs[8]); COEX(vecs[7], vecs[12]);		\
+	/* step 8 */											\
+	COEX(vecs[3], vecs[5]); COEX(vecs[6], vecs[8]);			\
+	COEX(vecs[7], vecs[9]); COEX(vecs[10], vecs[12]);		\
+	/* step 9 */											\
+	COEX(vecs[3], vecs[4]); COEX(vecs[5], vecs[6]);			\
+	COEX(vecs[7], vecs[8]); COEX(vecs[9], vecs[10]);		\
+	COEX(vecs[11], vecs[12]);								\
+	/* step 10 */											\
+	COEX(vecs[6], vecs[7]); COEX(vecs[8], vecs[9]);			\
+}
+
+#define CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(S) 												\
+constexpr void inline merge_8_columns_with_16_elements_ ##S (__m256i* vecs) noexcept {			\
+	vecs[8] = _mm256_shuffle_epi32(vecs[8], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[7], vecs[8]); 		\
+	vecs[9] = _mm256_shuffle_epi32(vecs[9], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[6], vecs[9]); 		\
+	vecs[10] = _mm256_shuffle_epi32(vecs[10], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[5], vecs[10]);   \
+	vecs[11] = _mm256_shuffle_epi32(vecs[11], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[4], vecs[11]);   \
+	vecs[12] = _mm256_shuffle_epi32(vecs[12], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[3], vecs[12]);   \
+	vecs[13] = _mm256_shuffle_epi32(vecs[13], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[2], vecs[13]);   \
+	vecs[14] = _mm256_shuffle_epi32(vecs[14], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[1], vecs[14]);   \
+	vecs[15] = _mm256_shuffle_epi32(vecs[15], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[0], vecs[15]);   \
+	vecs[4] = _mm256_shuffle_epi32(vecs[4], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[3], vecs[4]); 		\
+	vecs[5] = _mm256_shuffle_epi32(vecs[5], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[2], vecs[5]); 		\
+	vecs[6] = _mm256_shuffle_epi32(vecs[6], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[1], vecs[6]); 		\
+	vecs[7] = _mm256_shuffle_epi32(vecs[7], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[0], vecs[7]); 		\
+	vecs[12] = _mm256_shuffle_epi32(vecs[12], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[11], vecs[12]);  \
+	vecs[13] = _mm256_shuffle_epi32(vecs[13], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[10], vecs[13]);  \
+	vecs[14] = _mm256_shuffle_epi32(vecs[14], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[9], vecs[14]);   \
+	vecs[15] = _mm256_shuffle_epi32(vecs[15], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[8], vecs[15]);   \
+	vecs[2] = _mm256_shuffle_epi32(vecs[2], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[1], vecs[2]); 		\
+	vecs[3] = _mm256_shuffle_epi32(vecs[3], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[0], vecs[3]); 		\
+	vecs[6] = _mm256_shuffle_epi32(vecs[6], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[5], vecs[6]); 		\
+	vecs[7] = _mm256_shuffle_epi32(vecs[7], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[4], vecs[7]); 		\
+	vecs[10] = _mm256_shuffle_epi32(vecs[10], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[9], vecs[10]);   \
+	vecs[11] = _mm256_shuffle_epi32(vecs[11], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[8], vecs[11]);   \
+	vecs[14] = _mm256_shuffle_epi32(vecs[14], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[13], vecs[14]);  \
+	vecs[15] = _mm256_shuffle_epi32(vecs[15], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[12], vecs[15]);  \
+	vecs[1] = _mm256_shuffle_epi32(vecs[1], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[0], vecs[1]); 		\
+	vecs[3] = _mm256_shuffle_epi32(vecs[3], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[2], vecs[3]); 		\
+	vecs[5] = _mm256_shuffle_epi32(vecs[5], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[4], vecs[5]); 		\
+	vecs[7] = _mm256_shuffle_epi32(vecs[7], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[6], vecs[7]); 		\
+	vecs[9] = _mm256_shuffle_epi32(vecs[9], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[8], vecs[9]); 		\
+	vecs[11] = _mm256_shuffle_epi32(vecs[11], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[10], vecs[11]);  \
+	vecs[13] = _mm256_shuffle_epi32(vecs[13], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[12], vecs[13]);  \
+	vecs[15] = _mm256_shuffle_epi32(vecs[15], _MM_SHUFFLE(2,3,0,1)); COEX(vecs[14], vecs[15]);  \
+	COEX_SHUFFLE(vecs[0], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_SHUFFLE(vecs[1], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[2], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_SHUFFLE(vecs[3], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[4], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_SHUFFLE(vecs[5], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[6], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_SHUFFLE(vecs[7], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[8], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_SHUFFLE(vecs[9], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[10], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_SHUFFLE(vecs[11], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[12], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_SHUFFLE(vecs[13], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[14], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_SHUFFLE(vecs[15], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	vecs[8] = _mm256_shuffle_epi32(vecs[8], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[7], vecs[8]); 		\
+	vecs[9] = _mm256_shuffle_epi32(vecs[9], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[6], vecs[9]); 		\
+	vecs[10] = _mm256_shuffle_epi32(vecs[10], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[5], vecs[10]); 	\
+	vecs[11] = _mm256_shuffle_epi32(vecs[11], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[4], vecs[11]); 	\
+	vecs[12] = _mm256_shuffle_epi32(vecs[12], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[3], vecs[12]); 	\
+	vecs[13] = _mm256_shuffle_epi32(vecs[13], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[2], vecs[13]); 	\
+	vecs[14] = _mm256_shuffle_epi32(vecs[14], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[1], vecs[14]); 	\
+	vecs[15] = _mm256_shuffle_epi32(vecs[15], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[0], vecs[15]); 	\
+	vecs[4] = _mm256_shuffle_epi32(vecs[4], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[3], vecs[4]); 		\
+	vecs[5] = _mm256_shuffle_epi32(vecs[5], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[2], vecs[5]); 		\
+	vecs[6] = _mm256_shuffle_epi32(vecs[6], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[1], vecs[6]); 		\
+	vecs[7] = _mm256_shuffle_epi32(vecs[7], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[0], vecs[7]); 		\
+	vecs[12] = _mm256_shuffle_epi32(vecs[12], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[11], vecs[12]);	\
+	vecs[13] = _mm256_shuffle_epi32(vecs[13], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[10], vecs[13]);	\
+	vecs[14] = _mm256_shuffle_epi32(vecs[14], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[9], vecs[14]); 	\
+	vecs[15] = _mm256_shuffle_epi32(vecs[15], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[8], vecs[15]); 	\
+	vecs[2] = _mm256_shuffle_epi32(vecs[2], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[1], vecs[2]); 		\
+	vecs[3] = _mm256_shuffle_epi32(vecs[3], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[0], vecs[3]); 		\
+	vecs[6] = _mm256_shuffle_epi32(vecs[6], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[5], vecs[6]); 		\
+	vecs[7] = _mm256_shuffle_epi32(vecs[7], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[4], vecs[7]); 		\
+	vecs[10] = _mm256_shuffle_epi32(vecs[10], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[9], vecs[10]); 	\
+	vecs[11] = _mm256_shuffle_epi32(vecs[11], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[8], vecs[11]); 	\
+	vecs[14] = _mm256_shuffle_epi32(vecs[14], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[13], vecs[14]);	\
+	vecs[15] = _mm256_shuffle_epi32(vecs[15], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[12], vecs[15]);	\
+	vecs[1] = _mm256_shuffle_epi32(vecs[1], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[0], vecs[1]); 		\
+	vecs[3] = _mm256_shuffle_epi32(vecs[3], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[2], vecs[3]); 		\
+	vecs[5] = _mm256_shuffle_epi32(vecs[5], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[4], vecs[5]); 		\
+	vecs[7] = _mm256_shuffle_epi32(vecs[7], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[6], vecs[7]); 		\
+	vecs[9] = _mm256_shuffle_epi32(vecs[9], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[8], vecs[9]); 		\
+	vecs[11] = _mm256_shuffle_epi32(vecs[11], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[10], vecs[11]);  \
+	vecs[13] = _mm256_shuffle_epi32(vecs[13], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[12], vecs[13]);  \
+	vecs[15] = _mm256_shuffle_epi32(vecs[15], _MM_SHUFFLE(0,1,2,3)); COEX(vecs[14], vecs[15]);  \
+	COEX_SHUFFLE(vecs[0], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[0], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[1], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[1], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[2], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[2], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[3], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[3], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[4], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[4], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[5], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[5], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[6], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[6], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[7], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[7], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[8], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[8], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[9], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[9], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[10], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[10], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[11], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[11], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[12], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[12], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[13], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[13], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[14], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[14], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_SHUFFLE(vecs[15], 3, 2, 1, 0, 7, 6, 5, 4, ASC); COEX_SHUFFLE(vecs[15], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	REVERSE_VEC(vecs[8]); COEX(vecs[7], vecs[8]); REVERSE_VEC(vecs[9]); COEX(vecs[6], vecs[9]);				\
+	REVERSE_VEC(vecs[10]); COEX(vecs[5], vecs[10]); REVERSE_VEC(vecs[11]); COEX(vecs[4], vecs[11]);			\
+	REVERSE_VEC(vecs[12]); COEX(vecs[3], vecs[12]); REVERSE_VEC(vecs[13]); COEX(vecs[2], vecs[13]);			\
+	REVERSE_VEC(vecs[14]); COEX(vecs[1], vecs[14]); REVERSE_VEC(vecs[15]); COEX(vecs[0], vecs[15]);			\
+	REVERSE_VEC(vecs[4]); COEX(vecs[3], vecs[4]); REVERSE_VEC(vecs[5]); COEX(vecs[2], vecs[5]);				\
+	REVERSE_VEC(vecs[6]); COEX(vecs[1], vecs[6]); REVERSE_VEC(vecs[7]); COEX(vecs[0], vecs[7]);				\
+	REVERSE_VEC(vecs[12]); COEX(vecs[11], vecs[12]); REVERSE_VEC(vecs[13]); COEX(vecs[10], vecs[13]);		\
+	REVERSE_VEC(vecs[14]); COEX(vecs[9], vecs[14]); REVERSE_VEC(vecs[15]); COEX(vecs[8], vecs[15]);			\
+	REVERSE_VEC(vecs[2]); COEX(vecs[1], vecs[2]); REVERSE_VEC(vecs[3]); COEX(vecs[0], vecs[3]);				\
+	REVERSE_VEC(vecs[6]); COEX(vecs[5], vecs[6]); REVERSE_VEC(vecs[7]); COEX(vecs[4], vecs[7]);				\
+	REVERSE_VEC(vecs[10]); COEX(vecs[9], vecs[10]); REVERSE_VEC(vecs[11]); COEX(vecs[8], vecs[11]);			\
+	REVERSE_VEC(vecs[14]); COEX(vecs[13], vecs[14]); REVERSE_VEC(vecs[15]); COEX(vecs[12], vecs[15]);		\
+	REVERSE_VEC(vecs[1]); COEX(vecs[0], vecs[1]); REVERSE_VEC(vecs[3]); COEX(vecs[2], vecs[3]);				\
+	REVERSE_VEC(vecs[5]); COEX(vecs[4], vecs[5]); REVERSE_VEC(vecs[7]); COEX(vecs[6], vecs[7]);				\
+	REVERSE_VEC(vecs[9]); COEX(vecs[8], vecs[9]); REVERSE_VEC(vecs[11]); COEX(vecs[10], vecs[11]);			\
+	REVERSE_VEC(vecs[13]); COEX(vecs[12], vecs[13]); REVERSE_VEC(vecs[15]); COEX(vecs[14], vecs[15]);		\
+	COEX_PERMUTE(vecs[0], 7, 6, 5, 4, 3, 2, 1, 0, ASC); COEX_SHUFFLE(vecs[0], 2, 3, 0, 1, 6, 7, 4, 5, ASC); \
+	COEX_SHUFFLE(vecs[0], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_PERMUTE(vecs[1], 7, 6, 5, 4, 3, 2, 1, 0, ASC); \
+	COEX_SHUFFLE(vecs[1], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[1], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_PERMUTE(vecs[2], 7, 6, 5, 4, 3, 2, 1, 0, ASC); COEX_SHUFFLE(vecs[2], 2, 3, 0, 1, 6, 7, 4, 5, ASC); \
+	COEX_SHUFFLE(vecs[2], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_PERMUTE(vecs[3], 7, 6, 5, 4, 3, 2, 1, 0, ASC); \
+	COEX_SHUFFLE(vecs[3], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[3], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_PERMUTE(vecs[4], 7, 6, 5, 4, 3, 2, 1, 0, ASC); COEX_SHUFFLE(vecs[4], 2, 3, 0, 1, 6, 7, 4, 5, ASC); \
+	COEX_SHUFFLE(vecs[4], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_PERMUTE(vecs[5], 7, 6, 5, 4, 3, 2, 1, 0, ASC); \
+	COEX_SHUFFLE(vecs[5], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[5], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_PERMUTE(vecs[6], 7, 6, 5, 4, 3, 2, 1, 0, ASC); COEX_SHUFFLE(vecs[6], 2, 3, 0, 1, 6, 7, 4, 5, ASC); \
+	COEX_SHUFFLE(vecs[6], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_PERMUTE(vecs[7], 7, 6, 5, 4, 3, 2, 1, 0, ASC); \
+	COEX_SHUFFLE(vecs[7], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[7], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_PERMUTE(vecs[8], 7, 6, 5, 4, 3, 2, 1, 0, ASC); COEX_SHUFFLE(vecs[8], 2, 3, 0, 1, 6, 7, 4, 5, ASC); \
+	COEX_SHUFFLE(vecs[8], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_PERMUTE(vecs[9], 7, 6, 5, 4, 3, 2, 1, 0, ASC); \
+	COEX_SHUFFLE(vecs[9], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[9], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_PERMUTE(vecs[10], 7, 6, 5, 4, 3, 2, 1, 0, ASC); COEX_SHUFFLE(vecs[10], 2, 3, 0, 1, 6, 7, 4, 5, ASC); \
+	COEX_SHUFFLE(vecs[10], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_PERMUTE(vecs[11], 7, 6, 5, 4, 3, 2, 1, 0, ASC); \
+	COEX_SHUFFLE(vecs[11], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[11], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_PERMUTE(vecs[12], 7, 6, 5, 4, 3, 2, 1, 0, ASC); COEX_SHUFFLE(vecs[12], 2, 3, 0, 1, 6, 7, 4, 5, ASC); \
+	COEX_SHUFFLE(vecs[12], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_PERMUTE(vecs[13], 7, 6, 5, 4, 3, 2, 1, 0, ASC); \
+	COEX_SHUFFLE(vecs[13], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[13], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+	COEX_PERMUTE(vecs[14], 7, 6, 5, 4, 3, 2, 1, 0, ASC); COEX_SHUFFLE(vecs[14], 2, 3, 0, 1, 6, 7, 4, 5, ASC); \
+	COEX_SHUFFLE(vecs[14], 1, 0, 3, 2, 5, 4, 7, 6, ASC); COEX_PERMUTE(vecs[15], 7, 6, 5, 4, 3, 2, 1, 0, ASC); \
+	COEX_SHUFFLE(vecs[15], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[15], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
+}
+
+#define COEX(a, b){ __m256i c = a; a = _mm256_min_epi32(a, b); b = _mm256_max_epi32(c, b); }
+SORT_16_INT_COLUMNS_WISE(i)
+CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(i)
+
+#undef COEX
+#undef COEX_SHUFFLE
+#undef COEX_PERMUTE
+
+#define COEX_SHUFFLE(vec, a, b, c, d, e, f, g, h, MASK){               \
+    constexpr int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
+    __m256i shuffled = _mm256_shuffle_epi32(vec, shuffle_mask);        \
+    __m256i min = _mm256_min_epu32(shuffled, vec);                     \
+    __m256i max = _mm256_max_epu32(shuffled, vec);                     \
+    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    vec = _mm256_blend_epi32(min, max, blend_mask);}
+
+#define COEX_PERMUTE(vec, a, b, c, d, e, f, g, h, MASK){               \
+    __m256i permute_mask = _mm256_setr_epi32(a, b, c, d, e, f, g, h);  \
+    __m256i permuted = _mm256_permutevar8x32_epi32(vec, permute_mask); \
+    __m256i min = _mm256_min_epu32(permuted, vec);                     \
+    __m256i max = _mm256_max_epu32(permuted, vec);                     \
+    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    vec = _mm256_blend_epi32(min, max, blend_mask);}
+
+#define COEX(a, b){ __m256i c = a; a = _mm256_min_epu32(a, b); b = _mm256_max_epu32(c, b);}
+SORT_16_INT_COLUMNS_WISE(u)
+CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(u)
+
+/// sorts 128 i32 elements
+/// \param v
+/// \return
+constexpr void sortingnetwork_sort_i32x128(__m256i *v) noexcept{
+	sort_16_int_column_wise_i(v);
+	merge_8_columns_with_16_elements_i(v);
+}
+
+/// sorts 128 u32 elements
+/// \param v
+/// \return
+constexpr void sortingnetwork_sort_u32x128(__m256i *v) noexcept{
+	sort_16_int_column_wise_u(v);
+	merge_8_columns_with_16_elements_u(v);
+}
+
+#undef COEX
+#undef COEX_PERMUTE
+#undef COEX_SHUFFLE
+#undef REVERSE_VEC
+#undef ASC
+
 #endif
