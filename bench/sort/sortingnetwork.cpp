@@ -6,11 +6,12 @@
 #include "random.h"
 #include "sort/sort.h"
 
-uint32_t data[128];
+uint32_t data[128] __attribute__((aligned(64)));
 int c(const void *a, const void *b){
 	if ( *(uint32_t *)a <  *(uint32_t *)b ) return -1;
 	if ( *(uint32_t *)a == *(uint32_t *)b ) return 0;
 	if ( *(uint32_t *)a >  *(uint32_t *)b ) return 1;
+	return 0;
 }
 static void bench_stdsort(benchmark::State& state) {
 	for (auto _ : state) {
