@@ -4,7 +4,7 @@
 #define TEST_BASE_LIST_SIZE (1u << 18u)
 #define TEST_BASE_LIST_ADDITIONAL_SIZE TEST_BASE_LIST_SIZE/10
 
-#include "test.h"
+#include "../test.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

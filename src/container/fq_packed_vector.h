@@ -78,6 +78,11 @@ public:
 	// internal data
 	std::array<T, internal_limbs> __data;
 
+	// simple hash function
+	constexpr inline uint64_t hash() const noexcept {
+		return __data[0];
+	}
+
 	/// the mask is only valid for one internal number.
 	/// \param i bit position the read
 	/// \return bit mask to access the i-th element within a limb

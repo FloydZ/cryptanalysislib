@@ -202,11 +202,22 @@ TEST(SortingNetwork, f32xX_t) {
 	ASSERT_EQ(check_correctness((float *)data, 64), true);
 	sortingnetwork_sort_f32x72(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
 	ASSERT_EQ(check_correctness((float *)data, 72), true);
-
-
+	sortingnetwork_sort_f32x80(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
+	ASSERT_EQ(check_correctness((float *) data, 80), true);
+	sortingnetwork_sort_f32x88(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10]);
+	ASSERT_EQ(check_correctness((float *) data, 88), true);
+	sortingnetwork_sort_f32x96(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11]);
+	ASSERT_EQ(check_correctness((float *) data, 96), true);
+	sortingnetwork_sort_f32x104(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12]);
+	ASSERT_EQ(check_correctness((float *) data, 104), true);
+	sortingnetwork_sort_f32x112(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13]);
+	ASSERT_EQ(check_correctness((float *) data, 112), true);
+	sortingnetwork_sort_f32x120(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14]);
+	ASSERT_EQ(check_correctness((float *) data, 120), true);
 	sortingnetwork_sort_f32x128(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
 	ASSERT_EQ(check_correctness((float *) data, 128), true);
 }
+
 TEST(SortingNetwork, u32xX_t) {
 	constexpr size_t size = 16;
 	__m256i data[size] = {0};
@@ -233,7 +244,18 @@ TEST(SortingNetwork, u32xX_t) {
 	ASSERT_EQ(check_correctness((uint32_t *) data, 64), true);
 	sortingnetwork_sort_u32x72(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
 	ASSERT_EQ(check_correctness((uint32_t *) data, 72), true);
-
+	sortingnetwork_sort_u32x80(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 80), true);
+	sortingnetwork_sort_u32x88(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10]);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 88), true);
+	sortingnetwork_sort_u32x96(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11]);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 96), true);
+	sortingnetwork_sort_u32x104(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12]);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 104), true);
+	sortingnetwork_sort_u32x112(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13]);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 112), true);
+	sortingnetwork_sort_u32x120(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14]);
+	ASSERT_EQ(check_correctness((uint32_t *) data, 120), true);
 	sortingnetwork_sort_u32x128(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
 	ASSERT_EQ(check_correctness((uint32_t *) data, 128), true);
 }

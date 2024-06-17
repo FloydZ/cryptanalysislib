@@ -35,6 +35,11 @@ public:
 
 	typedef kAryContainerMeta ContainerType;
 
+	// simple hash function
+	constexpr inline uint64_t hash() const noexcept {
+		return __data[0];
+	}
+
 	/// zeros our the whole container
 	/// \return nothing
 	constexpr inline void zero() noexcept {
@@ -791,10 +796,10 @@ public:
 	auto end() const noexcept { return __data.end(); }
 
 	// this data container is never binary
-	__FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
-	__FORCEINLINE__ constexpr static uint32_t size() noexcept { return LENGTH; }
-	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return LENGTH; }
-	__FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return LENGTH * sizeof(T); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return LENGTH; }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return LENGTH; }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return LENGTH * sizeof(T); }
 
 	/// returns the underlying data container
 	__FORCEINLINE__ constexpr T *ptr() noexcept { return __data.data(); }

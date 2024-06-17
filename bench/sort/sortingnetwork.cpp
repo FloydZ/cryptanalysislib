@@ -40,8 +40,21 @@ static void bench_stdsort(benchmark::State& state) {
 	}
 }
 
+static void bench_skasort(benchmark::State& state) {
+	for (auto _ : state) {
+		state.PauseTiming();
+		for (uint32_t i = 0; i < state.range(0); ++i) {
+			data[i] = fastrandombytes_uint64();
+		}
+		state.ResumeTiming();
+
+		ska_sort(std::begin(data), std::end(data));
+	}
+}
+
 BENCHMARK(bench_stdsort)->Range(64, 64)->Range(128, 128);
 BENCHMARK(bench_qsort)->Range(64, 64)->Range(128, 128);
+BENCHMARK(bench_skasort)->Range(64, 64)->Range(128, 128);
 
 #ifdef USE_AVX2
 static void bench_sortingnetwort_sort_u32x128(benchmark::State& state) {

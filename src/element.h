@@ -266,12 +266,12 @@ public:
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
 	constexpr bool is_correct(const MatrixType &m,
-	                          const bool rewrite = false) const noexcept {
-		Label tmp = label;
-		recalculate_label(m);
+	                          const bool rewrite = false) noexcept {
+		Label tmp;
+		m.mul(tmp, value);
 
 		bool ret = tmp.is_equal(label, 0, label_size());
-		if (!rewrite) {
+		if (rewrite) {
 			label = tmp;
 		}
 
@@ -360,7 +360,7 @@ public:
 	///
 	/// \param obj to copy from
 	/// \return this
-	Element_T &operator=(Element_T const &obj) noexcept {
+	constexpr inline Element_T &operator=(Element_T const &obj) noexcept {
 		// self-assignment check expected
 		if (this != &obj) {
 			// now we can copy it
