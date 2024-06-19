@@ -19,14 +19,22 @@
 		b = _mm512_max_epu64(tmp, b); 	\
 	}
 
+#ifdef _clang_
 // NOTE:
-#ifdef __clang__
-#define COMPAREANDSWAP_AVX512_64(a, b, a1, b1) \
-	{                                    \
-		a1 = __builtin_elementwise_min(a, b);     \
-		b1 = __builtin_elementwise_max(a, b);     \
+#define COMPAREANDSWAP_AVX512_64(a, b, a1, b1) 	\
+	{                                    		\
+		a1 = __builtin_elementwise_min(a, b);   \
+		b1 = __builtin_elementwise_max(a, b);   \
 	}
 #else
+
+#define COMPAREANDSWAP_AVX512_64(a, b, a1, b1) 	\
+	{                                    		\
+		a1 = _mm512_min_epu64(a, b);   \
+		b1 = _mm512_max_epu64(a, b);   \
+	}
+#endif
+
 /// NOTE: this is stupid. gcc does strange thing.
 /// TODO: MAYBE: move into simd wrapper as a custom funciton?
 /// \return
@@ -46,7 +54,6 @@ __mm512_undefined_epi32 (void) {
 		b1 = __builtin_ia32_pmaxsq512_mask ((__v8di)(a), (__v8di)(b), (__v8di)__mm512_undefined_epi32 (), (__mmask8) -1);     \
 	}
 
-#endif
 
 static int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexc[8] = {0, 8, 1, 9, 2, 10, 3, 11};
 static int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexd[8] = {4, 12, 5, 13, 6, 14, 7, 15};
