@@ -47,13 +47,18 @@
 		a = _mm256_min_epi16(a, b);       \
 		b = _mm256_max_epi16(tmp, b);     \
 	}
-#define COEX_i32x8(a, b, tmp)               \
+#define COEX_i32x8(a, b, tmp)             \
 	{                                     \
 		tmp = a;                 		  \
 		a = _mm256_min_epi32(a, b);       \
 		b = _mm256_max_epi32(tmp, b);     \
 	}
 
+#define COEX_i32x8_(a, b, c, d)           \
+	{                                     \
+		c = _mm256_min_epi32(a, b);       \
+		d = _mm256_max_epi32(a, b);       \
+	}
 
 // unsigned
 #define COEX_u8x16(a, b, tmp)             \
@@ -117,6 +122,11 @@
   		b = (__m256i)__builtin_ia32_pmaxsd256 ((__v8si)tmp, (__v8si)b);\
 	}
 
+#define COEX_i32x8_(a, b, c, d)           \
+	{                                     \
+  		c = (__m256i)__builtin_ia32_pminsd256 ((__v8si)a, (__v8si)b);\
+  		d = (__m256i)__builtin_ia32_pmaxsd256 ((__v8si)a, (__v8si)b);\
+	}
 
 // unsigned
 #define COEX_u8x16(a, b, tmp)             \
@@ -159,6 +169,11 @@
 		a = (__m256i)__builtin_elementwise_min((__v8su)a, (__v8su)b);   \
 		b = (__m256i)__builtin_elementwise_max((__v8su)tmp, (__v8su)b); \
 	}
+#define COEX_u32x8_(a, b, c, d)           \
+	{                                     \
+		c = (__m256i)__builtin_elementwise_min((__v8su)a, (__v8su)b);   \
+		d = (__m256i)__builtin_elementwise_max((__v8su)a, (__v8su)b); \
+	}
 
 // float32
 #define COEX_f32x8(a, b, tmp)             \
@@ -186,6 +201,12 @@
 		tmp = a;                 		  \
 		a = (__m256i)__builtin_ia32_pminud256 ((__v8si)a, (__v8si)b); 		\
   		b = (__m256i)__builtin_ia32_pmaxud256 ((__v8si)tmp, (__v8si)b); 	\
+	}
+
+#define COEX_u32x8_(a, b, c, d)           \
+	{                                     \
+		c = (__m256i)__builtin_ia32_pminud256 ((__v8si)a, (__v8si)b); 		\
+  		d = (__m256i)__builtin_ia32_pmaxud256 ((__v8si)a, (__v8si)b); 		\
 	}
 
 // float32
@@ -272,23 +293,23 @@ constexpr static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0)
 
 	COEX64X4(a0,b0,a1,b1,t)
 
-	a0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b1100);
-	b0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b0011);
+  	a0 = (__m256i) (__m256d) __builtin_ia32_blendpd256 ((__v4df)a1, (__v4df)b1, 0b1100);
+  	b0 = (__m256i) (__m256d) __builtin_ia32_blendpd256 ((__v4df)a1, (__v4df)b1, 0b0011);
 	a0 = _mm256_permute4x64_epi64(a0, 0b10110100);
 	b0 = _mm256_permute4x64_epi64(b0, 0b00011110);
 
 	COEX64X4(a0,b0,a1,b1,t)
 
 	b1 = _mm256_permute4x64_epi64(b1,0b10110001);
-	a0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b1010);
-	b0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b0101);
+  	a0 = (__m256i) (__m256d) __builtin_ia32_blendpd256 ((__v4df)a1, (__v4df)b1, 0b1010);
+  	b0 = (__m256i) (__m256d) __builtin_ia32_blendpd256 ((__v4df)a1, (__v4df)b1, 0b0101);
 	b0 = _mm256_permute4x64_epi64(b0, 0b10110001);
 
 	COEX64X4(a0,b0,a1,b1,t)
 
 	b1 = _mm256_permute4x64_epi64(b1,0b01001110);
-	a0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b1100);
-	b0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b0011);
+  	a0 = (__m256i) (__m256d) __builtin_ia32_blendpd256 ((__v4df)a1, (__v4df)b1, 0b1100);
+  	b0 = (__m256i) (__m256d) __builtin_ia32_blendpd256 ((__v4df)a1, (__v4df)b1, 0b0011);
 
 	b0 = _mm256_permute4x64_epi64(b0, 0b01110010);
 	a0 = _mm256_permute4x64_epi64(a0, 0b11011000);
@@ -393,41 +414,36 @@ constexpr static inline void sortingnetwork_sort_u32x16(__m256i &v1,
 
 ///
 constexpr static inline __m256i sortingnetwork_sort_u32x8(__m256i &input) noexcept {
+    __m256i perm_neigh_min,perm_neigh_max;
 	{
 		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
-		__m256i perm_neigh_min = _mm256_min_epu32(input, perm_neigh);
-		__m256i perm_neigh_max = _mm256_max_epu32(input, perm_neigh);
+		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	{
 		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(0, 1, 2, 3));
-		__m256i perm_neigh_min = _mm256_min_epu32(input, perm_neigh);
-		__m256i perm_neigh_max = _mm256_max_epu32(input, perm_neigh);
+		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
 		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
-		__m256i perm_neigh_min = _mm256_min_epu32(input, perm_neigh);
-		__m256i perm_neigh_max = _mm256_max_epu32(input, perm_neigh);
+		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	{
 		__m256i swap = (__m256i)_mm256_permute2f128_ps((__m256)input, (__m256)input, _MM_SHUFFLE(0, 0, 1, 1));
 		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3));
-		__m256i perm_neigh_min = _mm256_min_epu32(input, perm_neigh);
-		__m256i perm_neigh_max = _mm256_max_epu32(input, perm_neigh);
+		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xF0);
 	}
 	{
 		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(1, 0, 3, 2));
-		__m256i perm_neigh_min = _mm256_min_epu32(input, perm_neigh);
-		__m256i perm_neigh_max = _mm256_max_epu32(input, perm_neigh);
+		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
 		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
-		__m256i perm_neigh_min = _mm256_min_epu32(input, perm_neigh);
-		__m256i perm_neigh_max = _mm256_max_epu32(input, perm_neigh);
+		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	return input;
@@ -435,22 +451,21 @@ constexpr static inline __m256i sortingnetwork_sort_u32x8(__m256i &input) noexce
 
 ///
 constexpr static inline __m256i sortingnetwork_aftermerge_u32x8(__m256i &a) noexcept {
-    {
+    __m256i perm_neigh_min,perm_neigh_max;
+	{
         __m256i swap = _mm256_permute2f128_si256(a, a, _MM_SHUFFLE(0, 0, 1, 1));
-        __m256i perm_neigh_min = _mm256_min_epu32(a, swap);
-        __m256i perm_neigh_max = _mm256_max_epu32(a, swap);
+
+		COEX_u32x8_(a, swap, perm_neigh_min, perm_neigh_max)
         a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xF0);
     }
     {
         __m256 perm_neigh = _mm256_permute_ps((__m256)a, _MM_SHUFFLE(1, 0, 3, 2));
-        __m256i perm_neigh_min = _mm256_min_epu32(a, (__m256i)perm_neigh);
-        __m256i perm_neigh_max = _mm256_max_epu32(a, (__m256i)perm_neigh);
+		COEX_u32x8_(a, (__m256i)perm_neigh, perm_neigh_min, perm_neigh_max)
         a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
     }
     {
         __m256 perm_neigh = _mm256_permute_ps((__m256)a, _MM_SHUFFLE(2, 3, 0, 1));
-        __m256i perm_neigh_min = _mm256_min_epu32(a, (__m256i)perm_neigh);
-        __m256i perm_neigh_max = _mm256_max_epu32(a, (__m256i)perm_neigh);
+		COEX_u32x8_(a, (__m256i)perm_neigh, perm_neigh_min, perm_neigh_max)
         a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
     }
 
@@ -501,16 +516,15 @@ constexpr static inline __m256i sortingnetwork_sort_i32x8(__m256i &input) noexce
 
 ///
 constexpr static inline __m256i sortingnetwork_aftermerge_i32x8(__m256i &a) noexcept {
+	__m256i perm_neigh_min, perm_neigh_max;
 	{
 		__m256i swap = _mm256_permute2f128_si256(a, a, _MM_SHUFFLE(0, 0, 1, 1));
-		__m256i perm_neigh_min = _mm256_min_epi32(a, swap);
-		__m256i perm_neigh_max = _mm256_max_epi32(a, swap);
+		COEX_i32x8_(a, swap, perm_neigh_min, perm_neigh_max)
 		a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xF0);
 	}
 	{
 		__m256 perm_neigh = _mm256_permute_ps((__m256)a, _MM_SHUFFLE(1, 0, 3, 2));
-		__m256i perm_neigh_min = _mm256_min_epi32(a, (__m256i)perm_neigh);
-		__m256i perm_neigh_max = _mm256_max_epi32(a, (__m256i)perm_neigh);
+		COEX_i32x8_(a, (__m256i)perm_neigh, perm_neigh_min, perm_neigh_max)
 		a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
@@ -519,7 +533,6 @@ constexpr static inline __m256i sortingnetwork_aftermerge_i32x8(__m256i &a) noex
 		__m256i perm_neigh_max = _mm256_max_epi32(a, (__m256i)perm_neigh);
 		a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
-
 	return a;
 }
 
@@ -1453,7 +1466,12 @@ constexpr void inline merge_8_columns_with_16_elements_ ##S (__m256i* vecs) noex
 	COEX_SHUFFLE(vecs[15], 2, 3, 0, 1, 6, 7, 4, 5, ASC); COEX_SHUFFLE(vecs[15], 1, 0, 3, 2, 5, 4, 7, 6, ASC); \
 }
 
+#ifdef __clang__
 #define COEX(a, b){ __m256i c = a; a = _mm256_min_epi32(a, b); b = _mm256_max_epi32(c, b); }
+#else 
+#define COEX(a, b){ __m256i c = a; a =  (__m256i)__builtin_ia32_pminsd256 ((__v8si)a, (__v8si)b); b = (__m256i)__builtin_ia32_pmaxsd256 ((__v8si)c, (__v8si)b); }
+#endif
+
 SORT_16_INT_COLUMNS_WISE(i)
 CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(i)
 
@@ -1477,7 +1495,13 @@ CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(i)
     constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
+#ifdef __clang__
 #define COEX(a, b){ __m256i c = a; a = _mm256_min_epu32(a, b); b = _mm256_max_epu32(c, b);}
+#else 
+#define COEX(a, b){ __m256i c = a; a = (__m256i)__builtin_ia32_pminud256 ((__v8si)a, (__v8si)b); b = (__m256i)__builtin_ia32_pmaxud256 ((__v8si)c, (__v8si)b);}
+#endif
+  
+
 SORT_16_INT_COLUMNS_WISE(u)
 CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(u)
 
