@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <immintrin.h>
 
+// TODO everything constexpr
+
 #ifdef __clang__
 // SRC https://github.com/sortingnetwork-sorting/fast-and-robust/blob/master/avx2_sort_demo/avx2sort.h
 // Signed

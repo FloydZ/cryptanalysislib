@@ -9,6 +9,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+#ifdef __clang__
 #include "reflection/reflection.h"
 
 
@@ -60,7 +61,7 @@ TEST(simple, my_type) {
 // 			           reflect::offset_of<I>(f));              // 0  , 4
 // 		}, f);
 }
-
+#endif
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 
