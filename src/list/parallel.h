@@ -174,7 +174,7 @@ public:
 	/// \param start start point= first element to sort
 	/// \param end  end point = last element to sort
 	void sort(const size_t start=0,
-	          const size_t end=load(),
+	          const size_t end=1,
 	          const uint32_t k_lower=0,
 			  const uint32_t k_higher=LabelLENGTH) noexcept {
 		ASSERT(start < end);

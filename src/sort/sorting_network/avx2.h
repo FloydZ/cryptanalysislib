@@ -186,7 +186,6 @@
 	}
 #define COEX_f32x8_(a, b, c, d)           \
 	{                                     \
-		tmp = a;                 		  \
 		c = _mm256_min_ps(a, b);       	  \
 		d = _mm256_max_ps(a, b);     	  \
 	}
