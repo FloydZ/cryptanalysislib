@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <immintrin.h>
 
+#ifdef __clang__
 // SRC https://github.com/sortingnetwork-sorting/fast-and-robust/blob/master/avx2_sort_demo/avx2sort.h
 // Signed
 #define COEX8X16(a, b, tmp)               \
@@ -74,6 +75,70 @@
 		b = _mm_max_epu32(tmp, b); 	      \
 	}
 
+#else 
+
+#define COEX8X16(a, b, tmp)               \
+	{                                     \
+		tmp = _mm_min_epi8(a, b);         \
+  		tmp = __builtin_ia32_pminsb128((__v16qi)a, (__v16qi)b); \
+  		b = __builtin_ia32_pmaxsb128((__v16qi)a, (__v16qi)b); 	\
+		a = tmp;                 		  \
+	}
+#define COEX16X8(a, b, tmp)               \
+	{                                     \
+		tmp = a;                 		  \
+  		a =  (__m128i)__builtin_ia32_pminsw128 ((__v8hi)a, (__v8hi)b);\
+  		b =  (__m128i)__builtin_ia32_pmaxsw128 ((__v8hi)tmp, (__v8hi)b);\
+	}
+#define COEX32X4(a, b, tmp)               \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m128i) __builtin_ia32_pminsd128 ((__v4si)a, (__v4si)b);	\
+  		b = (__m128i) __builtin_ia32_pmaxsd128 ((__v4si)tmp, (__v4si)b);\
+	}
+
+
+#define COEX8X32(a, b, tmp)               \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m256i)__builtin_ia32_pminsb256 ((__v32qi)a, (__v32qi)b);	\
+  		b = (__m256i)__builtin_ia32_pmaxsb256 ((__v32qi)tmp, (__v32qi)b);\
+	}
+#define COEX16X16(a, b, tmp)              \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m256i)__builtin_ia32_pminsw256 ((__v16hi)a, (__v16hi)b);\
+  		b = (__m256i)__builtin_ia32_pmaxsw256 ((__v16hi)tmp, (__v16hi)b);\
+	}
+#define COEX_i32x8(a, b, tmp)             \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m256i)__builtin_ia32_pminsd256 ((__v8si)a, (__v8si)b);\
+  		b = (__m256i)__builtin_ia32_pmaxsd256 ((__v8si)tmp, (__v8si)b);\
+	}
+
+
+// unsigned
+#define COEX_u8x16(a, b, tmp)             \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m128i)__builtin_ia32_pminub128 ((__v16qi)a, (__v16qi)b); \
+  		b = (__m128i)__builtin_ia32_pmaxub128 ((__v16qi)tmp, (__v16qi)b);\
+	}
+#define COEX_u16x8(a, b, tmp)             \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m128i) __builtin_ia32_pminuw128 ((__v8hi)a, (__v8hi)b);	\
+  		b = (__m128i) __builtin_ia32_pmaxuw128 ((__v8hi)tmp, (__v8hi)b);\
+	}
+#define COEX_u32x4(a, b, tmp)             \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m128i) __builtin_ia32_pminud128 ((__v4si)a, (__v4si)b); \
+  		b = (__m128i) __builtin_ia32_pminud128 ((__v4si)tmp, (__v4si)b); \
+	}
+#endif
+
 
 #ifdef __clang__
 #define COEX_u8x32(a, b, tmp)             \
@@ -135,14 +200,24 @@
 
 
 constexpr static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0) {
+#ifdef __clang__
 #define COEX64X4(a,b,c,e,t)												\
 	t = ((__v4di)a > (__v4di)b);										\
 	c = (__m256i)_mm256_blendv_pd((__m256d)a, (__m256d)b, (__m256d)t);	\
 	e = (__m256i)_mm256_blendv_pd((__m256d)b, (__m256d)a, (__m256d)t);
+#else
+
+#define COEX64X4(a,b,c,e,t)												\
+	t = ((__v4di)a > (__v4di)b);										\
+  	c = (__m256i)(__m256d) __builtin_ia32_blendvpd256 ((__v4df)a,(__v4df)b,(__v4df)t);\
+  	e = (__m256i)(__m256d) __builtin_ia32_blendvpd256 ((__v4df)b,(__v4df)a,(__v4df)t);
+#endif
 
 	__m256i a1,b1,t;
 	COEX64X4(a0,b0,a1,b1,t)
 	a0 = a1;
+
+#ifdef __clang__
 	b0 = (__m256i)_mm256_shuffle_pd((__m256d)b1, (__m256d)b1, 0b0101);
 
 	COEX64X4(a0,b0,a1,b1,t)
@@ -179,6 +254,46 @@ constexpr static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0)
 
 	b0 = _mm256_permute4x64_epi64(b0, 0b01110010);
 	a0 = _mm256_permute4x64_epi64(a0, 0b11011000);
+#else 
+  	b0 = (__m256i)(__m256d) __builtin_ia32_shufpd256 ((__v4df)b1, (__v4df)b1, 0b0101);
+
+	COEX64X4(a0,b0,a1,b1,t)
+  	a0 = (__m256i)(__m256d) __builtin_ia32_shufpd256 ((__v4df)a1, (__v4df)b1, 0b1010);
+  	b0 = (__m256i)(__m256d) __builtin_ia32_shufpd256 ((__v4df)a1, (__v4df)b1, 0b0101);
+
+	COEX64X4(a0,b0,a1,b1,t)
+
+	a1 = _mm256_permute4x64_epi64(a1, 0b11011000);
+	b1 = _mm256_permute4x64_epi64(b1, 0b01100011);
+  	a0 = (__m256i) (__m256d) __builtin_ia32_blendpd256 ((__v4df)a1, (__v4df)b1, 0b1010);
+  	b0 = (__m256i) (__m256d) __builtin_ia32_blendpd256 ((__v4df)a1, (__v4df)b1, 0b0101);
+	b0 = _mm256_permute4x64_epi64(b0, 0b01101100);
+
+
+	COEX64X4(a0,b0,a1,b1,t)
+
+	a0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b1100);
+	b0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b0011);
+	a0 = _mm256_permute4x64_epi64(a0, 0b10110100);
+	b0 = _mm256_permute4x64_epi64(b0, 0b00011110);
+
+	COEX64X4(a0,b0,a1,b1,t)
+
+	b1 = _mm256_permute4x64_epi64(b1,0b10110001);
+	a0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b1010);
+	b0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b0101);
+	b0 = _mm256_permute4x64_epi64(b0, 0b10110001);
+
+	COEX64X4(a0,b0,a1,b1,t)
+
+	b1 = _mm256_permute4x64_epi64(b1,0b01001110);
+	a0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b1100);
+	b0 = (__m256i)_mm256_blend_pd((__m256d)a1, (__m256d)b1, 0b0011);
+
+	b0 = _mm256_permute4x64_epi64(b0, 0b01110010);
+	a0 = _mm256_permute4x64_epi64(a0, 0b11011000);
+#endif
+
 #undef COEX64X4
 }
 
@@ -187,7 +302,8 @@ constexpr static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0)
 	        _mm256_castsi256_ps(a), _mm256_castsi256_ps(b), mask));
 
 // optimized sorting network for two vectors, that is 16 ints
-constexpr static inline void sortingnetwork_sort_u32x16(__m256i &v1, __m256i &v2) noexcept {
+constexpr static inline void sortingnetwork_sort_u32x16(__m256i &v1, 
+		__m256i &v2) noexcept {
 	__m256i tmp;
 	COEX_u32x8(v1, v2, tmp);
 
@@ -273,6 +389,9 @@ constexpr static inline void sortingnetwork_sort_u32x16(__m256i &v1, __m256i &v2
 // 	t = _mm256_blend_epi32(t, v, 0b10101010);
 // 	return t;
 // }
+
+
+///
 constexpr static inline __m256i sortingnetwork_sort_u32x8(__m256i &input) noexcept {
 	{
 		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
