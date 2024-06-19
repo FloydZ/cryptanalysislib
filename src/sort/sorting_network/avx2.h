@@ -75,6 +75,7 @@
 	}
 
 
+#ifdef __clang__
 #define COEX_u8x32(a, b, tmp)             \
 	{                                     \
 		tmp = a;                 		  \
@@ -90,10 +91,9 @@
 #define COEX_u32x8(a, b, tmp)             \
 	{                                     \
 		tmp = a;                 		  \
-		a = _mm256_min_epu32(a, b);       \
-		b = _mm256_max_epu32(tmp, b); 	  \
+		a = (__m256i)__builtin_elementwise_min((__v8su)a, (__v8su)b);   \
+		b = (__m256i)__builtin_elementwise_max((__v8su)tmp, (__v8su)b); \
 	}
-
 
 // float32
 #define COEX_f32x8(a, b, tmp)             \
@@ -102,10 +102,41 @@
 		a = _mm256_min_ps(a, b);       	  \
 		b = _mm256_max_ps(tmp, b);     	  \
 	}
+#else
+
+#define COEX_u8x32(a, b, tmp)             \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m256i)__builtin_ia32_pminub256 ((__v32qi)a, (__v32qi)b); 	\
+  		b = (__m256i)__builtin_ia32_pmaxub256 ((__v32qi)tmp, (__v32qi)b);	\
+	}
+#define u_COEX_u16x16(a, b, tmp)          \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m256i)__builtin_ia32_pminuw256 ((__v16hi)a, (__v16hi)b); 	\
+  		b = (__m256i)__builtin_ia32_pmaxuw256 ((__v16hi)tmp, (__v16hi)b);	\
+	}
+#define COEX_u32x8(a, b, tmp)             \
+	{                                     \
+		tmp = a;                 		  \
+		a = (__m256i)__builtin_ia32_pminud256 ((__v8si)a, (__v8si)b); 		\
+  		b = (__m256i)__builtin_ia32_pmaxud256 ((__v8si)tmp, (__v8si)b); 	\
+	}
+
+// float32
+#define COEX_f32x8(a, b, tmp)             \
+	{                                     \
+		tmp = a;                 		  \
+  		a = (__m256) __builtin_ia32_minps256 ((__v8sf)a, (__v8sf)b); 		\
+  		b = (__m256) __builtin_ia32_maxps256 ((__v8sf)tmp, (__v8sf)b);		\
+	}
+#endif
+
+
 
 constexpr static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0) {
 #define COEX64X4(a,b,c,e,t)												\
-	t = _mm256_cmpgt_epi64(a,b);										\
+	t = ((__v4di)a > (__v4di)b);										\
 	c = (__m256i)_mm256_blendv_pd((__m256d)a, (__m256d)b, (__m256d)t);	\
 	e = (__m256i)_mm256_blendv_pd((__m256d)b, (__m256d)a, (__m256d)t);
 

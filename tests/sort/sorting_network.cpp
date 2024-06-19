@@ -261,7 +261,7 @@ TEST(SortingNetwork, u32xX_t) {
 }
 
 TEST(SortingNetwork, int32x128_t) {
-	uint32_t data[128];
+	uint32_t data[128] __attribute__((aligned(64)));
 	for (uint32_t i = 0; i < 128; ++i) {
 		data[i] = fastrandombytes_uint64() % (1u << 31);
 	}
@@ -274,7 +274,7 @@ TEST(SortingNetwork, int32x128_t) {
 }
 
 TEST(SortingNetwork, uint32x128_t) {
-	uint32_t data[128];
+	uint32_t data[128] __attribute__((aligned(64)));
 	for (uint32_t i = 0; i < 128; ++i) {
 		data[i] = fastrandombytes_uint64();
 	}
