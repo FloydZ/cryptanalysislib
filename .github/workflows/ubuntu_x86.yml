@@ -24,7 +24,7 @@ jobs:
     - name: Install Software
       run: |
         sudo apt-get install -y libtbb-dev llvm-11 clang-11 llvm-12 clang-12 llvm-13 clang-13 llvm-14 clang-14 llvm-15 clang-15 gcc-10
-        # libomp-11-dev libomp-12-dev libomp-13-dev libomp-14-dev libomp-15-dev libomp5-11 libomp5-12 libomp5-13 libomp5-14 libomp5-15
+        sudo apt-get install -y libomp-11-dev libomp-12-dev libomp-13-dev libomp-14-dev libomp-15-dev libomp5-11 libomp5-12 libomp5-13 libomp5-14 libomp5-15 
 
     - name: Install Google Benchmark
       run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
