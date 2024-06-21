@@ -8,9 +8,7 @@ jobs:
       matrix:
         # ubuntu 20 doesnt support c++20
         os: [ubuntu-22.04]
-          # TODO currently not working. The CI does not find omp? Probably need 
-          # to install the correct omp version for the correct compiler
-        compiler: [ 11, 12, 13, 14, 15 ]
+        version: [ 11, 12, 13, 14, 15 ]
         build_type: [Release, Debug]
 
     name: Build & test on ${{ matrix.os }} with clang-${{ matrix.version }} in ${{ matrix.build_type }} mode.
