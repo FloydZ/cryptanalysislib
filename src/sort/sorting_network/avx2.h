@@ -168,13 +168,13 @@
 #define COEX_u32x8(a, b, tmp)             \
 	{                                     \
 		tmp = a;                 		  \
-		a = (__m256i)__builtin_elementwise_min((__v8su)a, (__v8su)b);   \
-		b = (__m256i)__builtin_elementwise_max((__v8su)tmp, (__v8su)b); \
+		a = _mm256_min_epu32(a, b);       \
+		b = _mm256_max_epu32(tmp, b);     \
 	}
 #define COEX_u32x8_(a, b, c, d)           \
 	{                                     \
-		c = (__m256i)__builtin_elementwise_min((__v8su)a, (__v8su)b);   \
-		d = (__m256i)__builtin_elementwise_max((__v8su)a, (__v8su)b); \
+		c = _mm256_min_epu32(a, b);       \
+		d = _mm256_max_epu32(a, b);     \
 	}
 
 // float32

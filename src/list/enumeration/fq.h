@@ -39,7 +39,7 @@ public:
 	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
 	using ListEnumeration_Meta<ListType, n, q, w>::HT;
 
-	using T = Value::ContainerLimbType;
+	using T = typename Value::ContainerLimbType;
 
 	/// this can be used to specify the size of the input list
 	/// e.g. its the maximum number of elements this class enumerates
@@ -468,7 +468,7 @@ public:
 	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
 	using ListEnumeration_Meta<ListType, n, q, w>::HT;
 
-	using T = Value::ContainerLimbType;
+	using T = typename Value::ContainerLimbType;
 
 	const uint32_t qprime;
 
@@ -699,7 +699,7 @@ public:
 	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
 	using ListEnumeration_Meta<ListType, n, q, w>::HT;
 
-	using T = Value::ContainerLimbType;
+	using T = typename Value::ContainerLimbType;
 
 	///
 	constexpr static uint32_t mitmlen = split;
