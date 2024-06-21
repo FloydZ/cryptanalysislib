@@ -10,10 +10,10 @@ jobs:
         os: [ubuntu-22.04]
           # TODO currently not working. The CI does not find omp? Probably need 
           # to install the correct omp version for the correct compiler
-        compiler: [ g++-10, clang++-11, clang++-12, clang++-13, clang++-14, clang++-15]
+        compiler: [ 11, 12, 13, 14, 15 ]
         build_type: [Release, Debug]
 
-    name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }} in ${{ matrix.build_type }} mode.
+    name: Build & test on ${{ matrix.os }} with clang-${{ matrix.version }} in ${{ matrix.build_type }} mode.
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -23,8 +23,8 @@ jobs:
 
     - name: Install Software
       run: |
-        sudo apt-get install -y libtbb-dev llvm-11 clang-11 llvm-12 clang-12 llvm-13 clang-13 llvm-14 clang-14 llvm-15 clang-15 gcc-10
-        sudo apt-get install -y libomp-11-dev libomp-12-dev libomp-13-dev libomp-14-dev libomp-15-dev libomp5-11 libomp5-12 libomp5-13 libomp5-14 libomp5-15 
+        sudo apt-get install -y libtbb-dev clang-${{matrix.version}}
+        sudo apt-get install -y libomp-${{matrix.version}}-dev libomp5-${{matrix.version}}
 
     - name: Install Google Benchmark
       run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
@@ -36,8 +36,8 @@ jobs:
 
     - name: Configure CMake
       env:
-        CXX: ${{ matrix.compiler }}
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+        CXX: clang++-${{ matrix.compiler }}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=clang++-${{matrix.version}}
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build 
