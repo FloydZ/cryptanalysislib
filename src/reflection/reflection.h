@@ -102,8 +102,20 @@ namespace reflect::inline v1_1_1 {
 			return nth_pack_element_impl<N>(REFLECT_FWD(args)...);
 		}
 
-		template<auto...  Vs> [[nodiscard]] constexpr auto function_name() noexcept -> std::string_view { return std::source_location::current().function_name(); }
-		template<class... Ts> [[nodiscard]] constexpr auto function_name() noexcept -> std::string_view { return std::source_location::current().function_name(); }
+		template<auto...  Vs> [[nodiscard]] constexpr auto function_name() noexcept -> std::string_view { 
+#ifdef __cpp_lib_source_location
+			return std::source_location::current().function_name(); 
+#else 
+			return std::string_view(__FILE__)
+#endif
+		}
+		template<class... Ts> [[nodiscard]] constexpr auto function_name() noexcept -> std::string_view { 
+#ifdef __cpp_lib_source_location
+			return std::source_location::current().function_name(); 
+#else 
+			return std::string_view(__FILE__)
+#endif
+		}
 
 		template<class>
 		struct type_name_info {
