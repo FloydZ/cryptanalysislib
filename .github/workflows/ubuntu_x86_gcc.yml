@@ -1,4 +1,4 @@
-name: ubuntu_x86
+name: ubuntu_x86_gcc
 
 on: [push]
 
@@ -22,7 +22,7 @@ jobs:
     - name: Install Software
       run: |
         sudo apt-get install -y libtbb-dev g++-${{matrix.version}}
-        sudo apt-get install -y libomp-11-dev libomp-12-dev libomp-13-dev libomp-14-dev libomp-15-dev libomp5-11 libomp5-12 libomp5-13 libomp5-14 libomp5-15 
+        sudo apt-get install -y libomp-${{matrix.version}}-dev libomp-${{}}
 
     - name: Install Google Benchmark
       run: git clone --depth=1 --single-branch --branch v1.7.1 https://github.com/google/benchmark.git benchmark && mkdir -p benchmark/build && cd ./benchmark/build &&  cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF ../ && make -j
