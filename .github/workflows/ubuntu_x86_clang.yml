@@ -1,4 +1,4 @@
-name: ubuntu_x86
+name: ubuntu_x86_clang
 
 on: [push]
 
