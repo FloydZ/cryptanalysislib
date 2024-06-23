@@ -6,6 +6,7 @@
 // TODO #include <stdatomic.h>
 #include <limits>
 #include <queue>
+#include <mutex>
 
 /// taken from: https://github.com/codecryptanalysis/mccl/blob/main/mccl/core/collection.hpp
 /// multi consumer multi producer unbounded queue

@@ -45,7 +45,7 @@ public:
     cpu_set_t cpuset;								\
     CPU_ZERO(&cpuset);								\
     CPU_SET(CPU_ID, &cpuset); 						\
-    int rc = pthread_setaffinity_np(THREAD.native_handle(), sizeof(cpu_set_t), &cpuset);
+    int rc = pthread_setaffinity_np(THREAD.native_handle(), sizeof(cpu_set_t), &cpuset); \
 	ASSERT(rc);
 
 #endif//CRYPTANALYSISLIB_THREAD_H
