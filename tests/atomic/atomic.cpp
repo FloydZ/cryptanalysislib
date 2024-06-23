@@ -22,6 +22,8 @@ TEST(cmov, simple) {
 	EXPECT_EQ(a, b);
 }
 
+
+#ifdef __cpp_lib_atomic_wait
 TEST(one_byte_mutex, single_threaded) {
 	one_byte_mutex t;
 
@@ -53,6 +55,7 @@ TEST(one_byte_mutex, mutli_threaded) {
 
 	EXPECT_GE(ctr, 1000 * nr_threads);
 }
+#endif
 
 TEST(FAA, simple) {
 	const uint32_t nr_threads = 3;

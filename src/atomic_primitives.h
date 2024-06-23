@@ -136,6 +136,9 @@ CMOVE_MACRO(po)
 CMOVE_MACRO(s)
 CMOVE_MACRO(z)
 
+
+// TODO: older gcc version do not support atomic::wait	
+#ifdef __cpp_lib_atomic_wait
 struct one_byte_mutex {
 	inline void lock() noexcept {
 		if (state.exchange(locked, std::memory_order_acquire) == unlocked) {
@@ -162,4 +165,5 @@ private:
 	static constexpr uint8_t locked = 0b01;
 	static constexpr uint8_t sleeper = 0b10;
 };
+#endif
 #endif
