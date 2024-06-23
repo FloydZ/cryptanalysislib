@@ -8,7 +8,9 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-constexpr uint32_t k = 100;
+#define THREADS 2
+constexpr size_t LS = 100;
+constexpr uint32_t k = 70;
 constexpr uint32_t n = 100;
 constexpr uint32_t q = 5;
 
@@ -19,9 +21,42 @@ using Label 		= kAryContainer_T<MatrixT, n, q>;
 using Element       = Element_T<Value, Label, Matrix>;
 using List 			= Parallel_List_T<Element>;
 
-
+// if this test fails, something bad is going on
 TEST(List1, simple) {
-	List L{100,1};
+	List L{LS, 1};
+}
+
+TEST(List1, copy) {
+	List L{LS, 1}, L2{LS, 1};
+
+	Matrix m;
+	m.identity();
+	EXPECT_EQ(L.size(), LS);
+	EXPECT_EQ(L.load(), 0);
+	L.random(LS, m);
+	EXPECT_EQ(L.load(), LS);
+	EXPECT_EQ(L.size(), LS);
+
+	EXPECT_EQ(L.is_correct(m), true);
+}
+
+TEST(List1, sort) {
+	List L{LS, 1};
+
+	Matrix m;
+	m.identity();
+	EXPECT_EQ(L.size(), LS);
+	EXPECT_EQ(L.load(), 0);
+	L.random(LS, m);
+	EXPECT_EQ(L.load(), LS);
+	EXPECT_EQ(L.size(), LS);
+
+	EXPECT_EQ(L.is_correct(m), true);
+
+	L.sort();
+	// NOT valid anymore EXPECT_EQ(L.is_correct(m), true);
+	EXPECT_EQ(L.is_sorted(), true);
+
 }
 
 int main(int argc, char **argv) {

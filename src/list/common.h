@@ -111,7 +111,7 @@ concept ListAble = requires(List l) {
 
 	/// arithmetic/algorithm stuff
 	requires requires(const uint32_t i) {
-		// TODO l.sort();
+		l.sort();
 
 		/// i = thread id
 		l.zero(i);
@@ -152,8 +152,9 @@ protected:
 
 public:
 	/// only valid constructor
-	///
-	constexpr MetaListT(const size_t size, const uint32_t threads = 1, bool init_data = true) noexcept
+	constexpr MetaListT(const size_t size,
+	                    const uint32_t threads = 1,
+	                    bool init_data = true) noexcept
 	    : __load(threads), __size(size), __threads(threads), __thread_block_size(size / threads) {
 		if (init_data) {
 			__data.resize(size);
@@ -167,10 +168,9 @@ public:
 	/// \param out
 	/// \param in
 	/// \param tid
-	/// \return
 	constexpr inline void static copy(MetaListT &out,
 	                                  const MetaListT &in,
-	                                  const uint32_t tid) noexcept {
+	                                  const uint32_t tid=0) noexcept {
 		out.set_size(in.size());
 		out.set_load(in.load());
 		out.set_threads(in.threads());
@@ -178,9 +178,7 @@ public:
 
 		const std::size_t s = tid * in.threads();
 		const std::size_t c = ((tid == in.threads - 1) ? in.thread_block : in.nr_elements - (in.threads - 1) * in.thread_block);
-
-		memcpy(out.__data_value + s, in.__data_value + s, c * sizeof(ValueType));
-		memcpy(out.__data_label + s, in.__data_value + s, c * sizeof(LabelType));
+		memcpy(out.__data.data() + s, in.__data.data() + s, c * sizeof(ValueType));
 	}
 
 	typedef Element ElementType;
@@ -209,10 +207,56 @@ public:
 	constexpr static uint64_t ValueBytes = ValueType::bytes();
 	constexpr static uint64_t LabelBytes = LabelType::bytes();
 
+	/// checks if all elements in the list fulfill the equation:
+	// 				label == value*matrix
+	/// \param m 		the matrix.
+	/// \param rewrite 	if set to true, all labels within each element will we overwritten by the recalculated.
+	/// \return 		true if ech element is correct.
+	constexpr bool is_correct(const MatrixType &m,
+							  const bool rewrite = false) noexcept {
+		bool ret = false;
+		for (size_t i = 0; i < load(); ++i) {
+			ret |= __data[i].is_correct(m, rewrite);
+			if ((ret) && (!rewrite)) {
+				return ret;
+			}
+		}
+
+		return ret;
+	}
+
+	/// A little helper function to check if a list is sorted. This is very useful to assert specific states within
+	/// complex cryptanalytic algorithms.
+	/// \param k_lower lower bound
+	/// \param k_higher upper bound
+	/// \return if its sorted
+	constexpr bool is_sorted(const uint64_t k_lower=0,
+							 const uint64_t k_higher=LabelBytes) const {
+		for (uint64_t i = 1; i < load(); ++i) {
+			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
+				continue;
+			}
+
+#if !defined(SORT_INCREASING_ORDER)
+			if (!__data[i - 1].is_lower(__data[i], k_lower, k_higher)) {
+				return false;
+			}
+#else
+			if (!__data[i - 1].is_greater(__data[i], k_lower, k_higher)) {
+				return false;
+			}
+#endif
+		}
+
+		return true;
+	}
+
 	/// \return size the size of the list
 	[[nodiscard]] constexpr size_t size() const noexcept { return __size; }
 	/// \return the number of elements each thread enumerates
 	[[nodiscard]] constexpr size_t size(const uint32_t tid) const noexcept {
+		ASSERT(tid < threads());
+
 		if (tid == threads() - 1) {
 			return std::max(thread_block_size() * threads(), size());
 		}
@@ -244,8 +288,12 @@ public:
 	}
 
 	/// returning the range in which one thread is allowed to operate
-	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid) const noexcept { return tid * (__data.size() / __threads); };
-	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid) const noexcept {
+	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid=0) const noexcept {
+		ASSERT(tid < threads());
+		return tid * (__data.size() / __threads);
+	};
+	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid=0) const noexcept {
+		ASSERT(tid < threads());
 		if (tid == threads() - 1) {
 			return std::max(thread_block_size() * tid, size());
 		}
@@ -446,10 +494,20 @@ public:
 		__data[i].random();
 	}
 
-	/// generate a full random list
-	void random() {
-		for (size_t i = 0; i < size(); ++i) {
-			random(i);
+	/// generate a random list
+	constexpr void random() {
+		MatrixType m;
+		m.random();
+		random(size(), m);
+	}
+
+	///
+	constexpr void random(const size_t list_size,
+						  const MatrixType &m) {
+		for (size_t i = 0; i < list_size; ++i) {
+			Element e{};
+			e.random(m);
+			this->at(i) = e;
 		}
 	}
 

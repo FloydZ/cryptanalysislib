@@ -46,5 +46,6 @@ namespace cryptanalysislib::popcount {
 
 		return sum;
 	}
-};
+}
+
 #endif//CRYPTANALYSISLIB_POPCOUNT_H

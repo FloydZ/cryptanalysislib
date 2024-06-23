@@ -298,6 +298,11 @@ class CacheTrie {
 	class FNode {
 	public:
 		void *frozen;
+
+		// constructor needed for older compiler versions
+		constexpr FNode(void *ptr)noexcept {
+			frozen = ptr;
+		}
 	};
 
 	class ENode {

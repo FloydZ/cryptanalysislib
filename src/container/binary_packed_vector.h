@@ -1745,6 +1745,11 @@ public:
 
 	T get_type() { return __data[0]; }
 
+	// simple hash function
+	constexpr inline uint64_t hash() const noexcept {
+		return __data[0];
+	}
+
 #ifdef BINARY_CONTAINER_ALIGNMENT
 	static constexpr uint16_t alignment() {
 		// Aligns to a multiple of 32 Bytes

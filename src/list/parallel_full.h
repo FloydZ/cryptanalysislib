@@ -30,7 +30,7 @@ public:
 	using typename MetaListT<Element>::ValueDataType;
 	using typename MetaListT<Element>::LabelDataType;
 	using typename MetaListT<Element>::MatrixType;
-	using LoadType = uint64_t;
+	using LoadType = size_t;
 
 	/// needed values
 	using MetaListT<Element>::__load;
@@ -69,6 +69,8 @@ public:
 	using MetaListT<Element>::end;
 	using MetaListT<Element>::zero;
 	using MetaListT<Element>::erase;
+	using MetaListT<Element>::random;
+	using MetaListT<Element>::is_correct;
 
 private:
 	// disable the empty constructor. So you have to specify a rough size of the list. This is for optimisations reasons.
@@ -104,7 +106,7 @@ public:
 	}
 
 	///
-	constexpr void sort(const size_t s, const size_t e) noexcept {
+	constexpr void sort(const size_t s=0, const size_t e=size()) noexcept {
 		ASSERT(e <= size());
 		std::sort(begin() + s, begin() + e);
 	}

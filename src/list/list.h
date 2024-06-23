@@ -74,6 +74,8 @@ public:
 	using MetaListT<Element>::zero;
 	using MetaListT<Element>::erase;
 	using MetaListT<Element>::insert;
+	using MetaListT<Element>::is_correct;
+	using MetaListT<Element>::is_sorted;
 
 	///
 	/// \param e element to search for
@@ -146,22 +148,6 @@ public:
 	                 const uint32_t threads = 1) noexcept
 	    : MetaListT<Element>(nr_element, threads) {}
 
-	/// checks if all elements in the list fullfil the equation: 	label == value*m
-	/// \param m 		the matrix.
-	/// \param rewrite 	if set to true, all labels within each element will we overwritten by the recalculated.
-	/// \return 		true if ech element is correct.
-	constexpr bool is_correct(const MatrixType &m,
-	                          const bool rewrite = false) noexcept {
-		bool ret = false;
-		for (size_t i = 0; i < load(); ++i) {
-			ret |= __data[i].is_correct(m, rewrite);
-			if ((ret) && (!rewrite)) {
-				return ret;
-			}
-		}
-
-		return ret;
-	}
 
 	/// Andres Code
 	constexpr void static odl_merge(std::vector<std::pair<uint64_t, uint64_t>> &target,
@@ -230,7 +216,9 @@ public:
 	}
 
 	/// sort the list
-	constexpr void sort_level(const uint32_t k_lower, const uint32_t k_higher) noexcept {
+	///
+	constexpr void sort_level(const uint32_t k_lower,
+	                          const uint32_t k_higher) noexcept {
 		std::sort(__data.begin(), __data.begin() + load(),
 		          [k_lower, k_higher](const auto &e1, const auto &e2) {
 
@@ -244,10 +232,10 @@ public:
 		ASSERT(is_sorted(k_lower, k_higher));
 	}
 
-	///
-	/// \param k_lower
-	/// \param k_higher
-	/// \param tid
+	/// NOTE: this does not search the FULL list, only each segmeent
+	/// \param k_lower lower dimendion to sort on (inclusive)
+	/// \param k_higher upper dimesnsion to sort (not included)
+	/// \param tid thread id
 	constexpr void sort_level(const uint32_t k_lower,
 	                          const uint32_t k_higher,
 	                          const uint32_t tid) noexcept {
@@ -274,18 +262,19 @@ public:
 		const uint64_t upper = T::round_down_to_limb(k_higher);
 
 		// choose the optimal implementation.
-		if (lower == upper)
+		if (lower == upper) {
 			sort_level_sim_binary(k_lower, k_higher);
-		else
+		} else {
 			sort_level_ext_binary(k_lower, k_higher);
+		}
 
 		ASSERT(is_sorted(k_lower, k_higher));
 	}
 
 private:
 	/// IMPORTANT: DO NOT CALL THIS FUNCTION directly. Use `sort_level` instead.
-	/// special implementation of the sorting function using specialised compare functions of the `BinaryContainer` class
-	/// which uses precomputed masks.
+	/// special implementation of the sorting function using specialised compare
+	/// functions of the `BinaryContainer` class, which uses precomputed masks.
 	constexpr inline void sort_level_ext_binary(const uint64_t k_lower,
 	                                            const uint64_t k_higher) noexcept {
 		using T = LabelContainerType;
@@ -309,6 +298,7 @@ private:
 	/// `BinaryContainer` if one knows that k_lower, k_higher are in the same limb.
 	constexpr inline void sort_level_sim_binary(const uint32_t k_lower,
 	                                            const uint32_t k_higher) noexcept {
+		static_assert(Element::binary());
 		using T = LabelContainerType;
 
 		const uint64_t lower = T::round_down_to_limb(k_lower);
@@ -335,6 +325,7 @@ public:
 	                                            const uint32_t k_lower,
 	                                            const uint32_t k_higher,
 	                                            const bool sort = false) noexcept {
+		static_assert(Element::binary());
 		using T = LabelContainerType;
 		const uint64_t lower = T::round_down_to_limb(k_lower);
 		const uint64_t upper = T::round_down_to_limb(k_higher);
@@ -448,11 +439,17 @@ public:
 		if constexpr (Element::binary()) {
 			return search_level_binary(e, k_lower, k_higher, sort);
 		} else {
-			auto r = std::find_if(__data.begin(), __data.begin() + load(), [&e, k_lower, k_higher](const Element &c) {
-				return e.is_equal(c, k_lower, k_higher);
+			if (sort) {
+				sort_level(k_lower, k_higher);
+			}
+
+			auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
+			                            [k_lower, k_higher](const Element &a1, const Element &a2) {
+				// return e.is_equal(c, k_lower, k_higher);
+				return a1.is_lower(a2, k_lower, k_higher);
 			});
 
-			const auto dist = distance(__data.begin(), r);
+			const auto dist = std::distance(__data.begin(), r);
 
 			if (r == __data.begin() + load()) {
 				return -1;// nothing found
@@ -470,7 +467,7 @@ public:
 	/// \param e
 	/// \return
 	constexpr size_t search(const Element &e) {
-		for (size_t i = 0; i < load; ++i) {
+		for (size_t i = 0; i < load(); ++i) {
 			if (__data[i] == e) {
 				return i;
 			}
@@ -479,7 +476,8 @@ public:
 	}
 
 	/// \param e
-	/// \return	a tuple indicating the start and end indices within the list. start == end == load indicating nothing found,
+	/// \return	a tuple indicating the start and end indices within the list.
+	// 		start = end = load indicating nothing found,
 	constexpr std::pair<size_t, size_t>
 	search_boundaries(const Element &e,
 	                  const uint64_t k_lower,
@@ -506,32 +504,6 @@ public:
 		return std::pair<size_t, size_t>{start_index, end_index};
 	}
 
-	/// A little helper function to check if a list is sorted. This is very useful to assert specific states within
-	/// complex cryptanalytic algorithms.
-	/// \param k_lower lower bound
-	/// \param k_higher upper bound
-	/// \return if its sorted
-	constexpr bool is_sorted(const uint64_t k_lower,
-	                         const uint64_t k_higher) const {
-		for (uint64_t i = 1; i < load(); ++i) {
-			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
-				continue;
-			}
-
-#if !defined(SORT_INCREASING_ORDER)
-			if (!__data[i - 1].is_lower(__data[i], k_lower, k_higher)) {
-				return false;
-			}
-#else
-			if (!__data[i - 1].is_greater(__data[i], k_lower, k_higher)) {
-				return false;
-			}
-#endif
-		}
-
-		return true;
-	}
-
 	///
 	constexpr void sort() noexcept {
 		std::sort(__data.begin(), __data.end());
@@ -541,8 +513,7 @@ public:
 	/// Note: if the list is full, every new element is silently discarded.
 	/// \param e	Element to add
 	constexpr void append(Element &e) noexcept {
-		if (load() <= size()) {
-			// wrong, increases effective size of container, use custom element copy function instead
+		if (load() < size()) {
 			__data[load()] = e;
 		} else {
 			__data.push_back(e);
@@ -560,8 +531,9 @@ public:
 		add_and_append(e1, e2, 0, LabelLENGTH, norm);
 	}
 
-	/// Same as the function above, but with a `constexpr` size factor. This may allow further optimisations to the
-	/// compiler. Additionaly this functions adds e1 and e2 together and daves the result.
+	/// Same as the function above, but with a `constexpr` size factor.
+	/// This may allow further optimisations to the compiler. Additionally,
+	/// this functions adds e1 and e2 together and daves the result.
 	/// \tparam approx_size Size of the list
 	/// \param e1 first element
 	/// \param e2 second element

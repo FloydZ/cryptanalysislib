@@ -76,7 +76,7 @@ constexpr inline static T Rotate32(const T val, const int shift) noexcept {
 	}
 
 	--value;
-	for (std::size_t i = 1; i < sizeof(std::size_t) * CHAR_BIT; i *= 2) {
+	for (std::size_t i = 1; i < sizeof(std::size_t) * sizeof(uint8_t) * 8; i *= 2) {
 		value |= value >> i;
 	}
 

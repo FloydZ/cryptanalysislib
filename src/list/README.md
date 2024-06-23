@@ -5,7 +5,7 @@ like comparison/add/sub/size... .
 
 Each list comes with a load factor which tracks how many elements per thread 
 where already inserted. Once the max number is reached, new elements are discarded.
-This makes the resetting of the list trivial, simply over write the load array
+This makes the resetting of the list trivial, simply overwrite the load array
 with zero.
 
 ### `MetaList`
