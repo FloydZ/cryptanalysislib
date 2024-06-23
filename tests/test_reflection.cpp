@@ -9,7 +9,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-#ifdef __clang__
+// TODO see `reflection.h`
+#ifdef __cpp_lib_source_location
 #include "reflection/reflection.h"
 
 

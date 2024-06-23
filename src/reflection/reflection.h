@@ -54,7 +54,12 @@
 #error "[error][reflect] <tuple> not found!"
 #else
 #ifndef REFLECT
-#define REFLECT 1'1'1 // SemVer
+#define REFLECT 
+
+// TODO: old compilers have a problem with this, as `std::string_view` is not 
+// 		fully constexpr.
+#ifdef __cpp_lib_source_location
+
 
 #include <array>
 #include <string_view>
@@ -68,9 +73,7 @@
 #endif
 
 #if not defined(REFLECT_ENUM_MAX)
-#define REFLECT_ENUM_MAX 1024
-#endif
-
+#define REFLECT_ENUM_MAX 1024 #endif
 namespace {
 	template<bool Cond> struct REFLECT_FWD_LIKE { template<class T> using type = std::remove_reference_t<T>&&; };
 	template<> struct REFLECT_FWD_LIKE<true> { template<class T> using type = std::remove_reference_t<T>&; };
@@ -106,14 +109,14 @@ namespace reflect::inline v1_1_1 {
 #ifdef __cpp_lib_source_location
 			return std::source_location::current().function_name(); 
 #else 
-			return std::string_view(__FILE__)
+			return std::string_view("");
 #endif
 		}
 		template<class... Ts> [[nodiscard]] constexpr auto function_name() noexcept -> std::string_view { 
 #ifdef __cpp_lib_source_location
 			return std::source_location::current().function_name(); 
 #else 
-			return std::string_view(__FILE__)
+			return std::string_view("");
 #endif
 		}
 
@@ -1237,5 +1240,6 @@ static_assert(([]<auto expect = [](const bool cond) { return std::array{true}[no
 }(), true));
 #endif
 #endif  // REFLECT
+#endif
 #endif
 #endif

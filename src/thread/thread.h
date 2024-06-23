@@ -1,6 +1,8 @@
 #ifndef CRYPTANALYSISLIB_THREAD_H
 #define CRYPTANALYSISLIB_THREAD_H
 
+#include "helper.h"
+
 /// CORE IDEA:
 /// wrap `openmp` or `std::threads` in an easy to use interface
 ///
@@ -33,5 +35,17 @@ public:
 	}
 #endif
 };
+
+
+// SRC: https://stackoverflow.com/questions/24645880/set-cpu-affinity-when-create-a-thread
+// pthread CPU affinity
+/// CPU_ID: integer of the CPU
+/// THREAD: pthread handle
+#define PTHREAD_SET_THREAD_AFFINITY(CPU_ID, THREAD) \
+    cpu_set_t cpuset;								\
+    CPU_ZERO(&cpuset);								\
+    CPU_SET(CPU_ID, &cpuset); 						\
+    int rc = pthread_setaffinity_np(THREAD.native_handle(), sizeof(cpu_set_t), &cpuset);
+	ASSERT(rc);
 
 #endif//CRYPTANALYSISLIB_THREAD_H
