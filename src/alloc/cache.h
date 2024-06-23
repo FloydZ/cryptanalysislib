@@ -118,6 +118,6 @@ public:
 		// if we reach here, the pointer was invalid
 		return false;
 	}
-
 };
+
 #endif//CRYPTANALYSISLIB_CACHE_H
