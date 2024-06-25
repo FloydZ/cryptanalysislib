@@ -54,7 +54,7 @@ jobs:
       run: | 
         perf list
         perf record -o perf.data --call-graph fp --freq=max ./tests/sort/test_sort_sorting_algorithms
-        perf script -i perf.data  --full-source-path --call-ret-trace -F +pid,+srcline >> ${{github.workspace}}/build/perf.out
+        perf script -i perf.data  --full-source-path --call-ret-trace -F +pid >> ${{github.workspace}}/build/perf.out
 
     - name: save perf.data
       uses: actions/upload-artifact@v4
