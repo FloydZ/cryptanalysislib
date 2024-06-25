@@ -53,10 +53,10 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: | 
         perf record -g -F 1000 ./tests/sort/test_sort_sorting_algorithms
-        perf script -F +pid >> ${{github.workspace}}/build/perf.out
+        # perf script -F +pid >> ${{github.workspace}}/build/perf.out
 
     - name: save perf.data
       uses: actions/upload-artifact@v4
       with:
         name: code-coverage-report
-        path: ${{github.workspace}}/build/perf.out
+        path: ${{github.workspace}}/build/perf.data
