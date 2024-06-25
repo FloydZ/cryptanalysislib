@@ -45,11 +45,11 @@ jobs:
 
     - name: Build
       # run: make bench_nn_benchmark
-      run: make test_sort_sorting_algorithm
+      run: make test_sort_sorting_algorithms
 
     - name: Bench
       working-directory: ${{github.workspace}}/build
-      run: perf record -F 1000 -o perf.data ./tests/sort/test_sort_sorting_algorithm
+      run: perf record -F 1000 -o perf.data ./tests/sort/test_sort_sorting_algorithms
 
     - name: save perf.data
       uses: actions/upload-artifact@v4
