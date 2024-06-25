@@ -44,11 +44,12 @@ jobs:
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=clang++-${{matrix.version}}
 
     - name: Build
-      run: make bench_nn_benchmark
+      # run: make bench_nn_benchmark
+      run: make test_sort_sorting_algorithm
 
     - name: Bench
       working-directory: ${{github.workspace}}/build
-      run: perf record -F 1000 -o perf.data ./bench/nn/bench_nn_bruteforce
+      run: perf record -F 1000 -o perf.data ./tests/sort/test_sort_sorting_algorithm
 
     - name: save perf.data
       uses: actions/upload-artifact@v4
