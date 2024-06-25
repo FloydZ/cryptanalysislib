@@ -48,4 +48,10 @@ jobs:
 
     - name: Bench
       working-directory: ${{github.workspace}}/build
-      run: perf record -F ./bench/nn/bench_nn_bruteforce
+      run: perf record -F 1000 -o perf.data ./bench/nn/bench_nn_bruteforce
+
+    - name: save perf.data
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage-report
+        path: ${{github.workspace}}/build/perf.data
