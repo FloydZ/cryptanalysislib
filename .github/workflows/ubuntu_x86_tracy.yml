@@ -24,7 +24,6 @@ jobs:
         sudo apt-get install -y libomp-${{matrix.version}}-dev libomp5-${{matrix.version}}
         sudo apt-get install -y linux-tools-generic build-essential make cmake git
         sudo sh -c 'echo -1 >/proc/sys/kernel/perf_event_paranoid'
-        ./capture/build/tracy-capture --help
 
     - name: Build Tracy
       run: |
@@ -32,6 +31,7 @@ jobs:
         cd tracy 
         cmake -B capture/build -S capture -DCMAKE_BUILD_TYPE=Release
         cmake --build capture/build --parallel --config Release
+        ./capture/build/tracy-capture --help
 
 
     - name: Install Google Benchmark
