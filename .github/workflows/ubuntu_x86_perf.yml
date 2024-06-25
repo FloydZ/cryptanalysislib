@@ -52,8 +52,8 @@ jobs:
     - name: Bench
       working-directory: ${{github.workspace}}/build
       run: | 
-        perf record --call-graph lbr -o perf.data -g -F 10000 ./tests/sort/test_sort_sorting_algorithms
-        perf script -i perf.data --stitch-lbr --full-source-path --call-ret-trace -F +pid,+disasm >> ${{github.workspace}}/build/perf.out
+        perf record -o perf.data -g --branch-any --call-graph --freq=max ./tests/sort/test_sort_sorting_algorithms
+        perf script -i perf.data  --full-source-path --call-ret-trace -F +pid,+disasm >> ${{github.workspace}}/build/perf.out
 
     - name: save perf.data
       uses: actions/upload-artifact@v4
