@@ -23,6 +23,7 @@ jobs:
         sudo apt-get install -y libtbb-dev clang-${{matrix.version}} libpfm4-dev
         sudo apt-get install -y libomp-${{matrix.version}}-dev libomp5-${{matrix.version}}
         sudo apt-get install -y linux-tools-generic build-essential make cmake git
+        sudo sh -c 'echo 1 >/proc/sys/kernel/perf_event_paranoid'
 
     - name: Install Google Benchmark
       run: |
