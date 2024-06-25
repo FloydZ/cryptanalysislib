@@ -59,4 +59,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: code-coverage-report
-        path: ${{github.workspace}}/build/perf.data
+        path: ${{github.workspace}}/build/perf.out
