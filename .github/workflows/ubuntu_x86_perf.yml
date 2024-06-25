@@ -53,7 +53,7 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: | 
         perf record -o perf.data -g -F 1000 ./tests/sort/test_sort_sorting_algorithms
-        # perf script -F +pid >> ${{github.workspace}}/build/perf.out
+        perf script -i perf.data -F +pid >> ${{github.workspace}}/build/perf.out
 
     - name: save perf.data
       uses: actions/upload-artifact@v4
