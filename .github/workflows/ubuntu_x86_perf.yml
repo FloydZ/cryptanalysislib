@@ -52,7 +52,7 @@ jobs:
     - name: Bench
       working-directory: ${{github.workspace}}/build
       run: | 
-        perf record -g -F 1000 ./tests/sort/test_sort_sorting_algorithms
+        perf record -o perf.data -g -F 1000 ./tests/sort/test_sort_sorting_algorithms
         # perf script -F +pid >> ${{github.workspace}}/build/perf.out
 
     - name: save perf.data
