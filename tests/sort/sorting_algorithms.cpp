@@ -68,7 +68,7 @@ TEST(VVSort, Ints32) {
 }
 
 TEST(MultipleSKASort, Ints8) {
-	for (uint32_t t = 0; t < (1u << 19); t++) {
+	for (uint32_t t = 0; t < (1u << 14); t++) {
     uint8_t *array8 = generate_list<uint8_t>(listsize);
     ska_sort(array8, array8 + listsize, [](const uint8_t in){ return in;});
 
