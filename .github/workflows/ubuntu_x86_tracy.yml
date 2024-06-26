@@ -32,7 +32,6 @@ jobs:
         cd tracy 
         cmake -B capture/build -S capture -DCMAKE_BUILD_TYPE=Release
         cmake --build capture/build --parallel --config Release
-        ./capture/build/tracy-capture --help
 
 
     - name: Install Google Benchmark
@@ -51,7 +50,7 @@ jobs:
     - name: Configure CMake
       env:
         CXX: clang++-${{ matrix.compiler }}
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=clang++-${{matrix.version}} -G "Unix Makefiles"
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=clang++-${{matrix.version}} -G "Unix Makefiles" -DUSE_TRACY=ON
 
     - name: Build
       working-directory: ${{github.workspace}}/build
@@ -60,13 +59,13 @@ jobs:
 
     - name: Bench
       working-directory: ${{github.workspace}}/build
-      run: | 
-        perf list
-        perf record -o perf.data --call-graph fp --freq=max ./tests/sort/test_sort_sorting_algorithms
-        perf script -i perf.data  --full-source-path --call-ret-trace -F +pid >> ${{github.workspace}}/build/perf.out
+      run: |
+        ./capture/build/tracy-capture -o out.tracy -a 127.0.0.1 -s 20 &
+        ./tests/sort/test_sort_sorting_algorithms
+        sleep 20
 
-    - name: save perf.data
+    - name: save tracy output
       uses: actions/upload-artifact@v4
       with:
         name: code-coverage-report
-        path: ${{github.workspace}}/build/perf.out
+        path: ${{github.workspace}}/build/out.tracy
