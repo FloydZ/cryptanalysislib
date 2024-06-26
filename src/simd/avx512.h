@@ -429,7 +429,8 @@ struct uint8x64_t {
 	                                                     const uint8x64_t in2) noexcept {
 		uint8x64_t ret;
 #ifdef __clang__
-  		ret.v512 = (__m512i)__builtin_ia32_pminsb512((__v64qi)in1.v512, (__v64qi)in2.v512);
+		ret.v512 = (__m512i)__builtin_elementwise_min((__v8du)in1.v512, (__v8du)in2.v512);
+  		//ret.v512 = (__m512i)__builtin_ia32_pminsb512((__v64qi)in1.v512, (__v64qi)in2.v512);
 #else 
   		ret.v512 = (__m512i) __builtin_ia32_pminsb512_mask ((__v64qi)in1.v512,
 						  (__v64qi)in2.v512,
@@ -446,7 +447,8 @@ struct uint8x64_t {
 	                                                     const uint8x64_t in2) noexcept {
 		uint8x64_t ret;
 #ifdef __clang__
-  		ret.v512 = (__m512i)__builtin_ia32_pmaxsb512((__v64qi)in1.v512, (__v64qi)in2.v512);
+		ret.v512 = (__m512i)__builtin_elementwise_max((__v8du)in1.v512, (__v8du)in2.v512);
+  		//ret.v512 = (__m512i)__builtin_ia32_pmaxsb512((__v64qi)in1.v512, (__v64qi)in2.v512);
 #else
   		ret.v512 = (__m512i) __builtin_ia32_pmaxsb512_mask ((__v64qi)in1.v512,
 						  (__v64qi)in2.v512,

@@ -162,7 +162,7 @@ public:
 	///         and so on
 	explicit Tree_T(const unsigned int d,
 	                const MatrixType &A,
-	                const unsigned int baselist_size,// 10
+	                const unsigned int baselist_size,
 	                const std::vector<uint64_t> &level_translation_array,
 	                const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept : matrix(A),
 	                                                                                        level_translation_array(level_translation_array),
@@ -230,12 +230,14 @@ public:
 	}
 
 
+	/// runs the full tree algorithm, indepentend of the depth
 	/// \param target
 	/// \param gen_lists
 	/// \param two_result_lists
-	void build_tree(LabelType &target, bool gen_lists = true, bool two_result_lists = false) noexcept {
+	void build_tree(LabelType &target, 
+					const bool gen_lists = true,
+					const bool two_result_lists = false) noexcept {
 		uint64_t k_lower, k_higher;
-
 		if (gen_lists) {
 			lists[0].set_load(0);
 			lists[1].set_load(0);
@@ -245,42 +247,47 @@ public:
 
 		// generate the intermediate targets for all levels
 		std::vector<std::vector<LabelType>> intermediate_targets(depth);
-		for (unsigned int i = 0; i < depth; ++i) {
-			intermediate_targets[i].resize(intermediat_level_limit(i) + 1);// +1 to have enough space.
+		for (uint32_t i = 0; i < depth; ++i) {
+			// +1 to have enough space.
+			intermediate_targets[i].resize(intermediat_level_limit(i) + 1);
 
 			// set random intermediate targets
-			for (unsigned int j = 0; j < intermediat_level_limit(i); ++j) {
+			for (uint32_t j = 0; j < intermediat_level_limit(i); ++j) {
 				intermediate_targets[i][j].random();
 			}
 
 			intermediate_targets[i][intermediat_level_limit(i)] = target;
 		}
 
-		// adjust last intermediate target of each level, such that targets of each level add up the the true target
+		// adjust last intermediate target of each level, such that targets of
+		// each level add up the true target.
 		for (uint32_t i = 0; i < depth - 1; ++i) {
 			for (uint32_t j = 0; j < intermediat_level_limit(i); ++j) {
 				translate_level(&k_lower, &k_higher, -1, level_translation_array);
 
 				LabelType::sub(intermediate_targets[i][intermediat_level_limit(i)],
-				               intermediate_targets[i][intermediat_level_limit(i)], intermediate_targets[i][j], k_lower, k_higher);
+				               intermediate_targets[i][intermediat_level_limit(i)],
+							   intermediate_targets[i][j], k_lower, k_higher);
 			}
 		}
 
 
 		// start joining the lists
-		for (uint32_t i = 0; i < (1ULL << (this->depth - 1)); ++i) {
-			// calc number of trailing zeros of i, which indicates to which level we have to join
-			int join_to_level = __builtin_ctz(i + 1);
+		for (uint32_t i = 0; i < (1ULL << (depth - 1)); ++i) {
+			// calc number of trailing zeros of i, which indicates to which 
+			// level we have to join
+			const int join_to_level = __builtin_ctz(i + 1);
 
-			// prepare the base-lists, as the join itself just checks for *equality* on all levels and performs only *addition* of labels
+			// prepare the base-lists, as the join itself just checks for 
+			// *equality* on all levels and performs only *addition* of labels
 			prepare_lists(i, intermediate_targets);
 
 			// sort the baselists
 			lists[0].sort_level(0, level_translation_array);
 			lists[1].sort_level(0, level_translation_array);
 
-			// perform join
-			// if two_result_lists is set, the tree saves the last two lists and does not joint to the final level
+			// if `two_result_lists` is set, the tree saves the last two lists 
+			// and does not joint to the final level
 			if (!two_result_lists || join_to_level != depth - 1)
 				join_stream(join_to_level);
 			else
@@ -292,9 +299,8 @@ public:
 			// if not finished: sort the resulting list
 			if (likely(i != (1ULL << (this->depth - 1)) - 1)) {
 				lists[join_to_level + 2].sort_level(join_to_level + 1, level_translation_array);
-			}
-			//else restore the original baselists for the next run
-			else {
+			} else {
+				// else restore the original baselists for the next run
 				restore_baselists(i + 1, intermediate_targets);
 				restore_label(intermediate_targets, two_result_lists);
 			}
@@ -304,7 +310,8 @@ public:
 	///
 	/// \param i
 	/// \param intermediate_targets
-	void restore_label(std::vector<std::vector<LabelType>> &intermediate_targets, bool two_result_lists) noexcept {
+	void restore_label(std::vector<std::vector<LabelType>> &intermediate_targets, 
+					   const bool two_result_lists) noexcept {
 		uint64_t k_lower, k_higher;
 
 		// if one result list was created, the label matches the target on bla coordinates
@@ -320,7 +327,7 @@ public:
 		} else {
 			// if two result lists were created the labels of the first list match the sum of the first half of intermediate targets
 			// the second matches the corresponding second half of intermediate targets
-			for (int a = 0; a < 2; ++a) {
+			for (uint32_t a = 0; a < 2; ++a) {
 				for (uint64_t i = 0; i < lists[depth + a].get_load(); ++i) {
 					for (int j = 0; j < depth - 1; ++j) {
 						translate_level(&k_lower, &k_higher, j, level_translation_array);
@@ -338,7 +345,8 @@ public:
 			}
 		}
 
-		//NOTE: Before applying BDD-Solver the label has actually to be negated on all coordinates, is here the right place to do so?
+		//NOTE: Before applying BDD-Solver the label has actually to be negated 
+		// on all coordinates, is here the right place to do so?
 	}
 
 	///
@@ -525,7 +533,8 @@ public:
 	/// \param k_lower2
 	/// \param k_upper2
 	static void twolevel_streamjoin(List &out, List iL, List &L1, List &L2,
-	                                const uint64_t k_lower1, const uint64_t k_upper1, const uint64_t k_lower2, const uint64_t k_upper2) noexcept {
+	                                const uint64_t k_lower1, const uint64_t k_upper1, 
+									const uint64_t k_lower2, const uint64_t k_upper2) noexcept {
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 <= k_upper2);
 		// internal variables.
 		const uint32_t filter = -1;
@@ -549,7 +558,8 @@ public:
 
 				uint64_t jprev = j;
 
-				// we have found equal elements. But this time we dont have to save the result. Rather we stream join everything up to the final solution.
+				// we have found equal elements. But this time we dont have to 
+				// save the result. Rather we stream join everything up to the final solution.
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
 						ElementType::add(e, L1[i], L2[j], 0, LabelLENGTH, -1);
@@ -1001,13 +1011,11 @@ private:
 
 		uint64_t i = 0, j = 0;
 		while (i < lists[0].load() && j < lists[1].load()) {
-			if (lists[1][j].is_greater(lists[0][i], k_lower0, k_higher0))
+			if (lists[1][j].is_greater(lists[0][i], k_lower0, k_higher0)) {
 				i++;
-
-			else if (lists[0][i].is_greater(lists[1][j], k_lower0, k_higher0))
+			} else if (lists[0][i].is_greater(lists[1][j], k_lower0, k_higher0)) {
 				j++;
-
-			else {
+			} else {
 				uint64_t i_max, j_max;
 				// if elements are equal find max index in each list, such that they remain equal
 				for (i_max = i + 1; i_max < lists[0].load() && lists[0][i].is_equal(lists[0][i_max], k_lower0, k_higher0); i_max++) {}
@@ -1050,12 +1058,14 @@ private:
 								}
 
 								// continue stream-join with the next element of previous level
-								if (l == level)
+								if (l == level) {
 									l--;
+								}
 
 								l = increment_previous_level(l, boundaries, indices);
-								if (indices[0] == boundaries[0].second)
+								if (indices[0] == boundaries[0].second) {
 									stop = true;
+								}
 							}
 						}
 					}
