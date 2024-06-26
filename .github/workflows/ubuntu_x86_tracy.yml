@@ -60,7 +60,7 @@ jobs:
     - name: Bench
       working-directory: ${{github.workspace}}/build
       run: |
-        ./capture/build/tracy-capture -o out.tracy -a 127.0.0.1 -s 20 &
+        ${{github.workspace}}/tracy/capture/build/tracy-capture -o out.tracy -a 127.0.0.1 -s 20 &
         ./tests/sort/test_sort_sorting_algorithms
         sleep 20
 
