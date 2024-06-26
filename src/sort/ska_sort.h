@@ -11,22 +11,28 @@
 #include <utility>
 #include <functional>
 
+#include "helper.h"
+
 namespace detail
 {
 template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-void counting_sort_impl(It begin, It end, OutIt out_begin, ExtractKey && extract_key)
-{
+constexpr void counting_sort_impl(It begin,
+		It end,
+		OutIt out_begin, 
+		ExtractKey && extract_key) noexcept {
 	ZoneScoped;
     count_type counts[256] = {};
     for (It it = begin; it != end; ++it) {
         ++counts[extract_key(*it)];
     }
+
     count_type total = 0;
     for (count_type & count : counts) {
         count_type old_count = count;
         count = total;
         total += old_count;
     }
+
     for (; begin != end; ++begin) {
         std::uint8_t key = extract_key(*begin);
         out_begin[counts[key]++] = std::move(*begin);
@@ -34,72 +40,77 @@ void counting_sort_impl(It begin, It end, OutIt out_begin, ExtractKey && extract
 }
 
 template<typename It, typename OutIt, typename ExtractKey>
-void counting_sort_impl(It begin, It end, OutIt out_begin, ExtractKey && extract_key)
-{
+constexpr void counting_sort_impl(It begin, 
+						It end,
+						OutIt out_begin, 
+						ExtractKey && extract_key) noexcept {
     counting_sort_impl<std::uint64_t>(begin, end, out_begin, extract_key);
 }
-inline bool to_unsigned_or_bool(bool b)
-{
+
+constexpr inline bool to_unsigned_or_bool(bool b) noexcept {
     return b;
 }
-inline unsigned char to_unsigned_or_bool(unsigned char c)
-{
+
+constexpr inline unsigned char to_unsigned_or_bool(unsigned char c) noexcept {
     return c;
 }
-inline unsigned char to_unsigned_or_bool(signed char c)
-{
+
+constexpr inline unsigned char to_unsigned_or_bool(signed char c) {
     return static_cast<unsigned char>(c) + 128;
 }
-inline unsigned char to_unsigned_or_bool(char c)
-{
+
+constexpr inline unsigned char to_unsigned_or_bool(char c) noexcept {
     return static_cast<unsigned char>(c);
 }
-inline std::uint16_t to_unsigned_or_bool(char16_t c)
-{
+
+constexpr inline std::uint16_t to_unsigned_or_bool(char16_t c) noexcept {
     return static_cast<std::uint16_t>(c);
 }
-inline std::uint32_t to_unsigned_or_bool(char32_t c)
-{
+
+constexpr inline std::uint32_t to_unsigned_or_bool(char32_t c) noexcept {
     return static_cast<std::uint32_t>(c);
 }
-inline std::uint32_t to_unsigned_or_bool(wchar_t c)
-{
+
+constexpr inline std::uint32_t to_unsigned_or_bool(wchar_t c) noexcept {
     return static_cast<std::uint32_t>(c);
 }
-inline unsigned short to_unsigned_or_bool(short i)
-{
-    return static_cast<unsigned short>(i) + static_cast<unsigned short>(1 << (sizeof(short) * 8 - 1));
+
+constexpr inline unsigned short to_unsigned_or_bool(short i) noexcept {
+    return static_cast<unsigned short>(i) + 
+		   static_cast<unsigned short>(1 << (sizeof(short) * 8 - 1));
 }
-inline unsigned short to_unsigned_or_bool(unsigned short i)
-{
+
+constexpr inline unsigned short to_unsigned_or_bool(unsigned short i) noexcept {
     return i;
 }
-inline unsigned int to_unsigned_or_bool(int i)
-{
-    return static_cast<unsigned int>(i) + static_cast<unsigned int>(1 << (sizeof(int) * 8 - 1));
+
+constexpr inline unsigned int to_unsigned_or_bool(int i) noexcept {
+    return static_cast<unsigned int>(i) +
+		   static_cast<unsigned int>(1 << (sizeof(int) * 8 - 1));
 }
-inline unsigned int to_unsigned_or_bool(unsigned int i)
-{
+
+constexpr inline unsigned int to_unsigned_or_bool(unsigned int i) noexcept  {
     return i;
 }
-inline unsigned long to_unsigned_or_bool(long l)
-{
-    return static_cast<unsigned long>(l) + static_cast<unsigned long>(1l << (sizeof(long) * 8 - 1));
+
+constexpr inline unsigned long to_unsigned_or_bool(long l) noexcept {
+    return static_cast<unsigned long>(l) +
+		   static_cast<unsigned long>(1l << (sizeof(long) * 8 - 1));
 }
-inline unsigned long to_unsigned_or_bool(unsigned long l)
-{
+
+constexpr inline unsigned long to_unsigned_or_bool(unsigned long l) noexcept {
     return l;
 }
-inline unsigned long long to_unsigned_or_bool(long long l)
-{
+
+constexpr inline unsigned long long to_unsigned_or_bool(long long l) noexcept {
     return static_cast<unsigned long long>(l) + static_cast<unsigned long long>(1ll << (sizeof(long long) * 8 - 1));
 }
-inline unsigned long long to_unsigned_or_bool(unsigned long long l)
-{
+
+constexpr inline unsigned long long to_unsigned_or_bool(unsigned long long l) noexcept {
     return l;
 }
-inline std::uint32_t to_unsigned_or_bool(float f)
-{
+
+constexpr inline std::uint32_t to_unsigned_or_bool(float f) noexcept {
 	ZoneScoped;
     union
     {
@@ -109,8 +120,8 @@ inline std::uint32_t to_unsigned_or_bool(float f)
     std::uint32_t sign_bit = -std::int32_t(as_union.u >> 31);
     return as_union.u ^ (sign_bit | 0x80000000);
 }
-inline std::uint64_t to_unsigned_or_bool(double f)
-{
+
+constexpr inline std::uint64_t to_unsigned_or_bool(double f) noexcept {
 	ZoneScoped;
     union
     {
@@ -120,9 +131,9 @@ inline std::uint64_t to_unsigned_or_bool(double f)
     std::uint64_t sign_bit = -std::int64_t(as_union.u >> 63);
     return as_union.u ^ (sign_bit | 0x8000000000000000);
 }
+
 template<typename T>
-inline size_t to_unsigned_or_bool(T * ptr)
-{
+constexpr inline size_t to_unsigned_or_bool(T * ptr) noexcept {
     return reinterpret_cast<size_t>(ptr);
 }
 
@@ -133,12 +144,14 @@ template<>
 struct SizedRadixSorter<1>
 {
     template<typename It, typename OutIt, typename ExtractKey>
-    static bool sort(It begin, It end, OutIt buffer_begin, ExtractKey && extract_key)
-    {
-        counting_sort_impl(begin, end, buffer_begin, [&](auto && o)
-        {
+    constexpr static bool sort(It begin,
+							   It end,
+							   OutIt buffer_begin, 
+							   ExtractKey && extract_key) {
+        counting_sort_impl(begin, end, buffer_begin, [&](auto && o) {
             return to_unsigned_or_bool(extract_key(o));
         });
+
         return true;
     }
 
@@ -148,17 +161,24 @@ template<>
 struct SizedRadixSorter<2>
 {
     template<typename It, typename OutIt, typename ExtractKey>
-    static bool sort(It begin, It end, OutIt buffer_begin, ExtractKey && extract_key)
-    {
+    constexpr static bool sort(It begin,
+							   It end, 
+							   OutIt buffer_begin, 
+							   ExtractKey && extract_key) noexcept {
         std::ptrdiff_t num_elements = end - begin;
-        if (num_elements <= (1ll << 32))
+        if (num_elements <= (1ll << 32u)) {
             return sort_inline<uint32_t>(begin, end, buffer_begin, buffer_begin + num_elements, extract_key);
-        else
+		} else {
             return sort_inline<uint64_t>(begin, end, buffer_begin, buffer_begin + num_elements, extract_key);
+		}
     }
 
     template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-    static bool sort_inline(It begin, It end, OutIt out_begin, OutIt out_end, ExtractKey && extract_key) {
+    constexpr static bool sort_inline(It begin,
+									  It end,
+									  OutIt out_begin, 
+									  OutIt out_end, 
+									  ExtractKey && extract_key) {
 		ZoneScoped;
         count_type counts0[256] = {};
         count_type counts1[256] = {};
@@ -168,10 +188,10 @@ struct SizedRadixSorter<2>
             ++counts0[key & 0xff];
             ++counts1[(key >> 8) & 0xff];
         }
+
         count_type total0 = 0;
         count_type total1 = 0;
-        for (int i = 0; i < 256; ++i)
-        {
+        for (uint32_t i = 0; i < 256; ++i) {
             count_type old_count0 = counts0[i];
             count_type old_count1 = counts1[i];
             counts0[i] = total0;
@@ -179,36 +199,42 @@ struct SizedRadixSorter<2>
             total0 += old_count0;
             total1 += old_count1;
         }
-        for (It it = begin; it != end; ++it)
-        {
+
+        for (It it = begin; it != end; ++it) {
             std::uint8_t key = to_unsigned_or_bool(extract_key(*it));
             out_begin[counts0[key]++] = std::move(*it);
         }
-        for (OutIt it = out_begin; it != out_end; ++it)
-        {
+
+        for (OutIt it = out_begin; it != out_end; ++it) {
             std::uint8_t key = to_unsigned_or_bool(extract_key(*it)) >> 8;
             begin[counts1[key]++] = std::move(*it);
         }
+
         return false;
     }
 
     static constexpr size_t pass_count = 3;
 };
+
 template<>
 struct SizedRadixSorter<4>
 {
 
     template<typename It, typename OutIt, typename ExtractKey>
-    static bool sort(It begin, It end, OutIt buffer_begin, ExtractKey && extract_key)
-    {
+    constexpr static bool sort(It begin, 
+					It end,
+					OutIt buffer_begin, 
+					ExtractKey && extract_key) noexcept {
         std::ptrdiff_t num_elements = end - begin;
-        if (num_elements <= (1ll << 32))
+        if (num_elements <= (1ll << 32u)) {
             return sort_inline<uint32_t>(begin, end, buffer_begin, buffer_begin + num_elements, extract_key);
-        else
+		} else {
             return sort_inline<uint64_t>(begin, end, buffer_begin, buffer_begin + num_elements, extract_key);
+		}
     }
+
     template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-    static bool sort_inline(It begin, It end, OutIt out_begin, OutIt out_end, ExtractKey && extract_key) {
+    constexpr static bool sort_inline(It begin, It end, OutIt out_begin, OutIt out_end, ExtractKey && extract_key) noexcept {
 		ZoneScoped;
         count_type counts0[256] = {};
         count_type counts1[256] = {};
@@ -227,7 +253,7 @@ struct SizedRadixSorter<4>
         count_type total1 = 0;
         count_type total2 = 0;
         count_type total3 = 0;
-        for (int i = 0; i < 256; ++i)
+        for (uint32_t i = 0; i < 256; ++i)
         {
             count_type old_count0 = counts0[i];
             count_type old_count1 = counts1[i];
