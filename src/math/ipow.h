@@ -22,6 +22,6 @@ template <typename T, typename T2>
            T{1} / ipow(x, -n);
 }
 
-};
+}
 
 #endif //CRYPTANALYSISLIB_IPOW_H

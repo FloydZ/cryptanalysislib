@@ -140,8 +140,7 @@ public:
 			std::uint32_t index = sr.second;
 
 			if (node->isLeaf()) {  // Simple insertion into leaf
-				if (count == SIZE_MAX)
-					throw std::length_error("Maximum size reached");
+				ASSERT(count != SIZE_MAX);
 				node->keys.insert(node->keys.begin() + index, std::move(val));
 				count++;
 				return;  // Successfully inserted
@@ -356,6 +355,8 @@ private:
 				this->mergeChildren(minKeys, index);
 				return child;
 			}
+
+			return nullptr;
 		}
 
 

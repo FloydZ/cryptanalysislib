@@ -1,0 +1,63 @@
+name: ubuntu_x86_perf
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+        version: [ 15 ]
+        build_type: [Release ]
+
+    name: Build & test on ${{ matrix.os }} with clang-${{ matrix.version }} in ${{ matrix.build_type }} mode.
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install Software
+      run: |
+        sudo apt-get install -y libtbb-dev clang-${{matrix.version}} libpfm4-dev
+        sudo apt-get install -y libomp-${{matrix.version}}-dev libomp5-${{matrix.version}}
+        sudo apt-get install -y linux-tools-generic build-essential make cmake git
+        sudo sh -c 'echo -1 >/proc/sys/kernel/perf_event_paranoid'
+
+    - name: Install Google Benchmark
+      run: |
+        git clone https://github.com/google/benchmark.git 
+        cd benchmark
+        cmake -E make_directory "build"
+        cmake -E chdir "build" cmake -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_LIBPFM=on -DCMAKE_BUILD_TYPE=Release ../
+        # Perform system-wide installation of header and built library
+        sudo cmake --build "build" --config Release --target install -j
+
+    - name: Install gtest
+      run:
+        sudo apt-get install libgtest-dev && cd /usr/src/gtest && sudo cmake CMakeLists.txt && sudo make && sudo cp lib/libgtest.a /usr/lib  && sudo cp lib/libgtest_main.a /usr/lib && sudo ln -s /usr/lib/libgtest.a /usr/local/lib/libgtest.a && sudo ln -s /usr/lib/libgtest_main.a /usr/local/lib/libgtest_main.a
+
+
+    - name: Configure CMake
+      env:
+        CXX: clang++-${{ matrix.compiler }}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=clang++-${{matrix.version}} -G "Unix Makefiles"
+
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      # run: make bench_nn_benchmark
+      run: make test_sort_sorting_algorithms
+
+    - name: Bench
+      working-directory: ${{github.workspace}}/build
+      run: | 
+        perf list
+        perf record -o perf.data --call-graph fp --freq=max ./tests/sort/test_sort_sorting_algorithms
+        perf script -i perf.data  --full-source-path --call-ret-trace -F +pid >> ${{github.workspace}}/build/perf.out
+
+    - name: save perf.data
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage-report
+        path: ${{github.workspace}}/build/perf.out

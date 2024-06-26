@@ -9,7 +9,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-#ifdef __clang__
+// TODO see `reflection.h`
+#ifdef __cpp_lib_source_location
 #include "reflection/reflection.h"
 
 
@@ -62,6 +63,7 @@ TEST(simple, my_type) {
 // 		}, f);
 }
 #endif
+
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 
