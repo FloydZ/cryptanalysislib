@@ -14,13 +14,11 @@ stdenv.mkDerivation {
 	autogen 
 	gnumake 
 	cmake 
-    clang_13
-	llvmPackages_13.openmp
-    # clang_17
-	# clang-tools_17
-	# llvm_17
-	# llvmPackages_17.libcxx
-	# llvmPackages_17.openmp
+    clang_17
+	clang-tools_17
+	llvm_17
+	llvmPackages_17.libcxx
+	llvmPackages_17.openmp
 	gcc
 	gtest
 	gbenchmark 

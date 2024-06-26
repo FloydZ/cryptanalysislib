@@ -28,7 +28,7 @@ jobs:
     - name: Build Tracy
       run: |
         sudo apt-get install -y pkg-config libfreetype6 libfreetype-dev libtbb-dev debuginfod waylandpp-dev libdbus-c++-1-0v5 libdbus-1-dev libxkbcommon-dev libglvnd-dev meson cmake git wayland-protocols nodejs
-        git clone https://github.com/wolfpld/tracy/ 
+        git clone https://github.com/wolfpld/tracy/  --branch v0.10
         cd tracy 
         cmake -B capture/build -S capture -DCMAKE_BUILD_TYPE=Release
         cmake --build capture/build --parallel --config Release
