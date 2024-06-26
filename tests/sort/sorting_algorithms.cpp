@@ -67,6 +67,18 @@ TEST(VVSort, Ints32) {
     free(array8);
 }
 
+TEST(MultipleSKASort, Ints8) {
+	for (uint32_t t = 0; t < (1u << 19); t++) {
+    uint8_t *array8 = generate_list<uint8_t>(listsize);
+    ska_sort(array8, array8 + listsize, [](const uint8_t in){ return in;});
+
+    for (size_t i = 0; i < listsize-1; ++i) {
+        ASSERT_LE(array8[i], array8[i+1]);
+    }
+
+    free(array8);
+	}
+}
 #ifdef USE_AVX2
 TEST(DJBSORT, Ints32) {
 	int32_t *array8 = generate_list<int32_t>(listsize);

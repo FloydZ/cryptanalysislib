@@ -34,7 +34,7 @@ jobs:
 
     - name: Configure CMake
       env:
-        CXX: clang++-${{ matrix.compiler }}
+        CXX: clang++-${{ matrix.version }}
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=clang++-${{matrix.version}}
 
     - name: Build

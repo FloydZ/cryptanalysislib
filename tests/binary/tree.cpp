@@ -106,195 +106,192 @@ TEST(BinaryTreeTest, JoinRandomListsLevel0) {
     EXPECT_EQ(t[2].load(), num);
 }
 
-//TEST(BinaryTreeTest, JoinRandomListsLevel1) {
-//	BinaryMatrix A;
-//	A.random();
-//
-//	constexpr size_t size = 10;
-//	static std::vector<uint64_t> __level_translation_array{{0, n/2, n}};
-//	BinaryTree t{2, A, size, __level_translation_array, __level_filter_array};
-//
-//    t[0].generate_base_random(1u << size, A);
-//    t[1].generate_base_random(1u << size, A);
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//    t.join_stream(0);
-//
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base_random(1u << size, A);
-//    t[1].generate_base_random(1u << size, A);
-//
-//    t[2].sort_level(1, __level_translation_array);
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//
-//	BinaryElement tmp;
-//    const uint64_t k_lower = 0;
-//	const uint64_t k_upper = tmp.label_size();
-//
-//	uint64_t num = 0;
-//	BinaryElement el{};
-//    for (size_t i = 0; i < t[0].load(); ++i) {
-//		for (size_t j = 0; j < t[1].load(); ++j) {
-//			if (t[0][i].is_equal(t[1][j], 0)) {
-//				BinaryElement::add(el, t[0][i], t[1][j], k_lower, k_upper);
-//
-//				for (size_t o = 0; o < t[2].load(); ++o) {
-//					if (el.is_equal(t[2][o], 1)) {
-//						num++;
-//					}
-//				}
-//			}
-//		}
-//	}
-//
-//    t.join_stream(1);
-//
-//	EXPECT_NE(0, num);
-//	EXPECT_EQ(t[3].load(), num);
-//}
-//
-//TEST(BinaryTreeTest, JoinRandomListsLevel2) {
-//	unsigned int base_size = 6u;
-//
-//	BinaryMatrix A;
-//	A.fill(0);
-//	A.random();
-//
-//	BinaryTree t{3, A, 10, __level_translation_array, __level_filter_array};
-//
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base_random(1u << base_size, A);
-//    t[1].generate_base_random(1u << base_size, A);
-//
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//    t.join_stream(0);
-//
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base_random(1u << base_size, A);
-//    t[1].generate_base_random(1u << base_size, A);
-//
-//    t[2].sort_level(1, __level_translation_array);
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//    t.join_stream(1);
-//
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base_random(1u << base_size, A);
-//    t[1].generate_base_random(1u << base_size, A);
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//    t[3].sort_level(2, __level_translation_array);
-//
-//	BinaryElement tmp;
-//	const uint64_t k_lower = 0;
-//	const uint64_t k_upper = tmp.label_size();
-//
-//    uint64_t num = 0;
-//	BinaryElement el{};
-//	BinaryElement el2{};
-//    for (size_t i = 0; i < t[0].load(); ++i)
-//        for (size_t j = 0; j < t[1].load(); ++j) {
-//            if (t[0][i].is_equal(t[1][j], 0)) {
-//	            BinaryElement::add(el, t[0][i], t[1][j]);
-//                for (size_t o = 0; o < t[2].load(); ++o) {
-//                    if (el.is_equal(t[2][o], 1)) {
-//	                    BinaryElement::add(el2, el, t[2][o]);
-//                        for (size_t r = 0; r < t[3].load(); ++r)
-//                            if (el2.is_equal(t[3][r], 2)) {
-//                                num++;
-//                            }
-//                    }
-//                }
-//            }
-//        }
-//    t.join_stream(2);
-//
-//	EXPECT_NE(0, num);
-//    EXPECT_EQ(t[4].load(), num);
-//}
-//
-//TEST(BinaryTreeTest, JoinRandomListsLevel3) {
-//	unsigned int base_size = 5u;
-//
-//	BinaryMatrix A;
-//	A.random();
-//
-//	BinaryTree t{4, A, 10, __level_translation_array, __level_filter_array};
-//
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base_random(1u << base_size, A);
-//    t[1].generate_base_random(1u << base_size, A);
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//    t.join_stream(0);
-//
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base_random(1u << base_size, A);
-//    t[1].generate_base_random(1u << base_size, A);
-//
-//    t[2].sort_level(1, __level_translation_array);
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//    t.join_stream(1);
-//
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base_random(1u << base_size, A);
-//    t[1].generate_base_random(1u << base_size, A);
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//    t[3].sort_level(2, __level_translation_array);
-//    t.join_stream(2);
-//
-//    t[0].set_load(0);
-//    t[1].set_load(0);
-//    t[0].generate_base_random(1u << base_size, A);
-//    t[1].generate_base_random(1u << base_size, A);
-//    t[0].sort_level(0, __level_translation_array);
-//    t[1].sort_level(0, __level_translation_array);
-//    t[4].sort_level(3, __level_translation_array);
-//
-//	BinaryElement tmp;
-//	const uint64_t k_lower = 0;
-//	const uint64_t k_upper = tmp.label_size();
-//
-//    uint64_t num = 0;
-//	BinaryElement el{};
-//	BinaryElement el2{};
-//	BinaryElement el3{};
-//    for (size_t i = 0; i < t[0].load(); ++i)
-//        for (size_t j = 0; j < t[1].load(); ++j) {
-//            if (t[0][i].is_equal(t[1][j], 0)) {
-//	            BinaryElement::add(el, t[0][i], t[1][j]);
-//                for (size_t o = 0; o < t[2].load(); ++o) {
-//                    if (el.is_equal(t[2][o], 1)) {
-//	                    BinaryElement::add(el2, el, t[2][o]);
-//                        for (size_t r = 0; r < t[3].load(); ++r)
-//                            if (el2.is_equal(t[3][r], 2)) {
-//	                            BinaryElement::add(el3, el2, t[3][r]);
-//                                for (size_t w = 0; w < t[4].load(); ++w) {
-//                                    if (el3.is_equal(t[4][w], 3)) {
-//                                        num++;
-//                                    }
-//                                }
-//                            }
-//                    }
-//                }
-//            }
-//        }
-//    t.join_stream(3);
-//
-//	EXPECT_NE(0, num);
-//	EXPECT_EQ(t[5].load(), num);
-//}
+TEST(BinaryTreeTest, JoinRandomListsLevel1) {
+	BinaryMatrix A;
+	A.random();
+
+	constexpr size_t size = 10;
+	static std::vector<uint64_t> tbl{{0, n/2, n}};
+	BinaryTree t{2, A, size, tbl, __level_filter_array};
+
+    t[0].generate_base_random(1u << size, A);
+    t[1].generate_base_random(1u << size, A);
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+    t.join_stream(0);
+
+    t[0].set_load(0);
+    t[1].set_load(0);
+    t[0].generate_base_random(1u << size, A);
+    t[1].generate_base_random(1u << size, A);
+
+    t[2].sort_level(1, tbl);
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+
+	BinaryElement tmp;
+    const uint64_t k_lower = 0;
+	const uint64_t k_upper = tmp.label_size();
+
+	uint64_t num = 0;
+	BinaryElement el{};
+    for (size_t i = 0; i < t[0].load(); ++i) {
+		for (size_t j = 0; j < t[1].load(); ++j) {
+			if (t[0][i].is_equal(t[1][j], tbl[0], tbl[1])) {
+				BinaryElement::add(el, t[0][i], t[1][j], k_lower, k_upper);
+
+				for (size_t o = 0; o < t[2].load(); ++o) {
+					if (el.is_equal(t[2][o], 1)) {
+						num++;
+					}
+				}
+			}
+		}
+	}
+
+    t.join_stream(1);
+
+	EXPECT_NE(0, num);
+	EXPECT_EQ(t[3].load(), num);
+}
+
+TEST(BinaryTreeTest, JoinRandomListsLevel2) {
+	unsigned int base_size = 6u;
+
+	BinaryMatrix A;
+	A.fill(0);
+	A.random();
+
+	static std::vector<uint64_t> tbl{{0, n/3, 2*n/3, n}};
+	BinaryTree t{3, A, base_size, tbl, __level_filter_array};
+
+    t[0].set_load(0);
+    t[1].set_load(0);
+    t[0].generate_base_random(1u << base_size, A);
+    t[1].generate_base_random(1u << base_size, A);
+
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+    t.join_stream(0);
+
+    t[0].set_load(0);
+    t[1].set_load(0);
+    t[0].generate_base_random(1u << base_size, A);
+    t[1].generate_base_random(1u << base_size, A);
+
+    t[2].sort_level(1, tbl);
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+    t.join_stream(1);
+
+    t[0].set_load(0);
+    t[1].set_load(0);
+    t[0].generate_base_random(1u << base_size, A);
+    t[1].generate_base_random(1u << base_size, A);
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+    t[3].sort_level(2, tbl);
+
+    uint64_t num = 0;
+	BinaryElement el, el2, tmp;
+    for (size_t i = 0; i < t[0].load(); ++i) {
+		for (size_t j = 0; j < t[1].load(); ++j) {
+			if (t[0][i].is_equal(t[1][j], tbl[0], tbl[1])) {
+				BinaryElement::add(el, t[0][i], t[1][j]);
+				for (size_t o = 0; o < t[2].load(); ++o) {
+					if (el.is_equal(t[2][o], tbl[1], tbl[2])) {
+						BinaryElement::add(el2, el, t[2][o]);
+						for (size_t r = 0; r < t[3].load(); ++r) {
+							if (el2.is_equal(t[3][r], tbl[2], tbl[3])) {
+								num++;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+    t.join_stream(2);
+
+	EXPECT_NE(0, num);
+    EXPECT_EQ(t[4].load(), num);
+}
+
+TEST(BinaryTreeTest, JoinRandomListsLevel3) {
+	unsigned int base_size = 5u;
+
+	BinaryMatrix A;
+	A.random();
+
+	static std::vector<uint64_t> tbl{{0, n/4, n/2, 3*n/4, n}};
+	BinaryTree t{4, A, base_size, tbl, __level_filter_array};
+
+    t[0].set_load(0);
+    t[1].set_load(0);
+    t[0].generate_base_random(1u << base_size, A);
+    t[1].generate_base_random(1u << base_size, A);
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+    t.join_stream(0);
+
+    t[0].set_load(0);
+    t[1].set_load(0);
+    t[0].generate_base_random(1u << base_size, A);
+    t[1].generate_base_random(1u << base_size, A);
+
+    t[2].sort_level(1, tbl);
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+    t.join_stream(1);
+
+    t[0].set_load(0);
+    t[1].set_load(0);
+    t[0].generate_base_random(1u << base_size, A);
+    t[1].generate_base_random(1u << base_size, A);
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+    t[3].sort_level(2, tbl);
+    t.join_stream(2);
+
+    t[0].set_load(0);
+    t[1].set_load(0);
+    t[0].generate_base_random(1u << base_size, A);
+    t[1].generate_base_random(1u << base_size, A);
+    t[0].sort_level(0, tbl);
+    t[1].sort_level(0, tbl);
+    t[4].sort_level(3, tbl);
+
+    uint64_t num = 0;
+	BinaryElement el, el2, el3, tmp;
+    for (size_t i = 0; i < t[0].load(); ++i) {
+		for (size_t j = 0; j < t[1].load(); ++j) {
+			if (t[0][i].is_equal(t[1][j], tbl[0], tbl[1])) {
+				BinaryElement::add(el, t[0][i], t[1][j]);
+				for (size_t o = 0; o < t[2].load(); ++o) {
+					if (el.is_equal(t[2][o], tbl[1], tbl[2])) {
+						BinaryElement::add(el2, el, t[2][o]);
+						for (size_t r = 0; r < t[3].load(); ++r) {
+							if (el2.is_equal(t[3][r], tbl[2], tbl[3])) {
+								BinaryElement::add(el3, el2, t[3][r]);
+								for (size_t w = 0; w < t[4].load(); ++w) {
+									if (el3.is_equal(t[4][w], tbl[3], tbl[4])) {
+										num++;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+    t.join_stream(3);
+
+	EXPECT_NE(0, num);
+	EXPECT_EQ(t[5].load(), num);
+}
 
 #ifndef EXTERNAL_MAIN
 int main(int argc, char **argv) {

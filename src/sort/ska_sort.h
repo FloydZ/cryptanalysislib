@@ -16,24 +16,23 @@ namespace detail
 template<typename count_type, typename It, typename OutIt, typename ExtractKey>
 void counting_sort_impl(It begin, It end, OutIt out_begin, ExtractKey && extract_key)
 {
+	ZoneScoped;
     count_type counts[256] = {};
-    for (It it = begin; it != end; ++it)
-    {
+    for (It it = begin; it != end; ++it) {
         ++counts[extract_key(*it)];
     }
     count_type total = 0;
-    for (count_type & count : counts)
-    {
+    for (count_type & count : counts) {
         count_type old_count = count;
         count = total;
         total += old_count;
     }
-    for (; begin != end; ++begin)
-    {
+    for (; begin != end; ++begin) {
         std::uint8_t key = extract_key(*begin);
         out_begin[counts[key]++] = std::move(*begin);
     }
 }
+
 template<typename It, typename OutIt, typename ExtractKey>
 void counting_sort_impl(It begin, It end, OutIt out_begin, ExtractKey && extract_key)
 {
@@ -101,6 +100,7 @@ inline unsigned long long to_unsigned_or_bool(unsigned long long l)
 }
 inline std::uint32_t to_unsigned_or_bool(float f)
 {
+	ZoneScoped;
     union
     {
         float f;
@@ -111,6 +111,7 @@ inline std::uint32_t to_unsigned_or_bool(float f)
 }
 inline std::uint64_t to_unsigned_or_bool(double f)
 {
+	ZoneScoped;
     union
     {
         double d;
@@ -157,13 +158,12 @@ struct SizedRadixSorter<2>
     }
 
     template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-    static bool sort_inline(It begin, It end, OutIt out_begin, OutIt out_end, ExtractKey && extract_key)
-    {
+    static bool sort_inline(It begin, It end, OutIt out_begin, OutIt out_end, ExtractKey && extract_key) {
+		ZoneScoped;
         count_type counts0[256] = {};
         count_type counts1[256] = {};
 
-        for (It it = begin; it != end; ++it)
-        {
+        for (It it = begin; it != end; ++it) {
             uint16_t key = to_unsigned_or_bool(extract_key(*it));
             ++counts0[key & 0xff];
             ++counts1[(key >> 8) & 0xff];
@@ -208,8 +208,8 @@ struct SizedRadixSorter<4>
             return sort_inline<uint64_t>(begin, end, buffer_begin, buffer_begin + num_elements, extract_key);
     }
     template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-    static bool sort_inline(It begin, It end, OutIt out_begin, OutIt out_end, ExtractKey && extract_key)
-    {
+    static bool sort_inline(It begin, It end, OutIt out_begin, OutIt out_end, ExtractKey && extract_key) {
+		ZoneScoped;
         count_type counts0[256] = {};
         count_type counts1[256] = {};
         count_type counts2[256] = {};
@@ -282,7 +282,8 @@ struct SizedRadixSorter<8>
     template<typename count_type, typename It, typename OutIt, typename ExtractKey>
     static bool sort_inline(It begin, It end, OutIt out_begin, OutIt out_end, ExtractKey && extract_key)
     {
-        count_type counts0[256] = {};
+		ZoneScoped;
+		count_type counts0[256] = {};
         count_type counts1[256] = {};
         count_type counts2[256] = {};
         count_type counts3[256] = {};
@@ -392,6 +393,7 @@ struct RadixSorter<bool>
     template<typename It, typename OutIt, typename ExtractKey>
     static bool sort(It begin, It end, OutIt buffer_begin, ExtractKey && extract_key)
     {
+		ZoneScoped;
         size_t false_count = 0;
         for (It it = begin; it != end; ++it)
         {
@@ -740,6 +742,7 @@ inline void unroll_loop_four_times(It begin, size_t iteration_count, Func && to_
     size_t remainder_count = iteration_count - loop_count * 4;
     for (; loop_count > 0; --loop_count)
     {
+		ZoneScoped;
         to_call(begin);
         ++begin;
         to_call(begin);
@@ -1085,6 +1088,7 @@ struct UnsignedInplaceSorter
     template<typename It, typename ExtractKey>
     static void american_flag_sort(It begin, It end, ExtractKey & extract_key, void (*next_sort)(It, It, std::ptrdiff_t, ExtractKey &, void *), void * sort_data)
     {
+		ZoneScoped;
         PartitionInfo partitions[256];
         for (It it = begin; it != end; ++it)
         {
@@ -1166,6 +1170,7 @@ struct UnsignedInplaceSorter
     template<typename It, typename ExtractKey>
     static void ska_byte_sort(It begin, It end, ExtractKey & extract_key, void (*next_sort)(It, It, std::ptrdiff_t, ExtractKey &, void *), void * sort_data)
     {
+		ZoneScoped;
         PartitionInfo partitions[256];
         for (It it = begin; it != end; ++it)
         {
@@ -1236,6 +1241,7 @@ struct UnsignedInplaceSorter<StdSortThreshold, AmericanFlagSortThreshold, Curren
 template<typename It, typename ExtractKey, typename ElementKey>
 size_t CommonPrefix(It begin, It end, size_t start_index, ExtractKey && extract_key, ElementKey && element_key)
 {
+	ZoneScoped;
     const auto & largest_match_list = extract_key(*begin);
     size_t largest_match = largest_match_list.size();
     if (largest_match == start_index)
@@ -1271,6 +1277,7 @@ struct ListInplaceSorter
     template<typename It, typename ExtractKey>
     static void sort(It begin, It end, ExtractKey & extract_key, ListSortData<It, ExtractKey> * sort_data)
     {
+		ZoneScoped;
         size_t current_index = sort_data->current_index;
         void * next_sort_data = sort_data->next_sort_data;
         auto current_key = [&](auto && elem) -> decltype(auto)
@@ -1302,6 +1309,7 @@ struct ListInplaceSorter
     template<typename It, typename ExtractKey>
     static void sort_from_recursion(It begin, It end, std::ptrdiff_t, ExtractKey & extract_key, void * next_sort_data)
     {
+		ZoneScoped;
         ListSortData<It, ExtractKey> offset = *static_cast<ListSortData<It, ExtractKey> *>(next_sort_data);
         ++offset.current_index;
         --offset.recursion_limit;
@@ -1319,6 +1327,7 @@ struct ListInplaceSorter
     template<typename It, typename ExtractKey>
     static void sort(It begin, It end, std::ptrdiff_t, ExtractKey & extract_key, void (*next_sort)(It, It, std::ptrdiff_t, ExtractKey &, void *), void * next_sort_data)
     {
+		ZoneScoped;
         ListSortData<It, ExtractKey> offset;
         offset.current_index = 0;
         offset.recursion_limit = 16;
@@ -1334,6 +1343,7 @@ struct InplaceSorter<StdSortThreshold, AmericanFlagSortThreshold, CurrentSubKey,
     template<typename It, typename ExtractKey>
     static void sort(It begin, It end, std::ptrdiff_t, ExtractKey & extract_key, void (*next_sort)(It, It, std::ptrdiff_t, ExtractKey &, void *), void * sort_data)
     {
+		ZoneScoped;
         It middle = std::partition(begin, end, [&](auto && a){ return !CurrentSubKey::sub_key(extract_key(a), sort_data); });
         if (next_sort)
         {

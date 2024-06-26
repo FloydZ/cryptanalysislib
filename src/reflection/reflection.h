@@ -73,7 +73,9 @@
 #endif
 
 #if not defined(REFLECT_ENUM_MAX)
-#define REFLECT_ENUM_MAX 1024 #endif
+#define REFLECT_ENUM_MAX 1024
+#endif
+
 namespace {
 	template<bool Cond> struct REFLECT_FWD_LIKE { template<class T> using type = std::remove_reference_t<T>&&; };
 	template<> struct REFLECT_FWD_LIKE<true> { template<class T> using type = std::remove_reference_t<T>&; };
