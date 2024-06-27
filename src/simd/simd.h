@@ -10,6 +10,8 @@
 #include "print/print.h"
 #include "random.h"
 
+using cryptanalysislib::print_binary;
+
 #define bit_shuffle_const(b0, b1, b2, b3, b4, b5, b6, b7) \
 	((uint64_t(uint8_t(1 << b0)) << (7 * 8)) |            \
 	 (uint64_t(uint8_t(1 << b1)) << (6 * 8)) |            \

@@ -675,12 +675,13 @@ public:
 
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
-			if (__data[i - 1] > obj.__data[i - 1])
+			if (__data[i - 1] > obj.__data[i - 1]) {
 				return true;
-			else if (__data[i - 1] < obj.__data[i - 1])
+			} else if (__data[i - 1] < obj.__data[i - 1]) {
 				return false;
+			}
 		}
-
+		// they are equal
 		return false;
 	}
 

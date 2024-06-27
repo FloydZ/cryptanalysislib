@@ -186,6 +186,7 @@ public:
 		}
 	}
 
+	/// TODO: rename to random
 	/// generate/initialize this list as a random base list.
 	/// for each element a new value is randomly choosen and the label is calculated by a matrix-vector-multiplication.
 	/// \param k amount of 'Elements' to add to the list.

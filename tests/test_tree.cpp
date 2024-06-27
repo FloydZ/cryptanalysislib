@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include "helper.h"
-#include "kAry_type.h"
 #include "tree.h"
 #include "matrix/fq_matrix.h"
 

@@ -41,15 +41,18 @@ template<class T, const uint32_t n, const uint32_t q>
 class kAryPackedContainer_Meta {
 public:
 	typedef kAryPackedContainer_Meta ContainerType;
+	static_assert(n > 0);
 
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
 	// number of bits needed to represent MOD
-	constexpr static uint16_t bits_per_number = (uint16_t) bits_log2(q);
+	constexpr static uint32_t bits_per_number = (uint32_t) bits_log2(q);
+	static_assert(bits_per_number > 0);
 	// number of numbers one can fit into each limb
-	constexpr static uint16_t numbers_per_limb = bits_per_limb / bits_per_number;
+	constexpr static uint16_t numbers_per_limb = (bits_per_limb + bits_per_number - 1) / bits_per_number;
+	static_assert(numbers_per_limb > 0);
 	// Number of Limbs needed to represent `length` numbers of size log(MOD) +1
-	constexpr static uint16_t internal_limbs = std::max(1u, (n + numbers_per_limb - 1) / numbers_per_limb);
+	constexpr static uint16_t internal_limbs = (n + numbers_per_limb - 1) / numbers_per_limb;
 	// mask with the first `bits_per_number` set to one
 	constexpr static T number_mask = (T(1u) << (bits_per_number)) - 1u;
 
@@ -811,7 +814,7 @@ public:
 	///
 	/// \param i
 	/// \return
-	DataType operator[](size_t i) noexcept {
+	constexpr DataType operator[](size_t i) noexcept {
 		ASSERT(i < LENGTH);
 		return get(i);
 	}
@@ -819,7 +822,7 @@ public:
 	///
 	/// \param i
 	/// \return
-	DataType operator[](const size_t i) const noexcept {
+	constexpr DataType operator[](const size_t i) const noexcept {
 		ASSERT(i < LENGTH);
 		return get(i);
 	};
@@ -962,6 +965,7 @@ public:
 	using kAryPackedContainer_Meta<T, n, q>::MODULUS;
 	using kAryPackedContainer_Meta<T, n, q>::__data;
 
+	// extremly important
 	typedef kAryPackedContainer_T<T, n, q> ContainerType;
 
 	/// some functions

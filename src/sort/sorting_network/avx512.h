@@ -39,7 +39,6 @@
 /// TODO: MAYBE: move into simd wrapper as a custom funciton?
 /// \return
 constexpr inline __m512i
-__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
 __mm512_undefined_epi32 (void) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winit-self"
