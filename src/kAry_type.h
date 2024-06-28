@@ -16,10 +16,12 @@ template<const uint64_t q>
 class kAry_Type_T {
 public:
 	using T = TypeTemplate<q>;
-	using T2 = TypeTemplate<2*q>;
+	using T2 = TypeTemplate<q*q>;
 
 	static_assert(q > 1);
-	static_assert(sizeof(T) < sizeof(T2));
+	// this is needed to make sure that we have enough `bits` in reserve to 
+	// correclty compute the multiplication.
+	static_assert(sizeof(T) <= sizeof(T2));
 
 	// we are godd C++ devs
 	typedef T ContainerLimbType;
