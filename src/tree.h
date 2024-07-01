@@ -108,8 +108,8 @@ public:
 	typedef typename List::MatrixType MatrixType;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
-	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
+	constexpr static uint32_t ValueLENGTH = ValueType::length();
+	constexpr static uint32_t LabelLENGTH = LabelType::length();
 
 private:
 	/// We allow additionally two baselists. So for the Stream join we have in total d + 2 lists we have to save in

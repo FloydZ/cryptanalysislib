@@ -205,17 +205,16 @@ TEST(avx, prefixsum) {
 }
 #endif
 
-// TODO
-//TEST(uint8x32_t, reverse8) {
-//	uint8_t d[32];
-//	for (uint32_t i = 0; i < 32; ++i) { d[i] = i; }
-//
-//	const uint8x32_t t1 = uint8x32_t::template load<false>(d);
-//	const uint8x32_t t2 = uint8x32_t::reverse8(t1);
-//	for (uint32_t i = 0; i < 32; ++i) {
-//		EXPECT_EQ(d[32 - i -1], t2.v32[i]);
-//	}
-//}
+TEST(uint8x32_t, reverse8) {
+	uint8_t d[32];
+	for (uint32_t i = 0; i < 32; ++i) { d[i] = i; }
+
+	const uint8x32_t t1 = uint8x32_t::template load<false>(d);
+	const uint8x32_t t2 = uint8x32_t::reverse8(t1);
+	for (uint32_t i = 0; i < 32; ++i) {
+		EXPECT_EQ(d[32 - i -1], t2.v8[i]);
+	}
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

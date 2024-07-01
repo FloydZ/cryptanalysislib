@@ -199,8 +199,8 @@ public:
 	using LoadType = size_t;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
-	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
+	constexpr static uint32_t ValueLENGTH = ValueType::length();
+	constexpr static uint32_t LabelLENGTH = LabelType::length();
 
 	/// size in bytes
 	constexpr static uint64_t ElementBytes = Element::bytes();

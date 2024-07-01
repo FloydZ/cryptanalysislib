@@ -2397,7 +2397,7 @@ public:
 	/// \tparam LabelType must fulfill the following function
 	///					get(i), set(i)
 	/// \tparam ValueType must fulfill the following function
-	/// 				get(i), set(i), ::LENGTH
+	/// 				get(i), set(i)
 	/// \param out
 	/// \param in
 	/// \return
@@ -2407,8 +2407,8 @@ public:
 	             ValueTypeAble<ValueType>
 #endif
 	constexpr void mul(LabelType &out, const ValueType &in) const noexcept {
-		constexpr uint32_t IN_COLS = ValueType::LENGTH;
-		constexpr uint32_t OUT_COLS = LabelType::LENGTH;
+		constexpr uint32_t IN_COLS = ValueType::length();
+		constexpr uint32_t OUT_COLS = LabelType::length();
 		static_assert(IN_COLS == COLS);
 		static_assert(OUT_COLS == ROWS);
 

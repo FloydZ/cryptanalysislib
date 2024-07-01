@@ -25,8 +25,9 @@ template<class Container>
 concept LabelAble = requires(Container c) {
 	typename Container::DataType;
 
-	// we need to enforce the existence of some fields
-	Container::LENGTH;
+	// we need to enforce the existence of some fields/functions
+	Container::length;
+	Container::modulus;
 
 	requires requires(const uint32_t i,
 	                  const size_t s) {
@@ -69,16 +70,16 @@ concept LabelAble = requires(Container c) {
 		Container::scalar_T(a, a);
 		Container::popcnt_T(a);
 
-		// simd stuff // TODO
-		//Container::add256_T(b, b);
-		//Container::sub256_T(b, b);
-		//Container::mod256_T(b);
-		//Container::mul256_T(b, b);
-		//Container::neg256_T(b);
+		Container::add256_T(b, b);
+		Container::sub256_T(b, b);
+		Container::mod256_T(b);
+		Container::mul256_T(b, b);
+		Container::neg256_T(b);
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
 	{ Container::binary() } -> std::convertible_to<bool>;
+	{ Container::length() } -> std::convertible_to<uint32_t>;
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
@@ -91,8 +92,9 @@ concept ValueAble = requires(Container c) {
 	typename Container::DataType;
 	typename Container::LimbType;
 
-	// we need to enforce the existence of some fields
-	Container::LENGTH;
+	// we need to enforce the existence of some fields/functions
+	Container::modulus;
+	Container::length;
 
 	requires requires(const uint32_t i,
 	                  const size_t s) {
@@ -139,16 +141,17 @@ concept ValueAble = requires(Container c) {
 		Container::scalar_T(a, a);
 		Container::popcnt_T(a);
 
-		// simd stuff // TODO
-		//Container::add256_T(b, b);
-		//Container::sub256_T(b, b);
-		//Container::mod256_T(b);
-		//Container::mul256_T(b, b);
-		//Container::neg256_T(b);
+		// simd stuff 
+		Container::add256_T(b, b);
+		Container::sub256_T(b, b);
+		Container::mod256_T(b);
+		Container::mul256_T(b, b);
+		Container::neg256_T(b);
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
 	{ Container::binary() } -> std::convertible_to<bool>;
+	{ Container::length() } -> std::convertible_to<uint32_t>;
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
@@ -190,8 +193,8 @@ public:
 	typedef typename Label::LimbType LabelLimbType;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = Value::LENGTH;
-	constexpr static uint32_t LabelLENGTH = Label::LENGTH;
+	constexpr static uint32_t ValueLENGTH = Value::length();
+	constexpr static uint32_t LabelLENGTH = Label::length();
 
 
 	/// normal constructor. Initialize everything with zero.

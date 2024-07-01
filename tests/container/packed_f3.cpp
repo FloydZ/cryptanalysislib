@@ -26,7 +26,7 @@ bool correct(const uint64_t t, const uint64_t a, const uint64_t b) {
 
 	Row::add(row3, row1, row2);
 	uint64_t data = t;
-	for (uint32_t i = 0; i < Row::LENGTH; i++) {
+	for (uint32_t i = 0; i < Row::length(); i++) {
 		if ((data & 3u) != row3.get(i)) {
 			row1.print();
 			row2.print();
@@ -50,7 +50,7 @@ bool correct128(const __uint128_t t, const __uint128_t a, const __uint128_t b) {
 
 	Row::add(row3, row1, row2);
 	__uint128_t data = t;
-	for (uint32_t i = 0; i < Row::LENGTH; i++) {
+	for (uint32_t i = 0; i < Row::length(); i++) {
 		if ((data & 3) != row3.get(i)) {
 			row3.print();
 			// t.print();

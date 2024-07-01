@@ -42,10 +42,10 @@ TEST(SubSetSum, Simple) {
 	Tree t{1, A, list_size, tbl, __level_filter_array};
 
 	t[0].generate_base_random(1u << list_size, A);
-	// t[1].generate_base_random(1u << list_size, A);
+	t[1].generate_base_random(1u << list_size, A);
 	t.join_stream(0);
 
-	//EXPECT_EQ(1u << 20u, t[2].load());
+	EXPECT_EQ(1u << 20u, t[2].load());
 }
 
 

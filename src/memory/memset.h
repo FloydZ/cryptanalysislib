@@ -11,9 +11,11 @@
 namespace cryptanalysislib {
 	namespace internal {
 
-		void memset256(uint8_t *out, uint8_t in, size_t bytes) {
+		/// TODO: write a version which direclty writes u16, u32, u64, ...
+		void memset_u256_u8(uint8_t *out, uint8_t in, size_t bytes) {
 			if (bytes <= 16) {
 #ifdef __clang__
+				// ach clang, why you no support for programmable jump tables
 				for (size_t i = 0; i < bytes; ++i) {
 					out[i] = in;
 				}
@@ -70,7 +72,6 @@ namespace cryptanalysislib {
 #endif
 			}
 
-			// TODO there are better ways todo this
 			const _uint8x16_t in3 = _uint8x16_t::set1(in);
 			uint8_t *end = out + bytes;
 			if (bytes > 32) {
@@ -95,7 +96,6 @@ namespace cryptanalysislib {
 			// case 16 < bytes <= 32;
 			_uint8x16_t::unaligned_store(out, in3);
 			_uint8x16_t::unaligned_store(end - 16, in3);
-			return;
 		}
 
 
@@ -127,24 +127,18 @@ namespace cryptanalysislib {
 		}
 #endif
 
-		///
-		/// \tparam T
 		/// \param out
 		/// \param in
-		/// \param len
-		/// \param pos
+		/// \param bytes
 		/// \return
-		template<typename T>
-		constexpr void memset(T *out,
-		                      const T in,
+		constexpr void memset_bytes(uint8_t *out,
+		                      const uint8_t in,
 		                      const size_t bytes) {
-			/// TODO case T != uint8
-// Disabled because of the stupid CI
-//#ifdef USE_AVX512BW
-//			memsetU512BW(out, in, bytes);
-//			return;
-//#endif
-			memset256((uint8_t *)out, (uint8_t)in, bytes);
+#ifdef USE_AVX512BW
+			memsetU512BW(out, in, bytes);
+			return;
+#endif
+			memset_u256_u8((uint8_t *) out, (uint8_t) in, bytes);
 		}
 	} // end internal
 
@@ -156,7 +150,14 @@ namespace cryptanalysislib {
 	/// \return
 	template<typename T>
 	constexpr void memset(T *out, const T in, size_t len) {
-		cryptanalysislib::internal::memset(out, in, sizeof(T) * len);
+		if constexpr (sizeof(T) == 1) {
+			cryptanalysislib::internal::memset_bytes(out, in, sizeof(T) * len);
+			return;
+		}
+
+		for (size_t j = 0; j < len; ++j) {
+			out[j] = in;
+		}
 	}
 }
 #endif

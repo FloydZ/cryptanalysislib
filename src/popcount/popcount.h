@@ -38,7 +38,8 @@ namespace cryptanalysislib::popcount {
 #if __cplusplus > 201709L
 		requires std::is_integral<T>::value
 #endif
-	constexpr uint64_t popcount(const T *__restrict__ data, const size_t size) noexcept {
+	constexpr uint64_t popcount(const T *__restrict__ data, 
+						  		const size_t size) noexcept {
 		uint32_t sum = 0;
 		for (size_t i = 0; i < size; ++i) {
 			sum += popcount<T>(data[i]);
