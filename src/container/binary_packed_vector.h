@@ -530,8 +530,8 @@ public:
 
 
 	/// neg is an empty operation
-	constexpr inline void neg(const uint16_t k_lower,
-	                          const uint16_t k_upper) noexcept {
+	constexpr inline void neg(const uint16_t k_lower=0,
+	                          const uint16_t k_upper=length()) noexcept {
 		// do nothing.
 		(void) k_lower;
 		(void) k_upper;
@@ -650,6 +650,13 @@ public:
 	                                BinaryContainer const &v1,
 	                                BinaryContainer const &v2) noexcept {
 		add(v3.ptr(), v1.ptr(), v2.ptr());
+	}
+
+	//  IMPORTANT: this function does a full length addition
+	__FORCEINLINE__ static void add(BinaryContainer &v3,
+									BinaryContainer const &v1,
+	                                const LimbType *v2) noexcept {
+		add(v3.ptr(), v1.ptr(), v2);
 	}
 
 	// add between the coordinate l, h
@@ -1151,8 +1158,11 @@ public:
 	}
 
 	/// alias for add
-	inline constexpr static int sub(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
-		return add(v3, v1, v2);
+	inline constexpr static int sub(BinaryContainer &v3,
+	                                BinaryContainer const &v1,
+	                                BinaryContainer const &v2) noexcept {
+		add(v3, v1, v2);
+		return 0; // always return it's ok and doesn't need to be filtered
 	}
 
 	/// alias for add

@@ -9,29 +9,23 @@ template<class Compare,
 		 class T>
 class PollardRho {
 private:
-	Compare cmp;
-	T target;
 
-	// disable the standard constructor
-	constexpr PollardRho() noexcept {};
 public:
-	constexpr PollardRho(const T t) noexcept
-		: target(t) 
-		{};
-
+	constexpr PollardRho() noexcept {};
 
 	/// NOTE: the inputs col1 and col2 are also outputs
 	/// \tparam F
 	/// \param f
 	/// \param col1 input/output the starting value will be set onto this value
 	/// \param col2 input/output
-	// / \param max_iters
-	/// \return
+	/// \param max_iters: max iters until to exit the algorithm
+	/// \return true/false if a solution/collision was found
 	template<class F>
-	constexpr bool run(F &&f, 
+	constexpr static bool run(F &&f,
 						T &col1, T &col2,
-						const size_t max_iters = size_t(-1)) {
-		
+						const size_t max_iters = size_t(-1)) noexcept {
+		Compare cmp;
+
 		size_t i = 0;
 		T a1=col1, a2, b1=col2, b2;
 		while (i < max_iters) {
@@ -46,6 +40,7 @@ public:
 
 			a1 = a2;
 			b1 = b2;
+			i += 1;
 		}
 		return false;
 	}

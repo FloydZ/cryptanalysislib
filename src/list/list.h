@@ -526,10 +526,13 @@ public:
 	/// append e1+e2|full_length to list
 	/// \param e1 first element.
 	/// \param e2 second element
+	/// \param norm filter out all elements above the norm
+	/// \param sub: if true the e1-e2 will be stored, instead of e1+e2
 	constexpr void add_and_append(const Element &e1,
 	                              const Element &e2,
-	                              const uint32_t norm = -1) noexcept {
-		add_and_append(e1, e2, 0, LabelLENGTH, norm);
+	                              const uint32_t norm = -1,
+	                              const bool sub = false) noexcept {
+		add_and_append(e1, e2, 0, LabelLENGTH, norm, sub);
 	}
 
 	/// Same as the function above, but with a `constexpr` size factor.
@@ -562,7 +565,8 @@ public:
 	                              const Element &e2,
 	                              const uint32_t k_lower,
 	                              const uint32_t k_higher,
-	                              const uint32_t norm = -1) noexcept {
+	                              const uint32_t norm = -1,
+	                              const bool sub = false) noexcept {
 		if (load() < this->size()) {
 			auto b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
 			// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
@@ -572,8 +576,15 @@ public:
 			}
 		} else {
 			Element t{};
-			auto b = Element::add(t, e1, e2, k_lower, k_higher, norm);
-			if (b == true) {
+			bool b = false;
+			if (sub) {
+				// TODO extend the api for the norm factor
+				Element::sub(t, e1, e2);
+			} else {
+				b = Element::add(t, e1, e2, k_lower, k_higher, norm);
+			}
+
+			if (b) {
 				return;
 			}
 

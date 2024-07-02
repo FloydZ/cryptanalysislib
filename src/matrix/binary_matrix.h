@@ -300,7 +300,7 @@ public:
 	/// \return a const ref to a row
 	[[nodiscard]] constexpr inline RowType get(const uint32_t i) const noexcept {
 		ASSERT(i < nrows);
-		return __data.data() + padded_limbs * i;
+		return (const RowType) __data.data() + padded_limbs * i;
 	}
 
 

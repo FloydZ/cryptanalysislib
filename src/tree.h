@@ -613,17 +613,19 @@ public:
 	/// \param k_lower
 	/// \param k_upper
 	/// \param prepare
+	/// \param sub
 	static void join2lists(List &out, List &L1, List &L2,
 	                       const LabelType &target,
 	                       const uint32_t k_lower, const uint32_t k_upper,
-	                       bool prepare = true) noexcept {
+	                       bool prepare = true,
+	                       bool sub = false) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
 		uint64_t i = 0, j = 0;
 		const uint32_t filter = -1;
 
 		if ((!target.is_zero()) && (prepare)) {
 			for (size_t s = 0; s < L2.load(); ++s) {
-				LabelType::sub(L2[s].label, L2[s].label, target, k_lower, k_upper);
+				LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
 			}
 		}
 
@@ -645,7 +647,7 @@ public:
 
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						out.add_and_append(L1[i], L2[j], filter);
+						out.add_and_append(L1[i], L2[j], filter, sub);
 					}
 				}
 			}
@@ -684,7 +686,7 @@ public:
 	                             const LabelType &target,
 	                             const std::vector<uint64_t> &lta,
 	                             const bool prepare = true) noexcept {
-		ASSERT(lta.size() == 3);
+		ASSERT(lta.size() >= 3);
 		// limits: k_lower1, k_upper1 for the lowest level tree. And k_lower2, k_upper2 for highest level. There are
 		// only two levels..., so obviously k_upper1=k_lower2
 		const uint64_t k_lower1 = lta[0], k_upper1 = lta[1];
@@ -714,21 +716,37 @@ public:
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2 && L1.load() > 0 && L2.load() > 0 && L3.load() > 0 && L4.load() > 0);
 		// Intermediate Element, List, Target
 		List iL{L1.size() * 4};
-		LabelType R, zero;
-		R.random();
+		LabelType R, Rneg, zero, ntarget;
 		zero.zero();
 
 		// prepare baselists
-		if ((!target.is_zero()) && (prepare)) {
-			for (size_t i = 0; i < L2.load(); ++i) {
-				LabelType::add(L2[i].label, L2[i].label, R, k_lower1, k_upper1);
+		if ((!target.is_zero()) && prepare) {
+			R.random(); Rneg = R; Rneg.neg();
+			ntarget = target; ntarget.neg();
+
+			size_t i = 0;
+			for (; i < std::min({L2.load(), L4.load(), L3.load()} ); ++i) {
+				LabelType::sub(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
+
+				L3[i].label.neg();
+
+				LabelType::sub(L4[i].label, Rneg, L4[i].label, k_lower1, k_upper1);
+				// add is on the full length
+				LabelType::sub(L4[i].label, target, L4[i].label, k_lower1, k_upper2);
 			}
 
-			for (size_t i = 0; i < L4.load(); ++i) {
-				LabelType::sub(L4[i].label, L4[i].label, R, k_lower1, k_upper1);
-				// add is on the full length
-				LabelType::sub(L4[i].label, L4[i].label, target, k_lower1, k_upper2);
-			}
+			//const size_t j = i;
+			//for (i = j; i < L2.load(); i++) {
+			//	LabelType::add(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
+			//}
+			//for (i = j; i < L3.load(); i++) {
+			//	L3[i].label.neg();
+			//}
+			//for (i = j; i < L4.load(); i++) {
+			//	LabelType::sub(L4[i].label, Rneg, L4[i].label, k_lower1, k_upper1);
+			//	// add is on the full length
+			//	LabelType::sub(L4[i].label, target, L4[i].label, k_lower1, k_upper2);
+			//}
 		}
 
 		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, false);
@@ -894,6 +912,24 @@ public:
 		// in L[11] is the result of the stream join between L[4-7]
 		std::vector<uint64_t> last_lta{{k_lower3, k_upper3}};
 		join2lists(out, L[10], L[11], target, last_lta, false);
+	}
+
+
+	/// TODO only binary currently
+	template<class Enumerator>
+	static void dissection4_step(List &out,
+	                             const LabelType &target,
+	                             const MatrixType &M,
+	                             Enumerator &e) noexcept {
+		out.set_load(0);
+		constexpr static size_t n = 1ull << (LabelLENGTH / 4);
+		static bool init = false;
+		static List L1{1ull<<n}, L2{1ull<<n}, L3{1ull<<n}, L4{1ull<<n};
+		if (!init) {
+			init = true;
+			e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			        (&L1, &L2, LabelLENGTH/4);
+		}
 	}
 
 	/// builds the cross product between in1 x in2 (only on the values).

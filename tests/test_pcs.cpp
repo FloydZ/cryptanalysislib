@@ -8,6 +8,8 @@
 #include "kAry_type.h"
 #include "pcs.h"
 #include "algorithm/gcd.h"
+#include "algorithm/random_index.h"
+#include "algorithm/int2weight.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -18,9 +20,9 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 // max n = 15
-constexpr uint32_t q    = 8051;
-using T    		= kAry_Type_T<q>;
-using TT 		= T::LimbType;
+constexpr uint32_t q = 8051;
+using T  = kAry_Type_T<q>;
+using TT = T::LimbType;
 
 struct RSACmp {
 	constexpr static T one{1};
@@ -31,26 +33,38 @@ struct RSACmp {
 	}
 };
 
+/// TODO move somewhere useful
+/// generates a new random subset sum instance
 template<typename T>
-void generate_random_subset_sum(std::vector<T> &in, T &target, const uint32_t weight) {
+void generate_random_subset_sum(std::vector<T> &in,
+                                T &target,
+                                const uint32_t weight) noexcept {
 	if (in.size() == 0) {
 		return;
 	}
 
-   	target =  T::random();
-	T sum = T(0);
-   	for (size_t i = 0; i < in.size() - 1; i++) {
-		target[i] = T::random();
-		// TODO random weight agor in seperate file
+	if (weight > in.size()) {
+		return;
+	}
+
+   	for (size_t i = 0; i < in.size(); i++) {
+		in[i] = T::random();
+	}
+
+	std::vector<uint32_t> weights(weight);
+	generate_random_indices(weights, in.size());
+
+	target = T(0);
+	for (auto &w: weights) {
+		target += in[w];
 	}
 }
 
 TEST(PCS, RhoFactorise) {
-	T c(q), a, b;
+	T a, b;
 	a.set(5,0);
 	b.set(26,0);
-	PollardRho<RSACmp, T> rho(c);
-	rho.run([](const T &in){
+	PollardRho<RSACmp, T>::run([](const T &in){
 		const auto t = in*in + T(1);
 		return t;
 	}, a, b);
@@ -60,24 +74,52 @@ TEST(PCS, RhoFactorise) {
 }
 
 TEST(PCS, RhoSubSetSum) {
-	using T = kAry_Type_T<1u << 16u>;
-	T target =, a, b;
-	a.set(5,0);
-	b.set(26,0);
+	/// Simple example of how to use the PollardRho class
+	/// to solve a subset sum problem.
+	/// As a function distinuisher we use the first bit a number
+	constexpr static uint32_t n = 16;
+	constexpr static uint32_t p = 2999;
+	using T = kAry_Type_T<p>;
 
+	T target, a = T(1734), b = T(319);
+	std::vector<T> instance((size_t) n);
+	generate_random_subset_sum(instance, target, n/2);
 
-	struct RSACmp {
-		decltype(auto) operator()(T &a, T &b) const {
+	struct SubSetSumCmp {
+		decltype(auto) operator()(const T &a,
+		                          const T &b) const {
+			return a == b;
 		}
 	};
-	PollardRho<RSACmp, T> rho(target);
-	rho.run([](const T &in){
-	  const auto t = in*in + T(1);
-	  return t;
-	}, a, b);
 
-	EXPECT_EQ(a.value(), 26);
-	EXPECT_EQ(b.value(), 2839);
+	while(true) {
+		/// restart every X runs
+		const bool val = PollardRho<SubSetSumCmp, T>::run([&instance, &target](const T &in) {
+			static uint32_t weights[n/4];
+			int2weights<T::LimbType>(weights, in.value(), n, n/4, n/4);
+			T ret = T(0);
+
+			// super simple distinguish function
+			if (in.value() & 1u) {
+				ret += target;
+			}
+
+			for (uint32_t i = 0; i < n / 4; i++) {
+				ret += instance[weights[i]];
+			}
+
+			return ret;
+		}, a, b, 1u << 6);
+
+		if (val) {
+			break;
+		}
+
+		// resample the flavour
+		a = fastrandombytes_T<T::LimbType>() % p;
+		b = fastrandombytes_T<T::LimbType>() % p;
+	}
+
 }
 
 

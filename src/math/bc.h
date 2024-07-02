@@ -28,6 +28,12 @@ __device__ __host__ constexpr inline uint64_t bc(const uint64_t nn,
 	               (bc(nn - 1, kk) * nn) / (nn - kk);//  path to k=n-1 is faster
 }
 
+__device__ __host__ constexpr inline uint64_t binom(const uint64_t nn,
+                                                 	const uint64_t kk) noexcept {
+	return bc(nn, kk);
+}
+
+
 /// Sums:over all binomial coefficients nn over i, with i <= kk
 /// \return \sum n over i
 constexpr uint64_t sum_bc(const uint64_t nn,

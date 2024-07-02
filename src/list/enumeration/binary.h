@@ -18,7 +18,6 @@
 /// nonzero position is enumerated from 1,...,q-1
 /// \tparam ListType
 /// \tparam n vector length
-/// \tparam q field size
 /// \tparam w weight
 template<class ListType,
          const uint32_t n,
@@ -102,7 +101,7 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) {
 		/// some security checks
-		ASSERT(n + offset <= Value::LENGTH);
+		ASSERT(n + offset <= Value::length());
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;

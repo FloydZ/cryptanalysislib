@@ -1167,11 +1167,10 @@ public:
 
 		if constexpr ((OUT_COLS == COLS) && (IN_COLS == ROWS)) {
 			// transposed multiplication
-			for (uint32_t i = 0; i < nrows; ++i) {
+			for (uint32_t i = 0; i < OUT_COLS; ++i) {
 				uint64_t sum = 0;
-				// TODO not implemented, just a copy from below
-				for (uint32_t j = 0; j < ncols; ++j) {
-					uint32_t a = get(i, j);
+				for (uint32_t j = 0; j < IN_COLS; ++j) {
+					uint32_t a = get(j, i);
 					uint32_t b = in.get(j);
 					uint32_t c = (a * b) % q;
 					sum += c;

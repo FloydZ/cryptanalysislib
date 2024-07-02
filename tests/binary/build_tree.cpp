@@ -9,7 +9,7 @@
 #include "tree.h"
 
 
-constexpr uint32_t n  = 20;
+constexpr uint32_t n  = 10;
 
 using BinaryValue     = BinaryContainer<n>;
 using BinaryLabel     = BinaryContainer<n>;
@@ -148,6 +148,18 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_LT(out.load(),1u<<11);
 }
 
+
+TEST(TreeTest, dissection) {
+	BinaryMatrix A; A.identity();
+	BinaryList out{1ull<<n};
+	BinaryLabel target; target.random();
+
+	using Enumerator = BinaryListEnumerateMultiFullLength<BinaryList, n, n/4>;
+	// TODO write a new enumerate without changelist alloc
+	// 	add a `reset` function to the Enumerator interface
+	static Enumerator en{A, n};
+	BinaryTree::dissection4_step<Enumerator>(out, target, A, en);
+}
 
 #ifndef EXTERNAL_MAIN
 int main(int argc, char **argv) {

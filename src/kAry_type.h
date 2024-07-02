@@ -571,6 +571,8 @@ public:
 	static constexpr inline uint8x32_t add256_T(const uint8x32_t a, 
 			const uint8x32_t b) {
 		uint8x32_t ret;
+		(void)a;
+		(void)b;
 		return ret;
 	}
 
@@ -580,6 +582,8 @@ public:
 	static constexpr inline uint8x32_t sub256_T(const uint8x32_t a, 
 			const uint8x32_t b) {
 		uint8x32_t ret;
+		(void)a;
+		(void)b;
 		return ret;
 	}
 
@@ -588,6 +592,7 @@ public:
 	/// \return
 	static constexpr inline uint8x32_t mod256_T(const uint8x32_t a) {
 		uint8x32_t ret;
+		(void)a;
 		return ret;
 	}
 
@@ -598,6 +603,8 @@ public:
 	static constexpr inline uint8x32_t mul256_T(const uint8x32_t a, 
 			const uint8x32_t b) {
 		uint8x32_t ret;
+		(void)a;
+		(void)b;
 		return ret;
 	}
 
@@ -606,6 +613,7 @@ public:
 	/// \return
 	static constexpr inline uint8x32_t neg256_T(const uint8x32_t a) {
 		uint8x32_t ret;
+		(void)a;
 		return ret;
 	}
 

@@ -10,6 +10,7 @@
 #include "list/enumeration/enumeration.h"
 
 #include "combination/chase.h"
+
 /// list enumeration type
 enum ListIteration {
 	SingleFullLength,       // Only one symbol on full length
@@ -173,7 +174,7 @@ public:
 		/// NOTE: its allowed to call this class with `w=0`, which is needed for Prange
 		static_assert(n > w);
 		static_assert(q > 1);
-		static_assert(n <= Value::LENGTH);
+		static_assert(n <= Value::length());
 	}
 };
 
