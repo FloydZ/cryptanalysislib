@@ -915,20 +915,29 @@ public:
 	}
 
 
-	/// TODO only binary currently
+	/// TODO use the `Enumerator` concept
+	/// \tparam Enumerator
+	/// \param out
+	/// \param target
+	/// \param MT must be transposed
+	/// \param e
 	template<class Enumerator>
 	static void dissection4_step(List &out,
 	                             const LabelType &target,
-	                             const MatrixType &M,
+	                             const MatrixType &MT,
 	                             Enumerator &e) noexcept {
+		(void)MT;
+
 		out.set_load(0);
 		constexpr static size_t n = 1ull << (LabelLENGTH / 4);
 		static bool init = false;
 		static List L1{1ull<<n}, L2{1ull<<n}, L3{1ull<<n}, L4{1ull<<n};
+		LabelType iR;
 		if (!init) {
 			init = true;
+			iR.random();
 			e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-			        (&L1, &L2, LabelLENGTH/4);
+					(&L1, &L2, LabelLENGTH/4);
 		}
 	}
 

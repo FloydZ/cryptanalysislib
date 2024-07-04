@@ -49,20 +49,22 @@ public:
 
 	////
 	Combinations_Binary_Chase<T, n, w> chase = Combinations_Binary_Chase<T, n, w>();
+
+	// TODO rename to max list size
 	constexpr static size_t LIST_SIZE = Combinations_Binary_Chase<T, n, w>::chase_size;
 	const size_t list_size;
 	std::array<std::pair<uint16_t, uint16_t>, bc(n, w)> cL;
 	Element e11, e12, e21, e22;
 
-	/// empty constructor
 	/// \param HT transposed parity check matrix
 	/// \param list_size max numbers of elements to enumerate.
 	/// 			if set to 0: the complete sequence will be enumerated.
 	/// \param syndrome additional element which is added to all list elements
-	BinaryListEnumerateMultiFullLength(const Matrix &HT,
+	constexpr BinaryListEnumerateMultiFullLength(const Matrix &HT,
 	                                   const size_t list_size = 0,
-	                                   const Label *syndrome = nullptr) : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	                                                                      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+	                                   const Label *syndrome = nullptr) noexcept
+	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+	      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 		chase.template changelist<false>(cL.data(), this->list_size);
 	}
 
@@ -172,6 +174,176 @@ public:
 
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);
+		return false;
+	}
+};
+
+
+
+/// This class enumerates vectors of length n and weight w, whereas
+/// no changelist is used.
+/// \tparam ListType
+/// \tparam n vector length
+/// \tparam w weight
+template<class ListType,
+		const uint32_t n,
+		const uint32_t w>
+class BinaryListEnumerateMultiFullLengthWithoutChangeList : public ListEnumeration_Meta<ListType, n, 2, w> {
+public:
+	/// Im lazy
+	constexpr static uint32_t q = 2;
+
+	/// needed typedefs
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Element Element;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Matrix Matrix;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Value Value;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Label Label;
+	typedef typename Label::LimbType T;
+
+	/// needed functions
+	using ListEnumeration_Meta<ListType, n, q, w>::check;
+	using ListEnumeration_Meta<ListType, n, q, w>::insert_hashmap;
+	using ListEnumeration_Meta<ListType, n, q, w>::insert_list;
+	using ListEnumeration_Meta<ListType, n, q, w>::get_first;
+	using ListEnumeration_Meta<ListType, n, q, w>::get_second;
+
+	/// needed variables
+	using ListEnumeration_Meta<ListType, n, q, w>::element1;
+	using ListEnumeration_Meta<ListType, n, q, w>::element2;
+	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
+	using ListEnumeration_Meta<ListType, n, q, w>::HT;
+
+	////
+	Combinations_Binary_Chase<T, n, w> chase = Combinations_Binary_Chase<T, n, w>();
+	constexpr static size_t max_list_size = Combinations_Binary_Chase<T, n, w>::chase_size;
+	const size_t list_size;
+
+	// some security things
+	static_assert(Value::length() >= w);
+	static_assert(n >= w);
+	static_assert(w > 0);
+private:
+	constexpr BinaryListEnumerateMultiFullLengthWithoutChangeList() noexcept {};
+
+public:
+	/// \param HT transposed parity check matrix
+	/// \param list_size max numbers of elements to enumerate.
+	/// 			if set to 0: the complete sequence will be enumerated.
+	/// \param syndrome additional element which is added to all list elements
+	constexpr BinaryListEnumerateMultiFullLengthWithoutChangeList(const Matrix &HT,
+									   const size_t list_size = 0,
+									   const Label *syndrome = nullptr)
+			: ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+			  list_size((list_size == size_t(0)) ? max_list_size : list_size) {
+	}
+
+	///
+	/// \tparam HashMap
+	/// \tparam Extractor extractor lambda
+	/// 		- can be NULL
+	/// \tparam Predicate Function. NOTE: can be
+	///			- nullptr_t
+	/// 		- std::invokable. if this returns true, the function returns
+	/// \param L1 first list. NOTE:
+	/// 		- the syndrome is only added into the first list
+	/// 		- or nullptr_t
+	/// \param L2 second list. NOTE:
+	/// 		- can be nullptr_t
+	/// 		- otherwise it will compute the error with and offset
+	/// \param offset
+	/// 		- number of position between the MITM strategy
+	/// \param tid thread id
+	/// \param hm hashmap
+	/// \param e extractor
+	/// \param p predicate function
+	/// \return true/false if the golden element was found or not (only if
+	///  		predicate was given)
+	template<typename HashMap, typename Extractor, typename Predicate>
+	requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+			(std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
+			(std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t tid = 0,
+			 HashMap *hm = nullptr,
+			 Extractor *e = nullptr,
+			 Predicate *p = nullptr) {
+		/// some security checks
+		std::cout << n << " " << offset << " " << Value::length() << std::endl;
+		ASSERT(n + offset <= Value::length());
+		constexpr bool write = false; // TODO
+		/// counter of how many elements already added to the list
+		size_t ctr = 0;
+
+		// check if the lists are enabled
+		const bool sL1 = L1 != nullptr;
+		const bool sL2 = L2 != nullptr;
+		constexpr bool sHM = !std::is_same_v<std::nullptr_t, HashMap>;
+		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
+
+		std::pair<uint16_t, uint16_t> ret;
+		chase.template left_step<write>(nullptr, &ret.first, &ret.second);
+
+		/// clear stuff, needed if this functions is called multiple times
+		element1.zero();
+		if (sL2) { element2.zero(); }
+
+		/// add the syndrome, if needed
+		if (syndrome != nullptr) {
+			element1.label = *syndrome;
+		}
+
+		/// compute the first element
+		for (uint32_t i = 0; i < w; ++i) {
+			/// NOTE we need to compute always this element, even if we
+			/// do not save it in a list. Because otherwise we could not
+			/// only use the predicate in this function.
+			element1.value.set(1, i);
+			Label::add(element1.label, element1.label, HT.get(i));
+
+			if (sL2) {
+				element2.value.set(1, i + offset);
+				Label::add(element2.label, element2.label, HT.get(i + offset));
+			}
+		}
+
+		auto chase_step = [this](Element &element,
+								 const uint32_t a,
+								 const uint32_t b,
+								 const uint32_t off) {
+		  /// make really sure that the the chase
+		  /// sequence is correct.
+		  ASSERT(element.value[a + off]);
+
+		  Label::add(element.label, element.label, HT.get(a + off));
+		  Label::add(element.label, element.label, HT.get(b + off));
+		  element.value.set(0, off + a);
+		  element.value.set(1, off + b);
+		};
+
+		/// iterate over all sequences
+		for (uint32_t i = 0; i < list_size; ++i) {
+			check(element1.label, element1.value);
+			if (sL2) check(element2.label, element2.value, false);
+
+			if constexpr (sP) { if (std::invoke(*p, element1.label)) { return true; } }
+			if constexpr (sHM) { insert_hashmap(hm, e, element1, ctr, tid); }
+			if (sL1) insert_list(L1, element1, ctr, tid);
+			if (sL2) insert_list(L2, element2, ctr, tid);
+
+			ctr += 1;
+
+			chase.template left_step<write>(nullptr, &ret.first, &ret.second);
+			/// advance the current set by one
+			const uint32_t a = ret.first;
+			const uint32_t b = ret.second;
+			chase_step(element1, a, b, 0);
+			if (sL2) chase_step(element2, a, b, offset);
+		}
+
+		/// make sure that all elements where generated
+		ASSERT(ctr == list_size);
 		return false;
 	}
 };

@@ -154,10 +154,8 @@ TEST(TreeTest, dissection) {
 	BinaryList out{1ull<<n};
 	BinaryLabel target; target.random();
 
-	using Enumerator = BinaryListEnumerateMultiFullLength<BinaryList, n, n/4>;
-	// TODO write a new enumerate without changelist alloc
-	// 	add a `reset` function to the Enumerator interface
-	static Enumerator en{A, n};
+	using Enumerator = BinaryListEnumerateMultiFullLengthWithoutChangeList<BinaryList, n/2, n/4>;
+	static Enumerator en{A, 0};
 	BinaryTree::dissection4_step<Enumerator>(out, target, A, en);
 }
 

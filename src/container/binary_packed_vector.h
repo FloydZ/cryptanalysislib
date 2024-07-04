@@ -1687,20 +1687,26 @@ public:
 
 
 	/// access operators
-	constexpr void set(const bool data) {
+	constexpr void set(const bool data) noexcept {
 		for (uint32_t i = 0; i < length(); i++) {
 			set(data, i);
 		}
 	}
-	constexpr void set(const bool data, const size_t pos) {
+
+	///
+	/// \param data
+	/// \param pos
+	/// \return
+	constexpr void set(const bool data,
+	                   const size_t pos) noexcept {
 		ASSERT(pos < length());
 		reference(*this, pos) = data;
 	}
-	[[nodiscard]] constexpr reference get(const size_t pos) {
+	[[nodiscard]] constexpr reference get(const size_t pos) noexcept {
 		ASSERT(pos < length());
 		return reference(*this, pos);
 	}
-	[[nodiscard]] constexpr const reference get(const size_t pos) const {
+	[[nodiscard]] constexpr const reference get(const size_t pos) const noexcept {
 		ASSERT(pos < length());
 		return (const reference) reference(*this, pos);
 	}
