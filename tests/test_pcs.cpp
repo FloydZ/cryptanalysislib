@@ -119,7 +119,6 @@ TEST(PCS, RhoSubSetSum) {
 		a = fastrandombytes_T<T::LimbType>() % p;
 		b = fastrandombytes_T<T::LimbType>() % p;
 	}
-
 }
 
 

@@ -149,7 +149,7 @@ TEST(TreeTest, dissection) {
 	Label target; target.random();
 
 	using Enumerator = BinaryListEnumerateMultiFullLength<List, n, n/4>;
-	Tree::dissection4_step<Enumerator>(out, target, A);
+	Tree::dissection4<Enumerator>(out, target, A);
 }
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

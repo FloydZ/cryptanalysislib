@@ -65,7 +65,7 @@ public:
 	                                   const Label *syndrome = nullptr) noexcept
 	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
 	      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
-		chase.template changelist<false>(cL.data(), this->list_size);
+		  chase.template changelist<false>(cL.data(), this->list_size);
 	}
 
 	///
@@ -232,10 +232,10 @@ public:
 	/// \param syndrome additional element which is added to all list elements
 	constexpr BinaryListEnumerateMultiFullLengthWithoutChangeList(const Matrix &HT,
 									   const size_t list_size = 0,
-									   const Label *syndrome = nullptr)
+									   const Label *syndrome = nullptr) noexcept
 			: ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-			  list_size((list_size == size_t(0)) ? max_list_size : list_size) {
-	}
+			  list_size((list_size == size_t(0)) ? max_list_size : list_size)
+	 		  {}
 
 	///
 	/// \tparam HashMap
@@ -265,14 +265,15 @@ public:
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
 			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0, // TODO add to other estimators
 			 const uint32_t tid = 0,
 			 HashMap *hm = nullptr,
 			 Extractor *e = nullptr,
-			 Predicate *p = nullptr) {
+			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		std::cout << n << " " << offset << " " << Value::length() << std::endl;
 		ASSERT(n + offset <= Value::length());
-		constexpr bool write = false; // TODO
+		ASSERT(offset + base_offset <= Value::length());
+		constexpr bool write = false;
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
 
@@ -295,7 +296,7 @@ public:
 		}
 
 		/// compute the first element
-		for (uint32_t i = 0; i < w; ++i) {
+		for (uint32_t i = base_offset; i < w + base_offset; ++i) {
 			/// NOTE we need to compute always this element, even if we
 			/// do not save it in a list. Because otherwise we could not
 			/// only use the predicate in this function.
@@ -308,18 +309,20 @@ public:
 			}
 		}
 
-		auto chase_step = [this](Element &element,
+		auto chase_step =
+		        [this, base_offset](Element &element,
 								 const uint32_t a,
 								 const uint32_t b,
 								 const uint32_t off) {
+			const uint32_t off2 = off + base_offset;
 		  /// make really sure that the the chase
 		  /// sequence is correct.
-		  ASSERT(element.value[a + off]);
+		  ASSERT(element.value[a + off2]);
 
-		  Label::add(element.label, element.label, HT.get(a + off));
-		  Label::add(element.label, element.label, HT.get(b + off));
-		  element.value.set(0, off + a);
-		  element.value.set(1, off + b);
+		  Label::add(element.label, element.label, HT.get(a + off2));
+		  Label::add(element.label, element.label, HT.get(b + off2));
+		  element.value.set(0, a + off2);
+		  element.value.set(1, b + off2);
 		};
 
 		/// iterate over all sequences
@@ -344,6 +347,9 @@ public:
 
 		/// make sure that all elements where generated
 		ASSERT(ctr == list_size);
+
+		// in this case reset everything, so its recallable
+		chase.reset();
 		return false;
 	}
 };

@@ -79,7 +79,7 @@ class Combinations_Binary_Chase {
 		ASSERT(b < two_changes_binary_o.size());
 
 		two_changes_binary_o[b] = two_changes_binary_o[b - 1] + two_changes_binary_d[b - 1] *
-		                                                                (two_changes_binary_p[b - 1] % 2 ? two_changes_binary_n[b - 1] - 1 : two_changes_binary_p[b - 1] + 1);
+		                          (two_changes_binary_p[b - 1] % 2 ? two_changes_binary_n[b - 1] - 1 : two_changes_binary_p[b - 1] + 1);
 		two_changes_binary_d[b] = two_changes_binary_d[b - 1] * (two_changes_binary_p[b - 1] % 2 ? -1 : 1);
 		two_changes_binary_n[b] = two_changes_binary_n[b - 1] - two_changes_binary_p[b - 1] - 1;
 		two_changes_binary_p[b] = 0;
@@ -87,7 +87,7 @@ class Combinations_Binary_Chase {
 
 	/// \return
 	template<const bool write = true>
-	inline uint64_t left_write(T *A,
+	constexpr inline uint64_t left_write(T *A,
 	                           const uint32_t b,
 	                           const int bit) noexcept {
 		ASSERT(b < two_changes_binary_o.size());
@@ -115,7 +115,7 @@ public:
 	};
 
 	/// resets the
-	void reset() noexcept {
+	constexpr void reset() noexcept {
 		two_changes_binary_o.fill(0);
 		two_changes_binary_d.fill(0);
 		two_changes_binary_n.fill(0);
@@ -140,7 +140,8 @@ public:
 	               uint16_t *pos1,
 	               uint16_t *pos2) noexcept {
 		uint16_t pos = 0;
-		if (!init) {// cleanup of the previous round
+		if (!init) {
+			// cleanup of the previous round
 			do {
 				pos = left_write<write>(A, two_changes_binary_b, 0);
 			} while (++two_changes_binary_p[two_changes_binary_b] > (two_changes_binary_n[two_changes_binary_b] + two_changes_binary_b - w) && two_changes_binary_b--);
@@ -176,7 +177,7 @@ public:
 	/// \param listsize
 	/// \return
 	template<bool write = true>
-	constexpr void changelist(std::pair<uint16_t, uint16_t> *ret,
+	constexpr void changelist(std::pair<uint16_t, uint16_t> *ret, // TODO change to reference
 	                          const size_t listsize = 0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
 
