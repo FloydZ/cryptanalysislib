@@ -16,7 +16,7 @@
 /// \tparam LabelType
 template<class LabelType>
 concept LabelTypeAble = requires(LabelType c) {
-	LabelType::LENGTH;
+	LabelType::length();
 
 	requires requires(const uint32_t i) {
 		c[i];
@@ -28,7 +28,7 @@ concept LabelTypeAble = requires(LabelType c) {
 /// \tparam ValueType
 template<class ValueType>
 concept ValueTypeAble = requires(ValueType c) {
-	ValueType::LENGTH;
+	ValueType::length();
 
 	requires requires(const uint32_t i) {
 		c[i];
@@ -1150,7 +1150,7 @@ public:
 	/// \tparam LabelType must fulfill the following function
 	///					get(i), set(i)
 	/// \tparam ValueType must fulfill the following function
-	/// 				get(i), set(i), ::LENGTH
+	/// 				get(i), set(i),
 	/// \param out
 	/// \param in
 	/// \return
@@ -1160,21 +1160,44 @@ public:
 	             ValueTypeAble<ValueType>
 #endif
 	constexpr void mul(LabelType &out, const ValueType &in) const noexcept {
-		constexpr uint32_t IN_COLS = ValueType::LENGTH;
-		constexpr uint32_t OUT_COLS = LabelType::LENGTH;
-		static_assert(IN_COLS == COLS);
-		static_assert(OUT_COLS == ROWS);
+		constexpr uint32_t IN_COLS = ValueType::length();
+		constexpr uint32_t OUT_COLS = LabelType::length();
+		static_assert((IN_COLS == COLS)  || (IN_COLS == ROWS)) ;
+		static_assert((OUT_COLS == ROWS) || (OUT_COLS == COLS));
 
-		for (uint32_t i = 0; i < nrows; ++i) {
-			uint64_t sum = 0;
-			for (uint32_t j = 0; j < ncols; ++j) {
-				uint32_t a = get(i, j);
-				uint32_t b = in.get(j);
-				uint32_t c = (a * b) % q;
-				sum += c;
+		if constexpr ((OUT_COLS == COLS) && (IN_COLS == ROWS)) {
+			// transposed multiplication
+			for (uint32_t i = 0; i < OUT_COLS; ++i) {
+				uint64_t sum = 0;
+				for (uint32_t j = 0; j < IN_COLS; ++j) {
+					uint32_t a = get(j, i);
+					uint32_t b = in.get(j);
+					uint32_t c = (a * b) % q;
+					sum += c;
+				}
+				out.set(sum % q, i);
 			}
-			out.set(sum % q, i);
+
+			return;
 		}
+
+		if constexpr ((OUT_COLS && ROWS) && (IN_COLS == COLS)) {
+			// normal multiplication
+			for (uint32_t i = 0; i < nrows; ++i) {
+				uint64_t sum = 0;
+				for (uint32_t j = 0; j < ncols; ++j) {
+					uint32_t a = get(i, j);
+					uint32_t b = in.get(j);
+					uint32_t c = (a * b) % q;
+					sum += c;
+				}
+				out.set(sum % q, i);
+			}
+
+			return;
+		}
+
+		ASSERT(false);
 	}
 
 	/// prints the current matrix
@@ -1266,5 +1289,7 @@ public:
 	}
 };
 
+#include "matrix/binary_matrix.h"
+#include "matrix/fq_matrix.h"
 
 #endif//CRYPTANALYSISLIB_MATRIX_H

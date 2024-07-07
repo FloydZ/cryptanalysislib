@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <limits>
 
-namespace cryptanalysislib::math{
+namespace cryptanalysislib::math {
 	/// rater important, as it also works with unsigned values, without a warning
 	/// \tparam T
 	/// \param x

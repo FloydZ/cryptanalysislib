@@ -7,9 +7,9 @@
 #include "container/hashmap/common.h"
 #include "helper.h"
 #include "list/common.h"
-#include "list/enumeration/enumeration.h"
 
 #include "combination/chase.h"
+
 /// list enumeration type
 enum ListIteration {
 	SingleFullLength,       // Only one symbol on full length
@@ -23,8 +23,6 @@ enum ListIteration {
 };
 
 
-#if __cplusplus > 201709L
-///
 /// \tparam List
 template<class List>
 concept ListEnumeration_ListAble = requires(List c) {
@@ -40,10 +38,15 @@ concept ListEnumeration_ChangeListAble = requires(List c) {
 	c.size()->size_t;
 	c.clear();
 };
-#endif
 
+template<typename T>
+concept ListEnumerator = requires(T a) {
+	typename T::Element;
+	typename T::Matrix;
+	typename T::Value;
+	typename T::Label;
+};
 
-///
 /// \tparam ListType BaseList Type
 /// \tparam n length to enumerate
 /// \tparam q field size. q-1 is the max value to enumerate
@@ -53,9 +56,7 @@ template<class ListType,
          const uint32_t n,
          const uint32_t q,
          const uint32_t w>
-#if __cplusplus > 201709L
     requires ListAble<ListType>
-#endif
 class ListEnumeration_Meta {
 public:
 	/// needed typedef
@@ -112,6 +113,7 @@ public:
 		uint32_t tmp_vec_ctr = error.popcnt();
 		if (tmp_vec_ctr != w) {
 			error.print();
+			label.print();
 		}
 
 		ASSERT(tmp_vec_ctr == w);
@@ -173,11 +175,12 @@ public:
 		/// NOTE: its allowed to call this class with `w=0`, which is needed for Prange
 		static_assert(n > w);
 		static_assert(q > 1);
-		static_assert(n <= Value::LENGTH);
+		static_assert(n <= Value::length());
 	}
 };
 
 #include "list/enumeration/binary.h"
 #include "list/enumeration/fq.h"
+#include "list/enumeration/random.h"
 
 #endif//CRYPTANALYSISLIB_LIST_ENUMERATION_H

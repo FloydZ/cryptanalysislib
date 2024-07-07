@@ -199,8 +199,8 @@ public:
 	using LoadType = size_t;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
-	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
+	constexpr static uint32_t ValueLENGTH = ValueType::length();
+	constexpr static uint32_t LabelLENGTH = LabelType::length();
 
 	/// size in bytes
 	constexpr static uint64_t ElementBytes = Element::bytes();
@@ -232,7 +232,7 @@ public:
 	/// \return if its sorted
 	constexpr bool is_sorted(const uint64_t k_lower=0,
 							 const uint64_t k_higher=LabelBytes) const {
-		for (uint64_t i = 1; i < load(); ++i) {
+		for (size_t i = 1; i < load(); ++i) {
 			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
 				continue;
 			}

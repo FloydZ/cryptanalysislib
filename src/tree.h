@@ -9,9 +9,9 @@
 #endif
 
 // internal includes
+#include "container/kAry_type.h"
 #include "container/vector.h"
 #include "element.h"
-#include "kAry_type.h"
 #include "list/list.h"
 #include "matrix/binary_matrix.h"
 #include "matrix/fq_matrix.h"
@@ -108,8 +108,8 @@ public:
 	typedef typename List::MatrixType MatrixType;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::LENGTH;
-	constexpr static uint32_t LabelLENGTH = LabelType::LENGTH;
+	constexpr static uint32_t ValueLENGTH = ValueType::length();
+	constexpr static uint32_t LabelLENGTH = LabelType::length();
 
 private:
 	/// We allow additionally two baselists. So for the Stream join we have in total d + 2 lists we have to save in
@@ -168,6 +168,11 @@ public:
 	                                                                                        level_translation_array(level_translation_array),
 	                                                                                        level_filter_array(level_filter_array) {
 		ASSERT(d > 0 && "at least level 1");
+		ASSERT(level_translation_array.size() >= d);
+		for (uint32_t i = 1; i < d; ++i) {
+			ASSERT(level_translation_array[i - 1] <
+			       level_translation_array[i]);
+		}
 		for (uint32_t i = 0; i < d + additional_baselists; ++i) {
 			List a{1u << baselist_size};
 			lists.push_back(a);
@@ -201,6 +206,7 @@ public:
 
 		for (uint32_t i = 2; i < d + additional_baselists; ++i) {
 			List a{0};
+			a.set_load(0);
 			lists.push_back(a);
 		}
 
@@ -534,17 +540,24 @@ public:
 	/// \param k_upper2
 	static void twolevel_streamjoin(List &out, List iL, List &L1, List &L2,
 	                                const uint64_t k_lower1, const uint64_t k_upper1, 
-									const uint64_t k_lower2, const uint64_t k_upper2) noexcept {
-		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 <= k_upper2);
+									const uint64_t k_lower2, const uint64_t k_upper2,
+	                                bool prepare = true) noexcept {
+		ASSERT(k_lower1 < k_upper1 &&
+		       0 < k_upper1 && k_lower2 < k_upper2
+		       && 0 < k_upper2
+		       && k_lower1 <= k_lower2
+		       && k_upper1 <= k_upper2);
 		// internal variables.
 		const uint32_t filter = -1;
 		std::pair<uint64_t, uint64_t> boundaries;
 		ElementType e;
 		uint64_t i = 0, j = 0;
 
-		iL.sort_level(k_lower2, k_upper2);
-		L1.sort_level(k_lower1, k_upper1);
-		L2.sort_level(k_lower1, k_upper1);
+		if (prepare) {
+			iL.sort_level(k_lower2, k_upper2);
+			L1.sort_level(k_lower1, k_upper1);
+			L2.sort_level(k_lower1, k_upper1);
+		}
 
 		while (i < L1.load() && j < L2.load()) {
 			if (L2[j].is_greater(L1[i], k_lower1, k_upper1)) {
@@ -567,6 +580,7 @@ public:
 
 						// finished?
 						if (boundaries.first == boundaries.second) {
+							// TODO can we break the two loops?
 							break;
 						}
 
@@ -599,8 +613,12 @@ public:
 	/// \param L1 	Input List (sorted)
 	/// \param L2 	Input List (will be changed. Target is added to every element in it.)
 	/// \param ta __MUST__ be an uint64_t const_array containing two elements. The first will be used as the lower cooridnate bound to match the elements on, where as the latter one will be the upper bound.
-	static void join2lists(List &out, List &L1, List &L2, const LabelType &target,
-	                       const std::vector<uint64_t> &lta, const bool prepare = true) noexcept {
+	static void join2lists(List &out,
+	                       List &L1,
+	                       List &L2,
+	                       const LabelType &target,
+	                       const std::vector<uint64_t> &lta,
+	                       const bool prepare = true) noexcept {
 		ASSERT(lta.size() >= 1);
 		join2lists(out, L1, L2, target, lta[0], lta[1], prepare);
 	}
@@ -613,17 +631,19 @@ public:
 	/// \param k_lower
 	/// \param k_upper
 	/// \param prepare
+	/// \param sub
 	static void join2lists(List &out, List &L1, List &L2,
 	                       const LabelType &target,
 	                       const uint32_t k_lower, const uint32_t k_upper,
-	                       bool prepare = true) noexcept {
+	                       bool prepare = true,
+	                       bool sub = false) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
 		uint64_t i = 0, j = 0;
 		const uint32_t filter = -1;
 
 		if ((!target.is_zero()) && (prepare)) {
 			for (size_t s = 0; s < L2.load(); ++s) {
-				LabelType::sub(L2[s].label, L2[s].label, target, k_lower, k_upper);
+				LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
 			}
 		}
 
@@ -645,7 +665,7 @@ public:
 
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						out.add_and_append(L1[i], L2[j], filter);
+						out.add_and_append(L1[i], L2[j], filter, sub);
 					}
 				}
 			}
@@ -684,7 +704,7 @@ public:
 	                             const LabelType &target,
 	                             const std::vector<uint64_t> &lta,
 	                             const bool prepare = true) noexcept {
-		ASSERT(lta.size() == 3);
+		ASSERT(lta.size() >= 3);
 		// limits: k_lower1, k_upper1 for the lowest level tree. And k_lower2, k_upper2 for highest level. There are
 		// only two levels..., so obviously k_upper1=k_lower2
 		const uint64_t k_lower1 = lta[0], k_upper1 = lta[1];
@@ -714,21 +734,37 @@ public:
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2 && L1.load() > 0 && L2.load() > 0 && L3.load() > 0 && L4.load() > 0);
 		// Intermediate Element, List, Target
 		List iL{L1.size() * 4};
-		LabelType R, zero;
-		R.random();
+		LabelType R, Rneg, zero, ntarget;
 		zero.zero();
 
 		// prepare baselists
-		if ((!target.is_zero()) && (prepare)) {
-			for (size_t i = 0; i < L2.load(); ++i) {
-				LabelType::add(L2[i].label, L2[i].label, R, k_lower1, k_upper1);
+		if ((!target.is_zero()) && prepare) {
+			R.random(); Rneg = R; Rneg.neg();
+			ntarget = target; ntarget.neg();
+
+			size_t i = 0; // TODO wrong
+			for (; i < std::min({L2.load(), L4.load(), L3.load()} ); ++i) {
+				LabelType::sub(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
+
+				L3[i].label.neg();
+
+				LabelType::sub(L4[i].label, Rneg, L4[i].label, k_lower1, k_upper1);
+				// add is on the full length
+				LabelType::sub(L4[i].label, target, L4[i].label, k_lower1, k_upper2);
 			}
 
-			for (size_t i = 0; i < L4.load(); ++i) {
-				LabelType::sub(L4[i].label, L4[i].label, R, k_lower1, k_upper1);
-				// add is on the full length
-				LabelType::sub(L4[i].label, L4[i].label, target, k_lower1, k_upper2);
-			}
+			//const size_t j = i;
+			//for (i = j; i < L2.load(); i++) {
+			//	LabelType::add(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
+			//}
+			//for (i = j; i < L3.load(); i++) {
+			//	L3[i].label.neg();
+			//}
+			//for (i = j; i < L4.load(); i++) {
+			//	LabelType::sub(L4[i].label, Rneg, L4[i].label, k_lower1, k_upper1);
+			//	// add is on the full length
+			//	LabelType::sub(L4[i].label, target, L4[i].label, k_lower1, k_upper2);
+			//}
 		}
 
 		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, false);
@@ -896,6 +932,46 @@ public:
 		join2lists(out, L[10], L[11], target, last_lta, false);
 	}
 
+
+	/// \tparam Enumerator
+	/// \param out
+	/// \param target
+	/// \param MT must be transposed
+	/// \param e
+	template<ListEnumerator Enumerator>
+	static void dissection4(List &out,
+	                             const LabelType &target,
+	                             const MatrixType &MT,
+	                             Enumerator &e) noexcept {
+		(void)MT;
+		out.set_load(0);
+
+		constexpr static size_t n = LabelLENGTH;
+		constexpr static size_t size = 1ull << (n / 4u);
+		static List L1{size}, L2{size}, L3{size}, L4{size}, iL{size};
+		L1.set_load(0); L2.set_load(0); L3.set_load(0); L4.set_load(0);
+
+		LabelType iR;
+		ElementType e1, e2;
+		iR.random();
+
+		// TODO make sure its div by 4
+		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				(&L1, &L2, n/4);
+		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				(&L3, &L4, n/4, n/2);
+
+		L3.sort_level(0, n);
+		L4.sort_level(0, n);
+		for (size_t k = 0; k < size; ++k) {
+			// merge the first two list
+			iL.set_load(0);
+			join2lists(iL, L1, L2, iR, 0, n / 4, false);
+			iL.sort_level(n / 4, n);
+			twolevel_streamjoin(out, iL, L3, L4, 0, n / 4, n / 4, n, false);
+		}
+	}
+
 	/// builds the cross product between in1 x in2 (only on the values).
 	///	The coordinates [k_lower, k_middle] are taken from the input list in1, whereas the coordinates
 	///	[k_middle, k_upper] are taken from the second input list in2.
@@ -957,13 +1033,35 @@ private:
 	/// \param level 		current lvl within the tree. Sets the "k_lower", "k_higher" to search between.
 	/// \param boundaries
 	/// \param indices
-	inline void search_in_level_l(ElementType &e1, const ElementType &e2, const ElementType &e3, const uint8_t level,
+	constexpr inline void search_in_level_l(ElementType &e1,
+	                              const ElementType &e2,
+	                              const ElementType &e3,
+	                              const uint8_t level,
 	                              std::vector<std::pair<uint64_t, uint64_t>> &boundaries,
-	                              std::vector<uint64_t> &indices) {
-		ElementType::add(e1, e2, e3);
-
+	                              std::vector<uint64_t> &indices) noexcept {
 		uint64_t k_lower, k_higher;
 		translate_level(&k_lower, &k_higher, level + 1, level_translation_array);
+		search_in_level_l(e1, e2, e3, level, k_lower, k_higher, boundaries, indices);
+	}
+
+	/// \param e1
+	/// \param e2
+	/// \param e3
+	/// \param level
+	/// \param k_lower
+	/// \param k_higher
+	/// \param boundaries
+	/// \param indices
+	/// \return
+	constexpr inline void search_in_level_l(ElementType &e1,
+								  const ElementType &e2,
+								  const ElementType &e3,
+								  const uint8_t level,
+	                              const uint32_t k_lower,
+	                              const uint32_t k_higher,
+								  std::vector<std::pair<uint64_t, uint64_t>> &boundaries,
+								  std::vector<uint64_t> &indices) noexcept {
+		ElementType::add(e1, e2, e3);
 
 		boundaries[level] = lists[level + 2].search_boundaries(e1, k_lower, k_higher);
 		indices[level] = boundaries[level].first;
@@ -995,8 +1093,8 @@ private:
 	/// \param target a list where every solution is saved into.
 	void join_stream_internal(uint64_t level, List &target) {
 		std::vector<std::pair<uint64_t, uint64_t>> boundaries(level);
-		std::vector<ElementType> a(level);
-		std::vector<uint64_t> indices(level);
+		std::vector<ElementType> a{level};
+		std::vector<uint64_t> indices{level};
 
 		// reset output list
 		target.set_load(0);
@@ -1016,13 +1114,13 @@ private:
 			} else if (lists[0][i].is_greater(lists[1][j], k_lower0, k_higher0)) {
 				j++;
 			} else {
-				uint64_t i_max, j_max;
+				size_t i_max, j_max;
 				// if elements are equal find max index in each list, such that they remain equal
 				for (i_max = i + 1; i_max < lists[0].load() && lists[0][i].is_equal(lists[0][i_max], k_lower0, k_higher0); i_max++) {}
 				for (j_max = j + 1; j_max < lists[1].load() && lists[1][j].is_equal(lists[1][j_max], k_lower0, k_higher0); j_max++) {}
 
 				// for each matching tuple
-				uint64_t jprev = j;
+				size_t jprev = j;
 
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {

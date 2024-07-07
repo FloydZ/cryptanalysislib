@@ -687,6 +687,21 @@ struct uint8x64_t {
 		tmp = uint8x64_t::and_(tmp, uint8x64_t::not_(tmpp));
 		return uint8x64_t::popcnt(tmp);
 	}
+
+	/// returns 
+	/// if b == 0: return 0
+   	/// if b < 0 : return -a 
+    /// if b > 0 : return a
+	[[nodiscard]] constexpr inline static uint8x64_t comp_sign(const uint8x64_t a,
+			const uint8x64_t b) {
+		uint8x64_t ret;
+  		__m512i zero = _mm512_setzero_si512();
+  		__mmask64 blt0 = _mm512_movepi8_mask(b.v512);
+  		__mmask64 ble0 = _mm512_cmple_epi8_mask(b.v512, zero);
+  		__m512i a_blt0 = _mm512_mask_mov_epi8(zero, blt0, a.v512);
+		ret.v512 = _mm512_mask_sub_epi8(a.v512, ble0, zero, a_blt0);;
+  		return ret;
+	}
 };
 
 struct uint16x32_t {

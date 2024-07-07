@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "container/fq_vector.h"
-#include "matrix/fq_matrix.h"
+#include "matrix/matrix.h"
 #include "permutation/permutation.h"
 
 

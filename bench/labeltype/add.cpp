@@ -3,8 +3,8 @@
 
 #include "../bench_config.h"
 
+#include "container/kAry_type.h"
 #include <helper.h>
-#include <kAry_type.h>
 
 B63_BASELINE(add_operator, nn) {
 	kAryType l1, l2, l3;

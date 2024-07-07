@@ -4,7 +4,7 @@
 
 #include "container/fq_vector.h"
 #include "list/list.h"
-#include "matrix/fq_matrix.h"
+#include "matrix/matrix.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;

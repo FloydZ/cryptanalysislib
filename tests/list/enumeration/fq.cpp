@@ -7,7 +7,7 @@
 #include "list/enumeration/enumeration.h"
 #include "list/enumeration/fq.h"
 #include "list/list.h"
-#include "matrix/fq_matrix.h"
+#include "matrix/matrix.h"
 #include "random.h"
 
 using ::testing::InitGoogleTest;

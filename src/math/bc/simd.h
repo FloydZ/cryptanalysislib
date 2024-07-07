@@ -6,7 +6,7 @@
 
 #include "helper.h"
 
-/// TODO enable it for different SIMD arch, then AVX512
+#ifdef USE_AVX512
 namespace cryptanalysislib::internal {
 	constexpr size_t primes_count = 64;
 	constexpr size_t factorials_count = 66;
@@ -143,4 +143,5 @@ constexpr inline uint64_t simd_binom(const uint64_t n, const uint64_t k) noexcep
 
 	return num / denom;
 }
+#endif
 #endif//CRYPTANALYSISLIB_SIMD_H

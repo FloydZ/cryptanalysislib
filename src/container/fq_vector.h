@@ -18,16 +18,21 @@
 /// \tparam T base type
 /// \tparam n size of the fq vector space=number of elements
 /// \tparam q field size
-template<typename T, const uint32_t n, const uint32_t q>
+template<typename T,
+		const uint64_t _n,
+		const uint64_t _q>
 #if __cplusplus > 201709L
     requires std::is_integral<T>::value
 #endif
 class kAryContainerMeta {
 public:
 	// internal data length. Used in the template system to pass through this information
-	constexpr static uint32_t LENGTH = n;
-	constexpr static uint32_t MODULUS = q;
-	constexpr static uint16_t internal_limbs = n;
+	constexpr static uint64_t n = _n;
+	constexpr static inline uint64_t length() { return n; }
+	constexpr static uint16_t internal_limbs = _n;
+
+	constexpr static uint64_t q = _q;
+	constexpr static inline uint64_t modulus() { return q; }
 
 	// Needed for the internal template system.
 	typedef T DataType;
@@ -44,7 +49,7 @@ public:
 	/// \return nothing
 	constexpr inline void zero() noexcept {
 		LOOP_UNROLL();
-		for (uint32_t i = 0; i < LENGTH; i++) {
+		for (uint32_t i = 0; i < length(); i++) {
 			__data[i] = T(0);
 		}
 	}
@@ -59,7 +64,7 @@ public:
 	/// \return nothing
 	constexpr inline void one() noexcept {
 		LOOP_UNROLL();
-		for (uint32_t i = 0; i < LENGTH; i++) {
+		for (uint32_t i = 0; i < length(); i++) {
 			__data[i] = T(1);
 		}
 	}
@@ -68,9 +73,9 @@ public:
 	/// \param k_lower lower coordinate to start from
 	/// \param k_higher higher coordinate to stop. Not included.
 	void random(const uint32_t k_lower = 0,
-	            const uint32_t k_higher = LENGTH) noexcept {
+	            const uint32_t k_higher = length()) noexcept {
 		ASSERT(k_lower < k_higher);
-		ASSERT(k_higher <= LENGTH);
+		ASSERT(k_higher <= length());
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; i++) {
@@ -78,12 +83,36 @@ public:
 		}
 	}
 
+
+	/// generates a random vector with `w` != 0
+	/// \param w
+	/// \param m
+	/// \return
+	constexpr void random_with_weight(const uint32_t w,
+									  const uint32_t m=length()) noexcept {
+		ASSERT(w <= m);
+		ASSERT(m <= length());
+		zero();
+
+		for (uint32_t i = 0; i < w; ++i) {
+			set(fastrandombytes_uint64() % q, i);
+		}
+
+		// now permute
+		for (uint64_t i = 0; i < m; ++i) {
+			uint64_t pos = fastrandombytes_uint64() % (m - i);
+			bool t = get(i);
+			set(get(i + pos), i);
+			set(t, i + pos);
+		}
+	}
+
 	/// checks if every dimension is zero
 	/// \return true/false
 	[[nodiscard]] constexpr bool is_zero(const uint32_t k_lower = 0,
-	                                     const uint32_t k_higher = LENGTH) const noexcept {
+	                                     const uint32_t k_higher = length()) const noexcept {
 		ASSERT(k_lower < k_higher);
-		ASSERT(k_higher <= LENGTH);
+		ASSERT(k_higher <= length());
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; ++i) {
@@ -98,7 +127,7 @@ public:
 	/// calculate the hamming weight
 	/// \return the hamming weight
 	[[nodiscard]] constexpr inline uint32_t popcnt(const uint32_t l = 0,
-	                                               const uint32_t h = LENGTH) const noexcept {
+	                                               const uint32_t h = length()) const noexcept {
 		uint32_t r = 0;
 
 		LOOP_UNROLL();
@@ -116,14 +145,14 @@ public:
 	/// \param j coordinate
 	constexpr void swap(const uint32_t i,
 	                    const uint32_t j) noexcept {
-		ASSERT(i < LENGTH && j < LENGTH);
+		ASSERT(i < length() && j < length());
 		SWAP(__data[i], __data[j]);
 	}
 
 	/// *-1
 	/// \param i
 	constexpr void flip(const uint32_t i) noexcept {
-		ASSERT(i < LENGTH);
+		ASSERT(i < length());
 		ASSERT(__data[i] < q);
 		__data[i] *= -1;
 		__data[i] += q;
@@ -396,6 +425,19 @@ public:
 		return ret;
 	}
 
+	// TODO missing rol/ror/slr
+	///  out[s: ] = in[0:s]
+	constexpr static inline void sll(kAryContainerMeta &out,
+									 const kAryContainerMeta &in,
+									 const uint32_t s) noexcept {
+		out.zero();
+
+		ASSERT(s < length());
+		for (uint32_t j = 0; j < length() - s; ++j) {
+			const auto d = in.get(j);
+			out.set(d, j + s);
+		}
+	}
 	/// NOTE: inplace
 	/// computes mod q
 	/// \param out = in1 % q
@@ -428,8 +470,8 @@ public:
 	/// \param k_lower lower dimension inclusive
 	/// \param k_upper higher dimension, exclusive
 	constexpr inline void neg(const uint32_t k_lower = 0,
-	                          const uint32_t k_upper = LENGTH) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
+	                          const uint32_t k_upper = length()) noexcept {
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -441,7 +483,9 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(T *out, const T *in1, const T *in2) noexcept {
+	constexpr static inline void add(T *out,
+	                                 const T *in1,
+	                                 const T *in2) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
 		uint32_t i = 0;
@@ -462,10 +506,12 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(kAryContainerMeta &out,
+	constexpr static inline void add(kAryContainerMeta &out,
 	                       const kAryContainerMeta &in1,
 	                       const kAryContainerMeta &in2) noexcept {
-		add((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
+		add((T *) out.__data.data(),
+		    (const T *) in1.__data.data(),
+		    (const T *) in2.__data.data());
 	}
 
 	/// \param v3 output
@@ -481,11 +527,12 @@ public:
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper,
 	                                 const uint32_t norm = -1) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
+			// TODO hide behind an internal constexpr flag
 			if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
 				return true;
 		}
@@ -497,7 +544,7 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(T *out,
+	constexpr static inline void sub(T *out,
 	                       const T *in1,
 	                       const T *in2) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
@@ -520,10 +567,12 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(kAryContainerMeta &out,
+	constexpr static inline void sub(kAryContainerMeta &out,
 	                       const kAryContainerMeta &in1,
 	                       const kAryContainerMeta &in2) noexcept {
-		sub((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
+		sub((T *) out.__data.data(),
+		    (const T *) in1.__data.data(),
+		    (const T *) in2.__data.data());
 	}
 
 	/// \param v3 output container
@@ -539,11 +588,11 @@ public:
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper,
 	                                 const uint32_t norm = -1) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
-			v3.__data[i] = (v1.__data[i] - v2.__data[i] + q) % q;
+			v3.__data[i] = (v1.__data[i] + q - v2.__data[i]) % q;
 			if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
 				return true;
 		}
@@ -555,7 +604,7 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(T *out,
+	constexpr static inline void mul(T *out,
 	                       const T *in1,
 	                       const T *in2) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
@@ -578,10 +627,12 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(kAryContainerMeta &out,
+	constexpr static inline void mul(kAryContainerMeta &out,
 	                       const kAryContainerMeta &in1,
 	                       const kAryContainerMeta &in2) noexcept {
-		mul((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
+		mul((T *) out.__data.data(),
+		    (const T *) in1.__data.data(),
+		    (const T *) in2.__data.data());
 	}
 
 	/// v1 = v1*v2 between [k_lower, k_upper)
@@ -592,7 +643,7 @@ public:
 	constexpr inline static void scalar(kAryContainerMeta &v1,
 	                                    const DataType v2,
 	                                    const uint32_t k_lower = 0,
-	                                    const uint32_t k_upper = LENGTH) noexcept {
+	                                    const uint32_t k_upper = length()) noexcept {
 		scalar(v1, v1, v2, k_lower, k_upper);
 	}
 
@@ -605,8 +656,8 @@ public:
 	                                    const kAryContainerMeta &v1,
 	                                    const DataType v2,
 	                                    const uint32_t k_lower = 0,
-	                                    const uint32_t k_upper = LENGTH) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
+	                                    const uint32_t k_upper = length()) noexcept {
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -622,8 +673,8 @@ public:
 	constexpr inline static bool cmp(kAryContainerMeta const &v1,
 	                                 kAryContainerMeta const &v2,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = LENGTH) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
+	                                 const uint32_t k_upper = length()) noexcept {
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -644,8 +695,8 @@ public:
 	constexpr inline static void set(kAryContainerMeta &v1,
 	                                 kAryContainerMeta const &v2,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = LENGTH) noexcept {
-		ASSERT(k_upper <= LENGTH && k_lower < k_upper);
+	                                 const uint32_t k_upper = length()) noexcept {
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -659,7 +710,7 @@ public:
 	/// \return this == obj on the coordinates [k_lower, k_higher)
 	constexpr bool is_equal(kAryContainerMeta const &obj,
 	                        const uint32_t k_lower = 0,
-	                        const uint32_t k_upper = LENGTH) const noexcept {
+	                        const uint32_t k_upper = length()) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
@@ -669,18 +720,19 @@ public:
 	/// \return this > obj on the coordinates [k_lower, k_higher)
 	constexpr bool is_greater(kAryContainerMeta const &obj,
 	                          const uint32_t k_lower = 0,
-	                          const uint32_t k_upper = LENGTH) const noexcept {
-		ASSERT(k_upper <= LENGTH);
+	                          const uint32_t k_upper = length()) const noexcept {
+		ASSERT(k_upper <= length());
 		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
-			if (__data[i - 1] > obj.__data[i - 1])
+			if (__data[i - 1] > obj.__data[i - 1]) {
 				return true;
-			else if (__data[i - 1] < obj.__data[i - 1])
+			} else if (__data[i - 1] < obj.__data[i - 1]) {
 				return false;
+			}
 		}
-
+		// they are equal
 		return false;
 	}
 
@@ -690,8 +742,8 @@ public:
 	/// \return this < obj on the coordinates [k_lower, k_higher)
 	constexpr bool is_lower(kAryContainerMeta const &obj,
 	                        const uint32_t k_lower = 0,
-	                        const uint32_t k_upper = LENGTH) const noexcept {
-		ASSERT(k_upper <= LENGTH);
+	                        const uint32_t k_upper = length()) const noexcept {
+		ASSERT(k_upper <= length());
 		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -752,12 +804,13 @@ public:
 	/// access operator
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
-	T &operator[](const size_t i) noexcept {
-		ASSERT(i < LENGTH);
+	constexpr T &operator[](const size_t i) noexcept {
+		ASSERT(i < length());
 		return __data[i];
 	}
-	const T &operator[](const size_t i) const noexcept {
-		ASSERT(i < LENGTH);
+
+	constexpr const T &operator[](const size_t i) const noexcept {
+		ASSERT(i < length());
 		return __data[i];
 	};
 
@@ -765,8 +818,8 @@ public:
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper higher bound, exclusive
 	constexpr void print_binary(const uint32_t k_lower = 0,
-	                            const uint32_t k_upper = LENGTH) const noexcept {
-		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
+	                            const uint32_t k_upper = length()) const noexcept {
+		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			unsigned data = (unsigned) __data[i];
 			for (uint32_t j = 0; j < bits_log2(q); ++j) {
@@ -781,8 +834,8 @@ public:
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper higher bound, exclusive
 	constexpr void print(const uint32_t k_lower = 0,
-	                     const uint32_t k_upper = LENGTH) const noexcept {
-		ASSERT(k_lower < LENGTH && k_upper <= LENGTH && k_lower < k_upper);
+	                     const uint32_t k_upper = length()) const noexcept {
+		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << (unsigned) __data[i] << " ";
 		}
@@ -797,9 +850,9 @@ public:
 
 	// this data container is never binary
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return LENGTH; }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return LENGTH; }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return LENGTH * sizeof(T); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return length(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return length() * sizeof(T); }
 
 	/// returns the underlying data container
 	__FORCEINLINE__ constexpr T *ptr() noexcept { return __data.data(); }
@@ -813,18 +866,18 @@ public:
 		return __data[i];
 	};
 
-	__FORCEINLINE__ std::array<T, LENGTH> &data() noexcept { return __data; }
-	__FORCEINLINE__ const std::array<T, LENGTH> &data() const noexcept { return __data; }
+	__FORCEINLINE__ std::array<T, length()> &data() noexcept { return __data; }
+	__FORCEINLINE__ const std::array<T, length()> &data() const noexcept { return __data; }
 	constexpr T data(const size_t index) const noexcept {
-		ASSERT(index < LENGTH);
+		ASSERT(index < length());
 		return __data[index];
 	}
 	constexpr T get(const size_t index) const noexcept {
-		ASSERT(index < LENGTH);
+		ASSERT(index < length());
 		return __data[index];
 	}
 	constexpr void set(const T data, const size_t index) noexcept {
-		ASSERT(index < LENGTH);
+		ASSERT(index < length());
 		__data[index] = data;
 	}
 
@@ -841,7 +894,7 @@ public:
 	__FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
 
 protected:
-	std::array<T, LENGTH> __data;
+	std::array<T, length()> __data;
 };
 
 
@@ -856,8 +909,8 @@ template<class T, const uint32_t n, const uint32_t q>
 class kAryContainer_T : public kAryContainerMeta<T, n, q> {
 public:
 	/// needed constants
-	using kAryContainerMeta<T, n, q>::LENGTH;
-	using kAryContainerMeta<T, n, q>::MODULUS;
+	using kAryContainerMeta<T, n, q>::length;
+	using kAryContainerMeta<T, n, q>::modulus;
 
 	/// needed typedefs
 	using typename kAryContainerMeta<T, n, q>::DataType;
@@ -902,8 +955,8 @@ public:
 	/// needed typedefs
 	using T = uint8_t;
 	using DataType = T;
-	using kAryContainerMeta<T, n, q>::LENGTH;
-	using kAryContainerMeta<T, n, q>::MODULUS;
+	using kAryContainerMeta<T, n, q>::length;
+	using kAryContainerMeta<T, n, q>::modulus;
 	using typename kAryContainerMeta<T, n, q>::LimbType;
 	using typename kAryContainerMeta<T, n, q>::ContainerType;
 	using kAryContainerMeta<T, n, q>::__data;
@@ -935,6 +988,7 @@ private:
 	static constexpr __uint128_t mask_q = (__uint128_t(0x0404040404040404ULL) << 64UL) | (__uint128_t(0x0404040404040404ULL));
 
 public:
+
 	/// mod operations
 	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
@@ -996,7 +1050,7 @@ public:
 	/// vectorized version, input are 32x 8Bit vectors
 	/// \param a
 	/// \return a%q component wise
-	static inline uint8x32_t mod256_T(const uint8x32_t a) noexcept {
+	constexpr static inline uint8x32_t mod256_T(const uint8x32_t a) noexcept {
 		const uint8x32_t mask256_4 = uint8x32_t::set1(0x03);
 		return uint8x32_t::and_(a, mask256_4);
 	}
@@ -1006,7 +1060,8 @@ public:
 	/// \param a in
 	/// \param b in
 	/// \return a+b, component wise
-	static inline uint8x32_t add256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+	constexpr static inline uint8x32_t add256_T(const uint8x32_t a
+	                                  , const uint8x32_t b) noexcept {
 		constexpr uint8x32_t mask256_4 = uint8x32_t::set1(0x03);
 		return uint8x32_t::and_(uint8x32_t::add(a, b), mask256_4);
 	}
@@ -1016,7 +1071,7 @@ public:
 	/// \param a in
 	/// \param b in
 	/// \return a-b, component wise
-	static inline uint8x32_t sub256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+	constexpr static inline uint8x32_t sub256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
 		const uint8x32_t mask256_4 = uint8x32_t::set1(0x03);
 		const uint8x32_t mask256_q = uint8x32_t::set1(0x04);
 		return uint8x32_t::and_(uint8x32_t::add(uint8x32_t::sub(a, b), mask256_q), mask256_4);
@@ -1206,8 +1261,8 @@ public:
 	/// needed typedefs
 	using T = uint8_t;
 	using DataType = T;
-	using kAryContainerMeta<T, n, q>::LENGTH;
-	using kAryContainerMeta<T, n, q>::MODULUS;
+	using kAryContainerMeta<T, n, q>::length;
+	using kAryContainerMeta<T, n, q>::modulus;
 	using typename kAryContainerMeta<T, n, q>::LimbType;
 	using typename kAryContainerMeta<T, n, q>::ContainerType;
 	using kAryContainerMeta<T, n, q>::__data;
@@ -1511,8 +1566,8 @@ public:
 	/// needed typedefs
 	using T = uint8_t;
 	using DataType = T;
-	using kAryContainerMeta<T, n, q>::LENGTH;
-	using kAryContainerMeta<T, n, q>::MODULUS;
+	using kAryContainerMeta<T, n, q>::length;
+	using kAryContainerMeta<T, n, q>::modulus;
 	using typename kAryContainerMeta<T, n, q>::LimbType;
 	using typename kAryContainerMeta<T, n, q>::ContainerType;
 	using kAryContainerMeta<T, n, q>::__data;

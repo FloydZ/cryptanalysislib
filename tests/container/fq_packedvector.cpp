@@ -35,7 +35,7 @@ TEST(F4, random) {
 	K4 t = K4();
 	t.random();
 	t.print();
-	for (uint32_t i = 0; i < K4::LENGTH; i++){
+	for (uint32_t i = 0; i < K4::length(); i++){
     	EXPECT_LE(t.get(i), 4);
 	}
 }

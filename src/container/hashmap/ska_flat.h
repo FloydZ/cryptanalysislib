@@ -465,6 +465,7 @@ public:
 	constexpr inline typename ValueSelect::value_type &operator[](K &&key) noexcept {
 		// TODO implement
 		ASSERT(false);
+		(void) key;
 	}
 
 	constexpr inline iterator find(const FindKey &key) noexcept {
@@ -486,6 +487,7 @@ public:
 	template<class K>
 	constexpr inline iterator find(const K &key,
 	                               const std::size_t hash) noexcept {
+		(void) hash;
 		return find(key);
 	}
 
@@ -493,6 +495,7 @@ public:
 	template<class K>
 	constexpr inline const_iterator find(const K &key,
 	                                     const std::size_t hash) const noexcept {
+		(void) hash;
 		return const_cast<sherwood_v3_table *>(this)->find(key);
 	}
 
@@ -604,7 +607,8 @@ public:
 
 	template<class K>
 	constexpr inline size_type erase(const K &key) noexcept {
-		ASSERT(false);
+		ASSERT(false); // TODO
+		(void) key;
 		return 0;
 	}
 

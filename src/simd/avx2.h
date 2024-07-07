@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_SIMD_AVX2_H
 #define CRYPTANALYSISLIB_SIMD_AVX2_H
 
+#include <emmintrin.h>
 #ifndef CRYPTANALYSISLIB_SIMD_H
 #error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
@@ -989,13 +990,13 @@ struct uint8x32_t {
 		const __m128i hi = ((__m128i) __builtin_ia32_extract128i256((__v4di) (__m256i) (in.v256), (int) (1)));
 
 		// reverse them using SSE instructions
-		const __m128i indices = __extension__(__m128i)(__v16qi){0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+		const __m128i indices = __extension__(__m128i)(__v16qi){15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0};
 		const __m128i lo_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) lo, (__v16qi) indices);
 		const __m128i hi_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) hi, (__v16qi) indices);
 
 		// build the new AVX2 vector
 #ifdef __clang__
-		__m256i ret = __builtin_shufflevector((__v2di) hi_rev, (__v2di) hi_rev, 0, 1, -1, -1);
+		__m256i ret = __builtin_shufflevector((__v2di) hi_rev, (__v2di) hi_rev, 0, 1, 2, 3);
 #else
 		__m256i ret = (__m256i)__builtin_ia32_si256_si((__v4si) hi_rev);
 #endif
@@ -2202,5 +2203,87 @@ struct uint64x4_t {
 	}
 };
 
+constexpr inline void sse_prefixsum_u32(uint32_t *in) noexcept {
+	__m128i x = _mm_loadu_si128((__m128i *)in);
+    // x = 1, 2, 3, 4
+    x = _mm_add_epi32(x, _mm_slli_si128(x, 4));
+    // x = 1, 2, 3, 4
+    //   + 0, 1, 2, 3
+    //   = 1, 3, 5, 7
+    x = _mm_add_epi32(x, _mm_slli_si128(x, 8));
+    // x = 1, 3, 5, 7
+    //   + 0, 0, 1, 3
+    //   = 1, 3, 6, 10
+	_mm_storeu_si128((__m128i *)in, x);
+    // return x;
+}
+
+
+constexpr inline void avx_prefix_prefixsum_u32(uint32_t *p) noexcept {
+    __m256i x = _mm256_loadu_si256((__m256i *) p);
+    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4));
+    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8));
+    _mm256_storeu_si256((__m256i *) p, x);
+}
+
+
+constexpr inline __m128i sse_prefixsum_accumulate_u32(uint32_t *p, const __m128i s) {
+    __m128i d = (__m128i) _mm_broadcast_ss((float*) &p[3]);
+    __m128i x = _mm_loadu_si128((__m128i*) p);
+    x = _mm_add_epi32(s, x);
+    _mm_storeu_si128((__m128i*) p, x);
+    return _mm_add_epi32(s, d);
+}
+
+// TODO use L1 cache size
+constexpr size_t prefixsum_block_size = 64;
+// TODO move to `simd.h` as this is a generic algorithm, which only needs 
+// specialized sub routines.
+//
+// PrefixSum:
+// 	a[0] = a[0]
+//	a[1] = a[0] + a[1]
+//		...
+__m128i avx2_local_prefixsum_u32(uint32_t *a, __m128i s) {
+    for (uint32_t i = 0; i < prefixsum_block_size; i += 8) {
+        avx_prefix_prefixsum_u32(&a[i]);
+	}
+    
+    for (uint32_t i = 0; i < prefixsum_block_size; i += 4) {
+        s = sse_prefixsum_accumulate_u32(&a[i], s);
+	}
+
+    return s;
+}
+
+void avx2_prefixsum_u32(uint32_t *a, const size_t n) {
+	// simple version for small inputs
+	if (n < prefixsum_block_size) {
+		for (uint32_t i = 1; i < n; i++) {
+			a[i] += a[i - 1];
+		}
+		return;
+	}
+
+  	__m128i s = _mm_setzero_si128();
+	uint32_t i = 0;
+    for (; i + prefixsum_block_size <= n; i += prefixsum_block_size) {
+        s = avx2_local_prefixsum_u32(a + i, s);
+	}
+
+	// tail mngt.
+	for (; i < n; i++) {
+		a[i] += a[i - 1];
+	}
+	// slow version
+    // for (uint32_t i = 0; i < n; i += 8) {
+    //     avx_prefix_prefixsum_u32(&a[i]);
+	// }
+    //
+    // __m128i s = (__m128i) _mm_broadcast_ss((float*) &a[3]);
+    // for (uint32_t i = 4; i < n; i += 4) {
+    //     s = sse_prefixsum_accumulate_u32(&a[i], s);
+	// }
+}
 
 #endif

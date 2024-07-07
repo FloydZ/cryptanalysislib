@@ -7,7 +7,7 @@
 #include "helper.h"
 #include "list/enumeration/enumeration.h"
 #include "list/list.h"
-#include "matrix/fq_matrix.h"
+#include "matrix/matrix.h"
 #include "random.h"
 
 #include "popcount/popcount.h"
@@ -210,7 +210,7 @@ TEST(F2, single_list) {
 	Matrix HT;
 	HT.random();
 	BinaryListEnumerateMultiFullLength<List, n, w> enumerator{HT};
-	// TODO enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
+	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		EXPECT_EQ(L.data_value(i).popcnt(), w);
@@ -228,7 +228,7 @@ TEST(F2, single_hashmap) {
 	HT.random();
 
 	BinaryListEnumerateMultiFullLength<List, n, w> enumerator{HT};
-	// TODO enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
+	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		const auto data = extractor(L.data_label(i));
@@ -249,7 +249,7 @@ TEST(F2, two_lists) {
 	HT.random();
 
 	BinaryListEnumerateMultiFullLength<List, n / 2, w> enumerator{HT};
-	// TODO enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
+	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		EXPECT_EQ(L1.data_value(i).popcnt(), w);

@@ -3,9 +3,9 @@
 
 #include "../bench_config.h"
 
+#include "container/kAry_type.h"
 #include <cstdint>
 #include <helper.h>
-#include <kAry_type.h>
 
 
 B63_BASELINE(sub_operator, nn) {

@@ -79,7 +79,7 @@ class Combinations_Binary_Chase {
 		ASSERT(b < two_changes_binary_o.size());
 
 		two_changes_binary_o[b] = two_changes_binary_o[b - 1] + two_changes_binary_d[b - 1] *
-		                                                                (two_changes_binary_p[b - 1] % 2 ? two_changes_binary_n[b - 1] - 1 : two_changes_binary_p[b - 1] + 1);
+		                          (two_changes_binary_p[b - 1] % 2 ? two_changes_binary_n[b - 1] - 1 : two_changes_binary_p[b - 1] + 1);
 		two_changes_binary_d[b] = two_changes_binary_d[b - 1] * (two_changes_binary_p[b - 1] % 2 ? -1 : 1);
 		two_changes_binary_n[b] = two_changes_binary_n[b - 1] - two_changes_binary_p[b - 1] - 1;
 		two_changes_binary_p[b] = 0;
@@ -87,7 +87,9 @@ class Combinations_Binary_Chase {
 
 	/// \return
 	template<const bool write = true>
-	inline uint64_t left_write(T *A, const uint32_t b, const int bit) noexcept {
+	constexpr inline uint64_t left_write(T *A,
+	                           const uint32_t b,
+	                           const int bit) noexcept {
 		ASSERT(b < two_changes_binary_o.size());
 		uint64_t ret = start + two_changes_binary_o[b] + two_changes_binary_p[b] * two_changes_binary_d[b];
 		if constexpr (write) { WRITE_BIT(A, ret, bit); }
@@ -98,9 +100,11 @@ public:
 	/// max length of the sequence
 	constexpr static size_t chase_size = bc(n, w);
 
-	// we need these little helpers, because M4RI does not implement any row access functions, only ones for matrices.
+	// we need these little helpers, because M4RI does not implement any row
+	// access functions, only ones for matrices.
 	constexpr static inline void WRITE_BIT(T *v,
-	                                       const size_t i, const uint64_t b) noexcept {
+	                                       const size_t i,
+	                                       const uint64_t b) noexcept {
 		v[i / RADIX] = ((v[i / RADIX] & ~(1ull << (i % RADIX))) | (T(b) << (i % RADIX)));
 	}
 
@@ -111,7 +115,7 @@ public:
 	};
 
 	/// resets the
-	void reset() noexcept {
+	constexpr void reset() noexcept {
 		two_changes_binary_o.fill(0);
 		two_changes_binary_d.fill(0);
 		two_changes_binary_n.fill(0);
@@ -132,9 +136,12 @@ public:
 	/// \return false if the end of the sequence is reached
 	///         true if the end of the sequence is NOT reached
 	template<bool write = true>
-	bool left_step(T *A, uint16_t *pos1, uint16_t *pos2) noexcept {
+	bool left_step(T *A,
+	               uint16_t *pos1,
+	               uint16_t *pos2) noexcept {
 		uint16_t pos = 0;
-		if (!init) {// cleanup of the previous round
+		if (!init) {
+			// cleanup of the previous round
 			do {
 				pos = left_write<write>(A, two_changes_binary_b, 0);
 			} while (++two_changes_binary_p[two_changes_binary_b] > (two_changes_binary_n[two_changes_binary_b] + two_changes_binary_b - w) && two_changes_binary_b--);
@@ -165,14 +172,17 @@ public:
 		return true;
 	}
 
+	/// \tparam write
 	/// \param ret input/output const_array containing ``
-	/// \return nothing
+	/// \param listsize
+	/// \return
 	template<bool write = true>
-	constexpr void changelist(std::pair<uint16_t, uint16_t> *ret, const size_t listsize = 0) {
+	constexpr void changelist(std::pair<uint16_t, uint16_t> *ret, // TODO change to reference
+	                          const size_t listsize = 0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
 
-		left_step<write>(NULL, &ret[0].first, &ret[0].second);
-		for (uint32_t i = 0; i < size; ++i) {
+		left_step<write>(nullptr, &ret[0].first, &ret[0].second);
+		for (size_t i = 0; i < size; ++i) {
 			bool c = left_step<write>(nullptr, &ret[i].first, &ret[i].second);
 			ASSERT(c == (i != size - 1u));
 			ASSERT(ret[i].first < n);

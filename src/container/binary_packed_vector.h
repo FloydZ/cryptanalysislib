@@ -32,22 +32,26 @@
 
 /// \tparam length
 /// \tparam T
-template<uint32_t length, typename T = uint64_t>
-#if __cplusplus > 201709L
+template<const uint64_t _n, 
+		 typename T = uint64_t>
     requires std::is_arithmetic_v<T>
-#endif
 class BinaryContainer {
 public:
 	// Internal Types needed for the template system.
-	typedef BinaryContainer<length, T> ContainerType;
+	typedef BinaryContainer<_n, T> ContainerType;
 	typedef T LimbType;
 	typedef bool DataType;
 
 	// internal data length. Need to export it for the template system.
-	constexpr static uint32_t LENGTH = length;
+	constexpr static uint64_t n = _n;
+	constexpr static inline uint64_t length() noexcept { return n; }
+	constexpr static uint64_t q = 2;
+	constexpr static inline uint64_t modulus() noexcept { return q; }
+
 	constexpr static uint32_t RADIX = sizeof(T) * 8;
 	constexpr static T minus_one = T(-1);
 
+	static_assert(_n > 0);
 public:
 	// how many limbs to we need and how wide are they.
 	constexpr static uint16_t limb_bits_width() noexcept { return limb_bytes_width() * 8; };
@@ -59,13 +63,13 @@ public:
 #ifdef BINARY_CONTAINER_ALIGNMENT
 		return (alignment() + limb_bits_width() - 1) / limb_bits_width();
 #else
-		return (length + limb_bits_width() - 1) / limb_bits_width();
+		return (length() + limb_bits_width() - 1) / limb_bits_width();
 #endif
 	};
 
 public:
 	/// default constructor
-	constexpr BinaryContainer() noexcept : __data() { ASSERT(length > 0); }
+	constexpr BinaryContainer() noexcept : __data() {}
 
 	/// Copy Constructor
 	constexpr BinaryContainer(const BinaryContainer &a) noexcept : __data(a.__data) {}
@@ -81,16 +85,16 @@ public:
 	constexpr static uint16_t round_down(uint16_t in) noexcept { return round_down_to_limb(in) * limb_bits_width(); }
 	constexpr static uint16_t round_down_to_limb(uint16_t in) { return (in / limb_bits_width()); }
 
-	// calculate from a bit position 'i' the mask to set it.
+	// calculate from a bit-position 'i' the mask to set it.
 	constexpr static T mask(uint16_t i) noexcept {
-		ASSERT(i <= length && "wrong access index");
+		ASSERT(i <= length() && "wrong access index");
 		T u = i % limb_bits_width();
 		return (T(1) << u);
 	}
 
 	// same as the function below, but catches the special case when i == 0 %64.
 	constexpr static T lower_mask2(const uint16_t i) noexcept {
-		ASSERT(i <= length);
+		ASSERT(i <= length());
 		T u = i % limb_bits_width();
 		if (u == 0) return T(-1);
 		return ((T(1) << u) - 1);
@@ -99,15 +103,17 @@ public:
 	// given the i-th bit this function will return a bits mask where the lower 'i' bits are set. Everything will be
 	// realigned to limb_bits_width().
 	constexpr static T lower_mask(const uint16_t i) noexcept {
-		ASSERT(i <= length);
+		ASSERT(i <= length());
 		return ((T(1) << (i % limb_bits_width())) - 1);
 	}
 
 	// given the i-th bit this function will return a bits mask where the higher (n-i)bits are set.
 	constexpr static T higher_mask(const uint16_t i) noexcept {
-		ASSERT(i <= length);
-		if ((i % limb_bits_width()) == 0)
+		ASSERT(i <= length());
+		// TODO better formula
+		if ((i % limb_bits_width()) == 0) {
 			return T(-1);
+		}
 
 		return (~((T(1u) << (i % limb_bits_width())) - 1));
 	}
@@ -115,36 +121,37 @@ public:
 	// given the i-th bit this function will return a bits mask where the lower 'n-i' bits are set. Everything will be
 	// realigned to limb_bits_width().
 	constexpr static T lower_mask_inverse(const uint16_t i) noexcept {
-		ASSERT(i <= length && "wrong access index");
+		ASSERT(i <= length() && "wrong access index");
 		T u = i % limb_bits_width();
 
-		if (u == 0)
+		if (u == 0) {
 			return -1;
+		}
 
 		auto b = (T(1) << (limb_bits_width() - u));
 		return b - T(1);
 	}
 
 	// given the i-th bit this function will return a bits mask where the higher (i) bits are set.
-	constexpr static T higher_mask_inverse(const uint16_t i) noexcept {
-		ASSERT(i <= length && "wrong access index");
+	constexpr static inline  T higher_mask_inverse(const uint16_t i) noexcept {
+		ASSERT(i <= length() && "wrong access index");
 		return (~lower_mask_inverse(i));
 	}
 
 	// not shifted.
-	constexpr T get_bit(const uint16_t i) const noexcept {
+	constexpr inline T get_bit(const uint16_t i) const noexcept {
 		return __data[round_down_to_limb(i)] & mask(i);
 	}
 
 	// shifted.
-	constexpr bool get_bit_shifted(const uint16_t i) const noexcept {
+	constexpr inline bool get_bit_shifted(const uint16_t i) const noexcept {
 		return (__data[round_down_to_limb(i)] & mask(i)) >> (i % 64);
 	}
 
 	// return the bits [i,..., j) in one limb
 	constexpr inline T get_bits(const uint16_t i,
 	                            const uint16_t j) const noexcept {
-		ASSERT(j > i && j - i <= limb_bits_width() && j <= length);
+		ASSERT(j > i && j - i <= limb_bits_width() && j <= length());
 		const T lmask = higher_mask(i);
 		const T rmask = lower_mask2(j);
 		const int64_t lower_limb = i / limb_bits_width();
@@ -279,9 +286,9 @@ public:
 		// this stupid approach needs to be done, because if w is not dividing n the last bits would be unused.
 		buckets_windows.resize(k + 1);
 		for (uint64_t i = 0; i < k; ++i) {
-			buckets_windows[i] = i * length / k;
+			buckets_windows[i] = i * length() / k;
 		}
-		buckets_windows[k] = length;
+		buckets_windows[k] = length();
 
 		// clear everything.
 		zero();
@@ -306,8 +313,12 @@ public:
 	}
 
 	///
-	/// \param w
-	void random_with_weight(const uint64_t w) noexcept {
+	/// \param w weight to enumerated
+	/// \param w max length <= length() over which the weight should be enumerated
+	void random_with_weight(const uint32_t w,
+	                        const uint32_t m = length()) noexcept {
+		ASSERT(m <= length());
+		ASSERT(w <= m);
 		zero();
 
 		for (uint64_t i = 0; i < w; ++i) {
@@ -315,8 +326,8 @@ public:
 		}
 
 		// now permute
-		for (uint64_t i = 0; i < length; ++i) {
-			uint64_t pos = fastrandombytes_uint64() % (length - i);
+		for (uint64_t i = 0; i < m; ++i) {
+			uint64_t pos = fastrandombytes_uint64() % (m - i);
 			bool t = get_bit_shifted(i);
 			write_bit(i, get_bit_shifted(i + pos));
 			write_bit(i + pos, t);
@@ -325,9 +336,9 @@ public:
 
 	/// set the whole data const_array on random data.
 	void random() noexcept {
-		constexpr uint64_t apply_mask = length % limb_bits_width() == 0 ? lower_mask(length) - 1 : lower_mask(length);
+		constexpr uint64_t apply_mask = length() % limb_bits_width() == 0 ? lower_mask(length()) - 1 : lower_mask(length());
 
-		if constexpr (length < 64) {
+		if constexpr (length() < 64) {
 			__data[0] = fastrandombytes_uint64() & apply_mask;
 		} else {
 			for (uint32_t i = 0; i < limbs() - 1; ++i) {
@@ -353,7 +364,7 @@ public:
 	/// \return
 	[[nodiscard]] constexpr inline bool is_zero(const uint32_t lower,
 	                                            const uint32_t upper) const noexcept {
-		ASSERT(upper <= length);
+		ASSERT(upper <= length());
 		const size_t lower_limb = round_down_to_limb(lower);
 		const size_t upper_limb = round_down_to_limb(upper);
 
@@ -378,7 +389,7 @@ public:
 	constexpr void get_bits_set(uint32_t *P,
 	                            const uint16_t pos = 1) const noexcept {
 		uint16_t ctr = 0;
-		for (uint32_t i = 0; i < length; ++i) {
+		for (uint32_t i = 0; i < length(); ++i) {
 			if (get_bit(i)) {
 				P[ctr++] = i;
 				if (ctr == pos) {
@@ -390,7 +401,7 @@ public:
 
 	/// swap the two bits i, j
 	constexpr inline void swap(const uint16_t i, const uint16_t j) noexcept {
-		ASSERT(i < length && j < length);
+		ASSERT(i < length() && j < length());
 		auto t = get_bit_shifted(i);
 		write_bit(i, get_bit_shifted(j));
 		write_bit(j, t);
@@ -398,7 +409,7 @@ public:
 
 	/// flips the bit at position `i`
 	constexpr inline void flip(const uint16_t i) noexcept {
-		ASSERT(i < length);
+		ASSERT(i < length());
 		__data[round_down_to_limb(i)] ^= mask(i);
 	}
 
@@ -523,8 +534,8 @@ public:
 
 
 	/// neg is an empty operation
-	constexpr inline void neg(const uint16_t k_lower,
-	                          const uint16_t k_upper) noexcept {
+	constexpr inline void neg(const uint16_t k_lower=0,
+	                          const uint16_t k_upper=length()) noexcept {
 		// do nothing.
 		(void) k_lower;
 		(void) k_upper;
@@ -645,6 +656,13 @@ public:
 		add(v3.ptr(), v1.ptr(), v2.ptr());
 	}
 
+	//  IMPORTANT: this function does a full length addition
+	__FORCEINLINE__ static void add(BinaryContainer &v3,
+									BinaryContainer const &v1,
+	                                const LimbType *v2) noexcept {
+		add(v3.ptr(), v1.ptr(), v2);
+	}
+
 	// add between the coordinate l, h
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	__FORCEINLINE__ static void add(BinaryContainer &v3,
@@ -656,7 +674,7 @@ public:
 		constexpr uint32_t higher_limb = (k_upper - 1) / limb_bits_width();
 
 		static_assert(k_lower < k_upper);
-		static_assert(k_upper <= length);
+		static_assert(k_upper <= length());
 		static_assert(higher_limb <= limbs());
 
 		if constexpr (lower_limb == higher_limb) {
@@ -986,7 +1004,7 @@ public:
 
 	constexpr static void add(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2,
 	                          const uint32_t k_lower, const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 		const T lmask = higher_mask(k_lower % limb_bits_width());
 		const T rmask = lower_mask2(k_upper % limb_bits_width());
 		const int64_t lower_limb = k_lower / limb_bits_width();
@@ -1016,7 +1034,7 @@ public:
 
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr static uint32_t add_weight(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
-		static_assert(k_upper <= length && k_lower < k_upper && 0 < k_upper);
+		static_assert(k_upper <= length() && k_lower < k_upper && 0 < k_upper);
 
 		uint32_t cnorm = 0;
 		constexpr T lmask = higher_mask(k_lower % limb_bits_width());
@@ -1055,7 +1073,7 @@ public:
 
 	constexpr static uint32_t add_weight(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2,
 	                                     const uint32_t k_lower, const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper && 0 < k_upper);
+		ASSERT(k_upper <= length() && k_lower < k_upper && 0 < k_upper);
 
 		uint32_t cnorm = 0;
 		const T lmask = higher_mask(k_lower % limb_bits_width());
@@ -1095,7 +1113,7 @@ public:
 	inline constexpr static bool add(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2,
 	                                 const uint32_t k_lower, const uint32_t k_upper,
 	                                 const uint32_t norm) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 
 		if (norm == uint32_t(-1)) {
 			// fallback to normal addition.
@@ -1144,8 +1162,11 @@ public:
 	}
 
 	/// alias for add
-	inline constexpr static int sub(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
-		return add(v3, v1, v2);
+	inline constexpr static int sub(BinaryContainer &v3,
+	                                BinaryContainer const &v1,
+	                                BinaryContainer const &v2) noexcept {
+		add(v3, v1, v2);
+		return 0; // always return it's ok and doesn't need to be filtered
 	}
 
 	/// alias for add
@@ -1164,13 +1185,13 @@ public:
 	}
 
 	inline constexpr static bool cmp(BinaryContainer const &v1, BinaryContainer const &v2) noexcept {
-		return cmp(v1, v2, 0, size());
+		return cmp(v1, v2, 0, length());
 	}
 
 	/// implements only a 2 way comparison. E.g. implements the `!=` operator.
 	inline constexpr static bool cmp(BinaryContainer const &v1, BinaryContainer const &v2,
 	                                 const uint32_t k_lower, const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 		const int32_t lower = round_down_to_limb(k_lower);
 		const int32_t upper = round_down_to_limb(k_upper - 1);
 		const T lmask = higher_mask(k_lower);
@@ -1260,7 +1281,7 @@ public:
 	/// Does not change anything else.
 	inline constexpr static void set(BinaryContainer &v1, BinaryContainer const &v2,
 	                                 const uint32_t k_lower, const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 		const int64_t lower = round_down_to_limb(k_lower);
 		const int64_t upper = round_down_to_limb(k_upper - 1);
 		const T lmask = higher_mask(k_lower);
@@ -1279,12 +1300,30 @@ public:
 		}
 	}
 
+	// TODO missing rol/ror
 	///  out[s: ] = in[0:s]
-	static inline void shift_right(BinaryContainer &out,
+	constexpr static inline void sll(BinaryContainer &out,
 	                               const BinaryContainer &in,
 	                               const uint32_t s) noexcept {
-		for (uint32_t j = 0; j < s; ++j) {
-			out.write_bit(j + s, in.get_bit_shifted(j));
+		out.zero();
+
+		ASSERT(s < length());
+		for (uint32_t j = 0; j < length() - s; ++j) {
+			const auto bit = in.get_bit_shifted(j);
+			out.write_bit(j + s, bit);
+		}
+	}
+
+	///  out[0: ] = in[s:]
+	constexpr static inline void slr(BinaryContainer &out,
+						   const BinaryContainer &in,
+						   const uint32_t s) noexcept {
+		ASSERT(s < length());
+		for (uint32_t j = s; j < length(); ++j) {
+			out.write_bit(j-s, in.get_bit_shifted(j));
+		}
+		for (uint32_t j = s; j < length(); ++j) {
+			out.write_bit(j, 0);
 		}
 	}
 
@@ -1293,7 +1332,7 @@ public:
 	/// \return
 	inline bool is_equal(const BinaryContainer &obj,
 	                     const uint32_t k_lower = 0,
-	                     const uint32_t k_upper = LENGTH) const noexcept {
+	                     const uint32_t k_upper = length()) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
@@ -1328,7 +1367,7 @@ public:
 
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	inline bool is_greater(BinaryContainer const &obj) const noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 		constexpr uint32_t lower = round_down_to_limb(k_lower);
 		constexpr uint32_t upper = round_down_to_limb(k_upper - 1);
 		constexpr T lmask = higher_mask(k_lower);
@@ -1346,8 +1385,8 @@ public:
 	/// and it works for all input.s
 	inline bool is_greater(BinaryContainer const &obj,
 	                       const uint32_t k_lower = 0,
-	                       const uint32_t k_upper = LENGTH) const noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+	                       const uint32_t k_upper = length()) const noexcept {
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 		int64_t lower = round_down_to_limb(k_lower);
 		int64_t upper = round_down_to_limb(k_upper - 1);
 		const T lmask = higher_mask(k_lower);
@@ -1416,8 +1455,8 @@ public:
 	/// implementation and works for all inputs.
 	inline bool is_lower(BinaryContainer const &obj,
 	                     const uint32_t k_lower = 0,
-	                     const uint32_t k_upper = LENGTH) const noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+	                     const uint32_t k_upper = length()) const noexcept {
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 		int64_t lower = round_down_to_limb(k_lower);
 		int64_t upper = round_down_to_limb(k_upper - 1);
 		const T lmask = higher_mask(k_lower);
@@ -1494,13 +1533,13 @@ public:
 	                             const uint32_t limb,
 	                             const T mask) const noexcept {
 		ASSERT(limb < limbs());
-		ASSERT(limbs() < length);
+		ASSERT(limbs() < length());
 		ASSERT(mask != 0);
 		return ((__data[limb] & mask) < (obj.__data[limb] & mask));
 	}
 
 	inline bool is_lower_equal_simple2(BinaryContainer const &obj, const uint32_t limb, const T mask) const noexcept {
-		ASSERT((limb < limbs() < length) && mask != 0);
+		ASSERT((limb < limbs() < length()) && mask != 0);
 		return ((__data[limb] & mask) <= (obj.__data[limb] & mask));
 	}
 
@@ -1520,6 +1559,7 @@ public:
 	}
 
 	/// TODO add to concept and add to kAryTypes
+	/// NOTE: need to abs
 	constexpr static inline uint32_t dist(const BinaryContainer &a,
 	                                      const BinaryContainer &b) noexcept {
 		uint32_t ret = 0;
@@ -1531,8 +1571,8 @@ public:
 		return ret;
 	}
 
-	uint32_t popcnt(const uint32_t k_lower = 0, const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+	uint32_t popcnt(const uint32_t k_lower = 0, const uint32_t k_upper = length()) const noexcept {
+		ASSERT(k_upper <= length() && k_lower < k_upper);
 		const uint32_t lower = round_down_to_limb(k_lower);
 		const uint32_t upper = round_down_to_limb(k_upper - 1);
 
@@ -1669,29 +1709,35 @@ public:
 
 
 	/// access operators
-	constexpr void set(const bool data) {
-		for (uint32_t i = 0; i < LENGTH; i++) {
+	constexpr void set(const bool data) noexcept {
+		for (uint32_t i = 0; i < length(); i++) {
 			set(data, i);
 		}
 	}
-	constexpr void set(const bool data, const size_t pos) {
-		ASSERT(pos < LENGTH);
+
+	///
+	/// \param data
+	/// \param pos
+	/// \return
+	constexpr void set(const bool data,
+	                   const size_t pos) noexcept {
+		ASSERT(pos < length());
 		reference(*this, pos) = data;
 	}
-	[[nodiscard]] constexpr reference get(const size_t pos) {
-		ASSERT(pos < LENGTH);
+	[[nodiscard]] constexpr reference get(const size_t pos) noexcept {
+		ASSERT(pos < length());
 		return reference(*this, pos);
 	}
-	[[nodiscard]] constexpr const reference get(const size_t pos) const {
-		ASSERT(pos < LENGTH);
+	[[nodiscard]] constexpr const reference get(const size_t pos) const noexcept {
+		ASSERT(pos < length());
 		return (const reference) reference(*this, pos);
 	}
 	[[nodiscard]] constexpr reference operator[](const size_t pos) noexcept {
-		ASSERT(pos < LENGTH);
+		ASSERT(pos < length());
 		return reference(*this, pos);
 	}
 	[[nodiscard]] constexpr bool operator[](const size_t pos) const noexcept {
-		ASSERT(pos < LENGTH);
+		ASSERT(pos < length());
 		return (__data[round_down_to_limb(pos)] & mask(pos)) != 0;
 	}
 
@@ -1722,15 +1768,15 @@ public:
 	}
 
 	/// wrapper around `print`
-	void print_binary(const uint32_t k_lower = 0, const uint32_t k_upper = length) const noexcept {
+	void print_binary(const uint32_t k_lower = 0, const uint32_t k_upper = length()) const noexcept {
 		print(k_lower, k_upper);
 	}
 
 	/// print some information
 	/// \param k_lower lower limit to print (included)
 	/// \param k_upper higher limit to print (not included)
-	void print(const uint32_t k_lower = 0, const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_lower < length && k_upper <= length && k_lower < k_upper);
+	void print(const uint32_t k_lower = 0, const uint32_t k_upper = length()) const noexcept {
+		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << data(i) << "";
 		}
@@ -1739,7 +1785,7 @@ public:
 
 	//T data(uint64_t index) { ASSERT(index < length); return get_bit_shifted(index); }
 	bool data(uint64_t index) const noexcept {
-		ASSERT(index < length);
+		ASSERT(index < length());
 		return get_bit_shifted(index);
 	}
 
@@ -1766,8 +1812,8 @@ public:
 
 	// length operators
 	__FORCEINLINE__ constexpr static bool binary() noexcept { return true; }
-	__FORCEINLINE__ constexpr static uint32_t size() noexcept { return length; }
-	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return (length + limb_bits_width() - 1) / limb_bits_width(); }
+	__FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
+	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return (length() + limb_bits_width() - 1) / limb_bits_width(); }
 	__FORCEINLINE__ constexpr static uint32_t bytes() noexcept {
 #ifdef BINARY_CONTAINER_ALIGNMENT
 		return alignment() / 8;
@@ -1800,9 +1846,9 @@ private:
 };
 
 
-template<uint32_t length>
-std::ostream &operator<<(std::ostream &out, const BinaryContainer<length> &obj) {
-	for (uint64_t i = 0; i < obj.size(); ++i) {
+template<uint32_t length, typename T=uint64_t>
+std::ostream &operator<<(std::ostream &out, const BinaryContainer<length, T> &obj) {
+	for (uint64_t i = 0; i < obj.length(); ++i) {
 		out << obj[i];
 	}
 	return out;

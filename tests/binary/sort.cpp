@@ -35,7 +35,7 @@ TEST(Bucket_Sort, get_data) {
 	L.set_load(1);
 
 	for (size_t i = 0; i < L.load(); ++i) {
-		std::cout << L[i].label;
+		L[i].label.print();
 		std::cout << L[i].label.get_bits(0, 8) << "\n";
 		std::cout << std::bitset<64>(L[i].label.get_bits(0, 8)) << "\n";
 	}

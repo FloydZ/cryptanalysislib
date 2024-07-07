@@ -16,16 +16,16 @@
 // some dummy values
 constexpr uint32_t n = 100;
 constexpr uint32_t k = 100;
-
 constexpr uint32_t q = 3;
-using kAryType          = kAry_Type_T<uint32_t, uint64_t, q>;
+
+using kAryType          = kAry_Type_T<q>;
 using kAryContainer     = kAryContainer_T<uint8_t, n, q>;
 using kAryContainer2    = kAryContainer_T<uint8_t, k, q>;
 using kAryLabel         = kAryContainer2;
 using kAryValue         = kAryContainer;
 
 //using kAryMatrix        = fplll::ZZ_mat<kAryType>;
-using kAryMatrix        = FqMatrix<uint64_t, n, k, 15, false>;
+using kAryMatrix        = FqMatrix<uint64_t, n, k, q, false>;
 using kAryElement       = Element_T<kAryValue, kAryLabel, kAryMatrix>;
 using kAryList          = List_T<kAryElement>;
 using kAryTree          = Tree_T<kAryList>;
