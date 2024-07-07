@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_BINARYMATRIX_H
 #define CRYPTANALYSISLIB_BINARYMATRIX_H
 
+#ifndef CRYPTANALYSISLIB_MATRIX_H
+#error "dont use include <list/enumeration/fq_matrix.h>, use #include <list/enumeration/marix.h> instead"
+#endif
+
 #include <algorithm>
 #include <array>
 #include <iomanip>

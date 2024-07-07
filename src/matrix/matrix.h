@@ -1289,5 +1289,7 @@ public:
 	}
 };
 
+#include "matrix/binary_matrix.h"
+#include "matrix/fq_matrix.h"
 
 #endif//CRYPTANALYSISLIB_MATRIX_H

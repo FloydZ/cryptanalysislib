@@ -260,7 +260,7 @@ public:
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
-	void recalculate_label(const MatrixType &m) noexcept {
+	constexpr void recalculate_label(const MatrixType &m) noexcept {
 		m.mul(label, value);
 	}
 

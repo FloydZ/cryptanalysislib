@@ -83,6 +83,30 @@ public:
 		}
 	}
 
+
+	/// generates a random vector with `w` != 0
+	/// \param w
+	/// \param m
+	/// \return
+	constexpr void random_with_weight(const uint32_t w,
+									  const uint32_t m=length()) noexcept {
+		ASSERT(w <= m);
+		ASSERT(m <= length());
+		zero();
+
+		for (uint32_t i = 0; i < w; ++i) {
+			set(fastrandombytes_uint64() % q, i);
+		}
+
+		// now permute
+		for (uint64_t i = 0; i < m; ++i) {
+			uint64_t pos = fastrandombytes_uint64() % (m - i);
+			bool t = get(i);
+			set(get(i + pos), i);
+			set(t, i + pos);
+		}
+	}
+
 	/// checks if every dimension is zero
 	/// \return true/false
 	[[nodiscard]] constexpr bool is_zero(const uint32_t k_lower = 0,
@@ -401,6 +425,19 @@ public:
 		return ret;
 	}
 
+	// TODO missing rol/ror/slr
+	///  out[s: ] = in[0:s]
+	constexpr static inline void sll(kAryContainerMeta &out,
+									 const kAryContainerMeta &in,
+									 const uint32_t s) noexcept {
+		out.zero();
+
+		ASSERT(s < length());
+		for (uint32_t j = 0; j < length() - s; ++j) {
+			const auto d = in.get(j);
+			out.set(d, j + s);
+		}
+	}
 	/// NOTE: inplace
 	/// computes mod q
 	/// \param out = in1 % q
@@ -446,7 +483,9 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(T *out, const T *in1, const T *in2) noexcept {
+	constexpr static inline void add(T *out,
+	                                 const T *in1,
+	                                 const T *in2) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
 		uint32_t i = 0;
@@ -467,10 +506,12 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(kAryContainerMeta &out,
+	constexpr static inline void add(kAryContainerMeta &out,
 	                       const kAryContainerMeta &in1,
 	                       const kAryContainerMeta &in2) noexcept {
-		add((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
+		add((T *) out.__data.data(),
+		    (const T *) in1.__data.data(),
+		    (const T *) in2.__data.data());
 	}
 
 	/// \param v3 output
@@ -491,6 +532,7 @@ public:
 		LOOP_UNROLL();
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
+			// TODO hide behind an internal constexpr flag
 			if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
 				return true;
 		}
@@ -502,7 +544,7 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(T *out,
+	constexpr static inline void sub(T *out,
 	                       const T *in1,
 	                       const T *in2) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
@@ -525,10 +567,12 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(kAryContainerMeta &out,
+	constexpr static inline void sub(kAryContainerMeta &out,
 	                       const kAryContainerMeta &in1,
 	                       const kAryContainerMeta &in2) noexcept {
-		sub((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
+		sub((T *) out.__data.data(),
+		    (const T *) in1.__data.data(),
+		    (const T *) in2.__data.data());
 	}
 
 	/// \param v3 output container
@@ -560,7 +604,7 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(T *out,
+	constexpr static inline void mul(T *out,
 	                       const T *in1,
 	                       const T *in2) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
@@ -583,10 +627,12 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(kAryContainerMeta &out,
+	constexpr static inline void mul(kAryContainerMeta &out,
 	                       const kAryContainerMeta &in1,
 	                       const kAryContainerMeta &in2) noexcept {
-		mul((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
+		mul((T *) out.__data.data(),
+		    (const T *) in1.__data.data(),
+		    (const T *) in2.__data.data());
 	}
 
 	/// v1 = v1*v2 between [k_lower, k_upper)
@@ -758,11 +804,12 @@ public:
 	/// access operator
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
-	T &operator[](const size_t i) noexcept {
+	constexpr T &operator[](const size_t i) noexcept {
 		ASSERT(i < length());
 		return __data[i];
 	}
-	const T &operator[](const size_t i) const noexcept {
+
+	constexpr const T &operator[](const size_t i) const noexcept {
 		ASSERT(i < length());
 		return __data[i];
 	};
@@ -941,6 +988,7 @@ private:
 	static constexpr __uint128_t mask_q = (__uint128_t(0x0404040404040404ULL) << 64UL) | (__uint128_t(0x0404040404040404ULL));
 
 public:
+
 	/// mod operations
 	/// \tparam T type (probably uint64_t or uint32_t)
 	/// \param a
@@ -1002,7 +1050,7 @@ public:
 	/// vectorized version, input are 32x 8Bit vectors
 	/// \param a
 	/// \return a%q component wise
-	static inline uint8x32_t mod256_T(const uint8x32_t a) noexcept {
+	constexpr static inline uint8x32_t mod256_T(const uint8x32_t a) noexcept {
 		const uint8x32_t mask256_4 = uint8x32_t::set1(0x03);
 		return uint8x32_t::and_(a, mask256_4);
 	}
@@ -1012,7 +1060,8 @@ public:
 	/// \param a in
 	/// \param b in
 	/// \return a+b, component wise
-	static inline uint8x32_t add256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+	constexpr static inline uint8x32_t add256_T(const uint8x32_t a
+	                                  , const uint8x32_t b) noexcept {
 		constexpr uint8x32_t mask256_4 = uint8x32_t::set1(0x03);
 		return uint8x32_t::and_(uint8x32_t::add(a, b), mask256_4);
 	}
@@ -1022,7 +1071,7 @@ public:
 	/// \param a in
 	/// \param b in
 	/// \return a-b, component wise
-	static inline uint8x32_t sub256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
+	constexpr static inline uint8x32_t sub256_T(const uint8x32_t a, const uint8x32_t b) noexcept {
 		const uint8x32_t mask256_4 = uint8x32_t::set1(0x03);
 		const uint8x32_t mask256_q = uint8x32_t::set1(0x04);
 		return uint8x32_t::and_(uint8x32_t::add(uint8x32_t::sub(a, b), mask256_q), mask256_4);

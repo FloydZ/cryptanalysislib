@@ -9,9 +9,9 @@
 #endif
 
 // internal includes
+#include "container/kAry_type.h"
 #include "container/vector.h"
 #include "element.h"
-#include "kAry_type.h"
 #include "list/list.h"
 #include "matrix/binary_matrix.h"
 #include "matrix/fq_matrix.h"
@@ -168,6 +168,11 @@ public:
 	                                                                                        level_translation_array(level_translation_array),
 	                                                                                        level_filter_array(level_filter_array) {
 		ASSERT(d > 0 && "at least level 1");
+		ASSERT(level_translation_array.size() >= d);
+		for (uint32_t i = 1; i < d; ++i) {
+			ASSERT(level_translation_array[i - 1] <
+			       level_translation_array[i]);
+		}
 		for (uint32_t i = 0; i < d + additional_baselists; ++i) {
 			List a{1u << baselist_size};
 			lists.push_back(a);
@@ -201,6 +206,7 @@ public:
 
 		for (uint32_t i = 2; i < d + additional_baselists; ++i) {
 			List a{0};
+			a.set_load(0);
 			lists.push_back(a);
 		}
 
@@ -927,7 +933,6 @@ public:
 	}
 
 
-	/// TODO use the `Enumerator` concept
 	/// \tparam Enumerator
 	/// \param out
 	/// \param target
@@ -944,6 +949,7 @@ public:
 		constexpr static size_t n = LabelLENGTH;
 		constexpr static size_t size = 1ull << (n / 4u);
 		static List L1{size}, L2{size}, L3{size}, L4{size}, iL{size};
+		L1.set_load(0); L2.set_load(0); L3.set_load(0); L4.set_load(0);
 
 		LabelType iR;
 		ElementType e1, e2;
@@ -953,7 +959,7 @@ public:
 		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 				(&L1, &L2, n/4);
 		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-				(&L1, &L2, n/4, n/2);
+				(&L3, &L4, n/4, n/2);
 
 		L3.sort_level(0, n);
 		L4.sort_level(0, n);
@@ -1087,8 +1093,8 @@ private:
 	/// \param target a list where every solution is saved into.
 	void join_stream_internal(uint64_t level, List &target) {
 		std::vector<std::pair<uint64_t, uint64_t>> boundaries(level);
-		std::vector<ElementType> a(level);
-		std::vector<uint64_t> indices(level);
+		std::vector<ElementType> a{level};
+		std::vector<uint64_t> indices{level};
 
 		// reset output list
 		target.set_load(0);
@@ -1108,13 +1114,13 @@ private:
 			} else if (lists[0][i].is_greater(lists[1][j], k_lower0, k_higher0)) {
 				j++;
 			} else {
-				uint64_t i_max, j_max;
+				size_t i_max, j_max;
 				// if elements are equal find max index in each list, such that they remain equal
 				for (i_max = i + 1; i_max < lists[0].load() && lists[0][i].is_equal(lists[0][i_max], k_lower0, k_higher0); i_max++) {}
 				for (j_max = j + 1; j_max < lists[1].load() && lists[1][j].is_equal(lists[1][j_max], k_lower0, k_higher0); j_max++) {}
 
 				// for each matching tuple
-				uint64_t jprev = j;
+				size_t jprev = j;
 
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {

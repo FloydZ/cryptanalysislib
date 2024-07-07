@@ -2,7 +2,7 @@
 #define CRYPTANALYSISLIB_FQ_ENUMERATION_H
 
 #ifndef CRYPTANALYSISLIB_LIST_ENUMERATION_H
-#error "dont use include <list/enumeration/fq.h>, use include <list/enumeration/enumeration.h> instead"
+#error "dont use include <list/enumeration/fq.h>, use #include <list/enumeration/enumeration.h> instead"
 #endif
 
 

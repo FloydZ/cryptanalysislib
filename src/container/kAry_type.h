@@ -48,13 +48,15 @@ public:
 private:
 	/// computes the comparison mask to compare two values
 	/// between the bits [lower, upper)
-	/// \param lower lower bound
-	/// \param upper upper bound
+	/// \param lower lower bound in bits
+	/// \param upper upper bound in bits
 	/// \return mask
 	static constexpr inline const T compute_mask(const uint32_t lower,
-	                                      		const uint32_t upper) {
-		const T mask1 = (T(1u) << (sizeof(T) - lower)) - T(1u);
-		const T mask2 = ~((1u << upper) - T(1u));
+	                                      		 const uint32_t upper) noexcept {
+		ASSERT(lower < upper);
+		ASSERT(upper <= bits());
+		const T mask1 = T(-1u) << lower;
+		const T mask2 = (1u << upper) - T(1u);
 		const T mask = mask1 & mask2;
 		return mask;
 	}
@@ -698,8 +700,8 @@ public:
 	}
 
 	/// NOTE: lower and upper are ignored
-	constexpr void print(const uint32_t lower,
-	                     const uint32_t upper) {
+	constexpr void print(const uint32_t lower=0,
+	                     const uint32_t upper=length()) const noexcept {
 		(void) lower;
 		(void) upper;
 		std::cout << __value << std::endl;

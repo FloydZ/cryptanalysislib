@@ -84,11 +84,12 @@ TEST(TreeTest, JoinRandomListsLevel0) {
     uint64_t num = 0;
     for (size_t i = 0; i < t[0].load(); ++i) {
         for (size_t j = 0; j < t[1].load(); ++j) {
-            if (t[0][i].is_equal(t[1][j], 0)) {
+            if (t[0][i].is_equal(t[1][j], tbl[0], tbl[1])) {
                 num++;
             }
         }
     }
+
     t.join_stream(0);
     EXPECT_NE(0, num);
     EXPECT_EQ(t[2].load(), num);

@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_FQMATRIX_H
 #define CRYPTANALYSISLIB_FQMATRIX_H
 
+#ifndef CRYPTANALYSISLIB_MATRIX_H
+#error "dont use include <list/enumeration/fq_matrix.h>, use #include <list/enumeration/marix.h> instead"
+#endif
+
 #include "matrix/matrix.h"
 
 /// matrix implementation which is row major

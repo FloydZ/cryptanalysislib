@@ -5,7 +5,7 @@
 #include "element.h"
 #include "matrix/matrix.h"
 #include "list/list.h"
-#include "matrix/fq_matrix.h"
+#include "matrix/matrix.h"
 #include "tree.h"
 
 
@@ -164,7 +164,7 @@ TEST(TreeTest, dissection) {
 	BinaryLabel target; target.random();
 
 	// TODO this needs to a lexicographic enumerator
-	using Enumerator = BinaryListEnumerateMultiFullLengthWithoutChangeList<BinaryList, n/2, n/4>;
+	using Enumerator = RandomEnumerator<BinaryList, n/2, n/4>;
 	static Enumerator en{A, 0};
 	BinaryTree::dissection4<Enumerator>(out, target, A, en);
 

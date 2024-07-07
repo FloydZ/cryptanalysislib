@@ -3,7 +3,7 @@
 
 #include "container/fq_vector.h"
 #include "list/parallel_full.h"
-#include "matrix/fq_matrix.h"
+#include "matrix/matrix.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;

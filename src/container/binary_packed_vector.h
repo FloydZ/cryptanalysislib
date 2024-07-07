@@ -313,8 +313,12 @@ public:
 	}
 
 	///
-	/// \param w
-	void random_with_weight(const uint64_t w) noexcept {
+	/// \param w weight to enumerated
+	/// \param w max length <= length() over which the weight should be enumerated
+	void random_with_weight(const uint32_t w,
+	                        const uint32_t m = length()) noexcept {
+		ASSERT(m <= length());
+		ASSERT(w <= m);
 		zero();
 
 		for (uint64_t i = 0; i < w; ++i) {
@@ -322,8 +326,8 @@ public:
 		}
 
 		// now permute
-		for (uint64_t i = 0; i < length(); ++i) {
-			uint64_t pos = fastrandombytes_uint64() % (length() - i);
+		for (uint64_t i = 0; i < m; ++i) {
+			uint64_t pos = fastrandombytes_uint64() % (m - i);
 			bool t = get_bit_shifted(i);
 			write_bit(i, get_bit_shifted(i + pos));
 			write_bit(i + pos, t);
@@ -1296,12 +1300,30 @@ public:
 		}
 	}
 
+	// TODO missing rol/ror
 	///  out[s: ] = in[0:s]
-	static inline void shift_right(BinaryContainer &out,
+	constexpr static inline void sll(BinaryContainer &out,
 	                               const BinaryContainer &in,
 	                               const uint32_t s) noexcept {
-		for (uint32_t j = 0; j < s; ++j) {
-			out.write_bit(j + s, in.get_bit_shifted(j));
+		out.zero();
+
+		ASSERT(s < length());
+		for (uint32_t j = 0; j < length() - s; ++j) {
+			const auto bit = in.get_bit_shifted(j);
+			out.write_bit(j + s, bit);
+		}
+	}
+
+	///  out[0: ] = in[s:]
+	constexpr static inline void slr(BinaryContainer &out,
+						   const BinaryContainer &in,
+						   const uint32_t s) noexcept {
+		ASSERT(s < length());
+		for (uint32_t j = s; j < length(); ++j) {
+			out.write_bit(j-s, in.get_bit_shifted(j));
+		}
+		for (uint32_t j = s; j < length(); ++j) {
+			out.write_bit(j, 0);
 		}
 	}
 

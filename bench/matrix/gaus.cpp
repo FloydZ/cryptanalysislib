@@ -2,7 +2,7 @@
 #include "counters/perf_events.h"
 
 #include <vector>
-#include "matrix/binary_matrix.h"
+#include "matrix/matrix.h"
 
 using T = uint64_t;
 constexpr uint32_t nrows = 256;

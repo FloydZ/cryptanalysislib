@@ -1,8 +1,8 @@
 #ifndef DECODING_LIST_H
 #define DECODING_LIST_H
 
-#include "list/common.h"
 #include "list/enumeration/enumeration.h"
+#include "list/common.h"
 #include "list/parallel.h"
 #include "list/parallel_full.h"
 #include "list/parallel_index.h"
@@ -146,7 +146,12 @@ public:
 	/// \param threads  number of threads, which work on parallel on the list
 	constexpr List_T(const size_t nr_element,
 	                 const uint32_t threads = 1) noexcept
-	    : MetaListT<Element>(nr_element, threads) {}
+	    : MetaListT<Element>(nr_element, threads) {
+		ASSERT(threads > 0);
+		for (uint32_t i = 0; i < threads; ++i) {
+			set_load(0, i);
+		}
+	}
 
 
 	/// Andres Code

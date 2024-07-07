@@ -7,7 +7,6 @@
 #include "container/hashmap/common.h"
 #include "helper.h"
 #include "list/common.h"
-#include "list/enumeration/enumeration.h"
 
 #include "combination/chase.h"
 
@@ -114,6 +113,7 @@ public:
 		uint32_t tmp_vec_ctr = error.popcnt();
 		if (tmp_vec_ctr != w) {
 			error.print();
+			label.print();
 		}
 
 		ASSERT(tmp_vec_ctr == w);
@@ -181,5 +181,6 @@ public:
 
 #include "list/enumeration/binary.h"
 #include "list/enumeration/fq.h"
+#include "list/enumeration/random.h"
 
 #endif//CRYPTANALYSISLIB_LIST_ENUMERATION_H

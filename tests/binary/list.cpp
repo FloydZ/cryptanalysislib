@@ -89,7 +89,7 @@ TEST(SearchBinary, Simple) {
 	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
 
 	for (uint32_t k_lower = 0; k_lower < n; ++k_lower) {
-		for (uint32_t k_upper = k_lower + 5; k_upper < std::min(k_lower + 6u, BinaryLabel::length()); ++k_upper) {
+		for (uint32_t k_upper = k_lower + 5; k_upper < std::min((size_t) k_lower + 6u, BinaryLabel::length()); ++k_upper) {
 			if ((k_lower % 64u) + 6u >= 64u) {
 				continue;
 			}

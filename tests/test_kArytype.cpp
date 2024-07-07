@@ -2,10 +2,10 @@
 #include <iostream>
 #include <cstdint>
 
-#include "test.h"
+#include "container/kAry_type.h"
 #include "helper.h"
 #include "random.h"
-#include "kAry_type.h"
+#include "test.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
