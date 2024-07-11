@@ -289,6 +289,22 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _uint16x8_t set(
+		        uint64_t a, uint64_t b) noexcept {
+			_uint16x8_t ret;
+			ret.v64[0] = d;
+			ret.v64[1] = c;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint16x8_t setr(
+		        uint64_t a, uint64_t b) noexcept {
+			_uint16x8_t ret;
+			ret.v64[0] = a;
+			ret.v64[1] = b;
+			return ret;
+		}
+
+		[[nodiscard]] constexpr static inline _uint16x8_t set(
 		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
 			_uint16x8_t ret;
 			ret.v32[0] = d;
@@ -327,14 +343,14 @@ namespace cryptanalysislib {
 		        uint16_t a, uint16_t b, uint16_t c, uint16_t d,
 		        uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
 			_uint16x8_t ret;
-			ret.v64[0] = a;
-			ret.v64[1] = b;
-			ret.v64[2] = c;
-			ret.v64[3] = d;
-			ret.v64[4] = e;
-			ret.v64[5] = f;
-			ret.v64[6] = g;
-			ret.v64[7] = h;
+			ret.v16[0] = a;
+			ret.v16[1] = b;
+			ret.v16[2] = c;
+			ret.v16[3] = d;
+			ret.v16[4] = e;
+			ret.v16[5] = f;
+			ret.v16[6] = g;
+			ret.v16[7] = h;
 			return ret;
 		}
 
