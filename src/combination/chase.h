@@ -474,7 +474,10 @@ public:
 		}
 	}
 };
-template<const uint32_t n, const uint32_t p, const uint32_t q = 2>
+
+template<const uint32_t n, 
+		 const uint32_t p,
+		 const uint32_t q=2>
 class chase {
 	using T = uint16_t;
 	// TODO reset und wie machen wir das wenn wir mehrerer solcher fks hintereinander callen
