@@ -720,6 +720,7 @@ using namespace cryptanalysislib;
 struct uint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint8_t;
+	using S = uint8x32_t;
 
 	union {
 		uint8_t d[32];
@@ -895,7 +896,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	constexpr static inline uint8x32_t load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t load(const uint8_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -906,7 +907,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint8x32_t aligned_load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t aligned_load(const uint8_t *ptr) noexcept {
 		uint8x32_t out;
 		const uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -919,11 +920,10 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint8x32_t unaligned_load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t unaligned_load(const uint8_t *ptr) noexcept {
 		uint8x32_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < 32; i++) {
+			out.d[i] = ptr[i];
 		}
 		return out;
 	}
@@ -969,8 +969,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t xor_(const uint8x32_t in1,
 	                                                      const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		for (uint32_t i = 0; i < 32; i++) {
+			out.v8[i] = in1.v8[i] ^ in2.v8[i];
 		}
 		return out;
 	}
@@ -995,8 +995,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t or_(const uint8x32_t in1,
 	                                                     const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] | in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v8[i] = in1.v8[i] | in2.v8[i];
 		}
 		return out;
 	}
@@ -1147,10 +1147,35 @@ struct uint8x32_t {
 		return ret;
 	}
 
-	[[nodiscard]] static inline uint32_t move(const uint8x32_t in1) {
+	[[nodiscard]] constexpr static inline uint32_t move(const uint8x32_t in1) noexcept {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < 32; i++) {
 			ret ^= in1.v8[i] >> 7;
+		}
+
+		return ret;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return true if all elements are equal
+	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in1) noexcept {
+		for (uint32_t i = 1; i < 32; i++) {
+			if (in1.v8[i-1] != in1.v8[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return reverses the order of the 32 8bit e limbs. not the order within the limbs
+	[[nodiscard]] constexpr static inline uint8x32_t reverse(const uint8x32_t in1) noexcept {
+		uint8x32_t ret;
+		for (uint32_t i = 0; i < 32; i++) {
+			ret.v8[31 - i] = in1.v8[i];
 		}
 
 		return ret;
@@ -1160,6 +1185,7 @@ struct uint8x32_t {
 struct uint16x16_t {
 	constexpr static uint32_t LIMBS = 16;
 	using limb_type = uint16_t;
+	using S = uint16x16_t;
 
 	union {
 		uint16_t d[16];
@@ -1243,7 +1269,7 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint16x16_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t load(const uint16_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1254,7 +1280,7 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const uint16_t *ptr) noexcept {
 		uint16x16_t out;
 		const uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -1268,11 +1294,10 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t unaligned_load(
-	        const void *ptr) noexcept {
+	        const uint16_t *ptr) noexcept {
 		uint16x16_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < 16; i++) {
+			out.v16[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1295,7 +1320,7 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \param in
 	static inline void aligned_store(void *ptr, const uint16x16_t in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
+		auto *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
 		}
@@ -1305,7 +1330,7 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr, const uint16x16_t in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
+		auto *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
 		}
@@ -1318,8 +1343,8 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t xor_(const uint16x16_t in1,
 	                                                       const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		for (uint32_t i = 0; i < 16; i++) {
+			out.v16[i] = in1.v16[i] ^ in2.v16[i];
 		}
 		return out;
 	}
@@ -1344,8 +1369,8 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t or_(const uint16x16_t in1,
 	                                                      const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] | in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v16[i] = in1.v16[i] | in2.v16[i];
 		}
 		return out;
 	}
@@ -1499,10 +1524,34 @@ struct uint16x16_t {
 
 
 	/// extracts the sign bit of each limb
-	[[nodiscard]] static inline uint16_t move(const uint16x16_t in1) noexcept {
+	[[nodiscard]] constexpr static inline uint16_t move(const uint16x16_t in1) noexcept {
 		uint16_t ret = 0;
 		for (uint32_t i = 0; i < 16; i++) {
 			ret ^= in1.v16[i] >> 15;
+		}
+
+		return ret;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return true if all elements are equal
+	[[nodiscard]] constexpr static inline bool all_equal(const uint16x16_t in1) noexcept {
+		for (uint32_t i = 1; i < uint16x16_t::LIMBS; i++) {
+			if (in1.d[i-1] != in1.d[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return reverses the order of the 16 16bit e limbs. not the order within the limbs
+	[[nodiscard]] constexpr static inline uint16x16_t reverse(const uint16x16_t in1) noexcept {
+		uint16x16_t ret;
+		for (uint32_t i = 0; i < uint16x16_t::LIMBS; i++) {
+			ret.d[uint16x16_t::LIMBS - 1 - i] = in1.d[i];
 		}
 
 		return ret;
@@ -1512,6 +1561,7 @@ struct uint16x16_t {
 struct uint32x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint32_t;
+	using S = uint32x8_t;
 
 	union {
 		uint32_t d[8];
@@ -1582,7 +1632,7 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint32x8_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t load(const uint32_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1593,11 +1643,10 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v32[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1606,11 +1655,10 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v32[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1656,8 +1704,8 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t xor_(const uint32x8_t in1,
 	                                                      const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		for (uint32_t i = 0; i < 8; i++) {
+			out.v32[i] = in1.v32[i] ^ in2.v32[i];
 		}
 		return out;
 	}
@@ -1682,8 +1730,8 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t or_(const uint32x8_t in1,
 	                                                     const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] | in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v32[i] = in1.v32[i] | in2.v32[i];
 		}
 		return out;
 	}
@@ -1900,11 +1948,36 @@ struct uint32x8_t {
 
 		return ret;
 	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return true if all elements are equal
+	[[nodiscard]] constexpr static inline bool all_equal(const uint32x8_t in1) noexcept {
+		for (uint32_t i = 1; i < uint32x8_t::LIMBS; i++) {
+			if (in1.d[i-1] != in1.d[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return reverses the order of the 8 32bit e limbs. not the order within the limbs
+	[[nodiscard]] constexpr static inline uint32x8_t reverse(const uint32x8_t in1) noexcept {
+		uint32x8_t ret;
+		for (uint32_t i = 0; i < uint32x8_t::LIMBS; i++) {
+			ret.d[uint32x8_t::LIMBS - 1 - i] = in1.d[i];
+		}
+
+		return ret;
+	}
 };
 
 struct uint64x4_t {
 	constexpr static uint32_t LIMBS = 4;
 	using limb_type = uint64_t;
+	using S = uint64x4_t;
 
 	union {
 		uint64_t d[4];
@@ -1971,7 +2044,7 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint64x4_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t load(const uint64_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1982,7 +2055,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const uint64_t *ptr) noexcept {
 		uint64x4_t out;
 		const uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -1995,7 +2068,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const uint64_t *ptr) noexcept {
 		uint64x4_t out;
 		const uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -2290,6 +2363,30 @@ struct uint64x4_t {
 		uint8_t ret = 0;
 		for (uint32_t i = 0; i < 4; i++) {
 			ret ^= in1.v64[i] >> 63;
+		}
+
+		return ret;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return true if all elements are equal
+	[[nodiscard]] constexpr static inline bool all_equal(const uint64x4_t in1) noexcept {
+		for (uint32_t i = 1; i < uint64x4_t::LIMBS; i++) {
+			if (in1.d[i-1] != in1.d[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return reverses the order of the 4 64bit e limbs. not the order within the limbs
+	[[nodiscard]] constexpr static inline uint64x4_t reverse(const uint64x4_t in1) noexcept {
+		uint64x4_t ret;
+		for (uint32_t i = 0; i < uint64x4_t::LIMBS; i++) {
+			ret.d[uint64x4_t::LIMBS - 1 - i] = in1.d[i];
 		}
 
 		return ret;

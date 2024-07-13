@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # options
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
-option(USE_SIMD "Enable avx/neon" ON)
+option(USE_SIMD "Enable avx/neon" OFF)
 option(USE_SANITIZER "Enable memory sanitizer" OFF)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable -flto" OFF)
@@ -39,9 +39,11 @@ include(CheckCXXCompilerFlag) 	# check for compiler optimization flags
 include(CheckIPOSupported)  	# check for -flto
 include(CheckLanguage) 			# needed for `check_language(CUDA)`
 
-if(${USE_SIMD})
+if(NOT ${USE_SIMD})
+	message(STATUS "no SIMD")
 	SET(CMAKE_HOST_DO_NOT_ADD_TO_FLAGS 1)
-endif ()
+endif()
+
 # local cmake includes
 include("deps/cmake_optimize_for_architecture/Optimizations.cmake")
 

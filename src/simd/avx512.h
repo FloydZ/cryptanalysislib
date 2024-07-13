@@ -576,7 +576,7 @@ struct uint8x64_t {
 	/// source: https://github.com/WojciechMula/toys/tree/master/simd-basic/reverse-bytes
 	/// \param input
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x64_t reverse8(const uint8x64_t input) noexcept {
+	[[nodiscard]] constexpr static inline uint8x64_t reverse_(const uint8x64_t input) noexcept {
 #if defined(USE_AVX512VBMI)
 		const __m512i indices_byte = _mm512_set_epi64(
 		        0x0001020304050607llu, 0x08090a0b0c0d0e0fllu,

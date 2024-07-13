@@ -699,7 +699,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint8x32_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t load(const uint8_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -710,7 +710,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t aligned_load(const uint8_t *ptr) noexcept {
 		auto *ptr256 = (__m256i *) ptr;
 		uint8x32_t out;
 		out.v256 = *ptr256;
@@ -721,8 +721,8 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t unaligned_load(const void *ptr) noexcept {
-		auto const *ptr256 = (__m256i_u const *) ptr;
+	[[nodiscard]] constexpr static inline uint8x32_t unaligned_load(const uint8_t *ptr) noexcept {
+		auto *ptr256 = (__m256i_u *) ptr;
 		const __m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
 		uint8x32_t out;
 		out.v256 = tmp;
@@ -984,7 +984,7 @@ struct uint8x32_t {
 	/// source:  https://github.com/WojciechMula/toys/blob/master/simd-basic/reverse-bytes/reverse.avx2.cpp
 	/// \param in
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x32_t reverse8(const uint8x32_t in) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t reverse(const uint8x32_t in) noexcept {
 		// extract 128-bit lanes
 		const __m128i lo = ((__m128i) __builtin_ia32_extract128i256((__v4di) (__m256i) (in.v256), (int) (0)));
 		const __m128i hi = ((__m128i) __builtin_ia32_extract128i256((__v4di) (__m256i) (in.v256), (int) (1)));
@@ -1088,7 +1088,7 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint16x16_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t load(const uint16_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1099,7 +1099,7 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const uint16_t *ptr) noexcept {
 		uint16x16_t out;
 		auto *ptr256 = (__m256i *) ptr;
 		out.v256 = *ptr256;
@@ -1109,7 +1109,7 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t unaligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t unaligned_load(const uint16_t *ptr) noexcept {
 		uint16x16_t out;
 		__m256i_u const *ptr256 = (__m256i_u const *) ptr;
 		__m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
@@ -1442,7 +1442,7 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint32x8_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t load(const uint32_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1453,7 +1453,7 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out{};
 		auto *ptr256 = (__m256i *) ptr;
 		out.v256 = *ptr256;
@@ -1463,7 +1463,7 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out{};
 		__m256i_u const *ptr256 = (__m256i_u const *) ptr;
 		const __m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
@@ -1870,7 +1870,7 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint64x4_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t load(const uint64_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1881,7 +1881,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const uint64_t *ptr) noexcept {
 		uint64x4_t out;
 		auto *ptr256 = (__m256i *) ptr;
 		out.v256 = *ptr256;
@@ -1891,9 +1891,9 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const uint64_t *ptr) noexcept {
 		uint64x4_t out;
-		__m256i_u const *ptr256 = (__m256i_u const *) ptr;
+		__m256i_u *ptr256 = (__m256i_u *) ptr;
 		const __m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
 		out.v256 = tmp;
 		return out;
