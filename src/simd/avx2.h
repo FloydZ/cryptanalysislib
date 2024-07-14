@@ -54,6 +54,8 @@ namespace cryptanalysislib {
 	struct _uint32x4_t;
 	struct _uint64x2_t;
 
+
+
 	struct _uint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
@@ -718,12 +720,16 @@ struct uint8x32_t {
 	}
 
 
-	///
+	/// NOTE: currently not working in constexpr
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t unaligned_load(const uint8_t *ptr) noexcept {
-		auto *ptr256 = (__m256i_u *) ptr;
-		const __m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
+		union __loadu_si256 {
+			uint8_t __k[32];
+			__m256i_u __v;
+		} __attribute__((__packed__, __may_alias__));
+		const __m256i tmp = ((const union __loadu_si256 *)ptr)->__v;
+		// const __m256i tmp = __builtin_ia32_lddqu256((char const *)ptr);
 		uint8x32_t out;
 		out.v256 = tmp;
 		return out;
