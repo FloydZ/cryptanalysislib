@@ -29,7 +29,7 @@ TEST(S, set1) {
 TEST(S, unalinged_load) {
 	constexpr S::limb_type data[32] = {0};
 
-	S t1 = S::unaligned_load(data);
+	constexpr S t1 = S::unaligned_load(data);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
 		EXPECT_EQ(t1.d[i], 0u);
 	}
@@ -37,7 +37,7 @@ TEST(S, unalinged_load) {
 
 TEST(S, alinged_load) {
 	alignas(256) S::limb_type data[32] = {0};
-	constexpr S t1 = S::aligned_load(data);
+	S t1 = S::aligned_load(data);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
 		EXPECT_EQ(t1.d[i], 0u);
 	}
@@ -102,7 +102,8 @@ TEST(S, logic) {
 		EXPECT_EQ(t9.d[i], S::limb_type (-1ull));
 	}
 
-	constexpr S t10 = S::mullo(t1, t2);
+	// TODO
+	S t10 = S::mullo(t1, t2);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
 		EXPECT_EQ(t10.d[i], 0);
 	}

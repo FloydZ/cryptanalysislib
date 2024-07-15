@@ -575,6 +575,25 @@ namespace cryptanalysislib {
 	};
 }// namespace cryptanalysislib
 
+
+struct __loadu_helper {
+public:
+
+	union {
+		long long __t[4];
+		__m256i_u __v;
+	} __attribute__((__packed__, __may_alias__, __aligned__(1)));
+
+	constexpr __loadu_helper(const uint8_t t[32]) noexcept {
+		__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 8) | ((long long)t[ 2] << 16) | ((long long)t[ 3] << 24) | ((long long)t[ 4] << 32) | ((long long)t[ 5] << 40) | ((long long)t[ 6] << 48) | ((long long)t[ 7] << 56);
+		__t[1] = (long long)t[ 8] | (((long long)t[ 9]) << 8) | ((long long)t[10] << 16) | ((long long)t[11] << 24) | ((long long)t[12] << 32) | ((long long)t[13] << 40) | ((long long)t[14] << 48) | ((long long)t[15] << 56);
+		__t[2] = (long long)t[16] | (((long long)t[17]) << 8) | ((long long)t[18] << 16) | ((long long)t[19] << 24) | ((long long)t[20] << 32) | ((long long)t[21] << 40) | ((long long)t[22] << 48) | ((long long)t[23] << 56);
+		__t[3] = (long long)t[24] | (((long long)t[25]) << 8) | ((long long)t[26] << 16) | ((long long)t[27] << 24) | ((long long)t[28] << 32) | ((long long)t[29] << 40) | ((long long)t[30] << 48) | ((long long)t[31] << 56);
+		__v = {__t[0],__t[1],__t[2],__t[3]};
+	}
+};
+
+
 struct uint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint8_t;
@@ -719,20 +738,20 @@ struct uint8x32_t {
 		return out;
 	}
 
-
-	/// NOTE: currently not working in constexpr
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t unaligned_load(const uint8_t *ptr) noexcept {
-		union __loadu_si256 {
-			uint8_t __k[32];
-			__m256i_u __v;
-		} __attribute__((__packed__, __may_alias__));
-		const __m256i tmp = ((const union __loadu_si256 *)ptr)->__v;
-		// const __m256i tmp = __builtin_ia32_lddqu256((char const *)ptr);
-		uint8x32_t out;
-		out.v256 = tmp;
-		return out;
+		if (std::is_constant_evaluated()) {
+			const auto t = __loadu_helper(ptr);
+			const __m256i tmp = t.__v;
+			uint8x32_t out;
+			out.v256 = tmp;
+			return out;
+		} else {
+			uint8x32_t out;
+			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
+			return out;
+		}
 	}
 
 	///
