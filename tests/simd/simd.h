@@ -102,20 +102,19 @@ TEST(S, logic) {
 		EXPECT_EQ(t9.d[i], S::limb_type (-1ull));
 	}
 
-	// TODO
-	S t10 = S::mullo(t1, t2);
+	constexpr S t10 = S::mullo(t1, t2);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
 		EXPECT_EQ(t10.d[i], 0);
 	}
 
-	t3 = S::slli(t1, 1);
+	constexpr S t11 = S::slli(t1, 1);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t3.d[i], 0);
+		EXPECT_EQ(t11.d[i], 0);
 	}
 
-	t3 = S::slli(t2, 1);
+	constexpr S t12 = S::slli(t2, 1);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t3.d[i], 2);
+		EXPECT_EQ(t12.d[i], 2);
 	}
 }
 

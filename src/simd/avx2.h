@@ -576,6 +576,49 @@ namespace cryptanalysislib {
 }// namespace cryptanalysislib
 
 
+constexpr static __m256i u8tom256(const uint8_t t[32]) noexcept {
+	long long __t[4];
+	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 8) | ((long long)t[ 2] << 16) | ((long long)t[ 3] << 24) | ((long long)t[ 4] << 32) | ((long long)t[ 5] << 40) | ((long long)t[ 6] << 48) | ((long long)t[ 7] << 56);
+	__t[1] = (long long)t[ 8] | (((long long)t[ 9]) << 8) | ((long long)t[10] << 16) | ((long long)t[11] << 24) | ((long long)t[12] << 32) | ((long long)t[13] << 40) | ((long long)t[14] << 48) | ((long long)t[15] << 56);
+	__t[2] = (long long)t[16] | (((long long)t[17]) << 8) | ((long long)t[18] << 16) | ((long long)t[19] << 24) | ((long long)t[20] << 32) | ((long long)t[21] << 40) | ((long long)t[22] << 48) | ((long long)t[23] << 56);
+	__t[3] = (long long)t[24] | (((long long)t[25]) << 8) | ((long long)t[26] << 16) | ((long long)t[27] << 24) | ((long long)t[28] << 32) | ((long long)t[29] << 40) | ((long long)t[30] << 48) | ((long long)t[31] << 56);
+	__m256i tmp = {__t[0],__t[1],__t[2],__t[3]};
+	return tmp;
+}
+
+constexpr static __m256i u16tom256(const uint16_t t[16]) noexcept {
+	long long __t[4];
+	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 16) | ((long long)t[ 2] << 32) | ((long long)t[ 3] << 48);
+	__t[1] = (long long)t[ 4] | (((long long)t[ 5]) << 16) | ((long long)t[ 6] << 32) | ((long long)t[ 7] << 48);
+	__t[2] = (long long)t[ 8] | (((long long)t[ 9]) << 16) | ((long long)t[10] << 32) | ((long long)t[11] << 48);
+	__t[3] = (long long)t[12] | (((long long)t[13]) << 16) | ((long long)t[14] << 32) | ((long long)t[15] << 48);
+	__m256i tmp = {__t[0],__t[1],__t[2],__t[3]};
+	return tmp;
+}
+
+constexpr static __m256i u32tom256(const uint32_t t[16]) noexcept {
+	long long __t[4];
+	__t[0] = (long long)t[0] | (((long long)t[1]) << 32);
+	__t[1] = (long long)t[2] | (((long long)t[3]) << 32);
+	__t[2] = (long long)t[4] | (((long long)t[5]) << 32);
+	__t[3] = (long long)t[6] | (((long long)t[7]) << 32);
+	__m256i tmp = {__t[0],__t[1],__t[2],__t[3]};
+	return tmp;
+}
+
+constexpr static void m256tou16(uint16_t t[16], const __m256i m) noexcept {
+	// const __m256i *ptr = &m;
+	long long d[4];
+	long long* ptr = std::construct_at(std::addressof(d), m);
+	// __m256i *b = (__m256i *)a;
+
+	//__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 16) | ((long long)t[ 2] << 32) | ((long long)t[ 3] << 48);
+	//__t[1] = (long long)t[ 4] | (((long long)t[ 5]) << 16) | ((long long)t[ 6] << 32) | ((long long)t[ 7] << 48);
+	//__t[2] = (long long)t[ 8] | (((long long)t[ 9]) << 16) | ((long long)t[10] << 32) | ((long long)t[11] << 48);
+	//__t[3] = (long long)t[12] | (((long long)t[13]) << 16) | ((long long)t[14] << 32) | ((long long)t[15] << 48);
+	//__m256i tmp = {__t[0],__t[1],__t[2],__t[3]};
+}
+
 struct __loadu_helper {
 public:
 
@@ -585,11 +628,8 @@ public:
 	} __attribute__((__packed__, __may_alias__, __aligned__(1)));
 
 	constexpr __loadu_helper(const uint8_t t[32]) noexcept {
-		__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 8) | ((long long)t[ 2] << 16) | ((long long)t[ 3] << 24) | ((long long)t[ 4] << 32) | ((long long)t[ 5] << 40) | ((long long)t[ 6] << 48) | ((long long)t[ 7] << 56);
-		__t[1] = (long long)t[ 8] | (((long long)t[ 9]) << 8) | ((long long)t[10] << 16) | ((long long)t[11] << 24) | ((long long)t[12] << 32) | ((long long)t[13] << 40) | ((long long)t[14] << 48) | ((long long)t[15] << 56);
-		__t[2] = (long long)t[16] | (((long long)t[17]) << 8) | ((long long)t[18] << 16) | ((long long)t[19] << 24) | ((long long)t[20] << 32) | ((long long)t[21] << 40) | ((long long)t[22] << 48) | ((long long)t[23] << 56);
-		__t[3] = (long long)t[24] | (((long long)t[25]) << 8) | ((long long)t[26] << 16) | ((long long)t[27] << 24) | ((long long)t[28] << 32) | ((long long)t[29] << 40) | ((long long)t[30] << 48) | ((long long)t[31] << 56);
-		__v = {__t[0],__t[1],__t[2],__t[3]};
+		__m256i tmp = u8tom256(t);
+		__v = tmp;
 	}
 };
 
@@ -878,8 +918,25 @@ struct uint8x32_t {
 		const __m256i in1l = (__m256i) ((__v4du) in1.v256 & (__v4du) maskl);
 		const __m256i in2l = (__m256i) ((__v4du) in2.v256 & (__v4du) maskl);
 
+#ifdef __clang__
+		__m256i in1h;
+		__m256i in2h;
+		if (std::is_constant_evaluated()) {
+			uint8x32_t tmp1, tmp2;
+			m256tou16(tmp1.v16, in1.v256);
+			m256tou16(tmp2.v16, in2.v256);
+			for (uint32_t i = 0; i < 16; ++i) { tmp1.v16[i] = tmp1.v16[i] >> 8; }
+			for (uint32_t i = 0; i < 16; ++i) { tmp2.v16[i] = tmp2.v16[i] >> 8; }
+			in1h = u16tom256(tmp1.v16);
+			in2h = u16tom256(tmp2.v16);
+		} else {
+			 in1h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in1.v256 & (__v4du) maskh), 8);
+			 in2h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in2.v256 & (__v4du) maskh), 8);
+		}
+#else
 		const __m256i in1h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in1.v256 & (__v4du) maskh), 8);
 		const __m256i in2h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in2.v256 & (__v4du) maskh), 8);
+#endif
 
 		out.v256 = (__m256i) ((__v16hu) in1l * (__v16hu) in2l);
 		tmp = (__m256i) ((__v16hu) in1h * (__v16hu) in2h);
