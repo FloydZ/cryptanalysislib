@@ -81,7 +81,7 @@ namespace cryptanalysislib {
 			__m128i v128;
 		};
 
-		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) noexcept {
+		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
 			ASSERT(i < LIMBS);
 			return d[i];
 		}
@@ -271,7 +271,12 @@ namespace cryptanalysislib {
 			__m128i v128;
 		};
 
-		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) noexcept {
+		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
+			ASSERT(i < LIMBS);
+			return d[i];
+		}
+
+		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
 			ASSERT(i < LIMBS);
 			return d[i];
 		}
@@ -596,7 +601,7 @@ constexpr static __m256i u16tom256(const uint16_t t[16]) noexcept {
 	return tmp;
 }
 
-constexpr static __m256i u32tom256(const uint32_t t[16]) noexcept {
+constexpr static __m256i u32tom256(const uint32_t t[8]) noexcept {
 	long long __t[4];
 	__t[0] = (long long)t[0] | (((long long)t[1]) << 32);
 	__t[1] = (long long)t[2] | (((long long)t[3]) << 32);
@@ -606,37 +611,24 @@ constexpr static __m256i u32tom256(const uint32_t t[16]) noexcept {
 	return tmp;
 }
 
-constexpr static void m256tou16(uint16_t t[16], const __m256i m) noexcept {
-	// const __m256i *ptr = &m;
-	long long d[4];
-	long long* ptr = std::construct_at(std::addressof(d), m);
-	// __m256i *b = (__m256i *)a;
-
-	//__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 16) | ((long long)t[ 2] << 32) | ((long long)t[ 3] << 48);
-	//__t[1] = (long long)t[ 4] | (((long long)t[ 5]) << 16) | ((long long)t[ 6] << 32) | ((long long)t[ 7] << 48);
-	//__t[2] = (long long)t[ 8] | (((long long)t[ 9]) << 16) | ((long long)t[10] << 32) | ((long long)t[11] << 48);
-	//__t[3] = (long long)t[12] | (((long long)t[13]) << 16) | ((long long)t[14] << 32) | ((long long)t[15] << 48);
-	//__m256i tmp = {__t[0],__t[1],__t[2],__t[3]};
+constexpr static __m256i u64tom256(const uint64_t t[4]) noexcept {
+	__m256i tmp = {(long long)t[0],(long long)t[1],(long long)t[2],(long long)t[3]};
+	return tmp;
 }
 
-struct __loadu_helper {
-public:
-
-	union {
-		long long __t[4];
-		__m256i_u __v;
-	} __attribute__((__packed__, __may_alias__, __aligned__(1)));
-
-	constexpr __loadu_helper(const uint8_t t[32]) noexcept {
-		__m256i tmp = u8tom256(t);
-		__v = tmp;
-	}
-};
-
+constexpr static void m256tou16(uint16_t t[16], const __m256i m) noexcept {
+	const __v4di mm = m;
+	long long d0 = mm[0], d1 = 1, d2 = 2, d3 = 3;
+	t[ 0] = d0; t[ 1] = d0 >> 16; t[ 2] = d0 >> 32; t[ 3] = d0 >> 48;
+	t[ 4] = d1; t[ 5] = d1 >> 16; t[ 6] = d1 >> 32; t[ 7] = d1 >> 48;
+	t[ 8] = d2; t[ 9] = d2 >> 16; t[10] = d2 >> 32; t[11] = d2 >> 48;
+	t[12] = d3; t[13] = d3 >> 16; t[14] = d3 >> 32; t[15] = d3 >> 48;
+}
 
 struct uint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint8_t;
+	using S = uint8x32_t;
 
 	union {
 		// compatibility with TxN_t
@@ -649,7 +641,12 @@ struct uint8x32_t {
 		__m256i v256;
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -772,34 +769,43 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t aligned_load(const uint8_t *ptr) noexcept {
-		auto *ptr256 = (__m256i *) ptr;
-		uint8x32_t out;
-		out.v256 = *ptr256;
-		return out;
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m256i tmp = u8tom256(ptr);
+			S out;
+			out.v256 = tmp;
+			return out;
+		} else {
+			auto *ptr256 = (__m256i *) ptr;
+			S out;
+			out.v256 = *ptr256;
+			return out;
+		}
 	}
 
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t unaligned_load(const uint8_t *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
-			const auto t = __loadu_helper(ptr);
-			const __m256i tmp = t.__v;
-			uint8x32_t out;
+			const __m256i tmp = u8tom256(ptr);
+			S out;
 			out.v256 = tmp;
 			return out;
 		} else {
-			uint8x32_t out;
+			S out;
 			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
 			return out;
 		}
 	}
 
-	///
+	/// NOTE: the store can never be constexpr ans its needs to access 
+	/// given memory
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	constexpr static inline void store(void *ptr, const uint8x32_t in) noexcept {
+	static inline void store(void *ptr, const uint8x32_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -811,7 +817,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
+	static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
 		auto *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
@@ -819,7 +825,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
+	static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
 		internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
@@ -925,10 +931,12 @@ struct uint8x32_t {
 			uint8x32_t tmp1, tmp2;
 			m256tou16(tmp1.v16, in1.v256);
 			m256tou16(tmp2.v16, in2.v256);
-			for (uint32_t i = 0; i < 16; ++i) { tmp1.v16[i] = tmp1.v16[i] >> 8; }
-			for (uint32_t i = 0; i < 16; ++i) { tmp2.v16[i] = tmp2.v16[i] >> 8; }
-			in1h = u16tom256(tmp1.v16);
-			in2h = u16tom256(tmp2.v16);
+			in1h = __extension__(__m256i)(__v16hi){static_cast<short>((short)tmp1.v16[0] >> 8), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+			in2h = in1h;
+			//for (uint32_t i = 0; i < 16; ++i) { tmp1.v16[i] = tmp1.v16[i] >> 8; }
+			//for (uint32_t i = 0; i < 16; ++i) { tmp2.v16[i] = tmp2.v16[i] >> 8; }
+			//in1h = u16tom256(tmp1.v16);
+			//in2h = u16tom256(tmp2.v16);
 		} else {
 			 in1h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in1.v256 & (__v4du) maskh), 8);
 			 in2h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in2.v256 & (__v4du) maskh), 8);
@@ -1093,6 +1101,7 @@ struct uint8x32_t {
 struct uint16x16_t {
 	constexpr static uint32_t LIMBS = 16;
 	using limb_type = uint16_t;
+	using S = uint16x16_t;
 
 	union {
 		// compatibility with TxN_t
@@ -1181,30 +1190,43 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const uint16_t *ptr) noexcept {
-		uint16x16_t out;
-		auto *ptr256 = (__m256i *) ptr;
-		out.v256 = *ptr256;
-		return out;
+	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const uint16_t ptr[16]) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m256i tmp = u16tom256(ptr);
+			S out;
+			out.v256 = tmp;
+			return out;
+		} else {
+			auto *ptr256 = (__m256i *) ptr;
+			S out;
+			out.v256 = *ptr256;
+			return out;
+		}
 	}
 
-	///
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t unaligned_load(const uint16_t *ptr) noexcept {
-		uint16x16_t out;
-		__m256i_u const *ptr256 = (__m256i_u const *) ptr;
-		__m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
-		out.v256 = tmp;
-		return out;
+		if (std::is_constant_evaluated()) {
+			const __m256i tmp = u16tom256(ptr);
+			S out;
+			out.v256 = tmp;
+			return out;
+		} else {
+			S out;
+			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
+			return out;
+		}
 	}
 
-	///
+	/// NOTE: can never be constexpr
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	constexpr static inline void store(void *ptr, const uint16x16_t in) noexcept {
+	static inline void store(void *ptr, const uint16x16_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -1216,7 +1238,7 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void aligned_store(void *ptr, const uint16x16_t in) noexcept {
+	static inline void aligned_store(void *ptr, const uint16x16_t in) noexcept {
 		auto *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
@@ -1224,7 +1246,7 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr, const uint16x16_t in) noexcept {
+	static inline void unaligned_store(void *ptr, const uint16x16_t in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
 		internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
@@ -1423,11 +1445,36 @@ struct uint16x16_t {
 		ret.v256 = popcount_avx2_16(in.v256);
 		return ret;
 	}
+
+	/// TODO not optimized
+	/// checks if all bytes are equal
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint16x16_t in) noexcept { 
+		for (uint32_t i = 1; i < LIMBS; i++) {
+			if (in.d[i-1] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	// TODO not optimized
+	[[nodiscard]] constexpr static inline uint16x16_t reverse(const uint16x16_t in) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret.d[LIMBS - 1 - i] = in.d[i];
+		}
+
+		return ret;
+	}
 };
 
 struct uint32x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint32_t;
+	using S = uint32x8_t;
 
 	union {
 		// compatibility to TxN_t
@@ -1441,7 +1488,12 @@ struct uint32x8_t {
 		__m256i v256;
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) noexcept {
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -1536,21 +1588,35 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const uint32_t *ptr) noexcept {
-		uint32x8_t out{};
-		auto *ptr256 = (__m256i *) ptr;
-		out.v256 = *ptr256;
-		return out;
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m256i tmp = u32tom256(ptr);
+			S out;
+			out.v256 = tmp;
+			return out;
+		} else {
+			auto *ptr256 = (__m256i *) ptr;
+			S out;
+			out.v256 = *ptr256;
+			return out;
+		}
 	}
 
 	///
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const uint32_t *ptr) noexcept {
-		uint32x8_t out{};
-		__m256i_u const *ptr256 = (__m256i_u const *) ptr;
-		const __m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
-		out.v256 = tmp;
-		return out;
+		if (std::is_constant_evaluated()) {
+			const __m256i tmp = u32tom256(ptr);
+			S out;
+			out.v256 = tmp;
+			return out;
+		} else {
+			S out;
+			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
+			return out;
+		}
 	}
 
 	///
@@ -1778,6 +1844,29 @@ struct uint32x8_t {
 		return ret;
 	}
 
+	/// TODO not optimized
+	/// checks if all bytes are equal
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint32x8_t in) noexcept { 
+		for (uint32_t i = 1; i < LIMBS; i++) {
+			if (in.d[i-1] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	// TODO not optimized
+	[[nodiscard]] constexpr static inline uint32x8_t reverse(const uint32x8_t in) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret.d[LIMBS - 1 - i] = in.d[i];
+		}
+
+		return ret;
+	}
 	/// \tparam scale
 	/// \param ptr
 	/// \param data
@@ -1868,11 +1957,14 @@ struct uint32x8_t {
 #endif
 		return ret;
 	}
+
+
 };
 
 struct uint64x4_t {
 	constexpr static uint32_t LIMBS = 4;
 	using limb_type = uint64_t;
+	using S = uint64x4_t;
 
 	union {
 		// compatibility with TxN_t
@@ -1885,7 +1977,12 @@ struct uint64x4_t {
 		__m256i v256;
 	};
 
-	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
+		ASSERT(i < LIMBS);
+		return d[i];
+	}
+
+	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -1964,21 +2061,35 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const uint64_t *ptr) noexcept {
-		uint64x4_t out;
-		auto *ptr256 = (__m256i *) ptr;
-		out.v256 = *ptr256;
-		return out;
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m256i tmp = u64tom256(ptr);
+			S out;
+			out.v256 = tmp;
+			return out;
+		} else {
+			auto *ptr256 = (__m256i *) ptr;
+			S out;
+			out.v256 = *ptr256;
+			return out;
+		}
 	}
 
 	///
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const uint64_t *ptr) noexcept {
-		uint64x4_t out;
-		__m256i_u *ptr256 = (__m256i_u *) ptr;
-		const __m256i_u tmp = internal::unaligned_load_wrapper(ptr256);
-		out.v256 = tmp;
-		return out;
+		if (std::is_constant_evaluated()) {
+			const __m256i tmp = u64tom256(ptr);
+			S out;
+			out.v256 = tmp;
+			return out;
+		} else {
+			S out;
+			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
+			return out;
+		}
 	}
 
 	///
@@ -1986,7 +2097,7 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	constexpr static inline void store(void *ptr, const uint64x4_t in) noexcept {
+	static inline void store(void *ptr, const uint64x4_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -1998,7 +2109,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void aligned_store(void *ptr, const uint64x4_t in) noexcept {
+	static inline void aligned_store(void *ptr, const uint64x4_t in) noexcept {
 		auto *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
@@ -2006,7 +2117,7 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr, const uint64x4_t in) noexcept {
+	static inline void unaligned_store(void *ptr, const uint64x4_t in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
 		internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
@@ -2087,7 +2198,7 @@ struct uint64x4_t {
 		return out;
 	}
 
-	///
+	/// TODO
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2097,8 +2208,13 @@ struct uint64x4_t {
 #ifdef USE_AVX512
 		out.v256 = (__m256i) ((__v4du) in1.v256 * (__v4du) in2.v256);
 #else
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] * in2.v64[i];
+
+		if (std::is_constant_evaluated()) {
+			// TODO
+		} else {
+			for (uint32_t i = 0; i < 4; i++) {
+				out.v64[i] = in1.v64[i] * in2.v64[i];
+			}
 		}
 #endif
 		return out;
@@ -2221,6 +2337,29 @@ struct uint64x4_t {
 		return ret;
 	}
 
+	/// TODO not optimized
+	/// checks if all bytes are equal
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint64x4_t in) noexcept { 
+		for (uint32_t i = 1; i < LIMBS; i++) {
+			if (in.d[i-1] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	// TODO not optimized
+	[[nodiscard]] constexpr static inline uint64x4_t reverse(const uint64x4_t in) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret.d[LIMBS - 1 - i] = in.d[i];
+		}
+
+		return ret;
+	}
 	/// \tparam scale
 	/// \param ptr
 	/// \param data
@@ -2300,14 +2439,12 @@ constexpr inline void sse_prefixsum_u32(uint32_t *in) noexcept {
     // return x;
 }
 
-
 constexpr inline void avx_prefix_prefixsum_u32(uint32_t *p) noexcept {
     __m256i x = _mm256_loadu_si256((__m256i *) p);
     x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4));
     x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8));
     _mm256_storeu_si256((__m256i *) p, x);
 }
-
 
 constexpr inline __m128i sse_prefixsum_accumulate_u32(uint32_t *p, const __m128i s) {
     __m128i d = (__m128i) _mm_broadcast_ss((float*) &p[3]);

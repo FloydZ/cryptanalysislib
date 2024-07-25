@@ -86,7 +86,7 @@ namespace cryptanalysislib {
 			// now dest is aligned by 32
 			size_t ctr = 0;
 			for (size_t i = 0; i < bytes/32; ++i) {
-				uint64x4_t::aligned_store((void *)(out + ctr), uint64x4_t::unaligned_load((void *)(in + ctr)));
+				uint64x4_t::aligned_store((void *)(out + ctr), uint64x4_t::unaligned_load((uint64_t *)(in + ctr)));
 				ctr += 32;
 			}
 			out += bytes;

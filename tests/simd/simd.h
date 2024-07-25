@@ -36,13 +36,22 @@ TEST(S, unalinged_load) {
 }
 
 TEST(S, alinged_load) {
-	alignas(256) S::limb_type data[32] = {0};
-	S t1 = S::aligned_load(data);
+	alignas(256) constexpr  S::limb_type data[32] = {0};
+	constexpr S t1 = S::aligned_load(data);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
 		EXPECT_EQ(t1.d[i], 0u);
 	}
 }
 
+
+TEST(S, unalinged_store_zero) {
+	constexpr S t1 = S::set1(0);
+	S::limb_type data[32] = {0};
+	S::unaligned_store(data, t1);
+	for (uint32_t i = 0; i < S::LIMBS; ++i) {
+		EXPECT_EQ(t1.d[i], data[i]);
+	}
+}
 
 TEST(S, unalinged_store) {
 	const S t1 = S::random();
@@ -121,10 +130,18 @@ TEST(S, logic) {
 TEST(S, all_equal) {
 	for (uint8_t j = 0; j < 255; j++) {
 		const S t1 = S::set1(j);
-		EXPECT_EQ(true, S::all_equal(t1));
+		const bool t = S::all_equal(t1);
+		EXPECT_EQ(true, t);
+	}
+	
+	for (uint8_t j = 0; j < 255; j++) {
+		S t1 = S::set1(j);
+		t1[1] = j + 1;
+
+		const bool t = S::all_equal(t1);
+		EXPECT_EQ(false, t);
 	}
 }
-
 
 TEST(S, reverse) {
 	S::limb_type d[S::LIMBS];

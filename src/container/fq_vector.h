@@ -551,8 +551,8 @@ public:
 
 		uint32_t i = 0;
 		for (; i + nr_limbs < n; i += nr_limbs) {
-			const uint8x32_t a = uint8x32_t::load(in1 + i);
-			const uint8x32_t b = uint8x32_t::load(in2 + i);
+			const uint8x32_t a = uint8x32_t::load((uint8_t *)(in1 + i));
+			const uint8x32_t b = uint8x32_t::load((uint8_t *)(in2 + i));
 
 			const uint8x32_t tmp = sub256_T(a, b);
 			uint8x32_t::store(out + i, tmp);
@@ -593,8 +593,9 @@ public:
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] + q - v2.__data[i]) % q;
-			if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
+			if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1))) {
 				return true;
+			}
 		}
 
 		return false;

@@ -101,7 +101,7 @@ TEST(PCS, RhoFactorise) {
 TEST(PCS, RhoSubSetSum) {
 	/// Simple example of how to use the PollardRho class
 	/// to solve a subset sum problem.
-	/// As a function distinuisher we use the first bit a number
+	/// As a function distinguished we use the first bit of a number
 	constexpr static uint32_t n = 16;
 	constexpr static uint32_t p = 2999;
 	using T = kAry_Type_T<p>;

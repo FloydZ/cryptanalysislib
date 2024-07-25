@@ -1234,13 +1234,18 @@ static inline void sortingnetwork_store_partial(float* array, const REG a,
 
 ///
 template<typename T, typename R, const uint32_t SIMD_VECTOR_WIDTH=8>
-static void sortingnetwork_small_sort(T* array, const size_t element_count) {
+static void sortingnetwork_small_sort(T* array, const size_t element_count) noexcept {
 	if (element_count <= 1) {
 		return;
 	}
 
 	const int full_vec_count = element_count / SIMD_VECTOR_WIDTH;
 	const int last_vec_size = element_count - (full_vec_count * SIMD_VECTOR_WIDTH);
+	if (full_vec_count > 16) {
+		// too many values
+		return;
+	}
+	
 
 	R d[24];
 	for(uint32_t i=0; i<full_vec_count; ++i) {
@@ -1252,14 +1257,14 @@ static void sortingnetwork_small_sort(T* array, const size_t element_count) {
 	}
 
 	void *t[] = {
-	    &&t1, &&t2, &&t2, &&t3,
-		&&t4, &&t5, &&t6, &&t7,
-		&&t8, &&t9, &&t10, &&t10,
-		&&t11, &&t12, &&t13, &&t14,
-	    &&t15, &&t16
+	    &&t1,  &&t2,  &&t2,  &&t3,
+		&&t4,  &&t5,  &&t6,  &&t7,
+		&&t8,  &&t9,  &&t10, &&t11,
+		&&t12, &&t13, &&t14, &&t15, 
+		&&t16
 	};
 
-	goto *t[full_vec_count + last_vec_size];
+	goto *t[full_vec_count];
 	t1 : sortingnetwork_sort_f32x8  (d[0]); goto cleanup;
 	t2 : sortingnetwork_sort_f32x16 (d[0],d[1]); goto cleanup;
 	t3 : sortingnetwork_sort_f32x24 (d[0],d[1],d[2]); goto cleanup;

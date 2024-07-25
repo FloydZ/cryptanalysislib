@@ -1311,8 +1311,8 @@ public:
 			*(__uint128_t *) v3.__data.data() = t;
 			return;
 		} else if constexpr ((internal_limbs == 4) && (sizeof(DataType) == 8u)) {
-			const uint64x4_t t = add256_T(uint64x4_t::aligned_load((uint64x4_t *) &v1.__data[0]),
-			                              uint64x4_t::aligned_load((uint64x4_t *) &v2.__data[0]));
+			const uint64x4_t t = add256_T(uint64x4_t::aligned_load((uint64_t *) &v1.__data[0]),
+			                              uint64x4_t::aligned_load((uint64_t *) &v2.__data[0]));
 			uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[0], t);
 			return;
 		}
@@ -1320,8 +1320,8 @@ public:
 		uint32_t i = 0;
 		if constexpr (activate_avx2) {
 			for (; i + numbers_per_limb <= internal_limbs; i += numbers_per_simd_limb) {
-				const uint64x4_t t = add256_T(uint64x4_t::unaligned_load((uint64x4_t *) &v1.__data[i]),
-				                              uint64x4_t::unaligned_load((uint64x4_t *) &v2.__data[i]));
+				const uint64x4_t t = add256_T(uint64x4_t::unaligned_load((uint64_t *) &v1.__data[i]),
+				                              uint64x4_t::unaligned_load((uint64_t *) &v2.__data[i]));
 				uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[i], t);
 			}
 		}

@@ -595,10 +595,10 @@ public:
 
 		LOOP_UNROLL()
 		for (; i + limb_size <= limbs; i += limb_size) {
-			uint32x8_t x_ = uint32x8_t::load<align>(v1 + i);
-			uint32x8_t y_ = uint32x8_t::load<align>(v2 + i);
-			uint32x8_t y1_ = uint32x8_t::load<align>(v3 + i);
-			uint32x8_t z_ = x_ ^ y_ ^ y1_;
+			const uint32x8_t x_ = uint32x8_t::load<align>(v1 + i);
+			const uint32x8_t y_ = uint32x8_t::load<align>(v2 + i);
+			const uint32x8_t y1_ = uint32x8_t::load<align>(v3 + i);
+			const uint32x8_t z_ = x_ ^ y_ ^ y1_;
 			uint32x8_t::store(v4 + i, z_);
 		}
 
@@ -620,9 +620,9 @@ public:
 
 		LOOP_UNROLL()
 		for (; i + limb_size <= limbs; i += limb_size) {
-			uint32x8_t x_ = uint32x8_t::load<align>(v1 + i);
-			uint32x8_t y_ = uint32x8_t::load<align>(v2 + i);
-			uint32x8_t z_ = x_ ^ y_;
+			const uint32x8_t x_ = uint32x8_t::load<align>((uint32_t *)(v1 + i));
+			const uint32x8_t y_ = uint32x8_t::load<align>((uint32_t *)(v2 + i));
+			const uint32x8_t z_ = x_ ^ y_;
 			uint32x8_t::store(v3 + i, z_);
 		}
 
