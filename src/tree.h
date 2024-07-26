@@ -946,7 +946,8 @@ public:
 		(void)MT;
 		out.set_load(0);
 
-		constexpr static size_t n = LabelLENGTH;
+		constexpr static size_t n = ValueLENGTH;
+		static_assert((n % 4) == 0);
 		constexpr static size_t size = 1ull << (n / 4u);
 		static List L1{size}, L2{size}, L3{size}, L4{size}, iL{size};
 		L1.set_load(0); L2.set_load(0); L3.set_load(0); L4.set_load(0);
@@ -955,11 +956,10 @@ public:
 		ElementType e1, e2;
 		iR.random();
 
-		// TODO make sure its div by 4
 		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-				(&L1, &L2, n/4);
+				(&L1, &L2, n/2);
 		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-				(&L3, &L4, n/4, n/2);
+				(&L3, &L4, n/2);
 
 		L3.sort_level(0, n);
 		L4.sort_level(0, n);

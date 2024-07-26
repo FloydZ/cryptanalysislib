@@ -115,7 +115,7 @@ if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
 endif()
 
 if (COMPILER_SUPPORTS_CONSTEXPR_COST)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=999999999")
 endif()
 
 if(${USE_LTO} AND lto_supported)
@@ -128,7 +128,7 @@ endif()
 # and if the type is < 512 bits, then this must be zero
 # -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
 # -Wno-unknown-pragmas: needed for `#pragma unroll`
-set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-unused-function -Wno-invalid-constexpr")
+set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-unused-function -Wno-invalid-constexpr -Wno-c++23-extensions")
 if (COMPILER_SUPPORTS_C11_EXCEPTION) 
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-c11-extensions")
 endif()

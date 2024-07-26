@@ -95,6 +95,32 @@ public:
 
 		return enumerate(f, cp+1, false);
 	}
+
+
+	template<typename F>
+	constexpr void enumerate_v2(F &&f,
+							 	const uint32_t cp = 1,
+							 	const bool start_direction=false) {
+		if constexpr (p == 1) {
+			enumerate1(f);
+			return;
+		}
+
+		if (cp == 1) {
+			enumerate1(f,0,n);
+			return enumerate(f, 2, false);
+		}
+
+		// exit condition
+		if (cp > p) { return; }
+
+		for (uint32_t i = 0; i < cp-1; i++) { stack[i] = i; }
+		sp = cp-2;
+		uint32_t direction = start_direction;
+
+
+		return enumerate(f, cp+1, false);
+	}
 };
 
 #endif

@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_GROWTH_POLICY_H
 #define CRYPTANALYSISLIB_GROWTH_POLICY_H
 
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
+
 // SOURCE: https://github.com/Tessil/hopscotch-map/blob/master/include/tsl/hopscotch_growth_policy.h
 
 #include <algorithm>
@@ -251,11 +255,11 @@ namespace cryptanalysislib::hh {
 			}
 		}
 
-		[[nodiscard]] constexpr std::size_t bucket_for_hash(std::size_t hash) const noexcept {
+		[[nodiscard]] constexpr inline std::size_t bucket_for_hash(std::size_t hash) const noexcept {
 			return detail::MOD_PRIME[m_iprime](hash);
 		}
 
-		[[nodiscard]] constexpr std::size_t next_bucket_count() const noexcept {
+		[[nodiscard]] constexpr inline std::size_t next_bucket_count() const noexcept {
 			if (m_iprime + 1 >= detail::PRIMES.size()) {
 				ASSERT(false);
 			}
@@ -263,7 +267,7 @@ namespace cryptanalysislib::hh {
 			return detail::PRIMES[m_iprime + 1];
 		}
 
-		[[nodiscard]] constexpr  std::size_t max_bucket_count() const noexcept {
+		[[nodiscard]] constexpr inline std::size_t max_bucket_count() const noexcept {
 			return detail::PRIMES.back();
 		}
 

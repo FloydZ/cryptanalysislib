@@ -17,13 +17,13 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 // max n = 15
-constexpr uint32_t n    = 15;
+constexpr uint32_t n    = 16;
 constexpr uint32_t q    = 1u << n;
 
 using T 			= uint8_t;
-using Matrix 		= FqMatrix<T, 1, n, q>;
 using Value     	= kAryContainer_T<T, n, 2>;
 using Label    		= kAry_Type_T<q>;
+using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;
 using List			= List_T<Element>;
 using Tree			= Tree_T<List>;
@@ -102,6 +102,7 @@ TEST(SubSetSum, JoinRandomListsLevel0) {
 	EXPECT_EQ(t[2].load(), num);
 }
 
+// NOTE: takes very long
 TEST(TreeTest, JoinRandomListsLevel1) {
 	Matrix A;
 	A.random();
@@ -282,6 +283,16 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 
 	EXPECT_NE(0, num);
 	EXPECT_EQ(t[5].load(), num);
+}
+
+TEST(TreeTest, dissection) {
+	Matrix A; A.identity();
+	List out{1<<n};
+	Label target; target.random();
+
+	using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, n/4>;
+	Enumerator en{A};
+	Tree::dissection4<Enumerator>(out, target, A, en);
 }
 
 int main(int argc, char **argv) {

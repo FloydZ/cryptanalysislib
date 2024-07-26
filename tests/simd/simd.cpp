@@ -16,16 +16,16 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 #define S uint8x32_t
-#include "simd.h"
+#include "test_simd.h"
 #undef S
 #define S uint16x16_t
-#include "simd.h"
+#include "test_simd.h"
 #undef S
 #define S uint32x8_t
-#include "simd.h"
+#include "test_simd.h"
 #undef S
 #define S uint64x4_t
-#include "simd.h"
+#include "test_simd.h"
 #undef S
 
 

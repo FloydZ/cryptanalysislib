@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_SKA_FLAT_H
 #define CRYPTANALYSISLIB_SKA_FLAT_H
 
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
+
 #include "growth_policy.h"
 #include <cstdint>
 

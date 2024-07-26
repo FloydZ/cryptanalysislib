@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_HASHMAP_SIMPLE2_H
 #define CRYPTANALYSISLIB_HASHMAP_SIMPLE2_H
 
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
+
 #include <array>
 #include <cstddef>
 #include <cstdint>

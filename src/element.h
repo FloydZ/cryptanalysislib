@@ -13,9 +13,10 @@ using namespace fplll;
 #endif
 
 // local includes
-#include "container/binary_packed_vector.h"
 #include "helper.h"
+#include "container/binary_packed_vector.h"
 #include "matrix/matrix.h"
+#include "simd/simd.h"
 
 #if __cplusplus > 201709L
 

@@ -123,7 +123,7 @@ namespace cryptanalysislib {
 				return;
 			}
 
-			memset256(out, in, bytes);
+			memset_u256_u8(out, in, bytes);
 		}
 #endif
 

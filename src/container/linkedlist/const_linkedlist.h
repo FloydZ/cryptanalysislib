@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_CONST_LINKEDLIST_H
 #define CRYPTANALYSISLIB_CONST_LINKEDLIST_H
 
+#if !defined(CRYPTANALYSISLIB_LINKEDLIST_H)
+#error "Do not include this file directly. Use: `#include <container/linkedlist.h>`"
+#endif
+
 #include <atomic>
 #include <cstdlib>
 

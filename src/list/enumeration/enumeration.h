@@ -4,8 +4,8 @@
 #include <cstddef>   // needed for std::nullptr_t
 #include <functional>// needed for std::invoke
 
-#include "container/hashmap/common.h"
 #include "helper.h"
+#include "container/hashmap.h"
 #include "list/common.h"
 
 #include "combination/chase.h"

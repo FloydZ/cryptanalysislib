@@ -15,7 +15,7 @@
 #include "math/bc.h"
 
 /// This class enumerates vectors of length n and weight w, whereas each
-/// nonzero position is enumerated from 1,...,q-1
+/// nonzero position is enumerated in binary:w
 /// \tparam ListType
 /// \tparam n vector length
 /// \tparam w weight
@@ -145,10 +145,13 @@ public:
 			/// sequence is correct.
 			ASSERT(element.value[a + off]);
 
+			std::cout << element;
+
 			Label::add(element.label, element.label, HT.get(a + off));
 			Label::add(element.label, element.label, HT.get(b + off));
 			element.value.set(0, off + a);
 			element.value.set(1, off + b);
+			std::cout << element;
 		};
 
 		/// iterate over all sequences
@@ -156,9 +159,7 @@ public:
 			check(element1.label, element1.value);
 			if (sL2) check(element2.label, element2.value, false);
 
-			if constexpr (sP) {
-				if (std::invoke(*p, element1.label)) { return true; }
-			}
+			if constexpr (sP) { if (std::invoke(*p, element1.label)) { return true; } }
 			if constexpr (sHM) { insert_hashmap(hm, e, element1, ctr, tid); }
 			if (sL1) insert_list(L1, element1, ctr, tid);
 			if (sL2) insert_list(L2, element2, ctr, tid);

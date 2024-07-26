@@ -10,7 +10,7 @@
 #include "math/math.h"
 #include "print/print.h"
 #include "popcount/popcount.h"
-#include "simd//simd.h"
+#include "simd/simd.h"
 #include "metric.h"
 
 using namespace cryptanalysislib::metric;
@@ -62,6 +62,9 @@ private:
 	}
 
 public:
+	/// returns the number of elements stored this container
+	constexpr static uint32_t internal_limbs = 1;
+
 	///
 	constexpr kAry_Type_T() noexcept {
 		__value = 0;
@@ -707,22 +710,22 @@ public:
 		std::cout << __value << std::endl;
 	}
 
-	static constexpr inline bool binary() noexcept {
+	[[nodiscard]] static constexpr inline bool binary() noexcept {
 		return q == 2;
 	}
 
 	/// returns the number of elements stored this container
-	static constexpr inline size_t size() noexcept {
+	[[nodiscard]] 	static constexpr inline size_t size() noexcept {
 		return 1;
 	}
 
 	/// returns the number of elements stored this container
-	static constexpr inline size_t limbs() noexcept {
+	[[nodiscard]] static constexpr inline size_t limbs() noexcept {
 		return 1;
 	}
 
 	///
-	static constexpr inline size_t bytes() noexcept {
+	[[nodiscard]] static constexpr inline size_t bytes() noexcept {
 		return sizeof(T);
 	}
 
@@ -768,6 +771,7 @@ public:
 		return gcd;
 	}
 private:
+
 	T __value;
 };
 
@@ -787,5 +791,10 @@ T abs(T in) {
 	}
 }
 
-#include "helper.h"
+template<const uint64_t _q,
+		class Metric=HammingMetric>
+std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) {
+	std::cout << obj.value();
+	return out;
+}
 #endif//SMALLSECRETLWE_KARY_TYPE_H

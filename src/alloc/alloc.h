@@ -546,22 +546,22 @@ public:
 	/// \param p
 	/// \param args
 	/// \return
-	template<class TT, class... Args>
-	static constexpr void construct(Alloc &a, TT *p, Args &&...args) {
-		(void) a;
-		(void) p;
-	}
+	// template<class TT, class... Args>
+	// static constexpr void construct(Alloc &a, TT *p, Args &&...args) {
+	// 	(void) a;
+	// 	(void) p;
+	// }
 
-	///
+	/// TODO
 	/// \tparam TT
 	/// \param a
 	/// \param p
 	/// \return
-	template<class TT>
-	static constexpr void destroy(Alloc &a, TT *p) {
-		(void) a;
-		(void) p;
-	}
+	// template<class TT>
+	// static constexpr void destroy(Alloc &a, TT *p) {
+	// 	(void) a;
+	// 	(void) p;
+	// }
 
 	static constexpr size_type max_size(const Alloc &a) noexcept {
 		(void) a;
@@ -572,6 +572,4 @@ public:
 		(void) a;
 	}
 };
-
-
 #endif//CRYPTANALYSISLIB_ALLOC_H

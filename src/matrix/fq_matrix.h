@@ -15,8 +15,9 @@ template<typename T,
          const uint32_t nrows,
          const uint32_t ncols,
          const uint32_t q,
-         const bool packed = true>
-class FqMatrix : public FqMatrix_Meta<T, nrows, ncols, q, packed> {
+         const bool packed = true,
+         typename R=void>
+class FqMatrix : public FqMatrix_Meta<T, nrows, ncols, q, packed, R> {
 public:
 };
 
@@ -29,29 +30,31 @@ template<typename T,
          const uint32_t nrows,
          const uint32_t ncols,
          const bool packed>
-class FqMatrix<T, nrows, ncols, 3, packed> : public FqMatrix_Meta<T, nrows, ncols, 3, packed> {
+class FqMatrix<T, nrows, ncols, 3, packed, void> : public FqMatrix_Meta<T, nrows, ncols, 3, packed, void> {
 public:
 	/// this is just defined, because Im lazy
 	static constexpr uint32_t q = 3;
 
+	using R = void;
+
 	/// needed type definitions
-	using typename FqMatrix_Meta<T, nrows, ncols, q, packed>::RowType;
-	using typename FqMatrix_Meta<T, nrows, ncols, q, packed>::DataType;
+	using typename FqMatrix_Meta<T, nrows, ncols, q, packed, R>::RowType;
+	using typename FqMatrix_Meta<T, nrows, ncols, q, packed, R>::DataType;
 
 	/// needed vars
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::__data;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::ROWS;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::COLS;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::__data;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::ROWS;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::COLS;
 
 	/// needed functions
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::get;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::set;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::swap_rows;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::swap_cols;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::clear;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::transpose;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::column_popcnt;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::row_popcnt;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::get;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::set;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::swap_rows;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::swap_cols;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::clear;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::transpose;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::column_popcnt;
+	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::row_popcnt;
 };
 
 

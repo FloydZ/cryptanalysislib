@@ -2,6 +2,10 @@
 #define CRYPTANALYSISLIB_HOPSCOTCH_H
 // SOURCE:https://github.com/Tessil/hopscotch-map/blob/master/include/tsl/hopscotch_map.h
 
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
+
 #include <algorithm>
 #include <cstddef>
 #include <functional>
