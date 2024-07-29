@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_SIMD_NEON_H
 #define CRYPTANALYSISLIB_SIMD_NEON_H
 
+#include <__type_traits/is_constant_evaluated.h>
 #include <arm_neon.h>
 #include <cstdint>
 
@@ -674,6 +675,23 @@ namespace cryptanalysislib {
 	};
 };// namespace cryptanalysislib
 
+
+constexpr static uint8x16_t u8tom128(const uint8_t t[16]) noexcept {
+	uint8x16_t tmp = {t[0],t[1],t[2],t[3],t[4],t[5],t[6],t[7],t[8],t[9],t[10],t[11],t[12],t[13],t[14],t[15]};
+	return tmp;
+}
+constexpr static uint16x8_t u16tom128(const uint16_t t[8]) noexcept {
+	uint16x8_t tmp = {t[0],t[1],t[2],t[3],t[4],t[5],t[6],t[7]};
+	return tmp;
+}
+constexpr static uint32x4_t u32tom128(const uint32_t t[4]) noexcept {
+	uint32x4_t tmp = {t[0],t[1],t[2],t[3]};
+	return tmp;
+}
+constexpr static uint64x2_t u64tom128(const uint64_t t[2]) noexcept {
+	uint64x2_t tmp = {t[0],t[1]};
+	return tmp;
+}
 // implementation of `_mm_shuffle_epi16`
 inline uint16x8_t shuffle_epi16(const uint16x8_t a, const uint16x8_t b) {
     const uint16x8_t tmp = b*2;
@@ -834,7 +852,7 @@ struct uint8x32_t {
 		return d[i];
 	}
 
-	constexpr uint8x32_t() noexcept {}
+	constexpr uint8x32_t() noexcept = default;
 
 	///
 	/// \param binary
@@ -957,7 +975,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	constexpr static inline uint8x32_t load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t load(const uint8_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -968,7 +986,14 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint8x32_t aligned_load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t aligned_load(const uint8_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			uint8x32_t out;
+			out.v128[0] = u8tom128(ptr +  0);
+			out.v128[1] = u8tom128(ptr + 16);
+			return out;
+		}
+
 		auto *ptr128 = (poly128_t *) ptr;
 		uint8x32_t out;
 		LOOP_UNROLL()
@@ -986,7 +1011,14 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint8x32_t unaligned_load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t unaligned_load(const uint8_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			uint8x32_t out;
+			out.v128[0] = u8tom128(ptr +  0);
+			out.v128[1] = u8tom128(ptr + 16);
+			return out;
+		}
+
 		auto *ptr128 = (poly128_t *) ptr;
 		uint8x32_t out;
 		LOOP_UNROLL()
@@ -1356,7 +1388,7 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	constexpr static inline uint16x16_t load(const void *ptr) {
+	constexpr static inline uint16x16_t load(const uint16_t *ptr) {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1367,7 +1399,14 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint16x16_t aligned_load(const void *ptr) noexcept {
+	constexpr static inline uint16x16_t aligned_load(const uint16_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			uint16x16_t out;
+			out.v128[0] = u16tom128(ptr + 0);
+			out.v128[1] = u16tom128(ptr + 8);
+			return out;
+		}
+
 		auto *ptr128 = (poly128_t *) ptr;
 		uint16x16_t out;
 		LOOP_UNROLL()
@@ -1385,7 +1424,14 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint16x16_t unaligned_load(const void *ptr) noexcept {
+	constexpr static inline uint16x16_t unaligned_load(const uint16_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			uint16x16_t out;
+			out.v128[0] = u16tom128(ptr + 0);
+			out.v128[1] = u16tom128(ptr + 8);
+			return out;
+		}
+
 		auto *ptr128 = (poly128_t *) ptr;
 		uint16x16_t out;
 		LOOP_UNROLL()
@@ -1756,7 +1802,7 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	constexpr static inline uint32x8_t load(const void *ptr) noexcept {
+	constexpr static inline uint32x8_t load(const uint32_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1767,7 +1813,14 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint32x8_t aligned_load(const void *ptr) noexcept {
+	constexpr static inline uint32x8_t aligned_load(const uint32_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			uint32x8_t out;
+			out.v128[0] = u32tom128(ptr + 0);
+			out.v128[1] = u32tom128(ptr + 4);
+			return out;
+		}
+
 		auto *ptr128 = (poly128_t *) ptr;
 		uint32x8_t out;
 		LOOP_UNROLL()
@@ -1785,7 +1838,14 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint32x8_t unaligned_load(const void *ptr) noexcept {
+	constexpr static inline uint32x8_t unaligned_load(const uint32_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			uint32x8_t out;
+			out.v128[0] = u32tom128(ptr + 0);
+			out.v128[1] = u32tom128(ptr + 4);
+			return out;
+		}
+
 		auto *ptr128 = (poly128_t *) ptr;
 		uint32x8_t out;
 		LOOP_UNROLL()
@@ -2184,7 +2244,7 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = true>
-	constexpr static inline uint64x4_t load(const void *ptr) noexcept {
+	constexpr static inline uint64x4_t load(const uint64_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -2195,7 +2255,14 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint64x4_t aligned_load(const void *ptr) noexcept {
+	constexpr static inline uint64x4_t aligned_load(const uint64_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			uint64x4_t out;
+			out.v128[0] = u64tom128(ptr + 0);
+			out.v128[1] = u64tom128(ptr + 2);
+			return out;
+		}
+
 		auto *ptr128 = (poly128_t *) ptr;
 		uint64x4_t out;
 		LOOP_UNROLL()
@@ -2212,7 +2279,14 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint64x4_t unaligned_load(const void *ptr) noexcept {
+	constexpr static inline uint64x4_t unaligned_load(const uint64_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			uint64x4_t out;
+			out.v128[0] = u64tom128(ptr + 0);
+			out.v128[1] = u64tom128(ptr + 2);
+			return out;
+		}
+
 		auto *ptr128 = (poly128_t *) ptr;
 		uint64x4_t out;
 		for (uint32_t i = 0; i < 2u; ++i) {

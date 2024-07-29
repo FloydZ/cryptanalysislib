@@ -54,8 +54,6 @@ namespace cryptanalysislib {
 	struct _uint32x4_t;
 	struct _uint64x2_t;
 
-
-
 	struct _uint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
