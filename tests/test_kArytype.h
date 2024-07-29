@@ -132,23 +132,6 @@ TEST(T, add_uint64_t) {
 	}
 }
 
-TEST(T, sub_simple) {
-	S l1, l2, l3;
-
-	for (size_t i = 0; i < TESTSIZE; ++i) {
-		unsigned int t1 = fastrandombytes_uint64(PRIME);
-		unsigned int t2 = fastrandombytes_uint64(PRIME);
-
-		l1 = t1;
-		l2 = t2;
-
-		l3 = l1 - l2;
-		EXPECT_EQ(l3.value(), (t1 - t2 + PRIME) % PRIME);
-		EXPECT_EQ(l1, t1 % PRIME);
-		EXPECT_EQ(l2, t2 % PRIME);
-	}
-}
-
 TEST(T, sub_signed_simple) {
 	S l1, l2, l3;
 

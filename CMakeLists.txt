@@ -48,12 +48,6 @@ endif()
 # local cmake includes
 include("deps/cmake_optimize_for_architecture/Optimizations.cmake")
 
-# only for the CI
-include_directories("/opt/homebrew/include/")
-include_directories("benchmark/include")
-link_directories("/opt/homebrew/lib")
-link_directories("benchmark/build/src")
-
 # check for compiler features
 check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)
@@ -93,10 +87,20 @@ endif ()
 # global include directories
 include_directories("deps/b63/include/b63")
 include_directories("src")
-include_directories("/usr/local/include")
 
-# global link directories
-link_directories("/usr/local/lib")
+if(UNIX)
+    include_directories("/usr/local/include")
+    # global link directories
+    link_directories("/usr/local/lib")
+    # only for the CI
+    include_directories("benchmark/include")
+    link_directories("benchmark/build/src")
+endif()
+
+if(APPLE)
+    include_directories("/opt/homebrew/include/")
+    link_directories("/opt/homebrew/lib")
+endif()
 
 # two possible options. 'tcmalloc' is the standard google malloc implementation
 if(${USE_TCMALLOC})
@@ -131,15 +135,19 @@ endif()
 # -Wno-unknown-pragmas: needed for `#pragma unroll`
 set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-unused-function -Wno-invalid-constexpr -Wno-c++23-extensions")
 if (COMPILER_SUPPORTS_C11_EXCEPTION) 
+	message(STATUS "Supports C11 Exceptions")
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-c11-extensions")
 endif()
 if (COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
+	message(STATUS "Supports Zero Length Arrays")
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-zero-length-array")
 endif()
 if (COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
+	message(STATUS "Supports Gnu Label as Value")
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-gnu-label-as-value")
 endif()
 if (COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
+	message(STATUS "Supports Concepts Diagnostics Depth")
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -fconcepts-diagnostics-depth=10")
 endif()
 if (${USE_PEDANTIC})
