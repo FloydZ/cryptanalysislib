@@ -65,14 +65,14 @@ public:
 	/// returns the number of elements stored this container
 	constexpr static uint32_t internal_limbs = 1;
 
-	///
+	/// empty constructor, will init to zero
 	constexpr kAry_Type_T() noexcept {
 		__value = 0;
 	};
 
-	///
-	/// \param i
-	constexpr kAry_Type_T(const uint16_t i) noexcept {
+	/// basic construct
+	/// \param i a number of type T
+	constexpr kAry_Type_T(const T i) noexcept {
 		__value = i % q;
 	};
 
@@ -85,38 +85,39 @@ public:
 	///
 	static inline kAry_Type_T<q> random() noexcept {
 		kAry_Type_T ret;
-		// Bla Bla not uniform, I dont care
+		// TODO
+		// Bla Bla not uniform, I dont care.
 		ret.__value = fastrandombytes_uint64() % q;
 		return ret;
 	}
 
-	///
 	/// \return
 	constexpr T abs() const noexcept {
 		return std::abs(__value);
 	}
 
-	///	return (this * a) + b
+	///	sets this = (this * a) + b
 	/// \param a
 	/// \param b
 	constexpr void addmul(const T &a, const T &b) noexcept {
-		__value = (__value + ((T2) a * (T2) b) % q) % q;
+		__value = T((T2(__value) + (T2(a) * T2(b))) % q);
 	}
 
-	///
+	///	sets this = (this * a) + b
 	/// \param a
 	/// \param b
-	constexpr void addmul(kAry_Type_T<q> const &a, kAry_Type_T<q> const &b) noexcept {
-		__value = T2(__value + T2(T2(a.__value) * T2(b.__value)) % q) % q;
+	constexpr void addmul(kAry_Type_T const &a, kAry_Type_T const &b) noexcept {
+		__value = T((T2(__value) + T2(a.__value) * T2(b.__value)) % q);
 	}
 
 	///
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend kAry_Type_T< q> operator&(kAry_Type_T< q> obj1, long const obj2) noexcept {
-		kAry_Type_T< q> r;
-		r.__value = (T2(obj1.__value) & T2(obj2)) % q;
+	constexpr inline friend kAry_Type_T operator&(const kAry_Type_T obj1,
+	                                              const uint64_t obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(obj1.__value) & T2(obj2)) % q);
 		return r;
 	}
 
@@ -124,9 +125,10 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend kAry_Type_T< q> operator^(kAry_Type_T< q> obj1, long const obj2) noexcept {
-		kAry_Type_T< q> r;
-		r.__value = (T2(obj1.__value) ^ T2(obj2)) % q;
+	constexpr inline friend kAry_Type_T operator^(const kAry_Type_T obj1,
+	                                              const uint64_t obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(obj1.__value) ^ T2(obj2 % q)) % q);
 		return r;
 	}
 
@@ -134,9 +136,10 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend kAry_Type_T< q> operator*(kAry_Type_T< q> obj1, long const obj2) noexcept {
-		kAry_Type_T< q> r;
-		r.__value = T((T2(T2(obj1.__value) * T2(obj2))) % q);
+	constexpr inline friend kAry_Type_T operator-(const kAry_Type_T obj1,
+												  const uint64_t obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(T2(obj1.__value) - T2(obj2 % q) + q)) % q);
 		return r;
 	}
 
@@ -144,9 +147,10 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend kAry_Type_T< q> operator&(const kAry_Type_T< q> obj1, kAry_Type_T< q> const &obj2) noexcept {
-		kAry_Type_T< q> r;
-		r.__value = (T2(obj1.__value) & T2(obj2.__value)) % q;
+	constexpr inline friend kAry_Type_T operator+(const kAry_Type_T obj1,
+												  const uint64_t obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(T2(obj1.__value) + T2(obj2 % q))) % q);
 		return r;
 	}
 
@@ -154,9 +158,10 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend kAry_Type_T< q> operator^(kAry_Type_T< q> obj1, kAry_Type_T< q> const &obj2) noexcept {
-		kAry_Type_T< q> r;
-		r.__value = (T2(obj1.__value) ^ T2(obj2.__value)) % q;
+	constexpr inline friend kAry_Type_T operator*(const kAry_Type_T obj1,
+												  const uint64_t obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(T2(obj1.__value) * T2(obj2 % q))) % q);
 		return r;
 	}
 
@@ -164,9 +169,23 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend kAry_Type_T< q> operator*(kAry_Type_T< q> obj1, kAry_Type_T< q> const &obj2) noexcept {
-		kAry_Type_T< q> r;
-		r.__value = (T2(T2(obj1.__value) * T2(obj2.__value))) % q;
+	constexpr inline friend kAry_Type_T operator/(const kAry_Type_T obj1,
+	                                              const uint64_t obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(T2(obj1.__value) / T2(obj2 % q))) % q);
+		return r;
+	}
+
+
+	///
+	/// \param obj1
+	/// \param obj2
+	/// \return
+	constexpr inline friend kAry_Type_T operator&(const kAry_Type_T &obj1,
+	                                              const kAry_Type_T &obj2) noexcept {
+
+		kAry_Type_T r;
+		r.__value = T((T2(obj1.__value) & T2(obj2.__value)) % q);
 		return r;
 	}
 
@@ -174,9 +193,10 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T< q> operator+(kAry_Type_T< q> obj1, kAry_Type_T< q> const &obj2) noexcept {
-		kAry_Type_T< q> r;
-		r.__value = (T2(T2(obj1.__value) + T2(obj2.__value))) % q;
+	constexpr inline friend kAry_Type_T operator^(const kAry_Type_T &obj1,
+	                                              const kAry_Type_T &obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(obj1.__value) ^ T2(obj2.__value)) % q);
 		return r;
 	}
 
@@ -184,7 +204,41 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend kAry_Type_T operator-(kAry_Type_T obj1, kAry_Type_T const &obj2) noexcept {
+	constexpr inline friend kAry_Type_T operator/(const kAry_Type_T &obj1,
+												  const kAry_Type_T &obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(T2(obj1.__value) / T2(obj2.__value))) % q);
+		return r;
+	}
+
+	///
+	/// \param obj1
+	/// \param obj2
+	/// \return
+	constexpr inline friend kAry_Type_T operator*(const kAry_Type_T &obj1,
+	                                              const kAry_Type_T &obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(T2(obj1.__value) * T2(obj2.__value))) % q);
+		return r;
+	}
+
+	///
+	/// \param obj1
+	/// \param obj2
+	/// \return
+	constexpr inline friend kAry_Type_T operator+(const kAry_Type_T &obj1,
+	                                              const kAry_Type_T &obj2) noexcept {
+		kAry_Type_T r;
+		r.__value = T((T2(T2(obj1.__value) + T2(obj2.__value))) % q);
+		return r;
+	}
+
+	///
+	/// \param obj1
+	/// \param obj2
+	/// \return
+	constexpr inline friend kAry_Type_T operator-(kAry_Type_T obj1,
+	                                              kAry_Type_T const &obj2) noexcept {
 		kAry_Type_T r;
 		r.__value = T((T2(T2(obj1.__value)  + T2(q) - T2(obj2.__value))) % T2(q));
 		return r;
@@ -194,7 +248,8 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend bool operator==(uint64_t obj1, kAry_Type_T< q> const &obj2) noexcept {
+	constexpr inline friend bool operator==(const uint64_t obj1,
+	                       kAry_Type_T const &obj2) noexcept {
 		return obj1 == obj2.__value;
 	}
 
@@ -202,38 +257,38 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	friend bool operator!=(uint64_t obj1, kAry_Type_T< q> const &obj2) noexcept {
+	constexpr inline friend bool operator!=(uint64_t obj1, kAry_Type_T const &obj2) noexcept {
 		return obj1 != obj2.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T< q> &operator+=(unsigned int obj) noexcept {
-		__value = T2((T2) __value + (T2) obj) % q;
+	constexpr inline kAry_Type_T &operator+=(unsigned int obj) noexcept {
+		__value = T(T2(T2(__value) + T2(obj)) % q);
 		return *this;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T< q> &operator+=(kAry_Type_T const &obj) noexcept {
-		__value = T2((T2) __value + (T2) obj.__value) % q;
+	constexpr inline kAry_Type_T &operator+=(kAry_Type_T const &obj) noexcept {
+		__value = T(T2((T2) __value + (T2) obj.__value) % q);
 		return *this;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T< q> &operator-=(kAry_Type_T const &obj) noexcept {
-		__value = T2((T2) __value - (T2) obj.__value + q) % q;
+	constexpr inline kAry_Type_T &operator-=(kAry_Type_T const &obj) noexcept {
+		__value = T(T2((T2) __value - (T2) obj.__value + q) % q);
 		return *this;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T< q> &operator%=(const uint64_t &obj) noexcept {
+	constexpr inline kAry_Type_T &operator%=(const uint64_t &obj) noexcept {
 		__value %= obj;
 		return *this;
 	}
@@ -241,7 +296,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T< q> &operator%(const uint64_t &obj) noexcept {
+	constexpr inline kAry_Type_T &operator%(const uint64_t &obj) noexcept {
 		__value %= obj;
 		return *this;
 	}
@@ -249,7 +304,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T< q> &operator=(kAry_Type_T< q> const &obj) noexcept {
+	constexpr inline kAry_Type_T &operator=(kAry_Type_T const &obj) noexcept {
 		if (this != &obj) {
 			__value = obj.__value;
 		}
@@ -260,46 +315,46 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T< q> &operator=(uint32_t const obj) noexcept {
-		__value = obj % q;
+	constexpr inline kAry_Type_T &operator=(uint32_t const obj) noexcept {
+		__value = T(obj % q);
 		return *this;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T< q> &operator=(uint64_t const obj) noexcept {
-		__value = obj % q;
+	constexpr inline kAry_Type_T &operator=(uint64_t const obj) noexcept {
+		__value = T(obj % q);
 		return *this;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T &operator=(int32_t const obj) noexcept {
-		__value = obj % q;
+	constexpr inline kAry_Type_T &operator=(int32_t const obj) noexcept {
+		__value = T(obj % q);
 		return *this;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr kAry_Type_T &operator=(int64_t const obj) noexcept {
-		__value = obj % q;
+	constexpr inline kAry_Type_T &operator=(int64_t const obj) noexcept {
+		__value = T(obj % q);
 		return *this;
 	}
 
-	//	kAry_Type_T< q> &operator=(T const obj) {
+	//	kAry_Type_T &operator=(T const obj) {
 	//		__value = obj % q;
 	//		return *this;
 	//	}
 
-	//	kAry_Type_T< q> &operator=(unsigned int const obj) {
+	//	kAry_Type_T &operator=(unsigned int const obj) {
 	//		__value = obj % q;
 	//		return *this;
 	//	}
 
-	//	kAry_Type_T< q> &operator=(unsigned long obj) {
+	//	kAry_Type_T &operator=(unsigned long obj) {
 	//		__value = obj % q;
 	//		return *this;
 	//	}
@@ -505,40 +560,40 @@ public:
 		out.__value = in1.__value >> i;
 	}
 
-	static constexpr inline LimbType add_T(const LimbType a, 
+	[[nodiscard]] static constexpr inline LimbType add_T(const LimbType a, 
 			const LimbType b) noexcept {
 		return (a + b) % q;
 	}
 
-	static constexpr inline LimbType sub_T(const LimbType a,
+	[[nodiscard]] static constexpr inline LimbType sub_T(const LimbType a,
 			const LimbType b) noexcept {
 		return (a + q - b) % q;
 	}
 
-	static constexpr inline LimbType mul_T(const LimbType a,
+	[[nodiscard]] static constexpr inline LimbType mul_T(const LimbType a,
 			const LimbType b) noexcept {
 		return (T2(a) * T2(b)) % T2(q);
 	}
 
-	static constexpr inline LimbType scalar_T(const LimbType a,
+	[[nodiscard]] static constexpr inline LimbType scalar_T(const LimbType a,
 			const LimbType b) noexcept {
 		return (T2(a) * T2(b)) % T2(q);
 	}
 
-	static constexpr inline LimbType mod_T(const LimbType a) noexcept {
+	[[nodiscard]] static constexpr inline LimbType mod_T(const LimbType a) noexcept {
 		return a % q;
 	}
 
-	static constexpr inline LimbType neg_T(const LimbType a) noexcept {
+	[[nodiscard]] static constexpr inline LimbType neg_T(const LimbType a) noexcept {
 		return (q - a) % q;
 	}
 
-	static constexpr inline LimbType popcnt_T(const LimbType a) noexcept {
+	[[nodiscard]] static constexpr inline LimbType popcnt_T(const LimbType a) noexcept {
 		return cryptanalysislib::popcount::popcount(a);
 	}
 
 	// left rotate
-	static constexpr inline LimbType rol1_T(const LimbType a) noexcept {
+	[[nodiscard]] static constexpr inline LimbType rol1_T(const LimbType a) noexcept {
 		const T hbit = (a ^ (T(1u) << n)) >> n;
 		T ret = a << 1;
 		ret ^= hbit;
@@ -546,13 +601,13 @@ public:
 	}
 	
 	// right rotate
-	static constexpr inline LimbType ror1_T(const LimbType a) noexcept {
+	[[nodiscard]] static constexpr inline LimbType ror1_T(const LimbType a) noexcept {
 		const T bit = (a ^ 1) << n;
 		return (a >> 1u) ^ bit;
 	}
 
 	// left rotate
-	static constexpr inline LimbType rol_T(const LimbType a,
+	[[nodiscard]] static constexpr inline LimbType rol_T(const LimbType a,
 			const uint32_t i) noexcept {
 		ASSERT(i < n);
 		for (uint32_t j = 0; j < i; j++) {
@@ -561,7 +616,7 @@ public:
 	}
 	
 	// right rotate
-	static constexpr inline LimbType ror1_T(const LimbType a,
+	[[nodiscard]] static constexpr inline LimbType ror1_T(const LimbType a,
 			const uint32_t i) noexcept {
 		ASSERT(i < n);
 		for (uint32_t j = 0; j < i; j++) {
@@ -573,7 +628,7 @@ public:
 	/// \param a
 	/// \param b
 	/// \return
-	static constexpr inline uint8x32_t add256_T(const uint8x32_t a, 
+	[[nodiscard]] static constexpr inline uint8x32_t add256_T(const uint8x32_t a, 
 			const uint8x32_t b) {
 		uint8x32_t ret;
 		(void)a;
@@ -584,7 +639,7 @@ public:
 	/// \param a
 	/// \param b
 	/// \return
-	static constexpr inline uint8x32_t sub256_T(const uint8x32_t a, 
+	[[nodiscard]] static constexpr inline uint8x32_t sub256_T(const uint8x32_t a, 
 			const uint8x32_t b) {
 		uint8x32_t ret;
 		(void)a;
@@ -595,7 +650,7 @@ public:
 	///
 	/// \param a
 	/// \return
-	static constexpr inline uint8x32_t mod256_T(const uint8x32_t a) {
+	[[nodiscard]] static constexpr inline uint8x32_t mod256_T(const uint8x32_t a) {
 		uint8x32_t ret;
 		(void)a;
 		return ret;
@@ -605,7 +660,7 @@ public:
 	/// \param a
 	/// \param b
 	/// \return
-	static constexpr inline uint8x32_t mul256_T(const uint8x32_t a, 
+	[[nodiscard]] static constexpr inline uint8x32_t mul256_T(const uint8x32_t a, 
 			const uint8x32_t b) {
 		uint8x32_t ret;
 		(void)a;
@@ -616,31 +671,30 @@ public:
 	///
 	/// \param a
 	/// \return
-	static constexpr inline uint8x32_t neg256_T(const uint8x32_t a) {
+	[[nodiscard]] static constexpr inline uint8x32_t neg256_T(const uint8x32_t a) {
 		uint8x32_t ret;
 		(void)a;
 		return ret;
 	}
 
-	T get_value() noexcept { return __value; }
-	T value() noexcept { return __value; }
+	[[nodiscard]] constexpr inline T get_value() noexcept { return __value; }
+	[[nodiscard]] constexpr inline T value() noexcept { return __value; }
 
-	const T get_value() const noexcept { return __value; }
-	const T value() const noexcept { return __value; }
-	const T data() const noexcept { return __value; }
+	[[nodiscard]] constexpr inline const T get_value() const noexcept { return __value; }
+	[[nodiscard]] constexpr inline const T value() const noexcept { return __value; }
+	[[nodiscard]] constexpr inline const T data() const noexcept { return __value; }
 
 	/// not really meaningfully, but needed by the API:
 	/// \param i
 	/// \return returns the value
-	T operator[](const size_t i) noexcept {
-		ASSERT(i < bits());
-		return value;
+	[[nodiscard]] constexpr inline T operator[](const size_t i) noexcept {
+		return get(i);
 	}
 
 	/// also not really meaningfully
 	/// \param i
 	/// \return
-	constexpr inline T get(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline T get(const size_t i) noexcept {
 		ASSERT(i < bits());
 		return value;
 	}
@@ -680,14 +734,14 @@ public:
 
 	///
 	/// \return
-	constexpr inline T* ptr() noexcept {
+	[[nodiscard]] constexpr inline T* ptr() noexcept {
 		return &__value;
 	}
 
 	/// NOTE: not really useful: i is ignored
 	/// \param i
 	/// \return
-	constexpr inline T* ptr(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline T* ptr(const size_t i) noexcept {
 		ASSERT(i < bits());
 		return __value;
 	}
@@ -750,9 +804,11 @@ public:
 		return gcd(a, b - a);
 	}
 
-	///
-	constexpr static kAry_Type_T eea(kAry_Type_T &x, kAry_Type_T &y,
-	                       const kAry_Type_T a, const kAry_Type_T b) noexcept {
+	/// returns the greates common divisor, and x,y s.t. gcd= x*a + y*b;
+	constexpr static kAry_Type_T eea(kAry_Type_T &x,
+									 kAry_Type_T &y,
+	                       			 const kAry_Type_T a,
+									 const kAry_Type_T b) noexcept {
 		// Base Case
 		if (a == 0) {
 			*x = 0;
@@ -774,12 +830,6 @@ private:
 
 	T __value;
 };
-
-template<typename T, typename T2, const T q>
-std::ostream &operator<<(std::ostream &out, const kAry_Type_T< q> &obj) {
-	out << signed(obj.get_value());
-	return out;
-}
 
 //generic abs function for the kAryType
 template<class T>

@@ -2,7 +2,7 @@
 #include "counters/perf_events.h"
 
 #include "../bench_config.h"
-#include "container/linkedlist/linkedlist.h"
+#include "container/linkedlist.h"
 
 constexpr uint64_t N = 100;
 constexpr uint64_t THREADS = 6;

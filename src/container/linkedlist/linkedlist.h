@@ -6,6 +6,7 @@
 #endif
 
 #include <stdint.h>
+#include <cstring> // for memset
 
 #include "helper.h"
 

@@ -17,7 +17,7 @@
 #include "helper.h"
 #include "math/math.h"
 #include "atomic_primitives.h"
-#include "hashmap/growth_policy.h"
+#include "container/hashmap.h"
 #include "alloc/cache.h"
 
 

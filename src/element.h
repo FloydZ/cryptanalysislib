@@ -20,7 +20,6 @@ using namespace fplll;
 
 #if __cplusplus > 201709L
 
-///
 /// \tparam Container
 template<class Container>
 concept LabelAble = requires(Container c) {
@@ -164,6 +163,7 @@ concept ElementAble = requires(Value v, Label l) {
 	typename Value::ContainerType;
 	typename Label::ContainerType;
 
+	/// these two need to be a valid Value and Label
 	requires ValueAble<typename Value::ContainerType>;
 	requires LabelAble<typename Label::ContainerType>;
 

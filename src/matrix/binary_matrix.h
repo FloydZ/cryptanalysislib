@@ -26,16 +26,18 @@ using namespace cryptanalysislib;
 /// \tparam T MUST be uint64_t
 /// \tparam nrows number of rows
 /// \tparam ncols number of columns
-template<typename T, const uint32_t __nrows, const uint32_t __ncols>
-class FqMatrix<T, __nrows, __ncols, 2, true> : private FqMatrix_Meta<T, __nrows, __ncols, 2, true> {
+template<typename T,
+         const uint32_t __nrows,
+         const uint32_t __ncols>
+class FqMatrix<T, __nrows, __ncols, 2, true, void> : private FqMatrix_Meta<T, __nrows, __ncols, 2, true, void> {
 public:
 	using RowT = BinaryContainer<__ncols, T>;
 	using MatrixType = FqMatrix<T, __nrows, __ncols, 2, true>;
 
 	constexpr static uint32_t RADIX = sizeof(T) * 8u;
 	constexpr static uint32_t MAX_K = 8ul;
-	constexpr static T one = T(1ul);
-	constexpr static T ffff = T(-1ul);
+	constexpr static T one = T(1ull);
+	constexpr static T ffff = T(-1ull);
 
 	constexpr static uint32_t ncols = __ncols;
 	constexpr static uint32_t nrows = __nrows;
@@ -2509,6 +2511,11 @@ public:
 							const uint32_t limb) const noexcept {
 		return __data[row *padded_limbs + limb];
 	}
+
+	/// these two functions exist, as there are maybe matrix implementations
+	/// you want to wrap, which are not constant sized
+	[[nodiscard]] constexpr inline uint32_t rows() noexcept { return ROWS; }
+	[[nodiscard]] constexpr inline uint32_t cols() noexcept { return COLS; }
 };
 
 #endif//CRYPTANALYSISLIB_BINARYMATRIX_H

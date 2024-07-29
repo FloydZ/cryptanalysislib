@@ -1,5 +1,5 @@
-#ifndef SMALLSECRETLWE_RANDOM_H
-#define SMALLSECRETLWE_RANDOM_H
+#ifndef CRYPTANALYSISLIB_RANDOM_H
+#define CRYPTANALYSISLIB_RANDOM_H
 
 #include <cassert>
 #include <cstddef>
@@ -16,7 +16,7 @@ static inline void xorshf96_random_seed(const uint64_t i) noexcept {
 	random_z = random_x + random_y * 98798234;
 }
 
-static inline uint64_t xorshf96() noexcept {//period 2^96-1
+[[nodiscard]] static inline uint64_t xorshf96() noexcept {//period 2^96-1
 	random_x ^= random_x << 16u;
 	random_x ^= random_x >> 5u;
 	random_x ^= random_x << 1u;
@@ -30,7 +30,7 @@ static inline uint64_t xorshf96() noexcept {//period 2^96-1
 }
 
 /// n = size of buffer in bytes
-/// reutrn 0 on success
+/// reutrn 0 on success (cannot fail)
 static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept {
 	uint64_t *a = (uint64_t *) buf;
 
@@ -55,13 +55,13 @@ static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept {
 
 /// n = bytes
 /// returns 0 on success
-inline static int xorshf96_fastrandombytes_uint64_array(uint64_t *buf, const size_t n) noexcept {
+[[nodiscard]] inline static int xorshf96_fastrandombytes_uint64_array(uint64_t *buf, const size_t n) noexcept {
 	xorshf96_fastrandombytes(buf, n);
 	return 0;
 }
 
 ///
-inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
+[[nodiscard]] static inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
 	return xorshf96();
 }
 
@@ -69,7 +69,7 @@ inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
 /// \param buf out
 /// \param n size in bytes
 /// \return 0 on success, 1 on error
-static inline int fastrandombytes(void *buf, const size_t n) noexcept {
+[[nodiscard]] static inline int fastrandombytes(void *buf, const size_t n) noexcept {
 	return xorshf96_fastrandombytes(buf, n);
 }
 
@@ -80,18 +80,21 @@ static inline void random_seed(uint64_t seed) noexcept {
 }
 
 /// \return a uniform random `uint64_t`
-static inline uint64_t fastrandombytes_uint64() noexcept {
+[[nodiscard]] static inline uint64_t fastrandombytes_uint64() noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
 
+/// TODO fast mod algorith by lemir
+/// \return a uniform (not really) uint64 % limit
+[[nodiscard]] static inline uint64_t fastrandombytes_uint64(const uint64_t limit) noexcept {
+	return xorshf96_fastrandombytes_uint64() % limit;
+}
 /// simple C++ wrapper.
 /// \tparam T
 /// \return a type T uniform random element
 template<typename T>
-#if __cplusplus > 201709L
     requires std::is_integral_v<T>
-#endif
-static inline T fastrandombytes_T() noexcept {
+[[nodiscard]] static inline T fastrandombytes_T() noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
 
@@ -99,10 +102,8 @@ static inline T fastrandombytes_T() noexcept {
 /// \param w
 /// \return
 template<typename T>
-#if __cplusplus > 201709L
     requires std::is_integral_v<T>
-#endif
-static T fastrandombytes_weighted(const uint32_t w) noexcept {
+[[nodiscard]] constexpr static T fastrandombytes_weighted(const uint32_t w) noexcept {
 	assert(w < (sizeof(T) * 8));
 
 	T ret = (1u << w) - 1u;

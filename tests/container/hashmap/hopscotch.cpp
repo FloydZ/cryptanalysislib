@@ -1,9 +1,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-//#include "container/hashmap/lock_free_hopscotch.h"
-#include "container/hashmap/hopscotch.h"
-#include "container/hashmap/growth_policy.h"
+#include "container/hashmap.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;

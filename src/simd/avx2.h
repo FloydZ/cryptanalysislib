@@ -2505,4 +2505,61 @@ void avx2_prefixsum_u32(uint32_t *a, const size_t n) {
 	// }
 }
 
+/// loads `element_count` f32 elements from array + index*8
+/// \param array base pointer to the data
+/// \param index number of __m256 already loaded
+/// \param element_count  number of f32 to load
+/// \return __m256 register with the first `element_count` f32
+/// 		fields loaded, the rest is set to inf.
+static inline __m256 avx2_load_f32x8(const float* array,
+									 const uint32_t index,
+									 const uint32_t element_count) noexcept {
+	if (element_count == 8) {
+		return _mm256_loadu_ps(array + index*8);
+	}
+
+	__m256 inf_mask = _mm256_cvtepi32_ps(_mm256_set_epi32(0x7F800000,
+														  (element_count>6) ? 0 : 0x7F800000,
+														  (element_count>5) ? 0 : 0x7F800000,
+														  (element_count>4) ? 0 : 0x7F800000,
+														  (element_count>3) ? 0 : 0x7F800000,
+														  (element_count>2) ? 0 : 0x7F800000,
+														  (element_count>1) ? 0 : 0x7F800000,
+														  (element_count>0) ? 0 : 0x7F800000));
+
+	__m256i loadstoremask = _mm256_set_epi32(0,
+											 (element_count>6) ? 0xffffffff : 0,
+											 (element_count>5) ? 0xffffffff : 0,
+											 (element_count>4) ? 0xffffffff : 0,
+											 (element_count>3) ? 0xffffffff : 0,
+											 (element_count>2) ? 0xffffffff : 0,
+											 (element_count>1) ? 0xffffffff : 0,
+											 (element_count>0) ? 0xffffffff : 0);
+	__m256 a = _mm256_maskload_ps(array + index*8, loadstoremask);
+	return _mm256_or_ps(a, inf_mask);
+}
+
+/// \param array base pointer to the data
+/// \param a data to store
+/// \param index number of `__m256` already stored
+/// \param element_count numbe of f32 to store from `a`
+static inline void avx2_store_f32x8(float* array,
+                                    const __m256 a,
+									const uint32_t index,
+                                    const uint32_t element_count){
+	if (element_count == 8) {
+		_mm256_storeu_ps(array + index*8, a);
+	} else {
+		__m256i loadstoremask = _mm256_set_epi32(0,
+												 (element_count>6) ? 0xffffffff : 0,
+												 (element_count>5) ? 0xffffffff : 0,
+												 (element_count>4) ? 0xffffffff : 0,
+												 (element_count>3) ? 0xffffffff : 0,
+												 (element_count>2) ? 0xffffffff : 0,
+												 (element_count>1) ? 0xffffffff : 0,
+												 (element_count>0) ? 0xffffffff : 0);
+		_mm256_maskstore_ps(array + index*8, loadstoremask, a);
+	}
+}
+
 #endif

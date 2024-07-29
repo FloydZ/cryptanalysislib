@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "combination/chase.h"
-#include "container/hashmap/simple.h"
+#include "container/hashmap.h"
 #include "hash/simple.h"
 #include "helper.h"
 #include "list/enumeration/enumeration.h"

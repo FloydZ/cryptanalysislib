@@ -7,7 +7,7 @@
 B63_BASELINE(SoImplemented, nn) {
 	BinaryContainer<n> v1{};
 	uint64_t k = 0, res=0;
-	uint64_t i, j, r;
+	uint64_t i=0, j=0, r;
 	for (; k < nn*100000; k++) {
 		B63_SUSPEND {
 			v1.random();
@@ -32,11 +32,11 @@ B63_BENCHMARK(SoImplementedInline, nn) {
 	T v1{};
 	typedef typename T::LimbType LimbType;
 
-	LimbType lmask, rmask;
-	int64_t lower_limb, higher_limb, shift;
+	LimbType lmask=0, rmask=0;
+	int64_t lower_limb=0, higher_limb=0, shift=0;
 
-	uint64_t k = 0, res=0, r;
-	uint64_t i, j;
+	uint64_t k=0, res=0, r;
+	uint64_t i=0, j=0;
 	for (; k < nn*100000; k++) {
 		B63_SUSPEND {
 			v1.random();
@@ -69,8 +69,8 @@ B63_BENCHMARK(Old, nn) {
 	T v1{};
 	typedef typename T::LimbType LimbType;
 
-	uint64_t k = 0, res=0;
-	uint64_t i, j;
+	uint64_t k=0, res=0;
+	uint64_t i=0, j=0;
 	for (; k < nn*100000; k++) {
 		B63_SUSPEND {
 			v1.random();

@@ -1,5 +1,5 @@
-#ifndef SMALLSECRETLWE_ALLOC_H
-#define SMALLSECRETLWE_ALLOC_H
+#ifndef CRYPTANALYSISLIB_ALLOC_H
+#define CRYPTANALYSISLIB_ALLOC_H
 
 #include <cstdlib>
 #include <iostream>
@@ -19,28 +19,35 @@ constexpr size_t roundToAligned(const size_t n) noexcept {
 }
 
 namespace cryptanalysislib {
-	void *aligned_alloc(std::size_t alignment, std::size_t size) {
+
+	/// very important function
+	/// \param alignment number of bytes to align the pointer to
+	/// \param size number of bytes to allocate
+	/// \return pointer to the data or nullptr
+	static void *aligned_alloc(const std::size_t alignment,
+	                           const std::size_t size) noexcept {
+
+		std::size_t __size = size;
 		// just to please the compiler
 		if (size < alignment) {
-			size = alignment;
+			__size = alignment;
 		}
 
-		if ((size % alignment) != 0) {
-			size = ((size + alignment - 1) / alignment) * alignment;
+		if ((__size % alignment) != 0) {
+			__size = ((__size + alignment - 1) / alignment) * alignment;
 		}
 
 #ifdef __APPLE__
+		// of cause apple has no std::aligned_alloc. That would be stupid
+		// seams to work on apple
 		void *ret;
-		if (posix_memalign(&ret, alignment, size))
+		if (posix_memalign(&ret, alignment, __size)) {
 			return nullptr;
+		}
 
 		return ret;
-		// const size_t off = alignment - 1;
-		// void *mem = malloc(size + off);
-		// void *ptr = (void *)(((uintptr_t)mem+off) & ~ (uintptr_t)off);
-		// return ptr;
 #else
-		return std::aligned_alloc(alignment, size);
+		return std::aligned_alloc(alignment, __size);
 #endif
 	}
 }// namespace cryptanalysislib
@@ -58,11 +65,13 @@ public:
 
 	/// checks whether the Blk of memory is valid or not
 	/// \returns false if either ptr == nullptr or the length is zero.
-	constexpr bool valid() const noexcept {
+	constexpr inline bool valid() const noexcept {
 		return (ptr != nullptr) && (len != 0);
 	}
 
-	friend std::ostream &operator<<(std::ostream &os, Blk const &tc) noexcept {
+	/// simplifies debugging
+	friend std::ostream &operator<<(std::ostream &os,
+	                                Blk const &tc) noexcept {
 		return os << tc.ptr << ":" << tc.len;
 	}
 };
@@ -76,10 +85,10 @@ struct AllocatorConfig {
 	/// all pointers (Blks) returned do have this alignment
 	constexpr static size_t alignment = 1;
 
-	/// if set, all allocs are callocs
+	/// if set, all allocations are zero allocations
 	constexpr static bool calloc = true;
 
-	/// if set, after memory was free, it will be zerod
+	/// if set, after memory was free, it will be overwritten with zero
 	constexpr static bool zero_after_free = true;
 
 	/// enforce that every allocator obeys a given hint.
@@ -98,7 +107,7 @@ concept Allocator = requires(T a, Blk b, size_t n) {
 /// Simple Stack Allocator
 /// \tparam s  allocates `s` bytes on the stack
 /// \tparam allocatorConfig
-template<size_t s,
+template<const size_t s,
          const struct AllocatorConfig &allocatorConfig = allocatorConfig>
 class StackAllocator {
 	/// minimal datatype = 1 byte
@@ -107,6 +116,7 @@ class StackAllocator {
 
 	/// data storage, good old stack
 	alignas(allocatorConfig.base_alignment) T _d[s];
+
 	/// pointer to the currently free=non-allocated memory
 	T *_p;
 
@@ -134,8 +144,7 @@ public:
 
 	///
 	/// \param b
-	/// \return
-	constexpr void deallocate(Blk b) noexcept {
+	constexpr void deallocate(const Blk b) noexcept {
 		// a little stupid. But the allocator is only to deallocate something
 		// if it's the last element in the stack
 		const size_t bla = roundToAligned<allocatorConfig.alignment>(b.len);
@@ -147,8 +156,7 @@ public:
 		}
 	}
 
-	///
-	/// \return
+	/// delalocate all allocations
 	constexpr void deallocateAll() noexcept {
 		if constexpr (allocatorConfig.zero_after_free) {
 			cryptanalysislib::memset(_d, T(0), _p - _d);
@@ -506,24 +514,36 @@ public:
 	typedef const void *const_void_pointer;
 	typedef size_t size_type;
 
+	static inline inner_allocator sallocator{};
 	inner_allocator allocator;
-	///
-	/// \param a
-	/// \param n
-	/// \return
-	[[nodiscard]] static constexpr pointer allocate(allocator_type &a, size_type n) {
+
+	/// simply allocates `n` bytes using `a`
+	/// \param a base allocator
+	/// \param n number of byte
+	/// \return pointer to data or nullptr
+	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
+		Blk b = sallocator.allocate(n);
+		return (pointer) b.ptr;
+	}
+
+	/// simply allocates `n` bytes using `a`
+	/// \param a base allocator
+	/// \param n number of byte
+	/// \return pointer to data or nullptr
+	[[nodiscard]] static constexpr inline pointer allocate(allocator_type &a,
+	                                                       const size_type n) noexcept {
 		Blk b = a.allocator.allocate(n);
 		return (pointer) b.ptr;
 	}
 
 	/// currently ignoring the hint
-	/// \param a
-	/// \param n
+	/// \param a base allocator
+	/// \param n number of byte
 	/// \param hint
-	/// \return
-	[[nodiscard]] static constexpr pointer allocate(allocator_type &a,
-	                                                size_type n,
-	                                                const_void_pointer hint) {
+	/// \return pointer to data or nullptr
+	[[nodiscard]] static constexpr inline pointer allocate(allocator_type &a,
+	                                                const size_type n,
+	                                                const const_void_pointer hint) noexcept {
 		(void) hint;
 		return allocate(a, n);
 	}
@@ -534,42 +554,44 @@ public:
 	//
 	// }
 
-	static constexpr void deallocate(Alloc &a, pointer p, size_type n) {
+	/// \param a base allocator
+	/// \param p pointer to data
+	/// \param n number of bytes
+	static constexpr inline void deallocate(const pointer p,
+											const size_type n) noexcept {
 		const Blk b((void *) p, n);
-		a.allocator.deAllocate(b);
+		sallocator.deallocate(b);
 	}
 
-	/// TODO
-	/// \tparam TT
-	/// \tparam Args
-	/// \param a
-	/// \param p
-	/// \param args
-	/// \return
+	/// \param a base allocator
+	/// \param p pointer to data
+	/// \param n number of bytes
+	static constexpr inline void deallocate(allocator_type &a,
+	                                        const pointer p,
+	                                        const size_type n) noexcept {
+		const Blk b((void *) p, n);
+		a.allocator.deallocate(b);
+	}
+
+	/// removed in C++20
 	// template<class TT, class... Args>
 	// static constexpr void construct(Alloc &a, TT *p, Args &&...args) {
 	// 	(void) a;
 	// 	(void) p;
 	// }
 
-	/// TODO
-	/// \tparam TT
-	/// \param a
-	/// \param p
-	/// \return
+	/// removed in C++20
 	// template<class TT>
 	// static constexpr void destroy(Alloc &a, TT *p) {
 	// 	(void) a;
 	// 	(void) p;
 	// }
 
-	static constexpr size_type max_size(const Alloc &a) noexcept {
-		(void) a;
-		return std::numeric_limits<size_t>::max();
-	}
-
-	static constexpr Alloc select_on_container_copy_construction(const Alloc &a) {
-		(void) a;
-	}
+	// not really implemented, as the base allocators are not that good
+	/// removed in C++20
+	//static constexpr inline size_type max_size(const Alloc &a) noexcept {
+	//	(void) a;
+	//	return std::numeric_limits<size_t>::max();
+	//}
 };
-#endif//CRYPTANALYSISLIB_ALLOC_H
+#endif //CRYPTANALYSISLIB_ALLOC_H

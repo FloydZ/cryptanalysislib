@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_SORTING_NETWORK_AVX2_H
 #define CRYPTANALYSISLIB_SORTING_NETWORK_AVX2_H
 
+#include <cstdint>
 #ifndef USE_AVX2
 #error "no avx"
 #endif
@@ -11,8 +12,8 @@
 
 #include <stdint.h>
 #include <immintrin.h>
+#include "simd/simd.h"
 
-// TODO everything constexpr
 
 #ifdef __clang__
 // SRC https://github.com/sortingnetwork-sorting/fast-and-robust/blob/master/avx2_sort_demo/avx2sort.h
@@ -233,7 +234,11 @@
 
 
 
-static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0) {
+/// sorting 8 int64 at once
+/// \param a0 input/output
+/// \param b0 input/output
+constexpr static inline void sortingnetwork_sort_i64x8(__m256i &a0,
+                                                       __m256i &b0) noexcept {
 #ifdef __clang__
 #define COEX64X4(a,b,c,e,t)												\
 	t = ((__v4di)a > (__v4di)b);										\
@@ -331,6 +336,9 @@ static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0) {
 #undef COEX64X4
 }
 
+// optimized sorting network for two vectors, that is 16 ints
+constexpr static inline void sortingnetwork_sort_u32x16(__m256i &v1,
+													    __m256i &v2) noexcept {
 #ifdef __clang__
 #define SHUFFLE_2_VECS(a, b, mask)         \
 	_mm256_castps_si256(_mm256_shuffle_ps( \
@@ -341,11 +349,6 @@ static inline void sortingnetwork_sort_i64x8(__m256i &a0, __m256i &b0) {
 #define SHUFFLE_2_VECS(a, b, mask) (__m256i)(__builtin_ia32_shufps256((__v8sf)(a), (__v8sf)(b), (int)mask))
 #define SHUFFLE_1_VEC(a, mask)  (__m256i)__builtin_ia32_pshufd256 ((__v8si)a,mask)
 #endif
-
-
-// optimized sorting network for two vectors, that is 16 ints
-static inline void sortingnetwork_sort_u32x16(__m256i &v1, 
-		__m256i &v2) noexcept {
 	__m256i tmp;
 	COEX_u32x8(v1, v2, tmp);
 
@@ -410,83 +413,52 @@ static inline void sortingnetwork_sort_u32x16(__m256i &v1,
   	v1 = (__m256i) __builtin_ia32_pblendd256 ((__v8si)v1,(__v8si)b2, 0b10101010);
   	v2 = (__m256i) __builtin_ia32_pblendd256 ((__v8si)b1,(__v8si)v2, 0b10101010);
 #endif
+
+#undef SHUFFLE_2_VECS
+#undef SHUFFLE_1_VEC
 }
 
 
-/// avx single limb sorting network for uint32
-// static inline __m256i sortingnetwork_sort_u32x8(__m256i &v) noexcept {
-// 	__m256i c, d, t, tmp;
-// 	// TODO replace with `permute_ps()`
-// 	d = _mm256_setr_epi32(1, 0, 3, 2, 5, 4, 7, 6);
-// 	t = _mm256_permutevar8x32_epi32(v, d);
-// 	COEX_u32x8(v, t, tmp);
-// 	t = _mm256_blend_epi32(v, t, 0b10101010);
-//
-// 	c = _mm256_setr_epi32(3, 2, 1, 0, 7, 6, 5, 4);
-// 	v = _mm256_permutevar8x32_epi32(t, c);
-// 	COEX_u32x8(t, v, tmp);
-// 	v = _mm256_blend_epi32(t, v, 0b11001100);
-//
-// 	t = _mm256_permutevar8x32_epi32(v, d);
-// 	COEX_u32x8(v, t, tmp);
-// 	t = _mm256_blend_epi32(v, t, 0b10101010);
-//
-// 	c = _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0);
-// 	v = _mm256_permutevar8x32_epi32(t, c);
-// 	COEX_u32x8(t, v, tmp);
-// 	v = _mm256_blend_epi32(t, v, 0b11110000);
-//
-// 	c = _mm256_setr_epi32(2, 3, 0, 1, 6, 7, 4, 5);
-// 	t = _mm256_permutevar8x32_epi32(v, c);
-// 	COEX_u32x8(v, t, tmp);
-// 	t = _mm256_blend_epi32(v, t, 0b11001100);
-//
-// 	v = _mm256_permutevar8x32_epi32(t, d);
-// 	COEX_u32x8(t, v, tmp);
-// 	t = _mm256_blend_epi32(t, v, 0b10101010);
-// 	return t;
-// }
-
-
-///
-static inline __m256i sortingnetwork_sort_u32x8(__m256i &input) noexcept {
+/// optimized sorting network for a single avx2 register
+constexpr static inline __m256i sortingnetwork_sort_u32x8(__m256i &input) noexcept {
     __m256i perm_neigh_min,perm_neigh_max;
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(0, 1, 2, 3));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(0, 1, 2, 3));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	{
-		__m256i swap = (__m256i)_mm256_permute2f128_ps((__m256)input, (__m256)input, _MM_SHUFFLE(0, 0, 1, 1));
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3));
+		const __m256i swap = (__m256i)_mm256_permute2f128_ps((__m256)input, (__m256)input, _MM_SHUFFLE(0, 0, 1, 1));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xF0);
 	}
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(1, 0, 3, 2));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(1, 0, 3, 2));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
+
 	return input;
 }
 
 ///
-static inline __m256i sortingnetwork_aftermerge_u32x8(__m256i &a) noexcept {
+constexpr static inline __m256i sortingnetwork_aftermerge_u32x8(__m256i &a) noexcept {
     __m256i perm_neigh_min,perm_neigh_max;
 	{
         __m256i swap = _mm256_permute2f128_si256(a, a, _MM_SHUFFLE(0, 0, 1, 1));
@@ -508,37 +480,37 @@ static inline __m256i sortingnetwork_aftermerge_u32x8(__m256i &a) noexcept {
     return a;
 }
 
-///
-static inline __m256i sortingnetwork_sort_i32x8(__m256i &input) noexcept {
+/// optimized sorting network for int32x8
+constexpr static inline __m256i sortingnetwork_sort_i32x8(__m256i &input) noexcept {
     __m256i perm_neigh_min,perm_neigh_max;
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_i32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(0, 1, 2, 3));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(0, 1, 2, 3));
 		COEX_i32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_i32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	{
-		__m256i swap = (__m256i)_mm256_permute2f128_ps((__m256)input, (__m256)input, _MM_SHUFFLE(0, 0, 1, 1));
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3));
+		const __m256i swap = (__m256i)_mm256_permute2f128_ps((__m256)input, (__m256)input, _MM_SHUFFLE(0, 0, 1, 1));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3));
 		COEX_i32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xF0);
 	}
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(1, 0, 3, 2));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(1, 0, 3, 2));
 		COEX_i32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
-		__m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
+		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_i32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
 		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
@@ -547,29 +519,29 @@ static inline __m256i sortingnetwork_sort_i32x8(__m256i &input) noexcept {
 }
 
 ///
-static inline __m256i sortingnetwork_aftermerge_i32x8(__m256i &a) noexcept {
+constexpr static inline __m256i sortingnetwork_aftermerge_i32x8(__m256i &a) noexcept {
 	__m256i perm_neigh_min, perm_neigh_max;
 	{
-		__m256i swap = _mm256_permute2f128_si256(a, a, _MM_SHUFFLE(0, 0, 1, 1));
+		const __m256i swap = _mm256_permute2f128_si256(a, a, _MM_SHUFFLE(0, 0, 1, 1));
 		COEX_i32x8_(a, swap, perm_neigh_min, perm_neigh_max)
 		a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xF0);
 	}
 	{
-		__m256 perm_neigh = _mm256_permute_ps((__m256)a, _MM_SHUFFLE(1, 0, 3, 2));
+		const __m256 perm_neigh = _mm256_permute_ps((__m256)a, _MM_SHUFFLE(1, 0, 3, 2));
 		COEX_i32x8_(a, (__m256i)perm_neigh, perm_neigh_min, perm_neigh_max)
 		a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
-		__m256 perm_neigh = _mm256_permute_ps((__m256)a, _MM_SHUFFLE(2, 3, 0, 1));
-		__m256i perm_neigh_min = _mm256_min_epi32(a, (__m256i)perm_neigh);
-		__m256i perm_neigh_max = _mm256_max_epi32(a, (__m256i)perm_neigh);
+		const __m256 perm_neigh = _mm256_permute_ps((__m256)a, _MM_SHUFFLE(2, 3, 0, 1));
+		perm_neigh_min = _mm256_min_epi32(a, (__m256i)perm_neigh);
+		perm_neigh_max = _mm256_max_epi32(a, (__m256i)perm_neigh);
 		a = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	return a;
 }
 
 /// needed by `sort_u8x16`
-uint8_t layers[6][16] = {
+constexpr static uint8_t layers[6][16] = {
         {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
         {3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12},
         {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
@@ -579,7 +551,7 @@ uint8_t layers[6][16] = {
 };
 
 /// needed by `sort_u8x16`
-int8_t blend[4][16] = {
+constexpr static int8_t blend[4][16] = {
         {0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1},
         {0, 0,-1,-1,0,0,-1,-1,0,0,-1,-1,0,0,-1,-1},
         {0,0,0,0,-1,-1,-1,-1,0,0,0,0,-1,-1,-1,-1},
@@ -642,7 +614,7 @@ __m128i sortingnetwork_sort_u8x16(__m128i v) noexcept {
     return v;
 }
 
-void sortingnetwork_mergesort_u8x32(__m128i *a, __m128i *b) noexcept {
+constexpr static inline void sortingnetwork_mergesort_u8x32(__m128i *a, __m128i *b) noexcept {
     __m128i H1 = _mm_shuffle_epi8(*b, _mm_load_si128((__m128i *)layers[4]));
     __m128i L1 = *a, tmp;
 
@@ -667,7 +639,7 @@ void sortingnetwork_mergesort_u8x32(__m128i *a, __m128i *b) noexcept {
     *b = _mm_unpackhi_epi8(L4p, H4p);
 }
 
-static inline void sortingnetwork_sort_u8x32(__m128i *a,
+constexpr static inline void sortingnetwork_sort_u8x32(__m128i *a,
 						__m128i *b) noexcept{
     *a = sortingnetwork_sort_u8x16(*a);
     *b = sortingnetwork_sort_u8x16(*b);
@@ -676,7 +648,7 @@ static inline void sortingnetwork_sort_u8x32(__m128i *a,
 
 
 /// floating point stuff
-static inline __m256 sortingnetwork_sort_f32x8(__m256 &input) noexcept {
+constexpr static inline __m256 sortingnetwork_sort_f32x8(__m256 &input) noexcept {
 	__m256 perm_neigh_min, perm_neigh_max;
     {
         __m256 perm_neigh = _mm256_permute_ps(input, _MM_SHUFFLE(2, 3, 0, 1));
@@ -713,7 +685,7 @@ static inline __m256 sortingnetwork_sort_f32x8(__m256 &input) noexcept {
 	return input;
 }
 
-static inline __m256 sortingnetwork_aftermerge_f32x8(__m256 &a) noexcept {
+constexpr static inline __m256 sortingnetwork_aftermerge_f32x8(__m256 &a) noexcept {
 	__m256 perm_neigh_min, perm_neigh_max;
     {
         __m256 swap = _mm256_permute2f128_ps(a, a, _MM_SHUFFLE(0, 0, 1, 1));
@@ -734,16 +706,21 @@ static inline __m256 sortingnetwork_aftermerge_f32x8(__m256 &a) noexcept {
     return a;
 }
 
-#define sortingnetwork_aftermerge2(NEW_MULT, MULT, REG)							\
-static void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b) {  \
-	REG tmp; 																	\
-    COEX_ ## MULT(a, b, tmp);                          							\
-	a = sortingnetwork_aftermerge_ ## MULT (a); 								\
-	b = sortingnetwork_aftermerge_ ## MULT (b); 								\
+/// creates a funtions which takes two `REG` variables, each of them storing 
+/// a single `MULT` type, and sorts them to a single `NEW_MULT`
+/// \NEW_MULT: ex: f32x16
+/// \MULT: ex: f32x8
+/// \REG: ex: __m256
+#define sortingnetwork_aftermerge2(NEW_MULT, MULT, REG)						\
+constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b) {  \
+	REG tmp; 																\
+    COEX_ ## MULT(a, b, tmp);                          						\
+	a = sortingnetwork_aftermerge_ ## MULT (a); 							\
+	b = sortingnetwork_aftermerge_ ## MULT (b); 							\
 }
 
 #define sortingnetwork_permute_minmax2(NEW_MULT, REG, MIN_FKT, MAX_FKT )			\
-static void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept { \
+constexpr static inline void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept { \
     REG swap = (REG)_mm256_permute2f128_ps((__m256)b, (__m256)b, _MM_SHUFFLE(0, 0, 1, 1));   \
 	REG perm_neigh = (REG)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3)); \
 	REG perm_neigh_min = MIN_FKT(a, perm_neigh);									\
@@ -752,14 +729,14 @@ static void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept
 }
 
 #define sortingnetwork_merge_sorted2(NEW_MULT,MULT1,REG)	\
-static void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b) noexcept {	\
+constexpr static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b) noexcept {	\
 	sortingnetwork_permute_minmax_ ## NEW_MULT (a, b); 		\
 	a = sortingnetwork_aftermerge_ ## MULT1 (a); 			\
 	b = sortingnetwork_aftermerge_ ## MULT1 (b); 			\
 }
 
 #define sortingnetwork_sort2(NEW_MULT,MULT1,REG)		\
-static void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b) noexcept { 	\
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b) noexcept { 	\
 	a = sortingnetwork_sort_ ## MULT1 (a); 				\
 	b = sortingnetwork_sort_ ## MULT1 (b); 				\
 	sortingnetwork_merge_sorted_ ## NEW_MULT(a, b); 	\
@@ -767,7 +744,7 @@ static void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b) noexcept { 	\
 
 
 #define sortingnetwork_merge_sorted3(NEW_MULT,MULT2,MULT1,REG)	\
-static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b, REG &c) noexcept {\
+constexpr static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b, REG &c) noexcept {\
  	REG tmp;                                                    \
 	sortingnetwork_permute_minmax_ ## MULT2(b, c); 				\
 	COEX_ ## MULT1(a, b, tmp);									\
@@ -777,7 +754,7 @@ static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b, REG
 }
 
 #define sortingnetwork_aftermerge_sorted3(NEW_MULT,MULT1,REG)	\
-static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &c) { \
+constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &c) { \
 	REG tmp;                                                    \
 	COEX_ ## MULT1 (a, c, tmp); 								\
 	COEX_ ## MULT1 (a, b, tmp); 								\
@@ -788,7 +765,7 @@ static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &
 
 
 #define sortingnetwork_sort3(NEW_MULT,DOUBLE_MULT,MULT1,REG)	\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c) noexcept {\
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c) noexcept {\
 	sortingnetwork_sort_ ## DOUBLE_MULT(a, b); 					\
 	c = sortingnetwork_sort_ ## MULT1 (c); 						\
 	sortingnetwork_merge_sorted_ ## NEW_MULT (a, b, c);			\
@@ -796,7 +773,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c) noex
 
 
 #define sortingnetwork_merge_sorted4(NEW_MULT,DOUBLE_MULT,SINGLE_MULT,REG)	\
-static inline void sortingnetwork_merge_sorted ## NEW_MULT (REG &a, REG &b, REG &c, REG &d) noexcept {\
+constexpr static inline void sortingnetwork_merge_sorted ## NEW_MULT (REG &a, REG &b, REG &c, REG &d) noexcept {\
 	REG tmp;                                                \
 	sortingnetwork_permute_minmax_ ## DOUBLE_MULT (a, d); 	\
 	sortingnetwork_permute_minmax_ ## DOUBLE_MULT (b, c); 	\
@@ -809,7 +786,7 @@ static inline void sortingnetwork_merge_sorted ## NEW_MULT (REG &a, REG &b, REG 
 }
 
 #define sortingnetwork_aftermerge_sorted4(NEW_MULT,MULT1,REG)\
-static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d) {\
+constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d) {\
 	REG tmp;                                                \
 	COEX_ ## MULT1 (a, c, tmp); 							\
 	COEX_ ## MULT1 (b, d, tmp); 							\
@@ -821,8 +798,8 @@ static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c
 	d = sortingnetwork_aftermerge_ ## MULT1 (d); 			\
 }
 
-#define sortingnetwork_aftermerge_sorted5(NEW_MULT,MULT1,REG)	\
-static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e) { \
+#define sortingnetwork_aftermerge_sorted5(NEW_MULT,MULT1,REG)\
+constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e) { \
 	REG tmp;                                                \
 	COEX_ ## MULT1 (a, e, tmp); 							\
 	COEX_ ## MULT1 (a, c, tmp); 							\
@@ -836,8 +813,8 @@ static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c
 	e = sortingnetwork_aftermerge_ ## MULT1 (e); 			\
 }
 
-#define sortingnetwork_aftermerge_sorted6(NEW_MULT,MULT1,REG)	\
-static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f){\
+#define sortingnetwork_aftermerge_sorted6(NEW_MULT,MULT1,REG)\
+constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f){\
 	REG tmp;                                                \
 	COEX_ ## MULT1 (a, e, tmp); 							\
 	COEX_ ## MULT1 (b, f, tmp); 							\
@@ -855,7 +832,7 @@ static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c
 }
 
 #define sortingnetwork_aftermerge_sorted7(NEW_MULT,MULT1,REG)\
-static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG& e, REG& f, REG &g) { \
+constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG& e, REG& f, REG &g) { \
 	REG tmp;                                                \
 	COEX_ ## MULT1 (a, e, tmp); 							\
 	COEX_ ## MULT1 (b, f, tmp); 							\
@@ -878,14 +855,14 @@ static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &
 
 
 #define sortingnetwork_sort4(NEW_MULT,DOUBLE_MULT,SINGLE_MULT,REG)\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d) noexcept { \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d) noexcept { \
 	sortingnetwork_sort_ ## DOUBLE_MULT(a, b); 				\
 	sortingnetwork_sort_ ## DOUBLE_MULT(c, d); 				\
 	sortingnetwork_merge_sorted ## NEW_MULT (a, b, c, d); 	\
 }
 
 #define sortingnetwork_sort5(NEW_MULT,MULT4,MULT2,MULT1,REG)\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e) { \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e) { \
 	REG tmp;                                                \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 				\
 	e = sortingnetwork_sort_ ## MULT1(e); 					\
@@ -902,7 +879,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG 
 }
 
 #define sortingnetwork_sort6(NEW_MULT,MULT4,MULT2,MULT1,REG)\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f){ \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f){ \
 	REG tmp;                                        \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 		\
 	sortingnetwork_sort_ ## MULT2(e, f);			\
@@ -921,8 +898,8 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG 
 	f = sortingnetwork_aftermerge_ ## MULT1(f);		\
 }
 
-#define sortingnetwork_sort7(NEW_MULT,MULT4,MULT3,MULT2,MULT1,REG)			\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g){ \
+#define sortingnetwork_sort7(NEW_MULT,MULT4,MULT3,MULT2,MULT1,REG)\
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g){ \
 	REG tmp;                                        \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 		\
 	sortingnetwork_sort_ ## MULT3(e, f, g); 		\
@@ -945,7 +922,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG 
 }
 
 #define sortingnetwork_aftermerge8(NEW_MULT,MULT2,MULT1,REG)\
-static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h){ \
+constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h){ \
 	REG tmp;                                    \
 	COEX_ ## MULT1(a, e, tmp); 					\
 	COEX_ ## MULT1(b, f, tmp); 					\
@@ -969,8 +946,8 @@ static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c
 	h = sortingnetwork_aftermerge_ ## MULT1(h); \
 }
 
-#define sortingnetwork_sort8(NEW_MULT,MULT4,MULT2,MULT1,REG) \
-static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h) { \
+#define sortingnetwork_sort8(NEW_MULT,MULT4,MULT2,MULT1,REG)\
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h) { \
 	REG tmp;                                        \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 		\
 	sortingnetwork_sort_ ## MULT4(e, f, g, h); 		\
@@ -997,7 +974,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG
 }
 
 #define sortingnetwork_sort9(NEW_MULT,MULT8,MULT2,MULT1,REG)		\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i) noexcept { \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i) noexcept { \
 	sortingnetwork_sort_ ## MULT8 (a, b, c, d, e, f, g, h); 		\
 	i = sortingnetwork_sort_ ## MULT1(i); 							\
 	sortingnetwork_permute_minmax_ ## MULT2(h, i);					\
@@ -1006,7 +983,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG 
 }
 
 #define sortingnetwork_sort10(NEW_MULT,MULT8,MULT2,REG)				\
-static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j) { \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j) { \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); 			\
 	sortingnetwork_sort_ ## MULT2(i, j); 							\
 	sortingnetwork_permute_minmax_ ## MULT2(g, j); 					\
@@ -1016,7 +993,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG
 }
 
 #define sortingnetwork_sort11(NEW_MULT,MULT8,MULT3,MULT2,REG)		\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k) { \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k) { \
 	sortingnetwork_sort_ ## MULT8 (a, b, c, d, e, f, g, h); 		\
 	sortingnetwork_sort_ ## MULT3 (i, j, k); 						\
 	sortingnetwork_permute_minmax_ ## MULT2(f, k); 					\
@@ -1027,7 +1004,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG 
 }
 
 #define sortingnetwork_sort12(NEW_MULT,MULT8,MULT4,MULT2,REG)		\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG   &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l) { \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG   &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l) { \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); 			\
 	sortingnetwork_sort_ ## MULT4(i, j, k, l); 						\
 	sortingnetwork_permute_minmax_ ## MULT2(e, l); 					\
@@ -1039,7 +1016,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG   &a, REG &b, REG &c, RE
 }
 
 #define sortingnetwork_sort13(NEW_MULT,MULT8,MULT5,MULT2,REG)	\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m) { \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m) { \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); 		\
 	sortingnetwork_sort_ ## MULT5(i, j, k, l, m); 				\
 	sortingnetwork_permute_minmax_ ## MULT2(d, m); 				\
@@ -1052,7 +1029,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG 
 }
 
 #define sortingnetwork_sort14(NEW_MULT,MULT8,MULT6,MULT2,REG)	\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n) { \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n) { \
 	sortingnetwork_sort_ ## MULT8 (a, b, c, d, e, f, g, h); 	\
 	sortingnetwork_sort_ ## MULT6 (i, j, k, l, m, n); 			\
 	sortingnetwork_permute_minmax_ ## MULT2(c, n); 				\
@@ -1066,7 +1043,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG 
 }
 
 #define sortingnetwork_sort15(NEW_MULT,MULT8,MULT7,MULT2,REG)	\
-static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o){ \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o){ \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); 		\
 	sortingnetwork_sort_ ## MULT7(i, j, k, l, m, n, o); 		\
 	sortingnetwork_permute_minmax_ ## MULT2(b, o); 				\
@@ -1081,7 +1058,7 @@ static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG 
 }
 
 #define sortingnetwork_sort16(NEW_MULT,MULT8,MULT2,REG)	\
-static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o, REG &p){ \
+constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o, REG &p){ \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); \
 	sortingnetwork_sort_ ## MULT8(i, j, k, l, m, n, o, p); \
 	sortingnetwork_permute_minmax_ ## MULT2(a, p); \
@@ -1176,88 +1153,38 @@ sortingnetwork_sort16(f32x128,f32x64,f32x16,__m256)
 sortingnetwork_sort16(u32x128,u32x64,u32x16,__m256i)
 sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
 
-
-
-
-
-template<typename REG=__m256, const uint32_t SIMD_VECTOR_WIDTH=8>
-static inline REG sortingnetwork_load_vector(const float* array, const size_t vector_index) {
-	return _mm256_loadu_ps(array + SIMD_VECTOR_WIDTH * vector_index);
-}
-
-template<typename REG=__m256, const uint32_t SIMD_VECTOR_WIDTH=8>
-static inline void sortingnetwork_store_vector(float* array, const REG a, const size_t vector_index) {
-	_mm256_storeu_ps(array + SIMD_VECTOR_WIDTH * vector_index, a);
-}
-static inline __m256i loadstore_mask(int element_count)
-{
-	return _mm256_set_epi32(0,
-	                        (element_count>6) ? 0xffffffff : 0,
-	                        (element_count>5) ? 0xffffffff : 0,
-	                        (element_count>4) ? 0xffffffff : 0,
-	                        (element_count>3) ? 0xffffffff : 0,
-	                        (element_count>2) ? 0xffffffff : 0,
-	                        (element_count>1) ? 0xffffffff : 0,
-	                        (element_count>0) ? 0xffffffff : 0);
-}
-
-template<typename REG=__m256, const uint32_t SIMD_VECTOR_WIDTH=8>
-static inline __m256 sortingnetwork_load_partial(const float* array,
-                                       const uint32_t index,
-                                       const uint32_t element_count) {
-	if (element_count == SIMD_VECTOR_WIDTH) {
-		return _mm256_loadu_ps(array + index * SIMD_VECTOR_WIDTH);
-	}
-
-	__m256 inf_mask = _mm256_cvtepi32_ps(_mm256_set_epi32(0x7F800000,
-	                                                      (element_count>6) ? 0 : 0x7F800000,
-	                                                      (element_count>5) ? 0 : 0x7F800000,
-	                                                      (element_count>4) ? 0 : 0x7F800000,
-	                                                      (element_count>3) ? 0 : 0x7F800000,
-	                                                      (element_count>2) ? 0 : 0x7F800000,
-	                                                      (element_count>1) ? 0 : 0x7F800000,
-	                                                      (element_count>0) ? 0 : 0x7F800000));
-
-	__m256 a = _mm256_maskload_ps(array + index * SIMD_VECTOR_WIDTH, loadstore_mask(element_count));
-	return _mm256_or_ps(a, inf_mask);
-}
-
-template<typename REG=__m256, const uint32_t SIMD_VECTOR_WIDTH=8>
-static inline void sortingnetwork_store_partial(float* array, const REG a,
-                                      const uint32_t index, const uint32_t element_count){
-	if (element_count == SIMD_VECTOR_WIDTH) {
-		_mm256_storeu_ps(array + index * SIMD_VECTOR_WIDTH, a);
-	} else {
-		_mm256_maskstore_ps(array + index * SIMD_VECTOR_WIDTH, loadstore_mask(element_count), a);
-	}
-}
-
-/// TODO test
-template<typename T, typename R, const uint32_t SIMD_VECTOR_WIDTH=8>
-constexpr static bool sortingnetwork_small_sort(T* array, const size_t element_count) noexcept {
+/// can only sort up to 16*8 elements
+/// sorts the floating point data in `array`
+/// \param array base pointer to the data
+/// \param element_count
+/// \return true on success.
+/// 		false on faile
+[[nodiscard]] static bool sortingnetwork_small_f32(float* array,
+									  const size_t element_count) noexcept {
 	if (element_count <= 1) {
 		return true;
 	}
 
-	const int full_vec_count = element_count / SIMD_VECTOR_WIDTH;
-	const int last_vec_size = element_count - (full_vec_count * SIMD_VECTOR_WIDTH);
+	const uint32_t full_vec_count = element_count / 8;
+	const uint32_t last_vec_size = element_count - (full_vec_count * 8);
+	const uint32_t last_vec_flag = last_vec_size > 0;
 	if (full_vec_count > 16) {
 		// too many values
 		return false;
 	}
 	
 
-	R d[24];
+	__m256 d[16];
 	for(uint32_t i=0; i<full_vec_count; ++i) {
-		d[i] = sortingnetwork_load_vector(array, i);
+		d[i] = _mm256_loadu_ps(array + 8*i);
 	}
 
 	if (last_vec_size) {
-		d[full_vec_count] = sortingnetwork_load_partial(array, full_vec_count, last_vec_size);
+		d[full_vec_count] = avx2_load_f32x8(array, full_vec_count, last_vec_size);
 	}
 
 #ifdef __clang__
-	switch (full_vec_count) {
+	switch (full_vec_count+last_vec_flag) {
 		case 1 : sortingnetwork_sort_f32x8  (d[0]); goto cleanup;
 		case 2 : sortingnetwork_sort_f32x16 (d[0],d[1]); goto cleanup;
 		case 3 : sortingnetwork_sort_f32x24 (d[0],d[1],d[2]); goto cleanup;
@@ -1286,7 +1213,7 @@ constexpr static bool sortingnetwork_small_sort(T* array, const size_t element_c
 		&&t16
 	};
 
-	goto *t[full_vec_count];
+	goto *t[full_vec_count+last_vec_flag - 1];
 	t1 : sortingnetwork_sort_f32x8  (d[0]); goto cleanup;
 	t2 : sortingnetwork_sort_f32x16 (d[0],d[1]); goto cleanup;
 	t3 : sortingnetwork_sort_f32x24 (d[0],d[1],d[2]); goto cleanup;
@@ -1307,11 +1234,11 @@ constexpr static bool sortingnetwork_small_sort(T* array, const size_t element_c
 
 	cleanup:
     for(uint32_t i=0; i<full_vec_count; ++i) {
-		sortingnetwork_store_vector(array, d[i], i);
+		_mm256_storeu_ps(array + 8*i, d[i]);
 	}
 
     if (last_vec_size) {
-		sortingnetwork_store_partial(array, d[full_vec_count], full_vec_count, last_vec_size);
+		avx2_store_f32x8(array, d[full_vec_count], full_vec_count, last_vec_size);
 	}
 
 	return true;

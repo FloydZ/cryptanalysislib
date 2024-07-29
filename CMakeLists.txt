@@ -61,6 +61,7 @@ check_cxx_compiler_flag(-fsanitize=address COMPILER_SUPPORTS_SANITIZE_ADDRESS) #
 check_cxx_compiler_flag(-fsanitize=memory COMPILER_SUPPORTS_SANITIZE_MEMORY)
 check_cxx_compiler_flag(-fconstexpr-steps=91 COMPILER_SUPPORTS_CONSTEXPR_COST)
 check_cxx_compiler_flag(-fno-exceptions COMPILER_SUPPORTS_NO_EXCEPTION)
+check_cxx_compiler_flag(-fconcepts-diagnostics-depth=10 COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC) # TODO
 
@@ -138,7 +139,9 @@ endif()
 if (COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-gnu-label-as-value")
 endif()
-
+if (COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
+	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -fconcepts-diagnostics-depth=10")
+endif()
 if (${USE_PEDANTIC})
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wpedantic")
 endif()

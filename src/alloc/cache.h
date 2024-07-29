@@ -2,7 +2,7 @@
 #define CRYPTANALYSISLIB_CACHE_H
 
 #include "helper.h"
-#include "container/linkedlist/const_linkedlist.h"
+#include "container/linkedlist.h"
 #include "popcount/popcount.h"
 
 template<class T>
