@@ -939,7 +939,10 @@ public:
 	/// \param target
 	/// \param MT must be transposed
 	/// \param e
-	template<ListEnumerator Enumerator>
+	template<typename Enumerator>
+#if __cplusplus > 201709L
+		requires ListEnumerator<Enumerator>
+#endif
 	static void dissection4(List &out,
 	                             const LabelType &target,
 	                             const MatrixType &MT,
