@@ -712,7 +712,7 @@ static inline __m256 sortingnetwork_aftermerge_f32x8(__m256 &a) noexcept {
 /// \MULT: ex: f32x8
 /// \REG: ex: __m256
 #define sortingnetwork_aftermerge2(NEW_MULT, MULT, REG)						\
-constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b) {  \
+static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b) {  \
 	REG tmp; 																\
     COEX_ ## MULT(a, b, tmp);                          						\
 	a = sortingnetwork_aftermerge_ ## MULT (a); 							\
@@ -724,7 +724,7 @@ constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG 
 // REG perm_neigh = (REG)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3));
 
 #define sortingnetwork_permute_minmax2(NEW_MULT, REG, MIN_FKT, MAX_FKT )			\
-constexpr static inline void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept { \
+static inline void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept { \
   	const REG swap = (REG) (__m256) __builtin_ia32_vperm2f128_ps256 ((__v8sf)b, (__v8sf)b, _MM_SHUFFLE(0, 0, 1, 1)); \
   	REG perm_neigh = (REG) (__m256) __builtin_ia32_vpermilps256 ((__v8sf)swap, _MM_SHUFFLE(0, 1, 2, 3)); 	\
 	REG perm_neigh_min = MIN_FKT(a, perm_neigh);									\
@@ -733,14 +733,14 @@ constexpr static inline void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a,
 }
 
 #define sortingnetwork_merge_sorted2(NEW_MULT,MULT1,REG)	\
-constexpr static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b) noexcept {	\
+static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b) noexcept {	\
 	sortingnetwork_permute_minmax_ ## NEW_MULT (a, b); 		\
 	a = sortingnetwork_aftermerge_ ## MULT1 (a); 			\
 	b = sortingnetwork_aftermerge_ ## MULT1 (b); 			\
 }
 
 #define sortingnetwork_sort2(NEW_MULT,MULT1,REG)		\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b) noexcept { 	\
+static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b) noexcept { 	\
 	a = sortingnetwork_sort_ ## MULT1 (a); 				\
 	b = sortingnetwork_sort_ ## MULT1 (b); 				\
 	sortingnetwork_merge_sorted_ ## NEW_MULT(a, b); 	\
@@ -748,7 +748,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b) n
 
 
 #define sortingnetwork_merge_sorted3(NEW_MULT,MULT2,MULT1,REG)	\
-constexpr static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b, REG &c) noexcept {\
+static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, REG &b, REG &c) noexcept {\
  	REG tmp;                                                    \
 	sortingnetwork_permute_minmax_ ## MULT2(b, c); 				\
 	COEX_ ## MULT1(a, b, tmp);									\
@@ -758,7 +758,7 @@ constexpr static inline void sortingnetwork_merge_sorted_ ## NEW_MULT (REG &a, R
 }
 
 #define sortingnetwork_aftermerge_sorted3(NEW_MULT,MULT1,REG)	\
-constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &c) { \
+static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &c) { \
 	REG tmp;                                                    \
 	COEX_ ## MULT1 (a, c, tmp); 								\
 	COEX_ ## MULT1 (a, b, tmp); 								\
@@ -769,7 +769,7 @@ constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG
 
 
 #define sortingnetwork_sort3(NEW_MULT,DOUBLE_MULT,MULT1,REG)	\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c) noexcept {\
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c) noexcept {\
 	sortingnetwork_sort_ ## DOUBLE_MULT(a, b); 					\
 	c = sortingnetwork_sort_ ## MULT1 (c); 						\
 	sortingnetwork_merge_sorted_ ## NEW_MULT (a, b, c);			\
@@ -777,7 +777,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 
 
 #define sortingnetwork_merge_sorted4(NEW_MULT,DOUBLE_MULT,SINGLE_MULT,REG)	\
-constexpr static inline void sortingnetwork_merge_sorted ## NEW_MULT (REG &a, REG &b, REG &c, REG &d) noexcept {\
+static inline void sortingnetwork_merge_sorted ## NEW_MULT (REG &a, REG &b, REG &c, REG &d) noexcept {\
 	REG tmp;                                                \
 	sortingnetwork_permute_minmax_ ## DOUBLE_MULT (a, d); 	\
 	sortingnetwork_permute_minmax_ ## DOUBLE_MULT (b, c); 	\
@@ -790,7 +790,7 @@ constexpr static inline void sortingnetwork_merge_sorted ## NEW_MULT (REG &a, RE
 }
 
 #define sortingnetwork_aftermerge_sorted4(NEW_MULT,MULT1,REG)\
-constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d) {\
+static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d) {\
 	REG tmp;                                                \
 	COEX_ ## MULT1 (a, c, tmp); 							\
 	COEX_ ## MULT1 (b, d, tmp); 							\
@@ -803,7 +803,7 @@ constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG 
 }
 
 #define sortingnetwork_aftermerge_sorted5(NEW_MULT,MULT1,REG)\
-constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e) { \
+static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e) { \
 	REG tmp;                                                \
 	COEX_ ## MULT1 (a, e, tmp); 							\
 	COEX_ ## MULT1 (a, c, tmp); 							\
@@ -818,7 +818,7 @@ constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG 
 }
 
 #define sortingnetwork_aftermerge_sorted6(NEW_MULT,MULT1,REG)\
-constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f){\
+static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f){\
 	REG tmp;                                                \
 	COEX_ ## MULT1 (a, e, tmp); 							\
 	COEX_ ## MULT1 (b, f, tmp); 							\
@@ -836,7 +836,7 @@ constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG 
 }
 
 #define sortingnetwork_aftermerge_sorted7(NEW_MULT,MULT1,REG)\
-constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG& e, REG& f, REG &g) { \
+static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG& e, REG& f, REG &g) { \
 	REG tmp;                                                \
 	COEX_ ## MULT1 (a, e, tmp); 							\
 	COEX_ ## MULT1 (b, f, tmp); 							\
@@ -859,14 +859,14 @@ constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT (REG &a, REG
 
 
 #define sortingnetwork_sort4(NEW_MULT,DOUBLE_MULT,SINGLE_MULT,REG)\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d) noexcept { \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d) noexcept { \
 	sortingnetwork_sort_ ## DOUBLE_MULT(a, b); 				\
 	sortingnetwork_sort_ ## DOUBLE_MULT(c, d); 				\
 	sortingnetwork_merge_sorted ## NEW_MULT (a, b, c, d); 	\
 }
 
 #define sortingnetwork_sort5(NEW_MULT,MULT4,MULT2,MULT1,REG)\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e) { \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e) { \
 	REG tmp;                                                \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 				\
 	e = sortingnetwork_sort_ ## MULT1(e); 					\
@@ -883,7 +883,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 }
 
 #define sortingnetwork_sort6(NEW_MULT,MULT4,MULT2,MULT1,REG)\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f){ \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f){ \
 	REG tmp;                                        \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 		\
 	sortingnetwork_sort_ ## MULT2(e, f);			\
@@ -903,7 +903,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 }
 
 #define sortingnetwork_sort7(NEW_MULT,MULT4,MULT3,MULT2,MULT1,REG)\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g){ \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g){ \
 	REG tmp;                                        \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 		\
 	sortingnetwork_sort_ ## MULT3(e, f, g); 		\
@@ -926,7 +926,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 }
 
 #define sortingnetwork_aftermerge8(NEW_MULT,MULT2,MULT1,REG)\
-constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h){ \
+static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h){ \
 	REG tmp;                                    \
 	COEX_ ## MULT1(a, e, tmp); 					\
 	COEX_ ## MULT1(b, f, tmp); 					\
@@ -951,7 +951,7 @@ constexpr static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG 
 }
 
 #define sortingnetwork_sort8(NEW_MULT,MULT4,MULT2,MULT1,REG)\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h) { \
+static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h) { \
 	REG tmp;                                        \
 	sortingnetwork_sort_ ## MULT4(a, b, c, d); 		\
 	sortingnetwork_sort_ ## MULT4(e, f, g, h); 		\
@@ -978,7 +978,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, R
 }
 
 #define sortingnetwork_sort9(NEW_MULT,MULT8,MULT2,MULT1,REG)		\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i) noexcept { \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i) noexcept { \
 	sortingnetwork_sort_ ## MULT8 (a, b, c, d, e, f, g, h); 		\
 	i = sortingnetwork_sort_ ## MULT1(i); 							\
 	sortingnetwork_permute_minmax_ ## MULT2(h, i);					\
@@ -987,7 +987,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 }
 
 #define sortingnetwork_sort10(NEW_MULT,MULT8,MULT2,REG)				\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j) { \
+static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j) { \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); 			\
 	sortingnetwork_sort_ ## MULT2(i, j); 							\
 	sortingnetwork_permute_minmax_ ## MULT2(g, j); 					\
@@ -997,7 +997,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, R
 }
 
 #define sortingnetwork_sort11(NEW_MULT,MULT8,MULT3,MULT2,REG)		\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k) { \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k) { \
 	sortingnetwork_sort_ ## MULT8 (a, b, c, d, e, f, g, h); 		\
 	sortingnetwork_sort_ ## MULT3 (i, j, k); 						\
 	sortingnetwork_permute_minmax_ ## MULT2(f, k); 					\
@@ -1008,7 +1008,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 }
 
 #define sortingnetwork_sort12(NEW_MULT,MULT8,MULT4,MULT2,REG)		\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG   &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l) { \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG   &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l) { \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); 			\
 	sortingnetwork_sort_ ## MULT4(i, j, k, l); 						\
 	sortingnetwork_permute_minmax_ ## MULT2(e, l); 					\
@@ -1020,7 +1020,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG   &a, REG &b, 
 }
 
 #define sortingnetwork_sort13(NEW_MULT,MULT8,MULT5,MULT2,REG)	\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m) { \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m) { \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); 		\
 	sortingnetwork_sort_ ## MULT5(i, j, k, l, m); 				\
 	sortingnetwork_permute_minmax_ ## MULT2(d, m); 				\
@@ -1033,7 +1033,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 }
 
 #define sortingnetwork_sort14(NEW_MULT,MULT8,MULT6,MULT2,REG)	\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n) { \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n) { \
 	sortingnetwork_sort_ ## MULT8 (a, b, c, d, e, f, g, h); 	\
 	sortingnetwork_sort_ ## MULT6 (i, j, k, l, m, n); 			\
 	sortingnetwork_permute_minmax_ ## MULT2(c, n); 				\
@@ -1047,7 +1047,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 }
 
 #define sortingnetwork_sort15(NEW_MULT,MULT8,MULT7,MULT2,REG)	\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o){ \
+static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o){ \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); 		\
 	sortingnetwork_sort_ ## MULT7(i, j, k, l, m, n, o); 		\
 	sortingnetwork_permute_minmax_ ## MULT2(b, o); 				\
@@ -1062,7 +1062,7 @@ constexpr static inline void sortingnetwork_sort_ ## NEW_MULT(REG &a, REG &b, RE
 }
 
 #define sortingnetwork_sort16(NEW_MULT,MULT8,MULT2,REG)	\
-constexpr static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o, REG &p){ \
+static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG &d, REG &e, REG &f, REG &g, REG &h, REG &i, REG &j, REG &k, REG &l, REG &m, REG &n, REG &o, REG &p){ \
 	sortingnetwork_sort_ ## MULT8(a, b, c, d, e, f, g, h); \
 	sortingnetwork_sort_ ## MULT8(i, j, k, l, m, n, o, p); \
 	sortingnetwork_permute_minmax_ ## MULT2(a, p); \
@@ -1258,11 +1258,11 @@ sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
         vec, _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0));}
 
 #define COEX_SHUFFLE(vec, a, b, c, d, e, f, g, h, MASK){               \
-    constexpr int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
+    int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
     __m256i shuffled = _mm256_shuffle_epi32(vec, shuffle_mask);        \
     __m256i min = _mm256_min_epi32(shuffled, vec);                     \
     __m256i max = _mm256_max_epi32(shuffled, vec);                     \
-    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
 #define COEX_PERMUTE(vec, a, b, c, d, e, f, g, h, MASK){               \
@@ -1270,7 +1270,7 @@ sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
     __m256i permuted = _mm256_permutevar8x32_epi32(vec, permute_mask); \
     __m256i min = _mm256_min_epi32(permuted, vec);                     \
     __m256i max = _mm256_max_epi32(permuted, vec);                     \
-    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
 /* sort 8 columns, each containing 16 int, with Green's 60 modules network */
@@ -1466,11 +1466,11 @@ CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(i)
 #undef COEX_PERMUTE
 
 #define COEX_SHUFFLE(vec, a, b, c, d, e, f, g, h, MASK){               \
-    constexpr int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
+    int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
     __m256i shuffled = _mm256_shuffle_epi32(vec, shuffle_mask);        \
     __m256i min = _mm256_min_epu32(shuffled, vec);                     \
     __m256i max = _mm256_max_epu32(shuffled, vec);                     \
-    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
 #define COEX_PERMUTE(vec, a, b, c, d, e, f, g, h, MASK){               \
@@ -1478,7 +1478,7 @@ CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(i)
     __m256i permuted = _mm256_permutevar8x32_epi32(vec, permute_mask); \
     __m256i min = _mm256_min_epu32(permuted, vec);                     \
     __m256i max = _mm256_max_epu32(permuted, vec);                     \
-    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
 #ifdef __clang__
