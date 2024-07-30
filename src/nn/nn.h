@@ -1563,7 +1563,7 @@ public:
 		run(e1, e2);
 	}
 
-	///////////////////////////// SIMD \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	/* ///////////////////////////// SIMD \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ */
 
 
 	/// \tparam exact if set to true: a simple equality check is done
@@ -1575,7 +1575,7 @@ public:
 	/// 		 bit7 = in1.v32[7] == in2.v32[7]]
 	template<const bool exact = false>
 	[[nodiscard]] constexpr int compare_256_32(const uint32x8_t in1,
-	                             const uint32x8_t in2) const noexcept {
+	                             			   const uint32x8_t in2) const noexcept {
 		if constexpr (exact) {
 			return uint32x8_t::cmp(in1, in2);
 		}

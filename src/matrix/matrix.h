@@ -114,7 +114,7 @@ public:
 	                                            kAryPackedContainer_T<T, ncols, q>,
 	                                            kAryContainer_T<T, ncols, q>>::type;
 	// typedef __RowType RowType;
-	using RowType = std::conditional<std::is_same_v<R, void>, __RowType, R>::type;
+	using RowType = typename std::conditional<std::is_same_v<R, void>, __RowType, R>::type;
 	typedef typename RowType::DataType DataType;
 	using InternalRowType = RowType;
 	using MatrixType = FqMatrix_Meta<T, nrows, ncols, q, packed>;
@@ -1192,7 +1192,7 @@ public:
 	             ValueTypeAble<ValueType>
 	constexpr void mul(LabelType &out,
 	                   const ValueType &in) const noexcept {
-		using DataType = LabelType::DataType;
+		using DataType = typename LabelType::DataType;
 		constexpr uint32_t IN_COLS = ValueType::length();
 		constexpr uint32_t OUT_COLS = LabelType::length();
 		static_assert((IN_COLS == COLS)  || (IN_COLS == ROWS)) ;

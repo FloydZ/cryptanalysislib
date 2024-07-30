@@ -2439,14 +2439,14 @@ constexpr inline void sse_prefixsum_u32(uint32_t *in) noexcept {
     // return x;
 }
 
-constexpr inline void avx_prefix_prefixsum_u32(uint32_t *p) noexcept {
+inline void avx_prefix_prefixsum_u32(uint32_t *p) noexcept {
     __m256i x = _mm256_loadu_si256((__m256i *) p);
     x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4));
     x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8));
     _mm256_storeu_si256((__m256i *) p, x);
 }
 
-constexpr inline __m128i sse_prefixsum_accumulate_u32(uint32_t *p, const __m128i s) {
+inline __m128i sse_prefixsum_accumulate_u32(uint32_t *p, const __m128i s) {
     __m128i d = (__m128i) _mm_broadcast_ss((float*) &p[3]);
     __m128i x = _mm_loadu_si128((__m128i*) p);
     x = _mm_add_epi32(s, x);

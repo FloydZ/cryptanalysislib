@@ -30,7 +30,7 @@
 		return 0;
 
 
-/// \tparam length
+/// \tparam _n number of bits
 /// \tparam T
 template<const uint64_t _n, 
 		 typename T = uint64_t>
@@ -1294,7 +1294,7 @@ public:
 		} else {// the two offsets lay in two different limbs
 			v1.__data[upper] = (v1.__data[upper] & ~rmask) | (v2.__data[upper] & rmask);
 			v1.__data[lower] = (v1.__data[lower] & ~lmask) | (v2.__data[lower] & lmask);
-			for (uint32_t i = upper - 1ul; i > lower; i--) {
+			for (uint32_t i = upper - 1ul; (i > lower) && (upper > 0); i--) {
 				v1.__data[i] = v2.__data[i];
 			}
 		}

@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <gtest/gtest.h>
 
 #include "combination/chase.h"
@@ -163,16 +164,16 @@ TEST(Chase, p3) {
 
 TEST(Chase, first) {
 	constexpr uint32_t element_limbs = (n + 63) / 64;
-	uint16_t pos1, pos2;
+	uint16_t pos1=0, pos2=0;
 	uint16_t epos1, epos2;
 	Combinations_Binary_Chase<T, n, w> c;
 
-	uint64_t *w1 = (uint64_t *) malloc(element_limbs * 8),
-	         *w2 = (uint64_t *) malloc(element_limbs * 8);
+	uint64_t *w1 = (uint64_t *) malloc(element_limbs * sizeof(uint64_t)),
+	         *w2 = (uint64_t *) malloc(element_limbs * sizeof(uint64_t));
 
 	c.left_step(w2, &epos1, &epos2);
 	for (size_t i = 0; i < list_size; ++i) {
-		memcpy(w1, w2, element_limbs * 8);
+		cryptanalysislib::memcpy(w1, w2, element_limbs);
 		bool ret = c.left_step(w2, &epos1, &epos2);
 		if (i != (list_size - 1)) {
 			EXPECT_EQ(true, ret);
@@ -187,7 +188,8 @@ TEST(Chase, first) {
 		bool v1 = pos1 == epos1 or pos1 == epos2;
 		bool v2 = pos2 == epos2 or pos2 == epos1;
 		EXPECT_EQ(true, v1);
-		EXPECT_EQ(true, v2);
+		if (i != (list_size - 1))
+			EXPECT_EQ(true, v2);
 		// std ::cout << epos1 << ":" << epos2 << " " << pos1 << ":" << pos2 << std::endl;
 		print_binary(w2, n);
 

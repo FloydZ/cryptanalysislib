@@ -55,7 +55,6 @@ namespace cryptanalysislib {
 				return;
 			}
 
-
 			const uintptr_t t = ((uintptr_t )out) & 0b11111;
 			if (t) {
 				if (t & 1u) {
@@ -75,7 +74,8 @@ namespace cryptanalysislib {
 					out += 8; in += 8;
 				}
 				if (t & 16u) {
-					_uint64x2_t::aligned_store((void *)out, _uint64x2_t::unaligned_load((void *)in));
+					_uint64x2_t::aligned_store((void *)out,
+							_uint64x2_t::unaligned_load((void *)in));
 					out += 16; in += 16;
 				}
 			}

@@ -22,7 +22,7 @@ void* run(void*){
 //   https://mechanical-sympathy.blogspot.com/2011/08/inter-thread-latency.html
 // Run:
 //   taskset -c 2,4 ./tests/thread/test_thread_inter_thread_latency
-int main (int argc, char *argv[]) {
+int main (void) {
     pthread_t threads[1];
     pthread_create(&threads[0], NULL, run, NULL);
 
