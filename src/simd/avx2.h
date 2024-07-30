@@ -2407,7 +2407,7 @@ struct uint64x4_t {
 	}
 };
 
-constexpr inline void sse_prefixsum_u32(uint32_t *in) noexcept {
+inline void sse_prefixsum_u32(uint32_t *in) noexcept {
 	__m128i x = _mm_loadu_si128((__m128i *)in);
     // x = 1, 2, 3, 4
     x = _mm_add_epi32(x, _mm_slli_si128(x, 4));

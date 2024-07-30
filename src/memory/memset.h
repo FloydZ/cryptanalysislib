@@ -100,7 +100,7 @@ namespace cryptanalysislib {
 
 
 #ifdef USE_AVX512BW
-		constexpr void memsetU512BW(uint8_t *out,
+		void memsetU512BW(uint8_t *out,
 									const uint8_t in,
 									const size_t bytes) noexcept {
 			uint8x64_t t = uint8x64_t::set1(in);
@@ -131,7 +131,7 @@ namespace cryptanalysislib {
 		/// \param in
 		/// \param bytes
 		/// \return
-		constexpr void memset_bytes(uint8_t *out,
+		void memset_bytes(uint8_t *out,
 		                      const uint8_t in,
 		                      const size_t bytes) {
 #ifdef USE_AVX512BW
@@ -142,14 +142,14 @@ namespace cryptanalysislib {
 		}
 	} // end internal
 
-	///
+	/// TODO make constexpr via std::is_constant_evaluated
 	/// \tparam T
 	/// \param out
 	/// \param in
 	/// \param len
 	/// \return
 	template<typename T>
-	constexpr void memset(T *out, const T in, size_t len) {
+	void memset(T *out, const T in, size_t len) {
 		if constexpr (sizeof(T) == 1) {
 			cryptanalysislib::internal::memset_bytes(out, in, sizeof(T) * len);
 			return;
