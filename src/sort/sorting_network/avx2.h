@@ -1258,11 +1258,11 @@ sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
         vec, _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0));}
 
 #define COEX_SHUFFLE(vec, a, b, c, d, e, f, g, h, MASK){               \
-    int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
+    constexpr int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
     __m256i shuffled = _mm256_shuffle_epi32(vec, shuffle_mask);        \
     __m256i min = _mm256_min_epi32(shuffled, vec);                     \
     __m256i max = _mm256_max_epi32(shuffled, vec);                     \
-    int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
 #define COEX_PERMUTE(vec, a, b, c, d, e, f, g, h, MASK){               \
@@ -1270,7 +1270,7 @@ sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
     __m256i permuted = _mm256_permutevar8x32_epi32(vec, permute_mask); \
     __m256i min = _mm256_min_epi32(permuted, vec);                     \
     __m256i max = _mm256_max_epi32(permuted, vec);                     \
-    int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
 /* sort 8 columns, each containing 16 int, with Green's 60 modules network */
@@ -1466,11 +1466,11 @@ CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(i)
 #undef COEX_PERMUTE
 
 #define COEX_SHUFFLE(vec, a, b, c, d, e, f, g, h, MASK){               \
-    int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
+    constexpr int shuffle_mask = _MM_SHUFFLE(d, c, b, a);              \
     __m256i shuffled = _mm256_shuffle_epi32(vec, shuffle_mask);        \
     __m256i min = _mm256_min_epu32(shuffled, vec);                     \
     __m256i max = _mm256_max_epu32(shuffled, vec);                     \
-    int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
 #define COEX_PERMUTE(vec, a, b, c, d, e, f, g, h, MASK){               \
@@ -1478,7 +1478,7 @@ CREATE_MERGE_8_COLUMNS_WITH_16_ELEMENTS(i)
     __m256i permuted = _mm256_permutevar8x32_epi32(vec, permute_mask); \
     __m256i min = _mm256_min_epu32(permuted, vec);                     \
     __m256i max = _mm256_max_epu32(permuted, vec);                     \
-    int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
+    constexpr int blend_mask = MASK(a, b, c, d, e, f, g, h);           \
     vec = _mm256_blend_epi32(min, max, blend_mask);}
 
 #ifdef __clang__
