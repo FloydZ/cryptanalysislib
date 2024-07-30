@@ -1068,7 +1068,7 @@ struct uint8x32_t {
 #endif
 	}
 
-	///
+	/// only reverses the u8 limbs
 	/// source:  https://github.com/WojciechMula/toys/blob/master/simd-basic/reverse-bytes/reverse.avx2.cpp
 	/// \param in
 	/// \return

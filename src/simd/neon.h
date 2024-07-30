@@ -1,7 +1,6 @@
 #ifndef CRYPTANALYSISLIB_SIMD_NEON_H
 #define CRYPTANALYSISLIB_SIMD_NEON_H
 
-#include <__type_traits/is_constant_evaluated.h>
 #include <arm_neon.h>
 #include <cstdint>
 
@@ -870,6 +869,8 @@ struct uint8x32_t {
 		return ret;
 	}
 
+	/// NOTE: in constexpr mode this ensure that the v128 union elements are 
+	/// the active one
 	[[nodiscard]] constexpr static inline uint8x32_t set(char __q31, char __q30, char __q29, char __q28,
 	                                                     char __q27, char __q26, char __q25, char __q24,
 	                                                     char __q23, char __q22, char __q21, char __q20,
@@ -911,9 +912,19 @@ struct uint8x32_t {
 		out.v8[2] = __q02;
 		out.v8[1] = __q01;
 		out.v8[0] = __q00;
+
+		if (std::is_constant_evaluated()) {
+			uint8x32_t out1;
+			out1.v128[0] = u8tom128(out.v8 +  0);
+			out1.v128[1] = u8tom128(out.v8 + 16);
+			return out1;
+		}
+
 		return out;
 	}
 
+	/// NOTE: in constexpr mode this ensure that the v128 union elements are 
+	/// the active one
 	[[nodiscard]] constexpr static inline uint8x32_t setr(char __q31, char __q30, char __q29, char __q28,
 	                                                      char __q27, char __q26, char __q25, char __q24,
 	                                                      char __q23, char __q22, char __q21, char __q20,
@@ -955,6 +966,14 @@ struct uint8x32_t {
 		out.v8[29] = __q02;
 		out.v8[30] = __q01;
 		out.v8[31] = __q00;
+
+		if (std::is_constant_evaluated()) {
+			uint8x32_t out1;
+			out1.v128[0] = u8tom128(out.v8 +  0);
+			out1.v128[1] = u8tom128(out.v8 + 16);
+			return out1;
+		}
+
 		return out;
 	}
 
@@ -962,12 +981,11 @@ struct uint8x32_t {
 	/// \param a
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t set1(const uint8_t a) noexcept {
-		uint8x32_t out;
-		out = uint8x32_t::set(a, a, a, a, a, a, a, a,
+		uint8x32_t out1 = uint8x32_t::set(a, a, a, a, a, a, a, a,
 		                      a, a, a, a, a, a, a, a,
 		                      a, a, a, a, a, a, a, a,
 		                      a, a, a, a, a, a, a, a);
-		return out;
+		return out1;
 	}
 
 	///
@@ -1001,7 +1019,7 @@ struct uint8x32_t {
 #ifndef __clang__
 			out.v128[i] = (uint8x16_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128 + i);
 #endif
 		}
 		return out;
@@ -1026,19 +1044,20 @@ struct uint8x32_t {
 #ifndef __clang__
 			out.v128[i] = (uint8x16_t) vldrq_p128(ptr128);
 #else
-			out.v128[i] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128 + i);
 #endif
 		}
 		return out;
 	}
 
 
-	///
+	/// NOTE: can never be constexpr
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	constexpr static inline void store(void *ptr, const uint8x32_t in) noexcept {
+	constexpr static inline void store(void *ptr, 
+									  const uint8x32_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -1047,10 +1066,11 @@ struct uint8x32_t {
 		aligned_store(ptr, in);
 	}
 
-	///
+	/// NOTE: can never be constexpr
 	/// \param ptr
 	/// \param in
-	constexpr static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
+	constexpr static inline void aligned_store(void *ptr,
+											   const uint8x32_t in) noexcept {
 		auto *ptr128 = (uint8x16_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -1061,7 +1081,8 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
+	constexpr static inline void unaligned_store(void *ptr,
+												 const uint8x32_t in) noexcept {
 		auto *ptr128 = (uint8x16_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -1072,7 +1093,7 @@ struct uint8x32_t {
 	/// https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIM1ykrgAyeAyYAHI%2BAEaYxCCSABykAA6oCoRODB7evv6BaRmOAqHhUSyx8Um2mPbFDEIETMQEOT5%2BATV1WY3NBKWRMXEJyQpNLW15nWN9A%2BWVIwCUtqhexMjsHOYAzGHI3lgA1CbbbmP4qAB0CCfYJhoAgjt7B5jHp%2Be0eNHXt/dPZl2DH2XiOJzcjjYv22d0ez2Br3ebmaLAA%2BuEBNDYQCgSCwadkOcwgQ/nDHgQAJ4pTBYKiHVGopgEAjEb5eAiYBlQDEMVEAN0wDhIqMp1IgiUWksOXmJiRFh3pqJlgkSqjlJO2VnJVJpmDpDKZLLZHK5EB5/MFRGIIp1EC4ADZJYtpbL5QzlQRVQ6RSctQ9Rbr9YzmazouzOajuZgBBahdaAxBJE6XYJvQRFR6HapJD7Nf8A7TFYbQ%2BHTeaBXGbWKJVLM/a3UriVn1b78zrCwaQ8aI1GYxWrVXMBAzMmPdszA2x2ZVBONX6C3qi12wybI2bo7z%2B8KE0na8Tx5P99Oc3O29SO8GjSue%2Bu%2B5bt7auKPifaTxmX5JVFxc/P24vO1epZruW97xraI57oIr6HlBn6zq2ZJPI8YzEF4Dgpp6qgHumJgAOx%2BvcACcXgMFkxz4f8RFER66oKnyiTHAArBY44mIxAAiCFIYR1FNvW6Z8g6bEWEJHFcVRGjEUe8p8qxzGHIkbGcXmZI8ZJHrQQJr7CYckhKeJklEe6spfvxhyCWYinMWY%2BkqdxeHKQRkloAwYyYKoKTEBhqrYRAzoMKg7kbCkOEUbhjn/AqCqRVFwnCQF%2BAKKIxDoPpHGHDMjjIIcYRfOE3lYbOhyqMKEAuWMBXYTlDCBJRhn1WpjUSU1DXNeV6Y0YV8phCO5FOY1nVVasp6IVFY3HICnlMMALBMNKDDEJ4tB1Y1/BeRAU7de87GHBovo5Uihw2ZqE1WJYeDOnh/XNQA9Ddw2XBZVkWHgSnbYqYZ0I4vJMM0yAINB0SiKoACOgn2iDeBKl4MMQGEXCPVwlnCa9HGkNVZiI8jzGo%2BxiwGS1hEPU9KNvScO3w1jz240x2AY1TpNiXZzUOStRHEJgBBrAwhzDQTrNwuFBkPMShyzWEfl9TFCqDUVTCkNEpCmMzjxjWthwbdJ6Z4O9e0nTr4KHKx%2BvWNYl0Uar40Kkwj3U2T2w7cQhjoH5XFWwqPz0YzO3k0dABUTsMC7%2BN2WNAsPGN2W%2B7LIogCAJXWhA8uHNEId%2BmNHNc8QPPII9ckibZBHhRwyy0JwjG8H4HBaKQqCcG4puWBlqzrG8Ow8KQBCaCXywANYgIxGj6JwkiV93tecLwCggEPXfVyXpBwLASBoCwKR0HE5CUKv6/0PEKL0QAtPshjAA6GhD1gfJ4BsABqeCYAA7gA8tSVcdzQtAcsQ08QNE4/RDCM0CknAO6AOYMQCkz9ojaEtKA3gq82CCGfgwWgID56kCwGGYAyJaC0GntwXgWBZpGHEBg/AHMHB4AFAQmu7lBThngeQQQtRx5fGiE7SBHgsDjyNCweBywqAGGAAoe%2BT9X6MCYfwQQIgxDsCkDIQQigVDqAwboQIBgjAoEbjYdh09IDLFQCFLIBDD4sCoCkLw5MeSHEPs/bYvBUACmIKyLA%2Bi/JdEtFkFwQdJh%2BECCEMIgwKjDAKOkTIAg/F6EKBEhgcwhjxECHYLxAhegTE8O0PQySqGpPGP0IJ8xQm2DyVEpJeT4khMScsBQLcNgSFLuXMeGC64cEOAfRIh85onyMIcB0lwND9I1rgQgJAJrbCfLwOeWhJSkH7oPYeHBR6kCrjXFpU8Z6d27jMsuHAzBNNWZPTZ88ZnOIyM4SQQA%3D
 	/// \param in1
 	/// \param in2
-	/// \return
+	/// \return in1 ^ in2
 	[[nodiscard]] constexpr static inline uint8x32_t xor_(const uint8x32_t in1,
 	                                                      const uint8x32_t in2) noexcept {
 		uint8x32_t out;
@@ -1085,7 +1106,7 @@ struct uint8x32_t {
 
 	/// \param in1
 	/// \param in2
-	/// \return
+	/// \return in1 & in2
 	[[nodiscard]] constexpr static inline uint8x32_t and_(const uint8x32_t in1,
 	                                                      const uint8x32_t in2) noexcept {
 		uint8x32_t out;
@@ -1116,8 +1137,8 @@ struct uint8x32_t {
 	                                                        const uint8x32_t in2) noexcept {
 		uint8x32_t out;
 		LOOP_UNROLL()
-		for (uint32_t i = 0; i < 4; ++i) {
-			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		for (uint32_t i = 0; i < 2; ++i) {
+			out.v128[i] = ~(in1.v128[i] & in2.v128[i]);
 		}
 		return out;
 	}
@@ -1128,8 +1149,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t not_(const uint8x32_t in1) noexcept {
 		uint8x32_t out;
 		LOOP_UNROLL()
-		for (uint32_t i = 0; i < 4; ++i) {
-			out.v64[i] = ~in1.v64[i];
+		for (uint32_t i = 0; i < 2; ++i) {
+			out.v128[i] = ~in1.v128[i];
 		}
 		return out;
 	}
@@ -1180,23 +1201,30 @@ struct uint8x32_t {
 		return uint8x32_t::mullo(in1, rs);
 	}
 
-	///
+	/// NOTE: assumes that in constexpr mode, that v128 is the active union member
 	/// \param in1
 	/// \param in2
-	/// \return
+	/// \return in1.v8[i] >> in2
 	[[nodiscard]] constexpr static inline uint8x32_t slli(const uint8x32_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
+		if (std::is_constant_evaluated()) {
+			const uint8_t tmp = ~((1u<<in2) - 1);
+			uint8x16_t t = {tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp};
+
+			for (uint32_t i = 0; i < 2; i++) {
+				out.v128[i] = in1.v128[i] << in2;
+				out.v128[i] &= t;
+			}
+
+			return out;
+		}
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			out.v128[i] = vshlq_n_u8(in1.v128[i], in2);
-#else
 			const uint8x32_t tmp = uint8x32_t::set1(in2);
 			out.v128[i] = __builtin_neon_vshlq_v(in1.v128[i], (uint8x16_t) tmp.v128[0], 48u);
-#endif
 		}
 
 		return out;
@@ -1210,6 +1238,18 @@ struct uint8x32_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
+		if (std::is_constant_evaluated()) {
+			const uint8_t tmp = (1u<<in2) - 1;
+			uint8x16_t t = {tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp};
+
+			for (uint32_t i = 0; i < 2; i++) {
+				out.v128[i] = in1.v128[i] >> in2;
+				out.v128[i] &= t;
+			}
+
+			return out;
+		}
+
 		cryptanalysislib::_uint8x16_t helper = cryptanalysislib::_uint8x16_t::set1(-in2);
 
 		LOOP_UNROLL()
@@ -1256,19 +1296,6 @@ struct uint8x32_t {
 		return ret;
 	}
 
-	/// TODO
-	/// \param in
-	/// \return
-	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
-		for (uint32_t i = 1; i < 31; ++i) {
-			if (in.v32[0] != in.v32[i]) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
 	[[nodiscard]] constexpr static inline uint8x32_t popcnt(const uint8x32_t in) noexcept {
 		uint8x32_t out;
 
@@ -1279,6 +1306,28 @@ struct uint8x32_t {
 #else
 			out.v128[i] = __builtin_aarch64_popcountv16qi(in.v128[i]);
 #endif
+		}
+
+		return out;
+	}
+
+	/// TODO
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in) noexcept {
+		for (uint32_t i = 1; i < LIMBS; ++i) {
+			if (in.d[0] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	[[nodiscard]] constexpr static inline uint8x32_t reverse(const uint8x32_t in) noexcept {
+		uint8x32_t out;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[LIMBS - 1 - i] = in.d[i];
 		}
 
 		return out;
@@ -1347,6 +1396,12 @@ struct uint16x16_t {
 		out.v16[13] = __q18;
 		out.v16[14] = __q17;
 		out.v16[15] = __q16;
+		if (std::is_constant_evaluated()) {
+			uint16x16_t out1;
+			out1.v128[0] = u16tom128(out.v16 + 0);
+			out1.v128[1] = u16tom128(out.v16 + 8);
+			return out1;
+		}
 		return out;
 	}
 
@@ -1371,6 +1426,12 @@ struct uint16x16_t {
 		out.v16[2] = __q18;
 		out.v16[1] = __q17;
 		out.v16[0] = __q16;
+		if (std::is_constant_evaluated()) {
+			uint16x16_t out1;
+			out1.v128[0] = u16tom128(out.v16 + 0);
+			out1.v128[1] = u16tom128(out.v16 + 8);
+			return out1;
+		}
 		return out;
 	}
 	/// sets all 32 8bit limbs to `a`
@@ -1412,9 +1473,9 @@ struct uint16x16_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (uint16x8_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint16x8_t) vldrq_p128(ptr128 + i);
 #else
-			out.v128[i] = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128 + i);
 #endif
 		}
 		return out;
@@ -1437,9 +1498,9 @@ struct uint16x16_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (uint16x8_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint16x8_t) vldrq_p128(ptr128 + i);
 #else
-			out.v128[i] = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128 + i);
 #endif
 		}
 		return out;
@@ -1468,9 +1529,9 @@ struct uint16x16_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__
-			vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #else
-			__builtin_neon_vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #endif
 		}
 	}
@@ -1483,9 +1544,9 @@ struct uint16x16_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifdef __GNUC__
-			vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #else
-			__builtin_neon_vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #endif
 		}
 	}
@@ -1537,8 +1598,8 @@ struct uint16x16_t {
 	                                                         const uint16x16_t in2) noexcept {
 		uint16x16_t out;
 		LOOP_UNROLL()
-		for (uint32_t i = 0; i < 4; ++i) {
-			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		for (uint32_t i = 0; i < 2; ++i) {
+			out.v128[i] = ~(in1.v128[i] & in2.v128[i]);
 		}
 		return out;
 	}
@@ -1549,8 +1610,8 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t not_(const uint16x16_t in1) noexcept {
 		uint16x16_t out;
 		LOOP_UNROLL()
-		for (uint32_t i = 0; i < 4; ++i) {
-			out.v64[i] = ~in1.v64[i];
+		for (uint32_t i = 0; i < 2; ++i) {
+			out.v128[i] = ~in1.v128[i];
 		}
 		return out;
 	}
@@ -1606,8 +1667,20 @@ struct uint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t slli(const uint16x16_t in1,
 	                                                       const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		ASSERT(in2 <= 16);
 		uint16x16_t out;
+		if (std::is_constant_evaluated()) {
+			const uint16_t tmp = ~((1u<<in2) - 1);
+			uint16x8_t t = {tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp};
+
+			for (uint32_t i = 0; i < 2; i++) {
+				out.v128[i] = in1.v128[i] << in2;
+				out.v128[i] &= t;
+			}
+
+			return out;
+		}
+
 		cryptanalysislib::_uint16x8_t helper = cryptanalysislib::_uint16x8_t::set1(in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -1625,6 +1698,18 @@ struct uint16x16_t {
 	                                                       const uint16_t in2) noexcept {
 		ASSERT(in2 <= 16);
 		uint16x16_t out;
+		if (std::is_constant_evaluated()) {
+			const uint16_t tmp = ((1u<<in2) - 1);
+			uint16x8_t t = {tmp,tmp,tmp,tmp,tmp,tmp,tmp,tmp};
+
+			for (uint32_t i = 0; i < 2; i++) {
+				out.v128[i] = in1.v128[i] >> in2;
+				out.v128[i] &= t;
+			}
+
+			return out;
+		}
+
 		cryptanalysislib::_uint16x8_t helper = cryptanalysislib::_uint16x8_t::set1(-in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -1634,7 +1719,8 @@ struct uint16x16_t {
 		return out;
 	}
 
-	constexpr static inline int gt(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+	constexpr static inline int gt(const uint16x16_t in1,
+								   const uint16x16_t in2) noexcept {
 		uint32_t ret = 0;
 
 		LOOP_UNROLL()
@@ -1651,7 +1737,8 @@ struct uint16x16_t {
 		return ret;
 	}
 
-	constexpr static inline uint16x16_t gt_(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+	constexpr static inline uint16x16_t gt_(const uint16x16_t in1,
+											const uint16x16_t in2) noexcept {
 		uint16x16_t ret;
 
 		LOOP_UNROLL()
@@ -1666,7 +1753,8 @@ struct uint16x16_t {
 		return ret;
 	}
 
-	constexpr static inline int cmp(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+	constexpr static inline int cmp(const uint16x16_t in1,
+								    const uint16x16_t in2) noexcept {
 		uint32_t ret = 0;
 
 		LOOP_UNROLL()
@@ -1683,7 +1771,8 @@ struct uint16x16_t {
 		return ret;
 	}
 
-	constexpr static inline uint16x16_t cmp_(const uint16x16_t in1, const uint16x16_t in2) noexcept {
+	constexpr static inline uint16x16_t cmp_(const uint16x16_t in1, 
+											 const uint16x16_t in2) noexcept {
 		uint16x16_t ret;
 
 		LOOP_UNROLL()
@@ -1713,6 +1802,28 @@ struct uint16x16_t {
 			const uint16x8_t tmp = (uint16x8_t) __builtin_aarch64_popcountv16qi((uint8x16_t) in.v128[i]);
 			out.v128[i] = vshrq_n_u16(tmp, 8) + vandq_u16(tmp, mask.v128);
 #endif
+		}
+
+		return out;
+	}
+	
+	/// TODO
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint16x16_t in) noexcept {
+		for (uint32_t i = 1; i < LIMBS; ++i) {
+			if (in.v16[0] != in.v16[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	[[nodiscard]] constexpr static inline uint16x16_t reverse(const uint16x16_t in) noexcept {
+		uint16x16_t out;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.v16[LIMBS - 1 - i] = in.v16[i];
 		}
 
 		return out;
@@ -1771,6 +1882,12 @@ struct uint32x8_t {
 		out.v32[5] = __q26;
 		out.v32[6] = __q25;
 		out.v32[7] = __q24;
+		if (std::is_constant_evaluated()) {
+			uint32x8_t out1;
+			out1.v128[0] = u32tom128(out.v32 + 0);
+			out1.v128[1] = u32tom128(out.v32 + 4);
+			return out1;
+		}
 		return out;
 	}
 
@@ -1785,6 +1902,12 @@ struct uint32x8_t {
 		out.v32[2] = __q26;
 		out.v32[1] = __q25;
 		out.v32[0] = __q24;
+		if (std::is_constant_evaluated()) {
+			uint32x8_t out1;
+			out1.v128[0] = u32tom128(out.v32 + 0);
+			out1.v128[1] = u32tom128(out.v32 + 4);
+			return out1;
+		}
 		return out;
 	}
 
@@ -1826,9 +1949,9 @@ struct uint32x8_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (uint32x4_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint32x4_t) vldrq_p128(ptr128 + i);
 #else
-			out.v128[i] = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128 + i);
 #endif
 		}
 		return out;
@@ -1851,9 +1974,9 @@ struct uint32x8_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (uint32x4_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint32x4_t) vldrq_p128(ptr128 + i);
 #else
-			out.v128[i] = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128 + i);
 #endif
 		}
 		return out;
@@ -1882,9 +2005,9 @@ struct uint32x8_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__
-			vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #else
-			__builtin_neon_vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #endif
 		}
 	}
@@ -1897,9 +2020,9 @@ struct uint32x8_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__
-			vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #else
-			__builtin_neon_vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #endif
 		}
 	}
@@ -1951,8 +2074,8 @@ struct uint32x8_t {
 	                                                        const uint32x8_t in2) noexcept {
 		uint32x8_t out;
 		LOOP_UNROLL()
-		for (uint32_t i = 0; i < 4; ++i) {
-			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		for (uint32_t i = 0; i < 2; ++i) {
+			out.v128[i] = ~(in1.v128[i] & in2.v128[i]);
 		}
 		return out;
 	}
@@ -1963,8 +2086,8 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t not_(const uint32x8_t in1) noexcept {
 		uint32x8_t out;
 		LOOP_UNROLL()
-		for (uint32_t i = 0; i < 4; ++i) {
-			out.v64[i] = ~in1.v64[i];
+		for (uint32_t i = 0; i < 2; ++i) {
+			out.v128[i] = ~in1.v128[i];
 		}
 		return out;
 	}
@@ -2023,6 +2146,17 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
+		if (std::is_constant_evaluated()) {
+			const uint32_t tmp = ~((1u<<in2) - 1u);
+			uint32x4_t t = {tmp,tmp,tmp,tmp};
+
+			for (uint32_t i = 0; i < 2; i++) {
+				out.v128[i] = in1.v128[i] << in2;
+				out.v128[i] &= t;
+			}
+
+			return out;
+		}
 		cryptanalysislib::_uint32x4_t helper = cryptanalysislib::_uint32x4_t::set1(in2);
 
 		LOOP_UNROLL()
@@ -2040,7 +2174,18 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t srli(const uint32x8_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
-		uint32x8_t out;
+		uint32x8_t out;	
+		if (std::is_constant_evaluated()) {
+			const uint32_t tmp = (1u<<in2) - 1u;
+			uint32x4_t t = {tmp,tmp,tmp,tmp};
+
+			for (uint32_t i = 0; i < 2; i++) {
+				out.v128[i] = in1.v128[i] >> in2;
+				out.v128[i] &= t;
+			}
+
+			return out;
+		}
 		cryptanalysislib::_uint32x4_t helper = cryptanalysislib::_uint32x4_t::set1(-in2);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
@@ -2171,6 +2316,27 @@ struct uint32x8_t {
 
 		return out;
 	}
+	/// TODO
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint32x8_t in) noexcept {
+		for (uint32_t i = 1; i < LIMBS; ++i) {
+			if (in.d[0] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	[[nodiscard]] constexpr static inline uint32x8_t reverse(const uint32x8_t in) noexcept {
+		uint32x8_t out;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[LIMBS - 1 - i] = in.d[i];
+		}
+
+		return out;
+	}
 };
 
 struct uint64x4_t {
@@ -2222,6 +2388,12 @@ struct uint64x4_t {
 		ret.v64[1] = i1;
 		ret.v64[2] = i2;
 		ret.v64[3] = i3;
+		if (std::is_constant_evaluated()) {
+			uint64x4_t out1;
+			out1.v128[0] = u64tom128(ret.v64 + 0);
+			out1.v128[1] = u64tom128(ret.v64 + 2);
+			return out1;
+		}
 		return ret;
 	}
 
@@ -2268,9 +2440,9 @@ struct uint64x4_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (uint64x2_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint64x2_t) vldrq_p128(ptr128 + i);
 #else
-			out.v128[i] = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128 + i);
 #endif
 		}
 		return out;
@@ -2291,9 +2463,9 @@ struct uint64x4_t {
 		uint64x4_t out;
 		for (uint32_t i = 0; i < 2u; ++i) {
 #ifndef __clang__
-			out.v128[i] = (uint64x2_t) vldrq_p128(ptr128);
+			out.v128[i] = (uint64x2_t) vldrq_p128(ptr128 + i);
 #else
-			out.v128[i] = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
+			out.v128[i] = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128 + i);
 #endif
 		}
 		return out;
@@ -2322,9 +2494,9 @@ struct uint64x4_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__
-			vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #else
-			__builtin_neon_vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #endif
 		}
 	}
@@ -2338,9 +2510,9 @@ struct uint64x4_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__
-			vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #else
-			__builtin_neon_vstrq_p128(ptr128, (poly128_t) in.v128[i]);
+			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
 #endif
 		}
 	}
@@ -2403,8 +2575,8 @@ struct uint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t not_(const uint64x4_t in1) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; ++i) {
-			out.v64[i] = ~in1.v64[i];
+		for (uint32_t i = 0; i < 2; ++i) {
+			out.v128[i] = ~in1.v128[i];
 		}
 		return out;
 	}
@@ -2417,7 +2589,7 @@ struct uint64x4_t {
 	                                                     const uint64x4_t in2) noexcept {
 		uint64x4_t out;
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vaddq_u64(in1.v128[i], in2.v128[i]);
+			out.v128[i] = in1.v128[i] + in2.v128[i];
 		}
 		return out;
 	}
@@ -2430,7 +2602,7 @@ struct uint64x4_t {
 	                                                     const uint64x4_t in2) noexcept {
 		uint64x4_t out;
 		for (uint32_t i = 0; i < 2; ++i) {
-			out.v128[i] = vsubq_u64(in1.v128[i], in2.v128[i]);
+			out.v128[i] = in1.v128[i] - in2.v128[i];
 		}
 		return out;
 	}
@@ -2442,8 +2614,8 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t mullo(const uint64x4_t in1,
 	                                                       const uint64x4_t in2) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; ++i) {
-			out.v64[i] = in1.v64[i] * in2.v64[i];
+		for (uint32_t i = 0; i < 2; ++i) {
+			out.v128[i] = in1.v128[i] * in2.v128[i];
 		}
 		return out;
 	}
@@ -2465,6 +2637,18 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		uint64x4_t out;
+		if (std::is_constant_evaluated()) {
+			const uint64_t tmp = ~((1ull<<in2) - 1ull);
+			uint64x2_t t = {tmp,tmp};
+
+			for (uint32_t i = 0; i < 2; i++) {
+				out.v128[i] = in1.v128[i] << in2;
+				out.v128[i] &= t;
+			}
+
+			return out;
+		}
+
 		const cryptanalysislib::_uint64x2_t helper = cryptanalysislib::_uint64x2_t::set1(in2);
 
 		LOOP_UNROLL()
@@ -2483,6 +2667,17 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint64x4_t out;
+		if (std::is_constant_evaluated()) {
+			const uint64_t tmp = (1ull<<in2) - 1ull;
+			uint64x2_t t = {tmp,tmp};
+
+			for (uint32_t i = 0; i < 2; i++) {
+				out.v128[i] = in1.v128[i] >> in2;
+				out.v128[i] &= t;
+			}
+
+			return out;
+		}
 		const cryptanalysislib::_uint64x2_t helper = cryptanalysislib::_uint64x2_t::set1(in2);
 
 		LOOP_UNROLL()
@@ -2572,7 +2767,8 @@ struct uint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	constexpr static inline uint64x4_t cmp_(const uint64x4_t in1, const uint64x4_t in2) noexcept {
+	constexpr static inline uint64x4_t cmp_(const uint64x4_t in1,
+											const uint64x4_t in2) noexcept {
 		uint64x4_t ret;
 
 		LOOP_UNROLL()
@@ -2600,7 +2796,8 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const cryptanalysislib::_uint32x4_t data) {
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr,
+															const cryptanalysislib::_uint32x4_t data) {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 
 		uint64x4_t ret;
@@ -2617,7 +2814,8 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr, const uint64x4_t data) {
+	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr,
+															const uint64x4_t data) {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 
 		uint64x4_t ret;
@@ -2664,6 +2862,28 @@ struct uint64x4_t {
 #endif
 		}
 		return ret;
+	}
+
+	/// TODO
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint64x4_t in) noexcept {
+		for (uint32_t i = 1; i < LIMBS; ++i) {
+			if (in.d[0] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	[[nodiscard]] constexpr static inline uint64x4_t reverse(const uint64x4_t in) noexcept {
+		uint64x4_t out;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[LIMBS - 1 - i] = in.d[i];
+		}
+
+		return out;
 	}
 };
 
