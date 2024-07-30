@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_SIMD_AVX2_H
 
 #include <emmintrin.h>
+#include <type_traits>
 #ifndef CRYPTANALYSISLIB_SIMD_H
 #error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
@@ -614,6 +615,7 @@ constexpr static __m256i u64tom256(const uint64_t t[4]) noexcept {
 	return tmp;
 }
 
+/// TODO not working
 constexpr static void m256tou16(uint16_t t[16], const __m256i m) noexcept {
 	const __v4di mm = m;
 	long long d0 = mm[0], d1 = 1, d2 = 2, d3 = 3;
@@ -921,34 +923,12 @@ struct uint8x32_t {
 
 		const __m256i in1l = (__m256i) ((__v4du) in1.v256 & (__v4du) maskl);
 		const __m256i in2l = (__m256i) ((__v4du) in2.v256 & (__v4du) maskl);
+		const __m256i in1h = (__m256i) ((__v4du) in1.v256 & (__v4du) maskh);
+		const __m256i in2h = (__m256i) ((__v4du) in2.v256 & (__v4du) maskh);
 
-#ifdef __clang__
-		__m256i in1h;
-		__m256i in2h;
-		if (std::is_constant_evaluated()) {
-			uint8x32_t tmp1, tmp2;
-			m256tou16(tmp1.v16, in1.v256);
-			m256tou16(tmp2.v16, in2.v256);
-			in1h = __extension__(__m256i)(__v16hi){static_cast<short>((short)tmp1.v16[0] >> 8), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-			in2h = in1h;
-			//for (uint32_t i = 0; i < 16; ++i) { tmp1.v16[i] = tmp1.v16[i] >> 8; }
-			//for (uint32_t i = 0; i < 16; ++i) { tmp2.v16[i] = tmp2.v16[i] >> 8; }
-			//in1h = u16tom256(tmp1.v16);
-			//in2h = u16tom256(tmp2.v16);
-		} else {
-			 in1h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in1.v256 & (__v4du) maskh), 8);
-			 in2h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in2.v256 & (__v4du) maskh), 8);
-		}
-#else
-		const __m256i in1h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in1.v256 & (__v4du) maskh), 8);
-		const __m256i in2h = (__m256i) __builtin_ia32_psrlwi256((__v16hi) ((__v4du) in2.v256 & (__v4du) maskh), 8);
-#endif
 
-		out.v256 = (__m256i) ((__v16hu) in1l * (__v16hu) in2l);
-		tmp = (__m256i) ((__v16hu) in1h * (__v16hu) in2h);
-
-		tmp = (__m256i) __builtin_ia32_psllwi256((__v16hi) tmp, 8u);
-		out.v256 = (__m256i) ((__v4du) tmp ^ (__v4du) out.v256);
+		out.v256  = ((__m256i) ((__v16hu) in1l * (__v16hu) in2l)) & maskl;
+		out.v256 ^= ((__m256i) ((__v16hu) in1h * (__v16hu) in2h)) & maskh;
 		return out;
 	}
 
@@ -972,6 +952,10 @@ struct uint8x32_t {
 		uint8x32_t out;
 		const uint8x32_t mask = set1((1u << in2) - 1u);
 		out = uint8x32_t::and_(in1, mask);
+		if (std::is_constant_evaluated()) {
+			out.v256 = (__m256i)((__v32qi)out.v256) << in2;
+			return out;
+		}
 		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
 		return out;
 	}
@@ -986,6 +970,10 @@ struct uint8x32_t {
 		const uint8x32_t mask1 = set1(((1u << (8u - in2)) - 1u) << in2);
 		const uint8x32_t mask2 = set1((1u << (8u - in2)) - 1u);
 		uint8x32_t out = uint8x32_t::and_(in1, mask1);
+		if (std::is_constant_evaluated()) {
+			out.v256 = (__m256i)((__v32qi)out.v256) >> in2;
+			return out;
+		}
 		out.v256 = (__m256i) __builtin_ia32_psrlwi256((__v16hi) out.v256, in2);
 		out = uint8x32_t::and_(out, mask2);
 		return out;
@@ -1359,7 +1347,7 @@ struct uint16x16_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
 #else
-		out.v256 = _mm256_slli_epi16(out.v256, in2);
+		out.v256 = (__m256i)(((__v16hu)out.v256) >> in2);
 #endif
 		return out;
 	}
@@ -1377,7 +1365,7 @@ struct uint16x16_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrlwi256((__v16hi) out.v256, in2);
 #else
-		out.v256 = _mm256_srli_epi16(out.v256, in2);
+		out.v256 = (__m256i)(((__v16hu)out.v256) << in2);
 #endif
 		return out;
 	}
@@ -1757,7 +1745,7 @@ struct uint32x8_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) in1.v256, in2);
 #else
-		out.v256 = _mm256_slli_epi32(in1.v256, in2);
+        out.v256 = (__m256i)((__v8si)in1.v256 >> in2);
 #endif
 		return out;
 	}
@@ -1775,7 +1763,7 @@ struct uint32x8_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrldi256((__v8si) in1.v256, in2);
 #else
-		out.v256 = _mm256_srli_epi32(in1.v256, in2);
+        out.v256 = (__m256i)((__v8si)in1.v256 << in2);
 #endif
 		return out;
 	}
@@ -2235,12 +2223,10 @@ struct uint64x4_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint64x4_t out;
-		// uint64x4_t mask = set1((1u << in2) - 1u);
-		// out = uint64x4_t::and_(in1, mask);
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psllqi256((__v4di) in1.v256, in2);
 #else
-		out.v256 = _mm256_slli_epi64(in1.v256, in2);
+        out.v256 = (__m256i)((__v4di)in1.v256 << in2);
 #endif
 		return out;
 	}
@@ -2258,7 +2244,7 @@ struct uint64x4_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrlqi256((__v4di) in1.v256, in2);
 #else
-		out.v256 = _mm256_srli_epi64(in1.v256, in2);
+        out.v256 = (__m256i)((__v4di)in1.v256 >> in2);
 #endif
 		return out;
 	}
