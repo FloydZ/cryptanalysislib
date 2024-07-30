@@ -1224,7 +1224,11 @@ struct uint8x32_t {
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 			const uint8x32_t tmp = uint8x32_t::set1(in2);
+#ifdef __clang__
 			out.v128[i] = __builtin_neon_vshlq_v(in1.v128[i], (uint8x16_t) tmp.v128[0], 48u);
+#else 
+			out.v128[i] = vshlq_u8(in1.v128[i], (uint8x16_t) tmp.v128[0]);
+#endif
 		}
 
 		return out;
