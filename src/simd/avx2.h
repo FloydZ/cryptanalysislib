@@ -54,8 +54,6 @@ namespace cryptanalysislib {
 	struct _uint32x4_t;
 	struct _uint64x2_t;
 
-
-
 	struct _uint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
@@ -1070,7 +1068,7 @@ struct uint8x32_t {
 #endif
 	}
 
-	///
+	/// only reverses the u8 limbs
 	/// source:  https://github.com/WojciechMula/toys/blob/master/simd-basic/reverse-bytes/reverse.avx2.cpp
 	/// \param in
 	/// \return
