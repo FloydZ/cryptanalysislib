@@ -909,9 +909,8 @@ struct uint8x32_t {
 	/// \return
 	constexpr static inline uint8x32_t aligned_load(const uint8_t *ptr) noexcept {
 		uint8x32_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[i] = ptr[i];
 		}
 		return out;
 	}
@@ -922,7 +921,7 @@ struct uint8x32_t {
 	/// \return
 	constexpr static inline uint8x32_t unaligned_load(const uint8_t *ptr) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < LIMBS; i++) {
 			out.d[i] = ptr[i];
 		}
 		return out;
@@ -933,7 +932,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	constexpr static inline void store(void *ptr, const uint8x32_t in) noexcept {
+	static inline void store(void *ptr, const uint8x32_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -945,7 +944,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
+	static inline void aligned_store(void *ptr, const uint8x32_t in) noexcept {
 		uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -955,7 +954,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
+	static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
 		uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -1282,9 +1281,8 @@ struct uint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const uint16_t *ptr) noexcept {
 		uint16x16_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1648,7 +1646,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < LIMBS; i++) {
 			out.v32[i] = ptr[i];
 		}
 		return out;
@@ -1660,7 +1658,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < limbs; i++) {
 			out.v32[i] = ptr[i];
 		}
 		return out;
@@ -2060,9 +2058,8 @@ struct uint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const uint64_t *ptr) noexcept {
 		uint64x4_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.v64[i] = ptr[i];
 		}
 		return out;
 	}
@@ -2073,9 +2070,8 @@ struct uint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const uint64_t *ptr) noexcept {
 		uint64x4_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.v64[i] = ptr[i];
 		}
 		return out;
 	}
