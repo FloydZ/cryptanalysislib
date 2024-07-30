@@ -23,6 +23,7 @@ enum ListIteration {
 };
 
 
+#if __cplusplus > 201709L
 /// \tparam List
 template<class List>
 concept ListEnumeration_ListAble = requires(List c) {
@@ -46,6 +47,7 @@ concept ListEnumerator = requires(T a) {
 	typename T::Value;
 	typename T::Label;
 };
+#endif
 
 /// \tparam ListType BaseList Type
 /// \tparam n length to enumerate
@@ -56,7 +58,9 @@ template<class ListType,
          const uint32_t n,
          const uint32_t q,
          const uint32_t w>
+#if __cplusplus > 201709L
     requires ListAble<ListType>
+#endif
 class ListEnumeration_Meta {
 public:
 	/// needed typedef

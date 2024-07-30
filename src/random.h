@@ -93,7 +93,9 @@ static inline void random_seed(uint64_t seed) noexcept {
 /// \tparam T
 /// \return a type T uniform random element
 template<typename T>
+#if __cplusplus > 201709L
     requires std::is_integral_v<T>
+#endif
 [[nodiscard]] static inline T fastrandombytes_T() noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
@@ -102,7 +104,9 @@ template<typename T>
 /// \param w
 /// \return
 template<typename T>
+#if __cplusplus > 201709L
     requires std::is_integral_v<T>
+#endif
 [[nodiscard]] constexpr static T fastrandombytes_weighted(const uint32_t w) noexcept {
 	assert(w < (sizeof(T) * 8));
 

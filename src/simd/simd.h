@@ -1658,7 +1658,7 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < limbs; i++) {
+		for (uint32_t i = 0; i < LIMBS; i++) {
 			out.v32[i] = ptr[i];
 		}
 		return out;

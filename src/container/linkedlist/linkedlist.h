@@ -23,7 +23,9 @@
 ///
 /// \tparam T
 template<typename T>
+#if __cplusplus > 201709L
     requires std::copyable<T> && std::three_way_comparable<T>
+#endif
 struct FreeList {
 private:
 	/// internal struct
