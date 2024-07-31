@@ -1805,6 +1805,7 @@ inline uint64x8_t operator|(const uint64x8_t &lhs, const uint64x8_t &rhs) {
 inline uint64x8_t operator~(const uint64x8_t &lhs) {
 	return uint64x8_t::not_(lhs);
 }
+// TODO
 //inline uint64x8_t operator>> (const uint64x8_t& lhs, const uint32_t rhs) {
 //	return uint64x8_t::srli(lhs, rhs);
 //}
@@ -1823,4 +1824,23 @@ inline uint64x8_t operator|=(uint64x8_t &lhs, const uint64x8_t &rhs) {
 	lhs = uint64x8_t::or_(lhs, rhs);
 	return lhs;
 }
+
+
+
+/// NOTE: this is stupid. gcc does strange thing.
+/// \return an uninitialized avx512 register
+constexpr inline __m512i
+__mm512_undefined_epi32 (void) {
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
+#else
+	#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winit-self"
+#endif
+	__m512i __Y = __Y;
+#pragma GCC diagnostic pop
+	return __Y;
+}
+
 #endif//CRYPTANALYSISLIB_AVX512_H

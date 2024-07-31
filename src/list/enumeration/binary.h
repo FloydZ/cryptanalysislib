@@ -98,6 +98,7 @@ public:
 	bool run(ListType *L1 = nullptr,
 	         ListType *L2 = nullptr,
 	         const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
 	         Extractor *e = nullptr,
@@ -124,7 +125,7 @@ public:
 		}
 
 		/// compute the first element
-		for (uint32_t i = 0; i < w; ++i) {
+		for (uint32_t i = base_offset; i < (base_offset + w); ++i) {
 			/// NOTE we need to compute always this element, even if we
 			/// do not save it in a list. Because otherwise we could not
 			/// only use the predicate in this function.
@@ -137,20 +138,21 @@ public:
 			}
 		}
 
-		auto chase_step = [this](Element &element,
+		auto chase_step = [this, base_offset](Element &element,
 		                         const uint32_t a,
 		                         const uint32_t b,
 		                         const uint32_t off) {
+			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off]);
+			ASSERT(element.value[a + off2]);
 
 			std::cout << element;
 
-			Label::add(element.label, element.label, HT.get(a + off));
-			Label::add(element.label, element.label, HT.get(b + off));
-			element.value.set(0, off + a);
-			element.value.set(1, off + b);
+			Label::add(element.label, element.label, HT.get(a + off2));
+			Label::add(element.label, element.label, HT.get(b + off2));
+			element.value.set(0, off2 + a);
+			element.value.set(1, off2 + b);
 			std::cout << element;
 		};
 

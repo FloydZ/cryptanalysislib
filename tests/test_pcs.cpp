@@ -53,7 +53,7 @@ void generate_random_subset_sum(std::vector<T> &in,
 	}
 
    	for (size_t i = 0; i < in.size(); i++) {
-		in[i] = T::random();
+		in[i].random();
 	}
 
 	std::vector<uint32_t> weights(weight);

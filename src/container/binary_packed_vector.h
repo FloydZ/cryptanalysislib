@@ -34,7 +34,9 @@
 /// \tparam T
 template<const uint64_t _n, 
 		 typename T = uint64_t>
+#if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
+#endif
 class BinaryContainer {
 public:
 	// Internal Types needed for the template system.
@@ -44,9 +46,9 @@ public:
 
 	// internal data length. Need to export it for the template system.
 	constexpr static uint64_t n = _n;
-	constexpr static inline uint64_t length() noexcept { return n; }
+	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return n; }
 	constexpr static uint64_t q = 2;
-	constexpr static inline uint64_t modulus() noexcept { return q; }
+	[[nodiscard]] constexpr static inline uint64_t modulus() noexcept { return q; }
 
 	constexpr static uint32_t RADIX = sizeof(T) * 8;
 	constexpr static T minus_one = T(-1);
@@ -54,8 +56,8 @@ public:
 	static_assert(_n > 0);
 public:
 	// how many limbs to we need and how wide are they.
-	constexpr static uint16_t limb_bits_width() noexcept { return limb_bytes_width() * 8; };
-	constexpr static uint16_t limb_bytes_width() noexcept { return sizeof(T); };
+	[[nodiscard]] constexpr static uint16_t limb_bits_width() noexcept { return limb_bytes_width() * 8; };
+	[[nodiscard]] constexpr static uint16_t limb_bytes_width() noexcept { return sizeof(T); };
 
 	//private:
 	// DO NOT CALL THIS FUNCTION. Use 'limbs()'.
@@ -76,24 +78,24 @@ public:
 
 
 	// round a given amount of 'in' bits to the nearest limb excluding the lowest overflowing bits
-	// eg 13 -> 64
-	constexpr static uint16_t round_up(uint16_t in) noexcept { return round_up_to_limb(in) * limb_bits_width(); }
-	constexpr static uint16_t round_up_to_limb(uint16_t in) noexcept { return (in / limb_bits_width()) + 1; }
+	// e.g. 13 -> 64
+	[[nodiscard]] constexpr static uint16_t round_up(uint16_t in) noexcept { return round_up_to_limb(in) * limb_bits_width(); }
+	[[nodiscard]] constexpr static uint16_t round_up_to_limb(uint16_t in) noexcept { return (in / limb_bits_width()) + 1; }
 
 	// the same as above only rounding down
 	// 13 -> 0
-	constexpr static uint16_t round_down(uint16_t in) noexcept { return round_down_to_limb(in) * limb_bits_width(); }
-	constexpr static uint16_t round_down_to_limb(uint16_t in) { return (in / limb_bits_width()); }
+	[[nodiscard]] constexpr static uint16_t round_down(uint16_t in) noexcept { return round_down_to_limb(in) * limb_bits_width(); }
+	[[nodiscard]] constexpr static uint16_t round_down_to_limb(uint16_t in) { return (in / limb_bits_width()); }
 
 	// calculate from a bit-position 'i' the mask to set it.
-	constexpr static T mask(uint16_t i) noexcept {
+	[[nodiscard]] constexpr static T mask(uint16_t i) noexcept {
 		ASSERT(i <= length() && "wrong access index");
 		T u = i % limb_bits_width();
 		return (T(1) << u);
 	}
 
 	// same as the function below, but catches the special case when i == 0 %64.
-	constexpr static T lower_mask2(const uint16_t i) noexcept {
+	[[nodiscard]] constexpr static T lower_mask2(const uint16_t i) noexcept {
 		ASSERT(i <= length());
 		T u = i % limb_bits_width();
 		if (u == 0) return T(-1);
@@ -102,13 +104,13 @@ public:
 
 	// given the i-th bit this function will return a bits mask where the lower 'i' bits are set. Everything will be
 	// realigned to limb_bits_width().
-	constexpr static T lower_mask(const uint16_t i) noexcept {
+	[[nodiscard]] constexpr static T lower_mask(const uint16_t i) noexcept {
 		ASSERT(i <= length());
 		return ((T(1) << (i % limb_bits_width())) - 1);
 	}
 
 	// given the i-th bit this function will return a bits mask where the higher (n-i)bits are set.
-	constexpr static T higher_mask(const uint16_t i) noexcept {
+	[[nodiscard]] constexpr static T higher_mask(const uint16_t i) noexcept {
 		ASSERT(i <= length());
 		// TODO better formula
 		if ((i % limb_bits_width()) == 0) {
@@ -120,7 +122,7 @@ public:
 
 	// given the i-th bit this function will return a bits mask where the lower 'n-i' bits are set. Everything will be
 	// realigned to limb_bits_width().
-	constexpr static T lower_mask_inverse(const uint16_t i) noexcept {
+	[[nodiscard]] constexpr static T lower_mask_inverse(const uint16_t i) noexcept {
 		ASSERT(i <= length() && "wrong access index");
 		T u = i % limb_bits_width();
 
@@ -133,23 +135,23 @@ public:
 	}
 
 	// given the i-th bit this function will return a bits mask where the higher (i) bits are set.
-	constexpr static inline  T higher_mask_inverse(const uint16_t i) noexcept {
+	[[nodiscard]] constexpr static inline  T higher_mask_inverse(const uint16_t i) noexcept {
 		ASSERT(i <= length() && "wrong access index");
-		return (~lower_mask_inverse(i));
+		return ~lower_mask_inverse(i);
 	}
 
 	// not shifted.
-	constexpr inline T get_bit(const uint16_t i) const noexcept {
+	[[nodiscard]] constexpr inline T get_bit(const uint16_t i) const noexcept {
 		return __data[round_down_to_limb(i)] & mask(i);
 	}
 
 	// shifted.
-	constexpr inline bool get_bit_shifted(const uint16_t i) const noexcept {
+	[[nodiscard]] constexpr inline bool get_bit_shifted(const uint16_t i) const noexcept {
 		return (__data[round_down_to_limb(i)] & mask(i)) >> (i % 64);
 	}
 
 	// return the bits [i,..., j) in one limb
-	constexpr inline T get_bits(const uint16_t i,
+	[[nodiscard]] constexpr inline T get_bits(const uint16_t i,
 	                            const uint16_t j) const noexcept {
 		ASSERT(j > i && j - i <= limb_bits_width() && j <= length());
 		const T lmask = higher_mask(i);
@@ -177,7 +179,7 @@ public:
 	/// const int64_t lower_limb = i / limb_bits_width();
 	/// const int64_t higher_limb = (j - 1) / limb_bits_width();
 	/// const uint64_t shift = i % limb_bits_width();
-	constexpr inline T get_bits(const uint64_t llimb,
+	[[nodiscard]] constexpr inline T get_bits(const uint64_t llimb,
 	                            const uint64_t rlimb,
 	                            const uint64_t lmask,
 	                            const uint64_t rmask,
@@ -316,8 +318,9 @@ public:
 	/// \param w weight to enumerated
 	/// \param w max length <= length() over which the weight should be enumerated
 	void random_with_weight(const uint32_t w,
-	                        const uint32_t m = length()) noexcept {
-		ASSERT(m <= length());
+	                        const uint32_t m=length(),
+	                        const uint32_t offset=0) noexcept {
+		ASSERT(m+offset <= length());
 		ASSERT(w <= m);
 		zero();
 
@@ -325,12 +328,15 @@ public:
 			write_bit(i, true);
 		}
 
+		// early exit
+		if (w == m) { return; }
+
 		// now permute
 		for (uint64_t i = 0; i < m; ++i) {
 			uint64_t pos = fastrandombytes_uint64() % (m - i);
-			bool t = get_bit_shifted(i);
-			write_bit(i, get_bit_shifted(i + pos));
-			write_bit(i + pos, t);
+			bool t = get_bit_shifted(i+offset);
+			write_bit(i+offset, get_bit_shifted(i + pos + offset));
+			write_bit(i + pos + offset, t);
 		}
 	}
 
@@ -1789,8 +1795,6 @@ public:
 		return get_bit_shifted(index);
 	}
 
-	T get_type() { return __data[0]; }
-
 	// simple hash function
 	constexpr inline uint64_t hash() const noexcept {
 		return __data[0];
@@ -1840,15 +1844,25 @@ public:
 	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
 	__FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
 
+	///
+	constexpr static void info() noexcept {
+		std::cout << "{ name: \"kAryContainerMeta\""
+				  << ", n: " << n
+				  << ", q: " << q
+				  << ", sizeof(T): " << sizeof(T)
+				  << "}" << std::endl;
+	}
 private:
 	// actual data container.
 	std::array<T, compute_limbs()> __data;
 };
 
 
-template<uint32_t length, typename T=uint64_t>
-std::ostream &operator<<(std::ostream &out, const BinaryContainer<length, T> &obj) {
-	for (uint64_t i = 0; i < obj.length(); ++i) {
+template<uint64_t _n,
+        typename T=uint64_t>
+std::ostream &operator<<(std::ostream &out,
+                         const BinaryContainer<_n, T> &obj) {
+	for (size_t i = 0; i < obj.length(); ++i) {
 		out << obj[i];
 	}
 	return out;

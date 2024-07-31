@@ -23,19 +23,20 @@ public:
 
 	// make the length and modulus of the container public available
 	constexpr static uint64_t q = _q;
-	constexpr static inline uint64_t modulus() noexcept { return _q; }
+	[[nodiscard]] constexpr static inline uint64_t modulus() noexcept { return _q; }
 	constexpr static uint64_t n = 1;
-	constexpr static inline uint64_t length() noexcept { return 1; }
-	constexpr static inline uint64_t bits() noexcept { return bits_log2(q) + 1; }
+	[[nodiscard]] constexpr static inline uint64_t bits() noexcept { return bits_log2(q); }
+	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return 1; }
 
 	using T = TypeTemplate<q>;
 	using T2 = TypeTemplate<q*q>;
 
-	static_assert(q > 1);
-	// this is needed to make sure that we have enough `bits` in reserve to 
-	// correclty compute the multiplication.
+	// this is needed to make sure that we have enough `bits` in reserve to
+	// correctly compute the multiplication.
 	static_assert(sizeof(T) <= sizeof(T2));
+	static_assert(bits() <= (8*sizeof(T)));
 
+	static_assert(q > 1);
 	// we are godd C++ devs
 	typedef T ContainerLimbType;
 	using DataType = T;
@@ -82,13 +83,8 @@ public:
 		this->__value = in.__value;
 	}
 
-	///
-	static inline kAry_Type_T<q> random() noexcept {
-		kAry_Type_T ret;
-		// TODO
-		// Bla Bla not uniform, I dont care.
-		ret.__value = fastrandombytes_uint64() % q;
-		return ret;
+	inline void random() noexcept {
+		__value = fastrandombytes_uint64(q);
 	}
 
 	/// \return
@@ -240,7 +236,7 @@ public:
 	constexpr inline friend kAry_Type_T operator-(kAry_Type_T obj1,
 	                                              kAry_Type_T const &obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value)  + T2(q) - T2(obj2.__value))) % T2(q));
+		r.__value = T((T2(T2(obj1.__value) + T2(q) - T2(obj2.__value))) % T2(q));
 		return r;
 	}
 
@@ -496,10 +492,11 @@ public:
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
-		const T mask = compute_mask(lower, upper);
-		const T tmp1 = (in1.value() + in2.value()) & mask;
-		const T tmp2 = (out.value() & ~mask) ^ tmp1;
-		out.set(tmp2, 0);
+		// const T mask = compute_mask(lower, upper);
+		// const T tmp1 = (in1.value() + in2.value()) & mask;
+		// const T tmp2 = (out.value() & ~mask) ^ tmp1;
+		// out.set(tmp2, 0);
+		out = in1 + in2;
 	}
 
 	/// not really useful, if lower != 0 and upper != bits
@@ -512,11 +509,12 @@ public:
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
-		const T mask = compute_mask(lower, upper);
-		// NOTE: ignores carry here
-		const T tmp1 = (in1.value() - in2.value()) & mask;
-		const T tmp2 = (out.value() & ~mask) ^ tmp1;
-		out.set(tmp2, 0);
+		// const T mask = compute_mask(lower, upper);
+		// // NOTE: ignores carry here
+		// const T tmp1 = (in1.value() - in2.value()) & mask;
+		// const T tmp2 = (out.value() & ~mask) ^ tmp1;
+		// out.set(tmp2, 0);
+		out = in1 - in2;
 	}
 
 	///
@@ -524,12 +522,13 @@ public:
 	/// \param upper
 	/// \return
 	constexpr inline void neg(const uint32_t lower=0,
-	                       	 const uint32_t upper=bits()) const noexcept {
+	                       	  const uint32_t upper=bits()) noexcept {
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
-		const T mask = compute_mask(lower, upper);
-		__value ^ mask;
+		// const T mask = compute_mask(lower, upper);
+		// __value ^= mask;
+		__value = (q - __value) % q;
 	}
 
 	/// right rotate
@@ -825,6 +824,16 @@ public:
 		y = x1;
 
 		return gcd;
+	}
+
+	/// prints some information about this class
+	constexpr static void info() noexcept {
+		std::cout << "{ name: \"kAry_Type\""
+		          << ", q: " << q
+				  << ", n: " << n
+		          << ", sizeof(T): " << sizeof(T)
+		          << ", sizeof(T2): " << sizeof(T2)
+				  << " }" << std::endl;
 	}
 private:
 

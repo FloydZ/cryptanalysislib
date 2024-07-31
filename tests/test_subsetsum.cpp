@@ -7,6 +7,7 @@
 #include "helper.h"
 #include "matrix/matrix.h"
 #include "tree.h"
+#include "algorithm/random_index.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -17,11 +18,12 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 // max n = 15
-constexpr uint32_t n    = 16;
-constexpr uint32_t q    = 1u << n;
+constexpr uint32_t n    = 16ul;
+constexpr uint32_t q    = (1ul << n) - 1ul;
 
-using T 			= uint8_t;
-using Value     	= kAryContainer_T<T, n, 2>;
+using T 			= uint64_t;
+//using Value     	= kAryContainer_T<T, n, 2>;
+using Value     	= BinaryContainer<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;
@@ -30,6 +32,9 @@ using Tree			= Tree_T<List>;
 
 // unused ignore
 static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
+
+
+
 
 TEST(SubSetSum, Simple) {
 	// even it says matrix. It is a simple row vector
@@ -286,13 +291,30 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 }
 
 TEST(TreeTest, dissection) {
-	Matrix A; A.identity();
-	List out{1<<n};
-	Label target; target.random();
+	Label::info();
+	Matrix::info();
 
-	using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, n/4>;
-	Enumerator en{A};
-	Tree::dissection4<Enumerator>(out, target, A, en);
+	Matrix AT; AT.random();
+	std::cout << AT;
+
+	List out{1<<n};
+	Label target; target.zero();
+	std::vector<uint32_t> weights(n/2);
+	generate_random_indices(weights, n);
+	for (uint32_t i = 0; i < n/2; ++i) {
+		Label::add(target, target, AT[0][weights[i]]);
+	}
+
+	Tree::dissection4(out, target, AT);
+
+	EXPECT_GE(out.load(), 1);
+	for (size_t i = 0; i < out.load(); ++i) {
+		std::cout << target << ":" << out[i].label << std::endl;
+		Label tmp;
+		AT.mul(tmp, out[i].value);
+
+		EXPECT_EQ(target.is_equal(tmp), true);
+	}
 }
 
 int main(int argc, char **argv) {

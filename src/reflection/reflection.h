@@ -1,65 +1,71 @@
 #ifndef CRYTPANALYSISLIB_REFLECTION
 #define CRYTPANALYSISLIB_REFLECTION
 
+// NOTE: old compilers have a problem with this, as `std::string_view` is not
+// 		fully constexpr.
+
+// original written by:
 // Copyright (c) 2024 Kris Jusiak (kris at jusiak dot net)
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 //
-#if !defined(__cpp_rvalue_references)
-#error "[error][reflect] __cpp_rvalue_references not supported!"
+// Modifications written by Floyd Zweydinger
+
+#if !defined(__cpp_lib_source_location)
+#warning "[warning][reflect] __cpp_lib_source_location not supported! "
+#elif __cplusplus <= 201709L
+#warning "[warning][reflect] concepts not supported! "
+#elif !defined(__cpp_rvalue_references)
+#warning "[warning][reflect] __cpp_rvalue_references not supported!"
 #elif !defined(__cpp_decltype)
-#error "[error][reflect] __cpp_decltype not supported!"
+#warning "[warning][reflect] __cpp_decltype not supported!"
 #elif !defined(__cpp_decltype_auto)
-#error "[error][reflect] __cpp_decltype_auto not supported!"
+#warning "[warning][reflect] __cpp_decltype_auto not supported!"
 #elif !defined(__cpp_return_type_deduction)
-#error "[error][reflect] __cpp_return_type_deduction not supported!"
+#warning "[warning][reflect] __cpp_return_type_deduction not supported!"
 #elif !defined(__cpp_deduction_guides)
-#error "[error][reflect] __cpp_deduction_guides not supported!"
+#warning "[warning][reflect] __cpp_deduction_guides not supported!"
 #elif !defined(__cpp_generic_lambdas)
-#error "[error][reflect] __cpp_generic_lambdas not supported!"
+#warning "[warning][reflect] __cpp_generic_lambdas not supported!"
 #elif !defined(__cpp_constexpr)
-#error "[error][reflect] __cpp_constexpr not supported!"
+#warning "[warning][reflect] __cpp_constexpr not supported!"
 #elif !defined(__cpp_if_constexpr)
-#error "[error][reflect] __cpp_if_constexpr not supported!"
+#warning "[warning][reflect] __cpp_if_constexpr not supported!"
 #elif !defined(__cpp_alias_templates)
-#error "[error][reflect] __cpp_alias_templates not supported!"
+#warning "[warning][reflect] __cpp_alias_templates not supported!"
 #elif !defined(__cpp_variadic_templates)
-#error "[error][reflect] __cpp_variadic_templates not supported!"
+#warning "[warning][reflect] __cpp_variadic_templates not supported!"
 #elif !defined(__cpp_fold_expressions)
-#error "[error][reflect] __cpp_fold_expressions not supported!"
+#warning "[warning][reflect] __cpp_fold_expressions not supported!"
 #elif !defined(__cpp_static_assert)
-#error "[error][reflect] __cpp_static_assert not supported!"
+#warning "[warning][reflect] __cpp_static_assert not supported!"
 #elif !defined(__cpp_concepts)
-#error "[error][reflect] __cpp_concepts not supported!"
+#warning "[warning][reflect] __cpp_concepts not supported!"
 #elif !defined(__cpp_fold_expressions)
-#error "[error][reflect] __cpp_fold_expressions not supported!"
+#warning "[warning][reflect] __cpp_fold_expressions not supported!"
 #elif !defined(__cpp_generic_lambdas)
-#error "[error][reflect] __cpp_generic_lambdas not supported!"
+#warning "[warning][reflect] __cpp_generic_lambdas not supported!"
 #elif !defined(__cpp_nontype_template_args)
-#error "[error][reflect] __cpp_nontype_template_args not supported!"
+#warning "[warning][reflect] __cpp_nontype_template_args not supported!"
 #elif !defined(__cpp_nontype_template_parameter_auto)
-#error "[error][reflect] __cpp_nontype_template_parameter_auto not supported!"
+#warning "[warning][reflect] __cpp_nontype_template_parameter_auto not supported!"
 #elif !__has_include(<array>)
-#error "[error][reflect] <array> not found!"
+#warning "[warning][reflect] <array> not found!"
 #elif !__has_include(<string_view>)
-#error "[error][reflect] <string_view> not found!"
+#warning "[warning][reflect] <string_view> not found!"
 #elif !__has_include(<source_location>)
-#error "[error][reflect] <source_location> not found!"
+#warning "[warning][reflect] <source_location> not found!"
 #elif !__has_include(<type_traits>)
-#error "[error][reflect] <type_traits> not found!"
+#warning "[warning][reflect] <type_traits> not found!"
 #elif !__has_include(<utility>)
-#error "[error][reflect] <utility> not found!"
+#warning "[warning][reflect] <utility> not found!"
 #elif !__has_include(<tuple>)
-#error "[error][reflect] <tuple> not found!"
+#warning "[warning][reflect] <tuple> not found!"
 #else
-#ifndef REFLECT
-#define REFLECT 
 
-// TODO: old compilers have a problem with this, as `std::string_view` is not 
-// 		fully constexpr.
-#ifdef __cpp_lib_source_location
-
+// it's globally available
+#define CRYPTANALYSISLIB_REFLECTIONS_AVAILABLE
 
 #include <array>
 #include <string_view>
@@ -108,18 +114,10 @@ namespace reflect::inline v1_1_1 {
 		}
 
 		template<auto...  Vs> [[nodiscard]] constexpr auto function_name() noexcept -> std::string_view { 
-#ifdef __cpp_lib_source_location
-			return std::source_location::current().function_name(); 
-#else 
-			return std::string_view("");
-#endif
+			return std::source_location::current().function_name();
 		}
 		template<class... Ts> [[nodiscard]] constexpr auto function_name() noexcept -> std::string_view { 
-#ifdef __cpp_lib_source_location
-			return std::source_location::current().function_name(); 
-#else 
-			return std::string_view("");
-#endif
+			return std::source_location::current().function_name();
 		}
 
 		template<class>
@@ -406,12 +404,15 @@ namespace reflect::inline v1_1_1 {
 		}
 	}
 
-	template<std::size_t N, class T> requires (std::is_aggregate_v<T> and N < size<T>())
+	template<std::size_t N, class T>
+		requires (std::is_aggregate_v<T> and N < size<T>())
 	[[nodiscard]] constexpr auto member_name(const T&) noexcept -> std::string_view {
 		return member_name<N, T>();
 	}
 
-	template<std::size_t N, class T> requires (std::is_aggregate_v<std::remove_cvref_t<T>> and N < size<std::remove_cvref_t<T>>())
+	template<std::size_t N, class T>
+		requires (std::is_aggregate_v<std::remove_cvref_t<T>> and
+	              N < size<std::remove_cvref_t<T>>())
 	[[nodiscard]] constexpr decltype(auto) get(T&& t) noexcept {
 		return visit([](auto&&... args) -> decltype(auto) { return detail::nth_pack_element<N>(REFLECT_FWD(args)...); }, REFLECT_FWD(t));
 	}
@@ -1240,8 +1241,7 @@ static_assert(([]<auto expect = [](const bool cond) { return std::array{true}[no
 		expect(f._1 == value[0] and f._2 == value[1]);
 	}
 }(), true));
-#endif
-#endif  // REFLECT
-#endif
+
+#endif // checkd if all includes and stuff are available
 #endif
 #endif

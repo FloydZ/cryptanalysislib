@@ -221,8 +221,31 @@ public:
 		return sort_level(k_lower, k_higher);
 	}
 
-	/// sort the list
+	/// \param k_lower
+	/// \param k_higher
+	/// \param target
+	/// \return
+	constexpr void sort_level(const uint32_t k_lower,
+							  const uint32_t k_higher,
+	                          const LabelType &target) noexcept {
+		std::sort(__data.begin(), __data.begin() + load(),
+				  [k_lower, k_higher, &target](const auto &e1, const auto &e2) {
+					LabelType tmp;
+			        LabelType::add(tmp, e2.label, target);
+#if !defined(SORT_INCREASING_ORDER)
+					return e1.label.is_lower(tmp, k_lower, k_higher);
+#else
+					return e1.label..is_greater(tmp, k_lower, k_higher);
+#endif
+				  });
+		// well this is wrong now
+		// ASSERT(is_sorted(k_lower, k_higher));
+	}
+
 	///
+	/// \param k_lower
+	/// \param k_higher
+	/// \return
 	constexpr void sort_level(const uint32_t k_lower,
 	                          const uint32_t k_higher) noexcept {
 		std::sort(__data.begin(), __data.begin() + load(),
@@ -450,8 +473,8 @@ public:
 			}
 
 			auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
-			                            [k_lower, k_higher](const Element &a1, const Element &a2) {
-				// return e.is_equal(c, k_lower, k_higher);
+			                          [k_lower, k_higher]
+			                          (const Element &a1, const Element &a2) {
 				return a1.is_lower(a2, k_lower, k_higher);
 			});
 
@@ -572,7 +595,7 @@ public:
 	                              const uint32_t k_higher,
 	                              const uint32_t norm = -1,
 	                              const bool sub = false) noexcept {
-		if (load() < this->size()) {
+		if (load() < size()) {
 			auto b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
 			// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
 			// exists for which it holds: |data[load].value[r]| >= norm
@@ -601,8 +624,6 @@ public:
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
 		set_load(load() + 1);
 	}
-
-private:
 };
 
 #endif//DECODING_LIST_H

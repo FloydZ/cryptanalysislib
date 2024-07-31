@@ -100,6 +100,7 @@ public:
 	bool run(ListType *L1 = nullptr,
 	         ListType *L2 = nullptr,
 	         const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
 	         Extractor *e = nullptr,
@@ -127,7 +128,7 @@ public:
 		}
 
 		/// compute the first element
-		for (uint32_t i = 0; i < w; ++i) {
+		for (uint32_t i = base_offset; i < (base_offset + w); ++i) {
 			/// NOTE we need to compute always this element, even if we
 			/// do not save it in a list. Because otherwise we could not
 			/// only use the predicate in this function.
@@ -144,22 +145,23 @@ public:
 			}
 		}
 
-		auto chase_step = [this](Element &element,
+		auto chase_step = [this, base_offset](Element &element,
 		                         const uint32_t a,
 		                         const uint32_t b,
 		                         const uint32_t off) {
+			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off]);
+			ASSERT(element.value[a + off2]);
 			ASSERT(std::abs((int) a - (int) b) <= (int) w);
 
 			Label tmp;
-			Label::scalar(tmp, HT.get(a + off), q - q_prime);
+			Label::scalar(tmp, HT.get(a + off2), q - q_prime);
 			Label::add(element.label, element.label, tmp);
-			Label::scalar(tmp, HT.get(b + off), q_prime);
+			Label::scalar(tmp, HT.get(b + off2), q_prime);
 			Label::add(element.label, element.label, tmp);
-			element.value.set(0, off + a);
-			element.value.set(q_prime, off + b);
+			element.value.set(0, off2 + a);
+			element.value.set(q_prime, off2 + b);
 		};
 
 		/// iterate over all sequences
@@ -261,7 +263,10 @@ public:
 		ASSERT(LIST_SIZE >= list_size);
 
 		if constexpr (w > 0) {
-			if constexpr (q > 2) chase.changelist_mixed_radix_grey(gray_cl.data());
+			if constexpr (q > 2) {
+				chase.changelist_mixed_radix_grey(gray_cl.data());
+			}
+
 			chase.template changelist_chase<false>(chase_cl.data());
 		}
 	}
@@ -289,11 +294,13 @@ public:
 	template<typename HashMap, typename Extractor, typename Predicate>
 #if __cplusplus > 201709L
 	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) && (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
+	            (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
 #endif
 	bool run(ListType *L1 = nullptr,
 	         ListType *L2 = nullptr,
 	         const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
 	         Extractor *e = nullptr,
@@ -321,7 +328,7 @@ public:
 		}
 
 		/// compute the first element
-		for (uint32_t i = 0; i < w; ++i) {
+		for (uint32_t i = base_offset; i < (base_offset + w); ++i) {
 			/// NOTE we need to compute always this element, even if we
 			/// do not save it in a list. Because otherwise we could not
 			/// only use the predicate in this function.
@@ -341,34 +348,38 @@ public:
 		}
 
 		// helper lambdas
-		auto gray_step = [&current_set, this](Element &element, const size_t j, const uint32_t off) {
+		auto gray_step =
+		        [base_offset, &current_set, this]
+		        (Element &element, const size_t j, const uint32_t off) {
+			const uint32_t off2 = off + base_offset;
 			const uint32_t cs = current_set[gray_cl[j]];
-			element.value.set((element.value[cs + off] + 1) % q, cs + off);
-			Label::add(element.label, element.label, HT.get(cs + off));
+			element.value.set((element.value[cs + off2] + 1) % q, cs + off2);
+			Label::add(element.label, element.label, HT.get(cs + off2));
 
 			/// NOTE: this is stupid, but needed. The gray code enumeration
 			/// also enumerates zeros. Therefore we need to fix them
-			if (element.value[cs + off] == 0) {
-				element.value.set(1, cs + off);
-				Label::add(element.label, element.label, HT.get(cs + off));
+			if (element.value[cs + off2] == 0) {
+				element.value.set(1, cs + off2);
+				Label::add(element.label, element.label, HT.get(cs + off2));
 			}
 		};
 
-		auto chase_step = [this](Element &element,
+		auto chase_step = [this, base_offset](Element &element,
 		                         const uint32_t a,
 		                         const uint32_t b,
 		                         const uint32_t off) {
+			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off]);
+			ASSERT(element.value[a + off2]);
 			ASSERT(std::abs((int) a - (int) b) <= (int) w);
 
 			Label tmp;
-			Label::scalar(tmp, HT.get(a + off), (q - element.value[a + off]) % q);
+			Label::scalar(tmp, HT.get(a + off2), (q - element.value[a + off2]) % q);
 			Label::add(element.label, element.label, tmp);
-			Label::add(element.label, element.label, HT.get(b + off));
-			element.value.set(0, off + a);
-			element.value.set(1, off + b);
+			Label::add(element.label, element.label, HT.get(b + off2));
+			element.value.set(0, off2 + a);
+			element.value.set(1, off2 + b);
 		};
 
 		/// iterate over all sequences

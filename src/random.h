@@ -30,7 +30,7 @@ static inline void xorshf96_random_seed(const uint64_t i) noexcept {
 }
 
 /// n = size of buffer in bytes
-/// reutrn 0 on success (cannot fail)
+/// return 0 on success (cannot fail)
 static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept {
 	uint64_t *a = (uint64_t *) buf;
 
@@ -88,6 +88,10 @@ static inline void random_seed(uint64_t seed) noexcept {
 /// \return a uniform (not really) uint64 % limit
 [[nodiscard]] static inline uint64_t fastrandombytes_uint64(const uint64_t limit) noexcept {
 	return xorshf96_fastrandombytes_uint64() % limit;
+}
+
+[[nodiscard]] static inline uint64_t fastrandombytes_uint64(const uint64_t l, const uint64_t h) noexcept {
+	return l + fastrandombytes_uint64(h - l);
 }
 /// simple C++ wrapper.
 /// \tparam T

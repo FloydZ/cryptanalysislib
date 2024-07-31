@@ -11,6 +11,8 @@
 
 #include <immintrin.h>
 #include <stdint.h>
+#include "simd/simd.h"
+
 
 #define UCOEX_u64X8(a, b)				\
 	{                                   \
@@ -34,18 +36,6 @@
 		b1 = _mm512_max_epu64(a, b);   \
 	}
 #endif
-
-/// NOTE: this is stupid. gcc does strange thing.
-/// TODO: MAYBE: move into simd wrapper as a custom funciton?
-/// \return
-constexpr inline __m512i
-__mm512_undefined_epi32 (void) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Winit-self"
-	__m512i __Y = __Y;
-#pragma GCC diagnostic pop
-	return __Y;
-}
 
 #define compare_and_swap16(a, b, a1, b1) \
 	{                                    \

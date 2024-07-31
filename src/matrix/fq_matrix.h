@@ -37,24 +37,35 @@ public:
 
 	using R = void;
 
+	using S = FqMatrix_Meta<T, nrows, ncols, q, packed, R>;
 	/// needed type definitions
-	using typename FqMatrix_Meta<T, nrows, ncols, q, packed, R>::RowType;
-	using typename FqMatrix_Meta<T, nrows, ncols, q, packed, R>::DataType;
+	using typename S::RowType;
+	using typename S::DataType;
 
 	/// needed vars
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::__data;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::ROWS;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::COLS;
+	using S::__data;
+	using S::ROWS;
+	using S::COLS;
 
 	/// needed functions
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::get;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::set;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::swap_rows;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::swap_cols;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::clear;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::transpose;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::column_popcnt;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed, R>::row_popcnt;
+	using S::get;
+	using S::set;
+	using S::swap;
+	using S::swap_rows;
+	using S::swap_cols;
+	using S::clear;
+	using S::transpose;
+	using S::column_popcnt;
+	using S::row_popcnt;
+	using S::mul;
+	using S::add;
+	using S::sub;
+	using S::sub_transpose;
+	using S::sub_matrix;
+	using S::gaus;
+	using S::fix_gaus;
+	using S::m4ri;
+	using S::info;
 };
 
 

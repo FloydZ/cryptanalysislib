@@ -1,5 +1,3 @@
-
-#include <cstdio>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -27,6 +25,21 @@ using ::testing::UnitTest;
 #define S uint64x4_t
 #include "test_simd.h"
 #undef S
+
+#ifdef USE_AVX512F
+#define S uint8x64_t
+#include "test_simd.h"
+#undef S
+#define S uint16x32_t
+#include "test_simd.h"
+#undef S
+#define S uint32x16_t
+#include "test_simd.h"
+#undef S
+#define S uint64x8_t
+#include "test_simd.h"
+#undef S
+#endif
 
 
 TEST(uint32x8_t, set) {

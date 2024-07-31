@@ -84,26 +84,37 @@ public:
 	}
 
 
-	/// generates a random vector with `w` != 0
-	/// \param w
+	/// generates a random weight `w` vector with `w` != 0
+	/// \param w we
 	/// \param m
+	/// \param offset start offset of the first error position
 	/// \return
 	constexpr void random_with_weight(const uint32_t w,
-									  const uint32_t m=length()) noexcept {
+									  const uint32_t m=length(),
+	                                  const uint32_t offset=0) noexcept {
 		ASSERT(w <= m);
-		ASSERT(m <= length());
+		ASSERT(m+offset <= length());
 		zero();
 
+		// chose first
 		for (uint32_t i = 0; i < w; ++i) {
-			set(fastrandombytes_uint64() % q, i);
+			if constexpr (q == 2) {
+				set(1, i + offset);
+			} else {
+				const auto d = fastrandombytes_uint64(1, q - 1u);
+				set(d, i + offset);
+			}
 		}
+
+		// early exit
+		if (w == m) { return; }
 
 		// now permute
 		for (uint64_t i = 0; i < m; ++i) {
 			uint64_t pos = fastrandombytes_uint64() % (m - i);
-			bool t = get(i);
-			set(get(i + pos), i);
-			set(t, i + pos);
+			const auto t = get(i+offset);
+			set(get(i + pos+offset), i+offset);
+			set(t, i + pos+offset);
 		}
 	}
 
@@ -490,8 +501,8 @@ public:
 
 		uint32_t i = 0;
 		for (; i + nr_limbs < n; i += nr_limbs) {
-			const uint8x32_t a = uint8x32_t::load(in1 + i);
-			const uint8x32_t b = uint8x32_t::load(in2 + i);
+			const uint8x32_t a = uint8x32_t::load((uint8_t *)(in1 + i));
+			const uint8x32_t b = uint8x32_t::load((uint8_t *)(in2 + i));
 
 			const uint8x32_t tmp = add256_T(a, b);
 			uint8x32_t::store(out + i, tmp);
@@ -894,6 +905,15 @@ public:
 	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
 	__FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
 
+	///
+	constexpr static void info() noexcept {
+		std::cout << "{ name: \"kAryContainerMeta\""
+		          << ", n: " << n
+				  << ", q: " << q
+				  << ", internal_limbs: " << internal_limbs
+				  << ", sizeof(T): " << sizeof(T)
+				  << "}" << std::endl;
+	}
 protected:
 	std::array<T, length()> __data;
 };

@@ -24,11 +24,17 @@ constexpr void generate_random_indices(T *data, const size_t len,
 
 	for (uint32_t i = 0; i < len; ++i) {
 		while (true) {
-			const T a = fastrandombytes_T<T>() % max_entry;
+			const T a = fastrandombytes_uint64(max_entry);
+			bool restart = false;
 			for (uint32_t j = 0; j < i; ++j) {
 				if (data[j] == a) {
-					continue;
+					restart = true;
+					break;
 				}
+			}
+
+			if (restart) {
+				continue;
 			}
 
 			data[i] = a ;
@@ -37,6 +43,11 @@ constexpr void generate_random_indices(T *data, const size_t len,
 	}
 }
 
+///
+/// \tparam T
+/// \param list
+/// \param max_entry
+/// \return
 template<typename T>
 constexpr inline void generate_random_indices(std::vector<T> &list,
                                               const size_t max_entry) noexcept {
