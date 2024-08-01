@@ -500,7 +500,7 @@ public:
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
 		uint32_t i = 0;
-		for (; i + nr_limbs < n; i += nr_limbs) {
+		for (; i + nr_limbs <= n; i += nr_limbs) {
 			const uint8x32_t a = uint8x32_t::load((uint8_t *)(in1 + i));
 			const uint8x32_t b = uint8x32_t::load((uint8_t *)(in2 + i));
 
@@ -518,11 +518,11 @@ public:
 	/// \param in1 input: vector
 	/// \param in2 input: vector
 	constexpr static inline void add(kAryContainerMeta &out,
-	                       const kAryContainerMeta &in1,
-	                       const kAryContainerMeta &in2) noexcept {
+	                       			 const kAryContainerMeta &in1,
+	                       			 const kAryContainerMeta &in2) noexcept {
 		add((T *) out.__data.data(),
-		    (const T *) in1.__data.data(),
-		    (const T *) in2.__data.data());
+		    (const T *) in1.ptr(),
+		    (const T *) in2.ptr());
 	}
 
 	/// \param v3 output
@@ -759,7 +759,7 @@ public:
 		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
-		for (uint64_t i = k_upper; i > k_lower; i--) {
+		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (__data[i - 1] < obj.__data[i - 1]) {
 				return true;
 			} else if (__data[i - 1] > obj.__data[i - 1]) {

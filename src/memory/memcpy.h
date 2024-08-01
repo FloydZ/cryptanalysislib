@@ -121,8 +121,8 @@ namespace cryptanalysislib {
 									const size_t bytes) noexcept {
 
 			if (bytes > 0x80) {
-				const uint64x8_t t1 = uint64x8_t::unaligned_load(in);
-				const uint64x8_t t2 = uint64x8_t::unaligned_load(in + bytes - 64u);
+				const uint64x8_t t1 = uint64x8_t::unaligned_load((uint64_t *)(in));
+				const uint64x8_t t2 = uint64x8_t::unaligned_load((uint64_t *)(in + bytes - 64u));
 
 				uint8_t *out2 = out;
 				out += bytes;
@@ -134,7 +134,7 @@ namespace cryptanalysislib {
 				ctr =  ctr & -0x40;
 				ctr = -ctr;
 				while (ctr != 0) {
-					uint64x8_t::unaligned_store(out + ctr, uint64x8_t::unaligned_load(in + ctr));
+					uint64x8_t::unaligned_store(out + ctr, uint64x8_t::unaligned_load((uint64_t *)(in + ctr)));
 					ctr += 64;
 				}
 

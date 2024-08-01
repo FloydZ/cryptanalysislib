@@ -230,7 +230,7 @@ TEST(F2, single_hashmap) {
 	HT.random();
 
 	BinaryListEnumerateMultiFullLength<List, n, w> enumerator{HT};
-	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
+	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, 0, &hm, &extractor, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		const auto data = extractor(L.data_label(i));

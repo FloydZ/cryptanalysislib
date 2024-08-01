@@ -24,14 +24,66 @@ struct uint16x32_t;
 struct uint32x16_t;
 struct uint64x8_t;
 
+
+constexpr static __m512i u8tom512(const uint8_t t[64]) noexcept {
+	long long __t[8];
+	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 8) | ((long long)t[ 2] << 16) | ((long long)t[ 3] << 24) | ((long long)t[ 4] << 32) | ((long long)t[ 5] << 40) | ((long long)t[ 6] << 48) | ((long long)t[ 7] << 56);
+	__t[1] = (long long)t[ 8] | (((long long)t[ 9]) << 8) | ((long long)t[10] << 16) | ((long long)t[11] << 24) | ((long long)t[12] << 32) | ((long long)t[13] << 40) | ((long long)t[14] << 48) | ((long long)t[15] << 56);
+	__t[2] = (long long)t[16] | (((long long)t[17]) << 8) | ((long long)t[18] << 16) | ((long long)t[19] << 24) | ((long long)t[20] << 32) | ((long long)t[21] << 40) | ((long long)t[22] << 48) | ((long long)t[23] << 56);
+	__t[3] = (long long)t[24] | (((long long)t[25]) << 8) | ((long long)t[26] << 16) | ((long long)t[27] << 24) | ((long long)t[28] << 32) | ((long long)t[29] << 40) | ((long long)t[30] << 48) | ((long long)t[31] << 56);
+
+	__t[4] = (long long)t[32] | (((long long)t[33]) << 8) | ((long long)t[34] << 16) | ((long long)t[35] << 24) | ((long long)t[36] << 32) | ((long long)t[37] << 40) | ((long long)t[38] << 48) | ((long long)t[39] << 56);
+	__t[5] = (long long)t[40] | (((long long)t[41]) << 8) | ((long long)t[42] << 16) | ((long long)t[43] << 24) | ((long long)t[44] << 32) | ((long long)t[45] << 40) | ((long long)t[46] << 48) | ((long long)t[47] << 56);
+	__t[6] = (long long)t[48] | (((long long)t[49]) << 8) | ((long long)t[50] << 16) | ((long long)t[51] << 24) | ((long long)t[52] << 32) | ((long long)t[53] << 40) | ((long long)t[54] << 48) | ((long long)t[55] << 56);
+	__t[7] = (long long)t[56] | (((long long)t[57]) << 8) | ((long long)t[58] << 16) | ((long long)t[59] << 24) | ((long long)t[60] << 32) | ((long long)t[61] << 40) | ((long long)t[62] << 48) | ((long long)t[63] << 56);
+	__m512i tmp = {__t[0],__t[1],__t[2],__t[3],
+	               __t[4],__t[5],__t[6],__t[7]};
+	return tmp;
+}
+
+constexpr static __m512i u16tom512(const uint16_t t[32]) noexcept {
+	long long __t[8];
+	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 16) | ((long long)t[ 2] << 32) | ((long long)t[ 3] << 48);
+	__t[1] = (long long)t[ 4] | (((long long)t[ 5]) << 16) | ((long long)t[ 6] << 32) | ((long long)t[ 7] << 48);
+	__t[2] = (long long)t[ 8] | (((long long)t[ 9]) << 16) | ((long long)t[10] << 32) | ((long long)t[11] << 48);
+	__t[3] = (long long)t[12] | (((long long)t[13]) << 16) | ((long long)t[14] << 32) | ((long long)t[15] << 48);
+	__t[4] = (long long)t[16] | (((long long)t[17]) << 16) | ((long long)t[18] << 32) | ((long long)t[19] << 48);
+	__t[5] = (long long)t[20] | (((long long)t[21]) << 16) | ((long long)t[22] << 32) | ((long long)t[23] << 48);
+	__t[6] = (long long)t[24] | (((long long)t[25]) << 16) | ((long long)t[26] << 32) | ((long long)t[27] << 48);
+	__t[7] = (long long)t[28] | (((long long)t[29]) << 16) | ((long long)t[30] << 32) | ((long long)t[31] << 48);
+	__m512i tmp = {__t[0],__t[1],__t[2],__t[3],
+				   __t[4],__t[5],__t[6],__t[7]};
+	return tmp;
+}
+
+constexpr static __m512i u32tom512(const uint32_t t[16]) noexcept {
+	long long __t[8];
+	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 32);
+	__t[1] = (long long)t[ 2] | (((long long)t[ 3]) << 32);
+	__t[2] = (long long)t[ 4] | (((long long)t[ 5]) << 32);
+	__t[3] = (long long)t[ 6] | (((long long)t[ 7]) << 32);
+	__t[4] = (long long)t[ 8] | (((long long)t[ 9]) << 32);
+	__t[5] = (long long)t[10] | (((long long)t[11]) << 32);
+	__t[6] = (long long)t[12] | (((long long)t[13]) << 32);
+	__t[7] = (long long)t[14] | (((long long)t[15]) << 32);
+	__m512i tmp = {__t[0],__t[1],__t[2],__t[3],
+				   __t[4],__t[5],__t[6],__t[7]};
+	return tmp;
+}
+
+constexpr static __m512i u64tom512(const uint64_t t[8]) noexcept {
+	__m512i tmp = {(long long)t[0],(long long)t[1],(long long)t[2],(long long)t[3],
+				   (long long)t[4],(long long)t[5],(long long)t[6],(long long)t[7]};
+	return tmp;
+}
+
+
 struct uint8x64_t {
 	constexpr static uint32_t LIMBS = 64;
 	using limb_type = uint8_t;
+	using S = uint8x64_t;
 
 	constexpr uint8x64_t() noexcept = default;
-	constexpr uint8x64_t(const uint16x32_t &b) noexcept;
-	constexpr uint8x64_t(const uint32x16_t &b) noexcept;
-	constexpr uint8x64_t(const uint64x8_t &b) noexcept;
 
 	union {
 		// compatibility with TxN_t
@@ -237,7 +289,7 @@ struct uint8x64_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint8x64_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint8x64_t load(const uint8_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -248,22 +300,40 @@ struct uint8x64_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x64_t aligned_load(const void *ptr) noexcept {
-		const __m512i tmp = *(__m512i *) ptr;
-		uint8x64_t out;
-		out.v512 = tmp;
-		return out;
+	[[nodiscard]] constexpr static inline uint8x64_t aligned_load(const uint8_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m512i tmp = u8tom512(ptr);
+			S out;
+			out.v512 = tmp;
+			return out;
+		} else {
+			const __m512i tmp = *(__m512i *) ptr;
+			uint8x64_t out;
+			out.v512 = tmp;
+			return out;
+		}
 	}
 
 
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint8x64_t unaligned_load(const void *ptr) noexcept {
-		const __m512i tmp = (__m512i) (*(__v64qi_u *) ptr);
-		uint8x64_t out;
-		out.v512 = tmp;
-		return out;
+	[[nodiscard]] constexpr static inline uint8x64_t unaligned_load(const uint8_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m512i tmp = u8tom512(ptr);
+			S out;
+			out.v512 = tmp;
+			return out;
+		} else {
+			const __m512i tmp = (__m512i) (*(__v64qi_u *) ptr);
+			uint8x64_t out;
+			out.v512 = tmp;
+			return out;
+		}
 	}
 
 	///
@@ -395,6 +465,27 @@ struct uint8x64_t {
 		return uint8x64_t::mullo(in1, rs);
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x64_t slli(const uint8x64_t in1,
+														  const uint8_t in2) noexcept {
+		ASSERT(in2 <= 8);
+		uint8x64_t out;
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x64_t srli(const uint8x64_t in1,
+														  const uint8_t in2) noexcept {
+		ASSERT(in2 <= 8);
+		uint8x64_t out;
+		return out;
+	}
 
 	///
 	/// \param in1
@@ -497,14 +588,19 @@ struct uint8x64_t {
 	}
 
 	/// https://github.com/WojciechMula/toys/blob/master/avx512-galois/reverse.cpp
-	/// \param input
-	/// \return
+	/// \param input = [0, 1, ..., 62, 63]
+	/// \return [63, 62, ..., 1, 0]
 	[[nodiscard]] constexpr static inline uint8x64_t reverse(const uint8x64_t input) noexcept {
 		uint8x64_t ret;
+#ifdef USE_EVEX512
 		const long long __d = bit_shuffle_const(7, 6, 5, 4, 3, 2, 1, 0);
 		const __m512i select = __extension__(__m512i)(__v8di){__d, __d, __d, __d, __d, __d, __d, __d};
 		ret.v512 = ((__m512i) __builtin_ia32_vgf2p8affineqb_v64qi((__v64qi) (__m512i) (select),
 		                                                          (__v64qi) (__m512i) (input.v512), (char) (0x00)));
+#else
+
+		// TODO
+#endif
 		return ret;
 	}
 
@@ -707,11 +803,9 @@ struct uint8x64_t {
 struct uint16x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint16_t;
+	using S = uint16x32_t;
 
 	constexpr uint16x32_t() noexcept = default;
-	constexpr uint16x32_t(const uint8x64_t &b) noexcept;
-	constexpr uint16x32_t(const uint32x16_t &b) noexcept;
-	constexpr uint16x32_t(const uint64x8_t &b) noexcept;
 
 	union {
 		// compatibility with TxN_t
@@ -738,8 +832,8 @@ struct uint16x32_t {
 
 	///
 	/// \return
-	[[nodiscard]] static inline uint8x64_t random() noexcept {
-		uint8x64_t ret;
+	[[nodiscard]] static inline uint16x32_t random() noexcept {
+		uint16x32_t ret;
 		for (size_t i = 0; i < 8; ++i) {
 			ret.v64[i] = fastrandombytes_uint64();
 		}
@@ -805,7 +899,7 @@ struct uint16x32_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint16x32_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint16x32_t load(const uint16_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -816,22 +910,41 @@ struct uint16x32_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x32_t aligned_load(const void *ptr) noexcept {
-		const __m512i tmp = *(__m512i *) ptr;
-		uint16x32_t out;
-		out.v512 = tmp;
-		return out;
+	[[nodiscard]] constexpr static inline uint16x32_t aligned_load(const uint16_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m512i tmp = u16tom512(ptr);
+			S out;
+			out.v512 = tmp;
+			return out;
+		} else {
+			const __m512i tmp = *(__m512i *) ptr;
+			uint16x32_t out;
+			out.v512 = tmp;
+			return out;
+		}
+
 	}
 
 
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x32_t unaligned_load(const void *ptr) noexcept {
-		const __m512i tmp = (__m512i) (*(__v64qi_u *) ptr);
-		uint16x32_t out;
-		out.v512 = tmp;
-		return out;
+	[[nodiscard]] constexpr static inline uint16x32_t unaligned_load(const uint16_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m512i tmp = u16tom512(ptr);
+			S out;
+			out.v512 = tmp;
+			return out;
+		} else {
+			const __m512i tmp = (__m512i) (*(__v64qi_u *) ptr);
+			uint16x32_t out;
+			out.v512 = tmp;
+			return out;
+		}
 	}
 
 	///
@@ -963,6 +1076,29 @@ struct uint16x32_t {
 		return uint16x32_t::mullo(in1, rs);
 	}
 
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x32_t slli(const uint16x32_t in1,
+	                                                      const uint8_t in2) noexcept {
+		ASSERT(in2 <= 16);
+		uint16x32_t out;
+		// TODO
+		return out;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x32_t srli(const uint16x32_t in1,
+	                                                       const uint8_t in2) noexcept {
+		ASSERT(in2 <= 16);
+		uint16x32_t out;
+		// TODO
+		return out;
+	}
+
 	///
 	/// \param in1
 	/// \return
@@ -988,16 +1124,40 @@ struct uint16x32_t {
 		ret = uint16x32_t::popcnt(ret);
 		return ret;
 	}
+
+
+	/// checks if all bytes are equal
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint16x32_t in) noexcept {
+		for (uint32_t i = 1; i < LIMBS; ++i) {
+			if (in.d[0] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x32_t reverse(const uint16x32_t in) noexcept {
+		uint16x32_t out;
+		for (uint32_t i = 0; i < LIMBS; ++i) {
+			out.d[i] = in.d[LIMBS - 1 - i];
+		}
+
+		return out;
+	}
 };
 
 struct uint32x16_t {
 	constexpr static uint32_t LIMBS = 16;
 	using limb_type = uint32_t;
+	using S = uint32x16_t;
 
 	constexpr uint32x16_t() noexcept = default;
-	constexpr uint32x16_t(const uint8x64_t &b) noexcept;
-	constexpr uint32x16_t(const uint16x32_t &b) noexcept;
-	constexpr uint32x16_t(const uint64x8_t &b) noexcept;
+
 
 	union {
 		// compatibility with TxN_t
@@ -1024,8 +1184,8 @@ struct uint32x16_t {
 
 	///
 	/// \return
-	[[nodiscard]] static inline uint8x64_t random() noexcept {
-		uint8x64_t ret;
+	[[nodiscard]] static inline uint32x16_t random() noexcept {
+		uint32x16_t ret;
 		for (size_t i = 0; i < 8; ++i) {
 			ret.v64[i] = fastrandombytes_uint64();
 		}
@@ -1077,7 +1237,7 @@ struct uint32x16_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint32x16_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x16_t load(const uint32_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1088,22 +1248,40 @@ struct uint32x16_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x16_t aligned_load(const void *ptr) noexcept {
-		const __m512i tmp = *(__m512i *) ptr;
-		uint32x16_t out;
-		out.v512 = tmp;
-		return out;
+	[[nodiscard]] constexpr static inline uint32x16_t aligned_load(const uint32_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m512i tmp = u32tom512(ptr);
+			S out;
+			out.v512 = tmp;
+			return out;
+		} else {
+			const __m512i tmp = *(__m512i *) ptr;
+			uint32x16_t out;
+			out.v512 = tmp;
+			return out;
+		}
 	}
 
 
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x16_t unaligned_load(const void *ptr) noexcept {
-		const __m512i tmp = (__m512i) (*(__v64qi_u *) ptr);
-		uint32x16_t out;
-		out.v512 = tmp;
-		return out;
+	[[nodiscard]] constexpr static inline uint32x16_t unaligned_load(const uint32_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m512i tmp = u32tom512(ptr);
+			S out;
+			out.v512 = tmp;
+			return out;
+		} else {
+			const __m512i tmp = (__m512i) (*(__v64qi_u *) ptr);
+			uint32x16_t out;
+			out.v512 = tmp;
+			return out;
+		}
 	}
 
 	///
@@ -1245,6 +1423,28 @@ struct uint32x16_t {
 		return uint32x16_t::mullo(in1, rs);
 	}
 
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x16_t slli(const uint32x16_t in1,
+														   const uint8_t in2) noexcept {
+		ASSERT(in2 <= 32);
+		uint32x16_t out;
+		// TODO
+		return out;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x16_t srli(const uint32x16_t in1,
+														   const uint8_t in2) noexcept {
+		ASSERT(in2 <= 32);
+		uint32x16_t out;
+		// TODO
+		return out;
+	}
+
 	/// needs`AVX512VPOPCNTDQ`
 	/// \param in1
 	/// \return
@@ -1270,6 +1470,30 @@ struct uint32x16_t {
 		ret = uint32x16_t::and_(ret, uint32x16_t::not_(in1));
 		ret = uint32x16_t::popcnt(ret);
 		return ret;
+	}
+
+	/// checks if all bytes are equal
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint32x16_t in) noexcept {
+		for (uint32_t i = 1; i < LIMBS; ++i) {
+			if (in.d[0] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x16_t reverse(const uint32x16_t in) noexcept {
+		uint32x16_t out;
+		for (uint32_t i = 0; i < LIMBS; ++i) {
+			out.d[i] = in.d[LIMBS - 1 - i];
+		}
+
+		return out;
 	}
 
 	/// needs `AVX512CD`
@@ -1321,11 +1545,9 @@ struct uint32x16_t {
 struct uint64x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint64_t;
+	using S = uint64x8_t;
 
 	constexpr uint64x8_t() noexcept = default;
-	constexpr uint64x8_t(const uint8x64_t &b) noexcept;
-	constexpr uint64x8_t(const uint32x16_t &b) noexcept;
-	constexpr uint64x8_t(const uint16x32_t &b) noexcept;
 
 	union {
 		// compatibility with TxN_t
@@ -1352,8 +1574,8 @@ struct uint64x8_t {
 
 	///
 	/// \return
-	[[nodiscard]] static inline uint8x64_t random() noexcept {
-		uint8x64_t ret;
+	[[nodiscard]] static inline uint64x8_t random() noexcept {
+		uint64x8_t ret;
 		for (size_t i = 0; i < 8; ++i) {
 			ret.v64[i] = fastrandombytes_uint64();
 		}
@@ -1405,7 +1627,7 @@ struct uint64x8_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint64x8_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x8_t load(const uint64_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1416,22 +1638,40 @@ struct uint64x8_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x8_t aligned_load(const void *ptr) noexcept {
-		const __m512i tmp = *(__m512i *) ptr;
-		uint64x8_t out;
-		out.v512 = tmp;
-		return out;
+	[[nodiscard]] constexpr static inline uint64x8_t aligned_load(const uint64_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m512i tmp = u64tom512(ptr);
+			S out;
+			out.v512 = tmp;
+			return out;
+		} else {
+			const __m512i tmp = *(__m512i *) ptr;
+			uint64x8_t out;
+			out.v512 = tmp;
+			return out;
+		}
 	}
 
 
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x8_t unaligned_load(const void *ptr) noexcept {
-		const __m512i tmp = (__m512i) (*(__v64qi_u *) ptr);
-		uint64x8_t out;
-		out.v512 = tmp;
-		return out;
+	[[nodiscard]] constexpr static inline uint64x8_t unaligned_load(const uint64_t *ptr) noexcept {
+		if (std::is_constant_evaluated()) {
+			// in the constexpr case simply ignore that the data is aligned
+			// it will not have any "runtime" penalties
+			const __m512i tmp = u64tom512(ptr);
+			S out;
+			out.v512 = tmp;
+			return out;
+		} else {
+			const __m512i tmp = (__m512i) (*(__v64qi_u *) ptr);
+			uint64x8_t out;
+			out.v512 = tmp;
+			return out;
+		}
 	}
 
 	///
@@ -1563,6 +1803,27 @@ struct uint64x8_t {
 		return uint64x8_t::mullo(in1, rs);
 	}
 
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x8_t slli(const uint64x8_t in1,
+	                                                       const uint64_t in2) noexcept {
+		ASSERT(in2 <= 64);
+		uint64x8_t out;
+		// TODO
+		return out;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x8_t srli(const uint64x8_t in1,
+	                                                       const uint8_t in2) noexcept {
+		ASSERT(in2 <= 64);
+		uint64x8_t out;
+		// TODO
+		return out;
+	}
 
 	///
 	/// \param in1
@@ -1588,6 +1849,30 @@ struct uint64x8_t {
 		ret = uint64x8_t::and_(ret, uint64x8_t::not_(in1));
 		ret = uint64x8_t::popcnt(ret);
 		return ret;
+	}
+
+	/// checks if all bytes are equal
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline bool all_equal(const uint64x8_t in) noexcept {
+		for (uint32_t i = 1; i < LIMBS; ++i) {
+			if (in.d[0] != in.d[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x8_t reverse(const uint64x8_t in) noexcept {
+		uint64x8_t out;
+		for (uint32_t i = 0; i < LIMBS; ++i) {
+			out.d[LIMBS - 1 - i] = in.d[i];
+		}
+
+		return out;
 	}
 
 	/// needs `AVX512CD`
@@ -1634,193 +1919,192 @@ struct uint64x8_t {
 
 
 ///
-uint8x64_t operator*(const uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator*(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
 	return uint8x64_t::mullo(lhs, rhs);
 }
-inline uint8x64_t operator*(const uint8x64_t &lhs, const uint8_t &rhs) {
+constexpr inline uint8x64_t operator*(const uint8x64_t &lhs, const uint8_t &rhs)noexcept {
 	return uint8x64_t::mullo(lhs, rhs);
 }
-inline uint8x64_t operator*(const uint8_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator*(const uint8_t &lhs, const uint8x64_t &rhs)noexcept {
 	return uint8x64_t::mullo(rhs, lhs);
 }
-inline uint8x64_t operator+(const uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator+(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept{
 	return uint8x64_t::add(lhs, rhs);
 }
-inline uint8x64_t operator-(const uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator-(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
 	return uint8x64_t::sub(lhs, rhs);
 }
-inline uint8x64_t operator&(const uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator&(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
 	return uint8x64_t::and_(lhs, rhs);
 }
-inline uint8x64_t operator^(const uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator^(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
 	return uint8x64_t::xor_(lhs, rhs);
 }
-inline uint8x64_t operator|(const uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator|(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
 	return uint8x64_t::or_(lhs, rhs);
 }
-inline uint8x64_t operator~(const uint8x64_t &lhs) {
+constexpr inline uint8x64_t operator~(const uint8x64_t &lhs) noexcept {
 	return uint8x64_t::not_(lhs);
 }
-//inline uint8x64_t operator>> (const uint8x64_t& lhs, const uint32_t rhs) {
-//	return uint8x64_t::srli(lhs, rhs);
-//}
-//inline uint8x64_t operator<< (const uint8x64_t& lhs, const uint32_t rhs) {
-//	return uint8x64_t::slli(lhs, rhs);
-//}
-inline uint8x64_t operator^=(uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator>> (const uint8x64_t& lhs, const uint32_t rhs) noexcept {
+	return uint8x64_t::srli(lhs, rhs);
+}
+constexpr inline uint8x64_t operator<< (const uint8x64_t& lhs, const uint32_t rhs) noexcept {
+	return uint8x64_t::slli(lhs, rhs);
+}
+constexpr inline uint8x64_t operator^=(uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
 	lhs = uint8x64_t::xor_(lhs, rhs);
 	return lhs;
 }
-inline uint8x64_t operator&=(uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator&=(uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
 	lhs = uint8x64_t::and_(lhs, rhs);
 	return lhs;
 }
-inline uint8x64_t operator|=(uint8x64_t &lhs, const uint8x64_t &rhs) {
+constexpr inline uint8x64_t operator|=(uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
 	lhs = uint8x64_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-inline uint16x32_t operator*(const uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator*(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
 	return uint16x32_t::mullo(lhs, rhs);
 }
-inline uint16x32_t operator*(const uint16x32_t &lhs, const uint8_t &rhs) {
+constexpr inline uint16x32_t operator*(const uint16x32_t &lhs, const uint8_t &rhs) noexcept {
 	return uint16x32_t::mullo(lhs, rhs);
 }
-inline uint16x32_t operator*(const uint8_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator*(const uint8_t &lhs, const uint16x32_t &rhs) noexcept {
 	return uint16x32_t::mullo(rhs, lhs);
 }
-inline uint16x32_t operator+(const uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator+(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
 	return uint16x32_t::add(lhs, rhs);
 }
-inline uint16x32_t operator-(const uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator-(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
 	return uint16x32_t::sub(lhs, rhs);
 }
-inline uint16x32_t operator&(const uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator&(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
 	return uint16x32_t::and_(lhs, rhs);
 }
-inline uint16x32_t operator^(const uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator^(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
 	return uint16x32_t::xor_(lhs, rhs);
 }
-inline uint16x32_t operator|(const uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator|(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
 	return uint16x32_t::or_(lhs, rhs);
 }
-inline uint16x32_t operator~(const uint16x32_t &lhs) {
+constexpr inline uint16x32_t operator~(const uint16x32_t &lhs) {
 	return uint16x32_t::not_(lhs);
 }
-//inline uint16x32_t operator>> (const uint16x32_t& lhs, const uint32_t rhs) {
-//	return uint16x32_t::srli(lhs, rhs);
-//}
-//inline uint16x32_t operator<< (const uint16x32_t& lhs, const uint32_t rhs) {
-//	return uint16x32_t::slli(lhs, rhs);
-//}
-inline uint16x32_t operator^=(uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator>> (const uint16x32_t& lhs, const uint32_t rhs) noexcept {
+	return uint16x32_t::srli(lhs, rhs);
+}
+constexpr inline uint16x32_t operator<< (const uint16x32_t& lhs, const uint32_t rhs) noexcept {
+	return uint16x32_t::slli(lhs, rhs);
+}
+constexpr inline uint16x32_t operator^=(uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
 	lhs = uint16x32_t::xor_(lhs, rhs);
 	return lhs;
 }
-inline uint16x32_t operator&=(uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator&=(uint16x32_t &lhs, const uint16x32_t &rhs) noexcept{
 	lhs = uint16x32_t::and_(lhs, rhs);
 	return lhs;
 }
-inline uint16x32_t operator|=(uint16x32_t &lhs, const uint16x32_t &rhs) {
+constexpr inline uint16x32_t operator|=(uint16x32_t &lhs, const uint16x32_t &rhs) noexcept{
 	lhs = uint16x32_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-inline uint32x16_t operator*(const uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator*(const uint32x16_t &lhs, const uint32x16_t &rhs) noexcept{
 	return uint32x16_t::mullo(lhs, rhs);
 }
-inline uint32x16_t operator*(const uint32x16_t &lhs, const uint8_t &rhs) {
+constexpr inline uint32x16_t operator*(const uint32x16_t &lhs, const uint8_t &rhs) noexcept{
 	return uint32x16_t::mullo(lhs, rhs);
 }
-inline uint32x16_t operator*(const uint8_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator*(const uint8_t &lhs, const uint32x16_t &rhs) noexcept{
 	return uint32x16_t::mullo(rhs, lhs);
 }
-inline uint32x16_t operator+(const uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator+(const uint32x16_t &lhs, const uint32x16_t &rhs) noexcept{
 	return uint32x16_t::add(lhs, rhs);
 }
-inline uint32x16_t operator-(const uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator-(const uint32x16_t &lhs, const uint32x16_t &rhs)noexcept {
 	return uint32x16_t::sub(lhs, rhs);
 }
-inline uint32x16_t operator&(const uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator&(const uint32x16_t &lhs, const uint32x16_t &rhs) noexcept{
 	return uint32x16_t::and_(lhs, rhs);
 }
-inline uint32x16_t operator^(const uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator^(const uint32x16_t &lhs, const uint32x16_t &rhs)noexcept {
 	return uint32x16_t::xor_(lhs, rhs);
 }
-inline uint32x16_t operator|(const uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator|(const uint32x16_t &lhs, const uint32x16_t &rhs) noexcept{
 	return uint32x16_t::or_(lhs, rhs);
 }
-inline uint32x16_t operator~(const uint32x16_t &lhs) {
+constexpr inline uint32x16_t operator~(const uint32x16_t &lhs) noexcept {
 	return uint32x16_t::not_(lhs);
 }
-//inline uint32x16_t operator>> (const uint32x16_t& lhs, const uint32_t rhs) {
-//	return uint32x16_t::srli(lhs, rhs);
-//}
-//inline uint32x16_t operator<< (const uint32x16_t& lhs, const uint32_t rhs) {
-//	return uint32x16_t::slli(lhs, rhs);
-//}
-inline uint32x16_t operator^=(uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator>> (const uint32x16_t& lhs, const uint32_t rhs) noexcept {
+	return uint32x16_t::srli(lhs, rhs);
+}
+constexpr inline uint32x16_t operator<< (const uint32x16_t& lhs, const uint32_t rhs) noexcept {
+	return uint32x16_t::slli(lhs, rhs);
+}
+constexpr inline uint32x16_t operator^=(uint32x16_t &lhs, const uint32x16_t &rhs) noexcept {
 	lhs = uint32x16_t::xor_(lhs, rhs);
 	return lhs;
 }
-inline uint32x16_t operator&=(uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator&=(uint32x16_t &lhs, const uint32x16_t &rhs) noexcept {
 	lhs = uint32x16_t::and_(lhs, rhs);
 	return lhs;
 }
-inline uint32x16_t operator|=(uint32x16_t &lhs, const uint32x16_t &rhs) {
+constexpr inline uint32x16_t operator|=(uint32x16_t &lhs, const uint32x16_t &rhs) noexcept {
 	lhs = uint32x16_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-inline uint64x8_t operator*(const uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator*(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept {
 	return uint64x8_t::mullo(lhs, rhs);
 }
-inline uint64x8_t operator*(const uint64x8_t &lhs, const uint8_t &rhs) {
+constexpr inline uint64x8_t operator*(const uint64x8_t &lhs, const uint8_t &rhs) noexcept{
 	return uint64x8_t::mullo(lhs, rhs);
 }
-inline uint64x8_t operator*(const uint8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator*(const uint8_t &lhs, const uint64x8_t &rhs) noexcept{
 	return uint64x8_t::mullo(rhs, lhs);
 }
-inline uint64x8_t operator+(const uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator+(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
 	return uint64x8_t::add(lhs, rhs);
 }
-inline uint64x8_t operator-(const uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator-(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
 	return uint64x8_t::sub(lhs, rhs);
 }
-inline uint64x8_t operator&(const uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator&(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
 	return uint64x8_t::and_(lhs, rhs);
 }
-inline uint64x8_t operator^(const uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator^(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
 	return uint64x8_t::xor_(lhs, rhs);
 }
-inline uint64x8_t operator|(const uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator|(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
 	return uint64x8_t::or_(lhs, rhs);
 }
-inline uint64x8_t operator~(const uint64x8_t &lhs) {
+constexpr inline uint64x8_t operator~(const uint64x8_t &lhs) noexcept{
 	return uint64x8_t::not_(lhs);
 }
-// TODO
-//inline uint64x8_t operator>> (const uint64x8_t& lhs, const uint32_t rhs) {
-//	return uint64x8_t::srli(lhs, rhs);
-//}
-//inline uint64x8_t operator<< (const uint64x8_t& lhs, const uint32_t rhs) {
-//	return uint64x8_t::slli(lhs, rhs);
-//}
-inline uint64x8_t operator^=(uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator>> (const uint64x8_t& lhs, const uint32_t rhs) noexcept {
+	return uint64x8_t::srli(lhs, rhs);
+}
+constexpr inline uint64x8_t operator<< (const uint64x8_t& lhs, const uint32_t rhs) noexcept {
+	return uint64x8_t::slli(lhs, rhs);
+}
+constexpr inline uint64x8_t operator^=(uint64x8_t &lhs, const uint64x8_t &rhs)noexcept {
 	lhs = uint64x8_t::xor_(lhs, rhs);
 	return lhs;
 }
-inline uint64x8_t operator&=(uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator&=(uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
 	lhs = uint64x8_t::and_(lhs, rhs);
 	return lhs;
 }
-inline uint64x8_t operator|=(uint64x8_t &lhs, const uint64x8_t &rhs) {
+constexpr inline uint64x8_t operator|=(uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
 	lhs = uint64x8_t::or_(lhs, rhs);
 	return lhs;
 }

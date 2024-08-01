@@ -27,7 +27,7 @@ TEST(S, set1) {
 
 
 TEST(S, unalinged_load) {
-	constexpr S::limb_type data[32] = {0};
+	constexpr S::limb_type data[S::LIMBS] = {0};
 
 	constexpr S t1 = S::unaligned_load(data);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
@@ -36,7 +36,7 @@ TEST(S, unalinged_load) {
 }
 
 TEST(S, alinged_load) {
-	alignas(256) constexpr  S::limb_type data[32] = {0};
+	alignas(256) constexpr  S::limb_type data[S::LIMBS] = {0};
 	constexpr S t1 = S::aligned_load(data);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
 		EXPECT_EQ(t1.d[i], 0u);
@@ -46,7 +46,7 @@ TEST(S, alinged_load) {
 
 TEST(S, unalinged_store_zero) {
 	constexpr S t1 = S::set1(0);
-	S::limb_type data[32] = {0};
+	S::limb_type data[S::LIMBS] = {0};
 	S::unaligned_store(data, t1);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
 		EXPECT_EQ(t1.d[i], data[i]);
@@ -55,7 +55,7 @@ TEST(S, unalinged_store_zero) {
 
 TEST(S, unalinged_store) {
 	const S t1 = S::random();
-	S::limb_type data[32] = {0};
+	S::limb_type data[S::LIMBS] = {0};
 
 	S::unaligned_store(data, t1);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
@@ -65,7 +65,7 @@ TEST(S, unalinged_store) {
 
 TEST(S, alinged_store) {
 	const S t1 = S::random();
-	alignas(256) S::limb_type data[32] = {0};
+	alignas(256) S::limb_type data[S::LIMBS] = {0};
 
 	S::aligned_store(data, t1);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {

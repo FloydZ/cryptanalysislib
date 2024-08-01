@@ -1,8 +1,6 @@
 #ifndef CRYPTANALYSISLIB_SIMD_AVX2_H
 #define CRYPTANALYSISLIB_SIMD_AVX2_H
 
-#include <emmintrin.h>
-#include <type_traits>
 #ifndef CRYPTANALYSISLIB_SIMD_H
 #error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
@@ -10,6 +8,10 @@
 #ifndef USE_AVX2
 #error "no avx2 enabled."
 #endif
+
+#include <emmintrin.h>
+#include <type_traits>
+
 
 #include <cstdint>
 #include <cstdio>
@@ -671,38 +673,6 @@ struct uint8x32_t {
 	constexpr inline void print(bool binary = false, bool hex = false) const;
 
 	///
-	/// \param __q31
-	/// \param __q30
-	/// \param __q29
-	/// \param __q28
-	/// \param __q27
-	/// \param __q26
-	/// \param __q25
-	/// \param __q24
-	/// \param __q23
-	/// \param __q22
-	/// \param __q21
-	/// \param __q20
-	/// \param __q19
-	/// \param __q18
-	/// \param __q17
-	/// \param __q16
-	/// \param __q15
-	/// \param __q14
-	/// \param __q13
-	/// \param __q12
-	/// \param __q11
-	/// \param __q10
-	/// \param __q09
-	/// \param __q08
-	/// \param __q07
-	/// \param __q06
-	/// \param __q05
-	/// \param __q04
-	/// \param __q03
-	/// \param __q02
-	/// \param __q01
-	/// \param __q00
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t set(char __q31, char __q30, char __q29, char __q28,
 	                                                     char __q27, char __q26, char __q25, char __q24,
@@ -765,7 +735,8 @@ struct uint8x32_t {
 		return unaligned_load(ptr);
 	}
 
-	///
+	/// the is `is_constant_evaluated()' is removed with `-O3`
+	/// https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIM6SuADJ4DJgAcj4ARpjEIACsABykAA6oCoRODB7evv6p6ZkCIWGRLDFxSbaY9o4CQgRMxAQ5Pn4BdpgOWQ1NBCUR0bEJyQqNza15HeP9oYPlw0kAlLaoXsTI7BzmAMyhyN5YANQmO254LCyhBMShAHQIp9gmGgCCu/uHmCdnY/iCDyeL3eZj2DAOXmOpzcBAAnilMAB9G5MQgKIFvYFoBhjTCqFLEI5jJiOZBHRGIlhmeIANjwRy8iSIVNpEGxYwZ10SyKOBBM8QsOzM/IAIksjgxUHjNikCCcAOxWTEaACctAEwCO6qM5OR/IsklFpyV71VFL5Ao0op%2BIqOEG1modSwtFiOVvitpM8rcdqgDq1Gud%2BqOXFF4uh0KOiXD3t9/qdLqOwo9Pzcka4NJjPr9GoDRiDAqOO2tEbOSckWbjuYTwcNKdLPqFlZzOprhfiJbOkckGmb9urgcTNM7abLkmjCuz/dbg%2BD8pHkdpS2NwJeKvN%2BtD9Z2tunjtnhcSJdjUD3eeABddKrDqcjE69U/jB4sXHdnq7ZYzfaf%2BZdXC376jj6ZgVpOVYzr%2Bm7JoBkZNmBLb7pBApcMW25AUcPbfgOSEvnWMFjveJ5nm2L4dmhi6ZiuyrrnqArQTado/hef7DvWRHEc%2BXDzh64Yfj6hGPthzGbke5Gfpm8EcThXDXmJwGgQ%2B4GIcJdFvreZZwYpCHnpeZgAepPqYZJTG6fRDYYQJSk6S6oILmWS5UaaNEuqh767iZNl4ZJUkqRY1I3uZlnaSRZisfhPpfsZQm6dx4XllhEG%2BWYolxZpREefqZiyXFRlaT5l47Gp5njglykFfp5kOTsJprhSLJ0ryLApAxXoWBulqiqQ7Uvp13XQV1tGCka8oio5a7EJgBDrAwjUpGNI2rsqrxjMQXgOJygiJKoQo8q1i0quyBB4gSRKNKSG0EDtcpBAAkgAshYQgMUKY2ql4GSthcUTIvC3ynLaXhcnq1X7e9oSak9/0XVtV2vU5XgMFkCo1aqa4APRo0caBNSSeBRHQhCwkcADuhAIEcAAqqjhHq1FroDm08ug%2BovR6cNrvTQNygAbqJgrQa915vdcGY8tzGabmFguc4IV1HNzrMWCl0vC4INKSGL6v6nhKs0fV9Lc9Sw4g3TC0m6aTkY2j%2B1Wyc8RuCkTSsEcsrEDbGN224E1TcQDD7fq%2BqSvgCiiMQzNsymh3HYSxLnaEtBzND21mDyYh4MAYToIi6pMOgbICByDMENycoAFSu%2BKkrSpgsrI/7qp4FQdp/CAIB4AoiKHYYBCIpg3NiF4JKYHnSwxijQsTx7oS8gg3xR/ihKiEoRIXCktBE%2BnkoTTPJIz986AkkwRzt0cacZ8P9eT5jhAk3QtASqgcoIEw3PfIYRPmGYq2CBcmCfy7jAxCOEwOiOmqNVSHV1PrWaDFGTMiNhACuus1xPTWHyc2HNwEqjQXcQ2tIGIECasg1U3tppHDQcgkaRwajLz2mAieTAvBECOOXG4RsGIQDqkbekpdxSu2ISqVBTCBE4LwTSBirDiBGwEaQ325DhEYKwV6UapsVHvDNijV4RcYYpzlEdMYXB844jlNonkkix7AiOFYo4siZraOTsiVuZ9M7Z1QLnRBNxlwYIWkteeJ17Fy30QQMwRjC5cxYRXOubxrE2MmmQgJuinEJ3PlnHOeckHeJFBwFYtBODxF4H4bgvBUCcDTJYawRI1gbD%2BqCHgpACCaGySsAA1iAHYKo7g7HlBoGkKpEgoS4jSDQGhki5I4JIApjTSAlI4LwBQIAND1MaSsOAsAkDYxSHQWI5BKAbK2XEYAUguB8DoEdYg8yIBRCmfjZgxBYScDqTcposIADyURtBdAaUU0g2M2CCBeQwdeUysBRC8MANwYhaDzO%2BVgFghhgDiA4FoUg%2BAJrdFftC5FeIuhMK2HU64NQpkJyiMQZ5HgsBTJuBcB5vBX7ECiOkTAIpMBwqMAnIwyy%2BAGGAAoAAangTAxMXkIkKXU/gggRBiHYFIGQghFAqHUEinQegDActMOUyw%2Bg8bzMgCsVAsosjQoALQvJ2EcI1cLuaqHNSwKgcKbVRCuGYG1L9VDOvNX8f6GcvDWGsGYZFqA6W3CwDqiAKxOjdGcBAVwkw/DHOCHMMoFQ9BpAyHUbIng2gpsKOmgYSbhjHIjem3oExM15ELTUT5PQZh5qGHEQtMxY16GJM0WtCx63hqqZsCQOS8mTKVdMzgRxVCJBpEa9WRxgDIDJFIO4XA7S4EICQE4tSli8C%2BVoUepBWlmHlHcLK8QVQ0kSPEHYkgVQ9MPQEMZEzSCFIDZwOZCyllKpWTARAIA0EpCYTs/OTV9nhFYFsEdY6J1TpnZIOdvBh5LuDXocVwhRDiBlQh%2BVagpm6GOcTUlKQaW9o4Pku9UyZkvKYd%2BuUqAm4gfHZISd06QyQfnRADw/76CEl2FwNdL7N0tLaTsTpOxBNCeE0J/QnBb33uKY%2B2wz6N1NLExwMw/aH2zO4/JulGRnCSCAA%3D
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x32_t aligned_load(const uint8_t *ptr) noexcept {

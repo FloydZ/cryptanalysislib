@@ -9,8 +9,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO see `reflection.h`
-//#ifdef __cpp_lib_source_location
+#ifdef __cpp_lib_source_location
 #include "reflection/reflection.h"
 
 
@@ -65,7 +64,7 @@ TEST(simple, my_type) {
  			      << ", " << reflect::offset_of<I>(f);              // 0  , 4
  		}, f);
 }
-//#endif
+#endif
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

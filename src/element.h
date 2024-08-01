@@ -275,9 +275,17 @@ public:
 		m.mul(tmp, value);
 
 		bool ret = tmp.is_equal(label, 0, label_size());
+#ifdef DEBUG
+		if (!ret) {
+			std::cout << "IS|SHOULD\n";
+			std::cout << label;
+			std::cout << tmp;
+		}
+#endif
 		if (rewrite) {
 			label = tmp;
 		}
+
 
 		return ret;
 	}

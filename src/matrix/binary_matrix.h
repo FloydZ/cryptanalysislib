@@ -2516,6 +2516,10 @@ public:
 	/// you want to wrap, which are not constant sized
 	[[nodiscard]] constexpr inline uint32_t rows() noexcept { return ROWS; }
 	[[nodiscard]] constexpr inline uint32_t cols() noexcept { return COLS; }
+
+	constexpr static void info() {
+		// TODO
+	}
 };
 
 #endif//CRYPTANALYSISLIB_BINARYMATRIX_H

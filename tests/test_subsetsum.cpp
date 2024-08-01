@@ -19,7 +19,7 @@ using ::testing::UnitTest;
 
 // max n = 15
 constexpr uint32_t n    = 16ul;
-constexpr uint32_t q    = (1ul << n) - 1ul;
+constexpr uint32_t q    = (1ul << n);
 
 using T 			= uint64_t;
 //using Value     	= kAryContainer_T<T, n, 2>;
@@ -309,6 +309,8 @@ TEST(TreeTest, dissection) {
 
 	EXPECT_GE(out.load(), 1);
 	for (size_t i = 0; i < out.load(); ++i) {
+		target.print_binary();
+		out[i].label.print_binary();
 		std::cout << target << ":" << out[i].label << std::endl;
 		Label tmp;
 		AT.mul(tmp, out[i].value);

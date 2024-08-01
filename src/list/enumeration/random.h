@@ -250,7 +250,7 @@ public:
 		constexpr bool sHM = !std::is_same_v<std::nullptr_t, HashMap>;
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
-		for (size_t ctr = 0; ctr < list_size-1 /* TODO */; ++ctr) {
+		for (size_t ctr = 0; ctr < list_size; ++ctr) {
 			//const uint32_t w1 = fastrandombytes_uint64(1, w);
 			//element1.value.random_with_weight(w1, n/2, base_offset);
 			element1.value.ptr()[0] += 1ull << base_offset;
@@ -261,7 +261,7 @@ public:
 			if (sL2) {
 				// const uint32_t w2 = fastrandombytes_uint64(1, w);
 				// element2.value.random_with_weight(w2, n/2, base_offset+offset);
-				element2.value.ptr()[0] += 1ull << (offset + base_offset - 1);
+				element2.value.ptr()[0] += 1ull << (offset + base_offset);
 				H.mul(element2.label, element2.value);
 			}
 

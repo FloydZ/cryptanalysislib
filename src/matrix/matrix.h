@@ -78,7 +78,7 @@ concept MatrixAble = requires(MatrixType c) {
 
 		// the problem is that c is of a different type
 		// MatrixType::transpose(c, c);
-		MatrixType::mul(m, m, m);
+		// MatrixType::mul(m, m, m);
 
 		c.gaus();
 		c.fix_gaus(P, i, i);

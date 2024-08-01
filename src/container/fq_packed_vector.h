@@ -688,7 +688,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this == obj between [k_lower, k_upper)
-	constexpr bool is_equal(kAryPackedContainer_Meta const &obj,
+	[[nodiscard]] constexpr bool is_equal(kAryPackedContainer_Meta const &obj,
 	                        const uint32_t k_lower = 0,
 	                        const uint32_t k_upper = length()) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
@@ -699,7 +699,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this > obj [k_lower, k_upper)
-	constexpr bool is_greater(kAryPackedContainer_Meta const &obj,
+	[[nodiscard]] constexpr bool is_greater(kAryPackedContainer_Meta const &obj,
 	                          const uint32_t k_lower = 0,
 	                          const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -716,7 +716,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this < obj [k_lower, k_upper)
-	constexpr bool is_lower(kAryPackedContainer_Meta const &obj,
+	[[nodiscard]] constexpr bool is_lower(kAryPackedContainer_Meta const &obj,
 	                        const uint32_t k_lower = 0,
 	                        const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);

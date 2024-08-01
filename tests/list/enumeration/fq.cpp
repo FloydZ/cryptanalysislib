@@ -66,7 +66,7 @@ TEST(ListEnumerateMultiFullLength, single_hashmap) {
 	Label syndrome;
 	syndrome.random();
 	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
-	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
+	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, 0, &hm, &extractor, nullptr);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		EXPECT_EQ(L.data_value(i).popcnt(), w);
@@ -134,7 +134,7 @@ TEST(ListEnumerateSingleFullLength, single_hashmap) {
 	HT.random();
 
 	ListEnumerateSingleFullLength<List, n, q, w> enumerator{qprime, HT};
-	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, &hm, &extractor, nullptr);
+	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, 0, &hm, &extractor, nullptr);
 
 	for (size_t i = 0; i < chase_size; ++i) {
 		const auto data = extractor(L.data_label(i));

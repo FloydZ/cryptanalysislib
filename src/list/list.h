@@ -224,22 +224,36 @@ public:
 	/// \param k_lower
 	/// \param k_higher
 	/// \param target
+	/// \param tid: thread id currently unsupported
 	/// \return
 	constexpr void sort_level(const uint32_t k_lower,
 							  const uint32_t k_higher,
-	                          const LabelType &target) noexcept {
-		std::sort(__data.begin(), __data.begin() + load(),
-				  [k_lower, k_higher, &target](const auto &e1, const auto &e2) {
-					LabelType tmp;
-			        LabelType::add(tmp, e2.label, target);
-#if !defined(SORT_INCREASING_ORDER)
-					return e1.label.is_lower(tmp, k_lower, k_higher);
-#else
-					return e1.label..is_greater(tmp, k_lower, k_higher);
-#endif
-				  });
-		// well this is wrong now
-		// ASSERT(is_sorted(k_lower, k_higher));
+	                          const LabelType &target,
+	                          const uint32_t tid=0) noexcept {
+		ASSERT(k_lower < k_higher);
+		(void)tid;
+
+		using LimbType = typename LabelType ::LimbType;
+		constexpr static size_t s1 = sizeof(LimbType) * 8 * LabelType::length();
+		constexpr static size_t s2 = std::min((size_t)64ull, s1);
+		using T = LogTypeTemplate<s2>;
+
+		const uint64_t diff = k_higher - k_lower;
+		const uint64_t mask = diff > 64 ?
+		                      uint64_t(-1) :
+		                      ((uint64_t(1) << diff) - 1ull);
+
+		// TODO optimize: either use the mask or add on full length
+		ska_sort(__data.begin(), __data.begin() + load(),
+		    [k_lower, k_higher, mask, target]
+		    (const auto &e1) -> T {
+		        LabelType tmp; tmp.zero();
+		        LabelType::add(tmp, e1.label, target, k_lower, k_higher);
+		        const T tmp1 = *((T *)tmp.ptr());
+		        const T tmp2 = (tmp1>>k_lower) & mask;
+			    return tmp2;
+		    }
+		);
 	}
 
 	///
@@ -248,17 +262,8 @@ public:
 	/// \return
 	constexpr void sort_level(const uint32_t k_lower,
 	                          const uint32_t k_higher) noexcept {
-		std::sort(__data.begin(), __data.begin() + load(),
-		          [k_lower, k_higher](const auto &e1, const auto &e2) {
-
-#if !defined(SORT_INCREASING_ORDER)
-			          return e1.is_lower(e2, k_lower, k_higher);
-#else
-			        return e1.is_greater(e2, k_lower, k_higher);
-#endif
-		          });
-
-		ASSERT(is_sorted(k_lower, k_higher));
+		const uint32_t tid = 0;
+		sort_level(k_lower, k_higher, tid);
 	}
 
 	/// NOTE: this does not search the FULL list, only each segmeent
@@ -268,6 +273,8 @@ public:
 	constexpr void sort_level(const uint32_t k_lower,
 	                          const uint32_t k_higher,
 	                          const uint32_t tid) noexcept {
+		ASSERT(k_lower < k_higher);
+
 		std::sort(__data.begin() + start_pos(tid), __data.begin() + end_pos(tid),
 		          [k_lower, k_higher](const auto &e1, const auto &e2) {
 
@@ -593,7 +600,7 @@ public:
 	                              const Element &e2,
 	                              const uint32_t k_lower,
 	                              const uint32_t k_higher,
-	                              const uint32_t norm = -1,
+	                              const uint32_t norm,
 	                              const bool sub = false) noexcept {
 		if (load() < size()) {
 			auto b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);

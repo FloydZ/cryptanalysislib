@@ -171,8 +171,8 @@ TEST(PCS, RhoSubSetSumTree) {
 	generate_random_subset_sum(A, target, n/2);
 
 	// enumerate weight n//4 on n//2 coordinates.
-	// NOTE: elements are randomly chosen, so no chase sequence or what so ever
-	using Enumerator = RandomEnumerator<List, n/2, n/4>;
+	// NOTE: elements are randomly chosen, so no chase sequence or whatsoever
+	using Enumerator = BinaryRandomEnumerator<List, n/2, n/4>;
 	Enumerator en{A};
 
 	constexpr static size_t size = 1ull << (n / 4u);

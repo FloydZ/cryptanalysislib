@@ -37,6 +37,18 @@ public:
 	static_assert(bits() <= (8*sizeof(T)));
 
 	static_assert(q > 1);
+
+	// if true, all bit operations are flipped,
+	// instead of the lowest bits, all operations are
+	// performed on the highest bits
+	constexpr static bool mirror = false;
+
+	// if true, all arith operations ar performed
+	// as arithmetic operations, regardless of the
+	// given bit boundaries.
+	constexpr static bool arith = false;
+
+
 	// we are godd C++ devs
 	typedef T ContainerLimbType;
 	using DataType = T;
@@ -56,10 +68,17 @@ private:
 	                                      		 const uint32_t upper) noexcept {
 		ASSERT(lower < upper);
 		ASSERT(upper <= bits());
-		const T mask1 = T(-1u) << lower;
-		const T mask2 = (1u << upper) - T(1u);
-		const T mask = mask1 & mask2;
-		return mask;
+		if constexpr (mirror) {
+			const T mask1 = T(-1u) >> lower;
+			const T mask2 = T(-1u) << (bits() - upper);
+			const T mask = mask1 & mask2;
+			return mask;
+		} else {
+			const T mask1 = T(-1u) << lower;
+			const T mask2 = (1u << upper) - T(1u);
+			const T mask = mask1 & mask2;
+			return mask;
+		}
 	}
 
 public:
@@ -416,7 +435,7 @@ public:
 		return o1.is_equal(o2, lower, upper);
 	}
 
-	///
+	/// only compares bits
 	/// \param o
 	/// \param lower
 	/// \param upper
@@ -432,7 +451,7 @@ public:
 		return (__value & mask) == (o.value() & mask);
 	}
 
-	/// only comapres bits
+	/// only compares bits
 	/// \param o
 	/// \param lower
 	/// \param upper
@@ -492,11 +511,14 @@ public:
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
-		// const T mask = compute_mask(lower, upper);
-		// const T tmp1 = (in1.value() + in2.value()) & mask;
-		// const T tmp2 = (out.value() & ~mask) ^ tmp1;
-		// out.set(tmp2, 0);
-		out = in1 + in2;
+		if constexpr (arith) {
+			out = in1 + in2;
+		} else {
+			const T mask = compute_mask(lower, upper);
+			const T tmp1 = (in1.value() ^ in2.value()) & mask;
+			const T tmp2 = (out.value() & ~mask) ^ tmp1;
+			out.set(tmp2, 0);
+		}
 	}
 
 	/// not really useful, if lower != 0 and upper != bits
@@ -509,12 +531,15 @@ public:
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
-		// const T mask = compute_mask(lower, upper);
-		// // NOTE: ignores carry here
-		// const T tmp1 = (in1.value() - in2.value()) & mask;
-		// const T tmp2 = (out.value() & ~mask) ^ tmp1;
-		// out.set(tmp2, 0);
-		out = in1 - in2;
+		if constexpr (arith) {
+			out = in1 - in2;
+		} else {
+			const T mask = compute_mask(lower, upper);
+			// NOTE: ignores carry here
+			const T tmp1 = (in1.value() ^ in2.value()) & mask;
+			const T tmp2 = (out.value() & ~mask) ^ tmp1;
+			out.set(tmp2, 0);
+		}
 	}
 
 	///
@@ -740,15 +765,15 @@ public:
 	/// NOTE: not really useful: i is ignored
 	/// \param i
 	/// \return
-	[[nodiscard]] constexpr inline T* ptr(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline T ptr(const size_t i) noexcept {
 		ASSERT(i < bits());
 		return __value;
 	}
 
-	constexpr void print_binary(const uint32_t lower,
-	                            const uint32_t upper) {
-		ASSERT(sizeof(T) > lower);
-		ASSERT(sizeof(T) >= upper);
+	constexpr void print_binary(const uint32_t lower=0,
+	                            const uint32_t upper=bits()) const noexcept {
+		ASSERT((8*sizeof(T)) > lower);
+		ASSERT((8*sizeof(T)) >= upper);
 		ASSERT(lower < upper);
 		const T mask = compute_mask(lower, upper);
 		const T tmp = (__value & mask) >> lower;
@@ -831,6 +856,8 @@ public:
 		std::cout << "{ name: \"kAry_Type\""
 		          << ", q: " << q
 				  << ", n: " << n
+				  << ", mirror: " << mirror
+		          << ", arith: " << arith
 		          << ", sizeof(T): " << sizeof(T)
 		          << ", sizeof(T2): " << sizeof(T2)
 				  << " }" << std::endl;
@@ -853,7 +880,19 @@ T abs(T in) {
 template<const uint64_t _q,
 		class Metric=HammingMetric>
 std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) {
-	std::cout << obj.value();
+	constexpr static bool bin = true;
+	using S = kAry_Type_T<_q, Metric>;
+
+	if constexpr (bin) {
+		uint64_t tmp = obj.value();
+		for (size_t i = 0; i < S::bits(); ++i) {
+			std::cout << (tmp & 1u);
+			tmp >>= 1u;
+		}
+		out << " (" << obj.value() << ")";
+	} else {
+		out << obj.value();
+	}
 	return out;
 }
 #endif//SMALLSECRETLWE_KARY_TYPE_H
