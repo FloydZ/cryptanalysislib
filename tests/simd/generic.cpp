@@ -82,7 +82,7 @@ TEST(generic, unalinged_load) {
 	constexpr_for<6, 32, 4>([&data](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 
-		T t1 = T::unaligned_load((void *) data);
+		T t1 = T::unaligned_load(data);
 		for (uint32_t i = 0; i < limbs; ++i) {
 			EXPECT_EQ(t1.d[i], 0u);
 		}
@@ -94,7 +94,7 @@ TEST(generic, alinged_load) {
 		using T = TxN_t<I, limbs>;
 		alignas(256) I data[limbs] = {0};
 
-		T t1 = T::aligned_load((void *) data);
+		T t1 = T::aligned_load(data);
 		for (uint32_t i = 0; i < limbs; ++i) {
 			EXPECT_EQ(t1.d[i], 0u);
 		}
@@ -135,58 +135,61 @@ TEST(uint8x32_t, logic) {
 		const T t2 = T::set1(1);
 		T t3 = T::set1(2);
 
-		//t3 = t1 + t2;
-		//for (uint32_t i = 0; i < limbs; ++i) {
-		//	EXPECT_EQ(t3.d[i], 1);
-		//}
+		t3 = t1 + t2;
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t3.d[i], 1);
+		}
 
-		//t3 = t2 - t1;
-		//for (uint32_t i = 0; i < limbs; ++i) {
-		//	EXPECT_EQ(t3.d[i], 1);
-		//}
+		t3 = t2 - t1;
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t3.d[i], 1);
+		}
 
-		//t3 = t2 - t2;
-		//for (uint32_t i = 0; i < limbs; ++i) {
-		//	EXPECT_EQ(t3.d[i], 0);
-		//}
+		t3 = t2 - t2;
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t3.d[i], 0);
+		}
 
 		t3 = t1 ^ t2;
 		for (uint32_t i = 0; i < limbs; ++i) {
 			EXPECT_EQ(t3.d[i], 1);
 		}
 
-		//t3 = t1 | t2;
-		//for (uint32_t i = 0; i < limbs; ++i) {
-		//	EXPECT_EQ(t3.v8[i], 1);
-		//}
+		t3 = t1 | t2;
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t3.d[i], 1);
+		}
 
-		//t3 = t1 & t2;
-		//for (uint32_t i = 0; i < limbs; ++i) {
-		//	EXPECT_EQ(t3.v8[i], 0);
-		//}
+		t3 = t1 & t2;
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t3.d[i], 0);
+		}
 
-		//t3 = ~t1;
-		//for (uint32_t i = 0; i < limbs; ++i) {
-		//	EXPECT_EQ(t3.v8[i], uint8_t(-1u));
-		//}
+		t3 = ~t1;
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t3.d[i], uint8_t(-1u));
+		}
 
-		//t3 = uint8x32_t::mullo(t1, t2);
-		//for (uint32_t i = 0; i < limbs; ++i) {
-		//	EXPECT_EQ(t3.v8[i], 0);
-		//}
+		t3 = T::mullo(t1, t2);
+		for (uint32_t i = 0; i < limbs; ++i) {
+			EXPECT_EQ(t3.d[i], 0);
+		}
 
-		//t3 = uint8x32_t::slli(t1, 1);
-		//for (uint32_t i = 0; i < 32; ++i) {
-		//	EXPECT_EQ(t3.v8[i], 0);
-		//}
+		t3 = uint8x32_t::slli(t1, 1);
+		for (uint32_t i = 0; i < 32; ++i) {
+			EXPECT_EQ(t3.d[i], 0);
+		}
 
-		//t3 = uint8x32_t::slli(t2, 1);
-		//for (uint32_t i = 0; i < 32; ++i) {
-		//	EXPECT_EQ(t3.v8[i], 2);
-		//}
+		t3 = uint8x32_t::slli(t2, 1);
+		for (uint32_t i = 0; i < 32; ++i) {
+			EXPECT_EQ(t3.vd[i], 2);
+		}
 	});
 }
 
+TEST(gerenric, info) {
+	TxN_t<uint16_t, 128>::info();
+}
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

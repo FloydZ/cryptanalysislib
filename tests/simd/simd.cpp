@@ -14,33 +14,135 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 #define S uint8x32_t
+#define T uint8x32_t
 #include "test_simd.h"
 #undef S
+#undef T
 #define S uint16x16_t
+#define T uint16x16_t
 #include "test_simd.h"
 #undef S
+#undef T
 #define S uint32x8_t
+#define T uint32x8_t
 #include "test_simd.h"
 #undef S
+#undef T
 #define S uint64x4_t
+#define T uint64x4_t
 #include "test_simd.h"
 #undef S
+#undef T
 
 #ifdef USE_AVX512F
 #define S uint8x64_t
+#define T uint8x64_t
 #include "test_simd.h"
 #undef S
+#undef T
 #define S uint16x32_t
+#define T uint16x32_t
 #include "test_simd.h"
 #undef S
+#undef T
 #define S uint32x16_t
+#define T uint32x16_t
 #include "test_simd.h"
 #undef S
+#undef T
 #define S uint64x8_t
+#define T uint64x8_t
 #include "test_simd.h"
 #undef S
+#undef T
 #endif
 
+// generic stuff
+#define S TxN_t<uint8_t, 128>
+#define T TxN_tuint8_128
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint8_t, 100>
+#define T TxN_tuint8_100
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint8_t, 31>
+#define T TxN_tuint8_31
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint8_t, 1>
+#define T TxN_tuint8_1
+#include "test_simd.h"
+#undef S
+#undef T
+
+#define S TxN_t<uint16_t, 128>
+#define T TxN_tuint16_128
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint16_t, 100>
+#define T TxN_tuint16_100
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint16_t, 31>
+#define T TxN_tuint16_31
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint16_t, 1>
+#define T TxN_tuint16_1
+#include "test_simd.h"
+#undef S
+#undef T
+
+
+#define S TxN_t<uint32_t, 128>
+#define T TxN_tuint32_128
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint32_t, 100>
+#define T TxN_tuint32_100
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint32_t, 31>
+#define T TxN_tuint32_31
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint32_t, 1>
+#define T TxN_tuint32_1
+#include "test_simd.h"
+#undef S
+#undef T
+
+
+#define S TxN_t<uint64_t, 128>
+#define T TxN_tuint64_128
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint64_t, 100>
+#define T TxN_tuint64_100
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint64_t, 31>
+#define T TxN_tuint64_31
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint64_t, 1>
+#define T TxN_tuint64_1
+#include "test_simd.h"
+#undef S
+#undef T
 
 TEST(uint32x8_t, set) {
 	uint32_t pos = 21;

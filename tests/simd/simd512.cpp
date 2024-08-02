@@ -15,7 +15,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-#ifdef USE_AVX512
+#ifdef USE_AVX512F
 TEST(uint8x64_t, TTrandom) {
 	uint8x64_t t1 = uint8x64_t::random();
 

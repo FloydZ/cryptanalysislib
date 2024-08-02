@@ -234,8 +234,8 @@ public:
 		(void)tid;
 
 		using LimbType = typename LabelType ::LimbType;
-		constexpr static size_t s1 = sizeof(LimbType) * 8 * LabelType::length();
-		constexpr static size_t s2 = std::min((size_t)64ull, s1);
+		constexpr size_t s1 = sizeof(LimbType) * 8 * LabelType::length();
+		constexpr size_t s2 = std::min((size_t)64ull, s1);
 		using T = LogTypeTemplate<s2>;
 
 		const uint64_t diff = k_higher - k_lower;

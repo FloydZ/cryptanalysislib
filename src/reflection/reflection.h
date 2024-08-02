@@ -13,7 +13,7 @@
 // Modifications written by Floyd Zweydinger
 
 #if !defined(__cpp_lib_source_location)
-#warning "[warning][reflect] __cpp_lib_source_location not supported! "
+// #warning "[warning][reflect] __cpp_lib_source_location not supported! "
 #elif __cplusplus <= 201709L
 #warning "[warning][reflect] concepts not supported! "
 #elif !defined(__cpp_rvalue_references)

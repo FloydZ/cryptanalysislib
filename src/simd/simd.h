@@ -2399,248 +2399,248 @@ struct uint64x4_t {
 #endif// no SIMD unit available
 
 ///
-constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::mullo(lhs, rhs);
 }
-constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8_t &rhs) noexcept {
 	return uint8x32_t::mullo(lhs, rhs);
 }
-constexpr inline uint8x32_t operator*(const uint8_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::mullo(rhs, lhs);
 }
-constexpr inline uint8x32_t operator+(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator+(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::add(lhs, rhs);
 }
-constexpr inline uint8x32_t operator-(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator-(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::sub(lhs, rhs);
 }
-constexpr inline uint8x32_t operator&(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator&(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::and_(lhs, rhs);
 }
-constexpr inline uint8x32_t operator^(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator^(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::xor_(lhs, rhs);
 }
-constexpr inline uint8x32_t operator|(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator|(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::or_(lhs, rhs);
 }
-constexpr inline uint8x32_t operator~(const uint8x32_t &lhs) {
+constexpr inline uint8x32_t operator~(const uint8x32_t &lhs) noexcept {
 	return uint8x32_t::not_(lhs);
 }
-constexpr inline uint8x32_t operator>>(const uint8x32_t &lhs, const uint32_t rhs) {
+constexpr inline uint8x32_t operator>>(const uint8x32_t &lhs, const uint32_t rhs) noexcept {
 	return uint8x32_t::srli(lhs, rhs);
 }
-constexpr inline uint8x32_t operator<<(const uint8x32_t &lhs, const uint32_t rhs) {
+constexpr inline uint8x32_t operator<<(const uint8x32_t &lhs, const uint32_t rhs) noexcept {
 	return uint8x32_t::slli(lhs, rhs);
 }
-constexpr inline uint8x32_t operator^=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator^=(uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	lhs = uint8x32_t::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint8x32_t operator&=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator&=(uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	lhs = uint8x32_t::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint8x32_t operator|=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator|=(uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	lhs = uint8x32_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::mullo(lhs, rhs);
 }
-constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint8_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint8_t &rhs) noexcept {
 	return uint16x16_t::mullo(lhs, rhs);
 }
-constexpr inline uint16x16_t operator*(const uint8_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint8_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::mullo(rhs, lhs);
 }
-constexpr inline uint16x16_t operator+(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator+(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::add(lhs, rhs);
 }
-constexpr inline uint16x16_t operator-(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator-(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::sub(lhs, rhs);
 }
-constexpr inline uint16x16_t operator&(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator&(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::and_(lhs, rhs);
 }
-constexpr inline uint16x16_t operator^(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator^(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::xor_(lhs, rhs);
 }
-constexpr inline uint16x16_t operator|(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator|(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::or_(lhs, rhs);
 }
-constexpr inline uint16x16_t operator~(const uint16x16_t &lhs) {
+constexpr inline uint16x16_t operator~(const uint16x16_t &lhs) noexcept {
 	return uint16x16_t::not_(lhs);
 }
-constexpr inline uint16x16_t operator>>(const uint16x16_t &lhs, const uint32_t rhs) {
+constexpr inline uint16x16_t operator>>(const uint16x16_t &lhs, const uint32_t rhs) noexcept {
 	return uint16x16_t::srli(lhs, rhs);
 }
-constexpr inline uint16x16_t operator<<(const uint16x16_t &lhs, const uint32_t rhs) {
+constexpr inline uint16x16_t operator<<(const uint16x16_t &lhs, const uint32_t rhs) noexcept {
 	return uint16x16_t::slli(lhs, rhs);
 }
-constexpr inline uint16x16_t operator^=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator^=(uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	lhs = uint16x16_t::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint16x16_t operator&=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator&=(uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	lhs = uint16x16_t::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint16x16_t operator|=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator|=(uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	lhs = uint16x16_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::mullo(lhs, rhs);
 }
-constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint8_t &rhs) noexcept {
 	return uint32x8_t::mullo(lhs, rhs);
 }
-constexpr inline uint32x8_t operator*(const uint8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::mullo(rhs, lhs);
 }
-constexpr inline uint32x8_t operator+(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator+(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::add(lhs, rhs);
 }
-constexpr inline uint32x8_t operator-(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator-(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::sub(lhs, rhs);
 }
-constexpr inline uint32x8_t operator&(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator&(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::and_(lhs, rhs);
 }
-constexpr inline uint32x8_t operator^(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator^(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::xor_(lhs, rhs);
 }
-constexpr inline uint32x8_t operator|(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator|(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::or_(lhs, rhs);
 }
-constexpr inline uint32x8_t operator~(const uint32x8_t &lhs) {
+constexpr inline uint32x8_t operator~(const uint32x8_t &lhs) noexcept {
 	return uint32x8_t::not_(lhs);
 }
-constexpr inline uint32x8_t operator>>(const uint32x8_t &lhs, const uint32_t rhs) {
+constexpr inline uint32x8_t operator>>(const uint32x8_t &lhs, const uint32_t rhs) noexcept {
 	return uint32x8_t::srli(lhs, rhs);
 }
-constexpr inline uint32x8_t operator<<(const uint32x8_t &lhs, const uint32_t rhs) {
+constexpr inline uint32x8_t operator<<(const uint32x8_t &lhs, const uint32_t rhs) noexcept {
 	return uint32x8_t::slli(lhs, rhs);
 }
-constexpr inline uint32x8_t operator^=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator^=(uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	lhs = uint32x8_t::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint32x8_t operator&=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator&=(uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	lhs = uint32x8_t::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint32x8_t operator|=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator|=(uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	lhs = uint32x8_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::mullo(lhs, rhs);
 }
-constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64_t &rhs) noexcept {
 	return uint64x4_t::mullo(lhs, rhs);
 }
-constexpr inline uint64x4_t operator*(const uint8_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint8_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::mullo(rhs, lhs);
 }
-constexpr inline uint64x4_t operator+(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator+(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::add(lhs, rhs);
 }
-constexpr inline uint64x4_t operator-(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator-(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::sub(lhs, rhs);
 }
-constexpr inline uint64x4_t operator&(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator&(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::and_(lhs, rhs);
 }
-constexpr inline uint64x4_t operator^(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator^(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::xor_(lhs, rhs);
 }
-constexpr inline uint64x4_t operator|(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator|(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::or_(lhs, rhs);
 }
-constexpr inline uint64x4_t operator~(const uint64x4_t &lhs) {
+constexpr inline uint64x4_t operator~(const uint64x4_t &lhs) noexcept {
 	return uint64x4_t::not_(lhs);
 }
-constexpr inline uint64x4_t operator>>(const uint64x4_t &lhs, const uint32_t rhs) {
+constexpr inline uint64x4_t operator>>(const uint64x4_t &lhs, const uint32_t rhs) noexcept {
 	return uint64x4_t::srli(lhs, rhs);
 }
-constexpr inline uint64x4_t operator<<(const uint64x4_t &lhs, const uint32_t rhs) {
+constexpr inline uint64x4_t operator<<(const uint64x4_t &lhs, const uint32_t rhs) noexcept {
 	return uint64x4_t::slli(lhs, rhs);
 }
-constexpr inline uint64x4_t operator^=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator^=(uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	lhs = uint64x4_t::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint64x4_t operator&=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator&=(uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	lhs = uint64x4_t::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint64x4_t operator|=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator|=(uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	lhs = uint64x4_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 /* 					 comparison									*/
-constexpr inline int operator==(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr inline int operator==(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::cmp(a, b);
 }
-constexpr inline int operator!=(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr inline int operator!=(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return 0xffffffff ^ uint8x32_t::cmp(a, b);
 }
-constexpr inline int operator<(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr inline int operator<(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::gt(b, a);
 }
-constexpr inline int operator>(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr inline int operator>(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::gt(a, b);
 }
 
 
 ///
-constexpr inline int operator==(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr inline int operator==(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return (int) uint16x16_t::cmp(a, b);
 }
-constexpr inline int operator!=(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr inline int operator!=(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return 0xffff ^ uint16x16_t::cmp(a, b);
 }
-constexpr inline int operator<(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr inline int operator<(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return (int) uint16x16_t::gt(b, a);
 }
-constexpr inline int operator>(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr inline int operator>(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return (int) uint16x16_t::gt(a, b);
 }
 
 
 ///
-constexpr inline int operator==(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr inline int operator==(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return (int) uint32x8_t::cmp(a, b);
 }
-constexpr inline int operator!=(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr inline int operator!=(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return 0xff ^ uint32x8_t::cmp(a, b);
 }
-constexpr inline int operator<(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr inline int operator<(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return (int) uint32x8_t::gt(b, a);
 }
-constexpr inline int operator>(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr inline int operator>(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return (int) uint32x8_t::gt(a, b);
 }
 
-constexpr inline int operator==(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr inline int operator==(const uint64x4_t &a, const uint64x4_t &b) noexcept {
 	return (int) uint64x4_t::cmp(a, b);
 }
-constexpr inline int operator!=(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr inline int operator!=(const uint64x4_t &a, const uint64x4_t &b) noexcept {
 	return 0xf ^ uint64x4_t::cmp(a, b);
 }
-constexpr inline int operator<(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr inline int operator<(const uint64x4_t &a, const uint64x4_t &b) noexcept {
 	return (int) uint64x4_t::gt(b, a);
 }
 constexpr inline int operator>(const uint64x4_t &a, const uint64x4_t &b) {
@@ -2758,6 +2758,7 @@ constexpr inline void uint64x4_t::print(bool binary, bool hex) const {
 
 ////////////////////////////////////////////////////////////////////////
 
+// TODO
 //namespace cryptanalysislib {
 //	constexpr inline _uint8x16_t &_uint8x16_t::operator=(const _uint16x8_t &b) noexcept {
 //		_uint8x16_t ret;

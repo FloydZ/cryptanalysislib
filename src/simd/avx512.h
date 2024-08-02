@@ -83,7 +83,7 @@ struct uint8x64_t {
 	using limb_type = uint8_t;
 	using S = uint8x64_t;
 
-	constexpr uint8x64_t() noexcept = default;
+	constexpr inline uint8x64_t() noexcept = default;
 
 	union {
 		// compatibility with TxN_t
@@ -473,6 +473,11 @@ struct uint8x64_t {
 														  const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x64_t out;
+		const uint8x64_t mask = uint8x64_t::set1(~((1u << in2) - 1u));
+		// out.v512 = _mm512_slli_epi16(in1.v512, in2);
+		// out.v512 =  (__m512i)__builtin_ia32_psllwi512((__v32hi)in1.v512, (int)in2);
+		out.v512 = (__m512i)((__v32hi)in1.v512 << (int)in2);
+		out = uint8x64_t::and_(out, mask);
 		return out;
 	}
 
@@ -484,6 +489,10 @@ struct uint8x64_t {
 														  const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x64_t out;
+		const uint8x64_t mask = uint8x64_t::set1((1u << ((8u - in2) & 7u)) - 1u);
+		// out.v512 = _mm512_srli_epi16(in1.v512, in2);
+		out.v512 = (__m512i)((__v32hi)in1.v512 >> (int)in2);
+		out = uint8x64_t::and_(out, mask);
 		return out;
 	}
 
@@ -590,16 +599,17 @@ struct uint8x64_t {
 	/// https://github.com/WojciechMula/toys/blob/master/avx512-galois/reverse.cpp
 	/// \param input = [0, 1, ..., 62, 63]
 	/// \return [63, 62, ..., 1, 0]
-	[[nodiscard]] constexpr static inline uint8x64_t reverse(const uint8x64_t input) noexcept {
+	[[nodiscard]] constexpr static inline uint8x64_t reverse(const uint8x64_t in) noexcept {
 		uint8x64_t ret;
 #ifdef USE_EVEX512
 		const long long __d = bit_shuffle_const(7, 6, 5, 4, 3, 2, 1, 0);
 		const __m512i select = __extension__(__m512i)(__v8di){__d, __d, __d, __d, __d, __d, __d, __d};
 		ret.v512 = ((__m512i) __builtin_ia32_vgf2p8affineqb_v64qi((__v64qi) (__m512i) (select),
-		                                                          (__v64qi) (__m512i) (input.v512), (char) (0x00)));
+		                                                          (__v64qi) (__m512i) (in.v512), (char) (0x00)));
 #else
-
-		// TODO
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			ret.d[LIMBS - 1 - i] = in.d[i];
+		}
 #endif
 		return ret;
 	}
@@ -816,7 +826,7 @@ struct uint16x32_t {
 		uint32_t v32[16];
 		uint64_t v64[8];
 		cryptanalysislib::_uint16x8_t v128[4];
-		__m512i v256[2];
+		__m256i v256[2];
 		__m512i v512;
 	};
 
@@ -847,48 +857,48 @@ struct uint16x32_t {
 
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x32_t set(
-	        char __q31, char __q30, char __q29, char __q28,
-	        char __q27, char __q26, char __q25, char __q24,
-	        char __q23, char __q22, char __q21, char __q20,
-	        char __q19, char __q18, char __q17, char __q16,
-	        char __q15, char __q14, char __q13, char __q12,
-	        char __q11, char __q10, char __q09, char __q08,
-	        char __q07, char __q06, char __q05, char __q04,
-	        char __q03, char __q02, char __q01, char __q00) noexcept {
+	        uint16_t __q31, uint16_t __q30, uint16_t __q29, uint16_t __q28,
+	        uint16_t __q27, uint16_t __q26, uint16_t __q25, uint16_t __q24,
+	        uint16_t __q23, uint16_t __q22, uint16_t __q21, uint16_t __q20,
+	        uint16_t __q19, uint16_t __q18, uint16_t __q17, uint16_t __q16,
+	        uint16_t __q15, uint16_t __q14, uint16_t __q13, uint16_t __q12,
+	        uint16_t __q11, uint16_t __q10, uint16_t __q09, uint16_t __q08,
+	        uint16_t __q07, uint16_t __q06, uint16_t __q05, uint16_t __q04,
+	        uint16_t __q03, uint16_t __q02, uint16_t __q01, uint16_t __q00) noexcept {
 		uint16x32_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){
-		        __q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07,
-		        __q08, __q09, __q10, __q11, __q12, __q13, __q14, __q15,
-		        __q16, __q17, __q18, __q19, __q20, __q21, __q22, __q23,
-		        __q24, __q25, __q26, __q27, __q28, __q29, __q30, __q31};
+		out.v512 = __extension__(__m512i)(__v32hi){
+		        (short)__q00, (short)__q01, (short)__q02, (short)__q03, (short)__q04, (short)__q05, (short)__q06, (short)__q07,
+		        (short)__q08, (short)__q09, (short)__q10, (short)__q11, (short)__q12, (short)__q13, (short)__q14, (short)__q15,
+		        (short)__q16, (short)__q17, (short)__q18, (short)__q19, (short)__q20, (short)__q21, (short)__q22, (short)__q23,
+		        (short)__q24, (short)__q25, (short)__q26, (short)__q27, (short)__q28, (short)__q29, (short)__q30, (short)__q31};
 		return out;
 	}
 
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x32_t setr(
-	        char __q31, char __q30, char __q29, char __q28,
-	        char __q27, char __q26, char __q25, char __q24,
-	        char __q23, char __q22, char __q21, char __q20,
-	        char __q19, char __q18, char __q17, char __q16,
-	        char __q15, char __q14, char __q13, char __q12,
-	        char __q11, char __q10, char __q09, char __q08,
-	        char __q07, char __q06, char __q05, char __q04,
-	        char __q03, char __q02, char __q01, char __q00) noexcept {
+	        uint16_t __q31, uint16_t __q30, uint16_t __q29, uint16_t __q28,
+	        uint16_t __q27, uint16_t __q26, uint16_t __q25, uint16_t __q24,
+	        uint16_t __q23, uint16_t __q22, uint16_t __q21, uint16_t __q20,
+	        uint16_t __q19, uint16_t __q18, uint16_t __q17, uint16_t __q16,
+	        uint16_t __q15, uint16_t __q14, uint16_t __q13, uint16_t __q12,
+	        uint16_t __q11, uint16_t __q10, uint16_t __q09, uint16_t __q08,
+	        uint16_t __q07, uint16_t __q06, uint16_t __q05, uint16_t __q04,
+	        uint16_t __q03, uint16_t __q02, uint16_t __q01, uint16_t __q00) noexcept {
 		uint16x32_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){
-		        __q31, __q30, __q29, __q28, __q27, __q26, __q25, __q24,
-		        __q23, __q22, __q21, __q20, __q19, __q18, __q17, __q16,
-		        __q15, __q14, __q13, __q12, __q11, __q10, __q09, __q08,
-		        __q07, __q06, __q05, __q04, __q03, __q02, __q01, __q00};
+		out.v512 = __extension__(__m512i)(__v32hi){
+		        (short)__q31, (short)__q30, (short)__q29, (short)__q28, (short)__q27, (short)__q26, (short)__q25, (short)__q24,
+		        (short)__q23, (short)__q22, (short)__q21, (short)__q20, (short)__q19, (short)__q18, (short)__q17, (short)__q16,
+		        (short)__q15, (short)__q14, (short)__q13, (short)__q12, (short)__q11, (short)__q10, (short)__q09, (short)__q08,
+		        (short)__q07, (short)__q06, (short)__q05, (short)__q04, (short)__q03, (short)__q02, (short)__q01, (short)__q00};
 		return out;
 	}
 
-	[[nodiscard]] constexpr static inline uint16x32_t set1(char __A) noexcept {
+	[[nodiscard]] constexpr static inline uint16x32_t set1(uint16_t __A) noexcept {
 		uint16x32_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){__A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A};
+		out.v512 = __extension__(__m512i)(__v32hi){(short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A,
+		                                           (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A,
+		                                           (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A,
+		                                           (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A, (short)__A};
 
 		return out;
 	}
@@ -926,7 +936,6 @@ struct uint16x32_t {
 		}
 
 	}
-
 
 	///
 	/// \param ptr
@@ -1083,7 +1092,8 @@ struct uint16x32_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 16);
 		uint16x32_t out;
-		// TODO
+		// out.v512 = _mm512_slli_epi16(in1.v512, in2);
+		out.v512 = (__m512i)((__v32hi)in1.v512 << (int)in2);
 		return out;
 	}
 
@@ -1095,7 +1105,8 @@ struct uint16x32_t {
 	                                                       const uint8_t in2) noexcept {
 		ASSERT(in2 <= 16);
 		uint16x32_t out;
-		// TODO
+		// out.v512 = _mm512_srli_epi16(in1.v512, in2);
+		out.v512 = (__m512i)((__v32hi)in1.v512 >> (int)in2);
 		return out;
 	}
 
@@ -1131,7 +1142,7 @@ struct uint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const uint16x32_t in) noexcept {
 		for (uint32_t i = 1; i < LIMBS; ++i) {
-			if (in.d[0] != in.d[i]) {
+			if (in.d[i-1] != in.d[i]) {
 				return false;
 			}
 		}
@@ -1168,7 +1179,7 @@ struct uint32x16_t {
 		uint32_t v32[16];
 		uint64_t v64[8];
 		cryptanalysislib::_uint32x4_t v128[4];
-		__m512i v256[2];
+		__m256i v256[2];
 		__m512i v512;
 	};
 
@@ -1199,34 +1210,34 @@ struct uint32x16_t {
 
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t set(
-	        char __q15, char __q14, char __q13, char __q12,
-	        char __q11, char __q10, char __q09, char __q08,
-	        char __q07, char __q06, char __q05, char __q04,
-	        char __q03, char __q02, char __q01, char __q00) noexcept {
+	        uint32_t __q15, uint32_t __q14, uint32_t __q13, uint32_t __q12,
+	        uint32_t __q11, uint32_t __q10, uint32_t __q09, uint32_t __q08,
+	        uint32_t __q07, uint32_t __q06, uint32_t __q05, uint32_t __q04,
+	        uint32_t __q03, uint32_t __q02, uint32_t __q01, uint32_t __q00) noexcept {
 		uint32x16_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){
-		        __q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07,
-		        __q08, __q09, __q10, __q11, __q12, __q13, __q14, __q15};
+		out.v512 = __extension__(__m512i)(__v16si){
+		        (int)__q00, (int)__q01, (int)__q02, (int)__q03, (int)__q04, (int)__q05, (int)__q06, (int)__q07,
+		        (int)__q08, (int)__q09, (int)__q10, (int)__q11, (int)__q12, (int)__q13, (int)__q14, (int)__q15};
 		return out;
 	}
 
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t setr(
-	        char __q15, char __q14, char __q13, char __q12,
-	        char __q11, char __q10, char __q09, char __q08,
-	        char __q07, char __q06, char __q05, char __q04,
-	        char __q03, char __q02, char __q01, char __q00) noexcept {
+	        uint32_t __q15, uint32_t __q14, uint32_t __q13, uint32_t __q12,
+	        uint32_t __q11, uint32_t __q10, uint32_t __q09, uint32_t __q08,
+	        uint32_t __q07, uint32_t __q06, uint32_t __q05, uint32_t __q04,
+	        uint32_t __q03, uint32_t __q02, uint32_t __q01, uint32_t __q00) noexcept {
 		uint32x16_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){
-		        __q15, __q14, __q13, __q12, __q11, __q10, __q09, __q08,
-		        __q07, __q06, __q05, __q04, __q03, __q02, __q01, __q00};
+		out.v512 = __extension__(__m512i)(__v16si){
+		        (int)__q15, (int)__q14, (int)__q13, (int)__q12, (int)__q11, (int)__q10, (int)__q09, (int)__q08,
+		        (int)__q07, (int)__q06, (int)__q05, (int)__q04, (int)__q03, (int)__q02, (int)__q01, (int)__q00};
 		return out;
 	}
 
-	[[nodiscard]] constexpr static inline uint32x16_t set1(char __a) noexcept {
+	[[nodiscard]] constexpr static inline uint32x16_t set1(uint32_t __a) noexcept {
 		uint32x16_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){__a, __a, __a, __a, __a, __a, __a, __a,
-		                                           __a, __a, __a, __a, __a, __a, __a, __a};
+		out.v512 = __extension__(__m512i)(__v16si){(int)__a, (int)__a, (int)__a, (int)__a, (int)__a, (int)__a, (int)__a, (int)__a,
+		                                           (int)__a, (int)__a, (int)__a, (int)__a, (int)__a, (int)__a, (int)__a, (int)__a};
 
 		return out;
 	}
@@ -1430,7 +1441,9 @@ struct uint32x16_t {
 														   const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x16_t out;
-		// TODO
+		// out.v512 = _mm512_slli_epi32(in1.v512, in2);
+		// out.v512 (__m512i)__builtin_ia32_pslldi512((__v16si)in1.v512, (int)in2);
+		out.v512 = (__m512i) ((__v16si) in1.v512 << (int)in2);
 		return out;
 	}
 
@@ -1441,7 +1454,8 @@ struct uint32x16_t {
 														   const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x16_t out;
-		// TODO
+		// out.v512 = _mm512_srli_epi32(in1.v512, in2);
+		out.v512 = (__m512i) ((__v16si) in1.v512 >> (int)in2);
 		return out;
 	}
 
@@ -1558,7 +1572,7 @@ struct uint64x8_t {
 		uint32_t v32[16];
 		uint64_t v64[8];
 		cryptanalysislib::_uint64x2_t v128[4];
-		__m512i v256[2];
+		__m256i v256[2];
 		__m512i v512;
 	};
 
@@ -1589,35 +1603,28 @@ struct uint64x8_t {
 
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t set(
-	        char __q15, char __q14, char __q13, char __q12,
-	        char __q11, char __q10, char __q09, char __q08,
-	        char __q07, char __q06, char __q05, char __q04,
-	        char __q03, char __q02, char __q01, char __q00) noexcept {
+	        uint64_t __q07, uint64_t __q06, uint64_t __q05, uint64_t __q04,
+	        uint64_t __q03, uint64_t __q02, uint64_t __q01, uint64_t __q00) noexcept {
 		uint64x8_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){
-		        __q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07,
-		        __q08, __q09, __q10, __q11, __q12, __q13, __q14, __q15};
+		out.v512 = __extension__(__m512i)(__v8di){
+		        (long long)__q00, (long long)__q01, (long long)__q02, (long long)__q03, (long long)__q04, (long long)__q05, (long long)__q06, (long long)__q07};
 		return out;
 	}
 
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t setr(
-	        char __q15, char __q14, char __q13, char __q12,
-	        char __q11, char __q10, char __q09, char __q08,
-	        char __q07, char __q06, char __q05, char __q04,
-	        char __q03, char __q02, char __q01, char __q00) noexcept {
+			uint64_t __q07, uint64_t __q06, uint64_t __q05, uint64_t __q04,
+			uint64_t __q03, uint64_t __q02, uint64_t __q01, uint64_t __q00) noexcept {
 		uint64x8_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){
-		        __q15, __q14, __q13, __q12, __q11, __q10, __q09, __q08,
-		        __q07, __q06, __q05, __q04, __q03, __q02, __q01, __q00};
+		out.v512 = __extension__(__m512i)(__v8di){
+		        (long long)__q07, (long long)__q06, (long long)__q05, (long long)__q04, (long long)__q03, (long long)__q02, (long long)__q01, (long long)__q00};
 		return out;
 	}
 
-	[[nodiscard]] constexpr static inline uint64x8_t set1(char __a) noexcept {
+	[[nodiscard]] constexpr static inline uint64x8_t set1(uint64_t __a) noexcept {
 		uint64x8_t out;
-		out.v512 = __extension__(__m512i)(__v64qi){__a, __a, __a, __a, __a, __a, __a, __a,
-		                                           __a, __a, __a, __a, __a, __a, __a, __a};
-
+		const long long t = (long long)__a;
+		out.v512 = __extension__(__m512i)(__v8di){t,t,t,t,t,t,t,t};
 		return out;
 	}
 
@@ -1810,7 +1817,9 @@ struct uint64x8_t {
 	                                                       const uint64_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		uint64x8_t out;
-		// TODO
+		// out.v512 = _mm512_slli_epi64(in1.v512, in2);
+		// out.v512 = (__m512i)__builtin_ia32_psllqi512((__v8di)in1.v512, (int)in2);
+		out.v512 = (__m512i) ((__v8di)in1.v512 << (int)in2);
 		return out;
 	}
 
@@ -1821,7 +1830,8 @@ struct uint64x8_t {
 	                                                       const uint8_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		uint64x8_t out;
-		// TODO
+		// out.v512 = _mm512_srli_epi64(in1.v512, in2);
+		out.v512 = (__m512i) ((__v8di)in1.v512 >> (int)in2);
 		return out;
 	}
 

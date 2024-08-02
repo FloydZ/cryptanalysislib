@@ -627,6 +627,14 @@ constexpr static void m256tou16(uint16_t t[16], const __m256i m) noexcept {
 	t[12] = d3; t[13] = d3 >> 16; t[14] = d3 >> 32; t[15] = d3 >> 48;
 }
 
+// needed forward decl
+template<typename T, const uint32_t N>
+#if __cplusplus > 201709L
+	requires std::is_integral_v<T>
+#endif
+class TxN_t;
+
+
 struct uint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint8_t;
@@ -655,10 +663,10 @@ struct uint8x32_t {
 
 	/// Example of how the constexpr implementation works:
 	/// https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGEgBykrgAyeAyYAHI%2BAEaYxCCSZqQADqgKhE4MHt6%2BASlpGQKh4VEssfGJtpj2jgJCBEzEBNk%2BflyBdpgOmfWNBMWRMXEJSQoNTS257bbj/WGDZcOJAJS2qF7EyOwc5gDMYcjeWADUJrtuY/iCAHQIZ9gmGgCCewdHmKfneCwsYQTEYVu90eLzM%2BwYhy8JzObmQlycwOeILGxC8DmOXj%2B/lUuzMAH0CKcAOxWJEaACcXgYmWJpJeFMelKxBOOxwAbv5TgBWCy4kxcgAiZzpjMZmMEXAAbCy2VL%2BRY5YLhSDRRTxQRcTK%2BTzjv5%2BULdiKGWq/pLJDKzfLjpJ9cqyeTGXi8SwzFzJXh2a7JXb6Q6iQa6azWSCg8c0AwxphVMliMcxkxHMhjmFaPMMVicfjCaoSHiIOGxunBNjNYSwlxSCqKaGa7W6/WC4T1SWs8mGGZlrSqw6TcXMyz1gQfaryYPrmyvZ8BccIE6XW68J2oE62ZJ0F5luXx5P%2BdgZyu1xuwmZt27lsPjeSAPRXscTt1T47O%2BfSnPEPHpL0QLf3yWkNsnr%2B56Gt2jLEJgBAbAwxyDhefpCmSvo3le3bIdybjJI0rDHMk/yoTe6HgZBxAMN2jZRjGcYNImbapuERYEC2LJUmIeDAOE6B4rQqBMOg%2BYCIWbKoHg6DHAAVLhxCdiYJKgRSTBeEQ4mSTuuzTrOzpeh6YnLJJcFihmpYwYp%2BkUneqnThJ/xeqZ163opp6So%2Bz5elxPHrh%2BeBfhpL7abp/zAUaPbkkRUHGUOIH2jJCFPKGIZBsh%2BFXuhmHENhen2mh/IYVhLBtmRAkEBRsbxjRKZpkJIkYswqbsZgnFjCQmAQJVolWWQYaFQxTFlgw0myVFFJzlpynWQ%2BZzqcNC7if5xC2e1Flto5Ppxf6KprZF9JPOR0axq1xxFWMEDNiyYmDv%2Bjbdad5YXV1J2EmJx63RGTZ/EZfVds8ob8LGx1va2HoTccGjCsm1i4p8bjHKRhpg5YE24v1gZ1pdzb9oSTCPmjpYgCALG1Rxbm8d%2BDBcKcljJmJiMrSjd2Ga20RY/TBK4/jbGE9xxPHuTFiU9Tm0NnTfZGUmQPY1muNvnmTD/tEgXxbW4ss3jNXs/VH5EOBEDnWG8tfUG0XrTFIJ/McLBMGEEBIwrnUvcVDHvY%2BXBmHqAtBjtlH3eF8qkYKj4yRYIMbcjrIe7GXvlj7%2Br%2BySQcBjbYdXb1ZhR37QMB3HF6xUGh0EFAXs6TrN0AaQfU06yMZ/FQEDmCnrroNlpFmEk3s8iDgp6y8/ocKstCcFyvB%2BBwWikKgnBuNY1hxusmwfHsPCkAQmg96sADWIC7Ls1waP4kiSkSkhEv4GhH0ff59xwkiD8vo%2BcLwCggBoi/L6scCwEgaAsMkdBxOQlCf9/eg8RgBcFxKQLAbI8BbAAGp4EwAAdwAPLJEYJwBeNBaBFWIA/CA0Qb7RDCI0AAnmg3gBDmDECIYg6I2guhL24LwT%2BbBBCIIYLQEhw9eBYGiF4YAbgxC0Afgw8BmBzZGHEJw8BeBwLdDZJgIRI8oxdEUtsBefxqg31TNENKlCPBYBvv8b4pDVhUAMMABQsCEHINQcI/gggRBiHYFIGQghFAqHUJI3QFYDBGBQJPSw%2Bg8DRAfpAVYqBcKZCEQAWnNmyVQZhjhRMQbsXgqA5HEABFgEJVsqg1EyC4Bg7hPCtAkESIIhSBilHKBIJ%2BqR0i1CyMUqYZS6mFAYJUoY8QuBP06N0OosxJhtDKb0hpvQmgdMWF0npAymlDJmH0CZ1TumrAUDPLYEhe792vpIseHBjiqH8JKKJZpjjAGQEmUB1wEkQFwIQEg5NdhcGWLwehWhlhrw3lvLk/guDknJO0fw3yj4/OkBfK%2Bpcb67Pvo/Z%2BnDX4wEQCAQcyRFJ/34l/H%2BxAIisG2Aco5JyzkXK3mYXg9U7mZL0HY4QohxDOKpW4tQN8vGkHgWlZIxj9BbIhTszgiDFIosJKgKg%2BzDnHMkKc85xxLnXI8BioBDynkvJfh8ze1xN7qo1Zqzll9tkjyhbYGFryV7apJdyvVd9YVvNWOk9IzhJBAA%3D
-	constexpr uint8x32_t() noexcept = default;
+	constexpr inline uint8x32_t() noexcept = default;
 
 	/// NOTE: currently cannot be constexpr
-	/// \return
+	/// \return a uniform random element
 	[[nodiscard]] static inline uint8x32_t random() noexcept {
 		uint8x32_t ret;
 		for (size_t i = 0; i < 4; ++i) {
@@ -667,10 +675,10 @@ struct uint8x32_t {
 		return ret;
 	}
 
-	///
 	/// \param binary
 	/// \param hex
-	constexpr inline void print(bool binary = false, bool hex = false) const;
+	constexpr inline void print(bool binary = false,
+	                            bool hex = false) const;
 
 	///
 	/// \return
@@ -692,6 +700,7 @@ struct uint8x32_t {
 		return out;
 	}
 
+	///
 	[[nodiscard]] constexpr static inline uint8x32_t setr(char __q31, char __q30, char __q29, char __q28,
 	                                                      char __q27, char __q26, char __q25, char __q24,
 	                                                      char __q23, char __q22, char __q21, char __q20,
@@ -922,11 +931,13 @@ struct uint8x32_t {
 		uint8x32_t out;
 		const uint8x32_t mask = set1((1u << in2) - 1u);
 		out = uint8x32_t::and_(in1, mask);
-		if (std::is_constant_evaluated()) {
-			out.v256 = (__m256i)((__v32qi)out.v256) << in2;
-			return out;
-		}
-		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
+		// if (std::is_constant_evaluated()) {
+		// 	out.v256 = (__m256i)((__v32qi)out.v256) << in2;
+		// 	return out;
+		// }
+		// out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
+
+		out.v256 = (__m256i)((__v32qi)out.v256) << in2;
 		return out;
 	}
 
@@ -1069,6 +1080,9 @@ struct uint16x16_t {
 		uint64_t v64[4];
 		__m256i v256;
 	};
+
+	constexpr inline uint16x16_t() noexcept = default;
+
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
 		ASSERT(i < LIMBS);
@@ -1310,14 +1324,14 @@ struct uint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t slli(const uint16x16_t in1,
 	                                                       const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		ASSERT(in2 <= 16);
 		uint16x16_t out;
-		uint16x16_t mask = set1((1u << in2) - 1u);
+		uint16x16_t mask = set1((1u << ((16u - in2) & 15u)) - 1u);
 		out = uint16x16_t::and_(in1, mask);
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
 #else
-		out.v256 = (__m256i)(((__v16hu)out.v256) >> in2);
+		out.v256 = (__m256i)(((__v16hu)out.v256) << in2);
 #endif
 		return out;
 	}
@@ -1328,14 +1342,14 @@ struct uint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t srli(const uint16x16_t in1,
 	                                                       const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
-		const uint16x16_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
+		ASSERT(in2 <= 16);
+		const uint16x16_t mask = set1(~((1u << in2) - 1u));
 		uint16x16_t out;
 		out = uint16x16_t::and_(in1, mask);
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrlwi256((__v16hi) out.v256, in2);
 #else
-		out.v256 = (__m256i)(((__v16hu)out.v256) << in2);
+		out.v256 = (__m256i)(((__v16hu)out.v256) >> in2);
 #endif
 		return out;
 	}
@@ -1710,12 +1724,10 @@ struct uint32x8_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint32x8_t out{};
-		//uint32x8_t mask = set1((1u << in2) - 1u);
-		//out = uint32x8_t::and_(in1, mask);
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) in1.v256, in2);
 #else
-        out.v256 = (__m256i)((__v8si)in1.v256 >> in2);
+        out.v256 = (__m256i)((__v8si)in1.v256 << in2);
 #endif
 		return out;
 	}
@@ -1727,13 +1739,11 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t srli(const uint32x8_t in1,
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
-		//const uint32x8_t mask = set1(((1u << (8u - in2)) - 1u) << in2);
 		uint32x8_t out{};
-		//out = uint32x8_t::and_(in1, mask);
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrldi256((__v8si) in1.v256, in2);
 #else
-        out.v256 = (__m256i)((__v8si)in1.v256 << in2);
+        out.v256 = (__m256i)((__v8si)in1.v256 >> in2);
 #endif
 		return out;
 	}
@@ -2377,6 +2387,7 @@ struct uint64x4_t {
 #endif
 	}
 };
+
 
 inline void sse_prefixsum_u32(uint32_t *in) noexcept {
 	__m128i x = _mm_loadu_si128((__m128i *)in);

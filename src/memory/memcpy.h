@@ -147,7 +147,6 @@ namespace cryptanalysislib {
 		}
 #endif
 
-		///
 		/// \tparam T
 		/// \param out
 		/// \param in
