@@ -628,6 +628,11 @@ class CacheTrie {
 	}
 public:
 
+	constexpr void info() noexcept {
+		std::cout << " { name: \"CTrie\""
+				  << " }" <<std::endl;
+	}
+
 	constexpr CacheTrie() noexcept {
 		// this is hideous: we need to mark the root node as an A node
 		rawRoot = (void *)root;

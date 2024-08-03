@@ -515,7 +515,6 @@ public:
 	constexpr void set_value(const Value &v) noexcept { value = v; }
 	constexpr void set_label(const Label &l) noexcept { label = l; }
 
-
 	/// returns true of both underlying data structs are binary
 	[[nodiscard]] constexpr static bool binary() noexcept { return Label::binary() && Value::binary(); }
 	[[nodiscard]] constexpr static uint32_t label_size() noexcept { return Label::size(); }
@@ -530,6 +529,9 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr auto label_ptr(const size_t i) const noexcept { return label.ptr(i); }
 	[[nodiscard]] __FORCEINLINE__ constexpr auto value_ptr(const size_t i) const noexcept { return value.ptr(i); }
 
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"Element\" }" << std::endl;
+	}
 public:
 	Label label;
 	Value value;

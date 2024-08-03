@@ -188,6 +188,7 @@ public:
 
 public:
 	std::array<T, block_words> __data;
+
 	/// that's only because I'm lazy
 	static constexpr uint32_t q = 2;
 	static constexpr bool packed = true;
@@ -2518,7 +2519,18 @@ public:
 	[[nodiscard]] constexpr inline uint32_t cols() noexcept { return COLS; }
 
 	constexpr static void info() {
-		// TODO
+		std::cout << " { name: \"BinaryMatrix<" << typeid(T).name() << ", " << __nrows << ", " << __ncols << ">\""
+		          << ", RADIX: " << RADIX
+				  << ", alignment: " << alignment
+				  << ", fraction: " << fraction
+				  << ", padded_limbs: " << padded_limbs
+				  << ", padded_simd_limbs: " << padded_simd_limbs
+				  << ", padded_bytes: " << padded_limbs
+				  << ", padded_columns: " << padded_columns
+				  << ", padded_ncols: " << padded_ncols
+				  << ", high_bitmask: " << high_bitmask
+				  << ", block_worcs: " << block_words
+		          << " }" << std::endl;
 	}
 };
 

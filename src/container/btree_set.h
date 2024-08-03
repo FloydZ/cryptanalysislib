@@ -50,6 +50,16 @@ private:
 	std::uint32_t maxKeys;  // At least 3, odd number, equal to minKeys*2+1
 
 public:
+
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"BTreeSet\""
+		          << ", count" << count
+		          << ", minKeys" << minKeys
+			   	  << ", maxKeys" << maxKeys
+		          << " }" <<std::endl;
+	}
+
 	// The degree is the minimum number of children each non-root internal node must have.
 	constexpr explicit BTreeSet(std::uint32_t degree) noexcept :
 	         minKeys(degree - 1),

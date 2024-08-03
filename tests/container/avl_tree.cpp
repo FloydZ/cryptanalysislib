@@ -348,6 +348,13 @@ TEST(AVLTree, CPPVectorEverywhere) {
 	}
 }
 
+TEST(AVLTree, Info) {
+	AvlTreeList<int> list;
+	list.info();
+}
+
+
+
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -9,6 +9,7 @@
 #include "math/floor.h"
 #include "math/ipow.h"
 #include "math/log.h"
+#include "math/mod.h"
 #include "math/root.h"
 #include "math/round.h"
 #include "math/prime.h"

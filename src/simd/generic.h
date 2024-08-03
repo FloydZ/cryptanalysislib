@@ -576,7 +576,16 @@ public:
 	// ah yes. C++ is love, C++ is life.
 	// The problem is, that copy constructors are never inherited
 	constexpr inline TxN_t(const uint64x4_t &k) noexcept {
+#if defined(USE_AVX2)
 		v256 = k.v256;
+#elif defined(USE_NEON)
+		v128[0] = k.v128[0];
+		v128[1] = k.v128[1];
+#else
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			d[i] = k.d[i];
+		}
+#endif
 	};
 };
 
@@ -584,7 +593,16 @@ template<>
 class TxN_t<uint32_t, 8> : public uint32x8_t {
 public:
 	constexpr inline TxN_t(const uint32x8_t &k) noexcept {
+#if defined(USE_AVX2)
 		v256 = k.v256;
+#elif defined(USE_NEON)
+		v128[0] = k.v128[0];
+		v128[1] = k.v128[1];
+#else
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			d[i] = k.d[i];
+		}
+#endif
 	};
 };
 
@@ -592,7 +610,16 @@ template<>
 class TxN_t<uint16_t, 16>: public uint16x16_t{
 public:
 	constexpr inline TxN_t(const uint16x16_t &k) noexcept {
+#if defined(USE_AVX2)
 		v256 = k.v256;
+#elif defined(USE_NEON)
+		v128[0] = k.v128[0];
+		v128[1] = k.v128[1];
+#else
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			d[i] = k.d[i];
+		}
+#endif
 	};
 };
 
@@ -600,7 +627,16 @@ template<>
 class TxN_t<uint8_t, 32> : public uint8x32_t {
 public:
 	constexpr inline TxN_t(const uint32x8_t &k) noexcept {
+#if defined(USE_AVX2)
 		v256 = k.v256;
+#elif defined(USE_NEON)
+		v128[0] = k.v128[0];
+		v128[1] = k.v128[1];
+#else
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			d[i] = k.d[i];
+		}
+#endif
 	};
 };
 

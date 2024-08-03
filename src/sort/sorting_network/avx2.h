@@ -712,7 +712,7 @@ static inline __m256 sortingnetwork_aftermerge_f32x8(__m256 &a) noexcept {
 /// \MULT: ex: f32x8
 /// \REG: ex: __m256
 #define sortingnetwork_aftermerge2(NEW_MULT, MULT, REG)						\
-static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b) {  \
+static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b) { \
 	REG tmp; 																\
     COEX_ ## MULT(a, b, tmp);                          						\
 	a = sortingnetwork_aftermerge_ ## MULT (a); 							\
@@ -723,6 +723,9 @@ static inline void sortingnetwork_aftermerge_ ## NEW_MULT(REG &a, REG &b) {  \
 // REG swap = (REG)_mm256_permute2f128_ps((__m256)b, (__m256)b, _MM_SHUFFLE(0, 0, 1, 1));
 // REG perm_neigh = (REG)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3));
 
+/// \param a = [a0, a1, a2, a3]
+/// \param b = [a0, a1, a2, a3]
+///
 #define sortingnetwork_permute_minmax2(NEW_MULT, REG, MIN_FKT, MAX_FKT )			\
 static inline void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept { \
   	const REG swap = (REG) (__m256) __builtin_ia32_vperm2f128_ps256 ((__v8sf)b, (__v8sf)b, _MM_SHUFFLE(0, 0, 1, 1)); \
