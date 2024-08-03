@@ -65,7 +65,7 @@ class HammingMetric {
 		return HammingMetric::wt(c);
 	}
 
-	constexpr static void info() noexcept {
+	static void info() noexcept {
 		std::cout << " { name: \"HammingMetrix\""
 			      << " }" << std::endl;
 	}

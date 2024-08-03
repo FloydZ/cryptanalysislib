@@ -175,14 +175,14 @@ TEST(uint8x32_t, logic) {
 			EXPECT_EQ(t3.d[i], 0);
 		}
 
-		t3 = uint8x32_t::slli(t1, 1);
+		t3 = T::slli(t1, 1);
 		for (uint32_t i = 0; i < 32; ++i) {
 			EXPECT_EQ(t3.d[i], 0);
 		}
 
-		t3 = uint8x32_t::slli(t2, 1);
+		t3 = T::slli(t2, 1);
 		for (uint32_t i = 0; i < 32; ++i) {
-			EXPECT_EQ(t3.vd[i], 2);
+			EXPECT_EQ(t3.d[i], 2);
 		}
 	});
 }
