@@ -16,6 +16,9 @@ TEST(AllocationMap, Simple) {
 	int *f = (int *)malloc(sizeof(int));
 	auto *a = am->get(f);
 	EXPECT_EQ(a, nullptr);
+
+	free(f);
+	delete am;
 }
 
 TEST(GarbageCollector, Simple) {
