@@ -1213,11 +1213,10 @@ sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
 	}
 #else
 	void *t[] = {
-	    &&t1,  &&t2,  &&t2,  &&t3,
-		&&t4,  &&t5,  &&t6,  &&t7,
-		&&t8,  &&t9,  &&t10, &&t11,
-		&&t12, &&t13, &&t14, &&t15, 
-		&&t16
+	    &&t1,  &&t2,  &&t3,  &&t4,
+		&&t5,  &&t6,  &&t7,  &&t8,
+	   	&&t9,  &&t10, &&t11, &&t12,
+	    &&t13, &&t14, &&t15, &&t16
 	};
 
 	goto *t[full_vec_count+last_vec_flag - 1];

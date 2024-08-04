@@ -282,7 +282,7 @@ TEST(SortingNetwork, small_f32xX_t) {
 		d[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
 	}
 
-	for (uint32_t i = 17; i < 8*size; i++) {
+	for (uint32_t i = 1; i < 8*size; i++) {
 		const bool b =sortingnetwork_small_f32(d, i);
 		ASSERT_EQ(b, true);
 		const bool k = check_correctness<float>(d, i);

@@ -20,7 +20,7 @@ namespace cryptanalysislib {
 		/// \param bytes
 		/// \return
 		constexpr void memcpyU256(uint8_t *out,
-		                          uint8_t *in,
+		                          const uint8_t *in,
 		                          const size_t bytes) noexcept {
 			if (bytes < 64) {
 				// count < 64. Move 32-16-8-4-2-1 bytes
@@ -56,27 +56,28 @@ namespace cryptanalysislib {
 			}
 
 			const uintptr_t t = ((uintptr_t )out) & 0b11111;
+			size_t bytes2 = bytes;
 			if (t) {
 				if (t & 1u) {
-					out = in;
-					out += 1; in += 1;
+					*out = *in;
+					out += 1; in += 1; bytes2 -= 1;
 				}
 				if (t & 2u) {
 					*(uint16_t *) out = *(uint16_t *) in;
-					out += 2; in += 2;
+					out += 2; in += 2; bytes2 -= 2;
 				}
 				if (t & 3u) {
 					*(uint32_t *) out = *(uint32_t *) in;
-					out += 4; in += 4;
+					out += 4; in += 4; bytes2 -= 4;
 				}
 				if (t & 8u) {
 					*(uint64_t *) out = *(uint64_t *) in;
-					out += 8; in += 8;
+					out += 8; in += 8; bytes2 -= 8;
 				}
 				if (t & 16u) {
 					_uint64x2_t::aligned_store((void *)out,
 							_uint64x2_t::unaligned_load((void *)in));
-					out += 16; in += 16;
+					out += 16; in += 16; bytes2 -= 16;
 				}
 			}
 
@@ -85,12 +86,13 @@ namespace cryptanalysislib {
 
 			// now dest is aligned by 32
 			size_t ctr = 0;
-			for (size_t i = 0; i < bytes/32; ++i) {
-				uint64x4_t::aligned_store((void *)(out + ctr), uint64x4_t::unaligned_load((uint64_t *)(in + ctr)));
+			for (size_t i = 0; i < bytes2/32; ++i) {
+				uint64x4_t::aligned_store((void *)(out + ctr),
+				                          uint64x4_t::unaligned_load((uint64_t *)(in + ctr)));
 				ctr += 32;
 			}
-			out += bytes;
-			in += bytes;
+			out += bytes2;
+			in += bytes2;
 			int32_t count = -int32_t((bytes - ctr + t) % 32u);
 
 			// tail mng

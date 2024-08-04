@@ -2,6 +2,7 @@ TEST(A, copy) {
 	T *a1 = (T *) calloc(size, sizeof(T));
 	T *a2 = (T *) malloc(size * sizeof(T));
 	for (size_t i = 0; i < size; ++i) {
+		a1[i] = 0;
 		a2[i] = i;
 	}
 
@@ -10,8 +11,7 @@ TEST(A, copy) {
 		EXPECT_EQ(a2[i], 0);
 	}
 
-	free(a1);
-	free(a2);
+	free(a1); free(a2);
 }
 
 TEST(A, set) {

@@ -29,7 +29,7 @@ namespace internal {
 	///				No alignment needed
 	/// 			but 32 bytes should be readable
 	/// \return unaligned `__m256i`
-	constexpr static inline __m256i_u unaligned_load_wrapper(__m256i_u const *ptr) {
+	constexpr static inline __m256i_u unaligned_load_wrapper(const __m256i_u *ptr) {
 		return *ptr;
 	}
 
@@ -2053,7 +2053,7 @@ struct uint64x4_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
+			out.v256 = internal::unaligned_load_wrapper((const __m256i_u *)ptr);
 			return out;
 		}
 	}
