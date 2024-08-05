@@ -816,12 +816,12 @@ public:
 	/// access operator
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
-	constexpr T &operator[](const size_t i) noexcept {
+	[[nodiscard]] constexpr T &operator[](const size_t i) noexcept {
 		ASSERT(i < length());
 		return __data[i];
 	}
 
-	constexpr const T &operator[](const size_t i) const noexcept {
+	[[nodiscard]] constexpr const T &operator[](const size_t i) const noexcept {
 		ASSERT(i < length());
 		return __data[i];
 	};
@@ -855,10 +855,10 @@ public:
 	}
 
 	/// iterators
-	auto begin() noexcept { return __data.begin(); }
-	auto begin() const noexcept { return __data.begin(); }
-	auto end() noexcept { return __data.end(); }
-	auto end() const noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return __data.end(); }
 
 	// this data container is never binary
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
@@ -867,24 +867,24 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return length() * sizeof(T); }
 
 	/// returns the underlying data container
-	__FORCEINLINE__ constexpr T *ptr() noexcept { return __data.data(); }
-	__FORCEINLINE__ constexpr const T *ptr() const noexcept { return __data.data(); }
-	__FORCEINLINE__ T ptr(const size_t i) noexcept {
+	[[nodiscard]] __FORCEINLINE__ constexpr T *ptr() noexcept { return __data.data(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr const T *ptr() const noexcept { return __data.data(); }
+	[[nodiscard]] __FORCEINLINE__ T ptr(const size_t i) noexcept {
 		ASSERT(i < limbs());
 		return __data[i];
 	};
-	const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
+	[[nodiscard]] const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
 		ASSERT(i < limbs());
 		return __data[i];
 	};
 
-	__FORCEINLINE__ std::array<T, length()> &data() noexcept { return __data; }
-	__FORCEINLINE__ const std::array<T, length()> &data() const noexcept { return __data; }
-	constexpr T data(const size_t index) const noexcept {
+	[[nodiscard]] __FORCEINLINE__ std::array<T, length()> &data() noexcept { return __data; }
+	[[nodiscard]] __FORCEINLINE__ const std::array<T, length()> &data() const noexcept { return __data; }
+	[[nodiscard]] constexpr T data(const size_t index) const noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
-	constexpr T get(const size_t index) const noexcept {
+	[[nodiscard]] constexpr T get(const size_t index) const noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}

@@ -16,25 +16,28 @@ public:
 	/// NOTE: the inputs col1 and col2 are also outputs
 	/// \tparam F
 	/// \param f
-	/// \param col1 input/output the starting value will be set onto this value
+	/// \param col1 input/output the starting value will be set onto this value,
+	/// 		and if a collision is found in will be written into this value
+	///			NOTE: the element before the collision will be return
 	/// \param col2 input/output
-	/// \param max_iters: max iters until to exit the algorithm
+	/// \param max_iters: maximal iterations until to exit the algorithm
 	/// \return true/false if a solution/collision was found
 	template<class F>
 	constexpr static bool run(F &&f,
 						T &col1, T &col2,
-						const size_t max_iters = size_t(-1)) noexcept {
+						const size_t max_iters = size_t(-1ull)) noexcept {
 		Compare cmp;
 
 		size_t i = 0;
-		T a1=col1, a2, b1=col2, b2;
+		T a1=col1, b1=col2;
 		while (i < max_iters) {
-			a2 = f(a1);
-			b2 = f(f(b1));
+			const T a2 = f(a1);
+			const T b2_ =f(b1);
+			const T b2 = f(b2_);
 
-			if (cmp(a2, b2)) {
+			if (cmp(a1, a2, b2_, b2)) {
 				col1 = a1;
-				col2 = f(b1);
+				col2 = b2_;
 				return true;
 			}
 

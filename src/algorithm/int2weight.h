@@ -11,12 +11,14 @@
 /// \param wt max index size
 /// \param k how many indices to generate
 template<typename T>
+#if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T>
+#endif
 constexpr void int2weights(uint32_t *weights,
-                 const T in,
-        		 const uint32_t n,
-        		 const uint32_t wt,
-                 const uint32_t k) noexcept {
+                           const T in,
+        		 		const uint32_t n,
+        		 		const uint32_t wt,
+                 		const uint32_t k) noexcept {
 	T a = in;
 	uint32_t wn = n;
 	uint32_t wk = wt;
@@ -46,7 +48,9 @@ constexpr void int2weights(uint32_t *weights,
 }
 
 template<typename T>
-requires std::is_arithmetic_v<T>
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<T>
+#endif
 void int2weights(std::vector<T> &weights,
 				const T in,
 				const uint32_t n,

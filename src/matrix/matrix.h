@@ -1340,12 +1340,12 @@ public:
 	}
 
 	/// some simple functions
-	[[nodiscard]] constexpr inline bool binary() noexcept { return false; }
+	[[nodiscard]] constexpr inline bool binary() const noexcept { return false; }
 
 	/// these two functions exist, as there are maybe matrix implementations
 	/// you want to wrap, which are not constant sized
-	[[nodiscard]] constexpr inline uint32_t rows() noexcept { return ROWS; }
-	[[nodiscard]] constexpr inline uint32_t cols() noexcept { return COLS; }
+	[[nodiscard]] constexpr inline uint32_t rows() const noexcept { return ROWS; }
+	[[nodiscard]] constexpr inline uint32_t cols() const noexcept { return COLS; }
 
 	/// get a full limb, instead of just a column
 	/// \param row row

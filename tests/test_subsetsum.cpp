@@ -17,7 +17,6 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// max n = 15
 constexpr uint32_t n    = 16ul;
 constexpr uint32_t q    = (1ul << n);
 
@@ -32,8 +31,6 @@ using Tree			= Tree_T<List>;
 
 // unused ignore
 static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
-
-
 
 
 TEST(SubSetSum, Simple) {

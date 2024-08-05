@@ -211,7 +211,8 @@ public:
 		label.zero();
 	}
 
-	///
+	/// generate a completely random element
+	/// NOTE: value and label are not in any correspondence
 	void random() noexcept {
 		value.random();
 		label.random();

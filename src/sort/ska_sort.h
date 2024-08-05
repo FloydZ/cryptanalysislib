@@ -16,7 +16,7 @@
 namespace detail
 {
 template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-constexpr void counting_sort_impl(It begin,
+void counting_sort_impl(It begin,
 		It end,
 		OutIt out_begin, 
 		ExtractKey && extract_key) noexcept {
@@ -40,77 +40,79 @@ constexpr void counting_sort_impl(It begin,
 }
 
 template<typename It, typename OutIt, typename ExtractKey>
-constexpr void counting_sort_impl(It begin, 
+void counting_sort_impl(It begin,
 						It end,
 						OutIt out_begin, 
 						ExtractKey && extract_key) noexcept {
+	ZoneScoped;
     counting_sort_impl<std::uint64_t>(begin, end, out_begin, extract_key);
 }
 
-constexpr inline bool to_unsigned_or_bool(bool b) noexcept {
+[[nodiscard]] inline bool to_unsigned_or_bool(bool b) noexcept {
+	ZoneScoped;
     return b;
 }
 
-constexpr inline unsigned char to_unsigned_or_bool(unsigned char c) noexcept {
+[[nodiscard]] inline unsigned char to_unsigned_or_bool(unsigned char c) noexcept {
     return c;
 }
 
-constexpr inline unsigned char to_unsigned_or_bool(signed char c) {
+[[nodiscard]] inline unsigned char to_unsigned_or_bool(signed char c) {
     return static_cast<unsigned char>(c) + 128;
 }
 
-constexpr inline unsigned char to_unsigned_or_bool(char c) noexcept {
+[[nodiscard]] inline unsigned char to_unsigned_or_bool(char c) noexcept {
     return static_cast<unsigned char>(c);
 }
 
-constexpr inline std::uint16_t to_unsigned_or_bool(char16_t c) noexcept {
+[[nodiscard]] inline std::uint16_t to_unsigned_or_bool(char16_t c) noexcept {
     return static_cast<std::uint16_t>(c);
 }
 
-constexpr inline std::uint32_t to_unsigned_or_bool(char32_t c) noexcept {
+[[nodiscard]] inline std::uint32_t to_unsigned_or_bool(char32_t c) noexcept {
     return static_cast<std::uint32_t>(c);
 }
 
-constexpr inline std::uint32_t to_unsigned_or_bool(wchar_t c) noexcept {
+[[nodiscard]] inline std::uint32_t to_unsigned_or_bool(wchar_t c) noexcept {
     return static_cast<std::uint32_t>(c);
 }
 
-constexpr inline unsigned short to_unsigned_or_bool(short i) noexcept {
+[[nodiscard]] inline unsigned short to_unsigned_or_bool(short i) noexcept {
     return static_cast<unsigned short>(i) + 
 		   static_cast<unsigned short>(1 << (sizeof(short) * 8 - 1));
 }
 
-constexpr inline unsigned short to_unsigned_or_bool(unsigned short i) noexcept {
+[[nodiscard]] inline unsigned short to_unsigned_or_bool(unsigned short i) noexcept {
     return i;
 }
 
-constexpr inline unsigned int to_unsigned_or_bool(int i) noexcept {
+[[nodiscard]] inline unsigned int to_unsigned_or_bool(int i) noexcept {
     return static_cast<unsigned int>(i) +
 		   static_cast<unsigned int>(1 << (sizeof(int) * 8 - 1));
 }
 
-constexpr inline unsigned int to_unsigned_or_bool(unsigned int i) noexcept  {
+[[nodiscard]] inline unsigned int to_unsigned_or_bool(unsigned int i) noexcept  {
     return i;
 }
 
-constexpr inline unsigned long to_unsigned_or_bool(long l) noexcept {
+[[nodiscard]] inline unsigned long to_unsigned_or_bool(long l) noexcept {
     return static_cast<unsigned long>(l) +
 		   static_cast<unsigned long>(1l << (sizeof(long) * 8 - 1));
 }
 
-constexpr inline unsigned long to_unsigned_or_bool(unsigned long l) noexcept {
+[[nodiscard]] inline unsigned long to_unsigned_or_bool(unsigned long l) noexcept {
     return l;
 }
 
-constexpr inline unsigned long long to_unsigned_or_bool(long long l) noexcept {
+[[nodiscard]] inline unsigned long long to_unsigned_or_bool(long long l) noexcept {
     return static_cast<unsigned long long>(l) + static_cast<unsigned long long>(1ll << (sizeof(long long) * 8 - 1));
 }
 
-constexpr inline unsigned long long to_unsigned_or_bool(unsigned long long l) noexcept {
+[[nodiscard]] inline unsigned long long to_unsigned_or_bool(unsigned long long l) noexcept {
     return l;
 }
 
-constexpr inline std::uint32_t to_unsigned_or_bool(float f) noexcept {
+[[nodiscard]] inline std::uint32_t to_unsigned_or_bool(float f) noexcept {
 	ZoneScoped;
     union
     {
@@ -121,7 +123,7 @@ constexpr inline std::uint32_t to_unsigned_or_bool(float f) noexcept {
     return as_union.u ^ (sign_bit | 0x80000000);
 }
 
-constexpr inline std::uint64_t to_unsigned_or_bool(double f) noexcept {
+[[nodiscard]] inline std::uint64_t to_unsigned_or_bool(double f) noexcept {
 	ZoneScoped;
     union
     {
@@ -133,7 +135,7 @@ constexpr inline std::uint64_t to_unsigned_or_bool(double f) noexcept {
 }
 
 template<typename T>
-constexpr inline size_t to_unsigned_or_bool(T * ptr) noexcept {
+[[nodiscard]] inline size_t to_unsigned_or_bool(T * ptr) noexcept {
     return reinterpret_cast<size_t>(ptr);
 }
 
@@ -144,7 +146,7 @@ template<>
 struct SizedRadixSorter<1>
 {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin,
+	[[nodiscard]]  static bool sort(It begin,
 							   It end,
 							   OutIt buffer_begin, 
 							   ExtractKey && extract_key) {
@@ -161,7 +163,7 @@ template<>
 struct SizedRadixSorter<2>
 {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin,
+	[[nodiscard]] static bool sort(It begin,
 							   It end, 
 							   OutIt buffer_begin, 
 							   ExtractKey && extract_key) noexcept {
@@ -174,11 +176,11 @@ struct SizedRadixSorter<2>
     }
 
     template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort_inline(It begin,
+	[[nodiscard]] static bool sort_inline(It begin,
 									  It end,
 									  OutIt out_begin, 
 									  OutIt out_end, 
-									  ExtractKey && extract_key) {
+									  ExtractKey && extract_key) noexcept {
 		ZoneScoped;
         count_type counts0[256] = {};
         count_type counts1[256] = {};
@@ -223,7 +225,7 @@ struct SizedRadixSorter<4>
 {
 
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin, 
+	[[nodiscard]]  static bool sort(It begin,
 					It end,
 					OutIt buffer_begin, 
 					ExtractKey && extract_key) noexcept {
@@ -236,7 +238,7 @@ struct SizedRadixSorter<4>
     }
 
     template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort_inline(It begin,
+	[[nodiscard]] static bool sort_inline(It begin,
 			It end,
 			OutIt out_begin,
 			OutIt out_end,
@@ -301,7 +303,7 @@ template<>
 struct SizedRadixSorter<8>
 {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin, 
+	[[nodiscard]] static bool sort(It begin,
 			It end, 
 			OutIt buffer_begin, 
 			ExtractKey && extract_key) noexcept {
@@ -313,7 +315,7 @@ struct SizedRadixSorter<8>
     }
 
     template<typename count_type, typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort_inline(It begin,
+	[[nodiscard]] static bool sort_inline(It begin,
 									  It end,
 									  OutIt out_begin, 
 									  OutIt out_end,
@@ -348,14 +350,14 @@ struct SizedRadixSorter<8>
         count_type total6 = 0;
         count_type total7 = 0;
         for (uint32_t i = 0; i < 256; ++i) {
-            count_type old_count0 = counts0[i];
-            count_type old_count1 = counts1[i];
-            count_type old_count2 = counts2[i];
-            count_type old_count3 = counts3[i];
-            count_type old_count4 = counts4[i];
-            count_type old_count5 = counts5[i];
-            count_type old_count6 = counts6[i];
-            count_type old_count7 = counts7[i];
+            const count_type old_count0 = counts0[i];
+            const count_type old_count1 = counts1[i];
+            const count_type old_count2 = counts2[i];
+            const count_type old_count3 = counts3[i];
+            const count_type old_count4 = counts4[i];
+            const count_type old_count5 = counts5[i];
+            const count_type old_count6 = counts6[i];
+            const count_type old_count7 = counts7[i];
             counts0[i] = total0;
             counts1[i] = total1;
             counts2[i] = total2;
@@ -424,7 +426,7 @@ struct RadixSorter;
 template<>
 struct RadixSorter<bool> {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin,
+	[[nodiscard]] static bool sort(It begin,
 							   It end,
 							   OutIt buffer_begin, 
 							   ExtractKey && extract_key) noexcept {
@@ -517,10 +519,11 @@ struct RadixSorter<char32_t> : SizedRadixSorter<sizeof(char32_t)>
 template<typename K, typename V>
 struct RadixSorter<std::pair<K, V>> {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin,
+	[[nodiscard]] static bool sort(It begin,
 							   It end,
 							   OutIt buffer_begin, 
 							   ExtractKey && extract_key) noexcept {
+		ZoneScoped;
         bool first_result = RadixSorter<V>::sort(begin, end, buffer_begin, [&](auto && o) {
             return extract_key(o).second;
         });
@@ -542,7 +545,7 @@ struct RadixSorter<std::pair<K, V>> {
 template<typename K, typename V>
 struct RadixSorter<const std::pair<K, V> &> {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin,
+	[[nodiscard]] static bool sort(It begin,
 							   It end,
 							   OutIt buffer_begin, 
 							   ExtractKey && extract_key) noexcept {
@@ -569,7 +572,7 @@ struct TupleRadixSorter {
     using ThisSorter = RadixSorter<typename std::tuple_element<I, Tuple>::type>;
 
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin,
+	[[nodiscard]] static bool sort(It begin,
 							   It end,
 							   OutIt out_begin, 
 							   OutIt out_end, 
@@ -595,7 +598,7 @@ struct TupleRadixSorter<I, S, const Tuple &> {
     using ThisSorter = RadixSorter<typename std::tuple_element<I, Tuple>::type>;
 
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin, 
+	[[nodiscard]] static bool sort(It begin,
 							   It end,
 							   OutIt out_begin, 
 							   OutIt out_end,
@@ -618,7 +621,7 @@ struct TupleRadixSorter<I, S, const Tuple &> {
 template<size_t I, typename Tuple>
 struct TupleRadixSorter<I, I, Tuple> {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It, It, OutIt, OutIt, ExtractKey &&) noexcept {
+	[[nodiscard]] constexpr static bool sort(It, It, OutIt, OutIt, ExtractKey &&) noexcept {
         return false;
     }
 
@@ -628,7 +631,7 @@ struct TupleRadixSorter<I, I, Tuple> {
 template<size_t I, typename Tuple>
 struct TupleRadixSorter<I, I, const Tuple &> {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It, It, OutIt, OutIt, ExtractKey &&) noexcept {
+	[[nodiscard]] constexpr static bool sort(It, It, OutIt, OutIt, ExtractKey &&) noexcept {
         return false;
     }
 
@@ -640,7 +643,7 @@ struct RadixSorter<std::tuple<Args...>> {
     using SorterImpl = TupleRadixSorter<0, sizeof...(Args), std::tuple<Args...>>;
 
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin, 
+	[[nodiscard]] static bool sort(It begin,
 							   It end, 
 							   OutIt buffer_begin,
 							   ExtractKey && extract_key) noexcept {
@@ -655,7 +658,7 @@ struct RadixSorter<const std::tuple<Args...> &> {
     using SorterImpl = TupleRadixSorter<0, sizeof...(Args), const std::tuple<Args...> &>;
 
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin, 
+	[[nodiscard]] static bool sort(It begin,
 							   It end,
 							   OutIt buffer_begin, 
 							   ExtractKey && extract_key) noexcept {
@@ -668,7 +671,7 @@ struct RadixSorter<const std::tuple<Args...> &> {
 template<typename T, size_t S>
 struct RadixSorter<std::array<T, S>> {
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin,
+	[[nodiscard]] static bool sort(It begin,
 							  It end,
 							  OutIt buffer_begin, 
 							  ExtractKey && extract_key) noexcept {
@@ -726,7 +729,7 @@ struct FallbackRadixSorter : RadixSorter<decltype(to_radix_sort_key(std::declval
     using base = RadixSorter<decltype(to_radix_sort_key(std::declval<T>()))>;
 
     template<typename It, typename OutIt, typename ExtractKey>
-    constexpr static bool sort(It begin,
+	[[nodiscard]] static bool sort(It begin,
 							   It end,
 							   OutIt buffer_begin, 
 							   ExtractKey && extract_key) noexcept {
@@ -771,11 +774,11 @@ template<typename T>
 size_t radix_sort_pass_count = RadixSorter<T>::pass_count;
 
 template<typename It, typename Func>
-constexpr inline void unroll_loop_four_times(It begin,
+inline void unroll_loop_four_times(It begin,
 		size_t iteration_count, 
 		Func && to_call) noexcept {
     size_t loop_count = iteration_count / 4;
-    size_t remainder_count = iteration_count - loop_count * 4;
+    const size_t remainder_count = iteration_count - loop_count * 4;
     for (; loop_count > 0; --loop_count) {
 		ZoneScoped;
         to_call(begin);
@@ -803,7 +806,7 @@ constexpr inline void unroll_loop_four_times(It begin,
 }
 
 template<typename It, typename F>
-constexpr inline It custom_std_partition(It begin, It end, F && func) {
+[[nodiscard]] inline It custom_std_partition(It begin, It end, F && func) noexcept {
     for (;; ++begin) {
         if (begin == end)
             return end;
@@ -901,7 +904,7 @@ struct FallbackSubKey
     using base = SubKey<decltype(to_radix_sort_key(std::declval<T>()))>;
 
     template<typename U>
-    constexpr static decltype(auto) sub_key(U && value, void * data) noexcept {
+    static decltype(auto) sub_key(U && value, void * data) noexcept {
         return base::sub_key(to_radix_sort_key(value), data);
     }
 };
@@ -918,7 +921,7 @@ struct SubKey : FallbackSubKey<T>
 template<>
 struct SubKey<bool> {
     template<typename T>
-    constexpr static bool sub_key(T && value, void *) noexcept {
+	[[nodiscard]] static bool sub_key(T && value, void *) noexcept {
         return value;
     }
 
@@ -956,7 +959,7 @@ struct SubKey<T *> : SizedSubKey<sizeof(T *)>
 
 template<typename F, typename S, typename Current>
 struct PairSecondSubKey : Current {
-    constexpr static decltype(auto) sub_key(const std::pair<F, S> & value, void * sort_data) noexcept {
+	[[nodiscard]] static decltype(auto) sub_key(const std::pair<F, S> & value, void * sort_data) noexcept {
         return Current::sub_key(value.second, sort_data);
     }
 
@@ -965,7 +968,7 @@ struct PairSecondSubKey : Current {
 
 template<typename F, typename S, typename Current>
 struct PairFirstSubKey : Current {
-    constexpr static decltype(auto) sub_key(const std::pair<F, S> & value, void * sort_data) noexcept {
+	[[nodiscard]] static decltype(auto) sub_key(const std::pair<F, S> & value, void * sort_data) noexcept {
         return Current::sub_key(value.first, sort_data);
     }
 
@@ -1006,7 +1009,7 @@ struct NextTupleSubKey<Index, SubKey<void>, First> {
 template<size_t Index, typename Current, typename First, typename... More>
 struct TupleSubKey : Current {
     template<typename Tuple>
-    constexpr static decltype(auto) sub_key(const Tuple & value, void * sort_data) noexcept {
+    static decltype(auto) sub_key(const Tuple & value, void * sort_data) noexcept {
         return Current::sub_key(std::get<Index>(value), sort_data);
     }
 
@@ -1017,7 +1020,7 @@ template<size_t Index, typename Current, typename First>
 struct TupleSubKey<Index, Current, First> : Current {
     template<typename Tuple>
 	
-    constexpr static decltype(auto) sub_key(const Tuple & value, void * sort_data) noexcept {
+    static decltype(auto) sub_key(const Tuple & value, void * sort_data) noexcept {
         return Current::sub_key(std::get<Index>(value), sort_data);
     }
 
@@ -1366,8 +1369,11 @@ template<std::ptrdiff_t StdSortThreshold, std::ptrdiff_t AmericanFlagSortThresho
 struct InplaceSorter<StdSortThreshold, AmericanFlagSortThreshold, CurrentSubKey, bool>
 {
     template<typename It, typename ExtractKey>
-    static void sort(It begin, It end, std::ptrdiff_t, ExtractKey & extract_key, void (*next_sort)(It, It, std::ptrdiff_t, ExtractKey &, void *), void * sort_data)
-    {
+    static void sort(It begin,
+		             It end,
+		             std::ptrdiff_t,
+		             ExtractKey & extract_key,
+		             void (*next_sort)(It, It, std::ptrdiff_t, ExtractKey &, void *), void * sort_data) noexcept {
 		ZoneScoped;
         It middle = std::partition(begin, end, [&](auto && a){ return !CurrentSubKey::sub_key(extract_key(a), sort_data); });
         if (next_sort)
@@ -1414,17 +1420,18 @@ template<std::ptrdiff_t StdSortThreshold, std::ptrdiff_t AmericanFlagSortThresho
 struct SortStarter<StdSortThreshold, AmericanFlagSortThreshold, SubKey<void>>
 {
     template<typename It, typename ExtractKey>
-    static void sort(It, It, std::ptrdiff_t, ExtractKey &, void *)
-    {
-    }
+    static void sort(It, It, std::ptrdiff_t, ExtractKey &, void *) noexcept {}
 };
 
 template<std::ptrdiff_t StdSortThreshold, std::ptrdiff_t AmericanFlagSortThreshold, typename CurrentSubKey>
 struct SortStarter
 {
     template<typename It, typename ExtractKey>
-    static void sort(It begin, It end, std::ptrdiff_t num_elements, ExtractKey & extract_key, void * next_sort_data = nullptr)
-    {
+    static void sort(It begin,
+		             It end,
+		             std::ptrdiff_t num_elements,
+		             ExtractKey & extract_key,
+		             void *next_sort_data = nullptr) noexcept {
         if (StdSortIfLessThanThreshold<StdSortThreshold>(begin, end, num_elements, extract_key))
             return;
 
@@ -1465,7 +1472,7 @@ static void ska_sort(It begin, It end)
 }
 
 template<typename It, typename OutIt, typename ExtractKey>
-bool ska_sort_copy(It begin, It end, OutIt buffer_begin, ExtractKey && key)
+[[nodiscard]] bool ska_sort_copy(It begin, It end, OutIt buffer_begin, ExtractKey && key)
 {
     std::ptrdiff_t num_elements = end - begin;
 #if defined(__clang__) && !defined (__APPLE__)
@@ -1488,7 +1495,7 @@ bool ska_sort_copy(It begin, It end, OutIt buffer_begin, ExtractKey && key)
 	}
 }
 template<typename It, typename OutIt>
-bool ska_sort_copy(It begin, It end, OutIt buffer_begin)
+[[nodiscard]] bool ska_sort_copy(It begin, It end, OutIt buffer_begin)
 {
     return ska_sort_copy(begin, end, buffer_begin, detail::IdentityFunctor());
 }

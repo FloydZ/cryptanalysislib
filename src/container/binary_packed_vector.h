@@ -147,7 +147,7 @@ public:
 
 	// shifted.
 	[[nodiscard]] constexpr inline bool get_bit_shifted(const uint16_t i) const noexcept {
-		return (__data[round_down_to_limb(i)] & mask(i)) >> (i % 64);
+		return (__data[round_down_to_limb(i)] & mask(i)) >> (i % RADIX);
 	}
 
 	// return the bits [i,..., j) in one limb
@@ -197,20 +197,21 @@ public:
 		}
 	}
 
-	constexpr inline void write_bit(const uint16_t pos, const bool b) noexcept {
+	constexpr inline void write_bit(const uint32_t pos,
+	                                const bool b) noexcept {
 		__data[pos / RADIX] = ((__data[pos / RADIX] & ~(1ull << (pos % RADIX))) | (T(b) << (pos % RADIX)));
 	}
 
-	inline constexpr void set_bit(const uint16_t pos) noexcept {
+	inline constexpr void set_bit(const uint32_t pos) noexcept {
 		__data[round_down_to_limb(pos)] |= (T(1) << (pos));
 	}
 
-	inline constexpr void flip_bit(const uint16_t pos) noexcept {
-		__data[round_down_to_limb(pos)] ^= (uint64_t(1) << (pos));
+	inline constexpr void flip_bit(const uint32_t pos) noexcept {
+		__data[round_down_to_limb(pos)] ^= (T(1) << (pos));
 	}
 
-	inline constexpr void clear_bit(const uint16_t pos) noexcept {
-		__data[round_down_to_limb(pos)] &= ~(uint64_t(1) << (pos));
+	inline constexpr void clear_bit(const uint32_t pos) noexcept {
+		__data[round_down_to_limb(pos)] &= ~(T(1) << (pos));
 	}
 
 	/// zero the complete data vector
@@ -425,7 +426,8 @@ public:
 	/// \param b
 	/// \return
 	template<typename TT = LimbType>
-	constexpr static inline TT add_T(const TT a, const TT b) noexcept {
+	[[nodiscard]] constexpr static inline TT add_T(const TT a,
+	                                               const TT b) noexcept {
 		return a ^ b;
 	}
 
@@ -435,7 +437,8 @@ public:
 	/// \param b
 	/// \return
 	template<typename TT = LimbType>
-	constexpr static inline TT sub_T(const TT a, const TT b) noexcept {
+	[[nodiscard]] constexpr static inline TT sub_T(const TT a,
+	                                               const TT b) noexcept {
 		return a ^ b;
 	}
 
@@ -445,7 +448,8 @@ public:
 	/// \param b
 	/// \return
 	template<typename TT = LimbType>
-	constexpr static inline TT mul_T(const TT a, const TT b) noexcept {
+	[[nodiscard]] constexpr static inline TT mul_T(const TT a,
+	                                               const TT b) noexcept {
 		return a & b;
 	}
 
@@ -455,7 +459,8 @@ public:
 	/// \param b
 	/// \return
 	template<typename TT = LimbType>
-	constexpr static inline TT scalar_T(const TT a, const TT b) noexcept {
+	[[nodiscard]] constexpr static inline TT scalar_T(const TT a,
+	                                                  const TT b) noexcept {
 		ASSERT(b < 2);
 		return a * b;
 	}
@@ -465,7 +470,7 @@ public:
 	/// \param a
 	/// \return
 	template<typename TT = LimbType>
-	constexpr static inline TT mod_T(const TT a) noexcept {
+	[[nodiscard]] constexpr static inline TT mod_T(const TT a) noexcept {
 		return a;
 	}
 
@@ -474,7 +479,7 @@ public:
 	/// \param a
 	/// \return
 	template<typename TT = LimbType>
-	constexpr static inline TT neg_T(const TT a) noexcept {
+	[[nodiscard]] constexpr static inline TT neg_T(const TT a) noexcept {
 		return a ^ TT(-1u);
 	}
 
@@ -483,7 +488,7 @@ public:
 	/// \param a
 	/// \return
 	template<typename TT = LimbType>
-	constexpr static inline TT popcnt_T(const TT a) noexcept {
+	[[nodiscard]] constexpr static inline TT popcnt_T(const TT a) noexcept {
 		return cryptanalysislib::popcount::popcount<TT>(a);
 	}
 

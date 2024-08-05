@@ -46,9 +46,9 @@ public:
 
 	// make the length and modulus of the container public available
 	constexpr static uint64_t q = _q;
-	constexpr static inline uint64_t modulus() { return q; }
+	[[nodiscard]] constexpr static inline uint64_t modulus() noexcept { return q; }
 	constexpr static uint32_t n = _n;
-	constexpr static inline uint64_t length() { return n; }
+	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return n; }
 	
 	static_assert(n > 0, "jeah at least a single bit?");
 	static_assert(q > 0, "mod 0?");
@@ -90,45 +90,46 @@ public:
 	std::array<T, internal_limbs> __data;
 
 	// simple hash function
-	constexpr inline uint64_t hash() const noexcept {
+	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
 		return __data[0];
 	}
 
 	/// the mask is only valid for one internal number.
 	/// \param i bit position the read
 	/// \return bit mask to access the i-th element within a limb
-	constexpr inline T accessMask(const uint16_t i) const noexcept {
+	[[nodiscard]] constexpr inline T accessMask(const uint32_t i) const noexcept {
 		return number_mask << (i % numbers_per_limb);
 	}
 
 	// round a given amount of 'in' bits to the nearest limb excluding the lowest overflowing bits
 	// eg 13 -> 64
-	constexpr static uint16_t round_up(uint16_t in) noexcept { return round_up_to_limb(in) * bits_per_limb; }
-	constexpr static uint16_t round_up_to_limb(uint16_t in) noexcept { return (in / bits_per_limb) + 1; }
+	[[nodiscard]] constexpr static uint16_t round_up(const uint32_t in) noexcept { return round_up_to_limb(in) * bits_per_limb; }
+	[[nodiscard]] constexpr static uint16_t round_up_to_limb(const uint32_t in) noexcept { return (in / bits_per_limb) + 1; }
 
 	// the same as above only rounding down
 	// 13 -> 0
-	constexpr static uint16_t round_down(uint16_t in) noexcept { return round_down_to_limb(in) * bits_per_limb; }
-	constexpr static uint16_t round_down_to_limb(uint16_t in) { return (in / bits_per_limb); }
+	[[nodiscard]] constexpr static uint16_t round_down(uint32_t in) noexcept { return round_down_to_limb(in) * bits_per_limb; }
+	[[nodiscard]] constexpr static uint16_t round_down_to_limb(uint32_t in) { return (in / bits_per_limb); }
 
 	// given the i-th bit this function will return a bits mask where the lower 'i' bits are set. Everything will be
 	// realigned to limb_bits_width().
-	constexpr static T lower_mask(const uint16_t i) noexcept {
+	[[nodiscard]] constexpr static T lower_mask(const uint32_t i) noexcept {
 		ASSERT(i < n);
 		return ((T(1) << (i % bits_per_limb)) - 1);
 	}
 
 	// given the i-th bit this function will return a bits mask where the higher (n-i)bits are set.
-	constexpr static T higher_mask(const uint16_t i) noexcept {
+	[[nodiscard]] constexpr static T higher_mask(const uint32_t i) noexcept {
 		ASSERT(i < n);
 		if ((i % bits_per_limb) == 0) return T(-1);
 
 		return (~((T(1u) << (i % bits_per_limb)) - 1));
 	}
-	/// access the i-th coordinate/number/element
+	/// access the i-th coordinate/number/elemen
+	// t
 	/// \param i coordinate to access.
 	/// \return the number you wanted to access, shifted down to the lowest bits.
-	constexpr inline DataType get(const uint16_t i) const noexcept {
+	[[nodiscard]] constexpr inline DataType get(const uint32_t i) const noexcept {
 		// needs 5 instructions. So 64*5 for the whole limb
 		ASSERT(i < length());
 		return DataType((__data[i / numbers_per_limb] >> ((i % numbers_per_limb) * bits_per_number)) & number_mask);
@@ -304,7 +305,8 @@ public:
 	/// \param in2
 	/// \return
 	template<typename TT = DataType>
-	constexpr inline static TT add_T(const TT in1, const TT in2) noexcept {
+	[[nodiscard]] constexpr inline static TT add_T(const TT in1,
+	                                               const TT in2) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		constexpr uint32_t nr_limbs = (sizeof(TT) * 8) / bits_per_number;
 		constexpr TT mask = (1ull << bits_per_number) - 1ull;
@@ -323,7 +325,8 @@ public:
 	/// \param in2
 	/// \return
 	template<typename TT = DataType>
-	constexpr inline static TT sub_T(const TT in1, const TT in2) noexcept {
+	[[nodiscard]] constexpr inline static TT sub_T(const TT in1,
+	                                               const TT in2) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		constexpr uint32_t nr_limbs = (sizeof(TT) * 8) / bits_per_number;
 		constexpr TT mask = (1ull << bits_per_number) - 1ull;
@@ -343,7 +346,8 @@ public:
 	/// \param in2
 	/// \return
 	template<typename TT = DataType>
-	constexpr inline static TT mul_T(const TT in1, const TT in2) noexcept {
+	[[nodiscard]] constexpr inline static TT mul_T(const TT in1,
+	                                               const TT in2) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		constexpr uint32_t nr_limbs = (sizeof(TT) * 8) / bits_per_number;
 		constexpr TT mask = (1ull << bits_per_number) - 1ull;
@@ -362,7 +366,7 @@ public:
 	/// \param in2
 	/// \return
 	template<typename TT = DataType>
-	constexpr inline static TT mod_T(const TT in1) noexcept {
+	[[nodiscard]] constexpr inline static TT mod_T(const TT in1) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		constexpr uint32_t nr_limbs = (sizeof(TT) * 8) / bits_per_number;
 		constexpr TT mask = (1ull << bits_per_number) - 1ull;
@@ -380,7 +384,7 @@ public:
 	/// \param in2
 	/// \return
 	template<typename TT = DataType>
-	constexpr inline static TT neg_T(const TT in1) noexcept {
+	[[nodiscard]] constexpr inline static TT neg_T(const TT in1) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		constexpr uint32_t nr_limbs = (sizeof(TT) * 8) / bits_per_number;
 		constexpr TT mask = (1ull << bits_per_number) - 1ull;
@@ -398,7 +402,7 @@ public:
 	/// \param in2
 	/// \return
 	template<typename TT = DataType>
-	constexpr inline static uint32_t popcnt_T(const TT in1) noexcept {
+	[[nodiscard]] constexpr inline static uint32_t popcnt_T(const TT in1) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		constexpr uint32_t nr_limbs = (sizeof(TT) * 8) / bits_per_number;
 		constexpr TT mask = (1ull << bits_per_number) - 1ull;
@@ -417,7 +421,8 @@ public:
 	/// \param in2
 	/// \return
 	template<typename TT = DataType>
-	constexpr inline static TT scalar_T(const TT in1, const TT in2) noexcept {
+	[[nodiscard]] constexpr inline static TT scalar_T(const TT in1,
+	                                                  const TT in2) noexcept {
 		static_assert(sizeof(TT) <= 16);
 		constexpr uint32_t nr_limbs = (sizeof(TT) * 8) / bits_per_number;
 		constexpr TT mask = (1ull << bits_per_number) - 1ull;
@@ -779,7 +784,8 @@ public:
 	/// prints between [k_lower, k_upper )
 	/// \param k_lower lower limit
 	/// \param k_upper upper limit
-	void print(const uint32_t k_lower = 0, const uint32_t k_upper = length()) const noexcept {
+	void print(const uint32_t k_lower = 0,
+	           const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << unsigned(get(i));
@@ -806,7 +812,8 @@ public:
 	/// print the `pos
 	/// \param k_lower inclusive
 	/// \param k_higher exclusive
-	void print_binary(const uint32_t k_lower = 0, const uint32_t k_higher = length()) const noexcept {
+	void print_binary(const uint32_t k_lower = 0,
+	                  const uint32_t k_higher = length()) const noexcept {
 		for (uint32_t i = k_lower; i < k_higher; ++i) {
 			std::cout << unsigned(get(i) & 1);
 			std::cout << unsigned((get(i) >> 1) & 1);
@@ -820,62 +827,62 @@ public:
 	auto end() noexcept { return __data.end(); }
 	auto end() const noexcept { return __data.end(); }
 
-	///
 	/// \param i
-	/// \return
-	constexpr DataType operator[](size_t i) noexcept {
+	/// \return the ith element;
+	constexpr DataType operator[](const size_t i) noexcept {
 		ASSERT(i < length());
 		return get(i);
 	}
 
-	///
 	/// \param i
-	/// \return
+	/// \return the i-element
 	constexpr DataType operator[](const size_t i) const noexcept {
 		ASSERT(i < length());
 		return get(i);
 	};
 
 	// return `true` if the datastruct contains binary data.
-	__FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
-	__FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
-	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return internal_limbs; }
-	__FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return internal_limbs * sizeof(T); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return internal_limbs; }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return internal_limbs * sizeof(T); }
 
-	constexpr std::array<T, internal_limbs> &data() noexcept { return __data; }
-	constexpr const std::array<T, internal_limbs> &data() const noexcept { return __data; }
+	[[nodiscard]] constexpr std::array<T, internal_limbs> &data() noexcept { return __data; }
+	[[nodiscard]] constexpr const std::array<T, internal_limbs> &data() const noexcept { return __data; }
 
-	constexpr T &data(const size_t index) noexcept {
+	/// \param index
+	/// \return returns the ith data limb
+	[[nodiscard]] constexpr T &data(const size_t index) noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
-	constexpr const T data(const size_t index) const noexcept {
+	[[nodiscard]] constexpr const T data(const size_t index) const noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
-	constexpr T limb(const size_t index) noexcept {
+	[[nodiscard]] constexpr T limb(const size_t index) noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
-	constexpr const T limb(const size_t index) const noexcept {
+	[[nodiscard]] constexpr const T limb(const size_t index) const noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
 
 	// get raw access to the underlying data.
-	T *ptr() noexcept { return __data.data(); }
-	const T *ptr() const noexcept { return __data.data(); }
-	__FORCEINLINE__ T ptr(const size_t i) noexcept {
+	[[nodiscard]] T *ptr() noexcept { return __data.data(); }
+	[[nodiscard]] const T *ptr() const noexcept { return __data.data(); }
+	[[nodiscard]] __FORCEINLINE__ T ptr(const size_t i) noexcept {
 		ASSERT(i < limbs());
 		return __data[i];
 	};
-	const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
+	[[nodiscard]] const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
 		ASSERT(i < limbs());
 		return __data[i];
 	};
 
 	// returns `false` as this class implements a generic arithmetic
-	__FORCEINLINE__ static constexpr bool optimized() noexcept { return false; };
+	[[nodiscard]] __FORCEINLINE__ static constexpr bool optimized() noexcept { return false; };
 
 	/// print some internal information aobut the class
 	constexpr static void info() noexcept {
