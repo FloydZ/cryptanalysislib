@@ -1089,7 +1089,7 @@ public:
 		LabelType iT_left, iT_right;
 
 		// enumerate the base lists
-		using Enumerator = MaxBinaryRandomEnumerator<List, n/2, n/4>;
+		using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
 		// using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, n/8>;
 		Enumerator e{MT, size};
 
@@ -1221,6 +1221,8 @@ private:
 								  std::vector<uint64_t> &indices) noexcept {
 		ElementType::add(e1, e2, e3);
 
+		ASSERT(level < boundaries.size());
+		ASSERT(level < indices.size());
 		boundaries[level] = lists[level + 2].search_boundaries(e1, k_lower, k_higher);
 		indices[level] = boundaries[level].first;
 	}
@@ -1251,8 +1253,8 @@ private:
 	/// \param target a list where every solution is saved into.
 	void join_stream_internal(uint64_t level, List &target) {
 		std::vector<std::pair<uint64_t, uint64_t>> boundaries(level);
-		std::vector<ElementType> a{level};
-		std::vector<uint64_t> indices{level};
+		std::vector<ElementType> a(level);
+		std::vector<uint64_t> indices(level);
 
 		// reset output list
 		target.set_load(0);
@@ -1292,11 +1294,12 @@ private:
 							while (!(stop)) {
 								while (l < level) {
 									// perform search on current level (streamjoining against level l list)
-									if (l == 0)
+									if (l == 0) {
 										search_in_level_l(a[0], lists[0][i], lists[1][j], l, boundaries, indices);
-									else
+									} else {
 										search_in_level_l(a[l], a[l - 1], lists[l + 1][indices[l - 1]], l, boundaries,
 										                  indices);
+									}
 
 									//if nothing found continue with the next element of the previous level
 									l = increment_previous_level(l, boundaries, indices);

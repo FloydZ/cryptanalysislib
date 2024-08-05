@@ -32,7 +32,7 @@ using Tree			= Tree_T<List>;
 // unused ignore
 static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
 
-
+// NOTE: random enumeration of the values
 TEST(SubSetSum, Simple) {
 	// even it says matrix. It is a simple row vector
 	Matrix A;
@@ -85,8 +85,8 @@ TEST(SubSetSum, JoinRandomListsLevel0) {
 	static std::vector<uint64_t> tbl{{0, n}};
 	Tree t{2, A, 10u, tbl, __level_filter_array};
 
-	t[0].generate_base_random(1u << 7u, A);
-	t[1].generate_base_random(1u << 7u, A);
+	t[0].generate_base_random(1u << 8u, A);
+	t[1].generate_base_random(1u << 8u, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 
@@ -105,7 +105,7 @@ TEST(SubSetSum, JoinRandomListsLevel0) {
 }
 
 // NOTE: takes very long
-TEST(TreeTest, JoinRandomListsLevel1) {
+TEST(SubSetSum, JoinRandomListsLevel1) {
 	Matrix A;
 	A.random();
 
@@ -211,11 +211,11 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 	EXPECT_EQ(t[4].load(), num);
 }
 
-TEST(TreeTest, JoinRandomListsLevel3) {
+TEST(SubSetSum, JoinRandomListsLevel3) {
 	Matrix A;
 	A.random();
 
-	constexpr size_t base_size = 6;
+	constexpr size_t base_size = 8;
 	static std::vector<uint64_t> tbl{{0, n/4, n/2, 3*n/4, n}};
 	Tree t{4, A, 10, tbl, __level_filter_array};
 
@@ -287,7 +287,7 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 	EXPECT_EQ(t[5].load(), num);
 }
 
-TEST(TreeTest, dissection) {
+TEST(SubSetSum, dissection) {
 	Label::info();
 	Matrix::info();
 
@@ -314,6 +314,45 @@ TEST(TreeTest, dissection) {
 
 		EXPECT_EQ(target.is_equal(tmp), true);
 	}
+}
+
+
+TEST(SubSetSum, join2lists) {
+	Matrix A; A.random();
+
+	const std::vector<uint64_t> ta{{0, 8}};
+	uint64_t k_lower, k_higher;
+	translate_level(&k_lower, &k_higher, 0, ta);
+
+	constexpr size_t baselist_size = sum_bc(n/2, n/4);
+	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
+
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+	Enumerator e{A};
+	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			(&l1, &l2, n/2);
+
+	Label target; target.random();
+
+	Tree::join2lists(out, l1, l2, target, ta);
+
+	auto right=true;
+	int wrong=0;
+	for(uint64_t i = 0;i < out.load();++i) {
+		// out[i].recalculate_label(A);
+		if (!(Label::cmp(out[i].label, target, k_lower, k_higher))) {
+			std::cout << target << std::endl;
+			std::cout << out[i].label << std::endl;
+			right = false;
+			wrong++;
+		}
+	}
+
+	EXPECT_GT(out.load(), 0);
+	EXPECT_EQ(0, wrong);
+	EXPECT_EQ(right, true);
+	EXPECT_GT(out.load(),1u<<3);
+	EXPECT_LT(out.load(),1u<<7);
 }
 
 int main(int argc, char **argv) {

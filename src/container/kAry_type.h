@@ -28,6 +28,9 @@ public:
 	[[nodiscard]] constexpr static inline uint64_t bits() noexcept { return bits_log2(q); }
 	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return 1; }
 
+	// TODO expand the api to support 64 bit integers
+	constexpr static uint64_t M = computeM_u32(_q);
+
 	using T = TypeTemplate<q>;
 	using T2 = TypeTemplate<q*q>;
 
@@ -93,7 +96,11 @@ public:
 	/// basic construct
 	/// \param i a number of type T
 	constexpr kAry_Type_T(const T i) noexcept {
-		__value = i % q;
+		if constexpr (sizeof(T) <= 4) {
+			__value = fastmod_u32(i, M, q);
+		} else {
+			__value = i % q;
+		}
 	};
 
 	///

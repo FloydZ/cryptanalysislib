@@ -132,7 +132,7 @@ public:
 
 			ASSERT(tmp_vec_ctr == w);
 		} else {
-			if (tmp_vec_ctr > w) {
+			if ((tmp_vec_ctr > w) || (tmp_vec_ctr == 0)) {
 				error.print();
 				label.print();
 			}

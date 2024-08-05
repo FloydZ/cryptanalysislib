@@ -531,6 +531,7 @@ public:
 	                      const size_t pos,
 	                      const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
+		ASSERT(spos < size());
 		__data[spos + pos] = e;
 	}
 };
