@@ -720,6 +720,7 @@ using namespace cryptanalysislib;
 struct uint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint8_t;
+	using S = uint8x32_t;
 
 	union {
 		uint8_t d[32];
@@ -895,7 +896,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	constexpr static inline uint8x32_t load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t load(const uint8_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -906,11 +907,10 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint8x32_t aligned_load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t aligned_load(const uint8_t *ptr) noexcept {
 		uint8x32_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[i] = ptr[i];
 		}
 		return out;
 	}
@@ -919,11 +919,10 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \return
-	constexpr static inline uint8x32_t unaligned_load(const void *ptr) noexcept {
+	constexpr static inline uint8x32_t unaligned_load(const uint8_t *ptr) noexcept {
 		uint8x32_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[i] = ptr[i];
 		}
 		return out;
 	}
@@ -933,7 +932,7 @@ struct uint8x32_t {
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	constexpr static inline void store(void *ptr, const uint8x32_t in) noexcept {
+	static inline void store(void *ptr, const uint8x32_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -955,7 +954,7 @@ struct uint8x32_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
+	static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
 		uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -969,8 +968,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t xor_(const uint8x32_t in1,
 	                                                      const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v8[i] = in1.v8[i] ^ in2.v8[i];
 		}
 		return out;
 	}
@@ -982,8 +981,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t and_(const uint8x32_t in1,
 	                                                      const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] & in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v8[i] = in1.v8[i] & in2.v8[i];
 		}
 		return out;
 	}
@@ -995,8 +994,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t or_(const uint8x32_t in1,
 	                                                     const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] | in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v8[i] = in1.v8[i] | in2.v8[i];
 		}
 		return out;
 	}
@@ -1008,8 +1007,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t andnot(const uint8x32_t in1,
 	                                                        const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v8[i] = ~(in1.v8[i] & in2.v8[i]);
 		}
 		return out;
 	}
@@ -1017,10 +1016,10 @@ struct uint8x32_t {
 	///
 	/// \param in1
 	/// \return
-	constexpr static inline uint8x32_t not_(const uint8x32_t in1) noexcept {
+	[[nodiscard]] constexpr static inline uint8x32_t not_(const uint8x32_t in1) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ~in1.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v8[i] = ~in1.v8[i];
 		}
 		return out;
 	}
@@ -1033,7 +1032,7 @@ struct uint8x32_t {
 	        const uint8x32_t in1,
 	        const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v8[i] = in1.v8[i] + in2.v8[i];
 		}
 		return out;
@@ -1046,7 +1045,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t sub(const uint8x32_t in1,
 	                                                     const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v8[i] = in1.v8[i] - in2.v8[i];
 		}
 		return out;
@@ -1059,7 +1058,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t mullo(const uint8x32_t in1,
 	                                                       const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v8[i] = in1.v8[i] * in2.v8[i];
 		}
 		return out;
@@ -1080,7 +1079,7 @@ struct uint8x32_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v8[i] = in1.v8[i] << in2;
 		}
 		return out;
@@ -1094,7 +1093,7 @@ struct uint8x32_t {
 	                                                      const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x32_t out;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v8[i] = in1.v8[i] >> in2;
 		}
 		return out;
@@ -1103,7 +1102,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t cmp_(const uint8x32_t in1,
 	                                                      const uint8x32_t in2) noexcept {
 		uint8x32_t ret;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v8[i] = in1.v8[i] == in2.v8[i];
 		}
 		return ret;
@@ -1112,7 +1111,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t gt_(const uint8x32_t in1,
 	                                                     const uint8x32_t in2) noexcept {
 		uint8x32_t ret;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v8[i] = in1.v8[i] > in2.v8[i];
 		}
 		return ret;
@@ -1121,7 +1120,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline int cmp(const uint8x32_t in1,
 	                                              const uint8x32_t in2) noexcept {
 		int ret = 0;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.v8[i] == in2.v8[i]) << i;
 		}
 
@@ -1141,16 +1140,41 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t popcnt(const uint8x32_t in) {
 		uint8x32_t ret;
 
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v8[i] = cryptanalysislib::popcount::popcount(in.v8[i]);
 		}
 		return ret;
 	}
 
-	[[nodiscard]] static inline uint32_t move(const uint8x32_t in1) {
+	[[nodiscard]] constexpr static inline uint32_t move(const uint8x32_t in1) noexcept {
 		uint32_t ret = 0;
-		for (uint32_t i = 0; i < 32; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= in1.v8[i] >> 7;
+		}
+
+		return ret;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return true if all elements are equal
+	[[nodiscard]] constexpr static inline bool all_equal(const uint8x32_t in1) noexcept {
+		for (uint32_t i = 1; i < S::LIMBS; i++) {
+			if (in1.v8[i-1] != in1.v8[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return reverses the order of the 32 8bit e limbs. not the order within the limbs
+	[[nodiscard]] constexpr static inline uint8x32_t reverse(const uint8x32_t in1) noexcept {
+		uint8x32_t ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.v8[31 - i] = in1.v8[i];
 		}
 
 		return ret;
@@ -1160,6 +1184,7 @@ struct uint8x32_t {
 struct uint16x16_t {
 	constexpr static uint32_t LIMBS = 16;
 	using limb_type = uint16_t;
+	using S = uint16x16_t;
 
 	union {
 		uint16_t d[16];
@@ -1243,7 +1268,7 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint16x16_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t load(const uint16_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1254,11 +1279,10 @@ struct uint16x16_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t aligned_load(const uint16_t *ptr) noexcept {
 		uint16x16_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1268,11 +1292,10 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t unaligned_load(
-	        const void *ptr) noexcept {
+	        const uint16_t *ptr) noexcept {
 		uint16x16_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < 16; i++) {
+			out.v16[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1295,7 +1318,7 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \param in
 	static inline void aligned_store(void *ptr, const uint16x16_t in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
+		auto *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
 		}
@@ -1305,7 +1328,7 @@ struct uint16x16_t {
 	/// \param ptr
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr, const uint16x16_t in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
+		auto *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
 		}
@@ -1318,8 +1341,8 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t xor_(const uint16x16_t in1,
 	                                                       const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v16[i] = in1.v16[i] ^ in2.v16[i];
 		}
 		return out;
 	}
@@ -1331,8 +1354,8 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t and_(const uint16x16_t in1,
 	                                                       const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] & in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v16[i] = in1.v16[i] & in2.v16[i];
 		}
 		return out;
 	}
@@ -1344,8 +1367,8 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t or_(const uint16x16_t in1,
 	                                                      const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] | in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v16[i] = in1.v16[i] | in2.v16[i];
 		}
 		return out;
 	}
@@ -1357,8 +1380,8 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t andnot(const uint16x16_t in1,
 	                                                         const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v16[i] = ~(in1.v16[i] & in2.v16[i]);
 		}
 		return out;
 	}
@@ -1368,8 +1391,8 @@ struct uint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t not_(const uint16x16_t in1) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ~in1.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v16[i] = ~in1.v16[i];
 		}
 		return out;
 	}
@@ -1382,7 +1405,7 @@ struct uint16x16_t {
 	        const uint16x16_t in1,
 	        const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v16[i] = in1.v16[i] + in2.v16[i];
 		}
 		return out;
@@ -1395,7 +1418,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t sub(const uint16x16_t in1,
 	                                                      const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v16[i] = in1.v16[i] - in2.v16[i];
 		}
 		return out;
@@ -1408,7 +1431,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t mullo(const uint16x16_t in1,
 	                                                        const uint16x16_t in2) noexcept {
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v16[i] = in1.v16[i] * in2.v16[i];
 		}
 		return out;
@@ -1421,7 +1444,6 @@ struct uint16x16_t {
 		return uint16x16_t::mullo(in1, rs);
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -1429,13 +1451,12 @@ struct uint16x16_t {
 	                                                       const uint8_t in2) noexcept {
 		ASSERT(in2 <= 16);
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v16[i] = in1.v16[i] << in2;
 		}
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -1443,25 +1464,30 @@ struct uint16x16_t {
 	                                                       const uint16_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint16x16_t out;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v16[i] = in1.v16[i] >> in2;
 		}
 		return out;
 	}
 
+	/// \param in1
+	/// \param in2
+	/// \return
 	[[nodiscard]] constexpr static inline uint16x16_t cmp_(
 	        const uint16x16_t in1, const uint16x16_t in2) noexcept {
 		uint16x16_t ret;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v16[i] = in1.v16[i] == in2.v16[i];
 		}
 
 		return ret;
 	}
 
-	static inline uint16x16_t gt_(const uint16x16_t in1, const uint16x16_t in2) {
+
+	[[nodiscard]] constexpr static inline uint16x16_t gt_(const uint16x16_t in1,
+	                                                      const uint16x16_t in2) noexcept{
 		uint16x16_t ret;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v16[i] = in1.v16[i] == in2.v16[i];
 		}
 
@@ -1471,7 +1497,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint32_t cmp(const uint16x16_t in1,
 	                                                   const uint16x16_t in2) noexcept {
 		uint32_t ret = 0;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.v16[i] == in2.v16[i]) << i;
 		}
 
@@ -1481,7 +1507,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint32_t gt(const uint16x16_t in1,
 	                                                  const uint16x16_t in2) noexcept {
 		uint32_t ret = 0;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.v16[i] > in2.v16[i]) << i;
 		}
 
@@ -1491,7 +1517,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16x16_t popcnt(const uint16x16_t in) noexcept {
 		uint16x16_t ret;
 
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v16[i] = cryptanalysislib::popcount::popcount(in.v16[i]);
 		}
 		return ret;
@@ -1499,10 +1525,34 @@ struct uint16x16_t {
 
 
 	/// extracts the sign bit of each limb
-	[[nodiscard]] static inline uint16_t move(const uint16x16_t in1) noexcept {
+	[[nodiscard]] constexpr static inline uint16_t move(const uint16x16_t in1) noexcept {
 		uint16_t ret = 0;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= in1.v16[i] >> 15;
+		}
+
+		return ret;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return true if all elements are equal
+	[[nodiscard]] constexpr static inline bool all_equal(const uint16x16_t in1) noexcept {
+		for (uint32_t i = 1; i < uint16x16_t::LIMBS; i++) {
+			if (in1.d[i-1] != in1.d[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return reverses the order of the 16 16bit e limbs. not the order within the limbs
+	[[nodiscard]] constexpr static inline uint16x16_t reverse(const uint16x16_t in1) noexcept {
+		uint16x16_t ret;
+		for (uint32_t i = 0; i < uint16x16_t::LIMBS; i++) {
+			ret.d[uint16x16_t::LIMBS - 1 - i] = in1.d[i];
 		}
 
 		return ret;
@@ -1512,6 +1562,7 @@ struct uint16x16_t {
 struct uint32x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint32_t;
+	using S = uint32x8_t;
 
 	union {
 		uint32_t d[8];
@@ -1582,7 +1633,7 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint32x8_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t load(const uint32_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1593,11 +1644,10 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t aligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.v32[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1606,11 +1656,10 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t unaligned_load(const uint32_t *ptr) noexcept {
 		uint32x8_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.v32[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1620,7 +1669,7 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	constexpr static inline void store(void *ptr, const uint32x8_t in) {
+	constexpr static inline void store(void *ptr, const uint32x8_t in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -1632,7 +1681,7 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void aligned_store(void *ptr, const uint32x8_t in) {
+	constexpr static inline void aligned_store(void *ptr, const uint32x8_t in) noexcept {
 		uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -1642,7 +1691,7 @@ struct uint32x8_t {
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr, const uint32x8_t in) {
+	constexpr static inline void unaligned_store(void *ptr, const uint32x8_t in) noexcept {
 		uint64_t *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
 			ptr64[i] = in.v64[i];
@@ -1656,8 +1705,8 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t xor_(const uint32x8_t in1,
 	                                                      const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] ^ in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v32[i] = in1.v32[i] ^ in2.v32[i];
 		}
 		return out;
 	}
@@ -1669,8 +1718,8 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t and_(const uint32x8_t in1,
 	                                                      const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] & in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v32[i] = in1.v32[i] & in2.v32[i];
 		}
 		return out;
 	}
@@ -1682,8 +1731,8 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t or_(const uint32x8_t in1,
 	                                                     const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = in1.v64[i] | in2.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v32[i] = in1.v32[i] | in2.v32[i];
 		}
 		return out;
 	}
@@ -1695,8 +1744,8 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t andnot(const uint32x8_t in1,
 	                                                        const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v32[i] = ~(in1.v32[i] & in2.v32[i]);
 		}
 		return out;
 	}
@@ -1706,8 +1755,8 @@ struct uint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t not_(const uint32x8_t in1) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ~in1.v64[i];
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.v32[i] = ~in1.v32[i];
 		}
 		return out;
 	}
@@ -1720,7 +1769,7 @@ struct uint32x8_t {
 	        const uint32x8_t in1,
 	        const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v32[i] = in1.v32[i] + in2.v32[i];
 		}
 		return out;
@@ -1733,7 +1782,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t sub(const uint32x8_t in1,
 	                                                     const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v32[i] = in1.v32[i] - in2.v32[i];
 		}
 		return out;
@@ -1746,7 +1795,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t mullo(const uint32x8_t in1,
 	                                                       const uint32x8_t in2) noexcept {
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v32[i] = in1.v32[i] * in2.v32[i];
 		}
 		return out;
@@ -1767,7 +1816,7 @@ struct uint32x8_t {
 	                                                      const uint32_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v32[i] = in1.v32[i] << in2;
 		}
 		return out;
@@ -1781,7 +1830,7 @@ struct uint32x8_t {
 	                                                      const uint16_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint32x8_t out;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v32[i] = in1.v32[i] >> in2;
 		}
 		return out;
@@ -1790,7 +1839,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t cmp_(const uint32x8_t in1,
 	                                                      const uint32x8_t in2) noexcept {
 		uint32x8_t ret;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v32[i] = in1.v32[i] == in2.v32[i];
 		}
 
@@ -1800,7 +1849,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t gt_(const uint32x8_t in1,
 	                                                     const uint32x8_t in2) noexcept {
 		uint32x8_t ret;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v32[i] = in1.v32[i] > in2.v32[i];
 		}
 
@@ -1810,7 +1859,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32_t cmp(const uint32x8_t in1,
 	                                                   const uint32x8_t in2) noexcept {
 		uint32_t ret = 0;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.v32[i] == in2.v32[i]) << i;
 		}
 
@@ -1820,7 +1869,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32_t gt(const uint32x8_t in1,
 	                                                  const uint32x8_t in2) noexcept {
 		uint32_t ret = 0;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.v32[i] > in2.v32[i]) << i;
 		}
 
@@ -1830,7 +1879,7 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t popcnt(const uint32x8_t in) noexcept {
 		uint32x8_t ret;
 
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v32[i] = cryptanalysislib::popcount::popcount(in.v32[i]);
 		}
 		return ret;
@@ -1845,7 +1894,7 @@ struct uint32x8_t {
 	                                                        const uint32x8_t data) noexcept {
 		uint32x8_t ret;
 		const uint8_t *ptr8 = (uint8_t *) ptr;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v32[i] = *(uint32_t *) (ptr8 + data.v32[i] * scale);
 		}
 
@@ -1900,11 +1949,36 @@ struct uint32x8_t {
 
 		return ret;
 	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return true if all elements are equal
+	[[nodiscard]] constexpr static inline bool all_equal(const uint32x8_t in1) noexcept {
+		for (uint32_t i = 1; i < uint32x8_t::LIMBS; i++) {
+			if (in1.d[i-1] != in1.d[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return reverses the order of the 8 32bit e limbs. not the order within the limbs
+	[[nodiscard]] constexpr static inline uint32x8_t reverse(const uint32x8_t in1) noexcept {
+		uint32x8_t ret;
+		for (uint32_t i = 0; i < uint32x8_t::LIMBS; i++) {
+			ret.d[uint32x8_t::LIMBS - 1 - i] = in1.d[i];
+		}
+
+		return ret;
+	}
 };
 
 struct uint64x4_t {
 	constexpr static uint32_t LIMBS = 4;
 	using limb_type = uint64_t;
+	using S = uint64x4_t;
 
 	union {
 		uint64_t d[4];
@@ -1971,7 +2045,7 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline uint64x4_t load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t load(const uint64_t *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -1982,11 +2056,10 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t aligned_load(const uint64_t *ptr) noexcept {
 		uint64x4_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.v64[i] = ptr[i];
 		}
 		return out;
 	}
@@ -1995,11 +2068,10 @@ struct uint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const void *ptr) noexcept {
+	[[nodiscard]] constexpr static inline uint64x4_t unaligned_load(const uint64_t *ptr) noexcept {
 		uint64x4_t out;
-		const uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			out.v64[i] = ptr64[i];
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.v64[i] = ptr[i];
 		}
 		return out;
 	}
@@ -2045,7 +2117,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t xor_(const uint64x4_t in1,
 	                                                      const uint64x4_t in2) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = in1.v64[i] ^ in2.v64[i];
 		}
 		return out;
@@ -2058,7 +2130,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t and_(const uint64x4_t in1,
 	                                                      const uint64x4_t in2) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = in1.v64[i] & in2.v64[i];
 		}
 		return out;
@@ -2071,7 +2143,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t or_(const uint64x4_t in1,
 	                                                     const uint64x4_t in2) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = in1.v64[i] | in2.v64[i];
 		}
 		return out;
@@ -2084,7 +2156,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t andnot(const uint64x4_t in1,
 	                                                        const uint64x4_t in2) noexcept {
 		uint64x4_t out{};
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = ~(in1.v64[i] & in2.v64[i]);
 		}
 		return out;
@@ -2095,7 +2167,7 @@ struct uint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t not_(const uint64x4_t in1) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = ~in1.v64[i];
 		}
 		return out;
@@ -2109,7 +2181,7 @@ struct uint64x4_t {
 	        const uint64x4_t in1,
 	        const uint64x4_t in2) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = in1.v64[i] + in2.v64[i];
 		}
 		return out;
@@ -2122,7 +2194,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t sub(const uint64x4_t in1,
 	                                                     const uint64x4_t in2) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = in1.v64[i] - in2.v64[i];
 		}
 		return out;
@@ -2135,7 +2207,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t mullo(const uint64x4_t in1,
 	                                                       const uint64x4_t in2) noexcept {
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = in1.v64[i] * in2.v64[i];
 		}
 		return out;
@@ -2156,7 +2228,7 @@ struct uint64x4_t {
 	                                                      const uint64_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = in1.v64[i] << in2;
 		}
 		return out;
@@ -2170,7 +2242,7 @@ struct uint64x4_t {
 	                                                      const uint64_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		uint64x4_t out;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.v64[i] = in1.v64[i] >> in2;
 		}
 		return out;
@@ -2179,7 +2251,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t cmp_(const uint64x4_t in1,
 	                                                      const uint64x4_t in2) noexcept {
 		uint64x4_t ret;
-		for (uint8_t i = 0; i < 4; i++) {
+		for (uint8_t i = 0; i < S::LIMBS; i++) {
 			ret.v64[i] = in1.v64[i] == in2.v64[i];
 		}
 		return ret;
@@ -2188,7 +2260,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t gt_(const uint64x4_t in1,
 	                                                     const uint64x4_t in2) noexcept {
 		uint64x4_t ret;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v64[i] = in1.v64[i] > in2.v64[i];
 		}
 
@@ -2198,7 +2270,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint32_t cmp(const uint64x4_t in1,
 	                                                   const uint64x4_t in2) noexcept {
 		uint32_t ret = 0;
-		for (uint8_t i = 0; i < 4; i++) {
+		for (uint8_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.v64[i] == in2.v64[i]) << i;
 		}
 
@@ -2208,7 +2280,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint32_t gt(const uint64x4_t in1,
 	                                                  const uint64x4_t in2) noexcept {
 		uint32_t ret = 0;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.v64[i] > in2.v64[i]) << i;
 		}
 
@@ -2218,7 +2290,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
 
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v64[i] = cryptanalysislib::popcount::popcount(in.v64[i]);
 		}
 		return ret;
@@ -2235,7 +2307,7 @@ struct uint64x4_t {
 
 		uint64x4_t ret;
 		const uint8_t *ptr8 = (uint8_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v64[i] = *(uint64_t *) (ptr8 + data.v64[i] * scale);
 		}
 
@@ -2252,7 +2324,7 @@ struct uint64x4_t {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		uint64x4_t ret;
 		const uint8_t *ptr8 = (uint8_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v64[i] = *(uint64_t *) (ptr8 + data.v32[i] * scale);
 		}
 		return ret;
@@ -2266,7 +2338,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in,
 	                                                         const uint64x4_t perm) noexcept {
 		uint64x4_t ret;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v64[i] = in.v64[perm.v64[i]];
 		}
 		return ret;
@@ -2280,16 +2352,42 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint64x4_t permute(const uint64x4_t in1) noexcept {
 		uint64x4_t ret;
 
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v64[i] = in1.v64[(in2 >> (2 * i)) & 0b11];
 		}
 		return ret;
 	}
 
+	/// \param in1
+	/// \return
 	[[nodiscard]] constexpr static inline uint8_t move(const uint64x4_t in1) noexcept {
 		uint8_t ret = 0;
-		for (uint32_t i = 0; i < 4; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= in1.v64[i] >> 63;
+		}
+
+		return ret;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return true if all elements are equal
+	[[nodiscard]] constexpr static inline bool all_equal(const uint64x4_t in1) noexcept {
+		for (uint32_t i = 1; i < uint64x4_t::LIMBS; i++) {
+			if (in1.d[i-1] != in1.d[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/// \param in1 vector register
+	/// \param in2 vector register
+	/// \return reverses the order of the 4 64bit e limbs. not the order within the limbs
+	[[nodiscard]] constexpr static inline uint64x4_t reverse(const uint64x4_t in1) noexcept {
+		uint64x4_t ret;
+		for (uint32_t i = 0; i < uint64x4_t::LIMBS; i++) {
+			ret.d[uint64x4_t::LIMBS - 1 - i] = in1.d[i];
 		}
 
 		return ret;
@@ -2301,248 +2399,248 @@ struct uint64x4_t {
 #endif// no SIMD unit available
 
 ///
-constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::mullo(lhs, rhs);
 }
-constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8x32_t &lhs, const uint8_t &rhs) noexcept {
 	return uint8x32_t::mullo(lhs, rhs);
 }
-constexpr inline uint8x32_t operator*(const uint8_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator*(const uint8_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::mullo(rhs, lhs);
 }
-constexpr inline uint8x32_t operator+(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator+(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::add(lhs, rhs);
 }
-constexpr inline uint8x32_t operator-(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator-(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::sub(lhs, rhs);
 }
-constexpr inline uint8x32_t operator&(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator&(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::and_(lhs, rhs);
 }
-constexpr inline uint8x32_t operator^(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator^(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::xor_(lhs, rhs);
 }
-constexpr inline uint8x32_t operator|(const uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator|(const uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	return uint8x32_t::or_(lhs, rhs);
 }
-constexpr inline uint8x32_t operator~(const uint8x32_t &lhs) {
+constexpr inline uint8x32_t operator~(const uint8x32_t &lhs) noexcept {
 	return uint8x32_t::not_(lhs);
 }
-constexpr inline uint8x32_t operator>>(const uint8x32_t &lhs, const uint32_t rhs) {
+constexpr inline uint8x32_t operator>>(const uint8x32_t &lhs, const uint32_t rhs) noexcept {
 	return uint8x32_t::srli(lhs, rhs);
 }
-constexpr inline uint8x32_t operator<<(const uint8x32_t &lhs, const uint32_t rhs) {
+constexpr inline uint8x32_t operator<<(const uint8x32_t &lhs, const uint32_t rhs) noexcept {
 	return uint8x32_t::slli(lhs, rhs);
 }
-constexpr inline uint8x32_t operator^=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator^=(uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	lhs = uint8x32_t::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint8x32_t operator&=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator&=(uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	lhs = uint8x32_t::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint8x32_t operator|=(uint8x32_t &lhs, const uint8x32_t &rhs) {
+constexpr inline uint8x32_t operator|=(uint8x32_t &lhs, const uint8x32_t &rhs) noexcept {
 	lhs = uint8x32_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::mullo(lhs, rhs);
 }
-constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint8_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint16x16_t &lhs, const uint8_t &rhs) noexcept {
 	return uint16x16_t::mullo(lhs, rhs);
 }
-constexpr inline uint16x16_t operator*(const uint8_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator*(const uint8_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::mullo(rhs, lhs);
 }
-constexpr inline uint16x16_t operator+(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator+(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::add(lhs, rhs);
 }
-constexpr inline uint16x16_t operator-(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator-(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::sub(lhs, rhs);
 }
-constexpr inline uint16x16_t operator&(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator&(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::and_(lhs, rhs);
 }
-constexpr inline uint16x16_t operator^(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator^(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::xor_(lhs, rhs);
 }
-constexpr inline uint16x16_t operator|(const uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator|(const uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	return uint16x16_t::or_(lhs, rhs);
 }
-constexpr inline uint16x16_t operator~(const uint16x16_t &lhs) {
+constexpr inline uint16x16_t operator~(const uint16x16_t &lhs) noexcept {
 	return uint16x16_t::not_(lhs);
 }
-constexpr inline uint16x16_t operator>>(const uint16x16_t &lhs, const uint32_t rhs) {
+constexpr inline uint16x16_t operator>>(const uint16x16_t &lhs, const uint32_t rhs) noexcept {
 	return uint16x16_t::srli(lhs, rhs);
 }
-constexpr inline uint16x16_t operator<<(const uint16x16_t &lhs, const uint32_t rhs) {
+constexpr inline uint16x16_t operator<<(const uint16x16_t &lhs, const uint32_t rhs) noexcept {
 	return uint16x16_t::slli(lhs, rhs);
 }
-constexpr inline uint16x16_t operator^=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator^=(uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	lhs = uint16x16_t::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint16x16_t operator&=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator&=(uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	lhs = uint16x16_t::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint16x16_t operator|=(uint16x16_t &lhs, const uint16x16_t &rhs) {
+constexpr inline uint16x16_t operator|=(uint16x16_t &lhs, const uint16x16_t &rhs) noexcept {
 	lhs = uint16x16_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::mullo(lhs, rhs);
 }
-constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint32x8_t &lhs, const uint8_t &rhs) noexcept {
 	return uint32x8_t::mullo(lhs, rhs);
 }
-constexpr inline uint32x8_t operator*(const uint8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator*(const uint8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::mullo(rhs, lhs);
 }
-constexpr inline uint32x8_t operator+(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator+(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::add(lhs, rhs);
 }
-constexpr inline uint32x8_t operator-(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator-(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::sub(lhs, rhs);
 }
-constexpr inline uint32x8_t operator&(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator&(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::and_(lhs, rhs);
 }
-constexpr inline uint32x8_t operator^(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator^(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::xor_(lhs, rhs);
 }
-constexpr inline uint32x8_t operator|(const uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator|(const uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	return uint32x8_t::or_(lhs, rhs);
 }
-constexpr inline uint32x8_t operator~(const uint32x8_t &lhs) {
+constexpr inline uint32x8_t operator~(const uint32x8_t &lhs) noexcept {
 	return uint32x8_t::not_(lhs);
 }
-constexpr inline uint32x8_t operator>>(const uint32x8_t &lhs, const uint32_t rhs) {
+constexpr inline uint32x8_t operator>>(const uint32x8_t &lhs, const uint32_t rhs) noexcept {
 	return uint32x8_t::srli(lhs, rhs);
 }
-constexpr inline uint32x8_t operator<<(const uint32x8_t &lhs, const uint32_t rhs) {
+constexpr inline uint32x8_t operator<<(const uint32x8_t &lhs, const uint32_t rhs) noexcept {
 	return uint32x8_t::slli(lhs, rhs);
 }
-constexpr inline uint32x8_t operator^=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator^=(uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	lhs = uint32x8_t::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint32x8_t operator&=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator&=(uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	lhs = uint32x8_t::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint32x8_t operator|=(uint32x8_t &lhs, const uint32x8_t &rhs) {
+constexpr inline uint32x8_t operator|=(uint32x8_t &lhs, const uint32x8_t &rhs) noexcept {
 	lhs = uint32x8_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::mullo(lhs, rhs);
 }
-constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint64x4_t &lhs, const uint64_t &rhs) noexcept {
 	return uint64x4_t::mullo(lhs, rhs);
 }
-constexpr inline uint64x4_t operator*(const uint8_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator*(const uint8_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::mullo(rhs, lhs);
 }
-constexpr inline uint64x4_t operator+(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator+(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::add(lhs, rhs);
 }
-constexpr inline uint64x4_t operator-(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator-(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::sub(lhs, rhs);
 }
-constexpr inline uint64x4_t operator&(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator&(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::and_(lhs, rhs);
 }
-constexpr inline uint64x4_t operator^(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator^(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::xor_(lhs, rhs);
 }
-constexpr inline uint64x4_t operator|(const uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator|(const uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	return uint64x4_t::or_(lhs, rhs);
 }
-constexpr inline uint64x4_t operator~(const uint64x4_t &lhs) {
+constexpr inline uint64x4_t operator~(const uint64x4_t &lhs) noexcept {
 	return uint64x4_t::not_(lhs);
 }
-constexpr inline uint64x4_t operator>>(const uint64x4_t &lhs, const uint32_t rhs) {
+constexpr inline uint64x4_t operator>>(const uint64x4_t &lhs, const uint32_t rhs) noexcept {
 	return uint64x4_t::srli(lhs, rhs);
 }
-constexpr inline uint64x4_t operator<<(const uint64x4_t &lhs, const uint32_t rhs) {
+constexpr inline uint64x4_t operator<<(const uint64x4_t &lhs, const uint32_t rhs) noexcept {
 	return uint64x4_t::slli(lhs, rhs);
 }
-constexpr inline uint64x4_t operator^=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator^=(uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	lhs = uint64x4_t::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint64x4_t operator&=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator&=(uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	lhs = uint64x4_t::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint64x4_t operator|=(uint64x4_t &lhs, const uint64x4_t &rhs) {
+constexpr inline uint64x4_t operator|=(uint64x4_t &lhs, const uint64x4_t &rhs) noexcept {
 	lhs = uint64x4_t::or_(lhs, rhs);
 	return lhs;
 }
 
 
 /* 					 comparison									*/
-constexpr inline int operator==(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr inline int operator==(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::cmp(a, b);
 }
-constexpr inline int operator!=(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr inline int operator!=(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return 0xffffffff ^ uint8x32_t::cmp(a, b);
 }
-constexpr inline int operator<(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr inline int operator<(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::gt(b, a);
 }
-constexpr inline int operator>(const uint8x32_t &a, const uint8x32_t &b) {
+constexpr inline int operator>(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::gt(a, b);
 }
 
 
 ///
-constexpr inline int operator==(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr inline int operator==(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return (int) uint16x16_t::cmp(a, b);
 }
-constexpr inline int operator!=(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr inline int operator!=(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return 0xffff ^ uint16x16_t::cmp(a, b);
 }
-constexpr inline int operator<(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr inline int operator<(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return (int) uint16x16_t::gt(b, a);
 }
-constexpr inline int operator>(const uint16x16_t &a, const uint16x16_t &b) {
+constexpr inline int operator>(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return (int) uint16x16_t::gt(a, b);
 }
 
 
 ///
-constexpr inline int operator==(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr inline int operator==(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return (int) uint32x8_t::cmp(a, b);
 }
-constexpr inline int operator!=(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr inline int operator!=(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return 0xff ^ uint32x8_t::cmp(a, b);
 }
-constexpr inline int operator<(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr inline int operator<(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return (int) uint32x8_t::gt(b, a);
 }
-constexpr inline int operator>(const uint32x8_t &a, const uint32x8_t &b) {
+constexpr inline int operator>(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return (int) uint32x8_t::gt(a, b);
 }
 
-constexpr inline int operator==(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr inline int operator==(const uint64x4_t &a, const uint64x4_t &b) noexcept {
 	return (int) uint64x4_t::cmp(a, b);
 }
-constexpr inline int operator!=(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr inline int operator!=(const uint64x4_t &a, const uint64x4_t &b) noexcept {
 	return 0xf ^ uint64x4_t::cmp(a, b);
 }
-constexpr inline int operator<(const uint64x4_t &a, const uint64x4_t &b) {
+constexpr inline int operator<(const uint64x4_t &a, const uint64x4_t &b) noexcept {
 	return (int) uint64x4_t::gt(b, a);
 }
 constexpr inline int operator>(const uint64x4_t &a, const uint64x4_t &b) {
@@ -2660,6 +2758,7 @@ constexpr inline void uint64x4_t::print(bool binary, bool hex) const {
 
 ////////////////////////////////////////////////////////////////////////
 
+// TODO
 //namespace cryptanalysislib {
 //	constexpr inline _uint8x16_t &_uint8x16_t::operator=(const _uint16x8_t &b) noexcept {
 //		_uint8x16_t ret;

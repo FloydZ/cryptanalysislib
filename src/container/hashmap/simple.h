@@ -1,6 +1,10 @@
 #ifndef SMALLSECRETLWE_SIMPLE_H
 #define SMALLSECRETLWE_SIMPLE_H
 
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
+
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>

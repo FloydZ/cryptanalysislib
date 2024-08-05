@@ -8,13 +8,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # options
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SIMD "Enable avx/neon" ON)
-option(USE_SANITIZER "Enable memory sanitizer" OFF)
+option(USE_SANITIZER "Enable memory sanitizer" ON)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable -flto" OFF)
 option(USE_PROFILE "Enable profile guided optmization" OFF)
 option(USE_POLLY "Enable polly loop optimization" OFF)
 option(USE_BOLT "Enable bolt binary optmization" OFF)
 option(USE_TRACY "Enable tracy profiling" OFF)
+option(USE_PEDANTIC "Enable pedantic warnings" OFF)
 
 set(default_build_type "Release")
 
@@ -39,26 +40,29 @@ include(CheckCXXCompilerFlag) 	# check for compiler optimization flags
 include(CheckIPOSupported)  	# check for -flto
 include(CheckLanguage) 			# needed for `check_language(CUDA)`
 
-if(${USE_SIMD})
+if(NOT ${USE_SIMD})
+	message(STATUS "no SIMD")
 	SET(CMAKE_HOST_DO_NOT_ADD_TO_FLAGS 1)
-endif ()
+endif()
+
 # local cmake includes
 include("deps/cmake_optimize_for_architecture/Optimizations.cmake")
 
-# only for the CI
-include_directories("/opt/homebrew/include/")
-include_directories("benchmark/include")
-link_directories("/opt/homebrew/lib")
-link_directories("benchmark/build/src")
-
+# check for compiler features
 check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)
 check_cxx_compiler_flag(-fsanitize=address COMPILER_SUPPORTS_SANITIZE_ADDRESS) # TODO support not recognized
 check_cxx_compiler_flag(-fsanitize=memory COMPILER_SUPPORTS_SANITIZE_MEMORY)
 check_cxx_compiler_flag(-fconstexpr-steps=91 COMPILER_SUPPORTS_CONSTEXPR_COST)
 check_cxx_compiler_flag(-fno-exceptions COMPILER_SUPPORTS_NO_EXCEPTION)
+check_cxx_compiler_flag(-fconcepts-diagnostics-depth=10 COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC) # TODO
+
+# check for compiler warnings
+check_cxx_compiler_flag(-Wno-c11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
+check_cxx_compiler_flag(-Wno-zero-length-array COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
+check_cxx_compiler_flag(-Wno-gnu-label-as-value COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
 
 # find needed packages: the good thing only is: we only have a single external
 # dependencies. 
@@ -83,10 +87,20 @@ endif ()
 # global include directories
 include_directories("deps/b63/include/b63")
 include_directories("src")
-include_directories("/usr/local/include")
 
-# global link directories
-link_directories("/usr/local/lib")
+if(UNIX)
+    include_directories("/usr/local/include")
+    # global link directories
+    link_directories("/usr/local/lib")
+    # only for the CI
+    include_directories("benchmark/include")
+    link_directories("benchmark/build/src")
+endif()
+
+if(APPLE)
+    include_directories("/opt/homebrew/include/")
+    link_directories("/opt/homebrew/lib")
+endif()
 
 # two possible options. 'tcmalloc' is the standard google malloc implementation
 if(${USE_TCMALLOC})
@@ -106,7 +120,7 @@ if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
 endif()
 
 if (COMPILER_SUPPORTS_CONSTEXPR_COST)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=999999999")
 endif()
 
 if(${USE_LTO} AND lto_supported)
@@ -119,8 +133,28 @@ endif()
 # and if the type is < 512 bits, then this must be zero
 # -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
 # -Wno-unknown-pragmas: needed for `#pragma unroll`
-set(ALLOWED_WARNINGS " -Wno-c11-extensions -Wno-unknown-pragmas -Wno-gnu-label-as-value -Wno-zero-length-array -Wno-unused-function -Wno-invalid-constexpr")
+set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-unused-function -Wno-invalid-constexpr -Wno-c++23-extensions")
+if (COMPILER_SUPPORTS_C11_EXCEPTION) 
+	message(STATUS "Supports C11 Exceptions")
+	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-c11-extensions")
+endif()
+if (COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
+	message(STATUS "Supports Zero Length Arrays")
+	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-zero-length-array")
+endif()
+if (COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
+	message(STATUS "Supports Gnu Label as Value")
+	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-gnu-label-as-value")
+endif()
+if (COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
+	message(STATUS "Supports Concepts Diagnostics Depth")
+	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -fconcepts-diagnostics-depth=10")
+endif()
+if (${USE_PEDANTIC})
+	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wpedantic")
+endif()
 
+message(STATUS "Allowed Warnings: ${ALLOWED_WARNINGS}")
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
@@ -133,7 +167,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES 
     set(OPTIMIZE_FLAGS "-g -O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
 
-  set(DEBUG_FLAGS "-g -Wall -Wextra -Wpedantic -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+  set(DEBUG_FLAGS "-g -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 	set(OPTIMIZE_FLAGS "-g -march=native -O3 -DNDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 endif()
 
@@ -169,8 +203,8 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libc++")
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libc++")
 	elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libstdc++")
-		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libstdc++")
+		#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}     -stdlib=libstdc++")
+		#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -stdlib=libstdc++")
 	endif()
 endif()
 

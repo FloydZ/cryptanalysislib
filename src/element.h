@@ -13,13 +13,13 @@ using namespace fplll;
 #endif
 
 // local includes
-#include "container/binary_packed_vector.h"
 #include "helper.h"
+#include "container/binary_packed_vector.h"
 #include "matrix/matrix.h"
+#include "simd/simd.h"
 
 #if __cplusplus > 201709L
 
-///
 /// \tparam Container
 template<class Container>
 concept LabelAble = requires(Container c) {
@@ -163,6 +163,7 @@ concept ElementAble = requires(Value v, Label l) {
 	typename Value::ContainerType;
 	typename Label::ContainerType;
 
+	/// these two need to be a valid Value and Label
 	requires ValueAble<typename Value::ContainerType>;
 	requires LabelAble<typename Label::ContainerType>;
 
@@ -274,9 +275,17 @@ public:
 		m.mul(tmp, value);
 
 		bool ret = tmp.is_equal(label, 0, label_size());
+#ifdef DEBUG
+		if (!ret) {
+			std::cout << "IS|SHOULD\n";
+			std::cout << label;
+			std::cout << tmp;
+		}
+#endif
 		if (rewrite) {
 			label = tmp;
 		}
+
 
 		return ret;
 	}
@@ -317,24 +326,31 @@ public:
 		LabelContainerType::sub(e3.label, e1.label, e2.label);
 		ValueContainerType::sub(e3.value, e1.value, e2.value);
 	}
+
 	/// checks if this.label == obj.label on the coordinates [k_lower, k_upper]
 	/// \param obj		second element
 	/// \param k_lower  lower coordinate
 	/// \param k_upper  higher coordinate
 	/// \return true/false
-	constexpr inline bool is_equal(const Element_T &obj, const uint32_t k_lower = 0, const uint32_t k_upper = LabelLENGTH) const noexcept {
+	constexpr inline bool is_equal(const Element_T &obj,
+	                               const uint32_t k_lower = 0,
+	                               const uint32_t k_upper = LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
 		return label.is_equal(obj.label, k_lower, k_upper);
 	}
 
 	/// \return this->label > obj.label between the coordinates [k_lower, ..., k_upper]
-	constexpr inline bool is_greater(const Element_T &obj, const uint32_t k_lower = 0, const uint32_t k_upper = LabelLENGTH) const noexcept {
+	[[nodiscard]] constexpr inline bool is_greater(const Element_T &obj,
+	                                 const uint32_t k_lower = 0,
+	                                 const uint32_t k_upper = LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_greater(...)'
 		return label.is_greater(obj.label, k_lower, k_upper);
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
-	constexpr inline bool is_lower(const Element_T &obj, const uint32_t k_lower = 0, const uint32_t k_upper = LabelLENGTH) const noexcept {
+	constexpr inline bool is_lower(const Element_T &obj,
+	                               const uint32_t k_lower = 0,
+	                               const uint32_t k_upper = LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_lower(...)'
 		return label.is_lower(obj.label, k_lower, k_upper);
 	}
@@ -499,21 +515,23 @@ public:
 	constexpr void set_value(const Value &v) noexcept { value = v; }
 	constexpr void set_label(const Label &l) noexcept { label = l; }
 
-
 	/// returns true of both underlying data structs are binary
-	constexpr static bool binary() noexcept { return Label::binary() && Value::binary(); }
-	constexpr static uint32_t label_size() noexcept { return Label::size(); }
-	constexpr static uint32_t value_size() noexcept { return Value::size(); }
-	constexpr static uint32_t size() noexcept { return Value::size() + Label::size(); }
-	constexpr static uint32_t bytes() noexcept { return ValueContainerType::copyable_ssize() + LabelContainerType::copyable_ssize(); }
+	[[nodiscard]] constexpr static bool binary() noexcept { return Label::binary() && Value::binary(); }
+	[[nodiscard]] constexpr static uint32_t label_size() noexcept { return Label::size(); }
+	[[nodiscard]] constexpr static uint32_t value_size() noexcept { return Value::size(); }
+	[[nodiscard]] constexpr static uint32_t size() noexcept { return Value::size() + Label::size(); }
+	[[nodiscard]] constexpr static uint32_t bytes() noexcept { return ValueContainerType::copyable_ssize() + LabelContainerType::copyable_ssize(); }
 
 	///
-	__FORCEINLINE__ constexpr auto *label_ptr() noexcept { return label.ptr(); }
-	__FORCEINLINE__ constexpr auto *value_ptr() noexcept { return value.ptr(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr auto *label_ptr() noexcept { return label.ptr(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr auto *value_ptr() noexcept { return value.ptr(); }
 
-	__FORCEINLINE__ constexpr auto label_ptr(const size_t i) const noexcept { return label.ptr(i); }
-	__FORCEINLINE__ constexpr auto value_ptr(const size_t i) const noexcept { return value.ptr(i); }
+	[[nodiscard]] __FORCEINLINE__ constexpr auto label_ptr(const size_t i) const noexcept { return label.ptr(i); }
+	[[nodiscard]] __FORCEINLINE__ constexpr auto value_ptr(const size_t i) const noexcept { return value.ptr(i); }
 
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"Element\" }" << std::endl;
+	}
 public:
 	Label label;
 	Value value;
@@ -526,7 +544,8 @@ public:
 /// \param obj	input element
 /// \return
 template<class Value, class Label, class Matrix>
-std::ostream &operator<<(std::ostream &out, const Element_T<Value, Label, Matrix> &obj) {
+std::ostream &operator<<(std::ostream &out,
+                         const Element_T<Value, Label, Matrix> &obj) {
 	out << "V: " << obj.get_value();
 	out << ", L: " << obj.get_label() << "\n";
 	return out;

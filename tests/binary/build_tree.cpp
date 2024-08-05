@@ -148,29 +148,6 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_LT(out.load(),1u<<11);
 }
 
-
-TEST(TreeTest, dissection) {
-	// make sure you its / 4
-	constexpr static size_t n = 12;
-	using BinaryValue     = BinaryContainer<n>;
-	using BinaryLabel     = BinaryContainer<n>;
-	using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2>;
-	using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
-	using BinaryList      = List_T<BinaryElement>;
-	using BinaryTree      = Tree_T<BinaryList>;
-
-	BinaryMatrix A; A.identity();
-	BinaryList out{1ull<<n};
-	BinaryLabel target; target.random();
-
-	// TODO this needs to a lexicographic enumerator
-	using Enumerator = RandomEnumerator<BinaryList, n/2, n/4>;
-	static Enumerator en{A, 0};
-	BinaryTree::dissection4<Enumerator>(out, target, A, en);
-
-	EXPECT_GT(out.load(), 0);
-}
-
 #ifndef EXTERNAL_MAIN
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

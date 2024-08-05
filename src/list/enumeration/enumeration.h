@@ -4,8 +4,8 @@
 #include <cstddef>   // needed for std::nullptr_t
 #include <functional>// needed for std::invoke
 
-#include "container/hashmap/common.h"
 #include "helper.h"
+#include "container/hashmap.h"
 #include "list/common.h"
 
 #include "combination/chase.h"
@@ -23,6 +23,7 @@ enum ListIteration {
 };
 
 
+#if __cplusplus > 201709L
 /// \tparam List
 template<class List>
 concept ListEnumeration_ListAble = requires(List c) {
@@ -46,6 +47,7 @@ concept ListEnumerator = requires(T a) {
 	typename T::Value;
 	typename T::Label;
 };
+#endif
 
 /// \tparam ListType BaseList Type
 /// \tparam n length to enumerate
@@ -56,7 +58,9 @@ template<class ListType,
          const uint32_t n,
          const uint32_t q,
          const uint32_t w>
+#if __cplusplus > 201709L
     requires ListAble<ListType>
+#endif
 class ListEnumeration_Meta {
 public:
 	/// needed typedef
@@ -78,15 +82,24 @@ public:
 	Element element1, element2;
 
 	/// needed for reconstruction
-	constexpr Element &get_first() noexcept { return element1; }
-	constexpr Element &get_second() noexcept { return element2; }
+	constexpr inline Element &get_first() noexcept { return element1; }
+	constexpr inline Element &get_second() noexcept { return element2; }
+
+	/// needed for changing the syndrome
+	constexpr inline Label* get_syndrome() noexcept { return syndrome; }
+	constexpr inline void set_syndrome(const Label *s) noexcept { syndrome = s; }
 
 	/// checks for the correctness of the computed label.
 	/// e.g. it checks it l == HT*e
 	/// \param l computed label
 	/// \param e error vector resulting in the label
-	/// \return true/false
-	bool check(const Label &label, const Value &error, bool add_syndrome = true) noexcept {
+	/// \param add_syndrome
+	/// \param exact_weight
+	/// \return true/false if correct or not
+	bool check(const Label &label,
+	           				 const Value &error,
+	           				 bool add_syndrome = true,
+	           				 bool exact_weight = true) noexcept {
 #ifdef DEBUG
 		/// TEST for correctness
 		auto H = HT.transpose();
@@ -110,13 +123,22 @@ public:
 
 		ASSERT(tmpl.is_equal(label));
 
-		uint32_t tmp_vec_ctr = error.popcnt();
-		if (tmp_vec_ctr != w) {
-			error.print();
-			label.print();
-		}
+		const uint32_t tmp_vec_ctr = error.popcnt();
+		if (exact_weight) {
+			if (tmp_vec_ctr != w) {
+				error.print();
+				label.print();
+			}
 
-		ASSERT(tmp_vec_ctr == w);
+			ASSERT(tmp_vec_ctr == w);
+		} else {
+			if (tmp_vec_ctr > w) {
+				error.print();
+				label.print();
+			}
+			ASSERT(tmp_vec_ctr <= w);
+			ASSERT(tmp_vec_ctr > 0);
+		}
 #endif
 		return true;
 	}
@@ -130,7 +152,7 @@ public:
 	constexpr inline void insert_list(ListType *L,
 	                                  const Element &element,
 	                                  const size_t ctr,
-	                                  const uint32_t tid = 0) {
+	                                  const uint32_t tid = 0) noexcept {
 		L->insert(element, ctr, tid);
 	}
 
@@ -165,9 +187,8 @@ public:
 	}
 
 	///
-	/// \param HT
-	/// \param list_size
-	/// \param syndrome
+	/// \param HT transposed matrix
+	/// \param syndrome target
 	constexpr ListEnumeration_Meta(const Matrix &HT,
 	                               const Label *syndrome = nullptr)
 	    : HT(HT), syndrome(syndrome) {

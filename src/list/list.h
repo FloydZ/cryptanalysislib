@@ -221,21 +221,49 @@ public:
 		return sort_level(k_lower, k_higher);
 	}
 
-	/// sort the list
+	/// \param k_lower
+	/// \param k_higher
+	/// \param target
+	/// \param tid: thread id currently unsupported
+	/// \return
+	constexpr void sort_level(const uint32_t k_lower,
+							  const uint32_t k_higher,
+	                          const LabelType &target,
+	                          const uint32_t tid=0) noexcept {
+		ASSERT(k_lower < k_higher);
+		(void)tid;
+
+		using LimbType = typename LabelType ::LimbType;
+		constexpr size_t s1 = sizeof(LimbType) * 8 * LabelType::length();
+		constexpr size_t s2 = std::min((size_t)64ull, s1);
+		using T = LogTypeTemplate<s2>;
+
+		const uint64_t diff = k_higher - k_lower;
+		const uint64_t mask = diff > 64 ?
+		                      uint64_t(-1) :
+		                      ((uint64_t(1) << diff) - 1ull);
+
+		// TODO optimize: either use the mask or add on full length
+		ska_sort(__data.begin(), __data.begin() + load(),
+		    [k_lower, k_higher, mask, target]
+		    (const auto &e1) -> T {
+		        LabelType tmp; tmp.zero();
+		        LabelType::add(tmp, e1.label, target, k_lower, k_higher);
+		        const T tmp1 = *((T *)tmp.ptr());
+		        const T tmp2 = (tmp1>>k_lower) & mask;
+			    return tmp2;
+		    }
+		);
+	}
+
 	///
+	/// \param k_lower
+	/// \param k_higher
+	/// \return
 	constexpr void sort_level(const uint32_t k_lower,
 	                          const uint32_t k_higher) noexcept {
-		std::sort(__data.begin(), __data.begin() + load(),
-		          [k_lower, k_higher](const auto &e1, const auto &e2) {
-
-#if !defined(SORT_INCREASING_ORDER)
-			          return e1.is_lower(e2, k_lower, k_higher);
-#else
-			        return e1.is_greater(e2, k_lower, k_higher);
-#endif
-		          });
-
-		ASSERT(is_sorted(k_lower, k_higher));
+		const uint32_t tid = 0;
+		sort_level(k_lower, k_higher, tid);
 	}
 
 	/// NOTE: this does not search the FULL list, only each segmeent
@@ -245,6 +273,8 @@ public:
 	constexpr void sort_level(const uint32_t k_lower,
 	                          const uint32_t k_higher,
 	                          const uint32_t tid) noexcept {
+		ASSERT(k_lower < k_higher);
+
 		std::sort(__data.begin() + start_pos(tid), __data.begin() + end_pos(tid),
 		          [k_lower, k_higher](const auto &e1, const auto &e2) {
 
@@ -450,8 +480,8 @@ public:
 			}
 
 			auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
-			                            [k_lower, k_higher](const Element &a1, const Element &a2) {
-				// return e.is_equal(c, k_lower, k_higher);
+			                          [k_lower, k_higher]
+			                          (const Element &a1, const Element &a2) {
 				return a1.is_lower(a2, k_lower, k_higher);
 			});
 
@@ -570,9 +600,9 @@ public:
 	                              const Element &e2,
 	                              const uint32_t k_lower,
 	                              const uint32_t k_higher,
-	                              const uint32_t norm = -1,
+	                              const uint32_t norm,
 	                              const bool sub = false) noexcept {
-		if (load() < this->size()) {
+		if (load() < size()) {
 			auto b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
 			// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
 			// exists for which it holds: |data[load].value[r]| >= norm
@@ -601,8 +631,6 @@ public:
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
 		set_load(load() + 1);
 	}
-
-private:
 };
 
 #endif//DECODING_LIST_H

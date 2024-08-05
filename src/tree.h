@@ -40,6 +40,7 @@ concept TreeAbleHashMap = requires(HM hm) {
 	//typename HM::Hash;
 	//typename HM::Extractor;
 
+	// TODO
 	//requires requres(const typename HM::List &list, typename HM::Hash hash, typename HM::Extractor extractor,
 	// 		   const size_t s, const uint32_t u32, const uint64_t u64) {
 	//	hash(list, u32);
@@ -538,7 +539,7 @@ public:
 	/// \param k_upper1
 	/// \param k_lower2
 	/// \param k_upper2
-	static void twolevel_streamjoin(List &out, List iL, List &L1, List &L2,
+	static void twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
 	                                const uint64_t k_lower1, const uint64_t k_upper1, 
 									const uint64_t k_lower2, const uint64_t k_upper2,
 	                                bool prepare = true) noexcept {
@@ -569,23 +570,99 @@ public:
 				for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
 				for (j_max = j + 1; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower1, k_upper1); j_max++) {}
 
-				uint64_t jprev = j;
+				const uint64_t jprev = j;
 
-				// we have found equal elements. But this time we dont have to 
+				// we have found equal elements. But this time we don't have to
 				// save the result. Rather we stream join everything up to the final solution.
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
 						ElementType::add(e, L1[i], L2[j], 0, LabelLENGTH, -1);
+						std::cout << e;
 						boundaries = iL.search_boundaries(e, k_lower2, k_upper2);
 
 						// finished?
 						if (boundaries.first == boundaries.second) {
-							// TODO can we break the two loops?
+							// NOTE: we cannot break out of the two loops
+							// only the first one.
 							break;
 						}
 
 						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
 							out.add_and_append(e, iL[l], filter);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/// doc: see function above
+	static void twolevel_streamjoin_on_iT(List &out, List &iL, List &L1, List &L2,
+										  const LabelType &target,
+										  const uint64_t k_lower1, const uint64_t k_upper1,
+										  const uint64_t k_lower2, const uint64_t k_upper2) noexcept {
+		ASSERT(k_lower1 < k_upper1 &&
+			   0 < k_upper1 && k_lower2 < k_upper2
+			   && 0 < k_upper2
+			   && k_lower1 <= k_lower2
+			   && k_upper1 <= k_upper2);
+
+		// internal variables.
+		std::pair<uint64_t, uint64_t> boundaries;
+		ElementType e1, e2;
+		uint64_t i = 0, j = 0;
+		LabelType tmp, tmp2;
+
+		L2.sort_level(k_lower1, k_upper1, target);
+		iL.sort_level(k_lower2, k_upper2);
+
+		while (i < L1.load() && j < L2.load()) {
+			LabelType::add(tmp, L2[j].label, target);
+			if (tmp.is_greater(L1[i].label, k_lower1, k_upper1)) {
+				i++;
+			} else if (L1[i].label.is_greater(tmp, k_lower1, k_upper1)) {
+				j++;
+			} else {
+				uint64_t i_max, j_max;
+				for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
+				for (j_max = j+1;j_max < L2.load();j_max++) {
+					LabelType::add(tmp2, L2[j_max].label, target);
+					if (!tmp.is_equal(tmp2, k_lower1, k_upper1))  { break; }
+				}
+
+				const uint64_t jprev = j;
+
+				// we have found equal elements. But this time we don't have to
+				// save the result. Rather we stream join everything up to the final solution.
+				for (; i < i_max; ++i) {
+					for (j = jprev; j < j_max; ++j) {
+						// TODO full length
+						ElementType::add(e1, L1[i], L2[j], 0, 16, -1);
+
+
+						if (!e1.label.is_equal(target, k_lower1, k_upper1)) {
+							L1[i].label.print_binary();
+							L2[j].label.print_binary();
+							e1.label.print_binary();
+							target.print_binary();
+							ASSERT(false);
+						}
+
+
+
+						LabelType::sub(e2.label, e1.label, target);
+						e2.label.neg();
+						boundaries = iL.search_boundaries(e2, k_lower2, k_upper2);
+
+						// finished?
+						if (boundaries.first == boundaries.second) {
+							// NOTE: we cannot break out of the two loops
+							// only the first one.
+							break;
+						}
+
+						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
+							out.add_and_append(e1, iL[l], 0, LabelLENGTH, -1);
 						}
 					}
 				}
@@ -619,31 +696,36 @@ public:
 	                       const LabelType &target,
 	                       const std::vector<uint64_t> &lta,
 	                       const bool prepare = true) noexcept {
-		ASSERT(lta.size() >= 1);
+		ASSERT(lta.size() >= 2);
 		join2lists(out, L1, L2, target, lta[0], lta[1], prepare);
 	}
 
-	///
 	/// \param out
 	/// \param L1
 	/// \param L2
 	/// \param target
 	/// \param k_lower
 	/// \param k_upper
-	/// \param prepare
-	/// \param sub
+	/// \param prepare if true: the input
+	/// \param sub currently unused
 	static void join2lists(List &out, List &L1, List &L2,
-	                       const LabelType &target,
-	                       const uint32_t k_lower, const uint32_t k_upper,
-	                       bool prepare = true,
-	                       bool sub = false) noexcept {
+						   const LabelType &target,
+						   const uint32_t k_lower,
+						   const uint32_t k_upper,
+						   bool prepare = true,
+						   bool sub = false) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
+		(void) sub;
+
 		uint64_t i = 0, j = 0;
-		const uint32_t filter = -1;
 
 		if ((!target.is_zero()) && (prepare)) {
 			for (size_t s = 0; s < L2.load(); ++s) {
-				LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
+				if (sub) {
+					LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
+				} else {
+					LabelType::add(L2[s].label, target, L2[s].label, k_lower, k_upper);
+				}
 			}
 		}
 
@@ -665,7 +747,62 @@ public:
 
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						out.add_and_append(L1[i], L2[j], filter, sub);
+						out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1);
+					}
+				}
+			}
+		}
+	}
+
+	/// in contrast to `join2lists` does this function not alter the
+	/// values of L2 (except for sorting them)
+	/// \param out output list
+	/// \param L1 const
+	/// \param L2 cannot be const, as its sorted
+	/// \param target is added
+	/// \param k_lower lower limit
+	/// \param k_upper upper limit
+	static void join2lists_on_iT(List &out,
+	                             const List &L1, List &L2,
+	                       		 const LabelType &target,
+	                       		 const uint32_t k_lower,
+	                       		 const uint32_t k_upper) noexcept {
+		ASSERT(k_lower < k_upper && 0 < k_upper);
+
+		L2.sort_level(k_lower, k_upper, target);
+
+		LabelType tmp, tmp2;
+		uint64_t i = 0, j = 0;
+		while (i < L1.load() && j < L2.load()) {
+			LabelType::add(tmp, L2[j].label, target);
+			if (tmp.is_greater(L1[i].label, k_lower, k_upper)) {
+				i++;
+			} else if (L1[i].label.is_greater(tmp, k_lower, k_upper)) {
+				j++;
+			} else {
+				uint64_t i_max=i+1ull, j_max=j+1ull;
+				// if elements are equal find max index in each list, such that they remain equal
+				for (;i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
+				for (;j_max < L2.load(); j_max++) {
+					LabelType::add(tmp2, L2[j_max].label, target);
+					if (!tmp.is_equal(tmp2, k_lower, k_upper))  { break; }
+				}
+
+				uint64_t jprev = j;
+
+				for (; i < i_max; ++i) {
+					for (j = jprev; j < j_max; ++j) {
+						// todo
+						out.add_and_append(L1[i], L2[j], 0, 16, -1);
+
+						const uint64_t b = out.load() - 1;
+						if (!out[b].label.is_equal(target, k_lower, k_upper)) {
+							L1[i].label.print_binary();
+							L2[j].label.print_binary();
+							out[b].label.print_binary();
+							target.print_binary();
+							ASSERT(false);
+						}
 					}
 				}
 			}
@@ -878,12 +1015,8 @@ public:
 
 		// Intermediate Target
 		LabelType R, R1, R3, R5, R13, R57, zero;
-		R1.random();
-		R3.random();
-		R5.random();
+		R1.random(); R3.random(); R5.random(); R13.random(); R57.random();
 		zero.zero();
-		R13.random();
-		R57.random();
 		LabelType::add(R, R1, R3, k_lower1, k_upper1);
 		LabelType::add(R, R, R5, k_lower1, k_upper1);
 		LabelType::add(R, R, R13, k_lower2, k_upper2);
@@ -933,42 +1066,67 @@ public:
 	}
 
 
-	/// \tparam Enumerator
 	/// \param out
 	/// \param target
 	/// \param MT must be transposed
 	/// \param e
-	template<ListEnumerator Enumerator>
 	static void dissection4(List &out,
-	                             const LabelType &target,
-	                             const MatrixType &MT,
-	                             Enumerator &e) noexcept {
-		(void)MT;
+	                        const LabelType &target,
+	                        const MatrixType &MT) noexcept {
+		// reset the output list
 		out.set_load(0);
 
-		constexpr static size_t n = LabelLENGTH;
-		constexpr static size_t size = 1ull << (n / 4u);
-		static List L1{size}, L2{size}, L3{size}, L4{size}, iL{size};
+		/// TODO: limitation for simpliciity
+		constexpr static size_t n = ValueLENGTH;
+		constexpr static size_t n4 = n/4;
+		static_assert((n % 4) == 0);
+
+		constexpr static double factor = 1.5;
+		constexpr static size_t size = (1ull << n4) - 1ull;
+		static List L1{size}, L2{size}, L3{size}, L4{size}, iL{(size_t)((double)size*factor)};
 		L1.set_load(0); L2.set_load(0); L3.set_load(0); L4.set_load(0);
 
-		LabelType iR;
-		ElementType e1, e2;
-		iR.random();
+		LabelType iT_left, iT_right;
 
-		// TODO make sure its div by 4
-		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-				(&L1, &L2, n/4);
-		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-				(&L3, &L4, n/4, n/2);
+		// enumerate the base lists
+		using Enumerator = MaxBinaryRandomEnumerator<List, n/2, n/4>;
+		// using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, n/8>;
+		Enumerator e{MT, size};
 
-		L3.sort_level(0, n);
-		L4.sort_level(0, n);
+		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				(&L1, &L2, n4);
+		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				(&L3, &L4, n4, n/2);
+
+		L1.sort_level(0, n4); L3.sort_level(0, n4);
+
 		for (size_t k = 0; k < size; ++k) {
+			// choose intermediate target
+			iT_left.random();
+			LabelType::add(iT_right, target, iT_left);
+
 			// merge the first two list
 			iL.set_load(0);
-			join2lists(iL, L1, L2, iR, 0, n / 4, false);
-			iL.sort_level(n / 4, n);
-			twolevel_streamjoin(out, iL, L3, L4, 0, n / 4, n / 4, n, false);
+			join2lists_on_iT(iL, L1, L2, iT_left, 0, n4);
+
+			// early exit
+			if (iL.load() == 0) {
+				continue;
+			}
+
+			// some debugging
+			// for (size_t i = 0; i < iL.load(); ++i) {
+			// 	if (!iL[i].is_correct(MT)){
+			// 		std::cout << "ERROR" << std::endl;
+			// 		std::cout << iL[i] << " " << i << std::endl;
+			// 	}
+			// 	ASSERT(iL[i].is_correct(MT));
+			// }
+
+			//std::cout << iL << std::endl;
+
+			// match the right side
+			twolevel_streamjoin_on_iT(out, iL, L3, L4, iT_right, 0, n4, n4, n);
 		}
 	}
 

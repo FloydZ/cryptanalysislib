@@ -84,26 +84,37 @@ public:
 	}
 
 
-	/// generates a random vector with `w` != 0
-	/// \param w
+	/// generates a random weight `w` vector with `w` != 0
+	/// \param w we
 	/// \param m
+	/// \param offset start offset of the first error position
 	/// \return
 	constexpr void random_with_weight(const uint32_t w,
-									  const uint32_t m=length()) noexcept {
+									  const uint32_t m=length(),
+	                                  const uint32_t offset=0) noexcept {
 		ASSERT(w <= m);
-		ASSERT(m <= length());
+		ASSERT(m+offset <= length());
 		zero();
 
+		// chose first
 		for (uint32_t i = 0; i < w; ++i) {
-			set(fastrandombytes_uint64() % q, i);
+			if constexpr (q == 2) {
+				set(1, i + offset);
+			} else {
+				const auto d = fastrandombytes_uint64(1, q - 1u);
+				set(d, i + offset);
+			}
 		}
+
+		// early exit
+		if (w == m) { return; }
 
 		// now permute
 		for (uint64_t i = 0; i < m; ++i) {
 			uint64_t pos = fastrandombytes_uint64() % (m - i);
-			bool t = get(i);
-			set(get(i + pos), i);
-			set(t, i + pos);
+			const auto t = get(i+offset);
+			set(get(i + pos+offset), i+offset);
+			set(t, i + pos+offset);
 		}
 	}
 
@@ -489,9 +500,9 @@ public:
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
 		uint32_t i = 0;
-		for (; i + nr_limbs < n; i += nr_limbs) {
-			const uint8x32_t a = uint8x32_t::load(in1 + i);
-			const uint8x32_t b = uint8x32_t::load(in2 + i);
+		for (; i + nr_limbs <= n; i += nr_limbs) {
+			const uint8x32_t a = uint8x32_t::load((uint8_t *)(in1 + i));
+			const uint8x32_t b = uint8x32_t::load((uint8_t *)(in2 + i));
 
 			const uint8x32_t tmp = add256_T(a, b);
 			uint8x32_t::store(out + i, tmp);
@@ -507,11 +518,11 @@ public:
 	/// \param in1 input: vector
 	/// \param in2 input: vector
 	constexpr static inline void add(kAryContainerMeta &out,
-	                       const kAryContainerMeta &in1,
-	                       const kAryContainerMeta &in2) noexcept {
+	                       			 const kAryContainerMeta &in1,
+	                       			 const kAryContainerMeta &in2) noexcept {
 		add((T *) out.__data.data(),
-		    (const T *) in1.__data.data(),
-		    (const T *) in2.__data.data());
+		    (const T *) in1.ptr(),
+		    (const T *) in2.ptr());
 	}
 
 	/// \param v3 output
@@ -551,8 +562,8 @@ public:
 
 		uint32_t i = 0;
 		for (; i + nr_limbs < n; i += nr_limbs) {
-			const uint8x32_t a = uint8x32_t::load(in1 + i);
-			const uint8x32_t b = uint8x32_t::load(in2 + i);
+			const uint8x32_t a = uint8x32_t::load((uint8_t *)(in1 + i));
+			const uint8x32_t b = uint8x32_t::load((uint8_t *)(in2 + i));
 
 			const uint8x32_t tmp = sub256_T(a, b);
 			uint8x32_t::store(out + i, tmp);
@@ -593,8 +604,9 @@ public:
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] + q - v2.__data[i]) % q;
-			if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
+			if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1))) {
 				return true;
+			}
 		}
 
 		return false;
@@ -747,7 +759,7 @@ public:
 		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
-		for (uint64_t i = k_upper; i > k_lower; i--) {
+		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (__data[i - 1] < obj.__data[i - 1]) {
 				return true;
 			} else if (__data[i - 1] > obj.__data[i - 1]) {
@@ -893,6 +905,15 @@ public:
 	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
 	__FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
 
+	///
+	constexpr static void info() noexcept {
+		std::cout << "{ name: \"kAryContainerMeta\""
+		          << ", n: " << n
+				  << ", q: " << q
+				  << ", internal_limbs: " << internal_limbs
+				  << ", sizeof(T): " << sizeof(T)
+				  << "}" << std::endl;
+	}
 protected:
 	std::array<T, length()> __data;
 };

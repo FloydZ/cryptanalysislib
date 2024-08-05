@@ -9,7 +9,6 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO see `reflection.h`
 #ifdef __cpp_lib_source_location
 #include "reflection/reflection.h"
 
@@ -50,17 +49,20 @@ TEST(simple, my_type) {
 // 	constexpr auto t = reflect::to<std::tuple>(f);
 // 	static_assert(42 == std::get<0>(t));
 // 	static_assert(B  == std::get<1>(t));
-//
-// 		reflect::for_each([](auto I) {
-// 			std::print("{}.{}:{}={} ({}/{}/{})\n",
-// 			           reflect::type_name(f),                  // foo, foo
-// 			           reflect::member_name<I>(f),             // a  , b
-// 			           reflect::type_name(reflect::get<I>(f)), // int, E
-// 			           reflect::get<I>(f),                     // 42 , B
-// 			           reflect::size_of<I>(f),                 // 4  , 4
-// 			           reflect::align_of<I>(f),                // 4  , 4
-// 			           reflect::offset_of<I>(f));              // 0  , 4
-// 		}, f);
+
+		reflect::for_each([](auto I) {
+		  	std::cout <<   reflect::type_name(E{});
+		}, f);
+
+ 		reflect::for_each([f](auto I) {
+		std::cout <<   	 	 reflect::type_name(f)                  // foo, foo
+ 			      << ", " << reflect::member_name<I>(f)             // a  , b
+ 			      << ", " << reflect::type_name(reflect::get<I>(f)) // int, E
+ 			      << ", " << reflect::get<I>(f)                     // 42 , B
+ 			      << ", " << reflect::size_of<I>(f)                 // 4  , 4
+ 			      << ", " << reflect::align_of<I>(f)                // 4  , 4
+ 			      << ", " << reflect::offset_of<I>(f);              // 0  , 4
+ 		}, f);
 }
 #endif
 

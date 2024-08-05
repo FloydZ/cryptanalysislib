@@ -15,8 +15,9 @@ template<typename T,
          const uint32_t nrows,
          const uint32_t ncols,
          const uint32_t q,
-         const bool packed = true>
-class FqMatrix : public FqMatrix_Meta<T, nrows, ncols, q, packed> {
+         const bool packed = true,
+         typename R=void>
+class FqMatrix : public FqMatrix_Meta<T, nrows, ncols, q, packed, R> {
 public:
 };
 
@@ -29,29 +30,42 @@ template<typename T,
          const uint32_t nrows,
          const uint32_t ncols,
          const bool packed>
-class FqMatrix<T, nrows, ncols, 3, packed> : public FqMatrix_Meta<T, nrows, ncols, 3, packed> {
+class FqMatrix<T, nrows, ncols, 3, packed, void> : public FqMatrix_Meta<T, nrows, ncols, 3, packed, void> {
 public:
 	/// this is just defined, because Im lazy
 	static constexpr uint32_t q = 3;
 
+	using R = void;
+
+	using S = FqMatrix_Meta<T, nrows, ncols, q, packed, R>;
 	/// needed type definitions
-	using typename FqMatrix_Meta<T, nrows, ncols, q, packed>::RowType;
-	using typename FqMatrix_Meta<T, nrows, ncols, q, packed>::DataType;
+	using typename S::RowType;
+	using typename S::DataType;
 
 	/// needed vars
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::__data;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::ROWS;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::COLS;
+	using S::__data;
+	using S::ROWS;
+	using S::COLS;
 
 	/// needed functions
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::get;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::set;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::swap_rows;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::swap_cols;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::clear;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::transpose;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::column_popcnt;
-	using FqMatrix_Meta<T, nrows, ncols, q, packed>::row_popcnt;
+	using S::get;
+	using S::set;
+	using S::swap;
+	using S::swap_rows;
+	using S::swap_cols;
+	using S::clear;
+	using S::transpose;
+	using S::column_popcnt;
+	using S::row_popcnt;
+	using S::mul;
+	using S::add;
+	using S::sub;
+	using S::sub_transpose;
+	using S::sub_matrix;
+	using S::gaus;
+	using S::fix_gaus;
+	using S::m4ri;
+	using S::info;
 };
 
 

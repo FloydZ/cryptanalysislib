@@ -1,7 +1,12 @@
 #ifndef CRYPTANALYSISLIB_CONTAINER_LINKEDLIST_H
 #define CRYPTANALYSISLIB_CONTAINER_LINKEDLIST_H
 
+#if !defined(CRYPTANALYSISLIB_LINKEDLIST_H)
+#error "Do not include this file directly. Use: `#include <container/linkedlist.h>`"
+#endif
+
 #include <stdint.h>
+#include <cstring> // for memset
 
 #include "helper.h"
 
@@ -18,7 +23,9 @@
 ///
 /// \tparam T
 template<typename T>
+#if __cplusplus > 201709L
     requires std::copyable<T> && std::three_way_comparable<T>
+#endif
 struct FreeList {
 private:
 	/// internal struct

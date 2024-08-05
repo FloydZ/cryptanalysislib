@@ -34,7 +34,7 @@ concept kAryPackedContainerAble =
 /// \param T = uint64_t
 /// \param n = number of elements
 /// \param q = modulus
-template<class T, 
+template<typename T,
 		 const uint64_t _n,
 		 const uint64_t _q>
 #if __cplusplus > 201709L
@@ -50,7 +50,9 @@ public:
 	constexpr static uint32_t n = _n;
 	constexpr static inline uint64_t length() { return n; }
 	
-	static_assert(n > 0);
+	static_assert(n > 0, "jeah at least a single bit?");
+	static_assert(q > 0, "mod 0?");
+	static_assert(bits_log2(q) < (8*sizeof(T)), "the limb type should be atleast of the size of prime");
 
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
@@ -65,8 +67,8 @@ public:
 	// mask with the first `bits_per_number` set to one
 	constexpr static T number_mask = (T(1u) << (bits_per_number)) - 1u;
 
-	// true if we need every bit of the last bit
-	constexpr static bool is_full = (n % bits_per_limb) == 0;
+	// true if we need every bit of the last limb
+	constexpr static bool is_full = ((n*bits_per_number) % (internal_limbs*bits_per_limb)) == 0;
 
 	constexpr static bool activate_avx2 = true;
 	constexpr static uint16_t limbs_per_simd_limb = 256u / bits_per_limb;
@@ -209,7 +211,8 @@ public:
 	constexpr void random(const uint32_t a = 0, const uint32_t b = length()) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
-			set(fastrandombytes_uint64() % modulus(), i);
+			const auto d = fastrandombytes_uint64(modulus());
+			set(d, i);
 		}
 	}
 
@@ -685,7 +688,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this == obj between [k_lower, k_upper)
-	constexpr bool is_equal(kAryPackedContainer_Meta const &obj,
+	[[nodiscard]] constexpr bool is_equal(kAryPackedContainer_Meta const &obj,
 	                        const uint32_t k_lower = 0,
 	                        const uint32_t k_upper = length()) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
@@ -696,7 +699,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this > obj [k_lower, k_upper)
-	constexpr bool is_greater(kAryPackedContainer_Meta const &obj,
+	[[nodiscard]] constexpr bool is_greater(kAryPackedContainer_Meta const &obj,
 	                          const uint32_t k_lower = 0,
 	                          const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -713,7 +716,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this < obj [k_lower, k_upper)
-	constexpr bool is_lower(kAryPackedContainer_Meta const &obj,
+	[[nodiscard]] constexpr bool is_lower(kAryPackedContainer_Meta const &obj,
 	                        const uint32_t k_lower = 0,
 	                        const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -839,22 +842,22 @@ public:
 	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return internal_limbs; }
 	__FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return internal_limbs * sizeof(T); }
 
-	std::array<T, internal_limbs> &data() noexcept { return __data; }
-	const std::array<T, internal_limbs> &data() const noexcept { return __data; }
+	constexpr std::array<T, internal_limbs> &data() noexcept { return __data; }
+	constexpr const std::array<T, internal_limbs> &data() const noexcept { return __data; }
 
-	T &data(const size_t index) {
+	constexpr T &data(const size_t index) noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
-	const T data(const size_t index) const noexcept {
+	constexpr const T data(const size_t index) const noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
-	T limb(const size_t index) {
+	constexpr T limb(const size_t index) noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
-	const T limb(const size_t index) const noexcept {
+	constexpr const T limb(const size_t index) const noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
@@ -870,8 +873,26 @@ public:
 		ASSERT(i < limbs());
 		return __data[i];
 	};
+
 	// returns `false` as this class implements a generic arithmetic
 	__FORCEINLINE__ static constexpr bool optimized() noexcept { return false; };
+
+	/// print some internal information aobut the class
+	constexpr static void info() noexcept {
+		std::cout << "{ name: \"kAryPackedContainer_Meta\""
+		          << ", n: " << n
+		          << ", q: " << q
+				  << ", bits_per_limb: " << bits_per_limb
+				  << ", bits_per_number: " << bits_per_number
+				  << ", numbers_per_limb: " << numbers_per_limb
+				  << ", internal_limbs: " << internal_limbs
+				  << ", number_mask: " << number_mask
+				  << ", is_full: " << is_full
+				  << ", active_simd: " << activate_avx2
+				  << ", total_bits: " << total_bits
+				  << ", total_bytes: " << total_bytes
+				  << " }" << std::endl;
+	}
 };
 
 /// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
@@ -1311,8 +1332,8 @@ public:
 			*(__uint128_t *) v3.__data.data() = t;
 			return;
 		} else if constexpr ((internal_limbs == 4) && (sizeof(DataType) == 8u)) {
-			const uint64x4_t t = add256_T(uint64x4_t::aligned_load((uint64x4_t *) &v1.__data[0]),
-			                              uint64x4_t::aligned_load((uint64x4_t *) &v2.__data[0]));
+			const uint64x4_t t = add256_T(uint64x4_t::aligned_load((uint64_t *) &v1.__data[0]),
+			                              uint64x4_t::aligned_load((uint64_t *) &v2.__data[0]));
 			uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[0], t);
 			return;
 		}
@@ -1320,8 +1341,8 @@ public:
 		uint32_t i = 0;
 		if constexpr (activate_avx2) {
 			for (; i + numbers_per_limb <= internal_limbs; i += numbers_per_simd_limb) {
-				const uint64x4_t t = add256_T(uint64x4_t::unaligned_load((uint64x4_t *) &v1.__data[i]),
-				                              uint64x4_t::unaligned_load((uint64x4_t *) &v2.__data[i]));
+				const uint64x4_t t = add256_T(uint64x4_t::unaligned_load((uint64_t *) &v1.__data[i]),
+				                              uint64x4_t::unaligned_load((uint64_t *) &v2.__data[i]));
 				uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[i], t);
 			}
 		}

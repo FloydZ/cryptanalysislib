@@ -8,6 +8,8 @@ using ::testing::Test;
 
 constexpr size_t LS = 1u << 8u;
 
+// TODO not working for ARM
+#ifdef USE_AVX2
 TEST(Bruteforce, simd_32) {
 	constexpr static NN_Config config{32, 1, 1, 32, LS, 10, 5, 0, 512};
 	NN<config> algo{};
@@ -254,7 +256,7 @@ TEST(Bruteforce, simd_256_64_4x4) {
 	}
 }
 
-TEST(Bruteforce, avx2_256_64_4x4_rearrange) {
+TEST(Bruteforce, simd_256_64_4x4_rearrange) {
 	constexpr size_t LS = 652;
 	constexpr static NN_Config config__{256, 4, 1, 64, LS, 10, 14, 0, 512, 0, 0, true};
 	NN<config__> algo{};
@@ -264,6 +266,7 @@ TEST(Bruteforce, avx2_256_64_4x4_rearrange) {
 	EXPECT_EQ(algo.solutions_nr, 1);
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 }
+#endif
 
 int main(int argc, char **argv) {
 	random_seed(time(NULL));

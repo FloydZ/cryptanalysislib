@@ -1,4 +1,4 @@
-name: osx-x86
+name: osx
 env:
   BUILD_TYPE: Release
 
@@ -10,9 +10,6 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            TARGET: x86_64-apple-darwin
-            COMPILER: clang
-            LINKER: clang
 
     name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
     runs-on: ${{ matrix.os }}

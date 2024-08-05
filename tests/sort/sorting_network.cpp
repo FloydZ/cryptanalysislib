@@ -10,6 +10,7 @@ using namespace std;
 #include "random.h"
 #include "sort/sorting_network/common.h"
 
+/// generate random data
 template<typename T>
 T *gen_data(const size_t size) {
 	T *data = (T *) malloc(sizeof(T) * size);
@@ -20,6 +21,30 @@ T *gen_data(const size_t size) {
 	}
 
 	return data;
+}
+
+/// check if `data` is sorted
+template<typename T, const bool descending=true>
+constexpr bool check_correctness(const T *data, const uint32_t n) {
+	if (n == 1) {
+		return true;
+	}
+
+	if constexpr (descending) {
+		for (uint32_t i = 0; i < (n-1u); ++i) {
+			if (data[i] >= data[i + 1]) {
+				return false;
+			}
+		}
+	} else {
+		for (uint32_t i = 0; i < (n-1u); ++i) {
+			if (data[i] <= data[i + 1]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 
@@ -64,7 +89,7 @@ TEST(SortingNetwork, timsort_constexpr) {
 
 #ifdef USE_AVX2
 
-TEST(SortingNetwork, unt64x8_t) {
+TEST(SortingNetwork, int64x8_t) {
 	__m256i z1 = _mm256_setr_epi64x(0, 1, 2, 3);
 	__m256i z2 = _mm256_setr_epi64x(4, 5, 6, 7);
 	const __m256i y1 = z1;
@@ -165,17 +190,6 @@ TEST(SortingNetwork, f32x16_t) {
 	EXPECT_EQ(mask, (1u << 8u) - 1u);
 }
 
-template<typename T>
-constexpr bool check_correctness(const T *data, const uint32_t n) {
-	for (uint32_t i = 0; i < (n-1u); ++i) {
-		if (data[i] > data[i + 1]) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
 TEST(SortingNetwork, f32xX_t) {
 	constexpr size_t size = 16;
 	__m256 data[size] = {0};
@@ -258,6 +272,22 @@ TEST(SortingNetwork, u32xX_t) {
 	ASSERT_EQ(check_correctness((uint32_t *) data, 120), true);
 	sortingnetwork_sort_u32x128(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
 	ASSERT_EQ(check_correctness((uint32_t *) data, 128), true);
+}
+
+TEST(SortingNetwork, small_f32xX_t) {
+	constexpr size_t size = 16;
+	__m256i data[size] = {0};
+	auto *d = (float *) data;
+	for (size_t i = 0; i < size * 8; ++i) {
+		d[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
+	}
+
+	for (uint32_t i = 1; i < 8*size; i++) {
+		const bool b =sortingnetwork_small_f32(d, i);
+		ASSERT_EQ(b, true);
+		const bool k = check_correctness<float>(d, i);
+		ASSERT_EQ(k, true);
+	}
 }
 
 TEST(SortingNetwork, int32x128_t) {

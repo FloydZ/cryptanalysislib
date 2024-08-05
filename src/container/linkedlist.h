@@ -3,4 +3,5 @@
 
 #include "container/linkedlist/const_linkedlist.h"
 #include "container/linkedlist/linkedlist.h"
-#endif //CRYPTANALYSISLIB
+
+#endif

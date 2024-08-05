@@ -527,7 +527,9 @@ public:
 	/// \param e element to insert
 	/// \param pos is a relative position to the thread id
 	/// \param tid thread id
-	constexpr void insert(const Element &e, const size_t pos, const uint32_t tid = 0) noexcept {
+	constexpr void insert(const Element &e,
+	                      const size_t pos,
+	                      const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
 		__data[spos + pos] = e;
 	}
@@ -537,7 +539,7 @@ public:
 template<typename Element>
 std::ostream &operator<<(std::ostream &out, const MetaListT<Element> &obj) {
 	for (size_t i = 0; i < obj.size(); ++i) {
-		out << obj[i] << std::endl;
+		out << obj[i];
 	}
 	return out;
 }

@@ -11,7 +11,9 @@
 
 #include <immintrin.h>
 #include <stdint.h>
+#include "simd/simd.h"
 
+///
 #define UCOEX_u64X8(a, b)				\
 	{                                   \
 		__m512i tmp = a;                \
@@ -35,18 +37,6 @@
 	}
 #endif
 
-/// NOTE: this is stupid. gcc does strange thing.
-/// TODO: MAYBE: move into simd wrapper as a custom funciton?
-/// \return
-constexpr inline __m512i
-__mm512_undefined_epi32 (void) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Winit-self"
-	__m512i __Y = __Y;
-#pragma GCC diagnostic pop
-	return __Y;
-}
-
 #define compare_and_swap16(a, b, a1, b1) \
 	{                                    \
 		a1 = __builtin_ia32_pminsq512_mask ((__v8di)(a), (__v8di)(b), (__v8di)__mm512_undefined_epi32 (), (__mmask8) -1);     \
@@ -54,8 +44,6 @@ __mm512_undefined_epi32 (void) {
 	}
 
 
-static int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexc[8] = {0, 8, 1, 9, 2, 10, 3, 11};
-static int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexd[8] = {4, 12, 5, 13, 6, 14, 7, 15};
 
 
 // only needed if less the 16 elements should be sorted in 
@@ -83,6 +71,9 @@ static int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexd[8] = {4,
 
 
 constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) {
+	constexpr int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexc[8] = {0, 8, 1, 9, 2, 10, 3, 11};
+	constexpr int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexd[8] = {4, 12, 5, 13, 6, 14, 7, 15};
+
 	__m512i a1, b1;
 	COMPAREANDSWAP_AVX512_64(a, b, a1, b1);
 	const int64_t __attribute__((aligned(64))) index0[8] = {0, 8, 2, 10, 4, 12, 6, 14};
@@ -149,4 +140,14 @@ constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) 
 #undef __builtin_ia32_vpermi2varq512
 #endif
 
+// TODO
+#define sortingnetwork_permute_minmax2_avx512(NEW_MULT, REG, MIN_FKT, MAX_FKT )			\
+static inline void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept { \
+  	const REG swap = (REG) (__m256) _mm512_permute_pd((__v8sf)b, (__v8sf)b ); \
+  	REG perm_neigh = (REG) (__m256) __builtin_ia32_vpermilps256 ((__v8sf)swap, _MM_SHUFFLE(0, 1, 2, 3)); 	\
+	REG perm_neigh_min = MIN_FKT(a, perm_neigh);									\
+	b = MAX_FKT(a, perm_neigh);														\
+	a = perm_neigh_min;																\
+}
+// sortingnetwork_permute_minmax2_avx512(f64x16, __m512, _mm512_min_pd, _mm512_max_pd);
 #endif

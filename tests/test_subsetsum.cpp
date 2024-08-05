@@ -7,6 +7,7 @@
 #include "helper.h"
 #include "matrix/matrix.h"
 #include "tree.h"
+#include "algorithm/random_index.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -17,19 +18,23 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 // max n = 15
-constexpr uint32_t n    = 15;
-constexpr uint32_t q    = 1u << n;
+constexpr uint32_t n    = 16ul;
+constexpr uint32_t q    = (1ul << n);
 
-using T 			= uint8_t;
-using Matrix 		= FqMatrix<T, 1, n, q>;
-using Value     	= kAryContainer_T<T, n, 2>;
+using T 			= uint64_t;
+//using Value     	= kAryContainer_T<T, n, 2>;
+using Value     	= BinaryContainer<n>;
 using Label    		= kAry_Type_T<q>;
+using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;
 using List			= List_T<Element>;
 using Tree			= Tree_T<List>;
 
 // unused ignore
 static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
+
+
+
 
 TEST(SubSetSum, Simple) {
 	// even it says matrix. It is a simple row vector
@@ -102,6 +107,7 @@ TEST(SubSetSum, JoinRandomListsLevel0) {
 	EXPECT_EQ(t[2].load(), num);
 }
 
+// NOTE: takes very long
 TEST(TreeTest, JoinRandomListsLevel1) {
 	Matrix A;
 	A.random();
@@ -282,6 +288,35 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 
 	EXPECT_NE(0, num);
 	EXPECT_EQ(t[5].load(), num);
+}
+
+TEST(TreeTest, dissection) {
+	Label::info();
+	Matrix::info();
+
+	Matrix AT; AT.random();
+	std::cout << AT;
+
+	List out{1<<n};
+	Label target; target.zero();
+	std::vector<uint32_t> weights(n/2);
+	generate_random_indices(weights, n);
+	for (uint32_t i = 0; i < n/2; ++i) {
+		Label::add(target, target, AT[0][weights[i]]);
+	}
+
+	Tree::dissection4(out, target, AT);
+
+	EXPECT_GE(out.load(), 1);
+	for (size_t i = 0; i < out.load(); ++i) {
+		target.print_binary();
+		out[i].label.print_binary();
+		std::cout << target << ":" << out[i].label << std::endl;
+		Label tmp;
+		AT.mul(tmp, out[i].value);
+
+		EXPECT_EQ(target.is_equal(tmp), true);
+	}
 }
 
 int main(int argc, char **argv) {

@@ -22,6 +22,7 @@ HM2 *hm2;
 
 
 B63_BENCHMARK(Simple, nn) {
+	(void) b63run;
 	uint64_t ret = 0;
 
 	for (uint64_t s = 0; s < nn; ++s) {
@@ -43,6 +44,7 @@ B63_BENCHMARK(Simple, nn) {
 
 
 B63_BASELINE(Simple2, nn) {
+	(void) b63run;
 	uint64_t ret = 0;
 
 	for (uint64_t s = 0; s < nn; ++s) {

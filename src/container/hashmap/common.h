@@ -1,7 +1,9 @@
 #ifndef CRYPTANALYSISLIB_HASHMAP_COMMON_H
 #define CRYPTANALYSISLIB_HASHMAP_COMMON_H
 
-#if __cplusplus > 201709L
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
 
 #include <cstdint>
 template<typename HashMap>
@@ -39,6 +41,5 @@ concept HashMapAble = requires(HashMap hm) {
 		hm.find(k, ll);
 	};
 };
-#endif
 
 #endif//CRYPTANALYSISLIB_HASHMAP_COMMON_H

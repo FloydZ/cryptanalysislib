@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_LOCK_FREE_HOPSCOTCH_H
 #define CRYPTANALYSISLIB_LOCK_FREE_HOPSCOTCH_H
 
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
+
 template <class Allocator,
          template <class> class Reclaimer,
          class K,

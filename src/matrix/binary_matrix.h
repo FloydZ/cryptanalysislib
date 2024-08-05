@@ -26,16 +26,18 @@ using namespace cryptanalysislib;
 /// \tparam T MUST be uint64_t
 /// \tparam nrows number of rows
 /// \tparam ncols number of columns
-template<typename T, const uint32_t __nrows, const uint32_t __ncols>
-class FqMatrix<T, __nrows, __ncols, 2, true> : private FqMatrix_Meta<T, __nrows, __ncols, 2, true> {
+template<typename T,
+         const uint32_t __nrows,
+         const uint32_t __ncols>
+class FqMatrix<T, __nrows, __ncols, 2, true, void> : private FqMatrix_Meta<T, __nrows, __ncols, 2, true, void> {
 public:
 	using RowT = BinaryContainer<__ncols, T>;
 	using MatrixType = FqMatrix<T, __nrows, __ncols, 2, true>;
 
 	constexpr static uint32_t RADIX = sizeof(T) * 8u;
 	constexpr static uint32_t MAX_K = 8ul;
-	constexpr static T one = T(1ul);
-	constexpr static T ffff = T(-1ul);
+	constexpr static T one = T(1ull);
+	constexpr static T ffff = T(-1ull);
 
 	constexpr static uint32_t ncols = __ncols;
 	constexpr static uint32_t nrows = __nrows;
@@ -186,6 +188,7 @@ public:
 
 public:
 	std::array<T, block_words> __data;
+
 	/// that's only because I'm lazy
 	static constexpr uint32_t q = 2;
 	static constexpr bool packed = true;
@@ -486,8 +489,8 @@ public:
 
 		LOOP_UNROLL()
 		for (; l + CTR <= padded_limbs; l += CTR) {
-			const uint8x32_t x_avx = uint8x32_t::load(M.row(j) + l);
-			const uint8x32_t y_avx = uint8x32_t::load(M.row(i) + l);
+			const uint8x32_t x_avx = uint8x32_t::load((uint8_t *)(M.row(j) + l));
+			const uint8x32_t y_avx = uint8x32_t::load((uint8_t *)(M.row(i) + l));
 			const uint8x32_t z_avx = x_avx ^ y_avx;
 			uint8x32_t::store(M.row(+i) + l, z_avx);
 		}
@@ -902,8 +905,8 @@ public:
 
 		LOOP_UNROLL()
 		for (; l + CTR <= padded_limbs; l += CTR) {
-			const uint8x32_t x_avx = uint8x32_t::load(out + i * padded_limbs + l);
-			const uint8x32_t y_avx = uint8x32_t::load(out + j * padded_limbs + l);
+			const uint8x32_t x_avx = uint8x32_t::load((uint8_t *)(out + i * padded_limbs + l));
+			const uint8x32_t y_avx = uint8x32_t::load((uint8_t *)(out + j * padded_limbs + l));
 			uint8x32_t::store(out + i * padded_limbs + l, y_avx);
 			uint8x32_t::store(out + j * padded_limbs + l, x_avx);
 		}
@@ -2508,6 +2511,26 @@ public:
 	constexpr inline T limb(const uint32_t row,
 							const uint32_t limb) const noexcept {
 		return __data[row *padded_limbs + limb];
+	}
+
+	/// these two functions exist, as there are maybe matrix implementations
+	/// you want to wrap, which are not constant sized
+	[[nodiscard]] constexpr inline uint32_t rows() noexcept { return ROWS; }
+	[[nodiscard]] constexpr inline uint32_t cols() noexcept { return COLS; }
+
+	constexpr static void info() {
+		std::cout << " { name: \"BinaryMatrix<" << typeid(T).name() << ", " << __nrows << ", " << __ncols << ">\""
+		          << ", RADIX: " << RADIX
+				  << ", alignment: " << alignment
+				  << ", fraction: " << fraction
+				  << ", padded_limbs: " << padded_limbs
+				  << ", padded_simd_limbs: " << padded_simd_limbs
+				  << ", padded_bytes: " << padded_limbs
+				  << ", padded_columns: " << padded_columns
+				  << ", padded_ncols: " << padded_ncols
+				  << ", high_bitmask: " << high_bitmask
+				  << ", block_worcs: " << block_words
+		          << " }" << std::endl;
 	}
 };
 

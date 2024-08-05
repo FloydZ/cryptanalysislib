@@ -15,7 +15,7 @@
 #include "math/bc.h"
 
 /// This class enumerates vectors of length n and weight w, whereas each
-/// nonzero position is enumerated from 1,...,q-1
+/// nonzero position is enumerated in binary:w
 /// \tparam ListType
 /// \tparam n vector length
 /// \tparam w weight
@@ -98,6 +98,7 @@ public:
 	bool run(ListType *L1 = nullptr,
 	         ListType *L2 = nullptr,
 	         const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
 	         Extractor *e = nullptr,
@@ -124,7 +125,7 @@ public:
 		}
 
 		/// compute the first element
-		for (uint32_t i = 0; i < w; ++i) {
+		for (uint32_t i = base_offset; i < (base_offset + w); ++i) {
 			/// NOTE we need to compute always this element, even if we
 			/// do not save it in a list. Because otherwise we could not
 			/// only use the predicate in this function.
@@ -137,18 +138,22 @@ public:
 			}
 		}
 
-		auto chase_step = [this](Element &element,
+		auto chase_step = [this, base_offset](Element &element,
 		                         const uint32_t a,
 		                         const uint32_t b,
 		                         const uint32_t off) {
+			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off]);
+			ASSERT(element.value[a + off2]);
 
-			Label::add(element.label, element.label, HT.get(a + off));
-			Label::add(element.label, element.label, HT.get(b + off));
-			element.value.set(0, off + a);
-			element.value.set(1, off + b);
+			std::cout << element;
+
+			Label::add(element.label, element.label, HT.get(a + off2));
+			Label::add(element.label, element.label, HT.get(b + off2));
+			element.value.set(0, off2 + a);
+			element.value.set(1, off2 + b);
+			std::cout << element;
 		};
 
 		/// iterate over all sequences
@@ -156,9 +161,7 @@ public:
 			check(element1.label, element1.value);
 			if (sL2) check(element2.label, element2.value, false);
 
-			if constexpr (sP) {
-				if (std::invoke(*p, element1.label)) { return true; }
-			}
+			if constexpr (sP) { if (std::invoke(*p, element1.label)) { return true; } }
 			if constexpr (sHM) { insert_hashmap(hm, e, element1, ctr, tid); }
 			if (sL1) insert_list(L1, element1, ctr, tid);
 			if (sL2) insert_list(L2, element2, ctr, tid);

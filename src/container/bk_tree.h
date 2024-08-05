@@ -25,6 +25,16 @@ class BKTree {
 	using node_type = BKTreeNode<T>;
 	node_type root = node_type(T());
 
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"BKTree\""
+				  << " }" <<std::endl;
+	}
+
+	///
+	/// \param a
+	/// \param b
+	/// \return
 	constexpr static uint32_t d(const T &a, const T &b) {
 		return T::dist(a, b);
 	}

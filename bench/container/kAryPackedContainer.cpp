@@ -25,7 +25,7 @@ B63_BASELINE(add, nn) {
 
 
 B63_BENCHMARK(add_mod3_limb, nn) {
-	uint64_t a, b, c;
+	uint64_t a=1, b=1, c=1;
 	B63_SUSPEND {
 		a = fastrandombytes_uint64();
 		b = fastrandombytes_uint64();
@@ -41,7 +41,7 @@ B63_BENCHMARK(add_mod3_limb, nn) {
 }
 
 B63_BENCHMARK(add_mod3_limb128, nn) {
-	__uint128_t a, b, c;
+	__uint128_t a=1, b=1, c=1;
 	B63_SUSPEND {
 		a = fastrandombytes_uint64();
 		b = fastrandombytes_uint64();
@@ -57,7 +57,9 @@ B63_BENCHMARK(add_mod3_limb128, nn) {
 }
 
 B63_BENCHMARK(add_mod3_limb256, nn) {
-	uint64x4_t a, b, c;
+	uint64x4_t a = uint64x4_t::set1(1), 
+			   b = uint64x4_t::set1(1), 
+			   c = uint64x4_t::set1(1);
 	B63_SUSPEND {
 		a = uint64x4_t::random();
 		b = uint64x4_t::random();
@@ -73,7 +75,9 @@ B63_BENCHMARK(add_mod3_limb256, nn) {
 }
 
 B63_BENCHMARK(add_mod3_limb256_nooverflow, nn) {
-	uint64x4_t a, b, c;
+	uint64x4_t a = uint64x4_t::set1(1), 
+			   b = uint64x4_t::set1(1), 
+			   c = uint64x4_t::set1(1);
 	B63_SUSPEND {
 		a = uint64x4_t::random();
 		b = uint64x4_t::random();
@@ -89,10 +93,10 @@ B63_BENCHMARK(add_mod3_limb256_nooverflow, nn) {
 }
 
 B63_BENCHMARK(sub_mod3_limb, nn) {
-	uint64_t a, b, c;
+	uint64_t a=1, b=1, c=1;
 	B63_SUSPEND {
-		a = fastrandombytes_uint64();
-		b = fastrandombytes_uint64();
+		a = fastrandombytes_uint64() % 32;
+		b = fastrandombytes_uint64() % 32;
 	}
 
 	for (uint32_t i = 0; i < ctr * nn; i++) {
@@ -105,7 +109,7 @@ B63_BENCHMARK(sub_mod3_limb, nn) {
 }
 
 B63_BENCHMARK(sub_mod3_limb128, nn) {
-	__uint128_t a, b, c;
+	__uint128_t a=1ull, b=1ull, c=1ull;
 	B63_SUSPEND {
 		a = fastrandombytes_uint64();
 		b = fastrandombytes_uint64();
@@ -121,7 +125,9 @@ B63_BENCHMARK(sub_mod3_limb128, nn) {
 }
 
 B63_BENCHMARK(sub_mod3_limb256, nn) {
-	uint64x4_t a, b, c;
+	uint64x4_t a = uint64x4_t::set1(1), 
+			   b = uint64x4_t::set1(1), 
+			   c = uint64x4_t::set1(1);
 	B63_SUSPEND {
 		a = uint64x4_t::random();
 		b = uint64x4_t::random();
@@ -138,7 +144,7 @@ B63_BENCHMARK(sub_mod3_limb256, nn) {
 
 
 B63_BENCHMARK(hammingweight_mod3_limb, nn) {
-	uint64_t a, weight = fastrandombytes_uint64();
+	uint64_t a = 1, weight = fastrandombytes_uint64();
 
 	for (uint32_t i = 0; i < ctr * nn; i++) {
 		B63_SUSPEND {
@@ -151,7 +157,7 @@ B63_BENCHMARK(hammingweight_mod3_limb, nn) {
 }
 
 B63_BENCHMARK(hammingweight_mod3_limb128, nn) {
-	__uint128_t a;
+	__uint128_t a = 1ull;
 	uint64_t weight = fastrandombytes_uint64();
 	B63_SUSPEND {
 		a = fastrandombytes_uint64();
@@ -165,7 +171,7 @@ B63_BENCHMARK(hammingweight_mod3_limb128, nn) {
 
 #ifdef USE_AVX2
 B63_BENCHMARK(hammingweight_mod3_limb256, nn) {
-	uint64x4_t a;
+	uint64x4_t a = uint64x4_t::set1(1);
 	uint64_t weight = 0;
 
 	B63_SUSPEND {

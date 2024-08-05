@@ -1,5 +1,3 @@
-#include <cstdint>
-#include <cstdio>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -15,34 +13,138 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+#define S uint8x32_t
+#define T uint8x32_t
+#include "test_simd.h"
+#undef S
+#undef T
+#define S uint16x16_t
+#define T uint16x16_t
+#include "test_simd.h"
+#undef S
+#undef T
+#define S uint32x8_t
+#define T uint32x8_t
+#include "test_simd.h"
+#undef S
+#undef T
+#define S uint64x4_t
+#define T uint64x4_t
+#include "test_simd.h"
+#undef S
+#undef T
 
-TEST(TTuint8x32_t, TTrandom) {
-	uint8x32_t t1 = uint8x32_t::random();
+#ifdef USE_AVX512F
+#define S uint8x64_t
+#define T uint8x64_t
+#include "test_simd.h"
+#undef S
+#undef T
+#define S uint16x32_t
+#define T uint16x32_t
+#include "test_simd.h"
+#undef S
+#undef T
+#define S uint32x16_t
+#define T uint32x16_t
+#include "test_simd.h"
+#undef S
+#undef T
+#define S uint64x8_t
+#define T uint64x8_t
+#include "test_simd.h"
+#undef S
+#undef T
+#endif
 
-	uint32_t atleast_one_not_zero = false;
-	for (uint32_t i = 0; i < 32; ++i) {
-		if (t1.v8[i] > 0) {
-			atleast_one_not_zero = true;
-			//	break;
-		}
-	}
+// generic stuff
+#define S TxN_t<uint8_t, 128>
+#define T TxN_tuint8_128
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint8_t, 100>
+#define T TxN_tuint8_100
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint8_t, 31>
+#define T TxN_tuint8_31
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint8_t, 1>
+#define T TxN_tuint8_1
+#include "test_simd.h"
+#undef S
+#undef T
 
-	ASSERT_EQ(atleast_one_not_zero, true);
-}
+#define S TxN_t<uint16_t, 128>
+#define T TxN_tuint16_128
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint16_t, 100>
+#define T TxN_tuint16_100
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint16_t, 31>
+#define T TxN_tuint16_31
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint16_t, 1>
+#define T TxN_tuint16_1
+#include "test_simd.h"
+#undef S
+#undef T
 
-TEST(uint8x32_t, set1) {
-	uint8x32_t t1 = uint8x32_t::set1(0);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t1.v8[i], 0);
-	}
 
-	uint8x32_t t2 = uint8x32_t::set1(1);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t2.v8[i], 1);
-	}
-}
+#define S TxN_t<uint32_t, 128>
+#define T TxN_tuint32_128
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint32_t, 100>
+#define T TxN_tuint32_100
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint32_t, 31>
+#define T TxN_tuint32_31
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint32_t, 1>
+#define T TxN_tuint32_1
+#include "test_simd.h"
+#undef S
+#undef T
 
-TEST(uint8x32_t, set) {
+
+#define S TxN_t<uint64_t, 128>
+#define T TxN_tuint64_128
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint64_t, 100>
+#define T TxN_tuint64_100
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint64_t, 31>
+#define T TxN_tuint64_31
+#include "test_simd.h"
+#undef S
+#undef T
+#define S TxN_t<uint64_t, 1>
+#define T TxN_tuint64_1
+#include "test_simd.h"
+#undef S
+#undef T
+
+TEST(uint32x8_t, set) {
 	uint32_t pos = 21;
 	uint8x32_t t1 = uint8x32_t::set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	for (uint32_t i = 0; i < 32; ++i) {
@@ -63,99 +165,6 @@ TEST(uint8x32_t, set) {
 	}
 }
 
-TEST(uint8x32_t, unalinged_load) {
-	uint8_t data[32] = {0};
-
-	uint8x32_t t1 = uint8x32_t::unaligned_load(data);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t1.v8[i], 0u);
-	}
-}
-
-TEST(uint8x32_t, alinged_load) {
-	alignas(256) uint8_t data[32] = {0};
-	uint8x32_t t1 = uint8x32_t::aligned_load(data);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t1.v8[i], 0u);
-	}
-}
-
-TEST(uint8x32_t, unalinged_store) {
-	uint8x32_t t1 = uint8x32_t::random();
-	uint8_t data[32] = {0};
-
-	uint8x32_t::unaligned_store(data, t1);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t1.v8[i], data[i]);
-	}
-}
-
-TEST(uint8x32_t, alinged_store) {
-	uint8x32_t t1 = uint8x32_t::random();
-	alignas(256) uint8_t data[32] = {0};
-
-	uint8x32_t::aligned_store(data, t1);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t1.v8[i], data[i]);
-	}
-}
-
-TEST(uint8x32_t, logic) {
-	const uint8x32_t t1 = uint8x32_t::set1(0);
-	const uint8x32_t t2 = uint8x32_t::set1(1);
-	uint8x32_t t3 = uint8x32_t::set1(2);
-
-	t3 = t1 + t2;
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 1);
-	}
-
-	t3 = t2 - t1;
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 1);
-	}
-
-	t3 = t2 - t2;
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 0);
-	}
-
-	t3 = t1 ^ t2;
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 1);
-	}
-
-	t3 = t1 | t2;
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 1);
-	}
-
-	t3 = t1 & t2;
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 0);
-	}
-
-	t3 = ~t1;
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], uint8_t(-1u));
-	}
-
-	t3 = uint8x32_t::mullo(t1, t2);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 0);
-	}
-
-	t3 = uint8x32_t::slli(t1, 1);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 0);
-	}
-
-	t3 = uint8x32_t::slli(t2, 1);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(t3.v8[i], 2);
-	}
-}
-
 TEST(uint8x32_t, slri) {
 	for (uint8_t j = 0; j < 8; j++) {
 		const uint8x32_t t1 = uint8x32_t::set1(1u << j);
@@ -173,12 +182,6 @@ TEST(uint8x32_t, slri) {
 	}
 }
 
-TEST(uint8x32_t, all_equal) {
-	for (uint8_t j = 0; j < 255; j++) {
-		const uint8x32_t t1 = uint8x32_t::set1(j);
-		EXPECT_EQ(true, uint8x32_t::all_equal(t1));
-	}
-}
 
 #ifdef USE_AVX2
 TEST(avx, prefixsum) {
@@ -204,17 +207,6 @@ TEST(avx, prefixsum) {
 	free(d1); free(d2);
 }
 #endif
-
-TEST(uint8x32_t, reverse8) {
-	uint8_t d[32];
-	for (uint32_t i = 0; i < 32; ++i) { d[i] = i; }
-
-	const uint8x32_t t1 = uint8x32_t::template load<false>(d);
-	const uint8x32_t t2 = uint8x32_t::reverse8(t1);
-	for (uint32_t i = 0; i < 32; ++i) {
-		EXPECT_EQ(d[32 - i -1], t2.v8[i]);
-	}
-}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

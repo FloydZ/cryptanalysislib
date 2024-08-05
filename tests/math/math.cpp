@@ -51,6 +51,16 @@ TEST(ipow, simple) {
 	EXPECT_EQ(cryptanalysislib::math::ipow(2., 2), 4);
 }
 
+TEST(mod, simple) {
+	constexpr uint32_t mod = 718293;
+	for (uint32_t i = 0; i < 1u<<14; ++i) {
+		const uint32_t a = fastrandombytes_uint64();
+		const uint32_t b = fastrandombytes_uint64();
+		const uint32_t c = fastmod<mod>(a+b);
+		EXPECT_EQ(c, (a+b)%mod);
+	}
+}
+
 TEST(low, simple) {
 	EXPECT_DOUBLE_EQ(cryptanalysislib::math::log(cryptanalysislib::math::internal::e()), 1);
 	EXPECT_DOUBLE_EQ(cryptanalysislib::math::log2(2.), 1);

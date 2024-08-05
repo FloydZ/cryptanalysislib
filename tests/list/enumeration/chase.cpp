@@ -38,6 +38,14 @@ TEST(Chase, enumerate2) {
 	cf.enumerate(print_change);
 }
 
+
+TEST(Chase, enumerate_kek) {
+	d = 1;
+	auto cf = chase_full<10, 1>{};
+	std::cout << d << std::endl;
+	cf.enumerate_v2(print_change);
+}
+
 int main(int argc, char **argv) {
 	random_seed(time(NULL));
 	InitGoogleTest(&argc, argv);

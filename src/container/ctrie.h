@@ -17,7 +17,7 @@
 #include "helper.h"
 #include "math/math.h"
 #include "atomic_primitives.h"
-#include "hashmap/growth_policy.h"
+#include "container/hashmap.h"
 #include "alloc/cache.h"
 
 
@@ -627,6 +627,11 @@ class CacheTrie {
 		if (!CAS_A_COUNT(array, (uintptr_t)&count, newCount)) decrementCount(array_);
 	}
 public:
+
+	constexpr void info() noexcept {
+		std::cout << " { name: \"CTrie\""
+				  << " }" <<std::endl;
+	}
 
 	constexpr CacheTrie() noexcept {
 		// this is hideous: we need to mark the root node as an A node

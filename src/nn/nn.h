@@ -1563,7 +1563,7 @@ public:
 		run(e1, e2);
 	}
 
-	///////////////////////////// SIMD \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	/* ///////////////////////////// SIMD \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ */
 
 
 	/// \tparam exact if set to true: a simple equality check is done
@@ -1575,7 +1575,7 @@ public:
 	/// 		 bit7 = in1.v32[7] == in2.v32[7]]
 	template<const bool exact = false>
 	[[nodiscard]] constexpr int compare_256_32(const uint32x8_t in1,
-	                             const uint32x8_t in2) const noexcept {
+	                             			   const uint32x8_t in2) const noexcept {
 		if constexpr (exact) {
 			return uint32x8_t::cmp(in1, in2);
 		}
@@ -1748,7 +1748,7 @@ public:
 			auto *ptr_r = (uint64x4_t *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; ++j, ptr_r += 1) {
-				const uint64x4_t ri = uint64x4_t::load(ptr_r);
+				const uint64x4_t ri = uint64x4_t::load((uint64_t *)ptr_r);
 				const int m = compare_256_64(li, ri);
 
 				if (m) {
@@ -1786,7 +1786,7 @@ public:
 
 		for (size_t i = s1; i < e1; i += u) {
 
-#pragma unroll
+			#pragma unroll
 			for (uint32_t j = 0; j < u; ++j) {
 				lii[j] = uint64x4_t::set1(L1[i + j][0]);
 			}
@@ -1796,16 +1796,16 @@ public:
 
 			for (size_t j = s2; j < s2 + (e2 + 3) / 4; j += v, ptr_r += v) {
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
-					rii[s] = uint64x4_t::load(ptr_r + s);
+					rii[s] = uint64x4_t::load((uint64_t *)(ptr_r + s));
 				}
 
-#pragma unroll
+				#pragma unroll
 				for (uint32_t a1 = 0; a1 < u; ++a1) {
 					const uint64x4_t tmp1 = lii[a1];
 
-#pragma unroll
+					#pragma unroll
 					for (uint32_t a2 = 0; a2 < v; ++a2) {
 						const uint64x4_t tmp2 = rii[a2];
 						const int m = compare_256_64(tmp1, tmp2);
@@ -1858,7 +1858,7 @@ public:
 
 			#pragma unroll
 			for (uint32_t s = 0; s < u; ++s) {
-				lii[s] = uint64x4_t::load(ptr_l + s);
+				lii[s] = uint64x4_t::load((uint64_t *)(ptr_l + s));
 			}
 
 			/// NOTE: only possible because L2 is a continuous memory block
@@ -1868,7 +1868,7 @@ public:
 
 				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
-					rii[s] = uint64x4_t::load(ptr_r + s);
+					rii[s] = uint64x4_t::load((uint64_t *)(ptr_r + s));
 				}
 
 				#pragma unroll
@@ -2819,14 +2819,14 @@ public:
 		auto *ptr_l = (uint64x4_t *) L1;
 
 		for (size_t i = s1; i < e1; ++i, ptr_l += 1) {
-			const uint64x4_t li1 = uint64x4_t::load(ptr_l);
+			const uint64x4_t li1 = uint64x4_t::load((uint64_t *)ptr_l);
 
 			/// NOTE: only possible because L2 is a continuous memory block
 			/// NOTE: reset every loop
 			auto *ptr_r = (uint64x4_t *) L2;
 
 			for (size_t j = s2; j < s2 + e2; ++j, ptr_r += 1) {
-				const uint64x4_t ri = uint64x4_t::load(ptr_r);
+				const uint64x4_t ri = uint64x4_t::load((uint64_t *)ptr_r);
 				const uint64x4_t tmp1 = li1 ^ ri;
 				if (zero == tmp1) {
 					found_solution(i, j);

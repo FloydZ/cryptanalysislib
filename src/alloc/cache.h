@@ -2,7 +2,7 @@
 #define CRYPTANALYSISLIB_CACHE_H
 
 #include "helper.h"
-#include "container/linkedlist/const_linkedlist.h"
+#include "container/linkedlist.h"
 #include "popcount/popcount.h"
 
 template<class T>
@@ -60,11 +60,12 @@ class CacheAllocator {
 
 		Node() noexcept {
 			free.store(-1);
-			memset(data, 0, sizeof(T) * bits);
+			memset((void *)data, 0, sizeof(T) * bits);
 		}
 
 		Node(const Node &t) noexcept {
 			this->free.store(t.free.load());
+			// TODO this looks wrong
 			memcpy(data, data, sizeof(T) *bits);
 		}
 

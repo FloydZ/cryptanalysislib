@@ -1,6 +1,10 @@
 #ifndef CRYTPANALYSISLIB_HASHMAP_AVX2_H
 #define CRYTPANALYSISLIB_HASHMAP_AVX2_H
 
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
+
 #include <array>
 #include <cstdint>
 #include <immintrin.h>

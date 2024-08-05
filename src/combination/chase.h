@@ -8,12 +8,14 @@
 #include "helper.h"
 #include "math/bc.h"
 
+#if __cplusplus > 201709L
 /// functions/fields an enumerator must implement
 /// \tparam Enumerator
 template<typename Enumerator>
 concept EnumeratorAble = requires(Enumerator e) {
 	e.step();
 };
+#endif 
 
 /// \return  number of elements in the gray code
 template<const uint32_t w, const uint32_t q>

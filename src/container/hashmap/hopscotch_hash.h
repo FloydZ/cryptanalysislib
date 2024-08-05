@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_HOPSCOTCH_HASH_H
 #define CRYPTANALYSISLIB_HOPSCOTCH_HASH_H
 
+#if !defined(CRYPTANALYSISLIB_HASHMAP_H)
+#error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>

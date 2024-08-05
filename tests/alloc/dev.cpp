@@ -145,17 +145,26 @@ TEST(FreeListPageMallocator, Simple) {
 }
 
 TEST(STDAllocatorWrapper, simple) {
-	constexpr size_t size = 1u << 12;
-	constexpr size_t page_alignment = 1u << 10;
+	constexpr size_t size = 1u << 4u;
 
 	using T = uint64_t;
 	using Allocator = StackAllocator<size>;
 	using WrapperAllocator = STDAllocatorWrapper<T, Allocator>;
 	WrapperAllocator s;
 
-	T *ret = WrapperAllocator::allocate(s, size);
+	const T *ret = WrapperAllocator::allocate(s, size);
 	ASSERT_NE(ret, nullptr);
+
+	const T *ret1 = WrapperAllocator::allocate(s, size+1);
+	ASSERT_EQ(ret1, nullptr);
+
+	using CV = std::vector<T, WrapperAllocator>;
+	CV v = {0, 1, 2, 3};
+	for(uint32_t i = 0; i < 4; i++) {
+		ASSERT_EQ(v[i], i);
+	}
 }
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

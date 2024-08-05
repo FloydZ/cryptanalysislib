@@ -53,7 +53,7 @@ void generate_random_subset_sum(std::vector<T> &in,
 	}
 
    	for (size_t i = 0; i < in.size(); i++) {
-		in[i] = T::random();
+		in[i].random();
 	}
 
 	std::vector<uint32_t> weights(weight);
@@ -101,7 +101,7 @@ TEST(PCS, RhoFactorise) {
 TEST(PCS, RhoSubSetSum) {
 	/// Simple example of how to use the PollardRho class
 	/// to solve a subset sum problem.
-	/// As a function distinuisher we use the first bit a number
+	/// As a function distinguished we use the first bit of a number
 	constexpr static uint32_t n = 16;
 	constexpr static uint32_t p = 2999;
 	using T = kAry_Type_T<p>;
@@ -171,8 +171,8 @@ TEST(PCS, RhoSubSetSumTree) {
 	generate_random_subset_sum(A, target, n/2);
 
 	// enumerate weight n//4 on n//2 coordinates.
-	// NOTE: elements are randomly chosen, so no chase sequence or what so ever
-	using Enumerator = RandomEnumerator<List, n/2, n/4>;
+	// NOTE: elements are randomly chosen, so no chase sequence or whatsoever
+	using Enumerator = BinaryRandomEnumerator<List, n/2, n/4>;
 	Enumerator en{A};
 
 	constexpr static size_t size = 1ull << (n / 4u);

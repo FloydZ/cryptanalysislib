@@ -13,38 +13,69 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using T = uint8_t;
-constexpr size_t size = 1000;
+#define T uint8_t
+#define size 1000
+#define A Memory_uint8_1000
+#include "test.h"
+#undef T
+#undef size
+#undef A
 
+#define T uint16_t
+#define size 1000
+#define A Memory_uint16_1000
+#include "test.h"
+#undef T
+#undef size
+#undef A
 
-TEST(Memory, copy) {
-	T *a1 = (T *) calloc(size, sizeof(T));
-	T *a2 = (T *) malloc(size * sizeof(T));
-	for (size_t i = 0; i < size; ++i) {
-		a2[i] = i;
-	}
+#define T uint32_t
+#define size 1000
+#define A Memory_uint32_1000
+#include "test.h"
+#undef T
+#undef size
+#undef A
 
-	cryptanalysislib::memcpy(a2, a1, size);
-	for (size_t i = 0; i < size; ++i) {
-		EXPECT_EQ(a2[i], 0);
-	}
+#define T uint64_t
+#define size 1000
+#define A Memory_uint64_1000
+#include "test.h"
+#undef T
+#undef size
+#undef A
 
-	free(a1);
-	free(a2);
-}
+#define T uint8_t
+#define size 100
+#define A Memory_uint8_100
+#include "test.h"
+#undef T
+#undef size
+#undef A
 
-// TODO stacksmashing on a avx2 machine
-// TEST(Memory, set) {
-// 	T *a1 = (T *) calloc(size, sizeof(T));
-// 	T a = 1;
-//
-// 	cryptanalysislib::memset(a1, a, size);
-// 	for (size_t i = 0; i < size; ++i) {
-// 		EXPECT_EQ(a1[i], a);
-// 	}
-//
-// 	free(a1);
-// }
+#define T uint16_t
+#define size 100
+#define A Memory_uint16_100
+#include "test.h"
+#undef T
+#undef size
+#undef A
+
+#define T uint32_t
+#define size 100
+#define A Memory_uint32_100
+#include "test.h"
+#undef T
+#undef size
+#undef A
+
+#define T uint64_t
+#define size 100
+#define A Memory_uint64_100
+#include "test.h"
+#undef T
+#undef size
+#undef A
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

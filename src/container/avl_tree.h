@@ -34,6 +34,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include "reflection/reflection.h"
 
 template <typename E>
 class AvlTreeList final {
@@ -50,6 +51,9 @@ class AvlTreeList final {
 			root = new Node(*root);
 		}
 	}
+
+	//
+	using S = AvlTreeList<E>;
 
 	constexpr AvlTreeList(AvlTreeList &&other) noexcept :
 	    root(&Node::EMPTY_LEAF) {
@@ -99,11 +103,17 @@ class AvlTreeList final {
 		delete toDelete;
 	}
 
+	///
 	constexpr void clear() noexcept {
 		if (root != &Node::EMPTY_LEAF) {
 			delete root;
 			root = &Node::EMPTY_LEAF;
 		}
+	}
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"AvlTreeList\" }" << std::endl;
 	}
 
 	private: class Node final {
@@ -150,10 +160,13 @@ class AvlTreeList final {
 		                          size(other.size),
 		                          left(other.left),
 		                          right(other.right) {
-			if (left != &EMPTY_LEAF)
+			if (left != &EMPTY_LEAF) {
 				left = new Node(*left);
-			if (right != &EMPTY_LEAF)
+			}
+
+			if (right != &EMPTY_LEAF) {
 				right = new Node(*right);
+			}
 		}
 
 		constexpr ~Node() noexcept {
@@ -290,7 +303,6 @@ class AvlTreeList final {
 			size = left->size + right->size + 1;
 			ASSERT(height >= 0 && size >= 0);
 		}
-
 
 	private:
 		[[nodiscard]] constexpr int getBalance() const noexcept {
