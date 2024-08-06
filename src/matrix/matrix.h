@@ -1233,16 +1233,19 @@ public:
 #endif
 	constexpr void mul(LabelType &out,
 	                   const ValueType &in) const noexcept {
-		using DataType = typename LabelType::DataType;
+		// using DataType = typename LabelType::DataType;
 		constexpr uint32_t IN_COLS = ValueType::length();
 		constexpr uint32_t OUT_COLS = LabelType::length();
 		static_assert((IN_COLS == COLS)  || (IN_COLS == ROWS)) ;
 		static_assert((OUT_COLS == ROWS) || (OUT_COLS == COLS));
 
+		// TODO optimization if Value is binary
+		// todo more tests
+		// TODO simd
 		if constexpr ((OUT_COLS == COLS) && (IN_COLS == ROWS)) {
 			// transposed multiplication
 			for (uint32_t i = 0; i < OUT_COLS; ++i) {
-				DataType sum = 0;
+				uint64_t sum = 0;
 				for (uint32_t j = 0; j < IN_COLS; ++j) {
 					auto a = get(j, i);
 					auto b = in.get(j);
@@ -1259,7 +1262,7 @@ public:
 		if constexpr ((OUT_COLS && ROWS) && (IN_COLS == COLS)) {
 			// normal multiplication
 			for (uint32_t i = 0; i < nrows; ++i) {
-				DataType sum = 0;
+				uint64_t sum = 0;
 				for (uint32_t j = 0; j < ncols; ++j) {
 					auto a = get(i, j);
 					auto b = in.get(j);

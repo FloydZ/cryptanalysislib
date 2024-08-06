@@ -229,7 +229,8 @@ public:
 	/// \param i		pos
 	/// \param start
 	/// \return
-	size_t ith_value_left_zero_position(const size_t i, const size_t start = 0) const noexcept {
+	size_t ith_value_left_zero_position(const size_t i,
+	                                    const size_t start = 0) const noexcept {
 		uint64_t count = 0;
 		for (uint64_t j = 0; j < value_size(); ++j) {
 			if (get_value().data()[j] == 0)
@@ -246,7 +247,8 @@ public:
 	/// \param i
 	/// \param start
 	/// \return
-	size_t ith_value_right_zero_position(const size_t i, const size_t start = 0) const noexcept {
+	size_t ith_value_right_zero_position(const size_t i,
+	                                     const size_t start = 0) const noexcept {
 		uint64_t count = 0;
 		for (uint64_t j = value_size(); j > 0; --j) {
 			if (get_value().data()[j - 1] == 0)
@@ -262,7 +264,10 @@ public:
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
-	constexpr void recalculate_label(const MatrixType &m) noexcept {
+	constexpr inline void recalculate_label(const MatrixType &m,
+	                                        const uint32_t k_lower=0,
+	                                        const uint32_t k_upper=0) noexcept {
+		// TODO sub mul
 		m.mul(label, value);
 	}
 
@@ -270,17 +275,17 @@ public:
 	/// \param m
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
-	constexpr bool is_correct(const MatrixType &m,
+	[[nodiscard]] constexpr bool is_correct(const MatrixType &m,
 	                          const bool rewrite = false) noexcept {
 		Label tmp;
 		m.mul(tmp, value);
 
-		bool ret = tmp.is_equal(label, 0, label_size());
+		bool ret = tmp.is_equal(label);
 #ifdef DEBUG
 		if (!ret) {
 			std::cout << "IS|SHOULD\n";
-			std::cout << label;
-			std::cout << tmp;
+			std::cout << label << std::endl;
+			std::cout << tmp << std::endl;
 		}
 #endif
 		if (rewrite) {
@@ -312,6 +317,16 @@ public:
 		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
 	}
 
+	constexpr static bool sub(Element_T &e3,
+							  Element_T const &e1,
+							  Element_T const &e2,
+							  const uint32_t k_lower,
+							  const uint32_t k_upper,
+							  const uint32_t norm = -1) noexcept {
+		Label::sub(e3.label, e1.label, e2.label, k_lower, k_upper);
+		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
+	}
+
 	///  Useful if you do not want to filter in your tree and want additional performance.
 	constexpr static void add(Element_T &e3,
 	                          Element_T const &e1,
@@ -333,7 +348,7 @@ public:
 	/// \param k_lower  lower coordinate
 	/// \param k_upper  higher coordinate
 	/// \return true/false
-	constexpr inline bool is_equal(const Element_T &obj,
+	[[nodiscard]] constexpr inline bool is_equal(const Element_T &obj,
 	                               const uint32_t k_lower = 0,
 	                               const uint32_t k_upper = LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
@@ -349,7 +364,7 @@ public:
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
-	constexpr inline bool is_lower(const Element_T &obj,
+	[[nodiscard]] constexpr inline bool is_lower(const Element_T &obj,
 	                               const uint32_t k_lower = 0,
 	                               const uint32_t k_upper = LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_lower(...)'
@@ -358,20 +373,20 @@ public:
 
 	/// \return true/false
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline bool is_equal(const Element_T &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool is_equal(const Element_T &obj) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
 		return label.template is_equal<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label > obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline bool is_greater(const Element_T &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool is_greater(const Element_T &obj) const noexcept {
 		return label.template is_greater<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline bool is_lower(const Element_T &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool is_lower(const Element_T &obj) const noexcept {
 		return label.template is_lower<k_lower, k_upper>(obj.label);
 	}
 
@@ -405,7 +420,7 @@ public:
 	/// see https://en.cppreference.com/w/cpp/language/move_assignment
 	/// \param obj
 	/// \return
-	Element_T &operator=(Element_T &&obj) noexcept {
+	[[nodiscard]] Element_T &operator=(Element_T &&obj) noexcept {
 		if (this != &obj) {// self-assignment check expected really?
 			value = std::move(obj.value);
 			label = std::move(obj.label);
@@ -416,42 +431,42 @@ public:
 
 	/// \param obj
 	/// \return
-	inline bool operator!=(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator!=(Element_T const &obj) const noexcept {
 		return !label.is_equal(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator==(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator==(Element_T const &obj) const noexcept {
 		return label.is_equal(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator>(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator>(Element_T const &obj) const noexcept {
 		return label.is_greater(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator>=(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator>=(Element_T const &obj) const noexcept {
 		return !label.is_lower(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator<(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator<(Element_T const &obj) const noexcept {
 		return label.is_lower(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator<=(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator<=(Element_T const &obj) const noexcept {
 		return !label.is_greater(obj.label);
 	}
 

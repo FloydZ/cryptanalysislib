@@ -454,7 +454,6 @@ public:
 		/// some security checks
 		ASSERT(n + offset <= Value::length());
 		ASSERT(offset + base_offset <= Value::length());
-		const auto H = HT.transpose();
 		element1.zero(); element2.zero();
 
 		// check if the lists are enabled
@@ -466,12 +465,12 @@ public:
 		for (size_t ctr = 0; ctr < list_size; ++ctr) {
 			element1.value.ptr()[0] += 1ull << base_offset;
 
-			H.mul(element1.label, element1.value);
+			HT.mul(element1.label, element1.value);
 			if (syndrome != nullptr) { Label::add(element1.label, element1.label, *syndrome); }
 
 			if (sL2) {
 				element2.value.ptr()[0] += 1ull << (offset + base_offset);
-				H.mul(element2.label, element2.value);
+				HT.mul(element2.label, element2.value);
 			}
 
 			// stupid security checks

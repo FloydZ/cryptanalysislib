@@ -30,6 +30,8 @@ public:
 
 	// TODO expand the api to support 64 bit integers
 	constexpr static uint64_t M = computeM_u32(_q);
+	// max bytes of T for which `fastmod` is defined
+	constexpr static uint64_t M_limit = 0;
 
 	using T = TypeTemplate<q>;
 	using T2 = TypeTemplate<q*q>;
@@ -49,8 +51,9 @@ public:
 	// if true, all arith operations ar performed
 	// as arithmetic operations, regardless of the
 	// given bit boundaries.
-	constexpr static bool arith = false;
+	constexpr static bool arith = true;
 
+	static_assert(mirror + arith <= 1, "only one of the two params should be set to `true`");
 
 	// we are godd C++ devs
 	typedef T ContainerLimbType;
@@ -77,8 +80,8 @@ private:
 			const T mask = mask1 & mask2;
 			return mask;
 		} else {
-			const T mask1 = T(-1u) << lower;
-			const T mask2 = (1u << upper) - T(1u);
+			const T mask1 = T(-1ull) << lower;
+			const T mask2 = (1ull << upper) - T(1ull);
 			const T mask = mask1 & mask2;
 			return mask;
 		}
@@ -96,7 +99,7 @@ public:
 	/// basic construct
 	/// \param i a number of type T
 	constexpr kAry_Type_T(const T i) noexcept {
-		if constexpr (sizeof(T) <= 4) {
+		if constexpr (sizeof(T) <= M_limit) {
 			__value = fastmod_u32(i, M, q);
 		} else {
 			__value = i % q;
@@ -121,15 +124,25 @@ public:
 	///	sets this = (this * a) + b
 	/// \param a
 	/// \param b
-	constexpr void addmul(const T &a, const T &b) noexcept {
-		__value = T((T2(__value) + (T2(a) * T2(b))) % q);
+	constexpr void addmul(const T &a,
+	                      const T &b) noexcept {
+		if constexpr (sizeof(T) <= M_limit) {
+			__value = T(fastmod_u32(T2(__value) + (T2(a) * T2(b)), M, q));
+		} else {
+			__value = T((T2(__value) + (T2(a) * T2(b))) % q);
+		}
 	}
 
 	///	sets this = (this * a) + b
 	/// \param a
 	/// \param b
-	constexpr void addmul(kAry_Type_T const &a, kAry_Type_T const &b) noexcept {
-		__value = T((T2(__value) + T2(a.__value) * T2(b.__value)) % q);
+	constexpr void addmul(kAry_Type_T const &a,
+	                      kAry_Type_T const &b) noexcept {
+		if constexpr (sizeof(T) <= M_limit) {
+			__value = T(fastmod_u32(T2(__value) + (T2(a.__value) * T2(b.__value)), M, q));
+		} else {
+			__value = T((T2(__value) + T2(a.__value) * T2(b.__value)) % q);
+		}
 	}
 
 	///
@@ -161,7 +174,11 @@ public:
 	constexpr inline friend kAry_Type_T operator-(const kAry_Type_T obj1,
 												  const uint64_t obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value) - T2(obj2 % q) + q)) % q);
+		if constexpr (sizeof(T) <= M_limit) {
+			r.__value = T(fastmod_u32(T2(obj1.__value) - T2(fastmod_u32(obj2, M, q)), M, q));
+		} else {
+			r.__value = T((T2(T2(obj1.__value) + (T2(q)) - T2(obj2 % q))) % q);
+		}
 		return r;
 	}
 
@@ -172,7 +189,11 @@ public:
 	constexpr inline friend kAry_Type_T operator+(const kAry_Type_T obj1,
 												  const uint64_t obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value) + T2(obj2 % q))) % q);
+		if constexpr (sizeof(T) <= M_limit) {
+			r.__value = T(fastmod_u32(T2(obj1.__value) + T2(fastmod_u32(obj2, M, q)), M, q));
+		} else {
+			r.__value = T((T2(T2(obj1.__value) + T2(obj2 % q))) % q);
+		}
 		return r;
 	}
 
@@ -183,7 +204,12 @@ public:
 	constexpr inline friend kAry_Type_T operator*(const kAry_Type_T obj1,
 												  const uint64_t obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value) * T2(obj2 % q))) % q);
+
+		if constexpr (sizeof(T) <= M_limit) {
+			r.__value = T(fastmod_u32(T2(obj1.__value) * T2(fastmod_u32(obj2, M, q)), M, q));
+		} else {
+			r.__value = T((T2(T2(obj1.__value) * T2(obj2 % q))) % q);
+		}
 		return r;
 	}
 
@@ -194,7 +220,12 @@ public:
 	constexpr inline friend kAry_Type_T operator/(const kAry_Type_T obj1,
 	                                              const uint64_t obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value) / T2(obj2 % q))) % q);
+
+		if constexpr (sizeof(T) <= M_limit) {
+			r.__value = T(fastmod_u32(T2(obj1.__value) / T2(fastmod_u32(obj2, M, q)), M, q));
+		} else {
+			r.__value = T((T2(T2(obj1.__value) / T2(obj2 % q))) % q);
+		}
 		return r;
 	}
 
@@ -229,7 +260,12 @@ public:
 	constexpr inline friend kAry_Type_T operator/(const kAry_Type_T &obj1,
 												  const kAry_Type_T &obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value) / T2(obj2.__value))) % q);
+
+		if constexpr (sizeof(T) <= M_limit) {
+			r.__value = T(fastmod_u32(T2(obj1.__value) / T2(obj2.__value), M, q));
+		} else {
+			r.__value = T((T2(T2(obj1.__value) / T2(obj2.__value))) % q);
+		}
 		return r;
 	}
 
@@ -240,7 +276,11 @@ public:
 	constexpr inline friend kAry_Type_T operator*(const kAry_Type_T &obj1,
 	                                              const kAry_Type_T &obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value) * T2(obj2.__value))) % q);
+		if constexpr (sizeof(T) <= M_limit) {
+			r.__value = T(fastmod_u32(T2(obj1.__value) * T2(obj2.__value), M, q));
+		} else {
+			r.__value = T((T2(T2(obj1.__value) * T2(obj2.__value))) % q);
+		}
 		return r;
 	}
 
@@ -251,7 +291,11 @@ public:
 	constexpr inline friend kAry_Type_T operator+(const kAry_Type_T &obj1,
 	                                              const kAry_Type_T &obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value) + T2(obj2.__value))) % q);
+		if constexpr (sizeof(T) <= M_limit) {
+			r.__value = T(fastmod_u32(T2(obj1.__value) + T2(obj2.__value), M, q));
+		} else {
+			r.__value = T((T2(T2(obj1.__value) + T2(obj2.__value))) % q);
+		}
 		return r;
 	}
 
@@ -262,7 +306,12 @@ public:
 	constexpr inline friend kAry_Type_T operator-(kAry_Type_T obj1,
 	                                              kAry_Type_T const &obj2) noexcept {
 		kAry_Type_T r;
-		r.__value = T((T2(T2(obj1.__value) + T2(q) - T2(obj2.__value))) % T2(q));
+
+		if constexpr (sizeof(T) <= M_limit) {
+			r.__value = T(fastmod_u32(T2(obj1.__value) + T2(q) - T2(obj2.__value), M, q));
+		} else {
+			r.__value = T((T2(T2(obj1.__value) + T2(q) - T2(obj2.__value))) % T2(q));
+		}
 		return r;
 	}
 
@@ -286,8 +335,12 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator+=(unsigned int obj) noexcept {
-		__value = T(T2(T2(__value) + T2(obj)) % q);
+	constexpr inline kAry_Type_T &operator+=(const T obj) noexcept {
+		if constexpr (sizeof(T) <= M_limit) {
+			__value = T(fastmod_u32(T2(__value) + T2(fastmod_u32(obj, M, q)), M, q));
+		} else {
+			__value = T(T2(T2(__value) + T2(obj % q)) % q);
+		}
 		return *this;
 	}
 
@@ -295,7 +348,11 @@ public:
 	/// \param obj
 	/// \return
 	constexpr inline kAry_Type_T &operator+=(kAry_Type_T const &obj) noexcept {
-		__value = T(T2((T2) __value + (T2) obj.__value) % q);
+		if constexpr (sizeof(T) <= M_limit) {
+			__value = T(fastmod_u32(T2(__value) + T2(fastmod_u32(obj.__value, M, q)), M, q));
+		} else {
+			__value = T(T2((T2) __value + (T2) obj.__value) % q);
+		}
 		return *this;
 	}
 
@@ -303,7 +360,11 @@ public:
 	/// \param obj
 	/// \return
 	constexpr inline kAry_Type_T &operator-=(kAry_Type_T const &obj) noexcept {
-		__value = T(T2((T2) __value - (T2) obj.__value + q) % q);
+		if constexpr (sizeof(T) <= M_limit) {
+			__value = T(fastmod_u32(T2(__value) + T2(q) - T2(fastmod_u32(obj.__value, M, q)), M, q));
+		} else {
+			__value = T(T2(T2(__value) + (T2(q) - T2(obj.__value % q))) % q);
+		}
 		return *this;
 	}
 
@@ -432,9 +493,9 @@ public:
 
 	///
 	/// \param o
-	/// \param lower
-	/// \param upper
-	/// \return
+	/// \param lower inclusive
+	/// \param upper exclusive
+	/// \return this[lower, upper) == o[lower, upper)
 	static constexpr inline bool cmp(kAry_Type_T const &o1,
 	                                 kAry_Type_T const &o2,
 								   const uint32_t lower=0,
@@ -444,15 +505,16 @@ public:
 
 	/// only compares bits
 	/// \param o
-	/// \param lower
-	/// \param upper
-	/// \return
+	/// \param lower inclusive
+	/// \param upper exclusive
+	/// \return this[lower, upper) == o[lower, upper)
 	constexpr inline bool is_equal(kAry_Type_T const &o,
 								   const uint32_t lower=0,
 								   const uint32_t upper=bits()) const noexcept {
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
+		ASSERT(upper <= bits());
 
 		const T mask = compute_mask(lower, upper);
 		return (__value & mask) == (o.value() & mask);
@@ -460,15 +522,16 @@ public:
 
 	/// only compares bits
 	/// \param o
-	/// \param lower
-	/// \param upper
-	/// \return
+	/// \param lower inclusive
+	/// \param upper exclusive
+	/// \return this[lower, upper) > o[lower, upper)
 	constexpr inline bool is_greater(kAry_Type_T const &o,
 								     const uint32_t lower=0,
 								     const uint32_t upper=bits()) const noexcept {
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
+		ASSERT(upper <= bits());
 
 		const T mask = compute_mask(lower, upper);
 		return (__value & mask) > (o.value() & mask);
@@ -476,18 +539,21 @@ public:
 
 	/// only compares bits
 	/// \param o
-	/// \param lower
-	/// \param upper
-	/// \return
+	/// \param lower inclusive
+	/// \param upper exclusive
+	/// \return this[lower, upper) < o[lower, upper)
 	constexpr inline bool is_lower(kAry_Type_T const &o,
 	                               const uint32_t lower=0,
 	                               const uint32_t upper=bits()) const noexcept {
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
+		ASSERT(upper <= bits());
 
 		const T mask = compute_mask(lower, upper);
-		return (__value & mask) < (o.value() & mask);
+		const T t1 = __value & mask;
+		const T t2 = o.value() & mask;
+		return t1 < t2;
 	}
 
 	/// only checks if bits are zero
@@ -499,8 +565,10 @@ public:
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
+		ASSERT(upper <= bits());
+
 		const T mask = compute_mask(lower, upper);
-		return (__value & mask) == T(0);
+		return T(__value & mask) == T(0);
 	}
 
 	/// not really useful, if lower != 0 and upper != bits
@@ -518,8 +586,11 @@ public:
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
+		ASSERT(upper <= bits());
+
 		if constexpr (arith) {
-			out = in1 + in2;
+			const T mask = (1ull << upper) - 1ull;
+			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q) & mask);
 		} else {
 			const T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() ^ in2.value()) & mask;
@@ -538,8 +609,11 @@ public:
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
+		ASSERT(upper <= bits());
+
 		if constexpr (arith) {
-			out = in1 - in2;
+			const T mask = (1ull << upper) - 1ull;
+			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q) & mask;
 		} else {
 			const T mask = compute_mask(lower, upper);
 			// NOTE: ignores carry here
@@ -558,9 +632,15 @@ public:
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
 		ASSERT(lower < upper);
-		// const T mask = compute_mask(lower, upper);
-		// __value ^= mask;
-		__value = (q - __value) % q;
+		ASSERT(upper <= bits());
+
+		if constexpr (arith) {
+			const T mask = (1ull << upper) - 1ull;
+			__value = ((q - __value) % q) & mask;
+		} else {
+			const T mask = compute_mask(lower, upper);
+			__value ^= mask;
+		}
 	}
 
 	/// right rotate
@@ -574,17 +654,17 @@ public:
 	constexpr inline static void ror(kAry_Type_T &out,
 	                                 const kAry_Type_T &in1,
 									 const uint32_t i) noexcept {
-		out.__value = rol_T(in1.__value, i);
+		out.__value = ror_T(in1.__value, i);
 	}
 
-	/// left shift
+	/// left shift (binary)
 	constexpr inline static void sll(kAry_Type_T &out,
 	                                 const kAry_Type_T &in1,
 									 const uint32_t i) noexcept {
 		out.__value = in1.__value << i;
 	}
 
-	/// right shift
+	/// right shift (binary)
 	constexpr inline static void slr(kAry_Type_T &out,
 	                                 const kAry_Type_T &in1,
 									 const uint32_t i) noexcept {

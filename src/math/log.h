@@ -84,7 +84,7 @@ namespace cryptanalysislib::math {
 /// \param n input
 /// \return ceil(log2(x)), only useful if you need the number of bits needed
 __device__ __host__
-constexpr uint64_t bits_log2(uint64_t n) noexcept {
+[[nodiscard]] constexpr static inline uint64_t bits_log2(uint64_t n) noexcept {
 	return n <= 1 ? 0 : 1 + bits_log2((n + 1) / 2);
 }
 

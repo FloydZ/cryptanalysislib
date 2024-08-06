@@ -2,7 +2,7 @@
 #define SMALLSECRETLWE_ALGORITHM_PCS_H
 #include <cstddef>
 
-///
+/// TODO doc and move to algorithm
 /// \tparam Compare
 /// \tparam T
 template<class Compare,

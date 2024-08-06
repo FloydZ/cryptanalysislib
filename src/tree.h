@@ -706,25 +706,23 @@ public:
 	/// \param target
 	/// \param k_lower
 	/// \param k_upper
-	/// \param prepare if true: the input
-	/// \param sub currently unused
+	/// \param prepare if true: the target will be added/subtracte into the left input list L2.
 	static void join2lists(List &out, List &L1, List &L2,
 						   const LabelType &target,
 						   const uint32_t k_lower,
 						   const uint32_t k_upper,
-						   bool prepare = true,
-						   bool sub = false) noexcept {
+						   bool prepare = true) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
-		(void) sub;
+
+		constexpr bool sub = !LabelType::binary();
 
 		uint64_t i = 0, j = 0;
-
 		if ((!target.is_zero()) && (prepare)) {
 			for (size_t s = 0; s < L2.load(); ++s) {
-				if (sub) {
-					LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
-				} else {
+				if constexpr (sub) {
 					LabelType::add(L2[s].label, target, L2[s].label, k_lower, k_upper);
+				} else {
+					LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
 				}
 			}
 		}
@@ -738,16 +736,30 @@ public:
 			} else if (L1[i].is_greater(L2[j], k_lower, k_upper)) {
 				j++;
 			} else {
-				uint64_t i_max, j_max;
+				uint64_t i_max=i+1ull, j_max=j+1ull;
 				// if elements are equal find max index in each list, such that they remain equal
-				for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
-				for (j_max = j + 1; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower, k_upper); j_max++) {}
+				for (; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
+				for (; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower, k_upper); j_max++) {}
 
-				uint64_t jprev = j;
-
+				const uint64_t jprev = j;
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1);
+						out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1, sub);
+						std::cout << out[out.load() - 1];
+						std::cout << L1[i];
+						std::cout << L2[j];
+						std::cout << std::endl;
+#ifdef DEBUG
+						const uint64_t b = out.load() - 1;
+						if (!out[b].label.is_zero(k_lower, k_upper)) {
+							L1[i].print_binary();
+							L2[j].print_binary();
+							out[b].print_binary();
+							ASSERT(false);
+						}
+#endif
+						if (out.load()== 3)
+							return;
 					}
 				}
 			}
@@ -757,7 +769,7 @@ public:
 	/// in contrast to `join2lists` does this function not alter the
 	/// values of L2 (except for sorting them)
 	/// \param out output list
-	/// \param L1 const
+	/// \param L1 const assumed to be sorted
 	/// \param L2 cannot be const, as its sorted
 	/// \param target is added
 	/// \param k_lower lower limit
@@ -788,13 +800,13 @@ public:
 					if (!tmp.is_equal(tmp2, k_lower, k_upper))  { break; }
 				}
 
-				uint64_t jprev = j;
-
+				const uint64_t jprev = j;
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						// todo
+						// todo full length stuff
 						out.add_and_append(L1[i], L2[j], 0, 16, -1);
 
+#ifdef DEBUG
 						const uint64_t b = out.load() - 1;
 						if (!out[b].label.is_equal(target, k_lower, k_upper)) {
 							L1[i].label.print_binary();
@@ -803,6 +815,7 @@ public:
 							target.print_binary();
 							ASSERT(false);
 						}
+#endif
 					}
 				}
 			}

@@ -301,8 +301,9 @@ public:
 	};
 
 	/// some setter/getter
-	[[nodiscard]] uint32_t threads() const noexcept { return __threads; }
-	[[nodiscard]] size_t thread_block_size() const noexcept { return __thread_block_size; }
+	[[nodiscard]] constexpr inline uint32_t threads() const noexcept { return __threads; }
+	[[nodiscard]] constexpr inline size_t thread_block_size() const noexcept { return __thread_block_size; }
+
 	/// NOTE: this functions resets the load factors
 	constexpr void set_threads(const uint32_t new_threads) noexcept {
 		__threads = new_threads;
@@ -315,37 +316,37 @@ public:
 	constexpr void set_thread_block_size(const size_t a) noexcept { __thread_block_size = a; }
 
 	/// Get a const pointer. Sometimes useful if one ones to tell the kernel how to access memory.
-	constexpr inline auto *data() noexcept { return __data.data(); }
-	constexpr const auto *data() const noexcept { return __data.data(); }
+	[[nodiscard]] constexpr inline auto *data() noexcept { return __data.data(); }
+	[[nodiscard]] constexpr const auto *data() const noexcept { return __data.data(); }
 
 	/// wrapper
-	constexpr inline ValueType *data_value() noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
-	constexpr inline const ValueType *data_value() const noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
-	constexpr inline LabelType *data_label() noexcept { return (LabelType *) __data.data(); }
-	constexpr inline const LabelType *data_label() const noexcept { return (const LabelType *) __data.data(); }
-	constexpr inline ValueType &data_value(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline ValueType *data_value() noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
+	[[nodiscard]] constexpr inline const ValueType *data_value() const noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
+	[[nodiscard]] constexpr inline LabelType *data_label() noexcept { return (LabelType *) __data.data(); }
+	[[nodiscard]] constexpr inline const LabelType *data_label() const noexcept { return (const LabelType *) __data.data(); }
+	[[nodiscard]] constexpr inline ValueType &data_value(const size_t i) noexcept {
 		ASSERT(i < __size);
 		return __data[i].get_value();
 	}
-	constexpr inline const ValueType &data_value(const size_t i) const noexcept {
-		ASSERT(i < __size);
-		return __data[i].get_value();
+	[[nodiscard]] constexpr inline const ValueType &data_value(const size_t i) const noexcept {
+	 	ASSERT(i < __size);
+	 	return __data[i].get_value();
 	}
-	constexpr inline LabelType &data_label(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline LabelType &data_label(const size_t i) noexcept {
 		ASSERT(i < __size);
 		return __data[i].get_label();
 	}
-	constexpr inline const LabelType &data_label(const size_t i) const noexcept {
+	[[nodiscard]] constexpr inline const LabelType &data_label(const size_t i) const noexcept {
 		ASSERT(i < __size);
 		return __data[i].get_label();
 	}
 
 	/// operator overloading
-	constexpr inline Element &at(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline Element &at(const size_t i) noexcept {
 		ASSERT(i < size());
 		return __data[i];
 	}
-	constexpr inline const Element &at(const size_t i) const noexcept {
+	[[nodiscard]] constexpr inline const Element &at(const size_t i) const noexcept {
 		ASSERT(i < size());
 		return __data[i];
 	}
@@ -353,12 +354,15 @@ public:
 		ASSERT(i < size());
 		return __data[i];
 	}
-	constexpr inline const Element &operator[](const size_t i) const noexcept {
+	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
 		ASSERT(i < size());
 		return __data[i];
 	}
 
-	void set(Element &e, const uint64_t i) {
+	///
+	/// \param e
+	/// \param i
+	constexpr inline void set(Element &e, const size_t i) noexcept {
 		ASSERT(i < size());
 		__data[i] = e;
 	}
@@ -371,7 +375,7 @@ public:
 	/// \param value_k_higher exclusive
 	/// \param label_k_lower inclusive
 	/// \param label_k_higher exclusive
-	void print_binary(const uint64_t pos,
+	constexpr void print_binary(const uint64_t pos,
 	                  const uint32_t value_k_lower,
 	                  const uint32_t value_k_higher,
 	                  const uint32_t label_k_lower,
@@ -393,7 +397,7 @@ public:
 	/// \param value_k_higher exclusive
 	/// \param label_k_lower inclusive
 	/// \param label_k_higher exclusive
-	void print(const uint64_t pos,
+	constexpr void print(const uint64_t pos,
 	           const uint32_t value_k_lower,
 	           const uint32_t value_k_higher,
 	           const uint32_t label_k_lower,
@@ -415,7 +419,7 @@ public:
 	/// \param value_k_higher exclusive
 	/// \param label_k_lower inclusive
 	/// \param label_k_higher exclusive
-	void print(const uint32_t value_k_lower,
+	constexpr void print(const uint32_t value_k_lower,
 	           const uint32_t value_k_higher,
 	           const uint32_t label_k_lower,
 	           const uint32_t label_k_higher,
@@ -442,7 +446,7 @@ public:
 	/// \param value_k_higher exclusive
 	/// \param label_k_lower inclusive
 	/// \param label_k_higher exclusive
-	void print_binary(const uint32_t value_k_lower,
+	constexpr void print_binary(const uint32_t value_k_lower,
 	                  const uint32_t value_k_higher,
 	                  const uint32_t label_k_lower,
 	                  const uint32_t label_k_higher,
@@ -463,7 +467,7 @@ public:
 
 	/// zeros the whole list
 	/// and resets the load
-	void zero(const uint32_t tid = 0) {
+	constexpr void zero(const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
 		const size_t epos = end_pos(tid);
 
@@ -475,13 +479,14 @@ public:
 	}
 
 	/// this only sets the load counter to zero
-	void reset(const uint32_t tid = 0) {
+	constexpr inline void reset(const uint32_t tid = 0) noexcept {
 		set_load(0, tid);
 	}
 
 	/// remove the element at pos i.
 	/// \param i
-	void erase(const size_t i, const uint32_t tid = 0) {
+	constexpr void erase(const size_t i,
+	                     const uint32_t tid = 0) noexcept {
 		ASSERT(i < size());
 		__data.erase(__data.begin() + i);
 		__load[tid] -= 1;
@@ -489,13 +494,13 @@ public:
 
 	/// generates a random element
 	/// NOTE: this random elements, does not fulfill any property (e.g. label = matrix*value)
-	void random(const size_t i) {
+	void random(const size_t i) noexcept {
 		ASSERT(i < size());
 		__data[i].random();
 	}
 
 	/// generate a random list
-	constexpr void random() {
+	constexpr void random() noexcept {
 		MatrixType m;
 		m.random();
 		random(size(), m);
@@ -503,7 +508,7 @@ public:
 
 	///
 	constexpr void random(const size_t list_size,
-						  const MatrixType &m) {
+						  const MatrixType &m) noexcept {
 		for (size_t i = 0; i < list_size; ++i) {
 			Element e{};
 			e.random(m);
@@ -512,8 +517,8 @@ public:
 	}
 
 	/// iterator are useless in this class
-	auto begin() noexcept { return __data.begin(); }
-	auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }
 
 	/// returns a pointer to the internal data structure
 	[[nodiscard]] constexpr Element *ptr() noexcept { return __data.data(); }

@@ -1013,8 +1013,11 @@ public:
 		v3[ulimb] = (v1[i] ^ v2[i]) & rmask;
 	}
 
-	constexpr static void add(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2,
-	                          const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	constexpr static void add(BinaryContainer &v3,
+	                          BinaryContainer const &v1,
+	                          BinaryContainer const &v2,
+	                          const uint32_t k_lower,
+	                          const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 		const T lmask = higher_mask(k_lower % limb_bits_width());
 		const T rmask = lower_mask2(k_upper % limb_bits_width());
@@ -1121,8 +1124,11 @@ public:
 		return cnorm;
 	}
 
-	inline constexpr static bool add(BinaryContainer &v3, BinaryContainer const &v1, BinaryContainer const &v2,
-	                                 const uint32_t k_lower, const uint32_t k_upper,
+	inline constexpr static bool add(BinaryContainer &v3,
+	                                 BinaryContainer const &v1,
+	                                 BinaryContainer const &v2,
+	                                 const uint32_t k_lower,
+	                                 const uint32_t k_upper,
 	                                 const uint32_t norm) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 
@@ -1669,7 +1675,7 @@ public:
 		reference();
 
 	public:
-		reference(const BinaryContainer &b, const size_t pos) : mask_pos(mask(pos)) {
+		constexpr reference(const BinaryContainer &b, const size_t pos) : mask_pos(mask(pos)) {
 			// honestly thats cheating. We drop the const qualifier here, s.t.
 			// we can get a const reference
 			wp = (T *) &b.data().data()[round_down_to_limb(pos)];
@@ -1679,7 +1685,7 @@ public:
 		reference(const reference &) = default;
 #endif
 
-		~reference() = default;
+		constexpr ~reference() = default;
 
 		// For b[i] = __x;
 		reference &operator=(bool x) {
@@ -1691,30 +1697,31 @@ public:
 		}
 
 		// For b[i] = b[__j];
-		reference &operator=(const reference &j) {
-			if (*(j.wp) & j.mask_pos)
+		[[nodiscard]]constexpr reference &operator=(const reference &j) noexcept {
+			if (*(j.wp) & j.mask_pos) {
 				*wp |= mask_pos;
-			else
+			} else {
 				*wp &= ~mask_pos;
+			}
 			return *this;
 		}
 
 		// Flips the bit
-		bool operator~() const { return (*(wp) &mask_pos) == 0; }
+		[[nodiscard]] bool operator~() const noexcept { return (*(wp) &mask_pos) == 0; }
 
 		// For __x = b[i];
-		operator bool() const {
+		[[nodiscard]] constexpr operator bool() const noexcept {
 			return (*(wp) &mask_pos) != 0;
 		}
 
 		// For b[i].flip();
-		reference &flip() {
+		[[nodiscard]] constexpr reference &flip() noexcept {
 			*wp ^= mask_pos;
 			return *this;
 		}
 
-		unsigned int get_data() const { return bool(); }
-		unsigned int data() const { return bool(); }
+		[[nodiscard]] constexpr inline unsigned int get_data() const noexcept { return bool(); }
+		[[nodiscard]] constexpr inline unsigned int data() const noexcept { return bool(); }
 	};
 	friend class reference;
 

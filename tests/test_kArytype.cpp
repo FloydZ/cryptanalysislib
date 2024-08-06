@@ -14,14 +14,14 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-#define TESTSIZE (1u << 0u)
+#define TESTSIZE (1u << 10u)
 
 
 #define PRIME 2
 #define S kAry_Type_T<PRIME>
 #define T kAry_Type_T_2
 #include "test_kArytype.h"
-#undef PRIME 
+#undef PRIME
 #undef T
 #undef S
 
@@ -52,6 +52,14 @@ using ::testing::UnitTest;
 #define PRIME ((1ull << 25) - 1ull)
 #define S kAry_Type_T<PRIME>
 #define T kAry_Type_T_1251
+#include "test_kArytype.h"
+#undef PRIME
+#undef T
+#undef S
+
+#define PRIME ((1ull << 34) - 1ull)
+#define S kAry_Type_T<PRIME>
+#define T kAry_Type_T_1341
 #include "test_kArytype.h"
 #undef PRIME
 #undef T

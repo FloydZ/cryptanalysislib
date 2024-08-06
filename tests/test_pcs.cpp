@@ -273,6 +273,12 @@ TEST(PCS, RhoSubSetSum) {
 		//Label::add(c1, c1, instance[0][s]);
 	}
 
+
+	Label c2(0); Value v2;
+	Value::add(v2, a.value, b.value);
+	instance.mul(c2, v2);
+	EXPECT_EQ(true, c1.is_equal(c2));
+
 	std::cout << c1 << std::endl;
 	std::cout << c << std::endl;
 	std::cout << target << std::endl;

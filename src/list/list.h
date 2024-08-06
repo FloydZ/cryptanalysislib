@@ -603,11 +603,24 @@ public:
 	                              const uint32_t norm,
 	                              const bool sub = false) noexcept {
 		if (load() < size()) {
-			auto b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
-			// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
-			// exists for which it holds: |data[load].value[r]| >= norm
-			if (b == true) {
-				return;
+			if (norm) {
+				// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
+				// exists for which it holds: |data[load].value[r]| >= norm
+				bool b;
+				if (sub) {
+					Element::sub(__data[load()], e1, e2, k_lower, k_higher, norm);
+				} else {
+					b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
+				}
+				if (b == true) { return; }
+
+			} else {
+				if (sub) {
+					Element::sub(__data[load()], e1, e2, k_lower, k_higher, norm);
+				} else {
+					Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
+				}
+
 			}
 		} else {
 			Element t{};

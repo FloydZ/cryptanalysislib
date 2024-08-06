@@ -501,10 +501,15 @@ struct uint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x64_t popcnt(const uint8x64_t in1) noexcept {
 		uint8x64_t ret;
+#ifdef USE_AVX512BITALG
 #ifdef __clang__
 		ret.v512 = (__m512i) __builtin_ia32_vpopcntb_512((__v64qi) in1.v512);
 #else
   		ret.v512 = (__m512i) __builtin_ia32_vpopcountb_v64qi ((__v64qi)in1.v512);
+#endif
+#else
+		// TODO
+		(void)in1;
 #endif
 		return ret;
 	}
