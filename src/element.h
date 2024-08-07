@@ -281,13 +281,13 @@ public:
 		m.mul(tmp, value);
 
 		bool ret = tmp.is_equal(label);
-#ifdef DEBUG
-		if (!ret) {
-			std::cout << "IS|SHOULD\n";
-			std::cout << label << std::endl;
-			std::cout << tmp << std::endl;
-		}
-#endif
+//#ifdef DEBUG
+//		if (!ret) {
+//			std::cout << "IS|SHOULD\n";
+//			std::cout << label << std::endl;
+//			std::cout << tmp << std::endl;
+//		}
+//#endif
 		if (rewrite) {
 			label = tmp;
 		}

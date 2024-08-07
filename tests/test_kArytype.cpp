@@ -14,7 +14,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-#define TESTSIZE (1u << 10u)
+#define TESTSIZE (1u << 16u)
 
 
 #define PRIME 2
@@ -36,6 +36,14 @@ using ::testing::UnitTest;
 #define PRIME 5
 #define S kAry_Type_T<PRIME>
 #define T kAry_Type_T_5
+#include "test_kArytype.h"
+#undef PRIME
+#undef T
+#undef S
+
+#define PRIME ((1u << 16))
+#define S kAry_Type_T<PRIME>
+#define T kAry_Type_T_116
 #include "test_kArytype.h"
 #undef PRIME
 #undef T

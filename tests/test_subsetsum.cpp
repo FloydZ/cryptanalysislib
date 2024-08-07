@@ -319,9 +319,6 @@ TEST(SubSetSum, dissection) {
 
 TEST(SubSetSum, join2lists) {
 	Matrix A; A.random();
-	// const auto AT = A.transpose();
-	std::cout << A;
-
 	const uint64_t k_lower=0, k_higher=8;
 
 	constexpr size_t baselist_size = sum_bc(n/2, n/4);
@@ -349,12 +346,10 @@ TEST(SubSetSum, join2lists) {
 	for (size_t i = 0; i < baselist_size; ++i) {
 		EXPECT_EQ(l1[i].is_correct(A), true);
 
+		// revert the changes of the right list
 		Element l2_tmp = l2[i];
-		std::cout << l2_tmp.label << std::endl;
 		l2_tmp.label.neg();
-		std::cout << l2_tmp.label << std::endl;
-		l2_tmp.label -= target;
-		std::cout << l2_tmp.label << std::endl;
+		l2_tmp.label += target;
 		EXPECT_EQ(l2_tmp.is_correct(A), true);
 	}
 
@@ -363,27 +358,84 @@ TEST(SubSetSum, join2lists) {
 	for(uint64_t i = 0; i < out.load(); ++i) {
 		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
 		A.mul(test_recalc3, out[i].value);
-		for (uint64_t j = k_lower; j < k_higher; ++j) {
+		// NOTE: the full length
+		for (uint64_t j = 0; j < n; ++j) {
 			if (out[i].value.get(j)) {
 				test_recalc1 += A[0][j];
 				Label::add(test_recalc2, test_recalc2, A[0][j]);
 			}
 		}
 
-		// TODO this is done on the full length, hence not really correct
-		// out[i].recalculate_label(A);
-
-		out[i].label = test_recalc1;
+		out[i].recalculate_label(A);
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, k_lower, k_higher));
-		// EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, k_lower, k_higher));
-		// EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
-		// std::cout << test_recalc1 << std::endl;
-		// std::cout << test_recalc3 << std::endl;
-		// std::cout << out[i].label << std::endl;
-		// std::cout << target << std::endl;
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, k_lower, k_higher));
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
 
 		if (!(Label::cmp(out[i].label, target, k_lower, k_higher))) {
-			std::cout << out[i];
+			right = false;
+			wrong++;
+		}
+	}
+
+	EXPECT_GT(out.load(), 0);
+	EXPECT_EQ(0, wrong);
+	EXPECT_EQ(right, true);
+	EXPECT_GT(out.load(),1u<<3);
+	EXPECT_LT(out.load(),1u<<7);
+}
+
+
+TEST(SubSetSum, join2lists_on_iT) {
+	Matrix A; A.random();
+	const uint64_t k_lower=0, k_higher=8;
+
+	constexpr size_t baselist_size = sum_bc(n/2, n/4);
+	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
+
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+	Enumerator e{A};
+	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			(&l1, &l2, n/2);
+
+	Label target; target.zero();
+	std::vector<uint32_t> weights(n/2);
+	generate_random_indices(weights, n);
+	for (uint32_t i = 0; i < n/2; ++i) {
+		Label::add(target, target, A[0][weights[i]]);
+	}
+
+	for (size_t i = 0; i < baselist_size; ++i) {
+		EXPECT_EQ(l1[i].is_correct(A), true);
+		EXPECT_EQ(l2[i].is_correct(A), true);
+	}
+
+	Tree::join2lists_on_iT(out, l1, l2, target, k_lower, k_higher);
+
+	for (size_t i = 0; i < baselist_size; ++i) {
+		EXPECT_EQ(l1[i].is_correct(A), true);
+		EXPECT_EQ(l2[i].is_correct(A), true);
+	}
+
+	// TODO
+	auto right=true;
+	int wrong=0;
+	for(uint64_t i = 0; i < out.load(); ++i) {
+		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
+		A.mul(test_recalc3, out[i].value);
+		// NOTE: the full length
+		for (uint64_t j = 0; j < n; ++j) {
+			if (out[i].value.get(j)) {
+				test_recalc1 += A[0][j];
+				Label::add(test_recalc2, test_recalc2, A[0][j]);
+			}
+		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, k_lower, k_higher));
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, k_lower, k_higher));
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
+
+		if (!(Label::cmp(out[i].label, target, k_lower, k_higher))) {
 			right = false;
 			wrong++;
 		}

@@ -51,13 +51,11 @@ include("deps/cmake_optimize_for_architecture/Optimizations.cmake")
 # check for compiler features
 check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)
-check_cxx_compiler_flag(-fsanitize=address COMPILER_SUPPORTS_SANITIZE_ADDRESS) # TODO support not recognized
-check_cxx_compiler_flag(-fsanitize=memory COMPILER_SUPPORTS_SANITIZE_MEMORY)
 check_cxx_compiler_flag(-fconstexpr-steps=91 COMPILER_SUPPORTS_CONSTEXPR_COST)
 check_cxx_compiler_flag(-fno-exceptions COMPILER_SUPPORTS_NO_EXCEPTION)
 check_cxx_compiler_flag(-fconcepts-diagnostics-depth=10 COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
-check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC) # TODO
+check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC)
 
 # check for compiler warnings
 check_cxx_compiler_flag(-Wno-c11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
@@ -108,11 +106,11 @@ if(${USE_TCMALLOC})
 	set(MALLOC_LIBRARY_FLAGS "tcmalloc")
 endif()
 
-#if(${USE_SANITIZER} AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+if(${USE_SANITIZER} AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
-#endif()
+endif()
 
 if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
 	message(STATUS "not inlining")
@@ -176,14 +174,16 @@ set(LINK_TEST_FLAGS
 	GTest::gtest_main 
 	Threads::Threads 
 	OpenMP::OpenMP_CXX
-    # TODO think about if this is really needed
-	# atomic
 )
 
 set(LINK_BENCH_FLAGS 
 	benchmark::benchmark 
-	# atomic
 )
+
+if (LINKER_SUPPORTS_ATOMIC)
+	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} atomic)
+	set(LINK_BENCH_FLAGS ${LINK_BENCH_FLAGS} atomic)
+endif ()
 
 if(${USE_TRACY})
 	message(STATUS "Using tracy")

@@ -83,7 +83,7 @@ TEST(T, one) {
 TEST(T, neg) {
 	S l1, l2, l3;
 
-	if constexpr (S::arith) {
+	if constexpr (S::arith && (PRIME != 2)) {
 		for (size_t i = 0; i < TESTSIZE; ++i) {
 			const uint64_t t1 = fastrandombytes_uint64(1, PRIME);
 			l1 = t1;
@@ -93,6 +93,13 @@ TEST(T, neg) {
 
 			l1.neg();
 			EXPECT_EQ(l1.value(), t1);
+
+			S l2 = 0;
+			S l3 = l1;
+			l3.neg();
+			l2 -= l1;
+
+			EXPECT_EQ(l2.value(), l3.value());
 		}
 	}
 }
@@ -244,15 +251,40 @@ TEST(T, add_mul_uint64_t) {
 }
 
 TEST(T, arith) {
-	S l1, l2, l3, l4;
+	S l1, l2, l3, l4, l5;
 	l1 = 1;
 	l2 = 0;
 
 	l3 = l1 + l2;
 	S::add(l4, l1, l2);
-	S::sub(l4, l1, l2);
+	S::sub(l5, l1, l2);
+	const S l6 = l1 - l2;
 
 	EXPECT_EQ(true, l3.is_equal(l4));
+	EXPECT_EQ(true, l5.is_equal(l6));
+	EXPECT_EQ(true, l6.is_equal(l4));
+
+	const S l7 = l2 - l1;
+	S::sub(l4, l2, l1);
+	EXPECT_EQ(true, l7.is_equal(l4));
+
+	// bug in subset sum
+	if constexpr ((S::arith) && (PRIME > 2)) {
+		for (size_t i = 0; i < TESTSIZE; ++i) {
+			S target, t1;
+			target.random(1, PRIME);
+			t1.random(1, PRIME);
+
+			S a1 = target - t1, a2;
+			S::sub(a2, target, t1);
+			EXPECT_EQ(true, a1.is_equal(a2));
+
+			S b1 = a1;
+			b1.neg();
+			b1 += target;
+			EXPECT_EQ(true, t1.is_equal(b1));
+		}
+	}
 }
 
 

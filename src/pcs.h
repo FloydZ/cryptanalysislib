@@ -15,7 +15,8 @@ public:
 
 	/// NOTE: the inputs col1 and col2 are also outputs
 	/// \tparam F
-	/// \param f
+	/// \param f lambda function to execute
+	/// 		TODO: write concept of what whould be dooable
 	/// \param col1 input/output the starting value will be set onto this value,
 	/// 		and if a collision is found in will be written into this value
 	///			NOTE: the element before the collision will be return
@@ -23,7 +24,7 @@ public:
 	/// \param max_iters: maximal iterations until to exit the algorithm
 	/// \return true/false if a solution/collision was found
 	template<class F>
-	constexpr static bool run(F &&f,
+	[[nodiscard]] constexpr static bool run(F &&f,
 						T &col1, T &col2,
 						const size_t max_iters = size_t(-1ull)) noexcept {
 		Compare cmp;

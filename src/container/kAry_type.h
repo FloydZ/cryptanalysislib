@@ -116,6 +116,11 @@ public:
 		__value = fastrandombytes_uint64(q);
 	}
 
+	inline void random(const T l,
+	                   const T u) noexcept {
+		__value = fastrandombytes_T<T>(l, u);
+	}
+
 	/// \return
 	constexpr T abs() const noexcept {
 		return std::abs(__value);
@@ -589,8 +594,7 @@ public:
 		ASSERT(upper <= bits());
 
 		if constexpr (arith) {
-			const T mask = (1ull << upper) - 1ull;
-			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q) & mask);
+			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q));
 		} else {
 			const T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() ^ in2.value()) & mask;
@@ -612,8 +616,7 @@ public:
 		ASSERT(upper <= bits());
 
 		if constexpr (arith) {
-			const T mask = (1ull << upper) - 1ull;
-			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q) & mask;
+			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q);
 		} else {
 			const T mask = compute_mask(lower, upper);
 			// NOTE: ignores carry here
@@ -635,8 +638,7 @@ public:
 		ASSERT(upper <= bits());
 
 		if constexpr (arith) {
-			const T mask = (1ull << upper) - 1ull;
-			__value = ((q - __value) % q) & mask;
+			__value = ((q - __value) % q);
 		} else {
 			const T mask = compute_mask(lower, upper);
 			__value ^= mask;

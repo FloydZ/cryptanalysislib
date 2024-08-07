@@ -596,6 +596,7 @@ public:
 		}
 	}
 
+	// TODO test
 	/// doc: see function above
 	static void twolevel_streamjoin_on_iT(List &out, List &iL, List &L1, List &L2,
 										  const LabelType &target,
@@ -720,9 +721,9 @@ public:
 		if ((!target.is_zero()) && (prepare)) {
 			for (size_t s = 0; s < L2.load(); ++s) {
 				if constexpr (sub) {
-					LabelType::add(L2[s].label, target, L2[s].label, k_lower, k_upper);
-				} else {
 					LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
+				} else {
+					LabelType::add(L2[s].label, target, L2[s].label, k_lower, k_upper);
 				}
 			}
 		}
@@ -745,10 +746,6 @@ public:
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
 						out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1, sub);
-						std::cout << out[out.load() - 1];
-						std::cout << L1[i];
-						std::cout << L2[j];
-						std::cout << std::endl;
 #ifdef DEBUG
 						const uint64_t b = out.load() - 1;
 						if (!out[b].label.is_zero(k_lower, k_upper)) {
@@ -758,8 +755,6 @@ public:
 							ASSERT(false);
 						}
 #endif
-						if (out.load()== 3)
-							return;
 					}
 				}
 			}
@@ -804,7 +799,7 @@ public:
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
 						// todo full length stuff
-						out.add_and_append(L1[i], L2[j], 0, 16, -1);
+						out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1);
 
 #ifdef DEBUG
 						const uint64_t b = out.load() - 1;

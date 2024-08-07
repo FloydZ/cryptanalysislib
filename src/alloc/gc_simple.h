@@ -22,7 +22,7 @@
 ///
 /// \parthis ptr
 /// \return
-constexpr static inline size_t gc_hash(void *ptr) noexcept {
+constexpr static inline size_t gc_hash(const void *ptr) noexcept {
 	return ((uintptr_t)ptr) >> 3;
 }
 
@@ -34,11 +34,10 @@ constexpr static inline size_t gc_hash(void *ptr) noexcept {
  * in one place.
  */
 struct Allocation {
-	void* ptr;                // mem pointer
+	const void* ptr;          // mem pointer
 	size_t size;              // allocated size in bytes
-	char tag;                 // the tag for mark-and-sweep
-	void (*dtor)(void*);      // destructor
 	struct Allocation* next;  // separate chaining
+	char tag;                 // the tag for mark-and-sweep
 
 	/**
 	 * Create a new allocation object.
@@ -49,16 +48,15 @@ struct Allocation {
 	 * @parthis[in] size The size of the memory range pointed to by `ptr`.
 	 * @returns Pointer to the new allocation instance.
 	 */
-	constexpr Allocation(void *ptr, const size_t size) {
-		this->ptr = ptr;
-		this->size = size;
+	constexpr Allocation(const void *ptr,
+	                     const size_t size) noexcept :
+	    ptr(ptr), size(size){
 		this->tag = GC_TAG_NONE;
-		this->dtor = free;
-		this->next = NULL;
+		this->next = nullptr;
 	}
 
-	constexpr ~Allocation() {
-	}
+	///
+	constexpr ~Allocation() noexcept { }
 };
 
 /**
@@ -69,6 +67,8 @@ struct Allocation {
  * resolution is implemented using separate chaining.
  */
 struct AllocationMap {
+	constexpr static size_t alignment = 32;
+
 	size_t capacity;
 	size_t min_capacity;
 	double downsize_factor;
@@ -76,12 +76,20 @@ struct AllocationMap {
 	double sweep_factor;
 	size_t sweep_limit;
 	size_t size;
-	Allocation** allocs;
 
-	constexpr inline double load_factor() noexcept {
+	alignas(alignment) Allocation** allocs;
+
+	/// \return the fraction of slots which are already occupied
+	[[nodiscard]] constexpr inline double load_factor() noexcept {
 		return (double) size / (double) capacity;
 	}
 
+	/// create a new allocation
+	/// \param min_capacity
+	/// \param capacity
+	/// \param sweep_factor
+	/// \param downsize_factor
+	/// \param upsize_factor
 	constexpr AllocationMap(size_t min_capacity,
 	        				size_t capacity,
 	        				double sweep_factor,
@@ -89,7 +97,8 @@ struct AllocationMap {
 	        				double upsize_factor) noexcept {
 		this->min_capacity = next_prime(min_capacity);
 		this->capacity = next_prime(capacity);
-		if (this->capacity < this->min_capacity) this->capacity = this->min_capacity;
+		if (this->capacity < this->min_capacity) { this->capacity = this->min_capacity; }
+
 		this->sweep_factor = sweep_factor;
 		this->sweep_limit = (int) (sweep_factor * this->capacity);
 		this->downsize_factor = downsize_factor;
@@ -98,6 +107,7 @@ struct AllocationMap {
 		this->size = 0;
 	}
 
+	///
 	constexpr ~AllocationMap() noexcept {
 		Allocation *alloc, *tmp;
 		for (size_t i = 0; i < capacity; ++i) {
@@ -152,7 +162,7 @@ struct AllocationMap {
 		return false;
 	}
 
-	constexpr Allocation* get(void *ptr) {
+	constexpr Allocation* get(const void *ptr) noexcept {
 		size_t index = gc_hash(ptr) % capacity;
 		Allocation* cur = allocs[index];
 		while(cur) {
@@ -161,11 +171,12 @@ struct AllocationMap {
 			}
 			cur = cur->next;
 		}
-		return NULL;
+
+		return nullptr;
 	}
 
-	constexpr Allocation* put(void* ptr,
-	                                         	size_t size) {
+	constexpr Allocation* put(const void* ptr,
+	                          const size_t size) noexcept {
 		size_t index = gc_hash(ptr) % capacity;
 		Allocation* alloc = new Allocation(ptr, size);
 		Allocation* cur = allocs[index];
@@ -194,21 +205,23 @@ struct AllocationMap {
 		cur = allocs[index];
 		alloc->next = cur;
 		allocs[index] = alloc;
-		size++;
-		void* p = alloc->ptr;
+		this->size += 1;
+		const void* p = alloc->ptr;
 		if (resize_to_fit()) {
 			alloc = get(p);
 		}
 		return alloc;
 	}
 
+
 	constexpr void remove(void* ptr,
-	                      bool allow_resize) {
+	                      bool allow_resize) noexcept {
 		// ignores unknown keys
 		size_t index = gc_hash(ptr) % this->capacity;
 		Allocation* cur = this->allocs[index];
 		Allocation* prev = nullptr;
 		Allocation* next;
+
 		while(cur != nullptr) {
 			next = cur->next;
 			if (cur->ptr == ptr) {
@@ -228,9 +241,17 @@ struct AllocationMap {
 			}
 			cur = next;
 		}
+
 		if (allow_resize) {
 			resize_to_fit();
 		}
+	}
+
+	constexpr static void info() {
+		// TODO die fnkt überall
+		std::cout << " { name \"allocation_map\""
+		          << ", alignment:" << alignment
+				  << " }" << std::endl;
 	}
 };
 
@@ -273,7 +294,7 @@ struct GarbageCollector {
 			Allocation* alloc = allocs->put(ptr, alloc_size);
 			/* Deal with metadata allocation failure */
 			if (alloc) {
-				ptr = alloc->ptr;
+				ptr = (void *)alloc->ptr;
 			} else {
 				/* We failed to allocate the metadata, fail cleanly. */
 				free(ptr);
@@ -338,8 +359,9 @@ struct GarbageCollector {
 		if (!p) {
 			// allocation, not reallocation
 			Allocation* alloc = allocs->put(q, size);
-			return alloc->ptr;
+			return (void *)alloc->ptr;
 		}
+
 		if (p == q) {
 			// successful reallocation w/o copy
 			alloc->size = size;
@@ -420,7 +442,7 @@ struct GarbageCollector {
 			Allocation* chunk = allocs->allocs[i];
 			while (chunk) {
 				if (chunk->tag & GC_TAG_ROOT) {
-					gc_mark_alloc(chunk->ptr);
+					gc_mark_alloc((void *)chunk->ptr);
 				}
 				chunk = chunk->next;
 			}
@@ -458,10 +480,10 @@ struct GarbageCollector {
 					//if (chunk->dtor) {
 					//	chunk->dtor(chunk->ptr);
 					//}
-					free(chunk->ptr);
+					free((void *)chunk->ptr);
 					/* and remove it from the bookkeeping */
 					next = chunk->next;
-					allocs->remove(chunk->ptr, false);
+					allocs->remove((void *)chunk->ptr, false);
 					chunk = next;
 				}
 			}
