@@ -2,7 +2,7 @@
 #define CRYPTANALYSISLIB_MATH_CEIL_H
 
 #ifndef CRYPTANALYSISLIB_MATH_H
-#error "do not inlcude this file directly. Use `#include <cryptanalysislib/math>`"
+#error "do not inlcude this file directly. Use `#include <cryptanalysislib/math.h>`"
 #endif
 
 #include <cstdint>

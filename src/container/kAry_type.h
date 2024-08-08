@@ -626,7 +626,6 @@ public:
 		}
 	}
 
-	///
 	/// \param lower
 	/// \param upper
 	/// \return
@@ -938,6 +937,12 @@ public:
 		y = x1;
 
 		return gcd;
+	}
+
+
+	[[nodiscard]] inline static constexpr bool optimized() noexcept { return true; };
+	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
+		return __value;
 	}
 
 	/// prints some information about this class

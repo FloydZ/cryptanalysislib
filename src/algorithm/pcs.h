@@ -2,11 +2,27 @@
 #define SMALLSECRETLWE_ALGORITHM_PCS_H
 #include <cstddef>
 
-/// TODO doc and move to algorithm
-/// \tparam Compare
+
+#if __cplusplus > 201709L
+/// describes the needed function to be row
+template<class C, class T>
+concept RhoCompareAble = requires(C c) {
+	requires requires (const T a,
+	                   const T &aa){
+		{ c(aa, aa, aa, aa) } -> std::convertible_to<bool>;
+	};
+};
+#endif
+
+
+
+/// \tparam Compare compare object, which needs to take 4
 /// \tparam T
 template<class Compare,
 		 class T>
+#if __cplusplus > 201709L
+	requires RhoCompareAble<Compare, T>
+#endif
 class PollardRho {
 private:
 
@@ -15,8 +31,7 @@ public:
 
 	/// NOTE: the inputs col1 and col2 are also outputs
 	/// \tparam F
-	/// \param f lambda function to execute
-	/// 		TODO: write concept of what whould be dooable
+	/// \param f lambda function to execute a single step.
 	/// \param col1 input/output the starting value will be set onto this value,
 	/// 		and if a collision is found in will be written into this value
 	///			NOTE: the element before the collision will be return

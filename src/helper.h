@@ -1,15 +1,6 @@
 #ifndef CRYPTANALYSISLIB_HELPER_H
 #define CRYPTANALYSISLIB_HELPER_H
 
-// TODO rename this to `cryptanalysislib.h`
-
-
-// should be passed via gcc/clang command line
-// currently activated for syntax highlighting
-//#define USE_LOOP_UNROLL
-//#define USE_PREFETCH
-//#define USE_BRANCH_PREDICTION
-
 // Global Includes
 #include <cassert>
 #include <cstdint>// needed for uint8_t and so on

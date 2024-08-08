@@ -83,17 +83,66 @@ TEST(AllocationMap, basic_get) {
 	delete am;
 }
 
+TEST(AllocationMap, put_get_remove) {
+	using T = int;
+	constexpr static size_t size = 64;
+	T **d = (T **)malloc(size * sizeof(T *));
+	for (uint32_t i = 0; i < size; ++i) { d[i] = (T *)malloc(sizeof(T)); }
+
+	//
+	auto *am = new AllocationMap(32, 32, DBL_MAX, 0, DBL_MAX);
+	EXPECT_NE(am, nullptr);
+	for (uint32_t i = 0; i < size; ++i) {
+		am->put(d[i], sizeof(T));
+	}
+	EXPECT_EQ(am->size, size);
+
+	for (uint32_t i = 0; i < size; ++i) {
+		am->remove(d[i], true);
+	}
+	EXPECT_EQ(am->size, 0);
+
+	for (uint32_t i = 0; i < size; ++i) { free(d[i]); }
+	free(d);
+	delete am;
+}
 
 TEST(GarbageCollector, Simple) {
-	GarbageCollector gc;
 	void *bos = __builtin_frame_address(0);
-	gc.gc_start(bos);
+	GarbageCollector gc(bos);
 
-	int *arrya = (int *)gc.gc_calloc(1024, sizeof(int));
-	for (uint32_t i = 0; i < 1024; ++i) {
+	using T = uint32_t;
+	constexpr size_t size = 1024;
+	T *arrya = (T *) gc.calloc_ext(size, sizeof(T));
+	for (uint32_t i = 0; i < size; ++i) {
 		arrya[i] = i;
 	}
-	gc.gc_stop();
+}
+
+
+TEST(GarbageCollector, Cleanup) {
+	using T = int;
+	constexpr static size_t size = 64;
+
+	void *bos = __builtin_frame_address(0);
+	GarbageCollector gc(bos, 32, 32, 0.0, DBL_MAX, DBL_MAX);
+
+	T** ptrs = (T **)gc.malloc_ext(size * sizeof(T *));
+	for (uint32_t i = 0; i < 8; ++i) {
+		for (uint32_t j = 0; j < size; ++j) {
+			ptrs[i] = (T *) gc.malloc_(i * sizeof(T));
+		}
+
+		for (uint32_t j = 0; j < size; ++j) {
+			gc.free_(ptrs[i]);
+		}
+	}
+
+	gc.free_(ptrs);
+
+	for (uint32_t i = 0; i < gc.allocs->capacity; ++i) {
+		EXPECT_EQ(gc.allocs->allocs[i], nullptr);
+	}
 }
 
 int main(int argc, char **argv) {

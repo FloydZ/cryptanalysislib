@@ -106,7 +106,7 @@ if(${USE_TCMALLOC})
 	set(MALLOC_LIBRARY_FLAGS "tcmalloc")
 endif()
 
-if(${USE_SANITIZER} AND COMPILER_SUPPORTS_SANITIZE_ADDRESS)
+if(${USE_SANITIZER})
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
 	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")

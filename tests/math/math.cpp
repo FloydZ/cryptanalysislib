@@ -104,12 +104,9 @@ TEST(root, simple) {
 	EXPECT_EQ(cryptanalysislib::math::cbrt(27), 3);
 	EXPECT_DOUBLE_EQ(cryptanalysislib::math::cbrt(27.), 3.);
 	EXPECT_DOUBLE_EQ(cryptanalysislib::math::cbrt(27.), 3);
-
-	// TODO
-	// NOT WORKING: EXPECT_EQ(kthrt(27., 2), 3);
 }
 
-#ifdef USE_AVX512
+#ifdef USE_AVX512F
 TEST(bc, avx512) {
 	EXPECT_EQ(simd_binom(10, 2), bc(10, 2));
 }

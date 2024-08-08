@@ -1802,13 +1802,13 @@ public:
 	}
 
 	//T data(uint64_t index) { ASSERT(index < length); return get_bit_shifted(index); }
-	bool data(uint64_t index) const noexcept {
+	[[nodiscard]] bool data(const uint64_t index) const noexcept {
 		ASSERT(index < length());
 		return get_bit_shifted(index);
 	}
 
 	// simple hash function
-	constexpr inline uint64_t hash() const noexcept {
+	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
 		return __data[0];
 	}
 
@@ -1827,10 +1827,10 @@ public:
 #endif
 
 	// length operators
-	__FORCEINLINE__ constexpr static bool binary() noexcept { return true; }
-	__FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
-	__FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return (length() + limb_bits_width() - 1) / limb_bits_width(); }
-	__FORCEINLINE__ constexpr static uint32_t bytes() noexcept {
+	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return true; }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return (length() + limb_bits_width() - 1) / limb_bits_width(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept {
 #ifdef BINARY_CONTAINER_ALIGNMENT
 		return alignment() / 8;
 #else
@@ -1838,23 +1838,23 @@ public:
 #endif
 	}
 
-	__FORCEINLINE__ T *ptr() noexcept { return __data.data(); };
-	const __FORCEINLINE__ T *ptr() const noexcept { return __data.data(); };
-	__FORCEINLINE__ T ptr(const size_t i) noexcept {
+	[[nodiscard]] __FORCEINLINE__ T *ptr() noexcept { return __data.data(); };
+	[[nodiscard]] const __FORCEINLINE__ T *ptr() const noexcept { return __data.data(); };
+	[[nodiscard]] __FORCEINLINE__ T ptr(const size_t i) noexcept {
 		ASSERT(i < limbs());
 		return __data[i];
 	};
-	const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
+	[[nodiscard]] const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
 		ASSERT(i < limbs());
 		return __data[i];
 	};
 
 	// get the internal data vector
-	__FORCEINLINE__ std::array<T, compute_limbs()> &data() noexcept { return __data; };
-	__FORCEINLINE__ const std::array<T, compute_limbs()> &data() const noexcept { return __data; };
+	[[nodiscard]] __FORCEINLINE__ std::array<T, compute_limbs()> &data() noexcept { return __data; };
+	[[nodiscard]] __FORCEINLINE__ const std::array<T, compute_limbs()> &data() const noexcept { return __data; };
 
 	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
-	__FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
+	[[nodiscard]] __FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
 
 	///
 	constexpr static void info() noexcept {

@@ -317,24 +317,23 @@ TEST(SortingNetwork, uint32x128_t) {
 }
 #endif
 
-// TODO not working
-// #ifdef USE_AVX512F
-// TEST(SortingNetwork, uint64x16_t) {
-// 	uint64_t d_in[16], d_out[16];
-// 	for (uint32_t i = 0; i < 16; ++i) {
-// 		d_in[i] = fastrandombytes_uint64();
-// 	}
-//
-// 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in + 0));
-// 	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 8));
-// 	sortingnetwork_sort_u64x16(a, b);
-// 	_mm512_storeu_si512((__m512i *)(d_out + 0), a);
-// 	_mm512_storeu_si512((__m512i *)(d_out + 8), b);
-// 	for (uint32_t i = 0; i < 15; ++i) {
-// 		EXPECT_LE(d_out[i], d_out[i+1]);
-// 	}
-// }
-// #endif
+#ifdef USE_AVX512F
+TEST(SortingNetwork, uint64x16_t) {
+	uint64_t d_in[16], d_out[16];
+	for (uint32_t i = 0; i < 16; ++i) {
+		d_in[i] = fastrandombytes_uint64();
+	}
+
+	__m512i a = _mm512_loadu_si512((__m512i *)(d_in + 0));
+	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 8));
+	sortingnetwork_sort_u64x16(a, b);
+	_mm512_storeu_si512((__m512i *)(d_out + 0), a);
+	_mm512_storeu_si512((__m512i *)(d_out + 8), b);
+	for (uint32_t i = 0; i < 15; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+#endif
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

@@ -70,6 +70,10 @@
 #endif
 
 
+/// sorts a and b
+/// \param a first 8 elements to sort
+/// \param b second 8 elements to sort
+/// \return
 constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) {
 	constexpr int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexc[8] = {0, 8, 1, 9, 2, 10, 3, 11};
 	constexpr int64_t __attribute__((aligned(64))) sortingnetwork_av512_indexd[8] = {4, 12, 5, 13, 6, 14, 7, 15};
@@ -130,8 +134,8 @@ constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) 
 	b = __builtin_ia32_vpermi2varq512(a1, *(const __m512i *)(index17), b1);
 
 	COMPAREANDSWAP_AVX512_64(a, b, a1, b1);
-	b = __builtin_ia32_vpermi2varq512(a1, *(const __m512i *)(sortingnetwork_av512_indexc), b1);
-	a = __builtin_ia32_vpermi2varq512(a1, *(const __m512i *)(sortingnetwork_av512_indexd), b1);
+	a = __builtin_ia32_vpermi2varq512(a1, *(const __m512i *)(sortingnetwork_av512_indexc), b1);
+	b = __builtin_ia32_vpermi2varq512(a1, *(const __m512i *)(sortingnetwork_av512_indexd), b1);
 }
 
 

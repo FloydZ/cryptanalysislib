@@ -6,15 +6,15 @@
 
 #include "algorithm/gcd.h"
 #include "algorithm/int2weight.h"
+#include "algorithm/pcs.h"
 #include "algorithm/random_index.h"
-#include "container/kAry_type.h"
 #include "container/binary_packed_vector.h"
-#include "matrix/matrix.h"
+#include "container/kAry_type.h"
 #include "element.h"
-#include "list/list.h"
-#include "tree.h"
 #include "helper.h"
-#include "pcs.h"
+#include "list/list.h"
+#include "matrix/matrix.h"
+#include "tree.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

@@ -22,6 +22,14 @@ TEST(AllocationMap, AllocateSimple) {
 	EXPECT_NE(ptr, nullptr);
 }
 
+TEST(AllocationMap, Allocation) {
+	CacheAllocator<TestStruct> allocator;
+	for (size_t i = 0; i < 10000; ++i) {
+		TestStruct *ptr = allocator.allocate();
+		EXPECT_NE(ptr, nullptr);
+	}
+}
+
 TEST(AllocationMap, DeallocateSimple) {
 	CacheAllocator<TestStruct> allocator;
 	EXPECT_EQ(allocator.size(), 0);

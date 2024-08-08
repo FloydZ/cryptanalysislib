@@ -15,8 +15,6 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO write more tests for different I
-// TODO write more tests if N == 8, s.t T = uint32x8_t
 using I = uint32_t;
 TEST(generic, random) {
 	constexpr_for<6, 32, 4>([](const auto limbs) {
@@ -66,14 +64,14 @@ TEST(generic, set) {
 			EXPECT_EQ(t1.d[i], 0);
 		}
 
-		//t1 = T::set(data);
-		//for (uint32_t i = 0; i < limbs; ++i) {
-		//	  if (i == (limbs-pos)){
-		//		  EXPECT_EQ(t1.d[i] , 1);
-		//		  continue;
-		//	  }
-		//	  EXPECT_EQ(t1.d[i] , 0);
-		//}
+		t1 = T::set(data);
+		for (uint32_t i = 0; i < limbs; ++i) {
+			  if (i == (limbs-pos)){
+				  EXPECT_EQ(t1.d[i] , 1);
+				  continue;
+			  }
+			  EXPECT_EQ(t1.d[i] , 0);
+		}
 	});
 }
 
@@ -127,7 +125,6 @@ TEST(gerenric, alinged_store) {
 	});
 }
 
-// TODO finish
 TEST(uint8x32_t, logic) {
 	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;

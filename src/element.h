@@ -78,11 +78,13 @@ concept LabelAble = requires(Container c) {
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
+	{ Container::optimized() } -> std::convertible_to<bool>;
 	{ Container::binary() } -> std::convertible_to<bool>;
 	{ Container::length() } -> std::convertible_to<uint32_t>;
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
+	{ c.hash() } -> std::convertible_to<uint64_t>;
 };
 
 /// Requirements for a base data container.
@@ -150,11 +152,13 @@ concept ValueAble = requires(Container c) {
 	};
 
 	// we also have to enforce the existence of some constexpr functions.
+	{ Container::optimized() } -> std::convertible_to<bool>;
 	{ Container::binary() } -> std::convertible_to<bool>;
 	{ Container::length() } -> std::convertible_to<uint32_t>;
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
+	{ c.hash() } -> std::convertible_to<uint64_t>;
 };
 
 template<class Value, class Label, class Matrix>

@@ -37,17 +37,24 @@ concept TreeAbleHashMap = requires(HM hm) {
 	typename HM::List;
 
 	// Hasher and extractor. Note that extractor is needed as an input for the hash function
-	//typename HM::Hash;
-	//typename HM::Extractor;
+	typename HM::Hash;
+	typename HM::Extractor;
 
-	// TODO
-	//requires requres(const typename HM::List &list, typename HM::Hash hash, typename HM::Extractor extractor,
-	// 		   const size_t s, const uint32_t u32, const uint64_t u64) {
-	//	hash(list, u32);
-	//	hash(list, u64, u32, hash);
-	// 	insert(const typename HM::T, typename::IndexType *pos, u32);
-	// 	find(const typename HM::T, typename::IndexType load) -> std::convertable_to<typename HM::IndexType>;
-	//};
+	///
+	requires requires(const typename HM::List &list,
+	                  typename HM::Hash hash,
+	                  typename HM::Extractor extractor,
+	                  const typename HM::T t,
+					  const typename HM::IndexPos i,
+	 		   		  const size_t s,
+	                  const uint32_t u32,
+	                  const uint64_t u64) {
+		hash(list, u32);
+		hash(list, u64, u32, hash);
+
+	 	insert(t, *i, u32);
+		{ find(t, i) } -> std::convertible_to<typename HM::IndexType>;
+	};
 };
 
 template<class List>
@@ -512,7 +519,7 @@ public:
 		}
 	}
 
-	/// IMPORTANT: The two lists L1, L2 __MUST__ be prepared befor calling this function.
+	/// IMPORTANT: The two lists L1, L2 __MUST__ be prepared with any intermediate target before calling this function.
 	///                                                 Out
 	///                                      +----------------------+
 	///                                      |           |          |
@@ -701,6 +708,7 @@ public:
 		join2lists(out, L1, L2, target, lta[0], lta[1], prepare);
 	}
 
+	/// NOTE: the output list will contains zeros on the dimensions of the target
 	/// \param out
 	/// \param L1
 	/// \param L2
@@ -763,6 +771,7 @@ public:
 
 	/// in contrast to `join2lists` does this function not alter the
 	/// values of L2 (except for sorting them)
+	/// NOTE: the output list will contain the target between [k_lower, k_upper)
 	/// \param out output list
 	/// \param L1 const assumed to be sorted
 	/// \param L2 cannot be const, as its sorted
@@ -775,13 +784,20 @@ public:
 	                       		 const uint32_t k_lower,
 	                       		 const uint32_t k_upper) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
+		ASSERT(L1.is_sorted(k_lower, k_upper));
 
-		L2.sort_level(k_lower, k_upper, target);
+		constexpr static bool sub = !LabelType::binary();
+		L2.template sort_level<sub>(k_lower, k_upper, target);
 
 		LabelType tmp, tmp2;
-		uint64_t i = 0, j = 0;
-		while (i < L1.load() && j < L2.load()) {
-			LabelType::add(tmp, L2[j].label, target);
+		uint64_t i=0, j=0;
+		while ((i < L1.load()) && (j < L2.load())) {
+			if constexpr (sub){
+				LabelType::sub(tmp, target, L2[j].label, k_lower, k_upper);
+			} else {
+				LabelType::add(tmp, L2[j].label, target, k_lower, k_upper);
+			}
+
 			if (tmp.is_greater(L1[i].label, k_lower, k_upper)) {
 				i++;
 			} else if (L1[i].label.is_greater(tmp, k_lower, k_upper)) {
@@ -791,14 +807,15 @@ public:
 				// if elements are equal find max index in each list, such that they remain equal
 				for (;i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
 				for (;j_max < L2.load(); j_max++) {
-					LabelType::add(tmp2, L2[j_max].label, target);
+					if constexpr (sub) { LabelType::sub(tmp2, target, L2[j_max].label, k_lower, k_upper);
+					} else { LabelType::add(tmp2, L2[j_max].label, target, k_lower, k_upper); }
+
 					if (!tmp.is_equal(tmp2, k_lower, k_upper))  { break; }
 				}
 
 				const uint64_t jprev = j;
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						// todo full length stuff
 						out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1);
 
 #ifdef DEBUG
@@ -882,20 +899,29 @@ public:
 		LabelType R, Rneg, zero, ntarget;
 		zero.zero();
 
+		constexpr static bool sub = !LabelType::binary();
+		auto op = [](LabelType &c, const LabelType &a, const LabelType &b,
+		             const uint64_t l, const uint64_t h) {
+			if constexpr (sub) {
+				LabelType::sub(c, a, b, l, h);
+			} else {
+				LabelType::add(c, a, b, l, h);
+			}
+		};
+
 		// prepare baselists
 		if ((!target.is_zero()) && prepare) {
 			R.random(); Rneg = R; Rneg.neg();
 			ntarget = target; ntarget.neg();
 
-			size_t i = 0; // TODO wrong
+			size_t i = 0;
 			for (; i < std::min({L2.load(), L4.load(), L3.load()} ); ++i) {
-				LabelType::sub(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
-
+				op(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
 				L3[i].label.neg();
 
-				LabelType::sub(L4[i].label, Rneg, L4[i].label, k_lower1, k_upper1);
+				op(L4[i].label, Rneg, L4[i].label, k_lower1, k_upper1);
 				// add is on the full length
-				LabelType::sub(L4[i].label, target, L4[i].label, k_lower1, k_upper2);
+				op(L4[i].label, target, L4[i].label, k_lower1, k_upper2);
 			}
 
 			//const size_t j = i;

@@ -226,6 +226,7 @@ public:
 	/// \param target
 	/// \param tid: thread id currently unsupported
 	/// \return
+	template<const bool sub = false>
 	constexpr void sort_level(const uint32_t k_lower,
 							  const uint32_t k_higher,
 	                          const LabelType &target,
@@ -247,8 +248,12 @@ public:
 		ska_sort(__data.begin(), __data.begin() + load(),
 		    [k_lower, k_higher, mask, target]
 		    (const auto &e1) -> T {
-		        LabelType tmp; tmp.zero();
-		        LabelType::add(tmp, e1.label, target, k_lower, k_higher);
+		        LabelType tmp;
+			    if constexpr (sub) {
+					LabelType::sub(tmp, target, e1.label, k_lower, k_higher);
+			    } else {
+				    LabelType::add(tmp, e1.label, target, k_lower, k_higher);
+			    }
 		        const T tmp1 = *((T *)tmp.ptr());
 		        const T tmp2 = (tmp1>>k_lower) & mask;
 			    return tmp2;
