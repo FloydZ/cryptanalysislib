@@ -13,20 +13,24 @@
 namespace cryptanalysislib::math::internal {
 	__device__ __host__
 	template<typename T>
-	    requires std::is_floating_point_v<T>
-	constexpr T log_iter(T x, T y) {
+#if __cplusplus > 201709L
+		requires std::is_floating_point_v<T>
+#endif
+	[[nodiscard]] constexpr T log_iter(T x, T y) noexcept {
 		return y + T{2} * (x - exp(y)) / (x + exp(y));
 	}
 
 	__device__ __host__
 	template<typename T>
+#if __cplusplus > 201709L
 	    requires std::is_floating_point_v<T>
-	constexpr T log(T x, T y) {
+#endif
+	[[nodiscard]] constexpr T log(T x, T y) noexcept {
 		return feq(y, log_iter(x, y)) ? y : log(x, log_iter(x, y));
 	}
 
 	__device__ __host__
-	constexpr long double e() {
+	[[nodiscard]] constexpr inline long double e() noexcept {
 		return 2.71828182845904523536l;
 	}
 
@@ -39,15 +43,19 @@ namespace cryptanalysislib::math::internal {
 	// if x <= 1, we will multiply by e^5 repeatedly until x > 1
 	__device__ __host__
 	template<typename T>
+#if __cplusplus > 201709L
 	    requires std::is_floating_point_v<T>
-	constexpr T logGT(T x) {
+#endif
+	[[nodiscard]] constexpr T logGT(T x) noexcept {
 		return x > T{0.25} ? log(x, T{0}) : logGT<T>(x * e() * e() * e() * e() * e()) - T{5};
 	}
 
 	// if x >= 2e10, we will divide by e^5 repeatedly until x < 2e10
 	template<typename T>
+#if __cplusplus > 201709L
 	    requires std::is_floating_point_v<T>
-	constexpr T logLT(T x) {
+#endif
+	[[nodiscard]] constexpr T logLT(T x) noexcept {
 		return x < T{1024} ? log(x, T{0}) : logLT<T>(x / (e() * e() * e() * e() * e())) + T{5};
 	}
 }
@@ -56,8 +64,10 @@ namespace cryptanalysislib::math::internal {
 namespace cryptanalysislib::math {
 	__device__ __host__
 	template<typename T>
+#if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
-	constexpr T log(T const x) {
+#endif
+	[[nodiscard]] constexpr T log(T const x) noexcept {
 		if (x > T{1024}) {
 			if constexpr (std::is_integral_v<T>) {
 				return cryptanalysislib::math::internal::logLT<double>(x);
@@ -75,8 +85,10 @@ namespace cryptanalysislib::math {
 
 	__device__ __host__
 	template<typename T>
+#if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
-	constexpr T log2(T x) {
+#endif
+	[[nodiscard]] constexpr T log2(T x) noexcept {
 		return log(x) / log(2.);
 	}
 }

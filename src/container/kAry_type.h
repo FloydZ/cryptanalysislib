@@ -28,13 +28,18 @@ public:
 	[[nodiscard]] constexpr static inline uint64_t bits() noexcept { return bits_log2(q); }
 	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return 1; }
 
-	// TODO expand the api to support 64 bit integers
 	constexpr static uint64_t M = computeM_u32(_q);
 	// max bytes of T for which `fastmod` is defined
 	constexpr static uint64_t M_limit = 0;
 
 	using T = TypeTemplate<q>;
 	using T2 = TypeTemplate<q*q>;
+
+#ifdef USE_AVX512F
+	using S = TxN_t<T, 64u/sizeof(T)>;
+#else
+	using S = TxN_t<T, 32u/sizeof(T)>;
+#endif
 
 	// this is needed to make sure that we have enough `bits` in reserve to
 	// correctly compute the multiplication.
@@ -736,15 +741,13 @@ public:
 		}
 	}
 
-	/// TODO
+	/// NOTE: assumes that
 	/// \param a
 	/// \param b
 	/// \return
-	[[nodiscard]] static constexpr inline uint8x32_t add256_T(const uint8x32_t a, 
+	[[nodiscard]] static constexpr inline uint8x32_t add256_T(const uint8x32_t a,
 			const uint8x32_t b) {
 		uint8x32_t ret;
-		(void)a;
-		(void)b;
 		return ret;
 	}
 

@@ -350,7 +350,7 @@ public:
 		ASSERT(i < size());
 		return __data[i];
 	}
-	constexpr inline Element &operator[](const size_t i) noexcept {
+	[[nodiscard]] constexpr inline Element &operator[](const size_t i) noexcept {
 		ASSERT(i < size());
 		return __data[i];
 	}

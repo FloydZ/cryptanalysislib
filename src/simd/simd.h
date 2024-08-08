@@ -3005,6 +3005,67 @@ inline void transpose64(uint64_t a[64]) noexcept {
 // TODO
 //struct b256x64_T
 
+
+#if __cplusplus > 201709L
+/// describes the needed function to be row
+template<class S>
+concept SIMDAble = requires(S s) {
+	typename S::limb_type;
+	typename S::S;
+	typename S::LIMBS;
+
+	requires requires (
+	        const bool b,
+	        const uint32_t u32,
+	        typename S::limb_type l) {
+		// operator
+		{ S::random() } -> std::convertible_to<S>;
+		{ S::set() } -> std::convertible_to<S>;
+		{ S::setr() } -> std::convertible_to<S>;
+		{ S::set1() } -> std::convertible_to<S>;
+		{ S::load(*l) } -> std::convertible_to<S>;
+		{ S::aligned_load(*l) } -> std::convertible_to<S>;
+		{ S::unaligned_load(*l) } -> std::convertible_to<S>;
+
+		{ S::xor_(s, s) } -> std::convertible_to<S>;
+		{ S::and_(s, s) } -> std::convertible_to<S>;
+		{ S::or_(s, s) } -> std::convertible_to<S>;
+		{ S::andnot_(s, s) } -> std::convertible_to<S>;
+		{ S::not_(s) } -> std::convertible_to<S>;
+		{ S::add(s, s) } -> std::convertible_to<S>;
+		{ S::sub(s, s) } -> std::convertible_to<S>;
+		{ S::mullo(s, s) } -> std::convertible_to<S>;
+		{ S::mulhi(s, s) } -> std::convertible_to<S>;
+		{ S::mul(s, s) } -> std::convertible_to<S>;
+		{ S::slli(s, l) } -> std::convertible_to<S>;
+		{ S::srli(s, l) } -> std::convertible_to<S>;
+		{ S::ror(s, l) } -> std::convertible_to<S>;
+		{ S::rol(s, l) } -> std::convertible_to<S>;
+
+		{ S::gt(s, s) } -> std::convertible_to<S>;
+		{ S::gt_(s, s) } -> std::convertible_to<typename S::limb_type>;
+		{ S::cmp(s, s) } -> std::convertible_to<S>;
+		{ S::cmp_(s, s) } -> std::convertible_to<typename S::limb_type>;
+
+		{ S::popcnt(s) } -> std::convertible_to<S>;
+		{ S::all_equal(s) } -> std::convertible_to<bool>;
+		{ S::reverse(s) } -> std::convertible_to<S>;
+
+		{ S::gather(*l, s) } -> std::convertible_to<S>;
+		{ S::scatter(*l, s, s) } -> std::convertible_to<S>;
+		{ S::permute(s, s) } -> std::convertible_to<S>;
+		{ S::move(s) } -> std::convertible_to<S>;
+		{ S::mask(u32) } -> std::convertible_to<S>;
+
+		s.print(b, b);
+	};
+
+};
+#endif
+
 #include "simd/bits/bits.h"
 #include "simd/generic.h"
+
+
+
 #endif//CRYPTANALYSISLIB_SIMD_H

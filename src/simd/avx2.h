@@ -727,10 +727,6 @@ struct uint8x32_t {
 		return out;
 	}
 
-	[[nodiscard]] constexpr static inline uint8x32_t set(const uint8_t a) noexcept {
-		return uint8x32_t::set1(a);
-	}
-
 	///
 	/// \tparam aligned
 	/// \param ptr
@@ -1838,7 +1834,8 @@ struct uint32x8_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	[[nodiscard]] constexpr static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t gather(const void *ptr,
+	                                                        const uint32x8_t data) noexcept {
 		uint32x8_t ret{};
 
 #ifndef __clang__
@@ -1860,7 +1857,9 @@ struct uint32x8_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	constexpr static inline void scatter(const void *ptr, const uint32x8_t offset, const uint32x8_t data) noexcept {
+	constexpr static inline void scatter(const void *ptr,
+	                                     const uint32x8_t offset,
+	                                     const uint32x8_t data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		const uint8_t *ptr8 = (uint8_t *) ptr;
 		for (uint32_t i = 0; i < 8; i++) {
@@ -1872,7 +1871,8 @@ struct uint32x8_t {
 	/// \param in
 	/// \param perm
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in, const uint32x8_t perm) noexcept {
+	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in,
+	                                                         const uint32x8_t perm) noexcept {
 		uint32x8_t ret{};
 		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((__v8si) in.v256, (__v8si) perm.v256);
 		return ret;
@@ -1914,6 +1914,9 @@ struct uint32x8_t {
 	}
 
 
+	///
+	/// \param in
+	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
 		uint32x8_t ret{};
 #ifdef __clang__
