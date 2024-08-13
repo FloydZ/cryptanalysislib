@@ -20,6 +20,7 @@ using namespace fplll;
 
 #if __cplusplus > 201709L
 
+/// TODO rename and use only one concept for label and value
 /// \tparam Container
 template<class Container>
 concept LabelAble = requires(Container c) {
@@ -49,6 +50,7 @@ concept LabelAble = requires(Container c) {
 		c.is_zero(i, i);
 		c.is_zero();
 		c.neg(i, i);
+		c.popcnt(i, i);
 
 		Container::add(c, c, c, i, i);
 		Container::sub(c, c, c, i, i);
@@ -84,6 +86,7 @@ concept LabelAble = requires(Container c) {
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
+	{ Container::sub_container_size() } -> std::convertible_to<uint32_t>;
 	{ c.hash() } -> std::convertible_to<uint64_t>;
 };
 
@@ -126,6 +129,7 @@ concept ValueAble = requires(Container c) {
 		Container::add(c, c, c, i, i);
 		Container::sub(c, c, c, i, i);
 		c.neg(i, i);
+		c.popcnt(i, i);
 
 		/// printing stuff
 		c.print_binary(i, i);
@@ -158,6 +162,7 @@ concept ValueAble = requires(Container c) {
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
+	{ Container::sub_container_size() } -> std::convertible_to<uint32_t>;
 	{ c.hash() } -> std::convertible_to<uint64_t>;
 };
 
@@ -285,13 +290,6 @@ public:
 		m.mul(tmp, value);
 
 		bool ret = tmp.is_equal(label);
-//#ifdef DEBUG
-//		if (!ret) {
-//			std::cout << "IS|SHOULD\n";
-//			std::cout << label << std::endl;
-//			std::cout << tmp << std::endl;
-//		}
-//#endif
 		if (rewrite) {
 			label = tmp;
 		}
@@ -394,23 +392,6 @@ public:
 		return label.template is_lower<k_lower, k_upper>(obj.label);
 	}
 
-	/// Assignment operator implementing copy assignment
-	/// see https://en.cppreference.com/w/cpp/language/operators
-	///
-	/// \param obj to copy from
-	/// \return this
-	constexpr inline Element_T &operator=(Element_T const &obj) noexcept {
-		// self-assignment check expected
-		if (this != &obj) {
-			// now we can copy it
-			label = obj.label;
-			value = obj.value;
-		}
-
-		return *this;
-	}
-
-	///
 	/// \return true if either the value or label is zero on all coordinates
 	[[nodiscard]] constexpr bool is_zero() const noexcept {
 		bool ret = false;
@@ -420,18 +401,35 @@ public:
 		return ret;
 	}
 
+	/// Assignment operator implementing copy assignment
+	/// see https://en.cppreference.com/w/cpp/language/operators
+	///
+	/// \param obj to copy from
+	/// \return this
+// 	constexpr inline Element_T &operator=(Element_T const &obj) noexcept {
+// 		// self-assignment check expected
+// 		if (this != &obj) {
+// 			// now we can copy it
+// 			label = obj.label;
+// 			value = obj.value;
+// 		}
+//
+// 		return *this;
+// 	}
+
+
 	/// Assignment operator implementing move assignment
 	/// see https://en.cppreference.com/w/cpp/language/move_assignment
 	/// \param obj
 	/// \return
-	[[nodiscard]] Element_T &operator=(Element_T &&obj) noexcept {
-		if (this != &obj) {// self-assignment check expected really?
-			value = std::move(obj.value);
-			label = std::move(obj.label);
-		}
+	// [[nodiscard]] Element_T &operator=(Element_T &&obj) noexcept {
+	// 	if (this != &obj) {// self-assignment check expected really?
+	// 		value = std::move(obj.value);
+	// 		label = std::move(obj.label);
+	// 	}
 
-		return *this;
-	}
+	// 	return *this;
+	// }
 
 	/// \param obj
 	/// \return
@@ -510,30 +508,30 @@ public:
 		value.print_binary(k_lower_value, k_upper_value);
 	}
 
-	constexpr Value &get_value() noexcept { return value; }
-	constexpr const Value &get_value() const noexcept { return value; }
-	constexpr auto get_value(const size_t i) noexcept {
+	[[nodiscard]] constexpr Value &get_value() noexcept { return value; }
+	[[nodiscard]] constexpr const Value &get_value() const noexcept { return value; }
+	[[nodiscard]] constexpr auto get_value(const size_t i) noexcept {
 		ASSERT(i < value.size());
-		return value.data(i);
+		return value.get(i);
 	}
-	constexpr auto get_value(const size_t i) const noexcept {
+	[[nodiscard]] constexpr auto get_value(const size_t i) const noexcept {
 		ASSERT(i < value.size());
-		return value.data(i);
+		return value.get(i);
 	}
 
-	constexpr Label &get_label() noexcept { return label; }
-	constexpr const Label &get_label() const noexcept { return label; }
-	constexpr auto get_label(const uint64_t i) noexcept {
+	[[nodiscard]] constexpr Label &get_label() noexcept { return label; }
+	[[nodiscard]] constexpr const Label &get_label() const noexcept { return label; }
+	[[nodiscard]] constexpr auto get_label(const uint64_t i) noexcept {
 		ASSERT(i < label.size());
-		return label.data(i);
+		return label.get(i);
 	}
-	constexpr auto get_label(const uint64_t i) const noexcept {
+	[[nodiscard]] constexpr auto get_label(const uint64_t i) const noexcept {
 		ASSERT(i < label.size());
-		return label.data(i);
+		return label.get(i);
 	}
 
-	constexpr void set_value(const Value &v) noexcept { value = v; }
-	constexpr void set_label(const Label &l) noexcept { label = l; }
+	constexpr inline void set_value(const Value &v) noexcept { value = v; }
+	constexpr inline void set_label(const Label &l) noexcept { label = l; }
 
 	/// returns true of both underlying data structs are binary
 	[[nodiscard]] constexpr static bool binary() noexcept { return Label::binary() && Value::binary(); }
@@ -567,7 +565,7 @@ template<class Value, class Label, class Matrix>
 std::ostream &operator<<(std::ostream &out,
                          const Element_T<Value, Label, Matrix> &obj) {
 	out << "V: " << obj.get_value();
-	out << ", L: " << obj.get_label() << "\n";
+	out << ",\tL: " << obj.get_label() << "\n";
 	return out;
 }
 #endif//SMALLSECRETLWE_ELEMENT_H

@@ -3,7 +3,8 @@
 
 #include "helper.h"
 #include "random.h"
-#include "math/bc.h"
+#include "simd/simd.h"
+#include "math/math.h"
 
 using namespace cryptanalysislib;
 using ::testing::InitGoogleTest;

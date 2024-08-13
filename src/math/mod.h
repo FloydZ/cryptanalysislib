@@ -5,7 +5,7 @@
 
 #include "simd/simd.h"
 
-// TODO: - u64 mod/div
+// TODO: - u64 mod/div, simd mod/div
 // 		 - docs
 // extension by FloydZ
 // source: https://github.com/lemire/fastmod

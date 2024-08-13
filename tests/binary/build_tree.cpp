@@ -37,8 +37,8 @@ TEST(TreeTest, join2lists) {
 	translate_level(&k_lower, &k_higher, 0, ta);
 
 	BinaryList out{1u<<basesize}, l1{0}, l2{0};
-	l1.generate_base_random(1u << basesize, A);
-	l2.generate_base_random(1u << basesize, A);
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
 
 	BinaryLabel target {};
 	target.zero();
@@ -73,10 +73,10 @@ TEST(TreeTest, join4lists) {
 	uint64_t k_lower=0, k_higher=0;
 
 	BinaryList out{1u<<12}, l1{0}, l2{0}, l3{0}, l4{0};
-	l1.generate_base_random(1u << basesize, A);
-	l2.generate_base_random(1u << basesize, A);
-	l3.generate_base_random(1u << basesize, A);
-	l4.generate_base_random(1u << basesize, A);
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
+	l3.random(1u << basesize, A);
+	l4.random(1u << basesize, A);
 
 	BinaryLabel target {};
 	target.zero();
@@ -116,8 +116,8 @@ TEST(TreeTest, join4lists_with2lists) {
 	uint64_t k_lower=0, k_higher=0;
 
 	BinaryList out{1u<<basesize}, l1{0}, l2{0}, l3{0}, l4{0};
-	l1.generate_base_random(1u << basesize, A);
-	l2.generate_base_random(1u << basesize, A);
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
 
 	BinaryLabel target {};
 	target.zero();

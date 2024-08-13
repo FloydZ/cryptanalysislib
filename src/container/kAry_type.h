@@ -649,6 +649,21 @@ public:
 		}
 	}
 
+	constexpr inline void popcnt(const uint32_t lower=0,
+							  	 const uint32_t upper=bits()) noexcept {
+		ASSERT(sizeof(T)*8 > lower);
+		ASSERT(sizeof(T)*8 >= upper);
+		ASSERT(lower < upper);
+		ASSERT(upper <= bits());
+
+		if constexpr (arith) {
+			__value = ((q - __value) % q);
+		} else {
+			const T mask = compute_mask(lower, upper);
+			__value ^= mask;
+		}
+	}
+
 	/// right rotate
 	constexpr inline static void rol(kAry_Type_T &out,
 	                                 const kAry_Type_T &in1,
@@ -849,14 +864,21 @@ public:
 
 	///
 	/// \return
-	[[nodiscard]] constexpr inline T* ptr() noexcept {
+    [[nodiscard]] constexpr inline T* ptr() noexcept {
+        return &__value;
+    }
+	[[nodiscard]] constexpr inline const T* ptr() const noexcept {
 		return &__value;
 	}
 
 	/// NOTE: not really useful: i is ignored
 	/// \param i
 	/// \return
-	[[nodiscard]] constexpr inline T ptr(const size_t i) noexcept {
+    [[nodiscard]] constexpr inline T ptr(const size_t i) noexcept {
+        ASSERT(i < bits());
+        return __value;
+    }
+	[[nodiscard]] constexpr inline const T ptr(const size_t i) const noexcept {
 		ASSERT(i < bits());
 		return __value;
 	}
@@ -871,32 +893,6 @@ public:
 		cryptanalysislib::print_binary(tmp);
 	}
 
-	/// NOTE: lower and upper are ignored
-	constexpr void print(const uint32_t lower=0,
-	                     const uint32_t upper=length()) const noexcept {
-		(void) lower;
-		(void) upper;
-		std::cout << __value << std::endl;
-	}
-
-	[[nodiscard]] static constexpr inline bool binary() noexcept {
-		return q == 2;
-	}
-
-	/// returns the number of elements stored this container
-	[[nodiscard]] 	static constexpr inline size_t size() noexcept {
-		return 1;
-	}
-
-	/// returns the number of elements stored this container
-	[[nodiscard]] static constexpr inline size_t limbs() noexcept {
-		return 1;
-	}
-
-	///
-	[[nodiscard]] static constexpr inline size_t bytes() noexcept {
-		return sizeof(T);
-	}
 
 	/// NOTE: returns zero id one of the inputs is zero
 	/// \param a
@@ -943,6 +939,37 @@ public:
 	}
 
 
+	/// NOTE: lower and upper are ignored
+	constexpr void print(const uint32_t lower=0,
+						 const uint32_t upper=length()) const noexcept {
+		(void) lower;
+		(void) upper;
+		std::cout << __value << std::endl;
+	}
+
+	[[nodiscard]] static constexpr inline bool binary() noexcept {
+		return q == 2;
+	}
+
+	/// returns the number of elements stored this container
+	[[nodiscard]] 	static constexpr inline size_t size() noexcept {
+		return 1;
+	}
+
+	/// returns the number of elements stored this container
+	[[nodiscard]] static constexpr inline size_t limbs() noexcept {
+		return 1;
+	}
+
+	/// returns size of a single element in this container in bits
+	[[nodiscard]] static constexpr inline size_t sub_container_size() noexcept {
+		return bytes() * 8;
+	}
+
+	///
+	[[nodiscard]] static constexpr inline size_t bytes() noexcept {
+		return sizeof(T);
+	}
 	[[nodiscard]] inline static constexpr bool optimized() noexcept { return true; };
 	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
 		return __value;
@@ -986,7 +1013,9 @@ std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) 
 			std::cout << (tmp & 1u);
 			tmp >>= 1u;
 		}
-		out << " (" << obj.value() << ")";
+		out << " (" << std::dec << obj.value()
+		    << ", 0x" << std::hex << obj.value() << ")"
+		    << std::dec;
 	} else {
 		out << obj.value();
 	}

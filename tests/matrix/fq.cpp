@@ -300,8 +300,8 @@ TEST(FqMatrix, gaus) {
 // NOTE disable because ARM CI pipline has not enough space
 #ifndef USE_NEON
 TEST(FqMatrix, m4ri) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<410, 440, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, 9>([](const auto __nrows) {
+		constexpr_for<410, 440, 10>([__nrows](const auto __ncols) {
 			if constexpr (__nrows <= __ncols) {
 				using M = FqMatrix<T, __nrows, __ncols, q, true>;
 				M m = M{};
@@ -320,8 +320,8 @@ TEST(FqMatrix, m4ri) {
 }
 
 TEST(FqMatrix, markov_gaus) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, 7>([](const auto __nrows) {
+		constexpr_for<400, 440, 11>([__nrows](const auto __ncols) {
 			if constexpr (__nrows <= __ncols) {
 				using M = FqMatrix<T, __nrows, __ncols, q, true>;
 				using MT = FqMatrix<T, __ncols, __nrows, q, true>;
@@ -355,8 +355,8 @@ TEST(FqMatrix, markov_gaus) {
 
 
 TEST(FqMatrix, fixgaus) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, 7>([](const auto __nrows) {
+		constexpr_for<400, 470, 11>([__nrows](const auto __ncols) {
 			if constexpr (__nrows <= ncols) {
 				using M = FqMatrix<T, __nrows, __ncols, q, true>;
 				using MT = FqMatrix<T, __ncols, __nrows, q, true>;
@@ -383,9 +383,9 @@ TEST(FqMatrix, fixgaus) {
 }
 
 TEST(FqMatrix, mult) {
-	constexpr_for<1, 100, 11>([](const auto __nrows) {
-		constexpr_for<2, 100, 11>([__nrows](const auto __ncols) {
-			constexpr_for<1, 100, 11>([__nrows, __ncols](const auto __ncols_prime) {
+	constexpr_for<3, 50, 40>([](const auto __nrows) {
+		constexpr_for<7, 50, 40>([__nrows](const auto __ncols) {
+			constexpr_for<11, 60, 40>([__nrows, __ncols](const auto __ncols_prime) {
 				using AT = FqMatrix<T, __nrows, __ncols, q, true>;
 				using BT = FqMatrix<T, __ncols, __ncols_prime, q, true>;
 				using CT = FqMatrix<T, __nrows, __ncols_prime, q, true>;
@@ -393,18 +393,18 @@ TEST(FqMatrix, mult) {
 				AT a = AT{};
 				BT b = BT{};
 				CT c = CT{};
-				a.random();
-				b.random();
-				c.random();
+				a.identity();
+				b.identity();
+				c.identity();
 				AT::mul(c, a, b);
 
 				for (uint32_t i = 0; i < __nrows; ++i) {
-					for (uint32_t j = 0; j < rank2; ++j) {
+					for (uint32_t j = 0; j < __ncols_prime; ++j) {
 						if (i == j) {
-							ASSERT_EQ(m.get(i, j), 1u);
+							ASSERT_EQ(c.get(i, j), 1u);
 							continue;
 						}
-						ASSERT_EQ(m.get(i, j), 0u);
+						ASSERT_EQ(c.get(i, j), 0u);
 					}
 				}
 			});

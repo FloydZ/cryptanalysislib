@@ -86,7 +86,7 @@ TEST(SearchBinary, Simple) {
 	BinaryMatrix A;
 	A.identity();
 
-	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
+	L.random(TEST_BASE_LIST_SIZE, A);
 
 	for (uint32_t k_lower = 0; k_lower < n; ++k_lower) {
 		for (uint32_t k_upper = k_lower + 5; k_upper < std::min((size_t) k_lower + 6u, (size_t)BinaryLabel::length()); ++k_upper) {
@@ -117,7 +117,7 @@ TEST(SearchBinary, Complex) {
 	BinaryMatrix A;
 	A.identity();
 
-	L.generate_base_random(TEST_BASE_LIST_SIZE, A);
+	L.random(TEST_BASE_LIST_SIZE, A);
 
 	for (uint64_t k_lower = 0; k_lower < n; ++k_lower) {
 		for (uint64_t k_upper = k_lower + 1; k_upper < n; ++k_upper) {

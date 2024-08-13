@@ -23,7 +23,7 @@ B63_BASELINE(NotFindBinary, nn) {
 	B63_SUSPEND {
 		BinaryMatrix B;
 		B.random();
-		l.generate_base_random(n, B);
+		l.random(n, B);
 
 		// make sure we will never find the value
 		e.zero();
@@ -46,7 +46,7 @@ B63_BENCHMARK(NotFindBinaryCustom, nn) {
 	B63_SUSPEND {
 		BinaryMatrix B;
 		B.random();
-		l.generate_base_random(n, B);
+		l.random(n, B);
 
 		translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 		l.sort_level(k_lower, k_higher);
@@ -69,7 +69,7 @@ B63_BENCHMARK(FindEnd, nn) {
 	B63_SUSPEND {
 		BinaryMatrix B;
 		B.random();
-		l.generate_base_random(n, B);
+		l.random(n, B);
 
 		// make sure we will find the element at the end
 		e.zero();
@@ -93,7 +93,7 @@ B63_BENCHMARK(FindBegin, nn) {
 	B63_SUSPEND {
 		BinaryMatrix B;
 		B.random();
-		l.generate_base_random(n, B);
+		l.random(n, B);
 
 		// make sure we will find the element at the beginning
 		e.zero();
@@ -118,7 +118,7 @@ B63_BENCHMARK(FindEndCustom, nn) {
 	B63_SUSPEND {
 		BinaryMatrix B;
 		B.random();
-		l.generate_base_random(n, B);
+		l.random(n, B);
 
 		// make sure we will find the element at the end
 		e.zero();
@@ -142,7 +142,7 @@ B63_BENCHMARK(FindBeginCustom, nn) {
 	B63_SUSPEND {
 		BinaryMatrix B;
 		B.random();
-		l.generate_base_random(n, B);
+		l.random(n, B);
 
 		// make sure we will find the element at the beginning
 		e.zero();

@@ -115,15 +115,15 @@ concept ListAble = requires(List l) {
 
 		/// i = thread id
 		l.zero(i);
-		l.random(i);
 		l.random();
+		l.random(i); // create a random element
 
 		l.bytes();
 	};
 };
 #endif
 
-
+/// TODO `ListConfig` class which contains all compile time options like `use_std_sort`, `data_alignment`
 template<class Element>
 #if __cplusplus > 201709L
     requires ListElementAble<Element>
@@ -150,7 +150,39 @@ protected:
 	/// internal data representation of the list.
 	alignas(CUSTOM_PAGE_SIZE) std::vector<Element> __data;
 
+	/// options
+	constexpr static bool use_std_sort = true;
+	constexpr static bool sort_increasing_order = true;
+
 public:
+
+	// needed types
+	typedef Element ElementType;
+	typedef typename Element::ValueType ValueType;
+	typedef typename Element::LabelType LabelType;
+
+	typedef typename Element::ValueType::LimbType ValueLimbType;
+	typedef typename Element::LabelType::LimbType LabelLimbType;
+
+	typedef typename Element::ValueContainerType ValueContainerType;
+	typedef typename Element::LabelContainerType LabelContainerType;
+
+	typedef typename Element::ValueDataType ValueDataType;
+	typedef typename Element::LabelDataType LabelDataType;
+
+	typedef typename Element::MatrixType MatrixType;
+
+	using LoadType = size_t;
+
+	// internal data types lengths
+	constexpr static uint32_t ValueLENGTH = ValueType::length();
+	constexpr static uint32_t LabelLENGTH = LabelType::length();
+
+	/// size in bytes
+	constexpr static uint64_t ElementBytes = Element::bytes();
+	constexpr static uint64_t ValueBytes = ValueType::bytes();
+	constexpr static uint64_t LabelBytes = LabelType::bytes();
+
 	/// only valid constructor
 	constexpr MetaListT(const size_t size,
 	                    const uint32_t threads = 1,
@@ -181,32 +213,6 @@ public:
 		memcpy(out.__data.data() + s, in.__data.data() + s, c * sizeof(ValueType));
 	}
 
-	typedef Element ElementType;
-	typedef typename Element::ValueType ValueType;
-	typedef typename Element::LabelType LabelType;
-
-	typedef typename Element::ValueType::LimbType ValueLimbType;
-	typedef typename Element::LabelType::LimbType LabelLimbType;
-
-	typedef typename Element::ValueContainerType ValueContainerType;
-	typedef typename Element::LabelContainerType LabelContainerType;
-
-	typedef typename Element::ValueDataType ValueDataType;
-	typedef typename Element::LabelDataType LabelDataType;
-
-	typedef typename Element::MatrixType MatrixType;
-
-	using LoadType = size_t;
-
-	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::length();
-	constexpr static uint32_t LabelLENGTH = LabelType::length();
-
-	/// size in bytes
-	constexpr static uint64_t ElementBytes = Element::bytes();
-	constexpr static uint64_t ValueBytes = ValueType::bytes();
-	constexpr static uint64_t LabelBytes = LabelType::bytes();
-
 	/// checks if all elements in the list fulfill the equation:
 	// 				label == value*matrix
 	/// \param m 		the matrix.
@@ -230,7 +236,7 @@ public:
 	/// \param k_lower lower bound
 	/// \param k_higher upper bound
 	/// \return if its sorted
-	constexpr bool is_sorted(const uint64_t k_lower=0,
+	[[nodiscard]] constexpr bool is_sorted(const uint64_t k_lower=0,
 							 const uint64_t k_higher=LabelBytes) const {
 		for (size_t i = 1; i < load(); ++i) {
 			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
@@ -271,7 +277,12 @@ public:
 	}
 
 	/// resize the internal data container
-	constexpr void resize(const size_t new_size) noexcept { return __data.resize(new_size); }
+	constexpr void resize(const size_t new_size) noexcept {
+		if (__size == new_size) {
+			return;
+		}
+		return __data.resize(new_size);
+	}
 
 	/// set/get the load factor
 	[[nodiscard]] constexpr size_t load(const uint32_t tid = 0) const noexcept {
@@ -290,10 +301,19 @@ public:
 	/// returning the range in which one thread is allowed to operate
 	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid=0) const noexcept {
 		ASSERT(tid < threads());
+
+		if (threads() == 1) {
+			return 0;
+		}
+
 		return tid * (__data.size() / __threads);
 	};
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid=0) const noexcept {
 		ASSERT(tid < threads());
+		if (threads() == 1) {
+			return load();
+		}
+
 		if (tid == threads() - 1) {
 			return std::max(thread_block_size() * tid, size());
 		}
@@ -506,11 +526,28 @@ public:
 		random(size(), m);
 	}
 
-	///
+	/// single threaded
 	constexpr void random(const size_t list_size,
 						  const MatrixType &m) noexcept {
+		__data.resize(list_size);
+		set_size(list_size);
+		set_load(list_size);
+
 		for (size_t i = 0; i < list_size; ++i) {
-			Element e{};
+			this->at(i).random(m);
+		}
+	}
+
+	// mutl
+	constexpr void random(const MatrixType &m,
+						  const uint32_t tid) noexcept {
+		ASSERT(tid < threads());
+		const size_t sp = start_pos(tid);
+		const size_t ep = start_pos(tid);
+
+		Element e{};
+		set_load(ep - sp, tid);
+		for (size_t i = sp; i < sp; ++i) {
 			e.random(m);
 			this->at(i) = e;
 		}
@@ -544,7 +581,8 @@ public:
 
 template<typename Element>
 std::ostream &operator<<(std::ostream &out, const MetaListT<Element> &obj) {
-	for (size_t i = 0; i < obj.size(); ++i) {
+	const size_t size = obj.load() > 0 ? obj.load() : obj.size();
+	for (size_t i = 0; i < size; ++i) {
 		out << obj[i];
 	}
 	return out;

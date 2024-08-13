@@ -313,7 +313,7 @@ TEST(FqMatrix, m4ri) {
 	});
 }
 
- failed in der osx pipline
+// note; failed in der osx pipline
 TEST(FqMatrix, markov_gaus) {
 	constexpr_for<400, 430, 3>([](const auto __nrows) {
 		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
@@ -377,11 +377,11 @@ TEST(FqMatrix, fixgaus) {
 	});
 }
 
- test is only valid on clang. Gcc has problems compiling it.
+// note test is only valid on clang. Gcc has problems compiling it.
 TEST(FqMatrix, mult) {
-	constexpr_for<1, 100, 11>([](const auto __nrows) {
-		constexpr_for<2, 100, 11>([__nrows](const auto __ncols) {
-			constexpr_for<1, 100, 11>([__nrows, __ncols](const auto __ncols_prime) {
+	constexpr_for<1, 100, 40>([](const auto __nrows) {
+		constexpr_for<2, 100, 40>([__nrows](const auto __ncols) {
+			constexpr_for<1, 100, 40>([__nrows, __ncols](const auto __ncols_prime) {
 				using AT = FqMatrix<T, __nrows, __ncols, q, true>;
 				using BT = FqMatrix<T, __ncols, __ncols_prime, q, true>;
 				using CT = FqMatrix<T, __nrows, __ncols_prime, q, true>;
@@ -389,18 +389,18 @@ TEST(FqMatrix, mult) {
 				AT a = AT{};
 				BT b = BT{};
 				CT c = CT{};
-				a.random();
-				b.random();
-				c.random();
+				a.identity();
+				b.identity();
+				c.identity();
 				AT::mul(c, a, b);
 
 				for (uint32_t i = 0; i < __nrows; ++i) {
-					for (uint32_t j = 0; j < rank2; ++j) {
+					for (uint32_t j = 0; j < __ncols_prime; ++j) {
 						if (i == j) {
-							ASSERT_EQ(m.get(i, j), 1u);
+							ASSERT_EQ(c.get(i, j), 1u);
 							continue;
 						}
-						ASSERT_EQ(m.get(i, j), 0u);
+						ASSERT_EQ(c.get(i, j), 0u);
 					}
 				}
 			});

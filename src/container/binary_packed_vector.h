@@ -76,6 +76,32 @@ public:
 	/// Copy Constructor
 	constexpr BinaryContainer(const BinaryContainer &a) noexcept : __data(a.__data) {}
 
+	/// Assignment operator implementing copy assignment
+	/// see https://en.cppreference.com/w/cpp/language/operators
+	/// \param obj
+	/// \return
+	BinaryContainer &operator=(BinaryContainer const &obj) noexcept {
+		if (this != &obj) {// self-assignment check expected
+			std::copy(&obj.__data[0], &obj.__data[0] + obj.__data.size(), &this->__data[0]);
+		}
+
+		return *this;
+	}
+
+	/// Assignment operator implementing move assignment
+	/// Alternative definition: Value& operator =(Value &&obj) = default;
+	/// see https://en.cppreference.com/w/cpp/language/move_assignment
+	/// \param obj
+	/// \return
+	BinaryContainer &operator=(BinaryContainer &&obj) noexcept {
+		if (this != &obj) {// self-assignment check expected really?
+			// move the data
+			__data = std::move(obj.__data);
+		}
+
+		return *this;
+	}
+
 
 	// round a given amount of 'in' bits to the nearest limb excluding the lowest overflowing bits
 	// e.g. 13 -> 64
@@ -1759,32 +1785,6 @@ public:
 		return (__data[round_down_to_limb(pos)] & mask(pos)) != 0;
 	}
 
-	/// Assignment operator implementing copy assignment
-	/// see https://en.cppreference.com/w/cpp/language/operators
-	/// \param obj
-	/// \return
-	BinaryContainer &operator=(BinaryContainer const &obj) noexcept {
-		if (this != &obj) {// self-assignment check expected
-			std::copy(&obj.__data[0], &obj.__data[0] + obj.__data.size(), &this->__data[0]);
-		}
-
-		return *this;
-	}
-
-	/// Assignment operator implementing move assignment
-	/// Alternative definition: Value& operator =(Value &&obj) = default;
-	/// see https://en.cppreference.com/w/cpp/language/move_assignment
-	/// \param obj
-	/// \return
-	BinaryContainer &operator=(BinaryContainer &&obj) noexcept {
-		if (this != &obj) {// self-assignment check expected really?
-			// move the data
-			__data = std::move(obj.__data);
-		}
-
-		return *this;
-	}
-
 	/// wrapper around `print`
 	void print_binary(const uint32_t k_lower = 0, const uint32_t k_upper = length()) const noexcept {
 		print(k_lower, k_upper);
@@ -1830,6 +1830,10 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return true; }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return (length() + limb_bits_width() - 1) / limb_bits_width(); }
+	/// returns size of a single element in this container in bits
+	[[nodiscard]] static constexpr inline size_t sub_container_size() noexcept {
+		return 1;
+	}
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept {
 #ifdef BINARY_CONTAINER_ALIGNMENT
 		return alignment() / 8;
@@ -1874,9 +1878,15 @@ template<uint64_t _n,
         typename T=uint64_t>
 std::ostream &operator<<(std::ostream &out,
                          const BinaryContainer<_n, T> &obj) {
+	constexpr bool print_weight = true;
 	for (size_t i = 0; i < obj.length(); ++i) {
 		out << obj[i];
 	}
+
+	if constexpr (print_weight) {
+		std::cout << ", ( wt=" << std::dec << obj.popcnt() << ")";
+	}
+
 	return out;
 }
 

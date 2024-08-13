@@ -864,6 +864,8 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return length(); }
+	/// returns size of a single element in this container in bits
+	[[nodiscard]] __FORCEINLINE__ constexpr static size_t sub_container_size() noexcept { return sizeof(T) * 8; }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return length() * sizeof(T); }
 
 	/// returns the underlying data container

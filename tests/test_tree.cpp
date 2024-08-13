@@ -36,8 +36,8 @@ TEST(TreeTest, JoinForLevelOne) {
 
 	Tree t{1, A, 10, __level_translation_array, __level_filter_array};
 
-    t[0].generate_base_random(1u << 10u, A);
-    t[1].generate_base_random(1u << 10u, A);
+	t[0].random(1u << 10u, A);
+	t[1].random(1u << 10u, A);
     t.join_stream(0);
 
     EXPECT_EQ(1u << 20u, t[2].load());
@@ -49,8 +49,8 @@ TEST(TreeTest, JoinForLevelTwo) {
 
     Tree t{2, A, 10, __level_translation_array, __level_filter_array};
 
-    t[0].generate_base_random(1u << 2u, A);
-    t[1].generate_base_random(1u << 2u, A);
+	t[0].random(1u << 2u, A);
+	t[1].random(1u << 2u, A);
     t.join_stream(0);
     t.join_stream(1);
     EXPECT_EQ(1u << 8u, t[3].load());
@@ -61,8 +61,8 @@ TEST(TreeTest, JoinForLevelThree) {
 	A.fill(0);
     Tree t{3, A, 10, __level_translation_array, __level_filter_array};
 
-    t[0].generate_base_random(1u << 2u, A);
-    t[1].generate_base_random(1u << 2u, A);
+	t[0].random(1u << 2u, A);
+	t[1].random(1u << 2u, A);
     t.join_stream(0);
     t.join_stream(1);
     t.join_stream(2);
@@ -76,8 +76,8 @@ TEST(TreeTest, JoinRandomListsLevel0) {
 	static std::vector<uint64_t> tbl{{0, n}};
     Tree t{2, A, 10u, tbl, __level_filter_array};
 
-    t[0].generate_base_random(1u << 14u, A);
-    t[1].generate_base_random(1u << 14u, A);
+	t[0].random(1u << 14u, A);
+	t[1].random(1u << 14u, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
 
@@ -102,16 +102,16 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 	static std::vector<uint64_t> tbl{{0, n/2, n}};
 	Tree t{2, A, 11, tbl, __level_filter_array};
 
-    t[0].generate_base_random(1u << 12u, A);
-    t[1].generate_base_random(1u << 12u, A);
+	t[0].random(1u << 12u, A);
+	t[1].random(1u << 12u, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t.join_stream(0);
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << 12u, A);
-    t[1].generate_base_random(1u << 12u, A);
+	t[0].random(1u << 12u, A);
+	t[1].random(1u << 12u, A);
 
     t[2].sort_level(1, tbl);
     t[0].sort_level(0, tbl);
@@ -149,8 +149,8 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
@@ -158,8 +158,8 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
     t[2].sort_level(1, tbl);
     t[0].sort_level(0, tbl);
@@ -168,8 +168,8 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t[3].sort_level(2, tbl);
@@ -211,16 +211,16 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t.join_stream(0);
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
     t[2].sort_level(1, tbl);
     t[0].sort_level(0, tbl);
@@ -229,8 +229,8 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t[3].sort_level(2, tbl);
@@ -238,8 +238,8 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t[4].sort_level(3, tbl);

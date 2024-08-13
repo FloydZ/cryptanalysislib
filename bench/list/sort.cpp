@@ -11,7 +11,7 @@ B63_BASELINE(Simple, nn) {
 	B63_SUSPEND {
 		kAryMatrix m;
 		m.identity(n);
-		l.generate_base_random(n, m);
+		l.random(n, m);
 	}
 
 	int32_t res = 0;

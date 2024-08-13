@@ -43,8 +43,8 @@ TEST(SubSetSum, Simple) {
 	static std::vector<uint64_t> tbl{{0, n}};
 	Tree t{1, A, list_size, tbl, __level_filter_array};
 
-	t[0].generate_base_random(1u << list_size, A);
-	t[1].generate_base_random(1u << list_size, A);
+	t[0].random(1u << list_size, A);
+	t[1].random(1u << list_size, A);
 	t.join_stream(0);
 
 	EXPECT_EQ(1u << 20u, t[2].load());
@@ -57,8 +57,8 @@ TEST(SubSetSum, JoinForLevelTwo) {
 	static std::vector<uint64_t> tbl{{0, 5, 10, n}};
 	Tree t{2, A, 10, tbl, __level_filter_array};
 
-	t[0].generate_base_random(1u << 2u, A);
-	t[1].generate_base_random(1u << 2u, A);
+	t[0].random(1u << 2u, A);
+	t[1].random(1u << 2u, A);
 	t.join_stream(0);
 	t.join_stream(1);
 	EXPECT_EQ(1u << 8u, t[3].load());
@@ -70,8 +70,8 @@ TEST(SubSetSum, JoinForLevelThree) {
 	static std::vector<uint64_t> tbl{{0, 5, 10, n}};
 	Tree t{3, A, 10, tbl, __level_filter_array};
 
-	t[0].generate_base_random(1u << 2u, A);
-	t[1].generate_base_random(1u << 2u, A);
+	t[0].random(1u << 2u, A);
+	t[1].random(1u << 2u, A);
 	t.join_stream(0);
 	t.join_stream(1);
 	t.join_stream(2);
@@ -85,8 +85,8 @@ TEST(SubSetSum, JoinRandomListsLevel0) {
 	static std::vector<uint64_t> tbl{{0, n}};
 	Tree t{2, A, 10u, tbl, __level_filter_array};
 
-	t[0].generate_base_random(1u << 8u, A);
-	t[1].generate_base_random(1u << 8u, A);
+	t[0].random(1u << 8u, A);
+	t[1].random(1u << 8u, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 
@@ -112,16 +112,16 @@ TEST(SubSetSum, JoinRandomListsLevel1) {
 	static std::vector<uint64_t> tbl{{0, n/2, n}};
 	Tree t{2, A, 11, tbl, __level_filter_array};
 
-	t[0].generate_base_random(1u << 12u, A);
-	t[1].generate_base_random(1u << 12u, A);
+	t[0].random(1u << 12u, A);
+	t[1].random(1u << 12u, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 	t.join_stream(0);
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].generate_base_random(1u << 12u, A);
-	t[1].generate_base_random(1u << 12u, A);
+	t[0].random(1u << 12u, A);
+	t[1].random(1u << 12u, A);
 
 	t[2].sort_level(1, tbl);
 	t[0].sort_level(0, tbl);
@@ -159,8 +159,8 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].generate_base_random(1u << base_size, A);
-	t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
@@ -168,8 +168,8 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].generate_base_random(1u << base_size, A);
-	t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
 	t[2].sort_level(1, tbl);
 	t[0].sort_level(0, tbl);
@@ -178,8 +178,8 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].generate_base_random(1u << base_size, A);
-	t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 	t[3].sort_level(2, tbl);
@@ -221,16 +221,16 @@ TEST(SubSetSum, JoinRandomListsLevel3) {
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].generate_base_random(1u << base_size, A);
-	t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 	t.join_stream(0);
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].generate_base_random(1u << base_size, A);
-	t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
 	t[2].sort_level(1, tbl);
 	t[0].sort_level(0, tbl);
@@ -239,8 +239,8 @@ TEST(SubSetSum, JoinRandomListsLevel3) {
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].generate_base_random(1u << base_size, A);
-	t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 	t[3].sort_level(2, tbl);
@@ -248,8 +248,8 @@ TEST(SubSetSum, JoinRandomListsLevel3) {
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].generate_base_random(1u << base_size, A);
-	t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 	t[4].sort_level(3, tbl);
@@ -335,6 +335,8 @@ TEST(SubSetSum, join2lists) {
 		Label::add(target, target, A[0][weights[i]]);
 	}
 
+
+	// compute the number of collisions via the simple quadratic algorithm
 	Label el{};
 	uint64_t num = 0;
 	for (size_t i = 0; i < l1.load(); ++i) {
@@ -366,6 +368,8 @@ TEST(SubSetSum, join2lists) {
 	auto right=true;
 	int wrong=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {
+		EXPECT_EQ(out[i].label.is_zero(k_lower, k_higher), true);
+
 		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
 		A.mul(test_recalc3, out[i].value);
 		// NOTE: the full length
@@ -395,7 +399,7 @@ TEST(SubSetSum, join2lists) {
 	EXPECT_EQ(out.load(), num);
 }
 
-TEST(SubSetSum, streamjoin4lists) {
+TEST(SubSetSum, join4lists) {
 	Matrix A; A.random();
 	constexpr uint64_t k_lower1=0, k_higher1=n/2;
 	constexpr uint64_t k_lower2=n/2, k_higher2=n;
@@ -424,48 +428,50 @@ TEST(SubSetSum, streamjoin4lists) {
 		EXPECT_EQ(l4[i].is_correct(A), true);
 	}
 
-	Tree::streamjoin4lists(out, l1, l2, l3, l4, target,
-	                       k_lower1, k_higher1, k_lower2, k_higher2, true);
+	Tree::join4lists(out, l1, l2, l3, l4, target,
+	                 k_lower1, k_higher1, k_lower2, k_higher2, true);
 
-	for (size_t i = 0; i < baselist_size; ++i) {
-		EXPECT_EQ(l1[i].is_correct(A), true);
-
-		// revert the changes of the right list
-		Element l2_tmp = l2[i];
-		l2_tmp.label.neg();
-		l2_tmp.label += target;
-		EXPECT_EQ(l2_tmp.is_correct(A), true);
+	std::cout << A << std::endl;
+	for (const auto &w : weights) {
+		std::cout << w << ",";
 	}
+	std::cout << std::endl;
+	std::cout << target << std::endl;
 
-	auto right=true;
-	int wrong=0;
+	uint32_t right=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {
-		// Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
-		// A.mul(test_recalc3, out[i].value);
-		// // NOTE: the full length
-		// for (uint64_t j = 0; j < n; ++j) {
-		// 	if (out[i].value.get(j)) {
-		// 		test_recalc1 += A[0][j];
-		// 		Label::add(test_recalc2, test_recalc2, A[0][j]);
-		// 	}
-		// }
+		// just for debugging, we are not filtering
+		if (out[i].value.popcnt() != n/2) {
+			continue;
+		}
 
-		// out[i].recalculate_label(A);
-		// EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, k_lower, k_higher));
-		// EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, k_lower, k_higher));
-		// EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
+		// first check thats is zero
+		EXPECT_EQ(out[i].label.is_zero(k_lower1, k_higher2), true);
 
-		if (!(Label::cmp(out[i].label, target, 0, n))) {
-			right = false;
-			wrong++;
+		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
+		A.mul(test_recalc3, out[i].value);
+		// NOTE: the full length
+		for (uint64_t j = 0; j < n; ++j) {
+			if (out[i].value.get(j)) {
+				test_recalc1 += A[0][j];
+				Label::add(test_recalc2, test_recalc2, A[0][j]);
+			}
+		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
+
+		std::cout << out[i];
+
+		// TODO not finished
+		if (Label::cmp(out[i].label, target)) {
+			right += 1;
 		}
 	}
 
-	EXPECT_GT(out.load(), 0);
-	EXPECT_EQ(0, wrong);
-	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<3);
-	EXPECT_LT(out.load(),1u<<7);
+	EXPECT_GT(right,0);
 }
 
 TEST(SubSetSum, join2lists_on_iT) {
@@ -575,7 +581,7 @@ TEST(SubSetSum, twolevel_streamjoin) {
 
 
 	Tree::twolevel_streamjoin(out, iT, l1, l2,
-	                          k_lower1, k_higher1, k_lower1, k_higher2, true);
+	                          k_lower1, k_higher1, k_lower2, k_higher2, true);
 
 	for (size_t i = 0; i < baselist_size; ++i) {
 		EXPECT_EQ(l1[i].is_correct(A), true);

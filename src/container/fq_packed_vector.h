@@ -18,17 +18,6 @@
 #include <immintrin.h>
 #endif
 
-#if __cplusplus > 201709L
-/// Concept for the base data type
-/// \tparam T
-template<typename T>
-concept kAryPackedContainerAble =
-        std::is_integral<T>::value && requires(T t) {
-	        t ^ t;
-	        t + t;
-        };
-#endif
-
 /// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
 /// Meta class, contains all important meta definitions.
 /// \param T = uint64_t
@@ -38,7 +27,7 @@ template<typename T,
 		 const uint64_t _n,
 		 const uint64_t _q>
 #if __cplusplus > 201709L
-    requires std::is_integral<T>::value
+    requires std::is_integral_v<T>
 #endif
 class kAryPackedContainer_Meta {
 public:
@@ -51,7 +40,7 @@ public:
 	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return n; }
 	
 	static_assert(n > 0, "jeah at least a single bit?");
-	static_assert(q > 0, "mod 0?");
+	static_assert(q > 1, "mod 1 or 0?");
 	static_assert(bits_log2(q) < (8*sizeof(T)), "the limb type should be atleast of the size of prime");
 
 	// number of bits in each T
@@ -60,7 +49,7 @@ public:
 	constexpr static uint32_t bits_per_number = (uint32_t) bits_log2(q);
 	static_assert(bits_per_number > 0);
 	// number of numbers one can fit into each limb
-	constexpr static uint16_t numbers_per_limb = (bits_per_limb + bits_per_number - 1) / bits_per_number;
+	constexpr static uint16_t numbers_per_limb = bits_per_limb / bits_per_number;
 	static_assert(numbers_per_limb > 0);
 	// Number of Limbs needed to represent `length` numbers of size log(MOD) +1
 	constexpr static uint16_t internal_limbs = (n + numbers_per_limb - 1) / numbers_per_limb;
@@ -85,9 +74,33 @@ public:
 	typedef T LimbType;
 	typedef T LabelContainerType;
 
+	static_assert((numbers_per_limb * bits_per_number) <= bits_per_limb);
 
 	// internal data
-	std::array<T, internal_limbs> __data;
+	std::array<T, internal_limbs> __data{};
+
+	kAryPackedContainer_Meta () noexcept = default;
+
+	// kAryPackedContainer_Meta (kAryPackedContainer_Meta const &obj) noexcept {
+	// 	std::copy(obj.begin(), obj.end(), __data.begin());
+	// }
+
+	// kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta const &obj) noexcept {
+	// 	if (this != &obj) {
+	// 		std::copy(obj.begin(), obj.end(), __data.begin());
+	// 	}
+
+	// 	return *this;
+	// }
+
+	// kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta &&obj) noexcept {
+	// 	if (this != &obj) {// self-assignment check expected really?
+	// 		// move the data
+	// 		__data = std::move(obj.__data);
+	// 	}
+
+	// 	return *this;
+	// }
 
 	// simple hash function
 	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
@@ -125,14 +138,14 @@ public:
 
 		return (~((T(1u) << (i % bits_per_limb)) - 1));
 	}
+
 	/// access the i-th coordinate/number/elemen
-	// t
 	/// \param i coordinate to access.
 	/// \return the number you wanted to access, shifted down to the lowest bits.
 	[[nodiscard]] constexpr inline DataType get(const uint32_t i) const noexcept {
 		// needs 5 instructions. So 64*5 for the whole limb
 		ASSERT(i < length());
-		return DataType((__data[i / numbers_per_limb] >> ((i % numbers_per_limb) * bits_per_number)) & number_mask);
+		return (DataType((__data[i / numbers_per_limb] >> ((i % numbers_per_limb) * bits_per_number)) & number_mask) % q);
 	}
 
 	/// sets the `i`-th number to `data`
@@ -144,9 +157,9 @@ public:
 		const uint16_t off = i / numbers_per_limb;
 		const uint16_t spot = (i % numbers_per_limb) * bits_per_number;
 
-		T bla = (number_mask & T(data % modulus())) << spot;
-		T val = __data[off] & (~(number_mask << spot));
-		__data[off] = bla | val;
+		const T new_data = (number_mask & T(data % q)) << spot;
+		const T old_data = __data[off] & (~(number_mask << spot));
+		__data[off] = new_data | old_data;
 	}
 
 	/// sets the `i`-th number to `data`
@@ -219,8 +232,14 @@ public:
 
 	/// computes the hamming weight
 	[[nodiscard]] constexpr uint32_t popcnt() const noexcept {
+		return popcnt(0, size());
+	}
+
+	[[nodiscard]] constexpr uint32_t popcnt(const uint32_t l, const uint32_t h) const noexcept {
+		ASSERT(l < h);
+		ASSERT(h < size());
 		uint32_t ret = 0;
-		for (uint32_t i = 0; i < size(); i++) {
+		for (uint32_t i = l; i < h; i++) {
 			ret += get(i) > 0;
 		}
 
@@ -335,7 +354,7 @@ public:
 		for (uint32_t i = 0; i < nr_limbs; i++) {
 			const TT a = (in1 >> (bits_per_number * i)) & mask;
 			const TT b = (in2 >> (bits_per_number * i)) & mask;
-			ret ^= ((a - b + q) % q) << (bits_per_number * i);
+			ret ^= ((a + q - b) % q) << (bits_per_number * i);
 		}
 		return ret;
 	}
@@ -726,8 +745,9 @@ public:
 	                        const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
-			if (get(i - 1) > obj.get(i - 1))
+			if (get(i - 1) > obj.get(i - 1)) {
 				return false;
+			}
 		}
 		return true;
 	}
@@ -822,10 +842,10 @@ public:
 	}
 
 	// iterators.
-	auto begin() noexcept { return __data.begin(); }
-	auto begin() const noexcept { return __data.begin(); }
-	auto end() noexcept { return __data.end(); }
-	auto end() const noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return __data.end(); }
 
 	/// \param i
 	/// \return the ith element;
@@ -845,21 +865,14 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return internal_limbs; }
+	/// returns size of a single element in this container in bits
+	[[nodiscard]] __FORCEINLINE__ constexpr static size_t sub_container_size() noexcept { return bits_per_limb; }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return internal_limbs * sizeof(T); }
 
 	[[nodiscard]] constexpr std::array<T, internal_limbs> &data() noexcept { return __data; }
 	[[nodiscard]] constexpr const std::array<T, internal_limbs> &data() const noexcept { return __data; }
 
-	/// \param index
-	/// \return returns the ith data limb
-	[[nodiscard]] constexpr T &data(const size_t index) noexcept {
-		ASSERT(index < length());
-		return __data[index];
-	}
-	[[nodiscard]] constexpr const T data(const size_t index) const noexcept {
-		ASSERT(index < length());
-		return __data[index];
-	}
+
 	[[nodiscard]] constexpr T limb(const size_t index) noexcept {
 		ASSERT(index < length());
 		return __data[index];
@@ -908,8 +921,7 @@ public:
 /// \param q = modulus
 template<class T, const uint32_t n, const uint32_t q>
 #if __cplusplus > 201709L
-    requires kAryPackedContainerAble<T> &&
-             std::is_integral<T>::value
+    requires std::is_integral<T>::value
 #endif
 class kAryPackedContainer_T : public kAryPackedContainer_Meta<T, n, q> {
 	/// Nomenclature:
@@ -923,35 +935,53 @@ class kAryPackedContainer_T : public kAryPackedContainer_Meta<T, n, q> {
 	///  numbers that first bits are on one limb and the remaining bits are on the next limb).
 	///
 
+	using S = kAryPackedContainer_Meta<T, n, q>;
 public:
-	using kAryPackedContainer_Meta<T, n, q>::bits_per_limb;
-	using kAryPackedContainer_Meta<T, n, q>::bits_per_number;
-	using kAryPackedContainer_Meta<T, n, q>::numbers_per_limb;
-	using kAryPackedContainer_Meta<T, n, q>::internal_limbs;
-	using kAryPackedContainer_Meta<T, n, q>::number_mask;
-	using kAryPackedContainer_Meta<T, n, q>::is_full;
-	using kAryPackedContainer_Meta<T, n, q>::activate_avx2;
+	using S::bits_per_limb;
+	using S::bits_per_number;
+	using S::numbers_per_limb;
+	using S::internal_limbs;
+	using S::number_mask;
+	using S::is_full;
+	using S::activate_avx2;
 
 	/// some function
-	using kAryPackedContainer_Meta<T, n, q>::mod_T;
-	using kAryPackedContainer_Meta<T, n, q>::sub_T;
-	using kAryPackedContainer_Meta<T, n, q>::add_T;
-	using kAryPackedContainer_Meta<T, n, q>::mul_T;
+	using S::mod_T;
+	using S::sub_T;
+	using S::add_T;
+	using S::mul_T;
+	using S::popcnt_T;
+	using S::popcnt;
 
-
-	using typename kAryPackedContainer_Meta<T, n, q>::ContainerLimbType;
-	using typename kAryPackedContainer_Meta<T, n, q>::LimbType;
-	using typename kAryPackedContainer_Meta<T, n, q>::LabelContainerType;
+	using S::ContainerLimbType;
+	using S::LimbType;
+	using S::LabelContainerType;
 	// minimal internal datatype to present an element.
 	using DataType = LogTypeTemplate<bits_per_number>;
 
-	using kAryPackedContainer_Meta<T, n, q>::length;
-	using kAryPackedContainer_Meta<T, n, q>::modulus;
-	using kAryPackedContainer_Meta<T, n, q>::__data;
+	using S::length;
+	using S::modulus;
+
+	std::array<T, internal_limbs> __data{};
 
 public:
-	// base constructor
-	constexpr kAryPackedContainer_T() = default;
+
+	constexpr kAryPackedContainer_T() noexcept = default;
+	constexpr kAryPackedContainer_T(const kAryPackedContainer_T &a) noexcept : __data(a.__data) {};
+
+	constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T const &obj) noexcept {
+		if (this != &obj) {
+			std::copy(obj.begin(), obj.end(), __data.begin());
+		}
+		return *this;
+	}
+
+	constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T &&obj)  noexcept {
+		if (this != &obj) {
+			__data = std::move(obj.__data);
+		}
+		return *this;
+	}
 };
 
 /// lel, C++ metaprogramming is king
@@ -967,8 +997,7 @@ public:
 /// partly specialized class for q=3
 template<const uint32_t n>
 #if __cplusplus > 201709L
-    requires kAryPackedContainerAble<uint64_t> &&
-             std::is_integral<uint64_t>::value
+    requires std::is_integral<uint64_t>::value
 #endif
 class kAryPackedContainer_T<uint64_t, n, 3> : public kAryPackedContainer_Meta<uint64_t, n, 3> {
 public:
@@ -1271,9 +1300,9 @@ public:
 	template<typename TT>
 	constexpr static inline TT add_T(const TT x, const TT y) noexcept {
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
-		constexpr TT c2 = sizeof(TT) == 16u ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
+		constexpr TT c2 = sizeof(TT) == 16u ? TT((__uint128_t(12297829382473034410ull) << 64u) | __uint128_t(12297829382473034410ull)) : TT(12297829382473034410ull);
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
-		constexpr TT c1 = sizeof(TT) == 16u ? (TT(6148914691236517205u) << 64u) | TT(6148914691236517205u) : TT(6148914691236517205u);
+		constexpr TT c1 = sizeof(TT) == 16u ? TT((__uint128_t(6148914691236517205ull) << 64u)  | __uint128_t(6148914691236517205ull)) : TT(6148914691236517205ull);
 
 		// These are not the optimal operations to calculate the ternary addition. But nearly.
 		// The problem is that one needs to spit the limb for the ones/two onto two separate limbs. But two separate
@@ -1529,6 +1558,14 @@ public:
 /// \param out
 /// \param obj
 /// \return
+template<typename T, const uint32_t n, const uint32_t q>
+std::ostream &operator<<(std::ostream &out, const kAryPackedContainer_Meta<T, n, q> &obj) {
+	for (uint64_t i = 0; i < obj.size(); ++i) {
+		out << uint64_t(obj[i]);
+	}
+	return out;
+
+}
 template<typename T, const uint32_t n, const uint32_t q>
 std::ostream &operator<<(std::ostream &out, const kAryPackedContainer_T<T, n, q> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {

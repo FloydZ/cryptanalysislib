@@ -76,8 +76,8 @@ concept TreeAble = requires(List l) {
 	                  typename List::ElementType &e) {
 		l[u32];
 		List(u64);// constructor
-		l.sort_level(u64, u64);
-		l.sort_level(u32, u32, u32);
+		l.sort_level(u32, u32);
+		l.sort();
 
 		l.search_level(e, u64, u64);
 		l.search(e);
@@ -140,15 +140,15 @@ private:
 		return (1ULL << (depth - i - 1)) - 1;
 	}
 
-	/// count how many carries would occur of one add 2,4,... and so till no
+	/// count how many carries would occur of one add 2 to `in`
 	/// \param in
 	/// \return
-	[[nodiscard]] constexpr static unsigned int count_carry_propagates(const unsigned int in) noexcept {
+	[[nodiscard]] constexpr static uint32_t count_carry_propagates(const uint32_t in) noexcept {
 		ASSERT(in >= 2 && "insert bigger than 2");
 
-		auto prev = in - 2u;
-		auto mask = 1ULL << 1u;
-		unsigned int amount_negates = 1;
+		const uint32_t prev = in - 2u;
+		uint32_t mask = 1ULL << 1u;
+		uint32_t amount_negates = 1;
 		while (mask & prev) {
 			amount_negates++;
 			mask <<= 1u;
@@ -224,7 +224,7 @@ public:
 
 	// Andre: this just saves in default target list (lists[level+2])
 	/// \param level
-	void join_stream(uint64_t level) noexcept {
+	void join_stream(const uint64_t level) noexcept {
 		ASSERT(lists.size() >= level + 1);
 		join_stream_internal(level, lists[level + 2]);
 	}
@@ -239,7 +239,7 @@ public:
 	///				---------------------					---------------------					MERGE ON LEVEL 0
 	///				|					|					|					|
 	///		[ BASE LIST 1]		[ BASE LIST 2]		[ BASE LIST 3]		[ BASE LIST 4]							LEVEL 0
-	void join_stream(uint64_t level, List &target) noexcept {
+	void join_stream(const uint64_t level, List &target) noexcept {
 		join_stream_internal(level, target);
 	}
 
@@ -255,8 +255,8 @@ public:
 		if (gen_lists) {
 			lists[0].set_load(0);
 			lists[1].set_load(0);
-			lists[0].generate_base_random(this->base_size, matrix);
-			lists[1].generate_base_random(this->base_size, matrix);
+			lists[0].random(this->base_size, matrix);
+			lists[1].random(this->base_size, matrix);
 		}
 
 		// generate the intermediate targets for all levels
@@ -408,10 +408,10 @@ public:
 	///
 	/// \param i
 	/// \param intermediate_targets
-	void prepare_lists(int i, std::vector<std::vector<LabelType>> &intermediate_targets) noexcept {
+	void prepare_lists(const int i, std::vector<std::vector<LabelType>> &intermediate_targets) noexcept {
 		/// first, second are the positions of the lists to prepare
-		int first = 2 * i;
-		int second = 2 * i + 1;
+		const int first = 2 * i;
+		const int second = 2 * i + 1;
 
 		uint64_t k_lower, k_higher;
 
@@ -421,19 +421,20 @@ public:
 			unsigned int amount_negates = count_carry_propagates(first);
 
 			// negate corresponding parts of the labels
-			for (uint64_t ind = 0; ind < lists[0].get_load(); ++ind) {
+			for (uint64_t ind = 0; ind < lists[0].load(); ++ind) {
 				for (uint32_t k = 0; k < amount_negates; ++k) {
 					translate_level(&k_lower, &k_higher, k + 1, level_translation_array);
-					lists[0][ind].get_label().neg(k_lower, k_higher);
+					lists[0][ind].label.neg(k_lower, k_higher);
 				}
 			}
 		}
 
 		if (second == 1) {
+			translate_level(&k_lower, &k_higher, 0, level_translation_array);
+
 			// if we work on the first two baselists (which means the ones on the far left side of the tree.) We need to
 			// negate the label of each element within first list.
 			for (uint64_t ind = 0; ind < lists[0].get_load(); ++ind) {
-				translate_level(&k_lower, &k_higher, 0, level_translation_array);
 
 				lists[1][ind].get_label().neg(k_lower, k_higher);
 				LabelType::add(lists[1][ind].get_label(), lists[1][ind].get_label(), intermediate_targets[0][0], k_lower, k_higher);
@@ -556,10 +557,10 @@ public:
 		       && k_lower1 <= k_lower2
 		       && k_upper1 <= k_upper2);
 		// internal variables.
-		const uint32_t filter = -1;
+		const uint32_t filter = uint32_t(-1);
+		constexpr bool sub = !LabelType::binary();
 		std::pair<uint64_t, uint64_t> boundaries;
 		ElementType e;
-		uint64_t i = 0, j = 0;
 
 		if (prepare) {
 			iL.sort_level(k_lower2, k_upper2);
@@ -567,15 +568,35 @@ public:
 			L2.sort_level(k_lower1, k_upper1);
 		}
 
+
+		auto op = [](ElementType &c, const ElementType &a, const ElementType &b,
+					 const uint64_t l, const uint64_t h) {
+		  if constexpr (sub) {
+			  ElementType::sub(c, a, b, l, h, filter);
+		  } else {
+			  ElementType::add(c, a, b, l, h, filter);
+		  }
+		};
+
+#ifdef DEBUG
+		for (size_t k = 0; k < iL.load(); ++k) {
+			if (!iL[k].label.is_zero(k_lower1, k_upper1)) {
+				std::cout << iL[k];
+				ASSERT(false);
+			}
+		}
+#endif
+
+		uint64_t i=0, j=0;
 		while (i < L1.load() && j < L2.load()) {
 			if (L2[j].is_greater(L1[i], k_lower1, k_upper1)) {
 				i++;
 			} else if (L1[i].is_greater(L2[j], k_lower1, k_upper1)) {
 				j++;
 			} else {
-				uint64_t i_max, j_max;
-				for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
-				for (j_max = j + 1; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower1, k_upper1); j_max++) {}
+				uint64_t i_max=i+1ull, j_max=j+1ull;
+				for (; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
+				for (; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower1, k_upper1); j_max++) {}
 
 				const uint64_t jprev = j;
 
@@ -583,8 +604,17 @@ public:
 				// save the result. Rather we stream join everything up to the final solution.
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						ElementType::add(e, L1[i], L2[j], 0, LabelLENGTH, -1);
-						std::cout << e;
+						// add on full length
+						op(e, L1[i], L2[j], k_lower1, k_upper2);
+#ifdef DEBUG
+						if (!e.label.is_zero(k_lower1, k_upper1)) {
+							std::cout << e;
+							std::cout << L2[j];
+							std::cout << L1[i];
+							ASSERT(false);
+						}
+#endif
+
 						boundaries = iL.search_boundaries(e, k_lower2, k_upper2);
 
 						// finished?
@@ -595,7 +625,7 @@ public:
 						}
 
 						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
-							out.add_and_append(e, iL[l], filter);
+							out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
 						}
 					}
 				}
@@ -644,10 +674,7 @@ public:
 				// save the result. Rather we stream join everything up to the final solution.
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						// TODO full length
-						ElementType::add(e1, L1[i], L2[j], 0, 16, -1);
-
-
+						ElementType::add(e1, L1[i], L2[j], k_lower1, k_upper2, -1);
 						if (!e1.label.is_equal(target, k_lower1, k_upper1)) {
 							L1[i].label.print_binary();
 							L2[j].label.print_binary();
@@ -709,13 +736,14 @@ public:
 	}
 
 	/// NOTE: the output list will contains zeros on the dimensions of the target
-	/// \param out
-	/// \param L1
-	/// \param L2
+	/// \param out the values will be s.t. out[i].value * Matrix = target
+	/// 	the labels will be zero. You need to recompute the label on you own
+	/// \param L1 first list
+	/// \param L2 second list
 	/// \param target
 	/// \param k_lower
 	/// \param k_upper
-	/// \param prepare if true: the target will be added/subtracte into the left input list L2.
+	/// \param prepare if true: the target will be added/subtracted into the left input list L2.
 	static void join2lists(List &out, List &L1, List &L2,
 						   const LabelType &target,
 						   const uint32_t k_lower,
@@ -725,7 +753,6 @@ public:
 
 		constexpr bool sub = !LabelType::binary();
 
-		uint64_t i = 0, j = 0;
 		if ((!target.is_zero()) && (prepare)) {
 			for (size_t s = 0; s < L2.load(); ++s) {
 				if constexpr (sub) {
@@ -739,6 +766,7 @@ public:
 		L1.sort_level(k_lower, k_upper);
 		L2.sort_level(k_lower, k_upper);
 
+		uint64_t i = 0, j = 0;
 		while (i < L1.load() && j < L2.load()) {
 			if (L2[j].is_greater(L1[i], k_lower, k_upper)) {
 				i++;
@@ -789,14 +817,20 @@ public:
 		constexpr static bool sub = !LabelType::binary();
 		L2.template sort_level<sub>(k_lower, k_upper, target);
 
+
+		auto op = [](LabelType &c, const LabelType &a, const LabelType &b,
+					 const uint64_t l, const uint64_t h) {
+		  if constexpr (sub) {
+			  LabelType::sub(c, a, b, l, h);
+		  } else {
+			  LabelType::add(c, a, b, l, h);
+		  }
+		};
+
 		LabelType tmp, tmp2;
 		uint64_t i=0, j=0;
 		while ((i < L1.load()) && (j < L2.load())) {
-			if constexpr (sub){
-				LabelType::sub(tmp, target, L2[j].label, k_lower, k_upper);
-			} else {
-				LabelType::add(tmp, L2[j].label, target, k_lower, k_upper);
-			}
+			op(tmp, target, L2[j].label, k_lower, k_upper);
 
 			if (tmp.is_greater(L1[i].label, k_lower, k_upper)) {
 				i++;
@@ -807,9 +841,7 @@ public:
 				// if elements are equal find max index in each list, such that they remain equal
 				for (;i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
 				for (;j_max < L2.load(); j_max++) {
-					if constexpr (sub) { LabelType::sub(tmp2, target, L2[j_max].label, k_lower, k_upper);
-					} else { LabelType::add(tmp2, L2[j_max].label, target, k_lower, k_upper); }
-
+					op(tmp2, target, L2[j_max].label, k_lower, k_upper);
 					if (!tmp.is_equal(tmp2, k_lower, k_upper))  { break; }
 				}
 
@@ -862,7 +894,7 @@ public:
 	/// \param L4 	(sorted+R+target) intermediate target and target is added
 	/// \param target
 	/// \param lta
-	static void streamjoin4lists(List &out, List &L1, List &L2, List &L3, List &L4,
+	static void join4lists(List &out, List &L1, List &L2, List &L3, List &L4,
 	                             const LabelType &target,
 	                             const std::vector<uint64_t> &lta,
 	                             const bool prepare = true) noexcept {
@@ -871,13 +903,13 @@ public:
 		// only two levels..., so obviously k_upper1=k_lower2
 		const uint64_t k_lower1 = lta[0], k_upper1 = lta[1];
 		const uint64_t k_lower2 = lta[1], k_upper2 = lta[2];
-		streamjoin4lists(out, L1, L2, L3, L4, target, k_lower1, k_upper1, k_lower2, k_upper2, prepare);
+		join4lists(out, L1, L2, L3, L4, target, k_lower1, k_upper1, k_lower2, k_upper2, prepare);
 	}
 
 	/// fully computes the 4-tree algorithm in a stream join fashion. That means only
 	/// a single intermediate list is needed.
 	/// finds x1,x2,x3,x4 \in L1,L2,L3,L4 s.t. x1+x2+x3+x4 = target
-	/// \param out out List
+	/// \param out out List, each solution will be zero
 	/// \param L1 first list
 	/// \param L2 second list
 	/// \param L3 third list
@@ -888,7 +920,7 @@ public:
 	/// \param k_lower2 lower coordinate to match on in the intermediate lists
 	/// \param k_upper2 upper coordinate to match on in the intermediate lists
 	/// \param prepare if true the intermediate target will be added into the base lists
-	static void streamjoin4lists(List &out, List &L1, List &L2, List &L3, List &L4,
+	static void join4lists(List &out, List &L1, List &L2, List &L3, List &L4,
 	                             const LabelType &target,
 	                             const uint64_t k_lower1, const uint64_t k_upper1,
 	                             const uint64_t k_lower2, const uint64_t k_upper2,
@@ -896,49 +928,46 @@ public:
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2 && L1.load() > 0 && L2.load() > 0 && L3.load() > 0 && L4.load() > 0);
 		// Intermediate Element, List, Target
 		List iL{L1.size() * 4};
-		LabelType R, Rneg, zero, ntarget;
-		zero.zero();
+		LabelType R;
+		R.zero();
 
+		// reset everything
+		out.set_load(0);
+
+		const size_t size = std::min({L1.load(), L2.load(), L4.load(), L3.load()});
 		constexpr static bool sub = !LabelType::binary();
 		auto op = [](LabelType &c, const LabelType &a, const LabelType &b,
 		             const uint64_t l, const uint64_t h) {
-			if constexpr (sub) {
-				LabelType::sub(c, a, b, l, h);
-			} else {
-				LabelType::add(c, a, b, l, h);
-			}
+			if constexpr (sub) { LabelType::sub(c, a, b, l, h);}
+			else { LabelType::add(c, a, b, l, h); }
 		};
 
+		// TODO document these changes, what is added into what list in the picture above
 		// prepare baselists
 		if ((!target.is_zero()) && prepare) {
-			R.random(); Rneg = R; Rneg.neg();
-			ntarget = target; ntarget.neg();
+			R.random(); // chose a randm intermediate target
 
-			size_t i = 0;
-			for (; i < std::min({L2.load(), L4.load(), L3.load()} ); ++i) {
+			LabelType t = target;
+			t.neg();
+
+#ifdef DEBUG
+			LabelType tmp;
+			LabelType::add(tmp, t, target);
+			ASSERT(tmp.is_zero());
+#endif
+
+			LabelType R2 = t;
+			LabelType::add(R2, t, R, k_lower1, k_upper1);
+
+			for (size_t i = 0; i < size; ++i) {
 				op(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
-				L3[i].label.neg();
-
-				op(L4[i].label, Rneg, L4[i].label, k_lower1, k_upper1);
-				// add is on the full length
-				op(L4[i].label, target, L4[i].label, k_lower1, k_upper2);
+				LabelType::add(L4[i].label, R2, L4[i].label, k_lower1, k_upper2);
+				L3[i].label.neg(k_lower1, k_upper2);
 			}
-
-			//const size_t j = i;
-			//for (i = j; i < L2.load(); i++) {
-			//	LabelType::add(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
-			//}
-			//for (i = j; i < L3.load(); i++) {
-			//	L3[i].label.neg();
-			//}
-			//for (i = j; i < L4.load(); i++) {
-			//	LabelType::sub(L4[i].label, Rneg, L4[i].label, k_lower1, k_upper1);
-			//	// add is on the full length
-			//	LabelType::sub(L4[i].label, target, L4[i].label, k_lower1, k_upper2);
-			//}
 		}
 
-		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, false);
+		// NOTE: the intermediate target `R` is ingored in this call
+		join2lists(iL, L1, L2, R, k_lower1, k_upper1, false);
 
 		// early exit
 		if (iL.load() == 0) {
