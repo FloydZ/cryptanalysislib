@@ -7,7 +7,7 @@
 struct ListConfig : public AlignmentConfig {
 public:
 	// if `true` all internal sorting algorithms are `std::sort`
-	constexpr static bool use_std_sort = false;
+	constexpr static bool use_std_sort = true;
 
 	// if `true` sorting is increasing, else decresing
 	constexpr static bool sort_increasing_order = true;

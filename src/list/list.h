@@ -187,15 +187,16 @@ public:
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
 		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1)) {
-			std::sort(__data.begin() + sp, __data.begin() + ep,
-			          [k_lower, k_higher](const auto &e1,
+			auto f = [k_lower, k_higher](const auto &e1,
 			                              const auto &e2) {
 				if constexpr (sort_increasing_order) {
-					return e1.label.is_lower(e2.label, k_lower, k_higher);
+					return e1.is_lower(e2, k_lower, k_higher);
 				} else {
 					return e1.is_greater(e2, k_lower, k_higher);
 				}
-			});
+			};
+
+			sort_level_std_sort(sp, ep, f);
 		} else {
 
 			constexpr size_t s1 = LabelType::bytes() * 8u;
@@ -222,6 +223,7 @@ public:
 			}
 		}
 
+		std::cout << *this;
 		ASSERT(is_sorted(k_lower, k_higher));
 	}
 
@@ -667,7 +669,7 @@ public:
 			if (norm != uint32_t(-1)) {
 				// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
 				// exists for which it holds: |data[load].value[r]| >= norm
-				bool b;
+				bool b = false;
 				if (sub) {
 					Element::sub(__data[load()], e1, e2, k_lower, k_higher, norm);
 				} else {

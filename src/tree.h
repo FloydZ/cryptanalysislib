@@ -604,7 +604,7 @@ public:
 				// save the result. Rather we stream join everything up to the final solution.
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						// add on full length
+						// add/sub on full length
 						op(e, L1[i], L2[j], k_lower1, k_upper2);
 #ifdef DEBUG
 						if (!e.label.is_zero(k_lower1, k_upper1)) {
@@ -815,6 +815,7 @@ public:
 		ASSERT(L1.is_sorted(k_lower, k_upper));
 
 		constexpr static bool sub = !LabelType::binary();
+		constexpr static uint32_t filter = -1;
 		L2.template sort_level<sub>(k_lower, k_upper, target);
 
 
@@ -848,7 +849,7 @@ public:
 				const uint64_t jprev = j;
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
-						out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1);
+						out.add_and_append(L1[i], L2[j], k_lower, k_upper, filter);
 
 #ifdef DEBUG
 						const uint64_t b = out.load() - 1;
@@ -927,7 +928,7 @@ public:
 	                             const bool prepare = true) noexcept {
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2 && L1.load() > 0 && L2.load() > 0 && L3.load() > 0 && L4.load() > 0);
 		// Intermediate Element, List, Target
-		List iL{L1.size() * 4};
+		List iL{L1.size() * 4}; // TODO good factor
 		LabelType R;
 		R.zero();
 
@@ -949,12 +950,6 @@ public:
 
 			LabelType t = target;
 			t.neg();
-
-#ifdef DEBUG
-			LabelType tmp;
-			LabelType::add(tmp, t, target);
-			ASSERT(tmp.is_zero());
-#endif
 
 			LabelType R2 = t;
 			LabelType::add(R2, t, R, k_lower1, k_upper1);
@@ -1314,7 +1309,7 @@ private:
 	/// non-recursive version of stream-join (that stores only depth+2 lists)
 	/// \param level level of the tree to join to.
 	/// \param target a list where every solution is saved into.
-	void join_stream_internal(uint64_t level, List &target) {
+	void join_stream_internal(const uint64_t level, List &target) {
 		std::vector<std::pair<uint64_t, uint64_t>> boundaries(level);
 		std::vector<ElementType> a(level);
 		std::vector<uint64_t> indices(level);
@@ -1337,10 +1332,10 @@ private:
 			} else if (lists[0][i].is_greater(lists[1][j], k_lower0, k_higher0)) {
 				j++;
 			} else {
-				size_t i_max, j_max;
+				size_t i_max=i+1ull, j_max=j+1ull;
 				// if elements are equal find max index in each list, such that they remain equal
-				for (i_max = i + 1; i_max < lists[0].load() && lists[0][i].is_equal(lists[0][i_max], k_lower0, k_higher0); i_max++) {}
-				for (j_max = j + 1; j_max < lists[1].load() && lists[1][j].is_equal(lists[1][j_max], k_lower0, k_higher0); j_max++) {}
+				for (; i_max < lists[0].load() && lists[0][i].is_equal(lists[0][i_max], k_lower0, k_higher0); i_max++) {}
+				for (; j_max < lists[1].load() && lists[1][j].is_equal(lists[1][j_max], k_lower0, k_higher0); j_max++) {}
 
 				// for each matching tuple
 				size_t jprev = j;

@@ -17,7 +17,7 @@ using BinaryList      = List_T<BinaryElement>;
 B63_BASELINE(NotFindBinary, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 	B63_SUSPEND {
 		BinaryMatrix B;
 		B.random();
@@ -40,7 +40,7 @@ B63_BASELINE(NotFindBinary, nn) {
 B63_BENCHMARK(NotFindBinaryCustom, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 	B63_SUSPEND {
 		BinaryMatrix B;
 		B.random();
@@ -62,7 +62,7 @@ B63_BENCHMARK(NotFindBinaryCustom, nn) {
 B63_BENCHMARK(FindEnd, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 
 	B63_SUSPEND {
 		BinaryMatrix B;
@@ -86,7 +86,7 @@ B63_BENCHMARK(FindEnd, nn) {
 B63_BENCHMARK(FindBegin, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 
 	B63_SUSPEND {
 		BinaryMatrix B;
@@ -111,7 +111,7 @@ B63_BENCHMARK(FindBegin, nn) {
 B63_BENCHMARK(FindEndCustom, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 
 	B63_SUSPEND {
 		BinaryMatrix B;
@@ -135,7 +135,7 @@ B63_BENCHMARK(FindEndCustom, nn) {
 B63_BENCHMARK(FindBeginCustom, nn) {
 	BinaryList l{n};
 	BinaryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 
 	B63_SUSPEND {
 		BinaryMatrix B;

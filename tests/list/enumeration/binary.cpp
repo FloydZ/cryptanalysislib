@@ -188,8 +188,10 @@ TEST(Chase, first) {
 		bool v1 = pos1 == epos1 or pos1 == epos2;
 		bool v2 = pos2 == epos2 or pos2 == epos1;
 		EXPECT_EQ(true, v1);
-		if (i != (list_size - 1))
+		if (i != (list_size - 1)) {
 			EXPECT_EQ(true, v2);
+		}
+
 		// std ::cout << epos1 << ":" << epos2 << " " << pos1 << ":" << pos2 << std::endl;
 		print_binary(w2, n);
 

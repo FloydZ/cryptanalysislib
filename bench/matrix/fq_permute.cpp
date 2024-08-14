@@ -14,7 +14,6 @@ B63_BASELINE(permute_with_transpose, nn) {
 	M m = M{};
 	MT mt = MT{};
 	Permutation P(ncols);
-	uint32_t rank;
 	B63_SUSPEND {
 		m.random();
 	}

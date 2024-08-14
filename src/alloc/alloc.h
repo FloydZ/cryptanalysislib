@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_ALLOC_H
 #define CRYPTANALYSISLIB_ALLOC_H
 
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -150,7 +151,7 @@ public:
 		const size_t bla = roundToAligned<allocatorConfig.alignment>(b.len);
 		if ((T *) ((size_t) b.ptr + bla) == _p) {
 			if constexpr (allocatorConfig.zero_after_free) {
-				cryptanalysislib::memset(_p, T(0), (size_t) _p - (size_t) _d);
+				cryptanalysislib::memset(_p, T(0), ((uintptr_t) _p - (uintptr_t) _d)/sizeof(T));
 			}
 			_p = (T *) b.ptr;
 		}
@@ -159,7 +160,7 @@ public:
 	/// delalocate all allocations
 	constexpr void deallocateAll() noexcept {
 		if constexpr (allocatorConfig.zero_after_free) {
-			cryptanalysislib::memset(_d, T(0), _p - _d);
+			cryptanalysislib::memset(_d, T(0), ((uintptr_t)_p - (uintptr_t)_d)/sizeof(T));
 		}
 
 		_p = _d;

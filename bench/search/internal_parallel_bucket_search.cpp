@@ -36,7 +36,7 @@ T random_data(std::vector<T> &data, const uint64_t size) {
 
 // std_sort
 B63_BASELINE(lower_bound, nn) {
-	T search;
+	T search=0;
 	vector<T> data;
 	uint64_t pos = 0;
 	B63_SUSPEND {
@@ -57,7 +57,7 @@ B63_BASELINE(lower_bound, nn) {
 }
 
 B63_BENCHMARK(standard_binary_search, nn) {
-	T search;
+	T search=0;
 	vector<T> data;
 	uint64_t pos = 0;
 	B63_SUSPEND {
@@ -71,7 +71,7 @@ B63_BENCHMARK(standard_binary_search, nn) {
 }
 
 B63_BENCHMARK(boundless_binary_search, nn) {
-	T search;
+	T search=0;
 	vector<T> data;
 	uint64_t pos = 0;
 	B63_SUSPEND {
@@ -84,7 +84,7 @@ B63_BENCHMARK(boundless_binary_search, nn) {
 }
 
 B63_BENCHMARK(doubletapped_binary_search, nn) {
-	T search;
+	T search=0;
 	vector<T> data;
 	uint64_t pos = 0;
 	B63_SUSPEND {
@@ -97,7 +97,7 @@ B63_BENCHMARK(doubletapped_binary_search, nn) {
 }
 
 B63_BENCHMARK(monobound_binary_search, nn) {
-	T search;
+	T search=0;
 	vector<T> data;
 	uint64_t pos = 0;
 	B63_SUSPEND {
@@ -110,7 +110,7 @@ B63_BENCHMARK(monobound_binary_search, nn) {
 }
 
 B63_BENCHMARK(tripletapped_binary_search, n) {
-	T search;
+	T search=0;
 	vector<T> data;
 	uint64_t pos = 0;
 	B63_SUSPEND {
@@ -123,7 +123,7 @@ B63_BENCHMARK(tripletapped_binary_search, n) {
 }
 
 B63_BENCHMARK(monobound_quaternary_search, nn) {
-	T search;
+	T search=0;
 	vector<T> data;
 	uint64_t pos = 0;
 	B63_SUSPEND {
@@ -136,7 +136,7 @@ B63_BENCHMARK(monobound_quaternary_search, nn) {
 }
 
 B63_BENCHMARK(Khuong_bin_search, nn) {
-	T search;
+	T search=0;
 	vector<T> data;
 	uint64_t pos = 0;
 	B63_SUSPEND {
@@ -148,6 +148,7 @@ B63_BENCHMARK(Khuong_bin_search, nn) {
 	B63_KEEP(pos);
 }
 
+// TODO
 //B63_BENCHMARK(monobound_interpolated_search, n) {
 //	T search;
 //	vector<T> data;

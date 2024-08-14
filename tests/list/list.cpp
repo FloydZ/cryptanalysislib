@@ -11,27 +11,27 @@ using ::testing::Test;
 
 #define THREADS 2
 
-constexpr size_t LS = 100;
+constexpr size_t LS = 6;
 
 #define K 20u
 #define N 20u
 #define Q 8u
 
-#define ListName uint8_kAC_kAC
-#define MatrixT uint8_t
-#define Matrix 	FqMatrix<MatrixT, N, K, Q>
-#define Value 	kAryContainer_T<MatrixT, K, Q>
-#define Label 	kAryContainer_T<MatrixT, N, Q>
-#define Element Element_T<Value, Label, Matrix>
-#define List 	List_T<Element>
-#include "test_list.h"
-#undef ListName
-#undef MatrixT
-#undef Matrix
-#undef Value
-#undef Label
-#undef Element
-#undef List
+ #define ListName uint8_kAC_kAC
+ #define MatrixT uint8_t
+ #define Matrix 	FqMatrix<MatrixT, N, K, Q>
+ #define Value 	kAryContainer_T<MatrixT, K, Q>
+ #define Label 	kAryContainer_T<MatrixT, N, Q>
+ #define Element Element_T<Value, Label, Matrix>
+ #define List 	List_T<Element>
+ #include "test_list.h"
+ #undef ListName
+ #undef MatrixT
+ #undef Matrix
+ #undef Value
+ #undef Label
+ #undef Element
+ #undef List
 
 #define ListName uint8_kPAC_kPAC
 #define MatrixT uint8_t

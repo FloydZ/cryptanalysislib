@@ -418,14 +418,14 @@ class CacheTrie {
 
 	constexpr inline ANode* createWideArray() noexcept {
 		auto *ret = (ANode *)new (std::align_val_t(alignment)) ANode{};
-		memset(ret, 0, sizeof(ANode));
+		memset((void *)ret, 0, sizeof(ANode));
 		maskANode(ret);
 		return (ANode *)ret;
 	}
 
 	constexpr inline ANNode* createNarrowArray() noexcept {
 		auto *ret = (ANNode *)new (std::align_val_t(alignment)) ANNode{};
-		memset(ret, 0, sizeof(ANNode));
+		memset((void *)ret, 0, sizeof(ANNode));
 		maskANNode(ret);
 		return (ANNode *)ret;
 	}
@@ -830,7 +830,7 @@ public:
 	void *compressFrozen(void *frozen_, const uint32_t level) {
 		ASSERT(isNode(frozen_));
 
-		void *single;
+		void *single = nullptr;
 		void *frozen = (void *)accessNode(frozen_);
 		uint32_t i = 0;
 		while(i < usedLength(frozen_)) {
@@ -1739,7 +1739,7 @@ public:
 	bool insert(const K key, const V value, const uint64_t hash,
 	            const uint64_t level, void *cur_, void *prev_,
 	            void *cache= nullptr) {
-		if ((cache != nullptr) && ((1 << level) == (cache_size - 1))) {
+		if ((cache != nullptr) && ((uint64_t)(1ul << level) == (uint64_t)(cache_size - 1ul))) {
 			inhabitCache(cache, cur_, hash, level);
 		}
 

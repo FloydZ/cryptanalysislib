@@ -14,7 +14,7 @@
 
 
 B63_BASELINE(abs, nn) {
-	int16_t v1, v2;
+	int16_t v1=0, v2=0;
 	B63_SUSPEND {
 		v1 = rand();
 		v2 = rand();
@@ -39,8 +39,8 @@ B63_BASELINE(abs, nn) {
  * This is another benchmark, which will be compared to baseline
  */
 B63_BENCHMARK(cabs, nn) {
-	int16_t v1, v2;
-	uint16_t tmp;
+	int16_t v1=0, v2=0;
+	uint16_t tmp=1;
 	B63_SUSPEND {
 		v1 = rand();
 		v2 = rand();
@@ -55,7 +55,7 @@ B63_BENCHMARK(cabs, nn) {
 	}
 
 	B63_SUSPEND {
-	res += tmp;
+		res += tmp;
 	}
 
 	B63_KEEP(res);

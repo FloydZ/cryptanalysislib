@@ -54,7 +54,7 @@ public:
 	constexpr static T minus_one = T(-1);
 
 	static_assert(_n > 0);
-public:
+
 	// how many limbs to we need and how wide are they.
 	[[nodiscard]] constexpr static uint16_t limb_bits_width() noexcept { return limb_bytes_width() * 8; };
 	[[nodiscard]] constexpr static uint16_t limb_bytes_width() noexcept { return sizeof(T); };
@@ -69,7 +69,6 @@ public:
 #endif
 	};
 
-public:
 	/// default constructor
 	constexpr BinaryContainer() noexcept : __data() {}
 
@@ -80,7 +79,7 @@ public:
 	/// see https://en.cppreference.com/w/cpp/language/operators
 	/// \param obj
 	/// \return
-	BinaryContainer &operator=(BinaryContainer const &obj) noexcept {
+	constexpr BinaryContainer &operator=(BinaryContainer const &obj) noexcept {
 		if (this != &obj) {// self-assignment check expected
 			std::copy(&obj.__data[0], &obj.__data[0] + obj.__data.size(), &this->__data[0]);
 		}
@@ -93,7 +92,7 @@ public:
 	/// see https://en.cppreference.com/w/cpp/language/move_assignment
 	/// \param obj
 	/// \return
-	BinaryContainer &operator=(BinaryContainer &&obj) noexcept {
+	constexpr BinaryContainer &operator=(BinaryContainer &&obj) noexcept {
 		if (this != &obj) {// self-assignment check expected really?
 			// move the data
 			__data = std::move(obj.__data);
@@ -1723,7 +1722,7 @@ public:
 		}
 
 		// For b[i] = b[__j];
-		[[nodiscard]]constexpr reference &operator=(const reference &j) noexcept {
+		constexpr reference &operator=(const reference &j) noexcept {
 			if (*(j.wp) & j.mask_pos) {
 				*wp |= mask_pos;
 			} else {
@@ -1866,7 +1865,7 @@ public:
 				  << ", n: " << n
 				  << ", q: " << q
 				  << ", sizeof(T): " << sizeof(T)
-				  << "}" << std::endl;
+				  << "}\n";
 	}
 private:
 	// actual data container.

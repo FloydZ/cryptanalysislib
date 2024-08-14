@@ -10,7 +10,7 @@
 B63_BASELINE(NotFind, nn) {
 	kAryList l{n};
 	kAryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 	B63_SUSPEND {
 		kAryMatrix m;
 		m.identity();
@@ -38,7 +38,7 @@ B63_BASELINE(NotFind, nn) {
 B63_BENCHMARK(FindEnd, nn) {
 	kAryList l{n};
 	kAryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 
 	B63_SUSPEND {
 		kAryMatrix m;
@@ -67,7 +67,7 @@ B63_BENCHMARK(FindEnd, nn) {
 B63_BENCHMARK(FindBegin, nn) {
 	kAryList l{n};
 	kAryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 
 	B63_SUSPEND {
 		// make sure we will find the element at the beginning

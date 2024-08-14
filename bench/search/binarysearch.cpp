@@ -25,7 +25,7 @@ std::vector<T> data;
 
 // std_sort
 B63_BASELINE(Std_lowerbound, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
@@ -40,7 +40,7 @@ B63_BASELINE(Std_lowerbound, nn) {
 }
 
 B63_BENCHMARK(upper_bound_standard_binary_search, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
@@ -56,7 +56,7 @@ B63_BENCHMARK(upper_bound_standard_binary_search, nn) {
 }
 
 B63_BENCHMARK(lower_bound_standard_binary_search, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
@@ -72,7 +72,7 @@ B63_BENCHMARK(lower_bound_standard_binary_search, nn) {
 }
 
 B63_BENCHMARK(upper_bound_monobound_binary_search, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
@@ -88,7 +88,7 @@ B63_BENCHMARK(upper_bound_monobound_binary_search, nn) {
 }
 
 B63_BENCHMARK(lower_bound_monobound_binary_search, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
@@ -104,7 +104,7 @@ B63_BENCHMARK(lower_bound_monobound_binary_search, nn) {
 }
 
 B63_BENCHMARK(tripletapped_binary_search, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
@@ -120,7 +120,7 @@ B63_BENCHMARK(tripletapped_binary_search, nn) {
 }
 
 B63_BENCHMARK(branchless_lower_bound, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
@@ -137,7 +137,7 @@ B63_BENCHMARK(branchless_lower_bound, nn) {
 }
 
 B63_BENCHMARK(lower_bound_interpolation_search2, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
@@ -151,7 +151,7 @@ B63_BENCHMARK(lower_bound_interpolation_search2, nn) {
 }
 
 B63_BENCHMARK(LowerBoundInterpolationSearch, nn) {
-	uint64_t search, errors = 0;
+	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;

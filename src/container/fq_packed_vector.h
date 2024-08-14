@@ -76,31 +76,22 @@ public:
 
 	static_assert((numbers_per_limb * bits_per_number) <= bits_per_limb);
 
-	// internal data
-	std::array<T, internal_limbs> __data{};
 
-	kAryPackedContainer_Meta () noexcept = default;
-
-	kAryPackedContainer_Meta (kAryPackedContainer_Meta const &obj) noexcept {
-		std::copy(obj.begin(), obj.end(), __data.begin());
-	}
-
-	kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta const &obj) noexcept {
-		if (this != &obj) {
-			std::copy(obj.begin(), obj.end(), __data.begin());
-		}
-
-		return *this;
-	}
-
-	kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta &&obj) noexcept {
-		if (this != &obj) {// self-assignment check expected really?
-			// move the data
-			__data = std::move(obj.__data);
-		}
-
-		return *this;
-	}
+	//constexpr kAryPackedContainer_Meta () noexcept : __data(){}
+	//constexpr kAryPackedContainer_Meta (kAryPackedContainer_Meta const &obj) noexcept : __data(obj.__data) {}
+	//constexpr kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta const &obj) noexcept {
+	//	if (this != &obj) {
+	//		std::copy(&obj.__data[0], &obj.__data[0] + obj.__data.size(), &this->__data[0]);
+	//	}
+	//	return *this;
+	//}
+	//constexpr kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta &&obj) noexcept {
+	// 	// self-assignment check expected really?
+	// 	if (this != &obj) {
+	// 		__data = std::move(obj.__data);
+	// 	}
+	// 	return *this;
+	//}
 
 	// simple hash function
 	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
@@ -728,8 +719,11 @@ public:
 	                          const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
-			if (get(i - 1) < obj.get(i - 1))
+			if (get(i - 1) > obj.get(i - 1)) {
+				return true;
+			} else if (get(i - 1) < obj.get(i - 1)) {
 				return false;
+			}
 		}
 
 		return true;
@@ -745,11 +739,14 @@ public:
 	                        const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
-			if (get(i - 1) > obj.get(i - 1)) {
+			if (get(i - 1) < obj.get(i - 1)) {
+				return true;
+			} else if (get(i - 1) > obj.get(i - 1)) {
 				return false;
 			}
 		}
-		return true;
+
+		return false;
 	}
 
 	/// add on full length and return the weight only between [l, h)
@@ -913,6 +910,10 @@ public:
 				  << ", total_bytes: " << total_bytes
 				  << " }" << std::endl;
 	}
+
+protected:
+	// internal data
+	std::array<T, internal_limbs> __data;
 };
 
 /// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
@@ -924,6 +925,7 @@ template<class T, const uint32_t n, const uint32_t q>
     requires std::is_integral<T>::value
 #endif
 class kAryPackedContainer_T : public kAryPackedContainer_Meta<T, n, q> {
+public:
 	/// Nomenclature:
 	///     Number 	:= actual data one wants to save % modulus()
 	///		Limb 	:= Underlying data container holding at max sizeof(T)/log2(modulus()) many numbers.
@@ -935,52 +937,50 @@ class kAryPackedContainer_T : public kAryPackedContainer_Meta<T, n, q> {
 	///  numbers that first bits are on one limb and the remaining bits are on the next limb).
 	///
 
+	using kAryPackedContainer_Meta<T, n, q>::length;
+	using kAryPackedContainer_Meta<T, n, q>::modulus;
+
 	using S = kAryPackedContainer_Meta<T, n, q>;
-public:
-	using S::bits_per_limb;
-	using S::bits_per_number;
-	using S::numbers_per_limb;
-	using S::internal_limbs;
-	using S::number_mask;
-	using S::is_full;
-	using S::activate_avx2;
+	using typename kAryPackedContainer_Meta<T, n, q>::ContainerLimbType;
+	using typename kAryPackedContainer_Meta<T, n, q>::LimbType;
+	using typename kAryPackedContainer_Meta<T, n, q>::LabelContainerType;
+	using typename kAryPackedContainer_Meta<T, n, q>::DataType;
+
+	using kAryPackedContainer_Meta<T, n, q>::__data;
+
+	using kAryPackedContainer_Meta<T, n, q>::bits_per_limb;
+	using kAryPackedContainer_Meta<T, n, q>::bits_per_number;
+	using kAryPackedContainer_Meta<T, n, q>::numbers_per_limb;
+	using kAryPackedContainer_Meta<T, n, q>::internal_limbs;
+	using kAryPackedContainer_Meta<T, n, q>::number_mask;
+	using kAryPackedContainer_Meta<T, n, q>::is_full;
+	using kAryPackedContainer_Meta<T, n, q>::activate_avx2;
+
 
 	/// some function
-	using S::mod_T;
-	using S::sub_T;
-	using S::add_T;
-	using S::mul_T;
-	using S::popcnt_T;
-	using S::popcnt;
+	using kAryPackedContainer_Meta<T, n, q>::mod_T;
+	using kAryPackedContainer_Meta<T, n, q>::sub_T;
+	using kAryPackedContainer_Meta<T, n, q>::add_T;
+	using kAryPackedContainer_Meta<T, n, q>::mul_T;
+	using kAryPackedContainer_Meta<T, n, q>::popcnt_T;
+	using kAryPackedContainer_Meta<T, n, q>::popcnt;
 
-	using typename S::ContainerLimbType;
-	using typename S::LimbType;
-	using typename S::LabelContainerType;
-	// minimal internal datatype to present an element.
-	using DataType = LogTypeTemplate<bits_per_number>;
-
-	using S::length;
-	using S::modulus;
 
 public:
 
-	// constexpr kAryPackedContainer_T() noexcept = default;
-	// constexpr kAryPackedContainer_T(const kAryPackedContainer_T &a) noexcept : __data(a.__data) {};
+	 //constexpr kAryPackedContainer_T() noexcept = default;
+	 //constexpr kAryPackedContainer_T(const kAryPackedContainer_T &a) noexcept : S(a){
+	 //                                                                                   std::cout << "copyc\n";
+	 //                                                                           };
 
-	// constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T const &obj) noexcept {
-	// 	if (this != &obj) {
-	//
-	// 		std::copy(obj.begin(), obj.end(), this->begin());
-	// 	}
-	// 	return *this;
-	// }
-
-	// constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T &&obj)  noexcept {
-	// 	if (this != &obj) {
-	// 		__data = std::move(obj.__data);
-	// 	}
-	// 	return *this;
-	// }
+	 //constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T const &obj) noexcept {
+	 //	S::operator=(obj);
+	 //	return *this;
+	 //}
+	 //constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T &&obj) noexcept {
+	 //	S::operator=(std::move(obj));
+	 //	return *this;
+	 //}
 };
 
 /// lel, C++ metaprogramming is king

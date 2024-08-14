@@ -611,8 +611,8 @@ struct GarbageCollector {
 	}
 
 	constexpr static void info() {
-		std::cout <<" { name: \"ALlocation\", "
-				  << " }" << std::endl;
+		std::cout <<" { name: \"Allocation\", "
+				  << " }\n";
 	}
 };
 

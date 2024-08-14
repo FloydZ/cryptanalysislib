@@ -16,7 +16,7 @@ B63_BASELINE(Combinations_Binary_Chase, nn) {
 	uint64_t w1[element_limbs + 1] = {0};
 	uint64_t res = 0;
 
-	uint16_t pos1, pos2;
+	uint16_t pos1=0, pos2=0;
 	for (; res < nn; res++) {
 		for (size_t i = 0; i < list_size - 1; ++i) {
 			// memcpy(w1, w2, element_limbs * 8);

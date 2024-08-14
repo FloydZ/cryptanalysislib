@@ -153,7 +153,7 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 	Matrix A;
 	A.random();
 
-	constexpr size_t base_size = 10;
+	constexpr size_t base_size = 5;
 	static std::vector<uint64_t> tbl{{0, n/3, 2*n/3, n}};
 	Tree t{3, A, base_size, tbl, __level_filter_array};
 
@@ -215,7 +215,7 @@ TEST(SubSetSum, JoinRandomListsLevel3) {
 	Matrix A;
 	A.random();
 
-	constexpr size_t base_size = 8;
+	constexpr size_t base_size = 5;
 	static std::vector<uint64_t> tbl{{0, n/4, n/2, 3*n/4, n}};
 	Tree t{4, A, 10, tbl, __level_filter_array};
 
@@ -421,6 +421,13 @@ TEST(SubSetSum, join4lists) {
 		Label::add(target, target, A[0][weights[i]]);
 	}
 
+	std::cout << A << std::endl;
+	for (const auto &w : weights) {
+		std::cout << w << ",";
+	}
+	std::cout << std::endl;
+	std::cout << target << std::endl;
+
 	for (size_t i = 0; i < baselist_size; ++i) {
 		EXPECT_EQ(l1[i].is_correct(A), true);
 		EXPECT_EQ(l2[i].is_correct(A), true);
@@ -430,13 +437,6 @@ TEST(SubSetSum, join4lists) {
 
 	Tree::join4lists(out, l1, l2, l3, l4, target,
 	                 k_lower1, k_higher1, k_lower2, k_higher2, true);
-
-	std::cout << A << std::endl;
-	for (const auto &w : weights) {
-		std::cout << w << ",";
-	}
-	std::cout << std::endl;
-	std::cout << target << std::endl;
 
 	uint32_t right=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {
@@ -462,7 +462,6 @@ TEST(SubSetSum, join4lists) {
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
 		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
-
 		std::cout << out[i];
 
 		// TODO not finished
