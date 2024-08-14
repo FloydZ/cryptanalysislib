@@ -97,9 +97,9 @@ public:
 	/// \param exact_weight
 	/// \return true/false if correct or not
 	bool check(const Label &label,
-	           				 const Value &error,
-	           				 bool add_syndrome = true,
-	           				 bool exact_weight = true) noexcept {
+	           const Value &error,
+	           bool add_syndrome = true,
+	           bool exact_weight = true) const noexcept {
 #ifdef DEBUG
 		/// TEST for correctness
 		auto H = HT.transpose();

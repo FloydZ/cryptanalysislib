@@ -41,6 +41,7 @@ TEST(ListEnumerateMultiFullLength, single_list) {
 	List L(list_size);
 	Matrix HT;
 	HT.random();
+
 	Label syndrome;
 	syndrome.random();
 	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};

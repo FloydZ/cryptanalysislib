@@ -1,5 +1,5 @@
-#ifndef SMALLSECRETLWE_BEHCN_CONFIG_H
-#define SMALLSECRETLWE_BEHCN_CONFIG_H
+#ifndef CRYPTANALYSISLIB_BENCH_CONFIG_H
+#define CRYPTANALYSISLIB_BENCH_CONFIG_H
 
 // external includes
 #include <cstdint>
@@ -11,7 +11,6 @@
 #include "matrix/fq_matrix.h"
 
 #define SORT_INCREASING_ORDER
-#define VALUE_KARY
 
 // some dummy values
 constexpr uint32_t n = 100;
@@ -40,4 +39,4 @@ using BinaryList        = List_T<BinaryElement>;
 using BinaryTree        = Tree_T<BinaryList>;
 
 static  std::vector<uint64_t>   __level_translation_array{{0, 10, 20, 30, k}};
-#endif //SMALLSECRETLWE_BEHCN_CONFIG_H
+#endif

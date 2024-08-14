@@ -38,7 +38,7 @@ namespace cryptanalysislib {
 		}
 
 #ifdef __APPLE__
-		// of cause apple has no std::aligned_alloc. That would be stupid
+		// of cause apple has no std::aligned_alloc. That would be stupid.
 		// seams to work on apple
 		void *ret;
 		if (posix_memalign(&ret, alignment, __size)) {
@@ -78,12 +78,12 @@ public:
 
 
 ///
-struct AllocatorConfig {
+struct AllocatorConfig : public AlignmentConfig {
 	/// the base pointer to the internal data struct are always to 16bytes aligned
 	constexpr static size_t base_alignment = 16;
 
 	/// all pointers (Blks) returned do have this alignment
-	constexpr static size_t alignment = 1;
+	// constexpr static size_t alignment = 1;
 
 	/// if set, all allocations are zero allocations
 	constexpr static bool calloc = true;

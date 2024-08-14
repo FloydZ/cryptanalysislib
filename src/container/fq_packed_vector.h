@@ -81,26 +81,26 @@ public:
 
 	kAryPackedContainer_Meta () noexcept = default;
 
-	// kAryPackedContainer_Meta (kAryPackedContainer_Meta const &obj) noexcept {
-	// 	std::copy(obj.begin(), obj.end(), __data.begin());
-	// }
+	kAryPackedContainer_Meta (kAryPackedContainer_Meta const &obj) noexcept {
+		std::copy(obj.begin(), obj.end(), __data.begin());
+	}
 
-	// kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta const &obj) noexcept {
-	// 	if (this != &obj) {
-	// 		std::copy(obj.begin(), obj.end(), __data.begin());
-	// 	}
+	kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta const &obj) noexcept {
+		if (this != &obj) {
+			std::copy(obj.begin(), obj.end(), __data.begin());
+		}
 
-	// 	return *this;
-	// }
+		return *this;
+	}
 
-	// kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta &&obj) noexcept {
-	// 	if (this != &obj) {// self-assignment check expected really?
-	// 		// move the data
-	// 		__data = std::move(obj.__data);
-	// 	}
+	kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta &&obj) noexcept {
+		if (this != &obj) {// self-assignment check expected really?
+			// move the data
+			__data = std::move(obj.__data);
+		}
 
-	// 	return *this;
-	// }
+		return *this;
+	}
 
 	// simple hash function
 	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
@@ -237,7 +237,7 @@ public:
 
 	[[nodiscard]] constexpr uint32_t popcnt(const uint32_t l, const uint32_t h) const noexcept {
 		ASSERT(l < h);
-		ASSERT(h < size());
+		ASSERT(h <= size());
 		uint32_t ret = 0;
 		for (uint32_t i = l; i < h; i++) {
 			ret += get(i) > 0;
@@ -953,35 +953,34 @@ public:
 	using S::popcnt_T;
 	using S::popcnt;
 
-	using S::ContainerLimbType;
-	using S::LimbType;
-	using S::LabelContainerType;
+	using typename S::ContainerLimbType;
+	using typename S::LimbType;
+	using typename S::LabelContainerType;
 	// minimal internal datatype to present an element.
 	using DataType = LogTypeTemplate<bits_per_number>;
 
 	using S::length;
 	using S::modulus;
 
-	std::array<T, internal_limbs> __data{};
-
 public:
 
-	constexpr kAryPackedContainer_T() noexcept = default;
-	constexpr kAryPackedContainer_T(const kAryPackedContainer_T &a) noexcept : __data(a.__data) {};
+	// constexpr kAryPackedContainer_T() noexcept = default;
+	// constexpr kAryPackedContainer_T(const kAryPackedContainer_T &a) noexcept : __data(a.__data) {};
 
-	constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T const &obj) noexcept {
-		if (this != &obj) {
-			std::copy(obj.begin(), obj.end(), __data.begin());
-		}
-		return *this;
-	}
+	// constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T const &obj) noexcept {
+	// 	if (this != &obj) {
+	//
+	// 		std::copy(obj.begin(), obj.end(), this->begin());
+	// 	}
+	// 	return *this;
+	// }
 
-	constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T &&obj)  noexcept {
-		if (this != &obj) {
-			__data = std::move(obj.__data);
-		}
-		return *this;
-	}
+	// constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T &&obj)  noexcept {
+	// 	if (this != &obj) {
+	// 		__data = std::move(obj.__data);
+	// 	}
+	// 	return *this;
+	// }
 };
 
 /// lel, C++ metaprogramming is king

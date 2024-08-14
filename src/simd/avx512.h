@@ -450,8 +450,7 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t mullo(const uint8x64_t in1,
 	                                                       const uint8x64_t in2) noexcept {
 		uint8x64_t out;
-		(void) in1;
-		(void) in2;
+		out.v512  = (__m512i) ((__v64qi) in1.v512 * (__v64qi) in2.v512);
 		return out;
 	}
 
@@ -476,7 +475,7 @@ struct uint8x64_t {
 		const uint8x64_t mask = uint8x64_t::set1(~((1u << in2) - 1u));
 		// out.v512 = _mm512_slli_epi16(in1.v512, in2);
 		// out.v512 =  (__m512i)__builtin_ia32_psllwi512((__v32hi)in1.v512, (int)in2);
-		out.v512 = (__m512i)((__v32hi)in1.v512 << (int)in2);
+		out.v512 = (__m512i)((__v64qu)in1.v512 << (int)in2);
 		out = uint8x64_t::and_(out, mask);
 		return out;
 	}
@@ -489,10 +488,10 @@ struct uint8x64_t {
 														  const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x64_t out;
-		const uint8x64_t mask = uint8x64_t::set1((1u << ((8u - in2) & 7u)) - 1u);
+		//const uint8x64_t mask = uint8x64_t::set1((1u << ((8u - in2) & 7u)) - 1u);
 		// out.v512 = _mm512_srli_epi16(in1.v512, in2);
-		out.v512 = (__m512i)((__v32hi)in1.v512 >> (int)in2);
-		out = uint8x64_t::and_(out, mask);
+		out.v512 = (__m512i)(((__v64qu)in1.v512) >> (int)in2);
+		// out = uint8x64_t::and_(out, mask);
 		return out;
 	}
 
@@ -508,8 +507,9 @@ struct uint8x64_t {
   		ret.v512 = (__m512i) __builtin_ia32_vpopcountb_v64qi ((__v64qi)in1.v512);
 #endif
 #else
-		// TODO
-		(void)in1;
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			ret.v8[i] = cryptanalysislib::popcount::popcount(in1.v8[i]);
+		}
 #endif
 		return ret;
 	}

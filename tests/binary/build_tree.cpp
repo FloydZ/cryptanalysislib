@@ -82,7 +82,7 @@ TEST(TreeTest, join4lists) {
 	target.zero();
 	target.random();
 
-	BinaryTree::streamjoin4lists(out, l1, l2, l3, l4, target, ta);
+	BinaryTree::join4lists(out, l1, l2, l3, l4, target, ta);
 
 	auto right=true;
 	int wrong=0;

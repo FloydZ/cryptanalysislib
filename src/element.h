@@ -29,6 +29,7 @@ concept LabelAble = requires(Container c) {
 	// we need to enforce the existence of some fields/functions
 	Container::length;
 	Container::modulus;
+	Container::info();
 
 	requires requires(const uint32_t i,
 	                  const size_t s) {
@@ -100,6 +101,7 @@ concept ValueAble = requires(Container c) {
 	// we need to enforce the existence of some fields/functions
 	Container::modulus;
 	Container::length;
+	Container::info();
 
 	requires requires(const uint32_t i,
 	                  const size_t s) {
@@ -209,10 +211,6 @@ public:
 
 	/// normal constructor. Initialize everything with zero.
 	Element_T() noexcept : label(), value() { this->zero(); }
-
-	/// copy constructor
-	Element_T(const Element_T &a) noexcept
-	    : label(a.label), value(a.value) {}
 
 	/// zero out the element.
 	void zero() noexcept {
@@ -548,7 +546,14 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr auto value_ptr(const size_t i) const noexcept { return value.ptr(i); }
 
 	constexpr static void info() noexcept {
-		std::cout << " { name: \"Element\" }" << std::endl;
+		std::cout << " { name: \"Element\" :"
+		          << ", sizeof(Element): " << sizeof(Element_T)
+				  << ", sizeof(Label): " << sizeof(LabelType)
+				  << ", sizeof(Value): " << sizeof(ValueType)
+				  << ", sizeof(Matrix): " << sizeof(MatrixType)
+		          << " }" << std::endl;
+		Label::info();
+		Value::info();
 	}
 public:
 	Label label;

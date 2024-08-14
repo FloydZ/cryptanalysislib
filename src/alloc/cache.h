@@ -6,7 +6,7 @@
 #include "popcount/popcount.h"
 
 /// Floyds simple try of super simple allocator, which is made for
-/// caches. It stores `bits` `T` typed elements in single bucket, which
+/// caches. It stores `bits` many `T` typed elements in single bucket, which
 /// are extended via a linked list.
 /// NOTE: dont use it for anything useful
 /// \tparam T type to allocate

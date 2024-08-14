@@ -874,6 +874,9 @@ public:
 
 		/// apply the random permutation
 		for (uint32_t i = 0; i < c; ++i) {
+			ASSERT(i < P.length);
+			ASSERT(perm[i] < P.length);
+
 			std::swap(P.values[i], P.values[perm[i]]);
 			swap_cols(i, perm[i]);
 
@@ -1176,6 +1179,7 @@ public:
 	        const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
 	        const FqMatrix_Meta<T, ncols, ncols_prime, q, packed> &B) noexcept {
 
+		C.clear();
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols_prime; ++j) {
 				uint64_t sum = 0;
@@ -1338,7 +1342,9 @@ public:
 		}
 
 		if (name.length() > 0) {
-			std::cout << " " << name << "\n";
+			std::cout << " " << name << std::endl;
+		} else {
+			std::cout << std::endl;
 		}
 	}
 

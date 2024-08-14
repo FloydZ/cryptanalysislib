@@ -8,6 +8,13 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstdint>
+
 #define POINTER_IS_32BYTES_ALIGNED(ptr) ((((uintptr_t)(ptr)) & (0b11111)) == 0)
 
-#endif//CRYPTANALYSISLIB_MEMORY_H
+// basic alignment cofnig
+struct AlignmentConfig {
+	// alignment in bytes
+	constexpr static size_t alignment = 8;
+} configAlignment;
+
+#endif

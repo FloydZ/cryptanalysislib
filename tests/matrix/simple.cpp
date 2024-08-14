@@ -319,11 +319,11 @@ TEST(FqMatrix, markov_gaus) {
 		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
 			if constexpr (__nrows <= __ncols) {
 				using M = FqMatrix<T, __nrows, __ncols, q, true>;
-				using MT = FqMatrix<T, __ncols, __nrows, q, true>;
+				// using MT = FqMatrix<T, __ncols, __nrows, q, true>;
 				constexpr uint32_t l = 10;
 				constexpr uint32_t c = 5;
 				M m = M{};
-				Permutation P(ncols);
+				Permutation P(__ncols);
 				uint32_t rank = 0;
 
 				while (true) {
@@ -348,17 +348,16 @@ TEST(FqMatrix, markov_gaus) {
 	});
 }
 
-
 TEST(FqMatrix, fixgaus) {
 	constexpr_for<400, 430, 3>([](const auto __nrows) {
 		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
 			if constexpr (__nrows <= ncols) {
 				using M = FqMatrix<T, __nrows, __ncols, q, true>;
-				using MT = FqMatrix<T, __ncols, __nrows, q, true>;
+				// using MT = FqMatrix<T, __ncols, __nrows, q, true>;
 				M m = M{};
 				m.random();
 
-				Permutation P{ncols};
+				Permutation P{__ncols};
 				const uint32_t rank = m.gaus();
 				const uint32_t rank2 = m.fix_gaus(P, rank, __nrows);
 				ASSERT_GT(rank, __nrows - 10);
@@ -379,9 +378,9 @@ TEST(FqMatrix, fixgaus) {
 
 // note test is only valid on clang. Gcc has problems compiling it.
 TEST(FqMatrix, mult) {
-	constexpr_for<1, 100, 40>([](const auto __nrows) {
-		constexpr_for<2, 100, 40>([__nrows](const auto __ncols) {
-			constexpr_for<1, 100, 40>([__nrows, __ncols](const auto __ncols_prime) {
+	constexpr_for<10, 100, 40>([](const auto __nrows) {
+		constexpr_for<11, 100, 40>([__nrows](const auto __ncols) {
+			constexpr_for<10, 100, 40>([__nrows, __ncols](const auto __ncols_prime) {
 				using AT = FqMatrix<T, __nrows, __ncols, q, true>;
 				using BT = FqMatrix<T, __ncols, __ncols_prime, q, true>;
 				using CT = FqMatrix<T, __nrows, __ncols_prime, q, true>;
@@ -394,8 +393,10 @@ TEST(FqMatrix, mult) {
 				c.identity();
 				AT::mul(c, a, b);
 
-				for (uint32_t i = 0; i < __nrows; ++i) {
-					for (uint32_t j = 0; j < __ncols_prime; ++j) {
+				constexpr size_t min = std::min({(size_t)__nrows,(size_t)__ncols,(size_t)__ncols_prime});
+
+				for (uint32_t i = 0; i < min; ++i) {
+					for (uint32_t j = 0; j < min; ++j) {
 						if (i == j) {
 							ASSERT_EQ(c.get(i, j), 1u);
 							continue;

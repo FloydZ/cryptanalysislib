@@ -7,6 +7,7 @@
 
 #include "alloc/alloc.h"
 #include "math/math.h"
+#include "memory/memory.h"
 
 /*
  * The size of a pointer.
@@ -53,13 +54,11 @@ struct Allocation {
 	 */
 	constexpr Allocation(const void *ptr,
 	                     const size_t size) noexcept :
-	    ptr(ptr), size(size){
-		this->tag = GC_TAG_NONE;
-		this->next = nullptr;
+	    ptr(ptr), size(size), next(nullptr), tag(GC_TAG_NONE) {
 	}
 
 	///
-	constexpr ~Allocation() noexcept { }
+	// constexpr ~Allocation() noexcept { }
 
 	/// print some basic information about the class
 	constexpr static void info() {
@@ -75,12 +74,13 @@ struct Allocation {
  * objects and allows O(1) retrieval given the memory location. Collision
  * resolution is implemented using separate chaining.
  */
+template<const AlignmentConfig &config=configAlignment>
 struct AllocationMap {
 private:
 	constexpr AllocationMap() = default;
 
 public:
-	constexpr static size_t alignment = 32;
+	constexpr static size_t alignment = config.alignment;
 
 	size_t capacity;
 	size_t min_capacity;
@@ -229,7 +229,7 @@ public:
 					prev->next = alloc;
 				}
 
-				delete(cur);
+				delete cur;
 				return alloc;
 
 			}
@@ -281,7 +281,7 @@ public:
 					prev->next = cur->next;
 				}
 
-				delete(cur);
+				delete cur;
 				this->size--;
 			} else {
 				// move on
@@ -313,7 +313,7 @@ public:
 /// \tparam Alloc
 template<class Alloc=std::allocator<int>>
 struct GarbageCollector {
-	AllocationMap* allocs; // allocation map
+	AllocationMap<>* allocs; // allocation map
 	bool paused;                  // (temporarily) switch gc on/off
 	void *bos;                    // bottom of stack
 
@@ -344,8 +344,10 @@ struct GarbageCollector {
 		ASSERT(allocs);
 	}
 
+	/// stops the garbage collector and frees everything
 	constexpr ~GarbageCollector() {
-		stop();
+		const size_t bytes_freed = stop();
+		(void)bytes_freed;
 	}
 
 	/// if `count` is specified: `calloc` will be called
@@ -381,7 +383,7 @@ struct GarbageCollector {
 
 		/* With cleanup out of the way, attempt to allocate memory */
 		void* ptr = mcalloc(count, size);
-		size_t alloc_size = count ? count * size : size;
+		const size_t alloc_size = count ? count * size : size;
 		/* If allocation fails, force an out-of-policy run to free some memory and try again. */
 		if (!ptr && !paused && (errno == EAGAIN || errno == ENOMEM)) {
 			run();

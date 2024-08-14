@@ -3,5 +3,6 @@
 
 #include "memcpy.h"
 #include "memset.h"
+#include "common.h"
 
 #endif//CRYPTANALYSISLIB_MEMORY_H

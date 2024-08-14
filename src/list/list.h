@@ -16,6 +16,7 @@
 #include <vector>// main data container
 
 
+
 /// Mother of all lists
 /// \tparam Element
 template<class Element>
@@ -237,7 +238,7 @@ public:
 		ASSERT(k_lower < k_higher);
 
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		if constexpr (use_std_sort || (LabelType::sub_container_size > 1u)) {
+		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1u)) {
 			auto f = [k_lower, k_higher, &target](const auto &e1, const auto &e2) __attribute__((always_inline)) {
 				LabelType tmp;
 				if constexpr (sub) {
@@ -404,7 +405,6 @@ public:
 			return search_level_binary_extended(e, k_lower, k_higher);
 	}
 
-private:
 	///
 	/// \param e
 	/// \param k_lower

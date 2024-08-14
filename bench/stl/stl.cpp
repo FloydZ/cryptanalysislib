@@ -71,7 +71,7 @@ B63_BENCHMARK(CopyMalloc, nn) {
 
 	uint32_t res = 0;
 	for (uint64_t i = 0; i < nn; ++i) {
-		memcpy(L1, L2, sizeof(DecodingElement)*nn*lsize);
+		cryptanalysislib::memcpy(L1, L2, nn*lsize);
 		res += L1[0].label_ptr(0);
 		L1[0].label_ptr()[0] += rand();
 	}

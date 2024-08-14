@@ -77,7 +77,8 @@ TEST(AllocationMap, basic_get) {
 
 	am->remove(f, true);
 	EXPECT_EQ(am->size, 0);
-	EXPECT_EQ(am->allocs, nullptr);
+	auto *c = am->get(f);
+	EXPECT_EQ(c, nullptr);
 
 	free(f);
 	delete am;
@@ -127,14 +128,18 @@ TEST(GarbageCollector, Cleanup) {
 	void *bos = __builtin_frame_address(0);
 	GarbageCollector gc(bos, 32, 32, 0.0, DBL_MAX, DBL_MAX);
 
-	T** ptrs = (T **)gc.malloc_ext(size * sizeof(T *));
+	T** ptrs = (T **)gc.malloc_(size * sizeof(T *));
+	for (uint32_t i = 0; i < size; ++i) {
+		ptrs[i] = nullptr;
+	}
+
 	for (uint32_t i = 0; i < 8; ++i) {
 		for (uint32_t j = 0; j < size; ++j) {
-			ptrs[i] = (T *) gc.malloc_(i * sizeof(T));
+			ptrs[j] = (T *) gc.malloc_((j+1) * sizeof(T));
 		}
 
 		for (uint32_t j = 0; j < size; ++j) {
-			gc.free_(ptrs[i]);
+			gc.free_(ptrs[j]);
 		}
 	}
 

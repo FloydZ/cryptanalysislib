@@ -1,5 +1,3 @@
-#define VALUE_BINARY
-
 #include "b63.h"
 #include "counters/perf_events.h"
 

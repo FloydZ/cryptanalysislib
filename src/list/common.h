@@ -2,7 +2,20 @@
 #define DECODING_LIST_COMMON_H
 
 #include "element.h"
-#include <cstdint>
+#include "memory/memory.h"
+
+struct ListConfig : public AlignmentConfig {
+public:
+	// if `true` all internal sorting algorithms are `std::sort`
+	constexpr static bool use_std_sort = false;
+
+	// if `true` sorting is increasing, else decresing
+	constexpr static bool sort_increasing_order = true;
+
+
+	constexpr static bool use_interpolation_search = false;
+} listConfig;
+
 
 #if __cplusplus > 201709L
 
@@ -34,6 +47,9 @@ concept ListElementAble = requires(Element a) {
 	a.label;
 	a.value;
 
+	// static functions
+	Element::info();
+
 	requires requires(const size_t i, const typename Element::MatrixType &m) {
 		a.bytes();
 		a.binary();// checks if the underlying container is binary
@@ -64,6 +80,9 @@ concept ListElementAble = requires(Element a) {
 template<class List>
 concept ListAble = requires(List l) {
 	typename List::ElementType;
+
+	// static functions
+	List::info();
 
 	/// insert//append stuff
 	requires requires(const size_t pos, 
@@ -123,8 +142,8 @@ concept ListAble = requires(List l) {
 };
 #endif
 
-/// TODO `ListConfig` class which contains all compile time options like `use_std_sort`, `data_alignment`
-template<class Element>
+template<class Element,
+		 const ListConfig &config=listConfig>
 #if __cplusplus > 201709L
     requires ListElementAble<Element>
 #endif
@@ -148,11 +167,12 @@ protected:
 	size_t __thread_block_size;
 
 	/// internal data representation of the list.
-	alignas(CUSTOM_PAGE_SIZE) std::vector<Element> __data;
+	alignas(config.alignment*8) std::vector<Element> __data;
 
 	/// options
-	constexpr static bool use_std_sort = true;
-	constexpr static bool sort_increasing_order = true;
+	constexpr static bool use_std_sort = config.use_std_sort;
+	constexpr static bool sort_increasing_order = config.sort_increasing_order;
+	constexpr static bool use_interpolation_search = config.use_interpolation_search;
 
 public:
 
@@ -575,6 +595,18 @@ public:
 		const size_t spos = start_pos(tid);
 		ASSERT(spos < size());
 		__data[spos + pos] = e;
+	}
+
+	constexpr static void info() {
+		std::cout << " { name=\"MetaListT\""
+				  << " , sizeof(LoadType):" << sizeof(LoadType)
+				  << " , ValueLENGTH:" << ValueLENGTH
+				  << " , LabelLENGTH:" << LabelLENGTH
+				  << " , use_std_sort:" << use_std_sort
+				  << " , use_interpolation_search:" << use_interpolation_search
+				  << " , sort_increasing_order:" << sort_increasing_order
+		          << " }" << std::endl;
+		ElementType::info();
 	}
 };
 
