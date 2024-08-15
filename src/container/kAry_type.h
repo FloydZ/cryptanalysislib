@@ -329,7 +329,7 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend bool operator==(const uint64_t obj1,
+	[[nodiscard]] constexpr inline friend bool operator==(const uint64_t obj1,
 	                       kAry_Type_T const &obj2) noexcept {
 		return obj1 == obj2.__value;
 	}
@@ -338,7 +338,7 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend bool operator!=(uint64_t obj1, kAry_Type_T const &obj2) noexcept {
+	[[nodiscard]] constexpr inline friend bool operator!=(uint64_t obj1, kAry_Type_T const &obj2) noexcept {
 		return obj1 != obj2.__value;
 	}
 
@@ -455,49 +455,49 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline bool operator!=(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator!=(kAry_Type_T const &obj) const noexcept {
 		return __value != obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr inline bool operator==(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator==(kAry_Type_T const &obj) const noexcept {
 		return __value == obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr inline bool operator==(uint64_t const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator==(uint64_t const &obj) const noexcept {
 		return __value == obj;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr inline bool operator>(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator>(kAry_Type_T const &obj) const noexcept {
 		return __value > obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr inline bool operator>=(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator>=(kAry_Type_T const &obj) const noexcept {
 		return __value >= obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr inline bool operator<(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator<(kAry_Type_T const &obj) const noexcept {
 		return __value < obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	constexpr inline bool operator<=(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator<=(kAry_Type_T const &obj) const noexcept {
 		return __value <= obj.__value;
 	}
 
@@ -506,10 +506,10 @@ public:
 	/// \param lower inclusive
 	/// \param upper exclusive
 	/// \return this[lower, upper) == o[lower, upper)
-	static constexpr inline bool cmp(kAry_Type_T const &o1,
+	[[nodiscard]] static constexpr inline bool cmp(kAry_Type_T const &o1,
 	                                 kAry_Type_T const &o2,
-								   const uint32_t lower=0,
-								   const uint32_t upper=bits()) noexcept {
+								     const uint32_t lower=0,
+								     const uint32_t upper=bits()) noexcept {
 		return o1.is_equal(o2, lower, upper);
 	}
 
@@ -518,7 +518,7 @@ public:
 	/// \param lower inclusive
 	/// \param upper exclusive
 	/// \return this[lower, upper) == o[lower, upper)
-	constexpr inline bool is_equal(kAry_Type_T const &o,
+	[[nodiscard]] constexpr inline bool is_equal(kAry_Type_T const &o,
 								   const uint32_t lower=0,
 								   const uint32_t upper=bits()) const noexcept {
 		ASSERT(sizeof(T)*8 > lower);
@@ -530,12 +530,23 @@ public:
 		return (__value & mask) == (o.value() & mask);
 	}
 
+	template<const uint32_t lower, const uint32_t upper>
+	[[nodiscard]] constexpr inline bool is_equal(kAry_Type_T const &o) const noexcept {
+		static_assert(sizeof(T)*8 > lower);
+		static_assert(sizeof(T)*8 >= upper);
+		static_assert(lower < upper);
+		static_assert(upper <= bits());
+
+		constexpr T mask = compute_mask(lower, upper);
+		return (__value & mask) == (o.value() & mask);
+	}
+
 	/// only compares bits
 	/// \param o
 	/// \param lower inclusive
 	/// \param upper exclusive
 	/// \return this[lower, upper) > o[lower, upper)
-	constexpr inline bool is_greater(kAry_Type_T const &o,
+	[[nodiscard]] constexpr inline bool is_greater(kAry_Type_T const &o,
 								     const uint32_t lower=0,
 								     const uint32_t upper=bits()) const noexcept {
 		ASSERT(sizeof(T)*8 > lower);
@@ -547,12 +558,23 @@ public:
 		return (__value & mask) > (o.value() & mask);
 	}
 
+	template<const uint32_t lower, const uint32_t upper>
+	[[nodiscard]] constexpr inline bool is_greater(kAry_Type_T const &o) const noexcept {
+		static_assert(sizeof(T)*8 > lower);
+		static_assert(sizeof(T)*8 >= upper);
+		static_assert(lower < upper);
+		static_assert(upper <= bits());
+
+		constexpr T mask = compute_mask(lower, upper);
+		return (__value & mask) > (o.value() & mask);
+	}
+
 	/// only compares bits
 	/// \param o
 	/// \param lower inclusive
 	/// \param upper exclusive
 	/// \return this[lower, upper) < o[lower, upper)
-	constexpr inline bool is_lower(kAry_Type_T const &o,
+	[[nodiscard]] constexpr inline bool is_lower(kAry_Type_T const &o,
 	                               const uint32_t lower=0,
 	                               const uint32_t upper=bits()) const noexcept {
 		ASSERT(sizeof(T)*8 > lower);
@@ -566,11 +588,29 @@ public:
 		return t1 < t2;
 	}
 
+	/// only compares bits
+	/// \param o
+	/// \param lower inclusive
+	/// \param upper exclusive
+	/// \return this[lower, upper) < o[lower, upper)
+	template<const uint32_t lower, const uint32_t upper>
+	[[nodiscard]] constexpr inline bool is_lower(kAry_Type_T const &o) const noexcept {
+		static_assert(sizeof(T)*8 > lower);
+		static_assert(sizeof(T)*8 >= upper);
+		static_assert(lower < upper);
+		static_assert(upper <= bits());
+
+		constexpr T mask = compute_mask(lower, upper);
+		const T t1 = __value & mask;
+		const T t2 = o.value() & mask;
+		return t1 < t2;
+	}
+
 	/// only checks if bits are zero
 	/// \param lower
 	/// \param upper
 	/// \return
-	constexpr inline bool is_zero(const uint32_t lower=0,
+	[[nodiscard]] constexpr inline bool is_zero(const uint32_t lower=0,
 	                              const uint32_t upper=bits()) const noexcept {
 		ASSERT(sizeof(T)*8 > lower);
 		ASSERT(sizeof(T)*8 >= upper);
@@ -578,6 +618,24 @@ public:
 		ASSERT(upper <= bits());
 
 		const T mask = compute_mask(lower, upper);
+		return T(__value & mask) == T(0);
+	}
+
+
+	///
+	/// \tparam lower
+	/// \tparam upper
+	/// \param lower
+	/// \param upper
+	/// \return
+	template<const uint32_t lower, const uint32_t upper>
+	[[nodiscard]] constexpr inline bool is_zero() const noexcept {
+		static_assert(sizeof(T)*8 > lower);
+		static_assert(sizeof(T)*8 >= upper);
+		static_assert(lower < upper);
+		static_assert(upper <= bits());
+
+		constexpr T mask = compute_mask(lower, upper);
 		return T(__value & mask) == T(0);
 	}
 
@@ -609,6 +667,32 @@ public:
 	}
 
 	/// not really useful, if lower != 0 and upper != bits
+	/// \param out
+	/// \param in1
+	/// \param in2
+	/// \param lower
+	/// \param upper
+	/// \return
+	template<const uint32_t lower, const uint32_t upper>
+	constexpr inline static void add(kAry_Type_T &out,
+									 const kAry_Type_T &in1,
+									 const kAry_Type_T &in2) noexcept {
+		static_assert(sizeof(T)*8 > lower);
+		static_assert(sizeof(T)*8 >= upper);
+		static_assert(lower < upper);
+		static_assert(upper <= bits());
+
+		if constexpr (arith) {
+			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q));
+		} else {
+			constexpr T mask = compute_mask(lower, upper);
+			const T tmp1 = (in1.value() ^ in2.value()) & mask;
+			const T tmp2 = (out.value() & ~mask) ^ tmp1;
+			out.set(tmp2, 0);
+		}
+	}
+
+	/// not really useful, if lower != 0 and upper != bits
 	/// NOTE: ignores carries over the limits.
 	constexpr inline static void sub(kAry_Type_T &out,
 	                                 const kAry_Type_T &in1,
@@ -631,6 +715,26 @@ public:
 		}
 	}
 
+	template<const uint32_t lower, const uint32_t upper>
+	constexpr inline static void sub(kAry_Type_T &out,
+									 const kAry_Type_T &in1,
+									 const kAry_Type_T &in2) noexcept {
+		static_assert(sizeof(T)*8 > lower);
+		static_assert(sizeof(T)*8 >= upper);
+		static_assert(lower < upper);
+		static_assert(upper <= bits());
+
+		if constexpr (arith) {
+			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q);
+		} else {
+			constexpr T mask = compute_mask(lower, upper);
+			// NOTE: ignores carry here
+			const T tmp1 = (in1.value() ^ in2.value()) & mask;
+			const T tmp2 = (out.value() & ~mask) ^ tmp1;
+			out.set(tmp2, 0);
+		}
+	}
+
 	/// \param lower
 	/// \param upper
 	/// \return
@@ -645,6 +749,21 @@ public:
 			__value = ((q - __value) % q);
 		} else {
 			const T mask = compute_mask(lower, upper);
+			__value ^= mask;
+		}
+	}
+
+	template<const uint32_t lower, const uint32_t upper>
+	constexpr inline void neg() noexcept {
+		static_assert(sizeof(T)*8 > lower);
+		static_assert(sizeof(T)*8 >= upper);
+		static_assert(lower < upper);
+		static_assert(upper <= bits());
+
+		if constexpr (arith) {
+			__value = ((q - __value) % q);
+		} else {
+			constexpr T mask = compute_mask(lower, upper);
 			__value ^= mask;
 		}
 	}
@@ -963,7 +1082,9 @@ public:
 
 	/// returns size of a single element in this container in bits
 	[[nodiscard]] static constexpr inline size_t sub_container_size() noexcept {
-		return bytes() * 8;
+		// return bytes() * 8;
+		// TODO for sorint in lists
+		return 1;
 	}
 
 	///

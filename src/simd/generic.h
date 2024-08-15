@@ -13,7 +13,7 @@
 using namespace cryptanalysislib;
 
 
-#define SIMD_AVX512_ARITH_MACRO(OPERATION, NAME) 								\
+#define SIMD_ARITH_MACRO(OPERATION, NAME) 										\
 [[nodiscard]] constexpr static inline TxN_t NAME(const TxN_t &in1,				\
 												 const TxN_t &in2) noexcept {	\
 	TxN_t out;																	\
@@ -34,7 +34,7 @@ using namespace cryptanalysislib;
 	}																			\
 	if constexpr (simd256_enable) {												\
 		for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {		\
-			out.v256[i / nr_limbs_in_simd256] = in1.v256[i / nr_limbs_in_simd512] OPERATION in2.v256[i / nr_limbs_in_simd256];\
+			out.v256[i / nr_limbs_in_simd256] = in1.v256[i / nr_limbs_in_simd256] OPERATION in2.v256[i / nr_limbs_in_simd256];\
 		}																		\
 		if constexpr (simd256_fits) {											\
 			return out;															\
@@ -46,6 +46,40 @@ using namespace cryptanalysislib;
 	return out;																	\
 }
 
+/// NOTE: this functions expands the result of a simple integer operation
+/// to all bits within this limb
+#define SIMD_FUNCTION_2ARGS_MACRO(OPERATION, INT_OPERATION) 					\
+[[nodiscard]] constexpr static inline TxN_t OPERATION(const TxN_t &in1,			\
+												 const TxN_t &in2) noexcept {	\
+	TxN_t out;																	\
+	if (std::is_constant_evaluated()) {											\
+		for (uint32_t i = 0; i < N; ++i) {										\
+			out.d[i] = (in1.d[i] INT_OPERATION in2[i]) * -1ull;					\
+		}																		\
+		return out;																\
+	}																			\
+	uint32_t i = 0;																\
+	if constexpr (simd512_enable) {												\
+		for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {		\
+			out.v512[i / nr_limbs_in_simd512] = simd512_type::OPERATION(in1.v512[i / nr_limbs_in_simd512], in2.v512[i / nr_limbs_in_simd512]);\
+		}																		\
+		if constexpr (simd512_fits) {											\
+			return out;															\
+		}																		\
+	}																			\
+	if constexpr (simd256_enable) {												\
+		for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {		\
+			out.v256[i / nr_limbs_in_simd256] = simd256_type::OPERATION(in1.v256[i / nr_limbs_in_simd256], in2.v256[i / nr_limbs_in_simd256]);\
+		}																		\
+		if constexpr (simd256_fits) {											\
+			return out;															\
+		}																		\
+	}                                                         					\
+	for (; i < N; ++i) {														\
+		out.d[i] = (in1.d[i] INT_OPERATION in2.d[i]) * -1ull;					\
+	}																			\
+	return out;																	\
+}
 
 
 
@@ -113,6 +147,14 @@ public:
 
 	constexpr inline TxN_t() noexcept = default;
 
+	//
+	constexpr inline TxN_t(const std::array<T, N> &array) noexcept {
+		for (uint32_t i = 0; i < N; ++i) {
+			d[i] = array[i];
+		}
+	}
+
+
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
@@ -157,7 +199,7 @@ public:
 
 	[[nodiscard]] constexpr static inline TxN_t set(const T *data) noexcept {
 		ASSERT(data);
-		TxN_t ret{};
+		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data[N - i - 1];
 		}
@@ -166,7 +208,7 @@ public:
 
 	[[nodiscard]] constexpr static inline TxN_t setr(const T *data) noexcept {
 		ASSERT(data);
-		TxN_t ret{};
+		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data[i];
 		}
@@ -345,15 +387,67 @@ public:
 	}
 
 
-	SIMD_AVX512_ARITH_MACRO(^, xor_)
-	SIMD_AVX512_ARITH_MACRO(&, and_)
-	SIMD_AVX512_ARITH_MACRO(|, or_)
-	// SIMD_AVX512_ARITH_MACRO(|, andnot)
-	SIMD_AVX512_ARITH_MACRO(+, add)
-	SIMD_AVX512_ARITH_MACRO(-, sub)
-	SIMD_AVX512_ARITH_MACRO(*, mullo)
+	SIMD_ARITH_MACRO(^, xor_)
+	SIMD_ARITH_MACRO(&, and_)
+	SIMD_ARITH_MACRO(|, or_)
+	SIMD_ARITH_MACRO(+, add)
+	SIMD_ARITH_MACRO(-, sub)
+	SIMD_ARITH_MACRO(*, mullo)
 
 
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t andnot_(const TxN_t &in1, const TxN_t in2) noexcept {
+		TxN_t ret;
+		if (std::is_constant_evaluated()) {
+			for (uint32_t i = 0; i < LIMBS; ++i) {
+				ret.d[i] = ~(in1[i] & in2[i]);
+			}
+			return ret;
+		}
+
+		uint32_t i = 0;
+		if constexpr (simd512_enable) {
+			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+				ret.v512[i / nr_limbs_in_simd512] = ~(in1.v512[i / nr_limbs_in_simd512] & in2[i / nr_limbs_in_simd512]);
+			}
+
+			if constexpr (simd512_fits) {
+				return ret;
+			}
+		}
+
+		if constexpr (simd256_enable) {
+			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+				ret.v256[i / nr_limbs_in_simd256] = ~(in1.v256[i / nr_limbs_in_simd256] & in2[i / nr_limbs_in_simd256]);
+			}
+
+			if constexpr (simd256_fits) {
+				return ret;
+			}
+		}
+
+		for (; i < N; ++i) {
+			ret.d[i] = ~(in1.d[i] & in2[i]);
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline TxN_t mul(const TxN_t &in1, const TxN_t in2) noexcept {
+		TxN_t ret;
+		return ret;
+	}
+	[[nodiscard]] constexpr static inline TxN_t mulhi(const TxN_t &in1, const TxN_t in2) noexcept {
+		TxN_t ret;
+		return ret;
+	}
+
+
+	///
+	/// \param in
+	/// \return
 	[[nodiscard]] constexpr static inline TxN_t not_(const TxN_t &in) noexcept {
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
@@ -391,6 +485,10 @@ public:
 		return ret;
 	}
 
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
 	[[nodiscard]] constexpr static inline TxN_t slli(const TxN_t &in1, const uint32_t in2) noexcept {
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
@@ -428,7 +526,11 @@ public:
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline TxN_t slri(const TxN_t &in1, const uint32_t in2) noexcept {
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t srli(const TxN_t &in1, const uint32_t in2) noexcept {
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {
@@ -465,6 +567,73 @@ public:
 		return ret;
 	}
 
+
+	[[nodiscard]] constexpr static inline TxN_t ror(const TxN_t &in1, const uint32_t in2) noexcept {}
+	[[nodiscard]] constexpr static inline TxN_t rol(const TxN_t &in1, const uint32_t in2) noexcept {}
+
+
+
+	SIMD_FUNCTION_2ARGS_MACRO(lt_, <)
+	SIMD_FUNCTION_2ARGS_MACRO(gt_, >)
+	SIMD_FUNCTION_2ARGS_MACRO(cmp_, ==)
+	SIMD_FUNCTION_2ARGS_MACRO(eq_, ==)
+
+	[[nodiscard]] constexpr static inline uint64_t gt(const TxN_t &in1,
+													  const TxN_t &in2) noexcept {
+		const auto tmp = S::gt_(in1, in2);
+		return S::move(tmp);
+	}
+	[[nodiscard]] constexpr static inline uint64_t lt(const TxN_t &in1,
+													  const TxN_t &in2) noexcept {
+		const auto tmp = S::lt_(in1, in2);
+		return S::move(tmp);
+	}
+	[[nodiscard]] constexpr static inline uint64_t cmp(const TxN_t &in1,
+	                                                  const TxN_t &in2) noexcept {
+		const auto tmp = S::cmp_(in1, in2);
+		return S::move(tmp);
+	}
+
+	[[nodiscard]] constexpr static inline S popcnt(const TxN_t &in1) noexcept {
+		TxN_t ret;
+		if (std::is_constant_evaluated()) {
+			for (uint32_t i = 0; i < LIMBS; ++i) {
+				ret[i] = cryptanalysislib::popcount::popcount(in1[i]);
+			}
+			return ret;
+		}
+
+		uint32_t i = 0;
+		if constexpr (simd512_enable) {
+			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+				ret.v512[i / nr_limbs_in_simd512] = simd512_type::popcnt(in1.v512[i / nr_limbs_in_simd512]);
+			}
+
+			if constexpr (simd512_fits) {
+				return ret;
+			}
+		}
+
+		if constexpr (simd256_enable) {
+			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+				ret.v256[i / nr_limbs_in_simd256] = simd256_type::popcnt(in1.v256[i / nr_limbs_in_simd256]);
+			}
+
+			if constexpr (simd256_fits) {
+				return ret;
+			}
+		}
+
+		for (; i < N; ++i) {
+			ret[i] = cryptanalysislib::popcount::popcount(in1[i]);
+		}
+
+		return ret;
+	}
+
+	///
+	/// \param in1
+	/// \return
 	[[nodiscard]] constexpr static inline TxN_t reverse(const TxN_t &in1) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < LIMBS; ++i) {
@@ -474,6 +643,9 @@ public:
 		return ret;
 	}
 
+	///
+	/// \param in1
+	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const TxN_t &in1) noexcept {
 		for (uint32_t i = 1; i < N; ++i) {
 			if (in1.d[i-1] != in1.d[i]) {
@@ -485,8 +657,70 @@ public:
 	}
 
 
+	template<uint32_t off = sizeof(T)>
+	[[nodiscard]] constexpr static inline TxN_t gather(const limb_type *ptr,
+	                                                   const TxN_t &in1) noexcept {
+		S ret;
+		return ret;
+	}
 
 
+	template<uint32_t off = sizeof(T)>
+	constexpr static inline void scatter(const limb_type *ptr,
+	                                                   const TxN_t &in1,
+	                                                   const TxN_t &in2) noexcept {
+	}
+
+
+	[[nodiscard]] constexpr static inline S permute(const TxN_t &in1,
+													  const TxN_t &in2) noexcept {
+		S ret;
+		return ret;
+	}
+
+	/// note; 64 elements limitation
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline uint64_t move(const TxN_t &in1) noexcept {
+		ASSERT(N <= 64);
+		uint64_t ret = 0;
+		uint32_t i = 0;
+		if constexpr (simd512_enable) {
+			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+				const uint64_t data = simd512_type::move(in1.v512[i / nr_limbs_in_simd512]);
+				ret ^= data << i;
+			}
+
+			if constexpr (simd512_fits) {
+				return ret;
+			}
+		}
+
+		if constexpr (simd256_enable) {
+			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+				ret ^= simd256_type::move(in1.v256[i / nr_limbs_in_simd256]) << i;
+			}
+
+			if constexpr (simd256_fits) {
+				return ret;
+			}
+		}
+
+		constexpr limb_type mask = 1ull << ((sizeof(limb_type) * 8) - 1ull);
+		for (; i < N; ++i) {
+			ret ^= ((in1.d[i] & mask) > 0) << i;
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static size_t size() noexcept {
+		return N;
+	}
+
+	[[nodiscard]] constexpr static bool is_unsigned() noexcept {
+		return std::is_unsigned_v<T>;
+	}
 	constexpr static void info() {
 		std::cout << "{ name: \"TxN_t<" << typeid(T).name() << "\"," << N << ">\n"
 		          << ", limb_bits: " << limb_bits

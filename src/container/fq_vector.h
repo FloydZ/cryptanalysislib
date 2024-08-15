@@ -12,6 +12,7 @@
 #include "popcount/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
+#include "hash/hash.h"
 
 
 ///
@@ -41,8 +42,22 @@ public:
 	typedef kAryContainerMeta ContainerType;
 
 	// simple hash function
-	constexpr inline uint64_t hash() const noexcept {
-		return __data[0];
+	template<const uint32_t l, const uint32_t h>
+	[[nodiscard]] constexpr inline size_t hash() const noexcept {
+		static_assert(l < h);
+		static_assert(h <= length());
+		Hash<T, l, h, 2> hash(__data[0]);
+		return hash();
+	}
+	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
+											   const uint32_t h) const noexcept {
+		return 0; // TODO
+	}
+	[[nodiscard]] constexpr inline auto hash() const noexcept {
+		using S = TxN_t<T, limbs()>;
+		const auto t1 = S(__data);
+		const auto t2 = Hash<S>(t1);
+		return t2;
 	}
 
 	/// zeros our the whole container

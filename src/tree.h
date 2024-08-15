@@ -80,7 +80,9 @@ concept TreeAble = requires(List l) {
 		l.sort();
 
 		l.search_level(e, u64, u64);
-		l.search(e);
+		l.linear_search(e);
+		l.binary_search(e);
+		l.interpolation_search(e);
 		l.append(e);
 		l.add_and_append(e, e, u32);
 		l.add_and_append(e, e, u64, u64, u32);
@@ -782,6 +784,68 @@ public:
 				for (; i < i_max; ++i) {
 					for (j = jprev; j < j_max; ++j) {
 						out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1, sub);
+#ifdef DEBUG
+						const uint64_t b = out.load() - 1;
+						if (!out[b].label.is_zero(k_lower, k_upper)) {
+							L1[i].print_binary();
+							L2[j].print_binary();
+							out[b].print_binary();
+							ASSERT(false);
+						}
+#endif
+					}
+				}
+			}
+		}
+	}
+
+
+	///
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \param out
+	/// \param L1
+	/// \param L2
+	/// \param target
+	/// \param prepare
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	static void join2lists(List &out, List &L1, List &L2,
+						   const LabelType &target,
+						   bool prepare = true) noexcept {
+		static_assert(k_lower < k_upper && 0 < k_upper);
+
+		constexpr bool sub = !LabelType::binary();
+		constexpr uint32_t filter = -1u;
+
+		if ((!target.is_zero()) && (prepare)) {
+			for (size_t s = 0; s < L2.load(); ++s) {
+				if constexpr (sub) {
+					LabelType::template sub<k_lower, k_upper>(L2[s].label, target, L2[s].label);
+				} else {
+					LabelType::template add<k_lower, k_upper>(L2[s].label, target, L2[s].label);
+				}
+			}
+		}
+
+		L1.template sort_level<k_lower, k_upper>();
+		L2.template sort_level<k_lower, k_upper>();
+
+		uint64_t i = 0, j = 0;
+		while (i < L1.load() && j < L2.load()) {
+			if (L2[j].template is_greater<k_lower, k_upper>(L1[i])) {
+				i++;
+			} else if (L1[i].template is_greater<k_lower, k_upper>(L2[j])) {
+				j++;
+			} else {
+				uint64_t i_max=i+1ull, j_max=j+1ull;
+				// if elements are equal find max index in each list, such that they remain equal
+				for (; i_max < L1.load() && L1[i].template is_equal<k_lower, k_upper>(L1[i_max]); i_max++) {}
+				for (; j_max < L2.load() && L2[j].template is_equal<k_lower, k_upper>(L2[j_max]); j_max++) {}
+
+				const uint64_t jprev = j;
+				for (; i < i_max; ++i) {
+					for (j = jprev; j < j_max; ++j) {
+						out.template add_and_append<k_lower, k_upper, filter, sub>(L1[i], L2[j]);
 #ifdef DEBUG
 						const uint64_t b = out.load() - 1;
 						if (!out[b].label.is_zero(k_lower, k_upper)) {

@@ -9,6 +9,8 @@
 #include "list/simple.h"
 #include "list/simple_limb.h"
 #include "matrix/matrix.h"
+#include "search/search.h"
+#include "hash/hash.h"
 
 #include <algorithm>// search/find routines
 #include <cassert>
@@ -163,6 +165,13 @@ public:
 		sort_level<sub>(k_lower, k_higher, 0);
 	}
 
+	template<const uint32_t k_lower,
+	         const uint32_t k_upper,
+	         const bool sub=false>
+	constexpr inline void sort_level() noexcept {
+		sort_level<k_lower, k_upper, sub>(0);
+	}
+
 	/// \param k_lower
 	/// \param k_higher
 	/// \param target
@@ -186,9 +195,9 @@ public:
 		ASSERT(k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
-		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1)) {
+		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1u)) {
 			auto f = [k_lower, k_higher](const auto &e1,
-			                              const auto &e2) {
+			                             const auto &e2)  __attribute__((always_inline)) {
 				if constexpr (sort_increasing_order) {
 					return e1.is_lower(e2, k_lower, k_higher);
 				} else {
@@ -207,9 +216,13 @@ public:
 			const uint64_t diff = (k_higher - k_lower) * LabelType::sub_container_size();
 
 			if (diff > 64) {
-				auto f = [k_lower, k_higher](const auto &e1) __attribute__((always_inline)) {
-				  const T tmp1 = *((T *) e1.label.ptr());
-				  return tmp1;
+				using S = _uint8x16_t;
+				auto f = [k_lower, k_higher](const auto &e1) __attribute__((always_inline)) -> S {
+					S t = _uint8x16_t::load(e1.label.ptr());
+					return t;
+
+				  // const T tmp1 = *((T *) e1.label.ptr());
+				  //return tmp1;
 				};
 				sort_level_radix_sort(sp, ep, f);
 			} else {
@@ -223,7 +236,61 @@ public:
 			}
 		}
 
-		std::cout << *this;
+		ASSERT(is_sorted(k_lower, k_higher));
+	}
+
+	/// NOTE: this does not search the FULL list, only each segment
+	/// \param k_lower lower dimension to sort on (inclusive)
+	/// \param k_higher upper dimensions to sort (not included)
+	/// \param tid thread id
+	template<const uint32_t k_lower,
+	         const uint32_t k_higher,
+	         const uint32_t sub = false>
+	constexpr void sort_level(const uint32_t tid) noexcept {
+		ASSERT(k_lower < k_higher);
+		const size_t sp = start_pos(tid), ep = end_pos(tid);
+
+		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1u)) {
+			auto f = [](const auto &e1,
+						const auto &e2)  __attribute__((always_inline)) {
+			  if constexpr (sort_increasing_order) {
+				  return e1.template is_lower<k_lower, k_higher>(e2);
+			  } else {
+				  return e1.template is_greater<k_lower, k_higher>(e2);
+			  }
+			};
+
+			sort_level_std_sort(sp, ep, f);
+		} else {
+
+			constexpr size_t s1 = LabelType::bytes() * 8u;
+			constexpr size_t s2 = std::min((size_t) 64ull, s1);
+			using T = LogTypeTemplate<s2>;
+
+			// TODO not working for sub_container_size != 1
+			constexpr uint64_t diff = (k_higher - k_lower) * LabelType::sub_container_size();
+
+			if (diff > 64) {
+				using S = _uint8x16_t;
+				auto f = [](const auto &e1) __attribute__((always_inline)) -> S {
+				  S t = _uint8x16_t::load(e1.label.ptr());
+				  return t;
+
+				  // const T tmp1 = *((T *) e1.label.ptr());
+				  //return tmp1;
+				};
+				sort_level_radix_sort(sp, ep, f);
+			} else {
+				constexpr uint64_t mask = ((uint64_t(1) << diff) - 1ull);
+				auto f = [](const auto &e1) __attribute__((always_inline)) {
+				  const T tmp1 = *((T *) e1.label.ptr());
+				  const T tmp2 = (tmp1 >> k_lower) & mask;
+				  return tmp2;
+				};
+				sort_level_radix_sort(sp, ep, f);
+			}
+		}
+
 		ASSERT(is_sorted(k_lower, k_higher));
 	}
 
@@ -239,20 +306,22 @@ public:
 	                          const uint32_t tid) noexcept {
 		ASSERT(k_lower < k_higher);
 
+		LabelType tmp;
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1u)) {
-			auto f = [k_lower, k_higher, &target](const auto &e1, const auto &e2) __attribute__((always_inline)) {
-				LabelType tmp;
+			auto f = [k_lower, k_higher, target, &tmp](const auto &e1,
+			                                           const auto &e2)  __attribute__((always_inline)) {
+				// TODO this is not working? no idea why
 				if constexpr (sub) {
-					LabelType::sub(tmp, target, e2.label);
+					LabelType::sub(tmp, target, e2.label, k_lower, k_higher);
 				} else {
-					LabelType::add(tmp, target, e2.label);
+					LabelType::add(tmp, target, e2.label, k_lower, k_higher);
 				}
 
 			    if constexpr (sort_increasing_order) {
-				  return e1.is_lower(e2, k_lower, k_higher);
+				  return e1.label.is_lower(tmp, k_lower, k_higher);
 			    } else {
-				  return e1.is_greater(e2, k_lower, k_higher);
+				  return e1.label.is_greater(tmp, k_lower, k_higher);
 			    }
 			};
 
@@ -308,9 +377,14 @@ public:
 	                                          const size_t ep,
 	                                          F &&f) noexcept {
 		std::sort(__data.begin() + sp, __data.begin() + ep, f);
-		//vergesort::vergesort(__data.data() + sp, __data.data() + ep, f);
 	}
 
+	///
+	/// \tparam F
+	/// \param sp
+	/// \param ep
+	/// \param f
+	/// \return
 	template<class F>
 	constexpr inline void sort_level_radix_sort(const size_t sp,
 									   			const size_t ep,
@@ -319,71 +393,123 @@ public:
 	}
 
 
-private:
-	/// sort the list. only valid in the binary case
-	constexpr inline void sort_level_binary(const uint32_t k_lower,
-	                                        const uint32_t k_higher) noexcept {
-		ASSERT(load() > 0);
+public:
 
-		using T = LabelContainerType;
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
+	constexpr inline size_t linear_search(const Element &e,
+								          const uint32_t tid = 0) {
+		return linear_search(e, tid, [](const Element &a){
+			return a.hash();
+		});
+	}
 
-		// choose the optimal implementation.
-		if (lower == upper) {
-			sort_level_sim_binary(k_lower, k_higher);
+	/// NOTE: this is a linear search
+	/// \param e element to find
+	/// \return the position of the element or -1
+	template <class F>
+	constexpr size_t linear_search(const Element &e,
+	                               const uint32_t tid,
+	                               F &&f) {
+		const size_t sp = start_pos(tid), ep = end_pos(tid);
+		const auto it = cryptanalysislib::search::linear_search(begin() + sp, begin() + ep, e, f);
+		if (it == (begin() + ep)) {
+			return -1;
 		} else {
-			sort_level_ext_binary(k_lower, k_higher);
+			return std::distance(begin()+sp, it);
+		}
+	}
+
+	/// TODO
+	constexpr size_t binary_search(const Element &e,
+								   const uint32_t tid = 0) {
+		const size_t sp = start_pos(tid), ep = end_pos(tid);
+		for (size_t i = sp; i < ep; ++i) {
+			if (__data[i] == e) {
+				return i;
+			}
 		}
 
-		ASSERT(is_sorted(k_lower, k_higher));
+		return -1u;
+	}
+	/// TODO
+	constexpr size_t interpolation_search(const Element &e,
+								   const uint32_t tid = 0) {
+		const size_t sp = start_pos(tid), ep = end_pos(tid);
+		for (size_t i = sp; i < ep; ++i) {
+			if (__data[i] == e) {
+				return i;
+			}
+		}
+
+		return -1u;
 	}
 
-	/// IMPORTANT: DO NOT CALL THIS FUNCTION directly. Use `sort_level` instead.
-	/// special implementation of the sorting function using specialised compare
-	/// functions of the `BinaryContainer` class, which uses precomputed masks.
-	constexpr inline void sort_level_ext_binary(const uint64_t k_lower,
-	                                            const uint64_t k_higher) noexcept {
-		using T = LabelContainerType;
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
-		const uint64_t lmask = T::higher_mask(k_lower);
-		const uint64_t umask = T::lower_mask(k_higher);
+	/// does what the name suggest.
+	/// \param e element we want to search
+	/// \param k_lower lower coordinate on which the element must be equal
+	/// \param k_higher higher coordinate the elements must be equal
+	/// \return the position of the first (lower) element which is equal to e. -1 if nothing found
+	constexpr size_t search_level(const Element &e,
+								  const uint64_t k_lower,
+								  const uint64_t k_higher,
+								  bool sort = false) noexcept {
 
-		std::sort(__data.begin(), __data.begin() + load,
-		          [lower, upper, lmask, umask](const auto &e1, const auto &e2) {
-#if !defined(SORT_INCREASING_ORDER)
-			          return e1.get_label().data().is_lower_ext2(e2.get_label().data(), lower, upper, lmask, umask);
-#else
-			          return e1.get_label().data().is_greater_ext2(e2.get_label().data(), lower, upper, lmask, umask);
-#endif
-		          });
+		if constexpr (Element::binary()) {
+			return search_level_binary(e, k_lower, k_higher, sort);
+		} else {
+			if (sort) {
+				sort_level(k_lower, k_higher);
+			}
+
+			auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
+				[k_lower, k_higher]
+						  (const Element &a1, const Element &a2) {
+					return a1.is_lower(a2, k_lower, k_higher);
+				});
+
+			const auto dist = std::distance(__data.begin(), r);
+
+			if (r == __data.begin() + load()) {
+				return -1;// nothing found
+			}
+
+			if (!__data[dist].is_equal(e, k_lower, k_higher)) {
+				return -1;
+			}
+
+			return dist;
+		}
 	}
 
-	/// IMPORTANT: DO NOT CALL THIS FUNCTION directly. Use `sort_level` instead.
-	/// special implementation of the sort function using highly optimized special compare routines from the data class
-	/// `BinaryContainer` if one knows that k_lower, k_higher are in the same limb.
-	constexpr inline void sort_level_sim_binary(const uint32_t k_lower,
-	                                            const uint32_t k_higher) noexcept {
-		static_assert(Element::binary());
-		using T = LabelContainerType;
+	/// \param e
+	/// \return	a tuple indicating the start and end indices within the list.
+	// 		start = end = load indicating nothing found,
+	constexpr std::pair<size_t, size_t>
+	search_boundaries(const Element &e,
+					  const uint64_t k_lower,
+					  const uint64_t k_higher) noexcept {
+		uint64_t end_index;
+		uint64_t start_index;
+		if constexpr (!Element::binary()) {
+			start_index = search_level(e, k_lower, k_higher);
+		} else {
+			start_index = search_level_binary(e, k_lower, k_higher);
+		}
 
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
-		ASSERT(lower == upper);
 
-		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
-		std::sort(__data.begin(), __data.begin() + load,
-		          [lower, mask](const auto &e1, const auto &e2) {
-#if !defined(SORT_INCREASING_ORDER)
-			          return e1.get_label().is_lower_simple2(e2.get_label(), lower, mask);
-#else
-			        return e1.get_label().is_greater_simple2(e2.get_label(), lower, mask);
-#endif
-		          });
+		if (start_index == uint64_t(-1)) {
+			return std::pair<uint64_t, uint64_t>(load(), load());
+		}
+
+		// get the upper index
+		end_index = start_index + 1;
+		while (end_index < load() && (__data[start_index].is_equal(__data[end_index], k_lower, k_higher))) {
+			end_index += 1;
+		}
+
+		return std::pair<size_t, size_t>{start_index, end_index};
 	}
 
-public:
+private:
 	// implements a binary search on the given data.
 	// if the boolean flag `sort` is set to true, the underlying list is sorted.
 	// USAGE:
@@ -450,9 +576,10 @@ public:
 
 		auto r = std::lower_bound(__data.begin(),
 								  __data.begin() + load(), e,
-								  [lower, mask](const Element &c1, const Element &c2) {
-									return c1.label.is_lower_simple2(c2.label, lower, mask);
-								  });
+			[lower, mask](const Element &c1, const Element &c2) {
+				return c1.label.is_lower_simple2(c2.label, lower, mask);
+			}
+		);
 
 		const auto dist = distance(__data.begin(), r);
 		if (r == __data.begin() + load()) { return -1; }
@@ -485,7 +612,8 @@ public:
 			size_t other_low = low + other_half;
 			v = __data[probe].label;
 			size = half;
-			low = v.is_lower_simple2(s, lower, mask) ? other_low : low;
+			// TODO complelty replace with seardh algo
+			// low = v.is_lower_simple2(s, lower, mask) ? other_low : low;
 		}
 
 		return (low != load()) ? low : -1ul;
@@ -543,88 +671,13 @@ public:
 			size_t other_low = low + other_half;
 			v = __data[probe].label;
 			size = half;
-			low = v.is_lower_ext2(s, lower, upper, lmask, umask) ? other_low : low;
+			// TODO
+			// low = v.is_lower_ext2(s, lower, upper, lmask, umask) ? other_low : low;
 		}
 		return (low != load()) ? low : -1;
 	}
 
 public:
-	/// does what the name suggest.
-	/// \param e element we want to search
-	/// \param k_lower lower coordinate on which the element must be equal
-	/// \param k_higher higher coordinate the elements must be equal
-	/// \return the position of the first (lower) element which is equal to e. -1 if nothing found
-	constexpr size_t search_level(const Element &e,
-	                              const uint64_t k_lower,
-	                              const uint64_t k_higher,
-	                              bool sort = false) noexcept {
-		if constexpr (Element::binary()) {
-			return search_level_binary(e, k_lower, k_higher, sort);
-		} else {
-			if (sort) {
-				sort_level(k_lower, k_higher);
-			}
-
-			auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
-			                          [k_lower, k_higher]
-			                          (const Element &a1, const Element &a2) {
-				return a1.is_lower(a2, k_lower, k_higher);
-			});
-
-			const auto dist = std::distance(__data.begin(), r);
-
-			if (r == __data.begin() + load()) {
-				return -1;// nothing found
-			}
-
-			if (!__data[dist].is_equal(e, k_lower, k_higher)) {
-				return -1;
-			}
-
-			return dist;
-		}
-	}
-
-	/// NOTE: this is a linear search
-	/// \param e element to find
-	/// \return the position of the element or -1
-	constexpr size_t search(const Element &e) {
-		for (size_t i = 0; i < load(); ++i) {
-			if (__data[i] == e) {
-				return i;
-			}
-		}
-		return -1u;
-	}
-
-	/// \param e
-	/// \return	a tuple indicating the start and end indices within the list.
-	// 		start = end = load indicating nothing found,
-	constexpr std::pair<size_t, size_t>
-	search_boundaries(const Element &e,
-	                  const uint64_t k_lower,
-	                  const uint64_t k_higher) noexcept {
-		uint64_t end_index;
-		uint64_t start_index;
-		if constexpr (!Element::binary()) {
-			start_index = search_level(e, k_lower, k_higher);
-		} else {
-			start_index = search_level_binary(e, k_lower, k_higher);
-		}
-
-
-		if (start_index == uint64_t(-1)) {
-			return std::pair<uint64_t, uint64_t>(load(), load());
-		}
-
-		// get the upper index
-		end_index = start_index + 1;
-		while (end_index < load() && (__data[start_index].is_equal(__data[end_index], k_lower, k_higher))) {
-			end_index += 1;
-		}
-
-		return std::pair<size_t, size_t>{start_index, end_index};
-	}
 
 	/// appends the element e to the list. Note that the list keeps track of its load. So you dont have to do anyting.
 	/// Note: if the list is full, every new element is silently discarded.
@@ -662,48 +715,64 @@ public:
 	                              const uint32_t k_lower,
 	                              const uint32_t k_higher,
 	                              const uint32_t norm,
-	                              const bool sub = false) noexcept {
-		// TODO simplify
-		// TODO multithreading
-		if (load() < size()) {
-			if (norm != uint32_t(-1)) {
-				// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
-				// exists for which it holds: |data[load].value[r]| >= norm
-				bool b = false;
-				if (sub) {
-					Element::sub(__data[load()], e1, e2, k_lower, k_higher, norm);
-				} else {
-					b = Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
-				}
-				if (b == true) { return; }
-
+	                              const bool sub=false,
+	                              const uint32_t tid=0) noexcept {
+		auto op1 = [e1, e2, k_lower, k_higher, sub, norm](Element &c) {
+			if (sub) {
+			    return Element::sub(c, e1, e2, k_lower, k_higher, norm);
 			} else {
-				if (sub) {
-					Element::sub(__data[load()], e1, e2, k_lower, k_higher, norm);
-				} else {
-					Element::add(__data[load()], e1, e2, k_lower, k_higher, norm);
-				}
-
+			    return Element::add(c, e1, e2, k_lower, k_higher, norm);
 			}
+		};
+
+		// norm  == -1:
+		// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
+		// exists for which it holds: |data[load].value[r]| >= norm
+		if (load() < size()) {
+			const bool b = op1(__data[load(tid)]);
+			if ((norm != uint32_t(-1)) && b) { return; }
 		} else {
 			Element t{};
-			bool b = false;
-			if (sub) {
-				// TODO extend the api for the norm factor
-				Element::sub(t, e1, e2);
-			} else {
-				b = Element::add(t, e1, e2, k_lower, k_higher, norm);
-			}
-
-			if (b) {
-				return;
-			}
+			const bool b = op1(t);
+			if ((norm != uint32_t(-1)) && b) { return; }
 
 			// this __MUST__ be a copy.
 			__data.push_back(t);
 			__size += 1;
 		}
 
+		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
+		set_load(load() + 1);
+	}
+
+	template<const uint32_t k_lower,
+	         const uint32_t k_higher,
+	         const uint32_t norm,
+	         const bool sub>
+	constexpr void add_and_append(const Element &e1,
+								  const Element &e2,
+	                              const uint32_t tid=0) noexcept {
+
+		auto op1 = [e1, e2](Element &c) {
+		  if constexpr (sub) {
+			  return Element::template sub<k_lower, k_higher, norm>(c, e1, e2);
+		  } else {
+			  return Element::template add<k_lower, k_higher, norm>(c, e1, e2);
+		  }
+		};
+
+		if (load() < size()) {
+			const bool b = op1(__data[load(tid)]);
+			if constexpr (norm != uint32_t(-1)) { if (b) { return; } }
+		} else {
+			Element t{};
+			const bool b = op1(t);
+			if constexpr (norm != uint32_t(-1)) { if (b) { return; } }
+
+			// this __MUST__ be a copy.
+			__data.push_back(t);
+			__size += 1;
+		}
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
 		set_load(load() + 1);
 	}

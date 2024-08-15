@@ -2,7 +2,7 @@
 #define CRYPTANALYSISLIB_MEMORY_MEMSET_H
 
 #ifndef CRYPTANALYSISLIB_MEMORY_H
-#error "do not include this file directly. Use `#inluce <cryptanalysislib/memory.h>`"
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/memory/memory.h>`"
 #endif
 
 #include <cstddef>
@@ -106,7 +106,7 @@ namespace cryptanalysislib {
 				_uint8x16_t::unaligned_store(out, in3);
 				_uint8x16_t::unaligned_store(end - 16, in3);
 			} else {
-				// TODO goto optimization
+				// no idea how to implement the goto
 				if (nr_elements < 16) {
 					// all other types
 					for (size_t i = 0; i < nr_elements; ++i) {

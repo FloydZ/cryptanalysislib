@@ -6,6 +6,21 @@ TEST(NAME, access) {
 	for (uint32_t i = 0; i < K::length(); ++i) {
 		const auto d = t.get(i);
 		EXPECT_EQ(d, i % PRIME);
+
+		const auto d2 = t[i];
+		EXPECT_EQ(d2, i % PRIME);
+	}
+
+	for (uint32_t i = 0; i < K::length(); ++i) {
+		t[i] = 0;
+	}
+
+	for (uint32_t i = 0; i < K::length(); ++i) {
+		const auto d = t.get(i);
+		EXPECT_EQ(d, 0);
+
+		const auto d2 = t[i];
+		EXPECT_EQ(d2, 0);
 	}
 }
 

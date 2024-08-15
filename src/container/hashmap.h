@@ -1,7 +1,7 @@
 #ifndef CRYPTANALYSISLIB_HASHMAP_H
 #define CRYPTANALYSISLIB_HASHMAP_H
 
-#include "hash/simple.h"
+#include "hash/hash.h"
 
 #include "container/hashmap/common.h"
 #include "container/hashmap/simple.h"

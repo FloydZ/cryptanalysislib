@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_SEARCH_LINEAR_H
 #define CRYPTANALYSISLIB_SEARCH_LINEAR_H
 
+#ifndef CRYPTANALYSISLIB_SEARCH_H
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/search/search.h>`"
+#endif
+
 #include <cstdint>
 #include <algorithm>
 #include <iterator>
@@ -15,15 +19,24 @@
 /// \param compare
 /// \return
 template<class ForwardIt, class T, class Compare>
-constexpr ForwardIt upper_bound_linear_search(ForwardIt first, ForwardIt last, T &key, Compare compare) noexcept {
-	typename std::iterator_traits<ForwardIt>::difference_type count, step;
-	count = std::distance(first, last);
-	step = -1;
+constexpr ForwardIt upper_bound_linear_search(const ForwardIt first,
+                                              const ForwardIt last,
+                                              const T &key,
+                                              Compare compare) noexcept {
+	typename std::iterator_traits<ForwardIt>::difference_type
+	        count = std::distance(first, last),
+	        step = -1;
+	if (count == 0)
+		return first;
+
 	ForwardIt it = last;
+	std::advance(it, step);
+
 	while (--count) {
 		if (compare(*it, key)) {
 			return it;
 		}
+
 		std::advance(it, step);
 	}
 
@@ -41,15 +54,22 @@ constexpr ForwardIt upper_bound_linear_search(ForwardIt first, ForwardIt last, T
 /// \param compare
 /// \return
 template<class ForwardIt, class T, class Compare>
-constexpr ForwardIt lower_bound_linear_search(ForwardIt first, ForwardIt last, T &key, Compare compare) noexcept {
-	typename std::iterator_traits<ForwardIt>::difference_type count, step;
-	count = std::distance(first, last);
-	step = 1;
+constexpr ForwardIt lower_bound_linear_search(const ForwardIt first,
+                                              const ForwardIt last,
+                                              const T &key,
+                                              Compare compare) noexcept {
+	typename std::iterator_traits<ForwardIt>::difference_type
+			count = std::distance(first, last),
+			step = 1;
+	if (count == 0)
+		return first;
+
 	ForwardIt it = first;
 	while (--count) {
 		if (compare(*it, key)) {
 			return it;
 		}
+
 		std::advance(it, step);
 	}
 
@@ -66,7 +86,10 @@ constexpr ForwardIt lower_bound_linear_search(ForwardIt first, ForwardIt last, T
 /// \param h
 /// \return
 template<class ForwardIt, class T, class Hash>
-constexpr ForwardIt upper_bound_breaking_linear_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
+constexpr ForwardIt upper_bound_breaking_linear_search(const ForwardIt first,
+                                                       const ForwardIt last,
+                                                       const T &key_,
+                                                       Hash h) noexcept {
 	auto count = std::distance(first, last);
 	if (count == 0)
 		return first;
@@ -99,7 +122,10 @@ constexpr ForwardIt upper_bound_breaking_linear_search(ForwardIt first, ForwardI
 /// \param h
 /// \return
 template<class ForwardIt, class T, class Hash>
-constexpr ForwardIt lower_bound_breaking_linear_search(ForwardIt first, ForwardIt last, const T &key_, Hash h) noexcept {
+constexpr ForwardIt lower_bound_breaking_linear_search(const ForwardIt first,
+                                                       const ForwardIt last,
+                                                       const T &key_,
+                                                       Hash h) noexcept {
 	auto count = std::distance(first, last);
 	if (count == 0)
 		return first;
@@ -129,7 +155,9 @@ constexpr ForwardIt lower_bound_breaking_linear_search(ForwardIt first, ForwardI
 /// \param key
 /// \return
 template<typename T>
-uint64_t breaking_linear_search(T *array, uint64_t array_size, T key) noexcept {
+uint64_t breaking_linear_search(const T *array,
+                                const uint64_t array_size,
+                                const T &key) noexcept {
 	uint64_t top = array_size;
 
 	if (array_size == 0) {
@@ -148,4 +176,15 @@ uint64_t breaking_linear_search(T *array, uint64_t array_size, T key) noexcept {
 
 	return -1;
 }
-#endif //CRYPTANALYSISLIB_LINEAR_H
+
+/// TODO enforce comparable
+namespace cryptanalysislib::search {
+	template<class ForwardIt, class T, class Hash>
+	constexpr ForwardIt linear_search(const ForwardIt first,
+	                                  const ForwardIt last,
+	                                  const T &key_,
+									  Hash h) noexcept {
+		return lower_bound_breaking_linear_search(first, last, key_, h);
+	}
+}
+#endif

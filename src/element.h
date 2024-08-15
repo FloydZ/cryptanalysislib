@@ -20,81 +20,10 @@ using namespace fplll;
 
 #if __cplusplus > 201709L
 
-/// TODO rename and use only one concept for label and value
-/// \tparam Container
-template<class Container>
-concept LabelAble = requires(Container c) {
-	typename Container::DataType;
-
-	// we need to enforce the existence of some fields/functions
-	Container::length;
-	Container::modulus;
-	Container::info();
-
-	requires requires(const uint32_t i,
-	                  const size_t s) {
-		c[i];
-		c.get(i);
-		c.set(i, i);
-		c.random();
-		c.zero();
-		c.data();
-		c.ptr();
-		c.ptr(s);
-
-		c.is_equal(c, i, i);
-		c.is_equal(c);
-		c.is_greater(c, i, i);
-		c.is_greater(c);
-		c.is_lower(c, i, i);
-		c.is_lower(c);
-		c.is_zero(i, i);
-		c.is_zero();
-		c.neg(i, i);
-		c.popcnt(i, i);
-
-		Container::add(c, c, c, i, i);
-		Container::sub(c, c, c, i, i);
-		Container::set(c, c, i, i);
-		Container::cmp(c, c, i, i);
-
-		c.print_binary(i, i);
-		c.print(i, i);
-	};
-
-	/// limb arithmetic stuff
-	requires requires(const typename Container::LimbType a,
-	                  const uint8x32_t b) {
-		Container::add_T(a, a);
-		Container::sub_T(a, a);
-		Container::mod_T(a);
-		Container::mul_T(a, a);
-		Container::neg_T(a);
-		Container::scalar_T(a, a);
-		Container::popcnt_T(a);
-
-		Container::add256_T(b, b);
-		Container::sub256_T(b, b);
-		Container::mod256_T(b);
-		Container::mul256_T(b, b);
-		Container::neg256_T(b);
-	};
-
-	// we also have to enforce the existence of some constexpr functions.
-	{ Container::optimized() } -> std::convertible_to<bool>;
-	{ Container::binary() } -> std::convertible_to<bool>;
-	{ Container::length() } -> std::convertible_to<uint32_t>;
-	{ Container::size() } -> std::convertible_to<uint32_t>;
-	{ Container::limbs() } -> std::convertible_to<uint32_t>;
-	{ Container::bytes() } -> std::convertible_to<uint32_t>;
-	{ Container::sub_container_size() } -> std::convertible_to<uint32_t>;
-	{ c.hash() } -> std::convertible_to<uint64_t>;
-};
-
 /// Requirements for a base data container.
 /// \tparam Container
 template<class Container>
-concept ValueAble = requires(Container c) {
+concept ElementDataAble = requires(Container c) {
 	typename Container::DataType;
 	typename Container::LimbType;
 
@@ -165,7 +94,8 @@ concept ValueAble = requires(Container c) {
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
 	{ Container::sub_container_size() } -> std::convertible_to<uint32_t>;
-	{ c.hash() } -> std::convertible_to<uint64_t>;
+
+	c.hash();
 };
 
 template<class Value, class Label, class Matrix>
@@ -175,8 +105,8 @@ concept ElementAble = requires(Value v, Label l) {
 	typename Label::ContainerType;
 
 	/// these two need to be a valid Value and Label
-	requires ValueAble<typename Value::ContainerType>;
-	requires LabelAble<typename Label::ContainerType>;
+	requires ElementDataAble<typename Value::ContainerType>;
+	requires ElementDataAble<typename Label::ContainerType>;
 
 	requires MatrixAble<Matrix>;
 };
@@ -232,42 +162,6 @@ public:
 		recalculate_label(m);
 	}
 
-	/// returns the position of the i-th which is zero counted from left, where the first start '0' are skipped
-	/// \param i		pos
-	/// \param start
-	/// \return
-	size_t ith_value_left_zero_position(const size_t i,
-	                                    const size_t start = 0) const noexcept {
-		uint64_t count = 0;
-		for (uint64_t j = 0; j < value_size(); ++j) {
-			if (get_value().data()[j] == 0)
-				count += 1;
-
-			if (count == (i + start + 1))
-				return j;
-		}
-
-		return uint64_t(-1);
-	}
-
-	/// same as the function above. Only counting from right.
-	/// \param i
-	/// \param start
-	/// \return
-	size_t ith_value_right_zero_position(const size_t i,
-	                                     const size_t start = 0) const noexcept {
-		uint64_t count = 0;
-		for (uint64_t j = value_size(); j > 0; --j) {
-			if (get_value().data()[j - 1] == 0)
-				count += 1;
-
-			if (count == (i + start + 1))
-				return j - 1;
-		}
-
-		return uint64_t(-1);
-	}
-
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
@@ -275,6 +169,8 @@ public:
 	                                        const uint32_t k_lower=0,
 	                                        const uint32_t k_upper=0) noexcept {
 		// TODO sub mul
+		(void)k_lower;
+		(void)k_upper;
 		m.mul(label, value);
 	}
 
@@ -343,6 +239,23 @@ public:
 		ValueContainerType::sub(e3.value, e1.value, e2.value);
 	}
 
+	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1>
+	constexpr static bool add(Element_T &e3,
+							  Element_T const &e1,
+							  Element_T const &e2) noexcept {
+		Label::template add<k_lower, k_upper>(e3.label, e1.label, e2.label);
+		return Value::template add<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
+	}
+
+	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1>
+	constexpr static bool sub(Element_T &e3,
+							  Element_T const &e1,
+							  Element_T const &e2) noexcept {
+		Label::template sub<k_lower, k_upper>(e3.label, e1.label, e2.label);
+		return Value::template add<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
+	}
+
+
 	/// checks if this.label == obj.label on the coordinates [k_lower, k_upper]
 	/// \param obj		second element
 	/// \param k_lower  lower coordinate
@@ -398,36 +311,6 @@ public:
 		ret |= label.is_zero();
 		return ret;
 	}
-
-	/// Assignment operator implementing copy assignment
-	/// see https://en.cppreference.com/w/cpp/language/operators
-	///
-	/// \param obj to copy from
-	/// \return this
-// 	constexpr inline Element_T &operator=(Element_T const &obj) noexcept {
-// 		// self-assignment check expected
-// 		if (this != &obj) {
-// 			// now we can copy it
-// 			label = obj.label;
-// 			value = obj.value;
-// 		}
-//
-// 		return *this;
-// 	}
-
-
-	/// Assignment operator implementing move assignment
-	/// see https://en.cppreference.com/w/cpp/language/move_assignment
-	/// \param obj
-	/// \return
-	// [[nodiscard]] Element_T &operator=(Element_T &&obj) noexcept {
-	// 	if (this != &obj) {// self-assignment check expected really?
-	// 		value = std::move(obj.value);
-	// 		label = std::move(obj.label);
-	// 	}
-
-	// 	return *this;
-	// }
 
 	/// \param obj
 	/// \return
@@ -506,6 +389,9 @@ public:
 		value.print_binary(k_lower_value, k_upper_value);
 	}
 
+	[[nodiscard]] constexpr inline auto hash() const noexcept {
+		return label.hash();
+	}
 	[[nodiscard]] constexpr Value &get_value() noexcept { return value; }
 	[[nodiscard]] constexpr const Value &get_value() const noexcept { return value; }
 	[[nodiscard]] constexpr auto get_value(const size_t i) noexcept {

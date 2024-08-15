@@ -1,3 +1,7 @@
+
+#ifndef CRYPTANALYSISLIB_HASH_H
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/hash/hash.h>`"
+#endif
 /*
 BSD 2-Clause License
 

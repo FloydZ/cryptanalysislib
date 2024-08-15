@@ -1,24 +1,40 @@
-#ifndef CRYPTANALYSISLIB_SIMPLE_H
-#define CRYPTANALYSISLIB_SIMPLE_H
+#ifndef CRYPTANALYSISLIB_HASH_SIMPLE_H
+#define CRYPTANALYSISLIB_HASH_SIMPLE_H
+
+#ifndef CRYPTANALYSISLIB_HASH_H
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/hash/hash.h>`"
+#endif
 
 #include <cstdint>
 #include <type_traits>
 
 #include "math/math.h"
 #include "popcount/popcount.h"
+#include "simd/simd.h"
 
-template<typename T = uint64_t,
-         const uint32_t l = 0,
-         const uint32_t h = 8u * sizeof(T),
-         const uint32_t q = 2u>
-    requires std::is_integral<T>::value
-class Hash {
+///
+template<typename T, const uint32_t ...Ks>
+class Hash {};
+
+//template<std::integral T,
+//         const uint32_t l = 0,
+//         const uint32_t h = 8u * sizeof(T),
+//         const uint32_t q = 2u>
+template<std::integral T,
+         const uint32_t l,// = 0
+		 const uint32_t h,//  = 8u * sizeof(T),
+		 const uint32_t q>// = 2u>
+class Hash<T, l, h, q>{
+private:
 	static_assert(q >= 2);
 	static_assert(l < h);
 	static_assert(h <= (sizeof(T) * 8u));
+	using H = Hash<T, l, h, q>;
+	using R = size_t;
 
-public:
-	constexpr inline size_t operator()(const T &a) const noexcept {
+	// disable standard constructor
+
+	static constexpr inline R compute(const T &a) noexcept {
 		if constexpr (q == 2) {
 			constexpr T mask1 = T(~((1ul << l) - 1ul));
 			constexpr T mask2 = T((1ul << h) - 1ul);
@@ -60,7 +76,82 @@ public:
 			return ret;
 		}
 	}
+
+	R __data;
+
+public:
+	constexpr Hash() noexcept : __data(0) {};
+
+	constexpr explicit Hash(const uint64_t d) noexcept : __data(compute(d)) {};
+	constexpr inline R operator()(const T &a) const noexcept {
+		return __data;
+	}
 };
+
+
+template<std::integral T,
+		const uint32_t l,
+		const uint32_t h,
+		const uint32_t q>
+constexpr inline bool operator==(const Hash<T, l, h, q> &a,
+								 const Hash<T, l, h, q> &b) noexcept {
+	return a.__data == b.__data;
+}
+
+template<std::integral T,
+		const uint32_t l,
+		const uint32_t h,
+		const uint32_t q>
+constexpr inline bool operator<=(const Hash<T, l, h, q> &a,
+								 const Hash<T, l, h, q> &b) noexcept {
+	return a.__data <= b.__data;
+}
+
+
+
+
+
+/// TODO write specialisation for std::array which uses this comp?
+
+/// special wrapper class which enforces the compare operator
+/// to be following the normal msb/lsb order
+/// \tparam S SIMD type: `uint32x32_t` or `uint8x32_t` or `TxN_t`
+template<SIMDAble T>
+class Hash<T> {
+private:
+	// disable standard constructor
+	constexpr Hash() noexcept : __data() {};
+	using S = Hash<T>;
+
+public:
+	T __data;
+	constexpr explicit Hash(const T &d) noexcept : __data(d) {};
+};
+
+template<SIMDAble T>
+constexpr inline bool operator==(const Hash<T> &a,
+                                 const Hash<T> &b) noexcept {
+	const uint64_t t = T::cmp(a.__data, b.__data);
+	// TODO think about how this could be improved (nicht immer gegen -1 comparen)
+	constexpr uint64_t mask = (1ull << T::LIMBS) - 1ull;
+	return t == mask;
+}
+
+template<SIMDAble T>
+constexpr inline bool operator<=(const Hash<T> &a,
+								 const Hash<T> &b) noexcept {
+	constexpr uint64_t mask = (1ull << T::LIMBS) - 1ull;
+	const uint64_t t1 = T::lt(a.__data, b.__data);
+	const uint64_t t2 = T::cmp(a.__data, b.__data);
+	const uint64_t t3 = t1 ^ t2;
+	return t3 == mask;
+}
+
+
+
+
+
+
 
 /// not really possible rename to Hash and to add a  concept for `ptr`
 /// So for now, just call this function if you need to
@@ -144,4 +235,5 @@ static inline T extract(const T *v) noexcept {
 		}
 	}
 }
-#endif//CRYPTANALYSISLIB_SIMPLE_H
+
+#endif

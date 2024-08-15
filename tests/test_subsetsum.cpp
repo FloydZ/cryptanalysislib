@@ -399,6 +399,89 @@ TEST(SubSetSum, join2lists) {
 	EXPECT_EQ(out.load(), num);
 }
 
+TEST(SubSetSum, constexpr_join2lists) {
+	Matrix A; A.random();
+	constexpr uint64_t k_lower=0, k_higher=8;
+
+	constexpr size_t baselist_size = sum_bc(n/2, n/4);
+	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
+
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+	Enumerator e{A};
+	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			(&l1, &l2, n/2);
+
+	Label target; target.zero();
+	std::vector<uint32_t> weights(n/2);
+	generate_random_indices(weights, n);
+	for (uint32_t i = 0; i < n/2; ++i) {
+		Label::add(target, target, A[0][weights[i]]);
+	}
+
+
+	// compute the number of collisions via the simple quadratic algorithm
+	Label el{};
+	uint64_t num = 0;
+	for (size_t i = 0; i < l1.load(); ++i) {
+		for (size_t j = 0; j < l2.load(); ++j) {
+			Label::add(el, l1[i].label, l2[j].label);
+			if (el.is_equal(target, k_lower, k_higher)) {
+				num += 1;
+			}
+		}
+	}
+
+	for (size_t i = 0; i < baselist_size; ++i) {
+		EXPECT_EQ(l1[i].is_correct(A), true);
+		EXPECT_EQ(l2[i].is_correct(A), true);
+	}
+
+	Tree::template join2lists<k_lower, k_higher>(out, l1, l2, target, true);
+
+	for (size_t i = 0; i < baselist_size; ++i) {
+		EXPECT_EQ(l1[i].is_correct(A), true);
+
+		// revert the changes of the right list
+		Element l2_tmp = l2[i];
+		l2_tmp.label.neg();
+		l2_tmp.label += target;
+		EXPECT_EQ(l2_tmp.is_correct(A), true);
+	}
+
+	auto right=true;
+	int wrong=0;
+	for(uint64_t i = 0; i < out.load(); ++i) {
+		EXPECT_EQ(out[i].label.is_zero(k_lower, k_higher), true);
+
+		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
+		A.mul(test_recalc3, out[i].value);
+		// NOTE: the full length
+		for (uint64_t j = 0; j < n; ++j) {
+			if (out[i].value.get(j)) {
+				test_recalc1 += A[0][j];
+				Label::add(test_recalc2, test_recalc2, A[0][j]);
+			}
+		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, k_lower, k_higher));
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, k_lower, k_higher));
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
+
+		if (!(Label::cmp(out[i].label, target, k_lower, k_higher))) {
+			right = false;
+			wrong++;
+		}
+	}
+
+	EXPECT_GT(out.load(), 0);
+	EXPECT_EQ(0, wrong);
+	EXPECT_EQ(right, true);
+	EXPECT_GT(out.load(),1u<<3);
+	EXPECT_LT(out.load(),1u<<7);
+	EXPECT_EQ(out.load(), num);
+}
+
 TEST(SubSetSum, join4lists) {
 	Matrix A; A.random();
 	constexpr uint64_t k_lower1=0, k_higher1=n/2;

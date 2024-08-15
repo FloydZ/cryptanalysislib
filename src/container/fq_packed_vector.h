@@ -191,7 +191,8 @@ public:
 	/// \param a lower bound, inclusive
 	/// \param b higher bound, exclusive
 	/// \return nothing
-	constexpr void one(const uint32_t a = 0, const uint32_t b = length()) noexcept {
+	constexpr void one(const uint32_t a = 0,
+	                   const uint32_t b = length()) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
 			set(1, i);
@@ -202,7 +203,8 @@ public:
 	/// \param a lower bound, inclusive
 	/// \param b higher bound, exclusive
 	/// \return nothing
-	constexpr void two(const uint32_t a = 0, const uint32_t b = length()) noexcept {
+	constexpr void two(const uint32_t a = 0,
+	                   const uint32_t b = length()) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
 			set(2 % modulus(), i);
@@ -213,7 +215,8 @@ public:
 	/// \param a lower bound, inclusive
 	/// \param b higher bound, exclusive
 	/// \return nothing
-	constexpr void random(const uint32_t a = 0, const uint32_t b = length()) noexcept {
+	constexpr void random(const uint32_t a = 0,
+	                      const uint32_t b = length()) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
 			const auto d = fastrandombytes_uint64(modulus());
@@ -226,7 +229,8 @@ public:
 		return popcnt(0, size());
 	}
 
-	[[nodiscard]] constexpr uint32_t popcnt(const uint32_t l, const uint32_t h) const noexcept {
+	[[nodiscard]] constexpr uint32_t popcnt(const uint32_t l,
+	                                        const uint32_t h) const noexcept {
 		ASSERT(l < h);
 		ASSERT(h <= size());
 		uint32_t ret = 0;
@@ -240,7 +244,8 @@ public:
 	/// return the positions of the first p bits/numbers set
 	/// \param out output: const_array of the first p positions set in the container
 	/// \param p maximum bits!=0 to find
-	constexpr void get_bits_set(uint16_t *out, const uint32_t p) const noexcept {
+	constexpr void get_bits_set(uint16_t *out,
+	                            const uint32_t p) const noexcept {
 		uint32_t ctr = 0;
 		for (uint32_t i = 0; i < length(); i++) {
 			if (unsigned(get(i)) != 0u) {
@@ -269,7 +274,8 @@ public:
 	/// \param a lower bound
 	/// \param b higher bound
 	/// \return true/false
-	[[nodiscard]] constexpr bool is_zero(const uint32_t a, const uint32_t b) const noexcept {
+	[[nodiscard]] constexpr bool is_zero(const uint32_t a,
+	                                     const uint32_t b) const noexcept {
 		for (uint32_t i = a; i < b; ++i) {
 			if (get(i) != 0)
 				return false;
@@ -281,7 +287,8 @@ public:
 	/// swap the numbers on positions `i`, `j`.
 	/// \param i first coordinate
 	/// \param j second coordinate
-	constexpr void swap(const uint16_t i, const uint16_t j) noexcept {
+	constexpr void swap(const uint16_t i,
+	                    const uint16_t j) noexcept {
 		ASSERT(i < length() && j < length());
 		auto tmp = get(i);
 		set(i, get(j));
@@ -292,7 +299,8 @@ public:
 	/// infix negates (x= -x mod q)  all numbers between [k_lower, k_higher)
 	/// \param k_lower lower limit, inclusive
 	/// \param k_upper higher limit, exclusive
-	constexpr inline void neg(const uint32_t k_lower = 0, const uint32_t k_upper = length()) noexcept {
+	constexpr inline void neg(const uint32_t k_lower = 0,
+	                          const uint32_t k_upper = length()) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			set(((-get(i)) + modulus()) % modulus(), i);
@@ -838,6 +846,58 @@ public:
 		std::cout << "\n";
 	}
 
+
+	// hack it like its c++
+	class reference {
+		friend class kAryPackedContainer_Meta;
+
+		// pointer to the limb
+		T *wp;
+
+		const uint16_t spot;
+
+		// left undefined
+		reference();
+
+	public:
+		constexpr reference(const kAryPackedContainer_Meta &b,
+							const size_t pos) : spot((pos % numbers_per_limb) * bits_per_number) {
+			// drop the const
+			wp = (T *)&b.__data[pos / numbers_per_limb];
+		}
+
+		constexpr reference(const reference &) = default;
+		constexpr ~reference() = default;
+
+		// For b[i] = __x;
+		constexpr reference &operator=(const DataType data) {
+			const T new_data = (number_mask & T(data % q)) << spot;
+			const T old_data = *wp & (~(number_mask << spot));
+			*wp = new_data | old_data;
+			return *this;
+		}
+
+		// For b[i] = b[__j];
+		constexpr reference &operator=(const reference &j) noexcept {
+			const DataType data = j.data();
+			operator=(data);
+			return *this;
+		}
+
+		// For __x = b[i];
+		[[nodiscard]] constexpr operator DataType () const noexcept {
+			return data();
+		}
+
+		[[nodiscard]] constexpr inline DataType get_data() const noexcept {
+			return data();
+		}
+		[[nodiscard]] constexpr inline DataType data() const noexcept {
+			return (DataType((*wp >> spot) & number_mask) % q);
+		}
+	};
+	friend class reference;
+
 	// iterators.
 	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
 	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
@@ -846,16 +906,18 @@ public:
 
 	/// \param i
 	/// \return the ith element;
-	constexpr DataType operator[](const size_t i) noexcept {
+	constexpr reference operator[](const size_t i) noexcept {
 		ASSERT(i < length());
-		return get(i);
+		// return get(i);
+		return reference(*this, i);
 	}
 
 	/// \param i
 	/// \return the i-element
-	constexpr DataType operator[](const size_t i) const noexcept {
+	constexpr  inline reference operator[](const size_t i) const noexcept {
 		ASSERT(i < length());
-		return get(i);
+		// return get(i);
+		return reference(*this, i);
 	};
 
 	// return `true` if the datastruct contains binary data.
@@ -874,25 +936,26 @@ public:
 		ASSERT(index < length());
 		return __data[index];
 	}
-	[[nodiscard]] constexpr const T limb(const size_t index) const noexcept {
+	[[nodiscard]] constexpr T limb(const size_t index) const noexcept {
 		ASSERT(index < length());
 		return __data[index];
 	}
 
 	// get raw access to the underlying data.
-	[[nodiscard]] T *ptr() noexcept { return __data.data(); }
-	[[nodiscard]] const T *ptr() const noexcept { return __data.data(); }
-	[[nodiscard]] __FORCEINLINE__ T ptr(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline T *ptr() noexcept { return __data.data(); }
+	[[nodiscard]] constexpr const inline T *ptr() const noexcept { return __data.data(); }
+	[[nodiscard]] constexpr inline T ptr(const size_t i) noexcept {
 		ASSERT(i < limbs());
 		return __data[i];
 	};
-	[[nodiscard]] const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
+	[[nodiscard]] constexpr inline T ptr(const size_t i) const noexcept {
 		ASSERT(i < limbs());
 		return __data[i];
 	};
 
 	// returns `false` as this class implements a generic arithmetic
 	[[nodiscard]] __FORCEINLINE__ static constexpr bool optimized() noexcept { return false; };
+
 
 	/// print some internal information aobut the class
 	constexpr static void info() noexcept {
@@ -911,7 +974,8 @@ public:
 				  << " }" << std::endl;
 	}
 
-protected:
+
+	protected:
 	// internal data
 	std::array<T, internal_limbs> __data;
 };

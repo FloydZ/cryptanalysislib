@@ -78,7 +78,7 @@ TEST(ListName, search_level) {
 	}
 }
 
-TEST(ListName, search) {
+TEST(ListName, linear_search) {
 	List L{LS, 1};
 	Matrix m;
 	m.random();
@@ -95,11 +95,32 @@ TEST(ListName, search) {
 	}
 
 	for (size_t i = 0; i < LS; ++i) {
-		const size_t pos = L.search(L[i]);
+		const size_t pos = L.linear_search(L[i]);
 		EXPECT_EQ(pos, i);
 	}
 }
 
+TEST(ListName, binary_search) {
+	List L{LS, 1};
+	Matrix m;
+	m.random();
+	EXPECT_EQ(L.size(), LS);
+	EXPECT_EQ(L.load(), 0);
+	L.random(LS, m);
+	EXPECT_EQ(L.load(), LS);
+	EXPECT_EQ(L.size(), LS);
+
+	L.sort_level(0, 20);
+	EXPECT_EQ(L.is_correct(m), true);
+	for (size_t i = 0; i < LS-1; ++i) {
+		EXPECT_EQ(L[i].is_lower(L[i + 1], 0, 20), true);
+	}
+
+	for (size_t i = 0; i < LS; ++i) {
+		const size_t pos = L.binary_search(L[i]);
+		EXPECT_EQ(pos, i);
+	}
+}
 TEST(ListName, search_boundaries) {
 	List L{LS, 1};
 	Matrix m;

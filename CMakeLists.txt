@@ -55,7 +55,9 @@ check_cxx_compiler_flag(-fconstexpr-steps=91 COMPILER_SUPPORTS_CONSTEXPR_COST)
 check_cxx_compiler_flag(-fno-exceptions COMPILER_SUPPORTS_NO_EXCEPTION)
 check_cxx_compiler_flag(-fconcepts-diagnostics-depth=10 COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
-check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC)
+#check_cxx_compiler_flag(-latomic LINKER_SUPPORTS_ATOMIC)
+
+find_library(LINKER_SUPPORTS_ATOMIC atomic)
 
 # check for compiler warnings
 check_cxx_compiler_flag(-Wno-c11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
@@ -181,8 +183,10 @@ set(LINK_BENCH_FLAGS
 )
 
 if (LINKER_SUPPORTS_ATOMIC)
+	message(STATUS "Using atomic")
 	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} atomic)
 	set(LINK_BENCH_FLAGS ${LINK_BENCH_FLAGS} atomic)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_ATOMIC")
 endif ()
 
 if(${USE_TRACY})

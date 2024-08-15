@@ -2,7 +2,7 @@
 #define CRYPTANALYSISLIB_MEMORY_MEMCPY_H
 
 #ifndef CRYPTANALYSISLIB_MEMORY_H
-#error "do not include this file directly. Use `#inluce <cryptanalysislib/memory.h>`"
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/memory/memory.h>`"
 #endif
 
 #include <cstddef>
@@ -175,7 +175,7 @@ namespace cryptanalysislib {
 	/// \param len number of elements
 	/// \return nothing
 	template<typename T>
-	constexpr void memcpy(T *out, T *in, size_t len) {
+	constexpr void memcpy(T *out, const T *in, size_t len) {
 		internal::memcpy(out, in, len*sizeof(T));
 	}
 }

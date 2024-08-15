@@ -2621,7 +2621,7 @@ constexpr inline int operator>(const uint16x16_t &a, const uint16x16_t &b) noexc
 
 
 ///
-constexpr inline int operator==(const uint32x8_t &a, const uint32x8_t &b) noexcept {
+constexpr inline uint32_t operator==(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return (int) uint32x8_t::cmp(a, b);
 }
 constexpr inline int operator!=(const uint32x8_t &a, const uint32x8_t &b) noexcept {
@@ -2634,6 +2634,7 @@ constexpr inline int operator>(const uint32x8_t &a, const uint32x8_t &b) noexcep
 	return (int) uint32x8_t::gt(a, b);
 }
 
+///
 constexpr inline int operator==(const uint64x4_t &a, const uint64x4_t &b) noexcept {
 	return (int) uint64x4_t::cmp(a, b);
 }
@@ -2647,6 +2648,19 @@ constexpr inline int operator>(const uint64x4_t &a, const uint64x4_t &b) {
 	return (int) uint64x4_t::gt(a, b);
 }
 
+/* sub types */
+constexpr inline uint32_t operator==(const cryptanalysislib::_uint8x16_t &a, const cryptanalysislib::_uint8x16_t &b) noexcept {
+	return cryptanalysislib::_uint8x16_t::cmp(a, b);
+}
+constexpr inline uint32_t operator!=(const cryptanalysislib::_uint8x16_t &a, const cryptanalysislib::_uint8x16_t &b) noexcept {
+	return 0xffffffff ^ cryptanalysislib::_uint8x16_t::cmp(a, b);
+}
+constexpr inline uint32_t operator<(const cryptanalysislib::_uint8x16_t &a, const cryptanalysislib::_uint8x16_t &b) noexcept {
+	return cryptanalysislib::_uint8x16_t::gt(b, a);
+}
+constexpr inline int operator>(const cryptanalysislib::_uint8x16_t &a, const cryptanalysislib::_uint8x16_t &b) noexcept {
+	return cryptanalysislib::_uint8x16_t::gt(a, b);
+}
 
 ////////////////////////////////////////////////////////////
 
@@ -3012,20 +3026,23 @@ template<class S>
 concept SIMDAble = requires(S s) {
 	typename S::limb_type;
 	typename S::S;
-	typename S::LIMBS;
+
+	S::LIMBS;
 
 	requires requires (
 	        const bool b,
 	        const uint32_t u32,
-	        typename S::limb_type l) {
-		// operator
+	        typename S::limb_type l,
+	        typename S::limb_type *pl) {
+		{ S::is_unsigned() } -> std::convertible_to<bool>;
+
 		{ S::random() } -> std::convertible_to<S>;
-		{ S::set() } -> std::convertible_to<S>;
-		{ S::setr() } -> std::convertible_to<S>;
-		{ S::set1() } -> std::convertible_to<S>;
-		{ S::load(*l) } -> std::convertible_to<S>;
-		{ S::aligned_load(*l) } -> std::convertible_to<S>;
-		{ S::unaligned_load(*l) } -> std::convertible_to<S>;
+		{ S::set(pl) } -> std::convertible_to<S>;
+		{ S::setr(pl) } -> std::convertible_to<S>;
+		{ S::set1(l) } -> std::convertible_to<S>;
+		{ S::load(pl) } -> std::convertible_to<S>;
+		{ S::aligned_load(pl) } -> std::convertible_to<S>;
+		{ S::unaligned_load(pl) } -> std::convertible_to<S>;
 
 		{ S::xor_(s, s) } -> std::convertible_to<S>;
 		{ S::and_(s, s) } -> std::convertible_to<S>;
@@ -3042,22 +3059,28 @@ concept SIMDAble = requires(S s) {
 		{ S::ror(s, l) } -> std::convertible_to<S>;
 		{ S::rol(s, l) } -> std::convertible_to<S>;
 
-		{ S::gt(s, s) } -> std::convertible_to<S>;
-		{ S::gt_(s, s) } -> std::convertible_to<typename S::limb_type>;
-		{ S::cmp(s, s) } -> std::convertible_to<S>;
-		{ S::cmp_(s, s) } -> std::convertible_to<typename S::limb_type>;
+		{ S::gt_(s, s) } -> std::convertible_to<S>;
+		{ S::gt(s, s) } -> std::convertible_to<typename S::limb_type>;
+		{ S::lt_(s, s) } -> std::convertible_to<S>;
+		{ S::lt(s, s) } -> std::convertible_to<typename S::limb_type>;
+		// { S::eq_(s, s) } -> std::convertible_to<S>;
+		// { S::eq(s, s) } -> std::convertible_to<typename S::limb_type>;
+		{ S::cmp_(s, s) } -> std::convertible_to<S>;
+		{ S::cmp(s, s) } -> std::convertible_to<typename S::limb_type>;
 
 		{ S::popcnt(s) } -> std::convertible_to<S>;
 		{ S::all_equal(s) } -> std::convertible_to<bool>;
 		{ S::reverse(s) } -> std::convertible_to<S>;
 
-		{ S::gather(*l, s) } -> std::convertible_to<S>;
-		{ S::scatter(*l, s, s) } -> std::convertible_to<S>;
+		{ S::gather(pl, s) } -> std::convertible_to<S>;
+		S::scatter(pl, s, s);
 		{ S::permute(s, s) } -> std::convertible_to<S>;
-		{ S::move(s) } -> std::convertible_to<S>;
-		{ S::mask(u32) } -> std::convertible_to<S>;
+		{ S::move(s) } -> std::convertible_to<typename S::limb_type>;
+		// { S::mask(u32) } -> std::convertible_to<S>;
 
 		s.print(b, b);
+		// needed for sorting
+		s.size();
 	};
 
 };

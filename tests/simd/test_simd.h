@@ -1,4 +1,4 @@
-TEST(T, random) {
+﻿TEST(T, random) {
 	const S t1 = S::random();
 
 	uint32_t atleast_one_not_zero = false;
@@ -24,7 +24,6 @@ TEST(T, set1) {
 	}
 }
 
-
 TEST(T, unalinged_load) {
 	constexpr S::limb_type data[S::LIMBS] = {0};
 
@@ -42,7 +41,6 @@ TEST(T, alinged_load) {
 	}
 }
 
-
 TEST(T, unalinged_store_zero) {
 	constexpr S t1 = S::set1(0);
 	S::limb_type data[S::LIMBS] = {0};
@@ -52,7 +50,7 @@ TEST(T, unalinged_store_zero) {
 	}
 }
 
-TEST(T, unalinged_store) {
+TEST(T, unaligned_store) {
 	const S t1 = S::random();
 	S::limb_type data[S::LIMBS] = {0};
 
@@ -62,7 +60,7 @@ TEST(T, unalinged_store) {
 	}
 }
 
-TEST(T, alinged_store) {
+TEST(T, aligned_store) {
 	const S t1 = S::random();
 	alignas(256) S::limb_type data[S::LIMBS] = {0};
 
@@ -211,3 +209,78 @@ TEST(T, reverse) {
 	}
 }
 
+TEST(T, compare) {
+	if constexpr (S::LIMBS <= 64) {
+		S t1 = S::set1(1);
+		S t2 = S::set1(0);
+		uint64_t v1 = S::gt(t2, t1);
+		uint64_t v2 = S::lt(t2, t1);
+		uint64_t v3 = S::gt(t1, t2);
+		uint64_t v4 = S::lt(t1, t2);
+
+		uint64_t k2 = S::LIMBS == 64 ? -1ull : (1ull << (S::LIMBS)) - 1ull;
+		EXPECT_EQ(v1, 0);
+		EXPECT_EQ(v2, k2);
+		EXPECT_EQ(v3, k2);
+		EXPECT_EQ(v4, 0);
+
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			t2.d[i] = 1;
+
+			k2 ^= 1ull << i;
+
+			v1 = S::gt(t2, t1);
+			v2 = S::lt(t2, t1);
+			v3 = S::gt(t1, t2);
+			v4 = S::lt(t1, t2);
+
+			EXPECT_EQ(v1, 0);
+			EXPECT_EQ(v2, k2);
+			EXPECT_EQ(v3, k2);
+			EXPECT_EQ(v4, 0);
+		}
+
+
+		t1 = S::set1((S::limb_type)-1ull);
+		t2 = S::set1(0);
+		v1 = S::gt(t2, t1);
+		v2 = S::lt(t2, t1);
+		v3 = S::gt(t1, t2);
+		v4 = S::lt(t1, t2);
+
+		k2 = S::LIMBS == 64 ? -1ull : (1ull << (S::LIMBS)) - 1ull;
+		EXPECT_EQ(v1, 0);
+		EXPECT_EQ(v2, k2);
+		EXPECT_EQ(v3, k2);
+		EXPECT_EQ(v4, 0);
+
+		// NOTE: only valid test if unsigned
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			t2.d[i] = 1;
+
+			v1 = S::gt(t2, t1);
+			v2 = S::lt(t2, t1);
+			v3 = S::gt(t1, t2);
+			v4 = S::lt(t1, t2);
+
+			EXPECT_EQ(v1, 0);
+			EXPECT_EQ(v2, k2);
+			EXPECT_EQ(v3, k2);
+			EXPECT_EQ(v4, 0);
+		}
+	}
+}
+
+TEST(T, move) {
+	if constexpr ((S::LIMBS <= 64) && ((S::LIMBS * sizeof(S::limb_type)) <= 64)) {
+		S t1 = S::set1(0);
+		uint64_t val = 0;
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			const uint64_t ret = S::move(t1);
+			EXPECT_EQ(ret, val);
+
+			t1[i] = (S::limb_type)-1ull;
+			val ^= 1ull << i;
+		}
+	}
+}

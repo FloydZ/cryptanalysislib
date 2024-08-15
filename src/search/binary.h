@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_SEARCH_BINARY_SEARCH_H
 #define CRYPTANALYSISLIB_SEARCH_BINARY_SEARCH_H
 
+#ifndef CRYPTANALYSISLIB_SEARCH_H
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/search/search.h>`"
+#endif
+
 #include <bit>
 #include <cstddef>
 #include <cstdint>

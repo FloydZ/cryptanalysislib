@@ -3,14 +3,21 @@
 
 // SOURCE:https://github.com/google/cityhash/
 
+#ifndef CRYPTANALYSISLIB_HASH_H
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/hash/hash.h>`"
+#endif
+
+#ifdef __SSE4_2__
+#include <immintrin.h>
+#endif
 #include <cstdint>
 
 #include "helper.h"
 #include "binary.h"
 
-#ifdef __SSE4_2__
-#include <immintrin.h>
-#endif
+#include "memory/memory.h"
+
+using namespace cryptanalysislib;
 
 namespace cryptanalysislib::hash {
 	// Some primes between 2^63 and 2^64 for various uses.
@@ -533,8 +540,8 @@ namespace cryptanalysislib::hash {
 	                                          const size_t len,
 	                                          uint64_t *result) noexcept{
 		char buf[240];
-		memcpy(buf, s, len);
-		memset(buf + len, 0, 240 - len);
+		cryptanalysislib::template memcpy<uint8_t>((uint8_t *)buf, (uint8_t *)s, len);
+		cryptanalysislib::template memset<uint8_t>((uint8_t *)buf + len, 0, 240 - len);
 		CityHashCrc256Long(buf, 240, ~static_cast<uint32_t>(len), result);
 	}
 
