@@ -12,83 +12,133 @@
 #include "popcount/popcount.h"
 #include "simd/simd.h"
 
-///
+/// TODO comments
+/// main comparison class for hash function used within
 template<typename T, const uint32_t ...Ks>
 class Hash {};
 
-//template<std::integral T,
-//         const uint32_t l = 0,
-//         const uint32_t h = 8u * sizeof(T),
-//         const uint32_t q = 2u>
+///
+/// \tparam T
+/// \tparam l lower element (NOT bit)
+/// \tparam h upper element (NOT bit)
+/// \tparam q modulus
 template<std::integral T,
          const uint32_t l,// = 0
-		 const uint32_t h,//  = 8u * sizeof(T),
+		 const uint32_t h,// = 8u * sizeof(T),
 		 const uint32_t q>// = 2u>
 class Hash<T, l, h, q>{
 private:
 	static_assert(q >= 2);
-	static_assert(l < h);
-	static_assert(h <= (sizeof(T) * 8u));
 	using H = Hash<T, l, h, q>;
 	using R = size_t;
 
-	// disable standard constructor
+	constexpr static uint32_t qbits = std::max(bits_log2(q), 1ul);
+	constexpr static uint32_t bits = sizeof(T) * 8u;
+	static_assert(qbits >= 1);
+	static_assert(bits >= 8);
 
+	///
+	/// \tparam lprime NOTE: must be bit positions within the
+	/// \tparam hprime
+	/// \param a
+	/// \return
+	template<const uint32_t lprime=l*qbits, const uint32_t hprime=h*qbits>
 	static constexpr inline R compute(const T &a) noexcept {
-		if constexpr (q == 2) {
-			constexpr T mask1 = T(~((1ul << l) - 1ul));
-			constexpr T mask2 = T((1ul << h) - 1ul);
-			constexpr T mask = mask1 & mask2;
-			return (a & mask) >> l;
-		} else {
-			constexpr uint32_t qbits = bits_log2(q);
+		// NOTE: these checks are not valid globally for the whole class
+		static_assert(lprime < hprime);
+		static_assert(hprime <= (sizeof(T) * 8u));
 
-			/// This is the the hash functions passed to the hashmap.
-			/// E.g. Whatever this functions returns its used to compute the
-			/// bucket of the given element.
-			/// \param a output of `Compress`
-			/// \return bucket index in the hashmap (so only l positions are hashed)
-
-			/// trivial case: q is a power of two
-			if constexpr (cryptanalysislib::popcount::popcount(q) == 1) {
-				constexpr T mask = ((1ull << ((h-l) * qbits)) - 1ull) << l;
-				return a & mask;
-			}
-
-			/// not so trivial case
-			constexpr uint32_t lower = 0, upper = l * qbits;
-			constexpr T mask = (~((T(1ul) << lower) - 1ul)) & ((T(1ul) << upper) - 1ul);
-			constexpr T mask_q = (1ull << qbits) - 1ull;
-			constexpr uint32_t loops = l >> 1u;
-
-			uint64_t ctr = q;
-			T tmp = (a & mask) >> lower;
-			T ret = tmp & mask_q;
-
-			#pragma unroll
-			for (uint32_t i = 1u; i < loops; ++i) {
-				tmp >>= qbits;
-				ret += ctr * (tmp & mask_q);
-				ctr *= q;
-			}
-
-			// NOTE autocast
-			return ret;
+		/// trivial case: q is a power of two
+		if constexpr (cryptanalysislib::popcount::popcount(q) == 1u) {
+			constexpr T mask = (1ull << (hprime-lprime)) - 1ull;
+			const T b = a >> lprime;
+			const T c = b & mask;
+			return c;
 		}
+
+		/// not so trivial case
+		constexpr uint32_t lower = 0, upper = lprime/qbits;
+		constexpr T mask = (~((T(1ull) << lower) - 1ull)) & ((T(1ull) << upper) - 1ull);
+		constexpr T mask_q = (1ull << qbits) - 1ull;
+		constexpr uint32_t loops = (lprime/qbits) >> 1ull;
+
+		uint64_t ctr = q;
+		T tmp = (a & mask) >> lower;
+		T ret = tmp & mask_q;
+
+		#pragma unroll
+		for (uint32_t i = 1u; i < loops; ++i) {
+			tmp >>= qbits;
+			ret += ctr * (tmp & mask_q);
+			ctr *= q;
+		}
+
+		// NOTE autocast
+		return ret;
+	}
+
+	/// \param a
+	/// \return
+	static constexpr inline R compute(const T *a) noexcept {
+		constexpr uint32_t llimb = (l*qbits) / bits;
+		constexpr uint32_t hlimb = ((h - 1ull)*qbits) / bits;
+		constexpr uint32_t lprime = (l*qbits) % bits;
+		constexpr uint32_t hprime = (h*qbits) % bits;
+
+		// easy case: lower limit and upper limit
+		// are in the same limb
+		if constexpr (llimb == hlimb) {
+			return compute<lprime, hprime>(a[llimb]);
+		}
+
+		static_assert(llimb <= hlimb);
+		static_assert((hlimb - llimb) <= 1u); // note could be extended
+
+		constexpr T lmask = T(-1ull) << lprime;
+		constexpr T hmask = T(-1ull) >> ((bits - hprime) % bits);
+
+		// not so easy case: lower limit and upper limit are
+		// on seperate limbs
+		T data = (a[llimb] & lmask) >> lprime;
+		data ^= (a[hlimb] & hmask) << ((bits - lprime) % bits);
+		return data;
 	}
 
 	R __data;
 
 public:
+	// the standard constructor cannot be disabled. As this class,
+	// should also be usable as a static operator
 	constexpr Hash() noexcept : __data(0) {};
 
-	constexpr explicit Hash(const uint64_t d) noexcept : __data(compute(d)) {};
-	constexpr inline R operator()(const T &a) const noexcept {
+	constexpr explicit Hash(const T d) noexcept : __data(compute(d)) {};
+	constexpr inline R operator()() const noexcept {
 		return __data;
+	}
+	constexpr inline R operator()(const T d) const noexcept {
+		return compute(d);
+	}
+
+	constexpr inline R operator()(const T *d) const noexcept {
+		return compute(d);
+	}
+	constexpr static inline R hash(const T d) noexcept {
+		return compute(d);
+	}
+
+	constexpr static inline R hash(const T *d) noexcept {
+		return compute(d);
 	}
 };
 
-
+///
+/// \tparam T
+/// \tparam l
+/// \tparam h
+/// \tparam q
+/// \param a
+/// \param b
+/// \return
 template<std::integral T,
 		const uint32_t l,
 		const uint32_t h,
@@ -98,6 +148,14 @@ constexpr inline bool operator==(const Hash<T, l, h, q> &a,
 	return a.__data == b.__data;
 }
 
+///
+/// \tparam T
+/// \tparam l
+/// \tparam h
+/// \tparam q
+/// \param a
+/// \param b
+/// \return
 template<std::integral T,
 		const uint32_t l,
 		const uint32_t h,
@@ -108,16 +166,139 @@ constexpr inline bool operator<=(const Hash<T, l, h, q> &a,
 }
 
 
+/// \tparam T
+/// \tparam q
+template<std::integral T,
+         const uint32_t q>// = 2u>
+class Hash<T, q>{
+private:
+	static_assert(q >= 2);
+	using H = Hash<T, q>;
+	using R = size_t;
+
+	constexpr static uint32_t qbits = std::max(bits_log2(q), 1ul);
+	constexpr static uint32_t bits = sizeof(T) * 8u;
+	static_assert(qbits >= 1);
+	static_assert(bits >= 8);
+
+	/// \param a
+	/// \param l
+	/// \param h
+	/// \return
+	static constexpr inline R compute(const T &a,
+	                                  const uint32_t l,
+	                                  const uint32_t h) noexcept {
+		ASSERT(l < h);
+		ASSERT(h <= (sizeof(T) * 8u));
+
+		const uint32_t lprime = l*qbits;
+		const uint32_t hprime = l*qbits;
+
+		/// trivial case: q is a power of two
+		if (cryptanalysislib::popcount::popcount(q) == 1) {
+			const T mask = (1ull << (hprime-lprime)) - 1ull;
+			const T b = a >> lprime;
+			const T c = b & mask;
+			return c;
+		}
+
+		/// not so trivial case
+		const uint32_t lower = 0, upper = l * qbits;
+		const T mask = (~((T(1ul) << lower) - 1ul)) & ((T(1ul) << upper) - 1ul);
+		const T mask_q = (1ull << qbits) - 1ull;
+		const uint32_t loops = l >> 1u;
+
+		uint64_t ctr = q;
+		T tmp = (a & mask) >> lower;
+		T ret = tmp & mask_q;
+
+		#pragma unroll
+		for (uint32_t i = 1u; i < loops; ++i) {
+			tmp >>= qbits;
+			ret += ctr * (tmp & mask_q);
+			ctr *= q;
+		}
+
+		// NOTE autocast
+		return ret;
+	}
+
+	/// \param a
+	/// \return
+	static constexpr inline R compute(const T *a,
+	                                  const uint32_t l,
+	                                  const uint32_t h) noexcept {
+		const uint32_t llimb = (l*qbits) / bits;
+		const uint32_t hlimb = ((h - 1ull)*qbits) / bits;
+		const uint32_t lprime = (l*qbits) % bits;
+		const uint32_t hprime = (h*qbits) % bits;
+
+		// easy case: lower limit and upper limit
+		// are in the same limb
+		if (llimb == hlimb) {
+			return compute(a[llimb], lprime, hprime);
+		}
+
+		ASSERT(llimb <= hlimb);
+		ASSERT((hlimb - llimb) <= 1u); // note could be extended
+
+		const T lmask = T(-1ull) << lprime;
+		const T hmask = T(-1ull) >> ((bits - hprime) % bits);
+
+		// not so easy case: lower limit and upper limit are
+		// on seperate limbs
+		T data = (a[llimb] & lmask) >> lprime;
+		data ^= (a[hlimb] & hmask) << ((bits - lprime) % bits);
+		return data;
+	}
+
+	R __data;
+
+public:
+
+	constexpr Hash() noexcept : __data(0) {};
+	constexpr explicit Hash(const uint64_t d,
+	                        const uint32_t l,
+	                        const uint32_t h) noexcept :
+	   __data(compute(d, l, h)) {};
+
+	constexpr inline R operator()() const noexcept {
+		return __data;
+	}
+
+	constexpr inline R operator()(const T d,
+	                              const uint32_t l,
+	                              const uint32_t h) const noexcept {
+		return compute(d, l, h);
+	}
+
+	constexpr inline R operator()(const T *d,
+	                              const uint32_t l,
+	                              const uint32_t h) const noexcept {
+		return compute(d, l, h);
+	}
+
+	constexpr static inline R hash(const T d,
+	                               const uint32_t l,
+	                               const uint32_t h) noexcept {
+		return compute(d, l, h);
+	}
+
+	constexpr static inline R hash(const T *d,
+	                               const uint32_t l,
+	                               const uint32_t h) noexcept {
+		return compute(d, l, h);
+	}
+
+};
 
 
 
-/// TODO write specialisation for std::array which uses this comp?
-
-/// special wrapper class which enforces the compare operator
-/// to be following the normal msb/lsb order
-/// \tparam S SIMD type: `uint32x32_t` or `uint8x32_t` or `TxN_t`
-template<SIMDAble T>
-class Hash<T> {
+///
+/// \tparam T
+/// \tparam n
+template<typename T, const size_t n>
+class Hash<std::array<T, n>> {
 private:
 	// disable standard constructor
 	constexpr Hash() noexcept : __data() {};
@@ -128,23 +309,59 @@ public:
 	constexpr explicit Hash(const T &d) noexcept : __data(d) {};
 };
 
+
+
+
+
+
+
+/// special wrapper class which enforces the compare operator
+/// to be following the normal msb/lsb order
+/// \tparam S SIMD type: `uint32x32_t` or `uint8x32_t` or `TxN_t`
+template<SIMDAble T>
+class Hash<T> {
+private:
+	// disable standard constructor
+	constexpr Hash() noexcept : __data() {};
+	// internal data type
+	using S = Hash<T>;
+
+	// return type
+	using R = S;
+
+public:
+	// mask compare type
+	using C = uint64_t;
+	using data_type = T;
+
+	constexpr static C mask = (1ull << T::LIMBS) - 1ull;
+	const T *__data;
+	constexpr explicit Hash(const T *d) noexcept : __data(d) {};
+};
+
 template<SIMDAble T>
 constexpr inline bool operator==(const Hash<T> &a,
                                  const Hash<T> &b) noexcept {
-	const uint64_t t = T::cmp(a.__data, b.__data);
+	const typename Hash<T>::C t = T::cmp(*a.__data, *b.__data);
 	// TODO think about how this could be improved (nicht immer gegen -1 comparen)
-	constexpr uint64_t mask = (1ull << T::LIMBS) - 1ull;
-	return t == mask;
+	return t == Hash<T>::mask;
+}
+
+template<SIMDAble T>
+constexpr inline bool operator<(const Hash<T> &a,
+                                const Hash<T> &b) noexcept {
+	const typename Hash<T>::C t1 = T::lt(*a.__data, *b.__data);
+	const typename Hash<T>::C t2 = T::gt(*a.__data, *b.__data);
+	return t1 > t2;
 }
 
 template<SIMDAble T>
 constexpr inline bool operator<=(const Hash<T> &a,
 								 const Hash<T> &b) noexcept {
-	constexpr uint64_t mask = (1ull << T::LIMBS) - 1ull;
-	const uint64_t t1 = T::lt(a.__data, b.__data);
-	const uint64_t t2 = T::cmp(a.__data, b.__data);
-	const uint64_t t3 = t1 ^ t2;
-	return t3 == mask;
+	const typename Hash<T>::C t1 = T::lt(*a.__data, *b.__data);
+	const typename Hash<T>::C t2 = T::cmp(*a.__data, *b.__data);
+	const typename Hash<T>::C t3 = t1 ^ t2;
+	return t3 == Hash<T>::mask;
 }
 
 

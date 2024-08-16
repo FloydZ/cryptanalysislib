@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "container/binary_packed_vector.h"
+#include "container/kAry_type.h"
 #include "helper.h"
 #include "math/math.h"
 #include "popcount/popcount.h"
@@ -93,9 +94,25 @@ public:
 	// 	return *this;
 	//}
 
+	template<const uint32_t l, const uint32_t h>
+	[[nodiscard]] constexpr inline size_t hash() const noexcept {
+		static_assert(l < h);
+		static_assert(h <= length());
+
+		return Hash<uint64_t, l, h, q>::hash((uint64_t *)ptr());
+	}
+
+	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
+											   const uint32_t h) const noexcept {
+		ASSERT(l < h);
+		ASSERT(h <= length());
+		return Hash<uint64_t, q>::hash((uint64_t)ptr(), l, h);
+	}
+
 	// simple hash function
-	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
-		return __data[0];
+	[[nodiscard]] constexpr inline auto hash() const noexcept {
+		// TODO not really correct if n>64
+		return Hash<uint64_t, 0, n, q>::hash((uint64_t *)ptr());
 	}
 
 	/// the mask is only valid for one internal number.
@@ -885,13 +902,18 @@ public:
 		}
 
 		// For __x = b[i];
-		[[nodiscard]] constexpr operator DataType () const noexcept {
+		[[nodiscard]] constexpr inline operator DataType() noexcept {
 			return data();
 		}
-
-		[[nodiscard]] constexpr inline DataType get_data() const noexcept {
+		[[nodiscard]] constexpr operator DataType() const noexcept {
 			return data();
 		}
+		//[[nodiscard]] constexpr operator kAry_Type_T<q>() noexcept {
+		//	return data();
+		//}
+		//[[nodiscard]] constexpr operator kAry_Type_T<q>() const noexcept {
+		//	return data();
+		//}
 		[[nodiscard]] constexpr inline DataType data() const noexcept {
 			return (DataType((*wp >> spot) & number_mask) % q);
 		}
@@ -906,18 +928,18 @@ public:
 
 	/// \param i
 	/// \return the ith element;
-	constexpr reference operator[](const size_t i) noexcept {
+	constexpr inline DataType operator[](const size_t i) noexcept {
 		ASSERT(i < length());
-		// return get(i);
-		return reference(*this, i);
+		return get(i);
+		// TODO; the problem is: in test_subsetsum reference cannot be casted to kAryType
+		//return reference(*this, i);
 	}
 
 	/// \param i
 	/// \return the i-element
-	constexpr  inline reference operator[](const size_t i) const noexcept {
+	constexpr inline DataType operator[](const size_t i) const noexcept {
 		ASSERT(i < length());
-		// return get(i);
-		return reference(*this, i);
+		return get(i);
 	};
 
 	// return `true` if the datastruct contains binary data.
@@ -1612,6 +1634,34 @@ public:
 	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
 	__FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
 };
+
+
+template<typename T, const uint64_t n, const uint64_t q>
+constexpr inline bool operator==(const kAryPackedContainer_Meta<T, n, q> &a,
+								 const kAryPackedContainer_Meta<T, n, q> &b) noexcept {
+	return a.is_equal(b);
+}
+template<typename T, const uint64_t n, const uint64_t q>
+constexpr inline bool operator<(const kAryPackedContainer_Meta<T, n, q> &a,
+                                const kAryPackedContainer_Meta<T, n, q> &b) noexcept {
+	return a.is_lower(b);
+}
+template<typename T, const uint64_t n, const uint64_t q>
+constexpr inline bool operator>(const kAryPackedContainer_Meta<T, n, q> &a,
+                                const kAryPackedContainer_Meta<T, n, q> &b) noexcept {
+	return a.is_greater(b);
+}
+
+
+
+template<typename T, const uint64_t n, const uint64_t q>
+constexpr inline kAry_Type_T<q> operator+(const kAry_Type_T<q> &lhs,
+                                          const typename kAryPackedContainer_Meta<T, n, q>::reference &rhs) noexcept {
+	kAry_Type_T<q> ret = lhs;
+	ret += rhs.data();
+	return ret;
+}
+
 
 
 ///

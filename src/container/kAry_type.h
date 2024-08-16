@@ -342,7 +342,6 @@ public:
 		return obj1 != obj2.__value;
 	}
 
-	///
 	/// \param obj
 	/// \return
 	constexpr inline kAry_Type_T &operator+=(const T obj) noexcept {
@@ -354,7 +353,6 @@ public:
 		return *this;
 	}
 
-	///
 	/// \param obj
 	/// \return
 	constexpr inline kAry_Type_T &operator+=(kAry_Type_T const &obj) noexcept {
@@ -362,6 +360,15 @@ public:
 			__value = T(fastmod_u32(T2(__value) + T2(fastmod_u32(obj.__value, M, q)), M, q));
 		} else {
 			__value = T(T2((T2) __value + (T2) obj.__value) % q);
+		}
+		return *this;
+	}
+
+	constexpr inline kAry_Type_T &operator-=(const T obj) noexcept {
+		if constexpr (sizeof(T) <= M_limit) {
+			__value = T(fastmod_u32(T2(__value) + T2(q) - T2(fastmod_u32(obj, M, q)), M, q));
+		} else {
+			__value = T(T2(T2(__value) + T2(obj % q)) % q);
 		}
 		return *this;
 	}
@@ -1092,6 +1099,19 @@ public:
 		return sizeof(T);
 	}
 	[[nodiscard]] inline static constexpr bool optimized() noexcept { return true; };
+
+	template<const uint32_t l, const uint32_t h>
+	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
+		(void)l;
+		(void)h;
+		return __value;
+	}
+	[[nodiscard]] constexpr inline uint64_t hash(const uint32_t l,
+	                                             const uint32_t h) const noexcept {
+		(void)l;
+		(void)h;
+		return __value;
+	}
 	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
 		return __value;
 	}
@@ -1142,4 +1162,5 @@ std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) 
 	}
 	return out;
 }
+
 #endif//SMALLSECRETLWE_KARY_TYPE_H

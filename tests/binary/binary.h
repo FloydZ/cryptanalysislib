@@ -10,7 +10,7 @@
 #include "tree.h"
 
 #ifndef N_DEFINED
-constexpr uint32_t n = 100;
+constexpr uint32_t n = 127;
 #endif
 
 using BinaryValue = BinaryContainer<n>;

@@ -1,5 +1,5 @@
-#ifndef DECODING_LIST_H
-#define DECODING_LIST_H
+#ifndef CRYPTANALYSISLIB_LIST_H
+#define CRYPTANALYSISLIB_LIST_H
 
 #include "list/enumeration/enumeration.h"
 #include "list/common.h"
@@ -218,6 +218,7 @@ public:
 			if (diff > 64) {
 				using S = _uint8x16_t;
 				auto f = [k_lower, k_higher](const auto &e1) __attribute__((always_inline)) -> S {
+					// TODO lower, higher
 					S t = _uint8x16_t::load(e1.label.ptr());
 					return t;
 
@@ -395,6 +396,17 @@ public:
 
 public:
 
+	/// generic search function, which depending on your configuration
+	/// does different things
+	/// k
+	/// \param e
+	/// \param tid
+	/// \return
+	constexpr inline size_t search(const Element &e,
+	                               const uint32_t tid = 0) {
+		return 0;// TODO
+	}
+
 	constexpr inline size_t linear_search(const Element &e,
 								          const uint32_t tid = 0) {
 		return linear_search(e, tid, [](const Element &a){
@@ -418,29 +430,66 @@ public:
 		}
 	}
 
-	/// TODO
-	constexpr size_t binary_search(const Element &e,
-								   const uint32_t tid = 0) {
-		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		for (size_t i = sp; i < ep; ++i) {
-			if (__data[i] == e) {
-				return i;
-			}
-		}
-
-		return -1u;
+	///
+	/// \param e
+	/// \param tid
+	/// \return
+	constexpr inline size_t binary_search(const Element &e,
+										  const uint32_t tid = 0) {
+		return binary_search(e, tid, [](const Element &a){
+		     return a.hash();
+		});
 	}
-	/// TODO
-	constexpr size_t interpolation_search(const Element &e,
-								   const uint32_t tid = 0) {
-		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		for (size_t i = sp; i < ep; ++i) {
-			if (__data[i] == e) {
-				return i;
-			}
-		}
 
-		return -1u;
+	///
+	/// \tparam F
+	/// \param e
+	/// \param tid
+	/// \param f
+	/// \return
+	template<class F>
+	constexpr size_t binary_search(const Element &e,
+								   const uint32_t tid,
+	                               F &&f) {
+		const size_t sp = start_pos(tid), ep = end_pos(tid);
+		const auto it = cryptanalysislib::search::binary_search(begin() + sp, begin() + ep, e, f);
+		if (it == (begin() + ep)) {
+			return -1;
+		} else {
+			return std::distance(begin()+sp, it);
+		}
+	}
+
+	///
+	/// \param e
+	/// \param tid
+	/// \return
+	template<const uint32_t l, const uint32_t h>
+	constexpr inline size_t interpolation_search(const Element &e,
+												 const uint32_t tid = 0) {
+		return interpolation_search(e, tid, [](const Element &a){
+		  return a.template hash<l, h>();
+		  // return a.hash();
+		});
+	}
+
+	///
+	/// \tparam F
+	/// \param e
+	/// \param tid
+	/// \param f
+	/// \return
+	template<class F>
+	constexpr size_t interpolation_search(const Element &e,
+	                                      const uint32_t tid,
+	                                      F &&f) {
+		const size_t sp = start_pos(tid), ep = end_pos(tid);
+		const auto it = cryptanalysislib::search::interpolation_search(begin() + sp, begin() + ep, e, f);
+		if (it == (begin() + ep)) {
+			return -1;
+		} else {
+			return std::distance(begin()+sp, it);
+		}
 	}
 
 	/// does what the name suggest.
@@ -507,174 +556,6 @@ public:
 		}
 
 		return std::pair<size_t, size_t>{start_index, end_index};
-	}
-
-private:
-	// implements a binary search on the given data.
-	// if the boolean flag `sort` is set to true, the underlying list is sorted.
-	// USAGE:
-	// can be found: "tests/binary/list.h TEST(SerchBinary, Simple) "
-	constexpr inline size_t search_level_binary(const Element &e,
-	                                            const uint32_t k_lower,
-	                                            const uint32_t k_higher,
-	                                            const bool sort = false) noexcept {
-		static_assert(Element::binary());
-		using T = LabelContainerType;
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
-
-		if (sort) {
-			sort_level(k_lower, k_higher);
-		}
-
-		if (lower == upper)
-			return search_level_binary_simple(e, k_lower, k_higher);
-		else
-			return search_level_binary_extended(e, k_lower, k_higher);
-	}
-
-	///
-	/// \param e
-	/// \param k_lower
-	/// \param k_higher
-	/// \return
-	constexpr inline uint64_t search_level_binary_extended(const Element &e,
-	                                                       const uint64_t k_lower,
-	                                                       const uint64_t k_higher) const noexcept {
-		using T = LabelContainerType;
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
-		const uint64_t lmask = T::higher_mask(k_lower);
-		const uint64_t umask = T::lower_mask(k_higher);
-		ASSERT(lower != upper);
-
-		auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
-		                          [lower, upper, lmask, umask](const Element &c1, const Element &c2) {
-			                          return c1.label.is_lower_ext2(c2.label, lower, upper, lmask, umask);
-		                          });
-
-		const auto dist = distance(__data.begin(), r);
-		if (r == __data.begin() + load()) { return -1; }
-		if (!__data[dist].is_equal(e, k_lower, k_higher)) return -1;
-		return dist;
-	}
-
-	///
-	/// \param e element to search for
-	/// \param k_lower lower limit
-	/// \param k_higher higher limit
-	/// \return the position within the
-	constexpr inline uint64_t search_level_binary_simple(
-			const Element &e,
-			const uint64_t k_lower,
-			const uint64_t k_higher) const noexcept {
-		using T = LabelContainerType;
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
-		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
-		ASSERT(lower == upper);
-
-		auto r = std::lower_bound(__data.begin(),
-								  __data.begin() + load(), e,
-			[lower, mask](const Element &c1, const Element &c2) {
-				return c1.label.is_lower_simple2(c2.label, lower, mask);
-			}
-		);
-
-		const auto dist = distance(__data.begin(), r);
-		if (r == __data.begin() + load()) { return -1; }
-		if (!__data[dist].is_equal(e, k_lower, k_higher)) return -1;
-		return dist;
-	}
-
-	/// custom written binary search. Idea Taken from `https://academy.realm.io/posts/how-we-beat-cpp-stl-binary-search/`
-	/// simple means: k_lower, k_upper must be in the same limb
-	/// return -1 if nothing found
-	constexpr inline size_t search_level_binary_custom_simple(const Element &e,
-															  const uint64_t k_lower,
-															  const uint64_t k_higher) const noexcept {
-		using T = LabelContainerType;
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
-		const uint64_t mask = T::higher_mask(k_lower) & T::lower_mask(k_higher);
-		ASSERT(lower == upper);
-
-		size_t size = load();
-		size_t low = 0;
-
-		LabelContainerType v;
-		const LabelContainerType s = e.label;
-
-		while (size > 0) {
-			size_t half = size / 2;
-			size_t other_half = size - half;
-			size_t probe = low + half;
-			size_t other_low = low + other_half;
-			v = __data[probe].label;
-			size = half;
-			// TODO complelty replace with seardh algo
-			// low = v.is_lower_simple2(s, lower, mask) ? other_low : low;
-		}
-
-		return (low != load()) ? low : -1ul;
-	}
-
-	///
-	/// \param e
-	/// \param k_lower
-	/// \param k_higher
-	/// \param sort
-	/// \return
-	constexpr inline uint64_t search_level_binary_custom(const Element &e,
-	                                                     const uint64_t k_lower,
-	                                                     const uint64_t k_higher,
-	                                                     const bool sort = false) noexcept {
-		using T = LabelContainerType;
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
-
-		if (sort) {
-			sort_level(k_lower, k_higher);
-		}
-
-		if (lower == upper)
-			return search_level_binary_custom_simple(e, k_lower, k_higher);
-		else
-			return search_level_binary_custom_extended(e, k_lower, k_higher);
-	}
-
-	///
-	/// \param e
-	/// \param k_lower
-	/// \param k_higher
-	/// \return
-	constexpr inline uint64_t search_level_binary_custom_extended(const Element &e,
-	                                                              const uint64_t k_lower,
-	                                                              const uint64_t k_higher) const noexcept {
-		using T = LabelContainerType;
-		const uint64_t lower = T::round_down_to_limb(k_lower);
-		const uint64_t upper = T::round_down_to_limb(k_higher);
-		const uint64_t lmask = T::higher_mask(k_lower);
-		const uint64_t umask = T::lower_mask(k_higher);
-		ASSERT(lower != upper);
-
-		size_t size = load();
-		size_t low = 0;
-
-		LabelContainerType v;
-		const LabelContainerType s = e.label;
-
-		while (size > 0) {
-			size_t half = size / 2;
-			size_t other_half = size - half;
-			size_t probe = low + half;
-			size_t other_low = low + other_half;
-			v = __data[probe].label;
-			size = half;
-			// TODO
-			// low = v.is_lower_ext2(s, lower, upper, lmask, umask) ? other_low : low;
-		}
-		return (low != load()) ? low : -1;
 	}
 
 public:

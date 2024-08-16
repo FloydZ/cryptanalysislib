@@ -82,7 +82,7 @@ concept TreeAble = requires(List l) {
 		l.search_level(e, u64, u64);
 		l.linear_search(e);
 		l.binary_search(e);
-		l.interpolation_search(e);
+		// TODO is templated l.interpolation_search(e);
 		l.append(e);
 		l.add_and_append(e, e, u32);
 		l.add_and_append(e, e, u64, u64, u32);

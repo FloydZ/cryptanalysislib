@@ -5,7 +5,7 @@
 #include "binary.h"
 
 #ifndef TESTSIZE
-#define TESTSIZE 100
+#define TESTSIZE (1u<<10u)
 #endif
 
 using ::testing::EmptyTestEventListener;
@@ -16,6 +16,18 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+
+TEST(Internal, size) {
+	BinaryContainer<n> b;
+	EXPECT_EQ(b.length(), n);
+
+	using T = uint64_t;
+	constexpr size_t Tbits = sizeof(T) * 8;
+	EXPECT_EQ(b.limbs(), (n + Tbits - 1u)/Tbits);
+
+	constexpr size_t bytes = b.limbs() * 8;
+	EXPECT_EQ(sizeof(b), bytes);
+}
 
 TEST(Internals, access) {
 	BinaryContainer<n> b;
@@ -1202,13 +1214,83 @@ TEST(add_weight, Simple) {
 	w2 = BinaryContainer<n>::add_weight(b3, b1, b2);
 	EXPECT_EQ(w1, w2);
 
-	for(uint32_t i = 0; i < 100; i++) {
+	for(uint32_t i = 0; i < TESTSIZE; i++) {
 		b2.random(); b3.random();
 		w1 = BinaryContainer<n>::add_weight(b3.ptr(), b1.ptr(), b2.ptr());
 		w2 = BinaryContainer<n>::add_weight(b3, b1, b2);
 		EXPECT_EQ(w1, w2);
 	}
 }
+
+TEST(hash, Simple) {
+	BinaryContainer<n> b1;
+	for (uint32_t l = 0; l < n-1u; ++l) {
+		for (uint32_t h = l+1u; h < n; ++h) {
+			if ((h - l) > 64) { continue; }
+			b1.zero();
+			b1.one(l, h);
+
+			const uint64_t t = b1.hash(l, h);
+			const uint64_t mask = (h-l) == 64 ? -1ull : (1ull << (h-l)) - 1ull;
+			EXPECT_EQ(t, mask);
+		}
+	}
+}
+
+TEST(hash, Constexpr) {
+	BinaryContainer<n> b1;
+	b1.zero();
+	b1.one(0, 63);
+	uint64_t t = b1.template hash<0, 63>();
+	uint64_t mask = (1ull << (63 - 0)) - 1ull;
+	EXPECT_EQ(t, mask);
+
+	b1.zero();
+	b1.one(0, 64);
+	t = b1.template hash<0, 64>();
+	mask = -1ull;
+	EXPECT_EQ(t, mask);
+
+	b1.zero();
+	b1.one(48, 80);
+	t = b1.template hash<48, 80>();
+	mask = (1ull << 32u) - 1ull;
+	EXPECT_EQ(t, mask);
+
+	b1.zero();
+	b1.one(63, 127);
+	t = b1.template hash<63, 127>();
+	mask = -1ull;
+	EXPECT_EQ(t, mask);
+}
+
+
+TEST(hash, Complex) {
+	// two avx register
+	constexpr uint32_t n = 256*2;
+	using B = BinaryContainer<n>;
+	B b;
+	b.random();
+	const auto c = b.hash();
+	// using S = decltype(c);
+
+	const auto *c1 = (const uintptr_t *)&b;
+	const auto *c2 = (const uintptr_t *)c.__data;
+	EXPECT_EQ(c1, c2);
+
+	const auto *d = (uint64_t *)b.ptr();
+	for (uint32_t i = 0; i < n/64; ++i) {
+		const auto d1 = d[i];
+		const auto d2 = (*c.__data)[i];
+		EXPECT_EQ(d1, d2);
+	}
+
+	std::cout << std::hex;
+	std::cout << &b << std::endl;
+	std::cout << c.__data << std::endl;
+	std::cout << std::endl;
+}
+
 
 #ifndef EXTERNAL_MAIN
 int main(int argc, char **argv) {

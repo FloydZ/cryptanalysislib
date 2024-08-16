@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
-#include "search/binary.h"
 #include "common.h"
+#include "search/search.h"
+#include "container/fq_vector.h"
+#include "list/list.h"
+#include "matrix/matrix.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -15,6 +18,34 @@ constexpr static uint32_t k_higher = 22;
 constexpr static T MASK = ((T(1) << k_higher) - 1) ^ ((T(1) << k_lower) -1);
 constexpr static size_t nr_sols = 5;
 
+
+constexpr uint32_t k = 100;
+constexpr uint32_t n = 100;
+constexpr uint32_t q = 5;
+constexpr size_t list_size = 1u << 10;
+
+using MatrixT = uint64_t;
+using Matrix = FqMatrix<MatrixT, n, k, q>;
+using Value = kAryPackedContainer_T<MatrixT, k, q>;
+using Label = kAryPackedContainer_T<MatrixT, n, q>;
+using Element = Element_T<Value, Label, Matrix>;
+using List = List_T<Element>;
+
+TEST(upper_bound_standard_binary_search, kAryList) {
+	List data{list_size};
+	Element dummy;
+	size_t solution_index;
+	const Element search = random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
+
+	 auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
+		[](const Element &e1) {
+		  return e1.hash();
+		}
+	 );
+
+	 EXPECT_EQ(solution_index, std::distance(data.begin(), a));
+}
+
 TEST(upper_bound_standard_binary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
@@ -28,6 +59,23 @@ TEST(upper_bound_standard_binary_search, simple) {
 
 	EXPECT_EQ(solution_index, std::distance(data.begin(), a));
 }
+
+// TODO not working
+// TEST(upper_bound_standard_binary_search, kAryList_multiple) {
+// 	List data{list_size};
+// 	Element dummy;
+// 	size_t solution_index;
+// 	const Element search = random_data<List, Element>(data, solution_index, SIZE, nr_sols, dummy);
+//
+// 	auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
+// 		[](const Element &e1) {
+// 		  return e1.hash();
+// 		}
+// 	);
+//
+// 	EXPECT_EQ(solution_index, std::distance(data.begin(), a));
+// }
+
 
 TEST(upper_bound_standard_binary_search, multiple) {
 	std::vector<T> data;
@@ -139,7 +187,7 @@ TEST(iterator_tripletapped_binary_search, simple) {
 TEST(tripletapped_binary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, 1);
+	T search = random_data<std::vector<T>, T>(data, solution_index, SIZE, 1);
 
 	/// NOTE MASK not working
 	size_t a = tripletapped_binary_search(data.data(), SIZE, search);
@@ -149,19 +197,34 @@ TEST(tripletapped_binary_search, simple) {
 TEST(monobound_quaternary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, 1);
+	T search = random_data<std::vector<T>, T>(data, solution_index, SIZE, 1);
 
 	/// note mask not working
 	size_t a = monobound_quaternary_search(data.data(), SIZE, search);
 	EXPECT_EQ(solution_index, a);
 }
 
-TEST(branchless_lower_bound, simple) {
+TEST(branchless_lower_bound_cmp, karylist_simple) {
+	List data{list_size};
+	Element dummy;
+	size_t solution_index;
+	const Element search = random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
+
+	auto a = branchless_lower_bound_cmp(data.begin(), data.end(), search,
+		[](const Element &e1, const Element &e2) -> bool {
+		  return e1.hash() < e2.hash();
+		}
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
+
+TEST(branchless_lower_bound_cmp, simple) {
 	std::vector<T> data;
 	size_t solution_index;
 	T search = random_data(data, solution_index, SIZE, 1, MASK);
 
-	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+	auto a = branchless_lower_bound_cmp(data.begin(), data.end(), search,
 		 [](const T &e1, const T &e2) -> T {
 		   return (e1&MASK) < (e2&MASK);
 		 }
@@ -170,13 +233,27 @@ TEST(branchless_lower_bound, simple) {
 	EXPECT_EQ(solution_index, distance(data.begin(), a));
 }
 
+TEST(branchless_lower_bound_cmp, karylist_multiple) {
+	List data{list_size};
+	Element dummy;
+	size_t solution_index;
+	const Element search = random_data<List, Element>(data, solution_index, SIZE, nr_sols, dummy);
 
-TEST(branchless_lower_bound, multiple) {
+	auto a = branchless_lower_bound_cmp(data.begin(), data.end(), search,
+		[](const Element &e1, const Element &e2) {
+		  return e1.hash() < e2.hash();
+		}
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
+
+TEST(branchless_lower_bound_cmp, multiple) {
 	std::vector<T> data;
 	size_t solution_index;
 	T search = random_data(data, solution_index, SIZE, nr_sols, MASK);
 
-	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+	auto a = branchless_lower_bound_cmp(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> T {
 		  return (e1&MASK) < (e2&MASK);
 		}
@@ -185,6 +262,34 @@ TEST(branchless_lower_bound, multiple) {
 	EXPECT_EQ(solution_index, distance(data.begin(), a));
 }
 
+TEST(branchless_lower_bound, karylist_simple) {
+	List data{list_size};
+	Element dummy;
+	size_t solution_index;
+	const Element search = random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
+
+	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+		[](const Element &e1) {
+		  return e1.hash();
+		}
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
+
+TEST(branchless_lower_bound, simple) {
+	std::vector<T> data;
+	size_t solution_index;
+	T search = random_data(data, solution_index, SIZE, 1, MASK);
+
+	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+		[](const T &e1) {
+		  return e1 & MASK;
+		}
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 

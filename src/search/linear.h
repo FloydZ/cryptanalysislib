@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <iterator>
 
+#include "hash/hash.h"
+
 /// linear search, needs to run backwards so it's stable
 /// \tparam ForwardIt
 /// \tparam T
@@ -18,7 +20,13 @@
 /// \param key
 /// \param compare
 /// \return
-template<class ForwardIt, class T, class Compare>
+template<class ForwardIt,
+         class T,
+         class Compare>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 CompareFunction<Compare, T>
+#endif
 constexpr ForwardIt upper_bound_linear_search(const ForwardIt first,
                                               const ForwardIt last,
                                               const T &key,
@@ -26,8 +34,10 @@ constexpr ForwardIt upper_bound_linear_search(const ForwardIt first,
 	typename std::iterator_traits<ForwardIt>::difference_type
 	        count = std::distance(first, last),
 	        step = -1;
-	if (count == 0)
+
+	if (count == 0) {
 		return first;
+	}
 
 	ForwardIt it = last;
 	std::advance(it, step);
@@ -53,7 +63,13 @@ constexpr ForwardIt upper_bound_linear_search(const ForwardIt first,
 /// \param key
 /// \param compare
 /// \return
-template<class ForwardIt, class T, class Compare>
+template<class ForwardIt,
+         class T,
+         class Compare>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 CompareFunction<Compare, T>
+#endif
 constexpr ForwardIt lower_bound_linear_search(const ForwardIt first,
                                               const ForwardIt last,
                                               const T &key,
@@ -85,7 +101,13 @@ constexpr ForwardIt lower_bound_linear_search(const ForwardIt first,
 /// \param key_
 /// \param h
 /// \return
-template<class ForwardIt, class T, class Hash>
+template<class ForwardIt,
+         class T,
+         class Hash>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 HashFunction<Hash, T>
+#endif
 constexpr ForwardIt upper_bound_breaking_linear_search(const ForwardIt first,
                                                        const ForwardIt last,
                                                        const T &key_,
@@ -121,7 +143,13 @@ constexpr ForwardIt upper_bound_breaking_linear_search(const ForwardIt first,
 /// \param key_
 /// \param h
 /// \return
-template<class ForwardIt, class T, class Hash>
+template<class ForwardIt,
+         class T,
+         class Hash>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 HashFunction<Hash, T>
+#endif
 constexpr ForwardIt lower_bound_breaking_linear_search(const ForwardIt first,
                                                        const ForwardIt last,
                                                        const T &key_,
@@ -155,7 +183,7 @@ constexpr ForwardIt lower_bound_breaking_linear_search(const ForwardIt first,
 /// \param key
 /// \return
 template<typename T>
-uint64_t breaking_linear_search(const T *array,
+constexpr uint64_t breaking_linear_search(const T *array,
                                 const uint64_t array_size,
                                 const T &key) noexcept {
 	uint64_t top = array_size;
@@ -177,9 +205,14 @@ uint64_t breaking_linear_search(const T *array,
 	return -1;
 }
 
-/// TODO enforce comparable
 namespace cryptanalysislib::search {
-	template<class ForwardIt, class T, class Hash>
+	template<class ForwardIt,
+	         class T,
+	         class Hash>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<ForwardIt> and
+			 HashFunction<Hash, T>
+#endif
 	constexpr ForwardIt linear_search(const ForwardIt first,
 	                                  const ForwardIt last,
 	                                  const T &key_,

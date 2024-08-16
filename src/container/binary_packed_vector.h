@@ -306,8 +306,6 @@ public:
 		}
 	}
 
-
-
 	/// returns the position in which bits are set.
 	constexpr void get_bits_set(uint32_t *P,
 								const uint16_t pos = 1) const noexcept {
@@ -1446,18 +1444,20 @@ public:
 	[[nodiscard]] constexpr inline size_t hash() const noexcept {
 		static_assert(l < h);
 		static_assert(h <= length());
-		Hash<T, l, h, 2> hash(__data[0]);
-		return hash();
+		return Hash<uint64_t, l, h, q>::hash((uint64_t *)ptr());
 	}
 	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
 	                                           const uint32_t h) const noexcept {
-		return 0; // TODO
+		ASSERT(l < h);
+		ASSERT(h <= length());
+		return Hash<uint64_t, q>::hash((uint64_t *)ptr(), l, h);
 	}
+	// full length hasher
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		using S = TxN_t<T, limbs()>;
-		const auto t1 = S(__data);
-		const auto t2 = Hash<S>(t1);
-		return t2;
+		const S *s = (S *)__data.data();
+		const auto t = Hash<S>(s);
+		return t;
 	}
 
 #ifdef BINARY_CONTAINER_ALIGNMENT
@@ -1521,6 +1521,22 @@ private:
 	std::array<T, compute_limbs()> __data;
 };
 
+
+template<const uint64_t n, typename T>
+constexpr inline bool operator==(const BinaryContainer<n, T> &a,
+                                 const BinaryContainer<n, T> &b) noexcept {
+	return a.is_equal(b);
+}
+template<const uint64_t n, typename T>
+constexpr inline bool operator<(const BinaryContainer<n, T> &a,
+                                const BinaryContainer<n, T> &b) noexcept {
+	return a.is_lower(b);
+}
+template<const uint64_t n, typename T>
+constexpr inline bool operator>(const BinaryContainer<n, T> &a,
+                                const BinaryContainer<n, T> &b) noexcept {
+	return a.is_greater(b);
+}
 
 template<uint64_t _n,
         typename T=uint64_t>

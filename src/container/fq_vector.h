@@ -46,18 +46,20 @@ public:
 	[[nodiscard]] constexpr inline size_t hash() const noexcept {
 		static_assert(l < h);
 		static_assert(h <= length());
-		Hash<T, l, h, 2> hash(__data[0]);
-		return hash();
+
+		return Hash<uint64_t, l, h, q>::hash((uint64_t *)ptr());
 	}
 	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
 											   const uint32_t h) const noexcept {
-		return 0; // TODO
+		ASSERT(l < h);
+		ASSERT(h <= length());
+		return Hash<uint64_t, q>::hash((uint64_t *)ptr(), l, h);
 	}
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		using S = TxN_t<T, limbs()>;
-		const auto t1 = S(__data);
-		const auto t2 = Hash<S>(t1);
-		return t2;
+		const S *s = (S *)__data.data();
+		const auto t = Hash<S>(s);
+		return t;
 	}
 
 	/// zeros our the whole container
@@ -1888,6 +1890,31 @@ public:
 	__FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
 };
 
+
+
+template<typename T, const uint64_t n, const uint64_t q>
+constexpr inline bool operator==(const kAryContainerMeta<T, n, q> &a,
+								 const kAryContainerMeta<T, n, q> &b) noexcept {
+	return a.is_equal(b);
+}
+template<typename T, const uint64_t n, const uint64_t q>
+constexpr inline bool operator<(const kAryContainerMeta<T, n, q> &a,
+								const kAryContainerMeta<T, n, q> &b) noexcept {
+	return a.is_lower(b);
+}
+template<typename T, const uint64_t n, const uint64_t q>
+constexpr inline bool operator>(const kAryContainerMeta<T, n, q> &a,
+								const kAryContainerMeta<T, n, q> &b) noexcept {
+	return a.is_greater(b);
+}
+
+///
+/// \tparam T
+/// \tparam n
+/// \tparam q
+/// \param out
+/// \param obj
+/// \return
 template<typename T, const uint32_t n, const uint32_t q>
 std::ostream &operator<<(std::ostream &out, const kAryContainer_T<T, n, q> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {

@@ -65,6 +65,9 @@ concept ElementDataAble = requires(Container c) {
 		/// printing stuff
 		c.print_binary(i, i);
 		c.print(i, i);
+
+		c.hash();
+		c.hash(i, i);
 	};
 
 	/// limb arithmetic stuff
@@ -94,8 +97,6 @@ concept ElementDataAble = requires(Container c) {
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
 	{ Container::sub_container_size() } -> std::convertible_to<uint32_t>;
-
-	c.hash();
 };
 
 template<class Value, class Label, class Matrix>
@@ -389,6 +390,16 @@ public:
 		value.print_binary(k_lower_value, k_upper_value);
 	}
 
+	template<const uint32_t l, const uint32_t h>
+	[[nodiscard]] constexpr inline auto hash() const noexcept {
+		static_assert(l < h);
+		return label.template hash<l, h>();
+	}
+	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
+	                                         const uint32_t h) const noexcept {
+		ASSERT(l < h);
+		return label.hash(l, h);
+	}
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		return label.hash();
 	}
@@ -445,6 +456,23 @@ public:
 	Label label;
 	Value value;
 };
+
+
+template<class Value, class Label, class Matrix>
+constexpr inline bool operator==(const Element_T<Value, Label, Matrix> &a,
+								 const Element_T<Value, Label, Matrix> &b) noexcept {
+	return a.is_equal(b);
+}
+template<class Value, class Label, class Matrix>
+constexpr inline bool operator<(const Element_T<Value, Label, Matrix> &a,
+                                const Element_T<Value, Label, Matrix> &b) noexcept {
+	return a.is_lower(b);
+}
+template<class Value, class Label, class Matrix>
+constexpr inline bool operator>(const Element_T<Value, Label, Matrix> &a,
+                                const Element_T<Value, Label, Matrix> &b) noexcept {
+	return a.is_greater(b);
+}
 
 /// print operator
 /// \tparam Value type of a value
