@@ -484,7 +484,7 @@ template<class Value, class Label, class Matrix>
 std::ostream &operator<<(std::ostream &out,
                          const Element_T<Value, Label, Matrix> &obj) {
 	out << "V: " << obj.get_value();
-	out << ",\tL: " << obj.get_label() << "\n";
+	out << ",\tL: " << obj.get_label();
 	return out;
 }
 #endif//SMALLSECRETLWE_ELEMENT_H

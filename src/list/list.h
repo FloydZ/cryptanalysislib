@@ -84,6 +84,9 @@ public:
 	using MetaListT<Element>::is_correct;
 	using MetaListT<Element>::is_sorted;
 
+	// using TMP = decltype(e.label.hash());
+	// TODO not fully correct. kAryCOmpresssed could be smaller
+	constexpr static bool use_hash_operator = (sizeof(LabelType) * 8u) <= 64u;
 
 private:
 	// disable the empty constructor. So you have to specify a rough size of the list.
@@ -404,14 +407,23 @@ public:
 	/// \return
 	constexpr inline size_t search(const Element &e,
 	                               const uint32_t tid = 0) {
-		return 0;// TODO
+		// TODO
+		return binary_search(e, tid);
 	}
 
 	constexpr inline size_t linear_search(const Element &e,
 								          const uint32_t tid = 0) {
-		return linear_search(e, tid, [](const Element &a){
-			return a.hash();
-		});
+		// TODO überall k_lower, k_upper
+		if constexpr (use_hash_operator) {
+			return linear_search(e, tid, [](const Element &a)  __attribute__((always_inline)) {
+			  return a.hash();
+			});
+		} else {
+			return linear_search(e, tid, [](const Element &a,
+			                                const Element &b)  __attribute__((always_inline)) {
+			  return a <= b; // TODO somehow get rid of the less equal and replace it with less
+			});
+		}
 	}
 
 	/// NOTE: this is a linear search
@@ -436,9 +448,16 @@ public:
 	/// \return
 	constexpr inline size_t binary_search(const Element &e,
 										  const uint32_t tid = 0) {
-		return binary_search(e, tid, [](const Element &a){
-		     return a.hash();
-		});
+		if constexpr (use_hash_operator) {
+			return binary_search(e, tid, [](const Element &a)  __attribute__((always_inline)) {
+			  return a.hash();
+			});
+		} else {
+			return binary_search(e, tid, [](const Element &a,
+											const Element &b)  __attribute__((always_inline)) {
+			  return a < b;
+			});
+		}
 	}
 
 	///
@@ -467,13 +486,12 @@ public:
 	template<const uint32_t l, const uint32_t h>
 	constexpr inline size_t interpolation_search(const Element &e,
 												 const uint32_t tid = 0) {
-		return interpolation_search(e, tid, [](const Element &a){
-		  return a.template hash<l, h>();
-		  // return a.hash();
+		return interpolation_search(e, tid, [](const Element &a) __attribute__((always_inline)) {
+		    return a.template hash<l, h>();
 		});
 	}
 
-	///
+	/// WARNING: if the element is not hashable, a standard binary search is conducted
 	/// \tparam F
 	/// \param e
 	/// \param tid
@@ -483,6 +501,10 @@ public:
 	constexpr size_t interpolation_search(const Element &e,
 	                                      const uint32_t tid,
 	                                      F &&f) {
+		if constexpr (!use_hash_operator) {
+			return binary_search(e, tid);
+		}
+
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 		const auto it = cryptanalysislib::search::interpolation_search(begin() + sp, begin() + ep, e, f);
 		if (it == (begin() + ep)) {

@@ -1418,14 +1418,16 @@ public:
 	}
 
 	/// wrapper around `print`
-	void print_binary(const uint32_t k_lower = 0, const uint32_t k_upper = length()) const noexcept {
+	void print_binary(const uint32_t k_lower = 0,
+	                  const uint32_t k_upper = length()) const noexcept {
 		print(k_lower, k_upper);
 	}
 
 	/// print some information
 	/// \param k_lower lower limit to print (included)
 	/// \param k_upper higher limit to print (not included)
-	void print(const uint32_t k_lower = 0, const uint32_t k_upper = length()) const noexcept {
+	void print(const uint32_t k_lower = 0,
+	           const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << data(i) << "";
@@ -1444,13 +1446,80 @@ public:
 	[[nodiscard]] constexpr inline size_t hash() const noexcept {
 		static_assert(l < h);
 		static_assert(h <= length());
-		return Hash<uint64_t, l, h, q>::hash((uint64_t *)ptr());
+
+		constexpr uint32_t qbits = 1;
+		constexpr uint32_t bits = limb_bits_width();
+		constexpr uint32_t lq = l*qbits;
+		constexpr uint32_t hq = h*qbits;
+		constexpr uint32_t llimb = lq / bits;
+		constexpr uint32_t hlimb  = hq%bits == 0u ? llimb : hq / bits;
+		constexpr uint32_t lprime = lq % bits;
+		constexpr uint32_t hprime = (hq%bits) == 0 ? bits : hq % bits;
+
+		// easy case: lower limit and upper limit
+		// are in the same limb
+		if constexpr (llimb == hlimb) {
+			static_assert(lprime < hprime);
+			static_assert((hprime - lprime) <= (sizeof(T) * 8u));
+
+			constexpr T diff1 = hprime - lprime;
+			static_assert (diff1 <= bits);
+			constexpr T diff2 = bits - diff1;
+			constexpr T mask = -1ull >> diff2;
+			const T b = __data[llimb] >> lprime;
+			const T c = b & mask;
+			return c;
+		}
+
+		static_assert(llimb <= hlimb);
+		static_assert((hlimb - llimb) <= 1u); // note could be extended
+
+		constexpr T lmask = T(-1ull) << lprime;
+		constexpr T hmask = T(-1ull) >> ((bits - hprime) % bits);
+
+		// not so easy case: lower limit and upper limit are
+		// on seperate limbs
+		T data = (__data[llimb] & lmask) >> lprime;
+		data  ^= (__data[hlimb] & hmask) << ((bits - lprime) % bits);
+		return data;
 	}
 	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
 	                                           const uint32_t h) const noexcept {
 		ASSERT(l < h);
 		ASSERT(h <= length());
-		return Hash<uint64_t, q>::hash((uint64_t *)ptr(), l, h);
+
+		const uint32_t bits = limb_bits_width();
+		const uint32_t llimb = l / bits;
+		const uint32_t hlimb  = h%bits == 0u ? llimb : h / bits;
+		const uint32_t lprime = l % bits;
+		const uint32_t hprime = (h%bits) == 0 ? bits : h % bits;
+
+		// easy case: lower limit and upper limit
+		// are in the same limb
+		if (llimb == hlimb) {
+			ASSERT(lprime < hprime);
+			ASSERT((hprime - lprime) <= (sizeof(T) * 8u));
+
+			const T diff1 = hprime - lprime;
+			ASSERT (diff1 <= bits);
+			const T diff2 = bits - diff1;
+			const T mask = -1ull >> diff2;
+			const T b = __data[llimb] >> lprime;
+			const T c = b & mask;
+			return c;
+		}
+
+		ASSERT(llimb <= hlimb);
+		ASSERT((hlimb - llimb) <= 1u); // note could be extended
+
+		const T lmask = T(-1ull) << lprime;
+		const T hmask = T(-1ull) >> ((bits - hprime) % bits);
+
+		// not so easy case: lower limit and upper limit are
+		// on seperate limbs
+		T data = (__data[llimb] & lmask) >> lprime;
+		data  ^= (__data[hlimb] & hmask) << ((bits - lprime) % bits);
+		return data;
 	}
 	// full length hasher
 	[[nodiscard]] constexpr inline auto hash() const noexcept {

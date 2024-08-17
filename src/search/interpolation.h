@@ -58,6 +58,7 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 
 	while (true) {
 		const auto a = h(*(first+next));
+		// TODO optimization for prefetchin
 		if (a < v) {
 			left = first + next + 1;
 		} else if (a > v) {

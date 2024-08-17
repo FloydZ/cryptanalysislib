@@ -12,7 +12,7 @@ TEST(NAME, access) {
 	}
 
 	for (uint32_t i = 0; i < K::length(); ++i) {
-		t[i] = 0;
+		t.set(0, i);
 	}
 
 	for (uint32_t i = 0; i < K::length(); ++i) {
@@ -141,6 +141,40 @@ TEST(NAME, mul) {
 				for (uint32_t i = b; i < K::size(); i++) {
 					EXPECT_EQ(t3.get(i), 0);
 				}
+			}
+		}
+	}
+}
+
+TEST(NAME, HashSimple) {
+	K b1;
+	constexpr uint32_t qbits = bits_log2(PRIME);
+	constexpr uint32_t limit = 64;
+	for (uint32_t l = 0; l < n-1u; ++l) {
+		for (uint32_t h = l+1u; h < n; ++h) {
+			if (((h - l) * qbits) > limit) { continue; }
+
+			if ((cryptanalysislib::popcount::popcount(5) == 1)) {
+				b1.zero();
+				b1.minus_one(l, h);
+				const uint64_t t = b1.hash(l, h);
+				const uint64_t mask = ((h - l) * qbits) == 64ull ? -1ull : (1ull << ((h - l) * qbits)) - 1ull;
+				EXPECT_EQ(t, mask);
+			}
+
+
+			b1.zero();
+			b1.one(l, h);
+			uint64_t t2 = b1.hash(l, h);
+			uint64_t qmask = (1ull<<qbits) - 1ull;
+			for (uint32_t i = 0; i < h-l; ++i) {
+				const uint64_t c = t2 & qmask;
+				if (c != 1u) {
+					std::cout <<"kdk";
+				}
+				EXPECT_EQ(c, 1ul);
+
+				t2 >>= qbits;
 			}
 		}
 	}

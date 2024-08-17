@@ -42,7 +42,7 @@ public:
 	
 	static_assert(n > 0, "jeah at least a single bit?");
 	static_assert(q > 1, "mod 1 or 0?");
-	static_assert(bits_log2(q) < (8*sizeof(T)), "the limb type should be atleast of the size of prime");
+	static_assert(bits_log2(q) <= (8*sizeof(T)), "the limb type should be atleast of the size of prime");
 
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
@@ -52,6 +52,7 @@ public:
 	// number of numbers one can fit into each limb
 	constexpr static uint16_t numbers_per_limb = bits_per_limb / bits_per_number;
 	static_assert(numbers_per_limb > 0);
+	constexpr static uint16_t used_bits_per_limb = numbers_per_limb * bits_per_number;
 	// Number of Limbs needed to represent `length` numbers of size log(MOD) +1
 	constexpr static uint16_t internal_limbs = (n + numbers_per_limb - 1) / numbers_per_limb;
 	// mask with the first `bits_per_number` set to one
@@ -106,11 +107,78 @@ public:
 											   const uint32_t h) const noexcept {
 		ASSERT(l < h);
 		ASSERT(h <= length());
-		return Hash<uint64_t, q>::hash((uint64_t)ptr(), l, h);
+		ASSERT((h-l) <= n);
+
+		constexpr size_t bits_size_t = sizeof(size_t) * 8u;
+		constexpr uint32_t bits = used_bits_per_limb;
+		constexpr uint32_t qbits = bits_per_number;
+
+		const uint32_t lq = l*qbits;
+		const uint32_t hq = h*qbits;
+		const uint32_t llimb  = l / numbers_per_limb;
+		const uint32_t hlimb  = h / numbers_per_limb;
+		const uint32_t lprime = lq % bits;
+		const uint32_t hprime = (hq%bits) == 0 ? bits : hq % bits;
+
+		// easy case everything is nicely packed together and in the same limb
+		if constexpr (cryptanalysislib::popcount::popcount(q) == 1u) {
+			//
+			if (llimb == hlimb) {
+				const T diff1 = hprime - lprime;
+				ASSERT(diff1 <= bits);
+				const T diff2 = bits - diff1;
+				const T mask = -1ull >> diff2;
+				const T b = __data[llimb] >> lprime;
+				const T c = b & mask;
+				return c;
+			}
+
+			// next case: little harder: still good prime power but multiple limbs
+			// that's an implementation limitation
+			ASSERT((h-l) <= (sizeof(__uint128_t) * 8u));
+
+			auto load = [llimb, hlimb, this](){
+				__uint128_t d = 0;
+				for (uint32_t i = 0; i <= (hlimb - llimb); i++) {
+					d ^= __uint128_t(__data[i+llimb]) << (i*bits);
+				}
+				return d;
+			};
+			// NOTE: OOB access
+			__uint128_t d = load();
+
+			const uint32_t lprime_size_t = lq % bits_size_t;
+			const uint32_t hprime_size_t = (hq%bits_size_t) == 0 ? bits_size_t : hq % bits_size_t;
+
+			constexpr __uint128_t m128 = (__uint128_t(-1ull) << 64) ^ __uint128_t(-1ull);
+			const size_t diff_size_t = hprime_size_t - lprime_size_t;
+			const size_t diff2 = (bits_size_t - diff_size_t) % bits_size_t;
+			const __uint128_t mask = m128 >> diff2;
+			const __uint128_t b = d >> lprime;
+			const __uint128_t c = b & mask;
+
+			// NOTE: typecase
+			return c;
+		}
+
+		// now the stupid hard part
+		ASSERT((h-l) <= (sizeof(__uint128_t) * 8u));
+		__uint128_t d = __data[llimb] >> (lprime % used_bits_per_limb);
+
+		uint32_t shift = used_bits_per_limb - lprime;
+		for (uint32_t i = 1; i <= (hlimb - llimb); i++) {
+			d ^= __uint128_t(__data[i + llimb]) << shift;
+			shift += used_bits_per_limb;
+		}
+
+		return d;
 	}
 
 	// simple hash function
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
+		if constexpr(total_bits <= 64) {
+			return hash<0, n>();
+		}
 		// TODO not really correct if n>64
 		return Hash<uint64_t, 0, n, q>::hash((uint64_t *)ptr());
 	}
@@ -213,6 +281,14 @@ public:
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
 			set(1, i);
+		}
+	}
+
+	constexpr void minus_one(const uint32_t a = 0,
+					   	    const uint32_t b = length()) noexcept {
+		LOOP_UNROLL();
+		for (uint32_t i = a; i < b; i++) {
+			set(q-1, i);
 		}
 	}
 
@@ -751,7 +827,7 @@ public:
 			}
 		}
 
-		return true;
+		return false;
 	}
 
 	///

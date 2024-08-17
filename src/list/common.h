@@ -257,7 +257,7 @@ public:
 	/// \param k_higher upper bound
 	/// \return if its sorted
 	[[nodiscard]] constexpr bool is_sorted(const uint64_t k_lower=0,
-							 const uint64_t k_higher=LabelBytes) const {
+	                                       const uint64_t k_higher=LabelBytes) const {
 		for (size_t i = 1; i < load(); ++i) {
 			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
 				continue;
@@ -615,7 +615,7 @@ template<typename Element>
 std::ostream &operator<<(std::ostream &out, const MetaListT<Element> &obj) {
 	const size_t size = obj.load() > 0 ? obj.load() : obj.size();
 	for (size_t i = 0; i < size; ++i) {
-		out << obj[i];
+		out << obj[i] << "\t pos:" << i << "\n";
 	}
 	return out;
 }

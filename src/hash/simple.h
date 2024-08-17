@@ -38,19 +38,22 @@ private:
 	static_assert(bits >= 8);
 
 	///
-	/// \tparam lprime NOTE: must be bit positions within the
-	/// \tparam hprime
+	/// \tparam lprime NOTE: must be the lower bit positions within the limb
+	/// \tparam hprime NOTE: must be the upper bit posiition within the limb
 	/// \param a
 	/// \return
 	template<const uint32_t lprime=l*qbits, const uint32_t hprime=h*qbits>
 	static constexpr inline R compute(const T &a) noexcept {
 		// NOTE: these checks are not valid globally for the whole class
 		static_assert(lprime < hprime);
-		static_assert(hprime <= (sizeof(T) * 8u));
+		static_assert((hprime - lprime) <= (sizeof(T) * 8u));
 
 		/// trivial case: q is a power of two
 		if constexpr (cryptanalysislib::popcount::popcount(q) == 1u) {
-			constexpr T mask = (1ull << (hprime-lprime)) - 1ull;
+			constexpr T diff1 = hprime - lprime;
+			static_assert (diff1 <= bits);
+			constexpr T diff2 = bits - diff1;
+			constexpr T mask = -1ull >> diff2;
 			const T b = a >> lprime;
 			const T c = b & mask;
 			return c;
@@ -80,10 +83,14 @@ private:
 	/// \param a
 	/// \return
 	static constexpr inline R compute(const T *a) noexcept {
-		constexpr uint32_t llimb = (l*qbits) / bits;
-		constexpr uint32_t hlimb = ((h - 1ull)*qbits) / bits;
-		constexpr uint32_t lprime = (l*qbits) % bits;
-		constexpr uint32_t hprime = (h*qbits) % bits;
+		static_assert(l < h);
+
+		constexpr uint32_t lq = l*qbits;
+		constexpr uint32_t hq = h*qbits;
+		constexpr uint32_t llimb = lq / bits;
+		constexpr uint32_t hlimb  = hq%bits == 0u ? llimb : hq / bits;
+		constexpr uint32_t lprime = lq % bits;
+		constexpr uint32_t hprime = (hq%bits) == 0 ? bits : hq % bits;
 
 		// easy case: lower limit and upper limit
 		// are in the same limb
@@ -176,37 +183,40 @@ private:
 	using H = Hash<T, q>;
 	using R = size_t;
 
+	// TODO explain
+	constexpr static bool compressed = true;
+
 	constexpr static uint32_t qbits = std::max(bits_log2(q), 1ul);
 	constexpr static uint32_t bits = sizeof(T) * 8u;
 	static_assert(qbits >= 1);
 	static_assert(bits >= 8);
 
 	/// \param a
-	/// \param l
-	/// \param h
+	/// \tparam lprime NOTE: must be the lower bit positions within the limb
+	/// \tparam hprime NOTE: must be the upper bit posiition within the limb
 	/// \return
 	static constexpr inline R compute(const T &a,
-	                                  const uint32_t l,
-	                                  const uint32_t h) noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= (sizeof(T) * 8u));
-
-		const uint32_t lprime = l*qbits;
-		const uint32_t hprime = l*qbits;
+	                                  const uint32_t lprime,
+	                                  const uint32_t hprime) noexcept {
+		ASSERT(lprime < hprime);
+		ASSERT((hprime - lprime) <= (sizeof(T) * 8u));
 
 		/// trivial case: q is a power of two
-		if (cryptanalysislib::popcount::popcount(q) == 1) {
-			const T mask = (1ull << (hprime-lprime)) - 1ull;
+		if ((cryptanalysislib::popcount::popcount(q) == 1) || compressed) {
+			const T diff1 = hprime - lprime;
+			ASSERT(diff1 <= bits);
+			const T diff2 = bits - diff1;
+			const T mask = -1ull >> diff2;
 			const T b = a >> lprime;
 			const T c = b & mask;
 			return c;
 		}
 
 		/// not so trivial case
-		const uint32_t lower = 0, upper = l * qbits;
+		const uint32_t lower = 0, upper = lprime;
 		const T mask = (~((T(1ul) << lower) - 1ul)) & ((T(1ul) << upper) - 1ul);
 		const T mask_q = (1ull << qbits) - 1ull;
-		const uint32_t loops = l >> 1u;
+		const uint32_t loops = lprime >> 1u;
 
 		uint64_t ctr = q;
 		T tmp = (a & mask) >> lower;
@@ -228,10 +238,15 @@ private:
 	static constexpr inline R compute(const T *a,
 	                                  const uint32_t l,
 	                                  const uint32_t h) noexcept {
-		const uint32_t llimb = (l*qbits) / bits;
-		const uint32_t hlimb = ((h - 1ull)*qbits) / bits;
-		const uint32_t lprime = (l*qbits) % bits;
-		const uint32_t hprime = (h*qbits) % bits;
+		ASSERT(l < h);
+		ASSERT(((h- l)*qbits) <= (sizeof(T) * 8u));
+
+		const uint32_t lq = l*qbits;
+		const uint32_t hq = h*qbits;
+		const uint32_t llimb  = lq / bits;
+		const uint32_t hlimb  = hq%bits == 0u ? llimb : hq / bits;
+		const uint32_t lprime = lq % bits;
+		const uint32_t hprime = (hq%bits) == 0u ? bits : hq % bits;
 
 		// easy case: lower limit and upper limit
 		// are in the same limb

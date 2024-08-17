@@ -887,7 +887,7 @@ public:
 	/// \param b
 	/// \return
 	[[nodiscard]] static constexpr inline uint8x32_t add256_T(const uint8x32_t a,
-			const uint8x32_t b) {
+															  const uint8x32_t b) {
 		uint8x32_t ret;
 		return ret;
 	}
@@ -896,7 +896,7 @@ public:
 	/// \param b
 	/// \return
 	[[nodiscard]] static constexpr inline uint8x32_t sub256_T(const uint8x32_t a, 
-			const uint8x32_t b) {
+	                                                          const uint8x32_t b) {
 		uint8x32_t ret;
 		(void)a;
 		(void)b;
@@ -947,12 +947,29 @@ public:
 		return get(i);
 	}
 
+	/// not really meaningfully, but needed by the API:
+	/// \param i
+	/// \return returns the value
+	[[nodiscard]] constexpr inline T operator[](const size_t i) const noexcept {
+		return get(i);
+	}
+
 	/// also not really meaningfully
 	/// \param i
 	/// \return
 	[[nodiscard]] constexpr inline T get(const size_t i) noexcept {
 		ASSERT(i < bits());
-		return value;
+		(void)i;
+		return __value;
+	}
+
+	/// also not really meaningfully
+	/// \param i
+	/// \return
+	[[nodiscard]] constexpr inline T get(const size_t i) const noexcept {
+		ASSERT(i < bits());
+		(void)i;
+		return __value;
 	}
 
 	/// sets out = in[lower, upper)
@@ -984,8 +1001,28 @@ public:
 
 	///
 	/// \return
-	constexpr inline void zero() noexcept {
-		__value = 0;
+	constexpr inline void zero(const uint32_t l=0,
+	                           const uint32_t h=bits()) noexcept {
+		ASSERT(l < h);
+		ASSERT(h <= bits());
+		const T mask = ~compute_mask(l, h);
+		__value &= mask;
+	}
+
+	constexpr inline void one(const uint32_t l=0,
+	                          const uint32_t h=bits()) noexcept {
+		ASSERT(l < h);
+		ASSERT(h <= bits());
+		(void)l;
+		(void)h;
+		__value = 1;
+	}
+	constexpr inline void minus_one(const uint32_t l=0,
+	                                const uint32_t h=bits()) noexcept {
+		ASSERT(l < h);
+		ASSERT(h <= bits());
+		const T mask = compute_mask(l, h);
+		__value |= mask;
 	}
 
 	///
@@ -1100,19 +1137,41 @@ public:
 	}
 	[[nodiscard]] inline static constexpr bool optimized() noexcept { return true; };
 
+	///
+	/// \tparam l bit position
+	/// \tparam h bit positin
+	/// \return
 	template<const uint32_t l, const uint32_t h>
-	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
-		(void)l;
-		(void)h;
-		return __value;
+	[[nodiscard]] constexpr inline size_t hash() const noexcept {
+		static_assert(l < h);
+		static_assert(h <= bits());
+		constexpr T diff1 = h - l;
+		static_assert (diff1 <= bits());
+		constexpr T diff2 = bits() - diff1;
+		constexpr T mask = T(-1ull >> diff2);
+		const T b = __value >> l;
+		const T c = b & mask;
+		return c;
 	}
-	[[nodiscard]] constexpr inline uint64_t hash(const uint32_t l,
+
+	///
+	/// \tparam l bit position
+	/// \tparam h bit positin
+	/// \return
+	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
 	                                             const uint32_t h) const noexcept {
-		(void)l;
-		(void)h;
-		return __value;
+		ASSERT(l < h);
+		ASSERT(h <= bits());
+		const T diff1 = h - l;
+		ASSERT (diff1 <= bits());
+		const T diff2 = bits() - diff1;
+		const T mask = T(-1ull >> diff2);
+		const T b = __value >> l;
+		const T c = b & mask;
+		return c;
 	}
-	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
+
+	[[nodiscard]] constexpr inline size_t hash() const noexcept {
 		return __value;
 	}
 
@@ -1154,8 +1213,8 @@ std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) 
 			std::cout << (tmp & 1u);
 			tmp >>= 1u;
 		}
-		out << " (" << std::dec << obj.value()
-		    << ", 0x" << std::hex << obj.value() << ")"
+		out << " (" << std::dec << (uint64_t)obj.value()
+		    << ", 0x" << std::hex << (uint64_t)obj.value() << ")"
 		    << std::dec;
 	} else {
 		out << obj.value();

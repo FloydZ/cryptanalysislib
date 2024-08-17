@@ -81,12 +81,10 @@ TEST(T, one) {
 }
 
 TEST(T, neg) {
-	S l1, l2, l3;
-
 	if constexpr (S::arith && (PRIME != 2)) {
 		for (size_t i = 0; i < TESTSIZE; ++i) {
 			const uint64_t t1 = fastrandombytes_uint64(1, PRIME);
-			l1 = t1;
+			S l1 = t1;
 
 			l1.neg();
 			EXPECT_EQ(l1.value(), (PRIME - t1) % PRIME);
@@ -381,6 +379,43 @@ TEST(T, comparison_simple) {
 			}
 		}
 	}
+}
+
+
+TEST(T, HashSimple) {
+	S b1;
+	constexpr uint32_t n = S::bits();
+	for (uint32_t l = 0; l < n-1u; ++l) {
+		for (uint32_t h = l+1u; h < n; ++h) {
+			if ((h - l) > 64) { continue; }
+			b1.zero();
+			b1.one(l, h);
+
+			const uint64_t t = b1.hash(l, h);
+			const uint64_t mask = l < 1u;
+			EXPECT_EQ(t, mask);
+
+			b1.minus_one(l, h);
+
+			const uint64_t t1 = b1.hash(l, h);
+			const uint64_t mask1 = (h-l) == 64 ? -1ull : (1ull << (h-l)) - 1ull;
+			EXPECT_EQ(t1, mask1);
+		}
+	}
+}
+
+
+
+TEST(T, Constexpr) {
+	constexpr uint32_t n = S::bits();
+	S b1;
+
+	b1.zero();
+	b1.minus_one(0, n);
+
+	uint64_t t = b1.template hash<0, n>();
+	uint64_t mask = (1ull << (n - 0)) - 1ull;
+	EXPECT_EQ(t, mask);
 }
 
 TEST(T, info) {
