@@ -886,18 +886,18 @@ public:
 	/// \param a
 	/// \param b
 	/// \return
-	[[nodiscard]] static constexpr inline uint8x32_t add256_T(const uint8x32_t a,
-															  const uint8x32_t b) {
-		uint8x32_t ret;
+	[[nodiscard]] static constexpr inline S add256_T(const S a,
+													 const S b) {
+		S ret;
 		return ret;
 	}
 
 	/// \param a
 	/// \param b
 	/// \return
-	[[nodiscard]] static constexpr inline uint8x32_t sub256_T(const uint8x32_t a, 
-	                                                          const uint8x32_t b) {
-		uint8x32_t ret;
+	[[nodiscard]] static constexpr inline S sub256_T(const S a,
+	                                                 const S b) {
+		S ret;
 		(void)a;
 		(void)b;
 		return ret;
@@ -906,8 +906,8 @@ public:
 	///
 	/// \param a
 	/// \return
-	[[nodiscard]] static constexpr inline uint8x32_t mod256_T(const uint8x32_t a) {
-		uint8x32_t ret;
+	[[nodiscard]] static constexpr inline S mod256_T(const S a) {
+		S ret;
 		(void)a;
 		return ret;
 	}
@@ -916,9 +916,9 @@ public:
 	/// \param a
 	/// \param b
 	/// \return
-	[[nodiscard]] static constexpr inline uint8x32_t mul256_T(const uint8x32_t a, 
-			const uint8x32_t b) {
-		uint8x32_t ret;
+	[[nodiscard]] static constexpr inline S mul256_T(const S a,
+													  const S b) {
+		S ret;
 		(void)a;
 		(void)b;
 		return ret;
@@ -927,7 +927,7 @@ public:
 	///
 	/// \param a
 	/// \return
-	[[nodiscard]] static constexpr inline uint8x32_t neg256_T(const uint8x32_t a) {
+	[[nodiscard]] static constexpr inline S neg256_T(const S a) {
 		uint8x32_t ret;
 		(void)a;
 		return ret;

@@ -1,6 +1,5 @@
 #include "b63.h"
 #include "counters/perf_events.h"
-
 #include "../bench_config.h"
 
 #include "container/binary_packed_vector.h"

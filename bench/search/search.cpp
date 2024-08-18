@@ -151,15 +151,15 @@ static void lower_bound_interpolation_search_3p_bench(benchmark::State& state) {
 
 
 BENCHMARK(stdlowerbound_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
-//BENCHMARK(upper_bound_standard_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
-//BENCHMARK(lower_bound_standard_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
-//BENCHMARK(upper_bound_monobound_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
-//BENCHMARK(lower_bound_monobound_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
-//BENCHMARK(tripletapped_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
+BENCHMARK(upper_bound_standard_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
+BENCHMARK(lower_bound_standard_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
+BENCHMARK(upper_bound_monobound_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
+BENCHMARK(lower_bound_monobound_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
+BENCHMARK(tripletapped_binary_search_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
 BENCHMARK(branchless_lower_bound_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
 
-//BENCHMARK(LowerBoundInterpolationSearch_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
-//BENCHMARK(lower_bound_interpolation_search2_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
+BENCHMARK(LowerBoundInterpolationSearch_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
+BENCHMARK(lower_bound_interpolation_search2_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
 BENCHMARK(lower_bound_interpolation_search_3p_bench)->RangeMultiplier(2)->Range(128, SIZE)->Complexity()->Setup(DoSetup);
 
 

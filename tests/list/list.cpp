@@ -17,13 +17,13 @@ constexpr size_t LS = 1u<<8u;
 #define N 20u
 #define Q 8u
 
-//#define ListName uint8_kAC_kAC
-//#define MatrixT uint8_t
-//#define Matrix 	FqMatrix<MatrixT, N, K, Q>
-//#define Value 	kAryContainer_T<MatrixT, K, Q>
-//#define Label 	kAryContainer_T<MatrixT, N, Q>
-//#define Element Element_T<Value, Label, Matrix>
-//#define List 	List_T<Element>
+#define ListName uint8_kAC_kAC
+#define MatrixT uint8_t
+#define Matrix 	FqMatrix<MatrixT, N, K, Q>
+#define Value 	kAryContainer_T<MatrixT, K, Q>
+#define Label 	kAryContainer_T<MatrixT, N, Q>
+#define Element Element_T<Value, Label, Matrix>
+#define List 	List_T<Element>
 //#include "test_list.h"
 //#undef ListName
 //#undef MatrixT
@@ -33,13 +33,13 @@ constexpr size_t LS = 1u<<8u;
 //#undef Element
 //#undef List
 
-#define ListName uint8_kPAC_kPAC
-#define MatrixT uint8_t
-#define Matrix 	FqMatrix<MatrixT, N, K, Q, true>
-#define Value 	kAryPackedContainer_T<MatrixT, K, Q>
-#define Label 	kAryPackedContainer_T<MatrixT, N, Q>
-#define Element Element_T<Value, Label, Matrix>
-#define List 	List_T<Element>
+//#define ListName uint8_kPAC_kPAC
+//#define MatrixT uint8_t
+//#define Matrix 	FqMatrix<MatrixT, N, K, Q, true>
+//#define Value 	kAryPackedContainer_T<MatrixT, K, Q>
+//#define Label 	kAryPackedContainer_T<MatrixT, N, Q>
+//#define Element Element_T<Value, Label, Matrix>
+//#define List 	List_T<Element>
 //#include "test_list.h"
 //#undef ListName
 //#undef MatrixT
@@ -89,6 +89,15 @@ TEST(ListName, lreal_search) {
 		ASSERT_EQ(pos1, i);
 		ASSERT_EQ(pos2, i);
 		ASSERT_EQ(pos3, i);
+	}
+
+	for (size_t i = 0; i < LS; ++i) {
+		const size_t pos1 = L.template linear_search<0, N>(L[i]);
+		const size_t pos2 = L.template binary_search<0, N>(L[i]);
+		// const size_t pos3 = L.template interpolation_search<0, N>(L[i]);
+		ASSERT_EQ(pos1, i);
+		ASSERT_EQ(pos2, i);
+		// ASSERT_EQ(pos3, i);
 	}
 }
 

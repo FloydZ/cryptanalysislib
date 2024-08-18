@@ -53,7 +53,7 @@ private:
 			constexpr T diff1 = hprime - lprime;
 			static_assert (diff1 <= bits);
 			constexpr T diff2 = bits - diff1;
-			constexpr T mask = -1ull >> diff2;
+			constexpr T mask = ((T)-1ull) >> diff2;
 			const T b = a >> lprime;
 			const T c = b & mask;
 			return c;

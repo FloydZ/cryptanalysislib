@@ -932,6 +932,8 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t mullo(const uint8x32_t in1,
 	                                                       const uint8x32_t in2) noexcept {
 		uint8x32_t out;
+		out.v256  = ((__m256i) ((__v32qu) in1.v256 * (__v32qu) in2.v256));
+		return out;
 		const __m256i maskl = __extension__(__m256i)(__v16hi){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 		const __m256i maskh = __extension__(__m256i)(__v16hi){(short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00};
 
@@ -2181,7 +2183,7 @@ struct uint64x4_t {
 			return;
 		}
 
-		aligned_store(ptr, in);
+		unaligned_store(ptr, in);
 	}
 
 	///

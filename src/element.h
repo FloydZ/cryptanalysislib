@@ -26,6 +26,7 @@ template<class Container>
 concept ElementDataAble = requires(Container c) {
 	typename Container::DataType;
 	typename Container::LimbType;
+	typename Container::S;
 
 	// we need to enforce the existence of some fields/functions
 	Container::modulus;
@@ -72,7 +73,7 @@ concept ElementDataAble = requires(Container c) {
 
 	/// limb arithmetic stuff
 	requires requires(const typename Container::LimbType a,
-	                  const uint8x32_t b) {
+	                  const typename Container::S b) {
 		Container::add_T(a, a);
 		Container::sub_T(a, a);
 		Container::mod_T(a);

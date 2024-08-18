@@ -210,7 +210,7 @@ TEST(branchless_lower_bound_cmp, karylist_simple) {
 	size_t solution_index;
 	const Element search = random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
 
-	auto a = branchless_lower_bound_cmp(data.begin(), data.end(), search,
+	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		[](const Element &e1, const Element &e2) -> bool {
 		  return e1.hash() < e2.hash();
 		}
@@ -224,7 +224,7 @@ TEST(branchless_lower_bound_cmp, simple) {
 	size_t solution_index;
 	T search = random_data(data, solution_index, SIZE, 1, MASK);
 
-	auto a = branchless_lower_bound_cmp(data.begin(), data.end(), search,
+	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		 [](const T &e1, const T &e2) -> T {
 		   return (e1&MASK) < (e2&MASK);
 		 }
@@ -239,7 +239,7 @@ TEST(branchless_lower_bound_cmp, karylist_multiple) {
 	size_t solution_index;
 	const Element search = random_data<List, Element>(data, solution_index, SIZE, nr_sols, dummy);
 
-	auto a = branchless_lower_bound_cmp(data.begin(), data.end(), search,
+	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		[](const Element &e1, const Element &e2) {
 		  return e1.hash() < e2.hash();
 		}
@@ -253,7 +253,7 @@ TEST(branchless_lower_bound_cmp, multiple) {
 	size_t solution_index;
 	T search = random_data(data, solution_index, SIZE, nr_sols, MASK);
 
-	auto a = branchless_lower_bound_cmp(data.begin(), data.end(), search,
+	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> T {
 		  return (e1&MASK) < (e2&MASK);
 		}
@@ -290,6 +290,7 @@ TEST(branchless_lower_bound, simple) {
 
 	EXPECT_EQ(solution_index, distance(data.begin(), a));
 }
+
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 

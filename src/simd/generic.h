@@ -809,6 +809,7 @@ class TxN_t<uint64_t, 4> : public uint64x4_t {
 public:
 	// ah yes. C++ is love, C++ is life.
 	// The problem is, that copy constructors are never inherited
+	constexpr inline TxN_t() noexcept = default;
 	constexpr inline TxN_t(const uint64x4_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
@@ -826,6 +827,7 @@ public:
 template<>
 class TxN_t<uint32_t, 8> : public uint32x8_t {
 public:
+	constexpr inline TxN_t() noexcept = default;
 	constexpr inline TxN_t(const uint32x8_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
@@ -843,6 +845,7 @@ public:
 template<>
 class TxN_t<uint16_t, 16>: public uint16x16_t{
 public:
+	constexpr inline TxN_t() noexcept = default;
 	constexpr inline TxN_t(const uint16x16_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
@@ -860,7 +863,8 @@ public:
 template<>
 class TxN_t<uint8_t, 32> : public uint8x32_t {
 public:
-	constexpr inline TxN_t(const uint32x8_t &k) noexcept {
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint8x32_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
 #elif defined(USE_NEON)

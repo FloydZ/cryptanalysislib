@@ -84,8 +84,8 @@ public:
 	using MetaListT<Element>::is_correct;
 	using MetaListT<Element>::is_sorted;
 
-	// using TMP = decltype(e.label.hash());
 	// TODO not fully correct. kAryCOmpresssed could be smaller
+	// using TMP = decltype(e.label.hash());
 	constexpr static bool use_hash_operator = (sizeof(LabelType) * 8u) <= 64u;
 
 private:
@@ -406,22 +406,27 @@ public:
 	/// \param tid
 	/// \return
 	constexpr inline size_t search(const Element &e,
-	                               const uint32_t tid = 0) {
+	                               const uint32_t tid=0) const noexcept {
 		// TODO
 		return binary_search(e, tid);
 	}
 
+	template<const uint32_t k_lower=0, const uint32_t k_upper=0>
 	constexpr inline size_t linear_search(const Element &e,
-								          const uint32_t tid = 0) {
-		// TODO überall k_lower, k_upper
-		if constexpr (use_hash_operator) {
+								          const uint32_t tid = 0) const noexcept {
+		if constexpr (use_hash_operator || (k_lower != k_upper)) {
 			return linear_search(e, tid, [](const Element &a)  __attribute__((always_inline)) {
-			  return a.hash();
+				// NOTE: the checks if `k_lower` and `k_upper` are valid, are done
+				// within the `hash` function
+				if constexpr (k_lower != k_upper) {
+					return a.template hash<k_lower, k_upper>();
+				}
+				return a.hash();
 			});
 		} else {
 			return linear_search(e, tid, [](const Element &a,
 			                                const Element &b)  __attribute__((always_inline)) {
-			  return a <= b; // TODO somehow get rid of the less equal and replace it with less
+			    return a == b;
 			});
 		}
 	}
@@ -430,9 +435,9 @@ public:
 	/// \param e element to find
 	/// \return the position of the element or -1
 	template <class F>
-	constexpr size_t linear_search(const Element &e,
-	                               const uint32_t tid,
-	                               F &&f) {
+	constexpr inline size_t linear_search(const Element &e,
+	                               		  const uint32_t tid,
+	                                      F &&f) const noexcept {
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 		const auto it = cryptanalysislib::search::linear_search(begin() + sp, begin() + ep, e, f);
 		if (it == (begin() + ep)) {
@@ -446,10 +451,16 @@ public:
 	/// \param e
 	/// \param tid
 	/// \return
+	template<const uint32_t k_lower=0, const uint32_t k_upper=0>
 	constexpr inline size_t binary_search(const Element &e,
-										  const uint32_t tid = 0) {
-		if constexpr (use_hash_operator) {
+										  const uint32_t tid = 0) const noexcept {
+		if constexpr (use_hash_operator || (k_lower != k_upper)) {
 			return binary_search(e, tid, [](const Element &a)  __attribute__((always_inline)) {
+			  // NOTE: the checks if `k_lower` and `k_upper` are valid, are done
+			  // within the `hash` function
+			  if constexpr (k_lower != k_upper) {
+				  return a.template hash<k_lower, k_upper>();
+			  }
 			  return a.hash();
 			});
 		} else {
@@ -469,8 +480,9 @@ public:
 	template<class F>
 	constexpr size_t binary_search(const Element &e,
 								   const uint32_t tid,
-	                               F &&f) {
+	                               F &&f) const noexcept {
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
+		// todo take care of load ASSERT(is_sorted(k_lower, k_higher));
 		const auto it = cryptanalysislib::search::binary_search(begin() + sp, begin() + ep, e, f);
 		if (it == (begin() + ep)) {
 			return -1;
@@ -485,7 +497,7 @@ public:
 	/// \return
 	template<const uint32_t l, const uint32_t h>
 	constexpr inline size_t interpolation_search(const Element &e,
-												 const uint32_t tid = 0) {
+												 const uint32_t tid = 0) const noexcept {
 		return interpolation_search(e, tid, [](const Element &a) __attribute__((always_inline)) {
 		    return a.template hash<l, h>();
 		});
@@ -500,7 +512,7 @@ public:
 	template<class F>
 	constexpr size_t interpolation_search(const Element &e,
 	                                      const uint32_t tid,
-	                                      F &&f) {
+	                                      F &&f) const noexcept {
 		if constexpr (!use_hash_operator) {
 			return binary_search(e, tid);
 		}
@@ -521,16 +533,11 @@ public:
 	/// \return the position of the first (lower) element which is equal to e. -1 if nothing found
 	constexpr size_t search_level(const Element &e,
 								  const uint64_t k_lower,
-								  const uint64_t k_higher,
-								  bool sort = false) noexcept {
+								  const uint64_t k_higher) const noexcept {
 
 		if constexpr (Element::binary()) {
-			return search_level_binary(e, k_lower, k_higher, sort);
+			// TODO return search_level_binary(e, k_lower, k_higher);
 		} else {
-			if (sort) {
-				sort_level(k_lower, k_higher);
-			}
-
 			auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
 				[k_lower, k_higher]
 						  (const Element &a1, const Element &a2) {
@@ -557,15 +564,19 @@ public:
 	constexpr std::pair<size_t, size_t>
 	search_boundaries(const Element &e,
 					  const uint64_t k_lower,
-					  const uint64_t k_higher) noexcept {
+					  const uint64_t k_higher) const noexcept {
 		uint64_t end_index;
 		uint64_t start_index;
 		if constexpr (!Element::binary()) {
 			start_index = search_level(e, k_lower, k_higher);
 		} else {
-			start_index = search_level_binary(e, k_lower, k_higher);
+			// TODO start_index = search_level_binary(e, k_lower, k_higher);
 		}
 
+		// TODO
+		//  - simplify all of this: remove the distingvhen between binary/ non binary
+		//  - add k_lower, k_uuper
+		// 	- add radix sort and so on
 
 		if (start_index == uint64_t(-1)) {
 			return std::pair<uint64_t, uint64_t>(load(), load());

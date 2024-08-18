@@ -44,6 +44,9 @@ public:
 	static_assert(q > 1, "mod 1 or 0?");
 	static_assert(bits_log2(q) <= (8*sizeof(T)), "the limb type should be atleast of the size of prime");
 
+	// TODO enable AVX512
+	using S = TxN_t<T, 32/sizeof(T)>;
+
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
 	// number of bits needed to represent MOD
@@ -96,20 +99,68 @@ public:
 	//}
 
 	template<const uint32_t l, const uint32_t h>
-	[[nodiscard]] constexpr inline size_t hash() const noexcept {
+	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
 		static_assert(h <= length());
 
-		return Hash<uint64_t, l, h, q>::hash((uint64_t *)ptr());
+		constexpr uint32_t bits = used_bits_per_limb;
+		constexpr uint32_t qbits = bits_per_number;
+
+		constexpr uint32_t lq = l*qbits;
+		constexpr uint32_t hq = h*qbits;
+		constexpr uint32_t llimb  = l / numbers_per_limb;
+		constexpr uint32_t hlimb  = h / numbers_per_limb;
+		constexpr uint32_t hlimb2 = (h + numbers_per_limb - 1) / numbers_per_limb;
+		constexpr uint32_t lprime = lq % bits;
+		constexpr uint32_t hprime = (hq%bits) == 0 ? bits : hq % bits;
+
+		auto load = [this]() -> __uint128_t{
+			__uint128_t d = __uint128_t(__data[llimb]) >> (lprime % used_bits_per_limb);
+
+			uint32_t shift = used_bits_per_limb - lprime;
+			for (uint32_t i = 1; i < (hlimb2 - llimb); i++) {
+				const auto t1 = __uint128_t(__data[i + llimb]);
+				const auto t2 = t1 << shift;
+				d ^= t2;
+				shift += used_bits_per_limb;
+			}
+			return d;
+		};
+
+		// easy case everything is nicely packed together and in the same limb
+		if constexpr (cryptanalysislib::popcount::popcount(q) == 1u) {
+			if (llimb == hlimb) {
+				constexpr uint64_t mbits = bits%64 == 0 ? -1ull : (1ull << bits) - 1ull;
+				constexpr T diff1 = hprime - lprime;
+				static_assert(diff1 <= bits);
+				constexpr T diff2 = bits - diff1;
+				constexpr T mask = mbits >> diff2;
+				const T b = __data[llimb] >> lprime;
+				const T c = b & mask;
+				return (uint64_t)c;
+			}
+		}
+
+		// now the stupid hard part
+		static_assert(((h-l)*qbits) <= 63);
+
+		// NOTE typecast
+		__uint128_t d1 = load();
+		const uint64_t d = d1;
+
+		constexpr uint32_t s1 = (hq - lq) % 64;
+		constexpr uint32_t s2 = 64u - s1;
+		constexpr uint64_t mask = -1ull >> s2;
+		const uint64_t e = d & mask;
+		return e;
 	}
 
-	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
-											   const uint32_t h) const noexcept {
+	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
+	                                         const uint32_t h) const noexcept {
 		ASSERT(l < h);
 		ASSERT(h <= length());
 		ASSERT((h-l) <= n);
 
-		constexpr size_t bits_size_t = sizeof(size_t) * 8u;
 		constexpr uint32_t bits = used_bits_per_limb;
 		constexpr uint32_t qbits = bits_per_number;
 
@@ -117,70 +168,61 @@ public:
 		const uint32_t hq = h*qbits;
 		const uint32_t llimb  = l / numbers_per_limb;
 		const uint32_t hlimb  = h / numbers_per_limb;
+		const uint32_t hlimb2 = (h + numbers_per_limb - 1) / numbers_per_limb;
 		const uint32_t lprime = lq % bits;
 		const uint32_t hprime = (hq%bits) == 0 ? bits : hq % bits;
 
+		auto load = [llimb, hlimb2, lprime, this]() -> __uint128_t{
+			__uint128_t d = __uint128_t(__data[llimb]) >> (lprime % used_bits_per_limb);
+
+			uint32_t shift = used_bits_per_limb - lprime;
+			for (uint32_t i = 1; i < (hlimb2 - llimb); i++) {
+				  const auto t1 = __uint128_t(__data[i + llimb]);
+				  const auto t2 = t1 << shift;
+				  d ^= t2;
+				  shift += used_bits_per_limb;
+			}
+			return d;
+		};
+
 		// easy case everything is nicely packed together and in the same limb
 		if constexpr (cryptanalysislib::popcount::popcount(q) == 1u) {
-			//
 			if (llimb == hlimb) {
+				constexpr uint64_t mbits = bits%64 == 0 ? -1ull : (1ull << bits) - 1ull;
 				const T diff1 = hprime - lprime;
 				ASSERT(diff1 <= bits);
 				const T diff2 = bits - diff1;
-				const T mask = -1ull >> diff2;
+				const T mask = mbits >> diff2;
 				const T b = __data[llimb] >> lprime;
 				const T c = b & mask;
-				return c;
+				return (uint64_t)c;
 			}
-
-			// next case: little harder: still good prime power but multiple limbs
-			// that's an implementation limitation
-			ASSERT((h-l) <= (sizeof(__uint128_t) * 8u));
-
-			auto load = [llimb, hlimb, this](){
-				__uint128_t d = 0;
-				for (uint32_t i = 0; i <= (hlimb - llimb); i++) {
-					d ^= __uint128_t(__data[i+llimb]) << (i*bits);
-				}
-				return d;
-			};
-			// NOTE: OOB access
-			__uint128_t d = load();
-
-			const uint32_t lprime_size_t = lq % bits_size_t;
-			const uint32_t hprime_size_t = (hq%bits_size_t) == 0 ? bits_size_t : hq % bits_size_t;
-
-			constexpr __uint128_t m128 = (__uint128_t(-1ull) << 64) ^ __uint128_t(-1ull);
-			const size_t diff_size_t = hprime_size_t - lprime_size_t;
-			const size_t diff2 = (bits_size_t - diff_size_t) % bits_size_t;
-			const __uint128_t mask = m128 >> diff2;
-			const __uint128_t b = d >> lprime;
-			const __uint128_t c = b & mask;
-
-			// NOTE: typecase
-			return c;
 		}
 
 		// now the stupid hard part
-		ASSERT((h-l) <= (sizeof(__uint128_t) * 8u));
-		__uint128_t d = __data[llimb] >> (lprime % used_bits_per_limb);
+		ASSERT(((h-l)*qbits) <= 63);
 
-		uint32_t shift = used_bits_per_limb - lprime;
-		for (uint32_t i = 1; i <= (hlimb - llimb); i++) {
-			d ^= __uint128_t(__data[i + llimb]) << shift;
-			shift += used_bits_per_limb;
-		}
+		// NOTE typecast
+		__uint128_t d1 = load();
+		const uint64_t d = d1;
 
-		return d;
+		const uint32_t s1 = (hq - lq) % 64;
+		const uint32_t s2 = 64u - s1;
+		const uint64_t mask = -1ull >> s2;
+		const uint64_t e = d & mask;
+		return e;
 	}
 
 	// simple hash function
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
-		if constexpr(total_bits <= 64) {
-			return hash<0, n>();
-		}
-		// TODO not really correct if n>64
-		return Hash<uint64_t, 0, n, q>::hash((uint64_t *)ptr());
+		return *this;
+		//if constexpr(total_bits <= 64) {
+		//	return hash<0, n>();
+		//}
+		//// TODO not really correct if n>64
+		//// return Hash<uint64_t, 0, n, q>::hash((uint64_t *)ptr());
+		//ASSERT(false);
+		//return (uint64_t)0;
 	}
 
 	/// the mask is only valid for one internal number.
@@ -228,7 +270,8 @@ public:
 	/// \param data value to set the const_array n
 	/// \param i -th number to overwrite
 	/// \return nothing
-	constexpr inline void set(const DataType data, const uint32_t i) noexcept {
+	constexpr inline void set(const DataType data,
+	                          const uint32_t i) noexcept {
 		ASSERT(i < length());
 		const uint16_t off = i / numbers_per_limb;
 		const uint16_t spot = (i % numbers_per_limb) * bits_per_number;
@@ -551,11 +594,11 @@ public:
 	/// \param a in
 	/// \param b in
 	/// \return a+b, component wise
-	[[nodiscard]] constexpr static inline uint8x32_t add256_T(const uint8x32_t a,
-	                                                          const uint8x32_t b) noexcept {
+	[[nodiscard]] constexpr static inline S add256_T(const S a,
+	                                                 const S b) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
-		uint8x32_t ret;
+		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
@@ -571,11 +614,11 @@ public:
 	/// \param a in
 	/// \param b in
 	/// \return a-b, component wise
-	[[nodiscard]] constexpr static inline uint8x32_t sub256_T(const uint8x32_t a,
-	                                                          const uint8x32_t b) noexcept {
+	[[nodiscard]] constexpr static inline S sub256_T(const S a,
+	                                                const S b) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
-		uint8x32_t ret;
+		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
@@ -591,11 +634,11 @@ public:
 	/// \param a in
 	/// \param b in
 	/// \return a*b, component wise
-	[[nodiscard]] constexpr static inline uint8x32_t mul256_T(const uint8x32_t a,
-	                                                          const uint8x32_t b) noexcept {
+	[[nodiscard]] constexpr static inline S mul256_T(const S a,
+	                                                 const S b) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
-		uint8x32_t ret;
+		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
@@ -611,10 +654,10 @@ public:
 	/// \param a in
 	/// \param b in
 	/// \return a*b, component wise
-	[[nodiscard]] constexpr static inline uint8x32_t neg256_T(const uint8x32_t a) noexcept {
+	[[nodiscard]] constexpr static inline S neg256_T(const S a) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
-		uint8x32_t ret;
+		S ret;
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
 		for (uint8_t i = 0; i < nr_limbs; ++i) {
@@ -628,10 +671,10 @@ public:
 	/// vectorized version
 	/// \param a
 	/// \return a%q component wise
-	[[nodiscard]] constexpr static inline uint8x32_t mod256_T(const uint8x32_t a) noexcept {
+	[[nodiscard]] constexpr static inline S mod256_T(const S a) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
-		uint8x32_t ret;
+		S ret;
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
 		for (uint8_t i = 0; i < nr_limbs; ++i) {
@@ -836,8 +879,8 @@ public:
 	/// \param k_upper exclusive
 	/// \return this < obj [k_lower, k_upper)
 	[[nodiscard]] constexpr bool is_lower(kAryPackedContainer_Meta const &obj,
-	                        const uint32_t k_lower = 0,
-	                        const uint32_t k_upper = length()) const noexcept {
+	                        			  const uint32_t k_lower = 0,
+	                        			  const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) < obj.get(i - 1)) {
@@ -1208,9 +1251,9 @@ public:
 	template<typename TT = DataType>
 	static inline uint16_t popcnt_T(const TT a) noexcept {
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
-		constexpr TT c1 = sizeof(TT) == 16 ? (TT(6148914691236517205u) << 64u) | TT(6148914691236517205u) : TT(6148914691236517205u);
+		constexpr TT c1 = sizeof(TT) == 16 ? (TT(6148914691236517205ull) << 64u) | TT(6148914691236517205ull) : TT(6148914691236517205ull);
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
-		constexpr TT c2 = sizeof(TT) == 16 ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
+		constexpr TT c2 = sizeof(TT) == 16 ? (TT(12297829382473034410ull) << 64u) | TT(12297829382473034410ull) : TT(12297829382473034410ull);
 
 		const TT ac1 = a & c1;// filter the ones
 		const TT ac2 = a & c2;// filter the twos

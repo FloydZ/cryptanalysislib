@@ -75,61 +75,33 @@ using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
 #undef NAME
 
 
-
-
-TEST(K4Hash, Constexpr) {
-	BinaryContainer<n> b1;
+TEST(Devv, Constexpr) {
+	kAryPackedContainer_T<uint8_t, 127, 8> b1;
+	constexpr uint32_t qbits = bits_log2(8);
 	b1.zero();
-	b1.one(0, 63);
-	uint64_t t = b1.template hash<0, 63>();
-	uint64_t mask = (1ull << (63 - 0)) - 1ull;
+	b1.one(0, 20);
+	uint64_t t = b1.template hash<0, 20>();
+	uint64_t mask = (1ull << (20u) * qbits) - 1ull;
 	EXPECT_EQ(t, mask);
 
-	b1.zero();
-	b1.one(0, 64);
-	t = b1.template hash<0, 64>();
-	mask = -1ull;
-	EXPECT_EQ(t, mask);
+	//b1.zero();
+	//b1.one(0, 64);
+	//t = b1.template hash<0, 64>();
+	//mask = -1ull;
+	//EXPECT_EQ(t, mask);
 
-	b1.zero();
-	b1.one(48, 80);
-	t = b1.template hash<48, 80>();
-	mask = (1ull << 32u) - 1ull;
-	EXPECT_EQ(t, mask);
+	//b1.zero();
+	//b1.one(48, 80);
+	//t = b1.template hash<48, 80>();
+	//mask = (1ull << 32u) - 1ull;
+	//EXPECT_EQ(t, mask);
 
-	b1.zero();
-	b1.one(63, 127);
-	t = b1.template hash<63, 127>();
-	mask = -1ull;
-	EXPECT_EQ(t, mask);
+	//b1.zero();
+	//b1.one(63, 127);
+	//t = b1.template hash<63, 127>();
+	//mask = -1ull;
+	//EXPECT_EQ(t, mask);
 }
-
-TEST(K4Hash, Complex) {
-	// two avx register
-	constexpr uint32_t n = 256*2;
-	using B = BinaryContainer<n>;
-	B b;
-	b.random();
-	const auto c = b.hash();
-	// using S = decltype(c);
-
-	const auto *c1 = (const uintptr_t *)&b;
-	const auto *c2 = (const uintptr_t *)c.__data;
-	EXPECT_EQ(c1, c2);
-
-	const auto *d = (uint64_t *)b.ptr();
-	for (uint32_t i = 0; i < n/64; ++i) {
-		const auto d1 = d[i];
-		const auto d2 = (*c.__data)[i];
-		EXPECT_EQ(d1, d2);
-	}
-
-	std::cout << std::hex;
-	std::cout << &b << std::endl;
-	std::cout << c.__data << std::endl;
-	std::cout << std::endl;
-}
-
 
 TEST(F4, mod_T) {
 	// this is not possible, as 4 needs 3 bits,

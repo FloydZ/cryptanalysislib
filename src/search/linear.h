@@ -162,18 +162,14 @@ constexpr ForwardIt lower_bound_breaking_linear_search(const ForwardIt first,
 	const auto key = h(key_);
 	auto bot = first;
 
-	while(--count) {
+	do {
 		const auto val = h(*bot);
-		if (key <= val){
-			break;
+		if (key == val){
+			return bot;
 		}
 
 		std::advance(bot, 1);
-	}
-
-	if (key == h(*bot)) {
-		return bot;
-	}
+	} while(count -= 1);
 
 	return last;
 }

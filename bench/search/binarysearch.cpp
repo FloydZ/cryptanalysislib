@@ -124,7 +124,7 @@ B63_BENCHMARK(branchless_lower_bound_cmp, nn) {
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = fastrandombytes_uint64() % SIZE;
-		auto v = branchless_lower_bound_cmp(data.begin(), data.end(), search,
+		auto v = branchless_lower_bound(data.begin(), data.end(), search,
 			[](const T &e1, const T &e2) -> T {
 			  return (e1 & MASK) < (e2 & MASK);
 			});

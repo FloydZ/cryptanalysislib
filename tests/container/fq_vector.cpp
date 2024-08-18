@@ -26,6 +26,56 @@ using K7 = kAryContainer_T<uint8_t, n, 7>;
 
 /// A field for which no optimized implementation exists
 using KGeneric = kAryContainer_T<uint8_t, n, 9>;
+
+#define NR_TESTS (1u << 4u)
+
+#define NAME uint8_K4
+#define PRIME 4
+#define T uint8_t
+#define K kAryContainer_T<T, n, PRIME>
+#include "test_fqvector.h"
+#undef PRIME
+#undef T
+#undef K
+#undef NAME
+
+#define NAME uint64_K4
+#define PRIME 4
+#define T uint64_t
+#define K kAryContainer_T<T, n, PRIME>
+#include "test_fqvector.h"
+#undef PRIME
+#undef T
+#undef K
+#undef NAME
+
+#define NAME uint8_K11
+#define PRIME 11
+#define T uint8_t
+#define K kAryContainer_T<T, n, PRIME>
+#include "test_fqvector.h"
+#undef PRIME
+#undef T
+#undef K
+#undef NAME
+
+#define NAME uint8_K255
+#define PRIME 255
+#define T uint8_t
+#define K kAryContainer_T<T, n, PRIME>
+#include "test_fqvector.h"
+#undef PRIME
+#undef T
+#undef K
+#undef NAME
+
+
+
+
+
+
+
+
 TEST(FGeneric, mod_T) {
 	EXPECT_EQ(KGeneric::mod_T<uint32_t>(4), 4);
 	EXPECT_EQ(KGeneric::mod_T<uint32_t>(0), 0);

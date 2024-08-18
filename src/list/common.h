@@ -576,6 +576,8 @@ public:
 	/// iterator are useless in this class
 	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
 	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return __data.end(); }
 
 	/// returns a pointer to the internal data structure
 	[[nodiscard]] constexpr Element *ptr() noexcept { return __data.data(); }

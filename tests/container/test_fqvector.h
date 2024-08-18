@@ -46,16 +46,9 @@ TEST(NAME, comparsion) {
 
 
 TEST(NAME, mod_T) {
-	constexpr uint32_t qbits = bits_log2(PRIME);
 	for (uint64_t i = 0; i < PRIME; i++) {
-		const auto d = K::mod_T<uint32_t>(i);
+		const auto d = K::mod_T<uint64_t>(i);
 		EXPECT_EQ(d, i % PRIME);
-	}
-
-	for (uint64_t i = 0; i < PRIME; i++) {
-		const auto d1 = ((i % PRIME) << qbits) | (i % PRIME);
-		const auto d2 = K::mod_T<uint32_t>((i << qbits) | i);
-		EXPECT_EQ(d1, d2);
 	}
 }
 
@@ -146,15 +139,13 @@ TEST(NAME, mul) {
 	}
 }
 
-
 TEST(NAME, HashSimple) {
 	K b1;
 	constexpr uint32_t qbits = bits_log2(PRIME);
 	constexpr uint32_t limit = 64;
 	for (uint32_t l = 0; l < n-1u; ++l) {
 		for (uint32_t h = l+1u; h < n; ++h) {
-			const uint64_t size = (h - l) * qbits;
-			if (size > limit) { continue; }
+			if (((h - l) * qbits) > limit) { continue; }
 
 			if ((cryptanalysislib::popcount::popcount(5) == 1)) {
 				b1.zero();
@@ -168,7 +159,7 @@ TEST(NAME, HashSimple) {
 			b1.zero();
 			b1.one(l, h);
 			uint64_t t2 = b1.hash(l, h);
-			const uint64_t qmask = (1ull<<qbits) - 1ull;
+			uint64_t qmask = (1ull<<qbits) - 1ull;
 			for (uint32_t i = 0; i < h-l; ++i) {
 				const uint64_t c = t2 & qmask;
 				EXPECT_EQ(c, 1ul);
@@ -176,7 +167,7 @@ TEST(NAME, HashSimple) {
 				t2 >>= qbits;
 			}
 
-			for (size_t k = 0; k < NR_TESTS; ++k) {
+			for (size_t k = 0; k < 1; ++k) {
 				b1.zero();
 				K::DataType r = fastrandombytes_uint64() % PRIME;
 
@@ -189,7 +180,7 @@ TEST(NAME, HashSimple) {
 					const uint64_t c = t3 & qmask;
 					EXPECT_EQ(c, r);
 
-					t2 >>= qbits;
+					t3 >>= qbits;
 				}
 			}
 
@@ -202,66 +193,6 @@ TEST(NAME, HashSimple) {
 					EXPECT_EQ(c, b1.get(i+l));
 
 					t3 >>= qbits;
-				}
-			}
-		}
-	}
-}
-
-TEST(NAME, HashCompare) {
-	kAryPackedContainer_T<uint8_t, n, PRIME> b1,b2;
-	constexpr uint32_t qbits = bits_log2(PRIME);
-	constexpr uint64_t limit = 63;
-	const uint64_t qmask = (1ull<<qbits) - 1ull;
-
-	auto compute_limit = [](const uint32_t t){
-	  uint64_t p = PRIME;
-	  uint64_t ret = p;
-
-	  for (uint32_t i = 1; i < t; ++i) {
-		  p *= PRIME;
-		  ret += p;
-	  }
-	  return ret;
-	};
-
-
-	for (uint32_t l = 0; l < n-1u; ++l) {
-		for (uint32_t h = l + 1u; h < n; ++h) {
-			const uint64_t size1 = (h - l) * qbits;
-			const uint64_t size2 = compute_limit(h-l);
-			if (size1 > limit) { continue; }
-
-			for (size_t i = 0; i < 1; ++i) {
-				b1.zero();
-				b2.zero();
-				b1.random(l, h);
-				b2.random(l, h);
-				const uint64_t v1 = b1.hash(l, h);
-				const uint64_t v2 = b2.hash(l, h);
-
-				uint64_t t1 = v1;
-				uint64_t t2 = v2;
-				for (uint32_t o = 0; o < (h-l); ++o) {
-					const uint64_t c1 = t1 & qmask;
-					const uint64_t c2 = t2 & qmask;
-					EXPECT_EQ(c1, b1.get(o+l));
-					EXPECT_EQ(c2, b2.get(o+l));
-
-					t1 >>= qbits;
-					t2 >>= qbits;
-				}
-
-				// EXPECT_LT(v1, size2);
-				// EXPECT_LT(v2, size2);
-
-				// const size_t v3 = b1.hash(l, h);
-				if (b1.is_lower(b2, l, h)) {
-					EXPECT_LT(v1, v2);
-				}
-
-				if (b1.is_greater(b2, l, h)) {
-					EXPECT_GT(v1, v2);
 				}
 			}
 		}

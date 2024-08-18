@@ -44,6 +44,7 @@ public:
 	typedef BinaryContainer<_n, T> ContainerType;
 	typedef T LimbType;
 	typedef bool DataType;
+	using S = uint8x32_t;
 
 	// internal data length. Need to export it for the template system.
 	constexpr static uint64_t n = _n;
@@ -853,7 +854,9 @@ public:
 
 
 	// add between the coordinate l, h
-	template<const uint32_t k_lower, const uint32_t k_upper, const uint32_t norm=-1>
+	template<const uint32_t k_lower,
+	         const uint32_t k_upper,
+	         const uint32_t norm=-1u>
 	__FORCEINLINE__ static bool add(BinaryContainer &v3,
 	                                BinaryContainer const &v1,
 	                                BinaryContainer const &v2) noexcept {
@@ -1060,7 +1063,9 @@ public:
 		return add(v3, v1, v2, k_lower, k_upper, norm);
 	}
 
-	template<const uint32_t k_lower, const uint32_t k_upper, const uint32_t norm=-1>
+	template<const uint32_t k_lower,
+	         const uint32_t k_upper,
+	         const uint32_t norm=-1u>
 	__FORCEINLINE__ static bool sub(BinaryContainer &v3,
 									BinaryContainer const &v1,
 									BinaryContainer const &v2) noexcept {

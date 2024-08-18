@@ -45,6 +45,29 @@ static size_t Khuong_bin_search(const T *list,
 	return (*low == value) ? (low - list) : -1;
 }
 
+/// src: https://en.algorithmica.org/hpc/data-structures/binary-search/
+/// \tparam T
+/// \param list
+/// \param len
+/// \param x
+/// \return
+template<typename T>
+#if __cplusplus > 201709L
+	requires std::is_integral_v<T>
+#endif
+int lower_bound_eytzinger_prefetch(const T *list,
+                const size_t len,
+                const T x) {
+	size_t k = 1;
+	while (k <= len) {
+		__builtin_prefetch(list + k * 16);
+		k = 2 * k + (list[k] < x);
+	}
+	k >>= __builtin_ffs(~k);
+	return list[k];
+}
+
+
 ///
 /// \tparam ForwardIt
 /// \tparam T
@@ -557,7 +580,7 @@ template<typename It>
 #if __cplusplus > 201709L
 	requires std::forward_iterator<It>
 #endif
-[[nodiscard]] constexpr It branchless_lower_bound_cmp(It begin,
+[[nodiscard]] constexpr It branchless_lower_bound(It begin,
                                              It end,
                                              const typename It::value_type &value) noexcept {
 	return branchless_lower_bound(begin, end, value, std::less<>{});
