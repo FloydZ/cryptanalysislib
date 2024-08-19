@@ -1,6 +1,8 @@
 #ifndef CRYPTANALYSISLIB_HASH_H
 #define CRYPTANALYSISLIB_HASH_H
 
+#include <concepts>
+
 #if __cplusplus > 201709L
 // defines the concept of a Hash function
 //TODO not finished

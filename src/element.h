@@ -250,7 +250,7 @@ public:
 		ValueContainerType::sub(e3.value, e1.value, e2.value);
 	}
 
-	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1>
+	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1u>
 	constexpr static bool add(Element_T &e3,
 							  Element_T const &e1,
 							  Element_T const &e2) noexcept {
@@ -258,7 +258,7 @@ public:
 		return Value::template add<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
 	}
 
-	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1>
+	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1u>
 	constexpr static bool sub(Element_T &e3,
 							  Element_T const &e1,
 							  Element_T const &e2) noexcept {

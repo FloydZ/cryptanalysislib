@@ -32,7 +32,7 @@ private:
 	using H = Hash<T, l, h, q>;
 	using R = size_t;
 
-	constexpr static uint32_t qbits = std::max(bits_log2(q), 1ul);
+	constexpr static uint32_t qbits = std::max((uint32_t)bits_log2(q), (uint32_t)1ull);
 	constexpr static uint32_t bits = sizeof(T) * 8u;
 	static_assert(qbits >= 1);
 	static_assert(bits >= 8);
@@ -186,7 +186,7 @@ private:
 	// TODO explain
 	constexpr static bool compressed = true;
 
-	constexpr static uint32_t qbits = std::max(bits_log2(q), 1ul);
+	constexpr static uint32_t qbits = std::max((uint64_t)bits_log2(q), (uint64_t)1ull);
 	constexpr static uint32_t bits = sizeof(T) * 8u;
 	static_assert(qbits >= 1);
 	static_assert(bits >= 8);

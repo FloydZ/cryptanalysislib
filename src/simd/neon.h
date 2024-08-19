@@ -7,6 +7,135 @@
 #include "helper.h"
 #include "random.h"
 
+
+
+/// taken from: https://github.com/DLTcollab/sse2neon/blob/de2817727c72fc2f4ce9f54e2db6e40ce0548414/sse2neon.h#L4540
+/// helper function, which collects the sign bits of each 8 bit limbs
+constexpr inline uint32_t _mm_movemask_epi8(const uint8x16_t input) noexcept {
+#ifdef __clang__
+	// Use increasingly wide shifts+adds to collect the sign bits together.
+	// Since the widening shifts would be rather confusing to follow in little
+	// endian, everything will be illustrated in big endian order instead. This
+	// has a different result - the bits would actually be reversed on a big
+	// endian machine.
+
+	// Starting input (only half the elements are shown):
+	// 89 ff 1d c0 00 10 99 33
+	// uint8x16_t input = vreinterpretq_u8_m128i(a);
+
+	// Shift out everything but the sign bits with an unsigned shift right.
+	//
+	// Bytes of the vector::
+	// 89 ff 1d c0 00 10 99 33
+	// \  \  \  \  \  \  \  \    high_bits = (uint16x4_t)(input >> 7)
+	//  |  |  |  |  |  |  |  |
+	// 01 01 00 01 00 00 01 00
+	//
+	// Bits of first important lane(s):
+	// 10001001 (89)
+	// \______
+	//        |
+	// 00000001 (01)
+	uint16x8_t high_bits = vreinterpretq_u16_u8(vshrq_n_u8(input, 7));
+
+	// Merge the even lanes together with a 16-bit unsigned shift right + add.
+	// 'xx' represents garbage data which will be ignored in the final result.
+	// In the important bytes, the add functions like a binary OR.
+	//
+	// 01 01 00 01 00 00 01 00
+	//  \_ |  \_ |  \_ |  \_ |   paired16 = (uint32x4_t)(input + (input >> 7))
+	//    \|    \|    \|    \|
+	// xx 03 xx 01 xx 00 xx 02
+	//
+	// 00000001 00000001 (01 01)
+	//        \_______ |
+	//                \|
+	// xxxxxxxx xxxxxx11 (xx 03)
+	uint32x4_t paired16 =
+	        vreinterpretq_u32_u16(vsraq_n_u16(high_bits, high_bits, 7));
+
+	// Repeat with a wider 32-bit shift + add.
+	// xx 03 xx 01 xx 00 xx 02
+	//     \____ |     \____ |  paired32 = (uint64x1_t)(paired16 + (paired16 >>
+	//     14))
+	//          \|          \|
+	// xx xx xx 0d xx xx xx 02
+	//
+	// 00000011 00000001 (03 01)
+	//        \\_____ ||
+	//         '----.\||
+	// xxxxxxxx xxxx1101 (xx 0d)
+	uint64x2_t paired32 =
+	        vreinterpretq_u64_u32(vsraq_n_u32(paired16, paired16, 14));
+
+	// Last, an even wider 64-bit shift + add to get our result in the low 8 bit
+	// lanes. xx xx xx 0d xx xx xx 02
+	//            \_________ |   paired64 = (uint8x8_t)(paired32 + (paired32 >>
+	//            28))
+	//                      \|
+	// xx xx xx xx xx xx xx d2
+	//
+	// 00001101 00000010 (0d 02)
+	//     \   \___ |  |
+	//      '---.  \|  |
+	// xxxxxxxx 11010010 (xx d2)
+	uint8x16_t paired64 =
+	        vreinterpretq_u8_u64(vsraq_n_u64(paired32, paired32, 28));
+
+	// Extract the low 8 bits from each 64-bit lane with 2 8-bit extracts.
+	// xx xx xx xx xx xx xx d2
+	//                      ||  return paired64[0]
+	//                      d2
+	// Note: Little endian would return the correct value 4b (01001011) instead.
+	return vgetq_lane_u8(paired64, 0) | ((int) vgetq_lane_u8(paired64, 8) << 8);
+#else
+	uint16x8_t high_bits = (uint16x8_t) __builtin_aarch64_lshrv16qi_uus((int8x16_t) input, 7);
+	uint32x4_t paired16 = (uint32x4_t) __builtin_aarch64_ssra_nv8hi(high_bits, high_bits, 7);
+	uint64x2_t paired32 = (uint64x2_t) __builtin_aarch64_usra_nv4si_uuus(paired16, paired16, 14);
+	uint8x16_t paired64 = (uint8x16_t) __builtin_aarch64_usra_nv2di_uuus(paired32, paired32, 28);
+	return paired64[0] | paired64[8] << 8;
+#endif
+}
+
+constexpr inline uint32_t _mm_movemask_epi16(const uint16x8_t input) noexcept {
+	constexpr int16_t shift[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+#ifdef __clang__
+	uint16x8_t tmp = vshrq_n_u16(input, 15);
+	return vaddvq_u16(vshlq_u16(tmp, vld1q_s16(shift)));
+#else
+
+	uint16x8_t tmp = __builtin_aarch64_lshrv8hi_uus(input, 15);
+	return __builtin_aarch64_reduc_plus_scal_v8hi_uu(__builtin_aarch64_ushlv8hi_uus(tmp, __builtin_aarch64_ld1v8hi(shift)));
+#endif
+}
+
+// Set each bit of mask dst based on the most significant bit of the
+// corresponding packed single-precision (32-bit) floating-point element in a.
+// https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movemask_ps
+constexpr inline uint32_t _mm_movemask_epi32(const uint32x4_t input) noexcept {
+	constexpr int32_t shift[4] = {0, 1, 2, 3};
+#ifdef __clang__
+	uint32x4_t tmp = vshrq_n_u32(input, 31);
+	return vaddvq_u32(vshlq_u32(tmp, vld1q_s32(shift)));
+#else
+	uint32x4_t tmp = __builtin_aarch64_lshrv4si_uus(input, 31);
+	return __builtin_aarch64_reduc_plus_scal_v4si_uu(__builtin_aarch64_ushlv4si_uus(tmp, __builtin_aarch64_ld1v4si(shift)));
+#endif
+}
+
+// Set each bit of mask dst based on the most significant bit of the
+// corresponding packed double-precision (64-bit) floating-point element in a.
+// https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movemask_pd
+constexpr inline uint32_t _mm_movemask_epi64(const uint64x2_t input) noexcept {
+#ifdef __clang__
+	uint64x2_t high_bits = vshrq_n_u64(input, 63);
+	return (uint32_t) (vgetq_lane_u64(high_bits, 0) | (vgetq_lane_u64(high_bits, 1) << 1));
+#else
+	uint64x2_t high_bits = __builtin_aarch64_lshrv2di_uus(input, 63);
+	return (uint32_t) ((high_bits[0]) | (high_bits[1] << 1));
+#endif
+}
+
 namespace cryptanalysislib {
 	struct _uint16x8_t;
 	struct _uint32x4_t;
@@ -203,6 +332,36 @@ namespace cryptanalysislib {
 		constexpr static inline void unaligned_store(void *ptr, const _uint8x16_t in) noexcept {
 			auto *ptr128 = (uint8x16_t *) ptr;
 			*ptr128 = in.v128;
+		}
+
+		/// \param in1
+		/// \param in2
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t gt(const _uint8x16_t in1,
+													 	  const _uint8x16_t in2) noexcept {
+			uint8x16_t tmp = vcgtq_u8(in1.v128, in2.v128);
+            return _mm_movemask_epi8(tmp);
+		}
+
+		/// NOTE: signed comparison
+		/// \param in1
+		/// \param in2
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t lt(const _uint8x16_t in1,
+													 const _uint8x16_t in2) noexcept {
+				
+			uint8x16_t tmp = vcltq_u8(in1.v128, in2.v128);
+            return _mm_movemask_epi8(tmp);
+		}
+
+		///
+		/// \param in1
+		/// \param in2
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const _uint8x16_t in1,
+		                                              const _uint8x16_t in2) noexcept {
+			uint8x16_t tmp = vceqq_u8(in1.v128, in2.v128);
+            return _mm_movemask_epi8(tmp);
 		}
 	};
 
@@ -699,132 +858,6 @@ inline uint16x8_t shuffle_epi16(const uint16x8_t a, const uint16x8_t b) {
     return ss; // TODO shuffle_epi8(a, ss);
 }
 
-/// taken from: https://github.com/DLTcollab/sse2neon/blob/de2817727c72fc2f4ce9f54e2db6e40ce0548414/sse2neon.h#L4540
-/// helper function, which collects the sign bits of each 8 bit limbs
-constexpr inline uint32_t _mm_movemask_epi8(const uint8x16_t input) noexcept {
-#ifdef __clang__
-	// Use increasingly wide shifts+adds to collect the sign bits together.
-	// Since the widening shifts would be rather confusing to follow in little
-	// endian, everything will be illustrated in big endian order instead. This
-	// has a different result - the bits would actually be reversed on a big
-	// endian machine.
-
-	// Starting input (only half the elements are shown):
-	// 89 ff 1d c0 00 10 99 33
-	// uint8x16_t input = vreinterpretq_u8_m128i(a);
-
-	// Shift out everything but the sign bits with an unsigned shift right.
-	//
-	// Bytes of the vector::
-	// 89 ff 1d c0 00 10 99 33
-	// \  \  \  \  \  \  \  \    high_bits = (uint16x4_t)(input >> 7)
-	//  |  |  |  |  |  |  |  |
-	// 01 01 00 01 00 00 01 00
-	//
-	// Bits of first important lane(s):
-	// 10001001 (89)
-	// \______
-	//        |
-	// 00000001 (01)
-	uint16x8_t high_bits = vreinterpretq_u16_u8(vshrq_n_u8(input, 7));
-
-	// Merge the even lanes together with a 16-bit unsigned shift right + add.
-	// 'xx' represents garbage data which will be ignored in the final result.
-	// In the important bytes, the add functions like a binary OR.
-	//
-	// 01 01 00 01 00 00 01 00
-	//  \_ |  \_ |  \_ |  \_ |   paired16 = (uint32x4_t)(input + (input >> 7))
-	//    \|    \|    \|    \|
-	// xx 03 xx 01 xx 00 xx 02
-	//
-	// 00000001 00000001 (01 01)
-	//        \_______ |
-	//                \|
-	// xxxxxxxx xxxxxx11 (xx 03)
-	uint32x4_t paired16 =
-	        vreinterpretq_u32_u16(vsraq_n_u16(high_bits, high_bits, 7));
-
-	// Repeat with a wider 32-bit shift + add.
-	// xx 03 xx 01 xx 00 xx 02
-	//     \____ |     \____ |  paired32 = (uint64x1_t)(paired16 + (paired16 >>
-	//     14))
-	//          \|          \|
-	// xx xx xx 0d xx xx xx 02
-	//
-	// 00000011 00000001 (03 01)
-	//        \\_____ ||
-	//         '----.\||
-	// xxxxxxxx xxxx1101 (xx 0d)
-	uint64x2_t paired32 =
-	        vreinterpretq_u64_u32(vsraq_n_u32(paired16, paired16, 14));
-
-	// Last, an even wider 64-bit shift + add to get our result in the low 8 bit
-	// lanes. xx xx xx 0d xx xx xx 02
-	//            \_________ |   paired64 = (uint8x8_t)(paired32 + (paired32 >>
-	//            28))
-	//                      \|
-	// xx xx xx xx xx xx xx d2
-	//
-	// 00001101 00000010 (0d 02)
-	//     \   \___ |  |
-	//      '---.  \|  |
-	// xxxxxxxx 11010010 (xx d2)
-	uint8x16_t paired64 =
-	        vreinterpretq_u8_u64(vsraq_n_u64(paired32, paired32, 28));
-
-	// Extract the low 8 bits from each 64-bit lane with 2 8-bit extracts.
-	// xx xx xx xx xx xx xx d2
-	//                      ||  return paired64[0]
-	//                      d2
-	// Note: Little endian would return the correct value 4b (01001011) instead.
-	return vgetq_lane_u8(paired64, 0) | ((int) vgetq_lane_u8(paired64, 8) << 8);
-#else
-	uint16x8_t high_bits = (uint16x8_t) __builtin_aarch64_lshrv16qi_uus((int8x16_t) input, 7);
-	uint32x4_t paired16 = (uint32x4_t) __builtin_aarch64_ssra_nv8hi(high_bits, high_bits, 7);
-	uint64x2_t paired32 = (uint64x2_t) __builtin_aarch64_usra_nv4si_uuus(paired16, paired16, 14);
-	uint8x16_t paired64 = (uint8x16_t) __builtin_aarch64_usra_nv2di_uuus(paired32, paired32, 28);
-	return paired64[0] | paired64[8] << 8;
-#endif
-}
-
-constexpr inline uint32_t _mm_movemask_epi16(const uint16x8_t input) noexcept {
-	constexpr int16_t shift[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-#ifdef __clang__
-	uint16x8_t tmp = vshrq_n_u16(input, 15);
-	return vaddvq_u16(vshlq_u16(tmp, vld1q_s16(shift)));
-#else
-
-	uint16x8_t tmp = __builtin_aarch64_lshrv8hi_uus(input, 15);
-	return __builtin_aarch64_reduc_plus_scal_v8hi_uu(__builtin_aarch64_ushlv8hi_uus(tmp, __builtin_aarch64_ld1v8hi(shift)));
-#endif
-}
-
-// Set each bit of mask dst based on the most significant bit of the
-// corresponding packed single-precision (32-bit) floating-point element in a.
-// https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movemask_ps
-constexpr inline uint32_t _mm_movemask_epi32(const uint32x4_t input) noexcept {
-	constexpr int32_t shift[4] = {0, 1, 2, 3};
-#ifdef __clang__
-	uint32x4_t tmp = vshrq_n_u32(input, 31);
-	return vaddvq_u32(vshlq_u32(tmp, vld1q_s32(shift)));
-#else
-	uint32x4_t tmp = __builtin_aarch64_lshrv4si_uus(input, 31);
-	return __builtin_aarch64_reduc_plus_scal_v4si_uu(__builtin_aarch64_ushlv4si_uus(tmp, __builtin_aarch64_ld1v4si(shift)));
-#endif
-}
-
-// Set each bit of mask dst based on the most significant bit of the
-// corresponding packed double-precision (64-bit) floating-point element in a.
-// https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movemask_pd
-constexpr inline uint32_t _mm_movemask_epi64(const uint64x2_t input) noexcept {
-#ifdef __clang__
-	uint64x2_t high_bits = vshrq_n_u64(input, 63);
-	return (uint32_t) (vgetq_lane_u64(high_bits, 0) | (vgetq_lane_u64(high_bits, 1) << 1));
-#else
-	uint64x2_t high_bits = __builtin_aarch64_lshrv2di_uus(input, 63);
-	return (uint32_t) ((high_bits[0]) | (high_bits[1] << 1));
-#endif
-}
 
 struct uint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
@@ -1282,6 +1315,53 @@ struct uint8x32_t {
 		return ret;
 	}
 
+	[[nodiscard]] constexpr static inline uint8x32_t gt_(const uint8x32_t in1,
+	                                                  const uint8x32_t in2) noexcept {
+		uint8x32_t ret;
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcgtq_u8(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] > in2.v128[i];
+#endif
+		}
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32_t lt(const uint8x32_t in1,
+	                                                  const uint8x32_t in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint8x16_t tmp = vcltq_u8(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi8(tmp) << i * 16;
+#else
+			const uint8x16_t tmp = in1.v128[i] < in2.v128[i];
+			ret ^= _mm_movemask_epi8(tmp) << i * 16;
+#endif
+		}
+
+		return ret;
+	}
+	
+	[[nodiscard]] constexpr static inline uint8x32_t lt_(const uint8x32_t in1,
+	                                                  const uint8x32_t in2) noexcept {
+		uint8x32_t ret;
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcltq_u8(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] < in2.v128[i];
+#endif
+		}
+		return ret;
+	}
+
+
 	[[nodiscard]] constexpr static inline int cmp(const uint8x32_t in1,
 	                                              const uint8x32_t in2) noexcept {
 		uint32_t ret = 0;
@@ -1335,6 +1415,15 @@ struct uint8x32_t {
 		}
 
 		return out;
+	}
+
+	constexpr static inline uint32_t move(const uint8x32_t in1) noexcept {
+		uint32_t ret = 0;
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+			ret ^= _mm_movemask_epi8(in1.v128[i]) << i * 16;
+		}
+		return ret;
 	}
 };
 
@@ -1740,7 +1829,7 @@ struct uint16x16_t {
 
 		return ret;
 	}
-
+	
 	constexpr static inline uint16x16_t gt_(const uint16x16_t in1,
 											const uint16x16_t in2) noexcept {
 		uint16x16_t ret;
@@ -1751,6 +1840,40 @@ struct uint16x16_t {
 			ret.v128[i] = vcgtq_u16(in1.v128[i], in2.v128[i]);
 #else
 			ret.v128[i] = in1.v128[i] > in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline int lt(const uint16x16_t in1,
+								   const uint16x16_t in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint16x8_t tmp = vcltq_u16(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi16(tmp) << i * 8;
+#else
+			const uint16x8_t tmp = in1.v128[i] < in2.v128[i];
+			ret ^= _mm_movemask_epi16(tmp) << i * 8;
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline uint16x16_t lt_(const uint16x16_t in1,
+											const uint16x16_t in2) noexcept {
+		uint16x16_t ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcltq_u16(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] < in2.v128[i];
 #endif
 		}
 
@@ -1831,6 +1954,15 @@ struct uint16x16_t {
 		}
 
 		return out;
+	}
+
+	constexpr static inline uint16_t move(const uint16x16_t in1) noexcept {
+		uint32_t ret = 0;
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+			ret ^= _mm_movemask_epi16(in1.v128[i]) << i * 8;
+		}
+		return ret;
 	}
 };
 
@@ -2231,7 +2363,38 @@ struct uint32x8_t {
 
 		return ret;
 	}
+	
+	constexpr static inline int lt(const uint32x8_t in1, const uint32x8_t in2) noexcept {
+		uint32_t ret = 0;
 
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint32x4_t tmp = vcltq_u32(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi32(tmp) << i * 4;
+#else
+			const uint32x4_t tmp = in1.v128[i] < in2.v128[i];
+			ret ^= _mm_movemask_epi32(tmp) << i * 4;
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline uint32x8_t lt_(const uint32x8_t in1, const uint32x8_t in2) noexcept {
+		uint32x8_t ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcltq_u32(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] < in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
 	constexpr static inline int cmp(const uint32x8_t in1, const uint32x8_t in2) noexcept {
 		uint32_t ret = 0;
 
@@ -2746,7 +2909,47 @@ struct uint64x4_t {
 
 		return ret;
 	}
+	
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline int lt(const uint64x4_t in1,
+	                               const uint64x4_t in2) noexcept {
+		int ret = 0;
 
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint64x2_t tmp = vcltq_u64(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi64(tmp) << i * 2;
+#else
+			const uint64x2_t tmp = in1.v128[i] < in2.v128[i];
+			ret ^= _mm_movemask_epi64(tmp) << i * 2;
+#endif
+		}
+		return ret;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline uint64x4_t lt_(const uint64x4_t in1,
+	                                       const uint64x4_t in2) noexcept {
+		uint64x4_t ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcltq_u64(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] < in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
 	///
 	/// \param in1
 	/// \param in2

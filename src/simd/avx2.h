@@ -255,7 +255,6 @@ namespace cryptanalysislib {
 			internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 
-		/// NOTE: signed comparison
 		/// \param in1
 		/// \param in2
 		/// \return in1 > in2 compressed
