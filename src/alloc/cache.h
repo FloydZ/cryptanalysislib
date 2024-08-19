@@ -4,6 +4,7 @@
 #include "helper.h"
 #include "container/linkedlist.h"
 #include "popcount/popcount.h"
+#include "memory/memory.h"
 
 /// Floyds simple try of super simple allocator, which is made for
 /// caches. It stores `bits` many `T` typed elements in single bucket, which
@@ -73,7 +74,7 @@ class CacheAllocator {
 		/// copy construtor
 		constexpr Node(const Node &t) noexcept {
 			this->free.store(t.free.load());
-			memcpy(data, t.data, sizeof(T) * bits);
+			cryptanalysislib::memcpy(data, t.data, sizeof(T));
 		}
 
 		bool operator==(const Node &b) const noexcept {

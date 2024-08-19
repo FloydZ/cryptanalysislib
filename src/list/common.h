@@ -3,17 +3,24 @@
 
 #include "element.h"
 #include "memory/memory.h"
+#include "alloc/alloc.h"
 
 struct ListConfig : public AlignmentConfig {
 public:
 	// if `true` all internal sorting algorithms are `std::sort`
 	constexpr static bool use_std_sort = false;
 
+	// if `true`, the call to `binary_search` will be remapped to
+	// the standard implementation
+	constexpr static bool use_std_binary_search = false;
+
+	// if `true`
+	constexpr static bool use_interpolation_search = false;
+
 	// if `true` sorting is increasing, else decresing
 	constexpr static bool sort_increasing_order = true;
 
 
-	constexpr static bool use_interpolation_search = false;
 } listConfig;
 
 
@@ -81,6 +88,18 @@ template<class List>
 concept ListAble = requires(List l) {
 	typename List::ElementType;
 
+	// we are good c++ devs
+	typename List::value_type;
+	typename List::allocator_type;
+	typename List::size_type;
+	typename List::difference_type;
+	typename List::reference;
+	typename List::const_reference;
+	typename List::pointer;
+	typename List::const_pointer;
+	typename List::iterator;
+	typename List::const_iterator;
+
 	// static functions
 	List::info();
 
@@ -143,6 +162,7 @@ concept ListAble = requires(List l) {
 #endif
 
 template<class Element,
+         class Alocator=cryptanalysislib::alloc::allocator,
 		 const ListConfig &config=listConfig>
 #if __cplusplus > 201709L
     requires ListElementAble<Element>
@@ -171,6 +191,7 @@ protected:
 
 	/// options
 	constexpr static bool use_std_sort = config.use_std_sort;
+	constexpr static bool use_std_binary_search = config.use_std_binary_search;
 	constexpr static bool sort_increasing_order = config.sort_increasing_order;
 	constexpr static bool use_interpolation_search = config.use_interpolation_search;
 
@@ -191,6 +212,19 @@ public:
 	typedef typename Element::LabelDataType LabelDataType;
 
 	typedef typename Element::MatrixType MatrixType;
+
+	// todo do the same for all other list classes
+	// we are good c++ defs
+	typedef Element value_type;
+	typedef Alocator allocator_type; // TODO use
+	typedef size_t size_type;
+	typedef size_t difference_type;
+	typedef value_type& reference;
+	typedef const value_type& const_reference;
+	typedef value_type* pointer;
+	typedef const value_type* const_pointer;
+	typedef typename std::vector<Element>::iterator iterator;
+	typedef typename std::vector<Element>::const_iterator const_iterator ;
 
 	using LoadType = size_t;
 
@@ -251,27 +285,81 @@ public:
 		return ret;
 	}
 
-	/// A little helper function to check if a list is sorted. This is very useful to assert specific states within
+	/// A little helper function to check if a list is sorted.
+	/// This is very useful to assert specific states within
 	/// complex cryptanalytic algorithms.
 	/// \param k_lower lower bound
 	/// \param k_higher upper bound
+	/// \param start first index to check
+	/// \param end last index to check
 	/// \return if its sorted
 	[[nodiscard]] constexpr bool is_sorted(const uint64_t k_lower=0,
-	                                       const uint64_t k_higher=LabelBytes) const {
-		for (size_t i = 1; i < load(); ++i) {
+										   const uint64_t k_higher=LabelBytes,
+										   const size_t start=0,
+										   const size_t end=-1ull) const noexcept {
+		const size_t end_ = end==-1ull ? load() : end;
+		ASSERT(start <= end_);
+
+		for (size_t i = start+1; i < end_; ++i) {
 			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
 				continue;
 			}
 
-#if !defined(SORT_INCREASING_ORDER)
-			if (!__data[i - 1].is_lower(__data[i], k_lower, k_higher)) {
-				return false;
+			if constexpr (sort_increasing_order) {
+				if (!__data[i - 1].is_lower(__data[i], k_lower, k_higher)) {
+					return false;
+				}
+			} else {
+				if (!__data[i - 1].is_greater(__data[i], k_lower, k_higher)) {
+					return false;
+				}
 			}
-#else
-			if (!__data[i - 1].is_greater(__data[i], k_lower, k_higher)) {
-				return false;
+		}
+
+		return true;
+	}
+
+	/// same function as above, but adds/subs `t` into the list
+	/// \param t element to add (on the gly)
+	/// \param sub if `true` will compute `t - L[i]` instead of `t + L[i]`
+	/// \param k_lower lower bound
+	/// \param k_higher upper bound
+	/// \param start first index to check
+	/// \param end last index to check
+	/// \return if its sorted
+	[[nodiscard]] constexpr bool is_sorted(const LabelType &t,
+	                                       const bool sub=false,
+	         							   const uint64_t k_lower=0,
+	                                       const uint64_t k_higher=LabelBytes,
+	                                       const size_t start=0,
+	                                       const size_t end=-1ull) const noexcept {
+		const size_t end_ = end==-1ull ? load()-1 : end;
+		ASSERT(start < end_);
+
+		auto op = [&t, sub](const LabelType &a){
+			LabelType tmp;
+			if (sub) {LabelType::sub(tmp, t, a);
+			} else {  LabelType::add(tmp, t, a); }
+			return tmp;
+		};
+
+		for (size_t i = start+1; i < end_; ++i) {
+			const auto e1 = op(__data[i-1].label);
+			const auto e2 = op(__data[i].label);
+
+			if (e1.is_equal(e2, k_lower, k_higher)) {
+				continue;
 			}
-#endif
+
+			if constexpr (sort_increasing_order) {
+				if (!e1.is_lower(e2, k_lower, k_higher)) {
+					return false;
+				}
+			} else {
+				if (!e1.is_greater(e2, k_lower, k_higher)) {
+					return false;
+				}
+			}
 		}
 
 		return true;

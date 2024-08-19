@@ -47,7 +47,78 @@ TEST(SubSetSum, Simple) {
 	t[1].random(1u << list_size, A);
 	t.join_stream(0);
 
+
 	EXPECT_EQ(1u << 20u, t[2].load());
+}
+
+TEST(SubSetSum, JoinForLevelTwoPreparelists) {
+	const uint32_t d = 2;
+	static std::vector<uint64_t> tbl{{0, 5, 10, n}};
+	Matrix A; A.random();
+
+	Label target; target.zero();
+	std::vector<uint32_t> weights(n/2);
+	generate_random_indices(weights, n);
+	for (uint32_t i = 0; i < n/2; ++i) {
+		Label::add(target, target, A[0][weights[i]]);
+	}
+
+	auto intermediat_level_limit = [](const uint32_t i) {
+		return (1ULL << (d - i - 1ull)) - 1ull;
+	};
+
+	// generate the intermediate targets for all levels
+	std::vector<std::vector<Label>> intermediate_targets(d);
+	for (uint32_t i = 0; i < d; ++i) {
+		const uint32_t limit = intermediat_level_limit(i);
+		// +1 to have enough space.
+		intermediate_targets[i].resize(limit + 1);
+
+		// set random intermediate targets
+		for (uint32_t j = 0; j < limit; ++j) {
+			intermediate_targets[i][j].random();
+		}
+
+		// the last intermediate target is always the full target
+		intermediate_targets[i][limit] = target;
+	}
+
+	// adjust last intermediate target (which was the full target) of each level,
+	// such that targets of each level add up the true target.
+	for (uint32_t i = 0; i < d - 1; ++i) {
+		uint64_t k_lower, k_higher;
+		const uint32_t limit = intermediat_level_limit(i);
+		for (uint32_t j = 0; j < limit; ++j) {
+			translate_level(&k_lower, &k_higher, -1, tbl);
+
+			// intermediate_targets[i][limit] = true target
+			Label::sub(intermediate_targets[i][limit],
+					   intermediate_targets[i][limit],
+					   intermediate_targets[i][j], k_lower, k_higher);
+		}
+	}
+
+	Tree t{2, A, 10, tbl, __level_filter_array};
+	t[0].random(1u << 8u, A);
+	t[1].random(1u << 8u, A);
+
+	t.prepare_lists(0, intermediate_targets);
+	t[0].sort_level(0, tbl);
+	t[1].sort_level(0, tbl);
+	t.join_stream(0);
+
+	t[0].sort_level(0, tbl);
+	t[1].sort_level(0, tbl);
+	t[2].sort_level(1, tbl);
+	t.prepare_lists(1, intermediate_targets);
+	t.join_stream(1);
+	EXPECT_GT(t[3].load(), 0);
+
+	for (size_t i = 0; i < t[3].load(); ++i) {
+		t[3][i].recalculate_label(A);
+	}
+	std::cout << target << std::endl;
+	std::cout << t[3];
 }
 
 TEST(SubSetSum, JoinForLevelTwo) {
@@ -482,80 +553,6 @@ TEST(SubSetSum, constexpr_join2lists) {
 	EXPECT_EQ(out.load(), num);
 }
 
-TEST(SubSetSum, join4lists) {
-	Matrix A; A.random();
-	constexpr uint64_t k_lower1=0, k_higher1=n/2;
-	constexpr uint64_t k_lower2=n/2, k_higher2=n;
-
-	constexpr size_t baselist_size = sum_bc(n/2, n/4);
-	List out{1u<<8}, l1{baselist_size}, l2{baselist_size}, l3{baselist_size}, l4{baselist_size};
-
-	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
-	Enumerator e{A};
-	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-			(&l1, &l2, n/2);
-	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-			(&l3, &l4, n/2);
-
-	Label target; target.zero();
-	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, A[0][weights[i]]);
-	}
-
-	std::cout << A << std::endl;
-	for (const auto &w : weights) {
-		std::cout << w << ",";
-	}
-	std::cout << std::endl;
-	std::cout << target << std::endl;
-
-	for (size_t i = 0; i < baselist_size; ++i) {
-		EXPECT_EQ(l1[i].is_correct(A), true);
-		EXPECT_EQ(l2[i].is_correct(A), true);
-		EXPECT_EQ(l3[i].is_correct(A), true);
-		EXPECT_EQ(l4[i].is_correct(A), true);
-	}
-
-	Tree::join4lists(out, l1, l2, l3, l4, target,
-	                 k_lower1, k_higher1, k_lower2, k_higher2, true);
-
-	uint32_t right=0;
-	for(uint64_t i = 0; i < out.load(); ++i) {
-		// just for debugging, we are not filtering
-		if (out[i].value.popcnt() != n/2) {
-			continue;
-		}
-
-		// first check thats is zero
-		EXPECT_EQ(out[i].label.is_zero(k_lower1, k_higher2), true);
-
-		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
-		A.mul(test_recalc3, out[i].value);
-		// NOTE: the full length
-		for (uint64_t j = 0; j < n; ++j) {
-			if (out[i].value.get(j)) {
-				test_recalc1 += A[0][j];
-				Label::add(test_recalc2, test_recalc2, A[0][j]);
-			}
-		}
-
-		out[i].recalculate_label(A);
-		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
-		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
-		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
-		std::cout << out[i];
-
-		// TODO not finished
-		if (Label::cmp(out[i].label, target)) {
-			right += 1;
-		}
-	}
-
-	EXPECT_GT(right,0);
-}
-
 TEST(SubSetSum, join2lists_on_iT) {
 	Matrix A; A.random();
 	const uint64_t k_lower=0, k_higher=8;
@@ -631,6 +628,85 @@ TEST(SubSetSum, join2lists_on_iT) {
 	EXPECT_LT(out.load(), 1u<<7);
 	EXPECT_EQ(out.load(), num);
 }
+
+TEST(SubSetSum, join4lists) {
+	Matrix A; A.random();
+	constexpr uint64_t k_lower1=0, k_higher1=n/2;
+	constexpr uint64_t k_lower2=n/2, k_higher2=n;
+
+	constexpr size_t baselist_size = sum_bc(n/2, n/4);
+	List out{1u<<8}, l1{baselist_size}, l2{baselist_size}, l3{baselist_size}, l4{baselist_size};
+
+	// completely split enumeration
+	// using Enumerator = BinaryLexicographicEnumerator<List, n/4, n/8>;
+	// Enumerator e{A};
+	// e.run(&l1, &l2, n/4);
+	// e.run(&l3, &l4, n/4, n/2);
+
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+	Enumerator e{A};
+	e.run(&l1, &l2, n/2);
+	e.run(&l3, &l4, n/2);
+
+	Label target; target.zero();
+	std::vector<uint32_t> weights(n/2);
+	generate_random_indices(weights, n);
+	for (uint32_t i = 0; i < n/2; ++i) {
+		Label::add(target, target, A[0][weights[i]]);
+	}
+
+	std::cout << A << std::endl;
+	for (const auto &w : weights) {
+		std::cout << w << ",";
+	}
+	std::cout << std::endl;
+	std::cout << target << std::endl;
+
+	for (size_t i = 0; i < baselist_size; ++i) {
+		EXPECT_EQ(l1[i].is_correct(A), true);
+		EXPECT_EQ(l2[i].is_correct(A), true);
+		EXPECT_EQ(l3[i].is_correct(A), true);
+		EXPECT_EQ(l4[i].is_correct(A), true);
+	}
+
+	Tree::join4lists(out, l1, l2, l3, l4, target,
+	                 k_lower1, k_higher1, k_lower2, k_higher2, true);
+
+	uint32_t right=0;
+	for(uint64_t i = 0; i < out.load(); ++i) {
+		// just for debugging, we are not filtering
+		if (out[i].value.popcnt() != n/2) {
+			continue;
+		}
+
+		// first check thats is zero
+		EXPECT_EQ(out[i].label.is_zero(k_lower1, k_higher2), true);
+
+		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
+		A.mul(test_recalc3, out[i].value);
+		// NOTE: the full length
+		for (uint64_t j = 0; j < n; ++j) {
+			if (out[i].value.get(j)) {
+				test_recalc1 += A[0][j];
+				Label::add(test_recalc2, test_recalc2, A[0][j]);
+			}
+		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
+		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
+		std::cout << out[i] << std::endl;
+
+		// TODO not finished
+		if (Label::cmp(out[i].label, target)) {
+			right += 1;
+		}
+	}
+
+	EXPECT_GT(right,0);
+}
+
 
 
 TEST(SubSetSum, twolevel_streamjoin) {

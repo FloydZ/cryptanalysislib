@@ -136,10 +136,10 @@ private:
 	///			Level 2: only one list must be saved, because we can stream merge the generated list for the right 4 baselists.
 	///			Level 3: final list must be saved.
 	/// \param i 	current level
-	/// \return
-	[[nodiscard]] constexpr unsigned int intermediat_level_limit(const unsigned int i) const noexcept {
+	/// \return number of lists needed (-1 as the last one is streamed)
+	[[nodiscard]] constexpr uint32_t intermediat_level_limit(const uint32_t i) const noexcept {
 		// the first -1 half the amount of lists.
-		return (1ULL << (depth - i - 1)) - 1;
+		return (1ULL << (depth - i - 1ull)) - 1ull;
 	}
 
 	/// count how many carries would occur of one add 2 to `in`
@@ -436,10 +436,12 @@ public:
 
 			// if we work on the first two baselists (which means the ones on the far left side of the tree.) We need to
 			// negate the label of each element within first list.
-			for (uint64_t ind = 0; ind < lists[0].get_load(); ++ind) {
-
-				lists[1][ind].get_label().neg(k_lower, k_higher);
-				LabelType::add(lists[1][ind].get_label(), lists[1][ind].get_label(), intermediate_targets[0][0], k_lower, k_higher);
+			for (uint64_t ind = 0; ind < lists[0].load(); ++ind) {
+				lists[1][ind].label.neg(k_lower, k_higher);
+				LabelType::add(lists[1][ind].label,
+				               lists[1][ind].label,
+				               intermediate_targets[0][0],
+				               k_lower, k_higher);
 			}
 		} else {
 			// calculate number of old targets to eliminate from baselists and number of new intermediate targets to add
@@ -450,24 +452,30 @@ public:
 			// IMPORTANT: the second-2 is within the function. Is this intuitively?
 			unsigned int amount_negates = count_carry_propagates(second);
 
-			for (uint64_t ind = 0; ind < lists[1].get_load(); ++ind) {
+			for (uint64_t ind = 0; ind < lists[1].load(); ++ind) {
 				//get rid of intermediate targets from previous levels
 				for (unsigned int j = 0; j < old_targets; ++j) {
+					const uint32_t index = ((second - 1u) >> (j + 1u)) - 1;
 					translate_level(&k_lower, &k_higher, j, level_translation_array);
-					LabelType::sub(lists[1][ind].get_label(), lists[1][ind].get_label(),
-					               intermediate_targets[j][((second - 1u) >> (j + 1u)) - 1], k_lower, k_higher);
+					LabelType::sub(lists[1][ind].label,
+					               lists[1][ind].label,
+					               intermediate_targets[j][index],
+					               k_lower, k_higher);
 				}
 
 				for (uint32_t k = 0; k < amount_negates; ++k) {
 					translate_level(&k_lower, &k_higher, k + 1, level_translation_array);
-					lists[1][ind].get_label().neg(k_lower, k_higher);
+					lists[1][ind].label.neg(k_lower, k_higher);
 				}
 
 				//add new intermediate targets
-				for (unsigned int j = 0; j < new_targets; ++j) {
+				for (uint32_t j = 0; j < new_targets; ++j) {
+					const uint32_t index = ((second + 1u) >> (j + 1u)) - 1;
 					translate_level(&k_lower, &k_higher, j, level_translation_array);
-					LabelType::add(lists[1][ind].get_label(), lists[1][ind].get_label(),
-					               intermediate_targets[j][((second + 1u) >> (j + 1u)) - 1], k_lower, k_higher);
+					LabelType::add(lists[1][ind].label,
+					               lists[1][ind].label,
+					               intermediate_targets[j][index],
+					               k_lower, k_higher);
 				}
 			}
 		}
@@ -628,6 +636,13 @@ public:
 
 						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
 							out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
+
+#ifdef DEBUG
+							const size_t lb = out.load() - 1;
+							if (!out[lb].label.is_zero(k_lower1, k_upper2)) {
+								ASSERT(false);
+							}
+#endif
 						}
 					}
 				}
@@ -992,9 +1007,8 @@ public:
 	                             const bool prepare = true) noexcept {
 		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2 && L1.load() > 0 && L2.load() > 0 && L3.load() > 0 && L4.load() > 0);
 		// Intermediate Element, List, Target
-		List iL{L1.size() * 4}; // TODO good factor
-		LabelType R;
-		R.zero();
+		List iL{static_cast<size_t>(L1.size() * 1.1)};
+		LabelType iT; iT.zero();
 
 		// reset everything
 		out.set_load(0);
@@ -1010,23 +1024,20 @@ public:
 		// TODO document these changes, what is added into what list in the picture above
 		// prepare baselists
 		if ((!target.is_zero()) && prepare) {
-			R.random(); // chose a randm intermediate target
+			iT.random(0, (1ull<<k_upper1) + 1);
 
-			LabelType t = target;
-			t.neg();
-
-			LabelType R2 = t;
-			LabelType::add(R2, t, R, k_lower1, k_upper1);
+			LabelType R2;
+			LabelType::sub(R2, iT, target, k_lower1, k_upper2);
 
 			for (size_t i = 0; i < size; ++i) {
-				op(L2[i].label, R, L2[i].label, k_lower1, k_upper1);
+				op(L2[i].label, iT, L2[i].label, k_lower1, k_upper2);
 				LabelType::add(L4[i].label, R2, L4[i].label, k_lower1, k_upper2);
 				L3[i].label.neg(k_lower1, k_upper2);
 			}
 		}
 
 		// NOTE: the intermediate target `R` is ingored in this call
-		join2lists(iL, L1, L2, R, k_lower1, k_upper1, false);
+		join2lists(iL, L1, L2, iT, k_lower1, k_upper1, false);
 
 		// early exit
 		if (iL.load() == 0) {
@@ -1035,6 +1046,22 @@ public:
 
 		// Now run the merge procedure for the right part of the tree.
 		twolevel_streamjoin(out, iL, L3, L4, k_lower1, k_upper1, k_lower2, k_upper2);
+	}
+
+
+	static void join4lists_on_iT(List &out,
+								 const List &L1, List &L2,
+								 const LabelType &target,
+								 const uint32_t k_lower1, const uint32_t k_upper1,
+	                             const uint32_t k_lower2, const uint32_t k_upper2) noexcept {
+		List iL{L1.size() * 2};
+		LabelType iT; iT.random(0, (1ull << k_upper1) + 1ull);
+
+		// reset everything
+		out.set_load(0);
+
+		join2lists_on_iT(iL, L1, L2, iT, k_lower1, k_upper2);
+		twolevel_streamjoin(out, iL, L1, L2, k_lower1, k_upper1, k_lower2, k_upper2);
 	}
 
 	/// Schematic view on the Algorithm.

@@ -19,7 +19,7 @@ using CTrie = CacheTrie<K, V>;
 constexpr size_t limit = 1u << 20u;
 constexpr size_t THREADS = 2;
 
-uint64_t hash(const uint64_t i) { return i; }
+uint64_t hash_(const uint64_t i) { return i; }
 
 TEST(Ctrie, simple) {
 	CTrie c;
@@ -111,7 +111,7 @@ TEST(Ctrie, multithreaded_lookup) {
 TEST(Ctrie, fast_insert) {
 	CTrie c;
 	EXPECT_EQ(c.fast_lookup(1ul), 0);
-	c.fast_insert(1, 1, hash(1));
+	c.fast_insert(1, 1, hash_(1));
 	EXPECT_EQ(c.fast_lookup(1ul), 1);
 	EXPECT_EQ(c.fast_lookup(1ul), 1);
 }

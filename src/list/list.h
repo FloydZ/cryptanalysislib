@@ -36,6 +36,16 @@ public:
 	typedef typename MetaListT<Element>::LabelDataType LabelDataType;
 	typedef typename MetaListT<Element>::MatrixType MatrixType;
 
+	using typename MetaListT<Element>::value_type;
+	using typename MetaListT<Element>::allocator_type;
+	using typename MetaListT<Element>::size_type;
+	using typename MetaListT<Element>::difference_type;
+	using typename MetaListT<Element>::reference;
+	using typename MetaListT<Element>::const_reference;
+	using typename MetaListT<Element>::pointer;
+	using typename MetaListT<Element>::const_pointer;
+	using typename MetaListT<Element>::iterator;
+	using typename MetaListT<Element>::const_iterator;
 	using typename MetaListT<Element>::LoadType;
 	using List = List_T<Element>;
 
@@ -55,6 +65,8 @@ public:
 
 	/// needed configs
 	using MetaListT<Element>::use_std_sort;
+	using MetaListT<Element>::use_std_binary_search;
+	using MetaListT<Element>::use_interpolation_search;
 	using MetaListT<Element>::sort_increasing_order;
 
 	/// needed functions
@@ -83,6 +95,8 @@ public:
 	using MetaListT<Element>::insert;
 	using MetaListT<Element>::is_correct;
 	using MetaListT<Element>::is_sorted;
+
+	// TODO define iterator type und so
 
 	// TODO not fully correct. kAryCOmpresssed could be smaller
 	// using TMP = decltype(e.label.hash());
@@ -188,6 +202,7 @@ public:
 	}
 
 	/// NOTE: this does not search the FULL list, only each segment
+	/// NOTE: if `Element` is hashable a fast radix sort will be used.
 	/// \param k_lower lower dimension to sort on (inclusive)
 	/// \param k_higher upper dimensions to sort (not included)
 	/// \param tid thread id
@@ -198,46 +213,21 @@ public:
 		ASSERT(k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
-		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1u)) {
-			auto f = [k_lower, k_higher](const auto &e1,
-			                             const auto &e2)  __attribute__((always_inline)) {
-				if constexpr (sort_increasing_order) {
-					return e1.is_lower(e2, k_lower, k_higher);
-				} else {
-					return e1.is_greater(e2, k_lower, k_higher);
-				}
-			};
-
-			sort_level_std_sort(sp, ep, f);
+		if (use_std_sort || (!Element::is_hashable(k_lower, k_higher))) {
+			sort_level_std_sort(sp, ep, [k_lower, k_higher](const auto &e1,
+			                                                const auto &e2)  __attribute__((always_inline)) {
+			    if constexpr (sort_increasing_order) {
+			        return e1.is_lower(e2, k_lower, k_higher);
+			    } else {
+			        return e1.is_greater(e2, k_lower, k_higher);
+			    }
+			});
 		} else {
+			sort_level_radix_sort(sp, ep, [k_lower, k_higher]
+					(const auto &e1) __attribute__((always_inline)) {
+			    return e1.hash(k_lower, k_higher);
+			});
 
-			constexpr size_t s1 = LabelType::bytes() * 8u;
-			constexpr size_t s2 = std::min((size_t) 64ull, s1);
-			using T = LogTypeTemplate<s2>;
-
-			// TODO not working for sub_container_size != 1
-			const uint64_t diff = (k_higher - k_lower) * LabelType::sub_container_size();
-
-			if (diff > 64) {
-				using S = _uint8x16_t;
-				auto f = [k_lower, k_higher](const auto &e1) __attribute__((always_inline)) -> S {
-					// TODO lower, higher
-					S t = _uint8x16_t::load(e1.label.ptr());
-					return t;
-
-				  // const T tmp1 = *((T *) e1.label.ptr());
-				  //return tmp1;
-				};
-				sort_level_radix_sort(sp, ep, f);
-			} else {
-				const uint64_t mask = ((uint64_t(1) << diff) - 1ull);
-				auto f = [k_lower, k_higher, mask](const auto &e1) __attribute__((always_inline)) {
-				  const T tmp1 = *((T *) e1.label.ptr());
-				  const T tmp2 = (tmp1 >> k_lower) & mask;
-				  return tmp2;
-				};
-				sort_level_radix_sort(sp, ep, f);
-			}
 		}
 
 		ASSERT(is_sorted(k_lower, k_higher));
@@ -251,48 +241,23 @@ public:
 	         const uint32_t k_higher,
 	         const uint32_t sub = false>
 	constexpr void sort_level(const uint32_t tid) noexcept {
-		ASSERT(k_lower < k_higher);
+		static_assert( k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
-		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1u)) {
-			auto f = [](const auto &e1,
-						const auto &e2)  __attribute__((always_inline)) {
+		if constexpr (use_std_sort || (!Element::is_hashable(k_lower, k_higher))) {
+			sort_level_std_sort(sp, ep, [](const auto &e1,
+			                               const auto &e2)  __attribute__((always_inline)) {
 			  if constexpr (sort_increasing_order) {
 				  return e1.template is_lower<k_lower, k_higher>(e2);
 			  } else {
 				  return e1.template is_greater<k_lower, k_higher>(e2);
 			  }
-			};
-
-			sort_level_std_sort(sp, ep, f);
+			});
 		} else {
-
-			constexpr size_t s1 = LabelType::bytes() * 8u;
-			constexpr size_t s2 = std::min((size_t) 64ull, s1);
-			using T = LogTypeTemplate<s2>;
-
-			// TODO not working for sub_container_size != 1
-			constexpr uint64_t diff = (k_higher - k_lower) * LabelType::sub_container_size();
-
-			if (diff > 64) {
-				using S = _uint8x16_t;
-				auto f = [](const auto &e1) __attribute__((always_inline)) -> S {
-				  S t = _uint8x16_t::load(e1.label.ptr());
-				  return t;
-
-				  // const T tmp1 = *((T *) e1.label.ptr());
-				  //return tmp1;
-				};
-				sort_level_radix_sort(sp, ep, f);
-			} else {
-				constexpr uint64_t mask = ((uint64_t(1) << diff) - 1ull);
-				auto f = [](const auto &e1) __attribute__((always_inline)) {
-				  const T tmp1 = *((T *) e1.label.ptr());
-				  const T tmp2 = (tmp1 >> k_lower) & mask;
-				  return tmp2;
-				};
-				sort_level_radix_sort(sp, ep, f);
-			}
+			sort_level_radix_sort(sp, ep, []
+					(const auto &e1) __attribute__((always_inline)) {
+			  return e1.template hash<k_lower, k_higher>();
+			});
 		}
 
 		ASSERT(is_sorted(k_lower, k_higher));
@@ -301,7 +266,6 @@ public:
 	/// \param k_lower
 	/// \param k_higher
 	/// \param target
-	/// \param tid: thread id currently unsupported
 	/// \return
 	template<const bool sub = false>
 	constexpr void sort_level(const uint32_t k_lower,
@@ -309,64 +273,100 @@ public:
 	                          const LabelType &target,
 	                          const uint32_t tid) noexcept {
 		ASSERT(k_lower < k_higher);
-
-		LabelType tmp;
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		if constexpr (use_std_sort || (LabelType::sub_container_size() > 1u)) {
-			auto f = [k_lower, k_higher, target, &tmp](const auto &e1,
-			                                           const auto &e2)  __attribute__((always_inline)) {
-				// TODO this is not working? no idea why
+
+		if (use_std_sort || (!Element::is_hashable(k_lower, k_higher))) {
+			sort_level_std_sort(sp, ep, [k_lower, k_higher, target]
+			                    (const auto &e1,
+								 const auto &e2)  __attribute__((always_inline)) {
+			    LabelType tmp1, tmp2;
 				if constexpr (sub) {
-					LabelType::sub(tmp, target, e2.label, k_lower, k_higher);
+					  LabelType::sub(tmp1, target, e1.label, k_lower, k_higher);
+					  LabelType::sub(tmp2, target, e2.label, k_lower, k_higher);
 				} else {
-					LabelType::add(tmp, target, e2.label, k_lower, k_higher);
+					  LabelType::add(tmp1, target, e1.label, k_lower, k_higher);
+					  LabelType::add(tmp2, target, e2.label, k_lower, k_higher);
 				}
 
-			    if constexpr (sort_increasing_order) {
-				  return e1.label.is_lower(tmp, k_lower, k_higher);
-			    } else {
-				  return e1.label.is_greater(tmp, k_lower, k_higher);
-			    }
-			};
-
-			sort_level_std_sort(sp, ep, f);
+				if constexpr (sort_increasing_order) {
+					  return tmp1.is_lower(tmp2, k_lower, k_higher);
+				} else {
+					  return tmp1.is_greater(tmp2, k_lower, k_higher);
+				}
+			});
 		} else {
-
-			constexpr size_t s1 = LabelType::bytes() * 8;
-			constexpr size_t s2 = std::min((size_t) 64ull, s1);
-			using T = LogTypeTemplate<s2>;
-
-			// diff in bits
-			const uint64_t diff = (k_higher - k_lower) * LabelType::sub_container_size();
-
-			if (diff > 64) {
-				auto f = [k_lower, k_higher, target](const auto &e1) __attribute__((always_inline)) {
-				  LabelType tmp;
-					if constexpr (sub) {
-					    LabelType::sub(tmp, target, e1.label, k_lower, k_higher);
-					} else {
-					    LabelType::add(tmp, e1.label, target, k_lower, k_higher);
-					}
-					const T tmp1 = *((T *) tmp.ptr());
-					return tmp1;
-				};
-				sort_level_radix_sort(sp, ep, f);
-			} else {
-				const uint64_t mask = ((uint64_t(1) << diff) - 1ull);
-				auto f = [k_lower, k_higher, mask, target](const auto &e1) __attribute__((always_inline)) {
-				  LabelType tmp;
-				  if constexpr (sub) {
+			sort_level_radix_sort(sp, ep, [k_lower, k_higher, target]
+					(const auto &e1) __attribute__((always_inline)) {
+				LabelType tmp;
+				if constexpr (sub) {
 					  LabelType::sub(tmp, target, e1.label, k_lower, k_higher);
-				  } else {
+				} else {
 					  LabelType::add(tmp, e1.label, target, k_lower, k_higher);
-				  }
-				  const T tmp1 = *((T *) tmp.ptr());
-				  const T tmp2 = (tmp1 >> k_lower) & mask;
-				  return tmp2;
-				};
-				sort_level_radix_sort(sp, ep, f);
-			}
+				}
+				return tmp.hash(k_lower, k_higher);
+			});
 		}
+
+		ASSERT(is_sorted(target, sub, k_lower, k_higher));
+	}
+
+	/// \param k_lower
+	/// \param k_higher
+	/// \param target
+	/// \return
+	template<const uint32_t k_lower,
+			 const uint32_t k_higher,
+			 const bool sub = false>
+	constexpr inline void sort_level(const LabelType &target) noexcept {
+		return sort_level<k_lower, k_higher, sub> (target, 0);
+	}
+
+	/// \param k_lower
+	/// \param k_higher
+	/// \param target
+	/// \return
+	template<const uint32_t k_lower,
+	         const uint32_t k_higher,
+	         const bool sub = false>
+	constexpr void sort_level(const LabelType &target,
+							  const uint32_t tid) noexcept {
+		ASSERT(k_lower < k_higher);
+		const size_t sp = start_pos(tid), ep = end_pos(tid);
+
+		if constexpr (use_std_sort || (!Element::template is_hashable<k_lower, k_higher>())) {
+			sort_level_std_sort(sp, ep, [&target]
+					(const auto &e1,
+					 const auto &e2)  __attribute__((always_inline)) {
+				LabelType tmp1, tmp2;
+				if constexpr (sub) {
+					  LabelType::template sub<k_lower, k_higher>(tmp1, target, e1.label);
+					  LabelType::template sub<k_lower, k_higher>(tmp2, target, e2.label);
+				} else {
+					  LabelType::template add<k_lower, k_higher>(tmp1, target, e1.label);
+					  LabelType::template add<k_lower, k_higher>(tmp2, target, e2.label);
+				}
+
+				if constexpr (sort_increasing_order) {
+					  return tmp1.template is_lower<k_lower, k_higher>(tmp2);
+				} else {
+					  return tmp1.template is_greater<k_lower, k_higher>(tmp2);
+				}
+			});
+		} else {
+			sort_level_radix_sort(sp, ep, [&target]
+					(const auto &e1) __attribute__((always_inline)) {
+			  LabelType tmp;
+			  if constexpr (sub) {
+				  LabelType::template sub<k_lower, k_higher>(tmp, target, e1.label);
+			  } else {
+				  LabelType::template add<k_lower, k_higher>(tmp, target, e1.label);
+			  }
+
+			  return tmp.template hash<k_lower, k_higher>();
+			});
+		}
+
+		ASSERT(is_sorted(target, sub, k_lower, k_higher));
 	}
 
 
@@ -400,29 +400,113 @@ public:
 public:
 
 	/// generic search function, which depending on your configuration
-	/// does different things
-	/// k
-	/// \param e
-	/// \param tid
-	/// \return
+	/// does different things. If
+	/// \param e element to search
+	/// \param tid thread which is searching
+	/// \return either the position of the element or -1ull
 	constexpr inline size_t search(const Element &e,
 	                               const uint32_t tid=0) const noexcept {
-		// TODO
+		if constexpr (use_interpolation_search) {
+			return interpolation_search(e, tid);
+		}
+
 		return binary_search(e, tid);
 	}
 
-	template<const uint32_t k_lower=0, const uint32_t k_upper=0>
+
+	/// does what the name suggest.
+	/// \param e element we want to search
+	/// \param k_lower lower coordinate on which the element must be equal
+	/// \param k_higher higher coordinate the elements must be equal
+	/// \return the position of the first (lower) element which is equal to e. -1 if nothing found
+	constexpr size_t search_level(const Element &e,
+								  const uint32_t k_lower,
+								  const uint32_t k_higher) const noexcept {
+		ASSERT(is_sorted(k_lower, k_higher));
+		if constexpr (use_interpolation_search) {
+			return interpolation_search(e, k_lower, k_higher);
+		} else {
+			return binary_search(e, k_lower, k_higher);
+		}
+	}
+
+	///
+	/// \tparam k_lower
+	/// \tparam k_higher
+	/// \param e
+	/// \return
+	template<const uint32_t k_lower, const uint32_t k_higher>
+	constexpr size_t search_level(const Element &e) const noexcept {
+		ASSERT(is_sorted(k_lower, k_higher));
+		if constexpr (use_interpolation_search) {
+			return interpolation_search<k_lower, k_higher>(e);
+		} else {
+			return binary_search<k_lower, k_higher>(e);
+		}
+	}
+
+	///
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \param e
+	/// \param tid
+	/// \return
+	constexpr inline size_t linear_search(const Element &e,
+										  const uint32_t tid = 0) const noexcept {
+		return linear_search<0, LabelLENGTH>(e, tid);
+	}
+
+	///
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \param e
+	/// \param tid
+	/// \return
+	constexpr inline size_t linear_search(const Element &e,
+	                                      const uint32_t k_lower,
+	                                      const uint32_t k_upper,
+										  const uint32_t tid = 0) const noexcept {
+		ASSERT(k_upper > k_lower);
+
+		// the linear search, doesn't need the data to be sorted
+		if (use_hash_operator && Element::is_hashable(k_lower, k_upper)) {
+			return linear_search(e, tid,
+				[k_lower, k_upper](const Element &a)  __attribute__((always_inline)) {
+				    return a.hash(k_lower, k_upper);
+				});
+		} else {
+			return linear_search(e, tid, [](const Element &a,
+											const Element &b)  __attribute__((always_inline)) {
+				return a == b;
+			});
+		}
+	}
+
+	///
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \param e
+	/// \param tid
+	/// \return
+	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr inline size_t linear_search(const Element &e,
 								          const uint32_t tid = 0) const noexcept {
+		// the linear search, doesn't need the data to be sorted
 		if constexpr (use_hash_operator || (k_lower != k_upper)) {
-			return linear_search(e, tid, [](const Element &a)  __attribute__((always_inline)) {
-				// NOTE: the checks if `k_lower` and `k_upper` are valid, are done
-				// within the `hash` function
-				if constexpr (k_lower != k_upper) {
-					return a.template hash<k_lower, k_upper>();
-				}
-				return a.hash();
-			});
+			// NOTE: the checks if `k_lower` and `k_upper` are valid, are done
+			// within the `hash` function
+			if constexpr (Element::template is_hashable<k_lower, k_upper>()) {
+				return linear_search(e, tid,
+					 [](const Element &a)  __attribute__((always_inline)) {
+					   return a.template hash<k_lower, k_upper>();
+					 });
+			} else {
+				// fall back implementation
+				return linear_search(e, tid,
+					[](const Element &a)  __attribute__((always_inline)) {
+					  return a.hash();
+					});
+			}
 		} else {
 			return linear_search(e, tid, [](const Element &a,
 			                                const Element &b)  __attribute__((always_inline)) {
@@ -439,34 +523,68 @@ public:
 	                               		  const uint32_t tid,
 	                                      F &&f) const noexcept {
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		const auto it = cryptanalysislib::search::linear_search(begin() + sp, begin() + ep, e, f);
-		if (it == (begin() + ep)) {
-			return -1;
+		const auto it = cryptanalysislib::search::linear_search(__data.begin() + sp, __data.begin() + ep, e, f);
+		if (it == (__data.begin() + ep)) {
+			return -1ull;
 		} else {
-			return std::distance(begin()+sp, it);
+			return std::distance(__data.begin()+sp, it);
 		}
 	}
 
+
+
 	///
+	/// \tparam k_lower
+	/// \tparam k_upper
 	/// \param e
 	/// \param tid
 	/// \return
+	constexpr inline size_t binary_search(const Element &e,
+										  const uint32_t k_lower,
+										  const uint32_t k_upper,
+										  const uint32_t tid=0) const noexcept {
+		ASSERT(k_upper > k_lower);
+
+		// the linear search, doesn't need the data to be sorted
+		if (use_hash_operator && Element::is_hashable(k_lower, k_upper)) {
+			return binary_search(e, tid,
+				 [k_lower, k_upper](const Element &a)  __attribute__((always_inline)) {
+				   return a.hash(k_lower, k_upper);
+				 });
+		} else {
+			return linear_search(e, tid, [](const Element &a,
+											const Element &b)  __attribute__((always_inline)) {
+			  return a == b;
+			});
+		}
+	}
+
+
+	/// NOTE: this function tries to use a hashbase searching implementation,
+	/// but if its not possible, (either the hash range is to big, or element is to big)
+	/// then a normal comparison based approach is chosen.
+	/// \param e element to search for
+	/// \param tid thread id
+	/// \return position of the element within the list or -1
 	template<const uint32_t k_lower=0, const uint32_t k_upper=0>
 	constexpr inline size_t binary_search(const Element &e,
 										  const uint32_t tid = 0) const noexcept {
-		if constexpr (use_hash_operator || (k_lower != k_upper)) {
+		if constexpr (use_hash_operator ||
+		              (k_lower != k_upper)) {
 			return binary_search(e, tid, [](const Element &a)  __attribute__((always_inline)) {
-			  // NOTE: the checks if `k_lower` and `k_upper` are valid, are done
-			  // within the `hash` function
-			  if constexpr (k_lower != k_upper) {
-				  return a.template hash<k_lower, k_upper>();
-			  }
-			  return a.hash();
+			    // NOTE: the checks if `k_lower` and `k_upper` are valid, are done
+			    // within the `hash` function
+			    if constexpr ((k_lower != k_upper) and
+				              (Element::template is_hashable<k_lower, k_upper>())) {
+			    	  return a.template hash<k_lower, k_upper>();
+			    } else {
+					return a.hash();
+				}
 			});
 		} else {
 			return binary_search(e, tid, [](const Element &a,
-											const Element &b)  __attribute__((always_inline)) {
-			  return a < b;
+											const Element &b)  __attribute__((always_inline)) -> bool {
+			    return a < b;
 			});
 		}
 	}
@@ -482,13 +600,20 @@ public:
 								   const uint32_t tid,
 	                               F &&f) const noexcept {
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		// todo take care of load ASSERT(is_sorted(k_lower, k_higher));
-		const auto it = cryptanalysislib::search::binary_search(begin() + sp, begin() + ep, e, f);
-		if (it == (begin() + ep)) {
-			return -1;
+		const_iterator it;
+		if constexpr (use_std_binary_search) {
+			it = std::lower_bound(__data.begin() + sp,
+			                                 __data.begin() + ep, e, f);
 		} else {
-			return std::distance(begin()+sp, it);
+			it = cryptanalysislib::search::binary_search(__data.begin() + sp,
+			                                             __data.begin() + ep, e, f);
 		}
+		if (it == (__data.begin() + ep)) {
+			return -1ull;
+		} else {
+			return std::distance(__data.begin()+sp, it);
+		}
+
 	}
 
 	///
@@ -498,14 +623,19 @@ public:
 	template<const uint32_t l, const uint32_t h>
 	constexpr inline size_t interpolation_search(const Element &e,
 												 const uint32_t tid = 0) const noexcept {
-		return interpolation_search(e, tid, [](const Element &a) __attribute__((always_inline)) {
-		    return a.template hash<l, h>();
-		});
+		if constexpr (not Element::template is_hashable<l, h>()) {
+			return binary_search<l, h>(e, tid);
+		} else {
+			return interpolation_search(e, tid,
+				[](const Element &a) __attribute__((always_inline)) {
+				  return a.template hash<l, h>();
+				});
+		}
 	}
 
 	/// WARNING: if the element is not hashable, a standard binary search is conducted
-	/// \tparam F
-	/// \param e
+	/// \tparam F hash function
+	/// \param e element to seach for
 	/// \param tid
 	/// \param f
 	/// \return
@@ -518,43 +648,11 @@ public:
 		}
 
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		const auto it = cryptanalysislib::search::interpolation_search(begin() + sp, begin() + ep, e, f);
-		if (it == (begin() + ep)) {
-			return -1;
+		const auto it = cryptanalysislib::search::interpolation_search(__data.begin() + sp, __data.begin() + ep, e, f);
+		if (it == (__data.begin() + ep)) {
+			return -1ull;
 		} else {
-			return std::distance(begin()+sp, it);
-		}
-	}
-
-	/// does what the name suggest.
-	/// \param e element we want to search
-	/// \param k_lower lower coordinate on which the element must be equal
-	/// \param k_higher higher coordinate the elements must be equal
-	/// \return the position of the first (lower) element which is equal to e. -1 if nothing found
-	constexpr size_t search_level(const Element &e,
-								  const uint64_t k_lower,
-								  const uint64_t k_higher) const noexcept {
-
-		if constexpr (Element::binary()) {
-			// TODO return search_level_binary(e, k_lower, k_higher);
-		} else {
-			auto r = std::lower_bound(__data.begin(), __data.begin() + load(), e,
-				[k_lower, k_higher]
-						  (const Element &a1, const Element &a2) {
-					return a1.is_lower(a2, k_lower, k_higher);
-				});
-
-			const auto dist = std::distance(__data.begin(), r);
-
-			if (r == __data.begin() + load()) {
-				return -1;// nothing found
-			}
-
-			if (!__data[dist].is_equal(e, k_lower, k_higher)) {
-				return -1;
-			}
-
-			return dist;
+			return std::distance(__data.begin()+sp, it);
 		}
 	}
 
@@ -563,20 +661,10 @@ public:
 	// 		start = end = load indicating nothing found,
 	constexpr std::pair<size_t, size_t>
 	search_boundaries(const Element &e,
-					  const uint64_t k_lower,
-					  const uint64_t k_higher) const noexcept {
-		uint64_t end_index;
-		uint64_t start_index;
-		if constexpr (!Element::binary()) {
-			start_index = search_level(e, k_lower, k_higher);
-		} else {
-			// TODO start_index = search_level_binary(e, k_lower, k_higher);
-		}
-
-		// TODO
-		//  - simplify all of this: remove the distingvhen between binary/ non binary
-		//  - add k_lower, k_uuper
-		// 	- add radix sort and so on
+					  const uint32_t k_lower,
+					  const uint32_t k_higher) const noexcept {
+		const size_t start_index = search_level(e, k_lower, k_higher);
+		size_t end_index;
 
 		if (start_index == uint64_t(-1)) {
 			return std::pair<uint64_t, uint64_t>(load(), load());
@@ -584,7 +672,31 @@ public:
 
 		// get the upper index
 		end_index = start_index + 1;
-		while (end_index < load() && (__data[start_index].is_equal(__data[end_index], k_lower, k_higher))) {
+		while (end_index < load() &&
+		       (__data[start_index].is_equal(__data[end_index], k_lower, k_higher))) {
+			end_index += 1;
+		}
+
+		return std::pair<size_t, size_t>{start_index, end_index};
+	}
+
+	/// \param e
+	/// \return	a tuple indicating the start and end indices within the list.
+	// 		start = end = load indicating nothing found,
+	template<const uint32_t k_lower, const uint32_t k_higher>
+	constexpr std::pair<size_t, size_t>
+	search_boundaries(const Element &e) const noexcept {
+		const size_t start_index = search_level<k_lower, k_higher>(e);
+		size_t end_index;
+
+		if (start_index == uint64_t(-1)) {
+			return std::pair<uint64_t, uint64_t>(load(), load());
+		}
+
+		// get the upper index
+		end_index = start_index + 1;
+		while (end_index < load() &&
+		       (__data[start_index].template is_equal<k_lower, k_higher>(__data[end_index]))) {
 			end_index += 1;
 		}
 

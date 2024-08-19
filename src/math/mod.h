@@ -18,12 +18,20 @@ constexpr static uint64_t mul128_u32(const uint64_t lowbits,
 	return ((__uint128_t)lowbits * d) >> 64;
 }
 
+///
+/// \tparam S
+/// \param a
+/// \param b
+/// \return
 template<typename S>
 #if __cplusplus > 201709L
 	requires SIMDAble<S>
 #endif
 constexpr static S mul128_u32(const S &a, const S &b) noexcept {
-
+	// TODO
+	(void)a;
+	(void)b;
+	return a;
 }
 
 ///

@@ -35,7 +35,7 @@ using K = uint16_t;
 using V = size_t[1];
 
 constexpr static SimpleHashMapConfig simple{10, 1u << l, 1};
-using HMType = SimpleHashMap<K, V, simple, Hash<K, 0, l>>;
+using HMType = SimpleHashMap<K, V, simple, Hash<K, 0, l, q>>;
 using load_type = HMType::load_type;
 
 TEST(Enum, p2) {

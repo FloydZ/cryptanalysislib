@@ -435,12 +435,20 @@ public:
 		return ret;
 	}
 
+	/// TODO not implemented
+	/// \param in1
+	/// \param in2
+	/// \return
 	[[nodiscard]] constexpr static inline TxN_t mul(const TxN_t &in1, const TxN_t in2) noexcept {
 		TxN_t ret;
+		(void)in1;
+		(void)in2;
 		return ret;
 	}
 	[[nodiscard]] constexpr static inline TxN_t mulhi(const TxN_t &in1, const TxN_t in2) noexcept {
 		TxN_t ret;
+		(void)in1;
+		(void)in2;
 		return ret;
 	}
 
@@ -568,8 +576,18 @@ public:
 	}
 
 
-	[[nodiscard]] constexpr static inline TxN_t ror(const TxN_t &in1, const uint32_t in2) noexcept {}
-	[[nodiscard]] constexpr static inline TxN_t rol(const TxN_t &in1, const uint32_t in2) noexcept {}
+	[[nodiscard]] constexpr static inline TxN_t ror(const TxN_t &in1, const uint32_t in2) noexcept {
+		TxN_t ret;
+		(void)in1;
+		(void)in2;
+		return ret;
+	}
+	[[nodiscard]] constexpr static inline TxN_t rol(const TxN_t &in1, const uint32_t in2) noexcept {
+		TxN_t ret;
+		(void)in1;
+		(void)in2;
+		return ret;
+	}
 
 
 
@@ -578,6 +596,7 @@ public:
 	SIMD_FUNCTION_2ARGS_MACRO(cmp_, ==)
 	SIMD_FUNCTION_2ARGS_MACRO(eq_, ==)
 
+	// TODO all these function should return a binarycontainer
 	[[nodiscard]] constexpr static inline uint64_t gt(const TxN_t &in1,
 													  const TxN_t &in2) noexcept {
 		const auto tmp = S::gt_(in1, in2);
@@ -661,20 +680,33 @@ public:
 	[[nodiscard]] constexpr static inline TxN_t gather(const limb_type *ptr,
 	                                                   const TxN_t &in1) noexcept {
 		S ret;
+		for (uint32_t i = 0; i < N; ++i) {
+			const size_t c = in1.d[i] * off;
+			ret.d[i] = ptr[c];
+		}
 		return ret;
 	}
 
 
 	template<uint32_t off = sizeof(T)>
-	constexpr static inline void scatter(const limb_type *ptr,
-	                                                   const TxN_t &in1,
-	                                                   const TxN_t &in2) noexcept {
+	constexpr static inline void scatter(limb_type *ptr,
+	                                     const TxN_t &in1,
+	                                     const TxN_t &in2) noexcept {
+
+		for (uint32_t i = 0; i < N; ++i) {
+			const size_t c = in1.d[i] * off;
+			ptr[c] = in2.d[i];
+		}
 	}
 
 
 	[[nodiscard]] constexpr static inline S permute(const TxN_t &in1,
-													  const TxN_t &in2) noexcept {
+	                                                const TxN_t &in2) noexcept {
 		S ret;
+		for (uint32_t i = 0; i < N; ++i) {
+			const size_t pos = in1.d[i];
+			ret.d[pos] = in2.d[i];
+		}
 		return ret;
 	}
 

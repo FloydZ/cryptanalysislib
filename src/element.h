@@ -23,7 +23,8 @@ using namespace fplll;
 /// Requirements for a base data container.
 /// \tparam Container
 template<class Container>
-concept ElementDataAble = requires(Container c) {
+concept ElementDataAble = requires(Container c,
+                                   const Container &rc) {
 	typename Container::DataType;
 	typename Container::LimbType;
 	typename Container::S;
@@ -89,6 +90,14 @@ concept ElementDataAble = requires(Container c) {
 		Container::mul256_T(b, b);
 		Container::neg256_T(b);
 	};
+
+	/// templated stuff
+    //requires requires(const typename Container::LimbType a,
+    //                  const typename Container::S b,
+	//                  const uint32_t u32) {
+	// TODO
+    //    Container::template add<const uint32_t, const uint32_t, const uint32_t>(rc, rc, rc);
+	//};
 
 	// we also have to enforce the existence of some constexpr functions.
 	{ Container::optimized() } -> std::convertible_to<bool>;
@@ -404,25 +413,37 @@ public:
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		return label.hash();
 	}
+
+	///
+	template<const uint32_t l, const uint32_t h>
+	constexpr static bool is_hashable() noexcept {
+		if constexpr (l == h) { return false; }
+		return LabelType::template is_hashable<l, h>();
+	}
+
+	constexpr static bool is_hashable(const uint32_t l,
+							   	      const uint32_t h) noexcept {
+		ASSERT(h > l);
+		return LabelType::is_hashable(l, h);
+	}
+
+
+
 	[[nodiscard]] constexpr Value &get_value() noexcept { return value; }
 	[[nodiscard]] constexpr const Value &get_value() const noexcept { return value; }
 	[[nodiscard]] constexpr auto get_value(const size_t i) noexcept {
-		ASSERT(i < value.size());
 		return value.get(i);
 	}
 	[[nodiscard]] constexpr auto get_value(const size_t i) const noexcept {
-		ASSERT(i < value.size());
 		return value.get(i);
 	}
 
 	[[nodiscard]] constexpr Label &get_label() noexcept { return label; }
 	[[nodiscard]] constexpr const Label &get_label() const noexcept { return label; }
 	[[nodiscard]] constexpr auto get_label(const uint64_t i) noexcept {
-		ASSERT(i < label.size());
 		return label.get(i);
 	}
 	[[nodiscard]] constexpr auto get_label(const uint64_t i) const noexcept {
-		ASSERT(i < label.size());
 		return label.get(i);
 	}
 

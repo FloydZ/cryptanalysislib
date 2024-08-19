@@ -595,4 +595,9 @@ public:
 	//	return std::numeric_limits<size_t>::max();
 	//}
 };
+
+namespace cryptanalysislib::alloc {
+	// define a standard allocator
+	using allocator = PageMallocator<1u<<12u, 1u<<12u>;
+}
 #endif //CRYPTANALYSISLIB_ALLOC_H

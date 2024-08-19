@@ -349,16 +349,15 @@ public:
 	using C = uint64_t;
 	using data_type = T;
 
-	constexpr static C mask = (1ull << T::LIMBS) - 1ull;
+	constexpr static C mask = T::LIMBS == 64 ? -1ull : (1ull << T::LIMBS) - 1ull;
 	const T *__data;
-	constexpr explicit Hash(const T *d) noexcept : __data(d) {};
+	constexpr Hash(const T *d) noexcept : __data(d) {};
 };
 
 template<SIMDAble T>
 constexpr inline bool operator==(const Hash<T> &a,
                                  const Hash<T> &b) noexcept {
 	const typename Hash<T>::C t = T::cmp(*a.__data, *b.__data);
-	// TODO think about how this could be improved (nicht immer gegen -1 comparen)
 	return t == Hash<T>::mask;
 }
 

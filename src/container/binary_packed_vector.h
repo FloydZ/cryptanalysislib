@@ -557,7 +557,7 @@ public:
 			}
 
 			// check all limbs in the middle.
-			for (int32_t i = upper - 1; i > lower; i--) {
+			for (uint32_t i = upper - 1; i > lower; i--) {
 				if (v1.__data[i] != v2.__data[i]) {
 					return false;
 				}
@@ -744,6 +744,13 @@ public:
 		add(v3.ptr(), v1.ptr(), v2.ptr());
 	}
 
+	/// NOTE: little hack, which makes the interaction between
+	/// this class and the binary matrix easier
+	constexpr inline static void add(BinaryContainer &v3,
+									 BinaryContainer const &v1,
+									 const T *v2) noexcept {
+		add(v3.ptr(), v1.ptr(), v2);
+	}
 	/// full length addition
 	/// v3 = v1 + v2
 	constexpr inline static void add(T *v3,
@@ -1451,6 +1458,7 @@ public:
 	[[nodiscard]] constexpr inline size_t hash() const noexcept {
 		static_assert(l < h);
 		static_assert(h <= length());
+		static_assert((h-l) <= 64, "Sorry, but hashing down to more than 64 bits is not possible");
 
 		constexpr uint32_t qbits = 1;
 		constexpr uint32_t bits = limb_bits_width();
@@ -1528,12 +1536,30 @@ public:
 	}
 	// full length hasher
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
-		using S = TxN_t<T, limbs()>;
-		const S *s = (S *)__data.data();
-		const auto t = Hash<S>(s);
-		return t;
+		return *this;
+		// using S = TxN_t<T, limbs()>;
+		// const S *s = (S *)__data.data();
+		// const auto t = Hash<S> (s);
+		// return t;
 	}
 
+	///
+	template<const uint32_t l, const uint32_t h>
+	constexpr static inline bool is_hashable() noexcept {
+		if constexpr (h == l) { return false; }
+		constexpr size_t t1 = h-l;
+		return t1 <= 64u;
+	}
+	constexpr static bool is_hashable(const uint32_t l,
+							   		  const uint32_t h) noexcept {
+		ASSERT(h > l);
+		const size_t t1 = h-l;
+		return t1 <= 64u;
+	}
+
+
+
+/// TODO make this an field in the config
 #ifdef BINARY_CONTAINER_ALIGNMENT
 	static constexpr uint16_t alignment() {
 		// Aligns to a multiple of 32 Bytes
@@ -1622,7 +1648,7 @@ std::ostream &operator<<(std::ostream &out,
 	}
 
 	if constexpr (print_weight) {
-		std::cout << ", ( wt=" << std::dec << obj.popcnt() << ")";
+		std::cout << ", (wt=" << std::dec << obj.popcnt() << ")";
 	}
 
 	return out;

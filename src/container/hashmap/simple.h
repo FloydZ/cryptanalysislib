@@ -107,7 +107,7 @@ public:
 		/// NOTE: this store never needs to be atomic, as the position was
 		/// computed atomically.
 		if constexpr (std::is_bounded_array_v<data_type>) {
-			memcpy(__internal_hashmap_array[index * bucketsize + load], value, sizeof(data_type));
+			cryptanalysislib::memcpy(__internal_hashmap_array[index * bucketsize + load], value, 1u);
 		} else {
 			__internal_hashmap_array[index * bucketsize + load] = value;
 		}

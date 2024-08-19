@@ -51,6 +51,7 @@ public:
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
 	// number of bits needed to represent MOD
 	constexpr static uint32_t bits_per_number = (uint32_t) bits_log2(q);
+	constexpr static uint32_t qbits = bits_per_number;
 	static_assert(bits_per_number > 0);
 	// number of numbers one can fit into each limb
 	constexpr static uint16_t numbers_per_limb = bits_per_limb / bits_per_number;
@@ -104,7 +105,6 @@ public:
 		static_assert(h <= length());
 
 		constexpr uint32_t bits = used_bits_per_limb;
-		constexpr uint32_t qbits = bits_per_number;
 
 		constexpr uint32_t lq = l*qbits;
 		constexpr uint32_t hq = h*qbits;
@@ -162,7 +162,6 @@ public:
 		ASSERT((h-l) <= n);
 
 		constexpr uint32_t bits = used_bits_per_limb;
-		constexpr uint32_t qbits = bits_per_number;
 
 		const uint32_t lq = l*qbits;
 		const uint32_t hq = h*qbits;
@@ -223,6 +222,23 @@ public:
 		//// return Hash<uint64_t, 0, n, q>::hash((uint64_t *)ptr());
 		//ASSERT(false);
 		//return (uint64_t)0;
+	}
+
+	template<const uint32_t l, const uint32_t h>
+	constexpr static bool is_hashable() noexcept {
+		static_assert(h > l);
+		constexpr size_t t1 = h-l;
+		constexpr size_t t2 = t1*qbits;
+
+		return t2 <= 64u;
+	}
+	constexpr static bool is_hashable(const uint32_t l,
+									  const uint32_t h) noexcept {
+		ASSERT(h > l);
+		const size_t t1 = h-l;
+		const size_t t2 = t1*qbits;
+
+		return t2 <= 64u;
 	}
 
 	/// the mask is only valid for one internal number.
@@ -709,11 +725,28 @@ public:
 	/// \param k_lower lower limit inclusive
 	/// \param k_upper upper limit exclusive
 	constexpr inline static void add(kAryPackedContainer_Meta &v3,
-	                                 kAryPackedContainer_Meta const &v1,
-	                                 kAryPackedContainer_Meta const &v2,
-	                                 const uint32_t k_lower,
-	                                 const uint32_t k_upper) noexcept {
+									 kAryPackedContainer_Meta const &v1,
+									 kAryPackedContainer_Meta const &v2,
+									 const uint32_t k_lower,
+									 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
+		for (uint32_t i = k_lower; i < k_upper; i++) {
+			DataType data = v1.get(i) + v2.get(i);
+			v3.set(data % modulus(), i);
+		}
+	}
+
+	/// generic add: v3 = v1 + v2 between [k_lower, k_upper)
+	/// \param v3 output
+	/// \param v1 input
+	/// \param v2 input
+	/// \param k_lower lower limit inclusive
+	/// \param k_upper upper limit exclusive
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	constexpr inline static void add(kAryPackedContainer_Meta &v3,
+	                                 kAryPackedContainer_Meta const &v1,
+	                                 kAryPackedContainer_Meta const &v2) noexcept {
+		static_assert(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);
 			v3.set(data % modulus(), i);
@@ -746,11 +779,30 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	constexpr inline static void sub(kAryPackedContainer_Meta &v3,
-	                                 kAryPackedContainer_Meta const &v1,
-	                                 kAryPackedContainer_Meta const &v2,
-	                                 const uint32_t k_lower,
-	                                 const uint32_t k_upper) noexcept {
+									 kAryPackedContainer_Meta const &v1,
+									 kAryPackedContainer_Meta const &v2,
+									 const uint32_t k_lower,
+									 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
+		for (uint32_t i = k_lower; i < k_upper; i++) {
+			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i));
+			if (data < 0)
+				data += modulus();
+			v3.set(data % modulus(), i);
+		}
+	}
+
+	/// v3 = v1 - v2 between [k_lower, k_upper)
+	/// \param v3 output
+	/// \param v1 input
+	/// \param v2 input
+	/// \param k_lower inclusive
+	/// \param k_upper exclusive
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	constexpr inline static void sub(kAryPackedContainer_Meta &v3,
+	                                 kAryPackedContainer_Meta const &v1,
+	                                 kAryPackedContainer_Meta const &v2) noexcept {
+		static_assert(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i));
 			if (data < 0)
@@ -817,13 +869,31 @@ public:
 	/// \param k_upper exclusive
 	/// \return v1 == v2 between [k_lower, k_upper)
 	constexpr inline static bool cmp(kAryPackedContainer_Meta const &v1,
-	                                 kAryPackedContainer_Meta const &v2,
-	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = length()) noexcept {
+									 kAryPackedContainer_Meta const &v2,
+									 const uint32_t k_lower = 0,
+									 const uint32_t k_upper = length()) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			if (v1.get(i) != v2.get(i))
+			if (v1.get(i) != v2.get(i)) {
 				return false;
+			}
+		}
+		return true;
+	}
+
+	/// \param v1 input
+	/// \param v2 input
+	/// \param k_lower inclusive
+	/// \param k_upper exclusive
+	/// \return v1 == v2 between [k_lower, k_upper)
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	constexpr inline static bool cmp(kAryPackedContainer_Meta const &v1,
+	                                 kAryPackedContainer_Meta const &v2) noexcept {
+		static_assert( k_upper <= length() && k_lower < k_upper);
+		for (uint32_t i = k_lower; i < k_upper; i++) {
+			if (v1.get(i) != v2.get(i)) {
+				return false;
+			}
 		}
 		return true;
 	}
@@ -848,12 +918,20 @@ public:
 	/// \param k_upper exclusive
 	/// \return this == obj between [k_lower, k_upper)
 	[[nodiscard]] constexpr bool is_equal(kAryPackedContainer_Meta const &obj,
-	                        const uint32_t k_lower = 0,
-	                        const uint32_t k_upper = length()) const noexcept {
+										  const uint32_t k_lower = 0,
+										  const uint32_t k_upper = length()) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
-	///
+	/// \param obj
+	/// \param k_lower inclusive
+	/// \param k_upper exclusive
+	/// \return this == obj between [k_lower, k_upper)
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	[[nodiscard]] constexpr bool is_equal(kAryPackedContainer_Meta const &obj) const noexcept {
+		return cmp<k_lower, k_upper>(*this, obj);
+	}
+
 	/// \param obj
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
@@ -873,7 +951,24 @@ public:
 		return false;
 	}
 
-	///
+	/// \param obj
+	/// \param k_lower inclusive
+	/// \param k_upper exclusive
+	/// \return this > obj [k_lower, k_upper)
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	[[nodiscard]] constexpr bool is_greater(kAryPackedContainer_Meta const &obj) const noexcept {
+		static_assert( k_upper <= length() && k_lower < k_upper);
+		for (uint32_t i = k_upper; i > k_lower; i--) {
+			if (get(i - 1) > obj.get(i - 1)) {
+				return true;
+			} else if (get(i - 1) < obj.get(i - 1)) {
+				return false;
+			}
+		}
+
+		return false;
+	}
+
 	/// \param obj
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
@@ -893,6 +988,23 @@ public:
 		return false;
 	}
 
+	/// \param obj
+	/// \param k_lower inclusive
+	/// \param k_upper exclusive
+	/// \return this < obj [k_lower, k_upper)
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	[[nodiscard]] constexpr bool is_lower(kAryPackedContainer_Meta const &obj) const noexcept {
+		static_assert( k_upper <= length() && k_lower < k_upper);
+		for (uint32_t i = k_upper; i > k_lower; i--) {
+			if (get(i - 1) < obj.get(i - 1)) {
+				return true;
+			} else if (get(i - 1) > obj.get(i - 1)) {
+				return false;
+			}
+		}
+
+		return false;
+	}
 	/// add on full length and return the weight only between [l, h)
 	/// \param v3 = v1 + v2
 	/// \param v1 input

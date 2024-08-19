@@ -54,6 +54,7 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 	};
 	const auto v = h(value_);
 	uint64_t next = interpolate1(v);
+	uint64_t old_next = -1ull;
 	ASSERT(next <= count);
 
 	while (true) {
@@ -76,6 +77,10 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 		ASSERT(h(*left) <= h(*right));
 		next = interpolate2(v, left, right);
 		next += std::distance(first, left);
+
+		// break free from a possible infinite loop
+		next += next == old_next;
+		old_next = next;
 		ASSERT(next < count);
 	}
 	return left;

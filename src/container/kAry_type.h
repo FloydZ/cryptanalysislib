@@ -28,6 +28,8 @@ public:
 	[[nodiscard]] constexpr static inline uint64_t bits() noexcept { return bits_log2(q); }
 	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return 1; }
 
+	constexpr static uint32_t qbits = bits_log2(q);
+
 	constexpr static uint64_t M = computeM_u32(_q);
 	// max bytes of T for which `fastmod` is defined
 	constexpr static uint64_t M_limit = 0;
@@ -58,6 +60,12 @@ public:
 	// given bit boundaries.
 	constexpr static bool arith = true;
 
+
+	// if true, all mask operations ignore the given
+	// `k_lower` parameters, and set them to zero.
+	// Very useful for SubSet Sum calculations
+	constexpr static bool lower_is_zero = true;
+
 	static_assert(mirror + arith <= 1, "only one of the two params should be set to `true`");
 
 	// we are godd C++ devs
@@ -79,17 +87,32 @@ private:
 	                                      		 const uint32_t upper) noexcept {
 		ASSERT(lower < upper);
 		ASSERT(upper <= bits());
-		if constexpr (mirror) {
+		if constexpr (mirror && lower_is_zero) {
+			const T mask2 = T(-1u) << (bits() - upper);
+			return mask2;
+		}
+
+		if constexpr (mirror && !lower_is_zero) {
 			const T mask1 = T(-1u) >> lower;
 			const T mask2 = T(-1u) << (bits() - upper);
 			const T mask = mask1 & mask2;
 			return mask;
-		} else {
+		}
+
+		if constexpr (!mirror && !lower_is_zero) {
 			const T mask1 = T(-1ull) << lower;
 			const T mask2 = (1ull << upper) - T(1ull);
 			const T mask = mask1 & mask2;
 			return mask;
 		}
+
+		if constexpr (!mirror && lower_is_zero) {
+			const T mask2 = (1ull << upper) - T(1ull);
+			return mask2;
+		}
+
+		ASSERT(false);
+		return 0;
 	}
 
 public:
@@ -123,7 +146,12 @@ public:
 
 	inline void random(const T l,
 	                   const T u) noexcept {
-		__value = fastrandombytes_T<T>(l, u);
+		if constexpr (arith) {
+			__value = fastrandombytes_T<T>(l, u);
+		} else {
+			const T mask = (1ull << u) - 1ull;
+			__value == (fastrandombytes_uint64()&mask) << l;
+		}
 	}
 
 	/// \return
@@ -689,10 +717,11 @@ public:
 		static_assert(lower < upper);
 		static_assert(upper <= bits());
 
+		constexpr T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q));
+			out.__value &= mask;
 		} else {
-			constexpr T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() ^ in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
@@ -711,10 +740,11 @@ public:
 		ASSERT(lower < upper);
 		ASSERT(upper <= bits());
 
+		const T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q);
+			out.__value &= mask;
 		} else {
-			const T mask = compute_mask(lower, upper);
 			// NOTE: ignores carry here
 			const T tmp1 = (in1.value() ^ in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
@@ -752,10 +782,11 @@ public:
 		ASSERT(lower < upper);
 		ASSERT(upper <= bits());
 
+		const T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			__value = ((q - __value) % q);
+			__value &= mask;
 		} else {
-			const T mask = compute_mask(lower, upper);
 			__value ^= mask;
 		}
 	}
@@ -888,7 +919,8 @@ public:
 	/// \return
 	[[nodiscard]] static constexpr inline S add256_T(const S a,
 													 const S b) {
-		S ret;
+		S ret = S::add(a, b);
+		ret = mod256_T(ret);
 		return ret;
 	}
 
@@ -897,9 +929,8 @@ public:
 	/// \return
 	[[nodiscard]] static constexpr inline S sub256_T(const S a,
 	                                                 const S b) {
-		S ret;
-		(void)a;
-		(void)b;
+		S ret = S::sub(a, b);
+		ret = mod256_T(ret);
 		return ret;
 	}
 
@@ -908,7 +939,9 @@ public:
 	/// \return
 	[[nodiscard]] static constexpr inline S mod256_T(const S a) {
 		S ret;
-		(void)a;
+		for (int i = 0; i < S::LIMBS; ++i) {
+			ret.d[i] = a.d[i] % q;
+		}
 		return ret;
 	}
 
@@ -917,10 +950,9 @@ public:
 	/// \param b
 	/// \return
 	[[nodiscard]] static constexpr inline S mul256_T(const S a,
-													  const S b) {
-		S ret;
-		(void)a;
-		(void)b;
+	                                                 const S b) {
+		S ret = S::mullo(a, b);
+		ret = mod256_T(ret);
 		return ret;
 	}
 
@@ -928,8 +960,9 @@ public:
 	/// \param a
 	/// \return
 	[[nodiscard]] static constexpr inline S neg256_T(const S a) {
-		uint8x32_t ret;
-		(void)a;
+		S Q = S::set1(q);
+		S ret = S::sub(Q, a);
+		ret = mod256_T(ret);
 		return ret;
 	}
 
@@ -1115,7 +1148,7 @@ public:
 	}
 
 	/// returns the number of elements stored this container
-	[[nodiscard]] 	static constexpr inline size_t size() noexcept {
+	[[nodiscard]] static constexpr inline size_t size() noexcept {
 		return 1;
 	}
 
@@ -1175,6 +1208,22 @@ public:
 		return __value;
 	}
 
+	template<const uint32_t l, const uint32_t h>
+	constexpr static bool is_hashable() noexcept {
+		if constexpr (h == l) { return false; }
+		constexpr size_t t1 = h-l;
+		constexpr size_t t2 = t1*qbits;
+
+		return t2 <= 64u;
+	}
+	constexpr static bool is_hashable(const uint32_t l,
+									  const uint32_t h) noexcept {
+		ASSERT(h > l);
+		const size_t t1 = h-l;
+		const size_t t2 = t1*qbits;
+
+		return t2 <= 64u;
+	}
 	/// prints some information about this class
 	constexpr static void info() noexcept {
 		std::cout << "{ name: \"kAry_Type\""
@@ -1186,7 +1235,7 @@ public:
 		          << ", sizeof(T2): " << sizeof(T2)
 				  << " }" << std::endl;
 	}
-private:
+// TODO private:
 
 	T __value;
 };

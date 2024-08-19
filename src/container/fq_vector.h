@@ -83,15 +83,28 @@ public:
 		return t2;
 	}
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
-		if constexpr (n*qbits <= 64) {
-			return hash<0, n>();
-		}
-		ASSERT(false);
-		return (uint64_t)0;
-		//using S = TxN_t<T, limbs()>;
-		//const S *s = (S *)__data.data();
-		//const auto t = Hash<S>(s);
-		//return t;
+		return *this;
+		// using S_ = TxN_t<T, limbs()>;
+		// const S_ *s = (S_ *)ptr();
+		// const auto t = Hash<S_>(s);
+		// return t;
+	}
+
+	template<const uint32_t l, const uint32_t h>
+	constexpr static bool is_hashable() noexcept {
+		static_assert(h > l);
+		constexpr size_t t1 = h-l;
+		constexpr size_t t2 = t1*qbits;
+
+		return t2 <= 64u;
+	}
+	constexpr static bool is_hashable(const uint32_t l,
+									  const uint32_t h) noexcept {
+		ASSERT(h > l);
+		const size_t t1 = h-l;
+		const size_t t2 = t1*qbits;
+
+		return t2 <= 64u;
 	}
 
 	/// zeros our the whole container
@@ -614,6 +627,37 @@ public:
 		return false;
 	}
 
+	/// \param v3 output
+	/// \param v1 input
+	/// \param v2 input
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
+	/// \param norm = max norm of an dimension which is allowed.
+	/// \return true if the element needs to be filtered out. False else.
+	template<const uint32_t k_lower, const uint32_t k_upper, const uint32_t norm=-1u>
+	constexpr inline static bool add(kAryContainerMeta &v3,
+									 kAryContainerMeta const &v1,
+									 kAryContainerMeta const &v2) noexcept {
+		static_assert( k_upper <= length() && k_lower < k_upper);
+
+		if constexpr (norm == -1u) {
+			for (uint64_t i = k_lower; i < k_upper; ++i) {
+				v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
+			}
+
+			return false;
+		}
+
+		LOOP_UNROLL();
+		for (uint64_t i = k_lower; i < k_upper; ++i) {
+			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
+			if (cryptanalysislib::math::abs(v3.__data[i]) > norm){
+				return true;
+			}
+		}
+
+		return false;
+	}
 	/// vector subtract
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
@@ -668,6 +712,41 @@ public:
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] + q - v2.__data[i]) % q;
 			if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1))) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/// \param v3 output container
+	/// \param v1 input container
+	/// \param v2 input container
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
+	/// \param norm filter every element out if hte norm is bigger than `norm`
+	/// \return true if the elements needs to be filter out. False if not
+	template<const uint32_t k_lower,
+	         const uint32_t k_upper,
+	         const uint32_t norm=-1u>
+	constexpr inline static bool sub(kAryContainerMeta &v3,
+									 kAryContainerMeta const &v1,
+									 kAryContainerMeta const &v2) noexcept {
+		static_assert(k_upper <= length() && k_lower < k_upper);
+
+		if constexpr (norm == -1u){
+			LOOP_UNROLL();
+			for (uint32_t i = k_lower; i < k_upper; ++i) {
+				v3.__data[i] = (v1.__data[i] + q - v2.__data[i]) % q;
+			}
+
+			return false;
+		}
+
+		LOOP_UNROLL();
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
+			v3.__data[i] = (v1.__data[i] + q - v2.__data[i]) % q;
+			if (cryptanalysislib::math::abs(v3.__data[i]) > norm){
 				return true;
 			}
 		}
@@ -765,6 +844,25 @@ public:
 		return true;
 	}
 
+	/// \param v1 input container
+	/// \param v2 input container
+	/// \param k_lower lower dimension, inclusive
+	/// \param k_upper higher dimension, exclusive
+	/// \return v1 == v2 on the coordinates [k_lower, k_higher)
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	constexpr inline static bool cmp(kAryContainerMeta const &v1,
+									 kAryContainerMeta const &v2) noexcept {
+		static_assert( k_upper <= length() && k_lower < k_upper);
+
+		LOOP_UNROLL();
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
+			if (v1.__data[i] != v2.__data[i])
+				return false;
+		}
+
+		return true;
+	}
+
 	/// static function.
 	/// Sets v1 to v2 between [k_lower, k_higher). Does not touch the other
 	/// coordinates in v1.
@@ -789,9 +887,18 @@ public:
 	/// \param k_upper higher coordinate bound, exclusive
 	/// \return this == obj on the coordinates [k_lower, k_higher)
 	constexpr bool is_equal(kAryContainerMeta const &obj,
-	                        const uint32_t k_lower = 0,
-	                        const uint32_t k_upper = length()) const noexcept {
+							const uint32_t k_lower = 0,
+							const uint32_t k_upper = length()) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
+	}
+
+	/// \param obj to compare to
+	/// \param k_lower lower coordinate bound, inclusive
+	/// \param k_upper higher coordinate bound, exclusive
+	/// \return this == obj on the coordinates [k_lower, k_higher)
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	constexpr bool is_equal(kAryContainerMeta const &obj) const noexcept {
+		return cmp<k_lower, k_upper>(*this, obj);
 	}
 
 	/// \param obj to compare to
@@ -803,6 +910,27 @@ public:
 	                          const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length());
 		ASSERT(k_lower < k_upper);
+		
+		LOOP_UNROLL();
+		for (uint64_t i = k_upper; i > k_lower; i--) {
+			if (__data[i - 1] > obj.__data[i - 1]) {
+				return true;
+			} else if (__data[i - 1] < obj.__data[i - 1]) {
+				return false;
+			}
+		}
+		// they are equal
+		return false;
+	}
+	
+	/// \param obj to compare to
+	/// \param k_lower lower bound coordinate wise, inclusive
+	/// \param k_upper higher bound coordinate wise, exclusive
+	/// \return this > obj on the coordinates [k_lower, k_higher)
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	constexpr bool is_greater(kAryContainerMeta const &obj) const noexcept {
+		static_assert(k_upper <= length());
+		static_assert(k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
@@ -825,6 +953,27 @@ public:
 	                        const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length());
 		ASSERT(k_lower < k_upper);
+
+		LOOP_UNROLL();
+		for (uint32_t i = k_upper; i > k_lower; i--) {
+			if (__data[i - 1] < obj.__data[i - 1]) {
+				return true;
+			} else if (__data[i - 1] > obj.__data[i - 1]) {
+				return false;
+			}
+		}
+
+		return false;
+	}
+
+	/// \param obj to compare to
+	/// \param k_lower lower bound coordinate wise, inclusive
+	/// \param k_upper higher bound coordinate wise, exclusive
+	/// \return this < obj on the coordinates [k_lower, k_higher)
+	template<const uint32_t k_lower, const uint32_t k_upper>
+	constexpr bool is_lower(kAryContainerMeta const &obj) const noexcept {
+		static_assert( k_upper <= length());
+		static_assert( k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_upper; i > k_lower; i--) {

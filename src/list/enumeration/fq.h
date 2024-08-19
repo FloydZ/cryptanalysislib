@@ -95,7 +95,8 @@ public:
 	template<typename HashMap, typename Extractor, typename Predicate>
 #if __cplusplus > 201709L
 	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) && (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
+	            (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
 #endif
 	bool run(ListType *L1 = nullptr,
 	         ListType *L2 = nullptr,
@@ -191,6 +192,21 @@ public:
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);
 		return false;
+	}
+
+	/// \param L1
+	/// \param L2
+	/// \param offset
+	/// \param base_offset
+	/// \param tid
+	/// \return
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
+			 const uint32_t tid = 0) {
+		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
+		        (L1, L2, offset, base_offset, tid, nullptr, nullptr, nullptr);
 	}
 };
 
@@ -434,6 +450,15 @@ public:
 		ASSERT(ctr == LIST_SIZE);
 		return false;
 	}
+
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
+			 const uint32_t tid = 0) {
+		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				   (L1, L2, offset, base_offset, tid, nullptr, nullptr, nullptr);
+	}
 };
 
 
@@ -551,10 +576,13 @@ public:
 	/// \param p predicate function
 	/// \return true/false if the golden element was found or not (only if
 	///  		predicate was given)
-	template<typename HashMap, typename Extractor>
+	template<typename HashMap,
+	         typename Extractor,
+	         typename Predicate>
 #if __cplusplus > 201709L
 	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
-	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>)
+	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
+	            (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
 #endif
 	bool run(ListType &L1,
 	         ListType &L2,
@@ -562,7 +590,8 @@ public:
 	         ListType &L4,
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
-	         Extractor *e = nullptr) {
+	         Extractor *e = nullptr,
+	         Predicate *p = nullptr) {
 		Element element3, element4;
 		Label tmp;
 
@@ -582,6 +611,8 @@ public:
 
 		// check if the lists are enabled
 		constexpr bool sHM = !std::is_same_v<std::nullptr_t, HashMap>;
+		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
+		(void)sP; (void)p;
 
 		/// add the syndrome, if needed
 		if (syndrome != nullptr) {
@@ -664,6 +695,15 @@ public:
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);
 		return false;
+	}
+
+	bool run(ListType &L1,
+			 ListType &L2,
+			 ListType &L3,
+			 ListType &L4,
+			 const uint32_t tid = 0) noexcept {
+		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
+		           (L1, L2, L3, L4, tid, nullptr, nullptr, nullptr);
 	}
 };
 
@@ -933,6 +973,19 @@ public:
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);
 		return false;
+	}
+
+	/// \param L1
+	/// \param L2
+	/// \param L3
+	/// \param L4
+	/// \param tid
+	/// \return
+	bool run(ListType &L1, ListType &L2,
+			 ListType &L3, ListType &L4,
+			 const uint32_t tid = 0) {
+		return run<std::nullptr_t, std::nullptr_t>
+				   (L1, L2, L3, L4, tid, nullptr, nullptr);
 	}
 };
 #endif//CRYPTANALYSISLIB_FQ_ENUMERATION_H

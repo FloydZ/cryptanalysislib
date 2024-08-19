@@ -34,7 +34,7 @@ using K = uint16_t;
 using V = size_t[1];
 
 constexpr static SimpleHashMapConfig simple{10, 1u << l, 1};
-using HMType = SimpleHashMap<K, V, simple, Hash<K, 0, l>>;
+using HMType = SimpleHashMap<K, V, simple, Hash<uint64_t, 0, l, q>>;
 using load_type = HMType::load_type;
 
 TEST(ListEnumerateMultiFullLength, single_list) {
@@ -45,7 +45,8 @@ TEST(ListEnumerateMultiFullLength, single_list) {
 	Label syndrome;
 	syndrome.random();
 	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
-	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
+	//enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
+	enumerator.run(&L);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		EXPECT_EQ(L.data_value(i).popcnt(), w);
@@ -93,7 +94,8 @@ TEST(ListEnumerateMultiFullLength, two_lists) {
 	Label syndrome;
 	syndrome.random();
 	ListEnumerateMultiFullLength<List, n / 2, q, w> enumerator{HT, 0, &syndrome};
-	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
+	//enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
+	enumerator.run(&L1, &L2, n / 2);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		EXPECT_EQ(L1.data_value(i).popcnt(), w);
@@ -115,7 +117,8 @@ TEST(ListEnumerateSingleFullLength, single_list) {
 	Matrix HT;
 	HT.random();
 	ListEnumerateSingleFullLength<List, n, q, w> enumerator{qprime, HT};
-	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
+	// enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
+	enumerator.run(&L, nullptr);
 
 	for (size_t i = 0; i < chase_size; ++i) {
 		std::cout << i << " " << L.data_value(i).popcnt() << std::endl;
@@ -156,7 +159,8 @@ TEST(ListEnumerateSingleFullLength, two_lists) {
 	HT.random();
 
 	ListEnumerateSingleFullLength<List, n / 2, q, w> enumerator{qprime, HT};
-	enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
+	// enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
+	enumerator.run(&L1, &L2, n / 2);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		ASSERT_EQ(L1.data_value(i).popcnt(), w);
@@ -182,7 +186,8 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap) {
 	Matrix HT;
 	HT.random();
 	ListEnumerateSinglePartialSingle<List, n, q, mitm_w, noreps_w, split> enumerator{q - 1, HT};
-	enumerator.template run<std::nullptr_t, std::nullptr_t>(L1, L2, L3, L4);
+	// enumerator.template run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(L1, L2, L3, L4);
+	enumerator.run(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
 		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);

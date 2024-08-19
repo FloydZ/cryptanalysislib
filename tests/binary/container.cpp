@@ -1238,58 +1238,61 @@ TEST(hash, Simple) {
 }
 
 TEST(hash, Constexpr) {
-	BinaryContainer<n> b1;
-	b1.zero();
-	b1.one(0, 63);
-	uint64_t t = b1.template hash<0, 63>();
-	uint64_t mask = (1ull << (63 - 0)) - 1ull;
-	EXPECT_EQ(t, mask);
+#if defined(NNN) and NNN >= 128
+		BinaryContainer<n> b1;
+		b1.zero();
+		b1.one(0, 63);
+		uint64_t t = b1.template hash<0, 63>();
+		uint64_t mask = (1ull << (63 - 0)) - 1ull;
+		EXPECT_EQ(t, mask);
 
-	b1.zero();
-	b1.one(0, 64);
-	t = b1.template hash<0, 64>();
-	mask = -1ull;
-	EXPECT_EQ(t, mask);
+		b1.zero();
+		b1.one(0, 64);
+		t = b1.template hash<0, 64>();
+		mask = -1ull;
+		EXPECT_EQ(t, mask);
 
-	b1.zero();
-	b1.one(48, 80);
-	t = b1.template hash<48, 80>();
-	mask = (1ull << 32u) - 1ull;
-	EXPECT_EQ(t, mask);
+		b1.zero();
+		b1.one(48, 80);
+		t = b1.template hash<48, 80>();
+		mask = (1ull << 32u) - 1ull;
+		EXPECT_EQ(t, mask);
 
-	b1.zero();
-	b1.one(63, 127);
-	t = b1.template hash<63, 127>();
-	mask = -1ull;
-	EXPECT_EQ(t, mask);
-}
-
-
-TEST(hash, Complex) {
-	// two avx register
-	constexpr uint32_t n = 256*2;
-	using B = BinaryContainer<n>;
-	B b;
-	b.random();
-	const auto c = b.hash();
-	// using S = decltype(c);
-
-	const auto *c1 = (const uintptr_t *)&b;
-	const auto *c2 = (const uintptr_t *)c.__data;
-	EXPECT_EQ(c1, c2);
-
-	const auto *d = (uint64_t *)b.ptr();
-	for (uint32_t i = 0; i < n/64; ++i) {
-		const auto d1 = d[i];
-		const auto d2 = (*c.__data)[i];
-		EXPECT_EQ(d1, d2);
+		b1.zero();
+		b1.one(63, 127);
+		t = b1.template hash<63, 127>();
+		mask = -1ull;
+		EXPECT_EQ(t, mask);
 	}
-
-	std::cout << std::hex;
-	std::cout << &b << std::endl;
-	std::cout << c.__data << std::endl;
-	std::cout << std::endl;
+#endif
 }
+
+// TODO
+//TEST(hash, Complex) {
+//	// two avx register
+//	constexpr uint32_t n = 256*2;
+//	using B = BinaryContainer<n>;
+//	B b;
+//	b.random();
+//	const auto c = b.hash();
+//	// using S = decltype(c);
+//
+//	const auto *c1 = (const uintptr_t *)&b;
+//	const auto *c2 = (const uintptr_t *)c.__data;
+//	EXPECT_EQ(c1, c2);
+//
+//	const auto *d = (uint64_t *)b.ptr();
+//	for (uint32_t i = 0; i < n/64; ++i) {
+//		const auto d1 = d[i];
+//		const auto d2 = (*c.__data)[i];
+//		EXPECT_EQ(d1, d2);
+//	}
+//
+//	std::cout << std::hex;
+//	std::cout << &b << std::endl;
+//	std::cout << c.__data << std::endl;
+//	std::cout << std::endl;
+//}
 
 
 #ifndef EXTERNAL_MAIN

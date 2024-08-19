@@ -1875,7 +1875,8 @@ public:
 	             const std::size_t hash,
 	             const uint32_t level,
 	             void *current_,
-	             void *parent_, void *cache) {
+	             void *parent_,
+	             void *cache) {
 		const uint64_t mask = usedLength(current_) - 1;
 		const uint32_t pos = (hash >> level) & mask;
 		void *current = (void *) accessNode(current_);
@@ -1883,7 +1884,7 @@ public:
 		if (old == nullptr) {
 			// the key does not exist
 			return nullptr;
-		}else if (isANode(old)) {
+		} else if (isANode(old)) {
 			return remove(key, hash, level + 4, old, current, cache);
 		} else if (isSNode(old)) {
 			const uint32_t cachelevel = cache == nullptr ? 0 : 31 - __builtin_clz(cache_size - 1u);
