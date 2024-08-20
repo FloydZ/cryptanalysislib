@@ -10,7 +10,7 @@
 /// \tparam R helper type to overwrite the rowtype. Overwrites packed if != void
 template<typename T,
 		 const uint32_t ncols,
-		 const uint32_t q,
+		 const uint64_t q,
 		 const bool packed = true,
          typename R=void>
 class FqVector : public FqMatrix_Meta<T, 1, ncols, q, packed, R> {

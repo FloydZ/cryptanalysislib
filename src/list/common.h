@@ -307,6 +307,7 @@ public:
 
 			if constexpr (sort_increasing_order) {
 				if (!__data[i - 1].is_lower(__data[i], k_lower, k_higher)) {
+					std::cout << *this;
 					return false;
 				}
 			} else {
@@ -683,7 +684,7 @@ public:
 	                      const size_t pos,
 	                      const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
-		ASSERT(spos < size());
+		ASSERT((spos+pos) < size());
 		__data[spos + pos] = e;
 	}
 

@@ -419,7 +419,7 @@ public:
 	/// \param k_lower lower coordinate on which the element must be equal
 	/// \param k_higher higher coordinate the elements must be equal
 	/// \return the position of the first (lower) element which is equal to e. -1 if nothing found
-	constexpr size_t search_level(const Element &e,
+	constexpr inline size_t search_level(const Element &e,
 								  const uint32_t k_lower,
 								  const uint32_t k_higher) const noexcept {
 		ASSERT(is_sorted(k_lower, k_higher));
@@ -430,19 +430,35 @@ public:
 		}
 	}
 
+	/// small helper function
+	constexpr inline size_t search_level(const LabelType &l,
+								  const uint32_t k_lower,
+								  const uint32_t k_higher) const noexcept {
+		Element e;
+		e.label = l;
+		return search_level(e, k_lower, k_higher);
+	}
+
 	///
 	/// \tparam k_lower
 	/// \tparam k_higher
 	/// \param e
 	/// \return
 	template<const uint32_t k_lower, const uint32_t k_higher>
-	constexpr size_t search_level(const Element &e) const noexcept {
+	constexpr inline size_t search_level(const Element &e) const noexcept {
 		ASSERT(is_sorted(k_lower, k_higher));
 		if constexpr (use_interpolation_search) {
 			return interpolation_search<k_lower, k_higher>(e);
 		} else {
 			return binary_search<k_lower, k_higher>(e);
 		}
+	}
+
+	template<const uint32_t k_lower, const uint32_t k_higher>
+	constexpr inline size_t search_level(const LabelType &l) const noexcept {
+		Element e;
+		e.label = l;
+		return search_level<k_lower, k_higher>(e);
 	}
 
 	///

@@ -71,6 +71,29 @@ B63_BENCHMARK(Constexpr, nn) {
 	B63_KEEP(res);
 }
 
+B63_BENCHMARK(Constexpr_on_iT_v2, nn) {
+	Label target; target.zero();
+	B63_SUSPEND {
+		std::vector<uint32_t> weights(n/2);
+		generate_random_indices(weights, n);
+		for (uint32_t i = 0; i < n/2; ++i) {
+			Label::add(target, target, A[0][weights[i]]);
+		}
+
+		l2.sort_level<0, 8>();
+	}
+
+	int32_t res = 0;
+	for (uint64_t i = 0; i < nn; i++) {
+		out.set_load(0);
+		Tree::template join2lists_on_iT_v2<0, 8>(out, l1, l2, target);
+		B63_SUSPEND {
+			res += out[0].label.value();
+		}
+	}
+
+	B63_KEEP(res);
+}
 int main(int argc, char **argv) {
 A.random();
 	using Enumerator = MaxBinaryRandomEnumerator<List, n/2, n/4>;

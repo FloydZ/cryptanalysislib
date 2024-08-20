@@ -14,7 +14,7 @@
 template<typename T,
          const uint32_t nrows,
          const uint32_t ncols,
-         const uint32_t q,
+         const uint64_t q,
          const bool packed = true,
          typename R=void>
 class FqMatrix : public FqMatrix_Meta<T, nrows, ncols, q, packed, R> {

@@ -277,6 +277,15 @@ public:
 
 		return false;
 	}
+
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
+			 const uint32_t tid = 0){
+		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				(L1, L2, offset, base_offset, tid);
+	}
 };
 
 #endif//CRYPTANALYSISLIB_BINARY_ENUMERATION_H

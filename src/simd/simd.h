@@ -425,6 +425,31 @@ namespace cryptanalysislib {
 				ptrd[i] = in[i];
 			}
 		}
+
+		constexpr static inline uint32_t gt(const _uint8x16_t &in1,
+		                                    const _uint8x16_t &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] > in2.d[i]) << i;
+			}
+		}
+
+		constexpr static inline uint32_t lt(const _uint8x16_t &in1,
+		                                    const _uint8x16_t &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] < in2.d[i]) << i;
+			}
+		}
+
+		constexpr static inline uint32_t cmp(const _uint8x16_t &in1,
+		                                    const _uint8x16_t &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] == in2.d[i]) << i;
+			}
+		}
+
 	};
 
 	struct _uint32x4_t {

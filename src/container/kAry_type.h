@@ -16,7 +16,7 @@
 using namespace cryptanalysislib::metric;
 
 /// \tparam q  modulus
-template<const uint64_t _q, 
+template<const uint64_t _q,
 		 class Metric=HammingMetric>
 class kAry_Type_T {
 public:
@@ -34,8 +34,8 @@ public:
 	// max bytes of T for which `fastmod` is defined
 	constexpr static uint64_t M_limit = 0;
 
-	using T = TypeTemplate<q>;
-	using T2 = TypeTemplate<q*q>;
+	using T  = TypeTemplate<q>;
+	using T2 = TypeTemplate<__uint128_t(q)*__uint128_t(q)>;
 
 #ifdef USE_AVX512F
 	using S = TxN_t<T, 64u/sizeof(T)>;
@@ -1180,8 +1180,11 @@ public:
 		static_assert(h <= bits());
 		constexpr T diff1 = h - l;
 		static_assert (diff1 <= bits());
-		constexpr T diff2 = bits() - diff1;
-		constexpr T mask = T(-1ull >> diff2);
+		if constexpr (diff1 == bits()) {
+			return __value;
+		}
+
+		constexpr T mask = (T(1ull) << diff1) - T(1ull);
 		const T b = __value >> l;
 		const T c = b & mask;
 		return c;
@@ -1192,13 +1195,12 @@ public:
 	/// \tparam h bit positin
 	/// \return
 	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
-	                                             const uint32_t h) const noexcept {
+	                                           const uint32_t h) const noexcept {
 		ASSERT(l < h);
 		ASSERT(h <= bits());
 		const T diff1 = h - l;
 		ASSERT (diff1 <= bits());
-		const T diff2 = bits() - diff1;
-		const T mask = T(-1ull >> diff2);
+		const T mask = diff1 == bits() ? T(-1ull) :(T(1ull) << diff1) - T(1ull);
 		const T b = __value >> l;
 		const T c = b & mask;
 		return c;
@@ -1212,17 +1214,13 @@ public:
 	constexpr static bool is_hashable() noexcept {
 		if constexpr (h == l) { return false; }
 		constexpr size_t t1 = h-l;
-		constexpr size_t t2 = t1*qbits;
-
-		return t2 <= 64u;
+		return t1 <= 64u;
 	}
 	constexpr static bool is_hashable(const uint32_t l,
 									  const uint32_t h) noexcept {
 		ASSERT(h > l);
 		const size_t t1 = h-l;
-		const size_t t2 = t1*qbits;
-
-		return t2 <= 64u;
+		return t1 <= 64u;
 	}
 	/// prints some information about this class
 	constexpr static void info() noexcept {

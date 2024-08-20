@@ -41,7 +41,6 @@ void setup() {
 	}
 }
 
-#if 1
 #define C(x) 0x ## x ## ULL
 static const uint64_t testdata[kTestSize][16] = {
         {C(9ae16a3b2f90404f), C(75106db890237a4a), C(3feac5f636039766), C(3df09dfc64c09a2b), C(3cb540c392e51e29), C(6b56343feac0663), C(5b7bc50fd8e8ad92),
@@ -1258,50 +1257,9 @@ void InternalTest(const uint64_t* expected, const int offset, const int len) {
 	ASSERT_EQ(expected[4], (u >> 64u));
 	ASSERT_EQ(expected[5], uint64_t (v));
 	ASSERT_EQ(expected[6], (v>>64u));
-#ifdef __SSE4_2__
-	const __uint128_t y = CityHashCrc128(data + offset, len);
-	const __uint128_t z = CityHashCrc128WithSeed(data + offset, len, kSeed128);
-	uint64_t crc256_results[4];
-	CityHashCrc256(data + offset, len, crc256_results);
-	ASSERT_EQ(expected[7], uint64_t (y));
-	ASSERT_EQ(expected[8], (y>>64u));
-	ASSERT_EQ(expected[9], uint64_t (z));
-	ASSERT_EQ(expected[10], (z>>64u));
-	for (uint32_t i = 0; i < 4; i++) {
-		ASSERT_EQ(expected[11 + i], crc256_results[i]);
-	}
-#endif
 }
 
-#else
 
-#define Test(a, b, c) Dump((b), (c))
-void Dump(int offset, int len) {
-	const uint128 u = CityHash128(data + offset, len);
-	const uint128 v = CityHash128WithSeed(data + offset, len, kSeed128);
-	const uint128 y = CityHashCrc128(data + offset, len);
-	const uint128 z = CityHashCrc128WithSeed(data + offset, len, kSeed128);
-	uint64 crc256_results[4];
-	CityHashCrc256(data + offset, len, crc256_results);
-	cout << hex
-	     << "{C(" << CityHash64(data + offset, len) << "), "
-	     << "C(" << CityHash64WithSeed(data + offset, len, kSeed0) << "), "
-	     << "C(" << CityHash64WithSeeds(data + offset, len, kSeed0, kSeed1) << "), "
-	     << "C(" << Uint128Low64(u) << "), "
-	     << "C(" << Uint128High64(u) << "), "
-	     << "C(" << Uint128Low64(v) << "), "
-	     << "C(" << Uint128High64(v) << "),\n"
-	     << "C(" << Uint128Low64(y) << "), "
-	     << "C(" << Uint128High64(y) << "), "
-	     << "C(" << Uint128Low64(z) << "), "
-	     << "C(" << Uint128High64(z) << "),\n";
-	for (int i = 0; i < 4; i++) {
-		cout << hex << "C(" << crc256_results[i] << (i == 3 ? "),\n" : "), ");
-	}
-	cout << "C(" << CityHash32(data + offset, len) << ")},\n";
-}
-
-#endif
 
 TEST(cityhash, all) {
 	setup();

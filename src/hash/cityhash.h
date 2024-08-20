@@ -536,13 +536,13 @@ namespace cryptanalysislib::hash {
 	}
 
 	// Requires len < 240.
-	constexpr static void CityHashCrc256Short(const char *s,
+	static void CityHashCrc256Short(const char *s,
 	                                          const size_t len,
 	                                          uint64_t *result) noexcept{
-		char buf[240];
-		cryptanalysislib::template memcpy<uint8_t>((uint8_t *)buf, (uint8_t *)s, len);
-		cryptanalysislib::template memset<uint8_t>((uint8_t *)buf + len, 0, 240 - len);
-		CityHashCrc256Long(buf, 240, ~static_cast<uint32_t>(len), result);
+		uint8_t buf[240];
+		cryptanalysislib::memcpy(buf, (uint8_t *)s, len);
+		cryptanalysislib::memset(buf + len, (uint8_t)0u, 240 - len);
+		CityHashCrc256Long((const char *)buf, 240, ~static_cast<uint32_t>(len), result);
 	}
 
 	constexpr void CityHashCrc256(const char *s,

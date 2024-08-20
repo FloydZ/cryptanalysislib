@@ -102,7 +102,7 @@ concept MatrixAble = requires(MatrixType c) {
 template<typename T,
          const uint32_t _nrows,
          const uint32_t _ncols,
-         const uint32_t q,
+         const uint64_t q,
          const bool packed = false,
          typename R=void>
 struct FqMatrix_Meta {
@@ -188,7 +188,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime,
+	         const uint64_t qprime,
 	         const bool packed_prime>
 	constexpr void copy_sub(const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed_prime> &A,
 	                        const uint32_t srow, const uint32_t scol) {
@@ -422,7 +422,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime>
+	         const uint64_t qprime>
 	constexpr static void transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
 	                                FqMatrix_Meta &A, const uint32_t srow, const uint32_t scol) noexcept {
 		ASSERT(srow < nrows);
@@ -451,7 +451,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime,
+	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
 	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
@@ -483,7 +483,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime,
+	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
 	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
@@ -521,7 +521,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime,
+	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
 	static constexpr void sub_matrix(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
@@ -1398,7 +1398,7 @@ public:
 template<typename T,
 		const uint32_t nrows,
 		const uint32_t ncols,
-		const uint32_t q,
+		const uint64_t q,
 		const bool packed = false,
 		typename R=void>
 std::ostream &operator<<(std::ostream &out,

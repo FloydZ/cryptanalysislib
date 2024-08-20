@@ -14,7 +14,7 @@ constexpr size_t n = 20;
 constexpr size_t q = 3;
 constexpr size_t LS = 1u << 16u;
 constexpr uint32_t k_lower = 0,
-                   k_upper = n;
+		k_upper = n;
 
 using Binary 		= BinaryContainer<n>;
 using FqVector_ 	= kAryContainer_T<uint8_t, n, q>;
@@ -63,7 +63,7 @@ void BM_SkaSort(benchmark::State& state) {
 
 	for (auto _ : state) {
 		ska_sort(l.begin(), l.end(), [](const T &a) __attribute__((always_inline)) {
-		    return a.template hash<k_lower, k_upper>();
+		  return a.template hash<k_lower, k_upper>();
 		});
 	}
 	state.SetComplexityN(state.range(0));

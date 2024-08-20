@@ -722,6 +722,97 @@ public:
 		}
 	}
 
+	///
+	/// \param out
+	/// \param iL sorted on [0, k_upper2)
+	/// \param L1 dont care
+	/// \param L2 sorted on [0, k_upper1)
+	/// \param target full target
+	/// \param iT intermediate target
+	/// \param k_lower1
+	/// \param k_upper1
+	/// \param k_lower2
+	/// \param k_upper2
+	static void twolevel_streamjoin_on_iT_v2(List &out, const List &iL,
+	                                         const List &L1, const List &L2,
+										     const LabelType &target, const LabelType &iT,
+										     const uint32_t k_lower1, const uint32_t k_upper1,
+										     const uint32_t k_lower2, const uint32_t k_upper2) {
+		ASSERT(L2.is_sorted(k_lower1, k_upper1));
+		ASSERT(iL.is_sorted(k_lower1, k_upper2));
+		(void)k_lower1;
+		(void)k_lower2;
+
+		constexpr uint32_t filter = -1u;
+		ElementType tmpe1;
+		LabelType t1, t2;
+		for (size_t k = 0; k < L1.load(); ++k) {
+			LabelType::sub(t1, iT, L1[k].label);
+			size_t l = L2.search_level(t1, 0, k_upper1);
+			for (; (l < L2.load()) &&
+			       (t1.is_equal(L2[l].label, 0, k_upper1));
+			     ++l) {
+				LabelType::sub(t2, target, L1[k].label);
+				LabelType::sub(t2, t2, L2[l].label);
+				size_t o = iL.search_level(t2, 0, k_upper2);
+				for (; (o < iL.load()) &&
+				       (t2.is_equal(iL[o].label, 0, k_upper2));
+				     ++o) {
+					tmpe1 = iL[o];
+					ElementType::add(tmpe1, tmpe1, L1[k]);
+					out.add_and_append(tmpe1, L2[l], 0, k_upper2, filter);
+				}
+			}
+		}
+	}
+
+	/// \param out
+	/// \param iL sorted on [0, k_upper2)
+	/// \param L1 dont care
+	/// \param L2 sorted on [0, k_upper1)
+	/// \param target full target
+	/// \param iT intermediate target
+	/// \param k_lower1
+	/// \param k_upper1
+	/// \param k_lower2
+	/// \param k_upper2
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+	         const uint32_t k_lower2, const uint32_t k_upper2>
+	static void twolevel_streamjoin_on_iT_v2(List &out, const List &iL,
+											 const List &L1, const List &L2,
+											 const LabelType &target, const LabelType &iT) {
+		static_assert(k_lower1 < k_upper1);
+		static_assert(k_lower2 < k_upper2);
+		static_assert(k_lower1 < k_upper1);
+		(void)k_lower1;
+		(void)k_lower2;
+		ASSERT(L2.is_sorted(k_lower1, k_upper1));
+		ASSERT(iL.is_sorted(k_lower1, k_upper2));
+
+		constexpr uint32_t filter = -1u;
+		ElementType tmpe1;
+		LabelType t1, t2;
+		for (size_t k = 0; k < L1.load(); ++k) {
+			LabelType::sub(t1, iT, L1[k].label);
+			size_t l = L2.template search_level<0, k_upper1>(t1);
+			for (; (l < L2.load()) &&
+				   (t1.template is_equal<0, k_upper1>(L2[l].label));
+				   ++l) {
+				LabelType::sub(t2, target, L1[k].label);
+				LabelType::sub(t2, t2, L2[l].label);
+				size_t o = iL.template search_level<0, k_upper2>(t2);
+				for (; (o < iL.load()) &&
+					   (t2.template is_equal<0, k_upper2>(iL[o].label));
+					   ++o) {
+					tmpe1 = iL[o];
+					ElementType::add(tmpe1, tmpe1, L1[k]);
+					out.template add_and_append
+					        <0, k_upper2, filter, false>
+					        (tmpe1, L2[l]);
+				}
+			}
+		}
+	}
 
 	// Schematic View on how the algorithm Works.
 	// The algorithm does not care what weight is on each element, nor does it care about the output size.
@@ -813,7 +904,6 @@ public:
 			}
 		}
 	}
-
 
 	///
 	/// \tparam k_lower
@@ -946,6 +1036,71 @@ public:
 		}
 	}
 
+	/// NOTE: L2 needs to be sorted
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \param out
+	/// \param L1 first input list, doesnt need to be sorted
+	/// \param L2 second input list, needs to be sorted
+	/// \param target
+	static void join2lists_on_iT_v2(List &out,
+	                                const List &L1, List &L2,
+							  		const LabelType &target,
+							  		const uint32_t k_lower,
+							  		const uint32_t k_upper,
+	                                const bool prepare=true) noexcept {
+		ASSERT(k_lower < k_upper && 0 < k_upper);
+		ASSERT(L2.is_sorted(k_lower, k_upper));
+		if (prepare) {
+
+		}
+		constexpr uint32_t filter = -1u;
+		LabelType sigma_t;
+		for (size_t i = 0; i < L1.load(); ++i) {
+			LabelType::sub(sigma_t, target, L1[i].label, k_lower, k_upper);
+			size_t j = L2.search_level(sigma_t, k_lower, k_upper);
+			for (; (j < L2.load()) &&
+				   (sigma_t.is_equal(L2[j].label,k_lower, k_upper));
+				   ++j) {
+				out.add_and_append(L1[i], L2[j], k_lower, k_upper, filter);
+			}
+		}
+	}
+
+	/// NOTE: L2 needs to be sorted
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \param out
+	/// \param L1 first input list, doesnt need to be sorted
+	/// \param L2 second input list, needs to be sorted
+	/// \param target
+	template<const uint32_t k_lower,
+	         const uint32_t k_upper>
+	static void join2lists_on_iT_v2(List &out,
+								    const List &L1, List &L2,
+								    const LabelType &target,
+	                                const bool prepare=true) noexcept {
+		ASSERT(k_lower < k_upper && 0 < k_upper);
+		ASSERT(L2.is_sorted(k_lower, k_upper));
+		constexpr uint32_t filter = -1u;
+
+		if (prepare) {
+			out.set_load(0);
+			L2.template sort_level<k_lower, k_upper>();
+		}
+
+
+		LabelType sigma_t;
+		for (size_t i = 0; i < L1.load(); ++i) {
+			LabelType::template sub<k_lower, k_upper>(sigma_t, target, L1[i].label);
+			size_t j = L2.template search_level<k_lower, k_upper>(sigma_t);
+			for (; (j < L2.load()) &&
+				   (sigma_t.template is_equal<k_lower, k_upper>(L2[j].label)); ++j) {
+				out.template add_and_append<k_lower, k_upper, filter, false>(L1[i], L2[j]);
+			}
+		}
+	}
+
 	// Schematic view on the Algorithm.
 	// The algorithm ignores any facts about th weight, nor does it guess the output size.
 	// The Intermediate List is created every time you call this function. So if called repeatedly, maybe write it yourself. or set the list to static.
@@ -1054,6 +1209,7 @@ public:
 								 const LabelType &target,
 								 const uint32_t k_lower1, const uint32_t k_upper1,
 	                             const uint32_t k_lower2, const uint32_t k_upper2) noexcept {
+		(void)target;
 		List iL{L1.size() * 2};
 		LabelType iT; iT.random(0, (1ull << k_upper1) + 1ull);
 
@@ -1062,6 +1218,107 @@ public:
 
 		join2lists_on_iT(iL, L1, L2, iT, k_lower1, k_upper2);
 		twolevel_streamjoin(out, iL, L1, L2, k_lower1, k_upper1, k_lower2, k_upper2);
+	}
+
+	///
+	/// \param out
+	/// \param L1 dont care: can be sorted
+	/// \param L2 must be sorted (if prepare==true: will be sorted)
+	/// \param L3 dont care: can be sorted
+	/// \param L4 must be sorted (if prepare==true: will be sorted)
+	/// \param target
+	/// \param k_lower1
+	/// \param k_upper1
+	/// \param k_lower2
+	/// \param k_upper2
+	/// \param prepare
+	static void join4lists_on_iT_v2(List &out,
+	                                const List &L1, List &L2,
+	                                const List &L3, List &L4,
+						      		const LabelType &target,
+						      		const uint64_t k_lower1, const uint64_t k_upper1,
+						      		const uint64_t k_lower2, const uint64_t k_upper2,
+						      		const bool prepare = true) noexcept {
+		(void)k_lower2;
+		List iL{L1.size() * 2};
+
+		// reset everything
+		if (prepare) {
+			out.set_load(0);
+			L2.sort_level(k_lower1, k_upper1);
+			L4.sort_level(k_lower1, k_upper1);
+		}
+
+		ElementType tmpe1;
+		LabelType t1, iT; iT.random(0, 1ull << k_upper1);
+		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1);
+		if (iL.load() == 0) {
+			// early exit
+			return;
+		}
+
+		iL.sort_level(0, k_upper2);
+		LabelType::sub(t1, target, iT);
+		twolevel_streamjoin_on_iT_v2(out, iL, L3, L4, target, t1,
+		                             k_lower1, k_upper1, k_lower2, k_upper2);
+
+		// for (size_t k = 0; k < L3.load(); ++k) {
+		// 	LabelType::sub(t1, target, iT);
+		// 	LabelType::sub(t1, t1, L3[k].label);
+		// 	size_t l = L4.search_level(t1, 0, k_upper1);
+		// 	for (; (l < L4.load()) &&
+		// 		   (t1.is_equal(L4[l].label, 0, k_upper1)); ++l) {
+		// 		LabelType::sub(t2, target, L3[k].label);
+		// 		LabelType::sub(t2, t2, L4[l].label);
+		// 		size_t o = iL.search_level(t2, 0, k_upper2);
+		// 		for (; (o < iL.load()) &&
+		// 			   (t2.is_equal(iL[o].label, 0, k_upper2)); ++o) {
+		// 			tmpe1 = iL[o];
+		// 			ElementType::add(tmpe1, tmpe1, L3[k]);
+		// 			out.add_and_append(tmpe1, L4[l], 0, k_upper2, filter);
+		// 		}
+		// 	}
+		// }
+	}
+
+
+	/// \param out
+	/// \param L1 dont care
+	/// \param L2 must be sorted (if prepare==true: will be sorted)
+	/// \param target
+	/// \param k_lower1
+	/// \param k_upper1
+	/// \param k_lower2
+	/// \param k_upper2
+	/// \param prepare
+	static void join4lists_twolists_on_iT_v2(List &out,
+									const List &L1, List &L2,
+									const LabelType &target,
+									const uint64_t k_lower1, const uint64_t k_upper1,
+									const uint64_t k_lower2, const uint64_t k_upper2,
+									const bool prepare = true) noexcept {
+		(void)k_lower2;
+		List iL{L1.size() * 2};
+
+		// reset everything
+		if (prepare) {
+			out.set_load(0);
+			L2.sort_level(k_lower1, k_upper1);
+		}
+
+		ElementType tmpe1;
+		LabelType t1, iT; iT.random(0, 1ull << k_upper1);
+		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1);
+		if (iL.load() == 0) {
+			// early exit
+			return;
+		}
+
+		iL.sort_level(0, k_upper2);
+		LabelType::sub(t1, target, iT);
+		twolevel_streamjoin_on_iT_v2(out, iL, L1, L2, target, t1,
+									 k_lower1, k_upper1, k_lower2, k_upper2);
+
 	}
 
 	/// Schematic view on the Algorithm.
@@ -1215,6 +1472,200 @@ public:
 	}
 
 
+	/// TODO assert k_upper > k_lower
+	/// \param out
+	/// \param L1 dont care
+	/// \param L2 must be sorted
+	/// \param target
+	/// \param k_lower1
+	/// \param k_upper1
+	/// \param k_lower2
+	/// \param k_upper2
+	/// \param k_lower3
+	/// \param k_upper3
+	/// \param prepare
+	static void join8lists_twolists_on_iT_v2(List &out,
+											 const List &L1, List &L2,
+											 const LabelType &target,
+											 const uint64_t k_lower1, const uint64_t k_upper1,
+											 const uint64_t k_lower2, const uint64_t k_upper2,
+											 const uint64_t k_lower3, const uint64_t k_upper3,
+											 const bool prepare = true) noexcept {
+		(void)k_lower2;
+		(void)k_lower3;
+		constexpr uint32_t filter = -1u;
+		List iL1{L1.size() * 2}, iL2{L1.size() * 2};
+
+		// reset everything
+		if (prepare) {
+			out.set_load(0);
+			L2.sort_level(k_lower1, k_upper1);
+		}
+
+		ElementType tmpe1;
+		LabelType t1, t2, t3, iT1, iT2, iT3, tmpl, tmpl2;
+		iT1.random(0, 1ull << k_upper3);
+		iT2.random(0, 1ull << k_upper3);
+		iT3.random(0, 1ull << k_upper3);
+
+		// L1 and L2
+		join2lists_on_iT_v2(iL1, L1, L2, iT1, k_lower1, k_upper1);
+		iL1.sort_level(0, k_upper2);
+		if (iL1.load() == 0) {
+			return ;
+		}
+
+		// L1, L2, L3 and L4
+		LabelType::sub(t1, iT2, iT1);
+		twolevel_streamjoin_on_iT_v2(iL2, iL1, L1, L2, iT2, t1,
+									 k_lower1, k_upper1, k_lower2, k_upper2);
+		iL2.sort_level(0, k_upper3);
+		if (iL2.load() == 0) {
+			return ;
+		}
+
+
+		// L5 and L6
+		iL1.set_load(0);
+		join2lists_on_iT_v2(iL1, L1, L2, iT3, k_lower1, k_upper1);
+		iL1.sort_level(0, k_upper2);
+		if (iL1.load() == 0) {
+			return ;
+		}
+
+		LabelType::sub(tmpl2, target, iT2);
+		LabelType::sub(tmpl, target, iT3);
+		LabelType::sub(tmpl, tmpl, iT2);
+		for (size_t i1 = 0; i1 < L1.load(); ++i1) {
+			LabelType::sub(t1, tmpl, L1[i1].label);
+			size_t j1 = L2.search_level(t1, 0, k_upper1);
+			for (; (j1 < L2.load()) &&
+				   (t1.is_equal(L2[j1].label, 0, k_upper1));
+				   ++j1) {
+
+				LabelType::sub(t2, tmpl2, L1[i1].label);
+				LabelType::sub(t2, t2, L2[j1].label);
+				size_t j2 = iL1.search_level(t2, 0, k_upper2);
+				for (; (j2 < iL1.load()) &&
+					   (t2.is_equal(iL1[j2].label, 0, k_upper2));
+					   ++j2) {
+
+					LabelType::sub(t3, target, L1[i1].label);
+					LabelType::sub(t3, t3, L2[j1].label);
+					LabelType::sub(t3, t3, iL1[j2].label);
+
+					size_t j3 = iL2.search_level(t3, 0, k_upper3);
+					for (; (j3 < iL2.load()) &&
+						   (t3.is_equal(iL2[j3].label, 0, k_upper3));
+						   ++j3) {
+
+						tmpe1 = iL2[j3];
+						ElementType::add(tmpe1, tmpe1, iL1[j2]);
+						ElementType::add(tmpe1, tmpe1, L1[i1]);
+						out.add_and_append(tmpe1, L2[j1], 0, k_upper3, filter);
+					}
+				}
+			}
+		}
+	}
+
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			 const uint32_t k_lower2, const uint32_t k_upper2,
+			 const uint32_t k_lower3, const uint32_t k_upper3>
+	static void join8lists_twolists_on_iT_v2(List &out,
+											 const List &L1, List &L2,
+											 const LabelType &target,
+											 const bool prepare = true) noexcept {
+		static_assert(k_lower1 < k_upper1);
+		static_assert(k_lower2 < k_upper2);
+		static_assert(k_upper1 < k_upper2);
+		static_assert(k_upper2 < k_upper3);
+		static_assert(k_upper2 < k_upper3);
+
+		(void)k_lower2;
+		(void)k_lower3;
+		constexpr uint32_t filter = -1u;
+		List iL1{L1.size() * 2}, iL2{L1.size() * 2};
+
+		// reset everything
+		if (prepare) {
+			out.set_load(0);
+			L2.template sort_level<k_lower1, k_upper1>();
+		}
+
+		ElementType tmpe1;
+		LabelType t1, t2, t3, iT1, iT2, iT3, tmpl, tmpl2;
+		iT1.random(0, 1ull << k_upper3);
+		iT2.random(0, 1ull << k_upper3);
+		iT3.random(0, 1ull << k_upper3);
+
+		// L1 and L2
+		join2lists_on_iT_v2<k_lower1, k_upper1>(iL1, L1, L2, iT1);
+		iL1.template sort_level<0, k_upper2>();
+		if (iL1.load() == 0) {
+			return ;
+		}
+
+		// L1, L2, L3 and L4
+		LabelType::sub(t1, iT2, iT1);
+		// TODO not correct
+		//twolevel_streamjoin_on_iT_v2
+		//        <k_lower1, k_upper1, k_lower2, k_upper2>
+		//        (iL2, iL1, L1, L2, iT2, t1);
+		twolevel_streamjoin_on_iT_v2(iL2, iL1, L1, L2, iT2, t1,k_lower1, k_upper1, k_lower2, k_upper2);
+		iL2.template sort_level<0, k_upper3>();
+		if (iL2.load() == 0) {
+			return ;
+		}
+
+
+		// L5 and L6
+		iL1.set_load(0);
+		join2lists_on_iT_v2<k_lower1, k_upper1>(iL1, L1, L2, iT3);
+		iL1.template sort_level<0, k_upper2>();
+		if (iL1.load() == 0) {
+			return ;
+		}
+
+		LabelType::sub(tmpl2, target, iT2);
+		LabelType::sub(tmpl, target, iT3);
+		LabelType::sub(tmpl, tmpl, iT2);
+		for (size_t i1 = 0; i1 < L1.load(); ++i1) {
+			LabelType::sub(t1, tmpl, L1[i1].label);
+			size_t j1 = L2.template search_level<0, k_upper1>(t1);
+			for (; (j1 < L2.load()) &&
+				   (t1.template is_equal<0, k_upper1>(L2[j1].label));
+				   ++j1) {
+
+				LabelType::sub(t2, tmpl2, L1[i1].label);
+				LabelType::sub(t2, t2, L2[j1].label);
+				size_t j2 = iL1.template search_level<0, k_upper2>(t2);
+				for (; (j2 < iL1.load()) &&
+					   (t2.template is_equal<0, k_upper2>(iL1[j2].label));
+					   ++j2) {
+
+					LabelType::sub(t3, target, L1[i1].label);
+					LabelType::sub(t3, t3, L2[j1].label);
+					LabelType::sub(t3, t3, iL1[j2].label);
+
+					size_t j3 = iL2.template search_level<0, k_upper3>(t3);
+					for (; (j3 < iL2.load()) &&
+						   (t3.template is_equal<0, k_upper3>(iL2[j3].label));
+						   ++j3) {
+
+						tmpe1 = iL2[j3];
+						ElementType::add(tmpe1, tmpe1, iL1[j2]);
+						ElementType::add(tmpe1, tmpe1, L1[i1]);
+						out.template add_and_append
+						        <0, k_upper3, filter, false>
+						        (tmpe1, L2[j1]);
+					}
+				}
+			}
+		}
+	}
+
+
 	/// \param out
 	/// \param target
 	/// \param MT must be transposed
@@ -1279,6 +1730,81 @@ public:
 		}
 	}
 
+	// SRC: https://eprint.iacr.org/2010/189.pdf
+	// implementation of the modular 4-way merge
+	static void dissection4_v2(List &out,
+							const LabelType &target,
+							const MatrixType &MT) noexcept {
+		// reset the output list
+		out.set_load(0);
+
+		constexpr static size_t n = ValueLENGTH;
+		constexpr static size_t n4 = n / 4;
+		static_assert((n % 4) == 0);
+
+		constexpr static uint32_t filter = -1u;
+		constexpr static double factor = 1.5;
+		constexpr static size_t size = (1ull << n4) - 1ull;
+
+		constexpr size_t baselist_size = sum_bc(n/4, n/8);
+		//constexpr size_t baselist_size = sum_bc(n/2, n/4);
+		static List L1{baselist_size}, L2{baselist_size}, L3{baselist_size}, L4{baselist_size}, iL{(size_t) ((double) size * factor)};
+		L1.set_load(0); L2.set_load(0); L3.set_load(0); L4.set_load(0);
+
+		const uint32_t k_upper1 = n/4;
+
+		// enumerate the base lists
+		// using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+		// Enumerator e{MT};
+		// e.run(&L1, &L2, n/2);
+		// e.run(&L3, &L4, n/2);
+		using Enumerator = BinaryLexicographicEnumerator<List, n/4, n/8>;
+		Enumerator e{MT};
+		e.run(&L1, &L2, n/4);
+		e.run(&L3, &L4, n/4, n/2);
+
+		L2.sort_level(0, k_upper1);
+		L4.sort_level(0, k_upper1);
+
+		ElementType tmpe1;
+		LabelType sigma_M, sigma_t, tprime;
+		for (size_t sigma_M_ = 0; sigma_M_ < size; ++sigma_M_) {
+			iL.set_load(0);
+			sigma_M.set(sigma_M_, 0);
+			for (size_t i = 0; i < L1.load(); ++i) {
+				LabelType::sub(sigma_t, sigma_M, L1[i].label, 0, k_upper1);
+				size_t j = L2.search_level(sigma_t, 0, k_upper1);
+				for (; (j < L2.load()) &&
+				       (sigma_t.is_equal(L2[j].label, 0, k_upper1)); ++j) {
+					iL.add_and_append(L1[i], L2[j], 0, n, filter);
+				}
+			}
+
+			if (iL.load() == 0) {
+				continue;
+			}
+
+			iL.sort_level(0, n);
+			for (size_t k = 0; k < L3.load(); ++k) {
+				LabelType::sub(sigma_t, target, sigma_M);
+				LabelType::sub(sigma_t, sigma_t, L3[k].label);
+				size_t l = L4.search_level(sigma_t, 0, k_upper1);
+				for (; (l < L4.load()) &&
+				       (sigma_t.is_equal(L4[l].label, 0, k_upper1)); ++l) {
+					LabelType::sub(tprime, target, L3[k].label);
+					LabelType::sub(tprime, tprime, L4[l].label);
+					size_t o = iL.search_level(tprime, 0, n);
+					for (; (o < iL.load()) &&
+					       (tprime.is_equal(iL[o].label, 0, n)); ++o) {
+						tmpe1 = iL[o];
+						ElementType::add(tmpe1, tmpe1, L3[k]);
+						out.add_and_append(tmpe1, L4[l], 0, n, filter);
+					}
+				}
+			}
+		}
+	}
+
 	/// builds the cross product between in1 x in2 (only on the values).
 	///	The coordinates [k_lower, k_middle] are taken from the input list in1, whereas the coordinates
 	///	[k_middle, k_upper] are taken from the second input list in2.
@@ -1325,9 +1851,9 @@ public:
 	}
 
 	/// some getters
-	uint64_t get_size() const noexcept { return lists.size(); }
-	uint64_t get_basesize() const noexcept { return base_size; }
-	const auto &get_level_translation_array() const noexcept { return level_translation_array; }
+	[[nodiscard]] constexpr inline uint64_t get_size() const noexcept { return lists.size(); }
+	[[nodiscard]] constexpr inline uint64_t get_basesize() const noexcept { return base_size; }
+	[[nodiscard]] constexpr inline const auto &get_level_translation_array() const noexcept { return level_translation_array; }
 
 private:
 	// drop the default constructor.

@@ -1237,7 +1237,9 @@ public:
 /// \param T = uint64_t
 /// \param n = number of elemtns
 /// \param q = modulus
-template<class T, const uint32_t n, const uint32_t q>
+template<class T,
+         const uint32_t n,
+         const uint64_t q>
 #if __cplusplus > 201709L
     requires std::is_integral<T>::value
 #endif
@@ -1902,7 +1904,7 @@ constexpr inline kAry_Type_T<q> operator+(const kAry_Type_T<q> &lhs,
 /// \param out
 /// \param obj
 /// \return
-template<typename T, const uint32_t n, const uint32_t q>
+template<typename T, const uint32_t n, const uint64_t q>
 std::ostream &operator<<(std::ostream &out, const kAryPackedContainer_Meta<T, n, q> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {
 		out << uint64_t(obj[i]);
@@ -1910,7 +1912,7 @@ std::ostream &operator<<(std::ostream &out, const kAryPackedContainer_Meta<T, n,
 	return out;
 
 }
-template<typename T, const uint32_t n, const uint32_t q>
+template<typename T, const uint32_t n, const uint64_t q>
 std::ostream &operator<<(std::ostream &out, const kAryPackedContainer_T<T, n, q> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {
 		out << unsigned(obj[i]);

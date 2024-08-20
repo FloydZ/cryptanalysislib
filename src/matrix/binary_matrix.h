@@ -29,7 +29,7 @@ using namespace cryptanalysislib;
 template<typename T,
          const uint32_t __nrows,
          const uint32_t __ncols>
-class FqMatrix<T, __nrows, __ncols, 2, true, void> : private FqMatrix_Meta<T, __nrows, __ncols, 2, true, void> {
+class FqMatrix<T, __nrows, __ncols, 2, true, void> : private FqMatrix_Meta<T, __nrows, __ncols, 2ull, true, void> {
 public:
 	using RowT = BinaryContainer<__ncols, T>;
 	using MatrixType = FqMatrix<T, __nrows, __ncols, 2, true>;
@@ -190,7 +190,7 @@ public:
 	std::array<T, block_words> __data;
 
 	/// that's only because I'm lazy
-	static constexpr uint32_t q = 2;
+	static constexpr uint64_t q = 2;
 	static constexpr bool packed = true;
 
 	/// needed typedefs
@@ -657,7 +657,10 @@ public:
 	/// \param srow
 	/// \param scol
 	/// \return
-	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
+	template<typename Tprime,
+	        const uint32_t nrows_prime,
+	         const uint32_t ncols_prime,
+	         const uint64_t qprime>
 	constexpr static void transpose(FqMatrix<Tprime, nrows_prime, ncols_prime, qprime, true> &B,
 	                                FqMatrix<T, nrows, ncols, q, true> &A,
 	                                const uint32_t srow,
@@ -687,7 +690,7 @@ public:
 	/// \param A input matrix
 	/// \param srow start row (inclusive, of A)
 	/// \param scol start col (inclusive, of A)
-	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime, const bool packedprime>
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint64_t qprime, const bool packedprime>
 	constexpr static void sub_transpose(FqMatrix<Tprime, nrows_prime, ncols_prime, qprime, packedprime> &B,
 	                                    const FqMatrix &A,
 	                                    const uint32_t srow,
@@ -713,7 +716,7 @@ public:
 	/// \param scol start col (inclusive, of A)
 	/// \param erow end row (exclusive, of A)
 	/// \param ecol end col (exclusive, of A)
-	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint32_t qprime>
+	template<typename Tprime, const uint32_t nrows_prime, const uint32_t ncols_prime, const uint64_t qprime>
 	static constexpr void sub_matrix(FqMatrix<Tprime, nrows_prime, ncols_prime, qprime> &B,
 	                                 const FqMatrix &A,
 	                                 const uint32_t srow, const uint32_t scol,

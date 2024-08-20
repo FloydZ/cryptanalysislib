@@ -1141,7 +1141,10 @@ protected:
 /// simple data container holding `length` Ts
 /// \tparam T base type
 /// \tparam length number of elements
-template<class T, const uint32_t n, const uint32_t q>
+/// \tparam q prime
+template<class T,
+         const uint32_t n,
+         const uint64_t q>
 #if __cplusplus > 201709L
     requires kAryContainerAble<T> &&
              std::is_integral<T>::value
@@ -2138,7 +2141,7 @@ constexpr inline bool operator>(const kAryContainerMeta<T, n, q> &a,
 /// \param out
 /// \param obj
 /// \return
-template<typename T, const uint32_t n, const uint32_t q>
+template<typename T, const uint32_t n, const uint64_t q>
 std::ostream &operator<<(std::ostream &out, const kAryContainer_T<T, n, q> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {
 		out << unsigned(obj[i]);
