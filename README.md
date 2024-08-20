@@ -62,6 +62,13 @@ to the `cmake` command.
 ## Windows: 
 I wish you luck with this one.
 
+Supported Compilers:
+===================
+- >= clang-11
+- >= gcc-11
+
+Specially gcc-10 is not supported, as it's not supporting basic concepts functionalities.
+
 How to build
 ------
 ```bash

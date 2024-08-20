@@ -432,6 +432,7 @@ namespace cryptanalysislib {
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] > in2.d[i]) << i;
 			}
+			return ret;
 		}
 
 		constexpr static inline uint32_t lt(const _uint8x16_t &in1,
@@ -440,6 +441,7 @@ namespace cryptanalysislib {
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] < in2.d[i]) << i;
 			}
+			return ret;
 		}
 
 		constexpr static inline uint32_t cmp(const _uint8x16_t &in1,
@@ -448,6 +450,7 @@ namespace cryptanalysislib {
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] == in2.d[i]) << i;
 			}
+			return ret;
 		}
 
 	};
