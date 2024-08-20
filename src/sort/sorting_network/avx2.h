@@ -238,7 +238,7 @@
 /// \param a0 input/output
 /// \param b0 input/output
 static inline void sortingnetwork_sort_i64x8(__m256i &a0,
-                                                       __m256i &b0) noexcept {
+                                             __m256i &b0) noexcept {
 #ifdef __clang__
 #define COEX64X4(a,b,c,e,t)												\
 	t = ((__v4di)a > (__v4di)b);										\

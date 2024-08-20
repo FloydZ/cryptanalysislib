@@ -14,14 +14,14 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-#define TESTSIZE (1u << 0u)
+#define TESTSIZE (1u << 16u)
 
 
 #define PRIME 2
 #define S kAry_Type_T<PRIME>
 #define T kAry_Type_T_2
 #include "test_kArytype.h"
-#undef PRIME 
+#undef PRIME
 #undef T
 #undef S
 
@@ -36,6 +36,14 @@ using ::testing::UnitTest;
 #define PRIME 5
 #define S kAry_Type_T<PRIME>
 #define T kAry_Type_T_5
+#include "test_kArytype.h"
+#undef PRIME
+#undef T
+#undef S
+
+#define PRIME ((1u << 16))
+#define S kAry_Type_T<PRIME>
+#define T kAry_Type_T_116
 #include "test_kArytype.h"
 #undef PRIME
 #undef T
@@ -56,6 +64,15 @@ using ::testing::UnitTest;
 #undef PRIME
 #undef T
 #undef S
+
+#define PRIME ((1ull << 34) - 1ull)
+#define S kAry_Type_T<PRIME>
+#define T kAry_Type_T_1341
+#include "test_kArytype.h"
+#undef PRIME
+#undef T
+#undef S
+
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_HASH_FNV1A_H
 #define CRYPTANALYSISLIB_HASH_FNV1A_H
 
+#ifndef CRYPTANALYSISLIB_HASH_H
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/hash/hash.h>`"
+#endif
+
 #include <cstdint>
 #include <cstdlib>
 

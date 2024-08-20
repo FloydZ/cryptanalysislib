@@ -13,7 +13,7 @@ static void BM_mod(benchmark::State &state) {
 			c = fastrandombytes_uint64();
 
 	for (auto _: state) {
-		for (size_t i = 0; i < state.range(0); ++i) {
+		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
 			a += (b + c) % mod_u32;
 			b += (a + c) % mod_u32;
 			c += (a + b) % mod_u32;
@@ -28,7 +28,7 @@ static void BM_div(benchmark::State &state) {
 			 c = fastrandombytes_uint64();
 
 	for (auto _: state) {
-		for (size_t i = 0; i < state.range(0); ++i) {
+		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
 			a += (b + c) / mod_u32;
 			b += (a + c) / mod_u32;
 			c += (a + b) / mod_u32;
@@ -43,7 +43,7 @@ static void BM_fastmod(benchmark::State &state) {
 			c = fastrandombytes_uint64();
 
 	for (auto _: state) {
-		for (size_t i = 0; i < state.range(0); ++i) {
+		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
 			a += fastmod<mod_u32>(b + c);
 			b += fastmod<mod_u32>(a + c);
 			c += fastmod<mod_u32>(a + b);
@@ -58,7 +58,7 @@ static void BM_fastdiv(benchmark::State &state) {
 	         c = fastrandombytes_uint64();
 
 	for (auto _: state) {
-		for (size_t i = 0; i < state.range(0); ++i) {
+		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
 			a += fastdiv<mod_u32>(b + c);
 			b += fastdiv<mod_u32>(a + c);
 			c += fastdiv<mod_u32>(a + b);

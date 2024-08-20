@@ -1,5 +1,4 @@
 #include <benchmark/benchmark.h>
-
 #include "container/hashmap.h"
 
 using V = uint64_t;

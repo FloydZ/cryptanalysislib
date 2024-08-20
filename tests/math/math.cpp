@@ -11,6 +11,35 @@ constexpr size_t N = 64u;
 using T = uint64_t;
 using BigInt = big_int<N, T>;
 
+TEST(prime, simple) {
+	constexpr bool b1 = is_prime(3);
+	EXPECT_EQ(b1, true);
+
+	constexpr bool b2 = is_prime(17);
+	EXPECT_EQ(b2, true);
+
+	bool b3 = is_prime(18361375334787046697ull);
+	EXPECT_EQ(b3, true);
+
+
+	constexpr bool b4 = is_prime(4);
+	EXPECT_EQ(b4, false);
+
+	constexpr bool b5 = is_prime(98127398717);
+	EXPECT_EQ(b5, false);
+
+	constexpr size_t np1 = next_prime(2);
+	EXPECT_EQ(np1, 2ull);
+	constexpr size_t np2 = next_prime(5);
+	EXPECT_EQ(np2, 5ull);
+	constexpr size_t np3 = next_prime(10);
+	EXPECT_EQ(np3, 11ull);
+	constexpr size_t np4 = next_prime(33);
+	EXPECT_EQ(np4, 37ull);
+	size_t np5 = next_prime(18361375334787046695ull);
+	EXPECT_EQ(np5, 18361375334787046697ull);
+}
+
 
 TEST(abs, simple) {
 	EXPECT_NEAR(cryptanalysislib::math::fabs(-1.1), 1.1, 0.00001);
@@ -75,12 +104,9 @@ TEST(root, simple) {
 	EXPECT_EQ(cryptanalysislib::math::cbrt(27), 3);
 	EXPECT_DOUBLE_EQ(cryptanalysislib::math::cbrt(27.), 3.);
 	EXPECT_DOUBLE_EQ(cryptanalysislib::math::cbrt(27.), 3);
-
-	// TODO
-	// NOT WORKING: EXPECT_EQ(kthrt(27., 2), 3);
 }
 
-#ifdef USE_AVX512
+#ifdef USE_AVX512F
 TEST(bc, avx512) {
 	EXPECT_EQ(simd_binom(10, 2), bc(10, 2));
 }

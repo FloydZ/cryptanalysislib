@@ -3,12 +3,13 @@
 
 #include <cstdint>
 
-// TODO: - u64 mod/div
+#include "simd/simd.h"
+
+// TODO: - u64 mod/div, simd mod/div
 // 		 - docs
 // extension by FloydZ
 // source: https://github.com/lemire/fastmod
 
-///
 /// \param lowbits
 /// \param d
 /// \return
@@ -18,11 +19,27 @@ constexpr static uint64_t mul128_u32(const uint64_t lowbits,
 }
 
 ///
+/// \tparam S
+/// \param a
+/// \param b
+/// \return
+template<typename S>
+#if __cplusplus > 201709L
+	requires SIMDAble<S>
+#endif
+constexpr static S mul128_u32(const S &a, const S &b) noexcept {
+	// TODO
+	(void)a;
+	(void)b;
+	return a;
+}
+
+///
 /// \param lowbits
 /// \param d
 /// \return
 constexpr static uint64_t mul128_from_u64(const uint64_t lowbits,
-                                          const uint64_t d) {
+                                          const uint64_t d) noexcept {
 	return ((__uint128_t)lowbits * d) >> 64;
 }
 
@@ -44,11 +61,11 @@ constexpr static uint64_t mul128_s32(const uint64_t lowbits,
 /// \param d
 /// \return
 constexpr static uint64_t mul128_u64(const __uint128_t lowbits,
-                              const uint64_t d) noexcept {
+                              		 const uint64_t d) noexcept {
 	__uint128_t bottom_half =
 	        (lowbits & UINT64_C(0xFFFFFFFFFFFFFFFF)) * d; // Won't overflow
-	bottom_half >>=
-	        64; // Only need the top 64 bits, as we'll shift the lower half away;
+	// Only need the top 64 bits, as we'll shift the lower half away;
+	bottom_half >>= 64;
 	__uint128_t top_half = (lowbits >> 64) * d;
 	__uint128_t both_halves =
 	        bottom_half + top_half; // Both halves are already shifted down by 64

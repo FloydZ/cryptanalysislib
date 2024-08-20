@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_SEARCH_BINARY_SEARCH_H
 #define CRYPTANALYSISLIB_SEARCH_BINARY_SEARCH_H
 
+#ifndef CRYPTANALYSISLIB_SEARCH_H
+#error "do not include this file directly. Use `#inluce <cryptanalysislib/search/search.h>`"
+#endif
+
 #include <bit>
 #include <cstddef>
 #include <cstdint>
@@ -9,6 +13,7 @@
 #include "atomic_primitives.h"
 #include "helper.h"
 #include "math/math.h"
+#include "hash/hash.h"
 
 /// See Paul Khuong's
 /// https://www.pvk.ca/Blog/2012/07/03/binary-search-star-eliminates-star-branch-mispredictions/
@@ -40,6 +45,29 @@ static size_t Khuong_bin_search(const T *list,
 	return (*low == value) ? (low - list) : -1;
 }
 
+/// src: https://en.algorithmica.org/hpc/data-structures/binary-search/
+/// \tparam T
+/// \param list
+/// \param len
+/// \param x
+/// \return
+template<typename T>
+#if __cplusplus > 201709L
+	requires std::is_integral_v<T>
+#endif
+int lower_bound_eytzinger_prefetch(const T *list,
+                const size_t len,
+                const T x) {
+	size_t k = 1;
+	while (k <= len) {
+		__builtin_prefetch(list + k * 16);
+		k = 2 * k + (list[k] < x);
+	}
+	k >>= __builtin_ffs(~k);
+	return list[k];
+}
+
+
 ///
 /// \tparam ForwardIt
 /// \tparam T
@@ -49,10 +77,15 @@ static size_t Khuong_bin_search(const T *list,
 /// \param key_
 /// \param h
 /// \return
-template<typename ForwardIt, typename T, typename Hash>
+template<typename ForwardIt,
+         typename Hash>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 HashFunction<Hash, typename ForwardIt::value_type>
+#endif
 ForwardIt upper_bound_standard_binary_search(ForwardIt first,
                                              ForwardIt last,
-                                             const T &key_,
+                                             const typename ForwardIt::value_type &key_,
                                              Hash h) noexcept {
 	const auto count = std::distance(first, last);
 	if (count <= 1) {
@@ -94,10 +127,15 @@ ForwardIt upper_bound_standard_binary_search(ForwardIt first,
 /// \param key_
 /// \param h
 /// \return
-template<typename ForwardIt, typename T, typename Hash>
+template<typename ForwardIt,
+         typename Hash>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 HashFunction<Hash, typename ForwardIt::value_type>
+#endif
 ForwardIt lower_bound_standard_binary_search(ForwardIt first,
                                              ForwardIt last,
-                                             const T &key_,
+                                             const typename ForwardIt::value_type &key_,
                                              Hash h) noexcept {
 	ForwardIt it;
 	typename std::iterator_traits<ForwardIt>::difference_type count, step;
@@ -222,10 +260,15 @@ size_t doubletapped_binary_search(const T *array,
 /// \param key_
 /// \param h
 /// \return
-template<typename ForwardIt, typename T, typename Hash>
+template<typename ForwardIt,
+         typename Hash>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 HashFunction<Hash, typename ForwardIt::value_type>
+#endif
 ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
                                               ForwardIt last,
-                                              const T &key_,
+                                              const typename ForwardIt::value_type &key_,
                                               Hash h) noexcept {
 	auto count = std::distance(first, last);
 	const auto key = h(key_);
@@ -264,10 +307,15 @@ ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
 /// \param key_
 /// \param h
 /// \return
-template<typename ForwardIt, typename T, typename Hash>
+template<typename ForwardIt,
+         typename Hash>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 HashFunction<Hash, typename ForwardIt::value_type>
+#endif
 ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
                                               ForwardIt last,
-                                              const T &key_,
+                                              const typename ForwardIt::value_type &key_,
                                               Hash h) noexcept {
 	auto count = std::distance(first, last);
 	const auto key = h(key_);
@@ -292,8 +340,9 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
 		count = std::distance(bot, last);
 	}
 
+	// move the pointer down
 	if (key == h(*top)) {
-		while (key == h(*top)) {
+		while (key == h(*top) && (top != first)) {
 			top -= 1;
 		}
 		return top += 1;
@@ -344,10 +393,15 @@ size_t monobound_binary_search(const T *array,
 /// \param key_
 /// \param h
 /// \return
-template<typename ForwardIt, typename T, typename Hash>
+template<typename ForwardIt,
+         typename Hash>
+#if __cplusplus > 201709L
+requires std::forward_iterator<ForwardIt> and
+		 HashFunction<Hash, typename ForwardIt::value_type>
+#endif
 ForwardIt tripletapped_binary_search(ForwardIt first,
                                      ForwardIt last,
-                                     const T &key_,
+                                     const typename ForwardIt::value_type &key_,
                                      Hash h) noexcept {
 	std::size_t count = std::distance(first, last);
 	if (count == 0) {
@@ -486,11 +540,16 @@ DEALINGS IN THE SOFTWARE.*/
 /// \param value
 /// \param compare
 /// \return
-template<typename It, typename T, typename Cmp>
-It branchless_lower_bound(It begin,
+template<typename It,
+         typename Cmp>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<It> and
+	         CompareFunction<Cmp, typename It::value_type>
+#endif
+[[nodiscard]] constexpr It branchless_lower_bound(It begin,
                           It end,
-                          const T &value,
-                          Cmp &&compare) {
+                          const typename It::value_type &value,
+                          Cmp compare) noexcept {
 	std::size_t length = end - begin;
 	if (length == 0) {
 		return end;
@@ -517,8 +576,108 @@ It branchless_lower_bound(It begin,
 	return begin + compare(*begin, value);
 }
 
-template<typename It, typename T>
-It branchless_lower_bound(It begin, It end, const T &value) {
+template<typename It>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<It>
+#endif
+[[nodiscard]] constexpr It branchless_lower_bound(It begin,
+                                             It end,
+                                             const typename It::value_type &value) noexcept {
 	return branchless_lower_bound(begin, end, value, std::less<>{});
 }
-#endif//CRYPTANALYSISLIB_BINARY_H
+
+
+template<typename It,
+         typename Hash>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<It> and
+             HashFunction<Hash, typename It::value_type>
+#endif
+[[nodiscard]] constexpr It branchless_lower_bound(It begin,
+						It end,
+						const typename It::value_type &value,
+						Hash h) noexcept {
+	std::size_t length = end - begin;
+	if (length == 0) {
+		return end;
+	}
+
+	std::size_t step = std::bit_floor(length);
+	const auto v = h(value);
+
+	if (step != length && (h(begin[step]) < v)) {
+		length -= step + 1;
+		if (length == 0) {
+			return end;
+		}
+
+		step = std::bit_ceil(length);
+		begin = end - step;
+	}
+
+	for (step /= 2; step != 0; step /= 2) {
+		if (h(begin[step]) < v) {
+			begin += step;
+		}
+	}
+
+	return begin + (h(*begin) < v);
+}
+
+namespace cryptanalysislib::search {
+
+	template<typename It,
+			 typename Hash>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<It> and
+	         HashFunction<Hash, typename It::value_type>
+#endif
+	[[nodiscard]] constexpr inline It lower_bound(It begin,
+							  					  It end,
+							  					  const typename It::value_type &value,
+							  					  Hash h) {
+		return branchless_lower_bound(begin, end, value, h);
+	}
+
+	template<typename It,
+			 typename Compare>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<It> and
+			 CompareFunction<Compare, typename It::value_type>
+#endif
+	[[nodiscard]] constexpr inline It lower_bound(It begin,
+												  It end,
+												  const typename It::value_type &value,
+												  Compare cmp) {
+		return branchless_lower_bound(begin, end, value, cmp);
+	}
+
+	template<typename It,
+			typename Hash>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<It> and
+			 HashFunction<Hash, typename It::value_type>
+#endif
+	[[nodiscard]] constexpr inline It binary_search(It begin,
+												    It end,
+												    const typename It::value_type &value,
+												    Hash h) {
+		return branchless_lower_bound(begin, end, value, h);
+	}
+
+	template<typename It,
+			typename Compare>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<It> and
+			 CompareFunction<Compare, typename It::value_type>
+#endif
+	[[nodiscard]] constexpr inline It binary_search(It begin,
+												    It end,
+												    const typename It::value_type &value,
+												    Compare cmp) {
+		return branchless_lower_bound(begin, end, value, cmp);
+	}
+
+};
+
+#endif

@@ -12,7 +12,7 @@ constexpr uint32_t element_limbs = (n + 63) / 64;
 
 static void BM_cbc(benchmark::State &state) {
 	uint64_t res = 0;
-	uint16_t pos1, pos2;
+	uint16_t pos1=0, pos2=0;
 
 	uint64_t w1[element_limbs] = {0};
 	Combinations_Binary_Chase<T, n, p> ch{};

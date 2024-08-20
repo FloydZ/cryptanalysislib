@@ -291,121 +291,124 @@ TEST(FqMatrix, gaus) {
 	}
 }
 
-// TODO disable because ARM CI pipline has not enough space
-//TEST(FqMatrix, m4ri) {
-//	constexpr_for<400, 430, 3>([](const auto __nrows) {
-//		constexpr_for<410, 440, 3>([__nrows](const auto __ncols) {
-//			if constexpr (__nrows <= __ncols) {
-//				using M = FqMatrix<T, __nrows, __ncols, q, true>;
-//				M m = M{};
-//				m.random();
-//				const uint32_t rank = m.m4ri();
-//				ASSERT_GT(rank, __nrows - 20);
-//
-//				for (uint32_t i = 0; i < rank; ++i) {
-//					for (uint32_t j = 0; j < rank; ++j) {
-//						EXPECT_EQ((bool) m.get(i, j), i == j);
-//					}
-//				}
-//			}
-//		});
-//	});
-//}
+// NOTE: disable because ARM CI pipline has not enough space
+#ifndef USE_NEON
+TEST(FqMatrix, m4ri) {
+	constexpr_for<400, 430, 3>([](const auto __nrows) {
+		constexpr_for<410, 440, 3>([__nrows](const auto __ncols) {
+			if constexpr (__nrows <= __ncols) {
+				using M = FqMatrix<T, __nrows, __ncols, q, true>;
+				M m = M{};
+				m.random();
+				const uint32_t rank = m.m4ri();
+				ASSERT_GT(rank, __nrows - 20);
 
-// failed in der osx pipline
-//TEST(FqMatrix, markov_gaus) {
-//	constexpr_for<400, 430, 3>([](const auto __nrows) {
-//		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
-//			if constexpr (__nrows <= __ncols) {
-//				using M = FqMatrix<T, __nrows, __ncols, q, true>;
-//				using MT = FqMatrix<T, __ncols, __nrows, q, true>;
-//				constexpr uint32_t l = 10;
-//				constexpr uint32_t c = 5;
-//				M m = M{};
-//				Permutation P(ncols);
-//				uint32_t rank = 0;
-//
-//				while (true) {
-//					m.random();
-//					rank = m.gaus(__nrows - l);
-//					ASSERT_GT(rank, 0);
-//					if (rank >= __nrows - l) { break; }
-//				}
-//
-//				for (uint32_t k = 0; k < 10; ++k) {
-//					uint32_t rank2 = m.template markov_gaus<c, __nrows - l>(P);
-//					EXPECT_EQ(rank, rank2);
-//
-//					for (uint32_t i = 0; i < __nrows; ++i) {
-//						for (uint32_t j = 0; j < __nrows - l; ++j) {
-//							EXPECT_EQ(m.get(i, j), i == j);
-//						}
-//					}
-//				}
-//			}
-//		});
-//	});
-//}
+				for (uint32_t i = 0; i < rank; ++i) {
+					for (uint32_t j = 0; j < rank; ++j) {
+						EXPECT_EQ((bool) m.get(i, j), i == j);
+					}
+				}
+			}
+		});
+	});
+}
 
+// note; failed in der osx pipline
+TEST(FqMatrix, markov_gaus) {
+	constexpr_for<400, 430, 3>([](const auto __nrows) {
+		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
+			if constexpr (__nrows <= __ncols) {
+				using M = FqMatrix<T, __nrows, __ncols, q, true>;
+				// using MT = FqMatrix<T, __ncols, __nrows, q, true>;
+				constexpr uint32_t l = 10;
+				constexpr uint32_t c = 5;
+				M m = M{};
+				Permutation P(__ncols);
+				uint32_t rank = 0;
 
-//TEST(FqMatrix, fixgaus) {
-//	constexpr_for<400, 430, 3>([](const auto __nrows) {
-//		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
-//			if constexpr (__nrows <= ncols) {
-//				using M = FqMatrix<T, __nrows, __ncols, q, true>;
-//				using MT = FqMatrix<T, __ncols, __nrows, q, true>;
-//				M m = M{};
-//				m.random();
-//
-//				Permutation P{ncols};
-//				const uint32_t rank = m.gaus();
-//				const uint32_t rank2 = m.fix_gaus(P, rank, __nrows);
-//				ASSERT_GT(rank, __nrows - 10);
-//
-//				for (uint32_t i = 0; i < __nrows; ++i) {
-//					for (uint32_t j = 0; j < rank2; ++j) {
-//						if (i == j) {
-//							ASSERT_EQ(m.get(i, j), 1u);
-//							continue;
-//						}
-//						ASSERT_EQ(m.get(i, j), 0u);
-//					}
-//				}
-//			}
-//		});
-//	});
-//}
+				while (true) {
+					m.random();
+					rank = m.gaus(__nrows - l);
+					ASSERT_GT(rank, 0);
+					if (rank >= __nrows - l) { break; }
+				}
 
-// test is only valid on clang. Gcc has problems compiling it.
-//TEST(FqMatrix, mult) {
-//	constexpr_for<1, 100, 11>([](const auto __nrows) {
-//		constexpr_for<2, 100, 11>([__nrows](const auto __ncols) {
-//			constexpr_for<1, 100, 11>([__nrows, __ncols](const auto __ncols_prime) {
-//				using AT = FqMatrix<T, __nrows, __ncols, q, true>;
-//				using BT = FqMatrix<T, __ncols, __ncols_prime, q, true>;
-//				using CT = FqMatrix<T, __nrows, __ncols_prime, q, true>;
-//
-//				AT a = AT{};
-//				BT b = BT{};
-//				CT c = CT{};
-//				a.random();
-//				b.random();
-//				c.random();
-//				AT::mul(c, a, b);
-//
-//				//for (uint32_t i = 0; i < __nrows; ++i) {
-//				//	for (uint32_t j = 0; j < rank2; ++j) {
-//				//		if (i == j) {
-//				//			ASSERT_EQ(m.get(i, j), 1u);
-//				//			continue;
-//				//		}
-//				//		ASSERT_EQ(m.get(i, j), 0u);
-//				//	}
-//				//}
-//			});
-//		});
-//	});
-//}
+				for (uint32_t k = 0; k < 10; ++k) {
+					uint32_t rank2 = m.template markov_gaus<c, __nrows - l>(P);
+					EXPECT_EQ(rank, rank2);
+
+					for (uint32_t i = 0; i < __nrows; ++i) {
+						for (uint32_t j = 0; j < __nrows - l; ++j) {
+							EXPECT_EQ(m.get(i, j), i == j);
+						}
+					}
+				}
+			}
+		});
+	});
+}
+
+TEST(FqMatrix, fixgaus) {
+	constexpr_for<400, 430, 3>([](const auto __nrows) {
+		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
+			if constexpr (__nrows <= ncols) {
+				using M = FqMatrix<T, __nrows, __ncols, q, true>;
+				// using MT = FqMatrix<T, __ncols, __nrows, q, true>;
+				M m = M{};
+				m.random();
+
+				Permutation P{__ncols};
+				const uint32_t rank = m.gaus();
+				const uint32_t rank2 = m.fix_gaus(P, rank, __nrows);
+				ASSERT_GT(rank, __nrows - 10);
+
+				for (uint32_t i = 0; i < __nrows; ++i) {
+					for (uint32_t j = 0; j < rank2; ++j) {
+						if (i == j) {
+							ASSERT_EQ(m.get(i, j), 1u);
+							continue;
+						}
+						ASSERT_EQ(m.get(i, j), 0u);
+					}
+				}
+			}
+		});
+	});
+}
+
+// note test is only valid on clang. Gcc has problems compiling it.
+TEST(FqMatrix, mult) {
+	constexpr_for<10, 100, 40>([](const auto __nrows) {
+		constexpr_for<11, 100, 40>([__nrows](const auto __ncols) {
+			constexpr_for<10, 100, 40>([__nrows, __ncols](const auto __ncols_prime) {
+				using AT = FqMatrix<T, __nrows, __ncols, q, true>;
+				using BT = FqMatrix<T, __ncols, __ncols_prime, q, true>;
+				using CT = FqMatrix<T, __nrows, __ncols_prime, q, true>;
+
+				AT a = AT{};
+				BT b = BT{};
+				CT c = CT{};
+				a.identity();
+				b.identity();
+				c.identity();
+				AT::mul(c, a, b);
+
+				constexpr size_t min = std::min({(size_t)__nrows,(size_t)__ncols,(size_t)__ncols_prime});
+
+				for (uint32_t i = 0; i < min; ++i) {
+					for (uint32_t j = 0; j < min; ++j) {
+						if (i == j) {
+							ASSERT_EQ(c.get(i, j), 1u);
+							continue;
+						}
+						ASSERT_EQ(c.get(i, j), 0u);
+					}
+				}
+			});
+		});
+	});
+}
+#endif
 
 
 TEST(FqMatrix, permute) {

@@ -6,7 +6,12 @@
 
 #include "helper.h"
 
-#ifdef USE_AVX512
+
+#ifndef CRYPTANALYSISLIB_MATH_H
+#error "do not inlcude this file directly. Use `#include <cryptanalysislib/math.h>`"
+#endif
+
+#ifdef USE_AVX512F
 namespace cryptanalysislib::internal {
 	constexpr size_t primes_count = 64;
 	constexpr size_t factorials_count = 66;
@@ -20,7 +25,7 @@ namespace cryptanalysislib::internal {
 	        271, 277, 281, 283, 293, 307, 311};
 
 	__attribute__((aligned(64)))
-	const int8_t factorials[factorials_count][primes_count] = {
+	const uint8_t factorials[factorials_count][primes_count] = {
 	        /*   1! */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	        /*   2! */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	        /*   3! */ {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},

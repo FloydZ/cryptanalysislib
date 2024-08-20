@@ -4,14 +4,21 @@
 #include "helper.h"
 #include "container/linkedlist.h"
 #include "popcount/popcount.h"
+#include "memory/memory.h"
 
+/// Floyds simple try of super simple allocator, which is made for
+/// caches. It stores `bits` many `T` typed elements in single bucket, which
+/// are extended via a linked list.
+/// NOTE: dont use it for anything useful
+/// \tparam T type to allocate
 template<class T>
 class CacheAllocator {
+	// number of elements to store in a single bucket
 	constexpr static size_t bits = 64;
 	std::atomic<uint32_t> ctr = 0;
 
+	/// node in linked list
 	class Node {
-
 		using Limb = LogTypeTemplate<bits>;
 		using ALimb = std::atomic<Limb>;
 
@@ -39,8 +46,8 @@ class CacheAllocator {
 		}
 
 		/// could be named `is_slot_free`. If so it returns true
-		/// \param ptr
-		/// \return
+		/// \param ptr output: pointer to the pointer to allocate
+		/// \return true, if a slot is free, else false
 		constexpr inline bool allocate(T **ptr) noexcept {
 			uint32_t pos;
 			Limb d, nd;
@@ -58,15 +65,16 @@ class CacheAllocator {
 			return true;
 		}
 
-		Node() noexcept {
+		///
+		constexpr Node() noexcept {
 			free.store(-1);
 			memset((void *)data, 0, sizeof(T) * bits);
 		}
 
-		Node(const Node &t) noexcept {
+		/// copy construtor
+		constexpr Node(const Node &t) noexcept {
 			this->free.store(t.free.load());
-			// TODO this looks wrong
-			memcpy(data, data, sizeof(T) *bits);
+			cryptanalysislib::memcpy(data, t.data, sizeof(T));
 		}
 
 		bool operator==(const Node &b) const noexcept {
@@ -83,12 +91,18 @@ public:
 		ctr.store(0);
 	}
 
+	constexpr ~CacheAllocator() noexcept {
+		// NOTE: doesn't make much sense, as the datastructure
+		// doesn't save any ptr data.
+	}
+
+	/// number of allocations
 	constexpr inline uint32_t size() noexcept {
 		return ctr.load();
 	}
 	///
 	/// \return
-	T* allocate() {
+	T* allocate() noexcept {
 		ctr.fetch_add(1);
 
 		while (true) {
@@ -107,7 +121,7 @@ public:
 	}
 
 	///
-	bool deallocate(T *ptr) {
+	bool deallocate(const T *ptr) noexcept {
 		for (auto &i: root) {
 			if (i.owns(ptr)) {
 				i.deallocate(ptr);

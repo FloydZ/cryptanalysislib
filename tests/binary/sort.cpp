@@ -31,7 +31,7 @@ TEST(Bucket_Sort, get_data) {
 	A.identity();
 
 	BinaryList L{1};
-	L.generate_base_random(1, A);
+	L.random(1, A);
 	L.set_load(1);
 
 	for (size_t i = 0; i < L.load(); ++i) {

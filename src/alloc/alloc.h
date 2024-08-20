@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_ALLOC_H
 #define CRYPTANALYSISLIB_ALLOC_H
 
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
@@ -38,7 +39,7 @@ namespace cryptanalysislib {
 		}
 
 #ifdef __APPLE__
-		// of cause apple has no std::aligned_alloc. That would be stupid
+		// of cause apple has no std::aligned_alloc. That would be stupid.
 		// seams to work on apple
 		void *ret;
 		if (posix_memalign(&ret, alignment, __size)) {
@@ -78,12 +79,12 @@ public:
 
 
 ///
-struct AllocatorConfig {
+struct AllocatorConfig : public AlignmentConfig {
 	/// the base pointer to the internal data struct are always to 16bytes aligned
 	constexpr static size_t base_alignment = 16;
 
 	/// all pointers (Blks) returned do have this alignment
-	constexpr static size_t alignment = 1;
+	// constexpr static size_t alignment = 1;
 
 	/// if set, all allocations are zero allocations
 	constexpr static bool calloc = true;
@@ -150,7 +151,7 @@ public:
 		const size_t bla = roundToAligned<allocatorConfig.alignment>(b.len);
 		if ((T *) ((size_t) b.ptr + bla) == _p) {
 			if constexpr (allocatorConfig.zero_after_free) {
-				cryptanalysislib::memset(_p, T(0), (size_t) _p - (size_t) _d);
+				cryptanalysislib::memset(_p, T(0), ((uintptr_t) _p - (uintptr_t) _d)/sizeof(T));
 			}
 			_p = (T *) b.ptr;
 		}
@@ -159,7 +160,7 @@ public:
 	/// delalocate all allocations
 	constexpr void deallocateAll() noexcept {
 		if constexpr (allocatorConfig.zero_after_free) {
-			cryptanalysislib::memset(_d, T(0), _p - _d);
+			cryptanalysislib::memset(_d, T(0), ((uintptr_t)_p - (uintptr_t)_d)/sizeof(T));
 		}
 
 		_p = _d;
@@ -594,4 +595,9 @@ public:
 	//	return std::numeric_limits<size_t>::max();
 	//}
 };
+
+namespace cryptanalysislib::alloc {
+	// define a standard allocator
+	using allocator = PageMallocator<1u<<12u, 1u<<12u>;
+}
 #endif //CRYPTANALYSISLIB_ALLOC_H

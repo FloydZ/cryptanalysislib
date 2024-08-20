@@ -7,7 +7,11 @@
 #include "helper.h"
 #include "simd/simd.h"
 
-#ifdef USE_AVX512
+#ifndef CRYPTANALYSISLIB_MATH_H
+#error "do not inlcude this file directly. Use `#include <cryptanalysislib/math.h>`"
+#endif
+
+#ifdef USE_AVX512F
 #include "math/bc/simd.h"
 #endif
 

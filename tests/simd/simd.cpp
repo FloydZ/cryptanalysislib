@@ -57,7 +57,7 @@ using ::testing::UnitTest;
 #undef T
 #endif
 
-// generic stuff
+//// generic stuff
 #define S TxN_t<uint8_t, 128>
 #define T TxN_tuint8_128
 #include "test_simd.h"

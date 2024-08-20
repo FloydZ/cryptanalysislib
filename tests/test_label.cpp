@@ -331,7 +331,8 @@ TEST(Compare_Is_Lower, AllK) {
 
 int main(int argc, char **argv) {
 	uint64_t t = 0;
-	fastrandombytes(&t, 8);
+	const auto k = fastrandombytes(&t, 8);
+	ASSERT(!k);
 	srand(t);
     InitGoogleTest(&argc, argv);
 	ident();

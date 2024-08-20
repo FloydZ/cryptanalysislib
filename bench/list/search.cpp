@@ -3,17 +3,18 @@
 
 #include "../bench_config.h"
 
+
 #include "helper.h"
 #include "list/list.h"
 
 B63_BASELINE(NotFind, nn) {
 	kAryList l{n};
 	kAryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 	B63_SUSPEND {
 		kAryMatrix m;
 		m.identity();
-		l.generate_base_random(n, m);
+		l.random(n, m);
 
 		// make sure we will never find the value
 		e.zero();
@@ -37,12 +38,12 @@ B63_BASELINE(NotFind, nn) {
 B63_BENCHMARK(FindEnd, nn) {
 	kAryList l{n};
 	kAryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 
 	B63_SUSPEND {
 		kAryMatrix m;
 		m.identity(1);
-		l.generate_base_random(n, m);
+		l.random(n, m);
 
 		// make sure we will find the element at the end
 		e.zero();
@@ -66,7 +67,7 @@ B63_BENCHMARK(FindEnd, nn) {
 B63_BENCHMARK(FindBegin, nn) {
 	kAryList l{n};
 	kAryElement e{};
-	uint64_t k_lower, k_higher;
+	uint64_t k_lower=0, k_higher=0;
 
 	B63_SUSPEND {
 		// make sure we will find the element at the beginning
@@ -75,7 +76,7 @@ B63_BENCHMARK(FindBegin, nn) {
 
 		kAryMatrix m;
 		m.identity(1);
-		l.generate_base_random(n, m);
+		l.random(n, m);
 
 		translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 

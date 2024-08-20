@@ -32,8 +32,8 @@ TEST(BinaryTreeTest, CrossProdoct) {
 	constexpr uint64_t size = 100;
 	BinaryList L1{0}, L2{0}, out{size*size};
 
-	L1.generate_base_random(size, A);
-	L2.generate_base_random(size, A);
+	L1.random(size, A);
+	L2.random(size, A);
 
 	BinaryTree::cross_product(out, L1, L2, 0, n/2, n);
 }
@@ -44,8 +44,8 @@ TEST(BinaryTreeTest, JoinForLevelOne) {
 
 	BinaryTree t{1, A, 10, __level_translation_array, __level_filter_array};
 
-    t[0].generate_base_random(1u << 10u, A);
-    t[1].generate_base_random(1u << 10u, A);
+	t[0].random(1u << 10u, A);
+	t[1].random(1u << 10u, A);
     t.join_stream(0);
 
     EXPECT_EQ(1u << 20u, t[2].load());
@@ -57,8 +57,8 @@ TEST(BinaryTreeTest, JoinForLevelTwo) {
 
 	BinaryTree t{2, A, 10, __level_translation_array, __level_filter_array};
 
-    t[0].generate_base_random(1u << 2u, A);
-    t[1].generate_base_random(1u << 2u, A);
+	t[0].random(1u << 2u, A);
+	t[1].random(1u << 2u, A);
     t.join_stream(0);
     t.join_stream(1);
     EXPECT_EQ(1u << 8u, t[3].load());
@@ -70,8 +70,8 @@ TEST(BinaryTreeTest, JoinForLevelThree) {
 
 	BinaryTree t{3, A, 10, __level_translation_array, __level_filter_array};
 
-    t[0].generate_base_random(1u << 2u, A);
-    t[1].generate_base_random(1u << 2u, A);
+	t[0].random(1u << 2u, A);
+	t[1].random(1u << 2u, A);
     t.join_stream(0);
     t.join_stream(1);
     t.join_stream(2);
@@ -87,8 +87,8 @@ TEST(BinaryTreeTest, JoinRandomListsLevel0) {
 	static std::vector<uint64_t> __level_translation_array{{0, n}};
 	BinaryTree t{2, A, size, __level_translation_array, __level_filter_array};
 
-    t[0].generate_base_random(1u << size, A);
-    t[1].generate_base_random(1u << size, A);
+	t[0].random(1u << size, A);
+	t[1].random(1u << size, A);
     t[0].sort_level(0, __level_translation_array);
     t[1].sort_level(0, __level_translation_array);
 
@@ -114,16 +114,16 @@ TEST(BinaryTreeTest, JoinRandomListsLevel1) {
 	static std::vector<uint64_t> tbl{{0, n/2, n}};
 	BinaryTree t{2, A, size, tbl, __level_filter_array};
 
-    t[0].generate_base_random(1u << size, A);
-    t[1].generate_base_random(1u << size, A);
+	t[0].random(1u << size, A);
+	t[1].random(1u << size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t.join_stream(0);
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << size, A);
-    t[1].generate_base_random(1u << size, A);
+	t[0].random(1u << size, A);
+	t[1].random(1u << size, A);
 
     t[2].sort_level(1, tbl);
     t[0].sort_level(0, tbl);
@@ -167,8 +167,8 @@ TEST(BinaryTreeTest, JoinRandomListsLevel2) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
@@ -176,8 +176,8 @@ TEST(BinaryTreeTest, JoinRandomListsLevel2) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
     t[2].sort_level(1, tbl);
     t[0].sort_level(0, tbl);
@@ -186,8 +186,8 @@ TEST(BinaryTreeTest, JoinRandomListsLevel2) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t[3].sort_level(2, tbl);
@@ -229,16 +229,16 @@ TEST(BinaryTreeTest, JoinRandomListsLevel3) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t.join_stream(0);
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
 
     t[2].sort_level(1, tbl);
     t[0].sort_level(0, tbl);
@@ -247,8 +247,8 @@ TEST(BinaryTreeTest, JoinRandomListsLevel3) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t[3].sort_level(2, tbl);
@@ -256,8 +256,8 @@ TEST(BinaryTreeTest, JoinRandomListsLevel3) {
 
     t[0].set_load(0);
     t[1].set_load(0);
-    t[0].generate_base_random(1u << base_size, A);
-    t[1].generate_base_random(1u << base_size, A);
+	t[0].random(1u << base_size, A);
+	t[1].random(1u << base_size, A);
     t[0].sort_level(0, tbl);
     t[1].sort_level(0, tbl);
     t[4].sort_level(3, tbl);

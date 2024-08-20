@@ -20,81 +20,19 @@ using namespace fplll;
 
 #if __cplusplus > 201709L
 
-/// \tparam Container
-template<class Container>
-concept LabelAble = requires(Container c) {
-	typename Container::DataType;
-
-	// we need to enforce the existence of some fields/functions
-	Container::length;
-	Container::modulus;
-
-	requires requires(const uint32_t i,
-	                  const size_t s) {
-		c[i];
-		c.get(i);
-		c.set(i, i);
-		c.random();
-		c.zero();
-		c.data();
-		c.ptr();
-		c.ptr(s);
-
-		c.is_equal(c, i, i);
-		c.is_equal(c);
-		c.is_greater(c, i, i);
-		c.is_greater(c);
-		c.is_lower(c, i, i);
-		c.is_lower(c);
-		c.is_zero(i, i);
-		c.is_zero();
-		c.neg(i, i);
-
-		Container::add(c, c, c, i, i);
-		Container::sub(c, c, c, i, i);
-		Container::set(c, c, i, i);
-		Container::cmp(c, c, i, i);
-
-		c.print_binary(i, i);
-		c.print(i, i);
-	};
-
-	/// limb arithmetic stuff
-	requires requires(const typename Container::LimbType a,
-	                  const uint8x32_t b) {
-		Container::add_T(a, a);
-		Container::sub_T(a, a);
-		Container::mod_T(a);
-		Container::mul_T(a, a);
-		Container::neg_T(a);
-		Container::scalar_T(a, a);
-		Container::popcnt_T(a);
-
-		Container::add256_T(b, b);
-		Container::sub256_T(b, b);
-		Container::mod256_T(b);
-		Container::mul256_T(b, b);
-		Container::neg256_T(b);
-	};
-
-	// we also have to enforce the existence of some constexpr functions.
-	{ Container::binary() } -> std::convertible_to<bool>;
-	{ Container::length() } -> std::convertible_to<uint32_t>;
-	{ Container::size() } -> std::convertible_to<uint32_t>;
-	{ Container::limbs() } -> std::convertible_to<uint32_t>;
-	{ Container::bytes() } -> std::convertible_to<uint32_t>;
-};
-
 /// Requirements for a base data container.
 /// \tparam Container
 template<class Container>
-concept ValueAble = requires(Container c) {
+concept ElementDataAble = requires(Container c,
+                                   const Container &rc) {
 	typename Container::DataType;
 	typename Container::LimbType;
+	typename Container::S;
 
 	// we need to enforce the existence of some fields/functions
 	Container::modulus;
 	Container::length;
+	Container::info();
 
 	requires requires(const uint32_t i,
 	                  const size_t s) {
@@ -124,15 +62,19 @@ concept ValueAble = requires(Container c) {
 		Container::add(c, c, c, i, i);
 		Container::sub(c, c, c, i, i);
 		c.neg(i, i);
+		c.popcnt(i, i);
 
 		/// printing stuff
 		c.print_binary(i, i);
 		c.print(i, i);
+
+		c.hash();
+		c.hash(i, i);
 	};
 
 	/// limb arithmetic stuff
 	requires requires(const typename Container::LimbType a,
-	                  const uint8x32_t b) {
+	                  const typename Container::S b) {
 		Container::add_T(a, a);
 		Container::sub_T(a, a);
 		Container::mod_T(a);
@@ -149,12 +91,22 @@ concept ValueAble = requires(Container c) {
 		Container::neg256_T(b);
 	};
 
+	/// templated stuff
+    //requires requires(const typename Container::LimbType a,
+    //                  const typename Container::S b,
+	//                  const uint32_t u32) {
+	// TODO
+    //    Container::template add<const uint32_t, const uint32_t, const uint32_t>(rc, rc, rc);
+	//};
+
 	// we also have to enforce the existence of some constexpr functions.
+	{ Container::optimized() } -> std::convertible_to<bool>;
 	{ Container::binary() } -> std::convertible_to<bool>;
 	{ Container::length() } -> std::convertible_to<uint32_t>;
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
+	{ Container::sub_container_size() } -> std::convertible_to<uint32_t>;
 };
 
 template<class Value, class Label, class Matrix>
@@ -164,8 +116,8 @@ concept ElementAble = requires(Value v, Label l) {
 	typename Label::ContainerType;
 
 	/// these two need to be a valid Value and Label
-	requires ValueAble<typename Value::ContainerType>;
-	requires LabelAble<typename Label::ContainerType>;
+	requires ElementDataAble<typename Value::ContainerType>;
+	requires ElementDataAble<typename Label::ContainerType>;
 
 	requires MatrixAble<Matrix>;
 };
@@ -201,17 +153,14 @@ public:
 	/// normal constructor. Initialize everything with zero.
 	Element_T() noexcept : label(), value() { this->zero(); }
 
-	/// copy constructor
-	Element_T(const Element_T &a) noexcept
-	    : label(a.label), value(a.value) {}
-
 	/// zero out the element.
 	void zero() noexcept {
 		value.zero();
 		label.zero();
 	}
 
-	///
+	/// generate a completely random element
+	/// NOTE: value and label are not in any correspondence
 	void random() noexcept {
 		value.random();
 		label.random();
@@ -224,44 +173,15 @@ public:
 		recalculate_label(m);
 	}
 
-	/// returns the position of the i-th which is zero counted from left, where the first start '0' are skipped
-	/// \param i		pos
-	/// \param start
-	/// \return
-	size_t ith_value_left_zero_position(const size_t i, const size_t start = 0) const noexcept {
-		uint64_t count = 0;
-		for (uint64_t j = 0; j < value_size(); ++j) {
-			if (get_value().data()[j] == 0)
-				count += 1;
-
-			if (count == (i + start + 1))
-				return j;
-		}
-
-		return uint64_t(-1);
-	}
-
-	/// same as the function above. Only counting from right.
-	/// \param i
-	/// \param start
-	/// \return
-	size_t ith_value_right_zero_position(const size_t i, const size_t start = 0) const noexcept {
-		uint64_t count = 0;
-		for (uint64_t j = value_size(); j > 0; --j) {
-			if (get_value().data()[j - 1] == 0)
-				count += 1;
-
-			if (count == (i + start + 1))
-				return j - 1;
-		}
-
-		return uint64_t(-1);
-	}
-
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
-	constexpr void recalculate_label(const MatrixType &m) noexcept {
+	constexpr inline void recalculate_label(const MatrixType &m,
+	                                        const uint32_t k_lower=0,
+	                                        const uint32_t k_upper=0) noexcept {
+		// TODO sub mul
+		(void)k_lower;
+		(void)k_upper;
 		m.mul(label, value);
 	}
 
@@ -269,19 +189,12 @@ public:
 	/// \param m
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
-	constexpr bool is_correct(const MatrixType &m,
+	[[nodiscard]] constexpr bool is_correct(const MatrixType &m,
 	                          const bool rewrite = false) noexcept {
 		Label tmp;
 		m.mul(tmp, value);
 
-		bool ret = tmp.is_equal(label, 0, label_size());
-#ifdef DEBUG
-		if (!ret) {
-			std::cout << "IS|SHOULD\n";
-			std::cout << label;
-			std::cout << tmp;
-		}
-#endif
+		bool ret = tmp.is_equal(label);
 		if (rewrite) {
 			label = tmp;
 		}
@@ -311,6 +224,16 @@ public:
 		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
 	}
 
+	constexpr static bool sub(Element_T &e3,
+							  Element_T const &e1,
+							  Element_T const &e2,
+							  const uint32_t k_lower,
+							  const uint32_t k_upper,
+							  const uint32_t norm = -1) noexcept {
+		Label::sub(e3.label, e1.label, e2.label, k_lower, k_upper);
+		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
+	}
+
 	///  Useful if you do not want to filter in your tree and want additional performance.
 	constexpr static void add(Element_T &e3,
 	                          Element_T const &e1,
@@ -327,12 +250,29 @@ public:
 		ValueContainerType::sub(e3.value, e1.value, e2.value);
 	}
 
+	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1u>
+	constexpr static bool add(Element_T &e3,
+							  Element_T const &e1,
+							  Element_T const &e2) noexcept {
+		Label::template add<k_lower, k_upper>(e3.label, e1.label, e2.label);
+		return Value::template add<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
+	}
+
+	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1u>
+	constexpr static bool sub(Element_T &e3,
+							  Element_T const &e1,
+							  Element_T const &e2) noexcept {
+		Label::template sub<k_lower, k_upper>(e3.label, e1.label, e2.label);
+		return Value::template add<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
+	}
+
+
 	/// checks if this.label == obj.label on the coordinates [k_lower, k_upper]
 	/// \param obj		second element
 	/// \param k_lower  lower coordinate
 	/// \param k_upper  higher coordinate
 	/// \return true/false
-	constexpr inline bool is_equal(const Element_T &obj,
+	[[nodiscard]] constexpr inline bool is_equal(const Element_T &obj,
 	                               const uint32_t k_lower = 0,
 	                               const uint32_t k_upper = LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
@@ -348,7 +288,7 @@ public:
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
-	constexpr inline bool is_lower(const Element_T &obj,
+	[[nodiscard]] constexpr inline bool is_lower(const Element_T &obj,
 	                               const uint32_t k_lower = 0,
 	                               const uint32_t k_upper = LabelLENGTH) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_lower(...)'
@@ -357,40 +297,23 @@ public:
 
 	/// \return true/false
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline bool is_equal(const Element_T &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool is_equal(const Element_T &obj) const noexcept {
 		// No need to assert, because everything will be done inside the called function 'value.is_equal(...)'
 		return label.template is_equal<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label > obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline bool is_greater(const Element_T &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool is_greater(const Element_T &obj) const noexcept {
 		return label.template is_greater<k_lower, k_upper>(obj.label);
 	}
 
 	/// \return this->label < obj.label between the coordinates [k_lower, ..., k_upper]
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline bool is_lower(const Element_T &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool is_lower(const Element_T &obj) const noexcept {
 		return label.template is_lower<k_lower, k_upper>(obj.label);
 	}
 
-	/// Assignment operator implementing copy assignment
-	/// see https://en.cppreference.com/w/cpp/language/operators
-	///
-	/// \param obj to copy from
-	/// \return this
-	constexpr inline Element_T &operator=(Element_T const &obj) noexcept {
-		// self-assignment check expected
-		if (this != &obj) {
-			// now we can copy it
-			label = obj.label;
-			value = obj.value;
-		}
-
-		return *this;
-	}
-
-	///
 	/// \return true if either the value or label is zero on all coordinates
 	[[nodiscard]] constexpr bool is_zero() const noexcept {
 		bool ret = false;
@@ -400,57 +323,44 @@ public:
 		return ret;
 	}
 
-	/// Assignment operator implementing move assignment
-	/// see https://en.cppreference.com/w/cpp/language/move_assignment
 	/// \param obj
 	/// \return
-	Element_T &operator=(Element_T &&obj) noexcept {
-		if (this != &obj) {// self-assignment check expected really?
-			value = std::move(obj.value);
-			label = std::move(obj.label);
-		}
-
-		return *this;
-	}
-
-	/// \param obj
-	/// \return
-	inline bool operator!=(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator!=(Element_T const &obj) const noexcept {
 		return !label.is_equal(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator==(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator==(Element_T const &obj) const noexcept {
 		return label.is_equal(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator>(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator>(Element_T const &obj) const noexcept {
 		return label.is_greater(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator>=(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator>=(Element_T const &obj) const noexcept {
 		return !label.is_lower(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator<(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator<(Element_T const &obj) const noexcept {
 		return label.is_lower(obj.label);
 	}
 
 	///
 	/// \param obj
 	/// \return
-	inline bool operator<=(Element_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator<=(Element_T const &obj) const noexcept {
 		return !label.is_greater(obj.label);
 	}
 
@@ -490,30 +400,55 @@ public:
 		value.print_binary(k_lower_value, k_upper_value);
 	}
 
-	constexpr Value &get_value() noexcept { return value; }
-	constexpr const Value &get_value() const noexcept { return value; }
-	constexpr auto get_value(const size_t i) noexcept {
-		ASSERT(i < value.size());
-		return value.data(i);
+	template<const uint32_t l, const uint32_t h>
+	[[nodiscard]] constexpr inline auto hash() const noexcept {
+		static_assert(l < h);
+		return label.template hash<l, h>();
 	}
-	constexpr auto get_value(const size_t i) const noexcept {
-		ASSERT(i < value.size());
-		return value.data(i);
+	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
+	                                         const uint32_t h) const noexcept {
+		ASSERT(l < h);
+		return label.hash(l, h);
 	}
-
-	constexpr Label &get_label() noexcept { return label; }
-	constexpr const Label &get_label() const noexcept { return label; }
-	constexpr auto get_label(const uint64_t i) noexcept {
-		ASSERT(i < label.size());
-		return label.data(i);
-	}
-	constexpr auto get_label(const uint64_t i) const noexcept {
-		ASSERT(i < label.size());
-		return label.data(i);
+	[[nodiscard]] constexpr inline auto hash() const noexcept {
+		return label.hash();
 	}
 
-	constexpr void set_value(const Value &v) noexcept { value = v; }
-	constexpr void set_label(const Label &l) noexcept { label = l; }
+	///
+	template<const uint32_t l, const uint32_t h>
+	constexpr static bool is_hashable() noexcept {
+		if constexpr (l == h) { return false; }
+		return LabelType::template is_hashable<l, h>();
+	}
+
+	constexpr static bool is_hashable(const uint32_t l,
+							   	      const uint32_t h) noexcept {
+		ASSERT(h > l);
+		return LabelType::is_hashable(l, h);
+	}
+
+
+
+	[[nodiscard]] constexpr Value &get_value() noexcept { return value; }
+	[[nodiscard]] constexpr const Value &get_value() const noexcept { return value; }
+	[[nodiscard]] constexpr auto get_value(const size_t i) noexcept {
+		return value.get(i);
+	}
+	[[nodiscard]] constexpr auto get_value(const size_t i) const noexcept {
+		return value.get(i);
+	}
+
+	[[nodiscard]] constexpr Label &get_label() noexcept { return label; }
+	[[nodiscard]] constexpr const Label &get_label() const noexcept { return label; }
+	[[nodiscard]] constexpr auto get_label(const uint64_t i) noexcept {
+		return label.get(i);
+	}
+	[[nodiscard]] constexpr auto get_label(const uint64_t i) const noexcept {
+		return label.get(i);
+	}
+
+	constexpr inline void set_value(const Value &v) noexcept { value = v; }
+	constexpr inline void set_label(const Label &l) noexcept { label = l; }
 
 	/// returns true of both underlying data structs are binary
 	[[nodiscard]] constexpr static bool binary() noexcept { return Label::binary() && Value::binary(); }
@@ -530,12 +465,36 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr auto value_ptr(const size_t i) const noexcept { return value.ptr(i); }
 
 	constexpr static void info() noexcept {
-		std::cout << " { name: \"Element\" }" << std::endl;
+		std::cout << " { name: \"Element\" :"
+		          << ", sizeof(Element): " << sizeof(Element_T)
+				  << ", sizeof(Label): " << sizeof(LabelType)
+				  << ", sizeof(Value): " << sizeof(ValueType)
+				  << ", sizeof(Matrix): " << sizeof(MatrixType)
+		          << " }" << std::endl;
+		Label::info();
+		Value::info();
 	}
 public:
 	Label label;
 	Value value;
 };
+
+
+template<class Value, class Label, class Matrix>
+constexpr inline bool operator==(const Element_T<Value, Label, Matrix> &a,
+								 const Element_T<Value, Label, Matrix> &b) noexcept {
+	return a.is_equal(b);
+}
+template<class Value, class Label, class Matrix>
+constexpr inline bool operator<(const Element_T<Value, Label, Matrix> &a,
+                                const Element_T<Value, Label, Matrix> &b) noexcept {
+	return a.is_lower(b);
+}
+template<class Value, class Label, class Matrix>
+constexpr inline bool operator>(const Element_T<Value, Label, Matrix> &a,
+                                const Element_T<Value, Label, Matrix> &b) noexcept {
+	return a.is_greater(b);
+}
 
 /// print operator
 /// \tparam Value type of a value
@@ -547,7 +506,7 @@ template<class Value, class Label, class Matrix>
 std::ostream &operator<<(std::ostream &out,
                          const Element_T<Value, Label, Matrix> &obj) {
 	out << "V: " << obj.get_value();
-	out << ", L: " << obj.get_label() << "\n";
+	out << ",\tL: " << obj.get_label();
 	return out;
 }
 #endif//SMALLSECRETLWE_ELEMENT_H

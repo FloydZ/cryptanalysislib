@@ -14,8 +14,8 @@ V *data = nullptr;
 constexpr static SimpleHashMapConfig s1 = SimpleHashMapConfig{bucketsize, 1u << l, 1};
 constexpr static Simple2HashMapConfig s2 = Simple2HashMapConfig{1u << l};
 
-using HM1 = SimpleHashMap<K, V, s1, Hash<K, 0, l>>;
-using HM2 = Simple2HashMap<K, V, s2, Hash<K, 0, l>>;
+using HM1 = SimpleHashMap<K, V, s1, Hash<K, 0, l, 2>>;
+using HM2 = Simple2HashMap<K, V, s2, Hash<K, 0, l, 2>>;
 
 HM1 *hm1;
 HM2 *hm2;
@@ -32,7 +32,7 @@ B63_BENCHMARK(Simple, nn) {
 
 		for (uint64_t i = 0; i < (1u << l) * fillratio; ++i) {
 			for (uint64_t j = 0; j < hm1->load(i); ++j) {
-				ret += hm1->ptr(data[j]);
+				ret += hm1->ptr(j);
 			}
 		}
 
@@ -54,7 +54,7 @@ B63_BASELINE(Simple2, nn) {
 
 		for (uint64_t i = 0; i < (1u << l) * nn; ++i) {
 			for (uint64_t j = 0; j < hm2->load(i); ++j) {
-				ret += hm2->ptr(data[j]);
+				ret += hm2->ptr(j);
 			}
 		}
 

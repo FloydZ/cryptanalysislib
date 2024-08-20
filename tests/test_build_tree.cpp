@@ -28,7 +28,7 @@ using List			= List_T<Element>;
 using Tree			= Tree_T<List>;
 
 TEST(TreeTest, join2lists) {
-	size_t basesize = 8;
+	size_t basesize = 9;
 	Matrix A; A.identity();
 
 	const std::vector<uint64_t> ta{{0, n}};
@@ -36,8 +36,8 @@ TEST(TreeTest, join2lists) {
 	translate_level(&k_lower, &k_higher, 0, ta);
 
 	List out{1u<<basesize}, l1{0}, l2{0};
-	l1.generate_base_random(1u << basesize, A);
-	l2.generate_base_random(1u << basesize, A);
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
 
 	Label target {};
 	target.zero();
@@ -69,8 +69,8 @@ TEST(TreeTest, sort_level_with_target) {
 	const std::vector<uint64_t> ta{{0, n}};
 
 	List out1{1u<<basesize}, out2{1u<<basesize}, l1{0}, l2{0};
-	l1.generate_base_random(1u << basesize, A);
-	l2.generate_base_random(1u << basesize, A);
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
 	List l22 = l2;
 	Label target {}; target.random();
 
@@ -99,8 +99,8 @@ TEST(TreeTest, join2lists_on_iT) {
 	const std::vector<uint64_t> ta{{0, n}};
 
 	List out1{1u<<basesize}, out2{1u<<basesize}, l1{0}, l2{0};
-	l1.generate_base_random(1u << basesize, A);
-	l2.generate_base_random(1u << basesize, A);
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
 	List l22 = l2;
 	Label target {}; target.random();
 
@@ -143,14 +143,14 @@ TEST(TreeTest, join4lists) {
 	uint64_t k_lower=0, k_higher=0;
 
 	List out{1u<<12}, l1{0}, l2{0}, l3{0}, l4{0};
-	l1.generate_base_random(1u << basesize, A);
-	l2.generate_base_random(1u << basesize, A);
-	l3.generate_base_random(1u << basesize, A);
-	l4.generate_base_random(1u << basesize, A);
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
+	l3.random(1u << basesize, A);
+	l4.random(1u << basesize, A);
 
 	Label target; target.random();
 
-	Tree::streamjoin4lists(out, l1, l2, l3, l4, target, ta);
+	Tree::join4lists(out, l1, l2, l3, l4, target, ta);
 
 	auto right=true;
 	int wrong=0;
@@ -182,8 +182,8 @@ TEST(TreeTest, join4lists_with2lists) {
 	uint64_t k_lower=0, k_higher=0;
 
 	List out{1u<<basesize}, l1{0}, l2{0}, l3{0}, l4{0};
-	l1.generate_base_random(1u << basesize, A);
-	l2.generate_base_random(1u << basesize, A);
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
 
 	Label target {};
 	target.zero();

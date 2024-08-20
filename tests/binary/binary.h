@@ -1,5 +1,5 @@
-#ifndef SMALLSECRETLWE_BINARY_H
-#define SMALLSECRETLWE_BINARY_H
+#ifndef CRYPTANALYSISCRYPT_TEST_BINARY_H
+#define CRYPTANALYSISCRYPT_TEST_BINARY_H
 
 #define SORT_INCREASING_ORDER
 
@@ -10,7 +10,7 @@
 #include "tree.h"
 
 #ifndef N_DEFINED
-constexpr uint32_t n = 100;
+constexpr uint32_t n = 127;
 #endif
 
 using BinaryValue = BinaryContainer<n>;
@@ -29,7 +29,6 @@ static std::vector<uint64_t> __level_translation_array{{0, 5, 10, 15, n}};
 #include "container_avx.cpp"
 #include "container_cmp.cpp"
 #include "list.cpp"
-// TODO not available for n=100 #include "tree.cpp"
 #endif
 
-#endif//SMALLSECRETLWE_BINARY_H
+#endif

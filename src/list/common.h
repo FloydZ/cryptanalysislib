@@ -2,7 +2,27 @@
 #define DECODING_LIST_COMMON_H
 
 #include "element.h"
-#include <cstdint>
+#include "memory/memory.h"
+#include "alloc/alloc.h"
+
+struct ListConfig : public AlignmentConfig {
+public:
+	// if `true` all internal sorting algorithms are `std::sort`
+	constexpr static bool use_std_sort = false;
+
+	// if `true`, the call to `binary_search` will be remapped to
+	// the standard implementation
+	constexpr static bool use_std_binary_search = false;
+
+	// if `true`
+	constexpr static bool use_interpolation_search = false;
+
+	// if `true` sorting is increasing, else decresing
+	constexpr static bool sort_increasing_order = true;
+
+
+} listConfig;
+
 
 #if __cplusplus > 201709L
 
@@ -34,6 +54,9 @@ concept ListElementAble = requires(Element a) {
 	a.label;
 	a.value;
 
+	// static functions
+	Element::info();
+
 	requires requires(const size_t i, const typename Element::MatrixType &m) {
 		a.bytes();
 		a.binary();// checks if the underlying container is binary
@@ -64,6 +87,21 @@ concept ListElementAble = requires(Element a) {
 template<class List>
 concept ListAble = requires(List l) {
 	typename List::ElementType;
+
+	// we are good c++ devs
+	typename List::value_type;
+	typename List::allocator_type;
+	typename List::size_type;
+	typename List::difference_type;
+	typename List::reference;
+	typename List::const_reference;
+	typename List::pointer;
+	typename List::const_pointer;
+	typename List::iterator;
+	typename List::const_iterator;
+
+	// static functions
+	List::info();
 
 	/// insert//append stuff
 	requires requires(const size_t pos, 
@@ -115,16 +153,17 @@ concept ListAble = requires(List l) {
 
 		/// i = thread id
 		l.zero(i);
-		l.random(i);
 		l.random();
+		l.random(i); // create a random element
 
 		l.bytes();
 	};
 };
 #endif
 
-
-template<class Element>
+template<class Element,
+         class Alocator=cryptanalysislib::alloc::allocator,
+		 const ListConfig &config=listConfig>
 #if __cplusplus > 201709L
     requires ListElementAble<Element>
 #endif
@@ -148,9 +187,56 @@ protected:
 	size_t __thread_block_size;
 
 	/// internal data representation of the list.
-	alignas(CUSTOM_PAGE_SIZE) std::vector<Element> __data;
+	alignas(config.alignment*8) std::vector<Element> __data;
+
+	/// options
+	constexpr static bool use_std_sort = config.use_std_sort;
+	constexpr static bool use_std_binary_search = config.use_std_binary_search;
+	constexpr static bool sort_increasing_order = config.sort_increasing_order;
+	constexpr static bool use_interpolation_search = config.use_interpolation_search;
 
 public:
+
+	// needed types
+	typedef Element ElementType;
+	typedef typename Element::ValueType ValueType;
+	typedef typename Element::LabelType LabelType;
+
+	typedef typename Element::ValueType::LimbType ValueLimbType;
+	typedef typename Element::LabelType::LimbType LabelLimbType;
+
+	typedef typename Element::ValueContainerType ValueContainerType;
+	typedef typename Element::LabelContainerType LabelContainerType;
+
+	typedef typename Element::ValueDataType ValueDataType;
+	typedef typename Element::LabelDataType LabelDataType;
+
+	typedef typename Element::MatrixType MatrixType;
+
+	// todo do the same for all other list classes
+	// we are good c++ defs
+	typedef Element value_type;
+	typedef Alocator allocator_type; // TODO use
+	typedef size_t size_type;
+	typedef size_t difference_type;
+	typedef value_type& reference;
+	typedef const value_type& const_reference;
+	typedef value_type* pointer;
+	typedef const value_type* const_pointer;
+	typedef typename std::vector<Element>::iterator iterator;
+	typedef typename std::vector<Element>::const_iterator const_iterator ;
+
+	using LoadType = size_t;
+
+	// internal data types lengths
+	constexpr static uint32_t ValueLENGTH = ValueType::length();
+	constexpr static uint32_t LabelLENGTH = LabelType::length();
+
+	/// size in bytes
+	constexpr static uint64_t ElementBytes = Element::bytes();
+	constexpr static uint64_t ValueBytes = ValueType::bytes();
+	constexpr static uint64_t LabelBytes = LabelType::bytes();
+
 	/// only valid constructor
 	constexpr MetaListT(const size_t size,
 	                    const uint32_t threads = 1,
@@ -181,32 +267,6 @@ public:
 		memcpy(out.__data.data() + s, in.__data.data() + s, c * sizeof(ValueType));
 	}
 
-	typedef Element ElementType;
-	typedef typename Element::ValueType ValueType;
-	typedef typename Element::LabelType LabelType;
-
-	typedef typename Element::ValueType::LimbType ValueLimbType;
-	typedef typename Element::LabelType::LimbType LabelLimbType;
-
-	typedef typename Element::ValueContainerType ValueContainerType;
-	typedef typename Element::LabelContainerType LabelContainerType;
-
-	typedef typename Element::ValueDataType ValueDataType;
-	typedef typename Element::LabelDataType LabelDataType;
-
-	typedef typename Element::MatrixType MatrixType;
-
-	using LoadType = size_t;
-
-	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::length();
-	constexpr static uint32_t LabelLENGTH = LabelType::length();
-
-	/// size in bytes
-	constexpr static uint64_t ElementBytes = Element::bytes();
-	constexpr static uint64_t ValueBytes = ValueType::bytes();
-	constexpr static uint64_t LabelBytes = LabelType::bytes();
-
 	/// checks if all elements in the list fulfill the equation:
 	// 				label == value*matrix
 	/// \param m 		the matrix.
@@ -225,27 +285,82 @@ public:
 		return ret;
 	}
 
-	/// A little helper function to check if a list is sorted. This is very useful to assert specific states within
+	/// A little helper function to check if a list is sorted.
+	/// This is very useful to assert specific states within
 	/// complex cryptanalytic algorithms.
 	/// \param k_lower lower bound
 	/// \param k_higher upper bound
+	/// \param start first index to check
+	/// \param end last index to check
 	/// \return if its sorted
-	constexpr bool is_sorted(const uint64_t k_lower=0,
-							 const uint64_t k_higher=LabelBytes) const {
-		for (size_t i = 1; i < load(); ++i) {
+	[[nodiscard]] constexpr bool is_sorted(const uint64_t k_lower=0,
+										   const uint64_t k_higher=LabelBytes,
+										   const size_t start=0,
+										   const size_t end=-1ull) const noexcept {
+		const size_t end_ = end==-1ull ? load() : end;
+		ASSERT(start <= end_);
+
+		for (size_t i = start+1; i < end_; ++i) {
 			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
 				continue;
 			}
 
-#if !defined(SORT_INCREASING_ORDER)
-			if (!__data[i - 1].is_lower(__data[i], k_lower, k_higher)) {
-				return false;
+			if constexpr (sort_increasing_order) {
+				if (!__data[i - 1].is_lower(__data[i], k_lower, k_higher)) {
+					std::cout << *this;
+					return false;
+				}
+			} else {
+				if (!__data[i - 1].is_greater(__data[i], k_lower, k_higher)) {
+					return false;
+				}
 			}
-#else
-			if (!__data[i - 1].is_greater(__data[i], k_lower, k_higher)) {
-				return false;
+		}
+
+		return true;
+	}
+
+	/// same function as above, but adds/subs `t` into the list
+	/// \param t element to add (on the gly)
+	/// \param sub if `true` will compute `t - L[i]` instead of `t + L[i]`
+	/// \param k_lower lower bound
+	/// \param k_higher upper bound
+	/// \param start first index to check
+	/// \param end last index to check
+	/// \return if its sorted
+	[[nodiscard]] constexpr bool is_sorted(const LabelType &t,
+	                                       const bool sub=false,
+	         							   const uint64_t k_lower=0,
+	                                       const uint64_t k_higher=LabelBytes,
+	                                       const size_t start=0,
+	                                       const size_t end=-1ull) const noexcept {
+		const size_t end_ = end==-1ull ? load()-1 : end;
+		ASSERT(start < end_);
+
+		auto op = [&t, sub](const LabelType &a){
+			LabelType tmp;
+			if (sub) {LabelType::sub(tmp, t, a);
+			} else {  LabelType::add(tmp, t, a); }
+			return tmp;
+		};
+
+		for (size_t i = start+1; i < end_; ++i) {
+			const auto e1 = op(__data[i-1].label);
+			const auto e2 = op(__data[i].label);
+
+			if (e1.is_equal(e2, k_lower, k_higher)) {
+				continue;
 			}
-#endif
+
+			if constexpr (sort_increasing_order) {
+				if (!e1.is_lower(e2, k_lower, k_higher)) {
+					return false;
+				}
+			} else {
+				if (!e1.is_greater(e2, k_lower, k_higher)) {
+					return false;
+				}
+			}
 		}
 
 		return true;
@@ -271,7 +386,12 @@ public:
 	}
 
 	/// resize the internal data container
-	constexpr void resize(const size_t new_size) noexcept { return __data.resize(new_size); }
+	constexpr void resize(const size_t new_size) noexcept {
+		if (__size == new_size) {
+			return;
+		}
+		return __data.resize(new_size);
+	}
 
 	/// set/get the load factor
 	[[nodiscard]] constexpr size_t load(const uint32_t tid = 0) const noexcept {
@@ -290,10 +410,19 @@ public:
 	/// returning the range in which one thread is allowed to operate
 	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid=0) const noexcept {
 		ASSERT(tid < threads());
+
+		if (threads() == 1) {
+			return 0;
+		}
+
 		return tid * (__data.size() / __threads);
 	};
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid=0) const noexcept {
 		ASSERT(tid < threads());
+		if (threads() == 1) {
+			return load();
+		}
+
 		if (tid == threads() - 1) {
 			return std::max(thread_block_size() * tid, size());
 		}
@@ -301,8 +430,9 @@ public:
 	};
 
 	/// some setter/getter
-	[[nodiscard]] uint32_t threads() const noexcept { return __threads; }
-	[[nodiscard]] size_t thread_block_size() const noexcept { return __thread_block_size; }
+	[[nodiscard]] constexpr inline uint32_t threads() const noexcept { return __threads; }
+	[[nodiscard]] constexpr inline size_t thread_block_size() const noexcept { return __thread_block_size; }
+
 	/// NOTE: this functions resets the load factors
 	constexpr void set_threads(const uint32_t new_threads) noexcept {
 		__threads = new_threads;
@@ -315,50 +445,53 @@ public:
 	constexpr void set_thread_block_size(const size_t a) noexcept { __thread_block_size = a; }
 
 	/// Get a const pointer. Sometimes useful if one ones to tell the kernel how to access memory.
-	constexpr inline auto *data() noexcept { return __data.data(); }
-	constexpr const auto *data() const noexcept { return __data.data(); }
+	[[nodiscard]] constexpr inline auto *data() noexcept { return __data.data(); }
+	[[nodiscard]] constexpr const auto *data() const noexcept { return __data.data(); }
 
 	/// wrapper
-	constexpr inline ValueType *data_value() noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
-	constexpr inline const ValueType *data_value() const noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
-	constexpr inline LabelType *data_label() noexcept { return (LabelType *) __data.data(); }
-	constexpr inline const LabelType *data_label() const noexcept { return (const LabelType *) __data.data(); }
-	constexpr inline ValueType &data_value(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline ValueType *data_value() noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
+	[[nodiscard]] constexpr inline const ValueType *data_value() const noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
+	[[nodiscard]] constexpr inline LabelType *data_label() noexcept { return (LabelType *) __data.data(); }
+	[[nodiscard]] constexpr inline const LabelType *data_label() const noexcept { return (const LabelType *) __data.data(); }
+	[[nodiscard]] constexpr inline ValueType &data_value(const size_t i) noexcept {
 		ASSERT(i < __size);
 		return __data[i].get_value();
 	}
-	constexpr inline const ValueType &data_value(const size_t i) const noexcept {
-		ASSERT(i < __size);
-		return __data[i].get_value();
+	[[nodiscard]] constexpr inline const ValueType &data_value(const size_t i) const noexcept {
+	 	ASSERT(i < __size);
+	 	return __data[i].get_value();
 	}
-	constexpr inline LabelType &data_label(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline LabelType &data_label(const size_t i) noexcept {
 		ASSERT(i < __size);
 		return __data[i].get_label();
 	}
-	constexpr inline const LabelType &data_label(const size_t i) const noexcept {
+	[[nodiscard]] constexpr inline const LabelType &data_label(const size_t i) const noexcept {
 		ASSERT(i < __size);
 		return __data[i].get_label();
 	}
 
 	/// operator overloading
-	constexpr inline Element &at(const size_t i) noexcept {
+	[[nodiscard]] constexpr inline Element &at(const size_t i) noexcept {
 		ASSERT(i < size());
 		return __data[i];
 	}
-	constexpr inline const Element &at(const size_t i) const noexcept {
+	[[nodiscard]] constexpr inline const Element &at(const size_t i) const noexcept {
 		ASSERT(i < size());
 		return __data[i];
 	}
-	constexpr inline Element &operator[](const size_t i) noexcept {
+	[[nodiscard]] constexpr inline Element &operator[](const size_t i) noexcept {
 		ASSERT(i < size());
 		return __data[i];
 	}
-	constexpr inline const Element &operator[](const size_t i) const noexcept {
+	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
 		ASSERT(i < size());
 		return __data[i];
 	}
 
-	void set(Element &e, const uint64_t i) {
+	///
+	/// \param e
+	/// \param i
+	constexpr inline void set(Element &e, const size_t i) noexcept {
 		ASSERT(i < size());
 		__data[i] = e;
 	}
@@ -371,7 +504,7 @@ public:
 	/// \param value_k_higher exclusive
 	/// \param label_k_lower inclusive
 	/// \param label_k_higher exclusive
-	void print_binary(const uint64_t pos,
+	constexpr void print_binary(const uint64_t pos,
 	                  const uint32_t value_k_lower,
 	                  const uint32_t value_k_higher,
 	                  const uint32_t label_k_lower,
@@ -393,7 +526,7 @@ public:
 	/// \param value_k_higher exclusive
 	/// \param label_k_lower inclusive
 	/// \param label_k_higher exclusive
-	void print(const uint64_t pos,
+	constexpr void print(const uint64_t pos,
 	           const uint32_t value_k_lower,
 	           const uint32_t value_k_higher,
 	           const uint32_t label_k_lower,
@@ -415,7 +548,7 @@ public:
 	/// \param value_k_higher exclusive
 	/// \param label_k_lower inclusive
 	/// \param label_k_higher exclusive
-	void print(const uint32_t value_k_lower,
+	constexpr void print(const uint32_t value_k_lower,
 	           const uint32_t value_k_higher,
 	           const uint32_t label_k_lower,
 	           const uint32_t label_k_higher,
@@ -442,7 +575,7 @@ public:
 	/// \param value_k_higher exclusive
 	/// \param label_k_lower inclusive
 	/// \param label_k_higher exclusive
-	void print_binary(const uint32_t value_k_lower,
+	constexpr void print_binary(const uint32_t value_k_lower,
 	                  const uint32_t value_k_higher,
 	                  const uint32_t label_k_lower,
 	                  const uint32_t label_k_higher,
@@ -463,7 +596,7 @@ public:
 
 	/// zeros the whole list
 	/// and resets the load
-	void zero(const uint32_t tid = 0) {
+	constexpr void zero(const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
 		const size_t epos = end_pos(tid);
 
@@ -475,13 +608,14 @@ public:
 	}
 
 	/// this only sets the load counter to zero
-	void reset(const uint32_t tid = 0) {
+	constexpr inline void reset(const uint32_t tid = 0) noexcept {
 		set_load(0, tid);
 	}
 
 	/// remove the element at pos i.
 	/// \param i
-	void erase(const size_t i, const uint32_t tid = 0) {
+	constexpr void erase(const size_t i,
+	                     const uint32_t tid = 0) noexcept {
 		ASSERT(i < size());
 		__data.erase(__data.begin() + i);
 		__load[tid] -= 1;
@@ -489,31 +623,50 @@ public:
 
 	/// generates a random element
 	/// NOTE: this random elements, does not fulfill any property (e.g. label = matrix*value)
-	void random(const size_t i) {
+	void random(const size_t i) noexcept {
 		ASSERT(i < size());
 		__data[i].random();
 	}
 
 	/// generate a random list
-	constexpr void random() {
+	constexpr void random() noexcept {
 		MatrixType m;
 		m.random();
 		random(size(), m);
 	}
 
-	///
+	/// single threaded
 	constexpr void random(const size_t list_size,
-						  const MatrixType &m) {
+						  const MatrixType &m) noexcept {
+		__data.resize(list_size);
+		set_size(list_size);
+		set_load(list_size);
+
 		for (size_t i = 0; i < list_size; ++i) {
-			Element e{};
+			this->at(i).random(m);
+		}
+	}
+
+	// mutl
+	constexpr void random(const MatrixType &m,
+						  const uint32_t tid) noexcept {
+		ASSERT(tid < threads());
+		const size_t sp = start_pos(tid);
+		const size_t ep = start_pos(tid);
+
+		Element e{};
+		set_load(ep - sp, tid);
+		for (size_t i = sp; i < sp; ++i) {
 			e.random(m);
 			this->at(i) = e;
 		}
 	}
 
 	/// iterator are useless in this class
-	auto begin() noexcept { return __data.begin(); }
-	auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return __data.end(); }
 
 	/// returns a pointer to the internal data structure
 	[[nodiscard]] constexpr Element *ptr() noexcept { return __data.data(); }
@@ -531,15 +684,29 @@ public:
 	                      const size_t pos,
 	                      const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
+		ASSERT((spos+pos) < size());
 		__data[spos + pos] = e;
+	}
+
+	constexpr static void info() {
+		std::cout << " { name=\"MetaListT\""
+				  << " , sizeof(LoadType):" << sizeof(LoadType)
+				  << " , ValueLENGTH:" << ValueLENGTH
+				  << " , LabelLENGTH:" << LabelLENGTH
+				  << " , use_std_sort:" << use_std_sort
+				  << " , use_interpolation_search:" << use_interpolation_search
+				  << " , sort_increasing_order:" << sort_increasing_order
+		          << " }" << std::endl;
+		ElementType::info();
 	}
 };
 
 
 template<typename Element>
 std::ostream &operator<<(std::ostream &out, const MetaListT<Element> &obj) {
-	for (size_t i = 0; i < obj.size(); ++i) {
-		out << obj[i];
+	const size_t size = obj.load() > 0 ? obj.load() : obj.size();
+	for (size_t i = 0; i < size; ++i) {
+		out << obj[i] << "\t pos:" << i << "\n";
 	}
 	return out;
 }

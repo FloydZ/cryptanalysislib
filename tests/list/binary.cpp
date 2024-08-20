@@ -88,7 +88,7 @@ TEST(ListIntTest, CreateEmptyBaseLists) {
 	Element zero{};
 	zero.zero();
 
-	l.generate_base_random(TEST_BASE_LIST_SIZE, mm);
+	l.random(TEST_BASE_LIST_SIZE, mm);
 	EXPECT_EQ(TEST_BASE_LIST_SIZE,  l.size());
 
 	for (uint64_t i = 0; i < TEST_BASE_LIST_SIZE; ++i) {
@@ -103,7 +103,7 @@ TEST(SearchBoundaries, BasicLevel0) {
 	List l{0};
 	Matrix mm{};
 	mm.random();
-	l.generate_base_random(TEST_BASE_LIST_SIZE, mm);
+	l.random(TEST_BASE_LIST_SIZE, mm);
 
 	// debug helper.
 	// std::cout << l;
@@ -122,7 +122,7 @@ TEST(SearchBoundaries, EndLevel0) {
 	Matrix mm{};
 	mm.random();
 
-	l.generate_base_random(TEST_BASE_LIST_SIZE, mm);
+	l.random(TEST_BASE_LIST_SIZE, mm);
 	Element zero{};
 	zero.zero();
 
@@ -142,7 +142,7 @@ TEST(SearchBoundaries, End2Level0) {
 	Matrix mm{};
 	mm.random();
 
-	l.generate_base_random(TEST_BASE_LIST_SIZE, mm);
+	l.random(TEST_BASE_LIST_SIZE, mm);
 
 	Element zero{};
 	zero.zero();
@@ -165,7 +165,7 @@ TEST(SearchBoundaries, BeginLevel0) {
 	Matrix mm{};
 	mm.random();
 
-	l.generate_base_random(TEST_BASE_LIST_SIZE, mm);
+	l.random(TEST_BASE_LIST_SIZE, mm);
 
 	Element zero{};
 	zero.zero();
@@ -190,7 +190,7 @@ TEST(SearchBoundaries, MiddleLevel0) {
 	Matrix mm{};
 	mm.random();
 
-	l.generate_base_random(TEST_BASE_LIST_SIZE, mm);
+	l.random(TEST_BASE_LIST_SIZE, mm);
 
 	Element zero{};
 	zero.zero();

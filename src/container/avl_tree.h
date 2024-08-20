@@ -69,11 +69,11 @@ class AvlTreeList final {
 		return *this;
 	}
 
-	constexpr bool empty() const noexcept {
+	[[nodiscard]] constexpr inline bool empty() const noexcept {
 		return root->size == 0;
 	}
 
-	constexpr std::size_t size() const noexcept {
+	[[nodiscard]] constexpr inline std::size_t size() const noexcept {
 		return root->size;
 	}
 

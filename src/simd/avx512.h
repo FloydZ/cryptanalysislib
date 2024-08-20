@@ -450,8 +450,7 @@ struct uint8x64_t {
 	[[nodiscard]] constexpr static inline uint8x64_t mullo(const uint8x64_t in1,
 	                                                       const uint8x64_t in2) noexcept {
 		uint8x64_t out;
-		(void) in1;
-		(void) in2;
+		out.v512  = (__m512i) ((__v64qi) in1.v512 * (__v64qi) in2.v512);
 		return out;
 	}
 
@@ -476,7 +475,7 @@ struct uint8x64_t {
 		const uint8x64_t mask = uint8x64_t::set1(~((1u << in2) - 1u));
 		// out.v512 = _mm512_slli_epi16(in1.v512, in2);
 		// out.v512 =  (__m512i)__builtin_ia32_psllwi512((__v32hi)in1.v512, (int)in2);
-		out.v512 = (__m512i)((__v32hi)in1.v512 << (int)in2);
+		out.v512 = (__m512i)((__v64qu)in1.v512 << (int)in2);
 		out = uint8x64_t::and_(out, mask);
 		return out;
 	}
@@ -489,11 +488,102 @@ struct uint8x64_t {
 														  const uint8_t in2) noexcept {
 		ASSERT(in2 <= 8);
 		uint8x64_t out;
-		const uint8x64_t mask = uint8x64_t::set1((1u << ((8u - in2) & 7u)) - 1u);
+		//const uint8x64_t mask = uint8x64_t::set1((1u << ((8u - in2) & 7u)) - 1u);
 		// out.v512 = _mm512_srli_epi16(in1.v512, in2);
-		out.v512 = (__m512i)((__v32hi)in1.v512 >> (int)in2);
-		out = uint8x64_t::and_(out, mask);
+		out.v512 = (__m512i)(((__v64qu)in1.v512) >> (int)in2);
+		// out = uint8x64_t::and_(out, mask);
 		return out;
+	}
+
+
+
+	///
+	/// source:https://github.com/WojciechMula/toys/blob/master/avx512/avx512bw-rotate-by1.cpp
+	/// needs `avx512bw`
+	/// \param input
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x64_t ror1(const uint8x64_t input) noexcept {
+		uint8x64_t ret;
+		// lanes order: 1, 2, 3, 0 => 0b00_11_10_01
+#ifdef __clang__
+		const __m512i permuted = (__m512i) __builtin_ia32_shuf_i32x4((__v16si) (__m512i) (input.v512),
+																		 (__v16si) (__m512i) (input.v512), (int) (0x39));
+			ret.v512 = ((__m512i) __builtin_ia32_palignr512((__v64qi) (__m512i) (permuted),
+															(__v64qi) (__m512i) (input.v512), (int) (1)));
+#else
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winit-self"
+		__m512i Y = Y;
+#pragma GCC diagnostic pop
+
+		const __m512i permuted = ((__m512i)  __builtin_ia32_shuf_i32x4_mask ((__v16si)(__m512i)(input.v512),\
+																			   (__v16si)(__m512i)(input.v512), (int)(0x39),\
+																			   (__v16si)(__m512i)Y,\
+																			   (__mmask16)-1));
+
+		ret.v512 = ((__m512i) __builtin_ia32_palignr512 ((__v8di)(__m512i)(permuted),	\
+															(__v8di)(__m512i)(input.v512),			    \
+															(int)((1) * 8)));
+#endif
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x64_t gt_(const uint8x64_t in1,
+														 const uint8x64_t in2) noexcept {
+		uint8x64_t ret;
+		ret.v512 = (__m512i) ((__v64qu) in1.v512 > (__v64qu) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64_t gt(const uint8x64_t in1,
+													  const uint8x64_t in2) noexcept {
+		__m512i v512 = (__m512i) ((__v64qu) in1.v512 > (__v64qu) in2.v512);
+		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x64_t lt_(const uint8x64_t in1,
+														  const uint8x64_t in2) noexcept {
+		uint8x64_t ret;
+		ret.v512 = (__m512i) ((__v64qu) in1.v512 < (__v64qu) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64_t lt(const uint8x64_t in1,
+	                                                  const uint8x64_t in2) noexcept {
+		__m512i v512 = (__m512i) ((__v64qu) in1.v512 < (__v64qu) in2.v512);
+		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x64_t cmp_(const uint8x64_t in1,
+													     const uint8x64_t in2) noexcept {
+		uint8x64_t ret;
+		ret.v512 = (__m512i) ((__v64qi) in1.v512 == (__v64qi) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64_t cmp(const uint8x64_t in1,
+												       const uint8x64_t in2) noexcept {
+		__m512i v512 = (__m512i) ((__v64qi) in1.v512 == (__v64qi) in2.v512);
+		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
 	}
 
 	///
@@ -501,10 +591,16 @@ struct uint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x64_t popcnt(const uint8x64_t in1) noexcept {
 		uint8x64_t ret;
+#ifdef USE_AVX512BITALG
 #ifdef __clang__
 		ret.v512 = (__m512i) __builtin_ia32_vpopcntb_512((__v64qi) in1.v512);
 #else
   		ret.v512 = (__m512i) __builtin_ia32_vpopcountb_v64qi ((__v64qi)in1.v512);
+#endif
+#else
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			ret.v8[i] = cryptanalysislib::popcount::popcount(in1.v8[i]);
+		}
 #endif
 		return ret;
 	}
@@ -610,38 +706,6 @@ struct uint8x64_t {
 		for (uint32_t i = 0; i < S::LIMBS; ++i) {
 			ret.d[LIMBS - 1 - i] = in.d[i];
 		}
-#endif
-		return ret;
-	}
-
-	///
-	/// source:https://github.com/WojciechMula/toys/blob/master/avx512/avx512bw-rotate-by1.cpp
-	/// needs `avx512bw`
-	/// \param input
-	/// \return
-	[[nodiscard]] constexpr static inline uint8x64_t ror1(const uint8x64_t input) noexcept {
-		uint8x64_t ret;
-		// lanes order: 1, 2, 3, 0 => 0b00_11_10_01
-#ifdef __clang__
-		const __m512i permuted = (__m512i) __builtin_ia32_shuf_i32x4((__v16si) (__m512i) (input.v512),
-		                                                             (__v16si) (__m512i) (input.v512), (int) (0x39));
-		ret.v512 = ((__m512i) __builtin_ia32_palignr512((__v64qi) (__m512i) (permuted),
-		                                                (__v64qi) (__m512i) (input.v512), (int) (1)));
-#else
-
-		#pragma GCC diagnostic push
-		#pragma GCC diagnostic ignored "-Winit-self"
-		  __m512i Y = Y;
-		#pragma GCC diagnostic pop
-
-  		const __m512i permuted = ((__m512i)  __builtin_ia32_shuf_i32x4_mask ((__v16si)(__m512i)(input.v512),\
-      								(__v16si)(__m512i)(input.v512), (int)(0x39),\
-    								(__v16si)(__m512i)Y,\
-    								(__mmask16)-1));
-
-  		ret.v512 = ((__m512i) __builtin_ia32_palignr512 ((__v8di)(__m512i)(permuted),	\
-											(__v8di)(__m512i)(input.v512),			    \
-											(int)((1) * 8)));
 #endif
 		return ret;
 	}
@@ -768,6 +832,13 @@ struct uint8x64_t {
 		ret.v512 = _mm512_ternarylogic_epi32(mask0, t0, t1, 0xca);
 		return ret;
 #endif
+	}
+
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint64_t move(const uint8x64_t in) noexcept {
+		const __mmask64 t = _mm512_movepi8_mask(in.v512);
+		return t;
 	}
 
 
@@ -1070,8 +1141,7 @@ struct uint16x32_t {
 	[[nodiscard]] constexpr static inline uint16x32_t mullo(const uint16x32_t in1,
 	                                                        const uint16x32_t in2) noexcept {
 		uint16x32_t out;
-		(void) in1;
-		(void) in2;
+		out.v512 = (__m512i) ((__v32hu) in1.v512 * (__v32hu) in2.v512);
 		return out;
 	}
 
@@ -1108,6 +1178,63 @@ struct uint16x32_t {
 		// out.v512 = _mm512_srli_epi16(in1.v512, in2);
 		out.v512 = (__m512i)((__v32hi)in1.v512 >> (int)in2);
 		return out;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x32_t gt_(const uint16x32_t in1,
+														  const uint16x32_t in2) noexcept {
+		uint16x32_t ret;
+		ret.v512 = (__m512i) ((__v32hu) in1.v512 > (__v32hu) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t gt(const uint16x32_t in1,
+													  const uint16x32_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 > (__v32hu) in2.v512);
+		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x32_t lt_(const uint16x32_t in1,
+														  const uint16x32_t in2) noexcept {
+		uint16x32_t ret;
+		ret.v512 = (__m512i) ((__v32hu) in1.v512 < (__v32hu) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t lt(const uint16x32_t in1,
+													  const uint16x32_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 < (__v32hu) in2.v512);
+		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x32_t cmp_(const uint16x32_t in1,
+														  const uint16x32_t in2) noexcept {
+		uint16x32_t ret;
+		ret.v512 = (__m512i) ((__v32hi) in1.v512 == (__v32hi) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const uint16x32_t in1,
+													  const uint16x32_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v32hi) in1.v512 == (__v32hi) in2.v512);
+		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
 	}
 
 	///
@@ -1159,6 +1286,14 @@ struct uint16x32_t {
 		}
 
 		return out;
+	}
+
+
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t move(const uint16x32_t in) noexcept {
+		const __mmask32 t = _mm512_movepi16_mask(in.v512);
+		return t;
 	}
 };
 
@@ -1409,8 +1544,7 @@ struct uint32x16_t {
 	[[nodiscard]] constexpr static inline uint32x16_t mullo(const uint32x16_t in1,
 	                                                        const uint32x16_t in2) noexcept {
 		uint32x16_t out;
-		(void) in1;
-		(void) in2;
+		out.v512 = (__m512i) ((__v16su) in1.v512 * (__v16su) in2.v512);
 		return out;
 	}
 
@@ -1454,10 +1588,67 @@ struct uint32x16_t {
 														   const uint8_t in2) noexcept {
 		ASSERT(in2 <= 32);
 		uint32x16_t out;
-		// out.v512 = _mm512_srli_epi32(in1.v512, in2);
-		out.v512 = (__m512i) ((__v16si) in1.v512 >> (int)in2);
+		out.v512 = (__m512i) ((__v16su) in1.v512 >> (int)in2);
 		return out;
 	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x16_t gt_(const uint32x16_t in1,
+														  const uint32x16_t in2) noexcept {
+		uint32x16_t ret;
+		ret.v512 = (__m512i) ((__v16su) in1.v512 > (__v16su) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t gt(const uint32x16_t in1,
+													  const uint32x16_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v16su) in1.v512 > (__v16su) in2.v512);
+		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x16_t lt_(const uint32x16_t in1,
+														  const uint32x16_t in2) noexcept {
+		uint32x16_t ret;
+		ret.v512 = (__m512i) ((__v16su) in1.v512 < (__v16su) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t lt(const uint32x16_t in1,
+													  const uint32x16_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v16su) in1.v512 < (__v16su) in2.v512);
+		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x16_t cmp_(const uint32x16_t in1,
+														   const uint32x16_t in2) noexcept {
+		uint32x16_t ret;
+		ret.v512 = (__m512i) ((__v16si) in1.v512 == (__v16si) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t cmp(const uint32x16_t in1,
+													   const uint32x16_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v16si) in1.v512 == (__v16si) in2.v512);
+		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
+	}
+
 
 	/// needs`AVX512VPOPCNTDQ`
 	/// \param in1
@@ -1553,6 +1744,13 @@ struct uint32x16_t {
 						   (__mmask16) -1);
 #endif
 		return ret;
+	}
+
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t move(const uint32x16_t in) noexcept {
+		const __mmask16 t = _mm512_movepi32_mask(in.v512);
+		return t;
 	}
 };
 
@@ -1795,8 +1993,7 @@ struct uint64x8_t {
 	[[nodiscard]] constexpr static inline uint64x8_t mullo(const uint64x8_t in1,
 	                                                       const uint64x8_t in2) noexcept {
 		uint64x8_t out;
-		(void) in1;
-		(void) in2;
+		out.v512 = (__m512i) ((__v8du) in1.v512 * (__v8du) in2.v512);
 		return out;
 	}
 
@@ -1833,6 +2030,63 @@ struct uint64x8_t {
 		// out.v512 = _mm512_srli_epi64(in1.v512, in2);
 		out.v512 = (__m512i) ((__v8di)in1.v512 >> (int)in2);
 		return out;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t gt(const uint64x8_t in1,
+													  const uint64x8_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v8du) in1.v512 > (__v8du) in2.v512);
+		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x8_t gt_(const uint64x8_t in1,
+														 const uint64x8_t in2) noexcept {
+		uint64x8_t ret;
+		ret.v512 = (__m512i) ((__v8du) in1.v512 > (__v8du) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t lt(const uint64x8_t in1,
+													  const uint64x8_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v8du) in1.v512 < (__v8du) in2.v512);
+		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x8_t lt_(const uint64x8_t in1,
+														 const uint64x8_t in2) noexcept {
+		uint64x8_t ret;
+		ret.v512 = (__m512i) ((__v8du) in1.v512 < (__v8du) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint8_t cmp(const uint64x8_t in1,
+													   const uint64x8_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v8di) in1.v512 == (__v8di) in2.v512);
+		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x8_t cmp_(const uint64x8_t in1,
+	                                                      const uint64x8_t in2) noexcept {
+		uint64x8_t ret;
+		ret.v512 = (__m512i) ((__v8di) in1.v512 == (__v8di) in2.v512);
+		return ret;
 	}
 
 	///
@@ -1924,6 +2178,14 @@ struct uint64x8_t {
 		tmp = uint64x8_t::popcnt(tmp);
 		return tmp;
 	}
+
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint8_t move(const uint64x8_t in) noexcept {
+		const __mmask8 t = _mm512_movepi64_mask(in.v512);
+		return t;
+	}
+
 };
 
 
@@ -2119,7 +2381,57 @@ constexpr inline uint64x8_t operator|=(uint64x8_t &lhs, const uint64x8_t &rhs) n
 	return lhs;
 }
 
+constexpr inline uint64_t operator==(const uint8x64_t &a, const uint8x64_t &b) noexcept {
+	return uint8x64_t::cmp(a, b);
+}
+constexpr inline uint64_t operator!=(const uint8x64_t &a, const uint8x64_t &b) noexcept {
+	return -1ull ^ uint8x64_t::cmp(a, b);
+}
+constexpr inline uint64_t operator<(const uint8x64_t &a, const uint8x64_t &b) noexcept {
+	return uint8x64_t::lt(a, b);
+}
+constexpr inline uint64_t operator>(const uint8x64_t &a, const uint8x64_t &b) noexcept {
+	return uint8x64_t::gt(a, b);
+}
 
+constexpr inline uint64_t operator==(const uint16x32_t &a, const uint16x32_t &b) noexcept {
+	return uint16x32_t::cmp(a, b);
+}
+constexpr inline uint64_t operator!=(const uint16x32_t &a, const uint16x32_t &b) noexcept {
+	return -1ull ^ uint16x32_t::cmp(a, b);
+}
+constexpr inline uint64_t operator<(const uint16x32_t &a, const uint16x32_t &b) noexcept {
+	return uint16x32_t::lt(a, b);
+}
+constexpr inline uint64_t operator>(const uint16x32_t &a, const uint16x32_t &b) noexcept {
+	return uint16x32_t::gt(a, b);
+}
+
+constexpr inline uint64_t operator==(const uint32x16_t &a, const uint32x16_t &b) noexcept {
+	return uint32x16_t::cmp(a, b);
+}
+constexpr inline uint64_t operator!=(const uint32x16_t &a, const uint32x16_t &b) noexcept {
+	return -1ull ^ uint32x16_t::cmp(a, b);
+}
+constexpr inline uint64_t operator<(const uint32x16_t &a, const uint32x16_t &b) noexcept {
+	return uint32x16_t::lt(a, b);
+}
+constexpr inline uint64_t operator>(const uint32x16_t &a, const uint32x16_t &b) noexcept {
+	return uint32x16_t::gt(a, b);
+}
+
+constexpr inline uint64_t operator==(const uint64x8_t &a, const uint64x8_t &b) noexcept {
+	return uint64x8_t::cmp(a, b);
+}
+constexpr inline uint64_t operator!=(const uint64x8_t &a, const uint64x8_t &b) noexcept {
+	return -1ull ^ uint64x8_t::cmp(a, b);
+}
+constexpr inline uint64_t operator<(const uint64x8_t &a, const uint64x8_t &b) noexcept {
+	return uint64x8_t::lt(a, b);
+}
+constexpr inline uint64_t operator>(const uint64x8_t &a, const uint64x8_t &b) noexcept {
+	return uint64x8_t::gt(a, b);
+}
 
 /// NOTE: this is stupid. gcc does strange thing.
 /// \return an uninitialized avx512 register

@@ -102,7 +102,7 @@ concept MatrixAble = requires(MatrixType c) {
 template<typename T,
          const uint32_t _nrows,
          const uint32_t _ncols,
-         const uint32_t q,
+         const uint64_t q,
          const bool packed = false,
          typename R=void>
 struct FqMatrix_Meta {
@@ -188,7 +188,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime,
+	         const uint64_t qprime,
 	         const bool packed_prime>
 	constexpr void copy_sub(const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed_prime> &A,
 	                        const uint32_t srow, const uint32_t scol) {
@@ -422,7 +422,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime>
+	         const uint64_t qprime>
 	constexpr static void transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
 	                                FqMatrix_Meta &A, const uint32_t srow, const uint32_t scol) noexcept {
 		ASSERT(srow < nrows);
@@ -451,7 +451,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime,
+	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
 	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
@@ -483,7 +483,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime,
+	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
 	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
@@ -521,7 +521,7 @@ public:
 	template<typename Tprime,
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
-	         const uint32_t qprime,
+	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
 	static constexpr void sub_matrix(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
@@ -874,6 +874,9 @@ public:
 
 		/// apply the random permutation
 		for (uint32_t i = 0; i < c; ++i) {
+			ASSERT(i < P.length);
+			ASSERT(perm[i] < P.length);
+
 			std::swap(P.values[i], P.values[perm[i]]);
 			swap_cols(i, perm[i]);
 
@@ -1176,6 +1179,7 @@ public:
 	        const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
 	        const FqMatrix_Meta<T, ncols, ncols_prime, q, packed> &B) noexcept {
 
+		C.clear();
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols_prime; ++j) {
 				uint64_t sum = 0;
@@ -1233,16 +1237,19 @@ public:
 #endif
 	constexpr void mul(LabelType &out,
 	                   const ValueType &in) const noexcept {
-		using DataType = typename LabelType::DataType;
+		// using DataType = typename LabelType::DataType;
 		constexpr uint32_t IN_COLS = ValueType::length();
 		constexpr uint32_t OUT_COLS = LabelType::length();
 		static_assert((IN_COLS == COLS)  || (IN_COLS == ROWS)) ;
 		static_assert((OUT_COLS == ROWS) || (OUT_COLS == COLS));
 
+		// TODO optimization if Value is binary
+		// todo more tests
+		// TODO simd
 		if constexpr ((OUT_COLS == COLS) && (IN_COLS == ROWS)) {
 			// transposed multiplication
 			for (uint32_t i = 0; i < OUT_COLS; ++i) {
-				DataType sum = 0;
+				uint64_t sum = 0;
 				for (uint32_t j = 0; j < IN_COLS; ++j) {
 					auto a = get(j, i);
 					auto b = in.get(j);
@@ -1259,7 +1266,7 @@ public:
 		if constexpr ((OUT_COLS && ROWS) && (IN_COLS == COLS)) {
 			// normal multiplication
 			for (uint32_t i = 0; i < nrows; ++i) {
-				DataType sum = 0;
+				uint64_t sum = 0;
 				for (uint32_t j = 0; j < ncols; ++j) {
 					auto a = get(i, j);
 					auto b = in.get(j);
@@ -1335,17 +1342,19 @@ public:
 		}
 
 		if (name.length() > 0) {
-			std::cout << " " << name << "\n";
+			std::cout << " " << name << std::endl;
+		} else {
+			std::cout << std::endl;
 		}
 	}
 
 	/// some simple functions
-	[[nodiscard]] constexpr inline bool binary() noexcept { return false; }
+	[[nodiscard]] constexpr inline bool binary() const noexcept { return false; }
 
 	/// these two functions exist, as there are maybe matrix implementations
 	/// you want to wrap, which are not constant sized
-	[[nodiscard]] constexpr inline uint32_t rows() noexcept { return ROWS; }
-	[[nodiscard]] constexpr inline uint32_t cols() noexcept { return COLS; }
+	[[nodiscard]] constexpr inline uint32_t rows() const noexcept { return ROWS; }
+	[[nodiscard]] constexpr inline uint32_t cols() const noexcept { return COLS; }
 
 	/// get a full limb, instead of just a column
 	/// \param row row
@@ -1389,7 +1398,7 @@ public:
 template<typename T,
 		const uint32_t nrows,
 		const uint32_t ncols,
-		const uint32_t q,
+		const uint64_t q,
 		const bool packed = false,
 		typename R=void>
 std::ostream &operator<<(std::ostream &out,

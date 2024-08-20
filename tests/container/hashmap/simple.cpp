@@ -13,9 +13,9 @@ using V = uint64_t;
 TEST(HashMap, simd) {
 	constexpr uint32_t l = 12;
 	constexpr uint32_t bucketsize = 10;
-	constexpr static Hash<K, 0, l> hashclass{};
+	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static SimpleHashMapConfig s = SimpleHashMapConfig{bucketsize, 1u << l, 1};
-	using HM = SimpleHashMap<K, V, s, Hash<K, 0, l>>;
+	using HM = SimpleHashMap<K, V, s, Hash<K, 0, l, 2>>;
 
 	using SIMD = uint16x16_t;
 	HM hm = HM{};
@@ -46,9 +46,9 @@ TEST(HashMap, simd) {
 TEST(HashMap, simple) {
 	constexpr uint32_t l = 12;
 	constexpr uint32_t bucketsize = 10;
-	constexpr static Hash<K, 0, l> hashclass{};
+	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static SimpleHashMapConfig s = SimpleHashMapConfig{bucketsize, 1u << l, 1};
-	using HM = SimpleHashMap<K, V, s, Hash<K, 0, l>>;
+	using HM = SimpleHashMap<K, V, s, Hash<K, 0, l, 2>>;
 
 	HM hm = HM{};
 
@@ -73,9 +73,9 @@ TEST(HashMap, multithreaded) {
 	constexpr uint32_t l = 12;
 	constexpr uint32_t bucketsize = 10;
 	constexpr uint32_t threads = 2;
-	constexpr static Hash<K, 0, l> hashclass{};
+	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static SimpleHashMapConfig s = SimpleHashMapConfig{bucketsize, 1u << l, threads};
-	using HM = SimpleHashMap<K, V, s, Hash<K, 0, l>>;
+	using HM = SimpleHashMap<K, V, s, Hash<K, 0, l, 2>>;
 
 	HM hm = HM{};
 	hm.print();

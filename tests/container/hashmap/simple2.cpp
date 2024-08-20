@@ -12,9 +12,9 @@ using V = uint64_t;
 TEST(HashMap2, simple) {
 	constexpr uint32_t l = 12;
 	constexpr uint32_t bucketsize = (64/sizeof(V)) - 1u;
-	constexpr static Hash<K, 0, l> hashclass{};
+	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static Simple2HashMapConfig s = Simple2HashMapConfig{1u << l};
-	using HM = Simple2HashMap<K, V, s, Hash<K, 0, l>>;
+	using HM = Simple2HashMap<K, V, s, Hash<K, 0, l, 2>>;
 
 	HM hm = HM{};
 
@@ -39,9 +39,9 @@ TEST(HashMap2, multithreaded) {
 	constexpr uint32_t l = 12;
 	constexpr uint32_t threads = 2;
 	constexpr uint32_t bucketsize = (64/sizeof(V)) - 1u;
-	constexpr static Hash<K, 0, l> hashclass{};
+	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static Simple2HashMapConfig s = Simple2HashMapConfig{1u << l, threads};
-	using HM = Simple2HashMap<K, V, s, Hash<K, 0, l>>;
+	using HM = Simple2HashMap<K, V, s, Hash<K, 0, l, 2>>;
 
 	HM hm = HM{};
 	hm.print();

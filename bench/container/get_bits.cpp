@@ -1,8 +1,9 @@
+#include <cstdint>
+
 #include "b63.h"
 #include "counters/perf_events.h"
 
 #include "../bench_config.h"
-#include <cstdint>
 
 B63_BASELINE(SoImplemented, nn) {
 	BinaryContainer<n> v1{};

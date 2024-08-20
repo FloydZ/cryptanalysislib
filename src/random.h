@@ -84,15 +84,17 @@ static inline void random_seed(uint64_t seed) noexcept {
 	return xorshf96_fastrandombytes_uint64();
 }
 
-/// TODO fast mod algorith by lemir
 /// \return a uniform (not really) uint64 % limit
 [[nodiscard]] static inline uint64_t fastrandombytes_uint64(const uint64_t limit) noexcept {
 	return xorshf96_fastrandombytes_uint64() % limit;
 }
 
-[[nodiscard]] static inline uint64_t fastrandombytes_uint64(const uint64_t l, const uint64_t h) noexcept {
+/// \return a random element from [l, h)
+[[nodiscard]] static inline uint64_t fastrandombytes_uint64(const uint64_t l,
+                                                            const uint64_t h) noexcept {
 	return l + fastrandombytes_uint64(h - l);
 }
+
 /// simple C++ wrapper.
 /// \tparam T
 /// \return a type T uniform random element
@@ -104,9 +106,62 @@ template<typename T>
 	return xorshf96_fastrandombytes_uint64();
 }
 
-/// creates a weight w uint64_t
-/// \param w
-/// \return
+/// simple C++ wrapper.
+/// \tparam T
+/// \param limit
+/// \return a type T uniform random element % limit
+template<typename T>
+#if __cplusplus > 201709L
+requires std::is_integral_v<T>
+#endif
+[[nodiscard]] static inline T fastrandombytes_T(const T limit) noexcept {
+	return xorshf96_fastrandombytes_uint64() % limit;
+}
+
+/// simple C++ wrapper.
+/// \tparam T
+/// \param limit
+/// \return a type T uniform random element % limit
+template<typename T, const T mod>
+#if __cplusplus > 201709L
+	requires std::is_integral_v<T>
+#endif
+[[nodiscard]] static inline T fastrandombytes_T() noexcept {
+	// thats an implementation limit
+	static_assert(sizeof(T) < 8);
+	return fastmod<mod>(fastrandombytes_T<T>);
+}
+
+/// simple C++ wrapper.
+/// \tparam T base type
+/// \param l inclusive lower limit
+/// \param h exclusive upper limit
+/// \return a type T uniform random element in [l, h)
+template<typename T>
+#if __cplusplus > 201709L
+requires std::is_integral_v<T>
+#endif
+[[nodiscard]] static inline T fastrandombytes_T(const T l, const T h) noexcept {
+	return l + fastrandombytes_T<T>(h - l);
+}
+
+/// simple C++ wrapper.
+/// \tparam T base type
+/// \param l inclusive lower limit
+/// \param h exclusive upper limit
+/// \return a type T uniform random element in [l, h)
+template<typename T, const T l, const T h>
+#if __cplusplus > 201709L
+requires std::is_integral_v<T>
+#endif
+[[nodiscard]] static inline T fastrandombytes_T() noexcept {
+	// thats an implementation limit
+	static_assert(sizeof(T) < 8);
+	return l + fastmod<h - l>(fastrandombytes_T<T>);
+}
+
+/// \param w hamming weight of the output element
+/// \return a weight w type `T` element
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>

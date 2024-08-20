@@ -83,7 +83,7 @@ public:
 			if (du < d_best) { d_best = du; }
 
 			for (size_t i = 0; i < u.children.size(); ++i) {
-				if (std::abs((int32_t)u.duv[i] - (int32_t)du) < d_best) {
+				if (std::abs((int32_t)u.duv[i] - (int32_t)du) < (int32_t)d_best) {
 					S.emplace_back(u.children[i]);
 				}
 			}

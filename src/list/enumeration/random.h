@@ -251,17 +251,15 @@ public:
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
 		for (size_t ctr = 0; ctr < list_size; ++ctr) {
-			//const uint32_t w1 = fastrandombytes_uint64(1, w);
-			//element1.value.random_with_weight(w1, n/2, base_offset);
-			element1.value.ptr()[0] += 1ull << base_offset;
-
+			const uint32_t w1 = fastrandombytes_uint64(1, w);
+			element1.value.random_with_weight(w1, n/2, base_offset);
 			H.mul(element1.label, element1.value);
+
 			if (syndrome != nullptr) { Label::add(element1.label, element1.label, *syndrome); }
 
 			if (sL2) {
-				// const uint32_t w2 = fastrandombytes_uint64(1, w);
-				// element2.value.random_with_weight(w2, n/2, base_offset+offset);
-				element2.value.ptr()[0] += 1ull << (offset + base_offset);
+				const uint32_t w2 = fastrandombytes_uint64(1, w);
+				element2.value.random_with_weight(w2, n/2, base_offset+offset);
 				H.mul(element2.label, element2.value);
 			}
 
@@ -278,6 +276,15 @@ public:
 		if (sL2) { L2->set_load(list_size); }
 
 		return false;
+	}
+
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
+			 const uint32_t tid = 0){
+		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				(L1, L2, offset, base_offset, tid);
 	}
 };
 

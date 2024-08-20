@@ -16,7 +16,8 @@
 /// 		Hence the ABA problem is not a thing
 /// unsorted single-linked list
 /// \tparam T
-template<typename T, class A = std::atomic<T>>
+template<typename T,
+         class A = std::atomic<T>>
 class ConstFreeList {
 private:
 	struct Node {
@@ -82,10 +83,6 @@ private:
 	/// keep track of the size of the linked list
 	std::atomic<size_t> __size = 0;
 	std::atomic<Node *> head;
-
-	// return the last element in the list.
-	A *__traverse() {
-	}
 
 public:
 	Iterator begin() { return Iterator(head); }
