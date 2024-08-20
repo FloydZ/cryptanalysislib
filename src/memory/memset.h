@@ -92,8 +92,9 @@ namespace cryptanalysislib {
 					out = (uint8_t *)((uintptr_t)(out) & -32);
 
 					const uint8x32_t in4 = uint8x32_t::set1(in);
-					// not really correct
-					for (size_t i = 0; i < (bytes-31)/32; ++i) {
+
+					const size_t limit = (bytes-33)/32;
+					for (size_t i = 0; i < limit; ++i) {
 						uint8x32_t::aligned_store(out, in4);
 						out += 32;
 					}

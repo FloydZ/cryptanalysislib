@@ -63,7 +63,7 @@ struct Allocation {
 	/// print some basic information about the class
 	constexpr static void info() {
 		std::cout << " { name: \"ALlocation\", "
-				  << " }" << std::endl;
+				  << " }\n";
 	}
 };
 
@@ -304,7 +304,7 @@ public:
 	constexpr static void info() {
 		std::cout << " { name \"allocation_map\""
 		          << ", alignment:" << alignment
-				  << " }" << std::endl;
+				  << " }\n";
 	}
 };
 
