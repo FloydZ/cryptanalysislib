@@ -182,6 +182,16 @@ TEST(uint8x32_t, slri) {
 	}
 }
 
+TEST(uint32x8_t, gather) {
+	uint32_t d1[8] = {0,1,2,3,4,5,6,7};
+	uint32_t d2[32] = {0,0,0,0,1,0,0,0,2,0,0,0,3,0,0,0,4,0,0,0,5,0,0,0,6,0,0,0,7,0,0,0};
+	const auto a = uint32x8_t::unaligned_load(d1);	
+	const auto b = uint32x8_t::gather(d1, a);
+
+	for (uint32_t i = 0; i < 8; ++i) {
+		EXPECT_EQ(a.d[i], b.d[i]);
+	}
+}
 
 #ifdef USE_AVX2
 TEST(avx, prefixsum) {

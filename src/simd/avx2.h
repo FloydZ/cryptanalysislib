@@ -91,7 +91,7 @@ namespace cryptanalysislib {
 		}
 
 
-		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 			ASSERT(i < LIMBS);
 			return d[i];
 		}
@@ -259,9 +259,9 @@ namespace cryptanalysislib {
 		/// \param in2
 		/// \return in1 > in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t gt(const _uint8x16_t in1,
-													 const _uint8x16_t in2) noexcept {
-			const __m128i tmp = (__m128i) ((__v16qu)in1.v128 > (__v16qu)in2.v128);
-			return __builtin_ia32_pmovmskb128 ((__v16qi)tmp);
+		                                                  const _uint8x16_t in2) noexcept {
+			const __m128i tmp = (__m128i) ((__v16qu) in1.v128 > (__v16qu) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
 
 		/// NOTE: signed comparison
@@ -269,9 +269,9 @@ namespace cryptanalysislib {
 		/// \param in2
 		/// \return in1 > in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t lt(const _uint8x16_t in1,
-													 const _uint8x16_t in2) noexcept {
-			const __m128i tmp = (__m128i) ((__v16qu)in1.v128 < (__v16qu)in2.v128);
-			return __builtin_ia32_pmovmskb128 ((__v16qi)tmp);
+		                                                  const _uint8x16_t in2) noexcept {
+			const __m128i tmp = (__m128i) ((__v16qu) in1.v128 < (__v16qu) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
 
 		///
@@ -279,9 +279,9 @@ namespace cryptanalysislib {
 		/// \param in2
 		/// \return in1 == in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t cmp(const _uint8x16_t in1,
-		                                              const _uint8x16_t in2) noexcept {
-			const __m128i tmp = (__m128i) ((__v16qu)in1.v128 == (__v16qu)in2.v128);
-			return __builtin_ia32_pmovmskb128 ((__v16qi)tmp);
+		                                                   const _uint8x16_t in2) noexcept {
+			const __m128i tmp = (__m128i) ((__v16qu) in1.v128 == (__v16qu) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
 	};
 
@@ -315,7 +315,7 @@ namespace cryptanalysislib {
 			return d[i];
 		}
 
-		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+		[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 			ASSERT(i < LIMBS);
 			return d[i];
 		}
@@ -622,36 +622,36 @@ namespace cryptanalysislib {
 
 constexpr static __m256i u8tom256(const uint8_t t[32]) noexcept {
 	long long __t[4];
-	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 8) | ((long long)t[ 2] << 16) | ((long long)t[ 3] << 24) | ((long long)t[ 4] << 32) | ((long long)t[ 5] << 40) | ((long long)t[ 6] << 48) | ((long long)t[ 7] << 56);
-	__t[1] = (long long)t[ 8] | (((long long)t[ 9]) << 8) | ((long long)t[10] << 16) | ((long long)t[11] << 24) | ((long long)t[12] << 32) | ((long long)t[13] << 40) | ((long long)t[14] << 48) | ((long long)t[15] << 56);
-	__t[2] = (long long)t[16] | (((long long)t[17]) << 8) | ((long long)t[18] << 16) | ((long long)t[19] << 24) | ((long long)t[20] << 32) | ((long long)t[21] << 40) | ((long long)t[22] << 48) | ((long long)t[23] << 56);
-	__t[3] = (long long)t[24] | (((long long)t[25]) << 8) | ((long long)t[26] << 16) | ((long long)t[27] << 24) | ((long long)t[28] << 32) | ((long long)t[29] << 40) | ((long long)t[30] << 48) | ((long long)t[31] << 56);
-	__m256i tmp = {__t[0],__t[1],__t[2],__t[3]};
+	__t[0] = (long long) t[0] | (((long long) t[1]) << 8) | ((long long) t[2] << 16) | ((long long) t[3] << 24) | ((long long) t[4] << 32) | ((long long) t[5] << 40) | ((long long) t[6] << 48) | ((long long) t[7] << 56);
+	__t[1] = (long long) t[8] | (((long long) t[9]) << 8) | ((long long) t[10] << 16) | ((long long) t[11] << 24) | ((long long) t[12] << 32) | ((long long) t[13] << 40) | ((long long) t[14] << 48) | ((long long) t[15] << 56);
+	__t[2] = (long long) t[16] | (((long long) t[17]) << 8) | ((long long) t[18] << 16) | ((long long) t[19] << 24) | ((long long) t[20] << 32) | ((long long) t[21] << 40) | ((long long) t[22] << 48) | ((long long) t[23] << 56);
+	__t[3] = (long long) t[24] | (((long long) t[25]) << 8) | ((long long) t[26] << 16) | ((long long) t[27] << 24) | ((long long) t[28] << 32) | ((long long) t[29] << 40) | ((long long) t[30] << 48) | ((long long) t[31] << 56);
+	__m256i tmp = {__t[0], __t[1], __t[2], __t[3]};
 	return tmp;
 }
 
 constexpr static __m256i u16tom256(const uint16_t t[16]) noexcept {
 	long long __t[4];
-	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 16) | ((long long)t[ 2] << 32) | ((long long)t[ 3] << 48);
-	__t[1] = (long long)t[ 4] | (((long long)t[ 5]) << 16) | ((long long)t[ 6] << 32) | ((long long)t[ 7] << 48);
-	__t[2] = (long long)t[ 8] | (((long long)t[ 9]) << 16) | ((long long)t[10] << 32) | ((long long)t[11] << 48);
-	__t[3] = (long long)t[12] | (((long long)t[13]) << 16) | ((long long)t[14] << 32) | ((long long)t[15] << 48);
-	__m256i tmp = {__t[0],__t[1],__t[2],__t[3]};
+	__t[0] = (long long) t[0] | (((long long) t[1]) << 16) | ((long long) t[2] << 32) | ((long long) t[3] << 48);
+	__t[1] = (long long) t[4] | (((long long) t[5]) << 16) | ((long long) t[6] << 32) | ((long long) t[7] << 48);
+	__t[2] = (long long) t[8] | (((long long) t[9]) << 16) | ((long long) t[10] << 32) | ((long long) t[11] << 48);
+	__t[3] = (long long) t[12] | (((long long) t[13]) << 16) | ((long long) t[14] << 32) | ((long long) t[15] << 48);
+	__m256i tmp = {__t[0], __t[1], __t[2], __t[3]};
 	return tmp;
 }
 
 constexpr static __m256i u32tom256(const uint32_t t[8]) noexcept {
 	long long __t[4];
-	__t[0] = (long long)t[0] | (((long long)t[1]) << 32);
-	__t[1] = (long long)t[2] | (((long long)t[3]) << 32);
-	__t[2] = (long long)t[4] | (((long long)t[5]) << 32);
-	__t[3] = (long long)t[6] | (((long long)t[7]) << 32);
-	__m256i tmp = {__t[0],__t[1],__t[2],__t[3]};
+	__t[0] = (long long) t[0] | (((long long) t[1]) << 32);
+	__t[1] = (long long) t[2] | (((long long) t[3]) << 32);
+	__t[2] = (long long) t[4] | (((long long) t[5]) << 32);
+	__t[3] = (long long) t[6] | (((long long) t[7]) << 32);
+	__m256i tmp = {__t[0], __t[1], __t[2], __t[3]};
 	return tmp;
 }
 
 constexpr static __m256i u64tom256(const uint64_t t[4]) noexcept {
-	__m256i tmp = {(long long)t[0],(long long)t[1],(long long)t[2],(long long)t[3]};
+	__m256i tmp = {(long long) t[0], (long long) t[1], (long long) t[2], (long long) t[3]};
 	return tmp;
 }
 
@@ -659,16 +659,28 @@ constexpr static __m256i u64tom256(const uint64_t t[4]) noexcept {
 constexpr static void m256tou16(uint16_t t[16], const __m256i m) noexcept {
 	const __v4di mm = m;
 	long long d0 = mm[0], d1 = 1, d2 = 2, d3 = 3;
-	t[ 0] = d0; t[ 1] = d0 >> 16; t[ 2] = d0 >> 32; t[ 3] = d0 >> 48;
-	t[ 4] = d1; t[ 5] = d1 >> 16; t[ 6] = d1 >> 32; t[ 7] = d1 >> 48;
-	t[ 8] = d2; t[ 9] = d2 >> 16; t[10] = d2 >> 32; t[11] = d2 >> 48;
-	t[12] = d3; t[13] = d3 >> 16; t[14] = d3 >> 32; t[15] = d3 >> 48;
+	t[0] = d0;
+	t[1] = d0 >> 16;
+	t[2] = d0 >> 32;
+	t[3] = d0 >> 48;
+	t[4] = d1;
+	t[5] = d1 >> 16;
+	t[6] = d1 >> 32;
+	t[7] = d1 >> 48;
+	t[8] = d2;
+	t[9] = d2 >> 16;
+	t[10] = d2 >> 32;
+	t[11] = d2 >> 48;
+	t[12] = d3;
+	t[13] = d3 >> 16;
+	t[14] = d3 >> 32;
+	t[15] = d3 >> 48;
 }
 
 // needed forward decl
 template<typename T, const uint32_t N>
 #if __cplusplus > 201709L
-	requires std::is_integral_v<T>
+    requires std::is_integral_v<T>
 #endif
 class TxN_t;
 
@@ -694,7 +706,7 @@ struct uint8x32_t {
 		return d[i];
 	}
 
-	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) {
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -808,12 +820,12 @@ struct uint8x32_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
+			out.v256 = internal::unaligned_load_wrapper((__m256i_u *) ptr);
 			return out;
 		}
 	}
 
-	/// NOTE: the store can never be constexpr ans its needs to access 
+	/// NOTE: the store can never be constexpr ans its needs to access
 	/// given memory
 	/// \tparam aligned
 	/// \param ptr
@@ -931,7 +943,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint8x32_t mullo(const uint8x32_t in1,
 	                                                       const uint8x32_t in2) noexcept {
 		uint8x32_t out;
-		out.v256  = ((__m256i) ((__v32qu) in1.v256 * (__v32qu) in2.v256));
+		out.v256 = ((__m256i) ((__v32qu) in1.v256 * (__v32qu) in2.v256));
 		return out;
 		const __m256i maskl = __extension__(__m256i)(__v16hi){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 		const __m256i maskh = __extension__(__m256i)(__v16hi){(short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00};
@@ -942,7 +954,7 @@ struct uint8x32_t {
 		const __m256i in2h = (__m256i) ((__v4du) in2.v256 & (__v4du) maskh);
 
 
-		out.v256  = ((__m256i) ((__v16hu) in1l * (__v16hu) in2l)) & maskl;
+		out.v256 = ((__m256i) ((__v16hu) in1l * (__v16hu) in2l)) & maskl;
 		out.v256 ^= ((__m256i) ((__v16hu) in1h * (__v16hu) in2h)) & maskh;
 		return out;
 	}
@@ -973,7 +985,7 @@ struct uint8x32_t {
 		// }
 		// out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
 
-		out.v256 = (__m256i)((__v32qi)out.v256) << in2;
+		out.v256 = (__m256i) ((__v32qi) out.v256) << in2;
 		return out;
 	}
 
@@ -988,7 +1000,7 @@ struct uint8x32_t {
 		const uint8x32_t mask2 = set1((1u << (8u - in2)) - 1u);
 		uint8x32_t out = uint8x32_t::and_(in1, mask1);
 		if (std::is_constant_evaluated()) {
-			out.v256 = (__m256i)((__v32qi)out.v256) >> in2;
+			out.v256 = (__m256i) ((__v32qi) out.v256) >> in2;
 			return out;
 		}
 		out.v256 = (__m256i) __builtin_ia32_psrlwi256((__v16hi) out.v256, in2);
@@ -1010,7 +1022,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return in1 > in2 compressed
 	[[nodiscard]] constexpr static inline uint32_t gt(const uint8x32_t in1,
-	                                             const uint8x32_t in2) noexcept {
+	                                                  const uint8x32_t in2) noexcept {
 		const __m256i tmp = (__m256i) ((__v32qu) in1.v256 > (__v32qu) in2.v256);
 		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
@@ -1019,7 +1031,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return in1 > in2 uncompressed
 	[[nodiscard]] constexpr static inline uint8x32_t lt_(const uint8x32_t in1,
-														 const uint8x32_t in2) noexcept {
+	                                                     const uint8x32_t in2) noexcept {
 		uint8x32_t ret;
 		ret.v256 = (__m256i) ((__v32qu) in1.v256 < (__v32qu) in2.v256);
 		return ret;
@@ -1029,7 +1041,7 @@ struct uint8x32_t {
 	/// \param in2
 	/// \return in1 > in2 compressed
 	[[nodiscard]] constexpr static inline uint32_t lt(const uint8x32_t in1,
-												 const uint8x32_t in2) noexcept {
+	                                                  const uint8x32_t in2) noexcept {
 		const __m256i tmp = (__m256i) ((__v32qu) in1.v256 < (__v32qu) in2.v256);
 		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
@@ -1100,7 +1112,7 @@ struct uint8x32_t {
 		const __m128i hi = ((__m128i) __builtin_ia32_extract128i256((__v4di) (__m256i) (in.v256), (int) (1)));
 
 		// reverse them using SSE instructions
-		const __m128i indices = __extension__(__m128i)(__v16qi){15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0};
+		const __m128i indices = __extension__(__m128i)(__v16qi){15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
 		const __m128i lo_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) lo, (__v16qi) indices);
 		const __m128i hi_rev = (__m128i) __builtin_ia32_pshufb128((__v16qi) hi, (__v16qi) indices);
 
@@ -1108,7 +1120,7 @@ struct uint8x32_t {
 #ifdef __clang__
 		__m256i ret = __builtin_shufflevector((__v2di) hi_rev, (__v2di) hi_rev, 0, 1, 2, 3);
 #else
-		__m256i ret = (__m256i)__builtin_ia32_si256_si((__v4si) hi_rev);
+		__m256i ret = (__m256i) __builtin_ia32_si256_si((__v4si) hi_rev);
 #endif
 		ret = ((__m256i) __builtin_ia32_insert128i256((__v4di) (__m256i) (ret),
 		                                              (__v2di) (__m128i) (lo_rev), (int) (1)));
@@ -1245,7 +1257,7 @@ struct uint16x16_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
+			out.v256 = internal::unaligned_load_wrapper((__m256i_u *) ptr);
 			return out;
 		}
 	}
@@ -1390,7 +1402,7 @@ struct uint16x16_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
 #else
-		out.v256 = (__m256i)(((__v16hu)out.v256) << in2);
+		out.v256 = (__m256i) (((__v16hu) out.v256) << in2);
 #endif
 		return out;
 	}
@@ -1408,7 +1420,7 @@ struct uint16x16_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrlwi256((__v16hi) out.v256, in2);
 #else
-		out.v256 = (__m256i)(((__v16hu)out.v256) >> in2);
+		out.v256 = (__m256i) (((__v16hu) out.v256) >> in2);
 #endif
 		return out;
 	}
@@ -1439,7 +1451,7 @@ struct uint16x16_t {
 	/// \param in2
 	/// \return in1 > in2 uncompressed
 	[[nodiscard]] constexpr static inline uint16x16_t lt_(const uint16x16_t in1,
-														  const uint16x16_t in2) noexcept {
+	                                                      const uint16x16_t in2) noexcept {
 		uint16x16_t ret;
 		ret.v256 = (__m256i) ((__v16hu) in1.v256 < (__v16hu) in2.v256);
 		return ret;
@@ -1450,7 +1462,7 @@ struct uint16x16_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t lt(const uint16x16_t in1,
-													  const uint16x16_t in2) noexcept {
+	                                                  const uint16x16_t in2) noexcept {
 		uint16x16_t tmp;
 		tmp.v256 = (__m256i) ((__v16hu) in1.v256 < (__v16hu) in2.v256);
 		return S::move(tmp);
@@ -1496,9 +1508,9 @@ struct uint16x16_t {
 	/// checks if all bytes are equal
 	/// \param in
 	/// \return
-	[[nodiscard]] constexpr static inline bool all_equal(const uint16x16_t in) noexcept { 
+	[[nodiscard]] constexpr static inline bool all_equal(const uint16x16_t in) noexcept {
 		for (uint32_t i = 1; i < LIMBS; i++) {
-			if (in.d[i-1] != in.d[i]) {
+			if (in.d[i - 1] != in.d[i]) {
 				return false;
 			}
 		}
@@ -1552,7 +1564,7 @@ struct uint32x8_t {
 		return d[i];
 	}
 
-	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -1673,7 +1685,7 @@ struct uint32x8_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((__m256i_u *)ptr);
+			out.v256 = internal::unaligned_load_wrapper((__m256i_u *) ptr);
 			return out;
 		}
 	}
@@ -1816,7 +1828,7 @@ struct uint32x8_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) in1.v256, in2);
 #else
-        out.v256 = (__m256i)((__v8si)in1.v256 << in2);
+		out.v256 = (__m256i) ((__v8si) in1.v256 << in2);
 #endif
 		return out;
 	}
@@ -1832,7 +1844,7 @@ struct uint32x8_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrldi256((__v8si) in1.v256, in2);
 #else
-        out.v256 = (__m256i)((__v8si)in1.v256 >> in2);
+		out.v256 = (__m256i) ((__v8si) in1.v256 >> in2);
 #endif
 		return out;
 	}
@@ -1842,7 +1854,7 @@ struct uint32x8_t {
 	/// \param in2
 	/// \return in1 > in2 uncompress
 	[[nodiscard]] constexpr static inline uint32x8_t gt_(const uint32x8_t in1,
-														 const uint32x8_t in2) noexcept {
+	                                                     const uint32x8_t in2) noexcept {
 		uint32x8_t ret{};
 		ret.v256 = (__m256i) ((__v8su) in1.v256 > (__v8su) in2.v256);
 		return ret;
@@ -1873,7 +1885,7 @@ struct uint32x8_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t lt(const uint32x8_t in1,
-	                                             const uint32x8_t in2) noexcept {
+	                                                  const uint32x8_t in2) noexcept {
 		const __m256i tmp = (__m256i) ((__v8su) in1.v256 < (__v8su) in2.v256);
 		return __builtin_ia32_movmskps256((__v8sf) tmp);
 	}
@@ -1924,9 +1936,9 @@ struct uint32x8_t {
 	/// checks if all bytes are equal
 	/// \param in
 	/// \return
-	[[nodiscard]] constexpr static inline bool all_equal(const uint32x8_t in) noexcept { 
+	[[nodiscard]] constexpr static inline bool all_equal(const uint32x8_t in) noexcept {
 		for (uint32_t i = 1; i < LIMBS; i++) {
-			if (in.d[i-1] != in.d[i]) {
+			if (in.d[i - 1] != in.d[i]) {
 				return false;
 			}
 		}
@@ -2036,8 +2048,6 @@ struct uint32x8_t {
 #endif
 		return ret;
 	}
-
-
 };
 
 struct uint64x4_t {
@@ -2061,7 +2071,7 @@ struct uint64x4_t {
 		return d[i];
 	}
 
-	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
+	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
@@ -2166,7 +2176,7 @@ struct uint64x4_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((const __m256i_u *)ptr);
+			out.v256 = internal::unaligned_load_wrapper((const __m256i_u *) ptr);
 			return out;
 		}
 	}
@@ -2319,7 +2329,7 @@ struct uint64x4_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psllqi256((__v4di) in1.v256, in2);
 #else
-        out.v256 = (__m256i)((__v4di)in1.v256 << in2);
+		out.v256 = (__m256i) ((__v4di) in1.v256 << in2);
 #endif
 		return out;
 	}
@@ -2337,7 +2347,7 @@ struct uint64x4_t {
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_psrlqi256((__v4di) in1.v256, in2);
 #else
-        out.v256 = (__m256i)((__v4di)in1.v256 >> in2);
+		out.v256 = (__m256i) ((__v4di) in1.v256 >> in2);
 #endif
 		return out;
 	}
@@ -2358,7 +2368,7 @@ struct uint64x4_t {
 	/// \param in2
 	/// \return in1 > in2 uncompressed
 	[[nodiscard]] constexpr static inline uint64x4_t gt_(const uint64x4_t in1,
-														 const uint64x4_t in2) noexcept {
+	                                                     const uint64x4_t in2) noexcept {
 		uint64x4_t ret;
 		ret.v256 = (__m256i) ((__v4du) in1.v256 > (__v4du) in2.v256);
 		return ret;
@@ -2410,7 +2420,7 @@ struct uint64x4_t {
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t cmp(const uint64x4_t in1,
-	                                              const uint64x4_t in2) noexcept {
+	                                                   const uint64x4_t in2) noexcept {
 #ifndef __clang__
 		const __m256i tmp = (__m256i) ((__v4di) in1.v256 == (__v4di) in2.v256);
 		return __builtin_ia32_movmskpd256((__v4df) tmp);
@@ -2441,9 +2451,9 @@ struct uint64x4_t {
 	/// checks if all bytes are equal
 	/// \param in
 	/// \return
-	[[nodiscard]] constexpr static inline bool all_equal(const uint64x4_t in) noexcept { 
+	[[nodiscard]] constexpr static inline bool all_equal(const uint64x4_t in) noexcept {
 		for (uint32_t i = 1; i < LIMBS; i++) {
-			if (in.d[i-1] != in.d[i]) {
+			if (in.d[i - 1] != in.d[i]) {
 				return false;
 			}
 		}
@@ -2526,38 +2536,38 @@ struct uint64x4_t {
 
 
 inline void sse_prefixsum_u32(uint32_t *in) noexcept {
-	__m128i x = _mm_loadu_si128((__m128i *)in);
-    // x = 1, 2, 3, 4
-    x = _mm_add_epi32(x, _mm_slli_si128(x, 4));
-    // x = 1, 2, 3, 4
-    //   + 0, 1, 2, 3
-    //   = 1, 3, 5, 7
-    x = _mm_add_epi32(x, _mm_slli_si128(x, 8));
-    // x = 1, 3, 5, 7
-    //   + 0, 0, 1, 3
-    //   = 1, 3, 6, 10
-	_mm_storeu_si128((__m128i *)in, x);
-    // return x;
+	__m128i x = _mm_loadu_si128((__m128i *) in);
+	// x = 1, 2, 3, 4
+	x = _mm_add_epi32(x, _mm_slli_si128(x, 4));
+	// x = 1, 2, 3, 4
+	//   + 0, 1, 2, 3
+	//   = 1, 3, 5, 7
+	x = _mm_add_epi32(x, _mm_slli_si128(x, 8));
+	// x = 1, 3, 5, 7
+	//   + 0, 0, 1, 3
+	//   = 1, 3, 6, 10
+	_mm_storeu_si128((__m128i *) in, x);
+	// return x;
 }
 
 inline void avx_prefix_prefixsum_u32(uint32_t *p) noexcept {
-    __m256i x = _mm256_loadu_si256((__m256i *) p);
-    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4));
-    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8));
-    _mm256_storeu_si256((__m256i *) p, x);
+	__m256i x = _mm256_loadu_si256((__m256i *) p);
+	x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4));
+	x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8));
+	_mm256_storeu_si256((__m256i *) p, x);
 }
 
 inline __m128i sse_prefixsum_accumulate_u32(uint32_t *p, const __m128i s) {
-    __m128i d = (__m128i) _mm_broadcast_ss((float*) &p[3]);
-    __m128i x = _mm_loadu_si128((__m128i*) p);
-    x = _mm_add_epi32(s, x);
-    _mm_storeu_si128((__m128i*) p, x);
-    return _mm_add_epi32(s, d);
+	__m128i d = (__m128i) _mm_broadcast_ss((float *) &p[3]);
+	__m128i x = _mm_loadu_si128((__m128i *) p);
+	x = _mm_add_epi32(s, x);
+	_mm_storeu_si128((__m128i *) p, x);
+	return _mm_add_epi32(s, d);
 }
 
 // TODO use L1 cache size
 constexpr size_t prefixsum_block_size = 64;
-// TODO move to `simd.h` as this is a generic algorithm, which only needs 
+// TODO move to `simd.h` as this is a generic algorithm, which only needs
 // specialized sub routines.
 //
 // PrefixSum:
@@ -2565,15 +2575,15 @@ constexpr size_t prefixsum_block_size = 64;
 //	a[1] = a[0] + a[1]
 //		...
 __m128i avx2_local_prefixsum_u32(uint32_t *a, __m128i s) {
-    for (uint32_t i = 0; i < prefixsum_block_size; i += 8) {
-        avx_prefix_prefixsum_u32(&a[i]);
-	}
-    
-    for (uint32_t i = 0; i < prefixsum_block_size; i += 4) {
-        s = sse_prefixsum_accumulate_u32(&a[i], s);
+	for (uint32_t i = 0; i < prefixsum_block_size; i += 8) {
+		avx_prefix_prefixsum_u32(&a[i]);
 	}
 
-    return s;
+	for (uint32_t i = 0; i < prefixsum_block_size; i += 4) {
+		s = sse_prefixsum_accumulate_u32(&a[i], s);
+	}
+
+	return s;
 }
 
 void avx2_prefixsum_u32(uint32_t *a, const size_t n) {
@@ -2585,10 +2595,10 @@ void avx2_prefixsum_u32(uint32_t *a, const size_t n) {
 		return;
 	}
 
-  	__m128i s = _mm_setzero_si128();
+	__m128i s = _mm_setzero_si128();
 	uint32_t i = 0;
-    for (; i + prefixsum_block_size <= n; i += prefixsum_block_size) {
-        s = avx2_local_prefixsum_u32(a + i, s);
+	for (; i + prefixsum_block_size <= n; i += prefixsum_block_size) {
+		s = avx2_local_prefixsum_u32(a + i, s);
 	}
 
 	// tail mngt.
@@ -2596,13 +2606,13 @@ void avx2_prefixsum_u32(uint32_t *a, const size_t n) {
 		a[i] += a[i - 1];
 	}
 	// slow version
-    // for (uint32_t i = 0; i < n; i += 8) {
-    //     avx_prefix_prefixsum_u32(&a[i]);
+	// for (uint32_t i = 0; i < n; i += 8) {
+	//     avx_prefix_prefixsum_u32(&a[i]);
 	// }
-    //
-    // __m128i s = (__m128i) _mm_broadcast_ss((float*) &a[3]);
-    // for (uint32_t i = 4; i < n; i += 4) {
-    //     s = sse_prefixsum_accumulate_u32(&a[i], s);
+	//
+	// __m128i s = (__m128i) _mm_broadcast_ss((float*) &a[3]);
+	// for (uint32_t i = 4; i < n; i += 4) {
+	//     s = sse_prefixsum_accumulate_u32(&a[i], s);
 	// }
 }
 
@@ -2612,31 +2622,31 @@ void avx2_prefixsum_u32(uint32_t *a, const size_t n) {
 /// \param element_count  number of f32 to load
 /// \return __m256 register with the first `element_count` f32
 /// 		fields loaded, the rest is set to inf.
-static inline __m256 avx2_load_f32x8(const float* array,
-									 const uint32_t index,
-									 const uint32_t element_count) noexcept {
+static inline __m256 avx2_load_f32x8(const float *array,
+                                     const uint32_t index,
+                                     const uint32_t element_count) noexcept {
 	if (element_count == 8) {
-		return _mm256_loadu_ps(array + index*8);
+		return _mm256_loadu_ps(array + index * 8);
 	}
 
 	__m256 inf_mask = _mm256_cvtepi32_ps(_mm256_set_epi32(0x7F800000,
-														  (element_count>6) ? 0 : 0x7F800000,
-														  (element_count>5) ? 0 : 0x7F800000,
-														  (element_count>4) ? 0 : 0x7F800000,
-														  (element_count>3) ? 0 : 0x7F800000,
-														  (element_count>2) ? 0 : 0x7F800000,
-														  (element_count>1) ? 0 : 0x7F800000,
-														  (element_count>0) ? 0 : 0x7F800000));
+	                                                      (element_count > 6) ? 0 : 0x7F800000,
+	                                                      (element_count > 5) ? 0 : 0x7F800000,
+	                                                      (element_count > 4) ? 0 : 0x7F800000,
+	                                                      (element_count > 3) ? 0 : 0x7F800000,
+	                                                      (element_count > 2) ? 0 : 0x7F800000,
+	                                                      (element_count > 1) ? 0 : 0x7F800000,
+	                                                      (element_count > 0) ? 0 : 0x7F800000));
 
 	__m256i loadstoremask = _mm256_set_epi32(0,
-											 (element_count>6) ? 0xffffffff : 0,
-											 (element_count>5) ? 0xffffffff : 0,
-											 (element_count>4) ? 0xffffffff : 0,
-											 (element_count>3) ? 0xffffffff : 0,
-											 (element_count>2) ? 0xffffffff : 0,
-											 (element_count>1) ? 0xffffffff : 0,
-											 (element_count>0) ? 0xffffffff : 0);
-	__m256 a = _mm256_maskload_ps(array + index*8, loadstoremask);
+	                                         (element_count > 6) ? 0xffffffff : 0,
+	                                         (element_count > 5) ? 0xffffffff : 0,
+	                                         (element_count > 4) ? 0xffffffff : 0,
+	                                         (element_count > 3) ? 0xffffffff : 0,
+	                                         (element_count > 2) ? 0xffffffff : 0,
+	                                         (element_count > 1) ? 0xffffffff : 0,
+	                                         (element_count > 0) ? 0xffffffff : 0);
+	__m256 a = _mm256_maskload_ps(array + index * 8, loadstoremask);
 	return _mm256_or_ps(a, inf_mask);
 }
 
@@ -2644,22 +2654,22 @@ static inline __m256 avx2_load_f32x8(const float* array,
 /// \param a data to store
 /// \param index number of `__m256` already stored
 /// \param element_count numbe of f32 to store from `a`
-static inline void avx2_store_f32x8(float* array,
+static inline void avx2_store_f32x8(float *array,
                                     const __m256 a,
-									const uint32_t index,
-                                    const uint32_t element_count){
+                                    const uint32_t index,
+                                    const uint32_t element_count) {
 	if (element_count == 8) {
-		_mm256_storeu_ps(array + index*8, a);
+		_mm256_storeu_ps(array + index * 8, a);
 	} else {
 		__m256i loadstoremask = _mm256_set_epi32(0,
-												 (element_count>6) ? 0xffffffff : 0,
-												 (element_count>5) ? 0xffffffff : 0,
-												 (element_count>4) ? 0xffffffff : 0,
-												 (element_count>3) ? 0xffffffff : 0,
-												 (element_count>2) ? 0xffffffff : 0,
-												 (element_count>1) ? 0xffffffff : 0,
-												 (element_count>0) ? 0xffffffff : 0);
-		_mm256_maskstore_ps(array + index*8, loadstoremask, a);
+		                                         (element_count > 6) ? 0xffffffff : 0,
+		                                         (element_count > 5) ? 0xffffffff : 0,
+		                                         (element_count > 4) ? 0xffffffff : 0,
+		                                         (element_count > 3) ? 0xffffffff : 0,
+		                                         (element_count > 2) ? 0xffffffff : 0,
+		                                         (element_count > 1) ? 0xffffffff : 0,
+		                                         (element_count > 0) ? 0xffffffff : 0);
+		_mm256_maskstore_ps(array + index * 8, loadstoremask, a);
 	}
 }
 

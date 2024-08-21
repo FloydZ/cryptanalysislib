@@ -1223,7 +1223,7 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint32_t move(const uint8x32_t in1) noexcept {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret ^= in1.v8[i] >> 7;
+			ret ^= (in1.d[i] >> 7u) << i;
 		}
 
 		return ret;
@@ -1622,7 +1622,7 @@ struct uint16x16_t {
 	[[nodiscard]] constexpr static inline uint16_t move(const uint16x16_t in1) noexcept {
 		uint16_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret ^= in1.v16[i] >> 15;
+			ret ^= (in1.d[i] >> 15u) << i;
 		}
 
 		return ret;
@@ -1987,7 +1987,7 @@ struct uint32x8_t {
 	                                                  const uint32x8_t in2) noexcept {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret ^= (in1.v32[i] < in2.v32[i]) << i;
+			ret ^= (in1.d[i] < in2.d[i]) << i;
 		}
 
 		return ret;
@@ -2006,13 +2006,13 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \param data
 	/// \return
-	template<const uint32_t scale = 1>
+	template<const uint32_t scale = 4>
 	[[nodiscard]] constexpr static inline uint32x8_t gather(const void *ptr,
 	                                                        const uint32x8_t data) noexcept {
 		uint32x8_t ret;
 		const uint8_t *ptr8 = (uint8_t *) ptr;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v32[i] = *(uint32_t *) (ptr8 + data.v32[i] * scale);
+			ret.d[i] = *(uint32_t *) (ptr8 + (data.v32[i]*scale));
 		}
 
 		return ret;
@@ -2025,17 +2025,17 @@ struct uint32x8_t {
 	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in,
 	                                                         const uint32x8_t perm) noexcept {
 		uint32x8_t ret;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.v32[i] = in.v32[perm.v32[i] & 0x7];
 		}
 		return ret;
 	}
 
 
-	[[nodiscard]] static inline uint8_t move(const uint32x8_t in1) noexcept {
+	[[nodiscard]] static inline uint32_t move(const uint32x8_t in1) noexcept {
 		uint8_t ret = 0;
-		for (uint32_t i = 0; i < 8; i++) {
-			ret ^= in1.v32[i] >> 31;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret ^= (in1.d[i] >> 31) << i;
 		}
 
 		return ret;
@@ -2504,7 +2504,7 @@ struct uint64x4_t {
 	[[nodiscard]] constexpr static inline uint8_t move(const uint64x4_t in1) noexcept {
 		uint8_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret ^= in1.v64[i] >> 63;
+			ret ^= (in1.d[i] >> 63u) << i;
 		}
 
 		return ret;
