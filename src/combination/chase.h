@@ -620,7 +620,7 @@ public:
 	 *
 	 * See exercise 45 of Knuth's The art of computer programming volume 4A.
 	 */
-	static constexpr void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
+	static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 									 const size_t listsize = 0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
 		ret.resize(size);

@@ -473,7 +473,7 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr auto label_ptr(const size_t i) const noexcept { return label.ptr(i); }
 	[[nodiscard]] __FORCEINLINE__ constexpr auto value_ptr(const size_t i) const noexcept { return value.ptr(i); }
 
-	constexpr static void info() noexcept {
+	static void info() noexcept {
 		std::cout << " { name: \"Element\" :"
 		          << ", sizeof(Element): " << sizeof(Element_T)
 				  << ", sizeof(Label): " << sizeof(LabelType)

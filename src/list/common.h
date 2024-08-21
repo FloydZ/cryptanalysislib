@@ -20,7 +20,7 @@ public:
 	// if `true` sorting is increasing, else decresing
 	constexpr static bool sort_increasing_order = true;
 
-	constexpr static void info() noexcept {
+	static void info() noexcept {
 		std::cout << " { name=\"ListConfig\""
 				  << " , use_std_sort:" << use_std_sort
 		          << " , use_std_sort:" << use_std_binary_search
@@ -799,7 +799,7 @@ public:
 		__data[spos + pos] = e;
 	}
 
-	constexpr static void info() noexcept {
+	static void info() noexcept {
 		std::cout << " { name=\"MetaListT\""
 				  << " , sizeof(LoadType):" << sizeof(LoadType)
 				  << " , ValueLENGTH:" << ValueLENGTH
