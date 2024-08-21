@@ -93,8 +93,7 @@ namespace cryptanalysislib {
 
 					const uint8x32_t in4 = uint8x32_t::set1(in);
 
-					const size_t limit = (bytes-33)/32;
-					for (size_t i = 0; i < limit; ++i) {
+					while((out+32) <= end) {
 						uint8x32_t::aligned_store(out, in4);
 						out += 32;
 					}
@@ -130,8 +129,7 @@ namespace cryptanalysislib {
 					out += N;
 
 					out = (T *)((uintptr_t)(out) & -alignment);
-					const size_t limit = (bytes - alignment + 1u)/alignment;
-					for (size_t i = 0; i < limit; ++i) {
+					while (out + N <= end) {
 						S::aligned_store(out, in1);
 						out += N;
 					}
@@ -201,7 +199,6 @@ namespace cryptanalysislib {
 					}
 
 					return;
-
 				}
 			}
 

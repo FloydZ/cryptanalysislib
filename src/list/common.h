@@ -20,8 +20,17 @@ public:
 	// if `true` sorting is increasing, else decresing
 	constexpr static bool sort_increasing_order = true;
 
+	constexpr static void info() noexcept {
+		std::cout << " { name=\"ListConfig\""
+				  << " , use_std_sort:" << use_std_sort
+		          << " , use_std_sort:" << use_std_binary_search
+				  << " , use_interpolation_search:" << use_interpolation_search
+				  << " , sort_increasing_order:" << sort_increasing_order
+				  << " }\n";
+	};
 
 } listConfig;
+
 
 
 #if __cplusplus > 201709L
@@ -161,8 +170,95 @@ concept ListAble = requires(List l) {
 };
 #endif
 
+
+template<class List>
+#if __cplusplus > 201709L
+	//requires ListAble<List>
+#endif
+class Listview_t {
+private:
+	using Element = typename List::ElementType;
+
+	// needed types
+	typedef Element ElementType;
+	typedef typename Element::ValueType ValueType;
+	typedef typename Element::LabelType LabelType;
+
+	typedef typename Element::ValueType::LimbType ValueLimbType;
+	typedef typename Element::LabelType::LimbType LabelLimbType;
+
+	typedef typename Element::ValueContainerType ValueContainerType;
+	typedef typename Element::LabelContainerType LabelContainerType;
+
+	typedef typename Element::ValueDataType ValueDataType;
+	typedef typename Element::LabelDataType LabelDataType;
+
+	typedef typename Element::MatrixType MatrixType;
+	constexpr Listview_t() = default;
+
+	const size_t start;
+	const size_t end;
+	const List *list ;
+public:
+	constexpr Listview_t(const List *list,
+						 const size_t start,
+						 const size_t end) :
+			start(start), end(end), list(list) {
+		ASSERT(start < end);
+		ASSERT(end < list->size());
+	}
+
+	[[nodiscard]] constexpr inline size_t size() const noexcept {
+		return end - start;
+	}
+
+	[[nodiscard]] constexpr inline Element &operator[](const size_t i) noexcept {
+		return list->at(start + i);
+	}
+
+	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
+		return list->at(start + i);
+	}
+};
+
+template<class List>
+#if __cplusplus > 201709L
+	//requires ListAble<List>
+#endif
+class Listview_const_t {
+private:
+	using Element = typename List::ElementType;
+
+	// needed types
+	typedef Element ElementType;
+	typedef typename Element::ValueType ValueType;
+	typedef typename Element::LabelType LabelType;
+
+	typedef typename Element::ValueType::LimbType ValueLimbType;
+	typedef typename Element::LabelType::LimbType LabelLimbType;
+
+	typedef typename Element::ValueContainerType ValueContainerType;
+	typedef typename Element::LabelContainerType LabelContainerType;
+
+	typedef typename Element::ValueDataType ValueDataType;
+	typedef typename Element::LabelDataType LabelDataType;
+
+	typedef typename Element::MatrixType MatrixType;
+	constexpr Listview_const_t() = default;
+
+	const size_t start;
+	const size_t end;
+	const List *list ;
+public:
+	constexpr Listview_const_t(const List *list,
+	                     	   const size_t start,
+	                     	   const size_t end) :
+		list(list), start(start), end(end) {}
+
+};
+
 template<class Element,
-         class Alocator=cryptanalysislib::alloc::allocator,
+         class Allocator=cryptanalysislib::alloc::allocator,
 		 const ListConfig &config=listConfig>
 #if __cplusplus > 201709L
     requires ListElementAble<Element>
@@ -197,6 +293,8 @@ protected:
 
 public:
 
+	using L = MetaListT<Element, Allocator, listConfig>;
+
 	// needed types
 	typedef Element ElementType;
 	typedef typename Element::ValueType ValueType;
@@ -216,7 +314,7 @@ public:
 	// todo do the same for all other list classes
 	// we are good c++ defs
 	typedef Element value_type;
-	typedef Alocator allocator_type; // TODO use
+	typedef Allocator allocator_type; // TODO use
 	typedef size_t size_type;
 	typedef size_t difference_type;
 	typedef value_type& reference;
@@ -446,7 +544,7 @@ public:
 
 	/// Get a const pointer. Sometimes useful if one ones to tell the kernel how to access memory.
 	[[nodiscard]] constexpr inline auto *data() noexcept { return __data.data(); }
-	[[nodiscard]] constexpr const auto *data() const noexcept { return __data.data(); }
+	[[nodiscard]] constexpr inline const auto *data() const noexcept { return __data.data(); }
 
 	/// wrapper
 	[[nodiscard]] constexpr inline ValueType *data_value() noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
@@ -486,6 +584,19 @@ public:
 	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
 		ASSERT(i < size());
 		return __data[i];
+	}
+
+	[[nodiscard]] constexpr inline Listview_t<L> view(const size_t i,
+	                                             	   const size_t j) noexcept {
+		ASSERT(j <= size());
+		ASSERT(i < j);
+		return Listview_t<L>(this, i, j);
+	}
+	[[nodiscard]] constexpr inline const Element view(const size_t i,
+	                                                   const size_t j) const noexcept {
+		ASSERT(j <= size());
+		ASSERT(i < j);
+		return Listview_const_t<L>(this, i, j);
 	}
 
 	///
@@ -688,24 +799,32 @@ public:
 		__data[spos + pos] = e;
 	}
 
-	constexpr static void info() {
+	constexpr static void info() noexcept {
 		std::cout << " { name=\"MetaListT\""
 				  << " , sizeof(LoadType):" << sizeof(LoadType)
 				  << " , ValueLENGTH:" << ValueLENGTH
 				  << " , LabelLENGTH:" << LabelLENGTH
-				  << " , use_std_sort:" << use_std_sort
-				  << " , use_interpolation_search:" << use_interpolation_search
-				  << " , sort_increasing_order:" << sort_increasing_order
 		          << " }" << std::endl;
+		ListConfig::info();
 		ElementType::info();
 	}
 };
 
 
 template<typename Element>
-std::ostream &operator<<(std::ostream &out, const MetaListT<Element> &obj) {
+std::ostream &operator<<(std::ostream &out,
+                         const MetaListT<Element> &obj) {
 	const size_t size = obj.load() > 0 ? obj.load() : obj.size();
 	for (size_t i = 0; i < size; ++i) {
+		out << obj[i] << "\t pos:" << i << "\n";
+	}
+	return out;
+}
+
+template<typename List>
+std::ostream &operator<<(std::ostream &out,
+                         const Listview_t<List> &obj) {
+	for (size_t i = 0; i < obj.size(); ++i) {
 		out << obj[i] << "\t pos:" << i << "\n";
 	}
 	return out;

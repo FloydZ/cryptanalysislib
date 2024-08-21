@@ -461,7 +461,7 @@ public:
 	}
 };
 
-
+/// NOTE: uses the 
 /// this class enumerates elements of the form:
 ///  [xxxx0000|xx000000], [0000xxxx|00xx0000], [xxxx0000|0000xx00], [0000xxxx|000000xx]
 /// In other-words you must pass 4 base lists to the function.
@@ -472,16 +472,28 @@ public:
 ///      mitmlen  norepslen
 /// \tparam ListType
 /// \tparam n length to enumerate
-/// \tparam q field size, e.g. enumeration symbols = {0, ..., q-1}
-/// \tparam w weight to enumerate
+/// \tparam q field size, e.g. enumeration symbol: x \in {0, ..., q-1}
+/// \tparam mitm_w hamming weight to enumerate on the mitm part
+/// \tparam noreps_w hamming weight to enumerate on the no representations part
+/// \tparam split were the split between the two is
 template<class ListType,
          const uint32_t n,
          const uint32_t q,
          const uint32_t mitm_w,
          const uint32_t noreps_w,
          const uint32_t split>
-class ListEnumerateSinglePartialSingle : public ListEnumeration_Meta<ListType, n, q, mitm_w + noreps_w> {
+#if __cplusplus > 201709L
+	requires ListAble<ListType>
+#endif
+class ListEnumerateSinglePartialSingle :
+    public ListEnumeration_Meta<ListType, n, q, mitm_w + noreps_w> {
+private:
+	constexpr ListEnumerateSinglePartialSingle() = default;
 public:
+	static_assert(n > split);
+	static_assert(split >= mitm_w);
+	static_assert((n-split) >= noreps_w);
+
 	/// helper definition. Shouldnt be used.
 	constexpr static uint32_t w = mitm_w + noreps_w;
 
@@ -506,6 +518,7 @@ public:
 
 	using T = typename Value::ContainerLimbType;
 
+	/// The multiple of the element to enumerate
 	const uint32_t qprime;
 
 	///
@@ -516,10 +529,18 @@ public:
 	constexpr static uint32_t norepslen = n - split;
 	constexpr static uint32_t norepslen_quarter = (norepslen + 3) / 4;
 	constexpr static uint32_t norepslen_offset = (norepslen) / 4;/// TODO not fully correct: with this the last coordinate will not be enumerated
+
 	Combinations_Binary_Chase<T, mitmlen_half, mitm_w> mitm_chase = Combinations_Binary_Chase<T, mitmlen_half, mitm_w>{};
 	Combinations_Binary_Chase<T, norepslen_quarter, noreps_w> noreps_chase = Combinations_Binary_Chase<T, norepslen_quarter, noreps_w>{};
 	constexpr static size_t mitm_chase_size = Combinations_Binary_Chase<T, mitmlen_half, mitm_w>::chase_size;
 	constexpr static size_t noreps_chase_size = Combinations_Binary_Chase<T, norepslen_quarter, noreps_w>::chase_size;
+
+	static_assert(n > w);
+	static_assert(mitmlen > mitm_w);
+	static_assert(norepslen > noreps_w);
+	static_assert(mitm_chase_size >= 0);
+	static_assert(noreps_chase_size > 0);
+
 
 	/// this can be used to specify the size of the input list
 	/// e.g. its the maximum number of elements this class enumerates
@@ -533,7 +554,7 @@ public:
 	std::vector<std::pair<uint16_t, uint16_t>> mitm_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(mitm_chase_size);
 	std::vector<std::pair<uint16_t, uint16_t>> noreps_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(noreps_chase_size);
 
-	/// empty constructor
+	/// \param qprime: the multiple of `1`, which should be enumerated
 	/// \param HT transposed parity check matrix
 	/// \param list_size max numbers of elements to enumerate.
 	/// 			if set to 0: the complete sequence will be enumerated.
@@ -541,15 +562,10 @@ public:
 	ListEnumerateSinglePartialSingle(const uint32_t qprime,
 	                                 const Matrix &HT,
 	                                 const size_t list_size = 0,
-	                                 const Label *syndrome = nullptr) : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	                                                                    qprime(qprime),
-	                                                                    list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
-		static_assert(n > w);
-		static_assert(mitmlen > mitm_w);
-		static_assert(norepslen > noreps_w);
-
-		static_assert(mitm_chase_size >= 0);
-		static_assert(noreps_chase_size > 0);
+	                                 const Label *syndrome = nullptr) :
+	    ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+	    qprime(qprime),
+	    list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 		ASSERT(LIST_SIZE >= list_size);
 
 		mitm_chase.template changelist<false>(mitm_chase_cl.data());
@@ -568,14 +584,13 @@ public:
 	/// \param L2 second list.
 	/// \param L3 third list.
 	/// \param L4 fourth list.
-	/// \param offset
-	/// 		- number of position between the MITM strategy
 	/// \param tid thread id
-	/// \param hm hashmap
-	/// \param e extractor
+	/// \param hm hashmap or nullptr
+	/// \param e extractor or nullptr
 	/// \param p predicate function
 	/// \return true/false if the golden element was found or not (only if
 	///  		predicate was given)
+	/// 		else always returns false
 	template<typename HashMap,
 	         typename Extractor,
 	         typename Predicate>
@@ -655,6 +670,7 @@ public:
 			element.value.set(qprime, set);
 		};
 
+		/// TODO stimmt nicht, anpassen wie in der binary versin
 		/// iterate over all sequences
 		for (uint32_t i = 0; i < mitm_chase_size; ++i) {
 			for (uint32_t j = 0; j < noreps_chase_size; ++j) {
@@ -677,16 +693,10 @@ public:
 			}
 
 			for (uint32_t k = 0; k < 4; ++k) {
-				check(elements[k]->label, elements[k]->value);
-				insert_list(lists[k], *elements[k], ctr, tid);
-
 				chase_step(*elements[k],
 				           (k & 1u) * mitmlen_offset + mitm_chase_cl[i].first,
 				           (k & 1u) * mitmlen_offset + mitm_chase_cl[i].second);
 			}
-
-			if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
-			ctr += 1;
 			if (ctr >= list_size) {
 				return false;
 			}
@@ -726,6 +736,9 @@ template<class ListType,
          const uint32_t mitm_w,
          const uint32_t noreps_w,
          const uint32_t split>
+#if __cplusplus > 201709L
+requires ListAble<ListType>
+#endif
 class ListEnumerateMultiDisjointBlock : public ListEnumeration_Meta<ListType, n, q, mitm_w + noreps_w> {
 public:
 	/// helper definition. Shouldnt be used.

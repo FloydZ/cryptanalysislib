@@ -83,6 +83,33 @@ constexpr size_t LS = 1u<<8u;
 #define Element Element_T<Value, Label, Matrix>
 #define List 	List_T<Element>
 
+TEST(ListName, list_view) {
+	constexpr size_t qbits = bits_log2(Q);
+	constexpr size_t LS = 1u<<(qbits);
+	List L{LS, 1};
+	Matrix m;
+	m.random();
+	EXPECT_EQ(L.size(), LS);
+	EXPECT_EQ(L.load(), 0);
+	L.random(LS, m);
+	EXPECT_EQ(L.load(), LS);
+	EXPECT_EQ(L.size(), LS);
+
+
+	constexpr size_t si = 10;
+	constexpr size_t s = 10;
+	const auto v = L.view(s, s+si);
+
+	// as q is so small they are all  equal
+	for (size_t i = 0; i < si; ++i) {
+		const bool eq = v[i].is_equal(L[s+i]);
+		EXPECT_EQ(eq, true);
+	}
+
+	std::cout << v;
+}
+
+
 TEST(ListName, kAry_search) {
 	constexpr size_t qbits = bits_log2(Q);
 	constexpr size_t LS = 1u<<(qbits);

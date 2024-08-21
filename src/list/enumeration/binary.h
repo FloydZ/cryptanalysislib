@@ -13,6 +13,7 @@
 #include "helper.h"
 #include "list/enumeration/enumeration.h"
 #include "math/bc.h"
+#include "alloc/alloc.h"
 
 /// This class enumerates vectors of length n and weight w, whereas each
 /// nonzero position is enumerated in binary:w
@@ -22,6 +23,9 @@
 template<class ListType,
          const uint32_t n,
          const uint32_t w>
+#if __cplusplus > 201709L
+requires ListAble<ListType>
+#endif
 class BinaryListEnumerateMultiFullLength : public ListEnumeration_Meta<ListType, n, 2, w> {
 public:
 	/// Im lazy
@@ -181,8 +185,6 @@ public:
 	}
 };
 
-
-
 /// This class enumerates vectors of length n and weight w, whereas
 /// no changelist is used.
 /// \tparam ListType
@@ -191,6 +193,9 @@ public:
 template<class ListType,
 		const uint32_t n,
 		const uint32_t w>
+#if __cplusplus > 201709L
+requires ListAble<ListType>
+#endif
 class BinaryListEnumerateMultiFullLengthWithoutChangeList : public ListEnumeration_Meta<ListType, n, 2, w> {
 public:
 	/// Im lazy
@@ -367,6 +372,9 @@ public:
 template<class ListType,
          const uint32_t n,
          const uint32_t w>
+#if __cplusplus > 201709L
+requires ListAble<ListType>
+#endif
 class BinaryLexicographicEnumerator : public ListEnumeration_Meta<ListType, n, 2, w> {
 public:
 	/// Im lazy
@@ -502,4 +510,291 @@ public:
 	}
 };
 
+
+
+
+/// this class enumerates elements of the form:
+///  [11110000|11000000], [0000111|00110000], [11110000|0000111100], [00001111|00000011]
+/// In other-words you must pass 4 base lists to the function.
+/// NOTE: nomenclature
+/// 	<-       n       ->
+/// 	[11110000|11000000]
+///     0      split      n
+///      mitmlen  norepslen
+/// \tparam ListType
+/// \tparam n length to enumerate
+/// \tparam q field size, e.g. enumeration symbols = {0, ..., q-1}
+/// \tparam w weight to enumerate
+/// \tparam mitm_w hamming weight to enumerate on the mitm part
+/// \tparam noreps_w hamming weight to enumerate on the no representations part
+/// \tparam split were the split between the two is
+template<class ListType,
+		const uint32_t n,
+		const uint32_t mitm_w,
+		const uint32_t noreps_w,
+		const uint32_t split>
+#if __cplusplus > 201709L
+	requires ListAble<ListType>
+#endif
+class BinarySinglePartialSingleEnumerator :
+    public ListEnumeration_Meta<ListType, n, 2, mitm_w + noreps_w> {
+public:
+	///
+	constexpr static bool align_noreps = true;
+
+	/// helper definition. Shouldnt be used.
+	constexpr static uint32_t w = mitm_w + noreps_w;
+	constexpr static uint64_t q = 2;
+
+	/// needed typedefs
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Element Element;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Matrix Matrix;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Value Value;
+	typedef typename ListEnumeration_Meta<ListType, n, q, w>::Label Label;
+
+	/// needed functions
+	using ListEnumeration_Meta<ListType, n, q, w>::check;
+	using ListEnumeration_Meta<ListType, n, q, w>::insert_hashmap;
+	using ListEnumeration_Meta<ListType, n, q, w>::insert_list;
+	using ListEnumeration_Meta<ListType, n, q, w>::get_first;
+	using ListEnumeration_Meta<ListType, n, q, w>::get_second;
+
+	/// needed variables
+	using ListEnumeration_Meta<ListType, n, q, w>::element1;
+	using ListEnumeration_Meta<ListType, n, q, w>::element2;
+	using ListEnumeration_Meta<ListType, n, q, w>::syndrome;
+	using ListEnumeration_Meta<ListType, n, q, w>::HT;
+
+	using T = typename Value::ContainerLimbType;
+
+	/// Helper definitions for the mitm part
+	/// Total length to enumerate
+	constexpr static uint32_t mitmlen = split;
+	constexpr static uint32_t mitmlen_half 		= (mitmlen + 1u) / 2u;
+	constexpr static uint32_t mitmlen_offset 	= mitmlen - mitmlen_half;
+
+	constexpr static uint32_t norepslen 		= align_noreps ? roundToAligned<4>(n - split) : n - split;
+	constexpr static uint32_t noreps_base 		= align_noreps ? n - norepslen : split;
+	constexpr static uint32_t norepslen_quarter = (norepslen + 3) / 4;
+	constexpr static uint32_t norepslen_offset 	= (norepslen) / 4;
+
+	using mitm_enumerator = BinaryChaseEnumerator<mitmlen_half, mitm_w>;
+	using noreps_enumerator = BinaryChaseEnumerator<norepslen_quarter, noreps_w>;
+
+	/// NOTE: the +1ull is needed, as the computation of `noreps` does not count
+	/// for the first element, which needs to be created by the caller function
+	constexpr static size_t mitm_chase_size   = mitm_enumerator::size();
+	constexpr static size_t noreps_chase_size = noreps_enumerator::size() + 1ull;
+
+	static_assert(n > w);
+	static_assert(mitmlen > mitm_w);
+	static_assert(norepslen > noreps_w);
+	static_assert(mitm_chase_size >= 0);
+	static_assert(noreps_chase_size > 0);
+
+	/// this can be used to specify the size of the input list
+	/// e.g. its the maximum number of elements this class enumerates
+	constexpr static size_t LIST_SIZE = mitm_chase_size * noreps_chase_size;
+
+	// this can be se to something else as `LIST_SIZE`, if one wants to only
+	// enumerate a part of the sequence
+	const size_t list_size = 0;
+
+	// change list for the chase sequence
+	using changelist = std::vector<std::pair<uint16_t, uint16_t>>;
+	changelist mitm_chase_cl;
+	changelist noreps_chase_cl;
+
+	BinarySinglePartialSingleEnumerator(const Matrix &HT,
+									 	const size_t list_size = 0,
+									 	const Label *syndrome = nullptr) :
+			ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+			list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+		ASSERT(LIST_SIZE >= list_size);
+
+		mitm_enumerator::changelist(mitm_chase_cl);
+		noreps_enumerator::changelist(noreps_chase_cl);
+	}
+
+	/// \tparam HashMap
+	/// \tparam Extractor extractor lambda
+	/// 		- can be NULL
+	/// \tparam Predicate Function. NOTE: can be
+	///			- nullptr_t
+	/// 		- std::invokable. if this returns true, the function returns
+	/// \param L1 first list. NOTE:
+	/// 		- the syndrome is only added into the first list
+	/// 		- if a hashmap is given: this list will be hashed into the first hashmap
+	/// \param L2 second list.
+	/// \param L3 third list.
+	/// \param L4 fourth list.
+	/// \param offset
+	/// 		- number of position between the MITM strategy
+	/// \param tid thread id
+	/// \param hm hashmap
+	/// \param e extractor
+	/// \param p predicate function
+	/// \return true/false if the golden element was found or not (only if
+	///  		predicate was given)
+	template<typename HashMap,
+			typename Extractor,
+			typename Predicate>
+#if __cplusplus > 201709L
+	requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+	(std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
+	(std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+#endif
+	bool run(ListType &L1,
+			 ListType &L2,
+			 ListType &L3,
+			 ListType &L4,
+			 const uint32_t tid = 0,
+			 HashMap *hm = nullptr,
+			 Extractor *e = nullptr,
+			 Predicate *p = nullptr) {
+		Element element3, element4;
+
+		/// clear stuff, needed if this functions is called multiple times
+		/// e.g. in every ISD algorithm
+		element1.zero();
+		element2.zero();
+		element3.zero();
+		element4.zero();
+
+		/// pack stuff together
+		Element *elements[4] = {&element1, &element2, &element3, &element4};
+		ListType *lists[4] = {&L1, &L2, &L3, &L4};
+
+		/// counter of how many elements already added to the list
+		size_t ctr = 0;
+
+		// check if the lists are enabled
+		constexpr bool sHM = !std::is_same_v<std::nullptr_t, HashMap>;
+		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
+		(void)sP; (void)p;
+
+		/// add the syndrome, if needed
+		if (syndrome != nullptr) {
+			element1.label = *syndrome;
+		}
+
+		/// compute the first elements
+		/// set the mitm part
+		for (uint32_t i = 0; i < mitm_w; ++i) {
+			for (uint32_t k = 0; k < 4; ++k) {
+				elements[k]->value.set(1u, i + (k & 1u) * mitmlen_offset);
+				Label::add(elements[k]->label, elements[k]->label,
+				           HT.get(i + (k & 1u) * mitmlen_offset));
+			}
+		}
+
+		/// set the no representations part
+		for (uint32_t i = 0; i < noreps_w; ++i) {
+			for (uint32_t k = 0; k < 4; ++k) {
+				elements[k]->value.set(1u, i + noreps_base + k * norepslen_offset);
+				Label::add(elements[k]->label, elements[k]->label,
+				           HT.get(i + noreps_base + k * norepslen_offset));
+			}
+		}
+
+		auto chase_step = [this](Element &element,
+								 const uint32_t unset,
+								 const uint32_t set) __attribute__((always_inline)) {
+			if (unset == set) {
+				// this quirk can happen if `noreps_w` is even.
+				return;
+			}
+
+			/// make really sure that the the chase
+			/// sequence is correct.
+			ASSERT(element.value[unset]);
+			ASSERT(!element.value[set]);
+			ASSERT(std::abs((int) unset - (int) set) <= (int) w);
+
+			Label::sub(element.label, element.label, HT.get(unset));
+			Label::add(element.label, element.label, HT.get(set));
+
+			// TODO optimize
+			element.value.set(0u, unset);
+			element.value.set(1, set);
+		};
+
+		/// iterate over all sequences
+		for (size_t i = 0; i < mitm_chase_size; ++i) {
+			for (size_t j = 0; j < noreps_chase_size-1ull; ++j) {
+				for (uint32_t k = 0; k < 4; ++k) {
+					check(elements[k]->label, elements[k]->value);
+					insert_list(lists[k], *elements[k], ctr, tid);
+
+					chase_step(*elements[k],
+							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].first,
+							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].second);
+				}
+
+				// TODO also hash the 3 element
+				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+
+				ctr += 1;
+				if (ctr >= list_size) {
+					return false;
+				}
+			}
+
+			for (uint32_t k = 0; k < 4; ++k) {
+				check(elements[k]->label, elements[k]->value);
+				insert_list(lists[k], *elements[k], ctr, tid);
+
+				chase_step(*elements[k],
+						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].first,
+						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].second);
+
+				// due to easieness reasons, we simply reset the no reps part,
+				// and do not walk backwards
+				for (uint32_t j = 0; j < noreps_w; ++j) {
+					chase_step(*elements[k],
+							   noreps_base + k*norepslen_offset + norepslen_quarter-j-1,
+							   noreps_base + k*norepslen_offset + j);
+				}
+			}
+
+			ctr += 1;
+			if (ctr >= list_size) {
+				return false;
+			}
+		}
+
+		/// make sure that all elements where generated
+		ASSERT(ctr == LIST_SIZE);
+		return false;
+	}
+
+	bool run(ListType &L1,
+			 ListType &L2,
+			 ListType &L3,
+			 ListType &L4,
+			 const uint32_t tid = 0) noexcept {
+		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			      (L1, L2, L3, L4, tid, nullptr, nullptr, nullptr);
+	}
+
+	/// TODO
+	constexpr static void info() {
+		std::cout << " { name: \"BinarySinglePartialSingleEnumerator\""
+				  << ", n: " << n
+				  << ", mitm_w: " << mitm_w
+				  << ", noreps_w: " << noreps_w
+				  << ", split: " << split
+				  << ", mitmlen: " << mitmlen
+				  << ", mitmlen_half: " << mitmlen_half
+				  << ", mitmlen_offset: " << mitmlen_offset
+				  << ", noreps_base: " << noreps_base
+				  << ", norepslen: " << norepslen
+				  << ", norepslen_quarter: " << norepslen_quarter
+				  << ", norepslen_offset: " << norepslen_offset
+				  << ", mitm_chase_size: " << mitm_chase_size
+				  << ", noreps_chase_size: " << noreps_chase_size
+				  << ", LIST_SIZE: " << LIST_SIZE
+		          << " }\n";
+	}
+};
 #endif//CRYPTANALYSISLIB_BINARY_ENUMERATION_H

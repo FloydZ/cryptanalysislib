@@ -83,7 +83,7 @@ TEST(Enum, p3) {
 TEST(Chase, p1) {
 	constexpr int nn = 30;
 	constexpr int p = 1;
-	chase<nn, p> c;
+	chase_t<nn, p> c;
 
 	uint32_t ctr = 1;
 	uint32_t x = 1u;
@@ -107,7 +107,7 @@ TEST(Chase, p1) {
 TEST(Chase, p2) {
 	constexpr int nn = 30;
 	constexpr int p = 2;
-	chase<nn, p> c;
+	chase_t<nn, p> c;
 
 	uint32_t ctr = 1;
 	uint32_t x = 3u;
@@ -136,8 +136,7 @@ TEST(Chase, p2) {
 TEST(Chase, p3) {
 	constexpr int nn = 10;
 	constexpr int p = 3;
-	chase<nn, p> c;
-
+	chase_t<nn, p> c;
 	uint32_t ctr = 1;
 	uint32_t x = 7u;
 	uint16_t rows[p] = {0};

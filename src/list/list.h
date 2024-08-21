@@ -818,6 +818,16 @@ public:
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
 		set_load(load() + 1);
 	}
+
+	constexpr static void info()  noexcept{
+		std::cout << " { name=\"List\""
+				  << " , sizeof(LoadType):" << sizeof(LoadType)
+				  << " , ValueLENGTH:" << ValueLENGTH
+				  << " , LabelLENGTH:" << LabelLENGTH
+				  << " }" << std::endl;
+		ListConfig::info();
+		ElementType::info();
+	}
 };
 
 #endif//DECODING_LIST_H

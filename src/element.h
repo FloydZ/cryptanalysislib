@@ -34,7 +34,8 @@ concept ElementDataAble = requires(Container c,
 	Container::length;
 	Container::info();
 
-	requires requires(const uint32_t i,
+	requires requires(const typename Container::DataType d,
+	                  const uint32_t i,
 	                  const size_t s) {
 		/// init/getter/setter
 		c[i];
@@ -59,9 +60,17 @@ concept ElementDataAble = requires(Container c,
 		c.is_zero();
 
 		/// arithmetic
+		Container::add(c, c, c);
 		Container::add(c, c, c, i, i);
+		Container::sub(c, c, c);
 		Container::sub(c, c, c, i, i);
+		Container::mul(c, c, c);
+		Container::mul(c, c, c, i, i);
+		Container::scalar(c, c, d);
+		Container::scalar(c, c, d, i, i);
+		c.neg();
 		c.neg(i, i);
+		c.popcnt();
 		c.popcnt(i, i);
 
 		/// printing stuff

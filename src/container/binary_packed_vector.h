@@ -1070,6 +1070,14 @@ public:
 		return add(v3, v1, v2, k_lower, k_upper, norm);
 	}
 
+	///
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \tparam norm
+	/// \param v3
+	/// \param v1
+	/// \param v2
+	/// \return
 	template<const uint32_t k_lower,
 	         const uint32_t k_upper,
 	         const uint32_t norm=-1u>
@@ -1078,6 +1086,83 @@ public:
 									BinaryContainer const &v2) noexcept {
 		return add<k_lower, k_upper, norm>(v3, v1, v2);
 	}
+
+	///
+	/// \param v3
+	/// \param v1
+	/// \param v2
+	/// \param k_lower
+	/// \param k_upper
+	/// \param norm
+	/// \return
+	constexpr inline static bool mul(BinaryContainer &v3,
+									 BinaryContainer const &v1,
+									 BinaryContainer const &v2,
+									 const uint32_t k_lower=0,
+									 const uint32_t k_upper=length(),
+									 const uint32_t norm=-1) noexcept {
+		(void)norm;
+		const T lmask = higher_mask(k_lower % limb_bits_width());
+		const T rmask = lower_mask2(k_upper % limb_bits_width());
+		const int64_t lower_limb = k_lower / limb_bits_width();
+		const int64_t higher_limb = (k_upper - 1) / limb_bits_width();
+
+		if (lower_limb == higher_limb) {
+			const T mask = k_upper % 64 == 0 ? lmask : (lmask & rmask);
+			T tmp1 = (v3[lower_limb] & ~(mask));
+			T tmp2 = (v1[lower_limb] ^ v2[lower_limb]) & mask;
+			v3[lower_limb] = tmp1 & tmp2;
+			return false;
+		}
+
+		// todo avx512 support
+		constexpr uint32_t limb_size = 256u/(sizeof(T)*8);
+		uint32_t i = lower_limb + 1;
+		for (; i + limb_size <= higher_limb; i += limb_size) {
+			uint32x8_t x_ = uint32x8_t::load<false>((uint32_t *)(v1 + i));
+			uint32x8_t y_ = uint32x8_t::load<false>((uint32_t *)(v2 + i));
+			uint32x8_t z_ = x_ & y_;
+			uint32x8_t::store((uint32_t *)(v3 + i), z_);
+		}
+
+		for (; i < higher_limb; ++i) {
+			v3[i] = v1[i] & v2[i];
+		}
+
+		// do the remaining stuff
+		T tmp1 = (v1[lower_limb] ^ v2[lower_limb]) & lmask;
+		T tmp2 = (v1[higher_limb] ^ v2[higher_limb]) & rmask;
+		T tmp11 = (v3[lower_limb] & ~(lmask));
+		T tmp21 = (v3[higher_limb] & ~(rmask));
+
+		v3[lower_limb] = tmp1 & tmp11;
+		v3[higher_limb] = tmp2 & tmp21;
+		return false;
+	}
+
+	///
+	/// \param v3
+	/// \param v1
+	/// \param v2
+	/// \param k_lower
+	/// \param k_upper
+	/// \param norm
+	/// \return
+	constexpr inline static bool scalar(BinaryContainer &v3,
+									 BinaryContainer const &v1,
+									 DataType const v2,
+									 const uint32_t k_lower=0,
+									 const uint32_t k_upper=length(),
+									 const uint32_t norm=-1) noexcept {
+		(void)norm;
+		if (v2) {
+			BinaryContainer::set(v3, v1, k_lower, k_upper);
+			return false;
+		} else {
+			v3.zero(k_lower, k_upper);
+		}
+	}
+
 
 
 	/// IMPORTANT: k_lower < k_upper is enforced.
