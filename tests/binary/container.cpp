@@ -1267,32 +1267,32 @@ TEST(hash, Constexpr) {
 #endif
 }
 
-// TODO
-//TEST(hash, Complex) {
-//	// two avx register
-//	constexpr uint32_t n = 256*2;
-//	using B = BinaryContainer<n>;
-//	B b;
-//	b.random();
-//	const auto c = b.hash();
-//	// using S = decltype(c);
-//
-//	const auto *c1 = (const uintptr_t *)&b;
-//	const auto *c2 = (const uintptr_t *)c.__data;
-//	EXPECT_EQ(c1, c2);
-//
-//	const auto *d = (uint64_t *)b.ptr();
-//	for (uint32_t i = 0; i < n/64; ++i) {
-//		const auto d1 = d[i];
-//		const auto d2 = (*c.__data)[i];
-//		EXPECT_EQ(d1, d2);
-//	}
-//
-//	std::cout << std::hex;
-//	std::cout << &b << std::endl;
-//	std::cout << c.__data << std::endl;
-//	std::cout << std::endl;
-//}
+TEST(hash, Complex) {
+	// two avx register
+	constexpr uint32_t n = 256*2;
+	using B = BinaryContainer<n>;
+	B b;
+	b.random();
+	const auto c = b.hash();
+	// using S = decltype(c);
+
+	// NOTE: one day I will adapt the Hash class to this
+	// const auto *c1 = (const uintptr_t *)&b;
+	// const auto *c2 = (const uintptr_t *)c.__data;
+	// EXPECT_EQ(c1, c2);
+
+	// const auto *d = (uint64_t *)b.ptr();
+	// for (uint32_t i = 0; i < n/64; ++i) {
+	// 	const auto d1 = d[i];
+	// 	const auto d2 = (*c.__data)[i];
+	// 	EXPECT_EQ(d1, d2);
+	// }
+
+	// std::cout << std::hex;
+	// std::cout << &b << std::endl;
+	// std::cout << c.__data << std::endl;
+	// std::cout << std::endl;
+}
 
 
 #ifndef EXTERNAL_MAIN

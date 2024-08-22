@@ -10,8 +10,9 @@
 #include <cstdlib>
 #include <utility>
 
-#include "atomic_primitives.h"
 #include "helper.h"
+#include "atomic_primitives.h"
+#include "hash/hash.h"
 
 ///
 struct SimpleHashMapConfig {
@@ -26,12 +27,15 @@ public:
 /// \tparam keyType		base type of the input keys
 /// \tparam valueType	base type of the values to save in the list
 /// \tparam config		`SimpleHashmapConfig` object
-/// \tparam HashFkt		internal hash function to use.
+/// \tparam Hash		internal hash function to use.
 template<
         typename keyType,
         typename valueType,
         const SimpleHashMapConfig &config,
         class Hash>
+//#if __cplusplus > 201709L
+//	requires HashFunction<Hash, valueType>
+//#endif
 class SimpleHashMap {
 public:
 	using data_type = valueType;
@@ -40,7 +44,6 @@ public:
 	using load_type = TypeTemplate<config.bucketsize>;
 
 	Hash hashclass = Hash{};
-
 
 	// size per bucket
 	constexpr static size_t bucketsize = config.bucketsize;
@@ -74,9 +77,11 @@ public:
 	/// hashes down `e` (Element) to an index where to store
 	/// the element.
 	/// NOTE: Boundary checks are performed in debug mode.
-	/// \param e element to insert
+	/// \param e element to hash
+	/// \param value element to insert
 	/// \return nothing
-	constexpr inline void insert(const keyType &e, const valueType &value) noexcept {
+	constexpr inline void insert(const keyType &e,
+	                             const valueType &value) noexcept {
 		const size_t index = hash(e);
 		ASSERT(index < nrbuckets);
 
@@ -115,20 +120,23 @@ public:
 
 	///
 	template<class SIMD>
-	//	TODO require the internal SIMD type: write concept
-	constexpr inline void insert_simd(const SIMD &e, const SIMD *value) noexcept {
+#if __cplusplus > 201709L
+		requires SIMDAble<SIMD>
+#endif
+	constexpr inline void insert_simd(const SIMD &e,
+	                                  const SIMD *value) noexcept {
 		for (uint32_t i = 0; i < SIMD::LIMBS; i++) {
 			insert(e[i], value[i]);
 		}
 	}
 
-	constexpr inline load_type load_ptr() noexcept {
+	[[nodiscard]] constexpr inline load_type load_ptr() noexcept {
 		return __internal_load_array;
 	}
 
 	///
 	/// \return
-	constexpr inline valueType *ptr() noexcept {
+	[[nodiscard]] constexpr inline valueType *ptr() noexcept {
 		return __internal_hashmap_array;
 	}
 
@@ -149,7 +157,7 @@ public:
 	}
 
 	/// calls ptr
-	constexpr inline ret_type operator[](const index_type i) noexcept {
+	[[nodiscard]] constexpr inline ret_type operator[](const index_type i) noexcept {
 		return ptr(i);
 	}
 
@@ -157,7 +165,7 @@ public:
 	/// the position of the element.
 	/// \param e Element to hash down.
 	/// \return the position within the internal const_array of `e`
-	constexpr inline index_type find(const keyType &e) const noexcept {
+	[[nodiscard]] constexpr inline index_type find(const keyType &e) const noexcept {
 		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
 		// return the index instead of the actual element, to
@@ -169,7 +177,8 @@ public:
 	/// \param e
 	/// \param __load
 	/// \return
-	constexpr inline index_type find(const keyType &e, load_type &__load) const noexcept {
+	[[nodiscard]] constexpr inline index_type find(const keyType &e,
+	                                               load_type &__load) const noexcept {
 		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
 		__load = __internal_load_array[index];
@@ -242,7 +251,7 @@ public:
 	}
 
 	/// prints some basic information about the hashmap
-	constexpr void print() const noexcept {
+	constexpr void info() const noexcept {
 		std::cout << "total_size:" << total_size
 		          << ", total_size_byts:" << sizeof(__internal_hashmap_array) + sizeof(__internal_load_array)
 		          << ", nrbuckets:" << nrbuckets

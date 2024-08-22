@@ -759,7 +759,7 @@ public:
 	                              const uint32_t norm,
 	                              const bool sub=false,
 	                              const uint32_t tid=0) noexcept {
-		auto op1 = [e1, e2, k_lower, k_higher, sub, norm](Element &c) {
+		auto op1 = [&e1, &e2, k_lower, k_higher, sub, norm](Element &c) __attribute__((always_inline)) {
 			if (sub) {
 			    return Element::sub(c, e1, e2, k_lower, k_higher, norm);
 			} else {
@@ -772,11 +772,11 @@ public:
 		// exists for which it holds: |data[load].value[r]| >= norm
 		if (load() < size()) {
 			const bool b = op1(__data[load(tid)]);
-			if ((norm != uint32_t(-1)) && b) { return; }
+			if ((norm != uint32_t(-1u)) && b) { return; }
 		} else {
 			Element t{};
 			const bool b = op1(t);
-			if ((norm != uint32_t(-1)) && b) { return; }
+			if ((norm != uint32_t(-1u)) && b) { return; }
 
 			// this __MUST__ be a copy.
 			__data.push_back(t);
@@ -784,7 +784,7 @@ public:
 		}
 
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
-		set_load(load() + 1);
+		set_load(load(tid) + 1, tid);
 	}
 
 	template<const uint32_t k_lower,
@@ -795,7 +795,7 @@ public:
 								  const Element &e2,
 	                              const uint32_t tid=0) noexcept {
 
-		auto op1 = [e1, e2](Element &c) {
+		auto op1 = [&e1, &e2](Element &c) __attribute__((always_inline)) {
 		  if constexpr (sub) {
 			  return Element::template sub<k_lower, k_higher, norm>(c, e1, e2);
 		  } else {
@@ -805,21 +805,21 @@ public:
 
 		if (load() < size()) {
 			const bool b = op1(__data[load(tid)]);
-			if constexpr (norm != uint32_t(-1)) { if (b) { return; } }
+			if constexpr (norm != uint32_t(-1u)) { if (b) { return; } }
 		} else {
 			Element t{};
 			const bool b = op1(t);
-			if constexpr (norm != uint32_t(-1)) { if (b) { return; } }
+			if constexpr (norm != uint32_t(-1u)) { if (b) { return; } }
 
 			// this __MUST__ be a copy.
 			__data.push_back(t);
 			__size += 1;
 		}
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
-		set_load(load() + 1);
+		set_load(load(tid) + 1, tid);
 	}
 
-	constexpr static void info()  noexcept{
+	static void info()  noexcept{
 		std::cout << " { name=\"List\""
 				  << " , sizeof(LoadType):" << sizeof(LoadType)
 				  << " , ValueLENGTH:" << ValueLENGTH

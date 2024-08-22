@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # options
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
-option(USE_SIMD "Enable avx/neon" OFF)
+option(USE_SIMD "Enable avx/neon" ON)
 option(USE_SANITIZER "Enable memory sanitizer" OFF)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable linkage time optimizations" OFF)

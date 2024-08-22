@@ -148,29 +148,6 @@ B63_BENCHMARK(Khuong_bin_search, nn) {
 	B63_KEEP(pos);
 }
 
-// TODO
-//B63_BENCHMARK(monobound_interpolated_search, n) {
-//	T search;
-//	vector<T> data;
-//	B63_SUSPEND {
-//		search = random_data(data, n);
-//	}
-//
-//	uint64_t pos = monobound_interpolated_search(reinterpret_cast<int *>(data.data()), SIZE, search);
-//	B63_KEEP(pos);
-//}
-//
-//B63_BENCHMARK(adaptive_binary_search, n) {
-//	T search;
-//	vector<T> data;
-//	B63_SUSPEND {
-//		search = random_data(data, n);
-//	}
-//
-//	uint64_t pos = adaptive_binary_search(reinterpret_cast<int *>(data.data()), SIZE, search);
-//	B63_KEEP(pos);
-//}
-
 int main(int argc, char **argv) {
 	B63_RUN_WITH("lpe:branches,lpe:branch-misses,lpe:cache-misses,lpe:cache-references,lpe:cycles,lpe:instructions", argc, argv);
 	return 0;

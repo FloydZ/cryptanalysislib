@@ -60,23 +60,6 @@ TEST(upper_bound_standard_binary_search, simple) {
 	EXPECT_EQ(solution_index, std::distance(data.begin(), a));
 }
 
-// TODO not working
-// TEST(upper_bound_standard_binary_search, kAryList_multiple) {
-// 	List data{list_size};
-// 	Element dummy;
-// 	size_t solution_index;
-// 	const Element search = random_data<List, Element>(data, solution_index, SIZE, nr_sols, dummy);
-//
-// 	auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
-// 		[](const Element &e1) {
-// 		  return e1.hash();
-// 		}
-// 	);
-//
-// 	EXPECT_EQ(solution_index, std::distance(data.begin(), a));
-// }
-
-
 TEST(upper_bound_standard_binary_search, multiple) {
 	std::vector<T> data;
 	size_t solution_index;

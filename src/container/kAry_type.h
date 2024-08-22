@@ -722,11 +722,10 @@ public:
 		static_assert(lower < upper);
 		static_assert(upper <= bits());
 
-		constexpr T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q));
-			out.__value &= mask;
 		} else {
+			constexpr T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() + in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
@@ -745,12 +744,11 @@ public:
 		ASSERT(lower < upper);
 		ASSERT(upper <= bits());
 
-		const T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q);
-			out.__value &= mask;
 		} else {
 			// NOTE: ignores carry here
+			constexpr T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() - in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
@@ -773,12 +771,11 @@ public:
 		static_assert(lower < upper);
 		static_assert(upper <= bits());
 
-		constexpr T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q);
-			out.__value &= mask;
 		} else {
 			// NOTE: ignores carry here
+			constexpr T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() - in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
@@ -802,12 +799,11 @@ public:
 		ASSERT(lower < upper);
 		ASSERT(upper <= bits());
 
-		const T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) * T2(in2.__value)) % q);
-			out.__value &= mask;
 		} else {
 			// NOTE: ignores carry here
+			const T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() ^ in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
@@ -823,12 +819,11 @@ public:
 		static_assert(lower < upper);
 		static_assert(upper <= bits());
 
-		constexpr T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) * T2(in2.__value)) % q);
-			out.__value &= mask;
 		} else {
 			// NOTE: ignores carry here
+			constexpr T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() * in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
@@ -852,11 +847,10 @@ public:
 		ASSERT(lower < upper);
 		ASSERT(upper <= bits());
 
-		const T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) * T2(in2 % q)) % q);
-			out.__value &= mask;
 		} else {
+			const T mask = compute_mask(lower, upper);
 			// not implemented
 			ASSERT(false);
 		}
@@ -878,12 +872,11 @@ public:
 		static_assert(lower < upper);
 		static_assert(upper <= bits());
 
-		constexpr T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) * T2(in2 % q)) % q);
-			out.__value &= mask;
 		} else {
 			// not implemented
+			constexpr T mask = compute_mask(lower, upper);
 			ASSERT(false);
 		}
 	}
@@ -898,12 +891,12 @@ public:
 		ASSERT(lower < upper);
 		ASSERT(upper <= bits());
 
-		const T mask = compute_mask(lower, upper);
 		if constexpr (arith) {
 			__value = ((q - __value) % q);
-			__value &= mask;
 		} else {
+			const T mask = compute_mask(lower, upper);
 			__value ^= mask;
+			__value &= mask;
 		}
 	}
 

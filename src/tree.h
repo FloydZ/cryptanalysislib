@@ -160,6 +160,43 @@ private:
 	}
 
 public:
+	explicit Tree_T(const uint32_t d,
+					const MatrixType &A,
+					const size_t baselist_size) noexcept :
+			matrix(A),
+			level_translation_array(),
+			level_filter_array() {
+		ASSERT(d > 0 && "at least level 1");
+		ASSERT(level_translation_array.size() >= d);
+		for (uint32_t i = 0; i < d + additional_baselists; ++i) {
+			List a{1u << baselist_size};
+			lists.push_back(a);
+		}
+
+		depth = d;
+		base_size = 1u << baselist_size;
+	}
+
+	explicit Tree_T(const uint32_t d,
+					const MatrixType &A,
+					const List &b1,
+					const List &b2) noexcept :
+			matrix(A),
+			level_translation_array(level_translation_array) {
+		ASSERT(d > 0 && "at least level 1");
+		lists.push_back(b1);
+		lists.push_back(b2);
+
+		for (uint32_t i = 2; i < d + additional_baselists; ++i) {
+			List a{0};
+			a.set_load(0);
+			lists.push_back(a);
+		}
+
+		depth = d;
+		base_size = b1.size();
+	}
+
 	///	On normal usage only d+2 (two baselists) __MUST__ be allocated and saved in memory. So technically that implements
 	/// a non-recursive k-List algorithm.
 	/// \param d depth of the tree.
@@ -170,13 +207,14 @@ public:
 	///				[0, 10, 20, ... 100]
 	///			means: that on the first lvl the lists are matched on the coordinates 0-9 (9 inclusive)
 	///         and so on
-	explicit Tree_T(const unsigned int d,
+	explicit Tree_T(const uint32_t d,
 	                const MatrixType &A,
-	                const unsigned int baselist_size,
+	                const size_t baselist_size,
 	                const std::vector<uint64_t> &level_translation_array,
-	                const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept : matrix(A),
-	                                                                                        level_translation_array(level_translation_array),
-	                                                                                        level_filter_array(level_filter_array) {
+	                const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept :
+	    matrix(A),
+	    level_translation_array(level_translation_array),
+	    level_filter_array(level_filter_array) {
 		ASSERT(d > 0 && "at least level 1");
 		ASSERT(level_translation_array.size() >= d);
 		for (uint32_t i = 1; i < d; ++i) {
@@ -203,13 +241,14 @@ public:
 	///				[0, 10, 20, ... 100]
 	///			means: that on the first lvl the lists are matched on the coordinates 0-9 (9 inclusive)
 	///         and so on
-	explicit Tree_T(const unsigned int d,
+	explicit Tree_T(const uint32_t d,
 	                const MatrixType &A,
 	                const List &b1,
 	                const List &b2,
 	                const uint32_t baselist_size,
-	                std::vector<uint64_t> &level_translation_array) noexcept : matrix(A),
-	                                                                           level_translation_array(level_translation_array) {
+	                std::vector<uint64_t> &level_translation_array) noexcept :
+	    matrix(A),
+	    level_translation_array(level_translation_array) {
 		ASSERT(d > 0 && "at least level 1");
 		lists.push_back(b1);
 		lists.push_back(b2);
@@ -790,6 +829,8 @@ public:
 		ASSERT(iL.is_sorted(k_lower1, k_upper2));
 
 		constexpr uint32_t filter = -1u;
+		constexpr bool sub = false;
+
 		ElementType tmpe1;
 		LabelType t1, t2;
 		for (size_t k = 0; k < L1.load(); ++k) {
@@ -804,10 +845,9 @@ public:
 				for (; (o < iL.load()) &&
 					   (t2.template is_equal<0, k_upper2>(iL[o].label));
 					   ++o) {
-					tmpe1 = iL[o];
-					ElementType::add(tmpe1, tmpe1, L1[k]);
+					ElementType::add(tmpe1, iL[o], L1[k]);
 					out.template add_and_append
-					        <0, k_upper2, filter, false>
+					        <0, k_upper2, filter, sub>
 					        (tmpe1, L2[l]);
 				}
 			}
@@ -1081,7 +1121,6 @@ public:
 								    const LabelType &target,
 	                                const bool prepare=true) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
-		ASSERT(L2.is_sorted(k_lower, k_upper));
 		constexpr uint32_t filter = -1u;
 
 		if (prepare) {
@@ -1089,6 +1128,7 @@ public:
 			L2.template sort_level<k_lower, k_upper>();
 		}
 
+		ASSERT(L2.is_sorted(k_lower, k_upper));
 
 		LabelType sigma_t;
 		for (size_t i = 0; i < L1.load(); ++i) {
@@ -1096,6 +1136,52 @@ public:
 			size_t j = L2.template search_level<k_lower, k_upper>(sigma_t);
 			for (; (j < L2.load()) &&
 				   (sigma_t.template is_equal<k_lower, k_upper>(L2[j].label)); ++j) {
+				out.template add_and_append<k_lower, k_upper, filter, false>(L1[i], L2[j]);
+			}
+		}
+	}
+
+	///
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \tparam HashMap
+	/// \param out
+	/// \param L1 Does not need to sorted
+	/// \param L2: is ignored if prepare==false
+	/// \param target
+	/// \param hm
+	/// \param prepare
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper,
+	         typename HashMap>
+#if __cplusplus > 201709L
+		requires HashMapAble<HashMap>
+#endif
+	static void join2lists_on_iT_hashmap_v2(List &out,
+											const List &L1, const List &L2,
+											const LabelType &target,
+	                                        HashMap &hm,
+											const bool prepare=true) noexcept {
+		ASSERT(k_lower < k_upper && 0 < k_upper);
+		constexpr uint32_t filter = -1u;
+		using LoadType = typename HashMap::load_type;
+
+		if (prepare) {
+			out.set_load(0);
+			hm.clear();
+			for (size_t i = 0; i < L2.load(); ++i) {
+				hm.insert(L2[i].label.value(), i);
+			}
+		}
+
+		LabelType sigma_t;
+		LoadType load = 0;
+		for (size_t i = 0; i < L1.load(); ++i) {
+			LabelType::template sub<k_lower, k_upper>(sigma_t, target, L1[i].label);
+
+			size_t s = hm.find(sigma_t.value(), load);
+			for (size_t k = s; k < s + load; ++k) {
+				const size_t j = hm[k];
 				out.template add_and_append<k_lower, k_upper, filter, false>(L1[i], L2[j]);
 			}
 		}
@@ -1471,8 +1557,6 @@ public:
 		join2lists(out, L[10], L[11], target, last_lta, false);
 	}
 
-
-	/// TODO assert k_upper > k_lower
 	/// \param out
 	/// \param L1 dont care
 	/// \param L2 must be sorted
@@ -1491,6 +1575,12 @@ public:
 											 const uint64_t k_lower2, const uint64_t k_upper2,
 											 const uint64_t k_lower3, const uint64_t k_upper3,
 											 const bool prepare = true) noexcept {
+		ASSERT(k_lower1 < k_upper1);
+		ASSERT(k_lower2 < k_upper2);
+		ASSERT(k_upper1 < k_upper2);
+		ASSERT(k_upper2 < k_upper3);
+		ASSERT(k_upper2 < k_upper3);
+
 		(void)k_lower2;
 		(void)k_lower3;
 		constexpr uint32_t filter = -1u;
@@ -1608,11 +1698,9 @@ public:
 
 		// L1, L2, L3 and L4
 		LabelType::sub(t1, iT2, iT1);
-		// TODO not correct
-		//twolevel_streamjoin_on_iT_v2
-		//        <k_lower1, k_upper1, k_lower2, k_upper2>
-		//        (iL2, iL1, L1, L2, iT2, t1);
-		twolevel_streamjoin_on_iT_v2(iL2, iL1, L1, L2, iT2, t1,k_lower1, k_upper1, k_lower2, k_upper2);
+		twolevel_streamjoin_on_iT_v2
+		        <k_lower1, k_upper1, k_lower2, k_upper2>
+		        (iL2, iL1, L1, L2, iT2, t1);
 		iL2.template sort_level<0, k_upper3>();
 		if (iL2.load() == 0) {
 			return ;
@@ -1664,6 +1752,150 @@ public:
 			}
 		}
 	}
+
+
+	/// helper function wich computes
+	///		`search_in_level`
+	/// 	`increment_previous_level`
+	/// \tparam l
+	/// \tparam h
+	template<const uint32_t l, const uint32_t h>
+	class helper {
+	public:
+		constexpr static inline uint32_t run(const uint32_t &level,
+		                                     const List *lists,
+		                                     const ElementType &e,
+		                                     std::vector<std::pair<size_t, size_t>> &boundaries,
+		                                     std::vector<uint64_t> &indices) {
+			boundaries[level] = lists[level + 2].template search_boundaries<l, h>(e);
+			indices[level] = boundaries[level].first;
+
+			// NOTE: the cast here
+			int32_t lvl = level;
+			while (lvl >= 0) {
+				if (indices[lvl] == boundaries[lvl].second) {
+					if (lvl == 0) {
+						return 0;
+					} else {
+						indices[--lvl]++;
+					}
+				} else {
+					return lvl + 1;
+				}
+			}
+
+			return 0;
+		}
+	};
+
+	template<const uint32_t level,
+	         const uint32_t ...ks>
+	void join_stream_internal(List &out,
+	                          const LabelType &target,
+	                          const bool prepare=true) {
+		static_assert(sizeof...(ks) >= (level + 2u),
+		              "make sure that you give enough limits");
+
+		constexpr uint32_t filter = -1u;
+		constexpr bool sub = false;
+
+		/// NOMENCLATUR:
+		///		lists[0] = left base list
+		/// 	lists[1] = right base lists
+		constexpr uint32_t k_lower = std::get<0>(std::forward_as_tuple(ks...));
+		constexpr uint32_t k_upper = std::get<1>(std::forward_as_tuple(ks...));;
+		if (prepare) {
+			out.set_load(0);
+			lists[1].template sort_level<k_lower, k_upper>();
+		}
+		ASSERT(lists[1].is_sorted(k_lower, k_upper));
+
+		if constexpr (level == 0) {
+			//easy case, we want to joint on only two lists, so basically no streaming
+			join2lists_on_iT_v2<k_lower, k_upper>(out, lists[0], lists[1], target, prepare);
+
+			// TODO
+			lists[2].template sort_level<0, 16>();
+			return;
+		}
+
+		// keep track of the partial sums we are computing
+		std::vector<ElementType> sums(level);
+
+		//
+		std::vector<std::pair<size_t, size_t>> boundaries(level);
+
+		//
+		std::vector<size_t> indices(level);
+
+		/// storage for the helper functions: TODO explain
+		std::vector<std::function< decltype(helper<0, 1>::run)>> vec;
+
+		/// NOTE: the starting point 1: we want to merge on lvl 0 with elements from lvl 1
+		constexpr_for<1u, sizeof...(ks) - 1u, 1u>([&vec](const auto I) {
+			constexpr uint32_t l = std::get<I+0>(std::forward_as_tuple(ks...));
+			constexpr uint32_t h = std::get<I+1>(std::forward_as_tuple(ks...));;
+			std::function<decltype(helper<l, h>::run)> t2 = helper<l, h>::run;
+			vec.push_back(t2);
+		});
+
+
+
+		for (size_t i = 0; i < lists[0].load(); ++i) {
+			LabelType::template sub<k_lower, k_upper>(sums[0].label, target, lists[0][i].label);
+			size_t j = lists[1].template search_level<k_lower, k_upper>(sums[0].label);
+
+			for (; (j < lists[1].load()) &&
+				   (sums[0].label.template is_equal<k_lower, k_upper>(lists[1][j].label)); ++j) {
+				// now the actual stream join starts
+				bool stop = false;
+				uint32_t l = 0;
+				while (!(stop)) {
+					while (l < level) {
+						// perform search on current level (streamjoining against level l list)
+						if (l == 0) {
+							l = vec[l].operator()(l, this->lists.data(), sums[0], boundaries, indices);
+						//	search_in_level_l(a[0], lists[0][i], lists[1][j], l, boundaries, indices);
+						} else {
+							ElementType::add(sums[l], sums[l-1], lists[l+1][indices[l-1]]);
+							l = vec[l].operator()(l, this->lists.data(), sums[l], boundaries, indices);
+							//search_in_level_l(a[l], a[l - 1], lists[l + 1][indices[l - 1]], l, boundaries, indices);
+						}
+
+						// TODO targets anpassen
+
+						//if on lowest level the index reaches the boundary: stop
+						if (indices[0] == boundaries[0].second) {
+							stop = true;
+							break;
+						}
+					}
+
+					// save all matching elements
+					for (; indices[level - 1] < boundaries[level - 1].second; ++indices[level - 1]) {
+						constexpr uint32_t ll = std::get<0>(std::forward_as_tuple(ks...));
+						constexpr uint32_t lh = std::get<sizeof...(ks) - 1u>(std::forward_as_tuple(ks...));;
+						out.template add_and_append
+						        <ll, lh, filter, sub>
+						        (sums[level - 1], lists[level + 1][indices[level - 1]]);
+					}
+
+					// continue stream-join with the next element of previous level
+					if (l == level) {
+						l--;
+					}
+
+					l = increment_previous_level(l, boundaries, indices);
+					if (indices[0] == boundaries[0].second) {
+						stop = true;
+					}
+				}
+			}
+		}
+
+		// TODO sort out list
+	}
+
 
 
 	/// \param out
@@ -1907,7 +2139,8 @@ private:
 	/// \param boundaries
 	/// \param indices
 	/// \return new lvl
-	int increment_previous_level(int l, std::vector<std::pair<uint64_t, uint64_t>> &boundaries,
+	int increment_previous_level(int l,
+	                             std::vector<std::pair<uint64_t, uint64_t>> &boundaries,
 	                             std::vector<uint64_t> &indices) {
 		while (l >= 0) {
 			if (indices[l] == boundaries[l].second) {
@@ -2029,7 +2262,10 @@ private:
 	/// minimum nr of 2 in an element till we discard it
 	const uint32_t filter_nr = 200;
 
+public:
+	// TODO access functions
 	std::vector<List> lists;
+private:
 	unsigned int depth;
 	uint64_t base_size;
 };

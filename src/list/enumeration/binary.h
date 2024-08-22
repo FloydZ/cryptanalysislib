@@ -426,6 +426,10 @@ public:
 	      list_size((list_size == size_t(0)) ? max_list_size : list_size)
 	{}
 
+	[[nodiscard]] constexpr static size_t size() noexcept {
+		return max_list_size;
+	}
+
 	///
 	/// \tparam HashMap
 	/// \tparam Extractor extractor lambda

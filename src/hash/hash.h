@@ -5,7 +5,6 @@
 
 #if __cplusplus > 201709L
 // defines the concept of a Hash function
-//TODO not finished
 template<class H, class T>
 concept HashFunction =
         std::invocable<H, const T&>;

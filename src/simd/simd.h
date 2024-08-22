@@ -3082,9 +3082,9 @@ namespace cryptanalysislib {
 	}
 }// namespace cryptanalysislib
 
-
-void transpose8(unsigned char A[8], int m, int n,
-                unsigned char B[8]) {
+// TODO integrate
+void transpose8(uint32_t A[8], int m, int n,
+                uint32_t B[8]) {
 	unsigned x, y, t;
 
 	// Load the array and pack it into x and y.
