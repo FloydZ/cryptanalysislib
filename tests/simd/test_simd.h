@@ -12,6 +12,8 @@
 	ASSERT_EQ(atleast_one_not_zero, true);
 }
 
+// the apple compiler cannot handle to much constexpr magic
+#if !defined(__APPLE__)
 TEST(T, set1) {
 	constexpr S t1 = S::set1(0);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
@@ -123,6 +125,7 @@ TEST(T, constexpr_logic) {
 		EXPECT_EQ(t12.d[i], 2);
 	}
 }
+#endif
 
 TEST(T, logic) {
 	const S t1 = S::set1(0);

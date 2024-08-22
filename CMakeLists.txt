@@ -120,7 +120,11 @@ if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
 endif()
 
 if (COMPILER_SUPPORTS_CONSTEXPR_COST)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=999999999")
+    if(APPLE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=9000099")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
+    endif()
 endif()
 
 if(${USE_LTO} AND lto_supported)
@@ -158,16 +162,15 @@ message(STATUS "Allowed Warnings: ${ALLOWED_WARNINGS}")
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
-# for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
-# -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
+
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") 
 	message(STATUS "ARM CPU detected")
+	# TODO port this to the cmake project
     set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
 	set(DEBUG_FLAGS "-g -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-g -O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
-
-  set(DEBUG_FLAGS "-g -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(DEBUG_FLAGS "-g -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 	set(OPTIMIZE_FLAGS "-g -march=native -O3 -DNDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 endif()
 

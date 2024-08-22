@@ -318,8 +318,8 @@ public:
 		}
 
 		// generate solution:
-		solution_l = fastrandombytes_uint64() % LIST_SIZE;
-		solution_r = fastrandombytes_uint64() % LIST_SIZE;
+		solution_l = 0;//fastrandombytes_uint64() % LIST_SIZE;
+		solution_r = 0;//fastrandombytes_uint64() % LIST_SIZE;
 		DEBUG_MACRO(std::cout << "sols at: " << solution_l << " " << solution_r << "\n";)
 
 		if constexpr (EXACT) {
@@ -1661,19 +1661,20 @@ public:
 		ASSERT(e2 >= s2);
 
 		/// difference of the memory location in the right list
-		const uint32x8_t loadr = uint32x8_t::setr(0, 1, 2, 3, 4, 5, 6, 7);
+		constexpr uint32x8_t loadr = uint32x8_t::setr(0, 1, 2, 3, 4, 5, 6, 7);
 
 		for (size_t i = s1; i < e1; ++i) {
-			// NOTE: implicit typecast because T = uint64
+			// NOTE: implicit typecast because T = uint64_t
 			const uint32x8_t li = uint32x8_t::set1(L1[i][0]);
+
 
 			/// NOTE: only possible because L2 is a continuous memory block
 			const uint32_t *ptr_r = (uint32_t *) L2;
 
 			for (size_t j = s2; j < s2 + (e2 + 7) / 8; ++j, ptr_r += 16) {
 				/// NOTE the 8: this is needed, als internally all limbs are T=uint64_t
-				const uint32x8_t ri = uint32x8_t::template gather<8>((const int *) ptr_r, loadr);
-				const int m = compare_256_32(li, ri);
+				const uint32x8_t ri = uint32x8_t::template gather<4>((const uint32_t *) ptr_r, loadr);
+				const uint32_t m = compare_256_32(li, ri);
 
 				if (m) {
 					const size_t jprime = j * 8 + __builtin_ctz(m);
