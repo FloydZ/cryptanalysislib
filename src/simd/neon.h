@@ -851,7 +851,8 @@ constexpr static uint64x2_t u64tom128(const uint64_t t[2]) noexcept {
 	return tmp;
 }
 // implementation of `_mm_shuffle_epi16`
-inline uint16x8_t shuffle_epi16(const uint16x8_t a, const uint16x8_t b) {
+inline uint16x8_t shuffle_epi16(const uint16x8_t a,
+								const uint16x8_t b) {
     const uint16x8_t tmp = b*2;
     const uint16x8_t s  = tmp ^ vshlq_n_u16(tmp, 8);
     const uint16x8_t ss = vaddq_u16(s, vdupq_n_u16(0x100));
@@ -1530,7 +1531,7 @@ struct uint16x16_t {
 	/// sets all 32 8bit limbs to `a`
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline uint16x16_t set1(const uint8_t a) noexcept {
+	[[nodiscard]] constexpr static inline uint16x16_t set1(const uint16_t a) noexcept {
 		uint16x16_t out;
 		out = uint16x16_t::set(a, a, a, a, a, a, a, a,
 		                       a, a, a, a, a, a, a, a);
@@ -2440,12 +2441,13 @@ struct uint32x8_t {
 	/// \param ptr
 	/// \param data
 	/// \return
-	template<const uint32_t scale = 1>
-	[[nodiscard]] constexpr static inline uint32x8_t gather(const void *ptr, const uint32x8_t data) {
+	template<const uint32_t scale = 4>
+	[[nodiscard]] constexpr static inline uint32x8_t gather(const void *ptr,
+														    const uint32x8_t data) {
 		uint32x8_t ret;
 		const uint8_t *ptr8 = (uint8_t *) ptr;
 		for (uint32_t i = 0; i < 8; i++) {
-			ret.v32[i] = *(uint32_t *) (ptr8 + data.v32[i] * scale);
+			ret.v32[i] = *(uint32_t *) (ptr8 + (data.v32[i] * scale));
 		}
 
 		return ret;
@@ -2455,7 +2457,8 @@ struct uint32x8_t {
 	/// \param in
 	/// \param perm
 	/// \return
-	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in, const uint32x8_t perm) {
+	[[nodiscard]] constexpr static inline uint32x8_t permute(const uint32x8_t in, 
+															 const uint32x8_t perm) {
 		uint32x8_t ret;
 		for (uint32_t i = 0; i < 8; i++) {
 			ret.v32[i] = in.v32[perm.v32[i] & 0x7];
@@ -3002,7 +3005,7 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \param data
 	/// \return
-	template<const uint32_t scale = 1>
+	template<const uint32_t scale = 8>
 	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr,
 															const cryptanalysislib::_uint32x4_t data) {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
@@ -3020,7 +3023,7 @@ struct uint64x4_t {
 	/// \param ptr
 	/// \param data
 	/// \return
-	template<const uint32_t scale = 1>
+	template<const uint32_t scale = 8>
 	[[nodiscard]] constexpr static inline uint64x4_t gather(const void *ptr,
 															const uint64x4_t data) {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
@@ -3053,8 +3056,6 @@ struct uint64x4_t {
 	/// \return
 	constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
-
-		const cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);
 
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {

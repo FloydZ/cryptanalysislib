@@ -120,7 +120,11 @@ if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
 endif()
 
 if (COMPILER_SUPPORTS_CONSTEXPR_COST)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=999999999")
+    if(APPLE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=999")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=9999999999")
+    endif()
 endif()
 
 if(${USE_LTO} AND lto_supported)
