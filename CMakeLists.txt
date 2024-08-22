@@ -121,7 +121,7 @@ endif()
 
 if (COMPILER_SUPPORTS_CONSTEXPR_COST)
     if(APPLE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=999")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=9000099")
     else()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
     endif()
