@@ -1168,7 +1168,7 @@ struct uint8x32_t {
 														 const uint8x32_t in2) noexcept {
 		uint8x32_t ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v8[i] = in1.v8[i] > in2.v8[i];
+			ret.v8[i] = (in1.v8[i] > in2.v8[i]) * -1ull;
 		}
 		return ret;
 	}
@@ -1186,7 +1186,7 @@ struct uint8x32_t {
 	                                                     const uint8x32_t in2) noexcept {
 		uint8x32_t ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v8[i] = in1.v8[i] < in2.v8[i];
+			ret.v8[i] = (in1.v8[i] < in2.v8[i]) * -1ull;
 		}
 		return ret;
 	}
@@ -1572,7 +1572,7 @@ struct uint16x16_t {
 	                                                      const uint16x16_t in2) noexcept{
 		uint16x16_t ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v16[i] = in1.v16[i] > in2.v16[i];
+			ret.v16[i] = (in1.v16[i] > in2.v16[i]) * -1ull;
 		}
 
 		return ret;
@@ -1592,7 +1592,7 @@ struct uint16x16_t {
 	                                                      const uint16x16_t in2) noexcept{
 		uint16x16_t ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v16[i] = in1.v16[i] < in2.v16[i];
+			ret.d[i] = (in1.d[i] < in2.d[i]) * -1ull;
 		}
 
 		return ret;
@@ -1602,7 +1602,7 @@ struct uint16x16_t {
 	                                                  const uint16x16_t in2) noexcept {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret ^= (in1.v16[i] < in2.v16[i]) << i;
+			ret ^= (in1.d[i] < in2.d[i]) << i;
 		}
 
 		return ret;
@@ -1955,7 +1955,7 @@ struct uint32x8_t {
 														 const uint32x8_t in2) noexcept {
 		uint32x8_t ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v32[i] = in1.v32[i] > in2.v32[i];
+			ret.v32[i] = (in1.v32[i] > in2.v32[i]) * -1ull;
 		}
 
 		return ret;
@@ -1976,7 +1976,7 @@ struct uint32x8_t {
 	                                                     const uint32x8_t in2) noexcept {
 		uint32x8_t ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v32[i] = in1.v32[i] < in2.v32[i];
+			ret.v32[i] = (in1.v32[i] < in2.v32[i]) * -1ull;
 		}
 
 		return ret;
@@ -2389,7 +2389,7 @@ struct uint64x4_t {
 														 const uint64x4_t in2) noexcept {
 		uint64x4_t ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v64[i] = in1.v64[i] > in2.v64[i];
+			ret.v64[i] = (in1.v64[i] > in2.v64[i]) * -1ull;
 		}
 
 		return ret;
@@ -2411,7 +2411,7 @@ struct uint64x4_t {
 	                                                     const uint64x4_t in2) noexcept {
 		uint64x4_t ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.v64[i] = in1.v64[i] < in2.v64[i];
+			ret.v64[i] = (in1.v64[i] < in2.v64[i]) * -1ull;
 		}
 
 		return ret;

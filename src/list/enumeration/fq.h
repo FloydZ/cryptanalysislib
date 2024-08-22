@@ -654,6 +654,7 @@ public:
 		auto chase_step = [this](Element &element,
 		                         const uint32_t unset,
 		                         const uint32_t set) {
+			std::cout << element << std::endl;
 			/// make really sure that the the chase
 			/// sequence is correct.
 			ASSERT(element.value[unset]);
