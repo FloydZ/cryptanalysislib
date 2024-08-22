@@ -17,6 +17,7 @@ TEST(Bruteforce, simd_32) {
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 }
 
+
 TEST(Bruteforce, simd_64) {
 	constexpr static NN_Config config{64, 1, 1, 64, LS, 10, 5, 0, 512};
 	NN<config> algo{};

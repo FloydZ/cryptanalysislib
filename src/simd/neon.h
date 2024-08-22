@@ -2447,7 +2447,7 @@ struct uint32x8_t {
 		uint32x8_t ret;
 		const uint8_t *ptr8 = (uint8_t *) ptr;
 		for (uint32_t i = 0; i < 8; i++) {
-			ret.v32[i] = *(uint32_t *) (ptr8 + (data.v32[i] * scale));
+			ret.d[i] = *(uint32_t *) (ptr8 + (data.d[i] * scale));
 		}
 
 		return ret;
