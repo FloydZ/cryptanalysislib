@@ -618,8 +618,8 @@ public:
 		} else if constexpr (96 < n and n <= 128) {
 			bruteforce_simd_128_32_2_uxv<4, 4>(e1, e2);
 		} else if constexpr (128 < n and n <= 256) {
-			// TODO optimal value
-			if (e1 < 10 && e2 < 10) {
+			// NOTE: arbitrary set
+			if (e1 < 16 && e2 < 16) {
 				bruteforce_256(e1, e2);
 				return;
 			}

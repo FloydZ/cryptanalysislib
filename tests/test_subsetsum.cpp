@@ -1201,12 +1201,43 @@ TEST(SubSetSum, generic) {
 	Enumerator e{A};
 	e.run(&l1, &l2, n/2);
 
+
 	constexpr uint32_t depth = 2;
+	//auto nr_iTs = [](const uint32_t i = 0 ){
+	//	return (1ull << (depth - i -1ull)) - 1u;
+	//};
+
+	std::vector<Label> iTs(1u<<(depth-1u));
+	for (uint32_t i = 0; i < ((1u<<(depth-1u))-1u); ++i) {
+		iTs[i].random(0, 1ull << n);
+	}
+	iTs[(1u<<(depth-1u))-1u] = target;
+
+	// intermediate targets, example depth=2; 4 baselists
+	/// iTs[0] = TODO explaine
+	// TODO not correct, as we do not need all intermediate targets, this is for the full joint
+	std::vector<std::vector<Label>> sum_iTs(depth);
+	for (uint32_t i = 0; i < depth; ++i) {
+		const uint32_t size = 1u << (depth - i - 1u);
+		sum_iTs[i].resize(size);
+
+		// -1, because the last on is the target
+		for (uint32_t j = 0; j < size; ++j) {
+			sum_iTs[i][j] = iTs[i+j];
+			if (j & 1u) {
+				const uint32_t ctz = __builtin_ctz(j+1);
+				for (uint32_t k = 1; k <= std::min(2u, ctz); ++k) {
+					Label::sub(sum_iTs[i][j], sum_iTs[i][j], iTs[i+j-k]);
+				}
+			}
+		}
+	}
+
 	Tree t(depth, A, l1, l2);
 	t.join_stream_internal<0, k_lower1, k_higher1, k_higher2>
-	        (t.lists[2], target);
+	        (t.lists[2], sum_iTs);
 	t.join_stream_internal<1, k_lower1, k_higher1, k_higher2>
-			(out, target);
+			(out, sum_iTs, false);
 
 
 	uint32_t right=0;

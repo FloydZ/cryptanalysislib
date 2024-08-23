@@ -49,7 +49,9 @@ public:
 	// this generates a grey code sequence, e.g. a sequence in which
 	// two consecutive elements only differ in a single position
 	Combinations_Binary_Chase<T, n, w> chase = Combinations_Binary_Chase<T, n, w>{};
-	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(LIST_SIZE);
+
+	using ChangeList = std::vector<std::pair<uint16_t, uint16_t>>;
+	ChangeList chase_cl{LIST_SIZE};
 
 	const uint32_t q_prime = 0;
 	const size_t list_size = 0;
@@ -69,7 +71,7 @@ public:
 		ASSERT(LIST_SIZE >= list_size);
 		ASSERT(q_prime > 0);
 		ASSERT(q_prime < q);
-		chase.template changelist<false>(chase_cl.data(), this->LIST_SIZE);
+		chase.template changelist<false>(chase_cl, this->LIST_SIZE);
 	}
 
 	/// \tparam HashMap
@@ -259,7 +261,8 @@ public:
 	const size_t list_size = 0;
 
 	// change list for the chase sequence
-	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(chase_size);
+	using ChangeList = std::vector<std::pair<uint16_t, uint16_t>>;
+	ChangeList chase_cl{chase_size};
 	// change list for the gray code sequence
 	std::vector<uint16_t> gray_cl = std::vector<uint16_t>(std::max(1ul, gray_size));
 
@@ -283,7 +286,7 @@ public:
 				chase.changelist_mixed_radix_grey(gray_cl.data());
 			}
 
-			chase.template changelist_chase<false>(chase_cl.data());
+			chase.template changelist_chase<false>(chase_cl);
 		}
 	}
 
@@ -494,6 +497,11 @@ public:
 	static_assert(split >= mitm_w);
 	static_assert((n-split) >= noreps_w);
 
+	/// if set to `true` the noreps part will be increased, s.t.
+	/// it will be divisible by 4; Therefore the noreps part of L1 will
+	/// be overlapping with the reps/mitm part of L2
+	constexpr static bool align_noreps = true;
+
 	/// helper definition. Shouldnt be used.
 	constexpr static uint32_t w = mitm_w + noreps_w;
 
@@ -521,19 +529,24 @@ public:
 	/// The multiple of the element to enumerate
 	const uint32_t qprime;
 
-	///
+	/// Helper definitions for the mitm part
+	/// Total length to enumerate
 	constexpr static uint32_t mitmlen = split;
-	constexpr static uint32_t mitmlen_half = (mitmlen + 1u) / 2u;
-	constexpr static uint32_t mitmlen_offset = mitmlen - mitmlen_half;
+	constexpr static uint32_t mitmlen_half 		= (mitmlen + 1u) / 2u;
+	constexpr static uint32_t mitmlen_offset 	= mitmlen - mitmlen_half;
 
-	constexpr static uint32_t norepslen = n - split;
+	constexpr static uint32_t norepslen 		= align_noreps ? roundToAligned<4>(n - split) : n - split;
+	constexpr static uint32_t noreps_base 		= align_noreps ? n - norepslen : split;
 	constexpr static uint32_t norepslen_quarter = (norepslen + 3) / 4;
-	constexpr static uint32_t norepslen_offset = (norepslen) / 4;/// TODO not fully correct: with this the last coordinate will not be enumerated
+	constexpr static uint32_t norepslen_offset 	= (norepslen) / 4;
 
-	Combinations_Binary_Chase<T, mitmlen_half, mitm_w> mitm_chase = Combinations_Binary_Chase<T, mitmlen_half, mitm_w>{};
-	Combinations_Binary_Chase<T, norepslen_quarter, noreps_w> noreps_chase = Combinations_Binary_Chase<T, norepslen_quarter, noreps_w>{};
-	constexpr static size_t mitm_chase_size = Combinations_Binary_Chase<T, mitmlen_half, mitm_w>::chase_size;
-	constexpr static size_t noreps_chase_size = Combinations_Binary_Chase<T, norepslen_quarter, noreps_w>::chase_size;
+	using mitm_enumerator = BinaryChaseEnumerator<mitmlen_half, mitm_w>;
+	using noreps_enumerator = BinaryChaseEnumerator<norepslen_quarter, noreps_w>;
+
+	/// NOTE: the +1ull is needed, as the computation of `noreps` does not count
+	/// for the first element, which needs to be created by the caller function
+	constexpr static size_t mitm_chase_size   = mitm_enumerator::size();
+	constexpr static size_t noreps_chase_size = noreps_enumerator::size() + 1ull;
 
 	static_assert(n > w);
 	static_assert(mitmlen > mitm_w);
@@ -551,8 +564,9 @@ public:
 	const size_t list_size = 0;
 
 	// change list for the chase sequence
-	std::vector<std::pair<uint16_t, uint16_t>> mitm_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(mitm_chase_size);
-	std::vector<std::pair<uint16_t, uint16_t>> noreps_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(noreps_chase_size);
+	using changelist = std::vector<std::pair<uint16_t, uint16_t>>;
+	changelist mitm_chase_cl;
+	changelist noreps_chase_cl;
 
 	/// \param qprime: the multiple of `1`, which should be enumerated
 	/// \param HT transposed parity check matrix
@@ -568,8 +582,8 @@ public:
 	    list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 		ASSERT(LIST_SIZE >= list_size);
 
-		mitm_chase.template changelist<false>(mitm_chase_cl.data());
-		noreps_chase.template changelist<false>(noreps_chase_cl.data());
+		mitm_enumerator::changelist(mitm_chase_cl);
+		noreps_enumerator::changelist(noreps_chase_cl);
 	}
 
 	/// \tparam HashMap
@@ -645,8 +659,8 @@ public:
 
 		for (uint32_t i = 0; i < noreps_w; ++i) {
 			for (uint32_t k = 0; k < 4; ++k) {
-				elements[k]->value.set(qprime, i + split + k * norepslen_offset);
-				Label::scalar(tmp, HT.get(i + split + k * norepslen_offset), qprime);
+				elements[k]->value.set(qprime, i + noreps_base + k * norepslen_offset);
+				Label::scalar(tmp, HT.get(i + noreps_base + k * norepslen_offset), qprime);
 				Label::add(elements[k]->label, elements[k]->label, tmp);
 			}
 		}
@@ -654,7 +668,10 @@ public:
 		auto chase_step = [this](Element &element,
 		                         const uint32_t unset,
 		                         const uint32_t set) {
-			std::cout << element << std::endl;
+			if (unset == set) {
+				  // this quirk can happen if `noreps_w` is even.
+				  return;
+			}
 			/// make really sure that the the chase
 			/// sequence is correct.
 			ASSERT(element.value[unset]);
@@ -671,17 +688,16 @@ public:
 			element.value.set(qprime, set);
 		};
 
-		/// TODO stimmt nicht, anpassen wie in der binary versin
 		/// iterate over all sequences
-		for (uint32_t i = 0; i < mitm_chase_size; ++i) {
-			for (uint32_t j = 0; j < noreps_chase_size; ++j) {
+		for (size_t i = 0; i < mitm_chase_size; ++i) {
+			for (size_t j = 0; j < noreps_chase_size-1ull; ++j) {
 				for (uint32_t k = 0; k < 4; ++k) {
 					check(elements[k]->label, elements[k]->value);
 					insert_list(lists[k], *elements[k], ctr, tid);
 
 					chase_step(*elements[k],
-					           split + k * norepslen_offset + noreps_chase_cl[j].first,
-					           split + k * norepslen_offset + noreps_chase_cl[j].second);
+							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].first,
+							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].second);
 				}
 
 				// TODO also hash the 3 element
@@ -694,10 +710,23 @@ public:
 			}
 
 			for (uint32_t k = 0; k < 4; ++k) {
+				check(elements[k]->label, elements[k]->value);
+				insert_list(lists[k], *elements[k], ctr, tid);
+
 				chase_step(*elements[k],
-				           (k & 1u) * mitmlen_offset + mitm_chase_cl[i].first,
-				           (k & 1u) * mitmlen_offset + mitm_chase_cl[i].second);
+						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].first,
+						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].second);
+
+				// due to easieness reasons, we simply reset the no reps part,
+				// and do not walk backwards
+				for (uint32_t j = 0; j < noreps_w; ++j) {
+					chase_step(*elements[k],
+							   noreps_base + k*norepslen_offset + norepslen_quarter-j-1,
+							   noreps_base + k*norepslen_offset + j);
+				}
 			}
+
+			ctr += 1;
 			if (ctr >= list_size) {
 				return false;
 			}
@@ -791,8 +820,10 @@ public:
 	const size_t list_size = 0;
 
 	// change list for the chase sequence
-	std::vector<std::pair<uint16_t, uint16_t>> mitm_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(mitm_chase_size);
-	std::vector<std::pair<uint16_t, uint16_t>> noreps_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(noreps_chase_size);
+	using ChangeList = std::vector<std::pair<uint16_t, uint16_t>>;
+	ChangeList mitm_chase_cl{mitm_chase_size};
+	ChangeList noreps_chase_cl{noreps_chase_size};
+
 	std::vector<uint16_t> mitm_gray_cl = std::vector<uint16_t>(mitm_gray_size);
 	std::vector<uint16_t> noreps_gray_cl = std::vector<uint16_t>(noreps_gray_size);
 
@@ -815,8 +846,8 @@ public:
 
 		if constexpr (q > 2) mitm_chase.changelist_mixed_radix_grey(mitm_gray_cl.data());
 		if constexpr (q > 2) noreps_chase.changelist_mixed_radix_grey(noreps_gray_cl.data());
-		mitm_chase.template changelist_chase<false>(mitm_chase_cl.data());
-		noreps_chase.template changelist_chase<false>(noreps_chase_cl.data());
+		mitm_chase.template changelist_chase<false>(mitm_chase_cl);
+		noreps_chase.template changelist_chase<false>(noreps_chase_cl);
 	}
 
 	/// \tparam HashMap

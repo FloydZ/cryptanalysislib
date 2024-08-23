@@ -182,7 +182,7 @@ public:
 					const List &b1,
 					const List &b2) noexcept :
 			matrix(A),
-			level_translation_array(level_translation_array) {
+			level_translation_array() {
 		ASSERT(d > 0 && "at least level 1");
 		lists.push_back(b1);
 		lists.push_back(b2);
@@ -1347,24 +1347,6 @@ public:
 		LabelType::sub(t1, target, iT);
 		twolevel_streamjoin_on_iT_v2(out, iL, L3, L4, target, t1,
 		                             k_lower1, k_upper1, k_lower2, k_upper2);
-
-		// for (size_t k = 0; k < L3.load(); ++k) {
-		// 	LabelType::sub(t1, target, iT);
-		// 	LabelType::sub(t1, t1, L3[k].label);
-		// 	size_t l = L4.search_level(t1, 0, k_upper1);
-		// 	for (; (l < L4.load()) &&
-		// 		   (t1.is_equal(L4[l].label, 0, k_upper1)); ++l) {
-		// 		LabelType::sub(t2, target, L3[k].label);
-		// 		LabelType::sub(t2, t2, L4[l].label);
-		// 		size_t o = iL.search_level(t2, 0, k_upper2);
-		// 		for (; (o < iL.load()) &&
-		// 			   (t2.is_equal(iL[o].label, 0, k_upper2)); ++o) {
-		// 			tmpe1 = iL[o];
-		// 			ElementType::add(tmpe1, tmpe1, L3[k]);
-		// 			out.add_and_append(tmpe1, L4[l], 0, k_upper2, filter);
-		// 		}
-		// 	}
-		// }
 	}
 
 
@@ -1762,6 +1744,7 @@ public:
 	template<const uint32_t l, const uint32_t h>
 	class helper {
 	public:
+		// returns the next level to search in
 		constexpr static inline uint32_t run(const uint32_t &level,
 		                                     const List *lists,
 		                                     const ElementType &e,
@@ -1771,7 +1754,7 @@ public:
 			indices[level] = boundaries[level].first;
 
 			// NOTE: the cast here
-			int32_t lvl = level;
+			int32_t lvl = (int32_t)level;
 			while (lvl >= 0) {
 				if (indices[lvl] == boundaries[lvl].second) {
 					if (lvl == 0) {
@@ -1788,10 +1771,39 @@ public:
 		}
 	};
 
+
+	// This example shows how to enumerate all intermediate target
+	// if a full join (no stream join) is done.
+	//
+	// Output Example: (d = 2) => 4 base lists
+	//	iT1 iT2-iT1 iT3 T-iT3-iT2
+	//  iT2 T-iT2
+	//
+	// std::vector<Label> iTs(1u<<(depth-1u));
+	// for (uint32_t i = 0; i < ((1u<<(depth-1u))-1u); ++i) {
+	// 	iTs[i].random(0, 1ull << n);
+	// }
+	// iTs[(1u<<(depth-1u))-1u] = target;
+	// std::vector<std::vector<Label>> sum_iTs(depth);
+	// for (uint32_t i = 0; i < depth; ++i) {
+	// 	const uint32_t size = 1u << (depth - i - 1u);
+	// 	sum_iTs[i].resize(size);
+	// 	// -1, because the last on is the target
+	// 	for (uint32_t j = 0; j < size; ++j) {
+	// 		sum_iTs[i][j] = iTs[i+j];
+	// 		if (j & 1u) {
+	// 			const uint32_t ctz = __builtin_ctz(j+1);
+	// 			for (uint32_t k = 1; k <= std::min(2u, ctz); ++k) {
+	// 				Label::sub(sum_iTs[i][j], sum_iTs[i][j], iTs[i+j-k]);
+	// 			}
+	// 		}
+	// 	}
+	// }
+
 	template<const uint32_t level,
 	         const uint32_t ...ks>
 	void join_stream_internal(List &out,
-	                          const LabelType &target,
+							  const std::vector<std::vector<LabelType>> &iTs,
 	                          const bool prepare=true) {
 		static_assert(sizeof...(ks) >= (level + 2u),
 		              "make sure that you give enough limits");
@@ -1808,18 +1820,22 @@ public:
 			out.set_load(0);
 			lists[1].template sort_level<k_lower, k_upper>();
 		}
-		ASSERT(lists[1].is_sorted(k_lower, k_upper));
 
 		if constexpr (level == 0) {
 			//easy case, we want to joint on only two lists, so basically no streaming
-			join2lists_on_iT_v2<k_lower, k_upper>(out, lists[0], lists[1], target, prepare);
+			join2lists_on_iT_v2<k_lower, k_upper>(out, lists[0], lists[1], iTs[0][0], prepare);
 
 			// TODO
 			lists[2].template sort_level<0, 16>();
 			return;
 		}
 
-		// keep track of the partial sums we are computing
+		constexpr uint32_t ll = std::get<0>(std::forward_as_tuple(ks...));
+		constexpr uint32_t lh = std::get<sizeof...(ks) - 1u>(std::forward_as_tuple(ks...));;
+
+		// keep track of the partial sums we are computing to search within the next level
+		std::vector<ElementType> search_sums(level);
+		// keep track of the actual sums of elements
 		std::vector<ElementType> sums(level);
 
 		//
@@ -1828,10 +1844,13 @@ public:
 		//
 		std::vector<size_t> indices(level);
 
-		/// storage for the helper functions: TODO explain
+		/// storage for the helper functions: these allow the translation
+		/// between the (non-constexpr) current level we are matching on
+		/// and the (constexpr) boundaries we are matching on.
 		std::vector<std::function< decltype(helper<0, 1>::run)>> vec;
 
 		/// NOTE: the starting point 1: we want to merge on lvl 0 with elements from lvl 1
+		/// NOTE: the -1 is because in `constexpr_for` the upper bound is inclusive
 		constexpr_for<1u, sizeof...(ks) - 1u, 1u>([&vec](const auto I) {
 			constexpr uint32_t l = std::get<I+0>(std::forward_as_tuple(ks...));
 			constexpr uint32_t h = std::get<I+1>(std::forward_as_tuple(ks...));;
@@ -1839,30 +1858,35 @@ public:
 			vec.push_back(t2);
 		});
 
-
-
+		/// start the actual algorithm
 		for (size_t i = 0; i < lists[0].load(); ++i) {
-			LabelType::template sub<k_lower, k_upper>(sums[0].label, target, lists[0][i].label);
-			size_t j = lists[1].template search_level<k_lower, k_upper>(sums[0].label);
+			constexpr uint32_t iTs_start_pos = (1u << level) + 1u;
+			LabelType::template sub<k_lower, k_upper>(search_sums[0].label, iTs[0][iTs_start_pos], lists[0][i].label);
+			size_t j = lists[1].template search_level<k_lower, k_upper>(search_sums[0]);
 
 			for (; (j < lists[1].load()) &&
-				   (sums[0].label.template is_equal<k_lower, k_upper>(lists[1][j].label)); ++j) {
+				   (search_sums[0].label.template is_equal<k_lower, k_upper>(lists[1][j].label)); ++j) {
+				ElementType::add(sums[0], lists[0][i], lists[1][j]);
+
 				// now the actual stream join starts
 				bool stop = false;
 				uint32_t l = 0;
 				while (!(stop)) {
 					while (l < level) {
-						// perform search on current level (streamjoining against level l list)
 						if (l == 0) {
-							l = vec[l].operator()(l, this->lists.data(), sums[0], boundaries, indices);
-						//	search_in_level_l(a[0], lists[0][i], lists[1][j], l, boundaries, indices);
+							l = vec[l].operator()(l, this->lists.data(), search_sums[0], boundaries, indices);
 						} else {
-							ElementType::add(sums[l], sums[l-1], lists[l+1][indices[l-1]]);
-							l = vec[l].operator()(l, this->lists.data(), sums[l], boundaries, indices);
-							//search_in_level_l(a[l], a[l - 1], lists[l + 1][indices[l - 1]], l, boundaries, indices);
+							search_sums[l].zero();
+							search_sums[l].label = iTs[l][0];
+							ElementType::sub(search_sums[l], search_sums[l-1], lists[l+1][indices[l-1]]);
+							//ElementType::sub(sums[l], sums[l-1], lists[l+1][indices[l-1]]);
+							l = vec[l].operator()(l, this->lists.data(), search_sums[l], boundaries, indices);
 						}
 
 						// TODO targets anpassen
+						// TODO search_sums anpassen
+						// TODO für d = 3 werdern L5 und L6 nicht gemerged? Is das correkt?
+						//  => es müssen die iT angepasst werden
 
 						//if on lowest level the index reaches the boundary: stop
 						if (indices[0] == boundaries[0].second) {
@@ -1873,11 +1897,9 @@ public:
 
 					// save all matching elements
 					for (; indices[level - 1] < boundaries[level - 1].second; ++indices[level - 1]) {
-						constexpr uint32_t ll = std::get<0>(std::forward_as_tuple(ks...));
-						constexpr uint32_t lh = std::get<sizeof...(ks) - 1u>(std::forward_as_tuple(ks...));;
 						out.template add_and_append
 						        <ll, lh, filter, sub>
-						        (sums[level - 1], lists[level + 1][indices[level - 1]]);
+						        (search_sums[level - 1], lists[level + 1][indices[level - 1]]);
 					}
 
 					// continue stream-join with the next element of previous level

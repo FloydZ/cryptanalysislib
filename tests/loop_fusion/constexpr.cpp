@@ -9,7 +9,6 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-// TODO probably need inc type: so that -1/i-- is possible
 using namespace loop_fusion::compiletime;
 
 

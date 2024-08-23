@@ -94,15 +94,16 @@ class Combinations_Binary_Chase {
 	                                     const int bit) noexcept {
 		ASSERT(b < two_changes_binary_o.size());
 		uint64_t ret = start + two_changes_binary_o[b] + two_changes_binary_p[b] * two_changes_binary_d[b];
-		if constexpr (write) { WRITE_BIT(A, ret, bit); }
+		if constexpr (write) { write_bit(A, ret, bit); }
 		return ret;
 	}
 
-
-	// TODO rename
 	// we need these little helpers, because M4RI does not implement any row
 	// access functions, only ones for matrices.
-	constexpr static inline void WRITE_BIT(T *v,
+	/// \param v vector to write to
+	/// \param i position to wrtie to
+	/// \param b  bit to write
+	constexpr static inline void write_bit(T *v,
 	                                       const size_t i,
 	                                       const uint64_t b) noexcept {
 		v[i / RADIX] = ((v[i / RADIX] & ~(1ull << (i % RADIX))) | (T(b) << (i % RADIX)));
@@ -176,15 +177,16 @@ public:
 		return true;
 	}
 
-	/// TODO make static
+	/// not possible to make static
 	/// \tparam write
 	/// \param ret input/output const_array containing ``
 	/// \param listsize
 	/// \return
 	template<bool write = true>
-	constexpr void changelist(std::pair<uint16_t, uint16_t> *ret,// TODO change to reference
+	constexpr void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 	                          const size_t listsize = 0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
+		ret.resize(listsize);
 
 		left_step<write>(nullptr, &ret[0].first, &ret[0].second);
 		for (size_t i = 0; i < size; ++i) {
@@ -301,7 +303,7 @@ public:
 	/// \param ret input/output const_array containing ``
 	/// \return nothing
 	template<bool write = true>
-	constexpr void changelist_chase(std::pair<uint16_t, uint16_t> *ret) {
+	constexpr void changelist_chase(std::vector<std::pair<uint16_t, uint16_t>> &ret) {
 		chase.template changelist<write>(ret);
 	}
 

@@ -1153,6 +1153,7 @@ struct uint16x16_t {
 	};
 
 	constexpr inline uint16x16_t() noexcept = default;
+	[[nodiscard]] constexpr inline static bool is_unsigned() { return true; }
 
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {

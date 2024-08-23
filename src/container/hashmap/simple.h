@@ -121,10 +121,11 @@ public:
 	///
 	template<class SIMD>
 #if __cplusplus > 201709L
-		requires SIMDAble<SIMD>
+// 		activate as soon as every uint16x16 has implemented the interface
+// 		requires SIMDAble<SIMD>
 #endif
 	constexpr inline void insert_simd(const SIMD &e,
-	                                  const SIMD *value) noexcept {
+	                                  const SIMD value) noexcept {
 		for (uint32_t i = 0; i < SIMD::LIMBS; i++) {
 			insert(e[i], value[i]);
 		}

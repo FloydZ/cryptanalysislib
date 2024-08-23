@@ -197,48 +197,47 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap) {
 	}
 }
 
-// TODO currently not working, as the enumerator needs adaption from the binary case
-//TEST(ListEnumerateSinglePartialSingle, simple_nohashmap_subsetsum) {
-//	using T = uint64_t;
-//
-//	constexpr uint64_t n = 20;
-//	constexpr uint64_t q = 1ull<<n;
-//	using Label = kAry_Type_T<q>;
-//	using Value = kAryPackedContainer_T<T, n, q>;
-//	using Matrix = FqVector<T, n, q>;
-//	using Element = Element_T<Value, Label, Matrix>;
-//	using List = List_T<Element>;
-//
-//	constexpr uint32_t mitm_w = 2;
-//	constexpr uint32_t noreps_w = 2;
-//	constexpr uint32_t split = n / 2;
-//	using Enumerator = ListEnumerateSinglePartialSingle<List, n, q, mitm_w, noreps_w, split>;
-//
-//	constexpr size_t list_size = Enumerator::LIST_SIZE;
-//	List L1(list_size), L2(list_size), L3(list_size), L4(list_size);
-//	Matrix HT;
-//	HT.random();
-//	Enumerator enumerator{2, HT};
-//	enumerator.run(L1, L2, L3, L4);
-//
-//	for (size_t i = 0; i < list_size; ++i) {
-//		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
-//		ASSERT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
-//		ASSERT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
-//		ASSERT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
-//
-//		ASSERT_EQ(L1.data_value(i).popcnt(0, split), mitm_w);
-//		ASSERT_EQ(L2.data_value(i).popcnt(0, split), mitm_w);
-//		ASSERT_EQ(L3.data_value(i).popcnt(0, split), mitm_w);
-//		ASSERT_EQ(L4.data_value(i).popcnt(0, split), mitm_w);
-//
-//		ASSERT_EQ(L1.data_value(i).popcnt(split, n), noreps_w);
-//		ASSERT_EQ(L2.data_value(i).popcnt(split, n), noreps_w);
-//		ASSERT_EQ(L3.data_value(i).popcnt(split, n), noreps_w);
-//		ASSERT_EQ(L4.data_value(i).popcnt(split, n), noreps_w);
-//	}
-//
-//}
+TEST(ListEnumerateSinglePartialSingle, simple_nohashmap_subsetsum) {
+	using T = uint64_t;
+
+	constexpr uint64_t n = 20;
+	constexpr uint64_t q = 1ull<<n;
+	using Label = kAry_Type_T<q>;
+	using Value = kAryPackedContainer_T<T, n, q>;
+	using Matrix = FqVector<T, n, q>;
+	using Element = Element_T<Value, Label, Matrix>;
+	using List = List_T<Element>;
+
+	constexpr uint32_t mitm_w = 2;
+	constexpr uint32_t noreps_w = 2;
+	constexpr uint32_t split = n / 2;
+	using Enumerator = ListEnumerateSinglePartialSingle<List, n, q, mitm_w, noreps_w, split>;
+
+	constexpr size_t list_size = Enumerator::LIST_SIZE;
+	List L1(list_size), L2(list_size), L3(list_size), L4(list_size);
+	Matrix HT;
+	HT.random();
+	Enumerator enumerator{3, HT};
+	enumerator.run(L1, L2, L3, L4);
+
+	for (size_t i = 0; i < list_size; ++i) {
+		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
+		ASSERT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
+
+		// ASSERT_EQ(L1.data_value(i).popcnt(0, split), mitm_w);
+		ASSERT_EQ(L2.data_value(i).popcnt(0, split), mitm_w);
+		ASSERT_EQ(L3.data_value(i).popcnt(0, split), mitm_w);
+		ASSERT_EQ(L4.data_value(i).popcnt(0, split), mitm_w);
+
+		// ASSERT_EQ(L1.data_value(i).popcnt(split, n), noreps_w);
+		ASSERT_EQ(L2.data_value(i).popcnt(split, n), noreps_w);
+		ASSERT_EQ(L3.data_value(i).popcnt(split, n), noreps_w);
+		ASSERT_EQ(L4.data_value(i).popcnt(split, n), noreps_w);
+	}
+
+}
 
 TEST(BinarySinglePartialSingleEnumerator, simple_nohashmap_subsetsum) {
 	using T = uint64_t;

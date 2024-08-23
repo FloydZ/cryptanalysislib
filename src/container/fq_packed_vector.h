@@ -44,8 +44,12 @@ public:
 	static_assert(q > 1, "mod 1 or 0?");
 	static_assert(bits_log2(q) <= (8*sizeof(T)), "the limb type should be atleast of the size of prime");
 
-	// TODO enable AVX512
-	using S = TxN_t<T, 32/sizeof(T)>;
+#ifdef USE_AVX512F
+	constexpr static uint32_t nr_limbs_in_S = 64/sizeof(T);
+#else
+	constexpr static uint32_t nr_limbs_in_S = 32/sizeof(T);
+#endif
+	using S = TxN_t<T, nr_limbs_in_S>;
 
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
@@ -215,13 +219,7 @@ public:
 	// simple hash function
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		return *this;
-		//if constexpr(total_bits <= 64) {
-		//	return hash<0, n>();
-		//}
-		//// TODO not really correct if n>64
-		//// return Hash<uint64_t, 0, n, q>::hash((uint64_t *)ptr());
-		//ASSERT(false);
-		//return (uint64_t)0;
+		// return Hash<uint64_t, 0, n, q>::hash((uint64_t *)ptr());
 	}
 
 	template<const uint32_t l, const uint32_t h>
@@ -612,13 +610,11 @@ public:
 	/// \return a+b, component wise
 	[[nodiscard]] constexpr static inline S add256_T(const S a,
 	                                                 const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
 			ret_data[i] = add_T(a_data[i], b_data[i]);
 		}
 
@@ -632,13 +628,11 @@ public:
 	/// \return a-b, component wise
 	[[nodiscard]] constexpr static inline S sub256_T(const S a,
 	                                                const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
 			ret_data[i] = sub_T(a_data[i], b_data[i]);
 		}
 
@@ -652,13 +646,11 @@ public:
 	/// \return a*b, component wise
 	[[nodiscard]] constexpr static inline S mul256_T(const S a,
 	                                                 const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
 			ret_data[i] = mul_T(a_data[i], b_data[i]);
 		}
 
@@ -671,12 +663,10 @@ public:
 	/// \param b in
 	/// \return a*b, component wise
 	[[nodiscard]] constexpr static inline S neg256_T(const S a) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		S ret;
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
 			ret_data[i] = neg_T(a_data[i]);
 		}
 
@@ -688,12 +678,10 @@ public:
 	/// \param a
 	/// \return a%q component wise
 	[[nodiscard]] constexpr static inline S mod256_T(const S a) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		S ret;
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
 			ret_data[i] = neg_T(a_data[i]);
 		}
 
@@ -1162,8 +1150,6 @@ public:
 	constexpr inline DataType operator[](const size_t i) noexcept {
 		ASSERT(i < length());
 		return get(i);
-		// TODO; the problem is: in test_subsetsum reference cannot be casted to kAryType
-		//return reference(*this, i);
 	}
 
 	/// \param i
@@ -1576,24 +1562,7 @@ public:
 	constexpr inline static void sub(kAryPackedContainer_T &v3,
 	                                 kAryPackedContainer_T const &v1,
 	                                 kAryPackedContainer_T const &v2) noexcept {
-		//if constexpr (internal_limbs == 1) {
-		//	v3.__data[0] = sub_T(v1.__data[0], v2.__data[0]);
-		//	return;
-		//} else if constexpr ((internal_limbs == 2) && (sizeof(T) == 8)) {
-		//	__uint128_t t = sub_T<__uint128_t>(*((__uint128_t *)v1.__data.data()), *((__uint128_t *)v2.__data.data()));
-		//	*((__uint128_t *)v3.__data.data()) = t;
-		//	return;
-		//}
-
-		uint32_t i = 0;// TODO not working on ARM apple
-		//if constexpr(activate_avx2) {
-		//	for (; i + limbs_per_simd_limb <= internal_limbs; i += limbs_per_simd_limb) {
-		//		const uint64x4_t t = sub256_T(uint64x4_t::unaligned_load((uint64x4_t *) &v1.__data[i]),
-		//		                              uint64x4_t::unaligned_load((uint64x4_t *) &v2.__data[i]));
-		//		uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[i], t);
-		//	}
-		//}
-
+		uint32_t i = 0;
 		for (; i < internal_limbs; i++) {
 			v3.__data[i] = sub_T(v1.__data[i], v2.__data[i]);
 		}

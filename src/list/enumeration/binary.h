@@ -57,7 +57,7 @@ public:
 	// TODO rename to max list size
 	constexpr static size_t LIST_SIZE = Combinations_Binary_Chase<T, n, w>::chase_size;
 	const size_t list_size;
-	std::array<std::pair<uint16_t, uint16_t>, bc(n, w)> cL;
+	std::vector<std::pair<uint16_t, uint16_t>> cL{bc(n, w)};
 	Element e11, e12, e21, e22;
 
 	/// \param HT transposed parity check matrix
@@ -69,7 +69,7 @@ public:
 	                                   const Label *syndrome = nullptr) noexcept
 	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
 	      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
-		  chase.template changelist<false>(cL.data(), this->list_size);
+		  chase.template changelist<false>(cL, this->list_size);
 	}
 
 	///
@@ -543,7 +543,9 @@ template<class ListType,
 class BinarySinglePartialSingleEnumerator :
     public ListEnumeration_Meta<ListType, n, 2, mitm_w + noreps_w> {
 public:
-	///
+	/// if set to `true` the noreps part will be increased, s.t.
+	/// it will be divisible by 4; Therefore the noreps part of L1 will
+	/// be overlapping with the reps/mitm part of L2
 	constexpr static bool align_noreps = true;
 
 	/// helper definition. Shouldnt be used.

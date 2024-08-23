@@ -1080,7 +1080,6 @@ static inline void sortingnetwork_sort_ ## NEW_MULT (REG &a, REG &b, REG &c, REG
 	sortingnetwork_aftermerge_ ## MULT8 (i, j, k, l, m, n, o, p); \
 }
 
-// TODO rename?
 sortingnetwork_aftermerge2(f32x16, f32x8, __m256)
 sortingnetwork_aftermerge2(u32x16, u32x8, __m256i)
 sortingnetwork_aftermerge2(i32x16, i32x8, __m256i)
@@ -1092,7 +1091,7 @@ sortingnetwork_merge_sorted2(u32x16, u32x8, __m256i)
 sortingnetwork_merge_sorted2(i32x16, i32x8, __m256i)
 sortingnetwork_sort2(f32x16, f32x8, __m256)
 sortingnetwork_sort2(i32x16, i32x8, __m256i)
-// sortingnetwork_sort2(u32x16, u32x8, __m256i) // already defined just faster? todo test
+// sortingnetwork_sort2(u32x16, u32x8, __m256i) // already defined just faster?
 sortingnetwork_merge_sorted3(f32x24,f32x16,f32x8,__m256)
 sortingnetwork_merge_sorted3(u32x24,u32x16,u32x8,__m256i)
 sortingnetwork_merge_sorted3(i32x24,i32x16,i32x8,__m256i)

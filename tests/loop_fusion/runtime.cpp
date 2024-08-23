@@ -112,7 +112,7 @@ TEST(LoopFusion, MultipleMerge) {
     auto l3 = loop_from_to(500, 1500, op3);
     auto u1 = l1 | l2;
     auto u2 = l2 | l3;
-	// TODO
+	// NOTE: currently not possible
     // (u1 | u2).run();
     // ASSERT_EQ(sum, (900 + 4 * 2000 + 3 * 1000));
 }

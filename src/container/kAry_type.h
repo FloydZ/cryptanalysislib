@@ -12,13 +12,22 @@
 #include "print/print.h"
 #include "random.h"
 #include "simd/simd.h"
+#include "alloc/alloc.h"
 
 using namespace cryptanalysislib::metric;
 
-// TODO config
+struct FqConfig : public AlignmentConfig {
+	constexpr static bool mirror = false;
+	constexpr static bool arith = true;
+	constexpr static bool lower_is_zero = true;
+} fqConfig;
+
 /// \tparam q  modulus
+/// \tparam Metric: currently unused
+/// \tparam FqConfig: currently unused
 template<const uint64_t _q,
-         class Metric = HammingMetric>
+         class Metric = HammingMetric,
+         const FqConfig &config=fqConfig>
 class kAry_Type_T {
 public:
 	// make the length and modulus of the container public available
@@ -53,17 +62,17 @@ public:
 	// if true, all bit operations are flipped,
 	// instead of the lowest bits, all operations are
 	// performed on the highest bits
-	constexpr static bool mirror = false;
+	constexpr static bool mirror = config.mirror;
 
 	// if true, all arith operations ar performed
 	// as arithmetic operations, regardless of the
 	// given bit boundaries.
-	constexpr static bool arith = true;
+	constexpr static bool arith = config.arith;
 
 	// if true, all mask operations ignore the given
 	// `k_lower` parameters, and set them to zero.
 	// Very useful for SubSet Sum calculations
-	constexpr static bool lower_is_zero = true;
+	constexpr static bool lower_is_zero = config.lower_is_zero;
 
 	static_assert(mirror + arith <= 1, "only one of the two params should be set to `true`");
 
@@ -1268,8 +1277,6 @@ public:
 
 	/// returns size of a single element in this container in bits
 	[[nodiscard]] static constexpr inline size_t sub_container_size() noexcept {
-		// return bytes() * 8;
-		// TODO for sorint in lists
 		return 1;
 	}
 
@@ -1342,8 +1349,7 @@ public:
 		          << ", sizeof(T2): " << sizeof(T2)
 		          << " }" << std::endl;
 	}
-	// TODO private:
-
+private:
 	T __value;
 };
 

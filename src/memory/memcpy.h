@@ -81,9 +81,6 @@ namespace cryptanalysislib {
 				}
 			}
 
-			// TODO check if partly overlap
-			// TODO for very big loops not temporary hints
-
 			// now dest is aligned by 32
 			size_t ctr = 0;
 			for (size_t i = 0; i < bytes2/32; ++i) {

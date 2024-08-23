@@ -42,8 +42,12 @@ public:
 
 	typedef kAryContainerMeta ContainerType;
 
-	// TODO enable AVX512
-	using S = TxN_t<T, 32/sizeof(T)>;
+#ifdef USE_AVX512F
+	constexpr static size_t nr_of_limbs_in_S = 64/sizeof(T);
+#else
+	constexpr static size_t nr_of_limbs_in_S = 32/sizeof(T);
+#endif
+	using S = TxN_t<T, nr_of_limbs_in_S>;
 
 	// simple hash function
 	template<const uint32_t l, const uint32_t h>
@@ -457,7 +461,6 @@ public:
 	                                                 const S b) noexcept {
 		constexpr uint32_t nr_limbs = 32u / sizeof(T);
 
-		// TODO: replace with S::mul
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
@@ -504,7 +507,6 @@ public:
 		return ret;
 	}
 
-	// TODO missing rol/ror/slr
 	///  out[s: ] = in[0:s]
 	constexpr static inline void sll(kAryContainerMeta &out,
 									 const kAryContainerMeta &in,
@@ -517,15 +519,50 @@ public:
 			out.set(d, j + s);
 		}
 	}
+
+	///
+	constexpr static inline void slr(kAryContainerMeta &out,
+									 const kAryContainerMeta &in,
+									 const uint32_t s) noexcept {
+		out.zero();
+
+		ASSERT(s < length());
+		for (uint32_t j = 0; j < length() - s; ++j) {
+			const auto d = in.get(j+s);
+			out.set(d, j);
+		}
+	}
+
+	constexpr static inline void ror(kAryContainerMeta &out,
+									 const kAryContainerMeta &in,
+									 const uint32_t s) noexcept {
+		out.zero();
+
+		ASSERT(s < length());
+		for (uint32_t j = 0; j < length(); ++j) {
+			const auto d = in.get((j + s) % length());
+			out.set(d, j);
+		}
+	}
+	constexpr static inline void rol(kAryContainerMeta &out,
+									 const kAryContainerMeta &in,
+									 const uint32_t s) noexcept {
+		out.zero();
+
+		ASSERT(s < length());
+		for (uint32_t j = 0; j < length() - s; ++j) {
+			const auto d = in.get(j);
+			out.set(d, (j + s) % length());
+		}
+	}
+
 	/// NOTE: inplace
 	/// computes mod q
 	/// \param out = in1 % q
 	/// \param in1: input vector
 	constexpr static inline void mod(T *out, const T *in1) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		uint32_t i = 0;
-		for (; i + nr_limbs < n; i += nr_limbs) {
+		for (; i + nr_of_limbs_in_S < n; i += nr_of_limbs_in_S) {
 			const uint8x32_t a = uint8x32_t::load(in1 + i);
 			const uint8x32_t tmp = mod256_T(a);
 			uint8x32_t::store(out + i, tmp);
@@ -565,10 +602,8 @@ public:
 	constexpr static inline void add(T *out,
 	                                 const T *in1,
 	                                 const T *in2) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		uint32_t i = 0;
-		for (; i + nr_limbs <= n; i += nr_limbs) {
+		for (; i + nr_of_limbs_in_S <= n; i += nr_of_limbs_in_S) {
 			const uint8x32_t a = uint8x32_t::load((uint8_t *)(in1 + i));
 			const uint8x32_t b = uint8x32_t::load((uint8_t *)(in2 + i));
 
@@ -611,9 +646,6 @@ public:
 		if (norm == -1u) {
 			for (uint64_t i = k_lower; i < k_upper; ++i) {
 				v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
-				// TODO hide behind an internal constexpr flag
-				if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
-					return true;
 			}
 
 			return false;
@@ -622,6 +654,9 @@ public:
 		LOOP_UNROLL();
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
+			if (cryptanalysislib::math::abs(v3.__data[i]) > norm) {
+				return true;
+			}
 		}
 
 		return false;
@@ -665,10 +700,8 @@ public:
 	constexpr static inline void sub(T *out,
 	                       const T *in1,
 	                       const T *in2) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		uint32_t i = 0;
-		for (; i + nr_limbs < n; i += nr_limbs) {
+		for (; i + nr_of_limbs_in_S < n; i += nr_of_limbs_in_S) {
 			const auto a = S::load((uint8_t *)(in1 + i));
 			const auto b = S::load((uint8_t *)(in2 + i));
 
@@ -763,10 +796,8 @@ public:
 	                       			 const T *in2,
 	                                 const uint32_t k_lower=0,
 	                                 const uint32_t k_upper=n) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		uint32_t i = k_lower;
-		for (; i + nr_limbs < k_upper; i += nr_limbs) {
+		for (; i + nr_of_limbs_in_S <= k_upper; i += nr_of_limbs_in_S) {
 			const auto a = S::load(in1 + i);
 			const auto b = S::load(in2 + i);
 

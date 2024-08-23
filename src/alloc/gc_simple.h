@@ -500,7 +500,7 @@ struct GarbageCollector {
 		}
 	}
 
-	void mark_stack() noexcept {
+	void mark_stack() {
 		void *tos = __builtin_frame_address(0);
 		void *_bos = this->bos;
 		/* The stack grows towards smaller memory addresses, hence we scan tos->bos.
@@ -527,13 +527,12 @@ struct GarbageCollector {
 		/* Scan the heap for roots */
 		mark_roots();
 		/* Dump registers onto stack and scan the stack */
-		// void (*_mark_stack)(void) = gc_mark_stack;
-		// jmp_buf ctx;
-		// memset(&ctx, 0, sizeof(jmp_buf));
-		// setjmp(ctx);
-		// _mark_stack();
-		// TODO
-		mark_stack();
+		void (GarbageCollector::*ptr)() = &GarbageCollector::mark_stack;
+		jmp_buf ctx;
+		memset(&ctx, 0, sizeof(jmp_buf));
+		setjmp(ctx);
+		// was soll schon schief gehen
+		(*this.*ptr)();
 	}
 
 	size_t sweep() noexcept {
