@@ -1,6 +1,7 @@
 #TESTS Flags
 set(COMPILE_TEST_FLAGS -g -pthread)
 
+add_subdirectory(algorithm)
 add_subdirectory(alloc)
 add_subdirectory(atomic)
 add_subdirectory(binary)

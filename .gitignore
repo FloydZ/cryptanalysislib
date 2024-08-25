@@ -13,7 +13,7 @@ compile_commands.json
 .local-history/
 Session.vim
 config.h
-
+cmake-build-relwithdebinfo/
 # Created by .ignore support plugin (hsz.mobi)
 ### C++ template
 # Prerequisites

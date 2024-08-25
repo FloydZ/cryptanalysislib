@@ -1,9 +1,10 @@
 #ifndef CRYPTANALYSISLIB_ALFORITHM_RANDOM_INDEX_H
 #define CRYPTANALYSISLIB_ALFORITHM_RANDOM_INDEX_H
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <vector>
 #include <array>
+
 #include "random.h"
 
 /// generates a list of random entries mod max_entry
@@ -13,7 +14,8 @@
 /// \param len size of the output list
 /// \param max_entry_size max size of the entry
 template<typename T>
-constexpr void generate_random_indices(T *data, const size_t len,
+constexpr void generate_random_indices(T *data,
+                                       const size_t len,
                                        const size_t max_entry) noexcept {
 	if (max_entry < len) {
 		// easy case, in which we have to chose certain elements often

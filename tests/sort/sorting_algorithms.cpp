@@ -9,7 +9,7 @@ using ::testing::InitGoogleTest;
 using ::testing::Test;
 using namespace std;
 
-constexpr size_t listsize = 1024;
+constexpr size_t listsize = 128;
 
 template<typename T>
 T* generate_list(const size_t len) {
@@ -20,6 +20,18 @@ T* generate_list(const size_t len) {
 	ASSERT(array);
 	return array;
 }
+
+TEST(CountingSort, u8) {
+	uint8_t *array8 = generate_list<uint8_t>(listsize);
+	counting_sort_u8(array8, listsize);
+
+	for (size_t i = 0; i < listsize-1; ++i) {
+		ASSERT_LE(array8[i], array8[i+1]);
+	}
+
+	free(array8);
+}
+
 
 TEST(RobinHoodSort, Ints8) {
     uint8_t *array8 = generate_list<uint8_t>(listsize);

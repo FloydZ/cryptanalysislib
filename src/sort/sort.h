@@ -2,6 +2,7 @@
 #define SMALLSECRETLWE_METASORT_H
 
 #include "common.h"
+#include "counting_sort.h"
 #include "robinhoodsort.h"
 #include "timsort.h"
 #include "ska_sort.h"

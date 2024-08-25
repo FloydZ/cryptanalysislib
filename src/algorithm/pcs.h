@@ -15,7 +15,6 @@ concept RhoCompareAble = requires(C c) {
 #endif
 
 
-
 /// \tparam Compare compare object, which needs to take 4
 /// \tparam T
 template<class Compare,

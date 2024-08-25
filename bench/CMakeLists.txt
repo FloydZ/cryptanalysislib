@@ -1,3 +1,4 @@
+add_subdirectory(algorithm)
 add_subdirectory(container)
 add_subdirectory(enumeration)
 add_subdirectory(label)

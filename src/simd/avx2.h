@@ -1134,6 +1134,31 @@ struct uint8x32_t {
 	[[nodiscard]] constexpr static inline uint32_t move(const uint8x32_t in) noexcept {
 		return __builtin_ia32_pmovmskb256((__v32qi) in.v256);
 	}
+
+
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline uint8x32_t gather(const void *ptr,
+															const uint8x32_t data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		uint8x32_t ret;
+
+		const uint8_t *ptr8 = (uint8_t *) ptr;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = ptr8[data.d[i] * scale];
+		}
+		return ret;
+	}
+
+	template<const uint32_t scale = 1>
+	constexpr static inline void scatter(const void *ptr,
+										 const uint8x32_t offset,
+										 const uint8x32_t data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		uint8_t *ptr8 = (uint8_t *) ptr;
+		for (uint32_t i = 0; i < 8; i++) {
+			*(ptr8 + offset.d[i] * scale) = data.d[i];
+		}
+	}
 };
 
 struct uint16x16_t {
@@ -2511,6 +2536,18 @@ struct uint64x4_t {
 		return ret;
 	}
 
+	/// TODO not fninied
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline S gather(const void *ptr,
+												   const uint8x32_t data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		S ret;
+		const auto *ptr8 = (uint8_t *) ptr;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = *(limb_type *)(ptr8 + data.d[i]);
+		}
+		return ret;
+	}
 	///
 	/// \tparam scale
 	/// \param ptr
@@ -2518,7 +2555,9 @@ struct uint64x4_t {
 	/// \param data
 	/// \return
 	template<const uint32_t scale = 1>
-	constexpr static inline void scatter(const void *ptr, const uint64x4_t offset, const uint64x4_t data) noexcept {
+	constexpr static inline void scatter(const void *ptr,
+	                                     const uint64x4_t offset,
+	                                     const uint64x4_t data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		const uint8_t *ptr8 = (uint8_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
@@ -2536,86 +2575,6 @@ struct uint64x4_t {
 };
 
 
-inline void sse_prefixsum_u32(uint32_t *in) noexcept {
-	__m128i x = _mm_loadu_si128((__m128i *) in);
-	// x = 1, 2, 3, 4
-	x = _mm_add_epi32(x, _mm_slli_si128(x, 4));
-	// x = 1, 2, 3, 4
-	//   + 0, 1, 2, 3
-	//   = 1, 3, 5, 7
-	x = _mm_add_epi32(x, _mm_slli_si128(x, 8));
-	// x = 1, 3, 5, 7
-	//   + 0, 0, 1, 3
-	//   = 1, 3, 6, 10
-	_mm_storeu_si128((__m128i *) in, x);
-	// return x;
-}
-
-inline void avx_prefix_prefixsum_u32(uint32_t *p) noexcept {
-	__m256i x = _mm256_loadu_si256((__m256i *) p);
-	x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4));
-	x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8));
-	_mm256_storeu_si256((__m256i *) p, x);
-}
-
-inline __m128i sse_prefixsum_accumulate_u32(uint32_t *p, const __m128i s) {
-	__m128i d = (__m128i) _mm_broadcast_ss((float *) &p[3]);
-	__m128i x = _mm_loadu_si128((__m128i *) p);
-	x = _mm_add_epi32(s, x);
-	_mm_storeu_si128((__m128i *) p, x);
-	return _mm_add_epi32(s, d);
-}
-
-// TODO use L1 cache size
-constexpr size_t prefixsum_block_size = 64;
-// TODO move to `simd.h` as this is a generic algorithm, which only needs
-// specialized sub routines.
-//
-// PrefixSum:
-// 	a[0] = a[0]
-//	a[1] = a[0] + a[1]
-//		...
-__m128i avx2_local_prefixsum_u32(uint32_t *a, __m128i s) {
-	for (uint32_t i = 0; i < prefixsum_block_size; i += 8) {
-		avx_prefix_prefixsum_u32(&a[i]);
-	}
-
-	for (uint32_t i = 0; i < prefixsum_block_size; i += 4) {
-		s = sse_prefixsum_accumulate_u32(&a[i], s);
-	}
-
-	return s;
-}
-
-void avx2_prefixsum_u32(uint32_t *a, const size_t n) {
-	// simple version for small inputs
-	if (n < prefixsum_block_size) {
-		for (uint32_t i = 1; i < n; i++) {
-			a[i] += a[i - 1];
-		}
-		return;
-	}
-
-	__m128i s = _mm_setzero_si128();
-	uint32_t i = 0;
-	for (; i + prefixsum_block_size <= n; i += prefixsum_block_size) {
-		s = avx2_local_prefixsum_u32(a + i, s);
-	}
-
-	// tail mngt.
-	for (; i < n; i++) {
-		a[i] += a[i - 1];
-	}
-	// slow version
-	// for (uint32_t i = 0; i < n; i += 8) {
-	//     avx_prefix_prefixsum_u32(&a[i]);
-	// }
-	//
-	// __m128i s = (__m128i) _mm_broadcast_ss((float*) &a[3]);
-	// for (uint32_t i = 4; i < n; i += 4) {
-	//     s = sse_prefixsum_accumulate_u32(&a[i], s);
-	// }
-}
 
 /// loads `element_count` f32 elements from array + index*8
 /// \param array base pointer to the data
