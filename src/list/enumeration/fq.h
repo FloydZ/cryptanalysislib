@@ -834,8 +834,9 @@ public:
 	/// \param syndrome additional element which is added to all list elements
 	ListEnumerateMultiDisjointBlock(const Matrix &HT,
 	                                const size_t list_size = 0,
-	                                const Label *syndrome = nullptr) : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	                                                                   list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+	                                const Label *syndrome = nullptr) :
+	       ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+	       list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 		static_assert(n > w);
 		static_assert(mitmlen > mitm_w);
 		static_assert(norepslen > noreps_w);
