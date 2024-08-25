@@ -5,11 +5,18 @@
 /// but with a lot optimizations from FloydZ
 #include <cstdint>
 #include "simd/simd.h"
+#include "algorithm/histogram.h"
+#include "algorithm/prefixsum.h"
 
 
+using namespace cryptanalysislib::algorithm;
 
 
-///
+// this switching point was selected by a benchmark in
+// `bench/algorithm/histogram.cpp`.
+// Benchmarked on: AMD Ryzen 5 7600X 6-Core Processor
+constexpr static size_t switch_ = 512;
+
 /// \param arr
 /// \param size
 /// \return
@@ -18,15 +25,11 @@ constexpr static void counting_sort_u8(uint8_t *arr,
 	size_t cnt[256] = { 0 };
 	size_t i;
 
-#ifdef USE_AVX2
-	for (; i < size ; ++i) {
-		cnt[arr[i]]++;
+	if (size >= switch_) {
+		histogram(cnt, arr, size);
+	} else {
+		for (i = 0 ; i < size ; ++i) { cnt[arr[i]]++; }
 	}
-#else
-	for (i = 0 ; i < size ; ++i) {
-		cnt[arr[i]]++;
-	}
-#endif
 
 	i = 0;
 	for (size_t a = 0 ; a < 256 ; ++a) {
@@ -36,35 +39,26 @@ constexpr static void counting_sort_u8(uint8_t *arr,
 	}
 }
 
-constexpr static void counting_sort_u8_stable(uint8_t *output,
+constexpr static void counting_sort_stable_u8(uint8_t *output,
         									  const uint8_t *input,
                                               const size_t size) {
 	size_t cnt[256] = { 0 };
 	size_t i;
 
-	// Count number of occurrences of each octet.
-	for (i = 0 ; i < size ; ++i) {
-		cnt[input[i]]++;
+	if (size >= switch_) {
+		histogram(cnt, input, size);
+	} else {
+		for (i = 0 ; i < size ; ++i) { cnt[input[i]]++; }
 	}
 
 	// Calculate prefix sums.
-	size_t a = 0;
-	for (uint32_t j = 0 ; j < 256u; ++j) {
-		size_t b = cnt[j];
-		cnt[j] = a;
-		a += b;
-	}
+	prefixsum(cnt, 256);
 
 	// Sort elements
 	for (i = 0 ; i < size; ++i) {
-		// Get the key for the current entry.
 		uint8_t k = input[i];
-		// Find the location this entry goes into in the output array.
 		size_t dst = cnt[k];
-		// Copy the current entry into the right place.
 		output[dst] = input[i];
-		// Make it so that the next 'k' will be written after this one.
-		// Since we process source entries in increasing order, this makes us a stable sort.
 		cnt[k]++;
 	}
 }

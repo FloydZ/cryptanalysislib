@@ -13,6 +13,8 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 
+using namespace cryptanalysislib::algorithm;
+
 TEST(avx, prefixsum) {
 	constexpr size_t s = 65;
 	uint32_t *d1 = (uint32_t *)malloc(s * sizeof(uint32_t));
@@ -23,7 +25,7 @@ TEST(avx, prefixsum) {
 	}
 	memcpy(d2, d1, s * sizeof(uint32_t));
 
-	avx2_prefixsum_u32(d1, s);
+	prefixsum(d1, s);
 	for (uint32_t i = 1; i < s; i++) {
 		d2[i] += d2[i - 1];
 	}

@@ -15,7 +15,7 @@ using ::testing::UnitTest;
 
 TEST(histogram_u8, single) {
 	constexpr size_t s = 65;
-	using T = uint16_t;
+	using T = uint8_t;
 	T *data = (T *)malloc(s * sizeof(T));
 	auto *cnt = (uint32_t *)malloc(256 * sizeof(uint32_t));
 	memset(data, 0, s* sizeof(T));

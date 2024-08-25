@@ -2,6 +2,8 @@
 
 #include "random.h"
 #include "algorithm/prefixsum.h"
+
+using namespace cryptanalysislib::algorithm;
 constexpr size_t LS = 1u << 16u;
 
 template<typename T>

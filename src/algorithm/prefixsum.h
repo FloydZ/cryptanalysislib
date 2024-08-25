@@ -83,46 +83,47 @@ static void avx2_prefixsum_u32(uint32_t *a,
 }
 #endif
 
-/// inplace prefix sum algorithm
-/// \tparam T
-/// \param data
-/// \param len
-/// \return
-template<typename T>
+namespace cryptanalysislib::algorithm {
+
+	/// inplace prefix sum algorithm
+	/// \tparam T
+	/// \param data
+	/// \param len
+	/// \return
+	template<typename T>
 #if __cplusplus > 201709L
-	requires std::is_arithmetic_v<T>
+		requires std::is_arithmetic_v<T>
 #endif
-constexpr void prefixsum(T *data,
-                      	 const size_t len) {
+	constexpr void prefixsum(T *data,
+	                      	 const size_t len) {
 #ifdef USE_AVX2
-	constexpr bool use_avx = true;
+		constexpr bool use_avx = true;
 #else
-	constexpr bool use_avx = false;
+		constexpr bool use_avx = false;
 #endif
 
-	if constexpr (std::is_same_v<T, uint32_t> && use_avx) {
-		avx2_prefixsum_u32(data, len);
-		return;
+		if constexpr (std::is_same_v<T, uint32_t> && use_avx) {
+			avx2_prefixsum_u32(data, len);
+			return;
+		}
+		for (size_t i = 1; i < len; ++i) {
+			data[i] += data[i-1];
+		}
 	}
-	for (size_t i = 1; i < len; ++i) {
-		data[i] += data[i-1];
-	}
-}
 
-///
-/// \tparam ForwardIt
-/// \param first
-/// \param last
-/// \return
-template<typename ForwardIt>
+	/// \tparam ForwardIt
+	/// \param first
+	/// \param last
+	/// \return
+	template<typename ForwardIt>
 #if __cplusplus > 201709L
-	requires std::forward_iterator<ForwardIt>
+	    requires std::forward_iterator<ForwardIt>
 #endif
-void prefixsum(ForwardIt first,
-               ForwardIt last) {
-	static_assert(std::is_arithmetic_v<typename ForwardIt::value_type>);
-	const auto count = std::distance(first, last);
-	prefixsum(&(*first), count);
-}
-
+	void prefixsum(ForwardIt first,
+	               ForwardIt last) {
+		static_assert(std::is_arithmetic_v<typename ForwardIt::value_type>);
+		const auto count = std::distance(first, last);
+		prefixsum(&(*first), count);
+	}
+};
 #endif//CRYPTANALYSISLIB_PREFIXSUM_H

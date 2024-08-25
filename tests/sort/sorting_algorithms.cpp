@@ -32,6 +32,18 @@ TEST(CountingSort, u8) {
 	free(array8);
 }
 
+TEST(StableCountingSort, u8) {
+	uint8_t *array8 = generate_list<uint8_t>(listsize);
+	uint8_t *output = (uint8_t *) malloc(listsize);
+	counting_sort_stable_u8(output, array8, listsize);
+
+	for (size_t i = 0; i < listsize-1; ++i) {
+		ASSERT_LE(output[i], output[i+1]);
+	}
+
+	free(array8); free(output);
+}
+
 
 TEST(RobinHoodSort, Ints8) {
     uint8_t *array8 = generate_list<uint8_t>(listsize);
