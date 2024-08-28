@@ -19,6 +19,7 @@
 
 // needed for `ExtendedTree`
 #include "container/hashmap.h"
+#include "random.h"
 
 #if __cplusplus > 201709L
 /// IDEA: extend the tree syntax to arbitrary hashmaps.
@@ -1744,7 +1745,12 @@ public:
 	template<const uint32_t l, const uint32_t h>
 	class helper {
 	public:
-		// returns the next level to search in
+		/// \param level  the current level we are in. NOT the level we are looking into
+		/// \param lists
+		/// \param e
+		/// \param boundaries
+		/// \param indices
+		/// \return  the next level to search in
 		constexpr static inline uint32_t run(const uint32_t &level,
 		                                     const List *lists,
 		                                     const ElementType &e,
@@ -1822,7 +1828,8 @@ public:
 		}
 
 		if constexpr (level == 0) {
-			//easy case, we want to joint on only two lists, so basically no streaming
+			// easy case, we want to joint on only two lists,
+			// so basically no streaming
 			join2lists_on_iT_v2<k_lower, k_upper>(out, lists[0], lists[1], iTs[0][0], prepare);
 
 			// TODO
@@ -1834,9 +1841,9 @@ public:
 		constexpr uint32_t lh = std::get<sizeof...(ks) - 1u>(std::forward_as_tuple(ks...));;
 
 		// keep track of the partial sums we are computing to search within the next level
-		std::vector<ElementType> search_sums(level);
+		std::vector<ElementType> search_sums(level+1);
 		// keep track of the actual sums of elements
-		std::vector<ElementType> sums(level);
+		std::vector<ElementType> sums(level+1);
 
 		//
 		std::vector<std::pair<size_t, size_t>> boundaries(level);
@@ -1860,8 +1867,7 @@ public:
 
 		/// start the actual algorithm
 		for (size_t i = 0; i < lists[0].load(); ++i) {
-			constexpr uint32_t iTs_start_pos = (1u << level) + 1u;
-			LabelType::template sub<k_lower, k_upper>(search_sums[0].label, iTs[0][iTs_start_pos], lists[0][i].label);
+			LabelType::template sub<k_lower, k_upper>(search_sums[0].label, iTs[0][level], lists[0][i].label);
 			size_t j = lists[1].template search_level<k_lower, k_upper>(search_sums[0]);
 
 			for (; (j < lists[1].load()) &&
@@ -1873,20 +1879,13 @@ public:
 				uint32_t l = 0;
 				while (!(stop)) {
 					while (l < level) {
-						if (l == 0) {
-							l = vec[l].operator()(l, this->lists.data(), search_sums[0], boundaries, indices);
-						} else {
-							search_sums[l].zero();
-							search_sums[l].label = iTs[l][0];
-							ElementType::sub(search_sums[l], search_sums[l-1], lists[l+1][indices[l-1]]);
-							//ElementType::sub(sums[l], sums[l-1], lists[l+1][indices[l-1]]);
-							l = vec[l].operator()(l, this->lists.data(), search_sums[l], boundaries, indices);
-						}
+						search_sums[l+1].zero();
+						search_sums[l+1].label = iTs[l+1][0];
+						ElementType::sub(search_sums[l+1], search_sums[l+1], sums[l]);
 
-						// TODO targets anpassen
-						// TODO search_sums anpassen
-						// TODO für d = 3 werdern L5 und L6 nicht gemerged? Is das correkt?
-						//  => es müssen die iT angepasst werden
+						// NOTE: vec[l] should be vec[l+1], but we do not save the
+						// lowerst matching routine, this shift can be ignored.
+						l = vec[l].operator()(l, lists.data(), search_sums[l+1], boundaries, indices);
 
 						//if on lowest level the index reaches the boundary: stop
 						if (indices[0] == boundaries[0].second) {
@@ -1899,7 +1898,7 @@ public:
 					for (; indices[level - 1] < boundaries[level - 1].second; ++indices[level - 1]) {
 						out.template add_and_append
 						        <ll, lh, filter, sub>
-						        (search_sums[level - 1], lists[level + 1][indices[level - 1]]);
+						        (sums[level-1], lists[level + 1][indices[level - 1]]);
 					}
 
 					// continue stream-join with the next element of previous level
@@ -1920,105 +1919,39 @@ public:
 
 
 
-	/// \param out
-	/// \param target
-	/// \param MT must be transposed
-	/// \param e
-	static void dissection4(List &out,
-	                        const LabelType &target,
-	                        const MatrixType &MT) noexcept {
-		// reset the output list
-		out.set_load(0);
-
-		/// TODO: limitation for simpliciity
-		constexpr static size_t n = ValueLENGTH;
-		constexpr static size_t n4 = n/4;
-		static_assert((n % 4) == 0);
-
-		constexpr static double factor = 1.5;
-		constexpr static size_t size = (1ull << n4) - 1ull;
-		static List L1{size}, L2{size}, L3{size}, L4{size}, iL{(size_t)((double)size*factor)};
-		L1.set_load(0); L2.set_load(0); L3.set_load(0); L4.set_load(0);
-
-		LabelType iT_left, iT_right;
-
-		// enumerate the base lists
-		using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
-		// using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, n/8>;
-		Enumerator e{MT, size};
-
-		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-				(&L1, &L2, n4);
-		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-				(&L3, &L4, n4, n/2);
-
-		L1.sort_level(0, n4); L3.sort_level(0, n4);
-
-		for (size_t k = 0; k < size; ++k) {
-			// choose intermediate target
-			iT_left.random();
-			LabelType::add(iT_right, target, iT_left);
-
-			// merge the first two list
-			iL.set_load(0);
-			join2lists_on_iT(iL, L1, L2, iT_left, 0, n4);
-
-			// early exit
-			if (iL.load() == 0) {
-				continue;
-			}
-
-			// some debugging
-			// for (size_t i = 0; i < iL.load(); ++i) {
-			// 	if (!iL[i].is_correct(MT)){
-			// 		std::cout << "ERROR" << std::endl;
-			// 		std::cout << iL[i] << " " << i << std::endl;
-			// 	}
-			// 	ASSERT(iL[i].is_correct(MT));
-			// }
-
-			//std::cout << iL << std::endl;
-
-			// match the right side
-			twolevel_streamjoin_on_iT(out, iL, L3, L4, iT_right, 0, n4, n4, n);
-		}
-	}
-
 	// SRC: https://eprint.iacr.org/2010/189.pdf
 	// implementation of the modular 4-way merge
-	static void dissection4_v2(List &out,
+	template<
+			 const uint32_t k_lower1=0,
+	         const uint32_t k_upper1=ValueLENGTH/4u,
+			 const uint32_t k_upper2=ValueLENGTH>
+	static void dissection4(List &out,
 							const LabelType &target,
-							const MatrixType &MT) noexcept {
+							const MatrixType &MT) {
 		// reset the output list
 		out.set_load(0);
-
-		constexpr static size_t n = ValueLENGTH;
-		constexpr static size_t n4 = n / 4;
-		static_assert((n % 4) == 0);
 
 		constexpr static uint32_t filter = -1u;
 		constexpr static double factor = 1.5;
-		constexpr static size_t size = (1ull << n4) - 1ull;
+		constexpr static size_t size = (1ull << k_upper1) - 1ull;
 
-		constexpr size_t baselist_size = sum_bc(n/4, n/8);
+		constexpr size_t baselist_size = sum_bc(k_upper1, k_upper1/2);
 		//constexpr size_t baselist_size = sum_bc(n/2, n/4);
 		static List L1{baselist_size}, L2{baselist_size}, L3{baselist_size}, L4{baselist_size}, iL{(size_t) ((double) size * factor)};
 		L1.set_load(0); L2.set_load(0); L3.set_load(0); L4.set_load(0);
-
-		const uint32_t k_upper1 = n/4;
 
 		// enumerate the base lists
 		// using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
 		// Enumerator e{MT};
 		// e.run(&L1, &L2, n/2);
 		// e.run(&L3, &L4, n/2);
-		using Enumerator = BinaryLexicographicEnumerator<List, n/4, n/8>;
+		using Enumerator = BinaryLexicographicEnumerator<List, k_upper1, k_upper1/2>;
 		Enumerator e{MT};
-		e.run(&L1, &L2, n/4);
-		e.run(&L3, &L4, n/4, n/2);
+		e.run(&L1, &L2, k_upper1);
+		e.run(&L3, &L4, k_upper1, k_upper2/2);
 
-		L2.sort_level(0, k_upper1);
-		L4.sort_level(0, k_upper1);
+		L2.sort_level(k_lower1, k_upper1);
+		L4.sort_level(k_lower1, k_upper1);
 
 		ElementType tmpe1;
 		LabelType sigma_M, sigma_t, tprime;
@@ -2030,7 +1963,7 @@ public:
 				size_t j = L2.search_level(sigma_t, 0, k_upper1);
 				for (; (j < L2.load()) &&
 				       (sigma_t.is_equal(L2[j].label, 0, k_upper1)); ++j) {
-					iL.add_and_append(L1[i], L2[j], 0, n, filter);
+					iL.add_and_append(L1[i], L2[j], 0, k_upper2, filter);
 				}
 			}
 
@@ -2038,7 +1971,7 @@ public:
 				continue;
 			}
 
-			iL.sort_level(0, n);
+			iL.sort_level(0, k_upper2);
 			for (size_t k = 0; k < L3.load(); ++k) {
 				LabelType::sub(sigma_t, target, sigma_M);
 				LabelType::sub(sigma_t, sigma_t, L3[k].label);
@@ -2047,12 +1980,12 @@ public:
 				       (sigma_t.is_equal(L4[l].label, 0, k_upper1)); ++l) {
 					LabelType::sub(tprime, target, L3[k].label);
 					LabelType::sub(tprime, tprime, L4[l].label);
-					size_t o = iL.search_level(tprime, 0, n);
+					size_t o = iL.search_level(tprime, 0, k_upper2);
 					for (; (o < iL.load()) &&
-					       (tprime.is_equal(iL[o].label, 0, n)); ++o) {
+					       (tprime.is_equal(iL[o].label, 0, k_upper2)); ++o) {
 						tmpe1 = iL[o];
 						ElementType::add(tmpe1, tmpe1, L3[k]);
-						out.add_and_append(tmpe1, L4[l], 0, n, filter);
+						out.add_and_append(tmpe1, L4[l], 0, k_upper2, filter);
 					}
 				}
 			}

@@ -69,9 +69,10 @@ public:
 	// true if we need every bit of the last limb
 	constexpr static bool is_full = ((n*bits_per_number) % (internal_limbs*bits_per_limb)) == 0;
 
-	constexpr static bool activate_avx2 = true;
-	constexpr static uint16_t limbs_per_simd_limb = 256u / bits_per_limb;
-	constexpr static uint16_t numbers_per_simd_limb = 256u / bits_per_number;
+	// TODO move to config
+	constexpr static bool activate_simd = true;
+	constexpr static uint16_t limbs_per_simd_limb 	= (sizeof(S) * 8) / bits_per_limb;
+	constexpr static uint16_t numbers_per_simd_limb = (sizeof(S) * 8) / bits_per_number;
 
 	constexpr static uint32_t total_bits = bits_per_limb * internal_limbs;
 	constexpr static uint32_t total_bytes = sizeof(T) * internal_limbs;
@@ -1207,8 +1208,8 @@ public:
 				  << ", internal_limbs: " << internal_limbs
 				  << ", number_mask: " << number_mask
 				  << ", is_full: " << is_full
-				  << ", active_simd: " << activate_avx2
-				  << ", total_bits: " << total_bits
+				  << ", active_simd: " << activate_simd
+		          << ", total_bits: " << total_bits
 				  << ", total_bytes: " << total_bytes
 				  << " }" << std::endl;
 	}
@@ -1259,7 +1260,7 @@ public:
 	using kAryPackedContainer_Meta<T, n, q>::internal_limbs;
 	using kAryPackedContainer_Meta<T, n, q>::number_mask;
 	using kAryPackedContainer_Meta<T, n, q>::is_full;
-	using kAryPackedContainer_Meta<T, n, q>::activate_avx2;
+	using kAryPackedContainer_Meta<T, n, q>::activate_simd;
 
 
 	/// some function
@@ -1316,7 +1317,7 @@ public:
 	using kAryPackedContainer_Meta<T, n, q>::internal_limbs;
 	using kAryPackedContainer_Meta<T, n, q>::number_mask;
 	using kAryPackedContainer_Meta<T, n, q>::is_full;
-	using kAryPackedContainer_Meta<T, n, q>::activate_avx2;
+	using kAryPackedContainer_Meta<T, n, q>::activate_simd;
 	using kAryPackedContainer_Meta<T, n, q>::limbs_per_simd_limb;
 	using kAryPackedContainer_Meta<T, n, q>::numbers_per_simd_limb;
 
@@ -1324,6 +1325,8 @@ public:
 	using typename kAryPackedContainer_Meta<T, n, q>::ContainerLimbType;
 	using typename kAryPackedContainer_Meta<T, n, q>::LimbType;
 	using typename kAryPackedContainer_Meta<T, n, q>::LabelContainerType;
+	using typename kAryPackedContainer_Meta<T, n, q>::S;
+
 	// minimal internal datatype to present an element.
 	using DataType = LogTypeTemplate<bits_per_number>;
 
@@ -1468,15 +1471,15 @@ public:
 	/// negate a on every coordinate
 	/// \param a input
 	/// \return -a
-	static inline uint64x4_t neg256_T(const uint64x4_t a) noexcept {
-		constexpr static uint64x4_t c1 = uint64x4_t::set1(6148914691236517205u);
-		constexpr static uint64x4_t c2 = uint64x4_t::set1(12297829382473034410u);
+	static inline S neg256_T(const S a) noexcept {
+		constexpr static S c1 = S::set1(6148914691236517205u);
+		constexpr static S c2 = S::set1(12297829382473034410u);
 
-		const uint64x4_t e1 = a & c1;
-		const uint64x4_t e2 = a & c2;
+		const S e1 = a & c1;
+		const S e2 = a & c2;
 
-		const uint64x4_t e11 = e1 << 1u;
-		const uint64x4_t e21 = e2 >> 1u;
+		const S e11 = e1 << 1u;
+		const S e21 = e2 >> 1u;
 
 		return e11 ^ e21;
 	}
@@ -1532,8 +1535,8 @@ public:
 	/// \param x ; input
 	/// \param y ; input
 	/// \return x - y
-	static inline uint64x4_t sub256_T(const uint64x4_t x,
-	                                  const uint64x4_t y) noexcept {
+	static inline S sub256_T(const S x,
+	                         const S y) noexcept {
 		return add256_T(x, neg256_T(y));
 	}
 
@@ -1622,22 +1625,22 @@ public:
 	/// \param x input
 	/// \param y input
 	/// \return x+y mod3
-	static inline uint64x4_t add256_T(const uint64x4_t x,
-	                                  const uint64x4_t y) noexcept {
-		constexpr static uint64x4_t c1 = uint64x4_t::set1(6148914691236517205ull);
-		constexpr static uint64x4_t c2 = uint64x4_t::set1(12297829382473034410ull);
+	static inline S add256_T(const S x,
+	                                  const S y) noexcept {
+		constexpr static S c1 = S::set1(6148914691236517205ull);
+		constexpr static S c2 = S::set1(12297829382473034410ull);
 
-		const uint64x4_t xy = x ^ y;
-		const uint64x4_t xy2 = x & y;
-		const uint64x4_t a = xy & c1;
-		const uint64x4_t b = xy & c2;
-		const uint64x4_t c = xy2 & c1;
-		const uint64x4_t d = xy2 & c2;
+		const S xy = x ^ y;
+		const S xy2 = x & y;
+		const S a = xy & c1;
+		const S b = xy & c2;
+		const S c = xy2 & c1;
+		const S d = xy2 & c2;
 
-		const uint64x4_t e = a & (b >> 1u);
+		const S e = a & (b >> 1u);
 
-		const uint64x4_t r0 = e ^ (d >> 1u) ^ a;
-		const uint64x4_t r1 = b ^ (e << 1u) ^ (c << 1u);
+		const S r0 = e ^ (d >> 1u) ^ a;
+		const S r1 = b ^ (e << 1u) ^ (c << 1u);
 		return r0 ^ r1;
 	}
 
@@ -1655,18 +1658,18 @@ public:
 			*(__uint128_t *) v3.__data.data() = t;
 			return;
 		} else if constexpr ((internal_limbs == 4) && (sizeof(DataType) == 8u)) {
-			const uint64x4_t t = add256_T(uint64x4_t::aligned_load((uint64_t *) &v1.__data[0]),
-			                              uint64x4_t::aligned_load((uint64_t *) &v2.__data[0]));
-			uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[0], t);
+			const S t = add256_T(S::aligned_load(&v1.__data[0]),
+			                     S::aligned_load(&v2.__data[0]));
+			S::unaligned_store(&v3.__data[0], t);
 			return;
 		}
 
 		uint32_t i = 0;
-		if constexpr (activate_avx2) {
+		if constexpr (activate_simd) {
 			for (; i + numbers_per_limb <= internal_limbs; i += numbers_per_simd_limb) {
-				const uint64x4_t t = add256_T(uint64x4_t::unaligned_load((uint64_t *) &v1.__data[i]),
-				                              uint64x4_t::unaligned_load((uint64_t *) &v2.__data[i]));
-				uint64x4_t::unaligned_store((uint64x4_t *) &v3.__data[i], t);
+				const S t = add256_T(S::unaligned_load(&v1.__data[i]),
+				                     S::unaligned_load(&v2.__data[i]));
+				S::unaligned_store(&v3.__data[i], t);
 			}
 		}
 

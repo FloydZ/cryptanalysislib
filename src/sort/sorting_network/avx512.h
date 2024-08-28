@@ -11,14 +11,28 @@
 
 #include <immintrin.h>
 #include <stdint.h>
+
 #include "simd/simd.h"
 
 ///
-#define UCOEX_u64X8(a, b)				\
+#define COEX_u64x8(a, b, tmp)			\
 	{                                   \
-		__m512i tmp = a;                \
+		tmp = a;                		\
 		a = _mm512_min_epu64(a, b);     \
 		b = _mm512_max_epu64(tmp, b); 	\
+	}
+
+#define COEX_u32x16(a, b, tmp)			\
+	{                                   \
+		tmp = a;                		\
+		a = _mm512_min_epu32(a, b);     \
+		b = _mm512_max_epu32(tmp, b); 	\
+	}
+
+#define COEX_u32x16_(a, b, c, d)		\
+	{                                   \
+		c = _mm512_min_epu32(a, b);     \
+		d = _mm512_max_epu32(a, b); 	\
 	}
 
 #ifdef _clang_
@@ -44,6 +58,7 @@
 	}
 
 
+#include "sort/sorting_network/macros.h"
 
 
 // only needed if less the 16 elements should be sorted in 
@@ -144,14 +159,91 @@ constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) 
 #undef __builtin_ia32_vpermi2varq512
 #endif
 
-// TODO
-#define sortingnetwork_permute_minmax2_avx512(NEW_MULT, REG, MIN_FKT, MAX_FKT )			\
-static inline void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept { \
-  	const REG swap = (REG) (__m256) _mm512_permute_pd((__v8sf)b, (__v8sf)b ); \
-  	REG perm_neigh = (REG) (__m256) __builtin_ia32_vpermilps256 ((__v8sf)swap, _MM_SHUFFLE(0, 1, 2, 3)); 	\
-	REG perm_neigh_min = MIN_FKT(a, perm_neigh);									\
-	b = MAX_FKT(a, perm_neigh);														\
-	a = perm_neigh_min;																\
+#define sortingnetwork_sort_x32x16(T, REG, MIN_FKT, MAX_FKT) \
+static inline void sortingnetwork_sort_ ##T ## 32x16(REG &input){\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+											  6, 7, 4, 5, 2, 3, 0, 1);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax); \
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(12, 13, 14, 15, 8, 9, 10, 11,\
+											  4, 5, 6, 7, 0, 1, 2, 3);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+											  6, 7, 4, 5, 2, 3, 0, 1);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(8, 9, 10, 11, 12, 13, 14, 15,\
+											  0, 1, 2, 3, 4, 5, 6, 7);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+											  5, 4, 7, 6, 1, 0, 3, 2);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+											  6, 7, 4, 5, 2, 3, 0, 1);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,\
+											  8, 9, 10, 11, 12, 13, 14, 15);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xFF00, permNeighMax);\
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+											  3, 2, 1, 0, 7, 6, 5, 4);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+											  5, 4, 7, 6, 1, 0, 3, 2);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+	}\
+	{\
+		REG idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+											  6, 7, 4, 5, 2, 3, 0, 1);\
+		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+	}\
 }
-// sortingnetwork_permute_minmax2_avx512(f64x16, __m512, _mm512_min_pd, _mm512_max_pd);
+
+sortingnetwork_sort_x32x16(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_sort_x32x16(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+sortingnetwork_sort_x32x16(f, __m512, _mm512_min_ps, _mm512_max_ps)
 #endif

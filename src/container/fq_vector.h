@@ -49,6 +49,7 @@ public:
 #endif
 	using S = TxN_t<T, nr_of_limbs_in_S>;
 
+
 	// simple hash function
 	template<const uint32_t l, const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
@@ -604,11 +605,11 @@ public:
 	                                 const T *in2) noexcept {
 		uint32_t i = 0;
 		for (; i + nr_of_limbs_in_S <= n; i += nr_of_limbs_in_S) {
-			const uint8x32_t a = uint8x32_t::load((uint8_t *)(in1 + i));
-			const uint8x32_t b = uint8x32_t::load((uint8_t *)(in2 + i));
+			const S a = S::load((uint8_t *)(in1 + i));
+			const S b = S::load((uint8_t *)(in2 + i));
 
-			const uint8x32_t tmp = add256_T(a, b);
-			uint8x32_t::store(out + i, tmp);
+			const S tmp = add256_T(a, b);
+			S::store(out + i, tmp);
 		}
 
 		for (; i < n; i += 1) {

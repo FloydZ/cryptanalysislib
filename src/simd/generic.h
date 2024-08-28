@@ -550,7 +550,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				ret.v512[i / nr_limbs_in_simd512] = simd512_type::slri(in1.v512[i / nr_limbs_in_simd512], in2);
+				ret.v512[i / nr_limbs_in_simd512] = simd512_type::srli(in1.v512[i / nr_limbs_in_simd512], in2);
 			}
 
 			if constexpr (simd512_fits) {
@@ -560,7 +560,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				ret.v256[i / nr_limbs_in_simd256] = simd256_type::slri(in1.v256[i / nr_limbs_in_simd256], in2);
+				ret.v256[i / nr_limbs_in_simd256] = simd256_type::srli(in1.v256[i / nr_limbs_in_simd256], in2);
 			}
 
 			if constexpr (simd256_fits) {
@@ -811,14 +811,14 @@ template<typename T, const uint32_t N>
 constexpr inline TxN_t<T, N> operator~(const TxN_t<T, N> &lhs) noexcept {
 	return TxN_t<T, N>::not_(lhs);
 }
-//template<typename T, const uint32_t N>
-//constexpr inline TxN_t<T, N> operator>> (const TxN_t<T, N>& lhs, const uint32_t rhs) noexcept {
-//	return TxN_t<T, N>::srli(lhs, rhs);
-//}
-//template<typename T, const uint32_t N>
-//constexpr inline TxN_t<T, N> operator<< (const TxN_t<T, N>& lhs, const uint32_t rhs) noexcept {
-//	return TxN_t<T, N>::slli(lhs, rhs);
-//}
+template<typename T, const uint32_t N>
+constexpr inline TxN_t<T, N> operator>> (const TxN_t<T, N>& lhs, const uint32_t rhs) noexcept {
+	return TxN_t<T, N>::srli(lhs, rhs);
+}
+template<typename T, const uint32_t N>
+constexpr inline TxN_t<T, N> operator<< (const TxN_t<T, N>& lhs, const uint32_t rhs) noexcept {
+	return TxN_t<T, N>::slli(lhs, rhs);
+}
 template<typename T, const uint32_t N>
 constexpr inline TxN_t<T, N> operator^=(TxN_t<T, N> &lhs, const TxN_t<T, N> &rhs) noexcept {
 	lhs = TxN_t<T, N>::xor_(lhs, rhs);

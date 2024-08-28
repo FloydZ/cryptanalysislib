@@ -1122,7 +1122,6 @@ TEST(SubSetSum, join8lists_twolists_on_iT_v2_constexpr) {
 }
 
 
-
 TEST(SubSetSum, dissection) {
 	Label::info();
 	Matrix::info();
@@ -1139,35 +1138,6 @@ TEST(SubSetSum, dissection) {
 	}
 
 	Tree::dissection4(out, target, AT);
-
-	EXPECT_GE(out.load(), 1);
-	for (size_t i = 0; i < out.load(); ++i) {
-		target.print_binary();
-		out[i].label.print_binary();
-		// std::cout << target << ":" << out[i].label << std::endl;
-		Label tmp;
-		AT.mul(tmp, out[i].value);
-
-		EXPECT_EQ(target.is_equal(tmp), true);
-	}
-}
-
-TEST(SubSetSum, dissection_v2) {
-	Label::info();
-	Matrix::info();
-
-	Matrix AT; AT.random();
-	std::cout << AT;
-
-	List out{1<<n};
-	Label target; target.zero();
-	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, AT[0][weights[i]]);
-	}
-
-	Tree::dissection4_v2(out, target, AT);
 
 	EXPECT_GE(out.load(), 1);
 	for (size_t i = 0; i < out.load(); ++i) {
@@ -1201,37 +1171,29 @@ TEST(SubSetSum, generic) {
 	Enumerator e{A};
 	e.run(&l1, &l2, n/2);
 
-
 	constexpr uint32_t depth = 2;
 	//auto nr_iTs = [](const uint32_t i = 0 ){
 	//	return (1ull << (depth - i -1ull)) - 1u;
 	//};
 
-	std::vector<Label> iTs(1u<<(depth-1u));
-	for (uint32_t i = 0; i < ((1u<<(depth-1u))-1u); ++i) {
+	std::vector<Label> iTs(depth);
+	std::vector<std::vector<Label>> sum_iTs(depth);
+	for (uint32_t i = 0; i < depth - 1; ++i) {
 		iTs[i].random(0, 1ull << n);
 	}
-	iTs[(1u<<(depth-1u))-1u] = target;
+	iTs[depth-1] = target;
 
-	// intermediate targets, example depth=2; 4 baselists
-	/// iTs[0] = TODO explaine
-	// TODO not correct, as we do not need all intermediate targets, this is for the full joint
-	std::vector<std::vector<Label>> sum_iTs(depth);
-	for (uint32_t i = 0; i < depth; ++i) {
-		const uint32_t size = 1u << (depth - i - 1u);
-		sum_iTs[i].resize(size);
+	for (uint32_t ik = 0; ik < depth; ++ik) {
+		sum_iTs[ik].resize(depth - ik);
 
-		// -1, because the last on is the target
-		for (uint32_t j = 0; j < size; ++j) {
-			sum_iTs[i][j] = iTs[i+j];
-			if (j & 1u) {
-				const uint32_t ctz = __builtin_ctz(j+1);
-				for (uint32_t k = 1; k <= std::min(2u, ctz); ++k) {
-					Label::sub(sum_iTs[i][j], sum_iTs[i][j], iTs[i+j-k]);
-				}
+		for (uint32_t i = 0; i < depth-ik; ++i) {
+			sum_iTs[ik][i] = iTs[i+ik];
+			for (uint32_t j = 1; j <= i; j++){
+				Label::sub(sum_iTs[ik][i], sum_iTs[ik][i], iTs[i-j]);
 			}
 		}
 	}
+
 
 	Tree t(depth, A, l1, l2);
 	t.join_stream_internal<0, k_lower1, k_higher1, k_higher2>
@@ -1240,10 +1202,12 @@ TEST(SubSetSum, generic) {
 			(out, sum_iTs, false);
 
 
+	std::cout << target << std::endl;
 	uint32_t right=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {
+		std::cout << out[i] << std::endl;
 		// just for debugging, we are not filtering
-		if (out[i].value.popcnt() != n/2) { continue; }
+		//if (out[i].value.popcnt() != n/2) { continue; }
 
 		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
 		A.mul(test_recalc3, out[i].value);
@@ -1257,7 +1221,6 @@ TEST(SubSetSum, generic) {
 
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
-		std::cout << out[i] << std::endl;
 		if (Label::cmp(out[i].label, target)) {
 			right += 1;
 		}
