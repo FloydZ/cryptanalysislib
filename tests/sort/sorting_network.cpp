@@ -400,7 +400,7 @@ TEST(SortingNetwork, avx512_int32x16_t) {
 	}
 
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in + 0));
-	sortingnetwork_sort_i32x16(a);
+	avx512_sortingnetwork_sort_i32x16(a);
 	_mm512_storeu_si512((__m512i *)(d_out + 0), a);
 	for (uint32_t i = 0; i < 15; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
@@ -414,7 +414,7 @@ TEST(SortingNetwork, avx512_uint32x16_t) {
 	}
 
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in + 0));
-	sortingnetwork_sort_u32x16(a);
+	avx512_sortingnetwork_sort_u32x16(a);
 	_mm512_storeu_si512((__m512i *)(d_out + 0), a);
 	for (uint32_t i = 0; i < 15; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
@@ -428,7 +428,7 @@ TEST(SortingNetwork, avx512_f32x16_t) {
 	}
 
 	__m512 a = _mm512_loadu_si512((__m512i *)(d_in + 0));
-	sortingnetwork_sort_f32x16(a);
+	avx512_sortingnetwork_sort_f32x16(a);
 	_mm512_storeu_si512((__m512i *)(d_out + 0), a);
 	for (uint32_t i = 0; i < 15; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
@@ -448,23 +448,193 @@ TEST(SortingNetwork, avx512_f32x16_t) {
 //		EXPECT_LE(d_out[i], d_out[i+1]);
 //	}
 //}
-//
-//
-//TEST(SortingNetwork, avx512_uint32x32_t) {
-//	uint32_t d_in[32], d_out[32];
-//	for (uint32_t i = 0; i < 32; ++i) {
-//		d_in[i] = fastrandombytes_uint64();
-//	}
-//
-//	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
-//	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
-//	sortingnetwork_sort_u32x32(a, b);
-//	_mm512_storeu_si512((__m512i *)(d_out +  0), a);
-//	_mm512_storeu_si512((__m512i *)(d_out + 16), a);
-//	for (uint32_t i = 0; i < 31; ++i) {
-//		EXPECT_LE(d_out[i], d_out[i+1]);
-//	}
-//}
+
+
+TEST(SortingNetwork, avx512_uint32x32_t) {
+	uint32_t d_in[32], d_out[32];
+	for (uint32_t i = 0; i < 32; ++i) {
+		d_in[i] = fastrandombytes_uint64();
+	}
+	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
+	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
+	avx512_sortingnetwork_sort_u32x32(a, b);
+	_mm512_storeu_si512((__m512i *)(d_out +  0), a);
+	_mm512_storeu_si512((__m512i *)(d_out + 16), b);
+	for (uint32_t i = 0; i < 31; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+
+TEST(SortingNetwork, avx512_uint32x48_t) {
+	constexpr size_t s = 48;
+	uint32_t d_in[s], d_out[s];
+	for (uint32_t i = 0; i < s; ++i) {
+		d_in[i] = fastrandombytes_uint64();
+	}
+	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
+	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
+	__m512i c = _mm512_loadu_si512((__m512i *)(d_in + 32));
+	avx512_sortingnetwork_sort_u32x48(a, b, c);
+	_mm512_storeu_si512((__m512i *)(d_out +  0), a);
+	_mm512_storeu_si512((__m512i *)(d_out + 16), b);
+	_mm512_storeu_si512((__m512i *)(d_out + 32), c);
+	for (uint32_t i = 0; i < s-1; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+
+TEST(SortingNetwork, avx512_uint32x64_t) {
+	constexpr size_t s = 64;
+	uint32_t d_in[s], d_out[s];
+	for (uint32_t i = 0; i < s; ++i) {
+		d_in[i] = fastrandombytes_uint64();
+	}
+	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
+	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
+	__m512i c = _mm512_loadu_si512((__m512i *)(d_in + 32));
+	__m512i d = _mm512_loadu_si512((__m512i *)(d_in + 48));
+	avx512_sortingnetwork_sort_u32x64(a, b, c, d);
+	_mm512_storeu_si512((__m512i *)(d_out +  0), a);
+	_mm512_storeu_si512((__m512i *)(d_out + 16), b);
+	_mm512_storeu_si512((__m512i *)(d_out + 32), c);
+	_mm512_storeu_si512((__m512i *)(d_out + 48), d);
+	for (uint32_t i = 0; i < s-1; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+
+TEST(SortingNetwork, avx512_uint32x80_t) {
+	constexpr size_t s = 80;
+	uint32_t d_in[s], d_out[s];
+	for (uint32_t i = 0; i < s; ++i) {
+		d_in[i] = fastrandombytes_uint64();
+	}
+	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
+	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
+	__m512i c = _mm512_loadu_si512((__m512i *)(d_in + 32));
+	__m512i d = _mm512_loadu_si512((__m512i *)(d_in + 48));
+	__m512i e = _mm512_loadu_si512((__m512i *)(d_in + 64));
+	avx512_sortingnetwork_sort_u32x80(a, b, c, d, e);
+	_mm512_storeu_si512((__m512i *)(d_out +  0), a);
+	_mm512_storeu_si512((__m512i *)(d_out + 16), b);
+	_mm512_storeu_si512((__m512i *)(d_out + 32), c);
+	_mm512_storeu_si512((__m512i *)(d_out + 48), d);
+	_mm512_storeu_si512((__m512i *)(d_out + 64), e);
+	for (uint32_t i = 0; i < s-1; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+
+TEST(SortingNetwork, avx512_uint32x96_t) {
+	constexpr size_t s = 96;
+	uint32_t d_in[s], d_out[s];
+	for (uint32_t i = 0; i < s; ++i) {
+		d_in[i] = fastrandombytes_uint64();
+	}
+	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
+	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
+	__m512i c = _mm512_loadu_si512((__m512i *)(d_in + 32));
+	__m512i d = _mm512_loadu_si512((__m512i *)(d_in + 48));
+	__m512i e = _mm512_loadu_si512((__m512i *)(d_in + 64));
+	__m512i f = _mm512_loadu_si512((__m512i *)(d_in + 80));
+	avx512_sortingnetwork_sort_u32x96(a, b, c, d, e, f);
+	_mm512_storeu_si512((__m512i *)(d_out +  0), a);
+	_mm512_storeu_si512((__m512i *)(d_out + 16), b);
+	_mm512_storeu_si512((__m512i *)(d_out + 32), c);
+	_mm512_storeu_si512((__m512i *)(d_out + 48), d);
+	_mm512_storeu_si512((__m512i *)(d_out + 64), e);
+	_mm512_storeu_si512((__m512i *)(d_out + 80), f);
+	for (uint32_t i = 0; i < s-1; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+
+TEST(SortingNetwork, avx512_uint32_small) {
+	constexpr size_t s = 96;
+	alignas(64) uint32_t d_in[s];
+
+	for (uint32_t j = 16; j <= s; j+=16) {
+		for (uint32_t i = 0; i < s; ++i) {
+			d_in[i] = fastrandombytes_uint64();
+		}
+
+		bool r = avx512_sortingnetwork_small_uint32_t(d_in, s);
+		EXPECT_TRUE(r);
+		for (uint32_t i = 0; i < j - 1; ++i) {
+			EXPECT_LE(d_in[i], d_in[i+1]);
+		}
+	}
+
+	for (uint32_t j = 16; j <= s; j+=1) {
+		for (uint32_t i = 0; i < s; ++i) {
+			d_in[i] = fastrandombytes_uint64();
+		}
+
+		bool r = avx512_sortingnetwork_small_uint32_t(d_in, s);
+		EXPECT_TRUE(r);
+		for (uint32_t i = 0; i < j - 1; ++i) {
+			EXPECT_LE(d_in[i], d_in[i+1]);
+		}
+	}
+}
+
+TEST(SortingNetwork, avx512_int32_small) {
+	constexpr size_t s = 96;
+	alignas(64) int32_t d_in[s];
+
+	for (uint32_t j = 16; j <= s; j+=16) {
+		for (uint32_t i = 0; i < s; ++i) {
+			d_in[i] = fastrandombytes_uint64();
+		}
+
+		bool r = avx512_sortingnetwork_small_int32_t(d_in, s);
+		EXPECT_TRUE(r);
+		for (uint32_t i = 0; i < j - 1; ++i) {
+			EXPECT_LE(d_in[i], d_in[i+1]);
+		}
+	}
+
+	for (uint32_t j = 16; j <= s; j+=1) {
+		for (uint32_t i = 0; i < s; ++i) {
+			d_in[i] = fastrandombytes_uint64();
+		}
+
+		bool r = avx512_sortingnetwork_small_int32_t(d_in, s);
+		EXPECT_TRUE(r);
+		for (uint32_t i = 0; i < j - 1; ++i) {
+			EXPECT_LE(d_in[i], d_in[i+1]);
+		}
+	}
+}
+
+TEST(SortingNetwork, avx512_float_small) {
+	constexpr size_t s = 96;
+	alignas(64) int32_t d_in[s];
+
+	for (uint32_t j = 16; j <= s; j+=16) {
+		for (uint32_t i = 0; i < s; ++i) {
+			d_in[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
+		}
+
+		bool r = avx512_sortingnetwork_small_int32_t(d_in, s);
+		EXPECT_TRUE(r);
+		for (uint32_t i = 0; i < j- 1; ++i) {
+			EXPECT_LE(d_in[i], d_in[i+1]);
+		}
+	}
+
+	for (uint32_t j = 16; j <= s; j+=1) {
+		for (uint32_t i = 0; i < s; ++i) {
+			d_in[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
+		}
+
+		bool r = avx512_sortingnetwork_small_int32_t(d_in, s);
+		EXPECT_TRUE(r);
+		for (uint32_t i = 0; i < j- 1; ++i) {
+			EXPECT_LE(d_in[i], d_in[i+1]);
+		}
+	}
+}
 #endif
 
 int main(int argc, char **argv) {

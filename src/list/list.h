@@ -399,6 +399,23 @@ public:
 
 public:
 
+	/// tried to mimic the api of the hashmap
+	constexpr inline size_t find(size_t &load,
+	                             const Element &e,
+	                             const uint32_t k_lower,
+								 const uint32_t k_upper) const noexcept {
+		const size_t a = search_level(e, k_lower, k_upper);
+		if (a == -1ull) {return -1ull; }
+
+		load = 1;
+		while ((a + load) < load &&
+		        e.is_equal(__data[a + load], k_lower, k_upper)) {
+			load += 1;
+		}
+
+		return a;
+	}
+
 	/// generic search function, which depending on your configuration
 	/// does different things. If
 	/// \param e element to search

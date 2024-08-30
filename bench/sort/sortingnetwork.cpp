@@ -6,10 +6,11 @@
 #include "random.h"
 #include "sort/sort.h"
 
-constexpr size_t LS = 1u<<18u;
+constexpr size_t LS = 1u<<14u;
 alignas(64) std::vector<uint32_t> data(LS);
 
-uint32_t data2[128] __attribute__((aligned(64)));
+constexpr size_t LS2 = 256;
+uint32_t data2[256] __attribute__((aligned(64)));
 
 int c(const void *a, const void *b){
 	if ( *(uint32_t *)a <  *(uint32_t *)b ) return -1;
@@ -42,18 +43,17 @@ static void bench_skasort(benchmark::State& state) {
 		data[i] = fastrandombytes_uint64();
 	}
 	for (auto _ : state) {
-		ska_sort(data.begin(), data.end());
+		ska_sort(data.begin(), data.end(), [](const auto &e){ return e; });
 	}
 }
 
 //BENCHMARK(bench_stdsort)->Range(64, 64)->Range(128, 128);
-BENCHMARK(bench_qsort)->Range(64, 64)->Range(128, 128);
-
-BENCHMARK(bench_stdsort)->RangeMultiplier(2)->Range(16, LS);
-BENCHMARK(bench_skasort)->RangeMultiplier(2)->Range(16, LS);
+//BENCHMARK(bench_qsort)->Range(64, 64)->Range(128, 128);
+//BENCHMARK(bench_stdsort)->RangeMultiplier(2)->Range(16, LS);
+//BENCHMARK(bench_skasort)->RangeMultiplier(2)->Range(16, LS);
 
 #ifdef USE_AVX2
-static void bench_sortingnetwort_sort_u32x128(benchmark::State& state) {
+static void bench_sortingnetwork_sort_u32x128(benchmark::State& state) {
 	__m256i *d = (__m256i *)data2;
 	for (uint32_t i = 0; i < 128; ++i) {
 		data2[i] = fastrandombytes_uint64();
@@ -63,9 +63,9 @@ static void bench_sortingnetwort_sort_u32x128(benchmark::State& state) {
 	}
 }
 
-static void bench_sortingnetwort_sort_u32x64(benchmark::State& state) {
+static void bench_sortingnetwork_sort_u32x64(benchmark::State& state) {
 	__m256i *d = (__m256i *)data2;
-	for (uint32_t i = 0; i < 128; ++i) {
+	for (uint32_t i = 0; i < 64; ++i) {
 		data2[i] = fastrandombytes_uint64();
 	}
 	for (auto _ : state) {
@@ -73,7 +73,7 @@ static void bench_sortingnetwort_sort_u32x64(benchmark::State& state) {
 	}
 }
 
-static void bench_sortingnetwort_sort_u32x128_v2(benchmark::State& state) {
+static void bench_sortingnetwork_sort_u32x128_v2(benchmark::State& state) {
 	for (uint32_t i = 0; i < 128; ++i) {
 		data2[i] = fastrandombytes_uint64();
 	}
@@ -91,24 +91,82 @@ static void bench_djb_sort(benchmark::State& state) {
 	}
 }
 
-BENCHMARK(bench_sortingnetwort_sort_u32x64)->Range(128, 128);
-BENCHMARK(bench_sortingnetwort_sort_u32x128)->Range(128, 128);
-BENCHMARK(bench_sortingnetwort_sort_u32x128_v2)->Range(128, 128);
+static void bench_sortingnetwork_small_avx2(benchmark::State& state) {
+	for (uint32_t i = 0; i < LS2; ++i) {
+		data2[i] = fastrandombytes_uint64();
+	}
+	for (auto _ : state) {
+		sortingnetwork_small_uint32_t(data2, state.range(0));
+		benchmark::ClobberMemory();
+	}
+}
+
+BENCHMARK(bench_sortingnetwork_sort_u32x64)->Range(128, 128);
+BENCHMARK(bench_sortingnetwork_sort_u32x128)->Range(128, 128);
+BENCHMARK(bench_sortingnetwork_sort_u32x128_v2)->Range(128, 128);
 BENCHMARK(bench_djb_sort)->DenseRange(16, 128, 16);
-BENCHMARK(bench_djb_sort)->RangeMultiplier(2)->Range(16, LS);
+BENCHMARK(bench_sortingnetwork_small_avx2)->DenseRange(16, 256, 16);
+//BENCHMARK(bench_djb_sort)->RangeMultiplier(2)->Range(16, LS);
 #endif
 
 
 #ifdef USE_AVX512F
 static void bench_sortingnetwort_sort_u32x16_avx512(benchmark::State& state) {
 	for (uint32_t i = 0; i < 128; ++i) {
-		data[i] = fastrandombytes_uint64();
+		data2[i] = fastrandombytes_uint64();
 	}
 	for (auto _ : state) {
-		sortingnetwork_sort_u32x16(*((__m512i *)data.data()));
+		avx512_sortingnetwork_sort_u32x16(*((__m512i *)data2));
+		benchmark::ClobberMemory();
+	}
+}
+static void bench_sortingnetwort_sort_u32x32_avx512(benchmark::State& state) {
+	__m512i *d = (__m512i *)data2;
+	for (uint32_t i = 0; i < 128; ++i) {
+		data2[i] = fastrandombytes_uint64();
+	}
+	for (auto _ : state) {
+		avx512_sortingnetwork_sort_u32x32(d[0], d[1]);
+		benchmark::ClobberMemory();
+	}
+}
+static void bench_sortingnetwort_sort_u32x48_avx512(benchmark::State& state) {
+	__m512i *d = (__m512i *)data2;
+	for (uint32_t i = 0; i < 128; ++i) {
+		data2[i] = fastrandombytes_uint64();
+	}
+	for (auto _ : state) {
+		avx512_sortingnetwork_sort_u32x48(d[0], d[1], d[2]);
+		benchmark::ClobberMemory();
+	}
+}
+static void bench_sortingnetwort_sort_u32x64_avx512(benchmark::State& state) {
+	__m512i *d = (__m512i *)data2;
+	for (uint32_t i = 0; i < 128; ++i) {
+		data2[i] = fastrandombytes_uint64();
+	}
+	for (auto _ : state) {
+		avx512_sortingnetwork_sort_u32x64(d[0], d[1], d[2], d[3]);
+		benchmark::ClobberMemory();
+	}
+}
+
+
+static void bench_sortingnetwort_small_avx512(benchmark::State& state) {
+	for (uint32_t i = 0; i < 128; ++i) {
+		data2[i] = fastrandombytes_uint64();
+	}
+	for (auto _ : state) {
+		avx512_sortingnetwork_small_uint32_t(data2, state.range(0));
+		benchmark::ClobberMemory();
 	}
 }
 BENCHMARK(bench_sortingnetwort_sort_u32x16_avx512)->Range(16, 16);
+BENCHMARK(bench_sortingnetwort_sort_u32x32_avx512)->Range(32, 32);
+BENCHMARK(bench_sortingnetwort_sort_u32x48_avx512)->Range(48, 48);
+BENCHMARK(bench_sortingnetwort_sort_u32x64_avx512)->Range(64, 64);
+
+BENCHMARK(bench_sortingnetwort_small_avx512)->DenseRange(16, 112, 16);
 #endif
 
 

@@ -882,6 +882,122 @@ sortingnetwork_sort16(f32x128,f32x64,f32x16,__m256)
 sortingnetwork_sort16(u32x128,u32x64,u32x16,__m256i)
 sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
 
+
+#ifdef __clang__
+#define avx2_sortingnetwork_small(T, N, REG)							\
+[[nodiscard]] static bool sortingnetwork_small_ ## N(N* array,			\
+			const size_t element_count) noexcept {						\
+	if (element_count <= 1) { return true; }							\
+	constexpr size_t s = 16;											\
+	const uint32_t full_vec_count = element_count/s;					\
+	const uint32_t last_vec_size = element_count-(full_vec_count*s);	\
+	const uint32_t last_vec_flag = last_vec_size > 0;					\
+	if (full_vec_count > s) { return false; }							\
+	REG d[16];															\
+	for(uint32_t i=0; i<full_vec_count; ++i) {							\
+		d[i] = *((REG *)(array + s*i));									\
+	}                                                      				\
+    N tmp[s];                                           				\
+	if (last_vec_size) {                                   				\
+		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
+    		tmp[i] = array[full_vec_count*s + i];                       \
+		}                                                     			\
+		d[full_vec_count] = *((REG *)(tmp));							\
+	}																	\
+	switch (full_vec_count+last_vec_flag) {								\
+	case 1 : sortingnetwork_sort_ ## T ## 32x8  (d[0]); goto cleanup;	\
+	case 2 : sortingnetwork_sort_ ## T ## 32x16 (d[0],d[1]); goto cleanup;\
+	case 3 : sortingnetwork_sort_ ## T ## 32x24 (d[0],d[1],d[2]); goto cleanup;\
+	case 4 : sortingnetwork_sort_ ## T ## 32x32 (d[0],d[1],d[2],d[3]); goto cleanup;\
+	case 5 : sortingnetwork_sort_ ## T ## 32x40 (d[0],d[1],d[2],d[3],d[4]); goto cleanup;\
+	case 6 : sortingnetwork_sort_ ## T ## 32x48 (d[0],d[1],d[2],d[3],d[4],d[5]); goto cleanup;\
+	case 7 : sortingnetwork_sort_ ## T ## 32x56 (d[0],d[1],d[2],d[3],d[4],d[5],d[6]); goto cleanup;\
+	case 8 : sortingnetwork_sort_ ## T ## 32x64 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7]); goto cleanup;\
+	case 9 : sortingnetwork_sort_ ## T ## 32x72 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8]); goto cleanup;\
+	case 10: sortingnetwork_sort_ ## T ## 32x80 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9]); goto cleanup;\
+	case 11: sortingnetwork_sort_ ## T ## 32x88 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10]); goto cleanup;\
+	case 12: sortingnetwork_sort_ ## T ## 32x96 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11]); goto cleanup;\
+	case 13: sortingnetwork_sort_ ## T ## 32x104(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12]); goto cleanup;\
+	case 14: sortingnetwork_sort_ ## T ## 32x112(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13]); goto cleanup;\
+	case 15: sortingnetwork_sort_ ## T ## 32x120(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14]); goto cleanup;\
+	case 16: sortingnetwork_sort_ ## T ## 32x128(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14],d[15]); goto cleanup;\
+	default:\
+	return false;\
+	}\
+	cleanup:															\
+	for(uint32_t i=0; i<full_vec_count; ++i) {							\
+		*((REG *)(array + s*i)) = d[i];									\
+	}																	\
+	if (last_vec_size) {												\
+		d[full_vec_count] = *((REG *)(tmp));							\
+		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
+    		array[full_vec_count*s + i] = tmp[i];                       \
+		}                                                     			\
+	}																	\
+	return true;														\
+}
+#else
+#define avx2_sortingnetwork_small(T, N, REG)							\
+[[nodiscard]] static bool sortingnetwork_small_ ## N(N* array,			\
+			const size_t element_count) noexcept {						\
+	if (element_count <= 1) { return true; }							\
+	constexpr size_t s = 16;											\
+	const uint32_t full_vec_count = element_count/s;					\
+	const uint32_t last_vec_size = element_count-(full_vec_count*s);	\
+	const uint32_t last_vec_flag = last_vec_size > 0;					\
+	if (full_vec_count > s) { return false; }							\
+	REG d[16];															\
+	for(uint32_t i=0; i<full_vec_count; ++i) {							\
+		d[i] = *((REG *)(array + s*i));									\
+	}                                                      				\
+    N tmp[s];                                           				\
+	if (last_vec_size) {                                   				\
+		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
+    		tmp[i] = array[full_vec_count*s + i];                       \
+		}                                                     			\
+		d[full_vec_count] = *((REG *)(tmp));							\
+	}																	\
+	void *t[] = {\
+	    &&t1,  &&t2,  &&t3,  &&t4,\
+		&&t5,  &&t6,  &&t7,  &&t8,\
+	   	&&t9,  &&t10, &&t11, &&t12,\
+	    &&t13, &&t14, &&t15, &&t16\
+	};\
+	goto *t[full_vec_count+last_vec_flag - 1];\
+	t1 : sortingnetwork_sort_ ## T ## 32x8  (d[0]); goto cleanup;\
+	t2 : sortingnetwork_sort_ ## T ## 32x16 (d[0],d[1]); goto cleanup;\
+	t3 : sortingnetwork_sort_ ## T ## 32x24 (d[0],d[1],d[2]); goto cleanup;\
+	t4 : sortingnetwork_sort_ ## T ## 32x32 (d[0],d[1],d[2],d[3]); goto cleanup;\
+	t5 : sortingnetwork_sort_ ## T ## 32x40 (d[0],d[1],d[2],d[3],d[4]); goto cleanup;\
+	t6 : sortingnetwork_sort_ ## T ## 32x48 (d[0],d[1],d[2],d[3],d[4],d[5]); goto cleanup;\
+	t7 : sortingnetwork_sort_ ## T ## 32x56 (d[0],d[1],d[2],d[3],d[4],d[5],d[6]); goto cleanup;\
+	t8 : sortingnetwork_sort_ ## T ## 32x64 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7]); goto cleanup;\
+	t9 : sortingnetwork_sort_ ## T ## 32x72 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8]); goto cleanup;\
+	t10: sortingnetwork_sort_ ## T ## 32x80 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9]); goto cleanup;\
+	t11: sortingnetwork_sort_ ## T ## 32x88 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10]); goto cleanup;\
+	t12: sortingnetwork_sort_ ## T ## 32x96 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11]); goto cleanup;\
+	t13: sortingnetwork_sort_ ## T ## 32x104(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12]); goto cleanup;\
+	t14: sortingnetwork_sort_ ## T ## 32x112(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13]); goto cleanup;\
+	t15: sortingnetwork_sort_ ## T ## 32x120(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14]); goto cleanup;\
+	t16: sortingnetwork_sort_ ## T ## 32x128(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14],d[15]); goto cleanup;\
+    cleanup:															\
+	for(uint32_t i=0; i<full_vec_count; ++i) {							\
+		*((REG *)(array + s*i)) = d[i];									\
+	}																	\
+	if (last_vec_size) {												\
+		d[full_vec_count] = *((REG *)(tmp));							\
+		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
+    		array[full_vec_count*s + i] = tmp[i];                       \
+		}                                                     			\
+	}																	\
+	return true;														\
+}
+#endif
+
+avx2_sortingnetwork_small(u, uint32_t, __m256i);
+avx2_sortingnetwork_small(i, int32_t, __m256i);
+//avx2_sortingnetwork_small(f, float, __m512);
+
 /// can only sort up to 16*8 elements
 /// sorts the floating point data in `array`
 /// \param array base pointer to the data
@@ -893,13 +1009,11 @@ sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
 	if (element_count <= 1) {
 		return true;
 	}
-
-	const uint32_t full_vec_count = element_count / 8;
-	const uint32_t last_vec_size = element_count - (full_vec_count * 8);
+	constexpr size_t s = 8;
+	const uint32_t full_vec_count = element_count / s;
+	const uint32_t last_vec_size = element_count - (full_vec_count * s);
 	const uint32_t last_vec_flag = last_vec_size > 0;
-	if (full_vec_count > 16) {
-		// too many values
-		return false;
+	if (full_vec_count > 16) { return false;
 	}
 	
 
@@ -934,30 +1048,7 @@ sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
 			return false;
 	}
 #else
-	void *t[] = {
-	    &&t1,  &&t2,  &&t3,  &&t4,
-		&&t5,  &&t6,  &&t7,  &&t8,
-	   	&&t9,  &&t10, &&t11, &&t12,
-	    &&t13, &&t14, &&t15, &&t16
-	};
 
-	goto *t[full_vec_count+last_vec_flag - 1];
-	t1 : sortingnetwork_sort_f32x8  (d[0]); goto cleanup;
-	t2 : sortingnetwork_sort_f32x16 (d[0],d[1]); goto cleanup;
-	t3 : sortingnetwork_sort_f32x24 (d[0],d[1],d[2]); goto cleanup;
-	t4 : sortingnetwork_sort_f32x32 (d[0],d[1],d[2],d[3]); goto cleanup;
-	t5 : sortingnetwork_sort_f32x40 (d[0],d[1],d[2],d[3],d[4]); goto cleanup;
-	t6 : sortingnetwork_sort_f32x48 (d[0],d[1],d[2],d[3],d[4],d[5]); goto cleanup;
-	t7 : sortingnetwork_sort_f32x56 (d[0],d[1],d[2],d[3],d[4],d[5],d[6]); goto cleanup;
-	t8 : sortingnetwork_sort_f32x64 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7]); goto cleanup;
-	t9 : sortingnetwork_sort_f32x72 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8]); goto cleanup;
-	t10: sortingnetwork_sort_f32x80 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9]); goto cleanup;
-	t11: sortingnetwork_sort_f32x88 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10]); goto cleanup;
-	t12: sortingnetwork_sort_f32x96 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11]); goto cleanup;
-	t13: sortingnetwork_sort_f32x104(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12]); goto cleanup;
-	t14: sortingnetwork_sort_f32x112(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13]); goto cleanup;
-	t15: sortingnetwork_sort_f32x120(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14]); goto cleanup;
-	t16: sortingnetwork_sort_f32x128(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14],d[15]); goto cleanup;
 #endif
 
 	cleanup:

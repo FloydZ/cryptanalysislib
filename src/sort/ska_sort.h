@@ -869,7 +869,7 @@ struct SubKey;
 template<size_t Size>
 struct SizedSubKey {
     template<typename T>
-    static auto sub_key(T && value, void *) {
+    constexpr static auto sub_key(T && value, void *) noexcept {
         return to_unsigned_or_bool(value);
     }
 
@@ -1197,8 +1197,9 @@ struct UnsignedInplaceSorter
     }
 
     template<typename It, typename ExtractKey>
-    static void ska_byte_sort(It begin, It end, ExtractKey & extract_key, void (*next_sort)(It, It, std::ptrdiff_t, ExtractKey &, void *), void * sort_data)
-    {
+    static void ska_byte_sort(It begin,
+		                      It end,
+		                      ExtractKey & extract_key, void (*next_sort)(It, It, std::ptrdiff_t, ExtractKey &, void *), void * sort_data) noexcept {
 		ZoneScoped;
         PartitionInfo partitions[256];
         for (It it = begin; it != end; ++it) {
@@ -1460,8 +1461,9 @@ struct IdentityFunctor
 }
 
 template<typename It, typename ExtractKey>
-static void ska_sort(It begin, It end, ExtractKey && extract_key)
-{
+constexpr static void ska_sort(It begin,
+                               It end,
+                               ExtractKey && extract_key) noexcept {
     detail::inplace_radix_sort<128, 1024>(begin, end, extract_key);
 }
 
