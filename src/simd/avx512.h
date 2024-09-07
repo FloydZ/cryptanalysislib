@@ -2449,4 +2449,56 @@ __mm512_undefined_epi32 (void) {
 	return __Y;
 }
 
+/* Transpose bits within bytes. */
+/// source: https://github.com/kiyo-masui/bitshuffle/blob/master/src/bitshuffle_core.c
+///
+int64_t bshuf_trans_bit_byte_AVX512(const void* in,
+								   void* out,
+								   const size_t size,
+         						const size_t elem_size) {
+
+    size_t ii, kk;
+    const char* in_b = (const char*) in;
+    char* out_b = (char*) out;
+    size_t nbyte = elem_size * size;
+    int64_t count;
+
+    int64_t* out_i64;
+    __m512i zmm;
+    __mmask64 bt;
+    if (nbyte >= 64) {
+        const __m512i mask = _mm512_set1_epi8(0);
+
+       for (ii = 0; ii + 63 < nbyte; ii += 64) {
+            zmm = _mm512_loadu_si512((__m512i *) &in_b[ii]);
+            for (kk = 0; kk < 8; kk++) {
+                bt = _mm512_cmp_epi8_mask(zmm, mask, 1);
+                zmm = _mm512_slli_epi16(zmm, 1);
+                out_i64 = (int64_t*) &out_b[((7 - kk) * nbyte + ii) / 8];
+                *out_i64 = (int64_t)bt;
+            }
+        }
+    }
+
+    __m256i ymm;
+    int32_t bt32;
+    int32_t* out_i32;
+    size_t start = nbyte - nbyte % 64;
+    for (ii = start; ii + 31 < nbyte; ii += 32) {
+        ymm = _mm256_loadu_si256((__m256i *) &in_b[ii]);
+        for (kk = 0; kk < 8; kk++) {
+            bt32 = _mm256_movemask_epi8(ymm);
+            ymm = _mm256_slli_epi16(ymm, 1);
+            out_i32 = (int32_t*) &out_b[((7 - kk) * nbyte + ii) / 8];
+            *out_i32 = bt32;
+        }
+    }
+
+
+    count = bshuf_trans_bit_byte_remainder(in, out, size, elem_size,
+            nbyte - nbyte % 64 % 32);
+
+    return count;
+}
+
 #endif//CRYPTANALYSISLIB_AVX512_H

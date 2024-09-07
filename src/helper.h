@@ -306,6 +306,16 @@ static void ident() {
 }
 
 
+/// only adds two instructions:
+/// https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:2,endLineNumber:8,positionColumn:2,positionLineNumber:8,selectionStartColumn:2,selectionStartLineNumber:8,startColumn:2,startLineNumber:8),source:'%23include+%3Cstdlib.h%3E%0A%23define+unlikely(x)+__builtin_expect(!!!!(x),+0)%0A%0A%0A%23define+ACCESS_HELPER(i,+n)%09%5C%0Aif+(unlikely(i+%3E%3D+n))+%7B%09%5C%0A%09abort()%3B%09%5C%0A%7D%0A%0A%0A%0A//+Type+your+code+here,+or+load+an+example.%0Aint+square(int+num)+%7B%0A++++ACCESS_HELPER(num,+20)%3B%0A++++return+num+*+num%3B%0A%7D%0A'),l:'5',n:'1',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:clang1810,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-O3',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+x86-64+clang+18.1.0+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
+///
+/// The idea behind this is to add a second security check even in realease 
+/// mode, which does not add any runtime overhead.
+#define ACCESS_HELPER(i, n)				\
+if (__builtin_expect(!!(i >= n), 0)) { 	\
+	abort();							\
+}
+
 /// Translates a given bit length into the minimal
 /// data type, which can hold this many bits.
 /// NOTE: only unsigned datatypes are used.

@@ -2633,4 +2633,102 @@ static inline void avx2_store_f32x8(float *array,
 	}
 }
 
+/// Transpose a bit-matrix using the vpmovmskb instruction.
+///
+/// See Bitshuffle - https://github.com/kiyo-masui/bitshuffle (MIT)
+/// Copyright (c) 2014 Kiyoshi Masui (kiyo@physics.ubc.ca)
+void matrix_transpose(uint64_t At,
+					  const uint64_t A,
+					  const size_t nrows,
+                      const size_t ncols) {
+  uint8_t in[32] __attribute__((aligned(32)));
+
+	for (size_t i = 0; i < (nrows + 31) / 32; i += 1) {
+		for (size_t j = 0; j < (ncols + 7) / 8; j += 1) {
+			for (size_t k = 0; k < 32; ++k) {
+				in[k] = (((uint8_t **) A)[k + i * 32])[j];
+			}
+
+			__m256i vec_x = *((__m256i *) in);
+			for (size_t k = 8; k-- > 0;) {
+				int32_t hi = _mm256_movemask_epi8(vec_x);
+				vec_x = _mm256_slli_epi16(vec_x, 1);
+				(((int32_t **) At)[k + j * 8])[i] = hi;
+			}
+		}
+	}
+}
+
+
+/* Transpose bytes within elements, starting partway through input. */
+int64_t bshuf_trans_byte_elem_remainder(const void* in, void* out, const size_t size,
+                                        const size_t elem_size, const size_t start) {
+
+	size_t ii, jj, kk;
+	const char* in_b = (const char*) in;
+	char* out_b = (char*) out;
+
+	// CHECK_MULT_EIGHT(start);
+
+	if (size > start) {
+		// ii loop separated into 2 loops so the compiler can unroll
+		// the inner one.
+		for (ii = start; ii + 7 < size; ii += 8) {
+			for (jj = 0; jj < elem_size; jj++) {
+				for (kk = 0; kk < 8; kk++) {
+					out_b[jj * size + ii + kk]
+					        = in_b[ii * elem_size + kk * elem_size + jj];
+				}
+			}
+		}
+		for (ii = size - size % 8; ii < size; ii ++) {
+			for (jj = 0; jj < elem_size; jj++) {
+				out_b[jj * size + ii] = in_b[ii * elem_size + jj];
+			}
+		}
+	}
+	return size * elem_size;
+}
+
+// Transpose bytes within elements for 16 byte elements.
+/// input: [0, 1, 2, 3, ..., 31] // each number is 8 bits
+/// output:[1, 3, ...,  0, 2, ... ]
+/// 	pos:0, 1,      16,17
+/// \param out
+/// \param in
+/// \param size
+/// \return
+uint64_t bshuf_trans_byte_elem_SSE_16(void* out,
+        							  const void* in,
+                                      const size_t size) {
+    size_t ii;
+    const char *in_b = (const char*) in;
+    char *out_b = (char*) out;
+    __m128i a0, b0, a1, b1;
+
+    for (ii=0; ii + 15 < size; ii += 16) {
+        a0 = _mm_loadu_si128((__m128i *) &in_b[2*ii + 0*16]);
+        b0 = _mm_loadu_si128((__m128i *) &in_b[2*ii + 1*16]);
+
+        a1 = _mm_unpacklo_epi8(a0, b0);
+        b1 = _mm_unpackhi_epi8(a0, b0);
+
+        a0 = _mm_unpacklo_epi8(a1, b1);
+        b0 = _mm_unpackhi_epi8(a1, b1);
+
+        a1 = _mm_unpacklo_epi8(a0, b0);
+        b1 = _mm_unpackhi_epi8(a0, b0);
+
+        a0 = _mm_unpacklo_epi8(a1, b1);
+        b0 = _mm_unpackhi_epi8(a1, b1);
+
+        _mm_storeu_si128((__m128i *) &out_b[0*size + ii], a0);
+        _mm_storeu_si128((__m128i *) &out_b[1*size + ii], b0);
+    }
+
+    return bshuf_trans_byte_elem_remainder(in, out, size, 2,
+            size - size % 16);
+}
+
+
 #endif

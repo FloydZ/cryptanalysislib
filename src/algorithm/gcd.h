@@ -1,10 +1,7 @@
-//
-// Created by duda on 01.07.24.
-//
-
 #ifndef CRYPTANALYSISLIB_GCD_H
 #define CRYPTANALYSISLIB_GCD_H
 
+///
 template<typename T>
 constexpr static T gcd(const T a, const T b) noexcept {
 	if (b == 0) { return b; }
