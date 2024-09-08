@@ -3,6 +3,7 @@
 
 #include "helper.h"
 #include "memory/memory.h"
+#include <cmath>
 
 constexpr static uint32_t histogram_csize = 256;
 #define HISTEND(_c_,_cn_,_cnt_) { uint32_t _i,_j;\
@@ -48,6 +49,114 @@ constexpr static void avx512_histogram_u8_1x(uint32_t cnt[256],
 	}
 }
 
+/// org code from intel:
+/// translation from 
+/// https://github.com/WojciechMula/toys/blob/master/avx512-conflict-detection/histogram_intel_amd64.s
+/// TODO take the rev code
+static void avx512_histogram_u8_v2(uint32_t C[256],
+									const uint8_t *A, 
+									const size_t size){
+	const __m512i Z5 = _mm512_set1_epi32(-1);
+	const __m512i Z4 = _mm512_set1_epi32(1u);
+	const __m512i Z6 = _mm512_set1_epi32(31u);
+	const __m512i Z1 = _mm512_set1_epi32(0);
+	
+	for (uint32_t i = 0; i < size; i++) {
+		const __m512i Z0 = _mm512_loadu_epi32(A + i*32);
+        const __m512i Z3 = _mm512_conflict_epi32(Z0);
+		__mmask16 k1 = -1;
+		const __m512i Z2 = Z4;
+		_mm512_mask_i32gather_epi32(Z1, k1, Z3, A+i*32, 4);
+		Z1 = _mm512_test_epi32_mask(Z0, Z0);
+		k1 = _kortestz_mask16_u8(k1, k1);
+		if (k1 == 0) {
+			goto update;
+		}
+
+		Z0 = _mm512_lzcnt_epi32(Z0);
+		Z0 = _mm512_sub_epi32(Z0, Z6);
+conflict_loop:
+		Z8 = _mm512_mask_permutexvar_epi32(Z2, k1, Z0);
+		Z0 = _mm512_mask_permutexvar_epi32(Z0, k1, Z0);
+		Z2 = _mm512_add_epi32(Z8, k1, Z6);
+		k1 = _mm512_mask_cmpneq_epi32_mask(4, Z0, Z5);
+		if (k1 == 0) {
+			goto conflict_loop;
+		}
+update:
+		Z0 = _mm512_add_epi32(Z1, Z2);
+	}
+}
+
+/// org source: https://github.com/WojciechMula/toys/pull/23jj
+/// NOTE: `_mm512_set1_epi32` has a higher latency than 
+/// 	  `_mm512_ternarylogic_epi32`
+/// https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:48,endLineNumber:9,positionColumn:48,positionLineNumber:9,selectionStartColumn:48,selectionStartLineNumber:9,startColumn:48,startLineNumber:9),source:'%23include+%3Cimmintrin.h%3E%0A%0A__m512i+set1()+%7B%0A++++return+_mm512_set1_epi32(1)%3B%0A%7D%0A%0A__m512i+set1_()+%7B%0A++++__m512i+a%3B%0A++++return+_mm512_ternarylogic_epi32(a,a,a,0xff)%3B%0A%7D'),l:'5',n:'1',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:clang1810,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-O3+-mavx512f',overrides:!(),selection:(endColumn:12,endLineNumber:9,positionColumn:12,positionLineNumber:9,selectionStartColumn:12,selectionStartLineNumber:9,startColumn:12,startLineNumber:9),source:1),l:'5',n:'0',o:'+x86-64+clang+18.1.0+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
+static void avx512_histogram_u8_v3(uint32_t C[256],
+									const uint8_t *A, 
+									const size_t size) {
+	const __m512i vid = _mm512_setr_epi32(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
+	const __m512i one = _mm512_set1_epi32(1);
+
+	for (uint32_t i = 0; i+16 <= size; i+=16) {
+		const __m512i chunk = _mm512_loadu_epi32(A + i);
+		__m512i offsets = _mm512_slli_epi32(chunk, 4);
+		offsets = _mm512_add_epi32(offsets, vid);
+
+		const __m512i oldv = _mm512_i32gather_epi32(C, offsets, 4);
+		const __m512i newv = _mm512_add_epi32(oldv, one);
+		_mm512_i32scatter_epi32(C, newv, 4);
+	}
+
+	for (uint32_t i = 0; i < 32; i++) {
+		const uint32_t pos = i*8;
+		uint32_t sum = 0;
+		for (uint32_t j = 0; j < 8; j++) {
+			sum += C[pos + j];
+		}
+		C[i] = sum;
+	}
+}
+
+#endif
+
+
+#ifdef USE_AVX2 
+static void avx2_histogram_u32(uint32_t C[256],
+							   const uint32_t *A,
+							   const size_t size) {
+	const __m256i vid = _mm256_setr_epi32(0,1,2,3,4,5,6,7);
+	const __m256i one = _mm256_set1_epi32(1);
+	uint32_t tmp1[8] __attribute__((aligned(64)));
+	uint32_t tmp2[8] __attribute__((aligned(64)));
+
+	for (uint32_t i = 0; i+8 <= size; i+=8) {
+		const __m256i chunk = _mm256_loadu_si256((const __m256i *)(A + i));
+		__m256i offsets = _mm256_slli_epi32(chunk, 4);
+		offsets = _mm256_add_epi32(offsets, vid);
+		_mm256_store_si256((__m256i *)tmp2, offsets);
+
+		const __m256i oldv = _mm256_i32gather_epi32(C, offsets, 4);
+		const __m256i newv = _mm256_add_epi32(oldv, one);
+		
+		// NOTE: there is no scatter instruction in avx2
+		// _mm256_i32scatter_epi32(C, newv, 4);
+		_mm256_store_si256((__m256i *)tmp1, newv);
+		for (uint32_t j = 0; j < 8; j++) {
+			C[tmp2[j]] = tmp1[j];
+		}
+	}
+	
+	// TODO can be applied to an histogram algorithm
+	for (uint32_t i = 0; i < 32; i++) {
+		const uint32_t pos = i*8;
+		uint32_t sum = 0;
+		for (uint32_t j = 0; j < 8; j++) {
+			sum += C[pos + j];
+		}
+		C[i] = sum;
+	}
+}
 #endif
 
 /// NOTE: if an element occurs more than 2**32 times in the array
@@ -61,7 +170,7 @@ constexpr inline static void histogram_u8_1x(C cnt[256],
                      				 const T *__restrict in,
                      				 const size_t inlen) noexcept {
 	const T *ip = in;
-	// cryptanalysislib::template memset<uint32_t>(cnt, 0u, 256u);
+	cryptanalysislib::template memset<uint32_t>(cnt, 0u, 256u);
 	while(ip < in+inlen) {
 		cnt[*ip++]++;
 	}
@@ -83,8 +192,9 @@ template<typename T=uint8_t, typename C=uint32_t>
 constexpr inline static void histogram_u8_8x(C cnt[256],
 									  const T *__restrict in,
 									  const size_t inlen) noexcept {
-	C c[8][histogram_csize] = {0},i;
-	unsigned char *ip = in;
+
+	C c[8][histogram_csize] __attribute__((aligned(64)))= {{0}};
+	const T *ip = in;
 
 	while(ip != in+(inlen&~(8-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++, c[4][*ip++]++, c[5][*ip++]++, c[6][*ip++]++, c[7][*ip++]++;
 	while(ip != in+ inlen        ) c[0][*ip++]++;
@@ -106,4 +216,9 @@ namespace cryptanalysislib::algorithm {
 		}
 	}
 };
+
+
+#undef HISTEND8
+#undef HISTEND4
+#undef HISTEND
 #endif

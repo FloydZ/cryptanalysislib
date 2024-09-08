@@ -32,7 +32,7 @@ TEST(histogram_u8, single) {
 
 TEST(histogram_u8_4x, single) {
 	constexpr size_t s = 65;
-	using T = uint16_t;
+	using T = uint8_t;
 	T *data = (T *)malloc(s * sizeof(T));
 	auto *cnt = (uint32_t *)malloc(256 * sizeof(uint32_t));
 	memset(data, 0, s* sizeof(T));
@@ -47,6 +47,18 @@ TEST(histogram_u8_4x, single) {
 	free(data); free(cnt);
 }
 
+#ifdef USE_AVX2
+TEST(histogram_u8_avx2, single) {
+	constexpr size_t s = 8;
+	using T = uint32_t;
+	T *data = (T *)malloc(s * sizeof(T));
+	auto *cnt = (uint32_t *)malloc(256 * sizeof(uint32_t));
+	memset(data, 0, s* sizeof(T));
+	avx2_histogram_u32(cnt, data, s);
+	EXPECT_EQ(cnt[0], s);
+	free(data); free(cnt);
+}
+#endif
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

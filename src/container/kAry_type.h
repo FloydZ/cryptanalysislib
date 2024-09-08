@@ -17,12 +17,18 @@
 using namespace cryptanalysislib::metric;
 
 struct FqConfig : public AlignmentConfig {
+	// see Fq::mirror for explanation
 	constexpr static bool mirror = false;
+
+	// see Fq::arith for explanation
 	constexpr static bool arith = true;
+	
+	// see Fq::lower_is_zero for explanation
 	constexpr static bool lower_is_zero = true;
 } fqConfig;
 
-/// \tparam q  modulus
+/// Container to represent a single element mod q
+/// \tparam q modulus
 /// \tparam Metric: currently unused
 /// \tparam FqConfig: currently unused
 template<const uint64_t _q,
@@ -34,7 +40,12 @@ public:
 	constexpr static uint64_t q = _q;
 	[[nodiscard]] constexpr static inline uint64_t modulus() noexcept { return _q; }
 	constexpr static uint64_t n = 1;
+
+	/// \return the number of bits needed to store a single element mod q
 	[[nodiscard]] constexpr static inline uint64_t bits() noexcept { return bits_log2(q); }
+
+	/// \return the number of subelements within this container. As this 
+	/// 		container only contains a single number its 1.
 	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return 1; }
 
 	constexpr static uint32_t qbits = bits_log2(q);
@@ -54,10 +65,9 @@ public:
 
 	// this is needed to make sure that we have enough `bits` in reserve to
 	// correctly compute the multiplication.
-	static_assert(sizeof(T) <= sizeof(T2));
-	static_assert(bits() <= (8 * sizeof(T)));
-
-	static_assert(q > 1);
+	static_assert(sizeof(T) <= sizeof(T2), "something odd is going on");
+	static_assert(bits() <= (8 * sizeof(T)), "something odd is going on");
+	static_assert(q > 1, "mod 1 or 0?");
 
 	// if true, all bit operations are flipped,
 	// instead of the lowest bits, all operations are
@@ -75,6 +85,9 @@ public:
 	constexpr static bool lower_is_zero = config.lower_is_zero;
 
 	static_assert(mirror + arith <= 1, "only one of the two params should be set to `true`");
+
+	/// returns the number of elements stored this container
+	constexpr static uint32_t internal_limbs = 1;
 
 	// we are godd C++ devs
 	typedef T ContainerLimbType;
@@ -124,8 +137,6 @@ private:
 	}
 
 public:
-	/// returns the number of elements stored this container
-	constexpr static uint32_t internal_limbs = 1;
 
 	/// empty constructor, will init to zero
 	constexpr kAry_Type_T() noexcept {
@@ -198,7 +209,7 @@ public:
 	///
 	/// \param obj1
 	/// \param obj2
-	/// \return
+	/// \return obj1 & obj2
 	constexpr inline friend kAry_Type_T operator&(const kAry_Type_T obj1,
 	                                              const uint64_t obj2) noexcept {
 		kAry_Type_T r;

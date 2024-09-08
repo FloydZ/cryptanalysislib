@@ -33,7 +33,6 @@ static void BM_histogram(benchmark::State &state) {
 	generate_data(data, state.range(0));
 
 	for (auto _: state) {
-		// histogram(data.begin(), data.end());
 		histogram_u8_1x(cnt, data.data(), state.range(0));
 		benchmark::ClobberMemory();
 	}
@@ -49,7 +48,31 @@ static void BM_histogram_4x(benchmark::State &state) {
 		benchmark::ClobberMemory();
 	}
 }
+ 
+template<typename T>
+static void BM_histogram_8x(benchmark::State &state) {
+	static std::vector<T> data;
+	generate_data(data, state.range(0));
 
+	for (auto _: state) {
+		histogram_u8_8x(cnt, data.data(), state.range(0));
+		benchmark::ClobberMemory();
+	}
+}
+
+#ifdef USE_AVX2
+template<typename T>
+static void BM_histogram_avx2(benchmark::State &state) {
+	static std::vector<T> data;
+	generate_data(data, state.range(0));
+
+	for (auto _: state) {
+		avx2_histogram_u8(cnt, data.data(), state.range(0));
+		benchmark::ClobberMemory();
+	}
+}
+BENCHMARK(BM_histogram_avx2<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+#endif
 #ifdef USE_AVX512F
 template<typename T>
 static void BM_histogram_avx512(benchmark::State &state) {
@@ -65,8 +88,9 @@ static void BM_histogram_avx512(benchmark::State &state) {
 BENCHMARK(BM_histogram_avx512<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 #endif
 
-BENCHMARK(BM_stupid_histogram<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_histogram<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_histogram_4x<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+BENCHMARK(BM_histogram_8x<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+BENCHMARK(BM_stupid_histogram<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 
 BENCHMARK_MAIN();

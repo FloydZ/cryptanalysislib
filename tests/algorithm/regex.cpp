@@ -16,7 +16,7 @@ using ::testing::UnitTest;
 #define NOK   ((char*) 0)
 
 char* test_vector[][4] = {
-    { OK,  "\\d",                       "5",                (char*) 1},
+    { OK,  "\\d",                       (char*)"5",                (char*) 1},
     { OK,  "\\w+",                      "hej",              (char*) 3},
     { OK,  "\\s",                       "\t \n",            (char*) 1},
     { NOK, "\\S",                       "\t \n",            (char*) 0},
