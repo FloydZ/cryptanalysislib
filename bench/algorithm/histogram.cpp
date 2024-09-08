@@ -60,19 +60,21 @@ static void BM_histogram_8x(benchmark::State &state) {
 	}
 }
 
-#ifdef USE_AVX2
-template<typename T>
-static void BM_histogram_avx2(benchmark::State &state) {
-	static std::vector<T> data;
-	generate_data(data, state.range(0));
-
-	for (auto _: state) {
-		avx2_histogram_u8(cnt, data.data(), state.range(0));
-		benchmark::ClobberMemory();
-	}
-}
-BENCHMARK(BM_histogram_avx2<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
-#endif
+// TODO
+// #ifdef USE_AVX2
+// template<typename T>
+// static void BM_histogram_avx2(benchmark::State &state) {
+// 	static std::vector<T> data;
+// 	generate_data(data, state.range(0));
+// 
+// 	for (auto _: state) {
+// 		avx2_histogram_u32(cnt, data.data(), state.range(0));
+// 		benchmark::ClobberMemory();
+// 	}
+// }
+// BENCHMARK(BM_histogram_avx2<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
+// #endif
+//
 #ifdef USE_AVX512F
 template<typename T>
 static void BM_histogram_avx512(benchmark::State &state) {
