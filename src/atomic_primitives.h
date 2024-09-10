@@ -146,7 +146,6 @@ struct one_byte_mutex {
 		}
 
 		while (state.exchange(sleeper, std::memory_order_acquire) != unlocked) {
-			// C++ wait
 			state.wait(sleeper, std::memory_order_relaxed);
 		}
 	}
