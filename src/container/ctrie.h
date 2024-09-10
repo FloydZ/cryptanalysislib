@@ -198,7 +198,7 @@ class CacheTrie {
 	/// CORE VARIABLES
 	constexpr static uint32_t alignment = 32;
 	constexpr static uint32_t wayness = 16;
-	constexpr static uint32_t wMask = (1u << bits_log2(wayness)) - 1u;
+	constexpr static uint32_t wMask = (1u << ceil_log2(wayness)) - 1u;
 	constexpr static uint32_t lW = 4;
 	constexpr static uint32_t threads = 1;
 
@@ -210,7 +210,7 @@ class CacheTrie {
 
 
 	class ANNode {
-		void *data [bits_log2(wayness)] = {nullptr};
+		void *data [ceil_log2(wayness)] = {nullptr};
 		uint64_t load = 0;
 
 	public:
@@ -731,7 +731,7 @@ public:
 		}
 
 		if constexpr (useCounters) {
-			const uint32_t len = isANode(current) ? wayness : bits_log2(wayness);
+			const uint32_t len = isANode(current) ? wayness : ceil_log2(wayness);
 			const auto count = (uint64_t)READ(current, len);
 			if (count > 1) {
 				return false;

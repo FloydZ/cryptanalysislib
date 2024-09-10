@@ -46,7 +46,7 @@ TEST(NAME, comparsion) {
 
 
 TEST(NAME, mod_T) {
-	constexpr uint32_t qbits = bits_log2(PRIME);
+	constexpr uint32_t qbits = ceil_log2(PRIME);
 	for (uint64_t i = 0; i < PRIME; i++) {
 		const auto d = K::mod_T<uint32_t>(i);
 		EXPECT_EQ(d, i % PRIME);
@@ -149,7 +149,7 @@ TEST(NAME, mul) {
 
 TEST(NAME, HashSimple) {
 	K b1;
-	constexpr uint32_t qbits = bits_log2(PRIME);
+	constexpr uint32_t qbits = ceil_log2(PRIME);
 	constexpr uint32_t limit = 64;
 	for (uint32_t l = 0; l < n-1u; ++l) {
 		for (uint32_t h = l+1u; h < n; ++h) {
@@ -210,7 +210,7 @@ TEST(NAME, HashSimple) {
 
 TEST(NAME, HashCompare) {
 	kAryPackedContainer_T<uint8_t, n, PRIME> b1,b2;
-	constexpr uint32_t qbits = bits_log2(PRIME);
+	constexpr uint32_t qbits = ceil_log2(PRIME);
 	constexpr uint64_t limit = 63;
 	const uint64_t qmask = (1ull<<qbits) - 1ull;
 

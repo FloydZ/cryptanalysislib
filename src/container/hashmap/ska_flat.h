@@ -735,7 +735,7 @@ private:
 	size_t num_elements = 0;
 
 	constexpr static int8_t compute_max_lookups(size_t num_buckets) noexcept {
-		int8_t desired = bits_log2(num_buckets);
+		int8_t desired = ceil_log2(num_buckets);
 		return std::max(min_lookups, desired);
 	}
 

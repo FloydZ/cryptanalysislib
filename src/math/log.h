@@ -94,10 +94,17 @@ namespace cryptanalysislib::math {
 }
 
 /// \param n input
-/// \return ceil(log2(x)), only useful if you need the number of bits needed
+/// \return ceil(log2(n)), only useful if you need the number of bits needed
 __device__ __host__
-[[nodiscard]] constexpr static inline uint64_t bits_log2(uint64_t n) noexcept {
-	return n <= 1 ? 0 : 1 + bits_log2((n + 1) / 2);
+[[nodiscard]] constexpr static inline uint64_t ceil_log2(uint64_t n) noexcept {
+	return n <= 1 ? 0 : 1 + ceil_log2((n + 1) / 2);
 }
 
+///
+/// \param n
+/// \return floor(log2(n))
+__device__ __host__
+[[nodiscard]] constexpr static inline uint64_t floor_log2(uint64_t n) noexcept {
+	return sizeof(uint64_t ) * CHAR_BIT - 1 - __builtin_clzl((uint64_t)n);
+}
 #endif //CRYPTANALYSISLIB_LOG_H

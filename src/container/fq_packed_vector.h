@@ -42,7 +42,7 @@ public:
 	
 	static_assert(n > 0, "jeah at least a single bit?");
 	static_assert(q > 1, "mod 1 or 0?");
-	static_assert(bits_log2(q) <= (8*sizeof(T)), "the limb type should be atleast of the size of prime");
+	static_assert(ceil_log2(q) <= (8*sizeof(T)), "the limb type should be atleast of the size of prime");
 
 #ifdef USE_AVX512F
 	constexpr static uint32_t nr_limbs_in_S = 64/sizeof(T);
@@ -54,7 +54,7 @@ public:
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
 	// number of bits needed to represent MOD
-	constexpr static uint32_t bits_per_number = (uint32_t) bits_log2(q);
+	constexpr static uint32_t bits_per_number = (uint32_t) ceil_log2(q);
 	constexpr static uint32_t qbits = bits_per_number;
 	static_assert(bits_per_number > 0);
 	// number of numbers one can fit into each limb

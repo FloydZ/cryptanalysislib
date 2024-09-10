@@ -34,7 +34,7 @@ public:
 
 	constexpr static uint64_t q = _q;
 	constexpr static inline uint64_t modulus() { return q; }
-	constexpr static uint32_t qbits = bits_log2(q);
+	constexpr static uint32_t qbits = ceil_log2(q);
 
 	// Needed for the internal template system.
 	typedef T DataType;
@@ -1083,7 +1083,7 @@ public:
 		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			unsigned data = (unsigned) __data[i];
-			for (uint32_t j = 0; j < bits_log2(q); ++j) {
+			for (uint32_t j = 0; j < ceil_log2(q); ++j) {
 				std::cout << (data & 1u) << " ";
 				data >>= 1;
 			}

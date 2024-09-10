@@ -15,7 +15,9 @@ concept CompareFunction =
 #endif
 
 
+#include "adler32.h"
 #include "cityhash.h"
+#include "crc.h"
 #include "fnv1a.h"
 #include "simple.h"
 #include "xxh3.h"

@@ -31,7 +31,7 @@ static size_t Khuong_bin_search(const T *list,
 		return 0;
 	}
 
-	uint32_t log = bits_log2(len_list) - 1;
+	uint32_t log = ceil_log2(len_list) - 1;
 	size_t first_mid = len_list - (1UL << log);
 	const T *low = (list[first_mid] < value) ? list + first_mid : list;
 	size_t len = 1UL << log;

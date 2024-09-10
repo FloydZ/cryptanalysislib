@@ -1292,7 +1292,7 @@ public:
 	                     bool transposed = false,
 	                     bool compress_spaces = false,
 	                     bool syndrome = false) const noexcept {
-		constexpr uint32_t bits = bits_log2(q);
+		constexpr uint32_t bits = ceil_log2(q);
 		if (binary) {
 			for (uint32_t j = 0; j < ncols; ++j) {
 				//std::cout << std::setw(3) << j << ": ";

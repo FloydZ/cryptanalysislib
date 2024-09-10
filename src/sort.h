@@ -477,7 +477,7 @@ public:
 		if constexpr (nrt != 1) {
 			auto ret = acc_buckets_load[bid];
 			if constexpr (USE_SORTING_NETWORK_DECODED_IN_LOAD) {
-				constexpr LoadInternalType mask = (LoadInternalType(1ul) << (bits_log2(nrb) + 1u)) - LoadInternalType(1ul);
+				constexpr LoadInternalType mask = (LoadInternalType(1ul) << (ceil_log2(nrb) + 1u)) - LoadInternalType(1ul);
 				return ret & mask;
 			}
 
@@ -485,7 +485,7 @@ public:
 		} else {
 			auto ret = buckets_load[bid];
 			if constexpr (USE_SORTING_NETWORK_DECODED_IN_LOAD) {
-				constexpr ArrayLoadInternalType mask = (ArrayLoadInternalType(1ul) << (bits_log2(nrb) + 1u)) - ArrayLoadInternalType(1ul);
+				constexpr ArrayLoadInternalType mask = (ArrayLoadInternalType(1ul) << (ceil_log2(nrb) + 1u)) - ArrayLoadInternalType(1ul);
 				return ret & mask;
 			}
 			return ret;

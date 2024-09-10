@@ -53,46 +53,17 @@ constexpr static void avx512_histogram_u8_1x(uint32_t cnt[256],
 /// translation from 
 /// https://github.com/WojciechMula/toys/blob/master/avx512-conflict-detection/histogram_intel_amd64.s
 /// TODO take the rev code
-static void avx512_histogram_u8_v2(uint32_t C[256],
-									const uint8_t *A, 
+static void avx512_histogram_u32z_v2(uint32_t C[256],
+									const uint32_t *A,
 									const size_t size){
-	const __m512i Z5 = _mm512_set1_epi32(-1);
-	const __m512i Z4 = _mm512_set1_epi32(1u);
-	const __m512i Z6 = _mm512_set1_epi32(31u);
-	const __m512i Z1 = _mm512_set1_epi32(0);
-	
-	for (uint32_t i = 0; i < size; i++) {
-		const __m512i Z0 = _mm512_loadu_epi32(A + i*32);
-        const __m512i Z3 = _mm512_conflict_epi32(Z0);
-		__mmask16 k1 = -1;
-		const __m512i Z2 = Z4;
-		_mm512_mask_i32gather_epi32(Z1, k1, Z3, A+i*32, 4);
-		Z1 = _mm512_test_epi32_mask(Z0, Z0);
-		k1 = _kortestz_mask16_u8(k1, k1);
-		if (k1 == 0) {
-			goto update;
-		}
 
-		Z0 = _mm512_lzcnt_epi32(Z0);
-		Z0 = _mm512_sub_epi32(Z0, Z6);
-conflict_loop:
-		Z8 = _mm512_mask_permutexvar_epi32(Z2, k1, Z0);
-		Z0 = _mm512_mask_permutexvar_epi32(Z0, k1, Z0);
-		Z2 = _mm512_add_epi32(Z8, k1, Z6);
-		k1 = _mm512_mask_cmpneq_epi32_mask(4, Z0, Z5);
-		if (k1 == 0) {
-			goto conflict_loop;
-		}
-update:
-		Z0 = _mm512_add_epi32(Z1, Z2);
-	}
 }
 
 /// org source: https://github.com/WojciechMula/toys/pull/23jj
 /// NOTE: `_mm512_set1_epi32` has a higher latency than 
 /// 	  `_mm512_ternarylogic_epi32`
 /// https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:48,endLineNumber:9,positionColumn:48,positionLineNumber:9,selectionStartColumn:48,selectionStartLineNumber:9,startColumn:48,startLineNumber:9),source:'%23include+%3Cimmintrin.h%3E%0A%0A__m512i+set1()+%7B%0A++++return+_mm512_set1_epi32(1)%3B%0A%7D%0A%0A__m512i+set1_()+%7B%0A++++__m512i+a%3B%0A++++return+_mm512_ternarylogic_epi32(a,a,a,0xff)%3B%0A%7D'),l:'5',n:'1',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:clang1810,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-O3+-mavx512f',overrides:!(),selection:(endColumn:12,endLineNumber:9,positionColumn:12,positionLineNumber:9,selectionStartColumn:12,selectionStartLineNumber:9,startColumn:12,startLineNumber:9),source:1),l:'5',n:'0',o:'+x86-64+clang+18.1.0+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
-static void avx512_histogram_u8_v3(uint32_t C[256],
+static void avx512_histogram_u32_v3(uint32_t C[256],
 									const uint8_t *A, 
 									const size_t size) {
 	const __m512i vid = _mm512_setr_epi32(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
@@ -121,8 +92,14 @@ static void avx512_histogram_u8_v3(uint32_t C[256],
 #endif
 
 
-#ifdef USE_AVX2 
-static void avx2_histogram_u32(uint32_t C[256],
+#ifdef USE_AVX2
+/// NOTE: special histogram which the input data is 32bits
+/// but only the lower 8 bits are used.
+/// NOTE: buckets need to be 264 elements big.
+/// \param C output buckets
+/// \param A input
+/// \param size number of elements
+static void avx2_histogram_u32(uint32_t C[1024],
 							   const uint32_t *A,
 							   const size_t size) {
 	const __m256i vid = _mm256_setr_epi32(0,1,2,3,4,5,6,7);
@@ -132,7 +109,7 @@ static void avx2_histogram_u32(uint32_t C[256],
 
 	for (uint32_t i = 0; i+8 <= size; i+=8) {
 		const __m256i chunk = _mm256_loadu_si256((const __m256i *)(A + i));
-		__m256i offsets = _mm256_slli_epi32(chunk, 4);
+		__m256i offsets = _mm256_slli_epi32(chunk, 3);
 		offsets = _mm256_add_epi32(offsets, vid);
 		_mm256_store_si256((__m256i *)tmp2, offsets);
 
@@ -146,9 +123,10 @@ static void avx2_histogram_u32(uint32_t C[256],
 			C[tmp2[j]] = tmp1[j];
 		}
 	}
+	// TODO tail mngt
 	
 	// TODO can be applied to an histogram algorithm
-	for (uint32_t i = 0; i < 32; i++) {
+	for (uint32_t i = 0; i < 256; i++) {
 		const uint32_t pos = i*8;
 		uint32_t sum = 0;
 		for (uint32_t j = 0; j < 8; j++) {
@@ -170,7 +148,6 @@ constexpr inline static void histogram_u8_1x(C cnt[256],
                      				 const T *__restrict in,
                      				 const size_t inlen) noexcept {
 	const T *ip = in;
-	cryptanalysislib::template memset<uint32_t>(cnt, 0u, 256u);
 	while(ip < in+inlen) {
 		cnt[*ip++]++;
 	}

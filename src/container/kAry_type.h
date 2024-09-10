@@ -42,13 +42,13 @@ public:
 	constexpr static uint64_t n = 1;
 
 	/// \return the number of bits needed to store a single element mod q
-	[[nodiscard]] constexpr static inline uint64_t bits() noexcept { return bits_log2(q); }
+	[[nodiscard]] constexpr static inline uint64_t bits() noexcept { return ceil_log2(q); }
 
 	/// \return the number of subelements within this container. As this 
 	/// 		container only contains a single number its 1.
 	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return 1; }
 
-	constexpr static uint32_t qbits = bits_log2(q);
+	constexpr static uint32_t qbits = ceil_log2(q);
 
 	constexpr static uint64_t M = computeM_u32(_q);
 	// max bytes of T for which `fastmod` is defined

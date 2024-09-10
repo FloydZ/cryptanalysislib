@@ -84,7 +84,7 @@ constexpr size_t LS = 1u<<8u;
 #define List 	List_T<Element>
 
 TEST(ListName, list_view) {
-	constexpr size_t qbits = bits_log2(Q);
+	constexpr size_t qbits = ceil_log2(Q);
 	constexpr size_t LS = 1u<<(qbits);
 	List L{LS, 1};
 	Matrix m;
@@ -111,7 +111,7 @@ TEST(ListName, list_view) {
 
 
 TEST(ListName, kAry_search) {
-	constexpr size_t qbits = bits_log2(Q);
+	constexpr size_t qbits = ceil_log2(Q);
 	constexpr size_t LS = 1u<<(qbits);
 	List L{LS, 1};
 	Matrix m;
@@ -172,7 +172,7 @@ TEST(ListName, sort_level_constexpr) {
 
 
 TEST(ListName, sort_level_target) {
-	const uint32_t k_lower = 0, k_higher=N;
+	const uint32_t k_lower = 0, k_higher= N;
 	List L{LS, 1};
 	Matrix m;
 	m.random();
@@ -191,7 +191,7 @@ TEST(ListName, sort_level_target) {
 }
 
 TEST(Keke, sort_level_target_constexpr) {
-	const uint32_t k_lower = 0, k_higher=N;
+	const uint32_t k_lower = 0, k_higher= N;
 	List L{LS, 1};
 	Matrix m;
 	m.random();

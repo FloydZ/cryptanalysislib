@@ -303,7 +303,7 @@ namespace cryptanalysislib::hh {
 
 		[[nodiscard]] constexpr inline int8_t next_size_over(size_t & size) const noexcept {
 			size = std::max(size_t(2), round_up_to_power_of_two(size));
-			return 64u - bits_log2(size);
+			return 64u - ceil_log2(size);
 		}
 
 		constexpr inline void commit(int8_t shift) noexcept {

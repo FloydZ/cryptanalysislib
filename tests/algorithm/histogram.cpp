@@ -48,14 +48,28 @@ TEST(histogram_u8_4x, single) {
 }
 
 #ifdef USE_AVX2
-TEST(histogram_u8_avx2, single) {
-	constexpr size_t s = 8;
+TEST(histogram_u32_avx2, single) {
+	constexpr size_t s = 64;
+	constexpr size_t s2 = 2048 + 8;
 	using T = uint32_t;
 	T *data = (T *)malloc(s * sizeof(T));
-	auto *cnt = (uint32_t *)malloc(256 * sizeof(uint32_t));
-	memset(data, 0, s* sizeof(T));
+	auto *cnt = (uint32_t *)malloc(s2 * sizeof(uint32_t));
+	memset(data, 0, s*sizeof(T));
+	memset(cnt, 0, s2*sizeof(uint32_t));
+	for (size_t i = 0; i < s; ++i) { data[i] = 1; }
 	avx2_histogram_u32(cnt, data, s);
-	EXPECT_EQ(cnt[0], s);
+	EXPECT_EQ(cnt[1], s);
+	for (uint32_t i = 2; i < 256; ++i) {
+		EXPECT_EQ(cnt[i], 0);
+	}
+
+	// reset
+	cnt[0] = 0;
+	const auto t = fastrandombytes(data, s * sizeof(T));
+	for (size_t i = 0; i < s; ++i) { data[i] = data[i] & 0xFF; }
+	EXPECT_FALSE(t);
+	avx2_histogram_u32(cnt, data, s);
+
 	free(data); free(cnt);
 }
 #endif

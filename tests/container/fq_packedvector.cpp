@@ -77,7 +77,7 @@ using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
 
 TEST(Devv, Constexpr) {
 	kAryPackedContainer_T<uint8_t, 127, 8> b1;
-	constexpr uint32_t qbits = bits_log2(8);
+	constexpr uint32_t qbits = ceil_log2(8);
 	b1.zero();
 	b1.one(0, 20);
 	uint64_t t = b1.template hash<0, 20>();

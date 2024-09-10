@@ -206,6 +206,7 @@ namespace cryptanalysislib {
 		}
 #endif
 
+		/// TODO rename
 		/// \param out output array
 		/// \param in input symbol
 		/// \param nr_elements number of arrays NOT bytes
