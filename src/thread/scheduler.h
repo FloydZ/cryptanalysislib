@@ -89,30 +89,30 @@ CONTRIBUTORS:
 
 
 #if defined _MSC_VER || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 19901L))
-  #include <stdint.h>
-  #ifndef SCHED_UINT32
-    #define SCHED_UINT32 uint32_t
-  #endif
-  #ifndef SCHED_INT32
-    #define SCHED_INT32 int32_t
-  #endif
-  #ifndef SCHED_UINT_PTR
-    #define SCHED_UINT_PTR uintptr_t
-  #endif
+#include <stdint.h>
+#ifndef SCHED_UINT32
+#define SCHED_UINT32 uint32_t
+#endif
+#ifndef SCHED_INT32
+#define SCHED_INT32 int32_t
+#endif
+#ifndef SCHED_UINT_PTR
+#define SCHED_UINT_PTR uintptr_t
+#endif
 #else
-  #ifndef SCHED_UINT32
-    // #define SCHED_UINT32 unsigned int
-  #endif
-  #ifndef SCHED_INT32
-    #define SCHED_INT32 int
-  #endif
-  #ifndef SCHED_UINT_PTR
-    #define SCHED_UINT_PTR unsigned long
-  #endif
+#ifndef SCHED_UINT32
+// #define SCHED_UINT32 unsigned int
+#endif
+#ifndef SCHED_INT32
+#define SCHED_INT32 int
+#endif
+#ifndef SCHED_UINT_PTR
+#define SCHED_UINT_PTR unsigned long
+#endif
 #endif
 
-#include<thread>
 #include "helper.h"
+#include <thread>
 
 typedef unsigned char sched_byte;
 typedef SCHED_INT32 sched_int;
@@ -121,43 +121,43 @@ typedef SCHED_UINT_PTR sched_ptr;
 
 struct scheduler;
 struct sched_task_partition {
-    uint32_t start;
-    uint32_t end;
+	uint32_t start;
+	uint32_t end;
 };
 
-typedef void(*sched_run)(void*, struct scheduler*, struct sched_task_partition, uint32_t thread_num);
+typedef void (*sched_run)(void *, struct scheduler *, struct sched_task_partition, uint32_t thread_num);
 
 struct sched_task {
-    void *userdata;
-    /* custum userdata to use in callback userdata */
-    sched_run exec;
-    /* function working on the task owner structure */
-    uint32_t size;
-    /* number of elements inside the set */
-    uint32_t min_range;
-    /* minimum size of range when splitting a task set into partitions.
+	void *userdata;
+	/* custum userdata to use in callback userdata */
+	sched_run exec;
+	/* function working on the task owner structure */
+	uint32_t size;
+	/* number of elements inside the set */
+	uint32_t min_range;
+	/* minimum size of range when splitting a task set into partitions.
      * This should be set to a value which results in computation effort of at
      * least 10k clock cycles to minimiye task scheduler overhead.
      * NOTE: The last partition will be smaller than min_range if size is not a
      * multiple of min_range (lit.: grain size) */
-    /* --------- INTERNAL ONLY -------- */
-    volatile sched_int run_count;
-    uint32_t range_to_run;
+	/* --------- INTERNAL ONLY -------- */
+	volatile sched_int run_count;
+	uint32_t range_to_run;
 };
 #define sched_task_done(t) (!(t)->run_count)
 
-typedef void (*sched_profiler_callback_f)(void*, uint32_t thread_id);
+typedef void (*sched_profiler_callback_f)(void *, uint32_t thread_id);
 struct sched_profiling {
-    void *userdata;
-    /* from the user provided data used in each callback */
-    sched_profiler_callback_f thread_start;
-    /* callback called as soon as a thread starts working */
-    sched_profiler_callback_f thread_stop;
-    /* callback called when as a thread is finished */
-    sched_profiler_callback_f wait_start;
-    /* callback called if a thread begins waiting */
-    sched_profiler_callback_f wait_stop;
-    /* callback called if a thread is woken up */
+	void *userdata;
+	/* from the user provided data used in each callback */
+	sched_profiler_callback_f thread_start;
+	/* callback called as soon as a thread starts working */
+	sched_profiler_callback_f thread_stop;
+	/* callback called when as a thread is finished */
+	sched_profiler_callback_f wait_start;
+	/* callback called if a thread begins waiting */
+	sched_profiler_callback_f wait_stop;
+	/* callback called if a thread is woken up */
 };
 
 struct sched_semaphore;
@@ -165,37 +165,37 @@ struct sched_thread_args;
 struct sched_pipe;
 
 struct scheduler {
-    struct sched_pipe *pipes;
-    /* pipe for every worker thread */
-    unsigned int threads_num;
-    /* number of worker threads */
-    struct sched_thread_args *args;
-    /* data used in the os thread callback */
-    void *threads;
-    /* os threads array  */
-    volatile sched_int running;
-    /* flag whether the scheduler is running  */
-    volatile sched_int thread_running;
-    /* number of thread that are currently running */
-    volatile sched_int thread_waiting;
-    /* number of thread that are currently active */
-    unsigned partitions_num;
-    unsigned partitions_init_num;
-    /* divider for the array handled by a task */
-    struct sched_semaphore *new_task_semaphore;
-    /* os event to signal work */
-    sched_int have_threads;
-    /* flag whether the os threads have been created */
-    struct sched_profiling profiling;
-    /* profiling callbacks  */
-    sched_size memory;
-    /* memory size */
+	struct sched_pipe *pipes;
+	/* pipe for every worker thread */
+	unsigned int threads_num;
+	/* number of worker threads */
+	struct sched_thread_args *args;
+	/* data used in the os thread callback */
+	void *threads;
+	/* os threads array  */
+	volatile sched_int running;
+	/* flag whether the scheduler is running  */
+	volatile sched_int thread_running;
+	/* number of thread that are currently running */
+	volatile sched_int thread_waiting;
+	/* number of thread that are currently active */
+	unsigned partitions_num;
+	unsigned partitions_init_num;
+	/* divider for the array handled by a task */
+	struct sched_semaphore *new_task_semaphore;
+	/* os event to signal work */
+	sched_int have_threads;
+	/* flag whether the os threads have been created */
+	struct sched_profiling profiling;
+	/* profiling callbacks  */
+	sched_size memory;
+	/* memory size */
 };
 
 // number of default threads
 #define SCHED_DEFAULT (-1)
 
-static void scheduler_add(struct scheduler*, struct sched_task*, sched_run func, void *pArg, uint32_t size, uint32_t min_range);
+static void scheduler_add(struct scheduler *, struct sched_task *, sched_run func, void *pArg, uint32_t size, uint32_t min_range);
 /*  this function adds a task into the scheduler to execute and directly returns
  *  if the pipe is not full. Otherwise the task is run directly. Should only be
  *  called from main thread or within task handler.
@@ -207,7 +207,7 @@ static void scheduler_add(struct scheduler*, struct sched_task*, sched_run func,
     -   task handle used to wait for the task to finish or check if done. Needs
         to be persistent over the process of the task
 */
-static void scheduler_join(struct scheduler*, struct sched_task*);
+static void scheduler_join(struct scheduler *, struct sched_task *);
 /*  this function waits for a previously started task to finish. Should only be
  *  called from thread which created the task scheduler, or within a task
  *  handler. if called with NULL it will try to run task and return if none
@@ -215,11 +215,11 @@ static void scheduler_join(struct scheduler*, struct sched_task*);
     Input:
     -   previously started task to wait until it is finished
 */
-static void scheduler_wait(struct scheduler*);
+static void scheduler_wait(struct scheduler *);
 /*  this function waits for all task inside the scheduler to finish. Not
  *  guaranteed to work unless we know we are in a situation where task aren't
  *  being continuosly added. */
-static void scheduler_stop(struct scheduler*, int doWait);
+static void scheduler_stop(struct scheduler *, int doWait);
 /*  this function waits for all task inside the scheduler to finish and stops
  *  all threads and shuts the scheduler down. Not guaranteed to work unless we
  *  are in a situation where task aren't being continuosly added.
@@ -234,12 +234,12 @@ static void scheduler_stop(struct scheduler*, int doWait);
  * ===============================================================*/
 /* windows requires Windows.h even if you use mingw */
 #if defined(_WIN32) || (defined(__MINGW32__) || defined(__MINGW64__))
-    #define WIN32_LEAN_AND_MEAN
-    #include <Windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 #endif
 
 /* make sure atomic and pointer types have correct size */
-typedef int sched__check_ptr_size[(sizeof(void*) == sizeof(SCHED_UINT_PTR)) ? 1 : -1];
+typedef int sched__check_ptr_size[(sizeof(void *) == sizeof(SCHED_UINT_PTR)) ? 1 : -1];
 typedef int sched__check_ptr_uint32[(sizeof(uint32_t) == 4) ? 1 : -1];
 typedef int sched__check_ptr_int32[(sizeof(sched_int) == 4) ? 1 : -1];
 
@@ -249,146 +249,158 @@ typedef int sched__check_ptr_int32[(sizeof(sched_int) == 4) ? 1 : -1];
 
 #ifdef __cplusplus
 /* C++ hates the C align of makro form so have to resort to templates */
-template<typename T> struct sched_alignof;
-template<typename T, int size_diff> struct sched_helper{enum {value = size_diff};};
-template<typename T> struct sched_helper<T,0>{enum {value = sched_alignof<T>::value};};
-template<typename T> struct sched_alignof{struct Big {T x; char c;}; enum {
-    diff = sizeof(Big) - sizeof(T), value = sched_helper<Big, diff>::value};};
+template<typename T>
+struct sched_alignof;
+template<typename T, int size_diff>
+struct sched_helper {
+	enum { value = size_diff };
+};
+template<typename T>
+struct sched_helper<T, 0> {
+	enum { value = sched_alignof<T>::value };
+};
+template<typename T>
+struct sched_alignof {
+	struct Big {
+		T x;
+		char c;
+	};
+	enum {
+		diff = sizeof(Big) - sizeof(T),
+		value = sched_helper<Big, diff>::value
+	};
+};
 #define SCHED_ALIGNOF(t) (sched_alignof<t>::value);
 #else
-#define SCHED_ALIGNOF(t) ((char*)(&((struct {char c; t _h;}*)0)->_h) - (char*)0)
+#define SCHED_ALIGNOF(t) ((char *) (&((struct {char c; t _h; } *) 0)->_h) - (char *) 0)
 #endif
 
 /* Pointer to Integer type conversion for pointer alignment */
 #if defined(__PTRDIFF_TYPE__) /* This case should work for GCC*/
-# define SCHED_UINT_TO_PTR(x) ((void*)(__PTRDIFF_TYPE__)(x))
-# define SCHED_PTR_TO_UINT(x) ((sched_size)(__PTRDIFF_TYPE__)(x))
+#define SCHED_UINT_TO_PTR(x) ((void *) (__PTRDIFF_TYPE__) (x))
+#define SCHED_PTR_TO_UINT(x) ((sched_size) (__PTRDIFF_TYPE__) (x))
 #elif !defined(__GNUC__) /* works for compilers other than LLVM */
-# define SCHED_UINT_TO_PTR(x) ((void*)&((char*)0)[x])
-# define SCHED_PTR_TO_UINT(x) ((sched_size)(((char*)x)-(char*)0))
+#define SCHED_UINT_TO_PTR(x) ((void *) &((char *) 0)[x])
+#define SCHED_PTR_TO_UINT(x) ((sched_size) (((char *) x) - (char *) 0))
 #elif defined(SCHED_USE_FIXED_TYPES) /* used if we have <stdint.h> */
-# define SCHED_UINT_TO_PTR(x) ((void*)(uintptr_t)(x))
-# define SCHED_PTR_TO_UINT(x) ((uintptr_t)(x))
+#define SCHED_UINT_TO_PTR(x) ((void *) (uintptr_t) (x))
+#define SCHED_PTR_TO_UINT(x) ((uintptr_t) (x))
 #else /* generates warning but works */
-# define SCHED_UINT_TO_PTR(x) ((void*)(x))
-# define SCHED_PTR_TO_UINT(x) ((sched_size)(x))
+#define SCHED_UINT_TO_PTR(x) ((void *) (x))
+#define SCHED_PTR_TO_UINT(x) ((sched_size) (x))
 #endif
 
 /* Pointer math*/
-#define SCHED_PTR_ADD(t, p, i) ((t*)((void*)((sched_byte*)(p) + (i))))
-#define SCHED_ALIGN_PTR(x, mask)\
-    (SCHED_UINT_TO_PTR((SCHED_PTR_TO_UINT((sched_byte*)(x) + (mask-1)) & ~(mask-1))))
+#define SCHED_PTR_ADD(t, p, i) ((t *) ((void *) ((sched_byte *) (p) + (i))))
+#define SCHED_ALIGN_PTR(x, mask) \
+	(SCHED_UINT_TO_PTR((SCHED_PTR_TO_UINT((sched_byte *) (x) + (mask - 1)) & ~(mask - 1))))
 
 /* Helper */
-#define SCHED_UNUSED(x) ((void)x)
-#define SCHED_MIN(a,b) (((a)<(b))?(a):(b))
-#define SCHEDULER_MAX(a,b) (((a)>(b))?(a):(b))
+#define SCHED_UNUSED(x) ((void) x)
+#define SCHED_MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define SCHEDULER_MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 #ifndef SCHED_MEMSET
 #define SCHED_MEMSET sched_memset
 #endif
 
 SCHED_INTERN void
-sched_memset(void *ptr, sched_int c0, sched_size size)
-{
-    #define word unsigned
-    #define wsize sizeof(word)
-    #define wmask (wsize - 1)
-    unsigned char *dst = (unsigned char*)ptr;
-    unsigned long long c = 0;
-    sched_size t = 0;
+sched_memset(void *ptr, sched_int c0, sched_size size) {
+#define word unsigned
+#define wsize sizeof(word)
+#define wmask (wsize - 1)
+	unsigned char *dst = (unsigned char *) ptr;
+	unsigned long long c = 0;
+	sched_size t = 0;
 
-    if ((c = (unsigned char)c0) != 0) {
-        c = (c << 8) | c; /* at least 16-bits  */
-        if (sizeof(unsigned int) > 2)
-            c = (c << 16) | c; /* at least 32-bits*/
-        if (sizeof(unsigned int) > 4)
-            c = (c << 32) | c; /* at least 64-bits*/
-    }
+	if ((c = (unsigned char) c0) != 0) {
+		c = (c << 8) | c; /* at least 16-bits  */
+		if (sizeof(unsigned int) > 2)
+			c = (c << 16) | c; /* at least 32-bits*/
+		if (sizeof(unsigned int) > 4)
+			c = (c << 32) | c; /* at least 64-bits*/
+	}
 
-    /* to small of a word count */
-    dst = (unsigned char*)ptr;
-    if (size < 3 * wsize) {
-        while (size--) *dst++ = (unsigned char)c0;
-        return;
-    }
+	/* to small of a word count */
+	dst = (unsigned char *) ptr;
+	if (size < 3 * wsize) {
+		while (size--) *dst++ = (unsigned char) c0;
+		return;
+	}
 
-    /* align destination */
-    if ((t = SCHED_PTR_TO_UINT(dst) & wmask) != 0) {
-        t = wsize -t;
-        size -= t;
-        do {
-            *dst++ = (unsigned char)c0;
-        } while (--t != 0);
-    }
+	/* align destination */
+	if ((t = SCHED_PTR_TO_UINT(dst) & wmask) != 0) {
+		t = wsize - t;
+		size -= t;
+		do {
+			*dst++ = (unsigned char) c0;
+		} while (--t != 0);
+	}
 
-    /* fill word */
-    t = size / wsize;
-    do {
-        *(word*)((void*)dst) = c;
-        dst += wsize;
-    } while (--t != 0);
+	/* fill word */
+	t = size / wsize;
+	do {
+		*(word *) ((void *) dst) = c;
+		dst += wsize;
+	} while (--t != 0);
 
-    /* fill trailing bytes */
-    t = (size & wmask);
-    if (t != 0) {
-        do {
-            *dst++ = (unsigned char)c0;
-        } while (--t != 0);
-    }
+	/* fill trailing bytes */
+	t = (size & wmask);
+	if (t != 0) {
+		do {
+			*dst++ = (unsigned char) c0;
+		} while (--t != 0);
+	}
 
-    #undef word
-    #undef wsize
-    #undef wmask
+#undef word
+#undef wsize
+#undef wmask
 }
 
 #define sched_zero_struct(s) sched_zero_size(&s, sizeof(s))
-#define sched_zero_array(p,n) sched_zero_size(p, (n) * sizeof((p)[0]))
+#define sched_zero_array(p, n) sched_zero_size(p, (n) * sizeof((p)[0]))
 SCHED_INTERN void
-sched_zero_size(void *ptr, sched_size size)
-{
-    SCHED_MEMSET(ptr, 0, size);
+sched_zero_size(void *ptr, sched_size size) {
+	SCHED_MEMSET(ptr, 0, size);
 }
 
 /* ---------------------------------------------------------------
  *                          ATOMIC
  * ---------------------------------------------------------------*/
-#if  defined(_WIN32) && !(defined(__MINGW32__) || defined(__MINGW64__))
-    #include <intrin.h>
-    void _ReadWriteBarrier();
-    #pragma intrinsic(_ReadWriteBarrier)
-    #pragma intrinsic(_InterlockedCompareExchange)
-    #pragma intrinsic(_InterlockedExchangeAdd)
-    #define SCHED_BASE_MEMORY_BARRIER_ACQUIRE() _ReadWriteBarrier()
-    #define SCHED_BASE_MEMORY_BARRIER_RELEASE() _ReadWriteBarrier()
-    #define SCHED_BASE_ALIGN(x) __declspec(align(x))
+#if defined(_WIN32) && !(defined(__MINGW32__) || defined(__MINGW64__))
+#include <intrin.h>
+void _ReadWriteBarrier();
+#pragma intrinsic(_ReadWriteBarrier)
+#pragma intrinsic(_InterlockedCompareExchange)
+#pragma intrinsic(_InterlockedExchangeAdd)
+#define SCHED_BASE_MEMORY_BARRIER_ACQUIRE() _ReadWriteBarrier()
+#define SCHED_BASE_MEMORY_BARRIER_RELEASE() _ReadWriteBarrier()
+#define SCHED_BASE_ALIGN(x) __declspec(align(x))
 #else
-    #define SCHED_BASE_MEMORY_BARRIER_ACQUIRE() __asm__ __volatile__("": : :"memory")
-    #define SCHED_BASE_MEMORY_BARRIER_RELEASE() __asm__ __volatile__("": : :"memory")
-    #define SCHED_BASE_ALIGN(x) __attribute__((aligned(x)))
+#define SCHED_BASE_MEMORY_BARRIER_ACQUIRE() __asm__ __volatile__("" : : : "memory")
+#define SCHED_BASE_MEMORY_BARRIER_RELEASE() __asm__ __volatile__("" : : : "memory")
+#define SCHED_BASE_ALIGN(x) __attribute__((aligned(x)))
 #endif
 
 SCHED_INTERN uint32_t
-sched_atomic_cmp_swp(volatile uint32_t *dst, uint32_t swap, uint32_t cmp)
-{
+sched_atomic_cmp_swp(volatile uint32_t *dst, uint32_t swap, uint32_t cmp) {
 /* Atomically performs: if (*dst == swapTp){ *dst = swapTo;}
  * return old *dst (so if sucessfull return cmp) */
 #if defined(_WIN32) && !(defined(__MINGW32__) || defined(__MINGW64__))
-    /* assumes two's complement - unsigned /signed conversion leads to same bit pattern */
-    return _InterlockedCompareExchange((volatile long*)dst, swap, cmp);
+	/* assumes two's complement - unsigned /signed conversion leads to same bit pattern */
+	return _InterlockedCompareExchange((volatile long *) dst, swap, cmp);
 #else
-    return __sync_val_compare_and_swap(dst, cmp, swap);
+	return __sync_val_compare_and_swap(dst, cmp, swap);
 #endif
 }
 
 SCHED_INTERN sched_int
-sched_atomic_add(volatile sched_int *dst, sched_int value)
-{
+sched_atomic_add(volatile sched_int *dst, sched_int value) {
 /* Atomically performs: tmp = *dst: *dst += value; return tmp; */
 #if defined(_WIN32) && !(defined(__MINGW32__) || defined(__MINGW64__))
-    return _InterlockedExchangeAdd((long*)dst, value);
+	return _InterlockedExchangeAdd((long *) dst, value);
 #else
-    return (sched_int)__sync_add_and_fetch(dst, value);
+	return (sched_int) __sync_add_and_fetch(dst, value);
 #endif
 }
 
@@ -398,69 +410,64 @@ sched_atomic_add(volatile sched_int *dst, sched_int value)
 /* POSIX */
 #include <pthread.h>
 #if !(defined(__MINGW32__) || defined(__MINGW64__))
-    #include <unistd.h>
-    #include <time.h>
+#include <time.h>
+#include <unistd.h>
 #endif
 
-#define SCHED_THREAD_FUNC_DECL void*
+#define SCHED_THREAD_FUNC_DECL void *
 #define SCHED_THREAD_LOCAL __thread
 typedef pthread_t sched_thread;
 
 SCHED_INTERN sched_int
 sched_thread_create(sched_thread *returnid,
-                    void*(*StartFunc)(void*), void *arg) {
-    sched_int ret_val;
-    ASSERT(returnid);
-    ASSERT(StartFunc);
-    ret_val = pthread_create(returnid, NULL, StartFunc, arg);
-    return ret_val == 0;
+                    void *(*StartFunc)(void *), void *arg) {
+	sched_int ret_val;
+	ASSERT(returnid);
+	ASSERT(StartFunc);
+	ret_val = pthread_create(returnid, NULL, StartFunc, arg);
+	return ret_val == 0;
 }
 
 SCHED_INTERN sched_int
-sched_thread_term(sched_thread threadid)
-{
-    pthread_cancel(threadid);
-    return (pthread_join(threadid, NULL) == 0);
+sched_thread_term(sched_thread threadid) {
+	pthread_cancel(threadid);
+	return (pthread_join(threadid, NULL) == 0);
 }
 
 SCHED_INTERN uint32_t
 sched_num_hw_threads(void) {
-    return (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
+	return (uint32_t) sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 
 #include <semaphore.h>
 
 struct sched_semaphore {
-    sem_t sem;
+	sem_t sem;
 };
 
 SCHED_INTERN void
-sched_semaphore_create(struct sched_semaphore *s)
-{
-    int err = sem_init(&s->sem,0,0);
-    ASSERT(err == 0);
+sched_semaphore_create(struct sched_semaphore *s) {
+	int err = sem_init(&s->sem, 0, 0);
+	ASSERT(err == 0);
 }
 
 SCHED_INTERN void
-sched_semaphore_close(struct sched_semaphore *s)
-{
-    sem_destroy(&s->sem);
+sched_semaphore_close(struct sched_semaphore *s) {
+	sem_destroy(&s->sem);
 }
 
 SCHED_INTERN void
-sched_semaphore_wait(struct sched_semaphore *s)
-{
-    int err = sem_wait(&s->sem);
-    ASSERT(err == 0);
+sched_semaphore_wait(struct sched_semaphore *s) {
+	int err = sem_wait(&s->sem);
+	ASSERT(err == 0);
 }
 
 SCHED_INTERN void
 sched_semaphore_signal(struct sched_semaphore *s, int cnt) {
-    while (cnt-- > 0)
-        sem_post(&s->sem);
+	while (cnt-- > 0)
+		sem_post(&s->sem);
 }
-
 
 
 /* ---------------------------------------------------------------
@@ -482,156 +489,154 @@ sched_semaphore_signal(struct sched_semaphore *s, int cnt) {
 #define SCHED_PIPE_SIZE_LOG2 8
 #endif
 #define SCHED_PIPE_SIZE (2 << SCHED_PIPE_SIZE_LOG2)
-#define SCHED_PIPE_MASK (SCHED_PIPE_SIZE-1)
+#define SCHED_PIPE_MASK (SCHED_PIPE_SIZE - 1)
 typedef int sched__check_pipe_size[(SCHED_PIPE_SIZE_LOG2 < 32) ? 1 : -1];
 
 /* 32-Bit for compare-and-swap */
-#define SCHED_PIPE_INVALID    0xFFFFFFFF
-#define SCHED_PIPE_CAN_WRITE  0x00000000
-#define SCHED_PIPE_CAN_READ   0x11111111
+#define SCHED_PIPE_INVALID 0xFFFFFFFF
+#define SCHED_PIPE_CAN_WRITE 0x00000000
+#define SCHED_PIPE_CAN_READ 0x11111111
 
 struct sched_subset_task {
-    struct sched_task *task;
-    struct sched_task_partition partition;
+	struct sched_task *task;
+	struct sched_task_partition partition;
 };
 
 struct sched_pipe {
-    struct sched_subset_task buffer[SCHED_PIPE_SIZE];
-    /* read and write index allow fast access to the pipe
+	struct sched_subset_task buffer[SCHED_PIPE_SIZE];
+	/* read and write index allow fast access to the pipe
      but actual access is controlled by the access flags. */
-    volatile uint32_t SCHED_BASE_ALIGN(4) write;
-    volatile uint32_t SCHED_BASE_ALIGN(4) read_count;
-    volatile uint32_t flags[SCHED_PIPE_SIZE];
-    volatile uint32_t SCHED_BASE_ALIGN(4) read;
+	volatile uint32_t SCHED_BASE_ALIGN(4) write;
+	volatile uint32_t SCHED_BASE_ALIGN(4) read_count;
+	volatile uint32_t flags[SCHED_PIPE_SIZE];
+	volatile uint32_t SCHED_BASE_ALIGN(4) read;
 };
 
 /* utility function, not intended for general use. Should only be used very prudenlty*/
 #define sched_pipe_is_empty(p) (((p)->write - (p)->read_count) == 0)
 
 SCHED_INTERN sched_int
-sched_pipe_read_back(struct sched_pipe *pipe, struct sched_subset_task *dst)
-{
-    /* return false if we are unable to read. This is thread safe for both
+sched_pipe_read_back(struct sched_pipe *pipe, struct sched_subset_task *dst) {
+	/* return false if we are unable to read. This is thread safe for both
      * multiple readers and the writer */
-    uint32_t to_use;
-    uint32_t previous;
-    uint32_t actual_read;
-    uint32_t read_count;
+	uint32_t to_use;
+	uint32_t previous;
+	uint32_t actual_read;
+	uint32_t read_count;
 
-    ASSERT(pipe);
-    ASSERT(dst);
+	ASSERT(pipe);
+	ASSERT(dst);
 
-    /* we get hold of the read index for consistency,
+	/* we get hold of the read index for consistency,
      * and do first pass starting at read count */
-    read_count = pipe->read_count;
-    to_use = read_count;
-    while (1) {
-        uint32_t write_index = pipe->write;
-        uint32_t num_in_pipe = write_index - read_count;
-        if (!num_in_pipe)
-            return 0;
+	read_count = pipe->read_count;
+	to_use = read_count;
+	while (1) {
+		uint32_t write_index = pipe->write;
+		uint32_t num_in_pipe = write_index - read_count;
+		if (!num_in_pipe)
+			return 0;
 
-        /* move back to start */
-        if (to_use >= write_index)
-            to_use = pipe->read;
+		/* move back to start */
+		if (to_use >= write_index)
+			to_use = pipe->read;
 
-        /* power of two sizes ensures we can perform AND for a modulus */
-        actual_read = to_use & SCHED_PIPE_MASK;
-        /* multiple potential readers means we should check if the data is valid
+		/* power of two sizes ensures we can perform AND for a modulus */
+		actual_read = to_use & SCHED_PIPE_MASK;
+		/* multiple potential readers means we should check if the data is valid
          * using an atomic compare exchange */
-        previous = sched_atomic_cmp_swp(&pipe->flags[actual_read], SCHED_PIPE_INVALID, SCHED_PIPE_CAN_READ);
-        if (previous == SCHED_PIPE_CAN_READ)
-            break;
+		previous = sched_atomic_cmp_swp(&pipe->flags[actual_read], SCHED_PIPE_INVALID, SCHED_PIPE_CAN_READ);
+		if (previous == SCHED_PIPE_CAN_READ)
+			break;
 
-        /* update known read count */
-        read_count = pipe->read_count;
-        ++to_use;
-    }
+		/* update known read count */
+		read_count = pipe->read_count;
+		++to_use;
+	}
 
-    /* we update the read index using an atomic add, ws we've only read one piece
+	/* we update the read index using an atomic add, ws we've only read one piece
      * of data. This ensures consitency of the read index, and the above loop ensures
      * readers only read from unread data. */
-    sched_atomic_add((volatile sched_int*)&pipe->read_count, 1);
-    SCHED_BASE_MEMORY_BARRIER_ACQUIRE();
+	sched_atomic_add((volatile sched_int *) &pipe->read_count, 1);
+	SCHED_BASE_MEMORY_BARRIER_ACQUIRE();
 
-    /* now read data, ensuring we do so after above reads & CAS */
-    *dst = pipe->buffer[actual_read];
-    pipe->flags[actual_read] = SCHED_PIPE_CAN_WRITE;
-    return 1;
+	/* now read data, ensuring we do so after above reads & CAS */
+	*dst = pipe->buffer[actual_read];
+	pipe->flags[actual_read] = SCHED_PIPE_CAN_WRITE;
+	return 1;
 }
 
 SCHED_INTERN sched_int
-sched_pipe_read_front(struct sched_pipe *pipe, struct sched_subset_task *dst)
-{
-    uint32_t prev;
-    uint32_t actual_read = 0;
-    uint32_t write_index;
-    uint32_t front_read;
+sched_pipe_read_front(struct sched_pipe *pipe, struct sched_subset_task *dst) {
+	uint32_t prev;
+	uint32_t actual_read = 0;
+	uint32_t write_index;
+	uint32_t front_read;
 
-    write_index = pipe->write;
-    front_read = write_index;
+	write_index = pipe->write;
+	front_read = write_index;
 
-    /* Mutliple potential reads mean we should check if the data is valid,
+	/* Mutliple potential reads mean we should check if the data is valid,
      * using an atomic compare exchange - which acts as a form of lock */
-    prev = SCHED_PIPE_INVALID;
-    actual_read = 0;
-    while (1) {
-        /* power of two ensures we can use a simple cal without modulus */
-        uint32_t read_count = pipe->read_count;
-        uint32_t num_in_pipe = write_index - read_count;
-        if (!num_in_pipe || !front_read) {
-            pipe->read = read_count;
-            return 0;
-        }
+	prev = SCHED_PIPE_INVALID;
+	actual_read = 0;
+	while (1) {
+		/* power of two ensures we can use a simple cal without modulus */
+		uint32_t read_count = pipe->read_count;
+		uint32_t num_in_pipe = write_index - read_count;
+		if (!num_in_pipe || !front_read) {
+			pipe->read = read_count;
+			return 0;
+		}
 
-        --front_read;
-        actual_read = front_read & SCHED_PIPE_MASK;
-        prev = sched_atomic_cmp_swp(&pipe->flags[actual_read], SCHED_PIPE_INVALID, SCHED_PIPE_CAN_READ);
-        if (prev == SCHED_PIPE_CAN_READ) break;
-        else if (pipe->read >= front_read) return 0;
-    }
+		--front_read;
+		actual_read = front_read & SCHED_PIPE_MASK;
+		prev = sched_atomic_cmp_swp(&pipe->flags[actual_read], SCHED_PIPE_INVALID, SCHED_PIPE_CAN_READ);
+		if (prev == SCHED_PIPE_CAN_READ) break;
+		else if (pipe->read >= front_read)
+			return 0;
+	}
 
-    /* now read data, ensuring we do so after above reads & CAS */
-    *dst = pipe->buffer[actual_read];
-    pipe->flags[actual_read] = SCHED_PIPE_CAN_WRITE;
-    SCHED_BASE_MEMORY_BARRIER_RELEASE();
+	/* now read data, ensuring we do so after above reads & CAS */
+	*dst = pipe->buffer[actual_read];
+	pipe->flags[actual_read] = SCHED_PIPE_CAN_WRITE;
+	SCHED_BASE_MEMORY_BARRIER_RELEASE();
 
-    /* 32-bit aligned stores are atomic, and writer owns the write index */
-    --pipe->write;
-    return 1;
+	/* 32-bit aligned stores are atomic, and writer owns the write index */
+	--pipe->write;
+	return 1;
 }
 
 SCHED_INTERN sched_int
-sched_pipe_write(struct sched_pipe *pipe, const struct sched_subset_task *src)
-{
-    uint32_t actual_write;
-    uint32_t write_index;
-    ASSERT(pipe);
-    ASSERT(src);
+sched_pipe_write(struct sched_pipe *pipe, const struct sched_subset_task *src) {
+	uint32_t actual_write;
+	uint32_t write_index;
+	ASSERT(pipe);
+	ASSERT(src);
 
-    /* The writer 'owns' the write index and readers can only reduce the amout of
+	/* The writer 'owns' the write index and readers can only reduce the amout of
      * data in the pipe. We get hold of both values for consistentcy and to
      * reduce false sharing impacting more than one access */
-    write_index = pipe->write;
+	write_index = pipe->write;
 
-    /* power of two sizes ensures we can perform AND for a modulus*/
-    actual_write = write_index & SCHED_PIPE_MASK;
-    /* a read may still be reading this item, as there are multiple readers */
-    if (pipe->flags[actual_write] != SCHED_PIPE_CAN_WRITE)
-        return 0; /* still being read, so have caught up with tail */
+	/* power of two sizes ensures we can perform AND for a modulus*/
+	actual_write = write_index & SCHED_PIPE_MASK;
+	/* a read may still be reading this item, as there are multiple readers */
+	if (pipe->flags[actual_write] != SCHED_PIPE_CAN_WRITE)
+		return 0; /* still being read, so have caught up with tail */
 
-    /* as we are the only writer we can update the data without atomics whilst
+	/* as we are the only writer we can update the data without atomics whilst
      * the write index has not been updated. */
-    pipe->buffer[actual_write] = *src;
-    pipe->flags[actual_write] = SCHED_PIPE_CAN_READ;
+	pipe->buffer[actual_write] = *src;
+	pipe->flags[actual_write] = SCHED_PIPE_CAN_READ;
 
-    /* we need to ensure the above occur prior to updating the write index,
+	/* we need to ensure the above occur prior to updating the write index,
      * otherwise another thread might read before it's finished */
-    SCHED_BASE_MEMORY_BARRIER_RELEASE();
-    /* 32-bit aligned stores are atomic, and writer owns the write index */
-    ++write_index;
-    pipe->write = write_index;
-    return 1;
+	SCHED_BASE_MEMORY_BARRIER_RELEASE();
+	/* 32-bit aligned stores are atomic, and writer owns the write index */
+	++write_index;
+	pipe->write = write_index;
+	return 1;
 }
 
 /* ---------------------------------------------------------------
@@ -650,8 +655,8 @@ sched_pipe_write(struct sched_pipe *pipe, const struct sched_subset_task *src)
 #endif
 
 struct sched_thread_args {
-    uint32_t thread_num;
-    struct scheduler *scheduler;
+	uint32_t thread_num;
+	struct scheduler *scheduler;
 };
 SCHED_GLOBAL const sched_size sched_pipe_align = SCHED_ALIGNOF(struct sched_pipe);
 SCHED_GLOBAL const sched_size sched_arg_align = SCHED_ALIGNOF(struct sched_thread_args);
@@ -660,132 +665,128 @@ SCHED_GLOBAL const sched_size sched_semaphore_align = SCHED_ALIGNOF(struct sched
 SCHED_GLOBAL SCHED_THREAD_LOCAL uint32_t gtl_thread_num = 0;
 
 SCHED_INTERN struct sched_subset_task
-sched_split_task(struct sched_subset_task *st, uint32_t range_to_split)
-{
-    struct sched_subset_task res = *st;
-    uint32_t range_left = st->partition.end - st->partition.start;
-    if (range_to_split > range_left)
-        range_to_split = range_left;
-    res.partition.end = st->partition.start + range_to_split;
-    st->partition.start = res.partition.end;
-    return res;
+sched_split_task(struct sched_subset_task *st, uint32_t range_to_split) {
+	struct sched_subset_task res = *st;
+	uint32_t range_left = st->partition.end - st->partition.start;
+	if (range_to_split > range_left)
+		range_to_split = range_left;
+	res.partition.end = st->partition.start + range_to_split;
+	st->partition.start = res.partition.end;
+	return res;
 }
 SCHED_INTERN void
-sched_wake_threads(struct scheduler *s)
-{
-    sched_semaphore_signal(s->new_task_semaphore, s->thread_waiting);
+sched_wake_threads(struct scheduler *s) {
+	sched_semaphore_signal(s->new_task_semaphore, s->thread_waiting);
 }
 SCHED_INTERN void
 sched_split_add_task(struct scheduler *s, uint32_t thread_num,
-    struct sched_subset_task *st, uint32_t range_to_split, sched_int off)
-{
-    sched_int cnt = 0;
-    while (st->partition.start != st->partition.end) {
-        struct sched_subset_task t = sched_split_task(st, range_to_split);
-        ++cnt;
-        if (!sched_pipe_write(&s->pipes[gtl_thread_num], &t)) {
-            if (cnt > 1) sched_wake_threads(s);
-            if (t.task->range_to_run < range_to_split) {
-                t.partition.end = t.partition.start + t.task->range_to_run;
-                st->partition.start = t.partition.end;
-            }
-            t.task->exec(t.task->userdata, s, t.partition, thread_num);
-            --cnt;
-        }
-    }
-    sched_atomic_add(&st->task->run_count, cnt + off);
-    sched_wake_threads(s);
+                     struct sched_subset_task *st, uint32_t range_to_split, sched_int off) {
+	sched_int cnt = 0;
+	while (st->partition.start != st->partition.end) {
+		struct sched_subset_task t = sched_split_task(st, range_to_split);
+		++cnt;
+		if (!sched_pipe_write(&s->pipes[gtl_thread_num], &t)) {
+			if (cnt > 1) sched_wake_threads(s);
+			if (t.task->range_to_run < range_to_split) {
+				t.partition.end = t.partition.start + t.task->range_to_run;
+				st->partition.start = t.partition.end;
+			}
+			t.task->exec(t.task->userdata, s, t.partition, thread_num);
+			--cnt;
+		}
+	}
+	sched_atomic_add(&st->task->run_count, cnt + off);
+	sched_wake_threads(s);
 }
 
 SCHED_INTERN sched_int
-sched_try_running_task(struct scheduler *s, uint32_t thread_num, uint32_t *pipe_hint)
-{
-    /* check for tasks */
-    struct sched_subset_task subtask;
-    sched_int have_task = sched_pipe_read_front(&s->pipes[thread_num], &subtask);
-    uint32_t thread_to_check = *pipe_hint;
-    uint32_t check_count = 0;
+sched_try_running_task(struct scheduler *s, uint32_t thread_num, uint32_t *pipe_hint) {
+	/* check for tasks */
+	struct sched_subset_task subtask;
+	sched_int have_task = sched_pipe_read_front(&s->pipes[thread_num], &subtask);
+	uint32_t thread_to_check = *pipe_hint;
+	uint32_t check_count = 0;
 
-    while (!have_task && check_count < s->threads_num) {
-        thread_to_check = (*pipe_hint + check_count) % s->threads_num;
-        if (thread_to_check != thread_num)
-            have_task = sched_pipe_read_back(&s->pipes[thread_to_check], &subtask);
-        ++check_count;
-    }
-    if (have_task) {
-        uint32_t part_size = subtask.partition.end - subtask.partition.start;
-        /* update hint, will preserve value unless actually got task from another thread */
-        *pipe_hint = thread_to_check;
-        if (subtask.task->range_to_run < part_size) {
-            struct sched_subset_task t = sched_split_task(&subtask, subtask.task->range_to_run);
-            sched_split_add_task(s, gtl_thread_num, &subtask, subtask.task->range_to_run, 0);
-            subtask.task->exec(t.task->userdata, s, t.partition, thread_num);
-            sched_atomic_add(&t.task->run_count, -1);
-        } else {
-            /* the task has already been divided up by scheduler_add, so just run */
-            subtask.task->exec(subtask.task->userdata, s, subtask.partition, thread_num);
-            sched_atomic_add(&subtask.task->run_count, -1);
-        }
-    } return have_task;
+	while (!have_task && check_count < s->threads_num) {
+		thread_to_check = (*pipe_hint + check_count) % s->threads_num;
+		if (thread_to_check != thread_num)
+			have_task = sched_pipe_read_back(&s->pipes[thread_to_check], &subtask);
+		++check_count;
+	}
+	if (have_task) {
+		uint32_t part_size = subtask.partition.end - subtask.partition.start;
+		/* update hint, will preserve value unless actually got task from another thread */
+		*pipe_hint = thread_to_check;
+		if (subtask.task->range_to_run < part_size) {
+			struct sched_subset_task t = sched_split_task(&subtask, subtask.task->range_to_run);
+			sched_split_add_task(s, gtl_thread_num, &subtask, subtask.task->range_to_run, 0);
+			subtask.task->exec(t.task->userdata, s, t.partition, thread_num);
+			sched_atomic_add(&t.task->run_count, -1);
+		} else {
+			/* the task has already been divided up by scheduler_add, so just run */
+			subtask.task->exec(subtask.task->userdata, s, subtask.partition, thread_num);
+			sched_atomic_add(&subtask.task->run_count, -1);
+		}
+	}
+	return have_task;
 }
 
 SCHED_INTERN void
-sched_call(sched_profiler_callback_f fn, void *usr, uint32_t threadid)
-{
-    if (fn) fn(usr, threadid);
+sched_call(sched_profiler_callback_f fn, void *usr, uint32_t threadid) {
+	if (fn) fn(usr, threadid);
 }
 
 SCHED_INTERN void
-scheduler_wait_for_work(struct scheduler *s, uint32_t thread_num)
-{
-    uint32_t i = 0;
-    sched_int have_tasks = 0;
-    sched_atomic_add(&s->thread_waiting, 1);
-    for (i = 0; i < s->threads_num; ++i) {
-        if (!sched_pipe_is_empty(&s->pipes[i])) {
-            have_tasks = 1;
-            break;
-        }
-    }
-    if (!have_tasks) {
-        sched_call(s->profiling.wait_start, s->profiling.userdata, thread_num);
-        sched_semaphore_wait(s->new_task_semaphore);
-        sched_call(s->profiling.wait_stop, s->profiling.userdata, thread_num);
-    }
-    sched_atomic_add(&s->thread_waiting, -1);
+scheduler_wait_for_work(struct scheduler *s, uint32_t thread_num) {
+	uint32_t i = 0;
+	sched_int have_tasks = 0;
+	sched_atomic_add(&s->thread_waiting, 1);
+	for (i = 0; i < s->threads_num; ++i) {
+		if (!sched_pipe_is_empty(&s->pipes[i])) {
+			have_tasks = 1;
+			break;
+		}
+	}
+	if (!have_tasks) {
+		sched_call(s->profiling.wait_start, s->profiling.userdata, thread_num);
+		sched_semaphore_wait(s->new_task_semaphore);
+		sched_call(s->profiling.wait_stop, s->profiling.userdata, thread_num);
+	}
+	sched_atomic_add(&s->thread_waiting, -1);
 }
 
-SCHED_INTERN void sched_pause(void) {__asm__ __volatile__("pause;");}
+SCHED_INTERN void sched_pause(void) { __asm__ __volatile__("pause;"); }
 
 SCHED_INTERN SCHED_THREAD_FUNC_DECL
 sched_tasking_thread_f(void *pArgs) {
-    uint32_t spin_count = 0, hint_pipe;
-    struct sched_thread_args args = *(struct sched_thread_args*)pArgs;
-    uint32_t thread_num = args.thread_num;
-    struct scheduler *s = args.scheduler;
-    gtl_thread_num = args.thread_num;
+	uint32_t spin_count = 0, hint_pipe;
+	struct sched_thread_args args = *(struct sched_thread_args *) pArgs;
+	uint32_t thread_num = args.thread_num;
+	struct scheduler *s = args.scheduler;
+	gtl_thread_num = args.thread_num;
 
-    sched_atomic_add(&s->thread_running, 1);
-    sched_call(s->profiling.thread_start, s->profiling.userdata, thread_num);
-    hint_pipe = thread_num + 1;
-    while (s->running) {
-        if (!sched_try_running_task(s, thread_num, &hint_pipe)) {
-            ++spin_count;
-            if (spin_count > SCHED_SPIN_COUNT_MAX) {
-                scheduler_wait_for_work(s, thread_num);
-                spin_count = 0;
-            } else {
-                uint32_t backoff = spin_count * SCHED_SPIN_BACKOFF_MUL;
-                while (backoff) {
-                    sched_pause();
-                    --backoff;
-                }
-            }
-        } else spin_count = 0;
-    }
-    sched_atomic_add(&s->thread_running, -1);
-    sched_call(s->profiling.thread_stop, s->profiling.userdata, thread_num);
-    return nullptr;
+	sched_atomic_add(&s->thread_running, 1);
+	sched_call(s->profiling.thread_start, s->profiling.userdata, thread_num);
+	hint_pipe = thread_num + 1;
+	while (s->running) {
+		if (!sched_try_running_task(s, thread_num, &hint_pipe)) {
+			++spin_count;
+			if (spin_count > SCHED_SPIN_COUNT_MAX) {
+				scheduler_wait_for_work(s, thread_num);
+				spin_count = 0;
+			} else {
+				uint32_t backoff = spin_count * SCHED_SPIN_BACKOFF_MUL;
+				while (backoff) {
+					sched_pause();
+					--backoff;
+				}
+			}
+		} else
+			spin_count = 0;
+	}
+	sched_atomic_add(&s->thread_running, -1);
+	sched_call(s->profiling.thread_stop, s->profiling.userdata, thread_num);
+	return nullptr;
 }
 
 /*  this function clears the scheduler and calculates the needed memory to run
@@ -797,39 +798,38 @@ sched_tasking_thread_f(void *pArgs) {
 */
 static void scheduler_init(struct scheduler *s,
                            sched_size *memory,
-                           sched_int thread_count=SCHED_DEFAULT,
-                           const sched_profiling *prof= nullptr) noexcept {
-    ASSERT(s);
-    ASSERT(memory);
+                           sched_int thread_count = SCHED_DEFAULT,
+                           const sched_profiling *prof = nullptr) noexcept {
+	ASSERT(s);
+	ASSERT(memory);
 
-    sched_zero_struct(*s);
-    s->threads_num = (thread_count == SCHED_DEFAULT)?
-        sched_num_hw_threads() : (uint32_t)thread_count;
+	sched_zero_struct(*s);
+	s->threads_num = (thread_count == SCHED_DEFAULT) ? sched_num_hw_threads() : (uint32_t) thread_count;
 
-    /* ensure we have sufficent tasks to equally fill either all threads including
+	/* ensure we have sufficent tasks to equally fill either all threads including
      * main or just the threads we've launched, this is outisde the first init
      * as we want to be able to runtime change it */
-    if (s->threads_num > 1) {
-        s->partitions_num = s->threads_num * (s->threads_num-1);
-        s->partitions_init_num = s->threads_num-1;
-        if (s->partitions_init_num > SCHED_MAX_NUM_INITIAL_PARTITIONS)
-            s->partitions_init_num = SCHED_MAX_NUM_INITIAL_PARTITIONS;
-    } else {
-        s->partitions_num = 1;
-        s->partitions_init_num = 1;
-    }
-    if (prof) s->profiling = *prof;
+	if (s->threads_num > 1) {
+		s->partitions_num = s->threads_num * (s->threads_num - 1);
+		s->partitions_init_num = s->threads_num - 1;
+		if (s->partitions_init_num > SCHED_MAX_NUM_INITIAL_PARTITIONS)
+			s->partitions_init_num = SCHED_MAX_NUM_INITIAL_PARTITIONS;
+	} else {
+		s->partitions_num = 1;
+		s->partitions_init_num = 1;
+	}
+	if (prof) s->profiling = *prof;
 
-    /* calculate needed memory */
-    ASSERT(s->threads_num > 0);
-    *memory = 0;
-    *memory += sizeof(struct sched_pipe) * s->threads_num;
-    *memory += sizeof(struct sched_thread_args) * s->threads_num;
-    *memory += sizeof(sched_thread) * s->threads_num;
-    *memory += sizeof(struct sched_semaphore);
-    *memory += sched_pipe_align + sched_arg_align;
-    *memory += sched_thread_align + sched_semaphore_align;
-    s->memory = *memory;
+	/* calculate needed memory */
+	ASSERT(s->threads_num > 0);
+	*memory = 0;
+	*memory += sizeof(struct sched_pipe) * s->threads_num;
+	*memory += sizeof(struct sched_thread_args) * s->threads_num;
+	*memory += sizeof(sched_thread) * s->threads_num;
+	*memory += sizeof(struct sched_semaphore);
+	*memory += sched_pipe_align + sched_arg_align;
+	*memory += sched_thread_align + sched_semaphore_align;
+	s->memory = *memory;
 }
 
 /*  this function starts running the scheduler and creates the previously set
@@ -841,124 +841,121 @@ static void scheduler_init(struct scheduler *s,
 */
 static void scheduler_start(scheduler *s,
                             void *memory) noexcept {
-    uint32_t i = 0;
-    ASSERT(s);
-    ASSERT(memory);
-    if (s->have_threads) return;
-    scheduler_stop(s, 0);
+	uint32_t i = 0;
+	ASSERT(s);
+	ASSERT(memory);
+	if (s->have_threads) return;
+	scheduler_stop(s, 0);
 
-    /* setup scheduler memory */
-    sched_zero_size(memory, s->memory);
-    s->pipes = (struct sched_pipe*)SCHED_ALIGN_PTR(memory, sched_pipe_align);
-    s->threads = SCHED_ALIGN_PTR(s->pipes + s->threads_num, sched_thread_align);
-    s->args = (struct sched_thread_args*) SCHED_ALIGN_PTR(
-        SCHED_PTR_ADD(void, s->threads, sizeof(sched_thread) * s->threads_num), sched_arg_align);
-    s->new_task_semaphore = (struct sched_semaphore*)SCHED_ALIGN_PTR(s->args + s->threads_num, sched_semaphore_align);
-    sched_semaphore_create(s->new_task_semaphore);
+	/* setup scheduler memory */
+	sched_zero_size(memory, s->memory);
+	s->pipes = (struct sched_pipe *) SCHED_ALIGN_PTR(memory, sched_pipe_align);
+	s->threads = SCHED_ALIGN_PTR(s->pipes + s->threads_num, sched_thread_align);
+	s->args = (struct sched_thread_args *) SCHED_ALIGN_PTR(
+	        SCHED_PTR_ADD(void, s->threads, sizeof(sched_thread) * s->threads_num), sched_arg_align);
+	s->new_task_semaphore = (struct sched_semaphore *) SCHED_ALIGN_PTR(s->args + s->threads_num, sched_semaphore_align);
+	sched_semaphore_create(s->new_task_semaphore);
 
-    /* Create one less thread than thread_num as the main thread counts as one */
-    s->args[0].thread_num = 0;
-    s->args[0].scheduler = s;
-    s->thread_running = 1;
-    s->thread_waiting = 0;
-    s->running = 1;
+	/* Create one less thread than thread_num as the main thread counts as one */
+	s->args[0].thread_num = 0;
+	s->args[0].scheduler = s;
+	s->thread_running = 1;
+	s->thread_waiting = 0;
+	s->running = 1;
 
-    /* start hardware threads */
-    for (i = 1; i < s->threads_num; ++i) {
-        s->args[i].thread_num = i;
-        s->args[i].scheduler = s;
-        sched_thread_create(&((sched_thread*)(s->threads))[i],
-            sched_tasking_thread_f, &s->args[i]);
-    }
+	/* start hardware threads */
+	for (i = 1; i < s->threads_num; ++i) {
+		s->args[i].thread_num = i;
+		s->args[i].scheduler = s;
+		sched_thread_create(&((sched_thread *) (s->threads))[i],
+		                    sched_tasking_thread_f, &s->args[i]);
+	}
 
 	s->have_threads = 1;
 }
 
 static void
 scheduler_add(struct scheduler *s, struct sched_task *task,
-    sched_run func, void *pArg, uint32_t size, uint32_t min_range)
-{
-    uint32_t range_to_split = 0;
-    struct sched_subset_task subtask;
-    ASSERT(s);
-    ASSERT(task);
-    ASSERT(func);
+              sched_run func, void *pArg, uint32_t size, uint32_t min_range) {
+	uint32_t range_to_split = 0;
+	struct sched_subset_task subtask;
+	ASSERT(s);
+	ASSERT(task);
+	ASSERT(func);
 
-    task->userdata = pArg;
-    task->exec = func;
-    task->size = size > 0 ? size: 1;
-    task->run_count = -1;
-    task->min_range = min_range > 0 ? min_range: 1;
-    task->range_to_run = task->size / s->partitions_num;
-    if (task->range_to_run < task->min_range)
-        task->range_to_run = task->min_range;
+	task->userdata = pArg;
+	task->exec = func;
+	task->size = size > 0 ? size : 1;
+	task->run_count = -1;
+	task->min_range = min_range > 0 ? min_range : 1;
+	task->range_to_run = task->size / s->partitions_num;
+	if (task->range_to_run < task->min_range)
+		task->range_to_run = task->min_range;
 
-    range_to_split = task->size / s->partitions_init_num;
-    if (range_to_split < task->min_range)
-        range_to_split = task->min_range;
+	range_to_split = task->size / s->partitions_init_num;
+	if (range_to_split < task->min_range)
+		range_to_split = task->min_range;
 
-    subtask.task = task;
-    subtask.partition.start = 0;
-    subtask.partition.end = task->size;
-    sched_split_add_task(s, gtl_thread_num, &subtask, range_to_split, 1);
+	subtask.task = task;
+	subtask.partition.start = 0;
+	subtask.partition.end = task->size;
+	sched_split_add_task(s, gtl_thread_num, &subtask, range_to_split, 1);
 }
 
 static void
-scheduler_join(struct scheduler *s, struct sched_task *task)
-{
-    uint32_t pipe_to_check = gtl_thread_num+1;
-    ASSERT(s);
-    if (task) {
-        while (task->run_count)
-            sched_try_running_task(s, gtl_thread_num, &pipe_to_check);
-    } else sched_try_running_task(s, gtl_thread_num, &pipe_to_check);
+scheduler_join(struct scheduler *s, struct sched_task *task) {
+	uint32_t pipe_to_check = gtl_thread_num + 1;
+	ASSERT(s);
+	if (task) {
+		while (task->run_count)
+			sched_try_running_task(s, gtl_thread_num, &pipe_to_check);
+	} else
+		sched_try_running_task(s, gtl_thread_num, &pipe_to_check);
 }
 
 static void
-scheduler_wait(struct scheduler *s)
-{
-    sched_int have_task = 1;
-    uint32_t pipe_hint = gtl_thread_num+1;
-    while (have_task || s->thread_waiting < (s->thread_running-1)) {
-        uint32_t i = 0;
-        sched_try_running_task(s, gtl_thread_num, &pipe_hint);
-        have_task = 0;
-        for (i = 0; i < s->threads_num; ++i) {
-            if (!sched_pipe_is_empty(&s->pipes[i])) {
-                have_task = 1;
-                break;
-            }
-        }
-    }
+scheduler_wait(struct scheduler *s) {
+	sched_int have_task = 1;
+	uint32_t pipe_hint = gtl_thread_num + 1;
+	while (have_task || s->thread_waiting < (s->thread_running - 1)) {
+		uint32_t i = 0;
+		sched_try_running_task(s, gtl_thread_num, &pipe_hint);
+		have_task = 0;
+		for (i = 0; i < s->threads_num; ++i) {
+			if (!sched_pipe_is_empty(&s->pipes[i])) {
+				have_task = 1;
+				break;
+			}
+		}
+	}
 }
 
 static void
-scheduler_stop(struct scheduler *s, int doWait)
-{
-    uint32_t i = 0;
-    ASSERT(s);
-    if (!s->have_threads)
-        return;
+scheduler_stop(struct scheduler *s, int doWait) {
+	uint32_t i = 0;
+	ASSERT(s);
+	if (!s->have_threads)
+		return;
 
-    /* wait for threads to quit and terminate them */
-    s->running = 0;
-    scheduler_wait(s);
-    while (doWait && s->thread_running > 1) {
-        /* keep firing event to ensure all threads pick up state of running*/
-        sched_semaphore_signal(s->new_task_semaphore, s->thread_running);
-    }
-    for (i = 1; i < s->threads_num; ++i)
-        sched_thread_term(((sched_thread*)(s->threads))[i]);
+	/* wait for threads to quit and terminate them */
+	s->running = 0;
+	scheduler_wait(s);
+	while (doWait && s->thread_running > 1) {
+		/* keep firing event to ensure all threads pick up state of running*/
+		sched_semaphore_signal(s->new_task_semaphore, s->thread_running);
+	}
+	for (i = 1; i < s->threads_num; ++i)
+		sched_thread_term(((sched_thread *) (s->threads))[i]);
 
-    sched_semaphore_close(s->new_task_semaphore);
-    s->new_task_semaphore = 0;
-    s->thread_running = 0;
-    s->thread_waiting = 0;
-    s->have_threads = 0;
-    s->threads = 0;
-    s->pipes = 0;
-    s->new_task_semaphore = 0;
-    s->args = 0;
+	sched_semaphore_close(s->new_task_semaphore);
+	s->new_task_semaphore = 0;
+	s->thread_running = 0;
+	s->thread_waiting = 0;
+	s->have_threads = 0;
+	s->threads = 0;
+	s->pipes = 0;
+	s->new_task_semaphore = 0;
+	s->args = 0;
 }
 
 
