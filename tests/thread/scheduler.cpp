@@ -54,7 +54,7 @@ using namespace std;
 
 
 /* Number of threads to start */
-#define NTHREADS	2
+#define NTHREADS	100
 
 using namespace cryptanalysislib;
 
@@ -66,8 +66,8 @@ void *thread_func(void *arg) {
 
 	*count = *count + 50;
 	printf("Thread %ld: Incremented count by 50 and will now yield\n", (unsigned long)mythread_self().tid);
-	mythread_yield();
 
+	// mythread_yield();
 	*count = *count + 50;
 	printf("Thread %ld: Incremented count by 50 and will now exit\n", (unsigned long)mythread_self().tid);
 	mythread_exit(nullptr);
@@ -87,6 +87,8 @@ int main() {
 		count[i] = i;
 		mythread_create(&threads[i], nullptr, thread_func, &count[i]);
 	}
+
+
 	for (uint32_t i = 0; i < NTHREADS; i++) {
 		printf("Main: Will now wait for thread %ld. Yielding..\n", (unsigned long)threads[i].tid);
 		mythread_join(threads[i], (void **)&status);

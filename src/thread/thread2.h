@@ -18,6 +18,7 @@
 #include <asm/unistd.h>
 
 #include "futex.h"
+#include "helper.h"
 
 std::atomic<uint32_t> __global_tid = 0;
 
@@ -118,11 +119,11 @@ namespace cryptanalysislib {
 		This is equivalent to Enque operation.
  	*/
 	void mythread_q_add(mythread_private_t *node) {
-		if (mythread_q_head == NULL) {
+		if (mythread_q_head == nullptr) {
 			//Q is not initiazed yet. Create it.
 			mythread_q_init(node);
 			return;
-		}
+		 }
 
 		//Insert the node at the end of Q
 		node->next = mythread_q_head;
@@ -154,7 +155,7 @@ namespace cryptanalysislib {
    		of all the tcb members.
 	*/
 	void mythread_q_state_display() {
-		if (mythread_q_head != NULL) {
+		if (mythread_q_head != nullptr) {
 			//display the Q - for debug purposes
 			printf("\n The Q contents are -> \n");
 			mythread_private_t *p;
@@ -237,7 +238,6 @@ namespace cryptanalysislib {
 
 	/// Calling the glibc's exit() exits the process.
 	/// Directly call the syscall instead
-	[[noreturn]]
 	inline static void __mythread_do_exit() noexcept {
 		syscall(SYS_exit, 0);
 	}
@@ -251,6 +251,7 @@ namespace cryptanalysislib {
 
 		/* Get pointer to our TCB structure */
 		self_ptr = __mythread_selfptr();
+		ASSERT(self_ptr);
 
 		/* Don't remove the node from the list yet. We still have to collect the return value */
 		self_ptr->state = DEFUNCT;
@@ -259,7 +260,7 @@ namespace cryptanalysislib {
 		/* Change the state of any thread waiting on us. FIFO dispatcher will do the
 	   	 * needfull
 	 	 */
-		if (self_ptr->blockedForJoin != NULL)
+		if (self_ptr->blockedForJoin != nullptr)
 			self_ptr->blockedForJoin->state = READY;
 
 		__mythread_dispatcher(self_ptr);
@@ -320,6 +321,7 @@ namespace cryptanalysislib {
  	 * else keep scheduling someone.
  	 */
 	void *mythread_idle(void *phony) {
+		(void)phony;
 		mythread_private_t *traverse_tcb;
 		pid_t idle_tcb_tid;
 
@@ -376,16 +378,16 @@ namespace cryptanalysislib {
 	static int __mythread_add_main_tcb() {
 		DEBUG_PRINTF("add_main_tcb: Creating node for Main thread \n");
 		main_tcb = (mythread_private_t *) malloc(sizeof(mythread_private_t));
-		if (main_tcb == NULL) {
+		if (main_tcb == nullptr) {
 			DEBUG_PRINTF("_main_tcb: Error allocating memory for main node\n");
 			return -ENOMEM;
 		}
 
-		main_tcb->start_func = NULL;
-		main_tcb->args = NULL;
+		main_tcb->start_func = nullptr;
+		main_tcb->args = nullptr;
 		main_tcb->state = READY;
-		main_tcb->returnValue = NULL;
-		main_tcb->blockedForJoin = NULL;
+		main_tcb->returnValue = nullptr;
+		main_tcb->blockedForJoin = nullptr;
 
 		/* Get the main's tid and put it in its corresponding tcb. */
 		main_tcb->tid = __mythread_gettid();
@@ -422,7 +424,7 @@ namespace cryptanalysislib {
 		*/
 		int clone_flags = (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_SYSVSEM);
 
-		if (mythread_q_head == NULL) {
+		if (mythread_q_head == nullptr) {
 			/* This is the very first mythread_create call. Set up the Q first with tcb nodes for main thread. */
 			retval = __mythread_add_main_tcb();
 			if (retval != 0)
@@ -433,7 +435,7 @@ namespace cryptanalysislib {
 
 			/* Now create the node for Idle thread with a recursive call to mythread_create(). */
 			DEBUG_PRINTF("create: creating node for Idle thread \n");
-			mythread_create(&idle_u_tcb, NULL, mythread_idle, NULL);
+			mythread_create(&idle_u_tcb, nullptr, mythread_idle, nullptr);
 		}
 
 		/* This particular piece of code was added as a result of a weird bug encountered in the __futex_down().
@@ -449,7 +451,7 @@ namespace cryptanalysislib {
 		/* If Stack-size argument is not provided, use the SIGSTKSZ as the default stack size
 		 * Otherwise, extract the stacksize argument.
 		 */
-		if (attr == NULL)
+		if (attr == nullptr)
 			stackSize = SIGSTKSZ;
 		else
 			stackSize = attr->stackSize;
@@ -505,6 +507,7 @@ namespace cryptanalysislib {
 		mythread_private_t *self_ptr;
 
 		self_ptr = __mythread_selfptr();
+		ASSERT(self_ptr);
 		DEBUG_PRINTF("Join: Got tid: %ld\n", (unsigned long) self_ptr->tid);
 		mythread_private_t *target = mythread_q_search(target_thread.tid);
 
