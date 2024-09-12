@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include "thread/thread2.h"
 #include "pthread.h"
+#include "thread/thread.h"
 
 using namespace cryptanalysislib;
 constexpr size_t size = 4;
@@ -46,6 +46,7 @@ void BM_thread(benchmark::State& state) {
 			mythread_join(threads[i], (void **)&status);
 		}
 	}
+	// mythread_exit(nullptr);
 }
 
 

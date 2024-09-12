@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "atomic_primitives.h"
+#include "atomic/atomic_primitives.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

@@ -14,11 +14,11 @@
 #include <cstring>
 #include <sys/types.h>
 
+#include "alloc/cache.h"
+#include "atomic/atomic_primitives.h"
+#include "container/hashmap.h"
 #include "helper.h"
 #include "math/math.h"
-#include "atomic_primitives.h"
-#include "container/hashmap.h"
-#include "alloc/cache.h"
 
 
 // zero is reserved for nullptr

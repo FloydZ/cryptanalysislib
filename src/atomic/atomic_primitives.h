@@ -8,6 +8,10 @@
 // TODO write a include guard for this
 // #ifdef USE_STD_ATOMIC
 
+/// TODO rename
+#define SCHED_BASE_MEMORY_BARRIER_ACQUIRE() __asm__ __volatile__("" : : : "memory")
+#define SCHED_BASE_MEMORY_BARRIER_RELEASE() __asm__ __volatile__("" : : : "memory")
+
 /**
  * An atomic fetch-and-add.
  */

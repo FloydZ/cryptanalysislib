@@ -10,9 +10,9 @@
 #include <cstdlib>
 #include <utility>
 
-#include "helper.h"
-#include "atomic_primitives.h"
+#include "atomic/atomic_primitives.h"
 #include "hash/hash.h"
+#include "helper.h"
 
 ///
 struct SimpleHashMapConfig {

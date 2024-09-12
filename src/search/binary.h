@@ -10,10 +10,10 @@
 #include <cstdint>
 #include <functional>
 
-#include "atomic_primitives.h"
+#include "atomic/atomic_primitives.h"
+#include "hash/hash.h"
 #include "helper.h"
 #include "math/math.h"
-#include "hash/hash.h"
 
 /// See Paul Khuong's
 /// https://www.pvk.ca/Blog/2012/07/03/binary-search-star-eliminates-star-branch-mispredictions/

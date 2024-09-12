@@ -11,7 +11,7 @@
 #include <cstdlib>
 #include <utility>
 
-#include "atomic_primitives.h"
+#include "atomic/atomic_primitives.h"
 #include "container/hashmap/common.h"
 #include "helper.h"
 
