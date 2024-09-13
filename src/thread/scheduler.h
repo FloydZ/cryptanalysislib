@@ -126,6 +126,12 @@ CONTRIBUTORS:
 #define SCHED_THREAD_LOCAL __thread
 typedef pthread_t sched_thread;
 
+static inline void sched_thread_getcpuclockid(sched_thread thread,
+                                              clockid_t *cid) {
+	if (pthread_getcpuclockid(thread, cid) != 0) {
+		std::cout << "ERROR: sched_threadcpuclockid" << std::endl;
+	}
+}
 static inline int32_t sched_thread_create(sched_thread *returnid,
                                           void *(*StartFunc)(void *),
                                           void *arg) {
@@ -150,6 +156,7 @@ typedef SCHED_INT32 sched_int;
 typedef SCHED_UINT_PTR sched_size;
 typedef SCHED_UINT_PTR sched_ptr;
 
+// forward decl
 struct scheduler;
 
 
@@ -179,16 +186,25 @@ struct sched_task {
 
 typedef void (*sched_profiler_callback_f)(void *, uint32_t thread_id);
 struct sched_profiling {
+public:
+	// from the user provided data used in each callback
 	void *userdata;
-	/* from the user provided data used in each callback */
+
+	// callback called as soon as a thread starts working
 	sched_profiler_callback_f thread_start;
-	/* callback called as soon as a thread starts working */
+
+	// callback called when as a thread is finished
+
 	sched_profiler_callback_f thread_stop;
-	/* callback called when as a thread is finished */
+
+	// callback called if a thread begins waiting
 	sched_profiler_callback_f wait_start;
-	/* callback called if a thread begins waiting */
+
+	// callback called if a thread is woken up
 	sched_profiler_callback_f wait_stop;
-	/* callback called if a thread is woken up */
+
+private:
+
 };
 
 struct sched_thread_args;
@@ -262,38 +278,54 @@ static __thread uint32_t gtl_thread_num = 0;
 // forward
 void * sched_tasking_thread_f(void *pArgs) noexcept;
 
-void sched_call(sched_profiler_callback_f fn,
+inline void sched_call(sched_profiler_callback_f fn,
 				void *usr,
-				uint32_t threadid) {
+				uint32_t threadid) noexcept {
 	if (fn) { fn(usr, threadid); }
 }
 
 struct scheduler {
-	sched_pipe *pipes;
+public: // TODO currenlty needed for the external thread handler
 	/* pipe for every worker thread */
-	unsigned int threads_num;
+	sched_pipe *pipes;
+
 	/* number of worker threads */
-	sched_thread_args *args;
+	unsigned int threads_num;
+
 	/* data used in the os thread callback */
-	void *threads;
+	sched_thread_args *args;
+
 	/* os threads array  */
-	volatile sched_int running;
+	void *threads;
+
 	/* flag whether the scheduler is running  */
-	volatile sched_int thread_running;
+	volatile sched_int running;
+
 	/* number of thread that are currently running */
-	volatile sched_int thread_waiting;
+	volatile sched_int thread_running;
+
 	/* number of thread that are currently active */
+	volatile sched_int thread_waiting;
+
 	unsigned partitions_num;
-	unsigned partitions_init_num;
+
 	/* divider for the array handled by a task */
-	semaphore *new_task_semaphore;
+	unsigned partitions_init_num;
+
 	/* os event to signal work */
-	sched_int have_threads;
+	semaphore *new_task_semaphore;
+
 	/* flag whether the os threads have been created */
-	sched_profiling profiling;
+	sched_int have_threads;
+
 	/* profiling callbacks  */
-	sched_size memory;
+	sched_profiling profiling;
+
 	/* memory size */
+	sched_size memory;
+
+	// internal mem
+	void *mem;
 
 	///
 	/// \param st
@@ -312,8 +344,8 @@ struct scheduler {
 	}
 
 	///
-	void sched_wake_threads() noexcept {
-		this->new_task_semaphore->signal( this->thread_waiting);
+	inline void sched_wake_threads() noexcept {
+		this->new_task_semaphore->signal(this->thread_waiting);
 	}
 
 	///
@@ -412,16 +444,16 @@ struct scheduler {
 	///  -   optional profiling callbacks for profiler (NULL if not wanted)
 	///  Output:
 	///  -   needed memory for the scheduler to run
-	void scheduler_init(sched_size *memory,
-	                    sched_int thread_count = SCHED_DEFAULT,
-	                    const sched_profiling *prof = nullptr) noexcept {
+	void init(sched_size *memory,
+	          sched_int thread_count = SCHED_DEFAULT,
+	          const sched_profiling *prof = nullptr) noexcept {
 		ASSERT(memory);
 
-		// sched_zero_struct(*s);
+		// clear our self.
 		memset(this, 0, sizeof(scheduler));
 		this->threads_num = (thread_count == SCHED_DEFAULT) ? sched_num_hw_threads() : (uint32_t) thread_count;
 
-		/// ensure we have sufficent tasks to equally fill either all threads including
+		/// ensure we have sufficient tasks to equally fill either all threads including
 	    /// main or just the threads we've launched, this is outisde the first init
 	    /// as we want to be able to runtime change it
 		if (this->threads_num > 1) {
@@ -453,11 +485,10 @@ struct scheduler {
 	///  for the completion before re-initializing.
 	///  Input:
 	///  -   previously allocated memory to run the scheduler with
-	void scheduler_start(void *memory) noexcept {
-		uint32_t i = 0;
+	void start(void *memory) noexcept {
 		ASSERT(memory);
 		if (this->have_threads) { return; }
-		scheduler_stop(0);
+		stop(0);
 
 		/* setup scheduler memory */
 		// sched_zero_size(memory, s->memory);
@@ -478,7 +509,7 @@ struct scheduler {
 		this->running = 1;
 
 		/* start hardware threads */
-		for (i = 1; i < this->threads_num; ++i) {
+		for (uint32_t i = 1; i < this->threads_num; ++i) {
 			this->args[i].thread_num = i;
 			this->args[i].scheduler = this;
 			sched_thread_create(&((sched_thread *) (this->threads))[i],
@@ -486,6 +517,20 @@ struct scheduler {
 		}
 
 		this->have_threads = 1;
+	}
+
+public:
+	scheduler(sched_int thread_count = SCHED_DEFAULT,
+	          const sched_profiling *prof = nullptr) noexcept {
+		size_t needed_memory;
+		init(&needed_memory, thread_count, prof);
+		mem = calloc(needed_memory, 1);
+		start(mem);
+	}
+
+	~scheduler() {
+		stop(0);
+		free(mem);
 	}
 
 	///  this function adds a task into the scheduler to execute and directly returns
@@ -498,7 +543,7 @@ struct scheduler {
 	///  Output:
 	///  -   task handle used to wait for the task to finish or check if done. Needs
 	///      to be persistent over the process of the task
-	void scheduler_add(struct sched_task *task,
+	void add(struct sched_task *task,
 	              	   sched_run func,
 	                   void *pArg,
 	                   const uint32_t size,
@@ -535,7 +580,7 @@ struct scheduler {
 	///  available.
 	///  Input:
 	///  -   previously started task to wait until it is finished
-	void scheduler_join(sched_task *task) noexcept {
+	void join(sched_task *task) noexcept {
 		uint32_t pipe_to_check = gtl_thread_num + 1;
 		if (task) {
 			while (task->run_count)
@@ -548,7 +593,7 @@ struct scheduler {
 	/// guaranteed to work unless we know we are in a situation where task aren't
 	/// being continuosly added. */
 	/// \param s
-	void scheduler_wait() noexcept {
+	void wait() noexcept {
 		sched_int have_task = 1;
 		uint32_t pipe_hint = gtl_thread_num + 1;
 		while (have_task || this->thread_waiting < (this->thread_running - 1)) {
@@ -569,14 +614,15 @@ struct scheduler {
 	/// are in a situation where task aren't being continuosly added.
 	/// Input:
 	/// -   boolean flag specifing to wait for all task to finish before stopping
-	void scheduler_stop(int doWait) noexcept{
+	void stop(int doWait) noexcept {
 		uint32_t i = 0;
-		if (!this->have_threads)
+		if (!this->have_threads) {
 			return;
+		}
 
 		/* wait for threads to quit and terminate them */
 		this->running = 0;
-		scheduler_wait();
+		wait();
 		while (doWait && this->thread_running > 1) {
 			// keep firing event to ensure all threads pick up state of running
 			this->new_task_semaphore->signal(this->thread_running);

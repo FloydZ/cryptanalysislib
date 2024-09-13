@@ -20,27 +20,23 @@ static void parallel_task(void *pArg,
 
 int main() {
 	constexpr size_t s = 10;
-	void *memory;
-	sched_size needed_memory;
 
-	scheduler sched;
+	scheduler sched(SCHED_DEFAULT, nullptr);
+	// NOTE: everything done in the constructor
+	//sched.init(&needed_memory, SCHED_DEFAULT, nullptr);
+	//memory = calloc(needed_memory, 1);
+	//sched.start(memory);
 
-	// TODO merge those two functions
-	sched.scheduler_init(&needed_memory, SCHED_DEFAULT, nullptr);
-	memory = calloc(needed_memory, 1);
-	sched.scheduler_start(memory);
-
-	{
-		sched_task tasks[s];
-		for (size_t i = 0; i < s; ++i) {
-			sched.scheduler_add(&tasks[i], parallel_task, nullptr, 1, 1);
-		}
-
-		for (size_t i = 0; i < s; ++i) {
-			sched.scheduler_join(&tasks[i]);
-		}
+	sched_task tasks[s];
+	for (size_t i = 0; i < s; ++i) {
+		sched.add(&tasks[i], parallel_task, nullptr, 1u<<10, 1<<9u);
 	}
 
-	sched.scheduler_stop(1u);
-	free(memory);
+	for (size_t i = 0; i < s; ++i) {
+		sched.join(&tasks[i]);
+	}
+
+	// NOTE: everything doen in the deconstructor
+	// sched.stop(1u);
+	// free(memory);
 }
