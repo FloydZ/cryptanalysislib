@@ -24,10 +24,11 @@ stdenv.mkDerivation {
     gcc
     gtest
     gbenchmark
+    openssl     # needed for libcoro
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
     flamegraph
     gdb
-    # linuxKernel.packages.linux_6_5.perf
+    linuxKernel.packages.linux_6_6.perf
     pprof
     valgrind
     massif-visualizer

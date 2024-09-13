@@ -80,40 +80,20 @@ LICENSE: (zlib)
 CONTRIBUTORS:
     Doug Binks (implementation)
     Micha Mettke (single header ANSI C conversion)
-
- /* ===============================================================
- *
- *                          HEADER
- *
- * =============================================================== */
+*/
 
 
-#if defined _MSC_VER || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 19901L))
-#include <stdint.h>
-#ifndef SCHED_UINT32
-#define SCHED_UINT32 uint32_t
-#endif
-#ifndef SCHED_INT32
-#define SCHED_INT32 int32_t
-#endif
-#ifndef SCHED_UINT_PTR
-#define SCHED_UINT_PTR uintptr_t
-#endif
-#else
-#ifndef SCHED_UINT32
-// #define SCHED_UINT32 unsigned int
-#endif
 #ifndef SCHED_INT32
 #define SCHED_INT32 int
 #endif
 #ifndef SCHED_UINT_PTR
 #define SCHED_UINT_PTR unsigned long
 #endif
-#endif
 
 #include "helper.h"
 #include "atomic/semaphore.h"
 #include "atomic/pipe.h"
+#include "thread/thread.h"
 
 /* ---------------------------------------------------------------
  *                          THREAD
@@ -122,8 +102,8 @@ CONTRIBUTORS:
 #include <time.h>
 #include <unistd.h>
 
-#define SCHED_THREAD_FUNC_DECL void *
-#define SCHED_THREAD_LOCAL __thread
+using namespace cryptanalysislib;
+
 typedef pthread_t sched_thread;
 
 static inline void sched_thread_getcpuclockid(sched_thread thread,
@@ -137,7 +117,7 @@ static inline int32_t sched_thread_create(sched_thread *returnid,
                                           void *arg) {
 	ASSERT(returnid);
 	ASSERT(StartFunc);
-	return pthread_create(returnid, NULL, StartFunc, arg) == 0;
+	return pthread_create(returnid, nullptr, StartFunc, arg) == 0;
 }
 
 static inline int32_t sched_thread_term(sched_thread threadid) noexcept {
@@ -160,41 +140,41 @@ typedef SCHED_UINT_PTR sched_ptr;
 struct scheduler;
 
 
+typedef void (*sched_profiler_callback_f)(void *, uint32_t thread_id);
 typedef void (*sched_run)(void *, scheduler *, sched_task_partition, uint32_t thread_num);
 
 struct sched_task {
-	/* custom userdata to use in callback userdata */
+	// custom userdata to use in callback userdata
 	void *userdata;
 
-	/* function working on the task owner structure */
+	// function working on the task owner structure
 	sched_run exec;
 
-	/* number of elements inside the set */
+	// number of elements inside the set
 	uint32_t size;
 
-	/* minimum size of range when splitting a task set into partitions.
-     * This should be set to a value which results in computation effort of at
-     * least 10k clock cycles to minimiye task scheduler overhead.
-     * NOTE: The last partition will be smaller than min_range if size is not a
-     * multiple of min_range (lit.: grain size) */
-	/* --------- INTERNAL ONLY -------- */
+	// minimum size of range when splitting a task set into partitions.
+    // This should be set to a value which results in computation effort of at
+    // least 10k clock cycles to minimiye task scheduler overhead.
+    // NOTE: The last partition will be smaller than min_range if size is not a
+    // multiple of min_range (lit.: grain size)
 	uint32_t min_range;
 	volatile sched_int run_count;
 	uint32_t range_to_run;
 };
-#define sched_task_done(t) (!(t)->run_count)
 
-typedef void (*sched_profiler_callback_f)(void *, uint32_t thread_id);
+
 struct sched_profiling {
 public:
+	using callback = std::function<void*(void *, uint32_t)>;
+
 	// from the user provided data used in each callback
 	void *userdata;
 
 	// callback called as soon as a thread starts working
-	sched_profiler_callback_f thread_start;
+	callback thread_start;
 
 	// callback called when as a thread is finished
-
 	sched_profiler_callback_f thread_stop;
 
 	// callback called if a thread begins waiting
@@ -203,8 +183,32 @@ public:
 	// callback called if a thread is woken up
 	sched_profiler_callback_f wait_stop;
 
-private:
+	sched_profiling(callback thread_start=callback(),
+	                          sched_profiler_callback_f thread_stop=nullptr,
+	                          sched_profiler_callback_f wait_start=nullptr,
+	                          sched_profiler_callback_f wait_stop=nullptr) noexcept
+	    : thread_start(thread_start), thread_stop(thread_stop),
+	      wait_start(wait_start), wait_stop(wait_stop),
+	 	  thread_start_counter(0), thread_stop_counter(0),
+		  wait_start_counter(0), wait_stop_counter(0)
+	{
+		if (!thread_start) {
+			this->thread_start = [this](void *userdata, const uint32_t p) {
+				std::cout << "callback" << std::endl;
+				FAA(&thread_start_counter, 1);
+				return (void *)nullptr;
+			};
+		}
 
+		std::invoke(this->thread_start, nullptr, 0);
+		ASSERT(this->thread_start.operator bool());
+	}
+
+private:
+	size_t thread_start_counter;
+	size_t thread_stop_counter;
+	size_t wait_start_counter;
+	size_t wait_stop_counter;
 };
 
 struct sched_thread_args;
@@ -319,7 +323,7 @@ public: // TODO currenlty needed for the external thread handler
 	sched_int have_threads;
 
 	/* profiling callbacks  */
-	sched_profiling profiling;
+	sched_profiling *profiling;
 
 	/* memory size */
 	sched_size memory;
@@ -426,10 +430,11 @@ public: // TODO currenlty needed for the external thread handler
 				break;
 			}
 		}
+
 		if (!have_tasks) {
-			sched_call(this->profiling.wait_start, this->profiling.userdata, thread_num);
+			//TODO sched_call(profiling.wait_start, profiling.userdata, thread_num);
 			this->new_task_semaphore->wait();
-			sched_call(this->profiling.wait_stop, this->profiling.userdata, thread_num);
+			//TODO sched_call(profiling.wait_stop, profiling.userdata, thread_num);
 		}
 		FAA(&this->thread_waiting, -1);
 	}
@@ -446,7 +451,7 @@ public: // TODO currenlty needed for the external thread handler
 	///  -   needed memory for the scheduler to run
 	void init(sched_size *memory,
 	          sched_int thread_count = SCHED_DEFAULT,
-	          const sched_profiling *prof = nullptr) noexcept {
+	          sched_profiling *prof = nullptr) noexcept {
 		ASSERT(memory);
 
 		// clear our self.
@@ -465,7 +470,9 @@ public: // TODO currenlty needed for the external thread handler
 			this->partitions_num = 1;
 			this->partitions_init_num = 1;
 		}
-		if (prof) { this->profiling = *prof; }
+		if (prof) {
+			this->profiling = prof;
+		}
 
 		/* calculate needed memory */
 		ASSERT(this->threads_num > 0);
@@ -521,7 +528,7 @@ public: // TODO currenlty needed for the external thread handler
 
 public:
 	scheduler(sched_int thread_count = SCHED_DEFAULT,
-	          const sched_profiling *prof = nullptr) noexcept {
+	          sched_profiling *prof = nullptr) noexcept {
 		size_t needed_memory;
 		init(&needed_memory, thread_count, prof);
 		mem = calloc(needed_memory, 1);
@@ -659,7 +666,12 @@ void * sched_tasking_thread_f(void *pArgs) noexcept {
 
 	FAA(&s->thread_running, 1);
 
-	sched_call(s->profiling.thread_start, s->profiling.userdata, thread_num);
+	//sched_call(s->profiling.thread_start, s->profiling.userdata, thread_num);
+	//if (s->profiling.thread_start.operator bool()) {
+		std::invoke(s->profiling->thread_start, s->profiling->userdata, thread_num);
+		//s->profiling.thread_start(s->profiling.userdata, thread_num);
+	//}
+
 	hint_pipe = thread_num + 1;
 	while (s->running) {
 		if (!s->sched_try_running_task(thread_num, &hint_pipe)) {
@@ -678,7 +690,7 @@ void * sched_tasking_thread_f(void *pArgs) noexcept {
 			spin_count = 0;
 	}
 	FAA(&s->thread_running, -1);
-	sched_call(s->profiling.thread_stop, s->profiling.userdata, thread_num);
+	//TODO sched_call(s->profiling.thread_stop, s->profiling.userdata, thread_num);
 	return nullptr;
 }
 #endif
