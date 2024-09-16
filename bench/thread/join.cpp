@@ -4,6 +4,7 @@
 #include <cstdlib>
 
 #include "pthread.h"
+#include "thread/scheduler.h"
 #include "thread/thread.h"
 
 using namespace cryptanalysislib;
@@ -35,18 +36,15 @@ void BM_pthread(benchmark::State& state) {
 
 void BM_thread(benchmark::State& state) {
 	std::vector<mythread_t> threads(state.range(0));
-
+	cryptanalysislib::thread_pool local_pool{};
 	char *status = nullptr;
 	for (auto _ : state) {
 		for (int64_t i = 0; i < state.range(0); ++i) {
-			mythread_create(&threads[i], nullptr, inc2, &i);
+			local_pool.enqueue_detach(inc, (void *)&i);
 		}
 
-		for (int64_t i = 0; i < state.range(0); ++i) {
-			mythread_join(threads[i], (void **)&status);
-		}
+		local_pool.wait_for_tasks();
 	}
-	// mythread_exit(nullptr);
 }
 
 
