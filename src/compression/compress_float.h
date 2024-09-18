@@ -1,3 +1,6 @@
+#ifndef CRYPTANALYSISLIB_COMPRESSION_FLOAT_H
+#define CRYPTANALYSISLIB_COMPRESSION_FLOAT_H
+
 #ifdef USE_AVX512F
 #include <immintrin.h>
 #include <cstddef>
@@ -72,4 +75,5 @@ void from_float16(double *dst, const uint16_t *src, size_t length) {
         _mm512_mask_storeu_pd(&dst[i], mask, dst_vec);
     }
 }
+#endif
 #endif

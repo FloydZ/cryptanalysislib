@@ -25,6 +25,8 @@ namespace cryptanalysislib {
 	}  // namespace details
 
 	/// TODO config
+	/// TODO implement pause
+	/// 	std::vector as queue
 	template <typename ThreadType = std::jthread,
 	          typename FunctionType = details::default_function_type>
 	    requires std::invocable<FunctionType> &&
@@ -312,7 +314,7 @@ namespace cryptanalysislib {
 		/// \tparam Function
 		/// \param f
 		template <typename Function>
-		void enqueue_task(Function &&f) {
+		void enqueue_task(Function &&f) noexcept {
 			auto i_opt = priority_queue_.copy_front_and_rotate_to_back();
 			if (!i_opt.has_value()) {
 				// would only be a problem if there are zero threads
