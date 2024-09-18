@@ -3057,6 +3057,7 @@ struct uint64x4_t {
 	constexpr static inline uint64x4_t popcnt(const uint64x4_t in) noexcept {
 		uint64x4_t ret;
 
+		const cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
 #ifndef __clang__

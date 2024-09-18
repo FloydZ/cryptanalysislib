@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
 
 #include "thread/pthread.h"
-
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 using namespace cryptanalysislib;
 
+#ifndef __APPLE__
 
 const static uint32_t c = 0;
 
@@ -29,6 +29,8 @@ TEST(pthread, Simple) {
 
 	t.join();
 }
+
+#endif // __APPLE__
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

@@ -1,4 +1,7 @@
-#pragma once
+#ifndef CRYPTANALYISLIB_THREAD_SCHEDULER_H
+#define CRYPTANALYISLIB_THREAD_SCHEDULER_H
+
+#ifndef __APPLE__
 
 #include <atomic>
 #include <concepts>
@@ -14,6 +17,7 @@
 #include "atomic/queue.h"
 #include "pthread.h"
 
+
 namespace cryptanalysislib {
 	namespace details {
 
@@ -21,6 +25,13 @@ namespace cryptanalysislib {
 		using default_function_type = std::move_only_function<void()>;
 #else
 		using default_function_type = std::function<void()>;
+#endif
+
+		/// TODO: apple does not suport jthread
+#ifdef __APPLE__
+		using default_thread_type = std::jthread;
+#else 
+		using default_thread_type = std::jthread;
 #endif
 	}  // namespace details
 
@@ -353,3 +364,6 @@ namespace cryptanalysislib {
 		std::atomic_bool pool_paused{false};
 	};
 }
+
+#endif
+#endif

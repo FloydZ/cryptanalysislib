@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <vector>
+#include <omp.h>
 
 
 #include "../test.h"

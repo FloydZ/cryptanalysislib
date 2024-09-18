@@ -2011,7 +2011,7 @@ public:
 		                                     const List *lists,
 		                                     const ElementType &e,
 		                                     std::vector<std::pair<size_t, size_t>> &boundaries,
-		                                     std::vector<uint64_t> &indices) {
+		                                     std::vector<size_t> &indices) {
 			boundaries[level] = lists[level + 2].template search_boundaries<l, h>(e);
 			indices[level] = boundaries[level].first;
 
@@ -2313,8 +2313,8 @@ private:
 	                              const ElementType &e2,
 	                              const ElementType &e3,
 	                              const uint8_t level,
-	                              std::vector<std::pair<uint64_t, uint64_t>> &boundaries,
-	                              std::vector<uint64_t> &indices) noexcept {
+	                              std::vector<std::pair<size_t, size_t>> &boundaries,
+	                              std::vector<size_t> &indices) noexcept {
 		uint64_t k_lower, k_higher;
 		translate_level(&k_lower, &k_higher, level + 1, level_translation_array);
 		search_in_level_l(e1, e2, e3, level, k_lower, k_higher, boundaries, indices);
@@ -2335,8 +2335,8 @@ private:
 								  const uint8_t level,
 	                              const uint32_t k_lower,
 	                              const uint32_t k_higher,
-								  std::vector<std::pair<uint64_t, uint64_t>> &boundaries,
-								  std::vector<uint64_t> &indices) noexcept {
+								  std::vector<std::pair<size_t, size_t>> &boundaries,
+								  std::vector<size_t> &indices) noexcept {
 		ElementType::add(e1, e2, e3);
 
 		ASSERT(level < boundaries.size());
@@ -2351,8 +2351,8 @@ private:
 	/// \param indices
 	/// \return new lvl
 	int increment_previous_level(int l,
-	                             std::vector<std::pair<uint64_t, uint64_t>> &boundaries,
-	                             std::vector<uint64_t> &indices) {
+	                             std::vector<std::pair<size_t, size_t>> &boundaries,
+	                             std::vector<size_t> &indices) {
 		while (l >= 0) {
 			if (indices[l] == boundaries[l].second) {
 				if (l == 0)
@@ -2371,9 +2371,9 @@ private:
 	/// \param level level of the tree to join to.
 	/// \param target a list where every solution is saved into.
 	void join_stream_internal(const uint64_t level, List &target) {
-		std::vector<std::pair<uint64_t, uint64_t>> boundaries(level);
+		std::vector<std::pair<size_t, size_t>> boundaries(level);
 		std::vector<ElementType> a(level);
-		std::vector<uint64_t> indices(level);
+		std::vector<size_t> indices(level);
 
 		// reset output list
 		target.set_load(0);

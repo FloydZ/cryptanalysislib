@@ -85,6 +85,10 @@ if(${USE_TRACY})
 endif ()
 
 # Fetch the project and make it available for use.
+if (APPLE)
+	set(LIBCORO_FEATURE_NETWORKING OFF)
+	set(LIBCORO_FEATURE_TLS OFF)
+endif()
 FetchContent_Declare(
 		libcoro
 		GIT_REPOSITORY https://github.com/jbaldwin/libcoro.git

@@ -13,7 +13,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-
+// APPLE SUCKS...
+#ifndef __APPLE__
 TEST(for_each, single) {
 	using T = uint64_t;
 	constexpr size_t size = 10;
@@ -31,6 +32,7 @@ TEST(for_each, single) {
 
 	for (size_t i = 0; i < size; ++i) { std::cout << test[i] << std::endl; }
 }
+#endif
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

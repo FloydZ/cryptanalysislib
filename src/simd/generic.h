@@ -845,7 +845,7 @@ public:
 	constexpr inline TxN_t(const uint64x4_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 		v128[0] = k.v128[0];
 		v128[1] = k.v128[1];
 #else
@@ -863,7 +863,7 @@ public:
 	constexpr inline TxN_t(const uint32x8_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 		v128[0] = k.v128[0];
 		v128[1] = k.v128[1];
 #else
@@ -881,7 +881,7 @@ public:
 	constexpr inline TxN_t(const uint16x16_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 		v128[0] = k.v128[0];
 		v128[1] = k.v128[1];
 #else
@@ -899,7 +899,7 @@ public:
 	constexpr inline TxN_t(const uint8x32_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 		v128[0] = k.v128[0];
 		v128[1] = k.v128[1];
 #else
