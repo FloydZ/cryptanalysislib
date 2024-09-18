@@ -219,7 +219,7 @@ namespace cryptanalysislib {
 		/// \return
 		[[nodiscard]] constexpr static inline _uint8x16_t unaligned_load(const void *ptr) noexcept {
 			__m128i_u const *ptr128 = (__m128i_u const *) ptr;
-			const __m128i_u tmp = internal::unaligned_load_wrapper_128(ptr128);
+			const __m128i_u tmp = ::internal::unaligned_load_wrapper_128(ptr128);
 			_uint8x16_t out;
 			out.v128 = tmp;
 			return out;
@@ -252,7 +252,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void unaligned_store(void *ptr, const _uint8x16_t in) noexcept {
 			auto *ptr128 = (__m128i_u *) ptr;
-			internal::unaligned_store_wrapper_128(ptr128, in.v128);
+			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 
 		/// \param in1
@@ -410,7 +410,7 @@ namespace cryptanalysislib {
 		/// \return
 		[[nodiscard]] constexpr static inline _uint16x8_t unaligned_load(const void *ptr) noexcept {
 			__m128i_u const *ptr128 = (__m128i_u const *) ptr;
-			const __m128i_u tmp = internal::unaligned_load_wrapper_128(ptr128);
+			const __m128i_u tmp = ::internal::unaligned_load_wrapper_128(ptr128);
 			_uint16x8_t out;
 			out.v128 = tmp;
 			return out;
@@ -443,7 +443,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void unaligned_store(void *ptr, const _uint16x8_t in) noexcept {
 			auto *ptr128 = (__m128i_u *) ptr;
-			internal::unaligned_store_wrapper_128(ptr128, in.v128);
+			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 	};
 
@@ -581,7 +581,7 @@ namespace cryptanalysislib {
 		/// \return
 		[[nodiscard]] constexpr static inline _uint64x2_t unaligned_load(const void *ptr) noexcept {
 			__m128i_u const *ptr128 = (__m128i_u const *) ptr;
-			const __m128i_u tmp = internal::unaligned_load_wrapper_128(ptr128);
+			const __m128i_u tmp = ::internal::unaligned_load_wrapper_128(ptr128);
 			_uint64x2_t out;
 			out.v128 = tmp;
 			return out;
@@ -614,7 +614,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void unaligned_store(void *ptr, const _uint64x2_t in) noexcept {
 			auto *ptr128 = (__m128i_u *) ptr;
-			internal::unaligned_store_wrapper_128(ptr128, in.v128);
+			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 	};
 }// namespace cryptanalysislib

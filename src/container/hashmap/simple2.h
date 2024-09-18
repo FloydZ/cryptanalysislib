@@ -31,10 +31,12 @@ public:
 	                               const uint32_t threads = 1u) : nrbuckets(nrbuckets), threads(threads){};
 };
 
+/// NOTE: key difference between this hashmap and `SimpleHashMap`
+/// 	is that the nr of buckets are hardcoded
 /// NOTE: Only the indices of the list entries can be saved in here.
 /// \tparam keyType		base type of the input keys
 /// \tparam valueType	base type of the values to save in the list
-/// \tparam config		`SimpleHashmapConfig` object
+/// \tparam config		`Simple1HashmapConfig` object
 template<
         typename keyType,
         typename valueType,

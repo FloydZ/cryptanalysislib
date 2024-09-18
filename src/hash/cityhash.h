@@ -17,7 +17,6 @@
 
 #include "memory/memory.h"
 
-using namespace cryptanalysislib;
 
 namespace cryptanalysislib::hash {
 	// Some primes between 2^63 and 2^64 for various uses.
