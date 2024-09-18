@@ -141,7 +141,7 @@ TEST(NAME, mul) {
 
 TEST(NAME, HashSimple) {
 	K b1;
-	constexpr uint32_t qbits = bits_log2(PRIME);
+	constexpr uint32_t qbits = ceil_log2(PRIME);
 	constexpr uint32_t limit = 64;
 	for (uint32_t l = 0; l < n-1u; ++l) {
 		for (uint32_t h = l+1u; h < n; ++h) {

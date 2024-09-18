@@ -74,7 +74,7 @@ constexpr size_t LS = 1u<<8u;
 // NOTE DO NOT REMOVE: SPECIAL TEST FOR KARY
 #define K 20u
 #define Q 255u
-#define N (bits_log2(Q))
+#define N (ceil_log2(Q))
 #define ListName uint8_kPAC_kA
 #define MatrixT uint8_t
 #define Matrix 	FqVector<MatrixT, K, Q, true>

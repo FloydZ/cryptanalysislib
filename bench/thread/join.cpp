@@ -7,9 +7,10 @@
 #include "thread/scheduler.h"
 #include "thread/thread.h"
 
-using namespace cryptanalysislib;
 constexpr size_t size = 8;
 size_t value = 0;
+
+#ifndef __APPLE__
 void *inc(void *a) noexcept {
 	value += *((size_t *)a);
 	return (void *)&value;
@@ -22,6 +23,8 @@ void *inc2(void *a) {
 	return nullptr;
 }
 
+
+using namespace cryptanalysislib;
 static void pool_create_destroy(benchmark::State& state) {
 	for ([[maybe_unused]] auto _ : state) {
 		scheduler pool(state.range(0));
@@ -239,13 +242,13 @@ void BM_stdthread(benchmark::State& state) {
 	}
 }
 
-
 BENCHMARK(BM_pthread)->DenseRange(1, size, 1);
 BENCHMARK(BM_thread)->DenseRange(1, size, 1);
 BENCHMARK(BM_jthread)->DenseRange(1, size, 1);
 BENCHMARK(BM_stdthread)->DenseRange(1, size, 1);
 //BENCHMARK(BM_thread_pthread)->DenseRange(1, size, 1);
 
+#endif
 int main(int argc, char** argv) {
 	::benchmark::Initialize(&argc, argv);
 	if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;

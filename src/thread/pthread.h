@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_THREAD_PTHREAD_H
 #define CRYPTANALYSISLIB_THREAD_PTHREAD_H
 
+#ifndef __APPLE__
 #include <pthread.h>
 #include <type_traits>
 #include <functional>
@@ -31,7 +32,7 @@ namespace internal {
 
 		return t;
 	}
-}
+} // namespace: internal
 
 
 /// just a plain wrapper around pthread
@@ -91,6 +92,7 @@ public:
 		return true;// TODO
 	}
 };
-}
+} // namespace: cryptanalysislib
 
-#endif//CRYPTANALYSISLIB_PTHREAD_H
+#endif // __APPLE__
+#endif

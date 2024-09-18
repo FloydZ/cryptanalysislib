@@ -1,6 +1,9 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_FOR_EACH_H
 #define CRYPTANALYSISLIB_ALGORITHM_FOR_EACH_H
 
+// TODO apple does not knwo the execution policy... kekw
+#ifndef __APPLE__
+
 namespace cryptanalysislib {
 
 	/// TODO concepts and config
@@ -40,4 +43,5 @@ namespace cryptanalysislib {
 		//                                             chunk_func, (void*)nullptr, 1);
 	}
 }
+#endif // `__APPLE__
 #endif

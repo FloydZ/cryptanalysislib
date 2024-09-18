@@ -17,8 +17,11 @@
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
-using namespace cryptanalysislib;
 #define REPEATS 10000
+
+#ifndef __APPLE__
+
+using namespace cryptanalysislib;
 
 
 auto multiply(int a, int b) { return a * b; }
@@ -681,7 +684,7 @@ TEST(Thread, Simple) {
 	ASSERT_TRUE(queue.empty());
 	EXPECT_EQ(removed_count, 3);
 };
-
+#endif // __APPLE__
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

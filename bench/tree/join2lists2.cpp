@@ -92,7 +92,7 @@ void BM_join2lists_on_iT_hashmap_v2_constexpr(benchmark::State& state) {
 	for (auto _ : state) {
 		out.set_load(0);
 		TR::template join2lists_on_iT_hashmap_v2
-				<k_lower, k_higher>(out, l1, l2, target, hm, true);
+				<k_lower, k_higher>(out, l1, l2, hm, target, true);
 		benchmark::DoNotOptimize(ctr += out[0].label.data());
 	}
 }

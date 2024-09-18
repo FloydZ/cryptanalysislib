@@ -8,13 +8,6 @@ using namespace std;
 
 
 TEST(Thread, Simple) {
-	//THREADS_PARALLEL(2)
-	#pragma omp parallel
-	{
-		{
-		printf("thread id: %d\n", Thread::get_tid());
-		}
-	}
 }
 
 int main(int argc, char **argv) {

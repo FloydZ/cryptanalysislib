@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_THREAD_H
 #define CRYPTANALYSISLIB_THREAD_H
 
+#ifndef __APPLE__
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -545,4 +546,6 @@ namespace cryptanalysislib {
 		return 0;
 	}
 }// namespace cryptanalysislib
-#endif//CRYPTANALYSISLIB_THREAD_H
+
+#endif
+#endif

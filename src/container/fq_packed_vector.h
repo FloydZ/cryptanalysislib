@@ -44,8 +44,11 @@ public:
 	static_assert(q > 1, "mod 1 or 0?");
 	static_assert(ceil_log2(q) <= (8*sizeof(T)), "the limb type should be atleast of the size of prime");
 
-#ifdef USE_AVX512F
+	/// TODO make a concept? out of this
+#if defined(USE_AVX512F)
 	constexpr static uint32_t nr_limbs_in_S = 64/sizeof(T);
+#elif defined(USE_AVX2)
+	constexpr static uint32_t nr_limbs_in_S = 32/sizeof(T);
 #else
 	constexpr static uint32_t nr_limbs_in_S = 32/sizeof(T);
 #endif
@@ -1627,8 +1630,11 @@ public:
 	/// \return x+y mod3
 	static inline S add256_T(const S x,
 	                                  const S y) noexcept {
-		constexpr static S c1 = S::set1(6148914691236517205ull);
-		constexpr static S c2 = S::set1(12297829382473034410ull);
+		// c1 = 0x55555555...
+		// c2 = 0x10101010...
+		using U = typename S::limb_type;
+		constexpr static S c1 = S::set1((U)6148914691236517205ull);
+		constexpr static S c2 = S::set1((U)12297829382473034410ull);
 
 		const S xy = x ^ y;
 		const S xy2 = x & y;
@@ -1650,6 +1656,8 @@ public:
 	constexpr inline static void add(kAryPackedContainer_T &v3,
 	                                 kAryPackedContainer_T const &v1,
 	                                 kAryPackedContainer_T const &v2) noexcept {
+		using U = typename S::limb_type;
+
 		if constexpr (internal_limbs == 1) {
 			v3.__data[0] = add_T(v1.__data[0], v2.__data[0]);
 			return;
@@ -1667,8 +1675,8 @@ public:
 		uint32_t i = 0;
 		if constexpr (activate_simd) {
 			for (; i + numbers_per_limb <= internal_limbs; i += numbers_per_simd_limb) {
-				const S t = add256_T(S::unaligned_load(&v1.__data[i]),
-				                     S::unaligned_load(&v2.__data[i]));
+				const S t = add256_T(S::unaligned_load((U *)&v1.__data[i]),
+				                     S::unaligned_load((U *)&v2.__data[i]));
 				S::unaligned_store(&v3.__data[i], t);
 			}
 		}
