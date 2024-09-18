@@ -2,8 +2,8 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "algorithm/deflate.h"
-#include "algorithm/inflate.h"
+#include "compression/deflate.h"
+#include "compression/inflate.h"
 #include "math/math.h"
 
 using ::testing::EmptyTestEventListener;

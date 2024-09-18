@@ -30,7 +30,9 @@ foreach(testfile ${TEST_SOURCES})
     file(RELATIVE_PATH filename ${CMAKE_CURRENT_SOURCE_DIR} ${testfile})
     string(REPLACE ".cpp" "" file ${filename})
     add_executable(${file} ${testfile}
-            ../src/atomic/queue.h)
+            ../src/atomic/queue.h
+            ../src/thread/pthread.h
+            ../src/algorithm/for_each.h)
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})
     add_test(AllTests ${file})

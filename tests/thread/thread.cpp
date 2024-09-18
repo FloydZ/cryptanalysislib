@@ -40,7 +40,6 @@ int main() {
 		mythread_create(&threads[i], nullptr, thread_func, &count[i]);
 	}
 
-
 	for (uint32_t i = 0; i < NTHREADS; i++) {
 		printf("Main: Will now wait for thread %ld. Yielding..\n", (unsigned long)threads[i].tid);
 		mythread_join(threads[i], (void **)&status);

@@ -12,6 +12,7 @@
 #include <version>
 
 #include "atomic/queue.h"
+#include "pthread.h"
 
 namespace cryptanalysislib {
 	namespace details {
@@ -23,31 +24,32 @@ namespace cryptanalysislib {
 #endif
 	}  // namespace details
 
-	template <typename FunctionType = details::default_function_type,
-	         typename ThreadType = std::jthread>
+	/// TODO config
+	template <typename ThreadType = std::jthread,
+	          typename FunctionType = details::default_function_type>
 	    requires std::invocable<FunctionType> &&
 	             std::is_same_v<void, std::invoke_result_t<FunctionType>>
-	class thread_pool {
+	class scheduler {
 	public:
 
 		template <typename InitializationFunction = std::function<void(std::size_t)>>
 		    requires std::invocable<InitializationFunction, std::size_t> &&
 		             std::is_same_v<void, std::invoke_result_t<InitializationFunction, std::size_t>>
-		explicit thread_pool(
-		        const unsigned int &number_of_threads = std::thread::hardware_concurrency(),
-		        InitializationFunction init = [](std::size_t) {})
+		explicit scheduler(const unsigned int &number_of_threads = std::thread::hardware_concurrency(),
+		                   InitializationFunction init = [](std::size_t) {}) noexcept
 		    : tasks_(number_of_threads) {
 			std::size_t current_id = 0;
 			for (std::size_t i = 0; i < number_of_threads; ++i) {
 				priority_queue_.push_back(size_t(current_id));
-				try {
+				//try {
 					threads_.emplace_back([&, id = current_id,
-					                       init](const std::stop_token &stop_tok) {
-						// invoke the init function on the thread
+					                       init](const std::stop_token &stop_tok) -> int {
+						//// invoke the init function on the thread
 						try {
 							std::invoke(init, id);
 						} catch (...) {
 							// suppress exceptions
+						    return 0;
 						}
 
 						do {
@@ -93,23 +95,25 @@ namespace cryptanalysislib {
 							}
 
 						} while (!stop_tok.stop_requested());
+
+					    return 0 ;
 					});
 					// increment the thread id
 					++current_id;
 
-				} catch (...) {
-					// catch all
+				//} catch (...) {
+				//	// catch all
 
-					// remove one item from the tasks
-					tasks_.pop_back();
+				//	// remove one item from the tasks
+				//	tasks_.pop_back();
 
-					// remove our thread from the priority queue
-					std::ignore = priority_queue_.pop_back();
-				}
+				//	// remove our thread from the priority queue
+				//	std::ignore = priority_queue_.pop_back();
+				//}
 			}
 		}
 
-		~thread_pool() {
+		~scheduler() {
 			wait_for_tasks();
 
 			// stop all threads
@@ -121,8 +125,8 @@ namespace cryptanalysislib {
 		}
 
 		/// thread pool is non-copyable
-		thread_pool(const thread_pool &) = delete;
-		thread_pool &operator=(const thread_pool &) = delete;
+		scheduler(const scheduler &) = delete;
+		scheduler &operator=(const scheduler &) = delete;
 
 		/**
          * @brief Enqueue a task into the thread pool that returns a result.
@@ -171,7 +175,7 @@ namespace cryptanalysislib {
 			auto shared_promise = std::make_shared<std::promise<ReturnType>>();
 			auto task = [func = std::move(f), ... largs = std::move(args),
 			             promise = shared_promise]() {
-				try {
+				//try {
 					if constexpr (std::is_same_v<ReturnType, void>) {
 						func(largs...);
 						promise->set_value();
@@ -179,9 +183,9 @@ namespace cryptanalysislib {
 						promise->set_value(func(largs...));
 					}
 
-				} catch (...) {
-					promise->set_exception(std::current_exception());
-				}
+				// } catch (...) {
+				// 	promise->set_exception(std::current_exception());
+				// }
 			};
 
 			// get the future before enqueuing the task
@@ -208,8 +212,7 @@ namespace cryptanalysislib {
 			                                std::forward<Args>(args)]() mutable -> decltype(auto) {
 				// suppress exceptions
 				//try {
-					if constexpr (std::is_same_v<void,
-					                             std::invoke_result_t<Function &&, Args &&...>>) {
+					if constexpr (std::is_same_v<void,std::invoke_result_t<Function &&, Args &&...>>) {
 						std::invoke(f, largs...);
 					} else {
 						// the function returns an argument, but can be ignored
@@ -219,13 +222,6 @@ namespace cryptanalysislib {
 				//}
 			}));
 		}
-
-		/**
-         * @brief Returns the number of threads in the pool.
-         *
-         * @return std::size_t The number of threads in the pool.
-         */
-		[[nodiscard]] constexpr inline auto size() const { return threads_.size(); }
 
 		/**
          * @brief Wait for all tasks to finish.
@@ -245,7 +241,7 @@ namespace cryptanalysislib {
          * in the middle of this.
          * @return number of tasks cleared
          */
-		size_t clear_tasks() {
+		[[nodiscard]] inline size_t clear_tasks() noexcept {
 			size_t removed_task_count{0};
 			for (auto &task_list : tasks_) {
 				removed_task_count += task_list.tasks.clear();
@@ -256,7 +252,65 @@ namespace cryptanalysislib {
 			return removed_task_count;
 		}
 
+		void inline pause() noexcept {
+			pool_paused = true;
+		}
+
+		/**
+         * Resume executing queued tasks.
+         */
+		void unpause() noexcept {
+			pool_paused = false;
+			//task_cv.notify_all();
+		}
+
+		/**
+         * Check whether the pool is paused.
+         *
+         * @return true if pause() has been called without an intervening unpause().
+         */
+		[[nodiscard]] constexpr bool inline is_paused() const noexcept {
+			return pool_paused;
+		}
+
+		/**
+         * Get number of enqueued tasks.
+         *
+         * @return Number of tasks that have been enqueued but not yet started.
+         */
+		[[nodiscard]] constexpr size_t get_num_queued_tasks() const {
+			return tasks_.size();
+		}
+
+		/**
+         * Get number of in-progress tasks.
+         *
+         * @return Approximate number of tasks currently being processed by worker threads.
+         */
+		[[nodiscard]] constexpr size_t get_num_running_tasks() const noexcept {
+			return in_flight_tasks_.load();
+		}
+
+		/**
+         * Get total number of tasks in the pool.
+         *
+         * @return Approximate number of tasks both enqueued and running.
+         */
+		[[nodiscard]] constexpr size_t get_num_tasks() const noexcept {
+			return tasks_.size() + in_flight_tasks_.load();
+		}
+
+		/**
+         * @brief Returns the number of threads in the pool.
+         *
+         * @return std::size_t The number of threads in the pool.
+         */
+		[[nodiscard]] constexpr inline auto size() const { return threads_.size(); }
+
 	private:
+		///
+		/// \tparam Function
+		/// \param f
 		template <typename Function>
 		void enqueue_task(Function &&f) {
 			auto i_opt = priority_queue_.copy_front_and_rotate_to_back();
@@ -281,22 +335,19 @@ namespace cryptanalysislib {
 			tasks_[i].signal.release();
 		}
 
+		///
 		struct task_item {
 			dp::thread_safe_queue<FunctionType> tasks{};
 			std::binary_semaphore signal{0};
 		};
 
 		std::vector<ThreadType> threads_;
+		// TODO maybe vector for cache?
 		std::deque<task_item> tasks_;
 		dp::thread_safe_queue<std::size_t> priority_queue_;
 		// guarantee these get zero-initialized
 		std::atomic_int_fast64_t unassigned_tasks_{0}, in_flight_tasks_{0};
 		std::atomic_bool threads_complete_signal_{false};
+		std::atomic_bool pool_paused{false};
 	};
-
-	/**
-     * @example mandelbrot/source/main.cpp
-     * Example showing how to use thread pool with tasks that return a value. Outputs a PPM image of
-     * a mandelbrot.
-     */
-}  // namespace dp
+}
