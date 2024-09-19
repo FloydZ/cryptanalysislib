@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_COMPRESSION_INT_H
 #define CRYPTANALYSISLIB_COMPRESSION_INT_H
 
+#ifndef CRYPTANALYSISLIB_COMPRESSION_H
+#error "dont include this file directly. Use `#include <compression/compression.h>`"
+#endif
+
 #include <cstdint>
 #include <cstdlib>
 #include <type_traits>
@@ -8,14 +12,18 @@
 #include "popcount/popcount.h"
 
 namespace cryptanalysislib {
+
+/// TODO add function to compress a whole buffer
+
+
 /// Source: https://arxiv.org/pdf/2403.06898
 /// Integer compression
 template<typename T>
 	requires std::is_integral_v<T>
 constexpr static inline size_t leb128_encode(uint8_t *buf, const T val) noexcept {
 	T t = val;
-	size_t ret = 1;
-	while (t > 0x80) {
+	size_t ret = 0;
+	while (t >= 0x80) {
 		*buf = 0x80 | (t & 0x7F);
 		t >>= 7;
 		buf++;
@@ -28,19 +36,22 @@ constexpr static inline size_t leb128_encode(uint8_t *buf, const T val) noexcept
 
 template<typename T>
 	requires std::is_integral_v<T>
-constexpr static inline T leb128_decode(const uint8_t *buf) noexcept {
+constexpr static inline T leb128_decode(uint8_t **buf) noexcept {
 	static_assert(sizeof(T) <= 8);
 	constexpr uint32_t max_shift = (sizeof(T) == 8) ? 63 :
 								   (sizeof(T) == 4) ? 28 :
 								   (sizeof(T) == 1) ? 14 : 7;
 	T res = 0;
-
 	for (uint32_t shift = 0; shift < max_shift; shift += 7) {
-		res |= ((*buf & 0x7F) << shift);
-		if ((!(*buf++ & 0x80))) [[likely]] {
+		uint8_t tmp = **buf;
+		(*buf)++;
+		res |= ((tmp & 0x7F) << shift);
+		if (!(tmp & 0x80)) [[likely]] {
 			break;
 		}
 	}
+
+	return res;
 }
 
 constexpr static inline void leb128_skip(const uint8_t *buf,

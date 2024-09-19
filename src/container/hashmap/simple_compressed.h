@@ -10,7 +10,7 @@
 #include <cstdlib>
 
 #include "hash/hash.h"
-#include "compression/leb128.h"
+#include "compression/compression.h"
 #include "helper.h"
 
 ///
@@ -91,6 +91,7 @@ public:
 		ASSERT(index < nrbuckets);
 
 		const size_t l = load(index);
+		ASSERT(l <= bytes_per_bucket);
 
 		// early exit, if it's already full
 		if ((l >= sizeof(data_type)) &&
@@ -99,7 +100,7 @@ public:
 		}
 
 		// get current position within the byte array
-		uint8_t *ptr_ = ((uint8_t *)((internal_data *)__internal_hashmap_array + index)) + l;
+		uint8_t *ptr_ = ((uint8_t *)(__internal_hashmap_array + index)) + l;
 		data_type v = value;
 		if (l > 0) {
 			// TODO what happens if the old value is bigger?
@@ -108,31 +109,44 @@ public:
 		}
 	
 		const size_t nl = leb128_encode<data_type>(ptr_, v);
+		ASSERT(l+nl <= bytes_per_bucket);
+
 		auto *ptr_3 = (data_type *)(ptr_ + nl);
 		*ptr_3 = value;
 		set_load(index, l+nl);
 	}
 
-	///
-	template<class SIMD>
-#if __cplusplus > 201709L
-// 		activate as soon as every uint16x16 has implemented the interface
-// 		requires SIMDAble<SIMD>
-#endif
-	constexpr inline void insert_simd(const SIMD &e,
-	                                  const SIMD value) noexcept {
-		for (uint32_t i = 0; i < SIMD::LIMBS; i++) {
-			insert(e[i], value[i]);
+	constexpr inline void decompress(data_type **out,
+	                                 uint32_t &nr,
+	                                 const keyType &e) noexcept {
+		// NOTE: we need to choose some upper bound.
+		// So this is more or less arbitrary
+		static data_type tmp[bytes_per_bucket];
+
+		const size_t index = hash(e);
+		const size_t l = load(index);
+		auto *pbuf = (uint8_t *)(__internal_hashmap_array + index);
+		uint8_t *buf = pbuf;
+		nr= 0;
+		while (buf < (pbuf + l - sizeof(internal_data_load_type ))) {
+			ASSERT(nr < bytes_per_bucket);
+			tmp[nr] = leb128_decode<data_type>(&buf);
+			nr += 1;
 		}
+		
+		// resolve the diffs
+		for (uint32_t j = 1; j < nr; ++j) {
+			tmp[j] += tmp[j-1];
+		}
+
+		*out = tmp;
 	}
 
-	///
 	/// \return
 	[[nodiscard]] constexpr inline valueType *ptr() noexcept {
 		return __internal_hashmap_array;
 	}
 
-	///
 	/// \param i
 	/// \return
 	using inner_data_type = typename std::remove_all_extents<data_type>::type;
@@ -160,10 +174,9 @@ public:
 	[[nodiscard]] constexpr inline index_type find(const keyType &e) const noexcept {
 		const index_type index = hash(e);
 		ASSERT(index < nrbuckets);
-		return index * bytes_per_bucket;
+		return index;
 	}
 
-	///
 	/// \param e
 	/// \param __load
 	/// \return
@@ -174,18 +187,17 @@ public:
 		__load = load(index);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
-		return index * bytes_per_bucket;
+		return index;
 	}
 
-	///
 	/// \param e
 	/// \param __load
 	/// \return
 	[[nodiscard]] constexpr inline index_type find_without_hash(const keyType &e,
-			load_type &__load) const noexcept {
+																load_type &__load) const noexcept {
 		ASSERT(e < nrbuckets);
 		__load = load(e);
-		return e * bytes_per_bucket;
+		return e;
 	}
 
 	/// match the api

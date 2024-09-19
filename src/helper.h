@@ -4,6 +4,7 @@
 // Global Includes
 #include <cassert>
 #include <cstdint>// needed for uint8_t and so on
+#include <functional>
 #include <stddef.h>
 #include <string.h>
 #include <type_traits>// for std::convertable_to

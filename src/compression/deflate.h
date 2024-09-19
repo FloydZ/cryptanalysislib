@@ -510,7 +510,7 @@ static void sdefl_flush(unsigned char **dst,
                         int blk_end) {
 	int blk_len = blk_end - blk_begin;
 	int j, i = 0, item_cnt = 0;
-	struct sdefl_symcnt symcnt = {0};
+	struct sdefl_symcnt symcnt = {0, 0, 0};
 	unsigned codes[SDEFL_PRE_MAX];
 	unsigned char lens[SDEFL_PRE_MAX];
 	unsigned freqs[SDEFL_PRE_MAX] = {0};
@@ -651,7 +651,7 @@ sdefl_compr(struct sdefl *s, unsigned char *out, const unsigned char *in,
 	do {int blk_begin = i;
 		int blk_end = ((i + SDEFL_BLK_MAX) < in_len) ? (i + SDEFL_BLK_MAX) : in_len;
 		while (i < blk_end) {
-			struct sdefl_match m = {0};
+			struct sdefl_match m = {0, 0};
 			int left = blk_end - i;
 			int max_match = (left > SDEFL_MAX_MATCH) ? SDEFL_MAX_MATCH : left;
 			int nice_match = pref[lvl] < max_match ? pref[lvl] : max_match;
@@ -660,7 +660,7 @@ sdefl_compr(struct sdefl *s, unsigned char *out, const unsigned char *in,
 				sdefl_fnd(&m, s, max_chain, max_match, in, i, in_len);
 			}
 			if (lvl >= 5 && m.len >= SDEFL_MIN_MATCH && m.len + 1 < nice_match){
-				struct sdefl_match m2 = {0};
+				struct sdefl_match m2 = {0, 0};
 				sdefl_fnd(&m2, s, max_chain, m.len + 1, in, i + 1, in_len);
 				m.len = (m2.len > m.len) ? 0 : m.len;
 			}

@@ -2035,7 +2035,7 @@ public:
 			void *parentCache = stats->parent;
 			return fast_remove(key, hash, parentCache, cache, ascends + 1);
 		} else {
-			// sys.error(s"Unexpected case -- $cachee is not supposed to be cached.");
+			// "Unexpected case -- $cachee is not supposed to be cached."
 			ASSERT(false);
 		}
 
@@ -2046,6 +2046,7 @@ public:
 
 
 
+#undef isNode
 #undef isFVNode
 #undef isSNode
 #undef isENode
@@ -2059,4 +2060,17 @@ public:
 #undef maskANode
 #undef maskANNode
 #undef accessNode
+#undef FullValue
+#undef NFullValue
+
+#undef maskANode
+#undef maskANNode
+#undef maskSNode
+#undef maskENode
+#undef maskFNode
+#undef maskLNode
+#undef maskXNode
+#undef maskFVNode
+#undef maskFSNode
+#undef accessType
 #endif//CRYPTANALYSISLIB_CTRIE_H

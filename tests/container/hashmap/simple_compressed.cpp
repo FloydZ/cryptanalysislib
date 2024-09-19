@@ -12,28 +12,26 @@ using V = uint32_t;
 
 TEST(HashMap, simple) {
 	constexpr uint32_t l = 12;
-	constexpr uint32_t nr_bytes = 32;
+	constexpr uint32_t nr_bytes = 64;
 	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static SimpleCompressedHashMapConfig s = SimpleCompressedHashMapConfig{nr_bytes, 1u << l};
 	using HM = SimpleCompressedHashMap<K, V, s, Hash<K, 0, l, 2>>;
 
 	HM hm = HM{};
+	hm.info();
 
-	for (uint64_t i = 0; i < ((1u << l) * nr_bytes); ++i) {
+	const size_t limit = (1u << (l-2));
+	for (uint64_t i = 0; i < (limit * nr_bytes); i++) {
 		hm.insert(i, i + 1);
 	}
 
-	/// TODO better testing
-	for (size_t i = 0; i < 1u << l; ++i) {
-	//	EXPECT_EQ(hm.__internal_load_array[i], bucketsize);
-
-	//	for (uint32_t j = 0; j < bucketsize; ++j) {
-	//		EXPECT_EQ(hm.__internal_hashmap_array[i * bucketsize + j], (i + 1) + j * (1u << l));
-
-	//		const K k = hashclass(hm.__internal_hashmap_array[i * bucketsize + j] - 1);
-	//		// std::cout << i << " " << j << " " << k << " " << hm.__internal_hashmap_array[i*bucketsize + j] - 1 << "\n";
-	//		EXPECT_EQ(k, i);
-	//	}
+	for (uint64_t i = 0; i < limit; i++) {
+		V *out = nullptr;
+		uint32_t nr;
+		hm.decompress(&out, nr, i);
+		for (uint32_t j = 0; j < nr; ++j) {
+			EXPECT_EQ(out[j], j*(1u<<l) + i + 1);
+		}
 	}
 }
 

@@ -318,7 +318,7 @@ sinfl_build(unsigned *tbl, unsigned char *lens, int tbl_bits, int maxlen,
 	int i, used = 0;
 	short sort[288];
 	int cnt[16] = {0}, off[16]= {0};
-	struct sinfl_gen gen = {0};
+	struct sinfl_gen gen = {0, 0, 0, nullptr};
 	gen.sorted = sort;
 	gen.len = 1;
 
@@ -373,7 +373,7 @@ sinfl_decompress(unsigned char *out, int cap, const unsigned char *in, int size)
 	const unsigned char *e = in + size, *o = out;
 	enum sinfl_states {hdr,stored,fixed,dyn,blk};
 	enum sinfl_states state = hdr;
-	struct sinfl s = {0};
+	struct sinfl s = {nullptr, 0, 0, {0}, {0}};
 	int last = 0;
 
 	s.bitptr = in;

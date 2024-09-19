@@ -2,14 +2,17 @@
 #define CRYPTANALYSISLIB_CONTAINER_IMAP_H
 
 #include <cstdint>
+
 #include "helper.h"
 #include "simd/simd.h"
 #include "popcount/popcount.h"
 
 using namespace cryptanalysislib::popcount;
     
-using imap_slot_t = uint32_t;
+// TODO all those structs iDownloadsnto the imap container
+// TODO iterators
 
+// TODO remove? use __uint128?
 typedef struct imap_u128 {
     uint64_t v[2];
 } imap_u128_t;
@@ -31,7 +34,8 @@ struct imap_iter_t {
 
 struct imap_pair_t {
     uint64_t x;
-    imap_slot_t *slot;
+    // imap_slot_t *slot;
+	uint32_t *slot;
 };
 
 /// TODO replace with allocator
@@ -46,9 +50,8 @@ void *imap__aligned_alloc__(uint64_t alignment, uint64_t size) {
     return ap;
 }
 
-static inline
-void imap__aligned_free__(void *p)
-{
+/// TODO replace with allocator
+static inline void imap__aligned_free__(void *p) {
     if (0 != p) {
         free(((void **)p)[-1]);
 	}
@@ -59,17 +62,19 @@ void imap__aligned_free__(void *p)
 
 struct imap_tree_t {
 private:
+	imap_node_t *tree;
 
-	imap_node_t *tree;	
-
+public:
+	/// TODO move to math.h
 	constexpr static inline
-    uint32_t imap__bsr__(const uint64_t x) {
+    uint32_t imap__bsr__(const uint64_t x) noexcept {
         return 63u - __builtin_clzll(x | 1u);
     }
 
 
+	/// TODO move to math.
     constexpr static inline
-    uint64_t imap__ceilpow2__(const uint64_t x) {
+    uint64_t imap__ceilpow2__(const uint64_t x) noexcept {
         return 1ull << (imap__bsr__(x - 1) + 1);
     }
 
@@ -98,7 +103,7 @@ private:
 
 	    static inline
     void imap__deposit_lo4_simd__(const uint32_t vec32[16],
-							 	  const uint64_t value) {
+							 	  const uint64_t value) noexcept {
 #if defined (USE_AVX512F)
         __m512i vecmm = _mm512_load_epi32(vec32);
         __m512i valmm = _mm512_set1_epi64(value);
@@ -126,9 +131,8 @@ private:
     #endif
     }
 
-  static inline
-    uint32_t imap__popcnt_hi28_simd__(uint32_t vec32[16],
-									  uint32_t *p) {
+  static inline uint32_t imap__popcnt_hi28_simd__(uint32_t vec32[16],
+									  uint32_t *p) noexcept {
 #if defined (USE_AVX512F)
         __m512i vecmm = _mm512_load_epi32(vec32);
         vecmm = _mm512_and_epi32(vecmm, _mm512_set1_epi32(~0xf));
@@ -238,7 +242,7 @@ private:
     #define imap__pair__(x, slot)       (imap_pair_t{ (x), (slot) })
     #define imap__slot_boxed__(sval)    (!((sval) & imap__slot_scalar__) && ((sval) >> imap__slot_shift__))
 
-    inline uint32_t imap__alloc_node__(imap_node_t *tree) noexcept {
+    constexpr inline uint32_t imap__alloc_node__(imap_node_t *tree) noexcept {
         uint32_t mark = tree->vec32[imap__tree_nfre__];
         if (mark) { 
             tree->vec32[imap__tree_nfre__] = *(uint32_t *)((uint8_t *)tree + mark);
@@ -250,8 +254,8 @@ private:
         return mark;
     }
 
-    inline void imap__free_node__(imap_node_t *tree,
-			uint32_t mark) noexcept {
+    constexpr inline void imap__free_node__(imap_node_t *tree,
+								  uint32_t mark) noexcept {
         *(uint32_t *)((uint8_t *)tree + mark) = tree->vec32[imap__tree_nfre__];
         tree->vec32[imap__tree_nfre__] = mark;
     }
@@ -287,26 +291,20 @@ private:
         return imap__popcnt_hi28__(node->vec32, p);
     }
 
-    static inline
-    uint64_t imap__xpfx__(uint64_t x, uint32_t pos)
-    {
+    constexpr static inline uint64_t imap__xpfx__(uint64_t x, uint32_t pos) {
         return x & (~0xfull << (pos << 2));
     }
 
-    static inline
-    uint32_t imap__xpos__(uint64_t x)
-    {
+    constexpr static inline uint32_t imap__xpos__(const uint64_t x) {
         return imap__bsr__(x) >> 2;
     }
 
     static inline
-    uint32_t imap__xdir__(uint64_t x, uint32_t pos)
-    {
+    uint32_t imap__xdir__(uint64_t x, uint32_t pos){
         return (x >> (pos << 2)) & 0xf;
     }
 
-    inline
-    uint32_t imap__alloc_val__(imap_node_t *tree) noexcept {
+    constexpr inline uint32_t imap__alloc_val__(imap_node_t *tree) noexcept {
         uint32_t mark = imap__alloc_node__(tree);
         imap_node_t *node = imap__node__(tree, mark);
         mark <<= 3;
@@ -323,9 +321,7 @@ private:
         return mark;
     }
 
-    inline
-    uint32_t imap__alloc_val128__(imap_node_t *tree)
-    {
+    constexpr inline uint32_t imap__alloc_val128__(imap_node_t *tree) noexcept {
         uint32_t mark = imap__alloc_node__(tree);
         imap_node_t *node = imap__node__(tree, mark);
         mark <<= 3;
@@ -337,10 +333,9 @@ private:
         return mark;
     }
 
-    inline
-    imap_node_t *imap__ensure__(imap_node_t *tree, 
-								uint32_t n,
-								uint32_t ysize) {
+    inline imap_node_t *imap__ensure__(imap_node_t *tree,
+	                                   const uint32_t n,
+									   const uint32_t ysize) noexcept {
         imap_node_t *newtree;
         uint32_t hasnfre, hasvfre, newmark, oldsize, newsize;
         uint64_t newsize64;
@@ -409,37 +404,42 @@ private:
         return newtree;
     }
 
-   	inline 
-    imap_node_t *imap_ensure0(imap_node_t *tree, uint32_t n) noexcept {
-        return imap__ensure__(tree, n, 0);
+   	inline imap_node_t *ensure0(const uint32_t n) noexcept {
+		tree = imap__ensure__(tree, n, 0);
+        return tree;
     }
 
-   	inline 
-    imap_node_t *imap_ensure64(imap_node_t *tree, uint32_t n) noexcept {
-        return imap__ensure__(tree, n, sizeof(uint64_t));
+   	inline imap_node_t *ensure64(const uint32_t n) noexcept {
+        tree = imap__ensure__(tree, n, sizeof(uint64_t));
+		return tree;
     }
 
-   	inline 
-    imap_node_t *imap_ensure128(imap_node_t *tree, uint32_t n) noexcept {
-        return imap__ensure__(tree, n, sizeof(__uint128_t));
+   	inline imap_node_t *ensure128(const uint32_t n) noexcept {
+        tree = imap__ensure__(tree, n, sizeof(__uint128_t));
+		return tree;
     }
 
 
-protected:
 	// ensures that there is enough space for n elements
-	inline void ensure(const uint32_t n) noexcept {
+	constexpr inline void ensure(const uint32_t n) noexcept {
 		tree = imap__ensure__(tree, n, sizeof(uint64_t));
 	}
-public:
-	imap_tree_t (const size_t n = 0) noexcept {
+
+	using imap_slot_t = uint32_t;
+
+	/// \param n max number of integers to store in the container
+	constexpr imap_tree_t (const size_t n = 0) noexcept : tree(nullptr) {
 		ensure(n+1);
 	}
+
 	~imap_tree_t() noexcept {
 		IMAP_ALIGNED_FREE(tree);
 	}
 
-
-    constexpr imap_slot_t *lookup(const uint64_t x) const noexcept {
+	///
+	/// \param x
+	/// \return
+    [[nodiscard]] constexpr imap_slot_t *lookup(const uint64_t x) const noexcept {
         imap_node_t *node = tree;
         imap_slot_t *slot;
         uint32_t sval, posn = 16, dirn = 0;
@@ -462,7 +462,9 @@ public:
         }
     }
 
-    imap_slot_t *assign(const uint64_t x) {
+	/// \param x
+	/// \return
+    [[nodiscard]] constexpr imap_slot_t *assign(const uint64_t x) noexcept {
         imap_slot_t *slotstack[16 + 1];
         uint32_t posnstack[16 + 1];
         uint32_t stackp, stacki;
@@ -516,13 +518,17 @@ public:
         }
     }
 
-    constexpr static inline bool hasval(const imap_slot_t *slot) noexcept {
+	/// \param slot
+	/// \return
+    [[nodiscard]] constexpr inline bool hasval(const imap_slot_t *slot) noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return sval & imap__slot_value__;
     }
 
-    constexpr inline uint64_t getval(const imap_slot_t *slot) const noexcept {
+	/// \param slot
+	/// \return
+    [[nodiscard]] constexpr inline uint64_t getval(const imap_slot_t *slot) const noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (!imap__slot_boxed__(sval)) {
@@ -532,29 +538,37 @@ public:
 		}
     }
 
-    uint32_t imap_getval0(imap_node_t *tree, imap_slot_t *slot) noexcept {
-
-		(void)tree;
+	///
+	/// \param tree
+	/// \param slot
+	/// \return
+    [[nodiscard]] constexpr uint32_t getval0(const imap_slot_t *slot) const noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return sval >> imap__slot_shift__;
     }
 
-    uint64_t imap_getval64(imap_node_t *tree, imap_slot_t *slot)
-    {
+	/// \param slot
+	/// \return
+    [[nodiscard]] constexpr uint64_t getval64(const imap_slot_t *slot) const noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return tree->vec64[sval >> imap__slot_shift__];
     }
 
-    imap_u128 imap_getval128(imap_node_t *tree, imap_slot_t *slot)
-    {
+	/// \param slot
+	/// \return
+    [[nodiscard]] constexpr imap_u128 getval128(const imap_slot_t *slot) const noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return tree->vec128[sval >> (imap__slot_shift__ + 1)];
     }
 
-    constexpr void setval(imap_slot_t *slot, const uint64_t y) noexcept {
+	/// \param slot
+	/// \param y
+	/// \return
+    constexpr void setval(imap_slot_t *slot,
+	                      const uint64_t y) noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (y < (1 << (imap__slot_sbits__))) {
@@ -581,22 +595,24 @@ public:
         }
     }
 
-    void imap_setval0(imap_node_t *tree, imap_slot_t *slot, uint32_t y)
-    {
-		(void)tree;
+	///
+	/// \param slot
+	/// \param y
+    constexpr void setval0(imap_slot_t *slot,
+	                      const uint32_t y) noexcept{
         ASSERT(!(*slot & imap__slot_node__));
         *slot = (*slot & imap__slot_pmask__) | imap__slot_scalar__ | (uint32_t)(y << imap__slot_shift__);
     }
 
-    void imap_setval64(imap_node_t *tree, imap_slot_t *slot, uint64_t y)
-    {
+    constexpr void setval64(imap_slot_t *slot,
+	                        const uint64_t y) noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
-        if (!(sval >> imap__slot_shift__))
-        {
+        if (!(sval >> imap__slot_shift__)) {
             sval = tree->vec32[imap__tree_vfre__];
-            if (!sval)
-                sval = imap__alloc_val__(tree);
+            if (!sval) {
+				sval = imap__alloc_val__(tree);
+			}
             ASSERT(sval >> imap__slot_shift__);
             tree->vec32[imap__tree_vfre__] = (uint32_t)tree->vec64[sval >> imap__slot_shift__];
         }
@@ -606,13 +622,11 @@ public:
         tree->vec64[sval >> imap__slot_shift__] = y;
     }
 
-    void imap_setval128(imap_node_t *tree, imap_slot_t *slot,
-			const imap_u128 y)
-    {
+    constexpr void setval128(imap_slot_t *slot,
+					    	 const imap_u128 y) noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
-        if (!(sval >> imap__slot_shift__))
-        {
+        if (!(sval >> imap__slot_shift__)) {
             sval = tree->vec32[imap__tree_vfre__];
             if (!sval)
                 sval = imap__alloc_val128__(tree);
@@ -635,21 +649,19 @@ public:
         *slot &= imap__slot_pmask__;
     }
 
-    uint64_t *imap_addrof64(imap_node_t *tree, imap_slot_t *slot)
-    {
+    [[nodiscard]] constexpr inline uint64_t *_addrof64(imap_slot_t *slot) noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return &tree->vec64[sval >> imap__slot_shift__];
     }
 
-    imap_u128 *imap_addrof128(imap_node_t *tree, imap_slot_t *slot)
-    {
+    [[nodiscard]] constexpr inline imap_u128 *imap_addrof128(imap_slot_t *slot) noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return &tree->vec128[sval >> (imap__slot_shift__ + 1)];
     }
 
-    void imap_remove(imap_node_t *tree, uint64_t x) {
+    constexpr void remove(uint64_t x) noexcept {
         imap_slot_t *slotstack[16 + 1];
         uint32_t stackp;
         imap_node_t *node = tree;
@@ -685,8 +697,8 @@ public:
         }
     }
 
-    imap_pair_t imap_locate(imap_node_t *tree, imap_iter_t *iter, uint64_t x)
-    {
+    constexpr imap_pair_t locate(imap_iter_t *iter,
+	                             uint64_t x) noexcept {
         imap_node_t *node = tree;
         imap_slot_t *slot;
         uint32_t sval, posn = 16, dirn = 0;
@@ -724,7 +736,7 @@ public:
                         node = imap__node__(tree, sval & imap__slot_value__);
                         posn = imap__node_pos__(node);
                     }
-                return imap_iterate(tree, iter, 0);
+                return iterate(iter, 0);
             }
             node = imap__node__(tree, sval & imap__slot_value__);
             posn = imap__node_pos__(node);
@@ -733,9 +745,13 @@ public:
         }
     }
 
-    imap_pair_t imap_iterate(imap_node_t *tree, 
-			imap_iter_t *iter,
-			int restart) {
+	///
+	/// \param tree
+	/// \param iter
+	/// \param restart
+	/// \return
+    imap_pair_t iterate(imap_iter_t *iter,
+						int restart) noexcept {
         imap_node_t *node;
         imap_slot_t *slot;
         uint32_t sval, dirn;

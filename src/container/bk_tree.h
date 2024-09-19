@@ -4,22 +4,22 @@
 #include <vector>
 
 
-// Details:https://dl.acm.org/doi/pdf/10.1145/362003.362025
+/// Details: https://dl.acm.org/doi/pdf/10.1145/362003.362025
 template<class T>
 class BKTreeNode {
 public:
 	using node_type = BKTreeNode<T>;
-
 
 	std::vector<node_type> children;
 	std::vector<uint32_t> duv;
 	T data;
 
 	BKTreeNode() = delete;
-	BKTreeNode(const T data) : data(data) {}
+	BKTreeNode(const T data) noexcept : data(data) {}
 };
 
 
+/// TODO iterator
 template<class T>
 class BKTree {
 	using node_type = BKTreeNode<T>;
@@ -31,15 +31,16 @@ class BKTree {
 				  << " }" <<std::endl;
 	}
 
-	///
+	/// distance function
 	/// \param a
 	/// \param b
 	/// \return
-	constexpr static uint32_t d(const T &a, const T &b) {
+	constexpr static uint32_t d(const T &a,
+	                            const T &b) noexcept {
 		return T::dist(a, b);
 	}
 
-	void _insert(const T&a, node_type &node) {
+	void _insert(const T&a, node_type &node) noexcept {
 		const uint32_t k = d(a, node.data);
 		if (k == 0) {
 			// already inserted
@@ -59,16 +60,21 @@ class BKTree {
 	}
 
 public:
-	BKTree() {
+	///
+	constexpr BKTree() noexcept {
 		root.data.zero();
 	}
 
-	void insert(const T &a) {
+	/// \param a
+	/// \return
+	constexpr void insert(const T &a) &override {
 		_insert(a, root);
 	}
 
-	// returns 0 on empty
-	uint32_t lookup(const T &a) {
+	/// returns 0 on empty
+	/// \param a
+	/// \return
+	constexpr uint32_t lookup(const T &a) noexcept {
 		if (root.children.size() == 0) { return 0; }
 
 		std::vector<node_type> S;
