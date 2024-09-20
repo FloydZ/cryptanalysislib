@@ -19,14 +19,14 @@ public:
 };
 
 
-/// TODO iterator
+/// TODO iterator, allocator, config class
 template<class T>
 class BKTree {
 	using node_type = BKTreeNode<T>;
 	node_type root = node_type(T());
 
 	///
-	constexpr void info() noexcept {
+	constexpr void info() const noexcept {
 		std::cout << " { name: \"BKTree\""
 				  << " }" <<std::endl;
 	}
@@ -67,14 +67,14 @@ public:
 
 	/// \param a
 	/// \return
-	constexpr void insert(const T &a) &override {
+	constexpr void insert(const T &a) noexcept {
 		_insert(a, root);
 	}
 
 	/// returns 0 on empty
 	/// \param a
 	/// \return
-	constexpr uint32_t lookup(const T &a) noexcept {
+	constexpr uint32_t lookup(const T &a) const noexcept {
 		if (root.children.size() == 0) { return 0; }
 
 		std::vector<node_type> S;

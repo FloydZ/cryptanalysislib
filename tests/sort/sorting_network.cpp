@@ -174,11 +174,11 @@ TEST(SortingNetwork, djb_int32x16_t) {
 		d_in[i] = fastrandombytes_uint64();
 	}
 
-	__m256i t1 = _mm256_loadu_epi32(d_in + 0);
-	__m256i t2 = _mm256_loadu_epi32(d_in + 8);
+	__m256i t1 = _mm256_loadu_si256((__m256i *)(d_in + 0));
+	__m256i t2 = _mm256_loadu_si256((__m256i *)(d_in + 8));
 	sortingnetwork_djbsort_i32x16(t1, t2);
-	_mm256_storeu_epi32(d_out + 0, t1);
-	_mm256_storeu_epi32(d_out + 8, t2);
+	_mm256_storeu_si256((__m256i *)(d_out + 0), t1);
+	_mm256_storeu_si256((__m256i *)(d_out + 8), t2);
 	for (uint32_t i = 0; i < 15; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
 	}
@@ -191,15 +191,15 @@ TEST(SortingNetwork, djb_int32x32_t) {
 		d_in[i] = fastrandombytes_uint64();
 	}
 
-	__m256i t1 = _mm256_loadu_epi32(d_in +  0);
-	__m256i t2 = _mm256_loadu_epi32(d_in +  8);
-	__m256i t3 = _mm256_loadu_epi32(d_in + 16);
-	__m256i t4 = _mm256_loadu_epi32(d_in + 24);
+	__m256i t1 = _mm256_loadu_si256((__m256i *)(d_in +  0));
+	__m256i t2 = _mm256_loadu_si256((__m256i *)(d_in +  8));
+	__m256i t3 = _mm256_loadu_si256((__m256i *)(d_in + 16));
+	__m256i t4 = _mm256_loadu_si256((__m256i *)(d_in + 24));
 	sortingnetwork_djbsort_i32x32(t1, t2, t3, t4);
-	_mm256_storeu_epi32(d_out +  0, t1);
-	_mm256_storeu_epi32(d_out +  8, t2);
-	_mm256_storeu_epi32(d_out + 16, t3);
-	_mm256_storeu_epi32(d_out + 24, t4);
+	_mm256_storeu_si256((__m256i *)(d_out +  0), t1);
+	_mm256_storeu_si256((__m256i *)(d_out +  8), t2);
+	_mm256_storeu_si256((__m256i *)(d_out + 16), t3);
+	_mm256_storeu_si256((__m256i *)(d_out + 24), t4);
 	for (uint32_t i = 0; i < 31; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
 	}

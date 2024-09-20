@@ -607,7 +607,7 @@ public:
 		       && k_lower1 <= k_lower2
 		       && k_upper1 <= k_upper2);
 		// internal variables.
-		const uint32_t filter = uint32_t(-1);
+		constexpr uint32_t filter = uint32_t(-1);
 		constexpr bool sub = !LabelType::binary();
 		std::pair<uint64_t, uint64_t> boundaries;
 		ElementType e;
@@ -680,6 +680,9 @@ public:
 #ifdef DEBUG
 							const size_t lb = out.load() - 1;
 							if (!out[lb].label.is_zero(k_lower1, k_upper2)) {
+								std::cout << out[lb];
+								std::cout << iL[l];
+								std::cout << e << std::endl;
 								ASSERT(false);
 							}
 #endif

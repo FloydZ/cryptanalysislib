@@ -9,6 +9,8 @@
 #include "matrix/matrix.h"
 #include "tree.h"
 
+#include "subsetsum.h"
+
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -46,24 +48,15 @@ TEST(SubSetSum, join4lists) {
 	// e.run(&l1, &l2, n/4);
 	// e.run(&l3, &l4, n/4, n/2);
 
+	// not split enumeration (e.g. L1=L3, L2=L4)
 	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
 	Enumerator e{A};
 	e.run(&l1, &l2, n/2);
 	e.run(&l3, &l4, n/2);
 
-	Label target; target.zero();
+	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, A[0][weights[i]]);
-	}
-
-	std::cout << A << std::endl;
-	for (const auto &w : weights) {
-		std::cout << w << ",";
-	}
-	std::cout << std::endl;
-	std::cout << target << std::endl;
+	generate_subsetsum_instance(target, weights, A, n);
 
 	for (size_t i = 0; i < baselist_size; ++i) {
 		EXPECT_EQ(l1[i].is_correct(A), true);

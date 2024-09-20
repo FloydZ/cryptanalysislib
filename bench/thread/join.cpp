@@ -11,6 +11,8 @@ constexpr size_t size = 8;
 size_t value = 0;
 
 #ifndef __APPLE__
+using namespace cryptanalysislib;
+
 void *inc(void *a) noexcept {
 	value += *((size_t *)a);
 	return (void *)&value;
@@ -24,7 +26,6 @@ void *inc2(void *a) {
 }
 
 
-using namespace cryptanalysislib;
 static void pool_create_destroy(benchmark::State& state) {
 	for ([[maybe_unused]] auto _ : state) {
 		scheduler pool(state.range(0));

@@ -20,7 +20,7 @@
 template<typename Label, typename List, typename Matrix>
 constexpr static void generate_subsetsum_instance(Label &target,
                                                   List &weights,
-                                                  Matrix AT,
+                                                  Matrix &AT,
                                                   const uint32_t n,
                                                   const bool mitm = true,
                                                   const bool debug = true) {

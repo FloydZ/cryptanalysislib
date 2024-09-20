@@ -17,6 +17,7 @@ namespace cryptanalysislib {
 
 
 /// Source: https://arxiv.org/pdf/2403.06898
+/// but, lol, there is a typo in the example code.
 /// Integer compression
 template<typename T>
 	requires std::is_integral_v<T>

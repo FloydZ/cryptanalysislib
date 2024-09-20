@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_THREAD_H
 #define CRYPTANALYSISLIB_THREAD_H
 
+// jeah currently thats unix only
 #ifndef __APPLE__
 #include <csignal>
 #include <cstdint>
