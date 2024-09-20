@@ -34,7 +34,6 @@ TEST(BKTree, first) {
 		if (mn < m) {m = mn; }
 	}
 	std::cout << m << std::endl;
-
 }
 
 int main(int argc, char **argv) {

@@ -1,16 +1,9 @@
-#ifndef SMALLSECRETLWE_ELEMENT_H
-#define SMALLSECRETLWE_ELEMENT_H
+#ifndef CRYPTANALYSISLIB_ELEMENT_H
+#define CRYPTANALYSISLIB_ELEMENT_H
 
 // global includes
 #include <array>
 #include <cstdint>
-
-#ifdef USE_FPLLL
-// dependencies include
-#include "fplll/nr/matrix.h"
-#include "fplll/util.h"// needed for 'vector_matrix_product'
-using namespace fplll;
-#endif
 
 // local includes
 #include "helper.h"
