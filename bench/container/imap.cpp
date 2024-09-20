@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 #include "container/imap.h"
 
-static void BM_std_unordered_map(benchmark::State &state) {
+static void BM_imap(benchmark::State &state) {
 	imap_tree_t tree(state.range(0));
 	uint32_t *slot;
 	for (auto _: state) {
@@ -24,5 +24,5 @@ static void BM_std_unordered_map(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_std_unordered_map)->RangeMultiplier(2)->Range(32, 1u<<10);
+BENCHMARK(BM_imap)->RangeMultiplier(2)->Range(32, 1u<<10);
 BENCHMARK_MAIN();
