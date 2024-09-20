@@ -17,20 +17,17 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-constexpr uint32_t n    = 16ul;
-constexpr uint32_t q    = (1ul << n);
+constexpr uint32_t n    = 16u;
+constexpr uint64_t q    = (1ul << n);
 
 using T 			= uint64_t;
-//using Value     	= kAryContainer_T<T, n, 2>;
+//using Value     	= kAryPackedContainer_T<T, n, 2>;
 using Value     	= BinaryContainer<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;
 using List			= List_T<Element>;
 using Tree			= Tree_T<List>;
-
-// unused ignore
-static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
 
 TEST(SubSetSum, join2lists) {
 	Matrix A; A.random();
@@ -110,8 +107,10 @@ TEST(SubSetSum, join2lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<3);
-	EXPECT_LT(out.load(),1u<<7);
+	if constexpr (n == 16) {
+		EXPECT_GT(out.load(), 1u << 3);
+		EXPECT_LT(out.load(), 1u << 7);
+	}
 	EXPECT_EQ(out.load(), num);
 }
 
@@ -193,8 +192,10 @@ TEST(SubSetSum, constexpr_join2lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<3);
-	EXPECT_LT(out.load(),1u<<7);
+	if constexpr (n == 16) {
+		EXPECT_GT(out.load(), 1u << 3);
+		EXPECT_LT(out.load(), 1u << 7);
+	}
 	EXPECT_EQ(out.load(), num);
 }
 
@@ -269,8 +270,10 @@ TEST(SubSetSum, join2lists_on_iT) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(), 1u<<3);
-	EXPECT_LT(out.load(), 1u<<7);
+	if constexpr (n == 16) {
+		EXPECT_GT(out.load(), 1u << 3);
+		EXPECT_LT(out.load(), 1u << 7);
+	}
 	EXPECT_EQ(out.load(), num);
 }
 
@@ -337,8 +340,10 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_v2) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(), 1u<<3);
-	EXPECT_LT(out.load(), 1u<<7);
+	if constexpr (n == 16) {
+		EXPECT_GT(out.load(), 1u << 3);
+		EXPECT_LT(out.load(), 1u << 7);
+	}
 	EXPECT_EQ(out.load(), num);
 }
 
@@ -355,8 +360,9 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2) {
 			(&l1, &l2, n/2);
 
 	using D = typename Label::DataType;
+	// NOTE: you need to choose the `bucketsize` correctly.
 	constexpr static SimpleHashMapConfig simpleHashMapConfig{
-	    10, 1ul<<(k_higher-k_lower), 1
+	    100, 1ul<<(k_higher-k_lower), 1
 	};
 	using HM = SimpleHashMap<D, size_t, simpleHashMapConfig, Hash<D, k_lower, k_higher, 2>>;
 	HM hm{};
@@ -411,8 +417,10 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(), 1u<<3);
-	EXPECT_LT(out.load(), 1u<<7);
+	if constexpr (n == 16) {
+		EXPECT_GT(out.load(), 1u<<3);
+		EXPECT_LT(out.load(), 1u<<7);
+	}
 	EXPECT_EQ(out.load(), num);
 }
 

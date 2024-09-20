@@ -115,6 +115,7 @@ template<typename T>
 requires std::is_integral_v<T>
 #endif
 [[nodiscard]] static inline T fastrandombytes_T(const T limit) noexcept {
+	ASSERT(limit > 1);
 	return xorshf96_fastrandombytes_uint64() % limit;
 }
 

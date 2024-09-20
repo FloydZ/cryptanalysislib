@@ -2175,15 +2175,16 @@ public:
 
 
 
+	// TODO hashmap version
 	// SRC: https://eprint.iacr.org/2010/189.pdf
 	// implementation of the modular 4-way merge
 	template<
 			 const uint32_t k_lower1=0,
 	         const uint32_t k_upper1=ValueLENGTH/4u,
 			 const uint32_t k_upper2=ValueLENGTH>
-	static void dissection4(List &out,
-							const LabelType &target,
-							const MatrixType &MT) {
+	static void constexpr_dissection4(List &out,
+									  const LabelType &target,
+									  const MatrixType &MT) noexcept {
 		// reset the output list
 		out.set_load(0);
 

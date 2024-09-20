@@ -273,7 +273,7 @@ public:
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
 			 const uint32_t offset = 0,
-			 const uint32_t base_offset = 0, // TODO add to other estimators
+			 const uint32_t base_offset = 0,
 			 const uint32_t tid = 0,
 			 HashMap *hm = nullptr,
 			 Extractor *e = nullptr,
@@ -373,7 +373,7 @@ template<class ListType,
          const uint32_t n,
          const uint32_t w>
 #if __cplusplus > 201709L
-requires ListAble<ListType>
+	requires ListAble<ListType>
 #endif
 class BinaryLexicographicEnumerator : public ListEnumeration_Meta<ListType, n, 2, w> {
 public:
@@ -426,11 +426,11 @@ public:
 	      list_size((list_size == size_t(0)) ? max_list_size : list_size)
 	{}
 
+	/// \return the max size of the list, which can be enumerated
 	[[nodiscard]] constexpr static size_t size() noexcept {
 		return max_list_size;
 	}
 
-	///
 	/// \tparam HashMap
 	/// \tparam Extractor extractor lambda
 	/// 		- can be NULL
@@ -452,9 +452,11 @@ public:
 	/// \return true/false if the golden element was found or not (only if
 	///  		predicate was given)
 	template<typename HashMap, typename Extractor, typename Predicate>
+#if __cplusplus > 201709L
 	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
 	            (std::is_same_v<std::nullptr_t, Extractor> || std::is_invocable_v<Extractor, Label>) &&
 	            (std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+#endif
 	bool run(ListType *L1 = nullptr,
 	         ListType *L2 = nullptr,
 	         const uint32_t offset = 0,
@@ -475,6 +477,8 @@ public:
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
 		for (size_t ctr = 0; ctr < list_size; ++ctr) {
+			// TODO: this is only correct for values `BinaryContainer` and `PackedContainer` as otherwise there is an overflow
+			// 	MAYBE: fix this via if constexpr(is_good_value_type)
 			element1.value.ptr()[0] += 1ull << base_offset;
 
 			HT.mul(element1.label, element1.value);
@@ -533,10 +537,10 @@ public:
 /// \tparam noreps_w hamming weight to enumerate on the no representations part
 /// \tparam split were the split between the two is
 template<class ListType,
-		const uint32_t n,
-		const uint32_t mitm_w,
-		const uint32_t noreps_w,
-		const uint32_t split>
+		 const uint32_t n,
+		 const uint32_t mitm_w,
+		 const uint32_t noreps_w,
+		 const uint32_t split>
 #if __cplusplus > 201709L
 	requires ListAble<ListType>
 #endif

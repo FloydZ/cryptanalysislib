@@ -29,9 +29,6 @@ using Element		= Element_T<Value, Label, Matrix>;
 using List			= List_T<Element>;
 using Tree			= Tree_T<List>;
 
-// unused ignore
-static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
-
 TEST(SubSetSum, generic) {
 	Matrix A; A.random();
 	// constexpr uint32_t k_lower1=0, k_higher1=n/3, k_higher2=2*n/3, k_higher3=n;

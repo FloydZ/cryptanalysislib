@@ -9,6 +9,8 @@
 #include "matrix/matrix.h"
 #include "tree.h"
 
+#include "subsetsum.h"
+
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -21,7 +23,7 @@ constexpr uint32_t n    = 16ul;
 constexpr uint32_t q    = (1ul << n);
 
 using T 			= uint64_t;
-//using Value     	= kAryContainer_T<T, n, 2>;
+//using Value     	= kAryPackedContainer_T<T, n, 2>;
 using Value     	= BinaryContainer<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
@@ -35,17 +37,12 @@ TEST(SubSetSum, dissection) {
 	Matrix::info();
 
 	Matrix AT; AT.random();
-	std::cout << AT;
 
 	List out{1<<n};
-	Label target; target.zero();
+	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, AT[0][weights[i]]);
-	}
-
-	Tree::dissection4(out, target, AT);
+	generate_subsetsum_instance(target, weights, AT, n);
+	Tree::constexpr_dissection4(out, target, AT);
 
 	EXPECT_GE(out.load(), 1);
 	for (size_t i = 0; i < out.load(); ++i) {
