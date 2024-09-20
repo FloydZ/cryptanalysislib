@@ -912,7 +912,7 @@ TEST(imap, iterate_shuffle) {
 }
 
 TEST(imap, locate) {
-	imap_tree_t tree(1);
+	imap_tree_t tree(0);
 	uint32_t *slot;
 	imap_iter_t iter;
 	imap_pair_t pair;
@@ -952,7 +952,7 @@ TEST(imap, locate) {
 	tree.ensure(+5);
 
 	slot = tree.assign(0xA0000056);
-	EXPECT_EQ(nullptr, slot);
+	EXPECT_NE(nullptr, slot);
 	tree.setval(slot, 0x56);
 	pair = tree.locate( &iter, 0xA00000560);
 	EXPECT_EQ(0, pair.x);
@@ -961,22 +961,22 @@ TEST(imap, locate) {
 	tree.ensure(+5);
 
 	slot = tree.assign(0xA0000056);
-	EXPECT_EQ(nullptr, slot);
+	EXPECT_NE(nullptr, slot);
 	tree.setval(slot, 0x56);
 	slot = tree.assign(0xA0000057);
-	EXPECT_EQ(nullptr, slot);
+	EXPECT_NE(nullptr, slot);
 	tree.setval(slot, 0x57);
 	slot = tree.assign(0xA0008009);
-	EXPECT_EQ(nullptr, slot);
+	EXPECT_NE(nullptr, slot);
 	tree.setval(slot, 0x8009);
 	slot = tree.assign(0xA0008059);
-	EXPECT_EQ(nullptr, slot);
+	EXPECT_NE(nullptr, slot);
 	tree.setval(slot, 0x8059);
 	slot = tree.assign(0xA0008069);
-	EXPECT_EQ(nullptr, slot);
+	EXPECT_NE(nullptr, slot);
 	tree.setval(slot, 0x8069);
 	//
-	pair = tree.locate( &iter, 1100);
+	pair = tree.locate(&iter, 1100);
 	EXPECT_EQ(0xA0000056, pair.x);
 	EXPECT_NE(nullptr, pair.slot);
 	EXPECT_EQ(0x56, tree.getval(pair.slot));

@@ -649,13 +649,13 @@ public:
         *slot &= imap__slot_pmask__;
     }
 
-    [[nodiscard]] constexpr inline uint64_t *_addrof64(imap_slot_t *slot) noexcept {
+    [[nodiscard]] constexpr inline uint64_t *addrof64(imap_slot_t *slot) noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return &tree->vec64[sval >> imap__slot_shift__];
     }
 
-    [[nodiscard]] constexpr inline imap_u128 *imap_addrof128(imap_slot_t *slot) noexcept {
+    [[nodiscard]] constexpr inline imap_u128 *addrof128(imap_slot_t *slot) noexcept {
         ASSERT(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return &tree->vec128[sval >> (imap__slot_shift__ + 1)];

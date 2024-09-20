@@ -7,3 +7,5 @@ foreach(testfile ${TEST_SOURCES})
     target_link_libraries(test_algorithm_${file} ${LINK_TEST_FLAGS})
 	add_test(AllTests test_algorithm_${file})
 endforeach(testfile ${TEST_SOURCES})
+
+add_subdirectory(subsetsum)
