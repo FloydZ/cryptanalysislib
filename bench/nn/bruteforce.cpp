@@ -110,7 +110,7 @@ BENCHMARK(BM_bruteforce_256)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
 
 
 int main(int argc, char** argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	algo.generate_random_instance(false);
 
     ::benchmark::Initialize(&argc, argv);

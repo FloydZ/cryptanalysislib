@@ -12,8 +12,8 @@ c[i];
 c.get(i);
 c.set(i, i);
 
-#  random setter
-c.random();
+#  rng setter
+c.rng();
 c.zero();
 
 # get a pointer to the underlying raw array

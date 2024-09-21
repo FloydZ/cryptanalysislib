@@ -104,7 +104,7 @@ BENCHMARK(BM_join2lists_on_iT_v2_constexpr<Tree>)->RangeMultiplier(2)->Range(128
 BENCHMARK(BM_join2lists_on_iT_hashmap_v2_constexpr<Tree>)->RangeMultiplier(2)->Range(128, LS);
 
 int main(int argc, char** argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 
 	Enumerator e{A};
 	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>

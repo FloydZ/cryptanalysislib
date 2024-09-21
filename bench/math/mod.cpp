@@ -8,9 +8,9 @@
 constexpr uint32_t mod_u32 = 97987823;
 
 static void BM_mod(benchmark::State &state) {
-	uint32_t a = fastrandombytes_uint64(),
-			b = fastrandombytes_uint64(),
-			c = fastrandombytes_uint64();
+	uint32_t a = rng(),
+			b = rng(),
+			c = rng();
 
 	for (auto _: state) {
 		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
@@ -23,9 +23,9 @@ static void BM_mod(benchmark::State &state) {
 }
 
 static void BM_div(benchmark::State &state) {
-	uint32_t a = fastrandombytes_uint64(),
-			 b = fastrandombytes_uint64(),
-			 c = fastrandombytes_uint64();
+	uint32_t a = rng(),
+			 b = rng(),
+			 c = rng();
 
 	for (auto _: state) {
 		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
@@ -38,9 +38,9 @@ static void BM_div(benchmark::State &state) {
 }
 
 static void BM_fastmod(benchmark::State &state) {
-	uint32_t a = fastrandombytes_uint64(),
-			b = fastrandombytes_uint64(),
-			c = fastrandombytes_uint64();
+	uint32_t a = rng(),
+			b = rng(),
+			c = rng();
 
 	for (auto _: state) {
 		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
@@ -53,9 +53,9 @@ static void BM_fastmod(benchmark::State &state) {
 }
 
 static void BM_fastdiv(benchmark::State &state) {
-	uint32_t a = fastrandombytes_uint64(),
-	         b = fastrandombytes_uint64(),
-	         c = fastrandombytes_uint64();
+	uint32_t a = rng(),
+	         b = rng(),
+	         c = rng();
 
 	for (auto _: state) {
 		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
@@ -73,7 +73,7 @@ BENCHMARK(BM_mod)->RangeMultiplier(2)->Range(1u<<10, 1u<<14);
 BENCHMARK(BM_div)->RangeMultiplier(2)->Range(1u<<10, 1u<<14);
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 
 	::benchmark::Initialize(&argc, argv);
 	if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;

@@ -81,7 +81,7 @@ BENCHMARK(BM_SkaSort<FqPackedVectorList>)->RangeMultiplier(2)->Range(128, LS)->C
 BENCHMARK(BM_SkaSort<FqList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 
 int main(int argc, char** argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 
 	::benchmark::Initialize(&argc, argv);
 	if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;

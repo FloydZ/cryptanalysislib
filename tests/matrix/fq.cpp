@@ -135,7 +135,7 @@ TEST(FqMatrix, InitFromString) {
 	EXPECT_NE(ptr2, nullptr);
 
 	for (uint32_t i = 0; i < nrows * ncols; ++i) {
-		const int a = fastrandombytes_uint64() % q;
+		const int a = rng() % q;
 		ptr2[i] = a;
 		sprintf(ptr + i, "%d", a);
 	}
@@ -439,7 +439,7 @@ TEST(FqMatrix, permute) {
 
 int main(int argc, char **argv) {
 	//random_seed(time(0));
-	random_seed(0);
+	rng_seed(0);
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

@@ -3,6 +3,7 @@
 #include "random.h"
 #include "algorithm/prefixsum.h"
 
+using namespace cryptanalysislib;
 using namespace cryptanalysislib::algorithm;
 constexpr size_t LS = 1u << 16u;
 
@@ -11,7 +12,7 @@ void generate_data(std::vector<T> &out,
                    const size_t size) noexcept {
 	out.resize(size);
 	for (size_t i = 0; i < size; ++i) {
-		out[i] = fastrandombytes_T<T>();
+		out[i] = rng<T>();
 	}
 }
 

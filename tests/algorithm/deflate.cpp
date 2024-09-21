@@ -30,7 +30,7 @@ TEST(deflate, random_simple) {
 	uint8_t *decomp = (uint8_t *) calloc(s, 1);
 
 	for (size_t t = 0; t < 123; t++) {
-		fastrandombytes(data, s);
+		rng(data, s);
 		struct sdefl sdefl;
 
 		for (uint32_t lvl = SDEFL_LVL_MIN; lvl < SDEFL_LVL_MAX; ++lvl) {
@@ -59,7 +59,7 @@ TEST(deflate, string_simple) {
 	const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 ,.";
 	for (size_t t = 0; t < 123; t++) {
 		for (size_t i = 0; i < s; i++) {
-			data[i] = alphabet[fastrandombytes_uint64(sizeof(alphabet))];
+			data[i] = alphabet[rng(sizeof(alphabet))];
 		}
 		struct sdefl sdefl;
 

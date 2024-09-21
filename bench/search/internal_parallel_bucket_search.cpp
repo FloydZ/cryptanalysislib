@@ -21,7 +21,7 @@ constexpr static T mask = ((T(1) << k_higher) - 1) ^ ((T(1) << k_lower) -1);
 T random_data(std::vector<T> &data, const uint64_t size) {
 	data.resize(size);
 	for (uint64_t i = 0; i < size; ++i) {
-		data[i] = fastrandombytes_uint64() & mask;
+		data[i] = rng() & mask;
 	}
 
 	std::sort(data.begin(), data.end(),
@@ -31,7 +31,7 @@ T random_data(std::vector<T> &data, const uint64_t size) {
 	);
 
 	assert(std::is_sorted(data.begin(), data.end()));
-	return fastrandombytes_uint64() % SIZE;
+	return rng() % SIZE;
 }
 
 // std_sort

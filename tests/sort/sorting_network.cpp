@@ -10,14 +10,14 @@ using namespace std;
 #include "random.h"
 #include "sort/sorting_network/common.h"
 
-/// generate random data
+/// generate rng data
 template<typename T>
 T *gen_data(const size_t size) {
 	T *data = (T *) malloc(sizeof(T) * size);
 	ASSERT(data);
 
 	for (size_t i = 0; i < size; ++i) {
-		data[i] = fastrandombytes_uint64();
+		data[i] = rng();
 	}
 
 	return data;
@@ -171,7 +171,7 @@ TEST(SortingNetwork, djb_int32x16_t) {
 
 	int32_t d_in[16], d_out[16];
 	for (uint32_t i = 0; i < 16; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 
 	__m256i t1 = _mm256_loadu_si256((__m256i *)(d_in + 0));
@@ -188,7 +188,7 @@ TEST(SortingNetwork, djb_int32x16_t) {
 TEST(SortingNetwork, djb_int32x32_t) {
 	int32_t d_in[32], d_out[32];
 	for (uint32_t i = 0; i < 32; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 
 	__m256i t1 = _mm256_loadu_si256((__m256i *)(d_in +  0));
@@ -208,7 +208,7 @@ TEST(SortingNetwork, djb_int32x32_t) {
 TEST(SortingNetwork, uint8x16_t) {
 	uint8_t d_in[16], d_out[16];
 	for (uint32_t i = 0; i < 2; ++i) {
-		((uint64_t *)d_in)[i] = fastrandombytes_uint64();
+		((uint64_t *)d_in)[i] = rng();
 	}
 
 	const __m128i insr = _mm_load_si128((__m128i *) d_in);
@@ -254,7 +254,7 @@ TEST(SortingNetwork, f32xX_t) {
 	__m256 data[size] = {0};
 	float *d = (float *)data;
 	for (size_t i = 0; i < size * 8; ++i) {
-		d[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
+		d[i] = static_cast <float> ((float ) rng()) / static_cast <float> ((uint64_t)-1ull);
 	}
 
 	sortingnetwork_sort_f32x8(data[0]);
@@ -296,7 +296,7 @@ TEST(SortingNetwork, u32xX_t) {
 	__m256i data[size] = {0};
 	auto *d = (uint32_t *) data;
 	for (size_t i = 0; i < size * 8; ++i) {
-		d[i] = fastrandombytes_uint64();
+		d[i] = rng();
 	}
 
 	data[0] = sortingnetwork_sort_u32x8(data[0]);
@@ -338,7 +338,7 @@ TEST(SortingNetwork, small_f32xX_t) {
 	__m256i data[size] = {0};
 	auto *d = (float *) data;
 	for (size_t i = 0; i < size * 8; ++i) {
-		d[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
+		d[i] = static_cast <float> ((float ) rng()) / static_cast <float> ((uint64_t)-1ull);
 	}
 
 	for (uint32_t i = 1; i < 8*size; i++) {
@@ -352,7 +352,7 @@ TEST(SortingNetwork, small_f32xX_t) {
 TEST(SortingNetwork, int32x128_t) {
 	uint32_t data[128] __attribute__((aligned(64)));
 	for (uint32_t i = 0; i < 128; ++i) {
-		data[i] = fastrandombytes_uint64() % (1u << 31);
+		data[i] = rng() % (1u << 31);
 	}
 
 	sortingnetwork_sort_i32x128((__m256i *)data);
@@ -365,7 +365,7 @@ TEST(SortingNetwork, int32x128_t) {
 TEST(SortingNetwork, uint32x128_t) {
 	uint32_t data[128] __attribute__((aligned(64)));
 	for (uint32_t i = 0; i < 128; ++i) {
-		data[i] = fastrandombytes_uint64();
+		data[i] = rng();
 	}
 
 	sortingnetwork_sort_u32x128_2((__m256i *)data);
@@ -380,7 +380,7 @@ TEST(SortingNetwork, uint32x128_t) {
 TEST(SortingNetwork, avx512_uint64x16_t) {
 	uint64_t d_in[16], d_out[16];
 	for (uint32_t i = 0; i < 16; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in + 0));
@@ -396,7 +396,7 @@ TEST(SortingNetwork, avx512_uint64x16_t) {
 TEST(SortingNetwork, avx512_int32x16_t) {
 	int32_t d_in[16], d_out[16];
 	for (uint32_t i = 0; i < 16; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in + 0));
@@ -410,7 +410,7 @@ TEST(SortingNetwork, avx512_int32x16_t) {
 TEST(SortingNetwork, avx512_uint32x16_t) {
 	uint32_t d_in[16], d_out[16];
 	for (uint32_t i = 0; i < 16; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in + 0));
@@ -424,7 +424,7 @@ TEST(SortingNetwork, avx512_uint32x16_t) {
 TEST(SortingNetwork, avx512_f32x16_t) {
 	float d_in[16], d_out[16];
 	for (size_t i = 0; i < 16; ++i) {
-		d_in[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
+		d_in[i] = static_cast <float> ((float )rng()) / static_cast <float> ((uint64_t)-1ull);
 	}
 
 	__m512 a = _mm512_loadu_si512((__m512i *)(d_in + 0));
@@ -453,7 +453,7 @@ TEST(SortingNetwork, avx512_f32x16_t) {
 TEST(SortingNetwork, avx512_uint32x32_t) {
 	uint32_t d_in[32], d_out[32];
 	for (uint32_t i = 0; i < 32; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
 	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
@@ -469,7 +469,7 @@ TEST(SortingNetwork, avx512_uint32x48_t) {
 	constexpr size_t s = 48;
 	uint32_t d_in[s], d_out[s];
 	for (uint32_t i = 0; i < s; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
 	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
@@ -487,7 +487,7 @@ TEST(SortingNetwork, avx512_uint32x64_t) {
 	constexpr size_t s = 64;
 	uint32_t d_in[s], d_out[s];
 	for (uint32_t i = 0; i < s; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
 	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
@@ -507,7 +507,7 @@ TEST(SortingNetwork, avx512_uint32x80_t) {
 	constexpr size_t s = 80;
 	uint32_t d_in[s], d_out[s];
 	for (uint32_t i = 0; i < s; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
 	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
@@ -529,7 +529,7 @@ TEST(SortingNetwork, avx512_uint32x96_t) {
 	constexpr size_t s = 96;
 	uint32_t d_in[s], d_out[s];
 	for (uint32_t i = 0; i < s; ++i) {
-		d_in[i] = fastrandombytes_uint64();
+		d_in[i] = rng();
 	}
 	__m512i a = _mm512_loadu_si512((__m512i *)(d_in +  0));
 	__m512i b = _mm512_loadu_si512((__m512i *)(d_in + 16));
@@ -555,7 +555,7 @@ TEST(SortingNetwork, avx512_uint32_small) {
 
 	for (uint32_t j = 16; j <= s; j+=16) {
 		for (uint32_t i = 0; i < s; ++i) {
-			d_in[i] = fastrandombytes_uint64();
+			d_in[i] = rng();
 		}
 
 		bool r = avx512_sortingnetwork_small_uint32_t(d_in, s);
@@ -567,7 +567,7 @@ TEST(SortingNetwork, avx512_uint32_small) {
 
 	for (uint32_t j = 16; j <= s; j+=1) {
 		for (uint32_t i = 0; i < s; ++i) {
-			d_in[i] = fastrandombytes_uint64();
+			d_in[i] = rng();
 		}
 
 		bool r = avx512_sortingnetwork_small_uint32_t(d_in, s);
@@ -584,7 +584,7 @@ TEST(SortingNetwork, avx512_int32_small) {
 
 	for (uint32_t j = 16; j <= s; j+=16) {
 		for (uint32_t i = 0; i < s; ++i) {
-			d_in[i] = fastrandombytes_uint64();
+			d_in[i] = rng();
 		}
 
 		bool r = avx512_sortingnetwork_small_int32_t(d_in, s);
@@ -596,7 +596,7 @@ TEST(SortingNetwork, avx512_int32_small) {
 
 	for (uint32_t j = 16; j <= s; j+=1) {
 		for (uint32_t i = 0; i < s; ++i) {
-			d_in[i] = fastrandombytes_uint64();
+			d_in[i] = rng();
 		}
 
 		bool r = avx512_sortingnetwork_small_int32_t(d_in, s);
@@ -613,7 +613,7 @@ TEST(SortingNetwork, avx512_float_small) {
 
 	for (uint32_t j = 16; j <= s; j+=16) {
 		for (uint32_t i = 0; i < s; ++i) {
-			d_in[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
+			d_in[i] = static_cast <float> ((float )rng()) / static_cast <float> ((uint64_t)-1ull);
 		}
 
 		bool r = avx512_sortingnetwork_small_int32_t(d_in, s);
@@ -625,7 +625,7 @@ TEST(SortingNetwork, avx512_float_small) {
 
 	for (uint32_t j = 16; j <= s; j+=1) {
 		for (uint32_t i = 0; i < s; ++i) {
-			d_in[i] = static_cast <float> ((float )fastrandombytes_uint64()) / static_cast <float> ((uint64_t)-1ull);
+			d_in[i] = static_cast <float> ((float )rng()) / static_cast <float> ((uint64_t)-1ull);
 		}
 
 		bool r = avx512_sortingnetwork_small_int32_t(d_in, s);

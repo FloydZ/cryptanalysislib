@@ -21,7 +21,7 @@ TEST(Label, DoesNotLeak) {
 
 TEST(Label, Zero) {
 	Label l;
-	l.data()[0] = fastrandombytes_uint64();
+	l.data()[0] = rng();
 
 	l.zero();
 	for (uint32_t i = 0; i < Label::size(); ++i) {
@@ -78,7 +78,7 @@ TEST(Add, AddWithLevelWithTranslationArray) {
 		// only a simple test.
 		for (uint32_t i = 0; i < Label::size(); ++i) {
 			l1[i] = i;
-			l2[i] = fastrandombytes_uint64();
+			l2[i] = rng();
 		}
 
 		for (uint32_t j = 0; j < __level_translation_array.size() - 1; ++j) {
@@ -119,7 +119,7 @@ TEST(Add, AddWithLevel) {
 		// only a simple test.
 		for (uint32_t i = 0; i < Label::size(); ++i) {
 			l1[i] = i;
-			l2[i] = fastrandombytes_uint64();
+			l2[i] = rng();
 		}
 
 		for (uint32_t j = 0; j < __level_translation_array.size() - 1; ++j) {
@@ -158,7 +158,7 @@ TEST(Add, AddWithK) {
 		// only a simple test.
 		for (uint32_t i = 0; i < Label::size(); ++i) {
 			l1[i] = i;
-			l2[i] = fastrandombytes_uint64();
+			l2[i] = rng();
 		}
 
 		for (uint32_t k_lower = 0; k_lower < Label::size(); ++k_lower) {
@@ -330,12 +330,7 @@ TEST(Compare_Is_Lower, AllK) {
 
 
 int main(int argc, char **argv) {
-	uint64_t t = 0;
-	const auto k = fastrandombytes(&t, 8);
-	ASSERT(!k);
-	srand(t);
     InitGoogleTest(&argc, argv);
-	ident();
-	random_seed(time(NULL));
+	rng_seed(time(nullptr));
     return RUN_ALL_TESTS();
 }

@@ -335,17 +335,17 @@ public:
 		__data[round_down_to_limb(i)] ^= mask(i);
 	}
 
-	/// set the whole data const_array on random data.
+	/// set the whole data const_array on rng data.
 	void random() noexcept {
 		constexpr uint64_t apply_mask = length() % limb_bits_width() == 0 ? lower_mask(length()) - 1 : lower_mask(length());
 
 		if constexpr (length() < 64) {
-			__data[0] = fastrandombytes_uint64() & apply_mask;
+			__data[0] = rng() & apply_mask;
 		} else {
 			for (uint32_t i = 0; i < limbs() - 1; ++i) {
-				__data[i] = fastrandombytes_uint64();
+				__data[i] = rng();
 			}
-			__data[limbs() - 1] = fastrandombytes_uint64() & apply_mask;
+			__data[limbs() - 1] = rng() & apply_mask;
 		}
 	}
 
@@ -363,19 +363,19 @@ public:
 
 		if (lower_limb == upper_limb) {
 			const T mask =  _lower_mask & _upper_mask;
-			__data[lower_limb] ^= fastrandombytes_T<T>() & mask;
+			__data[lower_limb] ^= rng<T>() & mask;
 		}
 
-		__data[lower_limb] ^= fastrandombytes_T<T>() & _lower_mask;
-		__data[upper_limb] ^= fastrandombytes_T<T>() & _upper_mask;
+		__data[lower_limb] ^= rng<T>() & _lower_mask;
+		__data[upper_limb] ^= rng<T>() & _upper_mask;
 
 		for (uint32_t i = lower_limb + 1u; i < upper_limb - 1u; ++i) {
-			__data[lower_limb] ^= fastrandombytes_T<T>();
+			__data[lower_limb] ^= rng<T>();
 		}
 	}
 
 	/// split the full length BinaryContainer into `k` windows.
-	/// Inject in every window weight `w` on random positions.
+	/// Inject in every window weight `w` on rng positions.
 	void random_with_weight_per_windows(const uint64_t w,
 	                                    const uint64_t k) noexcept {
 		std::vector<uint64_t> buckets_windows{};
@@ -401,7 +401,7 @@ public:
 
 			// now permute
 			for (uint64_t l = 0; l < windows_length; ++l) {
-				uint64_t pos = fastrandombytes_uint64() % (windows_length - l);
+				uint64_t pos = rng() % (windows_length - l);
 				auto t = get_bit_shifted(cur_offset + l);
 				write_bit(cur_offset + l, get_bit_shifted(cur_offset + l + pos));
 				write_bit(cur_offset + l + pos, t);
@@ -428,7 +428,7 @@ public:
 
 		// now permute
 		for (uint64_t i = 0; i < m; ++i) {
-			uint64_t pos = fastrandombytes_uint64() % (m - i);
+			uint64_t pos = rng() % (m - i);
 			bool t = get_bit_shifted(i+offset);
 			write_bit(i+offset, get_bit_shifted(i + pos + offset));
 			write_bit(i + pos + offset, t);

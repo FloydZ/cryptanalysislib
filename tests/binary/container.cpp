@@ -200,8 +200,8 @@ TEST(Set, Random) {
 		bb.reset();
 		b.zero();
 
-		auto pos = fastrandombytes_uint64() % n;
-		b[pos] = bool(fastrandombytes_uint64() % 2);
+		auto pos = rng() % n;
+		b[pos] = bool(rng() % 2);
 		bb[pos] = b[pos];
 		for (uint32_t j = 0; j < b.size(); ++j) {
 			EXPECT_EQ(bb[j], b[j]);
@@ -373,12 +373,12 @@ TEST(Static_Add, Probabilistic){
 		uint64_t k_upper = bounds.second;
 
 		for(uint64_t i = 0; i < 100; i++){
-			uint64_t a = fastrandombytes_uint64();
-			uint64_t b = fastrandombytes_uint64();
-			uint64_t c = fastrandombytes_uint64();
-			uint64_t d = fastrandombytes_uint64();
-			uint64_t e = fastrandombytes_uint64();
-			uint64_t f = fastrandombytes_uint64();
+			uint64_t a = rng();
+			uint64_t b = rng();
+			uint64_t c = rng();
+			uint64_t d = rng();
+			uint64_t e = rng();
+			uint64_t f = rng();
 
 			BinaryContainer<128> b1;
 			BinaryContainer<128> b2;
@@ -435,10 +435,10 @@ TEST(Add, Probabilistic){
 		uint64_t k_upper = bounds.second;
 
 		for(uint64_t i = 0; i < 100; i++) {
-			uint64_t a = fastrandombytes_uint64();
-			uint64_t b = fastrandombytes_uint64();
-			uint64_t c = fastrandombytes_uint64();
-			uint64_t d = fastrandombytes_uint64();
+			uint64_t a = rng();
+			uint64_t b = rng();
+			uint64_t c = rng();
+			uint64_t d = rng();
 
 			BinaryContainerTest b1;
 			BinaryContainerTest b2;
@@ -1299,7 +1299,7 @@ TEST(hash, Complex) {
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }
 #endif

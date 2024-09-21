@@ -67,7 +67,7 @@ TEST(BinaryChaseSequence, simple) {
 }
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

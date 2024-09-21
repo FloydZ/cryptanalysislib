@@ -83,8 +83,8 @@ TEST(ipow, simple) {
 TEST(mod, simple) {
 	constexpr uint32_t mod = 718293;
 	for (uint32_t i = 0; i < 1u<<14; ++i) {
-		const uint32_t a = fastrandombytes_uint64();
-		const uint32_t b = fastrandombytes_uint64();
+		const uint32_t a = rng();
+		const uint32_t b = rng();
 		const uint32_t c = fastmod<mod>(a+b);
 		EXPECT_EQ(c, (a+b)%mod);
 	}
@@ -143,7 +143,7 @@ TEST(big_int, binom) {
 	EXPECT_EQ(b4[0], 229479463334370304);
 }
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

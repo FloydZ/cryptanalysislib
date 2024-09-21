@@ -84,7 +84,7 @@ uint64_t helper_check_weight_of_value(const BinaryList &l, const uint64_t e1, co
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }
 #endif

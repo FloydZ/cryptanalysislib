@@ -40,7 +40,7 @@ TEST(T, constexpr) {
 
 TEST(T, Simple) {
 	S l1;
-	S::LimbType t1 = fastrandombytes_uint64()% PRIME;
+	S::LimbType t1 = rng()% PRIME;
 	l1 = t1;
 	EXPECT_EQ(l1, t1);
 }
@@ -83,7 +83,7 @@ TEST(T, one) {
 TEST(T, neg) {
 	if constexpr (S::arith && (PRIME != 2)) {
 		for (size_t i = 0; i < TESTSIZE; ++i) {
-			const uint64_t t1 = fastrandombytes_uint64(1, PRIME);
+			const uint64_t t1 = rng<uint64_t>(1, PRIME);
 			S l1 = t1;
 
 			l1.neg();
@@ -106,8 +106,8 @@ TEST(T, add_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = fastrandombytes_uint64(1ull << 63);
-		uint64_t t2 = fastrandombytes_uint64(1ull << 63);
+		uint64_t t1 = rng(1ull << 63);
+		uint64_t t2 = rng(1ull << 63);
 
 
 		l1 = t1;
@@ -124,8 +124,8 @@ TEST(T, add_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		const int64_t t1 = fastrandombytes_uint64(1ull << 63);
-		const int64_t t2 = fastrandombytes_uint64(1ull << 63);
+		const int64_t t1 = rng(1ull << 63);
+		const int64_t t2 = rng(1ull << 63);
 
 		l1 = t1;
 		l2 = t2;
@@ -141,8 +141,8 @@ TEST(T, add_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		const uint64_t t1 = fastrandombytes_uint64(1ull << 63);
-		const uint64_t t2 = fastrandombytes_uint64(1ull << 63);
+		const uint64_t t1 = rng(1ull << 63);
+		const uint64_t t2 = rng(1ull << 63);
 
 		l1 = t1;
 		l2 = t2;
@@ -159,8 +159,8 @@ TEST(T, sub_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		signed int t1 = fastrandombytes_uint64(PRIME);
-		signed int t2 = fastrandombytes_uint64(PRIME);
+		signed int t1 = rng(PRIME);
+		signed int t2 = rng(PRIME);
 
 		l1 = t1;
 		l2 = t2;
@@ -178,8 +178,8 @@ TEST(T, sub_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = (fastrandombytes_uint64(PRIME));
-		uint64_t t2 = (fastrandombytes_uint64(PRIME));
+		uint64_t t1 = (rng(PRIME));
+		uint64_t t2 = (rng(PRIME));
 
 		l1 = t1;
 		l2 = t2;
@@ -195,9 +195,9 @@ TEST(T, addmul_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		unsigned int t1 = fastrandombytes_uint64(1ull << 15);
-		unsigned int t2 = fastrandombytes_uint64(1ull << 15);
-		unsigned int t3 = fastrandombytes_uint64(1ull << 15);
+		unsigned int t1 = rng(1ull << 15);
+		unsigned int t2 = rng(1ull << 15);
+		unsigned int t3 = rng(1ull << 15);
 
 		l1 = t1;
 		l2 = t2;
@@ -214,9 +214,9 @@ TEST(T, addmul_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		signed int t1 = fastrandombytes_uint64(1ull << 15);
-		signed int t2 = fastrandombytes_uint64(1ull << 15);
-		signed int t3 = fastrandombytes_uint64(1ull << 15);
+		signed int t1 = rng(1ull << 15);
+		signed int t2 = rng(1ull << 15);
+		signed int t3 = rng(1ull << 15);
 
 		l1 = t1;
 		l2 = t2;
@@ -233,9 +233,9 @@ TEST(T, add_mul_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = fastrandombytes_uint64(1ull << 15);
-		uint64_t t2 = fastrandombytes_uint64(1ull << 15);
-		uint64_t t3 = fastrandombytes_uint64(1ull << 15);
+		uint64_t t1 = rng(1ull << 15);
+		uint64_t t2 = rng(1ull << 15);
+		uint64_t t3 = rng(1ull << 15);
 
 		l1 = t1;
 		l2 = t2;
@@ -288,7 +288,7 @@ TEST(T, arith) {
 
 TEST(T, comparison_simple) {
 	S l1, l2;
-	unsigned int t1 = fastrandombytes_uint64(PRIME - 1);
+	unsigned int t1 = rng(PRIME - 1);
 	unsigned int t2 = t1 + 1;
 
 	l1 = t1;

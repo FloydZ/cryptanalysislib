@@ -161,14 +161,14 @@ public:
 		label.zero();
 	}
 
-	/// generate a completely random element
+	/// generate a completely rng element
 	/// NOTE: value and label are not in any correspondence
 	void random() noexcept {
 		value.random();
 		label.random();
 	}
 
-	/// generate a random element.
+	/// generate a rng element.
 	/// \param m 	Matrix
 	void random(const MatrixType &m) noexcept {
 		value.random();

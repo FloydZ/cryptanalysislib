@@ -428,6 +428,6 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2) {
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }

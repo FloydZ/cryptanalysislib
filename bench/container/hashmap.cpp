@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
 	hm2 = new HM2;
 	data = (V *) aligned_alloc(1024, (1u << l) * fillratio * sizeof(V));
 	for (size_t i = 0; i < (1u << l) * fillratio; ++i) {
-		data[i] = fastrandombytes_uint64();
+		data[i] = rng();
 	}
 
 	B63_RUN_WITH("lpe:branches,lpe:branch-misses,lpe:cache-misses,lpe:cache-references,lpe:cycles,lpe:instructions,lpe:ref-cycles", argc, argv);

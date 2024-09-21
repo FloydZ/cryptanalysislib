@@ -169,7 +169,7 @@ TEST(NAME, HashSimple) {
 
 			for (size_t k = 0; k < 1; ++k) {
 				b1.zero();
-				K::DataType r = fastrandombytes_uint64() % PRIME;
+				K::DataType r = rng() % PRIME;
 
 				for (uint32_t i = l; i < h; ++i) {
 					b1.set(r, i);

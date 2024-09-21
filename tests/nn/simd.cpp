@@ -14,7 +14,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	const uint64_t z = fastrandombytes_uint64();
+	const uint64_t z = rng();
 	size_t e1 = algo.simd_sort_nn_on64_simple<0>(LS, z, algo.L1);
 	size_t e2 = algo.simd_sort_nn_on64<0>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -83,7 +83,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double64) {
 	memcpy(algo2.L1, algo1.L1, LS);
 	memcpy(algo2.L2, algo1.L2, LS);
 
-	const uint64_t z = fastrandombytes_uint64();
+	const uint64_t z = rng();
 	size_t e11 = algo1.simd_sort_nn_on64_simple<0>(LS, z, algo1.L1);
 	size_t e12 = algo1.simd_sort_nn_on64_simple<0>(LS, z, algo1.L2);
 	size_t e21=0, e22=0;
@@ -146,7 +146,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	uint32_t z = fastrandombytes_uint64();
+	uint32_t z = rng();
 	size_t e1 = algo.simd_sort_nn_on32_simple<0>(LS, z, algo.L1);
 	size_t e2 = algo.simd_sort_nn_on32<0>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -162,7 +162,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	z = fastrandombytes_uint64();
+	z = rng();
 	e1 = algo.simd_sort_nn_on32_simple<1>(LS, z, algo.L1);
 	e2 = algo.simd_sort_nn_on32<1>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -178,7 +178,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	z = fastrandombytes_uint64();
+	z = rng();
 	e1 = algo.simd_sort_nn_on32_simple<2>(LS, z, algo.L1);
 	e2 = algo.simd_sort_nn_on32<2>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -195,7 +195,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	z = fastrandombytes_uint64();
+	z = rng();
 	e1 =algo.simd_sort_nn_on32_simple<3>(LS, z, algo.L1);
 	e2 =algo.simd_sort_nn_on32<3>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -218,7 +218,7 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double32) {
 	memcpy(algo2.L1, algo1.L1, LS);
 	memcpy(algo2.L2, algo1.L2, LS);
 
-	const uint64_t z = fastrandombytes_uint64();
+	const uint64_t z = rng();
 	size_t e11 = algo1.simd_sort_nn_on32_simple<0>(LS, z, algo1.L1);
 	size_t e12 = algo1.simd_sort_nn_on32_simple<0>(LS, z, algo1.L2);
 	size_t e21=0, e22=0;
@@ -284,33 +284,33 @@ TEST(NearestNeighborAVX, simd_sort_nn_on_double32_allcorrect) {
 
 	uint32_t z;
 	size_t e1=LS, e2=LS, new_e1=0, new_e2=0;
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	algo1.simd_sort_nn_on_double32<0, 1>(e1, e2, new_e1, new_e2, z);
 	EXPECT_EQ(new_e1, LS);
 	EXPECT_EQ(new_e2, LS);
 	new_e1 = 0; new_e2 = 0;
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	algo1.simd_sort_nn_on_double32<0, 2>(e1, e2, new_e1, new_e2, z);
 	EXPECT_EQ(new_e1, LS);
 	EXPECT_EQ(new_e2, LS);
 	new_e1 = 0; new_e2 = 0;
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	algo1.simd_sort_nn_on_double32<0, 4>(e1, e2, new_e1, new_e2, z);
 	EXPECT_EQ(new_e1, LS);
 	EXPECT_EQ(new_e2, LS);
 
 	new_e1 = 0; new_e2 = 0;
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	algo1.simd_sort_nn_on_double32<1, 1>(e1, e2, new_e1, new_e2, z);
 	EXPECT_EQ(new_e1, LS);
 	EXPECT_EQ(new_e2, LS);
 	new_e1 = 0; new_e2 = 0;
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	algo1.simd_sort_nn_on_double32<1, 2>(e1, e2, new_e1, new_e2, z);
 	EXPECT_EQ(new_e1, LS);
 	EXPECT_EQ(new_e2, LS);
 	new_e1 = 0; new_e2 = 0;
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	algo1.simd_sort_nn_on_double32<1, 4>(e1, e2, new_e1, new_e2, z);
 	EXPECT_EQ(new_e1, LS);
 	EXPECT_EQ(new_e2, LS);
@@ -326,36 +326,36 @@ TEST(NearestNeighborAVX, simd_sort_nn_on_32_allcorrect) {
 
 	uint32_t z;
 	size_t e1=LS,new_e1=0;
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	ASSERT(cryptanalysislib::popcount::popcount(z) == dk);
 	new_e1 = algo1.simd_sort_nn_on32<0>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on32<1>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on32<2>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on32<3>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
 
-	algo1.L1[fastrandombytes_uint64()%LS][0] = -1ull;
-	algo1.L1[fastrandombytes_uint64()%LS][1] = -1ull;
-	algo1.L1[fastrandombytes_uint64()%LS][2] = -1ull;
-	algo1.L1[fastrandombytes_uint64()%LS][3] = -1ull;
+	algo1.L1[rng()%LS][0] = -1ull;
+	algo1.L1[rng()%LS][1] = -1ull;
+	algo1.L1[rng()%LS][2] = -1ull;
+	algo1.L1[rng()%LS][3] = -1ull;
 
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	ASSERT(cryptanalysislib::popcount::popcount(z) == dk);
 	new_e1 = algo1.simd_sort_nn_on32<0>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on32<1>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on32<2>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
-	z = fastrandombytes_weighted<uint32_t>(dk);
+	z = rng_weighted<uint32_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on32<3>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
 }
@@ -370,34 +370,34 @@ TEST(NearestNeighborAVX, simd_sort_nn_on_64_allcorrect) {
 
 	uint64_t z;
 	size_t e1=LS,new_e1=0;
-	z = fastrandombytes_weighted<uint64_t>(dk);
+	z = rng_weighted<uint64_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on64<0>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
-	z = fastrandombytes_weighted<uint64_t>(dk);
+	z = rng_weighted<uint64_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on64<1>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
-	z = fastrandombytes_weighted<uint64_t>(dk);
+	z = rng_weighted<uint64_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on64<2>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
-	z = fastrandombytes_weighted<uint64_t>(dk);
+	z = rng_weighted<uint64_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on64<3>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
 
-	algo1.L1[fastrandombytes_uint64()%LS][0] = -1ull;
-	algo1.L1[fastrandombytes_uint64()%LS][1] = -1ull;
-	algo1.L1[fastrandombytes_uint64()%LS][2] = -1ull;
-	algo1.L1[fastrandombytes_uint64()%LS][3] = -1ull;
+	algo1.L1[rng()%LS][0] = -1ull;
+	algo1.L1[rng()%LS][1] = -1ull;
+	algo1.L1[rng()%LS][2] = -1ull;
+	algo1.L1[rng()%LS][3] = -1ull;
 
-	z = fastrandombytes_weighted<uint64_t>(dk);
+	z = rng_weighted<uint64_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on64<0>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
-	z = fastrandombytes_weighted<uint64_t>(dk);
+	z = rng_weighted<uint64_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on64<1>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
-	z = fastrandombytes_weighted<uint64_t>(dk);
+	z = rng_weighted<uint64_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on64<2>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
-	z = fastrandombytes_weighted<uint64_t>(dk);
+	z = rng_weighted<uint64_t>(dk);
 	new_e1 = algo1.simd_sort_nn_on64<3>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
 }
@@ -410,7 +410,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	uint32_t z = fastrandombytes_uint64();
+	uint32_t z = rng();
 	size_t e1 = algo.simd_sort_nn_on32_simple<0>(LS, z, algo.L1);
 	size_t e2 = algo.simd_sort_nn_on32<0>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -426,7 +426,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	z = fastrandombytes_uint64();
+	z = rng();
 	e1 = algo.simd_sort_nn_on32_simple<1>(LS, z, algo.L1);
 	e2 = algo.simd_sort_nn_on32<1>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -442,7 +442,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	z = fastrandombytes_uint64();
+	z = rng();
 	e1 = algo.simd_sort_nn_on32_simple<2>(LS, z, algo.L1);
 	e2 = algo.simd_sort_nn_on32<2>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -459,7 +459,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	z = fastrandombytes_uint64();
+	z = rng();
 	e1 =algo.simd_sort_nn_on32_simple<3>(LS, z, algo.L1);
 	e2 =algo.simd_sort_nn_on32<3>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -478,7 +478,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on64_k) {
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
-	const uint64_t z = fastrandombytes_uint64();
+	const uint64_t z = rng();
 	size_t e1 = algo.simd_sort_nn_on64_simple<0>(LS, z, algo.L1);
 	size_t e2 = algo.simd_sort_nn_on64<0>(LS, z, algo.L2);
 	EXPECT_EQ(e1, e2);
@@ -551,7 +551,7 @@ TEST(Bruteforce, avx512_32_8x8) {
 #endif
 
 int main(int argc, char **argv) {
-	random_seed(0);
+	rng_seed(0);
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

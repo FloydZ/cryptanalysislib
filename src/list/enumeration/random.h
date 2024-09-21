@@ -14,6 +14,8 @@
 #include "list/enumeration/enumeration.h"
 #include "math/bc.h"
 
+using namespace cryptanalysislib;
+
 /// This class enumerates vectors of length n and weight w, whereas
 /// no changelist is used.
 /// \tparam ListType
@@ -251,14 +253,14 @@ public:
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
 		for (size_t ctr = 0; ctr < list_size; ++ctr) {
-			const uint32_t w1 = fastrandombytes_uint64(1, w);
+			const uint32_t w1 = rng<T>(1, w);
 			element1.value.random_with_weight(w1, n/2, base_offset);
 			H.mul(element1.label, element1.value);
 
 			if (syndrome != nullptr) { Label::add(element1.label, element1.label, *syndrome); }
 
 			if (sL2) {
-				const uint32_t w2 = fastrandombytes_uint64(1, w);
+				const uint32_t w2 = rng<T>(1, w);
 				element2.value.random_with_weight(w2, n/2, base_offset+offset);
 				H.mul(element2.label, element2.value);
 			}

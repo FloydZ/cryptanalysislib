@@ -15,7 +15,7 @@ NN<config> algo{};
 // Define another benchmark
 static void BM_simd_sort_nn_on32_simple_0(benchmark::State &state) {
 	for (auto _: state) {
-		const uint64_t z = fastrandombytes_uint64();
+		const uint64_t z = rng();
 		algo.simd_sort_nn_on32_simple<0>(state.range(0), z, algo.L1);
 		algo.simd_sort_nn_on32_simple<0>(state.range(0), z, algo.L2);
 	}
@@ -23,7 +23,7 @@ static void BM_simd_sort_nn_on32_simple_0(benchmark::State &state) {
 }
 static void BM_simd_sort_nn_on32_simple_1(benchmark::State &state) {
 	for (auto _: state) {
-		const uint64_t z = fastrandombytes_uint64();
+		const uint64_t z = rng();
 		algo.simd_sort_nn_on32_simple<1>(state.range(0), z, algo.L1);
 		algo.simd_sort_nn_on32_simple<1>(state.range(0), z, algo.L2);
 	}
@@ -32,7 +32,7 @@ static void BM_simd_sort_nn_on32_simple_1(benchmark::State &state) {
 
 static void BM_simd_sort_nn_on32_0(benchmark::State &state) {
 	for (auto _: state) {
-		const uint64_t z = fastrandombytes_uint64();
+		const uint64_t z = rng();
 		algo.simd_sort_nn_on32<0>(state.range(0), z, algo.L1);
 		algo.simd_sort_nn_on32<0>(state.range(0), z, algo.L2);
 	}
@@ -40,7 +40,7 @@ static void BM_simd_sort_nn_on32_0(benchmark::State &state) {
 }
 static void BM_simd_sort_nn_on32_1(benchmark::State &state) {
 	for (auto _: state) {
-		const uint64_t z = fastrandombytes_uint64();
+		const uint64_t z = rng();
 		algo.simd_sort_nn_on32<1>(state.range(0), z, algo.L1);
 		algo.simd_sort_nn_on32<1>(state.range(0), z, algo.L2);
 	}
@@ -49,7 +49,7 @@ static void BM_simd_sort_nn_on32_1(benchmark::State &state) {
 
 static void BM_simd_sort_nn_on_double32_0_2(benchmark::State &state) {
 	for (auto _: state) {
-		const uint64_t z = fastrandombytes_uint64();
+		const uint64_t z = rng();
 		size_t ne1 = 0, ne2 = 0;
 		algo.simd_sort_nn_on_double32<0, 2>(state.range(0), state.range(0), ne1, ne2, z);
 	}
@@ -57,7 +57,7 @@ static void BM_simd_sort_nn_on_double32_0_2(benchmark::State &state) {
 }
 static void BM_simd_sort_nn_on_double32_1_2(benchmark::State &state) {
 	for (auto _: state) {
-		const uint64_t z = fastrandombytes_uint64();
+		const uint64_t z = rng();
 		size_t ne1 = 0, ne2 = 0;
 		algo.simd_sort_nn_on_double32<1, 2>(state.range(0), state.range(0), ne1, ne2, z);
 	}
@@ -65,7 +65,7 @@ static void BM_simd_sort_nn_on_double32_1_2(benchmark::State &state) {
 }
 static void BM_simd_sort_nn_on_double32_0_4(benchmark::State &state) {
 	for (auto _: state) {
-		const uint64_t z = fastrandombytes_uint64();
+		const uint64_t z = rng();
 		size_t ne1 = 0, ne2 = 0;
 		algo.simd_sort_nn_on_double32<0, 4>(state.range(0), state.range(0), ne1, ne2, z);
 	}
@@ -73,7 +73,7 @@ static void BM_simd_sort_nn_on_double32_0_4(benchmark::State &state) {
 }
 static void BM_simd_sort_nn_on_double32_1_4(benchmark::State &state) {
 	for (auto _: state) {
-		const uint64_t z = fastrandombytes_uint64();
+		const uint64_t z = rng();
 		size_t ne1 = 0, ne2 = 0;
 		algo.simd_sort_nn_on_double32<1, 4>(state.range(0), state.range(0), ne1, ne2, z);
 	}
@@ -91,7 +91,7 @@ BENCHMARK(BM_simd_sort_nn_on_double32_1_4)->RangeMultiplier(2)->Range(1024, 1u <
 #endif
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	algo.generate_random_instance();
 
 	::benchmark::Initialize(&argc, argv);

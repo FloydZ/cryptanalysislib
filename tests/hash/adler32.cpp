@@ -19,9 +19,8 @@ TEST(Hash, simple) {
 #ifdef USE_AVX2
 TEST(Adler32, avx) {
 	constexpr static size_t size = 1024;
-	uint8_t *data = (uint8_t *)malloc(size);
-	const auto t = fastrandombytes(data, size);
-	EXPECT_FALSE(t);
+	auto *data = (uint8_t *)malloc(size);
+	rng(data, size);
 
 	for (uint32_t i = 64; i < size; ++i) {
 		const uint32_t t1 = adler32(0, data, i);

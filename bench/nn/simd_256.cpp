@@ -130,7 +130,7 @@ BENCHMARK(BM_simd_256_32_ux8)->RangeMultiplier(2)->Range(128, 1u << 16)->Complex
 BENCHMARK(BM_simd_256_64_4x4)->RangeMultiplier(2)->Range(1024, 1u << 16)->Complexity();
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	algo.generate_random_instance(false);
 
 	::benchmark::Initialize(&argc, argv);

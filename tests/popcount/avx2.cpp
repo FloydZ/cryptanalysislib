@@ -93,10 +93,10 @@ TEST(AVX2, uint64_t) {
 
 TEST(AVX2, uint64_t_random) {
 	for (size_t i = 0; i < (1u << 8u); i++) {
-		const uint64_t r1 = fastrandombytes_uint64();
-		const uint64_t r2 = fastrandombytes_uint64();
-		const uint64_t r3 = fastrandombytes_uint64();
-		const uint64_t r4 = fastrandombytes_uint64();
+		const uint64_t r1 = rng();
+		const uint64_t r2 = rng();
+		const uint64_t r3 = rng();
+		const uint64_t r4 = rng();
 		__m256i a = _mm256_setr_epi64x(r1, r2, r3, r4);
 		__m256i b = popcount_avx2_64(a);
 

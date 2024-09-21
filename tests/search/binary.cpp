@@ -276,8 +276,5 @@ TEST(branchless_lower_bound, simple) {
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
-
-	srand(time(NULL));
-	xorshf96_random_seed(rand());
     return RUN_ALL_TESTS();
 }

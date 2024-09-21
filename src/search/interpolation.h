@@ -250,7 +250,7 @@ size_t LowerBoundInterpolationSearch(const T *__buckets,
 /// This search algorithm assumes a lot.
 ///		T must implement
 /// 			<	Operator
-/// \tparam RandIt	Iterator, must be random access_iterator
+/// \tparam RandIt	Iterator, must be rng access_iterator
 /// \tparam Hash		Hash/Extractor function
 /// \param first		low end iterator
 /// \param last			high end iterator

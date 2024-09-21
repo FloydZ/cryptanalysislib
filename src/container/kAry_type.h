@@ -161,7 +161,7 @@ public:
 
 	///
 	inline void random() noexcept {
-		__value = fastrandombytes_uint64(q);
+		__value = rng(q);
 	}
 
 	///
@@ -170,10 +170,10 @@ public:
 	inline void random(const T l,
 	                   const T u) noexcept {
 		if constexpr (arith) {
-			__value = fastrandombytes_T<T>(l, u);
+			__value = rng<T>(l, u);
 		} else {
 			const T mask = (1ull << u) - 1ull;
-			__value == (fastrandombytes_uint64() & mask) << l;
+			__value == (rng() & mask) << l;
 		}
 	}
 

@@ -17,7 +17,7 @@ using ::testing::UnitTest;
 using T = BinaryContainer<100, uint64_t>;
 using AA = AATreeSet<uint64_t>;
 TEST(AATree, first) {
-	auto t = AA{};
+	// auto t = AA{};
 
 	// for (size_t i = 0; i < 10000; ++i) {
 	// 	auto in = T{};
@@ -38,6 +38,6 @@ TEST(AATree, first) {
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }

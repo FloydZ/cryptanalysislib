@@ -138,6 +138,6 @@ TEST(SubSetSum, join8lists_twolists_on_iT_v2_constexpr) {
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }

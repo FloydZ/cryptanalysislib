@@ -577,7 +577,7 @@ TEST(imap, assign_shuffle) {
 	}
 
 	for (unsigned i = 0; N > i; i++) {
-		uint32_t r = fastrandombytes_uint64() % N;
+		uint32_t r = rng() % N;
 		uint32_t t = array[i];
 		array[i] = array[r];
 		array[r] = t;
@@ -716,7 +716,7 @@ TEST(imap, remove_shuffle) {
 	}
 
 	for (unsigned i = 0; N > i; i++) {
-		uint32_t r = fastrandombytes_uint64() % N;
+		uint32_t r = rng() % N;
 		uint32_t t = array[i];
 		array[i] = array[r];
 		array[r] = t;
@@ -886,7 +886,7 @@ TEST(imap, iterate_shuffle) {
 	EXPECT_EQ(nullptr, pair.slot);
 
 	for (unsigned i = 0; N > i; i++) {
-		uint32_t r = fastrandombytes_uint64() % N;
+		uint32_t r = rng() % N;
 		uint32_t t = array[i];
 		array[i] = array[r];
 		array[r] = t;
@@ -1113,7 +1113,7 @@ TEST(imap, locate_random) {
 	EXPECT_NE(nullptr, array);
 
 	for (unsigned i = 0; N > i; i++) {
-		array[i] = 0x1000000 | (fastrandombytes_uint64() & 0x3ffffff);
+		array[i] = 0x1000000 | (rng() & 0x3ffffff);
 	}
 
 	for (unsigned i = 0; N > i; i++) {
@@ -1126,7 +1126,7 @@ TEST(imap, locate_random) {
 	qsort(array, N, sizeof array[0], u32cmp);
 
 	for (unsigned i = 0; M > i; i++) {
-		r = fastrandombytes_uint64() & 0x3ffffff;
+		r = rng() & 0x3ffffff;
 		pair = tree.locate( &iter, r);
 		p = test_bsearch(r, array, N);
 		if (array + N > p) {
@@ -1150,7 +1150,7 @@ TEST(imap, locate_random) {
 	}
 
 	for (unsigned i = 0; M > i; i++) {
-		r = fastrandombytes_uint64() % N;
+		r = rng() % N;
 		pair = tree.locate( &iter, array[r]);
 		p = test_bsearch(array[r], array, N);
 		if (array + N > p) {
@@ -1178,6 +1178,6 @@ TEST(imap, locate_random) {
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
-	random_seed(time(nullptr));
+	rng_seed(time(nullptr));
     return RUN_ALL_TESTS();
 }

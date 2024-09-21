@@ -7,7 +7,7 @@
 namespace cryptanalysislib {
 
 	/// TODO concepts and config
-	/// NOTE: Iterators are expected to be random access.
+	/// NOTE: Iterators are expected to be rng access.
     /// See std::for_each https://en.cppreference.com/w/cpp/algorithm/for_each
     /// \tparam ExecutionPolicy
     /// \tparam RandIt

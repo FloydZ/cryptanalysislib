@@ -43,7 +43,7 @@ struct RSACmp {
 };
 
 /// TODO move somewhere useful
-/// generates a new random subset sum instance
+/// generates a new rng subset sum instance
 template<typename T>
 void generate_random_subset_sum(std::vector<T> &in,
                                 T &target,
@@ -57,7 +57,7 @@ void generate_random_subset_sum(std::vector<T> &in,
 	}
 
    	for (size_t i = 0; i < in.size(); i++) {
-		in[i].random();
+		in[i].rng();
 	}
 
 	std::vector<uint32_t> weights(weight);
@@ -69,7 +69,7 @@ void generate_random_subset_sum(std::vector<T> &in,
 	}
 }
 
-/// generate a random row major matrix of dimension 1xn
+/// generate a rng row major matrix of dimension 1xn
 /// \tparam Matrix
 /// \param in
 /// \param target
@@ -95,7 +95,7 @@ void generate_random_subset_sum(Matrix &in,
 		target += in[0][w];
 	}
 }
-/// generate a random row major matrix of dimension 1xn
+/// generate a rng row major matrix of dimension 1xn
 /// \tparam Matrix
 /// \param in
 /// \param target
@@ -380,8 +380,8 @@ TEST(PCS, RhoSubSetSumTree) {
 		}
 
 		// resample the flavour
-		a = fastrandombytes_T<T::LimbType>() % p;
-		b = fastrandombytes_T<T::LimbType>() % p;
+		a = rng<T::LimbType>() % p;
+		b = rng<T::LimbType>() % p;
 	}
 }
 
@@ -389,6 +389,6 @@ TEST(PCS, RhoSubSetSumTree) {
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }

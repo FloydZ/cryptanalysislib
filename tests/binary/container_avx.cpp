@@ -176,7 +176,7 @@ TEST(AddAVX2, OffByOne_Higher_One) {
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }
 #endif

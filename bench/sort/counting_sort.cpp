@@ -34,7 +34,7 @@ void BM_counting_stable_sort(benchmark::State& state) {
 BENCHMARK(BM_counting_stable_sort<uint8_t>)->DenseRange(32, 1024, 32); // ->RangeMultiplier(2)->Range(16, LS)->Complexity();
 
 int main(int argc, char** argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 
 	::benchmark::Initialize(&argc, argv);
 	if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;

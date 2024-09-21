@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-/// generates a random subsetsum instance
+/// generates a rng subsetsum instance
 /// NOTE:
 /// 	- nr of indicies generates = n/2
 /// 	- max index = n

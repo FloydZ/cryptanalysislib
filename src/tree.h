@@ -1437,7 +1437,7 @@ public:
 		// TODO document these changes, what is added into what list in the picture above
 		// prepare baselists
 		if ((!target.is_zero()) && prepare) {
-			iT.random(0, (1ull<<k_upper1) + 1);
+			iT.random(0, (1ull << k_upper1) + 1);
 
 			LabelType R2;
 			LabelType::sub(R2, iT, target, k_lower1, k_upper2);
@@ -1469,7 +1469,8 @@ public:
 	                             const uint32_t k_lower2, const uint32_t k_upper2) noexcept {
 		(void)target;
 		List iL{L1.size() * 2};
-		LabelType iT; iT.random(0, (1ull << k_upper1) + 1ull);
+		LabelType iT;
+		iT.random(0, (1ull << k_upper1) + 1ull);
 
 		// reset everything
 		out.set_load(0);
@@ -1508,7 +1509,8 @@ public:
 		}
 
 		ElementType tmpe1;
-		LabelType t1, iT; iT.random(0, 1ull << k_upper1);
+		LabelType t1, iT;
+		iT.random(0, 1ull << k_upper1);
 		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1);
 		if (iL.load() == 0) {
 			// early exit
@@ -1547,7 +1549,8 @@ public:
 		}
 
 		ElementType tmpe1;
-		LabelType t1, iT; iT.random(0, 1ull << k_upper1);
+		LabelType t1, iT;
+		iT.random(0, 1ull << k_upper1);
 		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1);
 		if (iL.load() == 0) {
 			// early exit
@@ -1588,7 +1591,8 @@ public:
 		}
 
 		ElementType tmpe1;
-		LabelType t1, iT; iT.random(0, 1ull << k_upper1);
+		LabelType t1, iT;
+		iT.random(0, 1ull << k_upper1);
 		join2lists_on_iT_v2<k_lower1, k_upper1>(iL, L1, L2, iT);
 		if (iL.load() == 0) {
 			// early exit
@@ -1627,7 +1631,8 @@ public:
 		}
 
 		ElementType tmpe1;
-		LabelType t1, iT; iT.random(0, 1ull << k_upper1);
+		LabelType t1, iT;
+		iT.random(0, 1ull << k_upper1);
 		join2lists_on_iT_hashmap_v2
 		        <k_lower1, k_upper1, HashMap>
 		        (iL, L1, L2, hm, iT, false);
@@ -1749,7 +1754,11 @@ public:
 
 		// Intermediate Target
 		LabelType R, R1, R3, R5, R13, R57, zero;
-		R1.random(); R3.random(); R5.random(); R13.random(); R57.random();
+		R1.random();
+		R3.random();
+		R5.random();
+		R13.random();
+		R57.random();
 		zero.zero();
 		LabelType::add(R, R1, R3, k_lower1, k_upper1);
 		LabelType::add(R, R, R5, k_lower1, k_upper1);

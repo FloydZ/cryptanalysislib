@@ -267,7 +267,7 @@ TEST(Bruteforce, simd_256_64_4x4_rearrange) {
 }
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

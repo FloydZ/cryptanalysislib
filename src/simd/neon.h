@@ -180,7 +180,7 @@ namespace cryptanalysislib {
 		static inline _uint8x16_t random() noexcept {
 			_uint8x16_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -400,7 +400,7 @@ namespace cryptanalysislib {
 		static inline _uint16x8_t random() noexcept {
 			_uint16x8_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -572,7 +572,7 @@ namespace cryptanalysislib {
 		static inline _uint32x4_t random() noexcept {
 			_uint32x4_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -729,7 +729,7 @@ namespace cryptanalysislib {
 		static inline _uint64x2_t random() noexcept {
 			_uint64x2_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -898,7 +898,7 @@ struct uint8x32_t {
 		uint8x32_t ret;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 4; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -1464,7 +1464,7 @@ struct uint16x16_t {
 		uint16x16_t ret;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 4; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -2003,7 +2003,7 @@ struct uint32x8_t {
 		uint32x8_t ret;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 4; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -2539,7 +2539,7 @@ struct uint64x4_t {
 	static inline uint64x4_t random() {
 		uint64x4_t ret;
 		for (uint32_t i = 0; i < 4; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}

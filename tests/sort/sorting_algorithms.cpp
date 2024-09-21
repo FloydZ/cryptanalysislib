@@ -15,7 +15,7 @@ template<typename T>
 T* generate_list(const size_t len) {
 	T* array = (T *)malloc(len*sizeof(T));
 	for (size_t i = 0; i < len; ++i) {
-		array[i] = fastrandombytes_uint64();
+		array[i] = rng();
 	}
 	ASSERT(array);
 	return array;

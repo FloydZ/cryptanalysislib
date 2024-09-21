@@ -732,14 +732,14 @@ public:
 		__load[tid] -= 1;
 	}
 
-	/// generates a random element
-	/// NOTE: this random elements, does not fulfill any property (e.g. label = matrix*value)
+	/// generates a rng element
+	/// NOTE: this rng elements, does not fulfill any property (e.g. label = matrix*value)
 	void random(const size_t i) noexcept {
 		ASSERT(i < size());
 		__data[i].random();
 	}
 
-	/// generate a random list
+	/// generate a rng list
 	constexpr void random() noexcept {
 		MatrixType m;
 		m.random();

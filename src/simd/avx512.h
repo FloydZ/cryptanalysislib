@@ -112,7 +112,7 @@ struct uint8x64_t {
 	[[nodiscard]] static inline uint8x64_t random() noexcept {
 		uint8x64_t ret;
 		for (size_t i = 0; i < 8; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -916,7 +916,7 @@ struct uint16x32_t {
 	[[nodiscard]] static inline uint16x32_t random() noexcept {
 		uint16x32_t ret;
 		for (size_t i = 0; i < 8; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -1333,7 +1333,7 @@ struct uint32x16_t {
 	[[nodiscard]] static inline uint32x16_t random() noexcept {
 		uint32x16_t ret;
 		for (size_t i = 0; i < 8; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -1789,7 +1789,7 @@ struct uint64x8_t {
 	[[nodiscard]] static inline uint64x8_t random() noexcept {
 		uint64x8_t ret;
 		for (size_t i = 0; i < 8; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}

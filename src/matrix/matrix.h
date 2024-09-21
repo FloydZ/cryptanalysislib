@@ -205,19 +205,19 @@ public:
 		}
 	}
 
-	/// generates a random row with exactly weigh w
+	/// generates a rng row with exactly weigh w
 	constexpr inline void random_row_with_weight(const uint32_t row,
 	                                             const uint32_t w) {
 		zero_row(row);
 
 		for (uint64_t i = 0; i < w; ++i) {
-			const uint64_t data = fastrandombytes_uint64();
+			const uint64_t data = rng();
 			set(1 + (data % (q-1)), row, i);
 		}
 
 		// now permute
 		for (uint64_t i = 0; i < ncols; ++i) {
-			uint64_t pos = fastrandombytes_uint64() % (ncols - i);
+			uint64_t pos = rng() % (ncols - i);
 			auto t = get(row, i);
 			set(get(row, i + pos), row, i);
 			set(t, row, i + pos);
@@ -312,7 +312,7 @@ public:
 		}
 	}
 
-	/// generates a fully random matrix with full rank
+	/// generates a fully rng matrix with full rank
 	constexpr void random() noexcept {
 		clear();
 		for (uint32_t row = 0; row < nrows; ++row) {
@@ -320,14 +320,14 @@ public:
 		}
 
 		for (uint32_t i = 0; i < std::min(nrows, ncols); i++) {
-			const auto d = 1 + fastrandombytes_uint64(q-1u);
+			const auto d = 1 + rng(q-1u);
 			set(d, i, i);
 		}
 
 		for (uint32_t row = 0; row < std::min(ncols, nrows); ++row) {
 			for (uint32_t row2 = 0; row2 < std::min(nrows, ncols); ++row2) {
 				if (row == row2) { continue; }
-				if ((fastrandombytes_uint64() & 1u) == 1u) {
+				if ((rng() & 1u) == 1u) {
 					RowType::add(__data[row2], __data[row2], __data[row]);
 				} else {
 					RowType::add(__data[row], __data[row2], __data[row]);
@@ -866,13 +866,13 @@ public:
 		uint32_t additional_to_solve = 0;
 		RowType tmp;
 
-		/// chose a new random permutation on only c coordinates
+		/// chose a new rng permutation on only c coordinates
 		std::array<uint32_t, c> perm;
 		for (uint32_t i = 0; i < c; ++i) {
-			perm[i] = fastrandombytes_uint64() % (ncols - 1);
+			perm[i] = rng() % (ncols - 1);
 		}
 
-		/// apply the random permutation
+		/// apply the rng permutation
 		for (uint32_t i = 0; i < c; ++i) {
 			ASSERT(i < P.length);
 			ASSERT(perm[i] < P.length);
@@ -1041,7 +1041,7 @@ public:
 		__data[j] = tmp;
 	}
 
-	/// choose and apply a new random permutation
+	/// choose and apply a new rng permutation
 	/// \param AT transposed matrix
 	/// \param permutation given permutation (is overwritten)
 	/// \param len length of the permutation
@@ -1051,7 +1051,7 @@ public:
 
 		this->transpose(AT, *this, 0, 0);
 		for (uint32_t i = 0; i < P.length; ++i) {
-			uint32_t pos = fastrandombytes_uint64() % (P.length - i);
+			uint32_t pos = rng() % (P.length - i);
 			ASSERT(i + pos < P.length);
 
 			auto tmp = P.values[i];
@@ -1070,7 +1070,7 @@ public:
 	/// \return
 	constexpr void permute_cols(Permutation &P) noexcept {
 		for (uint32_t i = 0; i < P.length; ++i) {
-			uint32_t pos = fastrandombytes_uint64() % (P.length - i);
+			uint32_t pos = rng() % (P.length - i);
 			ASSERT(i + pos < P.length);
 
 			auto tmp = P.values[i];

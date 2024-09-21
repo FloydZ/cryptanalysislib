@@ -8,7 +8,8 @@
 #include "helper.h"
 #include "random.h"
 
-/// generates a list of random entries mod max_entry
+using namespace cryptanalysislib;
+/// generates a list of rng entries mod max_entry
 /// NOTE:
 /// 	- As long as `max_entry_size` > `len`, every element will
 /// 		be chosen uniquely. So there will be no doubles
@@ -31,13 +32,13 @@ constexpr void generate_random_indices(T *data,
 	if (max_entry <= len) {
 		// easy case, in which we have to chose certain elements often
 		for (size_t i = 0; i < len; ++i) {
-			data[i] = fastrandombytes_T<T>(min_entry, max_entry);
+			data[i] = rng<T>(min_entry, max_entry);
 		}
 	}
 
 	for (uint32_t i = 0; i < len; ++i) {
 		while (true) {
-			const T a = fastrandombytes_T<T>(min_entry, max_entry);
+			const T a = rng<T>(min_entry, max_entry);
 			bool restart = false;
 			for (uint32_t j = 0; j < i; ++j) {
 				if (data[j] == a) {
@@ -75,7 +76,7 @@ constexpr void generate_random_mitm_indices(T *data,
 }
 
 /// just a c++ convenience wrapper
-/// NOTE: the number of random elements to generate is given
+/// NOTE: the number of rng elements to generate is given
 /// 	by the size of the vector `list`
 /// \tparam T base type
 /// \param list output: vector/list

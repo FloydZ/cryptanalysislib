@@ -11,6 +11,7 @@
 #include "random.h"
 
 using cryptanalysislib::print_binary;
+using namespace cryptanalysislib;
 
 #define bit_shuffle_const(b0, b1, b2, b3, b4, b5, b6, b7) \
 	((uint64_t(uint8_t(1 << b0)) << (7 * 8)) |            \
@@ -84,7 +85,7 @@ namespace cryptanalysislib {
 		static inline _uint8x16_t random() noexcept {
 			_uint8x16_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -309,7 +310,7 @@ namespace cryptanalysislib {
 		static inline _uint16x8_t random() noexcept {
 			_uint16x8_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -520,7 +521,7 @@ namespace cryptanalysislib {
 		static inline _uint32x4_t random() noexcept {
 			_uint32x4_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -673,7 +674,7 @@ namespace cryptanalysislib {
 		static inline _uint64x2_t random() noexcept {
 			_uint64x2_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -801,7 +802,7 @@ struct uint8x32_t {
 	static inline uint8x32_t random() noexcept {
 		uint8x32_t ret;
 		for (uint32_t i = 0; i < 4; i++) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 
 		return ret;
@@ -1284,7 +1285,7 @@ struct uint16x16_t {
 	[[nodiscard]] static inline uint16x16_t random() noexcept {
 		uint16x16_t ret;
 		for (uint32_t i = 0; i < 4; i++) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 
 		return ret;
@@ -1682,7 +1683,7 @@ struct uint32x8_t {
 	[[nodiscard]] static inline uint32x8_t random() noexcept {
 		uint32x8_t ret;
 		for (uint32_t i = 0; i < 4; i++) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 
 		return ret;
@@ -2121,7 +2122,7 @@ struct uint64x4_t {
 	[[nodiscard]] static inline uint64x4_t random() noexcept {
 		uint64x4_t ret;
 		for (uint32_t i = 0; i < 4; i++) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 
 		return ret;
@@ -3229,7 +3230,5 @@ concept SIMDAble = requires(S s) {
 
 #include "simd/bits/bits.h"
 #include "simd/generic.h"
-
-
 
 #endif//CRYPTANALYSISLIB_SIMD_H

@@ -191,7 +191,7 @@ public:
 	[[nodiscard]] static inline TxN_t random() noexcept {
 		TxN_t ret{};
 		for (uint32_t i = 0; i < N; i++) {
-			ret.d[i] = fastrandombytes_uint64();
+			ret.d[i] = rng();
 		}
 
 		return ret;

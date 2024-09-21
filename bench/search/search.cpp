@@ -27,7 +27,7 @@ static void DoSetup(const benchmark::State& state) {
 static void stdlowerbound_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = std::lower_bound(data.begin(), data.begin() + state.range(0), data[search],
 		[](const T e1, const T e2) {
 			return (e1 & MASK) < (e2 & MASK);
@@ -40,7 +40,7 @@ static void stdlowerbound_bench(benchmark::State& state) {
 static void upper_bound_standard_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = upper_bound_breaking_linear_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 				return e1 & MASK;
@@ -54,7 +54,7 @@ static void upper_bound_standard_binary_search_bench(benchmark::State& state) {
 static void lower_bound_standard_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = lower_bound_standard_binary_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
@@ -66,7 +66,7 @@ static void lower_bound_standard_binary_search_bench(benchmark::State& state) {
 static void upper_bound_monobound_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = upper_bound_monobound_binary_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
@@ -78,7 +78,7 @@ static void upper_bound_monobound_binary_search_bench(benchmark::State& state) {
 static void lower_bound_monobound_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = lower_bound_monobound_binary_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
@@ -90,7 +90,7 @@ static void lower_bound_monobound_binary_search_bench(benchmark::State& state) {
 static void tripletapped_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = tripletapped_binary_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
@@ -102,7 +102,7 @@ static void tripletapped_binary_search_bench(benchmark::State& state) {
 static void branchless_lower_bound_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = branchless_lower_bound(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
@@ -115,7 +115,7 @@ static void branchless_lower_bound_bench(benchmark::State& state) {
 static void LowerBoundInterpolationSearch_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = LowerBoundInterpolationSearch(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
@@ -127,7 +127,7 @@ static void LowerBoundInterpolationSearch_bench(benchmark::State& state) {
 static void lower_bound_interpolation_search2_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = lower_bound_interpolation_search2(data.begin(), data.begin() + state.range(0), data[search],
 												   [](const T e1) {
 													 return e1 & MASK;
@@ -139,7 +139,7 @@ static void lower_bound_interpolation_search2_bench(benchmark::State& state) {
 static void lower_bound_interpolation_search_3p_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
-		const size_t search = fastrandombytes_uint64() % state.range(0);
+		const size_t search = rng() % state.range(0);
 		auto v = lower_bound_interpolation_3p_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 				 return e1 & MASK;
@@ -164,7 +164,7 @@ BENCHMARK(lower_bound_interpolation_search_3p_bench)->RangeMultiplier(2)->Range(
 
 
 int main(int argc, char** argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 
     ::benchmark::Initialize(&argc, argv);
     if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;

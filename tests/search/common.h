@@ -4,7 +4,9 @@
 #include "helper.h"
 #include "random.h"
 
-/// generates a random sorted list.
+using namespace cryptanalysislib;
+/// TODO move to algrothms: this is also used by benchmark files
+/// generates a rng sorted list.
 /// \tparam T base element type
 /// \param data output list
 /// \param solution_index output: solution index
@@ -22,7 +24,7 @@ T random_data(L &data,
 	for (uint64_t i = 0; i < size; ++i) {
 		if constexpr (std::is_integral_v<T>) {
 			const T mask = __mask == 0 ? T(-1ull) : __mask;
-			data[i] = fastrandombytes_uint64() & mask;
+			data[i] = rng() & mask;
 		} else {
 			data[i].random();
 		}
@@ -35,7 +37,7 @@ T random_data(L &data,
 	);
 
 	ASSERT(std::is_sorted(data.begin(), data.end()));
-	solution_index = fastrandombytes_uint64() % size;
+	solution_index = rng() % size;
 
 	if (nr_sols > 1ull) {
 		for (size_t i = 1u; i < nr_sols; ++i) {

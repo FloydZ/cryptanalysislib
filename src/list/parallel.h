@@ -129,7 +129,7 @@ public:
 		__data_label[i].random();
 	}
 
-	/// generate a random list
+	/// generate a rng list
 	constexpr void random() {
 		MatrixType m;
 		m.random();

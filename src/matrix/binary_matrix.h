@@ -340,7 +340,7 @@ public:
 		}
 	}
 
-	/// generates a fully random matrix
+	/// generates a fully rng matrix
 	constexpr void random() noexcept {
 		clear();
 
@@ -348,9 +348,9 @@ public:
 		if constexpr (ncols > nrows) {
 			for (uint32_t i = 0; i < nrows; ++i) {
 				for (uint32_t j = 0; j < limbs_per_row() - 1u; ++j) {
-					__data[i * padded_limbs + j] = fastrandombytes_uint64();
+					__data[i * padded_limbs + j] = rng();
 				}
-				__data[i * padded_limbs + limbs_per_row() - 1u] = fastrandombytes_uint64() & high_bitmask;
+				__data[i * padded_limbs + limbs_per_row() - 1u] = rng() & high_bitmask;
 			}
 		}
 
@@ -363,7 +363,7 @@ public:
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < nrows; ++j) {
 				if (i == j) { continue; }
-				if ((fastrandombytes_uint64() & 1u) == 0u) {
+				if ((rng() & 1u) == 0u) {
 					row_xor(i, j);
 				}
 			}
@@ -961,7 +961,7 @@ public:
 
 		this->transpose(AT, *this, 0, 0);
 		for (uint32_t i = 0; i < P.length; ++i) {
-			uint32_t pos = fastrandombytes_uint64() % (P.length - i);
+			uint32_t pos = rng(P.length - i);
 			ASSERT(i + pos < P.length);
 
 			auto tmp = P.values[i];
@@ -1276,15 +1276,15 @@ public:
 #endif
 		uint32_t additional_to_solve = 0;
 
-		/// chose a new random permutation on only c coordinates
+		/// chose a new rng permutation on only c coordinates
 		std::array<uint32_t, c> perm;
 		for (uint32_t i = 0; i < c; ++i) {
 			/// NOTE: this is a dirty hack, we append the syndrome,
 			/// hence the -1, MAYBE: fix this
-			perm[i] = fastrandombytes_uint64() % (ncols - 1u);
+			perm[i] = rng(ncols - 1u);
 		}
 
-		/// apply the random permutation
+		/// apply the rng permutation
 		for (uint32_t i = 0; i < c; ++i) {
 			std::swap(P.values[i], P.values[perm[i]]);
 			swap_cols(i, perm[i]);
@@ -1398,7 +1398,7 @@ public:
 		return matrix_echelonize_partial(*this, stop, 0);
 	}
 
-	/// creates a random row with weight w
+	/// creates a rng row with weight w
 	constexpr inline void random_row_with_weight(const uint32_t row, const uint32_t w) {
 		ASSERT(row < nrows);
 
@@ -1410,7 +1410,7 @@ public:
 
 		// now permute
 		for (uint64_t i = 0; i < ncols; ++i) {
-			uint64_t pos = fastrandombytes_uint64() % (ncols - i);
+			uint64_t pos = rng() % (ncols - i);
 			bool t = get(row, i);
 			set(get(row, i + pos), row, i);
 			set(t, row, i + pos);

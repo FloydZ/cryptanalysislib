@@ -180,7 +180,7 @@ public:
 		}
 	}
 
-	/// choose a random element e1 s.t. \wt(e1) < d, and set e2 = 0
+	/// choose a rng element e1 s.t. \wt(e1) < d, and set e2 = 0
 	/// \param e1 output value
 	/// \param e2 output value
 	static void generate_golden_element_simple(Element &e1, Element &e2) noexcept {
@@ -188,12 +188,12 @@ public:
 		while (true) {
 			uint32_t wt = 0;
 			for (uint32_t i = 0; i < ELEMENT_NR_LIMBS - 1; i++) {
-				e1[i] = fastrandombytes_uint64();
+				e1[i] = rng();
 				e2[i] = 0;
 				wt += popcount::popcount(e1[i]);
 			}
 
-			e1[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
+			e1[ELEMENT_NR_LIMBS - 1] = rng() & mask;
 			e2[ELEMENT_NR_LIMBS - 1] = 0;
 			wt += popcount::popcount(e1[ELEMENT_NR_LIMBS - 1]);
 
@@ -203,7 +203,7 @@ public:
 		}
 	}
 
-	/// chooses e1 completely random and e2 a weight d vector.
+	/// chooses e1 completely rng and e2 a weight d vector.
 	/// \param e1 input/output
 	/// \param e2 input/output
 	static void generate_golden_element(Element &e1, Element &e2) noexcept {
@@ -222,7 +222,7 @@ public:
 		for (uint32_t i = 0; i < d; ++i) {
 			uint32_t pos = i;
 			while (pos == i) {
-				pos = fastrandombytes_uint64() % (n - i - 1);
+				pos = rng() % (n - i - 1);
 			}
 
 			const uint32_t from_limb = 0;
@@ -242,29 +242,29 @@ public:
 		uint32_t wt = 0;
 		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS - 1; i++) {
 			wt += popcount::popcount(e2[i]);
-			e1[i] = fastrandombytes_uint64();
+			e1[i] = rng();
 			e2[i] ^= e1[i];
 		}
 
 		wt += popcount::popcount(e2[ELEMENT_NR_LIMBS - 1]);
 		ASSERT(wt == d);
 
-		e1[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
+		e1[ELEMENT_NR_LIMBS - 1] = rng() & mask;
 		e2[ELEMENT_NR_LIMBS - 1] ^= e1[ELEMENT_NR_LIMBS - 1];
 	}
 
-	/// simply chooses an uniform random element
+	/// simply chooses an uniform rng element
 	/// \param e
 	static void generate_random_element(Element &e) noexcept {
 		constexpr T mask = n % T_BITSIZE == 0 ? T(-1) : ((1ul << n % T_BITSIZE) - 1ul);
 		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS - 1; i++) {
-			e[i] = fastrandombytes_uint64();
+			e[i] = rng();
 		}
 
-		e[ELEMENT_NR_LIMBS - 1] = fastrandombytes_uint64() & mask;
+		e[ELEMENT_NR_LIMBS - 1] = rng() & mask;
 	}
 
-	/// generate a random list
+	/// generate a rng list
 	/// \param L
 	static void generate_random_lists(Element *L) noexcept {
 		for (size_t i = 0; i < LIST_SIZE; i++) {
@@ -292,7 +292,7 @@ public:
 		}
 	}
 
-	/// generate a random instance, just for testing and debugging
+	/// generate a rng instance, just for testing and debugging
 	/// \param insert_sol if false, no solution will inserted, this is just for quick testing/benchmarking
 	void generate_random_instance(bool insert_sol = true) noexcept {
 		constexpr size_t list_size = ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T);
@@ -307,8 +307,8 @@ public:
 		/// fill the stuff with randomness, I'm to lazy for tail management
 		if constexpr (USE_REARRANGE) {
 			for (size_t i = 0; i < BUCKET_SIZE; ++i) {
-				LB[i] = fastrandombytes_uint64();
-				RB[i] = fastrandombytes_uint64();
+				LB[i] = rng();
+				RB[i] = rng();
 			}
 		}
 
@@ -318,8 +318,8 @@ public:
 		}
 
 		// generate solution:
-		solution_l = 0;//fastrandombytes_uint64() % LIST_SIZE;
-		solution_r = 0;//fastrandombytes_uint64() % LIST_SIZE;
+		solution_l = rng(LIST_SIZE);
+		solution_r = rng(LIST_SIZE);
 		DEBUG_MACRO(std::cout << "sols at: " << solution_l << " " << solution_r << "\n";)
 
 		if constexpr (EXACT) {
@@ -821,7 +821,7 @@ public:
 	///
 	/// \tparam limb
 	/// \param e1 size of the list
-	/// \param z random element
+	/// \param z rng element
 	/// \param L
 	/// \return
 	template<const uint32_t limb>
@@ -1274,7 +1274,7 @@ public:
 	/// \param e2 end of List L2
 	/// \param new_e1 new end of List L1
 	/// \param new_e2 new end of List L2
-	/// \param z random element to match on
+	/// \param z rng element to match on
 	template<const uint32_t limb, const uint32_t u>
 	void simd_sort_nn_on_double32(const size_t e1,
 	                              const size_t e2,
@@ -1379,7 +1379,7 @@ public:
 	/// \param e2 end of List L2
 	/// \param new_e1 new end of List L1
 	/// \param new_e2 new end of List L2
-	/// \param z random element to match on
+	/// \param z rng element to match on
 	template<const uint32_t limb, const uint32_t u>
 	void simd_sort_nn_on_double64(const size_t e1,
 	                              const size_t e2,
@@ -1464,7 +1464,7 @@ public:
 			       new_e2 = 0;
 
 			if constexpr (k <= 32) {
-				const uint32_t z = fastrandombytes_uint64();
+				const uint32_t z = rng();
 				if constexpr (USE_DOUBLE_SEARCH) {
 					simd_sort_nn_on_double32<r - level, 4>(e1, e2, new_e1, new_e2, z);
 				} else {
@@ -1472,7 +1472,7 @@ public:
 					new_e2 = simd_sort_nn_on32<r - level>(e2, z, L2);
 				}
 			} else if constexpr (k <= 64) {
-				const uint64_t z = fastrandombytes_uint64();
+				const uint64_t z = rng();
 				if constexpr (USE_DOUBLE_SEARCH) {
 					simd_sort_nn_on_double64<r - level, 4>(e1, e2, new_e1, new_e2, z);
 				} else {
@@ -1508,11 +1508,11 @@ public:
 					if (next_size < BUCKET_SIZE) {
 						size_t new_new_e1, new_new_e2;
 						if constexpr (k <= 32) {
-							const uint32_t z = fastrandombytes_uint64();
+							const uint32_t z = rng();
 							new_new_e1 = simd_sort_nn_on32_rearrange<r - level + 1, BUCKET_SIZE>(new_e1, z, L1, LB);
 							new_new_e2 = simd_sort_nn_on32_rearrange<r - level + 1, BUCKET_SIZE>(new_e2, z, L2, RB);
 						} else if constexpr (k <= 64) {
-							const uint64_t z = fastrandombytes_uint64();
+							const uint64_t z = rng();
 							new_new_e1 = simd_sort_nn_on64_rearrange<r - level + 1, BUCKET_SIZE>(new_e1, z, L1, LB);
 							new_new_e2 = simd_sort_nn_on64_rearrange<r - level + 1, BUCKET_SIZE>(new_e2, z, L2, RB);
 						} else {

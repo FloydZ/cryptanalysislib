@@ -6,17 +6,42 @@
 #include <cstdint>
 #include <type_traits>
 
-/// super random values
+namespace cryptanalysislib {
+	/// TODO write c++ random function, like class abstraction
+namespace random::internal {
+
+/// super rng values
 static uint64_t random_x = 123456789u, random_y = 362436069u, random_z = 521288629u;
 
-// Sowas von nicht sicher, Aber egal.
-static inline void xorshf96_random_seed(const uint64_t i) noexcept {
-	random_x += i;
+/// NOTE: this function cannot fail
+/// \param i see
+/// \return true on success
+[[nodiscard]] constexpr static inline bool xorshf96_seed(const uint64_t seed) noexcept {
+	random_x += seed;
 	random_y = random_x * 4095834;
 	random_z = random_x + random_y * 98798234;
+	return true;
 }
 
-[[nodiscard]] static inline uint64_t xorshf96() noexcept {//period 2^96-1
+[[nodiscard]] constexpr static inline bool xorshf96_seed() noexcept {
+	uint64_t new_s[3];
+	FILE *urandom_fp;
+
+	urandom_fp = fopen("/dev/urandom", "r");
+	if (urandom_fp == nullptr) return 0;
+	if (fread(&new_s, 8, 3, urandom_fp) != 2) {
+		return false;
+	}
+	fclose(urandom_fp);
+
+	random_y += new_s[1];
+	random_z += new_s[2];
+	return xorshf96_seed(new_s[0]);
+}
+
+/// period 2^96-1
+/// \return
+[[nodiscard]] static inline uint64_t xorshf96() noexcept {
 	random_x ^= random_x << 16u;
 	random_x ^= random_x >> 5u;
 	random_x ^= random_x << 1u;
@@ -31,8 +56,9 @@ static inline void xorshf96_random_seed(const uint64_t i) noexcept {
 
 /// n = size of buffer in bytes
 /// return 0 on success (cannot fail)
-static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept {
-	uint64_t *a = (uint64_t *) buf;
+static inline void xorshf96_random_data(uint8_t *buf,
+		                           		const size_t n) noexcept {
+	auto *a = (uint64_t *) buf;
 
 	const uint32_t rest = n % 8;
 	const size_t limit = n / 8;
@@ -43,122 +69,176 @@ static inline int xorshf96_fastrandombytes(void *buf, const size_t n) noexcept {
 	}
 
 	// last limb
-	uint8_t *b = (uint8_t *) buf;
+	auto *b = (uint8_t *) buf;
 	b += n - rest;
 	uint64_t limb = xorshf96();
 	for (size_t j = 0; j < rest; ++j) {
 		b[j] = (limb >> (j * 8u)) & 0xFFu;
 	}
-
-	return 0;
-}
-
-/// n = bytes
-/// returns 0 on success
-[[nodiscard]] inline static int xorshf96_fastrandombytes_uint64_array(uint64_t *buf, const size_t n) noexcept {
-	xorshf96_fastrandombytes(buf, n);
-	return 0;
 }
 
 ///
-[[nodiscard]] static inline uint64_t xorshf96_fastrandombytes_uint64() noexcept {
+template<typename T>
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<T>
+#endif
+[[nodiscard]] static inline T xorshf96_random_data() noexcept {
 	return xorshf96();
 }
+
+/// This is xoroshiro128+ 1.0, our best and fastest small-state generator
+/// for floating-point numbers. We suggest to use its upper bits for
+/// floating-point generation, as it is slightly faster than xoroshiro128**. It
+/// passes all tests we are aware of except for the four lower bits, which might
+/// fail linearity tests (and just those), so if low linear complexity is not
+/// considered an issue (as it is usually the case) it can be used to generate
+/// 64-bit outputs, too; moreover, this generator has a very mild Hamming-weight
+/// dependency making our test (http://prng.di.unimi.it/hwd.php) fail after 5 TB
+/// of output; we believe this slight bias cannot affect any application. If you
+/// are concerned, use xoroshiro128++, xoroshiro128** or xoshiro256+.
+///
+/// We suggest to use a sign test to extract a random Boolean value, and right
+/// shifts to extract subsets of bits.
+/// The state must be seeded so that it is not everywhere zero. If you have a
+/// 64-bit seed, we suggest to seed a splitmix64 generator and use its output to
+/// fill s.
+///
+/// NOTE: the parameters (a=24, b=16, b=37) of this version give slightly better
+/// results in our test than the 2016 version (a=55, b=14, c=36).
+
+/// left rotate
+/// \param x value to rotate
+/// \param k how much to rotate
+/// \return x <<< k
+[[nodiscard]] constexpr static inline uint64_t rotl(const uint64_t x,
+		                                            const uint32_t k) noexcept {
+	return (x << k) | (x >> (64 - k));
+}
+
+/// "randomly" choosen start values to the xorshf128 prng
+static uint64_t __xorshf128_S0 = 2837468099234763274;
+static uint64_t __xorshf128_S1 = 998234767632513414;
+
+/// \return random uint64_t
+[[nodiscard]] static inline uint64_t xorshf128_random_data() noexcept {
+	const uint64_t s0 = __xorshf128_S0;
+	uint64_t s1 = __xorshf128_S1;
+	const uint64_t result = s0 + s1;
+
+	s1 ^= s0;
+	__xorshf128_S0 = rotl(s0, 24) ^ s1 ^ (s1 << 16);
+	__xorshf128_S1 = rotl(s1, 37);
+
+	return result;
+}
+
+/// This is the jump function for the generator. It is equivalent
+/// to 2^64 calls to next(); it can be used to generate 2^64 non-overlapping
+/// subsequences for parallel computations.
+constexpr static inline void jump() noexcept {
+	static const uint64_t JUMP[] = {0xdf900294d8f554a5, 0x170865df4b3201fc};
+
+	uint64_t s0 = 0;
+	uint64_t s1 = 0;
+	for (unsigned i = 0; i < sizeof(JUMP) / sizeof(*JUMP); i++)
+		for (int b = 0; b < 64; b++) {
+			if (JUMP[i] & UINT64_C(1) << b) {
+				s0 ^= __xorshf128_S0;
+				s1 ^= __xorshf128_S1;
+			}
+			const uint64_t t = xorshf128_random_data();
+			(void)t;
+		}
+
+	__xorshf128_S0 = s0;
+	__xorshf128_S1 = s1;
+}
+
+/// This is the long-jump function for the generator. It is equivalent to
+/// 2^96 calls to next(); it can be used to generate 2^32 starting points, from
+/// each of which jump() will generate 2^32 non-overlapping subsequences for
+/// parallel distributed computations.
+constexpr static inline void long_jump() noexcept {
+	static const uint64_t LONG_JUMP[] = {0xd2a98b26625eee7b, 0xdddf9b1090aa7ac1};
+
+	uint64_t s0 = 0;
+	uint64_t s1 = 0;
+	for (unsigned i = 0; i < sizeof(LONG_JUMP) / sizeof(*LONG_JUMP); i++)
+		for (int b = 0; b < 64; b++) {
+			if (LONG_JUMP[i] & UINT64_C(1) << b) {
+				s0 ^= __xorshf128_S0;
+				s1 ^= __xorshf128_S1;
+			}
+			const uint64_t t = xorshf128_random_data();
+			(void)t;
+		}
+
+	__xorshf128_S0 = s0;
+	__xorshf128_S1 = s1;
+}
+
+static inline bool xorshf128_seed() noexcept {
+	uint64_t new_s[2];
+	FILE *urandom_fp;
+
+	urandom_fp = fopen("/dev/urandom", "r");
+	if (urandom_fp == NULL) return 0;
+	if (fread(&new_s, 8, 2, urandom_fp) != 2) {
+		return false;
+	}
+	fclose(urandom_fp);
+
+	__xorshf128_S0 = new_s[0];
+	__xorshf128_S1 = new_s[1];
+
+	return true;
+}
+} // namespace random::internal
+
 
 ///
 /// \param buf out
 /// \param n size in bytes
 /// \return 0 on success, 1 on error
-[[nodiscard]] static inline int fastrandombytes(void *buf, const size_t n) noexcept {
-	return xorshf96_fastrandombytes(buf, n);
+static inline void rng(uint8_t *buf,
+	                   const size_t n) noexcept {
+	random::internal::xorshf96_random_data(buf, n);
 }
 
-/// seed the random instance
+// TODO second rng_seed function for/deb/urandom
+/// seed the rng instance
 /// \param seed
-static inline void random_seed(uint64_t seed) noexcept {
-	xorshf96_random_seed(seed);
+constexpr static inline void rng_seed(const uint64_t seed) noexcept {
+	const bool t = random::internal::xorshf96_seed(seed);
+	(void)t;
 }
 
-/// \return a uniform random `uint64_t`
-[[nodiscard]] static inline uint64_t fastrandombytes_uint64() noexcept {
-	return xorshf96_fastrandombytes_uint64();
-}
-
-/// \return a uniform (not really) uint64 % limit
-[[nodiscard]] static inline uint64_t fastrandombytes_uint64(const uint64_t limit) noexcept {
-	return xorshf96_fastrandombytes_uint64() % limit;
-}
-
-/// \return a random element from [l, h)
-[[nodiscard]] static inline uint64_t fastrandombytes_uint64(const uint64_t l,
-                                                            const uint64_t h) noexcept {
-	return l + fastrandombytes_uint64(h - l);
-}
-
-/// simple C++ wrapper.
-/// \tparam T
-/// \return a type T uniform random element
-template<typename T>
-#if __cplusplus > 201709L
-    requires std::is_integral_v<T>
-#endif
-[[nodiscard]] static inline T fastrandombytes_T() noexcept {
-	return xorshf96_fastrandombytes_uint64();
-}
-
-/// simple C++ wrapper.
-/// \tparam T
-/// \param limit
-/// \return a type T uniform random element % limit
-template<typename T>
-#if __cplusplus > 201709L
-requires std::is_integral_v<T>
-#endif
-[[nodiscard]] static inline T fastrandombytes_T(const T limit) noexcept {
-	ASSERT(limit > 1);
-	return xorshf96_fastrandombytes_uint64() % limit;
-}
-
-/// simple C++ wrapper.
-/// \tparam T
-/// \param limit
-/// \return a type T uniform random element % limit
-template<typename T, const T mod>
+/// \return a uniform rng `uint64_t`
+template<typename T=uint64_t>
 #if __cplusplus > 201709L
 	requires std::is_integral_v<T>
 #endif
-[[nodiscard]] static inline T fastrandombytes_T() noexcept {
-	// thats an implementation limit
-	static_assert(sizeof(T) < 8);
-	return fastmod<mod>(fastrandombytes_T<T>);
+[[nodiscard]] static inline T rng() noexcept {
+	return random::internal::xorshf96_random_data<T>();
 }
 
-/// simple C++ wrapper.
-/// \tparam T base type
-/// \param l inclusive lower limit
-/// \param h exclusive upper limit
-/// \return a type T uniform random element in [l, h)
-template<typename T>
+/// \return a uniform (not really) uint64 % limit
+template<typename T=uint64_t>
 #if __cplusplus > 201709L
-requires std::is_integral_v<T>
+	requires std::is_integral_v<T>
 #endif
-[[nodiscard]] static inline T fastrandombytes_T(const T l, const T h) noexcept {
-	return l + fastrandombytes_T<T>(h - l);
+[[nodiscard]] static inline uint64_t rng(const T limit) noexcept {
+	return random::internal::xorshf96_random_data<T>() % limit;
 }
 
-/// simple C++ wrapper.
-/// \tparam T base type
-/// \param l inclusive lower limit
-/// \param h exclusive upper limit
-/// \return a type T uniform random element in [l, h)
-template<typename T, const T l, const T h>
+/// \return a rng element from [l, h)
+template<typename T=uint64_t>
 #if __cplusplus > 201709L
-requires std::is_integral_v<T>
+	requires std::is_integral_v<T>
 #endif
-[[nodiscard]] static inline T fastrandombytes_T() noexcept {
-	// thats an implementation limit
-	static_assert(sizeof(T) < 8);
-	return l + fastmod<h - l>(fastrandombytes_T<T>);
+[[nodiscard]] static inline T rng(const T l,
+                                  const T h) noexcept {
+	return l + rng<T>(h - l);
 }
 
 /// \param w hamming weight of the output element
@@ -167,12 +247,12 @@ template<typename T>
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>
 #endif
-[[nodiscard]] constexpr static T fastrandombytes_weighted(const uint32_t w) noexcept {
+[[nodiscard]] constexpr static T rng_weighted(const uint32_t w) noexcept {
 	assert(w < (sizeof(T) * 8));
 
 	T ret = (1u << w) - 1u;
 	for (uint32_t i = 0; i < w; ++i) {
-		const size_t to_pos = fastrandombytes_uint64() % ((sizeof(T) * 8) - i);
+		const size_t to_pos = rng() % ((sizeof(T) * 8) - i);
 		const size_t from_pos = i;
 
 		const T from_mask = 1u << from_pos;
@@ -188,38 +268,35 @@ template<typename T>
 	return ret;
 }
 
-
-#include <utility>
-
 /// Original Source
 /// https://github.com/lemire/Code-used-on-Daniel-Lemire-s-blog/blob/master/2024/08/16/include/batched_shuffle.h
-///
-namespace batched_random {
-/** 
- * Nevin Brackett-Rozinsky, Daniel Lemire, Batched Ranged Random Integer Generation, Software: Practice and Experience (to appear) 
- * Daniel Lemire, Fast Random Integer Generation in an Interval, ACM Transactions on Modeling and Computer Simulation, Volume 29 Issue 1, February 2019 
- */
-template <class URBG> uint64_t random_bounded(uint64_t range, URBG &&rng) {
-  __uint128_t random64bit, multiresult;
-  uint64_t leftover;
-  uint64_t threshold;
-  random64bit = rng();
-  multiresult = random64bit * range;
-  leftover = (uint64_t)multiresult;
-  if (leftover < range) {
-    threshold = -range % range;
-    while (leftover < threshold) {
-      random64bit = rng();
-      multiresult = random64bit * range;
-      leftover = (uint64_t)multiresult;
-    }
-  }
-  return (uint64_t)(multiresult >> 64); // [0, range)
+/// Nevin Brackett-Rozinsky, Daniel Lemire, Batched Ranged Random Integer Generation,
+/// Software: Practice and Experience (to appear) 
+/// Daniel Lemire, Fast Random Integer Generation in an Interval, ACM 
+/// Transactions on Modeling and Computer Simulation, Volume 29 Issue 1, February 2019 
+template<typename T=uint64_t>
+#if __cplusplus > 201709L
+	requires std::is_integral_v<T>
+#endif
+constexpr static inline T rng_v2(const uint64_t range) noexcept {
+	__uint128_t random64bit, multiresult;
+	uint64_t leftover;
+	uint64_t threshold;
+	random64bit = rng<uint64_t>();
+	multiresult = random64bit * range;
+	leftover = (uint64_t)multiresult;
+	if (leftover < range) {
+		threshold = -range % range;
+		while (leftover < threshold) {
+			random64bit = rng<uint64_t>();
+			multiresult = random64bit * range;
+			leftover = (uint64_t)multiresult;
+		}
+	}
+	return (T)(multiresult >> 64); // [0, range)
 }
 
-
-
-
+// TODO?
 // product_bound can be any integer >= range1*range2
 // it may be updated to become range1*range2
 template <class URBG>
@@ -277,5 +354,5 @@ extern void shuffle_2(RandomIt first, RandomIt last, URBG &&g) {
   }
 }
 
-} // namespace batched_random
+}// namespace cryptanalysislib
 #endif//SMALLSECRETLWE_RANDOM_H

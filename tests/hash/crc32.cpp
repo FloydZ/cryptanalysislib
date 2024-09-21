@@ -3,6 +3,7 @@
 #include <cstdio>
 
 #include "hash/hash.h"
+#include "random.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -12,6 +13,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+using namespace cryptanalysislib;
+
 TEST(Hash, simple) {
 
 }
@@ -19,9 +22,8 @@ TEST(Hash, simple) {
 #ifdef USE_AVX2
 TEST(crc32, sse42) {
 	constexpr static size_t size = 1024;
-	uint8_t *data = (uint8_t *)malloc(size);
-	const auto t = fastrandombytes(data, size);
-	EXPECT_FALSE(t);
+	auto *data = (uint8_t *)malloc(size);
+	rng(data, size);
 
 	for (uint32_t i = 64; i < size; ++i) {
 		const uint32_t t1 = crc32(data, i, 0);

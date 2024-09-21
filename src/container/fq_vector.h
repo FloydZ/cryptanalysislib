@@ -14,8 +14,8 @@
 #include "simd/simd.h"
 #include "hash/hash.h"
 
+using namespace cryptanalysislib;
 
-///
 /// \tparam T base type
 /// \tparam n size of the fq vector space=number of elements
 /// \tparam q field size
@@ -141,7 +141,7 @@ public:
 		}
 	}
 
-	/// generates random coordinates
+	/// generates rng coordinates
 	/// \param k_lower lower coordinate to start from
 	/// \param k_higher higher coordinate to stop. Not included.
 	void random(const uint32_t k_lower = 0,
@@ -151,12 +151,12 @@ public:
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; i++) {
-			__data[i] = fastrandombytes_uint64(q);
+			__data[i] = rng(q);
 		}
 	}
 
 
-	/// generates a random weight `w` vector with `w` != 0
+	/// generates a rng weight `w` vector with `w` != 0
 	/// \param w we
 	/// \param m
 	/// \param offset start offset of the first error position
@@ -173,7 +173,7 @@ public:
 			if constexpr (q == 2) {
 				set(1, i + offset);
 			} else {
-				const auto d = fastrandombytes_uint64(1, q - 1u);
+				const auto d = rng<T>(1, q - 1u);
 				set(d, i + offset);
 			}
 		}
@@ -183,7 +183,7 @@ public:
 
 		// now permute
 		for (uint64_t i = 0; i < m; ++i) {
-			uint64_t pos = fastrandombytes_uint64() % (m - i);
+			uint64_t pos = rng() % (m - i);
 			const auto t = get(i+offset);
 			set(get(i + pos+offset), i+offset);
 			set(t, i + pos+offset);

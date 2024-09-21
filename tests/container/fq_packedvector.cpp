@@ -285,7 +285,7 @@ TEST(F4, mod) {
 	K4 t1 = K4();
 	K4 t2 = K4();
 	for (uint32_t i = 0; i < n; i++){
-		t1.set(fastrandombytes_uint64(), i);
+		t1.set(rng(), i);
 	}
 
 	K4::mod(t2, t1);

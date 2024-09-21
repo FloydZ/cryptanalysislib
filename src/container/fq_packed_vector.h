@@ -365,7 +365,7 @@ public:
 		}
 	}
 
-	/// generates all limbs uniformly random
+	/// generates all limbs uniformly rng
 	/// \param a lower bound, inclusive
 	/// \param b higher bound, exclusive
 	/// \return nothing
@@ -373,7 +373,7 @@ public:
 	                      const uint32_t b = length()) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
-			const auto d = fastrandombytes_uint64(modulus());
+			const auto d = rng(modulus());
 			set(d, i);
 		}
 	}

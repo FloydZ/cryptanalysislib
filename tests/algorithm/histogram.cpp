@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "algorithm/histogram.h"
+#include "random.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -11,6 +12,7 @@ using ::testing::TestEventListeners;
 using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
+using namespace cryptanalysislib;
 
 
 TEST(histogram_u8, single) {
@@ -65,9 +67,8 @@ TEST(histogram_u32_avx2, single) {
 
 	// reset
 	cnt[0] = 0;
-	const auto t = fastrandombytes(data, s * sizeof(T));
+	rng((uint8_t *)data, s * sizeof(T));
 	for (size_t i = 0; i < s; ++i) { data[i] = data[i] & 0xFF; }
-	EXPECT_FALSE(t);
 	avx2_histogram_u32(cnt, data, s);
 
 	free(data); free(cnt);

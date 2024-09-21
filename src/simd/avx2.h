@@ -106,7 +106,7 @@ namespace cryptanalysislib {
 		static inline _uint8x16_t random() noexcept {
 			_uint8x16_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -325,7 +325,7 @@ namespace cryptanalysislib {
 		static inline _uint16x8_t random() noexcept {
 			_uint16x8_t ret;
 			for (uint32_t i = 0; i < 2; i++) {
-				ret.v64[i] = fastrandombytes_uint64();
+				ret.v64[i] = rng();
 			}
 
 			return ret;
@@ -716,11 +716,11 @@ struct uint8x32_t {
 	constexpr inline uint8x32_t() noexcept = default;
 
 	/// NOTE: currently cannot be constexpr
-	/// \return a uniform random element
+	/// \return a uniform rng element
 	[[nodiscard]] static inline uint8x32_t random() noexcept {
 		uint8x32_t ret;
 		for (size_t i = 0; i < 4; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -820,7 +820,7 @@ struct uint8x32_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((__m256i_u *) ptr);
+			out.v256 = ::internal::unaligned_load_wrapper((__m256i_u *) ptr);
 			return out;
 		}
 	}
@@ -853,7 +853,7 @@ struct uint8x32_t {
 	/// \param in
 	static inline void unaligned_store(void *ptr, const uint8x32_t in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
-		internal::unaligned_store_wrapper(ptr256, in.v256);
+		::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
 	///
@@ -1196,7 +1196,7 @@ struct uint16x16_t {
 	[[nodiscard]] static inline uint16x16_t random() noexcept {
 		uint16x16_t ret;
 		for (size_t i = 0; i < 4; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -1283,7 +1283,7 @@ struct uint16x16_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((__m256i_u *) ptr);
+			out.v256 = ::internal::unaligned_load_wrapper((__m256i_u *) ptr);
 			return out;
 		}
 	}
@@ -1315,7 +1315,7 @@ struct uint16x16_t {
 	/// \param in
 	static inline void unaligned_store(void *ptr, const uint16x16_t in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
-		internal::unaligned_store_wrapper(ptr256, in.v256);
+		::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
 	///
@@ -1600,7 +1600,7 @@ struct uint32x8_t {
 	[[nodiscard]] static inline uint32x8_t random() noexcept {
 		uint32x8_t ret{};
 		for (size_t i = 0; i < 4; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -1711,7 +1711,7 @@ struct uint32x8_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((__m256i_u *) ptr);
+			out.v256 = ::internal::unaligned_load_wrapper((__m256i_u *) ptr);
 			return out;
 		}
 	}
@@ -1743,7 +1743,7 @@ struct uint32x8_t {
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr, const uint32x8_t in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
-		internal::unaligned_store_wrapper(ptr256, in.v256);
+		::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
 	///
@@ -2107,7 +2107,7 @@ struct uint64x4_t {
 	[[nodiscard]] static inline uint64x4_t random() noexcept {
 		uint64x4_t ret;
 		for (size_t i = 0; i < 4; ++i) {
-			ret.v64[i] = fastrandombytes_uint64();
+			ret.v64[i] = rng();
 		}
 		return ret;
 	}
@@ -2202,7 +2202,7 @@ struct uint64x4_t {
 			return out;
 		} else {
 			S out;
-			out.v256 = internal::unaligned_load_wrapper((const __m256i_u *) ptr);
+			out.v256 = ::internal::unaligned_load_wrapper((const __m256i_u *) ptr);
 			return out;
 		}
 	}
@@ -2234,7 +2234,7 @@ struct uint64x4_t {
 	/// \param in
 	static inline void unaligned_store(void *ptr, const uint64x4_t in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
-		internal::unaligned_store_wrapper(ptr256, in.v256);
+		::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
 	///

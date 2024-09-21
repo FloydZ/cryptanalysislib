@@ -28,7 +28,7 @@ B63_BASELINE(Std_lowerbound, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = std::lower_bound(data.begin(), data.end(), data[search],
 		    [](const T e1, const T e2) {
 		        return (e1 & MASK) < (e2 & MASK);
@@ -43,7 +43,7 @@ B63_BENCHMARK(upper_bound_standard_binary_search, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = upper_bound_standard_binary_search(data.begin(), data.end(), data[search],
 		  [](const T &e1) -> T {
 		      return e1 & MASK;
@@ -59,7 +59,7 @@ B63_BENCHMARK(lower_bound_standard_binary_search, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = lower_bound_standard_binary_search(data.begin(), data.end(), data[search],
 		   [](const T &e1) -> T {
 		       return e1 & MASK;
@@ -75,7 +75,7 @@ B63_BENCHMARK(upper_bound_monobound_binary_search, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = upper_bound_monobound_binary_search(data.begin(), data.end(), data[search],
 		  [](const T &e1) -> T {
 		      return e1 & MASK;
@@ -91,7 +91,7 @@ B63_BENCHMARK(lower_bound_monobound_binary_search, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = lower_bound_monobound_binary_search(data.begin(), data.end(), data[search],
 		    [](const T &e1) -> T {
 		        return e1 & MASK;
@@ -107,7 +107,7 @@ B63_BENCHMARK(tripletapped_binary_search, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = tripletapped_binary_search(data.begin(), data.end(), data[search],
 		    [](const T &e1) -> T {
 		        return e1 & MASK;
@@ -123,7 +123,7 @@ B63_BENCHMARK(branchless_lower_bound_cmp, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = branchless_lower_bound(data.begin(), data.end(), search,
 			[](const T &e1, const T &e2) -> T {
 			  return (e1 & MASK) < (e2 & MASK);
@@ -140,7 +140,7 @@ B63_BENCHMARK(branchless_lower_bound, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = branchless_lower_bound(data.begin(), data.end(), search,
 		  [](const T &e1) {
 		      return (e1 & MASK);
@@ -157,7 +157,7 @@ B63_BENCHMARK(lower_bound_interpolation_search2, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = lower_bound_interpolation_search2(data.begin(), data.end(), data[search],
 		                                           [](const T e1) -> T { return e1 & MASK; });
 		errors += (uint64_t) std::distance(data.begin(), v) == search;
@@ -171,7 +171,7 @@ B63_BENCHMARK(LowerBoundInterpolationSearch, nn) {
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
-		search = fastrandombytes_uint64() % SIZE;
+		search = rng() % SIZE;
 		auto v = LowerBoundInterpolationSearch(data.begin(), data.end(), data[search],
 		                                       [](const T e1) -> T { return e1 & MASK; });
 		errors += (uint64_t) std::distance(data.begin(), v) == search;
@@ -182,14 +182,14 @@ B63_BENCHMARK(LowerBoundInterpolationSearch, nn) {
 }
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 
 	size_t search;
 	random_data(data, search, SIZE, NR_SOLS, MASK);
 	// preheat?
 	uint64_t errors = 0;
 	for (uint64_t i = 0; i < 1u<<20u; i++) {
-		size_t search = fastrandombytes_uint64() % SIZE;
+		size_t search = rng() % SIZE;
 		auto v = std::lower_bound(data.begin(), data.end(), data[search],
 			  [](const T e1, const T e2) {
 				return (e1 & MASK) < (e2 & MASK);
