@@ -100,7 +100,14 @@ concept TreeAble = requires(List l) {
 };
 #endif
 
-template<class List>
+
+struct TreeConfig : public AlignmentConfig {
+	/// if a tree algorithm needs an intermediate lists, which is not
+	/// passed as an argument
+	constexpr static double intermediatelist_size_factor = 1.1;
+} treeConfig;
+
+template<class List, const TreeConfig &config=treeConfig>
 #if __cplusplus > 201709L
     requires TreeAble<List>
 #endif
@@ -590,16 +597,17 @@ public:
 	///                                                  k_lower1   L_1      k_upper2         L_2      k_upper2
 	///                                                            k_upper1=k_lower2
 	/// \param out			Output list
-	/// \param iL			Input list, will be sorted on [k_lower2, k_upper2]
+	/// \param iL			Input list, will be sorted on [k_lower1, k_upper2]
 	/// \param L1			Input list, will be sorted on [k_lower1, k_upper1]
 	/// \param L2			Input list, will be sorted on [k_lower1, k_upper1]
-	/// \param k_lower1
-	/// \param k_upper1
-	/// \param k_lower2
-	/// \param k_upper2
+	/// \param k_lower1 lower coordinate to match on, on the first level
+	/// \param k_upper1 upper coordinate to match on, on the first level
+	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \param k_upper2 upper coordinate to match on, on the last level
+	/// \param prepare if true: will only sort the lists.
 	static void twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
-	                                const uint64_t k_lower1, const uint64_t k_upper1, 
-									const uint64_t k_lower2, const uint64_t k_upper2,
+	                                const uint32_t k_lower1, const uint32_t k_upper1,
+									const uint32_t k_lower2, const uint32_t k_upper2,
 	                                bool prepare = true) noexcept {
 		ASSERT(k_lower1 < k_upper1 &&
 		       0 < k_upper1 && k_lower2 < k_upper2
@@ -609,11 +617,11 @@ public:
 		// internal variables.
 		constexpr uint32_t filter = uint32_t(-1);
 		constexpr bool sub = !LabelType::binary();
-		std::pair<uint64_t, uint64_t> boundaries;
+		std::pair<size_t, size_t> boundaries;
 		ElementType e;
 
 		if (prepare) {
-			iL.sort_level(k_lower2, k_upper2);
+			iL.sort_level(k_lower1, k_upper2);
 			L1.sort_level(k_lower1, k_upper1);
 			L2.sort_level(k_lower1, k_upper1);
 		}
@@ -628,14 +636,10 @@ public:
 		  }
 		};
 
-#ifdef DEBUG
-		for (size_t k = 0; k < iL.load(); ++k) {
-			if (!iL[k].label.is_zero(k_lower1, k_upper1)) {
-				std::cout << iL[k];
-				ASSERT(false);
-			}
-		}
-#endif
+		// early exit
+		if (iL.load() == 0) { return; }
+		if (L1.load() == 0) { return; }
+		if (L2.load() == 0) { return; }
 
 		uint64_t i=0, j=0;
 		while (i < L1.load() && j < L2.load()) {
@@ -680,8 +684,8 @@ public:
 #ifdef DEBUG
 							const size_t lb = out.load() - 1;
 							if (!out[lb].label.is_zero(k_lower1, k_upper2)) {
-								std::cout << out[lb];
-								std::cout << iL[l];
+								std::cout << out[lb] << std::endl;
+								std::cout << iL[l] << std::endl;
 								std::cout << e << std::endl;
 								ASSERT(false);
 							}
@@ -765,25 +769,50 @@ public:
 		}
 	}
 
+	/// 			out list
+	///              ┌───────┐
+	///              │  out  │
+	///              └───┬───┘
+	///          k_lower2│k_upper2
+	///     ┌──────────── ───────────┐
+	///     │                        │
+	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is not saved
+	/// │       │                │
+	/// │  iL   │
+	/// └───────┘                └───┬───┘
+	///                              │
+	///                      k_lower1│k_upper1
+	///                       ┌──────┴──────┐
+	///                       │             │
+	///                   ┌───┴───┐     ┌───┴───┐
+	///                   │       │     │       │
+	///                   │   L1  │     │   L2  │
+	///                   └───────┘     └───────┘
 	///
-	/// \param out
+	/// NOTE: make sure that iT = iT_ + target.
+	///		otherwise it this implementation wont find a valid solution
+	/// \param out out list: will contain the target and not zeros:w
 	/// \param iL sorted on [0, k_upper2)
 	/// \param L1 dont care
 	/// \param L2 sorted on [0, k_upper1)
 	/// \param target full target
 	/// \param iT intermediate target
-	/// \param k_lower1
-	/// \param k_upper1
-	/// \param k_lower2
-	/// \param k_upper2
-	static void twolevel_streamjoin_on_iT_v2(List &out, const List &iL,
-	                                         const List &L1, const List &L2,
+	/// \param k_lower1 lower coordinate to match on, on the first level
+	/// \param k_upper1 upper coordinate to match on, on the first level
+	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \param k_upper2 upper coordinate to match on, on the last level
+	static void twolevel_streamjoin_on_iT_v2(List &out, List &iL,
+	                                         const List &L1, List &L2,
 										     const LabelType &target, const LabelType &iT,
 										     const uint32_t k_lower1, const uint32_t k_upper1,
-										     const uint32_t k_lower2, const uint32_t k_upper2) {
+										     const uint32_t k_lower2, const uint32_t k_upper2,
+	                                         const bool prepare = true) {
+		if (prepare) {
+			L2.sort_level(k_lower1, k_upper1);
+			iL.sort_level(k_lower1, k_upper2);
+		}
 		ASSERT(L2.is_sorted(k_lower1, k_upper1));
 		ASSERT(iL.is_sorted(k_lower1, k_upper2));
-		(void)k_lower1;
 		(void)k_lower2;
 
 		constexpr uint32_t filter = -1u;
@@ -791,45 +820,74 @@ public:
 		LabelType t1, t2;
 		for (size_t k = 0; k < L1.load(); ++k) {
 			LabelType::sub(t1, iT, L1[k].label);
-			size_t l = L2.search_level(t1, 0, k_upper1);
+			size_t l = L2.search_level(t1, k_lower1, k_upper1);
 			for (; (l < L2.load()) &&
-			       (t1.is_equal(L2[l].label, 0, k_upper1));
+			       (t1.is_equal(L2[l].label, k_lower1, k_upper1));
 			     ++l) {
 				LabelType::sub(t2, target, L1[k].label);
 				LabelType::sub(t2, t2, L2[l].label);
-				size_t o = iL.search_level(t2, 0, k_upper2);
+				size_t o = iL.search_level(t2, k_lower1, k_upper2);
 				for (; (o < iL.load()) &&
-				       (t2.is_equal(iL[o].label, 0, k_upper2));
+				       (t2.is_equal(iL[o].label, k_lower1, k_upper2));
 				     ++o) {
 					tmpe1 = iL[o];
 					ElementType::add(tmpe1, tmpe1, L1[k]);
-					out.add_and_append(tmpe1, L2[l], 0, k_upper2, filter);
+					out.add_and_append(tmpe1, L2[l], k_lower1, k_upper2, filter);
 				}
 			}
 		}
 	}
 
-	/// TODO bild
-	/// \tparam k_lower1
-	/// \tparam k_upper1
-	/// \tparam k_lower2
-	/// \tparam k_upper2
-	/// \param out
-	/// \param iL sorted on [0, k_upper2)
+	/// 			out list
+	///              ┌───────┐
+	///              │  out  │
+	///              └───┬───┘
+	///          k_lower2│k_upper2
+	///     ┌──────────── ───────────┐
+	///     │                        │
+	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is not saved
+	/// │       │                │
+	/// │  iL   │
+	/// └───────┘                └───┬───┘
+	///                              │
+	///                      k_lower1│k_upper1
+	///                       ┌──────┴──────┐
+	///                       │             │
+	///                   ┌───┴───┐     ┌───┴───┐
+	///                   │       │     │       │
+	///                   │   L1  │     │   L2  │
+	///                   └───────┘     └───────┘
+	///
+	/// NOTE: the name appendix `_v2` means that the target label is
+	/// 	computed in the the outlist. So the out list will contain
+	///		the solutions and not zeros.
+	/// NOTE: make sure that iT = iT_ + target.
+	///		otherwise it this implementation wont find a valid solution
+	/// \tparam k_lower1 lower coordinate to match on, on the first level
+	/// \tparam k_upper1 upper coordinate to match on, on the first level
+	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \tparam k_upper2 upper coordinate to match on, on the last level
+	/// \param out outlist
+	/// \param iL sorted on [k_lower1, k_upper2), will be sorted if prepare==true
 	/// \param L1 dont care
-	/// \param L2 sorted on [0, k_upper1)
+	/// \param L2 sorted on [k_lower1, k_upper1), will be sorted if prepare==true
 	/// \param target full target
-	/// \param iT intermediate target
+	/// \param iT intermediate target: should be related to the target
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 	         const uint32_t k_lower2, const uint32_t k_upper2>
-	static void twolevel_streamjoin_on_iT_v2(List &out, const List &iL,
-											 const List &L1, const List &L2,
-											 const LabelType &target, const LabelType &iT) {
+	static void twolevel_streamjoin_on_iT_v2(List &out, List &iL,
+											 const List &L1, List &L2,
+											 const LabelType &target,
+	                                         const LabelType &iT,
+	                                         const bool prepare=true) noexcept {
 		static_assert(k_lower1 < k_upper1);
 		static_assert(k_lower2 < k_upper2);
-		static_assert(k_lower1 < k_upper1);
-		(void)k_lower1;
 		(void)k_lower2;
+
+		if (prepare) {
+			L2.template sort_level<k_lower1, k_upper1>();
+			iL.template sort_level<k_lower1, k_upper2>();
+		}
 		ASSERT(L2.is_sorted(k_lower1, k_upper1));
 		ASSERT(iL.is_sorted(k_lower1, k_upper2));
 
@@ -840,26 +898,26 @@ public:
 		LabelType t1, t2;
 		for (size_t k = 0; k < L1.load(); ++k) {
 			LabelType::sub(t1, iT, L1[k].label);
-			size_t l = L2.template search_level<0, k_upper1>(t1);
+			size_t l = L2.template search_level<k_lower1, k_upper1>(t1);
 			for (; (l < L2.load()) &&
 				   (t1.template is_equal<0, k_upper1>(L2[l].label));
 				   ++l) {
 				LabelType::sub(t2, target, L1[k].label);
 				LabelType::sub(t2, t2, L2[l].label);
-				size_t o = iL.template search_level<0, k_upper2>(t2);
+				size_t o = iL.template search_level<k_lower1, k_upper2>(t2);
 				for (; (o < iL.load()) &&
-					   (t2.template is_equal<0, k_upper2>(iL[o].label));
+					   (t2.template is_equal<k_lower1, k_upper2>(iL[o].label));
 					   ++o) {
 					ElementType::add(tmpe1, iL[o], L1[k]);
 					out.template add_and_append
-					        <0, k_upper2, filter, sub>
+					        <k_lower1, k_upper2, filter, sub>
 					        (tmpe1, L2[l]);
 				}
 			}
 		}
 	}
 
-	/// TODO bild
+	/// TODO bild + test not finished
 	/// \tparam k_lower1
 	/// \tparam k_upper1
 	/// \tparam k_lower2
@@ -1015,15 +1073,18 @@ public:
 		join2lists(out, L1, L2, target, lta[0], lta[1], prepare);
 	}
 
+	/// TODO img
+	/// NOTE: the output list will only contain zeros in the label
 	/// NOTE: the output list will contains zeros on the dimensions of the target
 	/// \param out the values will be s.t. out[i].value * Matrix = target
 	/// 	the labels will be zero. You need to recompute the label on you own
-	/// \param L1 first list
-	/// \param L2 second list
+	/// \param L1 first list, will be sorted on [k_lower, k_upper) if prepare==true
+	/// \param L2 second list,will be sorted on [k_lower, k_upper) if prepare==true
 	/// \param target
 	/// \param k_lower
 	/// \param k_upper
 	/// \param prepare if true: the target will be added/subtracted into the left input list L2.
+	/// 			and the two lists will be sorted
 	static void join2lists(List &out, List &L1, List &L2,
 						   const LabelType &target,
 						   const uint32_t k_lower,
@@ -1041,10 +1102,12 @@ public:
 					LabelType::add(L2[s].label, target, L2[s].label, k_lower, k_upper);
 				}
 			}
-		}
 
-		L1.sort_level(k_lower, k_upper);
-		L2.sort_level(k_lower, k_upper);
+			L1.sort_level(k_lower, k_upper);
+			L2.sort_level(k_lower, k_upper);
+		}
+		ASSERT(L1.is_sorted(k_lower, k_upper));
+		ASSERT(L2.is_sorted(k_lower, k_upper));
 
 		uint64_t i = 0, j = 0;
 		while (i < L1.load() && j < L2.load()) {
@@ -1077,7 +1140,7 @@ public:
 		}
 	}
 
-	///
+	/// TODO img docs:
 	/// \tparam k_lower
 	/// \tparam k_upper
 	/// \param out
@@ -1102,10 +1165,13 @@ public:
 					LabelType::template add<k_lower, k_upper>(L2[s].label, target, L2[s].label);
 				}
 			}
+
+			L1.template sort_level<k_lower, k_upper>();
+			L2.template sort_level<k_lower, k_upper>();
 		}
 
-		L1.template sort_level<k_lower, k_upper>();
-		L2.template sort_level<k_lower, k_upper>();
+		ASSERT(L1.is_sorted(k_lower, k_upper));
+		ASSERT(L2.is_sorted(k_lower, k_upper));
 
 		uint64_t i = 0, j = 0;
 		while (i < L1.load() && j < L2.load()) {
@@ -1129,6 +1195,7 @@ public:
 		}
 	}
 
+	/// TODO img
 	/// in contrast to `join2lists` does this function not alter the
 	/// values of L2 (except for sorting them)
 	/// NOTE: the output list will contain the target between [k_lower, k_upper)
@@ -1230,6 +1297,7 @@ public:
 		}
 	}
 
+	/// TODO IMG
 	/// NOTE: L2 needs to be sorted
 	/// \tparam k_lower
 	/// \tparam k_upper
@@ -1399,28 +1467,54 @@ public:
 		join4lists(out, L1, L2, L3, L4, target, k_lower1, k_upper1, k_lower2, k_upper2, prepare);
 	}
 
+	///                     ┌───────┐
+	///                     │       │
+	///                     │ out   │
+	///                     └───┬───┘
+	///                 k_lower2│k_upper2
+	///            ┌────────────┼───────────┐
+	///            │                        │
+	///        ┌───┴───┐                ┌───┴───┐
+	///        │  iL   │will be                 │ wont be
+	///        │       │allocated       │         allocated
+	///        └───┬───┘                └───┬───┘
+	///    k_lower1│k_upper1        k_lower1│k_upper1
+	///     ┌──────┴──────┐          ┌──────┴──────┐
+	///     │             │          │             │
+	/// ┌───┴───┐     ┌───┴───┐  ┌───┴───┐     ┌───┴───┐
+	/// │sorted │     │sorted │  │sorted │     │sorted │
+	/// └───────┘     └───────┘  └───────┘     └───────┘
+	///    L1             L2         L3            L4
+	///
 	/// fully computes the 4-tree algorithm in a stream join fashion. That means only
 	/// a single intermediate list is needed.
 	/// finds x1,x2,x3,x4 \in L1,L2,L3,L4 s.t. x1+x2+x3+x4 = target
 	/// \param out out List, each solution will be zero
-	/// \param L1 first list
-	/// \param L2 second list
-	/// \param L3 third list
-	/// \param L4 fourth list
+	/// \param L1 must be sorted (if prepare==true: will be sorted)
+	/// \param L2 must be sorted (if prepare==true: will be sorted)
+	/// \param L3 must be sorted (if prepare==true: will be sorted)
+	/// \param L4 must be sorted (if prepare==true: will be sorted)
 	/// \param target finds
 	/// \param k_lower1 lower coordinate to match on in the base lists
 	/// \param k_upper1 upper coordinate to match on in the base lists
 	/// \param k_lower2 lower coordinate to match on in the intermediate lists
 	/// \param k_upper2 upper coordinate to match on in the intermediate lists
-	/// \param prepare if true the intermediate target will be added into the base lists
+	/// \param prepare if true the intermediate targets will be added into the base lists
+	/// 			and all lists will be sorted
 	static void join4lists(List &out, List &L1, List &L2, List &L3, List &L4,
 	                             const LabelType &target,
 	                             const uint64_t k_lower1, const uint64_t k_upper1,
 	                             const uint64_t k_lower2, const uint64_t k_upper2,
 	                             const bool prepare = true) noexcept {
-		ASSERT(k_lower1 < k_upper1 && 0 < k_upper1 && k_lower2 < k_upper2 && 0 < k_upper2 && k_lower1 <= k_lower2 && k_upper1 < k_upper2 && L1.load() > 0 && L2.load() > 0 && L3.load() > 0 && L4.load() > 0);
+		ASSERT(k_lower1 < k_upper1 &&
+		       0 < k_upper1 && k_lower2 < k_upper2
+		       && 0 < k_upper2 && k_lower1 <= k_lower2
+		       && k_upper1 < k_upper2
+		       && L1.load() > 0 && L2.load() > 0
+		       && L3.load() > 0 && L4.load() > 0);
+
 		// Intermediate Element, List, Target
-		List iL{static_cast<size_t>(L1.size() * 1.1)};
+		List iL{static_cast<size_t>(L1.size() * config.intermediatelist_size_factor)};
 		LabelType iT; iT.zero();
 
 		// reset everything
@@ -1447,6 +1541,9 @@ public:
 				LabelType::add(L4[i].label, R2, L4[i].label, k_lower1, k_upper2);
 				L3[i].label.neg(k_lower1, k_upper2);
 			}
+
+			L1.sort_level(k_lower1, k_upper1);
+			L2.sort_level(k_lower1, k_upper1);
 		}
 
 		// NOTE: the intermediate target `R` is ingored in this call
@@ -1458,123 +1555,240 @@ public:
 		}
 
 		// Now run the merge procedure for the right part of the tree.
-		twolevel_streamjoin(out, iL, L3, L4, k_lower1, k_upper1, k_lower2, k_upper2);
+		twolevel_streamjoin(out, iL, L3, L4, k_lower1, k_upper1, k_lower2, k_upper2, prepare);
 	}
 
-
-	static void join4lists_on_iT(List &out,
-								 const List &L1, List &L2,
-								 const LabelType &target,
-								 const uint32_t k_lower1, const uint32_t k_upper1,
-	                             const uint32_t k_lower2, const uint32_t k_upper2) noexcept {
-		(void)target;
-		List iL{L1.size() * 2};
-		LabelType iT;
-		iT.random(0, (1ull << k_upper1) + 1ull);
-
-		// reset everything
-		out.set_load(0);
-
-		join2lists_on_iT(iL, L1, L2, iT, k_lower1, k_upper2);
-		twolevel_streamjoin(out, iL, L1, L2, k_lower1, k_upper1, k_lower2, k_upper2);
-	}
-
-	///
-	/// \param out
-	/// \param L1 dont care: can be sorted
+	///                     ┌───────┐
+	///                     │ out   │
+	///                     └───┬───┘
+	///                 k_lower2│k_upper2
+	///            ┌────────────┼───────────┐
+	///            │                        │
+	///        ┌───┴───┐                ┌───┴───┐
+	///        │  iL   │will be                 │ wont be
+	///        │       │allocated       │         allocated
+	///        └───┬───┘                └───┬───┘
+	///    k_lower1│k_upper1        k_lower1│k_upper1
+	///     ┌──────┴──────┐          ┌──────┴──────┐
+	///     │             │          │             │
+	/// ┌───┴───┐     ┌───┴───┐  ┌───┴───┐     ┌───┴───┐
+	/// │const  │     │sorted │  │const  │     │sorted │
+	/// └───────┘     └───────┘  └───────┘     └───────┘
+	///    L1             L2         L3            L4
+	/// NOTE: v2 means that the `label` of the output elements in `out`
+	///		are the target. So this function actually returns targets and not
+	/// 	the zeros.
+	/// NOTE: allocates iL
+	/// \param out output list
+	/// \param L1 dont care: can be sorted, but dont have to
 	/// \param L2 must be sorted (if prepare==true: will be sorted)
-	/// \param L3 dont care: can be sorted
+	/// \param L3 dont care: can be sorted, but dont have to
 	/// \param L4 must be sorted (if prepare==true: will be sorted)
 	/// \param target
-	/// \param k_lower1
-	/// \param k_upper1
-	/// \param k_lower2
-	/// \param k_upper2
-	/// \param prepare
+	/// \param k_lower1 lower coordinate to match on in the base lists
+	/// \param k_upper1 upper coordinate to match on in the base lists
+	/// \param k_lower2 lower coordinate to match on in the intermediate lists
+	/// \param k_upper2 upper coordinate to match on in the intermediate lists
+	/// \param prepare if `true` L2 and L4 will sorted. NO intermediate target
+	/// 		will be added into the lists
 	static void join4lists_on_iT_v2(List &out,
 	                                const List &L1, List &L2,
 	                                const List &L3, List &L4,
 						      		const LabelType &target,
-						      		const uint64_t k_lower1, const uint64_t k_upper1,
-						      		const uint64_t k_lower2, const uint64_t k_upper2,
+						      		const uint32_t k_lower1, const uint32_t k_upper1,
+						      		const uint32_t k_lower2, const uint32_t k_upper2,
 						      		const bool prepare = true) noexcept {
 		(void)k_lower2;
-		List iL{L1.size() * 2};
+		List iL{static_cast<size_t>(L1.size() * config.intermediatelist_size_factor)};
+		out.set_load(0);
 
 		// reset everything
 		if (prepare) {
-			out.set_load(0);
 			L2.sort_level(k_lower1, k_upper1);
 			L4.sort_level(k_lower1, k_upper1);
 		}
 
+		ASSERT(L2.is_sorted(k_lower1, k_upper1));
+		ASSERT(L4.is_sorted(k_lower1, k_upper1));
+
 		ElementType tmpe1;
 		LabelType t1, iT;
-		iT.random(0, 1ull << k_upper1);
-		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1);
+		iT.random(0, 1ull << k_upper1); // TODO only correct for SubSetSum
+		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1, false);
+		// early exit
 		if (iL.load() == 0) {
-			// early exit
 			return;
 		}
 
 		iL.sort_level(0, k_upper2);
 		LabelType::sub(t1, target, iT);
 		twolevel_streamjoin_on_iT_v2(out, iL, L3, L4, target, t1,
-		                             k_lower1, k_upper1, k_lower2, k_upper2);
+		                             k_lower1, k_upper1, k_lower2, k_upper2,
+		                             false);
 	}
 
-
-	/// \param out
-	/// \param L1 dont care
+	///                     ┌───────┐
+	///                     │ out   │
+	///                     └───┬───┘
+	///                 k_lower2│k_upper2
+	///            ┌────────────┼───────────┐
+	///            │                        │
+	///        ┌───┴───┐                ┌───┴───┐
+	///        │  iL   │will be                 │ wont be
+	///        │       │allocated       │         allocated
+	///        └───┬───┘                └───┬───┘
+	///    k_lower1│k_upper1        k_lower1│k_upper1
+	///     ┌──────┴──────┐          ┌──────┴──────┐
+	///     │             │          │             │
+	/// ┌───┴───┐     ┌───┴───┐  ┌───┴───┐     ┌───┴───┐
+	/// │const  │     │sorted │  │const  │     │sorted │
+	/// └───────┘     └───────┘  └───────┘     └───────┘
+	///    L1             L2         L3            L4
+	/// NOTE: v2 means that the `label` of the output elements in `out`
+	///		are the target. So this function actually returns targets and not
+	/// 	the zeros.
+	/// NOTE: allocates iL
+	/// \param out output list
+	/// \param L1 dont care: can be sorted, but dont have to
 	/// \param L2 must be sorted (if prepare==true: will be sorted)
+	/// \param L3 dont care: can be sorted, but dont have to
+	/// \param L4 must be sorted (if prepare==true: will be sorted)
 	/// \param target
-	/// \param k_lower1
-	/// \param k_upper1
-	/// \param k_lower2
-	/// \param k_upper2
-	/// \param prepare
-	static void join4lists_twolists_on_iT_v2(List &out,
-									const List &L1, List &L2,
-									const LabelType &target,
-									const uint64_t k_lower1, const uint64_t k_upper1,
-									const uint64_t k_lower2, const uint64_t k_upper2,
-									const bool prepare = true) noexcept {
-		(void)k_lower2;
-		List iL{L1.size() * 2};
+	/// \param k_lower1 lower coordinate to match on in the base lists
+	/// \param k_upper1 upper coordinate to match on in the base lists
+	/// \param k_lower2 lower coordinate to match on in the intermediate lists
+	/// \param k_upper2 upper coordinate to match on in the intermediate lists
+	/// \param prepare if `true` L2 and L4 will sorted. NO intermediate target
+	/// 		will be added into the lists
+	/// TODO tests
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			 const uint32_t k_lower2, const uint32_t k_upper2>
+	static void join4lists_on_iT_v2(List &out,
+	                                const List &L1, List &L2,
+	                                const List &L3, List &L4,
+	                                const LabelType &target,
+	                                const bool prepare = true) noexcept {
+		(void) k_lower2;
+		List iL{static_cast<size_t>(L1.size() * config.intermediatelist_size_factor)};
+		out.set_load(0);
 
 		// reset everything
 		if (prepare) {
-			out.set_load(0);
+			L2.template sort_level<k_lower1, k_upper1>();
+			L4.template sort_level<k_lower1, k_upper1>();
+		}
+
+		ElementType tmpe1;
+		LabelType t1, iT;
+		iT.random(0, 1ull << k_upper1);
+		join2lists_on_iT_v2<k_lower1, k_upper1>(iL, L1, L2, iT, false);
+		// early exit
+		if (iL.load() == 0) {
+			return;
+		}
+
+		iL.template sort_level<k_lower1, k_upper2>();
+		LabelType::sub(t1, target, iT);
+		twolevel_streamjoin_on_iT_v2
+		        <k_lower1, k_upper1, k_lower2, k_upper2>
+		        (out, iL, L3, L4, target, t1, false);
+	}
+
+	///                     ┌───────┐
+	///                     │ out   │
+	///                     └───┬───┘
+	///                 k_lower2│k_upper2
+	///            ┌────────────┼───────────┐
+	///            │                        │
+	///        ┌───┴───┐                ┌───┴───┐
+	///        │  iL   │will be                 │ wont be
+	///        │       │allocated       │         allocated
+	///        └───┬───┘                └───┬───┘
+	///    k_lower1│k_upper1        k_lower1│k_upper1
+	///     ┌──────┴──────┐          ┌──────┴──────┐
+	///     │             │          │             │
+	/// ┌───┴───┐     ┌───┴───┐  ┌───┴───┐     ┌───┴───┐ both L3 and L4
+	/// │const  │     │sorted │     					 are simply L1 and
+	/// └───────┘     └───────┘  └───────┘     └───────┘ L2. Wont be allocated
+	///    L1             L2     L3 = L1 		L4 = L2
+	/// NOTE: v2 means that the `label` of the output elements in `out`
+	///		are the target. So this function actually returns targets and not
+	/// 	the zeros.
+	/// NOTE: allocates iL
+	/// \param out output list
+	/// \param L1 dont care: can be sorted, but dont have to
+	/// \param L2 must be sorted (if prepare==true: will be sorted)
+	/// \param target
+	/// \param k_lower1 lower coordinate to match on in the base lists
+	/// \param k_upper1 upper coordinate to match on in the base lists
+	/// \param k_lower2 lower coordinate to match on in the intermediate lists
+	/// \param k_upper2 upper coordinate to match on in the intermediate lists
+	/// \param prepare if `true` L2 sorted. NO intermediate target
+	/// 		will be added into the lists
+	static void join4lists_twolists_on_iT_v2(List &out,
+									const List &L1, List &L2,
+									const LabelType &target,
+									const uint32_t k_lower1, const uint32_t k_upper1,
+									const uint32_t k_lower2, const uint32_t k_upper2,
+									const bool prepare = true) noexcept {
+		(void)k_lower2;
+		List iL{static_cast<size_t>(L1.size() * config.intermediatelist_size_factor)};
+		out.set_load(0);
+
+		// reset everything
+		if (prepare) {
 			L2.sort_level(k_lower1, k_upper1);
 		}
 
 		ElementType tmpe1;
 		LabelType t1, iT;
 		iT.random(0, 1ull << k_upper1);
-		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1);
+		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1, false);
 		if (iL.load() == 0) {
 			// early exit
 			return;
 		}
 
-		iL.sort_level(0, k_upper2);
+		iL.sort_level(k_lower1, k_upper2);
 		LabelType::sub(t1, target, iT);
 		twolevel_streamjoin_on_iT_v2(out, iL, L1, L2, target, t1,
-									 k_lower1, k_upper1, k_lower2, k_upper2);
+									 k_lower1, k_upper1, k_lower2, k_upper2,
+		                             false);
 
 	}
 
 
-	///
-	/// \tparam k_lower1
-	/// \tparam k_upper1
-	/// \tparam k_lower2
-	/// \tparam k_upper2
-	/// \param out
-	/// \param L1
-	/// \param L2  must be sorted
+	///                     ┌───────┐
+	///                     │ out   │
+	///                     └───┬───┘
+	///                 k_lower2│k_upper2
+	///            ┌────────────┼───────────┐
+	///            │                        │
+	///        ┌───┴───┐                ┌───┴───┐
+	///        │  iL   │will be                 │ wont be
+	///        │       │allocated       │         allocated
+	///        └───┬───┘                └───┬───┘
+	///    k_lower1│k_upper1        k_lower1│k_upper1
+	///     ┌──────┴──────┐          ┌──────┴──────┐
+	///     │             │          │             │
+	/// ┌───┴───┐     ┌───┴───┐  ┌───┴───┐     ┌───┴───┐ both L3 and L4
+	/// │const  │     │sorted │     					 are simply L1 and
+	/// └───────┘     └───────┘  └───────┘     └───────┘ L2. Wont be allocated
+	///    L1             L2     L3 = L1 		L4 = L2
+	/// NOTE: v2 means that the `label` of the output elements in `out`
+	///		are the target. So this function actually returns targets and not
+	/// 	the zeros.
+	/// NOTE: allocates iL
+	/// \tparam k_lower1 lower coordinate to match on in the base lists
+	/// \tparam k_upper1 upper coordinate to match on in the base lists
+	/// \tparam k_lower2 lower coordinate to match on in the intermediate lists
+	/// \tparam k_upper2 upper coordinate to match on in the intermediate lists
+	/// \param out output list
+	/// \param L1 dont care: can be sorted, but dont have to
+	/// \param L2 must be sorted (if prepare==true: will be sorted)
 	/// \param target
-	/// \param prepare
+	/// \param prepare if `true` L2 sorted. NO intermediate target
+	/// 		will be added into the lists
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			 const uint32_t k_lower2, const uint32_t k_upper2>
 	static void join4lists_twolists_on_iT_v2(List &out,
@@ -1582,32 +1796,33 @@ public:
 											 const LabelType &target,
 											 const bool prepare = true) noexcept {
 		(void)k_lower2;
-		List iL{L1.size() * 2};
+		List iL{static_cast<size_t>(L1.size() * config.intermediatelist_size_factor)};
+		out.set_load(0);
 
-		// reset everything
+		// sort everything
 		if (prepare) {
-			out.set_load(0);
 			L2.template sort_level<k_lower1, k_upper1>();
 		}
 
 		ElementType tmpe1;
 		LabelType t1, iT;
 		iT.random(0, 1ull << k_upper1);
-		join2lists_on_iT_v2<k_lower1, k_upper1>(iL, L1, L2, iT);
+		join2lists_on_iT_v2<k_lower1, k_upper1>(iL, L1, L2, iT, false);
 		if (iL.load() == 0) {
 			// early exit
 			return;
 		}
 
-		iL.sort_level(0, k_upper2);
+		iL.template sort_level<k_lower1, k_upper2>();
 		LabelType::sub(t1, target, iT);
 		twolevel_streamjoin_on_iT_v2
 		        <k_lower1, k_upper1, k_lower2, k_upper2>
-		        (out, iL, L1, L2, target, t1);
+		        (out, iL, L1, L2, target, t1, false);
 
 	}
 
 
+	/// TODO test, doc, img
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 	         const uint32_t k_lower2, const uint32_t k_upper2,
 			 typename HashMap>
@@ -2187,7 +2402,7 @@ public:
 
 
 
-	// TODO hashmap version
+	// TODO hashmap version, and non constexpr version
 	// SRC: https://eprint.iacr.org/2010/189.pdf
 	// implementation of the modular 4-way merge
 	template<

@@ -32,7 +32,8 @@ foreach(testfile ${TEST_SOURCES})
     add_executable(${file} ${testfile}
             ../src/container/queue.h
             ../src/thread/pthread.h
-            ../src/algorithm/for_each.h)
+            ../src/algorithm/for_each.h
+            ../src/compression/lz77.h)
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})
     add_test(AllTests ${file})

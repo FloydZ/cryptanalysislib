@@ -9,6 +9,9 @@
 #include "matrix/matrix.h"
 #include "tree.h"
 
+// test include
+#include "subsetsum.h"
+
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -41,13 +44,9 @@ TEST(SubSetSum, join2lists) {
 	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 			(&l1, &l2, n/2);
 
-	Label target; target.zero();
+	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, A[0][weights[i]]);
-	}
-
+	generate_subsetsum_instance(target, weights, A, n);
 
 	// compute the number of collisions via the simple quadratic algorithm
 	Label el{};
@@ -126,13 +125,9 @@ TEST(SubSetSum, constexpr_join2lists) {
 	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 			(&l1, &l2, n/2);
 
-	Label target; target.zero();
+	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, A[0][weights[i]]);
-	}
-
+	generate_subsetsum_instance(target, weights, A, n);
 
 	// compute the number of collisions via the simple quadratic algorithm
 	Label el{};
@@ -211,12 +206,9 @@ TEST(SubSetSum, join2lists_on_iT) {
 	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 			(&l1, &l2, n/2);
 
-	Label target; target.zero();
+	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, A[0][weights[i]]);
-	}
+	generate_subsetsum_instance(target, weights, A, n);
 
 	l1.sort_level(k_lower, k_higher);
 	for (size_t i = 0; i < baselist_size; ++i) {
@@ -289,17 +281,13 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_v2) {
 	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 			(&l1, &l2, n/2);
 
-	Label target; target.zero();
+	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, A[0][weights[i]]);
-	}
+	generate_subsetsum_instance(target, weights, A, n);
 
 	l2.template sort_level<k_lower, k_higher>();
 	Tree::template join2lists_on_iT_v2<k_lower, k_higher>
 			(out, l1, l2, target);
-
 
 	auto right=true;
 	int wrong=0;
@@ -324,7 +312,6 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_v2) {
 			wrong++;
 		}
 	}
-
 
 	Label el{};
 	uint64_t num = 0;
@@ -367,12 +354,9 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2) {
 	using HM = SimpleHashMap<D, size_t, simpleHashMapConfig, Hash<D, k_lower, k_higher, 2>>;
 	HM hm{};
 
-	Label target; target.zero();
+	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_random_indices(weights, n);
-	for (uint32_t i = 0; i < n/2; ++i) {
-		Label::add(target, target, A[0][weights[i]]);
-	}
+	generate_subsetsum_instance(target, weights, A, n);
 
 	Tree::template join2lists_on_iT_hashmap_v2<k_lower, k_higher>
 	        (out, l1, l2, hm, target);
