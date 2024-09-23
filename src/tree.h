@@ -975,14 +975,16 @@ public:
 			// 	   (t1.template is_equal<0, k_upper1>(L2[l].label));
 			// 	   ++l) {
 
-				const LabelType t3 = L2[l2].label;
+				const size_t b1 = hmL2[l2];
+				ASSERT(b1 < L2.load());
+				const LabelType t3 = L2[b1].label;
 				LabelType::sub(t2, target, L1[k].label);
 				LabelType::sub(t2, t2, t3);
 
-				ElementType::add(te1, L1[k], L2[l2]);
+				ElementType::add(te1, L1[k], L2[b1]);
 
-				// NOTE: this shift is important
-				const size_t s1 = hmiL.find(t2.value()>>k_lower2, load1);
+				// NOTE: its shifted
+				const size_t s1 = hmiL.find(t2.value(), load1);
 				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
 				// size_t o = iL.template search_level<0, k_upper2>(t2);
 				// for (; (o < iL.load()) &&
@@ -990,6 +992,8 @@ public:
 				// 	   ++o) {
 					const size_t a1 = hmiL[l1].first;
 					const size_t a2 = hmiL[l1].second;
+					ASSERT(a1 < L1.load());
+					ASSERT(a2 < L2.load());
 					ElementType::add(te2, L1[a1], L2[a2]);
 					out.template add_and_append
 							<k_lower1, k_upper2, filter, sub>
@@ -1561,8 +1565,8 @@ public:
 			for (size_t k = s; k < s + load; ++k) {
 				const size_t j = hm2[k];
 				LabelType::add(e, L1[i].label, L2[j].label);
-				// NOTE: this shift is important
-				out.insert(e.value() >> k_upper, HMOutValueType{i, j});
+				// NOTE: NOTE that is shifted
+				out.insert(e.value(), HMOutValueType{i, j});
 				//out.template add_and_append
 				//        <k_lower, k_upper, filter, false>
 				//        (L1[i], L2[j]);

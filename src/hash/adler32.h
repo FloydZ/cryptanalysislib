@@ -149,36 +149,38 @@ constexpr static uint32_t avx512_adler32(uint32_t adler32,
     _mm512_set_epi8(
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
       24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-      45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
-    )
+      45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
+    );
 
-		  let blocks = chunk.chunks_exact(BLOCK_SIZE);
-    let blocks_remainder = blocks.remainder();
+	 // TODO
+	//let blocks = chunk.chunks_exact(BLOCK_SIZE);
+    //let blocks_remainder = blocks.remainder();
 
-    let one_v = _mm512_set1_epi16(1);
-    let zero_v = _mm512_setzero_si512();
-    let weights = get_weights();
+    //let one_v = _mm512_set1_epi16(1);
+    //let zero_v = _mm512_setzero_si512();
+    //let weights = get_weights();
 
-    let p_v = (*a * blocks.len() as u32) as _;
-    let mut p_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, p_v);
-    let mut a_v = _mm512_setzero_si512();
-    let mut b_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, *b as _);
+    //let p_v = (*a * blocks.len() as u32) as _;
+    //let mut p_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, p_v);
+    //let mut a_v = _mm512_setzero_si512();
+    //let mut b_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, *b as _);
 
-    for block in blocks {
-      let block_ptr = block.as_ptr() as *const _;
-      let block = _mm512_loadu_si512(block_ptr);
+    //for block in blocks {
+    //  let block_ptr = block.as_ptr() as *const _;
+    //  let block = _mm512_loadu_si512(block_ptr);
 
-      p_v = _mm512_add_epi32(p_v, a_v);
+    //  p_v = _mm512_add_epi32(p_v, a_v);
 
-      a_v = _mm512_add_epi32(a_v, _mm512_sad_epu8(block, zero_v));
-      let mad = _mm512_maddubs_epi16(block, weights);
-      b_v = _mm512_add_epi32(b_v, _mm512_madd_epi16(mad, one_v));
-    }
+    //  a_v = _mm512_add_epi32(a_v, _mm512_sad_epu8(block, zero_v));
+    //  let mad = _mm512_maddubs_epi16(block, weights);
+    //  b_v = _mm512_add_epi32(b_v, _mm512_madd_epi16(mad, one_v));
+    //}
 
-    b_v = _mm512_add_epi32(b_v, _mm512_slli_epi32(p_v, 6));
+    //b_v = _mm512_add_epi32(b_v, _mm512_slli_epi32(p_v, 6));
 
-    *a += reduce_add(a_v);
-    *b = reduce_add(b_v);
+    //*a += reduce_add(a_v);
+    //*b = reduce_add(b_v);
+	return adler32;
 }
 #endif
 #endif

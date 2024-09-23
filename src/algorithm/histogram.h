@@ -56,7 +56,10 @@ constexpr static void avx512_histogram_u8_1x(uint32_t cnt[256],
 static void avx512_histogram_u32z_v2(uint32_t C[256],
 									const uint32_t *A,
 									const size_t size){
-
+	// TODO
+	(void)C;
+	(void)A;
+	(void)size;
 }
 
 /// org source: https://github.com/WojciechMula/toys/pull/23jj
@@ -74,9 +77,9 @@ static void avx512_histogram_u32_v3(uint32_t C[256],
 		__m512i offsets = _mm512_slli_epi32(chunk, 4);
 		offsets = _mm512_add_epi32(offsets, vid);
 
-		const __m512i oldv = _mm512_i32gather_epi32(C, offsets, 4);
+		const __m512i oldv = _mm512_i32gather_epi32(offsets, C, 4);
 		const __m512i newv = _mm512_add_epi32(oldv, one);
-		_mm512_i32scatter_epi32(C, newv, 4);
+		_mm512_i32scatter_epi32(C, offsets, newv, 4);
 	}
 
 	for (uint32_t i = 0; i < 32; i++) {

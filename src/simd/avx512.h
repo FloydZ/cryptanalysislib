@@ -2449,6 +2449,8 @@ __mm512_undefined_epi32 (void) {
 	return __Y;
 }
 
+
+
 /* Transpose bits within bytes. */
 /// source: https://github.com/kiyo-masui/bitshuffle/blob/master/src/bitshuffle_core.c
 ///
@@ -2495,7 +2497,7 @@ int64_t bshuf_trans_bit_byte_AVX512(const void* in,
     }
 
 
-    count = bshuf_trans_bit_byte_remainder(in, out, size, elem_size,
+    count = bshuf_trans_byte_elem_remainder(in, out, size, elem_size,
             nbyte - nbyte % 64 % 32);
 
     return count;

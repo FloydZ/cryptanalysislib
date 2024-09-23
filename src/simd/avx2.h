@@ -2661,8 +2661,11 @@ void matrix_transpose(uint64_t At,
 
 
 /* Transpose bytes within elements, starting partway through input. */
-int64_t bshuf_trans_byte_elem_remainder(const void* in, void* out, const size_t size,
-                                        const size_t elem_size, const size_t start) {
+static constexpr int64_t bshuf_trans_byte_elem_remainder(const void* in,
+                                                         void* out,
+                                        				 const size_t size,
+                                        				 const size_t elem_size,
+                                                         const size_t start) noexcept {
 
 	size_t ii, jj, kk;
 	const char* in_b = (const char*) in;
