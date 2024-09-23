@@ -12,7 +12,7 @@ public:
 
 	// if `true`, the call to `binary_search` will be remapped to
 	// the standard implementation
-	constexpr static bool use_std_binary_search = false;
+	constexpr static bool use_std_binary_search = true;
 
 	// if `true`
 	constexpr static bool use_interpolation_search = false;

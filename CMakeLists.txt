@@ -90,16 +90,10 @@ if (APPLE)
 	set(LIBCORO_FEATURE_TLS OFF)
 endif()
 FetchContent_Declare(
-		libcoro
-		GIT_REPOSITORY https://github.com/jbaldwin/libcoro.git
-		GIT_TAG        v0.12.1
-)
-FetchContent_Declare(
 		reflect-cpp
 		GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
 		GIT_TAG        v0.14.1
 )
-FetchContent_MakeAvailable(libcoro)
 FetchContent_MakeAvailable(reflect-cpp)
 # global include directories
 include_directories("deps/b63/include/b63")

@@ -148,7 +148,17 @@ public:
 	using ret_type = typename std::conditional<std::is_bounded_array_v<data_type>,
 	                                           inner_data_type *,
 	                                           valueType>::type;
+
 	constexpr inline ret_type ptr(const index_type i) noexcept {
+		ASSERT(i < total_size);
+		if constexpr (std::is_bounded_array_v<data_type>) {
+			return (inner_data_type *) __internal_hashmap_array[i];
+		} else {
+			return (valueType) __internal_hashmap_array[i];
+		}
+	}
+
+	constexpr inline ret_type ptr(const index_type i) const noexcept {
 		ASSERT(i < total_size);
 		if constexpr (std::is_bounded_array_v<data_type>) {
 			return (inner_data_type *) __internal_hashmap_array[i];
@@ -159,6 +169,10 @@ public:
 
 	/// calls ptr
 	[[nodiscard]] constexpr inline ret_type operator[](const index_type i) noexcept {
+		return ptr(i);
+	}
+
+	[[nodiscard]] constexpr inline const ret_type operator[](const index_type i) const noexcept {
 		return ptr(i);
 	}
 

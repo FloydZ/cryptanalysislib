@@ -579,15 +579,19 @@ public:
 		ASSERT(k_upper > k_lower);
 
 		// the linear search, doesn't need the data to be sorted
-		if (use_hash_operator && Element::is_hashable(k_lower, k_upper)) {
-			return binary_search(e, tid,
-				 [k_lower, k_upper](const Element &a)  __attribute__((always_inline)) {
-				   return a.hash(k_lower, k_upper);
-				 });
+		if constexpr (!use_std_binary_search && use_hash_operator) {
+			if (Element::is_hashable(k_lower, k_upper)) {
+				return binary_search(e, tid,
+					 [k_lower, k_upper](const Element &a)  __attribute__((always_inline)) {
+					   return a.hash(k_lower, k_upper);
+					 });
+			} else {
+				ASSERT(false);
+			}
 		} else {
-			return linear_search(e, tid, [](const Element &a,
-											const Element &b)  __attribute__((always_inline)) {
-			  return a == b;
+			return binary_search(e, tid, [k_lower, k_upper](const Element &a,
+													   		const Element &b)  __attribute__((always_inline)) {
+			  return a.is_lower(b, k_lower, k_upper);
 			});
 		}
 	}
@@ -602,8 +606,8 @@ public:
 	template<const uint32_t k_lower=0, const uint32_t k_upper=0>
 	constexpr inline size_t binary_search(const Element &e,
 										  const uint32_t tid = 0) const noexcept {
-		if constexpr (use_hash_operator ||
-		              (k_lower != k_upper)) {
+		if constexpr (!use_std_binary_search &&
+		              (use_hash_operator || (k_lower != k_upper))) {
 			return binary_search(e, tid, [](const Element &a)  __attribute__((always_inline)) {
 			    // NOTE: the checks if `k_lower` and `k_upper` are valid, are done
 			    // within the `hash` function
@@ -617,7 +621,11 @@ public:
 		} else {
 			return binary_search(e, tid, [](const Element &a,
 											const Element &b)  __attribute__((always_inline)) -> bool {
-			    return a < b;
+			  if constexpr (k_lower != k_upper){
+				  return a.template is_lower<k_lower, k_upper>(b);
+			  } else {
+				  return a < b;
+			  }
 			});
 		}
 	}
@@ -636,7 +644,8 @@ public:
 		const_iterator it;
 		if constexpr (use_std_binary_search) {
 			it = std::lower_bound(__data.begin() + sp,
-			                                 __data.begin() + ep, e, f);
+			                      __data.begin() + ep,
+			                      e, f);
 		} else {
 			it = cryptanalysislib::search::binary_search(__data.begin() + sp,
 			                                             __data.begin() + ep, e, f);
