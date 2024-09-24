@@ -971,6 +971,30 @@ public:
 			 const uint32_t k_lower2, const uint32_t k_upper2,
 			 typename HashMap1,
 	         typename HashMap2,
+	         typename F,
+	         typename Matrix>
+#if __cplusplus > 201709L
+	requires HashMapAble<HashMap1> &&
+	 		 HashMapAble<HashMap2>
+#endif
+	static void twolevel_streamjoin_on_iT_hashmap_v2(List &out,
+	                                                 const HashMap1 &hmiL,
+											 		 const List &L1,
+													 const List &L2,
+	                                                 const HashMap2 &hmL2,
+	                                                 const LabelType &target,
+	                                                 const LabelType &iT,
+	                                                 const Matrix &A) {
+		static_assert(k_lower1 < k_upper1);
+		static_assert(k_lower2 < k_upper2);
+		static_assert(k_lower1 < k_upper1);
+		(void)k_lower2 target
+	/// \param iT
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			 const uint32_t k_lower2, const uint32_t k_upper2,
+			 typename HashMap1,
+	         typename HashMap2,
+	         typename F,
 	         typename Matrix>
 #if __cplusplus > 201709L
 	requires HashMapAble<HashMap1> &&
@@ -1035,10 +1059,57 @@ public:
 					const size_t b2 = out.load() - 1;
 					// TODO: the problem is that due to reps the simple addition doesnt hold
 					out[b2].recalculate_label(A);
-#ifdef DEBUG
-					// std::cout << out[b2] << " " << k << " " << b1 << " " << a1 << " " << a2 <<std::endl;
-					// ASSERT(out[b2].label.is_equal(target, k_lower1, k_upper2));
-#endif
+				}
+			}
+		}
+	};
+		using LoadType1 = typename HashMap1::load_type;
+		using LoadType2 = typename HashMap2::load_type;
+		constexpr uint32_t filter = -1u;
+		constexpr bool sub = false;
+
+		ElementType te1, te2;
+		LabelType t1, t2;
+		LoadType1 load1 = 0;
+		LoadType2 load2 = 0;
+
+		for (size_t k = 0; k < L1.load(); ++k) {
+			LabelType::sub(t1, iT, L1[k].label);
+
+			const size_t s2 = hmL2.find(t1.value(), load2);
+			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
+				const size_t b1 = hmL2[l2];
+				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
+				ASSERT(L2[b1].is_correct(A));
+				ASSERT(b1 < L2.load());
+
+				const LabelType t3 = L2[b1].label;
+				LabelType::sub(t2, target, L1[k].label);
+				LabelType::sub(t2, t2, t3);
+
+				ElementType::add(te1, L1[k], L2[b1]);
+				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
+				ASSERT(te1.is_correct(A));
+
+				// NOTE: its shifted
+				const size_t s1 = hmiL.find(t2.value(), load1);
+				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
+					const size_t a1 = hmiL[l1].first;
+					const size_t a2 = hmiL[l1].second;
+					ASSERT(a1 < L1.load());
+					ASSERT(a2 < L2.load());
+					ElementType::add(te2, L1[a1], L2[a2]);
+
+					ASSERT(te1.is_correct(A));
+					ASSERT(te2.is_correct(A));
+
+					out.template add_and_append
+							<k_lower1, k_upper2, filter, sub>
+							(te1, te2);
+
+					const size_t b2 = out.load() - 1;
+					// TODO: the problem is that due to reps the simple addition doesnt hold
+					out[b2].recalculate_label(A);
 				}
 			}
 		}
@@ -2110,6 +2181,49 @@ public:
 				(out, hmL1, L1, L2, hmL0, target, t1, A);
 	}
 
+	///
+	/// \tparam k_lower1
+	/// \tparam k_upper1
+	/// \tparam k_lower2
+	/// \tparam k_upper2
+	/// \tparam Enumerator
+	/// \tparam Matrix
+	/// \param out
+	/// \param L1
+	/// \param L2
+	/// \param target
+	/// \param A
+	/// \param prepare
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			 const uint32_t k_lower2, const uint32_t k_upper2,
+	         class Enumerator,
+			 class Matrix>
+	static void join4lists_twolists_on_iT_hashmap_v2(List &out,
+													 List &L1, List &L2,
+													 const LabelType &target,
+													 const Matrix &A,
+													 const bool prepare = true) noexcept {
+		Enumerator e{A};
+		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				(&L1, &L2, 16);
+		using D = typename LabelType::DataType;
+		using E = std::pair<size_t, size_t>;
+		// NOTE: you need to choose the `bucketsize` correctly.
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+				100, 1ul<<(k_upper1-k_lower1), 1
+		};
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
+				100, 1ul<<(k_upper2-k_lower2), 1
+		};
+		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower1, k_upper1, 2>>;
+		using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_lower2, k_upper2, 2>>;
+		HML0 hml0{}; HML1 hml1{};
+
+		join4lists_twolists_on_iT_hashmap_v2
+				<k_lower1, k_upper1, k_lower2, k_upper2>
+				(out, L1, L2, hml0, hml1, target, A, prepare);
+	}
+
 	/// Schematic view on the Algorithm.
 	/// The algorithm ignores any facts about th weight, nor does it guess the output size.
 	/// The intermediate list `iL` is created every time you call this function. So if called repeatedly, maybe write it yourself, or set the list to static.
@@ -2193,6 +2307,7 @@ public:
 	}
 
 
+	/// TODO test, img
 	/// \param out		output lists
 	/// \param L		input lists, L must contain 8 Lists
 	/// \param target	target to match on
@@ -2270,6 +2385,7 @@ public:
 		join2lists(out, L[10], L[11], target, last_lta, false);
 	}
 
+	///  TODO test, img, doc
 	/// \param out
 	/// \param L1 dont care
 	/// \param L2 must be sorted
@@ -2372,6 +2488,18 @@ public:
 		}
 	}
 
+	///  TODO test, img, doc
+	/// \tparam k_lower1
+	/// \tparam k_upper1
+	/// \tparam k_lower2
+	/// \tparam k_upper2
+	/// \tparam k_lower3
+	/// \tparam k_upper3
+	/// \param out
+	/// \param L1
+	/// \param L2
+	/// \param target
+	/// \param prepare
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			 const uint32_t k_lower2, const uint32_t k_upper2,
 			 const uint32_t k_lower3, const uint32_t k_upper3>
@@ -2930,7 +3058,8 @@ private:
 	/// print every list in this tree
 	/// \param k_lower
 	/// \param k_upper
-	void print(const uint64_t k_lower, const uint64_t k_higher) {
+	void print(const uint32_t k_lower,
+	           const uint32_t k_higher) {
 		for (const auto &l: lists) {
 			l.print(k_lower, k_higher);
 		}
