@@ -85,16 +85,13 @@ if(${USE_TRACY})
 endif ()
 
 # Fetch the project and make it available for use.
-if (APPLE)
-	set(LIBCORO_FEATURE_NETWORKING OFF)
-	set(LIBCORO_FEATURE_TLS OFF)
-endif()
 FetchContent_Declare(
 		reflect-cpp
 		GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
 		GIT_TAG        v0.14.1
 )
 FetchContent_MakeAvailable(reflect-cpp)
+
 # global include directories
 include_directories("deps/b63/include/b63")
 include_directories("src")

@@ -101,6 +101,9 @@ TEST(SubSetSum, join2lists) {
 			right = false;
 			wrong++;
 		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
 	}
 
 	EXPECT_GT(out.load(), 0);
@@ -182,6 +185,9 @@ TEST(SubSetSum, constexpr_join2lists) {
 			right = false;
 			wrong++;
 		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
 	}
 
 	EXPECT_GT(out.load(), 0);
@@ -246,6 +252,9 @@ TEST(SubSetSum, join2lists_on_iT) {
 			right = false;
 			wrong++;
 		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
 	}
 
 
@@ -321,6 +330,9 @@ TEST(SubSetSum, join2lists_on_iT_v2) {
 			right = false;
 			wrong++;
 		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
 	}
 
 
@@ -387,6 +399,9 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_v2) {
 			right = false;
 			wrong++;
 		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
 	}
 
 	Label el{};
@@ -461,6 +476,9 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2) {
 			right = false;
 			wrong++;
 		}
+
+		out[i].recalculate_label(A);
+		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
 	}
 
 
@@ -506,7 +524,7 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_hashmap_v2) {
 			100, 1ul<<(k_higher-k_lower), 1
 	};
 	using HMIn = SimpleHashMap<D, size_t, simpleHashMapConfig, Hash<D, k_lower, k_higher, 2>>;
-	using HMOut= SimpleHashMap<D, size_t, simpleHashMapConfig, Hash<D, k_lower, k_higher, 2>>;
+	using HMOut= SimpleHashMap<D, std::pair<size_t, size_t>, simpleHashMapConfig, Hash<D, k_lower+8, k_higher+8, 2>>;
 	HMIn hmIn{};
 	HMOut hmOut{};
 
@@ -519,9 +537,17 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_hashmap_v2) {
 			(hmOut, l1, l2, hmIn, target);
 
 	size_t sols = 0, wrong = 0;
-	for (size_t i = 0; i < hmOut.nrbuckets; ++i) {
-		for (uint32_t j = 0; j < hmOut.load(i); ++j) {
+	Element te;
+	for (size_t i = 0; i < HMOut::nrbuckets; ++i) {
+		for (uint32_t j = 0; j < hmOut.load_without_hash(i); ++j) {
 			sols += 1;
+			const size_t a1 = hmOut[i*HMOut::bucketsize + j].first;
+			const size_t a2 = hmOut[i*HMOut::bucketsize + j].second;
+			ASSERT(a1 < l1.load());
+			ASSERT(a2 < l2.load());
+
+			Element::add(te, l1[a1], l2[a2]);
+			ASSERT(te.label.is_equal(target, k_lower, k_higher));
 			// EXPECT_EQ(true, target.is_equal(out[i].label, k_lower, k_higher));
 		}
 	}
@@ -546,7 +572,6 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_hashmap_v2) {
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
-	ident();
-	rng_seed(time(NULL));
+	rng_seed(time(nullptr));
 	return RUN_ALL_TESTS();
 }

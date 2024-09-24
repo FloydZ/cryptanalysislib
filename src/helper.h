@@ -21,6 +21,10 @@
 #endif
 #endif
 
+#if defined(DEBUG) && defined(NDEBUG)
+#error "debug and no debug?"
+#endif
+
 
 #if defined(NUMBER_THREADS) && NUMBER_THREADS > 1
 #define OMP_BARRIER _Pragma("omp barrier")

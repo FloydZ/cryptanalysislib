@@ -167,11 +167,16 @@ public:
 		}
 	}
 
-	/// calls ptr
+	///
+	/// \param i
+	/// \return
 	[[nodiscard]] constexpr inline ret_type operator[](const index_type i) noexcept {
 		return ptr(i);
 	}
 
+	///
+	/// \param i
+	/// \return
 	[[nodiscard]] constexpr inline const ret_type operator[](const index_type i) const noexcept {
 		return ptr(i);
 	}
