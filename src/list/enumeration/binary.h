@@ -65,8 +65,8 @@ public:
 	/// 			if set to 0: the complete sequence will be enumerated.
 	/// \param syndrome additional element which is added to all list elements
 	constexpr BinaryListEnumerateMultiFullLength(const Matrix &HT,
-	                                   const size_t list_size = 0,
-	                                   const Label *syndrome = nullptr) noexcept
+										   		const size_t list_size = 0,
+	                                   			const Label *syndrome = nullptr) noexcept
 	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
 	      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 		  chase.template changelist<false>(cL, this->list_size);
@@ -151,13 +151,10 @@ public:
 			/// sequence is correct.
 			ASSERT(element.value[a + off2]);
 
-			std::cout << element;
-
-			Label::add(element.label, element.label, HT.get(a + off2));
+			Label::sub(element.label, element.label, HT.get(a + off2));
 			Label::add(element.label, element.label, HT.get(b + off2));
 			element.value.set(0, off2 + a);
 			element.value.set(1, off2 + b);
-			std::cout << element;
 		};
 
 		/// iterate over all sequences
@@ -420,8 +417,8 @@ public:
 	/// 			if set to 0: the complete sequence will be enumerated.
 	/// \param syndrome additional element which is added to all list elements
 	constexpr BinaryLexicographicEnumerator(const Matrix &HT,
-	                                    const size_t list_size = 0,
-	                                    const Label *syndrome = nullptr) noexcept
+	                                    	const size_t list_size = 0,
+	                                    	const Label *syndrome = nullptr) noexcept
 	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
 	      list_size((list_size == size_t(0)) ? max_list_size : list_size)
 	{}

@@ -14,7 +14,9 @@ namespace cryptanalysislib::math {
 	/// \param x
 	/// \return
 	template<typename T>
+#if __cplusplus > 201709L
 	    requires std::is_arithmetic<T>::value
+#endif
 	constexpr T abs(T x) {
 		return x >= 0 ? x : -x;
 	}
@@ -24,7 +26,9 @@ namespace cryptanalysislib::math {
 	/// \param x
 	/// \return
 	template<typename T>
+#if __cplusplus > 201709L
 	    requires std::is_floating_point<T>::value
+#endif
 	constexpr T fabs(T x) {
 		return cryptanalysislib::math::abs(x);
 	}
@@ -36,7 +40,9 @@ namespace cryptanalysislib::math {
 	/// \param y
 	/// \return
 	template<typename T>
+#if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
+#endif
 	constexpr bool feq(T x, T y) {
 		return abs(x - y) <= std::numeric_limits<T>::epsilon();
 	}

@@ -15,7 +15,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-
+#ifdef USE_AVX2
 TEST(transpose, simple) {
 	constexpr size_t s = 32;
 	uint8_t in[s] = {0}, out[s] = {0};
@@ -26,6 +26,7 @@ TEST(transpose, simple) {
 	bshuf_trans_byte_elem_SSE_16(out, in, 16);
 	std::cout << "lek";
 }
+#endif
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

@@ -113,12 +113,9 @@ public:
 		if (!tmpl.is_equal(label)) {
 			std::cout << std::endl
 			          << "ERROR: (SHOULD, IS)" << std::endl;
-			tmpl.print();
-			label.print();
-			std::cout << std::endl;
-			error.print();
-			std::cout << std::endl;
-			HT.print();
+			std::cout << tmpl << std::endl;
+			std::cout << label << std::endl;
+			std::cout << error << std::endl;
 		}
 
 		ASSERT(tmpl.is_equal(label));

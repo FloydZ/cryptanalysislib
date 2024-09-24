@@ -5,13 +5,14 @@
 
 #include "helper.h"
 #include "simd/simd.h"
+#include "alloc/alloc.h"
 #include "popcount/popcount.h"
 
 using namespace cryptanalysislib::popcount;
-    
+   
+// TODO 
 // TODO all those structs iDownloadsnto the imap container
 // TODO iterators
-
 // TODO remove? use __uint128?
 typedef struct imap_u128 {
     uint64_t v[2];
@@ -40,7 +41,8 @@ struct imap_pair_t {
 
 /// TODO replace with allocator
 static inline
-void *imap__aligned_alloc__(uint64_t alignment, uint64_t size) {
+void *imap__aligned_alloc__(uint64_t alignment,
+                            const uint64_t size) {
     void *p = malloc(size + sizeof(void *) + alignment - 1);
     if (!p) {
         return p;
@@ -52,13 +54,18 @@ void *imap__aligned_alloc__(uint64_t alignment, uint64_t size) {
 
 /// TODO replace with allocator
 static inline void imap__aligned_free__(void *p) {
-    if (0 != p) {
+    if (nullptr != p) {
         free(((void **)p)[-1]);
 	}
 }
 
 #define IMAP_ALIGNED_ALLOC(a, s)    (imap__aligned_alloc__(a, s))
 #define IMAP_ALIGNED_FREE(p)        (imap__aligned_free__(p))
+
+
+struct ImapConfig : public AlignmentConfig {
+};
+
 
 struct imap_tree_t {
 private:

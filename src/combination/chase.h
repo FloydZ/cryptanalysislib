@@ -609,21 +609,22 @@ class BinaryChaseEnumerator {
 	constexpr static size_t chase_size = bc(n, t) - 1ull;
 
 public:
-	static constexpr inline size_t size() noexcept {
+	constexpr static inline size_t size() noexcept {
 		return chase_size;
 	}
 
-	/*
-	 * List all combinations of 't' elements of a set of 'n' elements.
-	 *
-	 * Generate a Chase's sequence: the binary representation of a combination and
-	 * its successor only differ by two bits that are either consecutive of
-	 * separated by only one position.
-	 *
-	 * See exercise 45 of Knuth's The art of computer programming volume 4A.
-	 */
-	static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
-									 const size_t listsize = 0) {
+	/// List all combinations of 't' elements of a set of 'n' elements.
+	///
+	/// Generate a Chase's sequence: the binary representation of a combination and
+	/// its successor only differ by two bits that are either consecutive of
+	/// separated by only one position.
+	///
+	/// See exercise 45 of Knuth's The art of computer programming volume 4A.
+	/// \param ret
+	/// \param listsize
+	/// \return
+	constexpr static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
+	                       const size_t listsize = 0) noexcept {
 		const size_t size = listsize == 0 ? chase_size : listsize;
 		ret.resize(size);
 		if constexpr (t==1) {

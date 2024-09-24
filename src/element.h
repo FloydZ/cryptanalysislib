@@ -192,7 +192,7 @@ public:
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
 	[[nodiscard]] constexpr bool is_correct(const MatrixType &m,
-	                          const bool rewrite = false) noexcept {
+											const bool rewrite = false) noexcept {
 		Label tmp;
 		m.mul(tmp, value);
 
@@ -200,9 +200,13 @@ public:
 		if (rewrite) {
 			label = tmp;
 		}
-
-
 		return ret;
+	}
+
+	[[nodiscard]] constexpr bool is_correct(const MatrixType &m) const noexcept {
+		Label tmp;
+		m.mul(tmp, value);
+		return tmp.is_equal(label);
 	}
 
 	/// e3 = e1 + e2 iff \forall r \in \[k_lower, ..., k_upper\] |e3[r]| < norm
