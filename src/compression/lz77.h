@@ -35,7 +35,10 @@ uint32_t lz77_compress(uint8_t *compressed_text,
 	for (coding_pos = 0; coding_pos < uncompressed_size; ++coding_pos) {
 		pointer_pos = 0;
 		pointer_length = 0;
-		for (temp_pointer_pos = 1; (temp_pointer_pos < pointer_pos_max) && (temp_pointer_pos <= coding_pos); ++temp_pointer_pos) {
+		for (temp_pointer_pos = 1; (temp_pointer_pos < pointer_pos_max) &&
+		                           (temp_pointer_pos <= coding_pos);
+		     ++temp_pointer_pos) {
+
 			look_behind = coding_pos - temp_pointer_pos;
 			look_ahead = coding_pos;
 			for (temp_pointer_length = 0; uncompressed_text[look_ahead++] == uncompressed_text[look_behind++]; ++temp_pointer_length)
@@ -48,6 +51,7 @@ uint32_t lz77_compress(uint8_t *compressed_text,
 					break;
 			}
 		}
+
 		coding_pos += pointer_length;
 		if ((coding_pos == uncompressed_size) && pointer_length) {
 			output_pointer = (pointer_length == 1) ? 0 : ((pointer_pos << pointer_length_width) | (pointer_length - 2));
