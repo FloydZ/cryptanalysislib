@@ -971,30 +971,6 @@ public:
 			 const uint32_t k_lower2, const uint32_t k_upper2,
 			 typename HashMap1,
 	         typename HashMap2,
-	         typename F,
-	         typename Matrix>
-#if __cplusplus > 201709L
-	requires HashMapAble<HashMap1> &&
-	 		 HashMapAble<HashMap2>
-#endif
-	static void twolevel_streamjoin_on_iT_hashmap_v2(List &out,
-	                                                 const HashMap1 &hmiL,
-											 		 const List &L1,
-													 const List &L2,
-	                                                 const HashMap2 &hmL2,
-	                                                 const LabelType &target,
-	                                                 const LabelType &iT,
-	                                                 const Matrix &A) {
-		static_assert(k_lower1 < k_upper1);
-		static_assert(k_lower2 < k_upper2);
-		static_assert(k_lower1 < k_upper1);
-		(void)k_lower2 target
-	/// \param iT
-	template<const uint32_t k_lower1, const uint32_t k_upper1,
-			 const uint32_t k_lower2, const uint32_t k_upper2,
-			 typename HashMap1,
-	         typename HashMap2,
-	         typename F,
 	         typename Matrix>
 #if __cplusplus > 201709L
 	requires HashMapAble<HashMap1> &&
@@ -1063,57 +1039,6 @@ public:
 			}
 		}
 	};
-		using LoadType1 = typename HashMap1::load_type;
-		using LoadType2 = typename HashMap2::load_type;
-		constexpr uint32_t filter = -1u;
-		constexpr bool sub = false;
-
-		ElementType te1, te2;
-		LabelType t1, t2;
-		LoadType1 load1 = 0;
-		LoadType2 load2 = 0;
-
-		for (size_t k = 0; k < L1.load(); ++k) {
-			LabelType::sub(t1, iT, L1[k].label);
-
-			const size_t s2 = hmL2.find(t1.value(), load2);
-			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
-				const size_t b1 = hmL2[l2];
-				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
-				ASSERT(L2[b1].is_correct(A));
-				ASSERT(b1 < L2.load());
-
-				const LabelType t3 = L2[b1].label;
-				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, t3);
-
-				ElementType::add(te1, L1[k], L2[b1]);
-				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
-				ASSERT(te1.is_correct(A));
-
-				// NOTE: its shifted
-				const size_t s1 = hmiL.find(t2.value(), load1);
-				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
-					const size_t a1 = hmiL[l1].first;
-					const size_t a2 = hmiL[l1].second;
-					ASSERT(a1 < L1.load());
-					ASSERT(a2 < L2.load());
-					ElementType::add(te2, L1[a1], L2[a2]);
-
-					ASSERT(te1.is_correct(A));
-					ASSERT(te2.is_correct(A));
-
-					out.template add_and_append
-							<k_lower1, k_upper2, filter, sub>
-							(te1, te2);
-
-					const size_t b2 = out.load() - 1;
-					// TODO: the problem is that due to reps the simple addition doesnt hold
-					out[b2].recalculate_label(A);
-				}
-			}
-		}
-	}
 
 	/// TODO bild
 	/// NOTE: v2 means that the `label` of the output elements in `out`
