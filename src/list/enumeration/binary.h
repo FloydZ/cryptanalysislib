@@ -178,6 +178,10 @@ public:
 
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);
+
+		if (sL1) { L1->set_load(list_size); }
+		if (sL2) { L2->set_load(list_size); }
+
 		return false;
 	}
 };
@@ -355,6 +359,10 @@ public:
 
 		// in this case reset everything, so its recallable
 		chase.reset();
+
+		if (sL1) { L1->set_load(list_size); }
+		if (sL2) { L2->set_load(list_size); }
+
 		return false;
 	}
 };
@@ -772,6 +780,10 @@ public:
 
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);
+		L1->set_load(list_size);
+		L2->set_load(list_size);
+		L3->set_load(list_size);
+		L4->set_load(list_size);
 		return false;
 	}
 
@@ -784,8 +796,8 @@ public:
 			      (L1, L2, L3, L4, tid, nullptr, nullptr, nullptr);
 	}
 
-	/// TODO
-	constexpr static void info() {
+	/// TODO put everywhere
+	constexpr static void info() noexcept {
 		std::cout << " { name: \"BinarySinglePartialSingleEnumerator\""
 				  << ", n: " << n
 				  << ", mitm_w: " << mitm_w

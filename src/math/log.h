@@ -97,7 +97,11 @@ namespace cryptanalysislib::math {
 /// \return ceil(log2(n)), only useful if you need the number of bits needed
 __device__ __host__
 [[nodiscard]] constexpr static inline uint64_t ceil_log2(uint64_t n) noexcept {
-	return n <= 1 ? 0 : 1 + ceil_log2((n + 1) / 2);
+	if constexpr (std::is_constant_evaluated()) {
+		return n <= 1 ? 0 : 1 + ceil_log2((n + 1) / 2);
+	} else {
+		return std::log2(n );
+	}
 }
 
 ///
