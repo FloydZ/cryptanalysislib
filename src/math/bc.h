@@ -43,7 +43,7 @@ __device__ __host__ constexpr inline uint64_t binom(const uint64_t nn,
 constexpr uint64_t sum_bc(const uint64_t nn,
                           const uint64_t kk) noexcept {
 	uint64_t sum = 0;
-	for (uint64_t i = 1; i <= kk; ++i) {
+	for (uint64_t i = 0; i <= kk; ++i) {
 		sum += bc(nn, i);
 	}
 
@@ -275,7 +275,8 @@ constexpr auto precomute_max_bc_table() {
 /// \param a input numbers in a avx register
 /// \param rows output
 template<const uint32_t n, const uint32_t p>
-inline void biject_simd(uint32x8_t a, uint32x8_t rows[p]) noexcept {
+inline void biject_simd(uint32x8_t a,
+                        uint32x8_t rows[p]) noexcept {
 	static_assert(p < 3, "not implemented");
 
 	const uint32x8_t one = uint32x8_t::set1(1u);
@@ -305,7 +306,8 @@ inline void biject_simd(uint32x8_t a, uint32x8_t rows[p]) noexcept {
 }
 
 template<const uint32_t n, const uint32_t p>
-inline void biject_simd_lookup(uint32x8_t a, uint32x8_t rows[p]) noexcept {
+inline void biject_simd_lookup(uint32x8_t a,
+                               uint32x8_t rows[p]) noexcept {
 	static_assert(p < 3, "not implemented");
 	using T = uint32_t;
 	static std::array<std::array<T, n>, p> lookup = precomute_max_bc_table<T, n, p>();
@@ -332,4 +334,48 @@ inline void biject_simd_lookup(uint32x8_t a, uint32x8_t rows[p]) noexcept {
 		rows[1] = uint32x8_t::template gather<4>(lookup[0].data(), a);
 		return;
 	}
+}
+
+/// TODO write second function which takes as an argument the
+/// 	a up length w vector with the bit positions
+/// impl: https://eprint.iacr.org/2023/948.pdf
+///	 the chi function
+/// NOTE: make sure that s != 0;
+/// computes given a weight <= w vector the position within the
+/// the position within [0, |W^n_w|)
+template<typename T,
+         const uint32_t n,
+         const uint32_t w>
+static inline size_t reverse_biject(const T s) noexcept {
+    size_t ret = 0;
+    constexpr uint32_t t = (sizeof(T)*8) -1;
+
+    if (s == 0) [[unlikely]] { return 0; }
+
+    alignas(64) static T L[w][t] = {{0}};
+    if (L[0][0] == 0) [[unlikely]] {
+        for (uint32_t y = 0; y < w; y++) {
+            for (uint32_t x = 0; x < t; x++) {
+                if (x >= (y+1)) {
+					L[y][x] = sum_bc(x, y+1);
+                } else {
+					L[y][x] = 1u << x;
+                }
+            }
+        }
+    }
+
+	T ss = s;
+    const uint32_t p = cryptanalysislib::popcount::popcount(s);
+    ASSERT(p <= w);
+
+    for (uint32_t i = 0; i < p; i++) {
+		// like popcount make an own function
+        const uint32_t s0 = t - __builtin_clzll(ss);
+        ss ^= 1ul << s0;
+		ret += L[w-i-1][s0];
+    }
+	ASSERT(ss == 0);
+
+    return ret;
 }
