@@ -1,6 +1,7 @@
 // NLZM 1.03 64-bit - Written by Nauful
 // Released into the public domain.
 // Please drop a comment if you find this useful.
+// org code: https://github.com/nauful/NLZM/tree/master
 
 #ifndef _CRT_DISABLE_PERFCRIT_LOCKS
 # define _CRT_DISABLE_PERFCRIT_LOCKS
