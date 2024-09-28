@@ -12,6 +12,21 @@
 #define SCHED_BASE_MEMORY_BARRIER_ACQUIRE() __asm__ __volatile__("" : : : "memory")
 #define SCHED_BASE_MEMORY_BARRIER_RELEASE() __asm__ __volatile__("" : : : "memory")
 
+
+/**
+ * @brief Simple concept for the Lockable and Basic Lockable types as defined by the C++
+ * standard.
+ * @details See https://en.cppreference.com/w/cpp/named_req/Lockable and
+ * https://en.cppreference.com/w/cpp/named_req/BasicLockable for details.
+ */
+template <typename Lock>
+concept is_lockable = requires(Lock&& lock) {
+	lock.lock();
+	lock.unlock();
+	{ lock.try_lock() } -> std::convertible_to<bool>;
+};
+
+
 /**
  * An atomic fetch-and-add.
  */

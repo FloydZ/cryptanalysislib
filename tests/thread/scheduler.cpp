@@ -591,7 +591,8 @@ TEST(Scheduler, clear_task_same_task) {
 		/* Clear thread_pool when barrier is hit, this must not throw */
 		auto clear_func = [&pool]() noexcept {
 			try {
-				pool.clear_tasks();
+				const auto t = pool.clear_tasks();
+                ASSERT(t);
 			} catch (...) {
 			}
 		};
@@ -661,7 +662,7 @@ TEST(Thread, Simple) {
 	std::barrier barrier(3);
 	std::atomic<size_t> removed_count{0};
 
-	dp::thread_safe_queue<int> queue;
+	thread_safe_queue<int> queue;
 	{
 		std::jthread t1([&queue, &barrier, &removed_count] {
 			queue.push_front(1);
