@@ -3,8 +3,15 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdlib>
+#include <cstdio>
 #include <cstdint>
 #include <type_traits>
+
+#include "algorithm/rotate.h"
+
+// floor( ( (1+sqrt(5))/2 ) * 2**64 MOD 2**64)
+#define GOLDEN_GAMMA UINT64_C(0x9E3779B97F4A7C15)
 
 namespace cryptanalysislib {
 	/// TODO write c++ random function, like class abstraction
@@ -78,7 +85,7 @@ static inline void xorshf96_random_data(uint8_t *buf,
 }
 
 ///
-template<typename T>
+template<typename T=uint64_t>
 #if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T>
 #endif
@@ -106,14 +113,6 @@ template<typename T>
 /// NOTE: the parameters (a=24, b=16, b=37) of this version give slightly better
 /// results in our test than the 2016 version (a=55, b=14, c=36).
 
-/// left rotate
-/// \param x value to rotate
-/// \param k how much to rotate
-/// \return x <<< k
-[[nodiscard]] constexpr static inline uint64_t rotl(const uint64_t x,
-		                                            const uint32_t k) noexcept {
-	return (x << k) | (x >> (64 - k));
-}
 
 /// "randomly" choosen start values to the xorshf128 prng
 static uint64_t __xorshf128_S0 = 2837468099234763274;
@@ -193,6 +192,93 @@ static inline bool xorshf128_seed() noexcept {
 
 	return true;
 }
+
+
+
+/// pcg64 
+/// SCR: https://github.com/lemire/batched_random/blob/main/src/pcg64.h
+///     based on original code by M. O'Neill
+///     modified by Floyd to match a C++ env.
+
+/// TODO move this macro into uint128_t
+#define PCG_128BIT_CONSTANT(high, low) ((((__uint128_t)high) << 64) + low)
+#define PCG_DEFAULT_MULTIPLIER_128                                             \
+  PCG_128BIT_CONSTANT(2549297995355413924ULL, 4865540595714422341ULL)
+#define PCG_DEFAULT_INCREMENT_128                                              \
+  PCG_128BIT_CONSTANT(6364136223846793005ULL, 1442695040888963407ULL)
+
+
+static __uint128_t pcg_state_setseq_128_state;
+static __uint128_t pcg_state_setseq_128_inc;
+
+constexpr static inline void pcg_setseq_128_step_r() noexcept {
+    pcg_state_setseq_128_state = pcg_state_setseq_128_state*PCG_DEFAULT_MULTIPLIER_128 
+                                + pcg_state_setseq_128_inc;
+}
+
+inline void pcg_setseq_128_srandom_r(__uint128_t initstate,
+                                     __uint128_t initseq) {
+  pcg_state_setseq_128_state = 0U;
+  pcg_state_setseq_128_inc = (initseq << 1u) | 1u;
+  pcg_setseq_128_step_r();
+  pcg_state_setseq_128_state += initstate;
+  pcg_setseq_128_step_r();
+}
+
+///
+[[nodiscard]] constexpr static inline uint64_t pcg_output_xsl_rr_128_64() noexcept {
+  return rotr(((uint64_t)(pcg_state_setseq_128_state >> 64u)) ^ (uint64_t)pcg_state_setseq_128_state, 
+              (unsigned int)(pcg_state_setseq_128_state >> 122u));
+}
+
+/// TODO benchmark against all other generators
+[[nodiscard]] constexpr static inline uint64_t pcg64_random_data() noexcept {
+  pcg_setseq_128_step_r();
+  return pcg_output_xsl_rr_128_64();
+}
+
+
+/// splitmix64 
+[[nodiscard]] constexpr static inline uint64_t splitmix64_stateless(const uint64_t index) noexcept {
+    uint64_t z = (index * UINT64_C(0x9E3779B97F4A7C15));
+    z = (z ^ (z >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
+    z = (z ^ (z >> 27)) * UINT64_C(0x94D049BB133111EB);
+    return z ^ (z >> 31);
+}
+
+[[nodiscard]] constexpr static inline uint64_t splitmix64_r(uint64_t *seed) noexcept {
+    uint64_t z = (*seed += GOLDEN_GAMMA);
+    // David Stafford's Mix13 for MurmurHash3's 64-bit finalizer
+    z = (z ^ (z >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
+    z = (z ^ (z >> 27)) * UINT64_C(0x94D049BB133111EB);
+    return z ^ (z >> 31);
+}
+
+// returns the value of splitmix64 "offset" steps from seed
+[[nodiscard]] constexpr static inline uint64_t splitmix64_stateless_offset(uint64_t seed,
+                                                                           const uint64_t offset) noexcept {
+    seed += offset * GOLDEN_GAMMA;
+    return splitmix64_r(&seed);
+}
+
+static __uint128_t g_lehmer64_state = UINT64_C(0x853c49e6748fea9b);
+
+///
+/// D. H. Lehmer, Mathematical methods in large-scale computing units.
+/// Proceedings of a Second Symposium on Large Scale Digital Calculating
+/// Machinery;
+/// Annals of the Computation Laboratory, Harvard Univ. 26 (1951), pp. 141-146.
+///
+constexpr static inline void lehmer64_seed(const uint64_t seed) noexcept {
+    g_lehmer64_state = (((__uint128_t)splitmix64_stateless(seed)) << 64) +
+                                      splitmix64_stateless(seed + 1);
+}
+
+[[nodiscard]] constexpr static inline uint64_t lehmer64_random_data() noexcept {
+    g_lehmer64_state *= UINT64_C(0xda942042e4dd58b5);
+    return (uint64_t)(g_lehmer64_state >> 64);
+}
+
 } // namespace random::internal
 
 
@@ -205,7 +291,7 @@ static inline void rng(uint8_t *buf,
 	random::internal::xorshf96_random_data(buf, n);
 }
 
-// TODO second rng_seed function for/deb/urandom
+// TODO second rng_seed function for /dev/urandom
 /// seed the rng instance
 /// \param seed
 constexpr static inline void rng_seed(const uint64_t seed) noexcept {
