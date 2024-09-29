@@ -15,6 +15,7 @@ int test(int a) {
 
 TEST(Heartbeat, Simple) {
 	HeartbeatScheduler s;
+	s.call<int>(test, 11);
 	s.call<int>(test, 10);
 }
 
