@@ -24,6 +24,10 @@
 
 #include "thread/scheduler.h"
 
+/// TODO: translate the spice binarytre example
+/// translate the worker container into an array in insert and insert them,
+/// 	at the correct place, so we do not need this strains semaphore
+/// TODO use this future thingy, probably want to switch to std::future
 namespace cryptanalysislib {
 	class HeartbeatSchedulerConfig {
 	public:

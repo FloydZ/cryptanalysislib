@@ -187,10 +187,12 @@ set(LINK_TEST_FLAGS
 	GTest::gtest_main 
 	Threads::Threads 
 	OpenMP::OpenMP_CXX
+	reflectcpp
 )
 
 set(LINK_BENCH_FLAGS 
-	benchmark::benchmark 
+	benchmark::benchmark
+	reflectcpp
 )
 
 if (LINKER_SUPPORTS_ATOMIC)
