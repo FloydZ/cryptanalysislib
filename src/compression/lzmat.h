@@ -218,7 +218,7 @@ int lzmat_encode(uint8_t *pbOut, uint32_t *pcbOut,
 		uint32_t store_dist;
 		uint16_t hash_Idx;
 
-		pInp = pbIn + inPtr;
+		pInp = (uint8_t *)pbIn + inPtr;
 		pITmp = pInp - 1;
 		if ((cbIn - inPtr) >= 4 && *(uint32_t *) pInp == *(uint32_t *) pITmp) {
 			uint32_t in_Reminder = cbIn - 4 - inPtr;
@@ -597,7 +597,7 @@ int lzmat_decode(uint8_t *pbOut, uint32_t *pcbOut,
 	}
 
 	*pcbOut = outPos;
-	return LZMAT_STATUS_OK;
+	return 0;
 }
 
 #else //!LZMAT_SAVE
