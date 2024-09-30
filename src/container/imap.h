@@ -10,7 +10,6 @@
 
 using namespace cryptanalysislib::popcount;
    
-// TODO 
 // TODO all those structs iDownloadsnto the imap container
 // TODO iterators
 // TODO remove? use __uint128?
