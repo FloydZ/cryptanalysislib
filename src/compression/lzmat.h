@@ -256,13 +256,17 @@ int lzmat_encode(uint8_t *pbOut, uint32_t *pcbOut,
 				if (*(uint16_t *) (pITmp + dict_ptr) == cmp_val) {
 					uint32_t in_Reminder, new_dist, match_found = 0;
 					uint8_t *pIdxPtr, *pCurPtr;
-					pIdxPtr = (uint8_t *)pbIn + dict_ptr;// + sizeof(uint16_t);
-					pCurPtr = pInp;           // + sizeof(uint16_t);
+					pIdxPtr = (uint8_t *)pbIn + dict_ptr;   // + sizeof(uint16_t);
+					pCurPtr = pInp;                         // + sizeof(uint16_t);
 					in_Reminder = cbIn - inPtr;
-					if (in_Reminder > LZMAT_MAX_2BYTE_CNT)
+					if (in_Reminder > LZMAT_MAX_2BYTE_CNT) {
 						in_Reminder = LZMAT_MAX_2BYTE_CNT;
-					while (in_Reminder-- && *pIdxPtr++ == *pCurPtr++)
+                    }
+
+					while (in_Reminder-- && *pIdxPtr++ == *pCurPtr++) {
 						match_found++;
+                    }
+
 					new_dist = inPtr - dict_ptr - 1;
 					if (MP_CMP_DISTANCE(inPtr, Gamma_dist, new_dist, match_cnt, match_found)) {
 						Gamma_dist = new_dist;
