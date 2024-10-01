@@ -17,11 +17,20 @@ TEST(lzmat, simple) {
 	uint8_t *t1 = (uint8_t *)malloc(s);
 	uint8_t *t2 = (uint8_t *)malloc(s);
 	uint8_t *t3 = (uint8_t *)malloc(s);
-    
-    uint32_t out_size, in_size;
-	lzmat_encode(t2, &out_size, t1, s, nullptr);
+	for (size_t i = 0; i < s; ++i) {
+		t1[i] = 1;
+	}
+
+	uint32_t out_size=MAX_LZMAT_ENCODED_SIZE(s), in_size=s;
+	auto f = lzmat_encode(t2, &out_size, t1, s);
+	ASSERT_EQ(f, 0);
 	lzmat_decode(t3, &in_size, t2, out_size);
-	printf("Compressed length: (%lu): %.02f%%\n", out_size, (float)out_size/sizeof(s)*100);
+	printf("Compressed length: (%u): %.02f%%\n", out_size, (float)out_size/sizeof(s)*100);
+	for (size_t i = 0; i < s; ++i) {
+		ASSERT_EQ(t3[i], t1[i]);
+	}
+
+	free(t1);free(t2);free(t3);
 }
 
 int main(int argc, char **argv) {

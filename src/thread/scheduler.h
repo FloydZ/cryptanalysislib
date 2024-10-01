@@ -116,52 +116,52 @@ namespace cryptanalysislib {
 
 		/// \return page reclaims (soft page faults)
 		[[nodiscard]] constexpr inline uint64_t minflt() const noexcept {
-			return data.ru_maxrss;
+			return data.ru_minflt;
 		}
 
 		/// \return page faults (hard page faults )
 		[[nodiscard]] constexpr inline uint64_t majflt() const noexcept {
-			return data.ru_maxrss;
+			return data.ru_majflt;
 		}
 
 		/// \return number of swaps
-		[[nodiscard]] constexpr inline uint64_t nswaps() const noexcept {
-			return data.ru_maxrss;
+		[[nodiscard]] constexpr inline uint64_t nswap() const noexcept {
+			return data.ru_nswap;
 		}
 
 		/// \return block input operations
 		[[nodiscard]] constexpr inline uint64_t inblock() const noexcept {
-			return data.ru_maxrss;
+			return data.ru_inblock;
 		}
 
 		/// \return block output operations
-		[[nodiscard]] constexpr inline uint64_t oublock() const noexcept {
-			return data.ru_maxrss;
+		[[nodiscard]] constexpr inline uint64_t outblock() const noexcept {
+			return data.ru_oublock;
 		}
 
 		/// \return IPC messages sent
 		[[nodiscard]] constexpr inline uint64_t msgsnd() const noexcept {
-			return data.ru_maxrss;
+			return data.ru_msgsnd;
 		}
 
 		/// \return IPC messages received
 		[[nodiscard]] constexpr inline uint64_t msgrcv() const noexcept {
-			return data.ru_maxrss;
+			return data.ru_msgrcv;
 		}
 
 		/// \return signal received
 		[[nodiscard]] constexpr inline uint64_t nsignals() const noexcept {
-			return data.ru_maxrss;
+			return data.ru_nsignals;
 		}
 
 		/// \return voluntary context switches
 		[[nodiscard]] constexpr inline uint64_t nvcsw() const noexcept {
-			return data.ru_maxrss;
+			return data.ru_nvcsw;
 		}
 
 		/// \return involuntary context switches
 		[[nodiscard]] constexpr inline uint64_t nivcsw() const noexcept {
-			return data.ru_maxrss;
+			return data.ru_nivcsw;
 		}
 
 		/// \return user time in microseconds
@@ -200,8 +200,6 @@ namespace cryptanalysislib {
 		int sockfd;
 		std::thread server_thread;
 	public:
-
-		// SchedulerPerformanceManager() noexcept = default;
 
 		/// either create a server or client instance. The client is sending data.
 		/// The server is receiving data.
@@ -251,9 +249,7 @@ namespace cryptanalysislib {
 						std::cout << "recv: " << std::endl;
 						std::cout << buf << std::endl;
 
-						// const auto r = rfl::json::read<Shapes>(buf).value();
-						// rfl::visit(handle_shapes, r);
-						// write(newsockfd, "I got your message\n", 19);
+						schedulerPerformance = rfl::json::read<SchedulerPerformance>(buf).value();
 					}
 
 					std::cout << "server closing" << std::endl;
@@ -271,6 +267,30 @@ namespace cryptanalysislib {
 		~SchedulerPerformanceManager() {
 			std::cout << "closing socket" << std::endl;
 			close(sockfd);
+		}
+
+		void print() noexcept {
+			std::cout << "#Active Threads: " << schedulerPerformance.number_active_threads << std::endl;
+			std::cout << "#Enqueud Tasks: " << schedulerPerformance.number_enqueud_tasks << std::endl;
+			for (const auto s : schedulerPerformance.schedulerThreadLoad) {
+				std::cout << "UserTime: " << s.usertime() << std::endl;
+				std::cout << "SystemTime: " << s.systime() << std::endl;
+				std::cout << "Max Resident Set Size: " << s.maxrss() << std::endl;
+				std::cout << "Integral Shared Memory Size: " << s.ixrss() << std::endl;
+				std::cout << "Integral Unshared Memory Size: " << s.idrss() << std::endl;
+				std::cout << "Integral Unshared Stack Size: " << s.isrss() << std::endl;
+				std::cout << "Soft Page Faults: " << s.minflt() << std::endl;
+				std::cout << "Hard Page Faults: " << s.majflt() << std::endl;
+				std::cout << "#Swaps: " << s.nswap() << std::endl;
+				std::cout << "#Block Input Operations: " << s.inblock() << std::endl;
+				std::cout << "#Block Output Operations: " << s.outblock() << std::endl;
+				std::cout << "#Message Sent: " << s.msgsnd() << std::endl;
+				std::cout << "#Message Received: " << s.msgrcv() << std::endl;
+				std::cout << "#Signals Received: " << s.nsignals() << std::endl;
+				std::cout << "Voluntary Context Switches: " << s.nvcsw() << std::endl;
+				std::cout << "Involuntary Context Switches:: " << s.nivcsw() << std::endl;
+				std::cout << std::endl;
+			}
 		}
 
 		/// \param nr_threads
@@ -324,9 +344,9 @@ namespace cryptanalysislib {
 		}
 	};
 
-	/// TODO config
-	/// TODO implement pause
-	/// 	std::vector as queue
+	/// \tparam ThreadType
+	/// \tparam FunctionType
+	/// \tparam config
 	template <typename ThreadType = std::jthread,
 	          typename FunctionType = details::default_function_type,
 	          const SchedulerConfig &config=schedulerConfig>
@@ -342,6 +362,10 @@ namespace cryptanalysislib {
 
 	public:
 
+		///
+		/// \tparam InitializationFunction
+		/// \param number_of_threads
+		/// \param init
 		template <typename InitializationFunction = std::function<void(std::size_t)>>
 		    requires std::invocable<InitializationFunction, std::size_t> &&
 		             std::is_same_v<void, std::invoke_result_t<InitializationFunction, std::size_t>>
