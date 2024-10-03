@@ -26,6 +26,58 @@ TEST(argmin, uint32_t) {
 	delete[] d;
 }
 
+TEST(argmin, simd_uint32_t) {
+	constexpr size_t s = 100;
+	auto d = new uint32_t [s];
+	for (size_t i = 0; i < s; ++i) { d[i] = i; }
+
+	const auto t = argmin_simd_u32(d, s);
+	ASSERT_EQ(t, 0);
+
+
+	for (size_t i = 0; i < s; ++i) { d[i] = rng(1, 38475983); }
+    const size_t pos = rng(s);
+    d[pos] = 0;
+    const size_t pos2 = argmin_simd_u32(d, s);
+	ASSERT_EQ(pos, pos2);
+
+	delete[] d;
+}
+
+TEST(argmin, simd_uint32_t_bl16) {
+	constexpr size_t s = 100;
+	auto d = new uint32_t [s];
+	for (size_t i = 0; i < s; ++i) { d[i] = i; }
+
+	const auto t = argmin_simd_u32_bl16(d, s);
+	ASSERT_EQ(t, 0);
+
+	for (size_t i = 0; i < s; ++i) { d[i] = rng(1, 38475983); }
+    const size_t pos = rng(s);
+    d[pos] = 0;
+    const size_t pos2 = argmin_simd_u32(d, s);
+	ASSERT_EQ(pos, pos2);
+
+	delete[] d;
+}
+
+TEST(argmin, simd_uint32_t_bl32) {
+	constexpr size_t s = 100;
+	auto d = new uint32_t [s];
+	for (size_t i = 0; i < s; ++i) { d[i] = i; }
+
+	const auto t = argmin_simd_u32_bl32(d, s);
+	ASSERT_EQ(t, 0);
+
+	for (size_t i = 0; i < s; ++i) { d[i] = rng(1, 38475983); }
+    const size_t pos = rng(s);
+    d[pos] = 0;
+    const size_t pos2 = argmin_simd_u32(d, s);
+	ASSERT_EQ(pos, pos2);
+
+	delete[] d;
+}
+
 #ifdef USE_AVX2
 TEST(argmin, avx2_int32_t) {
 	constexpr size_t s = 100;

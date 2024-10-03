@@ -2074,6 +2074,17 @@ struct uint32x8_t {
 #endif
 		return ret;
 	}
+
+
+	/// TODO implement everywhere
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t min(const uint32x8_t a,
+                                                      const uint32x8_t b) noexcept { 
+        uint32x8_t c;
+        c.v256 = _mm256_min_epi32(a.v256, b.v256);
+        return c;
+    }
 };
 
 struct uint64x4_t {
