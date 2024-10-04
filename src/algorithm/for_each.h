@@ -24,7 +24,11 @@ namespace cryptanalysislib {
 		requires std::is_execution_policy_v<std::remove_cvref_t<std::remove_cvref_t<ExecutionPolicy>>> &&
 		         std::random_access_iterator<RandIt>
 #endif
-	void for_each(ExecutionPolicy &&policy, RandIt first, RandIt last, UnaryFunction f) {
+	void for_each(ExecutionPolicy &&policy,
+	              RandIt first,
+	              RandIt last,
+	              UnaryFunction f) noexcept {
+		// TODO double check
 		// Using a lambda instead of just calling the
 		// non-policy std::for_each because it appears to
 		// result in a smaller binary.

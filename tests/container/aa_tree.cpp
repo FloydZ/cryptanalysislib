@@ -14,7 +14,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using T = BinaryContainer<100, uint64_t>;
+using T = FqPackedVector<100, uint64_t>;
 using AA = AATreeSet<uint64_t>;
 TEST(AATree, first) {
 	// auto t = AA{};

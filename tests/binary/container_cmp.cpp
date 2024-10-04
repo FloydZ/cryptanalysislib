@@ -12,8 +12,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using BinaryContainerTest = BinaryContainer<n>;
-using BinaryContainerTest2 = BinaryContainer<10*n>;
+using BinaryContainerTest = FqPackedVector<n>;
+using BinaryContainerTest2 = FqPackedVector<10*n>;
 
 // Allow the tests only for smaller bit length
 #if defined(NNN) && NNN <= 64

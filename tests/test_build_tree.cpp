@@ -31,8 +31,8 @@ TEST(TreeTest, join2lists) {
 	size_t basesize = 9;
 	Matrix A; A.identity();
 
-	const std::vector<uint64_t> ta{{0, n}};
-	uint64_t k_lower, k_higher;
+	const std::vector<uint32_t> ta{{0, n}};
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, 0, ta);
 
 	List out{1u<<basesize}, l1{0}, l2{0};
@@ -66,7 +66,7 @@ TEST(TreeTest, sort_level_with_target) {
 	size_t basesize = 8;
 	Matrix A; A.identity();
 
-	const std::vector<uint64_t> ta{{0, n}};
+	const std::vector<uint32_t> ta{{0, n}};
 
 	List out1{1u<<basesize}, out2{1u<<basesize}, l1{0}, l2{0};
 	l1.random(1u << basesize, A);
@@ -96,7 +96,7 @@ TEST(TreeTest, join2lists_on_iT) {
 	size_t basesize = 8;
 	Matrix A; A.identity();
 
-	const std::vector<uint64_t> ta{{0, n}};
+	const std::vector<uint32_t> ta{{0, n}};
 
 	List out1{1u<<basesize}, out2{1u<<basesize}, l1{0}, l2{0};
 	l1.random(1u << basesize, A);
@@ -139,8 +139,8 @@ TEST(TreeTest, join4lists) {
 	Matrix A;
 	A.identity();
 
-	const std::vector<uint64_t> ta{{0, n/2, n}};
-	uint64_t k_lower=0, k_higher=0;
+	const std::vector<uint32_t> ta{{0, n/2, n}};
+	uint32_t k_lower=0, k_higher=0;
 
 	List out{1u<<12}, l1{0}, l2{0}, l3{0}, l4{0};
 	l1.random(1u << basesize, A);
@@ -178,8 +178,8 @@ TEST(TreeTest, join4lists_with2lists) {
 	Matrix A;
 	A.identity();
 
-	const std::vector<uint64_t> ta{{0, n/2, n}};
-	uint64_t k_lower=0, k_higher=0;
+	const std::vector<uint32_t> ta{{0, n/2, n}};
+	uint32_t k_lower=0, k_higher=0;
 
 	List out{1u<<basesize}, l1{0}, l2{0}, l3{0}, l4{0};
 	l1.random(1u << basesize, A);

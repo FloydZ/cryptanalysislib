@@ -119,7 +119,7 @@ The following things are implemented:
 - [SIMD](./src/simd/README.md)
 
 A lot of different data containers are implemented:
-- `BinaryContainer<T, len>` is able to hold `len` bits in `len/(sizeof(T)*8)` 
+- `FqPackedVector<T, len>` is able to hold `len` bits in `len/(sizeof(T)*8)` 
     limbs of type `T`. Additionally, all important `add,sub,compare` functions 
     are implemented
 - `kAryType<T, T2, q>` represents a value `mod q`. The second type `T2` is 

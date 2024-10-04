@@ -19,8 +19,8 @@ constexpr uint32_t G_n = 20;
 
 
 TEST(Internals, Size) {
-	using BinaryValue     = BinaryContainer<G_k + G_l>;
-	using BinaryLabel     = BinaryContainer<G_n - G_k>;
+	using BinaryValue     = FqPackedVector<G_k + G_l>;
+	using BinaryLabel     = FqPackedVector<G_n - G_k>;
 	using BinaryMatrix    = FqMatrix<uint64_t, G_k + G_l, G_n-G_k, 2>;
 	using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 
@@ -28,8 +28,8 @@ TEST(Internals, Size) {
 	BinaryValue v;
 	BinaryLabel l;
 
-	BinaryContainer<G_k + G_l> c1;
-	BinaryContainer<G_n - G_k> c2;
+	FqPackedVector<G_k + G_l> c1;
+	FqPackedVector<G_n - G_k> c2;
 
 	std::cout << "k+l: " << G_k + G_l << "\n";
 	std::cout << "n+k: " << G_n - G_k << "\n";

@@ -10,7 +10,7 @@
 constexpr static uint64_t sssize = 63;
 constexpr static uint64_t k_lower = 30;
 constexpr static uint64_t k_higher = sssize;
-using T = BinaryContainer<sssize>;
+using T = FqPackedVector<sssize>;
 
 constexpr uint64_t SIZE_LIST = 1ull << 20;
 

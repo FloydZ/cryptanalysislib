@@ -16,9 +16,9 @@ constexpr size_t LS = 1u << 16u;
 constexpr uint32_t k_lower = 0,
 		k_upper = n;
 
-using Binary 		= BinaryContainer<n>;
+using Binary 		= FqPackedVector<n>;
 using FqVector_ 	= kAryContainer_T<uint8_t, n, q>;
-using FqPackedVector= kAryPackedContainer_T<uint64_t, n, q>;
+using FqPackedVector= FqPackedVector<uint64_t, n, q>;
 using Fq 			= kAry_Type_T<q>;
 
 using Matrix 		= FqMatrix<uint8_t, n, n, q>;
@@ -26,8 +26,8 @@ using Value 		= Binary;
 
 using BinaryElement 		= Element_T<Value, Binary, Matrix>;
 using FqVectorElement 		= Element_T<Value, FqVector_, Matrix>;
-using FqPackedVectorElement	= Element_T<Value, FqPackedVector, Matrix>;
-using FqElement				= Element_T<Value, FqPackedVector, Matrix>;
+using FqPackedVectorElement	= Element_T<Value, FqPackedVector_Meta, Matrix>;
+using FqElement				= Element_T<Value, FqPackedVector_Meta, Matrix>;
 
 using BinaryList 			= MetaListT<BinaryElement>;
 using FqVectorList 			= MetaListT<FqVectorElement>;

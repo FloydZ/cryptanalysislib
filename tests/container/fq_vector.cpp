@@ -10,7 +10,7 @@ using ::testing::InitGoogleTest;
 using ::testing::Test;
 
 TEST(test, simple) {
-	using K3 = kAryPackedContainer_T<uint64_t, 100, 3>;
+	using K3 = FqPackedVector<uint64_t, 100, 3>;
 	// using K5 = kAryPackedContainer_T<uint64_t, 100, 5>;
 	auto t31 = K3{};
 	auto t32 = K3{};

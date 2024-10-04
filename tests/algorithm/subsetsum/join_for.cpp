@@ -22,7 +22,7 @@ constexpr uint32_t q    = (1ul << n);
 
 using T 			= uint64_t;
 //using Value     	= kAryContainer_T<T, n, 2>;
-using Value     	= BinaryContainer<n>;
+using Value     	= FqPackedVector<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;
@@ -40,7 +40,7 @@ TEST(SubSetSum, Simple) {
 
 	// // log size
 	constexpr size_t list_size = 10;
-	static std::vector<uint64_t> tbl{{0, n}};
+	static std::vector<uint32_t> tbl{{0, n}};
 	Tree t{1, A, list_size, tbl, __level_filter_array};
 
 	t[0].random(1u << list_size, A);
@@ -53,7 +53,7 @@ TEST(SubSetSum, Simple) {
 
 TEST(SubSetSum, JoinForLevelTwoPreparelists) {
 	const uint32_t d = 2;
-	static std::vector<uint64_t> tbl{{0, 5, 10, n}};
+	static std::vector<uint32_t> tbl{{0, 5, 10, n}};
 	Matrix A; A.random();
 
 	Label target; target.zero();
@@ -86,7 +86,7 @@ TEST(SubSetSum, JoinForLevelTwoPreparelists) {
 	// adjust last intermediate target (which was the full target) of each level,
 	// such that targets of each level add up the true target.
 	for (uint32_t i = 0; i < d - 1; ++i) {
-		uint64_t k_lower, k_higher;
+		uint32_t k_lower, k_higher;
 		const uint32_t limit = intermediat_level_limit(i);
 		for (uint32_t j = 0; j < limit; ++j) {
 			translate_level(&k_lower, &k_higher, -1, tbl);
@@ -125,7 +125,7 @@ TEST(SubSetSum, JoinForLevelTwo) {
 	Matrix A;
 	A.fill(0);
 
-	static std::vector<uint64_t> tbl{{0, 5, 10, n}};
+	static std::vector<uint32_t> tbl{{0, 5, 10, n}};
 	Tree t{2, A, 10, tbl, __level_filter_array};
 
 	t[0].random(1u << 2u, A);
@@ -138,7 +138,7 @@ TEST(SubSetSum, JoinForLevelTwo) {
 TEST(SubSetSum, JoinForLevelThree) {
 	Matrix A;
 	A.fill(0);
-	static std::vector<uint64_t> tbl{{0, 5, 10, n}};
+	static std::vector<uint32_t> tbl{{0, 5, 10, n}};
 	Tree t{3, A, 10, tbl, __level_filter_array};
 
 	t[0].random(1u << 2u, A);

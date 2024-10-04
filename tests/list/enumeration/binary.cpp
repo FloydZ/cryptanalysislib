@@ -4,6 +4,7 @@
 
 #include "combination/chase.h"
 #include "container/hashmap.h"
+#include "container/binary_packed_vector.h"
 #include "hash/simple.h"
 #include "helper.h"
 #include "list/enumeration/enumeration.h"
@@ -25,8 +26,11 @@ constexpr uint32_t w = 3;
 constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();
 
 using T = uint64_t;
-using Value = kAryPackedContainer_T<T, n, q>;
-using Label = kAryPackedContainer_T<T, n, q>;
+// TODO doesnt work
+// using Value = kAryPackedContainer_T<T, n, q>;
+// using Label = kAryPackedContainer_T<T, n, q>;
+using Value = FqPackedVector<n, T>;
+using Label = FqPackedVector<n, T>;
 using Matrix = FqMatrix<T, n, n, q, true>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
@@ -196,7 +200,7 @@ TEST(Chase, first) {
 
 		uint32_t popc = 0;
 		for (uint32_t j = 0; j < element_limbs; ++j) {
-			popc += popcount::popcount<uint64_t>(w2[j]);
+			popc += popcount::popcount<T>(w2[j]);
 		}
 
 		if (i < list_size - 1) {

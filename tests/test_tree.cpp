@@ -27,7 +27,7 @@ using Element		= Element_T<Value, Label, Matrix>;
 using List			= List_T<Element>;
 using Tree			= Tree_T<List>;
 
-static std::vector<uint64_t> __level_translation_array{{0, 5, 10, 15, n}};
+static std::vector<uint32_t> __level_translation_array{{0, 5, 10, 15, n}};
 static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
 
 TEST(TreeTest, JoinForLevelOne) {
@@ -73,7 +73,7 @@ TEST(TreeTest, JoinRandomListsLevel0) {
 	Matrix A;
 	A.random();
 
-	static std::vector<uint64_t> tbl{{0, n}};
+	static std::vector<uint32_t> tbl{{0, n}};
     Tree t{2, A, 10u, tbl, __level_filter_array};
 
 	t[0].random(1u << 14u, A);
@@ -99,7 +99,7 @@ TEST(TreeTest, JoinRandomListsLevel1) {
 	Matrix A;
 	A.random();
 
-	static std::vector<uint64_t> tbl{{0, n/2, n}};
+	static std::vector<uint32_t> tbl{{0, n/2, n}};
 	Tree t{2, A, 11, tbl, __level_filter_array};
 
 	t[0].random(1u << 12u, A);
@@ -144,7 +144,7 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 	A.random();
 
 	constexpr size_t base_size = 8;
-	static std::vector<uint64_t> tbl{{0, n/3, 2*n/3, n}};
+	static std::vector<uint32_t> tbl{{0, n/3, 2*n/3, n}};
     Tree t{3, A, base_size, tbl, __level_filter_array};
 
     t[0].set_load(0);
@@ -206,7 +206,7 @@ TEST(TreeTest, JoinRandomListsLevel3) {
 	A.random();
 
 	constexpr size_t base_size = 6;
-	static std::vector<uint64_t> tbl{{0, n/4, n/2, 3*n/4, n}};
+	static std::vector<uint32_t> tbl{{0, n/4, n/2, 3*n/4, n}};
     Tree t{4, A, 10, tbl, __level_filter_array};
 
     t[0].set_load(0);

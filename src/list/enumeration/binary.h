@@ -58,6 +58,7 @@ public:
 	constexpr static size_t LIST_SIZE = Combinations_Binary_Chase<T, n, w>::chase_size;
 	const size_t list_size;
 	std::vector<std::pair<uint16_t, uint16_t>> cL{bc(n, w)};
+
 	Element e11, e12, e21, e22;
 
 	/// \param HT transposed parity check matrix
@@ -408,7 +409,6 @@ public:
 	using S::syndrome;
 	using S::HT;
 
-	////
 	constexpr static size_t max_list_size = sum_bc(n, w);
 	const size_t list_size;
 
@@ -527,11 +527,14 @@ public:
 
 
 /// this class enumerates elements of the form:
-///  [11110000|11000000], [0000111|00110000], [11110000|0000111100], [00001111|00000011]
+///  [11110000|11000000], [0000111|00110000], [11110000|0000001100], [00001111|00000011]
 /// In other-words you must pass 4 base lists to the function.
 /// NOTE: nomenclature
 /// 	<-       n       ->
-/// 	[11110000|11000000]
+/// 	[11110000|11000000] L1
+/// 	[00001111|00110000] L2
+/// 	[11110000|00001100] L3
+/// 	[00001111|00000011] L4
 ///     0      split      n
 ///      mitmlen  norepslen
 /// \tparam ListType
@@ -780,10 +783,10 @@ public:
 
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);
-		L1->set_load(list_size);
-		L2->set_load(list_size);
-		L3->set_load(list_size);
-		L4->set_load(list_size);
+		L1.set_load(list_size);
+		L2.set_load(list_size);
+		L3.set_load(list_size);
+		L4.set_load(list_size);
 		return false;
 	}
 

@@ -11,8 +11,8 @@
 
 constexpr uint32_t n  = 10;
 
-using BinaryValue     = BinaryContainer<n>;
-using BinaryLabel     = BinaryContainer<n>;
+using BinaryValue     = FqPackedVector<n>;
+using BinaryLabel     = FqPackedVector<n>;
 using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2>;
 using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList      = List_T<BinaryElement>;
@@ -32,8 +32,8 @@ TEST(TreeTest, join2lists) {
 	BinaryMatrix A;
 	A.identity();
 
-	const std::vector<uint64_t> ta{{0, n}};
-	uint64_t k_lower, k_higher;
+	const std::vector<uint32_t> ta{{0, n}};
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, 0, ta);
 
 	BinaryList out{1u<<basesize}, l1{0}, l2{0};
@@ -69,8 +69,8 @@ TEST(TreeTest, join4lists) {
 	BinaryMatrix A;
 	A.identity();
 
-	const std::vector<uint64_t> ta{{0, n/2, n}};
-	uint64_t k_lower=0, k_higher=0;
+	const std::vector<uint32_t> ta{{0, n/2, n}};
+	uint32_t k_lower=0, k_higher=0;
 
 	BinaryList out{1u<<12}, l1{0}, l2{0}, l3{0}, l4{0};
 	l1.random(1u << basesize, A);
@@ -112,8 +112,8 @@ TEST(TreeTest, join4lists_with2lists) {
 	BinaryMatrix A;
 	A.identity();
 
-	const std::vector<uint64_t> ta{{0, n/2, n}};
-	uint64_t k_lower=0, k_higher=0;
+	const std::vector<uint32_t> ta{{0, n/2, n}};
+	uint32_t k_lower=0, k_higher=0;
 
 	BinaryList out{1u<<basesize}, l1{0}, l2{0}, l3{0}, l4{0};
 	l1.random(1u << basesize, A);

@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-
-/// generates a rng subsetsum instance
+/// TODO move into algorithms
+/// generates a rng subset sum instance
 /// NOTE:
 /// 	- nr of indicies generates = n/2
 /// 	- max index = n
@@ -37,7 +37,7 @@ constexpr static void generate_subsetsum_instance(Label &target,
 	}
 
 	if (debug) {
-		std::cout << target << " , subsetsum target" << std::endl;
+		std::cout << target << " , subset sum target" << std::endl;
 		for (const auto &w : weights) {
 			std::cout << w << " ";
 		}

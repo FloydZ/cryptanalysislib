@@ -114,7 +114,7 @@ public:
 
 	// Types
 	using __RowType = typename std::conditional<packed,
-	                                            kAryPackedContainer_T<T, ncols, q>,
+	                                            FqPackedVector<T, ncols, q>,
 	                                            kAryContainer_T<T, ncols, q>>::type;
 	// typedef __RowType RowType;
 	using RowType = typename std::conditional<std::is_same_v<R, void>, __RowType, R>::type;

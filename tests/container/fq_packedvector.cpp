@@ -9,14 +9,14 @@ using ::testing::Test;
 
 #define NR_TESTS (1ull << 4u)
 constexpr uint32_t n = 127;
-using K4 = kAryPackedContainer_T<uint8_t, n, 4>;
-using K5 = kAryPackedContainer_T<uint8_t, n, 5>;
-using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
+using K4 = FqPackedVector<uint8_t, n, 4>;
+using K5 = FqPackedVector<uint8_t, n, 5>;
+using K7 = FqPackedVector<uint8_t, n, 7>;
 
 #define NAME uint8_K4
 #define PRIME 4
 #define T uint8_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<T, n, PRIME>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -76,7 +76,7 @@ using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
 
 
 TEST(Devv, Constexpr) {
-	kAryPackedContainer_T<uint8_t, 127, 8> b1;
+	FqPackedVector<uint8_t, 127, 8> b1;
 	constexpr uint32_t qbits = ceil_log2(8);
 	b1.zero();
 	b1.one(0, 20);

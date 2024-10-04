@@ -15,10 +15,10 @@
 constexpr uint64_t lsize = (1<<20);
 
 constexpr uint32_t l = 20;
-using ContainerA        = BinaryContainer<k>;
-using ContainerB        = BinaryContainer<n>;
-using DecodingValue     = BinaryContainer<k>;
-using DecodingLabel     = BinaryContainer<n>;
+using ContainerA        = FqPackedVector<k>;
+using ContainerB        = FqPackedVector<n>;
+using DecodingValue     = FqPackedVector<k>;
+using DecodingLabel     = FqPackedVector<n>;
 using DecodingMatrix    = FqMatrix<uint64_t, n, k, 2>;
 using DecodingElement   = Element_T<DecodingValue, DecodingLabel, DecodingMatrix>;
 using DecodingList      = List_T<DecodingElement>;

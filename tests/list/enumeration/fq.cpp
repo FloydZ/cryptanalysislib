@@ -24,8 +24,8 @@ constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();
 constexpr size_t chase_size = bc(n, w);
 
 using T = uint8_t;
-using Value = kAryPackedContainer_T<T, n, q>;
-using Label = kAryPackedContainer_T<T, n - k, q>;
+using Value = FqPackedVector<T, n, q>;
+using Label = FqPackedVector<T, n - k, q>;
 using Matrix = FqMatrix<T, n, n - k, q>;// NOTE this is the transposed type
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
@@ -203,7 +203,7 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap_subsetsum) {
 	constexpr uint64_t n = 20;
 	constexpr uint64_t q = 1ull<<n;
 	using Label = kAry_Type_T<q>;
-	using Value = kAryPackedContainer_T<T, n, q>;
+	using Value = FqPackedVector<T, n, q>;
 	using Matrix = FqVector<T, n, q>;
 	using Element = Element_T<Value, Label, Matrix>;
 	using List = List_T<Element>;
@@ -245,7 +245,7 @@ TEST(BinarySinglePartialSingleEnumerator, simple_nohashmap_subsetsum) {
 	constexpr uint64_t n = 20;
 	constexpr uint64_t q = 1ull<<n;
 	using Label = kAry_Type_T<q>;
-	using Value = kAryPackedContainer_T<T, n, q>;
+	using Value = FqPackedVector<T, n, q>;
 	using Matrix = FqVector<T, n, q>;
 	using Element = Element_T<Value, Label, Matrix>;
 	using List = List_T<Element>;

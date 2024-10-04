@@ -1,4 +1,6 @@
-Historgram:
+Histogram:
+=========
+
 ```
 2024-09-08T22:34:54+02:00
 Running ./bench/algorithm/bench_algorithm_histogram
@@ -44,7 +46,6 @@ BM_stupid_histogram<uint8_t>/512         316 ns          315 ns      2211707
 BM_stupid_histogram<uint8_t>/1024        616 ns          615 ns      1139191
 BM_stupid_histogram<uint8_t>/2048       1215 ns         1211 ns       568199
 BM_stupid_histogram<uint8_t>/4096       2383 ns         2376 ns       293445
-./bench/algorithm/bench_algorithm_histogram  29,68s user 0,00s system 99% cpu 29,803 total
 ```
 
 Prefixsum:
@@ -107,5 +108,4 @@ BM_prefixsum<uint64_t>/8192               4871 ns         4857 ns       144107
 BM_prefixsum<uint64_t>/16384              9731 ns         9702 ns        72090
 BM_prefixsum<uint64_t>/32768             19475 ns        19382 ns        36111
 BM_prefixsum<uint64_t>/65536             38825 ns        38707 ns        18078
-./bench/algorithm/bench_algorithm_prefixsum  41,10s user 0,01s system 99% cpu 41,249 total
 ```

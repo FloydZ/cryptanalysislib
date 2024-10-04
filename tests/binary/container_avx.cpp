@@ -21,19 +21,19 @@ using ::testing::UnitTest;
 #ifdef USE_AVX2
 
 TEST(AddAVX2, Full_Length_Zero) {
-	BinaryContainer<n> b1;
-	BinaryContainer<n> b2;
-	BinaryContainer<n> b3;
+	FqPackedVector<n> b1;
+	FqPackedVector<n> b2;
+	FqPackedVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
-	BinaryContainer<n>::add(b3, b1, b2, 0, n);
+	FqPackedVector<n>::add(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
 
 	b3.random();
-	BinaryContainer<n>::add(b3, b1, b2, 0, n);
+	FqPackedVector<n>::add(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		//std::cout << j << "\n";
 		EXPECT_EQ(0, b3[j]);
@@ -41,14 +41,14 @@ TEST(AddAVX2, Full_Length_Zero) {
 }
 
 TEST(AddAVX2, Full_Length_One) {
-	BinaryContainer<n> b1;
-	BinaryContainer<n> b2;
-	BinaryContainer<n> b3;
+	FqPackedVector<n> b1;
+	FqPackedVector<n> b2;
+	FqPackedVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[0] = true;
-	BinaryContainer<n>::add(b3, b1, b2, 0, n);
+	FqPackedVector<n>::add(b3, b1, b2, 0, n);
 	EXPECT_EQ(1, b3[0]);
 
 	for (uint32_t j = 1; j < b3.size(); ++j) {
@@ -61,7 +61,7 @@ TEST(AddAVX2, Full_Length_One) {
 		b1[i] = true;
 	}
 
-	BinaryContainer<n>::add(b3, b1, b2, 0, n);
+	FqPackedVector<n>::add(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(true, b3[j]);
 		EXPECT_EQ(1, b3[j]);
@@ -75,7 +75,7 @@ TEST(AddAVX2, Full_Length_One) {
 		b2[i] = true;
 	}
 
-	BinaryContainer<n>::add(b3, b1, b2, 0, n);
+	FqPackedVector<n>::add(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(false, b3[j]);
 		EXPECT_EQ(0, b3[j]);
@@ -83,14 +83,14 @@ TEST(AddAVX2, Full_Length_One) {
 }
 
 TEST(AddAVX2, OffByOne_Lower_One) {
-	BinaryContainer<n> b1;
-	BinaryContainer<n> b2;
-	BinaryContainer<n> b3;
+	FqPackedVector<n> b1;
+	FqPackedVector<n> b2;
+	FqPackedVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[0] = true;   // this should be ignored.
-	BinaryContainer<n>::add(b3, b1, b2, 1, n);
+	FqPackedVector<n>::add(b3, b1, b2, 1, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
@@ -101,7 +101,7 @@ TEST(AddAVX2, OffByOne_Lower_One) {
 		b1[i] = true;
 	}
 
-	BinaryContainer<n>::add(b3, b1, b2, 1, n);
+	FqPackedVector<n>::add(b3, b1, b2, 1, n);
 	EXPECT_EQ(0, b3[0]);
 	EXPECT_EQ(false, b3[0]);
 	for (uint32_t j = 1; j < b3.size(); ++j) {
@@ -116,7 +116,7 @@ TEST(AddAVX2, OffByOne_Lower_One) {
 		b2[i] = true;
 	}
 
-	BinaryContainer<n>::add(b3, b1, b2, 1, n);
+	FqPackedVector<n>::add(b3, b1, b2, 1, n);
 	EXPECT_EQ(0, b3[0]);
 	EXPECT_EQ(false, b3[0]);
 
@@ -127,14 +127,14 @@ TEST(AddAVX2, OffByOne_Lower_One) {
 }
 
 TEST(AddAVX2, OffByOne_Higher_One) {
-	BinaryContainer<n> b1;
-	BinaryContainer<n> b2;
-	BinaryContainer<n> b3;
+	FqPackedVector<n> b1;
+	FqPackedVector<n> b2;
+	FqPackedVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[n-1] = true;   // this should be ignored.
-	BinaryContainer<n>::add(b3, b1, b2, 0, n - 1);
+	FqPackedVector<n>::add(b3, b1, b2, 0, n - 1);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
@@ -145,7 +145,7 @@ TEST(AddAVX2, OffByOne_Higher_One) {
 		b1[i] = true;
 	}
 
-	BinaryContainer<n>::add(b3, b1, b2, 0, n - 1);
+	FqPackedVector<n>::add(b3, b1, b2, 0, n - 1);
 	EXPECT_EQ(0, b3[n-1]);
 	EXPECT_EQ(false, b3[n-1]);
 	for (uint32_t j = 0; j < b3.size() - 1; ++j) {
@@ -160,7 +160,7 @@ TEST(AddAVX2, OffByOne_Higher_One) {
 		b2[i] = true;
 	}
 
-	BinaryContainer<n>::add(b3, b1, b2, 0, n - 1);
+	FqPackedVector<n>::add(b3, b1, b2, 0, n - 1);
 	EXPECT_EQ(0, b3[n-1]);
 	EXPECT_EQ(false, b3[n-1]);
 

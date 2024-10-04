@@ -25,7 +25,7 @@ constexpr uint32_t q    = (1ul << n);
 
 using T 			= uint64_t;
 //using Value     	= kAryContainer_T<T, n, 2>;
-using Value     	= BinaryContainer<n>;
+using Value     	= FqPackedVector<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;

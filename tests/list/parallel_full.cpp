@@ -15,8 +15,8 @@ constexpr size_t list_size = 1u << 10;
 
 using MatrixT = uint64_t;
 using Matrix = FqMatrix<MatrixT, n, k, q>;
-using Value = kAryPackedContainer_T<MatrixT, k, q>;
-using Label = kAryPackedContainer_T<MatrixT, n, q>;
+using Value = FqPackedVector<MatrixT, k, q>;
+using Label = FqPackedVector<MatrixT, n, q>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = Parallel_List_FullElement_T<Element>;
 

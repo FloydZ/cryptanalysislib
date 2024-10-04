@@ -158,7 +158,7 @@ TEST(PCS, RhoSubSetSum) {
 
 	using T 		= uint64_t;
 	using Label    	= kAry_Type_T<p>;
-	using Value    	= BinaryContainer<n>;
+	using Value    	= FqPackedVector<n>;
 	using Matrix 	= FqVector<T, n, p, true>;
 	using Element 	= Element_T<Value, Label, Matrix>;
 

@@ -23,7 +23,7 @@ constexpr uint32_t n    = 16ul;
 constexpr uint32_t q    = (1ul << n);
 
 using T 			= uint64_t;
-using Value     	= BinaryContainer<n>;
+using Value     	= FqPackedVector<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;
@@ -154,7 +154,7 @@ TEST(SubSetSum, join8lists_twolists_on_iT_v2_constexpr) {
 	std::cout << target << std::endl;
 	Tree::template join8lists_twolists_on_iT_v2
 	        <k_lower1, k_higher1, k_lower2, k_higher2, k_lower3, k_higher3>
-	        (out, l1, l2, target);
+	        (out, l1, l2, target, A);
 
 	uint32_t right=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {

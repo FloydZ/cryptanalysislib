@@ -167,8 +167,8 @@ public:
 	/// \param level current lvl within the tree.
 	/// \param level_translation
 	constexpr void sort_level(const uint32_t level,
-	                          const std::vector<uint64_t> &level_translation) noexcept {
-		uint64_t k_lower, k_higher;
+	                          const std::vector<uint32_t> &level_translation) noexcept {
+		uint32_t k_lower, k_higher;
 		translate_level(&k_lower, &k_higher, level, level_translation);
 		return sort_level(k_lower, k_higher);
 	}

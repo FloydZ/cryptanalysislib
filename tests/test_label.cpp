@@ -57,7 +57,7 @@ TEST(Add, AddWithLevelAllCoordinates) {
 		l2.data()[i] = i;
 	}
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	Label::add(l3, l1, l2, k_lower, k_higher);
 
@@ -68,7 +68,7 @@ TEST(Add, AddWithLevelAllCoordinates) {
 
 TEST(Add, AddWithLevelWithTranslationArray) {
 	Label l1, l2, l3;
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 
 	for (uint32_t r = 0; r < TESTSIZE; ++r) {
 		l1.zero();
@@ -108,7 +108,7 @@ TEST(Add, AddWithLevelWithTranslationArray) {
 
 TEST(Add, AddWithLevel) {
 	Label l1, l2, l3;
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 
 	for (uint32_t r = 0; r < TESTSIZE; ++r) {
 
@@ -196,7 +196,7 @@ TEST(Sub, SubWithLevelAllCoordinates) {
 		l2[i] = i;
 	}
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 
 	Label::sub(l3, l1, l2, k_lower, k_higher);
@@ -251,7 +251,7 @@ TEST(Compare_Is_Equal, AllLevelsSimple) {
 		EXPECT_EQ(l1[i], l2[i]);
 	}
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	EXPECT_EQ(true, l1.is_equal(l2, k_lower, k_higher));
 }
@@ -264,7 +264,7 @@ TEST(Compare_Is_Equal, AllLevelsSimpleWithoutTranslationArray) {
 		EXPECT_EQ(l1[i],  l2[i]);
 	}
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	EXPECT_EQ(true, l1.is_equal(l2, k_lower, k_higher));
 }
@@ -292,7 +292,7 @@ TEST(Compare_Is_Lower, AllCoordinatesSimple) {
 	Label l1, l2;
 	l1.zero(); l2.zero();
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	EXPECT_EQ(false, l1.is_lower(l2, k_lower, k_higher));
 }

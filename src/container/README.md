@@ -72,7 +72,7 @@ the multiplication.
 holds `len` elements `mod q` and each element is  saved in its own limb of 
 type `T`. 
 
-### kAryPackedContainer_T<T, n>
+### FqPackedVector<T, n>
 same as `kAryContainer<T, len>` but the implementations stores as much as 
 possible elements `mod q` in one limb of type `T`.
 

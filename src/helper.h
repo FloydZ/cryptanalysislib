@@ -256,9 +256,9 @@ constexpr inline void constexpr_for(F &&f) noexcept {
 ///				return the lower/upper bound as normal.
 ///			if level == -1:
 ///				return on all bits
-static void translate_level(uint64_t *lower,
-                            uint64_t *upper, const uint32_t level,
-                            const std::vector<uint64_t> &level_translation_array) noexcept {
+static void translate_level(uint32_t *lower,
+                            uint32_t *upper, const uint32_t level,
+                            const std::vector<uint32_t> &level_translation_array) noexcept {
 	ASSERT(lower != NULL && upper != NULL);
 
 	// this is actually mostly only for testing.

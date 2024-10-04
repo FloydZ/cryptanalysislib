@@ -41,9 +41,10 @@ __device__ __host__ constexpr inline uint64_t binom(const uint64_t nn,
 /// Sums:over all binomial coefficients nn over i, with i <= kk
 /// \return \sum n over i
 constexpr uint64_t sum_bc(const uint64_t nn,
-                          const uint64_t kk) noexcept {
+                          const uint64_t kk,
+                          const uint64_t start_val=1) noexcept {
 	uint64_t sum = 0;
-	for (uint64_t i = 0; i <= kk; ++i) {
+	for (uint64_t i = start_val; i <= kk; ++i) {
 		sum += bc(nn, i);
 	}
 
@@ -357,7 +358,7 @@ static inline size_t reverse_biject(const T s) noexcept {
         for (uint32_t y = 0; y < w; y++) {
             for (uint32_t x = 0; x < t; x++) {
                 if (x >= (y+1)) {
-					L[y][x] = sum_bc(x, y+1);
+					L[y][x] = sum_bc(x, y+1, 0);
                 } else {
 					L[y][x] = 1u << x;
                 }

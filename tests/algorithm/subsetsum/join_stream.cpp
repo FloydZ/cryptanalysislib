@@ -22,7 +22,7 @@ constexpr uint32_t q    = (1ul << n);
 
 using T 			= uint64_t;
 //using Value     	= kAryContainer_T<T, n, 2>;
-using Value     	= BinaryContainer<n>;
+using Value     	= FqPackedVector<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;
@@ -36,7 +36,7 @@ TEST(SubSetSum, JoinRandomListsLevel0) {
 	Matrix A;
 	A.random();
 
-	static std::vector<uint64_t> tbl{{0, n}};
+	static std::vector<uint32_t> tbl{{0, n}};
 	Tree t{2, A, 10u, tbl, __level_filter_array};
 
 	t[0].random(1u << 8u, A);
@@ -63,7 +63,7 @@ TEST(SubSetSum, JoinRandomListsLevel1) {
 	Matrix A;
 	A.random();
 
-	static std::vector<uint64_t> tbl{{0, n/2, n}};
+	static std::vector<uint32_t> tbl{{0, n/2, n}};
 	Tree t{2, A, 11, tbl, __level_filter_array};
 
 	t[0].random(1u << 12u, A);
@@ -108,7 +108,7 @@ TEST(TreeTest, JoinRandomListsLevel2) {
 	A.random();
 
 	constexpr size_t base_size = 5;
-	static std::vector<uint64_t> tbl{{0, n/3, 2*n/3, n}};
+	static std::vector<uint32_t> tbl{{0, n/3, 2*n/3, n}};
 	Tree t{3, A, base_size, tbl, __level_filter_array};
 
 	t[0].set_load(0);
@@ -170,7 +170,7 @@ TEST(SubSetSum, JoinRandomListsLevel3) {
 	A.random();
 
 	constexpr size_t base_size = 5;
-	static std::vector<uint64_t> tbl{{0, n/4, n/2, 3*n/4, n}};
+	static std::vector<uint32_t> tbl{{0, n/4, n/2, 3*n/4, n}};
 	Tree t{4, A, 10, tbl, __level_filter_array};
 
 	t[0].set_load(0);

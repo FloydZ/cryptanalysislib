@@ -36,11 +36,11 @@ TEST(dispatch_benchmark, simple) {
     EXPECT_GT(t1, t2);
 }
 
-
+// TODO not implemented
 TEST(dispatch, simple) {
     using F = uint32_t(uint32_t);
     //F* fs[] = {test1, test2};
-    std::vector<F> Fs{{test1, test2}};
+    // std::vector<F> Fs{{test1, test2}};
     F *out = nullptr;
     uint32_t args[] = {s, s};
     // genereric_dispatch(out, fs, args, 2);

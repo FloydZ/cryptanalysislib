@@ -23,6 +23,6 @@ using Label             = kAryContainer2;
 using Value             = kAryContainer;
 
 
-static std::vector<uint64_t> __level_translation_array{{0, 5, 10, 15, n}};
+static std::vector<uint32_t> __level_translation_array{{0, 5, 10, 15, n}};
 static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
 #endif //SMALLSECRETLWE_TEST_H
