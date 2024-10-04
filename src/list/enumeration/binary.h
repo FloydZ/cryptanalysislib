@@ -15,6 +15,7 @@
 #include "math/bc.h"
 #include "alloc/alloc.h"
 
+/// TODO img
 /// This class enumerates vectors of length n and weight w, whereas each
 /// nonzero position is enumerated in binary:w
 /// \tparam ListType

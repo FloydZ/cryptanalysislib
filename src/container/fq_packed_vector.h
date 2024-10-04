@@ -29,9 +29,9 @@ template<const uint64_t _n,
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>
 #endif
-class FqPackedVector_Meta {
+class FqPackedVectorMeta {
 public:
-	typedef FqPackedVector_Meta ContainerType;
+	typedef FqPackedVectorMeta ContainerType;
 
 	// make the length and modulus of the container public available
 	constexpr static uint64_t q = _q;
@@ -90,6 +90,7 @@ public:
 	static_assert((numbers_per_limb * bits_per_number) <= bits_per_limb);
 
 
+	// TODO was damit machen nochmal?
 	//constexpr kAryPackedContainer_Meta () noexcept : __data(){}
 	//constexpr kAryPackedContainer_Meta (kAryPackedContainer_Meta const &obj) noexcept : __data(obj.__data) {}
 	//constexpr kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta const &obj) noexcept {
@@ -702,8 +703,8 @@ public:
 	/// v1 += v1
 	/// \param v2 input/output
 	/// \param v1 input
-	constexpr inline static void add(FqPackedVector_Meta &v1,
-	                                 FqPackedVector_Meta const &v2) noexcept {
+	constexpr inline static void add(FqPackedVectorMeta &v1,
+	                                 FqPackedVectorMeta const &v2) noexcept {
 		add(v1, v1, v2, 0, length());
 	}
 
@@ -711,9 +712,9 @@ public:
 	/// \param v3 output
 	/// \param v1 input
 	/// \param v2 input
-	constexpr inline static void add(FqPackedVector_Meta &v3,
-	                                 FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2) noexcept {
+	constexpr inline static void add(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2) noexcept {
 		add(v3, v1, v2, 0, length());
 	}
 
@@ -723,9 +724,9 @@ public:
 	/// \param v2 input
 	/// \param k_lower lower limit inclusive
 	/// \param k_upper upper limit exclusive
-	constexpr inline static void add(FqPackedVector_Meta &v3,
-	                                 FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2,
+	constexpr inline static void add(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower,
 									 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -742,9 +743,9 @@ public:
 	/// \param k_lower lower limit inclusive
 	/// \param k_upper upper limit exclusive
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline static void add(FqPackedVector_Meta &v3,
-	                                 FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2) noexcept {
+	constexpr inline static void add(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2) noexcept {
 		static_assert(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);
@@ -755,8 +756,8 @@ public:
 	/// v1 -= v2
 	/// \param v1 input/output
 	/// \param v2 input
-	constexpr inline static void sub(FqPackedVector_Meta &v1,
-	                                 FqPackedVector_Meta const &v2) noexcept {
+	constexpr inline static void sub(FqPackedVectorMeta &v1,
+	                                 FqPackedVectorMeta const &v2) noexcept {
 		sub(v1, v1, v2, 0, length());
 	}
 
@@ -765,9 +766,9 @@ public:
 	/// \param v3 output
 	/// \param v1 input
 	/// \param v2 input
-	constexpr inline static void sub(FqPackedVector_Meta &v3,
-	                                 FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2) noexcept {
+	constexpr inline static void sub(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2) noexcept {
 		sub(v3, v1, v2, 0, length());
 	}
 
@@ -777,9 +778,9 @@ public:
 	/// \param v2 input
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
-	constexpr inline static void sub(FqPackedVector_Meta &v3,
-	                                 FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2,
+	constexpr inline static void sub(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower,
 									 const uint32_t k_upper) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -798,9 +799,9 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline static void sub(FqPackedVector_Meta &v3,
-	                                 FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2) noexcept {
+	constexpr inline static void sub(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2) noexcept {
 		static_assert(k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i));
@@ -816,9 +817,9 @@ public:
 	/// \param v2 input
 	/// \param k_lower lower limit inclusive
 	/// \param k_upper upper limit exclusive
-	constexpr inline static void mul(FqPackedVector_Meta &v3,
-	                                 FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2,
+	constexpr inline static void mul(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
 	                                 const uint32_t k_upper = length()) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -833,8 +834,8 @@ public:
 	/// \param v1 input
 	/// \param k_lower lower limit inclusive
 	/// \param k_upper upper limit exclusive
-	constexpr inline static void mod(FqPackedVector_Meta &v3,
-	                                 FqPackedVector_Meta const &v1,
+	constexpr inline static void mod(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
 	                                 const uint32_t k_lower = 0,
 	                                 const uint32_t k_upper = length()) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -850,8 +851,8 @@ public:
 	/// \param k_lower lower limit inclusive
 	/// \param k_upper upper limit exclusive
 	template<class TT = DataType>
-	constexpr inline static void scalar(FqPackedVector_Meta &v3,
-	                                    FqPackedVector_Meta const &v1,
+	constexpr inline static void scalar(FqPackedVectorMeta &v3,
+	                                    FqPackedVectorMeta const &v1,
 	                                    const TT v2,
 	                                    const uint32_t k_lower = 0,
 	                                    const uint32_t k_upper = length()) noexcept {
@@ -867,8 +868,8 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return v1 == v2 between [k_lower, k_upper)
-	constexpr inline static bool cmp(FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2,
+	constexpr inline static bool cmp(FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower = 0,
 									 const uint32_t k_upper = length()) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -886,8 +887,8 @@ public:
 	/// \param k_upper exclusive
 	/// \return v1 == v2 between [k_lower, k_upper)
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline static bool cmp(FqPackedVector_Meta const &v1,
-	                                 FqPackedVector_Meta const &v2) noexcept {
+	constexpr inline static bool cmp(FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2) noexcept {
 		static_assert( k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			if (v1.get(i) != v2.get(i)) {
@@ -902,8 +903,8 @@ public:
 	/// \param v2 input
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
-	constexpr inline static void set(FqPackedVector_Meta &v1,
-	                                 FqPackedVector_Meta const &v2,
+	constexpr inline static void set(FqPackedVectorMeta &v1,
+	                                 FqPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
 	                                 const uint32_t k_upper = length()) noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -916,7 +917,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this == obj between [k_lower, k_upper)
-	[[nodiscard]] constexpr bool is_equal(FqPackedVector_Meta const &obj,
+	[[nodiscard]] constexpr bool is_equal(FqPackedVectorMeta const &obj,
 										  const uint32_t k_lower = 0,
 										  const uint32_t k_upper = length()) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
@@ -927,7 +928,7 @@ public:
 	/// \param k_upper exclusive
 	/// \return this == obj between [k_lower, k_upper)
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	[[nodiscard]] constexpr bool is_equal(FqPackedVector_Meta const &obj) const noexcept {
+	[[nodiscard]] constexpr bool is_equal(FqPackedVectorMeta const &obj) const noexcept {
 		return cmp<k_lower, k_upper>(*this, obj);
 	}
 
@@ -935,7 +936,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this > obj [k_lower, k_upper)
-	[[nodiscard]] constexpr bool is_greater(FqPackedVector_Meta const &obj,
+	[[nodiscard]] constexpr bool is_greater(FqPackedVectorMeta const &obj,
 	                          const uint32_t k_lower = 0,
 	                          const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -955,7 +956,7 @@ public:
 	/// \param k_upper exclusive
 	/// \return this > obj [k_lower, k_upper)
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	[[nodiscard]] constexpr bool is_greater(FqPackedVector_Meta const &obj) const noexcept {
+	[[nodiscard]] constexpr bool is_greater(FqPackedVectorMeta const &obj) const noexcept {
 		static_assert( k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) > obj.get(i - 1)) {
@@ -972,7 +973,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_upper exclusive
 	/// \return this < obj [k_lower, k_upper)
-	[[nodiscard]] constexpr bool is_lower(FqPackedVector_Meta const &obj,
+	[[nodiscard]] constexpr bool is_lower(FqPackedVectorMeta const &obj,
 	                        			  const uint32_t k_lower = 0,
 	                        			  const uint32_t k_upper = length()) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
@@ -992,7 +993,7 @@ public:
 	/// \param k_upper exclusive
 	/// \return this < obj [k_lower, k_upper)
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	[[nodiscard]] constexpr bool is_lower(FqPackedVector_Meta const &obj) const noexcept {
+	[[nodiscard]] constexpr bool is_lower(FqPackedVectorMeta const &obj) const noexcept {
 		static_assert( k_upper <= length() && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) < obj.get(i - 1)) {
@@ -1011,9 +1012,9 @@ public:
 	/// \param l lower limit
 	/// \param h upper limit
 	/// \return weight of v3 between [l, h)
-	constexpr static uint16_t add_only_upper_weight_partly(FqPackedVector_Meta &v3,
-	                                                       const FqPackedVector_Meta &v1,
-	                                                       const FqPackedVector_Meta &v2,
+	constexpr static uint16_t add_only_upper_weight_partly(FqPackedVectorMeta &v3,
+	                                                       const FqPackedVectorMeta &v1,
+	                                                       const FqPackedVectorMeta &v2,
 	                                                       const uint32_t l, const uint32_t h) noexcept {
 		uint16_t weight = 0;
 		add(v3, v1, v2);
@@ -1107,7 +1108,7 @@ public:
 		reference();
 
 	public:
-		constexpr reference(const FqPackedVector_Meta &b,
+		constexpr reference(const FqPackedVectorMeta &b,
 							const size_t pos) : spot((pos % numbers_per_limb) * bits_per_number) {
 			// drop the const
 			wp = (T *)&b.__data[pos / numbers_per_limb];
@@ -1240,7 +1241,7 @@ template<const uint32_t n,
 #if __cplusplus > 201709L
     requires std::is_integral<T>::value
 #endif
-class FqPackedVector : public FqPackedVector_Meta<n, q, T> {
+class FqPackedVector : public FqPackedVectorMeta<n, q, T> {
 public:
 	/// Nomenclature:
 	///     Number 	:= actual data one wants to save % modulus()
@@ -1253,7 +1254,7 @@ public:
 	///  numbers that first bits are on one limb and the remaining bits are on the next limb).
 	///
 
-	using M = FqPackedVector_Meta<n, q, T>;
+	using M = FqPackedVectorMeta<n, q, T>;
 	using M::length;
 	using M::modulus;
 
@@ -1305,12 +1306,12 @@ template<const uint32_t n>
 #if __cplusplus > 201709L
     requires std::is_integral<uint64_t>::value
 #endif
-class FqPackedVector<n, 3, uint64_t> : public FqPackedVector_Meta<n, 3, uint64_t> {
+class FqPackedVector<n, 3, uint64_t> : public FqPackedVectorMeta<n, 3, uint64_t> {
 public:
 	/// this is just defined, because Im lazy
 	static constexpr uint32_t q = 3;
 	using T = uint64_t;
-	using M = FqPackedVector_Meta<n, 3, T>;
+	using M = FqPackedVectorMeta<n, 3, T>;
 
 	/// needed size descriptions
 	using M::bits_per_limb;
@@ -1851,18 +1852,18 @@ public:
 
 
 template<const uint64_t n, const uint64_t q, typename T=uint64_t >
-constexpr inline bool operator==(const FqPackedVector_Meta<n, q, T> &a,
-								 const FqPackedVector_Meta<n, q, T> &b) noexcept {
+constexpr inline bool operator==(const FqPackedVectorMeta<n, q, T> &a,
+								 const FqPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_equal(b);
 }
 template<const uint64_t n, const uint64_t q, typename T=uint64_t >
-constexpr inline bool operator<(const FqPackedVector_Meta<n, q, T> &a,
-                                const FqPackedVector_Meta<n, q, T> &b) noexcept {
+constexpr inline bool operator<(const FqPackedVectorMeta<n, q, T> &a,
+                                const FqPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_lower(b);
 }
 template<const uint64_t n, const uint64_t q, typename T=uint64_t >
-constexpr inline bool operator>(const FqPackedVector_Meta<n, q, T> &a,
-                                const FqPackedVector_Meta<n, q, T> &b) noexcept {
+constexpr inline bool operator>(const FqPackedVectorMeta<n, q, T> &a,
+                                const FqPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_greater(b);
 }
 
@@ -1876,7 +1877,7 @@ constexpr inline bool operator>(const FqPackedVector_Meta<n, q, T> &a,
 /// \return
 template<const uint64_t n, const uint64_t q, typename T>
 constexpr inline kAry_Type_T<q> operator+(const kAry_Type_T<q> &lhs,
-                                          const typename FqPackedVector_Meta<n, q, T>::reference &rhs) noexcept {
+                                          const typename FqPackedVectorMeta<n, q, T>::reference &rhs) noexcept {
 	kAry_Type_T<q> ret = lhs;
 	ret += rhs.data();
 	return ret;
@@ -1892,7 +1893,7 @@ constexpr inline kAry_Type_T<q> operator+(const kAry_Type_T<q> &lhs,
 /// \param obj
 /// \return
 template<const uint32_t n, const uint64_t q, typename T=uint64_t>
-std::ostream &operator<<(std::ostream &out, const FqPackedVector_Meta<n, q, T> &obj) {
+std::ostream &operator<<(std::ostream &out, const FqPackedVectorMeta<n, q, T> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {
 		out << uint64_t(obj[i]);
 	}

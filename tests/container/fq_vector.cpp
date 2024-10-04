@@ -20,19 +20,19 @@ TEST(test, simple) {
 }
 
 constexpr uint32_t n = 127;
-using K4 = kAryContainer_T<uint8_t, n, 4>;
-using K5 = kAryContainer_T<uint8_t, n, 5>;
-using K7 = kAryContainer_T<uint8_t, n, 7>;
+using K4 = FqNonPackedVector<uint8_t, n, 4>;
+using K5 = FqNonPackedVector<uint8_t, n, 5>;
+using K7 = FqNonPackedVector<uint8_t, n, 7>;
 
 /// A field for which no optimized implementation exists
-using KGeneric = kAryContainer_T<uint8_t, n, 9>;
+using KGeneric = FqNonPackedVector<uint8_t, n, 9>;
 
 #define NR_TESTS (1u << 4u)
 
 #define NAME uint8_K4
 #define PRIME 4
 #define T uint8_t
-#define K kAryContainer_T<T, n, PRIME>
+#define K FqNonPackedVector<T, n, PRIME>
 #include "test_fqvector.h"
 #undef PRIME
 #undef T

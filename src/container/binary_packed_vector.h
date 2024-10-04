@@ -17,6 +17,7 @@
 #include "simd/simd.h"
 #include "hash/hash.h"
 
+// TODO alle funktionen gleich anordnen wie in der fq klasse
 
 // C macro for implementing multi limb comparison.
 #define BINARYCONTAINER_COMPARE(limb1, limb2, op1, op2) \
@@ -40,7 +41,7 @@ template<const uint32_t _n,
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
 #endif
-class FqPackedVector<_n, 2, T> : public FqPackedVector_Meta<_n, 2, T> {
+class FqPackedVector<_n, 2, T> : public FqPackedVectorMeta<_n, 2, T> {
 public:
 	// Internal Types needed for the template system.
 	typedef FqPackedVector<_n, 2, T> ContainerType;

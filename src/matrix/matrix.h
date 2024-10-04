@@ -105,7 +105,7 @@ template<typename T,
          const uint64_t q,
          const bool packed = false,
          typename R=void>
-struct FqMatrix_Meta {
+struct FqMatrixMeta {
 public:
 	static constexpr uint32_t nrows = _nrows;
 	static constexpr uint32_t ncols = _ncols;
@@ -114,26 +114,26 @@ public:
 
 	// Types
 	using __RowType = typename std::conditional<packed,
-	                                            FqPackedVector<T, ncols, q>,
-	                                            kAryContainer_T<T, ncols, q>>::type;
+	                                            FqPackedVector<ncols, q, T>,
+	                                            FqNonPackedVector<T, ncols, q>>::type;
 	// typedef __RowType RowType;
 	using RowType = typename std::conditional<std::is_same_v<R, void>, __RowType, R>::type;
 	typedef typename RowType::DataType DataType;
 	using InternalRowType = RowType;
 	// define itself
-	using MatrixType = FqMatrix_Meta<T, nrows, ncols, q, packed, R>;
-	using S = FqMatrix_Meta<T, nrows, ncols, q, packed, R>;
+	using MatrixType = FqMatrixMeta<T, nrows, ncols, q, packed, R>;
+	using S = FqMatrixMeta<T, nrows, ncols, q, packed, R>;
 
 	// Variables
 	std::array<RowType, nrows> __data;
 
-	constexpr FqMatrix_Meta() noexcept {
+	constexpr FqMatrixMeta() noexcept {
 		clear();
 	}
 
 	/// copy constructor
 	/// \param A
-	constexpr FqMatrix_Meta(const FqMatrix_Meta &A) noexcept {
+	constexpr FqMatrixMeta(const FqMatrixMeta &A) noexcept {
 		clear();
 
 		for (uint32_t row = 0; row < nrows; ++row) {
@@ -148,7 +148,7 @@ public:
 	///  "010202120..."
 	/// e.g. one big string, without any `\n\0`
 	/// \param data input data
-	constexpr FqMatrix_Meta(const char *data,
+	constexpr FqMatrixMeta(const char *data,
 	                        const uint32_t cols = ncols) noexcept {
 		from_string(data, cols);
 	}
@@ -179,7 +179,7 @@ public:
 
 	/// copies the input matrix
 	/// \param A input matrix
-	constexpr void copy(const FqMatrix_Meta &A) {
+	constexpr void copy(const FqMatrixMeta &A) {
 		std::copy(A.__data.begin(), A.__data.end(), __data.begin());
 	}
 
@@ -190,7 +190,7 @@ public:
 	         const uint32_t ncols_prime,
 	         const uint64_t qprime,
 	         const bool packed_prime>
-	constexpr void copy_sub(const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed_prime> &A,
+	constexpr void copy_sub(const FqMatrixMeta<Tprime, nrows_prime, ncols_prime, qprime, packed_prime> &A,
 	                        const uint32_t srow, const uint32_t scol) {
 		static_assert(nrows_prime <= nrows);
 		static_assert(ncols_prime <= ncols);
@@ -349,9 +349,9 @@ public:
 	/// \param out output
 	/// \param in1 input
 	/// \param in2 input
-	constexpr static void add(FqMatrix_Meta &out,
-	                          const FqMatrix_Meta &in1,
-	                          const FqMatrix_Meta &in2) noexcept {
+	constexpr static void add(FqMatrixMeta &out,
+	                          const FqMatrixMeta &in1,
+	                          const FqMatrixMeta &in2) noexcept {
 		for (uint32_t i = 0; i < nrows; ++i) {
 			RowType::add(out.__data[i], in1.get(i), in2.get(i));
 		}
@@ -361,9 +361,9 @@ public:
 	/// \param out output
 	/// \param in1 input
 	/// \param in2 input
-	constexpr static void sub(FqMatrix_Meta &out,
-	                          const FqMatrix_Meta &in1,
-	                          const FqMatrix_Meta &in2) noexcept {
+	constexpr static void sub(FqMatrixMeta &out,
+	                          const FqMatrixMeta &in1,
+	                          const FqMatrixMeta &in2) noexcept {
 		for (uint32_t i = 0; i < nrows; ++i) {
 			RowType::sub(out.__data[i], in1.get(i), in2.get(i));
 		}
@@ -377,8 +377,8 @@ public:
 	}
 
 	/// simple scalar operations: A*in
-	constexpr static void scalar(FqMatrix_Meta &out,
-	                             const FqMatrix_Meta &in,
+	constexpr static void scalar(FqMatrixMeta &out,
+	                             const FqMatrixMeta &in,
 	                             const DataType scalar) noexcept {
 		for (uint32_t i = 0; i < nrows; i++) {
 			RowType::scalar(out.__data[i], in.__data[i], scalar);
@@ -386,8 +386,8 @@ public:
 	}
 
 	/// direct transpose of the full matrix
-	constexpr FqMatrix_Meta<T, ncols, nrows, q, packed> transpose() const noexcept {
-		FqMatrix_Meta<T, ncols, nrows, q, packed> ret;
+	constexpr FqMatrixMeta<T, ncols, nrows, q, packed> transpose() const noexcept {
+		FqMatrixMeta<T, ncols, nrows, q, packed> ret;
 		ret.zero();
 		for (uint32_t row = 0; row < nrows; ++row) {
 			for (uint32_t col = 0; col < ncols; ++col) {
@@ -403,8 +403,8 @@ public:
 	/// direct transpose of the full matrix
 	/// \param B output
 	/// \param A input
-	constexpr static void transpose(FqMatrix_Meta<T, ncols, nrows, q, packed, R> &B,
-	                                const FqMatrix_Meta<T, nrows, ncols, q, packed, R> &A) noexcept {
+	constexpr static void transpose(FqMatrixMeta<T, ncols, nrows, q, packed, R> &B,
+	                                const FqMatrixMeta<T, nrows, ncols, q, packed, R> &A) noexcept {
 		for (uint32_t row = 0; row < nrows; ++row) {
 			for (uint32_t col = 0; col < ncols; ++col) {
 				const DataType data = A.get(row, col);
@@ -423,8 +423,8 @@ public:
 	         const uint32_t nrows_prime,
 	         const uint32_t ncols_prime,
 	         const uint64_t qprime>
-	constexpr static void transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
-	                                FqMatrix_Meta &A, const uint32_t srow, const uint32_t scol) noexcept {
+	constexpr static void transpose(FqMatrixMeta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
+	                                FqMatrixMeta &A, const uint32_t srow, const uint32_t scol) noexcept {
 		ASSERT(srow < nrows);
 		ASSERT(scol < ncols);
 		// checks must be transposed to
@@ -454,8 +454,8 @@ public:
 	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
-	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
-	                                    const FqMatrix_Meta &A,
+	constexpr static void sub_transpose(FqMatrixMeta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
+	                                    const FqMatrixMeta &A,
 	                                    const uint32_t srow,
 	                                    const uint32_t scol) noexcept {
 		static_assert(std::is_same_v<R, Rprime>);
@@ -486,8 +486,8 @@ public:
 	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
-	constexpr static void sub_transpose(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
-	                                    const FqMatrix_Meta &A,
+	constexpr static void sub_transpose(FqMatrixMeta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
+	                                    const FqMatrixMeta &A,
 	                                    const uint32_t srow, const uint32_t scol,
 	                                    const uint32_t erow, const uint32_t ecol) noexcept {
 		static_assert(std::is_same_v<R, Rprime>);
@@ -524,8 +524,8 @@ public:
 	         const uint64_t qprime,
 	         const bool packedprime,
 	         typename Rprime>
-	static constexpr void sub_matrix(FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
-	                                 const FqMatrix_Meta &A,
+	static constexpr void sub_matrix(FqMatrixMeta<Tprime, nrows_prime, ncols_prime, qprime, packedprime, Rprime> &B,
+	                                 const FqMatrixMeta &A,
 	                                 const uint32_t srow, const uint32_t scol,
 	                                 const uint32_t erow, const uint32_t ecol) noexcept {
 		static_assert(std::is_same_v<R, Rprime>);
@@ -1045,7 +1045,7 @@ public:
 	/// \param AT transposed matrix
 	/// \param permutation given permutation (is overwritten)
 	/// \param len length of the permutation
-	constexpr void permute_cols(FqMatrix_Meta<T, ncols, nrows, q, packed> &AT,
+	constexpr void permute_cols(FqMatrixMeta<T, ncols, nrows, q, packed> &AT,
 	                            Permutation &P) noexcept {
 		ASSERT(ncols >= P.length);
 
@@ -1061,7 +1061,7 @@ public:
 			AT.swap_rows(i, i + pos);
 		}
 
-		FqMatrix_Meta<T, ncols, nrows, q, packed>::transpose(*this, AT, 0, 0);
+		FqMatrixMeta<T, ncols, nrows, q, packed>::transpose(*this, AT, 0, 0);
 	}
 
 	/// NOTE: is slower than the implementation utilizing the
@@ -1095,10 +1095,10 @@ public:
 	         const uint32_t ncols_prime,
 	         const uint32_t ncols_prime2
 	         >
-	constexpr static FqMatrix_Meta<T, nrows, ncols_prime + ncols_prime2, q, packed>
-	augment(FqMatrix_Meta<T, nrows, ncols_prime + ncols_prime2, q, packed> &ret,
-	        const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime, q, packed> &in1,
-	        const FqMatrix_Meta<Tprime, nrows_prime, ncols_prime2, q, packed> &in2) noexcept {
+	constexpr static FqMatrixMeta<T, nrows, ncols_prime + ncols_prime2, q, packed>
+	augment(FqMatrixMeta<T, nrows, ncols_prime + ncols_prime2, q, packed> &ret,
+	        const FqMatrixMeta<Tprime, nrows_prime, ncols_prime, q, packed> &in1,
+	        const FqMatrixMeta<Tprime, nrows_prime, ncols_prime2, q, packed> &in2) noexcept {
 		/// NOTE: we allow not equally sized matrices to augment,
 		/// but the augmented matrix we be zero extended
 		static_assert(nrows_prime <= nrows);
@@ -1153,9 +1153,9 @@ public:
 	/// \param B
 	/// \return
 	constexpr static void mul(
-			FqMatrix_Meta &C,
-			const FqMatrix_Meta &A,
-			const FqMatrix_Meta &B) noexcept {
+	        FqMatrixMeta &C,
+			const FqMatrixMeta &A,
+			const FqMatrixMeta &B) noexcept {
 
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols; ++j) {
@@ -1175,9 +1175,9 @@ public:
 	/// compute C = this*B
 	template<const uint32_t ncols_prime>
 	constexpr static void mul(
-	        FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &C,
-	        const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
-	        const FqMatrix_Meta<T, ncols, ncols_prime, q, packed> &B) noexcept {
+	        FqMatrixMeta<T, nrows, ncols_prime, q, packed> &C,
+	        const FqMatrixMeta<T, nrows, ncols, q, packed> &A,
+	        const FqMatrixMeta<T, ncols, ncols_prime, q, packed> &B) noexcept {
 
 		C.clear();
 		for (uint32_t i = 0; i < nrows; ++i) {
@@ -1198,17 +1198,17 @@ public:
 	/// allows for transposed input
 	template<const uint32_t ncols_prime>
 	constexpr static void mul_transposed(
-	        FqMatrix_Meta<T, nrows, ncols_prime, q, packed> &C,
-	        const FqMatrix_Meta<T, nrows, ncols, q, packed> &A,
-	        const FqMatrix_Meta<T, ncols_prime, ncols, q, packed> &B) noexcept {
+	        FqMatrixMeta<T, nrows, ncols_prime, q, packed> &C,
+	        const FqMatrixMeta<T, nrows, ncols, q, packed> &A,
+	        const FqMatrixMeta<T, ncols_prime, ncols, q, packed> &B) noexcept {
 		MatrixType::template mul<ncols_prime>(C, A, B.transpose());
 	}
 
 	/// \param A input
 	/// \param B input
 	/// \return true if equal
-	[[nodiscard]] constexpr static bool is_equal(const FqMatrix_Meta &A,
-	                               const FqMatrix_Meta &B) {
+	[[nodiscard]] constexpr static bool is_equal(const FqMatrixMeta &A,
+	                               const FqMatrixMeta &B) {
 		for (uint32_t i = 0; i < nrows; ++i) {
 			for (uint32_t j = 0; j < ncols; ++j) {
 				if (A.get(i, j) != B.get(i, j)) {
@@ -1402,7 +1402,7 @@ template<typename T,
 		const bool packed = false,
 		typename R=void>
 std::ostream &operator<<(std::ostream &out,
-                         const FqMatrix_Meta<T, nrows, ncols, q, packed, R> &obj) {
+                         const FqMatrixMeta<T, nrows, ncols, q, packed, R> &obj) {
 	for (uint64_t i = 0; i < nrows; ++i) {
 		std::cout << "[ ";
 		for (uint64_t j = 0; j < ncols; ++j) {

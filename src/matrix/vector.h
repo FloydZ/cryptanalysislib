@@ -13,9 +13,9 @@ template<typename T,
 		 const uint64_t q,
 		 const bool packed = true,
          typename R=void>
-class FqVector : public FqMatrix_Meta<T, 1, ncols, q, packed, R> {
+class FqVector : public FqMatrixMeta<T, 1, ncols, q, packed, R> {
 public:
-  	using M = FqMatrix_Meta<T, 1, ncols, q, packed, R>;
+  	using M = FqMatrixMeta<T, 1, ncols, q, packed, R>;
 
 	using typename M::DataType;
 	using M::__data;

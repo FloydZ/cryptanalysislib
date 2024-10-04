@@ -27,14 +27,17 @@ struct FqConfig : public AlignmentConfig {
 	constexpr static bool lower_is_zero = true;
 } fqConfig;
 
+//TODo rename to Fqelement
+
 /// Container to represent a single element mod q
 /// \tparam q modulus
 /// \tparam Metric: currently unused
 /// \tparam FqConfig: currently unused
-template<const uint64_t _q,
+template<typename T,
+         const T _q,
          class Metric = HammingMetric,
          const FqConfig &config=fqConfig>
-class kAry_Type_T {
+class FqElement {
 public:
 	// make the length and modulus of the container public available
 	constexpr static uint64_t q = _q;
@@ -54,7 +57,7 @@ public:
 	// max bytes of T for which `fastmod` is defined
 	constexpr static uint64_t M_limit = 0;
 
-	using T = TypeTemplate<q>;
+	//using T = TypeTemplate<q>;
 	using T2 = TypeTemplate<__uint128_t(q) * __uint128_t(q)>;
 
 #ifdef USE_AVX512F
@@ -92,7 +95,7 @@ public:
 	// we are godd C++ devs
 	typedef T ContainerLimbType;
 	using DataType = T;
-	using ContainerType = kAry_Type_T<q>;
+	using ContainerType = FqElement<T, q>;
 
 	// list compatibility typedef
 	typedef T LimbType;
@@ -139,13 +142,13 @@ private:
 public:
 
 	/// empty constructor, will init to zero
-	constexpr kAry_Type_T() noexcept {
+	constexpr FqElement() noexcept {
 		__value = 0;
 	};
 
 	/// basic construct
 	/// \param i a number of type T
-	constexpr kAry_Type_T(const T i) noexcept {
+	constexpr FqElement(const T i) noexcept {
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = fastmod_u32(i, M, q);
 		} else {
@@ -155,7 +158,7 @@ public:
 
 	///
 	/// \param in
-	constexpr kAry_Type_T(const kAry_Type_T &in) noexcept {
+	constexpr FqElement(const FqElement &in) noexcept {
 		this->__value = in.__value;
 	}
 
@@ -197,8 +200,8 @@ public:
 	///	sets this = (this * a) + b
 	/// \param a
 	/// \param b
-	constexpr void addmul(kAry_Type_T const &a,
-	                      kAry_Type_T const &b) noexcept {
+	constexpr void addmul(FqElement const &a,
+	                      FqElement const &b) noexcept {
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + (T2(a.__value) * T2(b.__value)), M, q));
 		} else {
@@ -210,9 +213,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return obj1 & obj2
-	constexpr inline friend kAry_Type_T operator&(const kAry_Type_T obj1,
+	constexpr inline friend FqElement operator&(const FqElement obj1,
 	                                              const uint64_t obj2) noexcept {
-		kAry_Type_T r;
+		FqElement r;
 		r.__value = T((T2(obj1.__value) & T2(obj2)) % q);
 		return r;
 	}
@@ -221,9 +224,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator^(const kAry_Type_T obj1,
+	constexpr inline friend FqElement operator^(const FqElement obj1,
 	                                              const uint64_t obj2) noexcept {
-		kAry_Type_T r;
+		FqElement r;
 		r.__value = T((T2(obj1.__value) ^ T2(obj2 % q)) % q);
 		return r;
 	}
@@ -232,9 +235,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator-(const kAry_Type_T obj1,
+	constexpr inline friend FqElement operator-(const FqElement obj1,
 	                                              const uint64_t obj2) noexcept {
-		kAry_Type_T r;
+		FqElement r;
 		if constexpr (sizeof(T) <= M_limit) {
 			r.__value = T(fastmod_u32(T2(obj1.__value) - T2(fastmod_u32(obj2, M, q)), M, q));
 		} else {
@@ -247,9 +250,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator+(const kAry_Type_T obj1,
+	constexpr inline friend FqElement operator+(const FqElement obj1,
 	                                              const uint64_t obj2) noexcept {
-		kAry_Type_T r;
+		FqElement r;
 		if constexpr (sizeof(T) <= M_limit) {
 			r.__value = T(fastmod_u32(T2(obj1.__value) + T2(fastmod_u32(obj2, M, q)), M, q));
 		} else {
@@ -262,9 +265,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator*(const kAry_Type_T obj1,
+	constexpr inline friend FqElement operator*(const FqElement obj1,
 	                                              const uint64_t obj2) noexcept {
-		kAry_Type_T r;
+		FqElement r;
 
 		if constexpr (sizeof(T) <= M_limit) {
 			r.__value = T(fastmod_u32(T2(obj1.__value) * T2(fastmod_u32(obj2, M, q)), M, q));
@@ -278,9 +281,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator/(const kAry_Type_T obj1,
+	constexpr inline friend FqElement operator/(const FqElement obj1,
 	                                              const uint64_t obj2) noexcept {
-		kAry_Type_T r;
+		FqElement r;
 
 		if constexpr (sizeof(T) <= M_limit) {
 			r.__value = T(fastmod_u32(T2(obj1.__value) / T2(fastmod_u32(obj2, M, q)), M, q));
@@ -295,10 +298,10 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator&(const kAry_Type_T &obj1,
-	                                              const kAry_Type_T &obj2) noexcept {
+	constexpr inline friend FqElement operator&(const FqElement &obj1,
+	                                              const FqElement &obj2) noexcept {
 
-		kAry_Type_T r;
+		FqElement r;
 		r.__value = T((T2(obj1.__value) & T2(obj2.__value)) % q);
 		return r;
 	}
@@ -307,9 +310,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator^(const kAry_Type_T &obj1,
-	                                              const kAry_Type_T &obj2) noexcept {
-		kAry_Type_T r;
+	constexpr inline friend FqElement operator^(const FqElement &obj1,
+	                                              const FqElement &obj2) noexcept {
+		FqElement r;
 		r.__value = T((T2(obj1.__value) ^ T2(obj2.__value)) % q);
 		return r;
 	}
@@ -318,9 +321,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator/(const kAry_Type_T &obj1,
-	                                              const kAry_Type_T &obj2) noexcept {
-		kAry_Type_T r;
+	constexpr inline friend FqElement operator/(const FqElement &obj1,
+	                                              const FqElement &obj2) noexcept {
+		FqElement r;
 
 		if constexpr (sizeof(T) <= M_limit) {
 			r.__value = T(fastmod_u32(T2(obj1.__value) / T2(obj2.__value), M, q));
@@ -334,9 +337,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator*(const kAry_Type_T &obj1,
-	                                              const kAry_Type_T &obj2) noexcept {
-		kAry_Type_T r;
+	constexpr inline friend FqElement operator*(const FqElement &obj1,
+	                                              const FqElement &obj2) noexcept {
+		FqElement r;
 		if constexpr (sizeof(T) <= M_limit) {
 			r.__value = T(fastmod_u32(T2(obj1.__value) * T2(obj2.__value), M, q));
 		} else {
@@ -349,9 +352,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator+(const kAry_Type_T &obj1,
-	                                              const kAry_Type_T &obj2) noexcept {
-		kAry_Type_T r;
+	constexpr inline friend FqElement operator+(const FqElement &obj1,
+	                                              const FqElement &obj2) noexcept {
+		FqElement r;
 		if constexpr (sizeof(T) <= M_limit) {
 			r.__value = T(fastmod_u32(T2(obj1.__value) + T2(obj2.__value), M, q));
 		} else {
@@ -364,9 +367,9 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	constexpr inline friend kAry_Type_T operator-(kAry_Type_T obj1,
-	                                              kAry_Type_T const &obj2) noexcept {
-		kAry_Type_T r;
+	constexpr inline friend FqElement operator-(FqElement obj1,
+	                                              FqElement const &obj2) noexcept {
+		FqElement r;
 
 		if constexpr (sizeof(T) <= M_limit) {
 			r.__value = T(fastmod_u32(T2(obj1.__value) + T2(q) - T2(obj2.__value), M, q));
@@ -381,7 +384,7 @@ public:
 	/// \param obj2
 	/// \return
 	[[nodiscard]] constexpr inline friend bool operator==(const uint64_t obj1,
-	                                                      kAry_Type_T const &obj2) noexcept {
+	                                                      FqElement const &obj2) noexcept {
 		return obj1 == obj2.__value;
 	}
 
@@ -389,13 +392,13 @@ public:
 	/// \param obj1
 	/// \param obj2
 	/// \return
-	[[nodiscard]] constexpr inline friend bool operator!=(uint64_t obj1, kAry_Type_T const &obj2) noexcept {
+	[[nodiscard]] constexpr inline friend bool operator!=(uint64_t obj1, FqElement const &obj2) noexcept {
 		return obj1 != obj2.__value;
 	}
 
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator+=(const T obj) noexcept {
+	constexpr inline FqElement &operator+=(const T obj) noexcept {
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + T2(fastmod_u32(obj, M, q)), M, q));
 		} else {
@@ -406,7 +409,7 @@ public:
 
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator+=(kAry_Type_T const &obj) noexcept {
+	constexpr inline FqElement &operator+=(FqElement const &obj) noexcept {
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + T2(fastmod_u32(obj.__value, M, q)), M, q));
 		} else {
@@ -417,7 +420,7 @@ public:
 
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator-=(const T obj) noexcept {
+	constexpr inline FqElement &operator-=(const T obj) noexcept {
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + T2(q) - T2(fastmod_u32(obj, M, q)), M, q));
 		} else {
@@ -429,7 +432,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator-=(kAry_Type_T const &obj) noexcept {
+	constexpr inline FqElement &operator-=(FqElement const &obj) noexcept {
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + T2(q) - T2(fastmod_u32(obj.__value, M, q)), M, q));
 		} else {
@@ -441,7 +444,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator%=(const uint64_t &obj) noexcept {
+	constexpr inline FqElement &operator%=(const uint64_t &obj) noexcept {
 		__value %= obj;
 		return *this;
 	}
@@ -449,7 +452,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator%(const uint64_t &obj) noexcept {
+	constexpr inline FqElement &operator%(const uint64_t &obj) noexcept {
 		__value %= obj;
 		return *this;
 	}
@@ -457,7 +460,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator=(kAry_Type_T const &obj) noexcept {
+	constexpr inline FqElement &operator=(FqElement const &obj) noexcept {
 		if (this != &obj) {
 			__value = obj.__value;
 		}
@@ -468,7 +471,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator=(uint32_t const obj) noexcept {
+	constexpr inline FqElement &operator=(uint32_t const obj) noexcept {
 		__value = T(obj % q);
 		return *this;
 	}
@@ -476,7 +479,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator=(uint64_t const obj) noexcept {
+	constexpr inline FqElement &operator=(uint64_t const obj) noexcept {
 		__value = T(obj % q);
 		return *this;
 	}
@@ -484,7 +487,7 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator=(int32_t const obj) noexcept {
+	constexpr inline FqElement &operator=(int32_t const obj) noexcept {
 		__value = T(obj % q);
 		return *this;
 	}
@@ -492,22 +495,22 @@ public:
 	///
 	/// \param obj
 	/// \return
-	constexpr inline kAry_Type_T &operator=(int64_t const obj) noexcept {
+	constexpr inline FqElement &operator=(int64_t const obj) noexcept {
 		__value = T(obj % q);
 		return *this;
 	}
 
-	//	kAry_Type_T &operator=(T const obj) {
+	//	FqElement &operator=(T const obj) {
 	//		__value = obj % q;
 	//		return *this;
 	//	}
 
-	//	kAry_Type_T &operator=(unsigned int const obj) {
+	//	FqElement &operator=(unsigned int const obj) {
 	//		__value = obj % q;
 	//		return *this;
 	//	}
 
-	//	kAry_Type_T &operator=(unsigned long obj) {
+	//	FqElement &operator=(unsigned long obj) {
 	//		__value = obj % q;
 	//		return *this;
 	//	}
@@ -515,14 +518,14 @@ public:
 	///
 	/// \param obj
 	/// \return
-	[[nodiscard]] constexpr inline bool operator!=(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator!=(FqElement const &obj) const noexcept {
 		return __value != obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	[[nodiscard]] constexpr inline bool operator==(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator==(FqElement const &obj) const noexcept {
 		return __value == obj.__value;
 	}
 
@@ -536,28 +539,28 @@ public:
 	///
 	/// \param obj
 	/// \return
-	[[nodiscard]] constexpr inline bool operator>(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator>(FqElement const &obj) const noexcept {
 		return __value > obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	[[nodiscard]] constexpr inline bool operator>=(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator>=(FqElement const &obj) const noexcept {
 		return __value >= obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	[[nodiscard]] constexpr inline bool operator<(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator<(FqElement const &obj) const noexcept {
 		return __value < obj.__value;
 	}
 
 	///
 	/// \param obj
 	/// \return
-	[[nodiscard]] constexpr inline bool operator<=(kAry_Type_T const &obj) const noexcept {
+	[[nodiscard]] constexpr inline bool operator<=(FqElement const &obj) const noexcept {
 		return __value <= obj.__value;
 	}
 
@@ -566,8 +569,8 @@ public:
 	/// \param lower inclusive
 	/// \param upper exclusive
 	/// \return this[lower, upper) == o[lower, upper)
-	[[nodiscard]] static constexpr inline bool cmp(kAry_Type_T const &o1,
-	                                               kAry_Type_T const &o2,
+	[[nodiscard]] static constexpr inline bool cmp(FqElement const &o1,
+	                                               FqElement const &o2,
 	                                               const uint32_t lower = 0,
 	                                               const uint32_t upper = bits()) noexcept {
 		return o1.is_equal(o2, lower, upper);
@@ -578,7 +581,7 @@ public:
 	/// \param lower inclusive
 	/// \param upper exclusive
 	/// \return this[lower, upper) == o[lower, upper)
-	[[nodiscard]] constexpr inline bool is_equal(kAry_Type_T const &o,
+	[[nodiscard]] constexpr inline bool is_equal(FqElement const &o,
 	                                             const uint32_t lower = 0,
 	                                             const uint32_t upper = bits()) const noexcept {
 		ASSERT(sizeof(T) * 8 > lower);
@@ -591,7 +594,7 @@ public:
 	}
 
 	template<const uint32_t lower, const uint32_t upper>
-	[[nodiscard]] constexpr inline bool is_equal(kAry_Type_T const &o) const noexcept {
+	[[nodiscard]] constexpr inline bool is_equal(FqElement const &o) const noexcept {
 		static_assert(sizeof(T) * 8 > lower);
 		static_assert(sizeof(T) * 8 >= upper);
 		static_assert(lower < upper);
@@ -606,7 +609,7 @@ public:
 	/// \param lower inclusive
 	/// \param upper exclusive
 	/// \return this[lower, upper) > o[lower, upper)
-	[[nodiscard]] constexpr inline bool is_greater(kAry_Type_T const &o,
+	[[nodiscard]] constexpr inline bool is_greater(FqElement const &o,
 	                                               const uint32_t lower = 0,
 	                                               const uint32_t upper = bits()) const noexcept {
 		ASSERT(sizeof(T) * 8 > lower);
@@ -619,7 +622,7 @@ public:
 	}
 
 	template<const uint32_t lower, const uint32_t upper>
-	[[nodiscard]] constexpr inline bool is_greater(kAry_Type_T const &o) const noexcept {
+	[[nodiscard]] constexpr inline bool is_greater(FqElement const &o) const noexcept {
 		static_assert(sizeof(T) * 8 > lower);
 		static_assert(sizeof(T) * 8 >= upper);
 		static_assert(lower < upper);
@@ -634,7 +637,7 @@ public:
 	/// \param lower inclusive
 	/// \param upper exclusive
 	/// \return this[lower, upper) < o[lower, upper)
-	[[nodiscard]] constexpr inline bool is_lower(kAry_Type_T const &o,
+	[[nodiscard]] constexpr inline bool is_lower(FqElement const &o,
 	                                             const uint32_t lower = 0,
 	                                             const uint32_t upper = bits()) const noexcept {
 		ASSERT(sizeof(T) * 8 > lower);
@@ -654,7 +657,7 @@ public:
 	/// \param upper exclusive
 	/// \return this[lower, upper) < o[lower, upper)
 	template<const uint32_t lower, const uint32_t upper>
-	[[nodiscard]] constexpr inline bool is_lower(kAry_Type_T const &o) const noexcept {
+	[[nodiscard]] constexpr inline bool is_lower(FqElement const &o) const noexcept {
 		static_assert(sizeof(T) * 8 > lower);
 		static_assert(sizeof(T) * 8 >= upper);
 		static_assert(lower < upper);
@@ -706,9 +709,9 @@ public:
 	/// \param lower
 	/// \param upper
 	/// \return
-	constexpr inline static void add(kAry_Type_T &out,
-	                                 const kAry_Type_T &in1,
-	                                 const kAry_Type_T &in2,
+	constexpr inline static void add(FqElement &out,
+	                                 const FqElement &in1,
+	                                 const FqElement &in2,
 	                                 const uint32_t lower = 0,
 	                                 const uint32_t upper = bits()) noexcept {
 		ASSERT(sizeof(T) * 8 > lower);
@@ -734,9 +737,9 @@ public:
 	/// \param upper
 	/// \return
 	template<const uint32_t lower, const uint32_t upper>
-	constexpr inline static void add(kAry_Type_T &out,
-	                                 const kAry_Type_T &in1,
-	                                 const kAry_Type_T &in2) noexcept {
+	constexpr inline static void add(FqElement &out,
+	                                 const FqElement &in1,
+	                                 const FqElement &in2) noexcept {
 		static_assert(sizeof(T) * 8 > lower);
 		static_assert(sizeof(T) * 8 >= upper);
 		static_assert(lower < upper);
@@ -754,9 +757,9 @@ public:
 
 	/// not really useful, if lower != 0 and upper != bits
 	/// NOTE: ignores carries over the limits.
-	constexpr inline static void sub(kAry_Type_T &out,
-	                                 const kAry_Type_T &in1,
-	                                 const kAry_Type_T &in2,
+	constexpr inline static void sub(FqElement &out,
+	                                 const FqElement &in1,
+	                                 const FqElement &in2,
 	                                 const uint32_t lower = 0,
 	                                 const uint32_t upper = bits()) noexcept {
 		ASSERT(sizeof(T) * 8 > lower);
@@ -783,9 +786,9 @@ public:
 	/// \param in2
 	/// \return
 	template<const uint32_t lower, const uint32_t upper>
-	constexpr inline static void sub(kAry_Type_T &out,
-	                                 const kAry_Type_T &in1,
-	                                 const kAry_Type_T &in2) noexcept {
+	constexpr inline static void sub(FqElement &out,
+	                                 const FqElement &in1,
+	                                 const FqElement &in2) noexcept {
 		static_assert(sizeof(T) * 8 > lower);
 		static_assert(sizeof(T) * 8 >= upper);
 		static_assert(lower < upper);
@@ -809,9 +812,9 @@ public:
 	/// \param lower
 	/// \param upper
 	/// \return
-	constexpr inline static void mul(kAry_Type_T &out,
-									 const kAry_Type_T &in1,
-									 const kAry_Type_T &in2,
+	constexpr inline static void mul(FqElement &out,
+									 const FqElement &in1,
+									 const FqElement &in2,
 									 const uint32_t lower = 0,
 									 const uint32_t upper = bits()) noexcept {
 		ASSERT(sizeof(T) * 8 > lower);
@@ -831,9 +834,9 @@ public:
 	}
 
 	template<const uint32_t lower, const uint32_t upper>
-	constexpr inline static void mul(kAry_Type_T &out,
-									 const kAry_Type_T &in1,
-									 const kAry_Type_T &in2) noexcept {
+	constexpr inline static void mul(FqElement &out,
+									 const FqElement &in1,
+									 const FqElement &in2) noexcept {
 		static_assert(sizeof(T) * 8 > lower);
 		static_assert(sizeof(T) * 8 >= upper);
 		static_assert(lower < upper);
@@ -857,8 +860,8 @@ public:
 	/// \param lower
 	/// \param upper
 	/// \return
-	constexpr inline static void scalar(kAry_Type_T &out,
-										const kAry_Type_T &in1,
+	constexpr inline static void scalar(FqElement &out,
+										const FqElement &in1,
 										const DataType &in2,
 	                                    const uint32_t lower=0,
 	                                    const uint32_t upper=bits()) noexcept {
@@ -884,8 +887,8 @@ public:
 	/// \param in2
 	/// \return
 	template<const uint32_t lower, const uint32_t upper>
-	constexpr inline static void scalar(kAry_Type_T &out,
-									 const kAry_Type_T &in1,
+	constexpr inline static void scalar(FqElement &out,
+									 const FqElement &in1,
 									 const DataType &in2) noexcept {
 		static_assert(sizeof(T) * 8 > lower);
 		static_assert(sizeof(T) * 8 >= upper);
@@ -951,29 +954,29 @@ public:
 	}
 
 	/// right rotate
-	constexpr inline static void rol(kAry_Type_T &out,
-	                                 const kAry_Type_T &in1,
+	constexpr inline static void rol(FqElement &out,
+	                                 const FqElement &in1,
 	                                 const uint32_t i) noexcept {
 		out.__value = rol_T(in1.__value, i);
 	}
 
 	/// left rotate
-	constexpr inline static void ror(kAry_Type_T &out,
-	                                 const kAry_Type_T &in1,
+	constexpr inline static void ror(FqElement &out,
+	                                 const FqElement &in1,
 	                                 const uint32_t i) noexcept {
 		out.__value = ror_T(in1.__value, i);
 	}
 
 	/// left shift (binary)
-	constexpr inline static void sll(kAry_Type_T &out,
-	                                 const kAry_Type_T &in1,
+	constexpr inline static void sll(FqElement &out,
+	                                 const FqElement &in1,
 	                                 const uint32_t i) noexcept {
 		out.__value = in1.__value << i;
 	}
 
 	/// right shift (binary)
-	constexpr inline static void slr(kAry_Type_T &out,
-	                                 const kAry_Type_T &in1,
+	constexpr inline static void slr(FqElement &out,
+	                                 const FqElement &in1,
 	                                 const uint32_t i) noexcept {
 		out.__value = in1.__value >> i;
 	}
@@ -1140,8 +1143,8 @@ public:
 	/// \param lower
 	/// \param upper
 	/// \return
-	constexpr static inline void set(kAry_Type_T &out,
-	                                 const kAry_Type_T &in,
+	constexpr static inline void set(FqElement &out,
+	                                 const FqElement &in,
 	                                 const size_t lower,
 	                                 const size_t upper) noexcept {
 		ASSERT(sizeof(T) > lower);
@@ -1223,8 +1226,8 @@ public:
 	/// \param a
 	/// \param b
 	/// \return
-	constexpr static kAry_Type_T gcd(const kAry_Type_T a,
-	                                 const kAry_Type_T b) noexcept {
+	constexpr static FqElement gcd(const FqElement a,
+	                                 const FqElement b) noexcept {
 		if (b.is_zero()) { return b; }
 		if (a.is_zero()) { return a; }
 
@@ -1241,10 +1244,10 @@ public:
 	}
 
 	/// returns the greates common divisor, and x,y s.t. gcd= x*a + y*b;
-	constexpr static kAry_Type_T eea(kAry_Type_T &x,
-	                                 kAry_Type_T &y,
-	                                 const kAry_Type_T a,
-	                                 const kAry_Type_T b) noexcept {
+	constexpr static FqElement eea(FqElement &x,
+	                                 FqElement &y,
+	                                 const FqElement a,
+	                                 const FqElement b) noexcept {
 		// Base Case
 		if (a == 0) {
 			*x = 0;
@@ -1252,8 +1255,8 @@ public:
 			return b;
 		}
 
-		kAry_Type_T x1, y1;// To store results of recursive call
-		kAry_Type_T gcd = gcd(&x1, &y1, b % a, a);
+		FqElement x1, y1;// To store results of recursive call
+		FqElement gcd = gcd(&x1, &y1, b % a, a);
 
 		// Update x and y using results of recursive
 		// call
@@ -1363,6 +1366,34 @@ public:
 private:
 	T __value;
 };
+
+template<const uint64_t q,
+		class Metric = HammingMetric,
+		const FqConfig &config=fqConfig>
+class kAry_Type_T : public FqElement<TypeTemplate<q> , q, Metric, config> {
+public:
+	// The problem is, that copy constructors are never inherited
+	constexpr inline kAry_Type_T() noexcept {
+		this->set(0, 0);
+	};
+	constexpr inline kAry_Type_T(const uint64_t k) noexcept {
+		this->set(k, 0);
+	}
+	constexpr inline kAry_Type_T(FqElement<TypeTemplate<q> , q, Metric, config> &&k) noexcept {
+		this->set(k.get(0), 0);
+	}
+	constexpr inline kAry_Type_T(FqElement<TypeTemplate<q> , q, Metric, config> &k) noexcept {
+		this->set(k.get(0), 0);
+	}
+};
+
+// TODO
+template<const big_int<1> _q,
+		class Metric = HammingMetric,
+		const FqConfig &config=fqConfig>
+class FqElement {
+};
+
 
 //generic abs function for the kAryType
 template<class T>

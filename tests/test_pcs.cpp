@@ -298,7 +298,7 @@ TEST(PCS, RhoSubSetSumTree) {
 	// Needed Types
 	using TT 			= uint16_t;
 	using Matrix 		= FqMatrix<TT, 1, n, q>;
-	using Value     	= kAryContainer_T<TT, n, 2>;
+	using Value     	= FqNonPackedVector<TT, n, 2>;
 	using Element		= Element_T<Value, T, Matrix>;
 	using List			= List_T<Element>;
 	using Tree			= Tree_T<List>;

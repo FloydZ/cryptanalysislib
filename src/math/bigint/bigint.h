@@ -6,17 +6,23 @@
 #include <cstddef>
 #include <cstdint>
 
-
-template<size_t N, std::unsigned_integral T = uint64_t>
+///
+/// \tparam N
+/// \tparam T
+template<size_t N,
+        std::unsigned_integral T = uint64_t>
 struct big_int : std::array<T, N> {
+	///
+	static_assert(N > 0);
+
 	/// make sure that data is zero initialized
-	constexpr big_int() {
+	constexpr big_int() noexcept{
 		this->fill(static_cast<T>(0));
 	}
 
-	///
+	/// simple integer constructor
 	/// \param a
-	constexpr big_int(const T a) {
+	constexpr big_int(const T a) noexcept {
 		this->fill(static_cast<T>(0));
 		this->operator[](0) = a;
 	}
@@ -363,26 +369,6 @@ constexpr DivisionResult<big_int<M, T>, big_int<N, T>> div(big_int<M, T> u,
 	}
 	return {q, shift_right(cryptanalysislib::first<N>(us), k)};
 }
-
-///// not working
-///// \tparam N
-///// \tparam T
-///// \param n
-///// \param k
-///// \return
-//template<size_t N, typename T>
-//constexpr big_int<N, T> __binomial(const big_int<N, T> &nn, const big_int<N, T> &kk) {
-//	const auto zero = big_int<N, T>{0};
-//	const auto one = big_int<N, T>{1};
-//
-//	return
-//			(kk > nn  ) ? zero :       					// out of range
-//			(kk == zero || kk == nn  ) ? one :       	// edge
-//			(kk == one || kk == big_int<N, T>{nn - one}) ? nn :    	// first
-//			(kk + kk < nn  ) ?           		// recursive:
-//			(__binomial(nn - one, kk - one) * nn) / kk :    //  path to k=1   is faster
-//			(__binomial(nn - one, kk) * nn) / (nn - kk);	//  path to k=n-1 is faster
-//}
 
 /// NOTE: this function will use a sginaficant amount of compiler ressources.
 /// you may need to increase the constexpr steps via:

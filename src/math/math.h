@@ -17,7 +17,7 @@
 /// constexpr special computation of the binomial coefficient
 #include "math/bc.h"
 
-/// constexpr bigig
+/// constexpr bigint
 #include "math/bigint/bigint.h"
 
 #endif//CRYPTANALYSISLIB_MATH_H

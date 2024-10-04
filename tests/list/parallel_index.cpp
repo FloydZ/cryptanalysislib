@@ -16,8 +16,8 @@ constexpr uint32_t q = 5;
 
 using MatrixT = uint8_t;
 using Matrix 		= FqMatrix<MatrixT, n, k, q>;
-using Value 		= kAryContainer_T<MatrixT, k, q>;
-using Label 		= kAryContainer_T<MatrixT, n, q>;
+using Value 		= FqNonPackedVector<MatrixT, k, q>;
+using Label 		= FqNonPackedVector<MatrixT, n, q>;
 using Element       = Element_T<Value, Label, Matrix>;
 using List 			= Parallel_List_IndexElement_T<Element, nri>;
 

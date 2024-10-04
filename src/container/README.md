@@ -68,7 +68,7 @@ Container holding `n` bits in limbs of type `T`. Each limb will hold
 represents a value `mod q`. The second type `T2` is needed to sanely implement 
 the multiplication.
 
-### kAryContainer_T<T, n>
+### FqNonPackedVector<T, n>
 holds `len` elements `mod q` and each element is  saved in its own limb of 
 type `T`. 
 

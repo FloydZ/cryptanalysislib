@@ -29,7 +29,7 @@ using namespace cryptanalysislib;
 template<typename T,
          const uint32_t __nrows,
          const uint32_t __ncols>
-class FqMatrix<T, __nrows, __ncols, 2, true, void> : private FqMatrix_Meta<T, __nrows, __ncols, 2ull, true, void> {
+class FqMatrix<T, __nrows, __ncols, 2, true, void> : private FqMatrixMeta<T, __nrows, __ncols, 2ull, true, void> {
 public:
 	using RowT = FqPackedVector<__ncols, T>;
 	using MatrixType = FqMatrix<T, __nrows, __ncols, 2, true>;
@@ -213,8 +213,7 @@ public:
 	}
 
 	/// copy constructor
-	constexpr FqMatrix(const FqMatrix &A) noexcept :
-		FqMatrix_Meta<T, nrows, ncols, 2, true>() {
+	constexpr FqMatrix(const FqMatrix &A) noexcept : FqMatrixMeta<T, nrows, ncols, 2, true>() {
 		std::copy(A.__data.begin(), A.__data.end(), __data.begin());
 		init_matrix_data();
 	}
