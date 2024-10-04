@@ -15,6 +15,7 @@ using ::testing::UnitTest;
 using namespace cryptanalysislib;
 
 
+// TODO avx512
 TEST(argmin, uint32_t) {
 	constexpr size_t s = 100;
 	auto d = new uint32_t [s];

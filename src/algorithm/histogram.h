@@ -5,6 +5,10 @@
 #include "memory/memory.h"
 #include <cmath>
 
+// TODO multiple parallel histograms, result in a speedup?
+
+
+
 constexpr static uint32_t histogram_csize = 256;
 #define HISTEND(_c_,_cn_,_cnt_) { uint32_t _i,_j;\
   memset(_cnt_, 0, 256*sizeof(_cnt_[0]));\

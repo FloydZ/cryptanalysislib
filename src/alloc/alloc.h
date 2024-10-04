@@ -25,32 +25,24 @@ namespace cryptanalysislib {
 	/// \param alignment number of bytes to align the pointer to
 	/// \param size number of bytes to allocate
 	/// \return pointer to the data or nullptr
-	static void *aligned_alloc(const std::size_t alignment,
-	                           const std::size_t size) noexcept {
-
-		std::size_t __size = size;
-		// just to please the compiler
-		if (size < alignment) {
-			__size = alignment;
-		}
-
-		if ((__size % alignment) != 0) {
-			__size = ((__size + alignment - 1) / alignment) * alignment;
-		}
-
-#ifdef __APPLE__
-		// of cause apple has no std::aligned_alloc. That would be stupid.
-		// seams to work on apple
-		void *ret;
-		if (posix_memalign(&ret, alignment, __size)) {
-			return nullptr;
-		}
-
-		return ret;
-#else
-		return std::aligned_alloc(alignment, __size);
-#endif
+	static inline void *aligned_alloc(const std::size_t alignment,
+	                                  const std::size_t size) noexcept {
+        void *p = malloc(size + sizeof(void *) + alignment - 1);
+        if (!p) [[unlikely]] {
+            return p;
+	    }
+        void **ap = (void **)(((uint64_t)p + sizeof(void *) + alignment - 1) & ~(alignment - 1));
+        ap[-1] = p;
+        return ap;
 	}
+
+    /// NOTE: wil fail if the ptr was not return by `aligned_alloc`
+    /// 
+    static inline void aligned_free(void *p) noexcept {
+        if (nullptr != p) [[likely]] { 
+            free(((void **)p)[-1]);
+    	}
+    }
 }// namespace cryptanalysislib
 
 /// replacement for *void
@@ -94,7 +86,8 @@ struct AllocatorConfig : public AlignmentConfig {
 
 	/// enforce that every allocator obeys a given hint.
 	constexpr static bool obey_hint = false;
-} allocatorConfig;
+};
+constexpr static AllocatorConfig allocatorConfig;
 
 /// concept of an allocator
 template<class T>
@@ -594,6 +587,37 @@ public:
 	//	(void) a;
 	//	return std::numeric_limits<size_t>::max();
 	//}
+};
+
+// C++ wrapper around `aligned_alloc` and `aligned_free`
+template<typename T, const size_t alignment = 1024>
+class AlignmentMallocator {
+public:
+	typedef AlignmentMallocator<T, alignment> allocator_type;
+	typedef AlignmentMallocator<T, alignment> Alloc;
+	typedef T value_type;
+	typedef T *pointer;
+	typedef const T *const_pointer;
+	typedef void *void_pointer;
+	typedef const void *const_void_pointer;
+	typedef size_t size_type;
+
+	/// simply allocates `n` bytes using `a`
+	/// \param a base allocator
+	/// \param n number of byte
+	/// \return pointer to data or nullptr
+	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
+		return cryptanalysislib::aligned_alloc(alignment, n);
+	}
+
+	/// \param a base allocator
+	/// \param p pointer to data
+	/// \param n number of bytes
+	static constexpr inline void deallocate(const pointer p,
+											const size_type n) noexcept {
+        (void) n;
+        cryptanalysislib::aligned_free(p);
+	}
 };
 
 namespace cryptanalysislib::alloc {

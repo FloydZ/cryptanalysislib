@@ -41,7 +41,6 @@ static uint32_t *test_bsearch(const uint32_t x,
 	return &array[lo];
 }
 
-// TODO: more tests
 TEST(imap, first) {
 	imap_tree_t tree;
 

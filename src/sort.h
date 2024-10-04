@@ -1516,9 +1516,6 @@ public:
 	uint64_t load() const noexcept {
 		uint64_t load = 0;
 
-		// TODO omp stuff
-		//if (Thread::get_tid() == 0) {
-
 #pragma omp critical
 			{
 				for (uint64_t _nrb = 0; _nrb < nrb; ++_nrb) {
@@ -1527,7 +1524,6 @@ public:
 					}
 				}
 			}
-		//}
 
 #pragma omp barrier
 		return load;

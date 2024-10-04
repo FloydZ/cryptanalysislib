@@ -9,9 +9,11 @@
 #include "popcount/popcount.h"
 
 using namespace cryptanalysislib::popcount;
+using namespace cryptanalysislib;
    
 // TODO all those structs iDownloadsnto the imap container
 // TODO iterators
+// TODO hashmap API
 // TODO remove? use __uint128?
 typedef struct imap_u128 {
     uint64_t v[2];
@@ -38,34 +40,11 @@ struct imap_pair_t {
 	uint32_t *slot;
 };
 
-/// TODO replace with allocator
-static inline
-void *imap__aligned_alloc__(uint64_t alignment,
-                            const uint64_t size) {
-    void *p = malloc(size + sizeof(void *) + alignment - 1);
-    if (!p) {
-        return p;
-	}
-    void **ap = (void **)(((uint64_t)p + sizeof(void *) + alignment - 1) & ~(alignment - 1));
-    ap[-1] = p;
-    return ap;
-}
-
-/// TODO replace with allocator
-static inline void imap__aligned_free__(void *p) {
-    if (nullptr != p) {
-        free(((void **)p)[-1]);
-	}
-}
-
-#define IMAP_ALIGNED_ALLOC(a, s)    (imap__aligned_alloc__(a, s))
-#define IMAP_ALIGNED_FREE(p)        (imap__aligned_free__(p))
-
 
 struct ImapConfig : public AlignmentConfig {
 };
 
-
+template<typename Allocator = AlignmentMallocator<imap_node_t, sizeof(imap_node_t)>>
 struct imap_tree_t {
 private:
 	imap_node_t *tree;
@@ -107,6 +86,7 @@ public:
 #endif
     }
 
+    // TODO neon and stuff
 	    static inline
     void imap__deposit_lo4_simd__(const uint32_t vec32[16],
 							 	  const uint64_t value) noexcept {
@@ -118,7 +98,7 @@ public:
         valmm = _mm512_and_epi32(valmm, _mm512_set1_epi32(0xf));
         vecmm = _mm512_or_epi32(vecmm, valmm);
         _mm512_store_epi32(vec32, vecmm);
-    #else
+#else
         __m256i veclo = _mm256_load_si256((__m256i *)vec32);
         __m256i vechi = _mm256_load_si256((__m256i *)(vec32 + 8));
         __m256i vallo, valhi = _mm256_set1_epi64x(value);
@@ -134,9 +114,10 @@ public:
         vechi = _mm256_or_si256(vechi, valhi);
         _mm256_store_si256((__m256i *)vec32, veclo);
         _mm256_store_si256((__m256i *)(vec32 + 8), vechi);
-    #endif
+#endif
     }
 
+    // TODO doc
   static inline uint32_t imap__popcnt_hi28_simd__(uint32_t vec32[16],
 									  uint32_t *p) noexcept {
 #if defined (USE_AVX512F)
@@ -172,7 +153,7 @@ public:
     #define imap__deposit_lo4__         imap__deposit_lo4_simd__
     #define imap__popcnt_hi28__         imap__popcnt_hi28_simd__
 
-#else
+#else // NO AVX:
     constexpr static inline
     uint64_t imap__extract_lo4_port__(uint32_t vec32[16]) noexcept {
         union {
@@ -274,14 +255,12 @@ public:
     }
 
     constexpr static inline
-    uint64_t imap__node_prefix__(imap_node_t *node)
-    {
+    uint64_t imap__node_prefix__(imap_node_t *node) noexcept {
         return imap__extract_lo4__(node->vec32);
     }
 
     static inline
-    void imap__node_setprefix__(imap_node_t *node, uint64_t prefix)
-    {
+    void imap__node_setprefix__(imap_node_t *node, uint64_t prefix) noexcept {
         imap__deposit_lo4__(node->vec32, prefix);
     }
 
@@ -368,7 +347,8 @@ public:
         if (0x20000000 < newsize64)
             return 0;
         newsize = (uint32_t)newsize64;
-        newtree = (imap_node_t *)IMAP_ALIGNED_ALLOC(sizeof(imap_node_t), newsize);
+        newtree = (imap_node_t *)Allocator::allocate(newsize);
+        // newtree = (imap_node_t *)IMAP_ALIGNED_ALLOC(sizeof(imap_node_t), newsize);
         if (!newtree) {
             return newtree;
 		}
@@ -404,7 +384,8 @@ public:
         } else {
             memcpy(newtree, tree, tree->vec32[imap__tree_mark__]);
 			// TODO yo what
-            IMAP_ALIGNED_FREE(tree);
+            Allocator::deallocate(tree, 0);
+            // IMAP_ALIGNED_FREE(tree);
             newtree->vec32[imap__tree_size__] = newsize;
         }
         return newtree;
@@ -439,7 +420,8 @@ public:
 	}
 
 	~imap_tree_t() noexcept {
-		IMAP_ALIGNED_FREE(tree);
+        Allocator::deallocate(tree, 0);
+		// IMAP_ALIGNED_FREE(tree);
 	}
 
 	///

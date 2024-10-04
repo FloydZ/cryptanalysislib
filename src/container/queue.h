@@ -3,7 +3,6 @@
 
 #include <atomic>
 #include <cstdint>
-// TODO #include <stdatomic.h>
 #include <limits>
 #include <queue>
 #include <mutex>
