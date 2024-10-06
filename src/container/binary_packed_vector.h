@@ -39,7 +39,7 @@
 template<const uint32_t _n,
 		 typename T>
 #if __cplusplus > 201709L
-    requires std::is_arithmetic_v<T>
+    requires std::unsigned_integral<T>
 #endif
 class FqPackedVector<_n, 2, T> : public FqPackedVectorMeta<_n, 2, T> {
 public:

@@ -314,6 +314,7 @@ template<typename T=uint64_t>
 	requires std::is_integral_v<T>
 #endif
 [[nodiscard]] static inline uint64_t rng(const T limit) noexcept {
+	ASSERT(limit > 0);
 	return random::internal::xorshf96_random_data<T>() % limit;
 }
 

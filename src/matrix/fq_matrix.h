@@ -17,6 +17,9 @@ template<typename T,
          const uint64_t q,
          const bool packed = true,
          typename R=void>
+#if __cplusplus > 201709L
+    // TODO
+#endif
 class FqMatrix : public FqMatrixMeta<T, nrows, ncols, q, packed, R> {
 public:
 };
@@ -30,6 +33,9 @@ template<typename T,
          const uint32_t nrows,
          const uint32_t ncols,
          const bool packed>
+#if __cplusplus > 201709L
+    // TODO
+#endif
 class FqMatrix<T, nrows, ncols, 3, packed, void> : public FqMatrixMeta<T, nrows, ncols, 3, packed, void> {
 public:
 	/// this is just defined, because Im lazy

@@ -17,6 +17,7 @@ template<typename T=uint64_t>
 	return (x << k) | (x >> ((sizeof(T)*8) - k));
 }
 
+/// right rotate
 /// \param x value to rotate
 /// \param k how much to rotate
 /// \return x <<< k

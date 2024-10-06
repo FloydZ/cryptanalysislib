@@ -1,5 +1,8 @@
 #include <cstdint>
 
+#define ABC S::LimbType
+#define MA 	((1ull << ((sizeof(ABC) * 8u) - 1ull)) - 1ull)
+
 TEST(T, DoesNotLeak) {
     auto*l = new S;
     delete l;
@@ -106,15 +109,15 @@ TEST(T, add_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = rng(1ull << 63);
-		uint64_t t2 = rng(1ull << 63);
-
+		uint64_t t1 = rng<ABC>(MA);
+		uint64_t t2 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
 
 		l3 = l1 + l2;
-		EXPECT_EQ(l3.value(), (t1 + t2) % PRIME);
+		uint64_t c = (t1 + t2) % PRIME;
+		EXPECT_EQ(l3.value(), c);
 		EXPECT_EQ(l1, t1 % PRIME);
 		EXPECT_EQ(l2, t2 % PRIME);
 	}
@@ -124,8 +127,8 @@ TEST(T, add_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		const int64_t t1 = rng(1ull << 63);
-		const int64_t t2 = rng(1ull << 63);
+		uint64_t t1 = rng<ABC>(MA);
+		uint64_t t2 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
@@ -141,8 +144,8 @@ TEST(T, add_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		const uint64_t t1 = rng(1ull << 63);
-		const uint64_t t2 = rng(1ull << 63);
+		uint64_t t1 = rng<ABC>(MA);
+		uint64_t t2 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
@@ -159,8 +162,8 @@ TEST(T, sub_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		signed int t1 = rng(PRIME);
-		signed int t2 = rng(PRIME);
+		signed int t1 = rng<ABC>(PRIME);
+		signed int t2 = rng<ABC>(PRIME);
 
 		l1 = t1;
 		l2 = t2;
@@ -178,8 +181,8 @@ TEST(T, sub_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = (rng(PRIME));
-		uint64_t t2 = (rng(PRIME));
+		uint64_t t1 = rng<ABC>(PRIME);
+		uint64_t t2 = rng<ABC>(PRIME);
 
 		l1 = t1;
 		l2 = t2;
@@ -195,9 +198,9 @@ TEST(T, addmul_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		unsigned int t1 = rng(1ull << 15);
-		unsigned int t2 = rng(1ull << 15);
-		unsigned int t3 = rng(1ull << 15);
+		unsigned int t1 = rng<ABC>(MA);
+		unsigned int t2 = rng<ABC>(MA);
+		unsigned int t3 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
@@ -214,9 +217,9 @@ TEST(T, addmul_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		signed int t1 = rng(1ull << 15);
-		signed int t2 = rng(1ull << 15);
-		signed int t3 = rng(1ull << 15);
+		signed int t1 = rng<ABC>(MA);
+		signed int t2 = rng<ABC>(MA);
+		signed int t3 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
@@ -233,9 +236,9 @@ TEST(T, add_mul_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = rng(1ull << 15);
-		uint64_t t2 = rng(1ull << 15);
-		uint64_t t3 = rng(1ull << 15);
+		uint64_t t1 = rng<ABC>(MA);
+		uint64_t t2 = rng<ABC>(MA);
+		uint64_t t3 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
@@ -288,7 +291,7 @@ TEST(T, arith) {
 
 TEST(T, comparison_simple) {
 	S l1, l2;
-	unsigned int t1 = rng(PRIME - 1);
+	unsigned int t1 = rng<ABC>(PRIME - 1);
 	unsigned int t2 = t1 + 1;
 
 	l1 = t1;
@@ -421,3 +424,6 @@ TEST(T, Constexpr) {
 TEST(T, info) {
 	S::info();
 }
+
+#undef ABC
+#undef MA

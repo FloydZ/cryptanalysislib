@@ -40,8 +40,8 @@ template<typename T,
 class FqElement {
 public:
 	// make the length and modulus of the container public available
-	constexpr static uint64_t q = _q;
-	[[nodiscard]] constexpr static inline uint64_t modulus() noexcept { return _q; }
+	constexpr static T q = _q;
+	[[nodiscard]] constexpr static inline T modulus() noexcept { return _q; }
 	constexpr static uint64_t n = 1;
 
 	/// \return the number of bits needed to store a single element mod q
@@ -1145,8 +1145,8 @@ public:
 	/// \return
 	constexpr static inline void set(FqElement &out,
 	                                 const FqElement &in,
-	                                 const size_t lower,
-	                                 const size_t upper) noexcept {
+	                                 const uint32_t lower,
+	                                 const uint32_t upper) noexcept {
 		ASSERT(sizeof(T) > lower);
 		ASSERT(sizeof(T) >= upper);
 		ASSERT(lower < upper);
@@ -1159,9 +1159,10 @@ public:
 	/// \param val
 	/// \param i
 	/// \return
-	constexpr inline void set(const T val, const size_t i) noexcept {
+	constexpr inline void set(const T val,
+	                          const size_t i) noexcept {
 		ASSERT(i < bits());
-		__value = val;
+		__value = val % q;
 	}
 
 	///
@@ -1368,8 +1369,8 @@ private:
 };
 
 template<const uint64_t q,
-		class Metric = HammingMetric,
-		const FqConfig &config=fqConfig>
+		 class Metric = HammingMetric,
+		 const FqConfig &config=fqConfig>
 class kAry_Type_T : public FqElement<TypeTemplate<q> , q, Metric, config> {
 public:
 	// The problem is, that copy constructors are never inherited
@@ -1388,10 +1389,11 @@ public:
 };
 
 // TODO
-template<const big_int<1> _q,
-		class Metric = HammingMetric,
-		const FqConfig &config=fqConfig>
-class FqElement {
+template<typename T,
+		 const T q,
+         class Metric = HammingMetric,
+		 const FqConfig &config=fqConfig>
+class kAry_Type_T_big : public FqElement<T, q, Metric, config> {
 };
 
 

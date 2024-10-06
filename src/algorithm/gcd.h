@@ -1,10 +1,13 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_GCD_H
 #define CRYPTANALYSISLIB_ALGORITHM_GCD_H
 
-///
 #include <type_traits>
 #include <algorithm>
 
+/// TODO generic functions which selectes the best one in the cryptanalysislib namespae
+/// TODO benchmarks, tests and multithreading interface
+
+///
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
@@ -26,6 +29,7 @@ constexpr static T gcd(const T a,
 	return gcd<T>(a, b - a);
 }
 
+///
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
@@ -39,6 +43,7 @@ constexpr static T gcd_recursive_v1(const T a,
     return gcd_recursive_v1(b, a % b);
 }
 
+///
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
@@ -48,7 +53,7 @@ constexpr static T gcd_recursive_v2(const T a,
     return b ? gcd_recursive_v2(b, a % b) : a;
 }
 
-
+///
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>

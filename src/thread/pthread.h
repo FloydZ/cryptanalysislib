@@ -1,7 +1,10 @@
 #ifndef CRYPTANALYSISLIB_THREAD_PTHREAD_H
 #define CRYPTANALYSISLIB_THREAD_PTHREAD_H
 
+// lol apple does not support pthread
 #ifndef __APPLE__
+
+
 #include <pthread.h>
 #include <type_traits>
 #include <functional>

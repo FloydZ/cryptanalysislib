@@ -195,7 +195,7 @@ namespace cryptanalysislib {
 		const bool server;
 
 		// socket communication
-		constexpr static char *socket_path = "/tmp/cryptanalysislib_scheduler.socket4";
+		constexpr static char *socket_path = (char *)"/tmp/cryptanalysislib_scheduler.socket4";
 		constexpr static size_t buffer_size = 8096;
 		int sockfd;
 		std::thread server_thread;
@@ -317,17 +317,18 @@ namespace cryptanalysislib {
 			server_thread.join();
 		}
 
-		/// \param i
-		/// \return
-		constexpr inline void gather(const uint32_t i) noexcept {
-			ASSERT(i < schedulerPerformance.schedulerThreadLoad.size());
-			schedulerPerformance.schedulerThreadLoad[i].gather();
+       
+        /// gather performance metrics for thread `tid`
+		/// \param tid thread id
+		constexpr inline void gather(const uint32_t tid) noexcept {
+			ASSERT(tid < schedulerPerformance.schedulerThreadLoad.size());
+			schedulerPerformance.schedulerThreadLoad[tid].gather();
 		}
 
-		///
+		/// set performance metric
+        /// this funcitons should only be called by thread 0
 		/// \param number_active_threads
 		/// \param number_enqueud_tasks
-		/// \return nothing
 		constexpr inline void gather(const uint32_t number_active_threads,
 									 const uint32_t number_enqueud_tasks) noexcept {
 			schedulerPerformance.schedulerThreadLoad[0].gather();
@@ -336,11 +337,11 @@ namespace cryptanalysislib {
 			send();
 		}
 
-		/// \param i
+		/// \param tid thread id
 		/// \return
-		constexpr inline SchedulerThreadLoad& operator[](const uint32_t i) noexcept {
-			ASSERT(i < schedulerPerformance.schedulerThreadLoad.size());
-			return schedulerPerformance.schedulerThreadLoad[i];
+		constexpr inline SchedulerThreadLoad& operator[](const uint32_t tid) noexcept {
+			ASSERT(tid < schedulerPerformance.schedulerThreadLoad.size());
+			return schedulerPerformance.schedulerThreadLoad[tid];
 		}
 	};
 
@@ -465,14 +466,14 @@ namespace cryptanalysislib {
 		scheduler(const scheduler &) noexcept = delete;
 		scheduler &operator=(const scheduler &) noexcept = delete;
 
-        /// @brief Enqueue a task into the thread pool that returns a result.
-        /// @details Note that task execution begins once the task is enqueued.
-        /// @tparam Function An invokable type.
-        /// @tparam Args Argument parameter pack
-        /// @tparam ReturnType The return type of the Function
-        /// @param f The callable function
-        /// @param args The parameters that will be passed (copied) to the function.
-        /// @return A std::future<ReturnType> that can be used to retrieve the returned value.
+        /// \brief Enqueue a task into the thread pool that returns a result.
+        /// \details Note that task execution begins once the task is enqueued.
+        /// \tparam Function An invokable type.
+        /// \tparam Args Argument parameter pack
+        /// \tparam ReturnType The return type of the Function
+        /// \param f The callable function
+        /// \param args The parameters that will be passed (copied) to the function.
+        /// \return A std::future<ReturnType> that can be used to retrieve the returned value.
 		template <typename Function, typename... Args,
 		         typename ReturnType = std::invoke_result_t<Function &&, Args &&...>>
 		    requires std::invocable<Function, Args...>
@@ -599,14 +600,14 @@ namespace cryptanalysislib {
 		}
 
         /// Check whether the pool is paused.
-        /// @return true if pause() has been called without an 
-        /// intervening unpause().
+        /// \return true if pause() has been called without an 
+        ///         intervening unpause().
 		[[nodiscard]] constexpr bool inline is_paused() const noexcept {
 			return pool_paused;
 		}
 
         /// Get number of enqueued tasks.
-        /// @return Number of tasks that have been enqueued but not yet started.
+        /// \return Number of tasks that have been enqueued but not yet started.
 		[[nodiscard]] constexpr size_t get_num_queued_tasks() const {
 			return tasks_.size();
 		}
@@ -624,9 +625,10 @@ namespace cryptanalysislib {
 			return tasks_.size() + in_flight_tasks_.load();
 		}
 
-        /// @brief Returns the number of threads in the pool.
+        ///  brief Returns the number of threads in the pool.
         /// @return std::size_t The number of threads in the pool.
-		[[nodiscard]] constexpr inline auto size() const { return threads_.size(); }
+		[[nodiscard]] constexpr inline auto size() const noexcept { return threads_.size(); }
+        [[nodiscard]] constexpr inline auto get_num_threads() const noexcept { return size(); }
 
 	private:
 

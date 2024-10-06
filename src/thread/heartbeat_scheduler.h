@@ -5,24 +5,25 @@
 #include <chrono>
 #include <condition_variable>
 #include <functional>
-#include <map>
-#include <memory>
 #include <mutex>
 #include <optional>
+#include <thread>
+#include <vector>
+#include <functional>
+#include <cassert>
+
 #include <queue>
 #include <deque>
-#include <thread>
-#include <unordered_map>
-#include <vector>
 #include <stdexcept>
 #include <exception>
-#include <functional>
+#include <unordered_map>
+#include <map>
+#include <memory>
 #include <iostream>
 #include <utility>
 #include <variant>
-#include <cassert>
 
-#include "thread/scheduler.h"
+#include "thread/steal_scheduler.h"
 
 /// TODO: translate the spice binarytre example
 /// translate the worker container into an array in insert and insert them,
@@ -36,7 +37,8 @@ namespace cryptanalysislib {
 		constexpr static uint32_t background_worker_count = 0;
 		/// How often a background thread is interrupted to find more work.
 		constexpr static size_t heartbeat_interval = 100 * 1000;// NS_PERD_US 1000L
-	} heartbeatSchedulerConfig;
+	};
+    constexpr static HeartbeatSchedulerConfig heartbeatSchedulerConfig;
 
 
 	///
@@ -89,6 +91,23 @@ namespace cryptanalysislib {
 		constexpr static size_t heartbeat_interval = config.heartbeat_interval;
 
 	public:
+       
+        // TODO implement 
+		void inline pause() noexcept {
+		}
+
+        /// Resume executing queued tasks.
+		void unpause() noexcept {
+		}
+
+		[[nodiscard]] constexpr bool inline is_paused() const noexcept {
+            return false;
+		}
+
+		[[nodiscard]] constexpr inline auto size() const noexcept { return background_threads.size(); }
+        [[nodiscard]] constexpr inline auto get_num_threads() const noexcept { return size(); }
+
+
 		enum class JobState {
 			pending,
 			queued,
