@@ -300,9 +300,9 @@ namespace cryptanalysislib {
 			// Templated function to call a function with Task's context
 			template<typename T,
 			         typename Func,
-			         typename Arg>
-			inline T call(Func &func, Arg &arg) noexcept __attribute__((always_inline)) {
-				return callWithContext<T, Func, Arg>(worker, job_tail, func, arg);
+			         typename ...Args>
+			inline T call(Func &func, Args... arg) noexcept __attribute__((always_inline)) {
+				return callWithContext<T, Func, Args...>(worker, job_tail, func, arg...);
 			}
 		};
 
@@ -312,16 +312,16 @@ namespace cryptanalysislib {
 		// is that Zig/LLVM is really good at passing parameters in registers, but struggles to
 		// do the same for "fields in structs". In addition, we then return the changed value
 		// of last_heartbeat and job_tail.
-		template<typename T, typename Func, typename Arg>
+		template<typename T, typename Func, typename ...Args>
 		inline static T callWithContext(Worker *worker,
 		                                Job *job_tail,
-		                                Func &func,// TODO correct reference
-		                                Arg arg) noexcept __attribute__((always_inline)) {
+		                                Func &func,         // TODO correct reference
+		                                Args... arg) noexcept __attribute__((always_inline)) {
 			Task t{worker, job_tail};
 			t.tick();
 			// TODO
 			// return std::invoke(func, &t, arg);
-			return std::invoke(func, arg);
+			return std::invoke(func, arg...);
 		}
 
 		// Start the thread pool with the given configuration
@@ -426,8 +426,8 @@ namespace cryptanalysislib {
 		}
 
 		// Create an one-off worker:
-		template<typename T, typename Func, typename Arg>
-		inline T call(Func &func, Arg arg) noexcept __attribute__((always_inline)) {
+		template<typename T, typename Func, typename... Args>
+		inline T call(Func &func, Args... arg) noexcept __attribute__((always_inline)) {
 			Worker worker{.pool = this};
 
 			{
@@ -436,7 +436,7 @@ namespace cryptanalysislib {
 			}
 
 			Task t = worker.begin();
-			const T ret = t.template call<T, Func, Arg>(func, arg);
+			const T ret = t.template call<T, Func, Args...>(func, arg...);
 
 			// clean up stuff
 			std::lock_guard lock(mutex);
@@ -448,6 +448,15 @@ namespace cryptanalysislib {
 			}
 			return ret;
 		}
+
+
+		template <typename Function, typename... Args,
+		          typename ReturnType = std::invoke_result_t<Function &&, Args &&...>>
+		    requires std::invocable<Function, Args...>
+		[[nodiscard]] inline std::future<ReturnType> enqueue(Function f,
+		                                              Args... args) noexcept {
+            call<ReturnType, Function, Args...>(f, args...);
+        }
 
 		// Core heartbeat logic for workers
 		void heartbeat(Worker *worker) noexcept {

@@ -13,7 +13,7 @@
 #include <string>
 #include <thread>
 
-#include "thread/scheduler.h"
+#include "thread/steal_scheduler.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -27,19 +27,19 @@ using namespace cryptanalysislib;
 auto multiply(int a, int b) { return a * b; }
 
 TEST(Thread, GlobalMultiply) {
-	scheduler pool{};
+	StealingScheduler pool{};
 	auto result = pool.enqueue(multiply, 3, 4);
 	EXPECT_EQ(result.get(), 12);
 }
 
 TEST(Thread, LambdaMultiply) {
-	scheduler pool{};
+	StealingScheduler pool{};
 	auto result = pool.enqueue([](int a, int b) { return a * b; }, 3, 4);
 	EXPECT_EQ(result.get(), 12);
 }
 
 TEST(Thread, FunctorMultiply) {
-	scheduler pool{};
+	StealingScheduler pool{};
 	auto result = pool.enqueue(std::multiplies<int>{}, 3, 4);
 	EXPECT_EQ(result.get(), 12);
 }
@@ -47,7 +47,7 @@ TEST(Thread, FunctorMultiply) {
 TEST(Thread, PassReference) {
 	int x = 2;
 	{
-		scheduler pool{};
+		StealingScheduler pool{};
 		pool.enqueue_detach([](int& a) { a *= 2; }, std::ref(x));
 	}
 	EXPECT_EQ(x, 4);
@@ -56,14 +56,14 @@ TEST(Thread, PassReference) {
 TEST(Thread, PassRawReference) {
 	int x = 2;
 	{
-		scheduler pool{};
+		StealingScheduler pool{};
 		pool.enqueue_detach([](int& a) { a *= 2; }, x);
 	}
 	EXPECT_EQ(x, 2);
 }
 
 TEST(Thread, EnqueWithVoidReturn) {
-	scheduler pool{};
+	StealingScheduler pool{};
 	auto value = 8;
 	auto future = pool.enqueue([](int& x) { x *= 2; }, std::ref(value));
 	future.wait();
@@ -73,7 +73,7 @@ TEST(Thread, EnqueWithVoidReturn) {
 TEST(Thread, EnqueDetachWithVoidReturn) {
 	auto value = 8;
 	{
-		scheduler pool;
+		StealingScheduler pool;
 		pool.enqueue_detach([](int& x) { x *= 2; }, std::ref(value));
 	}
 	EXPECT_EQ(value, 16);
@@ -82,7 +82,7 @@ TEST(Thread, EnqueDetachWithVoidReturn) {
 TEST(Thread, EnqueDetachWithNonVoidReturn) {
 	auto value = 8;
 	{
-		scheduler pool;
+		StealingScheduler pool;
 		pool.enqueue_detach(
 		        [](int& x) {
 			        x *= 2;
@@ -94,7 +94,7 @@ TEST(Thread, EnqueDetachWithNonVoidReturn) {
 }
 
 TEST(Thread, InputParams) {
-	scheduler pool(4);
+	StealingScheduler pool(4);
 	constexpr auto total_tasks = 30;
 	std::vector<std::future<int>> futures;
 
@@ -110,7 +110,7 @@ TEST(Thread, InputParams) {
 }
 
 TEST(Thread, ParamsDifferentType) {
-	scheduler pool{};
+	StealingScheduler pool{};
 	struct test_struct {
 		int value{};
 		double d_value{};
@@ -135,7 +135,7 @@ TEST(Thread, EnsureWaitBeforDesctructor) {
 	std::atomic<int> counter;
 	constexpr auto total_tasks = 30;
 	{
-		scheduler pool(4);
+		StealingScheduler pool(4);
 		for (auto i = 0; i < total_tasks; i++) {
 			auto task = [i, &counter]() {
 				std::this_thread::sleep_for(std::chrono::milliseconds((i + 1) * 10));
@@ -159,7 +159,7 @@ TEST(Thread, LoadEvenlySpread) {
 	constexpr auto long_task_time = 6;
 	const auto start_time = std::chrono::steady_clock::now();
 	{
-		scheduler pool(4);
+		StealingScheduler pool(4);
 		for (auto i = 1; i <= 8; ++i) {
 			auto delay_amount = std::chrono::seconds(i % 4);
 			if (i % 4 == 0) {
@@ -202,7 +202,7 @@ TEST(Thread, LoadEvenlySpread) {
 //	};
 //
 //	{
-//		scheduler pool{};
+//		StealingScheduler pool{};
 //
 //		auto throw_future = pool.enqueue(throw_task, 1);
 //		auto no_throw_future = pool.enqueue(regular_task, 2);
@@ -268,7 +268,7 @@ private:
 };
 
 //TEST(Thread, CreateFewerThread) {
-//	const scheduler<dp::details::default_function_type, might_throw_thread> thread_pool{};
+//	const StealingScheduler<dp::details::default_function_type, might_throw_thread> thread_pool{};
 //	CHECK_LT(thread_pool.size(), std::thread::hardware_concurrency());
 //}
 
@@ -279,7 +279,7 @@ private:
 //	SUBCASE("with tasks") { total_tasks = 30; }
 //	SUBCASE("with no tasks") { total_tasks = 0; }
 //	{
-//		scheduler<dp::details::default_function_type, might_throw_thread> pool(4);
+//		StealingScheduler<dp::details::default_function_type, might_throw_thread> pool(4);
 //		for (auto i = 0; i < total_tasks; i++) {
 //			auto task = [i, &counter]() {
 //				std::this_thread::sleep_for(std::chrono::milliseconds((i + 1) * 10));
@@ -296,7 +296,7 @@ TEST(Thread, WorkCompletes) {
 	std::atomic<size_t> last_thread;
 
 	{
-		scheduler thread_pool{2};
+		StealingScheduler thread_pool{2};
 
 		// tie up the first thread
 		thread_pool.enqueue_detach([&last_thread]() {
@@ -323,7 +323,7 @@ TEST(Thread, WorkCompletes) {
 	EXPECT_EQ(1, last_thread.load());
 }
 
-void recursive_sequential_sum(std::atomic_int32_t& counter, int count, scheduler<>& pool) {
+void recursive_sequential_sum(std::atomic_int32_t& counter, int count, StealingScheduler<>& pool) {
 	counter.fetch_add(count);
 	if (count > 1) {
 		pool.enqueue_detach(recursive_sequential_sum, std::ref(counter), count - 1, std::ref(pool));
@@ -334,7 +334,7 @@ TEST(Thread, Recursive) {
 	std::atomic_int32_t counter = 0;
 	constexpr auto start = 1000;
 	{
-		scheduler pool(4);
+		StealingScheduler pool(4);
 		recursive_sequential_sum(counter, start, pool);
 	}
 
@@ -353,7 +353,7 @@ TEST(Thread, Recursive) {
 void recursive_parallel_sort(int* begin,
                              int* end,
                              int split_level,
-                             scheduler<>& pool) {
+                             StealingScheduler<>& pool) {
 	if (split_level < 2 || end - begin < 2) {
 		std::sort(begin, end);
 	} else {
@@ -383,7 +383,7 @@ TEST(Thread, RecursiveParallelSort) {
 	std::ranges::shuffle(data, std::mt19937{std::random_device{}()});
 
 	{
-		scheduler pool(4);
+		StealingScheduler pool(4);
 		recursive_parallel_sort(data.data(), data.data() + data.size(), 4, pool);
 	}
 
@@ -402,7 +402,7 @@ TEST(Thread, PrematureExit) {
 
 	std::thread::id id_task_1, id_end;
 	{
-		scheduler<> testPool(2);
+		StealingScheduler<> testPool(2);
 
 		auto end = [&id_end]() { id_end = std::this_thread::get_id(); };
 
@@ -431,7 +431,7 @@ TEST(Thread, PrematureExit) {
 	// handle it
 	std::thread::id spawn_task_id, task_1_id, task_2_id, task_3_id;
 	{
-		scheduler pool{3};
+		StealingScheduler pool{3};
 
 		using namespace std::chrono_literals;
 		auto short_task = [] { std::this_thread::sleep_for(500ms); };
@@ -471,7 +471,7 @@ TEST(Thread, Wait) {
 	for (uint32_t thread_count = 0; thread_count < 4; ++thread_count) {
 		std::atomic counter = 0;
 		int total_tasks{};
-		scheduler pool(thread_count);
+		StealingScheduler pool(thread_count);
 		for (auto i = 0; i < total_tasks; i++) {
 			auto task = [i, &counter]() {
 				std::this_thread::sleep_for(std::chrono::milliseconds((i + 1) * 10));
@@ -493,7 +493,7 @@ TEST(Thread, Wait2) {
 		void increment_counter() { counter.fetch_add(1, std::memory_order_release); }
 	};
 
-	scheduler local_pool{};
+	StealingScheduler local_pool{};
 	constexpr auto task_count = 10;
 	std::array<int, task_count> counts{{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
 	for (size_t i = 0; i < task_count; i++) {
@@ -524,7 +524,7 @@ TEST(Thread, Wait3) {
 		void increment_counter() { counter.fetch_add(1, std::memory_order_release); }
 	};
 
-	scheduler local_pool{};
+	StealingScheduler local_pool{};
 	constexpr auto task_count = 10;
 	std::array<int, task_count> counts{{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
 	for (size_t i = 0; i < task_count; i++) {
@@ -565,10 +565,10 @@ TEST(Thread, Wait3) {
 	EXPECT_TRUE(all_correct_count);
 }
 
-TEST(Scheduler, init) {
+TEST(StealingScheduler, init) {
 	std::atomic_int counter = 0;
 	{
-		scheduler pool(4, [&counter](std::size_t id) {
+		StealingScheduler pool(4, [&counter](std::size_t id) {
 			std::cout << "Thread " << id << " initialized\n";
 			counter.fetch_add(1);
 		});
@@ -576,7 +576,7 @@ TEST(Scheduler, init) {
 	EXPECT_EQ(counter.load(), 4);
 }
 
-TEST(Scheduler, clear_task_same_task) {
+TEST(StealingScheduler, clear_task_same_task) {
 //TEST_CASE("Check clear_tasks() can be called from a task") {
 	// Here:
 	// - we use a barrier to trigger tasks_clear() once all threads are busy;
@@ -587,7 +587,7 @@ TEST(Scheduler, clear_task_same_task) {
 	for (uint32_t  thread_count = 0; thread_count < 4; ++thread_count) {
 		std::atomic<unsigned int> counter = 0;
 		std::shared_mutex mutex;
-		scheduler pool(thread_count);
+		StealingScheduler pool(thread_count);
 		/* Clear thread_pool when barrier is hit, this must not throw */
 		auto clear_func = [&pool]() noexcept {
 			try {
@@ -614,7 +614,7 @@ TEST(Scheduler, clear_task_same_task) {
 	}
 }
 
-TEST(Scheduler, clear_task) {
+TEST(StealingScheduler, clear_task) {
 	// Here we:
 	// - add twice as many tasks to the pool as can be run simultaniously
 	// - use a lock to prevent race conditions (e.g. clear_task() running whilst the another task is
@@ -624,7 +624,7 @@ TEST(Scheduler, clear_task) {
 		size_t cleared_tasks{0};
 		std::atomic<unsigned int> counter{0};
 		std::mutex mutex;
-		scheduler pool(thread_count);
+		StealingScheduler pool(thread_count);
 
 		std::function<void(void)> func;
 		func = [&counter, &mutex]() {

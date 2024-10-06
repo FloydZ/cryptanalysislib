@@ -2,12 +2,14 @@
 #define CRYPTANALYSISLIB_THREAD_EXECUTION_H
 
 #include "thread/heartbeat_scheduler.h"
+#include "thread/steal_scheduler.h"
 
 
 namespace cryptanalysislib {
 
-using pool_type = HeartbeatScheduler<>*;
-using pool_type_ = HeartbeatScheduler<>;
+// using pool_type_ = HeartbeatScheduler<>;
+using pool_type_ = StealingScheduler<>;
+using pool_type = pool_type_*;
 
 namespace internal {
     /// Holds the thread pool used by par.
@@ -231,7 +233,8 @@ namespace internal {
             auto iter_chunk_size = get_iter_chunk_size(first1, last1, chunk_size);
             RandIt1 loop_end = advanced(first1, iter_chunk_size);
 
-            futures.emplace_back(task_pool.submit(chunk, 
+            // match my definitioin of task enqueue
+            futures.emplace_back(task_pool.enqueue(chunk, 
                                                   first1, 
                                                   loop_end, 
                                                   first2, 

@@ -57,7 +57,8 @@ namespace cryptanalysislib {
 	public:
 		constexpr static bool enable_try_block = false;
 		constexpr static bool enable_remote_view = true;
-	} schedulerConfig;
+	};
+    constexpr static SchedulerConfig schedulerConfig;
 
 	// TODO: this is linux only
 	// NOTE: this is needed, as the real internal `rusage`
@@ -355,7 +356,7 @@ namespace cryptanalysislib {
 	    requires std::invocable<FunctionType> &&
 	             std::is_same_v<void, std::invoke_result_t<FunctionType>>
 #endif
-	class scheduler {
+	class StealingScheduler {
 	private:
 		constexpr static bool enable_try_block = config.enable_try_block;
 		constexpr static bool enable_remote_view = config.enable_remote_view;
@@ -363,14 +364,14 @@ namespace cryptanalysislib {
 
 	public:
 
-		///
+		/// TODO use the MOVE operator from SimpleScheduler
 		/// \tparam InitializationFunction
 		/// \param number_of_threads
 		/// \param init
 		template <typename InitializationFunction = std::function<void(std::size_t)>>
 		    requires std::invocable<InitializationFunction, std::size_t> &&
 		             std::is_same_v<void, std::invoke_result_t<InitializationFunction, std::size_t>>
-		explicit scheduler(const unsigned int &number_of_threads = std::thread::hardware_concurrency(),
+		explicit StealingScheduler(const unsigned int &number_of_threads = std::thread::hardware_concurrency(),
 		                   InitializationFunction init = [](std::size_t) {}) noexcept
 		    : tasks_(number_of_threads) {
 			std::size_t current_id = 0;
@@ -451,7 +452,7 @@ namespace cryptanalysislib {
 			}
 		}
 
-		~scheduler() noexcept {
+		~StealingScheduler() noexcept {
 			wait_for_tasks();
 
 			// stop all threads
@@ -463,8 +464,8 @@ namespace cryptanalysislib {
 		}
 
 		/// thread pool is non-copyable
-		scheduler(const scheduler &) noexcept = delete;
-		scheduler &operator=(const scheduler &) noexcept = delete;
+		StealingScheduler(const StealingScheduler &) noexcept = delete;
+		StealingScheduler &operator=(const StealingScheduler &) noexcept = delete;
 
         /// \brief Enqueue a task into the thread pool that returns a result.
         /// \details Note that task execution begins once the task is enqueued.
@@ -511,7 +512,7 @@ namespace cryptanalysislib {
              */
 			auto shared_promise = std::make_shared<std::promise<ReturnType>>();
 			auto task = [func = std::move(f), ... largs = std::move(args),
-			             promise = shared_promise]() {
+			             promise = shared_promise] () __attribute__((always_inline)) {
 				if constexpr (enable_try_block) {
 					try {
 						if constexpr (std::is_same_v<ReturnType, void>) {
@@ -536,7 +537,8 @@ namespace cryptanalysislib {
 		}
 
 		/**
-         * @brief Enqueue a task to be executed in the thread pool. Any return value of the function
+         * @brief Enqueue a task to be executed in the thread pool.
+         * Any return value of the function
          * will be ignored.
          * @tparam Function An invokable type.
          * @tparam Args Argument parameter pack for Function
