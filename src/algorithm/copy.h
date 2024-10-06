@@ -48,14 +48,14 @@ copy(ExecPolicy &&policy,
      RandIt2 dest) noexcept {
 
     const size_t size = static_cast<size_t>(std::distance(first, last));
-    const uint32_t ntreads = should_par(policy, config, size);
-    if (is_seq<ExecPolicy>(policy)) {
+    const uint32_t nthreads = should_par(policy, config, size);
+    if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
         return cryptanalysislib::copy(first, last, dest);
     }
 
     auto futures = internal::parallel_chunk_for_2(std::forward<ExecPolicy>(policy), 
                                                   first, last, dest,
-                                                  std::copy<RandIt1, RandIt2>, (RandIt2*)nullptr);
+                                                  cryptanalysislib::copy<RandIt1, RandIt2>, (RandIt2*)nullptr, nthreads);
     internal::get_futures(futures);
     return internal::advanced(dest, std::distance(first, last));
 }

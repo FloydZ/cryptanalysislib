@@ -232,9 +232,7 @@ namespace internal {
         while (first1 < last1) {
             auto iter_chunk_size = get_iter_chunk_size(first1, last1, chunk_size);
             RandIt1 loop_end = advanced(first1, iter_chunk_size);
-
-            // match my definitioin of task enqueue
-            futures.emplace_back(task_pool.enqueue(chunk, 
+            futures.emplace_back(task_pool.enqueue(chunk,
                                                   first1, 
                                                   loop_end, 
                                                   first2, 

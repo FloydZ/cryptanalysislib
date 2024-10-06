@@ -56,7 +56,7 @@ namespace cryptanalysislib {
 	class SchedulerConfig {
 	public:
 		constexpr static bool enable_try_block = false;
-		constexpr static bool enable_remote_view = true;
+		constexpr static bool enable_remote_view = false;
 	};
     constexpr static SchedulerConfig schedulerConfig;
 
@@ -273,7 +273,7 @@ namespace cryptanalysislib {
 		void print() noexcept {
 			std::cout << "#Active Threads: " << schedulerPerformance.number_active_threads << std::endl;
 			std::cout << "#Enqueud Tasks: " << schedulerPerformance.number_enqueud_tasks << std::endl;
-			for (const auto s : schedulerPerformance.schedulerThreadLoad) {
+			for (const auto &s : schedulerPerformance.schedulerThreadLoad) {
 				std::cout << "UserTime: " << s.usertime() << std::endl;
 				std::cout << "SystemTime: " << s.systime() << std::endl;
 				std::cout << "Max Resident Set Size: " << s.maxrss() << std::endl;
@@ -360,10 +360,13 @@ namespace cryptanalysislib {
 	private:
 		constexpr static bool enable_try_block = config.enable_try_block;
 		constexpr static bool enable_remote_view = config.enable_remote_view;
-		SchedulerPerformanceManager schedulerPerformance{false};
+		SchedulerPerformanceManager *schedulerPerformance;
 
 	public:
-
+        /// TODO alle algoeithms von poolstl portieren
+        /// TODO beispiel von heartbeat scheduler weiter einarbeiten
+        /// TODO performance meassurement in all schedulers 
+        /// TODO benchmark comparison between the different schedulers
 		/// TODO use the MOVE operator from SimpleScheduler
 		/// \tparam InitializationFunction
 		/// \param number_of_threads
@@ -376,7 +379,8 @@ namespace cryptanalysislib {
 		    : tasks_(number_of_threads) {
 			std::size_t current_id = 0;
 			if constexpr (enable_remote_view) {
-				schedulerPerformance.resize(number_of_threads);
+                schedulerPerformance = new SchedulerPerformanceManager{false};
+				schedulerPerformance->resize(number_of_threads);
 			}
 
 			/// create all
@@ -400,9 +404,9 @@ namespace cryptanalysislib {
 						if constexpr (enable_remote_view) {
 							// not nice but easy
 							if (i == 0) {
-								schedulerPerformance.gather(get_num_running_tasks(),
+								schedulerPerformance->gather(get_num_running_tasks(),
 								                            get_num_queued_tasks());
-							} else {schedulerPerformance.gather(i); }
+							} else {schedulerPerformance->gather(i); }
 						}
 
 						do {
