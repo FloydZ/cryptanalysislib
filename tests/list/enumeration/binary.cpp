@@ -29,8 +29,8 @@ using T = uint64_t;
 // TODO doesnt work
 // using Value = kAryPackedContainer_T<T, n, q>;
 // using Label = kAryPackedContainer_T<T, n, q>;
-using Value = FqPackedVector<n, T>;
-using Label = FqPackedVector<n, T>;
+using Value = BinaryVector<n, T>;
+using Label = BinaryVector<n, T>;
 using Matrix = FqMatrix<T, n, n, q, true>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;

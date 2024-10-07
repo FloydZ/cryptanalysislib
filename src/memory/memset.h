@@ -16,11 +16,12 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 			requires std::is_integral_v<T>
 #endif
-		void memset_u256_u8(T *out,
+		void memset_u256_u8(T *_out,
 		                    const T in,
 		                    const size_t nr_elements) {
 
 			if constexpr (sizeof(T) == 1) {
+                uint8_t *out = (uint8_t *)_out;
 				const size_t bytes = nr_elements;
 				if (bytes <= 16) {
 #ifdef __clang__
@@ -82,11 +83,11 @@ namespace cryptanalysislib {
 				}
 
 				const _uint8x16_t in3 = _uint8x16_t::set1(in);
-				uint8_t *end = out + bytes;
+				uint8_t *end = ((uint8_t *)out) + bytes;
 				if (bytes > 32) {
 					_uint8x16_t::unaligned_store(out, in3);
 					out += 16;
-					out = (uint8_t *)((uintptr_t)(out) & -16);
+					out = (uint8_t *)(((uintptr_t)(out)) & -16);
 					_uint8x16_t::unaligned_store(out, in3);
 					out += 16;
 					out = (uint8_t *)((uintptr_t)(out) & -32);
@@ -110,8 +111,9 @@ namespace cryptanalysislib {
 				if (nr_elements < 16) {
 					// all other types
 					for (size_t i = 0; i < nr_elements; ++i) {
-						out[i] = in;
+						_out[i] = in;
 					}
+
 					return;
 				}
 
@@ -123,15 +125,15 @@ namespace cryptanalysislib {
 				const size_t bytes = sizeof(T) * nr_elements;
 
 				S in1 = S::set1(in);
-				T *end = out + nr_elements;
+				T *end = _out + nr_elements;
 				if (bytes > alignment) {
-					S::unaligned_store(out, in1);
-					out += N;
+					S::unaligned_store(_out, in1);
+					_out += N;
 
-					out = (T *)((uintptr_t)(out) & -alignment);
-					while (out + N <= end) {
-						S::aligned_store(out, in1);
-						out += N;
+					_out = (T *)((uintptr_t)(_out) & -alignment);
+					while (_out + N <= end) {
+						S::aligned_store(_out, in1);
+						_out += N;
 					}
 					S::unaligned_store(end - N, in1);
 					return;
@@ -141,7 +143,7 @@ namespace cryptanalysislib {
 
 				using S_half = TxN_t<T, N/2>;
 				S_half in_half = S_half ::set1(in);
-				S_half::unaligned_store(out, in_half);
+				S_half::unaligned_store(_out, in_half);
 				S_half::unaligned_store(end - N, in_half);
 			}
 		}

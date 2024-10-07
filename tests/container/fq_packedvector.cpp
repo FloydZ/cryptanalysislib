@@ -9,14 +9,14 @@ using ::testing::Test;
 
 #define NR_TESTS (1ull << 4u)
 constexpr uint32_t n = 127;
-using K4 = FqPackedVector<uint8_t, n, 4>;
-using K5 = FqPackedVector<uint8_t, n, 5>;
-using K7 = FqPackedVector<uint8_t, n, 7>;
+using K4 = FqPackedVector<n, 4, uint8_t>;
+using K5 = FqPackedVector<n, 5, uint8_t>;
+using K7 = FqPackedVector<n, 7, uint8_t>;
 
 #define NAME uint8_K4
 #define PRIME 4
 #define T uint8_t
-#define K FqPackedVector<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -26,7 +26,7 @@ using K7 = FqPackedVector<uint8_t, n, 7>;
 #define NAME uint8_K5
 #define PRIME 5
 #define T uint8_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -36,7 +36,7 @@ using K7 = FqPackedVector<uint8_t, n, 7>;
 #define NAME uint8_K7
 #define PRIME 7
 #define T uint8_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -47,7 +47,7 @@ using K7 = FqPackedVector<uint8_t, n, 7>;
 #define NAME uint64_K4
 #define PRIME 4
 #define T uint64_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -57,7 +57,7 @@ using K7 = FqPackedVector<uint8_t, n, 7>;
 #define NAME uint64_K5
 #define PRIME 5
 #define T uint64_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -67,41 +67,13 @@ using K7 = FqPackedVector<uint8_t, n, 7>;
 #define NAME uint64_K7
 #define PRIME 64
 #define T uint8_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
 #undef K
 #undef NAME
 
-
-TEST(Devv, Constexpr) {
-	FqPackedVector<uint8_t, 127, 8> b1;
-	constexpr uint32_t qbits = ceil_log2(8);
-	b1.zero();
-	b1.one(0, 20);
-	uint64_t t = b1.template hash<0, 20>();
-	uint64_t mask = (1ull << (20u) * qbits) - 1ull;
-	EXPECT_EQ(t, mask);
-
-	//b1.zero();
-	//b1.one(0, 64);
-	//t = b1.template hash<0, 64>();
-	//mask = -1ull;
-	//EXPECT_EQ(t, mask);
-
-	//b1.zero();
-	//b1.one(48, 80);
-	//t = b1.template hash<48, 80>();
-	//mask = (1ull << 32u) - 1ull;
-	//EXPECT_EQ(t, mask);
-
-	//b1.zero();
-	//b1.one(63, 127);
-	//t = b1.template hash<63, 127>();
-	//mask = -1ull;
-	//EXPECT_EQ(t, mask);
-}
 
 TEST(F4, mod_T) {
 	// this is not possible, as 4 needs 3 bits,

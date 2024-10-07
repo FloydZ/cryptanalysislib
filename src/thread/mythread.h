@@ -1,5 +1,5 @@
-#ifndef CRYPTANALYSISLIB_THREAD_H
-#define CRYPTANALYSISLIB_THREAD_H
+#ifndef CRYPTANALYSISLIB_MYTHREAD_H
+#define CRYPTANALYSISLIB_MYTHREAD_H
 
 // jeah currently thats unix only
 #ifndef __APPLE__

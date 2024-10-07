@@ -209,7 +209,7 @@ TEST(NAME, HashSimple) {
 }
 
 TEST(NAME, HashCompare) {
-	FqPackedVector<uint8_t, n, PRIME> b1,b2;
+	FqPackedVector<n, PRIME, T> b1,b2;
 	constexpr uint32_t qbits = ceil_log2(PRIME);
 	constexpr uint64_t limit = 63;
 	const uint64_t qmask = (1ull<<qbits) - 1ull;

@@ -17,8 +17,8 @@ constexpr uint32_t q    = 3;
 constexpr uint32_t d    = 2;
 using T 				= uint8_t;
 using kAryType          = kAry_Type_T<q>;
-using kAryContainer     = FqNonPackedVector<T, n, q>;
-using kAryContainer2    = FqNonPackedVector<T, k, q>;
+using kAryContainer     = FqNonPackedVector<n, q, T>;
+using kAryContainer2    = FqNonPackedVector<k, q, T>;
 using Label             = kAryContainer2;
 using Value             = kAryContainer;
 

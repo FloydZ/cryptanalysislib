@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+// TODO move to algorith
 #ifdef _MSC_VER
 
 #include <stdlib.h>

@@ -1728,20 +1728,20 @@ private:
 };
 
 ///
-template<const uint32_t n>
-using BinaryVector = FqPackedVector<n, 2, uint64_t>;
+template<const uint32_t n, typename T = uint64_t>
+using BinaryVector = FqPackedVector<n, 2, T>;
 
-template<const uint64_t n, typename T>
+template<const uint32_t n, typename T>
 constexpr inline bool operator==(const FqPackedVector<n, 2, T> &a,
                                  const FqPackedVector<n, 2, T> &b) noexcept {
 	return a.is_equal(b);
 }
-template<const uint64_t n, typename T>
+template<const uint32_t n, typename T>
 constexpr inline bool operator<(const FqPackedVector<n, 2, T> &a,
                                 const FqPackedVector<n, 2, T> &b) noexcept {
 	return a.is_lower(b);
 }
-template<const uint64_t n, typename T>
+template<const uint32_t n, typename T>
 constexpr inline bool operator>(const FqPackedVector<n, 2, T> &a,
                                 const FqPackedVector<n, 2, T> &b) noexcept {
 	return a.is_greater(b);

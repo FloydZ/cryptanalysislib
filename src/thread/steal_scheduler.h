@@ -243,7 +243,7 @@ namespace cryptanalysislib {
 					// TODO with fork etc we can handle multiple streams, but for now
 					// its fine
 					while (true) {
-						memset((void *)buf, 0, buffer_size);
+						memset(buf, (char)0, buffer_size);
 						const uint32_t n = read(newsockfd, buf, buffer_size);
 						if (n == 0) { break; }
 						assert(n < buffer_size);

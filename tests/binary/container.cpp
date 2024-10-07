@@ -18,7 +18,7 @@ using ::testing::UnitTest;
 
 
 TEST(Internal, size) {
-	FqPackedVector<n> b;
+	BinaryVector<n> b;
 	EXPECT_EQ(b.length(), n);
 
 	using T = uint64_t;
@@ -30,8 +30,8 @@ TEST(Internal, size) {
 }
 
 TEST(Internals, access) {
-	FqPackedVector<n> b;
-	for (uint32_t i = 0; i < FqPackedVector<n>::size(); ++i) {
+	BinaryVector<n> b;
+	for (uint32_t i = 0; i < BinaryVector<n>::size(); ++i) {
 		// this is the explicit cast steps to the final result.
 		auto bit = b[i];
 		bool bbit = bool(bit);
@@ -40,25 +40,25 @@ TEST(Internals, access) {
 }
 
 TEST(Internals, access_pass_through) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero();
 	b2.random();
 
 	EXPECT_EQ(b1.size(), b2.size());
-	for (uint32_t i = 0; i < FqPackedVector<n>::size(); ++i) {
+	for (uint32_t i = 0; i < BinaryVector<n>::size(); ++i) {
 		b2[i] = b1[i];
 	}
 
-	for (uint32_t i = 0; i < FqPackedVector<n>::size(); ++i) {
+	for (uint32_t i = 0; i < BinaryVector<n>::size(); ++i) {
 		EXPECT_EQ(b2[i], b1[i]);
 	}
 }
 
 
 TEST(Internals, masks){
-	FqPackedVector<n> b;
+	BinaryVector<n> b;
 
 	EXPECT_EQ(b.mask(0), 1);
 	EXPECT_EQ(b.mask(1), 2);
@@ -66,7 +66,7 @@ TEST(Internals, masks){
 }
 
 TEST(Zero, Simple) {
-	FqPackedVector<n> b;
+	BinaryVector<n> b;
 	std::bitset<n> bb;
 	b.zero();
 	bb.reset();
@@ -78,7 +78,7 @@ TEST(Zero, Simple) {
 }
 
 TEST(Zero, Zero_with_Limits) {
-	FqPackedVector<n> b;
+	BinaryVector<n> b;
 
 	for (uint32_t k_lower = 1; k_lower < b.size(); ++k_lower) {
 		for (uint32_t k_upper = k_lower+1; k_upper < b.size(); ++k_upper) {
@@ -120,7 +120,7 @@ TEST(Zero, Zero_with_Limits) {
 }
 
 TEST(One, One) {
-	FqPackedVector<n> b;
+	BinaryVector<n> b;
 	std::bitset<n> bb;
 	b.zero();
 	b.one();
@@ -133,7 +133,7 @@ TEST(One, One) {
 }
 
 TEST(One, One_with_Limits) {
-	FqPackedVector<n> b;
+	BinaryVector<n> b;
 
 	for (uint32_t k_lower = 0; k_lower < b.size(); ++k_lower) {
 		for (uint32_t k_upper = k_lower+1; k_upper < b.size(); ++k_upper) {
@@ -176,7 +176,7 @@ TEST(One, One_with_Limits) {
 
 
 TEST(Set, Simple) {
-	FqPackedVector<n> b;
+	BinaryVector<n> b;
 	std::bitset<n> bb;
 
 	bb.reset();
@@ -195,7 +195,7 @@ TEST(Set, Simple) {
 
 TEST(Set, Random) {
 	for (uint32_t i = 0; i < TESTSIZE; ++i) {
-		FqPackedVector<n> b;
+		BinaryVector<n> b;
 		std::bitset<n> bb;
 		bb.reset();
 		b.zero();
@@ -210,26 +210,26 @@ TEST(Set, Random) {
 }
 
 TEST(Set, Full_Length_Zero) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.one(); b2.zero();
 
-	FqPackedVector<n>::set(b1, b2, 0, FqPackedVector<n>::size());
+	BinaryVector<n>::set(b1, b2, 0, BinaryVector<n>::size());
 
-	for (uint32_t j = 0; j < FqPackedVector<n>::size(); ++j) {
+	for (uint32_t j = 0; j < BinaryVector<n>::size(); ++j) {
 		EXPECT_EQ(0, b1[j]);
 	}
 }
 
 TEST(Set, Full_Length_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero(); b2.zero();
 
 	b2[0] = true;
-	FqPackedVector<n>::set(b1, b2, 0, n);
+	BinaryVector<n>::set(b1, b2, 0, n);
 	EXPECT_EQ(1, b2[0]);
 
 	for (uint32_t j = 1; j < b1.size(); ++j) {
@@ -238,7 +238,7 @@ TEST(Set, Full_Length_One) {
 
 	// 2. test.
 	b1.zero(); b2.one();
-	FqPackedVector<n>::set(b1, b2, 0, n);
+	BinaryVector<n>::set(b1, b2, 0, n);
 	for (uint32_t j = 0; j < b1.size(); ++j) {
 		EXPECT_EQ(true, b1[j]);
 		EXPECT_EQ(1, b1[j]);
@@ -247,11 +247,11 @@ TEST(Set, Full_Length_One) {
 }
 
 TEST(Set, OffByOne_Lower_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.one(); b2.zero();
-	FqPackedVector<n>::set(b1, b2, 1, n);
+	BinaryVector<n>::set(b1, b2, 1, n);
 	EXPECT_EQ(1, b1[0]);
 	for (uint32_t j = 1; j < b1.size(); ++j) {
 		EXPECT_EQ(0, b1[j]);
@@ -259,7 +259,7 @@ TEST(Set, OffByOne_Lower_One) {
 
 	// 2. test.
 	b1.zero(); b2.one();
-	FqPackedVector<n>::set(b1, b2, 1, n);
+	BinaryVector<n>::set(b1, b2, 1, n);
 	EXPECT_EQ(0, b1[0]);
 	EXPECT_EQ(false, b1[0]);
 	for (uint32_t j = 1; j < b1.size(); ++j) {
@@ -269,13 +269,13 @@ TEST(Set, OffByOne_Lower_One) {
 }
 
 TEST(Set, OffByOne_Higher_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero(); b2.zero();
 
 	b1[n-1] = true;   // this should be ignored.
-	FqPackedVector<n>::set(b1, b2, 0, n - 1);
+	BinaryVector<n>::set(b1, b2, 0, n - 1);
 	EXPECT_EQ(1, b1[n-1]);
 
 	for (uint32_t j = 0; j < b1.size() - 1; ++j) {
@@ -284,7 +284,7 @@ TEST(Set, OffByOne_Higher_One) {
 
 	// 2. test.
 	b1.zero(); b2.one();
-	FqPackedVector<n>::set(b1, b2, 0, n - 1);
+	BinaryVector<n>::set(b1, b2, 0, n - 1);
 	EXPECT_EQ(0, b1[n-1]);
 	EXPECT_EQ(false, b1[n-1]);
 	for (uint32_t j = 0; j < b1.size() - 1; ++j) {
@@ -299,14 +299,14 @@ TEST(Set, Complex_Ones) {
 	// +[000...000] \forall k_lower k_higher
 	// =[0...0 1...1 0...0]
 	//    k_lower k_higher
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
 		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
 			b1.zero(); b2.one();
 
-			FqPackedVector<n>::set(b1, b2, k_lower, k_higher);
+			BinaryVector<n>::set(b1, b2, k_lower, k_higher);
 
 			for (uint32_t j = 0; j < k_lower; ++j) {
 				EXPECT_EQ(0, b1[j]);
@@ -328,8 +328,8 @@ TEST(Set, Complex_Zeros) {
 	// =[1...1 0...0 1...1]
 	//    k_lower k_higher
 
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
 		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
@@ -345,7 +345,7 @@ TEST(Set, Complex_Zeros) {
 			}
 
 
-			FqPackedVector<n>::set(b1, b2, k_lower, k_higher);
+			BinaryVector<n>::set(b1, b2, k_lower, k_higher);
 
 			for (uint32_t j = 0; j < k_lower; ++j) {
 				EXPECT_EQ(1, b1[j]);
@@ -380,16 +380,16 @@ TEST(Static_Add, Probabilistic){
 			uint64_t e = rng();
 			uint64_t f = rng();
 
-			FqPackedVector<128> b1;
-			FqPackedVector<128> b2;
-			FqPackedVector<128> b3;
+			BinaryVector<128> b1;
+			BinaryVector<128> b2;
+			BinaryVector<128> b3;
 
 			b1.data()[0] = a; b1.data()[1] = b;
 			b2.data()[0] = c; b2.data()[1] = d;
 			b3.data()[0] = e; b3.data()[1] = f;
 
 
-			FqPackedVector<128>::add(b3, b2, b1, k_lower, k_upper);
+			BinaryVector<128>::add(b3, b2, b1, k_lower, k_upper);
 
 			for(uint64_t k = 0; k < k_lower; k++){
 				if(k < 64){
@@ -422,7 +422,7 @@ TEST(Static_Add, Probabilistic){
 }
 
 TEST(Add, Probabilistic){
-	using BinaryContainerTest = FqPackedVector<128>;
+	using BinaryContainerTest = BinaryVector<128>;
 	std::vector<std::pair<uint64_t, uint64_t>> boundsSet = {std::pair(0, 64),
 	                                                        std::pair(0, 10),
 	                                                        std::pair(2, 70),
@@ -478,7 +478,7 @@ TEST(Add, Probabilistic){
 }
 
 TEST(Add, Norm){
-	using BinaryContainerTest = FqPackedVector<128>;
+	using BinaryContainerTest = BinaryVector<128>;
 
 	BinaryContainerTest b1;
 	BinaryContainerTest b2;
@@ -501,27 +501,27 @@ TEST(Add, Norm){
 }
 
 TEST(Add, Full_Length_Zero) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
-	FqPackedVector<n>::add(b3, b1, b2, 0, n);
+	BinaryVector<n>::add(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
 }
 
 TEST(Add, Full_Length_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[0] = true;
-	FqPackedVector<n>::add(b3, b1, b2, 0, n);
+	BinaryVector<n>::add(b3, b1, b2, 0, n);
 	EXPECT_EQ(1, b3[0]);
 
 	for (uint32_t j = 1; j < b3.size(); ++j) {
@@ -534,7 +534,7 @@ TEST(Add, Full_Length_One) {
 		b1[i] = true;
 	}
 
-	FqPackedVector<n>::add(b3, b1, b2, 0, n);
+	BinaryVector<n>::add(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(true, b3[j]);
 		EXPECT_EQ(1, b3[j]);
@@ -548,7 +548,7 @@ TEST(Add, Full_Length_One) {
 		b2[i] = true;
 	}
 
-	FqPackedVector<n>::add(b3, b1, b2, 0, n);
+	BinaryVector<n>::add(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(false, b3[j]);
 		EXPECT_EQ(0, b3[j]);
@@ -556,14 +556,14 @@ TEST(Add, Full_Length_One) {
 }
 
 TEST(Add, OffByOne_Lower_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[0] = true;   // this should be ignored.
-	FqPackedVector<n>::add(b3, b1, b2, 1, n);
+	BinaryVector<n>::add(b3, b1, b2, 1, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
@@ -574,7 +574,7 @@ TEST(Add, OffByOne_Lower_One) {
 		b1[i] = true;
 	}
 
-	FqPackedVector<n>::add(b3, b1, b2, 1, n);
+	BinaryVector<n>::add(b3, b1, b2, 1, n);
 	EXPECT_EQ(0, b3[0]);
 	EXPECT_EQ(false, b3[0]);
 	for (uint32_t j = 1; j < b3.size(); ++j) {
@@ -589,7 +589,7 @@ TEST(Add, OffByOne_Lower_One) {
 		b2[i] = true;
 	}
 
-	FqPackedVector<n>::add(b3, b1, b2, 1, n);
+	BinaryVector<n>::add(b3, b1, b2, 1, n);
 	EXPECT_EQ(0, b3[0]);
 	EXPECT_EQ(false, b3[0]);
 
@@ -600,14 +600,14 @@ TEST(Add, OffByOne_Lower_One) {
 }
 
 TEST(Add, OffByOne_Higher_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[n-1] = true;   // this should be ignored.
-	FqPackedVector<n>::add(b3, b1, b2, 0, n - 1);
+	BinaryVector<n>::add(b3, b1, b2, 0, n - 1);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
@@ -618,7 +618,7 @@ TEST(Add, OffByOne_Higher_One) {
 		b1[i] = true;
 	}
 
-	FqPackedVector<n>::add(b3, b1, b2, 0, n - 1);
+	BinaryVector<n>::add(b3, b1, b2, 0, n - 1);
 	EXPECT_EQ(0, b3[n-1]);
 	EXPECT_EQ(false, b3[n-1]);
 	for (uint32_t j = 0; j < b3.size() - 1; ++j) {
@@ -633,7 +633,7 @@ TEST(Add, OffByOne_Higher_One) {
 		b2[i] = true;
 	}
 
-	FqPackedVector<n>::add(b3, b1, b2, 0, n - 1);
+	BinaryVector<n>::add(b3, b1, b2, 0, n - 1);
 	EXPECT_EQ(0, b3[n-1]);
 	EXPECT_EQ(false, b3[n-1]);
 
@@ -644,9 +644,9 @@ TEST(Add, OffByOne_Higher_One) {
 }
 
 TEST(Add, Complex_Ones) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
 		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
@@ -656,7 +656,7 @@ TEST(Add, Complex_Ones) {
 				b1[i] = true;
 			}
 
-			FqPackedVector<n>::add(b3, b1, b2, k_lower, k_higher);
+			BinaryVector<n>::add(b3, b1, b2, k_lower, k_higher);
 
 			for (uint32_t j = 0; j < k_lower; ++j) {
 				EXPECT_EQ(0, b3[j]);
@@ -672,27 +672,27 @@ TEST(Add, Complex_Ones) {
 }
 
 TEST(Sub, Full_Length_Zero) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
-	FqPackedVector<n>::sub(b3, b1, b2, 0, n);
+	BinaryVector<n>::sub(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
 }
 
 TEST(Sub, Full_Length_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[0] = true;
-	FqPackedVector<n>::sub(b3, b1, b2, 0, n);
+	BinaryVector<n>::sub(b3, b1, b2, 0, n);
 	EXPECT_EQ(1, b3[0]);
 
 	for (uint32_t j = 1; j < b3.size(); ++j) {
@@ -705,7 +705,7 @@ TEST(Sub, Full_Length_One) {
 		b1[i] = true;
 	}
 
-	FqPackedVector<n>::sub(b3, b1, b2, 0, n);
+	BinaryVector<n>::sub(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(true, b3[j]);
 		EXPECT_EQ(1, b3[j]);
@@ -719,7 +719,7 @@ TEST(Sub, Full_Length_One) {
 		b2[i] = true;
 	}
 
-	FqPackedVector<n>::sub(b3, b1, b2, 0, n);
+	BinaryVector<n>::sub(b3, b1, b2, 0, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(false, b3[j]);
 		EXPECT_EQ(0, b3[j]);
@@ -727,14 +727,14 @@ TEST(Sub, Full_Length_One) {
 }
 
 TEST(Sub, OffByOne_Lower_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[0] = true;   // this should be ignored.
-	FqPackedVector<n>::sub(b3, b1, b2, 1, n);
+	BinaryVector<n>::sub(b3, b1, b2, 1, n);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
@@ -745,7 +745,7 @@ TEST(Sub, OffByOne_Lower_One) {
 		b1[i] = true;
 	}
 
-	FqPackedVector<n>::sub(b3, b1, b2, 1, n);
+	BinaryVector<n>::sub(b3, b1, b2, 1, n);
 	EXPECT_EQ(0, b3[0]);
 	EXPECT_EQ(false, b3[0]);
 	for (uint32_t j = 1; j < b3.size(); ++j) {
@@ -760,7 +760,7 @@ TEST(Sub, OffByOne_Lower_One) {
 		b2[i] = true;
 	}
 
-	FqPackedVector<n>::sub(b3, b1, b2, 1, n);
+	BinaryVector<n>::sub(b3, b1, b2, 1, n);
 	EXPECT_EQ(0, b3[0]);
 	EXPECT_EQ(false, b3[0]);
 
@@ -771,14 +771,14 @@ TEST(Sub, OffByOne_Lower_One) {
 }
 
 TEST(Sub, OffByOne_Higher_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	b1.zero(); b2.zero(); b3.zero();
 
 	b1[n-1] = true;   // this should be ignored.
-	FqPackedVector<n>::sub(b3, b1, b2, 0, n - 1);
+	BinaryVector<n>::sub(b3, b1, b2, 0, n - 1);
 	for (uint32_t j = 0; j < b3.size(); ++j) {
 		EXPECT_EQ(0, b3[j]);
 	}
@@ -789,7 +789,7 @@ TEST(Sub, OffByOne_Higher_One) {
 		b1[i] = true;
 	}
 
-	FqPackedVector<n>::sub(b3, b1, b2, 0, n - 1);
+	BinaryVector<n>::sub(b3, b1, b2, 0, n - 1);
 	EXPECT_EQ(0, b3[n-1]);
 	EXPECT_EQ(false, b3[n-1]);
 	for (uint32_t j = 0; j < b3.size() - 1; ++j) {
@@ -804,7 +804,7 @@ TEST(Sub, OffByOne_Higher_One) {
 		b2[i] = true;
 	}
 
-	FqPackedVector<n>::sub(b3, b1, b2, 0, n - 1);
+	BinaryVector<n>::sub(b3, b1, b2, 0, n - 1);
 	EXPECT_EQ(0, b3[n-1]);
 	EXPECT_EQ(false, b3[n-1]);
 
@@ -815,9 +815,9 @@ TEST(Sub, OffByOne_Higher_One) {
 }
 
 TEST(Sub, Complex_Ones) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
-	FqPackedVector<n> b3;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
+	BinaryVector<n> b3;
 
 	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
 		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
@@ -827,7 +827,7 @@ TEST(Sub, Complex_Ones) {
 				b1[i] = true;
 			}
 
-			FqPackedVector<n>::sub(b3, b1, b2, k_lower, k_higher);
+			BinaryVector<n>::sub(b3, b1, b2, k_lower, k_higher);
 
 			for (uint32_t j = 0; j < k_lower; ++j) {
 				EXPECT_EQ(0, b3[j]);
@@ -844,61 +844,61 @@ TEST(Sub, Complex_Ones) {
 
 
 TEST(Cmp, Simple_Everything_False) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero(); b2.one();
 
 	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
 		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
-			EXPECT_EQ(false, FqPackedVector<n>::cmp(b1, b2, k_lower, k_higher));
+			EXPECT_EQ(false, BinaryVector<n>::cmp(b1, b2, k_lower, k_higher));
 		}
 	}
 }
 
 TEST(Cmp, Simple_Everything_True) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero(); b2.zero();
 
 	for (uint32_t k_lower  = 0; k_lower < b1.size(); ++k_lower) {
 		for (uint32_t k_higher = k_lower + 1; k_higher < b1.size(); ++k_higher) {
-			EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, k_lower, k_higher));
+			EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, k_lower, k_higher));
 		}
 	}
 }
 
 TEST(Cmp, OffByOne_Lower_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero(); b2.zero();
 
 	b1[0] = true;
 	EXPECT_EQ(1, b1[0]);
-	EXPECT_EQ(false, FqPackedVector<n>::cmp(b1, b2, 0, b1.size()));
+	EXPECT_EQ(false, BinaryVector<n>::cmp(b1, b2, 0, b1.size()));
 	for (uint32_t j = 1; j < b1.size(); ++j) {
-		EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, j, b1.size()));
+		EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, j, b1.size()));
 	}
 }
 
 TEST(Cmp, OffByOne_Higher_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero(); b2.zero();
 
 	b1[n-1] = true;
-	EXPECT_EQ(false, FqPackedVector<n>::cmp(b1, b2, 0, n));
+	EXPECT_EQ(false, BinaryVector<n>::cmp(b1, b2, 0, n));
 	for (uint32_t j = 0; j < b1.size() - 1; ++j) {
-		EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, j, n - 1));
+		EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, j, n - 1));
 	}
 }
 
 TEST(Cmp, Complex_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero();
 
@@ -910,31 +910,31 @@ TEST(Cmp, Complex_One) {
 			}
 
 			if (k_lower > 0u) {
-				EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, 0, k_lower));
+				EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, 0, k_lower));
 			}
 
-			EXPECT_EQ(false, FqPackedVector<n>::cmp(b1, b2, k_lower, k_higher));
-			EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, k_higher, b1.size()));
+			EXPECT_EQ(false, BinaryVector<n>::cmp(b1, b2, k_lower, k_higher));
+			EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, k_higher, b1.size()));
 
 
 			b2.zero();
-			EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, k_lower, k_higher));
+			EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, k_lower, k_higher));
 
 			for (uint32_t i = k_higher; i < b2.size(); ++i) {
 				b2[i] = true;
 			}
 			if (k_lower > 0) {
-				EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, 0, k_lower));
+				EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, 0, k_lower));
 			}
-			EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, k_lower, k_higher));
-			EXPECT_EQ(false, FqPackedVector<n>::cmp(b1, b2, k_higher, b1.size()));
+			EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, k_lower, k_higher));
+			EXPECT_EQ(false, BinaryVector<n>::cmp(b1, b2, k_higher, b1.size()));
 		}
 	}
 }
 
 TEST(Cmp, Complex_Zero) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero();
 	b2.zero();
@@ -948,22 +948,22 @@ TEST(Cmp, Complex_Zero) {
 				b2[i] = true;
 			}
 			if (k_lower > 0) {
-				EXPECT_EQ(false, FqPackedVector<n>::cmp(b1, b2, 0, k_lower));
+				EXPECT_EQ(false, BinaryVector<n>::cmp(b1, b2, 0, k_lower));
 			}
 
-			EXPECT_EQ(true, FqPackedVector<n>::cmp(b1, b2, k_lower, k_higher));
-			EXPECT_EQ(false, FqPackedVector<n>::cmp(b1, b2, k_higher, b1.size()));
+			EXPECT_EQ(true, BinaryVector<n>::cmp(b1, b2, k_lower, k_higher));
+			EXPECT_EQ(false, BinaryVector<n>::cmp(b1, b2, k_higher, b1.size()));
 
 
 			b2.zero();
-			EXPECT_EQ(false, FqPackedVector<n>::cmp(b1, b2, k_lower, k_higher));
+			EXPECT_EQ(false, BinaryVector<n>::cmp(b1, b2, k_lower, k_higher));
 		}
 	}
 }
 
 TEST(Cmp, Special_OffByOne_Lower_Zero) {
 	constexpr uint64_t size = 64;
-	using TestBinaryContainer = FqPackedVector<size>;
+	using TestBinaryContainer = BinaryVector<size>;
 	TestBinaryContainer b1;
 	TestBinaryContainer b2;
 
@@ -988,7 +988,7 @@ TEST(Cmp, Special_OffByOne_Lower_Zero) {
 
 TEST(Cmp, Special_OffByOne_Lower_One) {
 	constexpr uint64_t size = 64;
-	using TestBinaryContainer = FqPackedVector<size>;
+	using TestBinaryContainer = BinaryVector<size>;
 	TestBinaryContainer b1;
 	TestBinaryContainer b2;
 
@@ -1017,8 +1017,8 @@ TEST(Cmp, Special_OffByOne_Lower_One) {
 }
 
 TEST(IsGreater, Simple_Everything_False) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero(); b2.one();
 
@@ -1031,8 +1031,8 @@ TEST(IsGreater, Simple_Everything_False) {
 }
 
 TEST(IsGreater, Simple_Everything_True) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.one(); b2.zero();
 
@@ -1046,8 +1046,8 @@ TEST(IsGreater, Simple_Everything_True) {
 }
 
 TEST(IsGreater, Complex_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero();
 
@@ -1090,8 +1090,8 @@ TEST(IsGreater, Complex_One) {
 }
 
 TEST(IsGreater, Complex) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero();
 
@@ -1117,8 +1117,8 @@ TEST(IsGreater, Complex) {
 
 
 TEST(IsLower, Simple_Everything_False) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero(); b2.one();
 
@@ -1131,8 +1131,8 @@ TEST(IsLower, Simple_Everything_False) {
 }
 
 TEST(IsLower, Simple_Everything_True) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.one(); b2.zero();
 
@@ -1146,8 +1146,8 @@ TEST(IsLower, Simple_Everything_True) {
 }
 
 TEST(IsLower, Complex_One) {
-	FqPackedVector<n> b1;
-	FqPackedVector<n> b2;
+	BinaryVector<n> b1;
+	BinaryVector<n> b2;
 
 	b1.zero();
 
@@ -1190,7 +1190,7 @@ TEST(IsLower, Complex_One) {
 
 
 TEST(weight, Simple_Everything_True) {
-	FqPackedVector<n> b1;
+	BinaryVector<n> b1;
 	b1.zero();
 
 	for (uint32_t k_lower  = 1; k_lower < b1.size(); ++k_lower) {
@@ -1205,25 +1205,25 @@ TEST(weight, Simple_Everything_True) {
 }
 
 TEST(add_weight, Simple) {
-	FqPackedVector<n> b1,b2,b3;
+	BinaryVector<n> b1,b2,b3;
 	b1.zero(); b2.zero(); b3.zero();
 	uint32_t w1, w2;
 
 	// Simple zero test.
-	w1 = FqPackedVector<n>::add_weight(b3.ptr(), b1.ptr(), b2.ptr());
-	w2 = FqPackedVector<n>::add_weight(b3, b1, b2);
+	w1 = BinaryVector<n>::add_weight(b3.ptr(), b1.ptr(), b2.ptr());
+	w2 = BinaryVector<n>::add_weight(b3, b1, b2);
 	EXPECT_EQ(w1, w2);
 
 	for(uint32_t i = 0; i < TESTSIZE; i++) {
 		b2.random(); b3.random();
-		w1 = FqPackedVector<n>::add_weight(b3.ptr(), b1.ptr(), b2.ptr());
-		w2 = FqPackedVector<n>::add_weight(b3, b1, b2);
+		w1 = BinaryVector<n>::add_weight(b3.ptr(), b1.ptr(), b2.ptr());
+		w2 = BinaryVector<n>::add_weight(b3, b1, b2);
 		EXPECT_EQ(w1, w2);
 	}
 }
 
 TEST(hash, Simple) {
-	FqPackedVector<n> b1;
+	BinaryVector<n> b1;
 	for (uint32_t l = 0; l < n-1u; ++l) {
 		for (uint32_t h = l+1u; h < n; ++h) {
 			if ((h - l) > 64) { continue; }
@@ -1270,7 +1270,7 @@ TEST(hash, Constexpr) {
 TEST(hash, Complex) {
 	// two avx register
 	constexpr uint32_t n = 256*2;
-	using B = FqPackedVector<n>;
+	using B = BinaryVector<n>;
 	B b;
 	b.random();
 	const auto c = b.hash();

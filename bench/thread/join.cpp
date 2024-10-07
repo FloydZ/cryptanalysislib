@@ -4,7 +4,6 @@
 #include <cstdlib>
 
 #include "pthread.h"
-#include "thread/scheduler.h"
 #include "thread/thread.h"
 
 constexpr size_t size = 8;
@@ -26,12 +25,12 @@ void *inc2(void *a) {
 }
 
 
-static void pool_create_destroy(benchmark::State& state) {
+static void stealingscheduler_create_destroy(benchmark::State& state) {
 	for ([[maybe_unused]] auto _ : state) {
-		scheduler pool(state.range(0));
+		StealingScheduler pool(state.range(0));
 	}
 }
-BENCHMARK(pool_create_destroy)->DenseRange(1, size, 1);
+BENCHMARK(stealingscheduler_create_destroy)->DenseRange(1, size, 1);
 
 ///**
 // * Measure submitting a pre-packaged std::packaged_task.
@@ -194,7 +193,7 @@ void BM_pthread(benchmark::State& state) {
 
 void BM_thread(benchmark::State& state) {
 	for (auto _ : state) {
-		cryptanalysislib::scheduler local_pool(state.range(0));
+		StealingScheduler local_pool(state.range(0));
 		for (int64_t i = 0; i < state.range(0); ++i) {
 			local_pool.enqueue_detach(inc, (void *)&i);
 		}
@@ -218,7 +217,7 @@ void BM_thread(benchmark::State& state) {
 void BM_jthread(benchmark::State& state) {
 	std::vector<std::jthread> threads(state.range(0));
 	for (auto _ : state) {
-		cryptanalysislib::scheduler local_pool(state.range(0));
+		StealingScheduler local_pool(state.range(0));
 		for (int64_t i = 0; i < state.range(0); ++i) {
 			threads[i] = std::jthread(inc, (void *)&i);
 		}
@@ -232,7 +231,7 @@ void BM_jthread(benchmark::State& state) {
 void BM_stdthread(benchmark::State& state) {
 	std::vector<std::thread> threads(state.range(0));
 	for (auto _ : state) {
-		cryptanalysislib::scheduler local_pool(state.range(0));
+		StealingScheduler local_pool(state.range(0));
 		for (int64_t i = 0; i < state.range(0); ++i) {
 			threads[i] = std::thread(inc, (void *)&i);
 		}

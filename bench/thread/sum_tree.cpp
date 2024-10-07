@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include "thread/scheduler.h"
+#include "thread/thread.h"
 
 using namespace cryptanalysislib;
 
@@ -58,7 +58,7 @@ struct SimpleSum {
 Node *root = nullptr;
 
 struct SchedulerSum {
-	scheduler<std::jthread> pool{};
+	StealingScheduler<> pool{};
     int64_t run(Node *node) noexcept {
         auto t = pool.enqueue(sum, node);
         return t.get();

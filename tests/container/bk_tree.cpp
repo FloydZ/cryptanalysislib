@@ -14,7 +14,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using T = FqPackedVector<100, uint64_t>;
+using T = BinaryVector<100>;
 using BKT = BKTree<T>;
 
 TEST(BKTree, first) {

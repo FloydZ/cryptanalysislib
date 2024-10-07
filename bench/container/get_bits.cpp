@@ -6,7 +6,7 @@
 #include "../bench_config.h"
 
 B63_BASELINE(SoImplemented, nn) {
-	FqPackedVector<n> v1{};
+	BinaryVector<n> v1{};
 	uint64_t k = 0, res=0;
 	uint64_t i=0, j=0, r;
 	for (; k < nn*100000; k++) {
@@ -28,7 +28,7 @@ B63_BASELINE(SoImplemented, nn) {
 }
 
 B63_BENCHMARK(SoImplementedInline, nn) {
-	using T = FqPackedVector<n>;
+	using T = BinaryVector<n>;
 
 	T v1{};
 	typedef typename T::LimbType LimbType;
@@ -65,7 +65,7 @@ B63_BENCHMARK(SoImplementedInline, nn) {
 }
 
 B63_BENCHMARK(Old, nn) {
-	using T = FqPackedVector<n>;
+	using T = BinaryVector<n>;
 
 	T v1{};
 	typedef typename T::LimbType LimbType;

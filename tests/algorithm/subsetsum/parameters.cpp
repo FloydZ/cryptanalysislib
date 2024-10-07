@@ -30,7 +30,7 @@ TEST(SubSetSum, n32) {
 	constexpr uint64_t q    = (1ul << n);
 
 	using T 			= uint64_t;
-	using Value     	= FqPackedVector<n>;
+	using Value     	= BinaryVector<n>;
 	using Label    		= kAry_Type_T<q>;
 	using Matrix 		= FqVector<T, n, q, true>;
 	using Element		= Element_T<Value, Label, Matrix>;
@@ -63,7 +63,7 @@ TEST(SubSetSum, n48) {
 	constexpr uint64_t q    = (1ul << n);
 
 	using T 			= uint64_t;
-	using Value     	= FqPackedVector<n>;
+	using Value     	= BinaryVector<n>;
 	using Label    		= kAry_Type_T<q>;
 	using Matrix 		= FqVector<T, n, q, true>;
 	using Element		= Element_T<Value, Label, Matrix>;

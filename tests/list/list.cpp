@@ -20,8 +20,8 @@ constexpr size_t LS = 1u<<8u;
 #define ListName uint8_kAC_kAC
 #define MatrixT uint8_t
 #define Matrix 	FqMatrix<MatrixT, N, K, Q>
-#define Value 	kAryContainer_T<MatrixT, K, Q>
-#define Label 	kAryContainer_T<MatrixT, N, Q>
+#define Value 	FqNonPackedVector<K, Q, MatrixT>
+#define Label 	FqNonPackedVector<N, Q, MatrixT>
 #define Element Element_T<Value, Label, Matrix>
 #define List 	List_T<Element>
 #include "test_list.h"
@@ -36,8 +36,8 @@ constexpr size_t LS = 1u<<8u;
 #define ListName uint8_kPAC_kPAC
 #define MatrixT uint8_t
 #define Matrix 	FqMatrix<MatrixT, N, K, Q, true>
-#define Value 	kAryPackedContainer_T<MatrixT, K, Q>
-#define Label 	kAryPackedContainer_T<MatrixT, N, Q>
+#define Value 	FqPackedVector<K, Q, MatrixT>
+#define Label 	FqPackedVector<N, Q, MatrixT>
 #define Element Element_T<Value, Label, Matrix>
 #define List 	List_T<Element>
 #include "test_list.h"
@@ -52,8 +52,8 @@ constexpr size_t LS = 1u<<8u;
 #define ListName binary_64
 #define MatrixT uint64_t
 #define Matrix 	FqMatrix<MatrixT, N, K, 2, true>
-#define Value 	BinaryContainer<K>
-#define Label 	BinaryContainer<N>
+#define Value 	BinaryVector<K>
+#define Label 	BinaryVector<N>
 #define Element Element_T<Value, Label, Matrix>
 #define List 	List_T<Element>
 #include "test_list.h"
@@ -78,7 +78,7 @@ constexpr size_t LS = 1u<<8u;
 #define ListName uint8_kPAC_kA
 #define MatrixT uint8_t
 #define Matrix 	FqVector<MatrixT, K, Q, true>
-#define Value 	BinaryContainer<K>
+#define Value 	BinaryVector<K>
 #define Label 	kAry_Type_T<Q>
 #define Element Element_T<Value, Label, Matrix>
 #define List 	List_T<Element>

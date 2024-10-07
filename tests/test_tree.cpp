@@ -21,8 +21,8 @@ constexpr uint32_t q    = 3;
 
 using T 			= uint8_t;
 using Matrix 		= FqMatrix<T, n, k, q>;
-using Value     	= FqNonPackedVector<T, n, q>;
-using Label    		= FqNonPackedVector<T, k, q>;
+using Value     	= FqNonPackedVector<n, q, T>;
+using Label    		= FqNonPackedVector<k, q, T>;
 using Element		= Element_T<Value, Label, Matrix>;
 using List			= List_T<Element>;
 using Tree			= Tree_T<List>;

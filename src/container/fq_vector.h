@@ -2172,7 +2172,7 @@ public:
 /// \param a
 /// \param b
 /// \return
-template<const uint64_t n, const uint64_t q, typename T>
+template<const uint32_t n, const uint64_t q, typename T>
 constexpr inline bool operator==(const FqNonPackedVectorMeta<n, q, T> &a,
 								 const FqNonPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_equal(b);
@@ -2185,7 +2185,7 @@ constexpr inline bool operator==(const FqNonPackedVectorMeta<n, q, T> &a,
 /// \param a
 /// \param b
 /// \return
-template<const uint64_t n, const uint64_t q, typename T>
+template<const uint32_t n, const uint64_t q, typename T>
 constexpr inline bool operator<(const FqNonPackedVectorMeta<n, q, T> &a,
 								const FqNonPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_lower(b);
@@ -2198,7 +2198,7 @@ constexpr inline bool operator<(const FqNonPackedVectorMeta<n, q, T> &a,
 /// \param a
 /// \param b
 /// \return
-template<const uint64_t n, const uint64_t q, typename T>
+template<const uint32_t n, const uint64_t q, typename T>
 constexpr inline bool operator>(const FqNonPackedVectorMeta<n, q, T> &a,
 								const FqNonPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_greater(b);

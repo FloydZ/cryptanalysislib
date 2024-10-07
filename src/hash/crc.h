@@ -63,7 +63,8 @@ constexpr static uint32_t crc32(const uint8_t *buf,
 	return crc ^ ~0U;
 }
 
-#ifdef USE_AVX2
+// TODO add this flag to the cmake project
+#ifdef USE_PCLMULDQD
 #include <immintrin.h>
 
 // SSE4.2+PCLMUL

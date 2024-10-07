@@ -19,7 +19,7 @@ TEST(Hash, simple) {
 
 }
 
-#ifdef USE_AVX2
+#ifdef USE_PCLMULDQD
 TEST(crc32, sse42) {
 	constexpr static size_t size = 1024;
 	auto *data = (uint8_t *)malloc(size);

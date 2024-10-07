@@ -13,7 +13,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using Row = FqPackedVector<uint64_t, 32, 3>;
+using Row = FqPackedVector<32, 3, uint64_t>;
 
 // return true if correct, false if not
 bool correct(const uint64_t t, const uint64_t a, const uint64_t b) {
@@ -40,7 +40,7 @@ bool correct(const uint64_t t, const uint64_t a, const uint64_t b) {
 }
 
 bool correct128(const __uint128_t t, const __uint128_t a, const __uint128_t b) {
-	using Row = FqPackedVector<uint64_t, 64, 3>;
+	using Row = FqPackedVector<64, 3, uint64_t>;
 	Row row1, row2, row3;
 	row3.zero();
 	row1.__data[0] = a;
@@ -63,7 +63,7 @@ bool correct128(const __uint128_t t, const __uint128_t a, const __uint128_t b) {
 }
 
 bool correct256(const uint64x4_t t, const uint64x4_t a, const uint64x4_t b) {
-	using Row = FqPackedVector<uint64_t, 128, 3>;
+	using Row = FqPackedVector<128, 3, uint64_t>;
 	Row row1, row2, row3;
 	row3.zero();
 	row1.__data[0] = a.v64[0];

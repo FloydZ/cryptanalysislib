@@ -91,6 +91,7 @@ FetchContent_Declare(
 		GIT_TAG        v0.14.1
 )
 FetchContent_MakeAvailable(reflect-cpp)
+include_directories(${reflect-cpp_SOURCE_DIR}/include)
 
 # global include directories
 include_directories("deps/b63/include/b63")

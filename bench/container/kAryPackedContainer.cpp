@@ -7,7 +7,7 @@
 #include <helper.h>
 
 constexpr uint64_t ctr = 10;
-using Row = FqPackedVector<uint64_t, 255, 3>;
+using Row = FqPackedVector<255, 3, uint64_t>;
 using S = typename Row::S;
 
 B63_BASELINE(add, nn) {

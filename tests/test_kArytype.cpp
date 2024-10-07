@@ -75,10 +75,10 @@ using ::testing::UnitTest;
 #undef T
 #undef S
 
-TEST(T, Constexpr) {
-
-	kAry_Type_T_big<>
-}
+// todo dev
+// TEST(T, dev_big) {
+// 	kAry_Type_T_big<>
+// }
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 	ident();

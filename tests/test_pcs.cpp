@@ -158,7 +158,7 @@ TEST(PCS, RhoSubSetSum) {
 
 	using T 		= uint64_t;
 	using Label    	= kAry_Type_T<p>;
-	using Value    	= FqPackedVector<n>;
+	using Value    	= BinaryVector<n>;
 	using Matrix 	= FqVector<T, n, p, true>;
 	using Element 	= Element_T<Value, Label, Matrix>;
 
@@ -298,7 +298,7 @@ TEST(PCS, RhoSubSetSumTree) {
 	// Needed Types
 	using TT 			= uint16_t;
 	using Matrix 		= FqMatrix<TT, 1, n, q>;
-	using Value     	= FqNonPackedVector<TT, n, 2>;
+	using Value     	= FqNonPackedVector<n, 2, TT>;
 	using Element		= Element_T<Value, T, Matrix>;
 	using List			= List_T<Element>;
 	using Tree			= Tree_T<List>;

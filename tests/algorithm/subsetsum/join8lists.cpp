@@ -23,7 +23,7 @@ constexpr uint32_t n    = 16ul;
 constexpr uint32_t q    = (1ul << n);
 
 using T 			= uint64_t;
-using Value     	= FqPackedVector<n>;
+using Value     	= BinaryVector<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;

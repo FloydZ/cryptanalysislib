@@ -23,7 +23,7 @@
 /// \param n = number of elements
 /// \param T = uint64_t
 /// \param q = modulus
-template<const uint64_t _n,
+template<const uint32_t _n,
 		 const uint64_t _q,
          typename T=uint64_t>
 #if __cplusplus > 201709L
@@ -1851,17 +1851,17 @@ public:
 
 
 
-template<const uint64_t n, const uint64_t q, typename T=uint64_t >
+template<const uint32_t n, const uint64_t q, typename T=uint64_t >
 constexpr inline bool operator==(const FqPackedVectorMeta<n, q, T> &a,
 								 const FqPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_equal(b);
 }
-template<const uint64_t n, const uint64_t q, typename T=uint64_t >
+template<const uint32_t n, const uint64_t q, typename T=uint64_t >
 constexpr inline bool operator<(const FqPackedVectorMeta<n, q, T> &a,
                                 const FqPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_lower(b);
 }
-template<const uint64_t n, const uint64_t q, typename T=uint64_t >
+template<const uint32_t n, const uint64_t q, typename T=uint64_t >
 constexpr inline bool operator>(const FqPackedVectorMeta<n, q, T> &a,
                                 const FqPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_greater(b);
@@ -1875,7 +1875,7 @@ constexpr inline bool operator>(const FqPackedVectorMeta<n, q, T> &a,
 /// \param lhs
 /// \param rhs
 /// \return
-template<const uint64_t n, const uint64_t q, typename T>
+template<const uint32_t n, const uint64_t q, typename T>
 constexpr inline kAry_Type_T<q> operator+(const kAry_Type_T<q> &lhs,
                                           const typename FqPackedVectorMeta<n, q, T>::reference &rhs) noexcept {
 	kAry_Type_T<q> ret = lhs;

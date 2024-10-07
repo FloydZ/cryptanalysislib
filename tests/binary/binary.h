@@ -13,8 +13,8 @@
 constexpr uint32_t n = 127;
 #endif
 
-using BinaryValue = FqPackedVector<n>;
-using BinaryLabel = FqPackedVector<n>;
+using BinaryValue = BinaryVector<n>;
+using BinaryLabel = BinaryVector<n>;
 using BinaryMatrix = FqMatrix<uint64_t, n, n, 2>;
 using BinaryElement = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList = List_T<BinaryElement>;
