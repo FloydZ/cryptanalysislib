@@ -208,12 +208,12 @@ TEST(F4, mul_T) {
 	EXPECT_EQ(K4::mul_T<uint32_t>(3, 3), 1);
 }
 
-
+using S4 = K4::S;
 TEST(F4, add256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
+	const auto t0 = S4::set1(0);
+	const auto t1 = S4::set1(1);
+	const auto t2 = S4::set1(2);
+	const auto t3 = S4::set1(3);
 
 	EXPECT_EQ(K4::add256_T(t0, t0), t0);
 	EXPECT_EQ(K4::add256_T(t0, t1), t1);
@@ -232,10 +232,10 @@ TEST(F4, add256_T) {
 }
 
 TEST(F4, mul256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
+	const auto t0 = S4::set1(0);
+	const auto t1 = S4::set1(1);
+	const auto t2 = S4::set1(2);
+	const auto t3 = S4::set1(3);
 
 	EXPECT_EQ(K4::mul256_T(t0, t0), t0);
 	EXPECT_EQ(K4::mul256_T(t0, t1), t0);
@@ -485,14 +485,15 @@ TEST(F7, mul_T) {
 	EXPECT_EQ(K7::mul_T<uint32_t>(3, 3), 2);
 }
 
+using S7 = K7::S;
 TEST(F7, add256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
-	const uint8x32_t t6 = uint8x32_t::set1(6);
+	const auto t0 = S7::set1(0);
+	const auto t1 = S7::set1(1);
+	const auto t2 = S7::set1(2);
+	const auto t3 = S7::set1(3);
+	const auto t4 = S7::set1(4);
+	const auto t5 = S7::set1(5);
+	const auto t6 = S7::set1(6);
 
 	EXPECT_EQ(K7::add256_T(t0, t0), t0);
 	EXPECT_EQ(K7::add256_T(t0, t1), t1);
@@ -514,13 +515,13 @@ TEST(F7, add256_T) {
 }
 
 TEST(F7, sub256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
-	const uint8x32_t t6 = uint8x32_t::set1(6);
+	const auto t0 = S7::set1(0);
+	const auto t1 = S7::set1(1);
+	const auto t2 = S7::set1(2);
+	const auto t3 = S7::set1(3);
+	const auto t4 = S7::set1(4);
+	const auto t5 = S7::set1(5);
+	const auto t6 = S7::set1(6);
 
 	EXPECT_EQ(K7::sub256_T(t0, t0), t0);
 	EXPECT_EQ(K7::sub256_T(t0, t1), t6);
@@ -538,13 +539,13 @@ TEST(F7, sub256_T) {
 }
 
 TEST(F7, mul256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
-	const uint8x32_t t6 = uint8x32_t::set1(6);
+	const auto t0 = S7::set1(0);
+	const auto t1 = S7::set1(1);
+	const auto t2 = S7::set1(2);
+	const auto t3 = S7::set1(3);
+	const auto t4 = S7::set1(4);
+	const auto t5 = S7::set1(5);
+	const auto t6 = S7::set1(6);
 
 	EXPECT_EQ(K7::mul256_T(t0, t0), t0);
 	EXPECT_EQ(K7::mul256_T(t0, t1), t0);
@@ -750,13 +751,14 @@ TEST(F5, mul_T) {
 	EXPECT_EQ(K5::mul_T<uint32_t>(5, 3), 0);
 }
 
+using S5 = K5::S;
 TEST(F5, add256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
+	const auto t0 = S5::set1(0);
+	const auto t1 = S5::set1(1);
+	const auto t2 = S5::set1(2);
+	const auto t3 = S5::set1(3);
+	const auto t4 = S5::set1(4);
+	const auto t5 = S5::set1(5);
 
 	EXPECT_EQ(K5::add256_T(t0, t0), t0);
 	EXPECT_EQ(K5::add256_T(t0, t1), t1);
@@ -778,11 +780,11 @@ TEST(F5, add256_T) {
 }
 
 TEST(F5, sub256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
+	const auto t0 = S5::set1(0);
+	const auto t1 = S5::set1(1);
+	const auto t2 = S5::set1(2);
+	const auto t3 = S5::set1(3);
+	const auto t4 = S5::set1(4);
 
 	EXPECT_EQ(K5::sub256_T(t0, t0), t0);
 	EXPECT_EQ(K5::sub256_T(t0, t1), t4);
@@ -800,12 +802,12 @@ TEST(F5, sub256_T) {
 }
 
 TEST(F5, mul256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
+	const auto t0 = S5::set1(0);
+	const auto t1 = S5::set1(1);
+	const auto t2 = S5::set1(2);
+	const auto t3 = S5::set1(3);
+	const auto t4 = S5::set1(4);
+	const auto t5 = S5::set1(5);
 
 	EXPECT_EQ(K5::mul256_T(t0, t0), t0);
 	EXPECT_EQ(K5::mul256_T(t0, t1), t0);

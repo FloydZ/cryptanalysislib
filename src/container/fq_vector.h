@@ -420,14 +420,12 @@ public:
 	/// \param b in
 	/// \return a+b, component wise
 	[[nodiscard]] constexpr static inline S add256_T(const S a,
-	                                                          const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
+	                                                 const S b) noexcept {
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = (a_data[i] + b_data[i]) % q;
 		}
 
@@ -440,14 +438,12 @@ public:
 	/// \param b in
 	/// \return a-b, component wise
 	[[nodiscard]] constexpr static inline S sub256_T(const S a,
-	                                                          const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
+	                                                 const S b) noexcept {
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = (a_data[i] + (q - b_data[i])) % q;
 		}
 
@@ -461,13 +457,11 @@ public:
 	/// \return a*b, component wise
 	[[nodiscard]] constexpr static inline S mul256_T(const S a,
 	                                                 const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *)ret.d;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = (a_data[i] * b_data[i]) % q;
 		}
 

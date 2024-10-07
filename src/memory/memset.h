@@ -165,13 +165,13 @@ namespace cryptanalysislib {
 					uint8x64_t t = uint8x64_t::set1(in);
 					uint8x64_t::unaligned_store(out, t);
 
-					uint8_t *out2 = out + bytes;
+					uint8_t *out2 = ((uint8_t *)out) + bytes;
 					uint8x64_t::unaligned_store(out2 - 0x40, t);
 					out2 = (uint8_t *) (((uintptr_t) (out2)) & -0x40);
 
 					out += 0x40;
-					out = (uint8_t *) (((uintptr_t) out) & -0x40);
-					out = (uint8_t *) ((uintptr_t) out - (uintptr_t) out2);
+					out = (T *) (((uintptr_t) out) & -0x40);
+					out = (T *) ((uintptr_t) out - (uintptr_t) out2);
 
 					while (out != nullptr) {
 						uint8x64_t::aligned_store((uint8_t *) ((uintptr_t) out + (uintptr_t) out2), t);

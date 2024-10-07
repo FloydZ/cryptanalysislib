@@ -24,10 +24,11 @@ using ::testing::UnitTest;
 //  - also simplify the enumerator interface to only need the lists as inputs and not the offset.
 
 // NOTE: random enumeration of the values
-TEST(SubSetSum, n32) {
-	// 19.543010252924077 7.567052700200905 l1=5 l2=13 d1=0 d2=0 G=1 n1=2,nm1=0 0
-	constexpr uint32_t n    = 32ul;
-	constexpr uint64_t q    = (1ul << n);
+// NOTE: only two baselists are used
+TEST(SubSetSum, n32_d2_baselists2) {
+	// 15.841070074033095 7.999094705692274 6 10 0 0 100.0 2.0 0 120.0 1.7769098281860352 14.0625
+	constexpr uint32_t n = 32ul;
+	constexpr uint64_t q = (1ul << n); //4294967279
 
 	using T 			= uint64_t;
 	using Value     	= BinaryVector<n>;
@@ -38,7 +39,7 @@ TEST(SubSetSum, n32) {
 	using Tree			= Tree_T<List>;
 
 	Matrix A; A.random();
-	constexpr uint32_t k_lower1=0, k_higher1=13, k_higher2=18;
+	constexpr uint32_t k_lower1=0, k_higher1=10, k_higher2=16;
 	constexpr uint32_t p = 2;
 	constexpr size_t baselist_size = sum_bc(n/2, p);
 	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
@@ -57,6 +58,35 @@ TEST(SubSetSum, n32) {
 	EXPECT_GT(out.load(), 0);
 }
 
+TEST(SubSetSum, n32_d2_baselists4) {
+	constexpr uint32_t n = 32ul;
+	constexpr uint64_t q = (1ul << n); //4294967279
+
+	using T 			= uint64_t;
+	using Value     	= BinaryVector<n>;
+	using Label    		= kAry_Type_T<q>;
+	using Matrix 		= FqVector<T, n, q, true>;
+	using Element		= Element_T<Value, Label, Matrix>;
+	using List			= List_T<Element>;
+	using Tree			= Tree_T<List>;
+
+	Matrix A; A.random();
+	constexpr uint32_t k_lower1=0, k_higher1=9, k_higher2=14;
+
+	using Enumerator = BinarySinglePartialSingleEnumerator<List, 32, 1, 2, 16>;
+
+	constexpr size_t baselist_size = Enumerator::LIST_SIZE;
+	List out{1u<<8}, l1{baselist_size}, l2{baselist_size},l3{baselist_size},l4{baselist_size};
+	Label target;
+	std::vector<uint32_t> weights(n/2);
+	generate_subsetsum_instance(target, weights, A, n);
+
+	Tree::template join4lists_on_iT_hashmap_v2
+			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
+			(out, l1, l2, l3, l4, target, A);
+
+	EXPECT_GT(out.load(), 0);
+}
 TEST(SubSetSum, n48) {
 	// 22.707336747487684 12.775544757643935 2 20 0 0 1 3.0 0 2024.0 1.6311530334469542 3.90679931640625
 	constexpr uint32_t n    = 48ul;

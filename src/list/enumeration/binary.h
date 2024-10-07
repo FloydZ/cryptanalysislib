@@ -227,7 +227,7 @@ public:
 	////
 	Combinations_Binary_Chase<T, n, w> chase = Combinations_Binary_Chase<T, n, w>();
 	constexpr static size_t max_list_size = Combinations_Binary_Chase<T, n, w>::chase_size;
-	const size_t list_size;
+	const size_t list_size{};
 
 	// some security things
 	static_assert(Value::length() >= w);
@@ -755,7 +755,7 @@ public:
 
 				ctr += 1;
 				if (ctr >= list_size) {
-					return false;
+					goto finish;
 				}
 			}
 
@@ -778,9 +778,11 @@ public:
 
 			ctr += 1;
 			if (ctr >= list_size) {
-				return false;
+				goto finish;
 			}
 		}
+
+	finish:
 
 		/// make sure that all elements where generated
 		ASSERT(ctr == LIST_SIZE);

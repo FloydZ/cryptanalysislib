@@ -669,7 +669,8 @@ public:
 				 std::pair<uint16_t, uint16_t> tmp{old_val, cur_val};
 				 ret[N-1] = tmp;
 			}
-			memcpy(old_c, c, (t+2) * sizeof(uint16_t));
+			//std::memcpy(old_c, c, (t+2) * sizeof(uint16_t));
+			memcpy(old_c, c, (t+2));
 
 			++N;
 			j = r;

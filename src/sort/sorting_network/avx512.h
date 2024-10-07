@@ -2140,7 +2140,7 @@ sortingnetwork_sort_x32x16(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
 sortingnetwork_kvsort_x32x16(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
 sortingnetwork_sort_x32x16(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
 sortingnetwork_kvsort_x32x16(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
-//sortingnetwork_sort_x32x16(f, __m512, _mm512_min_ps, _mm512_max_ps)
+sortingnetwork_sort_x32x16(f, __m512, _mm512_min_ps, _mm512_max_ps)
 // sortingnetwork_kvsort_x32x16(f, __m512, _mm512_min_ps, _mm512_max_ps)
 
 sortingnetwork_exchangesort_x32x32(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)

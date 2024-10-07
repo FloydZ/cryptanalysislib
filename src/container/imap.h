@@ -8,6 +8,10 @@
 #include "alloc/alloc.h"
 #include "popcount/popcount.h"
 
+#if defined(USE_AVX2) || defined (USE_AVX512F)
+#include <immintrin.h>
+#endif
+
 using namespace cryptanalysislib::popcount;
 using namespace cryptanalysislib;
    
@@ -97,7 +101,7 @@ public:
         valmm = _mm512_srlv_epi64(valmm, _mm512_setr_epi64(0, 4, 8, 12, 16, 20, 24, 28));
         valmm = _mm512_and_epi32(valmm, _mm512_set1_epi32(0xf));
         vecmm = _mm512_or_epi32(vecmm, valmm);
-        _mm512_store_epi32(vec32, vecmm);
+        _mm512_store_epi32((void *)vec32, vecmm);
 #else
         __m256i veclo = _mm256_load_si256((__m256i *)vec32);
         __m256i vechi = _mm256_load_si256((__m256i *)(vec32 + 8));

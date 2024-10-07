@@ -15,7 +15,6 @@
 #include "list/list.h"
 #include "matrix/binary_matrix.h"
 #include "matrix/fq_matrix.h"
-#include "thread/thread.h"
 
 // needed for `ExtendedTree`
 #include "container/hashmap.h"
@@ -703,6 +702,7 @@ public:
 						}
 
 						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
+							// TODO can happen that the addition here is not correct: SubSetSum representation which cancel a 1
 							out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
 
 #ifdef DEBUG
@@ -1757,7 +1757,6 @@ public:
 											const LabelType &target,
 											const bool prepare=true) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
-		// constexpr uint32_t filter = -1u;
 		using LoadType = typename HashMapIn::load_type;
 		using HMOutValueType = HashMapOut::data_type;
 		out.clear();
@@ -1771,7 +1770,6 @@ public:
 		}
 
 #ifdef DEBUG
-
 		for (size_t i = 0; i < HashMapIn::nrbuckets; ++i) {
 			for (uint32_t j = 0; j < hm2.load_without_hash(i); ++j) {
 				const size_t pos = hm2[i];
@@ -1779,6 +1777,7 @@ public:
 			}
 		}
 #endif
+
 		LabelType sigma_t;
 		LoadType load = 0;
 		LabelType e;
@@ -2086,6 +2085,118 @@ public:
 		        (out, iL, L3, L4, target, t1, A, false);
 	}
 
+
+	/// TODO tests/pics,docs
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			 const uint32_t k_lower2, const uint32_t k_upper2,
+			 typename HashMapL0,
+	         typename HashMapL1,
+	         typename Matrix>
+#if __cplusplus > 201709L
+	requires HashMapAble<HashMapL0> &&
+			 HashMapAble<HashMapL1>
+#endif
+	static void join4lists_on_iT_hashmap_v2(List &out,
+	                                const List &L1, List &L2,
+	                                const List &L3, List &L4,
+	                                HashMapL0 &hmL0,
+									HashMapL1 &hmL1,
+	                                const LabelType &target,
+	                                const Matrix &A,
+	                                const bool prepare = true) noexcept {
+			(void)k_lower2;
+		ElementType tmpe1;
+		LabelType t1, iT;
+		iT.random(0, 1ull << k_upper1);
+		const size_t iLs = join2lists_on_iT_hashmap_v2
+				<k_lower1, k_upper1>
+				(hmL1, L1, L2, hmL0, iT, prepare);
+
+		size_t Ls = 0;
+		auto f = [&A, &target, &Ls](List &out,
+		            const ElementType &e1,
+		            const ElementType &e2,
+		            const size_t a1, const size_t a2,
+		            const size_t a3, const size_t a4) __attribute__((always_inline)) {
+			(void)a1; (void)a2; (void)a3; (void)a4;
+			(void)target;
+			static ElementType v;
+			ValueType::add(v.value, e1.value, e2.value);
+			// TODO hardcoded
+			if (v.value.popcnt() !=	16) { return ; }
+
+			v.recalculate_label(A);
+		    out.append(v);
+			Ls += 1;
+			// std::cout << target << std::endl;
+		    // std::cout << v << std::endl;
+			// if (v.label.is_equal(target)) { out.append(v); }
+		};
+
+		LabelType::sub(t1, target, iT);
+
+		hmL0.clear();
+		for (size_t i = 0; i < L4.load(); ++i) {
+			hmL0.insert(L4[i].label.value(), i);
+		}
+
+		twolevel_streamjoin_on_iT_hashmap_v2
+		    <k_lower1, k_upper1, k_lower2, k_upper2>
+		    (out, hmL1, L3, L4, hmL0, target, t1, A, f);
+		std::cout << "|L1|: " << std::log2(L1.load() * 1.0) << ", " << L1.load() << std::endl;
+		std::cout << "|iL|: " << std::log2(iLs * 1.0) << ", " << iLs << std::endl;
+		std::cout << "|L| : " << std::log2(Ls * 1.0) << ", " <<  Ls << std::endl;
+	}
+
+
+	/// TODO tests/pics,docs
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			 const uint32_t k_lower2, const uint32_t k_upper2,
+	         class Enumerator,
+			 class Matrix>
+	static void join4lists_on_iT_hashmap_v2(List &out,
+											List &L1, List &L2,
+											List &L3, List &L4,
+											const LabelType &target,
+											const Matrix &A,
+											const bool prepare = true) noexcept {
+		// TODO hardcoded n
+		// TODO hardcoded bucketsize
+		// TODO remove commented out code
+		// TODO outsource logging?
+		Enumerator e{A};
+		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+				(L1, L2, L3, L4);
+
+		// std::cout << L1 << std::endl << std::endl;
+		// std::cout << L2;
+
+		// Some Hashmap stuff needed
+		using D = typename LabelType::DataType;
+		using E = std::pair<size_t, size_t>;
+
+		// NOTE: you need to choose the `bucketsize` correctly.
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+				100, 1ull<<(k_upper1-k_lower1), 1
+		};
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
+				100, 1ull<<(k_upper2-k_lower2), 1
+		};
+
+		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower1, k_upper1, 2>>;
+		using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_lower2, k_upper2, 2>>;
+		HML0 *hml0 = new HML0{};
+		HML1 *hml1 = new HML1{};
+
+		join4lists_on_iT_hashmap_v2
+				<k_lower1, k_upper1, k_lower2, k_upper2>
+				(out, L1, L2, L3, L4, *hml0, *hml1, target, A, prepare);
+
+		delete hml0;
+		delete hml1;
+	}
+
+
 	///                     ┌───────┐
 	///                     │ out   │
 	///                     └───┬───┘
@@ -2201,6 +2312,7 @@ public:
 
 		// early exit
 		if (iL.load() == 0) { return; }
+
 #ifdef DEBUG
 		for (size_t i = 0; i < iL.load(); ++i) {
 			ASSERT(iT.is_equal(iL[i].label, k_lower1, k_upper1));
@@ -2324,7 +2436,7 @@ public:
 			static ElementType v;
 			ValueType::add(v.value, e1.value, e2.value);
 			// TODO hardcoded
-			if (v.value.popcnt() != 24) { return ; }
+			if (v.value.popcnt() !=	16) { return ; }
 
 			v.recalculate_label(A);
 		    out.append(v);
@@ -2345,6 +2457,8 @@ public:
 	}
 
 	/// TODO picture, doc, test
+	/// NOTE: allocates the needed hashmaps, and after computing the solutions
+	///  it dealloctes them. This can be expensive.
 	/// \tparam k_lower1
 	/// \tparam k_upper1
 	/// \tparam k_lower2

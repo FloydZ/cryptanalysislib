@@ -910,5 +910,23 @@ public:
 	};
 };
 
+#ifdef USE_AVX512F
+template<>
+class TxN_t<uint8_t, 64> : public uint8x64_t {
+public:
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint8x64_t &k) noexcept {
+		v512 = k.v512;
+	};
+};
+template<>
+class TxN_t<uint64_t, 8> : public uint64x8_t {
+public:
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint64x8_t &k) noexcept {
+		v512 = k.v512;
+	};
+};
+#endif
 
 #endif//CRYPTANALYSISLIB_GENERIC_H

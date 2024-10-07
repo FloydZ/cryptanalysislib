@@ -204,10 +204,11 @@ public:
 	template<size_t M>
 	static inline auto add(const big_int<M, T> &a,
 	                                 const big_int<N, T> &b) noexcept {
-		if constexpr (std::is_constant_evaluated()) {
+		// TODO work on the warning here: that its always true: need to understandit first
+		//if constexpr (std::is_constant_evaluated()) {
 			constexpr auto L = std::max(M, N);
 			return add_same(pad<L - M>(a), pad<L - N>(b));
-		} else {
+		//} else {
 			// y = clen(MAX(a->used, b->used));
 			// oldused = MIN((unsigned int)c->used, FP_SIZE);
 			// c->used = y;
@@ -231,7 +232,7 @@ public:
 
 			// fp_clamp(c);
 
-		}
+		//}
 	}
 
 
