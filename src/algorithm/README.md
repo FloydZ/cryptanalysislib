@@ -109,3 +109,71 @@ BM_prefixsum<uint64_t>/16384              9731 ns         9702 ns        72090
 BM_prefixsum<uint64_t>/32768             19475 ns        19382 ns        36111
 BM_prefixsum<uint64_t>/65536             38825 ns        38707 ns        18078
 ```
+
+
+Copy:
+==== 
+
+```
+2024-10-07T15:16:15+02:00
+Running ./bench/algorithm/bench_algorithm_copy
+Run on (4 X 3600 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x4)
+  L1 Instruction 64 KiB (x4)
+  L2 Unified 2048 KiB (x1)
+  L3 Unified 6144 KiB (x1)
+Load Average: 1.08, 3.20, 3.29
+---------------------------------------------------------------------------------
+Benchmark                                       Time             CPU   Iterations
+---------------------------------------------------------------------------------
+BM_stdcopy<uint8_t>/32                       3.14 ns         3.14 ns    222818164
+BM_stdcopy<uint8_t>/64                       3.17 ns         3.17 ns    222352930
+BM_stdcopy<uint8_t>/128                      4.18 ns         4.18 ns    170748956
+BM_stdcopy<uint8_t>/256                      4.51 ns         4.50 ns    147728352
+BM_stdcopy<uint8_t>/512                      9.95 ns         9.94 ns     68513083
+BM_stdcopy<uint8_t>/1024                     13.7 ns         13.7 ns     50905532
+BM_stdcopy<uint8_t>/2048                     23.7 ns         23.7 ns     29810896
+BM_stdcopy<uint8_t>/4096                     99.2 ns         99.1 ns      6832491
+BM_stdcopy<uint8_t>/8192                      177 ns          177 ns      3471392
+BM_stdcopy<uint8_t>/16384                     359 ns          359 ns      2011546
+BM_stdcopy<uint8_t>/32768                    1105 ns         1104 ns       630457
+BM_stdcopy<uint8_t>/65536                    2256 ns         2254 ns       316916
+BM_stdcopy<uint8_t>/131072                   8384 ns         8375 ns        81619
+BM_stdcopy<uint8_t>/262144                   9361 ns         9350 ns        76204
+BM_stdcopy<uint8_t>/524288                  18530 ns        18509 ns        38457
+BM_stdcopy<uint8_t>/1048576                 46518 ns        46411 ns        15332
+BM_copy<uint8_t>/32                          2.50 ns         2.50 ns    276045495
+BM_copy<uint8_t>/64                          4.39 ns         4.39 ns    160637279
+BM_copy<uint8_t>/128                         7.36 ns         7.35 ns     84538405
+BM_copy<uint8_t>/256                         12.4 ns         12.4 ns     56632149
+BM_copy<uint8_t>/512                         8.88 ns         8.87 ns     76167937
+BM_copy<uint8_t>/1024                        17.9 ns         17.8 ns     39803303
+BM_copy<uint8_t>/2048                        38.5 ns         38.4 ns     18022780
+BM_copy<uint8_t>/4096                        86.3 ns         86.2 ns      8159703
+BM_copy<uint8_t>/8192                         163 ns          163 ns      4437057
+BM_copy<uint8_t>/16384                        331 ns          330 ns      2145389
+BM_copy<uint8_t>/32768                       1086 ns         1085 ns       644641
+BM_copy<uint8_t>/65536                       2215 ns         2213 ns       312483
+BM_copy<uint8_t>/131072                      4582 ns         4577 ns       157125
+BM_copy<uint8_t>/262144                      9704 ns         9693 ns        72132
+BM_copy<uint8_t>/524288                     18108 ns        18087 ns        38751
+BM_copy<uint8_t>/1048576                    43328 ns        43230 ns        15867
+BM_copy_multithreaded<uint8_t>/32            3.25 ns         3.25 ns    223546315
+BM_copy_multithreaded<uint8_t>/64            6.68 ns         6.68 ns    111935951
+BM_copy_multithreaded<uint8_t>/128           5.44 ns         5.44 ns    129778211
+BM_copy_multithreaded<uint8_t>/256           7.64 ns         7.63 ns     97601820
+BM_copy_multithreaded<uint8_t>/512           10.0 ns         9.99 ns     76463348
+BM_copy_multithreaded<uint8_t>/1024          8021 ns         4098 ns       172463
+BM_copy_multithreaded<uint8_t>/2048          7034 ns         4781 ns       149994
+BM_copy_multithreaded<uint8_t>/4096          9597 ns         7131 ns        98192
+BM_copy_multithreaded<uint8_t>/8192          9650 ns         7198 ns        96532
+BM_copy_multithreaded<uint8_t>/16384        10139 ns         7285 ns        95959
+BM_copy_multithreaded<uint8_t>/32768        10660 ns         7585 ns        92278
+BM_copy_multithreaded<uint8_t>/65536        11295 ns         7806 ns        89285
+BM_copy_multithreaded<uint8_t>/131072       12749 ns         8116 ns        86052
+BM_copy_multithreaded<uint8_t>/262144       19362 ns        10184 ns        68839
+BM_copy_multithreaded<uint8_t>/524288       31069 ns        10671 ns        66048
+BM_copy_multithreaded<uint8_t>/1048576      77557 ns        13185 ns        54131
+./bench/algorithm/bench_algorithm_copy  68,87s user 16,50s system 155% cpu 54,723 total
+```

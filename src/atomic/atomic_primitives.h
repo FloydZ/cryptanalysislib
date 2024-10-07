@@ -1,7 +1,7 @@
 #ifndef CRYPTANALYSISLIB_ATOMIC_PRIMITIVES_H
 #define CRYPTANALYSISLIB_ATOMIC_PRIMITIVES_H
 
-// #include <atomic>
+#include <atomic>
 #include <cstdint>
 #include <memory>
 

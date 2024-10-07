@@ -2,8 +2,10 @@
 #define CRYPTANALYSISLIB_MATH_PRIME_H
 
 #ifndef CRYPTANALYSISLIB_MATH_H
-#error "do not inlcude this file directly. Use `#include <cryptanalysislib/math>`"
+#error "do not inlcude this file directly. Use `#include <cryptanalysislib/math.h>`"
 #endif
+
+#include <cstdlib>
 
 /// https://stackoverflow.com/questions/1538644/c-determine-if-a-number-is-prime
 /// \param n
@@ -26,7 +28,7 @@ constexpr static inline bool is_prime(const size_t n) noexcept {
 	}
 }
 
-/// \param n base number feom which one should search
+/// \param n base number from which the next prime will be computed
 /// \return the next prime >= n
 [[nodiscard]] constexpr static inline size_t next_prime(const size_t n) noexcept {
 	// some safty
@@ -41,7 +43,28 @@ constexpr static inline bool is_prime(const size_t n) noexcept {
 	// round up to the next uneven number
 	size_t a = n + (1 - (n&1u));
 	while (!is_prime(a)) {
-		++a;
+		a += 2;
+	}
+
+	return a;
+}
+
+/// \param n base number from which the previous prime will be computed
+/// \return the previous prime <= n
+[[nodiscard]] constexpr static inline size_t prev_prime(const size_t n) noexcept {
+	// some safty
+	if (n >= 18361375334787046697ull) {
+		return 18361375334787046697ull;
+	}
+
+	if (n <= 3) {
+		return n;
+	}
+
+	// round down to the next uneven number
+	size_t a = n - (1 - (n&1u));
+	while (!is_prime(a)) {
+		a += 2;
 	}
 
 	return a;

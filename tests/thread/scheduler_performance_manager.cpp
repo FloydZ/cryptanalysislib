@@ -1,4 +1,4 @@
-#include "thread/scheduler.h"
+#include "thread/thread.h"
 
 using namespace cryptanalysislib;
 
