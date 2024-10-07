@@ -31,7 +31,7 @@ template<typename T,
          const uint32_t __ncols>
 class FqMatrix<T, __nrows, __ncols, 2, true, void> : private FqMatrixMeta<T, __nrows, __ncols, 2ull, true, void> {
 public:
-	using RowT = FqPackedVector<__ncols, T>;
+	using RowT = FqPackedVector<__ncols, 2, T>;
 	using MatrixType = FqMatrix<T, __nrows, __ncols, 2, true>;
 
 	constexpr static uint32_t RADIX = sizeof(T) * 8u;

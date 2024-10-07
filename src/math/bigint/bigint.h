@@ -202,34 +202,34 @@ public:
 	/// \param b
 	/// \return
 	template<size_t M>
-	constexpr static inline auto add(const big_int<M, T> &a,
+	static inline auto add(const big_int<M, T> &a,
 	                                 const big_int<N, T> &b) noexcept {
 		if constexpr (std::is_constant_evaluated()) {
 			constexpr auto L = std::max(M, N);
 			return add_same(pad<L - M>(a), pad<L - N>(b));
 		} else {
-			y = clen(MAX(a->used, b->used));
-			oldused = MIN((unsigned int)c->used, FP_SIZE);
-			c->used = y;
+			// y = clen(MAX(a->used, b->used));
+			// oldused = MIN((unsigned int)c->used, FP_SIZE);
+			// c->used = y;
 
-			t = 0;
-			for (x = 0; x < y; x++) {
-				t += ((fp_word) a->dp[x]) + ((fp_word) b->dp[x]);
-				c->dp[x] = (fp_digit) t;
-				t >>= DIGIT_BIT;
-			}
+			// t = 0;
+			// for (x = 0; x < y; x++) {
+			// 	t += ((fp_word) a->dp[x]) + ((fp_word) b->dp[x]);
+			// 	c->dp[x] = (fp_digit) t;
+			// 	t >>= DIGIT_BIT;
+			// }
 
-			if (t != 0 && x < FP_SIZE) {
-				c->dp[c->used++] = (fp_digit) t;
-				++x;
-			}
+			// if (t != 0 && x < FP_SIZE) {
+			// 	c->dp[c->used++] = (fp_digit) t;
+			// 	++x;
+			// }
 
-			c->used = x;
-			for (; x < oldused; x++) {
-				c->dp[x] = 0;
-			}
+			// c->used = x;
+			// for (; x < oldused; x++) {
+			// 	c->dp[x] = 0;
+			// }
 
-			fp_clamp(c);
+			// fp_clamp(c);
 
 		}
 	}
