@@ -20,11 +20,18 @@ namespace cryptanalysislib {
 
     /// forward declaration
     template<typename T>
-	[[nodiscard]] constexpr static inline size_t argmin(const T *a, const size_t n) noexcept;
+	[[nodiscard]] constexpr static inline size_t argmin(const T *__restrict__ a,
+														const size_t n) noexcept;
 
-    template<typename S=uint32x8_t,
+	///
+	/// \tparam S
+	/// \tparam config
+	/// \param a
+	/// \param n
+	/// \return index of max element
+	template<typename S=uint32x8_t,
             const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
-	[[nodiscard]] constexpr static inline size_t argmin_simd_u32(const uint32_t *a,
+	[[nodiscard]] constexpr static inline size_t argmin_simd_u32(const uint32_t *__restrict__ a,
 	                                               				 const size_t n) noexcept {
 		uint32_t min = -1u;
 		size_t idx = 0;
@@ -56,10 +63,14 @@ namespace cryptanalysislib {
 		return idx;
     }
 
-
-    template<typename S=uint32x8_t,
+	/// \tparam S
+	/// \tparam config
+	/// \param a
+	/// \param n
+	/// \return
+	template<typename S=uint32x8_t,
              const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
-	[[nodiscard]] constexpr static inline size_t argmin_simd_u32_bl16(const uint32_t *a,
+	[[nodiscard]] constexpr static inline size_t argmin_simd_u32_bl16(const uint32_t *__restrict__ a,
 	                                                                  const size_t n) noexcept {
         constexpr size_t t = S::LIMBS;
         constexpr size_t t2 = 2*t;
@@ -90,8 +101,13 @@ namespace cryptanalysislib {
 		}
 
 		return idx;	}
- 
-    template<typename S=uint32x8_t,
+
+	/// \tparam S
+	/// \tparam config
+	/// \param a
+	/// \param n
+	/// \return
+	template<typename S=uint32x8_t,
              const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
 	[[nodiscard]] constexpr static inline size_t argmin_simd_u32_bl32(const uint32_t *a,
 	                                                    const size_t n) noexcept {
@@ -228,7 +244,11 @@ namespace cryptanalysislib {
 		return idx;
 	}
 
-    template<const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
+	/// \tparam config
+	/// \param a
+	/// \param n
+	/// \return
+	template<const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
 	[[nodiscard]] constexpr static inline size_t argmin_avx2_i32_bl32(const int32_t *a,
 	                                                    const size_t n) noexcept {
 		int32_t min = INT_MAX;
@@ -277,8 +297,12 @@ namespace cryptanalysislib {
 
 		return idx2;
 	}
-	
-    template<const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
+
+	/// \tparam config
+	/// \param a
+	/// \param n
+	/// \return
+	template<const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
     [[nodiscard]] constexpr static inline size_t argmin_avx2_i32_dispatch(const int32_t *a,
 	                                                                    const size_t n) noexcept {
 

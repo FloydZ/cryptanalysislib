@@ -47,7 +47,7 @@ constexpr size_t prefixsum_u32_block_size = 32;
 /// \param a
 /// \param s
 /// \return
-static __m128i avx2_local_prefixsum_u32(uint32_t *a,
+static __m128i avx2_local_prefixsum_u32(uint32_t *__restrict__ a,
                                         __m128i s) noexcept {
 	for (uint32_t i = 0; i < prefixsum_u32_block_size; i += 8) {
 		avx_prefix_prefixsum_u32(&a[i]);
@@ -60,7 +60,9 @@ static __m128i avx2_local_prefixsum_u32(uint32_t *a,
 	return s;
 }
 
-static void avx2_prefixsum_u32(uint32_t *a,
+/// \param a array
+/// \param n length of array
+static void avx2_prefixsum_u32(uint32_t *__restrict__ a,
                                const size_t n) noexcept {
 	// simple version for small inputs
 	if (n < prefixsum_u32_block_size) {
