@@ -23,10 +23,13 @@ using ::testing::UnitTest;
 //	- also include all these hashmap declaration in extra functions
 //  - also simplify the enumerator interface to only need the lists as inputs and not the offset.
 
+// TODO: PCS algorithm: remap the output of the tree as the next iT of the next iteration
+//		flavor function: f = a*x+b mod p, p <= 2^k_upper1
+
 // NOTE: random enumeration of the values
 // NOTE: only two baselists are used
 TEST(SubSetSum, n32_d2_baselists2) {
-	// 15.841070074033095 7.999094705692274 6 10 0 0 100.0 2.0 0 120.0 1.7769098281860352 14.0625
+	// 15.841070074033095 7.999094705692274 6 10 0 0 100.0 2.0 0 120.0 14.06  1.77
 	constexpr uint32_t n = 32ul;
 	constexpr uint64_t q = (1ul << n); //4294967279
 

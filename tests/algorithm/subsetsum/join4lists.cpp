@@ -57,7 +57,8 @@ TEST(SubSetSum, join4lists) {
 		EXPECT_EQ(l4[i].is_correct(A), true);
 	}
 
-	Tree::join4lists(out, l1, l2, l3, l4, target,
+	Tree t{1, A, 0};
+	t.join4lists(out, l1, l2, l3, l4, target,
 	                 k_lower1, k_higher1, k_lower2, k_higher2, true);
 
 	uint32_t right=0;
@@ -341,8 +342,9 @@ TEST(SubSetSum, twolevel_streamjoin) {
 		EXPECT_EQ(l2[i].is_correct(A), true);
 	}
 
-	Tree::twolevel_streamjoin(out, iT, l1, l2,
-	                          k_lower1, k_higher1, k_lower2, k_higher2, true);
+	Tree t{1, A, 0};
+	t.twolevel_streamjoin(out, iT, l1, l2,
+						  k_lower1, k_higher1, k_lower2, k_higher2, true);
 
 	for (size_t i = 0; i < baselist_size; ++i) {
 		EXPECT_EQ(l1[i].is_correct(A), true);
@@ -389,11 +391,12 @@ TEST(SubSetSum, constexpr_join4lists_on_iT_hashmap_v2) {
 	Matrix A; A.random();
 	constexpr uint32_t k_lower1=0, k_higher1=8;
 	constexpr uint32_t k_lower2=8, k_higher2=16;
+	constexpr uint32_t p = n/8 + 1;
 
-	constexpr size_t baselist_size = sum_bc(n/2, n/4);
+	constexpr size_t baselist_size = sum_bc(n/2, p);
 	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
 
-	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, p>;
 	Enumerator e{A};
 	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 			(&l1, &l2, n/2);
@@ -439,6 +442,7 @@ TEST(SubSetSum, constexpr_join4lists_on_iT_hashmap_v2) {
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, k_lower1, k_higher2));
 		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower1, k_higher2));
 
+		// TODO we find more invalid solutions
 		Element kek = out[i];
 		kek.recalculate_label(A);
 		std::cout << test_recalc1 << std::endl;

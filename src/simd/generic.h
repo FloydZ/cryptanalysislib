@@ -920,6 +920,22 @@ public:
 	};
 };
 template<>
+class TxN_t<uint16_t, 32> : public uint16x32_t {
+public:
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint16x32_t &k) noexcept {
+		v512 = k.v512;
+	};
+};
+template<>
+class TxN_t<uint32_t, 16> : public uint32x16_t {
+public:
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint32x16_t &k) noexcept {
+		v512 = k.v512;
+	};
+};
+template<>
 class TxN_t<uint64_t, 8> : public uint64x8_t {
 public:
 	constexpr inline TxN_t() noexcept = default;

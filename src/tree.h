@@ -176,11 +176,12 @@ public:
 	/// \param baselist_size
 	explicit Tree_T(const uint32_t d,
 	                const MatrixType &A,
-	                const size_t baselist_size) noexcept : matrix(A),
-	                                                       level_translation_array(),
-	                                                       level_filter_array() {
-		ASSERT(d > 0 && "at least level 1");
-		ASSERT(level_translation_array.size() >= d);
+	                const size_t baselist_size) noexcept :
+		matrix(A),
+	    level_translation_array(),
+	    level_filter_array() {
+
+		ASSERT(d > 0);
 		for (uint32_t i = 0; i < d + additional_baselists; ++i) {
 			List a{1u << baselist_size};
 			lists.push_back(a);
@@ -600,25 +601,27 @@ public:
 		}
 	}
 
-	/// IMPORTANT: The two lists L1, L2 __MUST__ be prepared with any intermediate target before calling this function.
-	///                                                 Out
+	///                                       unsorted  Out
 	///                                      +----------------------+
 	///                                      |           |          |
 	///                                      +----------------------+
 	/// Merge on k_upper                                 |
 	///                        +-------------------------+-------------------------+  Stream Merge
-	///                        |                Merge on target                    |
+	///             sorted     |                Merge on target                    |
 	///            +-----------------------+                          + - - - - - --- - - - - +
 	///            |           |           | Intermediate List        |            |          | NOT Saved
 	///            +-----------+-----------+                          +- - - - - - | - - - - -+
 	///                       i_L                                                  |  Merge on k_lower
 	///                                                              +-------------+-----------+
-	///                                                              |    merge on equal       |
+	///                                                   sorted     |    merge on equal       |  sorted
 	///                                                   +-----------------------+ +-----------------------+
 	///                                                   |          |            | |          |            |
 	///                                                   +----------+------------+ +----------+------------+
 	///                                                  k_lower1   L_1      k_upper2         L_2      k_upper2
 	///                                                            k_upper1=k_lower2
+	///
+	/// IMPORTANT: The two lists L1, L2 __MUST__ be prepared with any intermediate target before calling this function.
+	///		This function only sort the inputs.
 	/// \param out			Output list
 	/// \param iL			Input list, will be sorted on [k_lower1, k_upper2]
 	/// \param L1			Input list, will be sorted on [k_lower1, k_upper1]
@@ -628,10 +631,10 @@ public:
 	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
 	/// \param k_upper2 upper coordinate to match on, on the last level
 	/// \param prepare if true: will only sort the lists.
-	static void twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
-	                                const uint32_t k_lower1, const uint32_t k_upper1,
-									const uint32_t k_lower2, const uint32_t k_upper2,
-	                                bool prepare = true) noexcept {
+	void twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
+	                         const uint32_t k_lower1, const uint32_t k_upper1,
+							 const uint32_t k_lower2, const uint32_t k_upper2,
+	                         bool prepare = true) noexcept {
 		ASSERT(k_lower1 < k_upper1 &&
 		       0 < k_upper1 && k_lower2 < k_upper2
 		       && 0 < k_upper2
@@ -703,14 +706,19 @@ public:
 
 						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
 							// TODO can happen that the addition here is not correct: SubSetSum representation which cancel a 1
-							out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
+							// out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
+
+							const size_t b = out.load();
+							ValueType::add(out[b].value, iL[l].value, e.value, k_lower1, k_upper2);
+							out[b].recalculate_label(matrix);
+							out.set_load(b+1);
+
 
 #ifdef DEBUG
-							const size_t lb = out.load() - 1;
-							if (!out[lb].label.is_zero(k_lower1, k_upper2)) {
-								std::cout << out[lb] << std::endl;
+							if (!out[b].label.is_zero(k_lower1, k_upper2)) {
 								std::cout << iL[l] << std::endl;
 								std::cout << e << std::endl;
+								std::cout << out[b] << std::endl;
 								ASSERT(false);
 							}
 #endif
@@ -881,18 +889,18 @@ public:
 	/// 			out list
 	///              ┌───────┐
 	///              │  out  │
-	///              └───┬───┘
+	///              └───┬───┘ match on T
 	///          k_lower2│k_upper2
 	///     ┌──────────── ───────────┐
-	///     │                        │
+	///     │     iL=T-L1-L2         │
 	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
 	/// │       │                │			 not saved
 	/// │  iL   │
 	/// └───────┘                └───┬───┘
-	///                              │
+	///                              │ match on iT
 	///                      k_lower1│k_upper1
 	///                       ┌──────┴──────┐
-	///                       │             │
+	///                       │ L2=iT-L1    │
 	///                   ┌───┴───┐     ┌───┴───┐
 	///                   │       │     │       │
 	///                   │   L1  │     │   L2  │
@@ -981,9 +989,9 @@ public:
 	///                       └───┘
 	/// 				k_lower2|k_upper2
 	///           ┌─────────────┴────────────┐
-	///       ┌───┴───┐                      │   		level 1
+	///       ┌───┴───┐ hmIL=T-L1-L2         │   		level 1
 	///       └┐const┌┘ hmIL                 │
-	///        └┐   ┌┘  const                │
+	///        └┐   ┌┘  const                │ L2=iT-L1
 	///         └───┘                k_lower1│k_upper1
 	/// 					            ┌────┴────┐
 	/// 					        ┌───┴───┐ ┌───┴───┐ level 0
@@ -1077,7 +1085,7 @@ public:
 							(te1, te2);
 
 					const size_t b2 = out.load() - 1;
-					// TODO: the problem is that due to reps the simple addition doesnt hold
+					// NOTE: the problem is that due to reps the simple addition doesnt hold
 					out[b2].recalculate_label(A);
 				}
 			}
@@ -1314,11 +1322,11 @@ public:
 	/// \param k_upper upper coordinate to match on
 	/// \param prepare if true: the target will be added/subtracted into the right input list L2.
 	/// 			and the two lists will be sorted
-	static void join2lists(List &out, List &L1, List &L2,
-						   const LabelType &target,
-						   const uint32_t k_lower,
-						   const uint32_t k_upper,
-						   bool prepare = true) noexcept {
+	void join2lists(List &out, List &L1, List &L2,
+					const LabelType &target,
+					const uint32_t k_lower,
+					const uint32_t k_upper,
+					bool prepare = true) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
 		out.set_load(0);
 
@@ -1326,16 +1334,16 @@ public:
 
 		if ((!target.is_zero()) && (prepare)) {
 			for (size_t s = 0; s < L2.load(); ++s) {
-				if constexpr (sub) {
-					LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
-				} else {
-					LabelType::add(L2[s].label, target, L2[s].label, k_lower, k_upper);
-				}
+				// is remapped to add in the binary case
+				LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
+				// L1[s].label.neg(k_lower, k_upper);
 			}
 
 			L1.sort_level(k_lower, k_upper);
 			L2.sort_level(k_lower, k_upper);
 		}
+
+		// make sure everything is sorted, even if it was not prepared.
 		ASSERT(L1.is_sorted(k_lower, k_upper));
 		ASSERT(L2.is_sorted(k_lower, k_upper));
 
@@ -1358,9 +1366,9 @@ public:
 #ifdef DEBUG
 						const uint64_t b = out.load() - 1;
 						if (!out[b].label.is_zero(k_lower, k_upper)) {
-							L1[i].print_binary();
-							L2[j].print_binary();
-							out[b].print_binary();
+							std::cout << L1[i] << std::endl;
+							std::cout << L2[j] << std::endl;
+							std::cout << out[b] << std::endl;
 							ASSERT(false);
 						}
 #endif
@@ -1719,10 +1727,10 @@ public:
 	///        ┌─────────┐
 	///        └┐       ┌┘
 	///         └┐     ┌┘
-	///          └──┬──┘
+	///          └──┬──┘ match on iT
 	///     k_lower1│k_upper1
 	///     ┌───────┴───────┐
-	///     │               │
+	///     │  L2=iT-L1     │
 	/// ┌───┴───┐      ┌────┴────┐
 	/// │ const │      └┐       ┌┘
 	/// │       │       └┐     ┌┘
@@ -1743,6 +1751,7 @@ public:
 	/// \param target
 	/// \param hm2 hashmap of list L2
 	/// \param prepare if true == hashses L2 into HM2
+	/// \return the number of found collissionw
 	template<const uint32_t k_lower,
 			 const uint32_t k_upper,
 			 typename HashMapIn,
@@ -1793,8 +1802,6 @@ public:
 				ASSERT(L2[j].label.is_equal(sigma_t, k_lower, k_upper));
 				ASSERT(j < L2.load());
 
-				// TODO can be optimized, as the label is in the hashmap
-				// so we do not have todo the list lookup
 				LabelType::add(e, L1[i].label, L2[j].label);
 				ASSERT(e.is_equal(target, k_lower, k_upper));
 
@@ -1882,11 +1889,11 @@ public:
 	/// \param k_upper2 upper coordinate to match on in the intermediate lists
 	/// \param prepare if true the intermediate targets will be added into the base lists
 	/// 			and all lists will be sorted
-	static void join4lists(List &out, List &L1, List &L2, List &L3, List &L4,
-	                             const LabelType &target,
-	                             const uint32_t k_lower1, const uint32_t k_upper1,
-	                             const uint32_t k_lower2, const uint32_t k_upper2,
-	                             const bool prepare = true) noexcept {
+	void join4lists(List &out, List &L1, List &L2, List &L3, List &L4,
+	                const LabelType &target,
+	                const uint32_t k_lower1, const uint32_t k_upper1,
+	                const uint32_t k_lower2, const uint32_t k_upper2,
+	                const bool prepare = true) noexcept {
 		ASSERT(k_lower1 < k_upper1 &&
 		       0 < k_upper1 && k_lower2 < k_upper2
 		       && 0 < k_upper2 && k_lower1 <= k_lower2
@@ -2330,13 +2337,14 @@ public:
 
 	///                        out
 	///                       ┌───┐ 					level 2
-	///                       └───┘
+	///                       └───┘ T
 	///           ┌─────────────┴────────────┐
 	///       ┌───┴───┐                      │   		level 1
 	///       └┐     ┌┘ hmIL                 │
 	///        └┐   ┌┘  computed             │
 	///         └─┬─┘                        │
-	///     ┌─────┴─────┐               ┌────┴────┐
+	///  k_upper1 - k_lower1				 |
+	///     ┌─────┴─────┐ iT            ┌────┴────┐ T-iT
 	/// ┌───┴───┐   ┌───┴───┐       ┌───┴───┐ ┌───┴───┐ level 0
 	/// │const  │   └┐const┌┘               │ └┐     ┌
 	/// │       │    └┐   ┌┘        │          └    ┌┘
@@ -2480,18 +2488,20 @@ public:
 													 const LabelType &target,
 													 const Matrix &A,
 													 const bool prepare = true) noexcept {
-		// TODO hardcoded n
 		// TODO hardcoded bucketsize
-		// TODO remove commented out code
-		// TODO outsource logging?
+
+		constexpr static uint32_t n = LabelType::bits();
 		Enumerator e{A};
 		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-				(&L1, &L2, 16);
+				(&L1, &L2, n/2);
 
 		// std::cout << L1;
 		// std::cout << L2;
 		using D = typename LabelType::DataType;
 		using E = std::pair<size_t, size_t>;
+
+		// const static size_t L0_expected_bucketsize = L1.load() >> (k_upper1 - k_lower1);
+		//const static size_t L1_expected_bucketsize = (L2.load()*L1.load()) >> (k_upper2 - k_lower2);
 
 		// NOTE: you need to choose the `bucketsize` correctly.
 		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
@@ -2555,7 +2565,7 @@ public:
 	}
 
 	/// TODO doc img test
-	static void streamjoin4lists_twolists(List &out, List &L1, List &L2,
+	void streamjoin4lists_twolists(List &out, List &L1, List &L2,
 	                                      const LabelType &target,
 	                                      const uint32_t k_lower1, const uint32_t k_upper1, const uint32_t k_lower2, const uint32_t k_upper2,
 	                                      bool prepare = true) noexcept {
@@ -2627,7 +2637,7 @@ public:
 	/// \param L		input lists, L must contain 8 Lists
 	/// \param target	target to match on
 	/// \param lta		translation const_array with the limits to match on, for each lvl
-	static void join8lists(List &out, std::vector<List> &L,
+	void join8lists(List &out, std::vector<List> &L,
 	                       const LabelType &target,
 	                       const std::vector<uint32_t> &lta) noexcept {
 		ASSERT(lta.size() == 4 && L.size() == 8);

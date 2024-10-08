@@ -9,15 +9,17 @@
 #include <cstddef>   // needed for std::nullptr_t
 #include <functional>// needed for std::invoke
 
+#include "list/enumeration/enumeration.h"
 #include "combination/chase.h"
 #include "helper.h"
-#include "list/enumeration/enumeration.h"
 #include "math/bc.h"
 #include "alloc/alloc.h"
 
-/// TODO img
+/// enumerates: [11111111]
+/// e.g. starts with [110...0]
+///		   ends with [00..011]
 /// This class enumerates vectors of length n and weight w, whereas each
-/// nonzero position is enumerated in binary:w
+/// nonzero position is enumerated in binary
 /// \tparam ListType
 /// \tparam n vector length
 /// \tparam w weight

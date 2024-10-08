@@ -187,7 +187,7 @@ namespace internal {
 #if __cplusplus > 201709L
     // TODO concept und dann dieses dofe typedef weg
 #endif
-    Iterator advanced(Iterator iter, typename std::iterator_traits<Iterator>::difference_type offset) {
+    constexpr static Iterator advanced(Iterator iter, typename std::iterator_traits<Iterator>::difference_type offset) noexcept {
         Iterator ret = iter;
         std::advance(ret, offset);
         return ret;
@@ -198,16 +198,111 @@ namespace internal {
 #if __cplusplus > 201709L
     // TODO is iteratable
 #endif
-    inline void get_futures(Container& futures) noexcept {
+    static inline void get_futures(Container& futures) noexcept {
         for (auto &future: futures) {
             future.get();
         }
     }
 
-
     /**
-     * Element-wise chunk two ranges.
-     */
+  * An iterator wrapper that calls std::future<>::get().
+  * @tparam Iterator
+  */
+    template<typename Iterator>
+    class getting_iter : public Iterator {
+    public:
+        using value_type = decltype((*std::declval<Iterator>()).get());
+        using difference_type = typename std::iterator_traits<Iterator>::difference_type;
+        using pointer = value_type*;
+        using reference = value_type&;
+        explicit getting_iter(Iterator iter) : iter(iter) {}
+
+        getting_iter operator++() { ++iter; return *this; }
+        getting_iter operator++(int) { getting_iter ret(*this); ++iter; return ret; }
+
+        value_type operator*() { return (*iter).get(); }
+        value_type operator[](difference_type offset) { return iter[offset].get(); }
+
+        bool operator==(const getting_iter<Iterator> &other) const { return iter == other.iter; }
+        bool operator!=(const getting_iter<Iterator> &other) const { return iter != other.iter; }
+
+    protected:
+        Iterator iter;
+    };
+
+    template<typename Iterator>
+    getting_iter<Iterator> get_wrap(Iterator iter) noexcept {
+        return getting_iter<Iterator>(iter);
+    }
+
+
+    template <class ExecPolicy,
+              class RandIt,
+              class Chunk,
+              class ChunkRet,
+              typename... A>
+    void parallel_chunk_for_1_wait(ExecPolicy &&policy,
+                                   RandIt first,
+                                   RandIt last,
+                                   Chunk chunk,
+                                   ChunkRet*,
+                                   const uint32_t extra_split_factor,
+                                   const uint32_t nthreads,
+                                   A&&... chunk_args) noexcept {
+        std::vector<std::thread> threads;
+        const uint32_t t = nthreads == 0 ? std::thread::hardware_concurrency() : nthreads;
+        auto chunk_size = get_chunk_size(first, last, extra_split_factor * t);
+
+        while (first < last) {
+            auto iter_chunk_size = get_iter_chunk_size(first, last, chunk_size);
+            RandIt loop_end = advanced(first, iter_chunk_size);
+
+            threads.emplace_back(std::thread(chunk, first, loop_end, chunk_args...));
+
+            first = loop_end;
+        }
+
+        for (auto& thread : threads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+    }
+
+
+    ///Chunk a single range.
+    template <class ExecPolicy,
+              class RandIt,
+              class Chunk,
+              class ChunkRet,
+              typename... A>
+    std::vector<std::future<ChunkRet>>
+    parallel_chunk_for_1(ExecPolicy &&policy,
+                         RandIt first,
+                         RandIt last,
+                         Chunk chunk, ChunkRet*,
+                         const int extra_split_factor,
+                         const uint32_t nthreads,
+                         A&&... chunk_args) noexcept {
+        std::vector<std::future<ChunkRet>> futures;
+        auto& task_pool = *policy.pool();
+        const uint32_t t = nthreads == 0 ? task_pool.get_num_threads() : nthreads;
+        auto chunk_size = get_chunk_size(first, last, extra_split_factor * t);
+
+        while (first < last) {
+            auto iter_chunk_size = get_iter_chunk_size(first, last, chunk_size);
+            RandIt loop_end = advanced(first, iter_chunk_size);
+
+            futures.emplace_back(task_pool.enqueue(
+                chunk, first, loop_end, chunk_args...));
+
+            first = loop_end;
+        }
+
+        return futures;
+    }
+
+    ///Element-wise chunk two ranges.
     template <class ExecPolicy, 
               class RandIt1,
               class RandIt2, 
@@ -222,8 +317,7 @@ namespace internal {
                          Chunk chunk, 
                          ChunkRet*, 
                          A&&... chunk_args,
-                         const uint32_t nthreads=0
-                         ) noexcept {
+                         const uint32_t nthreads=0) noexcept {
         std::vector<std::future<ChunkRet>> futures;
         auto& task_pool = *policy.pool();
         const uint32_t t = nthreads == 0 ? task_pool.get_num_threads() : nthreads;
@@ -248,9 +342,6 @@ namespace internal {
 
 
 }; // end namespace internal
-
-
-
 
 }; // end namespace cryptanalysislib
 #endif 

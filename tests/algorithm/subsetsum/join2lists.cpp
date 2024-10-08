@@ -20,8 +20,10 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-constexpr uint32_t n    = 16u;
-constexpr uint64_t q    = (1ul << n);
+// TODO non power of two prime extension are not really supported.
+// The problem is, that for a normal prime, carries occur
+constexpr uint32_t n = 16u;
+constexpr uint64_t q = (1ul << n);
 
 using T 			= uint64_t;
 //using Value     	= kAryPackedContainer_T<T, n, 2>;
@@ -65,7 +67,8 @@ TEST(SubSetSum, join2lists) {
 		EXPECT_EQ(l2[i].is_correct(A), true);
 	}
 
-	Tree::join2lists(out, l1, l2, target, k_lower, k_higher, true);
+	Tree t{1, A, 0};
+	t.join2lists(out, l1, l2, target, k_lower, k_higher, true);
 
 	for (size_t i = 0; i < baselist_size; ++i) {
 		EXPECT_EQ(l1[i].is_correct(A), true);

@@ -16,6 +16,9 @@
 #include "matrix/matrix.h"
 #include "tree.h"
 
+// needed for the generation of subset sum instances
+#include "algorithm/subsetsum/subsetsum.h"
+
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -24,8 +27,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// max n = 15
-constexpr uint32_t q = 8051;
+constexpr uint32_t n = 16;
+constexpr uint32_t q = 1u << n;
 using T  = kAry_Type_T<q>;
 using TT = T::LimbType;
 
@@ -41,99 +44,6 @@ struct RSACmp {
 		return t > 1;
 	}
 };
-
-/// TODO move somewhere useful
-/// generates a new rng subset sum instance
-template<typename T>
-void generate_random_subset_sum(std::vector<T> &in,
-                                T &target,
-                                const uint32_t weight) noexcept {
-	if (in.size() == 0) {
-		return;
-	}
-
-	if (weight > in.size()) {
-		return;
-	}
-
-   	for (size_t i = 0; i < in.size(); i++) {
-		in[i].rng();
-	}
-
-	std::vector<uint32_t> weights(weight);
-	generate_random_indices(weights, in.size());
-
-	target = T(0);
-	for (auto &w: weights) {
-		target += in[w];
-	}
-}
-
-/// generate a rng row major matrix of dimension 1xn
-/// \tparam Matrix
-/// \param in
-/// \param target
-/// \param weight
-template<typename Matrix,
-		typename T>
-#if __cplusplus > 201709L
-requires MatrixAble<Matrix>
-#endif
-void generate_random_subset_sum(Matrix &in,
-								T &target,
-                                std::vector<uint32_t> &sol,
-								const uint32_t weight) noexcept {
-	ASSERT(in.rows() == 1);
-	ASSERT(in.cols() >= weight);
-
-	std::vector<uint32_t> weights(weight);
-	generate_random_indices(weights, in.cols());
-	sol.insert(sol.end(), weights.begin(), weights.end());
-
-	target = T(0);
-	for (auto &w: weights) {
-		target += in[0][w];
-	}
-}
-/// generate a rng row major matrix of dimension 1xn
-/// \tparam Matrix
-/// \param in
-/// \param target
-/// \param weight total weight = sum of both mitm sides
-template<typename Matrix,
-         typename T>
-#if __cplusplus > 201709L
-	requires MatrixAble<Matrix>
-#endif
-void generate_random_subset_sum_mitm_split(const Matrix &in,
-                                           T &target,
-                                           std::vector<uint32_t> &sol,
-										   const uint32_t weight) noexcept {
-	ASSERT(in.rows() == 1);
-	ASSERT(in.cols() >= weight);
-	ASSERT((weight & 1u) == 0);
-
-	const uint32_t weight2 = weight/2u;
-	const uint32_t n = in.cols();
-	std::vector<uint32_t> weights(weight2);
-	generate_random_indices(weights, n/2);
-	sol.insert(sol.end(), weights.begin(), weights.end());
-
-	target = T(0);
-	for (auto &w: weights) {
-		target += in[0][w];
-	}
-
-	generate_random_indices(weights, n/2);
-	for (uint32_t i = 0; i < weight2; ++i) {
-		weights[i] += n/2;
-	}
-	sol.insert(sol.end(), weights.begin(), weights.end());
-
-	for (auto &w: weights) {
-		target += in[0][w];
-	}
-}
 
 TEST(PCS, RhoFactorise) {
 	T a, b;
@@ -153,7 +63,7 @@ TEST(PCS, RhoSubSetSum) {
 	/// to solve a subset sum problem.
 	/// As a function distinguished we use the first bit of a number
 	constexpr static uint32_t n = 16;
-	constexpr static uint32_t p = 8209; //16411; //32771;// 1u << (n);
+	constexpr static uint32_t p = 1u<<n;
 	constexpr static size_t walk_len = 1u<<3u;
 
 	using T 		= uint64_t;
@@ -167,24 +77,22 @@ TEST(PCS, RhoSubSetSum) {
 	Element a,b;
 	a.random(); b.random();
 	Matrix instance; instance.random();
-	std::cout << instance;
 
 	std::vector<uint32_t> sol;
-	generate_random_subset_sum_mitm_split(instance, target, sol, n/2);
-	//generate_random_subset_sum(instance, target, sol, n/2);
-	std::sort(sol.begin(), sol.end());
+	generate_subsetsum_instance(target, sol, instance, n);
 
 	struct SubSetSumCmp {
-		///
-		/// \param a1
-		/// \param a2
-		/// \param b1
-		/// \param b2
-		/// \return
+		/// simple comparison struct
+		/// only a2 and b2 are compared for equality
+		/// \param a1 predecessor of a2
+		/// \param a2 value to be
+		/// \param b1 predecessor of b2
+		/// \param b2 value to be compared
+		/// \return true if a2==b2, and a1!=b1;
 		auto operator()(const Element &a1,
-		                          const Element &a2,
-		                          const Element &b1,
-		                          const Element &b2) const {
+		                const Element &a2,
+		                const Element &b1,
+		                const Element &b2) const noexcept {
 			// get the lowest bit
 			const uint32_t alb = a1.label.value() & 1;
 			const uint32_t blb = b1.label.value() & 1;
@@ -239,16 +147,16 @@ TEST(PCS, RhoSubSetSum) {
 		b.label.random();
 	}
 
-	a = f(a);
-	b = f(b);
+	a = f(a); b = f(b);
 	Label c(0);
 
+	std::cout << "solution: ";
 	for (const auto &s : sol) {
 		std::cout << s << " ";
 	}
 	std::cout << std::endl;
-	std::cout << a;
-	std::cout << b;
+	std::cout << a << ", a" << std::endl;
+	std::cout << b << ", b" << std::endl;
 
 	// reconstruct the solution
 	for (uint32_t i = 0; i < n; ++i) {
@@ -289,7 +197,7 @@ TEST(PCS, RhoSubSetSum) {
 TEST(PCS, RhoSubSetSumTree) {
 	// example of a PCS computing trees within the function f
 	constexpr static uint32_t n = 16;
-	constexpr static uint32_t p = 2999;
+	constexpr static uint32_t p = 1u << 16;
 	using T = kAry_Type_T<p>;
 
 	// first generate a random SubSetSum Instance
@@ -308,7 +216,7 @@ TEST(PCS, RhoSubSetSumTree) {
 	Matrix A; A.random();
 
 	std::vector<uint32_t> sol;
-	generate_random_subset_sum(A, target, sol, n/2);
+	generate_subsetsum_instance(target, sol, A, n);
 
 	// enumerate weight n//4 on n//2 coordinates.
 	// NOTE: elements are randomly chosen, so no chase sequence or whatsoever
@@ -317,6 +225,7 @@ TEST(PCS, RhoSubSetSumTree) {
 
 	constexpr static size_t size = 1ull << (n / 4u);
 	List L1{size}, L2{size}, out{size};
+	Tree t{1, A, 0};
 
 	struct SubSetSumCmp {
 		decltype(auto) operator()(const T &a1,
@@ -339,7 +248,7 @@ TEST(PCS, RhoSubSetSumTree) {
 	while(true) {
 		/// restart every X runs
 		const bool val = PollardRho<SubSetSumCmp, T>::run(
-		        [&A, &target, &L1, &L2, &out, &en](const T &in) {
+		        [&A, &target, &L1, &L2, &out, &en, &t](const T &in) {
 			// reset the lists
 			L1.set_load(0); L2.set_load(0), out.set_load(0);
 
@@ -349,7 +258,7 @@ TEST(PCS, RhoSubSetSumTree) {
 					  (&L1, &L2, n/4);
 
 			// merge the two base lists on the full length ([0, n)) on the target
-			Tree::join2lists(out, L1, L2, target, 0, n, false);
+			t.join2lists(out, L1, L2, target, 0, n, false);
 
 			T ret = T(0);
 			for (size_t i = 0; i < out.load(); ++i) {
