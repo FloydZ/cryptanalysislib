@@ -15,6 +15,12 @@ struct AlgorithmFillConfig : public AlgorithmConfig {
 
 constexpr static AlgorithmFillConfig algorithmFillConfig;
 
+	///
+	// @tparam Iterator
+	// @tparam config
+	// @param first
+	// @param last
+	// @param value
 	template <class Iterator,
 			  const AlgorithmFillConfig &config=algorithmFillConfig>
 #if __cplusplus > 201709L
@@ -28,7 +34,34 @@ constexpr static AlgorithmFillConfig algorithmFillConfig;
 		cryptanalysislib::memset<T>(&(*first), value, s);
     }
 
-	template <class ExecPolicy,
+	/// \tparam RandIt
+	/// \tparam Size
+	/// \param first
+	/// \param n
+	/// \param value
+	/// \return
+	template <class RandIt,
+			  class Size>
+    RandIt fill_n(RandIt first,
+				  const Size n,
+				  const typename RandIt::value_type& value) {
+        if (n <= 0) {
+            return first;
+        }
+        RandIt last = internal::advanced(first, n);
+        cryptanalysislib::fill(first, last, value);
+        return last;
+    }
+
+	///
+	/// @tparam ExecPolicy
+	/// @tparam RandIt
+	/// @tparam config
+	/// @param policy
+	/// @param first
+	/// @param last
+	/// @param value
+template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmFillConfig &config=algorithmFillConfig>
 #if __cplusplus > 201709L
@@ -52,6 +85,30 @@ constexpr static AlgorithmFillConfig algorithmFillConfig;
 											nthreads,
 											value);
 	}
+
+/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \tparam Size
+	/// \param policy
+	/// \param first
+	/// \param n
+	/// \param value
+	/// \return
+	template <class ExecPolicy,
+			  class RandIt,
+			  class Size>
+    RandIt fill_n(ExecPolicy &&policy,
+				  RandIt first,
+				  const Size n,
+				  const typename RandIt::value_type& value) {
+        if (n <= 0) {
+            return first;
+        }
+        RandIt last = internal::advanced(first, n);
+        cryptanalysislib::fill(std::forward<ExecPolicy>(policy), first, last, value);
+        return last;
+    }
+
 
 }; // end namespace cryptanalysislib
 #endif
