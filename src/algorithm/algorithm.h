@@ -4,8 +4,10 @@
 #include <cstdlib>
 #include "helper.h"
 
+// TODO write cusom execution policies, which allow for
 // TODO write a algo version which does not wait (and returns a future)
-// only possible on function that return something
+//      only possible on function that return something
+
 namespace cryptanalysislib {
 
 ///

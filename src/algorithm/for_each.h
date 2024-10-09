@@ -7,6 +7,29 @@
 #include "thread/thread.h"
 
 namespace cryptanalysislib {
+	struct AlgorithmForEachConfig : public AlgorithmConfig {
+		constexpr static size_t min_size_per_thread = 1u<<10u;
+	};
+	constexpr static AlgorithmForEachConfig algorithmForEachConfig;
+
+	/// \tparam InputIt
+	/// \tparam UnaryFunc
+	/// \param first
+	/// \param last
+	/// \param f
+	/// \return
+	template<class InputIt,
+	         class UnaryFunc,
+	         const AlgorithmForEachConfig &config=algorithmForEachConfig>
+	constexpr UnaryFunc for_each(InputIt first,
+								 InputIt last,
+								 UnaryFunc f) noexcept {
+	    for (; first != last; ++first) {
+		    f(*first);
+	    }
+
+	    return f;
+	}
 
 	/// NOTE: Iterators are expected to be rng access.
     /// See std::for_each https://en.cppreference.com/w/cpp/algorithm/for_each
@@ -18,34 +41,33 @@ namespace cryptanalysislib {
     /// \param last
     /// \param f
     /// \return
-	template <class ExecutionPolicy,
+	template <class ExecPolicy,
 	          class RandIt,
-	          class UnaryFunction>
+	          class UnaryFunction,
+	         const AlgorithmForEachConfig &config=algorithmForEachConfig>
 #if __cplusplus > 201709L
-		requires std::is_execution_policy_v<std::remove_cvref_t<std::remove_cvref_t<ExecutionPolicy>>> &&
-		         std::random_access_iterator<RandIt>
+		requires std::random_access_iterator<RandIt>
 #endif
-	void for_each(ExecutionPolicy &&policy,
+	void for_each(ExecPolicy &&policy,
 	              RandIt first,
 	              RandIt last,
-	              UnaryFunction f) noexcept {
-		// TODO double check
-		// Using a lambda instead of just calling the
-		// non-policy std::for_each because it appears to
-		// result in a smaller binary.
-		auto chunk_func = [&f](RandIt chunk_first, RandIt chunk_last) __attribute__((always_inline)) {
-			for (; chunk_first != chunk_last; ++chunk_first) {
-				f(*chunk_first);
-			}
-		};
+	              UnaryFunction p) noexcept {
 
-		if (not policy.__allow_parallel()) {
-			chunk_func(first, last);
+		const size_t size = static_cast<size_t>(std::distance(first, last));
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			cryptanalysislib::for_each<RandIt, decltype(p), config>(first, last, p);
 			return;
 		}
 
-		internal::parallel_chunk_for_1_wait(std::forward<ExecutionPolicy>(policy), first, last,
-		                                             chunk_func, (void*)nullptr, 1);
+		internal::parallel_chunk_for_1_wait(
+			std::forward<ExecPolicy>(policy),
+			first, last,
+		    cryptanalysislib::for_each<RandIt, decltype(p), config>,
+		    (void*)nullptr,
+		    1,
+		    nthreads,
+		    p);
 	}
 
 	/// \tparam ExecPolicy

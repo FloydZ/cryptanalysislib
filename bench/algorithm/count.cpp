@@ -44,19 +44,19 @@ static void BM_count_uXX_simd(benchmark::State &state) {
 	}
 }
 
-// template<typename T>
-// static void BM_count_multithreaded(benchmark::State &state) {
-// 	static std::vector<T> fr;
-// 	static std::vector<T> to;
-//     to.resize(state.range(0));
-//     fr.resize(state.range(0));
-//     std::fill(fr.begin(), fr.end(), 1);
-//
-// 	for (auto _: state) {
-//         cryptanalysislib::count(par_if(true), fr.begin(), fr.end(), to.begin());
-// 		benchmark::ClobberMemory();
-// 	}
-// }
+template<typename T>
+static void BM_count_multithreaded(benchmark::State &state) {
+
+	static std::vector<T> fr;
+    fr.resize(state.range(0));
+    std::fill(fr.begin(), fr.end(), 2);
+
+	for (auto _: state) {
+        auto r = cryptanalysislib::count(par_if(true), fr.begin(), fr.end(), 1);
+        benchmark::DoNotOptimize(r += 1);
+		benchmark::ClobberMemory();
+	}
+}
 
 
 BENCHMARK(BM_stdcount<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
@@ -71,6 +71,8 @@ BENCHMARK(BM_count_uXX_simd<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_count_uXX_simd<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_count_uXX_simd<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
 
-//BENCHMARK(BM_count_multithreaded<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+BENCHMARK(BM_count_multithreaded<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+BENCHMARK(BM_count_multithreaded<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
+BENCHMARK(BM_count_multithreaded<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
 
 BENCHMARK_MAIN();
