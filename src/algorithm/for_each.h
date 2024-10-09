@@ -8,7 +8,7 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmForEachConfig : public AlgorithmConfig {
-		constexpr static size_t min_size_per_thread = 1u<<10u;
+		constexpr static size_t min_size_per_thread = 1u << 14u;
 	};
 	constexpr static AlgorithmForEachConfig algorithmForEachConfig;
 
@@ -83,7 +83,10 @@ namespace cryptanalysislib {
 			  class RandIt,
 			  class Size,
 			  class UnaryFunction>
-    RandIt for_each_n(ExecPolicy &&policy, RandIt first, Size n, UnaryFunction f) {
+    RandIt for_each_n(ExecPolicy &&policy,
+					  RandIt first,
+					  Size n,
+					  UnaryFunction f) noexcept {
         RandIt last = internal::advanced(first, n);
         cryptanalysislib::for_each(std::forward<ExecPolicy>(policy), first, last, f);
         return last;

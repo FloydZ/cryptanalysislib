@@ -211,6 +211,7 @@ namespace internal {
   * An iterator wrapper that calls std::future<>::get().
   * @tparam Iterator
   */
+    ///
     template<typename Iterator>
     class getting_iter : public Iterator {
     public:
@@ -233,12 +234,26 @@ namespace internal {
         Iterator iter;
     };
 
+	/// \tparam Iterator
+    /// \param iter
+    /// \return
     template<typename Iterator>
     getting_iter<Iterator> get_wrap(Iterator iter) noexcept {
         return getting_iter<Iterator>(iter);
     }
 
-
+    /// \tparam ExecPolicy
+    /// \tparam RandIt
+    /// \tparam Chunk
+    /// \tparam ChunkRet
+    /// \tparam A
+    /// \param policy
+    /// \param first
+    /// \param last
+    /// \param chunk
+    /// \param extra_split_factor
+    /// \param nthreads
+    /// \param chunk_args
     template <class ExecPolicy,
               class RandIt,
               class Chunk,
@@ -276,7 +291,7 @@ namespace internal {
     }
 
 
-    ///Chunk a single range.
+    /// Chunk a single range.
     template <class ExecPolicy,
               class RandIt,
               class Chunk,

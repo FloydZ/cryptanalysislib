@@ -29,7 +29,10 @@ constexpr static T gcd(const T a,
 	return gcd<T>(a, b - a);
 }
 
-///
+/// \tparam T
+/// \param a
+/// \param b
+/// \return
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
@@ -43,7 +46,10 @@ constexpr static T gcd_recursive_v1(const T a,
     return gcd_recursive_v1(b, a % b);
 }
 
-///
+/// tparam T
+/// param a
+/// param b
+/// return
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
@@ -53,7 +59,10 @@ constexpr static T gcd_recursive_v2(const T a,
     return b ? gcd_recursive_v2(b, a % b) : a;
 }
 
-///
+/// \tparam T
+/// \param a
+/// \param b
+/// \return
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
@@ -67,6 +76,10 @@ constexpr static T gcd_non_recursive_v1(const T a,
     return a;
 }
 
+/// \tparam T
+/// \param a
+/// \param b
+/// \return
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
@@ -77,6 +90,10 @@ constexpr static T gcd_non_recursive_v2(const T a,
     return a;
 }
 
+/// \tparam T
+/// \param a
+/// \param b
+/// \return
 template<typename T>
 #if __cplusplus > 201709L
     requires std::is_arithmetic_v<T>
