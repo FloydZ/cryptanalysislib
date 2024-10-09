@@ -150,7 +150,8 @@ static void avx2_histogram_u32(uint32_t C[1024],
 /// \param cnt output
 /// \param in input
 /// \param inlen nr of elements in the input.
-template<typename T=uint8_t, typename C=uint32_t>
+template<typename T=uint8_t,
+		 typename C=uint32_t>
 constexpr inline static void histogram_u8_1x(C cnt[256],
                      				 const T *__restrict in,
                      				 const size_t inlen) noexcept {
@@ -160,7 +161,13 @@ constexpr inline static void histogram_u8_1x(C cnt[256],
 	}
 }
 
-template<typename T=uint8_t, typename C=uint32_t>
+/// \tparam T
+/// \tparam C
+/// \param cnt
+/// \param in
+/// \param inlen
+template<typename T=uint8_t,
+		 typename C=uint32_t>
 constexpr inline static void histogram_u8_4x(C cnt[256],
 									 const T *__restrict in,
 									 const size_t inlen) noexcept {
@@ -172,7 +179,13 @@ constexpr inline static void histogram_u8_4x(C cnt[256],
 	HISTEND4(c, cnt);
 }
 
-template<typename T=uint8_t, typename C=uint32_t>
+/// \tparam T
+/// \tparam C
+/// \param cnt
+/// \param in
+/// \param inlen
+template<typename T=uint8_t,
+		 typename C=uint32_t>
 constexpr inline static void histogram_u8_8x(C cnt[256],
 									  const T *__restrict in,
 									  const size_t inlen) noexcept {
@@ -187,7 +200,13 @@ constexpr inline static void histogram_u8_8x(C cnt[256],
 
 namespace cryptanalysislib::algorithm {
 
-	template<typename T=uint8_t, typename C=uint32_t>
+	/// \tparam T
+	/// \tparam C
+	/// \param cnt
+	/// \param in
+	/// \param inlen
+	template<typename T=uint8_t,
+			 typename C=uint32_t>
 	constexpr inline static void histogram(C *cnt,
 											const T *__restrict in,
 											const size_t inlen) noexcept {

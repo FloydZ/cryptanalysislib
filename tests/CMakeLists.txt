@@ -32,7 +32,10 @@ foreach(testfile ${TEST_SOURCES})
     add_executable(${file} ${testfile}
             ../src/algorithm/count.h
             ../src/algorithm/find.h
-            ../src/algorithm/bits/ffs.h)
+            ../src/algorithm/bits/ffs.h
+            ../src/algorithm/equal.h
+            ../src/algorithm/accumulate.h
+    )
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})
     add_test(AllTests ${file})

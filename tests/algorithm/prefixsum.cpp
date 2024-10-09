@@ -15,6 +15,30 @@ using ::testing::UnitTest;
 
 using namespace cryptanalysislib::algorithm;
 
+#ifdef USE_AVX2
+TEST(prefix_sum, int32_simd) {
+    constexpr static size_t s = 100;
+    using T = int32_t;
+    std::vector<T> in; in.resize(s);
+    std::ranges::fill(in, 1);
+    cryptanalysislib::internal::prefixsum_i32_avx2(in.data(), s);
+	for (size_t i = 0; i < s; i++) {
+		EXPECT_EQ(i + 1, in[i]);
+	}
+}
+
+TEST(prefix_sum, int32_simd_v2) {
+    constexpr static size_t s = 100;
+    using T = int32_t;
+    std::vector<T> in; in.resize(s);
+    std::ranges::fill(in, 1);
+    cryptanalysislib::internal::prefixsum_i32_avx2_v2(in.data(), s);
+	for (size_t i = 0; i < s; i++) {
+		EXPECT_EQ(i+1, in[i]);
+	}
+}
+#endif
+
 TEST(avx, prefixsum) {
 	constexpr size_t s = 65;
 	uint32_t *d1 = (uint32_t *)malloc(s * sizeof(uint32_t));
