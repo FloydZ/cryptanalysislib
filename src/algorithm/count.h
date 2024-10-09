@@ -79,6 +79,12 @@ namespace cryptanalysislib {
 	}
 
 	namespace internal {
+
+		/// @tparam T
+		/// @param data
+		/// @param n
+		/// @param val
+		/// @return
 		template<typename T>
 #if __cplusplus > 201709L
     requires std::unsigned_integral<T>
@@ -152,6 +158,9 @@ namespace cryptanalysislib {
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmCountConfig &config=algorithmCountConfig>
+#if __cplusplus > 201709L
+    requires std::random_access_iterator<RandIt>
+#endif
 	typename std::iterator_traits<RandIt>::difference_type
 	count(ExecPolicy&& policy,
 	      RandIt first,

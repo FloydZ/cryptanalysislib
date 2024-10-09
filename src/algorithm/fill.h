@@ -53,14 +53,13 @@ constexpr static AlgorithmFillConfig algorithmFillConfig;
         return last;
     }
 
-	///
-	/// @tparam ExecPolicy
-	/// @tparam RandIt
-	/// @tparam config
-	/// @param policy
-	/// @param first
-	/// @param last
-	/// @param value
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \tparam config
+	/// \param policy
+	/// \param first
+	/// \param last
+	/// \param value
 template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmFillConfig &config=algorithmFillConfig>
@@ -86,7 +85,7 @@ template <class ExecPolicy,
 											value);
 	}
 
-/// \tparam ExecPolicy
+	/// \tparam ExecPolicy
 	/// \tparam RandIt
 	/// \tparam Size
 	/// \param policy

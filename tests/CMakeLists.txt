@@ -30,7 +30,9 @@ foreach(testfile ${TEST_SOURCES})
     file(RELATIVE_PATH filename ${CMAKE_CURRENT_SOURCE_DIR} ${testfile})
     string(REPLACE ".cpp" "" file ${filename})
     add_executable(${file} ${testfile}
-            ../src/algorithm/count.h)
+            ../src/algorithm/count.h
+            ../src/algorithm/find.h
+            ../src/algorithm/bits/ffs.h)
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})
     add_test(AllTests ${file})

@@ -1,12 +1,13 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_FOR_EACH_H
 #define CRYPTANALYSISLIB_ALGORITHM_FOR_EACH_H
 
-// TODO apple does not knwo the execution policy... kekw
 #ifndef __APPLE__
+
+#include "algorithm/algorithm.h"
+#include "thread/thread.h"
 
 namespace cryptanalysislib {
 
-	/// TODO concepts and config
 	/// NOTE: Iterators are expected to be rng access.
     /// See std::for_each https://en.cppreference.com/w/cpp/algorithm/for_each
     /// \tparam ExecutionPolicy
@@ -43,9 +44,28 @@ namespace cryptanalysislib {
 			return;
 		}
 
-		//poolstl::internal::parallel_chunk_for_1_wait(std::forward<ExecutionPolicy>(policy), first, last,
-		//                                             chunk_func, (void*)nullptr, 1);
+		internal::parallel_chunk_for_1_wait(std::forward<ExecutionPolicy>(policy), first, last,
+		                                             chunk_func, (void*)nullptr, 1);
 	}
+
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \tparam Size
+	/// \tparam UnaryFunction
+	/// \param policy
+	/// \param first
+	/// \param n
+	/// \param f
+	/// \return
+	template <class ExecPolicy,
+			  class RandIt,
+			  class Size,
+			  class UnaryFunction>
+    RandIt for_each_n(ExecPolicy &&policy, RandIt first, Size n, UnaryFunction f) {
+        RandIt last = internal::advanced(first, n);
+        cryptanalysislib::for_each(std::forward<ExecPolicy>(policy), first, last, f);
+        return last;
+    }
 }
 #endif // `__APPLE__
 #endif

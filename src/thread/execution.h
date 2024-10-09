@@ -253,6 +253,9 @@ namespace internal {
         const uint32_t t = nthreads == 0 ? std::thread::hardware_concurrency() : nthreads;
         auto chunk_size = get_chunk_size(first, last, extra_split_factor * t);
 
+        // TODO
+        (void)policy;
+
         while (first < last) {
             auto iter_chunk_size = get_iter_chunk_size(first, last, chunk_size);
             RandIt loop_end = advanced(first, iter_chunk_size);
