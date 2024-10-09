@@ -37,10 +37,11 @@ B63_BASELINE(Base, nn) {
 
 	int32_t res = 0;
 	const uint32_t k_lower = 0, k_higher = 8;
+    Tree t{1, A, 0};
 
 	for (uint64_t i = 0; i < nn; i++) {
 		out.set_load(0);
-		Tree::join2lists(out, l1, l2, target, k_lower, k_higher, true);
+		t.join2lists(out, l1, l2, target, k_lower, k_higher, true);
 		B63_SUSPEND {
 			res += out[0].label.value();
 		}

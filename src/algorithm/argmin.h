@@ -19,9 +19,9 @@ namespace cryptanalysislib {
 
 
     /// forward declaration
-    template<typename T>
-	[[nodiscard]] constexpr static inline size_t argmin(const T *__restrict__ a,
-														const size_t n) noexcept;
+    // template<typename T>
+	// [[nodiscard]] constexpr static inline size_t argmin(const T *__restrict__ a,
+	//													const size_t n) noexcept;
 
 	///
 	/// \tparam S

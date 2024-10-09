@@ -247,6 +247,15 @@ namespace cryptanalysislib {
             return ret;
         }
 
+
+        template <typename F, 
+                  typename... A,
+                  typename R = std::invoke_result_t<std::decay_t<F>, std::decay_t<A>...>
+        >
+        [[nodiscard]] std::future<R> enqueue(F&& func, A&&... args) {
+            return submit(func, args...);
+        }
+
         /**
          * Submit a zero-argument Callable for the pool to execute.
          *

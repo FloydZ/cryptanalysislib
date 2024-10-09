@@ -25,7 +25,10 @@
 
 #include "thread/steal_scheduler.h"
 
-/// TODO: translate the spice binarytre example
+// TODO apple doesnt support jthread
+#ifndef __APPLE__ 
+
+/// TODO: translate the spice binarytree example
 /// translate the worker container into an array in insert and insert them,
 /// 	at the correct place, so we do not need this strains semaphore
 /// TODO use this future thingy, probably want to switch to std::future
@@ -622,4 +625,6 @@ namespace cryptanalysislib {
 		};
 	};
 }
+
+#endif
 #endif//CRYPTANALYSISLIB_HEARTBEAT_SCHEDULER_H
