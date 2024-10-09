@@ -42,8 +42,9 @@ TEST(TreeTest, join2lists) {
 	Label target {};
 	target.zero();
 	target.random();
-
-	Tree::join2lists(out, l1, l2, target, ta);
+    
+    Tree t{1, A, 0};
+	t.join2lists(out, l1, l2, target, ta);
 
 	auto right=true;
 	int wrong=0;

@@ -21,7 +21,7 @@ static void BM_stupid_argmin(benchmark::State &state) {
 	generate_data(data, state.range(0));
 
 	for (auto _: state) {
-		const size_t t = argmin(data.data(), state.range(0));
+		const size_t t = cryptanalysislib::argmin<T>(data.data(), state.range(0));
 		benchmark::DoNotOptimize(t);
 		benchmark::ClobberMemory();
 	}

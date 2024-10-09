@@ -24,7 +24,7 @@ static void BM_find(benchmark::State &state) {
     std::fill(fr.begin(), fr.end(), 1);
 	for (auto _: state) {
         const auto r1 = cryptanalysislib::find(fr.begin(), fr.end(), 0);
-        auto t1 = std::distance(fr.begin(), r1);
+        auto t1 = (size_t)std::distance(fr.begin(), r1);
 		benchmark::DoNotOptimize(t1+=1);
 	}
 }

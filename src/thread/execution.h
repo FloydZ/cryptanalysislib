@@ -1,14 +1,17 @@
 #ifndef CRYPTANALYSISLIB_THREAD_EXECUTION_H
 #define CRYPTANALYSISLIB_THREAD_EXECUTION_H
 
+#include "helper.h"
 #include "thread/heartbeat_scheduler.h"
 #include "thread/steal_scheduler.h"
+#include "thread/simple_scheduler.h"
 
 
 namespace cryptanalysislib {
 
 // using pool_type_ = HeartbeatScheduler<>;
-using pool_type_ = StealingScheduler<>;
+// using pool_type_ = StealingScheduler<>;
+using pool_type_ = SimpleScheduler;
 using pool_type = pool_type_*;
 
 namespace internal {

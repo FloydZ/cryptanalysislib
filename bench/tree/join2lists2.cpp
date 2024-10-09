@@ -38,12 +38,13 @@ template <class TR>
 void BM_join2lists(benchmark::State& state) {
 	target.random();
 	uint64_t ctr = 0;
+    TR t{1, A, 0};
 
 	l1.set_load(state.range(0));
 	l2.set_load(state.range(0));
 	for (auto _ : state) {
 		out.set_load(0);
-		TR::join2lists(out, l1, l2, target, k_lower, k_higher, true);
+		t.join2lists(out, l1, l2, target, k_lower, k_higher, true);
 		benchmark::DoNotOptimize(ctr += out[0].label.data());
 	}
 }

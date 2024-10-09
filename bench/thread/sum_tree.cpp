@@ -57,6 +57,7 @@ struct SimpleSum {
 
 Node *root = nullptr;
 
+#ifndef __APPLE__
 struct SchedulerSum {
 	StealingScheduler<> pool{};
     int64_t run(Node *node) noexcept {
@@ -65,6 +66,8 @@ struct SchedulerSum {
     }
 };
 
+BENCHMARK(BM_NodeSum<SchedulerSum>);
+#endif
 
 template<typename T>
 static void BM_NodeSum(benchmark::State& state) {
@@ -78,7 +81,6 @@ static void BM_NodeSum(benchmark::State& state) {
 
 constexpr uint64_t limit = 1<<10;
 BENCHMARK(BM_NodeSum<SimpleSum>);
-BENCHMARK(BM_NodeSum<SchedulerSum>);
 
 
 int main(int argc, char** argv) {

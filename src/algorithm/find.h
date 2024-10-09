@@ -5,6 +5,7 @@
 #include "algorithm/algorithm.h"
 #include "algorithm/bits/ffs.h"
 #include "simd/simd.h"
+#include <iterator>
 
 namespace cryptanalysislib {
 	struct AlgorithmFindConfig : public AlgorithmConfig {
@@ -71,9 +72,11 @@ namespace cryptanalysislib {
 
 		using T = InputIt::value_type;
 		if constexpr (std::is_unsigned_v<T>) {
-			return internal::find_uXX_simd(&(*first),
+			const size_t t = internal::find_uXX_simd(&(*first),
 											static_cast<size_t>(std::distance(first, last)),
 											value);
+            std::advance(first, t);
+            return first;
 		}
 
 		for (; first != last; ++first) {

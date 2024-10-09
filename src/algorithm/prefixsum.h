@@ -175,15 +175,12 @@ namespace cryptanalysislib::algorithm {
 	constexpr void prefixsum(T *data,
 	                      	 const size_t len) {
 #ifdef USE_AVX2
-		constexpr bool use_avx = true;
-#else
-		constexpr bool use_avx = false;
-#endif
-
 		if constexpr (std::is_same_v<T, uint32_t> && use_avx) {
 			internal::prefixsum_u32_avx2(data, len);
 			return;
 		}
+#endif
+
 		for (size_t i = 1; i < len; ++i) {
 			data[i] += data[i-1];
 		}
