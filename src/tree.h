@@ -106,10 +106,15 @@ struct TreeConfig : public AlignmentConfig {
 	/// passed as an argument, increase the expected size by the following
 	/// factor, to make sure that really all element are stored.
 	constexpr static double intermediatelist_size_factor = 1.1;
+
+	/// if set to true: the algorithms will recompute the label from level 2 on
+	/// this is needed for subset sum algorithm
+	constexpr static bool needs_recomputation = true;
 } treeConfig;
 
 // TODO remove the Matrix type as an argument from some functions, and make them non static
-template<class List, const TreeConfig &config=treeConfig>
+template<class List,
+		 const TreeConfig &config=treeConfig>
 #if __cplusplus > 201709L
     requires TreeAble<List>
 #endif
@@ -729,9 +734,27 @@ public:
 		}
 	}
 
-	/// 	TODO test, picture
+	/// TODO test
+	/// 			out list
+	///              ┌───────┐
+	///              │  out  │
+	///              └───┬───┘
+	///          k_lower2│k_upper2
+	///     ┌──────────── ───────────┐
+	///     │                        │
+	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
+	/// │sorted │ not            │			not saved
+	/// │  iL   │ altered
+	/// └───────┘                └───┬───┘
+	///                              │
+	///                      k_lower1│k_upper1
+	///                       ┌──────┴──────┐
+	///                       │             │
+	///                   ┌───┴───┐     ┌───┴───┐
+	///                   │const  │     │sorted │ but not
+	///                   │   L1  │     │   L2  │ altered
+	///                   └───────┘     └───────┘
 	/// NOTE: on_iT means, that the input lists, will only be sorted, not altered
-	///
 	/// \param out  output list
 	/// \param iL directly sorted on [k_lower1, k_upper2)
 	/// \param L1 base list, const, is untouched
@@ -969,15 +992,21 @@ public:
 					ASSERT(L1[k].is_correct(A));
 					ASSERT(L2[l].is_correct(A));
 					ASSERT(tmpe1.is_correct(A));
+
+					///
 					out.template add_and_append
-					        <k_lower1, k_upper2, filter, sub>
-					        (tmpe1, iL[o]);
+						<k_lower1, k_upper2, filter, sub>
+						(tmpe1, iL[o]);
 
 
 					const size_t b1 = out.load() - 1;
 
-					// TODO this is stupid
-					out[b1].recalculate_label(A);
+					// NOTE: this needs to be done, as representation may destroy
+					// the linearity of addition
+					if constexpr (config.needs_recomputation) {
+						out[b1].recalculate_label(A);
+					}
+
 					ASSERT(out[b1].is_correct(A));
 				}
 			}
@@ -1092,6 +1121,8 @@ public:
 		}
 	};
 
+	///						out if wanted
+	///							|
 	///             f(out,e1,e2,a1,a2,a3,a4) 			level 2
 	/// 						|
 	/// 				k_lower2|k_upeper2
@@ -1205,24 +1236,43 @@ public:
 				}
 			}
 		}
-	};
+	}
 
-	/// TODO picture, doc, test
+	/// TODO test
+	///          out
+	///        ┌──────┐
+	///        └┐    ┌┘
+	///         └┐  ┌┘
+	///          └┬─┘
+	///   k_lower2│k_upper2
+	///    ┌──────┴─────┐
+	/// ┌──┴───┐        │
+	/// └┐    ┌┘        │
+	///  └┐  ┌┘         │
+	///   └──┘          │
+	///   HM12  klower1 │k_upper1
+	///             ┌───┴───┐
+	///          ┌──┼──┐ ┌──┼───┐
+	///          │     │ └┐    ┌┘
+	///          │     │  └┐  ┌┘
+	///          └─────┘   └──┘
+	///            L1      HM1
 	/// NOTE: v2 means that the `label` of the output elements in `out`
 	///		are the target. So this function actually returns targets and not
 	/// 	zeros.
-	/// \tparam k_lower1
-	/// \tparam k_upper1
-	/// \tparam k_lower2
-	/// \tparam k_upper2
-	/// \tparam HashMap1
-	/// \tparam HashMap2
-	/// \param out
-	/// \param iL
-	/// \param L1
-	/// \param L2
-	/// \param target
-	/// \param iT
+	/// \tparam k_lower1 lower coordinate to match on, on the first level
+	/// \tparam k_upper1 upper coordinate to match on, on the first level
+	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \tparam k_upper2 upper coordinate to match on, on the last level
+	/// \tparam HashMap1 type of the baselist hashmap
+	/// \tparam HashMap2 type of the intermediate hashmap
+	/// \tparam HashMap3 type of the out hashmap
+	/// \param out output hashmap
+	/// \param iL intermediate hashmap
+	/// \param L1 left base list
+	/// \param L2 right hashmap of the baselist
+	/// \param target target to match on
+	/// \param iT intermediate target
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			 const uint32_t k_lower2, const uint32_t k_upper2,
 			 typename HashMap1,
@@ -2094,6 +2144,7 @@ public:
 
 
 	/// TODO tests/pics,docs
+	///
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			 const uint32_t k_lower2, const uint32_t k_upper2,
 			 typename HashMapL0,
@@ -2111,7 +2162,8 @@ public:
 	                                const LabelType &target,
 	                                const Matrix &A,
 	                                const bool prepare = true) noexcept {
-			(void)k_lower2;
+		constexpr static uint32_t n = LabelType::bits();
+		(void)k_lower2;
 		ElementType tmpe1;
 		LabelType t1, iT;
 		iT.random(0, 1ull << k_upper1);
@@ -2129,8 +2181,7 @@ public:
 			(void)target;
 			static ElementType v;
 			ValueType::add(v.value, e1.value, e2.value);
-			// TODO hardcoded
-			if (v.value.popcnt() !=	16) { return ; }
+			if (v.value.popcnt() !=	n/2) { return ; }
 
 			v.recalculate_label(A);
 		    out.append(v);
@@ -2425,6 +2476,7 @@ public:
 													 const LabelType &target,
 													 const Matrix &A,
 													 const bool prepare = true) noexcept {
+		constexpr static uint32_t n = LabelType::bits();
 		(void)k_lower2;
 		ElementType tmpe1;
 		LabelType t1, iT;
@@ -2443,8 +2495,7 @@ public:
 			(void)target;
 			static ElementType v;
 			ValueType::add(v.value, e1.value, e2.value);
-			// TODO hardcoded
-			if (v.value.popcnt() !=	16) { return ; }
+			if (v.value.popcnt() !=	n) { return ; }
 
 			v.recalculate_label(A);
 		    out.append(v);
