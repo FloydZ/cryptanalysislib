@@ -306,10 +306,8 @@ namespace cryptanalysislib {
     [[nodiscard]] constexpr static inline size_t argmin_avx2_i32_dispatch(const int32_t *a,
 	                                                                    const size_t n) noexcept {
 
-		// the boundaries is arbitrary choosen
-		if (n < 8) {
-			return argmin<int32_t>(a, n);
-		} else if (n < 128) {
+		// TODO the boundaries is arbitrary choosen
+		if (n < 128) {
             return argmin_avx2_i32_bl16<config>(a, n);
         }
         

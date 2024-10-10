@@ -13,14 +13,15 @@ stdenv.mkDerivation {
     automake
     autogen
     gnumake
+    python3
     # codelldb
     cmake
     lldb
-    clang_17
-    clang-tools_17
-    llvm_17
-    llvmPackages_17.libcxx
-    llvmPackages_17.openmp
+    clang_18
+    clang-tools_18
+    llvm_18
+    llvmPackages_18.libcxx
+    llvmPackages_18.openmp
     gcc
     gtest
     gbenchmark
