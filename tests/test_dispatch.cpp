@@ -1,6 +1,7 @@
 #include "dispatch.h"
 #include <gtest/gtest.h>
 #include <iostream>
+#include <math.h>
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -14,7 +15,7 @@ using ::testing::UnitTest;
 uint32_t test1(const uint32_t a) {
     uint32_t ret = 0;
     for (uint32_t i = 0; i < a; i++) {
-        ret += i*a;
+        ret += sqrtf64(i*a);
     }
     return ret;
 }
@@ -22,9 +23,7 @@ uint32_t test1(const uint32_t a) {
 // idk: something faster
 uint32_t test2(const uint32_t a) {
     uint32_t ret = 0;
-    for (uint32_t i = 0; i < a; i+=16) {
-        ret += i*a;
-    }
+	ret += a*a;
     return ret;
 }
 
@@ -36,15 +35,14 @@ TEST(dispatch_benchmark, simple) {
     EXPECT_GT(t1, t2);
 }
 
-// TODO not implemented
 TEST(dispatch, simple) {
-    using F = uint32_t(uint32_t);
-    //F* fs[] = {test1, test2};
-    // std::vector<F> Fs{{test1, test2}};
-    F *out = nullptr;
-    uint32_t args[] = {s, s};
-    // genereric_dispatch(out, fs, args, 2);
+    using F = uint32_t(*)(uint32_t);
+	F out;
+    std::vector<F> fs{test1, test2};
 
+	const uint32_t t = s;
+    const size_t pos = genereric_dispatch(out, fs, t);
+    EXPECT_GT(pos, 0);
 }
 
 int main(int argc, char **argv) {

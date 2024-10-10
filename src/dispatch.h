@@ -8,52 +8,44 @@
 #include "helper.h"
 #include "cpucycles.h"
 
-// TODO flagbased dispatcher
-
 struct BenchmarkConfig {
 public:
-    constexpr static size_t number_iterations = 1u<<5;
+    constexpr static size_t number_iterations = 1u<<10;
 };
 
 constexpr static BenchmarkConfig benchmarkConfig{};
 
-template<typename F,
-         typename Args,
-         const BenchmarkConfig &config=benchmarkConfig>
-size_t inline genereric_bench(F &&f,
-                              Args &&args...) noexcept {
+template<const BenchmarkConfig &config=benchmarkConfig,
+         typename F,
+         typename ...Args>
+__attribute__((noinline))
+static size_t genereric_bench(F &&f,
+                       Args &&...args) noexcept {
     size_t c = 0;
     for (size_t i = 0; i < config.number_iterations; i++) {
         c -= cpucycles();
-        std::invoke(f, args);
+        std::invoke(f, args...);
         c += cpucycles();
     }
 
     return c;
 };
 
-///
 template<typename F,
-         typename Args,
+         typename ...Args,
          const BenchmarkConfig &config=benchmarkConfig>
-size_t inline genereric_dispatch(F *out, F **f,
-                                 Args *args,
-                                 const uint32_t n) noexcept {
+__attribute__((noinline))
+static size_t genereric_dispatch(F &out,
+                          std::vector<F> &f,
+                          Args &&...args) noexcept {
     ASSERT(n > 0);
-    std::vector<size_t> cycles{n};
-    for (size_t i = 0; i < n; i++) {
-        cycles = genereric_bench
-                    <F, Args, config>
-                    (*(f[i]), args[i]);
-    }
-  
-    size_t mc = cycles[0];
-    size_t min_pos = 0;
-    for (uint32_t i = 1; i < n; i++) {
-        const size_t c = cycles[i];
-        if (c < mc) {
-            mc = c;
+    size_t mc = -1ull, min_pos = 0;
+    for (size_t i = 0; i < f.size(); i++) {
+        const size_t cycles = genereric_bench<config>
+                                (f[i], args...);
+        if (cycles < mc) {
             min_pos = i;
+            mc = cycles;
         }
     }
 

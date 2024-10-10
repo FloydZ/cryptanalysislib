@@ -35,6 +35,8 @@ foreach(testfile ${TEST_SOURCES})
             ../src/algorithm/bits/ffs.h
             ../src/algorithm/equal.h
             ../src/algorithm/accumulate.h
+            ../src/algorithm/reduce.h
+            ../src/algorithm/transform.h
     )
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})

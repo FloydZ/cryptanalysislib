@@ -21,7 +21,12 @@ namespace cryptanalysislib {
     template<typename T>
 	[[nodiscard]] constexpr static inline size_t argmax(const T *a, const size_t n) noexcept;
 
-    template<typename S=uint32x8_t,
+	/// \tparam S
+	/// \tparam config
+	/// \param a
+	/// \param n
+	/// \return
+	template<typename S=uint32x8_t,
             const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
 	[[nodiscard]] constexpr static inline size_t argmax_simd_u32(const uint32_t *a,
 	                                               				 const size_t n) noexcept {
@@ -55,8 +60,12 @@ namespace cryptanalysislib {
 		return idx;
     }
 
-
-    template<typename S=uint32x8_t,
+	/// \tparam S
+	/// \tparam config
+	/// \param a
+	/// \param n
+	/// \return
+	template<typename S=uint32x8_t,
              const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
 	[[nodiscard]] constexpr static inline size_t argmax_simd_u32_bl16(const uint32_t *a,
 	                                                                  const size_t n) noexcept {

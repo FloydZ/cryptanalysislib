@@ -207,7 +207,7 @@ namespace cryptanalysislib::algorithm {
 	/// \param inlen
 	template<typename T=uint8_t,
 			 typename C=uint32_t>
-	constexpr inline static void histogram(C *cnt,
+	constexpr inline static void histogram(C *__restrict__ cnt,
 											const T *__restrict in,
 											const size_t inlen) noexcept {
 		if constexpr (std::is_same_v<T, uint8_t>) {
@@ -218,6 +218,9 @@ namespace cryptanalysislib::algorithm {
 			cnt[in[i]] += 1u;
 		}
 	}
+
+
+	// todo parallel version
 };
 
 
