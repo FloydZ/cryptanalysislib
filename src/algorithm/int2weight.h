@@ -16,9 +16,9 @@ template<typename T>
 #endif
 constexpr void int2weights(uint32_t *weights,
                            const T in,
-        		 		const uint32_t n,
-        		 		const uint32_t wt,
-                 		const uint32_t k) noexcept {
+                           const uint32_t n,
+                           const uint32_t wt,
+                           const uint32_t k) noexcept {
 	T a = in;
 	uint32_t wn = n;
 	uint32_t wk = wt;
@@ -28,7 +28,6 @@ constexpr void int2weights(uint32_t *weights,
 		if ((set == wt) || (set == k)) {
 			break;
 		} else if (wn + set == wt) {
-			// v += (1ULL << (wn - 1));
 			weights[set] = wn - 1;
 			wn -= 1;
 			set += 1;
@@ -36,15 +35,12 @@ constexpr void int2weights(uint32_t *weights,
 			wn -= 1;
 		} else {
 			a -= binom(wn - 1, wk);
-			// v += (1ULL << (wn - 1));
 			weights[set] = wn - 1u;
 			wn -= 1;
 			wk -= 1;
 			set += 1;
 		}
 	}
-
-	// return v;
 }
 
 template<typename T>

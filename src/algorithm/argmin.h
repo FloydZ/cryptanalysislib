@@ -9,7 +9,7 @@
 
 #include "simd/simd.h"
 
-// TODO argmax
+/// TODO multithreading
 namespace cryptanalysislib {
     struct AlgorithmArgMinConfig {
     public:

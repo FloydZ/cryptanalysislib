@@ -2,6 +2,7 @@
 #define SMALLSECRETLWE_ALGORITHM_PCS_H
 #include <cstddef>
 
+/// TODO multithreading and then pcs
 
 #if __cplusplus > 201709L
 /// describes the needed function to be row

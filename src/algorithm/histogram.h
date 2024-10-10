@@ -6,6 +6,7 @@
 #include <cmath>
 
 // TODO multiple parallel histograms, result in a speedup?
+// TODO multithreading
 
 
 

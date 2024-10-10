@@ -3,6 +3,8 @@
 
 #ifdef USE_AVX2
 #include <immintrin.h>
+
+// TODO multithreading
 namespace cryptanalysislib {
 	namespace internal {
 		static inline void sse_prefixsum_u32(uint32_t *in) noexcept {
