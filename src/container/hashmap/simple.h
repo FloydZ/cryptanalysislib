@@ -60,8 +60,23 @@ public:
 	[[nodiscard]] constexpr inline auto end() const noexcept { return std::end(__internal_hashmap_array); }
 
 	[[nodiscard]] constexpr inline auto begin(const data_type &d) noexcept {
-		// todo
+		return __internal_hashmap_array + find(d);
 	}
+	[[nodiscard]] constexpr inline auto end(const data_type &d) noexcept {
+		const size_t index = hash(d);
+		return __internal_hashmap_array + ((index * bucketsize) +
+											__internal_load_array[index]);
+	}
+
+	[[nodiscard]] constexpr inline auto begin(const data_type &d) const noexcept {
+		return __internal_hashmap_array + find(d);
+	}
+	[[nodiscard]] constexpr inline auto end(const data_type &d) const noexcept {
+		const size_t index = hash(d);
+		return __internal_hashmap_array + ((index * bucketsize) +
+											__internal_load_array[index]);
+	}
+
 	Hash hashclass = Hash{};
 
 	// size per bucket

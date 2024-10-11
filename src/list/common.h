@@ -8,7 +8,7 @@
 struct ListConfig : public AlignmentConfig {
 public:
 	// if `true` all internal sorting algorithms are `std::sort`
-	constexpr static bool use_std_sort = false;
+	constexpr static bool use_std_sort = true;
 
 	// if `true`, the call to `binary_search` will be remapped to
 	// the standard implementation

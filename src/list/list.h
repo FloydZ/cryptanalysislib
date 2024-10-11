@@ -107,7 +107,7 @@ public:
 	[[nodiscard]] constexpr inline auto begin(const Element &e,
 											  const uint32_t k_lower,
 											  const uint32_t k_upper) noexcept {
-		return begin() + search(e, k_lower, k_upper);
+		return begin() + search_level(e, k_lower, k_upper);
 	}
 
 	/// NOTE: you need to pass the current iterator to optimize the process
@@ -122,7 +122,7 @@ public:
 											const Element &current,
 											const uint32_t k_lower,
 											const uint32_t k_upper) noexcept {
-		if (Element::eq(e, current, k_lower, k_upper)) {
+		if (e.is_equal(current, k_lower, k_upper)) {
 			return e;
 		}
 
@@ -141,7 +141,7 @@ public:
 											const uint32_t k_lower,
 											const uint32_t k_upper) noexcept {
 		auto b = begin(e, k_lower, k_upper)++;
-		while (Element::eq(b, e, k_lower, k_upper)) {
+		while (e.is_equal(*b, k_lower, k_upper)) {
 			b += 1;
 		}
 
@@ -279,7 +279,6 @@ public:
 			});
 
 		}
-
 		ASSERT(is_sorted(k_lower, k_higher));
 	}
 
