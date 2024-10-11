@@ -121,7 +121,8 @@ TEST(SubSetSum, join4lists_on_iT_v2) {
 		EXPECT_EQ(l4[i].is_correct(A), true);
 	}
 
-	Tree::join4lists_on_iT_v2(out, l1, l2, l3, l4, target,
+	Tree t{1, A, 0};
+	t.join4lists_on_iT_v2(out, l1, l2, l3, l4, target,
 							  k_lower1, k_higher1, k_lower2, k_higher2);
 
 	uint32_t right=0;
@@ -179,9 +180,10 @@ TEST(SubSetSum, join4lists_on_iT_v2_constexpr) {
 		EXPECT_EQ(l4[i].is_correct(A), true);
 	}
 
-	Tree::template join4lists_on_iT_v2
+	Tree t{1, A, 0};
+	t.template join4lists_on_iT_v2
 			<k_lower1, k_higher1, k_lower2, k_higher2>
-	        (out, l1, l2, l3, l4, target, A);
+	        (out, l1, l2, l3, l4, target);
 
 	for (size_t i = 0; i < baselist_size; ++i) {
 		EXPECT_EQ(l1[i].is_correct(A), true);
@@ -240,8 +242,9 @@ TEST(SubSetSum, join4lists_twolists_on_iT_v2) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::join4lists_twolists_on_iT_v2(out, l1, l2, target,
-	                                   k_lower1, k_higher1, k_lower2, k_higher2);
+	Tree t{1, A, 0};
+	t.join4lists_twolists_on_iT_v2(out, l1, l2, target,
+		k_lower1, k_higher1, k_lower2, k_higher2);
 
 	uint32_t right=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {
@@ -287,9 +290,10 @@ TEST(SubSetSum, join4lists_twolists_on_iT_v2_constexpr) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::template join4lists_twolists_on_iT_v2
+	Tree t{1, A, 0};
+	t.template join4lists_twolists_on_iT_v2
 	        <k_lower1, k_higher1, k_lower2, k_higher2>
-	        (out, l1, l2, target, A);
+	        (out, l1, l2, target);
 
 	uint32_t right=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {
@@ -419,9 +423,10 @@ TEST(SubSetSum, constexpr_join4lists_on_iT_hashmap_v2) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::template join4lists_twolists_on_iT_hashmap_v2
+	Tree t{1, A, 0};
+	t.template join4lists_twolists_on_iT_hashmap_v2
 			<k_lower1, k_higher1, k_lower2, k_higher2>
-			(out, l1, l2, hml0, hml1, target, A);
+			(out, l1, l2, hml0, hml1, target);
 
 
 	auto right=true;

@@ -152,7 +152,8 @@ TEST(SubSetSum, constexpr_join2lists) {
 		EXPECT_EQ(l2[i].is_correct(A), true);
 	}
 
-	Tree::template join2lists<k_lower, k_higher>(out, l1, l2, target, true);
+	Tree t{1, A, 0};
+	t.join2lists<k_lower, k_higher>(out, l1, l2, target, true);
 
 	for (size_t i = 0; i < baselist_size; ++i) {
 		EXPECT_EQ(l1[i].is_correct(A), true);
@@ -225,7 +226,8 @@ TEST(SubSetSum, join2lists_on_iT) {
 		EXPECT_EQ(l2[i].is_correct(A), true);
 	}
 
-	Tree::join2lists_on_iT(out, l1, l2, target, k_lower, k_higher);
+	Tree t{1, A, 0};
+	t.join2lists_on_iT(out, l1, l2, target, k_lower, k_higher);
 
 	// make sure that the elements are still correct
 	for (size_t i = 0; i < baselist_size; ++i) {
@@ -303,7 +305,8 @@ TEST(SubSetSum, join2lists_on_iT_v2) {
 		EXPECT_EQ(l2[i].is_correct(A), true);
 	}
 
-	Tree::join2lists_on_iT_v2(out, l1, l2, target, k_lower, k_higher);
+	Tree t{1, A, 0};
+	t.join2lists_on_iT_v2(out, l1, l2, target, k_lower, k_higher);
 
 	// make sure that the elements are still correct
 	for (size_t i = 0; i < baselist_size; ++i) {
@@ -377,7 +380,9 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_v2) {
 	generate_subsetsum_instance(target, weights, A, n);
 
 	l2.template sort_level<k_lower, k_higher>();
-	Tree::template join2lists_on_iT_v2<k_lower, k_higher>
+
+	Tree t{1, A, 0};
+	t.template join2lists_on_iT_v2<k_lower, k_higher>
 			(out, l1, l2, target);
 
 	auto right=true;
@@ -452,7 +457,8 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::template join2lists_on_iT_hashmap_v2
+	Tree t{1, A, 0};
+	t.template join2lists_on_iT_hashmap_v2
 	        <k_lower, k_higher>
 	        (out, l1, l2, hm, target);
 
@@ -535,7 +541,8 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_hashmap_v2) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::template join2lists_on_iT_hashmap_v2
+	Tree t{1, A, 0};
+	t.template join2lists_on_iT_hashmap_v2
 			<k_lower, k_higher>
 			(hmOut, l1, l2, hmIn, target);
 

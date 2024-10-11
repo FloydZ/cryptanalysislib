@@ -1714,6 +1714,10 @@ public:
 	// returns `true` as this class implements an optimized arithmetic, and not a generic one.
 	[[nodiscard]] __FORCEINLINE__ static constexpr bool optimized() noexcept { return true; };
 
+	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return __data.end(); }
 	///
 	constexpr static void info() noexcept {
 		std::cout << "{ name: \"kAryContainerMeta\""

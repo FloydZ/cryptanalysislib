@@ -1,7 +1,8 @@
-#include "dispatch.h"
 #include <gtest/gtest.h>
 #include <iostream>
 #include <math.h>
+
+#include "dispatch.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

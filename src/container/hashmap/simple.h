@@ -43,6 +43,25 @@ public:
 	using index_type = size_t;
 	using load_type = TypeTemplate<config.bucketsize>;
 
+	typedef valueType value_type;
+	typedef size_t size_type;
+	typedef size_t difference_type;
+	typedef value_type& reference;
+	typedef const value_type& const_reference;
+	typedef value_type* pointer;
+	typedef const value_type* const_pointer;
+
+	using iterator = data_type*;
+	using const_iterator = const data_type*;
+
+	[[nodiscard]] constexpr inline auto begin() noexcept { return std::begin(__internal_hashmap_array); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return std::begin(__internal_hashmap_array); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return std::end(__internal_hashmap_array); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return std::end(__internal_hashmap_array); }
+
+	[[nodiscard]] constexpr inline auto begin(const data_type &d) noexcept {
+		// todo
+	}
 	Hash hashclass = Hash{};
 
 	// size per bucket

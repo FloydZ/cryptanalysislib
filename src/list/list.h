@@ -18,7 +18,6 @@
 #include <vector>// main data container
 
 
-
 /// Mother of all lists
 /// \tparam Element
 template<class Element>
@@ -96,9 +95,60 @@ public:
 	using MetaListT<Element>::is_correct;
 	using MetaListT<Element>::is_sorted;
 
-	// TODO define iterator type und so
 
-	// TODO not fully correct. kAryCOmpresssed could be smaller
+	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return __data.end(); }
+
+	/// NOTE: assumes sorted
+	/// @param e
+	/// @return
+	[[nodiscard]] constexpr inline auto begin(const Element &e,
+											  const uint32_t k_lower,
+											  const uint32_t k_upper) noexcept {
+		return begin() + search(e, k_lower, k_upper);
+	}
+
+	/// NOTE: you need to pass the current iterator to optimize the process
+	/// of finding the last element which is equal to e.
+	/// @param e
+	/// @param current current iterator.
+	/// @param e find equal elements to e
+	/// @param k_lower lower part
+	/// @param k_upper upper part
+	/// @return  first element in the list which is != e on [k_lower, k_upper)
+	[[nodiscard]] constexpr inline auto end(const Element &e,
+											const Element &current,
+											const uint32_t k_lower,
+											const uint32_t k_upper) noexcept {
+		if (Element::eq(e, current, k_lower, k_upper)) {
+			return e;
+		}
+
+		return current;
+	}
+
+	/// NOTE: this function needs to do a forward search to find the last
+	///		element which is equal to `e`.
+	///		So technically dont use this do enumerate over equal elements, as you
+	///		will do it twice
+	/// @param e find equal elements to e
+	/// @param k_lower lower part
+	/// @param k_upper upper part
+	/// @return  first element in the list which is != e on [k_lower, k_upper)
+	[[nodiscard]] constexpr inline auto end(const Element &e,
+											const uint32_t k_lower,
+											const uint32_t k_upper) noexcept {
+		auto b = begin(e, k_lower, k_upper)++;
+		while (Element::eq(b, e, k_lower, k_upper)) {
+			b += 1;
+		}
+
+		return b;
+	}
+
+
 	// using TMP = decltype(e.label.hash());
 	constexpr static bool use_hash_operator = (sizeof(LabelType) * 8u) <= 64u;
 
