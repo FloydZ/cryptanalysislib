@@ -60,7 +60,7 @@ namespace cryptanalysislib {
 			 RandIt last,
 			 UnaryPredicate p) noexcept {
 
-		const size_t size = static_cast<size_t>(std::distance(first, last));
+		const auto size = static_cast<size_t>(std::distance(first, last));
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 			return cryptanalysislib::count_if<RandIt, decltype(p), config>(first, last, p);
