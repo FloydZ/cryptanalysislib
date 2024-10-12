@@ -1,11 +1,13 @@
 #ifndef CRYPTANALYSISLIB_PREFIXSUM_H
 #define CRYPTANALYSISLIB_PREFIXSUM_H
 
+#include "algorithm/algorithm.h"
+
 #ifdef USE_AVX2
 #include <immintrin.h>
 
-// TODO multithreading
 namespace cryptanalysislib {
+
 	namespace internal {
 		static inline void sse_prefixsum_u32(uint32_t *in) noexcept {
 			__m128i x = _mm_loadu_si128((__m128i *) in);
@@ -165,12 +167,18 @@ namespace cryptanalysislib {
 
 namespace cryptanalysislib::algorithm {
 
+	struct AlgorithmPrefixsumConfig : public AlgorithmConfig {
+		constexpr static size_t min_size_per_thread = 1u << 14u;
+	};
+	constexpr static AlgorithmPrefixsumConfig algorithmPrefixsumConfig;
+
 	/// inplace prefix sum algorithm
 	/// \tparam T
 	/// \param data
 	/// \param len
 	/// \return
-	template<typename T>
+	template<typename T,
+			 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
 #if __cplusplus > 201709L
 		requires std::is_arithmetic_v<T>
 #endif
@@ -192,12 +200,13 @@ namespace cryptanalysislib::algorithm {
 	/// \param first
 	/// \param last
 	/// \return
-	template<typename ForwardIt>
+	template<typename ForwardIt,
+			 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<ForwardIt>
 #endif
 	void prefixsum(ForwardIt first,
-	               ForwardIt last) {
+	               ForwardIt last) noexcept {
 		static_assert(std::is_arithmetic_v<typename ForwardIt::value_type>);
 		const auto count = std::distance(first, last);
 		prefixsum(&(*first), count);
@@ -211,7 +220,10 @@ namespace cryptanalysislib::algorithm {
 	/// \param d_first
 	/// \param op
 	/// \return
-	template<class InputIt, class OutputIt, class BinaryOp>
+	template<class InputIt,
+			 class OutputIt,
+			 class BinaryOp,
+			 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<InputIt> &&
 	    		 std::forward_iterator<OutputIt>
@@ -219,7 +231,7 @@ namespace cryptanalysislib::algorithm {
 	constexpr OutputIt prefixsum(InputIt first,
 								  InputIt last,
 								  OutputIt d_first,
-								  BinaryOp op) {
+								  BinaryOp op) noexcept {
 		if (first == last) {
 			return d_first;
 		}
@@ -228,12 +240,85 @@ namespace cryptanalysislib::algorithm {
 		*d_first = acc;
 
 		while (++first != last) {
-			// std::move since C++20
+			acc = op(std::move(acc), *first);
+			*d_first = acc;
+			d_first += 1;
+		}
+
+		return ++d_first;
+	}
+
+	/// \tparam InputIt
+	/// \tparam OutputIt
+	/// \tparam BinaryOp
+	/// \param first
+	/// \param last
+	/// \param d_first
+	/// \param init
+	/// \param op
+	/// \return
+	template<class InputIt,
+			 class OutputIt,
+			 class BinaryOp,
+			 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
+#if __cplusplus > 201709L
+	    requires std::forward_iterator<InputIt> &&
+	    		 std::forward_iterator<OutputIt>
+#endif
+	constexpr OutputIt prefixsum(InputIt first,
+								 InputIt last,
+								 OutputIt d_first,
+								 const typename InputIt::value_type init,
+								 BinaryOp op) noexcept {
+		if (first == last) {
+			return d_first;
+		}
+
+		typename std::iterator_traits<InputIt>::value_type acc = *first;
+		acc = op(std::move(acc), init);
+		*d_first = acc;
+
+		while (++first != last) {
 			acc = op(std::move(acc), *first);
 			*++d_first = acc;
 		}
 
 		return ++d_first;
 	}
+
+	/// NOTE: ignores any multithreading
+	/// \tparam ExecPolicy
+	/// \tparam InputIt
+	/// \tparam OutputIt
+	/// \tparam BinaryOp
+	/// \tparam config
+	/// \param policy
+	/// \param first1
+	/// \param last1
+	/// \param d_first
+	/// \param init
+	/// \param op
+	/// \return
+	template<class ExecPolicy,
+			 class InputIt,
+			 class OutputIt,
+			 class BinaryOp,
+			  const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
+#if __cplusplus > 201709L
+    requires std::random_access_iterator<InputIt> &&
+    		 std::random_access_iterator<OutputIt>
+#endif
+	 OutputIt prefixsum(ExecPolicy&& policy,
+						InputIt first1,
+			    		InputIt last1,
+						OutputIt d_first,
+						const typename InputIt::value_type init,
+						BinaryOp op) noexcept {
+		(void) policy;
+		return prefixsum
+			<InputIt, OutputIt, BinaryOp, config>
+			(first1, last1, d_first, init, op);
+	}
+
 };
 #endif//CRYPTANALYSISLIB_PREFIXSUM_H

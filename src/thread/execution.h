@@ -256,6 +256,9 @@ namespace internal {
               class Chunk,
               class ChunkRet,
               typename... A>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt>
+#endif
     void parallel_chunk_for_1_wait(ExecPolicy &&policy,
                                    RandIt first,
                                    RandIt last,
@@ -294,6 +297,9 @@ namespace internal {
               class Chunk,
               class ChunkRet,
               typename... A>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt>
+#endif
     std::vector<std::future<ChunkRet>>
     parallel_chunk_for_1(ExecPolicy &&policy,
                          RandIt first,
@@ -327,6 +333,10 @@ namespace internal {
               class Chunk, 
               class ChunkRet, 
               typename... A>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt1> &&
+		         std::random_access_iterator<RandIt2>
+#endif
     std::vector<std::future<ChunkRet>>
     parallel_chunk_for_2(ExecPolicy &&policy, 
                          RandIt1 first1, 
@@ -352,6 +362,50 @@ namespace internal {
 
             first1 = loop_end;
             std::advance(first2, iter_chunk_size);
+        }
+
+        return futures;
+    }
+
+	/// \tparam ExecPolicy
+    /// \tparam RandIt
+    /// \tparam Chunk
+    /// \tparam ChunkRet
+    /// \param policy
+    /// \param first
+    /// \param last
+    /// \param chunk
+    /// \param extra_split_factor
+    /// \param nthreads
+    /// \return
+template<class ExecPolicy,
+             class RandIt,
+             class Chunk,
+             class ChunkRet = decltype(std::declval<Chunk>()(std::declval<RandIt>(), std::declval<RandIt>()))>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt>
+#endif
+    std::vector<std::future<ChunkRet>>
+    parallel_chunk_for_gen(ExecPolicy &&policy,
+                           RandIt first,
+                           RandIt last,
+                           Chunk chunk,
+                           ChunkRet* = (decltype(std::declval<Chunk>()(std::declval<RandIt>(),std::declval<RandIt>()))*)nullptr,
+                           const uint32_t extra_split_factor = 1,
+                           const uint32_t nthreads=0) noexcept {
+        std::vector<std::future<ChunkRet>> futures;
+        auto& task_pool = *policy.pool();
+        const uint32_t t = nthreads == 0 ? task_pool.get_num_threads() : nthreads;
+        auto chunk_size = get_chunk_size(first, last, extra_split_factor*t);
+        // auto chunk_size = get_chunk_size(first, last, extra_split_factor * task_pool.get_num_threads());
+
+        while (first < last) {
+            auto iter_chunk_size = get_iter_chunk_size(first, last, chunk_size);
+            RandIt loop_end = advanced(first, iter_chunk_size);
+
+            futures.emplace_back(task_pool.submit(chunk, first, loop_end));
+
+            first = loop_end;
         }
 
         return futures;

@@ -1,26 +1,126 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_EXCLUSIVE_SCAN_H
 #define CRYPTANALYSISLIB_ALGORITHM_EXCLUSIVE_SCAN_H
-    /**
-     * NOTE: Iterators are expected to be random access.
-     * See std::exclusive_scan https://en.cppreference.com/w/cpp/algorithm/exclusive_scan
-     */
-    template <class ExecPolicy, class RandIt1, class RandIt2, class T, class BinaryOp>
-    poolstl::internal::enable_if_poolstl_policy<ExecPolicy, RandIt2>
-    exclusive_scan(ExecPolicy &&policy, RandIt1 first, RandIt1 last, RandIt2 dest, T init, BinaryOp binop) {
+
+#include "algorithm/algorithm.h"
+#include "algorithm/accumulate.h"
+#include "algorithm/prefixsum.h"
+#include "algorithm/apply.h"
+
+namespace cryptanalysislib {
+    struct AlgorithmExclusiveScanConfig : public AlgorithmConfig {
+    	constexpr static size_t min_size_per_thread = 1u << 14u;
+    };
+    constexpr static AlgorithmExclusiveScanConfig algorithmExclusiveScanConfig;
+
+	/// \tparam InputIt
+    /// \tparam OutputIt
+    /// \tparam BinaryOp
+    /// \tparam config
+    /// \param first
+    /// \param last
+    /// \param d_first
+    /// \param init
+    /// \param op
+    /// \return
+    template<class InputIt,
+             class OutputIt,
+             class BinaryOp,
+             const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<InputIt> &&
+		         std::random_access_iterator<OutputIt>
+#endif
+    OutputIt exclusive_scan(InputIt first,
+                            InputIt last,
+                            OutputIt d_first,
+                            const typename InputIt::value_type init,
+                            BinaryOp op) {
+    	using T = InputIt::value_type;
+		if (first == last) {
+			return d_first;
+		}
+
+    	T acc = init;
+    	*(d_first++) = acc;
+    	last -= 1;
+
+    	while (first != last) {
+    		acc = op(std::move(acc), *first);
+    		*(d_first++) = acc;
+    		first += 1;
+    	}
+
+    	return d_first;
+    }
+
+	/// \tparam InputIt
+    /// \tparam OutputIt
+    /// \tparam config
+    /// \param first
+    /// \param last
+    /// \param d_first
+    /// \param init
+    /// \return
+    template<class InputIt,
+             class OutputIt,
+             const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<InputIt> &&
+		         std::random_access_iterator<OutputIt>
+#endif
+    OutputIt exclusive_scan(InputIt first,
+                            InputIt last,
+                            OutputIt d_first,
+                            const typename InputIt::value_type init) noexcept {
+    	using T = InputIt::value_type;
+		return cryptanalysislib::exclusive_scan(first, last, d_first, init, std::plus<T>());
+    }
+
+	/// \tparam ExecPolicy
+    /// \tparam RandIt1
+    /// \tparam RandIt2
+    /// \tparam BinaryOp
+    /// \param policy
+    /// \param first
+    /// \param last
+    /// \param dest
+    /// \param init
+    /// \param binop
+    /// \return
+    template <class ExecPolicy,
+              class RandIt1,
+              class RandIt2,
+              class BinaryOp,
+              const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt1> &&
+		         std::random_access_iterator<RandIt2>
+#endif
+    RandIt2 exclusive_scan(ExecPolicy &&policy,
+                           RandIt1 first,
+                           RandIt1 last,
+                           RandIt2 dest,
+                           const typename RandIt1::value_type init,
+                           BinaryOp binop) noexcept {
         if (first == last) {
             return dest;
         }
 
-        if (poolstl::internal::is_seq<ExecPolicy>(policy)) {
-            return std::exclusive_scan(first, last, dest, init, binop);
-        }
+    	using T = RandIt1::value_type;
+		const size_t size = static_cast<size_t>(std::distance(first, last));
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			return cryptanalysislib::exclusive_scan
+				<RandIt1, RandIt2, decltype(binop), config>
+				(first, last, dest, init, binop);
+		}
 
         // Pass 1: Chunk the input and find the sum of each chunk
-        auto futures = poolstl::internal::parallel_chunk_for_gen(std::forward<ExecPolicy>(policy), first, last,
-                             [binop](RandIt1 chunk_first, RandIt1 chunk_last) {
-                                 auto sum = std::accumulate(chunk_first, chunk_last, T{}, binop);
-                                 return std::make_tuple(std::make_pair(chunk_first, chunk_last), sum);
-                             });
+        auto futures = internal::parallel_chunk_for_gen(std::forward<ExecPolicy>(policy), first, last,
+        [binop](RandIt1 chunk_first, RandIt1 chunk_last) __attribute__((always_inline)) {
+            auto sum = cryptanalysislib::accumulate(chunk_first, chunk_last, T{}, binop);
+            return std::make_tuple(std::make_pair(chunk_first, chunk_last), sum);
+        });
 
         std::vector<std::pair<RandIt1, RandIt1>> ranges;
         std::vector<T> sums;
@@ -44,22 +144,38 @@
                 sums[i]));
         }
 
-        auto futures2 = poolstl::internal::parallel_apply(std::forward<ExecPolicy>(policy),
+        auto futures2 = parallel_apply(std::forward<ExecPolicy>(policy),
             [binop](RandIt1 chunk_first, RandIt1 chunk_last, RandIt2 chunk_dest, T chunk_init){
-                std::exclusive_scan(chunk_first, chunk_last, chunk_dest, chunk_init, binop);
+                cryptanalysislib::exclusive_scan(chunk_first, chunk_last, chunk_dest, chunk_init, binop);
             }, args);
 
-        poolstl::internal::get_futures(futures2);
+        internal::get_futures(futures2);
         return dest + (last - first);
     }
 
-    /**
-     * NOTE: Iterators are expected to be random access.
-     * See std::exclusive_scan https://en.cppreference.com/w/cpp/algorithm/exclusive_scan
-     */
-    template <class ExecPolicy, class RandIt1, class RandIt2, class T>
-    poolstl::internal::enable_if_poolstl_policy<ExecPolicy, RandIt2>
-    exclusive_scan(ExecPolicy &&policy, RandIt1 first, RandIt1 last, RandIt2 dest, T init) {
-        return std::exclusive_scan(std::forward<ExecPolicy>(policy), first, last, dest, init, std::plus<T>());
+	/// \tparam ExecPolicy
+    /// \tparam RandIt1
+    /// \tparam RandIt2
+    /// \tparam config
+    /// \param policy
+    /// \param first
+    /// \param last
+    /// \param dest
+    /// \param init
+    /// \return
+    template<class ExecPolicy,
+             class RandIt1,
+             class RandIt2,
+             const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
+    RandIt2 exclusive_scan(ExecPolicy &&policy,
+                           RandIt1 first,
+                           RandIt1 last,
+                           RandIt2 dest,
+                           const typename RandIt1::value_type init) noexcept {
+        using T = RandIt1::value_type;
+        return cryptanalysislib::exclusive_scan
+            <ExecPolicy, RandIt1, RandIt2, std::plus<T>, config>
+            (std::forward<ExecPolicy>(policy), first, last, dest, init, std::plus<T>());
     }
+ } // end namespace cryptanalysislib
 #endif

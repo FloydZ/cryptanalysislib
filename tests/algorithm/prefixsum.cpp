@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "algorithm/prefixsum.h"
+#include "algorithm/inclusive_scan.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

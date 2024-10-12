@@ -37,6 +37,7 @@ foreach(testfile ${TEST_SOURCES})
             ../src/algorithm/accumulate.h
             ../src/algorithm/reduce.h
             ../src/algorithm/transform.h
+            ../src/algorithm/apply.h
     )
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})

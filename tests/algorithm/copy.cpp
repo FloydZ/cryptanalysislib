@@ -22,7 +22,6 @@ TEST(copy, simple) {
     std::fill(in.begin(), in.end(), 1);
     std::fill(out.begin(), out.end(), 2);
 
-
     cryptanalysislib::copy(in.begin(), in.end(), out.begin());
 
     for (size_t i = 0; i < s; i++) {

@@ -1,8 +1,6 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_FOR_EACH_H
 #define CRYPTANALYSISLIB_ALGORITHM_FOR_EACH_H
 
-#ifndef __APPLE__
-
 #include "algorithm/algorithm.h"
 #include "thread/thread.h"
 
@@ -21,6 +19,9 @@ namespace cryptanalysislib {
 	template<class InputIt,
 	         class UnaryFunc,
 	         const AlgorithmForEachConfig &config=algorithmForEachConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<InputIt>
+#endif
 	constexpr UnaryFunc for_each(InputIt first,
 								 InputIt last,
 								 UnaryFunc f) noexcept {
@@ -44,7 +45,7 @@ namespace cryptanalysislib {
 	template <class ExecPolicy,
 	          class RandIt,
 	          class UnaryFunction,
-	         const AlgorithmForEachConfig &config=algorithmForEachConfig>
+	          const AlgorithmForEachConfig &config=algorithmForEachConfig>
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<RandIt>
 #endif
@@ -82,7 +83,11 @@ namespace cryptanalysislib {
 	template <class ExecPolicy,
 			  class RandIt,
 			  class Size,
-			  class UnaryFunction>
+			  class UnaryFunction,
+	          const AlgorithmForEachConfig &config=algorithmForEachConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt>
+#endif
     RandIt for_each_n(ExecPolicy &&policy,
 					  RandIt first,
 					  Size n,
@@ -92,5 +97,5 @@ namespace cryptanalysislib {
         return last;
     }
 }
-#endif // `__APPLE__
+
 #endif

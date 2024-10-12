@@ -1,14 +1,20 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_HISTOGRAM_H
 #define CRYPTANALYSISLIB_ALGORITHM_HISTOGRAM_H
 
+#include <cmath>
+
 #include "helper.h"
 #include "memory/memory.h"
-#include <cmath>
+#include "algorithm/algorithm.h"
 
 // TODO multiple parallel histograms, result in a speedup?
 // TODO multithreading
 
 
+struct AlgorithmHistogramConfig : public AlgorithmConfig {
+	constexpr static size_t min_size_per_thread = 1u << 14u;
+};
+constexpr static AlgorithmHistogramConfig algorithmHistogramConfig;
 
 constexpr static uint32_t histogram_csize = 256;
 #define HISTEND(_c_,_cn_,_cnt_) { uint32_t _i,_j;\
@@ -207,7 +213,8 @@ namespace cryptanalysislib::algorithm {
 	/// \param in
 	/// \param inlen
 	template<typename T=uint8_t,
-			 typename C=uint32_t>
+			 typename C=uint32_t,
+			 const AlgorithmHistogramConfig &config=algorithmHistogramConfig>
 	constexpr inline static void histogram(C *__restrict__ cnt,
 											const T *__restrict in,
 											const size_t inlen) noexcept {
@@ -220,8 +227,22 @@ namespace cryptanalysislib::algorithm {
 		}
 	}
 
+	template<class ExecPolicy,
+		     typename T=uint8_t,
+			 typename C=uint32_t,
+			 const AlgorithmHistogramConfig &config=algorithmHistogramConfig>
+	constexpr inline static void histogram(ExecPolicy && policy,
+										   C *__restrict__ cnt,
+										   const T *__restrict in,
+										   const size_t size) noexcept {
 
-	// todo parallel version
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			return cryptanalysislib::algorithm::histogram(cnt, in, size);
+		}
+
+		/// TODO
+	}
 };
 
 

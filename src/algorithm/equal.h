@@ -10,7 +10,7 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmEqualConfig : public AlgorithmConfig {
-		constexpr static size_t min_size_per_thread = 1u<<10u;
+		constexpr static size_t min_size_per_thread = 1u << 10u;
 	};
 	constexpr static AlgorithmEqualConfig algorithmEqualConfig;
 
@@ -78,8 +78,6 @@ namespace cryptanalysislib {
 			internal::get_wrap(futures.begin()),
 			internal::get_wrap(futures.end()), (T)0, std::plus<T>());
 	}
-
-
 
 
 } // end namespace cryptanalysislib

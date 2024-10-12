@@ -14,6 +14,12 @@ namespace cryptanalysislib {
 	constexpr static AlgorithmAccumulateConfig algorithmAccumulateConfig;
 
 	namespace internal {
+
+		/// \tparam T
+		/// \param data
+		/// \param n
+		/// \param init
+		/// \return
 		template<typename T>
 		constexpr T accumulate_simd_int_plus(const T *data,
 							  const size_t n,
@@ -45,13 +51,12 @@ namespace cryptanalysislib {
 		}
 	} // end namespace internal
 
-	///
-	/// @tparam InputIt
-	/// @tparam T
-	/// @param first
-	/// @param last
-	/// @param init
-	/// @return
+	/// \tparam InputIt
+	/// \tparam T
+	/// \param first
+	/// \param last
+	/// \param init
+	/// \return
 	template<class InputIt,
 			 const AlgorithmAccumulateConfig &config=algorithmAccumulateConfig>
 #if __cplusplus > 201709L
@@ -67,14 +72,13 @@ namespace cryptanalysislib {
 		return init;
 	}
 
-	///
-	/// @tparam InputIt
-	/// @tparam BinaryOperation
-	/// @param first
-	/// @param last
-	/// @param init
-	/// @param op
-	/// @return
+	/// \tparam InputIt
+	/// \tparam BinaryOperation
+	/// \param first
+	/// \param last
+	/// \param init
+	/// \param op
+	/// \return
 	template<class InputIt,
 			 class BinaryOperation,
 			 const AlgorithmAccumulateConfig &config=algorithmAccumulateConfig>
@@ -91,8 +95,14 @@ namespace cryptanalysislib {
 		return init;
 	}
 
-
-
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \tparam config
+	/// \param policy
+	/// \param first
+	/// \param last
+	/// \param init
+	/// \return
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmAccumulateConfig &config=algorithmAccumulateConfig>
@@ -111,7 +121,6 @@ namespace cryptanalysislib {
 			return cryptanalysislib::accumulate<RandIt, config>(first, last, init);
 		}
 
-		using D = RandIt::difference_type;
 		using T = RandIt::value_type;
 		auto futures = internal::parallel_chunk_for_1(
 			std::forward<ExecPolicy>(policy),
