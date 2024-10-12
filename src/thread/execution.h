@@ -343,9 +343,9 @@ namespace internal {
                          RandIt1 last1, 
                          RandIt2 first2,
                          Chunk chunk, 
-                         ChunkRet*, 
-                         A&&... chunk_args,
-                         const uint32_t nthreads=0) noexcept {
+                         ChunkRet*,
+                         const uint32_t nthreads,
+                         A&&... chunk_args) noexcept {
         std::vector<std::future<ChunkRet>> futures;
         auto& task_pool = *policy.pool();
         const uint32_t t = nthreads == 0 ? task_pool.get_num_threads() : nthreads;
