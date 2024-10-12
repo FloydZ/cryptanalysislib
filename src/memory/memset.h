@@ -7,6 +7,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
+
 #include "simd/simd.h"
 
 namespace cryptanalysislib {
@@ -227,7 +229,7 @@ namespace cryptanalysislib {
 	/// \tparam T type
 	/// \param out output array
 	/// \param in input symbol
-	/// \param len number of elements NOT byts
+	/// \param len number of elements NOT bytes
 	template<typename T>
 	constexpr void memset(T *out,
 	                      const T in,

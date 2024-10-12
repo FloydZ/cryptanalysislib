@@ -207,11 +207,8 @@ namespace internal {
         }
     }
 
-    /**
-  * An iterator wrapper that calls std::future<>::get().
-  * @tparam Iterator
-  */
-    ///
+    /// An iterator wrapper that calls std::future<>::get().
+    /// @tparam Iterator
     template<typename Iterator>
     class getting_iter : public Iterator {
     public:

@@ -1,11 +1,12 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_FIND_H
 #define CRYPTANALYSISLIB_ALGORITHM_FIND_H
 
+#include <iterator>
+
 #include "thread/thread.h"
 #include "algorithm/algorithm.h"
 #include "algorithm/bits/ffs.h"
 #include "simd/simd.h"
-#include <iterator>
 
 namespace cryptanalysislib {
 	struct AlgorithmFindConfig : public AlgorithmConfig {
@@ -23,7 +24,7 @@ namespace cryptanalysislib {
 		template<typename T,
 				 const AlgorithmFindConfig &config=algorithmFindConfig>
 #if __cplusplus > 201709L
-    requires std::unsigned_integral<T>
+			requires std::unsigned_integral<T>
 #endif
 		constexpr size_t find_uXX_simd(const T *data,
 										const size_t n,
@@ -64,7 +65,7 @@ namespace cryptanalysislib {
 	template<class InputIt,
 			 const AlgorithmFindConfig &config = algorithmFindConfig>
 #if __cplusplus > 201709L
-	requires std::bidirectional_iterator<InputIt>
+		requires std::bidirectional_iterator<InputIt>
 #endif
 	constexpr InputIt find(InputIt first,
 						   InputIt last,
@@ -95,7 +96,11 @@ namespace cryptanalysislib {
 	/// \param p
 	/// \return
 	template<class InputIt,
-			 class UnaryPred>
+			 class UnaryPred,
+			 const AlgorithmFindConfig &config = algorithmFindConfig>
+#if __cplusplus > 201709L
+		requires std::bidirectional_iterator<InputIt>
+#endif
 	constexpr InputIt find_if(InputIt first,
 							  InputIt last,
 							  UnaryPred p) noexcept {
@@ -115,7 +120,11 @@ namespace cryptanalysislib {
 	/// \param q
 	/// \return
 	template<class InputIt,
-			 class UnaryPred>
+			 class UnaryPred,
+			 const AlgorithmFindConfig &config = algorithmFindConfig>
+#if __cplusplus > 201709L
+		requires std::bidirectional_iterator<InputIt>
+#endif
 	constexpr InputIt find_if_not(InputIt first,
 								  InputIt last,
 								  UnaryPred q) noexcept {
@@ -222,8 +231,9 @@ namespace cryptanalysislib {
 			}, (void*)nullptr,
 			8,
 			nthreads);
+
 		// use small tasks so later ones may exit early if item is already found
-		return extremum == size ? last : first + extremum;
+		return (size_t)extremum == size ? last : first + extremum;
 	}
 
 	/// \tparam ExecPolicy
@@ -244,7 +254,7 @@ namespace cryptanalysislib {
 					   RandIt first,
 					   RandIt last,
 					   UnaryPredicate p) noexcept {
-		return std::find_if(std::forward<ExecPolicy>(policy), first, last,
+		return cryptanalysislib::find_if(std::forward<ExecPolicy>(policy), first, last,
 			std::not_fn(p)
 		);
 	}
