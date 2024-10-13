@@ -1,5 +1,5 @@
-#ifndef CRYPTANALYSISLIB_BTREE_SET_H
-#define CRYPTANALYSISLIB_BTREE_SET_H
+#ifndef CRYPTANALYSISLIB_CONTAINER_BTREE_SET_H
+#define CRYPTANALYSISLIB_CONTAINER_BTREE_SET_H
 /*
  * B-tree set (C++)
  *
@@ -35,11 +35,18 @@
 #include <vector>
 
 #include "helper.h"
+#include "memory/common.h"
 
 // TODO: generating over KeyType
 // TODO: iterator
 
-template <typename E>
+
+struct BKTreeConfig : public AlignmentConfig {
+};
+constexpr static BKTreeConfig bkTreeConfig;
+
+template <typename E,
+		  const BKTreeConfig &config=bkTreeConfig>
 class BTreeSet final {
 private:
 	class Node;  // Forward declaration

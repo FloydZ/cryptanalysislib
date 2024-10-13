@@ -1,5 +1,5 @@
-#ifndef CRYPTANALYSISLIB_BK_TREE_H
-#define CRYPTANALYSISLIB_BK_TREE_H
+#ifndef CRYPTANALYSISLIB_CONTAINER_BK_TREE_H
+#define CRYPTANALYSISLIB_CONTAINER_BK_TREE_H
 
 #include <vector>
 
@@ -18,9 +18,13 @@ public:
 	BKTreeNode(const T data) noexcept : data(data) {}
 };
 
+struct BKTreeConfig : public AlignmentConfig {
+};
+constexpr static BKTreeConfig bkTreeConfig;
 
-/// TODO iterator, allocator, config class
-template<class T>
+/// TODO iterator, allocator
+template<class T,
+		 const BKTreeConfig &config=bkTreeConfig>
 class BKTree {
 	using node_type = BKTreeNode<T>;
 	node_type root = node_type(T());

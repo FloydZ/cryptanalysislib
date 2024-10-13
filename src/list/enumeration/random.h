@@ -54,7 +54,7 @@ public:
 
 	////
 	constexpr static size_t max_list_size = 1ull << (n - w);
-	const size_t list_size;
+	const size_t list_size = 0;
 
 	// some security things
 	static_assert(Value::length() >= w);
@@ -143,6 +143,31 @@ public:
 
 		return false;
 	}
+
+	/// \param L1
+	/// \param L2
+	/// \param offset
+	/// \param base_offset
+	/// \param tid
+	/// \return
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
+			 const uint32_t tid = 0){
+		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+		        (L1, L2, offset, base_offset, tid);
+	}
+
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"BinaryRandomEnumerator\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", max_list_size: " << max_list_size
+				  << ", list_size: " << list_size
+		          << " }\n";
+	}
 };
 
 /// This class enumerates vectors of length n and max weight w, whereas
@@ -185,7 +210,7 @@ public:
 
 	////
 	constexpr static size_t max_list_size = 1ull << (n - w);
-	const size_t list_size;
+	const size_t list_size = 0;
 
 	// some security things
 	static_assert(Value::length() >= w);
@@ -280,6 +305,12 @@ public:
 		return false;
 	}
 
+	/// \param L1
+	/// \param L2
+	/// \param offset
+	/// \param base_offset
+	/// \param tid
+	/// \return
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
 			 const uint32_t offset = 0,
@@ -287,6 +318,16 @@ public:
 			 const uint32_t tid = 0) noexcept {
 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 				(L1, L2, offset, base_offset, tid);
+	}
+
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"MaxBinaryRandomEnumerator\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", max_list_size: " << max_list_size
+				  << ", list_size: " << list_size
+		          << " }\n";
 	}
 };
 

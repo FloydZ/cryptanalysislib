@@ -34,7 +34,13 @@
 
 #include "reflection/reflection.h"
 
-template <typename E>
+
+struct AvlTreeConfig : public AlignmentConfig {
+};
+constexpr static AvlTreeConfig avlTreeConfig;
+
+template <typename E,
+		  const AvlTreeConfig &config=avlTreeConfig>
 class AvlTreeList final {
 	private:
 	    // Forward declaration

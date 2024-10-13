@@ -14,9 +14,9 @@
 #include "simd/simd.h"
 
 
-#if defined(USE_AVX2)
-#include <immintrin.h>
-#endif
+struct FqPackedVectorMetaConfig : public AlignmentConfig {
+};
+constexpr static FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
 
 /// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
 /// Meta class, contains all important meta definitions.
@@ -25,7 +25,8 @@
 /// \param q = modulus
 template<const uint32_t _n,
 		 const uint64_t _q,
-         typename T=uint64_t>
+         typename T=uint64_t,
+		 const FqPackedVectorMetaConfig &config=fqPackedVectorMetaConfig>
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>
 #endif

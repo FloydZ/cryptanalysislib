@@ -175,7 +175,7 @@ alignas(256) constexpr char *words[256] = {
 [[nodiscard]] constexpr size_t smaz2_decompress(unsigned char *dst,
                                                 const size_t _dstlen,
                                                 const unsigned char *c,
-                                                size_t _len){
+                                                size_t _len) noexcept {
 	unsigned long orig_dstlen = _dstlen, i = 0;
 
 	size_t len = _len;

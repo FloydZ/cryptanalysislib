@@ -65,8 +65,6 @@ struct SchedulerSum {
         return t.get();
     }
 };
-
-BENCHMARK(BM_NodeSum<SchedulerSum>);
 #endif
 
 template<typename T>

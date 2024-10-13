@@ -6,15 +6,23 @@
 #include "popcount/popcount.h"
 #include "memory/memory.h"
 
+
+struct CacheAllocatorConfig {
+	// number of elements to store in a single bucket
+	constexpr static size_t bits = 64;
+};
+constexpr static CacheAllocatorConfig cacheAllocatorConfig;
+
 /// Floyds simple try of super simple allocator, which is made for
 /// caches. It stores `bits` many `T` typed elements in single bucket, which
 /// are extended via a linked list.
 /// NOTE: dont use it for anything useful
 /// \tparam T type to allocate
-template<class T>
+template<class T,
+		 const CacheAllocatorConfig &config=cacheAllocatorConfig>
 class CacheAllocator {
 	// number of elements to store in a single bucket
-	constexpr static size_t bits = 64;
+	constexpr static size_t bits = config.bits;
 	std::atomic<uint32_t> ctr = 0;
 
 	/// node in linked list

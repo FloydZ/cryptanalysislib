@@ -173,11 +173,16 @@ constexpr inline bool __CAS_AN_COUNT_(uint8_t *ptr,
 #endif
 
 
+struct CacheTrieConfig : public AlignmentConfig {
+};
+constexpr static CacheTrieConfig cacheTrieConfig;
+
 template<class K, // key
          class V, // value
 		 class KeyHash = std::hash<K>,
          class KeyEqual = std::equal_to<K>,
-		 class GrowthPolicy = cryptanalysislib::hh::power_of_two_growth_policy<2>
+		 class GrowthPolicy = cryptanalysislib::hh::power_of_two_growth_policy<2>,
+		 const CacheTrieConfig &config=cacheTrieConfig
          >
 class CacheTrie {
 	/// typedefs

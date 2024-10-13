@@ -27,7 +27,7 @@ template<class ListType,
          const uint32_t n,
          const uint32_t w>
 #if __cplusplus > 201709L
-requires ListAble<ListType>
+	requires ListAble<ListType>
 #endif
 class BinaryListEnumerateMultiFullLength : public ListEnumeration_Meta<ListType, n, 2, w> {
 public:
@@ -187,6 +187,31 @@ public:
 		if (sL2) { L2->set_load(list_size); }
 
 		return false;
+	}
+
+	/// \param L1
+	/// \param L2
+	/// \param offset
+	/// \param base_offset
+	/// \param tid
+	/// \return
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
+			 const uint32_t tid = 0){
+		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+		        (L1, L2, offset, base_offset, tid);
+	}
+
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"BinaryListEnumerateMultiFullLength\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", max_list_size: " << LIST_SIZE
+				  << ", list_size: " << list_size
+		          << " }\n";
 	}
 };
 
@@ -369,6 +394,32 @@ public:
 
 		return false;
 	}
+
+
+	/// \param L1
+	/// \param L2
+	/// \param offset
+	/// \param base_offset
+	/// \param tid
+	/// \return
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
+			 const uint32_t tid = 0){
+		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+		        (L1, L2, offset, base_offset, tid);
+	}
+
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"BinaryListEnumerateMultiFullLengthWithoutChangeList\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", max_list_size: " << max_list_size
+				  << ", list_size: " << list_size
+		          << " }\n";
+	}
 };
 
 /// This class enumerates vectors of length n and max weight w, whereas
@@ -516,6 +567,13 @@ public:
 		return false;
 	}
 
+	///
+	/// \param L1
+	/// \param L2
+	/// \param offset
+	/// \param base_offset
+	/// \param tid
+	/// \return
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
 			 const uint32_t offset = 0,
@@ -523,6 +581,16 @@ public:
 			 const uint32_t tid = 0){
 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 		        (L1, L2, offset, base_offset, tid);
+	}
+
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"BinaryLexicographicEnumerator\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", max_list_size: " << max_list_size
+				  << ", list_size: " << list_size
+		          << " }\n";
 	}
 };
 
@@ -795,6 +863,12 @@ public:
 		return false;
 	}
 
+	/// \param L1
+	/// \param L2
+	/// \param L3
+	/// \param L4
+	/// \param tid
+	/// \return
 	bool run(ListType &L1,
 			 ListType &L2,
 			 ListType &L3,
@@ -804,7 +878,7 @@ public:
 			      (L1, L2, L3, L4, tid, nullptr, nullptr, nullptr);
 	}
 
-	/// TODO put everywhere
+	///
 	constexpr static void info() noexcept {
 		std::cout << " { name: \"BinarySinglePartialSingleEnumerator\""
 				  << ", n: " << n

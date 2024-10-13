@@ -60,10 +60,12 @@ B63_BENCHMARK(Constexpr, nn) {
 		}
 	}
 
+    Tree t{1, A, 0};
+
 	int32_t res = 0;
 	for (uint64_t i = 0; i < nn; i++) {
 		out.set_load(0);
-		Tree::template join2lists<0, 8>(out, l1, l2, target, true);
+		t.template join2lists<0, 8>(out, l1, l2, target, true);
 		B63_SUSPEND {
 			res += out[0].label.value();
 		}
@@ -85,9 +87,10 @@ B63_BENCHMARK(Constexpr_on_iT_v2, nn) {
 	}
 
 	int32_t res = 0;
+    Tree t{1, A, 0};
 	for (uint64_t i = 0; i < nn; i++) {
 		out.set_load(0);
-		Tree::template join2lists_on_iT_v2<0, 8>(out, l1, l2, target);
+		t.template join2lists_on_iT_v2<0, 8>(out, l1, l2, target);
 		B63_SUSPEND {
 			res += out[0].label.value();
 		}
@@ -95,8 +98,9 @@ B63_BENCHMARK(Constexpr_on_iT_v2, nn) {
 
 	B63_KEEP(res);
 }
+
 int main(int argc, char **argv) {
-A.random();
+    A.random();
 	using Enumerator = MaxBinaryRandomEnumerator<List, n/2, n/4>;
 	Enumerator e{A};
 	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>

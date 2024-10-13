@@ -34,10 +34,15 @@
 		return 0;
 
 
+struct BinaryVectorConfig : public AlignmentConfig {
+};
+constexpr static BinaryVectorConfig binaryVectorConfig;
+
 /// \tparam _n number of bits
 /// \tparam T
 template<const uint32_t _n,
 		 typename T>
+		 // TODO const BinaryVectorConfig &config=binaryVectorConfig>
 #if __cplusplus > 201709L
     requires std::unsigned_integral<T>
 #endif

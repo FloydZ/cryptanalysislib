@@ -54,7 +54,8 @@ TEST(SubSetSum, n32_d2_baselists2) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::template join4lists_twolists_on_iT_hashmap_v2
+    Tree t{1, A, 0};
+	t.template join4lists_twolists_on_iT_hashmap_v2
 			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
 			(out, l1, l2, target, A);
 
@@ -84,7 +85,8 @@ TEST(SubSetSum, n32_d2_baselists4) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::template join4lists_on_iT_hashmap_v2
+    Tree t{1, A, 0};
+	t.template join4lists_on_iT_hashmap_v2
 			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
 			(out, l1, l2, l3, l4, target, A);
 
@@ -116,7 +118,8 @@ TEST(SubSetSum, n48) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::template join4lists_twolists_on_iT_hashmap_v2
+    Tree t{1, A, 0};
+	t.template join4lists_twolists_on_iT_hashmap_v2
 			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
 			(out, l1, l2, target, A);
 

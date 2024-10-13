@@ -105,13 +105,14 @@ TEST(TreeTest, join2lists_on_iT) {
 	List l22 = l2;
 	Label target {}; target.random();
 
+    Tree t{1, A, 0};
 
 	// NOTE: this is a little hacky. `join2lists` alters l2 in a way which is
 	// not recoverable by `join2lists_on_iT`. Thus, the order of function calls
 	// does matter here.
 	l1.sort_level(ta[0], ta[1]);
-	Tree::join2lists_on_iT(out2, l1, l22, target, ta[0], ta[1]);
-	Tree::join2lists(out1, l1, l2, target, ta);
+	t.join2lists_on_iT(out2, l1, l22, target, ta[0], ta[1]);
+	t.join2lists(out1, l1, l2, target, ta);
 
 	// check loads
 	EXPECT_GT(out1.load(), 0);
@@ -151,7 +152,8 @@ TEST(TreeTest, join4lists) {
 
 	Label target; target.random();
 
-	Tree::join4lists(out, l1, l2, l3, l4, target, ta);
+    Tree t{1, A, 0};
+	t.join4lists(out, l1, l2, l3, l4, target, ta);
 
 	auto right=true;
 	int wrong=0;
@@ -190,7 +192,8 @@ TEST(TreeTest, join4lists_with2lists) {
 	target.zero();
 	target.random();
 
-	Tree::streamjoin4lists_twolists(out, l1, l2, target, ta);
+    Tree t{1, A, 0};
+	t.streamjoin4lists_twolists(out, l1, l2, target, ta);
 
 	auto right=true;
 	int wrong=0;

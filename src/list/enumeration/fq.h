@@ -210,6 +210,16 @@ public:
 		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
 		        (L1, L2, offset, base_offset, tid, nullptr, nullptr, nullptr);
 	}
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"BinarySinglePartialSingleEnumerator\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", q: " << q
+		          << " }\n";
+	}
+
 };
 
 /// This class enumerates each element of length `n`.
@@ -454,6 +464,13 @@ public:
 		return false;
 	}
 
+	///
+	/// @param L1
+	/// @param L2
+	/// @param offset
+	/// @param base_offset
+	/// @param tid
+	/// @return
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
 			 const uint32_t offset = 0,
@@ -461,6 +478,15 @@ public:
 			 const uint32_t tid = 0) {
 		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
 				   (L1, L2, offset, base_offset, tid, nullptr, nullptr, nullptr);
+	}
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"ListEnumerateMultiFullLength\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", q: " << q
+		          << " }\n";
 	}
 };
 
@@ -737,6 +763,12 @@ public:
 		return false;
 	}
 
+	/// \param L1
+	/// \param L2
+	/// \param L3
+	/// \param L4
+	/// \param tid
+	/// \return
 	bool run(ListType &L1,
 			 ListType &L2,
 			 ListType &L3,
@@ -744,6 +776,16 @@ public:
 			 const uint32_t tid = 0) noexcept {
 		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
 		           (L1, L2, L3, L4, tid, nullptr, nullptr, nullptr);
+	}
+
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"ListEnumerateSinglePartialSingle\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", q: " << q
+		          << " }\n";
 	}
 };
 
@@ -1032,6 +1074,15 @@ public:
 			 const uint32_t tid = 0) {
 		return run<std::nullptr_t, std::nullptr_t>
 				   (L1, L2, L3, L4, tid, nullptr, nullptr);
+	}
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"ListEnumerateMultiDisjointBlock\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", q: " << q
+		          << " }\n";
 	}
 };
 #endif//CRYPTANALYSISLIB_FQ_ENUMERATION_H

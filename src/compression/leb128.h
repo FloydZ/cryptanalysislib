@@ -107,6 +107,8 @@ constexpr static inline size_t leb128_decode(T *out,
     return ctr; 
 }
 
+/// @param buf
+/// @param n
 constexpr static inline void leb128_skip(const uint8_t *buf,
 										 const size_t n) noexcept {
 	uint64_t *w = (uint64_t *)buf;
@@ -121,6 +123,8 @@ constexpr static inline void leb128_skip(const uint8_t *buf,
 	}
 }
 
+/// @param buf
+/// @return
 constexpr static inline size_t leb128_count(const uint8_t *buf) noexcept {
 	uint64_t *w = (uint64_t *)buf;
 	size_t n = 0;

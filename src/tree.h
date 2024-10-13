@@ -946,8 +946,7 @@ public:
 	/// \param iT intermediate target: should be related to the target
 	/// \param prepare: if true: L2 and iL will be sorted
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
-	         const uint32_t k_lower2, const uint32_t k_upper2,
-	         typename Matrix>
+	         const uint32_t k_lower2, const uint32_t k_upper2>
 	void twolevel_streamjoin_on_iT_v2(List &out, List &iL,
 									  const List &L1, List &L2,
 									  const LabelType &target,
@@ -2667,9 +2666,10 @@ public:
 	/// \param L2 	(sorted+R+target) intermediate target is added.
 	/// \param target
 	/// \param lta
-	static void streamjoin4lists_twolists(List &out, List &L1, List &L2,
-	                                      const LabelType &target, const std::vector<uint32_t> &lta,
-	                                      bool prepare = true) noexcept {
+	void streamjoin4lists_twolists(List &out, List &L1, List &L2,
+	                               const LabelType &target, 
+                                   const std::vector<uint32_t> &lta,
+	                               bool prepare = true) noexcept {
 		ASSERT(lta.size() == 3);
 		// limits: k_lower1, k_upper1 for the lowest level tree. And k_lower2, k_upper2 for highest level. There are
 		// only two levels..., so obviously k_upper1=k_lower2

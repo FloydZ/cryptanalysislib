@@ -55,9 +55,11 @@ void BM_join2lists_on_iT_v2(benchmark::State& state) {
 	uint64_t ctr = 0;
 	l1.set_load(state.range(0));
 	l2.set_load(state.range(0));
+
+    TR t{1, A, 0};
 	for (auto _ : state) {
 		out.set_load(0);
-		TR::join2lists_on_iT_v2(out, l1, l2, target, k_lower, k_higher, true);
+		t.join2lists_on_iT_v2(out, l1, l2, target, k_lower, k_higher, true);
 		benchmark::DoNotOptimize(ctr += out[0].label.data());
 	}
 }
@@ -68,9 +70,11 @@ void BM_join2lists_on_iT_v2_constexpr(benchmark::State& state) {
 	uint64_t ctr = 0;
 	l1.set_load(state.range(0));
 	l2.set_load(state.range(0));
+
+    TR t{1, A, 0};
 	for (auto _ : state) {
 		out.set_load(0);
-		TR::template join2lists_on_iT_v2
+		t.template join2lists_on_iT_v2
 		        <k_lower, k_higher>(out, l1, l2, target, true);
 		benchmark::DoNotOptimize(ctr += out[0].label.data());
 	}

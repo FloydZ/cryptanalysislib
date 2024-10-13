@@ -16,12 +16,17 @@
 
 using namespace cryptanalysislib;
 
+struct FqVectorMetaConfig : public AlignmentConfig {
+};
+constexpr static FqVectorMetaConfig fqVectorMetaConfig;
+
 /// \tparam T base type
 /// \tparam n size of the fq vector space=number of elements
 /// \tparam q field size
 template<const uint32_t _n,
 		 const uint64_t _q,
-         typename T=uint64_t>
+         typename T=uint64_t,
+		 const FqVectorMetaConfig &config=fqVectorMetaConfig>
 #if __cplusplus > 201709L
     requires std::is_integral<T>::value
 #endif

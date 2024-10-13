@@ -11,9 +11,8 @@ static void BM_stdfill(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
 	for (auto _: state) {
-        const auto r1 = std::fill(fr.begin(), fr.end(), 0);
-        auto t1 = std::distance(fr.begin(), r1);
-		benchmark::DoNotOptimize(t1+=1);
+        std::fill(fr.begin(), fr.end(), 0);
+		benchmark::ClobberMemory();
 	}
 }
 
@@ -23,9 +22,8 @@ static void BM_fill(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
 	for (auto _: state) {
-        const auto r1 = cryptanalysislib::fill(fr.begin(), fr.end(), 0);
-        auto t1 = (size_t)std::distance(fr.begin(), r1);
-		benchmark::DoNotOptimize(t1+=1);
+        cryptanalysislib::fill(fr.begin(), fr.end(), 0);
+		benchmark::ClobberMemory();
 	}
 }
 
@@ -35,9 +33,8 @@ static void BM_fill_multithreaded(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
 	for (auto _: state) {
-        const auto r1 = cryptanalysislib::fill(par_if(true), fr.begin(), fr.end(), 0);
-        auto t1 = std::distance(fr.begin(), r1);
-		benchmark::DoNotOptimize(t1+=1);
+        cryptanalysislib::fill(par_if(true), fr.begin(), fr.end(), 0);
+		benchmark::ClobberMemory();
 	}
 }
 
