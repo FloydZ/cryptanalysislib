@@ -149,29 +149,6 @@ namespace cryptanalysislib {
 		return ret;
 	}
 
-	/// \tparam ExecutionPolicy
-	/// \tparam ForwardIt
-	/// \tparam BinaryOp
-	/// \tparam UnaryOp
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param init
-	/// \param reduce
-	/// \param transform
-	/// \return
-	//template<class ExecutionPolicy,
-	//		 class ForwardIt,
-	//		 class BinaryOp,
-	//	     class UnaryOp,
-	//		 const AlgorithmTransformConfig &config=algorithmTransformConfig>
-	//ForwardIt::value_type transform_reduce(ExecutionPolicy&& policy,
-	//									   ForwardIt first,
-	//									   ForwardIt last,
-	//									   const typename ForwardIt::value_type init,
-	//									   BinaryOp reduce,
-	//									   UnaryOp transform) noexcept;
-
 	/// @tparam ExecPolicy
 	/// @tparam RandIt1
 	/// @tparam BinaryReductionOp
@@ -242,8 +219,7 @@ namespace cryptanalysislib {
 		const auto size = static_cast<size_t>(std::distance(first1, last1));
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
-			// TODO cryptanalyslib
-			return std::transform_reduce(first1, last1, first2, init, reduce_op, transform_op);
+			return cryptanalysislib::transform_reduce(first1, last1, first2, init, reduce_op, transform_op);
 		}
 
 		auto futures = internal::parallel_chunk_for_2(

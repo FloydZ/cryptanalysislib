@@ -1,48 +1,231 @@
-//
-// Created by duda on 10.10.24.
-//
+#ifndef CRYPTANALYSLISLIB_ALGORITHM_REDUCE_H
+#define CRYPTANALYSLISLIB_ALGORITHM_REDUCE_H
 
-#ifndef REDUCE_H
-#define REDUCE_H
-/**
- * NOTE: Iterators are expected to be random access.
- * See std::reduce https://en.cppreference.com/w/cpp/algorithm/reduce
- */
-template <class ExecPolicy, class RandIt, class T, class BinaryOp>
-poolstl::internal::enable_if_poolstl_policy<ExecPolicy, T>
-reduce(ExecPolicy &&policy, RandIt first, RandIt last, T init, BinaryOp binop) {
-	if (poolstl::internal::is_seq<ExecPolicy>(policy)) {
-		return poolstl::internal::cpp17::reduce(first, last, init, binop);
+#include <numeric>
+
+#include "algorithm/algorithm.h"
+#include "thread/thread.h"
+
+
+namespace cryptanalysislib {
+	struct AlgorithmReduceConfig : public AlgorithmConfig {
+		constexpr static size_t min_size_per_thread = 1u << 14u;
+	};
+	constexpr static AlgorithmReduceConfig algorithmReduceConfig;
+
+	/// \tparam InputIt
+	/// \tparam BinaryOp
+	/// \param first
+	/// \param last
+	/// \param init
+	/// \param op
+	/// \return
+	template<class InputIt,
+			 class BinaryOp,
+			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
+#if __cplusplus > 201709L
+	    requires std::forward_iterator<InputIt>
+#endif
+	constexpr typename InputIt::value_type reduce(InputIt first,
+												  InputIt last,
+												  const typename InputIt::value_type init,
+												  BinaryOp op) noexcept {
+		using T = InputIt::value_type;
+		if (first == last) { return T{}; }
+
+		T ret = init;
+		for (; first != last; ++first) {
+			ret = op(ret, *first);
+		}
+
+		return ret;
+
 	}
 
-	auto futures = poolstl::internal::parallel_chunk_for_1(std::forward<ExecPolicy>(policy), first, last,
-														   poolstl::internal::cpp17::reduce<RandIt, T, BinaryOp>,
-														   (T*)nullptr, 1, init, binop);
+	/// \tparam InputIt
+	/// \param first
+	/// \param last
+	/// \param init
+	/// \return
+	template<class InputIt,
+			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
+#if __cplusplus > 201709L
+	    requires std::forward_iterator<InputIt>
+#endif
+	constexpr typename InputIt::value_type reduce(InputIt first,
+												  InputIt last,
+												  const typename InputIt::value_type init) noexcept {
+		using T = InputIt::value_type;
+		if (first == last) { return T{}; }
 
-	return poolstl::internal::cpp17::reduce(
-		poolstl::internal::get_wrap(futures.begin()),
-		poolstl::internal::get_wrap(futures.end()), init, binop);
-}
+		auto op = std::plus<T>();
 
-/**
- * NOTE: Iterators are expected to be random access.
- * See std::reduce https://en.cppreference.com/w/cpp/algorithm/reduce
- */
-template <class ExecPolicy, class RandIt, class T>
-poolstl::internal::enable_if_poolstl_policy<ExecPolicy, T>
-reduce(ExecPolicy &&policy, RandIt first, RandIt last, T init) {
-	return std::reduce(std::forward<ExecPolicy>(policy), first, last, init, std::plus<T>());
-}
+		T ret = init;
+		for (; first != last; ++first) {
+			ret = op(ret, *first);
+		}
 
-/**
- * NOTE: Iterators are expected to be random access.
- * See std::reduce https://en.cppreference.com/w/cpp/algorithm/reduce
- */
-template <class ExecPolicy, class RandIt>
-poolstl::internal::enable_if_poolstl_policy<
-	ExecPolicy, typename std::iterator_traits<RandIt>::value_type>
-reduce(ExecPolicy &&policy, RandIt first, RandIt last) {
-	return std::reduce(std::forward<ExecPolicy>(policy), first, last,
-					   typename std::iterator_traits<RandIt>::value_type{});
-}
+		return ret;
+	}
+
+	/// \tparam InputIt
+	/// \param first
+	/// \param last
+	/// \return
+	template<class InputIt,
+			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
+#if __cplusplus > 201709L
+	    requires std::forward_iterator<InputIt>
+#endif
+	constexpr typename InputIt::value_type reduce(InputIt first,
+												  InputIt last) noexcept {
+		using T = InputIt::value_type;
+		return cryptanalysislib::reduce(first, last, (T)0);
+	}
+
+	/// \tparam InputIt
+	/// \tparam OutputIt
+	/// \tparam UnaryOperation
+	/// \tparam config
+	/// \param first1
+	/// \param last1
+	/// \param d_first
+	/// \param unary_op
+	/// \return
+	template<class InputIt,
+			 class OutputIt,
+			 class UnaryOperation,
+			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
+#if __cplusplus > 201709L
+	    requires std::forward_iterator<InputIt> &&
+	    		 std::forward_iterator<OutputIt>
+#endif
+    OutputIt transform(InputIt first1,
+    				   InputIt last1,
+    				   OutputIt d_first,
+                       UnaryOperation unary_op) noexcept {
+        while (first1 != last1) {
+            *d_first++ = unary_op(*first1++);
+        }
+
+        return d_first;
+    }
+
+	/// \tparam InputIt1
+	/// \tparam InputIt2
+	/// \tparam OutputIt
+	/// \tparam BinaryOperation
+	/// \tparam config
+	/// \param first1
+	/// \param last1
+	/// \param first2
+	/// \param d_first
+	/// \param binary_op
+	/// \return
+	template<class InputIt1,
+			 class InputIt2,
+			 class OutputIt,
+			 class BinaryOperation,
+			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
+#if __cplusplus > 201709L
+	    requires std::forward_iterator<InputIt1> &&
+	    		 std::forward_iterator<InputIt2> &&
+				 std::forward_iterator<OutputIt>
+#endif
+    OutputIt transform(InputIt1 first1, InputIt1 last1,
+                       InputIt2 first2, OutputIt d_first,
+                       BinaryOperation binary_op) {
+        while (first1 != last1) {
+            *d_first++ = binary_op(*first1++, *first2++);
+        }
+
+        return d_first;
+    }
+
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \tparam BinaryOp
+	/// \tparam config
+	/// \param policy
+	/// \param first
+	/// \param last
+	/// \param init
+	/// \param binop
+	/// \return
+	template <class ExecPolicy,
+			  class RandIt,
+			  class BinaryOp,
+			  const AlgorithmReduceConfig &config=algorithmReduceConfig>
+#if __cplusplus > 201709L
+	    requires std::random_access_iterator<RandIt>
+#endif
+	typename RandIt::value_type
+	reduce(ExecPolicy &&policy,
+		   RandIt first,
+		   RandIt last,
+		   const typename RandIt::value_type init,
+		   BinaryOp binop) noexcept {
+		using T = RandIt::value_type;
+		const auto size = static_cast<size_t>(std::distance(first, last));
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			return cryptanalysislib::reduce(first, last, init, binop);
+		}
+
+		auto futures = internal::parallel_chunk_for_1(
+			std::forward<ExecPolicy>(policy), first, last,
+					cryptanalysislib::reduce<RandIt, BinaryOp>,
+					(T*)nullptr,
+					1,
+					nthreads,
+					init, binop);
+
+		return std::reduce(
+			internal::get_wrap(futures.begin()),
+			internal::get_wrap(futures.end()), init, binop);
+	}
+
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \tparam config
+	/// \param policy
+	/// \param first
+	/// \param last
+	/// \param init
+	/// \return
+	template <class ExecPolicy,
+			  class RandIt,
+			  const AlgorithmReduceConfig &config=algorithmReduceConfig>
+#if __cplusplus > 201709L
+	    requires std::random_access_iterator<RandIt>
+#endif
+	RandIt::value_type
+	reduce(ExecPolicy &&policy,
+		   RandIt first,
+		   RandIt last,
+		   const typename RandIt::value_type init) noexcept {
+		using T = RandIt::value_type;
+		return cryptanalysislib::reduce(std::forward<ExecPolicy>(policy),
+						   first, last, init, std::plus<T>());
+	}
+
+	/**
+	 * NOTE: Iterators are expected to be random access.
+	 * See std::reduce https://en.cppreference.com/w/cpp/algorithm/reduce
+	 */
+	template <class ExecPolicy,
+			  class RandIt,
+			  const AlgorithmReduceConfig &config=algorithmReduceConfig>
+#if __cplusplus > 201709L
+	    requires std::random_access_iterator<RandIt>
+#endif
+	RandIt::value_type
+	reduce(ExecPolicy &&policy,
+		   RandIt first,
+		   RandIt last) noexcept {
+		return cryptanalysislib::reduce(std::forward<ExecPolicy>(policy), first, last,
+						   typename std::iterator_traits<RandIt>::value_type{});
+	}
+
+}// end namespace cryptanalyslib
 #endif //REDUCE_H
