@@ -35,7 +35,7 @@
 #include <vector>
 
 #include "helper.h"
-#include "memory/common.h"
+#include "memory/memory.h"
 
 // TODO: generating over KeyType
 // TODO: iterator

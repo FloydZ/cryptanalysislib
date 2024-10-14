@@ -60,47 +60,69 @@ class AvlTreeList final {
 	//
 	using S = AvlTreeList<E>;
 
+	///
+	/// @param other
 	constexpr AvlTreeList(AvlTreeList &&other) noexcept :
 	    root(&Node::EMPTY_LEAF) {
 		std::swap(root, other.root);
 	}
 
-	 constexpr ~AvlTreeList() noexcept {
+	///
+	constexpr ~AvlTreeList() noexcept {
 		clear();
 	}
 
+	/// @param other
+	/// @return
 	constexpr AvlTreeList &operator=(AvlTreeList other) noexcept {
 		std::swap(root, other.root);
 		return *this;
 	}
 
+	 ///
+	 /// @return
 	[[nodiscard]] constexpr inline bool empty() const noexcept {
 		return root->size == 0;
 	}
 
+	///
+	/// @return
 	[[nodiscard]] constexpr inline std::size_t size() const noexcept {
 		return root->size;
 	}
 
-	constexpr E &operator[](const std::size_t index) noexcept {
+	///
+	/// @param index
+	/// @return
+	[[nodiscard]] constexpr E &operator[](const std::size_t index) noexcept {
 		ASSERT(index < size());
 		return root->getNodeAt(index)->value;
 	}
 
+	///
+	/// @param index
+	/// @return
 	constexpr const E &operator[](const std::size_t index) const noexcept {
 		ASSERT(index >= size());
 		return root->getNodeAt(index)->value;
 	}
 
+	///
+	/// @param val
 	constexpr void push_back(E val) noexcept {
 		insert(size(), std::move(val));
 	}
 
-	constexpr void insert(std::size_t index, E val) {
+	///
+	/// @param index
+	/// @param val
+	constexpr void insert(std::size_t index, E val) noexcept {
 		ASSERT(index <= size());
 		root = root->insertAt(index, std::move(val));
 	}
 
+	///
+	/// @param index
 	constexpr void erase(const std::size_t index) noexcept {
 		ASSERT(index < size());
 		Node *toDelete = nullptr;
@@ -317,7 +339,7 @@ class AvlTreeList final {
 };
 
 
-template <typename E>
-typename AvlTreeList<E>::Node AvlTreeList<E>::Node::EMPTY_LEAF;
+template <typename E, const AvlTreeConfig &config>
+typename AvlTreeList<E, config>::Node AvlTreeList<E,config>::Node::EMPTY_LEAF;
 
 #endif//CRYPTANALYSISLIB_AVL_TREE_H

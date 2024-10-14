@@ -51,7 +51,8 @@ TEST(SubSetSum, join8lists) {
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, A, n);
 
-	Tree::join8lists(out, L, target, lts);
+	Tree t{1, A, 0};
+	t.join8lists(out, L, target, lts);
 
 	uint32_t right=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {
@@ -100,7 +101,8 @@ TEST(SubSetSum, join8lists_twolists_on_iT_v2) {
 	}
 
 	std::cout << target << std::endl;
-	Tree::join8lists_twolists_on_iT_v2(out, l1, l2, target,
+	Tree t{1, A, 0};
+	t.join8lists_twolists_on_iT_v2(out, l1, l2, target,
 									   k_lower1, k_higher1,
 	                                   k_lower2, k_higher2,
 	                                   k_lower3, k_higher3);
@@ -152,9 +154,10 @@ TEST(SubSetSum, join8lists_twolists_on_iT_v2_constexpr) {
 	}
 
 	std::cout << target << std::endl;
-	Tree::template join8lists_twolists_on_iT_v2
+	Tree t{1, A, 0};
+	t.template join8lists_twolists_on_iT_v2
 	        <k_lower1, k_higher1, k_lower2, k_higher2, k_lower3, k_higher3>
-	        (out, l1, l2, target, A);
+	        (out, l1, l2, target);
 
 	uint32_t right=0;
 	for(uint64_t i = 0; i < out.load(); ++i) {

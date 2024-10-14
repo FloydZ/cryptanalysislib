@@ -44,7 +44,8 @@ TEST(TreeTest, join2lists) {
 	target.zero();
 	target.random();
 
-	BinaryTree::join2lists(out, l1, l2, target, ta);
+	BinaryTree t{1, A, 0};
+	t.join2lists(out, l1, l2, target, ta);
 
 	auto right=true;
 	int wrong=0;
@@ -82,7 +83,8 @@ TEST(TreeTest, join4lists) {
 	target.zero();
 	target.random();
 
-	BinaryTree::join4lists(out, l1, l2, l3, l4, target, ta);
+	BinaryTree t{1, A, 0};
+	t.join4lists(out, l1, l2, l3, l4, target, ta);
 
 	auto right=true;
 	int wrong=0;
@@ -123,7 +125,8 @@ TEST(TreeTest, join4lists_with2lists) {
 	target.zero();
 	target.random();
 
-	BinaryTree::streamjoin4lists_twolists(out, l1, l2, target, ta);
+	BinaryTree t{1, A, 0};
+	t.streamjoin4lists_twolists(out, l1, l2, target, ta);
 
 	auto right=true;
 	int wrong=0;

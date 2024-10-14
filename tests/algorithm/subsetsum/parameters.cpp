@@ -57,7 +57,7 @@ TEST(SubSetSum, n32_d2_baselists2) {
     Tree t{1, A, 0};
 	t.template join4lists_twolists_on_iT_hashmap_v2
 			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
-			(out, l1, l2, target, A);
+			(out, l1, l2, target);
 
 	EXPECT_GT(out.load(), 0);
 }
@@ -88,7 +88,7 @@ TEST(SubSetSum, n32_d2_baselists4) {
     Tree t{1, A, 0};
 	t.template join4lists_on_iT_hashmap_v2
 			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
-			(out, l1, l2, l3, l4, target, A);
+			(out, l1, l2, l3, l4, target);
 
 	EXPECT_GT(out.load(), 0);
 }
@@ -121,7 +121,7 @@ TEST(SubSetSum, n48) {
     Tree t{1, A, 0};
 	t.template join4lists_twolists_on_iT_hashmap_v2
 			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
-			(out, l1, l2, target, A);
+			(out, l1, l2, target);
 
 	EXPECT_GT(out.load(), 0);
 }
