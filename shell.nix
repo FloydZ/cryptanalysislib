@@ -1,11 +1,22 @@
 with import <nixpkgs> { };
 { pkgs ? import <nixpkgs> { } }:
+let 
+  myPython = pkgs.python312;
+  pythonPackages = pkgs.python312Packages;
+  pythonWithPkgs = myPython.withPackages (pythonPkgs: with pythonPkgs; [
+    ipython
+    pip
+    setuptools
+    virtualenvwrapper
+    wheel
+    black
+    prophet
+  ]);
 
-stdenv.mkDerivation {
-  name = "cryptanalysislib";
-  src = ./.;
-
-  buildInputs = [
+  # add the needed packages here
+  extraBuildInputs = with pkgs; [
+    pythonPackages.numpy
+    pythonPackages.pytest
     cmake
     git
     libtool
@@ -25,7 +36,6 @@ stdenv.mkDerivation {
     gcc
     gtest
     gbenchmark
-    openssl     # needed for libcoro
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
     flamegraph
     gdb
@@ -34,4 +44,9 @@ stdenv.mkDerivation {
     valgrind
     massif-visualizer
   ]));
+in
+import ./python-shell.nix { 
+ extraBuildInputs=extraBuildInputs; 
+ myPython=myPython;
+ pythonWithPkgs=pythonWithPkgs;
 }

@@ -111,9 +111,9 @@ namespace cryptanalysislib {
 #endif
 	typename std::iterator_traits<RandIt>::value_type
 	accumulate(ExecPolicy&& policy,
-			 RandIt first,
-			 RandIt last,
-			 typename RandIt::value_type init) noexcept {
+			   RandIt first,
+			   RandIt last,
+			   typename RandIt::value_type init) noexcept {
 
 		const auto size = static_cast<size_t>(std::distance(first, last));
 		const uint32_t nthreads = should_par(policy, config, size);

@@ -464,7 +464,7 @@ public:
 	using S::HT;
 
 	constexpr static size_t max_list_size = sum_bc(n, w);
-	const size_t list_size;
+	const size_t list_size = 0;
 
 	// some security things
 	static_assert(Value::length() >= w);

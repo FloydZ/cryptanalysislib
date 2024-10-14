@@ -54,13 +54,15 @@ struct parallel_policy : public execution_policy {
     explicit parallel_policy(pool_type on_pool, 
                              const bool par_ok): 
         on_pool(on_pool), par_ok(par_ok) {}
-    
-    ///
+
+	/// @param pool
+    /// @return
     [[nodiscard]] constexpr inline parallel_policy on(pool_type pool) const noexcept {
         return parallel_policy{pool, par_ok};
     }
 
-    ///
+    /// @param call_par
+    /// @return
     [[nodiscard]] parallel_policy par_if(const bool call_par) const noexcept {
         return parallel_policy{on_pool, call_par};
     }
@@ -155,8 +157,8 @@ template <class ExecPolicy>
 namespace internal {
     /// \return returns the number of elements in each chunk a single 
     ///     thread must process
-    [[nodiscard]] inline constexpr std::size_t get_chunk_size(const std::size_t num_steps, 
-                                                const uint32_t num_threads) noexcept {
+    [[nodiscard]] static inline constexpr std::size_t get_chunk_size(const std::size_t num_steps,
+                                                              const uint32_t num_threads) noexcept {
         return (num_steps / num_threads) + ((num_steps % num_threads) > 0 ? 1 : 0);
     }
     
@@ -166,7 +168,7 @@ namespace internal {
 #if __cplusplus > 201709L
     // TODO concept und dann dieses dofe typedef weg
 #endif
-    constexpr typename std::iterator_traits<Iterator>::difference_type
+    static inline constexpr typename std::iterator_traits<Iterator>::difference_type
     get_chunk_size(const Iterator &first, 
                    const Iterator &last,
                    const uint32_t num_threads) noexcept {
@@ -317,8 +319,11 @@ namespace internal {
             auto iter_chunk_size = get_iter_chunk_size(first, last, chunk_size);
             RandIt loop_end = advanced(first, iter_chunk_size);
 
-            futures.emplace_back(task_pool.enqueue(
-                chunk, first, loop_end, chunk_args...));
+            futures.emplace_back(
+                task_pool.enqueue(
+                    chunk, first, loop_end, chunk_args...
+                )
+            );
 
             first = loop_end;
         }

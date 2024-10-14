@@ -60,7 +60,7 @@ namespace cryptanalysislib {
 	};
     constexpr static SchedulerConfig schedulerConfig;
 
-	// TODO: this is linux only
+	// NOTE: this is linux only
 	// NOTE: this is needed, as the real internal `rusage`
 	// uses strange unions, which are not supported by
 	// `reflect-cpp`
@@ -363,9 +363,7 @@ namespace cryptanalysislib {
 		SchedulerPerformanceManager *schedulerPerformance;
 
 	public:
-        /// TODO alle algoeithms von poolstl portieren
-        /// TODO beispiel von heartbeat scheduler weiter einarbeiten
-        /// TODO performance meassurement in all schedulers 
+        /// TODO performance meassurement in all schedulers
         /// TODO benchmark comparison between the different schedulers
 		/// TODO use the MOVE operator from SimpleScheduler
 		/// \tparam InitializationFunction

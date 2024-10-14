@@ -9,6 +9,7 @@
 #endif
 
 // internal includes
+#include "random.h"
 #include "container/kAry_type.h"
 #include "container/vector.h"
 #include "element.h"
@@ -18,7 +19,7 @@
 
 // needed for `ExtendedTree`
 #include "container/hashmap.h"
-#include "random.h"
+#include "thread/thread.h"
 
 #if __cplusplus > 201709L
 /// IDEA: extend the tree syntax to arbitrary hashmaps.
@@ -110,9 +111,14 @@ struct TreeConfig : public AlignmentConfig {
 	/// if set to true: the algorithms will recompute the label from level 2 on
 	/// this is needed for subset sum algorithm
 	constexpr static bool needs_recomputation = true;
+
+	/// min size per thread
+	constexpr static size_t min_size_per_thread = 2u;
 } treeConfig;
 
-// TODO remove the Matrix type as an argument from some functions, and make them non static
+///
+/// @tparam List 
+/// @tparam config 
 template<class List,
 		 const TreeConfig &config=treeConfig>
 #if __cplusplus > 201709L
@@ -1460,11 +1466,8 @@ public:
 
 		if ((!target.is_zero()) && (prepare)) {
 			for (size_t s = 0; s < L2.load(); ++s) {
-				if constexpr (sub) {
-					LabelType::template sub<k_lower, k_upper>(L2[s].label, target, L2[s].label);
-				} else {
-					LabelType::template add<k_lower, k_upper>(L2[s].label, target, L2[s].label);
-				}
+				// will be remapped to + in binary case
+				LabelType::template sub<k_lower, k_upper>(L2[s].label, target, L2[s].label);
 			}
 
 			L1.template sort_level<k_lower, k_upper>();
@@ -1643,13 +1646,11 @@ public:
 
 	///            out
 	///         ┌───────┐
-	///         │       │
 	///         └───┬───┘
 	///     k_lower1│k_upper1
 	///     ┌───────┴───────┐
-	///     │               │
 	/// ┌───┴───┐       ┌───┴───┐
-	/// │sorted │       │sorted │
+	/// │ const │       │sorted │
 	/// └───────┘       └───────┘
 	///    L1              L2
 	/// NOTE: L2 needs to be sorted
@@ -1693,7 +1694,7 @@ public:
 	}
 
 	///         ┌───────┐
-	///         │  out  │
+	///         │  out  │ f(collisions)
 	///         └───────┘
 	///     k_lower1│k_upper1
 	///     ┌───────┴───────┐
@@ -1726,18 +1727,18 @@ public:
 		requires HashMapAble<HashMap>
 #endif
 	size_t join2lists_on_iT_hashmap_v2(List &out,
-	                                          const List &L1, const List &L2,
-											  HashMap &hm,
-											  const LabelType &target,
-	                                          F f=[](List &out,
-	                                                 const ElementType &e1, const ElementType &e2,
-	                                                 const size_t a1, const size_t a2) __attribute__((always_inline)) {
-		                                          (void)a1; (void)a2;
-		                                          out.template add_and_append
-													<k_lower, k_upper, -1u, false>
-													(e1, e2);
-	                                          } ,
-											  const bool prepare=true) noexcept {
+	                                   const List &L1, const List &L2,
+									   HashMap &hm,
+									   const LabelType &target,
+	                                   F f=[](List &out,
+	                                          const ElementType &e1, const ElementType &e2,
+	                                          const size_t a1, const size_t a2) __attribute__((always_inline)) {
+		                                   (void)a1; (void)a2;
+		                                   out.template add_and_append
+									   		<k_lower, k_upper, -1u, false>
+									   		(e1, e2);
+	                                   } ,
+									   const bool prepare=true) noexcept {
 		ASSERT(k_lower < k_upper && 0 < k_upper);
 		using LoadType = typename HashMap::load_type;
 		out.set_load(0);
@@ -1860,6 +1861,112 @@ public:
 		}
 
 		return ret;
+	}
+
+
+	/// just a wrapper around the normal hashmap version, which allocates
+	/// the simple hashmap for you.
+	/// @tparam k_lower 
+	/// @tparam k_upper 
+	/// @tparam bucketsize 
+	/// @param out 
+	/// @param L1 
+	/// @param L2 
+	/// @param target 
+	template<const uint32_t k_lower,
+	         const uint32_t k_upper,
+			 const uint32_t bucketsize>
+	void join2lists_on_iT_hashmap_v2(List &out,
+							 const List &L1, List &L2,
+							 const LabelType &target) noexcept {
+
+		using D = typename LabelType::DataType;
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+				bucketsize, 1ull<<(k_upper-k_lower), 1
+		};
+
+		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower, k_upper, 2>>;
+		// using LoadType = typename HML0::load_type;
+		HML0 *hm = new HML0{};
+
+		for (size_t i = 0; i < L2.load(); ++i) {
+			hm->insert(L2[i].label.value(), i);
+		}
+
+		join2lists_on_iT_hashmap_v2(out, L1, L2, *hm, target, [&]
+			   (List &__out, const ElementType &e1, const ElementType &e2,
+				const size_t a1, const size_t a2) __attribute__((always_inline)) {
+				(void) e1;
+				(void) e2;
+				__out.template add_and_append
+				        <k_lower, k_upper, -1u, false>
+				        (L1[a1], L2[a2]);
+		});
+
+		delete hm;
+	}
+
+	/// TODO not finished
+	template<const uint32_t k_lower,
+	         const uint32_t k_upper,
+			 const uint32_t bucketsize,
+			 const uint32_t nthreads,
+			 class ExecPolicy>
+	void join2lists_on_iT_hashmap_v2(ExecPolicy&& policy,
+							 List &out,
+							 const List &L1, List &L2,
+							 const LabelType &target) noexcept {
+		/// INIT THREADS
+		auto& task_pool = *policy.pool();
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			return join2lists_on_iT_hashmap_v2
+					<k_lower, k_upper, bucketsize>
+					(out, L1, L2, target);
+		}
+
+		/// INIT Hashmap
+		using D = typename LabelType::DataType;
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+			bucketsize, 1ull<<(k_upper-k_lower), nthreads
+		};
+
+		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower, k_upper, 2>>;
+		using LoadType = typename HML0::load_type;
+		HML0 *hm_ = new HML0{};
+		HML0 hm = *hm_;
+
+		std::vector<std::future<void>> futures;
+		for (size_t tid = 0; tid < nthreads; tid++) {
+			futures.emplace_back(task_pool.enqueue([&tid, &hm, &L2]() __attribute__((always_inline)) {
+				std::cout << tid << std::endl;
+				const size_t spos = L2.start_pos(tid);
+				const size_t epos = L2.end_pos(tid);
+				std::cout << tid << " " << spos << " " << epos << std::endl;
+				for (size_t i = spos; i < epos; ++i) {
+					hm.insert(L2[i].label.value(), i);
+				}
+			}));
+		}
+
+		for (size_t tid = 0; tid < nthreads; tid++) {
+			futures[tid].wait();
+		}
+
+
+		LabelType sigma_t;
+		LoadType load = 0;
+		for (size_t i = 0; i < L1.load(); ++i) {
+			LabelType::template sub<k_lower, k_upper>(sigma_t, target, L1[i].label);
+
+			size_t s = hm.find(sigma_t.value(), load);
+			for (size_t k = s; k < s + load; ++k) {
+				const size_t j = hm[k];
+				out.template add_and_append
+				        <k_lower, k_upper, -1u, false>
+				        (L1[i], L2[j]);
+			}
+		}
+		delete hm_;
 	}
 
 
@@ -2612,9 +2719,6 @@ public:
 		// std::cout << L2;
 		using D = typename LabelType::DataType;
 		using E = std::pair<size_t, size_t>;
-
-		// const static size_t L0_expected_bucketsize = L1.load() >> (k_upper1 - k_lower1);
-		//const static size_t L1_expected_bucketsize = (L2.load()*L1.load()) >> (k_upper2 - k_lower2);
 
 		// NOTE: you need to choose the `bucketsize` correctly.
 		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {

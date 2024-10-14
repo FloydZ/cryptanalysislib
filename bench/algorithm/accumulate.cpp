@@ -2,6 +2,7 @@
 #include <numeric>
 
 #include "algorithm/accumulate.h"
+#include "cpucycles.h"
 constexpr size_t LS = 1u << 20u;
 
 using namespace cryptanalysislib;
@@ -12,11 +13,16 @@ static void BM_stdaccumulate(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 2);
 
+    uint64_t c = 0;
 	for (auto _: state) {
+        c -= cpucycles();
         auto r = std::accumulate(fr.begin(), fr.end(), 1);
+        c += cpucycles();
         benchmark::DoNotOptimize(r += 1);
 		benchmark::ClobberMemory();
 	}
+
+    state.counters["cycles"] = (double)c/(double)state.iterations();
 }
 
 template<typename T>
@@ -25,11 +31,15 @@ static void BM_accumulate(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 2);
 
+    uint64_t c = 0;
 	for (auto _: state) {
+        c -= cpucycles();
         auto r = cryptanalysislib::accumulate(fr.begin(), fr.end(), 1);
+        c += cpucycles();
         benchmark::DoNotOptimize(r += 1);
 		benchmark::ClobberMemory();
 	}
+    state.counters["cycles"] = (double)c/(double)state.iterations();
 }
 
 template<typename T>
@@ -38,11 +48,15 @@ static void BM_accumulate_uXX_simd(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 2);
 
+    uint64_t c = 0;
 	for (auto _: state) {
+        c -= cpucycles();
         auto r = cryptanalysislib::internal::accumulate_simd_int_plus<T>(fr.data(), state.range(0), 1);
+        c += cpucycles();
         benchmark::DoNotOptimize(r += 1);
 		benchmark::ClobberMemory();
 	}
+    state.counters["cycles"] = (double)c/(double)state.iterations();
 }
 
 template<typename T>
@@ -51,11 +65,15 @@ static void BM_accumulate_multithreaded(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 2);
 
+    uint64_t c = 0;
 	for (auto _: state) {
+        c -= cpucycles();
         auto r = cryptanalysislib::accumulate(par_if(true), fr.begin(), fr.end(), 1);
+        c += cpucycles();
         benchmark::DoNotOptimize(r += 1);
 		benchmark::ClobberMemory();
 	}
+    state.counters["cycles"] = (double)c/(double)state.iterations();
 }
 
 

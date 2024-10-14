@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import random
 import logging
@@ -5,31 +6,6 @@ import json
 import pathlib
 from typing import List
 from subprocess import Popen, PIPE, STDOUT
-
-
-def read_google_benchmark_data(args):
-    """parse a csv/json output of a google benchmark run """
-    extension = pathlib.Path(args.file.name).suffix
-    data = []
-    try:
-        if extension == ".csv":
-            # data = pd.read_csv(args.file, usecols=["name", args.metric])
-            print("error not impl") 
-        elif extension == ".json":
-            json_data = json.load(args.file)
-            data = json_data["benchmarks"]
-        else:
-            logging.error("Unsupported file extension '{}'".format(extension))
-            exit(1)
-    except ValueError:
-        logging.error('Could not parse the benchmark data.')
-        return 0
-
-    for d in data:
-        # TODO probably pack this into a try catch block
-        d["label"] = d["name"].split("/")[0]
-        d["size"] = d["name"].split("/")[1]
-    return data
 
 
 class Cryptanalysislib:
@@ -95,7 +71,7 @@ class Cryptanalysislib:
         return True
 
     def run(self, target: str, args: List[str]) -> bool:
-        """ """
+        """ only exported fuction. Simply runs a target """
         if not self.__build(target):
             return False
 
