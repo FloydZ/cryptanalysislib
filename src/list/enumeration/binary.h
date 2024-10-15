@@ -57,8 +57,8 @@ public:
 	////
 	Combinations_Binary_Chase<T, n, w> chase = Combinations_Binary_Chase<T, n, w>();
 
-	// TODO rename to max list size
-	constexpr static size_t LIST_SIZE = Combinations_Binary_Chase<T, n, w>::chase_size;
+	///
+	constexpr static size_t max_list_size = Combinations_Binary_Chase<T, n, w>::chase_size;
 	const size_t list_size;
 	std::vector<std::pair<uint16_t, uint16_t>> cL{bc(n, w)};
 
@@ -72,7 +72,7 @@ public:
 										   		const size_t list_size = 0,
 	                                   			const Label *syndrome = nullptr) noexcept
 	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+	      list_size((list_size == size_t(0)) ? max_list_size : list_size) {
 		  chase.template changelist<false>(cL, this->list_size);
 	}
 
@@ -181,7 +181,7 @@ public:
 		}
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		ASSERT(ctr == list_size);
 
 		if (sL1) { L1->set_load(list_size); }
 		if (sL2) { L2->set_load(list_size); }
@@ -209,7 +209,7 @@ public:
 		std::cout << " { name: \"BinaryListEnumerateMultiFullLength\""
 				  << ", n: " << n
 				  << ", w: " << w
-				  << ", max_list_size: " << LIST_SIZE
+				  << ", max_list_size: " << max_list_size
 				  << ", list_size: " << list_size
 		          << " }\n";
 	}

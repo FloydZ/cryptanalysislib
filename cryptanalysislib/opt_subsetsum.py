@@ -156,7 +156,7 @@ class SubSetSumOptimizerD2(Optimizer):
                                                 "T_tree" : round(self.T_tree(g), 3),
                                                 "M" : round(log2(self.memory(g)), 3),
                                                 "mem_limit": self.max_mem,
-                                                "g" : self.n*g,
+                                                "g" : int(self.n*g),
                                                 "L0" : self.L_mitm(g),
                                                 "L1" : self.FL_1(g),
                                                 "L2" : self.FL_2(g),
@@ -165,7 +165,7 @@ class SubSetSumOptimizerD2(Optimizer):
                                                 "l1" : self.l_1,
                                                 "l2" : self.l_2,
                                                 # actual weight in the base lists
-                                                "n1_3" : self.n1_3(g) + self.n//16,
+                                                "n1_3" : int(self.n1_3(g) + self.n//16),
                                                 "nm1_3" : self.nm1_3(g),
                                                 "n" : self.n,
                                             }

@@ -16,7 +16,6 @@ static long long cpucycles(void) noexcept {
 	unsigned long long result;
 	asm volatile(".byte 15;.byte 49;shlq $32,%%rdx;orq %%rdx,%%rax"
 	             : "=a"(result)::"%rdx");
-	_mm_lfence();
 	return result;
 }
 #else

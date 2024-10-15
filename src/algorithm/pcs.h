@@ -38,7 +38,7 @@ concept PCSDistinguishAble = requires(C c) {
 ///         a2 = f(a1), b2 = f(b1)
 ///     so a1 and b1 are always the predecessors of a2 and b2. This additional
 ///     information is needed for algorithms which do flavouring.
-/// \tparam T base alement to compare
+/// \tparam T base element to compare
 template<class Compare,
 		 class T>
 #if __cplusplus > 201709L
@@ -126,7 +126,7 @@ public:
 		Compare cmp;
         Distinguished d;
         
-        // TODO probaly also safe the length
+        // TODO probaly also safe the length of the walk within the distinguished point data set
         std::vector<T> distinguished_points;
 
         bool found = false;
@@ -138,6 +138,8 @@ public:
                     if (d(v)) {
                         if (c(distinguished_points, v) && !found) {
                             found = true;
+							col1 = v;
+							col2 = v;
                             goto finish;
                         }
 

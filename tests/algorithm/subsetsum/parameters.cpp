@@ -3,13 +3,12 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "algorithm/random_index.h"
+#include "algorithm/subsetsum.h"
 #include "container/kAry_type.h"
 #include "helper.h"
 #include "matrix/matrix.h"
 #include "tree.h"
 
-#include "subsetsum.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -21,7 +20,6 @@ using ::testing::UnitTest;
 
 /// NOTE: this file only checks the correctness of the tree part of new TMTO.
 /// It does not check for the correctness of the PollardRho/PCS part
-
 
 // NOTE: random enumeration of the values
 // NOTE: only two baselists are used

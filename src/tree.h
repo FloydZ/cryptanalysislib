@@ -3468,6 +3468,14 @@ public:
 	[[nodiscard]] constexpr inline uint64_t get_basesize() const noexcept { return base_size; }
 	[[nodiscard]] constexpr inline const auto &get_level_translation_array() const noexcept { return level_translation_array; }
 
+	__attribute__((noinline))
+	void info() noexcept {
+		std::cout << "{ \"name\": \"tree\""
+		          << ", \"depth\"" << depth
+				  << ", \"base_lists\"" << base_size
+				  << "}\n" << std::endl;
+	}
+
 private:
 	// drop the default constructor.
 	Tree_T();

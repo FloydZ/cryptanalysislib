@@ -4,12 +4,11 @@
 #include <iostream>
 
 #include "algorithm/random_index.h"
+#include "algorithm/subsetsum.h"
 #include "container/kAry_type.h"
 #include "helper.h"
 #include "matrix/matrix.h"
 #include "tree.h"
-
-#include "subsetsum.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
