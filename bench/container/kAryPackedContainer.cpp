@@ -75,24 +75,23 @@ B63_BENCHMARK(add_mod3_limb256, nn) {
 	B63_KEEP(a);
 }
 
-// TODO function not adapted to the new SIMD interface
-//B63_BENCHMARK(add_mod3_limb256_nooverflow, nn) {
-//	S a = S::set1(1),
-//	  b = S::set1(1),
-//	  c = S::set1(1);
-//	B63_SUSPEND {
-//		a = S::random();
-//		b = S::random();
-//	}
-//
-//	for (uint32_t i = 0; i < ctr * nn / 4; i++) {
-//		c = Row::add256_T_no_overflow(a, b);
-//		a = Row::add256_T_no_overflow(b, c);
-//		b = Row::add256_T_no_overflow(a, c);
-//	}
-//
-//	B63_KEEP(a);
-//}
+B63_BENCHMARK(add_mod3_limb256_nooverflow, nn) {
+	S a = S::set1(1),
+	  b = S::set1(1),
+	  c = S::set1(1);
+	B63_SUSPEND {
+		a = S::random();
+		b = S::random();
+	}
+
+	for (uint32_t i = 0; i < ctr * nn / 4; i++) {
+		c = Row::add256_T_no_overflow(a, b);
+		a = Row::add256_T_no_overflow(b, c);
+		b = Row::add256_T_no_overflow(a, c);
+	}
+
+	B63_KEEP(a);
+}
 
 B63_BENCHMARK(sub_mod3_limb, nn) {
 	uint64_t a=1, b=1, c=1;

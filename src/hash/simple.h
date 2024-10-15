@@ -12,8 +12,11 @@
 #include "popcount/popcount.h"
 #include "simd/simd.h"
 
-/// TODO comments
-/// main comparison class for hash function used within
+/// main comparison class for hash function used within the data containers
+/// these hash functions are either optimized for
+///	- the case the data is packed together: BinaryVector
+/// - the case the data is not packed together like `FqNonPackedVector`
+//		and one needs to add values together
 template<typename T, const uint32_t ...Ks>
 class Hash {};
 

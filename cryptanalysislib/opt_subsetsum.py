@@ -150,7 +150,7 @@ class SubSetSumOptimizerD2(Optimizer):
                                         t = log2(self.time(g))
                                         if(t<T):
                                             T = t
-                                            # TODO translation between arindams opt params names and my internal names
+                                            # NOTE translation between Arindams opt params names and my internal names
                                             f = {
                                                 "T" : round(t, 3),
                                                 "T_tree" : round(self.T_tree(g), 3),

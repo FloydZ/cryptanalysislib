@@ -27,12 +27,10 @@ using Value 		= Binary;
 using BinaryElement 		= Element_T<Value, Binary, Matrix>;
 using FqVectorElement 		= Element_T<Value, FqVector_, Matrix>;
 using FqPackedVectorElement	= Element_T<Value, FqPVector, Matrix>;
-// TODO using FqElement				= Element_T<Value, FqVectorMeta, Matrix>;
 
 using BinaryList 			= MetaListT<BinaryElement>;
 using FqVectorList 			= MetaListT<FqVectorElement>;
 using FqPackedVectorList 	= MetaListT<FqPackedVectorElement>;
-// using FqList 				= MetaListT<FqElement>;
 
 size_t search_index = 0;
 size_t nr_sols = 1;
@@ -73,12 +71,10 @@ void BM_SkaSort(benchmark::State& state) {
 BENCHMARK(BM_StdSort<BinaryList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_StdSort<FqVectorList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_StdSort<FqPackedVectorList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
-// BENCHMARK(BM_StdSort<FqList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 
 BENCHMARK(BM_SkaSort<BinaryList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_SkaSort<FqVectorList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 BENCHMARK(BM_SkaSort<FqPackedVectorList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
-// BENCHMARK(BM_SkaSort<FqList>)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 
 int main(int argc, char** argv) {
 	rng_seed(time(NULL));

@@ -26,9 +26,6 @@ constexpr uint32_t w = 3;
 constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();
 
 using T = uint64_t;
-// TODO doesnt work
-// using Value = kAryPackedContainer_T<T, n, q>;
-// using Label = kAryPackedContainer_T<T, n, q>;
 using Value = BinaryVector<n, T>;
 using Label = BinaryVector<n, T>;
 using Matrix = FqMatrix<T, n, n, q, true>;

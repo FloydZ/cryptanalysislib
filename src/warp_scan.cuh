@@ -3,7 +3,7 @@
 
 #define WARP_SIZE 32
 
-/// TODO describe whats happening here
+/// NOTE describe whats happening here
 /// computes the exclusive sum
 __device__ __always_inline
 uint32_t warp_scan_up(uint32_t v) {
@@ -19,7 +19,6 @@ uint32_t warp_scan_up(uint32_t v) {
       asm("shfl.sync.up.b32 t|p, %0, %1, 0x0, 0xFFFFFFFF;     \n\t"
           "@p add.u32 %0, %0, t;             \n\t" : "+r"(v) : "r"(d));
 	}
-
     asm("}");
     return v;
 }

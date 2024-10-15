@@ -75,7 +75,7 @@ using ::testing::UnitTest;
 #undef T
 #undef S
 
-// todo dev
+// dev
 // TEST(T, dev_big) {
 // 	kAry_Type_T_big<>
 // }

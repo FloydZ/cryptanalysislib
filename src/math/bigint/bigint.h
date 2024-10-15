@@ -29,11 +29,12 @@ template<size_t N,
 struct big_int : std::array<T, N> {
 private:
 	///
-	static_assert(N > 0);
-
+	static_assert(N > 1, "use normal kAry... ");
 	constexpr static size_t FP_DIGIT = sizeof(T);
-
 	uint32_t used;
+
+	// TODO remove this, if `sign` == false
+	bool __sign = false;
 public:
 
 	constexpr static size_t LIMBS = N;
@@ -76,10 +77,10 @@ public:
 	/// \tparam N1
 	/// \param t
 	/// \return
-	template <size_t Begin,
-			size_t End,
-			size_t Padding=0,
-			size_t N1>
+	template <const size_t Begin,
+			  const size_t End,
+			  const size_t Padding=0,
+			  const size_t N1>
 	constexpr static auto take(const big_int< N1, T> t) noexcept {
 		static_assert(End >= Begin, "invalid range");
 		static_assert(End - Begin <= N1, "invalid range");

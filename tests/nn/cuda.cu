@@ -82,7 +82,7 @@ int main () {
 	checkCudaErrors(cudaMallocManaged(&f2, sizeof(size_t)));
 	*f1 = size_t(-1); *f2 = size_t(-1);
 
-	// TODO only correct for multiple of 4
+	// NOTE only correct for multiple of 4
 	//for (uint32_t i = 0; i < N; i++) {
 	//	L[i] = 0;
 	//	R[i] = 0;

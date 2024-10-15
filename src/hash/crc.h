@@ -63,7 +63,6 @@ constexpr static uint32_t crc32(const uint8_t *buf,
 	return crc ^ ~0U;
 }
 
-// TODO add this flag to the cmake project
 #ifdef USE_PCLMULDQD
 #include <immintrin.h>
 

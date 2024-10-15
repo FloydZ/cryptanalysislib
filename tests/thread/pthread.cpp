@@ -13,20 +13,10 @@ TEST(pthread, Simple) {
 	const uint32_t a = 32;
 	const uint32_t b = 10;
 	auto t = cryptanalysislib::pthread([&](const uint32_t a,
-	                                          const uint32_t b) -> int {
+	                                       const uint32_t b) noexcept -> int {
 		std::cout << "kekw: " << a << " " << b << " " << c << std::endl;
 		return 0;
 	}, a, b);
-
-	// TODO: if you dont pass the arguments its failing
-	//std::vector<cryptanalysislib::pthread> v;
-	//v.emplace_back([&](const uint32_t a,
-	//                   const uint32_t b) -> int {
-	//  std::cout << "kekw: " << a << " " << b << " " << c << std::endl;
-	//  return 0;
-	//});
-
-
 	t.join();
 }
 
