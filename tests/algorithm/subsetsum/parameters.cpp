@@ -19,12 +19,9 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO: wrapper function for level2 hashmap with callback lambda for elements in last list.
-//	- also include all these hashmap declaration in extra functions
-//  - also simplify the enumerator interface to only need the lists as inputs and not the offset.
+/// NOTE: this file only checks the correctness of the tree part of new TMTO.
+/// It does not check for the correctness of the PollardRho/PCS part
 
-// TODO: PCS algorithm: remap the output of the tree as the next iT of the next iteration
-//		flavor function: f = a*x+b mod p, p <= 2^k_upper1
 
 // NOTE: random enumeration of the values
 // NOTE: only two baselists are used
@@ -92,6 +89,7 @@ TEST(SubSetSum, n32_d2_baselists4) {
 
 	EXPECT_GT(out.load(), 0);
 }
+
 TEST(SubSetSum, n48) {
 	// 22.707336747487684 12.775544757643935 2 20 0 0 1 3.0 0 2024.0 1.6311530334469542 3.90679931640625
 	constexpr uint32_t n    = 48ul;
@@ -129,7 +127,6 @@ TEST(SubSetSum, n48) {
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
-	ident();
 	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }

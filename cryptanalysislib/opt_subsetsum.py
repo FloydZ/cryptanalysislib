@@ -1,138 +1,7 @@
 #!/usr/bin/env python3
 
-from math import comb, sqrt, inf, log2
-from typing import Dict, List
-
-def binomH(n,k):
-    """
-    binomial coefficient
-    """
-    # if k/n not in ZZ:
-    #     return -100
-    if(n<=0):
-        return 1.
-    return comb(int(n),int(k))
-
-def multiH(n,c):
-    """
-    multinomial coefficient
-    """
-    if sum(c)>n:
-        return 1
-    tot=1
-    val=n
-    for i in c:
-        tot*=binomH(n,i)
-        n-=i
-    return tot
-
-
-
-def reps(p, m, d, l): 
-    """
-    representations of length-l vector with p ones and m minus ones
-    two length-l vectors with p/2+d ones and m/2+d minus ones each.
-    """
-    if p <= 0.000001 or l == 0.:
-        return 1
-    if l < p or l - p -m < 2*d:
-        return 1
-    
-    return binomH(p,p/2) * binomH(m,m/2) * multiH(l-p-m, [d,d]) 
-
-
-class Range:
-    """ just a wrapper around `range()` function with a name """
-    def __init__(self, name: str, start: int, end: int = 0, step: int = 0) -> None:
-        # TODO negative step value
-        self.name = name
-        self.start = start
-        self.current = start
-        self.end = start + 1 if end == 0 else end
-        self.step = 1 if step == 0 else step
-
-        assert (end > start)
-
-    def size(self):
-        """ returns the number of value the Range can enumerate at most """
-        return (self.end - self.start + self.step - 1) // self.step
-    
-    def reset(self):
-        self.current = self.start
-    
-    def __iter__(self):
-        return self
-    
-    def __next__(self):
-        self.current += self.step
-        if self.current >= self.end:
-            raise StopIteration
-        return self.current
-
-class Optimizer:
-    """
-    TODO move somewhere usefull
-    """
-    def __init__(self) -> None:
-        pass
-
-    def __iter__(self):
-        return self
-    
-    def __next__(self):
-        pass
-
-    def opt(self) -> Dict:
-        for k in self:
-            print(k)
-
-        return {}
-
-class MetaOptimizer(Optimizer):
-    """
-    TODO move somewhere usefull
-
-    NOTE: this optimizer does not optimize parameters for any particular 
-        problem. But instead it optimizes for different `n` another optimizer.
-    """
-    def __init__(self,
-                 sub_problem_type,
-                 parameters: Range|List[Range]) -> None:
-        super().__init__()
-        self.sub_problem_type = sub_problem_type
-        self.parameters = parameters if isinstance(parameters, list) else [parameters]
-        self.nr_params = len(self.parameters)
-   
-    def ranges2dict(self):
-        """
-        """
-        assert isinstance(self.parameters, list)
-        ret = {}
-        for r in self.parameters:
-            ret[r.name] = r.current 
-        return ret
-
-    def opt(self) -> Dict:
-        run = True
-        while run:
-            d = self.ranges2dict()
-            o = self.sub_problem_type(**d).opt()
-            print(d, o)
-            for _ in self.parameters[0]:
-                d = self.ranges2dict()
-                o = self.sub_problem_type(**d).opt()
-                print(d, o)
-   
-            for ccp in range(0, self.nr_params):
-                try:
-                    next(self.parameters[ccp])
-                    break
-                except:
-                    self.parameters[ccp].reset()
-                    if (ccp == (self.nr_params) - 1):
-                        run = False
-
-        return {}
+from math import sqrt, inf, log2
+from opt import multiH, reps, Range, Optimizer, MetaOptimizer 
 
             
 class SubSetSumOptimizerD2(Optimizer):
@@ -146,6 +15,7 @@ class SubSetSumOptimizerD2(Optimizer):
                         process
         """
         super().__init__()
+        assert n > 0, "give me at least something to optimize"
         self.n = n
         self.max_mem = n if max_mem == 0 else max_mem
         self.w = n/2 if w == 0 else w
@@ -255,7 +125,7 @@ class SubSetSumOptimizerD2(Optimizer):
         max_of_FL_i = 2*self.L_mitm(g)+self.FL_2(g)+self.FL_1(g)
         return max_of_FL_i
     
-    def opt(self) -> Dict:
+    def opt(self):
         """ 
         """
         T = inf
@@ -280,6 +150,7 @@ class SubSetSumOptimizerD2(Optimizer):
                                         t = log2(self.time(g))
                                         if(t<T):
                                             T = t
+                                            # TODO translation between arindams opt params names and my internal names
                                             f = {
                                                 "T" : round(t, 3),
                                                 "T_tree" : round(self.T_tree(g), 3),
@@ -298,28 +169,19 @@ class SubSetSumOptimizerD2(Optimizer):
                                                 "nm1_3" : self.nm1_3(g),
                                                 "n" : self.n,
                                             }
-        return f
+        b = T != inf
+        return b, f
 
-    #def __next__(self) -> Dict:
-    #    T = inf
-    #    f = {}
-    #    while T == inf:
-    #        f = self.opt()
-    #        print("got")
-    #        T = f["T"]
-    #        print(T)
-    #        self.current_max_mem += 1;
-    #    
-    #    print("kek", T)
-    #    if self.current_max_mem > self.n:
-    #        raise StopIteration()
-    #    
-    #    return f
 
 # testing 
-
-s = SubSetSumOptimizerD2(32)
+#s = SubSetSumOptimizerD2(32)
 #print(s.opt())
-s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 40), Range("max_mem", 0, 32)])
-#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 40)])
-s.opt()
+#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 40), Range("max_mem", 0, 32)])
+#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32)])
+#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 10)])
+#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 10, 2)])
+#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 10, 2), Range("max_mem", 20, 22)])
+#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 10, 2), Range("max_mem", 22, 19, 2)])
+#print(*s.opt())
+#for t in s.opt():
+#    print (t)

@@ -1,14 +1,12 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_COPY_H
 #define CRYPTANALYSISLIB_ALGORITHM_COPY_H
 
-#include <functional>
-
-#include "thread/thread.h"
 #include "memory/memory.h"
 #include "algorithm/algorithm.h"
 
 namespace cryptanalysislib {
 
+///
 struct AlgorithmCopyConfig : public AlgorithmConfig {
     constexpr static size_t min_size_per_thread = 1u<<10u;
 };
@@ -62,7 +60,9 @@ constexpr RandIt2 copy_n(RandIt1 first,
 	}
 
 	RandIt1 last = internal::advanced(first, n);
-	cryptanalysislib::copy<RandIt1, RandIt2, config>(first, last, dest);
+	cryptanalysislib::copy
+        <RandIt1, RandIt2, config>
+        (first, last, dest);
 	return internal::advanced(dest, n);
 }
 
@@ -126,7 +126,9 @@ RandIt2 copy_n(ExecPolicy &&policy,
     }
 
     RandIt1 last = internal::advanced(first, n);
-    cryptanalysislib::copy<ExecPolicy, RandIt1, RandIt2, config>(std::forward<ExecPolicy>(policy), first, last, dest);
+    cryptanalysislib::copy
+        <ExecPolicy, RandIt1, RandIt2, config>
+        (std::forward<ExecPolicy>(policy), first, last, dest);
     return internal::advanced(dest, n);
 }
 

@@ -151,7 +151,6 @@ TEST(SubSetSum, JoinForLevelThree) {
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
-	ident();
 	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }

@@ -2,7 +2,7 @@
 #define CRYPTANALYSISLIB_ALGORITHM_H
 
 #include <cstdlib>
-#include "helper.h"
+#include "thread/thread.h"
 
 // TODO write a algo version which does not wait (and returns a future)
 //      only possible on function that return something
@@ -18,7 +18,7 @@ struct AlgorithmConfig {
 /// if threads should be used (maybe the problem is to small) and if yes,
 /// how many.
 /// \param policy 
-/// \param config 
+/// \param config derivation of `AlgorithmConfig` which implements a `min_size_per_thread` field.
 /// \param size problem size: number of elements to be processed 
 /// \return the number of threads that should be used. If zero it means that 
 ///     no threading should be used.
@@ -36,8 +36,9 @@ template <class ExecPolicy,
     }
 
     const uint32_t pnt = policy.pool()->get_num_threads();
-    const uint32_t nt = std::min((uint32_t)((size+config.min_size_per_thread - 1)/config.min_size_per_thread),
-                                pnt);
+    const uint32_t nt = std::min(
+        (uint32_t)((size+config.min_size_per_thread - 1)/config.min_size_per_thread),
+        pnt);
     return nt;
 }
 
