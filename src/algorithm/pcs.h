@@ -5,6 +5,7 @@
 #include "thread/thread.h"
 
 /// TODO multithreading and then pcs
+/// TODO Rho without Floyds cycle finding
 
 #if __cplusplus > 201709L
 #include <concepts>

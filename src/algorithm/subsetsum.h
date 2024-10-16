@@ -101,6 +101,56 @@ struct SubSetSumCmp {
 	}
 };
 
+/// TREE(x, y):
+///                   out
+///                 ┌───┐                  level 2
+///                 └───┘ match on x
+///                l_1│l_2
+///         ┌─────────┴─────┐
+///      ┌──┴───┐           │              level 1
+///      └┐    ┌┘           │
+///       └┐  ┌┘HMiL        │
+///        └┬─┘match on x-y │
+///        0│l_1            │ match on y
+///     ┌───┴──┐           0│l_1
+///     │      │        ┌───┴───┐
+///   ┌─┴─┐ ┌──┴───┐ ┌──┼──┐ ┌──┼───┐      level 0
+///   │   │ └┐    ┌┘ │     │ └┐    ┌┘
+///   │   │  └┐  ┌┘  │     │  └┐  ┌┘
+///   └───┘   └──┘   └─────┘   └──┘
+///    L1     HML2      L1      HML2
+///
+/// instance to solve: <a, e> = t
+/// flavor values: b_1,b_2
+///
+/// // collision function
+/// f_i(x) = {
+///		i = lsb(x)
+///		s = rng(0, 2**(l_2+l_1))
+///		iT= rng(0, 2**(l_1))
+///		// NOTE: iT++ if no solution found
+///		o = i == 0 ? TREE(s, iT) : TREE(t-s, iT)
+///		return o
+/// }
+///
+/// // flavour function
+/// P(x) {
+///		return b_1 * x + b_2
+/// }
+///
+/// rho() = {
+///		x1,y1 = rng(0, 2**n), rng(0, 2**n)
+///		x2,y2 = 0,0
+///
+///		// NOTE: the loop also ends if a max length is reached
+///		while(x1 != y1 &&
+///			  lsb(x2) != lsb(y2)) {
+///			x2,y2 = x1,y1
+///			x1 = P(f_i(x1))
+///			y1 = P(f_i(f_i(y1)))
+///		}
+/// }
+///
 template<const SSS &instance>
 class sss_d2 {
 public:
@@ -132,8 +182,8 @@ public:
 		using rho = PollardRho<SubSetSumCmp<Element>, Element>;
 
 		/// allocate the enumerator and the base lists
-		using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, instance.bp>;
-		// using Enumerator = BinaryLexicographicEnumerator<List, n/2, instance.bp>;
+		// using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, instance.bp>;
+		using Enumerator = BinaryLexicographicEnumerator<List, n/2, instance.bp>;
 		constexpr static size_t size = Enumerator::max_list_size;
 		List L1{size}, L2{size}, out{50};
 
@@ -174,12 +224,11 @@ public:
 		x.random();
 		y.random();
 
-		auto flavour = [&](const Element &e) __attribute__((always_inline)){
+		auto flavour = [&](Element &e) __attribute__((always_inline)){
 			constexpr static L a = 2, b = 2;
 			const L c = a * e.label.value() + b;
 			int2weight_bits<V, L>(e.value.ptr(), c, n, n, instance.bp);
-			e.recompute_label(A);
-			return e;
+			e.recalculate_label(A);
 		};
 
 		while (true) {
@@ -187,46 +236,35 @@ public:
 			const bool val = rho::run(
 			    [&](const Element &in) __attribute__((always_inline)){
 					// choose a random intermediate target
-					Label t1, iT, one;
-					iT.random(0, 1ull << k_upper1);
+					Label s, tree_target, tree_iT, tmp_iT, one;
+					s.random(0, 1ull << k_upper2);
+					tree_iT.random(0, 1ull << k_upper1);
+
+					//
+					if (in.label.value() & 1u) {
+						Label::sub(tree_target, target, s);
+					} else {
+						tree_target = s;
+					}
 
 					// restart the tree, as long as we do not have any outputs
 					while (out.load() == 0) {
-						Label::add(iT, iT, one);
-						Label::sub(t1, target, iT);
+						Label::add(tree_iT, tree_iT, one);
+						Label::sub(tmp_iT, tree_target, tree_iT);
 
 						// join to intermediate list (hashmap)
 						// NOTE: `prepare==false`, because its already done
-						t.join2lists_on_iT_hashmap_v2
+						t.template join2lists_on_iT_hashmap_v2
 							<k_lower1, k_upper1>
-							(*hmL2, L1, L2, *hmiL, iT, false);
+							(*hmiL, L1, L2, *hmL2, tree_iT, false);
 
 						// join to output list
-						t.twolevel_streamjoin_on_iT_hashmap_v2
+						t.template twolevel_streamjoin_on_iT_hashmap_v2
 							<k_lower1, k_upper1, k_lower2, k_upper2>
-							(out, *hmL2, L1, L2, *hmiL, target, t1);
+							(out, *hmiL, L1, L2, *hmL2, target, tmp_iT);
 					}
 
-			        Element ret;
-			        for (size_t i = 0; i < out.load(); ++i) {
-				        // TODO do something
-				        // const auto el = out[i];
-
-				        // remap each solution back to a binary string of weight n //4
-				        static uint32_t weights[n / 4];
-				        int2weights<L>(weights, in.label.value(), n, n / 4, n / 4);
-
-				        // super simple distinguish function
-				        if (in.label.value() & 1u) {
-					        ret.label += target;
-				        }
-
-				        for (uint32_t j = 0; j < n / 4; j++) {
-					        ret.label += A[0][weights[i]];
-				        }
-			        }
-
-			        // TODO return something
+			        Element ret = out[0];
 			        return ret;
 			    },
 			    x, y, instance.walk_len);
