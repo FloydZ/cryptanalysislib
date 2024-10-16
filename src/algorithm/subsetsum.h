@@ -52,13 +52,19 @@ constexpr static void generate_subsetsum_instance(Label &target,
 }
 
 
-
+///
 struct SSS {
+	/// these are just fake numbers. Enter your own correct ones.
     const uint32_t n = 32;
     const uint64_t q = 1ull << n;
+	const uint32_t bp = 1;
+	const uint32_t l1 = 9;
+	const uint32_t l2 = 11;
     const uint64_t walk_len = 1u << 4u;
 };
 
+/// 
+/// @tparam Element 
 template<class Element>
 struct SubSetSumCmp {
     using Label = Element::LabelType;
@@ -96,7 +102,7 @@ struct SubSetSumCmp {
 };
 
 template<const SSS &instance>
-class sss {
+class sss_d2 {
 public:
     constexpr static uint32_t n = instance.n;
     constexpr static uint64_t q = instance.q;
@@ -104,79 +110,138 @@ public:
 	using T 		= uint64_t;
 	using Value     = BinaryVector<n>;
     using Label     = kAry_Type_T<q>;
-	using Matrix 	= FqVector<T, n, q, true>;
+	using Matrix 	= FqVector<T, n, q>;
 	using Element	= Element_T<Value, Label, Matrix>;
 	using List		= List_T<Element>;
 	using Tree		= Tree_T<List>;
 	using L 		= Label::LimbType;
+	using V 		= Value::LimbType;
 
 	Matrix A;
 	Label target;
-	constexpr sss(Matrix &A, Label &target) noexcept
+	constexpr sss_d2(Matrix &A, Label &target) noexcept
 	    : A(A), target(target) {
 	}
 
 	bool run() noexcept {
-		// enumerate weight n//4 on n//2 coordinates.
-		// NOTE: elements are randomly chosen, so no chase sequence or whatsoever
-		using Enumerator = BinaryRandomEnumerator<List, n / 2, n / 4>;
-		Enumerator en{A};
+		constexpr static uint32_t k_lower1 = 0,
+								  k_upper1 = instance.l1,
+								  k_lower2 = instance.l1,
+								  k_upper2 = instance.l1+instance.l2;
 
 		using rho = PollardRho<SubSetSumCmp<Element>, Element>;
 
-		constexpr static size_t size = 1ull << (n / 4u);
-		List L1{size}, L2{size}, out{size};
+		/// allocate the enumerator and the base lists
+		using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, instance.bp>;
+		// using Enumerator = BinaryLexicographicEnumerator<List, n/2, instance.bp>;
+		constexpr static size_t size = Enumerator::max_list_size;
+		List L1{size}, L2{size}, out{50};
 
-		// write random elements in the lists in a mitm split. The elements will have
-		// weight n//4 on each halve.
-		en.template run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 4);
+		Enumerator en{A};
+		en.template run
+			<std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			(&L1, &L2, n/2);
 
+		using D = typename Label::DataType;
+		using E = std::pair<size_t, size_t>;
+
+		// constexpr static size_t factor = 2;
+		constexpr static size_t L1_bucketsize = 10; // factor * (Enumerator::max_list_size >> (instance.l1));
+		constexpr static size_t iL_bucketsize = 10; // factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2));
+
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+				L1_bucketsize, 1ull<<(k_upper1-k_lower1), 1
+		};
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
+				iL_bucketsize, 1ull<<(k_upper2-k_lower2), 1
+		};
+
+		using HML2 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower1, k_upper1, 2>>;
+		using HMiL = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_lower2, k_upper2, 2>>;
+		HML2 *hmL2 = new HML2{};
+		HMiL *hmiL = new HMiL{};
+
+		/// prepare the hashmaps
+		for (size_t i = 0; i < L2.load(); ++i) {
+			hmL2->insert(L2[i].label.value(), i);
+		}
+
+		/// dummy object
 		Tree t{1, A, 0};
 
+		Label one; one.set(1, 0);
+		Element x, y;
+		x.random();
+		y.random();
 
-		Element a, b;
-		a.random();
-		b.random();
+		auto flavour = [&](const Element &e) __attribute__((always_inline)){
+			constexpr static L a = 2, b = 2;
+			const L c = a * e.label.value() + b;
+			int2weight_bits<V, L>(e.value.ptr(), c, n, n, instance.bp);
+			e.recompute_label(A);
+			return e;
+		};
 
 		while (true) {
 			/// restart every X runs
 			const bool val = rho::run(
-			        [&](const Element &in) {
-				        // merge the two base lists on the full length ([0, n)) on the target
-				        // t.join2lists(out, L1, L2, target, 0, n, false);
+			    [&](const Element &in) __attribute__((always_inline)){
+					// choose a random intermediate target
+					Label t1, iT, one;
+					iT.random(0, 1ull << k_upper1);
 
-				        Element ret;
-				        for (size_t i = 0; i < out.load(); ++i) {
-					        // TODO do something
-					        // const auto el = out[i];
+					// restart the tree, as long as we do not have any outputs
+					while (out.load() == 0) {
+						Label::add(iT, iT, one);
+						Label::sub(t1, target, iT);
 
-					        // remap each solution back to a binary string of weight n //4
-					        static uint32_t weights[n / 4];
-					        int2weights<L>(weights, in.label.value(), n, n / 4, n / 4);
+						// join to intermediate list (hashmap)
+						// NOTE: `prepare==false`, because its already done
+						t.join2lists_on_iT_hashmap_v2
+							<k_lower1, k_upper1>
+							(*hmL2, L1, L2, *hmiL, iT, false);
 
-					        // super simple distinguish function
-					        if (in.label.value() & 1u) {
-						        ret.label += target;
-					        }
+						// join to output list
+						t.twolevel_streamjoin_on_iT_hashmap_v2
+							<k_lower1, k_upper1, k_lower2, k_upper2>
+							(out, *hmL2, L1, L2, *hmiL, target, t1);
+					}
 
-					        for (uint32_t j = 0; j < n / 4; j++) {
-						        ret.label += A[0][weights[i]];
-					        }
+			        Element ret;
+			        for (size_t i = 0; i < out.load(); ++i) {
+				        // TODO do something
+				        // const auto el = out[i];
+
+				        // remap each solution back to a binary string of weight n //4
+				        static uint32_t weights[n / 4];
+				        int2weights<L>(weights, in.label.value(), n, n / 4, n / 4);
+
+				        // super simple distinguish function
+				        if (in.label.value() & 1u) {
+					        ret.label += target;
 				        }
 
-				        // TODO return something
-				        return ret;
-			        },
-			        a, b, 1u << 6);
+				        for (uint32_t j = 0; j < n / 4; j++) {
+					        ret.label += A[0][weights[i]];
+				        }
+			        }
+
+			        // TODO return something
+			        return ret;
+			    },
+			    x, y, instance.walk_len);
 
 			if (val) {
 				break;
 			}
 
 			// resample the flavour
-			a.random(A);
-			b.random(A);
+			x.random(A);
+			y.random(A);
 		}
+
+		delete hmL2;
+		delete hmiL;
 	}
 };
 

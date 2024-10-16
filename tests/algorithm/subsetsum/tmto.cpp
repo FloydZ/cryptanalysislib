@@ -6,7 +6,7 @@
 #include "algorithm/random_index.h"
 #include "algorithm/subsetsum.h"
 
-#include "subsetsum.h"
+#include "algorithm/subsetsum.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -16,9 +16,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO: wrapper function for level2 hashmap with callback lambda for elements in last list.
-//	- also include all these hashmap declaration in extra functions
-//  - also simplify the enumerator interface to only need the lists as inputs and not the offset.
+// TODO: simplify the enumerator interface to only need the lists as inputs and not the offset.
 
 // TODO: PCS algorithm: remap the output of the tree as the next iT of the next iteration
 //		flavor function: f = a*x+b mod p, p <= 2^k_upper1
@@ -33,7 +31,7 @@ TEST(SubSetSum, n32_d2_baselists2) {
 	using T 			= uint64_t;
 	using Value     	= BinaryVector<n>;
 	using Label    		= kAry_Type_T<q>;
-	using Matrix 		= FqVector<T, n, q, true>;
+	using Matrix 		= FqVector<T, n, q>;
 	using Element		= Element_T<Value, Label, Matrix>;
 	using List			= List_T<Element>;
 	using Tree			= Tree_T<List>;
@@ -58,6 +56,29 @@ TEST(SubSetSum, n32_d2_baselists2) {
 
 	EXPECT_GT(out.load(), 0);
 }
+
+TEST(SubSetSum, n32_d2_rho) {
+	constexpr uint32_t n = 32;
+	constexpr uint32_t q = 1ul << n;
+	constexpr static SSS instance{.n=n, .q=q, .bp=2, .l1=5, .l2=7};
+	using S = sss_d2<instance>;
+
+	using Value  = S::Value;
+	using Label  = S::Label;
+	using Matrix = S::Matrix;
+	using Element= S::Element;
+	using List   = S::List;
+	using Tree   = S::Tree;
+
+	Matrix A; A.random();
+	Label target;
+	std::vector<uint32_t> weights(n/2);
+	generate_subsetsum_instance(target, weights, A, n);
+
+	S s(A, target);
+	s.run();
+}
+
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

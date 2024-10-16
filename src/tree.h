@@ -1907,6 +1907,7 @@ public:
 	}
 
 	/// TODO not finished
+	/// NOTE: multithreaded
 	template<const uint32_t k_lower,
 	         const uint32_t k_upper,
 			 const uint32_t bucketsize,
@@ -2497,9 +2498,9 @@ public:
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			 const uint32_t k_lower2, const uint32_t k_upper2>
 	void join4lists_twolists_on_iT_v2(List &out,
-											 const List &L1, List &L2,
-											 const LabelType &target,
-											 const bool prepare = true) noexcept {
+									  const List &L1, List &L2,
+									  const LabelType &target,
+									  const bool prepare = true) noexcept {
 		(void)k_lower2;
 		List iL{static_cast<size_t>(L1.size() * config.intermediatelist_size_factor)};
 		out.set_load(0);
@@ -2634,12 +2635,12 @@ public:
 												HashMapL0 &hmL0,
 												HashMapL1 &hmL1,
 												const LabelType &target,
+												const LabelType &iT,
 												const bool prepare = true) noexcept {
 		constexpr static uint32_t n = LabelType::bits();
 		(void)k_lower2;
 		ElementType tmpe1;
-		LabelType t1, iT;
-		iT.random(0, 1ull << k_upper1);
+		LabelType t1;
 		const size_t iLs = join2lists_on_iT_hashmap_v2
 				<k_lower1, k_upper1>
 				(hmL1, L1, L2, hmL0, iT, prepare);
@@ -2666,6 +2667,7 @@ public:
 		twolevel_streamjoin_on_iT_hashmap_v2
 		    <k_lower1, k_upper1, k_lower2, k_upper2>
 		    (out, hmL1, L1, L2, hmL0, target, t1, f);
+
 		std::cout << "|L1|: " << std::log2(L1.load() * 1.0) << ", " << L1.load() << std::endl;
 		std::cout << "|iL|: " << std::log2(iLs * 1.0) << ", " << iLs << std::endl;
 		std::cout << "|L| : " << std::log2(Ls * 1.0) << ", " <<  Ls << std::endl;
@@ -2733,9 +2735,11 @@ public:
 		HML0 *hml0 = new HML0{};
 		HML1 *hml1 = new HML1{};
 
+		LabelType iT;
+		iT.random(0, 1ull << k_upper1);
 		join4lists_twolists_on_iT_hashmap_f_v2
 				<k_lower1, k_upper1, k_lower2, k_upper2>
-				(out, L1, L2, *hml0, *hml1, target, prepare);
+				(out, L1, L2, *hml0, *hml1, target, iT, prepare);
 
 		delete hml0;
 		delete hml1;

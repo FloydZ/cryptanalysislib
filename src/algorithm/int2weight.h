@@ -10,11 +10,12 @@
 /// \param n	bitlength of n
 /// \param wt max index size
 /// \param k how many indices to generate
-template<typename T>
+template<typename D, typename T>
 #if __cplusplus > 201709L
-	requires std::is_arithmetic_v<T>
+	requires std::is_arithmetic_v<T> &&
+			 std::is_arithmetic_v<D>
 #endif
-constexpr void int2weights(uint32_t *weights,
+constexpr void int2weights(D *weights,
                            const T in,
                            const uint32_t n,
                            const uint32_t wt,
@@ -22,7 +23,6 @@ constexpr void int2weights(uint32_t *weights,
 	T a = in;
 	uint32_t wn = n;
 	uint32_t wk = wt;
-	// uint64_t v = 0;
 	uint32_t set = 0;
 	while (wn != 0) {
 		if ((set == wt) || (set == k)) {
@@ -43,11 +43,47 @@ constexpr void int2weights(uint32_t *weights,
 	}
 }
 
-template<typename T>
+template<typename D, typename T>
 #if __cplusplus > 201709L
-	requires std::is_arithmetic_v<T>
+	requires std::is_arithmetic_v<T> &&
+			 std::is_arithmetic_v<D>
 #endif
-void int2weights(std::vector<T> &weights,
+constexpr void int2weight_bits(D *weights,
+                               const T in,
+                               const uint32_t n,
+                               const uint32_t wt,
+                               const uint32_t k) noexcept {
+	T a = in;
+	uint32_t wn = n;
+	uint32_t wk = wt;
+	uint32_t set = 0;
+	*weights = 0ull;
+	while (wn != 0) {
+		if ((set == wt) || (set == k)) {
+			break;
+		} else if (wn + set == wt) {
+			*weights ^= wn - 1;
+			wn -= 1;
+			set += 1;
+		} else if (a < binom(wn - 1, wk)) {
+			wn -= 1;
+		} else {
+			a -= binom(wn - 1, wk);
+			*weights ^= wn - 1;
+			wn -= 1;
+			wk -= 1;
+			set += 1;
+		}
+	}
+}
+
+template<typename D,
+		 typename T>
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<T> &&
+	         std::is_arithmetic_v<D>
+#endif
+void int2weights(std::vector<D> &weights,
 				const T in,
 				const uint32_t n,
 				const uint32_t wt) {

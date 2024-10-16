@@ -1368,6 +1368,7 @@ private:
 	T __value;
 };
 
+/// TODO remove
 template<const uint64_t q,
 		 class Metric = HammingMetric,
 		 const FqConfig &config=fqConfig>
