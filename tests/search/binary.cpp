@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include "common.h"
+
+#include "random.h"
 #include "search/search.h"
 #include "container/fq_vector.h"
 #include "list/list.h"

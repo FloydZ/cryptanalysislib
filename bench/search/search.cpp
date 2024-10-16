@@ -4,7 +4,6 @@
 #include <cstdlib>
 
 #include "search/search.h"
-#include "../tests/search/common.h"
 
 using T = uint64_t;
 std::vector<T> data;

@@ -8,7 +8,6 @@
 #include "container/fq_vector.h"
 #include "list/list.h"
 #include "sort/sort.h"
-#include "../tests/search/common.h"
 
 constexpr size_t n = 20;
 constexpr size_t q = 3;

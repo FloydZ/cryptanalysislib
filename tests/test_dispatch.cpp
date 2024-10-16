@@ -17,7 +17,7 @@ uint32_t test1(const uint32_t a) {
     uint32_t ret = 0;
     for (uint32_t i = 0; i < a; i++) {
     	// just make it expensive
-        ret += sqrtf64(i*a);
+        ret += sqrtf(i*a);
     }
     return ret;
 }

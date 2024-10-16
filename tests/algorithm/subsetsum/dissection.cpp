@@ -9,7 +9,7 @@
 #include "matrix/matrix.h"
 #include "tree.h"
 
-#include "subsetsum.h"
+#include "algorithm/subsetsum.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

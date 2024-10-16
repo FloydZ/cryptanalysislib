@@ -135,7 +135,7 @@ static uint64_t __xorshf128_S1 = 998234767632513414;
 /// to 2^64 calls to next(); it can be used to generate 2^64 non-overlapping
 /// subsequences for parallel computations.
 constexpr static inline void jump() noexcept {
-	static const uint64_t JUMP[] = {0xdf900294d8f554a5, 0x170865df4b3201fc};
+	constexpr uint64_t JUMP[] = {0xdf900294d8f554a5, 0x170865df4b3201fc};
 
 	uint64_t s0 = 0;
 	uint64_t s1 = 0;
@@ -158,7 +158,7 @@ constexpr static inline void jump() noexcept {
 /// each of which jump() will generate 2^32 non-overlapping subsequences for
 /// parallel distributed computations.
 constexpr static inline void long_jump() noexcept {
-	static const uint64_t LONG_JUMP[] = {0xd2a98b26625eee7b, 0xdddf9b1090aa7ac1};
+	constexpr uint64_t LONG_JUMP[] = {0xd2a98b26625eee7b, 0xdddf9b1090aa7ac1};
 
 	uint64_t s0 = 0;
 	uint64_t s1 = 0;
@@ -477,7 +477,7 @@ extern void shuffle_2(RandomIt first, RandomIt last, URBG &&g) {
 				  }
 		);
 
-		ASSERT(std::is_sorted(data.begin(), data.end()));
+	    assert(std::is_sorted(data.begin(), data.end()));
 		solution_index = rng() % size;
 
 		if (nr_sols > 1ull) {

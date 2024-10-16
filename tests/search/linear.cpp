@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
+
+#include "random.h"
 #include "search/search.h"
-#include "common.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;

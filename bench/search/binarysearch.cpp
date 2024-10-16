@@ -7,8 +7,6 @@
 #include "random.h"
 #include "search/search.h"
 
-#include "../tests/search/common.h"
-
 using T = uint64_t;
 
 // Size of the list to search

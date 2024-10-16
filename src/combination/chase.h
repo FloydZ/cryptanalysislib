@@ -623,7 +623,7 @@ public:
 	/// \param ret
 	/// \param listsize
 	/// \return
-	constexpr static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
+	static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 	                       const size_t listsize = 0) noexcept {
 		const size_t size = listsize == 0 ? chase_size : listsize;
 		ret.resize(size);

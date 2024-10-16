@@ -1,7 +1,6 @@
 #include <benchmark/benchmark.h>
 
 #include "sort/sort.h"
-#include "../tests/search/common.h"
 
 constexpr size_t LS = 1u << 10u;
 size_t search_index;

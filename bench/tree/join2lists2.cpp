@@ -9,7 +9,6 @@
 #include "sort/sort.h"
 #include "list/list.h"
 #include "tree.h"
-#include "../tests/search/common.h"
 
 constexpr uint64_t n    = 32ul;
 constexpr uint64_t q    = (1ul << n);
