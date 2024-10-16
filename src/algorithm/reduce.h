@@ -209,10 +209,13 @@ namespace cryptanalysislib {
 						   first, last, init, std::plus<T>());
 	}
 
-	/**
-	 * NOTE: Iterators are expected to be random access.
-	 * See std::reduce https://en.cppreference.com/w/cpp/algorithm/reduce
-	 */
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \tparam config
+	/// \param policy
+	/// \param first
+	/// \param last
+	/// \return
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmReduceConfig &config=algorithmReduceConfig>
@@ -223,8 +226,10 @@ namespace cryptanalysislib {
 	reduce(ExecPolicy &&policy,
 		   RandIt first,
 		   RandIt last) noexcept {
-		return cryptanalysislib::reduce(std::forward<ExecPolicy>(policy), first, last,
-						   typename std::iterator_traits<RandIt>::value_type{});
+		return cryptanalysislib::reduce
+			<ExecPolicy, RandIt, config>
+		(std::forward<ExecPolicy>(policy), first, last,
+		typename std::iterator_traits<RandIt>::value_type{});
 	}
 
 }// end namespace cryptanalyslib

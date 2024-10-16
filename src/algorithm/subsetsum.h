@@ -63,7 +63,7 @@ struct SSS {
     const uint64_t walk_len = 1u << 4u;
 };
 
-/// 
+///
 /// @tparam Element 
 template<class Element>
 struct SubSetSumCmp {
@@ -124,12 +124,10 @@ struct SubSetSumCmp {
 /// flavor values: b_1,b_2
 ///
 /// // collision function
-/// f_i(x) = {
-///		i = lsb(x)
-///		s = rng(0, 2**(l_2+l_1))
-///		iT= rng(0, 2**(l_1))
+/// f_i(s, iT) = {
+///		i = lsb(s)
 ///		// NOTE: iT++ if no solution found
-///		o = i == 0 ? TREE(s, iT) : TREE(t-s, iT)
+///		o = (i == 0) ? TREE(s, iT) : TREE(t-s, iT)
 ///		return o
 /// }
 ///
@@ -139,16 +137,28 @@ struct SubSetSumCmp {
 /// }
 ///
 /// rho() = {
-///		x1,y1 = rng(0, 2**n), rng(0, 2**n)
+///		//
+///		x1,y1 = rng(0, 2**n), f_i(x1)
 ///		x2,y2 = 0,0
+///
+///		iT= rng(0, 2**(l_1))
+///		s = rng(0, 2**(l_2+l_1))
 ///
 ///		// NOTE: the loop also ends if a max length is reached
 ///		while(x1 != y1 &&
-///			  lsb(x2) != lsb(y2)) {
 ///			x2,y2 = x1,y1
-///			x1 = P(f_i(x1))
-///			y1 = P(f_i(f_i(y1)))
+///			// TODO fix inputs
+///			x1 = P(f_i(x2))
+///			y1 = P(f_i(f_i(y2)))
 ///		}
+///
+///		if (lsb(x2) != lsb(y2)) {
+///			return found
+///		}
+///
+///		x1 = P(x2)
+///		y1 = P(y2)
+///		TODO restart
 /// }
 ///
 template<const SSS &instance>
@@ -167,12 +177,13 @@ public:
 	using L 		= Label::LimbType;
 	using V 		= Value::LimbType;
 
-	Matrix A;
-	Label target;
-	constexpr sss_d2(Matrix &A, Label &target) noexcept
+	const Matrix A;
+	const Label target;
+	constexpr sss_d2(const Matrix &A, const Label &target) noexcept
 	    : A(A), target(target) {
 	}
 
+	///
 	bool run() noexcept {
 		constexpr static uint32_t k_lower1 = 0,
 								  k_upper1 = instance.l1,
@@ -195,9 +206,9 @@ public:
 		using D = typename Label::DataType;
 		using E = std::pair<size_t, size_t>;
 
-		// constexpr static size_t factor = 2;
-		constexpr static size_t L1_bucketsize = 10; // factor * (Enumerator::max_list_size >> (instance.l1));
-		constexpr static size_t iL_bucketsize = 10; // factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2));
+		constexpr static size_t factor = 2;
+		constexpr static size_t L1_bucketsize = factor * (Enumerator::max_list_size >> (instance.l1));
+		constexpr static size_t iL_bucketsize = factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2 + instance.l1));
 
 		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
 				L1_bucketsize, 1ull<<(k_upper1-k_lower1), 1
@@ -233,8 +244,11 @@ public:
 
 		while (true) {
 			/// restart every X runs
-			const bool val = rho::run(
+			const bool found = rho::run(
 			    [&](const Element &in) __attribute__((always_inline)){
+					// reset a few things
+					out.set_load(0);
+
 					// choose a random intermediate target
 					Label s, tree_target, tree_iT, tmp_iT, one;
 					s.random(0, 1ull << k_upper2);
@@ -249,6 +263,7 @@ public:
 
 					// restart the tree, as long as we do not have any outputs
 					while (out.load() == 0) {
+						hmiL->clear();
 						Label::add(tree_iT, tree_iT, one);
 						Label::sub(tmp_iT, tree_target, tree_iT);
 
@@ -269,17 +284,21 @@ public:
 			    },
 			    x, y, instance.walk_len);
 
-			if (val) {
-				break;
-			}
+			/// found a soluiton
+			if (found) { break; }
 
 			// resample the flavour
 			x.random(A);
 			y.random(A);
 		}
 
+		// TODO recover solution/remove flavour
+		std::cout << x << std::endl;
+		std::cout << y << std::endl;
 		delete hmL2;
 		delete hmiL;
+
+		return true;
 	}
 };
 

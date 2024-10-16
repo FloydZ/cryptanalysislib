@@ -1,25 +1,29 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_ARGMAX_H
 #define CRYPTANALYSISLIB_ALGORITHM_ARGMAX_H
 
+#include "apply.h"
+
+
 #include <concepts>
-#include <cstdlib>
 #include <cstdint>
-#include <type_traits>
+#include <cstdlib>
 #include <limits.h>
+#include <type_traits>
 
 #include "simd/simd.h"
+#include "thread/thread.h"
 
-/// TODO multithreading
 namespace cryptanalysislib {
     struct AlgorithmArgMaxConfig {
     public:
         constexpr static size_t aligned_instructions = false;
+    	constexpr static uint32_t min_size_per_thread = 1024;
     };
     constexpr static AlgorithmArgMaxConfig algorithmArgMaxConfig{};
 
 
     /// forward declaration
-    template<typename T>
+    template<typename T, const AlgorithmApplyConfig &config>
 	[[nodiscard]] constexpr static inline size_t argmax(const T *a, const size_t n) noexcept;
 
 	/// \tparam S
@@ -28,7 +32,7 @@ namespace cryptanalysislib {
 	/// \param n
 	/// \return
 	template<typename S=uint32x8_t,
-            const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
+             const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
 	[[nodiscard]] constexpr static inline size_t argmax_simd_u32(const uint32_t *a,
 	                                               				 const size_t n) noexcept {
 		uint32_t max = 0;
@@ -99,13 +103,18 @@ namespace cryptanalysislib {
 		}
 
 		return idx;	}
- 
-    template<typename S=uint32x8_t,
+
+	/// \tparam S
+	/// \tparam config
+	/// \param a
+	/// \param n
+	/// \return
+	template<typename S=uint32x8_t,
              const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
 	[[nodiscard]] constexpr static inline size_t argmax_simd_u32_bl32(const uint32_t *a,
 	                                                    const size_t n) noexcept {
         constexpr size_t t = S::LIMBS;
-        constexpr size_t t4 = 2*t;
+        constexpr size_t t4 = 4*t;
 		uint32_t max = 0;
 		auto p = S::set1(max);
 		size_t i = 0, idx = 0;
@@ -145,20 +154,23 @@ namespace cryptanalysislib {
 		return idx2;
 	}
 
-    /// generic fallback implementation
-	/// \tparam T 
-	/// \param a array you want to sort
-	/// \param n number of elements in this array
-	/// \return position of the max element
-	template<typename T>
+	/// \tparam Iterator
+	/// \tparam config
+	/// \param start
+	/// \param end
+	/// \return
+	template<class Iterator,
+             const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
 #if __cplusplus > 201709L
-	    requires std::totally_ordered<T>
+	    requires std::forward_iterator<Iterator>
 #endif
-	[[nodiscard]] constexpr static inline size_t argmax(const T *a,
-	                                                    const size_t n) noexcept {
+	[[nodiscard]] constexpr static inline size_t argmax(Iterator start,
+														Iterator end) noexcept {
+		using T = Iterator::value_type;
+		const size_t len = std::distance(start, end);
 		size_t k = 0;
-		for (size_t i = 0; i < n; i++) {
-			if (a[i] > a[k]) [[unlikely]] {
+		for (size_t i = 1; i < len; i++) {
+			if (*(start+i) > *(start + k)) [[unlikely]] {
 				k = i;
 			}
 		}
@@ -167,21 +179,67 @@ namespace cryptanalysislib {
 	}
 
     /// helper wrapper
-	template<typename T>
-#if __cplusplus > 201709L
-	    requires std::totally_ordered<T>
-#endif
-	[[nodiscard]] constexpr static inline size_t argmax(const std::vector<T> &a) noexcept {
-        return argmax(a.data(), a.size());
-	}
+//	template<typename T,
+//             const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
+//#if __cplusplus > 201709L
+//	    requires std::totally_ordered<T>
+//#endif
+//	[[nodiscard]] constexpr static inline size_t argmax(const std::vector<T> &a) noexcept {
+//        return argmax(a.data(), a.size());
+//	}
+//
+//    /// helper wrapper
+//	template<typename T,
+//			 const size_t n,
+//             const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
+//#if __cplusplus > 201709L
+//	    requires std::totally_ordered<T>
+//#endif
+//	[[nodiscard]] constexpr static inline size_t argmax(const std::array<T, n> &a) noexcept {
+//        return argmax(a.data(), n);
+//	}
 
-    /// helper wrapper
-	template<typename T, const size_t n>
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \param policy
+	/// \param first
+	/// \param last
+	/// \return
+	template <class ExecPolicy,
+			  class RandIt,
+              const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
 #if __cplusplus > 201709L
-	    requires std::totally_ordered<T>
+    requires std::random_access_iterator<RandIt>
 #endif
-	[[nodiscard]] constexpr static inline size_t argmax(const std::array<T, n> &a) noexcept {
-        return argmax(a.data(), n);
+	size_t argmax(ExecPolicy&& policy,
+				  RandIt first,
+				  RandIt last) noexcept {
+		using T = typename RandIt::value_type;
+
+		const auto size = static_cast<size_t>(std::distance(first, last));
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			return cryptanalysislib::argmax
+				<RandIt, config>(first, last);
+		}
+
+		auto futures = internal::parallel_chunk_for_1(
+			std::forward<ExecPolicy>(policy),
+			first, last,
+			cryptanalysislib::argmax<RandIt, config>,
+			(size_t *)0,
+			1, nthreads);
+
+		size_t m = futures[0].get();
+		T v = *(first + m);
+		for (size_t i = 1; i < nthreads; i++) {
+			T mm = futures[i].get();
+			if (*(first + m) > v) {
+				m = mm;
+			}
+		}
+
+		return m;
 	}
 }
 #endif

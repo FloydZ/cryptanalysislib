@@ -61,16 +61,19 @@ public:
 	/// \param max_iters: maximal iterations until to exit the algorithm
 	/// \return true/false if a solution/collision was found
 	template<class F>
+#if __cplusplus > 201709L
+	/// TODO F is a correct function
+#endif
 	[[nodiscard]] constexpr static bool run(F &&f,
-						T &col1, T &col2,
-						const size_t max_iters = size_t(-1ull)) noexcept {
+											T &col1, T &col2,
+											const size_t max_iters = size_t(-1ull)) noexcept {
 		Compare cmp;
 
 		size_t i = 0;
 		T a1=col1, b1=col2;
 		while (i < max_iters) {
 			const T a2 = f(a1);
-			const T b2_ =f(b1);
+			const T b2_= f(b1);
 			const T b2 = f(b2_);
 
 			if (cmp(a1, a2, b2_, b2)) {
@@ -83,6 +86,39 @@ public:
 			b1 = b2;
 			i += 1;
 		}
+
+		return false;
+	}
+
+	template<class F,
+			 class Flavour>
+#if __cplusplus > 201709L
+	/// TODO F,Flavour is a correct function
+#endif
+	[[nodiscard]] constexpr static bool run(F &&f,
+											Flavour &&flavour,
+											T &col1, T &col2,
+											const size_t max_iters = size_t(-1ull)) noexcept {
+		Compare cmp;
+
+		size_t i = 0;
+		T a1=col1, b1=col2;
+		while (i < max_iters) {
+			const T a2 = f(a1);
+			const T b2_= f(b1);
+			const T b2 = f(b2_);
+
+			if (cmp(a1, a2, b2_, b2)) {
+				col1 = a1;
+				col2 = b2_;
+				return true;
+			}
+
+			a1 = a2;
+			b1 = b2;
+			i += 1;
+		}
+
 		return false;
 	}
 };

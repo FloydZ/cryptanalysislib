@@ -253,6 +253,7 @@ namespace internal {
     /// \param extra_split_factor
     /// \param nthreads
     /// \param chunk_args
+    /// \returns the chunk size
     template <class ExecPolicy,
               class RandIt,
               class Chunk,
@@ -261,7 +262,8 @@ namespace internal {
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<RandIt>
 #endif
-    void parallel_chunk_for_1_wait(ExecPolicy &&policy,
+    auto
+    parallel_chunk_for_1_wait(ExecPolicy &&policy,
                                    RandIt first,
                                    RandIt last,
                                    Chunk chunk,
@@ -290,6 +292,8 @@ namespace internal {
                 thread.join();
             }
         }
+
+        return chunk_size;
     }
 
 
@@ -306,7 +310,8 @@ namespace internal {
     parallel_chunk_for_1(ExecPolicy &&policy,
                          RandIt first,
                          RandIt last,
-                         Chunk chunk, ChunkRet*,
+                         Chunk chunk,
+                         ChunkRet*,
                          const int extra_split_factor,
                          const uint32_t nthreads,
                          A&&... chunk_args) noexcept {

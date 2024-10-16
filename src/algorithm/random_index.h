@@ -9,6 +9,7 @@
 #include "random.h"
 
 using namespace cryptanalysislib;
+
 /// generates a list of rng entries mod max_entry
 /// NOTE:
 /// 	- As long as `max_entry_size` > `len`, every element will
@@ -19,8 +20,8 @@ using namespace cryptanalysislib;
 /// \tparam T type of the entries
 /// \param data output: list of entries, must be pre-allocated
 /// \param len size of the output list
-/// \param max_entry_size max size of the entry
-/// \param min_entry_size min size of the entry
+/// \param max_entry max size of the entry
+/// \param min_entry min size of the entry
 template<typename T>
 constexpr void generate_random_indices(T *data,
                                        const size_t len,

@@ -137,7 +137,7 @@ public:
 		clear();
 
 		for (uint32_t row = 0; row < nrows; ++row) {
-			for (uint32_t col = 0; col < limbs(); ++col) {
+			for (uint32_t col = 0; col < ncols; ++col) {
 				const auto d = A.get(row, col);
 				set(d, row, col);
 			}

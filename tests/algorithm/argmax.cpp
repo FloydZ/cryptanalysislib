@@ -15,17 +15,6 @@ using ::testing::UnitTest;
 using namespace cryptanalysislib;
 
 
-TEST(argmax, uint32_t) {
-	constexpr size_t s = 100;
-	auto d = new uint32_t [s];
-	for (size_t i = 0; i < s; ++i) { d[i] = i; }
-
-	const auto t = argmax(d, s);
-	ASSERT_EQ(t, s-1);
-
-	delete[] d;
-}
-
 TEST(argmax, simd_uint32_t) {
 	constexpr size_t s = 100;
 	auto d = new uint32_t [s];
@@ -77,6 +66,18 @@ TEST(argmax, simd_uint32_t_bl32) {
 
 	delete[] d;
 }
+
+
+TEST(argmax, int_multithreading) {
+    constexpr static size_t s = 10000;
+    using T = int;
+    std::vector<T> in; in.resize(s);
+	for (size_t i = 0; i < s; ++i) { in[i] = i; }
+
+    const auto d = cryptanalysislib::argmax(par_if(true), in.begin(), in.end());
+    EXPECT_EQ(d, s-1);
+}
+
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

@@ -73,6 +73,7 @@ namespace cryptanalysislib {
 			cryptanalysislib::count_if<RandIt, UnaryPredicate, config>,
 			(T*)nullptr,
 			1, nthreads, p);
+
 		return std::reduce(
 			internal::get_wrap(futures.begin()),
 			internal::get_wrap(futures.end()), (T)0, std::plus<T>());
@@ -149,7 +150,6 @@ namespace cryptanalysislib {
 
 	/// \tparam ExecPolicy
 	/// \tparam RandIt
-	/// \tparam T
 	/// \param policy
 	/// \param first
 	/// \param last

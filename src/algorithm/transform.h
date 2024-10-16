@@ -117,7 +117,7 @@ namespace cryptanalysislib {
 										  InputIt1 last1,
 										  InputIt2 first2,
 										  const typename InputIt1::value_type init) noexcept {
-		using T = InputIt1::value;
+		using T = InputIt1::value_type;
 		return transform_reduce(first1, last1, first2, init, std::plus<T>(), std::multiplies<T>());
 	}
 

@@ -20,6 +20,9 @@ public:
 	// if `true` sorting is increasing, else decresing
 	constexpr static bool sort_increasing_order = true;
 
+	// if 'true', add_and_append will be allow to resize
+	constexpr static bool allow_resize = true;
+
 	static void info() noexcept {
 		std::cout << " { name=\"ListConfig\""
 				  << " , use_std_sort:" << use_std_sort
@@ -290,6 +293,7 @@ protected:
 	constexpr static bool use_std_binary_search = config.use_std_binary_search;
 	constexpr static bool sort_increasing_order = config.sort_increasing_order;
 	constexpr static bool use_interpolation_search = config.use_interpolation_search;
+	constexpr static bool allow_resize = config.allow_resize;
 
 public:
 

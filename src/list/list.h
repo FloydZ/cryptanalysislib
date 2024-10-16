@@ -67,6 +67,7 @@ public:
 	using MetaListT<Element>::use_std_binary_search;
 	using MetaListT<Element>::use_interpolation_search;
 	using MetaListT<Element>::sort_increasing_order;
+	using MetaListT<Element>::allow_resize;
 
 	/// needed functions
 	using MetaListT<Element>::size;
@@ -849,6 +850,10 @@ public:
 			const bool b = op1(__data[load(tid)]);
 			if ((norm != uint32_t(-1u)) && b) { return; }
 		} else {
+			if constexpr (! allow_resize) {
+				return;
+			}
+
 			Element t{};
 			const bool b = op1(t);
 			if ((norm != uint32_t(-1u)) && b) { return; }
@@ -882,6 +887,10 @@ public:
 			const bool b = op1(__data[load(tid)]);
 			if constexpr (norm != uint32_t(-1u)) { if (b) { return; } }
 		} else {
+			if constexpr (! allow_resize) {
+				return;
+			}
+
 			Element t{};
 			const bool b = op1(t);
 			if constexpr (norm != uint32_t(-1u)) { if (b) { return; } }

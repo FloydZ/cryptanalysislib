@@ -7,6 +7,15 @@ namespace cryptanalysislib {
 	using algorithm::AlgorithmPrefixsumConfig;
 	using algorithm::algorithmPrefixsumConfig;
 
+	/// \tparam InputIt
+	/// \tparam OutputIt
+	/// \tparam BinaryOp
+	/// \tparam config
+	/// \param first
+	/// \param last
+	/// \param d_first
+	/// \param op
+	/// \return
 	template<class InputIt,
 			 class OutputIt,
 			 class BinaryOp,
@@ -24,6 +33,16 @@ namespace cryptanalysislib {
 			(first, last, d_first, op);
 	}
 
+	/// \tparam InputIt
+	/// \tparam OutputIt
+	/// \tparam BinaryOp
+	/// \tparam config
+	/// \param first
+	/// \param last
+	/// \param d_first
+	/// \param init
+	/// \param op
+	/// \return
 	template<class InputIt,
 			 class OutputIt,
 			 class BinaryOp,
@@ -42,6 +61,18 @@ namespace cryptanalysislib {
 			(first, last, d_first, init, op);
 	}
 
+	/// \tparam ExecPolicy
+	/// \tparam InputIt
+	/// \tparam OutputIt
+	/// \tparam BinaryOp
+	/// \tparam config
+	/// \param policy
+	/// \param first1
+	/// \param last1
+	/// \param d_first
+	/// \param init
+	/// \param op
+	/// \return
 	template<class ExecPolicy,
 			 class InputIt,
 			 class OutputIt,

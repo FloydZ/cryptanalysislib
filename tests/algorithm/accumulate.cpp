@@ -40,7 +40,7 @@ TEST(accumulate, int_multithreading) {
     std::vector<T> in; in.resize(s);
     std::fill(in.begin(), in.end(), 1);
 
-    const auto d = cryptanalysislib::accumulate(par_if(true),in.begin(), in.end(), 0);
+    const auto d = cryptanalysislib::accumulate(par_if(true), in.begin(), in.end(), 0);
     EXPECT_EQ(d, s);
 }
 

@@ -52,7 +52,6 @@ namespace cryptanalysislib {
 	} // end namespace internal
 
 	/// \tparam InputIt
-	/// \tparam T
 	/// \param first
 	/// \param last
 	/// \param init

@@ -5,7 +5,14 @@
 #include <vector>
 #include <future>
 
+#include "algorithm/algorithm.h"
+
 namespace cryptanalysislib {
+	struct AlgorithmApplyConfig : public AlgorithmConfig {
+	    constexpr static size_t min_size_per_thread = 1u<<10u;
+	};
+	constexpr static AlgorithmApplyConfig algorithmApplyConfig;
+
 	/// \tparam ExecPolicy
 	/// \tparam Op
 	/// \tparam ArgContainer
@@ -15,7 +22,8 @@ namespace cryptanalysislib {
 	/// \return
 	template <class ExecPolicy,
 			  class Op,
-			  class ArgContainer>
+			  class ArgContainer,
+			  const AlgorithmApplyConfig &config=algorithmApplyConfig>
 	std::vector<std::future<void>>
 	parallel_apply(ExecPolicy &&policy,
 				   Op op,

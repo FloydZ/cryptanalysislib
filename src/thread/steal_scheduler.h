@@ -186,6 +186,8 @@ namespace cryptanalysislib {
 		// global information
 		int number_active_threads = 0;
 		int number_enqueud_tasks = 0;
+
+		// TODO more information: like: tid
 	};
 
 	/// Manager class
@@ -251,6 +253,7 @@ namespace cryptanalysislib {
 						std::cout << buf << std::endl;
 
 						schedulerPerformance = rfl::json::read<SchedulerPerformance>(buf).value();
+						// TODO nice printing
 					}
 
 					std::cout << "server closing" << std::endl;
@@ -381,7 +384,7 @@ namespace cryptanalysislib {
 				schedulerPerformance->resize(number_of_threads);
 			}
 
-			/// create all
+			/// create all threads
 			for (std::size_t i = 0; i < number_of_threads; ++i) {
 				priority_queue_.push_back(size_t(current_id));
 				threads_.emplace_back([&, i, id = current_id, init]
