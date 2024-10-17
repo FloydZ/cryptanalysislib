@@ -116,9 +116,9 @@ public:
 		set_load(index, l+nl);
 	}
 
-	constexpr inline void decompress(data_type **out,
-	                                 uint32_t &nr,
-	                                 const keyType &e) noexcept {
+	inline void decompress(data_type **out,
+	                       uint32_t &nr,
+	                       const keyType &e) noexcept {
 		// NOTE: we need to choose some upper bound.
 		// So this is more or less arbitrary
 		static data_type tmp[bytes_per_bucket];

@@ -145,9 +145,9 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
 
-		constexpr inline _uint8x16_t &operator=(const _uint16x8_t &b) noexcept;
-		constexpr inline _uint8x16_t &operator=(const _uint32x4_t &b) noexcept;
-		constexpr inline _uint8x16_t &operator=(const _uint64x2_t &b) noexcept;
+		constexpr inline _uint8x16_t operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint8x16_t operator=(const _uint32x4_t &b) noexcept;
+		constexpr inline _uint8x16_t operator=(const _uint64x2_t &b) noexcept;
 
 		constexpr _uint8x16_t() noexcept = default;
 		constexpr _uint8x16_t(const _uint16x8_t &b) noexcept;
@@ -367,7 +367,11 @@ namespace cryptanalysislib {
 
 	struct _uint16x8_t {
 		constexpr static uint32_t LIMBS = 8;
-		using limb_type = uint16_t;
+		using limb_type = uint16_t;	
+
+        constexpr inline _uint16x8_t operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint16x8_t operator=(const _uint32x4_t &b) noexcept;
+		constexpr inline _uint16x8_t operator=(const _uint64x2_t &b) noexcept;
 
 		constexpr _uint16x8_t() noexcept = default;
 		constexpr _uint16x8_t(const _uint8x16_t &b) noexcept;
@@ -541,6 +545,10 @@ namespace cryptanalysislib {
 		constexpr static uint32_t LIMBS = 4;
 		using limb_type = uint32_t;
 
+		constexpr inline _uint32x4_t operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint32x4_t operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint32x4_t operator=(const _uint64x2_t &b) noexcept;
+
 		constexpr _uint32x4_t() noexcept = default;
 		constexpr _uint32x4_t(const _uint8x16_t &b) noexcept;
 		constexpr _uint32x4_t(const _uint16x8_t &b) noexcept;
@@ -698,6 +706,10 @@ namespace cryptanalysislib {
 	struct _uint64x2_t {
 		constexpr static uint32_t LIMBS = 2;
 		using limb_type = uint64_t;
+
+		constexpr inline _uint64x2_t operator=(const _uint8x16_t &b) noexcept;
+		constexpr inline _uint64x2_t operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline _uint64x2_t operator=(const _uint32x4_t &b) noexcept;
 
 		constexpr _uint64x2_t() noexcept = default;
 		constexpr _uint64x2_t(const _uint8x16_t &b) noexcept;
@@ -2507,6 +2519,24 @@ struct uint32x8_t {
 
 		return out;
 	}
+
+	/// TODO implement everywhere
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t min(const uint32x8_t a,
+                                                      const uint32x8_t b) noexcept { 
+        uint32x8_t c;
+        return c;
+    }
+
+	/// TODO implement everywhere
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x8_t max(const uint32x8_t a,
+                                                      const uint32x8_t b) noexcept { 
+        uint32x8_t c;
+        return c;
+    }
 };
 
 struct uint64x4_t {

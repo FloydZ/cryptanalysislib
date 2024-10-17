@@ -1760,7 +1760,7 @@ public:
 			for (size_t k = s; k < s + load; ++k) {
 				ret += 1;
 				const size_t j = hm[k];
-				f(out, L1[i], L2[j], i, j);
+				// TODO f(out, L1[i], L2[j], i, j);
 
 				// org code
 				// out.template add_and_append

@@ -17,7 +17,7 @@
 #include "tree.h"
 
 // needed for the generation of subset sum instances
-#include "algorithm/subsetsum/subsetsum.h"
+#include "algorithm/subsetsum.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

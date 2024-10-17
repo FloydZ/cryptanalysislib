@@ -25,9 +25,9 @@ namespace cryptanalysislib {
 							  const size_t n,
 							  const T init) noexcept {
 #ifdef USE_AVX512F
-			constexpr static uint32_t limbs = 64/sizeof(T);
+			constexpr uint32_t limbs = 64/sizeof(T);
 #else
-			constexpr static uint32_t limbs = 32/sizeof(T);
+			constexpr uint32_t limbs = 32/sizeof(T);
 #endif
 			using S = TxN_t<T, limbs>;
 			T ret = init;
