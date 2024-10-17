@@ -43,7 +43,7 @@ TEST(dispatch, simple) {
     std::vector<F> fs{test1, test2};
 
 	const uint32_t t = s;
-    const size_t pos = genereric_dispatch(out, fs, t);
+    const size_t pos = generic_dispatch(out, fs, t);
     EXPECT_GT(pos, 0);
 }
 

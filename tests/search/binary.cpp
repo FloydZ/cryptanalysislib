@@ -275,6 +275,33 @@ TEST(branchless_lower_bound, simple) {
 	EXPECT_EQ(solution_index, distance(data.begin(), a));
 }
 
+TEST(binary_search_dispatch, compare) {
+	std::vector<T> data;
+	size_t solution_index;
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
+
+	auto a = cryptanalysislib::search::internal::binary_search_dispatch(data.begin(), data.end(), search,
+		[](const T &e1, const T &e2) {
+		  return e1 < e2;
+		}
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
+
+TEST(binary_search_dispatch, hash) {
+	std::vector<T> data;
+	size_t solution_index;
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
+
+	auto a = cryptanalysislib::search::internal::binary_search_dispatch(data.begin(), data.end(), search,
+		[](const T &e1) __attribute__((always_inline)){
+		  return e1 & MASK;
+		}
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

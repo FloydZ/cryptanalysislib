@@ -27,7 +27,7 @@ template<const BenchmarkConfig &config=benchmarkConfig,
          typename ...Args>
 __attribute__((noinline))
 static size_t genereric_bench(F &&f,
-                       Args &&...args) noexcept {
+                              Args &&...args) noexcept {
     size_t c = 0;
     for (size_t i = 0; i < config.number_iterations; i++) {
         c -= cpucycles();
@@ -38,23 +38,46 @@ static size_t genereric_bench(F &&f,
     return c;
 }
 
-///
-/// @tparam F
-/// @tparam Args
-/// @tparam config
-/// @param out
-/// @param f
-/// @param args
-/// @return
+/// \tparam F
+/// \tparam Args
+/// \tparam config
+/// \param out
+/// \param f
+/// \param args
+/// \return
 template<typename F,
          typename ...Args,
          const BenchmarkConfig &config=benchmarkConfig>
 __attribute__((noinline))
-static size_t genereric_dispatch(F &out,
+static size_t generic_dispatch(F &out,
                                  std::vector<F> &f,
                                  Args &&...args) noexcept {
     size_t mc = -1ull, min_pos = 0;
     for (size_t i = 0; i < f.size(); i++) {
+        const size_t cycles = genereric_bench
+                                <config>
+                                (f[i], args...);
+        if (cycles < mc) {
+            min_pos = i;
+            mc = cycles;
+        }
+    }
+
+    out = f[min_pos];
+    return min_pos;
+}
+
+
+template<typename F,
+         typename ...Args,
+         const BenchmarkConfig &config=benchmarkConfig>
+__attribute__((noinline))
+static size_t generic_dispatch(F &out,
+                                 F *f,
+                                 const size_t n,
+                                 Args &&...args) noexcept {
+    size_t mc = -1ull, min_pos = 0;
+    for (size_t i = 0; i < n; i++) {
         const size_t cycles = genereric_bench
                                 <config>
                                 (f[i], args...);

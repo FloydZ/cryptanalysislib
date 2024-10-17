@@ -10,9 +10,10 @@
 #include <cstdint>
 #include <functional>
 
+#include "helper.h"
+#include "dispatch.h"
 #include "atomic/atomic_primitives.h"
 #include "hash/hash.h"
-#include "helper.h"
 #include "math/math.h"
 
 /// See Paul Khuong's
@@ -533,7 +534,6 @@ DEALINGS IN THE SOFTWARE.*/
 
 ///  https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGErqSuADJ4DJgAcj4ARpjEIABsAQAOqAqETgwe3r7%2BpClpjgIhYZEsMXGJtpj2hQxCBEzEBFk%2BflwBdpgOGfWNBMUR0bEJHQ1NLTnttmP9oYNlw4kAlLaoXsTI7BzmAMyhyN5YANQmO27ICgT4gqfYJhoAgrv7h5gnZ5fotHhRAHQIt3uTzMewYBy8x1ObjEwBIhAQLEBj2eYNe7zcADcukRiEinsiQVgaGEjsgWKgMQB9eKSCBMUhHKJLI7oVAnADsFiOTAULCOGM8TEc9COEBOZjMZIpTHFAFYNHKuCZZW4GMq3ARzGYjiBxWZTgARXES0VMZm6rXG7UQJlLU5ckzsg1HADuCDomAgGjtOysyP9DwA9IGvKECDTKQRSeSqV4FExgJ7Q4II1H6aSBJcjsnw5JI4zmY6/UHA0cy9GKdTaemmfagcHy0diJgCOsGNy649g46DUC%2B48c6mKximBBB3m0wy0Aws%2BP81Ep5mozmdmZ8wQAhmZ8uw6v12ZmQxUJhVJsklGi/2AJw8vkCgzCt4QIGNxtagiYLOKhnmWX6lVqiqmoSte9xXlqUojnKGg/mYso7OqgEalqoEaFeFogTsRpaqadr%2BuBaEYWYVqihuKx6iREAEAesHEThNp4fiV4%2BsWjbNq2xDtkwnZPE6/YPHOUaQbQY5hkO6bTrOYkToyi7btmu5rlGG5yVJgh7spB5HEeJ5nhenLXre/KCo%2Boovq%2BZbvp%2BUbfnK/6quqwH6vhYEQTGtDQbB8GIY5KEuYReqGpRZqoehFH0WRtGUdR5GWvRtb4Sx5lluxbYdr6fZ8QGQIfiwSQPpgUIEAAnkkjCsG8ACSBAMiVZXMGwRwACq1aV5WNW4eV4pJH6qEkxBHNVjLEIYyAIPQCgKJStCoC6sSUlEawMOgEBDTEwChKQyUWTtu1lkNrhbY8e0nTtPXNeK8Qjt4mBHQ8p0PeWnVJJd5jxBmeWNJghYGcd5afCAIBpAAXpg%2Bb0EYBAIO8zquEcAC0jKYBtaoZX9ZZ4FQooQ8AUMw4aRzehyxauWhqWcUcrg8a5WX4vd/1XIDINg1GlyYC9BMAyAUSEJSVAzSQEA41DSUBo2mOimzL1gGABPC9Db1vR9SRfTayOhMqFhS8qBoMtdXjfT9rE7fLCOcx%2BHOWEcSpo/TFkS0LjC4wrWEE0Tl7%2BQRV7k%2B2VO26T4G09tjZSzDRxczzBCUpsdCO5DCCi3br7raEYdw4j2u22%2BtONvwA0QKHgYE/qvrhxbRwy279pl%2BzRxF1hRxaR7Sfi1jEBoJ9zZqyjmva7Kuv8mIBtLEboVgSn7bWOb7PU2hNO9ujr7BsJ3ehIn2cL0nPtIyj4pch3KtdwAVBPetD991NB48zPzgYBeMyAWIOCQUKCbcl1r8T23nUwXhENyYcogjTBONT8U0ZpzWIAtJaK1Qi/AnhAcicDXCIIZFwDQXgGRcwmgoV%2B0lIy3EQevcs28ub4EuKNT0cCEHkRCv7J0HAVi0E4LKXgfgOBaFIKgTgbgp5WwUGsDYbxdg8FIAQTQjCVgAGsQCSCvL8dkOx2R/g0AADlUWYdkqj2jsn0JwSQbCJFcM4LwBQIAYLiI4Yw0gcBYBIAPh6MgFB26oDyo4kAwAuCrj4HQD8xAzE2iMTzZgxBiqcFEcExoxUADyURtDYnCbwDubBBDRIYLQMJVjSBYCiF4YA0JaC0DMdwXgWAWCGGAOILJ%2BBmzdCxMUzhJ4uh/y2KIsM1QjHfCAVEjwWAjEEGIHgFgiSVj8wTAoAAangTALpon1USTIQQIgxDsCkIs%2BQSg1BGN0AEAwRgUB8JsF0sxkAVioHPBkYp8NPiGlMJYawZgFTw2iTsXgFJYiDKwCc1BnRujOAgK4CYfg4KBGWgMUo5QEi6PyOkAQQKQAgphbUcFQwKi6N%2BbUXo4xPCtARbKKoNQegzBRQsNF0w%2BjwpBRQpoJLIXxHZCsAR6xNgSCYSwwxWTuEcCOKoVR8R4Y0iOMAZAyBrY7F%2BNaXAhASDih2FwJYvBLFaBHqQGR8oJXxDMJIdkV4dFmC4Oo6QzCOAGNIOwzhXLTHmLERIlVxqzAcotSYm1ViVVYn8RkWRQA%3D%3D
 /// \tparam It iterator typ
-/// \tparam T  base typ
 /// \tparam Cmp  comparison operator
 /// \param begin
 /// \param end
@@ -635,7 +635,7 @@ namespace cryptanalysislib::search {
 	[[nodiscard]] constexpr inline It lower_bound(It begin,
 							  					  It end,
 							  					  const typename It::value_type &value,
-							  					  Hash h) {
+							  					  Hash h) noexcept {
 		return branchless_lower_bound(begin, end, value, h);
 	}
 
@@ -648,7 +648,7 @@ namespace cryptanalysislib::search {
 	[[nodiscard]] constexpr inline It lower_bound(It begin,
 												  It end,
 												  const typename It::value_type &value,
-												  Compare cmp) {
+												  Compare cmp) noexcept {
 		return branchless_lower_bound(begin, end, value, cmp);
 	}
 
@@ -661,7 +661,7 @@ namespace cryptanalysislib::search {
 	[[nodiscard]] constexpr inline It binary_search(It begin,
 												    It end,
 												    const typename It::value_type &value,
-												    Hash h) {
+												    Hash h) noexcept {
 		return branchless_lower_bound(begin, end, value, h);
 	}
 
@@ -674,16 +674,89 @@ namespace cryptanalysislib::search {
 	[[nodiscard]] constexpr inline It binary_search(It begin,
 												    It end,
 												    const typename It::value_type &value,
-												    Compare cmp) {
+												    Compare cmp) noexcept {
 		return branchless_lower_bound(begin, end, value, cmp);
 	}
 
 	namespace internal {
-		decltype(branchless_lower_bound) hash_able_function[1] = {
-			branchless_lower_bound,
-		};
-	};
 
+		/// \tparam It
+		/// \tparam Compare
+		/// \param begin
+		/// \param end
+		/// \param value
+		/// \param cmp
+		/// \return
+		template<typename It,
+				 typename Compare>
+#if __cplusplus > 201709L
+			requires std::forward_iterator<It> and
+					 CompareFunction<Compare, typename It::value_type>
+#endif
+		It binary_search_dispatch(It begin,
+									It end,
+									const typename It::value_type &value,
+									Compare cmp) noexcept {
+			using T = It::value_type;
+			using FF = It(*)(It, It, const T&, Compare);
+
+			static FF out;
+			static bool set = false;
+			// NOTE dont specify as const
+			static FF functions[] = {
+				branchless_lower_bound<It, Compare>
+			};
+
+			if (set) [[likely]] {
+				return std::invoke(out, begin, end, value, cmp);
+			}
+
+			set = true;
+
+			generic_dispatch(out, functions, 1, begin, end, value, cmp);
+			return binary_search_dispatch(begin, end, value, cmp);
+		}
+
+		/// \tparam It
+		/// \tparam Hash
+		/// \param begin
+		/// \param end
+		/// \param value
+		/// \param h
+		/// \return
+		template<typename It,
+				 typename Hash>
+#if __cplusplus > 201709L
+			requires std::forward_iterator<It> and
+					 HashFunction<Hash, typename It::value_type>
+#endif
+		It binary_search_dispatch(It begin,
+									It end,
+									const typename It::value_type &value,
+									Hash h) noexcept {
+			using T = It::value_type;
+			using FF = It(*)(It, It, const T&, Hash);
+
+			static FF out;
+			static bool set = false;
+			// NOTE dont specify as const
+			static FF functions[] = {
+				branchless_lower_bound<It, Hash>,
+				lower_bound_standard_binary_search<It, Hash>,
+				lower_bound_monobound_binary_search<It, Hash>,
+				tripletapped_binary_search<It, Hash>,
+			};
+
+			if (set) [[likely]] {
+				return std::invoke(out, begin, end, value, h);
+			}
+
+			set = true;
+
+			const auto d = generic_dispatch(out, functions, 1, begin, end, value, h);
+			return binary_search_dispatch(begin, end, value, h);
+		}
+	};
 };
 
 #endif
