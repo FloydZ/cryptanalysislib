@@ -34,13 +34,13 @@ namespace cryptanalysislib {
 
 	/// NOTE: Iterators are expected to be rng access.
     /// See std::for_each https://en.cppreference.com/w/cpp/algorithm/for_each
-    /// \tparam ExecutionPolicy
+    /// \tparam ExecPolicy
     /// \tparam RandIt
     /// \tparam UnaryFunction
     /// \param policy
     /// \param first
     /// \param last
-    /// \param f
+    /// \param p
     /// \return
 	template <class ExecPolicy,
 	          class RandIt,
@@ -93,7 +93,9 @@ namespace cryptanalysislib {
 					  Size n,
 					  UnaryFunction f) noexcept {
         RandIt last = internal::advanced(first, n);
-        cryptanalysislib::for_each(std::forward<ExecPolicy>(policy), first, last, f);
+        cryptanalysislib::for_each
+			<RandIt, UnaryFunction, config>
+			(std::forward<ExecPolicy>(policy), first, last, f);
         return last;
     }
 }

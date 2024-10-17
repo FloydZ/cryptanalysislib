@@ -10,7 +10,7 @@
 namespace cryptanalysislib {
 
 struct AlgorithmFillConfig : public AlgorithmConfig {
-    constexpr static size_t min_size_per_thread = 1u<<10u;
+    constexpr static size_t min_size_per_thread = 1048576;
 };
 
 constexpr static AlgorithmFillConfig algorithmFillConfig;

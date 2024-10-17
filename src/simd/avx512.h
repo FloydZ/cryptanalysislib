@@ -1752,6 +1752,26 @@ struct uint32x16_t {
 		const __mmask16 t = _mm512_movepi32_mask(in.v512);
 		return t;
 	}
+
+	/// TODO implement everywhere
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x16_t min(const uint32x16_t a,
+                                                      	  const uint32x16_t b) noexcept {
+        uint32x16_t c;
+        c.v512 = _mm512_min_epi32(a.v512, b.v512);
+        return c;
+    }
+
+	/// TODO implement everywhere
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline uint32x16_t max(const uint32x16_t a,
+														  const uint32x16_t b) noexcept {
+        uint32x16_t c;
+        c.v512 = _mm512_min_epi32(a.v512, b.v512);
+        return c;
+    }
 };
 
 struct uint64x8_t {

@@ -178,27 +178,6 @@ namespace cryptanalysislib {
 		return k;
 	}
 
-    /// helper wrapper
-//	template<typename T,
-//             const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
-//#if __cplusplus > 201709L
-//	    requires std::totally_ordered<T>
-//#endif
-//	[[nodiscard]] constexpr static inline size_t argmax(const std::vector<T> &a) noexcept {
-//        return argmax(a.data(), a.size());
-//	}
-//
-//    /// helper wrapper
-//	template<typename T,
-//			 const size_t n,
-//             const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
-//#if __cplusplus > 201709L
-//	    requires std::totally_ordered<T>
-//#endif
-//	[[nodiscard]] constexpr static inline size_t argmax(const std::array<T, n> &a) noexcept {
-//        return argmax(a.data(), n);
-//	}
-
 	/// \tparam ExecPolicy
 	/// \tparam RandIt
 	/// \param policy

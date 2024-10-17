@@ -678,6 +678,12 @@ namespace cryptanalysislib::search {
 		return branchless_lower_bound(begin, end, value, cmp);
 	}
 
+	namespace internal {
+		decltype(branchless_lower_bound) hash_able_function[1] = {
+			branchless_lower_bound,
+		};
+	};
+
 };
 
 #endif

@@ -199,6 +199,7 @@ BENCHMARK(BM_all_of_multithreaded<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_all_of_multithreaded<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
 
 
+
 BENCHMARK(BM_stdnone_of<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_stdnone_of<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_stdnone_of<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
@@ -210,6 +211,7 @@ BENCHMARK(BM_none_of<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_none_of_multithreaded<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_none_of_multithreaded<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_none_of_multithreaded<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
+
 
 
 BENCHMARK(BM_stdany_of<uint8_t>)->RangeMultiplier(2)->Range(32, LS);

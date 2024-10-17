@@ -10,7 +10,12 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmFindConfig : public AlgorithmConfig {
-		const size_t min_size_per_thread = 1u<<10u;
+		// TODO multithreaded find is extremly slow
+		const size_t min_size_per_thread = 1048576u;
+
+		// TODO implement
+		const bool assume_sorted = false;
+		const bool use_interpolation_search = false;
 	};
 	constexpr static AlgorithmFindConfig algorithmFindConfig;
 
@@ -137,7 +142,14 @@ namespace cryptanalysislib {
 	    return last;
 	}
 
-
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \tparam config
+	/// \param policy
+	/// \param first
+	/// \param last
+	/// \param value
+	/// \return
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmFindConfig &config = algorithmFindConfig>
@@ -182,6 +194,7 @@ namespace cryptanalysislib {
 		return extremum == size ? last : first + extremum;
 	}
 
+	/// TODO write a second version of this function, which does not do a early exit, so without atomics
 	/// \tparam ExecPolicy
 	/// \tparam RandIt
 	/// \tparam UnaryPredicate

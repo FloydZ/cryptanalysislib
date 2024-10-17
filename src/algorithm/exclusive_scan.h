@@ -8,7 +8,7 @@
 
 namespace cryptanalysislib {
     struct AlgorithmExclusiveScanConfig : public AlgorithmConfig {
-    	constexpr static size_t min_size_per_thread = 1u << 14u;
+    	constexpr static size_t min_size_per_thread = 131072;
     };
     constexpr static AlgorithmExclusiveScanConfig algorithmExclusiveScanConfig;
 
@@ -75,6 +75,22 @@ namespace cryptanalysislib {
     	using T = InputIt::value_type;
 		return cryptanalysislib::exclusive_scan(first, last, d_first, init, std::plus<T>());
     }
+
+
+    template<class InputIt,
+             class OutputIt,
+             const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<InputIt> &&
+		         std::random_access_iterator<OutputIt>
+#endif
+    OutputIt exclusive_scan(InputIt first,
+                            InputIt last,
+                            OutputIt d_first) noexcept {
+    	using T = InputIt::value_type;
+		return cryptanalysislib::exclusive_scan(first, last, d_first, T{}, std::plus<T>());
+    }
+
 
 	/// \tparam ExecPolicy
     /// \tparam RandIt1
@@ -176,6 +192,20 @@ namespace cryptanalysislib {
         return cryptanalysislib::exclusive_scan
             <ExecPolicy, RandIt1, RandIt2, std::plus<T>, config>
             (std::forward<ExecPolicy>(policy), first, last, dest, init, std::plus<T>());
+    }
+
+    template<class ExecPolicy,
+             class RandIt1,
+             class RandIt2,
+             const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
+    RandIt2 exclusive_scan(ExecPolicy &&policy,
+                           RandIt1 first,
+                           RandIt1 last,
+                           RandIt2 dest) noexcept {
+        using T = RandIt1::value_type;
+        return cryptanalysislib::exclusive_scan
+            <ExecPolicy, RandIt1, RandIt2, std::plus<T>, config>
+            (std::forward<ExecPolicy>(policy), first, last, dest, T{}, std::plus<T>());
     }
  } // end namespace cryptanalysislib
 #endif
