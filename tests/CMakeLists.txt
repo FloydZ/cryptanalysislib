@@ -38,6 +38,8 @@ foreach(testfile ${TEST_SOURCES})
             ../src/algorithm/reduce.h
             ../src/algorithm/transform.h
             ../src/algorithm/apply.h
+            ../src/algorithm/max.h
+            ../src/algorithm/min.h
     )
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})

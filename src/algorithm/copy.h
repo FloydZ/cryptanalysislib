@@ -8,7 +8,7 @@ namespace cryptanalysislib {
 
 ///
 struct AlgorithmCopyConfig : public AlgorithmConfig {
-    constexpr static size_t min_size_per_thread = 1u<<10u;
+    constexpr static size_t min_size_per_thread = 262144;
 };
 
 constexpr static AlgorithmCopyConfig algorithmCopyConfig;

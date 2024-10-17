@@ -17,7 +17,7 @@ namespace cryptanalysislib {
     struct AlgorithmArgMaxConfig {
     public:
         constexpr static size_t aligned_instructions = false;
-    	constexpr static uint32_t min_size_per_thread = 1024;
+    	constexpr static uint32_t min_size_per_thread = 16384;
     };
     constexpr static AlgorithmArgMaxConfig algorithmArgMaxConfig{};
 

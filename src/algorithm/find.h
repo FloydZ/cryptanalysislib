@@ -10,7 +10,7 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmFindConfig : public AlgorithmConfig {
-		constexpr static size_t min_size_per_thread = 1u<<10u;
+		const size_t min_size_per_thread = 1u<<10u;
 	};
 	constexpr static AlgorithmFindConfig algorithmFindConfig;
 
@@ -193,7 +193,7 @@ namespace cryptanalysislib {
 	template <class ExecPolicy,
 			  class RandIt,
 	          class UnaryPredicate,
-			 const AlgorithmFindConfig &config = algorithmFindConfig>
+			  const AlgorithmFindConfig &config = algorithmFindConfig>
 #if __cplusplus > 201709L
 	requires std::random_access_iterator<RandIt>
 #endif
@@ -246,7 +246,8 @@ namespace cryptanalysislib {
 	/// \return
 	template <class ExecPolicy,
 			  class RandIt,
-			  class UnaryPredicate>
+			  class UnaryPredicate,
+			  const AlgorithmFindConfig &config = algorithmFindConfig>
 #if __cplusplus > 201709L
     requires std::random_access_iterator<RandIt>
 #endif
@@ -254,7 +255,9 @@ namespace cryptanalysislib {
 					   RandIt first,
 					   RandIt last,
 					   UnaryPredicate p) noexcept {
-		return cryptanalysislib::find_if(std::forward<ExecPolicy>(policy), first, last,
+		return cryptanalysislib::find_if
+				<ExecPolicy, RandIt, decltype(std::not_fn(p)), config>
+				(std::forward<ExecPolicy>(policy), first, last,
 			std::not_fn(p)
 		);
 	}

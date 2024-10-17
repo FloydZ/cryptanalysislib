@@ -7,7 +7,7 @@
 // https://en.cppreference.com/w/cpp/algorithm/all_any_none_of
 namespace cryptanalysislib {
 	struct AlgorithmAnyOfConfig : public AlgorithmConfig {
-		constexpr static size_t min_size_per_thread = 1u<<10u;
+		 const size_t min_size_per_thread = 1048576;
 	};
 	constexpr static AlgorithmAnyOfConfig algorithmAnyOfConfig;
 
@@ -88,8 +88,12 @@ namespace cryptanalysislib {
                 RandIt first,
                 RandIt last,
                 Predicate pred) noexcept {
+    	constexpr static AlgorithmFindConfig c = {
+    		.min_size_per_thread = config.min_size_per_thread
+    	};
+
         return last == cryptanalysislib::find_if_not
-    					<ExecPolicy, RandIt, Predicate>
+    					<ExecPolicy, RandIt, Predicate, c>
     					(std::forward<ExecPolicy>(policy), first, last, pred);
     }
 
@@ -112,8 +116,12 @@ namespace cryptanalysislib {
                  RandIt first,
                  RandIt last,
                  Predicate pred) noexcept {
+    	constexpr static AlgorithmFindConfig c = {
+    		.min_size_per_thread = config.min_size_per_thread
+    	};
+
         return last == cryptanalysislib::find_if
-						<ExecPolicy, RandIt, Predicate>
+						<ExecPolicy, RandIt, Predicate, config>
     					(std::forward<ExecPolicy>(policy), first, last, pred);
     }
 

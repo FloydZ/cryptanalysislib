@@ -13,10 +13,14 @@ static void BM_stdcopy(benchmark::State &state) {
     to.resize(state.range(0));
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
+    uint64_t c = 0;
 	for (auto _: state) {
+        c -= cpucycles();
         std::copy(fr.begin(), fr.end(), to.begin());
+        c += cpucycles();
 		benchmark::ClobberMemory();
 	}
+    state.counters["cycles"] = (double)c/(double)state.iterations();
 }
 
 template<typename T>
@@ -27,10 +31,14 @@ static void BM_copy(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
 
+    uint64_t c = 0;
 	for (auto _: state) {
+        c -= cpucycles();
         cryptanalysislib::copy(fr.begin(), fr.end(), to.begin());
+        c += cpucycles();
 		benchmark::ClobberMemory();
 	}
+    state.counters["cycles"] = (double)c/(double)state.iterations();
 }
 
 
@@ -42,15 +50,27 @@ static void BM_copy_multithreaded(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
 
+    uint64_t c = 0;
 	for (auto _: state) {
+        c -= cpucycles();
         cryptanalysislib::copy(par_if(true), fr.begin(), fr.end(), to.begin());
+        c += cpucycles();
 		benchmark::ClobberMemory();
 	}
+    state.counters["cycles"] = (double)c/(double)state.iterations();
 }
 
 
 BENCHMARK(BM_stdcopy<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+//BENCHMARK(BM_stdcopy<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
+//BENCHMARK(BM_stdcopy<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
+
 BENCHMARK(BM_copy<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+//BENCHMARK(BM_copy<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
+//BENCHMARK(BM_copy<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
+
 BENCHMARK(BM_copy_multithreaded<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+//BENCHMARK(BM_copy_multithreaded<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
+//BENCHMARK(BM_copy_multithreaded<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
 
 BENCHMARK_MAIN();

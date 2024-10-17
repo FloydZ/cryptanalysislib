@@ -58,24 +58,248 @@ const auto d = cryptanalysislib::accumulate(in.begin(), in.end(), 0);
 
 all_of:
 ======
+Usage: 
+```c++
+const auto d = cryptanalysislib::all_of(in.begin(), in.end(), [](const T &a) {
+	return a == 1;
+});
+```
 
 any_of:
 ======
 
+Usage:
+```c++
+const auto d1 = cryptanalysislib::any_of(in.begin(), in.end(), [](const T &a) {
+    return a == 1;
+});
+```
+
 none_of:
 ======
+
+Usage:
+```c++
+const auto d1 = cryptanalysislib::none_of(in.begin(), in.end(), [](const T &a) {
+	return a == 1;
+});
+```		
 
 apply:
 ======
 
+Usage:
+```c++
+```
+
 argmin:
 ======
+Usage:
+```c++
+const auto d = cryptanalysislib::argmin(in.begin(), in.end());
+```
 
 argmax:
 ======
+Usage:
+```c++
+const auto d = cryptanalysislib::argmax(in.begin(), in.end());
+```
+
+Benchmarks:
+
+```
+2024-10-17T09:59:28+02:00
+Run on (12 X 5453 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x6)
+  L1 Instruction 32 KiB (x6)
+  L2 Unified 1024 KiB (x6)
+  L3 Unified 32768 KiB (x1)
+Load Average: 0.27, 0.61, 0.61
+--------------------------------------------------------------------------------------------------
+Benchmark                                        Time             CPU   Iterations UserCounters...
+--------------------------------------------------------------------------------------------------
+BM_argmax_u32_simd/32                         14.2 ns         14.2 ns     53729408 cycles=35.3458
+BM_argmax_u32_simd/64                         13.3 ns         13.2 ns     51512174 cycles=31.1725
+BM_argmax_u32_simd/128                        21.8 ns         21.8 ns     38117510 cycles=71.0169
+BM_argmax_u32_simd/256                        29.0 ns         29.0 ns     23976717 cycles=104.904
+BM_argmax_u32_simd/512                        42.7 ns         42.6 ns     13138884 cycles=168.554
+BM_argmax_u32_simd/1024                       59.6 ns         59.5 ns     10552837 cycles=248.382
+BM_argmax_u32_simd/2048                        128 ns          127 ns      6418009 cycles=567.335
+BM_argmax_u32_simd/4096                        192 ns          192 ns      3382357 cycles=869.885
+BM_argmax_u32_simd/8192                        387 ns          387 ns      1795148 cycles=1.78626k
+BM_argmax_u32_simd/16384                       798 ns          796 ns       880193 cycles=3.71102k
+BM_argmax_u32_simd/32768                      1384 ns         1381 ns       490143 cycles=6.46057k
+BM_argmax_u32_simd/65536                      2987 ns         2981 ns       233410 cycles=13.9793k
+BM_argmax_u32_simd_bl16/32                    16.1 ns         16.1 ns     53791376 cycles=44.4612
+BM_argmax_u32_simd_bl16/64                    17.1 ns         17.1 ns     31277380 cycles=48.7969
+BM_argmax_u32_simd_bl16/128                   18.0 ns         17.9 ns     39492716 cycles=52.9504
+BM_argmax_u32_simd_bl16/256                   25.6 ns         25.6 ns     33738718 cycles=88.6483
+BM_argmax_u32_simd_bl16/512                   32.8 ns         32.7 ns     24303800 cycles=121.872
+BM_argmax_u32_simd_bl16/1024                  51.2 ns         51.1 ns     11446057 cycles=208.713
+BM_argmax_u32_simd_bl16/2048                  85.8 ns         85.6 ns      9980413 cycles=370.536
+BM_argmax_u32_simd_bl16/4096                   134 ns          133 ns      5191223 cycles=595.65
+BM_argmax_u32_simd_bl16/8192                   278 ns          278 ns      2456394 cycles=1.27384k
+BM_argmax_u32_simd_bl16/16384                  597 ns          596 ns      1147035 cycles=2.7696k
+BM_argmax_u32_simd_bl16/32768                 1079 ns         1077 ns       665705 cycles=5.03023k
+BM_argmax_u32_simd_bl16/65536                 2153 ns         2149 ns       329761 cycles=10.0691k
+BM_argmax_u32_simd_bl32/32                    13.3 ns         13.3 ns     52476776 cycles=30.9989
+BM_argmax_u32_simd_bl32/64                    14.9 ns         14.9 ns     47189762 cycles=38.7453
+BM_argmax_u32_simd_bl32/128                   17.3 ns         17.2 ns     39921917 cycles=49.7975
+BM_argmax_u32_simd_bl32/256                   19.3 ns         19.3 ns     36378325 cycles=57.7741
+BM_argmax_u32_simd_bl32/512                   22.3 ns         22.3 ns     31341497 cycles=71.8618
+BM_argmax_u32_simd_bl32/1024                  31.2 ns         31.1 ns     22416902 cycles=114.695
+BM_argmax_u32_simd_bl32/2048                  51.2 ns         51.1 ns     13773184 cycles=208.085
+BM_argmax_u32_simd_bl32/4096                  96.0 ns         95.8 ns      7458040 cycles=416.768
+BM_argmax_u32_simd_bl32/8192                   151 ns          151 ns      4663336 cycles=675.854
+BM_argmax_u32_simd_bl32/16384                  415 ns          414 ns      1691055 cycles=1.91246k
+BM_argmax_u32_simd_bl32/32768                  804 ns          803 ns       872021 cycles=3.74137k
+BM_argmax_u32_simd_bl32/65536                 1616 ns         1613 ns       434234 cycles=7.54749k
+BM_argmax<uint8_t>/32                         13.4 ns         13.4 ns     52109912 cycles=31.5848
+BM_argmax<uint8_t>/64                         16.4 ns         16.3 ns     43172489 cycles=43.8616
+BM_argmax<uint8_t>/128                        33.2 ns         33.2 ns     21070372 cycles=123.143
+BM_argmax<uint8_t>/256                        50.3 ns         50.2 ns     13568020 cycles=202.768
+BM_argmax<uint8_t>/512                        87.2 ns         87.0 ns      8162085 cycles=376.619
+BM_argmax<uint8_t>/1024                        171 ns          170 ns      4245603 cycles=768.458
+BM_argmax<uint8_t>/2048                        304 ns          303 ns      2296832 cycles=1.39229k
+BM_argmax<uint8_t>/4096                        598 ns          597 ns      1175300 cycles=2.77147k
+BM_argmax<uint8_t>/8192                       1181 ns         1179 ns       590797 cycles=5.50863k
+BM_argmax<uint8_t>/16384                      2378 ns         2374 ns       296977 cycles=11.124k
+BM_argmax<uint8_t>/32768                      4839 ns         4830 ns       145053 cycles=22.6685k
+BM_argmax<uint8_t>/65536                      9710 ns         9691 ns        72163 cycles=45.5137k
+BM_argmax<uint32_t>/32                        13.4 ns         13.4 ns     52226359 cycles=31.6964
+BM_argmax<uint32_t>/64                        16.3 ns         16.2 ns     42638647 cycles=42.9864
+BM_argmax<uint32_t>/128                       27.5 ns         27.5 ns     21334564 cycles=95.5381
+BM_argmax<uint32_t>/256                       51.1 ns         51.0 ns     13617293 cycles=205.988
+BM_argmax<uint32_t>/512                       94.5 ns         94.4 ns      7799644 cycles=411.382
+BM_argmax<uint32_t>/1024                       190 ns          189 ns      3997347 cycles=856.205
+BM_argmax<uint32_t>/2048                       351 ns          350 ns      2071718 cycles=1.61512k
+BM_argmax<uint32_t>/4096                       652 ns          651 ns      1088739 cycles=3.02397k
+BM_argmax<uint32_t>/8192                      1264 ns         1262 ns       553291 cycles=5.89843k
+BM_argmax<uint32_t>/16384                     2671 ns         2665 ns       262442 cycles=12.4954k
+BM_argmax<uint32_t>/32768                     5276 ns         5264 ns       132576 cycles=24.7136k
+BM_argmax<uint32_t>/65536                    10655 ns        10627 ns        66282 cycles=49.9497k
+BM_argmax<uint64_t>/32                        13.4 ns         13.4 ns     52135911 cycles=31.7334
+BM_argmax<uint64_t>/64                        16.4 ns         16.3 ns     42942625 cycles=43.3775
+BM_argmax<uint64_t>/128                       32.8 ns         32.7 ns     20943332 cycles=120.697
+BM_argmax<uint64_t>/256                       50.9 ns         50.8 ns     13604902 cycles=205.481
+BM_argmax<uint64_t>/512                        104 ns          104 ns      6903522 cycles=453.536
+BM_argmax<uint64_t>/1024                       172 ns          172 ns      4105747 cycles=774.742
+BM_argmax<uint64_t>/2048                       337 ns          336 ns      2055729 cycles=1.54667k
+BM_argmax<uint64_t>/4096                       648 ns          647 ns      1109755 cycles=3.00924k
+BM_argmax<uint64_t>/8192                      1380 ns         1378 ns       500363 cycles=6.44127k
+BM_argmax<uint64_t>/16384                     2772 ns         2767 ns       252020 cycles=12.9694k
+BM_argmax<uint64_t>/32768                     5522 ns         5511 ns       127183 cycles=25.8693k
+BM_argmax<uint64_t>/65536                    11212 ns        11159 ns        62514 cycles=52.5603k
+BM_argmax_multithreaded<uint8_t>/32           13.8 ns         13.8 ns     51996397 cycles=32.9674
+BM_argmax_multithreaded<uint8_t>/64           18.8 ns         18.7 ns     37352784 cycles=55.3688
+BM_argmax_multithreaded<uint8_t>/128          27.2 ns         27.2 ns     25819874 cycles=95.3224
+BM_argmax_multithreaded<uint8_t>/256          46.0 ns         45.9 ns     15218730 cycles=183.438
+BM_argmax_multithreaded<uint8_t>/512          88.1 ns         87.9 ns      7957803 cycles=381.045
+BM_argmax_multithreaded<uint8_t>/1024          163 ns          162 ns      4321411 cycles=730.877
+BM_argmax_multithreaded<uint8_t>/2048          310 ns          310 ns      2261780 cycles=1.42377k
+BM_argmax_multithreaded<uint8_t>/4096          613 ns          611 ns      1157267 cycles=2.84149k
+BM_argmax_multithreaded<uint8_t>/8192         1203 ns         1201 ns       580087 cycles=5.61175k
+BM_argmax_multithreaded<uint8_t>/16384        8307 ns         2501 ns       283614 cycles=38.9343k
+BM_argmax_multithreaded<uint8_t>/32768        8914 ns         3292 ns       221750 cycles=41.7794k
+BM_argmax_multithreaded<uint8_t>/65536       10928 ns         5337 ns       118454 cycles=51.2279k
+BM_argmax_multithreaded<uint32_t>/32          13.8 ns         13.8 ns     50887089 cycles=32.1166
+BM_argmax_multithreaded<uint32_t>/64          18.9 ns         18.9 ns     37247732 cycles=56.1235
+BM_argmax_multithreaded<uint32_t>/128         27.5 ns         27.5 ns     24655481 cycles=96.2156
+BM_argmax_multithreaded<uint32_t>/256         46.5 ns         46.5 ns     14925840 cycles=185.101
+BM_argmax_multithreaded<uint32_t>/512         88.7 ns         88.5 ns      7919684 cycles=382.944
+BM_argmax_multithreaded<uint32_t>/1024         167 ns          167 ns      4271888 cycles=750.777
+BM_argmax_multithreaded<uint32_t>/2048         317 ns          317 ns      2174245 cycles=1.45534k
+BM_argmax_multithreaded<uint32_t>/4096         619 ns          618 ns      1124681 cycles=2.86989k
+BM_argmax_multithreaded<uint32_t>/8192        1255 ns         1252 ns       489224 cycles=5.85227k
+BM_argmax_multithreaded<uint32_t>/16384       8397 ns         2521 ns       274748 cycles=39.3548k
+BM_argmax_multithreaded<uint32_t>/32768       8896 ns         3199 ns       220279 cycles=41.698k
+BM_argmax_multithreaded<uint32_t>/65536      10660 ns         5120 ns       130407 cycles=49.969k
+BM_argmax_multithreaded<uint64_t>/32          14.0 ns         14.0 ns     50538244 cycles=32.8083
+BM_argmax_multithreaded<uint64_t>/64          19.0 ns         19.0 ns     37123240 cycles=56.2606
+BM_argmax_multithreaded<uint64_t>/128         27.5 ns         27.4 ns     25438695 cycles=95.8249
+BM_argmax_multithreaded<uint64_t>/256         46.7 ns         46.6 ns     15063732 cycles=185.601
+BM_argmax_multithreaded<uint64_t>/512         89.5 ns         89.3 ns      7758042 cycles=386.761
+BM_argmax_multithreaded<uint64_t>/1024         165 ns          165 ns      4219183 cycles=743.065
+BM_argmax_multithreaded<uint64_t>/2048         322 ns          321 ns      2194316 cycles=1.47849k
+BM_argmax_multithreaded<uint64_t>/4096         624 ns          622 ns      1123181 cycles=2.89269k
+BM_argmax_multithreaded<uint64_t>/8192        1362 ns         1360 ns       515273 cycles=6.3589k
+BM_argmax_multithreaded<uint64_t>/16384       8390 ns         2488 ns       290021 cycles=39.3221k
+BM_argmax_multithreaded<uint64_t>/32768       8485 ns         3053 ns       225600 cycles=39.7681k
+BM_argmax_multithreaded<uint64_t>/65536      10769 ns         5020 ns       138131 cycles=50.4805k
+```
 
 copy:
 ======
+
+Usage:
+```c++
+const auto end = cryptanalysislib::argmax(in.begin(), in.end(), out.begin());
+```
+
+Benchmark:
+``` 
+2024-10-17T10:12:59+02:00
+Run on (12 X 5453 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x6)
+  L1 Instruction 32 KiB (x6)
+  L2 Unified 1024 KiB (x6)
+  L3 Unified 32768 KiB (x1)
+Load Average: 1.15, 1.20, 0.93
+-------------------------------------------------------------------------------------------------
+Benchmark                                       Time             CPU   Iterations UserCounters...
+-------------------------------------------------------------------------------------------------
+BM_stdcopy<uint8_t>/32                       13.1 ns         13.1 ns     54098269 cycles=30.6933
+BM_stdcopy<uint8_t>/64                       12.9 ns         12.9 ns     53697904 cycles=30.2965
+BM_stdcopy<uint8_t>/128                      13.0 ns         13.0 ns     53933117 cycles=30.7421
+BM_stdcopy<uint8_t>/256                      13.0 ns         12.9 ns     54159488 cycles=30.387
+BM_stdcopy<uint8_t>/512                      13.6 ns         13.6 ns     51665533 cycles=33.5146
+BM_stdcopy<uint8_t>/1024                     13.7 ns         13.6 ns     51334945 cycles=32.1206
+BM_stdcopy<uint8_t>/2048                     21.2 ns         21.2 ns     33158076 cycles=63.6758
+BM_stdcopy<uint8_t>/4096                     35.1 ns         35.0 ns     19984897 cycles=126.159
+BM_stdcopy<uint8_t>/8192                     57.3 ns         57.2 ns     12240985 cycles=235.935
+BM_stdcopy<uint8_t>/16384                     120 ns          120 ns      5866023 cycles=525.865
+BM_stdcopy<uint8_t>/32768                     393 ns          393 ns      1783168 cycles=1.81054k
+BM_stdcopy<uint8_t>/65536                     777 ns          776 ns       902618 cycles=3.60986k
+BM_stdcopy<uint8_t>/131072                   1563 ns         1560 ns       448589 cycles=7.30038k
+BM_stdcopy<uint8_t>/262144                   3111 ns         3105 ns       225398 cycles=14.5599k
+BM_stdcopy<uint8_t>/524288                   7374 ns         7355 ns        98740 cycles=34.5543k
+BM_stdcopy<uint8_t>/1048576                 15263 ns        15222 ns        47148 cycles=71.5619k
+BM_copy<uint8_t>/32                          13.0 ns         13.0 ns     54127807 cycles=30.5668
+BM_copy<uint8_t>/64                          13.0 ns         13.0 ns     53849302 cycles=30.605
+BM_copy<uint8_t>/128                         13.0 ns         12.9 ns     53804311 cycles=30.4409
+BM_copy<uint8_t>/256                         13.1 ns         13.0 ns     54038503 cycles=30.8344
+BM_copy<uint8_t>/512                         13.7 ns         13.7 ns     51372351 cycles=33.59
+BM_copy<uint8_t>/1024                        13.8 ns         13.8 ns     52090971 cycles=32.4373
+BM_copy<uint8_t>/2048                        20.6 ns         20.5 ns     34086027 cycles=61.4548
+BM_copy<uint8_t>/4096                        35.1 ns         35.0 ns     19976041 cycles=126.157
+BM_copy<uint8_t>/8192                        57.9 ns         57.8 ns     12106018 cycles=233.602
+BM_copy<uint8_t>/16384                        120 ns          120 ns      5853096 cycles=524.816
+BM_copy<uint8_t>/32768                        397 ns          396 ns      1756820 cycles=1.82601k
+BM_copy<uint8_t>/65536                        788 ns          786 ns       890267 cycles=3.65918k
+BM_copy<uint8_t>/131072                      1787 ns         1784 ns       392471 cycles=8.34788k
+BM_copy<uint8_t>/262144                      3186 ns         3180 ns       220174 cycles=14.9132k
+BM_copy<uint8_t>/524288                      8005 ns         7984 ns        87531 cycles=37.5159k
+BM_copy<uint8_t>/1048576                    14817 ns        14777 ns        47370 cycles=69.4721k
+BM_copy_multithreaded<uint8_t>/32            13.0 ns         13.0 ns     53850638 cycles=30.5352
+BM_copy_multithreaded<uint8_t>/64            13.2 ns         13.2 ns     53849799 cycles=31.0011
+BM_copy_multithreaded<uint8_t>/128           13.0 ns         13.0 ns     53578322 cycles=30.5502
+BM_copy_multithreaded<uint8_t>/256           13.1 ns         13.1 ns     53331415 cycles=31.1125
+BM_copy_multithreaded<uint8_t>/512           13.4 ns         13.4 ns     52535917 cycles=32.3837
+BM_copy_multithreaded<uint8_t>/1024          14.3 ns         14.3 ns     49009024 cycles=32.9676
+BM_copy_multithreaded<uint8_t>/2048          21.2 ns         21.2 ns     33165961 cycles=64.1029
+BM_copy_multithreaded<uint8_t>/4096          35.4 ns         35.3 ns     19718838 cycles=128.281
+BM_copy_multithreaded<uint8_t>/8192          58.1 ns         58.0 ns     12103137 cycles=234.551
+BM_copy_multithreaded<uint8_t>/16384          122 ns          121 ns      5773397 cycles=532.693
+BM_copy_multithreaded<uint8_t>/32768          397 ns          396 ns      1767483 cycles=1.82551k
+BM_copy_multithreaded<uint8_t>/65536          788 ns          787 ns       889578 cycles=3.66265k
+BM_copy_multithreaded<uint8_t>/131072        1856 ns         1852 ns       377574 cycles=8.67136k
+BM_copy_multithreaded<uint8_t>/262144        9796 ns         2453 ns       273609 cycles=45.9217k
+BM_copy_multithreaded<uint8_t>/524288       10174 ns         3198 ns       221780 cycles=47.6874k
+BM_copy_multithreaded<uint8_t>/1048576      14035 ns         5311 ns       130283 cycles=65.8052k
+```
 
 count:
 ======
@@ -86,6 +310,7 @@ std::fill(in.begin(), in.end(), 1);
 const auto d = cryptanalysislib::accumulate(in.begin(), in.end(), 0);
 ```
 
+Benchmark::
 ```
 2024-10-09T15:38:29+02:00
 Run on (12 X 5453 MHz CPU s)
@@ -292,85 +517,79 @@ BM_count_multithreaded<uint64_t>/524288       15456 ns        11977 ns        58
 BM_count_multithreaded<uint64_t>/1048576      22758 ns        14091 ns        49750
 ```
 
-
-Copy:
-==== 
-Usage:
-```c++
-std::vector<T> in; in.resize(s);
-std::fill(in.begin(), in.end(), 1);
-const auto d = cryptanalysislib::accumulate(in.begin(), in.end(), 0);
-```
-
-```
-2024-10-07T15:16:15+02:00
-Run on (4 X 3600 MHz CPU s)
-CPU Caches:
-  L1 Data 32 KiB (x4)
-  L1 Instruction 64 KiB (x4)
-  L2 Unified 2048 KiB (x1)
-  L3 Unified 6144 KiB (x1)
-Load Average: 1.08, 3.20, 3.29
----------------------------------------------------------------------------------
-Benchmark                                       Time             CPU   Iterations
----------------------------------------------------------------------------------
-BM_stdcopy<uint8_t>/32                       3.14 ns         3.14 ns    222818164
-BM_stdcopy<uint8_t>/64                       3.17 ns         3.17 ns    222352930
-BM_stdcopy<uint8_t>/128                      4.18 ns         4.18 ns    170748956
-BM_stdcopy<uint8_t>/256                      4.51 ns         4.50 ns    147728352
-BM_stdcopy<uint8_t>/512                      9.95 ns         9.94 ns     68513083
-BM_stdcopy<uint8_t>/1024                     13.7 ns         13.7 ns     50905532
-BM_stdcopy<uint8_t>/2048                     23.7 ns         23.7 ns     29810896
-BM_stdcopy<uint8_t>/4096                     99.2 ns         99.1 ns      6832491
-BM_stdcopy<uint8_t>/8192                      177 ns          177 ns      3471392
-BM_stdcopy<uint8_t>/16384                     359 ns          359 ns      2011546
-BM_stdcopy<uint8_t>/32768                    1105 ns         1104 ns       630457
-BM_stdcopy<uint8_t>/65536                    2256 ns         2254 ns       316916
-BM_stdcopy<uint8_t>/131072                   8384 ns         8375 ns        81619
-BM_stdcopy<uint8_t>/262144                   9361 ns         9350 ns        76204
-BM_stdcopy<uint8_t>/524288                  18530 ns        18509 ns        38457
-BM_stdcopy<uint8_t>/1048576                 46518 ns        46411 ns        15332
-BM_copy<uint8_t>/32                          2.50 ns         2.50 ns    276045495
-BM_copy<uint8_t>/64                          4.39 ns         4.39 ns    160637279
-BM_copy<uint8_t>/128                         7.36 ns         7.35 ns     84538405
-BM_copy<uint8_t>/256                         12.4 ns         12.4 ns     56632149
-BM_copy<uint8_t>/512                         8.88 ns         8.87 ns     76167937
-BM_copy<uint8_t>/1024                        17.9 ns         17.8 ns     39803303
-BM_copy<uint8_t>/2048                        38.5 ns         38.4 ns     18022780
-BM_copy<uint8_t>/4096                        86.3 ns         86.2 ns      8159703
-BM_copy<uint8_t>/8192                         163 ns          163 ns      4437057
-BM_copy<uint8_t>/16384                        331 ns          330 ns      2145389
-BM_copy<uint8_t>/32768                       1086 ns         1085 ns       644641
-BM_copy<uint8_t>/65536                       2215 ns         2213 ns       312483
-BM_copy<uint8_t>/131072                      4582 ns         4577 ns       157125
-BM_copy<uint8_t>/262144                      9704 ns         9693 ns        72132
-BM_copy<uint8_t>/524288                     18108 ns        18087 ns        38751
-BM_copy<uint8_t>/1048576                    43328 ns        43230 ns        15867
-BM_copy_multithreaded<uint8_t>/32            3.25 ns         3.25 ns    223546315
-BM_copy_multithreaded<uint8_t>/64            6.68 ns         6.68 ns    111935951
-BM_copy_multithreaded<uint8_t>/128           5.44 ns         5.44 ns    129778211
-BM_copy_multithreaded<uint8_t>/256           7.64 ns         7.63 ns     97601820
-BM_copy_multithreaded<uint8_t>/512           10.0 ns         9.99 ns     76463348
-BM_copy_multithreaded<uint8_t>/1024          8021 ns         4098 ns       172463
-BM_copy_multithreaded<uint8_t>/2048          7034 ns         4781 ns       149994
-BM_copy_multithreaded<uint8_t>/4096          9597 ns         7131 ns        98192
-BM_copy_multithreaded<uint8_t>/8192          9650 ns         7198 ns        96532
-BM_copy_multithreaded<uint8_t>/16384        10139 ns         7285 ns        95959
-BM_copy_multithreaded<uint8_t>/32768        10660 ns         7585 ns        92278
-BM_copy_multithreaded<uint8_t>/65536        11295 ns         7806 ns        89285
-BM_copy_multithreaded<uint8_t>/131072       12749 ns         8116 ns        86052
-BM_copy_multithreaded<uint8_t>/262144       19362 ns        10184 ns        68839
-BM_copy_multithreaded<uint8_t>/524288       31069 ns        10671 ns        66048
-BM_copy_multithreaded<uint8_t>/1048576      77557 ns        13185 ns        54131
-./bench/algorithm/bench_algorithm_copy  68,87s user 16,50s system 155% cpu 54,723 total
-```
-
-
 eea:
 ======
 
 equal:
 ======
+
+Usage:
+```c++
+const auto end = cryptanalysislib::argmax(in.begin(), in.end(), out.begin());
+```
+
+Benchmark:
+``` 
+2024-10-17T10:24:45+02:00
+Run on (12 X 5453 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x6)
+  L1 Instruction 32 KiB (x6)
+  L2 Unified 1024 KiB (x6)
+  L3 Unified 32768 KiB (x1)
+Load Average: 3.15, 1.94, 1.32
+--------------------------------------------------------------------------------------------------
+Benchmark                                        Time             CPU   Iterations UserCounters...
+--------------------------------------------------------------------------------------------------
+BM_stdequal<uint8_t>/32                       13.1 ns         13.1 ns     53122650 cycles=30.7324
+BM_stdequal<uint8_t>/64                       13.0 ns         13.0 ns     53861974 cycles=30.5698
+BM_stdequal<uint8_t>/128                      13.1 ns         13.1 ns     53633583 cycles=30.7849
+BM_stdequal<uint8_t>/256                      13.3 ns         13.3 ns     53320500 cycles=31.3012
+BM_stdequal<uint8_t>/512                      13.4 ns         13.4 ns     52409365 cycles=31.59
+BM_stdequal<uint8_t>/1024                     13.8 ns         13.8 ns     50588788 cycles=32.4355
+BM_stdequal<uint8_t>/2048                     22.5 ns         22.4 ns     31126983 cycles=73.1614
+BM_stdequal<uint8_t>/4096                     39.6 ns         39.5 ns     17830541 cycles=152.735
+BM_stdequal<uint8_t>/8192                     59.5 ns         59.4 ns     11822973 cycles=246.429
+BM_stdequal<uint8_t>/16384                     144 ns          144 ns      4856652 cycles=645.316
+BM_stdequal<uint8_t>/32768                     399 ns          398 ns      1755989 cycles=1.8406k
+BM_stdequal<uint8_t>/65536                     790 ns          789 ns       888931 cycles=3.67404k
+BM_stdequal<uint8_t>/131072                   1572 ns         1569 ns       446086 cycles=7.34087k
+BM_stdequal<uint8_t>/262144                   3127 ns         3121 ns       224014 cycles=14.6385k
+BM_stdequal<uint8_t>/524288                   7616 ns         7598 ns        92437 cycles=35.6969k
+BM_stdequal<uint8_t>/1048576                 14840 ns        14800 ns        47425 cycles=69.5804k
+BM_equal<uint8_t>/32                          13.0 ns         13.0 ns     53817440 cycles=30.6097
+BM_equal<uint8_t>/64                          13.0 ns         13.0 ns     53736194 cycles=30.5427
+BM_equal<uint8_t>/128                         13.0 ns         13.0 ns     53872636 cycles=30.5448
+BM_equal<uint8_t>/256                         13.1 ns         13.1 ns     53615032 cycles=30.7764
+BM_equal<uint8_t>/512                         13.6 ns         13.6 ns     51069581 cycles=31.5473
+BM_equal<uint8_t>/1024                        16.2 ns         16.1 ns     43157716 cycles=43.5448
+BM_equal<uint8_t>/2048                        32.7 ns         32.6 ns     21471862 cycles=121.268
+BM_equal<uint8_t>/4096                        52.2 ns         52.1 ns     13300394 cycles=213.083
+BM_equal<uint8_t>/8192                        93.0 ns         92.8 ns      7538439 cycles=403.229
+BM_equal<uint8_t>/16384                        167 ns          166 ns      4189990 cycles=749.858
+BM_equal<uint8_t>/32768                        407 ns          406 ns      1725548 cycles=1.87701k
+BM_equal<uint8_t>/65536                        818 ns          816 ns       855429 cycles=3.80577k
+BM_equal<uint8_t>/131072                      1594 ns         1591 ns       440126 cycles=7.44433k
+BM_equal<uint8_t>/262144                      3381 ns         3374 ns       207568 cycles=15.8302k
+BM_equal<uint8_t>/524288                      7989 ns         7968 ns        87746 cycles=37.4427k
+BM_equal<uint8_t>/1048576                    15009 ns        14967 ns        46716 cycles=70.3736k
+BM_equal_multithreaded<uint8_t>/32            12.9 ns         12.9 ns     54074724 cycles=30.3655
+BM_equal_multithreaded<uint8_t>/64            13.0 ns         13.0 ns     53864689 cycles=30.6701
+BM_equal_multithreaded<uint8_t>/128           13.0 ns         12.9 ns     54109847 cycles=30.41
+BM_equal_multithreaded<uint8_t>/256           13.0 ns         13.0 ns     54076133 cycles=30.4811
+BM_equal_multithreaded<uint8_t>/512           13.6 ns         13.6 ns     51898317 cycles=32.1364
+BM_equal_multithreaded<uint8_t>/1024          16.1 ns         16.1 ns     43480090 cycles=43.5068
+BM_equal_multithreaded<uint8_t>/2048          30.0 ns         29.9 ns     23443191 cycles=108.892
+BM_equal_multithreaded<uint8_t>/4096          49.1 ns         49.0 ns     14278482 cycles=198.603
+BM_equal_multithreaded<uint8_t>/8192          91.3 ns         91.1 ns      7760440 cycles=396.212
+BM_equal_multithreaded<uint8_t>/16384          165 ns          165 ns      4179604 cycles=743.013
+BM_equal_multithreaded<uint8_t>/32768          409 ns          408 ns      1720273 cycles=1.8844k
+BM_equal_multithreaded<uint8_t>/65536          828 ns          827 ns       847935 cycles=3.85398k
+BM_equal_multithreaded<uint8_t>/131072        1600 ns         1596 ns       439802 cycles=7.47173k
+BM_equal_multithreaded<uint8_t>/262144        9537 ns         3062 ns       239417 cycles=44.7064k
+BM_equal_multithreaded<uint8_t>/524288        9549 ns         3114 ns       222670 cycles=44.7621k
+BM_equal_multithreaded<uint8_t>/1048576      12796 ns         5226 ns       134645 cycles=59.9944k
+```
 
 exclusive_scan:
 ======
@@ -391,8 +610,9 @@ std::vector<T> in; in.resize(s);
 std::fill(in.begin(), in.end(), 1);
 const auto d = cryptanalysislib::accumulate(in.begin(), in.end(), 0);
 ```
+
+Benchmark
 ```
-2024-10-09T15:55:09+02:00
 Run on (12 X 5453 MHz CPU s)
 CPU Caches:
   L1 Data 32 KiB (x6)

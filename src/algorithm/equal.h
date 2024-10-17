@@ -10,7 +10,7 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmEqualConfig : public AlgorithmConfig {
-		constexpr static size_t min_size_per_thread = 1u << 10u;
+		constexpr static size_t min_size_per_thread = 262144;
 	};
 	constexpr static AlgorithmEqualConfig algorithmEqualConfig;
 
@@ -24,8 +24,8 @@ namespace cryptanalysislib {
 			 class InputIt2,
 			 const AlgorithmEqualConfig &config=algorithmEqualConfig>
 #if __cplusplus > 201709L
-		requires std::bidirectional_iterator<InputIt1> &&
-				 std::bidirectional_iterator<InputIt2>
+		requires std::forward_iterator<InputIt1> &&
+				 std::forward_iterator<InputIt2>
 #endif
 	constexpr bool equal(InputIt1 first1,
 						 InputIt1 last1,
@@ -44,6 +44,15 @@ namespace cryptanalysislib {
 	    return true;
 	}
 
+	/// \tparam ExecPolicy
+	/// \tparam RandIt1
+	/// \tparam RandIt2
+	/// \tparam config
+	/// \param policy
+	/// \param first1
+	/// \param last1
+	/// \param first2
+	/// \return
 	template <class ExecPolicy,
 			  class RandIt1,
 			  class RandIt2,
