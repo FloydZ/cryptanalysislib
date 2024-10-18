@@ -41,6 +41,17 @@ TEST(prefix_sum, int32_simd_v2) {
 #endif
 
 #ifdef USE_AVX512F
+TEST(prefix_sum, u8_simd_avx512) {
+    constexpr static size_t s = 100;
+    using T = uint8_t;
+    std::vector<T> in; in.resize(s);
+    std::ranges::fill(in, 1);
+    cryptanalysislib::algorithm::internal::prefixsum_u8_avx512(in.data(), s);
+	for (size_t i = 0; i < s; i++) {
+		EXPECT_EQ(i + 1, in[i]);
+	}
+}
+
 TEST(prefix_sum, u32_simd_avx512) {
     constexpr static size_t s = 100;
     using T = uint32_t;

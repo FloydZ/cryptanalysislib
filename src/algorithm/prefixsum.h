@@ -42,7 +42,7 @@ namespace cryptanalysislib::algorithm {
 		}
 
 		static inline __m128i sse_prefixsum_accumulate_u32(uint32_t *p,
-								   const __m128i s) noexcept {
+								                           const __m128i s) noexcept {
 			__m128i d = (__m128i) _mm_broadcast_ss((float *) &p[3]);
 			__m128i x = _mm_loadu_si128((__m128i *) p);
 			x = _mm_add_epi32(s, x);
@@ -63,7 +63,7 @@ namespace cryptanalysislib::algorithm {
 		/// \param s
 		/// \return
 		static __m128i avx2_local_prefixsum_u32(uint32_t *__restrict__ a,
-							__m128i s) noexcept {
+							                    __m128i s) noexcept {
 			for (uint32_t i = 0; i < prefixsum_u32_block_size; i += 8) {
 				avx_prefix_prefixsum_u32(&a[i]);
 			}
@@ -101,7 +101,7 @@ namespace cryptanalysislib::algorithm {
 
 		/// source: https://gist.github.com/boss14420/b959a805b291f031af6f41841e6d2c80
 		static void prefixsum_i32_avx2(int32_t *v,
-										 const size_t n) noexcept {
+									   const size_t n) noexcept {
 			__m256i zero	= _mm256_setzero_si256(),
 					sum		= _mm256_setzero_si256(),
 					offset  = _mm256_set1_epi32(7),
@@ -133,7 +133,7 @@ namespace cryptanalysislib::algorithm {
 		/// @param v
 		/// @param n
 		static void _TwoPhaseAccumulate(int32_t *v,
-								 const size_t n) noexcept {
+								        const size_t n) noexcept {
 			__m128i s = _mm_loadu_si128((__m128i*) v);
 			auto const pe = v + n;
 			for (auto p = v+4; p+4 <= pe; p += 4) {
@@ -147,7 +147,7 @@ namespace cryptanalysislib::algorithm {
 		/// \param v
 		/// \param n
 		static void prefixsum_i32_avx2_v2(int32_t *v,
-										   const size_t n) noexcept {
+										  const size_t n) noexcept {
 			auto const pe = v + n;
 			auto p = v;
 			for (; p+16 <= pe; p += 16) {
@@ -173,12 +173,34 @@ namespace cryptanalysislib::algorithm {
 #endif
 
 #ifdef USE_AVX512F
-		static void prefixsum_u32_avx512(uint32_t *v,
+		static void prefixsum_u8_avx512(uint8_t *v,
 									    const size_t n) noexcept {
+            constexpr uint32_t limbs = 64; 
+            
+            __m512i mask = _mm512_set1_epi8(limbs-1);
+            
+
+            size_t i = 0;
+            __m512i acc = _mm512_setzero_si512();
+			for (; (i+limbs) <= n; i+=limbs) {
+                const __m512i l = _mm512_loadu_si512(v + i);
+                const __m512i f = __prefixsum_u8_avx512(l);
+                acc = _mm512_add_epi8(acc, f);
+                _mm512_storeu_si512(v + i, acc);
+                acc = _mm512_permutexvar_epi8(mask, acc);
+            }
+			
+            // tail mngt
+			for (; i < n; i++) {
+				v[i] += v[i - 1];
+			}
+        }
+		static void prefixsum_u32_avx512(uint32_t *v,
+									     const size_t n) noexcept {
             constexpr uint32_t limbs = 16; 
+            __m512i mask = _mm512_set1_epi32(limbs-1);
             
-            alignas(64) static uint32_t table[16];
-            
+
             size_t i = 0;
             __m512i acc = _mm512_setzero_si512();
 			for (; (i+limbs) <= n; i+=limbs) {
@@ -186,8 +208,7 @@ namespace cryptanalysislib::algorithm {
                 const __m512i f = __prefixsum_u32_avx512(l);
                 acc = _mm512_add_epi32(acc, f);
                 _mm512_storeu_si512(v + i, acc);
-                _mm512_store_si512(table, acc);
-                acc = _mm512_set1_epi32(table[15]);
+                acc =_mm512_permutevar_epi32(mask, acc);
             }
 			
             // tail mngt
@@ -208,8 +229,6 @@ namespace cryptanalysislib::algorithm {
             constexpr uint32_t t = floor_log2(limbs) - 1;
 			using S = TxN_t<T, limbs>;
 
-            
-			size_t ret = 0;
 			size_t i = 0;
 			for (; (i+limbs) <= n; i+=limbs) {
 				auto d = S::load(v + i);

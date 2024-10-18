@@ -2523,18 +2523,48 @@ int64_t bshuf_trans_bit_byte_AVX512(const void* in,
     return count;
 }
 
+template<const uint32_t k>
+__m512i _mm512_slli_si512_epi64(const __m512i x) noexcept {
+    const __m512i ZERO = _mm512_setzero_si512();
+    return _mm512_alignr_epi64(x, ZERO, 8 - k);
+}
+
 ///
 template<const uint32_t k>
-__m512i _mm512_slli_si512 (const __m512i x) noexcept {
+__m512i _mm512_slli_si512_epi32(const __m512i x) noexcept {
     const __m512i ZERO = _mm512_setzero_si512();
     return _mm512_alignr_epi32(x, ZERO, 16 - k);
 }
 
+template<const uint32_t k>
+__m512i _mm512_slli_si128_epi8 (const __m512i x) noexcept {
+    const __m512i ZERO = _mm512_setzero_si512();
+    return _mm512_alignr_epi8(x, ZERO, 16 - k);
+}
+
 __m512i __prefixsum_u32_avx512(__m512i x) noexcept {
-    x = _mm512_add_epi32(x, _mm512_slli_si512<1>(x));
-    x = _mm512_add_epi32(x, _mm512_slli_si512<2>(x));
-    x = _mm512_add_epi32(x, _mm512_slli_si512<4>(x));
-    x = _mm512_add_epi32(x, _mm512_slli_si512<8>(x));
+    x = _mm512_add_epi32(x, _mm512_slli_si512_epi32<1>(x));
+    x = _mm512_add_epi32(x, _mm512_slli_si512_epi32<2>(x));
+    x = _mm512_add_epi32(x, _mm512_slli_si512_epi32<4>(x));
+    x = _mm512_add_epi32(x, _mm512_slli_si512_epi32<8>(x));
+    return x;
+}
+
+/// TODO not correct
+__m512i __prefixsum_u8_avx512(__m512i x) noexcept {
+    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 1>(x));
+    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 2>(x));
+    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 4>(x));
+    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 8>(x));
+
+	__mmask8 k = 0b11111100;
+	__m512i y = _mm512_maskz_shuffle_i64x2(k, x, x, 0b10010000);
+	__m512i z = _mm512_slli_si128_epi8< 1>(y);
+    x = _mm512_add_epi8(x, z);
+    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 2>(x));
+    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 4>(x));
+    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 8>(x));
+
     return x;
 }
 
