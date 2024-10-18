@@ -22,7 +22,7 @@ TEST(prefix_sum, int32_simd) {
     using T = int32_t;
     std::vector<T> in; in.resize(s);
     std::ranges::fill(in, 1);
-    cryptanalysislib::internal::prefixsum_i32_avx2(in.data(), s);
+    cryptanalysislib::algorithm::internal::prefixsum_i32_avx2(in.data(), s);
 	for (size_t i = 0; i < s; i++) {
 		EXPECT_EQ(i + 1, in[i]);
 	}
@@ -33,9 +33,22 @@ TEST(prefix_sum, int32_simd_v2) {
     using T = int32_t;
     std::vector<T> in; in.resize(s);
     std::ranges::fill(in, 1);
-    cryptanalysislib::internal::prefixsum_i32_avx2_v2(in.data(), s);
+    cryptanalysislib::algorithm::internal::prefixsum_i32_avx2_v2(in.data(), s);
 	for (size_t i = 0; i < s; i++) {
 		EXPECT_EQ(i+1, in[i]);
+	}
+}
+#endif
+
+#ifdef USE_AVX512F
+TEST(prefix_sum, u32_simd_avx512) {
+    constexpr static size_t s = 100;
+    using T = uint32_t;
+    std::vector<T> in; in.resize(s);
+    std::ranges::fill(in, 1);
+    cryptanalysislib::algorithm::internal::prefixsum_u32_avx512(in.data(), s);
+	for (size_t i = 0; i < s; i++) {
+		EXPECT_EQ(i + 1, in[i]);
 	}
 }
 #endif

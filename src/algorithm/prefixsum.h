@@ -2,13 +2,23 @@
 #define CRYPTANALYSISLIB_PREFIXSUM_H
 
 #include "algorithm/algorithm.h"
+#include "simd/simd.h"
+#include "math/math.h"
 
 #ifdef USE_AVX2
 #include <immintrin.h>
+#endif
 
-namespace cryptanalysislib {
+namespace cryptanalysislib::algorithm {
+	struct AlgorithmPrefixsumConfig : public AlgorithmConfig {
+		const bool aligned_instructions = false;
+		const size_t min_size_per_thread = 1u << 14u;
+	};
+	constexpr static AlgorithmPrefixsumConfig algorithmPrefixsumConfig;
 
 	namespace internal {
+
+#ifdef USE_AVX2
 		static inline void sse_prefixsum_u32(uint32_t *in) noexcept {
 			__m128i x = _mm_loadu_si128((__m128i *) in);
 			// x = 1, 2, 3, 4
@@ -160,17 +170,68 @@ namespace cryptanalysislib {
 				*p += *(p - 1);
 			}
 		}
-	}
-}
-
 #endif
 
-namespace cryptanalysislib::algorithm {
+#ifdef USE_AVX512F
+		static void prefixsum_u32_avx512(uint32_t *v,
+									    const size_t n) noexcept {
+            constexpr uint32_t limbs = 16; 
+            
+            alignas(64) static uint32_t table[16];
+            
+            size_t i = 0;
+            __m512i acc = _mm512_setzero_si512();
+			for (; (i+limbs) <= n; i+=limbs) {
+                const __m512i l = _mm512_loadu_si512(v + i);
+                const __m512i f = __prefixsum_u32_avx512(l);
+                acc = _mm512_add_epi32(acc, f);
+                _mm512_storeu_si512(v + i, acc);
+                _mm512_store_si512(table, acc);
+                acc = _mm512_set1_epi32(table[15]);
+            }
+			
+            // tail mngt
+			for (; i < n; i++) {
+				v[i] += v[i - 1];
+			}
+        }
+#endif
 
-	struct AlgorithmPrefixsumConfig : public AlgorithmConfig {
-		constexpr static size_t min_size_per_thread = 1u << 14u;
-	};
-	constexpr static AlgorithmPrefixsumConfig algorithmPrefixsumConfig;
+		template<typename T>
+		static void prefixsum_uXX_simd(T *v,
+									   const size_t n) noexcept {
+#ifdef USE_AVX512F
+			constexpr uint32_t limbs = 64/sizeof(T);
+#else
+			constexpr uint32_t limbs = 32/sizeof(T);
+#endif
+            constexpr uint32_t t = floor_log2(limbs) - 1;
+			using S = TxN_t<T, limbs>;
+
+            
+			size_t ret = 0;
+			size_t i = 0;
+			for (; (i+limbs) <= n; i+=limbs) {
+				auto d = S::load(v + i);
+                S d2 = d;
+                for (uint32_t j = 0; j < t; j++) {
+                    d2 = S::sll(d2, j*t); 
+                    d = d + d2;
+                }
+                // TODO untested 
+                S::store(v + i, d);
+			}
+
+			// tailmngt
+			for (; i < n; i++) {
+				v[i] += v[i - 1];
+			}
+		}
+	} // end namespace internal
+} // end namespace cryptanalysislib::algorithm
+
+
+namespace cryptanalysislib::algorithm {
 
 	/// inplace prefix sum algorithm
 	/// \tparam T

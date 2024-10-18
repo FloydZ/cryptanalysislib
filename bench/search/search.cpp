@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "random.h"
 #include "search/search.h"
 
 using T = uint64_t;
@@ -20,7 +21,7 @@ constexpr static size_t NR_SOLS = 2;
 
 static void DoSetup(const benchmark::State& state) {
 	size_t search;
-	random_data(data, search, state.range(0), NR_SOLS, MASK);
+    cryptanalysislib::random_data(data, search, state.range(0), NR_SOLS, MASK);
 }
 
 static void stdlowerbound_bench(benchmark::State& state) {

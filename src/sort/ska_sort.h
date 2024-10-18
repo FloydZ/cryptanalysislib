@@ -175,7 +175,20 @@ struct SizedRadixSorter<2>
 		}
     }
 
-    template<typename count_type, typename It, typename OutIt, typename ExtractKey>
+    /// \tparam count_type
+    /// \tparam It
+    /// \tparam OutIt
+    /// \tparam ExtractKey
+    /// \param begin
+    /// \param end
+    /// \param out_begin
+    /// \param out_end
+    /// \param extract_key
+    /// \return
+    template<typename count_type,
+             typename It,
+             typename OutIt,
+             typename ExtractKey>
 	[[nodiscard]] static bool sort_inline(It begin,
 									  It end,
 									  OutIt out_begin, 
@@ -191,7 +204,7 @@ struct SizedRadixSorter<2>
             ++counts1[(key >> 8) & 0xff];
         }
 
-		// TODO not optimized: via acc sum und son
+		// TODO not optimized: exclusive_sum
 		//https://godbo.lt/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:28,endLineNumber:16,positionColumn:28,positionLineNumber:16,selectionStartColumn:28,selectionStartLineNumber:16,startColumn:28,startLineNumber:16),source:'//+Type+your+code+here,+or+load+an+example.%0A%23include+%3Cstdint.h%3E%0A%0Aint+square(uint32_t+*counts0,+uint32_t+*counts1)+%7B%0A++++uint32_t+total0+%3D+0%3B%0A++++uint32_t+total1+%3D+0%3B%0A++++for+(uint32_t+i+%3D+0%3B+i+%3C+256%3B+%2B%2Bi)+%7B%0A++++++++uint32_t+old_count0+%3D+counts0%5Bi%5D%3B%0A++++++++uint32_t+old_count1+%3D+counts1%5Bi%5D%3B%0A++++++++counts0%5Bi%5D+%3D+total0%3B%0A++++++++counts1%5Bi%5D+%3D+total1%3B%0A++++++++total0+%2B%3D+old_count0%3B%0A++++++++total1+%2B%3D+old_count1%3B%0A++++%7D%0A%0A++++return+total0+%2B+total1%3B%0A%7D'),l:'5',n:'1',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:g141,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-mavx+-mavx2+-O3',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+x86-64+gcc+14.1+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
         count_type total0 = 0;
         count_type total1 = 0;

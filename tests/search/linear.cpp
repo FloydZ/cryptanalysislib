@@ -19,7 +19,7 @@ constexpr static size_t NR_SOLS = 1;
 TEST(upper_bound_linear_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, NR_SOLS, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, NR_SOLS, MASK);
 
 	auto a = upper_bound_linear_search(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> bool {
@@ -33,7 +33,7 @@ TEST(upper_bound_linear_search, simple) {
 TEST(lower_bound_linear_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, NR_SOLS, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, NR_SOLS, MASK);
 
 	auto a = lower_bound_linear_search(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> bool {
@@ -47,7 +47,7 @@ TEST(lower_bound_linear_search, simple) {
 TEST(upper_bound_breaking_linear_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, NR_SOLS, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, NR_SOLS, MASK);
 
 	auto a = upper_bound_breaking_linear_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
@@ -61,7 +61,7 @@ TEST(upper_bound_breaking_linear_search, simple) {
 TEST(lower_bound_breaking_linear_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, NR_SOLS, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, NR_SOLS, MASK);
 
 	auto a = lower_bound_breaking_linear_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {

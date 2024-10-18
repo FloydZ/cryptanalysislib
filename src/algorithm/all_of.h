@@ -121,7 +121,7 @@ namespace cryptanalysislib {
     	};
 
         return last == cryptanalysislib::find_if
-						<ExecPolicy, RandIt, Predicate, config>
+						<ExecPolicy, RandIt, Predicate, c>
     					(std::forward<ExecPolicy>(policy), first, last, pred);
     }
 

@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
 	rng_seed(time(NULL));
 
 	size_t search;
-	random_data(data, search, SIZE, NR_SOLS, MASK);
+    cryptanalysislib::random_data(data, search, SIZE, NR_SOLS, MASK);
 	// preheat?
 	uint64_t errors = 0;
 	for (uint64_t i = 0; i < 1u<<20u; i++) {

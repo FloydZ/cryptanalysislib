@@ -74,6 +74,31 @@ TEST(histogram_u32_avx2, single) {
 	free(data); free(cnt);
 }
 #endif
+
+
+#ifdef USE_AVX512F
+TEST(avx512_histogram_u32_v4, single) {
+	constexpr size_t s = 32;
+	using T = uint32_t;
+	T *data = (T *)malloc(s * sizeof(T));
+	auto *cnt = (uint32_t *)malloc(256 * sizeof(uint32_t));
+	memset(data, 0, s * sizeof(T));
+	memset(cnt, 0, 256* sizeof(T));
+
+	avx512_histogram_u32_v4(cnt, data, s);
+	EXPECT_EQ(cnt[0], s);
+
+	data[0] = 1;
+	histogram_u8_4x(cnt, data, s);
+	EXPECT_EQ(cnt[0], s-1);
+	EXPECT_EQ(cnt[1], 1);
+
+	free(data); free(cnt);
+}
+#endif
+
+
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

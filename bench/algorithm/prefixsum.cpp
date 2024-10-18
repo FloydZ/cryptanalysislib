@@ -58,7 +58,7 @@ static void BM_prefix_sum_u32_avx2(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
 	for (auto _: state) {
-        cryptanalysislib::internal::prefixsum_u32_avx2(fr.data(), state.range(0));
+        cryptanalysislib::algorithm::internal::prefixsum_u32_avx2(fr.data(), state.range(0));
 		benchmark::ClobberMemory();
 	}
 }
@@ -69,7 +69,7 @@ static void BM_prefix_sum_i32_avx2(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
 	for (auto _: state) {
-        cryptanalysislib::internal::prefixsum_i32_avx2(fr.data(), state.range(0));
+        cryptanalysislib::algorithm::internal::prefixsum_i32_avx2(fr.data(), state.range(0));
 		benchmark::ClobberMemory();
 	}
 }
@@ -80,7 +80,7 @@ static void BM_prefix_sum_i32_avx2_v2(benchmark::State &state) {
     fr.resize(state.range(0));
     std::fill(fr.begin(), fr.end(), 1);
 	for (auto _: state) {
-        cryptanalysislib::internal::prefixsum_i32_avx2(fr.data(), state.range(0));
+        cryptanalysislib::algorithm::internal::prefixsum_i32_avx2(fr.data(), state.range(0));
 		benchmark::ClobberMemory();
 	}
 }
@@ -91,6 +91,21 @@ BENCHMARK(BM_prefix_sum_i32_avx2_v2)->RangeMultiplier(2)->Range(32, LS);
 
 #endif
 
+#ifdef USE_AVX512F
+static void BM_prefix_sum_u32_avx512(benchmark::State &state) {
+	using T = uint32_t;
+	static std::vector<T> fr;
+    fr.resize(state.range(0));
+    std::fill(fr.begin(), fr.end(), 1);
+	for (auto _: state) {
+        cryptanalysislib::algorithm::internal::prefixsum_u32_avx512(fr.data(), state.range(0));
+		benchmark::ClobberMemory();
+	}
+}
+
+BENCHMARK(BM_prefix_sum_u32_avx512)->RangeMultiplier(2)->Range(32, LS);
+
+#endif
 
 BENCHMARK(BM_prefix_sum<int8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_prefix_sum<int32_t>)->RangeMultiplier(2)->Range(32, LS);

@@ -2523,4 +2523,19 @@ int64_t bshuf_trans_bit_byte_AVX512(const void* in,
     return count;
 }
 
+///
+template<const uint32_t k>
+__m512i _mm512_slli_si512 (const __m512i x) noexcept {
+    const __m512i ZERO = _mm512_setzero_si512();
+    return _mm512_alignr_epi32(x, ZERO, 16 - k);
+}
+
+__m512i __prefixsum_u32_avx512(__m512i x) noexcept {
+    x = _mm512_add_epi32(x, _mm512_slli_si512<1>(x));
+    x = _mm512_add_epi32(x, _mm512_slli_si512<2>(x));
+    x = _mm512_add_epi32(x, _mm512_slli_si512<4>(x));
+    x = _mm512_add_epi32(x, _mm512_slli_si512<8>(x));
+    return x;
+}
+
 #endif//CRYPTANALYSISLIB_AVX512_H

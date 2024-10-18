@@ -12,6 +12,9 @@ namespace cryptanalysislib {
     };
     constexpr static AlgorithmExclusiveScanConfig algorithmExclusiveScanConfig;
 
+
+
+
 	/// \tparam InputIt
     /// \tparam OutputIt
     /// \tparam BinaryOp
@@ -73,7 +76,9 @@ namespace cryptanalysislib {
                             OutputIt d_first,
                             const typename InputIt::value_type init) noexcept {
     	using T = InputIt::value_type;
-		return cryptanalysislib::exclusive_scan(first, last, d_first, init, std::plus<T>());
+		return cryptanalysislib::exclusive_scan
+            <InputIt, OutputIt, decltype(std::plus<T>()), config>
+            (first, last, d_first, init, std::plus<T>());
     }
 
 
@@ -183,6 +188,10 @@ namespace cryptanalysislib {
              class RandIt1,
              class RandIt2,
              const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt1> &&
+		         std::random_access_iterator<RandIt2>
+#endif
     RandIt2 exclusive_scan(ExecPolicy &&policy,
                            RandIt1 first,
                            RandIt1 last,
@@ -198,6 +207,10 @@ namespace cryptanalysislib {
              class RandIt1,
              class RandIt2,
              const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt1> &&
+		         std::random_access_iterator<RandIt2>
+#endif
     RandIt2 exclusive_scan(ExecPolicy &&policy,
                            RandIt1 first,
                            RandIt1 last,

@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "simd/simd.h"
+#include "algorithm/algorithm.h"
 #include "thread/thread.h"
 
 namespace cryptanalysislib {

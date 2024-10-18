@@ -589,8 +589,11 @@ public:
 	//}
 };
 
-// C++ wrapper around `aligned_alloc` and `aligned_free`
-template<typename T, const size_t alignment = 1024>
+/// C++ wrapper around `aligned_alloc` and `aligned_free`
+/// @tparam T  type to allocate
+/// @tparam alignment in bytes
+template<typename T,
+		 const size_t alignment = 1024>
 class AlignmentMallocator {
 public:
 	typedef AlignmentMallocator<T, alignment> allocator_type;
@@ -603,14 +606,12 @@ public:
 	typedef size_t size_type;
 
 	/// simply allocates `n` bytes using `a`
-	/// \param a base allocator
 	/// \param n number of byte
 	/// \return pointer to data or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
 		return (pointer)cryptanalysislib::aligned_alloc(alignment, n);
 	}
 
-	/// \param a base allocator
 	/// \param p pointer to data
 	/// \param n number of bytes
 	static constexpr inline void deallocate(const pointer p,
@@ -623,5 +624,8 @@ public:
 namespace cryptanalysislib::alloc {
 	// define a standard allocator
 	using allocator = PageMallocator<1u<<12u, 1u<<12u>;
+
+	template <typename T>
+	using alignment_allocator = AlignmentMallocator<T>;
 }
 #endif //CRYPTANALYSISLIB_ALLOC_H

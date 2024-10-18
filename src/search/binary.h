@@ -702,16 +702,16 @@ namespace cryptanalysislib::search {
 
 			static FF out;
 			static bool set = false;
-			// NOTE dont specify as const
-			static FF functions[] = {
-				branchless_lower_bound<It, Compare>
-			};
-
 			if (set) [[likely]] {
 				return std::invoke(out, begin, end, value, cmp);
 			}
 
 			set = true;
+
+			// NOTE dont specify as const
+			static FF functions[] = {
+				branchless_lower_bound<It, Compare>
+			};
 
 			generic_dispatch(out, functions, 1, begin, end, value, cmp);
 			return binary_search_dispatch(begin, end, value, cmp);
@@ -739,13 +739,6 @@ namespace cryptanalysislib::search {
 
 			static FF out;
 			static bool set = false;
-			// NOTE dont specify as const
-			static FF functions[] = {
-				branchless_lower_bound<It, Hash>,
-				lower_bound_standard_binary_search<It, Hash>,
-				lower_bound_monobound_binary_search<It, Hash>,
-				tripletapped_binary_search<It, Hash>,
-			};
 
 			if (set) [[likely]] {
 				return std::invoke(out, begin, end, value, h);
@@ -753,6 +746,13 @@ namespace cryptanalysislib::search {
 
 			set = true;
 
+			// NOTE dont specify as const
+			static FF functions[] = {
+				branchless_lower_bound<It, Hash>,
+				lower_bound_standard_binary_search<It, Hash>,
+				lower_bound_monobound_binary_search<It, Hash>,
+				tripletapped_binary_search<It, Hash>,
+			};
 			const auto d = generic_dispatch(out, functions, 1, begin, end, value, h);
 			return binary_search_dispatch(begin, end, value, h);
 		}

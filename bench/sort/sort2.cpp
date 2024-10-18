@@ -6,6 +6,7 @@
 #include "container/binary_packed_vector.h"
 #include "container/fq_packed_vector.h"
 #include "container/fq_vector.h"
+#include "random.h"
 #include "list/list.h"
 #include "sort/sort.h"
 
@@ -40,7 +41,7 @@ void BM_StdSort(benchmark::State& state) {
 	T t;
 
 	List l{(size_t)state.range(0)};
-	random_data<List, T>(l, search_index, state.range(0), nr_sols, t);
+    cryptanalysislib::random_data<List, T>(l, search_index, state.range(0), nr_sols, t);
 
 	for (auto _ : state) {
 		std::sort(l.begin(), l.end(), [](const T &a, const T &b) {
@@ -56,7 +57,7 @@ void BM_SkaSort(benchmark::State& state) {
 	T t;
 
 	List l{(size_t)state.range(0)};
-	random_data<List, T>(l, search_index, state.range(0), nr_sols, t);
+    cryptanalysislib::random_data<List, T>(l, search_index, state.range(0), nr_sols, t);
 
 	for (auto _ : state) {
 		ska_sort(l.begin(), l.end(), [](const T &a) __attribute__((always_inline)) {
