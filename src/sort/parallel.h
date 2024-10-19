@@ -46,7 +46,7 @@ namespace cryptanalysislib {
         #if __cplusplus > 201709L
         	requires std::random_access_iterator<RandIt>
         #endif
-        RandIt partition_p2(pool_type &task_pool,
+        RandIt partition_p2(pool_type_ &task_pool,
                             RandIt first,
                             RandIt last,
                             Predicate pred) noexcept {
@@ -103,7 +103,7 @@ namespace cryptanalysislib {
         }
 
         // Sort chunks in parallel
-        auto futures = parallel_chunk_for_gen(std::forward<ExecPolicy>(policy), first, last,
+        auto futures = internal::parallel_chunk_for_gen(std::forward<ExecPolicy>(policy), first, last,
                          [&comp, sort_func] (RandIt chunk_first, RandIt chunk_last) {
                              sort_func(chunk_first, chunk_last, comp);
                              return std::make_pair(chunk_first, chunk_last);
@@ -155,7 +155,7 @@ namespace cryptanalysislib {
     #if __cplusplus > 201709L
     	requires std::random_access_iterator<RandIt>
     #endif
-    void quicksort_impl(pool_type *task_pool,
+    void quicksort_impl(pool_type_ *task_pool,
                         const RandIt first,
                         const RandIt last,
                         Compare comp,
@@ -173,7 +173,7 @@ namespace cryptanalysislib {
 
         if (partition_size > target_leaf_size) {
             // partition the range
-            auto mid = part_func(first, last, pivot_predicate<Compare, T>(comp, pivot_func(first, last)));
+            auto mid = part_func(first, last, internal::pivot_predicate<Compare, T>(comp, pivot_func(first, last)));
 
             if (mid != first && mid != last) {
                 // was able to partition the range, so recurse
