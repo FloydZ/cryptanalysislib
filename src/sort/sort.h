@@ -9,9 +9,12 @@
 #include "vergesort.h"
 #include "vv_radixsort.h"
 
+
 #ifdef USE_AVX2
 #include "djb_sort.h"
 #endif
 
 #include "sort/sorting_network/common.h"
+
+#include "parallel.h"
 #endif//SMALLSECRETLWE_METASORT_H

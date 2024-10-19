@@ -98,6 +98,30 @@ namespace cryptanalysislib {
 			(std::forward<ExecPolicy>(policy), first, last, f);
         return last;
     }
-}
+
+    ///
+    template <class RandIt,
+              class ChunkConstructor,
+              class UnaryFunction>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt>
+#endif
+    void for_each_chunk(RandIt first,
+                        RandIt last,
+                        ChunkConstructor construct, 
+                        UnaryFunction f) noexcept {
+        if (first == last) {
+            return;
+        }
+
+        auto chunk_data = construct();
+        for (; first != last; ++first) {
+            f(*first, chunk_data);
+        }
+    }
+
+
+
+} // end namespace cryptanalysislib
 
 #endif
