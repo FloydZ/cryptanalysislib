@@ -10,7 +10,7 @@
 namespace cryptanalysislib {
 
 struct AlgorithmFillConfig : public AlgorithmConfig {
-    constexpr static size_t min_size_per_thread = 1048576;
+    const size_t min_size_per_thread = 1048576;
 };
 
 constexpr static AlgorithmFillConfig algorithmFillConfig;
@@ -24,7 +24,7 @@ constexpr static AlgorithmFillConfig algorithmFillConfig;
 	template <class Iterator,
 			  const AlgorithmFillConfig &config=algorithmFillConfig>
 #if __cplusplus > 201709L
-    requires std::bidirectional_iterator<Iterator>
+    requires std::forward_iterator<Iterator>
 #endif
 	constexpr void fill(Iterator first,
 	 				    Iterator last,
@@ -34,21 +34,25 @@ constexpr static AlgorithmFillConfig algorithmFillConfig;
 		cryptanalysislib::memset<T>(&(*first), value, s);
     }
 
-	/// \tparam RandIt
+	/// \tparam Iterator
 	/// \tparam Size
 	/// \param first
 	/// \param n
 	/// \param value
 	/// \return
-	template <class RandIt,
-			  class Size>
-    RandIt fill_n(RandIt first,
-				  const Size n,
-				  const typename RandIt::value_type& value) {
+	template <class Iterator,
+			  class Size,
+			  const AlgorithmFillConfig &config=algorithmFillConfig>
+#if __cplusplus > 201709L
+    requires std::forward_iterator<Iterator>
+#endif
+    Iterator fill_n(Iterator first,
+					const Size n,
+				    const typename Iterator::value_type& value) {
         if (n <= 0) {
             return first;
         }
-        RandIt last = internal::advanced(first, n);
+        Iterator last = internal::advanced(first, n);
         cryptanalysislib::fill(first, last, value);
         return last;
     }
@@ -96,6 +100,9 @@ template <class ExecPolicy,
 	template <class ExecPolicy,
 			  class RandIt,
 			  class Size>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt>
+#endif
     RandIt fill_n(ExecPolicy &&policy,
 				  RandIt first,
 				  const Size n,

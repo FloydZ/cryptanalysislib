@@ -4,9 +4,6 @@
 #include <cstdlib>
 #include "thread/thread.h"
 
-// TODO write a algo version which does not wait (and returns a future)
-//      only possible on function that return something
-
 namespace cryptanalysislib {
 
 ///

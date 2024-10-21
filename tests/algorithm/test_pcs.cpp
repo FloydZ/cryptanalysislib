@@ -4,20 +4,21 @@
 #include <cstdint>
 #include <array>
 
-#include "algorithm/gcd.h"
-#include "algorithm/int2weight.h"
-#include "algorithm/pcs.h"
-#include "algorithm/random_index.h"
-#include "container/binary_packed_vector.h"
-#include "container/kAry_type.h"
-#include "element.h"
-#include "helper.h"
-#include "list/list.h"
-#include "matrix/matrix.h"
-#include "tree.h"
+#include "../../src/algorithm/gcd.h"
+#include "../../src/algorithm/int2weight.h"
+#include "../../src/algorithm/pcs.h"
+#include "../../src/algorithm/random_index.h"
+#include "../../src/container/binary_packed_vector.h"
+#include "../../src/container/kAry_type.h"
+#include "../../src/element.h"
+#include "../../src/helper.h"
+#include "../../src/list/list.h"
+#include "../../src/matrix/matrix.h"
+#include "../../src/tree.h"
 
 // needed for the generation of subset sum instances
-#include "algorithm/subsetsum.h"
+#include "../../src/algorithm/rsa.h"
+#include "../../src/algorithm/subsetsum.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -33,29 +34,12 @@ using T  = kAry_Type_T<q>;
 using TT = T::LimbType;
 
 
-struct RSACmp {
-	constexpr static T one{1};
-	constexpr static T nn{q};
-	decltype(auto) operator()(const T,
-	                          const T &a2,
-	                          const T,
-	                          const T &b2) const {
-		auto t = gcd<TT>((a2.value() + q - b2.value()) % q, q);
-		return t > 1;
-	}
-};
 
 TEST(PCS, RhoFactorise) {
-	T a, b;
-	a.set(5,0);
-	b.set(26,0);
-	PollardRho<RSACmp, T>::run([](const T &in){
-		const auto t = in*in + T(1);
-		return t;
-	}, a, b);
+	constexpr static RSA_instance instance{21};
+	rsa_pollard_rho<instance> rsa;
 
-	EXPECT_EQ(a.value(), 26);
-	EXPECT_EQ(b.value(), 2839);
+	rsa.run();
 }
 
 TEST(PCS, RhoSubSetSum) {
@@ -90,9 +74,9 @@ TEST(PCS, RhoSubSetSum) {
 		/// \param b2 value to be compared
 		/// \return true if a2==b2, and a1!=b1;
 		auto operator()(const Element &a1,
-		                const Element &a2,
-		                const Element &b1,
-		                const Element &b2) const noexcept {
+						const Element &a2,
+						const Element &b1,
+						const Element &b2) const noexcept {
 			// get the lowest bit
 			const uint32_t alb = a1.label.value() & 1;
 			const uint32_t blb = b1.label.value() & 1;
@@ -107,7 +91,7 @@ TEST(PCS, RhoSubSetSum) {
 	};
 
 	auto f = [&instance,
-	          &target = std::as_const(target)]
+			  &target = std::as_const(target)]
 		(const Element &_in) {
 		Label in = _in.label;
 		const uint32_t n2 = n/2, n4 = n/4;
@@ -137,7 +121,7 @@ TEST(PCS, RhoSubSetSum) {
 	while(true) {
 		/// restart every X runs
 		const bool found = PollardRho<SubSetSumCmp, Element>::run
-		        (f, a, b, walk_len);
+				(f, a, b, walk_len);
 		if (found) {
 			break;
 		}
@@ -161,12 +145,10 @@ TEST(PCS, RhoSubSetSum) {
 	// reconstruct the solution
 	for (uint32_t i = 0; i < n; ++i) {
 		if (a.value.get_bit_shifted(i)) {
-			//Label::add(c, c, instance[0][i]);
 			c += instance[0][i];
 			std::cout << i << " ";
 		}
 		if (b.value.get_bit_shifted(i)) {
-			// Label::add(c, c, instance[0][i]);
 			c += instance[0][i];
 			std::cout << i << " ";
 		}
@@ -175,10 +157,7 @@ TEST(PCS, RhoSubSetSum) {
 
 	Label c1(0);
 	for (const auto &s : sol) {
-		// std::cout << s << std::endl;
-		// TODO do not produce the same result: add, +=
 		c1 += instance[0][s];
-		//Label::add(c1, c1, instance[0][s]);
 	}
 
 
@@ -192,6 +171,7 @@ TEST(PCS, RhoSubSetSum) {
 	std::cout << target << std::endl;
 	const bool correct = c == target;
 	EXPECT_EQ(correct, true);
+
 }
 
 TEST(PCS, RhoSubSetSumTree) {

@@ -9,7 +9,7 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmReduceConfig : public AlgorithmConfig {
-		constexpr static size_t min_size_per_thread = 1u << 14u;
+		const size_t min_size_per_thread = 1u << 14u;
 	};
 	constexpr static AlgorithmReduceConfig algorithmReduceConfig;
 
@@ -98,7 +98,9 @@ namespace cryptanalysislib {
 			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<InputIt> &&
-	    		 std::forward_iterator<OutputIt>
+	    		 std::forward_iterator<OutputIt> &&
+    			 std::regular_invocable<UnaryOperation,
+										const typename InputIt::value_type&>
 #endif
     OutputIt transform(InputIt first1,
     				   InputIt last1,
@@ -125,16 +127,18 @@ namespace cryptanalysislib {
 	template<class InputIt1,
 			 class InputIt2,
 			 class OutputIt,
-			 class BinaryOperation,
+			 class UnaryOperation,
 			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<InputIt1> &&
 	    		 std::forward_iterator<InputIt2> &&
-				 std::forward_iterator<OutputIt>
+				 std::forward_iterator<OutputIt> &&
+    			 std::regular_invocable<UnaryOperation,
+										const typename InputIt1::value_type&>
 #endif
     OutputIt transform(InputIt1 first1, InputIt1 last1,
                        InputIt2 first2, OutputIt d_first,
-                       BinaryOperation binary_op) {
+                       UnaryOperation binary_op) noexcept {
         while (first1 != last1) {
             *d_first++ = binary_op(*first1++, *first2++);
         }
@@ -144,7 +148,7 @@ namespace cryptanalysislib {
 
 	/// \tparam ExecPolicy
 	/// \tparam RandIt
-	/// \tparam BinaryOp
+	/// \tparam UnaryOperation
 	/// \tparam config
 	/// \param policy
 	/// \param first
@@ -154,17 +158,19 @@ namespace cryptanalysislib {
 	/// \return
 	template <class ExecPolicy,
 			  class RandIt,
-			  class BinaryOp,
+			  class UnaryOperation,
 			  const AlgorithmReduceConfig &config=algorithmReduceConfig>
 #if __cplusplus > 201709L
-	    requires std::random_access_iterator<RandIt>
+	    requires std::random_access_iterator<RandIt> &&
+    			 std::regular_invocable<UnaryOperation,
+										const typename RandIt::value_type&>
 #endif
 	typename RandIt::value_type
 	reduce(ExecPolicy &&policy,
 		   RandIt first,
 		   RandIt last,
 		   const typename RandIt::value_type init,
-		   BinaryOp binop) noexcept {
+		   UnaryOperation binop) noexcept {
 		using T = RandIt::value_type;
 		const auto size = static_cast<size_t>(std::distance(first, last));
 		const uint32_t nthreads = should_par(policy, config, size);
@@ -174,7 +180,7 @@ namespace cryptanalysislib {
 
 		auto futures = internal::parallel_chunk_for_1(
 			std::forward<ExecPolicy>(policy), first, last,
-					cryptanalysislib::reduce<RandIt, BinaryOp>,
+					cryptanalysislib::reduce<RandIt, UnaryOperation, config>,
 					(T*)nullptr,
 					1,
 					nthreads,

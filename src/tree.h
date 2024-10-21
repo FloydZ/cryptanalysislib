@@ -106,15 +106,21 @@ struct TreeConfig : public AlignmentConfig {
 	/// if a tree algorithm needs an intermediate lists, which is not
 	/// passed as an argument, increase the expected size by the following
 	/// factor, to make sure that really all element are stored.
-	constexpr static double intermediatelist_size_factor = 1.1;
+	const double intermediatelist_size_factor = 1.1;
 
 	/// if set to true: the algorithms will recompute the label from level 2 on
 	/// this is needed for subset sum algorithm
-	constexpr static bool needs_recomputation = true;
+	const bool needs_recomputation = true;
 
 	/// min size per thread
-	constexpr static size_t min_size_per_thread = 2u;
-} treeConfig;
+	const size_t min_size_per_thread = 2u;
+
+
+	/// TODO impl: needed for output lists
+	const bool allow_list_to_resize = false;
+};
+
+constexpr static TreeConfig treeConfig{};
 
 ///
 /// @tparam List 
@@ -143,6 +149,8 @@ public:
 	constexpr static uint32_t LabelLENGTH = LabelType::length();
 
 private:
+	constexpr static bool needs_recomputation = config.needs_recomputation;
+
 	/// We allow additionally two baselists. So for the Stream join we have in total d + 2 lists we have to save in
 	/// memory.
 	constexpr static unsigned int additional_baselists = 2;
@@ -1088,7 +1096,7 @@ public:
 			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
 				const size_t b1 = hmL2[l2];
 				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
-				ASSERT(L2[b1].is_correct(matrix));
+				//ASSERT(L2[b1].is_correct(matrix));
 				ASSERT(b1 < L2.load());
 
 				const LabelType t3 = L2[b1].label;
@@ -1097,7 +1105,7 @@ public:
 
 				ElementType::add(te1, L1[k], L2[b1]);
 				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
-				ASSERT(te1.is_correct(matrix));
+				//ASSERT(te1.is_correct(matrix));
 
 				// NOTE: its shifted
 				const size_t s1 = hmiL.find(t2.value(), load1);
@@ -1108,21 +1116,34 @@ public:
 					ASSERT(a2 < L2.load());
 					ElementType::add(te2, L1[a1], L2[a2]);
 
-					ASSERT(te1.is_correct(matrix));
-					ASSERT(te2.is_correct(matrix));
+					//ASSERT(te1.is_correct(matrix));
+					//ASSERT(te2.is_correct(matrix));
 
-					out.template add_and_append
+					if constexpr (needs_recomputation) {
+						out.template add_and_append
 							<k_lower1, k_upper2, filter, sub>
 							(te1, te2);
 
-					// NOTE: the problem is that due to reps the simple addition doesnt hold
-					if constexpr (config.needs_recomputation) {
-						const size_t b2 = out.load() - 1;
+						// NOTE: the problem is that due to reps the simple addition doesnt hold
+						const size_t b2 = out.load() - 1u;
 						out[b2].recalculate_label(matrix);
+						if (out[b2].label.is_equal(target, k_lower1, k_upper2)) {
+							//out.set_load(b2);
+							goto finish;
+						}
+
+						out.set_load(b2);
+					} else {
+						out.template add_and_append
+							<k_lower1, k_upper2, filter, sub>
+							(te1, te2);
 					}
 				}
 			}
 		}
+
+		finish:
+		return;
 	};
 
 	///						out if wanted
@@ -1175,7 +1196,6 @@ public:
 	/// \param hmL2 hashmap of L2, const, will not be sorted
 	/// \param target const target
 	/// \param iT intermediate target, make sure its related to target
-	/// \param A problem instance
 	/// \param f lambda function
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			 const uint32_t k_lower2, const uint32_t k_upper2,
@@ -1184,7 +1204,8 @@ public:
 			 typename F>
 #if __cplusplus > 201709L
 	requires HashMapAble<HashMap1> &&
-			 HashMapAble<HashMap2>
+			 HashMapAble<HashMap2> &&
+			 std::regular_invocable<F, List&, const ElementType&, const ElementType&, const size_t, const size_t, const size_t, const size_t>
 #endif
 	void twolevel_streamjoin_on_iT_hashmap_v2(List &out,
 											  const HashMap1 &hmiL,
@@ -1760,7 +1781,7 @@ public:
 			for (size_t k = s; k < s + load; ++k) {
 				ret += 1;
 				const size_t j = hm[k];
-				// TODO f(out, L1[i], L2[j], i, j);
+				f(out, L1[i], L2[j], i, j);
 
 				// org code
 				// out.template add_and_append

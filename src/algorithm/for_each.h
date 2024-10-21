@@ -11,20 +11,22 @@ namespace cryptanalysislib {
 	constexpr static AlgorithmForEachConfig algorithmForEachConfig;
 
 	/// \tparam InputIt
-	/// \tparam UnaryFunc
+	/// \tparam UnaryFunction
 	/// \param first
 	/// \param last
 	/// \param f
 	/// \return
 	template<class InputIt,
-	         class UnaryFunc,
+	         class UnaryFunction,
 	         const AlgorithmForEachConfig &config=algorithmForEachConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt>
+		requires std::forward_iterator<InputIt> &&
+    		     std::regular_invocable<UnaryFunction,
+										const typename InputIt::value_type&>
 #endif
-	constexpr UnaryFunc for_each(InputIt first,
-								 InputIt last,
-								 UnaryFunc f) noexcept {
+	constexpr UnaryFunction for_each(InputIt first,
+									 InputIt last,
+									 UnaryFunction f) noexcept {
 	    for (; first != last; ++first) {
 		    f(*first);
 	    }
@@ -47,7 +49,9 @@ namespace cryptanalysislib {
 	          class UnaryFunction,
 	          const AlgorithmForEachConfig &config=algorithmForEachConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<RandIt>
+		requires std::random_access_iterator<RandIt> &&
+    		     std::regular_invocable<UnaryFunction,
+										const typename RandIt::value_type&>
 #endif
 	void for_each(ExecPolicy &&policy,
 	              RandIt first,
@@ -86,7 +90,9 @@ namespace cryptanalysislib {
 			  class UnaryFunction,
 	          const AlgorithmForEachConfig &config=algorithmForEachConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<RandIt>
+		requires std::random_access_iterator<RandIt> &&
+    		     std::regular_invocable<UnaryFunction,
+										const typename RandIt::value_type&>
 #endif
     RandIt for_each_n(ExecPolicy &&policy,
 					  RandIt first,
@@ -104,7 +110,9 @@ namespace cryptanalysislib {
               class ChunkConstructor,
               class UnaryFunction>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<RandIt>
+		requires std::random_access_iterator<RandIt> &&
+    		     std::regular_invocable<UnaryFunction,
+										const typename RandIt::value_type&>
 #endif
     void for_each_chunk(RandIt first,
                         RandIt last,
@@ -119,8 +127,6 @@ namespace cryptanalysislib {
             f(*first, chunk_data);
         }
     }
-
-
 
 } // end namespace cryptanalysislib
 

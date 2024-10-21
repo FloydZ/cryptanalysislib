@@ -10,7 +10,8 @@
 namespace cryptanalysislib {
 
 	struct AlgorithmCountConfig : public AlgorithmConfig {
-	    constexpr static size_t min_size_per_thread = 1u<<10u;
+	    const size_t min_size_per_thread = 1u<<10u;
+	    const bool aligned_instructions = false;
 	};
 	constexpr static AlgorithmCountConfig algorithmCountConfig;
 
@@ -21,20 +22,25 @@ namespace cryptanalysislib {
 	/// \param last
 	/// \param p
 	/// \return
-	template <class RandIt,
+	template <class Iterator,
 			  class UnaryPredicate,
 			  const AlgorithmCountConfig &config=algorithmCountConfig>
 #if __cplusplus > 201709L
-    requires std::bidirectional_iterator<RandIt>
+    requires std::forward_iterator<Iterator> &&
+    		 std::regular_invocable<UnaryPredicate,
+									const typename Iterator::value_type&>
 #endif
-	typename std::iterator_traits<RandIt>::difference_type
-	count_if(RandIt first,
-			 RandIt last,
+	typename std::iterator_traits<Iterator>::difference_type
+	count_if(Iterator first,
+			 Iterator last,
 			 UnaryPredicate p) noexcept {
-		typename std::iterator_traits<RandIt>::difference_type ret = 0;
-		for (; first != last; ++first)
-			if (p(*first))
+		typename std::iterator_traits<Iterator>::difference_type ret = 0;
+		for (; first != last; ++first) {
+			if (p(*first)) {
 				++ret;
+			}
+		}
+
 		return ret;
 	}
 
@@ -52,7 +58,9 @@ namespace cryptanalysislib {
 			  class UnaryPredicate,
 			  const AlgorithmCountConfig &config=algorithmCountConfig>
 #if __cplusplus > 201709L
-    requires std::random_access_iterator<RandIt>
+    requires std::random_access_iterator<RandIt> &&
+    		 std::regular_invocable<UnaryPredicate,
+									const typename RandIt::value_type&>
 #endif
 	typename std::iterator_traits<RandIt>::difference_type
 	count_if(ExecPolicy&& policy,
@@ -81,12 +89,13 @@ namespace cryptanalysislib {
 
 	namespace internal {
 
-		/// @tparam T
-		/// @param data
-		/// @param n
-		/// @param val
-		/// @return
-		template<typename T>
+		/// \tparam T
+		/// \param data
+		/// \param n
+		/// \param val
+		/// \return
+		template<typename T,
+			     const AlgorithmCountConfig &config=algorithmCountConfig>
 #if __cplusplus > 201709L
     requires std::unsigned_integral<T>
 #endif
@@ -104,7 +113,7 @@ namespace cryptanalysislib {
 			const auto t = S::set1(val);
 			size_t i = 0;
 			for (; (i+limbs) <= n; i+=limbs) {
-				const auto d = S::load(data + i);
+				const auto d = S::template load<config.aligned_instructions>(data + i);
 				const auto s = d == t;
 				if (s) {
 					ret += popcount::popcount(s);
@@ -143,6 +152,7 @@ namespace cryptanalysislib {
 		auto p = [&value](const T& test) __attribute__((always_inline)) {
 			return test == value;
 		};
+
 		return cryptanalysislib::count_if
 			<RandIt, decltype(p), config>
 			(first, last, p);

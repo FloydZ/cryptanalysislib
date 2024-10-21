@@ -112,7 +112,7 @@ namespace cryptanalysislib {
 	template<typename S=uint32x8_t,
              const AlgorithmArgMaxConfig &config = algorithmArgMaxConfig>
 	[[nodiscard]] constexpr static inline size_t argmax_simd_u32_bl32(const uint32_t *a,
-	                                                    const size_t n) noexcept {
+																	  const size_t n) noexcept {
         constexpr size_t t = S::LIMBS;
         constexpr size_t t4 = 4*t;
 		uint32_t max = 0;

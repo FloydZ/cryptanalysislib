@@ -4,8 +4,9 @@
 #include <cstddef>
 #include "thread/thread.h"
 
+/// TODO README and example
 /// TODO multithreading and then pcs
-/// TODO Rho without Floyds cycle finding
+/// TODO brents and gospers cycle finding
 
 #if __cplusplus > 201709L
 #include <concepts>
@@ -62,7 +63,7 @@ public:
 	/// \return true/false if a solution/collision was found
 	template<class F>
 #if __cplusplus > 201709L
-	/// TODO F is a correct function
+		requires std::regular_invocable<F, const T&>
 #endif
 	[[nodiscard]] constexpr static bool run(F &&f,
 											T &col1, T &col2,
@@ -84,7 +85,7 @@ public:
 
 			a1 = a2;
 			b1 = b2;
-			i += 1;
+			i += 1u;
 		}
 
 		return false;
@@ -93,25 +94,26 @@ public:
 	template<class F,
 			 class Flavour>
 #if __cplusplus > 201709L
-	/// TODO F,Flavour is a correct function
+		requires std::regular_invocable<F, const T&> &&
+				 std::regular_invocable<Flavour, const T&>
 #endif
 	[[nodiscard]] constexpr static bool run(F &&f,
 											Flavour &&flavour,
 											T &col1, T &col2,
 											const size_t max_iters = size_t(-1ull)) noexcept {
 		Compare cmp;
+		bool ret = false;
 
 		size_t i = 0;
-		T a1=col1, b1=col2;
+		T a1=col1, b1=col2, b2_;
 		while (i < max_iters) {
-			const T a2 = f(a1);
-			const T b2_= f(b1);
-			const T b2 = f(b2_);
+			const T a2 = flavour(f(a1));
+			b2_= f(b1);
+			const T b2 = flavour(f(b2_));
 
-			if (cmp(a1, a2, b2_, b2)) {
-				col1 = a1;
-				col2 = b2_;
-				return true;
+			if (cmp(a1, a2, b2_, b2)) [[unlikely]] {
+				ret = true;
+				goto finish;
 			}
 
 			a1 = a2;
@@ -119,7 +121,10 @@ public:
 			i += 1;
 		}
 
-		return false;
+		finish:
+		col1 = a1;
+		col2 = b2_;
+		return ret;
 	}
 };
 
@@ -156,10 +161,10 @@ public:
              class C,
              class ExecPolicy>
 	[[nodiscard]] static bool run(ExecPolicy &&policy,
-                           F &&f,
-                           C &&c,
-						   T &col1, T &col2,
-						   const size_t walk_len) noexcept {
+								  F &&f,
+								  C &&c,
+								  T &col1, T &col2,
+								  const size_t walk_len) noexcept {
 		Compare cmp;
         Distinguished d;
         
@@ -207,14 +212,21 @@ public:
         // TODO reconstruct or whatever
 	}
 
-    ///
+	/// \tparam F
+    /// \tparam C
+    /// \param f
+    /// \param c
+    /// \param col1
+    /// \param col2
+    /// \param walk_len
+    /// \return
 	template<class F,
              class C>
 	[[nodiscard]] static bool run(F &&f,
                                   C &&c,
 						          T &col1, T &col2,
 						          const size_t walk_len) noexcept {
-        return PCS::run(cryptanalysislib::par, f, c, col1, col2, walk_len);
+        return PCS::run(cryptanalysislib::par_if(true), f, c, col1, col2, walk_len);
     }
 };
 #endif

@@ -91,6 +91,13 @@ public:
 	constexpr static uint32_t threads = config.threads;
 	constexpr static bool multithreaded = config.threads > 1u;
 
+	// catch some missconfigurations
+	static_assert(threads > 0, "please allow at least a single thread?");
+	static_assert(bucketsize > 0, "please allow at least a single element in each bucket");
+	static_assert(nrbuckets > 0, "no bucket?");
+
+
+
 	/// constructor. Zero initializing everything
 	constexpr SimpleHashMap() noexcept : __internal_hashmap_array(),
 	                                     __internal_load_array() {}

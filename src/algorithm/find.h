@@ -10,10 +10,12 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmFindConfig : public AlgorithmConfig {
-		// TODO multithreaded find is extremly slow
+		// NOTE multithreaded find is extremly slow
 		const size_t min_size_per_thread = 1048576u;
 
-		// TODO implement
+		const bool aligned_instructions = false;
+
+		// TODO implement, note: this is really only useful in not multithreaded env
 		const bool assume_sorted = false;
 		const bool use_interpolation_search = false;
 	};
@@ -44,7 +46,7 @@ namespace cryptanalysislib {
 			const auto t = S::set1(val);
 			size_t i = 0;
 			for (; (i+limbs) <= n; i+=limbs) {
-				const auto d = S::load(data + i);
+				const auto d = S::template load<config>(data + i);
 				const auto s = d == t;
 				if (s) [[unlikely]] {
 					return i + ffs<T>(s) - 1u;
@@ -70,7 +72,7 @@ namespace cryptanalysislib {
 	template<class InputIt,
 			 const AlgorithmFindConfig &config = algorithmFindConfig>
 #if __cplusplus > 201709L
-		requires std::bidirectional_iterator<InputIt>
+		requires std::forward_iterator<InputIt>
 #endif
 	constexpr InputIt find(InputIt first,
 						   InputIt last,
@@ -78,7 +80,7 @@ namespace cryptanalysislib {
 
 		using T = InputIt::value_type;
 		if constexpr (std::is_unsigned_v<T>) {
-			const size_t t = internal::find_uXX_simd(&(*first),
+			const size_t t = internal::find_uXX_simd<T, config>(&(*first),
 											static_cast<size_t>(std::distance(first, last)),
 											value);
             std::advance(first, t);
@@ -104,7 +106,9 @@ namespace cryptanalysislib {
 			 class UnaryPred,
 			 const AlgorithmFindConfig &config = algorithmFindConfig>
 #if __cplusplus > 201709L
-		requires std::bidirectional_iterator<InputIt>
+		requires std::forward_iterator<InputIt> &&
+    			 std::regular_invocable<UnaryPred,
+									const typename InputIt::value_type&>
 #endif
 	constexpr InputIt find_if(InputIt first,
 							  InputIt last,
@@ -128,7 +132,9 @@ namespace cryptanalysislib {
 			 class UnaryPred,
 			 const AlgorithmFindConfig &config = algorithmFindConfig>
 #if __cplusplus > 201709L
-		requires std::bidirectional_iterator<InputIt>
+		requires std::forward_iterator<InputIt> &&
+    			 std::regular_invocable<UnaryPred,
+									const typename InputIt::value_type&>
 #endif
 	constexpr InputIt find_if_not(InputIt first,
 								  InputIt last,
@@ -160,7 +166,7 @@ namespace cryptanalysislib {
 				   RandIt first,
 				   RandIt last,
 				   const typename RandIt::value_type& value) noexcept {
-		const size_t size = static_cast<size_t>(std::distance(first, last));
+		const auto size = static_cast<size_t>(std::distance(first, last));
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 			return cryptanalysislib::find<RandIt, config>(first, last, value);
@@ -197,7 +203,7 @@ namespace cryptanalysislib {
 	/// TODO write a second version of this function, which does not do a early exit, so without atomics
 	/// \tparam ExecPolicy
 	/// \tparam RandIt
-	/// \tparam UnaryPredicate
+	/// \tparam UnaryPred
 	/// \param policy
 	/// \param first
 	/// \param last
@@ -205,16 +211,18 @@ namespace cryptanalysislib {
 	/// \return
 	template <class ExecPolicy,
 			  class RandIt,
-	          class UnaryPredicate,
+	          class UnaryPred,
 			  const AlgorithmFindConfig &config = algorithmFindConfig>
 #if __cplusplus > 201709L
-	requires std::random_access_iterator<RandIt>
+	requires std::random_access_iterator<RandIt> &&
+			 std::regular_invocable<UnaryPred,
+									const typename RandIt::value_type&>
 #endif
 	RandIt find_if(ExecPolicy &&policy,
 				   RandIt first,
 				   RandIt last,
-				   UnaryPredicate p) noexcept {
-		const size_t size = static_cast<size_t>(std::distance(first, last));
+				   UnaryPred p) noexcept {
+		const auto size = static_cast<size_t>(std::distance(first, last));
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 			return cryptanalysislib::find_if<RandIt, decltype(p), config>(first, last, p);

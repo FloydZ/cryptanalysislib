@@ -1,8 +1,10 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_INT2WEIGHT_H
 #define CRYPTANALYSISLIB_ALGORITHM_INT2WEIGHT_H
 
-#include <stdint.h>
+#include <cstdint>
+
 #include "math/math.h"
+#include "algorithm/bits.h"
 
 /// \tparam T
 /// \param weights	output list
@@ -43,7 +45,15 @@ constexpr void int2weights(D *weights,
 	}
 }
 
-template<typename D, typename T>
+/// \tparam D
+/// \tparam T
+/// \param weights
+/// \param in
+/// \param n
+/// \param wt
+/// \param k
+template<typename D,
+		 typename T>
 #if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T> &&
 			 std::is_arithmetic_v<D>
@@ -62,14 +72,16 @@ constexpr void int2weight_bits(D *weights,
 		if ((set == wt) || (set == k)) {
 			break;
 		} else if (wn + set == wt) {
-			*weights ^= wn - 1;
+			set_bit(weights, wn - 1, 1);
+			// *weights ^= 1 << (wn - 1);
 			wn -= 1;
 			set += 1;
 		} else if (a < binom(wn - 1, wk)) {
 			wn -= 1;
 		} else {
 			a -= binom(wn - 1, wk);
-			*weights ^= wn - 1;
+			// *weights ^= 1ull << (wn - 1);
+			set_bit(weights, wn - 1, 1);
 			wn -= 1;
 			wk -= 1;
 			set += 1;

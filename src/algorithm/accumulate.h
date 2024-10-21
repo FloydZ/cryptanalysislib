@@ -9,7 +9,8 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmAccumulateConfig : public AlgorithmConfig {
-	    constexpr static size_t min_size_per_thread = 1u<<10u;
+	    const size_t min_size_per_thread = 1u<<10u;
+	    const bool aligned_instructions = false;
 	};
 	constexpr static AlgorithmAccumulateConfig algorithmAccumulateConfig;
 
@@ -20,7 +21,8 @@ namespace cryptanalysislib {
 		/// \param n
 		/// \param init
 		/// \return
-		template<typename T>
+		template<typename T,
+				 const AlgorithmAccumulateConfig &config = algorithmAccumulateConfig>
 		constexpr T accumulate_simd_int_plus(const T *data,
 							  const size_t n,
 							  const T init) noexcept {
@@ -35,7 +37,7 @@ namespace cryptanalysislib {
 			S acc = S::set1(0);
 			size_t i = 0;
 			for (; (i+limbs) <= n; i+=limbs) {
-				const auto d = S::load(data + i);
+				const auto d = S::template load<config.aligned_instructions>(data + i);
 				acc = acc + d;
 			}
 
@@ -62,8 +64,8 @@ namespace cryptanalysislib {
     requires std::random_access_iterator<InputIt>
 #endif
 	constexpr InputIt::value_type accumulate(InputIt first,
-						   InputIt last,
-						   typename  InputIt::value_type init) noexcept {
+											 InputIt last,
+											 typename InputIt::value_type init) noexcept {
 		for (; first != last; ++first) {
 			init = std::move(init) + *first;
 		}
@@ -82,7 +84,10 @@ namespace cryptanalysislib {
 			 class BinaryOperation,
 			 const AlgorithmAccumulateConfig &config=algorithmAccumulateConfig>
 #if __cplusplus > 201709L
-    requires std::random_access_iterator<InputIt>
+    requires std::forward_iterator<InputIt> &&
+    		 std::regular_invocable<BinaryOperation,
+									const typename InputIt::value_type&,
+									const typename InputIt::value_type&>
 #endif
 	constexpr InputIt::value_type accumulate(InputIt first,
 						   InputIt last,
@@ -106,7 +111,7 @@ namespace cryptanalysislib {
 			  class RandIt,
 			  const AlgorithmAccumulateConfig &config=algorithmAccumulateConfig>
 #if __cplusplus > 201709L
-    requires std::random_access_iterator<RandIt>
+		requires std::random_access_iterator<RandIt>
 #endif
 	typename std::iterator_traits<RandIt>::value_type
 	accumulate(ExecPolicy&& policy,

@@ -5,11 +5,10 @@
 #include <cstdlib>
 #include <cstdint>
 #include <type_traits>
-#include <limits.h>
 
 #include "simd/simd.h"
+#include "thread/thread.h"
 
-/// TODO multithreading
 namespace cryptanalysislib {
     struct AlgorithmArgMinConfig {
     public:
@@ -154,7 +153,6 @@ namespace cryptanalysislib {
 #ifdef USE_AVX2
 #include <immintrin.h>
     // TODO use simd wrapper as soon as signed version exist
-	// TODO write selection function in cryptanalysis namespace
 
 	/// source : https://en.algorithmica.org/hpc/algorithms/argmin/
     /// loads 8 concecutive elements into a single register and tests the 
@@ -306,7 +304,7 @@ namespace cryptanalysislib {
     [[nodiscard]] constexpr static inline size_t argmin_avx2_i32_dispatch(const int32_t *a,
 	                                                                    const size_t n) noexcept {
 
-		// TODO the boundaries is arbitrary choosen
+		// NOTE the boundaries is arbitrary choosen
 		if (n < 128) {
             return argmin_avx2_i32_bl16<config>(a, n);
         }
@@ -316,25 +314,23 @@ namespace cryptanalysislib {
 #endif
 
 
-    /// generic fallback implementation
-	/// \tparam T 
-	/// \param a array you want to sort
-	/// \param n number of elements in this array
-	/// \return position of the min element
-	template<typename T>
+	/// \tparam Iterator
+	/// \tparam config
+	/// \param start
+	/// \param end
+	/// \return
+	template<class Iterator,
+             const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
 #if __cplusplus > 201709L
-	    requires std::totally_ordered<T>
+	    requires std::forward_iterator<Iterator>
 #endif
-	[[nodiscard]] constexpr static inline size_t argmin(const T *a,
-	                                                    const size_t n) noexcept {
-#ifdef USE_AVX2
-        if constexpr (std::is_same_v<T, int32_t>) {
-            return argmin_avx2_i32_dispatch(a, n);
-        }
-#endif
+	[[nodiscard]] constexpr static inline size_t argmax(Iterator start,
+														Iterator end) noexcept {
+		using T = Iterator::value_type;
+		const size_t len = std::distance(start, end);
 		size_t k = 0;
-		for (size_t i = 0; i < n; i++) {
-			if (a[i] < a[k]) [[unlikely]] {
+		for (size_t i = 1; i < len; i++) {
+			if (*(start+i) < *(start + k)) [[unlikely]] {
 				k = i;
 			}
 		}
@@ -342,22 +338,47 @@ namespace cryptanalysislib {
 		return k;
 	}
 
-    /// helper wrapper
-	template<typename T>
+	/// \tparam ExecPolicy
+	/// \tparam RandIt
+	/// \param policy
+	/// \param first
+	/// \param last
+	/// \return
+	template <class ExecPolicy,
+			  class RandIt,
+              const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
 #if __cplusplus > 201709L
-	    requires std::totally_ordered<T>
+    requires std::random_access_iterator<RandIt>
 #endif
-	[[nodiscard]] constexpr static inline size_t argmin(const std::vector<T> &a) noexcept {
-        return argmin(a.data(), a.size());
-	}
+	size_t argmax(ExecPolicy&& policy,
+				  RandIt first,
+				  RandIt last) noexcept {
+		using T = typename RandIt::value_type;
 
-    /// helper wrapper
-	template<typename T, const size_t n>
-#if __cplusplus > 201709L
-	    requires std::totally_ordered<T>
-#endif
-	[[nodiscard]] constexpr static inline size_t argmin(const std::array<T, n> &a) noexcept {
-        return argmin(a.data(), n);
+		const auto size = static_cast<size_t>(std::distance(first, last));
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			return cryptanalysislib::argmax
+				<RandIt, config>(first, last);
+		}
+
+		auto futures = internal::parallel_chunk_for_1(
+			std::forward<ExecPolicy>(policy),
+			first, last,
+			cryptanalysislib::argmax<RandIt, config>,
+			(size_t *)0,
+			1, nthreads);
+
+		size_t m = futures[0].get();
+		T v = *(first + m);
+		for (size_t i = 1; i < nthreads; i++) {
+			T mm = futures[i].get();
+			if (*(first + m) < v) [[unlikely]] {
+				m = mm;
+			}
+		}
+
+		return m;
 	}
 }
 #endif

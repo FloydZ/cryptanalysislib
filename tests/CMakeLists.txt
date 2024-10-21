@@ -40,6 +40,9 @@ foreach(testfile ${TEST_SOURCES})
             ../src/algorithm/apply.h
             ../src/algorithm/max.h
             ../src/algorithm/min.h
+            ../src/traits.h
+            ../src/algorithm/bits.h
+            ../src/algorithm/rsa.h
     )
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})

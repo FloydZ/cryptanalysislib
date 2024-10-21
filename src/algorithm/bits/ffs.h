@@ -3,7 +3,6 @@
 
 #include "helper.h"
 
-// TODO move popcount here
 namespace cryptanalysislib {
 	/// \tparam T base data type
 	/// \param data input data type

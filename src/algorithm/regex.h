@@ -71,6 +71,18 @@ enum regexype_e {
 	TIMES_NM
 };
 
+struct regex_confg {
+	const bool dot_matches_newline = true;
+
+	// Max number of regex symbols in expression
+	const size_t MAX_REGEXP_OBJECTS = 30u;
+
+	// Max length of character-class buffer in.
+	const size_t MAX_CHAR_CLASS_LEN = 40u;
+};
+constexpr static regex_confg regex_confg_{};
+
+template<const regex_confg &config=regex_confg_>
 struct regex {
 	enum regexype_e type; /* CHAR, STAR, etc.                      */
 	union {
@@ -85,14 +97,13 @@ struct regex {
 	} u;
 
 private:
-	// TODO move into config
-	constexpr static bool dot_matches_newline = true;
+	constexpr static bool dot_matches_newline = config.dot_matches_newline;
 
 	// Max number of regex symbols in expression
-	constexpr static size_t MAX_REGEXP_OBJECTS = 30u;
+	constexpr static size_t MAX_REGEXP_OBJECTS = config.MAX_REGEXP_OBJECTS;
 
 	// Max length of character-class buffer in.
-	constexpr static size_t MAX_CHAR_CLASS_LEN = 40u;
+	constexpr static size_t MAX_CHAR_CLASS_LEN = config.MAX_CHAR_CLASS_LEN;
 
 	constexpr static int hex(const char c) noexcept {
 		if (c >= 'a' && c <= 'f')

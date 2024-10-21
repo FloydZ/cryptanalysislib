@@ -114,9 +114,19 @@ class TimSort {
         }
     }
 
-    template <typename Compare, typename Projection>
-    static diff_t countRunAndMakeAscending(iter_t const lo, iter_t const hi,
-                                           Compare comp, Projection proj) {
+	/// \tparam Compare
+    /// \tparam Projection
+    /// \param lo
+    /// \param hi
+    /// \param comp
+    /// \param proj
+    /// \return
+template <typename Compare,
+              typename Projection>
+    static diff_t countRunAndMakeAscending(iter_t const lo,
+                                           iter_t const hi,
+                                           Compare comp,
+                                           Projection proj) {
         GFX_TIMSORT_ASSERT(lo < hi);
 
         auto runHi = std::ranges::next(lo);

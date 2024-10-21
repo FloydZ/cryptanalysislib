@@ -218,7 +218,12 @@ namespace cryptanalysislib::algorithm {
         }
 #endif
 
-		template<typename T>
+		/// \tparam T
+		/// \tparam config
+		/// \param v
+		/// \param n
+		template<typename T,
+				 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
 		static void prefixsum_uXX_simd(T *v,
 									   const size_t n) noexcept {
 #ifdef USE_AVX512F
@@ -231,14 +236,15 @@ namespace cryptanalysislib::algorithm {
 
 			size_t i = 0;
 			for (; (i+limbs) <= n; i+=limbs) {
-				auto d = S::load(v + i);
+				auto d = S::template load<config.aligned_instructions>(v + i);
                 S d2 = d;
                 for (uint32_t j = 0; j < t; j++) {
                     d2 = S::sll(d2, j*t); 
                     d = d + d2;
                 }
-                // TODO untested 
-                S::store(v + i, d);
+
+				// TODO unfinished
+                S::template store<config.aligned_instructions>(v + i, d);
 			}
 
 			// tailmngt
@@ -287,9 +293,10 @@ namespace cryptanalysislib::algorithm {
 #endif
 	void prefixsum(ForwardIt first,
 	               ForwardIt last) noexcept {
-		static_assert(std::is_arithmetic_v<typename ForwardIt::value_type>);
+		using T = ForwardIt::value_type;
+		static_assert(std::is_arithmetic_v<T>);
 		const auto count = std::distance(first, last);
-		prefixsum(&(*first), count);
+		prefixsum<T, config>(&(*first), count);
 	}
 
 	/// \tparam InputIt
@@ -306,7 +313,10 @@ namespace cryptanalysislib::algorithm {
 			 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<InputIt> &&
-	    		 std::forward_iterator<OutputIt>
+	    		 std::forward_iterator<OutputIt> &&
+    		     std::regular_invocable<BinaryOp,
+										const typename InputIt::value_type&,
+										const typename InputIt::value_type&>
 #endif
 	constexpr OutputIt prefixsum(InputIt first,
 								  InputIt last,
@@ -343,7 +353,10 @@ namespace cryptanalysislib::algorithm {
 			 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<InputIt> &&
-	    		 std::forward_iterator<OutputIt>
+	    		 std::forward_iterator<OutputIt> &&
+    		     std::regular_invocable<BinaryOp,
+										const typename InputIt::value_type&,
+										const typename InputIt::value_type&>
 #endif
 	constexpr OutputIt prefixsum(InputIt first,
 								 InputIt last,
@@ -386,7 +399,10 @@ namespace cryptanalysislib::algorithm {
 			  const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
 #if __cplusplus > 201709L
     requires std::random_access_iterator<InputIt> &&
-    		 std::random_access_iterator<OutputIt>
+    		 std::random_access_iterator<OutputIt> &&
+    		 std::regular_invocable<BinaryOp,
+									const typename InputIt::value_type&,
+									const typename InputIt::value_type&>
 #endif
 	 OutputIt prefixsum(ExecPolicy&& policy,
 						InputIt first1,

@@ -6,6 +6,9 @@
 #include "thread/thread.h"
 
 using namespace cryptanalysislib;
+using Task = HeartbeatScheduler<>::Task;
+constexpr uint64_t limit = 1<<10;
+
 
 struct Node {
     int64_t value;
@@ -48,6 +51,16 @@ inline int64_t sum(Node *node) noexcept {
     return node->sum();
 } 
 
+inline int64_t heartbeatsum(Task *t, Node *node) noexcept {
+	const int64_t res = node->value;
+	if (node->left) {
+		if (node->right) {
+			auto fut = HeartbeatScheduler<>::Future<Node *, uint64_t>::init();
+		}
+	}
+    return node->sum();
+}
+
 struct SimpleSum {
     int64_t run(Node *node) noexcept {
         return node->sum();
@@ -59,12 +72,33 @@ Node *root = nullptr;
 
 #ifndef __APPLE__
 struct SchedulerSum {
-	StealingScheduler<> pool{};
+	HeartbeatScheduler<> pool{};
+    int64_t run(Node *node) noexcept {
+        int64_t t = pool.call<int64_t>(heartbeatsum, (Task *)0, node);
+    	return t;
+        //return t.get();
+    }
+};
+
+struct SimpleSchedulerSum {
+	SimpleScheduler pool{};
     int64_t run(Node *node) noexcept {
         auto t = pool.enqueue(sum, node);
         return t.get();
     }
 };
+
+template<typename T>
+static void BM_NodeSumHeartBeat(benchmark::State& state) {
+    std::int64_t t = 0;
+    T s;
+	for ([[maybe_unused]] auto _ : state) {
+	    t += s.run(root);
+		benchmark::DoNotOptimize(t+=1);
+	}
+}
+
+BENCHMARK(BM_NodeSumHeartBeat<SimpleSum>);
 #endif
 
 template<typename T>
@@ -77,7 +111,6 @@ static void BM_NodeSum(benchmark::State& state) {
 	}
 }
 
-constexpr uint64_t limit = 1<<10;
 BENCHMARK(BM_NodeSum<SimpleSum>);
 
 

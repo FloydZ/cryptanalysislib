@@ -5,7 +5,7 @@
 #include "helper.h"
 
 #ifdef USE_AVX2
-#include "popcount/avx2.h"
+#include "./popcount/avx2.h"
 #endif
 
 /// namespace containing popcount algorithms

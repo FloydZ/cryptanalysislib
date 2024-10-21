@@ -89,13 +89,22 @@ namespace cryptanalysislib {
 		/// This is set to true once we're trying to stop.
 		bool is_stopping = false;
 
+		// A timer which we increment whenever we share a job.
+		// This is used to prioritize always picking the oldest job.
+		size_t __time = 0;
+
+		/// kp
 		constexpr static std::size_t max_result_words = 4;
 		constexpr static uint32_t background_worker_count = config.background_worker_count;
 		constexpr static size_t heartbeat_interval = config.heartbeat_interval;
 
 	public:
        
-        // TODO implement 
+        // TODO implement
+        void clear_task_queue() noexcept {
+        }
+
+        // TODO implement
 		void inline pause() noexcept {
 		}
 
@@ -323,7 +332,7 @@ namespace cryptanalysislib {
 			Task t{worker, job_tail};
 			t.tick();
 			// TODO
-			// return std::invoke(func, &t, arg);
+			//return std::invoke(func, &t, arg...);
 			return std::invoke(func, arg...);
 		}
 
@@ -441,12 +450,14 @@ namespace cryptanalysislib {
 			Task t = worker.begin();
 			const T ret = t.template call<T, Func, Args...>(func, arg...);
 
-			// clean up stuff
-			std::lock_guard lock(mutex);
-			for (uint32_t i = 0; i < workers.size(); i++) {
-				if (workers[i] == &worker) {
-					workers.erase(workers.begin() + i);
-					break;
+			{
+				// clean up stuff
+				std::lock_guard lock(mutex);
+				for (uint32_t i = 0; i < workers.size(); i++) {
+					if (workers[i] == &worker) {
+						workers.erase(workers.begin() + i);
+						break;
+					}
 				}
 			}
 			return ret;
@@ -458,7 +469,8 @@ namespace cryptanalysislib {
 		    requires std::invocable<Function, Args...>
 		[[nodiscard]] inline std::future<ReturnType> enqueue(Function f,
 		                                              Args... args) noexcept {
-            call<ReturnType, Function, Args...>(f, args...);
+            // return std::future(call<ReturnType, Function, Args...>(f, args...));
+            return call<ReturnType, Function, Args...>(f, args...);
         }
 
 		// Core heartbeat logic for workers
@@ -474,8 +486,8 @@ namespace cryptanalysislib {
 
 					worker->shared_job = job;
 					// TODO this seams wrong
-					worker->job_time = (size_t) time(nullptr);
-					worker->job_time += 1;
+					worker->job_time = static_cast<size_t>(time(nullptr));
+					this->__time += 1;
 					job_ready.notify_one();// wake up one thread
 				}
 			}

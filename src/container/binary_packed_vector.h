@@ -10,10 +10,10 @@
 #endif
 
 // local includes
-#include "container/fq_packed_vector.h"
 #include "helper.h"
-#include "popcount/popcount.h"
 #include "random.h"
+#include "container/fq_packed_vector.h"
+#include "algorithm/bits/popcount.h"
 #include "simd/simd.h"
 #include "hash/hash.h"
 

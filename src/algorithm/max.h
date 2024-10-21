@@ -104,8 +104,8 @@ namespace cryptanalysislib {
 #endif
 	RandIt::value_type
 	max(ExecPolicy&& policy,
-				  RandIt first,
-				  RandIt last) noexcept {
+		RandIt first,
+		RandIt last) noexcept {
 		using T = typename RandIt::value_type;
 
 		const auto size = static_cast<size_t>(std::distance(first, last));

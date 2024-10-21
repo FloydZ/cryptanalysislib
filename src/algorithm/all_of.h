@@ -21,7 +21,9 @@ namespace cryptanalysislib {
              class UnaryPred,
              const AlgorithmAnyOfConfig &config=algorithmAnyOfConfig>
 #if __cplusplus > 201709L
-	    requires std::bidirectional_iterator<InputIt>
+	    requires std::forward_iterator<InputIt> &&
+	    		 std::regular_invocable<UnaryPred,
+									    const typename InputIt::value_type&>
 #endif
     constexpr bool all_of(InputIt first,
                           InputIt last,
@@ -39,7 +41,9 @@ namespace cryptanalysislib {
              class UnaryPred,
              const AlgorithmAnyOfConfig &config=algorithmAnyOfConfig>
 #if __cplusplus > 201709L
-	    requires std::bidirectional_iterator<InputIt>
+	    requires std::forward_iterator<InputIt> &&
+	    		 std::regular_invocable<UnaryPred,
+									    const typename InputIt::value_type&>
 #endif
     constexpr bool any_of(InputIt first,
                           InputIt last,
@@ -59,13 +63,19 @@ namespace cryptanalysislib {
              class UnaryPred,
              const AlgorithmAnyOfConfig &config=algorithmAnyOfConfig>
 #if __cplusplus > 201709L
-	    requires std::bidirectional_iterator<InputIt>
+	    requires std::forward_iterator<InputIt> &&
+	    		 std::regular_invocable<UnaryPred,
+									    const typename InputIt::value_type&>
 #endif
     constexpr bool none_of(InputIt first,
                            InputIt last,
                            UnaryPred p) noexcept {
+
+    	constexpr static AlgorithmFindConfig c = {
+    		.min_size_per_thread = config.min_size_per_thread
+    	};
         return cryptanalysislib::find_if
-    			<InputIt, UnaryPred>
+    			<InputIt, UnaryPred, c>
     			(first, last, p) == last;
     }
 
@@ -82,7 +92,9 @@ namespace cryptanalysislib {
               typename Predicate,
               const AlgorithmAnyOfConfig &config=algorithmAnyOfConfig>
 #if __cplusplus > 201709L
-	    requires std::bidirectional_iterator<RandIt>
+	    requires std::bidirectional_iterator<RandIt> &&
+	    		 std::regular_invocable<Predicate,
+									    const typename RandIt::value_type&>
 #endif
     bool all_of(ExecPolicy&& policy,
                 RandIt first,
@@ -106,22 +118,24 @@ namespace cryptanalysislib {
     /// @param pred
     /// @return
     template <class ExecPolicy,
-              typename RandIt,
+              typename Iterator,
               typename Predicate,
               const AlgorithmAnyOfConfig &config=algorithmAnyOfConfig>
 #if __cplusplus > 201709L
-	    requires std::bidirectional_iterator<RandIt>
+	    requires std::forward_iterator<Iterator> &&
+	    		 std::regular_invocable<Predicate,
+									    const typename Iterator::value_type&>
 #endif
     bool none_of(ExecPolicy&& policy,
-                 RandIt first,
-                 RandIt last,
+                 Iterator first,
+                 Iterator last,
                  Predicate pred) noexcept {
     	constexpr static AlgorithmFindConfig c = {
     		.min_size_per_thread = config.min_size_per_thread
     	};
 
         return last == cryptanalysislib::find_if
-						<ExecPolicy, RandIt, Predicate, c>
+						<ExecPolicy, Iterator, Predicate, c>
     					(std::forward<ExecPolicy>(policy), first, last, pred);
     }
 
@@ -138,7 +152,9 @@ namespace cryptanalysislib {
               typename Predicate,
               const AlgorithmAnyOfConfig &config=algorithmAnyOfConfig>
 #if __cplusplus > 201709L
-	    requires std::bidirectional_iterator<RandIt>
+	    requires std::bidirectional_iterator<RandIt> &&
+	    		 std::regular_invocable<Predicate,
+									    const typename RandIt::value_type&>
 #endif
     bool any_of(ExecPolicy&& policy,
                 RandIt first,

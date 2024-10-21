@@ -621,6 +621,41 @@ public:
 	}
 };
 
+#ifdef USE_TRACY
+
+template<typename T,
+		 const size_t alignment = 1024>
+class TracyAllocator {
+public:
+	typedef TracyAllocator<T, alignment> allocator_type;
+	typedef TracyAllocator<T, alignment> Alloc;
+	typedef T value_type;
+	typedef T *pointer;
+	typedef const T *const_pointer;
+	typedef void *void_pointer;
+	typedef const void *const_void_pointer;
+	typedef size_t size_type;
+
+	const char *pool_name = "tracy_allocator";
+
+	/// simply allocates `n` bytes using `a`
+	/// \param n number of byte
+	/// \return pointer to data or nullptr
+	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
+		T *p = nullptr;
+		TracyCAllocN(p, sizeof(T) * n, pool_name);
+		return p;
+	}
+
+	/// \param p pointer to data
+	/// \param n number of bytes
+	static constexpr inline void deallocate(const pointer p,
+											const size_type n) noexcept {
+		TracyCFreeN(p, sizeof(T) * n);
+	}
+};
+#endif
+
 namespace cryptanalysislib::alloc {
 	// define a standard allocator
 	using allocator = PageMallocator<1u<<12u, 1u<<12u>;

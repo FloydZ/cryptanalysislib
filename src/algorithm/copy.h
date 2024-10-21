@@ -24,8 +24,8 @@ template <class RandIt1,
           class RandIt2,
           const AlgorithmCopyConfig &config=algorithmCopyConfig>
 #if __cplusplus > 201709L
-    requires std::bidirectional_iterator<RandIt1> &&
-             std::bidirectional_iterator<RandIt2>
+    requires std::forward_iterator<RandIt1> &&
+             std::forward_iterator<RandIt2>
 #endif
 constexpr RandIt2 copy(RandIt1 first, 
                        RandIt1 last, 
@@ -49,8 +49,8 @@ template<class RandIt1,
 	     class RandIt2,
          const AlgorithmCopyConfig &config=algorithmCopyConfig>
 #if __cplusplus > 201709L
-	requires std::bidirectional_iterator<RandIt1> &&
-	         std::bidirectional_iterator<RandIt2>
+	requires std::forward_iterator<RandIt1> &&
+	         std::forward_iterator<RandIt2>
 #endif
 constexpr RandIt2 copy_n(RandIt1 first,
 	                     const Size n,

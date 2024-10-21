@@ -10,6 +10,7 @@
 #include <functional>
 
 #include "helper.h"
+#include "traits.h"
 
 
 namespace cryptanalysislib {

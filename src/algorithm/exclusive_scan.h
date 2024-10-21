@@ -12,9 +12,6 @@ namespace cryptanalysislib {
     };
     constexpr static AlgorithmExclusiveScanConfig algorithmExclusiveScanConfig;
 
-
-
-
 	/// \tparam InputIt
     /// \tparam OutputIt
     /// \tparam BinaryOp
@@ -30,8 +27,11 @@ namespace cryptanalysislib {
              class BinaryOp,
              const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt> &&
-		         std::random_access_iterator<OutputIt>
+		requires std::forward_iterator<InputIt> &&
+		         std::forward_iterator<OutputIt> &&
+    		     std::regular_invocable<BinaryOp,
+									const typename InputIt::value_type&,
+									const typename InputIt::value_type&>
 #endif
     OutputIt exclusive_scan(InputIt first,
                             InputIt last,
@@ -69,7 +69,7 @@ namespace cryptanalysislib {
              const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<InputIt> &&
-		         std::random_access_iterator<OutputIt>
+		         std::forward_iterator<OutputIt>
 #endif
     OutputIt exclusive_scan(InputIt first,
                             InputIt last,
@@ -86,8 +86,8 @@ namespace cryptanalysislib {
              class OutputIt,
              const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt> &&
-		         std::random_access_iterator<OutputIt>
+		requires std::forward_iterator<InputIt> &&
+		         std::forward_iterator<OutputIt>
 #endif
     OutputIt exclusive_scan(InputIt first,
                             InputIt last,
@@ -115,7 +115,10 @@ namespace cryptanalysislib {
               const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<RandIt1> &&
-		         std::random_access_iterator<RandIt2>
+		         std::random_access_iterator<RandIt2> &&
+    		     std::regular_invocable<BinaryOp,
+									const typename RandIt1::value_type&,
+									const typename RandIt1::value_type&>
 #endif
     RandIt2 exclusive_scan(ExecPolicy &&policy,
                            RandIt1 first,

@@ -10,16 +10,16 @@
 
 namespace cryptanalysislib {
 	struct AlgorithmEqualConfig : public AlgorithmConfig {
-		constexpr static size_t min_size_per_thread = 262144;
+		const size_t min_size_per_thread = 262144;
 	};
 	constexpr static AlgorithmEqualConfig algorithmEqualConfig;
 
-	/// @tparam InputIt1
-	/// @tparam InputIt2
-	/// @param first1
-	/// @param last1
-	/// @param first2
-	/// @return
+	/// \tparam InputIt1
+	/// \tparam InputIt2
+	/// \param first1
+	/// \param last1
+	/// \param first2
+	/// \return
 	template<class InputIt1,
 			 class InputIt2,
 			 const AlgorithmEqualConfig &config=algorithmEqualConfig>
@@ -85,9 +85,8 @@ namespace cryptanalysislib {
 
 		return (bool)std::reduce(
 			internal::get_wrap(futures.begin()),
-			internal::get_wrap(futures.end()), (T)0, std::plus<T>());
+			internal::get_wrap(futures.end()), (T)0,
+			std::plus<T>());
 	}
-
-
 } // end namespace cryptanalysislib
 #endif //EQUAL_H

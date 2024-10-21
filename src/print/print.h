@@ -11,6 +11,9 @@ namespace cryptanalysislib {
 	/// \param a number to print
 	/// \param len number of bits to print
 	template<typename T>
+#if __cplusplus > 201709L
+		requires std::is_arithmetic_v<T>
+#endif
 	static void print_binary(T a,
 	                         const size_t len = sizeof(T) * 8u,
 	                         const char *end = "\n") {
@@ -22,11 +25,17 @@ namespace cryptanalysislib {
 		printf("%s", end);
 	}
 
+	/// print a big number
 	/// \tparam T base type
 	/// \param a number to print
 	/// \param len number of bits to print
 	template<typename T>
-	static void print_binary(T *a, const size_t len, const char *end = "\n") {
+#if __cplusplus > 201709L
+		requires std::is_arithmetic_v<T>
+#endif
+	static void print_binary(const T *a,
+							 const size_t len,
+							 const char *end = "\n") {
 		constexpr uint32_t bits = sizeof(T) * 8;
 		const uint32_t limbs = (len + bits - 1) / bits;
 

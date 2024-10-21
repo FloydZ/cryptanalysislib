@@ -15,7 +15,7 @@
 /// 	- nr of indices which are generated is = n/2
 /// 	- max index = n
 /// \tparam Label
-/// \tparam List, std:vector, std::array
+/// \tparam List, vector, array or iteratable
 /// \tparam Matrix
 /// \param target return value
 /// \param weights return value
@@ -52,7 +52,7 @@ constexpr static void generate_subsetsum_instance(Label &target,
 }
 
 
-///
+/// TODO image and explanation of config parameters
 struct SSS {
 	/// these are just fake numbers. Enter your own correct ones.
     const uint32_t n = 32;
@@ -87,7 +87,6 @@ struct SubSetSumCmp {
 		// get the lowest bit
         const C la = a1.label.value();
         const C lb = b1.label.value();
-
 		const C alb = la & mask;
 		const C blb = lb & mask;
 
@@ -147,9 +146,8 @@ struct SubSetSumCmp {
 ///		// NOTE: the loop also ends if a max length is reached
 ///		while(x1 != y1 &&
 ///			x2,y2 = x1,y1
-///			// TODO fix inputs
-///			x1 = P(f_i(x2))
-///			y1 = P(f_i(f_i(y2)))
+///			x1 = f_i(x2)
+///			y1 = f_i(f_i(y2))
 ///		}
 ///
 ///		if (lsb(x2) != lsb(y2)) {
@@ -158,7 +156,7 @@ struct SubSetSumCmp {
 ///
 ///		x1 = P(x2)
 ///		y1 = P(y2)
-///		TODO restart
+///		goto restart
 /// }
 ///
 template<const SSS &instance>
@@ -169,7 +167,7 @@ public:
 
 	using T 		= uint64_t;
 	using Value     = BinaryVector<n>;
-    using Label     = kAry_Type_T<q>;
+    using Label = kAry_Type_T<q>;
 	using Matrix 	= FqVector<T, n, q>;
 	using Element	= Element_T<Value, Label, Matrix>;
 	using List		= List_T<Element>;
@@ -177,9 +175,14 @@ public:
 	using L 		= Label::LimbType;
 	using V 		= Value::LimbType;
 
+	// instance to solve: <A, e> = target
 	const Matrix A;
 	const Label target;
-	constexpr sss_d2(const Matrix &A, const Label &target) noexcept
+
+	/// \param A
+	/// \param target
+	constexpr sss_d2(const Matrix &A,
+					 const Label &target) noexcept
 	    : A(A), target(target) {
 	}
 
@@ -206,9 +209,9 @@ public:
 		using D = typename Label::DataType;
 		using E = std::pair<size_t, size_t>;
 
-		constexpr static size_t factor = 2;
-		constexpr static size_t L1_bucketsize = factor * (Enumerator::max_list_size >> (instance.l1));
-		constexpr static size_t iL_bucketsize = factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2 + instance.l1));
+		// constexpr static size_t factor = 2;
+		constexpr static size_t L1_bucketsize = 100; // factor * (Enumerator::max_list_size >> (instance.l1));
+		constexpr static size_t iL_bucketsize = 100; // factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2 + instance.l1));
 
 		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
 				L1_bucketsize, 1ull<<(k_upper1-k_lower1), 1
@@ -230,71 +233,109 @@ public:
 		/// dummy object
 		Tree t{1, A, 0};
 
-		Label one; one.set(1, 0);
-		Element x, y;
-		x.random();
-		y.random();
+		Label s, tree_iT, one; one.set(1, 0);
+		s.random(0, 1ull << k_upper2);
+		tree_iT.random(0, 1ull << k_upper1);
+		Element x, y, x_old, y_old;
 
-		auto flavour = [&](Element &e) __attribute__((always_inline)){
-			constexpr static L a = 2, b = 2;
-			const L c = a * e.label.value() + b;
-			int2weight_bits<V, L>(e.value.ptr(), c, n, n, instance.bp);
-			e.recalculate_label(A);
+		//flavout values:
+		constexpr static L a = 2, b = 2;
+
+		// \return value=int2weight(b_2 * flavor(e) + b_2))
+		auto flavour = [&](const Element &e) __attribute__((always_inline)){
+			Element ret;
+			const L c = (a * e.label.value() + b) % instance.q;
+			// TODO not correct
+			int2weight_bits<V, L>(ret.value.ptr(), c, n, n, instance.n / 4);
+			ret.recalculate_label(A);
+			return ret;
 		};
 
+		/// pollard rho
+		auto f =  [&](const Element &in) __attribute__((always_inline)) {
+			// reset a few things
+			out.set_load(0);
+			Label tree_target, tmp_iT;
+
+			// depending on the lowest bit
+			if (in.label.value() & 1u) {
+				Label::sub(tree_target, target, s);
+			} else {
+				tree_target = s;
+			}
+
+			// restart the tree, as long as we do not have any outputs
+			size_t iters = 0;
+			while (out.load() == 0) {
+				hmiL->clear();
+				Label::add(tree_iT, tree_iT, one);
+				Label::sub(tmp_iT, tree_target, tree_iT);
+
+				// join to intermediate list (hashmap)
+				// NOTE: `prepare==false`, because its already done
+				t.template join2lists_on_iT_hashmap_v2
+					<k_lower1, k_upper1>
+					(*hmiL, L1, L2, *hmL2, tree_iT, false);
+
+				// join to output list
+				t.template twolevel_streamjoin_on_iT_hashmap_v2
+					<k_lower1, k_upper1, k_lower2, k_upper2>
+					(out, *hmiL, L1, L2, *hmL2, target, tmp_iT);
+				// TODO: optimize the filtering, use a lambda to directly exit upon the first match
+
+				iters += 1;
+			}
+
+			// std::cout << target << std::endl;
+			// std::cout << out << std::endl;
+			ASSERT(out.load() > 0);
+			for (const auto &o :out) {
+				ASSERT(o.is_correct(A));
+			}
+
+			std::cout << "iters:" << iters << std::endl;
+			std::cout << target << std::endl;
+			std::cout << out << std::endl;
+
+			Element ret = out[0];
+			ASSERT(ret.label.is_equal(target, 0, k_upper2));
+			return ret;
+		};
+
+		// init
+		x_old.random(A);
+		y_old = f(x_old);
+
+		// start loop
 		while (true) {
+			x = flavour(x_old);
+			y = flavour(y_old);
+			s.random(0, 1ull << k_upper2);
+			tree_iT.random(0, 1ull << k_upper1);
+
+			std::cout << x << " x" << std::endl;
+			std::cout << y << " y" << std::endl;
+			std::cout << s << " s" << std::endl;
+			std::cout << tree_iT << std::endl << std::endl;
+
 			/// restart every X runs
-			const bool found = rho::run(
-			    [&](const Element &in) __attribute__((always_inline)){
-					// reset a few things
-					out.set_load(0);
+			if (rho::run(f, x, y, instance.walk_len)) {
+				break;
+			}
 
-					// choose a random intermediate target
-					Label s, tree_target, tree_iT, tmp_iT, one;
-					s.random(0, 1ull << k_upper2);
-					tree_iT.random(0, 1ull << k_upper1);
-
-					//
-					if (in.label.value() & 1u) {
-						Label::sub(tree_target, target, s);
-					} else {
-						tree_target = s;
-					}
-
-					// restart the tree, as long as we do not have any outputs
-					while (out.load() == 0) {
-						hmiL->clear();
-						Label::add(tree_iT, tree_iT, one);
-						Label::sub(tmp_iT, tree_target, tree_iT);
-
-						// join to intermediate list (hashmap)
-						// NOTE: `prepare==false`, because its already done
-						t.template join2lists_on_iT_hashmap_v2
-							<k_lower1, k_upper1>
-							(*hmiL, L1, L2, *hmL2, tree_iT, false);
-
-						// join to output list
-						t.template twolevel_streamjoin_on_iT_hashmap_v2
-							<k_lower1, k_upper1, k_lower2, k_upper2>
-							(out, *hmiL, L1, L2, *hmL2, target, tmp_iT);
-					}
-
-			        Element ret = out[0];
-			        return ret;
-			    },
-			    x, y, instance.walk_len);
-
-			/// found a soluiton
-			if (found) { break; }
-
-			// resample the flavour
-			x.random(A);
-			y.random(A);
+			x_old = x;
+			y_old = y;
 		}
 
-		// TODO recover solution/remove flavour
+		Element sol;
+		Element::add(sol, x, y);
+
 		std::cout << x << std::endl;
 		std::cout << y << std::endl;
+		std::cout << sol << std::endl;
+		std::cout << target << std::endl;
+
+		// memory cleanup
 		delete hmL2;
 		delete hmiL;
 
