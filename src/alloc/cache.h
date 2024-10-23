@@ -3,7 +3,7 @@
 
 #include "helper.h"
 #include "container/linkedlist.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "memory/memory.h"
 
 

@@ -66,7 +66,7 @@ constexpr inline static T Rotate32(const T val, const int shift) noexcept {
 }
 
 
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 [[nodiscard]] constexpr static std::size_t round_up_to_power_of_two(std::size_t value) noexcept {
 	if (cryptanalysislib::popcount::popcount(value) == 1u) {
 		return value;

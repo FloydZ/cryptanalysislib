@@ -9,28 +9,34 @@
 using namespace cryptanalysislib;
 
 struct RSA_instance {
+	/// TODO generic
 	const uint64_t N;
 };
 
 template<const RSA_instance &config>
 struct RSACmp {
-	using T = TypeTemplate<config.N>;
+public:
+	// using L = TypeTemplate<config.N>;
+	using T = kAry_Type_T<config.N>;
+	using L = T::LimbType;
+
 	constexpr static T one{1};
 	constexpr static T N{config.N};
 
-	using TT = T::LimbType;
 	decltype(auto) operator()(const T,
 	                          const T &a2,
 	                          const T,
 	                          const T &b2) const {
-		auto t = gcd<TT>((a2.value() + N - b2.value()) % N, N);
+		auto t = gcd<L>((a2.value() + config.N - b2.value()) % config.N, config.N);
 		return t > 1;
 	}
 };
 
 template<const RSA_instance &config>
 class rsa_pollard_rho {
-	using T = TypeTemplate<config.N>;
+public:
+	using L = TypeTemplate<config.N>;
+	using T = kAry_Type_T<config.N>;
 
 	[[nodiscard]] bool run() noexcept {
 		T a, b;

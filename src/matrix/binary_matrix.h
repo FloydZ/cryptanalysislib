@@ -16,7 +16,7 @@
 #include "helper.h"
 #include "matrix/fq_matrix.h"
 #include "permutation/permutation.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
 

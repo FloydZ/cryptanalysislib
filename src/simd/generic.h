@@ -7,7 +7,7 @@
 
 #include <type_traits>
 
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
 using namespace cryptanalysislib;

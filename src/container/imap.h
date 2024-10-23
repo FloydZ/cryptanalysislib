@@ -6,7 +6,7 @@
 #include "helper.h"
 #include "simd/simd.h"
 #include "alloc/alloc.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 
 #if defined(USE_AVX2) || defined (USE_AVX512F)
 #include <immintrin.h>

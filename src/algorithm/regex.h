@@ -80,7 +80,8 @@ struct regex_confg {
 	// Max length of character-class buffer in.
 	const size_t MAX_CHAR_CLASS_LEN = 40u;
 };
-constexpr static regex_confg regex_confg_{};
+
+constexpr static regex_confg regex_confg_;
 
 template<const regex_confg &config=regex_confg_>
 struct regex {

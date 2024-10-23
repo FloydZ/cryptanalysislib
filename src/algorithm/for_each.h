@@ -22,7 +22,7 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 		requires std::forward_iterator<InputIt> &&
     		     std::regular_invocable<UnaryFunction,
-										const typename InputIt::value_type&>
+										typename InputIt::value_type&>
 #endif
 	constexpr UnaryFunction for_each(InputIt first,
 									 InputIt last,
@@ -51,7 +51,7 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<RandIt> &&
     		     std::regular_invocable<UnaryFunction,
-										const typename RandIt::value_type&>
+										typename RandIt::value_type&>
 #endif
 	void for_each(ExecPolicy &&policy,
 	              RandIt first,
@@ -92,7 +92,7 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<RandIt> &&
     		     std::regular_invocable<UnaryFunction,
-										const typename RandIt::value_type&>
+										typename RandIt::value_type&>
 #endif
     RandIt for_each_n(ExecPolicy &&policy,
 					  RandIt first,
@@ -112,7 +112,7 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<RandIt> &&
     		     std::regular_invocable<UnaryFunction,
-										const typename RandIt::value_type&>
+										typename RandIt::value_type&>
 #endif
     void for_each_chunk(RandIt first,
                         RandIt last,

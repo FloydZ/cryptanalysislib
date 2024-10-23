@@ -108,20 +108,21 @@ TEST(regex, simple) {
 		should_fail = (test_vector[i][0] == NOK);
 		correctlen = (int)(uintptr_t)(test_vector[i][3]);
 
-		int m = regex::re_match(pattern, text, &length);
+		using re = regex<>;
+		int m = re::re_match(pattern, text, &length);
 
 		if (should_fail) {
 			if (m != (-1)) {
 				printf("\n");
-				const auto p = regex::re_compile(pattern);
-				regex::re_print(p);
+				const auto p = re::re_compile(pattern);
+				re::re_print(p);
 				fprintf(stderr, "[%lu/%lu]: pattern '%s' matched '%s' unexpectedly, matched %i chars. \n", (i+1), ntests, pattern, text, length);
 				nfailed += 1;
 			}
 		} else {
 			if (m == (-1)) {
 				printf("\n");
-				regex::re_print(regex::re_compile(pattern));
+				re::re_print(re::re_compile(pattern));
 				fprintf(stderr, "[%lu/%lu]: pattern '%s' didn't match '%s' as expected. \n", (i+1), ntests, pattern, text);
 				nfailed += 1;
 			} else if (length != correctlen) {

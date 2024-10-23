@@ -9,7 +9,7 @@
 #include "container/common.h"
 #include "helper.h"
 #include "math/math.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
 #include "hash/hash.h"

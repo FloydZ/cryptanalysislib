@@ -20,7 +20,7 @@
 
 #include "helper.h"
 #include "binary.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "math/math.h"
 
 namespace cryptanalysislib::hh {

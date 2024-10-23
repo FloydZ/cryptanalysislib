@@ -1,7 +1,7 @@
 #ifndef CRYPTANALYSISLIB_METRIC_H
 #define CRYPTANALYSISLIB_METRIC_H
 
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include <cstdint>
 
 namespace cryptanalysislib::metric {

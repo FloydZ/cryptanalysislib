@@ -100,24 +100,32 @@ struct SubSetSumCmp {
 	}
 };
 
-/// TREE(x, y):
+/// todo weight filtering
+/// Fragen:
+///		2) how to correctly match
+///			<e,a> = t - <f, a> <=>
+///			<e,a> + <f,a> = t
+///			(e, <e,a>) = t - (f, <f, a>)
+///			(value, label)
+/// TREE(t, iT):
 ///                   out
 ///                 ┌───┐                  level 2
 ///                 └───┘ match on x
-///                l_1│l_2
-///         ┌─────────┴─────┐
+///                l_1│l_2			e1+e2 = t-e3-e4
+///         ┌─────────┴─────┐       ()
 ///      ┌──┴───┐           │              level 1
 ///      └┐    ┌┘           │
 ///       └┐  ┌┘HMiL        │
-///        └┬─┘match on x-y │
-///        0│l_1            │ match on y
-///     ┌───┴──┐           0│l_1
+///        └┬─┘match on iT  │
+///        0│l_1            │ match on t-iT
+///     ┌───┴──┐           0│l_1    e4 = t-iT-e3 mod q
 ///     │      │        ┌───┴───┐
 ///   ┌─┴─┐ ┌──┴───┐ ┌──┼──┐ ┌──┼───┐      level 0
 ///   │   │ └┐    ┌┘ │     │ └┐    ┌┘
 ///   │   │  └┐  ┌┘  │     │  └┐  ┌┘
 ///   └───┘   └──┘   └─────┘   └──┘
 ///    L1     HML2      L1      HML2
+///     e1     e2      e3        e4
 ///
 /// instance to solve: <a, e> = t
 /// flavor values: b_1,b_2
@@ -132,7 +140,7 @@ struct SubSetSumCmp {
 ///
 /// // flavour function
 /// P(x) {
-///		return b_1 * x + b_2
+///		return b_1 * x + b_2 mod p circa 2**l1
 /// }
 ///
 /// rho() = {
@@ -144,18 +152,17 @@ struct SubSetSumCmp {
 ///		s = rng(0, 2**(l_2+l_1))
 ///
 ///		// NOTE: the loop also ends if a max length is reached
+///		// TODO: only match on additionaly l_1 bits
 ///		while(x1 != y1 &&
-///			x2,y2 = x1,y1
-///			x1 = f_i(x2)
-///			y1 = f_i(f_i(y2))
+///			x2,y2 = x1,y1) {
+///			x1 = f_i(P(x2))
+///			y1 = f_i(P(f_i(P(y2))))
 ///		}
 ///
 ///		if (lsb(x2) != lsb(y2)) {
 ///			return found
 ///		}
 ///
-///		x1 = P(x2)
-///		y1 = P(y2)
 ///		goto restart
 /// }
 ///
@@ -241,12 +248,13 @@ public:
 		//flavout values:
 		constexpr static L a = 2, b = 2;
 
-		// \return value=int2weight(b_2 * flavor(e) + b_2))
+		/// \return value=int2weight(b_2 * flavor(e) + b_2))
 		auto flavour = [&](const Element &e) __attribute__((always_inline)){
 			Element ret;
 			const L c = (a * e.label.value() + b) % instance.q;
 			// TODO not correct
-			int2weight_bits<V, L>(ret.value.ptr(), c, n, n, instance.n / 4);
+			// int2weight_bits<V, L>(ret.value.ptr(), c, n, n, instance.n / 4);
+			*ret.value.ptr() = c;
 			ret.recalculate_label(A);
 			return ret;
 		};

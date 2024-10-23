@@ -24,7 +24,10 @@ namespace cryptanalysislib {
 			 class BinaryOp,
 			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
 #if __cplusplus > 201709L
-	    requires std::forward_iterator<InputIt>
+	    requires std::forward_iterator<InputIt> &&
+    			 std::regular_invocable<BinaryOp,
+										typename InputIt::value_type&,
+										typename InputIt::value_type&>
 #endif
 	constexpr typename InputIt::value_type reduce(InputIt first,
 												  InputIt last,
@@ -100,7 +103,7 @@ namespace cryptanalysislib {
 	    requires std::forward_iterator<InputIt> &&
 	    		 std::forward_iterator<OutputIt> &&
     			 std::regular_invocable<UnaryOperation,
-										const typename InputIt::value_type&>
+										typename InputIt::value_type&>
 #endif
     OutputIt transform(InputIt first1,
     				   InputIt last1,
@@ -134,7 +137,8 @@ namespace cryptanalysislib {
 	    		 std::forward_iterator<InputIt2> &&
 				 std::forward_iterator<OutputIt> &&
     			 std::regular_invocable<UnaryOperation,
-										const typename InputIt1::value_type&>
+										typename InputIt1::value_type&,
+										typename InputIt1::value_type&>
 #endif
     OutputIt transform(InputIt1 first1, InputIt1 last1,
                        InputIt2 first2, OutputIt d_first,
@@ -163,7 +167,8 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 	    requires std::random_access_iterator<RandIt> &&
     			 std::regular_invocable<UnaryOperation,
-										const typename RandIt::value_type&>
+										typename RandIt::value_type&,
+										typename RandIt::value_type&>
 #endif
 	typename RandIt::value_type
 	reduce(ExecPolicy &&policy,
@@ -211,8 +216,9 @@ namespace cryptanalysislib {
 		   RandIt last,
 		   const typename RandIt::value_type init) noexcept {
 		using T = RandIt::value_type;
-		return cryptanalysislib::reduce(std::forward<ExecPolicy>(policy),
-						   first, last, init, std::plus<T>());
+		return cryptanalysislib::reduce
+			<ExecPolicy, RandIt, decltype(std::plus<T>()), config>
+			(std::forward<ExecPolicy>(policy), first, last, init, std::plus<T>());
 	}
 
 	/// \tparam ExecPolicy

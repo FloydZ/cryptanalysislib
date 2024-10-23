@@ -23,7 +23,7 @@ static void BM_stupid_argmin(benchmark::State &state) {
     uint64_t c = 0;
 	for (auto _: state) {
         c -= cpucycles();
-		size_t t = cryptanalysislib::argmin<T>(data.data(), state.range(0));
+		size_t t = cryptanalysislib::argmin(data.begin(), data.end());
         c += cpucycles();
 		benchmark::DoNotOptimize(t+1);
 		benchmark::ClobberMemory();

@@ -10,7 +10,7 @@
 
 #include "alloc/alloc.h"
 #include "helper.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
 

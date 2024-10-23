@@ -6,7 +6,7 @@
 #include <cstdint>
 
 #include "helper.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "print/print.h"
 #include "random.h"
 

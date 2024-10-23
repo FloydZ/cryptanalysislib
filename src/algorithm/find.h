@@ -46,7 +46,7 @@ namespace cryptanalysislib {
 			const auto t = S::set1(val);
 			size_t i = 0;
 			for (; (i+limbs) <= n; i+=limbs) {
-				const auto d = S::template load<config>(data + i);
+				const auto d = S::template load<config.aligned_instructions>(data + i);
 				const auto s = d == t;
 				if (s) [[unlikely]] {
 					return i + ffs<T>(s) - 1u;

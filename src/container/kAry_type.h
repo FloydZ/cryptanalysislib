@@ -8,7 +8,7 @@
 #include "helper.h"
 #include "math/math.h"
 #include "metric.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "print/print.h"
 #include "random.h"
 #include "simd/simd.h"

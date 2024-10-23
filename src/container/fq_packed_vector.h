@@ -9,7 +9,7 @@
 #include "container/kAry_type.h"
 #include "helper.h"
 #include "math/math.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
 
@@ -1620,8 +1620,8 @@ public:
 	/// \param a input
 	/// \param b input
 	/// \return a+b
-	constexpr static inline uint64x4_t add256_T_no_overflow(const uint64x4_t a,
-	                                                        const uint64x4_t b) noexcept {
+	constexpr static inline S add256_T_no_overflow(const S a,
+												   const S b) noexcept {
 		// no overflow will happen.
 		return a + b;
 	}
@@ -1629,8 +1629,8 @@ public:
 	/// \param x input
 	/// \param y input
 	/// \return x+y mod3
-	static inline S add256_T(const S x,
-	                                  const S y) noexcept {
+	constexpr static inline S add256_T(const S x,
+	                                   const S y) noexcept {
 		// c1 = 0x55555555...
 		// c2 = 0x10101010...
 		using U = typename S::limb_type;

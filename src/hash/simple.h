@@ -9,7 +9,7 @@
 #include <type_traits>
 
 #include "math/math.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "simd/simd.h"
 
 /// main comparison class for hash function used within the data containers

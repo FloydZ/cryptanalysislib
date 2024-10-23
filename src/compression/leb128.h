@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <type_traits>
 
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 
 namespace cryptanalysislib {
 

@@ -15,17 +15,6 @@ using ::testing::UnitTest;
 using namespace cryptanalysislib;
 
 
-TEST(argmin, uint32_t) {
-	constexpr size_t s = 100;
-	auto d = new uint32_t [s];
-	for (size_t i = 0; i < s; ++i) { d[i] = i; }
-
-	const auto t = argmin(d, s);
-	ASSERT_EQ(t, 0);
-
-	delete[] d;
-}
-
 TEST(argmin, simd_uint32_t) {
 	constexpr size_t s = 100;
 	auto d = new uint32_t [s];
@@ -113,6 +102,7 @@ TEST(argmin, avx2_bl32_uint32_t) {
 	delete[] d;
 }
 #endif
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

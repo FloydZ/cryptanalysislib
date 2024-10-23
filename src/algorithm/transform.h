@@ -29,8 +29,7 @@ namespace cryptanalysislib {
 		requires std::forward_iterator<InputIt> &&
 				 std::forward_iterator<OutputIt> &&
     			 std::regular_invocable<UnaryOperation,
-										const typename InputIt::value_type&,
-										const typename InputIt::value_type&>
+										typename InputIt::value_type&>
 #endif
 	constexpr OutputIt transform(InputIt first1,
 								 InputIt last1,
@@ -62,8 +61,8 @@ namespace cryptanalysislib {
 		requires std::random_access_iterator<InputIt1> &&
 				 std::random_access_iterator<InputIt2> &&
     			 std::regular_invocable<UnaryOperation,
-										const typename InputIt1::value_type&,
-										const typename InputIt1::value_type&>
+										typename InputIt1::value_type&,
+										typename InputIt1::value_type&>
 #endif
 	constexpr OutputIt transform(InputIt1 first1,
 								 InputIt1 last1,
@@ -97,11 +96,11 @@ namespace cryptanalysislib {
 		requires std::forward_iterator<ForwardIt1> &&
 				 std::forward_iterator<ForwardIt2> &&
     			 std::regular_invocable<BinaryOp1,
-										const typename ForwardIt1::value_type&,
-										const typename ForwardIt1::value_type&> &&
+										typename ForwardIt1::value_type&,
+										typename ForwardIt1::value_type&> &&
     			 std::regular_invocable<BinaryOp2,
-										const typename ForwardIt1::value_type&,
-										const typename ForwardIt1::value_type&>
+										typename ForwardIt1::value_type&,
+										typename ForwardIt1::value_type&>
 #endif
 	ForwardIt1::value_type transform_reduce(ForwardIt1 first1,
 											ForwardIt1 last1,
@@ -136,7 +135,7 @@ namespace cryptanalysislib {
 	InputIt1::value_type transform_reduce(InputIt1 first1,
 										  InputIt1 last1,
 										  InputIt2 first2,
-										  const typename InputIt1::value_type init) noexcept {
+										  typename InputIt1::value_type init) noexcept {
 		using T = InputIt1::value_type;
 		return transform_reduce
 				<InputIt1, InputIt2, decltype(std::plus<T>()), decltype(std::multiplies<T>()), config>
@@ -160,10 +159,10 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 		requires std::forward_iterator<InputIt> &&
     			 std::regular_invocable<BinaryOp,
-										const typename InputIt::value_type&> &&
+										typename InputIt::value_type&> &&
     			 std::regular_invocable<UnaryOp,
-										const typename InputIt::value_type&,
-										const typename InputIt::value_type&>
+										typename InputIt::value_type&,
+										typename InputIt::value_type&>
 #endif
 	InputIt::value_type transform_reduce(InputIt first,
 										 InputIt last,
@@ -199,10 +198,11 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<RandIt1> &&
     			 std::regular_invocable<BinaryReductionOp,
-										const typename RandIt1::value_type&> &&
+										typename RandIt1::value_type&,
+										typename RandIt1::value_type&> &&
     			 std::regular_invocable<UnaryTransformOp,
-										const typename RandIt1::value_type&,
-										const typename RandIt1::value_type&>
+										typename RandIt1::value_type&,
+										typename RandIt1::value_type&>
 #endif
 	typename RandIt1::value_value
 	transform_reduce(ExecPolicy&& policy,
@@ -215,7 +215,9 @@ namespace cryptanalysislib {
 		const auto size = static_cast<size_t>(std::distance(first1, last1));
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
-			return std::transform_reduce(first1, last1, init, reduce_op, transform_op);
+			return cryptanalysislib::transform_reduce
+				<RandIt1, RandIt1, BinaryReductionOp, UnaryTransformOp, config>
+				(first1, last1, init, reduce_op, transform_op);
 		}
 
 		auto futures = internal::parallel_chunk_for_1(
@@ -242,10 +244,11 @@ namespace cryptanalysislib {
 		requires std::random_access_iterator<RandIt1> &&
 				 std::random_access_iterator<RandIt2> &&
     			 std::regular_invocable<BinaryReductionOp,
-										const typename RandIt1::value_type&> &&
+										typename RandIt1::value_type&,
+										typename RandIt1::value_type&> &&
     			 std::regular_invocable<BinaryTransformOp,
-										const typename RandIt1::value_type&,
-										const typename RandIt1::value_type&>
+										typename RandIt1::value_type&,
+										typename RandIt1::value_type&>
 #endif
 	RandIt1::value_type
 	transform_reduce(ExecPolicy&& policy,
@@ -264,7 +267,7 @@ namespace cryptanalysislib {
 
 		auto futures = internal::parallel_chunk_for_2(
 			std::forward<ExecPolicy>(policy), first1, last1, first2,
-				 std::transform_reduce<RandIt1, RandIt2, T, BinaryReductionOp, BinaryTransformOp, config>,
+				 cryptanalysislib::transform_reduce<RandIt1, RandIt2, BinaryReductionOp, BinaryTransformOp, config>,
 				(T*)nullptr,
 				nthreads,
 				init, reduce_op, transform_op);

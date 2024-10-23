@@ -324,7 +324,7 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<Iterator>
 #endif
-	[[nodiscard]] constexpr static inline size_t argmax(Iterator start,
+	[[nodiscard]] constexpr static inline size_t argmin(Iterator start,
 														Iterator end) noexcept {
 		using T = Iterator::value_type;
 		const size_t len = std::distance(start, end);
@@ -350,7 +350,7 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
     requires std::random_access_iterator<RandIt>
 #endif
-	size_t argmax(ExecPolicy&& policy,
+	size_t argmin(ExecPolicy&& policy,
 				  RandIt first,
 				  RandIt last) noexcept {
 		using T = typename RandIt::value_type;
@@ -358,14 +358,14 @@ namespace cryptanalysislib {
 		const auto size = static_cast<size_t>(std::distance(first, last));
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
-			return cryptanalysislib::argmax
+			return cryptanalysislib::argmin
 				<RandIt, config>(first, last);
 		}
 
 		auto futures = internal::parallel_chunk_for_1(
 			std::forward<ExecPolicy>(policy),
 			first, last,
-			cryptanalysislib::argmax<RandIt, config>,
+			cryptanalysislib::argmin<RandIt, config>,
 			(size_t *)0,
 			1, nthreads);
 
