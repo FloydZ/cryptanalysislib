@@ -1663,9 +1663,8 @@ struct uint32x16_t {
 		return ret;
 	}
 
-	/// TODO test
-	/// Source:http://0x80.pl/notesen/2023-01-31-avx512-bsf.html
-	/// needs`AVX512VPOPCNTDQ`
+	/// Source: http://0x80.pl/notesen/2023-01-31-avx512-bsf.html
+	/// count trailing zeros
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t cnt(const uint32x16_t in1) noexcept {
@@ -1753,8 +1752,8 @@ struct uint32x16_t {
 		return t;
 	}
 
-	/// TODO implement everywhere
-	/// \param in
+	/// \param a
+	/// \param b
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t min(const uint32x16_t a,
                                                       	  const uint32x16_t b) noexcept {
@@ -1763,8 +1762,8 @@ struct uint32x16_t {
         return c;
     }
 
-	/// TODO implement everywhere
-	/// \param in
+	/// \param a
+	/// \param b
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t max(const uint32x16_t a,
 														  const uint32x16_t b) noexcept {
@@ -2550,7 +2549,7 @@ __m512i __prefixsum_u32_avx512(__m512i x) noexcept {
     return x;
 }
 
-/// TODO not correct
+/// TODO not correct/finished
 __m512i __prefixsum_u8_avx512(__m512i x) noexcept {
     x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 1>(x));
     x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 2>(x));

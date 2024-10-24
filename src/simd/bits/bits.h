@@ -7,7 +7,8 @@
 /// corresponding bit locations specified by `mask`;
 /// all other bits in `dst` are set to zero.
 template<typename T>
-constexpr inline T pdep(const T a, const T mask) noexcept {
+constexpr inline T pdep(const T a,
+					    const T mask) noexcept {
 #ifdef USE_AVX2 
 	if constexpr (sizeof(T) == 4) {
 		return _pdep_u32(a, mask);
@@ -15,6 +16,7 @@ constexpr inline T pdep(const T a, const T mask) noexcept {
 		return _pdep_u64(a, mask);
 	}
 #endif
+
 	T tmp = a, dst = 0;
 	uint32_t m = 0, k = 0;
 
@@ -30,6 +32,6 @@ constexpr inline T pdep(const T a, const T mask) noexcept {
 	return dst;
 }
 
-// TODO
-// using _pdep_u32 = pdep<uint32_t>;
+// using _pdep_u32_ = pdep<uint32_t>;
+// using _pdep_u64_ = pdep<uint64_t>;
 #endif

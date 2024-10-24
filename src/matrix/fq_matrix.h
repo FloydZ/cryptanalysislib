@@ -18,7 +18,7 @@ template<typename T,
          const bool packed = true,
          typename R=void>
 #if __cplusplus > 201709L
-    // TODO
+	requires std::unsigned_integral<T>
 #endif
 class FqMatrix : public FqMatrixMeta<T, nrows, ncols, q, packed, R> {
 public:
@@ -34,7 +34,7 @@ template<typename T,
          const uint32_t ncols,
          const bool packed>
 #if __cplusplus > 201709L
-    // TODO
+	requires std::unsigned_integral<T>
 #endif
 class FqMatrix<T, nrows, ncols, 3, packed, void> : public FqMatrixMeta<T, nrows, ncols, 3, packed, void> {
 public:

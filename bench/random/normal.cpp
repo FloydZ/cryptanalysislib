@@ -8,7 +8,7 @@ using namespace cryptanalysislib;
 using namespace cryptanalysislib::random::internal;
 
 static void BM_xorshf96(benchmark::State& state) {
-	uint64_t data = 1;
+	uint64_t data = rand();
 	for (auto _ : state) {
 		for (int64_t i = 0; i < state.range(0); ++i) {
 			data += xorshf96_random_data();
@@ -18,7 +18,7 @@ static void BM_xorshf96(benchmark::State& state) {
 }
 
 static void BM_xorshf128(benchmark::State& state) {
-	uint64_t data = 123;
+	uint64_t data = rand();
 	for (auto _ : state) {
 		for (int64_t i = 0; i < state.range(0); ++i) {
 			data += xorshf128_random_data();
@@ -28,7 +28,7 @@ static void BM_xorshf128(benchmark::State& state) {
 }
 
 static void BM_pcg64(benchmark::State& state) {
-	uint64_t data = 123;
+	uint64_t data = rand();
 	for (auto _ : state) {
 		for (int64_t i = 0; i < state.range(0); ++i) {
 			data += pcg64_random_data();
@@ -38,7 +38,7 @@ static void BM_pcg64(benchmark::State& state) {
 }
 
 static void BM_lehmer64(benchmark::State& state) {
-	uint64_t data = 123;
+	uint64_t data = rand();
 	for (auto _ : state) {
 		for (int64_t i = 0; i < state.range(0); ++i) {
 			data += lehmer64_random_data();

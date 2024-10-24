@@ -19,7 +19,6 @@ add_subdirectory(math)
 add_subdirectory(memory)
 add_subdirectory(matrix)
 add_subdirectory(nn)
-add_subdirectory(popcount)
 add_subdirectory(search)
 add_subdirectory(simd)
 add_subdirectory(sort)
@@ -43,6 +42,9 @@ foreach(testfile ${TEST_SOURCES})
             ../src/traits.h
             ../src/algorithm/bits.h
             ../src/algorithm/rsa.h
+            ../src/thread/lock_free.h
+            ../src/simd/bits/generic.h
+            ../src/algorithm/bits/clz.h
     )
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})

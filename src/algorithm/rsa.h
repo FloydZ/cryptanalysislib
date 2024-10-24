@@ -9,7 +9,7 @@
 using namespace cryptanalysislib;
 
 struct RSA_instance {
-	/// TODO generic
+	/// TODO generic Fq numbers
 	const uint64_t N;
 };
 

@@ -7,6 +7,7 @@
 #include "algorithm/algorithm.h"
 #include "algorithm/bits/ffs.h"
 #include "simd/simd.h"
+#include "search/search.h"
 
 namespace cryptanalysislib {
 	struct AlgorithmFindConfig : public AlgorithmConfig {
@@ -15,7 +16,8 @@ namespace cryptanalysislib {
 
 		const bool aligned_instructions = false;
 
-		// TODO implement, note: this is really only useful in not multithreaded env
+		// NOTE: not really implementable, as `find_if`
+		// is based on a predicate
 		const bool assume_sorted = false;
 		const bool use_interpolation_search = false;
 	};
@@ -79,6 +81,14 @@ namespace cryptanalysislib {
 						   const typename InputIt::value_type& value) noexcept {
 
 		using T = InputIt::value_type;
+		if constexpr (config.assume_sorted) {
+			if constexpr (config.use_interpolation_search) {
+				cryptanalysislib::search::binary_search(first, last, value);
+			} else {
+				cryptanalysislib::search::binary_search(first, last, value);
+			}
+		}
+
 		if constexpr (std::is_unsigned_v<T>) {
 			const size_t t = internal::find_uXX_simd<T, config>(&(*first),
 											static_cast<size_t>(std::distance(first, last)),
@@ -200,7 +210,6 @@ namespace cryptanalysislib {
 		return extremum == size ? last : first + extremum;
 	}
 
-	/// TODO write a second version of this function, which does not do a early exit, so without atomics
 	/// \tparam ExecPolicy
 	/// \tparam RandIt
 	/// \tparam UnaryPred
@@ -240,7 +249,9 @@ namespace cryptanalysislib {
 					return;
 				}
 
-				RandIt chunk_res = cryptanalysislib::find_if(chunk_first, chunk_last, p);
+				RandIt chunk_res = cryptanalysislib::find_if
+					<RandIt, UnaryPred, config>
+					(chunk_first, chunk_last, p);
 				if (chunk_res != chunk_last) {
 					// Found, update exremum using a priority update CAS, as discussed in
 					// "Reducing Contention Through Priority Updates", PPoPP '13

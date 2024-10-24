@@ -15,6 +15,7 @@
 
 
 struct FqPackedVectorMetaConfig : public AlignmentConfig {
+	const bool activate_simd = true;
 };
 constexpr static FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
 
@@ -44,14 +45,7 @@ public:
 	static_assert(q > 1, "mod 1 or 0?");
 	static_assert(ceil_log2(q) <= (8*sizeof(T)), "the limb type should be atleast of the size of prime");
 
-	/// TODO make a concept? out of this
-#if defined(USE_AVX512F)
-	constexpr static uint32_t nr_limbs_in_S = 64/sizeof(T);
-#elif defined(USE_AVX2)
-	constexpr static uint32_t nr_limbs_in_S = 32/sizeof(T);
-#else
-	constexpr static uint32_t nr_limbs_in_S = 32/sizeof(T);
-#endif
+	constexpr static uint32_t nr_limbs_in_S = limbs<T>();
 	using S = TxN_t<T, nr_limbs_in_S>;
 
 	// number of bits in each T
@@ -72,8 +66,8 @@ public:
 	// true if we need every bit of the last limb
 	constexpr static bool is_full = ((n*bits_per_number) % (internal_limbs*bits_per_limb)) == 0;
 
-	// TODO move to config
-	constexpr static bool activate_simd = true;
+	//
+	constexpr static bool activate_simd = config.activate_simd;
 	constexpr static uint16_t limbs_per_simd_limb 	= (sizeof(S) * 8) / bits_per_limb;
 	constexpr static uint16_t numbers_per_simd_limb = (sizeof(S) * 8) / bits_per_number;
 
@@ -227,10 +221,11 @@ public:
 		// return Hash<uint64_t, 0, n, q>::hash((uint64_t *)ptr());
 	}
 
-	/// TODO explain with example
 	/// \tparam l
 	/// \tparam h
-	/// \return
+	/// \return true if h-l <= 64, which is the maximum
+	///		this implementation can use as a hash for
+	///		a hashmap or sorting/searching
 	template<const uint32_t l, const uint32_t h>
 	constexpr static bool is_hashable() noexcept {
 		static_assert(h > l);
@@ -239,10 +234,13 @@ public:
 
 		return t2 <= 64u;
 	}
-	/// TODO explain
+
 	/// \param l
 	/// \param h
 	/// \return
+	/// \return true if h-l <= 64, which is the maximum
+	///		this implementation can use as a hash for
+	///		a hashmap or sorting/searching
 	constexpr static bool is_hashable(const uint32_t l,
 									  const uint32_t h) noexcept {
 		ASSERT(h > l);

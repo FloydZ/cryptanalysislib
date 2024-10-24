@@ -19,9 +19,10 @@
 #include <stdexcept>
 
 #include "helper.h"
-#include "binary.h"
 #include "algorithm/bits/popcount.h"
 #include "math/math.h"
+
+using cryptanalysislib::math::round_up_to_power_of_two;
 
 namespace cryptanalysislib::hh {
 	/**

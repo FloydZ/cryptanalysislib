@@ -17,12 +17,11 @@ public:
 
 public:
     constexpr basic_range() noexcept = default;
-    constexpr basic_range(Iterator _start, Iterator _end) noexcept
+    constexpr basic_range(Iterator _start,
+        Iterator _end) noexcept
         : start { _start }
         , end { _end }
-    {
-        // TODO: assert
-    }
+    {}
 
     Iterator start {};
     Iterator end {};

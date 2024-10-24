@@ -653,7 +653,7 @@ namespace cryptanalysislib::search {
 	}
 
 	template<typename It,
-			typename Hash>
+			 typename Hash>
 #if __cplusplus > 201709L
 	requires std::forward_iterator<It> and
 			 HashFunction<Hash, typename It::value_type>
@@ -666,7 +666,7 @@ namespace cryptanalysislib::search {
 	}
 
 	template<typename It,
-			typename Compare>
+			 typename Compare>
 #if __cplusplus > 201709L
 	requires std::forward_iterator<It> and
 			 CompareFunction<Compare, typename It::value_type>
@@ -676,6 +676,18 @@ namespace cryptanalysislib::search {
 												    const typename It::value_type &value,
 												    Compare cmp) noexcept {
 		return branchless_lower_bound(begin, end, value, cmp);
+	}
+
+	template<typename It,
+			 typename Compare>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<It>
+#endif
+	[[nodiscard]] constexpr inline It binary_search(It begin,
+												    It end,
+												    const typename It::value_type &value) noexcept {
+		using T = It::value_type;
+		return binary_search(begin, end, value, std::less<T>());
 	}
 
 	namespace internal {
@@ -756,6 +768,8 @@ namespace cryptanalysislib::search {
 			const auto d = generic_dispatch(out, functions, 1, begin, end, value, h);
 			return binary_search_dispatch(begin, end, value, h);
 		}
+
+
 	};
 };
 

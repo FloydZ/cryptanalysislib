@@ -47,16 +47,15 @@ public:
 
 	typedef FqNonPackedVectorMeta ContainerType;
 
-	// TODO concept
-#ifdef USE_AVX512F
-	constexpr static size_t nr_of_limbs_in_S = 64/sizeof(T);
-#else
-	constexpr static size_t nr_of_limbs_in_S = 32/sizeof(T);
-#endif
+	//
+	constexpr static size_t nr_of_limbs_in_S = limbs<T>();
 	using S = TxN_t<T, nr_of_limbs_in_S>;
 
 
-	// simple hash function
+	/// simple hash function
+	/// \tparam l
+	/// \tparam h
+	/// \return
 	template<const uint32_t l, const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
@@ -75,6 +74,10 @@ public:
 		const uint64_t t2 = t1 & mask;
 		return t2;
 	}
+
+	/// \param l
+	/// \param h
+	/// \return
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
 		ASSERT(l < h);
@@ -1787,6 +1790,15 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
+	static inline void add(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
+		add((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
+	}
+
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper,
+			 const uint32_t norm>
 	static inline void add(FqNonPackedVector &out,
 	                       const FqNonPackedVector &in1,
 	                       const FqNonPackedVector &in2) noexcept {

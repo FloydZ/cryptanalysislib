@@ -12,7 +12,7 @@
 #include "matrix/matrix.h"
 #include "random.h"
 
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 
 using namespace cryptanalysislib;
 using ::testing::InitGoogleTest;

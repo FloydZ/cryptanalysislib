@@ -33,7 +33,7 @@ using namespace cryptanalysislib;
 
 #elif defined(USE_ARM)
 #include "simd/neon.h"
-// TODO #include "simd/float/neon.h"
+// #include "simd/float/neon.h"
 #include "simd/float/simd.h"
 #elif defined(USE_RISCV)
 
@@ -3083,10 +3083,6 @@ namespace cryptanalysislib {
 }// namespace cryptanalysislib
 
 
-// TODO
-//struct b256x64_T
-
-
 #if __cplusplus > 201709L
 /// describes the needed function to be row
 template<class S>
@@ -3155,5 +3151,6 @@ concept SIMDAble = requires(S s) {
 
 #include "simd/bits/bits.h"
 #include "simd/generic.h"
+#include "simd/bits/generic.h"
 
 #endif//CRYPTANALYSISLIB_SIMD_H

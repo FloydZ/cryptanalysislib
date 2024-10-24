@@ -8,7 +8,7 @@ using ::testing::Test;
 
 
 #ifdef USE_AVX2
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "simd/simd.h"
 #include <immintrin.h>
 

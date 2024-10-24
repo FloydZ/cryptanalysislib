@@ -166,10 +166,10 @@ namespace internal {
     ///     thread must process
     template<typename Iterator>
 #if __cplusplus > 201709L
-    // TODO concept und dann dieses dofe typedef weg
+        requires std::forward_iterator<Iterator>
 #endif
-    static inline constexpr typename std::iterator_traits<Iterator>::difference_type
-    get_chunk_size(const Iterator &first, 
+    static inline constexpr Iterator::difference_type
+    get_chunk_size(const Iterator &first,
                    const Iterator &last,
                    const uint32_t num_threads) noexcept {
         using diff_t = typename std::iterator_traits<Iterator>::difference_type;
@@ -179,9 +179,9 @@ namespace internal {
     /// min between 
     template<typename Iterator>
 #if __cplusplus > 201709L
-    // TODO concept und dann dieses dofe typedef weg
+        requires std::forward_iterator<Iterator>
 #endif
-    constexpr typename std::iterator_traits<Iterator>::difference_type
+    static inline constexpr Iterator::difference_type
     get_iter_chunk_size(const Iterator& iter,
                         const Iterator& last,
                         const typename std::iterator_traits<Iterator>::difference_type chunk_size) noexcept {
@@ -190,9 +190,10 @@ namespace internal {
     
     template<typename Iterator>
 #if __cplusplus > 201709L
-    // TODO concept und dann dieses dofe typedef weg
+        requires std::forward_iterator<Iterator>
 #endif
-    constexpr static Iterator advanced(Iterator iter, typename std::iterator_traits<Iterator>::difference_type offset) noexcept {
+    constexpr static Iterator advanced(Iterator iter,
+                                       Iterator::difference_type offset) noexcept {
         Iterator ret = iter;
         std::advance(ret, offset);
         return ret;
@@ -212,6 +213,9 @@ namespace internal {
     /// An iterator wrapper that calls std::future<>::get().
     /// @tparam Iterator
     template<typename Iterator>
+#if __cplusplus > 201709L
+        requires std::forward_iterator<Iterator>
+#endif
     class getting_iter : public Iterator {
     public:
         using value_type = decltype((*std::declval<Iterator>()).get());
@@ -237,6 +241,9 @@ namespace internal {
     /// \param iter
     /// \return
     template<typename Iterator>
+#if __cplusplus > 201709L
+        requires std::forward_iterator<Iterator>
+#endif
     getting_iter<Iterator> get_wrap(Iterator iter) noexcept {
         return getting_iter<Iterator>(iter);
     }

@@ -2322,8 +2322,8 @@ public:
 	/// NOTE: additional to 'bruteforce_avx2_256' this functions unrolls `u` elements of
 	///		the left list.
 	///	NOTE: compared to `bruteforce_avx2_256_ux4` this function compares on 32 bit
-	/// NOTE only made for extremely low weight.
-	/// BUG: can only find one solution at the time.
+	/// NOTE: only made for extremely low weight.
+	/// NOTE: can only find one solution at the time.
 	/// \param e1 end index of list 1
 	/// \param e2 end index list 2
 	template<uint32_t u>
@@ -2448,7 +2448,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[5 * u + mi], ri);
@@ -2462,7 +2462,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[6 * u + mi], ri);
@@ -2476,7 +2476,7 @@ public:
 
 
 				loadr = loadr + loadr_add;
-#pragma unroll
+				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
 					const uint32_t tmp = compare_256_32(li[7 * u + mi], ri);
@@ -2693,8 +2693,16 @@ public:
 		}
 	}
 
-
-	template<const uint32_t off, const uint32_t bucket_size>
+	/// \tparam off
+	/// \tparam bucket_size
+	/// \param m1sx
+	/// \param m1s
+	/// \param ptr_l
+	/// \param ptr_r
+	/// \param i
+	/// \param j
+	template<const uint32_t off,
+			 const uint32_t bucket_size>
 	void bruteforce_simd_256_64_4x4_rearrange_helper(uint32_t m1sx,
 	                                                 const uint8_t *__restrict__ m1s,
 	                                                 const uint64_t *__restrict__ ptr_l,
@@ -2725,10 +2733,10 @@ public:
 
 			ASSERT(wt);
 			if (wt <= d) {
-				/// TODO tell the thing it needs to get the solutions from the buckets
 				solutions.resize(solutions_nr + 1);
-				solutions[solutions_nr++] = std::pair<size_t, size_t>{i + off_l, j + off_r};
-				//found_solution(i + off_l, j + off_r);
+				solutions[solutions_nr++] = std::pair
+												<size_t, size_t>
+												{i + off_l, j + off_r};
 			}
 
 			m1sx ^= 1u << ctz1;
@@ -2793,7 +2801,6 @@ public:
 		}
 	}
 
-	/// TODO tests?:
 	/// bruteforce the two lists between the given start and end indices.
 	/// NOTE: uses avx2
 	/// NOTE: only in limb comparison possible. inter limb (e.g. bit 43...83) is impossible.
@@ -2804,9 +2811,9 @@ public:
 	/// \param e1 end index of list 1
 	/// \param e2 end index list 2
 	void bruteforce_simd_256_v2(const size_t e1,
-	                             const size_t e2,
-	                             const size_t s1,
-	                             const size_t s2) noexcept {
+	                            const size_t e2,
+	                            const size_t s1,
+	                            const size_t s2) noexcept {
 		ZoneScoped;
 		ASSERT(EXACT);
 		ASSERT(n <= 256);
@@ -2831,10 +2838,10 @@ public:
 				const uint64x4_t tmp1 = li1 ^ ri;
 				if (zero == tmp1) {
 					found_solution(i, j);
-				}// if solution found
-			}    // right list
-		}        // left list
-	}
+				} // if solution found
+			} // right list
+		} // left list
+	} // end bruteforce_simd_256_v2
 };
 
 

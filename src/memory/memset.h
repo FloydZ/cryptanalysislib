@@ -210,7 +210,6 @@ namespace cryptanalysislib {
 		}
 #endif
 
-		/// TODO rename
 		/// \param out output array
 		/// \param in input symbol
 		/// \param nr_elements number of arrays NOT bytes
@@ -224,7 +223,7 @@ namespace cryptanalysislib {
 #endif
 			memset_u256_u8(out, in, nr_elements);
 		}
-	} // end internal
+	} // end namespace internal
 
 	/// \tparam T type
 	/// \param out output array

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 
 using namespace cryptanalysislib::popcount;
 

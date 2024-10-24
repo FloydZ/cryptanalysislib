@@ -61,17 +61,24 @@ struct SSS {
 	const uint32_t l1 = 9;
 	const uint32_t l2 = 11;
     const uint64_t walk_len = 1u << 4u;
+
+	// flavouring prime
+    const uint64_t flavour_q = 509;
 };
 
 ///
 /// @tparam Element 
-template<class Element>
+template<class Element,
+		 const SSS &instance>
 struct SubSetSumCmp {
     using Label = Element::LabelType;
     using C = Label::ContainerType::LimbType;
 
     constexpr static uint32_t bit_pos = 0;
     constexpr static C mask = ((C)1ull) << bit_pos;
+
+	constexpr static uint32_t k_lower = instance.l1 + instance.l2;
+	constexpr static uint32_t k_upper = k_lower + instance.l1;
 
 	/// simple comparison struct
 	/// only a2 and b2 are compared for equality
@@ -96,11 +103,11 @@ struct SubSetSumCmp {
 		}
 
         // if they are the same we found a collision
-		return a2.label == b2.label;
+		return a2.label.is_equal(b2.label, k_lower, k_upper);
 	}
 };
 
-/// todo weight filtering
+/// TODO: weight filtering
 /// Fragen:
 ///		2) how to correctly match
 ///			<e,a> = t - <f, a> <=>
@@ -200,7 +207,7 @@ public:
 								  k_lower2 = instance.l1,
 								  k_upper2 = instance.l1+instance.l2;
 
-		using rho = PollardRho<SubSetSumCmp<Element>, Element>;
+		using rho = PollardRho<SubSetSumCmp<Element, instance>, Element>;
 
 		/// allocate the enumerator and the base lists
 		// using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, instance.bp>;
@@ -243,17 +250,15 @@ public:
 		Label s, tree_iT, one; one.set(1, 0);
 		s.random(0, 1ull << k_upper2);
 		tree_iT.random(0, 1ull << k_upper1);
-		Element x, y, x_old, y_old;
+		Element x, y;
 
 		//flavout values:
-		constexpr static L a = 2, b = 2;
+		L b_1 = rng<L>(instance.flavour_q), b_2 = rng<L>(instance.flavour_q);
 
 		/// \return value=int2weight(b_2 * flavor(e) + b_2))
 		auto flavour = [&](const Element &e) __attribute__((always_inline)){
 			Element ret;
-			const L c = (a * e.label.value() + b) % instance.q;
-			// TODO not correct
-			// int2weight_bits<V, L>(ret.value.ptr(), c, n, n, instance.n / 4);
+			const L c = (b_1 * e.label.value() + b_2) % instance.flavour_q;
 			*ret.value.ptr() = c;
 			ret.recalculate_label(A);
 			return ret;
@@ -310,16 +315,14 @@ public:
 			return ret;
 		};
 
-		// init
-		x_old.random(A);
-		y_old = f(x_old);
-
 		// start loop
 		while (true) {
-			x = flavour(x_old);
-			y = flavour(y_old);
+			x.random(A);
+			y = f(x);
 			s.random(0, 1ull << k_upper2);
 			tree_iT.random(0, 1ull << k_upper1);
+			b_1 = rng<L>(instance.flavour_q);
+			b_2 = rng<L>(instance.flavour_q);
 
 			std::cout << x << " x" << std::endl;
 			std::cout << y << " y" << std::endl;
@@ -330,9 +333,6 @@ public:
 			if (rho::run(f, x, y, instance.walk_len)) {
 				break;
 			}
-
-			x_old = x;
-			y_old = y;
 		}
 
 		Element sol;

@@ -2,6 +2,8 @@
 #define CRYPTANALYSISLIB_POPCOUNT_H
 
 #include <cstdint>
+#include <type_traits>
+
 #include "helper.h"
 
 #ifdef USE_AVX2

@@ -8,4 +8,5 @@ foreach(testfile ${TEST_SOURCES})
 	add_test(AllTests test_algorithm_${file})
 endforeach(testfile ${TEST_SOURCES})
 
+add_subdirectory(bits)
 add_subdirectory(subsetsum)

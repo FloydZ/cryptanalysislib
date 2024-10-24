@@ -803,7 +803,6 @@ public:
 			Label::sub(element.label, element.label, HT.get(unset));
 			Label::add(element.label, element.label, HT.get(set));
 
-			// TODO optimize
 			element.value.set(0u, unset);
 			element.value.set(1, set);
 		};

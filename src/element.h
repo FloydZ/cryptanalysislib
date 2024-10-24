@@ -97,8 +97,9 @@ concept ElementDataAble = requires(Container c,
     //requires requires(const typename Container::LimbType a,
     //                  const typename Container::S b,
 	//                  const uint32_t u32) {
-	// TODO
-    //    Container::template add<const uint32_t, const uint32_t, const uint32_t>(rc, rc, rc);
+    //    Container::template add
+    //		<uint32_t, uint32_t, uint32_t>
+    //		(rc, rc, rc);
 	//};
 
 	// we also have to enforce the existence of some constexpr functions.
@@ -178,15 +179,19 @@ public:
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
+	constexpr inline void recalculate_label(const MatrixType &m) noexcept {
+		// NOTE: sub mul
+		m.mul(label, value);
+	}
+
 	constexpr inline void recalculate_label(const MatrixType &m,
-	                                        const uint32_t k_lower=0,
-	                                        const uint32_t k_upper=0) noexcept {
-		// TODO sub mul
+	                                        const uint32_t k_lower,
+	                                        const uint32_t k_upper) noexcept {
+		// TODO: matrix_view?
 		(void)k_lower;
 		(void)k_upper;
 		m.mul(label, value);
 	}
-
 	/// checks if label == value*m
 	/// \param m
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
@@ -256,7 +261,9 @@ public:
 		ValueContainerType::sub(e3.value, e1.value, e2.value);
 	}
 
-	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1u>
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper,
+			 const uint32_t norm=-1u>
 	constexpr static bool add(Element_T &e3,
 							  Element_T const &e1,
 							  Element_T const &e2) noexcept {

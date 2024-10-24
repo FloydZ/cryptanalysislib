@@ -96,7 +96,6 @@ public:
 	using MetaListT<Element>::is_correct;
 	using MetaListT<Element>::is_sorted;
 
-
 	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
 	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
 	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }

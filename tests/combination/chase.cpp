@@ -5,7 +5,6 @@
 #define private public
 
 #include "combination/chase.h"
-#include "combination/chase2.h"
 #include "random.h"
 
 using ::testing::InitGoogleTest;
@@ -19,34 +18,6 @@ auto print_change = [](const uint16_t a,
 	std::bitset<10> dd(d);
 	std::cout << dd << ":" << a << " " << b << std::endl;
 };
-
-TEST(Chase, enumerate1_simple) {
-	auto cf = chase_full<10, 1>{};
-	d= 1;
-	std::cout << d << std::endl;
-	cf.enumerate1(print_change);
-}
-
-TEST(Chase, enumerate1_simple_backwards) {
-	auto cf = chase_full<10, 1>{};
-	d=1ull << (9);
-	std::cout << d << std::endl;
-	cf.enumerate1(print_change, 0, 10, false);
-}
-
-TEST(Chase, enumerate2) {
-	d = 3;
-	auto cf = chase_full<10, 2>{};
-	std::cout << d << std::endl;
-	cf.enumerate(print_change);
-}
-
-TEST(Chase, enumerate_kek) {
-	d = 1;
-	auto cf = chase_full<10, 1>{};
-	std::cout << d << std::endl;
-	cf.enumerate_v2(print_change);
-}
 
 TEST(BinaryChaseSequence, simple) {
 	std::vector<std::pair<uint16_t, uint16_t>> ret{};

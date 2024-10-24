@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <utility>
 
-// translation of:https://github.com/dragostis/chili/blob/main/src/lib.rs#L284
+// translation of: https://github.com/dragostis/chili/blob/main/src/lib.rs#L284
 
 namespace cryptanalysislib {
     template<typename T>

@@ -7,25 +7,25 @@
 #include "simd/simd.h"
 #include "alloc/alloc.h"
 #include "algorithm/bits/popcount.h"
+#include "algorithm/bits/clz.h"
+#include "algorithm/bits/bsr.h"
 
 #if defined(USE_AVX2) || defined (USE_AVX512F)
 #include <immintrin.h>
 #endif
 
 using namespace cryptanalysislib::popcount;
+using namespace cryptanalysislib::algorithm;
 using namespace cryptanalysislib;
    
-// TODO all those structs iDownloadsnto the imap container
 // TODO iterators
-// TODO hashmap API
 // TODO remove? use __uint128?
 typedef struct imap_u128 {
     uint64_t v[2];
 } imap_u128_t;
 
-
+///
 struct imap_node_t {
-    /* 64 bytes */
     union {
         uint32_t vec32[16];
         uint64_t vec64[8];
@@ -33,41 +33,58 @@ struct imap_node_t {
     };
 };
 
+///
 struct imap_iter_t {
     uint32_t stack[16];
     uint32_t stackp;
 };
 
+///
 struct imap_pair_t {
     uint64_t x;
-    // imap_slot_t *slot;
 	uint32_t *slot;
 };
 
 
 struct ImapConfig : public AlignmentConfig {
-};
 
-template<typename Allocator = AlignmentMallocator<imap_node_t, sizeof(imap_node_t)>>
+};
+constexpr static ImapConfig imapConfig{};
+
+template<typename Allocator = AlignmentMallocator<imap_node_t, sizeof(imap_node_t)>,
+         const ImapConfig &config=imapConfig>
 struct imap_tree_t {
 private:
 	imap_node_t *tree;
 
 public:
-	/// TODO move to math.h
-	constexpr static inline
-    uint32_t imap__bsr__(const uint64_t x) noexcept {
+
+	// we are good c++ defs
+	typedef uint64_t value_type;
+	typedef Allocator allocator_type;
+	typedef size_t size_type;
+	typedef size_t difference_type;
+	typedef value_type& reference;
+	typedef const value_type& const_reference;
+	typedef value_type* pointer;
+	typedef const value_type* const_pointer;
+	typedef imap_iter_t iterator;
+	typedef const imap_iter_t const_iterator;
+
+	/// \param x
+	/// \return
+	constexpr static inline uint32_t __bsr__(const uint64_t x) noexcept {
         return 63u - __builtin_clzll(x | 1u);
     }
 
-
-	/// TODO move to math.
-    constexpr static inline
-    uint64_t imap__ceilpow2__(const uint64_t x) noexcept {
-        return 1ull << (imap__bsr__(x - 1) + 1);
+	/// \param x
+    /// \return
+    constexpr static inline uint64_t __ceilpow2__(const uint64_t x) noexcept {
+        return 1ull << (__bsr__(x - 1) + 1);
     }
 
 
+    // TODO neon and doc
 #if defined (USE_AVX2)
     static inline
     uint64_t imap__extract_lo4_simd__(const uint32_t vec32[16]) noexcept {
@@ -90,8 +107,7 @@ public:
 #endif
     }
 
-    // TODO neon and stuff
-	    static inline
+	static inline
     void imap__deposit_lo4_simd__(const uint32_t vec32[16],
 							 	  const uint64_t value) noexcept {
 #if defined (USE_AVX512F)
@@ -121,19 +137,17 @@ public:
 #endif
     }
 
-    // TODO doc
-  static inline uint32_t imap__popcnt_hi28_simd__(uint32_t vec32[16],
-									  uint32_t *p) noexcept {
+	/// \param vec32
+    /// \param p
+    /// \return
+    static inline uint32_t imap__popcnt_hi28_simd__(uint32_t vec32[16],
+									                uint32_t *p) noexcept {
 #if defined (USE_AVX512F)
         __m512i vecmm = _mm512_load_epi32(vec32);
         vecmm = _mm512_and_epi32(vecmm, _mm512_set1_epi32(~0xf));
         __mmask16 mask = _mm512_cmp_epi32_mask(vecmm, _mm512_setzero_epi32(), _MM_CMPINT_NE);
-        *p = vec32[imap__bsr__(mask)];
-    #if defined(_MSC_VER)
-        return __popcnt(mask);
-    #elif defined(__GNUC__)
-        return __builtin_popcount(mask);
-    #endif
+        *p = vec32[__bsr__(mask)];
+		return popcount::popcount<uint16_t>(mask);
 #else
         __m256i veclo = _mm256_load_si256((__m256i *)vec32);
         __m256i vechi = _mm256_load_si256((__m256i *)(vec32 + 8));
@@ -148,7 +162,7 @@ public:
         uint64_t msk64 = (uint64_t)msklo | ((uint64_t)mskhi << 32);
         msk64 = ~msk64;
         msk64 &= 0x1111111111111111ull;
-        *p = vec32[imap__bsr__(msk64) >> 2];
+        *p = vec32[__bsr__(msk64) >> 2];
 		return popcount::popcount<uint64_t>(msk64);
 #endif
     }
@@ -263,42 +277,41 @@ public:
         return imap__extract_lo4__(node->vec32);
     }
 
-    static inline
-    void imap__node_setprefix__(imap_node_t *node, uint64_t prefix) noexcept {
+    constexpr static inline  void imap__node_setprefix__(imap_node_t *node,
+                                                         const uint64_t prefix) noexcept {
         imap__deposit_lo4__(node->vec32, prefix);
     }
 
-    static inline
-    uint32_t imap__node_pos__(imap_node_t *node)
-    {
+    constexpr static inline uint32_t imap__node_pos__(imap_node_t *node) noexcept {
         return node->vec32[0] & 0xf;
     }
 
-    static inline
-    uint32_t imap__node_popcnt__(imap_node_t *node, uint32_t *p)
-    {
+    constexpr static inline uint32_t imap__node_popcnt__(imap_node_t *node,
+                                                         const uint32_t *p) noexcept {
         return imap__popcnt_hi28__(node->vec32, p);
     }
 
-    constexpr static inline uint64_t imap__xpfx__(uint64_t x, uint32_t pos) {
+    constexpr static inline uint64_t imap__xpfx__(const uint64_t x,
+                                                  const uint32_t pos) noexcept {
         return x & (~0xfull << (pos << 2));
     }
 
-    constexpr static inline uint32_t imap__xpos__(const uint64_t x) {
-        return imap__bsr__(x) >> 2;
+    constexpr static inline uint32_t imap__xpos__(const uint64_t x) noexcept {
+        return __bsr__(x) >> 2;
     }
 
-    static inline
-    uint32_t imap__xdir__(uint64_t x, uint32_t pos){
+    constexpr static inline uint32_t imap__xdir__(uint64_t x, uint32_t pos) noexcept {
         return (x >> (pos << 2)) & 0xf;
     }
 
+	/// \param tree
+    /// \return
     constexpr inline uint32_t imap__alloc_val__(imap_node_t *tree) noexcept {
         uint32_t mark = imap__alloc_node__(tree);
         imap_node_t *node = imap__node__(tree, mark);
         mark <<= 3;
         tree->vec32[imap__tree_vfre__] = mark;
-		// TODO avx stuff
+		// NOTE: not really a bottleneck. So not implemented in avx/neon
         node->vec64[0] = mark + (1 << imap__slot_shift__);
         node->vec64[1] = mark + (2 << imap__slot_shift__);
         node->vec64[2] = mark + (3 << imap__slot_shift__);
@@ -310,6 +323,8 @@ public:
         return mark;
     }
 
+	/// \param tree
+    /// \return
     constexpr inline uint32_t imap__alloc_val128__(imap_node_t *tree) noexcept {
         uint32_t mark = imap__alloc_node__(tree);
         imap_node_t *node = imap__node__(tree, mark);
@@ -347,7 +362,7 @@ public:
         newmark += (n * 2 - hasnfre) * sizeof(imap_node_t) + (n - hasvfre) * ysize;
         if (newmark <= oldsize)
             return tree;
-        newsize64 = imap__ceilpow2__(newmark);
+        newsize64 = __ceilpow2__(newmark);
         if (0x20000000 < newsize64)
             return 0;
         newsize = (uint32_t)newsize64;
@@ -387,9 +402,7 @@ public:
             }
         } else {
             memcpy(newtree, tree, tree->vec32[imap__tree_mark__]);
-			// TODO yo what
             Allocator::deallocate(tree, 0);
-            // IMAP_ALIGNED_FREE(tree);
             newtree->vec32[imap__tree_size__] = newsize;
         }
         return newtree;
@@ -454,6 +467,10 @@ public:
         }
     }
 
+    [[nodiscard]] constexpr inline imap_slot_t *operator[](const uint64_t x) const noexcept {
+	    return lookup(x);
+	}
+
 	/// \param x
 	/// \return
     [[nodiscard]] constexpr imap_slot_t *assign(const uint64_t x) noexcept {
@@ -509,6 +526,10 @@ public:
             dirn = imap__xdir__(x, posn);
         }
     }
+
+    [[nodiscard]] constexpr inline imap_slot_t *operator[](const uint64_t x) noexcept {
+	    return lookup(x);
+	}
 
 	/// \param slot
 	/// \return
@@ -737,13 +758,11 @@ public:
         }
     }
 
-	///
-	/// \param tree
 	/// \param iter
 	/// \param restart
 	/// \return
-    imap_pair_t iterate(imap_iter_t *iter,
-						int restart) noexcept {
+    [[nodiscard]] imap_pair_t iterate(imap_iter_t *iter,
+                                      const int restart) noexcept {
         imap_node_t *node;
         imap_slot_t *slot;
         uint32_t sval, dirn;
@@ -752,6 +771,7 @@ public:
             sval = dirn = 0;
             goto enter;
         }
+
         // loop while stack is not empty
         while (iter->stackp) {
             // get slot value and increment direction

@@ -186,9 +186,12 @@ private:
 	using H = Hash<T, q>;
 	using R = size_t;
 
-	// TODO explain
+	// if true: the hash function assumes that the input data
+	// is "compressed" together, e.g. there are no zero bits
+	// in between two consecutive numbers
 	constexpr static bool compressed = true;
 
+	///
 	constexpr static uint32_t qbits = std::max((uint64_t) ceil_log2(q), (uint64_t)1ull);
 	constexpr static uint32_t bits = sizeof(T) * 8u;
 	static_assert(qbits >= 1);

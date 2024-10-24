@@ -655,27 +655,28 @@ constexpr static __m256i u64tom256(const uint64_t t[4]) noexcept {
 	return tmp;
 }
 
-/// TODO not working
-constexpr static void m256tou16(uint16_t t[16], const __m256i m) noexcept {
-	const __v4di mm = m;
-	long long d0 = mm[0], d1 = 1, d2 = 2, d3 = 3;
-	t[0] = d0;
-	t[1] = d0 >> 16;
-	t[2] = d0 >> 32;
-	t[3] = d0 >> 48;
-	t[4] = d1;
-	t[5] = d1 >> 16;
-	t[6] = d1 >> 32;
-	t[7] = d1 >> 48;
-	t[8] = d2;
-	t[9] = d2 >> 16;
-	t[10] = d2 >> 32;
-	t[11] = d2 >> 48;
-	t[12] = d3;
-	t[13] = d3 >> 16;
-	t[14] = d3 >> 32;
-	t[15] = d3 >> 48;
-}
+/// NOTE: not working
+//constexpr static void m256tou16(uint16_t t[16],
+//								  const __m256i m) noexcept {
+//	const __v4di mm = m;
+//	long long d0 = mm[0], d1 = 1, d2 = 2, d3 = 3;
+//	t[0] = d0;
+//	t[1] = d0 >> 16;
+//	t[2] = d0 >> 32;
+//	t[3] = d0 >> 48;
+//	t[4] = d1;
+//	t[5] = d1 >> 16;
+//	t[6] = d1 >> 32;
+//	t[7] = d1 >> 48;
+//	t[8] = d2;
+//	t[9] = d2 >> 16;
+//	t[10] = d2 >> 32;
+//	t[11] = d2 >> 48;
+//	t[12] = d3;
+//	t[13] = d3 >> 16;
+//	t[14] = d3 >> 32;
+//	t[15] = d3 >> 48;
+//}
 
 // needed forward decl
 template<typename T, const uint32_t N>
@@ -1129,7 +1130,6 @@ struct uint8x32_t {
 		return ret2;
 	}
 
-	/// TODO not optimized
 	/// kmoves the msb into each bit
 	[[nodiscard]] constexpr static inline uint32_t move(const uint8x32_t in) noexcept {
 		return __builtin_ia32_pmovmskb256((__v32qi) in.v256);
@@ -1159,6 +1159,26 @@ struct uint8x32_t {
 			*(ptr8 + offset.d[i] * scale) = data.d[i];
 		}
 	}
+
+	/// \param a
+	/// \param b
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x32_t min(const uint8x32_t a,
+                                                         const uint8x32_t b) noexcept {
+        uint8x32_t c;
+		c.v256 = (__m256i)__builtin_elementwise_min((__v32qi)a.v256, (__v32qi)b.v256);
+        return c;
+    }
+
+	/// \param a
+	/// \param b
+	/// \return
+	[[nodiscard]] constexpr static inline uint8x32_t max(const uint8x32_t a,
+                                                         const uint8x32_t b) noexcept {
+        uint8x32_t c;
+		c.v256 = (__m256i)__builtin_elementwise_max((__v32qi)a.v256, (__v32qi)b.v256);
+        return c;
+    }
 };
 
 struct uint16x16_t {
@@ -1512,12 +1532,8 @@ struct uint16x16_t {
 	                                              const uint16x16_t in2) noexcept {
 		uint16x16_t tmp;
 		tmp.v256 = (__m256i) ((__v16hi) in1.v256 == (__v16hi) in2.v256);
-
-		int ret = 0;
-		for (uint16_t i = 0; i < 16; i++) {
-			ret ^= (tmp.v16[i] != 0) << i;
-		}
-
+		uint32_t t = _mm256_movemask_epi8(tmp.v256);
+		uint16_t ret = _pdep_u32(t, 0b01010101010101010101010101010101);
 		return ret;
 	}
 
@@ -1530,42 +1546,56 @@ struct uint16x16_t {
 		return ret;
 	}
 
-	/// TODO not optimized
 	/// checks if all bytes are equal
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const uint16x16_t in) noexcept {
-		for (uint32_t i = 1; i < LIMBS; i++) {
-			if (in.d[i - 1] != in.d[i]) {
-				return false;
-			}
-		}
-
-		return true;
+		const __m256i tmp1 = _mm256_permute4x64_epi64(in.v256, 0);
+		const __m256i tmp2 = _mm256_shufflelo_epi16(tmp1, 0);
+		const __m256i tmp3 = (__m256i) ((__v16hi)in.v256 == (__v16hi)tmp2);
+		const uint32_t t = _mm256_movemask_epi8(tmp3);
+		return t == 0xFFFFFFFFFF;
 	}
 
-	// TODO not optimized
+	///
+	/// @param in
+	/// @return
 	[[nodiscard]] constexpr static inline uint16x16_t reverse(const uint16x16_t in) noexcept {
-		S ret;
-		for (uint32_t i = 0; i < LIMBS; i++) {
-			ret.d[LIMBS - 1 - i] = in.d[i];
-		}
-
+		uint16x16_t ret;
+		constexpr uint8x32_t shuffle = uint8x32_t::setr(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,
+														15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
+		__m256i tmp =_mm256_permute4x64_epi64(in.v256, 0b00011011);
+		ret.v256 = _mm256_shuffle_epi8(tmp, shuffle.v256);
 		return ret;
 	}
 
-
-	/// TODO not optimized
+	///
 	/// kmoves the msb into each bit
 	[[nodiscard]] constexpr static inline uint16_t move(const uint16x16_t in) noexcept {
-		uint16_t ret = 0;
-		constexpr limb_type mask = 1u << ((sizeof(limb_type) * 8) - 1u);
-
-		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret ^= ((in.d[i] & mask) > 0) << i;
-		}
+		uint32_t t = _mm256_movemask_epi8(in.v256);
+		uint16_t ret = _pdep_u32(t, 0b01010101010101010101010101010101);
 		return ret;
 	}
+
+	/// \param a
+	/// \param b
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t min(const uint16x16_t a,
+                                                         const uint16x16_t b) noexcept {
+        uint16x16_t c;
+		c.v256 = (__m256i)__builtin_elementwise_min((__v16hi)a.v256, (__v16hi)b.v256);
+        return c;
+    }
+
+	/// \param a
+	/// \param b
+	/// \return
+	[[nodiscard]] constexpr static inline uint16x16_t max(const uint16x16_t a,
+                                                         const uint16x16_t b) noexcept {
+        uint16x16_t c;
+		c.v256 = (__m256i)__builtin_elementwise_max((__v16hi)a.v256, (__v16hi)b.v256);
+        return c;
+    }
 };
 
 struct uint32x8_t {
@@ -1585,11 +1615,15 @@ struct uint32x8_t {
 		__m256i v256;
 	};
 
+	/// \param i
+	/// \return
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
 	}
 
+	/// \param i
+	/// \return
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 		ASSERT(i < LIMBS);
 		return d[i];
@@ -1958,27 +1992,26 @@ struct uint32x8_t {
 		return ret;
 	}
 
-	/// TODO not optimized
 	/// checks if all bytes are equal
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const uint32x8_t in) noexcept {
-		for (uint32_t i = 1; i < LIMBS; i++) {
-			if (in.d[i - 1] != in.d[i]) {
-				return false;
-			}
-		}
-
-		return true;
+		constexpr S shuffle = S::set1(0);
+		const __m256i tmp1 = _mm256_permutevar8x32_epi32(in.v256, shuffle.v256);
+		const __m256i tmp2 = (__m256i) ((__v8si)in.v256 == (__v8si)tmp1);
+#ifndef __clang__
+		return __builtin_ia32_movmskps256((__v8sf) tmp2) == 0xFF;
+#else
+		return _mm256_movemask_ps((__m256) tmp2) == 0xFF;
+#endif
 	}
 
-	// TODO not optimized
+	/// \param in
+	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t reverse(const uint32x8_t in) noexcept {
 		S ret;
-		for (uint32_t i = 0; i < LIMBS; i++) {
-			ret.d[LIMBS - 1 - i] = in.d[i];
-		}
-
+		constexpr S shuffle = S::setr(7,6,5,4,3,2,1,0);
+		ret.v256 = _mm256_permutevar8x32_epi32(in.v256, shuffle.v256);
 		return ret;
 	}
 	/// \tparam scale
@@ -2075,22 +2108,21 @@ struct uint32x8_t {
 		return ret;
 	}
 
-
-	/// TODO implement everywhere
-	/// \param in
+	/// \param a
+	/// \param b
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t min(const uint32x8_t a,
-                                                      const uint32x8_t b) noexcept { 
+                                                         const uint32x8_t b) noexcept {
         uint32x8_t c;
         c.v256 = _mm256_min_epi32(a.v256, b.v256);
         return c;
     }
 
-	/// TODO implement everywhere
-	/// \param in
+	/// \param a
+	/// \param b
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x8_t max(const uint32x8_t a,
-                                                      const uint32x8_t b) noexcept { 
+                                                         const uint32x8_t b) noexcept {
         uint32x8_t c;
         c.v256 = _mm256_max_epi32(a.v256, b.v256);
         return c;
@@ -2334,7 +2366,6 @@ struct uint64x4_t {
 		return out;
 	}
 
-	/// TODO
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2346,7 +2377,9 @@ struct uint64x4_t {
 #else
 
 		if (std::is_constant_evaluated()) {
-			// TODO
+			for (uint32_t i = 0; i < 4; i++) {
+				out.v64[i] = in1.v64[i] * in2.v64[i];
+			}
 		} else {
 			for (uint32_t i = 0; i < 4; i++) {
 				out.v64[i] = in1.v64[i] * in2.v64[i];
@@ -2494,27 +2527,20 @@ struct uint64x4_t {
 		return ret;
 	}
 
-	/// TODO not optimized
-	/// checks if all bytes are equal
+	/// checks if all 64bits are equal
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const uint64x4_t in) noexcept {
-		for (uint32_t i = 1; i < LIMBS; i++) {
-			if (in.d[i - 1] != in.d[i]) {
-				return false;
-			}
-		}
-
-		return true;
+		const __m256i tmp1 = _mm256_permute4x64_epi64(in.v256, 0);
+		const __m256i tmp2 = _mm256_cmpeq_epi64(in.v256, tmp1);
+		return _mm256_movemask_pd((__m256d) tmp2) == 0b111;
 	}
 
-	// TODO not optimized
+	/// \param in
+	/// \return
 	[[nodiscard]] constexpr static inline uint64x4_t reverse(const uint64x4_t in) noexcept {
 		S ret;
-		for (uint32_t i = 0; i < LIMBS; i++) {
-			ret.d[LIMBS - 1 - i] = in.d[i];
-		}
-
+		ret.v256 = _mm256_permute4x64_epi64(in.v256, 0b00011011);
 		return ret;
 	}
 	/// \tparam scale
@@ -2557,7 +2583,10 @@ struct uint64x4_t {
 		return ret;
 	}
 
-	/// TODO not fninied
+	/// \tparam scale
+	/// \param ptr
+	/// \param data
+	/// \return  NOTE: correct?
 	template<const uint32_t scale = 1>
 	[[nodiscard]] constexpr static inline S gather(const void *ptr,
 												   const uint8x32_t data) noexcept {
@@ -2593,6 +2622,27 @@ struct uint64x4_t {
 		return _mm256_movemask_pd((__m256d) in1.v256);
 #endif
 	}
+
+
+	/// \param a
+	/// \param b
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t min(const uint64x4_t a,
+                                                         const uint64x4_t b) noexcept {
+        uint64x4_t c;
+		c.v256 = (__m256i)__builtin_elementwise_min((__v4df)a.v256, (__v4df)b.v256);
+        return c;
+    }
+
+	/// \param a
+	/// \param b
+	/// \return
+	[[nodiscard]] constexpr static inline uint64x4_t max(const uint64x4_t a,
+                                                         const uint64x4_t b) noexcept {
+        uint64x4_t c;
+		c.v256 = (__m256i)__builtin_elementwise_max((__v4df)a.v256, (__v4df)b.v256);
+        return c;
+    }
 };
 
 

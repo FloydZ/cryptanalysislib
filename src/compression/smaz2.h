@@ -5,14 +5,10 @@
 #error "dont include this file directly. Use `#include <compression/compression.h>`"
 #endif
 
-/* original source: https://github.com/antirez/smaz2
- * Copyright (C) 2024 by Salvatore Sanfilippo -- All rights reserved.
- * This code is licensed under the MIT license. See LICENSE file for info.
- *
- * Some changes made by FloydZ
- * TODO:
- * 	- constexpr interface + iterator API
- * */
+/// original source: https://github.com/antirez/smaz2
+/// Copyright (C) 2024 by Salvatore Sanfilippo -- All rights reserved.
+/// This code is licensed under the MIT license. See LICENSE file for info.
+/// Some changes made by FloydZ
 
 #include <stdio.h>
 #include <string.h>
@@ -58,9 +54,14 @@ alignas(256) constexpr char *words[256] = {
         (char *)"love", (char *)"main", (char *)"another", (char *)"class", (char *)"still"
 };
 
-/* Compress the string 's' of 'len' bytes and stores the compression
- * result in 'dst' for a maximum of 'dstlen' bytes. Returns the
- * amount of bytes written. */
+/// Compress the string 's' of 'len' bytes and stores the compression
+/// result in 'dst' for a maximum of 'dstlen' bytes. Returns the
+/// amount of bytes written.
+/// @param dst
+/// @param dstlen
+/// @param s
+/// @param _len
+/// @return
 [[nodiscard]] constexpr unsigned long smaz2_compress(unsigned char *dst,
                              						 const size_t dstlen,
                              						 const unsigned char *s,
@@ -169,13 +170,18 @@ alignas(256) constexpr char *words[256] = {
 	return y;
 }
 
-/* Decompress the string 'c' of 'len' bytes and stores the compression
- * result in 'dst' for a maximum of 'dstlen' bytes. Returns the
- * amount of bytes written. */
+/// Decompress the string 'c' of 'len' bytes and stores the compression
+/// result in 'dst' for a maximum of 'dstlen' bytes. Returns the
+/// amount of bytes written.
+/// \param dst
+/// \param _dstlen
+/// \param c
+/// \param _len
+/// \return
 [[nodiscard]] constexpr size_t smaz2_decompress(unsigned char *dst,
                                                 const size_t _dstlen,
                                                 const unsigned char *c,
-                                                size_t _len) noexcept {
+                                                const size_t _len) noexcept {
 	unsigned long orig_dstlen = _dstlen, i = 0;
 
 	size_t len = _len;
@@ -210,4 +216,41 @@ alignas(256) constexpr char *words[256] = {
 	return orig_dstlen - dstlen;
 }
 
+/// \tparam Iterator
+/// \param first
+/// \param last
+/// \param out
+/// \return
+template<class Iterator>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<Iterator>
+#endif
+[[nodiscard]] constexpr Iterator smaz2_compress(Iterator &first,
+												Iterator &last,
+												Iterator &out) noexcept {
+	const size_t size = std::distance(first, last);
+	size_t outlen = size;
+	outlen = smaz2_compress(&(*out), outlen, &(*first), size);
+	std::advance(out, outlen);
+	return out;
+}
+
+/// \tparam Iterator
+/// \param first
+/// \param last
+/// \param out
+/// \return
+template<class Iterator>
+#if __cplusplus > 201709L
+	requires std::forward_iterator<Iterator>
+#endif
+[[nodiscard]] constexpr Iterator smaz2_decompress(Iterator &first,
+												  Iterator &last,
+												  Iterator &out) noexcept {
+	const size_t size = std::distance(first, last);
+	size_t outlen = size;
+	outlen = smaz2_decompress(&(*out), outlen, &(*first), size);
+	std::advance(out, outlen);
+	return out;
+}
 #endif//CRYPTANALYSISLIB_SMAZ2_H

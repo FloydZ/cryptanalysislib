@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include "alloc/alloc.h"
+
 
 /// Details: https://dl.acm.org/doi/pdf/10.1145/362003.362025
 template<class T>
@@ -22,16 +24,21 @@ struct BKTreeConfig : public AlignmentConfig {
 };
 constexpr static BKTreeConfig bkTreeConfig;
 
-/// TODO iterator, allocator
+/// \tparam T
+/// \tparam Allocator
+/// \tparam config
 template<class T,
+		 class Allocator=cryptanalysislib::alloc::allocator,
 		 const BKTreeConfig &config=bkTreeConfig>
 class BKTree {
 	using node_type = BKTreeNode<T>;
 	node_type root = node_type(T());
 
 	///
-	constexpr void info() const noexcept {
+	void info() const noexcept {
 		std::cout << " { name: \"BKTree\""
+				  << " , \"allocator\": " << Allocator::str()
+				  // << " , \"config\": " << config
 				  << " }" <<std::endl;
 	}
 
@@ -81,7 +88,7 @@ public:
 	constexpr uint32_t lookup(const T &a) const noexcept {
 		if (root.children.size() == 0) { return 0; }
 
-		std::vector<node_type> S;
+		std::vector<node_type, Allocator> S;
 		S.emplace_back(root);
 		uint32_t d_best = uint32_t(-1);
 

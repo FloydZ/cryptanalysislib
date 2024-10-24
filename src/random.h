@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstdint>
+#include <string>
 #include <type_traits>
 #include <algorithm>
 
@@ -15,14 +16,13 @@
 #define GOLDEN_GAMMA UINT64_C(0x9E3779B97F4A7C15)
 
 namespace cryptanalysislib {
-	/// TODO write c++ random function, like class abstraction
 namespace random::internal {
 
 /// super rng values
 static uint64_t random_x = 123456789u, random_y = 362436069u, random_z = 521288629u;
 
 /// NOTE: this function cannot fail
-/// \param i see
+/// \param seed seed
 /// \return true on success
 [[nodiscard]] constexpr static inline bool xorshf96_seed(const uint64_t seed) noexcept {
 	random_x += seed;
@@ -113,8 +113,7 @@ template<typename T=uint64_t>
 ///
 /// NOTE: the parameters (a=24, b=16, b=37) of this version give slightly better
 /// results in our test than the 2016 version (a=55, b=14, c=36).
-
-
+///
 /// "randomly" choosen start values to the xorshf128 prng
 static uint64_t __xorshf128_S0 = 2837468099234763274;
 static uint64_t __xorshf128_S1 = 998234767632513414;
@@ -200,8 +199,7 @@ static inline bool xorshf128_seed() noexcept {
 /// SCR: https://github.com/lemire/batched_random/blob/main/src/pcg64.h
 ///     based on original code by M. O'Neill
 ///     modified by Floyd to match a C++ env.
-
-/// TODO move this macro into uint128_t
+/// NOTE: these macros are not in uint128_t, as I dont want a dependency.
 #define PCG_128BIT_CONSTANT(high, low) ((((__uint128_t)high) << 64) + low)
 #define PCG_DEFAULT_MULTIPLIER_128                                             \
   PCG_128BIT_CONSTANT(2549297995355413924ULL, 4865540595714422341ULL)
@@ -232,7 +230,6 @@ inline void pcg_setseq_128_srandom_r(__uint128_t initstate,
               (unsigned int)(pcg_state_setseq_128_state >> 122u));
 }
 
-/// TODO benchmark against all other generators
 [[nodiscard]] constexpr static inline uint64_t pcg64_random_data() noexcept {
   pcg_setseq_128_step_r();
   return pcg_output_xsl_rr_128_64();
@@ -292,10 +289,20 @@ static inline void rng(uint8_t *buf,
 	random::internal::xorshf96_random_data(buf, n);
 }
 
-// TODO second rng_seed function for /dev/urandom
 /// seed the rng instance
 /// \param seed
 constexpr static inline void rng_seed(const uint64_t seed) noexcept {
+	const bool t = random::internal::xorshf96_seed(seed);
+	(void)t;
+}
+
+/// uses /dev/urandom as seed
+constexpr static inline void rng_seed() noexcept {
+	uint64_t seed;
+	FILE *fp = fopen("/dev/urandom", "r");
+	fread(&seed, 1, sizeof(seed), fp);
+	fclose(fp);
+
 	const bool t = random::internal::xorshf96_seed(seed);
 	(void)t;
 }
@@ -386,39 +393,38 @@ constexpr static inline T rng_v2(const uint64_t range) noexcept {
 	return (T)(multiresult >> 64); // [0, range)
 }
 
-// TODO?
 // product_bound can be any integer >= range1*range2
 // it may be updated to become range1*range2
-template <class URBG>
+template<class URBG>
 std::pair<uint64_t, uint64_t> random_bounded_2(uint64_t range1, uint64_t range2,
                                                uint64_t &product_bound,
                                                URBG &&rng) {
-  __uint128_t random64bit, multiresult;
-  uint64_t leftover;
-  uint64_t threshold;
-  random64bit = rng();
-  multiresult = random64bit * range1;
-  leftover = (uint64_t)multiresult;
-  uint64_t result1 = (uint64_t)(multiresult >> 64); // [0, range1)
-  multiresult = leftover * range2;
-  leftover = (uint64_t)multiresult;
-  uint64_t result2 = (uint64_t)(multiresult >> 64); // [0, range2)
-  if (leftover < product_bound) {
-    product_bound = range2 * range1;
-    if (leftover < product_bound) {
-      threshold = -product_bound % product_bound;
-      while (leftover < threshold) {
-        random64bit = rng();
-        multiresult = random64bit * range1;
-        leftover = (uint64_t)multiresult;
-        result1 = (uint64_t)(multiresult >> 64); // [0, range1)
-        multiresult = leftover * range2;
-        leftover = (uint64_t)multiresult;
-        result2 = (uint64_t)(multiresult >> 64); // [0, range2)
-      }
-    }
-  }
-  return std::make_pair(result1, result2);
+	__uint128_t random64bit, multiresult;
+	uint64_t leftover;
+	uint64_t threshold;
+	random64bit = rng();
+	multiresult = random64bit * range1;
+	leftover = (uint64_t) multiresult;
+	uint64_t result1 = (uint64_t) (multiresult >> 64);// [0, range1)
+	multiresult = leftover * range2;
+	leftover = (uint64_t) multiresult;
+	uint64_t result2 = (uint64_t) (multiresult >> 64);// [0, range2)
+	if (leftover < product_bound) {
+		product_bound = range2 * range1;
+		if (leftover < product_bound) {
+			threshold = -product_bound % product_bound;
+			while (leftover < threshold) {
+				random64bit = rng();
+				multiresult = random64bit * range1;
+				leftover = (uint64_t) multiresult;
+				result1 = (uint64_t) (multiresult >> 64);// [0, range1)
+				multiresult = leftover * range2;
+				leftover = (uint64_t) multiresult;
+				result2 = (uint64_t) (multiresult >> 64);// [0, range2)
+			}
+		}
+	}
+	return std::make_pair(result1, result2);
 }
 
 // This is a template function that shuffles the elements in the range [first,
@@ -427,21 +433,21 @@ std::pair<uint64_t, uint64_t> random_bounded_2(uint64_t range1, uint64_t range2,
 // It is similar to std::shuffle, but it uses a different algorithm.
 template <class RandomIt, class URBG>
 extern void shuffle_2(RandomIt first, RandomIt last, URBG &&g) {
-  uint64_t i = std::distance(first, last);
-  for (; i > 1 << 30; i--) {
-    uint64_t index = random_bounded(i, g); // index is in [0, i-1]
-    std::iter_swap(first + i - 1, first + index);
-  }
-
-  // Batches of 2 for sizes up to 2^30 elements
-  uint64_t product_bound = i * (i - 1);
-  for (; i > 1; i -= 2) {
-    auto [index1, index2] = random_bounded_2(i, i - 1, product_bound, g);
-    // index1 is in [0, i-1]
-    // index2 is in [0, i-2]
-    std::iter_swap(first + i - 1, first + index1);
-    std::iter_swap(first + i - 2, first + index2);
-  }
+    uint64_t i = std::distance(first, last);
+    for (; i > 1 << 30; i--) {
+    	uint64_t index = random_bounded(i, g);// index is in [0, i-1]
+    	std::iter_swap(first + i - 1, first + index);
+    }
+    
+    // Batches of 2 for sizes up to 2^30 elements
+    uint64_t product_bound = i * (i - 1);
+    for (; i > 1; i -= 2) {
+    	auto [index1, index2] = random_bounded_2(i, i - 1, product_bound, g);
+    	// index1 is in [0, i-1]
+    	// index2 is in [0, i-2]
+    	std::iter_swap(first + i - 1, first + index1);
+    	std::iter_swap(first + i - 2, first + index2);
+    }
 }
 
 
@@ -453,7 +459,8 @@ extern void shuffle_2(RandomIt first, RandomIt last, URBG &&g) {
 /// \param size nr of elements to generate
 /// \param nr_sols if > 1 the `nr_sols` elements from `solution_index` are also solutions
 /// \return the element to search for: the solution
-template<typename L, typename T>
+template<typename L,
+         typename T>
 T random_data(L &data,
 			  size_t &solution_index,
 			  const size_t size,
@@ -470,12 +477,12 @@ T random_data(L &data,
 		}
 	}
 
+    // NOTE: Im not using `cryptanalysislib::sort`, as I dont want an 
+    // additional dependency in this file.
 	std::sort(data.begin(), data.end(),
-			// NOTE: this is needed, as std::less<> is not
-			// defined for everything
-			  [](const auto &e1, const auto &e2) {
-				return e1 < e2;
-			  }
+		[](const auto &e1, const auto &e2) {
+		    return e1 < e2;
+		}
 	);
 
     assert(std::is_sorted(data.begin(), data.end()));
@@ -491,6 +498,53 @@ T random_data(L &data,
 	return data[solution_index];
 }
 
+/// implementation of https://en.cppreference.com/w/cpp/numeric/random/random_device
+class random_device {
+public:
+    using result_type = uint64_t;
+
+    constexpr random_device() noexcept = default;
+    constexpr random_device(const result_type seed) noexcept {
+        bool t = rng(seed);
+        (void) t;
+    }
+   
+    /// \param seed if == "/dev/urandom" it will call this device,
+    ///     other wise each token within `seed` will be used as an token.
+    constexpr random_device(const std::string seed) noexcept {
+        if (seed == "/dev/urandom") {
+            rng_seed();
+        } else {
+            for (const auto &t : seed) {
+                bool r = rng((uint64_t)t);
+                (void) r;
+            }
+        }
+    }
+    
+    ///
+    constexpr random_device(random_device&) = delete;
+   
+    /// NOT IMPLEMENTED
+    constexpr inline double entropy() const noexcept {
+        return 32;
+    }
+
+    /// \returns the min value
+    constexpr static inline result_type min() noexcept {
+        return 0;
+    }
+
+    /// \returns the max value
+    constexpr static inline result_type max() noexcept {
+        return -1ull;
+    }
+
+    /// \returns a random `result_type`
+    constexpr inline result_type operator()() noexcept {
+        return rng();
+    }
+};
 
 }// namespace cryptanalysislib
 #endif//SMALLSECRETLWE_RANDOM_H

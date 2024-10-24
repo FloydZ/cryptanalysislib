@@ -18,7 +18,6 @@
 /// SRC:https://pages.cs.wisc.edu/~chronis/files/efficiently_searching_sorted_arrays.pdf
 /// 	https://github.com/UWHustle/Efficiently-Searching-In-Memory-Sorted-Arrays/blob/master/src/algorithms/interpolation_search.h
 /// \tparam ForwardIt
-/// \tparam T
 /// \tparam Hash
 /// \param first
 /// \param last
@@ -85,7 +84,14 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 	return left;
 }
 
-// NOT WORKING
+/// NOT WORKING
+/// \tparam RandIt
+/// \tparam Hash
+/// \param first
+/// \param last
+/// \param value_
+/// \param h
+/// \return
 template<typename RandIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -141,8 +147,15 @@ constexpr RandIt lower_bound_interpolation_search1(RandIt first,
 }
 
 
-// taken from:
-// https://medium.com/@vgasparyan1995/interpolation-search-a-generic-implementation-in-c-part-2-164d2c9f55fa
+/// taken from:
+/// https://medium.com/@vgasparyan1995/interpolation-search-a-generic-implementation-in-c-part-2-164d2c9f55fa
+/// \tparam RandIt
+/// \tparam Hash
+/// \param first
+/// \param last
+/// \param value_
+/// \param h
+/// \return
 template<typename RandIt,
 		typename Hash>
 #if __cplusplus > 201709L
@@ -255,7 +268,7 @@ size_t LowerBoundInterpolationSearch(const T *__buckets,
 /// \param first		low end iterator
 /// \param last			high end iterator
 /// \param key_			value to look for
-/// \param h			instantiation of the extractor/hash function
+/// \param e			instantiation of the extractor/hash function
 /// \return
 template<typename RandIt,
          typename Hash>
@@ -319,6 +332,13 @@ RandIt LowerBoundInterpolationSearch(RandIt first,
 
 namespace cryptanalysislib::search {
 
+	/// \tparam RandIt
+	/// \tparam Hash
+	/// \param first
+	/// \param last
+	/// \param key_
+	/// \param e
+	/// \return
 	template<typename RandIt,
 	         typename Hash>
 #if __cplusplus > 201709L
@@ -333,6 +353,65 @@ namespace cryptanalysislib::search {
 		              "the return type of the hash function must be a integral type");
 		return lower_bound_interpolation_3p_search(first, last, key_, e);
 	}
-}
+
+	/// \tparam RandIt
+	/// \tparam Hash
+	/// \param first
+	/// \param last
+	/// \param key_
+	/// \return
+	template<typename RandIt,
+	         typename Hash>
+#if __cplusplus > 201709L
+	requires std::random_access_iterator<RandIt> and
+			 HashFunction<Hash, typename RandIt::value_type>
+#endif
+	constexpr RandIt interpolation_search(RandIt first,
+										  RandIt last,
+										  const typename RandIt::value_type &key_) noexcept {
+		using T = RandIt::value_type;
+		using H = std::hash<T>;
+		H e;
+		static_assert(std::is_integral_v<typename decltype(std::function{e})::result_type>,
+		              "the return type of the hash function must be a integral type");
+		return lower_bound_interpolation_3p_search(first, last, key_, e);
+	}
+
+	namespace internal {
+
+		template<typename It,
+				 typename Hash>
+#if __cplusplus > 201709L
+			requires std::forward_iterator<It> and
+					 HashFunction<Hash, typename It::value_type>
+#endif
+		It interpolation_search_dispatch(It begin,
+										 It end,
+										 const typename It::value_type &value,
+										 Hash h) noexcept {
+			using T = It::value_type;
+			using FF = It(*)(It, It, const T&, Hash);
+
+			static FF out;
+			static bool set = false;
+
+			if (set) [[likely]] {
+				return std::invoke(out, begin, end, value, h);
+			}
+
+			set = true;
+
+			// NOTE dont specify as const
+			static FF functions[] = {
+				LowerBoundInterpolationSearch<It, Hash>,
+				lower_bound_interpolation_search2<It, Hash>,
+				lower_bound_interpolation_search1<It, Hash>,
+				lower_bound_interpolation_3p_search<It, Hash>,
+			};
+			const auto d = generic_dispatch(out, functions, 1, begin, end, value, h);
+			return binary_search_dispatch(begin, end, value, h);
+		}
+	}// end namespace internal
+}//end namespace cryptanalysis
 
 #endif

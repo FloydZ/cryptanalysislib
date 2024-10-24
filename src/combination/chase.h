@@ -307,10 +307,6 @@ public:
 		chase.template changelist<write>(ret);
 	}
 
-	///
-	/// \param n length
-	/// \param q field size
-	/// \param w max hamming weight to enumerate
 	constexpr Combinations_Fq_Chase() noexcept {
 		/// init the restricted gray code
 		for (uint32_t i = 0; i < n; ++i) {
@@ -322,79 +318,6 @@ public:
 	}
 };
 
-// TODO move somewhere usefull
-// TODO absolutly not enumerating only weight p
-// lexicographic enumeration
-template<const uint32_t n,
-         const uint32_t p,
-         const uint32_t q = 2>
-class enumerate_t {
-	using T = uint16_t;
-	T idx[16] = {0};
-
-	static_assert(q>=2);
-	static_assert(p<=4);
-	static_assert(n > p);
-
-public:
-	[[nodiscard]] constexpr size_t list_size() const noexcept {
-		return compute_combinations_fq_chase_list_size<n, q, p>();
-	}
-
-	template<typename F>
-	constexpr inline void enumerate(F &&f) noexcept {
-		if constexpr (p == 0) {
-			// catch for prange
-			return;
-		} else if constexpr (p == 1) {
-			return enumerate1(idx, f);
-		} else if constexpr (p == 2) {
-			return enumerate2(idx, f);
-		} else if constexpr (p == 3) {
-			return enumerate3(idx, f);
-		}
-	}
-
-	template<typename F>
-	constexpr static inline void enumerate1(T *idx, F &&f) noexcept {
-		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
-			f(idx);
-		}
-	}
-
-	template<typename F>
-	constexpr static inline void enumerate2(T *idx, F &&f) noexcept {
-		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
-			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
-				f(idx);
-			}
-		}
-	}
-
-	template<typename F>
-	constexpr static inline void enumerate3(T *idx, F &&f) noexcept {
-		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
-			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
-				for (idx[2] = idx[1] + 1; idx[2] < n; ++idx[2]) {
-					f(idx);
-				}
-			}
-		}
-	}
-
-	template<typename F>
-	constexpr static inline void enumerate4(T *idx, F &&f) noexcept {
-		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
-			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
-				for (idx[2] = idx[1] + 1; idx[2] < n; ++idx[2]) {
-					for (idx[3] = idx[2] + 1; idx[3] < n; ++idx[3]) {
-						f(idx);
-					}
-				}
-			}
-		}
-	}
-};
 
 template<const uint32_t n,
          const uint32_t p,
@@ -408,7 +331,7 @@ class chase_t {
 	static_assert(p <= 3);
 
 public:
-	constexpr size_t list_size() const noexcept {
+	[[nodiscard]] constexpr size_t list_size() const noexcept {
 		return compute_combinations_fq_chase_list_size<n, q, p>();
 	}
 

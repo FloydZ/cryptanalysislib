@@ -11,14 +11,28 @@
 #include <immintrin.h>
 #endif
 #include <cstdint>
+#include <byteswap.h>
 
 #include "helper.h"
-#include "binary.h"
-
 #include "memory/memory.h"
 
 
+constexpr inline static uint64_t fetch64(const char *p) noexcept {
+	return ((uint64_t *)p)[0];
+}
+
+constexpr inline static uint32_t fetch32(const char *p) noexcept {
+	return ((uint32_t *)p)[0];
+}
+
+template<typename T=uint32_t>
+constexpr inline static T Rotate32(const T val, const int shift) noexcept {
+	// Avoid shifting by 32: doing so yields an undefined result.
+	return shift == T(0) ? val : ((val >> shift) | (val << ((sizeof(T)*8u) - shift)));
+}
+
 namespace cryptanalysislib::hash {
+
 	// Some primes between 2^63 and 2^64 for various uses.
 	constexpr static uint64_t k0 = 0xc3a5c85c97cb3127ULL;
 	constexpr static uint64_t k1 = 0xb492b66fbe98f273ULL;

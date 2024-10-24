@@ -315,10 +315,9 @@ public:
 
 	typedef typename Element::MatrixType MatrixType;
 
-	// todo do the same for all other list classes
 	// we are good c++ defs
 	typedef Element value_type;
-	typedef Allocator allocator_type; // TODO use
+	typedef Allocator allocator_type;
 	typedef size_t size_type;
 	typedef size_t difference_type;
 	typedef value_type& reference;

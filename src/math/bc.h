@@ -337,8 +337,26 @@ inline void biject_simd_lookup(uint32x8_t a,
 	}
 }
 
-/// TODO write second function which takes as an argument the
-/// 	a up length w vector with the bit positions
+
+template<typename T>
+static inline size_t reverse_biject_helper(T **L,
+										   const uint32_t w,
+										   const uint32_t t) noexcept {
+
+	// static check
+    if (L[0][0] == 0) [[unlikely]] {
+        for (uint32_t y = 0; y < w; y++) {
+            for (uint32_t x = 0; x < t; x++) {
+                if (x >= (y+1)) {
+					L[y][x] = sum_bc(x, y+1, 0);
+                } else {
+					L[y][x] = 1u << x;
+                }
+            }
+        }
+    }
+}
+
 /// impl: https://eprint.iacr.org/2023/948.pdf
 ///	 the chi function
 /// NOTE: make sure that s != 0;
@@ -354,17 +372,7 @@ static inline size_t reverse_biject(const T s) noexcept {
     if (s == 0) [[unlikely]] { return 0; }
 
     alignas(64) static T L[w][t] = {{0}};
-    if (L[0][0] == 0) [[unlikely]] {
-        for (uint32_t y = 0; y < w; y++) {
-            for (uint32_t x = 0; x < t; x++) {
-                if (x >= (y+1)) {
-					L[y][x] = sum_bc(x, y+1, 0);
-                } else {
-					L[y][x] = 1u << x;
-                }
-            }
-        }
-    }
+	reverse_biject_helper<T>(L, w, t);
 
 	T ss = s;
     const uint32_t p = cryptanalysislib::popcount::popcount(s);
@@ -373,6 +381,31 @@ static inline size_t reverse_biject(const T s) noexcept {
     for (uint32_t i = 0; i < p; i++) {
 		// like popcount make an own function
         const uint32_t s0 = t - __builtin_clzll(ss);
+        ss ^= 1ul << s0;
+		ret += L[w-i-1][s0];
+    }
+	ASSERT(ss == 0);
+
+    return ret;
+}
+
+
+template<typename T,
+         const uint32_t n,
+         const uint32_t w>
+static inline size_t reverse_biject(const uint32_t *s,
+									const uint32_t p) noexcept {
+    size_t ret = 0;
+    constexpr uint32_t t = (sizeof(T)*8) -1;
+
+    if (s == 0) [[unlikely]] { return 0; }
+
+    alignas(64) static T L[w][t] = {{0}};
+	T ss = s;
+    ASSERT(p <= w);
+
+    for (uint32_t i = 0; i < p; i++) {
+        const uint32_t s0 = s[i];
         ss ^= 1ul << s0;
 		ret += L[w-i-1][s0];
     }

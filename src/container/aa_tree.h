@@ -37,6 +37,7 @@ private:
 public:
 	using node = AANode<T, config>;
 
+
 	/// \return if the pointer is valid
 	[[nodiscard]] constexpr inline bool exists() const noexcept {
 		return ptr != 0;

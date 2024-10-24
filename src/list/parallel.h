@@ -41,6 +41,17 @@ public:
 	using MetaListT<Element>::ValueBytes;
 	using MetaListT<Element>::LabelBytes;
 
+	using typename MetaListT<Element>::value_type;
+	using typename MetaListT<Element>::allocator_type;
+	using typename MetaListT<Element>::size_type;
+	using typename MetaListT<Element>::difference_type;
+	using typename MetaListT<Element>::reference;
+	using typename MetaListT<Element>::const_reference;
+	using typename MetaListT<Element>::pointer;
+	using typename MetaListT<Element>::const_pointer;
+	using typename MetaListT<Element>::iterator;
+	using typename MetaListT<Element>::const_iterator;
+
 	/// needed functions
 	using MetaListT<Element>::size;
 	using MetaListT<Element>::set_size;

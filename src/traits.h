@@ -66,7 +66,7 @@ namespace cryptanalysislib {
 	}
 
 
-	/// TODO doc and example
+	///
 	template<typename TCallable,
 			 typename TSignature>
 	constexpr bool is_callable_as_v = std::is_constructible<std::function<TSignature>, TCallable>::value;
