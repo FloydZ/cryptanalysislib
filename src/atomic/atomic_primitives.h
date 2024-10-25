@@ -5,20 +5,12 @@
 #include <cstdint>
 #include <memory>
 
-// TODO write a include guard for this
-// #ifdef USE_STD_ATOMIC
-
-/// TODO rename
-#define SCHED_BASE_MEMORY_BARRIER_ACQUIRE() __asm__ __volatile__("" : : : "memory")
-#define SCHED_BASE_MEMORY_BARRIER_RELEASE() __asm__ __volatile__("" : : : "memory")
 
 
-/**
- * @brief Simple concept for the Lockable and Basic Lockable types as defined by the C++
- * standard.
- * @details See https://en.cppreference.com/w/cpp/named_req/Lockable and
- * https://en.cppreference.com/w/cpp/named_req/BasicLockable for details.
- */
+/// @brief Simple concept for the Lockable and Basic Lockable types as defined by the C++
+/// standard.
+/// @details See https://en.cppreference.com/w/cpp/named_req/Lockable and
+/// https://en.cppreference.com/w/cpp/named_req/BasicLockable for details.
 template <typename Lock>
 concept is_lockable = requires(Lock&& lock) {
 	lock.lock();
@@ -31,16 +23,20 @@ concept is_lockable = requires(Lock&& lock) {
  * An atomic fetch-and-add.
  */
 #define FAA(ptr, val) __atomic_fetch_add(ptr, val, __ATOMIC_RELAXED)
-/**
- * An atomic fetch-and-add that also ensures sequential consistency.
- */
+
+// An atomic fetch-and-add that also ensures sequential consistency.
+// Usage:
+//
 #define FAAcs(ptr, val) __atomic_fetch_add(ptr, val, __ATOMIC_SEQ_CST)
 
 /**
+ * This is translated into an `lock; cmpchxg` instruction
+ *	https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:48,endLineNumber:8,positionColumn:48,positionLineNumber:8,selectionStartColumn:48,selectionStartLineNumber:8,startColumn:48,startLineNumber:8),source:'%0A%23include+%3Catomic%3E%0A%23include+%3Ccstdint%3E%0A%23include+%3Cmemory%3E%0A%0Aint+square(int+num)+%7B%0A++++return+__atomic_compare_exchange_n(%26num,+%26num,+1,+0,%0A+++++++++++++__ATOMIC_RELAXED,+__ATOMIC_RELAXED)%3B%0A%7D'),l:'5',n:'1',o:'C%2B%2B+source+%231',t:'0')),k:62.24127735068007,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:g142,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-O3',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+x86-64+gcc+14.2+(Editor+%231)',t:'0')),k:37.75872264931993,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
  * An atomic compare-and-swap.
  */
 #define CAS(ptr, cmp, val) __atomic_compare_exchange_n(ptr, cmp, val, 0, \
 	                                                   __ATOMIC_RELAXED, __ATOMIC_RELAXED)
+
 /**
  * An atomic compare-and-swap that also ensures sequential consistency.
  */
@@ -90,6 +86,13 @@ concept is_lockable = requires(Lock&& lock) {
  * stores can start before the current load completes.
  */
 #define ACQUIRE(ptr) __atomic_load_n(ptr, __ATOMIC_ACQUIRE)
+
+
+///
+#define MEMORY_BARRIER_ACQUIRE() __asm__ __volatile__("" : : : "memory")
+
+///
+#define MEMORY_BARRIER_RELEASE() __asm__ __volatile__("" : : : "memory")
 
 
 #ifdef __x86_64__
@@ -156,7 +159,7 @@ CMOVE_MACRO(s)
 CMOVE_MACRO(z)
 
 
-// TODO: older gcc version do not support atomic::wait	
+// NOTE: older gcc version do not support atomic::wait
 #ifdef __cpp_lib_atomic_wait
 struct one_byte_mutex {
 	inline void lock() noexcept {

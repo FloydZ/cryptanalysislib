@@ -79,6 +79,7 @@ struct sched_pipe {
 			actual_read = to_use & SCHED_PIPE_MASK;
 			// multiple potential readers means we should check if the data is valid
          	// using an atomic compare exchange */
+			// TODO add to atomic primitives
 			previous = __sync_val_compare_and_swap(&this->flags[actual_read], SCHED_PIPE_INVALID, SCHED_PIPE_CAN_READ);
 			if (previous == SCHED_PIPE_CAN_READ)
 				break;
@@ -92,7 +93,7 @@ struct sched_pipe {
      	// of data. This ensures consitency of the read index, and the above loop ensures
      	// readers only read from unread data. */
 		FAA((volatile int32_t *) &this->read_count, 1);
-		SCHED_BASE_MEMORY_BARRIER_ACQUIRE();
+		MEMORY_BARRIER_ACQUIRE();
 
 		/* now read data, ensuring we do so after above reads & CAS */
 		*dst = this->buffer[actual_read];
@@ -133,7 +134,7 @@ struct sched_pipe {
 		/* now read data, ensuring we do so after above reads & CAS */
 		*dst = this->buffer[actual_read];
 		this->flags[actual_read] = SCHED_PIPE_CAN_WRITE;
-		SCHED_BASE_MEMORY_BARRIER_RELEASE();
+		MEMORY_BARRIER_RELEASE();
 
 		/* 32-bit aligned stores are atomic, and writer owns the write index */
 		--this->write;

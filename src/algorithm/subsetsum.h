@@ -290,7 +290,7 @@ public:
 		L b_1 = rng<L>(instance.flavour_q), b_2 = rng<L>(instance.flavour_q);
 
 		/// \return value=int2weight(b_2 * flavor(e) + b_2))
-		auto flavour = [&](const Element &e) __attribute__((always_inline)){
+		auto flavour = [&](const Element &e) __attribute__((always_inline)) {
 			Element ret;
 			const L c = (b_1 * e.label.value() + b_2) % instance.flavour_q;
 			*ret.value.ptr() = c;

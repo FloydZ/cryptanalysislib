@@ -6,10 +6,11 @@
 
 #include "atomic_primitives.h"
 
-// mutex is a wrapper around std::mutex that offers Thread Safety Analysis
+// annotated_mutex is a wrapper around std::mutex that offers Thread Safety Analysis
 // annotations.
 // mutex also holds methods for performing std::condition_variable::wait() calls
 // as these require a std::unique_lock<> which are unsupported by the TSA.
+template<class mutex=std::mutex>
 class CAPABILITY("annotated_mutex") annotated_mutex {
 public:
 	///
@@ -30,7 +31,7 @@ public:
 	template<typename Predicate>
 	inline void wait_locked(std::condition_variable &cv,
 	                        Predicate &&p) noexcept REQUIRES(this) {
-		std::unique_lock<std::mutex> lock(_, std::adopt_lock);
+		std::unique_lock<mutex> lock(_, std::adopt_lock);
 		cv.wait(lock, std::forward<Predicate>(p));
 		lock.release();// Keep lock held.
 	}
@@ -47,8 +48,9 @@ public:
 	inline bool wait_until_locked(std::condition_variable &cv,
 	                              Time &&time,
 	                              Predicate &&p) noexcept REQUIRES(this) {
-		std::unique_lock<std::mutex> lock(_, std::adopt_lock);
-		auto res = cv.wait_until(lock, std::forward<Time>(time),
+		std::unique_lock<mutex> lock(_, std::adopt_lock);
+		auto res = cv.wait_until(lock,
+								 std::forward<Time>(time),
 		                         std::forward<Predicate>(p));
 		lock.release();// Keep lock held.
 		return res;
@@ -56,7 +58,7 @@ public:
 
 private:
 	friend class lock;
-	std::mutex _;
+	mutex _;
 };
 
 // lock is a RAII lock helper that offers Thread Safety Analysis annotations.

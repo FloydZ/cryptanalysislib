@@ -45,6 +45,7 @@ foreach(testfile ${TEST_SOURCES})
             ../src/thread/lock_free.h
             ../src/simd/bits/generic.h
             ../src/algorithm/bits/clz.h
+            ../src/atomic/atomic.h
     )
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})
