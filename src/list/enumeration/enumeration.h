@@ -193,7 +193,7 @@ public:
 		/// NOTE: its allowed to call this class with `w=0`, which is needed for Prange
 		static_assert(n > w);
 		static_assert(q > 1);
-		static_assert(n <= Value::length());
+		static_assert(n <= Value::length);
 	}
 };
 

@@ -300,7 +300,8 @@ constexpr static inline void rng_seed(const uint64_t seed) noexcept {
 constexpr static inline void rng_seed() noexcept {
 	uint64_t seed;
 	FILE *fp = fopen("/dev/urandom", "r");
-	fread(&seed, 1, sizeof(seed), fp);
+	auto t1 = fread(&seed, 1, sizeof(seed), fp);
+	assert(t1 == sizeof(seed));
 	fclose(fp);
 
 	const bool t = random::internal::xorshf96_seed(seed);

@@ -132,8 +132,18 @@ struct SubSetSumCmp {
 		}
 
         // if they are the same we found a collision
-		return a2.label.template is_equal
+		const bool ret = a2.label.template is_equal
 					<k_lower, k_upper>(b2.label);
+
+		if (ret) [[unlikely]] {
+			Element sol ;
+			Element::add(sol, a2, b2);
+			std::cout << "found it!" << std::endl;
+			std::cout << a2 << ", x" << std::endl;
+			std::cout << b2 << ", y" << std::endl;
+			std::cout << sol << ", sol" << std::endl;
+		}
+		return ret;
 	}
 };
 
@@ -161,7 +171,9 @@ struct SubSetSumCmp {
 /// flavor values: b_1,b_2
 ///
 /// // collision function
-/// f_i(input, s, iT) = {
+/// f_i(iT) = {
+///		// NOTE:
+///			- s is passes as a lambda reference
 ///		i = lsb(input)
 ///		// NOTE: iT++ if no solution found
 ///		o = (i == 0) ? TREE(s, iT) : TREE(t-s, iT)
@@ -336,6 +348,7 @@ public:
 
 			Element ret = out[0];
 			ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
+			ASSERT(wrong == 0);
 			// debug information
 			// std::cout << "iters:" << iters << std::endl;
 			// std::cout << "wrong:" << wrong << std::endl;
@@ -347,7 +360,9 @@ public:
 		};
 
 		// start loop
+		size_t iters = 0;
 		while (true) {
+			iters += 1;
 			x.random(A);
 			y = f(x);
 			s.random(0, 1ull << k_upper2);
@@ -367,9 +382,10 @@ public:
 		Element sol;
 		Element::add(sol, x, y);
 
-		std::cout << x << "x" << std::endl;
-		std::cout << y << "y" << std::endl;
-		std::cout << sol << "sol" << std::endl;
+		std::cout << iters   << ", global_iters" << std::endl;
+		std::cout << x   << ", x" << std::endl;
+		std::cout << y   << ", y" << std::endl;
+		std::cout << sol << ", sol" << std::endl;
 		std::cout << global_target << "global_target" << std::endl;
 
 		// memory cleanup

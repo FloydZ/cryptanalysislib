@@ -105,7 +105,7 @@ concept ElementDataAble = requires(Container c,
 	// we also have to enforce the existence of some constexpr functions.
 	{ Container::optimized() } -> std::convertible_to<bool>;
 	{ Container::binary() } -> std::convertible_to<bool>;
-	{ Container::length() } -> std::convertible_to<uint32_t>;
+	// { Container::length } -> std::convertible_to<uint32_t>;
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;

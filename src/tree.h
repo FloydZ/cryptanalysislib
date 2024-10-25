@@ -145,14 +145,14 @@ public:
 	typedef typename List::MatrixType MatrixType;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::length();
+	constexpr static uint32_t ValueLENGTH = ValueType::length;
 	constexpr static uint32_t LabelLENGTH = LabelType::length();
 
 private:
 	constexpr static bool needs_recomputation = config.needs_recomputation;
 
-	/// We allow additionally two baselists. So for the Stream join we have in total d + 2 lists we have to save in
-	/// memory.
+	/// We allow additionally two baselists. So for the Stream join we have
+	/// n total d + 2 lists we have to save in memory.
 	constexpr static unsigned int additional_baselists = 2;
 
 	/// Remember that we follow a streaming merge approach. By this we only need save in LEVEL 0 the two baselists.
@@ -2306,7 +2306,7 @@ public:
 									 HashMapL1 &hmL1,
 	                                 const LabelType &target,
 	                                 const bool prepare = true) noexcept {
-		constexpr static uint32_t n = LabelType::bits();
+		constexpr static uint32_t n = LabelType::bits;
 		(void)k_lower2;
 		ElementType tmpe1;
 		LabelType t1, iT;
@@ -2657,7 +2657,7 @@ public:
 												const LabelType &target,
 												const LabelType &iT,
 												const bool prepare = true) noexcept {
-		constexpr static uint32_t n = LabelType::bits();
+		constexpr static uint32_t n = LabelType::bits;
 		(void)k_lower2;
 		ElementType tmpe1;
 		LabelType t1;
@@ -2732,7 +2732,7 @@ public:
 											  List &L1, List &L2,
 											  const LabelType &target,
 											  const bool prepare = true) noexcept {
-		constexpr static uint32_t n = LabelType::bits();
+		constexpr static uint32_t n = LabelType::bits;
 		Enumerator e{matrix};
 		e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 				(&L1, &L2, n/2);

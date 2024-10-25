@@ -180,7 +180,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES 
     set(OPTIMIZE_FLAGS "-g -O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
 	set(DEBUG_FLAGS "-g -march=native -mavx512vpopcntdq -mavx512vbmi  -O0 -Wall -Wextra -DDEBUG -Wthread-safety  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
-	set(OPTIMIZE_FLAGS "-g -march=native -mavx512vpopcntdq  -mavx512vbmi  -O3 -DNDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
+	set(OPTIMIZE_FLAGS "-g -fno-inline -march=native -mavx512vpopcntdq  -mavx512vbmi  -O3 -DNDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 endif()
 
 set(LINK_TEST_FLAGS 

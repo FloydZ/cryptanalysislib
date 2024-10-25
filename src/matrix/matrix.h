@@ -30,7 +30,7 @@ concept LabelTypeAble = requires(LabelType c) {
 /// \tparam ValueType
 template<class ValueType>
 concept ValueTypeAble = requires(ValueType c) {
-	ValueType::length();
+	ValueType::length;
 	ValueType::info();
 
 	requires requires(const uint32_t i) {
@@ -1238,7 +1238,7 @@ public:
 	constexpr void mul(LabelType &out,
 	                   const ValueType &in) const noexcept {
 		// using DataType = typename LabelType::DataType;
-		constexpr uint32_t IN_COLS = ValueType::length();
+		constexpr uint32_t IN_COLS = ValueType::length;
 		constexpr uint32_t OUT_COLS = LabelType::length();
 		static_assert((IN_COLS == COLS)  || (IN_COLS == ROWS)) ;
 		static_assert((OUT_COLS == ROWS) || (OUT_COLS == COLS));

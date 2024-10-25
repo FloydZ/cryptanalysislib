@@ -467,7 +467,7 @@ public:
 	const size_t list_size = 0;
 
 	// some security things
-	static_assert(Value::length() >= w);
+	static_assert(Value::length >= w);
 	static_assert(n >= w);
 	static_assert(w > 0);
 private:

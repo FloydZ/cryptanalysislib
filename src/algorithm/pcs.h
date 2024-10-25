@@ -88,6 +88,7 @@ public:
 			i += 1u;
 		}
 
+		std::cout << "no solution found" << std::endl;
 		return false;
 	}
 
@@ -107,23 +108,30 @@ public:
 		size_t i = 0;
 		T a1=col1, b1=col2, b2_;
 		while (i < max_iters) {
+			a1 = flavour(a1);
 			const T a2 = f(a1);
-			b2_= flavour(f(b1));
-			const T b2 = f(b2_);
+			b1 = flavour(b1);
+			b2_= f(b1);
+			const T b2 = f(flavour(b2_));
 
 			if (cmp(a1, a2, b2_, b2)) [[unlikely]] {
 				ret = true;
 				goto finish;
 			}
 
-			a1 = flavour(a2);
-			b1 = flavour(b2);
+			a1 = a2;
+			b1 = b2;
 			i += 1;
 		}
 
 		finish:
 		col1 = a1;
 		col2 = b2_;
+
+		// TODO
+		if (!ret) {
+			//std::cout << "no solution found" << std::endl;
+		}
 		return ret;
 	}
 };
