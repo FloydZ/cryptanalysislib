@@ -1270,7 +1270,15 @@ public:
 		return ret;
 	}
 
-	uint32_t popcnt(const uint32_t k_lower = 0, const uint32_t k_upper = length()) const noexcept {
+	[[nodiscard]] uint32_t popcnt() const noexcept {
+		return popcnt<0, n>();
+	}
+
+	/// \param k_lower
+	/// \param k_upper
+	/// \return
+	[[nodiscard]] uint32_t popcnt(const uint32_t k_lower,
+								  const uint32_t k_upper) const noexcept {
 		ASSERT(k_upper <= length() && k_lower < k_upper);
 		const uint32_t lower = round_down_to_limb(k_lower);
 		const uint32_t upper = round_down_to_limb(k_upper - 1);
@@ -1297,14 +1305,23 @@ public:
 		return weight;
 	}
 
-	template<const uint32_t lower, const uint32_t upper, const T l_mask, const T u_mask>
-	constexpr uint32_t popcnt() const noexcept {
-		ASSERT(lower <= upper);
+	/// \tparam lower
+	/// \tparam upper
+	/// \return
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper>
+	[[nodiscard]] constexpr inline uint32_t popcnt() const noexcept {
+		ASSERT(k_lower <= k_upper);
 		uint32_t weight = 0;
+
+		constexpr uint32_t lower = round_down_to_limb(k_lower);
+		constexpr uint32_t upper = round_down_to_limb(k_upper - 1);
+		constexpr T l_mask = higher_mask(k_lower);
+		constexpr T u_mask = lower_mask2(k_upper);
 
 		// if only one limb needs to be checked to check
 		if constexpr (lower == upper) {
-			uint64_t b = (l_mask & u_mask);
+			constexpr T b = (l_mask & u_mask);
 			uint64_t c = uint64_t(__data[lower]);
 			uint64_t d = uint64_t(b) & uint64_t(c);
 			uint64_t w_ = popcnt_T(d);
@@ -1312,8 +1329,10 @@ public:
 		}
 
 		weight = popcnt_T(l_mask & __data[lower]);
-		for (uint32_t i = lower + 1; i < upper; ++i)
+		for (uint32_t i = lower + 1; i < upper; ++i) {
 			weight += popcnt_T(__data[i]);
+		}
+
 		weight += popcnt_T(u_mask & __data[upper]);
 		return weight;
 	}

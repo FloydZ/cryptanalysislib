@@ -1554,7 +1554,7 @@ struct uint16x16_t {
 		const __m256i tmp2 = _mm256_shufflelo_epi16(tmp1, 0);
 		const __m256i tmp3 = (__m256i) ((__v16hi)in.v256 == (__v16hi)tmp2);
 		const uint32_t t = _mm256_movemask_epi8(tmp3);
-		return t == 0xFFFFFFFFFF;
+		return t == 0xFFFFFFFF;
 	}
 
 	///

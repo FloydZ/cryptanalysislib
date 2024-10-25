@@ -1,5 +1,5 @@
-#ifndef LOCK_FREE_H
-#define LOCK_FREE_H
+#ifndef CRYPTANALYSISLIB_THREAD_LOCK_FREE_H
+#define CRYPTANALYSISLIB_THREAD_LOCK_FREE_H
 
 #include <atomic>
 #include <cstdint>
@@ -20,15 +20,26 @@ private:
 		_mm_pause();
 #endif
 	}
-
 public:
-	FastThreadPool() {
+
+	///
+	FastThreadPool() noexcept {
 		// S1
 		m_pHead.store(nullptr, std::memory_order_relaxed);
 		m_pTail.store(nullptr, std::memory_order_relaxed);
 	}
 
-	void AddWork(void f()) {
+	///
+	~FastThreadPool() noexcept {
+		FastThreadPoolItem *pItem = m_pHead.load(std::memory_order_relaxed);
+		while (pItem) {
+			FastThreadPoolItem *pPrev = pItem;
+			pItem = pItem->m_next.load(std::memory_order_relaxed);
+			delete pPrev;
+		}
+	}
+
+	void AddWork(void f()) noexcept {
 		FastThreadPoolItem *pItem = new FastThreadPoolItem;
 
 		// S2
@@ -82,7 +93,7 @@ public:
 		}
 	}
 
-	void (*RemoveWork(void))() {
+	void (*RemoveWork(void))() noexcept {
 		// L3
 		// HAPPENS-BEFORE: L4, L5
 		FastThreadPoolItem *pHead = m_pHead.load(std::memory_order_relaxed);
@@ -139,17 +150,9 @@ public:
 		return nullptr;
 	}
 
-	~FastThreadPool() {
-		FastThreadPoolItem *pItem = m_pHead.load(std::memory_order_relaxed);
-		while (pItem) {
-			FastThreadPoolItem *pPrev = pItem;
-			pItem = pItem->m_next.load(std::memory_order_relaxed);
-			delete pPrev;
-		}
-	}
-
 private:
 	alignas(64) std::atomic<FastThreadPoolItem *> m_pHead;
 	alignas(64) std::atomic<FastThreadPoolItem *> m_pTail;
 };
-#endif//LOCK_FREE_H
+
+#endif

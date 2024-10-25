@@ -246,13 +246,6 @@ crcB = _mm_crc32_u64(crcB, *(uint64_t*)(pB - 8*(i)));
 uint32_t option_14_golden_amd(const void* M,
 							  uint32_t bytes,
 							  uint32_t prev/* = 0*/) noexcept {
-	// must be >= 16
-	constexpr uint32_t LEAF_SIZE_AMD = 7 * 16;
-
-	// for this approach, the poly CANNOT be changed, because this approach
-	// uses x86 hardware instructions which hardcode this poly internally.
-	constexpr uint32_t P = 0x82f63b78U;
-
 	constexpr uint32_t g_lut_amd[] = {
 	    0x00000001, 0x493c7d27, 0xf20c0dfe, 0xba4fc28e, 0x3da6d0cb, 0xddc0152b, 0x1c291d04, 0x9e4addf8,
 	    0x740eef02, 0x39d3b296, 0x083a6eec, 0x0715ce53, 0xc49f4f67, 0x47db8317, 0x2ad91c30, 0x0d3b6092,
@@ -272,15 +265,22 @@ uint32_t option_14_golden_amd(const void* M,
 	    0x80ff0093, 0xb42ae3d9, 0x8fe4c34d, 0x2178513a, 0xdf99fc11, 0xe0ac139e, 0x6c23e841, 0x170076fa,
 	};
 
+	// must be >= 16
+	constexpr uint32_t LEAF_SIZE_AMD = 7 * 16;
+
+	// for this approach, the poly CANNOT be changed, because this approach
+	// uses x86 hardware instructions which hardcode this poly internally.
+	// constexpr uint32_t P = 0x82f63b78U;
+
 	// using hardware crc instructions to generate lut
-	auto compute_golden_lut_amd = [](uint32_t* pTbl,
-									 uint32_t n) noexcept {
-	    uint64_t R = 1;
-	    for (uint32_t i = 0; i < n << 1; ++i) {
-	        pTbl[i] = (uint32_t)R;
-	        R = _mm_crc32_u64(R, 0);
-	    }
-	};
+	//auto compute_golden_lut_amd = [](uint32_t* pTbl,
+	//								 uint32_t n) noexcept {
+	//    uint64_t R = 1;
+	//    for (uint32_t i = 0; i < n << 1; ++i) {
+	//        pTbl[i] = (uint32_t)R;
+	//        R = _mm_crc32_u64(R, 0);
+	//    }
+	//};
 
     uint64_t pA = (uint64_t)M;
     uint64_t crcA = prev;

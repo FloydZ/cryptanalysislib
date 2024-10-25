@@ -1052,7 +1052,6 @@ public:
 	/// \tparam k_upper2 upper coordinate to match on, on the last level
 	/// \tparam HashMap1 type of the intermediate hashmap
 	/// \tparam HashMap2 type of the baselist hashmap
-	/// \tparam Matrix type of Matrix
 	/// \param out output list
 	/// \param hmiL intermdiate hashmap,
 	/// \param L1 const, only needed to compute the collisions
@@ -1062,6 +1061,7 @@ public:
 	/// \param iT intermediate target, make dure its related to target
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			 const uint32_t k_lower2, const uint32_t k_upper2,
+			 const uint32_t weight=0, // TODO doc
 			 typename HashMap1,
 	         typename HashMap2>
 #if __cplusplus > 201709L
@@ -1096,7 +1096,7 @@ public:
 			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
 				const size_t b1 = hmL2[l2];
 				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
-				//ASSERT(L2[b1].is_correct(matrix));
+				ASSERT(L2[b1].is_correct(matrix));
 				ASSERT(b1 < L2.load());
 
 				const LabelType t3 = L2[b1].label;
@@ -1105,7 +1105,7 @@ public:
 
 				ElementType::add(te1, L1[k], L2[b1]);
 				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
-				//ASSERT(te1.is_correct(matrix));
+				ASSERT(te1.is_correct(matrix));
 
 				// NOTE: its shifted
 				const size_t s1 = hmiL.find(t2.value(), load1);
@@ -1116,23 +1116,23 @@ public:
 					ASSERT(a2 < L2.load());
 					ElementType::add(te2, L1[a1], L2[a2]);
 
-					//ASSERT(te1.is_correct(matrix));
-					//ASSERT(te2.is_correct(matrix));
+					ASSERT(te1.is_correct(matrix));
+					ASSERT(te2.is_correct(matrix));
 
-					if constexpr (needs_recomputation) {
-						out.template add_and_append
-							<k_lower1, k_upper2, filter, sub>
-							(te1, te2);
+					if constexpr (weight) {
+						const size_t b2 = out.load();
+						ValueType::add(out[b2].value, te1.value, te2.value);
+						if (out[b2].value.popcnt() == weight) {
+							LabelType::template add
+								<k_lower1, k_upper2>
+								(out[b2].label, te1.label, te2.label);
 
-						// NOTE: the problem is that due to reps the simple addition doesnt hold
-						const size_t b2 = out.load() - 1u;
-						out[b2].recalculate_label(matrix);
-						if (out[b2].label.is_equal(target, k_lower1, k_upper2)) {
-							//out.set_load(b2);
-							goto finish;
+							ASSERT(out[b2].is_correct(matrix));
+							out.set_load(b2+1);
+							// TODO
+							// goto finish;
 						}
 
-						out.set_load(b2);
 					} else {
 						out.template add_and_append
 							<k_lower1, k_upper2, filter, sub>
@@ -1178,7 +1178,6 @@ public:
 	/// \tparam k_upper2 upper coordinate to match on, on the last level
 	/// \tparam HashMap1 type of the intermediate hashmap
 	/// \tparam HashMap2 type of the baselist hashmap
-	/// \tparam Matrix problem instance
 	/// \tparam F lambda function taking the followoing arguments
 	///		f(List &out,
 	///  	  const ElementType &e1, const ElementType &e2,

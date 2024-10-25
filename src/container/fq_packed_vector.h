@@ -387,7 +387,7 @@ public:
 
 	/// computes the hamming weight
 	[[nodiscard]] constexpr uint32_t popcnt() const noexcept {
-		return popcnt(0, size());
+		return popcnt<0, size()>();
 	}
 
 	[[nodiscard]] constexpr uint32_t popcnt(const uint32_t l,

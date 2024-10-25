@@ -60,18 +60,32 @@ struct SSS {
 	const uint32_t bp = 1;
 	const uint32_t l1 = 9;
 	const uint32_t l2 = 11;
-    const uint64_t walk_len = 1u << 4u;
+    const uint64_t walk_len = 1u << 10u;
 
 	// flavouring prime
     const uint64_t flavour_q = 509;
+	// static_assert(is_prime(flavour_q));
+
+	constexpr void info() const noexcept {
+		std::cout << " { name: \"SubSetSumConfig\" :"
+		          << ", n: " << n
+		          << ", q: " << q
+		          << ", bp: " << bp
+		          << ", l1: " << l1
+		          << ", l2: " << l2
+		          << ", walk_len: " << walk_len
+		          << ", flavour_q: " << flavour_q
+		          << " }" << std::endl;
+	}
 };
 
-///
+/// TODO explain
 /// @tparam Element 
 template<class Element,
 		 const SSS &instance>
 struct SubSetSumCmp {
     using Label = Element::LabelType;
+    using Value = Element::ValueType;
     using C = Label::ContainerType::LimbType;
 
     constexpr static uint32_t bit_pos = 0;
@@ -79,6 +93,8 @@ struct SubSetSumCmp {
 
 	constexpr static uint32_t k_lower = instance.l1 + instance.l2;
 	constexpr static uint32_t k_upper = k_lower + instance.l1;
+
+	constexpr static uint32_t weight = instance.n/2;
 
 	/// simple comparison struct
 	/// only a2 and b2 are compared for equality
@@ -102,18 +118,25 @@ struct SubSetSumCmp {
 			return false;
 		}
 
+		// weight check:
+		Value tmp;
+		Value::add(tmp, a2.value, b2.value);
+
+		//std::cout << a2 << ", a2" << std::endl;
+		//std::cout << b2 << ", b2" << std::endl;
+		//std::cout << tmp << ", tmp(" << tmp.popcnt() << ")" << std::endl;
+
+
+		if (tmp.popcnt() != weight) {
+			return false;
+		}
+
         // if they are the same we found a collision
-		return a2.label.is_equal(b2.label, k_lower, k_upper);
+		return a2.label.template is_equal
+					<k_lower, k_upper>(b2.label);
 	}
 };
 
-/// TODO: weight filtering
-/// Fragen:
-///		2) how to correctly match
-///			<e,a> = t - <f, a> <=>
-///			<e,a> + <f,a> = t
-///			(e, <e,a>) = t - (f, <f, a>)
-///			(value, label)
 /// TREE(t, iT):
 ///                   out
 ///                 ┌───┐                  level 2
@@ -138,8 +161,8 @@ struct SubSetSumCmp {
 /// flavor values: b_1,b_2
 ///
 /// // collision function
-/// f_i(s, iT) = {
-///		i = lsb(s)
+/// f_i(input, s, iT) = {
+///		i = lsb(input)
 ///		// NOTE: iT++ if no solution found
 ///		o = (i == 0) ? TREE(s, iT) : TREE(t-s, iT)
 ///		return o
@@ -159,7 +182,6 @@ struct SubSetSumCmp {
 ///		s = rng(0, 2**(l_2+l_1))
 ///
 ///		// NOTE: the loop also ends if a max length is reached
-///		// TODO: only match on additionaly l_1 bits
 ///		while(x1 != y1 &&
 ///			x2,y2 = x1,y1) {
 ///			x1 = f_i(P(x2))
@@ -191,13 +213,13 @@ public:
 
 	// instance to solve: <A, e> = target
 	const Matrix A;
-	const Label target;
+	const Label global_target;
 
 	/// \param A
 	/// \param target
 	constexpr sss_d2(const Matrix &A,
 					 const Label &target) noexcept
-	    : A(A), target(target) {
+	    : A(A), global_target(target) {
 	}
 
 	///
@@ -208,6 +230,7 @@ public:
 								  k_upper2 = instance.l1+instance.l2;
 
 		using rho = PollardRho<SubSetSumCmp<Element, instance>, Element>;
+		instance.info();
 
 		/// allocate the enumerator and the base lists
 		// using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, instance.bp>;
@@ -247,9 +270,8 @@ public:
 		/// dummy object
 		Tree t{1, A, 0};
 
-		Label s, tree_iT, one; one.set(1, 0);
+		Label s, one; one.set(1, 0);
 		s.random(0, 1ull << k_upper2);
-		tree_iT.random(0, 1ull << k_upper1);
 		Element x, y;
 
 		//flavout values:
@@ -265,14 +287,16 @@ public:
 		};
 
 		/// pollard rho
-		auto f =  [&](const Element &in) __attribute__((always_inline)) {
+		auto f =  [&](const Element &c1) __attribute__((always_inline)) {
 			// reset a few things
 			out.set_load(0);
-			Label tree_target, tmp_iT;
+			Label tree_target, tmp_iT, tree_iT;
+			tree_iT = c1.label;
+
 
 			// depending on the lowest bit
-			if (in.label.value() & 1u) {
-				Label::sub(tree_target, target, s);
+			if (c1.label.value() & 1u) {
+				Label::sub(tree_target, global_target, s);
 			} else {
 				tree_target = s;
 			}
@@ -292,26 +316,33 @@ public:
 
 				// join to output list
 				t.template twolevel_streamjoin_on_iT_hashmap_v2
-					<k_lower1, k_upper1, k_lower2, k_upper2>
-					(out, *hmiL, L1, L2, *hmL2, target, tmp_iT);
-				// TODO: optimize the filtering, use a lambda to directly exit upon the first match
+					<k_lower1, k_upper1, k_lower2, k_upper2, 4*instance.bp>
+					(out, *hmiL, L1, L2, *hmL2, tree_target, tmp_iT);
 
+				// TODO: optimize the filtering, use a lambda to directly exit upon the first match
 				iters += 1;
 			}
 
 			// std::cout << target << std::endl;
 			// std::cout << out << std::endl;
 			ASSERT(out.load() > 0);
-			for (const auto &o :out) {
-				ASSERT(o.is_correct(A));
+			size_t wrong = 0;
+			for (size_t it = 0; it < out.load(); it++) {
+				ASSERT(out[it].is_correct(A));
+				if (!out[it].label.is_equal(tree_target, 0, k_upper2)) {
+					wrong += 1;
+				}
 			}
 
-			std::cout << "iters:" << iters << std::endl;
-			std::cout << target << std::endl;
-			std::cout << out << std::endl;
-
 			Element ret = out[0];
-			ASSERT(ret.label.is_equal(target, 0, k_upper2));
+			ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
+			// debug information
+			// std::cout << "iters:" << iters << std::endl;
+			// std::cout << "wrong:" << wrong << std::endl;
+			// std::cout << tree_target << ", tree_target" << std::endl;
+			// std::cout << out << std::endl;
+			// std::cout << ret << ", ret" << std::endl;
+
 			return ret;
 		};
 
@@ -320,17 +351,15 @@ public:
 			x.random(A);
 			y = f(x);
 			s.random(0, 1ull << k_upper2);
-			tree_iT.random(0, 1ull << k_upper1);
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
 
-			std::cout << x << " x" << std::endl;
-			std::cout << y << " y" << std::endl;
-			std::cout << s << " s" << std::endl;
-			std::cout << tree_iT << std::endl << std::endl;
+			// std::cout << x << ", x" << std::endl;
+			// std::cout << y << ", y" << std::endl;
+			// std::cout << s << ", s" << std::endl;
 
 			/// restart every X runs
-			if (rho::run(f, x, y, instance.walk_len)) {
+			if (rho::run(f, flavour, x, y, instance.walk_len)) {
 				break;
 			}
 		}
@@ -338,10 +367,10 @@ public:
 		Element sol;
 		Element::add(sol, x, y);
 
-		std::cout << x << std::endl;
-		std::cout << y << std::endl;
-		std::cout << sol << std::endl;
-		std::cout << target << std::endl;
+		std::cout << x << "x" << std::endl;
+		std::cout << y << "y" << std::endl;
+		std::cout << sol << "sol" << std::endl;
+		std::cout << global_target << "global_target" << std::endl;
 
 		// memory cleanup
 		delete hmL2;

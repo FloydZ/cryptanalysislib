@@ -193,7 +193,7 @@ namespace internal {
         requires std::forward_iterator<Iterator>
 #endif
     constexpr static Iterator advanced(Iterator iter,
-                                       Iterator::difference_type offset) noexcept {
+                                       typename Iterator::difference_type offset) noexcept {
         Iterator ret = iter;
         std::advance(ret, offset);
         return ret;

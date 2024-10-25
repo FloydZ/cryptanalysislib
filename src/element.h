@@ -235,6 +235,13 @@ public:
 		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
 	}
 
+	/// \param e3
+	/// \param e1
+	/// \param e2
+	/// \param k_lower
+	/// \param k_upper
+	/// \param norm
+	/// \return
 	constexpr static bool sub(Element_T &e3,
 							  Element_T const &e1,
 							  Element_T const &e2,
@@ -245,7 +252,8 @@ public:
 		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
 	}
 
-	///  Useful if you do not want to filter in your tree and want additional performance.
+	/// Useful if you do not want to filter in your tree and
+	/// want additional performance.
 	constexpr static void add(Element_T &e3,
 	                          Element_T const &e1,
 	                          Element_T const &e2) noexcept {
@@ -253,7 +261,8 @@ public:
 		Value::add(e3.value, e1.value, e2.value);
 	}
 
-	///  Useful if you do not want to filter in your tree and want additional performance.
+	/// Useful if you do not want to filter in your tree and
+	/// want additional performance.
 	constexpr static void sub(Element_T &e3,
 	                          Element_T const &e1,
 	                          Element_T const &e2) noexcept {
@@ -261,6 +270,13 @@ public:
 		ValueContainerType::sub(e3.value, e1.value, e2.value);
 	}
 
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \tparam norm
+	/// \param e3
+	/// \param e1
+	/// \param e2
+	/// \return
 	template<const uint32_t k_lower,
 			 const uint32_t k_upper,
 			 const uint32_t norm=-1u>
@@ -271,7 +287,16 @@ public:
 		return Value::template add<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
 	}
 
-	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1u>
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \tparam norm
+	/// \param e3
+	/// \param e1
+	/// \param e2
+	/// \return
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper,
+			 const uint32_t norm=-1u>
 	constexpr static bool sub(Element_T &e3,
 							  Element_T const &e1,
 							  Element_T const &e2) noexcept {
