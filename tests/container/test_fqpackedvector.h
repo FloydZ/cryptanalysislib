@@ -1,9 +1,9 @@
 TEST(NAME, access) {
 	K t;
-	for (uint32_t i = 0; i < K::length(); ++i) {
+	for (uint32_t i = 0; i < K::length; ++i) {
 		t.set(i,i);
 	}
-	for (uint32_t i = 0; i < K::length(); ++i) {
+	for (uint32_t i = 0; i < K::length; ++i) {
 		const auto d = t.get(i);
 		EXPECT_EQ(d, i % PRIME);
 
@@ -11,11 +11,11 @@ TEST(NAME, access) {
 		EXPECT_EQ(d2, i % PRIME);
 	}
 
-	for (uint32_t i = 0; i < K::length(); ++i) {
+	for (uint32_t i = 0; i < K::length; ++i) {
 		t.set(0, i);
 	}
 
-	for (uint32_t i = 0; i < K::length(); ++i) {
+	for (uint32_t i = 0; i < K::length; ++i) {
 		const auto d = t.get(i);
 		EXPECT_EQ(d, 0);
 
@@ -27,7 +27,7 @@ TEST(NAME, access) {
 TEST(NAME, random) {
 	auto t = K();
 	t.random();
-	for (uint32_t i = 0; i < K::length(); i++){
+	for (uint32_t i = 0; i < K::length; i++){
 		EXPECT_LE(t.get(i), PRIME);
 	}
 }
@@ -35,7 +35,7 @@ TEST(NAME, random) {
 TEST(NAME, comparsion) {
 	auto t1 = K();
 	auto t2 = K();
-	for (uint32_t i = 1; i < K::length(); i++){
+	for (uint32_t i = 1; i < K::length; i++){
 		t2.set(1, i);
 		EXPECT_EQ(t1.is_lower(t2), true);
 		EXPECT_EQ(t1.is_greater(t2), false);

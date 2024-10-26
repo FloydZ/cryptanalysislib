@@ -58,7 +58,7 @@ public:
 	constexpr static uint32_t n = _n;
 	constexpr static uint32_t length = _n;
 	constexpr static uint64_t q = 2;
-	[[nodiscard]] constexpr static inline uint64_t modulus() noexcept { return q; }
+	constexpr static uint64_t modulus = q;
 
 	constexpr static uint32_t RADIX = sizeof(T) * 8;
 	constexpr static T minus_one = T(-1);

@@ -372,7 +372,7 @@ static inline size_t reverse_biject(const T s) noexcept {
     if (s == 0) [[unlikely]] { return 0; }
 
     alignas(64) static T L[w][t] = {{0}};
-	reverse_biject_helper<T>(L, w, t);
+	reverse_biject_helper<T>((T **)L, w, t);
 
 	T ss = s;
     const uint32_t p = cryptanalysislib::popcount::popcount(s);
@@ -401,6 +401,8 @@ static inline size_t reverse_biject(const uint32_t *s,
     if (s == 0) [[unlikely]] { return 0; }
 
     alignas(64) static T L[w][t] = {{0}};
+	reverse_biject_helper<T>((T **)L, w, t);
+
 	T ss = s;
     ASSERT(p <= w);
 

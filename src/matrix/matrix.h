@@ -17,7 +17,7 @@
 /// \tparam LabelType
 template<class LabelType>
 concept LabelTypeAble = requires(LabelType c) {
-	LabelType::length();
+	LabelType::length;
 	LabelType::info();
 
 	requires requires(const uint32_t i) {
@@ -1239,7 +1239,7 @@ public:
 	                   const ValueType &in) const noexcept {
 		// using DataType = typename LabelType::DataType;
 		constexpr uint32_t IN_COLS = ValueType::length;
-		constexpr uint32_t OUT_COLS = LabelType::length();
+		constexpr uint32_t OUT_COLS = LabelType::length;
 		static_assert((IN_COLS == COLS)  || (IN_COLS == ROWS)) ;
 		static_assert((OUT_COLS == ROWS) || (OUT_COLS == COLS));
 

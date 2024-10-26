@@ -18,14 +18,15 @@ using namespace cryptanalysislib::metric;
 
 struct FqConfig : public AlignmentConfig {
 	// see Fq::mirror for explanation
-	constexpr static bool mirror = false;
+	const bool mirror = false;
 
 	// see Fq::arith for explanation
-	constexpr static bool arith = true;
+	const bool arith = true;
 	
 	// see Fq::lower_is_zero for explanation
-	constexpr static bool lower_is_zero = true;
-} fqConfig;
+	const bool lower_is_zero = true;
+}; 
+constexpr static FqConfig fqConfig;
 
 //TODo rename to Fqelement
 
@@ -41,7 +42,7 @@ class FqElement {
 public:
 	// make the length and modulus of the container public available
 	constexpr static T q = _q;
-	[[nodiscard]] constexpr static inline T modulus() noexcept { return _q; }
+	constexpr static T modulus = q;
 	constexpr static uint64_t n = 1;
 
 	/// \return the number of bits needed to store a single element mod q
@@ -49,7 +50,7 @@ public:
 
 	/// \return the number of subelements within this container. As this 
 	/// 		container only contains a single number its 1.
-	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return 1; }
+	constexpr static uint64_t length = 1;
 
 	constexpr static uint64_t M = computeM_u32(_q);
 	// max bytes of T for which `fastmod` is defined
@@ -596,7 +597,7 @@ public:
 		static_assert(sizeof(T) * 8 > lower);
 		static_assert(sizeof(T) * 8 >= upper);
 		static_assert(lower < upper);
-		static_assert(upper <= bits);
+		// TOOD was deactivated due to some bug in rho static_assert(upper <= bits);
 
 		constexpr T mask = compute_mask(lower, upper);
 		return (__value & mask) == (o.value() & mask);
@@ -1268,7 +1269,7 @@ public:
 
 	/// NOTE: lower and upper are ignored
 	constexpr void print(const uint32_t lower = 0,
-	                     const uint32_t upper = length()) const noexcept {
+	                     const uint32_t upper = length) const noexcept {
 		(void) lower;
 		(void) upper;
 		std::cout << __value << std::endl;

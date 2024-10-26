@@ -4,7 +4,7 @@
 
 #define private public
 
-#include "combination/chase.h"
+#include "combination/lexicographic.h"
 #include "random.h"
 
 using ::testing::InitGoogleTest;
@@ -25,7 +25,6 @@ TEST(enumerate_t, enumerate2_simple) {
 }
 
 int main(int argc, char **argv) {
-	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

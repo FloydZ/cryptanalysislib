@@ -2808,7 +2808,8 @@ constexpr inline int operator>(const cryptanalysislib::_uint8x16_t &a, const cry
 
 
 /// functions which are shared among all implementations.
-constexpr inline void uint8x32_t::print(bool binary, bool hex) const {
+template<const bool __unsigned>
+constexpr inline void Xint8x32_t<__unsigned>::print(bool binary, bool hex) const {
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 
@@ -2834,7 +2835,9 @@ constexpr inline void uint8x32_t::print(bool binary, bool hex) const {
 	printf("\n");
 }
 
-constexpr inline void uint16x16_t::print(bool binary, bool hex) const {
+template<const bool __unsigned>
+constexpr inline void Xint16x16_t<__unsigned>::print(bool binary,
+                                                     bool hex) const {
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 
@@ -2860,7 +2863,9 @@ constexpr inline void uint16x16_t::print(bool binary, bool hex) const {
 	printf("\n");
 }
 
-constexpr inline void uint32x8_t::print(bool binary, bool hex) const {
+template<const bool __unsigned>
+constexpr inline void Xint32x8_t<__unsigned>::print(bool binary,
+                                                    bool hex) const {
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 
@@ -2886,7 +2891,9 @@ constexpr inline void uint32x8_t::print(bool binary, bool hex) const {
 	printf("\n");
 }
 
-constexpr inline void uint64x4_t::print(bool binary, bool hex) const {
+template<const bool __unsigned>
+constexpr inline void Xint64x4_t<__unsigned>::print(bool binary, 
+                                                    bool hex) const {
 	/// make sure that only one is defined
 	ASSERT(binary + hex < 2);
 

@@ -8,22 +8,22 @@
 struct ListConfig : public AlignmentConfig {
 public:
 	// if `true` all internal sorting algorithms are `std::sort`
-	constexpr static bool use_std_sort = true;
+	const bool use_std_sort = true;
 
 	// if `true`, the call to `binary_search` will be remapped to
 	// the standard implementation
-	constexpr static bool use_std_binary_search = true;
+	const bool use_std_binary_search = true;
 
 	// if `true`
-	constexpr static bool use_interpolation_search = false;
+	const bool use_interpolation_search = false;
 
 	// if `true` sorting is increasing, else decresing
-	constexpr static bool sort_increasing_order = true;
+	const bool sort_increasing_order = true;
 
 	// if 'true', add_and_append will be allow to resize
-	constexpr static bool allow_resize = true;
+	const bool allow_resize = true;
 
-	static void info() noexcept {
+	void info() const noexcept {
 		std::cout << " { name=\"ListConfig\""
 				  << " , use_std_sort:" << use_std_sort
 		          << " , use_std_sort:" << use_std_binary_search
@@ -32,7 +32,9 @@ public:
 				  << " }\n";
 	};
 
-} listConfig;
+};
+
+constexpr static ListConfig listConfig;
 
 
 
@@ -330,8 +332,8 @@ public:
 	using LoadType = size_t;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::length();
-	constexpr static uint32_t LabelLENGTH = LabelType::length();
+	constexpr static uint32_t ValueLENGTH = ValueType::length;
+	constexpr static uint32_t LabelLENGTH = LabelType::length;
 
 	/// size in bytes
 	constexpr static uint64_t ElementBytes = Element::bytes();
@@ -808,7 +810,7 @@ public:
 				  << " , ValueLENGTH:" << ValueLENGTH
 				  << " , LabelLENGTH:" << LabelLENGTH
 		          << " }" << std::endl;
-		ListConfig::info();
+		config.info();
 		ElementType::info();
 	}
 };

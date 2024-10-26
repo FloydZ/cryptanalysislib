@@ -146,7 +146,7 @@ public:
 
 	// internal data types lengths
 	constexpr static uint32_t ValueLENGTH = ValueType::length;
-	constexpr static uint32_t LabelLENGTH = LabelType::length();
+	constexpr static uint32_t LabelLENGTH = LabelType::length;
 
 private:
 	constexpr static bool needs_recomputation = config.needs_recomputation;

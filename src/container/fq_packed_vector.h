@@ -37,9 +37,9 @@ public:
 
 	// make the length and modulus of the container public available
 	constexpr static uint64_t q = _q;
-	[[nodiscard]] constexpr static inline uint64_t modulus() noexcept { return q; }
+	constexpr static uint64_t modulus = q;
 	constexpr static uint32_t n = _n;
-	[[nodiscard]] constexpr static inline uint64_t length() noexcept { return n; }
+	constexpr static uint64_t length = n;
 	
 	static_assert(n > 0, "jeah at least a single bit?");
 	static_assert(q > 1, "mod 1 or 0?");
@@ -105,7 +105,7 @@ public:
 	template<const uint32_t l, const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
-		static_assert(h <= length());
+		static_assert(h <= length);
 
 		constexpr uint32_t bits = used_bits_per_limb;
 
@@ -161,7 +161,7 @@ public:
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
 		ASSERT(l < h);
-		ASSERT(h <= length());
+		ASSERT(h <= length);
 		ASSERT((h-l) <= n);
 
 		constexpr uint32_t bits = used_bits_per_limb;
@@ -287,7 +287,7 @@ public:
 	/// \return the number you wanted to access, shifted down to the lowest bits.
 	[[nodiscard]] constexpr inline DataType get(const uint32_t i) const noexcept {
 		// needs 5 instructions. So 64*5 for the whole limb
-		ASSERT(i < length());
+		ASSERT(i < length);
 		return (DataType((__data[i / numbers_per_limb] >> ((i % numbers_per_limb) * bits_per_number)) & number_mask) % q);
 	}
 
@@ -297,7 +297,7 @@ public:
 	/// \return nothing
 	constexpr inline void set(const DataType data,
 	                          const uint32_t i) noexcept {
-		ASSERT(i < length());
+		ASSERT(i < length);
 		const uint16_t off = i / numbers_per_limb;
 		const uint16_t spot = (i % numbers_per_limb) * bits_per_number;
 
@@ -345,7 +345,7 @@ public:
 	/// \param b higher bound, exclusive
 	/// \return nothing
 	constexpr void one(const uint32_t a = 0,
-	                   const uint32_t b = length()) noexcept {
+	                   const uint32_t b = length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
 			set(1, i);
@@ -353,7 +353,7 @@ public:
 	}
 
 	constexpr void minus_one(const uint32_t a = 0,
-					   	    const uint32_t b = length()) noexcept {
+					   	    const uint32_t b = length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
 			set(q-1, i);
@@ -365,10 +365,10 @@ public:
 	/// \param b higher bound, exclusive
 	/// \return nothing
 	constexpr void two(const uint32_t a = 0,
-	                   const uint32_t b = length()) noexcept {
+	                   const uint32_t b = length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
-			set(2 % modulus(), i);
+			set(2 % modulus, i);
 		}
 	}
 
@@ -377,10 +377,10 @@ public:
 	/// \param b higher bound, exclusive
 	/// \return nothing
 	constexpr void random(const uint32_t a = 0,
-	                      const uint32_t b = length()) noexcept {
+	                      const uint32_t b = length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = a; i < b; i++) {
-			const auto d = rng(modulus());
+			const auto d = rng(modulus);
 			set(d, i);
 		}
 	}
@@ -408,7 +408,7 @@ public:
 	constexpr void get_bits_set(uint16_t *out,
 	                            const uint32_t p) const noexcept {
 		uint32_t ctr = 0;
-		for (uint32_t i = 0; i < length(); i++) {
+		for (uint32_t i = 0; i < length; i++) {
 			if (unsigned(get(i)) != 0u) {
 				out[ctr] = i;
 				ctr += 1u;
@@ -450,7 +450,7 @@ public:
 	/// \param j second coordinate
 	constexpr void swap(const uint16_t i,
 	                    const uint16_t j) noexcept {
-		ASSERT(i < length() && j < length());
+		ASSERT(i < length && j < length);
 		auto tmp = get(i);
 		set(i, get(j));
 		set(j, tmp);
@@ -461,10 +461,10 @@ public:
 	/// \param k_lower lower limit, inclusive
 	/// \param k_upper higher limit, exclusive
 	constexpr inline void neg(const uint32_t k_lower = 0,
-	                          const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                          const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			set(((-get(i)) + modulus()) % modulus(), i);
+			set(((-get(i)) + modulus) % modulus, i);
 		}
 	}
 
@@ -474,7 +474,7 @@ public:
 	template<uint32_t k_lower, uint32_t k_upper>
 	constexpr inline void neg() noexcept {
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			set(((-get(i)) + modulus()) % modulus(), i);
+			set(((-get(i)) + modulus) % modulus, i);
 		}
 	}
 
@@ -704,7 +704,7 @@ public:
 	/// \param v1 input
 	constexpr inline static void add(FqPackedVectorMeta &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
-		add(v1, v1, v2, 0, length());
+		add(v1, v1, v2, 0, length);
 	}
 
 	/// v3 = v1 + v2
@@ -714,7 +714,7 @@ public:
 	constexpr inline static void add(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
-		add(v3, v1, v2, 0, length());
+		add(v3, v1, v2, 0, length);
 	}
 
 	/// generic add: v3 = v1 + v2 between [k_lower, k_upper)
@@ -728,10 +728,10 @@ public:
 	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower,
 									 const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);
-			v3.set(data % modulus(), i);
+			v3.set(data % modulus, i);
 		}
 	}
 
@@ -745,10 +745,10 @@ public:
 	constexpr inline static void add(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
-		static_assert(k_upper <= length() && k_lower < k_upper);
+		static_assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);
-			v3.set(data % modulus(), i);
+			v3.set(data % modulus, i);
 		}
 	}
 
@@ -757,7 +757,7 @@ public:
 	/// \param v2 input
 	constexpr inline static void sub(FqPackedVectorMeta &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
-		sub(v1, v1, v2, 0, length());
+		sub(v1, v1, v2, 0, length);
 	}
 
 	/// v3 = v1 - v2 mod q
@@ -768,7 +768,7 @@ public:
 	constexpr inline static void sub(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
-		sub(v3, v1, v2, 0, length());
+		sub(v3, v1, v2, 0, length);
 	}
 
 	/// v3 = v1 - v2 between [k_lower, k_upper)
@@ -782,12 +782,12 @@ public:
 	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower,
 									 const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i));
 			if (data < 0)
-				data += modulus();
-			v3.set(data % modulus(), i);
+				data += modulus;
+			v3.set(data % modulus, i);
 		}
 	}
 
@@ -801,12 +801,12 @@ public:
 	constexpr inline static void sub(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
-		static_assert(k_upper <= length() && k_lower < k_upper);
+		static_assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i));
 			if (data < 0)
-				data += modulus();
-			v3.set(data % modulus(), i);
+				data += modulus;
+			v3.set(data % modulus, i);
 		}
 	}
 
@@ -820,10 +820,10 @@ public:
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                 const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = (v1.get(i) * v2.get(i)) % modulus();
+			DataType data = (v1.get(i) * v2.get(i)) % modulus;
 			v3.set(data, i);
 		}
 	}
@@ -836,10 +836,10 @@ public:
 	constexpr inline static void mod(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                 const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = v1.get(i) % modulus();
+			DataType data = v1.get(i) % modulus;
 			v3.set(data, i);
 		}
 	}
@@ -854,10 +854,10 @@ public:
 	                                    FqPackedVectorMeta const &v1,
 	                                    const TT v2,
 	                                    const uint32_t k_lower = 0,
-	                                    const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                    const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = (v1.get(i) * v2) % modulus();
+			DataType data = (v1.get(i) * v2) % modulus;
 			v3.set(data, i);
 		}
 	}
@@ -870,8 +870,8 @@ public:
 	constexpr inline static bool cmp(FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower = 0,
-									 const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+									 const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			if (v1.get(i) != v2.get(i)) {
 				return false;
@@ -888,7 +888,7 @@ public:
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr inline static bool cmp(FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
-		static_assert( k_upper <= length() && k_lower < k_upper);
+		static_assert( k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			if (v1.get(i) != v2.get(i)) {
 				return false;
@@ -905,8 +905,8 @@ public:
 	constexpr inline static void set(FqPackedVectorMeta &v1,
 	                                 FqPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                 const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			v1.set(v2.get(i), i);
 		}
@@ -918,7 +918,7 @@ public:
 	/// \return this == obj between [k_lower, k_upper)
 	[[nodiscard]] constexpr bool is_equal(FqPackedVectorMeta const &obj,
 										  const uint32_t k_lower = 0,
-										  const uint32_t k_upper = length()) const noexcept {
+										  const uint32_t k_upper = length) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
@@ -937,8 +937,8 @@ public:
 	/// \return this > obj [k_lower, k_upper)
 	[[nodiscard]] constexpr bool is_greater(FqPackedVectorMeta const &obj,
 	                          const uint32_t k_lower = 0,
-	                          const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                          const uint32_t k_upper = length) const noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) > obj.get(i - 1)) {
 				return true;
@@ -956,7 +956,7 @@ public:
 	/// \return this > obj [k_lower, k_upper)
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	[[nodiscard]] constexpr bool is_greater(FqPackedVectorMeta const &obj) const noexcept {
-		static_assert( k_upper <= length() && k_lower < k_upper);
+		static_assert( k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) > obj.get(i - 1)) {
 				return true;
@@ -974,8 +974,8 @@ public:
 	/// \return this < obj [k_lower, k_upper)
 	[[nodiscard]] constexpr bool is_lower(FqPackedVectorMeta const &obj,
 	                        			  const uint32_t k_lower = 0,
-	                        			  const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                        			  const uint32_t k_upper = length) const noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) < obj.get(i - 1)) {
 				return true;
@@ -993,7 +993,7 @@ public:
 	/// \return this < obj [k_lower, k_upper)
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	[[nodiscard]] constexpr bool is_lower(FqPackedVectorMeta const &obj) const noexcept {
-		static_assert( k_upper <= length() && k_lower < k_upper);
+		static_assert( k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) < obj.get(i - 1)) {
 				return true;
@@ -1027,8 +1027,8 @@ public:
 	/// shifts this by i to the left
 	/// \param i amount to shift
 	constexpr void left_shift(const uint32_t i) noexcept {
-		ASSERT(i < length());
-		for (uint32_t j = length(); j > i; j--) {
+		ASSERT(i < length);
+		for (uint32_t j = length; j > i; j--) {
 			set(get(j - i - 1), j - 1);
 		}
 
@@ -1041,7 +1041,7 @@ public:
 	/// shifts this by i to the left
 	/// \param i amount to shift
 	constexpr void right_shift(const uint32_t i) noexcept {
-		ASSERT(i < length());
+		ASSERT(i < length);
 		for (uint32_t j = 0; j < n - i; j--) {
 			const auto data = get(i + j);
 			set(data, j);
@@ -1057,8 +1057,8 @@ public:
 	/// \param k_lower lower limit
 	/// \param k_upper upper limit
 	void print(const uint32_t k_lower = 0,
-	           const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
+	           const uint32_t k_upper = length) const noexcept {
+		ASSERT(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << unsigned(get(i));
 		}
@@ -1071,7 +1071,7 @@ public:
 	/// \param k_higher exclusive
 	void static print_binary(const uint64_t data,
 	                         const uint16_t k_lower = 0,
-	                         const uint16_t k_higher = length()) noexcept {
+	                         const uint16_t k_higher = length) noexcept {
 		uint64_t d = data;
 		for (uint32_t i = k_lower; i < k_higher; ++i) {
 			std::cout << unsigned(d & 1);
@@ -1085,7 +1085,7 @@ public:
 	/// \param k_lower inclusive
 	/// \param k_higher exclusive
 	void print_binary(const uint32_t k_lower = 0,
-	                  const uint32_t k_higher = length()) const noexcept {
+	                  const uint32_t k_higher = length) const noexcept {
 		for (uint32_t i = k_lower; i < k_higher; ++i) {
 			std::cout << unsigned(get(i) & 1);
 			std::cout << unsigned((get(i) >> 1) & 1);
@@ -1159,20 +1159,20 @@ public:
 	/// \param i
 	/// \return the ith element;
 	constexpr inline DataType operator[](const size_t i) noexcept {
-		ASSERT(i < length());
+		ASSERT(i < length);
 		return get(i);
 	}
 
 	/// \param i
 	/// \return the i-element
 	constexpr inline DataType operator[](const size_t i) const noexcept {
-		ASSERT(i < length());
+		ASSERT(i < length);
 		return get(i);
 	};
 
 	// return `true` if the datastruct contains binary data.
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length; }
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return internal_limbs; }
 	/// returns size of a single element in this container in bits
 	[[nodiscard]] __FORCEINLINE__ constexpr static size_t sub_container_size() noexcept { return bits_per_limb; }
@@ -1183,11 +1183,11 @@ public:
 
 
 	[[nodiscard]] constexpr T limb(const size_t index) noexcept {
-		ASSERT(index < length());
+		ASSERT(index < length);
 		return __data[index];
 	}
 	[[nodiscard]] constexpr T limb(const size_t index) const noexcept {
-		ASSERT(index < length());
+		ASSERT(index < length);
 		return __data[index];
 	}
 
@@ -1243,8 +1243,8 @@ template<const uint32_t n,
 class FqPackedVector : public FqPackedVectorMeta<n, q, T> {
 public:
 	/// Nomenclature:
-	///     Number 	:= actual data one wants to save % modulus()
-	///		Limb 	:= Underlying data container holding at max sizeof(T)/log2(modulus()) many numbers.
+	///     Number 	:= actual data one wants to save % modulus
+	///		Limb 	:= Underlying data container holding at max sizeof(T)/log2(modulus) many numbers.
 	/// Its not possible, that numbers cover more than one limb.
 	/// The internal data container layout looks like this:
 	/// 		limb0				limb1			limb2
@@ -1427,7 +1427,7 @@ public:
 	/// \tparam k_upper upper limit exclusive
 	template<uint32_t k_lower, uint32_t k_upper>
 	constexpr inline void neg() noexcept {
-		static_assert(k_upper <= length() && k_lower < k_upper);
+		static_assert(k_upper <= length && k_lower < k_upper);
 
 		constexpr uint32_t ll = 2 * k_lower / bits_per_limb;
 		constexpr uint32_t lh = 2 * k_upper / bits_per_limb;
@@ -1553,10 +1553,10 @@ public:
 	                                 FqPackedVector const &v2,
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+		ASSERT(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i)) + modulus();
-			v3.set(data % modulus(), i);
+			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i)) + modulus;
+			v3.set(data % modulus, i);
 		}
 	}
 
@@ -1771,7 +1771,7 @@ public:
 	/// \return return the twos in a[k_lower, k_upper].
 	template<const uint16_t k_lower, const uint16_t k_upper, typename TT = DataType>
 	constexpr static inline uint32_t filter2count_range_T(const TT a) noexcept {
-		static_assert(k_lower != 0 && k_lower < k_upper && k_upper <= length());
+		static_assert(k_lower != 0 && k_lower < k_upper && k_upper <= length);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16u ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
 		constexpr TT mask = ((TT(1u) << (2u * k_lower)) - 1u) & ((TT(1u) << (2u * k_upper)) - 1u);
@@ -1782,7 +1782,7 @@ public:
 	/// \tparam kupper
 	template<const uint16_t k_upper, typename TT = DataType>
 	constexpr inline uint32_t filter2count_T() {
-		static_assert(k_upper <= length());
+		static_assert(k_upper <= length);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16 ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
 		constexpr TT mask = (TT(1u) << (2u * k_upper) % bits_per_limb) - 1u;
@@ -1808,7 +1808,7 @@ public:
 	/// \return number of twos
 	template<const uint16_t k_upper, typename TT = DataType>
 	constexpr static inline uint32_t filter2count_range_T(const TT a) noexcept {
-		ASSERT(0 < k_upper && k_upper <= length());
+		ASSERT(0 < k_upper && k_upper <= length);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16u ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
 		constexpr TT mm = (TT(1u) << (2u * k_upper)) - 1u;

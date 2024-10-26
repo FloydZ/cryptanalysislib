@@ -48,11 +48,9 @@ std::atomic<uint32_t> __global_tid = 0;
 /// but heavily modified to the c++ world by floyd
 
 
-struct futex debug_futex;
-static int debug_futex_init_done = 0;
-
 char debug_msg[1000];
 
+using namespace cryptanalysislib::atomic;
 
 namespace cryptanalysislib {
 
@@ -86,10 +84,6 @@ namespace cryptanalysislib {
 	}
 
 	void __mythread_debug_futex_init() {
-		if (debug_futex_init_done != 1) {
-			futex_init(&debug_futex, 1);
-			debug_futex_init_done = 0;
-		}
 	}
 #define CLONE_SIGNAL
 
@@ -107,7 +101,7 @@ namespace cryptanalysislib {
 	mythread_t idle_u_tcb;
 
 	/* Global futex. Please see the mythread_yield() function for more info */
-	struct futex gfutex;
+	struct futex gfutex(0);
 
 	/* This function initializes the Queue with a single node.
 	*/
@@ -214,7 +208,7 @@ namespace cryptanalysislib {
 			/* Wake up the target thread. This won't cause any races because
 		 	 * it is protected by a global futex.
 		 	 */
-			futex_up(&ptr->sched_futex);
+			ptr->sched_futex.up();
 			DEBUG_PRINTF("Dispatcher: Woken up:%ld, to %d\n",
 			             (unsigned long) ptr->tid, ptr->sched_futex.count);
 			return 0;
@@ -290,12 +284,12 @@ namespace cryptanalysislib {
 	 	 * So, protect yield by a global futex and make sure the current thread
 	 	 * atleast reduces its futex value to 0, before another one starts.
 	 	 */
-		futex_down(&gfutex);
+		gfutex.down();
 
 		retval = __mythread_dispatcher(self);
 		/* Only one thread. Nothing to do */
 		if (retval == -1) {
-			futex_up(&gfutex);
+			gfutex.up();
 			return 0;
 		}
 
@@ -307,16 +301,16 @@ namespace cryptanalysislib {
 	 	 * down. This, alongwith the global futex, seems to alleviate maximum
 	 	 * races in yield.
 	 	 */
-		if (self->sched_futex.count > 0) {
-			futex_down(&self->sched_futex);
+		if (self->sched_futex.get() > 0) {
+			self->sched_futex.up();
 		}
 
-		futex_up(&gfutex);
+		gfutex.up();
 
 		DEBUG_PRINTF("Yield: Might sleep on second down %ld %d\n",
 		             (unsigned long) self->tid, self->sched_futex.count);
 		/* Sleep till another process wakes us up */
-		futex_down(&self->sched_futex);
+		self->sched_futex.down();
 
 		return 0;
 	}
@@ -366,7 +360,7 @@ namespace cryptanalysislib {
 		             new_tcb->sched_futex.count);
 
 		/* Suspend till explicitly woken up */
-		futex_down(&new_tcb->sched_futex);
+		new_tcb->sched_futex.down();
 
 		DEBUG_PRINTF("Wrapper: futex value: %ld %d\n",
 		             (unsigned long) new_tcb->tid, new_tcb->sched_futex.count);
@@ -398,7 +392,7 @@ namespace cryptanalysislib {
 		main_tcb->tid = __mythread_gettid();
 
 		/* Initialize futex to zero */
-		futex_init(&main_tcb->sched_futex, 1);
+		// futex_init(&main_tcb->sched_futex, 1);
 
 		/* Put it in the Queue of thread blocks */
 		mythread_q_add(main_tcb);
@@ -436,7 +430,7 @@ namespace cryptanalysislib {
 				return retval;
 
 			/* Initialise the global futex */
-			futex_init(&gfutex, 1);
+			// futex_init(&gfutex, 1);
 
 			/* Now create the node for Idle thread with a recursive call to mythread_create(). */
 			DEBUG_PRINTF("create: creating node for Idle thread \n");
@@ -479,7 +473,7 @@ namespace cryptanalysislib {
 		new_node->returnValue = nullptr;
 		new_node->blockedForJoin = nullptr;
 		/* Initialize the tcb's sched_futex to zero. */
-		futex_init(&new_node->sched_futex, 0);
+		// futex_init(&new_node->sched_futex, 0);
 
 		/* Put it in the Q of thread blocks */
 		mythread_q_add(new_node);

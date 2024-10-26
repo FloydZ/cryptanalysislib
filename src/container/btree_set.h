@@ -46,7 +46,6 @@ constexpr static BKTreeConfig bkTreeConfig;
 /// \tparam Allocator
 /// \tparam config
 template <typename E,
-		  class Allocator=std::allocator<E>,
 		  const BKTreeConfig &config=bkTreeConfig>
 class BTreeSet final {
 	// Forward declaration
@@ -261,11 +260,14 @@ private:
 	class Node final {
 
 	public:
+
 		// Size is in the range [0, maxKeys] for root node, [minKeys, maxKeys] for all other nodes.
-		std::vector<E, Allocator> keys;
+        using Allocator1 = std::allocator<E>;
+		std::vector<E, Allocator1> keys;
 
 		// If leaf then size is 0, otherwise if internal node then size always equals keys.size()+1.
-		std::vector<std::unique_ptr<Node>, Allocator> children;
+        using Allocator2 = std::allocator<std::unique_ptr<Node>>;
+		std::vector<std::unique_ptr<Node>, Allocator2> children;
 
 
 		/// Note: Once created, a node's structure never changes between a leaf and internal node.

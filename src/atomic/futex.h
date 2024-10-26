@@ -177,6 +177,10 @@ namespace cryptanalysislib::atomic {
 			}
 			return 0;
 		}
+
+        inline int get() noexcept {
+            return count; 
+        }
 	};
 } // end namespace cryptanalysislib
 #endif//CRYPTANALYSISLIB_FUTEX_H

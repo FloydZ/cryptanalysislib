@@ -1,6 +1,11 @@
 #ifndef CRYPTANALYSISLIB_LIST_H
 #define CRYPTANALYSISLIB_LIST_H
 
+#include <algorithm>// search/find routines
+#include <cassert>
+#include <iterator>
+#include <vector>// main data container
+
 #include "list/enumeration/enumeration.h"
 #include "list/common.h"
 #include "list/parallel.h"
@@ -12,15 +17,11 @@
 #include "search/search.h"
 #include "hash/hash.h"
 
-#include <algorithm>// search/find routines
-#include <cassert>
-#include <iterator>
-#include <vector>// main data container
-
 
 /// Mother of all lists
 /// \tparam Element
-template<class Element>
+template<class Element,
+         const ListConfig &config=listConfig>
 class List_T : public MetaListT<Element> {
 public:
 	/// needed typedefs
@@ -908,8 +909,8 @@ public:
 				  << " , ValueLENGTH:" << ValueLENGTH
 				  << " , LabelLENGTH:" << LabelLENGTH
 				  << " }" << std::endl;
-		ListConfig::info();
-		ElementType::info();
+		config.info(); 
+        ElementType::info();
 	}
 };
 

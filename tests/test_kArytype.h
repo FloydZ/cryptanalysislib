@@ -312,12 +312,12 @@ TEST(T, comparison_simple) {
 	EXPECT_EQ(false, l1.is_equal(l2));
 	EXPECT_EQ(false, l1.is_equal(l2, 0, 1));
 
-	for (size_t i = 1; i < S::bits(); ++i) {
+	for (size_t i = 1; i < S::bits; ++i) {
 		EXPECT_EQ(true, l1.is_equal(l1, i-1, i));
 	}
 
-	for (size_t j = 1; j < S::bits() - 1u; ++j) {
-		for (uint32_t i = j; i < S::bits(); i+=j) {
+	for (size_t j = 1; j < S::bits - 1u; ++j) {
+		for (uint32_t i = j; i < S::bits; i+=j) {
 			EXPECT_EQ(true, l1.is_equal(l1, i-j, i));
 			EXPECT_EQ(false, l1.is_lower(l1, i-j, i));
 			EXPECT_EQ(false, l1.is_greater(l1, i-j, i));
@@ -330,8 +330,8 @@ TEST(T, comparison_simple) {
 	std::cout << l2 << std::endl;
 	std::cout << l3 << std::endl;
 	if constexpr (!S::arith) {
-		for (size_t j = 1; j < S::bits() - 1u; ++j) {
-			for (uint32_t i = j; i < S::bits(); i += j) {
+		for (size_t j = 1; j < S::bits - 1u; ++j) {
+			for (uint32_t i = j; i < S::bits; i += j) {
 				const bool b = l2.is_equal(l3, i - j, i);
 				EXPECT_EQ(false, b);
 
@@ -342,7 +342,7 @@ TEST(T, comparison_simple) {
 		}
 	}
 
-	const uint64_t limit = S::bits()/2ll;
+	const uint64_t limit = S::bits/2ll;
 	const S l4 = (1ull << limit) - 1ull;
 	S l5 = l4;
 	l5.neg();
@@ -387,7 +387,7 @@ TEST(T, comparison_simple) {
 
 TEST(T, HashSimple) {
 	S b1;
-	constexpr uint32_t n = S::bits();
+	constexpr uint32_t n = S::bits;
 	for (uint32_t l = 0; l < n-1u; ++l) {
 		for (uint32_t h = l+1u; h < n; ++h) {
 			if ((h - l) > 64) { continue; }
@@ -410,7 +410,7 @@ TEST(T, HashSimple) {
 
 
 TEST(T, Constexpr) {
-	constexpr uint32_t n = S::bits();
+	constexpr uint32_t n = S::bits;
 	S b1;
 
 	b1.zero();

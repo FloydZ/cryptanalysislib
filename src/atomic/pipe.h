@@ -165,7 +165,7 @@ struct sched_pipe {
 
 		/* we need to ensure the above occur prior to updating the write index,
      	 * otherwise another thread might read before it's finished */
-		SCHED_BASE_MEMORY_BARRIER_RELEASE();
+		MEMORY_BARRIER_RELEASE();
 		/* 32-bit aligned stores are atomic, and writer owns the write index */
 		++write_index;
 		this->write = write_index;

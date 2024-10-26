@@ -28,7 +28,8 @@ constexpr static BKTreeConfig bkTreeConfig;
 /// \tparam Allocator
 /// \tparam config
 template<class T,
-		 class Allocator=cryptanalysislib::alloc::allocator,
+		 //TODO class Allocator=cryptanalysislib::alloc::allocator,
+		 class Allocator=std::allocator<T>,
 		 const BKTreeConfig &config=bkTreeConfig>
 class BKTree {
 	using node_type = BKTreeNode<T>;
@@ -88,7 +89,7 @@ public:
 	constexpr uint32_t lookup(const T &a) const noexcept {
 		if (root.children.size() == 0) { return 0; }
 
-		std::vector<node_type, Allocator> S;
+		std::vector<node_type> S;
 		S.emplace_back(root);
 		uint32_t d_best = uint32_t(-1);
 

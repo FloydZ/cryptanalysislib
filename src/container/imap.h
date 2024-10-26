@@ -287,7 +287,7 @@ public:
     }
 
     constexpr static inline uint32_t imap__node_popcnt__(imap_node_t *node,
-                                                         const uint32_t *p) noexcept {
+                                                         uint32_t *p) noexcept {
         return imap__popcnt_hi28__(node->vec32, p);
     }
 

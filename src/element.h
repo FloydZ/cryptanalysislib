@@ -105,11 +105,11 @@ concept ElementDataAble = requires(Container c,
 	// we also have to enforce the existence of some constexpr functions.
 	{ Container::optimized() } -> std::convertible_to<bool>;
 	{ Container::binary() } -> std::convertible_to<bool>;
-	// { Container::length } -> std::convertible_to<uint32_t>;
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
 	{ Container::sub_container_size() } -> std::convertible_to<uint32_t>;
+	// { Container::length } -> std::convertible_to<uint32_t>;
 };
 
 template<class Value, class Label, class Matrix>
@@ -149,8 +149,8 @@ public:
 	typedef typename Label::LimbType LabelLimbType;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = Value::length();
-	constexpr static uint32_t LabelLENGTH = Label::length();
+	constexpr static uint32_t ValueLENGTH = Value::length;
+	constexpr static uint32_t LabelLENGTH = Label::length;
 
 
 	/// normal constructor. Initialize everything with zero.

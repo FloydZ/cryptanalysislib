@@ -64,7 +64,7 @@ private:
 // lock is a RAII lock helper that offers Thread Safety Analysis annotations.
 // lock also holds methods for performing std::condition_variable::wait()
 // calls as these require a std::unique_lock<> which are unsupported by the TSA.
-template<class Mutex=annotated_mutex>
+template<class Mutex=annotated_mutex<std::mutex>>
 class SCOPED_CAPABILITY _lock {
 public:
 	///

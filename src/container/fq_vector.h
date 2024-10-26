@@ -34,11 +34,11 @@ class FqNonPackedVectorMeta {
 public:
 	// internal data length. Used in the template system to pass through this information
 	constexpr static uint64_t n = _n;
-	constexpr static inline uint64_t length() { return n; }
+	constexpr static uint64_t length = n;
 	constexpr static uint16_t internal_limbs = _n;
 
 	constexpr static uint64_t q = _q;
-	constexpr static inline uint64_t modulus() { return q; }
+	constexpr static uint64_t modulus = q;
 	constexpr static uint32_t qbits = ceil_log2(q);
 
 	// Needed for the internal template system.
@@ -59,7 +59,7 @@ public:
 	template<const uint32_t l, const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
-		static_assert(h <= length());
+		static_assert(h <= length);
 		static_assert(((h-l)*qbits) <= 64);
 
 		__uint128_t d = __data[l];
@@ -81,7 +81,7 @@ public:
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
 		ASSERT(l < h);
-		ASSERT(h <= length());
+		ASSERT(h <= length);
 		ASSERT(((h-l)*qbits) <= 64);
 
 		__uint128_t d = __data[l];
@@ -124,7 +124,7 @@ public:
 	/// zeros our the whole container
 	/// \return nothing
 	constexpr inline void zero(const uint32_t l=0,
-	                           const uint32_t h=length()) noexcept {
+	                           const uint32_t h=length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; i++) {
 			__data[i] = T(0);
@@ -134,7 +134,7 @@ public:
 	/// set everything one
 	/// \return nothing
 	constexpr inline void one(const uint32_t l=0,
-	                          const uint32_t h=length()) noexcept {
+	                          const uint32_t h=length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; i++) {
 			__data[i] = T(1);
@@ -143,7 +143,7 @@ public:
 
 	// sets everything
 	constexpr inline void minus_one(const uint32_t l=0,
-	                                const uint32_t h=length()) noexcept {
+	                                const uint32_t h=length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; i++) {
 			__data[i] = T(-1ull);
@@ -154,9 +154,9 @@ public:
 	/// \param k_lower lower coordinate to start from
 	/// \param k_higher higher coordinate to stop. Not included.
 	void random(const uint32_t k_lower = 0,
-	            const uint32_t k_higher = length()) noexcept {
+	            const uint32_t k_higher = length) noexcept {
 		ASSERT(k_lower < k_higher);
-		ASSERT(k_higher <= length());
+		ASSERT(k_higher <= length);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; i++) {
@@ -171,10 +171,10 @@ public:
 	/// \param offset start offset of the first error position
 	/// \return
 	constexpr void random_with_weight(const uint32_t w,
-									  const uint32_t m=length(),
+									  const uint32_t m=length,
 	                                  const uint32_t offset=0) noexcept {
 		ASSERT(w <= m);
-		ASSERT(m+offset <= length());
+		ASSERT(m+offset <= length);
 		zero();
 
 		// chose first
@@ -202,9 +202,9 @@ public:
 	/// checks if every dimension is zero
 	/// \return true/false
 	[[nodiscard]] constexpr bool is_zero(const uint32_t k_lower = 0,
-	                                     const uint32_t k_higher = length()) const noexcept {
+	                                     const uint32_t k_higher = length) const noexcept {
 		ASSERT(k_lower < k_higher);
-		ASSERT(k_higher <= length());
+		ASSERT(k_higher <= length);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; ++i) {
@@ -219,7 +219,7 @@ public:
 	/// calculate the hamming weight
 	/// \return the hamming weight
 	[[nodiscard]] constexpr inline uint32_t popcnt(const uint32_t l = 0,
-	                                               const uint32_t h = length()) const noexcept {
+	                                               const uint32_t h = length) const noexcept {
 		uint32_t r = 0;
 
 		LOOP_UNROLL();
@@ -237,14 +237,14 @@ public:
 	/// \param j coordinate
 	constexpr void swap(const uint32_t i,
 	                    const uint32_t j) noexcept {
-		ASSERT(i < length() && j < length());
+		ASSERT(i < length && j < length);
 		SWAP(__data[i], __data[j]);
 	}
 
 	/// *-1
 	/// \param i
 	constexpr void flip(const uint32_t i) noexcept {
-		ASSERT(i < length());
+		ASSERT(i < length);
 		ASSERT(__data[i] < q);
 		__data[i] *= -1;
 		__data[i] += q;
@@ -517,8 +517,8 @@ public:
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length());
-		for (uint32_t j = 0; j < length() - s; ++j) {
+		ASSERT(s < length);
+		for (uint32_t j = 0; j < length - s; ++j) {
 			const auto d = in.get(j);
 			out.set(d, j + s);
 		}
@@ -530,8 +530,8 @@ public:
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length());
-		for (uint32_t j = 0; j < length() - s; ++j) {
+		ASSERT(s < length);
+		for (uint32_t j = 0; j < length - s; ++j) {
 			const auto d = in.get(j+s);
 			out.set(d, j);
 		}
@@ -542,9 +542,9 @@ public:
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length());
-		for (uint32_t j = 0; j < length(); ++j) {
-			const auto d = in.get((j + s) % length());
+		ASSERT(s < length);
+		for (uint32_t j = 0; j < length; ++j) {
+			const auto d = in.get((j + s) % length);
 			out.set(d, j);
 		}
 	}
@@ -553,10 +553,10 @@ public:
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length());
-		for (uint32_t j = 0; j < length() - s; ++j) {
+		ASSERT(s < length);
+		for (uint32_t j = 0; j < length - s; ++j) {
 			const auto d = in.get(j);
-			out.set(d, (j + s) % length());
+			out.set(d, (j + s) % length);
 		}
 	}
 
@@ -590,8 +590,8 @@ public:
 	/// \param k_lower lower dimension inclusive
 	/// \param k_upper higher dimension, exclusive
 	constexpr inline void neg(const uint32_t k_lower = 0,
-	                          const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                          const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -645,7 +645,7 @@ public:
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper,
 	                                 const uint32_t norm = -1) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		if (norm == -1u) {
 			for (uint64_t i = k_lower; i < k_upper; ++i) {
@@ -677,7 +677,7 @@ public:
 	constexpr inline static bool add(FqNonPackedVectorMeta &v3,
 	                                 FqNonPackedVectorMeta const &v1,
 	                                 FqNonPackedVectorMeta const &v2) noexcept {
-		static_assert( k_upper <= length() && k_lower < k_upper);
+		static_assert( k_upper <= length && k_lower < k_upper);
 
 		if constexpr (norm == -1u) {
 			for (uint64_t i = k_lower; i < k_upper; ++i) {
@@ -743,7 +743,7 @@ public:
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper,
 	                                 const uint32_t norm = -1) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -769,7 +769,7 @@ public:
 	constexpr inline static bool sub(FqNonPackedVectorMeta &v3,
 	                                 FqNonPackedVectorMeta const &v1,
 	                                 FqNonPackedVectorMeta const &v2) noexcept {
-		static_assert(k_upper <= length() && k_lower < k_upper);
+		static_assert(k_upper <= length && k_lower < k_upper);
 
 		if constexpr (norm == -1u){
 			LOOP_UNROLL();
@@ -837,7 +837,7 @@ public:
 	constexpr inline static void scalar(FqNonPackedVectorMeta &v1,
 	                                    const DataType v2,
 	                                    const uint32_t k_lower = 0,
-	                                    const uint32_t k_upper = length()) noexcept {
+	                                    const uint32_t k_upper = length) noexcept {
 		scalar(v1, v1, v2, k_lower, k_upper);
 	}
 
@@ -850,8 +850,8 @@ public:
 	                                    const FqNonPackedVectorMeta &v1,
 	                                    const DataType v2,
 	                                    const uint32_t k_lower = 0,
-	                                    const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                    const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -867,8 +867,8 @@ public:
 	constexpr inline static bool cmp(FqNonPackedVectorMeta const &v1,
 	                                 FqNonPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                 const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -887,7 +887,7 @@ public:
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr inline static bool cmp(FqNonPackedVectorMeta const &v1,
 	                                 FqNonPackedVectorMeta const &v2) noexcept {
-		static_assert( k_upper <= length() && k_lower < k_upper);
+		static_assert( k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -908,8 +908,8 @@ public:
 	constexpr inline static void set(FqNonPackedVectorMeta &v1,
 	                                 FqNonPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                 const uint32_t k_upper = length) noexcept {
+		ASSERT(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -923,7 +923,7 @@ public:
 	/// \return this == obj on the coordinates [k_lower, k_higher)
 	constexpr bool is_equal(FqNonPackedVectorMeta const &obj,
 							const uint32_t k_lower = 0,
-							const uint32_t k_upper = length()) const noexcept {
+							const uint32_t k_upper = length) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
@@ -942,8 +942,8 @@ public:
 	/// \return this > obj on the coordinates [k_lower, k_higher)
 	constexpr bool is_greater(FqNonPackedVectorMeta const &obj,
 	                          const uint32_t k_lower = 0,
-	                          const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_upper <= length());
+	                          const uint32_t k_upper = length) const noexcept {
+		ASSERT(k_upper <= length);
 		ASSERT(k_lower < k_upper);
 		
 		LOOP_UNROLL();
@@ -964,7 +964,7 @@ public:
 	/// \return this > obj on the coordinates [k_lower, k_higher)
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr bool is_greater(FqNonPackedVectorMeta const &obj) const noexcept {
-		static_assert(k_upper <= length());
+		static_assert(k_upper <= length);
 		static_assert(k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -985,8 +985,8 @@ public:
 	/// \return this < obj on the coordinates [k_lower, k_higher)
 	constexpr bool is_lower(FqNonPackedVectorMeta const &obj,
 	                        const uint32_t k_lower = 0,
-	                        const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_upper <= length());
+	                        const uint32_t k_upper = length) const noexcept {
+		ASSERT(k_upper <= length);
 		ASSERT(k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -1007,7 +1007,7 @@ public:
 	/// \return this < obj on the coordinates [k_lower, k_higher)
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr bool is_lower(FqNonPackedVectorMeta const &obj) const noexcept {
-		static_assert( k_upper <= length());
+		static_assert( k_upper <= length);
 		static_assert( k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -1069,12 +1069,12 @@ public:
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
 	[[nodiscard]] constexpr T &operator[](const size_t i) noexcept {
-		ASSERT(i < length());
+		ASSERT(i < length);
 		return __data[i];
 	}
 
 	[[nodiscard]] constexpr const T &operator[](const size_t i) const noexcept {
-		ASSERT(i < length());
+		ASSERT(i < length);
 		return __data[i];
 	};
 
@@ -1082,8 +1082,8 @@ public:
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper higher bound, exclusive
 	constexpr void print_binary(const uint32_t k_lower = 0,
-	                            const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
+	                            const uint32_t k_upper = length) const noexcept {
+		ASSERT(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			unsigned data = (unsigned) __data[i];
 			for (uint32_t j = 0; j < ceil_log2(q); ++j) {
@@ -1098,8 +1098,8 @@ public:
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper higher bound, exclusive
 	constexpr void print(const uint32_t k_lower = 0,
-	                     const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
+	                     const uint32_t k_upper = length) const noexcept {
+		ASSERT(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << (unsigned) __data[i] << " ";
 		}
@@ -1114,11 +1114,11 @@ public:
 
 	// this data container is never binary
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return length(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length; }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return length; }
 	/// returns size of a single element in this container in bits
 	[[nodiscard]] __FORCEINLINE__ constexpr static size_t sub_container_size() noexcept { return sizeof(T) * 8; }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return length() * sizeof(T); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return length * sizeof(T); }
 
 	/// returns the underlying data container
 	[[nodiscard]] __FORCEINLINE__ constexpr T *ptr() noexcept { return __data.data(); }
@@ -1132,18 +1132,18 @@ public:
 		return __data[i];
 	};
 
-	[[nodiscard]] __FORCEINLINE__ std::array<T, length()> &data() noexcept { return __data; }
-	[[nodiscard]] __FORCEINLINE__ const std::array<T, length()> &data() const noexcept { return __data; }
+	[[nodiscard]] __FORCEINLINE__ std::array<T, length> &data() noexcept { return __data; }
+	[[nodiscard]] __FORCEINLINE__ const std::array<T, length> &data() const noexcept { return __data; }
 	[[nodiscard]] constexpr T data(const size_t index) const noexcept {
-		ASSERT(index < length());
+		ASSERT(index < length);
 		return __data[index];
 	}
 	[[nodiscard]] constexpr T get(const size_t index) const noexcept {
-		ASSERT(index < length());
+		ASSERT(index < length);
 		return __data[index];
 	}
 	constexpr void set(const T data, const size_t index) noexcept {
-		ASSERT(index < length());
+		ASSERT(index < length);
 		__data[index] = data % q;
 	}
 
@@ -1169,7 +1169,7 @@ public:
 				  << "}" << std::endl;
 	}
 protected:
-	std::array<T, length()> __data;
+	std::array<T, length> __data;
 };
 
 
