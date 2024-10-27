@@ -877,6 +877,7 @@ template<const bool __unsigned=true>
 struct Xint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint8_t;
+    using S = Xint8x32_t<__unsigned>;
     
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
@@ -968,8 +969,8 @@ struct Xint8x32_t {
 
 		if (std::is_constant_evaluated()) {
 			S out1;
-			out1.v128[0] = u8tom128(out.v8 +  0);
-			out1.v128[1] = u8tom128(out.v8 + 16);
+			out1.v128[0] = u8tom128(out.d +  0);
+			out1.v128[1] = u8tom128(out.d + 16);
 			return out1;
 		}
 
@@ -1022,8 +1023,8 @@ struct Xint8x32_t {
 
 		if (std::is_constant_evaluated()) {
 			S out1;
-			out1.v128[0] = u8tom128(out.v8 +  0);
-			out1.v128[1] = u8tom128(out.v8 + 16);
+			out1.v128[0] = u8tom128(out.d +  0);
+			out1.v128[1] = u8tom128(out.d + 16);
 			return out1;
 		}
 
@@ -1581,8 +1582,8 @@ struct Xint16x16_t {
 		out.d[ 0] = __q16;
 		if constexpr (std::is_constant_evaluated()) {
 			S out1;
-			out1.v128[0] = u16tom128(out.v16 + 0);
-			out1.v128[1] = u16tom128(out.v16 + 8);
+			out1.v128[0] = u16tom128(out.d + 0);
+			out1.v128[1] = u16tom128(out.d + 8);
 			return out1;
 		}
 		return out;
@@ -2061,7 +2062,7 @@ using uint16x16_t = Xint16x16_t<true>;
 using  int16x16_t = Xint16x16_t<false>;
 
 template<const bool __unsigned=true>
-struct xint32x8_t {
+struct Xint32x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint32_t;
 	using S = Xint32x8_t;
@@ -2073,7 +2074,7 @@ struct xint32x8_t {
 
 	union {
 		// compatibility with txn_t
-        T32 d  [ 8]
+        T32 d  [ 8];
 
 		T8  v8 [32];
 		T16 v16[16];
@@ -2694,14 +2695,14 @@ struct Xint64x4_t {
 	                                                     const uint64_t i2,
 	                                                     const uint64_t i3) noexcept {
 		S ret;
-		ret.v64[0] = i0;
-		ret.v64[1] = i1;
-		ret.v64[2] = i2;
-		ret.v64[3] = i3;
+		ret.d[0] = i0;
+		ret.d[1] = i1;
+		ret.d[2] = i2;
+		ret.d[3] = i3;
 		if (std::is_constant_evaluated()) {
 			S out1;
-			out1.v128[0] = u64tom128(ret.v64 + 0);
-			out1.v128[1] = u64tom128(ret.v64 + 2);
+			out1.v128[0] = u64tom128(ret.d + 0);
+			out1.v128[1] = u64tom128(ret.d + 2);
 			return out1;
 		}
 		return ret;
@@ -2944,7 +2945,7 @@ struct Xint64x4_t {
 	}
 
 	[[nodiscard]] constexpr static inline S slli(const S in1,
-	                       &v1.__data                      const uint8_t in2) noexcept {
+	                                             const uint8_t in2) noexcept {
 		ASSERT(in2 <= 64);
 		S out;
 		if constexpr (std::is_constant_evaluated()) {
