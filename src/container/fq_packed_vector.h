@@ -15,24 +15,38 @@
 
 
 struct FqPackedVectorMetaConfig : public AlignmentConfig {
+    // if true: simd operations will be used.
 	const bool activate_simd = true;
 };
 constexpr static FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
 
 /// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
 /// Meta class, contains all important meta definitions.
-/// \param n = number of elements
-/// \param T = uint64_t
-/// \param q = modulus
+/// \tparam n = number of elements
+/// \tparam q = modulus
+/// \tparam T = uint64_t
+/// \tparam __unsigned:
+///         if true the elements will be represented as numbers within [0,...,q)
+///         if false the elements will be represented as numbers within 
+///          [-q/2,...(q/1)-1], except if q==2. But in this case due to partial 
+///         specialization the optimized class `BinaryContainer` is used.
+///         NOTE: this config flag is not part of the `config`, as partial 
+///         specialized classes need to access it.
+/// \tparam config: config class
 template<const uint32_t _n,
 		 const uint64_t _q,
-         typename T=uint64_t,
+         typename _T=uint64_t,
+         const bool __unsigned =  true,
 		 const FqPackedVectorMetaConfig &config=fqPackedVectorMetaConfig>
 #if __cplusplus > 201709L
-    requires std::is_integral_v<T>
+    requires std::is_integral_v<_T>
 #endif
 class FqPackedVectorMeta {
 public:
+
+    using T = std::conditional<__unsigned,
+                               std::make_unsigned_t<_T>,
+                               std::make_signed_t<_T>>::type;
 	typedef FqPackedVectorMeta ContainerType;
 
 	// make the length and modulus of the container public available
@@ -43,7 +57,8 @@ public:
 	
 	static_assert(n > 0, "jeah at least a single bit?");
 	static_assert(q > 1, "mod 1 or 0?");
-	static_assert(ceil_log2(q) <= (8*sizeof(T)), "the limb type should be atleast of the size of prime");
+	static_assert(ceil_log2(q) <= (8*sizeof(T)), 
+                  "the limb type should be atleast of the size of prime");
 
 	constexpr static uint32_t nr_limbs_in_S = limbs<T>();
 	using S = TxN_t<T, nr_limbs_in_S>;
@@ -76,7 +91,7 @@ public:
 
 	// we are good C++ devs.
 	typedef T ContainerLimbType;
-	using DataType = LogTypeTemplate<bits_per_number>;
+	using DataType = LogTypeTemplate<bits_per_number, __unsigned>;
 
 	// list compatibility typedef
 	typedef T LimbType;
@@ -84,6 +99,10 @@ public:
 
 	static_assert((numbers_per_limb * bits_per_number) <= bits_per_limb);
 
+	/// just a wrapper
+	constexpr FqPackedVectorMeta(const DataType a) noexcept {
+		__data[0] = a & number_mask;
+	}
 
 	// TODO was damit machen nochmal?
 	//constexpr kAryPackedContainer_Meta () noexcept : __data(){}
@@ -101,6 +120,8 @@ public:
 	// 	}
 	// 	return *this;
 	//}
+
+
 
 	template<const uint32_t l, const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
@@ -288,7 +309,7 @@ public:
 	[[nodiscard]] constexpr inline DataType get(const uint32_t i) const noexcept {
 		// needs 5 instructions. So 64*5 for the whole limb
 		ASSERT(i < length);
-		return (DataType((__data[i / numbers_per_limb] >> ((i % numbers_per_limb) * bits_per_number)) & number_mask) % q);
+		return DataType((__data[i / numbers_per_limb] >> ((i % numbers_per_limb) * bits_per_number)) & number_mask);
 	}
 
 	/// sets the `i`-th number to `data`
@@ -1236,11 +1257,12 @@ public:
 /// \param q = modulus
 template<const uint32_t n,
          const uint64_t q,
-         typename T=uint64_t>
+         typename T=uint64_t,
+		 const bool __unsigned =  true>
 #if __cplusplus > 201709L
     requires std::is_integral<T>::value
 #endif
-class FqPackedVector : public FqPackedVectorMeta<n, q, T> {
+class FqPackedVector : public FqPackedVectorMeta<n, q, T, __unsigned> {
 public:
 	/// Nomenclature:
 	///     Number 	:= actual data one wants to save % modulus
@@ -1253,7 +1275,7 @@ public:
 	///  numbers that first bits are on one limb and the remaining bits are on the next limb).
 	///
 
-	using M = FqPackedVectorMeta<n, q, T>;
+	using M = FqPackedVectorMeta<n, q, T, __unsigned>;
 	using M::length;
 	using M::modulus;
 
@@ -1261,6 +1283,7 @@ public:
 	using typename M::LimbType;
 	using typename M::LabelContainerType;
 	using typename M::DataType;
+
 
 	using M::__data;
 
@@ -1281,7 +1304,6 @@ public:
 	using M::popcnt_T;
 	using M::popcnt;
 
-
 public:
 
 	 //constexpr kAryPackedContainer_T() noexcept = default;
@@ -1299,18 +1321,17 @@ public:
 	 //}
 };
 
-///
-/// partly specialized class for q=3
+/// partly specialized class for q=3 (unsigned)
 template<const uint32_t n>
 #if __cplusplus > 201709L
     requires std::is_integral<uint64_t>::value
 #endif
-class FqPackedVector<n, 3, uint64_t> : public FqPackedVectorMeta<n, 3, uint64_t> {
+class FqPackedVector<n, 3, uint64_t> : public FqPackedVectorMeta<n, 3, uint64_t, true> {
 public:
 	/// this is just defined, because Im lazy
 	static constexpr uint32_t q = 3;
 	using T = uint64_t;
-	using M = FqPackedVectorMeta<n, 3, T>;
+	using M = FqPackedVectorMeta<n, 3, T, true>;
 
 	/// needed size descriptions
 	using M::bits_per_limb;
@@ -1632,8 +1653,8 @@ public:
 		// c1 = 0x55555555...
 		// c2 = 0x10101010...
 		using U = typename S::limb_type;
-		constexpr static S c1 = S::set1((U)6148914691236517205ull);
-		constexpr static S c2 = S::set1((U)12297829382473034410ull);
+		constexpr static S c1 = uint64x4_t::set1((U)6148914691236517205ull);
+		constexpr static S c2 = uint64x4_t::set1((U)12297829382473034410ull);
 
 		const S xy = x ^ y;
 		const S xy2 = x & y;
@@ -1891,19 +1912,28 @@ constexpr inline kAry_Type_T<q> operator+(const kAry_Type_T<q> &lhs,
 /// \param out
 /// \param obj
 /// \return
-template<const uint32_t n, const uint64_t q, typename T=uint64_t>
-std::ostream &operator<<(std::ostream &out, const FqPackedVectorMeta<n, q, T> &obj) {
+template<const uint32_t n, const uint64_t q, typename T=uint64_t, const bool __unsigned=true>
+std::ostream &operator<<(std::ostream &out, const FqPackedVectorMeta<n, q, T, __unsigned> &obj) {
+	using TT = FqPackedVectorMeta<n, q, T, __unsigned>::DataType;
 	for (uint64_t i = 0; i < obj.size(); ++i) {
-		out << uint64_t(obj[i]);
+		out << (uint64_t)TT(obj[i]);
 	}
 	return out;
 
 }
 
-template<const uint32_t n, const uint64_t q, typename T=uint64_t>
-std::ostream &operator<<(std::ostream &out, const FqPackedVector<n, q, T> &obj) {
+template<const uint32_t n, const uint64_t q, typename T=uint64_t, const bool __unsigned=true>
+std::ostream &operator<<(std::ostream &out, const FqPackedVector<n, q, T, __unsigned> &obj) {
+	using I = FqPackedVectorMeta<n, q, T, __unsigned>;
+	using TT = I::DataType;
 	for (uint64_t i = 0; i < obj.size(); ++i) {
-		out << unsigned(obj[i]);
+		TT t1 = TT(obj[i]);
+		if constexpr (!__unsigned) {
+			constexpr TT m = TT(1) << (I::bits_per_number - 1u);
+			t1 = (t1 ^ m) - m;
+		}
+
+		out << (int64_t)t1;
 	}
 	return out;
 }

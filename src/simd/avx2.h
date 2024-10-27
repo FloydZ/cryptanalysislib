@@ -692,6 +692,8 @@ struct Xint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
 	using limb_type = uint8_t;
 	using S = Xint8x32_t;
+	using simd_type = S;
+
     using V = std::conditional<__unsigned, __v32qu, __v32qi>::type;
 
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
@@ -701,9 +703,9 @@ struct Xint8x32_t {
 
 	union {
 		// compatibility with TxN_t
-		T8 d[32];
+		T8  d[32];
 
-		T8 v8[32];
+		T8  v8[32];
 		T16 v16[16];
 		T32 v32[8];
 		T64 v64[4];

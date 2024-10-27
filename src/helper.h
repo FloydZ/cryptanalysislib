@@ -325,33 +325,38 @@ if (__builtin_expect(!!(i >= n), 0)) { 	\
 /// data type, which can hold this many bits.
 /// NOTE: only unsigned datatypes are used.
 ///	Usage:
-/// 	using T = LogTypeTemplate<16>::type; // holding `uint16_t`
-template<uint32_t n>
+/// 	using T = LogTypeTemplate<16>; 				// holding `uint16_t`
+/// 	using T = LogTypeTemplate<16, __unsigned>; 	// holding `int16_t`
+template<uint32_t n, const bool __unsigned=true>
 using LogTypeTemplate =
-    typename std::conditional<(n <= 8), uint8_t,
-        typename std::conditional<(n <= 16), uint16_t,
-            typename std::conditional<(n <= 32), uint32_t,
-                typename std::conditional<(n <= 64), uint64_t,
-                    __uint128_t>::type>::type>::type>::type;
+    typename std::conditional<(n <= 8), typename std::conditional<__unsigned, uint8_t, int8_t>::type,
+        typename std::conditional<(n <= 16), typename std::conditional<__unsigned, uint16_t, int16_t>::type,
+            typename std::conditional<(n <= 32), typename std::conditional<__unsigned, uint32_t, int32_t>::type,
+                typename std::conditional<(n <= 64), typename std::conditional<__unsigned, uint64_t, int64_t>::type,
+                    typename std::conditional<__unsigned, __uint128_t, __int128_t>::type>::type>::type>::type>::type;
 
-template<const uint32_t n, const uint32_t m>
+/// if n <= m its the normal `LogTypeTemplate<m>` else
+/// 	`LogTypeTemplate<n>`
+/// Usage:
+/// 	using T = LogtypeTemplate<13, 16>;
+/// 	using T = LogtypeTemplate<13, 16>;
+template<const uint32_t n,
+         const uint32_t m,
+         const bool __unsigned=true>
 using MinLogTypeTemplate =
-    typename std::conditional<(n <= m), LogTypeTemplate<m>,
-        typename std::conditional<(n <= 8), uint8_t,
-            typename std::conditional<(n <= 16), uint16_t,
-                typename std::conditional<(n <= 32), uint32_t,
-                    typename std::conditional<(n <= 64), uint64_t,
-                        __uint128_t>::type>::type>::type>::type>::type;
+    typename std::conditional<(n <= m),
+                              LogTypeTemplate<m, __unsigned>,
+                              LogTypeTemplate<n, __unsigned>>::type;
 
 /// Translates a given number into the minimal datatype which
 /// is capable of holding this datatype
-template<__uint128_t n>
+template<__uint128_t n, const bool __unsigned=true>
 using TypeTemplate =
-    typename std::conditional<(n <= 0xFF), uint8_t,
-        typename std::conditional<(n <= 0xFFFF), uint16_t,
-            typename std::conditional<(n <= 0xFFFFFFFF), uint32_t,
-                typename std::conditional<(n <= 0xFFFFFFFFFFFFFFFF), uint64_t,
-                    __uint128_t>::type>::type>::type>::type;
+    typename std::conditional<(n <= 0xFF), typename std::conditional<__unsigned, uint8_t, int8_t>::type,
+        typename std::conditional<(n <= 0xFFFF), typename std::conditional<__unsigned, uint16_t, int16_t>::type,
+            typename std::conditional<(n <= 0xFFFFFFFF), typename std::conditional<__unsigned, uint32_t, int32_t>::type,
+                typename std::conditional<(n <= 0xFFFFFFFFFFFFFFFF), typename std::conditional<__unsigned, uint64_t, int64_t>::type,
+                    typename std::conditional<__unsigned, __uint128_t, __int128_t>::type>::type>::type>::type>::type;
 
 template<typename T>
 constexpr static size_t limbs() noexcept {
