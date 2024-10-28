@@ -20,7 +20,7 @@ namespace cryptanalysislib::atomic {
 		int count;
 		constexpr static int FUTEX_PASSED = (-(1024 * 1024 * 1024));
 
-		constexpr futex() noexcept : count(0) {}
+		constexpr futex() noexcept : count(1) {}
 	public:
 
 		/// \param val

@@ -20,11 +20,10 @@ struct FqPackedVectorMetaConfig : public AlignmentConfig {
 };
 constexpr static FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
 
-/// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
+/// represents a vector of numbers mod `_q` in vector of `_T` in a compressed way
 /// Meta class, contains all important meta definitions.
-/// \tparam n = number of elements
-/// \tparam q = modulus
-/// \tparam T = uint64_t
+/// \tparam _n = number of elements
+/// \tparam _q = modulus
 /// \tparam __unsigned:
 ///         if true the elements will be represented as numbers within [0,...,q)
 ///         if false the elements will be represented as numbers within 
@@ -32,21 +31,22 @@ constexpr static FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
 ///         specialization the optimized class `BinaryContainer` is used.
 ///         NOTE: this config flag is not part of the `config`, as partial 
 ///         specialized classes need to access it.
+///         NOTE: internally the numbers are still computed and stored within
+///         [0,...,q), only if you access it, they will be translated into
+///         their signed form.
 /// \tparam config: config class
 template<const uint32_t _n,
 		 const uint64_t _q,
-         typename _T=uint64_t,
+         typename T=uint64_t,
          const bool __unsigned =  true,
 		 const FqPackedVectorMetaConfig &config=fqPackedVectorMetaConfig>
 #if __cplusplus > 201709L
-    requires std::is_integral_v<_T>
+    requires std::is_integral_v<T> &&
+    		 std::is_unsigned_v<T>
 #endif
 class FqPackedVectorMeta {
 public:
-
-    using T = std::conditional<__unsigned,
-                               std::make_unsigned_t<_T>,
-                               std::make_signed_t<_T>>::type;
+	/// NOTE: think about: is it always good to have only the unsigned type
 	typedef FqPackedVectorMeta ContainerType;
 
 	// make the length and modulus of the container public available
@@ -99,9 +99,18 @@ public:
 
 	static_assert((numbers_per_limb * bits_per_number) <= bits_per_limb);
 
-	/// just a wrapper
+	// this will zero initialize everything, i think
+	constexpr FqPackedVectorMeta() noexcept : __data() {}
+	constexpr FqPackedVectorMeta(const FqPackedVectorMeta &a) noexcept = default;
+
+	/// just a wrapper, for testing single elements and not arrays
 	constexpr FqPackedVectorMeta(const DataType a) noexcept {
-		__data[0] = a & number_mask;
+		DataType t = a;
+		if constexpr (!__unsigned) {
+			while (t < 0) { t += q; }
+		}
+		t = t%q;
+		__data[0] = t;
 	}
 
 	// TODO was damit machen nochmal?
@@ -409,6 +418,19 @@ public:
 	/// computes the hamming weight
 	[[nodiscard]] constexpr uint32_t popcnt() const noexcept {
 		return popcnt<0, size()>();
+	}
+
+	template<const uint32_t l,
+			 const uint32_t h>
+	[[nodiscard]] constexpr uint32_t popcnt() const noexcept {
+		static_assert(l < h);
+		static_assert(h <= size());
+		uint32_t ret = 0;
+		for (uint32_t i = l; i < h; i++) {
+			ret += get(i) > 0;
+		}
+
+		return ret;
 	}
 
 	[[nodiscard]] constexpr uint32_t popcnt(const uint32_t l,
@@ -757,12 +779,13 @@ public:
 	}
 
 	/// generic add: v3 = v1 + v2 between [k_lower, k_upper)
+	/// \tparam k_lower inclusive
+	/// \tparam k_upper exclusive
 	/// \param v3 output
 	/// \param v1 input
 	/// \param v2 input
-	/// \param k_lower lower limit inclusive
-	/// \param k_upper upper limit exclusive
-	template<const uint32_t k_lower, const uint32_t k_upper>
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper>
 	constexpr inline static void add(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
@@ -813,12 +836,13 @@ public:
 	}
 
 	/// v3 = v1 - v2 between [k_lower, k_upper)
+	/// \tparam k_lower inclusive
+	/// \tparam k_upper exclusive
 	/// \param v3 output
 	/// \param v1 input
 	/// \param v2 input
-	/// \param k_lower inclusive
-	/// \param k_upper exclusive
-	template<const uint32_t k_lower, const uint32_t k_upper>
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper>
 	constexpr inline static void sub(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
@@ -901,10 +925,10 @@ public:
 		return true;
 	}
 
+	/// \tparam k_lower inclusive
+	/// \tparam k_upper exclusive
 	/// \param v1 input
 	/// \param v2 input
-	/// \param k_lower inclusive
-	/// \param k_upper exclusive
 	/// \return v1 == v2 between [k_lower, k_upper)
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	constexpr inline static bool cmp(FqPackedVectorMeta const &v1,
@@ -943,9 +967,9 @@ public:
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
+	/// \tparam k_lower inclusive
+	/// \tparam k_upper exclusive
 	/// \param obj
-	/// \param k_lower inclusive
-	/// \param k_upper exclusive
 	/// \return this == obj between [k_lower, k_upper)
 	template<const uint32_t k_lower, const uint32_t k_upper>
 	[[nodiscard]] constexpr bool is_equal(FqPackedVectorMeta const &obj) const noexcept {
@@ -1245,8 +1269,17 @@ public:
 				  << " }" << std::endl;
 	}
 
+	constexpr FqPackedVectorMeta operator+(FqPackedVectorMeta &a) noexcept {
+		FqPackedVectorMeta ret;
+		add(ret, *this, a);
+		return ret;
+	}
+	constexpr FqPackedVectorMeta& operator=(const FqPackedVectorMeta &a) noexcept {
+		__data = a.__data;
+		return *this;
+	}
 
-	protected:
+public:
 	// internal data
 	std::array<T, internal_limbs> __data;
 };
@@ -1303,22 +1336,8 @@ public:
 	using M::mul_T;
 	using M::popcnt_T;
 	using M::popcnt;
-
-public:
-
-	 //constexpr kAryPackedContainer_T() noexcept = default;
-	 //constexpr kAryPackedContainer_T(const kAryPackedContainer_T &a) noexcept : S(a){
-	 //                                                                                   std::cout << "copyc\n";
-	 //                                                                           };
-
-	 //constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T const &obj) noexcept {
-	 //	S::operator=(obj);
-	 //	return *this;
-	 //}
-	 //constexpr kAryPackedContainer_T &operator=(kAryPackedContainer_T &&obj) noexcept {
-	 //	S::operator=(std::move(obj));
-	 //	return *this;
-	 //}
+	using M::size;
+	using M::sub_container_size;
 };
 
 /// partly specialized class for q=3 (unsigned)
@@ -1377,9 +1396,9 @@ public:
 	template<typename TT = DataType>
 	static inline uint16_t popcnt_T(const TT a) noexcept {
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
-		constexpr TT c1 = sizeof(TT) == 16 ? (TT(6148914691236517205ull) << 64u) | TT(6148914691236517205ull) : TT(6148914691236517205ull);
+		constexpr TT c1 = sizeof(TT) == 16 ? (__uint128_t(6148914691236517205ull) << 64u) | TT(6148914691236517205ull) : TT(6148914691236517205ull);
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
-		constexpr TT c2 = sizeof(TT) == 16 ? (TT(12297829382473034410ull) << 64u) | TT(12297829382473034410ull) : TT(12297829382473034410ull);
+		constexpr TT c2 = sizeof(TT) == 16 ? (__uint128_t(12297829382473034410ull) << 64u) | TT(12297829382473034410ull) : TT(12297829382473034410ull);
 
 		const TT ac1 = a & c1;// filter the ones
 		const TT ac2 = a & c2;// filter the twos
@@ -1479,9 +1498,9 @@ public:
 	template<typename TT = DataType>
 	constexpr static inline TT neg_T(const TT a) noexcept {
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
-		constexpr TT c1 = sizeof(TT) == 16 ? (TT(6148914691236517205u) << 64u) | TT(6148914691236517205u) : TT(6148914691236517205u);
+		constexpr TT c1 = sizeof(TT) == 16 ? (__uint128_t(6148914691236517205u) << 64u) | TT(6148914691236517205u) : TT(6148914691236517205u);
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
-		constexpr TT c2 = sizeof(TT) == 16 ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
+		constexpr TT c2 = sizeof(TT) == 16 ? (__uint128_t(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
 
 		const TT e1 = a & c1;// filter the ones
 		const TT e2 = a & c2;// filter the twos
@@ -1653,8 +1672,14 @@ public:
 		// c1 = 0x55555555...
 		// c2 = 0x10101010...
 		using U = typename S::limb_type;
+#ifdef USE_AVX512F
+		constexpr static S c1 = uint64x8_t::set1((U)6148914691236517205ull);
+		constexpr static S c2 = uint64x8_t::set1((U)12297829382473034410ull);
+#else
 		constexpr static S c1 = uint64x4_t::set1((U)6148914691236517205ull);
 		constexpr static S c2 = uint64x4_t::set1((U)12297829382473034410ull);
+#endif
+
 
 		const S xy = x ^ y;
 		const S xy2 = x & y;
@@ -1887,6 +1912,18 @@ constexpr inline bool operator>(const FqPackedVectorMeta<n, q, T> &a,
 	return a.is_greater(b);
 }
 
+// template<const uint32_t n,
+// 		 const uint64_t q,
+//          typename T,
+//          const bool __unsigned =  true,
+// 		 const FqPackedVectorMetaConfig &config>
+// constexpr inline S operator+(const FqPackedVectorMeta<n, q, T, __unsigned, config> &a,
+//                                 const FqPackedVectorMeta<n, q, T, __unsigned, config> &b) noexcept {
+// 	using S = FqPackedVectorMeta<n, q, T, __unsigned, config>;
+// 	S ret;
+// 	S::add(ret, a, b);
+// 	return ret;
+// }
 
 ///
 /// \tparam T
@@ -1912,11 +1949,28 @@ constexpr inline kAry_Type_T<q> operator+(const kAry_Type_T<q> &lhs,
 /// \param out
 /// \param obj
 /// \return
-template<const uint32_t n, const uint64_t q, typename T=uint64_t, const bool __unsigned=true>
+template<const uint32_t n,
+		 const uint64_t q,
+		 typename T=uint64_t,
+		 const bool __unsigned=true>
 std::ostream &operator<<(std::ostream &out, const FqPackedVectorMeta<n, q, T, __unsigned> &obj) {
-	using TT = FqPackedVectorMeta<n, q, T, __unsigned>::DataType;
-	for (uint64_t i = 0; i < obj.size(); ++i) {
-		out << (uint64_t)TT(obj[i]);
+	using I = FqPackedVectorMeta<n, q, T, __unsigned>;
+	// NOTE: TT could be a signed data type
+	using TT = I::DataType;
+	for (uint64_t i = 0; i < I::length; ++i) {
+		TT t1 = TT(obj[i]);
+		if constexpr (!__unsigned) {
+			auto translate = [](const TT a) {
+				constexpr TT q2 = I::modulus/2;
+				// NOTE: this sees to be a signed extension
+				return a | (-(a/2));
+			};
+			t1 = translate(t1);
+			// constexpr TT m = TT(1) << (I::bits_per_number - 1u);
+			// t1 = (t1 ^ m) - m;
+		}
+
+		out << (int64_t)t1;
 	}
 	return out;
 
@@ -1925,8 +1979,9 @@ std::ostream &operator<<(std::ostream &out, const FqPackedVectorMeta<n, q, T, __
 template<const uint32_t n, const uint64_t q, typename T=uint64_t, const bool __unsigned=true>
 std::ostream &operator<<(std::ostream &out, const FqPackedVector<n, q, T, __unsigned> &obj) {
 	using I = FqPackedVectorMeta<n, q, T, __unsigned>;
+	// NOTE: TT could be a signed data type
 	using TT = I::DataType;
-	for (uint64_t i = 0; i < obj.size(); ++i) {
+	for (uint64_t i = 0; i < I::length; ++i) {
 		TT t1 = TT(obj[i]);
 		if constexpr (!__unsigned) {
 			constexpr TT m = TT(1) << (I::bits_per_number - 1u);

@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "combination/chase.h"
+#include "combination/lexicographic.h"
 #include "container/hashmap.h"
 #include "container/binary_packed_vector.h"
 #include "hash/simple.h"

@@ -24,7 +24,7 @@ struct FqConfig : public AlignmentConfig {
 	const bool arith = true;
 	
 	// see Fq::lower_is_zero for explanation
-	const bool lower_is_zero = true;
+	const bool lower_is_zero = false;
 }; 
 constexpr static FqConfig fqConfig;
 

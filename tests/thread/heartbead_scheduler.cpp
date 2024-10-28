@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include "thread/heartbeat_scheduler.h"
-#include "thread/heartbeat_scheduler_v2.h"
+// TODO #include "thread/heartbeat_scheduler_v2.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;

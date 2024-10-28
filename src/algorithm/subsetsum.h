@@ -66,6 +66,8 @@ struct SSS {
     const uint64_t flavour_q = 509;
 	// static_assert(is_prime(flavour_q));
 
+	const size_t print_iterations = 512;
+
 	constexpr void info() const noexcept {
 		std::cout << " { name: \"SubSetSumConfig\" :"
 		          << ", n: " << n
@@ -102,7 +104,7 @@ struct SubSetSumCmp {
 	/// \param a2 value to be
 	/// \param b1 predecessor of b2
 	/// \param b2 value to be compared
-	/// \return true if a2==b2, and a1!=b1;
+	/// \return true if a2.label==b2.label, weight is correct, and a1!=b1;
 	auto operator()(const Element &a1,
 	                const Element &a2,
 	                const Element &b1,
@@ -121,15 +123,17 @@ struct SubSetSumCmp {
 		// weight check:
 		Value tmp;
 		Value::add(tmp, a2.value, b2.value);
-
-		//std::cout << a2 << ", a2" << std::endl;
-		//std::cout << b2 << ", b2" << std::endl;
-		//std::cout << tmp << ", tmp(" << tmp.popcnt() << ")" << std::endl;
-
-
 		if (tmp.popcnt() != weight) {
 			return false;
 		}
+
+		Label tmp2;
+		Label::add(tmp2, a2.label, b2.label);
+		//std::cout << a2 << ", a2" << std::endl;
+		//std::cout << b2 << ", b2" << std::endl;
+		//std::cout << tmp << ", tmp(" << tmp.popcnt() << ")" << std::endl;
+		//std::cout << tmp2 << ", tmp2" << std::endl;
+
 
         // if they are the same we found a collision
 		const bool ret = a2.label.template is_equal
@@ -160,7 +164,7 @@ struct SubSetSumCmp {
 ///        0│l_1            │ match on t-iT
 ///     ┌───┴──┐           0│l_1    e4 = t-iT-e3 mod q
 ///     │      │        ┌───┴───┐
-///   ┌─┴─┐ ┌──┴───┐ ┌──┼──┐ ┌──┼───┐      level 0
+///   ┌─┴─┐ ┌──┴───┐ ┌──┼──┐ ┌──┴───┐      level 0
 ///   │   │ └┐    ┌┘ │     │ └┐    ┌┘
 ///   │   │  └┐  ┌┘  │     │  └┐  ┌┘
 ///   └───┘   └──┘   └─────┘   └──┘
@@ -169,6 +173,9 @@ struct SubSetSumCmp {
 ///
 /// instance to solve: <a, e> = t
 /// flavor values: b_1,b_2
+///
+/// // global typedefs
+///		using Element = [value, label], s.t. label = <a, value>
 ///
 /// // collision function
 /// f_i(iT) = {
@@ -181,8 +188,8 @@ struct SubSetSumCmp {
 /// }
 ///
 /// // flavour function
-/// P(x) {
-///		return b_1 * x + b_2 mod p circa 2**l1
+/// P(x: Element) {
+///		return b_1 * x.label[l, l+l1] + b_2 mod p circa 2**l1
 /// }
 ///
 /// rho() = {
@@ -194,8 +201,8 @@ struct SubSetSumCmp {
 ///		s = rng(0, 2**(l_2+l_1))
 ///
 ///		// NOTE: the loop also ends if a max length is reached
-///		while(x1 != y1 &&
-///			x2,y2 = x1,y1) {
+///		while((x1&LSB == y1&LSB) || (x2 !=[l,..., l+l1] y2) {
+///			x2,y2 = x1,y1
 ///			x1 = f_i(P(x2))
 ///			y1 = f_i(P(f_i(P(y2))))
 ///		}
@@ -289,10 +296,12 @@ public:
 		//flavout values:
 		L b_1 = rng<L>(instance.flavour_q), b_2 = rng<L>(instance.flavour_q);
 
-		/// \return value=int2weight(b_2 * flavor(e) + b_2))
+		/// \return value=(b_2 * flavor(e) + b_2))
+		///			label = A*value
 		auto flavour = [&](const Element &e) __attribute__((always_inline)) {
 			Element ret;
-			const L c = (b_1 * e.label.value() + b_2) % instance.flavour_q;
+			ASSERT(e.is_correct(A));
+			const L c = (b_1 * (e.label.value() >> (instance.l1+instance.l2)) + b_2) % instance.flavour_q;
 			*ret.value.ptr() = c;
 			ret.recalculate_label(A);
 			return ret;
@@ -312,6 +321,8 @@ public:
 			} else {
 				tree_target = s;
 			}
+
+			//std::cout << tree_target << ",tree_target" << std::endl;
 
 			// restart the tree, as long as we do not have any outputs
 			size_t iters = 0;
@@ -359,8 +370,11 @@ public:
 			return ret;
 		};
 
+
+		const auto start = std::chrono::high_resolution_clock::now();
 		// start loop
 		size_t iters = 0;
+		restart:
 		while (true) {
 			iters += 1;
 			x.random(A);
@@ -369,9 +383,14 @@ public:
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
 
+			if ((iters % instance.print_iterations) == 0)  {
+				std::cout << "iters: " << iters << std::endl;
+			}
 			// std::cout << x << ", x" << std::endl;
 			// std::cout << y << ", y" << std::endl;
-			// std::cout << s << ", s" << std::endl;
+			//std::cout << b_1 << ", b_1" << std::endl;
+			//std::cout << b_2 << ", b_2" << std::endl;
+			//std::cout << s << ", s" << std::endl;
 
 			/// restart every X runs
 			if (rho::run(f, flavour, x, y, instance.walk_len)) {
@@ -379,14 +398,26 @@ public:
 			}
 		}
 
-		Element sol;
-		Element::add(sol, x, y);
+		const auto duration  = std::chrono::high_resolution_clock::now() - start;
+		const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
 
-		std::cout << iters   << ", global_iters" << std::endl;
-		std::cout << x   << ", x" << std::endl;
-		std::cout << y   << ", y" << std::endl;
+		Element sol;
+		const auto xx = f(x);
+		const auto yy = f(y);
+		Element::add(sol, xx, yy);
+
+		std::cout << iters << ", global_iters" << std::endl;
+		std::cout << seconds << std::endl;
+		std::cout << xx << ", x" << std::endl;
+		std::cout << yy << ", y" << std::endl;
 		std::cout << sol << ", sol" << std::endl;
 		std::cout << global_target << "global_target" << std::endl;
+		if constexpr (n > (2*instance.l1 + instance.l2)) {
+			if (!global_target.is_equal(sol.label)) {
+				std::cout << "restart" << std::endl;
+				goto restart;
+			}
+		}
 
 		// memory cleanup
 		delete hmL2;

@@ -1129,8 +1129,8 @@ public:
 
 							ASSERT(out[b2].is_correct(matrix));
 							out.set_load(b2+1);
-							// TODO
-							// goto finish;
+							// TODO only find a single solution
+							goto finish;
 						}
 
 					} else {
@@ -1792,35 +1792,17 @@ public:
 		return ret;
 	}
 
-	/// 		out HM
-	///        ┌─────────┐
-	///        └┐       ┌┘
-	///         └┐     ┌┘
-	///          └──┬──┘ match on iT
-	///     k_lower1│k_upper1
-	///     ┌───────┴───────┐
-	///     │  L2=iT-L1     │
-	/// ┌───┴───┐      ┌────┴────┐
-	/// │ const │      └┐       ┌┘
-	/// │       │       └┐     ┌┘
-	/// └───────┘        └─────┘  hashing
-	///    L1              HM2 <---------- L2
-	/// NOTE: v2 means that the `label` of the output elements in `out`
-	///		are the target. So this function actually returns targets and not
-	/// 	zeros.
-	/// NOTE: the output will a be hashmap
-	/// NOTE: the elemens of the output hashmap are shifted down by `k_upper`
-	/// \tparam k_lower lower coordinate to match on
-	/// \tparam k_upper upper coordinate to match on
-	/// \tparam HashMapIn
-	/// \tparam HashMapOut
-	/// \param out
-	/// \param L1 input list const, will NOT be sorted
-	/// \param L2 input list const, will be hashed into HM2 if prepare==true
-	/// \param target
-	/// \param hm2 hashmap of list L2
-	/// \param prepare if true == hashses L2 into HM2
-	/// \return the number of found collissionw
+	/// @tparam k_lower
+	/// @tparam k_upper
+	/// @tparam HashMapIn
+	/// @tparam HashMapOut
+	/// @param out
+	/// @param L1
+	/// @param L2
+	/// @param hm2
+	/// @param target
+	/// @param prepare
+	/// @return
 	template<const uint32_t k_lower,
 			 const uint32_t k_upper,
 			 typename HashMapIn,
@@ -1833,57 +1815,9 @@ public:
 										const List &L1, const List &L2,
 										HashMapIn &hm2,
 										const LabelType &target,
-										const bool prepare=true) noexcept {
-		ASSERT(k_lower < k_upper && 0 < k_upper);
-		using LoadType = typename HashMapIn::load_type;
-		using HMOutValueType = HashMapOut::data_type;
-		out.clear();
+										const bool prepare=true) noexcept;
 
-		if (prepare) {
-			// only clear if we really need it
-			hm2.clear();
-			for (size_t i = 0; i < L2.load(); ++i) {
-				hm2.insert(L2[i].label.value(), i);
-			}
-		}
-
-#ifdef DEBUG
-		for (size_t i = 0; i < HashMapIn::nrbuckets; ++i) {
-			for (uint32_t j = 0; j < hm2.load_without_hash(i); ++j) {
-				const size_t pos = hm2[i];
-				ASSERT(pos < L2.load());
-			}
-		}
-#endif
-
-		LabelType sigma_t;
-		LoadType load = 0;
-		LabelType e;
-		size_t ret = 0;
-		for (size_t i = 0; i < L1.load(); ++i) {
-			LabelType::template sub
-			        <k_lower, k_upper>
-			        (sigma_t, target, L1[i].label);
-
-			size_t s = hm2.find(sigma_t.value(), load);
-			for (size_t k = s; k < s + load; ++k) {
-				const size_t j = hm2[k];
-				ASSERT(L2[j].label.is_equal(sigma_t, k_lower, k_upper));
-				ASSERT(j < L2.load());
-
-				LabelType::add(e, L1[i].label, L2[j].label);
-				ASSERT(e.is_equal(target, k_lower, k_upper));
-
-				// NOTE: NOTE that is shifted
-				out.insert(e.value(), HMOutValueType{i, j});
-				ret += 1;
-			}
-		}
-
-		return ret;
-	}
-
-
+	/// TODO doc, image, test
 	/// just a wrapper around the normal hashmap version, which allocates
 	/// the simple hashmap for you.
 	/// @tparam k_lower 
@@ -3476,20 +3410,24 @@ public:
 		return counter;
 	}
 
-	// const and non-const list access functions.
+	///  non-const list access functions.
+	/// \param i
+	/// \return
 	constexpr List &operator[](const size_t  i) noexcept {
 		ASSERT(i < (depth + additional_baselists));
 		return this->lists[i];
 	}
 
+	/// \param i
+	/// \return
 	const List &operator[](const uint64_t i) const noexcept {
-		ASSERT(i < (depth + additional_baselists) && "Wrong index");
+		ASSERT(i < (depth + additional_baselists));
 		return this->lists[i];
 	}
 
 	/// some getters
-	[[nodiscard]] constexpr inline uint64_t get_size() const noexcept { return lists.size(); }
-	[[nodiscard]] constexpr inline uint64_t get_basesize() const noexcept { return base_size; }
+	[[nodiscard]] constexpr inline size_t get_size() const noexcept { return lists.size(); }
+	[[nodiscard]] constexpr inline size_t get_basesize() const noexcept { return base_size; }
 	[[nodiscard]] constexpr inline const auto &get_level_translation_array() const noexcept { return level_translation_array; }
 
 	__attribute__((noinline))
@@ -3658,9 +3596,9 @@ private:
 	/// \param k_lower
 	/// \param k_upper
 	void print(const uint32_t k_lower,
-	           const uint32_t k_higher) {
+	           const uint32_t k_upper) {
 		for (const auto &l: lists) {
-			l.print(k_lower, k_higher);
+			l.print(k_lower, k_upper);
 		}
 	}
 
@@ -3677,7 +3615,6 @@ private:
 	const uint32_t filter_nr = 200;
 
 public:
-	// TODO access functions
 	std::vector<List> lists;
 private:
 	unsigned int depth;
@@ -3698,3 +3635,5 @@ std::ostream &operator<<(std::ostream &out, const Tree_T<List> &obj) {
 	return out;
 }
 #endif//SMALLSECRETLWE_TREE_H
+
+#include "tree/d2.h"

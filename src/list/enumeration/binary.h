@@ -112,7 +112,7 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
+		ASSERT(n + offset <= Value::length);
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -525,8 +525,8 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) noexcept {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
-		ASSERT(offset + base_offset <= Value::length());
+		ASSERT(n + offset <= Value::length);
+		ASSERT(offset + base_offset <= Value::length);
 		element1.zero(); element2.zero();
 
 		// check if the lists are enabled

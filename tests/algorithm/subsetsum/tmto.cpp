@@ -57,7 +57,7 @@ TEST(SubSetSum, n32_d2_baselists2) {
 TEST(SubSetSum, n32_d2_rho) {
 	constexpr uint32_t n = 32;
 	constexpr uint64_t q = 1ul << n;
-	constexpr static SSS instance{.n=n, .q=q, .bp=2, .l1=10, .l2=6, .walk_len=1024, .flavour_q=509};
+	constexpr static SSS instance{.n=n, .q=q, .bp=2, .l1=10, .l2=6, .walk_len=128, .flavour_q=1021};
 	using S = sss_d2<instance>;
 
 	// using Value  = S::Value;

@@ -28,25 +28,7 @@ file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 foreach(testfile ${TEST_SOURCES})
     file(RELATIVE_PATH filename ${CMAKE_CURRENT_SOURCE_DIR} ${testfile})
     string(REPLACE ".cpp" "" file ${filename})
-    add_executable(${file} ${testfile}
-            ../src/algorithm/count.h
-            ../src/algorithm/find.h
-            ../src/algorithm/bits/ffs.h
-            ../src/algorithm/equal.h
-            ../src/algorithm/accumulate.h
-            ../src/algorithm/reduce.h
-            ../src/algorithm/transform.h
-            ../src/algorithm/apply.h
-            ../src/algorithm/max.h
-            ../src/algorithm/min.h
-            ../src/traits.h
-            ../src/algorithm/bits.h
-            ../src/algorithm/rsa.h
-            ../src/thread/lock_free.h
-            ../src/simd/bits/generic.h
-            ../src/algorithm/bits/clz.h
-            ../src/atomic/atomic.h
-    )
+    add_executable(${file} ${testfile})
     target_compile_options(${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(${file} ${LINK_TEST_FLAGS})
     add_test(AllTests ${file})

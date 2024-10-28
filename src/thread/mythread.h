@@ -31,11 +31,8 @@ std::atomic<uint32_t> __global_tid = 0;
 
 #ifdef DEBUG
 #define DEBUG_PRINTF(...)                          \
-	__mythread_debug_futex_init();                 \
-	futex_down(&debug_futex);                      \
 	sprintf(debug_msg, __VA_ARGS__);               \
-	(void) write(1, debug_msg, strlen(debug_msg)); \
-	futex_up(&debug_futex);
+	(void) write(1, debug_msg, strlen(debug_msg));
 #else
 #define DEBUG_PRINTF(...) \
 	do {                  \
@@ -203,14 +200,14 @@ namespace cryptanalysislib {
 		} else {
 			DEBUG_PRINTF("Dispatcher: Wake-up:%ld Sleep:%ld %d %d\n",
 			             (unsigned long) ptr->tid, (unsigned long) node->tid,
-			             ptr->sched_futex.count, ptr->state);
+			             ptr->sched_futex.get(), ptr->state);
 
 			/* Wake up the target thread. This won't cause any races because
 		 	 * it is protected by a global futex.
 		 	 */
 			ptr->sched_futex.up();
 			DEBUG_PRINTF("Dispatcher: Woken up:%ld, to %d\n",
-			             (unsigned long) ptr->tid, ptr->sched_futex.count);
+			             (unsigned long) ptr->tid, ptr->sched_futex.get());
 			return 0;
 		}
 	}
@@ -294,7 +291,7 @@ namespace cryptanalysislib {
 		}
 
 		DEBUG_PRINTF("Yield: Might sleep on first down %ld %d\n",
-		             (unsigned long) self->tid, self->sched_futex.count);
+		             (unsigned long) self->tid, self->sched_futex.get());
 		/* The "if" condition was to fix a couple of race conditions. The purpose
 	 	 * of two futex down's is to make the process sleep on the second. But
 	 	 * sometimes the value of the futex is already 0, so do a conditional
@@ -308,7 +305,7 @@ namespace cryptanalysislib {
 		gfutex.up();
 
 		DEBUG_PRINTF("Yield: Might sleep on second down %ld %d\n",
-		             (unsigned long) self->tid, self->sched_futex.count);
+		             (unsigned long) self->tid, self->sched_futex.get());
 		/* Sleep till another process wakes us up */
 		self->sched_futex.down();
 
@@ -357,13 +354,13 @@ namespace cryptanalysislib {
 
 		DEBUG_PRINTF("Wrapper: will sleep on futex: %ld %d\n",
 		             (unsigned long) __mythread_gettid(),
-		             new_tcb->sched_futex.count);
+		             new_tcb->sched_futex.get());
 
 		/* Suspend till explicitly woken up */
 		new_tcb->sched_futex.down();
 
 		DEBUG_PRINTF("Wrapper: futex value: %ld %d\n",
-		             (unsigned long) new_tcb->tid, new_tcb->sched_futex.count);
+		             (unsigned long) new_tcb->tid, new_tcb->sched_futex.get());
 
 		// We have been woken up. Now, call the user-defined function
 		new_tcb->start_func(new_tcb->args);

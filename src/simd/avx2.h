@@ -2424,7 +2424,7 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S mullo(const S in1,
 	                                              const S in2) noexcept {
 		S out;
-#ifdef USE_AVX512
+#ifdef USE_AVX512F
 		out.v256 = (__m256i) ((V) in1.v256 * (V) in2.v256);
 #else
 

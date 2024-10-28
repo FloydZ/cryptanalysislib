@@ -36,6 +36,10 @@ concept is_lockable = requires(Lock&& lock) {
  */
 #define CAS(ptr, cmp, val) __atomic_compare_exchange_n(ptr, cmp, val, 0, \
 	                                                   __ATOMIC_RELAXED, __ATOMIC_RELAXED)
+/// @param ptr
+/// @param cmp DOES not need to be a pointer
+/// @param val
+#define CASnp(ptr, cmp, val) __sync_val_compare_and_swap(ptr, cmp, val)
 
 /**
  * An atomic compare-and-swap that also ensures sequential consistency.

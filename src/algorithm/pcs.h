@@ -92,6 +92,15 @@ public:
 		return false;
 	}
 
+	/// NOTE: returns in col1/col2 the preimages of the collision
+	/// \tparam F
+	/// \tparam Flavour
+	/// \param f
+	/// \param flavour
+	/// \param col1
+	/// \param col2
+	/// \param max_iters
+	/// \return
 	template<class F,
 			 class Flavour>
 #if __cplusplus > 201709L
@@ -106,13 +115,16 @@ public:
 		bool ret = false;
 
 		size_t i = 0;
-		T a1=col1, b1=col2, b2_;
+		T a1=col1, b1=col2, b2_, a2, b2;
 		while (i < max_iters) {
+			// a2 = f(flavor(a1))
 			a1 = flavour(a1);
-			const T a2 = f(a1);
+			a2 = f(a1);
+
+			// b2 = f(flavour(f(flavor(b1))))
 			b1 = flavour(b1);
-			b2_= f(b1);
-			const T b2 = f(flavour(b2_));
+			b2_= flavour(f(b1));
+			b2 = f(b2_);
 
 			if (cmp(a1, a2, b2_, b2)) [[unlikely]] {
 				ret = true;
@@ -127,11 +139,6 @@ public:
 		finish:
 		col1 = a1;
 		col2 = b2_;
-
-		// TODO
-		if (!ret) {
-			//std::cout << "no solution found" << std::endl;
-		}
 		return ret;
 	}
 };
@@ -163,7 +170,7 @@ public:
 	/// 		and if a collision is found in will be written into this value
 	///			NOTE: the element before the collision will be return
 	/// \param col2 input/output
-	/// \param max_iters: maximal iterations until to exit the algorithm
+	/// \param walk_len: maximal iterations until to exit the algorithm
 	/// \return true/false if a solution/collision was found
 	template<class F,
              class C,
@@ -182,7 +189,7 @@ public:
         bool found = false;
         auto walk_f = [&]() __attribute__((always_inline)) noexcept {
             while (!found) {
-                // TODO: flavour 
+                // TODO: flavour
                 T v = rng<T>();
                 for (size_t i = 0; i < walk_len; i++) {
                     if (d(v)) {
