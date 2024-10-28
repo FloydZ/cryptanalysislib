@@ -333,7 +333,7 @@ public:
 
 				// join to intermediate list (hashmap)
 				// NOTE: `prepare==false`, because its already done
-				t.template join2lists_on_iT_hashmap_v2
+				t.template join2lists_on_iT_v2
 					<k_lower1, k_upper1>
 					(*hmiL, L1, L2, *hmL2, tree_iT, false);
 
@@ -349,6 +349,7 @@ public:
 			// std::cout << target << std::endl;
 			// std::cout << out << std::endl;
 			ASSERT(out.load() > 0);
+			ASSERT(iters < 10);
 			size_t wrong = 0;
 			for (size_t it = 0; it < out.load(); it++) {
 				ASSERT(out[it].is_correct(A));
@@ -369,7 +370,6 @@ public:
 
 			return ret;
 		};
-
 
 		const auto start = std::chrono::high_resolution_clock::now();
 		// start loop
