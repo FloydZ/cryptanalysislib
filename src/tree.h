@@ -1626,7 +1626,7 @@ public:
 	///          │     │ └┐    ┌┘
 	///          │     │  └┐  ┌┘
 	///          └─────┘   └──┘
-	///            L1      HM1
+	///            L1      HM1 f
 	/// NOTE: v2 means that the `label` of the output elements in `out`
 	///		are the target. So this function actually returns targets and not
 	/// 	zeros.
@@ -1644,10 +1644,10 @@ public:
 	/// \param target target to match on
 	/// \param iT intermediate target
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
-			const uint32_t k_lower2, const uint32_t k_upper2,
-			typename HashMap1,
-			typename HashMap2,
-			typename HashMap3>
+			 const uint32_t k_lower2, const uint32_t k_upper2,
+			 typename HashMap1,
+			 typename HashMap2,
+			 typename HashMap3>
 #if __cplusplus > 201709L
 	requires HashMapAble<HashMap1> &&
 			 HashMapAble<HashMap2> &&
@@ -2916,6 +2916,75 @@ template<const uint32_t k_lower1, const uint32_t k_upper1,
 									  const LabelType &iT,
 									  const bool prepare = true) noexcept {
 
+	    using LoadTypeL0 = typename HashMapL0::load_type;
+	    using LoadTypeL1 = typename HashMapL1::load_type;
+	    using LoadTypeL2 = typename HashMapL2::load_type;
+        LoadTypeL0 load0; LoadTypeL1 load1; LoadTypeL2 load2;
+        
+		LabelType l1_t0; // level 1, target 0
+        LabelType l1_t1; // level 1, target 1
+        LabelType l1_t2; // level 1, target 1
+		LabelType l2_t0, l2_iT0;
+		LabelType L2_target, L2_iT;
+
+        LabelType t1,t2,t3;
+
+        constexpr static uint32_t filter = -1u;
+        constexpr static bool sub = false;
+       
+        // hash the in base list
+		hmL0.clear();
+		for (size_t i = 0; i < L2.load(); ++i) {
+			hmL0.insert(L2[i].label.value(), i);
+		}
+
+        // match between L1, L2
+        join2lists_on_iT_v2
+            <k_lower1, k_upper1>
+            (hmL1, L1, L2, hmL0, l1_t0, false);
+
+        // match between L1, L2, L3, L4
+        twolevel_streamjoin_on_iT_hashmap_v2
+            <k_lower1, k_upper1, k_lower2, k_upper2>
+            (hmL2, hmL1, L1, hmL0, l2_t0, l2_iT0);
+
+        // match between L5, L6
+        join2lists_on_iT_v2
+            <k_lower1, k_upper1>
+            (hmL1, L1, L2, hmL0, l1_t1, false);
+
+
+        // kij = j-th k in level i
+		for (size_t k01 = 0; k01 < L1.load(); ++k01) {
+			LabelType::sub(t1, l1_t2, L1[k01].label);
+			size_t k02 = hmL0.find(t1.value, load0);
+			for (; (k02 < L2.load()) &&
+				   (t1.template is_equal<0, k_upper1>(L2[k02].label));
+				   ++k02) {
+
+                // TODO
+				LabelType::sub(t2, target, L1[k01].label);
+				LabelType::sub(t2, t2, L2[k02].label);
+			    size_t k10 = hmL1.find(t2.value, load1);
+				for (; (k10 < hmL1.load()) &&
+					   (t2.template is_equal<0, k_upper2>(hmL1[k10].label));
+					   ++k10) {
+                
+                    // TODO
+				    LabelType::sub(t3, target, L1[k02].label);
+			        size_t k20 = hmL2.find(t3.value, load2);
+				    for (; (k20 < hmL2.load()) &&
+				    	   (t3.template is_equal<0, k_upper3>(hmL1[k20].label));
+				    	   ++k20) {
+                    
+					    // ElementType::add(tmpe1, hmL1[k10], L1[k]);
+					    out.template add_and_append
+					    	<0, k_upper2, filter, sub>
+					    	(tmpe1, L2[l]);
+                    }
+				}
+			}
+		}
 	}
 
 
