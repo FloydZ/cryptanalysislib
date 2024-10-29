@@ -620,729 +620,6 @@ public:
 		}
 	}
 
-	///                                       unsorted  Out
-	///                                      +----------------------+
-	///                                      |           |          |
-	///                                      +----------------------+
-	/// Merge on k_upper                                 |
-	///                        +-------------------------+-------------------------+  Stream Merge
-	///             sorted     |                Merge on target                    |
-	///            +-----------------------+                          + - - - - - --- - - - - +
-	///            |           |           | Intermediate List        |            |          | NOT Saved
-	///            +-----------+-----------+                          +- - - - - - | - - - - -+
-	///                       i_L                                                  |  Merge on k_lower
-	///                                                              +-------------+-----------+
-	///                                                   sorted     |    merge on equal       |  sorted
-	///                                                   +-----------------------+ +-----------------------+
-	///                                                   |          |            | |          |            |
-	///                                                   +----------+------------+ +----------+------------+
-	///                                                  k_lower1   L_1      k_upper2         L_2      k_upper2
-	///                                                            k_upper1=k_lower2
-	///
-	/// IMPORTANT: The two lists L1, L2 __MUST__ be prepared with any intermediate target before calling this function.
-	///		This function only sort the inputs.
-	/// \param out			Output list
-	/// \param iL			Input list, will be sorted on [k_lower1, k_upper2]
-	/// \param L1			Input list, will be sorted on [k_lower1, k_upper1]
-	/// \param L2			Input list, will be sorted on [k_lower1, k_upper1]
-	/// \param k_lower1 lower coordinate to match on, on the first level
-	/// \param k_upper1 upper coordinate to match on, on the first level
-	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
-	/// \param k_upper2 upper coordinate to match on, on the last level
-	/// \param prepare if true: will only sort the lists.
-	void twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
-	                         const uint32_t k_lower1, const uint32_t k_upper1,
-							 const uint32_t k_lower2, const uint32_t k_upper2,
-	                         bool prepare = true) noexcept {
-		ASSERT(k_lower1 < k_upper1 &&
-		       0 < k_upper1 && k_lower2 < k_upper2
-		       && 0 < k_upper2
-		       && k_lower1 <= k_lower2
-		       && k_upper1 <= k_upper2);
-		// internal variables.
-		constexpr uint32_t filter = uint32_t(-1);
-		constexpr bool sub = !LabelType::binary();
-		std::pair<size_t, size_t> boundaries;
-		ElementType e;
-
-		if (prepare) {
-			iL.sort_level(k_lower1, k_upper2);
-			L1.sort_level(k_lower1, k_upper1);
-			L2.sort_level(k_lower1, k_upper1);
-		}
-
-
-		auto op = [](ElementType &c, const ElementType &a, const ElementType &b,
-					 const uint64_t l, const uint64_t h) {
-		  if constexpr (sub) {
-			  ElementType::sub(c, a, b, l, h, filter);
-		  } else {
-			  ElementType::add(c, a, b, l, h, filter);
-		  }
-		};
-
-		// early exit
-		if (iL.load() == 0) { return; }
-		if (L1.load() == 0) { return; }
-		if (L2.load() == 0) { return; }
-
-		uint64_t i=0, j=0;
-		while (i < L1.load() && j < L2.load()) {
-			if (L2[j].is_greater(L1[i], k_lower1, k_upper1)) {
-				i++;
-			} else if (L1[i].is_greater(L2[j], k_lower1, k_upper1)) {
-				j++;
-			} else {
-				uint64_t i_max=i+1ull, j_max=j+1ull;
-				for (; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
-				for (; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower1, k_upper1); j_max++) {}
-
-				const uint64_t jprev = j;
-
-				// we have found equal elements. But this time we don't have to
-				// save the result. Rather we stream join everything up to the final solution.
-				for (; i < i_max; ++i) {
-					for (j = jprev; j < j_max; ++j) {
-						// add/sub on full length
-						op(e, L1[i], L2[j], k_lower1, k_upper2);
-#ifdef DEBUG
-						if (!e.label.is_zero(k_lower1, k_upper1)) {
-							std::cout << e;
-							std::cout << L2[j];
-							std::cout << L1[i];
-							ASSERT(false);
-						}
-#endif
-
-						boundaries = iL.search_boundaries(e, k_lower2, k_upper2);
-
-						// finished?
-						if (boundaries.first == boundaries.second) {
-							// NOTE: we cannot break out of the two loops
-							// only the first one.
-							break;
-						}
-
-						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
-							// TODO can happen that the addition here is not correct: SubSetSum representation which cancel a 1
-							// out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
-
-							const size_t b = out.load();
-							ValueType::add(out[b].value, iL[l].value, e.value, k_lower1, k_upper2);
-							out[b].recalculate_label(matrix);
-							out.set_load(b+1);
-
-
-#ifdef DEBUG
-							if (!out[b].label.is_zero(k_lower1, k_upper2)) {
-								std::cout << iL[l] << std::endl;
-								std::cout << e << std::endl;
-								std::cout << out[b] << std::endl;
-								ASSERT(false);
-							}
-#endif
-						}
-					}
-				}
-			}
-		}
-	}
-
-	/// TODO test
-	/// 			out list
-	///              ┌───────┐
-	///              │  out  │
-	///              └───┬───┘
-	///          k_lower2│k_upper2
-	///     ┌──────────── ───────────┐
-	///     │                        │
-	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
-	/// │sorted │ not            │			not saved
-	/// │  iL   │ altered
-	/// └───────┘                └───┬───┘
-	///                              │
-	///                      k_lower1│k_upper1
-	///                       ┌──────┴──────┐
-	///                       │             │
-	///                   ┌───┴───┐     ┌───┴───┐
-	///                   │const  │     │sorted │ but not
-	///                   │   L1  │     │   L2  │ altered
-	///                   └───────┘     └───────┘
-	/// NOTE: on_iT means, that the input lists, will only be sorted, not altered
-	/// \param out  output list
-	/// \param iL directly sorted on [k_lower1, k_upper2)
-	/// \param L1 base list, const, is untouched
-	/// \param L2 base list, sorted on [k_lower1, k_upper1), will be if prepare==true
-	///	 	NOTE: that it will only be sorted.
-	/// \param target const
-	/// \param k_lower1 lower coordinate to match on, on the first level
-	/// \param k_upper1 upper coordinate to match on, on the first level
-	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
-	/// \param k_upper2 upper coordinate to match on, on the last level
-	void twolevel_streamjoin_on_iT(List &out, List &iL, const List &L1, List &L2,
-										  const LabelType &target,
-										  const uint32_t k_lower1, const uint32_t k_upper1,
-										  const uint32_t k_lower2, const uint32_t k_upper2,
-	                                      bool prepare=true) noexcept {
-		ASSERT(k_lower1 < k_upper1 &&
-			   0 < k_upper1 && k_lower2 < k_upper2
-			   && 0 < k_upper2
-			   && k_lower1 <= k_lower2
-			   && k_upper1 <= k_upper2);
-
-		// internal variables.
-		std::pair<uint64_t, uint64_t> boundaries;
-		ElementType e1, e2;
-		uint64_t i = 0, j = 0;
-		LabelType tmp, tmp2;
-
-		if (prepare) {
-			L2.sort_level(k_lower1, k_upper1, target);
-			iL.sort_level(k_lower2, k_upper2);
-		}
-
-		while (i < L1.load() && j < L2.load()) {
-			LabelType::add(tmp, L2[j].label, target);
-			if (tmp.is_greater(L1[i].label, k_lower1, k_upper1)) {
-				i++;
-			} else if (L1[i].label.is_greater(tmp, k_lower1, k_upper1)) {
-				j++;
-			} else {
-				uint64_t i_max, j_max;
-				for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
-				for (j_max = j+1;j_max < L2.load();j_max++) {
-					LabelType::add(tmp2, L2[j_max].label, target);
-					if (!tmp.is_equal(tmp2, k_lower1, k_upper1))  { break; }
-				}
-
-				const uint64_t jprev = j;
-
-				// we have found equal elements. But this time we don't have to
-				// save the result. Rather we stream join everything up to the final solution.
-				for (; i < i_max; ++i) {
-					for (j = jprev; j < j_max; ++j) {
-						ElementType::add(e1, L1[i], L2[j], k_lower1, k_upper2, -1);
-						if (!e1.label.is_equal(target, k_lower1, k_upper1)) {
-							L1[i].label.print_binary();
-							L2[j].label.print_binary();
-							e1.label.print_binary();
-							target.print_binary();
-							ASSERT(false);
-						}
-
-
-
-						LabelType::sub(e2.label, e1.label, target);
-						e2.label.neg();
-						boundaries = iL.search_boundaries(e2, k_lower2, k_upper2);
-
-						// finished?
-						if (boundaries.first == boundaries.second) {
-							// NOTE: we cannot break out of the two loops
-							// only the first one.
-							break;
-						}
-
-						for (size_t l = boundaries.first; l < boundaries.second; ++l) {
-							out.add_and_append(e1, iL[l], 0, LabelLENGTH, -1);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	/// 			out list
-	///              ┌───────┐
-	///              │  out  │
-	///              └───┬───┘
-	///          k_lower2│k_upper2
-	///     ┌──────────── ───────────┐
-	///     │                        │
-	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
-	/// │sorted │                │			not saved
-	/// │  iL   │
-	/// └───────┘                └───┬───┘
-	///                              │
-	///                      k_lower1│k_upper1
-	///                       ┌──────┴──────┐
-	///                       │             │
-	///                   ┌───┴───┐     ┌───┴───┐
-	///                   │const  │     │sorted │
-	///                   │   L1  │     │   L2  │
-	///                   └───────┘     └───────┘
-	///
-	/// NOTE: make sure that iT = iT_ + target.
-	///		otherwise it this implementation wont find a valid solution
-	/// \param out out list: will contain the target and not zeros:w
-	/// \param iL sorted on [0, k_upper2)
-	/// \param L1 const: dont care
-	/// \param L2 sorted on [0, k_upper1)
-	/// \param target full target
-	/// \param iT intermediate target, make sure that its related to the actual target
-	/// 	like: iT=target-iT
-	/// \param k_lower1 lower coordinate to match on, on the first level
-	/// \param k_upper1 upper coordinate to match on, on the first level
-	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
-	/// \param k_upper2 upper coordinate to match on, on the last level
-	/// \param prepare if true: sort L2 and iL. nothing else.
-	void twolevel_streamjoin_on_iT_v2(List &out, List &iL,
-	                                         const List &L1, List &L2,
-										     const LabelType &target, const LabelType &iT,
-										     const uint32_t k_lower1, const uint32_t k_upper1,
-										     const uint32_t k_lower2, const uint32_t k_upper2,
-	                                         const bool prepare = true) noexcept {
-		constexpr uint32_t filter = -1u;
-
-		if (prepare) {
-			L2.sort_level(k_lower1, k_upper1);
-			iL.sort_level(k_lower1, k_upper2);
-		}
-		ASSERT(L2.is_sorted(k_lower1, k_upper1));
-		ASSERT(iL.is_sorted(k_lower1, k_upper2));
-		(void)k_lower2;
-
-		ElementType tmpe1;
-		LabelType t1, t2;
-		for (size_t k = 0; k < L1.load(); ++k) {
-			LabelType::sub(t1, iT, L1[k].label);
-			size_t l = L2.search_level(t1, k_lower1, k_upper1);
-			for (; (l < L2.load()) &&
-			       (t1.is_equal(L2[l].label, k_lower1, k_upper1));
-			     ++l) {
-				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, L2[l].label);
-				size_t o = iL.search_level(t2, k_lower1, k_upper2);
-				for (; (o < iL.load()) &&
-				       (t2.is_equal(iL[o].label, k_lower1, k_upper2));
-				     ++o) {
-					ElementType::add(tmpe1, iL[o], L1[k]);
-					out.add_and_append(tmpe1, L2[l], k_lower1, k_upper2, filter);
-				}
-			}
-		}
-	}
-
-	/// 			out list
-	///              ┌───────┐
-	///              │  out  │
-	///              └───┬───┘ match on T
-	///          k_lower2│k_upper2
-	///     ┌──────────── ───────────┐
-	///     │     iL=T-L1-L2         │
-	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
-	/// │       │                │			 not saved
-	/// │  iL   │
-	/// └───────┘                └───┬───┘
-	///                              │ match on iT
-	///                      k_lower1│k_upper1
-	///                       ┌──────┴──────┐
-	///                       │ L2=iT-L1    │
-	///                   ┌───┴───┐     ┌───┴───┐
-	///                   │       │     │       │
-	///                   │   L1  │     │   L2  │
-	///                   └───────┘     └───────┘
-	///
-	/// NOTE: the name appendix `_v2` means that the target label is
-	/// 	computed in the the outlist. So the out list will contain
-	///		the solutions and not zeros.
-	/// NOTE: make sure that iT = iT_ + target.
-	///		otherwise it this implementation wont find a valid solution
-	/// \tparam k_lower1 lower coordinate to match on, on the first level
-	/// \tparam k_upper1 upper coordinate to match on, on the first level
-	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
-	/// \tparam k_upper2 upper coordinate to match on, on the last level
-	/// \param out outlist
-	/// \param iL sorted on [k_lower1, k_upper2), will be sorted if prepare==true
-	/// \param L1 dont care
-	/// \param L2 sorted on [k_lower1, k_upper1), will be sorted if prepare==true
-	/// \param target full target
-	/// \param iT intermediate target: should be related to the target
-	/// \param prepare: if true: L2 and iL will be sorted
-	template<const uint32_t k_lower1, const uint32_t k_upper1,
-	         const uint32_t k_lower2, const uint32_t k_upper2>
-	void twolevel_streamjoin_on_iT_v2(List &out, List &iL,
-									  const List &L1, List &L2,
-									  const LabelType &target,
-	                                  const LabelType &iT,
-	                                  const bool prepare=true) noexcept {
-		static_assert(k_lower1 < k_upper1);
-		static_assert(k_lower2 < k_upper2);
-		(void)k_lower2;
-
-		if (prepare) {
-			L2.template sort_level<k_lower1, k_upper1>();
-			iL.template sort_level<k_lower1, k_upper2>();
-		}
-
-		ASSERT(L2.is_sorted(k_lower1, k_upper1));
-		ASSERT(iL.is_sorted(k_lower1, k_upper2));
-
-		constexpr uint32_t filter = -1u;
-		constexpr bool sub = false;
-
-		ElementType tmpe1;
-		LabelType t1, t2;
-		for (size_t k = 0; k < L1.load(); ++k) {
-			LabelType::sub(t1, iT, L1[k].label);
-			size_t l = L2.template search_level
-			        		<k_lower1, k_upper1>(t1);
-
-			for (; (l < L2.load()) &&
-				   (t1.template is_equal<k_lower1, k_upper1>(L2[l].label));
-				   ++l) {
-
-				// cpmpute the collision
-				ElementType::add(tmpe1, L1[k], L2[l]);
-				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, L2[l].label);
-				size_t o = iL.template search_level
-				        		<k_lower1, k_upper2>(t2);
-				for (; (o < iL.load()) &&
-					   (t2.template is_equal<k_lower1, k_upper2>(iL[o].label));
-					   ++o) {
-					ASSERT(iL[o].is_correct(matrix));
-					ASSERT(L1[k].is_correct(matrix));
-					ASSERT(L2[l].is_correct(matrix));
-					ASSERT(tmpe1.is_correct(matrix));
-
-					///
-					out.template add_and_append
-						<k_lower1, k_upper2, filter, sub>
-						(tmpe1, iL[o]);
-
-
-					const size_t b1 = out.load() - 1;
-
-					// NOTE: this needs to be done, as representation may destroy
-					// the linearity of addition
-					if constexpr (config.needs_recomputation) {
-						out[b1].recalculate_label(matrix);
-					}
-
-					ASSERT(out[b1].is_correct(matrix));
-				}
-			}
-		}
-	}
-
-	///                        out
-	///                       ┌───┐ 					level 2
-	///                       └───┘
-	/// 				k_lower2|k_upper2
-	///           ┌─────────────┴────────────┐
-	///       ┌───┴───┐ hmIL=T-L1-L2         │   		level 1
-	///       └┐const┌┘ hmIL                 │
-	///        └┐   ┌┘  const                │ L2=iT-L1
-	///         └───┘                k_lower1│k_upper1
-	/// 					            ┌────┴────┐
-	/// 					        ┌───┴───┐ ┌───┴───┐ level 0
-	/// 					         const  │ └┐const┌  NOTE: both lists/hms
-	/// 					        │          └    ┌┘  are NOT prepared.
-	/// 					        └───────┘   └───┘  Hash
-	/// 								L1		 HM2 <------- L2
-	/// NOTE: v2 means that the `label` of the output elements in `out`
-	///		are the target. So this function actually returns targets and not
-	/// 	zeros.
-	/// NOTE: the matrix A must be passed as an additional to compute
-	/// 	sums of elements.
-	/// \tparam k_lower1 lower coordinate to match on, on the first level
-	/// \tparam k_upper1 upper coordinate to match on, on the first level
-	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
-	/// \tparam k_upper2 upper coordinate to match on, on the last level
-	/// \tparam HashMap1 type of the intermediate hashmap
-	/// \tparam HashMap2 type of the baselist hashmap
-	/// \param out output list
-	/// \param hmiL intermdiate hashmap,
-	/// \param L1 const, only needed to compute the collisions
-	/// \param L2 const, only needed to compute the collisions
-	/// \param hmL2  base list hashmap. Make sure its filled with L2
-	/// \param target final target
-	/// \param iT intermediate target, make dure its related to target
-	template<const uint32_t k_lower1, const uint32_t k_upper1,
-			 const uint32_t k_lower2, const uint32_t k_upper2,
-			 const uint32_t weight=0, // TODO doc
-			 typename HashMap1,
-	         typename HashMap2>
-#if __cplusplus > 201709L
-	requires HashMapAble<HashMap1> &&
-	 		 HashMapAble<HashMap2>
-#endif
-	void twolevel_streamjoin_on_iT_hashmap_v2(List &out,
-	                                          const HashMap1 &hmiL,
-											  const List &L1,
-											  const List &L2,
-	                                          const HashMap2 &hmL2,
-	                                          const LabelType &target,
-	                                          const LabelType &iT) noexcept {
-		static_assert(k_lower1 < k_upper1);
-		static_assert(k_lower2 < k_upper2);
-		static_assert(k_lower1 < k_upper1);
-		(void)k_lower2;
-		using LoadType1 = typename HashMap1::load_type;
-		using LoadType2 = typename HashMap2::load_type;
-		constexpr uint32_t filter = -1u;
-		constexpr bool sub = false;
-
-		ElementType te1, te2;
-		LabelType t1, t2;
-		LoadType1 load1 = 0;
-		LoadType2 load2 = 0;
-
-		for (size_t k = 0; k < L1.load(); ++k) {
-			LabelType::sub(t1, iT, L1[k].label);
-
-			const size_t s2 = hmL2.find(t1.value(), load2);
-			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
-				const size_t b1 = hmL2[l2];
-				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
-				ASSERT(L2[b1].is_correct(matrix));
-				ASSERT(b1 < L2.load());
-
-				const LabelType t3 = L2[b1].label;
-				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, t3);
-
-				ElementType::add(te1, L1[k], L2[b1]);
-				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
-				ASSERT(te1.is_correct(matrix));
-
-				// NOTE: its shifted
-				const size_t s1 = hmiL.find(t2.value(), load1);
-				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
-					const size_t a1 = hmiL[l1].first;
-					const size_t a2 = hmiL[l1].second;
-					ASSERT(a1 < L1.load());
-					ASSERT(a2 < L2.load());
-					ElementType::add(te2, L1[a1], L2[a2]);
-
-					ASSERT(te1.is_correct(matrix));
-					ASSERT(te2.is_correct(matrix));
-
-					if constexpr (weight) {
-						const size_t b2 = out.load();
-						ValueType::add(out[b2].value, te1.value, te2.value);
-						if (out[b2].value.popcnt() == weight) {
-							LabelType::template add
-								<k_lower1, k_upper2>
-								(out[b2].label, te1.label, te2.label);
-
-							ASSERT(out[b2].is_correct(matrix));
-							out.set_load(b2+1);
-							// TODO only find a single solution
-							goto finish;
-						}
-
-					} else {
-						out.template add_and_append
-							<k_lower1, k_upper2, filter, sub>
-							(te1, te2);
-					}
-				}
-			}
-		}
-
-		finish:
-		return;
-	};
-
-	///						out if wanted
-	///							|
-	///             f(out,e1,e2,a1,a2,a3,a4) 			level 2
-	/// 						|
-	/// 				k_lower2|k_upeper2
-	///           ┌─────────────┴────────────┐
-	///       ┌───┴───┐                      │   		level 1
-	///       └┐const┌┘ hmIL                 │
-	///        └┐   ┌┘  const                │
-	///         └───┘                k_lower1│k_upper1
-	/// 					            ┌────┴────┐
-	/// 					        ┌───┴───┐ ┌───┴───┐ level 0
-	/// 					         const  │ └┐const┌  NOTE: both lists/hms
-	/// 					        │          └    ┌┘  are NOT prepared.
-	/// 					        └───────┘   └───┘  Hash
-	/// 								L1		 HM2 <------- L2
-	/// NOTE: This function takes an additional lambda function as an argument.
-	/// 	This new function is called in the last level of the algorithm,
-	///		when a solution to the output list should be appended. Instead
-	/// 	this solution is passed to the lambda function, with the indices
-	///  	and so on.
-	/// NOTE: v2 means that the `label` of the output elements in `out`
-	///		are the target. So this function actually returns targets and not
-	/// 	zeros.
-	/// NOTE: the matrix A must be passed as an additional to compute
-	/// 	sums of elements.
-	/// \tparam k_lower1 lower coordinate to match on, on the first level
-	/// \tparam k_upper1 upper coordinate to match on, on the first level
-	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
-	/// \tparam k_upper2 upper coordinate to match on, on the last level
-	/// \tparam HashMap1 type of the intermediate hashmap
-	/// \tparam HashMap2 type of the baselist hashmap
-	/// \tparam F lambda function taking the followoing arguments
-	///		f(List &out,
-	///  	  const ElementType &e1, const ElementType &e2,
-	///		  const size_t a1, const size_t a2,
-	///		  const size_t a3, const size_t a4)
-	///		where:
-	/// 		- out is the output list
-	///	 		- e1, e2 are the two intermediate results of the left and right
-	/// 			intermediate lists
-	///			- a1,a2,a3,a4 are the indicies of the result value;
-	/// \param out output list
-	/// \param hmiL intermediate hashmap, const, will not be altered
-	/// \param L1 left  base list, const, will not be sorted/altered
-	/// \param L2 right base list, const, will not be sorted/altered
-	/// \param hmL2 hashmap of L2, const, will not be sorted
-	/// \param target const target
-	/// \param iT intermediate target, make sure its related to target
-	/// \param f lambda function
-	template<const uint32_t k_lower1, const uint32_t k_upper1,
-			 const uint32_t k_lower2, const uint32_t k_upper2,
-			 typename HashMap1,
-			 typename HashMap2,
-			 typename F>
-#if __cplusplus > 201709L
-	requires HashMapAble<HashMap1> &&
-			 HashMapAble<HashMap2> &&
-			 std::regular_invocable<F, List&, const ElementType&, const ElementType&, const size_t, const size_t, const size_t, const size_t>
-#endif
-	void twolevel_streamjoin_on_iT_hashmap_v2(List &out,
-											  const HashMap1 &hmiL,
-											  const List &L1,
-											  const List &L2,
-											  const HashMap2 &hmL2,
-											  const LabelType &target,
-											  const LabelType &iT,
-	                                           F &&f) noexcept {
-		static_assert(k_lower1 < k_upper1);
-		static_assert(k_lower2 < k_upper2);
-		static_assert(k_lower1 < k_upper1);
-		(void)k_lower2;
-		using LoadType1 = typename HashMap1::load_type;
-		using LoadType2 = typename HashMap2::load_type;
-
-		ElementType te1, te2;
-		LabelType t1, t2;
-		LoadType1 load1 = 0;
-		LoadType2 load2 = 0;
-
-		for (size_t k = 0; k < L1.load(); ++k) {
-			LabelType::sub(t1, iT, L1[k].label);
-
-			const size_t s2 = hmL2.find(t1.value(), load2);
-			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
-				const size_t b1 = hmL2[l2];
-				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
-				ASSERT(L2[b1].is_correct(matrix));
-				ASSERT(b1 < L2.load());
-
-				const LabelType t3 = L2[b1].label;
-				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, t3);
-
-				ElementType::add(te1, L1[k], L2[b1]);
-				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
-				ASSERT(te1.is_correct(matrix));
-
-				// NOTE: its shifted
-				const size_t s1 = hmiL.find(t2.value(), load1);
-				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
-					const size_t a1 = hmiL[l1].first;
-					const size_t a2 = hmiL[l1].second;
-					ASSERT(a1 < L1.load());
-					ASSERT(a2 < L2.load());
-					ElementType::add(te2, L1[a1], L2[a2]);
-
-					// ASSERT(te2.is_correct(A));
-					f(out, te1, te2, b1, k, a1, a2);
-				}
-			}
-		}
-	}
-
-	/// TODO test
-	///          out
-	///        ┌──────┐
-	///        └┐    ┌┘
-	///         └┐  ┌┘
-	///          └┬─┘
-	///   k_lower2│k_upper2
-	///    ┌──────┴─────┐
-	/// ┌──┴───┐        │
-	/// └┐    ┌┘        │
-	///  └┐  ┌┘         │
-	///   └──┘          │
-	///   HM12  klower1 │k_upper1
-	///             ┌───┴───┐
-	///          ┌──┼──┐ ┌──┼───┐
-	///          │     │ └┐    ┌┘
-	///          │     │  └┐  ┌┘
-	///          └─────┘   └──┘
-	///            L1      HM1
-	/// NOTE: v2 means that the `label` of the output elements in `out`
-	///		are the target. So this function actually returns targets and not
-	/// 	zeros.
-	/// \tparam k_lower1 lower coordinate to match on, on the first level
-	/// \tparam k_upper1 upper coordinate to match on, on the first level
-	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
-	/// \tparam k_upper2 upper coordinate to match on, on the last level
-	/// \tparam HashMap1 type of the baselist hashmap
-	/// \tparam HashMap2 type of the intermediate hashmap
-	/// \tparam HashMap3 type of the out hashmap
-	/// \param out output hashmap
-	/// \param iL intermediate hashmap
-	/// \param L1 left base list
-	/// \param L2 right hashmap of the baselist
-	/// \param target target to match on
-	/// \param iT intermediate target
-	template<const uint32_t k_lower1, const uint32_t k_upper1,
-			 const uint32_t k_lower2, const uint32_t k_upper2,
-			 typename HashMap1,
-	         typename HashMap2,
-	         typename HashMap3>
-#if __cplusplus > 201709L
-	requires HashMapAble<HashMap1> &&
-	         HashMapAble<HashMap2> &&
-			 HashMapAble<HashMap3>
-#endif
-	void twolevel_streamjoin_on_iT_hashmap_v2(HashMap3 &out,
-											  const HashMap2 &iL,
-											  const List &L1,
-											  const HashMap1 &L2,
-											  const LabelType &target,
-											  const LabelType &iT) noexcept {
-		static_assert(k_lower1 < k_upper1);
-		static_assert(k_lower2 < k_upper2);
-		static_assert(k_lower1 < k_upper1);
-		(void)k_lower1;
-		(void)k_lower2;
-
-		constexpr uint32_t filter = -1u;
-		constexpr bool sub = false;
-
-		ElementType tmpe1;
-		LabelType t1, t2;
-		for (size_t k = 0; k < L1.load(); ++k) {
-			LabelType::sub(t1, iT, L1[k].label);
-			size_t l = L2.template search_level<0, k_upper1>(t1);
-			for (; (l < L2.load()) &&
-				   (t1.template is_equal<0, k_upper1>(L2[l].label));
-				   ++l) {
-				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, L2[l].label);
-				size_t o = iL.template search_level<0, k_upper2>(t2);
-				for (; (o < iL.load()) &&
-					   (t2.template is_equal<0, k_upper2>(iL[o].label));
-					   ++o) {
-					ElementType::add(tmpe1, iL[o], L1[k]);
-					out.template add_and_append
-							<0, k_upper2, filter, sub>
-							(tmpe1, L2[l]);
-				}
-			}
-		}
-	}
-
 	///  Schematic View on how the algorithm Works.
 	///  The algorithm does not care what weight is on each element, nor does it care about the output size.
 	///  IMPORTANT: The Output size IS NOT GUESSED ahead. Because we dont know hom many representations of the solution there are.
@@ -1467,7 +744,8 @@ public:
 					  List &L1, List &L2,
 					  const LabelType &target,
 					  bool prepare=true,
-					  F f=[](List &out, const List &L1, const List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
+					  F f=[](List &out, const List &L1, const List &L2, const size_t i, const size_t j)
+	                          __attribute__((always_inline)) {
 						  out.template add_and_append
 					  		<k_lower, k_upper, -1u, !LabelType::binary()>
 					  		(L1[i], L2[j]);
@@ -1730,7 +1008,8 @@ public:
 	        HashMapIn &hm2,
 	        const LabelType &target,
 	        const bool prepare=true,
-	        F f = [](HashMapOut &out, const List &L1, const List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
+	        F f = [](HashMapOut &out, const List &L1, const List &L2, const size_t i, const size_t j)
+	                __attribute__((always_inline)) {
 		        using HMOutValueType = HashMapOut::data_type;
 		        LabelType e;
 		        LabelType::add(e, L1[i].label, L2[j].label);
@@ -1740,81 +1019,686 @@ public:
 		        out.insert(e.value(), HMOutValueType{i, j});
 	        }) noexcept;
 
-
-	/// TODO not finished
+	///                out
+	///              ┌─────┐
+	///              │     │ thread2
+	///              │xxxxx│
+	///              │     │ thread1
+	///              └─────┘
+	///                 ▲      parallel insert in
+	///                 │      out list
+	///            ┌────┴────┐
+	/// Parallel   │         │
+	/// lookup in  │      ┌──┴──┐ hashmap
+	/// hashmap    │      └┐   ┌┘
+	///            │       └┐ ┌┘
+	///            │        └▲┘
+	///            │         │ parallel hash
+	///            │L1     L2│
+	///         ┌──┴──┐   ┌──┴──┐
+	/// Thread 2│     │   │     │ Thread 2
+	///         │xxxxx│   │xxxxx│
+	/// Thread 1│     │   │     │ Thread 1
+	///         └─────┘   └─────┘
+	///          const     const hashed
 	/// NOTE: multithreaded
+	/// \tparam k_lower lower coordinate to match on
+	/// \tparam k_upper upper coordinate to match on
+	/// \tparam bucketsize number of elements in the hashmap
+	/// \tparam nthreads number of threads working on parallel
+	/// \tparam ExecPolicy threading policy: see thread subfolder
+	/// \param policy threading policy
+	/// \param out output list
+	/// \param L1 left list
+	/// \param L2 right list
+	/// \param target target to math on
+	/// \return number of matches
 	template<const uint32_t k_lower,
-	         const uint32_t k_upper,
+			 const uint32_t k_upper,
 			 const uint32_t bucketsize,
 			 const uint32_t nthreads,
 			 class ExecPolicy>
-	size_t join2lists_on_iT_hashmap_v2(ExecPolicy&& policy,
-							 List &out,
-							 const List &L1, List &L2,
-							 const LabelType &target) noexcept {
-		/// INIT THREADS
-		auto& task_pool = *policy.pool();
-		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
-			return join2lists_on_iT_v2
-					<k_lower, k_upper>
-					(out, L1, L2, target);
-		}
+	size_t join2lists_on_iT_v2(ExecPolicy&& policy,
+							   List &out,
+							   const List &L1, List &L2,
+							   const LabelType &target) noexcept;
 
-		/// INIT Hashmap
-		using D = typename LabelType::DataType;
-		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
-			bucketsize, 1ull<<(k_upper-k_lower), nthreads
-		};
+	///                                       unsorted  Out
+	///                                      +----------------------+
+	///                                      |           |          |
+	///                                      +----------------------+
+	/// 								Merge on k_upper | f is applied
+	///                        +-------------------------+-------------------------+  Stream Merge
+	///             sorted     |                Merge on target                    |
+	///            +-----------------------+                          + - - - - - --- - - - - +
+	///            |           |           | Intermediate List        |            |          | NOT Saved
+	///            +-----------+-----------+                          +- - - - - - | - - - - -+
+	///                       i_L                                                  |  Merge on k_lower
+	///                                                              +-------------+-----------+
+	///                                                   sorted     |    merge on equal       |  sorted
+	///                                                   +-----------------------+ +-----------------------+
+	///                                                   |          |            | |          |            |
+	///                                                   +----------+------------+ +----------+------------+
+	///                                                  k_lower1   L_1      k_upper2         L_2      k_upper2
+	///                                                            k_upper1=k_lower2
+	///
+	/// IMPORTANT: The two lists L1, L2 __MUST__ be prepared with any intermediate target before calling this function.
+	///		This function only sort the inputs.
+	/// \tparam F type of the filter/insert function
+	/// \param out	Output list
+	/// \param iL	Input list, will be sorted on [k_lower1, k_upper2]
+	/// \param L1	Input list, will be sorted on [k_lower1, k_upper1]
+	/// \param L2	Input list, will be sorted on [k_lower1, k_upper1]
+	/// \param k_lower1 lower coordinate to match on, on the first level
+	/// \param k_upper1 upper coordinate to match on, on the first level
+	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \param k_upper2 upper coordinate to match on, on the last level
+	/// \param prepare if true: will only sort the lists.
+	/// \param f filter/insert function
+	/// \return the number of matches
+	template<const uint32_t weight = 0,
+	         typename F>
+	size_t twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
+							   const uint32_t k_lower1, const uint32_t k_upper1,
+							   const uint32_t k_lower2, const uint32_t k_upper2,
+							   bool prepare,
+	                           F f) noexcept;
 
-		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower, k_upper, 2>>;
-		using LoadType = typename HML0::load_type;
-		HML0 *hm_ = new HML0{};
-		HML0 hm = *hm_;
+	///                                       unsorted  Out
+	///                                      +----------------------+
+	///                                      |           |          |
+	///                                      +----------------------+
+	/// 								Merge on k_upper |
+	///                        +-------------------------+-------------------------+  Stream Merge
+	///             sorted     |                Merge on target                    |
+	///            +-----------------------+                          + - - - - - --- - - - - +
+	///            |           |           | Intermediate List        |            |          | NOT Saved
+	///            +-----------+-----------+                          +- - - - - - | - - - - -+
+	///                       i_L                                                  |  Merge on k_lower
+	///                                                              +-------------+-----------+
+	///                                                   sorted     |    merge on equal       |  sorted
+	///                                                   +-----------------------+ +-----------------------+
+	///                                                   |          |            | |          |            |
+	///                                                   +----------+------------+ +----------+------------+
+	///                                                  k_lower1   L_1      k_upper2         L_2      k_upper2
+	///                                                            k_upper1=k_lower2
+	///
+	/// IMPORTANT: The two lists L1, L2 __MUST__ be prepared with any intermediate target before calling this function.
+	///		This function only sort the inputs.
+	/// \param out	Output list
+	/// \param iL	Input list, will be sorted on [k_lower1, k_upper2]
+	/// \param L1	Input list, will be sorted on [k_lower1, k_upper1]
+	/// \param L2	Input list, will be sorted on [k_lower1, k_upper1]
+	/// \param k_lower1 lower coordinate to match on, on the first level
+	/// \param k_upper1 upper coordinate to match on, on the first level
+	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \param k_upper2 upper coordinate to match on, on the last level
+	/// \param prepare if true: will only sort the lists.
+	/// \return the number of matches
+	template<const uint32_t weight = 0>
+	size_t twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
+							   const uint32_t k_lower1, const uint32_t k_upper1,
+							   const uint32_t k_lower2, const uint32_t k_upper2,
+							   bool prepare=true) noexcept;
 
-		std::vector<std::future<void>> futures;
-		for (size_t tid = 0; tid < nthreads; tid++) {
-			futures.emplace_back(task_pool.enqueue([tid, &hm, &L2]() __attribute__((always_inline)) {
-				const size_t spos = L2.start_pos(tid);
-				const size_t epos = L2.end_pos(tid);
-				for (size_t i = spos; i < epos; ++i) {
-					hm.insert(L2[i].label.value(), i);
-				}
-			}));
-		}
+	/// TODO test
+	/// 			out list
+	///              ┌───────┐
+	///              │  out  │ filter insert on f
+	///              └───┬───┘
+	///          k_lower2│k_upper2
+	///     ┌──────────── ───────────┐
+	///     │                        │
+	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
+	/// │sorted │ not            │			not saved
+	/// │  iL   │ altered
+	/// └───────┘                └───┬───┘
+	///                              │
+	///                      k_lower1│k_upper1
+	///                       ┌──────┴──────┐
+	///                       │             │
+	///                   ┌───┴───┐     ┌───┴───┐
+	///                   │const  │     │sorted │ but not
+	///                   │   L1  │     │   L2  │ altered
+	///                   └───────┘     └───────┘
+	/// NOTE: on_iT means, that the input lists, will only be sorted, not altered
+	/// \tparam F function type
+	/// \param out  output list
+	/// \param iL directly sorted on [k_lower1, k_upper2)
+	/// \param L1 base list, const, is untouched
+	/// \param L2 base list, sorted on [k_lower1, k_upper1), will be if prepare==true
+	///	 	NOTE: that it will only be sorted.
+	/// \param target const
+	/// \param k_lower1 lower coordinate to match on, on the first level
+	/// \param k_upper1 upper coordinate to match on, on the first level
+	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \param k_upper2 upper coordinate to match on, on the last level
+	/// \param prepare
+	/// \param f function to apply to every collision
+	template<typename F>
+	size_t twolevel_streamjoin_on_iT(List &out, List &iL, const List &L1, List &L2,
+								   const LabelType &target,
+								   const uint32_t k_lower1, const uint32_t k_upper1,
+								   const uint32_t k_lower2, const uint32_t k_upper2,
+								   const bool prepare,
+	                               F f) noexcept;
 
-		for (size_t tid = 0; tid < nthreads; tid++) {
-			futures[tid].wait();
-		}
+	/// 			out list
+	///              ┌───────┐
+	///              │  out  │
+	///              └───┬───┘
+	///          k_lower2│k_upper2
+	///     ┌──────────── ───────────┐
+	///     │                        │
+	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
+	/// │sorted │ not            │			not saved
+	/// │  iL   │ altered
+	/// └───────┘                └───┬───┘
+	///                              │
+	///                      k_lower1│k_upper1
+	///                       ┌──────┴──────┐
+	///                       │             │
+	///                   ┌───┴───┐     ┌───┴───┐
+	///                   │const  │     │sorted │ but not
+	///                   │   L1  │     │   L2  │ altered
+	///                   └───────┘     └───────┘
+	/// NOTE: on_iT means, that the input lists, will only be sorted, not altered
+	/// \param out  output list
+	/// \param iL directly sorted on [k_lower1, k_upper2)
+	/// \param L1 base list, const, is untouched
+	/// \param L2 base list, sorted on [k_lower1, k_upper1), will be if prepare==true
+	///	 	NOTE: that it will only be sorted.
+	/// \param target const
+	/// \param k_lower1 lower coordinate to match on, on the first level
+	/// \param k_upper1 upper coordinate to match on, on the first level
+	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \param k_upper2 upper coordinate to match on, on the last level
+	size_t twolevel_streamjoin_on_iT(List &out, List &iL, const List &L1, List &L2,
+									 const LabelType &target,
+									 const uint32_t k_lower1, const uint32_t k_upper1,
+									 const uint32_t k_lower2, const uint32_t k_upper2,
+									 const  bool prepare=true) noexcept;
 
-		futures.clear();
+	/// 			out list
+	///              ┌───────┐ unsorted
+	///              │  out  │ f is applied on every match
+	///              └───┬───┘
+	///          k_lower2│k_upper2
+	///     ┌──────────── ───────────┐
+	///     │                        │
+	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
+	/// │sorted │                │			not saved
+	/// │  iL   │
+	/// └───────┘                └───┬───┘
+	///                              │
+	///                      k_lower1│k_upper1
+	///                       ┌──────┴──────┐
+	///                       │             │
+	///                   ┌───┴───┐     ┌───┴───┐
+	///                   │const  │     │sorted │
+	///                   │   L1  │     │   L2  │
+	///                   └───────┘     └───────┘
+	///
+	/// NOTE: make sure that iT = iT_ + target.
+	///		otherwise it this implementation wont find a valid solution
+	/// \tparam F type of filter/insert function
+	/// \param out out list: will contain the target and not zeros:w
+	/// \param iL sorted on [0, k_upper2)
+	/// \param L1 const: dont care
+	/// \param L2 sorted on [0, k_upper1)
+	/// \param target full target
+	/// \param iT intermediate target, make sure that its related to the actual target
+	/// 	like: iT=target-iT
+	/// \param k_lower1 lower coordinate to match on, on the first level
+	/// \param k_upper1 upper coordinate to match on, on the first level
+	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \param k_upper2 upper coordinate to match on, on the last level
+	/// \param prepare if true: sort L2 and iL. nothing else.
+	/// \param f: filter/insert function
+	template<typename F>
+	size_t twolevel_streamjoin_on_iT_v2(List &out, List &iL,
+									  const List &L1, List &L2,
+									  const LabelType &target, const LabelType &iT,
+									  const uint32_t k_lower1, const uint32_t k_upper1,
+									  const uint32_t k_lower2, const uint32_t k_upper2,
+									  const bool prepare,
+	                                  F f) noexcept;
 
-		for (size_t tid = 0; tid < nthreads; tid++) {
-			futures.emplace_back(task_pool.enqueue([tid, &hm, &out, &L1, &L2, &target]() __attribute__((always_inline)) {
-				LabelType sigma_t;
-				LoadType load = 0;
-				const size_t spos = L1.start_pos(tid);
-				const size_t epos = L1.end_pos(tid);
-				for (size_t i = spos; i < epos; ++i) {
-					LabelType::template sub<k_lower, k_upper>(sigma_t, target, L1[i].label);
+	/// 			out list
+	///              ┌───────┐ unsorted
+	///              │  out  │
+	///              └───┬───┘
+	///          k_lower2│k_upper2
+	///     ┌──────────── ───────────┐
+	///     │                        │
+	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
+	/// │sorted │                │			not saved
+	/// │  iL   │
+	/// └───────┘                └───┬───┘
+	///                              │
+	///                      k_lower1│k_upper1
+	///                       ┌──────┴──────┐
+	///                       │             │
+	///                   ┌───┴───┐     ┌───┴───┐
+	///                   │const  │     │sorted │
+	///                   │   L1  │     │   L2  │
+	///                   └───────┘     └───────┘
+	///
+	/// NOTE: make sure that iT = iT_ + target.
+	///		otherwise it this implementation wont find a valid solution
+	/// \param out out list: will contain the target and not zeros:w
+	/// \param iL sorted on [0, k_upper2)
+	/// \param L1 const: dont care
+	/// \param L2 sorted on [0, k_upper1)
+	/// \param target full target
+	/// \param iT intermediate target, make sure that its related to the actual target
+	/// 	like: iT=target-iT
+	/// \param k_lower1 lower coordinate to match on, on the first level
+	/// \param k_upper1 upper coordinate to match on, on the first level
+	/// \param k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \param k_upper2 upper coordinate to match on, on the last level
+	/// \param prepare if true: sort L2 and iL. nothing else.
+	size_t twolevel_streamjoin_on_iT_v2(List &out, List &iL,
+										const List &L1, List &L2,
+										const LabelType &target, const LabelType &iT,
+										const uint32_t k_lower1, const uint32_t k_upper1,
+										const uint32_t k_lower2, const uint32_t k_upper2,
+										const bool prepare=true) noexcept;
 
-					size_t s = hm.find(sigma_t.value(), load);
-					for (size_t k = s; k < s + load; ++k) {
-						const size_t j = hm[k];
-						// todo really atomic?
+	/// 			out list
+	///              ┌───────┐
+	///              │  out  │ filter and inserted via f
+	///              └───┬───┘ match on T
+	///          k_lower2│k_upper2
+	///     ┌──────────── ───────────┐
+	///     │     iL=T-L1-L2         │
+	/// ┌───┴───┐                ┌───┴───┐ this intermediate list is
+	/// │       │                │			 not saved
+	/// │  iL   │
+	/// └───────┘                └───┬───┘
+	///                              │ match on iT
+	///                      k_lower1│k_upper1
+	///                       ┌──────┴──────┐
+	///                       │ L2=iT-L1    │
+	///                   ┌───┴───┐     ┌───┴───┐
+	///                   │       │     │       │
+	///                   │   L1  │     │   L2  │
+	///                   └───────┘     └───────┘
+	///
+	/// NOTE: the name appendix `_v2` means that the target label is
+	/// 	computed in the the outlist. So the out list will contain
+	///		the solutions and not zeros.
+	/// NOTE: make sure that iT = iT_ + target.
+	///		otherwise it this implementation wont find a valid solution
+	/// \tparam k_lower1 lower coordinate to match on, on the first level
+	/// \tparam k_upper1 upper coordinate to match on, on the first level
+	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \tparam k_upper2 upper coordinate to match on, on the last level
+	/// \tparam weight if == 0, everything is normal
+	/// \tparam F
+	/// \param out outlist
+	/// \param iL sorted on [k_lower1, k_upper2), will be sorted if prepare==true
+	/// \param L1 dont care
+	/// \param L2 sorted on [k_lower1, k_upper1), will be sorted if prepare==true
+	/// \param target full target
+	/// \param iT intermediate target: should be related to the target
+	/// \param prepare: if true: L2 and iL will be sorted
+	/// \param F
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			 const uint32_t k_lower2, const uint32_t k_upper2,
+			 const uint32_t weight = 0,
+			 typename F = void(List &,List &, ElementType &, const size_t)>
+	size_t twolevel_streamjoin_on_iT_v2(List &out, List &iL,
+									  const List &L1, List &L2,
+									  const LabelType &target,
+									  const LabelType &iT,
+									  const bool prepare,
+	                                  F f=[](List &out, List &iL, ElementType &e, const size_t l) __attribute__((always_inline)) {
+									  	// NOTE: this needs to be done, as representation may destroy
+									  	// the linearity of addition
+									  	if constexpr (weight) {
+									  		const size_t b2 = out.load();
+									  		ValueType::add(out[b2].value, e.value, iL[l].value);
+
+									  		if (out[b2].value.popcnt() == weight) {
+									  			LabelType::template add
+									  					<k_lower1, k_upper2>
+									  					(out[b2].label, e.label, iL[l].label);
+									  			out.set_load(b2+1);
+									  		}
+									  	} else {
+									  		///
+									  		out.template add_and_append
+									  				<k_lower1, k_upper2, -1u, false>
+									  				(e, iL[l]);
+									  	}
+	                                  }) noexcept;
+
+	///                        out
+	///                       ┌───┐ 					level 2
+	///                       └───┘
+	/// 				k_lower2|k_upper2
+	///           ┌─────────────┴────────────┐
+	///       ┌───┴───┐ hmIL=T-L1-L2         │   		level 1
+	///       └┐const┌┘ hmIL                 │
+	///        └┐   ┌┘  const                │ L2=iT-L1
+	///         └───┘                k_lower1│k_upper1
+	/// 					            ┌────┴────┐
+	/// 					        ┌───┴───┐ ┌───┴───┐ level 0
+	/// 					         const  │ └┐const┌  NOTE: both lists/hms
+	/// 					        │          └    ┌┘  are NOT prepared.
+	/// 					        └───────┘   └───┘  Hash
+	/// 								L1		 HM2 <------- L2
+	/// NOTE: v2 means that the `label` of the output elements in `out`
+	///		are the target. So this function actually returns targets and not
+	/// 	zeros.
+	/// NOTE: the matrix A must be passed as an additional to compute
+	/// 	sums of elements.
+	/// \tparam k_lower1 lower coordinate to match on, on the first level
+	/// \tparam k_upper1 upper coordinate to match on, on the first level
+	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \tparam k_upper2 upper coordinate to match on, on the last level
+	/// \tparam HashMap1 type of the intermediate hashmap
+	/// \tparam HashMap2 type of the baselist hashmap
+	/// \param out output list
+	/// \param hmiL intermediate hashmap,
+	/// \param L1 const, only needed to compute the collisions
+	/// \param L2 const, only needed to compute the collisions
+	/// \param hmL2  base list hashmap. Make sure its filled with L2
+	/// \param target final target
+	/// \param iT intermediate target, make dure its related to target
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			const uint32_t k_lower2, const uint32_t k_upper2,
+			const uint32_t weight=0, // TODO doc probalby remove and do it via the lambda function
+			typename HashMap1,
+			typename HashMap2>
+#if __cplusplus > 201709L
+	requires HashMapAble<HashMap1> &&
+			 HashMapAble<HashMap2>
+#endif
+	void twolevel_streamjoin_on_iT_hashmap_v2(List &out,
+											  const HashMap1 &hmiL,
+											  const List &L1,
+											  const List &L2,
+											  const HashMap2 &hmL2,
+											  const LabelType &target,
+											  const LabelType &iT) noexcept {
+		static_assert(k_lower1 < k_upper1);
+		static_assert(k_lower2 < k_upper2);
+		static_assert(k_lower1 < k_upper1);
+		(void)k_lower2;
+		using LoadType1 = typename HashMap1::load_type;
+		using LoadType2 = typename HashMap2::load_type;
+		constexpr uint32_t filter = -1u;
+		constexpr bool sub = false;
+
+		ElementType te1, te2;
+		LabelType t1, t2;
+		LoadType1 load1 = 0;
+		LoadType2 load2 = 0;
+
+		for (size_t k = 0; k < L1.load(); ++k) {
+			LabelType::sub(t1, iT, L1[k].label);
+
+			const size_t s2 = hmL2.find(t1.value(), load2);
+			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
+				const size_t b1 = hmL2[l2];
+				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
+				ASSERT(L2[b1].is_correct(matrix));
+				ASSERT(b1 < L2.load());
+
+				const LabelType t3 = L2[b1].label;
+				LabelType::sub(t2, target, L1[k].label);
+				LabelType::sub(t2, t2, t3);
+
+				ElementType::add(te1, L1[k], L2[b1]);
+				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
+				ASSERT(te1.is_correct(matrix));
+
+				// NOTE: its shifted
+				const size_t s1 = hmiL.find(t2.value(), load1);
+				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
+					const size_t a1 = hmiL[l1].first;
+					const size_t a2 = hmiL[l1].second;
+					ASSERT(a1 < L1.load());
+					ASSERT(a2 < L2.load());
+					ElementType::add(te2, L1[a1], L2[a2]);
+
+					ASSERT(te1.is_correct(matrix));
+					ASSERT(te2.is_correct(matrix));
+
+					if constexpr (weight) {
+						const size_t b2 = out.load();
+						ValueType::add(out[b2].value, te1.value, te2.value);
+						if (out[b2].value.popcnt() == weight) {
+							LabelType::template add
+									<k_lower1, k_upper2>
+									(out[b2].label, te1.label, te2.label);
+
+							ASSERT(out[b2].is_correct(matrix));
+							out.set_load(b2+1);
+							// TODO only find a single solution
+							goto finish;
+						}
+
+					} else {
 						out.template add_and_append
-							<k_lower, k_upper, -1u, false>
-							(L1[i], L2[j]);
+								<k_lower1, k_upper2, filter, sub>
+								(te1, te2);
 					}
 				}
-			}));
+			}
 		}
 
-		for (size_t tid = 0; tid < nthreads; tid++) {
-			futures[tid].wait();
+		finish:
+		return;
+	};
+
+	///						out if wanted
+	///							|
+	///             f(out,e1,e2,a1,a2,a3,a4) 			level 2
+	/// 						|
+	/// 				k_lower2|k_upeper2
+	///           ┌─────────────┴────────────┐
+	///       ┌───┴───┐                      │   		level 1
+	///       └┐const┌┘ hmIL                 │
+	///        └┐   ┌┘  const                │
+	///         └───┘                k_lower1│k_upper1
+	/// 					            ┌────┴────┐
+	/// 					        ┌───┴───┐ ┌───┴───┐ level 0
+	/// 					         const  │ └┐const┌  NOTE: both lists/hms
+	/// 					        │          └    ┌┘  are NOT prepared.
+	/// 					        └───────┘   └───┘  Hash
+	/// 								L1		 HM2 <------- L2
+	/// NOTE: This function takes an additional lambda function as an argument.
+	/// 	This new function is called in the last level of the algorithm,
+	///		when a solution to the output list should be appended. Instead
+	/// 	this solution is passed to the lambda function, with the indices
+	///  	and so on.
+	/// NOTE: v2 means that the `label` of the output elements in `out`
+	///		are the target. So this function actually returns targets and not
+	/// 	zeros.
+	/// NOTE: the matrix A must be passed as an additional to compute
+	/// 	sums of elements.
+	/// \tparam k_lower1 lower coordinate to match on, on the first level
+	/// \tparam k_upper1 upper coordinate to match on, on the first level
+	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \tparam k_upper2 upper coordinate to match on, on the last level
+	/// \tparam HashMap1 type of the intermediate hashmap
+	/// \tparam HashMap2 type of the baselist hashmap
+	/// \tparam F lambda function taking the followoing arguments
+	///		f(List &out,
+	///  	  const ElementType &e1, const ElementType &e2,
+	///		  const size_t a1, const size_t a2,
+	///		  const size_t a3, const size_t a4)
+	///		where:
+	/// 		- out is the output list
+	///	 		- e1, e2 are the two intermediate results of the left and right
+	/// 			intermediate lists
+	///			- a1,a2,a3,a4 are the indices of the result value;
+	/// \param out output list
+	/// \param hmiL intermediate hashmap, const, will not be altered
+	/// \param L1 left  base list, const, will not be sorted/altered
+	/// \param L2 right base list, const, will not be sorted/altered
+	/// \param hmL2 hashmap of L2, const, will not be sorted
+	/// \param target const target
+	/// \param iT intermediate target, make sure its related to target
+	/// \param f lambda function
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			const uint32_t k_lower2, const uint32_t k_upper2,
+			typename HashMap1,
+			typename HashMap2,
+			typename F>
+#if __cplusplus > 201709L
+	requires HashMapAble<HashMap1> &&
+			 HashMapAble<HashMap2> &&
+			 std::regular_invocable<F, List&, const ElementType&, const ElementType&, const size_t, const size_t, const size_t, const size_t>
+#endif
+	void twolevel_streamjoin_on_iT_hashmap_v2(List &out,
+											  const HashMap1 &hmiL,
+											  const List &L1,
+											  const List &L2,
+											  const HashMap2 &hmL2,
+											  const LabelType &target,
+											  const LabelType &iT,
+											  F &&f) noexcept {
+		static_assert(k_lower1 < k_upper1);
+		static_assert(k_lower2 < k_upper2);
+		static_assert(k_lower1 < k_upper1);
+		(void)k_lower2;
+		using LoadType1 = typename HashMap1::load_type;
+		using LoadType2 = typename HashMap2::load_type;
+
+		ElementType te1, te2;
+		LabelType t1, t2;
+		LoadType1 load1 = 0;
+		LoadType2 load2 = 0;
+
+		for (size_t k = 0; k < L1.load(); ++k) {
+			LabelType::sub(t1, iT, L1[k].label);
+
+			const size_t s2 = hmL2.find(t1.value(), load2);
+			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
+				const size_t b1 = hmL2[l2];
+				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
+				ASSERT(L2[b1].is_correct(matrix));
+				ASSERT(b1 < L2.load());
+
+				const LabelType t3 = L2[b1].label;
+				LabelType::sub(t2, target, L1[k].label);
+				LabelType::sub(t2, t2, t3);
+
+				ElementType::add(te1, L1[k], L2[b1]);
+				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
+				ASSERT(te1.is_correct(matrix));
+
+				// NOTE: its shifted
+				const size_t s1 = hmiL.find(t2.value(), load1);
+				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
+					const size_t a1 = hmiL[l1].first;
+					const size_t a2 = hmiL[l1].second;
+					ASSERT(a1 < L1.load());
+					ASSERT(a2 < L2.load());
+					ElementType::add(te2, L1[a1], L2[a2]);
+
+					// ASSERT(te2.is_correct(A));
+					f(out, te1, te2, b1, k, a1, a2);
+				}
+			}
 		}
-		delete hm_;
-		return 0;
 	}
+
+	/// TODO test
+	///          out
+	///        ┌──────┐
+	///        └┐    ┌┘
+	///         └┐  ┌┘
+	///          └┬─┘
+	///   k_lower2│k_upper2
+	///    ┌──────┴─────┐
+	/// ┌──┴───┐        │
+	/// └┐    ┌┘        │
+	///  └┐  ┌┘         │
+	///   └──┘          │
+	///   HM12  klower1 │k_upper1
+	///             ┌───┴───┐
+	///          ┌──┼──┐ ┌──┼───┐
+	///          │     │ └┐    ┌┘
+	///          │     │  └┐  ┌┘
+	///          └─────┘   └──┘
+	///            L1      HM1
+	/// NOTE: v2 means that the `label` of the output elements in `out`
+	///		are the target. So this function actually returns targets and not
+	/// 	zeros.
+	/// \tparam k_lower1 lower coordinate to match on, on the first level
+	/// \tparam k_upper1 upper coordinate to match on, on the first level
+	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
+	/// \tparam k_upper2 upper coordinate to match on, on the last level
+	/// \tparam HashMap1 type of the baselist hashmap
+	/// \tparam HashMap2 type of the intermediate hashmap
+	/// \tparam HashMap3 type of the out hashmap
+	/// \param out output hashmap
+	/// \param iL intermediate hashmap
+	/// \param L1 left base list
+	/// \param L2 right hashmap of the baselist
+	/// \param target target to match on
+	/// \param iT intermediate target
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+			const uint32_t k_lower2, const uint32_t k_upper2,
+			typename HashMap1,
+			typename HashMap2,
+			typename HashMap3>
+#if __cplusplus > 201709L
+	requires HashMapAble<HashMap1> &&
+			 HashMapAble<HashMap2> &&
+			 HashMapAble<HashMap3>
+#endif
+	void twolevel_streamjoin_on_iT_hashmap_v2(HashMap3 &out,
+											  const HashMap2 &iL,
+											  const List &L1,
+											  const HashMap1 &L2,
+											  const LabelType &target,
+											  const LabelType &iT) noexcept {
+		static_assert(k_lower1 < k_upper1);
+		static_assert(k_lower2 < k_upper2);
+		static_assert(k_lower1 < k_upper1);
+		(void)k_lower1;
+		(void)k_lower2;
+
+		constexpr uint32_t filter = -1u;
+		constexpr bool sub = false;
+
+		ElementType tmpe1;
+		LabelType t1, t2;
+		for (size_t k = 0; k < L1.load(); ++k) {
+			LabelType::sub(t1, iT, L1[k].label);
+			size_t l = L2.template search_level<0, k_upper1>(t1);
+			for (; (l < L2.load()) &&
+				   (t1.template is_equal<0, k_upper1>(L2[l].label));
+				   ++l) {
+				LabelType::sub(t2, target, L1[k].label);
+				LabelType::sub(t2, t2, L2[l].label);
+				size_t o = iL.template search_level<0, k_upper2>(t2);
+				for (; (o < iL.load()) &&
+					   (t2.template is_equal<0, k_upper2>(iL[o].label));
+					   ++o) {
+					ElementType::add(tmpe1, iL[o], L1[k]);
+					out.template add_and_append
+							<0, k_upper2, filter, sub>
+							(tmpe1, L2[l]);
+				}
+			}
+		}
+	}
+
+
+
+
+
+
+
+
+
 
 
 	// Schematic view on the Algorithm.
@@ -2425,7 +2309,7 @@ public:
 		ElementType tmpe1;
 		LabelType t1, iT;
 		iT.random(0, 1ull << k_upper1);
-		join2lists_on_iT_hashmap_v2
+		join2lists_on_iT_v2
 		        <k_lower1, k_upper1>
 		        (hmL1, L1, L2, hmL0, iT, prepare);
 
@@ -2921,9 +2805,9 @@ public:
 			 const uint32_t k_lower2, const uint32_t k_upper2,
 			 const uint32_t k_lower3, const uint32_t k_upper3>
 	void join8lists_twolists_on_iT_v2(List &out,
-											 const List &L1, List &L2,
-											 const LabelType &target,
-											 const bool prepare = true) noexcept {
+									  const List &L1, List &L2,
+									  const LabelType &target,
+									  const bool prepare = true) noexcept {
 		static_assert(k_lower1 < k_upper1);
 		static_assert(k_lower2 < k_upper2);
 		static_assert(k_upper1 < k_upper2);
@@ -3010,6 +2894,33 @@ public:
 			}
 		}
 	}
+
+
+template<const uint32_t k_lower1, const uint32_t k_upper1,
+		 const uint32_t k_lower2, const uint32_t k_upper2,
+		 const uint32_t k_lower3, const uint32_t k_upper3,
+         typename HashMapL0,
+		 typename HashMapL1,
+		 typename HashMapL2>
+#if __cplusplus > 201709L
+	requires HashMapAble<HashMapL0> &&
+			 HashMapAble<HashMapL1> &&
+			 HashMapAble<HashMapL2>
+#endif
+	void join8lists_twolists_on_iT_v2(List &out,
+									  const List &L1, const List &L2,
+									  HashMapL0 &hmL0,
+									  HashMapL1 &hmL1,
+								      HashMapL2 &hmL2,
+									  const LabelType &target,
+									  const LabelType &iT,
+									  const bool prepare = true) noexcept {
+
+	}
+
+
+
+
 
 
 	/// helper function wich computes
@@ -3528,4 +3439,6 @@ std::ostream &operator<<(std::ostream &out, const Tree_T<List> &obj) {
 }
 #endif//SMALLSECRETLWE_TREE_H
 
+#include "tree/d1.h"
 #include "tree/d2.h"
+#include "tree/d3.h"

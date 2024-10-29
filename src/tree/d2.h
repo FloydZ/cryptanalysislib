@@ -3,140 +3,84 @@
 
 #include "tree.h"
 
-
-/// see tree.h for doc
+/// doc see tree.h
 template<class List,
-         const TreeConfig &config>
+		const TreeConfig &config>
 #if __cplusplus > 201709L
-    requires TreeAble<List>
+requires TreeAble<List>
 #endif
-template<typename F>
-size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
-                                        const LabelType &target,
-                                        const uint32_t k_lower,
-                                        const uint32_t k_upper,
-                                        bool prepare,
-                                        F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
-	out.set_load(0);
+template<const uint32_t weight,
+         typename F>
+size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
+						 const uint32_t k_lower1, const uint32_t k_upper1,
+						 const uint32_t k_lower2, const uint32_t k_upper2,
+						 bool prepare,
+                         F f) noexcept {
+	ASSERT(k_lower1 < k_upper1 &&
+		   0 < k_upper1 && k_lower2 < k_upper2
+		   && 0 < k_upper2
+		   && k_lower1 <= k_lower2
+		   && k_upper1 <= k_upper2);
+	// internal variables.
+	std::pair<size_t, size_t> boundaries;
+	ElementType e;
 
-	if ((!target.is_zero()) && (prepare)) {
-		for (size_t s = 0; s < L2.load(); ++s) {
-			// is remapped to add in the binary case
-			LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
-		}
-
-		L1.sort_level(k_lower, k_upper);
-		L2.sort_level(k_lower, k_upper);
+	if (prepare) {
+		iL.sort_level(k_lower1, k_upper2);
+		L1.sort_level(k_lower1, k_upper1);
+		L2.sort_level(k_lower1, k_upper1);
 	}
 
-	// make sure everything is sorted, even if it was not prepared.
-	ASSERT(L1.is_sorted(k_lower, k_upper));
-	ASSERT(L2.is_sorted(k_lower, k_upper));
-
-	uint64_t i = 0, j = 0;
-	size_t ret = 0;
-	while (i < L1.load() && j < L2.load()) {
-		if (L2[j].is_greater(L1[i], k_lower, k_upper)) {
-			i++;
-		} else if (L1[i].is_greater(L2[j], k_lower, k_upper)) {
-			j++;
-		} else {
-			uint64_t i_max = i + 1ull, j_max = j + 1ull;
-			// if elements are equal find max index in each list, such that they remain equal
-			for (; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
-			for (; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower, k_upper); j_max++) {}
-
-			const uint64_t jprev = j;
-			for (; i < i_max; ++i) {
-				for (j = jprev; j < j_max; ++j) {
-					f(out, L1, L2, i, j);
-					ret += 1;
-				}
-			}
-		}
-	}
-
-	return ret;
-}
-
-/// see tree.h for doc
-template<class List,
-         const TreeConfig &config>
-#if __cplusplus > 201709L
-    requires TreeAble<List>
-#endif
-size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
-                  const LabelType &target,
-                  const uint32_t k_lower,
-                  const uint32_t k_upper,
-                  bool prepare) noexcept {
-	auto f=[k_lower, k_upper](List &out, List &L1, List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
-					out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1, !LabelType::binary());
-#ifdef DEBUG
-		const uint64_t b = out.load() - 1;
-		if (!out[b].label.is_zero(k_lower, k_upper)) {
-			std::cout << L1[i] << std::endl;
-			std::cout << L2[j] << std::endl;
-			std::cout << out[b] << std::endl;
-			ASSERT(false);
-		}
-#endif
+	auto op = [](ElementType &c, const ElementType &a, const ElementType &b,
+				 const uint64_t l, const uint64_t h) __attribute__((always_inline)) {
+		ElementType::sub(c, a, b, l, h, -1u);
 	};
 
-	return join2lists(out, L1, L2, target, k_lower, k_upper, prepare, f);
-}
+	// early exit
+	if (iL.load() == 0) { return 0; }
+	if (L1.load() == 0) { return 0; }
+	if (L2.load() == 0) { return 0; }
 
-/// see tree.h for doc
-template<class List,
-         const TreeConfig &config>
-#if __cplusplus > 201709L
-    requires TreeAble<List>
-#endif
-template<const uint32_t k_lower,
-		 const uint32_t k_upper,
-		 typename F>
-size_t Tree_T<List, config>::join2lists(
-					List &out, List &L1, List &L2,
-					const LabelType &target,
-					bool prepare,
-					F f) noexcept {
-	static_assert(k_lower < k_upper && 0 < k_upper);
-	out.set_load(0);
-
-	if ((!target.is_zero()) && (prepare)) {
-		for (size_t s = 0; s < L2.load(); ++s) {
-			// will be remapped to + in binary case
-			LabelType::template sub
-				<k_lower, k_upper>
-				(L2[s].label, target, L2[s].label);
-		}
-
-		L1.template sort_level<k_lower, k_upper>();
-		L2.template sort_level<k_lower, k_upper>();
-	}
-
-	ASSERT(L1.is_sorted(k_lower, k_upper));
-	ASSERT(L2.is_sorted(k_lower, k_upper));
-
-	uint64_t i = 0, j = 0;
+	uint64_t i=0, j=0;
 	size_t ret = 0;
 	while (i < L1.load() && j < L2.load()) {
-		if (L2[j].template is_greater<k_lower, k_upper>(L1[i])) {
+		if (L2[j].is_greater(L1[i], k_lower1, k_upper1)) {
 			i++;
-		} else if (L1[i].template is_greater<k_lower, k_upper>(L2[j])) {
+		} else if (L1[i].is_greater(L2[j], k_lower1, k_upper1)) {
 			j++;
 		} else {
 			uint64_t i_max=i+1ull, j_max=j+1ull;
-			// if elements are equal find max index in each list, such that they remain equal
-			for (; i_max < L1.load() && L1[i].template is_equal<k_lower, k_upper>(L1[i_max]); i_max++) {}
-			for (; j_max < L2.load() && L2[j].template is_equal<k_lower, k_upper>(L2[j_max]); j_max++) {}
+			for (; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
+			for (; j_max < L2.load() && L2[j].is_equal(L2[j_max], k_lower1, k_upper1); j_max++) {}
 
 			const uint64_t jprev = j;
+
+			// we have found equal elements. But this time we don't have to
+			// save the result. Rather we stream join everything up to the final solution.
 			for (; i < i_max; ++i) {
 				for (j = jprev; j < j_max; ++j) {
-					f(out, L1, L2, i, j);
-					ret += 1;
+					// add/sub on full length
+					op(e, L1[i], L2[j], k_lower1, k_upper2);
+#ifdef DEBUG
+					if (!e.label.is_zero(k_lower1, k_upper1)) {
+						std::cout << e;
+						std::cout << L2[j];
+						std::cout << L1[i];
+						ASSERT(false);
+					}
+#endif
+
+					boundaries = iL.search_boundaries(e, k_lower2, k_upper2);
+
+					// finished?
+					// NOTE: we cannot break out of the two loops
+					// only the first one.
+					if (boundaries.first == boundaries.second) { break; }
+
+					for (size_t l = boundaries.first; l < boundaries.second; ++l) {
+						f(out, iL, e, l);
+						ret += 1;
+					}
 				}
 			}
 		}
@@ -145,300 +89,281 @@ size_t Tree_T<List, config>::join2lists(
 	return ret;
 }
 
-/// see tree.h for doc
+
 template<class List,
-         const TreeConfig &config>
+		const TreeConfig &config>
 #if __cplusplus > 201709L
-    requires TreeAble<List>
+requires TreeAble<List>
 #endif
-template<typename F>
-size_t Tree_T<List, config>::join2lists_on_iT(List &out,
-                      List &L1, List &L2,
-                      const LabelType &target,
-                      const uint32_t k_lower,
-                      const uint32_t k_upper,
-                      const bool prepare,
-                      F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
-	out.set_load(0);
+template<const uint32_t weight>
+size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
+												 const uint32_t k_lower1, const uint32_t k_upper1,
+												 const uint32_t k_lower2, const uint32_t k_upper2,
+												 bool prepare) noexcept {
 
-	constexpr static bool sub = !LabelType::binary();
-	if (prepare) {
-		L1.sort_level(k_lower, k_upper);
-	}
-	ASSERT(L1.is_sorted(k_lower, k_upper));
+	auto f =
+	        [k_lower1, k_upper1, k_lower2, k_upper2]
+	        (List & out, const List &iL, ElementType &e, const size_t l)
+	        __attribute__((always_inline)) {
+		(void)k_upper1;
+		(void)k_lower2;
 
-	// NOTE: will always be sorted, as we dont know the
-	// target befor hand
-	L2.template sort_level<sub>(k_lower, k_upper, target);
+		constexpr uint32_t filter = uint32_t(-1);
+		constexpr bool sub = !LabelType::binary();
 
-	// standard comparison oeprator
-	auto op = [](LabelType &c, const LabelType &a, const LabelType &b,
-	             const uint64_t l, const uint64_t h) {
-		LabelType::sub(c, a, b, l, h);
+		// NOTE: it can happen that the addition here is a representation, thus
+		// it will not hold any longer that value*matrix = label, if one simply
+		// adds the two results.
+		if constexpr (!weight) {
+			const size_t b = out.load();
+			ValueType::add(out[b].value, iL[l].value, e.value, k_lower1, k_upper2);
+			if (out[b].value.popcnt(k_lower1, k_upper2) != weight) { return; }
+			// out[b].recalculate_label(matrix);
+			ValueType::add(out[b].value, iL[l].value, e.value, k_lower1, k_upper2);
+			out.set_load(b + 1);
+		} else {
+			out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
+#ifdef DEBUG
+			const size_t b = out.load() - 1;
+			if (!out[b].label.is_zero(k_lower1, k_upper2)) {
+				std::cout << iL[l] << std::endl;
+				std::cout << e << std::endl;
+				std::cout << out[b] << std::endl;
+				ASSERT(false);
+			}
+#endif
+		}
 	};
 
-	LabelType tmp, tmp2;
-	uint64_t i = 0, j = 0;
-	size_t ret = 0;
-	while ((i < L1.load()) && (j < L2.load())) {
-		op(tmp, target, L2[j].label, k_lower, k_upper);
+	return twolevel_streamjoin(out, iL, L1, L2, k_lower1, k_upper1, k_lower1, k_upper2, prepare, f);
+}
 
-		if (tmp.is_greater(L1[i].label, k_lower, k_upper)) {
+/// doc see tree.h
+template<class List,
+		const TreeConfig &config>
+#if __cplusplus > 201709L
+requires TreeAble<List>
+#endif
+template<typename F>
+size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, const List &L1, List &L2,
+                               const LabelType &target,
+                               const uint32_t k_lower1, const uint32_t k_upper1,
+                               const uint32_t k_lower2, const uint32_t k_upper2,
+                               const bool prepare,
+                               F f) noexcept {
+	ASSERT(k_lower1 < k_upper1 &&
+	       0 < k_upper1 && k_lower2 < k_upper2
+	       && 0 < k_upper2
+	       && k_lower1 <= k_lower2
+	       && k_upper1 <= k_upper2);
+
+	// internal variables.
+	std::pair<uint64_t, uint64_t> boundaries;
+	ElementType e1, e2;
+	uint64_t i = 0, j = 0;
+	LabelType tmp, tmp2;
+
+	if (prepare) {
+		L2.sort_level(k_lower1, k_upper1, target);
+		iL.sort_level(k_lower2, k_upper2);
+	}
+
+	while (i < L1.load() && j < L2.load()) {
+		LabelType::add(tmp, L2[j].label, target);
+		if (tmp.is_greater(L1[i].label, k_lower1, k_upper1)) {
 			i++;
-		} else if (L1[i].label.is_greater(tmp, k_lower, k_upper)) {
+		} else if (L1[i].label.is_greater(tmp, k_lower1, k_upper1)) {
 			j++;
 		} else {
-			uint64_t i_max = i + 1ull, j_max = j + 1ull;
-			// if elements are equal find max index in each list, such that they remain equal
-			for (; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower, k_upper); i_max++) {}
-			for (; j_max < L2.load(); j_max++) {
-				op(tmp2, target, L2[j_max].label, k_lower, k_upper);
-				if (!tmp.is_equal(tmp2, k_lower, k_upper)) { break; }
+			uint64_t i_max, j_max;
+			for (i_max = i + 1; i_max < L1.load() && L1[i].is_equal(L1[i_max], k_lower1, k_upper1); i_max++) {}
+			for (j_max = j+1;j_max < L2.load();j_max++) {
+				LabelType::add(tmp2, L2[j_max].label, target);
+				if (!tmp.is_equal(tmp2, k_lower1, k_upper1))  { break; }
 			}
 
 			const uint64_t jprev = j;
+
+			// we have found equal elements. But this time we don't have to
+			// save the result. Rather we stream join everything up to the final solution.
 			for (; i < i_max; ++i) {
 				for (j = jprev; j < j_max; ++j) {
-					f(out, L1, L2, i, j);
-					ret += 1;
+					ElementType::add(e1, L1[i], L2[j], k_lower1, k_upper2, -1);
+					ASSERT(e1.label.is_equal(target, k_lower1, k_upper1));
+
+					LabelType::sub(e2.label, e1.label, target);
+					e2.label.neg();
+					boundaries = iL.search_boundaries(e2, k_lower2, k_upper2);
+
+					// finished?
+					if (boundaries.first == boundaries.second) {
+						// NOTE: we cannot break out of the two loops
+						// only the first one.
+						break;
+					}
+
+					for (size_t l = boundaries.first; l < boundaries.second; ++l) {
+						f(out, iL, e1, l);
+					}
 				}
 			}
 		}
 	}
-
-	return ret;
 }
 
-/// see tree.h for doc
+/// doc see tree.h
 template<class List,
-         const TreeConfig &config>
+		const TreeConfig &config>
 #if __cplusplus > 201709L
-    requires TreeAble<List>
+requires TreeAble<List>
 #endif
-size_t Tree_T<List, config>::join2lists_on_iT(List &out,
-                      List &L1, List &L2,
-                      const LabelType &target,
-                      const uint32_t k_lower,
-                      const uint32_t k_upper,
-                      const bool prepare) noexcept {
-
-	constexpr static uint32_t filter = -1;
-	auto f=[k_lower, k_upper, target]
-				(List &out, List &L1, List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
-		out.add_and_append(L1[i], L2[j], k_lower, k_upper, filter);
-
-#ifdef DEBUG
-		const uint64_t b = out.load() - 1;
-		if (!out[b].label.is_equal(target, k_lower, k_upper)) {
-			L1[i].label.print_binary();
-			L2[j].label.print_binary();
-			out[b].label.print_binary();
-			target.print_binary();
-			ASSERT(false);
-		}
-#endif
+size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, const List &L1, List &L2,
+													   const LabelType &target,
+													   const uint32_t k_lower1, const uint32_t k_upper1,
+													   const uint32_t k_lower2, const uint32_t k_upper2,
+													   const bool prepare) noexcept {
+	auto f=[k_lower1, k_upper1, k_lower2, k_upper2]
+			(List &out, const List &iL, ElementType &e, const size_t l)
+			__attribute__((always_inline)) {
+	  out.add_and_append(e, iL[l], 0, LabelLENGTH, -1);
 	};
 
-	return join2lists_on_iT(out, L1, L2, target, k_lower, k_upper, prepare, f);
+	return twolevel_streamjoin_on_iT(out, iL, L1, L2, target, k_lower1, k_upper1, k_lower1, k_upper2, prepare, f);
 }
 
-/// see tree.h for doc
+/// doc see tree.h
 template<class List,
-         const TreeConfig &config>
+		const TreeConfig &config>
 #if __cplusplus > 201709L
-    requires TreeAble<List>
+	requires TreeAble<List>
 #endif
 template<typename F>
-size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
-	                         const List &L1, List &L2,
-							 const LabelType &target,
-							 const uint32_t k_lower,
-							 const uint32_t k_upper,
-	                         const bool prepare,
-	                         F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
-	out.set_load(0);
-	if (prepare) { L2.sort_level(k_lower, k_upper); }
-	ASSERT(L2.is_sorted(k_lower, k_upper));
+size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_v2(List &out, List &iL,
+								  const List &L1, List &L2,
+								  const LabelType &target, const LabelType &iT,
+								  const uint32_t k_lower1, const uint32_t k_upper1,
+								  const uint32_t k_lower2, const uint32_t k_upper2,
+								  const bool prepare,
+								  F f) noexcept {
+	if (prepare) {
+		L2.sort_level(k_lower1, k_upper1);
+		iL.sort_level(k_lower1, k_upper2);
+	}
+	ASSERT(L2.is_sorted(k_lower1, k_upper1));
+	ASSERT(iL.is_sorted(k_lower1, k_upper2));
+	(void)k_lower2;
 
-	LabelType sigma_t;
-	size_t ret = 0;
-	for (size_t i = 0; i < L1.load(); ++i) {
-		// NOTE sub will be remapped to add in the binary case
-		LabelType::sub(sigma_t, target, L1[i].label, k_lower, k_upper);
-		size_t j = L2.search_level(sigma_t, k_lower, k_upper);
-		for (; (j < L2.load()) &&
-			   (sigma_t.is_equal(L2[j].label,k_lower, k_upper));
-			   ++j) {
-			f(out, L1, L2, i, j);
-			ret += 1;
+	ElementType tmpe1;
+	LabelType t1, t2;
+	size_t ret=0;
+	for (size_t k = 0; k < L1.load(); ++k) {
+		LabelType::sub(t1, iT, L1[k].label);
+		size_t l = L2.search_level(t1, k_lower1, k_upper1);
+		for (; (l < L2.load()) &&
+			   (t1.is_equal(L2[l].label, k_lower1, k_upper1));
+			   ++l) {
+			LabelType::sub(t2, target, L1[k].label);
+			LabelType::sub(t2, t2, L2[l].label);
+			size_t o = iL.search_level(t2, k_lower1, k_upper2);
+			for (; (o < iL.load()) &&
+				   (t2.is_equal(iL[o].label, k_lower1, k_upper2));
+				   ++o) {
+				ElementType::add(tmpe1, iL[o], L1[k]);
+				// out.add_and_append(tmpe1, L2[l], k_lower1, k_upper2, filter);
+				f(out, L2, tmpe1, l);
+				ret += 1;
+			}
 		}
 	}
 
 	return ret;
 }
 
-/// see tree.h for doc
+/// doc see tree.h
 template<class List,
-         const TreeConfig &config>
+		const TreeConfig &config>
 #if __cplusplus > 201709L
-    requires TreeAble<List>
+requires TreeAble<List>
 #endif
-size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
-	                         const List &L1, List &L2,
-							 const LabelType &target,
-							 const uint32_t k_lower,
-							 const uint32_t k_upper,
-							 const bool prepare) noexcept {
-	auto f=[k_lower, k_upper](List &out, const List &L1, List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
-		out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1u);
+size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_v2(List &out, List &iL,
+														  const List &L1, List &L2,
+														  const LabelType &target, const LabelType &iT,
+														  const uint32_t k_lower1, const uint32_t k_upper1,
+														  const uint32_t k_lower2, const uint32_t k_upper2,
+														  const bool prepare) noexcept {
+
+	auto f=[k_lower1, k_upper1, k_lower2, k_upper2]
+			(List &out, const List &iL, ElementType &e, const size_t l)
+			__attribute__((always_inline)) {
+		(void)k_upper1;
+	    (void)k_lower2;
+	  	out.add_and_append(iL[l], e, k_lower1, k_upper2, -1u);
 	};
 
-	return join2lists_on_iT_v2(out, L1, L2, target, k_lower, k_upper, prepare, f);
+	return twolevel_streamjoin_on_iT_v2(out, iL, L1, L2, target, iT, k_lower1, k_upper1, k_lower1, k_upper2, prepare, f);
 }
 
 
-/// see tree.h for doc
 template<class List,
-         const TreeConfig &config>
+		const TreeConfig &config>
 #if __cplusplus > 201709L
-    requires TreeAble<List>
+requires TreeAble<List>
 #endif
-template<const uint32_t k_lower,
-         const uint32_t k_upper,
+template<const uint32_t k_lower1, const uint32_t k_upper1,
+		 const uint32_t k_lower2, const uint32_t k_upper2,
+         const uint32_t weight,
          typename F>
-size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
-						 const List &L1, List &L2,
-						 const LabelType &target,
-                         const bool prepare,
-                         F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
-	out.set_load(0);
+size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_v2(List &out, List &iL,
+								  const List &L1, List &L2,
+								  const LabelType &target,
+								  const LabelType &iT,
+								  const bool prepare,
+                                  F f) noexcept {
+	static_assert(k_lower1 < k_upper1);
+	static_assert(k_lower2 < k_upper2);
+	(void)k_lower2;
+
 	if (prepare) {
-		L2.template sort_level<k_lower, k_upper>();
+		L2.template sort_level<k_lower1, k_upper1>();
+		iL.template sort_level<k_lower1, k_upper2>();
 	}
 
-	ASSERT(L2.is_sorted(k_lower, k_upper));
+	ASSERT(L2.is_sorted(k_lower1, k_upper1));
+	ASSERT(iL.is_sorted(k_lower1, k_upper2));
 
-	LabelType sigma_t;
+	ElementType tmpe1;
+	LabelType t1, t2;
 	size_t ret = 0;
-	for (size_t i = 0; i < L1.load(); ++i) {
-		/// NOTE: sub will be add in binary
-		LabelType::template sub
-		        <k_lower, k_upper>
-		        (sigma_t, target, L1[i].label);
-		size_t j = L2.template search_level<k_lower, k_upper>(sigma_t);
-		for (; (j < L2.load()) &&
-			   (sigma_t.template is_equal<k_lower, k_upper>(L2[j].label)); ++j) {
-			f(out, L1, L2, i, j);
+	for (size_t k = 0; k < L1.load(); ++k) {
+		LabelType::sub(t1, iT, L1[k].label);
+		size_t l = L2.template search_level
+				<k_lower1, k_upper1>(t1);
+
+		for (; (l < L2.load()) &&
+			   (t1.template is_equal<k_lower1, k_upper1>(L2[l].label));
+			   ++l) {
+
+			// cpmpute the collision
+			ElementType::add(tmpe1, L1[k], L2[l]);
+			LabelType::sub(t2, target, L1[k].label);
+			LabelType::sub(t2, t2, L2[l].label);
+			size_t o = iL.template search_level
+					<k_lower1, k_upper2>(t2);
+			for (; (o < iL.load()) &&
+				   (t2.template is_equal<k_lower1, k_upper2>(iL[o].label));
+				   ++o) {
+				ASSERT(iL[o].is_correct(matrix));
+				ASSERT(L1[k].is_correct(matrix));
+				ASSERT(L2[l].is_correct(matrix));
+				ASSERT(tmpe1.is_correct(matrix));
+
+				f(out, iL, tmpe1, l);
+				ret += 1;
+			}
 		}
 	}
 
 	return ret;
 }
 
-
-/// see tree.h for doc
-template<class List,
-         const TreeConfig &config>
-#if __cplusplus > 201709L
-    requires TreeAble<List>
-#endif
-template<const uint32_t k_lower,
-         const uint32_t k_upper,
-         typename HashMap,
-         typename F>
-#if __cplusplus > 201709L
-    requires HashMapAble<HashMap>
-#endif
-size_t Tree_T<List, config>::join2lists_on_iT_v2(
-        List &out,
-        const List &L1, const List &L2,
-        HashMap &hm,
-        const LabelType &target,
-        const bool prepare,
-        F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
-	using LoadType = typename HashMap::load_type;
-	out.set_load(0);
-
-	if (prepare) {
-		hm.clear();
-		for (size_t i = 0; i < L2.load(); ++i) {
-			hm.insert(L2[i].label.value(), i);
-		}
-	}
-
-	LabelType sigma_t;
-	LoadType load = 0;
-	size_t ret = 0;
-	for (size_t i = 0; i < L1.load(); ++i) {
-		LabelType::template sub<k_lower, k_upper>(sigma_t, target, L1[i].label);
-
-		size_t s = hm.find(sigma_t.value(), load);
-		for (size_t k = s; k < s + load; ++k) {
-			ret += 1;
-			const size_t j = hm[k];
-			f(out, L1, L2, i, j);
-			ret += 1;
-		}
-	}
-
-	return ret;
-}
-
-/// see tree.h for doc
-template<class List,
-         const TreeConfig &config>
-#if __cplusplus > 201709L
-    requires TreeAble<List>
-#endif
-template<const uint32_t k_lower,
-         const uint32_t k_upper,
-         typename HashMapIn,
-         typename HashMapOut,
-         typename F>
-#if __cplusplus > 201709L
-    requires HashMapAble<HashMapIn> &&
-             HashMapAble<HashMapOut>
-#endif
-size_t Tree_T<List, config>::join2lists_on_iT_v2(
-        HashMapOut &out,
-        const List &L1, const List &L2,
-        HashMapIn &hm2,
-        const LabelType &target,
-        const bool prepare,
-        F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
-	using LoadType = typename HashMapIn::load_type;
-	out.clear();
-
-	if (prepare) {
-		// only clear if we really need it
-		hm2.clear();
-		for (size_t i = 0; i < L2.load(); ++i) {
-			hm2.insert(L2[i].label.value(), i);
-		}
-	}
-
-	LabelType sigma_t;
-	LoadType load = 0;
-	size_t ret = 0;
-	for (size_t i = 0; i < L1.load(); ++i) {
-		LabelType::template sub<k_lower, k_upper>(sigma_t, target, L1[i].label);
-
-		size_t s = hm2.find(sigma_t.value(), load);
-		for (size_t k = s; k < s + load; ++k) {
-			const size_t j = hm2[k];
-			ASSERT(L2[j].label.is_equal(sigma_t, k_lower, k_upper));
-			ASSERT(j < L2.load());
-
-			f(out, L1, L2, i, j);
-			ret += 1;
-		}
-	}
-
-	return ret;
-}
 #endif

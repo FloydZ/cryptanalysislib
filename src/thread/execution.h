@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_THREAD_EXECUTION_H
 
 #include "helper.h"
+#include "traits.h"
 #include "thread/heartbeat_scheduler.h"
 #include "thread/steal_scheduler.h"
 #include "thread/simple_scheduler.h"
@@ -199,14 +200,25 @@ namespace internal {
         return ret;
     }
 
+	/// waits for everything
+	template <class Container>
+#if __cplusplus > 201709L
+		requires Iterable<Container>
+#endif
+	static inline void get_futures(Container& futures) noexcept {
+		for (auto &future: futures) {
+			future.get();
+		}
+	}
+
     /// waits for everything
     template <class Container>
 #if __cplusplus > 201709L
-    // TODO is iteratable
+		requires Iterable<Container>
 #endif
-    static inline void get_futures(Container& futures) noexcept {
+    static inline void wait_futures(Container& futures) noexcept {
         for (auto &future: futures) {
-            future.get();
+            future.wait();
         }
     }
 

@@ -529,7 +529,7 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2_multithreaded) {
 	generate_subsetsum_instance(target, weights, A, n);
 
 	Tree t{1, A, 0};
-	t.template join2lists_on_iT_hashmap_v2
+	t.template join2lists_on_iT_v2
 	        <k_lower, k_higher, 100, nthreads>
 	        (par_if(true), out, l1, l2, target);
 

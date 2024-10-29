@@ -139,4 +139,10 @@ struct IsStdArray : std::false_type {};
 
 template<typename T, std::size_t N>
 struct IsStdArray<std::array<T, N>> : std::true_type {};
+
+template<typename T>
+concept Iterable = requires(T x) {
+	x.begin();
+	x.end();
+};
 #endif
