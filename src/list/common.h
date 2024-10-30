@@ -276,7 +276,7 @@ private:
 
 protected:
 	/// load factor of the list
-	std::vector<size_t> __load;
+	alignas(64) std::vector<size_t> __load;
 
 	/// total size of the list
 	size_t __size;

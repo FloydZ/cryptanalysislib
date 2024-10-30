@@ -322,14 +322,12 @@ public:
 				tree_target = s;
 			}
 
-			//std::cout << tree_target << ",tree_target" << std::endl;
-
 			// restart the tree, as long as we do not have any outputs
 			size_t iters = 0;
 			while (out.load() == 0) {
 				hmiL->clear();
-				Label::add(tree_iT, tree_iT, one);
 				Label::sub(tmp_iT, tree_target, tree_iT);
+				Label::add(tree_iT, tree_iT, one);
 
 				// join to intermediate list (hashmap)
 				// NOTE: `prepare==false`, because its already done
