@@ -2895,8 +2895,7 @@ public:
 		}
 	}
 
-
-template<const uint32_t k_lower1, const uint32_t k_upper1,
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
 		 const uint32_t k_lower2, const uint32_t k_upper2,
 		 const uint32_t k_lower3, const uint32_t k_upper3,
          typename HashMapL0,
