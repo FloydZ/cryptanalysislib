@@ -1447,9 +1447,8 @@ public:
 				ASSERT(L2[b1].is_correct(matrix));
 				ASSERT(b1 < L2.load());
 
-				const LabelType t3 = L2[b1].label;
 				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, t3);
+				LabelType::sub(t2, t2, L2[b1].label);
 
 				ElementType::add(te1, L1[k], L2[b1]);
 				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
@@ -1638,9 +1637,10 @@ public:
 	/// \tparam HashMap2 type of the intermediate hashmap
 	/// \tparam HashMap3 type of the out hashmap
 	/// \param out output hashmap
-	/// \param iL intermediate hashmap
+	/// \param hmiL intermediate hashmap
 	/// \param L1 left base list
-	/// \param L2 right hashmap of the baselist
+	/// \param L2 right base list
+	/// \param hmL2 right hashmap of the baselist
 	/// \param target target to match on
 	/// \param iT intermediate target
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
@@ -1654,9 +1654,10 @@ public:
 			 HashMapAble<HashMap3>
 #endif
 	void twolevel_streamjoin_on_iT_hashmap_v2(HashMap3 &out,
-											  const HashMap2 &iL,
+											  const HashMap2 &hmiL,
 											  const List &L1,
-											  const HashMap1 &L2,
+											  const List &L2,
+											  const HashMap1 &hmL2,
 											  const LabelType &target,
 											  const LabelType &iT) noexcept {
 		static_assert(k_lower1 < k_upper1);
@@ -1665,27 +1666,39 @@ public:
 		(void)k_lower1;
 		(void)k_lower2;
 
-		constexpr uint32_t filter = -1u;
-		constexpr bool sub = false;
+		using E = std::pair<size_t, size_t>;
+		using F = std::pair<E, E>;
+		using LoadType1 = typename HashMap1::load_type;
+		using LoadType2 = typename HashMap2::load_type;
 
-		ElementType tmpe1;
 		LabelType t1, t2;
+		LoadType1 load1 = 0;
+		LoadType2 load2 = 0;
+
+		LabelType e;
+
 		for (size_t k = 0; k < L1.load(); ++k) {
 			LabelType::sub(t1, iT, L1[k].label);
-			size_t l = L2.template search_level<0, k_upper1>(t1);
-			for (; (l < L2.load()) &&
-				   (t1.template is_equal<0, k_upper1>(L2[l].label));
-				   ++l) {
+
+			const size_t s2 = hmL2.find(t1.value(), load2);
+			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
+				const size_t b1 = hmL2[l2];
+
+				const LabelType t3 = L2[b1].label;
 				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, L2[l].label);
-				size_t o = iL.template search_level<0, k_upper2>(t2);
-				for (; (o < iL.load()) &&
-					   (t2.template is_equal<0, k_upper2>(iL[o].label));
-					   ++o) {
-					ElementType::add(tmpe1, iL[o], L1[k]);
-					out.template add_and_append
-							<0, k_upper2, filter, sub>
-							(tmpe1, L2[l]);
+				LabelType::sub(t2, t2, t3);
+
+				LabelType::add(e, L1[k].label, L2[b1].label);
+				const E f1{k, b1};
+				F f2(f1, f1);
+
+				// NOTE: its shifted
+				const size_t s1 = hmiL.find(t2.value(), load1);
+				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
+					f2.second = hmiL[l1];
+					LabelType::add(e, e, L1[hmiL[l2].first].label);
+					LabelType::add(e, e, L2[hmiL[l2].second].label);
+					out.insert(e.value(), f2);
 				}
 			}
 		}
@@ -2838,15 +2851,16 @@ public:
 			return ;
 		}
 
+		// TODo
 		// L1, L2, L3 and L4
-		LabelType::sub(t1, iT2, iT1);
-		twolevel_streamjoin_on_iT_v2
-		        <k_lower1, k_upper1, k_lower2, k_upper2>
-		        (iL2, iL1, L1, L2, iT2, t1);
-		iL2.template sort_level<0, k_upper3>();
-		if (iL2.load() == 0) {
-			return ;
-		}
+		// LabelType::sub(t1, iT2, iT1);
+		// twolevel_streamjoin_on_iT_v2
+		//         <k_lower1, k_upper1, k_lower2, k_upper2>
+		//         (iL2, iL1, L1, L2, iT2, t1);
+		// iL2.template sort_level<0, k_upper3>();
+		// if (iL2.load() == 0) {
+		// 	return ;
+		// }
 
 
 		// L5 and L6
@@ -2911,9 +2925,7 @@ public:
 									  HashMapL0 &hmL0,
 									  HashMapL1 &hmL1,
 								      HashMapL2 &hmL2,
-									  const LabelType &target,
-									  const LabelType &iT,
-									  const bool prepare = true) noexcept {
+									  const LabelType &target) noexcept {
 
 	    using LoadTypeL0 = typename HashMapL0::load_type;
 	    using LoadTypeL1 = typename HashMapL1::load_type;
@@ -2922,11 +2934,19 @@ public:
         
 		LabelType l1_t0; // level 1, target 0
         LabelType l1_t1; // level 1, target 1
-        LabelType l1_t2; // level 1, target 1
-		LabelType l2_t0, l2_iT0;
-		LabelType L2_target, L2_iT;
+        LabelType l1_t2; // level 1, target 2
+        LabelType l1_t3; // level 1, target 3
+		LabelType l2_t0, l2_t1;
+
+		l1_t0.random(0, 1ull << k_upper1);
+		l1_t2.random(0, 1ull << k_upper1);
+		l2_t0.random(0, 1ull << k_upper2);
+		LabelType::sub(l1_t1, l2_t0, l1_t0);
+		LabelType::sub(l2_t1, target, l2_t0);
+		LabelType::sub(l1_t3, l2_t1, l1_t2);
 
         LabelType t1,t2,t3;
+		ElementType e1,e2,e3,e4;
 
         constexpr static uint32_t filter = -1u;
         constexpr static bool sub = false;
@@ -2945,41 +2965,47 @@ public:
         // match between L1, L2, L3, L4
         twolevel_streamjoin_on_iT_hashmap_v2
             <k_lower1, k_upper1, k_lower2, k_upper2>
-            (hmL2, hmL1, L1, hmL0, l2_t0, l2_iT0);
+            (hmL2, hmL1, L1, L2, hmL0, l2_t0, l1_t1);
 
         // match between L5, L6
         join2lists_on_iT_v2
             <k_lower1, k_upper1>
-            (hmL1, L1, L2, hmL0, l1_t1, false);
-
+            (hmL1, L1, L2, hmL0, l1_t2, false);
 
         // kij = j-th k in level i
 		for (size_t k01 = 0; k01 < L1.load(); ++k01) {
-			LabelType::sub(t1, l1_t2, L1[k01].label);
-			size_t k02 = hmL0.find(t1.value, load0);
-			for (; (k02 < L2.load()) &&
-				   (t1.template is_equal<0, k_upper1>(L2[k02].label));
-				   ++k02) {
+			LabelType::sub(t1, l1_t3, L1[k01].label);
+			const size_t k02 = hmL0.find(t1.value(), load0);
+			for (size_t i02 = k02; i02 < (k02+load0); i02++){
+				const size_t b02 = hmL0[i02];
+				LabelType::sub(t2, l2_t1, L1[k01].label);
+				LabelType::sub(t2, t2, L2[b02].label);
 
-                // TODO
-				LabelType::sub(t2, target, L1[k01].label);
-				LabelType::sub(t2, t2, L2[k02].label);
-			    size_t k10 = hmL1.find(t2.value, load1);
-				for (; (k10 < hmL1.load()) &&
-					   (t2.template is_equal<0, k_upper2>(hmL1[k10].label));
-					   ++k10) {
-                
-                    // TODO
-				    LabelType::sub(t3, target, L1[k02].label);
-			        size_t k20 = hmL2.find(t3.value, load2);
-				    for (; (k20 < hmL2.load()) &&
-				    	   (t3.template is_equal<0, k_upper3>(hmL1[k20].label));
-				    	   ++k20) {
-                    
+				ElementType::add(e1, L1[k01], L2[b02]);
+
+			    const size_t k10 = hmL1.find(t2.value(), load1);
+				for (size_t i10 = k10; i10 < (k10+load1); i10++){
+					const std::pair<size_t, size_t> b10 = hmL1[i10];
+
+				    LabelType::sub(t3, target, L1[b10.first].label);
+				    LabelType::sub(t3, t3, L2[b10.second].label);
+
+					ElementType::add(e2, L1[b10.first], L2[b10.second]);
+					ElementType::add(e2, e2, e1);
+
+			        const size_t k20 = hmL2.find(t3.value(), load2);
+					for (size_t i20 = k10; i20 < (k20+load2); i20++){
+						const auto b20 = hmL2[i20];
+
+						ElementType::add(e3, L1[b20.first.first], L2[b20.first.second]);
+						ElementType::add(e4, L1[b20.second.first], L2[b20.second.second]);
+						ElementType::add(e4, e4, e3);
+						ElementType::add(e4, e4, e2);
+				    	std::cout << e4 << std::endl;
 					    // ElementType::add(tmpe1, hmL1[k10], L1[k]);
-					    out.template add_and_append
-					    	<0, k_upper2, filter, sub>
-					    	(tmpe1, L2[l]);
+					    // out.template add_and_append
+					    // 	<0, k_upper2, filter, sub>
+					    // 	(tmpe1, L2[l]);
                     }
 				}
 			}
@@ -3366,10 +3392,11 @@ private:
 	                             std::vector<size_t> &indices) {
 		while (l >= 0) {
 			if (indices[l] == boundaries[l].second) {
-				if (l == 0)
+				if (l == 0) {
 					return 0;
-				else
+				} else {
 					indices[--l]++;
+				}
 			} else
 				return l + 1;
 		}
