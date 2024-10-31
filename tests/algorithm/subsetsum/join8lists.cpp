@@ -190,10 +190,10 @@ TEST(SubSetSum, join8lists_twolists_on_iT_v2_hashmap_constexpr) {
 	constexpr uint64_t k_lower2=n/3, k_higher2=2*n/3;
 	constexpr uint64_t k_lower3=2*n/3, k_higher3=n;
 
-	constexpr size_t baselist_size = sum_bc(n/2, 3);
+	constexpr size_t baselist_size = sum_bc(n/2, 4);
 	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
 
-	using Enumerator = BinaryLexicographicEnumerator<List, n/2, 3>;
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, 4>;
 	Enumerator e{A};
 	e.run(&l1, &l2, n/2);
 
@@ -227,7 +227,7 @@ TEST(SubSetSum, join8lists_twolists_on_iT_v2_hashmap_constexpr) {
 
 	Tree t{1, A, 0};
 	t.template join8lists_twolists_on_iT_v2
-	        <k_lower1, k_higher1, k_lower2, k_higher2, k_lower3, k_higher3>
+	        <k_lower1, k_higher1, k_lower2, k_higher2, k_lower3, k_higher3, 0, 16>
 	        (out, l1, l2, *hml0, *hml1, *hml2, target);
 
 	uint32_t right=0;

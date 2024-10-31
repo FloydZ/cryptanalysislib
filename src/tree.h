@@ -2908,13 +2908,57 @@ public:
 			}
 		}
 	}
-
+	///                                         outn7
+	///                                        ┌───┐
+	///                                        │   │
+	///                                        └─┬─┘
+	///                                        l2│l3
+	///                        ┌─────────────────┴───────────────┐
+	///                        │                                 │
+	///                hmL2 ┌──┴──┐                              │
+	///                     └┐   ┌┘                              │
+	///                      └┐ ┌┘                               │
+	///                       └┬┘                                │
+	///                      l1│l2                               │
+	///                        │                                 │
+	///              ┌─────────┴─┐                         ┌─────┴─────┐
+	///           ┌──┴──┐        │streamjoin            ┌──┴──┐        │streamjoin
+	///       hmL2└┐   ┌┘        │matches are       hmL2└┐   ┌┘ cleared│matches are
+	///            └┐ ┌┘         │not saved              └┐ ┌┘         │not saved
+	///             └┬┘          │                        └┬┘          │
+	///             0│l1         │                        0│l1         │
+	///         ┌────┴────┐     ┌┴┐                   ┌────┴────┐     ┌┴┐
+	///     L1  │         │     │ │               L1  │         │     │ │
+	///      ┌──┴──┐   ┌──┴─┐   │ │                ┌──┴──┐   ┌──┴─┐   │ │
+	/// hmL1 └┐   ┌┘   │ L2 │  L3 L4=L2        hmL1└┐   ┌┘   │ L2 │  L7 L8=L2
+	///       └┐ ┌┘    │    │  =                    └┐ ┌┘    │    │
+	///        └─┘     └────┘  L1                    └─┘     └────┘
+	///      hash      const                       hash      const
+	///
+	/// \tparam k_lower1
+	/// \tparam k_upper1
+	/// \tparam k_lower2
+	/// \tparam k_upper2
+	/// \tparam k_lower3
+	/// \tparam k_upper3
+	/// \tparam HashMapL0
+	/// \tparam HashMapL1
+	/// \tparam HashMapL2
+	/// \param out
+	/// \param L1
+	/// \param L2
+	/// \param hmL0
+	/// \param hmL1
+	/// \param hmL2
+	/// \param target
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
-		 const uint32_t k_lower2, const uint32_t k_upper2,
-		 const uint32_t k_lower3, const uint32_t k_upper3,
-         typename HashMapL0,
-		 typename HashMapL1,
-		 typename HashMapL2>
+		 	 const uint32_t k_lower2, const uint32_t k_upper2,
+		 	 const uint32_t k_lower3, const uint32_t k_upper3,
+	         const uint32_t weight_l2=0,
+			 const uint32_t weight_l3=0,
+         	 typename HashMapL0,
+		 	 typename HashMapL1,
+		 	 typename HashMapL2>
 #if __cplusplus > 201709L
 	requires HashMapAble<HashMapL0> &&
 			 HashMapAble<HashMapL1> &&
@@ -2931,26 +2975,23 @@ public:
 	    using LoadTypeL1 = typename HashMapL1::load_type;
 	    using LoadTypeL2 = typename HashMapL2::load_type;
         LoadTypeL0 load0; LoadTypeL1 load1; LoadTypeL2 load2;
-        
-		LabelType l1_t0; // level 1, target 0
-        LabelType l1_t1; // level 1, target 1
-        LabelType l1_t2; // level 1, target 2
-        LabelType l1_t3; // level 1, target 3
-		LabelType l2_t0, l2_t1;
 
+		// level 1, target 0,1,2,3
+		LabelType l1_t0,l1_t1, l1_t2, l1_t3;
+		LabelType l2_t0, l2_t1, l3_t0;
+
+		// TODO assumes that k_lower1 == 0
 		l1_t0.random(0, 1ull << k_upper1);
+		l1_t1.random(0, 1ull << k_upper1);
 		l1_t2.random(0, 1ull << k_upper1);
-		l2_t0.random(0, 1ull << k_upper2);
-		LabelType::sub(l1_t1, l2_t0, l1_t0);
-		LabelType::sub(l2_t1, target, l2_t0);
-		LabelType::sub(l1_t3, l2_t1, l1_t2);
+		LabelType::sub(l1_t3, target, l1_t2);
+
+		LabelType::sub(l2_t0, l1_t0, l1_t1);
+		LabelType::sub(l2_t1, target, l1_t2);
 
         LabelType t1,t2,t3;
 		ElementType e1,e2,e3,e4;
 
-        constexpr static uint32_t filter = -1u;
-        constexpr static bool sub = false;
-       
         // hash the in base list
 		hmL0.clear();
 		for (size_t i = 0; i < L2.load(); ++i) {
@@ -2968,6 +3009,7 @@ public:
             (hmL2, hmL1, L1, L2, hmL0, l2_t0, l1_t1);
 
         // match between L5, L6
+		hmL1.clear();
         join2lists_on_iT_v2
             <k_lower1, k_upper1>
             (hmL1, L1, L2, hmL0, l1_t2, false);
@@ -2981,6 +3023,7 @@ public:
 				LabelType::sub(t2, l2_t1, L1[k01].label);
 				LabelType::sub(t2, t2, L2[b02].label);
 
+				// No weight check as impossible
 				ElementType::add(e1, L1[k01], L2[b02]);
 
 			    const size_t k10 = hmL1.find(t2.value(), load1);
@@ -2989,9 +3032,14 @@ public:
 
 				    LabelType::sub(t3, target, L1[b10.first].label);
 				    LabelType::sub(t3, t3, L2[b10.second].label);
+					LabelType::sub(t3, t3, L1[k01].label);
+					LabelType::sub(t3, t3, L2[b02].label);
 
 					ElementType::add(e2, L1[b10.first], L2[b10.second]);
 					ElementType::add(e2, e2, e1);
+					if constexpr (weight_l2) {
+						if (e2.value.popcnt() != weight_l2) { continue; }
+					}
 
 			        const size_t k20 = hmL2.find(t3.value(), load2);
 					for (size_t i20 = k10; i20 < (k20+load2); i20++){
@@ -3001,7 +3049,17 @@ public:
 						ElementType::add(e4, L1[b20.second.first], L2[b20.second.second]);
 						ElementType::add(e4, e4, e3);
 						ElementType::add(e4, e4, e2);
+
+						if constexpr (weight_l3) {
+							if (e4.value.popcnt() != weight_l3) { continue; }
+						}
+
 				    	std::cout << e4 << std::endl;
+						const size_t load = out.load();
+						out[load] = e4;
+						out.set_load(load + 1);
+						goto finish;
+
 					    // ElementType::add(tmpe1, hmL1[k10], L1[k]);
 					    // out.template add_and_append
 					    // 	<0, k_upper2, filter, sub>
@@ -3010,9 +3068,10 @@ public:
 				}
 			}
 		}
+
+	finish:
+		return;
 	}
-
-
 
 
 
