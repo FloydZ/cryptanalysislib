@@ -687,8 +687,6 @@ public:
 	///
 	/// \tparam lower
 	/// \tparam upper
-	/// \param lower
-	/// \param upper
 	/// \return
 	template<const uint32_t lower, const uint32_t upper>
 	[[nodiscard]] constexpr inline bool is_zero() const noexcept {
@@ -1418,6 +1416,8 @@ std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) 
 		for (size_t i = 0; i < S::bits; ++i) {
 			std::cout << (tmp & 1u);
 			tmp >>= 1u;
+			// TODO remove
+			if (i == 15) {std::cout << " ";}
 		}
 		out << " (" << std::dec << (uint64_t) obj.value()
 		    << ", 0x" << std::hex << (uint64_t) obj.value() << ")"

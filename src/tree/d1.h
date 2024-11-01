@@ -50,13 +50,14 @@ size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
 			const uint64_t jprev = j;
 			for (; i < i_max; ++i) {
 				for (j = jprev; j < j_max; ++j) {
-					f(out, L1, L2, i, j);
 					ret += 1;
+					if (f(out, L1, L2, i, j)) { goto finish; }
 				}
 			}
 		}
 	}
 
+	finish:
 	return ret;
 }
 
@@ -82,6 +83,7 @@ size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
 			ASSERT(false);
 		}
 #endif
+		return false;
 	};
 
 	return join2lists(out, L1, L2, target, k_lower, k_upper, prepare, f);
@@ -135,13 +137,14 @@ size_t Tree_T<List, config>::join2lists(
 			const uint64_t jprev = j;
 			for (; i < i_max; ++i) {
 				for (j = jprev; j < j_max; ++j) {
-					f(out, L1, L2, i, j);
 					ret += 1;
+					if(f(out, L1, L2, i, j)) { goto finish; }
 				}
 			}
 		}
 	}
 
+	finish:
 	return ret;
 }
 
@@ -200,13 +203,13 @@ size_t Tree_T<List, config>::join2lists_on_iT(List &out,
 			const uint64_t jprev = j;
 			for (; i < i_max; ++i) {
 				for (j = jprev; j < j_max; ++j) {
-					f(out, L1, L2, i, j);
 					ret += 1;
+					if (f(out, L1, L2, i, j)) { goto finish; }
 				}
 			}
 		}
 	}
-
+finish:
 	return ret;
 }
 
@@ -238,6 +241,7 @@ size_t Tree_T<List, config>::join2lists_on_iT(List &out,
 			ASSERT(false);
 		}
 #endif
+		return false;
 	};
 
 	return join2lists_on_iT(out, L1, L2, target, k_lower, k_upper, prepare, f);
@@ -271,11 +275,11 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
 		for (; (j < L2.load()) &&
 			   (sigma_t.is_equal(L2[j].label,k_lower, k_upper));
 			   ++j) {
-			f(out, L1, L2, i, j);
 			ret += 1;
+			if (f(out, L1, L2, i, j)) { goto finish; }
 		}
 	}
-
+finish:
 	return ret;
 }
 
@@ -293,6 +297,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
 							 const bool prepare) noexcept {
 	auto f=[k_lower, k_upper](List &out, const List &L1, List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
 		out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1u);
+		return false;
 	};
 
 	return join2lists_on_iT_v2(out, L1, L2, target, k_lower, k_upper, prepare, f);
@@ -331,10 +336,11 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
 		size_t j = L2.template search_level<k_lower, k_upper>(sigma_t);
 		for (; (j < L2.load()) &&
 			   (sigma_t.template is_equal<k_lower, k_upper>(L2[j].label)); ++j) {
-			f(out, L1, L2, i, j);
+			if (f(out, L1, L2, i, j)) { goto finish; }
 		}
 	}
 
+finish:
 	return ret;
 }
 
@@ -380,11 +386,12 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(
 		for (size_t k = s; k < s + load; ++k) {
 			ret += 1;
 			const size_t j = hm[k];
-			f(out, L1, L2, i, j);
 			ret += 1;
+
+			if (f(out, L1, L2, i, j)) { goto finish; }
 		}
 	}
-
+finish:
 	return ret;
 }
 
@@ -434,11 +441,11 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(
 			ASSERT(L2[j].label.is_equal(sigma_t, k_lower, k_upper));
 			ASSERT(j < L2.load());
 
-			f(out, L1, L2, i, j);
 			ret += 1;
+			if (f(out, L1, L2, i, j)) { goto finish; }
 		}
 	}
-
+finish:
 	return ret;
 }
 
@@ -481,11 +488,11 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy&& policy,
 	std::vector<std::future<void>> futures;
 	for (size_t tid = 0; tid < nthreads; tid++) {
 		futures.emplace_back(task_pool.enqueue([tid, &hm, &L2]() __attribute__((always_inline)) {
-		  const size_t spos = L2.start_pos(tid);
-		  const size_t epos = L2.end_pos(tid);
-		  for (size_t i = spos; i < epos; ++i) {
-			  hm.insert(L2[i].label.value(), i);
-		  }
+			const size_t spos = L2.start_pos(tid);
+			const size_t epos = L2.end_pos(tid);
+			for (size_t i = spos; i < epos; ++i) {
+				hm.insert(L2[i].label.value(), i);
+			}
 		}));
 	}
 
@@ -504,10 +511,9 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy&& policy,
 			  size_t s = hm.find(sigma_t.value(), load);
 			  for (size_t k = s; k < s + load; ++k) {
 				  const size_t j = hm[k];
-				  // todo really atomic?
 				  out.template add_and_append
 						  <k_lower, k_upper, -1u, false>
-						  (L1[i], L2[j]);
+						  (L1[i], L2[j], tid);
 			  }
 		  }
 		}));

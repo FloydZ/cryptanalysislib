@@ -168,6 +168,7 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, cons
 		iL.sort_level(k_lower2, k_upper2);
 	}
 
+	size_t ret=0;
 	while (i < L1.load() && j < L2.load()) {
 		LabelType::add(tmp, L2[j].label, target);
 		if (tmp.is_greater(L1[i].label, k_lower1, k_upper1)) {
@@ -203,12 +204,15 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, cons
 					}
 
 					for (size_t l = boundaries.first; l < boundaries.second; ++l) {
-						f(out, iL, e1, l);
+						ret += 1;
+						if(f(out, iL, e1, l)) { goto finish; }
 					}
 				}
 			}
 		}
 	}
+finish:
+	return ret;
 }
 
 /// doc see tree.h
@@ -225,7 +229,8 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, cons
 	auto f=[k_lower1, k_upper1, k_lower2, k_upper2]
 			(List &out, const List &iL, ElementType &e, const size_t l)
 			__attribute__((always_inline)) {
-	  out.add_and_append(e, iL[l], 0, LabelLENGTH, -1);
+		out.add_and_append(e, iL[l], 0, LabelLENGTH, -1);
+		return false;
 	};
 
 	return twolevel_streamjoin_on_iT(out, iL, L1, L2, target, k_lower1, k_upper1, k_lower1, k_upper2, prepare, f);
@@ -298,6 +303,7 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_v2(List &out, List &iL,
 		(void)k_upper1;
 	    (void)k_lower2;
 	  	out.add_and_append(iL[l], e, k_lower1, k_upper2, -1u);
+		return false;
 	};
 
 	return twolevel_streamjoin_on_iT_v2(out, iL, L1, L2, target, iT, k_lower1, k_upper1, k_lower1, k_upper2, prepare, f);

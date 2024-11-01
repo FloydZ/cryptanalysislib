@@ -187,8 +187,8 @@ using Tree			= Tree_T<List>;
 TEST(SubSetSum, join8lists_twolists_on_iT_v2_hashmap_constexpr) {
 	Matrix A; A.random();
 	constexpr uint64_t k_lower1=0, k_higher1=n/3;
-	constexpr uint64_t k_lower2=n/3, k_higher2=2*n/3;
-	constexpr uint64_t k_lower3=2*n/3, k_higher3=n;
+	constexpr uint64_t k_lower2=k_higher1, k_higher2=2*n/3;
+	constexpr uint64_t k_lower3=k_higher2, k_higher3=n;
 
 	constexpr size_t baselist_size = sum_bc(n/2, 4);
 	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
@@ -252,6 +252,7 @@ TEST(SubSetSum, join8lists_twolists_on_iT_v2_hashmap_constexpr) {
 			right += 1;
 		}
 	}
+
 	std::cout << right;
 	EXPECT_GT(right,0);
 

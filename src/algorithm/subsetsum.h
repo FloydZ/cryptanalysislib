@@ -7,9 +7,6 @@
 #include "algorithm/int2weight.h"
 #include "tree.h"
 
-/// TODO wrapper function schreiben die einfach nur die TRee funktionen wrapped => die dann bcj und hgj nennen
-
-
 /// generates a rng subset sum instance
 /// NOTE:
 /// 	- nr of indices which are generated is = n/2
@@ -55,11 +52,13 @@ constexpr static void generate_subsetsum_instance(Label &target,
 /// TODO image and explanation of config parameters
 struct SSS {
 	/// these are just fake numbers. Enter your own correct ones.
+	const uint32_t d = 2;
     const uint32_t n = 32;
     const uint64_t q = 1ull << n;
 	const uint32_t bp = 1;
 	const uint32_t l1 = 9;
 	const uint32_t l2 = 11;
+	const uint32_t l3 = 0;
     const uint64_t walk_len = 1u << 10u;
 
 	// flavouring prime
@@ -68,6 +67,7 @@ struct SSS {
 
 	const size_t print_iterations = 512;
 
+	///
 	constexpr void info() const noexcept {
 		std::cout << " { name: \"SubSetSumConfig\" :"
 		          << ", n: " << n
@@ -82,7 +82,8 @@ struct SSS {
 };
 
 /// TODO explain
-/// @tparam Element 
+/// \tparm Element
+/// \tparm SSS
 template<class Element,
 		 const SSS &instance>
 struct SubSetSumCmp {
@@ -109,54 +110,19 @@ struct SubSetSumCmp {
 	                const Element &a2,
 	                const Element &b1,
 	                const Element &b2) const noexcept __attribute__((always_inline)) {
-		// get the lowest bit
-        const C la = a1.label.value();
-        const C lb = b1.label.value();
-		const C alb = la & mask;
-		const C blb = lb & mask;
-
-		// and make sure, that they are different
-		if (alb == blb) {
-			return false;
-		}
-
-		// weight check:
-		Value tmp;
-		Value::add(tmp, a2.value, b2.value);
-		if (tmp.popcnt() != weight) {
-			return false;
-		}
-
-		Label tmp2;
-		Label::add(tmp2, a2.label, b2.label);
-		//std::cout << a2 << ", a2" << std::endl;
-		//std::cout << b2 << ", b2" << std::endl;
-		//std::cout << tmp << ", tmp(" << tmp.popcnt() << ")" << std::endl;
-		//std::cout << tmp2 << ", tmp2" << std::endl;
-
-
-        // if they are the same we found a collision
-		const bool ret = a2.label.template is_equal
-					<k_lower, k_upper>(b2.label);
-
-		if (ret) [[unlikely]] {
-			Element sol ;
-			Element::add(sol, a2, b2);
-			std::cout << "found it!" << std::endl;
-			std::cout << a2 << ", x" << std::endl;
-			std::cout << b2 << ", y" << std::endl;
-			std::cout << sol << ", sol" << std::endl;
-		}
-		return ret;
+		(void)a1;
+		(void)b1;
+		return a2.template is_equal<k_lower, k_upper>(b2);
 	}
 };
 
 /// TREE(t, iT):
+///		do this outside of the rho
 ///                   out
 ///                 ┌───┐                  level 2
 ///                 └───┘ match on x
 ///                l_1│l_2			e1+e2 = t-e3-e4
-///         ┌─────────┴─────┐       ()
+///         ┌─────────┴─────┐
 ///      ┌──┴───┐           │              level 1
 ///      └┐    ┌┘           │
 ///       └┐  ┌┘HMiL        │
@@ -201,6 +167,7 @@ struct SubSetSumCmp {
 ///		s = rng(0, 2**(l_2+l_1))
 ///
 ///		// NOTE: the loop also ends if a max length is reached
+///		// NOTE: the weight check and the function output check are done outside of the rho
 ///		while((x1&LSB == y1&LSB) || (x2 !=[l,..., l+l1] y2) {
 ///			x2,y2 = x1,y1
 ///			x1 = f_i(P(x2))
@@ -213,7 +180,6 @@ struct SubSetSumCmp {
 ///
 ///		goto restart
 /// }
-///
 template<const SSS &instance>
 class sss_d2 {
 public:
@@ -222,13 +188,21 @@ public:
 
 	using T 		= uint64_t;
 	using Value     = BinaryVector<n>;
-    using Label = kAry_Type_T<q>;
+    using Label		= kAry_Type_T<q>;
 	using Matrix 	= FqVector<T, n, q>;
 	using Element	= Element_T<Value, Label, Matrix>;
 	using List		= List_T<Element>;
 	using Tree		= Tree_T<List>;
 	using L 		= Label::LimbType;
 	using V 		= Value::LimbType;
+
+	// needed config for the rho collision search
+    constexpr static uint32_t bit_pos = 0;
+    constexpr static L mask = ((L)1ull) << bit_pos;
+	constexpr static uint32_t rho_k_lower = instance.l1 + instance.l2;
+	constexpr static uint32_t rho_k_upper = rho_k_lower + instance.l1;
+	constexpr static uint32_t rho_weight = instance.n/2;
+
 
 	// instance to solve: <A, e> = target
 	const Matrix A;
@@ -291,7 +265,7 @@ public:
 
 		Label s, one; one.set(1, 0);
 		s.random(0, 1ull << k_upper2);
-		Element x, y;
+		Element x1,x2,y1,y2;
 
 		//flavout values:
 		L b_1 = rng<L>(instance.flavour_q), b_2 = rng<L>(instance.flavour_q);
@@ -307,13 +281,12 @@ public:
 			return ret;
 		};
 
-		/// pollard rho
+		/// pollard rho f function
 		auto f =  [&](const Element &c1) __attribute__((always_inline)) {
 			// reset a few things
 			out.set_load(0);
 			Label tree_target, tmp_iT, tree_iT;
 			tree_iT = c1.label;
-
 
 			// depending on the lowest bit
 			if (c1.label.value() & 1u) {
@@ -326,8 +299,10 @@ public:
 			size_t iters = 0;
 			while (out.load() == 0) {
 				hmiL->clear();
-				Label::sub(tmp_iT, tree_target, tree_iT);
+
+				// prepare the itermediate target for the next round
 				Label::add(tree_iT, tree_iT, one);
+				Label::sub(tmp_iT, tree_target, tree_iT);
 
 				// join to intermediate list (hashmap)
 				// NOTE: `prepare==false`, because its already done
@@ -347,7 +322,7 @@ public:
 			// std::cout << target << std::endl;
 			// std::cout << out << std::endl;
 			ASSERT(out.load() > 0);
-			ASSERT(iters < 10);
+			ASSERT(iters < 100);
 			size_t wrong = 0;
 			for (size_t it = 0; it < out.load(); it++) {
 				ASSERT(out[it].is_correct(A));
@@ -359,6 +334,7 @@ public:
 			Element ret = out[0];
 			ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
 			ASSERT(wrong == 0);
+
 			// debug information
 			// std::cout << "iters:" << iters << std::endl;
 			// std::cout << "wrong:" << wrong << std::endl;
@@ -371,28 +347,56 @@ public:
 
 		const auto start = std::chrono::high_resolution_clock::now();
 		// start loop
-		size_t iters = 0;
+		size_t iters = 0, cnt = 0;
 		restart:
 		while (true) {
 			iters += 1;
-			x.random(A);
-			y = f(x);
-			s.random(0, 1ull << k_upper2);
+			x1.random(A);
+			y1 = f(x1);
+			s.random(0, 1ull << (k_upper2));
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
 
-			if ((iters % instance.print_iterations) == 0)  {
-				std::cout << "iters: " << iters << std::endl;
-			}
-			// std::cout << x << ", x" << std::endl;
-			// std::cout << y << ", y" << std::endl;
-			//std::cout << b_1 << ", b_1" << std::endl;
-			//std::cout << b_2 << ", b_2" << std::endl;
-			//std::cout << s << ", s" << std::endl;
+			//
+			// if ((iters % instance.print_iterations) == 0) {
+			// 	std::cout << "iters: " << iters << std::endl;
+			// }
 
-			/// restart every X runs
-			if (rho::run(f, flavour, x, y, instance.walk_len)) {
-				break;
+			// NOTE: restart every `instance.walk_len` runs
+			// NOTE: the weight check and the check if the collision is between
+			//		two different functions is done outside of the rho function,
+			//		to assure that we do not run into useless cycles.
+			if (rho::run(f, flavour, x1, y1, x2, y2, instance.walk_len)) {
+				// get the lowest bit
+        		const L la = x1.label.value();
+        		const L lb = y1.label.value();
+				const L alb = la & mask;
+				const L blb = lb & mask;
+
+				// and make sure, that they are different
+				if (alb == blb) { continue; }
+
+
+				// debugging
+				// Element sol;
+				// Element::add(sol, x2, y2);
+				// Label ss;
+				// Label::sub(ss, global_target, s);
+				// std::cout << x2 << ", x" << std::endl;
+				// std::cout << y2 << ", y" << std::endl;
+				// std::cout << sol << ", sum" << std::endl;
+				// sol.recalculate_label(A);
+				// std::cout << sol << ", sum" << std::endl;
+				// std::cout << global_target << ", global_target" << std::endl;
+				// std::cout << s << ", s" << std::endl;
+				// std::cout << ss << ", ss" << std::endl;
+
+				// weight check:
+				Value tmp;
+				Value::add(tmp, x2.value, y2.value);
+				if (tmp.popcnt() == rho_weight) {
+					break;
+				}
 			}
 		}
 
@@ -400,19 +404,18 @@ public:
 		const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
 
 		Element sol;
-		const auto xx = f(x);
-		const auto yy = f(y);
-		Element::add(sol, xx, yy);
+		Element::add(sol, x2, y2);
 
-		std::cout << iters << ", global_iters" << std::endl;
-		std::cout << seconds << std::endl;
-		std::cout << xx << ", x" << std::endl;
-		std::cout << yy << ", y" << std::endl;
-		std::cout << sol << ", sol" << std::endl;
-		std::cout << global_target << "global_target" << std::endl;
+		// std::cout << iters << ", global_iters" << std::endl;
+		// std::cout << seconds << std::endl;
+		// std::cout << x2 << ", x" << std::endl;
+		// std::cout << y2 << ", y" << std::endl;
+		// std::cout << sol << ", sol" << std::endl;
+		// std::cout << global_target << ", global_target" << std::endl;
 		if constexpr (n > (2*instance.l1 + instance.l2)) {
 			if (!global_target.is_equal(sol.label)) {
-				std::cout << "restart" << std::endl;
+				// std::cout << "restart" << std::endl;
+				cnt += 1u;
 				goto restart;
 			}
 		}
@@ -421,9 +424,212 @@ public:
 		delete hmL2;
 		delete hmiL;
 
+		std::cout << iters << ", global_iters" << std::endl;
+		std::cout << cnt << ", cnt" << std::endl;
+		std::cout << seconds << ", duration" << std::endl;
+
 		return true;
 	}
 };
 
+template<const SSS &instance>
+class HGJ {
+    constexpr static uint32_t n = instance.n;
+    constexpr static uint64_t q = instance.q;
 
+	constexpr static uint32_t k_l1 = 0;
+	constexpr static uint32_t k_h1 = instance.l1;
+	constexpr static uint32_t k_l2 = k_h1;
+	constexpr static uint32_t k_h2 = k_l2 + instance.l2;
+	constexpr static uint32_t k_l3 = k_h2;
+	constexpr static uint32_t k_h3 = k_l2 + instance.l3;
+
+	constexpr static uint32_t filter_weight = n/2;
+
+	static_assert(instance.d >= 2);
+	static_assert(instance.d <= 3);
+
+public:
+	using T 		= uint64_t;
+	using Value     = BinaryVector<n>;
+    using Label		= kAry_Type_T<q>;
+	using Matrix 	= FqVector<T, n, q>;
+	using Element	= Element_T<Value, Label, Matrix>;
+	using List		= List_T<Element>;
+	using Tree		= Tree_T<List>;
+	using L 		= Label::LimbType;
+	using V 		= Value::LimbType;
+
+	// instance to solve: <A, e> = target
+	const Matrix A;
+	const Label global_target;
+
+	/// \param A
+	/// \param target
+	constexpr HGJ(const Matrix &A,
+				  const Label &target) noexcept
+	    : A(A), global_target(target) {
+	}
+
+	size_t run() noexcept {
+		using Enumerator = BinaryLexicographicEnumerator<List, n/2, instance.bp>;
+		constexpr static size_t size = Enumerator::max_list_size;
+		List L1{size}, L2{size}, out{50};
+
+		Enumerator en{A};
+		en.template run
+			<std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			(&L1, &L2, n/2);
+
+		using D = typename Label::DataType;
+		using E = std::pair<size_t, size_t>;
+
+		// constexpr static size_t factor = 2;
+		constexpr static size_t L1_bucketsize = 100; // factor * (Enumerator::max_list_size >> (instance.l1));
+		constexpr static size_t iL_bucketsize = 100; // factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2 + instance.l1));
+
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+				L1_bucketsize, 1ull<<(k_h1-k_l1), 1
+		};
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
+				iL_bucketsize, 1ull<<(k_h2-k_l2), 1
+		};
+
+		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_l1, k_h1, 2>>;
+		using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_l2, k_h2, 2>>;
+		HML0 *hmL0 = new HML0{};
+		HML1 *hmL1 = new HML1{};
+
+		/// prepare the hashmaps
+		for (size_t i = 0; i < L2.load(); ++i) {
+			hmL0->insert(L2[i].label.value(), i);
+		}
+
+		/// dummy object
+		Tree t{1, A, 0};
+
+		if constexpr (instance.d == 2) {
+			t.template join4lists_twolists_on_iT_hashmap_v2
+				<k_l1, k_h1, k_l2, k_h2>
+				(out, L1, L2, *hmL0, *hmL1, global_target, false);
+		}
+
+		if constexpr (instance.d == 3) {
+			using F = std::pair<E, E>;
+			using HML2 = SimpleHashMap<D, F, simpleHashMapConfigL1, Hash<D, k_l3, k_h3, 2>>;
+			HML2 *hmL2 = new HML2{};
+
+			t.template join8lists_twolists_on_iT_v2
+				<k_l1, k_h1, k_l2, k_h2, k_l3, k_h3, 0, filter_weight>
+				(out, L1, L2, *hmL0, *hmL1, *hmL2, global_target);
+			delete hmL2;
+		}
+
+		std::cout << out;
+
+		delete hmL0;
+		delete hmL1;
+	}
+};
+
+
+template<const SSS &instance>
+class BCJ {
+    constexpr static uint32_t n = instance.n;
+    constexpr static uint64_t q = instance.q;
+
+	constexpr static uint32_t k_l1 = 0;
+	constexpr static uint32_t k_h1 = instance.l1;
+	constexpr static uint32_t k_l2 = k_h1;
+	constexpr static uint32_t k_h2 = k_l2 + instance.l2;
+	constexpr static uint32_t k_l3 = k_h2;
+	constexpr static uint32_t k_h3 = k_l2 + instance.l3;
+
+	constexpr static uint32_t filter_weight = n/2;
+
+	static_assert(instance.d >= 2);
+	static_assert(instance.d <= 3);
+
+public:
+	using T 		= uint64_t;
+	using Value     = FqPackedVector<n, 3, T, true>;
+    using Label		= kAry_Type_T<q>;
+	using Matrix 	= FqVector<T, n, q>;
+	using Element	= Element_T<Value, Label, Matrix>;
+	using List		= List_T<Element>;
+	using Tree		= Tree_T<List>;
+	using L 		= Label::LimbType;
+	using V 		= Value::LimbType;
+
+	// instance to solve: <A, e> = target
+	const Matrix A;
+	const Label global_target;
+
+	/// \param A
+	/// \param target
+	constexpr BCJ(const Matrix &A,
+				  const Label &target) noexcept
+	    : A(A), global_target(target) {
+	}
+
+	size_t run() noexcept {
+		using Enumerator = BinaryLexicographicEnumerator<List, n/2, instance.bp>;
+		constexpr static size_t size = Enumerator::max_list_size;
+		List L1{size}, L2{size}, out{50};
+
+		Enumerator en{A};
+		en.template run
+			<std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			(&L1, &L2, n/2);
+
+		using D = typename Label::DataType;
+		using E = std::pair<size_t, size_t>;
+
+		// constexpr static size_t factor = 2;
+		constexpr static size_t L1_bucketsize = 100; // factor * (Enumerator::max_list_size >> (instance.l1));
+		constexpr static size_t iL_bucketsize = 100; // factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2 + instance.l1));
+
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+				L1_bucketsize, 1ull<<(k_h1-k_l1), 1
+		};
+		constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
+				iL_bucketsize, 1ull<<(k_h2-k_l2), 1
+		};
+
+		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_l1, k_h1, 2>>;
+		using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_l2, k_h2, 2>>;
+		HML0 *hmL0 = new HML0{};
+		HML1 *hmL1 = new HML1{};
+
+		/// prepare the hashmaps
+		for (size_t i = 0; i < L2.load(); ++i) {
+			hmL0->insert(L2[i].label.value(), i);
+		}
+
+		/// dummy object
+		Tree t{1, A, 0};
+
+		if constexpr (instance.d == 2) {
+			t.template join4lists_twolists_on_iT_hashmap_v2
+				<k_l1, k_h1, k_l2, k_h2>
+				(out, L1, L2, *hmL0, *hmL1, global_target, false);
+		}
+
+		if constexpr (instance.d == 3) {
+			using F = std::pair<E, E>;
+			using HML2 = SimpleHashMap<D, F, simpleHashMapConfigL1, Hash<D, k_l3, k_h3, 2>>;
+			HML2 *hmL2 = new HML2{};
+
+			t.template join8lists_twolists_on_iT_v2
+				<k_l1, k_h1, k_l2, k_h2, k_l3, k_h3, 0, filter_weight>
+				(out, L1, L2, *hmL0, *hmL1, *hmL2, global_target);
+			delete hmL2;
+		}
+
+		std::cout << out;
+
+		delete hmL0;
+		delete hmL1;
+	}
+};
 #endif

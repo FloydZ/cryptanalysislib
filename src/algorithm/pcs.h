@@ -97,8 +97,10 @@ public:
 	/// \tparam Flavour
 	/// \param f
 	/// \param flavour
-	/// \param col1
-	/// \param col2
+	/// \param a1
+	/// \param b1
+	/// \param a2
+	/// \param b2
 	/// \param max_iters
 	/// \return
 	template<class F,
@@ -109,36 +111,35 @@ public:
 #endif
 	[[nodiscard]] constexpr static bool run(F &&f,
 											Flavour &&flavour,
-											T &col1, T &col2,
-											const size_t max_iters = size_t(-1ull)) noexcept {
+											T &a1, T &b1,
+											T &a2, T &b2,
+											const size_t max_iters = size_t(-1ull)) noexcept __attribute__((always_inline)) {
 		Compare cmp;
 		bool ret = false;
 
 		size_t i = 0;
-		T a1=col1, b1=col2, b2_, a2, b2;
 		while (i < max_iters) {
+			i += 1;
+
 			// a2 = f(flavor(a1))
 			a1 = flavour(a1);
 			a2 = f(a1);
 
 			// b2 = f(flavour(f(flavor(b1))))
 			b1 = flavour(b1);
-			b2_= flavour(f(b1));
-			b2 = f(b2_);
+			b1 = flavour(f(b1));
+			b2 = f(b1);
 
-			if (cmp(a1, a2, b2_, b2)) [[unlikely]] {
+			if (cmp(a1, a2, b1, b2)) [[unlikely]] {
 				ret = true;
 				goto finish;
 			}
 
 			a1 = a2;
 			b1 = b2;
-			i += 1;
 		}
 
 		finish:
-		col1 = a1;
-		col2 = b2_;
 		return ret;
 	}
 };
