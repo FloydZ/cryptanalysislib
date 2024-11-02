@@ -1257,7 +1257,7 @@ public:
 	/// \param k_upper2 upper coordinate to match on, on the last level
 	/// \param prepare if true: sort L2 and iL. nothing else.
 	/// \param f: filter/insert function
-	template<typename F=bool(List&,List&,ElementType&,const size_t)>
+	template<typename F=bool(List&,List&,ElementType&,size_t)>
 	size_t twolevel_streamjoin_on_iT_v2(List &out, List &iL,
 									  const List &L1, List &L2,
 									  const LabelType &target, const LabelType &iT,
@@ -1556,8 +1556,7 @@ public:
 			 typename F=bool(List&, ElementType&, ElementType&, size_t,size_t,size_t,size_t)>
 #if __cplusplus > 201709L
 	requires HashMapAble<HashMap1> &&
-			 HashMapAble<HashMap2> &&
-			 std::regular_invocable<F, List&, const ElementType&, const ElementType&, const size_t, const size_t, const size_t, const size_t>
+			 HashMapAble<HashMap2>
 #endif
 	size_t twolevel_streamjoin_on_iT_hashmap_v2(List &out,
 											    const HashMap1 &hmiL,
@@ -1566,54 +1565,11 @@ public:
 											    const HashMap2 &hmL2,
 											    const LabelType &target,
 											    const LabelType &iT,
-											    F &&f) noexcept {
-		static_assert(k_lower1 < k_upper1);
-		static_assert(k_lower2 < k_upper2);
-		static_assert(k_lower1 < k_upper1);
-		(void)k_lower2;
-		using LoadType1 = typename HashMap1::load_type;
-		using LoadType2 = typename HashMap2::load_type;
+											    F f=[](List&out,ElementType&a1,ElementType&a2,size_t,size_t,size_t,size_t) __attribute__((always_inline)) {
+												    out.add_and_append(a1, a2);
+													return false;
+											    }) noexcept;
 
-		ElementType te1, te2;
-		LabelType t1, t2;
-		LoadType1 load1 = 0;
-		LoadType2 load2 = 0;
-
-		size_t ret=0;
-		for (size_t k = 0; k < L1.load(); ++k) {
-			LabelType::sub(t1, iT, L1[k].label);
-
-			const size_t s2 = hmL2.find(t1.value(), load2);
-			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
-				const size_t b1 = hmL2[l2];
-				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
-				ASSERT(L2[b1].is_correct(matrix));
-				ASSERT(b1 < L2.load());
-
-				const LabelType t3 = L2[b1].label;
-				LabelType::sub(t2, target, L1[k].label);
-				LabelType::sub(t2, t2, t3);
-
-				ElementType::add(te1, L1[k], L2[b1]);
-				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
-				ASSERT(te1.is_correct(matrix));
-
-				// NOTE: its shifted
-				const size_t s1 = hmiL.find(t2.value(), load1);
-				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
-					ret += 1;
-					const size_t a1 = hmiL[l1].first;
-					const size_t a2 = hmiL[l1].second;
-					ASSERT(a1 < L1.load());
-					ASSERT(a2 < L2.load());
-					ElementType::add(te2, L1[a1], L2[a2]);
-					if (f(out, te1, te2, b1, k, a1, a2)) { goto finish; }
-				}
-			}
-		}
-	finish:
-		return ret;
-	}
 
 	/// TODO test, and filter weight, and filter function
 	///          out
@@ -2050,6 +2006,9 @@ public:
 				<k_lower1, k_upper1>
 				(hmL1, L1, L2, hmL0, iT, prepare);
 
+		// early exit
+		if (iLs == 0) { return; }
+
 		size_t Ls = 0;
 		auto f = [&](List &out,
 		            const ElementType &e1,
@@ -2073,6 +2032,9 @@ public:
 			// if (v.label.is_equal(target)) { out.append(v); }
 		};
 
+		// early exit
+		if (Ls == 0) { return; }
+
 		LabelType::sub(t1, target, iT);
 
 		hmL0.clear();
@@ -2084,10 +2046,9 @@ public:
 		    <k_lower1, k_upper1, k_lower2, k_upper2>
 		    (out, hmL1, L3, L4, hmL0, target, t1, f);
 
-		// TODO remvoe
-		std::cout << "|L1|: " << std::log2(L1.load() * 1.0) << ", " << L1.load() << std::endl;
-		std::cout << "|iL|: " << std::log2(iLs * 1.0) << ", " << iLs << std::endl;
-		std::cout << "|L| : " << std::log2(Ls * 1.0) << ", " <<  Ls << std::endl;
+		// std::cout << "|L1|: " << std::log2(L1.load() * 1.0) << ", " << L1.load() << std::endl;
+		// std::cout << "|iL|: " << std::log2(iLs * 1.0) << ", " << iLs << std::endl;
+		// std::cout << "|L| : " << std::log2(Ls * 1.0) << ", " <<  Ls << std::endl;
 	}
 
 
@@ -2359,6 +2320,50 @@ public:
 				(out, hmL1, L1, L2, hmL0, target, t1);
 	}
 
+	/// TODO docs/tests
+	template<const uint32_t k_lower1, const uint32_t k_upper1,
+	         const uint32_t k_lower2, const uint32_t k_upper2,
+			 typename HashMapL0,
+	         typename HashMapL1,
+			 typename F1=bool(HashMapL1&,const List&,const List&,const size_t,const size_t),
+			 typename F2>
+#if __cplusplus > 201709L
+	requires HashMapAble<HashMapL0> &&
+			 HashMapAble<HashMapL1>
+#endif
+	void join4lists_twolists_on_iT_v2(List &out,
+											  const List &L1, const List &L2,
+	                                          HashMapL0 &hmL0,
+											  HashMapL1 &hmL1,
+											  const LabelType &target,
+											  const bool prepare=true,
+											  F1 f1= [](HashMapL1 &out,const List &L1,const List &L2,const size_t i,const size_t j)
+														__attribute__((always_inline)) {
+												  using HMOutValueType = HashMapL1::data_type;
+												  LabelType e;
+												  LabelType::add(e, L1[i].label, L2[j].label);
+												  // NOTE: that is shifted
+												  out.insert(e.value(), HMOutValueType{i, j});
+												  return false;
+											  },
+											  F2 f2=[](List &out, ElementType &a1, ElementType &a2, size_t,size_t,size_t,size_t) {
+												  out.add_and_append(a1, a2);
+												  return true;
+											  }) noexcept {
+		(void)k_lower2;
+		ElementType tmpe1;
+		LabelType t1, iT;
+		iT.random(0, 1ull << k_upper1);
+		join2lists_on_iT_v2
+		    <k_lower1, k_upper1>
+		    (hmL1, L1, L2, hmL0, iT, prepare, f1);
+
+		LabelType::sub(t1, target, iT);
+		twolevel_streamjoin_on_iT_hashmap_v2
+			<k_lower1, k_upper1, k_lower2, k_upper2>
+			(out, hmL1, L1, L2, hmL0, target, t1, f2);
+	}
+
 	/// TODO docs/tests, remove the _f in name
 	///                   out
 	///                 ┌───┐
@@ -2385,7 +2390,7 @@ public:
 	requires HashMapAble<HashMapL0> &&
 			 HashMapAble<HashMapL1>
 #endif
-	void join4lists_twolists_on_iT_hashmap_f_v2(List &out,
+	size_t join4lists_twolists_on_iT_hashmap_f_v2(List &out,
 												const List &L1, const List &L2,
 												HashMapL0 &hmL0,
 												HashMapL1 &hmL1,
@@ -2400,6 +2405,7 @@ public:
 				<k_lower1, k_upper1>
 				(hmL1, L1, L2, hmL0, iT, prepare);
 
+		if (iLs == 0) { return 0; }
 		size_t Ls = 0;
 		auto f = [&](List &out,
 		            const ElementType &e1,
@@ -2422,10 +2428,7 @@ public:
 		twolevel_streamjoin_on_iT_hashmap_v2
 		    <k_lower1, k_upper1, k_lower2, k_upper2>
 		    (out, hmL1, L1, L2, hmL0, target, t1, f);
-
-		std::cout << "|L1|: " << std::log2(L1.load() * 1.0) << ", " << L1.load() << std::endl;
-		std::cout << "|iL|: " << std::log2(iLs * 1.0) << ", " << iLs << std::endl;
-		std::cout << "|L| : " << std::log2(Ls * 1.0) << ", " <<  Ls << std::endl;
+		return Ls;
 	}
 
 	/// TODO doc, test

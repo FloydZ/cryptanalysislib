@@ -445,6 +445,16 @@ public:
 		return ret;
 	}
 
+	[[nodiscard]] constexpr uint32_t popcnt(DataType a) const noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < n; i++) {
+			ret += (get(i) == a);
+		}
+
+		return ret;
+
+	}
+
 	/// return the positions of the first p bits/numbers set
 	/// \param out output: const_array of the first p positions set in the container
 	/// \param p maximum bits!=0 to find
@@ -790,6 +800,29 @@ public:
 	constexpr inline static bool add(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
+		static_assert(k_upper <= length && k_lower < k_upper);
+		for (uint32_t i = k_lower; i < k_upper; i++) {
+			DataType data = v1.get(i) + v2.get(i);
+			v3.set(data % modulus, i);
+		}
+
+		return false;
+	}
+
+	/// \param v3
+	/// \param v1
+	/// \param v2
+	/// \param k_lower
+	/// \param k_upper
+	/// \param norm
+	/// \return
+	constexpr inline static bool add(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2,
+									 const uint32_t k_lower,
+									 const uint32_t k_upper,
+									 const uint32_t norm) noexcept {
+		(void)norm;
 		static_assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);

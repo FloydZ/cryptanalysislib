@@ -315,7 +315,6 @@ public:
 					<k_lower1, k_upper1, k_lower2, k_upper2, 4*instance.bp>
 					(out, *hmiL, L1, L2, *hmL2, tree_target, tmp_iT);
 
-				// TODO: optimize the filtering, use a lambda to directly exit upon the first match
 				iters += 1;
 			}
 
@@ -609,10 +608,30 @@ public:
 		/// dummy object
 		Tree t{1, A, 0};
 
+		auto f1 = [](HML1 &out,const List &L1,const List &L2,const size_t i,const size_t j)
+					__attribute__((always_inline)) {
+			using HMOutValueType = HML1::data_type;
+			Label e;
+			Label::add(e, L1[i].label, L2[j].label);
+			// NOTE: that is shifted
+			out.insert(e.value(), HMOutValueType{i, j});
+				return false;
+		};
+
 		if constexpr (instance.d == 2) {
-			t.template join4lists_twolists_on_iT_hashmap_v2
+			auto f2 = [](List &out, Element &a1, Element &a2, size_t,size_t,size_t,size_t) __attribute__((always_inline)) {
+				Element t;
+				Element::add(t, a1, a2);
+				if ((t.value.popcnt(0b10) == 0) && (t.value.popcnt(0))) {
+					out[0] = t;
+					out.set_load(1);
+					return true;
+				}
+				return false;
+			};
+			t.template join4lists_twolists_on_iT_v2
 				<k_l1, k_h1, k_l2, k_h2>
-				(out, L1, L2, *hmL0, *hmL1, global_target, false);
+				(out, L1, L2, *hmL0, *hmL1, global_target, true, f1, f2);
 		}
 
 		if constexpr (instance.d == 3) {
