@@ -10,6 +10,14 @@
 #include "list/enumeration/enumeration.h"
 
 /// only a single element is enumerated on the full length
+/// NOTE: enumerates:
+///		[aa00....0]
+///		[a0a0....0]
+///		[a00a....0]
+///			...
+///		[a000....a]
+///			...
+///		[000....aa]
 /// \tparam ListType
 /// \tparam n
 /// \tparam q
@@ -264,7 +272,7 @@ public:
 
 	/// this can be used to specify the size of the input list
 	/// e.g. its the maximum number of elements this class enumerates
-	constexpr static size_t LIST_SIZE = Combinations_Fq_Chase<n, q, w>::LIST_SIZE;
+	constexpr static size_t max_list_size = Combinations_Fq_Chase<n, q, w>::LIST_SIZE;
 
 	// this can be se to something else as `LIST_SIZE`, if one wants to only
 	// enumerate a part of the sequence
@@ -285,11 +293,11 @@ public:
 	                             const size_t list_size = 0,
 	                             const Label *syndrome = nullptr)
 	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+	      list_size((list_size == size_t(0)) ? max_list_size : list_size) {
 
 		static_assert(chase_size >= 0);
 		static_assert(gray_size >= 0);
-		ASSERT(LIST_SIZE >= list_size);
+		ASSERT(max_list_size >= list_size);
 
 		if constexpr (w > 0) {
 			if constexpr (q > 2) {
@@ -384,12 +392,14 @@ public:
 			const uint32_t cs = current_set[gray_cl[j]];
 			element.value.set((element.value[cs + off2] + 1) % q, cs + off2);
 			Label::add(element.label, element.label, HT.get(cs + off2));
-
 			/// NOTE: this is stupid, but needed. The gray code enumeration
 			/// also enumerates zeros. Therefore we need to fix them
 			if (element.value[cs + off2] == 0) {
 				element.value.set(1, cs + off2);
 				Label::add(element.label, element.label, HT.get(cs + off2));
+
+				// TODO
+				element.recalculate_label(HT);
 			}
 		};
 
@@ -409,6 +419,9 @@ public:
 			Label::add(element.label, element.label, HT.get(b + off2));
 			element.value.set(0, off2 + a);
 			element.value.set(1, off2 + b);
+
+			// TODO, this is only
+			element.recalculate_label(HT);
 		};
 
 		/// iterate over all sequences
@@ -417,17 +430,13 @@ public:
 				check(element1.label, element1.value);
 				if (sL2) check(element2.label, element2.value, false);
 
-				if constexpr (sP) {
-					if (std::invoke(*p, element1.label)) { return true; }
-				}
+				if constexpr (sP) { if (std::invoke(*p, element1.label)) { return true; } }
 				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 				if (sL1) insert_list(L1, element1, ctr, tid);
 				if (sL2) insert_list(L2, element2, ctr, tid);
 
 				ctr += 1;
-				if (ctr >= list_size) {
-					return false;
-				}
+				if (ctr >= list_size) { goto finish; }
 
 				gray_step(element1, j, 0);
 				if (sL2) gray_step(element2, j, offset);
@@ -445,7 +454,7 @@ public:
 
 			ctr += 1;
 			if (ctr >= list_size) {
-				return false;
+				goto finish;
 			}
 
 			/// advance the current set by one
@@ -459,8 +468,11 @@ public:
 			if (sL2) chase_step(element2, a, b, offset);
 		}
 
+	finish:
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		ASSERT(ctr == list_size);
+		if (sL1) { L1->set_load(list_size); }
+		if (sL2) { L2->set_load(list_size); }
 		return false;
 	}
 

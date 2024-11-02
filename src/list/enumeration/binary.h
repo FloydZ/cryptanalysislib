@@ -217,6 +217,14 @@ public:
 
 /// This class enumerates vectors of length n and weight w, whereas
 /// no changelist is used.
+/// NOTE:
+///		[11000...0]
+///		[10100...0]
+///		[10010...0]
+///			...
+///		[10000...1]
+///			...
+///		[0000...11]
 /// \tparam ListType
 /// \tparam n vector length
 /// \tparam w weight
@@ -610,8 +618,6 @@ public:
 ///      mitmlen  norepslen
 /// \tparam ListType
 /// \tparam n length to enumerate
-/// \tparam q field size, e.g. enumeration symbols = {0, ..., q-1}
-/// \tparam w weight to enumerate
 /// \tparam mitm_w hamming weight to enumerate on the mitm part
 /// \tparam noreps_w hamming weight to enumerate on the no representations part
 /// \tparam split were the split between the two is

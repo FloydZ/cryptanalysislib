@@ -63,10 +63,10 @@ private:
 		}
 
 		/// not so trivial case
-		constexpr uint32_t lower = 0, upper = lprime/qbits;
+		constexpr uint32_t lower = 0, upper = hprime/qbits;
 		constexpr T mask = (~((T(1ull) << lower) - 1ull)) & ((T(1ull) << upper) - 1ull);
 		constexpr T mask_q = (1ull << qbits) - 1ull;
-		constexpr uint32_t loops = (lprime/qbits) >> 1ull;
+		constexpr uint32_t loops = (hprime/qbits) >> 1ull;
 
 		uint64_t ctr = q;
 		T tmp = (a & mask) >> lower;

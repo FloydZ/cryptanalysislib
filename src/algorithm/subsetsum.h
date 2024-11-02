@@ -572,9 +572,10 @@ public:
 	}
 
 	size_t run() noexcept {
-		using Enumerator = BinaryLexicographicEnumerator<List, n/2, instance.bp>;
+		using Enumerator = ListEnumerateMultiFullLength<List, n/2, 3, instance.bp>;
 		constexpr static size_t size = Enumerator::max_list_size;
 		List L1{size}, L2{size}, out{50};
+
 
 		Enumerator en{A};
 		en.template run
@@ -595,8 +596,8 @@ public:
 				iL_bucketsize, 1ull<<(k_h2-k_l2), 1
 		};
 
-		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_l1, k_h1, 2>>;
-		using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_l2, k_h2, 2>>;
+		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_l1, k_h1, 3>>;
+		using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_l2, k_h2, 3>>;
 		HML0 *hmL0 = new HML0{};
 		HML1 *hmL1 = new HML1{};
 
@@ -631,7 +632,7 @@ public:
 			};
 			t.template join4lists_twolists_on_iT_v2
 				<k_l1, k_h1, k_l2, k_h2>
-				(out, L1, L2, *hmL0, *hmL1, global_target, true, f1, f2);
+				(out, L1, L2, *hmL0, *hmL1, global_target, false, f1, f2);
 		}
 
 		if constexpr (instance.d == 3) {

@@ -19,7 +19,7 @@ using ::testing::UnitTest;
 TEST(SubSetSum, n32_d2) {
 	constexpr uint32_t n = 32;
 	constexpr uint64_t q = 1ul << n;
-	constexpr static SSS instance{.n=n, .q=q, .bp=4, .l1=16, .l2=16};
+	constexpr static SSS instance{.n=n, .q=q, .bp=4, .l1=10, .l2=10};
 	using S = BCJ<instance>;
 
 	using Label  = S::Label;
