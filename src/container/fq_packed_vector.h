@@ -785,8 +785,9 @@ public:
 	/// \param v1 input
 	/// \param v2 input
 	template<const uint32_t k_lower,
-			 const uint32_t k_upper>
-	constexpr inline static void add(FqPackedVectorMeta &v3,
+			 const uint32_t k_upper,
+			 const uint32_t norm=-1u>
+	constexpr inline static bool add(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
 		static_assert(k_upper <= length && k_lower < k_upper);
@@ -794,6 +795,8 @@ public:
 			DataType data = v1.get(i) + v2.get(i);
 			v3.set(data % modulus, i);
 		}
+
+		return false;
 	}
 
 	/// v1 -= v2
