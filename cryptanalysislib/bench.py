@@ -5,6 +5,10 @@
 import logging
 from typing import List
 
+from cryptanalysislib.helper import Range, dict2include
+from cryptanalysislib.optimizers.optimizers import MetaOptimizer
+
+
 logging.basicConfig(format="%(filename)s:%(lineno)s:%(funcName)20s(): %(message)s", 
                     level=logging.DEBUG)
 
@@ -36,21 +40,8 @@ class Benchmarker:
         self.include_path = include_path
 
         self.meta = MetaOptimizer(optimizer, ranges)
-        for param in self.meta.opt():
+        for param in self.meta:
             dict2include(self.include_path, param)
-            if not c.run(self.target, self.bin_path):
+            if not self.builder.run(self.target, self.bin_path):
                 # exit in case of error
                 break
-
-
-# test code 
-#print(dict2str({"a": 1, "L1": 2}))
-#dict2include("./test.h", {"a": 1})
-#exit(1)
-c = Cryptanalysislib()
-b = Benchmarker(c, SubSetSumOptimizerD2, 
-                "bench_subsetsum_tree", 
-                "bench/subsetsum/bench_subsetsum_tree", 
-                "./bench/subsetsum/params.h",
-                [Range("n", 22), Range("max_mem", 20, 22)]
-                )

@@ -20,7 +20,4 @@ packages = ["cryptanalysislib", "tests"]
 [tool.setuptools.package-data]
 
 [tool.pytest.ini_options]
-addopts = "-v --import-mode=importlib"
-testpaths = [
-  "tests",
-]
+testpaths = [ "tests", "cryptanalysislib"]

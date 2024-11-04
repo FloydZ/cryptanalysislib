@@ -6,7 +6,7 @@ import os
 import random
 import logging
 import pathlib
-from typing import List, Dict
+from typing import List
 from subprocess import Popen, PIPE, STDOUT
 
 from cryptanalysislib.optimizers import *
@@ -15,68 +15,41 @@ logging.basicConfig(format="%(filename)s:%(lineno)s:%(funcName)20s(): %(message)
                     level=logging.DEBUG)
 
 
-def dict2str(d: Dict) -> str:
-    """
-    NOTE: only writes `int`. Floats or other types are skipped 
-    :param d: the dictionary which is going to be written to a string
-    :return:
-        #ifndef INCLUDE_PARAMS 
-        #define INCLUDE_PARAMS 
-        #define PARAM_${key} ${value}; // for all key/values in dict
-        #endif
-    """
-    a = "\n".join(f"#define PARAM_{k} {v}" for k,v in d.items() if isinstance(v, int))
-    ret = "#ifndef INCLUDE_PARAMS\n#define INCLUDE_PARAMS\n\n" 
-    ret += a
-    ret += "\n\n#endif"
-    return ret
-
-
-def dict2include(file: pathlib.Path | str, d: Dict) -> bool:
-    """
-    Translates the given dictionary 'd', Translates it via `dict2str` and 
-    writes this string into `file`
-    :param file: str or path to write to
-    :param d: dictionary to wrtie
-    :return : true if success
-    """
-    a = dict2str(d)
-    if isinstance(file, str):
-        file = pathlib.Path(file)
-
-    with file.open("w", encoding ="utf-8") as f:
-        f.write(a)
-        return True
-
-    return False
 
 class Cryptanalysislib:
     """
     Builder and Runner class 
     """
 
-    compilers = ["g++", "clang++"]
-    search_path = ["/usr/bin", "/usr/bin/env"]
     debug_flags = ["-g", "-Og", "-DDEBUG", "-fopenmp"]
     release_flags = ["-DNDEBUG", "-O3", "-march=native", "-fopenmp"]
     cmake_executable = ["/usr/bin/env", "cmake"]
 
     clean_befor_build = False
 
-    def __init__(self, debug:bool=False, seed:int=0):
+    def __init__(self, debug:bool=False, seed:int=0, compiler="clang++"):
         """
         :param debug: if true debug binaries will be compiled
         :param seed: no idea
+        :param compiler
         """
         random.seed(seed)
 
         # path of the build output
         self.tmp_build_dir = "/tmp/cryptanalysislib"
+
         # path of the source. Mainly needed by `cmake`
         self.source_dir = os.path.dirname(os.path.realpath(__file__)) + "/../"
 
         # if true: debug binaries will be compiled
         self.__debug = debug
+       
+        # get set to `True`, if somewhere an error happens. Only used for 
+        # debugging and testing.
+        self.__error = False
+
+        # to be able to specify the compiler from the outside
+        self.compiler = compiler
 
         self.__create_build_env()
 
@@ -92,6 +65,7 @@ class Cryptanalysislib:
         t = "Debug" if self.__debug else "Release"
         cmd = Cryptanalysislib.cmake_executable + ["-B", self.tmp_build_dir, 
                "-DCMAKE_BUILD_TYPE={t}".format(t=t), "-S", self.source_dir]
+        cmd += ["-DCMAKE_CXX_COMPILER={t}".format(t=self.compiler)]
         logging.debug(cmd)
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
         p.wait()
@@ -100,6 +74,7 @@ class Cryptanalysislib:
             assert p.stdout
             print("couldn't execute: %s", " ".join(cmd))
             print(p.stdout.read())
+            self.__error = True
             return False
             
         return True
@@ -119,12 +94,23 @@ class Cryptanalysislib:
             print("couldn't execute: %s", " ".join(cmd))
             print("error msg:")
             print(p.stdout.read())
+            self.__error = True
             return False
         
         self.__build_output = [d.decode("utf-8").strip("\n") for d in p.stdout.readlines()]
         logging.debug(self.__build_output)
         return True
 
+    def reset(self):
+        """ reset the internal error state.
+        NOTE: only used for debugging and testing
+        """
+        self.__error = False
+
+    def has_error(self):
+        """NOTE: only used for debugging and testing
+        :return: true if no error is occured"""
+        return self.__error != False
     def run(self,
             build_target: str,
             target: str,
@@ -149,6 +135,7 @@ class Cryptanalysislib:
         if p.returncode != 0 and p.returncode is not None:
             print("couldn't execute: %s", " ".join(cmd))
             print(p.stdout.read())
+            self.__error = True
             return False
             
         self.__run_output = p.stdout.readlines()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ simple test """
 
-from cryptanalysislib.optimizers.helper import Range
+from cryptanalysislib.helper import Range
 
 
 def test1():

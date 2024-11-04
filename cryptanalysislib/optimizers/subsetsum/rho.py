@@ -180,12 +180,13 @@ class SubSetSumOptimizerD2(Optimizer):
                                         t = log2(self.time(g))
                                         if(t<T):
                                             T = t
-                                            # NOTE translation between Arindams opt params names and my internal names
+                                            # NOTE: translation between Arindams opt params names and my internal names
+                                            # NOTE: make sure that the name of the output variables, do match the input names
                                             f = {
                                                 "T" : round(t, 3),
                                                 "T_tree" : round(self.T_tree(g), 3),
                                                 "M" : round(log2(self.memory(g)), 3),
-                                                "mem_limit": self.max_mem,
+                                                "max_mem": self.max_mem,
                                                 "g" : int(self.n*g),
                                                 "L0" : self.L_mitm(g),
                                                 "L1" : self.FL_1(g),
@@ -201,16 +202,3 @@ class SubSetSumOptimizerD2(Optimizer):
                                             }
         b = T != inf
         return b, f
-
-# testing 
-#s = SubSetSumOptimizerD2(32)
-#print(s.opt())
-#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 40), Range("max_mem", 0, 32)])
-#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32)])
-#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 10)])
-#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 10, 2)])
-#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 10, 2), Range("max_mem", 20, 22)])
-#s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32, 10, 2), Range("max_mem", 22, 19, 2)])
-#print(*s.opt())
-#for t in s.opt():
-#    print (t)

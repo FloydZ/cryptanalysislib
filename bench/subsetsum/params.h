@@ -1,7 +1,7 @@
 #ifndef INCLUDE_PARAMS
 #define INCLUDE_PARAMS
 
-#define PARAM_mem_limit 21
+#define PARAM_max_mem 21
 #define PARAM_g 22
 #define PARAM_d1 0
 #define PARAM_d2 0
