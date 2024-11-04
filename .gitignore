@@ -14,6 +14,7 @@ compile_commands.json
 Session.vim
 config.h
 cmake-build-relwithdebinfo/
+*egg-info/
 # Created by .ignore support plugin (hsz.mobi)
 ### C++ template
 # Prerequisites

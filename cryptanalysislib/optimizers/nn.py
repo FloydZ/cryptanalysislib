@@ -222,6 +222,7 @@ def NN_compute_list_sizes(n: int, r: int, lam: int, delta: int, below=False, log
     :param delta: weight difference which is allowed for each element in the list
     :param below: if set to true, elements with weight <= delta are also accepted
     :param logscale: return the list sizes in logarithmic scale
+    :param max_switch: TODO
     :return:
     """
     k = int(n // r)

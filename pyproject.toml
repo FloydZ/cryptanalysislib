@@ -1,0 +1,26 @@
+[project]
+name = "cryptanalysislib"
+version = "0.1.0"
+description = "breaking all the crypto"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Security :: Cryptography",
+]
+
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+
+[tool.setuptools]
+packages = ["cryptanalysislib", "tests"]
+
+[tool.setuptools.package-data]
+
+[tool.pytest.ini_options]
+addopts = "-v --import-mode=importlib"
+testpaths = [
+  "tests",
+]

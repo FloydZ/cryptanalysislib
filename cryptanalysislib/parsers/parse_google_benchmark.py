@@ -27,6 +27,7 @@ def read_google_benchmark_data(file: str) -> List:
 
     # publish the two needed fields `label`, `size`
     for d in data:
-        d["label"] = d["name"].split("/")[0]
-        d["size"] = d["name"].split("/")[1]
+        s = d["name"].split("/")
+        d["label"] = s[0]
+        d["size"] = int(s[1])
     return data

@@ -70,7 +70,7 @@ TEST(SubSetSum, n32_d2_rho) {
 	Matrix A; A.random();
 	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_subsetsum_instance(target, weights, A, n);
+	generate_subsetsum_instance(target, weights, A, n, true, false);
 
 	S s(A, target);
 	s.run();

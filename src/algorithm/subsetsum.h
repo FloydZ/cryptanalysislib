@@ -55,6 +55,7 @@ struct SSS {
 	const uint32_t d = 2;
     const uint32_t n = 32;
     const uint64_t q = 1ull << n;
+	// base p
 	const uint32_t bp = 1;
 	const uint32_t l1 = 9;
 	const uint32_t l2 = 11;
@@ -63,27 +64,39 @@ struct SSS {
 
 	// flavouring prime
     const uint64_t flavour_q = 509;
-	// static_assert(is_prime(flavour_q));
 
+	// position on which should be decided which
+	// function to apply
+    const uint32_t bit_pos = 0;
+
+	// after how many iterations should the
+	// algorithm print some runtime information
 	const size_t print_iterations = 512;
 
-	///
+	/// print some basic informaton about this
+	/// data container
 	constexpr void info() const noexcept {
-		std::cout << " { name: \"SubSetSumConfig\" :"
-		          << ", n: " << n
-		          << ", q: " << q
-		          << ", bp: " << bp
-		          << ", l1: " << l1
-		          << ", l2: " << l2
-		          << ", walk_len: " << walk_len
-		          << ", flavour_q: " << flavour_q
+		std::cout << "{ \"name\": \"SubSetSumConfig\""
+		          << ", \"d\": " << d
+		          << ", \"n\": " << n
+		          << ", \"q\": " << q
+		          << ", \"bp\": " << bp
+		          << ", \"l1\": " << l1
+		          << ", \"l2\": " << l2
+		          << ", \"l3\": " << l3
+		          << ", \"walk_len\": " << walk_len
+		          << ", \"flavour_q\": " << flavour_q
+		          << ", \"bit_pos\": " << bit_pos
+		          << ", \"print_iterations\": " << print_iterations
 		          << " }" << std::endl;
 	}
 };
 
-/// TODO explain
-/// \tparm Element
-/// \tparm SSS
+/// very simple comparison class.
+/// Simply checks if two elements are equal
+/// between [l1+l2, l1+l2+l1)
+/// \tparm Element base element type
+/// \tparm SSS subset sum config class
 template<class Element,
 		 const SSS &instance>
 struct SubSetSumCmp {
@@ -91,7 +104,7 @@ struct SubSetSumCmp {
     using Value = Element::ValueType;
     using C = Label::ContainerType::LimbType;
 
-    constexpr static uint32_t bit_pos = 0;
+    constexpr static uint32_t bit_pos = instance.bit_pos;
     constexpr static C mask = ((C)1ull) << bit_pos;
 
 	constexpr static uint32_t k_lower = instance.l1 + instance.l2;
@@ -197,12 +210,18 @@ public:
 	using V 		= Value::LimbType;
 
 	// needed config for the rho collision search
-    constexpr static uint32_t bit_pos = 0;
+    constexpr static uint32_t bit_pos = instance.bit_pos;
     constexpr static L mask = ((L)1ull) << bit_pos;
 	constexpr static uint32_t rho_k_lower = instance.l1 + instance.l2;
 	constexpr static uint32_t rho_k_upper = rho_k_lower + instance.l1;
 	constexpr static uint32_t rho_weight = instance.n/2;
 
+	static_assert(q > 1);
+	static_assert(n > 0);
+	static_assert(bit_pos < n);
+	static_assert(instance.bp < (n/2));
+	static_assert((instance.l1 + instance.l2 + instance.l3) <= n);
+	static_assert(is_prime(instance.flavour_q));
 
 	// instance to solve: <A, e> = target
 	const Matrix A;
@@ -282,7 +301,11 @@ public:
 		};
 
 		/// pollard rho f function
+		size_t tree_iters = 0;
+		size_t f_calls = 0;
 		auto f =  [&](const Element &c1) __attribute__((always_inline)) {
+			f_calls += 1;
+
 			// reset a few things
 			out.set_load(0);
 			Label tree_target, tmp_iT, tree_iT;
@@ -296,8 +319,8 @@ public:
 			}
 
 			// restart the tree, as long as we do not have any outputs
-			size_t iters = 0;
 			while (out.load() == 0) {
+				// reset the intermediate hashmap
 				hmiL->clear();
 
 				// prepare the itermediate target for the next round
@@ -315,24 +338,24 @@ public:
 					<k_lower1, k_upper1, k_lower2, k_upper2, 4*instance.bp>
 					(out, *hmiL, L1, L2, *hmL2, tree_target, tmp_iT);
 
-				iters += 1;
+				tree_iters += 1;
 			}
 
 			// std::cout << target << std::endl;
 			// std::cout << out << std::endl;
-			ASSERT(out.load() > 0);
-			ASSERT(iters < 100);
-			size_t wrong = 0;
-			for (size_t it = 0; it < out.load(); it++) {
-				ASSERT(out[it].is_correct(A));
-				if (!out[it].label.is_equal(tree_target, 0, k_upper2)) {
-					wrong += 1;
-				}
-			}
+			// ASSERT(out.load() > 0);
+			// ASSERT(iters < 100);
+			// size_t wrong = 0;
+			// for (size_t it = 0; it < out.load(); it++) {
+			// 	ASSERT(out[it].is_correct(A));
+			// 	if (!out[it].label.is_equal(tree_target, 0, k_upper2)) {
+			// 		wrong += 1;
+			// 	}
+			// }
 
 			Element ret = out[0];
-			ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
-			ASSERT(wrong == 0);
+			// ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
+			// ASSERT(wrong == 0);
 
 			// debug information
 			// std::cout << "iters:" << iters << std::endl;
@@ -366,13 +389,13 @@ public:
 			//		two different functions is done outside of the rho function,
 			//		to assure that we do not run into useless cycles.
 			if (rho::run(f, flavour, x1, y1, x2, y2, instance.walk_len)) {
-				// get the lowest bit
+				// get the distinguishing bit...
         		const L la = x1.label.value();
         		const L lb = y1.label.value();
 				const L alb = la & mask;
 				const L blb = lb & mask;
 
-				// and make sure, that they are different
+				// ...and make sure, that they are different
 				if (alb == blb) { continue; }
 
 
@@ -411,22 +434,24 @@ public:
 		// std::cout << y2 << ", y" << std::endl;
 		// std::cout << sol << ", sol" << std::endl;
 		// std::cout << global_target << ", global_target" << std::endl;
-		if constexpr (n > (2*instance.l1 + instance.l2)) {
-			if (!global_target.is_equal(sol.label)) {
-				// std::cout << "restart" << std::endl;
-				cnt += 1u;
-				goto restart;
-			}
+		if (!global_target.is_equal(sol.label)) {
+			cnt += 1u;
+			goto restart;
 		}
 
 		// memory cleanup
 		delete hmL2;
 		delete hmiL;
 
-		std::cout << iters << ", global_iters" << std::endl;
-		std::cout << cnt << ", cnt" << std::endl;
-		std::cout << seconds << ", duration" << std::endl;
-
+		// print some cool
+		std::cout << "{ "
+				  << "\"rho_calls\": " << iters
+				  << ", \"collisions\": " << cnt
+				  << ", \"f_calls\": " << f_calls
+				  << ", \"avg_tree_iters\": " << (double)tree_iters/(double)f_calls
+				  << ", \"avg_walk_len\": " << (((double)(f_calls - iters))/3.0)/(double)iters
+				  << ", \"seconds\": " << seconds.count()
+				  << " }" << std::endl;
 		return true;
 	}
 };

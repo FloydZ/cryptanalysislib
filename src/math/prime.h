@@ -64,7 +64,7 @@ constexpr static inline bool is_prime(const size_t n) noexcept {
 	// round down to the next uneven number
 	size_t a = n - (1 - (n&1u));
 	while (!is_prime(a)) {
-		a += 2;
+		a -= 2;
 	}
 
 	return a;

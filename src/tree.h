@@ -2416,11 +2416,12 @@ public:
 			(void)target;
 			static ElementType v;
 			ValueType::add(v.value, e1.value, e2.value);
-			if (v.value.popcnt() !=	n) { return ; }
+			if (v.value.popcnt() !=	n) { return false; }
 
 			v.recalculate_label(matrix);
 		    out.append(v);
 			Ls += 1;
+			return false;
 		};
 
 		LabelType::sub(t1, target, iT);

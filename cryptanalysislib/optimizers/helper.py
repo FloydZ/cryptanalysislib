@@ -1,8 +1,7 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python3
+""" just a collection of basic functions which are used all the time """
 
 from math import comb
-from typing import Dict, List
-
 
 def binomH(n,k):
     """
@@ -70,90 +69,24 @@ class Range:
             self.end = start + 1
             self.step = 1
         
-    def size(self):
+    def size(self) -> int:
         """ returns the number of value the Range can enumerate at most """
         return abs((abs(abs(self.end) - self.start + abs(self.step) - 1)) // self.step)
     
     def reset(self):
+        """ resets the current state of the range"""
         self.current = self.start
     
     def __iter__(self):
         return self
     
-    def __next__(self):
+    def __next__(self) -> int:
+        val = self.current
         self.current += self.step
         if self.step > 0:
-            if self.current >= self.end:
+            if val >= self.end:
                 raise StopIteration
         else: 
-            if self.current <= self.end:
+            if val <= self.end:
                 raise StopIteration
-        return self.current
-
-class Optimizer:
-    """
-    generic optimization class, just enforcing some abstract methods
-    """
-    def __init__(self) -> None:
-        pass
-
-    def __iter__(self):
-        return self
-    
-    def __next__(self):
-        pass
-
-    def opt(self):
-        for k in self:
-            yield k
-
-        return False, {}
-
-class MetaOptimizer(Optimizer):
-    """
-    NOTE: this optimizer does not optimize parameters for any particular 
-        problem. But instead it optimizes for different `n` another optimizer.
-    """
-    def __init__(self,
-                 sub_problem_type,
-                 parameters: Range|List[Range]) -> None:
-        super().__init__()
-        self.sub_problem_type = sub_problem_type
-        self.parameters = parameters if isinstance(parameters, list) else [parameters]
-        self.nr_params = len(self.parameters)
-   
-    def ranges2dict(self):
-        """
-        """
-        assert isinstance(self.parameters, list)
-        ret = {}
-        for r in self.parameters:
-            ret[r.name] = r.current 
-        return ret
-
-    def opt(self):
-        run = True
-        while run:
-            d = self.ranges2dict()
-            b, o = self.sub_problem_type(**d).opt()
-            #print(d, o)
-            if b:
-                yield o
-
-            for _ in self.parameters[0]:
-                d = self.ranges2dict()
-                b, o = self.sub_problem_type(**d).opt()
-                #print(d, o)
-                if b:
-                    yield o
-   
-            for ccp in range(0, self.nr_params):
-                try:
-                    next(self.parameters[ccp])
-                    break
-                except:
-                    self.parameters[ccp].reset()
-                    if (ccp == (self.nr_params) - 1):
-                        run = False
-
-        return False, {}
+        return val
