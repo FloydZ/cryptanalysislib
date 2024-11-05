@@ -14,7 +14,7 @@
 int main() {
 	constexpr uint32_t n = PARAM_n;
 	constexpr uint64_t q = 1ul << n;
-	constexpr static SSS instance{.n=n, .q=q, .bp=PARAM_n1_3};
+	constexpr static SSS instance{.n=n, .q=q, .bp=PARAM_n1_3, .l1=PARAM_l1, .l2=PARAM_l2};
 	using S = sss_d2<instance>;
 
 	using Value  = S::Value;

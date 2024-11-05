@@ -8,11 +8,8 @@ from typing import List
 from cryptanalysislib.helper import Range, dict2include
 from cryptanalysislib.optimizers.optimizers import MetaOptimizer
 
-
 logging.basicConfig(format="%(filename)s:%(lineno)s:%(funcName)20s(): %(message)s", 
                     level=logging.DEBUG)
-
-
 
 
 class Benchmarker:
@@ -24,7 +21,8 @@ class Benchmarker:
                  target: str,
                  bin_path: str,
                  include_path: str,
-                 ranges: List[Range]) -> None:
+                 ranges: List[Range],
+                 *args, **kwargs) -> None:
         """
         :param builder:
         :param optimizer:

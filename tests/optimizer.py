@@ -3,7 +3,7 @@
 
 from cryptanalysislib.optimizers.subsetsum import SubSetSumOptimizerD2
 from cryptanalysislib.optimizers.optimizers import MetaOptimizer
-from cryptanalysislib.optimizers.helper import Range
+from cryptanalysislib.helper import Range
 
 def test1():
     s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 32)])
@@ -18,7 +18,8 @@ def test2():
 
 
 def test3():
-    s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 30,), Range("max_mem", 20)])
+    s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 30,),
+                                             Range("max_mem", 20)])
     l = list(s)
     assert len(l) == 1
     assert l[0]["max_mem"] == 20
@@ -27,7 +28,8 @@ def test3():
 def test4():
     i = 0
     c = 0
-    s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 30, 33, 2), Range("max_mem", 20, 30)])
+    s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 30, 33, 2),
+                                             Range("max_mem", 20, 30)])
     for v in s:
         assert v["max_mem"] == 20 + c 
         i += 1
@@ -39,7 +41,8 @@ def test4():
 def test5():
     i = 0
     c = 0
-    s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 30, 33, 2), Range("max_mem", 30, 20)])
+    s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 30, 33, 2), 
+                                             Range("max_mem", 30, 20)])
     for v in s:
             assert v["max_mem"] == 30 - c 
             i += 1
@@ -51,7 +54,8 @@ def test5():
 def test6():
     i = 0
     c = 0
-    s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 30, 33, 2), Range("max_mem", 30, 20, 2)])
+    s = MetaOptimizer(SubSetSumOptimizerD2, [Range("n", 30, 33, 2),
+                                             Range("max_mem", 30, 20, 2)])
     for v in s:
         print (v)
         assert v["max_mem"] == 30 - c 

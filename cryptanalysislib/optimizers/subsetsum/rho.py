@@ -14,6 +14,8 @@ class SubSetSumOptimizerD2(Optimizer):
         :param w: subset sum weight
         :param max_mem: (logarithmic) max allowed memory for the optimization
                         process
+
+        TODO also pass l1, l2 and so on
         """
         super().__init__()
         assert n > 0, "give me at least something to optimize"
