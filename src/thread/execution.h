@@ -126,6 +126,30 @@ protected:
     bool par_ok = true;
 };
 
+// #ifdef USE_CL 
+#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
+#include <CL/cl.hpp>
+struct opencl_policy : public execution_policy {
+    cl::Context context;
+    cl::CommandQueue queue;
+    explicit opencl_policy() noexcept {
+        std::vector<cl::Device> all_devices;
+        default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+        if (all_devices.size() == 0) {
+            std::cout << " No devices found.\n";
+            exit(1);
+        }
+
+        cl::Device default_device = all_devices[0];
+        std::cout << "Using device: " 
+            << default_device.getInfo<CL_DEVICE_NAME>() << "\n";
+
+        context({default_device});
+        queue(context, default_device);
+    }
+};
+// #endif // USE_CL
+
 constexpr sequenced_policy seq{};
 constexpr parallel_policy par{};
 

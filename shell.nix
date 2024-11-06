@@ -43,6 +43,20 @@ let
     pprof
     valgrind
     massif-visualizer
+
+    # opencl stuff (intel)
+    # needed for libOpenCL.so
+    clang
+    ocl-icd
+    clinfo
+    #intel-compute-runtime
+    #intel-ocl
+    # needed for <CL/cl.h>
+    opencl-headers
+    opencl-clhpp
+    # needed for <Gl/gl.h>
+    libGL
+    libGLU
   ]));
 in
 import ./python-shell.nix { 

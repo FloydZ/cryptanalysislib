@@ -72,6 +72,7 @@ find_package(Threads REQUIRED)
 find_package(GTest) 
 find_package(benchmark)
 find_package(Git QUIET)
+find_package(OpenCL REQUIRED)
 
 if(${USE_TRACY})
 	FetchContent_Declare(
@@ -189,6 +190,7 @@ set(LINK_TEST_FLAGS
 	Threads::Threads 
 	OpenMP::OpenMP_CXX
 	reflectcpp
+   OpenCL::OpenCL
 )
 
 set(LINK_BENCH_FLAGS 
