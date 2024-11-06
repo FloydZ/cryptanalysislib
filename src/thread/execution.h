@@ -128,7 +128,12 @@ protected:
 
 // #ifdef USE_CL 
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
+#ifdef __APPLE__
+#include <OpenCL/cl.hpp>
+#else
 #include <CL/cl.hpp>
+#endif
+
 struct opencl_policy : public execution_policy {
     cl::Context context;
     cl::CommandQueue queue;
