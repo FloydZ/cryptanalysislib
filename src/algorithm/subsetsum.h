@@ -65,10 +65,6 @@ struct SSS {
 	// flavouring prime
     const uint64_t flavour_q = 509;
 
-	// position on which should be decided which
-	// function to apply
-    const uint32_t bit_pos = 0;
-
 	// after how many iterations should the
 	// algorithm print some runtime information
 	const size_t print_iterations = 512;
@@ -86,7 +82,6 @@ struct SSS {
 		          << ", \"l3\": " << l3
 		          << ", \"walk_len\": " << walk_len
 		          << ", \"flavour_q\": " << flavour_q
-		          << ", \"bit_pos\": " << bit_pos
 		          << ", \"print_iterations\": " << print_iterations
 		          << " }" << std::endl;
 	}
@@ -103,9 +98,6 @@ struct SubSetSumCmp {
     using Label = Element::LabelType;
     using Value = Element::ValueType;
     using C = Label::ContainerType::LimbType;
-
-    constexpr static uint32_t bit_pos = instance.bit_pos;
-    constexpr static C mask = ((C)1ull) << bit_pos;
 
 	constexpr static uint32_t k_lower = instance.l1 + instance.l2;
 	constexpr static uint32_t k_upper = k_lower + instance.l1;
@@ -210,15 +202,12 @@ public:
 	using V 		= Value::LimbType;
 
 	// needed config for the rho collision search
-    constexpr static uint32_t bit_pos = instance.bit_pos;
-    constexpr static L mask = ((L)1ull) << bit_pos;
 	constexpr static uint32_t rho_k_lower = instance.l1 + instance.l2;
 	constexpr static uint32_t rho_k_upper = rho_k_lower + instance.l1;
 	constexpr static uint32_t rho_weight = instance.n/2;
 
 	static_assert(q > 1);
 	static_assert(n > 0);
-	static_assert(bit_pos < n);
 	static_assert(instance.bp < (n/2));
 	static_assert((instance.l1 + instance.l2 + instance.l3) <= n);
 	static_assert(is_prime(instance.flavour_q));
@@ -285,9 +274,17 @@ public:
 		Label s, one; one.set(1, 0);
 		s.random(0, 1ull << k_upper2);
 		Element x1,x2,y1,y2;
+        L z; z = rng(q);
 
 		//flavout values:
 		L b_1 = rng<L>(instance.flavour_q), b_2 = rng<L>(instance.flavour_q);
+
+        /// \return <e,z> & 1
+		auto function_selector = [&](const Element &e) __attribute__((always_inline)) {
+            const L tmp1 = z ^ e.label.value();
+            const uint32_t tmp2 = cryptanalysislib::popcount::popcount(tmp1);
+            return tmp2 & 1u;
+        };
 
 		/// \return value=(b_2 * flavor(e) + b_2))
 		///			label = A*value
@@ -312,7 +309,7 @@ public:
 			tree_iT = c1.label;
 
 			// depending on the lowest bit
-			if (c1.label.value() & 1u) {
+			if (function_selector(c1)) {
 				Label::sub(tree_target, global_target, s);
 			} else {
 				tree_target = s;
@@ -369,34 +366,34 @@ public:
 
 		const auto start = std::chrono::high_resolution_clock::now();
 		// start loop
-		size_t iters = 0, cnt = 0;
+		size_t rho_calls=0, collisions=0, f_pass_rho=0, f_pass_function_selector=0, f_pass_weight_check=0;
+
 		restart:
 		while (true) {
-			iters += 1;
+			rho_calls += 1;
 			x1.random(A);
 			y1 = f(x1);
-			s.random(0, 1ull << (k_upper2));
+			s.random(0, 1ull << (k_upper2 + k_upper1));
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
+			z = rng<L>(instance.q);
 
-			//
 			// if ((iters % instance.print_iterations) == 0) {
 			// 	std::cout << "iters: " << iters << std::endl;
 			// }
 
 			// NOTE: restart every `instance.walk_len` runs
 			// NOTE: the weight check and the check if the collision is between
-			//		two different functions is done outside of the rho function,
-			//		to assure that we do not run into useless cycles.
+			//		 two different functions is done outside of the rho function,
+			//		 to assure that we do not run into useless cycles.
 			if (rho::run(f, flavour, x1, y1, x2, y2, instance.walk_len)) {
-				// get the distinguishing bit...
-        		const L la = x1.label.value();
-        		const L lb = y1.label.value();
-				const L alb = la & mask;
-				const L blb = lb & mask;
+                f_pass_rho += 1;
+				const L alb = function_selector(x1);
+				const L blb = function_selector(y1);
 
-				// ...and make sure, that they are different
+				// ... and make sure, that they are different
 				if (alb == blb) { continue; }
+                f_pass_function_selector += 1;
 
 
 				// debugging
@@ -419,23 +416,26 @@ public:
 				if (tmp.popcnt() == rho_weight) {
 					break;
 				}
+                f_pass_weight_check += 1;
 			}
 		}
 
 		const auto duration  = std::chrono::high_resolution_clock::now() - start;
 		const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
 
-		Element sol;
+		Element sol, sol2;
 		Element::add(sol, x2, y2);
+		sol2 = sol;
+        sol2.recalculate_label(A);
+		ASSERT(sol2.label.is_equal(sol.label));
 
-		// std::cout << iters << ", global_iters" << std::endl;
-		// std::cout << seconds << std::endl;
-		// std::cout << x2 << ", x" << std::endl;
-		// std::cout << y2 << ", y" << std::endl;
-		// std::cout << sol << ", sol" << std::endl;
-		// std::cout << global_target << ", global_target" << std::endl;
+		std::cout << x2 << ", x" << std::endl;
+		std::cout << y2 << ", y" << std::endl;
+		std::cout << sol << ", sol" << std::endl;
+		std::cout << sol.label << ", sol" << std::endl;
+		std::cout << global_target << ", global_target" << std::endl;
 		if (!global_target.is_equal(sol.label)) {
-			cnt += 1u;
+			collisions += 1u;
 			goto restart;
 		}
 
@@ -445,11 +445,14 @@ public:
 
 		// print some cool
 		std::cout << "{ "
-				  << "\"rho_calls\": " << iters
-				  << ", \"collisions\": " << cnt
+				  << "\"rho_calls\": " << rho_calls
+				  << ", \"collisions\": " << collisions
 				  << ", \"f_calls\": " << f_calls
+				  << ", \"f_pass_rho\": " << f_pass_rho
+				  << ", \"f_pass_function_selector\": " << f_pass_function_selector
+				  << ", \"f_pass_weight_check\": " << f_pass_weight_check
 				  << ", \"avg_tree_iters\": " << (double)tree_iters/(double)f_calls
-				  << ", \"avg_walk_len\": " << (((double)(f_calls - iters))/3.0)/(double)iters
+				  << ", \"avg_walk_len\": " << (((double)(f_calls - rho_calls))/3.0)/(double)rho_calls
 				  << ", \"seconds\": " << seconds.count()
 				  << " }" << std::endl;
 		return true;

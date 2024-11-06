@@ -1418,6 +1418,7 @@ std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) 
 			tmp >>= 1u;
 			// TODO remove
 			if (i == 15) {std::cout << " ";}
+			if (i == 25) {std::cout << " ";}
 		}
 		out << " (" << std::dec << (uint64_t) obj.value()
 		    << ", 0x" << std::hex << (uint64_t) obj.value() << ")"

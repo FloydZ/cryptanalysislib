@@ -59,13 +59,8 @@ TEST(SubSetSum, n32_d2_rho) {
 	constexpr uint64_t q = 1ul << n;
 	constexpr static SSS instance{.n=n, .q=q, .bp=2, .l1=10, .l2=6, .walk_len=128, .flavour_q=1021};
 	using S = sss_d2<instance>;
-
-	// using Value  = S::Value;
 	using Label  = S::Label;
 	using Matrix = S::Matrix;
-	// using Element= S::Element;
-	// using List   = S::List;
-	// using Tree   = S::Tree;
 
 	Matrix A; A.random();
 	Label target;

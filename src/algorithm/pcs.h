@@ -113,7 +113,7 @@ public:
 											Flavour &&flavour,
 											T &a1, T &b1,
 											T &a2, T &b2,
-											const size_t max_iters = size_t(-1ull)) noexcept __attribute__((always_inline)) {
+											const size_t max_iters=-1ull) noexcept __attribute__((always_inline)) {
 		Compare cmp;
 		bool ret = false;
 
