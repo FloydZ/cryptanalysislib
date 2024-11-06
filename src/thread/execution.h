@@ -126,7 +126,7 @@ protected:
     bool par_ok = true;
 };
 
-// #ifdef USE_CL 
+#ifdef USE_CL 
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #ifdef __APPLE__
 #include <OpenCL/cl.hpp>
@@ -153,7 +153,7 @@ struct opencl_policy : public execution_policy {
         queue(context, default_device);
     }
 };
-// #endif // USE_CL
+#endif // USE_CL
 
 constexpr sequenced_policy seq{};
 constexpr parallel_policy par{};
