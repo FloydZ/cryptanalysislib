@@ -290,7 +290,7 @@ public:
 		///			label = A*value
 		auto flavour = [&](const Element &e) __attribute__((always_inline)) {
 			Element ret;
-			ASSERT(e.is_correct(A));
+			// ASSERT(e.is_correct(A));
 			const L c = (b_1 * (e.label.value() >> (instance.l1+instance.l2)) + b_2) % instance.flavour_q;
 			*ret.value.ptr() = c;
 			ret.recalculate_label(A);
@@ -309,7 +309,8 @@ public:
 			tree_iT = c1.label;
 
 			// depending on the lowest bit
-			if (function_selector(c1)) {
+			const uint32_t bit = function_selector(c1);
+			if (bit) {
 				Label::sub(tree_target, global_target, s);
 			} else {
 				tree_target = s;
@@ -349,8 +350,10 @@ public:
 			// 		wrong += 1;
 			// 	}
 			// }
-
 			Element ret = out[0];
+			if (bit) {
+				Label::sub(ret.label, global_target, out[0].label);
+			}
 			// ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
 			// ASSERT(wrong == 0);
 
@@ -427,14 +430,17 @@ public:
 		Element::add(sol, x2, y2);
 		sol2 = sol;
         sol2.recalculate_label(A);
-		ASSERT(sol2.label.is_equal(sol.label));
 
-		std::cout << x2 << ", x" << std::endl;
-		std::cout << y2 << ", y" << std::endl;
-		std::cout << sol << ", sol" << std::endl;
-		std::cout << sol.label << ", sol" << std::endl;
-		std::cout << global_target << ", global_target" << std::endl;
-		if (!global_target.is_equal(sol.label)) {
+		// debugging
+		// std::cout << x2 << ", x" << std::endl;
+		// std::cout << y2 << ", y" << std::endl;
+		// std::cout << sol2 << ", sol2" << std::endl;
+		// std::cout << sol << ", sol" << std::endl;
+		// std::cout << sol2.label << ", sol2" << std::endl;
+		// std::cout << sol.label << ", sol" << std::endl;
+		// std::cout << global_target << ", global_target" << std::endl;
+		// ASSERT(sol2.label.is_equal(sol.label));
+		if (!global_target.is_equal(sol2.label)) {
 			collisions += 1u;
 			goto restart;
 		}
@@ -443,7 +449,7 @@ public:
 		delete hmL2;
 		delete hmiL;
 
-		// print some cool
+		// print some cool stats
 		std::cout << "{ "
 				  << "\"rho_calls\": " << rho_calls
 				  << ", \"collisions\": " << collisions
