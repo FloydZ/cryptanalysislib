@@ -1,6 +1,15 @@
 #ifndef CRYPTANALYSISLIB_THREAD_EXECUTION_H
 #define CRYPTANALYSISLIB_THREAD_EXECUTION_H
 
+#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
+#define CL_HPP_TARGET_OPENCL_VERSION 300
+#ifdef __APPLE__
+#include <OpenCL/cl.hpp>
+#else
+#include <CL/cl.hpp>
+#endif
+
+
 #include "helper.h"
 #include "traits.h"
 #include "thread/heartbeat_scheduler.h"
@@ -126,34 +135,27 @@ protected:
     bool par_ok = true;
 };
 
-#ifdef USE_CL 
-#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
-#ifdef __APPLE__
-#include <OpenCL/cl.hpp>
-#else
-#include <CL/cl.hpp>
-#endif
-
+//#ifdef USE_CL 
+// example: https://github.com/Dakkers/OpenCL-examples/blob/master/example00/main.cpp
 struct opencl_policy : public execution_policy {
     cl::Context context;
     cl::CommandQueue queue;
     explicit opencl_policy() noexcept {
-        std::vector<cl::Device> all_devices;
-        default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
-        if (all_devices.size() == 0) {
-            std::cout << " No devices found.\n";
+        // get all platforms (drivers), e.g. NVIDIA
+        std::vector<cl::Platform> all_platforms;
+        cl::Platform::get(&all_platforms);
+
+        if (all_platforms.size()==0) {
+            std::cout<<" No platforms found. Check OpenCL installation!\n";
             exit(1);
         }
 
-        cl::Device default_device = all_devices[0];
-        std::cout << "Using device: " 
-            << default_device.getInfo<CL_DEVICE_NAME>() << "\n";
-
-        context({default_device});
-        queue(context, default_device);
+        cl::Platform default_platform=all_platforms[0];
+        std::cout << "Using platform: " << 
+            default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
     }
 };
-#endif // USE_CL
+// #endif // USE_CL
 
 constexpr sequenced_policy seq{};
 constexpr parallel_policy par{};

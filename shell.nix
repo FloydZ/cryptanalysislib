@@ -57,6 +57,9 @@ let
     # needed for <Gl/gl.h>
     libGL
     libGLU
+
+    # opencl cuda
+    cudaPackages.cuda_opencl
   ]));
 in
 import ./python-shell.nix { 
