@@ -14,20 +14,18 @@
 int main() {
 	constexpr uint32_t n = PARAM_n;
 	constexpr uint64_t q = 1ul << n;
-	constexpr static SSS instance{.n=n, .q=q, .bp=PARAM_n1_3, .l1=PARAM_l1, .l2=PARAM_l2};
-	using S = sss_d2<instance>;
+	// constexpr static SSS instance{.n=n, .q=q, .bp=PARAM_n1_3, .l1=PARAM_l1, .l2=PARAM_l2, .walk_len=128, .flavour_q=1021,};
+	// TODO currently the python optimizer outputs wrong values
+	constexpr static SSS instance{.n=n, .q=q, .bp=2, .l1=10, .l2=6, .walk_len=128, .flavour_q=1021,};
 
-	using Value  = S::Value;
+	using S = sss_d2<instance>;
 	using Label  = S::Label;
 	using Matrix = S::Matrix;
-	using Element= S::Element;
-	using List   = S::List;
-	using Tree   = S::Tree;
 
 	Matrix A; A.random();
 	Label target;
 	std::vector<uint32_t> weights(n/2);
-	generate_subsetsum_instance(target, weights, A, n);
+	generate_subsetsum_instance(target, weights, A, n, true, false);
 
 	S s(A, target);
 	s.run();

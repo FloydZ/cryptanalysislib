@@ -27,17 +27,17 @@ algos = [
         # cmake output target == binary to exec
         "bin_path": "bench/subsetsum/bench_subsetsum_rho",
         # header file to write the parameters to
-        "include_path": "bench/subsetsum/params.h",
+        "include_path": "../bench/subsetsum/params.h", # TODO path
         #
         "analyser": json_Analyser,
-        # 
+        # TODO explain params
         "parameters": [
-            { "n": { "help": "length ofthe instanc3"}}, 
-            { "w": { "help": "weight of the subsetsum solution"}}, 
-            { "l1": { "help": "base list matching"}}, 
-            { "l2": { "help": ""}}, 
-            { "n1": { "help": "number of 1 in the baselist"}}, 
-            { "nm1": { "help": "number of -1 in the baselist"}}, 
+            { "n": { "help": "length ofthe instanc3", "default": 32}}, 
+            { "w": { "help": "weight of the subsetsum solution", "default": 16}}, 
+            { "l1": { "help": "base list matching", "default": 10}}, 
+            { "l2": { "help": "", "default": 6}}, 
+            { "n1": { "help": "number of 1 in the baselist", "default": 0}}, 
+            { "nm1": { "help": "number of -1 in the baselist", "default": 2}}, 
         ]
     },
     {
@@ -55,12 +55,12 @@ algos = [
         "analyser": "",
         #
         "parameters": [
-            { "n": { "help": "length ofthe instanc3"}}, 
-            { "w": { "help": "weight of the subsetsum solution"}}, 
-            { "l1": { "help": "base list matching"}}, 
-            { "l2": { "help": ""}}, 
-            { "n1": { "help": "number of 1 in the baselist"}}, 
-            { "nm1": { "help": "number of -1 in the baselist"}}, 
+            { "n": { "help": "length ofthe instanc3", "default": 32}}, 
+            { "w": { "help": "weight of the subsetsum solution", "default": 16}}, 
+            { "l1": { "help": "base list matching", "default": 10}}, 
+            { "l2": { "help": "", "default": 6}}, 
+            { "n1": { "help": "number of 1 in the baselist", "default": 0}}, 
+            { "nm1": { "help": "number of -1 in the baselist", "default": 2}}, 
         ]
     },
 ]
@@ -118,7 +118,7 @@ def main():
     args = parser.parse_args()
     param = subparser_params_to_dict(args.algo_param)
     # pprint.pprint(param)
-    pprint.pprint(args.algo_param)
+    # pprint.pprint(args.algo_param)
 
     a = args.algorithm
     a1 = algos_array_to_dict(algos)

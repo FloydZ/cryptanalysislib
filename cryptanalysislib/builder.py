@@ -11,8 +11,8 @@ from subprocess import Popen, PIPE, STDOUT
 
 from cryptanalysislib.optimizers import *
 
-logging.basicConfig(format="%(filename)s:%(lineno)s:%(funcName)20s(): %(message)s", 
-                    level=logging.DEBUG)
+logging.basicConfig(format="%(filename)s:%(lineno)s:%(funcName)20s(): %(message)s",
+                    level=logging.WARN)
 
 
 
@@ -51,8 +51,7 @@ class Cryptanalysislib:
         # to be able to specify the compiler from the outside
         self.compiler = compiler
 
-        self.__create_build_env()
-
+        # self.__create_build_env()
 
     def __create_build_env(self) -> bool:
         """ preparse the build environment
@@ -66,7 +65,7 @@ class Cryptanalysislib:
         cmd = Cryptanalysislib.cmake_executable + ["-B", self.tmp_build_dir, 
                "-DCMAKE_BUILD_TYPE={t}".format(t=t), "-S", self.source_dir]
         cmd += ["-DCMAKE_CXX_COMPILER={t}".format(t=self.compiler)]
-        logging.debug(cmd)
+        # logging.debug(cmd)
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
         p.wait()
 
@@ -85,7 +84,7 @@ class Cryptanalysislib:
             return False
         cmd = Cryptanalysislib.cmake_executable + \
             ["--build", self.tmp_build_dir, "--target", target]
-        logging.debug(cmd)
+        # logging.debug(cmd)
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
         p.wait()
 
@@ -98,7 +97,7 @@ class Cryptanalysislib:
             return False
         
         self.__build_output = [d.decode("utf-8").strip("\n") for d in p.stdout.readlines()]
-        logging.debug(self.__build_output)
+        # logging.debug(self.__build_output)
         return True
 
     def reset(self):
@@ -111,6 +110,7 @@ class Cryptanalysislib:
         """NOTE: only used for debugging and testing
         :return: true if no error is occured"""
         return self.__error != False
+
     def run(self,
             build_target: str,
             target: str,
@@ -127,7 +127,7 @@ class Cryptanalysislib:
         if args:
             cmd += args
 
-        logging.debug(cmd)
+        # logging.debug(cmd)
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
         p.wait()
 
@@ -140,5 +140,10 @@ class Cryptanalysislib:
             
         self.__run_output = p.stdout.readlines()
         self.__run_output = [d.decode("utf-8").strip("\n") for d in self.__run_output]
-        logging.debug(self.__run_output)
+        # logging.debug(self.__run_output)
         return True
+    
+    def run_output(self):
+        """ """
+        assert self.__error == False
+        return self.__run_output

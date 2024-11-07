@@ -369,7 +369,7 @@ public:
 
 		const auto start = std::chrono::high_resolution_clock::now();
 		// start loop
-		size_t rho_calls=0, collisions=0, f_pass_rho=0, f_pass_function_selector=0, f_pass_weight_check=0;
+		size_t rho_calls=0, collisions=0, pass_rho=0, pass_function_selector=0, pass_weight_check=0;
 
 		restart:
 		while (true) {
@@ -390,13 +390,13 @@ public:
 			//		 two different functions is done outside of the rho function,
 			//		 to assure that we do not run into useless cycles.
 			if (rho::run(f, flavour, x1, y1, x2, y2, instance.walk_len)) {
-                f_pass_rho += 1;
+                pass_rho += 1;
 				const L alb = function_selector(x1);
 				const L blb = function_selector(y1);
 
 				// ... and make sure, that they are different
 				if (alb == blb) { continue; }
-                f_pass_function_selector += 1;
+                pass_function_selector += 1;
 
 
 				// debugging
@@ -419,7 +419,7 @@ public:
 				if (tmp.popcnt() == rho_weight) {
 					break;
 				}
-                f_pass_weight_check += 1;
+                pass_weight_check += 1;
 			}
 		}
 
@@ -454,9 +454,9 @@ public:
 				  << "\"rho_calls\": " << rho_calls
 				  << ", \"collisions\": " << collisions
 				  << ", \"f_calls\": " << f_calls
-				  << ", \"f_pass_rho\": " << f_pass_rho
-				  << ", \"f_pass_function_selector\": " << f_pass_function_selector
-				  << ", \"f_pass_weight_check\": " << f_pass_weight_check
+				  << ", \"pass_rho\": " << pass_rho
+				  << ", \"pass_function_selector\": " << pass_function_selector
+				  << ", \"pass_weight_check\": " << pass_weight_check
 				  << ", \"avg_tree_iters\": " << (double)tree_iters/(double)f_calls
 				  << ", \"avg_walk_len\": " << (((double)(f_calls - rho_calls))/3.0)/(double)rho_calls
 				  << ", \"seconds\": " << seconds.count()
