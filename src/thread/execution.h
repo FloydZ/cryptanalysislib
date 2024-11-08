@@ -62,8 +62,8 @@ struct parallel_policy : public execution_policy {
     parallel_policy() = default;
 
     /// \return 
-    explicit parallel_policy(pool_type on_pool, 
-                             const bool par_ok): 
+    constexpr explicit parallel_policy(pool_type on_pool, 
+                                       const bool par_ok): 
         on_pool(on_pool), par_ok(par_ok) {}
 
 	/// @param pool
@@ -112,8 +112,8 @@ protected:
 struct pure_threads_policy : public execution_policy {
     /// \param num_threads can be 0, then `std::thread::hardware_concurrency`
     ///     many threads are used.
-    explicit pure_threads_policy(const uint32_t num_threads, 
-                                 const bool par_ok) noexcept :
+    constexpr explicit pure_threads_policy(const uint32_t num_threads, 
+                                           const bool par_ok) noexcept :
         num_threads(num_threads),
         par_ok(par_ok) {}
 

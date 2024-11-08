@@ -1176,7 +1176,19 @@ struct Xint8x32_t {
 	[[nodiscard]] constexpr static inline S min(const S a,
                                                 const S b) noexcept {
         S c;
-		c.v256 = (__m256i)__builtin_elementwise_min((__v32qi)a.v256, (__v32qi)b.v256);
+		if constexpr (__unsigned) {
+#ifdef __clang__
+			c.v256 = (__m256i)__builtin_elementwise_min((__v32qu)a.v256, (__v32qu)b.v256);
+#else
+			c.v256 = (__m256i)_mm256_min_epu8(a.v256, b.v256);
+#endif
+		} else {
+#ifdef __clang__
+			c.v256 = (__m256i)__builtin_elementwise_min((__v32qi)a.v256, (__v32qi)b.v256);
+#else
+			c.v256 = (__m256i)_mm256_min_epi8(a.v256, b.v256);
+#endif
+		}
         return c;
     }
 
@@ -1186,7 +1198,19 @@ struct Xint8x32_t {
 	[[nodiscard]] constexpr static inline S max(const S a,
                                                 const S b) noexcept {
         S c;
-		c.v256 = (__m256i)__builtin_elementwise_max((__v32qi)a.v256, (__v32qi)b.v256);
+		if constexpr (__unsigned) {
+#ifdef __clang__
+			c.v256 = (__m256i)__builtin_elementwise_max((__v32qu)a.v256, (__v32qu)b.v256);
+#else
+			c.v256 = (__m256i)_mm256_max_epu8(a.v256, b.v256);
+#endif
+		} else {
+#ifdef __clang__
+			c.v256 = (__m256i)__builtin_elementwise_max((__v32qi)a.v256, (__v32qi)b.v256);
+#else
+			c.v256 = (__m256i)_mm256_max_epi8(a.v256, b.v256);
+#endif
+		}
         return c;
     }
 };
@@ -1464,11 +1488,11 @@ struct Xint16x16_t {
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint8_t in2) noexcept {
 		ASSERT(in2 <= 16);
-		S out;
-		S mask = set1((1u << ((16u - in2) & 15u)) - 1u);
-		out = S::and_(in1, mask);
+		const S mask = set1((1u << ((16u - in2) & 15u)) - 1u);
+		S out = S::and_(in1, mask);
 #ifndef __clang__
-		out.v256 = (__m256i) __builtin_ia32_psllwi256((V) out.v256, in2);
+		// NOTE: there is no typecast to V, because gcc does things
+		out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi)out.v256, in2);
 #else
 		out.v256 = (__m256i) (((V) out.v256) << in2);
 #endif
@@ -1486,7 +1510,8 @@ struct Xint16x16_t {
 		S out;
 		out = S::and_(in1, mask);
 #ifndef __clang__
-		out.v256 = (__m256i) __builtin_ia32_psrlwi256((V) out.v256, in2);
+		// NOTE: there is no typecast to V, because gcc does things
+		out.v256 = (__m256i) __builtin_ia32_psrlwi256((__v16hi) out.v256, in2);
 #else
 		out.v256 = (__m256i) (((V) out.v256) >> in2);
 #endif
@@ -1937,7 +1962,8 @@ struct Xint32x8_t {
 		ASSERT(in2 <= 8);
 		S out{};
 #ifndef __clang__
-		out.v256 = (__m256i) __builtin_ia32_psrldi256((V) in1.v256, in2);
+		// NOTE: there is no typecast to V, because gcc does things
+		out.v256 = (__m256i) __builtin_ia32_psrldi256((__v8si) in1.v256, in2);
 #else
 		out.v256 = (__m256i) ((V) in1.v256 >> in2);
 #endif
@@ -2061,10 +2087,11 @@ struct Xint32x8_t {
 		S ret{};
 
 #ifndef __clang__
-		ret.v256 = (__m256i) __builtin_ia32_gathersiv8si((V) _mm256_setzero_si256(),
+		// NOTE: there is no typecast to V, because gcc does things
+		ret.v256 = (__m256i) __builtin_ia32_gathersiv8si((__v8si) _mm256_setzero_si256(),
 		                                                 (int const *) (ptr),
-		                                                 (V) (__m256i) (data.v256),
-		                                                 (V) _mm256_set1_epi32(-1),
+		                                                 (__v8si) (__m256i) (data.v256),
+		                                                 (__v8si) _mm256_set1_epi32(-1),
 		                                                 (int) (scale));
 #else
 		ret.v256 = _mm256_i32gather_epi32((int *) ptr, data.v256, scale);
@@ -2684,7 +2711,17 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S min(const S a,
                                                 const S b) noexcept {
         S c;
+#ifdef USE_AVX512F
+		if constexpr (__unsigned) {
+			c.v256 = (__m256i)_mm256_min_epu64(a.v256, b.v256);
+		} else {
+			c.v256 = (__m256i)_mm256_min_epi64(a.v256, b.v256);
+		}
+		return c;
+#else
 		c.v256 = (__m256i)__builtin_elementwise_min((__v4df)a.v256, (__v4df)b.v256);
+#endif
+
         return c;
     }
 
@@ -2694,7 +2731,17 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S max(const S a,
                                                 const S b) noexcept {
         S c;
+#ifdef USE_AVX512F
+		if constexpr (__unsigned) {
+			c.v256 = (__m256i)_mm256_max_epu64(a.v256, b.v256);
+		} else {
+			c.v256 = (__m256i)_mm256_max_epi64(a.v256, b.v256);
+		}
+		return c;
+#else
 		c.v256 = (__m256i)__builtin_elementwise_max((__v4df)a.v256, (__v4df)b.v256);
+#endif
+
         return c;
     }
 };

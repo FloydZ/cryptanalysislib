@@ -28,11 +28,11 @@ let
     # codelldb
     cmake
     lldb
-    clang_18
-    clang-tools_18
-    llvm_18
-    llvmPackages_18.libcxx
-    llvmPackages_18.openmp
+    clang_17
+    clang-tools_17
+    llvm_17
+    llvmPackages_17.libcxx
+    llvmPackages_17.openmp
     gcc
     gtest
     gbenchmark
@@ -60,6 +60,8 @@ let
 
     # opencl cuda
     cudaPackages.cuda_opencl
+    cudaPackages.cudatoolkit
+    cudaPackages.cuda_cudart
   ]));
 in
 import ./python-shell.nix { 

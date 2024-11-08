@@ -131,6 +131,9 @@ RandIt2 copy_n(ExecPolicy &&policy,
         (std::forward<ExecPolicy>(policy), first, last, dest);
     return internal::advanced(dest, n);
 }
+#ifdef USE_CUDA
+
+#endif
 
 }; // end namespace cryptanalysislib
 #endif

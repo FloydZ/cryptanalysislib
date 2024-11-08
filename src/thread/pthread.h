@@ -79,7 +79,8 @@ public:
 		return t;
 	}
 
-	[[nodiscard]] constexpr inline static uint32_t hardware_concurrency() noexcept {
+    /// NOTE: in gcc stdlib thats is not a constexpr
+	[[nodiscard]] inline static uint32_t hardware_concurrency() noexcept {
 		return std::thread::hardware_concurrency();
 	}
 

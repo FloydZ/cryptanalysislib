@@ -24,14 +24,14 @@ static uint64_t random_x = 123456789u, random_y = 362436069u, random_z = 5212886
 /// NOTE: this function cannot fail
 /// \param seed seed
 /// \return true on success
-[[nodiscard]] constexpr static inline bool xorshf96_seed(const uint64_t seed) noexcept {
+[[nodiscard]] static inline bool xorshf96_seed(const uint64_t seed) noexcept {
 	random_x += seed;
 	random_y = random_x * 4095834;
 	random_z = random_x + random_y * 98798234;
 	return true;
 }
 
-[[nodiscard]] constexpr static inline bool xorshf96_seed() noexcept {
+[[nodiscard]] static inline bool xorshf96_seed() noexcept {
 	uint64_t new_s[3];
 	FILE *urandom_fp;
 
@@ -134,7 +134,7 @@ static uint64_t __xorshf128_S1 = 998234767632513414;
 /// This is the jump function for the generator. It is equivalent
 /// to 2^64 calls to next(); it can be used to generate 2^64 non-overlapping
 /// subsequences for parallel computations.
-constexpr static inline void jump() noexcept {
+static inline void jump() noexcept {
 	constexpr uint64_t JUMP[] = {0xdf900294d8f554a5, 0x170865df4b3201fc};
 
 	uint64_t s0 = 0;
@@ -157,7 +157,7 @@ constexpr static inline void jump() noexcept {
 /// 2^96 calls to next(); it can be used to generate 2^32 starting points, from
 /// each of which jump() will generate 2^32 non-overlapping subsequences for
 /// parallel distributed computations.
-constexpr static inline void long_jump() noexcept {
+static inline void long_jump() noexcept {
 	constexpr uint64_t LONG_JUMP[] = {0xd2a98b26625eee7b, 0xdddf9b1090aa7ac1};
 
 	uint64_t s0 = 0;
@@ -210,7 +210,7 @@ static inline bool xorshf128_seed() noexcept {
 static __uint128_t pcg_state_setseq_128_state;
 static __uint128_t pcg_state_setseq_128_inc;
 
-constexpr static inline void pcg_setseq_128_step_r() noexcept {
+static inline void pcg_setseq_128_step_r() noexcept {
     pcg_state_setseq_128_state = pcg_state_setseq_128_state*PCG_DEFAULT_MULTIPLIER_128 
                                 + pcg_state_setseq_128_inc;
 }
@@ -225,12 +225,12 @@ inline void pcg_setseq_128_srandom_r(__uint128_t initstate,
 }
 
 ///
-[[nodiscard]] constexpr static inline uint64_t pcg_output_xsl_rr_128_64() noexcept {
+[[nodiscard]] static inline uint64_t pcg_output_xsl_rr_128_64() noexcept {
   return rotr(((uint64_t)(pcg_state_setseq_128_state >> 64u)) ^ (uint64_t)pcg_state_setseq_128_state, 
               (unsigned int)(pcg_state_setseq_128_state >> 122u));
 }
 
-[[nodiscard]] constexpr static inline uint64_t pcg64_random_data() noexcept {
+[[nodiscard]] static inline uint64_t pcg64_random_data() noexcept {
   pcg_setseq_128_step_r();
   return pcg_output_xsl_rr_128_64();
 }
@@ -272,7 +272,7 @@ constexpr static inline void lehmer64_seed(const uint64_t seed) noexcept {
                                       splitmix64_stateless(seed + 1);
 }
 
-[[nodiscard]] constexpr static inline uint64_t lehmer64_random_data() noexcept {
+[[nodiscard]] static inline uint64_t lehmer64_random_data() noexcept {
     g_lehmer64_state *= UINT64_C(0xda942042e4dd58b5);
     return (uint64_t)(g_lehmer64_state >> 64);
 }
@@ -297,7 +297,7 @@ constexpr static inline void rng_seed(const uint64_t seed) noexcept {
 }
 
 /// uses /dev/urandom as seed
-constexpr static inline void rng_seed() noexcept {
+static inline void rng_seed() noexcept {
 	uint64_t seed;
 	FILE *fp = fopen("/dev/urandom", "r");
 	auto t1 = fread(&seed, 1, sizeof(seed), fp);
@@ -527,22 +527,22 @@ public:
     constexpr random_device(random_device&) = delete;
    
     /// NOT IMPLEMENTED
-    constexpr inline double entropy() const noexcept {
+    [[nodiscard]] constexpr inline double entropy() const noexcept {
         return 32;
     }
 
     /// \returns the min value
-    constexpr static inline result_type min() noexcept {
+    [[nodiscard]] constexpr static inline result_type min() noexcept {
         return 0;
     }
 
     /// \returns the max value
-    constexpr static inline result_type max() noexcept {
+    [[nodiscard]] constexpr static inline result_type max() noexcept {
         return -1ull;
     }
 
     /// \returns a random `result_type`
-    constexpr inline result_type operator()() noexcept {
+    [[nodiscard]] inline result_type operator()() const noexcept {
         return rng();
     }
 };

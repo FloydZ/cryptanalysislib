@@ -11,7 +11,7 @@ option(USE_SIMD "Enable avx/neon" ON)
 option(USE_SANITIZER "Enable memory sanitizer" ON)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable linkage time optimizations" OFF)
-option(USE_PROFILE "Enable profile guided optmization" OFF)
+option(USE_PROFILE "Enable profile guided optimization" OFF)
 option(USE_POLLY "Enable polly loop optimization" OFF)
 option(USE_BOLT "Enable bolt binary optimization" OFF)
 option(USE_TRACY "Enable tracy profiling" OFF)
@@ -63,6 +63,7 @@ find_library(LINKER_SUPPORTS_ATOMIC atomic)
 check_cxx_compiler_flag(-Wno-c11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
 check_cxx_compiler_flag(-Wno-zero-length-array COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
 check_cxx_compiler_flag(-Wno-gnu-label-as-value COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
+check_cxx_compiler_flag(-Wthread-safety COMPILER_SUPPORTS_THREAD_SAFETY)
 
 # find needed packages: the good thing only is: we only have a single external
 # dependencies. 
@@ -73,8 +74,21 @@ find_package(GTest)
 find_package(benchmark)
 find_package(Git QUIET)
 
-find_package(OpenCL REQUIRED)
-find_package(OpenCLHeaders REQUIRED)
+find_package(OpenCL)
+find_package(OpenCLHeaders)
+
+# now check if we have to add the cuda runtime
+#find_package(CUDA)
+#find_package(CUDAToolkit)
+#check_language(CUDA)
+#if(CMAKE_CUDA_COMPILER)
+#	enable_language(CUDA)
+#	message(STATUS "CUDA ENABLED")
+#endif()
+
+if(OpenCL_FOUND)
+	message(STATUS "OpenCL ENABLED")
+endif()
 
 if(${USE_TRACY})
 	FetchContent_Declare(
@@ -149,7 +163,7 @@ endif()
 # and if the type is < 512 bits, then this must be zero
 # -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
 # -Wno-unknown-pragmas: needed for `#pragma unroll`
-set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-unused-function -Wno-invalid-constexpr -Wno-c++23-extensions")
+set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-unused-function -Wno-invalid-constexpr -Wno-c++23-extensions -Wno-invalid-constexpr")
 if (COMPILER_SUPPORTS_C11_EXCEPTION) 
 	message(STATUS "Supports C11 Exceptions")
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-c11-extensions")
@@ -166,6 +180,11 @@ if (COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
 	message(STATUS "Supports Concepts Diagnostics Depth")
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -fconcepts-diagnostics-depth=10")
 endif()
+if (COMPILER_SUPPORTS_THREAD_SAFETY)
+	message(STATUS "Supports thread saftey")
+	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wthread-safety")
+endif()
+
 if (${USE_PEDANTIC})
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wpedantic")
 endif()
@@ -182,8 +201,19 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES 
 	set(DEBUG_FLAGS "-g -Og -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-g -O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
-	set(DEBUG_FLAGS "-g -march=native -O0 -Wall -Wextra -DDEBUG -Wthread-safety  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(DEBUG_FLAGS "-g -march=native -O0 -Wall -Wextra -DDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 	set(OPTIMIZE_FLAGS "-g -march=native -O3 -DNDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
+endif()
+
+
+if(CMAKE_CUDA_COMPILER)
+	set(DEBUG_FLAGS "${DEBUG_FLAGS} -DUSE_CUDA")
+	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_CUDA")
+endif()
+
+if(OpenCL_FOUND)
+	set(DEBUG_FLAGS "${DEBUG_FLAGS} -DUSE_OPENCL")
+	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_OPENCL")
 endif()
 
 set(LINK_TEST_FLAGS 
@@ -232,11 +262,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	endif()
 endif()
 
-# now check if we have to add the cuda runtime
-check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
-    enable_language(CUDA)
-
     # global include path for dependencies
     # maybe a little ugly, but the easiest way to include `cuda_runtime.h`
     # as far as i know this is only needed for arch linux.
