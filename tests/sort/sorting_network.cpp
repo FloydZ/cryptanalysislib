@@ -17,7 +17,7 @@ T *gen_data(const size_t size) {
 	ASSERT(data);
 
 	for (size_t i = 0; i < size; ++i) {
-		data[i] = rng();
+		data[i] = cryptanalysislib::rng();
 	}
 
 	return data;
