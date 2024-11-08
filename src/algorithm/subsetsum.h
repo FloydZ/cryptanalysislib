@@ -368,9 +368,9 @@ public:
 		};
 
 		const auto start = std::chrono::high_resolution_clock::now();
-		// start loop
 		size_t rho_calls=0, collisions=0, pass_rho=0, pass_function_selector=0, pass_weight_check=0;
 
+		// start loop
 		restart:
 		while (true) {
 			rho_calls += 1;
@@ -417,9 +417,9 @@ public:
 				Value tmp;
 				Value::add(tmp, x2.value, y2.value);
 				if (tmp.popcnt() == rho_weight) {
+					pass_weight_check += 1;
 					break;
 				}
-                pass_weight_check += 1;
 			}
 		}
 
@@ -430,6 +430,7 @@ public:
 		Element::add(sol, x2, y2);
 		sol2 = sol;
         sol2.recalculate_label(A);
+		collisions += 1u;
 
 		// debugging
 		// std::cout << x2 << ", x" << std::endl;
@@ -441,7 +442,6 @@ public:
 		// std::cout << global_target << ", global_target" << std::endl;
 		// ASSERT(sol2.label.is_equal(sol.label));
 		if (!global_target.is_equal(sol2.label)) {
-			collisions += 1u;
 			goto restart;
 		}
 

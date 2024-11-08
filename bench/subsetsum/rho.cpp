@@ -17,6 +17,7 @@ int main() {
 	// constexpr static SSS instance{.n=n, .q=q, .bp=PARAM_n1_3, .l1=PARAM_l1, .l2=PARAM_l2, .walk_len=128, .flavour_q=1021,};
 	// TODO currently the python optimizer outputs wrong values
 	constexpr static SSS instance{.n=n, .q=q, .bp=2, .l1=10, .l2=6, .walk_len=128, .flavour_q=1021,};
+	rng_seed();
 
 	using S = sss_d2<instance>;
 	using Label  = S::Label;

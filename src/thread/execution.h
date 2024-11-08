@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_THREAD_EXECUTION_H
 #define CRYPTANALYSISLIB_THREAD_EXECUTION_H
 
+#ifdef USE_OPENCL
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #define CL_HPP_TARGET_OPENCL_VERSION 300
 #ifdef __APPLE__
@@ -8,7 +9,7 @@
 #else
 #include <CL/cl.hpp>
 #endif
-
+#endif
 
 #include "helper.h"
 #include "traits.h"
@@ -135,7 +136,7 @@ protected:
     bool par_ok = true;
 };
 
-//#ifdef USE_CL 
+#ifdef USE_OPENCL
 // example: https://github.com/Dakkers/OpenCL-examples/blob/master/example00/main.cpp
 struct opencl_policy : public execution_policy {
     cl::Context context;
@@ -155,7 +156,7 @@ struct opencl_policy : public execution_policy {
             default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
     }
 };
-// #endif // USE_CL
+#endif // USE_CL
 
 constexpr sequenced_policy seq{};
 constexpr parallel_policy par{};

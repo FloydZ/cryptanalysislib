@@ -126,9 +126,9 @@ public:
 			a2 = f(a1);
 
 			// b2 = f(flavour(f(flavor(b1))))
-			b1 = flavour(b1);
-			b1 = flavour(f(b1));
-			b2 = f(b1);
+			b1 = f(flavour(b1));
+			// b1 = flavour(f(b1));
+			b2 = f(flavour(b1));
 
 			if (cmp(a1, a2, b1, b2)) [[unlikely]] {
 				ret = true;

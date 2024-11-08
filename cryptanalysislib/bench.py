@@ -41,7 +41,7 @@ class Benchmarker:
 
         self.meta = MetaOptimizer(optimizer, ranges)
 
-        self.iters = 1000 # TODO
+        self.iters = 100 # TODO
         outputs = []
         for param in self.meta:
             dict2include(self.include_path, param)
