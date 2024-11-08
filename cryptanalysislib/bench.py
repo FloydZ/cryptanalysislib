@@ -58,6 +58,7 @@ class Benchmarker:
         print("rho_calls:", j.avg("rho_calls"))
         print("collisions:", j.avg("collisions"))
         print("f_calls:", j.avg("f_calls"))
+        print("same_collisions:", j.avg("same_collisions"))
         print("avg_tree_iters:", j.avg("avg_tree_iters"))
         print("avg_walk_len:", j.avg("avg_walk_len"))
         print("seconds:", j.avg("seconds"))

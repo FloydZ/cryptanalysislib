@@ -97,7 +97,7 @@ public:
 	/// \tparam Flavour
 	/// \param f
 	/// \param flavour
-	/// \param a1
+	/// \param x1
 	/// \param b1
 	/// \param a2
 	/// \param b2
@@ -111,35 +111,51 @@ public:
 #endif
 	[[nodiscard]] constexpr static bool run(F &&f,
 											Flavour &&flavour,
-											T &a1, T &b1,
-											T &a2, T &b2,
+											T &x1, T &y1,
+											T &x2, T &y2,
 											const size_t max_iters=-1ull) noexcept __attribute__((always_inline)) {
 		Compare cmp;
 		bool ret = false;
 
+		const auto sp = x1;
+		// std::cout << x1 << "x1" << std::endl;
+		// std::cout << y1 << "y1" << std::endl;
+		// std::cout << x2 << "x2" << std::endl;
+		// std::cout << y2 << "y2" << std::endl;
 		size_t i = 0;
 		while (i < max_iters) {
 			i += 1;
 
-			// a2 = f(flavor(a1))
-			a1 = flavour(a1);
-			a2 = f(a1);
+			// x1 = flavour(x1);
+			x2 = f(flavour(x1));
 
-			// b2 = f(flavour(f(flavor(b1))))
-			b1 = f(flavour(b1));
-			// b1 = flavour(f(b1));
-			b2 = f(flavour(b1));
+			y1 = f(flavour(y1));
+			y2 = f(flavour(y1));
 
-			if (cmp(a1, a2, b1, b2)) [[unlikely]] {
+			if (cmp(x1, x2, y1, y2)) [[unlikely]] {
 				ret = true;
 				goto finish;
 			}
 
-			a1 = a2;
-			b1 = b2;
+			x1 = x2; y1 = y2;
 		}
 
 		finish:
+		if (ret) {
+			size_t mu = 0;
+			x1 = sp;
+			while (!cmp(y1, x2, y1, y2)) {
+				x1 = x2;
+				y1 = y2;
+				x2 = f(flavour(x1));
+				y2 = f(flavour(y2));
+			}
+
+			// std::cout << x1 << "x1" << std::endl;
+			// std::cout << y1 << "y1" << std::endl;
+			// std::cout << x2 << "x2" << std::endl;
+			// std::cout << y2 << "y2" << std::endl;
+		}
 		return ret;
 	}
 };

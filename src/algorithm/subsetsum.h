@@ -274,26 +274,26 @@ public:
 		Label s, one; one.set(1, 0);
 		s.random(0, 1ull << k_upper2);
 		Element x1,x2,y1,y2;
-        L z; z = rng(q);
+        L z; z = rng<L>(q);
 
 		//flavout values:
 		L b_1 = rng<L>(instance.flavour_q), b_2 = rng<L>(instance.flavour_q);
 
-        /// \return <e,z> & 1
-		auto function_selector = [&](const Element &e) __attribute__((always_inline)) {
-            const L tmp1 = z ^ e.label.value();
+        /// \return <z,x> & 1
+		auto function_selector = [&z](const Element &x) __attribute__((always_inline)) {
+            const L tmp1 = z ^ x.label.value();
             const uint32_t tmp2 = cryptanalysislib::popcount::popcount(tmp1);
             return tmp2 & 1u;
         };
 
-		/// \return value=(b_2 * flavor(e) + b_2))
+		/// \return value=(b_1 * flavor(e) + b_2))
 		///			label = A*value
-		auto flavour = [&](const Element &e) __attribute__((always_inline)) {
+		auto flavour = [&](const Element &e) __attribute__((always_inline)) __attribute__((always_inline)) {
 			Element ret;
-			// ASSERT(e.is_correct(A));
 			const L c = (b_1 * (e.label.value() >> (instance.l1+instance.l2)) + b_2) % instance.flavour_q;
-			*ret.value.ptr() = c;
-			ret.recalculate_label(A);
+			ret.label = c;
+			//*ret.value.ptr() = c;
+			//ret.recalculate_label(A);
 			return ret;
 		};
 
@@ -339,23 +339,22 @@ public:
 				tree_iters += 1;
 			}
 
-			// std::cout << target << std::endl;
-			// std::cout << out << std::endl;
-			// ASSERT(out.load() > 0);
-			// ASSERT(iters < 100);
-			// size_t wrong = 0;
-			// for (size_t it = 0; it < out.load(); it++) {
-			// 	ASSERT(out[it].is_correct(A));
-			// 	if (!out[it].label.is_equal(tree_target, 0, k_upper2)) {
-			// 		wrong += 1;
-			// 	}
-			// }
+			//std::cout << tree_target << std::endl;
+			//std::cout << out << std::endl;
+			ASSERT(out.load() > 0);
+			size_t wrong = 0;
+			for (size_t it = 0; it < out.load(); it++) {
+				ASSERT(out[it].is_correct(A));
+				if (!out[it].label.is_equal(tree_target, 0, k_upper2)) {
+					wrong += 1;
+				}
+			}
 			Element ret = out[0];
+			ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
+			ASSERT(wrong == 0);
 			if (bit) {
 				Label::sub(ret.label, global_target, out[0].label);
 			}
-			// ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
-			// ASSERT(wrong == 0);
 
 			// debug information
 			// std::cout << "iters:" << iters << std::endl;
@@ -369,17 +368,19 @@ public:
 
 		const auto start = std::chrono::high_resolution_clock::now();
 		size_t rho_calls=0, collisions=0, pass_rho=0, pass_function_selector=0, pass_weight_check=0;
+		size_t wrong_colls = 0;
 
 		// start loop
 		restart:
 		while (true) {
 			rho_calls += 1;
+			z = rng<L>(instance.q);
+			s.random(0, 1ull << (k_upper2));
 			x1.random(A);
-			y1 = f(x1);
-			s.random(0, 1ull << (k_upper2 + k_upper1));
+			y1 = x1;
+			// y1 = f(x1);
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
-			z = rng<L>(instance.q);
 
 			// if ((iters % instance.print_iterations) == 0) {
 			// 	std::cout << "iters: " << iters << std::endl;
@@ -391,8 +392,24 @@ public:
 			//		 to assure that we do not run into useless cycles.
 			if (rho::run(f, flavour, x1, y1, x2, y2, instance.walk_len)) {
                 pass_rho += 1;
-				const L alb = function_selector(x1);
-				const L blb = function_selector(y1);
+				const L alb = function_selector(flavour(x1));
+				const L blb = function_selector(flavour(y1));
+
+				Element sol;
+				Element::add(sol, x2, y2);
+
+				// std::cout << x2 << std::endl;
+				// std::cout << y2 << std::endl;
+				const auto t11 = flavour(x1);
+				const auto t12 = flavour(y1);
+				if (t11.label.template is_equal<0, 26>(t12.label)) {
+					wrong_colls +=1;
+				}
+				if (!x2.label.template is_equal<0, 26>(y2.label)) {
+					std::cout << "ERROR" << std::endl;
+				}
+
+
 
 				// ... and make sure, that they are different
 				if (alb == blb) { continue; }
@@ -400,8 +417,6 @@ public:
 
 
 				// debugging
-				// Element sol;
-				// Element::add(sol, x2, y2);
 				// Label ss;
 				// Label::sub(ss, global_target, s);
 				// std::cout << x2 << ", x" << std::endl;
@@ -423,6 +438,7 @@ public:
 			}
 		}
 
+		// here are we after the break
 		const auto duration  = std::chrono::high_resolution_clock::now() - start;
 		const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
 
@@ -454,6 +470,7 @@ public:
 				  << "\"rho_calls\": " << rho_calls
 				  << ", \"collisions\": " << collisions
 				  << ", \"f_calls\": " << f_calls
+				  << ", \"same_collisions\": " << wrong_colls
 				  << ", \"pass_rho\": " << pass_rho
 				  << ", \"pass_function_selector\": " << pass_function_selector
 				  << ", \"pass_weight_check\": " << pass_weight_check
@@ -517,7 +534,7 @@ public:
 		using D = typename Label::DataType;
 		using E = std::pair<size_t, size_t>;
 
-		// constexpr static size_t factor = 2;
+		// constexpr static size_t factor = 2; // TODO
 		constexpr static size_t L1_bucketsize = 100; // factor * (Enumerator::max_list_size >> (instance.l1));
 		constexpr static size_t iL_bucketsize = 100; // factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2 + instance.l1));
 
