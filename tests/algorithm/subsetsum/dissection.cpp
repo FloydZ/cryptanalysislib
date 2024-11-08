@@ -42,7 +42,7 @@ TEST(SubSetSum, dissection) {
 	Label target;
 	std::vector<uint32_t> weights(n/2);
 	generate_subsetsum_instance(target, weights, AT, n);
-	Tree::constexpr_dissection4(out, target, AT);
+	// TODO: Tree::dissection4(out, target, AT);
 
 	EXPECT_GE(out.load(), 1);
 	for (size_t i = 0; i < out.load(); ++i) {

@@ -1410,9 +1410,10 @@ public:
 	/// \param hmL2  base list hashmap. Make sure its filled with L2
 	/// \param target final target
 	/// \param iT intermediate target, make dure its related to target
+//  TODO: this function is implemented twice (ahh except for the weight. but that should be in the f function)
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			const uint32_t k_lower2, const uint32_t k_upper2,
-			const uint32_t weight=0, // TODO doc probalby remove and do it via the lambda function
+			const uint32_t weight, // TODO doc probalby remove and do it via the lambda function
 			typename HashMap1,
 			typename HashMap2>
 #if __cplusplus > 201709L
@@ -2002,7 +2003,7 @@ public:
 		ElementType tmpe1;
 		LabelType t1, iT;
 		iT.random(0, 1ull << k_upper1);
-		const size_t iLs = join2lists_on_iT_hashmap_v2
+		const size_t iLs = join2lists_on_iT_v2
 				<k_lower1, k_upper1>
 				(hmL1, L1, L2, hmL0, iT, prepare);
 
@@ -2014,12 +2015,12 @@ public:
 		            const ElementType &e1,
 		            const ElementType &e2,
 		            const size_t a1, const size_t a2,
-		            const size_t a3, const size_t a4) __attribute__((always_inline)) -> void {
+		            const size_t a3, const size_t a4) __attribute__((always_inline)) -> bool {
 			(void)a1; (void)a2; (void)a3; (void)a4;
 			(void)target;
 			static ElementType v;
 			ValueType::add(v.value, e1.value, e2.value);
-			if (v.value.popcnt() !=	n/2) { return ; }
+			if (v.value.popcnt() !=	n/2) { return false; }
 
 			if constexpr (config.needs_recomputation) {
 				v.recalculate_label(matrix);
@@ -2030,6 +2031,7 @@ public:
 			// std::cout << target << std::endl;
 		    // std::cout << v << std::endl;
 			// if (v.label.is_equal(target)) { out.append(v); }
+			return false;
 		};
 
 		// early exit

@@ -562,7 +562,10 @@ public:
 
 		delete hmL0;
 		delete hmL1;
+
+		return 1;
 	}
+
 };
 
 
