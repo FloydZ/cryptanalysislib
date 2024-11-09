@@ -449,7 +449,86 @@ finish:
 	return ret;
 }
 
+// TODO test
+/// see tree.h for doc
+template<class List,
+         const TreeConfig &config>
+#if __cplusplus > 201709L
+    requires TreeAble<List>
+#endif
+template<const uint32_t k_lower,
+         const uint32_t k_upper,
+		 const uint32_t bucketsize,
+		 const uint32_t nthreads,
+		 class ExecPolicy,
+         typename HashMapIn,
+         typename HashMapOut,
+         typename F>
+#if __cplusplus > 201709L
+    requires HashMapAble<HashMapIn> &&
+             HashMapAble<HashMapOut>
+#endif
+size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy&& policy,
+								HashMapOut &out,
+								const List &L1, const List &L2,
+								HashMapIn &hm2,
+								const LabelType &target,
+								const bool prepare,
+								F f) noexcept {
+	/// INIT THREADS
+	auto& task_pool = *policy.pool();
+	if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+		return join2lists_on_iT_v2
+				<k_lower, k_upper>
+				(out, L1, L2, hm2, target, prepare);
+	}
 
+
+	std::vector<std::future<size_t>> futures;
+	for (size_t tid = 0; tid < nthreads; tid++) {
+		futures.emplace_back(task_pool.enqueue([tid, &hm2, &L2]() __attribute__((always_inline)) {
+			const size_t spos = L2.start_pos(tid);
+			const size_t epos = L2.end_pos(tid);
+			for (size_t i = spos; i < epos; ++i) {
+				hm2.insert(L2[i].label.value(), i);
+			}
+		}));
+	}
+
+	cryptanalysislib::internal::wait_futures(futures);
+	futures.clear();
+
+	using LoadType = typename HashMapIn::load_type;
+
+	for (size_t tid = 0; tid < nthreads; tid++) {
+		futures.emplace_back(task_pool.enqueue([tid, &hm2, &out, &L1, &L2, &target, &f]() __attribute__((always_inline)) {
+		    LabelType sigma_t;
+		    LoadType load = 0;
+		    size_t ret = 0;
+		    const size_t spos = L1.start_pos(tid);
+		    const size_t epos = L1.end_pos(tid);
+		    for (size_t i = spos; i < epos; ++i) {
+		    	  LabelType::template sub<k_lower, k_upper>(sigma_t, target, L1[i].label);
+
+		    	  size_t s = hm2.find(sigma_t.value(), load);
+		    	  for (size_t k = s; k < s + load; ++k) {
+		    		  const size_t j = hm2[k];
+		    		  f(out, L1, L2, i, j);
+		    		  ret += 1;
+		    	  }
+		    }
+
+		    return ret;
+		}));
+	}
+
+	size_t ret = 0;
+	for(uint32_t i = 0; i < nthreads; i++) {
+		ret += futures[i].get();
+	}
+
+	return ret;
+}
 
 
 template<class List,

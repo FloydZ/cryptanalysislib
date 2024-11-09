@@ -229,7 +229,7 @@ public:
 								  k_upper1 = instance.l1,
 								  k_lower2 = instance.l1,
 								  k_upper2 = instance.l1+instance.l2;
-
+		constexpr uint32_t nthreads = 1;
 		using rho = PollardRho<SubSetSumCmp<Element, instance>, Element>;
 		instance.info();
 
@@ -252,10 +252,10 @@ public:
 		constexpr static size_t iL_bucketsize = 100; // factor * (Enumerator::max_list_size * Enumerator::max_list_size >> (instance.l2 + instance.l1));
 
 		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
-				L1_bucketsize, 1ull<<(k_upper1-k_lower1), 1
+				L1_bucketsize, 1ull<<(k_upper1-k_lower1), nthreads
 		};
 		constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
-				iL_bucketsize, 1ull<<(k_upper2-k_lower2), 1
+				iL_bucketsize, 1ull<<(k_upper2-k_lower2), nthreads
 		};
 
 		using HML2 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower1, k_upper1, 2>>;
@@ -305,7 +305,7 @@ public:
 
 			// reset a few things
 			out.set_load(0);
-			Label tree_target, tmp_iT, tree_iT;
+			Label tree_target, tree_iT;
 			tree_iT = c1.label;
 
 			// depending on the lowest bit
@@ -322,6 +322,7 @@ public:
 				hmiL->clear();
 
 				// prepare the itermediate target for the next round
+				Label tmp_iT;
 				Label::add(tree_iT, tree_iT, one);
 				Label::sub(tmp_iT, tree_target, tree_iT);
 

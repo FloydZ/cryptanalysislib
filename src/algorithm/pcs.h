@@ -120,10 +120,6 @@ public:
 		bool ret = false;
 
 		const auto sp = x1;
-		// std::cout << x1 << "x1" << std::endl;
-		// std::cout << y1 << "y1" << std::endl;
-		// std::cout << x2 << "x2" << std::endl;
-		// std::cout << y2 << "y2" << std::endl;
 		size_t i = 0;
 		while (i < max_iters) {
 			i += 1;
@@ -142,9 +138,8 @@ public:
 			x1 = x2; y1 = y2;
 		}
 
-		finish:
+	finish:
 		if (ret) {
-			size_t mu = 0;
 			x1 = sp;
 			while (!cmp(y1, x2, y1, y2)) {
 				x1 = x2;
@@ -152,11 +147,6 @@ public:
 				x2 = f(flavour(x1));
 				y2 = f(flavour(y2));
 			}
-
-			// std::cout << x1 << "x1" << std::endl;
-			// std::cout << y1 << "y1" << std::endl;
-			// std::cout << x2 << "x2" << std::endl;
-			// std::cout << y2 << "y2" << std::endl;
 		}
 		return ret;
 	}
