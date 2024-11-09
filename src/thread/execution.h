@@ -2,8 +2,10 @@
 #define CRYPTANALYSISLIB_THREAD_EXECUTION_H
 
 #ifdef USE_OPENCL
+
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #define CL_HPP_TARGET_OPENCL_VERSION 300
+
 #ifdef __APPLE__
 #include <OpenCL/cl.hpp>
 #else
@@ -146,7 +148,7 @@ struct opencl_policy : public execution_policy {
         std::vector<cl::Platform> all_platforms;
         cl::Platform::get(&all_platforms);
 
-        if (all_platforms.size()==0) {
+        if (all_platforms.empty()) {
             std::cout<<" No platforms found. Check OpenCL installation!\n";
             exit(1);
         }

@@ -59,9 +59,9 @@ let
     libGLU
 
     # opencl cuda
-    cudaPackages.cuda_opencl
-    cudaPackages.cudatoolkit
-    cudaPackages.cuda_cudart
+    #cudaPackages.cuda_opencl
+    #cudaPackages.cudatoolkit
+    #cudaPackages.cuda_cudart
   ]));
 in
 import ./python-shell.nix { 
