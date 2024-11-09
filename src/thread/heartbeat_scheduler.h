@@ -23,6 +23,7 @@
 #include <utility>
 #include <variant>
 
+#include "helper.h"
 #include "thread/steal_scheduler.h"
 
 // TODO apple doesnt support jthread
@@ -313,7 +314,7 @@ namespace cryptanalysislib {
 			template<typename T,
 			         typename Func,
 			         typename ...Args>
-			inline T call(Func &func, Args... arg) noexcept __attribute__((always_inline)) {
+			inline T call(Func &func, Args... arg) noexcept __ATTRIBUTE__(always_inline) {
 				return callWithContext<T, Func, Args...>(worker, job_tail, func, arg...);
 			}
 		};
@@ -328,7 +329,7 @@ namespace cryptanalysislib {
 		inline static T callWithContext(Worker *worker,
 		                                Job *job_tail,
 		                                Func &func,         // TODO correct reference
-		                                Args... arg) noexcept __attribute__((always_inline)) {
+		                                Args... arg) noexcept __ATTRIBUTE__(always_inline) {
 			Task t{worker, job_tail};
 			t.tick();
 			// TODO
@@ -346,12 +347,12 @@ namespace cryptanalysislib {
 
 			// Spawn background workers
 			for (std::size_t i = 0; i < actual_count; ++i) {
-				background_threads.emplace_back([this]() __attribute__((always_inline)) { backgroundWorker(); });
+				background_threads.emplace_back([this]() __ATTRIBUTE__(always_inline) { backgroundWorker(); });
 				//backgroundWorker();
 			}
 
 			// Spawn heartbeat thread
-			heartbeat_thread = ThreadType([this]() __attribute__((always_inline)) { heartbeatWorker(); });
+			heartbeat_thread = ThreadType([this]() __ATTRIBUTE__(always_inline) { heartbeatWorker(); });
 
 			// Wait for workers to be ready
 			for (std::size_t i = 0; i < actual_count; ++i) {
@@ -439,7 +440,7 @@ namespace cryptanalysislib {
 
 		// Create an one-off worker:
 		template<typename T, typename Func, typename... Args>
-		inline T call(Func &func, Args... arg) noexcept __attribute__((always_inline)) {
+		inline T call(Func &func, Args... arg) noexcept __ATTRIBUTE__(always_inline) {
 			Worker worker{.pool = this};
 
 			{

@@ -113,7 +113,7 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
 	using cryptanalysislib::hash::adler32::internal::MOD;
 	using cryptanalysislib::hash::adler32::internal::NMAX;
 	using cryptanalysislib::hash::adler32::internal::avx2_hadd_adler32;
-	constexpr static size_t BLOCK_SIZE = 32u;
+	constexpr size_t BLOCK_SIZE = 32u;
 
 	if (in_len < BLOCK_SIZE) {
 		return adler32(val, in, in_len);
