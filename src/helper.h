@@ -374,4 +374,10 @@ constexpr static size_t limbs() noexcept {
 #define ZoneScoped
 #endif
 
+#if defined(__clang__) && (!defined(SWIG))
+#define __ATTRIBUTE__(x) __attribute__((x))
+#else
+#define __ATTRIBUTE__(x)
+#endif
+
 #endif//SMALLSECRETLWE_HELPER_H

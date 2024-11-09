@@ -339,9 +339,9 @@ inline void biject_simd_lookup(uint32x8_t a,
 
 
 template<typename T>
-static inline size_t reverse_biject_helper(T **L,
-										   const uint32_t w,
-										   const uint32_t t) noexcept {
+static inline void reverse_biject_helper(T **L,
+										 const uint32_t w,
+										 const uint32_t t) noexcept {
 
 	// static check
     if (L[0][0] == 0) [[unlikely]] {

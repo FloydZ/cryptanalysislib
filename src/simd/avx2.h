@@ -2123,7 +2123,12 @@ struct Xint32x8_t {
 	[[nodiscard]] constexpr static inline S permute(const S in,
 	                                                const S perm) noexcept {
 		S ret{};
+#ifdef __clang__
 		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((V) in.v256, (V) perm.v256);
+#else 
+
+		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((__v8si) in.v256, (__v8si) perm.v256);
+#endif
 		return ret;
 	}
 
@@ -2451,20 +2456,16 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S mullo(const S in1,
 	                                              const S in2) noexcept {
 		S out;
-#ifdef USE_AVX512F
 		out.v256 = (__m256i) ((V) in1.v256 * (V) in2.v256);
-#else
-
-		if (std::is_constant_evaluated()) {
-			for (uint32_t i = 0; i < 4; i++) {
-				out.v64[i] = in1.v64[i] * in2.v64[i];
-			}
-		} else {
-			for (uint32_t i = 0; i < 4; i++) {
-				out.v64[i] = in1.v64[i] * in2.v64[i];
-			}
-		}
-#endif
+		// if (std::is_constant_evaluated()) {
+		// 	for (uint32_t i = 0; i < 4; i++) {
+		// 		out.v64[i] = in1.v64[i] * in2.v64[i];
+		// 	}
+		// } else {
+		// 	for (uint32_t i = 0; i < 4; i++) {
+		// 		out.v64[i] = in1.v64[i] * in2.v64[i];
+		// 	}
+		// }
 		return out;
 	}
 	///
@@ -2719,7 +2720,13 @@ struct Xint64x4_t {
 		}
 		return c;
 #else
+#ifdef __clang__
 		c.v256 = (__m256i)__builtin_elementwise_min((__v4df)a.v256, (__v4df)b.v256);
+#else
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            c.v64[i] = a.v64[i] < b.v64[i] ? a.v64[i] : b.v64[i];
+        }
+#endif
 #endif
 
         return c;
@@ -2739,7 +2746,14 @@ struct Xint64x4_t {
 		}
 		return c;
 #else
+
+#ifdef __clang__
 		c.v256 = (__m256i)__builtin_elementwise_max((__v4df)a.v256, (__v4df)b.v256);
+#else
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            c.v64[i] = a.v64[i] < b.v64[i] ? a.v64[i] : b.v64[i];
+        }
+#endif
 #endif
 
         return c;

@@ -139,7 +139,7 @@ static void avx2_histogram_u32(uint32_t C[1024],
 		offsets = _mm256_add_epi32(offsets, vid);
 		_mm256_store_si256((__m256i *)tmp2, offsets);
 
-		const __m256i oldv = _mm256_i32gather_epi32(C, offsets, 4);
+		const __m256i oldv = _mm256_i32gather_epi32((const int *)C, offsets, 4);
 		const __m256i newv = _mm256_add_epi32(oldv, one);
 		
 		// NOTE: there is no scatter instruction in avx2

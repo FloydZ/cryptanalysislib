@@ -4,6 +4,7 @@
 #ifdef USE_OPENCL
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #define CL_HPP_TARGET_OPENCL_VERSION 300
+#define CL_TARGET_OPENCL_VERSION 300
 #ifdef __APPLE__
 #include <OpenCL/cl.hpp>
 #else

@@ -1709,11 +1709,11 @@ public:
 		// c2 = 0x10101010...
 		using U = typename S::limb_type;
 #ifdef USE_AVX512F
-		constexpr static S c1 = uint64x8_t::set1((U)6148914691236517205ull);
-		constexpr static S c2 = uint64x8_t::set1((U)12297829382473034410ull);
+		constexpr S c1 = uint64x8_t::set1((U)6148914691236517205ull);
+		constexpr S c2 = uint64x8_t::set1((U)12297829382473034410ull);
 #else
-		constexpr static S c1 = uint64x4_t::set1((U)6148914691236517205ull);
-		constexpr static S c2 = uint64x4_t::set1((U)12297829382473034410ull);
+		constexpr S c1 = uint64x4_t::set1((U)6148914691236517205ull);
+		constexpr S c2 = uint64x4_t::set1((U)12297829382473034410ull);
 #endif
 
 

@@ -2,6 +2,8 @@
 #define SMALLSECRETLWE_ALGORITHM_PCS_H
 
 #include <cstddef>
+
+#include "random.h"
 #include "thread/thread.h"
 
 /// TODO README and example
@@ -109,11 +111,11 @@ public:
 		requires std::regular_invocable<F, const T&> &&
 				 std::regular_invocable<Flavour, const T&>
 #endif
-	[[nodiscard]] constexpr static bool run(F &&f,
-											Flavour &&flavour,
-											T &x1, T &y1,
-											T &x2, T &y2,
-											const size_t max_iters=-1ull) noexcept __attribute__((always_inline)) {
+	[[nodiscard]] static bool run(F &&f,
+								  Flavour &&flavour,
+								  T &x1, T &y1,
+								  T &x2, T &y2,
+								  const size_t max_iters=-1ull) noexcept __ATTRIBUTE__(always_inline) {
 		Compare cmp;
 		bool ret = false;
 
@@ -204,10 +206,10 @@ public:
         std::vector<T> distinguished_points;
 
         bool found = false;
-        auto walk_f = [&]() __attribute__((always_inline)) noexcept {
+        auto walk_f = [&]() __ATTRIBUTE__(always_inline) noexcept {
             while (!found) {
                 // TODO: flavour
-                T v = rng<T>();
+                T v = cryptanalysislib::rng();
                 for (size_t i = 0; i < walk_len; i++) {
                     if (d(v)) {
                         if (c(distinguished_points, v) && !found) {
@@ -242,6 +244,7 @@ public:
         }
 
         // TODO reconstruct or whatever
+        return true;
 	}
 
 	/// \tparam F

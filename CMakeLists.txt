@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.20)  		# 3.20 is needed because of C++20
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_CXX_STANDARD 20)
+
+# NOTE: this is rather important as I need constexpr static storage duration
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # options
@@ -222,15 +224,17 @@ set(LINK_TEST_FLAGS
 	Threads::Threads 
 	OpenMP::OpenMP_CXX
 	reflectcpp
-
-    OpenCL::OpenCL
-    OpenCL::Headers
 )
 
 set(LINK_BENCH_FLAGS 
 	benchmark::benchmark
 	reflectcpp
 )
+
+if(OpenCL_FOUND)
+	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenCL::OpenCL OpenCL::Headers)
+	set(LINK_BENCH_FLAGS ${LINK_BENCH_FLAGS} OpenCL::OpenCL OpenCL::Headers)
+endif()
 
 if (LINKER_SUPPORTS_ATOMIC)
 	message(STATUS "Using atomic")
