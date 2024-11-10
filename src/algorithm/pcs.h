@@ -9,7 +9,10 @@
 /// TODO README and example
 /// TODO multithreading and then pcs
 /// TODO brents and gospers cycle finding
+///
 
+
+static size_t walk_len = 0;
 #if __cplusplus > 201709L
 #include <concepts>
 
@@ -100,9 +103,9 @@ public:
 	/// \param f
 	/// \param flavour
 	/// \param x1
-	/// \param b1
-	/// \param a2
-	/// \param b2
+	/// \param y1
+	/// \param x2
+	/// \param y2
 	/// \param max_iters
 	/// \return
 	template<class F,
@@ -123,6 +126,7 @@ public:
 		size_t i = 0;
 		while (i < max_iters) {
 			i += 1;
+			walk_len += 1;
 
 			// x1 = flavour(x1);
 			x2 = f(flavour(x1));
@@ -142,6 +146,7 @@ public:
 		if (ret) {
 			x1 = sp;
 			while (!cmp(y1, x2, y1, y2)) {
+				walk_len += 1;
 				x1 = x2;
 				y1 = y2;
 				x2 = f(flavour(x1));

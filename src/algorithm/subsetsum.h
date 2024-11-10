@@ -300,6 +300,7 @@ public:
 		/// pollard rho f function
 		size_t tree_iters = 0;
 		size_t f_calls = 0;
+		walk_len = 0;
 		auto f =  [&](const Element &c1) __attribute__((always_inline)) {
 			f_calls += 1;
 
@@ -476,7 +477,7 @@ public:
 				  << ", \"pass_function_selector\": " << pass_function_selector
 				  << ", \"pass_weight_check\": " << pass_weight_check
 				  << ", \"avg_tree_iters\": " << (double)tree_iters/(double)f_calls
-				  << ", \"avg_walk_len\": " << (((double)(f_calls - rho_calls))/3.0)/(double)rho_calls
+				  << ", \"avg_walk_len\": " << (double)walk_len/(double)rho_calls
 				  << ", \"seconds\": " << seconds.count()
 				  << " }" << std::endl;
 		return true;
