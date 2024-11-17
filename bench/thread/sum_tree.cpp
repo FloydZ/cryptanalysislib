@@ -72,7 +72,7 @@ Node *root = nullptr;
 
 #ifndef __APPLE__
 struct SchedulerSum {
-	HeartbeatScheduler<> pool{};
+	SimpleScheduler<> pool{};
     int64_t run(Node *node) noexcept {
         int64_t t = pool.call<int64_t>(heartbeatsum, (Task *)0, node);
     	return t;

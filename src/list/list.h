@@ -284,8 +284,9 @@ public:
 	}
 
 	/// NOTE: this does not search the FULL list, only each segment
-	/// \param k_lower lower dimension to sort on (inclusive)
-	/// \param k_higher upper dimensions to sort (not included)
+	/// \tparam k_lower lower dimension to sort on (inclusive)
+	/// \tparam k_higher upper dimensions to sort (not included)
+	/// \tparam sub
 	/// \param tid thread id
 	template<const uint32_t k_lower,
 	         const uint32_t k_higher,
@@ -360,8 +361,9 @@ public:
 		ASSERT(is_sorted(target, sub, k_lower, k_higher));
 	}
 
-	/// \param k_lower
-	/// \param k_higher
+	/// \tparam k_lower
+	/// \tparam k_higher
+	/// \tparam
 	/// \param target
 	/// \return
 	template<const uint32_t k_lower,

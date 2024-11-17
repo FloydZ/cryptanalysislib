@@ -106,7 +106,7 @@ namespace cryptanalysislib {
         /// Create a SimpleScheduler and start worker threads.
         /// \param num_threads Number of worker threads. If 0 then number of threads is equal to the
         ///                    number of physical cores on the machine, as given by std::thread::hardware_concurrency().
-        explicit SimpleScheduler(uint32_t num_threads = 0) noexcept {
+        explicit SimpleScheduler(uint32_t num_threads = 2) noexcept {
             if (num_threads < 1) {
                 num_threads = std::thread::hardware_concurrency();
                 if (num_threads < 1) { num_threads = 1; }
@@ -318,15 +318,16 @@ namespace cryptanalysislib {
                     }
                 }
 
-                task_cv.wait(tasks_lock, [&]() { return !pool_running || (!pool_paused && !tasks.empty()); });
+                task_cv.wait(tasks_lock, [&]() {
+                  return !pool_running || (!pool_paused && !tasks.empty());
+                });
 
                 if (!pool_running) {
                     break;
                 }
 
                 // Must mean that (!pool_paused && !tasks.empty()) is true
-
-                std::packaged_task<void()> task{std::move(tasks.front())};
+                auto task{std::move(tasks.front())};
                 tasks.pop();
                 ++num_inflight_tasks;
                 tasks_lock.unlock();
@@ -355,7 +356,7 @@ namespace cryptanalysislib {
         /**
          * Stop, join, and destroy all worker threads.
          */
-        void stop_all_threads() {
+        void stop_all_threads() noexcept {
             const std::lock_guard<std::recursive_mutex> threads_lock(thread_mutex);
 
             {
@@ -369,6 +370,7 @@ namespace cryptanalysislib {
                     thread.join();
                 }
             }
+
             threads.clear();
         }
 
@@ -384,11 +386,8 @@ namespace cryptanalysislib {
          */
         mutable std::recursive_mutex thread_mutex;
 
-        /**
-         * The task queue.
-         *
-         * Access protected by task_mutex.
-         */
+        /// TODO: replace with `ConstVectorQueue`
+        /// tasks: Access protected by task_mutex.
         std::queue<std::packaged_task<void()>> tasks = {};
 
         /**

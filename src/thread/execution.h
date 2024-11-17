@@ -16,7 +16,6 @@
 
 #include "helper.h"
 #include "traits.h"
-#include "thread/heartbeat_scheduler.h"
 #include "thread/steal_scheduler.h"
 #include "thread/simple_scheduler.h"
 
@@ -85,9 +84,9 @@ struct parallel_policy : public execution_policy {
     [[nodiscard]] pool_type pool() const noexcept {
         if (on_pool != nullptr) {
             return on_pool;
-        } else {
-            return internal::get_default_pool().get();
         }
+
+        return internal::get_default_pool().get();
     }
 
     /// \return if parallisation is enabled

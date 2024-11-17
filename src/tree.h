@@ -1082,7 +1082,7 @@ public:
 	/// Thread 1│     │   │     │ Thread 1
 	///         └─────┘   └─────┘
 	///          const     const hashed
-	/// NOTE: multithreaded
+	/// NOTE: multithreaded, NOTE: allocates the hashmap
 	/// \tparam k_lower lower coordinate to match on
 	/// \tparam k_upper upper coordinate to match on
 	/// \tparam bucketsize number of elements in the hashmap
@@ -1098,9 +1098,23 @@ public:
 			 const uint32_t k_upper,
 			 const uint32_t bucketsize,
 			 const uint32_t nthreads,
+			 const uint32_t chunks,
 			 class ExecPolicy>
 	size_t join2lists_on_iT_v2(ExecPolicy&& policy,
 							   List &out,
+							   const List &L1, List &L2,
+							   const LabelType &target) noexcept;
+
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper,
+			 const uint32_t bucketsize,
+			 const uint32_t nthreads,
+			 const uint32_t chunks,
+			 class HashMap,
+			 class ExecPolicy>
+	size_t join2lists_on_iT_v2(ExecPolicy&& policy,
+							   List &out,
+							   HashMap *hm,
 							   const List &L1, List &L2,
 							   const LabelType &target) noexcept;
 
