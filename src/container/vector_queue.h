@@ -1,28 +1,40 @@
 #ifndef CONTAINER_VECTOR_QUEUE_H
 #define CONTAINER_VECTOR_QUEUE_H
 
+#include <array>
+#include <cstdint>
+#include <cstdlib>
+#include <iostream>
+
+#include "helper.h"
+
 /// NOTE: not thread safe
 /// NOTE: const means; its not resizable
 /// \tparam T base type
 /// \tparam V vector type, only [], needed
-template<class T,
-         class V = std::array<T, 1024>>
+template<class T>
 class ConstVectorQueue {
 private:
+    constexpr static size_t _max_size = 4096;
+
     // NOTE: int32_t: max capacity is 2**32, which should be enough
     // NOTE: int32_t: signed integers needed to make the signed
     //  operations easy
     int32_t _front = 0, _back = 1;
-    V __data{};
+    alignas(64) T __data[_max_size];
 
-    constexpr static size_t _max_size = 1024;
 public:
-    typedef typename	V::value_type		value_type;
-    typedef typename	V::reference		reference;
-    typedef typename	V::const_reference	const_reference;
-    typedef typename	V::size_type		size_type;
-    typedef		        V			        container_type;
+    // typedef typename	V::value_type		value_type;
+    // typedef typename	V::reference		reference;
+    // typedef typename	V::const_reference	const_reference;
+    // typedef typename	V::size_type		size_type;
+    // typedef		        V			        container_type;
 
+    using container_type = T[];
+    using const_reference = const T&;
+    using reference = T&;
+    using value_type = T;
+    using size_type = size_t;
 
 	/// \return the current element at the fotn
     [[nodiscard]] inline const_reference front() const noexcept {
