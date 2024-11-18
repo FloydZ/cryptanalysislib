@@ -145,7 +145,7 @@ public:
 	finish:
 		if (ret) {
 			x1 = sp;
-			while (!cmp(y1, x2, y1, y2)) {
+			while (!cmp(x1, x2, y1, y2)) {
 				walk_len += 1;
 				x1 = x2;
 				y1 = y2;
@@ -153,6 +153,7 @@ public:
 				y2 = f(flavour(y2));
 			}
 		}
+
 		return ret;
 	}
 };

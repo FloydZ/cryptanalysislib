@@ -501,7 +501,8 @@ public:
 		ASSERT(tid < threads());
 		return __load[tid];
 	}
-	constexpr void set_load(const size_t l, const uint32_t tid = 0) noexcept {
+	constexpr void set_load(const size_t l,
+							const uint32_t tid = 0) noexcept {
 		ASSERT(tid < threads());
 		__load[tid] = l;
 	}

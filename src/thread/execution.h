@@ -37,7 +37,12 @@ namespace internal {
         });
         return pool;
     }
+
 }; // end namespace cryptanalysislib::internal
+
+void __attribute__((constructor)) cryptanalysislib_thread_init(){
+    cryptanalysislib::internal::get_default_pool();
+}
 
 // base class for the execution policy
 struct execution_policy {

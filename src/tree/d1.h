@@ -370,7 +370,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(
 	out.set_load(0);
 
 	if (prepare) {
-		hm.clear();
+		// hm.clear();
 		for (size_t i = 0; i < L2.load(); ++i) {
 			hm.insert(L2[i].label.value(), i);
 		}

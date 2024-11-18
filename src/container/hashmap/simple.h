@@ -128,7 +128,7 @@ public:
 
 		size_t load;
 		if constexpr (multithreaded) {
-			load = FAA(__internal_load_array + index, 1);
+			load = FAA(__internal_load_array.data() + index, 1);
 			// early exit and reset
 			if (load >= bucketsize) {
 				__internal_load_array[index] = bucketsize;
@@ -267,7 +267,7 @@ public:
 	/// overwrites the internal data const_array
 	/// with zero initialized elements.
 	constexpr inline void clear() noexcept {
-		memset(__internal_load_array, 0, nrbuckets * sizeof(load_type));
+		memset(__internal_load_array.data(), 0, nrbuckets * sizeof(load_type));
 	}
 
 	/// multithreaded clear
@@ -281,7 +281,7 @@ public:
 
 		const size_t start = tid * nrbuckets / config.threads;
 		const size_t bytes = nrbuckets * sizeof(load_type) / config.threads;
-		memset(__internal_load_array + start, 0, bytes);
+		memset(__internal_load_array.data() + start, 0, bytes);
 #pragma omp barrier
 	}
 
@@ -331,8 +331,13 @@ public:
 	}
 
 	// internal const_array
-	alignas(1024) data_type __internal_hashmap_array[total_size];
-	alignas(1024) load_type __internal_load_array[nrbuckets];
+	// alignas(1024) data_type __internal_hashmap_array[total_size];
+	// alignas(1024) load_type __internal_load_array[nrbuckets];
+
+	// NOTE: this is kind of stupid. But otherwise all hashmap allocation
+	// would be allocated on the heap.
+	alignas(1024) std::array<data_type, total_size>__internal_hashmap_array;
+	alignas(1024) std::array<load_type, nrbuckets> __internal_load_array;
 };
 
 #endif//SMALLSECRETLWE_SIMPLE_H

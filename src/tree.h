@@ -915,10 +915,14 @@ public:
 							 const LabelType &target,
 	                         const bool prepare=true,
 	                         F f=[](List &out, const List &L1, const List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
-								out.template add_and_append
-									<k_lower, k_upper, -1u, false>
-									(L1[i], L2[j]);
-								return false;
+								 size_t out_load = out.load();
+								 ElementType::template sub<k_lower, k_upper, -1u>(out[out_load], L1[i], L2[j]);
+								 out.set_load(out_load++);
+								 return out_load == out.size();
+								// out.template add_and_append
+								// 	<k_lower, k_upper, -1u, false>
+								// 	(L1[i], L2[j]);
+								// return false;
 							}) noexcept;
 
 	///         ┌───────┐
@@ -960,9 +964,13 @@ public:
 	        HashMap &hm,
 	        const LabelType &target,
 	        const bool prepare=true,
-	        F f = [](List & out, const List &L1, const List &L2, const size_t a1, const size_t a2) __attribute__((always_inline)) {
-				out.template add_and_append<k_lower, k_upper, -1u, false>(L1[a1], L2[a2]);
-				return false;
+	        F f = [](List & out, const List &L1, const List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
+				size_t out_load = out.load();
+				ElementType::template sub<k_lower, k_upper, -1u>(out[out_load], L1[i], L2[j]);
+				out.set_load(out_load++);
+				return out_load == out.size();
+				// out.template add_and_append<k_lower, k_upper, -1u, false>(L1[i], L2[j]);
+				// return false;
         	}) noexcept;
 
 	/// 		out HM

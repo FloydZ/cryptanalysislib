@@ -106,18 +106,18 @@ struct SubSetSumCmp {
 
 	/// simple comparison struct
 	/// only a2 and b2 are compared for equality
-	/// \param a1 predecessor of a2
-	/// \param a2 value to be
-	/// \param b1 predecessor of b2
-	/// \param b2 value to be compared
+	/// \param x1 predecessor of a2
+	/// \param x2 value to be
+	/// \param y1 predecessor of b2
+	/// \param y2 value to be compared
 	/// \return true if a2.label==b2.label, weight is correct, and a1!=b1;
-	auto operator()(const Element &a1,
-	                const Element &a2,
-	                const Element &b1,
-	                const Element &b2) const noexcept __attribute__((always_inline)) {
-		(void)a1;
-		(void)b1;
-		return a2.template is_equal<k_lower, k_upper>(b2);
+	auto operator()(const Element &x1,
+	                const Element &x2,
+	                const Element &y1,
+	                const Element &y2) const noexcept __attribute__((always_inline)) {
+		(void)x1;
+		(void)y1;
+		return x2.template is_equal<k_lower, k_upper>(y2);
 	}
 };
 
@@ -286,14 +286,11 @@ public:
             return tmp2 & 1u;
         };
 
-		/// \return value=(b_1 * flavor(e) + b_2))
-		///			label = A*value
-		auto flavour = [&](const Element &e) __attribute__((always_inline)) __attribute__((always_inline)) {
+		/// \return label=(b_1 * flavor(e) + b_2)) % flavour_q
+		auto flavour = [&](const Element &e) __attribute__((always_inline)) {
 			Element ret;
 			const L c = (b_1 * (e.label.value() >> (instance.l1+instance.l2)) + b_2) % instance.flavour_q;
 			ret.label = c;
-			//*ret.value.ptr() = c;
-			//ret.recalculate_label(A);
 			return ret;
 		};
 
@@ -354,6 +351,7 @@ public:
 			Element ret = out[0];
 			ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
 			ASSERT(wrong == 0);
+
 			if (bit) {
 				Label::sub(ret.label, global_target, out[0].label);
 			}
@@ -378,7 +376,7 @@ public:
 			rho_calls += 1;
 			z = rng<L>(instance.q);
 			s.random(0, 1ull << (k_upper2));
-			x1.random(A);
+			x1.label.random(0, 1ull<< k_upper1);
 			y1 = x1;
 			// y1 = f(x1);
 			b_1 = rng<L>(instance.flavour_q);
