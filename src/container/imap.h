@@ -45,12 +45,13 @@ struct imap_pair_t {
 	uint32_t *slot;
 };
 
-
+///
 struct ImapConfig : public AlignmentConfig {
 
 };
 constexpr static ImapConfig imapConfig{};
 
+///
 template<typename Allocator = AlignmentMallocator<imap_node_t, sizeof(imap_node_t)>,
          const ImapConfig &config=imapConfig>
 struct imap_tree_t {
@@ -60,15 +61,15 @@ private:
 public:
 
 	// we are good c++ defs
-	typedef uint64_t value_type;
-	typedef Allocator allocator_type;
-	typedef size_t size_type;
-	typedef size_t difference_type;
-	typedef value_type& reference;
+	typedef uint64_t        value_type;
+	typedef Allocator       allocator_type;
+	typedef size_t          size_type;
+	typedef size_t          difference_type;
+	typedef value_type&     reference;
 	typedef const value_type& const_reference;
-	typedef value_type* pointer;
+	typedef value_type*     pointer;
 	typedef const value_type* const_pointer;
-	typedef imap_iter_t iterator;
+	typedef imap_iter_t     iterator;
 	typedef const imap_iter_t const_iterator;
 
 	/// \param x
