@@ -405,11 +405,11 @@ public:
 				if (t11.label.template is_equal<0, 26>(t12.label)) {
 					wrong_colls +=1;
 				}
-				if (!x2.label.template is_equal<0, 26>(y2.label)) {
-					std::cout << "ERROR" << std::endl;
-				}
-
-
+				// if (!x2.label.template is_equal<0, 26>(y2.label)) {
+				// 	std::cout << x2 << std::endl;
+				// 	std::cout << y2 << std::endl;
+				// 	std::cout << "ERROR" << std::endl;
+				// }
 
 				// ... and make sure, that they are different
 				if (alb == blb) { continue; }

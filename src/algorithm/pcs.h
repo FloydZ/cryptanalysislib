@@ -9,7 +9,7 @@
 /// TODO README and example
 /// TODO multithreading and then pcs
 /// TODO brents and gospers cycle finding
-///
+///		TODO: config class
 
 
 static size_t walk_len = 0;
@@ -53,6 +53,8 @@ template<class Compare,
 #endif
 class PollardRho {
 private:
+
+	constexpr static bool brent = true;
 
 public:
 	constexpr PollardRho() noexcept {};
@@ -124,22 +126,57 @@ public:
 
 		const auto sp = x1;
 		size_t i = 0;
-		while (i < max_iters) {
-			i += 1;
-			walk_len += 1;
+		if constexpr (brent) {
+			y2 = y1;
+			uint32_t power = 1, lam = 1;
+			while (i < max_iters) {
+				// time to start a new power of two?
+				if (power == lam) {
+					x2 = y2;
+					power *= 2;
+					lam = 0;
+				}
 
-			// x1 = flavour(x1);
-			x2 = f(flavour(x1));
+				y1 = y2;
 
-			y1 = f(flavour(y1));
-			y2 = f(flavour(y1));
+				y2 = f(flavour(y1));
+				i += 1;
+				lam += 1;
+				walk_len += 1;
 
-			if (cmp(x1, x2, y1, y2)) [[unlikely]] {
-				ret = true;
-				goto finish;
+				if (cmp(x1, x2, y1, y2)) [[unlikely]] {
+					ret = true;
+					break;
+				}
 			}
 
-			x1 = x2; y1 = y2;
+			// early exit, no coll found
+			if (!ret) { return false; }
+
+			x2 = sp;
+			y1 = sp;
+			for (uint32_t j = 0; j < lam; j++) {
+				y1 = f(flavour(y1));
+			}
+			y2 = y1;
+		} else {
+			while (i < max_iters) {
+				i += 1;
+				walk_len += 1;
+
+				// x1 = flavour(x1);
+				x2 = f(flavour(x1));
+
+				y1 = f(flavour(y1));
+				y2 = f(flavour(y1));
+
+				if (cmp(x1, x2, y1, y2)) [[unlikely]] {
+					ret = true;
+					goto finish;
+				}
+
+				x1 = x2; y1 = y2;
+			}
 		}
 
 	finish:
