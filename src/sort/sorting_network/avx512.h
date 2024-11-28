@@ -165,9 +165,9 @@ constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) 
 /// a single function
 #define sortingnetwork_sort_x32x16_body(T, REG, MIN_FKT, MAX_FKT) \
 	{																		\
-		REG idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,		\
+		REG idxNoNeigh = (REG)_mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
 											  6, 7, 4, 5, 2, 3, 0, 1);		\
-		REG permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);		\
+		REG permNeigh = _mm512_permutexvar_epi32((__m512i)idxNoNeigh,(__m512i)input);\
 		REG permNeighMin = MIN_FKT( input,permNeigh);						\
 		REG permNeighMax = MAX_FKT(permNeigh, input);						\
         __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax); \

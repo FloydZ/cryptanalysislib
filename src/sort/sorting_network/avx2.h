@@ -648,6 +648,95 @@ static inline void sortingnetwork_sort_u8x32(__m128i *a,
     sortingnetwork_mergesort_u8x32(a, b);
 }
 
+
+constexpr static int8_t sortingnetwork_u8x32_shuffle_masks[6][32] __attribute((aligned(64))) = {
+        {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
+        {3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12},
+        {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
+        {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
+        {15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
+        {4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11},
+};
+
+__m256i sortingnetwork_sort_u8x32_(__m256i v) noexcept {
+    __m256i t = v, tmp;
+    t = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
+    COEX_u8x32(t, v, tmp);
+    t = _mm256_blendv_epi8(t, v, _mm256_set1_epi16(0xFF));
+
+    // Step 2
+    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[1]));
+	COEX_u8x32(v, t, tmp);
+    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi32(0xFFFF));
+
+    // Step 3
+    t = _mm256_shuffle_epi8(v, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
+	COEX_u8x32(t, v, tmp);
+    t = _mm256_blendv_epi8(t, v, _mm256_set1_epi16(0xFF));
+
+    // Step 4
+    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[2]));
+	COEX_u8x32(v, t, tmp);
+    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi64x(0xFFFFFFFF));
+
+    // Step 5
+    t = _mm256_shuffle_epi8(v, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[3]));
+	COEX_u8x32(t, v, tmp);
+    t = _mm256_blendv_epi8(t, v, _mm256_set1_epi32(0xFFFF));
+
+    // Step 6
+    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
+	COEX_u8x32(v, t, tmp);
+    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi16(0xFF));
+
+    // Step 7
+    t = _mm256_shuffle_epi8(v, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]));
+	COEX_u8x32(t, v, tmp);
+    t = _mm256_blendv_epi8(t, v, _mm256_setr_epi64x(0, -1ull, 0, -1ull));
+
+    // Step 8
+    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[5]));
+	COEX_u8x32(v, t, tmp);
+    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi64x(0xFFFFFFFF));
+
+    // Step 9
+    t = _mm256_shuffle_epi8(v, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[3]));
+	COEX_u8x32(t, v, tmp);
+    t = _mm256_blendv_epi8(t, v, _mm256_set1_epi32(0xFFFF));
+
+    // Step 10
+    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
+	COEX_u8x32(v, t, tmp);
+    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi16(0xFF));
+
+    __m128 tmp_;
+    __m128i L1 = _mm256_extractf128_si256(v, 0);
+    __m128i H1 = _mm256_extractf128_si256(v, 1);
+    H1 = _mm_shuffle_epi8(H1, _mm_load_si128((__m128i *)sortingnetwork_u8x32_shuffle_masks[4]));
+
+	COEX_u8x16(L1, H1, tmp_);
+    __m128i L1p = _mm_blendv_epi8(L1, _mm_bslli_si128(H1, 8), _mm_load_si128((__m128i *)blend[3]));
+    __m128i H1p = _mm_blendv_epi8(_mm_bsrli_si128(L1, 8), H1, _mm_load_si128((__m128i *)blend[3]));
+
+	COEX_u8x16(L1p, H1p, tmp_);
+    __m128i L2p = _mm_blendv_epi8(L1p, _mm_bslli_si128(H1p, 4), _mm_load_si128((__m128i *)blend[2]));
+    __m128i H2p = _mm_blendv_epi8(_mm_bsrli_si128(L1p, 4), H1p, _mm_load_si128((__m128i *)blend[2]));
+
+	COEX_u8x16(L2p, H2p, tmp_);
+    __m128i L3p = _mm_blendv_epi8(L2p, _mm_bslli_si128(H2p, 2), _mm_load_si128((__m128i *)blend[1]));
+    __m128i H3p = _mm_blendv_epi8(_mm_bsrli_si128(L2p, 2), H2p, _mm_load_si128((__m128i *)blend[1]));
+
+	COEX_u8x16(L3p, H3p, tmp_);
+    __m128i L4p = _mm_blendv_epi8(L3p, _mm_bslli_si128(H3p, 1), _mm_load_si128((__m128i *)blend[0]));
+    __m128i H4p = _mm_blendv_epi8(_mm_bsrli_si128(L3p, 1), H3p, _mm_load_si128((__m128i *)blend[0]));
+
+	COEX_u8x16(L4p, H4p, tmp_);
+    const __m128i kl = _mm_unpacklo_epi8(L4p, H4p);
+    const __m128i kh = _mm_unpackhi_epi8(L4p, H4p);
+    return _mm256_set_m128i(kh, kl);
+}
+
+
 /* code originally from djb-sort
  * stages 8,4,2,1 of size-16 bitonic merging
  * */

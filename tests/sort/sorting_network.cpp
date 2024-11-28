@@ -234,6 +234,18 @@ TEST(SortingNetwork, uint8x32_t) {
 	}
 }
 
+TEST(SortingNetwork, uint8x32_t_) {
+	const uint8_t datas1[32] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
+	const uint8_t datas2[32] = {31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0};
+	uint8_t datas3[32];
+	const __m256i ins1 = _mm256_loadu_si256((__m256i *)datas2 + 0);
+	const __m256i ins2 = sortingnetwork_sort_u8x32_(ins1);
+	_mm256_storeu_si256((__m256i_u *)datas3, ins2);
+	for (uint32_t i = 0; i < 32; i++) {
+		EXPECT_EQ(datas3[i], datas1[i]);
+	}
+}
+
 TEST(SortingNetwork, f32x16_t) {
 	__m256 z1 = _mm256_setr_ps(0, 1, 2, 3, 4, 5, 6, 7);
 	__m256 z2 = _mm256_setr_ps(8, 9, 10, 11, 12, 13, 14, 15);
