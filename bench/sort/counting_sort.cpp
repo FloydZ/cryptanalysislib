@@ -30,7 +30,7 @@ void BM_counting_stable_sort(benchmark::State& state) {
 }
 
 
-//BENCHMARK(BM_counting_sort<uint8_t>)->DenseRange(32, 1024, 32); // ->RangeMultiplier(2)->Range(16, LS)->Complexity();
+BENCHMARK(BM_counting_sort<uint8_t>)->DenseRange(32, 1024, 32); // ->RangeMultiplier(2)->Range(16, LS)->Complexity();
 BENCHMARK(BM_counting_stable_sort<uint8_t>)->DenseRange(32, 1024, 32); // ->RangeMultiplier(2)->Range(16, LS)->Complexity();
 
 int main(int argc, char** argv) {

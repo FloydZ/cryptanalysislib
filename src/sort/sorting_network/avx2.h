@@ -737,6 +737,73 @@ __m256i sortingnetwork_sort_u8x32_(__m256i v) noexcept {
 }
 
 
+static inline void sortingnetwork_mergesort_u8x64(__m256i &a,
+                                                  __m256i &b) noexcept {
+    __m256i L0 = a, tmp, mask;
+    __m256i H0 = b;
+
+	// reverse H0
+    __m256i H0p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
+	H0 =_mm256_shuffle_epi8(H0p, mask);
+
+    // 0
+    COEX_u8x32(L0, H0, tmp);
+
+	//1
+    __m256i L1p = _mm256_permute2x128_si256(L0, L0, 0b00000001);
+    __m256i H1p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
+    COEX_u8x32(L0, L1p, tmp);
+    COEX_u8x32(H0, H1p, tmp);
+	L0 = _mm256_blend_epi32(L0, L1p, 0b11110000);
+	H0 = _mm256_blend_epi32(H0, H1p, 0b11110000);
+
+	// 2
+	__m256i L2p = _mm256_permute4x64_epi64(L0, 0b10110001);
+	__m256i H2p = _mm256_permute4x64_epi64(H0, 0b10110001);
+    COEX_u8x32(L0, L2p, tmp);
+    COEX_u8x32(H0, H2p, tmp);
+	L0 = _mm256_blend_epi32(L0, L2p, 0b11001100);
+	H0 = _mm256_blend_epi32(H0, H2p, 0b11001100);
+
+	// 3
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[2]);
+	__m256i L3p = _mm256_shuffle_epi8(L0, mask);
+	__m256i H3p = _mm256_shuffle_epi8(H0, mask);
+    COEX_u8x32(L0, L3p, tmp);
+    COEX_u8x32(H0, H3p, tmp);
+	mask = _mm256_set1_epi64x(0xFFFFFFFF);
+	L0 = _mm256_blendv_epi8(L3p, L0, mask);
+	H0 = _mm256_blendv_epi8(H3p, H0, mask);
+
+	// 4
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[1]);
+	__m256i L4p = _mm256_shuffle_epi8(L0, mask);
+	__m256i H4p = _mm256_shuffle_epi8(H0, mask);
+    COEX_u8x32(L0, L4p, tmp);
+    COEX_u8x32(H0, H4p, tmp);
+	mask = _mm256_set1_epi32(0xFFFF);
+	L0 = _mm256_blendv_epi8(L4p, L0, mask);
+	H0 = _mm256_blendv_epi8(H4p, H0, mask);
+
+	// 5
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]);
+	__m256i L5p = _mm256_shuffle_epi8(L0, mask);
+	__m256i H5p = _mm256_shuffle_epi8(H0, mask);
+    COEX_u8x32(L0, L5p, tmp);
+    COEX_u8x32(H0, H5p, tmp);
+	mask = _mm256_set1_epi16(0xFF);
+	a = _mm256_blendv_epi8(L5p, L0, mask);
+	b = _mm256_blendv_epi8(H5p, H0, mask);
+}
+
+static inline void sortingnetwork_sort_u8x64(__m256i &a,
+						                     __m256i &b) noexcept{
+    a = sortingnetwork_sort_u8x32_(a);
+    b = sortingnetwork_sort_u8x32_(b);
+    sortingnetwork_mergesort_u8x64(a, b);
+}
+
 /* code originally from djb-sort
  * stages 8,4,2,1 of size-16 bitonic merging
  * */
