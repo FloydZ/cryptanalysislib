@@ -737,34 +737,12 @@ __m256i sortingnetwork_sort_u8x32_(__m256i v) noexcept {
 }
 
 
-static inline void sortingnetwork_mergesort_u8x64(__m256i &a,
-                                                  __m256i &b) noexcept {
-    __m256i L0 = a, tmp, mask;
-    __m256i H0 = b;
-
-	// reverse H0
-    __m256i H0p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
-	H0 =_mm256_shuffle_epi8(H0p, mask);
-
-    // 0
-    COEX_u8x32(L0, H0, tmp);
-
-	//1
-    __m256i L1p = _mm256_permute2x128_si256(L0, L0, 0b00000001);
-    __m256i H1p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
-    COEX_u8x32(L0, L1p, tmp);
-    COEX_u8x32(H0, H1p, tmp);
-	L0 = _mm256_blend_epi32(L0, L1p, 0b11110000);
-	H0 = _mm256_blend_epi32(H0, H1p, 0b11110000);
-
-	// 2
-	__m256i L2p = _mm256_permute4x64_epi64(L0, 0b10110001);
-	__m256i H2p = _mm256_permute4x64_epi64(H0, 0b10110001);
-    COEX_u8x32(L0, L2p, tmp);
-    COEX_u8x32(H0, H2p, tmp);
-	L0 = _mm256_blend_epi32(L0, L2p, 0b11001100);
-	H0 = _mm256_blend_epi32(H0, H2p, 0b11001100);
+/// implementation of 8 parrallel `simd_aftermerge_1V`
+static inline void sortingnetwork_aftermergesort_u8x64(__m256i &a,
+													   __m256i &b) noexcept {
+	__m256i L0 = a;
+	__m256i H0 = b;
+	__m256i mask, tmp;
 
 	// 3
 	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[2]);
@@ -796,12 +774,88 @@ static inline void sortingnetwork_mergesort_u8x64(__m256i &a,
 	a = _mm256_blendv_epi8(L5p, L0, mask);
 	b = _mm256_blendv_epi8(H5p, H0, mask);
 }
+static inline void sortingnetwork_mergesort_u8x64(__m256i &a,
+                                                  __m256i &b) noexcept {
+    __m256i L0 = a, tmp, mask;
+    __m256i H0 = b;
+
+	// reverse H0
+    __m256i H0p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
+	H0 =_mm256_shuffle_epi8(H0p, mask);
+
+    // 0
+    COEX_u8x32(L0, H0, tmp);
+
+	//1
+    __m256i L1p = _mm256_permute2x128_si256(L0, L0, 0b00000001);
+    __m256i H1p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
+    COEX_u8x32(L0, L1p, tmp);
+    COEX_u8x32(H0, H1p, tmp);
+	L0 = _mm256_blend_epi32(L0, L1p, 0b11110000);
+	H0 = _mm256_blend_epi32(H0, H1p, 0b11110000);
+
+	// 2
+	__m256i L2p = _mm256_permute4x64_epi64(L0, 0b10110001);
+	__m256i H2p = _mm256_permute4x64_epi64(H0, 0b10110001);
+    COEX_u8x32(L0, L2p, tmp);
+    COEX_u8x32(H0, H2p, tmp);
+	a = _mm256_blend_epi32(L0, L2p, 0b11001100);
+	b = _mm256_blend_epi32(H0, H2p, 0b11001100);
+
+	sortingnetwork_aftermergesort_u8x64(a, b);
+}
 
 static inline void sortingnetwork_sort_u8x64(__m256i &a,
 						                     __m256i &b) noexcept{
     a = sortingnetwork_sort_u8x32_(a);
     b = sortingnetwork_sort_u8x32_(b);
     sortingnetwork_mergesort_u8x64(a, b);
+}
+
+/// implementation of `simd_aftermerge_8V`
+static inline void sortingnetwork_aftermerge_u8x64(__m256i &a,
+												   __m256i &b) noexcept {
+	__m256i tmp;
+    COEX_u8x32(a, b, tmp);
+
+	__m256i ap = _mm256_permute4x64_epi64(a, 0b01001110);
+	__m256i bp = _mm256_permute4x64_epi64(b, 0b01001110);
+    COEX_u8x32(a, ap, tmp);
+    COEX_u8x32(b, bp, tmp);
+	a = _mm256_blend_epi32(a, ap, 0b11110000);
+	b = _mm256_blend_epi32(b, bp, 0b11110000);
+
+	ap = _mm256_permute4x64_epi64(a, 0b10110001);
+	bp = _mm256_permute4x64_epi64(b, 0b10110001);
+    COEX_u8x32(a, ap, tmp);
+    COEX_u8x32(b, bp, tmp);
+	a = _mm256_blend_epi32(a, ap, 0b11001100);
+	b = _mm256_blend_epi32(b, bp, 0b11001100);
+
+	sortingnetwork_aftermergesort_u8x64(a, b);
+}
+static inline void sortingnetwork_sort_u8x128(__m256i &a,
+                                              __m256i &b,
+                                              __m256i &c,
+                                              __m256i &d) noexcept {
+	__m256i tmp, mask;
+	sortingnetwork_sort_u8x64(a, b);
+	sortingnetwork_sort_u8x64(c, d);
+
+	// reverse c and d
+    __m256i cp = _mm256_permute2x128_si256(c, c, 0b00000001);
+    __m256i dp = _mm256_permute2x128_si256(d, d, 0b00000001);
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
+	cp =_mm256_shuffle_epi8(cp, mask);
+    COEX_u8x32(b, cp, tmp);
+	dp =_mm256_shuffle_epi8(dp, mask);
+    COEX_u8x32(a, dp, tmp);
+
+	c = cp;
+	d = dp;
+	sortingnetwork_aftermerge_u8x64(a, b);
+	sortingnetwork_aftermerge_u8x64(c, d);
 }
 
 /* code originally from djb-sort

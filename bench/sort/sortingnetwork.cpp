@@ -126,6 +126,20 @@ static void bench_sortingnetwork_sort_u8x64(benchmark::State& state) {
 	}
 }
 
+static void bench_sortingnetwork_sort_u8x128(benchmark::State& state) {
+	for (uint32_t i = 0; i < 32; ++i) {
+		data2[i] = rng();
+	}
+	__m256i a = _mm256_loadu_si256((const __m256i_u *)(data2 +  0));
+	__m256i b = _mm256_loadu_si256((const __m256i_u *)(data2 +  8));
+	__m256i c = _mm256_loadu_si256((const __m256i_u *)(data2 + 16));
+	__m256i d = _mm256_loadu_si256((const __m256i_u *)(data2 + 32));
+	for (auto _ : state) {
+		sortingnetwork_sort_u8x128(a, b, c, d);
+		benchmark::ClobberMemory();
+	}
+}
+
 BENCHMARK(bench_sortingnetwork_sort_u32x64)->Range(128, 128);
 BENCHMARK(bench_sortingnetwork_sort_u32x128)->Range(128, 128);
 BENCHMARK(bench_sortingnetwork_sort_u32x128_v2)->Range(128, 128);
@@ -135,6 +149,7 @@ BENCHMARK(bench_sortingnetwork_small_avx2)->DenseRange(16, 256, 16);
 
 BENCHMARK(bench_sortingnetwork_sort_u8x32);
 BENCHMARK(bench_sortingnetwork_sort_u8x64);
+BENCHMARK(bench_sortingnetwork_sort_u8x128);
 
 //BENCHMARK(bench_djb_sort)->RangeMultiplier(2)->Range(16, LS);
 #endif

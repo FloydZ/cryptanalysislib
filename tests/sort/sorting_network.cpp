@@ -259,6 +259,25 @@ TEST(SortingNetwork, uint8x64_t_) {
 		EXPECT_EQ(datas3[i], datas1[i]);
 	}
 }
+TEST(SortingNetwork, uint8x128_t) {
+	uint8_t datas2[128] __attribute__((aligned(64)));
+	uint8_t datas3[128] __attribute__((aligned(64)));
+	for (uint32_t i = 0; i < 128; ++i) {
+		datas2[i] = 127-i;//rng();
+	}
+	 __m256i i1 = _mm256_loadu_si256((const __m256i *)(datas2 +  0));
+	 __m256i i2 = _mm256_loadu_si256((const __m256i *)(datas2 + 32));
+	 __m256i i3 = _mm256_loadu_si256((const __m256i *)(datas2 + 64));
+	 __m256i i4 = _mm256_loadu_si256((const __m256i *)(datas2 + 96));
+	sortingnetwork_sort_u8x128(i1, i2, i3, i4);
+	_mm256_storeu_si256((__m256i_u *)(datas3 +  0), i1);
+	_mm256_storeu_si256((__m256i_u *)(datas3 + 32), i2);
+	_mm256_storeu_si256((__m256i_u *)(datas3 + 64), i3);
+	_mm256_storeu_si256((__m256i_u *)(datas3 + 96), i4);
+	for (uint32_t i = 1; i < 128; i++) {
+		EXPECT_LE(datas3[i-1], datas3[i]);
+	}
+}
 
 TEST(SortingNetwork, f32x16_t) {
 	__m256 z1 = _mm256_setr_ps(0, 1, 2, 3, 4, 5, 6, 7);
