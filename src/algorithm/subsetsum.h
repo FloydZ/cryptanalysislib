@@ -376,9 +376,11 @@ public:
 			rho_calls += 1;
 			z = rng<L>(instance.q);
 			s.random(0, 1ull << (k_upper2));
+
+
+			// NOTE: we only choose a single starting point. The second starting
+			// point is depending on Brents or Floyds cycle finding different.
 			x1.label.random(0, 1ull<< k_upper1);
-			// NOTE: in floyds cycle finding we need y1=x1
-			// y1 = x1;
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
 

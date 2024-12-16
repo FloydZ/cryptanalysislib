@@ -648,16 +648,16 @@ static inline void sortingnetwork_sort_u8x32(__m128i *a,
 
 
 constexpr static int8_t sortingnetwork_u8x32_shuffle_masks[8][32] __attribute((aligned(64))) = {
-        {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
-        {3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12},
-        {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
-        {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
-        {15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
-        {4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11},
+    {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
+    {3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12},
+    {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
+    {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
+    {15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
+    {4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11},
 	// NOTE: this is a special mask, currently only needed in `sortingnetwork_aftermergesort_u8x64`
-        {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
+    {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
 	// TODO: this seems to be a bug in the implementation. Currently only needed for `sortingnetwork_mergesort_u8x64`
-        {0,2,1,3,4,6,5,7, 8,10,9,11, 12,14,13,15, 0,2,1,3,4,6,5,7, 8,10,9,11, 12,14,13,15},
+    {0,2,1,3,4,6,5,7, 8,10,9,11, 12,14,13,15, 0,2,1,3,4,6,5,7, 8,10,9,11, 12,14,13,15},
 };
 
 
@@ -747,8 +747,57 @@ __m256i sortingnetwork_sort_u8x32_(__m256i v) noexcept {
     return _mm256_set_m128i(kh, kl);
 }
 
+static inline void sortingnetwork_aftermergesort_u8x32(__m256i &a) noexcept {
+	__m256i mask, tmp, L0;
+    // 4 time `simd_aftermerge_1V` in parallel.
+    L0 = (__m256i)_mm256_permute_ps((__m256)a, 0b10110001);
 
-/// implementation of 8 parallel "simd_aftermerge_1V",  NOT the implementation of 2 parallel `simd_aftermerge_2V`
+	// 3
+    COEX_u8x32(a, L0, tmp);
+	mask = _mm256_set1_epi64x(0xFFFFFFFF);
+	L0 = _mm256_blendv_epi8(L0, a, mask);
+
+	// 4
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]);
+	__m256i L4p = _mm256_shuffle_epi8(L0, mask);
+    COEX_u8x32(L0, L4p, tmp);
+	mask = _mm256_set1_epi16(0x00FF);
+	L0 = _mm256_blendv_epi8(L4p, L0, mask);
+
+	// 5
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[6]);
+	__m256i L5p = _mm256_shuffle_epi8(L0, mask);
+    COEX_u8x32(L0, L5p, tmp);
+	mask = _mm256_set1_epi32(0x0000FFFF);
+	L0 = _mm256_blendv_epi8(L5p, L0, mask);
+
+	// 6, TODO somewhere is a bug, for reasons I dont understand this shuffle is missing
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[7]);
+	__m256i L6p = _mm256_shuffle_epi8(L0, mask);
+    COEX_u8x32(L0, L6p, tmp);
+	mask = _mm256_set1_epi32(0x0000FF00);
+	a = _mm256_blendv_epi8(L6p, L0, mask);
+}
+
+// implementation of `simd_aftermerge_4V`
+static inline void sortingnetwork_aftermerge_u8x32(__m256i &a) noexcept {
+
+	__m256i tmp, L0 = a;
+
+    __m256i L1p = _mm256_permute2x128_si256(L0, L0, 0b00000001);
+    COEX_u8x32(L0, L1p, tmp);
+	L0 = _mm256_blend_epi32(L0, L1p, 0b11110000);
+
+	// 2 (a b, a c)
+	__m256i L2p = _mm256_permute4x64_epi64(L0, 0b10110001);
+    COEX_u8x32(L0, L2p, tmp);
+	a = _mm256_blend_epi32(L0, L2p, 0b11001100);
+    
+    sortingnetwork_aftermergesort_u8x32(a);
+}
+
+/// implementation of 8 parallel "simd_aftermerge_1V",
+/// NOT the implementation of 2 parallel `simd_aftermerge_2V`
 static inline void sortingnetwork_aftermergesort_u8x64(__m256i &a,
 													   __m256i &b) noexcept {
 	__m256i mask, tmp;
@@ -814,8 +863,6 @@ static inline void sortingnetwork_mergesort_u8x64(__m256i &a,
     __m256i H1p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
     COEX_u8x32(L0, L1p, tmp);
     COEX_u8x32(H0, H1p, tmp);
-    // __m256i L1p2= _mm256_permute2x128_si256(L1p, L1p, 0b00000000); // TODO optimize
-    // __m256i H1p2= _mm256_permute2x128_si256(H1p, H1p, 0b00000000);
 	L0 = _mm256_blend_epi32(L0, L1p, 0b11110000);
 	H0 = _mm256_blend_epi32(H0, H1p, 0b11110000);
 
@@ -824,8 +871,6 @@ static inline void sortingnetwork_mergesort_u8x64(__m256i &a,
 	__m256i H2p = _mm256_permute4x64_epi64(H0, 0b10110001);
     COEX_u8x32(L0, L2p, tmp);
     COEX_u8x32(H0, H2p, tmp);
-	// __m256i L2p2= _mm256_permute4x64_epi64(L2p, 0b10110001);
-	// __m256i H2p2= _mm256_permute4x64_epi64(H2p, 0b10110001);
 	a = _mm256_blend_epi32(L0, L2p, 0b11001100);
 	b = _mm256_blend_epi32(H0, H2p, 0b11001100);
 
@@ -861,6 +906,31 @@ static inline void sortingnetwork_aftermerge_u8x64(__m256i &a,
 	b = _mm256_blend_epi32(b, bp, 0b11001100);
 
 	sortingnetwork_aftermergesort_u8x64(a, b);
+}
+
+// implementation of "simd_sort_12V"
+static inline void sortingnetwork_sort_u8x96(__m256i &a,
+						                     __m256i &b,
+                                             __m256i &c) noexcept {
+    __m256i tmp;
+    sortingnetwork_sort_u8x64(a, b);
+    c = sortingnetwork_sort_u8x32_(c);
+
+    sortingnetwork_reverse_u8x32(c);
+    COEX_u8x32(b, c, tmp);
+    sortingnetwork_aftermerge_u8x64(a, b);
+    sortingnetwork_aftermerge_u8x32(c);
+}
+
+// probably something like `simd_aftermerge_12V`    
+static inline void sortingnetwork_aftermerge_u8x96(__m256i &a,
+						                           __m256i &b,
+                                                   __m256i &c) noexcept {
+    // __m256i tmp;
+    // TODO not finished implemented
+
+    sortingnetwork_aftermergesort_u8x64(a, b);
+    sortingnetwork_aftermergesort_u8x32(c);
 }
 
 /// implementation of `simd_sort_16V`
@@ -900,7 +970,30 @@ static inline void sortingnetwork_aftermerge_u8x128(__m256i &a,
     sortingnetwork_aftermerge_u8x64(c, d);
 }
 
-/// 
+static inline void sortingnetwork_sort_u8x224(__m256i &a,
+											  __m256i &b,
+                                              __m256i &c,
+                                              __m256i &d,
+                                              __m256i &e,
+                                              __m256i &f,
+                                              __m256i &g) noexcept {
+    __m256i tmp;
+	sortingnetwork_sort_u8x128(a, b, c, d);
+	sortingnetwork_sort_u8x96(e, f, g);
+
+    sortingnetwork_reverse_u8x32(e);
+    sortingnetwork_reverse_u8x32(f);
+    sortingnetwork_reverse_u8x32(g);
+    
+    COEX_u8x32(d, e, tmp);
+    COEX_u8x32(c, f, tmp);
+    COEX_u8x32(b, g, tmp);
+
+    sortingnetwork_aftermerge_u8x128(a, b, c, d);
+    sortingnetwork_aftermerge_u8x96(e, f, g);
+}
+
+/// implementation of `simd_sort_32V`
 static inline void sortingnetwork_sort_u8x256(__m256i &a,
 											  __m256i &b,
                                               __m256i &c,
@@ -945,6 +1038,25 @@ static inline void sortingnetwork_aftermerge_u8x256(__m256i &a,
     sortingnetwork_aftermerge_u8x128(e, f, g, h);
 }
 
+/// implementation of `simd_sort_33V`
+static inline void sortingnetwork_sort_u8x288(__m256i &a,
+											  __m256i &b,
+                                              __m256i &c,
+                                              __m256i &d,
+                                              __m256i &e,
+                                              __m256i &f,
+                                              __m256i &g,
+                                              __m256i &h,
+                                              __m256i &i) noexcept {
+    __m256i tmp;
+    sortingnetwork_sort_u8x256(a, b, c, d, e, f, g, h);
+    // TODO write a descending sorting func
+    i = sortingnetwork_sort_u8x32_(i);
+    sortingnetwork_reverse_u8x32(i);
+    COEX_u8x32(h, i, tmp);
+    sortingnetwork_aftermerge_u8x256(a, b, c, d, e, f, g, h);
+    sortingnetwork_aftermerge_u8x32(i);
+}
 
 ///
 static inline void sortingnetwork_sort_u8x512(__m256i &a,
