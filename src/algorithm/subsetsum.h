@@ -377,8 +377,10 @@ public:
 			z = rng<L>(instance.q);
 			s.random(0, 1ull << (k_upper2));
 			x1.label.random(0, 1ull<< k_upper1);
-			y1 = x1;
-			// y1 = f(x1);
+			// NOTE: in floyds cycle finding we need y1=x1
+			// y1 = x1;
+			// In brents
+			y1 = f(x1);
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
 
@@ -388,7 +390,7 @@ public:
 
 			// NOTE: restart every `instance.walk_len` runs
 			// NOTE: the weight check and the check if the collision is between
-			//		 two different functions is done outside of the rho function,
+			//		 two different functions is done outside the rho function,
 			//		 to assure that we do not run into useless cycles.
 			if (rho::run(f, flavour, x1, y1, x2, y2, instance.walk_len)) {
                 pass_rho += 1;
