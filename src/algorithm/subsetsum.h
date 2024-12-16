@@ -110,7 +110,7 @@ struct SubSetSumCmp {
 	/// \param x2 value to be
 	/// \param y1 predecessor of b2
 	/// \param y2 value to be compared
-	/// \return true if a2.label==b2.label, weight is correct, and a1!=b1;
+	/// \return true if a2.label==b2.label
 	auto operator()(const Element &x1,
 	                const Element &x2,
 	                const Element &y1,
@@ -379,8 +379,6 @@ public:
 			x1.label.random(0, 1ull<< k_upper1);
 			// NOTE: in floyds cycle finding we need y1=x1
 			// y1 = x1;
-			// In brents
-			y1 = f(x1);
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
 

@@ -125,6 +125,7 @@ public:
 		bool ret = false;
 
 		const auto sp = x1;
+		y1 = f(flavour(x1));
 		size_t i = 0;
 		if constexpr (brent) {
 			x2 = x1;
