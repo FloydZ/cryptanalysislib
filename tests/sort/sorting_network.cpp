@@ -309,8 +309,9 @@ TEST(SortingNetwork, uint8x224_t) {
 	// TODO not finished
 	uint8_t datas2[224] __attribute__((aligned(64)));
 	uint8_t datas3[224] __attribute__((aligned(64)));
+	uint8_t *datas4 = datas3 + 128;
 	for (uint32_t i = 0; i < 224; ++i) {
-		datas2[i] = rng();
+		datas2[i] =rng();
 	}
 	 __m256i i1 = _mm256_loadu_si256((const __m256i *)(datas2 +   0));
 	 __m256i i2 = _mm256_loadu_si256((const __m256i *)(datas2 +  32));
@@ -328,6 +329,9 @@ TEST(SortingNetwork, uint8x224_t) {
 	_mm256_storeu_si256((__m256i_u *)(datas3 + 160), i6);
 	_mm256_storeu_si256((__m256i_u *)(datas3 + 192), i7);
 	for (uint32_t i = 1; i < 224; i++) {
+		if (datas3[i-1] > datas3[i]) {
+			std::cout << i << std::endl;
+		}
 		EXPECT_LE(datas3[i-1], datas3[i]);
 	}
 }

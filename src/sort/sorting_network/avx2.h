@@ -926,10 +926,43 @@ static inline void sortingnetwork_sort_u8x96(__m256i &a,
 static inline void sortingnetwork_aftermerge_u8x96(__m256i &a,
 						                           __m256i &b,
                                                    __m256i &c) noexcept {
-    // __m256i tmp;
-    // TODO not finished implemented
+    __m256i tmp, L0, H0;
+  
+    // 0 ()
+    COEX_u8x32(a, c, tmp);
 
-    sortingnetwork_aftermergesort_u8x64(a, b);
+	__m256i bp = _mm256_permute4x64_epi64(b, 0b01001110);
+    COEX_u8x32(b, bp, tmp);
+	b = _mm256_blend_epi32(b, bp, 0b11110000);
+
+    // 1 (a e, b f)
+    L0 = a; H0 = c;
+    COEX_u8x32(L0, b, tmp);
+    COEX_u8x32(H0, b, tmp);
+	a = _mm256_blend_epi32(L0, a, 0b11110000);
+	c = _mm256_blend_epi32(H0, c, 0b00001111);
+
+    // 2 (a c, b d)
+	__m256i ap = _mm256_permute4x64_epi64(a, 0b01001110);
+	__m256i cp = _mm256_permute4x64_epi64(c, 0b01001110);
+    COEX_u8x32(a, ap, tmp);
+    COEX_u8x32(c, cp, tmp);
+	a = _mm256_blend_epi32(a, ap, 0b11110000);
+	c = _mm256_blend_epi32(c, cp, 0b11110000);
+
+    // 3 (a b, c d)
+	ap = _mm256_permute4x64_epi64(a, 0b10110001);
+	bp = _mm256_permute4x64_epi64(b, 0b10110001);
+	cp = _mm256_permute4x64_epi64(c, 0b10110001);
+    COEX_u8x32(a, ap, tmp);
+    COEX_u8x32(b, bp, tmp);
+    COEX_u8x32(c, cp, tmp);
+	a = _mm256_blend_epi32(a, ap, 0b11001100);
+	b = _mm256_blend_epi32(b, bp, 0b11001100);
+	c = _mm256_blend_epi32(c, cp, 0b11001100);
+
+    COEX_u8x32(b, c, tmp);
+    sortingnetwork_aftermerge_u8x64(a, b);
     sortingnetwork_aftermergesort_u8x32(c);
 }
 
@@ -970,6 +1003,7 @@ static inline void sortingnetwork_aftermerge_u8x128(__m256i &a,
     sortingnetwork_aftermerge_u8x64(c, d);
 }
 
+/// implementation of something like `simd_sort_28V`
 static inline void sortingnetwork_sort_u8x224(__m256i &a,
 											  __m256i &b,
                                               __m256i &c,
