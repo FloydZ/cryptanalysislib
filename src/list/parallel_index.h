@@ -96,26 +96,25 @@ private:
 
 public:
 
-	/// \param size total number of elements in the list
-	/// \param threads
-	/// \param thread_block
+	/// \param size[in]: total number of elements in the list
+	/// \param threads[in]: number of total thread accessing the list 
 	constexpr explicit Parallel_List_IndexElement_T(const size_t size,
 										  			const uint32_t threads) noexcept :
-	       MetaListT<Element>(size, threads, false)
-	{
+	       MetaListT<Element>(size, threads, false) {
 		__data.resize(size);
 	}
 
-	/// not implemented
+	/// TODO: not implemented
 	void sort() noexcept {
-		ASSERT(0);
+		assert(0);
 	}
 
 	/// overwrites every element with the byte sym
-	/// \param tid thread number
-	/// \param sym byte to overwrite the memory with.
-	void zero(const uint32_t tid, const uint8_t sym=0) noexcept {
-		ASSERT(tid < threads());
+	/// \param tid[in]: thread number
+	/// \param sym in]: byte to overwrite the memory with.
+	void zero(const uint32_t tid,
+              const uint8_t sym=0) noexcept {
+		assert(tid < threads());
 
 		uint64_t s = start_pos(tid);
 		uint64_t l = end_pos(tid) - s;
@@ -124,27 +123,27 @@ public:
 
 	/// zero out the i-th element.
 	/// \param i
-	void zero_element(size_t i) noexcept {
-		ASSERT(i < size());
+	void zero_element(const size_t i) noexcept {
+		assert(i < size());
 		__data[i].first.zero();
 		__data[i].second = 0;
 	}
 
 	/// add l1 and l2, and stores the result ad load positon with in the
 	/// frame of a thread
-	/// \param l1 first label
-	/// \param l2 second label
-	/// \param i2 first index
-	/// \param i2 second indes
-	/// \param load current load factor. Must be for each thread seperate
-	/// \param tid threadid
+	/// \param l1[in]: first label
+	/// \param l2[in]: second label
+	/// \param i2[in]: first index
+	/// \param i2[in]: second indes
+	/// \param load[in]: current load factor. Must be for each thread seperate
+	/// \param tid[in]: threadid
 	inline void add_and_append(const LabelType &l1,
 	                           const LabelType &l2,
 							   const uint32_t i1,
 	                           const uint32_t i2,
 							   uint64_t &load,
 	                           const uint32_t tid) noexcept {
-		ASSERT(tid < __threads);
+		assert(tid < __threads);
 
 		if (load >= thread_block_size())
 			return;
