@@ -35,15 +35,15 @@ TEST(List, hashmap_simple) {
 	constexpr static Hash<uint32_t, k_lower, k_upper, 2> hashclass{};
 	constexpr static SimpleHashMapConfig s = SimpleHashMapConfig{bucketsize, 1u << k_upper, 1};
 	using HM = SimpleHashMap<uint32_t, uint32_t, s, Hash<uint32_t, k_lower, k_upper, 2>>;
-	HM hm = HM{};
+	HM *hm = new HM{};
 
 	for (size_t i = 0; i < L.size(); i++) {
 		const uint32_t data = *(L[i].label.ptr());
-		hm.insert(data, i);
+		hm->insert(data, i);
 	}
 
 	const uint32_t ff = *(e.label.ptr());
-	for (auto f = hm.begin(ff); f != hm.end(ff); f++) {
+	for (auto f = hm->begin(ff); f != hm->end(ff); f++) {
 		std::cout << *f << std::endl;
 	}
 
