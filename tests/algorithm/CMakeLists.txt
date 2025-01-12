@@ -5,7 +5,7 @@ foreach(testfile ${TEST_SOURCES})
     add_executable(test_algorithm_${file} ${testfile})
     target_compile_options(test_algorithm_${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(test_algorithm_${file} ${LINK_TEST_FLAGS})
-	add_test(AllTests test_algorithm_${file})
+	add_test(algorithm test_algorithm_${file})
 endforeach(testfile ${TEST_SOURCES})
 
 add_subdirectory(bits)
