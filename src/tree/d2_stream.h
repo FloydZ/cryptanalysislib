@@ -16,7 +16,7 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 						 const uint32_t k_lower2, const uint32_t k_upper2,
 						 bool prepare,
                          F f) noexcept {
-	ASSERT(k_lower1 < k_upper1 &&
+	assert(k_lower1 < k_upper1 &&
 		   0 < k_upper1 && k_lower2 < k_upper2
 		   && 0 < k_upper2
 		   && k_lower1 <= k_lower2
@@ -61,15 +61,6 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 				for (j = jprev; j < j_max; ++j) {
 					// add/sub on full length
 					op(e, L1[i], L2[j], k_lower1, k_upper2);
-#ifdef DEBUG
-					if (!e.label.is_zero(k_lower1, k_upper1)) {
-						std::cout << e;
-						std::cout << L2[j];
-						std::cout << L1[i];
-						ASSERT(false);
-					}
-#endif
-
 					boundaries = iL.search_boundaries(e, k_lower2, k_upper2);
 
 					// finished?
@@ -129,7 +120,7 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 				std::cout << iL[l] << std::endl;
 				std::cout << e << std::endl;
 				std::cout << out[b] << std::endl;
-				ASSERT(false);
+				assert(false);
 			}
 #endif
 		}
@@ -151,7 +142,7 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, cons
                                const uint32_t k_lower2, const uint32_t k_upper2,
                                const bool prepare,
                                F f) noexcept {
-	ASSERT(k_lower1 < k_upper1 &&
+	assert(k_lower1 < k_upper1 &&
 	       0 < k_upper1 && k_lower2 < k_upper2
 	       && 0 < k_upper2
 	       && k_lower1 <= k_lower2
@@ -190,7 +181,7 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, cons
 			for (; i < i_max; ++i) {
 				for (j = jprev; j < j_max; ++j) {
 					ElementType::add(e1, L1[i], L2[j], k_lower1, k_upper2, -1);
-					ASSERT(e1.label.is_equal(target, k_lower1, k_upper1));
+					assert(e1.label.is_equal(target, k_lower1, k_upper1));
 
 					LabelType::sub(e2.label, e1.label, target);
 					e2.label.neg();
@@ -254,8 +245,8 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_v2(List &out, List &iL,
 		L2.sort_level(k_lower1, k_upper1);
 		iL.sort_level(k_lower1, k_upper2);
 	}
-	ASSERT(L2.is_sorted(k_lower1, k_upper1));
-	ASSERT(iL.is_sorted(k_lower1, k_upper2));
+	assert(L2.is_sorted(k_lower1, k_upper1));
+	assert(iL.is_sorted(k_lower1, k_upper2));
 	(void)k_lower2;
 
 	ElementType tmpe1;
@@ -334,8 +325,8 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_v2(List &out, List &iL,
 		iL.template sort_level<k_lower1, k_upper2>();
 	}
 
-	ASSERT(L2.is_sorted(k_lower1, k_upper1));
-	ASSERT(iL.is_sorted(k_lower1, k_upper2));
+	assert(L2.is_sorted(k_lower1, k_upper1));
+	assert(iL.is_sorted(k_lower1, k_upper2));
 
 	ElementType tmpe1;
 	LabelType t1, t2;
@@ -358,10 +349,10 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_v2(List &out, List &iL,
 			for (; (o < iL.load()) &&
 				   (t2.template is_equal<k_lower1, k_upper2>(iL[o].label));
 				   ++o) {
-				ASSERT(iL[o].is_correct(matrix));
-				ASSERT(L1[k].is_correct(matrix));
-				ASSERT(L2[l].is_correct(matrix));
-				ASSERT(tmpe1.is_correct(matrix));
+				assert(iL[o].is_correct(matrix));
+				assert(L1[k].is_correct(matrix));
+				assert(L2[l].is_correct(matrix));
+				assert(tmpe1.is_correct(matrix));
 
 				f(out, iL, tmpe1, l);
 				ret += 1;
@@ -414,17 +405,15 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_hashmap_v2(List &out,
 		const size_t s2 = hmL2.find(t1.value(), load2);
 		for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
 			const size_t b1 = hmL2[l2];
-			ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
-			// ASSERT(L2[b1].is_correct(matrix));
-			ASSERT(b1 < L2.load());
+			assert(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
+			assert(b1 < L2.load());
 
 			const LabelType t3 = L2[b1].label;
 			LabelType::sub(t2, target, L1[k].label);
 			LabelType::sub(t2, t2, t3);
 
 			ElementType::add(te1, L1[k], L2[b1]);
-			ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
-			// ASSERT(te1.is_correct(matrix));
+			assert(te1.label.is_equal(iT, k_lower1, k_upper1));
 
 			// NOTE: its shifted
 			const size_t s1 = hmiL.find(t2.value(), load1);
@@ -432,8 +421,8 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_hashmap_v2(List &out,
 				ret += 1;
 				const size_t a1 = hmiL[l1].first;
 				const size_t a2 = hmiL[l1].second;
-				ASSERT(a1 < L1.load());
-				ASSERT(a2 < L2.load());
+				assert(a1 < L1.load());
+				assert(a2 < L2.load());
 				ElementType::add(te2, L1[a1], L2[a2]);
 				if (f(out, te1, te2, b1, k, a1, a2)) { goto finish; }
 			}

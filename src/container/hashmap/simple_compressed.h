@@ -88,10 +88,10 @@ public:
 	constexpr inline void insert(const keyType &e,
 	                             const data_type &value) noexcept {
 		const size_t index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 
 		const size_t l = load(index);
-		ASSERT(l <= bytes_per_bucket);
+		assert(l <= bytes_per_bucket);
 
 		// early exit, if it's already full
 		if ((l >= sizeof(data_type)) &&
@@ -109,7 +109,7 @@ public:
 		}
 	
 		const size_t nl = leb128_encode<data_type>(ptr_, v);
-		ASSERT(l+nl <= bytes_per_bucket);
+		assert(l+nl <= bytes_per_bucket);
 
 		auto *ptr_3 = (data_type *)(ptr_ + nl);
 		*ptr_3 = value;
@@ -129,7 +129,7 @@ public:
 		uint8_t *buf = pbuf;
 		nr= 0;
 		while (buf < (pbuf + l - sizeof(internal_data_load_type ))) {
-			ASSERT(nr < bytes_per_bucket);
+			assert(nr < bytes_per_bucket);
 			tmp[nr] = leb128_decode<data_type>(&buf);
 			nr += 1;
 		}
@@ -154,7 +154,7 @@ public:
 	                                           inner_data_type *,
 	                                           valueType>::type;
 	constexpr inline ret_type ptr(const index_type i) noexcept {
-		ASSERT(i < total_size);
+		assert(i < total_size);
 		if constexpr (std::is_bounded_array_v<data_type>) {
 			return (inner_data_type *) __internal_hashmap_array[i];
 		} else {
@@ -173,7 +173,7 @@ public:
 	/// \return the position within the internal const_array of `e`
 	[[nodiscard]] constexpr inline index_type find(const keyType &e) const noexcept {
 		const index_type index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		return index;
 	}
 
@@ -183,7 +183,7 @@ public:
 	[[nodiscard]] constexpr inline index_type find(const keyType &e,
 	                                               load_type &__load) const noexcept {
 		const index_type index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		__load = load(index);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
@@ -195,7 +195,7 @@ public:
 	/// \return
 	[[nodiscard]] constexpr inline index_type find_without_hash(const keyType &e,
 																load_type &__load) const noexcept {
-		ASSERT(e < nrbuckets);
+		assert(e < nrbuckets);
 		__load = load(e);
 		return e;
 	}
@@ -206,16 +206,17 @@ public:
 	}
 
 private:
-	/// magic function doing all the work
+	/// magic internal function doing all the work
+    /// \param index[in]:
 	[[nodiscard]] constexpr inline internal_data_load_type load(const size_t index) const noexcept {
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		return __internal_hashmap_array[index].load.load;
 	}
 
 	/// magic function doing the other half of the work
 	constexpr inline void set_load(const size_t index,
 			const internal_data_load_type l) noexcept {
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		__internal_hashmap_array[index].load.load = l;
 	}
 public:

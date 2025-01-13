@@ -114,9 +114,9 @@ public:
 	}
 
 	/// parallel copy
-	/// \param out
-	/// \param in
-	/// \param tid
+	/// \param out[out]:
+	/// \param in[in]:
+	/// \param tid[in]:
 	inline void static copy(Parallel_List_T &out,
 	                        const Parallel_List_T &in,
 	                        const uint32_t tid) noexcept {
@@ -133,9 +133,9 @@ public:
 	}
 
 
-	///
+	/// createa a completly random elementin
 	void random(const size_t i) {
-		ASSERT(i < size());
+		assert(i < size());
 		__data_value[i].random();
 		__data_label[i].random();
 	}
@@ -188,7 +188,7 @@ public:
 	          const size_t end=1,
 	          const uint32_t k_lower=0,
 			  const uint32_t k_higher=LabelLENGTH) noexcept {
-		ASSERT(start < end);
+		assert(start < end);
 		size_t _end = end;
 		if (_end > size()) {
 			_end = load();
@@ -202,7 +202,7 @@ public:
 #endif
 		          });
 
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 	          }
 
 	/// NOTE: single threded
@@ -223,7 +223,7 @@ public:
 	/// zero a list
 	/// \param tid
 	constexpr void zero(const uint32_t tid=0) noexcept {
-		ASSERT(tid < __threads);
+		assert(tid < __threads);
 		for (size_t i = start_pos(tid); i < end_pos(tid); ++i) {
 			if (data_value()) {
 				__data_value[i].zero();
@@ -236,26 +236,26 @@ public:
 	/// zeros a single element
 	/// \param i
 	constexpr void zero_element(const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		__data_value[i].zero();
 		__data_label[i].zero();
 	}
 
 	/// iterator are useless in this class
-	[[nodiscard]] auto begin() noexcept { ASSERT(false); return nullptr; }
-	[[nodiscard]] auto end() noexcept { ASSERT(false); return nullptr; }
+	[[nodiscard]] auto begin() noexcept { assert(false); return nullptr; }
+	[[nodiscard]] auto end() noexcept { assert(false); return nullptr; }
 
 	[[nodiscard]] constexpr inline ValueType* data_value() noexcept { return (ValueType *)__data_value.data() ; }
 	[[nodiscard]] constexpr inline const ValueType* data_value() const noexcept { return (ValueType *)__data_value.data(); }
 	[[nodiscard]] constexpr inline LabelType* data_label() noexcept { return (LabelType *)__data_label.data(); }
 	[[nodiscard]] constexpr inline const LabelType* data_label() const noexcept { return (const LabelType *)__data_label.data(); }
 
-	[[nodiscard]] constexpr inline ValueType& data_value(const size_t i) noexcept {  ASSERT(i < __size); return __data_value[i]; }
-	[[nodiscard]] constexpr inline const ValueType& data_value(const size_t i) const noexcept { ASSERT(i < __size); return __data_value[i]; }
-	[[nodiscard]] constexpr inline LabelType& data_label(const size_t i) noexcept { ASSERT(i < __size); return __data_label[i]; }
-	[[nodiscard]] constexpr inline const LabelType& data_label(const size_t i) const noexcept { ASSERT(i < __size); return __data_label[i]; }
+	[[nodiscard]] constexpr inline ValueType& data_value(const size_t i) noexcept {  assert(i < __size); return __data_value[i]; }
+	[[nodiscard]] constexpr inline const ValueType& data_value(const size_t i) const noexcept { assert(i < __size); return __data_value[i]; }
+	[[nodiscard]] constexpr inline LabelType& data_label(const size_t i) noexcept { assert(i < __size); return __data_label[i]; }
+	[[nodiscard]] constexpr inline const LabelType& data_label(const size_t i) const noexcept { assert(i < __size); return __data_label[i]; }
 
-	/// \return number of bytes the list contains of
+	/// \return: number of bytes the list contains of
 	[[nodiscard]] constexpr inline uint64_t bytes() const noexcept {
 		if (__data_value == nullptr) {
 			return size() * sizeof(LabelType);

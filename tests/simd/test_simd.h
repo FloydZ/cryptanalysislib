@@ -9,7 +9,7 @@
 		}
 	}
 
-	ASSERT_EQ(atleast_one_not_zero, true);
+	EXPECT_EQ(atleast_one_not_zero, true);
 }
 
 // the apple compiler cannot handle to much constexpr magic

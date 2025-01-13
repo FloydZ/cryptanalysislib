@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_CONTAINER_IMAP_H
 
 #include <cstdint>
+#include <cassert>
 
 #include "helper.h"
 #include "simd/simd.h"
@@ -254,7 +255,7 @@ public:
             tree->vec32[imap__tree_nfre__] = *(uint32_t *)((uint8_t *)tree + mark);
 		} else {
             mark = tree->vec32[imap__tree_mark__];
-            ASSERT(mark + sizeof(imap_node_t) <= tree->vec32[imap__tree_size__]);
+            assert(mark + sizeof(imap_node_t) <= tree->vec32[imap__tree_size__]);
             tree->vec32[imap__tree_mark__] = mark + sizeof(imap_node_t);
         }
         return mark;
@@ -455,7 +456,7 @@ public:
             if (!(sval & imap__slot_node__)) {
                 if ((sval & imap__slot_value__) && 
 					(imap__node_prefix__(node) == (x & ~0xfull))) {
-                    ASSERT(0 == posn);
+                    assert(0 == posn);
                     return slot;
                 }
 
@@ -494,7 +495,7 @@ public:
 				}
 
                 diff = imap__xpos__(prfx ^ x);
-                ASSERT(diff < 16);
+                assert(diff < 16);
                 for (stacki = stackp; diff > posn;) {
                     posn = posnstack[--stacki];
 				}
@@ -502,7 +503,7 @@ public:
                 if (stacki != stackp) {
                     slot = slotstack[stacki];
                     sval = *slot;
-                    ASSERT(sval & imap__slot_node__);
+                    assert(sval & imap__slot_node__);
                     newmark = imap__alloc_node__(tree);
                     *slot = (*slot & imap__slot_pmask__) | imap__slot_node__ | newmark;
                     newnode = imap__node__(tree, newmark);
@@ -535,7 +536,7 @@ public:
 	/// \param slot
 	/// \return
     [[nodiscard]] constexpr inline bool hasval(const imap_slot_t *slot) noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return sval & imap__slot_value__;
     }
@@ -543,7 +544,7 @@ public:
 	/// \param slot
 	/// \return
     [[nodiscard]] constexpr inline uint64_t getval(const imap_slot_t *slot) const noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (!imap__slot_boxed__(sval)) {
 			return sval >> imap__slot_shift__;
@@ -557,7 +558,7 @@ public:
 	/// \param slot
 	/// \return
     [[nodiscard]] constexpr uint32_t getval0(const imap_slot_t *slot) const noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return sval >> imap__slot_shift__;
     }
@@ -565,7 +566,7 @@ public:
 	/// \param slot
 	/// \return
     [[nodiscard]] constexpr uint64_t getval64(const imap_slot_t *slot) const noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return tree->vec64[sval >> imap__slot_shift__];
     }
@@ -573,7 +574,7 @@ public:
 	/// \param slot
 	/// \return
     [[nodiscard]] constexpr imap_u128 getval128(const imap_slot_t *slot) const noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return tree->vec128[sval >> (imap__slot_shift__ + 1)];
     }
@@ -583,7 +584,7 @@ public:
 	/// \return
     constexpr void setval(imap_slot_t *slot,
 	                      const uint64_t y) noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (y < (1 << (imap__slot_sbits__))) {
             if (imap__slot_boxed__(sval)) {
@@ -598,12 +599,12 @@ public:
                 if (!sval) {
                     sval = imap__alloc_val__(tree);
 				}
-                ASSERT(sval >> imap__slot_shift__);
+                assert(sval >> imap__slot_shift__);
                 tree->vec32[imap__tree_vfre__] = (uint32_t)tree->vec64[sval >> imap__slot_shift__];
             }
 
-            ASSERT(!(sval & imap__slot_node__));
-            ASSERT(imap__slot_boxed__(sval));
+            assert(!(sval & imap__slot_node__));
+            assert(imap__slot_boxed__(sval));
             *slot = (*slot & imap__slot_pmask__) | sval;
             tree->vec64[sval >> imap__slot_shift__] = y;
         }
@@ -614,47 +615,47 @@ public:
 	/// \param y
     constexpr void setval0(imap_slot_t *slot,
 	                      const uint32_t y) noexcept{
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         *slot = (*slot & imap__slot_pmask__) | imap__slot_scalar__ | (uint32_t)(y << imap__slot_shift__);
     }
 
     constexpr void setval64(imap_slot_t *slot,
 	                        const uint64_t y) noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (!(sval >> imap__slot_shift__)) {
             sval = tree->vec32[imap__tree_vfre__];
             if (!sval) {
 				sval = imap__alloc_val__(tree);
 			}
-            ASSERT(sval >> imap__slot_shift__);
+            assert(sval >> imap__slot_shift__);
             tree->vec32[imap__tree_vfre__] = (uint32_t)tree->vec64[sval >> imap__slot_shift__];
         }
-        ASSERT(!(sval & imap__slot_node__));
-        ASSERT(imap__slot_boxed__(sval));
+        assert(!(sval & imap__slot_node__));
+        assert(imap__slot_boxed__(sval));
         *slot = (*slot & imap__slot_pmask__) | sval;
         tree->vec64[sval >> imap__slot_shift__] = y;
     }
 
     constexpr void setval128(imap_slot_t *slot,
 					    	 const imap_u128 y) noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (!(sval >> imap__slot_shift__)) {
             sval = tree->vec32[imap__tree_vfre__];
             if (!sval)
                 sval = imap__alloc_val128__(tree);
-            ASSERT(sval >> imap__slot_shift__);
+            assert(sval >> imap__slot_shift__);
             tree->vec32[imap__tree_vfre__] = (uint32_t)tree->vec128[sval >> (imap__slot_shift__ + 1)].v[0];
         }
-        ASSERT(!(sval & imap__slot_node__));
-        ASSERT(imap__slot_boxed__(sval));
+        assert(!(sval & imap__slot_node__));
+        assert(imap__slot_boxed__(sval));
         *slot = (*slot & imap__slot_pmask__) | sval;
         tree->vec128[sval >> (imap__slot_shift__ + 1)] = y;
     }
 
     constexpr inline void delval(imap_slot_t *slot) noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (imap__slot_boxed__(sval)) {
             tree->vec64[sval >> imap__slot_shift__] = tree->vec32[imap__tree_vfre__];
@@ -664,13 +665,13 @@ public:
     }
 
     [[nodiscard]] constexpr inline uint64_t *addrof64(imap_slot_t *slot) noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return &tree->vec64[sval >> imap__slot_shift__];
     }
 
     [[nodiscard]] constexpr inline imap_u128 *addrof128(imap_slot_t *slot) noexcept {
-        ASSERT(!(*slot & imap__slot_node__));
+        assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         return &tree->vec128[sval >> (imap__slot_shift__ + 1)];
     }
@@ -688,7 +689,7 @@ public:
             if (!(sval & imap__slot_node__)) {
                 if ((sval & imap__slot_value__) &&
 				    (imap__node_prefix__(node) == (x & ~0xfull))) {
-                    ASSERT(0 == posn);
+                    assert(0 == posn);
                     delval(slot);
                 }
                 while (stackp)
@@ -724,7 +725,7 @@ public:
             if (!(sval & imap__slot_node__)) {
                 prfx = imap__node_prefix__(node);
                 if ((sval & imap__slot_value__) && prfx == (x & ~0xfull)) {
-                    ASSERT(0 == posn);
+                    assert(0 == posn);
                     return imap__pair__(prfx | dirn, slot);
                 }
                 if (iter->stackp)

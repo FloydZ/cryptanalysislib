@@ -592,7 +592,7 @@ TEST(StealingScheduler, clear_task_same_task) {
 		auto clear_func = [&pool]() noexcept {
 			try {
 				const auto t = pool.clear_tasks();
-                ASSERT(t);
+                assert(t);
 			} catch (...) {
 			}
 		};
@@ -682,7 +682,7 @@ TEST(Thread, Simple) {
 		});
 	}
 
-	ASSERT_TRUE(queue.empty());
+	EXPECT_TRUE(queue.empty());
 	EXPECT_EQ(removed_count, 3);
 };
 #endif // __APPLE__

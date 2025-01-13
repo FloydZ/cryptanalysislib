@@ -110,25 +110,6 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 #include <iostream>
 
 #ifdef DEBUG
-#include <cassert>
-#ifdef USE_ARM
-#include <cstdlib>
-// NOTE that's the BUG. GCC on arm `assert` is not constexpr
-#define ASSERT(x)										\
-do {													\
-	if (!(x)) {											\
-		exit(EXIT_FAILURE);								\
-	}													\
-} while(0);
-
-#else
-#define ASSERT(x) assert(x)
-#endif
-#else
-#define ASSERT(x)
-#endif
-
-#ifdef DEBUG
 #ifndef DEBUG_MACRO
 #define DEBUG_MACRO(x) x
 #endif
@@ -259,7 +240,8 @@ constexpr inline void constexpr_for(F &&f) noexcept {
 static void translate_level(uint32_t *lower,
                             uint32_t *upper, const uint32_t level,
                             const std::vector<uint32_t> &level_translation_array) noexcept {
-	ASSERT(lower != NULL && upper != NULL);
+	assert(lower != NULL);
+	assert(upper != NULL);
 
 	// this is actually mostly only for testing.
 	if (unlikely(level == uint32_t(-1))) {
@@ -270,7 +252,7 @@ static void translate_level(uint32_t *lower,
 
 	// we __MUST__ check this after the 'if' clause,
 	// because otherwise this would catch the -1 test case
-	ASSERT(level <= level_translation_array.size() - 1u);
+	assert(level <= level_translation_array.size() - 1u);
 
 	*lower = level_translation_array[level];
 	*upper = level_translation_array[level + 1u];

@@ -7,6 +7,7 @@
 #include "memory/memory.h"
 #include "algorithm/algorithm.h"
 #include "alloc/alloc.h"
+#include "simd/simd.h"
 
 // TODO multiple parallel histograms, result in a speedup?
 
@@ -26,6 +27,8 @@ constexpr static uint32_t histogram_csize = 256;
 #define HISTEND4(_c_,_cnt_) HISTEND(_c_,4,_cnt_)
 
 #ifdef USE_AVX512F
+#include <immintrin.h>
+
 // this is way slower than the org one
 constexpr static void avx512_histogram_u8_1x(uint32_t cnt[256],
 									  		 const uint8_t *__restrict in,
@@ -98,9 +101,9 @@ static void avx512_histogram_u32_v3(uint32_t C[256],
 
 /// using popcnt
 /// NOTE: inputs are uint32_t: with values < 2**8
-/// @param C
-/// @param A
-/// @param size
+/// \param C
+/// \param A
+/// \param size
 static void avx512_histogram_u32_v4(uint32_t C[256],
 									const uint32_t *A,
 									const size_t size) noexcept {
@@ -117,7 +120,8 @@ static void avx512_histogram_u32_v4(uint32_t C[256],
 
 
 
-
+///
+static inline 
 void FA(__m512i& h, __m512i& l, __m512i a, __m512i b, __m512i c) {
     //__m512i tmp = _mm512_ternarylogic_epi32(c, b, a, 0x96);
     //h = _mm512_ternarylogic_epi32(c, b, a, 0xE8);    
@@ -228,10 +232,11 @@ void hist256_2(uint8_t* ptr, size_t N, uint32_t* histogram) {
 
     // Input bytes are binned into buffers; 0 for 0-63, 1 for 64-127, 2 for 128-191, 3 for 192-255.
     const size_t bufsize = 1024 * 16;
-    uint8_t* buffer0 = (uint8_t*)_aligned_malloc(bufsize * 4, 64);
-    uint8_t* buffer1 = buffer0 + bufsize;
-    uint8_t* buffer2 = buffer1 + bufsize;
-    uint8_t* buffer3 = buffer2 + bufsize;
+    //  = (uint8_t*)_aligned_malloc(bufsize * 4, 64);
+    uint8_t  buffer0[bufsize*4] __attribute__((aligned(64)));
+    uint8_t *buffer1 = buffer0 + bufsize;
+    uint8_t *buffer2 = buffer1 + bufsize;
+    uint8_t *buffer3 = buffer2 + bufsize;
 
     while (N >= 64) {
         // Consume up to 65472 (i.e. 2^^16 - 64) bytes, accumulating into 256x 16-bit counters.
@@ -295,7 +300,7 @@ void hist256_2(uint8_t* ptr, size_t N, uint32_t* histogram) {
         }
     }
 
-    _aligned_free(buffer0);
+    // _aligned_free(buffer0);
 
     // Scalar loop to deal with any remaining input.
     while (N) {

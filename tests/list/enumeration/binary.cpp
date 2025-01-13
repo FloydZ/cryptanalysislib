@@ -241,7 +241,7 @@ TEST(F2, single_hashmap) {
 		const auto pos = hm.find(data, load);
 
 		// make sure we found something
-		ASSERT_NE(pos, size_t(-1));
+		EXPECT_NE(pos, size_t(-1));
 	}
 }
 

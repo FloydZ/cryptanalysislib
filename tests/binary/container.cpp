@@ -393,28 +393,28 @@ TEST(Static_Add, Probabilistic){
 
 			for(uint64_t k = 0; k < k_lower; k++){
 				if(k < 64){
-					ASSERT_EQ(b3.get_bit_shifted(k), (e>>k) & 1);
+					EXPECT_EQ(b3.get_bit_shifted(k), (e>>k) & 1);
 				}
 				else {
-					ASSERT_EQ(b3.get_bit_shifted(k), (f>>k) & 1);
+					EXPECT_EQ(b3.get_bit_shifted(k), (f>>k) & 1);
 				}
 			}
 
 			for(uint64_t k = k_lower; k < k_upper; k++){
 				if(k < 64){
-					ASSERT_EQ(b3.get_bit_shifted(k), ((a^c) >> k) & 1);
+					EXPECT_EQ(b3.get_bit_shifted(k), ((a^c) >> k) & 1);
 				}
 				else {
-					ASSERT_EQ(b3.get_bit_shifted(k), ((b^d) >> (k-64)) & 1);
+					EXPECT_EQ(b3.get_bit_shifted(k), ((b^d) >> (k-64)) & 1);
 				}
 			}
 
 			for(uint64_t k = k_upper; k < 128; k++){
 				if(k < 64){
-					ASSERT_EQ(b3.get_bit_shifted(k), (e>>k) & 1);
+					EXPECT_EQ(b3.get_bit_shifted(k), (e>>k) & 1);
 				}
 				else {
-					ASSERT_EQ(b3.get_bit_shifted(k), (f>>(k-64)) & 1);
+					EXPECT_EQ(b3.get_bit_shifted(k), (f>>(k-64)) & 1);
 				}
 			}
 		}
@@ -451,26 +451,26 @@ TEST(Add, Probabilistic){
 
 			for(uint64_t k = 0; k < k_lower; k++){
 				if(k < 64){
-					ASSERT_EQ(b1.get_bit_shifted(k), (a>>k) & 1);
+					EXPECT_EQ(b1.get_bit_shifted(k), (a>>k) & 1);
 				}
 				else {
-					ASSERT_EQ(b1.get_bit_shifted(k), (b>>(k-64)) & 1);
+					EXPECT_EQ(b1.get_bit_shifted(k), (b>>(k-64)) & 1);
 				}
 			}
 			for(uint64_t k = k_lower; k < k_upper; k++){
 				if(k < 64){
-					ASSERT_EQ(b1.get_bit_shifted(k), ((a^c) >> k) & 1);
+					EXPECT_EQ(b1.get_bit_shifted(k), ((a^c) >> k) & 1);
 				}
 				else {
-					ASSERT_EQ(b1.get_bit_shifted(k), ((b^d) >> (k - 64)) & 1);
+					EXPECT_EQ(b1.get_bit_shifted(k), ((b^d) >> (k - 64)) & 1);
 				}
 			}
 			for(uint64_t k = k_upper; k < 128; k++){
 				if(k < 64){
-					ASSERT_EQ(b1.get_bit_shifted(k), (a>>k) & 1);
+					EXPECT_EQ(b1.get_bit_shifted(k), (a>>k) & 1);
 				}
 				else {
-					ASSERT_EQ(b1.get_bit_shifted(k), (b>>(k - 64)) & 1);
+					EXPECT_EQ(b1.get_bit_shifted(k), (b>>(k - 64)) & 1);
 				}
 			}
 		}
@@ -496,7 +496,7 @@ TEST(Add, Norm){
 		uint64_t norm = (k_lower+k_upper) / 2;
 
 		bool result = BinaryContainerTest::add(b3, b2, b1, k_lower, k_upper, norm);
-		ASSERT_EQ(true, result);
+		EXPECT_EQ(true, result);
 	}
 }
 

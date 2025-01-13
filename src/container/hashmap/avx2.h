@@ -24,8 +24,10 @@ public:
 	                            const uint64_t nr_buckets,
 	                            const uint32_t low,
 	                            const uint32_t high,
-	                            const uint32_t threads = 1u) : bucket_size(bucket_size), nr_buckets(nr_buckets),
-	                                                           low(low), high(high), threads(threads){};
+	                            const uint32_t threads = 1u) :
+        bucket_size(bucket_size), nr_buckets(nr_buckets), low(low), high(high), 
+        threads(threads)
+    {};
 };
 
 
@@ -74,7 +76,8 @@ public:
 	// we need different hash functions
 	// This is the simplest version of a hash function. It extracts the bits between l and h
 	// and returns them with zero alignment
-	template<const uint32_t l, const uint32_t h>
+	template<const uint32_t l, 
+             const uint32_t h>
 	constexpr inline static TLimbType HashSimple(const uint64_t a) noexcept {
 		static_assert(l < h);
 		static_assert(h < 64);
@@ -84,14 +87,16 @@ public:
 	}
 
 	// Broadcast on every 32 bit limb within the avx register
-	template<const uint32_t l, const uint32_t h>
+	template<const uint32_t l,
+             const uint32_t h>
 	constexpr inline static T HashBroadCast(const uint64_t a) noexcept {
 		const TLimbType b = HashSimple<l, h>(a);
 		return T::set1(b);
 	}
 
 	///
-	template<const uint32_t l, const uint32_t h>
+	template<const uint32_t l,
+             const uint32_t h>
 	constexpr inline static T HashAVX(const T &a) noexcept {
 		constexpr TLimbType mask1 = (~((TLimbType(1u) << l) - 1u)) & ((TLimbType(1u) << h) - 1u);
 		constexpr T mask2 = T::set1(mask1);
@@ -114,8 +119,7 @@ public:
 		}
 	}
 
-	///
-	/// \return
+	/// \return: pointer to th internal data array
 	constexpr inline internal_type *ptr() noexcept {
 		return __buckets.data();
 	}
@@ -124,44 +128,40 @@ public:
 	/// \param i
 	/// \return
 	constexpr inline data_type ptr(const index_type i) noexcept {
-		ASSERT(i < total_size);
+		assert(i < total_size);
 		return (data_type) __buckets[i][0];
 	}
 
 	// return 'load' factor
 	constexpr inline LoadType load(const TLimbType bid) noexcept {
-		ASSERT(bid < nrb);
+		assert(bid < nrb);
 		return __load[bid];
 	}
 
-	///
-	/// \param bucket_index
-	/// \param inner_bucket_index
-	/// \param bid
-	/// \param load
-	/// \return
+	/// \param bucket_index[out]:
+	/// \param inner_bucket_index[out]:
+	/// \param bid[in]:
+	/// \param load[in]:
 	constexpr inline void bucket_offset(size_t &bucket_index,
 	                                    size_t &inner_bucket_index,
 	                                    const TLimbType bid,
 	                                    const TLimbType load) noexcept {
-		ASSERT(bid < nrb);
-		ASSERT(load < sizeb);
+		assert(bid < nrb);
+		assert(load < sizeb);
 
 		bucket_index = bid * sizeb + load;
 		inner_bucket_index = bucket_index % nr_elements_container;
 		bucket_index = bucket_index / nr_elements_container;
 	}
 
-
-	///
-	/// \param bucket_index
-	/// \param inner_bucket_index
-	/// \param bid
-	/// \param load
+	/// \param bucket_index[out]:
+	/// \param inner_bucket_index[out]:
+	/// \param bid[in]
+	/// \param load[in]
 	constexpr inline void bucket_offset_avx(T &bucket_index,
-	                              T &inner_bucket_index,
-	                              const T bid,
-	                              const T load) noexcept {
+	                                        T &inner_bucket_index,
+	                                        const T bid,
+	                                        const T load) noexcept {
 		constexpr T avxsizeb = T::set1(sizeb);
 
 		// mod 8 is the same as &7
@@ -172,7 +172,7 @@ public:
 		bucket_index = bucket_index >> 3u;
 	}
 
-	// insert a single element
+	/// insert a single element
 	constexpr void insert_simple(const TLimbType data,
 	                             const TLimbType index) noexcept {
 		const TLimbType bid = HashSimple<low, high>(data);
@@ -192,9 +192,9 @@ public:
 		__load[bid] += 1;
 	}
 
-	// nearly fullly avx implementation
+	/// nearly fullly avx implementation
 	constexpr void insert_simd(const T &data,
-	                 const T &index) noexcept {
+	                           const T &index) noexcept {
 		const T bid = HashAVX<low, high>(data);
 		T bucket_index{}, inner_bucket_index{}, load{};
 		bucket_offset_avx(bucket_index, inner_bucket_index, bid, load);

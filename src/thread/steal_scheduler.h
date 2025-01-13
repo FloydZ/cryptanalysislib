@@ -19,6 +19,7 @@
 #include <deque>
 #include <mutex>
 #include <optional>
+#include <cassert>
 
 // TODO only available on unix
 #include <sys/resource.h>
@@ -47,7 +48,7 @@ namespace cryptanalysislib {
 
 		/// TODO: apple does not suport jthread
 #ifdef __APPLE__
-		using default_thread_type = std::jthread;
+		using default_thread_type = std::thread;
 #else 
 		using default_thread_type = std::jthread;
 #endif
@@ -91,7 +92,8 @@ namespace cryptanalysislib {
 		///// get the needed values
 		void gather() noexcept {
 			if (getrusage(RUSAGE_THREAD, (rusage *)&data) != 0) {
-				ASSERT(false);
+                // TODO: what happen in this case
+				assert(false);
 			}
 		}
 
@@ -296,15 +298,21 @@ namespace cryptanalysislib {
 				std::cout << std::endl;
 			}
 		}
+        
+        /// start running the scheduler
+		void serve() noexcept {
+			assert(server);
+			server_thread.join();
+		}
 
-		/// \param nr_threads
-		/// \return nothing
+		/// \param nr_threads[i]: set the number of threads available to the 
+        ///     scheduler.
 		constexpr void resize(const uint32_t nr_threads) noexcept {
-			ASSERT(nr_threads);
+			assert(nr_threads);
 			schedulerPerformance.schedulerThreadLoad.resize(nr_threads);
 		}
 
-		/// write the
+		/// write the gathered benchmark information.
 		void send() noexcept {
 			const auto data = rfl::json::write(schedulerPerformance);
 			std::cout << "sending data:" << std::endl;
@@ -315,17 +323,11 @@ namespace cryptanalysislib {
 				std::cout << "Error writing" << std:: endl;
 			}
 		}
-
-		void serve() noexcept {
-			ASSERT(server);
-			server_thread.join();
-		}
-
        
         /// gather performance metrics for thread `tid`
 		/// \param tid thread id
 		constexpr inline void gather(const uint32_t tid) noexcept {
-			ASSERT(tid < schedulerPerformance.schedulerThreadLoad.size());
+			assert(tid < schedulerPerformance.schedulerThreadLoad.size());
 			schedulerPerformance.schedulerThreadLoad[tid].gather();
 		}
 
@@ -344,7 +346,7 @@ namespace cryptanalysislib {
 		/// \param tid thread id
 		/// \return
 		constexpr inline SchedulerThreadLoad& operator[](const uint32_t tid) noexcept {
-			ASSERT(tid < schedulerPerformance.schedulerThreadLoad.size());
+			assert(tid < schedulerPerformance.schedulerThreadLoad.size());
 			return schedulerPerformance.schedulerThreadLoad[tid];
 		}
 	};
@@ -558,16 +560,12 @@ namespace cryptanalysislib {
 			enqueue_task(std::move([f = std::forward<Function>(func),
 			                        ... largs =
 			                                std::forward<Args>(args)]() mutable -> decltype(auto) {
-				// suppress exceptions
-				//try {
-					if constexpr (std::is_same_v<void,std::invoke_result_t<Function &&, Args &&...>>) {
-						std::invoke(f, largs...);
-					} else {
-						// the function returns an argument, but can be ignored
-						std::ignore = std::invoke(f, largs...);
-					}
-				//} catch (...) {
-				//}
+				if constexpr (std::is_same_v<void,std::invoke_result_t<Function &&, Args &&...>>) {
+					std::invoke(f, largs...);
+				} else {
+					// the function returns an argument, but can be ignored
+					std::ignore = std::invoke(f, largs...);
+				}
 			}));
 		}
 
@@ -614,26 +612,26 @@ namespace cryptanalysislib {
 		}
 
         /// Get number of enqueued tasks.
-        /// \return Number of tasks that have been enqueued but not yet started.
+        /// \return: Number of tasks that have been enqueued but not yet started.
 		[[nodiscard]] constexpr size_t get_num_queued_tasks() const {
 			return tasks_.size();
 		}
 
         /// Get number of in-progress tasks.
-        /// @return Approximate number of tasks currently being processed by 
+        /// \return Approximate number of tasks currently being processed by 
         ///     worker threads.
 		[[nodiscard]] constexpr size_t get_num_running_tasks() const noexcept {
 			return in_flight_tasks_.load();
 		}
 
         /// Get total number of tasks in the pool.
-        /// @return Approximate number of tasks both enqueued and running.
+        /// \return Approximate number of tasks both enqueued and running.
 		[[nodiscard]] constexpr size_t get_num_tasks() const noexcept {
 			return tasks_.size() + in_flight_tasks_.load();
 		}
 
-        ///  brief Returns the number of threads in the pool.
-        /// @return std::size_t The number of threads in the pool.
+        /// brief Returns the number of threads in the pool.
+        /// \return std::size_t The number of threads in the pool.
 		[[nodiscard]] constexpr inline auto size() const noexcept { return threads_.size(); }
         [[nodiscard]] constexpr inline auto get_num_threads() const noexcept { return size(); }
 

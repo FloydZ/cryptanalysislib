@@ -65,8 +65,8 @@ public:
 	/// \param n num bits <= RADIX
 	/// \return
 	constexpr inline T read_bits(T const x, T const y, uint32_t const n) const noexcept {
-		ASSERT(x < nrows);
-		ASSERT(y + n <= ncols);
+		assert(x < nrows);
+		assert(y + n <= ncols);
 
 		uint32_t const spot = y % RADIX;
 		uint32_t const block = y / RADIX;
@@ -233,10 +233,10 @@ public:
 			for (uint32_t j = 0; j < cols; ++j) {
 				strncpy(input, data + i * cols + j, 1);
 				const int a = atoi(input);
-				ASSERT(a >= 0);
+				assert(a >= 0);
 
 				const uint32_t aa = a;
-				ASSERT(aa < q);
+				assert(aa < q);
 
 				set(DataType(aa), i, j);
 			}
@@ -249,12 +249,12 @@ public:
 	}
 
 	constexpr inline T *row(const uint32_t j) noexcept {
-		ASSERT(j < nrows);
+		assert(j < nrows);
 		return __data.data() + padded_limbs * j;
 	}
 
 	constexpr inline T const *row(const uint32_t j) const noexcept {
-		ASSERT(j < nrows);
+		assert(j < nrows);
 		return __data.data() + padded_limbs * j;
 	}
 
@@ -262,8 +262,8 @@ public:
 	/// \param i row
 	/// \param j colum
 	constexpr inline void set(const bool data, const uint32_t i, const uint32_t j) noexcept {
-		ASSERT(i < nrows);
-		ASSERT(j < ncols);
+		assert(i < nrows);
+		assert(j < ncols);
 		T *truerow = row(i);
 		const uint32_t spot = j % RADIX;
 		truerow[j / RADIX] = ((truerow[j / RADIX]) & ~(one << spot)) | (T(data) << (spot));
@@ -280,7 +280,7 @@ public:
 	/// \param j
 	/// \return
 	constexpr const T *operator[](const uint32_t j) const {
-		ASSERT(j < nrows);
+		assert(j < nrows);
 		return row(j);
 	}
 
@@ -288,7 +288,7 @@ public:
 	/// \param j
 	/// \return
 	constexpr T *operator[](const uint32_t j) {
-		ASSERT(j < nrows);
+		assert(j < nrows);
 		return row(j);
 	}
 
@@ -297,7 +297,7 @@ public:
 	/// \param j colum
 	/// \return entry in this place
 	[[nodiscard]] constexpr inline DataType get(const uint32_t i, const uint32_t j) const noexcept {
-		ASSERT(i < nrows && j <= ncols);
+		assert(i < nrows && j <= ncols);
 		const T *truerow = row(i);
 		return ((truerow[j / RADIX]) >> (j % RADIX)) & one;
 	}
@@ -305,7 +305,7 @@ public:
 	/// \param i row number (zero indexed)
 	/// \return a const ref to a row
 	[[nodiscard]] constexpr inline RowType get(const uint32_t i) const noexcept {
-		ASSERT(i < nrows);
+		assert(i < nrows);
 		return (const RowType) __data.data() + padded_limbs * i;
 	}
 
@@ -333,7 +333,7 @@ public:
 	/// \param row
 	/// \return
 	constexpr void zero_row(const uint32_t row) noexcept {
-		ASSERT(row < nrows);
+		assert(row < nrows);
 		for (uint32_t i = 0; i < padded_limbs; ++i) {
 			__data[row * padded_limbs + i] = 0;
 		}
@@ -400,7 +400,7 @@ public:
 	/// \param col
 	/// \return
 	constexpr inline uint32_t column_popcnt(const uint32_t col) const noexcept {
-		ASSERT(col < ncols);
+		assert(col < ncols);
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < nrows; ++i) {
 			ret += get(i, col);
@@ -413,7 +413,7 @@ public:
 	/// \param rrow
 	/// \return
 	constexpr inline uint32_t row_popcnt(const uint32_t rrow) const noexcept {
-		ASSERT(rrow < nrows);
+		assert(rrow < nrows);
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < limbs; ++i) {
 			ret += popcount::template popcount<T>(row(rrow)[i]);
@@ -482,7 +482,7 @@ public:
 	constexpr static inline void row_xor(FqMatrix &M,
 	                                     const uint32_t i,
 	                                     const uint32_t j) noexcept {
-		ASSERT(nrows > i && nrows > j);
+		assert(nrows > i && nrows > j);
 		constexpr uint32_t CTR = alignment / RADIX;
 		uint32_t l = 0;
 
@@ -511,7 +511,7 @@ public:
 	constexpr static inline void row_xor(T *out,
 	                                     const uint32_t i,
 	                                     const uint32_t j) noexcept {
-		ASSERT(nrows > i && nrows > j);
+		assert(nrows > i && nrows > j);
 		constexpr uint32_t CTR = alignment / RADIX;
 		uint32_t l = 0;
 
@@ -533,7 +533,7 @@ public:
 	                                     const uint32_t i,
 	                                     const FqMatrix &in,
 	                                     const uint32_t j) noexcept {
-		ASSERT(out->nrows > i && in->nrows > j);
+		assert(out->nrows > i && in->nrows > j);
 		uint32_t l = 0;
 		constexpr uint32_t CTR = alignment / RADIX;
 
@@ -664,13 +664,13 @@ public:
 	                                FqMatrix<T, nrows, ncols, q, true> &A,
 	                                const uint32_t srow,
 	                                const uint32_t scol) noexcept {
-		ASSERT(srow < nrows);
-		ASSERT(scol < ncols);
+		assert(srow < nrows);
+		assert(scol < ncols);
 		// checks must be transposed to
-		ASSERT(scol < nrows_prime);
-		ASSERT(srow < ncols_prime);
-		ASSERT(ncols <= nrows_prime);
-		ASSERT(nrows <= ncols_prime);
+		assert(scol < nrows_prime);
+		assert(srow < ncols_prime);
+		assert(ncols <= nrows_prime);
+		assert(nrows <= ncols_prime);
 
 
 		for (uint32_t i = srow; i < nrows; ++i) {
@@ -694,11 +694,11 @@ public:
 	                                    const FqMatrix &A,
 	                                    const uint32_t srow,
 	                                    const uint32_t scol) noexcept {
-		ASSERT(srow < nrows);
-		ASSERT(scol < ncols);
+		assert(srow < nrows);
+		assert(scol < ncols);
 		// checks must be transposed to
-		ASSERT(scol < nrows_prime);
-		ASSERT(srow < ncols_prime);
+		assert(scol < nrows_prime);
+		assert(srow < ncols_prime);
 
 		for (uint32_t row = srow; row < nrows; ++row) {
 			for (uint32_t col = scol; col < ncols; ++col) {
@@ -720,14 +720,14 @@ public:
 	                                 const FqMatrix &A,
 	                                 const uint32_t srow, const uint32_t scol,
 	                                 const uint32_t erow, const uint32_t ecol) {
-		ASSERT(srow < erow);
-		ASSERT(scol < ecol);
-		ASSERT(srow < nrows);
-		ASSERT(scol < ncols);
-		ASSERT(erow <= nrows);
-		ASSERT(ecol <= ncols);
-		ASSERT(erow - srow <= nrows_prime);
-		ASSERT(ecol - scol <= ncols_prime);
+		assert(srow < erow);
+		assert(scol < ecol);
+		assert(srow < nrows);
+		assert(scol < ncols);
+		assert(erow <= nrows);
+		assert(ecol <= ncols);
+		assert(erow - srow <= nrows_prime);
+		assert(ecol - scol <= ncols_prime);
 
 		const uint32_t ncols = ecol - scol;
 		const T end_mask = (1u << (ncols % RADIX)) - 1u;
@@ -796,7 +796,7 @@ public:
 		if (a_word == b_word) {
 			while (1) {
 				count_remaining -= count;
-				ASSERT(count_remaining == 0);
+				assert(count_remaining == 0);
 				ptr += a_word;
 				int fast_count = count / 4;
 				int rest_count = count - 4 * fast_count;
@@ -901,7 +901,7 @@ public:
 	constexpr static inline void swap_rows(T *out,
 	                                       const uint16_t i,
 	                                       const uint16_t j) noexcept {
-		ASSERT(nrows > i && nrows > j);
+		assert(nrows > i && nrows > j);
 		constexpr uint32_t CTR = alignment / RADIX;
 		uint32_t l = 0;
 
@@ -956,12 +956,12 @@ public:
 
 	constexpr void permute_cols(FqMatrix<T, ncols, nrows, q> &AT,
 	                            Permutation &P) noexcept {
-		ASSERT(ncols >= P.length);
+		assert(ncols >= P.length);
 
 		this->transpose(AT, *this, 0, 0);
 		for (uint32_t i = 0; i < P.length; ++i) {
 			uint32_t pos = rng(P.length - i);
-			ASSERT(i + pos < P.length);
+			assert(i + pos < P.length);
 
 			auto tmp = P.values[i];
 			P.values[i] = P.values[i + pos];
@@ -1013,8 +1013,8 @@ public:
 
 #ifdef DEBUG
 					for (uint32_t tmp = limbs + 1u; tmp < padded_limbs; ++tmp) {
-						ASSERT(M[i][tmp] == 0);
-						ASSERT(M[r + l][tmp] == 0);
+						assert(M[i][tmp] == 0);
+						assert(M[r + l][tmp] == 0);
 					}
 #endif
 				}
@@ -1031,8 +1031,8 @@ public:
 
 #ifdef DEBUG
 						for (uint32_t tmp = limbs + 1u; tmp < padded_limbs; ++tmp) {
-							ASSERT(M[l][tmp] == 0);
-							ASSERT(M[start_row][tmp] == 0);
+							assert(M[l][tmp] == 0);
+							assert(M[start_row][tmp] == 0);
 						}
 #endif
 					}
@@ -1080,10 +1080,10 @@ public:
 			};
 
 			for (uint32_t i = limbs; i < padded_limbs; ++i) {
-				ASSERT(*(Table + i) == 0);
-				ASSERT(M[r][i] == 0);
+				assert(*(Table + i) == 0);
+				assert(M[r][i] == 0);
 			}
-			ASSERT(isnonzero(r));
+			assert(isnonzero(r));
 #endif
 			xor_avx1_new((uint8_t *) M[r + diff[k][i]],
 			             (uint8_t *) TTable,
@@ -1093,9 +1093,9 @@ public:
 
 #ifdef DEBUG
 			for (uint32_t j = limbs; j < padded_limbs; ++j) {
-				ASSERT(M[i][j] == 0);
-				ASSERT(M[r + diff[k][i]][j] == 0);
-				ASSERT(*(TTable + j) == 0);
+				assert(M[i][j] == 0);
+				assert(M[r + diff[k][i]][j] == 0);
+				assert(*(TTable + j) == 0);
 			}
 #endif
 		}
@@ -1132,10 +1132,10 @@ public:
 				};
 
 				for (uint32_t i = limbs; i < padded_limbs; ++i) {
-					ASSERT(*(Table + x0 * padded_limbs + i) == 0);
-					ASSERT(M[r][i] == 0);
+					assert(*(Table + x0 * padded_limbs + i) == 0);
+					assert(M[r][i] == 0);
 				}
-				ASSERT(isnonzero(r));
+				assert(isnonzero(r));
 #endif
 				xor_avx1_new((uint8_t *) (Table + x0 * padded_limbs),
 				             (uint8_t *) M.row(r),
@@ -1144,9 +1144,9 @@ public:
 
 #ifdef DEBUG
 				for (uint32_t i = limbs; i < padded_limbs; ++i) {
-					ASSERT(M[r][i] == 0);
+					assert(M[r][i] == 0);
 				}
-				ASSERT(isnonzero(r));
+				assert(isnonzero(r));
 #endif
 			}
 		}
@@ -1267,7 +1267,7 @@ public:
 					if (get(i, j) != (i == j)) {
 						print();
 					}
-					ASSERT(get(i, j) == (i == j));
+					assert(get(i, j) == (i == j));
 				}
 			}
 		};
@@ -1325,7 +1325,7 @@ public:
 				}
 			}
 
-			ASSERT(get(i, i));
+			assert(get(i, i));
 			/// first clear above
 			for (uint32_t j = 0; j < nrows; ++j) {
 				if (i == j) continue;
@@ -1365,7 +1365,7 @@ public:
 			}
 
 			if (!found){
-				ASSERT(found);
+				assert(found);
 			}
 
 			for (uint32_t j = 0; j < nrows; ++j) {
@@ -1399,7 +1399,7 @@ public:
 
 	/// creates a rng row with weight w
 	constexpr inline void random_row_with_weight(const uint32_t row, const uint32_t w) {
-		ASSERT(row < nrows);
+		assert(row < nrows);
 
 		zero_row(row);
 
@@ -2354,7 +2354,7 @@ public:
 	                                              const uint32_t _nrows,
 	                                              const uint32_t _ncols,
 	                                              const uint32_t maxsize) noexcept {
-		ASSERT(maxsize >= 64);
+		assert(maxsize >= 64);
 
 		if (maxsize <= 512) {// just one big block
 			_mzd_transpose_base(fwd, fws, rowstride_dst, rowstride_src, _nrows, _ncols, maxsize);

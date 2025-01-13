@@ -1,6 +1,8 @@
 #ifndef CRYPTANALYSISLIB_THREAD_EXECUTION_H
 #define CRYPTANALYSISLIB_THREAD_EXECUTION_H
 
+#include <cassert>
+
 #ifdef USE_OPENCL
 
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
@@ -40,6 +42,7 @@ namespace internal {
 
 }; // end namespace cryptanalysislib::internal
 
+static
 void __attribute__((constructor)) cryptanalysislib_thread_init(){
     cryptanalysislib::internal::get_default_pool();
 }
@@ -53,7 +56,7 @@ struct execution_policy {
 /// A sequential policy that simply forwards to the non-policy overload.
 struct sequenced_policy : public execution_policy {
     [[nodiscard]] constexpr inline pool_type pool() const noexcept {
-        ASSERT("requested thread pool for seq policy.");
+        assert("requested thread pool for seq policy.");
         return nullptr;
     }
 

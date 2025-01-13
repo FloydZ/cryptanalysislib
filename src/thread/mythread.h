@@ -247,7 +247,7 @@ namespace cryptanalysislib {
 
 		/* Get pointer to our TCB structure */
 		self_ptr = __mythread_selfptr();
-		ASSERT(self_ptr);
+		assert(self_ptr);
 
 		/* Don't remove the node from the list yet. We still have to collect the return value */
 		self_ptr->state = DEFUNCT;
@@ -503,7 +503,7 @@ namespace cryptanalysislib {
 		mythread_private_t *self_ptr;
 
 		self_ptr = __mythread_selfptr();
-		ASSERT(self_ptr);
+		assert(self_ptr);
 		DEBUG_PRINTF("Join: Got tid: %ld\n", (unsigned long) self_ptr->tid);
 		mythread_private_t *target = mythread_q_search(target_thread.tid);
 

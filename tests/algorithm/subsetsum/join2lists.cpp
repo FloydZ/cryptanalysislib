@@ -625,12 +625,11 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_hashmap_v2) {
 			sols += 1;
 			const size_t a1 = hmOut[i*HMOut::bucketsize + j].first;
 			const size_t a2 = hmOut[i*HMOut::bucketsize + j].second;
-			ASSERT(a1 < l1.load());
-			ASSERT(a2 < l2.load());
+			assert(a1 < l1.load());
+			assert(a2 < l2.load());
 
 			Element::add(te, l1[a1], l2[a2]);
-			ASSERT(te.label.is_equal(target, k_lower, k_higher));
-			// EXPECT_EQ(true, target.is_equal(out[i].label, k_lower, k_higher));
+			assert(te.label.is_equal(target, k_lower, k_higher));
 		}
 	}
 

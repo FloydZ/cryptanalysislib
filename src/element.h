@@ -438,35 +438,43 @@ public:
 		value.print_binary(k_lower_value, k_upper_value);
 	}
 
-	template<const uint32_t l, const uint32_t h>
+	/// \tparam l[in]:
+	/// \tparam h[in]:
+	template<const uint32_t l,
+             const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
 		return label.template hash<l, h>();
 	}
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
-		ASSERT(l < h);
+		assert(l < h);
 		return label.hash(l, h);
 	}
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		return label.hash();
 	}
 
-	///
-	template<const uint32_t l, const uint32_t h>
+	/// \tparam l[in]:
+	/// \tparam h[in]:
+	template<const uint32_t l,
+             const uint32_t h>
 	constexpr static bool is_hashable() noexcept {
 		if constexpr (l == h) { return false; }
 		return LabelType::template is_hashable<l, h>();
 	}
 
+    /// \param l[in]:
+    /// \param h[in]:
+    /// \return if the container is hashhable. A container is hashable if 
+    ///     (h-l) <= 64 bits
 	constexpr static bool is_hashable(const uint32_t l,
 							   	      const uint32_t h) noexcept {
-		ASSERT(h > l);
+		assert(h > l);
 		return LabelType::is_hashable(l, h);
 	}
 
-
-
+    /// \return the label
 	[[nodiscard]] constexpr Value &get_value() noexcept { return value; }
 	[[nodiscard]] constexpr const Value &get_value() const noexcept { return value; }
 	[[nodiscard]] constexpr auto get_value(const size_t i) noexcept {

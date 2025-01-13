@@ -21,7 +21,7 @@ TEST(min, simple) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = cryptanalysislib::min(d.begin(), d.end());
-	ASSERT_EQ(t, 0);
+	EXPECT_EQ(t, 0);
 }
 
 TEST(min, simd_uint32_t) {
@@ -30,7 +30,7 @@ TEST(min, simd_uint32_t) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = min_simd_uXX(d, s);
-	ASSERT_EQ(t, 0);
+	EXPECT_EQ(t, 0);
 
 	delete[] d;
 }

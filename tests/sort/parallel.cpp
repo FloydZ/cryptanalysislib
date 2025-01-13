@@ -11,6 +11,7 @@ using namespace std;
 
 constexpr size_t listsize = 128;
 
+/// generate some random data
 template<typename T>
 void generate_list(std::vector<T> &data,
 				   const size_t len) noexcept {
@@ -30,7 +31,7 @@ TEST(pluggable_sort, std_sort_u8) {
 
     pluggable_sort(par_if(true), data.begin(), data.end(), std::sort);
 	for (size_t i = 0; i < listsize-1; ++i) {
-		ASSERT_LE(data[i], data[i+1]);
+		EXPECT_LE(data[i], data[i+1]);
 	}
 }
 
@@ -42,7 +43,7 @@ TEST(pluggable_mergesort, std_sort_u8) {
 
     pluggable_mergesort(par_if(true), data.begin(), data.end(), std::sort);
 	for (size_t i = 0; i < listsize-1; ++i) {
-		ASSERT_LE(data[i], data[i+1]);
+		EXPECT_LE(data[i], data[i+1]);
 	}
 }
 
@@ -54,7 +55,7 @@ TEST(pluggable_quicksort, std_sort_u8) {
 
     pluggable_quicksort(par_if(true), data.begin(), data.end(), std::sort);
 	for (size_t i = 0; i < listsize-1; ++i) {
-		ASSERT_LE(data[i], data[i+1]);
+		EXPECT_LE(data[i], data[i+1]);
 	}
 }
 

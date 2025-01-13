@@ -175,7 +175,7 @@ private:
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static uint32_t count_carry_propagates(const uint32_t in) noexcept {
-		ASSERT(in >= 2 && "insert bigger than 2");
+		assert(in >= 2);
 
 		const uint32_t prev = in - 2u;
 		uint32_t mask = 1ULL << 1u;
@@ -200,7 +200,7 @@ public:
 	    level_translation_array(),
 	    level_filter_array() {
 
-		ASSERT(d > 0);
+		assert(d > 0);
 		for (uint32_t i = 0; i < d + additional_baselists; ++i) {
 			List a{1u << baselist_size};
 			lists.push_back(a);
@@ -220,7 +220,7 @@ public:
 	                const List &b1,
 	                const List &b2) noexcept : matrix(A),
 	                                           level_translation_array() {
-		ASSERT(d > 0 && "at least level 1");
+		assert(d > 0 && "at least level 1");
 		lists.push_back(b1);
 		lists.push_back(b2);
 
@@ -266,10 +266,10 @@ public:
 	    matrix(A),
 	    level_translation_array(level_translation_array),
 	    level_filter_array(level_filter_array) {
-		ASSERT(d > 0 && "at least level 1");
-		ASSERT(level_translation_array.size() >= d);
+		assert(d > 0);
+		assert(level_translation_array.size() >= d);
 		for (uint32_t i = 1; i < d; ++i) {
-			ASSERT(level_translation_array[i - 1] <
+			assert(level_translation_array[i - 1] <
 			       level_translation_array[i]);
 		}
 		for (uint32_t i = 0; i < d + additional_baselists; ++i) {
@@ -300,7 +300,7 @@ public:
 	                std::vector<uint32_t> &level_translation_array) noexcept :
 	    matrix(A),
 	    level_translation_array(level_translation_array) {
-		ASSERT(d > 0 && "at least level 1");
+		assert(d > 0);
 		lists.push_back(b1);
 		lists.push_back(b2);
 
@@ -317,7 +317,7 @@ public:
 	// Andre: this just saves in default target list (lists[level+2])
 	/// \param level
 	void join_stream(const uint64_t level) noexcept {
-		ASSERT(lists.size() >= level + 1);
+		assert(lists.size() >= level + 1);
 		join_stream_internal(level, lists[level + 2]);
 	}
 
@@ -400,7 +400,7 @@ public:
 				join_stream(join_to_level - 1, lists[depth + 1]);
 
 			// Empty List.
-			ASSERT(lists[join_to_level + 2].get_load() != 0 && "list empty");
+			assert(lists[join_to_level + 2].get_load() != 0 && "list empty");
 
 			// if not finished: sort the resulting list
 			if (likely(i != (1ULL << (this->depth - 1)) - 1)) {
@@ -458,7 +458,8 @@ public:
 	///
 	/// \param i
 	/// \param intermediate_targets
-	void restore_baselists(int i, std::vector<std::vector<LabelType>> &intermediate_targets) noexcept {
+	void restore_baselists(const int i,
+                           std::vector<std::vector<LabelType>> &intermediate_targets) noexcept {
 		/// first, second are the positions of the lists to prepare
 		int first = 2 * i;
 		int second = 2 * i + 1;
@@ -648,7 +649,7 @@ public:
 	                       const LabelType &target,
 	                       const std::vector<uint32_t> &lta,
 	                       const bool prepare = true) noexcept {
-		ASSERT(lta.size() >= 2);
+		assert(lta.size() >= 2);
 		join2lists(out, L1, L2, target, lta[0], lta[1], prepare);
 	}
 
@@ -1509,28 +1510,28 @@ public:
 			const size_t s2 = hmL2.find(t1.value(), load2);
 			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
 				const size_t b1 = hmL2[l2];
-				ASSERT(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
-				ASSERT(L2[b1].is_correct(matrix));
-				ASSERT(b1 < L2.load());
+				assert(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
+				assert(L2[b1].is_correct(matrix));
+				assert(b1 < L2.load());
 
 				LabelType::sub(t2, target, L1[k].label);
 				LabelType::sub(t2, t2, L2[b1].label);
 
 				ElementType::add(te1, L1[k], L2[b1]);
-				ASSERT(te1.label.is_equal(iT, k_lower1, k_upper1));
-				ASSERT(te1.is_correct(matrix));
+				assert(te1.label.is_equal(iT, k_lower1, k_upper1));
+				assert(te1.is_correct(matrix));
 
 				// NOTE: its shifted
 				const size_t s1 = hmiL.find(t2.value(), load1);
 				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
 					const size_t a1 = hmiL[l1].first;
 					const size_t a2 = hmiL[l1].second;
-					ASSERT(a1 < L1.load());
-					ASSERT(a2 < L2.load());
+					assert(a1 < L1.load());
+					assert(a2 < L2.load());
 					ElementType::add(te2, L1[a1], L2[a2]);
 
-					ASSERT(te1.is_correct(matrix));
-					ASSERT(te2.is_correct(matrix));
+					assert(te1.is_correct(matrix));
+					assert(te2.is_correct(matrix));
 
 					ret += 1;
 
@@ -1542,7 +1543,7 @@ public:
 									<k_lower1, k_upper2>
 									(out[b2].label, te1.label, te2.label);
 
-							ASSERT(out[b2].is_correct(matrix));
+							assert(out[b2].is_correct(matrix));
 							out.set_load(b2+1);
 							// TODO only find a single solution
 							goto finish;
@@ -2334,8 +2335,8 @@ public:
 
 #ifdef DEBUG
 		for (size_t i = 0; i < iL.load(); ++i) {
-			ASSERT(iT.is_equal(iL[i].label, k_lower1, k_upper1));
-			ASSERT(iL[i].is_correct(matrix));
+			assert(iT.is_equal(iL[i].label, k_lower1, k_upper1));
+			assert(iL[i].is_correct(matrix));
 		}
 #endif
 
@@ -2457,10 +2458,10 @@ public:
 				const size_t l1 = i*hmL1.bucketsize + j;
 				const size_t a1 = hmL1[l1].first;
 				const size_t a2 = hmL1[l1].second;
-				ASSERT(a1 < L1.load());
-				ASSERT(a2 < L2.load());
+				assert(a1 < L1.load());
+				assert(a2 < L2.load());
 				ElementType::add(te1, L1[a1], L2[a2]);
-				ASSERT(iT.is_equal(te1.label, k_lower1, k_upper1));
+				assert(iT.is_equal(te1.label, k_lower1, k_upper1));
 			}
 		}
 #endif
@@ -2688,7 +2689,7 @@ public:
 	                               const LabelType &target,
                                    const std::vector<uint32_t> &lta,
 	                               bool prepare = true) noexcept {
-		ASSERT(lta.size() == 3);
+		assert(lta.size() == 3);
 		// limits: k_lower1, k_upper1 for the lowest level tree. And k_lower2, k_upper2 for highest level. There are
 		// only two levels..., so obviously k_upper1=k_lower2
 		const uint64_t k_lower1 = lta[0], k_upper1 = lta[1];
@@ -2701,7 +2702,7 @@ public:
 	                                      const LabelType &target,
 	                                      const uint32_t k_lower1, const uint32_t k_upper1, const uint32_t k_lower2, const uint32_t k_upper2,
 	                                      bool prepare = true) noexcept {
-		ASSERT(k_lower1 < k_upper1 &&
+		assert(k_lower1 < k_upper1 &&
 		       0 < k_upper1 && k_lower2 < k_upper2 &&
 		       0 < k_upper2 && k_lower1 <= k_lower2 &&
 		       k_upper1 <= k_upper2 &&
@@ -2763,7 +2764,7 @@ public:
 	void join8lists(List &out, std::vector<List> &L,
 	                       const LabelType &target,
 	                       const std::vector<uint32_t> &lta) noexcept {
-		ASSERT(lta.size() == 4 && L.size() == 8);
+		assert(lta.size() == 4 && L.size() == 8);
 
 		// limits:
 		const uint32_t k_lower1 = lta[0], k_upper1 = lta[1];
@@ -2867,11 +2868,11 @@ public:
 									  const uint64_t k_lower2, const uint64_t k_upper2,
 									  const uint64_t k_lower3, const uint64_t k_upper3,
 									  const bool prepare = true) noexcept {
-		ASSERT(k_lower1 < k_upper1);
-		ASSERT(k_lower2 < k_upper2);
-		ASSERT(k_upper1 < k_upper2);
-		ASSERT(k_upper2 < k_upper3);
-		ASSERT(k_upper2 < k_upper3);
+		assert(k_lower1 < k_upper1);
+		assert(k_lower2 < k_upper2);
+		assert(k_upper1 < k_upper2);
+		assert(k_upper2 < k_upper3);
+		assert(k_upper2 < k_upper3);
 
 		(void)k_lower2;
 		(void)k_lower3;
@@ -3229,7 +3230,7 @@ public:
 						out[load] = e4;
 						out.set_load(load + 1);
 
-						ASSERT(out[load].label.is_equal(target, 0, k_upper3));
+						assert(out[load].label.is_equal(target, 0, k_upper3));
 						if (out.load() == out.size()) {
 							goto finish;
 						}
@@ -3446,7 +3447,7 @@ public:
 	                            const uint64_t k_lower,
 	                            const uint64_t k_middle,
 	                            const uint64_t k_upper) noexcept {
-		ASSERT(k_lower < k_middle && k_middle < k_upper && 0 < k_middle);
+		assert(k_lower < k_middle && k_middle < k_upper && 0 < k_middle);
 
 		const uint64_t size = in1.size() * in2.size();
 		out.resize(size);
@@ -3469,14 +3470,14 @@ public:
 	/// \param i
 	/// \return
 	constexpr List &operator[](const size_t  i) noexcept {
-		ASSERT(i < (depth + additional_baselists));
+		assert(i < (depth + additional_baselists));
 		return this->lists[i];
 	}
 
 	/// \param i
 	/// \return
 	const List &operator[](const uint64_t i) const noexcept {
-		ASSERT(i < (depth + additional_baselists));
+		assert(i < (depth + additional_baselists));
 		return this->lists[i];
 	}
 
@@ -3515,7 +3516,7 @@ private:
 		search_in_level_l(e1, e2, e3, level, k_lower, k_higher, boundaries, indices);
 	}
 
-	/// \param e1
+	/// \param e1 TODO
 	/// \param e2
 	/// \param e3
 	/// \param level
@@ -3534,8 +3535,8 @@ private:
 								  std::vector<size_t> &indices) noexcept {
 		ElementType::add(e1, e2, e3);
 
-		ASSERT(level < boundaries.size());
-		ASSERT(level < indices.size());
+		assert(level < boundaries.size());
+		assert(level < indices.size());
 		boundaries[level] = lists[level + 2].search_boundaries(e1, k_lower, k_higher);
 		indices[level] = boundaries[level].first;
 	}

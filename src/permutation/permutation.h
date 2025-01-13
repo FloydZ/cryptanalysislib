@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cassert>
 
 #include "helper.h"
 
@@ -20,16 +21,17 @@ public:
 	// The length of the swap const_array.
 	uint32_t length;
 
-	/// @param length
+	/// \param length[in]
 	Permutation(const uint32_t length) noexcept {
 		this->values = (uint32_t *)malloc(sizeof(uint32_t) * length);
-		ASSERT(values);
+		assert(values);
 		this->length = length;
 		for (uint32_t i = 0; i < length; ++i) {
 			this->values[i] = i;
 		}
 	}
 
+    /// 
 	~Permutation() {
 		free(values);
 	}

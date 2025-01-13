@@ -121,7 +121,6 @@ TEST(ParallelBucketSort, first) {
 
 	uint64_t load = 0ul;
 	auto poss = hm->find(extractor(L.data_label(30)), load);
-	//ASSERT(hm->__buckets[poss].second[0] == 30);
 }
 
 TEST(ParallelBucketSort, need2sort) {
@@ -168,7 +167,6 @@ TEST(ParallelBucketSort, need2sort) {
 
 	uint64_t load = 0ul;
 	auto poss = hm->find(extractor(L.data_label(30)), load);
-	//ASSERT(hm->__buckets[poss].second[0] == 30);
 }
 
 #endif

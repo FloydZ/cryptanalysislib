@@ -161,7 +161,7 @@ TEST(GarbageCollector, MarkStack) {
 	T **five_ptr = (T **)gc.calloc_ext(2, sizeof(T));
 	gc.mark_stack();
 	Allocation *a = gc.allocs->get(five_ptr);
-	ASSERT_EQ(a->tag, GC_TAG_MARK);
+	EXPECT_EQ(a->tag, GC_TAG_MARK);
 }
 
 int main(int argc, char **argv) {

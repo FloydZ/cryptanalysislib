@@ -21,7 +21,7 @@ TEST(max, simple) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = cryptanalysislib::max(d.begin(), d.end());
-	ASSERT_EQ(t, s-1);
+	EXPECT_EQ(t, s-1);
 }
 
 TEST(max, simd_uint32_t) {
@@ -30,7 +30,7 @@ TEST(max, simd_uint32_t) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = max_simd_uXX(d, s);
-	ASSERT_EQ(t, s-1);
+	EXPECT_EQ(t, s-1);
 
 	delete[] d;
 }

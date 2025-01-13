@@ -36,7 +36,7 @@ TEST(FqMatrix, SubScription) {
 
 	for (uint32_t i = 0; i < M::ROWS; ++i) {
 		for (uint32_t j = 0; j < M::COLS; ++j) {
-			ASSERT_EQ(m[i][j], m.get(i, j));
+			EXPECT_EQ(m[i][j], m.get(i, j));
 		}
 	}
 }
@@ -138,7 +138,7 @@ TEST(FqMatrix, InitFromString) {
 
 	for (uint32_t i = 0; i < nrows; ++i) {
 		for (uint32_t j = 0; j < ncols; ++j) {
-			ASSERT_EQ(m.get(i, j), ptr2[i * ncols + j]);
+			EXPECT_EQ(m.get(i, j), ptr2[i * ncols + j]);
 		}
 	}
 
@@ -279,14 +279,14 @@ TEST(FqMatrix, gaus) {
 	M m = M{};
 	m.random();
 	const uint32_t rank = m.gaus();
-	ASSERT_GT(rank, 0);
+	EXPECT_GT(rank, 0);
 
 	//std::cout << rank << std::endl;
 	//m.print();
 
 	for (uint32_t i = 0; i < nrows; ++i) {
 		for (uint32_t j = 0; j < rank; ++j) {
-			ASSERT_EQ(m.get(i, j), i == j);
+			EXPECT_EQ(m.get(i, j), i == j);
 		}
 	}
 }
@@ -301,7 +301,7 @@ TEST(FqMatrix, m4ri) {
 				M m = M{};
 				m.random();
 				const uint32_t rank = m.m4ri();
-				ASSERT_GT(rank, __nrows - 20);
+				EXPECT_GT(rank, __nrows - 20);
 
 				for (uint32_t i = 0; i < rank; ++i) {
 					for (uint32_t j = 0; j < rank; ++j) {
@@ -329,7 +329,7 @@ TEST(FqMatrix, markov_gaus) {
 				while (true) {
 					m.random();
 					rank = m.gaus(__nrows - l);
-					ASSERT_GT(rank, 0);
+					EXPECT_GT(rank, 0);
 					if (rank >= __nrows - l) { break; }
 				}
 
@@ -360,15 +360,15 @@ TEST(FqMatrix, fixgaus) {
 				Permutation P{__ncols};
 				const uint32_t rank = m.gaus();
 				const uint32_t rank2 = m.fix_gaus(P, rank, __nrows);
-				ASSERT_GT(rank, __nrows - 10);
+				EXPECT_GT(rank, __nrows - 10);
 
 				for (uint32_t i = 0; i < __nrows; ++i) {
 					for (uint32_t j = 0; j < rank2; ++j) {
 						if (i == j) {
-							ASSERT_EQ(m.get(i, j), 1u);
+							EXPECT_EQ(m.get(i, j), 1u);
 							continue;
 						}
-						ASSERT_EQ(m.get(i, j), 0u);
+						EXPECT_EQ(m.get(i, j), 0u);
 					}
 				}
 			}
@@ -398,10 +398,10 @@ TEST(FqMatrix, mult) {
 				for (uint32_t i = 0; i < min; ++i) {
 					for (uint32_t j = 0; j < min; ++j) {
 						if (i == j) {
-							ASSERT_EQ(c.get(i, j), 1u);
+							EXPECT_EQ(c.get(i, j), 1u);
 							continue;
 						}
-						ASSERT_EQ(c.get(i, j), 0u);
+						EXPECT_EQ(c.get(i, j), 0u);
 					}
 				}
 			});
