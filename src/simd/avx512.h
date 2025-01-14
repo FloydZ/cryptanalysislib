@@ -1798,7 +1798,7 @@ struct uint32x16_t {
 	[[nodiscard]] constexpr static inline uint32x16_t max(const uint32x16_t a,
 														  const uint32x16_t b) noexcept {
         uint32x16_t c;
-        c.v512 = _mm512_min_epi32(a.v512, b.v512);
+        c.v512 = _mm512_max_epi32(a.v512, b.v512);
         return c;
     }
 };
@@ -2576,24 +2576,6 @@ __m512i __prefixsum_u32_avx512(__m512i x) noexcept {
     x = _mm512_add_epi32(x, _mm512_slli_si512_epi32<2>(x));
     x = _mm512_add_epi32(x, _mm512_slli_si512_epi32<4>(x));
     x = _mm512_add_epi32(x, _mm512_slli_si512_epi32<8>(x));
-    return x;
-}
-
-/// TODO not correct/finished
-__m512i __prefixsum_u8_avx512(__m512i x) noexcept {
-    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 1>(x));
-    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 2>(x));
-    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 4>(x));
-    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 8>(x));
-
-	__mmask8 k = 0b11111100;
-	__m512i y = _mm512_maskz_shuffle_i64x2(k, x, x, 0b10010000);
-	__m512i z = _mm512_slli_si128_epi8< 1>(y);
-    x = _mm512_add_epi8(x, z);
-    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 2>(x));
-    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 4>(x));
-    x = _mm512_add_epi8(x, _mm512_slli_si128_epi8< 8>(x));
-
     return x;
 }
 

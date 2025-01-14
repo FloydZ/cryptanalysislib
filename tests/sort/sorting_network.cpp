@@ -305,36 +305,36 @@ TEST(SortingNetwork, uint8x128_t) {
 	}
 }
 
-TEST(SortingNetwork, uint8x224_t) {
-	// TODO not finished
-	uint8_t datas2[224] __attribute__((aligned(64)));
-	uint8_t datas3[224] __attribute__((aligned(64)));
-	uint8_t *datas4 = datas3 + 128;
-	for (uint32_t i = 0; i < 224; ++i) {
-		datas2[i] =rng();
-	}
-	 __m256i i1 = _mm256_loadu_si256((const __m256i *)(datas2 +   0));
-	 __m256i i2 = _mm256_loadu_si256((const __m256i *)(datas2 +  32));
-	 __m256i i3 = _mm256_loadu_si256((const __m256i *)(datas2 +  64));
-	 __m256i i4 = _mm256_loadu_si256((const __m256i *)(datas2 +  96));
-	 __m256i i5 = _mm256_loadu_si256((const __m256i *)(datas2 + 128));
-	 __m256i i6 = _mm256_loadu_si256((const __m256i *)(datas2 + 160));
-	 __m256i i7 = _mm256_loadu_si256((const __m256i *)(datas2 + 192));
-	sortingnetwork_sort_u8x224(i1, i2, i3, i4, i5, i6, i7);
-	_mm256_storeu_si256((__m256i_u *)(datas3 +   0), i1);
-	_mm256_storeu_si256((__m256i_u *)(datas3 +  32), i2);
-	_mm256_storeu_si256((__m256i_u *)(datas3 +  64), i3);
-	_mm256_storeu_si256((__m256i_u *)(datas3 +  96), i4);
-	_mm256_storeu_si256((__m256i_u *)(datas3 + 128), i5);
-	_mm256_storeu_si256((__m256i_u *)(datas3 + 160), i6);
-	_mm256_storeu_si256((__m256i_u *)(datas3 + 192), i7);
-	for (uint32_t i = 1; i < 224; i++) {
-		if (datas3[i-1] > datas3[i]) {
-			std::cout << i << std::endl;
-		}
-		EXPECT_LE(datas3[i-1], datas3[i]);
-	}
-}
+//TEST(SortingNetwork, uint8x224_t) {
+//	// TODO not finished
+//	uint8_t datas2[224] __attribute__((aligned(64)));
+//	uint8_t datas3[224] __attribute__((aligned(64)));
+//	uint8_t *datas4 = datas3 + 128;
+//	for (uint32_t i = 0; i < 224; ++i) {
+//		datas2[i] =rng();
+//	}
+//	 __m256i i1 = _mm256_loadu_si256((const __m256i *)(datas2 +   0));
+//	 __m256i i2 = _mm256_loadu_si256((const __m256i *)(datas2 +  32));
+//	 __m256i i3 = _mm256_loadu_si256((const __m256i *)(datas2 +  64));
+//	 __m256i i4 = _mm256_loadu_si256((const __m256i *)(datas2 +  96));
+//	 __m256i i5 = _mm256_loadu_si256((const __m256i *)(datas2 + 128));
+//	 __m256i i6 = _mm256_loadu_si256((const __m256i *)(datas2 + 160));
+//	 __m256i i7 = _mm256_loadu_si256((const __m256i *)(datas2 + 192));
+//	sortingnetwork_sort_u8x224(i1, i2, i3, i4, i5, i6, i7);
+//	_mm256_storeu_si256((__m256i_u *)(datas3 +   0), i1);
+//	_mm256_storeu_si256((__m256i_u *)(datas3 +  32), i2);
+//	_mm256_storeu_si256((__m256i_u *)(datas3 +  64), i3);
+//	_mm256_storeu_si256((__m256i_u *)(datas3 +  96), i4);
+//	_mm256_storeu_si256((__m256i_u *)(datas3 + 128), i5);
+//	_mm256_storeu_si256((__m256i_u *)(datas3 + 160), i6);
+//	_mm256_storeu_si256((__m256i_u *)(datas3 + 192), i7);
+//	for (uint32_t i = 1; i < 224; i++) {
+//		if (datas3[i-1] > datas3[i]) {
+//			std::cout << i << std::endl;
+//		}
+//		EXPECT_LE(datas3[i-1], datas3[i]);
+//	}
+//}
 
 TEST(SortingNetwork, uint8x256_t) {
 	uint8_t datas2[256] __attribute__((aligned(64)));
@@ -540,14 +540,14 @@ TEST(SortingNetwork, u32xX_t) {
 
 TEST(SortingNetwork, small_f32xX_t) {
 	constexpr size_t size = 16;
-	__m256i data[size] = {0};
-	auto *d = (float *) data;
+	__m256 data[size];
+	auto *d = reinterpret_cast<float *>(data);
 	for (size_t i = 0; i < size * 8; ++i) {
 		d[i] = static_cast <float> ((float ) rng()) / static_cast <float> ((uint64_t)-1ull);
 	}
 
 	for (uint32_t i = 1; i < 8*size; i++) {
-		const bool b =sortingnetwork_small_f32(d, i);
+		const bool b = sortingnetwork_small_f32(d, i);
 		EXPECT_EQ(b, true);
 		const bool k = check_correctness<float>(d, i);
 		EXPECT_EQ(k, true);

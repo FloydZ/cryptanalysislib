@@ -5,7 +5,7 @@ foreach(testfile ${TEST_SOURCES})
     add_executable(test_list_${file} ${testfile})
     target_compile_options(test_list_${file} PUBLIC ${COMPILE_TEST_FLAGS})
     target_link_libraries(test_list_${file} ${LINK_TEST_FLAGS})
-	add_test(list test_list_${file})
+	add_test(list_${file} test_list_${file})
 endforeach(testfile ${TEST_SOURCES})
 
 

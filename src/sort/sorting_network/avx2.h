@@ -1499,8 +1499,8 @@ avx2_sortingnetwork_small(i, int32_t, __m256i);
 	constexpr size_t s = 8;
 	const uint32_t full_vec_count = element_count / s;
 	const uint32_t last_vec_size = element_count - (full_vec_count * s);
+	const uint32_t last_vec_flag = last_vec_size > 0;
 	if (full_vec_count > 16) { return false; }
-	
 
 	__m256 d[16];
 	for(uint32_t i=0; i<full_vec_count; ++i) {
@@ -1511,7 +1511,6 @@ avx2_sortingnetwork_small(i, int32_t, __m256i);
 		d[full_vec_count] = avx2_load_f32x8(array, full_vec_count, last_vec_size);
 	}
 
-#ifdef __clang__
 	switch (full_vec_count+last_vec_flag) {
 		case 1 : sortingnetwork_sort_f32x8  (d[0]); goto cleanup;
 		case 2 : sortingnetwork_sort_f32x16 (d[0],d[1]); goto cleanup;
@@ -1532,13 +1531,8 @@ avx2_sortingnetwork_small(i, int32_t, __m256i);
 		default:
 			return false;
 	}
-#else
 
-#endif
-
-#ifdef __clang__
 	cleanup:
-#endif
     for(uint32_t i=0; i<full_vec_count; ++i) {
 		_mm256_storeu_ps(array + 8*i, d[i]);
 	}

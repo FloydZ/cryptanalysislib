@@ -173,28 +173,8 @@ namespace cryptanalysislib::algorithm {
 #endif
 
 #ifdef USE_AVX512F
-		static void prefixsum_u8_avx512(uint8_t *v,
-									    const size_t n) noexcept {
-            constexpr uint32_t limbs = 64; 
-            
-            __m512i mask = _mm512_set1_epi8(limbs-1);
-            
-
-            size_t i = 0;
-            __m512i acc = _mm512_setzero_si512();
-			for (; (i+limbs) <= n; i+=limbs) {
-                const __m512i l = _mm512_loadu_si512(v + i);
-                const __m512i f = __prefixsum_u8_avx512(l);
-                acc = _mm512_add_epi8(acc, f);
-                _mm512_storeu_si512(v + i, acc);
-                acc = _mm512_permutexvar_epi8(mask, acc);
-            }
-			
-            // tail mngt
-			for (; i < n; i++) {
-				v[i] += v[i - 1];
-			}
-        }
+		/// \param v
+		/// \param n
 		static void prefixsum_u32_avx512(uint32_t *v,
 									     const size_t n) noexcept {
             constexpr uint32_t limbs = 16; 

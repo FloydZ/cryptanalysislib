@@ -119,7 +119,7 @@ namespace cryptanalysislib {
 			std::forward<ExecPolicy>(policy),
 			first, last,
 			cryptanalysislib::max<RandIt, config>,
-			(T *)0,
+			static_cast<T *>(nullptr),
 			1, nthreads);
 
 		T m = futures[0].get();

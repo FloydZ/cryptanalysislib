@@ -18,13 +18,13 @@ using namespace cryptanalysislib;
 TEST(histogram_u8, single) {
 	constexpr size_t s = 65;
 	using T = uint8_t;
-	T *data = (T *)malloc(s * sizeof(T));
-	auto *cnt = (uint32_t *)malloc(256 * sizeof(uint32_t));
-	memset(data, 0, s* sizeof(T));
+	auto data = static_cast<T *>(calloc(sizeof(T), s));
+	auto *cnt = (uint32_t *)calloc(sizeof(uint32_t), 256);
 	histogram_u8_1x(cnt, data, s);
 	EXPECT_EQ(cnt[0], s);
 
 	data[0] = 1;
+	memset(cnt, 0, 256);
 	histogram_u8_1x(cnt, data, s);
 	EXPECT_EQ(cnt[0], s-1);
 	EXPECT_EQ(cnt[1], 1);

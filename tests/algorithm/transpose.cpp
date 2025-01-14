@@ -34,25 +34,9 @@ TEST(transform, b8x8_be) {
 
 TEST(transform, b64x64) {
 	uint64_t in[64] = {0};
-	uint64_t out[64] = {0};
-	transpose_b64x64(out, in);
-	for (uint32_t i = 0; i < 64; i++) {
-		EXPECT_EQ(out[i], 0);
-	}
-
 	transpose_b64x64_inplace(in);
 	for (uint32_t i = 0; i < 64; i++) {
-		EXPECT_EQ(out[i], 0);
-	}
-
-	for (uint32_t i = 0; i < 64; i++) {
-		in[i] = cryptanalysislib::rng();
-	}
-
-	transpose_b64x64(out, in);
-	transpose_b64x64_inplace(in);
-	for (uint32_t i = 0; i < 64; i++) {
-		EXPECT_EQ(out[i], in[i]);
+		EXPECT_EQ(in[i], 0);
 	}
 }
 

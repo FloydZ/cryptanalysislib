@@ -196,15 +196,15 @@ public:
 		}
 	}
 
-	///	sets this = (this * a) + b
-	/// \param a
-	/// \param b
+	///	sets this = *this + (a * b)
+	/// \param a[in]:
+	/// \param b[in]:
 	constexpr void addmul(FqElement const &a,
 	                      FqElement const &b) noexcept {
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + (T2(a.__value) * T2(b.__value)), M, q));
 		} else {
-			__value = T((T2(__value) + T2(a.__value) * T2(b.__value)) % q);
+			__value = T(T2(__value) + ((T2(a.__value) * T2(b.__value)) % q) %q);
 		}
 	}
 

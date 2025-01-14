@@ -111,7 +111,7 @@ namespace cryptanalysislib {
 	[[nodiscard]] constexpr static inline size_t argmin_simd_u32_bl32(const uint32_t *a,
 	                                                    const size_t n) noexcept {
         constexpr size_t t = S::LIMBS;
-        constexpr size_t t4 = 2*t;
+        constexpr size_t t4 = 4*t;
 		uint32_t min = -1u;
 		auto p = S::set1(min);
 		size_t i = 0, idx = 0;
