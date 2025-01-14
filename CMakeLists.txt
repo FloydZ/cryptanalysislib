@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SIMD "Enable avx/neon" ON)
 option(USE_SANITIZER "Enable memory sanitizer (only debug build)" ON)
-option(USE_NOINLINE "Enable -fno-inline" ON)
+option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable linkage time optimizations" OFF)
 option(USE_PROFILE "Enable profile guided optimization" OFF)
 option(USE_POLLY "Enable polly loop optimization" OFF)
@@ -73,22 +73,22 @@ enable_testing()
 find_package(OpenMP REQUIRED)
 find_package(Threads REQUIRED)
 find_package(GTest) 
-find_package(benchmark)
+find_package(benchmark QUIET)
 find_package(Git QUIET)
 
-find_package(OpenCL)
-find_package(OpenCLHeaders)
+find_package(OpenCL QUIET)
+find_package(OpenCLHeaders QUIET)
 
 # now check if we have to add the cuda runtime
-#find_package(CUDA)
-#find_package(CUDAToolkit)
-#check_language(CUDA)
-#if(CMAKE_CUDA_COMPILER)
-#	enable_language(CUDA)
-#	message(STATUS "CUDA ENABLED")
-#endif()
+# NOTE: apperently this is not how its done: find_package(CUDA QUIET)
+find_package(CUDAToolkit QUIET)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+	enable_language(CUDA)
+	message(STATUS "CUDA ENABLED")
+endif()
 
-if(OpenCL_FOUND)
+if(OpenCL_FOUND AND OpenCLHeaders_FOUND)
 	message(STATUS "OpenCL ENABLED")
 endif()
 
@@ -213,11 +213,12 @@ if(CMAKE_CUDA_COMPILER)
 	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_CUDA")
 endif()
 
-#if(OpenCL_FOUND)
-#	set(DEBUG_FLAGS "${DEBUG_FLAGS} -DUSE_OPENCL")
-#	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_OPENCL")
-#endif()
+if(OpenCL_FOUND AND OpenCLHeader_FOUND)
+	set(DEBUG_FLAGS "${DEBUG_FLAGS} -DUSE_OPENCL")
+	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_OPENCL")
+endif()
 
+# Set linker flags
 set(LINK_TEST_FLAGS 
 	GTest::gtest 
 	GTest::gtest_main 
@@ -231,7 +232,7 @@ set(LINK_BENCH_FLAGS
 	reflectcpp
 )
 
-if(OpenCL_FOUND)
+if(OpenCL_FOUND AND OpenCLHeader_FOUND)
 	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenCL::OpenCL OpenCL::Headers)
 	set(LINK_BENCH_FLAGS ${LINK_BENCH_FLAGS} OpenCL::OpenCL OpenCL::Headers)
 endif()

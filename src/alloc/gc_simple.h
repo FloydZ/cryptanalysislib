@@ -212,7 +212,7 @@ public:
 	                          const size_t size) noexcept {
 		const size_t index = gc_hash(ptr) % capacity;
 		Allocation* alloc = new Allocation(ptr, size);
-		ASSERT(alloc);
+		assert(alloc);
 
 		Allocation* cur = allocs[index];
 		Allocation* prev = nullptr;
@@ -341,7 +341,7 @@ struct GarbageCollector {
 		sweep_factor = sweep_factor > 0.0 ? sweep_factor : 0.5;
 		initial_capacity = initial_capacity < min_capacity ? min_capacity : initial_capacity;
 		allocs = new AllocationMap(min_capacity, initial_capacity, sweep_factor, downsize_limit, upsize_limit);
-		ASSERT(allocs);
+		assert(allocs);
 	}
 
 	/// stops the garbage collector and frees everything
@@ -367,7 +367,7 @@ struct GarbageCollector {
 	///
 	/// \return
 	[[nodiscard]] constexpr inline bool needs_sweep() noexcept {
-		ASSERT(allocs);
+		assert(allocs);
 		return allocs->size > allocs->sweep_limit;
 	}
 
@@ -553,7 +553,7 @@ struct GarbageCollector {
 					//	chunk->dtor(chunk->ptr);
 					//}
 					free((void *) chunk->ptr);
-					ASSERT(chunk);
+					assert(chunk);
 					/* and remove it from the bookkeeping */
 					next = chunk->next;
 					allocs->remove((void *)chunk->ptr, false);

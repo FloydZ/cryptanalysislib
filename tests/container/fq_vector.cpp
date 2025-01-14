@@ -9,6 +9,12 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
+TEST(test, info) {
+	using K3 = FqPackedVector<100, 3, uint8_t>;
+	printf("sizeof(K3)=%ld\n", sizeof(K3));
+	K3::info();
+}
+
 TEST(test, simple) {
 	using K3 = FqPackedVector<100, 3, uint64_t>;
 	// using K5 = kAryPackedContainer_T<uint64_t, 100, 5>;

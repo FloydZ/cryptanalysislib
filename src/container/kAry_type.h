@@ -108,8 +108,8 @@ private:
 	/// \return mask
 	static constexpr inline const T compute_mask(const uint32_t lower,
 	                                             const uint32_t upper) noexcept {
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(lower < upper);
+		assert(upper <= bits);
 		if constexpr (mirror && lower_is_zero) {
 			const T mask2 = T(-1u) << (bits - upper);
 			return mask2;
@@ -134,7 +134,7 @@ private:
 			return mask2;
 		}
 
-		ASSERT(false);
+		assert(false);
 		return 0;
 	}
 
@@ -583,10 +583,10 @@ public:
 	[[nodiscard]] constexpr inline bool is_equal(FqElement const &o,
 	                                             const uint32_t lower = 0,
 	                                             const uint32_t upper = bits) const noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		const T mask = compute_mask(lower, upper);
 		return (__value & mask) == (o.value() & mask);
@@ -611,10 +611,10 @@ public:
 	[[nodiscard]] constexpr inline bool is_greater(FqElement const &o,
 	                                               const uint32_t lower = 0,
 	                                               const uint32_t upper = bits) const noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		const T mask = compute_mask(lower, upper);
 		return (__value & mask) > (o.value() & mask);
@@ -639,10 +639,10 @@ public:
 	[[nodiscard]] constexpr inline bool is_lower(FqElement const &o,
 	                                             const uint32_t lower = 0,
 	                                             const uint32_t upper = bits) const noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		const T mask = compute_mask(lower, upper);
 		const T t1 = __value & mask;
@@ -674,10 +674,10 @@ public:
 	/// \return
 	[[nodiscard]] constexpr inline bool is_zero(const uint32_t lower = 0,
 	                                            const uint32_t upper = bits) const noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		const T mask = compute_mask(lower, upper);
 		return T(__value & mask) == T(0);
@@ -711,10 +711,10 @@ public:
 	                                 const FqElement &in2,
 	                                 const uint32_t lower = 0,
 	                                 const uint32_t upper = bits) noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		if constexpr (arith) {
 			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q));
@@ -759,10 +759,10 @@ public:
 	                                 const FqElement &in2,
 	                                 const uint32_t lower = 0,
 	                                 const uint32_t upper = bits) noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q);
@@ -814,10 +814,10 @@ public:
 									 const FqElement &in2,
 									 const uint32_t lower = 0,
 									 const uint32_t upper = bits) noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) * T2(in2.__value)) % q);
@@ -862,17 +862,17 @@ public:
 										const DataType &in2,
 	                                    const uint32_t lower=0,
 	                                    const uint32_t upper=bits) noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		if constexpr (arith) {
 			out.__value = ((T2(in1.__value) * T2(in2 % q)) % q);
 		} else {
 			const T mask = compute_mask(lower, upper);
 			// not implemented
-			ASSERT(false);
+			assert(false);
 		}
 	}
 
@@ -897,7 +897,7 @@ public:
 		} else {
 			// not implemented
 			constexpr T mask = compute_mask(lower, upper);
-			ASSERT(false);
+			assert(false);
 		}
 	}
 
@@ -906,10 +906,10 @@ public:
 	/// \return
 	constexpr inline void neg(const uint32_t lower = 0,
 	                          const uint32_t upper = bits) noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		if constexpr (arith) {
 			__value = ((q - __value) % q);
@@ -937,10 +937,10 @@ public:
 
 	constexpr inline void popcnt(const uint32_t lower = 0,
 	                             const uint32_t upper = bits) noexcept {
-		ASSERT(sizeof(T) * 8 > lower);
-		ASSERT(sizeof(T) * 8 >= upper);
-		ASSERT(lower < upper);
-		ASSERT(upper <= bits);
+		assert(sizeof(T) * 8 > lower);
+		assert(sizeof(T) * 8 >= upper);
+		assert(lower < upper);
+		assert(upper <= bits);
 
 		if constexpr (arith) {
 			__value = ((q - __value) % q);
@@ -1027,7 +1027,7 @@ public:
 	// left rotate
 	[[nodiscard]] static constexpr inline LimbType rol_T(const LimbType a,
 	                                                     const uint32_t i) noexcept {
-		ASSERT(i < n);
+		assert(i < n);
 		for (uint32_t j = 0; j < i; j++) {
 			rol1_T(a);
 		}
@@ -1036,7 +1036,7 @@ public:
 	// right rotate
 	[[nodiscard]] static constexpr inline LimbType ror1_T(const LimbType a,
 	                                                      const uint32_t i) noexcept {
-		ASSERT(i < n);
+		assert(i < n);
 		for (uint32_t j = 0; j < i; j++) {
 			ror1_T(a);
 		}
@@ -1120,7 +1120,7 @@ public:
 	/// \param i
 	/// \return
 	[[nodiscard]] constexpr inline T get(const size_t i) noexcept {
-		ASSERT(i < bits);
+		assert(i < bits);
 		(void) i;
 		return __value;
 	}
@@ -1129,7 +1129,7 @@ public:
 	/// \param i
 	/// \return
 	[[nodiscard]] constexpr inline T get(const size_t i) const noexcept {
-		ASSERT(i < bits);
+		assert(i < bits);
 		(void) i;
 		return __value;
 	}
@@ -1144,9 +1144,9 @@ public:
 	                                 const FqElement &in,
 	                                 const uint32_t lower,
 	                                 const uint32_t upper) noexcept {
-		ASSERT(sizeof(T) > lower);
-		ASSERT(sizeof(T) >= upper);
-		ASSERT(lower < upper);
+		assert(sizeof(T) > lower);
+		assert(sizeof(T) >= upper);
+		assert(lower < upper);
 		const T mask = compute_mask(lower, upper);
 		const T tmp = in.value() & mask;
 		out = (out & ~mask) ^ tmp;
@@ -1158,7 +1158,7 @@ public:
 	/// \return
 	constexpr inline void set(const T val,
 	                          const size_t i) noexcept {
-		ASSERT(i < bits);
+		assert(i < bits);
 		__value = val % q;
 	}
 
@@ -1166,24 +1166,24 @@ public:
 	/// \return
 	constexpr inline void zero(const uint32_t l = 0,
 	                           const uint32_t h = bits) noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= bits);
+		assert(l < h);
+		assert(h <= bits);
 		const T mask = ~compute_mask(l, h);
 		__value &= mask;
 	}
 
 	constexpr inline void one(const uint32_t l = 0,
 	                          const uint32_t h = bits) noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= bits);
+		assert(l < h);
+		assert(h <= bits);
 		(void) l;
 		(void) h;
 		__value = 1;
 	}
 	constexpr inline void minus_one(const uint32_t l = 0,
 	                                const uint32_t h = bits) noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= bits);
+		assert(l < h);
+		assert(h <= bits);
 		const T mask = compute_mask(l, h);
 		__value |= mask;
 	}
@@ -1201,19 +1201,19 @@ public:
 	/// \param i
 	/// \return
 	[[nodiscard]] constexpr inline T ptr(const size_t i) noexcept {
-		ASSERT(i < bits);
+		assert(i < bits);
 		return __value;
 	}
 	[[nodiscard]] constexpr inline const T ptr(const size_t i) const noexcept {
-		ASSERT(i < bits);
+		assert(i < bits);
 		return __value;
 	}
 
 	constexpr void print_binary(const uint32_t lower = 0,
 	                            const uint32_t upper = bits) const noexcept {
-		ASSERT((8 * sizeof(T)) > lower);
-		ASSERT((8 * sizeof(T)) >= upper);
-		ASSERT(lower < upper);
+		assert((8 * sizeof(T)) > lower);
+		assert((8 * sizeof(T)) >= upper);
+		assert(lower < upper);
 		const T mask = compute_mask(lower, upper);
 		const T tmp = (__value & mask) >> lower;
 		cryptanalysislib::print_binary(tmp);
@@ -1324,10 +1324,10 @@ public:
 	/// \return
 	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
 	                                           const uint32_t h) const noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= bits);
+		assert(l < h);
+		assert(h <= bits);
 		const T diff1 = h - l;
-		ASSERT(diff1 <= bits);
+		assert(diff1 <= bits);
 		const T mask = diff1 == bits ? T(-1ull) : (T(1ull) << diff1) - T(1ull);
 		const T b = __value >> l;
 		const T c = b & mask;
@@ -1346,7 +1346,7 @@ public:
 	}
 	constexpr static bool is_hashable(const uint32_t l,
 	                                  const uint32_t h) noexcept {
-		ASSERT(h > l);
+		assert(h > l);
 		const size_t t1 = h - l;
 		return t1 <= 64u;
 	}

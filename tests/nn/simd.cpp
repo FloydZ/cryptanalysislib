@@ -327,7 +327,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on_32_allcorrect) {
 	uint32_t z;
 	size_t e1=LS,new_e1=0;
 	z = rng_weighted<uint32_t>(dk);
-	EXPECT(cryptanalysislib::popcount::popcount(z) == dk);
+	EXPECT_EQ(cryptanalysislib::popcount::popcount(z), dk);
 	new_e1 = algo1.simd_sort_nn_on32<0>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
 	z = rng_weighted<uint32_t>(dk);
@@ -346,7 +346,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on_32_allcorrect) {
 	algo1.L1[rng()%LS][3] = -1ull;
 
 	z = rng_weighted<uint32_t>(dk);
-	EXPECT(cryptanalysislib::popcount::popcount(z) == dk);
+	EXPECT_EQ(cryptanalysislib::popcount::popcount(z), dk);
 	new_e1 = algo1.simd_sort_nn_on32<0>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
 	z = rng_weighted<uint32_t>(dk);

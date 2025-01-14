@@ -14,7 +14,7 @@ using namespace std;
 template<typename T>
 T *gen_data(const size_t size) {
 	T *data = (T *) malloc(sizeof(T) * size);
-	ASSERT(data);
+	assert(data);
 
 	for (size_t i = 0; i < size; ++i) {
 		data[i] = cryptanalysislib::rng();
@@ -56,7 +56,7 @@ TEST(SortingNetwork, staticSort) {
 	static_sort(data);
 
 	for (size_t i = 0; i < size - 1; ++i) {
-		ASSERT_LE(data[i], data[i + 1]);
+		EXPECT_LE(data[i], data[i + 1]);
 	}
 
 	free(data);
@@ -71,7 +71,7 @@ TEST(SortingNetwork, constexpra) {
 	static_sort(data);
 
 	for (size_t i = 0; i < size - 1; ++i) {
-		ASSERT_LE(data[i], data[i + 1]);
+		EXPECT_LE(data[i], data[i + 1]);
 	}
 }
 
@@ -83,7 +83,7 @@ TEST(SortingNetwork, timsort_constexpr) {
 	static_sort(data);
 
 	for (size_t i = 0; i < size - 1; ++i) {
-		ASSERT_LE(data[i], data[i + 1]);
+		EXPECT_LE(data[i], data[i + 1]);
 	}
 }
 
@@ -463,37 +463,37 @@ TEST(SortingNetwork, f32xX_t) {
 	}
 
 	sortingnetwork_sort_f32x8(data[0]);
-	ASSERT_EQ(check_correctness((float *)data, 8), true);
+	EXPECT_EQ(check_correctness((float *)data, 8), true);
 	sortingnetwork_sort_f32x16(data[0], data[1]);
-	ASSERT_EQ(check_correctness((float *)data, 16), true);
+	EXPECT_EQ(check_correctness((float *)data, 16), true);
 	sortingnetwork_sort_f32x24(data[0], data[1], data[2]);
-	ASSERT_EQ(check_correctness((float *)data, 24), true);
+	EXPECT_EQ(check_correctness((float *)data, 24), true);
 	sortingnetwork_sort_f32x32(data[0], data[1], data[2], data[3]);
-	ASSERT_EQ(check_correctness((float *)data, 32), true);
+	EXPECT_EQ(check_correctness((float *)data, 32), true);
 	sortingnetwork_sort_f32x40(data[0], data[1], data[2], data[3], data[4]);
-	ASSERT_EQ(check_correctness((float *)data, 40), true);
+	EXPECT_EQ(check_correctness((float *)data, 40), true);
 	sortingnetwork_sort_f32x48(data[0], data[1], data[2], data[3], data[4], data[5]);
-	ASSERT_EQ(check_correctness((float *)data, 48), true);
+	EXPECT_EQ(check_correctness((float *)data, 48), true);
 	sortingnetwork_sort_f32x56(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
-	ASSERT_EQ(check_correctness((float *)data, 56), true);
+	EXPECT_EQ(check_correctness((float *)data, 56), true);
 	sortingnetwork_sort_f32x64(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
-	ASSERT_EQ(check_correctness((float *)data, 64), true);
+	EXPECT_EQ(check_correctness((float *)data, 64), true);
 	sortingnetwork_sort_f32x72(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
-	ASSERT_EQ(check_correctness((float *)data, 72), true);
+	EXPECT_EQ(check_correctness((float *)data, 72), true);
 	sortingnetwork_sort_f32x80(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-	ASSERT_EQ(check_correctness((float *) data, 80), true);
+	EXPECT_EQ(check_correctness((float *) data, 80), true);
 	sortingnetwork_sort_f32x88(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10]);
-	ASSERT_EQ(check_correctness((float *) data, 88), true);
+	EXPECT_EQ(check_correctness((float *) data, 88), true);
 	sortingnetwork_sort_f32x96(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11]);
-	ASSERT_EQ(check_correctness((float *) data, 96), true);
+	EXPECT_EQ(check_correctness((float *) data, 96), true);
 	sortingnetwork_sort_f32x104(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12]);
-	ASSERT_EQ(check_correctness((float *) data, 104), true);
+	EXPECT_EQ(check_correctness((float *) data, 104), true);
 	sortingnetwork_sort_f32x112(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13]);
-	ASSERT_EQ(check_correctness((float *) data, 112), true);
+	EXPECT_EQ(check_correctness((float *) data, 112), true);
 	sortingnetwork_sort_f32x120(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14]);
-	ASSERT_EQ(check_correctness((float *) data, 120), true);
+	EXPECT_EQ(check_correctness((float *) data, 120), true);
 	sortingnetwork_sort_f32x128(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
-	ASSERT_EQ(check_correctness((float *) data, 128), true);
+	EXPECT_EQ(check_correctness((float *) data, 128), true);
 }
 
 TEST(SortingNetwork, u32xX_t) {
@@ -505,37 +505,37 @@ TEST(SortingNetwork, u32xX_t) {
 	}
 
 	data[0] = sortingnetwork_sort_u32x8(data[0]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 8), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 8), true);
 	sortingnetwork_sort_u32x16(data[0], data[1]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 16), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 16), true);
 	sortingnetwork_sort_u32x24(data[0], data[1], data[2]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 24), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 24), true);
 	sortingnetwork_sort_u32x32(data[0], data[1], data[2], data[3]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 32), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 32), true);
 	sortingnetwork_sort_u32x40(data[0], data[1], data[2], data[3], data[4]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 40), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 40), true);
 	sortingnetwork_sort_u32x48(data[0], data[1], data[2], data[3], data[4], data[5]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 48), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 48), true);
 	sortingnetwork_sort_u32x56(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 56), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 56), true);
 	sortingnetwork_sort_u32x64(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 64), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 64), true);
 	sortingnetwork_sort_u32x72(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 72), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 72), true);
 	sortingnetwork_sort_u32x80(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 80), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 80), true);
 	sortingnetwork_sort_u32x88(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 88), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 88), true);
 	sortingnetwork_sort_u32x96(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 96), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 96), true);
 	sortingnetwork_sort_u32x104(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 104), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 104), true);
 	sortingnetwork_sort_u32x112(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 112), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 112), true);
 	sortingnetwork_sort_u32x120(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 120), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 120), true);
 	sortingnetwork_sort_u32x128(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
-	ASSERT_EQ(check_correctness((uint32_t *) data, 128), true);
+	EXPECT_EQ(check_correctness((uint32_t *) data, 128), true);
 }
 
 TEST(SortingNetwork, small_f32xX_t) {
@@ -548,9 +548,9 @@ TEST(SortingNetwork, small_f32xX_t) {
 
 	for (uint32_t i = 1; i < 8*size; i++) {
 		const bool b =sortingnetwork_small_f32(d, i);
-		ASSERT_EQ(b, true);
+		EXPECT_EQ(b, true);
 		const bool k = check_correctness<float>(d, i);
-		ASSERT_EQ(k, true);
+		EXPECT_EQ(k, true);
 	}
 }
 
@@ -632,9 +632,9 @@ TEST(SortingNetwork, avx512_f32x16_t) {
 		d_in[i] = static_cast <float> ((float )rng()) / static_cast <float> ((uint64_t)-1ull);
 	}
 
-	__m512 a = _mm512_loadu_si512((__m512i *)(d_in + 0));
+	__m512 a = (__m512)_mm512_loadu_si512((__m512i *)(d_in + 0));
 	avx512_sortingnetwork_sort_f32x16(a);
-	_mm512_storeu_si512((__m512i *)(d_out + 0), a);
+	_mm512_storeu_si512((__m512i *)(d_out + 0), (__m512i)a);
 	for (uint32_t i = 0; i < 15; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
 	}

@@ -167,11 +167,10 @@ public:
 	/// transposes the two lists into the two buckets
 	void transpose(const size_t list_size) {
 		if constexpr (!USE_REARRANGE) {
-			ASSERT(false);
 			return;
 		}
 
-		ASSERT(list_size <= BUCKET_SIZE);
+		assert(list_size <= BUCKET_SIZE);
 		for (size_t i = 0; i < list_size; i++) {
 			for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
 				LB[i + j * list_size] = L1[i][j];
@@ -247,7 +246,7 @@ public:
 		}
 
 		wt += popcount::popcount(e2[ELEMENT_NR_LIMBS - 1]);
-		ASSERT(wt == d);
+		assert(wt == d);
 
 		e1[ELEMENT_NR_LIMBS - 1] = rng() & mask;
 		e2[ELEMENT_NR_LIMBS - 1] ^= e1[ELEMENT_NR_LIMBS - 1];
@@ -283,8 +282,8 @@ public:
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
 		L1 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
 		L2 = (Element *) cryptanalysislib::aligned_alloc(64, list_size);
-		ASSERT(L1);
-		ASSERT(L2);
+		assert(L1);
+		assert(L2);
 
 		if (create_zero && !insert_sol) {
 			memset(L1, 0, list_size);
@@ -298,8 +297,8 @@ public:
 		constexpr size_t list_size = ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T);
 		L1 = (Element *) cryptanalysislib::aligned_alloc(CUSTOM_PAGE_SIZE, list_size);
 		L2 = (Element *) cryptanalysislib::aligned_alloc(CUSTOM_PAGE_SIZE, list_size);
-		ASSERT(L1);
-		ASSERT(L2);
+		assert(L1);
+		assert(L2);
 
 		generate_random_lists(L1);
 		generate_random_lists(L2);
@@ -346,15 +345,15 @@ public:
 	/// an additional final check for correctness is done.
 	void found_solution(const size_t li,
 	                    const size_t lr) noexcept {
-		ASSERT(li < LIST_SIZE);
-		ASSERT(lr < LIST_SIZE);
+		assert(li < LIST_SIZE);
+		assert(lr < LIST_SIZE);
 #ifdef DEBUG
 		uint32_t wt = 0;
 		for (uint32_t i = 0; i < ELEMENT_NR_LIMBS; i++) {
 			wt += popcount::popcount(L1[li][i] ^ L2[lr][i]);
 		}
 
-		ASSERT(wt <= d);
+		assert(wt <= d);
 #endif
 
 		//std::cout << solutions_nr << "\n";
@@ -426,7 +425,7 @@ public:
 	inline size_t swap(uint32_t wt,
 	                   Element *__restrict__ to,
 	                   Element *__restrict__ from) const noexcept {
-		ASSERT(wt < (1u << limit));
+		assert(wt < (1u << limit));
 
 		uint32_t nctr = 0;
 
@@ -476,7 +475,7 @@ public:
 	                                           T *__restrict__ to,
 	                                           Element *__restrict__ from) const noexcept {
 		if constexpr (!USE_REARRANGE) {
-			ASSERT(false);
+			assert(false);
 			return 0;
 		}
 
@@ -486,7 +485,7 @@ public:
 
 #pragma unroll
 			for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
-				ASSERT(i + j * bucket_size < (ELEMENT_NR_LIMBS * bucket_size));
+				assert(i + j * bucket_size < (ELEMENT_NR_LIMBS * bucket_size));
 				to[i + j * bucket_size] = from[pos][j];
 			}
 
@@ -571,8 +570,8 @@ public:
 	                                                    const uint64_t *b) const noexcept {
 		if constexpr (!USE_REARRANGE) {
 			// we need to allow `<=` as a could be the first element
-			ASSERT((T) a <= (T) (L1 + LIST_SIZE));
-			ASSERT((T) b <= (T) (L2 + LIST_SIZE));
+			assert((T) a <= (T) (L1 + LIST_SIZE));
+			assert((T) b <= (T) (L2 + LIST_SIZE));
 		}
 
 		if constexpr (EXACT) {
@@ -591,8 +590,8 @@ public:
 #ifdef DEBUG
 			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
 #endif
-			ASSERT(!(a[ELEMENT_NR_LIMBS - 1] & mask));
-			ASSERT(!(b[ELEMENT_NR_LIMBS - 1] & mask));
+			assert(!(a[ELEMENT_NR_LIMBS - 1] & mask));
+			assert(!(b[ELEMENT_NR_LIMBS - 1] & mask));
 
 			if constexpr (FINAL_SOL_WEIGHT) {
 				return wt <= d;
@@ -633,7 +632,7 @@ public:
 			// generic best implementations for every weight
 			bruteforce_simd_256_64_4x4(e1, e2);
 		} else {
-			ASSERT(false);
+			assert(false);
 		}
 	}
 
@@ -645,10 +644,10 @@ public:
 	void bruteforce_32(const size_t e1,
 	                   const size_t e2) noexcept {
         ZoneScoped;
-		ASSERT(n <= 32);
+		assert(n <= 32);
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// limb position to compare on, basically the column to compare on.
 		constexpr uint32_t limb_pos = 0;
@@ -672,8 +671,8 @@ public:
 	                   const size_t e2) noexcept {
         ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// limb position to compare on, basically the column to compare on.
 		constexpr uint32_t limb_pos = 0;
@@ -702,8 +701,8 @@ public:
 	                   const size_t e2) noexcept {
         ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		for (size_t i = s1; i < e1; i++) {
 			for (size_t j = s2; j < e2; j++) {
@@ -735,8 +734,8 @@ public:
 	                    const size_t e2) noexcept {
         ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		for (size_t i = s1; i < e1; i++) {
 			for (size_t j = s2; j < e2; j++) {
@@ -756,8 +755,8 @@ public:
 	                    const size_t e2) noexcept {
         ZoneScoped;
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		for (size_t i = s1; i < e1; i++) {
 			for (size_t j = s2; j < e2; j++) {
@@ -781,7 +780,7 @@ public:
 		static_assert(sizeof(T) == 8);
 		static_assert(k <= 32);
 		static_assert(limb <= ELEMENT_NR_LIMBS);
-		ASSERT(e1 <= LIST_SIZE);
+		assert(e1 <= LIST_SIZE);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -805,7 +804,7 @@ public:
 			if constexpr (k < 32) { tmp &= SIMD_NN_K_MASK32; }
 			const uint32x8_t tmp_pop = uint32x8_t::popcnt(tmp);
 			const uint32_t wt = compare_nn_on32(tmp_pop);
-			ASSERT(wt < (1ul << 8));
+			assert(wt < (1ul << 8));
 
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
 			// we need to swap the second (0 indexed) uint64_t from L + ctr with the first element from L + i.
@@ -831,7 +830,7 @@ public:
         ZoneScoped;
 		static_assert(limb <= ELEMENT_NR_LIMBS);
 		static_assert(k <= 32);
-		ASSERT(e1 <= LIST_SIZE);
+		assert(e1 <= LIST_SIZE);
 
 
 		/// just a shorter name, im lazy.
@@ -892,7 +891,7 @@ public:
 			const uint32x8_t tmp_pop = uint32x8_t::popcnt(tmp);
 			const uint32_t wt = compare_nn_on32(tmp_pop);
 
-			ASSERT(wt < (1u << 8u));
+			assert(wt < (1u << 8u));
 			// now `wt` contains the incises of matches. Meaning if bit 1 in
 			// `wt` is set (and bit 0 not), we need to swap the second (0 indexed)
 			// uint64_t from L + ctr with the first element from L + i.
@@ -915,9 +914,9 @@ public:
 	                                   const uint32_t z,
 	                                   Element *__restrict__ L,
 	                                   T *__restrict__ B) const noexcept {
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
-		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 32);
+		assert(limb <= ELEMENT_NR_LIMBS);
+		assert(e1 <= LIST_SIZE);
+		assert(k <= 32);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -978,7 +977,7 @@ public:
 			const int wt = compare_nn_on32(tmp_pop);
 
 
-			ASSERT(wt < 1u << 8u);
+			assert(wt < 1u << 8u);
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
 			// we need to swap the second (0 indexed) uint64_t from L + ctr with the first element from L + i.
 			// The core problem is, that we need 64bit indices and not just 32bit
@@ -1002,7 +1001,7 @@ public:
 		static_assert(limb <= ELEMENT_NR_LIMBS);
 		static_assert(k <= 64);
 		static_assert(k > 32);
-		ASSERT(e1 <= LIST_SIZE);
+		assert(e1 <= LIST_SIZE);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1025,7 +1024,7 @@ public:
 			if constexpr (k < 64) { tmp &= SIMD_NN_K_MASK64; }
 			const uint64x4_t tmp_pop = uint64x4_t::popcnt(tmp);
 			const uint32_t wt = compare_nn_on64(tmp_pop);
-			ASSERT(wt < 1u << 4u);
+			assert(wt < 1u << 4u);
 
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
 			// we need to swap the second (0 indexed) uint64_t from L + ctr with the first element from L + i.
@@ -1052,7 +1051,7 @@ public:
 		static_assert(limb <= ELEMENT_NR_LIMBS);
 		static_assert(k <= 64);
 		static_assert(k > 32);
-		ASSERT(e1 <= LIST_SIZE);
+		assert(e1 <= LIST_SIZE);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1120,9 +1119,9 @@ public:
 
 			tmp_pop = uint64x4_t::popcnt(ptr_tmp7);
 			wt ^= compare_nn_on64(tmp_pop) << 28u;
-			ASSERT(uint64_t(wt) < (1ull << 32ull));
-			ASSERT(ctr <= LIST_SIZE);
-			ASSERT(ctr <= e1);
+			assert(uint64_t(wt) < (1ull << 32ull));
+			assert(ctr <= LIST_SIZE);
+			assert(ctr <= e1);
 
 			if (wt) {
 				ctr += swap_ctz(wt, L + ctr, org_ptr);
@@ -1136,7 +1135,7 @@ public:
 			if constexpr (k < 64) { ptr_tmp &= SIMD_NN_K_MASK64; }
 			const auto tmp_pop = uint64x4_t::popcnt(ptr_tmp);
 			const uint32_t wt = compare_nn_on64(tmp_pop) << 28u;
-			ASSERT(wt < (1u << 4u));
+			assert(wt < (1u << 4u));
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
 			// we need to swap the second (0 indexed) uint64_t from L + ctr with the first element from L + i.
 			// The core problem is, that we need 64bit indices and not just 32bit
@@ -1163,10 +1162,10 @@ public:
 	                                   Element *__restrict__ L,
 	                                   T *B) const noexcept {
 		ZoneScoped;
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
-		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(k <= 64);
-		ASSERT(k > 32);
+		assert(limb <= ELEMENT_NR_LIMBS);
+		assert(e1 <= LIST_SIZE);
+		assert(k <= 64);
+		assert(k > 32);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1234,10 +1233,10 @@ public:
 
 			tmp_pop = uint64x4_t::popcnt(ptr_tmp7);
 			wt ^= compare_nn_on64(tmp_pop) << 28u;
-			//ASSERT(uint64_t(wt) < (1ull << 32ull));
+			//assert(uint64_t(wt) < (1ull << 32ull));
 
-			ASSERT(ctr <= LIST_SIZE);
-			ASSERT(ctr <= e1);
+			assert(ctr <= LIST_SIZE);
+			assert(ctr <= e1);
 
 			if (wt) {
 				ctr += swap_ctz_rearrange<bucket_size>(wt, B + ctr, org_ptr);
@@ -1251,7 +1250,7 @@ public:
 			if constexpr (k < 64) { ptr_tmp &= SIMD_NN_K_MASK64; }
 			const uint64x4_t tmp_pop = uint64x4_t::popcnt(ptr_tmp);
 			const int wt = compare_nn_on64(tmp_pop) << 28u;
-			ASSERT(wt < 1u << 4u);
+			assert(wt < 1u << 4u);
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
 			// we need to swap the second (0 indexed) uint64_t from L + ctr with the first element from L + i.
 			// The core problem is, that we need 64bit indices and not just 32bit
@@ -1284,14 +1283,14 @@ public:
 		ZoneScoped;
 		static_assert(u <= 4);
 		static_assert(u > 0);
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
-		ASSERT(limb <= ELEMENT_NR_LIMBS);
-		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(e2 <= LIST_SIZE);
-		ASSERT(k <= 32);
-		ASSERT(new_e1 == 0);
-		ASSERT(new_e2 == 0);
-		ASSERT(dk <= 16);
+		assert(limb <= ELEMENT_NR_LIMBS);
+		assert(limb <= ELEMENT_NR_LIMBS);
+		assert(e1 <= LIST_SIZE);
+		assert(e2 <= LIST_SIZE);
+		assert(k <= 32);
+		assert(new_e1 == 0);
+		assert(new_e2 == 0);
+		assert(dk <= 16);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1339,8 +1338,8 @@ public:
 				new_e2 += swap_ctz(wt_L2, L2 + new_e2, org_ptr_L2);
 			}
 
-			ASSERT(new_e1 <= LIST_SIZE);
-			ASSERT(new_e2 <= LIST_SIZE);
+			assert(new_e1 <= LIST_SIZE);
+			assert(new_e2 <= LIST_SIZE);
 		}
 
 		// tail work
@@ -1393,9 +1392,9 @@ public:
 		static_assert(limb <= ELEMENT_NR_LIMBS);
 		static_assert(k <= 64);
 		static_assert(k > 32);
-		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(new_e1 == 0);
-		ASSERT(new_e2 == 0);
+		assert(e1 <= LIST_SIZE);
+		assert(new_e1 == 0);
+		assert(new_e2 == 0);
 
 		/// just a shorter name, im lazy.
 		constexpr uint32_t enl = ELEMENT_NR_LIMBS;
@@ -1452,8 +1451,8 @@ public:
 	void simd_nn_internal(const size_t e1,
 	                      const size_t e2) noexcept {
 		ZoneScoped;
-		ASSERT(e1 <= LIST_SIZE);
-		ASSERT(e2 <= LIST_SIZE);
+		assert(e1 <= LIST_SIZE);
+		assert(e2 <= LIST_SIZE);
 
 		/// NOTE: is this really the only wat to get around the restriction
 		/// of partly specialized template functions?
@@ -1480,13 +1479,13 @@ public:
 					new_e2 = simd_sort_nn_on64<r - level>(e2, z, L2);
 				}
 			} else {
-				ASSERT(false);
+				assert(false);
 			}
 
-			ASSERT(new_e1 <= LIST_SIZE);
-			ASSERT(new_e2 <= LIST_SIZE);
-			ASSERT(new_e1 <= e1);
-			ASSERT(new_e2 <= e2);
+			assert(new_e1 <= LIST_SIZE);
+			assert(new_e2 <= LIST_SIZE);
+			assert(new_e1 <= e1);
+			assert(new_e2 <= e2);
 
 			/// early exit if we filtered everything out
 			if (unlikely(new_e1 == 0 or new_e2 == 0)) { return; }
@@ -1516,7 +1515,7 @@ public:
 							new_new_e1 = simd_sort_nn_on64_rearrange<r - level + 1, BUCKET_SIZE>(new_e1, z, L1, LB);
 							new_new_e2 = simd_sort_nn_on64_rearrange<r - level + 1, BUCKET_SIZE>(new_e2, z, L2, RB);
 						} else {
-							ASSERT(false);
+							assert(false);
 						}
 
 						/// Now bruteforce the (rearranges) buckets
@@ -1546,7 +1545,7 @@ public:
 			if constexpr (32 < n and n <= 256) {
 				simd_nn_internal<r>(e1, e2);
 			} else {
-				ASSERT(false);
+				assert(false);
 			}
 			if (solutions_nr > 0) {
 				break;
@@ -1657,8 +1656,8 @@ public:
 		constexpr size_t s1 = 0, s2 = 0;
 		static_assert(n <= 32);
 		static_assert(d < 16);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// difference of the memory location in the right list
 		constexpr uint32x8_t loadr = uint32x8_t::setr(0, 1, 2, 3, 4, 5, 6, 7);
@@ -1700,8 +1699,8 @@ public:
 		constexpr size_t s1 = 0, s2 = 0;
 		static_assert(n <= 64);
 		static_assert(n > 32);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		for (size_t i = s1; i < e1; ++i) {
 			const uint64x4_t li = uint64x4_t::set1(L1[i][0]);
@@ -1733,13 +1732,13 @@ public:
 	void bruteforce_simd_64_1x1(const size_t e1,
 	                            const size_t e2) noexcept {
 		ZoneScoped;
-		ASSERT(ELEMENT_NR_LIMBS == 1);
-		ASSERT(n <= 64);
-		ASSERT(n > 32);
+		assert(ELEMENT_NR_LIMBS == 1);
+		assert(n <= 64);
+		assert(n > 32);
 
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 
 		for (size_t i = s1; i < e1; ++i) {
@@ -1775,13 +1774,13 @@ public:
 	void bruteforce_simd_64_uxv(const size_t e1,
 	                            const size_t e2) noexcept {
 		ZoneScoped;
-		ASSERT(ELEMENT_NR_LIMBS == 1);
-		ASSERT(n <= 64);
-		ASSERT(n >= 33);
+		assert(ELEMENT_NR_LIMBS == 1);
+		assert(n <= 64);
+		assert(n >= 33);
 
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		uint64x4_t lii[u], rii[v];
 
@@ -1849,8 +1848,8 @@ public:
 		static_assert(n >= 33);
 
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		uint64x4_t lii[u], rii[v];
 		auto *ptr_l = (uint64x4_t *) L1;
@@ -1938,12 +1937,12 @@ public:
 	                         const size_t e2) noexcept {
 
 		ZoneScoped;
-		ASSERT(n <= 128);
-		ASSERT(n > 64);
-		ASSERT(2 == ELEMENT_NR_LIMBS);
+		assert(n <= 128);
+		assert(n > 64);
+		assert(2 == ELEMENT_NR_LIMBS);
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// difference of the memory location in the right list
 		constexpr cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint32x4_t::setr(0u, 2u, 4u, 6u);
@@ -2039,8 +2038,8 @@ public:
 		static_assert(n <= 128);
 		static_assert(n > 64);
 		static_assert(2 == ELEMENT_NR_LIMBS);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// some constants
 		constexpr uint8x32_t zero  = uint8x32_t::set1(0);
@@ -2146,11 +2145,11 @@ public:
 	                         const size_t s1 = 0,
 	                         const size_t s2 = 0) noexcept {
 		ZoneScoped;
-		ASSERT(n <= 256);
-		ASSERT(n > 128);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(n <= 256);
+		assert(n > 128);
+		assert(4 == ELEMENT_NR_LIMBS);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// difference of the memory location in the right list
 		constexpr cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint32x4_t::setr((4ull << 32u), (8ul) | (12ull << 32u));
@@ -2217,8 +2216,8 @@ public:
 		static_assert(n > 128);
 		static_assert(4 == ELEMENT_NR_LIMBS);
 		constexpr size_t s1 = 0, s2 = 0;
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// difference of the memory location in the right list
 		constexpr cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint32x4_t::setr((4ull << 32u), (8ul) | (12ull << 32u));
@@ -2335,14 +2334,14 @@ public:
 		static_assert(u > 0);
 		static_assert(u <= 8);
 
-		ASSERT(n <= 256);
-		ASSERT(n > 128);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(n <= 256);
+		assert(n > 128);
+		assert(4 == ELEMENT_NR_LIMBS);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// NOTE: limit arbitrary but needed for correctness
-		ASSERT(d < 7);
+		assert(d < 7);
 
 		/// difference of the memory location in the right list
 		constexpr uint32x8_t loadr1 = uint32x8_t::setr(0u, 8u, 16u, 24u, 32u, 40u, 48u, 56u);
@@ -2485,7 +2484,7 @@ public:
 
 				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				if (m1s_tmp) {
-					ASSERT(popcount::template popcount<uint32_t>(m1s_tmp) == 1);
+					assert(popcount::template popcount<uint32_t>(m1s_tmp) == 1);
 					const uint32_t m1s_ctz = __builtin_ctz(m1s_tmp);
 					const uint32_t bla = __builtin_ctz(m1s[m1s_ctz]);
 					const size_t iprime = i + m1s_ctz;
@@ -2650,11 +2649,11 @@ public:
 	                                const size_t s1 = 0,
 	                                const size_t s2 = 0) noexcept {
 		ZoneScoped;
-		ASSERT(n <= 256);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
-		ASSERT(dk < 32);
+		assert(n <= 256);
+		assert(4 == ELEMENT_NR_LIMBS);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
+		assert(dk < 32);
 
 		/// NOTE is already aligned
 		T *ptr_l = (T *) L1;
@@ -2721,8 +2720,8 @@ public:
 
 			const uint32_t off_l = test_i * 4 + inner_ctz;
 			const uint32_t off_r = test_j * 4 + test_inner;
-			ASSERT(off_l < 16);
-			ASSERT(off_r < 16);
+			assert(off_l < 16);
+			assert(off_r < 16);
 
 			uint32_t wt = 0;
 			for (uint32_t s = 0; s < ELEMENT_NR_LIMBS; s++) {
@@ -2731,7 +2730,7 @@ public:
 				wt += popcount::popcount(t1 ^ t2);
 			}
 
-			ASSERT(wt);
+			assert(wt);
 			if (wt <= d) {
 				solutions.resize(solutions_nr + 1);
 				solutions[solutions_nr++] = std::pair
@@ -2755,14 +2754,14 @@ public:
 	                                          const size_t s1 = 0,
 	                                          const size_t s2 = 0) noexcept {
 		ZoneScoped;
-		ASSERT(e1 <= bucket_size);
-		ASSERT(e2 <= bucket_size);
-		ASSERT(n <= 256);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
-		ASSERT(dk < 32);
-		ASSERT(USE_REARRANGE);
+		assert(e1 <= bucket_size);
+		assert(e2 <= bucket_size);
+		assert(n <= 256);
+		assert(4 == ELEMENT_NR_LIMBS);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
+		assert(dk < 32);
+		assert(USE_REARRANGE);
 
 		/// NOTE is already aligned
 		T *ptr_l = (T *) LB;
@@ -2815,12 +2814,12 @@ public:
 	                            const size_t s1,
 	                            const size_t s2) noexcept {
 		ZoneScoped;
-		ASSERT(EXACT);
-		ASSERT(n <= 256);
-		ASSERT(n > 128);
-		ASSERT(4 == ELEMENT_NR_LIMBS);
-		ASSERT(e1 >= s1);
-		ASSERT(e2 >= s2);
+		assert(EXACT);
+		assert(n <= 256);
+		assert(n > 128);
+		assert(4 == ELEMENT_NR_LIMBS);
+		assert(e1 >= s1);
+		assert(e2 >= s2);
 
 		/// allowed weight to match on
 		const uint64x4_t zero = uint64x4_t::set1(0);

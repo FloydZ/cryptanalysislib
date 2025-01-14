@@ -47,7 +47,7 @@ namespace cryptanalysislib::hh {
 	constexpr explicit power_of_two_growth_policy(std::size_t &min_bucket_count_in_out) noexcept {
 		if (min_bucket_count_in_out > max_bucket_count()) {
 			// the hashmap has reached its max size
-			ASSERT(false);
+			assert(false);
 		}
 
 		if (min_bucket_count_in_out > 0) {
@@ -72,7 +72,7 @@ namespace cryptanalysislib::hh {
 	[[nodiscard]] constexpr inline std::size_t next_bucket_count() const noexcept {
 		if ((m_mask + 1) > max_bucket_count() / GrowthFactor) {
 			// the hashmap has reached its max size
-			ASSERT(false);
+			assert(false);
 		}
 
 		return (m_mask + 1) * GrowthFactor;
@@ -111,7 +111,7 @@ namespace cryptanalysislib::hh {
 	public:
 		constexpr explicit mod_growth_policy(const std::size_t &min_bucket_count_in_out) noexcept {
 			if (min_bucket_count_in_out > max_bucket_count()) {
-				ASSERT(false);
+				assert(false);
 			}
 
 			if (min_bucket_count_in_out > 0) {
@@ -127,13 +127,13 @@ namespace cryptanalysislib::hh {
 
 		[[nodiscard]] constexpr inline std::size_t next_bucket_count() const noexcept {
 			if (m_mod == max_bucket_count()) {
-				ASSERT(false);
+				assert(false);
 			}
 
 			const double next_bucket_count =
 			        std::ceil(double(m_mod) * REHASH_SIZE_MULTIPLICATION_FACTOR);
 			if (!std::isnormal(next_bucket_count)) {
-				ASSERT(false);
+				assert(false);
 			}
 
 			if (next_bucket_count > double(max_bucket_count())) {
@@ -183,8 +183,9 @@ namespace cryptanalysislib::hh {
 #endif
 		}};
 
+        /// 
 		template<unsigned int IPrime>
-		static constexpr std::size_t mod(std::size_t hash) {
+		[[nodiscard]]static constexpr std::size_t mod(std::size_t hash) {
 			return hash % PRIMES[IPrime];
 		}
 
@@ -213,7 +214,7 @@ namespace cryptanalysislib::hh {
 
 	/**
 	* Grow the hash table by using prime numbers as bucket count. Slower than
-	* tsl::hh::power_of_two_growth_policy in general but will probably distribute
+	* cryptanalysislib::hh::power_of_two_growth_policy in general but will probably distribute
 	* the values around better in the buckets with a poor hash function.
 	*
 	* To allow the compiler to optimize the modulo operation, a lookup table is
@@ -244,7 +245,7 @@ namespace cryptanalysislib::hh {
 			auto it_prime = std::lower_bound(
 			        detail::PRIMES.begin(), detail::PRIMES.end(), min_bucket_count_in_out);
 			if (it_prime == detail::PRIMES.end()) {
-				ASSERT(false);
+				assert(false);
 			}
 
 			m_iprime = static_cast<unsigned int>(
@@ -262,7 +263,7 @@ namespace cryptanalysislib::hh {
 
 		[[nodiscard]] constexpr inline std::size_t next_bucket_count() const noexcept {
 			if (m_iprime + 1 >= detail::PRIMES.size()) {
-				ASSERT(false);
+				assert(false);
 			}
 
 			return detail::PRIMES[m_iprime + 1];

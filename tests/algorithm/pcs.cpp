@@ -114,7 +114,7 @@ TEST(PCS, RhoFactorise) {
 //			}
 //		}
 //
-//		ASSERT(ret.value.popcnt() == n4);
+//		assert(ret.value.popcnt() == n4);
 //		return ret;
 //	};
 //

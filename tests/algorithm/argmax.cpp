@@ -21,14 +21,14 @@ TEST(argmax, simd_uint32_t) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = argmax_simd_u32(d, s);
-	ASSERT_EQ(t, s-1);
+	EXPECT_EQ(t, s-1);
 
 
 	for (size_t i = 0; i < s; ++i) { d[i] = rng(); }
     const size_t pos = rng(s);
     d[pos] = -1u;
     const size_t pos2 = argmax_simd_u32(d, s);
-	ASSERT_EQ(pos, pos2);
+	EXPECT_EQ(pos, pos2);
 
 	delete[] d;
 }
@@ -39,13 +39,13 @@ TEST(argmax, simd_uint32_t_bl16) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = argmax_simd_u32_bl16(d, s);
-	ASSERT_EQ(t, s-1);
+	EXPECT_EQ(t, s-1);
 
 	for (size_t i = 0; i < s; ++i) { d[i] = rng(); }
     const size_t pos = rng(s);
     d[pos] = -1u;
     const size_t pos2 = argmax_simd_u32(d, s);
-	ASSERT_EQ(pos, pos2);
+	EXPECT_EQ(pos, pos2);
 
 	delete[] d;
 }
@@ -56,13 +56,13 @@ TEST(argmax, simd_uint32_t_bl32) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = argmax_simd_u32_bl32(d, s);
-	ASSERT_EQ(t, s-1);
+	EXPECT_EQ(t, s-1);
 
 	for (size_t i = 0; i < s; ++i) { d[i] = rng(); }
     const size_t pos = rng(s);
     d[pos] = -1u;
     const size_t pos2 = argmax_simd_u32(d, s);
-	ASSERT_EQ(pos, pos2);
+	EXPECT_EQ(pos, pos2);
 
 	delete[] d;
 }

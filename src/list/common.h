@@ -209,8 +209,8 @@ public:
 						 const size_t start,
 						 const size_t end) :
 			start(start), end(end), list(list) {
-		ASSERT(start < end);
-		ASSERT(end < list->size());
+		assert(start < end);
+		assert(end < list->size());
 	}
 
 	[[nodiscard]] constexpr inline size_t size() const noexcept {
@@ -401,7 +401,7 @@ public:
 										   const size_t start=0,
 										   const size_t end=-1ull) const noexcept {
 		const size_t end_ = end==-1ull ? load() : end;
-		ASSERT(start <= end_);
+		assert(start <= end_);
 
 		for (size_t i = start+1; i < end_; ++i) {
 			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
@@ -438,7 +438,7 @@ public:
 	                                       const size_t start=0,
 	                                       const size_t end=-1ull) const noexcept {
 		const size_t end_ = end==-1ull ? load()-1 : end;
-		ASSERT(start < end_);
+		assert(start < end_);
 
 		auto op = [&t, sub](const LabelType &a){
 			LabelType tmp;
@@ -473,7 +473,7 @@ public:
 	[[nodiscard]] constexpr size_t size() const noexcept { return __size; }
 	/// \return the number of elements each thread enumerates
 	[[nodiscard]] constexpr size_t size(const uint32_t tid) const noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 
 		if (tid == threads() - 1) {
 			return std::max(thread_block_size() * threads(), size());
@@ -498,22 +498,22 @@ public:
 
 	/// set/get the load factor
 	[[nodiscard]] constexpr size_t load(const uint32_t tid = 0) const noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		return __load[tid];
 	}
 	constexpr void set_load(const size_t l,
 							const uint32_t tid = 0) noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		__load[tid] = l;
 	}
 	constexpr void inc_load(const uint32_t tid = 0) noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		__load[tid] += 1;
 	}
 
 	/// returning the range in which one thread is allowed to operate
 	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid=0) const noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 
 		if (threads() == 1) {
 			return 0;
@@ -522,7 +522,7 @@ public:
 		return tid * (__data.size() / __threads);
 	};
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid=0) const noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		if (threads() == 1) {
 			return load();
 		}
@@ -558,50 +558,50 @@ public:
 	[[nodiscard]] constexpr inline LabelType *data_label() noexcept { return (LabelType *) __data.data(); }
 	[[nodiscard]] constexpr inline const LabelType *data_label() const noexcept { return (const LabelType *) __data.data(); }
 	[[nodiscard]] constexpr inline ValueType &data_value(const size_t i) noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return __data[i].get_value();
 	}
 	[[nodiscard]] constexpr inline const ValueType &data_value(const size_t i) const noexcept {
-	 	ASSERT(i < __size);
+	 	assert(i < __size);
 	 	return __data[i].get_value();
 	}
 	[[nodiscard]] constexpr inline LabelType &data_label(const size_t i) noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return __data[i].get_label();
 	}
 	[[nodiscard]] constexpr inline const LabelType &data_label(const size_t i) const noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return __data[i].get_label();
 	}
 
 	/// operator overloading
 	[[nodiscard]] constexpr inline Element &at(const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return __data[i];
 	}
 	[[nodiscard]] constexpr inline const Element &at(const size_t i) const noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return __data[i];
 	}
 	[[nodiscard]] constexpr inline Element &operator[](const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return __data[i];
 	}
 	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return __data[i];
 	}
 
 	[[nodiscard]] constexpr inline Listview_t<L> view(const size_t i,
 	                                             	   const size_t j) noexcept {
-		ASSERT(j <= size());
-		ASSERT(i < j);
+		assert(j <= size());
+		assert(i < j);
 		return Listview_t<L>(this, i, j);
 	}
 	[[nodiscard]] constexpr inline const Element view(const size_t i,
 	                                                   const size_t j) const noexcept {
-		ASSERT(j <= size());
-		ASSERT(i < j);
+		assert(j <= size());
+		assert(i < j);
 		return Listview_const_t<L>(this, i, j);
 	}
 
@@ -609,7 +609,7 @@ public:
 	/// \param e
 	/// \param i
 	constexpr inline void set(Element &e, const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		__data[i] = e;
 	}
 
@@ -626,10 +626,10 @@ public:
 	                  const uint32_t value_k_higher,
 	                  const uint32_t label_k_lower,
 	                  const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
+		assert(value_k_lower < value_k_higher);
+		assert(value_k_higher <= ValueLENGTH);
+		assert(label_k_lower < label_k_higher);
+		assert(label_k_higher <= LabelLENGTH);
 
 		data_value(pos).print_binary(value_k_lower, value_k_higher);
 		data_label(pos).print_binary(label_k_lower, label_k_higher);
@@ -648,10 +648,10 @@ public:
 	           const uint32_t value_k_higher,
 	           const uint32_t label_k_lower,
 	           const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
+		assert(value_k_lower < value_k_higher);
+		assert(value_k_higher <= ValueLENGTH);
+		assert(label_k_lower < label_k_higher);
+		assert(label_k_higher <= LabelLENGTH);
 
 		data_value(pos).print(value_k_lower, value_k_higher);
 		data_label(pos).print(label_k_lower, label_k_higher);
@@ -671,12 +671,12 @@ public:
 	           const uint32_t label_k_higher,
 	           const size_t start,
 	           const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= __data.size());
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
+		assert(start < end);
+		assert(end <= __data.size());
+		assert(value_k_lower < value_k_higher);
+		assert(value_k_higher <= ValueLENGTH);
+		assert(label_k_lower < label_k_higher);
+		assert(label_k_higher <= LabelLENGTH);
 
 		for (size_t i = start; i < end; ++i) {
 			print(i, value_k_lower, value_k_higher,
@@ -698,12 +698,12 @@ public:
 	                  const uint32_t label_k_higher,
 	                  const size_t start,
 	                  const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= __data.size());
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
+		assert(start < end);
+		assert(end <= __data.size());
+		assert(value_k_lower < value_k_higher);
+		assert(value_k_higher <= ValueLENGTH);
+		assert(label_k_lower < label_k_higher);
+		assert(label_k_higher <= LabelLENGTH);
 
 		for (size_t i = start; i < end; ++i) {
 			print_binary(i, value_k_lower, value_k_higher,
@@ -733,7 +733,7 @@ public:
 	/// \param i
 	constexpr void erase(const size_t i,
 	                     const uint32_t tid = 0) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		__data.erase(__data.begin() + i);
 		__load[tid] -= 1;
 	}
@@ -741,7 +741,7 @@ public:
 	/// generates a rng element
 	/// NOTE: this rng elements, does not fulfill any property (e.g. label = matrix*value)
 	void random(const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		__data[i].random();
 	}
 
@@ -767,7 +767,7 @@ public:
 	// mutl
 	constexpr void random(const MatrixType &m,
 						  const uint32_t tid) noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		const size_t sp = start_pos(tid);
 		const size_t ep = start_pos(tid);
 
@@ -801,7 +801,7 @@ public:
 	                      const size_t pos,
 	                      const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
-		ASSERT((spos+pos) < size());
+		assert((spos+pos) < size());
 		__data[spos + pos] = e;
 	}
 

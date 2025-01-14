@@ -156,12 +156,12 @@ public:
 
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -198,7 +198,7 @@ public:
 	}
 
 	[[nodiscard]] constexpr static inline TxN_t set(const T *data) noexcept {
-		ASSERT(data);
+		assert(data);
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data[N - i - 1];
@@ -207,7 +207,7 @@ public:
 	}
 
 	[[nodiscard]] constexpr static inline TxN_t setr(const T *data) noexcept {
-		ASSERT(data);
+		assert(data);
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data[i];
@@ -613,10 +613,14 @@ public:
 		return S::move(tmp);
 	}
 
+    /// \param in1[in]: 
+    /// \return popcnt(in1): 
 	[[nodiscard]] constexpr static inline S popcnt(const TxN_t &in1) noexcept {
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {
+                /// TODO move this into a seperate call in this class, so 
+                /// if someone wants to copy this file, only needs a single change to make
 				ret[i] = cryptanalysislib::popcount::popcount(in1[i]);
 			}
 			return ret;
@@ -650,7 +654,7 @@ public:
 		return ret;
 	}
 
-	///
+	/// TODO doc
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline TxN_t reverse(const TxN_t &in1) noexcept {
@@ -662,7 +666,7 @@ public:
 		return ret;
 	}
 
-	///
+	/// TODO doc
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const TxN_t &in1) noexcept {
@@ -675,7 +679,10 @@ public:
 		return true;
 	}
 
-
+	/// TODO doc
+	/// \param ptr
+	/// \param in1
+	/// \return
 	template<uint32_t off = sizeof(T)>
 	[[nodiscard]] constexpr static inline TxN_t gather(const limb_type *ptr,
 	                                                   const TxN_t &in1) noexcept {
@@ -688,6 +695,10 @@ public:
 	}
 
 
+	/// TODO doc
+	/// \param ptr
+	/// \param in1
+	/// \param in2
 	template<uint32_t off = sizeof(T)>
 	constexpr static inline void scatter(limb_type *ptr,
 	                                     const TxN_t &in1,
@@ -699,7 +710,10 @@ public:
 		}
 	}
 
-
+	/// TODO doc
+	/// \param ptr
+	/// \param in1
+	/// \param in2
 	[[nodiscard]] constexpr static inline S permute(const TxN_t &in1,
 	                                                const TxN_t &in2) noexcept {
 		S ret;
@@ -714,7 +728,7 @@ public:
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline uint64_t move(const TxN_t &in1) noexcept {
-		ASSERT(N <= 64);
+		assert(N <= 64);
 		uint64_t ret = 0;
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
@@ -746,6 +760,7 @@ public:
 		return ret;
 	}
 
+	/// \returns number of limbs
 	[[nodiscard]] constexpr static size_t size() noexcept {
 		return N;
 	}

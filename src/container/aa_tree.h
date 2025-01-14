@@ -57,19 +57,19 @@ public:
 	}
 
 	[[nodiscard]] constexpr inline T& value() noexcept {
-		ASSERT(!exists());
+		assert(!exists());
 		return ptr->value;
 	}
 
 	/// \return
 	[[nodiscard]] constexpr inline node& node_ref() noexcept {
-		ASSERT(exists());
+		assert(exists());
 		return *ptr;
 	}
 
 	/// \return
 	[[nodiscard]] constexpr inline node& node_ref() const noexcept {
-		ASSERT(exists());
+		assert(exists());
 		return *ptr;
 	}
 
@@ -92,7 +92,7 @@ public:
 	/// \param val
 	/// \return
 	[[nodiscard]] constexpr inline auto& skew(const T val) noexcept {
-		ASSERT(exists());
+		assert(exists());
 		auto selfnode = node_ref();
 		if (selfnode.left.level() < level()) {
 			return *this;

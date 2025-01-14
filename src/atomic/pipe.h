@@ -144,14 +144,13 @@ public:
 		return true;
 	}
 
-	///
-	/// @param src
-	/// @return false on failure,
+	/// \param src
+	/// \return false on failure,
 	///			true on success
 	[[nodiscard]] bool write_front(const T &src) noexcept {
 		uint32_t actual_write;
 		uint32_t write_index;
-		ASSERT(pipe);
+		assert(pipe);
 
 		/* The writer 'owns' the write index and readers can only reduce the amout of
      	 * data in the pipe. We get hold of both values for consistentcy and to

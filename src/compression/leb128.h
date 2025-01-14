@@ -107,26 +107,27 @@ constexpr static inline size_t leb128_decode(T *out,
     return ctr; 
 }
 
-/// @param buf
-/// @param n
+/// \param buf pointer to the compressed integer
+/// \param n number of bytes to read
 constexpr static inline void leb128_skip(const uint8_t *buf,
 										 const size_t n) noexcept {
-	uint64_t *w = (uint64_t *)buf;
+	auto *w = reinterpret_cast<const uint64_t *>(buf);
 	size_t nn = n;
 	while (nn >= 8) {
 		nn -= popcount::popcount(~(*w++) & 0x8080808080808080);
 	}
 
-	buf = (uint8_t *)w;
+	buf = reinterpret_cast<const uint8_t *>(w);
 	while(nn--) {
-		while(*buf++ * 0x80) {}
+		while(*buf++ & 0x80) {}
 	}
 }
 
-/// @param buf
-/// @return
+/// NOTE: probably reads out off bounds.
+/// \param buf pointer to the compressed integer
+/// \return number of elements read
 constexpr static inline size_t leb128_count(const uint8_t *buf) noexcept {
-	uint64_t *w = (uint64_t *)buf;
+	auto *w = reinterpret_cast<const uint64_t *>(buf);
 	size_t n = 0;
 
 	// NOTE: probably reads out of bounds.

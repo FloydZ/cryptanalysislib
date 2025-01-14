@@ -7,6 +7,8 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <iterator>
+#include <iostream>
 
 /// Source:
 ///  https://www.cs.purdue.edu/homes/xyzhang/fall14/lock_free_set.pdf

@@ -15,21 +15,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 #ifdef MSVC
 # include <crtdbg.h>
 # include <intrin.h>
 # define _fpos64(f) _ftelli64(f)
-# define ASSERT(x) { if (!(x)) { printf("Assert failed " #x "\n"); __debugbreak(); } }
+# define assert(x) { if (!(x)) { printf("Assert failed " #x "\n"); __debugbreak(); } }
 #else
 # define _fpos64(f) ftello64(f)
-# define ASSERT(x) { if (!(x)) { printf("Assert failed " #x "\n"); exit(-1); } }
+# define assert(x) { if (!(x)) { printf("Assert failed " #x "\n"); exit(-1); } }
 #endif
 
+// TODO remove
 #ifdef DEBUG
-# define ASSERT_DEBUG(x) ASSERT(x)
+# define assert_DEBUG(x) ASSERT(x)
 #else
-# define ASSERT_DEBUG(x)
+# define assert_DEBUG(x)
 #endif
 
 typedef unsigned char byte;
@@ -285,7 +287,7 @@ const int16 cdf_initial4[17] = {
 template<int num_syms, int adapt_bits, int total>
 void init_mixin_table(int16(&mixin)[num_syms][num_syms]) {
 	const int mixin_bias = (1 << adapt_bits) - 1 - num_syms;
-	ASSERT_DEBUG(mixin_bias > 0);
+	assert_DEBUG(mixin_bias > 0);
 
 	for (int y = 0; y < num_syms; y++) {
 		for (int x = 0; x <= y; x++) {
@@ -533,7 +535,7 @@ struct DecodeFrame {
 };
 
 void CodeFrame::Init(byte *start, byte *end, uint32 *buf_rans, uint32 max_rans_syms) {
-	ASSERT_DEBUG(end - start >= 1024);
+	assert_DEBUG(end - start >= 1024);
 
 	this->start = start;
 	this->end = end;
@@ -558,8 +560,8 @@ bool CodeFrame::NeedsFlush() const {
 }
 
 void CodeFrame::WriteRange(uint16 start, uint16 freq) {
-	ASSERT(num_rans_syms <= max_rans_syms);
-	ASSERT(freq > 0);
+	assert(num_rans_syms <= max_rans_syms);
+	assert(freq > 0);
 
 	++num_ops;
 
@@ -573,14 +575,14 @@ void CodeFrame::WriteCDF(const CDF3 &cdf, int y) { WriteRange(cdf.cell[y], cdf.c
 void CodeFrame::WriteCDF(const CDF4 &cdf, int y) { WriteRange(cdf.cell[y], cdf.cell[y + 1] - cdf.cell[y]); }
 
 void CodeFrame::WriteBits(uint32 v, uint32 nb) {
-	ASSERT(v < (1u << nb));
+	assert(v < (1u << nb));
 	++num_ops;
 
 	word |= v << (32 - word_bits - nb);
 	word_bits += nb;
 
 	while (word_bits >= 8) {
-		ASSERT(ptr_bits < end);
+		assert(ptr_bits < end);
 
 		*ptr_bits++ = word >> 24;
 		word <<= 8;
@@ -590,7 +592,7 @@ void CodeFrame::WriteBits(uint32 v, uint32 nb) {
 
 uint32 CodeFrame::Flush() {
 	for (int i = 0; i < 4; i++) {
-		ASSERT(ptr_bits < end);
+		assert(ptr_bits < end);
 
 		*ptr_bits++ = word >> 24;
 		word <<= 8;
@@ -608,7 +610,7 @@ uint32 CodeFrame::Flush() {
 	rans_enc_flush(st[1], &wptr);
 	rans_enc_flush(st[0], &wptr);
 
-	ASSERT(wptr >= ptr_bits);
+	assert(wptr >= ptr_bits);
 	uint32 num_rans_bytes = (end - 1) - wptr;
 	memmove(ptr_bits, wptr, num_rans_bytes);
 
@@ -716,13 +718,13 @@ uint32 DecodeFrame::ReadBits(uint32 nb) {
 	--num_ops;
 
 	while (word_bits < 24) {
-		ASSERT(ptr_bits < end);
+		assert(ptr_bits < end);
 
 		word |= *ptr_bits++ << (24 - word_bits);
 		word_bits += 8;
 	}
 
-	ASSERT(nb <= word_bits);
+	assert(nb <= word_bits);
 
 	uint32 y = word >> (32 - nb);
 	word <<= nb;
@@ -834,9 +836,9 @@ void MatchTable::CarryFrom(MatchTable &prev, uint32 shift) {
 }
 
 void MatchTable::Update(uint32 mdelta, uint16 mlen) {
-	ASSERT(mlen >= get_match_min(mdelta));
-	ASSERT(mlen <= MATCH_MAX);
-	ASSERT(mdelta > 0);
+	assert(mlen >= get_match_min(mdelta));
+	assert(mlen <= MATCH_MAX);
+	assert(mdelta > 0);
 
 	int i = 0;
 	while (i <= mlen && i <= max_len) {
@@ -853,12 +855,12 @@ void MatchTable::Update(uint32 mdelta, uint16 mlen) {
 }
 
 uint32 RingDictionary::MatchLengthSigned(uint32 p0, uint32 p1, uint16 max_len, uint16 initial_len) const {
-	ASSERT(p0 < p1);
+	assert(p0 < p1);
 	p0 += initial_len;
 	p1 += initial_len;
 
-	ASSERT((p0 >= hist_pos && p0 - hist_pos < lookahead_len) || hist_pos - p0 <= hist_mask);
-	ASSERT((p1 >= hist_pos && p1 - hist_pos < lookahead_len) || hist_pos - p1 <= hist_mask);
+	assert((p0 >= hist_pos && p0 - hist_pos < lookahead_len) || hist_pos - p0 <= hist_mask);
+	assert((p1 >= hist_pos && p1 - hist_pos < lookahead_len) || hist_pos - p1 <= hist_mask);
 
 	uint16 mlen = initial_len;
 	while (mlen < max_len) {
@@ -882,12 +884,12 @@ uint32 RingDictionary::MatchLength(uint32 p0, uint32 p1, uint16 max_len) const {
 }
 
 int RingDictionary::CharAtPosition(uint32 p) const {
-	ASSERT((p >= hist_pos && p - hist_pos < lookahead_len) || hist_pos - p <= hist_mask);
+	assert((p >= hist_pos && p - hist_pos < lookahead_len) || hist_pos - p <= hist_mask);
 	return p >= hist_pos ? lookahead[p - hist_pos] : hist[p & hist_mask];
 }
 
 void RingDictionary::Shift(uint32 shift) {
-	ASSERT(!(shift & hist_mask));
+	assert(!(shift & hist_mask));
 	hist_pos -= shift;
 }
 
@@ -983,12 +985,12 @@ void MatchFinderBT::FindAndUpdate(MatchTable &mt, uint32 h4, uint32 p, const Rin
 
 	uint32 sp = heads[h4 >> hash_shift];
 	heads[h4 >> hash_shift] = p;
-	ASSERT((h4 >> hash_shift) < (1u << (32 - hash_shift)));
+	assert((h4 >> hash_shift) < (1u << (32 - hash_shift)));
 
 	uint16 max_len = Min(dict.lookahead_len + dict.hist_pos - p, MATCH_MAX);
 	uint16 tests_left = MAX_TESTS;
 	while (sp != (uint32)-1 && p > sp && p - sp <= dict.hist_mask && tests_left-- > 0) {
-		ASSERT(sp < p);
+		assert(sp < p);
 
 		uint32 *pair = tree + ((sp & dict.hist_mask) << 1);
 		uint32 mlen_signed = dict.MatchLengthSigned(sp, p, max_len, Min(left_len, right_len));
@@ -1207,8 +1209,8 @@ void model_init(Model &m) {
 }
 
 uint32 model_cost_match(Model &m, uint32 delta, uint16 len) {
-	ASSERT(len >= get_match_min(delta));
-	ASSERT(delta > 0);
+	assert(len >= get_match_min(delta));
+	assert(delta > 0);
 
 	uint32 cost = cdf_cost(m.cmd, Model::CMD_Dict);
 
@@ -1273,8 +1275,8 @@ uint32 model_cost_rep(Model &m, uint32 rep_idx, uint32 delta, uint16 len) {
 }
 
 void model_encode_match(CodeFrame &frame, Model &m, uint32 delta, uint16 len) {
-	ASSERT(len >= get_match_min(delta));
-	ASSERT(delta > 0);
+	assert(len >= get_match_min(delta));
+	assert(delta > 0);
 
 	frame.WriteCDF(m.cmd, Model::CMD_Dict);
 	cdf_update(m.cmd, Model::CMD_Dict);
@@ -1468,7 +1470,7 @@ uint32 parse_table(ParseNode(&table)[PARSE_TABLE_SIZE + 1], Model &m, RingDictio
 	CarriedState carried_states[0x200];
 
 	max_parse_len = Min(max_parse_len, PARSE_TABLE_SIZE);
-	ASSERT(max_parse_len <= dict.lookahead_len);
+	assert(max_parse_len <= dict.lookahead_len);
 
 	table[0].cost = 0;
 	table[0].cmd = -1;
@@ -1485,7 +1487,7 @@ uint32 parse_table(ParseNode(&table)[PARSE_TABLE_SIZE + 1], Model &m, RingDictio
 	MatchTable mt;
 	uint32 p = 0, end_p = 1;
 	while (p < end_p) {
-		ASSERT(p < PARSE_TABLE_SIZE);
+		assert(p < PARSE_TABLE_SIZE);
 		uint32 np = 1 + p;
 
 		int y = dict.lookahead[p];
@@ -1647,7 +1649,7 @@ uint32 parse_table(ParseNode(&table)[PARSE_TABLE_SIZE + 1], Model &m, RingDictio
 		running_end = cur;
 		cur = prev;
 	}
-	ASSERT(running_end == 0);
+	assert(running_end == 0);
 	return end_p;
 }
 
@@ -1798,11 +1800,11 @@ void encode_file(FILE *fin, FILE *fout, uint32 hist_bits) {
 			dict.lookahead = chunk_mem + p;
 			dict.lookahead_len = Min(chunk_feed_size, chunk_read - p);
 
-			ASSERT(p <= parse_end);
+			assert(p <= parse_end);
 			if (p == parse_end) {
 				uint32 parse_len = parse_table(parse_nodes, model, dict, ht2, ht3, bt4, rk, mt_carry, p_end - p);
-				ASSERT(parse_len > 0);
-				ASSERT(p + parse_len <= p_end);
+				assert(parse_len > 0);
+				assert(p + parse_len <= p_end);
 				parse_start = p;
 				parse_end = p + parse_len;
 			}
@@ -1815,14 +1817,14 @@ void encode_file(FILE *fin, FILE *fout, uint32 hist_bits) {
 			}
 			else if (pn.cmd == Model::CMD_Dict) {
 				model_encode_match(frame, model, pn.delta, pn.len);
-				ASSERT(dict.hist_pos >= pn.delta);
+				assert(dict.hist_pos >= pn.delta);
 
 				model.rep4.Add(pn.delta);
 				p += pn.len;
 
 				while (pn.len-- > 0) {
 					int y = dict.hist[(dict.hist_pos - pn.delta) & dict.hist_mask];
-					ASSERT(y == *dict.lookahead);
+					assert(y == *dict.lookahead);
 
 					dict.hist[dict.hist_pos++ & dict.hist_mask] = *dict.lookahead++;
 				}
@@ -1830,24 +1832,24 @@ void encode_file(FILE *fin, FILE *fout, uint32 hist_bits) {
 			else if (pn.cmd == Model::CMD_RepDelta) {
 				model_encode_rep(frame, model, pn.delta, pn.len);
 				uint32 delta = model.rep4.table[pn.delta];
-				ASSERT(dict.hist_pos >= delta);
+				assert(dict.hist_pos >= delta);
 
 				model.rep4.Add(delta);
 				p += pn.len;
 
 				while (pn.len-- > 0) {
 					int y = dict.hist[(dict.hist_pos - delta) & dict.hist_mask];
-					ASSERT(y == *dict.lookahead);
+					assert(y == *dict.lookahead);
 
 					dict.hist[dict.hist_pos++ & dict.hist_mask] = *dict.lookahead++;
 				}
 			}
 			else {
-				ASSERT(false);
+				assert(false);
 			}
 		}
 
-		ASSERT(!frame.NeedsFlush());
+		assert(!frame.NeedsFlush());
 		uint32 frame_written = frame.Flush();
 		write_pos += frame_written;
 
@@ -1912,14 +1914,14 @@ void encode_file(FILE *fin, FILE *fout, uint32 hist_bits) {
 
 void decode_file(FILE *fin, FILE *fout) {
 	byte header[4];
-	ASSERT(fread(header, 1, 4, fin) == 4);
+	assert(fread(header, 1, 4, fin) == 4);
 	uint32 hist_bits = (header[0] << 8) + header[1];
 	uint32 frame_bits = (header[2] << 8) + header[3];
 
-	ASSERT(hist_bits >= 12);
-	ASSERT(hist_bits <= 28);
-	ASSERT(frame_bits >= 12);
-	ASSERT(frame_bits <= 20);
+	assert(hist_bits >= 12);
+	assert(hist_bits <= 28);
+	assert(frame_bits >= 12);
+	assert(frame_bits <= 20);
 
 	RingDictionary dict;
 	dict.hist_bits = hist_bits;
@@ -1959,7 +1961,7 @@ void decode_file(FILE *fin, FILE *fout) {
 			break;
 		}
 
-		ASSERT(consumed_frame_size <= frame_read);
+		assert(consumed_frame_size <= frame_read);
 
 		if (dict.hist_pos >= 2 * window_size) {
 			dict.Shift(window_size);
@@ -1989,7 +1991,7 @@ void decode_file(FILE *fin, FILE *fout) {
 				lv += get_match_min(dv);
 
 				model.rep4.Add(dv);
-				ASSERT(dict.hist_pos >= dv);
+				assert(dict.hist_pos >= dv);
 				while (lv-- > 0) {
 					int y = dict.hist[(dict.hist_pos - dv) & dict.hist_mask];
 					dict.hist[dict.hist_pos++ & dict.hist_mask] = y;
@@ -2003,7 +2005,7 @@ void decode_file(FILE *fin, FILE *fout) {
 				lv += get_match_min(dv);
 
 				model.rep4.Add(dv);
-				ASSERT(dict.hist_pos >= dv);
+				assert(dict.hist_pos >= dv);
 				while (lv-- > 0) {
 					int y = dict.hist[(dict.hist_pos - dv) & dict.hist_mask];
 					dict.hist[dict.hist_pos++ & dict.hist_mask] = y;

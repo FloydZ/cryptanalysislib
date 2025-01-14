@@ -165,7 +165,7 @@ public:
 	constexpr List_T(const size_t nr_element,
 	                 const uint32_t threads = 1) noexcept
 	    : MetaListT<Element>(nr_element, threads) {
-		ASSERT(threads > 0);
+		assert(threads > 0);
 		for (uint32_t i = 0; i < threads; ++i) {
 			set_load(0, i);
 		}
@@ -261,7 +261,7 @@ public:
 	constexpr void sort_level(const uint32_t k_lower,
 							  const uint32_t k_higher,
 							  const uint32_t tid) noexcept {
-		ASSERT(k_lower < k_higher);
+		assert(k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
 		if (use_std_sort || (!Element::is_hashable(k_lower, k_higher))) {
@@ -280,7 +280,7 @@ public:
 			});
 
 		}
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 	}
 
 	/// NOTE: this does not search the FULL list, only each segment
@@ -311,7 +311,7 @@ public:
 			});
 		}
 
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 	}
 
 	/// \param k_lower
@@ -323,7 +323,7 @@ public:
 							  const uint32_t k_higher,
 	                          const LabelType &target,
 	                          const uint32_t tid) noexcept {
-		ASSERT(k_lower < k_higher);
+		assert(k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
 		if (use_std_sort || (!Element::is_hashable(k_lower, k_higher))) {
@@ -358,7 +358,7 @@ public:
 			});
 		}
 
-		ASSERT(is_sorted(target, sub, k_lower, k_higher));
+		assert(is_sorted(target, sub, k_lower, k_higher));
 	}
 
 	/// \tparam k_lower
@@ -382,7 +382,7 @@ public:
 	         const bool sub = false>
 	constexpr void sort_level(const LabelType &target,
 							  const uint32_t tid) noexcept {
-		ASSERT(k_lower < k_higher);
+		assert(k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
 		if constexpr (use_std_sort || (!Element::template is_hashable<k_lower, k_higher>())) {
@@ -418,7 +418,7 @@ public:
 			});
 		}
 
-		ASSERT(is_sorted(target, sub, k_lower, k_higher));
+		assert(is_sorted(target, sub, k_lower, k_higher));
 	}
 
 
@@ -491,7 +491,7 @@ public:
 	constexpr inline size_t search_level(const Element &e,
 								  const uint32_t k_lower,
 								  const uint32_t k_higher) const noexcept {
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 		if constexpr (use_interpolation_search) {
 			return interpolation_search(e, k_lower, k_higher);
 		} else {
@@ -515,7 +515,7 @@ public:
 	/// \return
 	template<const uint32_t k_lower, const uint32_t k_higher>
 	constexpr inline size_t search_level(const Element &e) const noexcept {
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 		if constexpr (use_interpolation_search) {
 			return interpolation_search<k_lower, k_higher>(e);
 		} else {
@@ -551,7 +551,7 @@ public:
 	                                      const uint32_t k_lower,
 	                                      const uint32_t k_upper,
 										  const uint32_t tid = 0) const noexcept {
-		ASSERT(k_upper > k_lower);
+		assert(k_upper > k_lower);
 
 		// the linear search, doesn't need the data to be sorted
 		if (use_hash_operator && Element::is_hashable(k_lower, k_upper)) {
@@ -618,7 +618,7 @@ public:
 
 
 
-	///
+	/// TODO doc
 	/// \tparam k_lower
 	/// \tparam k_upper
 	/// \param e
@@ -628,7 +628,7 @@ public:
 										  const uint32_t k_lower,
 										  const uint32_t k_upper,
 										  const uint32_t tid=0) const noexcept {
-		ASSERT(k_upper > k_lower);
+		assert(k_upper > k_lower);
 
 		// the linear search, doesn't need the data to be sorted
 		if constexpr (!use_std_binary_search && use_hash_operator) {
@@ -638,7 +638,7 @@ public:
 					   return a.hash(k_lower, k_upper);
 					 });
 			} else {
-				ASSERT(false);
+				assert(false);
 			}
 		} else {
 			return binary_search(e, tid, [k_lower, k_upper](const Element &a,

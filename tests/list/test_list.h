@@ -52,7 +52,7 @@ TEST(ListName, sort_level) {
 
 	L.sort_level(k_lower, k_higher);
 
-	ASSERT(L.is_sorted(k_lower, k_higher));
+	EXPECT_TRUE(L.is_sorted(k_lower, k_higher));
 	EXPECT_EQ(L.is_correct(m), true);
 }
 
@@ -222,16 +222,16 @@ TEST(ListName, lreal_search) {
 		const size_t pos1 = L.linear_search(L[i]);
 		const size_t pos2 = L.binary_search(L[i]);
 		const size_t pos3 = L.template interpolation_search<0, N>(L[i]);
-		ASSERT_EQ(pos1, i);
-		ASSERT_EQ(pos2, i);
-		ASSERT_EQ(pos3, i);
+		EXPECT_EQ(pos1, i);
+		EXPECT_EQ(pos2, i);
+		EXPECT_EQ(pos3, i);
 	}
 
 	for (size_t i = 0; i < LS; ++i) {
 		const size_t pos1 = L.template linear_search<0, N>(L[i]);
 		const size_t pos2 = L.template binary_search<0, N>(L[i]);
-		ASSERT_EQ(pos1, i);
-		ASSERT_EQ(pos2, i);
+		EXPECT_EQ(pos1, i);
+		EXPECT_EQ(pos2, i);
 	}
 }
 

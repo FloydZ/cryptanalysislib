@@ -76,9 +76,9 @@ public:
 	                                                                           q_prime(q_prime),
 	                                                                           list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 
-		ASSERT(LIST_SIZE >= list_size);
-		ASSERT(q_prime > 0);
-		ASSERT(q_prime < q);
+		assert(LIST_SIZE >= list_size);
+		assert(q_prime > 0);
+		assert(q_prime < q);
 		chase.template changelist<false>(chase_cl, this->LIST_SIZE);
 	}
 
@@ -117,7 +117,7 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) {
 		/// some security checks
-		ASSERT(n + offset <= Value::length);
+		assert(n + offset <= Value::length);
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -163,8 +163,8 @@ public:
 			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off2]);
-			ASSERT(std::abs((int) a - (int) b) <= (int) w);
+			assert(element.value[a + off2]);
+			assert(std::abs((int) a - (int) b) <= (int) w);
 
 			Label tmp;
 			Label::scalar(tmp, HT.get(a + off2), q - q_prime);
@@ -200,7 +200,7 @@ public:
 		}
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		assert(ctr == LIST_SIZE);
 		return false;
 	}
 
@@ -297,7 +297,7 @@ public:
 
 		static_assert(chase_size >= 0);
 		static_assert(gray_size >= 0);
-		ASSERT(max_list_size >= list_size);
+		assert(max_list_size >= list_size);
 
 		if constexpr (w > 0) {
 			if constexpr (q > 2) {
@@ -343,7 +343,7 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) {
 		/// some security checks
-		ASSERT(n + offset <= Value::length);
+		assert(n + offset <= Value::length);
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -410,8 +410,8 @@ public:
 			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off2]);
-			ASSERT(std::abs((int) a - (int) b) <= (int) w);
+			assert(element.value[a + off2]);
+			assert(std::abs((int) a - (int) b) <= (int) w);
 
 			Label tmp;
 			Label::scalar(tmp, HT.get(a + off2), (q - element.value[a + off2]) % q);
@@ -470,7 +470,7 @@ public:
 
 	finish:
 		/// make sure that all elements where generated
-		ASSERT(ctr == list_size);
+		assert(ctr == list_size);
 		if (sL1) { L1->set_load(list_size); }
 		if (sL2) { L2->set_load(list_size); }
 		return false;
@@ -618,7 +618,7 @@ public:
 	    ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
 	    qprime(qprime),
 	    list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
-		ASSERT(LIST_SIZE >= list_size);
+		assert(LIST_SIZE >= list_size);
 
 		mitm_enumerator::changelist(mitm_chase_cl);
 		noreps_enumerator::changelist(noreps_chase_cl);
@@ -712,9 +712,9 @@ public:
 			}
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[unset]);
-			ASSERT(!element.value[set]);
-			ASSERT(std::abs((int) unset - (int) set) <= (int) w);
+			assert(element.value[unset]);
+			assert(!element.value[set]);
+			assert(std::abs((int) unset - (int) set) <= (int) w);
 
 			Label tmp;
 			Label::scalar(tmp, HT.get(unset), q - qprime);
@@ -771,7 +771,7 @@ public:
 		}
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		assert(ctr == LIST_SIZE);
 		return false;
 	}
 
@@ -897,7 +897,7 @@ public:
 
 		static_assert(mitm_chase_size >= 0);
 		static_assert(noreps_chase_size > 0);
-		ASSERT(LIST_SIZE >= list_size);
+		assert(LIST_SIZE >= list_size);
 
 		if constexpr (q > 2) mitm_chase.changelist_mixed_radix_grey(mitm_gray_cl.data());
 		if constexpr (q > 2) noreps_chase.changelist_mixed_radix_grey(noreps_gray_cl.data());
@@ -996,9 +996,9 @@ public:
 		                         const uint32_t set) {
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[unset]);
-			ASSERT(!element.value[set]);
-			ASSERT(std::abs((int) unset - (int) set) <= (int) w);
+			assert(element.value[unset]);
+			assert(!element.value[set]);
+			assert(std::abs((int) unset - (int) set) <= (int) w);
 
 			Label tmp;
 			Label::scalar(tmp, HT.get(unset), q - element.value[unset]);
@@ -1071,7 +1071,7 @@ public:
 		}// end mitm chase
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		assert(ctr == LIST_SIZE);
 		return false;
 	}
 

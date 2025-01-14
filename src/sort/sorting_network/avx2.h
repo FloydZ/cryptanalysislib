@@ -1499,9 +1499,7 @@ avx2_sortingnetwork_small(i, int32_t, __m256i);
 	constexpr size_t s = 8;
 	const uint32_t full_vec_count = element_count / s;
 	const uint32_t last_vec_size = element_count - (full_vec_count * s);
-	const uint32_t last_vec_flag = last_vec_size > 0;
-	if (full_vec_count > 16) { return false;
-	}
+	if (full_vec_count > 16) { return false; }
 	
 
 	__m256 d[16];
@@ -1538,7 +1536,9 @@ avx2_sortingnetwork_small(i, int32_t, __m256i);
 
 #endif
 
+#ifdef __clang__
 	cleanup:
+#endif
     for(uint32_t i=0; i<full_vec_count; ++i) {
 		_mm256_storeu_ps(array + 8*i, d[i]);
 	}

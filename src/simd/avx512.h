@@ -24,6 +24,7 @@ struct uint16x32_t;
 struct uint32x16_t;
 struct uint64x8_t;
 
+/// NOTE: apparently this function is not in the normal list of intrinsics?
 static inline 
 __m512i _mm512_setr_epi8 (char __e63, char __e62, char __e61, char __e60, char __e59,            
                           char __e58, char __e57, char __e56, char __e55, char __e54, char __e53,
@@ -50,7 +51,8 @@ __m512i _mm512_setr_epi8 (char __e63, char __e62, char __e61, char __e60, char _
     __e4,  __e3,  __e2,  __e1,  __e0};
 }
 
-constexpr static __m512i u8tom512(const uint8_t t[64]) noexcept {
+/// translates 64 bytes into a singe __m512i register as constexpr
+[[nodiscard]] constexpr static __m512i u8tom512(const uint8_t t[64]) noexcept {
 	long long __t[8];
 	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 8) | ((long long)t[ 2] << 16) | ((long long)t[ 3] << 24) | ((long long)t[ 4] << 32) | ((long long)t[ 5] << 40) | ((long long)t[ 6] << 48) | ((long long)t[ 7] << 56);
 	__t[1] = (long long)t[ 8] | (((long long)t[ 9]) << 8) | ((long long)t[10] << 16) | ((long long)t[11] << 24) | ((long long)t[12] << 32) | ((long long)t[13] << 40) | ((long long)t[14] << 48) | ((long long)t[15] << 56);
@@ -66,6 +68,7 @@ constexpr static __m512i u8tom512(const uint8_t t[64]) noexcept {
 	return tmp;
 }
 
+/// translates 32 uint16_t into a singe __m512i register as constexpr
 constexpr static __m512i u16tom512(const uint16_t t[32]) noexcept {
 	long long __t[8];
 	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 16) | ((long long)t[ 2] << 32) | ((long long)t[ 3] << 48);
@@ -81,6 +84,7 @@ constexpr static __m512i u16tom512(const uint16_t t[32]) noexcept {
 	return tmp;
 }
 
+/// translates 16 uint32_t into a singe __m512i register as constexpr
 constexpr static __m512i u32tom512(const uint32_t t[16]) noexcept {
 	long long __t[8];
 	__t[0] = (long long)t[ 0] | (((long long)t[ 1]) << 32);
@@ -96,6 +100,7 @@ constexpr static __m512i u32tom512(const uint32_t t[16]) noexcept {
 	return tmp;
 }
 
+/// translates 8 uint64_t into a singe __m512i register as constexpr
 constexpr static __m512i u64tom512(const uint64_t t[8]) noexcept {
 	__m512i tmp = {(long long)t[0],(long long)t[1],(long long)t[2],(long long)t[3],
 				   (long long)t[4],(long long)t[5],(long long)t[6],(long long)t[7]};
@@ -124,11 +129,11 @@ struct uint8x64_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -495,7 +500,7 @@ struct uint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x64_t slli(const uint8x64_t in1,
 														  const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		uint8x64_t out;
 		const uint8x64_t mask = uint8x64_t::set1(~((1u << in2) - 1u));
 		// out.v512 = _mm512_slli_epi16(in1.v512, in2);
@@ -511,7 +516,7 @@ struct uint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint8x64_t srli(const uint8x64_t in1,
 														  const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		uint8x64_t out;
 		//const uint8x64_t mask = uint8x64_t::set1((1u << ((8u - in2) & 7u)) - 1u);
 		// out.v512 = _mm512_srli_epi16(in1.v512, in2);
@@ -927,12 +932,12 @@ struct uint16x32_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -1185,7 +1190,7 @@ struct uint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x32_t slli(const uint16x32_t in1,
 	                                                      const uint8_t in2) noexcept {
-		ASSERT(in2 <= 16);
+		assert(in2 <= 16);
 		uint16x32_t out;
 		// out.v512 = _mm512_slli_epi16(in1.v512, in2);
 		out.v512 = (__m512i)((__v32hi)in1.v512 << (int)in2);
@@ -1198,7 +1203,7 @@ struct uint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16x32_t srli(const uint16x32_t in1,
 	                                                       const uint8_t in2) noexcept {
-		ASSERT(in2 <= 16);
+		assert(in2 <= 16);
 		uint16x32_t out;
 		// out.v512 = _mm512_srli_epi16(in1.v512, in2);
 		out.v512 = (__m512i)((__v32hi)in1.v512 >> (int)in2);
@@ -1344,12 +1349,12 @@ struct uint32x16_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -1598,7 +1603,7 @@ struct uint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t slli(const uint32x16_t in1,
 														   const uint8_t in2) noexcept {
-		ASSERT(in2 <= 32);
+		assert(in2 <= 32);
 		uint32x16_t out;
 		// out.v512 = _mm512_slli_epi32(in1.v512, in2);
 		// out.v512 (__m512i)__builtin_ia32_pslldi512((__v16si)in1.v512, (int)in2);
@@ -1611,7 +1616,7 @@ struct uint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32x16_t srli(const uint32x16_t in1,
 														   const uint8_t in2) noexcept {
-		ASSERT(in2 <= 32);
+		assert(in2 <= 32);
 		uint32x16_t out;
 		out.v512 = (__m512i) ((__v16su) in1.v512 >> (int)in2);
 		return out;
@@ -1819,12 +1824,12 @@ struct uint64x8_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -2056,7 +2061,7 @@ struct uint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t slli(const uint64x8_t in1,
 	                                                       const uint64_t in2) noexcept {
-		ASSERT(in2 <= 64);
+		assert(in2 <= 64);
 		uint64x8_t out;
 		// out.v512 = _mm512_slli_epi64(in1.v512, in2);
 		// out.v512 = (__m512i)__builtin_ia32_psllqi512((__v8di)in1.v512, (int)in2);
@@ -2069,7 +2074,7 @@ struct uint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t srli(const uint64x8_t in1,
 	                                                       const uint8_t in2) noexcept {
-		ASSERT(in2 <= 64);
+		assert(in2 <= 64);
 		uint64x8_t out;
 		// out.v512 = _mm512_srli_epi64(in1.v512, in2);
 		out.v512 = (__m512i) ((__v8di)in1.v512 >> (int)in2);
@@ -2216,7 +2221,7 @@ struct uint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64x8_t histogram_epi4(const uint64x8_t in1,
 	                                                                const uint8_t in2) noexcept {
-		ASSERT(in2 < 16);
+		assert(in2 < 16);
 		uint64x8_t tmp = uint64x8_t::xor_(in1, uint64x8_t::set1(in2));
 		tmp = uint64x8_t::sub(tmp, uint64x8_t::set1(1));
 		tmp = uint64x8_t::popcnt(tmp);

@@ -166,12 +166,12 @@ namespace cryptanalysislib {
 		};
 
 		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
@@ -390,12 +390,12 @@ namespace cryptanalysislib {
 		};
 
 		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
@@ -566,12 +566,12 @@ namespace cryptanalysislib {
 		};
 
 		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
@@ -727,12 +727,12 @@ namespace cryptanalysislib {
 		};
 
 		[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
@@ -896,12 +896,12 @@ struct Xint8x32_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -1261,7 +1261,7 @@ struct Xint8x32_t {
 	/// \return in1.v8[i] >> in2
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		S out;
 		if (std::is_constant_evaluated()) {
 			const uint8_t tmp = ~((1u<<in2) - 1);
@@ -1294,7 +1294,7 @@ struct Xint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		S out;
 		if (std::is_constant_evaluated()) {
 			const uint8_t tmp = (1u<<in2) - 1;
@@ -1503,12 +1503,12 @@ struct Xint16x16_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -1823,7 +1823,7 @@ struct Xint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 16);
+		assert(in2 <= 16);
 		S out;
 		if (std::is_constant_evaluated()) {
 			const uint16_t tmp = ~((1u<<in2) - 1);
@@ -1852,7 +1852,7 @@ struct Xint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const uint16_t in2) noexcept {
-		ASSERT(in2 <= 16);
+		assert(in2 <= 16);
 		S out;
 		if (std::is_constant_evaluated()) {
 			const uint16_t tmp = ((1u<<in2) - 1);
@@ -2084,12 +2084,12 @@ struct Xint32x8_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -2386,7 +2386,7 @@ struct Xint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 32);
+		assert(in2 <= 32);
 		S out;
 		if (std::is_constant_evaluated()) {
 			const uint32_t tmp = ~((1u<<in2) - 1u);
@@ -2415,7 +2415,7 @@ struct Xint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 32);
+		assert(in2 <= 32);
 		S out;	
 		if (std::is_constant_evaluated()) {
 			const uint32_t tmp = (1u<<in2) - 1u;
@@ -2666,12 +2666,12 @@ struct Xint64x4_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -2946,7 +2946,7 @@ struct Xint64x4_t {
 
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 64);
+		assert(in2 <= 64);
 		S out;
 		if constexpr (std::is_constant_evaluated()) {
 			const uint64_t tmp = ~((1ull<<in2) - 1ull);
@@ -2976,7 +2976,7 @@ struct Xint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		S out;
 		if constexpr (std::is_constant_evaluated()) {
 			const uint64_t tmp = (1ull<<in2) - 1ull;
@@ -3009,7 +3009,7 @@ struct Xint64x4_t {
 		(void) in1;
 		(void) in2;
 
-		ASSERT(0); // TODO
+		assert(0); // TODO
 		return ret;
 	}
 
@@ -3209,7 +3209,7 @@ struct Xint64x4_t {
 			ret.v128[i] = vaddq_u64(vshrq_n_u64((uint64x2_t) tmp3, 32), (uint64x2_t) tmp3);
 #else
 			// TODO
-			ASSERT(false);
+			assert(false);
 #endif
 		}
 		return ret;

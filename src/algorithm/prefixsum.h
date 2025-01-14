@@ -208,7 +208,7 @@ namespace cryptanalysislib::algorithm {
                 const __m512i f = __prefixsum_u32_avx512(l);
                 acc = _mm512_add_epi32(acc, f);
                 _mm512_storeu_si512(v + i, acc);
-                acc =_mm512_permutevar_epi32(mask, acc);
+                acc =_mm512_permutexvar_epi32(mask, acc);
             }
 			
             // tail mngt

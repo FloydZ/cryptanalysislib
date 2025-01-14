@@ -5,6 +5,7 @@
 #include <cstdlib>
 
 #include "helper.h"
+#include "simd/simd.h"
 
 
 #ifndef CRYPTANALYSISLIB_MATH_H
@@ -95,7 +96,9 @@ namespace cryptanalysislib::internal {
 	};
 }// namespace cryptanalysislib::internal
 
-constexpr inline uint64_t int_power(uint64_t val, uint8_t power) noexcept {
+/// good old square and multipliy
+constexpr inline uint64_t int_power(uint64_t val,
+                                    uint8_t power) noexcept {
 	if (power == 1) {
 		return val;
 	}
@@ -115,12 +118,14 @@ constexpr inline uint64_t int_power(uint64_t val, uint8_t power) noexcept {
 }
 
 /// source https://github.com/WojciechMula/toys/blob/master/avx512-binomialcoef/avx512_naive.cpp
-constexpr inline uint64_t simd_binom(const uint64_t n, const uint64_t k) noexcept {
-	ASSERT(n > 1);
-	ASSERT(n < cryptanalysislib::internal::factorials_count);
-	ASSERT(k > 1);
-	ASSERT(k < cryptanalysislib::internal::factorials_count);
-	ASSERT(k < n);
+/// computes (n over k)
+constexpr inline uint64_t simd_binom(const uint64_t n,
+                                     const uint64_t k) noexcept {
+	assert(n > 1);
+	assert(n < cryptanalysislib::internal::factorials_count);
+	assert(k > 1);
+	assert(k < cryptanalysislib::internal::factorials_count);
+	assert(k < n);
 
 	// n!
 	uint8x64_t fn = uint8x64_t::aligned_load(cryptanalysislib::internal::factorials[n]);

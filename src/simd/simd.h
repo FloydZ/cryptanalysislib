@@ -71,12 +71,12 @@ namespace cryptanalysislib {
 		};
 
 		[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
@@ -296,12 +296,12 @@ namespace cryptanalysislib {
 		};
 
 		[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
@@ -507,12 +507,12 @@ namespace cryptanalysislib {
 		};
 
 		[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
@@ -660,12 +660,12 @@ namespace cryptanalysislib {
 		};
 
 		[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-			ASSERT(i < LIMBS);
+			assert(i < LIMBS);
 			return d[i];
 		}
 
@@ -794,12 +794,12 @@ struct Xint8x32_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -1141,7 +1141,7 @@ struct Xint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.d[i] = in1.d[i] << in2;
@@ -1155,7 +1155,7 @@ struct Xint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.d[i] = in1.d[i] >> in2;
@@ -1315,12 +1315,12 @@ struct Xint16x16_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -1568,7 +1568,7 @@ struct Xint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		ASSERT(in2 <= 16);
+		assert(in2 <= 16);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.d[i] = in1.d[i] << in2;
@@ -1581,7 +1581,7 @@ struct Xint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const uint16_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.d[i] = in1.d[i] >> in2;
@@ -1749,12 +1749,12 @@ struct Xint32x8_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -1992,7 +1992,7 @@ struct Xint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint32_t in2) noexcept {
-		ASSERT(in2 <= 32);
+		assert(in2 <= 32);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.d[i] = in1.d[i] << in2;
@@ -2006,7 +2006,7 @@ struct Xint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const uint16_t in2) noexcept {
-		ASSERT(in2 <= 8);
+		assert(in2 <= 8);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.d[i] = in1.d[i] >> in2;
@@ -2229,12 +2229,12 @@ struct Xint64x4_t {
 	};
 
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -2464,7 +2464,7 @@ struct Xint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const limb_type in2) noexcept {
-		ASSERT(in2 <= 64);
+		assert(in2 <= 64);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.d[i] = in1.d[i] << in2;
@@ -2478,7 +2478,7 @@ struct Xint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const limb_type in2) noexcept {
-		ASSERT(in2 <= 64);
+		assert(in2 <= 64);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			out.d[i] = in1.d[i] >> in2;
@@ -2936,7 +2936,7 @@ constexpr inline int operator>(const cryptanalysislib::_uint8x16_t &a, const cry
 template<const bool __unsigned>
 constexpr inline void Xint8x32_t<__unsigned>::print(bool binary, bool hex) const {
 	/// make sure that only one is defined
-	ASSERT(binary + hex < 2);
+	assert(binary + hex < 2);
 
 	if (binary) {
 		for (uint32_t i = 0; i < 32; i++) {
@@ -2964,7 +2964,7 @@ template<const bool __unsigned>
 constexpr inline void Xint16x16_t<__unsigned>::print(bool binary,
                                                      bool hex) const {
 	/// make sure that only one is defined
-	ASSERT(binary + hex < 2);
+	assert(binary + hex < 2);
 
 	if (binary) {
 		for (uint32_t i = 0; i < 16; i++) {
@@ -2992,7 +2992,7 @@ template<const bool __unsigned>
 constexpr inline void Xint32x8_t<__unsigned>::print(bool binary,
                                                     bool hex) const {
 	/// make sure that only one is defined
-	ASSERT(binary + hex < 2);
+	assert(binary + hex < 2);
 
 	if (binary) {
 		for (uint32_t i = 0; i < 8; i++) {
@@ -3020,7 +3020,7 @@ template<const bool __unsigned>
 constexpr inline void Xint64x4_t<__unsigned>::print(bool binary, 
                                                     bool hex) const {
 	/// make sure that only one is defined
-	ASSERT(binary + hex < 2);
+	assert(binary + hex < 2);
 
 	if (binary) {
 		for (uint32_t i = 0; i < 4; i++) {
@@ -3047,29 +3047,26 @@ constexpr inline void Xint64x4_t<__unsigned>::print(bool binary,
 ////////////////////////////////////////////////////////////////////////
 
 namespace cryptanalysislib {
-	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint16x8_t &b) noexcept {
-		_uint8x16_t ret;
+	constexpr inline _uint8x16_t& _uint8x16_t::operator=(const _uint16x8_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
-	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint32x4_t &b) noexcept {
-		_uint8x16_t ret;
+	constexpr inline _uint8x16_t& _uint8x16_t::operator=(const _uint32x4_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
-	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint64x2_t &b) noexcept {
-		_uint8x16_t ret;
+	constexpr inline _uint8x16_t& _uint8x16_t::operator=(const _uint64x2_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
 
 	constexpr inline _uint16x8_t _uint16x8_t::operator=(const _uint8x16_t &b) noexcept {
@@ -3242,7 +3239,7 @@ concept SIMDAble = requires(S s) {
 		{ S::xor_(s, s) } -> std::convertible_to<S>;
 		{ S::and_(s, s) } -> std::convertible_to<S>;
 		{ S::or_(s, s) } -> std::convertible_to<S>;
-		{ S::andnot_(s, s) } -> std::convertible_to<S>;
+		{ S::andnot(s, s) } -> std::convertible_to<S>;
 		{ S::not_(s) } -> std::convertible_to<S>;
 		{ S::add(s, s) } -> std::convertible_to<S>;
 		{ S::sub(s, s) } -> std::convertible_to<S>;
@@ -3258,8 +3255,8 @@ concept SIMDAble = requires(S s) {
 		{ S::gt(s, s) } -> std::convertible_to<typename S::limb_type>;
 		{ S::lt_(s, s) } -> std::convertible_to<S>;
 		{ S::lt(s, s) } -> std::convertible_to<typename S::limb_type>;
-		// { S::eq_(s, s) } -> std::convertible_to<S>;
-		// { S::eq(s, s) } -> std::convertible_to<typename S::limb_type>;
+		//TODO { S::eq_(s, s) } -> std::convertible_to<S>;
+		//TODO { S::eq(s, s) } -> std::convertible_to<typename S::limb_type>;
 		{ S::cmp_(s, s) } -> std::convertible_to<S>;
 		{ S::cmp(s, s) } -> std::convertible_to<typename S::limb_type>;
 

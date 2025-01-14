@@ -32,7 +32,7 @@ TEST(for_each, single) {
 
 	for (size_t i = 0; i < size; ++i) {
 		std::cout << test[i] << std::endl;
-		ASSERT_EQ(test[i], i*i);
+		EXPECT_EQ(test[i], i*i);
 	}
 }
 

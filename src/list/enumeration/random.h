@@ -109,8 +109,8 @@ public:
 			 Extractor *e = nullptr,
 			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
-		ASSERT(offset + base_offset <= Value::length());
+		assert(n + offset <= Value::length());
+		assert(offset + base_offset <= Value::length());
 		const auto H = HT.transpose();
 
 		// check if the lists are enabled
@@ -225,11 +225,11 @@ public:
 	/// 			if set to 0: the complete sequence will be enumerated.
 	/// \param syndrome additional element which is added to all list elements
 	constexpr MaxBinaryRandomEnumerator(const Matrix &HT,
-							   const size_t list_size = 0,
-							   const Label *syndrome = nullptr) noexcept
-			: ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-			  list_size((list_size == size_t(0)) ? max_list_size : list_size)
-	 		  {}
+							            const size_t list_size = 0,
+							            const Label *syndrome = nullptr) noexcept
+		: ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+		list_size((list_size == size_t(0)) ? max_list_size : list_size)
+	{}
 
 	///
 	/// \tparam HashMap
@@ -265,8 +265,8 @@ public:
 			 Extractor *e = nullptr,
 			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
-		ASSERT(offset + base_offset <= Value::length());
+		assert(n + offset <= Value::length());
+		assert(offset + base_offset <= Value::length());
 		const auto H = HT.transpose();
 		element1.zero();
 		element2.zero();

@@ -49,11 +49,12 @@ namespace cryptanalysislib::hash {
 
 	template <typename T> struct identify;
 
-	template <typename T, byte_like Byte> constexpr auto convert_prefix_into_aligned(
-	        std::span<const Byte> input, unsigned pos) noexcept -> std::array<std::byte, sizeof(T)> {
-		ASSERT(input.size() <= sizeof(T));
-		ASSERT(pos <= sizeof(T));
-		ASSERT((input.size() + pos) <= sizeof(T));
+	template <typename T, byte_like Byte> 
+    constexpr auto convert_prefix_into_aligned(std::span<const Byte> input, 
+                                               unsigned pos) noexcept -> std::array<std::byte, sizeof(T)> {
+		static_assert(input.size() <= sizeof(T));
+		assert(pos <= sizeof(T));
+		assert((input.size() + pos) <= sizeof(T));
 
 		std::array<std::byte, sizeof(T)> buffer{};
 

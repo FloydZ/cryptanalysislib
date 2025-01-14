@@ -6,7 +6,6 @@
 #include <vector>
 #include <cassert>
 
-#include "helper.h"
 #include "math/math.h"
 
 #if __cplusplus > 201709L

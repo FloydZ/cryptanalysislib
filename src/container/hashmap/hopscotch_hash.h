@@ -155,7 +155,7 @@ namespace tsl {
 			using neighborhood_bitmap = LogTypeTemplate<NeighborhoodSize + NB_RESERVED_BITS_IN_NEIGHBORHOOD>;
 
 			constexpr hopscotch_bucket() noexcept : bucket_hash(), m_neighborhood_infos(0) {
-				ASSERT(empty());
+				assert(empty());
 			}
 
 			constexpr hopscotch_bucket(const hopscotch_bucket& bucket) noexcept (
@@ -224,14 +224,14 @@ namespace tsl {
 			}
 
 			constexpr inline void toggle_neighbor_presence(const std::size_t ineighbor) noexcept {
-				ASSERT(ineighbor <= NeighborhoodSize);
+				assert(ineighbor <= NeighborhoodSize);
 				m_neighborhood_infos = neighborhood_bitmap(
 				        m_neighborhood_infos ^
 				        (1ull << (ineighbor + NB_RESERVED_BITS_IN_NEIGHBORHOOD)));
 			}
 
 			[[nodiscard]] constexpr inline bool check_neighbor_presence(const std::size_t ineighbor) const noexcept {
-				ASSERT(ineighbor <= NeighborhoodSize);
+				assert(ineighbor <= NeighborhoodSize);
 				if (((m_neighborhood_infos >>
 				      (ineighbor + NB_RESERVED_BITS_IN_NEIGHBORHOOD)) &
 				     1) == 1) {
@@ -242,20 +242,20 @@ namespace tsl {
 			}
 
 			[[nodiscard]] constexpr inline value_type& value() noexcept {
-				ASSERT(!empty());
+				assert(!empty());
 				return *std::launder(reinterpret_cast<value_type*>(std::addressof(m_value)));
 
 			}
 
 			[[nodiscard]] constexpr inline const value_type& value() const noexcept {
-				ASSERT(!empty());
+				assert(!empty());
 				return *std::launder(reinterpret_cast<const value_type*>(std::addressof(m_value)));
 			}
 
 			template <typename... Args>
 			constexpr void set_value_of_empty_bucket(truncated_hash_type hash,
 			                               Args&&... value_type_args) noexcept {
-				ASSERT(empty());
+				assert(empty());
 
 				::new (static_cast<void*>(std::addressof(m_value)))
 				        value_type(std::forward<Args>(value_type_args)...);
@@ -264,7 +264,7 @@ namespace tsl {
 			}
 
 			constexpr void swap_value_into_empty_bucket(hopscotch_bucket& empty_bucket) noexcept {
-				ASSERT(empty_bucket.empty());
+				assert(empty_bucket.empty());
 				if (!empty()) {
 					::new (static_cast<void*>(std::addressof(empty_bucket.m_value)))
 					        value_type(std::move(value()));
@@ -306,7 +306,7 @@ namespace tsl {
 			}
 
 			constexpr void destroy_value() noexcept {
-				ASSERT(!empty());
+				assert(!empty());
 				value().~value_type();
 			}
 
@@ -537,7 +537,7 @@ namespace tsl {
 			      m_buckets(static_empty_bucket_ptr()),
 			      m_nb_elements(0) {
 				if (bucket_count > max_bucket_count()) {
-					ASSERT(false);
+					assert(false);
 					// "The map exceeds its maximum size.");
 
 				}
@@ -575,7 +575,7 @@ namespace tsl {
 			      m_buckets(static_empty_bucket_ptr()),
 			      m_nb_elements(0) {
 				if (bucket_count > max_bucket_count()) {
-					ASSERT(false);
+					assert(false);
 					// "The map exceeds its maximum size.");
 				}
 
@@ -777,8 +777,8 @@ namespace tsl {
 					        m_nb_elements - m_overflow_elements.size();
 					const std::size_t nb_free_buckets =
 					        m_max_load_threshold_rehash - nb_elements_in_buckets;
-					ASSERT(m_nb_elements >= m_overflow_elements.size());
-					ASSERT(m_max_load_threshold_rehash >= nb_elements_in_buckets);
+					assert(m_nb_elements >= m_overflow_elements.size());
+					assert(m_max_load_threshold_rehash >= nb_elements_in_buckets);
 
 					if (nb_elements_insert > 0 &&
 					    nb_free_buckets < std::size_t(nb_elements_insert)) {
@@ -979,7 +979,7 @@ namespace tsl {
 				        find_value_impl(key, hash, m_buckets + bucket_for_hash(hash));
 				if (value == nullptr) {
 					// TODO Couldnt find key;
-					ASSERT(false);
+					assert(false);
 					return *value;
 				} else {
 					return *value;
@@ -1169,7 +1169,7 @@ namespace tsl {
 
 			[[nodiscard]] constexpr inline std::size_t bucket_for_hash(std::size_t hash) const noexcept {
 				const std::size_t bucket = GrowthPolicy::bucket_for_hash(hash);
-				ASSERT(bucket < m_buckets_data.size() ||
+				assert(bucket < m_buckets_data.size() ||
 				              (bucket == 0 && m_buckets_data.empty()));
 
 				return bucket;
@@ -1303,7 +1303,7 @@ namespace tsl {
 				m_nb_elements--;
 
 				// Check if we can remove the overflow flag
-				ASSERT(m_buckets[ibucket_for_hash].has_overflow());
+				assert(m_buckets[ibucket_for_hash].has_overflow());
 				for (const value_type& value : m_overflow_elements) {
 					const std::size_t bucket_for_value =
 					        bucket_for_hash(hash_key(KeySelect()(value)));
@@ -1324,7 +1324,7 @@ namespace tsl {
 			                       std::size_t ibucket_for_hash) noexcept {
 				const std::size_t ibucket_for_value =
 				        std::distance(m_buckets_data.data(), &bucket_for_value);
-				ASSERT(ibucket_for_value >= ibucket_for_hash);
+				assert(ibucket_for_value >= ibucket_for_hash);
 
 				bucket_for_value.remove_value();
 				m_buckets[ibucket_for_hash].toggle_neighbor_presence(ibucket_for_value -
@@ -1386,7 +1386,7 @@ namespace tsl {
 				std::size_t ibucket_empty = find_empty_bucket(ibucket_for_hash);
 				if (ibucket_empty < m_buckets_data.size()) {
 					do {
-						ASSERT(ibucket_empty >= ibucket_for_hash);
+						assert(ibucket_empty >= ibucket_for_hash);
 
 						// Empty bucket is in range of NeighborhoodSize, use it
 						if (ibucket_empty - ibucket_for_hash < NeighborhoodSize) {
@@ -1433,7 +1433,7 @@ namespace tsl {
 				     ibucket < m_buckets_data.size() &&
 				     (ibucket - ibucket_neighborhood_check) < NeighborhoodSize;
 				     ++ibucket) {
-					ASSERT(!m_buckets[ibucket].empty());
+					assert(!m_buckets[ibucket].empty());
 
 					const size_t hash =
 					        use_stored_hash ? m_buckets[ibucket].truncated_bucket_hash()
@@ -1473,13 +1473,13 @@ namespace tsl {
 			                                  std::size_t ibucket_for_hash,
 			                                  std::size_t hash,
 			                                  Args&&... value_type_args) noexcept {
-				ASSERT(ibucket_empty >= ibucket_for_hash);
-				ASSERT(m_buckets[ibucket_empty].empty());
+				assert(ibucket_empty >= ibucket_for_hash);
+				assert(m_buckets[ibucket_empty].empty());
 				m_buckets[ibucket_empty].set_value_of_empty_bucket(
 				        hopscotch_bucket::truncate_hash(hash),
 				        std::forward<Args>(value_type_args)...);
 
-				ASSERT(!m_buckets[ibucket_for_hash].empty());
+				assert(!m_buckets[ibucket_for_hash].empty());
 				m_buckets[ibucket_for_hash].toggle_neighbor_presence(ibucket_empty -
 				                                                     ibucket_for_hash);
 				m_nb_elements++;
@@ -1523,7 +1523,7 @@ namespace tsl {
 			 * to 0 and true will re returned.
 			 */
 			constexpr bool swap_empty_bucket_closer(std::size_t& ibucket_empty_in_out) noexcept {
-				ASSERT(ibucket_empty_in_out >= NeighborhoodSize);
+				assert(ibucket_empty_in_out >= NeighborhoodSize);
 				const std::size_t neighborhood_start =
 				        ibucket_empty_in_out - NeighborhoodSize + 1;
 
@@ -1535,15 +1535,15 @@ namespace tsl {
 
 					while (neighborhood_infos != 0 && to_swap < ibucket_empty_in_out) {
 						if ((neighborhood_infos & 1) == 1) {
-							ASSERT(m_buckets[ibucket_empty_in_out].empty());
-							ASSERT(!m_buckets[to_swap].empty());
+							assert(m_buckets[ibucket_empty_in_out].empty());
+							assert(!m_buckets[to_swap].empty());
 
 							m_buckets[to_swap].swap_value_into_empty_bucket(
 							        m_buckets[ibucket_empty_in_out]);
 
-							ASSERT(!m_buckets[to_check].check_neighbor_presence(
+							assert(!m_buckets[to_check].check_neighbor_presence(
 							        ibucket_empty_in_out - to_check));
-							ASSERT(
+							assert(
 							        m_buckets[to_check].check_neighbor_presence(to_swap - to_check));
 
 							m_buckets[to_check].toggle_neighbor_presence(ibucket_empty_in_out -
@@ -1758,11 +1758,11 @@ namespace tsl {
 			static constexpr float MIN_LOAD_FACTOR_FOR_REHASH = 0.1f;
 
 			/**
-   * We can only use the hash on rehash if the size of the hash type is the same
-   * as the stored one or if we use a power of two modulo. In the case of the
-   * power of two modulo, we just mask the least significant bytes, we just have
-   * to check that the truncated_hash_type didn't truncated too much bytes.
-   */
+            * We can only use the hash on rehash if the size of the hash type is the same
+            * as the stored one or if we use a power of two modulo. In the case of the
+            * power of two modulo, we just mask the least significant bytes, we just have
+            * to check that the truncated_hash_type didn't truncated too much bytes.
+            */
 			template <class T = size_type,
 			         typename std::enable_if<
 			                 std::is_same<T, truncated_hash_type>::value>::type* = nullptr>
@@ -1776,7 +1776,7 @@ namespace tsl {
 			constexpr inline static bool USE_STORED_HASH_ON_REHASH(size_type bucket_count) noexcept {
 				(void)bucket_count;
 				if (StoreHash && is_power_of_two_policy<GrowthPolicy>::value) {
-					ASSERT(bucket_count > 0);
+					assert(bucket_count > 0);
 					return (bucket_count - 1) <=
 					       std::numeric_limits<truncated_hash_type>::max();
 				} else {

@@ -6,17 +6,13 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "helper.h"
-
 /// NOTE: not thread safe
 /// NOTE: const means; its not resizable
 /// \tparam T base type
-/// \tparam V vector type, only [], needed
-template<class T>
+template<class T,
+         const size_t _max_size=4096>
 class ConstVectorQueue {
 private:
-    constexpr static size_t _max_size = 4096;
-
     // NOTE: int32_t: max capacity is 2**32, which should be enough
     // NOTE: int32_t: signed integers needed to make the signed
     //  operations easy
@@ -24,12 +20,6 @@ private:
     alignas(64) T __data[_max_size];
 
 public:
-    // typedef typename	V::value_type		value_type;
-    // typedef typename	V::reference		reference;
-    // typedef typename	V::const_reference	const_reference;
-    // typedef typename	V::size_type		size_type;
-    // typedef		        V			        container_type;
-
     using container_type = T[];
     using const_reference = const T&;
     using reference = T&;
@@ -41,75 +31,61 @@ public:
         return __data[_front];
     }
 
-	/// \return
+	/// \return the last element in the back of the queue
     [[nodiscard]] inline const_reference back() const noexcept {
         return __data[_back];
     }
 
-	/// @return
+	/// \return
     [[nodiscard]] inline bool empty() const noexcept {
         return _front == (_back - 1);
     }
 
-	/// @return
+	/// \return max size the queue can handle. NOTE: its not resizable
     [[nodiscard]] inline size_t max_size() const noexcept {
         return _max_size;
     }
 
-	/// @return
+	/// \return current number of elements in the queue
     [[nodiscard]] inline size_t size() const noexcept {
         return std::abs(_back - _front - 1);
     }
 
-	/// @param value
-    inline void push(const value_type &value) noexcept {
+	/// \param value[in]
+    [[nodiscard]] inline bool push(const value_type &value) noexcept {
         if ((_back-1) == _max_size) {
-            // we silently overwrite stuff
-            // if (_front == 0) {
-            //     // in this case we silently fail
-            //     ASSERT(false);
-            //     return;
-            // }
-
             // wrap around
             _back = 1;
         }
 
         if (_back == _front) {
             //this means the queue is full
-            ASSERT(false);
-            return;
+            return false;
         }
 
         __data[_back - 1] = value;
         _back += 1;
+        return true;
     }
 
-    /// @param value
-    inline void push(value_type &&value) noexcept {
+    /// \param value[in]: get moved into the queue
+    [[nodiscard]] inline bool push(value_type &&value) noexcept {
         if ((_back-1) == _max_size) {
-            // we silently overwrite stuff
-            // if (_front == 0) {
-            //     // in this case we silently fail
-            //     ASSERT(false);
-            //     return;
-            // }
-
             // wrap around
             _back = 1;
         }
 
         if (_back == _front) {
             //this means the queue is full
-            ASSERT(false);
-            return;
+            return false;
         }
 
         __data[_back - 1] = std::move(value);
         _back += 1;
+        return true;
     }
 
-    ///
+    /// incremenets the front counter
     inline void pop() noexcept {
         _front += 1;
         if (_front == _max_size) { _front = 0; }

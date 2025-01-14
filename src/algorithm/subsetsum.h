@@ -340,17 +340,17 @@ public:
 
 			//std::cout << tree_target << std::endl;
 			//std::cout << out << std::endl;
-			ASSERT(out.load() > 0);
+			assert(out.load() > 0);
 			size_t wrong = 0;
 			for (size_t it = 0; it < out.load(); it++) {
-				ASSERT(out[it].is_correct(A));
+				assert(out[it].is_correct(A));
 				if (!out[it].label.is_equal(tree_target, 0, k_upper2)) {
 					wrong += 1;
 				}
 			}
 			Element ret = out[0];
-			ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
-			ASSERT(wrong == 0);
+			assert(ret.label.is_equal(tree_target, 0, k_upper2));
+			assert(wrong == 0);
 
 			if (bit) {
 				Label::sub(ret.label, global_target, out[0].label);
@@ -458,7 +458,7 @@ public:
 		// std::cout << sol2.label << ", sol2" << std::endl;
 		// std::cout << sol.label << ", sol" << std::endl;
 		// std::cout << global_target << ", global_target" << std::endl;
-		// ASSERT(sol2.label.is_equal(sol.label));
+		// assert(sol2.label.is_equal(sol.label));
 		if (!global_target.is_equal(sol2.label)) {
 			goto restart;
 		}

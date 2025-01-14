@@ -71,7 +71,7 @@ public:
 	/// set the internal load factor
 	/// \param l new load
 	void set_load(const size_t l) noexcept {
-		ASSERT(l <= __size);
+		assert(l <= __size);
 		__load = l;
 	}
 
@@ -94,18 +94,18 @@ public:
 	constexpr inline Element* data_label() noexcept { return __data.data(); }
 	constexpr inline const Element* data_label() const noexcept { return __data.data(); }
 
-	constexpr inline Element& data_value(const size_t i) noexcept {  ASSERT(i < __size); return __data[i]; }
-	constexpr inline const Element& data_value(const size_t i) const noexcept { ASSERT(i < __size); return __data[i]; }
-	constexpr inline Element& data_label(const size_t i) noexcept { ASSERT(i < __size); return __data[i]; }
-	constexpr inline const Element& data_label(const size_t i) const noexcept { ASSERT(i < __size); return __data[i]; }
+	constexpr inline Element& data_value(const size_t i) noexcept {  assert(i < __size); return __data[i]; }
+	constexpr inline const Element& data_value(const size_t i) const noexcept { assert(i < __size); return __data[i]; }
+	constexpr inline Element& data_label(const size_t i) noexcept { assert(i < __size); return __data[i]; }
+	constexpr inline const Element& data_label(const size_t i) const noexcept { assert(i < __size); return __data[i]; }
 
 
 	constexpr inline Element &at(const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return this->__data[i];
 	}
 	constexpr inline const Element &at(const size_t i) const noexcept {
-		ASSERT(i <size());
+		assert(i <size());
 		return this->__data[i];
 	}
 
@@ -113,7 +113,7 @@ public:
 	/// \param i
 	/// \return the i-th element in the list
 	Element &operator[](const size_t i) noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return __data[i];
 	}
 
@@ -121,7 +121,7 @@ public:
 	/// \param i
 	/// \return the i-th elementin the list
 	const Element &operator[](const size_t i) const noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return this->__data[i];
 	}
 
@@ -130,7 +130,7 @@ public:
 	/// \param tid thread id
 	/// \return
 	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid) const noexcept {
-		ASSERT(tid < __threads);
+		assert(tid < __threads);
 		return tid*__thread_block_size;
 	};
 
@@ -139,7 +139,7 @@ public:
 	/// \param tid thread id
 	/// \return
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid) const noexcept {
-		ASSERT(tid < __threads);
+		assert(tid < __threads);
 		return( tid+1)*__thread_block_size;
 	};
 
@@ -156,8 +156,8 @@ public:
 					  const uint32_t value_k_higher,
 					  const uint32_t label_k_lower,
 					  const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(label_k_lower < label_k_higher);
+		assert(value_k_lower < value_k_higher);
+		assert(label_k_lower < label_k_higher);
 
 		data_label(pos).print_binary(label_k_lower, label_k_higher);
 	}
@@ -175,8 +175,8 @@ public:
 			   const uint32_t value_k_higher,
 			   const uint32_t label_k_lower,
 			   const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(label_k_lower < label_k_higher);
+		assert(value_k_lower < value_k_higher);
+		assert(label_k_lower < label_k_higher);
 
 		data_label(pos).print(label_k_lower, label_k_higher);
 	}
@@ -195,10 +195,10 @@ public:
 			   const uint32_t label_k_higher,
 			   const size_t start,
 			   const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= __data.size());
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(label_k_lower < label_k_higher);
+		assert(start < end);
+		assert(end <= __data.size());
+		assert(value_k_lower < value_k_higher);
+		assert(label_k_lower < label_k_higher);
 
 		for (size_t i = start; i < end; ++i) {
 			print(i, value_k_lower, value_k_higher,
@@ -220,10 +220,10 @@ public:
 					  const uint32_t label_k_higher,
 					  const size_t start,
 					  const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= __data.size());
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(label_k_lower < label_k_higher);
+		assert(start < end);
+		assert(end <= __data.size());
+		assert(value_k_lower < value_k_higher);
+		assert(label_k_lower < label_k_higher);
 
 		for (size_t i = start; i < end; ++i) {
 			print_binary(i, value_k_lower, value_k_higher,
@@ -234,7 +234,7 @@ public:
 	/// zeros all elements
 	/// \param tid
 	constexpr void zero(const uint32_t tid=0) noexcept {
-		ASSERT(tid < __threads);
+		assert(tid < __threads);
 		for (size_t i = start_pos(tid); i < end_pos(tid); ++i) {
 			__data[i].zero();
 		}
@@ -243,7 +243,7 @@ public:
 	/// zeros a single element
 	/// \param i
 	constexpr void random(const size_t i) noexcept {
-		ASSERT(i < __load);
+		assert(i < __load);
 		__data[i].random();
 	}
 
@@ -257,7 +257,7 @@ public:
 
 	/// not implemented
 	constexpr void sort() noexcept {
-		ASSERT(0);
+		assert(0);
 	}
 
 	/// some useful stuff

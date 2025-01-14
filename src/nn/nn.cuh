@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstdlib>
 #include <curand_kernel.h>
 
 #include "helper.cuh"
@@ -48,9 +49,9 @@ __device__ void dbruteforce(T *L, T *R,
 
 	const uint32_t dim = blockDim.x*gridDim.x;
 	uint32_t tid = idx;
-	ASSERT(dim <= e1);
-	ASSERT(dim <= e2);
-	ASSERT(blockDim.x % 32u == 0u);
+	assert(dim <= e1);
+	assert(dim <= e2);
+	assert(blockDim.x % 32u == 0u);
 	static_assert(nr_limbs > 0);
 
 
@@ -107,8 +108,8 @@ __device__ void dnn_shared_inner(T *L, T *R,
 				   size_t *f1, size_t *f2) {
 	static_assert(lvl <= nr_limbs);
 	static_assert(nr_limbs > 0);
-	ASSERT(*f1 == size_t(-1));
-	ASSERT(*f2 == size_t(-1));
+	assert(*f1 == size_t(-1));
+	assert(*f2 == size_t(-1));
 
 	/// break the recursion and just bruteforce if there are no more limbs
 	/// to apply the NN to.
@@ -134,8 +135,8 @@ __device__ void dnn_shared_outer(T *L, T *R,
 	static_assert(lvl <= nr_limbs);
 	static_assert(nr_limbs > 0);
 	static_assert(lvl > 0);
-	ASSERT(*f1 == size_t(-1));
-	ASSERT(*f2 == size_t(-1));
+	assert(*f1 == size_t(-1));
+	assert(*f2 == size_t(-1));
 	
 	/// NOTE: 1024*32 is the maximal number of bytes we can statically allocate
 	/// as shared memory per block. One need to divide this by 4 to get the 
@@ -229,9 +230,6 @@ __device__ void dnn_shared_outer(T *L, T *R,
 	}
 }
 
-
-///
-///
 /// \tparam T base limb type. Always either uint32_t or uint64_t
 /// \tparam nr_limbs number of limbs representing one element in the lists
 /// \tparam d weight to match on for the final element
@@ -252,8 +250,8 @@ __device__ void dnn(T *L, T *R,
 				   size_t *f1, size_t *f2) {
 	static_assert(lvl <= nr_limbs);
 	static_assert(nr_limbs > 0);
-	ASSERT(*f1 == size_t(-1));
-	ASSERT(*f2 == size_t(-1));
+	assert(*f1 == size_t(-1));
+	assert(*f2 == size_t(-1));
 
 	/// break the recursion
 	if constexpr (lvl == 0) {
@@ -273,7 +271,7 @@ __device__ void dnn(T *L, T *R,
 	}
 }
 
-///
+/// TODO doc
 /// just a wrapper around the device function
 template<typename T, const uint32_t nr_limbs,
 	     const uint32_t d, const uint32_t dk, const uint32_t N,

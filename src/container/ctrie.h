@@ -12,7 +12,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <sys/types.h>
+#include <cassert>
 
 #include "alloc/cache.h"
 #include "atomic/atomic_primitives.h"
@@ -224,7 +224,7 @@ class CacheTrie {
 		}
 
 		constexpr void*& at(const std::size_t i) noexcept {
-			ASSERT(i < 4);
+			assert(i < 4);
 			return data[i];
 		}
 
@@ -250,7 +250,7 @@ class CacheTrie {
 		}
 
 		constexpr void*& at(const std::size_t i) noexcept {
-			ASSERT(i < 16);
+			assert(i < 16);
 			return data[i];
 		}
 
@@ -477,8 +477,8 @@ class CacheTrie {
 	/// \param next
 	/// \return
 	constexpr inline LNode *createLNode(SNode *node_, LNode *next=nullptr) noexcept {
-		ASSERT(isNode(node_));
-		ASSERT(isNode(next));
+		assert(isNode(node_));
+		assert(isNode(next));
 		auto *node = (SNode *) accessNode(node_);
 		return createLNode(node->hash, node->key, node->value, next);
 	}
@@ -488,8 +488,8 @@ class CacheTrie {
 	/// \param next
 	/// \return
 	constexpr inline LNode *createLNode(LNode *node_, LNode *next=nullptr) noexcept {
-		ASSERT(isNode(node_));
-		ASSERT(isNode(next));
+		assert(isNode(node_));
+		assert(isNode(next));
 		auto *node = (LNode *) accessNode(node_);
 		return createLNode(node->hash, node->key, node->value, next);
 	}
@@ -512,7 +512,7 @@ class CacheTrie {
 	/// \param node
 	/// \return
 	constexpr inline FNode *createFNode(void *node) noexcept {
-		ASSERT(isNode(node));
+		assert(isNode(node));
 		auto *fnode = new (std::align_val_t(alignment)) FNode(node);
 		maskFNode(fnode);
 		return fnode;
@@ -527,9 +527,9 @@ class CacheTrie {
 				ANode *wide=nullptr
 	        ) noexcept {
 
-		ASSERT(isNode(parent));
-		ASSERT(isNode(narrow));
-		ASSERT(isNode(wide));
+		assert(isNode(parent));
+		assert(isNode(narrow));
+		assert(isNode(wide));
 		auto *en = new (std::align_val_t(alignment)) ENode{parent, parentpos, narrow, hash, level, wide};
 		maskENode(en);
 		return en;
@@ -542,8 +542,8 @@ class CacheTrie {
 			uint64_t hash,
 			uint32_t level
 	) noexcept {
-		ASSERT(isNode(parent));
-		ASSERT(isNode(current));
+		assert(isNode(parent));
+		assert(isNode(current));
 		auto *xn = new (std::align_val_t(alignment)) XNode {parent, parentPos, current, hash, level};
 		maskXNode(xn);
 		return xn;
@@ -556,8 +556,8 @@ class CacheTrie {
 	}
 
 	constexpr inline size_t usedLength(const void *ptr) const noexcept {
-		ASSERT(((uintptr_t )ptr));
-		ASSERT(isNode(ptr));
+		assert(((uintptr_t )ptr));
+		assert(isNode(ptr));
 		if (isANode(ptr)){
 			return wayness;
 		}
@@ -566,7 +566,7 @@ class CacheTrie {
 			return lW;
 		}
 
-		ASSERT(false);
+		assert(false);
 		return -1; // to please the compiler
 	}
 
@@ -599,7 +599,7 @@ class CacheTrie {
 	}
 
 	void decrementCount(void *array_) {
-		ASSERT(isAANode(array_));
+		assert(isAANode(array_));
 		auto *array = (ANode *)accessNode(array_);
 
 		if (isANNode(array_)) {
@@ -615,20 +615,20 @@ class CacheTrie {
 	}
 
 	void incrementCount(void *array_) {
-		ASSERT(isAANode(array_));
+		assert(isAANode(array_));
 		auto *array = (ANode *)accessNode(array_);
 
 		if (isANNode(array_)) {
 			const auto count = (uint64_t)READ_AN_COUNT(array);
 			const uint64_t newCount = count + 1;
-			ASSERT(count < 4);
+			assert(count < 4);
 			if (!CAS_AN_COUNT(array, (uintptr_t)&count, newCount)) decrementCount(array_);
 			return;
 		}
 
 		const auto count = (uint64_t)READ_A_COUNT(array);
 		const uint64_t newCount = count + 1;
-		ASSERT(count < 16);
+		assert(count < 16);
 		if (!CAS_A_COUNT(array, (uintptr_t)&count, newCount)) decrementCount(array_);
 	}
 public:
@@ -684,7 +684,7 @@ public:
 	void sampleAndUpdateCache(void *cache, void *stats) {
 		(void)cache;
 		(void)stats;
-		ASSERT(false);
+		assert(false);
 	}
 
 	void recordCacheMiss() {
@@ -713,7 +713,7 @@ public:
 
 	// recursively count the number of used pointers
 	void sequentialFixCount(ANode *array_) {
-		ASSERT(isNode(array_));
+		assert(isNode(array_));
 
 		auto *array = (ANode *) accessNode(array_);
     	uint32_t i = 0;
@@ -763,7 +763,7 @@ public:
 
 	bool compressingSingleLevel(void *cache, void *current, void *parent, const uint64_t hash, const uint32_t level) {
 		if constexpr (!useCompression) {
-			ASSERT(false);
+			assert(false);
 		}
 
 		if (parent == nullptr) {
@@ -774,8 +774,8 @@ public:
 			return false;
 		}
 
-		ASSERT(isNode(current));
-		ASSERT(isNode(parent));
+		assert(isNode(current));
+		assert(isNode(parent));
 
 		const uint64_t parentMask = usedLength(parent) - 1u;
 		const uint32_t parentPos = (hash >> (level - 4u)) & parentMask;
@@ -792,8 +792,8 @@ public:
 	}
 
 	void compressAscend(void *cache, void *current, void *parent, const uint64_t hash, const uint32_t level) {
-		ASSERT(isNode(current));
-		ASSERT(isNode(parent));
+		assert(isNode(current));
+		assert(isNode(parent));
 		if constexpr (!useCompression) {
 			return;
 		}
@@ -806,8 +806,8 @@ public:
 	}
 
 	bool compressDescend(void *current, void *parent, const uint64_t hash, const uint32_t level) {
-		ASSERT(isNode(current));
-		ASSERT(isNode(parent));
+		assert(isNode(current));
+		assert(isNode(parent));
 
 		if constexpr (!useCompression) {
 			return false;
@@ -833,7 +833,7 @@ public:
 	}
 
 	void *compressFrozen(void *frozen_, const uint32_t level) {
-		ASSERT(isNode(frozen_));
+		assert(isNode(frozen_));
 
 		void *single = nullptr;
 		void *frozen = (void *)accessNode(frozen_);
@@ -875,9 +875,9 @@ public:
 		/// TODO here is some problem:
 		///  if I remove all the assert this function generates a wrongfull state in which some nodes are not correctly moved
 		///  this results is segfault in `sequentialTransfer`. THe errors are probably generated in `freeze`
-		ASSERT(isNode(enode_));
+		assert(isNode(enode_));
 		auto *enode = (ENode *) accessNode(enode_);
-		ASSERT(isNode(enode->parent));
+		assert(isNode(enode->parent));
     	void *parent = (void *)accessNode(enode->parent);
 
     	uint64_t parentpos = enode->parentpos;
@@ -885,20 +885,20 @@ public:
 
     	// First, freeze the subtree beneath the narrow node.
     	void *narrow = enode->narrow;
-		ASSERT(isNode(narrow));
-		ASSERT(checkAANode(narrow));
+		assert(isNode(narrow));
+		assert(checkAANode(narrow));
     	freeze(cache, narrow);
-		ASSERT(checkAANode(narrow));
+		assert(checkAANode(narrow));
 
     	// Second, populate the target array, and CAS it into the parent.
     	void *wide = createWideArray();
-		ASSERT(isNode(wide));
-		ASSERT(checkAANode(wide));
+		assert(isNode(wide));
+		assert(checkAANode(wide));
     	sequentialTransfer(narrow, wide, level);
-		ASSERT(checkAANode(wide));
-		ASSERT(checkAANode(narrow));
+		assert(checkAANode(wide));
+		assert(checkAANode(narrow));
     	sequentialFixCount((ANode *)wide);
-		ASSERT(checkAANode(wide));
+		assert(checkAANode(wide));
 
 		void *ptr = nullptr;
     	// If this CAS fails, then somebody else already committed the wide array.
@@ -918,10 +918,10 @@ public:
 	}
 
 	bool completeCompression(void *cache, XNode *xn_) {
-		ASSERT(isNode(xn_));
+		assert(isNode(xn_));
 		auto *xn = (XNode *) accessNode(xn_);
 		void *parent_ = (void *) xn->parent;
-		ASSERT(isNode(parent_));
+		assert(isNode(parent_));
 		void *parent = (void *) accessNode(xn->parent);
 		const uint64_t parentPos = xn->parentPos;
 		const uint32_t level = xn->level;
@@ -943,7 +943,7 @@ public:
 	}
 
 	void freeze(void *cache, void *current_) {
-		ASSERT(isNode(current_));
+		assert(isNode(current_));
 
 		const ANode *current = (ANode *) accessNode(current_);
 		uint32_t i = 0;
@@ -951,7 +951,7 @@ public:
 		// TODO jump list
 		while (i < usedLength(current_)) {
 			void *node = READ(current, i);
-			ASSERT(isNode(node));
+			assert(isNode(node));
 			if (node == nullptr) {
 				//  Freeze null.
 				// If it fails, then either someone helped or another txn is in progress.
@@ -993,7 +993,7 @@ public:
 				// We still need to freeze the subtree recursively.
 				const FNode *fnode = (FNode *) accessNode(node);
 				void *subnode = fnode->frozen;
-				ASSERT(isNode(subnode));
+				assert(isNode(subnode));
 				freeze(cache, subnode);
 			} else if (isFVNode(node)) {
 				// We can continue, another thread already froze this slot.
@@ -1008,7 +1008,7 @@ public:
 				completeCompression(cache, (XNode *)node);
 				i -= 1;
 			} else {
-				ASSERT(false);
+				assert(false);
 			}
 
 			i += 1u;
@@ -1016,8 +1016,8 @@ public:
 	}
 
 	void* freezeAndCompress(void *cache, void *current, const uint32_t level) noexcept {
-		ASSERT(isNode(current));
-		ASSERT(false); // currently not working as current is referenced directly
+		assert(isNode(current));
+		assert(false); // currently not working as current is referenced directly
 		void *single = nullptr;
 		uint32_t i = 0;
 		while (i < usedLength(current)) {
@@ -1096,7 +1096,7 @@ public:
 				completeCompression(cache, node);
 				i -= 1;
 			} else {
-				ASSERT(false);
+				assert(false);
 			}
 
 			i += 1;
@@ -1114,8 +1114,8 @@ public:
 	}
 
 	void sequentialInsert(SNode *sn_, void *wide, const uint32_t level) {
-		ASSERT(isAANode(wide));
-		ASSERT(isNode(sn_));
+		assert(isAANode(wide));
+		assert(isNode(sn_));
 		auto *sn = (SNode *) accessNode(sn_);
 
 		uint64_t mask = usedLength(wide) - 1;
@@ -1132,11 +1132,11 @@ public:
 	void sequentialInsert(SNode *sn_, void *wide_, const uint32_t level, const uint32_t pos) {
 		auto *wide = (ANode *) accessNode(wide_);
 		auto *sn = (SNode *) accessNode(sn_);
-		ASSERT(isAANode(wide_));
-		ASSERT(isNode(sn_));
+		assert(isAANode(wide_));
+		assert(isNode(sn_));
 
 		void *old = wide->at(pos);
-		ASSERT(isNode(old));
+		assert(isNode(old));
 		if (isSNode(old)) {
 			wide->at(pos) = newNarrowOrWideNodeUsingFreshThatsNeedsCountFix((SNode *)old, sn_, level + 4);
 		} else if (isANode(old)) {
@@ -1156,7 +1156,7 @@ public:
 		} else if (isLNode(old)) {
 			wide->at(pos) = newListNarrowOrWideNode((LNode *)old, sn->hash, sn->key, sn->value, level + 4);
 		} else {
-			ASSERT(false);
+			assert(false);
 		}
 	}
 
@@ -1166,15 +1166,15 @@ public:
 	/// \param level
 	void sequentialTransfer(void *source_, void *wide_, const uint32_t level) {
     	uint32_t i = 0;
-		ASSERT(isAANode(source_));
-		ASSERT(isAANode(wide_));
+		assert(isAANode(source_));
+		assert(isAANode(wide_));
 		auto *source = (ANode *) accessNode(source_);
 		auto *wide = (ANode *) accessNode(wide_);
 		const uint64_t mask = usedLength(wide_) - 1u;
 		const uint64_t len = usedLength(source_);
 		while (i < len) {
 			void *node = source->at(i);
-			ASSERT(isNode(node));
+			assert(isNode(node));
 			// auto *tmp_node = (ANode *) accessNode(node);
 
 			if (isFVNode(node)) {
@@ -1190,22 +1190,22 @@ public:
 				}
 			} else if (isFrozenL(node)) {
 				auto *fn = (FNode *)accessNode(node);
-				ASSERT(isNode(fn->frozen));
+				assert(isNode(fn->frozen));
 				auto *tail = (LNode *) accessNode((fn->frozen));
 
 				while (tail != nullptr) {
 					auto *sn_ = createSNode((LNode *)tail);
 					const uint32_t pos = (((LNode *)tail)->hash >> level) & mask;
 					sequentialInsert(sn_, wide_, level, pos);
-					ASSERT(isNode(tail->next));
+					assert(isNode(tail->next));
 					tail = (LNode *) accessNode(tail->next);
 				}
 			} else if (isFNode(node)) {
 				auto *fn = (FNode *)accessNode(node);
-				ASSERT(isNode(fn->frozen));
+				assert(isNode(fn->frozen));
 				sequentialTransfer(fn->frozen, wide_, level);
 			} else {
-				ASSERT(false);
+				assert(false);
 			}
 
 			i += 1;
@@ -1219,15 +1219,15 @@ public:
 	void sequentialTransferNarrow(void *source_, void *narrow_, const uint32_t level) {
 		// it's really not used
 		(void)level;
-		ASSERT(isAANode(source_));
-		ASSERT(isAANode(narrow_));
+		assert(isAANode(source_));
+		assert(isAANode(narrow_));
 		auto *source = (ANode *)source_;
 		auto *narrow = (ANNode *)narrow_;
 
 		uint32_t i = 0;
 		while(i < 4) {
 			void *node = source->at(i);
-			ASSERT(isNode(node));
+			assert(isNode(node));
 			if (isFVNode(node)){
 				// we can skip, this was empty
 			} else if (isFrozenS(node)) {
@@ -1235,10 +1235,10 @@ public:
 				narrow->at(i) = sn_;
 			} else if (isFrozenL(node)) {
 				auto *o = (FNode *)accessNode(node);
-				ASSERT(isNode(o->frozen));
+				assert(isNode(o->frozen));
 				narrow->at(i) = (LNode *)o->frozen;
 			} else {
-				ASSERT(false);
+				assert(false);
 			}
 			
 			i += 1;
@@ -1254,7 +1254,7 @@ public:
 	/// \return
 	void* newListNarrowOrWideNode(LNode *oldln, const uint64_t hash,
 	                              const K k, const V v, const uint32_t level) {
-		ASSERT(isNode(oldln));
+		assert(isNode(oldln));
 		auto *tail = (LNode *) accessNode(oldln);
 		LNode *ln = nullptr;
 		while (tail != nullptr) {
@@ -1303,8 +1303,8 @@ public:
 	}
 
 	void *newNarrowOrWideNodeUsingFresh(SNode *sn1_, SNode *sn2_, const uint32_t level) {
-		ASSERT(isNode(sn1_));
-		ASSERT(isNode(sn2_));
+		assert(isNode(sn1_));
+		assert(isNode(sn2_));
 		auto *sn1 = (SNode *) accessNode(sn1_);
 		auto *sn2 = (SNode *) accessNode(sn2_);
 
@@ -1350,8 +1350,8 @@ public:
 	void *newNarrowOrWideNodeUsingFreshThatsNeedsCountFix(SNode *sn1_,
 	                                                      SNode *sn2_,
 	                                                      const uint32_t level) noexcept {
-		ASSERT(isNode(sn1_));
-		ASSERT(isNode(sn2_));
+		assert(isNode(sn1_));
+		assert(isNode(sn2_));
 		auto *sn1 = (SNode *) accessNode(sn1_);
 		auto *sn2 = (SNode *) accessNode(sn2_);
 		if (sn1->hash == sn2->hash) {
@@ -1386,7 +1386,7 @@ public:
 	                             const uint64_t hash,
 	                             const K &k) noexcept {
 		(void)hash; // its really not used
-		ASSERT(isNode(oldln_));
+		assert(isNode(oldln_));
 		auto *tail = (LNode *) accessNode(oldln_);
 		while (tail != nullptr) {
 			if (KeyEqual{}(tail->key, k)) {
@@ -1507,18 +1507,18 @@ public:
 					return fast_lookup(key, hash);
 				} else {
 					// error
-					ASSERT(false);
+					assert(false);
 				} //if old
 			} // if old == nullptr
 		} // if cachee == nullptr
 
-		ASSERT(false);
+		assert(false);
 		return std::make_pair<V, bool>(V{}, false);
 	}
 
 	std::pair<V, bool> lookup(const K key, const uint64_t hash, uint64_t level, void *cur_, void *cache= nullptr) noexcept {
-		ASSERT(cur_ != nullptr);
-		ASSERT(isNode(cur_));
+		assert(cur_ != nullptr);
+		assert(isNode(cur_));
 		if constexpr (useCache) {
 			if ((cache != nullptr) && ((1u << level) == (cache_size - 1u))) {
 				inhabitCache(cache, cur_, hash, level);
@@ -1542,7 +1542,7 @@ public:
 		        &&lookup_enode, &&lookup_fnode
 		};
 
-		ASSERT(isNode(old));
+		assert(isNode(old));
 		goto *lookup_jump_table[accessType(old)];
 
 
@@ -1624,11 +1624,11 @@ public:
 			} else if (isANode(frozen)) {
 				lookup(key, hash, level + 4, frozen, cache);
 			} else {
-				ASSERT(false);
+				assert(false);
 			}
 			return lookup(key, hash, level + lW, ((FNode *)ptr)->frozen);
 
-		ASSERT(false);
+		assert(false);
 		return std::make_pair<V, bool>(V{}, false);
 	}
 
@@ -1738,7 +1738,7 @@ public:
 			}
 
 		// sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
-		ASSERT(false);
+		assert(false);
 	}
 
 	bool insert(const K key, const V value, const uint64_t hash,
@@ -1748,9 +1748,9 @@ public:
 			inhabitCache(cache, cur_, hash, level);
 		}
 
-		ASSERT(cur_ != nullptr);
-		ASSERT(isNode(cur_));
-		ASSERT(checkAANode(cur_));
+		assert(cur_ != nullptr);
+		assert(isNode(cur_));
+		assert(checkAANode(cur_));
 		void *cur = (uintptr_t *) accessNode(cur_);
 		const uint64_t mask = usedLength(cur_) - 1u;
 		const size_t pos = (hash >> level) & mask;
@@ -1760,8 +1760,8 @@ public:
 		// ANode *told = (ANode *) accessNode(old);
 		// ANode *tcur = (ANode *) accessNode(cur);
 
-		ASSERT(isNode(old) || (old == nullptr));
-		ASSERT(checkAANode(old));
+		assert(isNode(old) || (old == nullptr));
+		assert(checkAANode(old));
 
 		void *tmp = nullptr;
 		SNode *o = nullptr;
@@ -1774,7 +1774,7 @@ public:
 		 		&&insert_fnode, &&insert_fnode};
 
 		// NOTE: FSNode is invalid
-		ASSERT(accessType(old) < 9);
+		assert(accessType(old) < 9);
 		goto *insert_jump_table[accessType(old)];
 
 		insert_nullptr:
@@ -1810,7 +1810,7 @@ public:
 
 					return insert(key, value, hash, level, cur_, prev_);
 				} else if (isANNode(cur_)) { // if narrow node
-					ASSERT(level);
+					assert(level);
 
 					const uint32_t prev_length = usedLength(prev_);
 					const uint64_t pmask = prev_length - 1u;
@@ -1849,7 +1849,7 @@ public:
 				CAS_(cur, pos, (uintptr_t)&old, tmp);
 				return insert(key, value, hash, level, cur_, prev_, cache);
 			}
-			ASSERT(false);
+			assert(false);
 
 		insert_lnode:
 			tmp = newListNarrowOrWideNode((LNode *)old, hash, key, value, level + lW);
@@ -1867,7 +1867,7 @@ public:
 	    insert_fnode:
 		    return false; // restart
 
-		ASSERT(false);
+		assert(false);
 	}
 
 	void insert(const K key, const V value) {
@@ -1917,7 +1917,7 @@ public:
 			} else if (isFSNode(txn)) {
 				// We landed into a middle of another transaction.
 				// We must restart from the top, find the transaction node and help.
-				ASSERT(false);
+				assert(false);
 			} else {
 				// The single node had been scheduled for replacement by some thread.
 				// We need to help and retry.
@@ -1943,7 +1943,7 @@ public:
 			return remove(key, hash, level, current_, parent_, cache);
 		}
 
-		ASSERT(false);
+		assert(false);
 		return nullptr;
 	}
 
@@ -2041,10 +2041,10 @@ public:
 			return fast_remove(key, hash, parentCache, cache, ascends + 1);
 		} else {
 			// "Unexpected case -- $cachee is not supposed to be cached."
-			ASSERT(false);
+			assert(false);
 		}
 
-		ASSERT(false);
+		assert(false);
 		return nullptr;
 	}
 };

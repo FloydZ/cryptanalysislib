@@ -1,27 +1,8 @@
 #ifndef CRYPTANALYSISLIB_CONTAINER_AVL_TREE_H
 #define CRYPTANALYSISLIB_CONTAINER_AVL_TREE_H
 
-/// AVL tree list (C++)
-///
-/// Copyright (c) 2021 Project Nayuki. (MIT License)
-/// https://www.nayuki.io/page/avl-tree-list
-///
-/// Permission is hereby granted, free of charge, to any person obtaining a copy of
-/// this software and associated documentation files (the "Software"), to deal in
-/// the Software without restriction, including without limitation the rights to
-/// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-/// the Software, and to permit persons to whom the Software is furnished to do so,
-/// subject to the following conditions:
-/// - The above copyright notice and this permission notice shall be included in
-///   all copies or substantial portions of the Software.
-/// - The Software is provided "as is", without warranty of any kind, express or
-///   implied, including but not limited to the warranties of merchantability,
-///   fitness for a particular purpose and noninfringement. In no event shall the
-///   authors or copyright holders be liable for any claim, damages or other
-///   liability, whether in an action of contract, tort or otherwise, arising from,
-///   out of or in connection with the Software or the use or other dealings in the
-///   Software.
-///
+/// original code from:
+///     https://www.nayuki.io/page/avl-tree-list
 /// heavily modified by Floyd
 
 #include <algorithm>
@@ -39,6 +20,7 @@ struct AvlTreeConfig : public AlignmentConfig {
 };
 constexpr static AvlTreeConfig avlTreeConfig;
 
+/// TODO allocator class 
 template <typename E,
 		  const AvlTreeConfig &config=avlTreeConfig>
 class AvlTreeList final {
@@ -57,11 +39,11 @@ class AvlTreeList final {
 		}
 	}
 
-	//
+	/// base type
 	using S = AvlTreeList<E>;
 
-	///
-	/// @param other
+	/// move operator
+	/// \param other[in]
 	constexpr AvlTreeList(AvlTreeList &&other) noexcept :
 	    root(&Node::EMPTY_LEAF) {
 		std::swap(root, other.root);
@@ -72,59 +54,54 @@ class AvlTreeList final {
 		clear();
 	}
 
-	/// @param other
-	/// @return
+    /// assign operator
+	/// \param other
+	/// \return
 	constexpr AvlTreeList &operator=(AvlTreeList other) noexcept {
 		std::swap(root, other.root);
 		return *this;
 	}
 
-	 ///
-	 /// @return
+	/// \return true/false if the tree is empty or not.
+    ///     Simply ches the `size` field
 	[[nodiscard]] constexpr inline bool empty() const noexcept {
 		return root->size == 0;
 	}
 
-	///
-	/// @return
+	/// \return number of elements in the tree
 	[[nodiscard]] constexpr inline std::size_t size() const noexcept {
 		return root->size;
 	}
 
-	///
-	/// @param index
-	/// @return
+	/// \param index
+	/// \return element at position `index`
 	[[nodiscard]] constexpr E &operator[](const std::size_t index) noexcept {
-		ASSERT(index < size());
+		assert(index < size());
 		return root->getNodeAt(index)->value;
 	}
 
-	///
-	/// @param index
-	/// @return
+	/// \param index
+	/// \return element at position `index`
 	constexpr const E &operator[](const std::size_t index) const noexcept {
-		ASSERT(index >= size());
+		assert(index >= size());
 		return root->getNodeAt(index)->value;
 	}
 
-	///
-	/// @param val
+	/// \param val
 	constexpr void push_back(E val) noexcept {
 		insert(size(), std::move(val));
 	}
 
-	///
-	/// @param index
-	/// @param val
+	/// \param index
+	/// \param val
 	constexpr void insert(std::size_t index, E val) noexcept {
-		ASSERT(index <= size());
+		assert(index <= size());
 		root = root->insertAt(index, std::move(val));
 	}
 
-	///
-	/// @param index
+	/// \param index
 	constexpr void erase(const std::size_t index) noexcept {
-		ASSERT(index < size());
+		assert(index < size());
 		Node *toDelete = nullptr;
 		root = root->removeAt(index, &toDelete);
 		delete toDelete;
@@ -204,7 +181,7 @@ class AvlTreeList final {
 		}
 
 		constexpr Node *getNodeAt(const std::size_t index) noexcept {
-			ASSERT(index < size);
+			assert(index < size);
 			std::size_t leftSize = left->size;
 			if (index < leftSize)
 				return left->getNodeAt(index);
@@ -216,7 +193,7 @@ class AvlTreeList final {
 
 		constexpr Node *insertAt(const std::size_t index,
 		               E &&obj) noexcept {
-			ASSERT(index <= size);
+			assert(index <= size);
 			if (this == &EMPTY_LEAF)// Automatically implies index == 0, because EMPTY_LEAF.size == 0
 				return new Node(std::move(obj));
 			std::size_t leftSize = left->size;
@@ -231,7 +208,7 @@ class AvlTreeList final {
 		constexpr Node *removeAt(const std::size_t index,
 		                         Node **toDelete) noexcept{
 			// Automatically implies this != &EMPTY_LEAF, because EMPTY_LEAF.size == 0
-			ASSERT(index < size);
+			assert(index < size);
 			std::size_t leftSize = left->size;
 			if (index < leftSize)
 				left = left->removeAt(index, toDelete);
@@ -269,20 +246,20 @@ class AvlTreeList final {
 	private:
 		constexpr Node *balance() noexcept {
 			int bal = getBalance();
-			ASSERT(std::abs(bal) <= 2);
+			assert(std::abs(bal) <= 2);
 			Node *result = this;
 			if (bal == -2) {
-				ASSERT(std::abs(left->getBalance()) <= 1);
+				assert(std::abs(left->getBalance()) <= 1);
 				if (left->getBalance() == +1)
 					left = left->rotateLeft();
 				result = rotateRight();
 			} else if (bal == +2) {
-				ASSERT(std::abs(right->getBalance()) <= 1);
+				assert(std::abs(right->getBalance()) <= 1);
 				if (right->getBalance() == -1)
 					right = right->rotateRight();
 				result = rotateLeft();
 			}
-			ASSERT(std::abs(result->getBalance()) <= 1);
+			assert(std::abs(result->getBalance()) <= 1);
 			return result;
 		}
 
@@ -294,7 +271,7 @@ class AvlTreeList final {
 		 *   1   2    0   1
 		 */
 		constexpr Node *rotateLeft() noexcept {
-			ASSERT(right != &EMPTY_LEAF);
+			assert(right != &EMPTY_LEAF);
 			Node *root = this->right;
 			this->right = root->left;
 			root->left = this;
@@ -311,7 +288,7 @@ class AvlTreeList final {
 		 * 0   1          1   2
 		 */
 		constexpr Node *rotateRight() noexcept {
-			ASSERT(left != &EMPTY_LEAF);
+			assert(left != &EMPTY_LEAF);
 			Node *root = this->left;
 			this->left = root->right;
 			root->right = this;
@@ -323,12 +300,12 @@ class AvlTreeList final {
 		// Needs to be called every time the left or right subtree is changed.
 		// Assumes the left and right subtrees have the correct values computed already.
 		constexpr void recalculate() noexcept {
-			ASSERT(this != &EMPTY_LEAF);
-			ASSERT(left->height >= 0 && right->height >= 0);
-			ASSERT(left->size >= 0 && right->size >= 0);
+			assert(this != &EMPTY_LEAF);
+			assert(left->height >= 0 && right->height >= 0);
+			assert(left->size >= 0 && right->size >= 0);
 			height = std::max(left->height, right->height) + 1;
 			size = left->size + right->size + 1;
-			ASSERT(height >= 0 && size >= 0);
+			assert(height >= 0 && size >= 0);
 		}
 
 	private:

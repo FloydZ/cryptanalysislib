@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <mutex>
 
 #include "container/queue.h"
 #include "helper.h"
@@ -442,7 +443,7 @@ private:
 		// concurrent queue to store freed pages
 		queue_type _queue;
 		std::size_t _alignment = _page_alignment;
-		std::mutex _mutex;
+		std::mutex _mutex; // TODO make template argument
 
 		_static_helper() noexcept {}
 
@@ -453,7 +454,7 @@ private:
 				allocator.deallocate(p);
 			}
 
-			ASSERT(_queue.size() == 0);
+			assert(_queue.size() == 0);
 		}
 	};
 	static inline PAllocator allocator;
