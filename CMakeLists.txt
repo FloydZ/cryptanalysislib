@@ -139,7 +139,7 @@ endif()
 if(${USE_SANITIZER})
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
-	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
+	set(SANITIZER_FLAGS " -fsanitize=leak -fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
 endif()
 
 if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)

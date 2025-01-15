@@ -55,24 +55,24 @@ namespace cryptanalysislib {
 				return;
 			}
 
-			const uintptr_t t = ((uintptr_t )out) & 0b11111;
+			uintptr_t t = ((uintptr_t )out) & 0b11111;
 			size_t bytes2 = bytes;
 			if (t) {
 				if (t & 1u) {
 					*out = *in;
-					out += 1; in += 1; bytes2 -= 1;
+					out += 1; in += 1; bytes2 -= 1; t+=1;
 				}
 				if (t & 2u) {
 					*(uint16_t *) out = *(uint16_t *) in;
-					out += 2; in += 2; bytes2 -= 2;
+					out += 2; in += 2; bytes2 -= 2; t+=2;
 				}
-				if (t & 3u) {
+				if (t & 4u) {
 					*(uint32_t *) out = *(uint32_t *) in;
-					out += 4; in += 4; bytes2 -= 4;
+					out += 4; in += 4; bytes2 -= 4; t+=4;
 				}
 				if (t & 8u) {
 					*(uint64_t *) out = *(uint64_t *) in;
-					out += 8; in += 8; bytes2 -= 8;
+					out += 8; in += 8; bytes2 -= 8; t+=8 ;
 				}
 				if (t & 16u) {
 					_uint64x2_t::aligned_store((void *)out,
@@ -115,6 +115,9 @@ namespace cryptanalysislib {
 		}
 
 #ifdef USE_AVX512BW
+		/// \param out[out]
+		/// \param in[in]
+		/// \param bytes[in]
 		constexpr void memcpyU512BW(uint8_t *out,
 									uint8_t *in,
 									const size_t bytes) noexcept {
@@ -146,6 +149,7 @@ namespace cryptanalysislib {
 		}
 #endif
 
+
 		/// \tparam T
 		/// \param out
 		/// \param in
@@ -153,8 +157,8 @@ namespace cryptanalysislib {
 		/// \return
 		template<typename T>
  		constexpr void memcpy(T *out, 
-				const T *in, 
-				const size_t bytes) {
+							  const T *in,
+							  const size_t bytes) {
 			auto *in2 = (uint8_t *)in;
 #ifdef USE_AVX512BW
 			memcpyU512BW((uint8_t *)out, in2, bytes);

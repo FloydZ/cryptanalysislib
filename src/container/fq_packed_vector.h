@@ -130,10 +130,8 @@ public:
 	// 	return *this;
 	//}
 
-
-
-    /// \param l[in]: lower bound (inclusive) 
-    /// \param h[in]: upper bound (exclusive)
+    /// \tparam l[in]: lower bound (inclusive)
+    /// \tparam h[in]: upper bound (exclusive)
 	template<const uint32_t l, 
              const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
@@ -1293,7 +1291,7 @@ public:
 
 	/// print some internal information aobut the class
 	constexpr static void info() noexcept {
-		std::cout << "{ name: \"kAryPackedContainer_Meta\""
+		std::cout << "{ name: \"FqPackedVector\""
 		          << ", n: " << n
 		          << ", q: " << q
 				  << ", bits_per_limb: " << bits_per_limb

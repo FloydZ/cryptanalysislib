@@ -192,7 +192,7 @@ public:
 		__load[bid] += 1;
 	}
 
-	/// nearly fullly avx implementation
+	/// nearly fully avx implementation
 	constexpr void insert_simd(const T &data,
 	                           const T &index) noexcept {
 		const T bid = HashAVX<low, high>(data);
@@ -200,8 +200,8 @@ public:
 		bucket_offset_avx(bucket_index, inner_bucket_index, bid, load);
 
 		for (uint32_t i = 0; i < nr_elements_container; i++) {
-			uint32x8_t::scatter((void *) __buckets.data(), bucket_index, data);
-			uint32x8_t::scatter((void *) ((uint8_t *) __buckets.data() + 32), bucket_index, index);
+			uint32x8_t::scatter<4>((void *) __buckets.data(), bucket_index, data);
+			uint32x8_t::scatter<4>((void *) ((uint8_t *) __buckets.data() + 32), bucket_index, index);
 		}
 	}
 };

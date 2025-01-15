@@ -338,10 +338,10 @@ inline void biject_simd_lookup(uint32x8_t a,
 }
 
 
-template<typename T>
-static inline void reverse_biject_helper(T **L,
-										 const uint32_t w,
-										 const uint32_t t) noexcept {
+template<typename T,
+		 const uint32_t w,
+		 const uint32_t t>
+static inline void reverse_biject_helper(T L[w][t]) {
 
 	// static check
     if (L[0][0] == 0) [[unlikely]] {
@@ -360,7 +360,7 @@ static inline void reverse_biject_helper(T **L,
 /// impl: https://eprint.iacr.org/2023/948.pdf
 ///	 the chi function
 /// NOTE: make sure that s != 0;
-/// computes given a weight <= w vector the position within the
+/// computes given a weight <= w vector the position within
 /// the position within [0, |W^n_w|)
 template<typename T,
          const uint32_t n,
@@ -372,7 +372,7 @@ static inline size_t reverse_biject(const T s) noexcept {
     if (s == 0) [[unlikely]] { return 0; }
 
     alignas(64) static T L[w][t] = {{0}};
-	reverse_biject_helper<T>((T **)L, w, t);
+	reverse_biject_helper<T, w, t>(L);
 
 	T ss = s;
     const uint32_t p = cryptanalysislib::popcount::popcount(s);

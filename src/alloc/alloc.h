@@ -38,7 +38,6 @@ namespace cryptanalysislib {
 	}
 
     /// NOTE: wil fail if the ptr was not return by `aligned_alloc`
-    /// 
     static inline void aligned_free(void *p) noexcept {
         if (nullptr != p) [[likely]] { 
             free(((void **)p)[-1]);
@@ -387,7 +386,6 @@ class PageMallocator {
 
 public:
 	///
-	/// \param n
 	/// \return
 	constexpr Blk allocate() noexcept {
 		void *ptr = cryptanalysislib::aligned_alloc(page_alignment, page_size);
@@ -399,7 +397,8 @@ public:
 	/// \return
 	constexpr void deallocate(const Blk &b) noexcept {
 		if (owns(b)) {
-			std::free(b.ptr);
+			cryptanalysislib::aligned_free(b.ptr);
+			//std::free(b.ptr);
 		}
 	}
 

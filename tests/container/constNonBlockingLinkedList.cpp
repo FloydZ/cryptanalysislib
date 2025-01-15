@@ -125,8 +125,6 @@ TEST(FreeList, Synced) {
 		t.data = i;
 		EXPECT_EQ(ll.remove(t), 0);
 	}
-
-	ll.clear();
 }
 
 TEST(FreeList, MultiThreaded) {
@@ -156,7 +154,6 @@ TEST(FreeList, MultiThreaded) {
 	// false check for `contains`
 	t.data = 0xffffffff - 1;
 	EXPECT_EQ(ll.contains(t), 0);
-	ll.clear();
 }
 
 
@@ -195,8 +192,6 @@ TEST(ConstFreeList, Synced) {
 	for (auto const &i: ll) {
 		EXPECT_EQ(i.data, 0);
 	}
-
-	ll.clear();
 }
 
 
@@ -236,9 +231,6 @@ TEST(ConstFreeList, MultiThreaded) {
 		t.data = 0xffffffff - 1;
 		EXPECT_EQ(ll.contains(t), 0);
 	}
-
-	// IMPORTANT: this function is not thread save
-	ll.clear();
 }
 
 int main(int argc, char **argv) {

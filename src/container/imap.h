@@ -362,11 +362,13 @@ public:
         }
 
         newmark += (n * 2 - hasnfre) * sizeof(imap_node_t) + (n - hasvfre) * ysize;
-        if (newmark <= oldsize)
+        if (newmark <= oldsize){
             return tree;
+        }
         newsize64 = __ceilpow2__(newmark);
-        if (0x20000000 < newsize64)
+        if (0x20000000 < newsize64) {
             return 0;
+            }
         newsize = (uint32_t)newsize64;
         newtree = (imap_node_t *)Allocator::allocate(newsize);
         // newtree = (imap_node_t *)IMAP_ALIGNED_ALLOC(sizeof(imap_node_t), newsize);
@@ -403,7 +405,7 @@ public:
                 newtree->vec64[7] = 0;
             }
         } else {
-            memcpy(newtree, tree, tree->vec32[imap__tree_mark__]);
+            cryptanalysislib::memcpy<uint8_t>((uint8_t *)newtree, (uint8_t *)tree, tree->vec32[imap__tree_mark__]);
             Allocator::deallocate(tree, 0);
             newtree->vec32[imap__tree_size__] = newsize;
         }

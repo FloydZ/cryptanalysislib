@@ -418,7 +418,7 @@ class CacheTrie {
 	/////////////////////////////// ALLOC //////////////////////////////////
 
 	inline void* createCacheArray(const uint32_t level) noexcept {
-		return aligned_alloc(alignment, sizeof(void *) * (1 + (1u << level)));
+		return cryptanalysislib::aligned_alloc(alignment, sizeof(void *) * (1 + (1u << level)));
 	}
 
 	constexpr inline ANode* createWideArray() noexcept {

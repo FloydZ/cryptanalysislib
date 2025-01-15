@@ -15,7 +15,7 @@ using ::testing::UnitTest;
 TEST(futex, simple) {
 	cryptanalysislib::atomic::futex f{1};
 	EXPECT_EQ(f.down(), 0);
-	EXPECT_EQ(f.up(), 1);
+	EXPECT_EQ(f.up(), 0);
 }
 
 

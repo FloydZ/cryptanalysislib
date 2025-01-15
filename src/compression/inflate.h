@@ -249,7 +249,7 @@ sinfl_build_tbl(struct sinfl_gen *gen, unsigned *tbl, int tbl_bits,
 			tbl[gen->word] = (*gen->sorted++ << 16) | gen->len;
 			if (gen->word == tbl_end - 1) {
 				for (; gen->len < tbl_bits; gen->len++) {
-					memcpy(&tbl[tbl_end], tbl, (size_t)tbl_end * sizeof(tbl[0]));
+					memcpy(&tbl[tbl_end], tbl, (size_t)tbl_end);
 					tbl_end <<= 1;
 				}
 				return 1;
@@ -260,7 +260,7 @@ sinfl_build_tbl(struct sinfl_gen *gen, unsigned *tbl, int tbl_bits,
 		} while (--gen->cnt);
 		do {
 			if (++gen->len <= tbl_bits) {
-				memcpy(&tbl[tbl_end], tbl, (size_t)tbl_end * sizeof(tbl[0]));
+				memcpy(&tbl[tbl_end], tbl, (size_t)tbl_end );
 				tbl_end <<= 1;
 			}
 		} while (!(gen->cnt = cnt[gen->len]));

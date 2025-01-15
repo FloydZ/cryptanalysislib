@@ -141,7 +141,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel1) {
 				BinaryElement::add(el, t[0][i], t[1][j], k_lower, k_upper);
 
 				for (size_t o = 0; o < t[2].load(); ++o) {
-					if (el.is_equal(t[2][o], 1)) {
+					if (el.is_equal(t[2][o], 0, n)) {
 						num++;
 					}
 				}
@@ -193,7 +193,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel2) {
     t[3].sort_level(2, tbl);
 
     uint64_t num = 0;
-	BinaryElement el, el2, tmp;
+	BinaryElement el, el2;
     for (size_t i = 0; i < t[0].load(); ++i) {
 		for (size_t j = 0; j < t[1].load(); ++j) {
 			if (t[0][i].is_equal(t[1][j], tbl[0], tbl[1])) {

@@ -173,12 +173,12 @@ TEST(uint8x32_t, logic) {
 		}
 
 		t3 = T::slli(t1, 1);
-		for (uint32_t i = 0; i < 32; ++i) {
+		for (uint32_t i = 0; i < limbs; ++i) {
 			EXPECT_EQ(t3.d[i], 0);
 		}
 
 		t3 = T::slli(t2, 1);
-		for (uint32_t i = 0; i < 32; ++i) {
+		for (uint32_t i = 0; i < limbs; ++i) {
 			EXPECT_EQ(t3.d[i], 2);
 		}
 	});

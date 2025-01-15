@@ -73,7 +73,6 @@ namespace cryptanalysislib::atomic {
 		}
 
 		/// Returns -1 on fail, 0 on wakeup, 1 on pass, 2 on didn't sleep
-		/// \param futx
 		/// \param val
 		/// \param rel
 		/// \return
@@ -140,7 +139,7 @@ namespace cryptanalysislib::atomic {
 		}
 
 		/// If __futex_down decrements from 1 to 0, we have it.
-		/// Otherwise sleep.
+		/// Otherwise, sleep.
 		/// \return
 		inline int down() noexcept {
 			return futex_down_timeout(nullptr);
@@ -153,7 +152,7 @@ namespace cryptanalysislib::atomic {
 
 		// If __futex_up increments count from 0 -> 1, none was waiting.
 		// Otherwise, set to 1 and tell kernel to wake them up.
-		// returns 0 on sucess
+		// returns 0 on success
 		inline int up() noexcept {
 			if (!__futex_up(&count)) {
 				return __futex_up_slow();
@@ -178,7 +177,7 @@ namespace cryptanalysislib::atomic {
 			return 0;
 		}
 
-        inline int get() noexcept {
+        constexpr inline int get() const noexcept {
             return count; 
         }
 	};

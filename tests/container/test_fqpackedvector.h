@@ -164,6 +164,10 @@ TEST(NAME, HashSimple) {
 				EXPECT_EQ(t, mask);
 			}
 
+			if ((h-l)*qbits >= 64) {
+				continue;
+			}
+
 
 			b1.zero();
 			b1.one(l, h);

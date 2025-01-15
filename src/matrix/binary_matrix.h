@@ -183,7 +183,7 @@ public:
 	///
 	void free_matrix_data() noexcept {
 		matrix_free_gray_code(rev, diff);
-		free(lookup_table);
+		cryptanalysislib::aligned_free(lookup_table);
 	}
 
 public:

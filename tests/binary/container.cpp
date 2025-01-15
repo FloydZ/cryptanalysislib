@@ -20,6 +20,7 @@ using ::testing::UnitTest;
 TEST(Internal, size) {
 	BinaryVector<n> b;
 	EXPECT_EQ(b.length, n);
+	BinaryVector<n>::info();
 
 	using T = uint64_t;
 	constexpr size_t Tbits = sizeof(T) * 8;

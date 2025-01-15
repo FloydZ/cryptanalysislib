@@ -47,13 +47,19 @@ template<const uint32_t _n,
 #if __cplusplus > 201709L
     requires std::unsigned_integral<T>
 #endif
-class FqPackedVector<_n, 2, T> : public FqPackedVectorMeta<_n, 2, T> {
+class FqPackedVector<_n, 2, T> {
 public:
 	// Internal Types needed for the template system.
 	typedef FqPackedVector<_n, 2, T> ContainerType;
 	typedef T LimbType;
+	typedef T ContainerLimbType;
 	typedef bool DataType;
 	using S = uint8x32_t;
+
+
+	//using M = FqPackedVectorMeta<_n, 2, T, true>;
+	//using typename M::ContainerLimbType;
+	//using typename M::LabelContainerType;
 
 	// internal data length. Need to export it for the template system.
 	constexpr static uint32_t n = _n;
@@ -73,6 +79,7 @@ public:
 	//private:
 	// DO NOT CALL THIS FUNCTION. Use 'limbs()'.
 	constexpr static uint16_t compute_limbs() noexcept {
+		// TODO config this via config
 #ifdef BINARY_CONTAINER_ALIGNMENT
 		return (alignment() + limb_bits_width() - 1) / limb_bits_width();
 #else
@@ -190,6 +197,7 @@ public:
 	[[nodiscard]] constexpr inline T get_bits(const uint16_t i,
 	                            const uint16_t j) const noexcept {
 		assert(j > i && j - i <= limb_bits_width() && j <= length);
+        /// TODO use _bextr_u64 (needs bmi2)
 		const T lmask = higher_mask(i);
 		const T rmask = lower_mask2(j);
 		const int64_t lower_limb = i / limb_bits_width();
@@ -1772,9 +1780,10 @@ public:
 
 	/// print something information
 	constexpr static void info() noexcept {
-		std::cout << "{ name: \"kAryContainerMeta\""
+		std::cout << "{ name: \"BinaryVector\""
 				  << ", n: " << n
 				  << ", q: " << q
+				  << ", limbs: " << compute_limbs()
 				  << ", sizeof(T): " << sizeof(T)
 				  << "}\n";
 	}

@@ -486,6 +486,7 @@ struct GarbageCollector {
 		paused = false;
 	}
 
+    /// \param ptr
 	void mark_alloc(void* ptr) noexcept {
 		Allocation* alloc = allocs->get(ptr);
 		/* Mark if alloc exists and is not tagged already, otherwise skip */
@@ -505,7 +506,7 @@ struct GarbageCollector {
 		void *_bos = this->bos;
 		/* The stack grows towards smaller memory addresses, hence we scan tos->bos.
 	     * Stop scanning once the distance between tos & bos is too small to hold a valid pointer */
-		for (char* p = (char*) tos; p <= (char*)_bos - PTRSIZE; ++p) {
+		for (void* p = (void*) tos; p <= (void*)_bos - PTRSIZE; p+=PTRSIZE) {
 			mark_alloc(*(void **) p);
 		}
 	}
