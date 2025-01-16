@@ -138,7 +138,6 @@ public:
 
 	/// \param i lower coordinate in the label used as the sorting index
 	/// \param j upper   .....
-	/// \param tid thread id
 	void sort_level(const uint32_t i, const uint32_t j) noexcept {
 		assert(i < j);
 		using T = LabelContainerType;
@@ -154,6 +153,7 @@ public:
 				std::sort(__data.begin(),
 				          __data.end(),
 				          [lower, mask](const auto &e1, const auto &e2) {
+				          		// TODO this is not correct for q != 2
 					          return (e1.label_ptr(lower) & mask) < (e2.label_ptr(lower) & mask);
 				          });
 			} else {
@@ -292,14 +292,16 @@ public:
 	}
 };
 
+//
 /// \tparam Element
 /// \param out
 /// \param obj
 /// \return
 template<class Element>
-std::ostream &operator<<(std::ostream &out, const Parallel_List_FullElement_T<Element> &obj) {
+std::ostream &operator<<(std::ostream &out,
+						 const Parallel_List_FullElement_T<Element> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {
-		out << i << " " << obj.data(i) << std::flush;
+		out << i << " " << obj[i] << std::flush;
 	}
 
 	return out;

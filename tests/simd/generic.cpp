@@ -54,7 +54,7 @@ TEST(generic, set) {
 		uint32_t pos = 5;
 		I data[limbs] = {0};
 		data[pos] = 1;
-		T t1 = T::setr(data);
+		T t1 = T::set(data);
 
 		for (uint32_t i = 0; i < limbs; ++i) {
 			if (i == pos) {
@@ -64,13 +64,13 @@ TEST(generic, set) {
 			EXPECT_EQ(t1.d[i], 0);
 		}
 
-		t1 = T::set(data);
+		t1 = T::setr(data);
 		for (uint32_t i = 0; i < limbs; ++i) {
-			  if (i == (limbs-pos)){
+			if (i == (limbs-pos-1)){
 				  EXPECT_EQ(t1.d[i] , 1);
 				  continue;
-			  }
-			  EXPECT_EQ(t1.d[i] , 0);
+			}
+			EXPECT_EQ(t1.d[i] , 0);
 		}
 	});
 }
@@ -112,7 +112,7 @@ TEST(generic, unalinged_store) {
 	});
 }
 
-TEST(gerenric, alinged_store) {
+TEST(generic, alinged_store) {
 	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		alignas(256) I data[limbs] = {0};
@@ -125,7 +125,7 @@ TEST(gerenric, alinged_store) {
 	});
 }
 
-TEST(uint8x32_t, logic) {
+TEST(generic, logic) {
 	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;
 		const T t1 = T::set1(0);
@@ -164,7 +164,7 @@ TEST(uint8x32_t, logic) {
 
 		t3 = ~t1;
 		for (uint32_t i = 0; i < limbs; ++i) {
-			EXPECT_EQ(t3.d[i], uint8_t(-1u));
+			EXPECT_EQ(t3.d[i], I(-1ull));
 		}
 
 		t3 = T::mullo(t1, t2);
@@ -184,7 +184,7 @@ TEST(uint8x32_t, logic) {
 	});
 }
 
-TEST(gerenric, info) {
+TEST(generic, info) {
 	TxN_t<uint16_t, 128>::info();
 }
 int main(int argc, char **argv) {

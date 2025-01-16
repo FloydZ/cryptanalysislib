@@ -17,7 +17,7 @@ namespace cryptanalysislib::atomic {
 	// very simple binary semaphore based on linux futex
 	struct futex {
 	private:
-		int count;
+		int count = 0;
 		constexpr static int FUTEX_PASSED = (-(1024 * 1024 * 1024));
 
 		constexpr futex() noexcept : count(1) {}
@@ -177,6 +177,9 @@ namespace cryptanalysislib::atomic {
 			return 0;
 		}
 
+        constexpr inline void set(const uint32_t c) noexcept {
+            count = c;
+        }
         constexpr inline int get() const noexcept {
             return count; 
         }

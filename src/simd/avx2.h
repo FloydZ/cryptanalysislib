@@ -1608,14 +1608,13 @@ struct Xint16x16_t {
 		return t == 0xFFFFFFFF;
 	}
 
-	///
-	/// @param in
-	/// @return
+	/// \param in
+	/// \return
 	[[nodiscard]] constexpr static inline S reverse(const S in) noexcept {
 		S ret;
-		constexpr uint8x32_t shuffle = uint8x32_t::setr(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,
-														15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
-		__m256i tmp =_mm256_permute4x64_epi64(in.v256, 0b00011011);
+		constexpr uint8x32_t shuffle = uint8x32_t::setr(14,15,12,13,10,11,8,9,6,7,4,5,2,3,0,1,
+														14,15,12,13,10,11,8,9,6,7,4,5,2,3,0,1);
+		__m256i tmp =_mm256_permute4x64_epi64(in.v256, 0b01001110);
 		ret.v256 = _mm256_shuffle_epi8(tmp, shuffle.v256);
 		return ret;
 	}
@@ -1624,7 +1623,7 @@ struct Xint16x16_t {
 	/// kmoves the msb into each bit
 	[[nodiscard]] constexpr static inline uint16_t move(const S in) noexcept {
 		uint32_t t = _mm256_movemask_epi8(in.v256);
-		uint16_t ret = _pdep_u32(t, 0b01010101010101010101010101010101);
+		uint16_t ret = _pext_u32(t, 0b01010101010101010101010101010101);
 		return ret;
 	}
 
@@ -2041,8 +2040,8 @@ struct Xint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint32_t gt(const S in1,
-                                                      const S in2) noexcept {
+	[[nodiscard]] constexpr static inline uint32_t gt(const S &in1,
+                                                      const S &in2) noexcept {
 		const __m256i tmp = (__m256i) ((V) in1.v256 > (V) in2.v256);
 		return __builtin_ia32_movmskps256((__v8sf) tmp);
 	}
@@ -2669,7 +2668,7 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
 		const __m256i tmp1 = _mm256_permute4x64_epi64(in.v256, 0);
 		const __m256i tmp2 = _mm256_cmpeq_epi64(in.v256, tmp1);
-		return _mm256_movemask_pd((__m256d) tmp2) == 0b111;
+		return _mm256_movemask_pd((__m256d) tmp2) == 0b1111;
 	}
 
 	/// \param in

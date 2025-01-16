@@ -6,7 +6,7 @@ using ::testing::InitGoogleTest;
 using ::testing::Test;
 using namespace std;
 
-#define NTHREADS	100
+#define NTHREADS	2
 
 using namespace cryptanalysislib;
 
@@ -19,7 +19,7 @@ void *thread_func(void *arg) {
 	*count = *count + 50;
 	printf("Thread %ld: Incremented count by 50 and will now yield\n", (unsigned long)mythread_self().tid);
 
-	// mythread_yield();
+	mythread_yield();
 	*count = *count + 50;
 	printf("Thread %ld: Incremented count by 50 and will now exit\n", (unsigned long)mythread_self().tid);
 	mythread_exit(nullptr);
@@ -32,7 +32,7 @@ void *thread_func(void *arg) {
  */
 int main() {
 	mythread_t threads[NTHREADS];
-	int count[NTHREADS];
+	uint32_t count[NTHREADS];
 	char *status;
 
 	for (uint32_t i = 0; i < NTHREADS; i++) {

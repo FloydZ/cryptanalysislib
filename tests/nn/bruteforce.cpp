@@ -65,8 +65,8 @@ TEST(Bruteforce, n256) {
 			EXPECT_EQ(algo.all_solutions_correct(), true);
 			algo.solutions_nr = 0;
 
-			free(algo.L1);
-			free(algo.L2);
+			cryptanalysislib::aligned_free(algo.L1);
+			cryptanalysislib::aligned_free(algo.L2);
 			algo.generate_random_instance();
 		}
 	}

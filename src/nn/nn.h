@@ -160,8 +160,8 @@ public:
 	static_assert(dk_bruteforce_size >= dk_bruteforce_weight);
 
 	~NN() noexcept {
-		if (L1) { free(L1); }
-		if (L2) { free(L2); }
+		if (L1) { cryptanalysislib::aligned_free(L1); }
+		if (L2) { cryptanalysislib::aligned_free(L2); }
 	}
 
 	/// transposes the two lists into the two buckets
@@ -274,7 +274,8 @@ public:
 	/// generates a special instance in which either the solution is
 	/// zero (`create_zero==1`) or normal
 	/// \param insert_sol
-	void generate_special_instance(bool insert_sol = true, bool create_zero = true) noexcept {
+	void generate_special_instance(bool insert_sol = true,
+								   bool create_zero = true) noexcept {
 		if (insert_sol && !create_zero) {
 			generate_random_instance();
 		}
@@ -285,7 +286,7 @@ public:
 		assert(L1);
 		assert(L2);
 
-		if (create_zero && !insert_sol) {
+		if (create_zero || (!insert_sol)) {
 			memset(L1, 0, list_size);
 			memset(L2, 0, list_size);
 		}
@@ -1309,10 +1310,10 @@ public:
 		constexpr uint32_t off = 8 * u;
 		const size_t min_e = (std::min(e1, e2) + off - 1);
 		for (; i + off <= min_e; i += off, ptr_L1 += off, org_ptr_L1 += off,
-		                         ptr_L2 += off, org_ptr_L2 += off) {
+										   ptr_L2 += off, org_ptr_L2 += off) {
 			uint64_t wt_L1 = 0, wt_L2 = 0;
 
-#pragma unroll u
+            #pragma unroll u
 			for (uint32_t j = 0; j < u; ++j) {
 				/// load the left list
 				uint32x8_t ptr_tmp_L1 = uint32x8_t::template gather<8>(ptr_L1 + 8 * j, offset);

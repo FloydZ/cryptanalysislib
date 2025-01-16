@@ -197,7 +197,7 @@ public:
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline TxN_t set(const T *data) noexcept {
+	[[nodiscard]] constexpr static inline TxN_t setr(const T *data) noexcept {
 		assert(data);
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
@@ -206,7 +206,7 @@ public:
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline TxN_t setr(const T *data) noexcept {
+	[[nodiscard]] constexpr static inline TxN_t set(const T *data) noexcept {
 		assert(data);
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
