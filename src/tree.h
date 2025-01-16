@@ -2374,12 +2374,12 @@ public:
 			bucketsize, 1ull<<(k_upper2-k_lower2), nthreads
 		};
 
-		using HML0 = SimpleHashMap<D, size_t,					  simpleHashMapConfigL0, Hash<D, k_lower1, k_upper1, 2>>;
-		using HML1 = SimpleHashMap<D, std::tuple<size_t, size_t>, simpleHashMapConfigL0, Hash<D, k_lower2, k_upper2, 2>>;
-		using LoadType0 = typename HML0::load_type;
-		using LoadType1 = typename HML0::load_type;
-		HML0 *hm0 = new HML0{};
-		HML1 *hm1 = new HML1{};
+		// using HML0 = SimpleHashMap<D, size_t,					  simpleHashMapConfigL0, Hash<D, k_lower1, k_upper1, 2>>;
+		// using HML1 = SimpleHashMap<D, std::tuple<size_t, size_t>, simpleHashMapConfigL0, Hash<D, k_lower2, k_upper2, 2>>;
+		// using LoadType0 = typename HML0::load_type;
+		// using LoadType1 = typename HML0::load_type;
+		// HML0 *hm0 = new HML0{};
+		// HML1 *hm1 = new HML1{};
 
 		ElementType tmpe1;
 		LabelType t1, iT;

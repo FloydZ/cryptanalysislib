@@ -265,8 +265,8 @@ public:
 			 Extractor *e = nullptr,
 			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		assert(n + offset <= Value::length());
-		assert(offset + base_offset <= Value::length());
+		assert(n + offset <= Value::length);
+		assert(offset + base_offset <= Value::length);
 		const auto H = HT.transpose();
 		element1.zero();
 		element2.zero();
