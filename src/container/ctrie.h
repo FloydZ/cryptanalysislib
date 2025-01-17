@@ -7,6 +7,7 @@
 /// TODO/Ideas:
 /// debug funcitons schreiben, die den Ctrie plotten
 /// remove recursion
+/// add cache
 
 
 #include <array>
@@ -61,7 +62,7 @@
 #define isNode(ptr) 	((accessType(ptr)) || (ptr == nullptr))
 
 /// TODO
-#define NUMBER_CPUS 1
+#define NUMBER_CPUS 2
 
 #if NUMBER_CPUS == 1
 // inlined wrapper for `CAS_`
@@ -460,7 +461,7 @@ class CacheTrie {
 	                                    const K &key,
 	                                    const V &v,
 	                                    void *ptr=nullptr) noexcept {
-		auto *n = (SNode *) malloc(sizeof(SNode));
+		auto *n = (SNode *) cryptanalysislib::aligned_alloc(alignment, sizeof(SNode));
 
 		// holy shit that is really slow
 		// auto *n = sll.allocate();
@@ -648,6 +649,10 @@ public:
 			// cache_ptr = (void *) aligned_alloc(alignment, (sizeof(CacheNode) * cache_size));
 			// memset(cache_ptr, 0, sizeof(void *) * cache_size);
 		}
+	}
+
+	~CacheTrie() noexcept {
+		// TODO
 	}
 
 	void inhabitCache (void *cache, void *nv, const uint64_t hash, const uint32_t cacheeLevel) {

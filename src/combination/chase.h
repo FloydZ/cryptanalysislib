@@ -559,7 +559,7 @@ public:
 	/// See exercise 45 of Knuth's The art of computer programming volume 4A.
 	/// \param ret
 	/// \param listsize
-	/// \return
+	/// \return TODO seems not to be correct,n=5,t=2 errors
 	static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 	                       const size_t listsize = 0) noexcept {
 		const size_t size = listsize == 0 ? chase_size : listsize;
@@ -578,10 +578,10 @@ public:
 		int32_t x;
 		uint16_t c[t + 2];
 		uint16_t z[t + 2];
-		for (size_t j = 1; j <= t + 1; ++j) {
+		for (size_t j = 0; j <= t + 1; ++j) {
 			z[j] = 0;
 		}
-		for (size_t j = 1; j <= t + 1; ++j) {
+		for (size_t j = 0; j <= t + 1; ++j) {
 			c[j] = n - t - 1 + j;
 		}
 		/* r is the least subscript with c[r] >= r. */
@@ -590,7 +590,7 @@ public:
 
 		uint16_t old_val = t-1u;
 		uint16_t cur_val = t;
-		uint16_t old_c[t + 2];
+		uint16_t old_c[t + 2] = {0};
 
 		while (true) {
 			if ((N-1ul) == size) { return; }
@@ -607,7 +607,8 @@ public:
 				 ret[N-1] = tmp;
 			}
 			//std::memcpy(old_c, c, (t+2) * sizeof(uint16_t));
-			memcpy(old_c, c, (t+2));
+			// TODO replace with cryptanalysislib
+			memcpy(old_c, c, 2*(t+2));
 
 			++N;
 			j = r;

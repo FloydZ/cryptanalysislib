@@ -295,8 +295,8 @@ public:
 	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
 	      list_size((list_size == size_t(0)) ? max_list_size : list_size) {
 
-		static_assert(chase_size >= 0);
-		static_assert(gray_size >= 0);
+		static_assert(chase_size > 0);
+		static_assert(gray_size > 0);
 		assert(max_list_size >= list_size);
 
 		if constexpr (w > 0) {

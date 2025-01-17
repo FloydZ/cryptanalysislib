@@ -73,30 +73,27 @@ private:
 	Parallel_List_T() : MetaListT<Element>() {};
 
 public:
-
 	/// \param size of the whole list
 	/// \param threads number of threads access this list
 	/// \param thread_block size of each block for each thread.
 	/// \param no_value do not allocate the value array
 	constexpr explicit Parallel_List_T(const size_t size,
-									   const uint32_t threads,
-									   bool no_values=false) noexcept :
-	   MetaListT<Element>(size, threads, false),
-	   no_values(no_values)
-	{
+	                                   const uint32_t threads,
+	                                   bool no_values = false) noexcept : MetaListT<Element>(size, threads, false),
+	                                                                      no_values(no_values) {
 		if (!no_values) {
 			__data_value.resize(size);
 			memset(__data_value.data(), 0, size * sizeof(ValueType));
 		}
 
 		__data_label.resize(size);
-		memset(__data_label.data(), 0, size*sizeof(LabelType));
+		memset(__data_label.data(), 0, size * sizeof(LabelType));
 	}
 
 	/// single threaded memcpy
 	/// \param other
 	/// \return
-	inline Parallel_List_T<Element>& operator=(const Parallel_List_T<Element>& other) noexcept {
+	inline Parallel_List_T<Element> &operator=(const Parallel_List_T<Element> &other) noexcept {
 		// Guard self assignment
 		if (this == &other) {
 			return *this;
@@ -109,7 +106,7 @@ public:
 		if (other.data_value()) {
 			memcpy(__data_value, other.__data_value, size() * sizeof(ValueType));
 		}
-		memcpy(__data_label, other.__data_label, size()*sizeof(LabelType));
+		memcpy(__data_label, other.__data_label, size() * sizeof(LabelType));
 		return *this;
 	}
 
@@ -123,13 +120,13 @@ public:
 		out.nr_elements = in.size();
 		out.thread_block = in.thread_block;
 
-		const std::size_t s = tid*in.threads1;
-		const std::size_t c = ((tid == in.threads1 - 1) ? in.thread_block : in.nr_elements- (in.threads1-1)*in.thread_block);
+		const std::size_t s = tid * in.threads1;
+		const std::size_t c = ((tid == in.threads1 - 1) ? in.thread_block : in.nr_elements - (in.threads1 - 1) * in.thread_block);
 
 		if (out.data_value()) {
 			memcpy(out.__data_value + s, in.__data_value + s, c * sizeof(ValueType));
 		}
-		memcpy(out.__data_label+s, in.__data_value+s, c*sizeof(LabelType));
+		memcpy(out.__data_label + s, in.__data_value + s, c * sizeof(LabelType));
 	}
 
 
@@ -149,7 +146,7 @@ public:
 
 	///
 	constexpr void random(const size_t list_size,
-						  const MatrixType &m) {
+	                      const MatrixType &m) {
 		for (size_t i = 0; i < list_size; ++i) {
 			Element e{};
 			e.random(m);
@@ -166,7 +163,7 @@ public:
 	/// \param rewrite 	if set to true, all labels within each element will we overwritten by the recalculated.
 	/// \return 		true if ech element is correct.
 	constexpr bool is_correct(const MatrixType &m,
-							  const bool rewrite = false) noexcept {
+	                          const bool rewrite = false) noexcept {
 		for (size_t i = 0; i < load(); ++i) {
 			LabelType tmp;
 			m.mul(tmp, data_value(i));
@@ -184,37 +181,36 @@ public:
 	/// \tparam Hash hash function type, needed for the bucket sort
 	/// \param start start point= first element to sort
 	/// \param end  end point = last element to sort
-	void sort(const size_t start=0,
-	          const size_t end=1,
-	          const uint32_t k_lower=0,
-			  const uint32_t k_higher=LabelLENGTH) noexcept {
-		assert(start < end);
+	void sort(const size_t start = 0,
+	          const size_t end = 0,
+	          const uint32_t k_lower = 0,
+	          const uint32_t k_higher = LabelLENGTH) noexcept {
 		size_t _end = end;
-		if (_end > size()) {
+		if ((_end > size()) || (_end == 0)) {
 			_end = load();
 		}
+		assert(start < _end);
 		std::sort(__data_label.begin() + start, __data_label.begin() + _end,
 		          [k_lower, k_higher](const auto &e1, const auto &e2) {
 #if !defined(SORT_INCREASING_ORDER)
 			          return e1.is_lower(e2, k_lower, k_higher);
 #else
-			          return e1.is_greater(e2, k_lower, k_higher);
+			return e1.is_greater(e2, k_lower, k_higher);
 #endif
 		          });
 
 		assert(is_sorted(k_lower, k_higher));
-	          }
+	}
 
 	/// NOTE: single threded
 	/// \tparam Hash hash function type, needed for the bucket sort
-	/// \param tid thread id 
-	/// \param hash hash function
+	/// \param tid thread id
 	template<typename Hash>
-	void sort(const uint32_t tid=0) noexcept {
+	void sort(const uint32_t tid = 0) noexcept {
 		const size_t start = start_pos(tid);
 		const size_t end = start_pos(tid);
 		auto hash = [](const LabelType &e) -> uint64_t {
-		  return e.hash();
+			return e.hash();
 		};
 		ska_sort(__data_label.begin() + start,
 		         __data_label.begin() + end, hash);
@@ -222,7 +218,7 @@ public:
 
 	/// zero a list
 	/// \param tid
-	constexpr void zero(const uint32_t tid=0) noexcept {
+	constexpr void zero(const uint32_t tid = 0) noexcept {
 		assert(tid < __threads);
 		for (size_t i = start_pos(tid); i < end_pos(tid); ++i) {
 			if (data_value()) {
@@ -242,18 +238,36 @@ public:
 	}
 
 	/// iterator are useless in this class
-	[[nodiscard]] auto begin() noexcept { assert(false); return nullptr; }
-	[[nodiscard]] auto end() noexcept { assert(false); return nullptr; }
+	[[nodiscard]] auto begin() noexcept {
+		assert(false);
+		return nullptr;
+	}
+	[[nodiscard]] auto end() noexcept {
+		assert(false);
+		return nullptr;
+	}
 
-	[[nodiscard]] constexpr inline ValueType* data_value() noexcept { return (ValueType *)__data_value.data() ; }
-	[[nodiscard]] constexpr inline const ValueType* data_value() const noexcept { return (ValueType *)__data_value.data(); }
-	[[nodiscard]] constexpr inline LabelType* data_label() noexcept { return (LabelType *)__data_label.data(); }
-	[[nodiscard]] constexpr inline const LabelType* data_label() const noexcept { return (const LabelType *)__data_label.data(); }
+	[[nodiscard]] constexpr inline ValueType *data_value() noexcept { return (ValueType *) __data_value.data(); }
+	[[nodiscard]] constexpr inline const ValueType *data_value() const noexcept { return (ValueType *) __data_value.data(); }
+	[[nodiscard]] constexpr inline LabelType *data_label() noexcept { return (LabelType *) __data_label.data(); }
+	[[nodiscard]] constexpr inline const LabelType *data_label() const noexcept { return (const LabelType *) __data_label.data(); }
 
-	[[nodiscard]] constexpr inline ValueType& data_value(const size_t i) noexcept {  assert(i < __size); return __data_value[i]; }
-	[[nodiscard]] constexpr inline const ValueType& data_value(const size_t i) const noexcept { assert(i < __size); return __data_value[i]; }
-	[[nodiscard]] constexpr inline LabelType& data_label(const size_t i) noexcept { assert(i < __size); return __data_label[i]; }
-	[[nodiscard]] constexpr inline const LabelType& data_label(const size_t i) const noexcept { assert(i < __size); return __data_label[i]; }
+	[[nodiscard]] constexpr inline ValueType &data_value(const size_t i) noexcept {
+		assert(i < __size);
+		return __data_value[i];
+	}
+	[[nodiscard]] constexpr inline const ValueType &data_value(const size_t i) const noexcept {
+		assert(i < __size);
+		return __data_value[i];
+	}
+	[[nodiscard]] constexpr inline LabelType &data_label(const size_t i) noexcept {
+		assert(i < __size);
+		return __data_label[i];
+	}
+	[[nodiscard]] constexpr inline const LabelType &data_label(const size_t i) const noexcept {
+		assert(i < __size);
+		return __data_label[i];
+	}
 
 	/// \return: number of bytes the list contains of
 	[[nodiscard]] constexpr inline uint64_t bytes() const noexcept {
@@ -275,7 +289,7 @@ public:
 	/// \param tid thread id
 	constexpr void insert(const Element &e,
 	                      const size_t pos,
-	                      const uint32_t tid=0) noexcept {
+	                      const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
 		if (!no_values) {
 			__data_value[spos + pos] = e.value;
@@ -285,8 +299,8 @@ public:
 	}
 
 
-	constexpr bool is_sorted(const uint64_t k_lower=0,
-							 const uint64_t k_higher=LabelBytes) const {
+	constexpr bool is_sorted(const uint64_t k_lower = 0,
+	                         const uint64_t k_higher = LabelBytes) const {
 
 		for (size_t i = 1; i < load(); ++i) {
 			if (__data_label[i - 1].is_equal(__data_label[i], k_lower, k_higher)) {
@@ -314,7 +328,6 @@ private:
 };
 
 
-
 ///
 /// \tparam Element
 /// \param out
@@ -323,7 +336,8 @@ private:
 template<class Element>
 std::ostream &operator<<(std::ostream &out, const Parallel_List_T<Element> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {
-		out << obj.data_value(i) << " " << obj.data_label(i) << " " << i << "\n" << std::flush;
+		out << obj.data_value(i) << " " << obj.data_label(i) << " " << i << "\n"
+		    << std::flush;
 	}
 
 	return out;

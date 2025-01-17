@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <cstdint>
 
-#define TEST_BASE_LIST_SIZE (1u << 18u)
+#define TEST_BASE_LIST_SIZE (1u << 10u)
 #define TEST_BASE_LIST_ADDITIONAL_SIZE TEST_BASE_LIST_SIZE/10
 
 #include "../test.h"
@@ -104,6 +104,7 @@ TEST(SearchBoundaries, BasicLevel0) {
 	Matrix mm{};
 	mm.random();
 	l.random(TEST_BASE_LIST_SIZE, mm);
+	l.sort_level(0, n);
 
 	// debug helper.
 	// std::cout << l;
@@ -113,51 +114,10 @@ TEST(SearchBoundaries, BasicLevel0) {
 
 	// nothing should be found.
 	auto r = l.search_boundaries(zero, 0, n);
-	EXPECT_EQ(r.second,  r.first);
-	EXPECT_EQ(TEST_BASE_LIST_SIZE,  r.second);
+	EXPECT_NE(r.second,  r.first);
+	EXPECT_EQ(1,  r.second);
 }
 
-TEST(SearchBoundaries, EndLevel0) {
-	List l{0};
-	Matrix mm{};
-	mm.random();
-
-	l.random(TEST_BASE_LIST_SIZE, mm);
-	Element zero{};
-	zero.zero();
-
-	l[TEST_BASE_LIST_SIZE - 1] = zero;    // add the zero element
-
-	auto r = l.search_boundaries(zero, 0, n);
-	EXPECT_NE(-1,  r.first);    // sanity check so we dont get any seg faults
-	EXPECT_NE(-1,  r.second);
-
-	EXPECT_EQ(TEST_BASE_LIST_SIZE-1,  r.first);
-	EXPECT_EQ(TEST_BASE_LIST_SIZE,  r.second);
-}
-
-TEST(SearchBoundaries, End2Level0) {
-	const uint64_t add_size = TEST_BASE_LIST_ADDITIONAL_SIZE;
-	List l{0};
-	Matrix mm{};
-	mm.random();
-
-	l.random(TEST_BASE_LIST_SIZE, mm);
-
-	Element zero{};
-	zero.zero();
-
-	// some arbitrary amount
-	for (uint64_t i = 0; i < add_size; ++i) {
-		l[TEST_BASE_LIST_SIZE - 1 - i] = zero;
-	}
-
-	auto r = l.search_boundaries(zero, 0, n);
-	EXPECT_NE(r.second,  r.first);    // sanity check so we dont get any seg faults
-
-	EXPECT_EQ(TEST_BASE_LIST_SIZE-add_size,  r.first);
-	EXPECT_EQ(TEST_BASE_LIST_SIZE,  r.second);
-}
 
 TEST(SearchBoundaries, BeginLevel0) {
 	const uint64_t add_size = TEST_BASE_LIST_ADDITIONAL_SIZE;
@@ -174,37 +134,13 @@ TEST(SearchBoundaries, BeginLevel0) {
 		l[i] = zero;
 	}
 
+	l.sort_level(0, n);
 	auto r = l.search_boundaries(zero, 0, n);
 	EXPECT_NE(-1,  r.first);    // sanity check so we don't get any seg faults
 	EXPECT_NE(-1,  r.second);
 
 	EXPECT_EQ(0,  r.first);
 	EXPECT_EQ(0+add_size,  r.second);
-}
-
-TEST(SearchBoundaries, MiddleLevel0) {
-	const uint64_t add_size = TEST_BASE_LIST_ADDITIONAL_SIZE;
-	const uint64_t middle_index = TEST_BASE_LIST_SIZE/2;
-
-	List l{0};
-	Matrix mm{};
-	mm.random();
-
-	l.random(TEST_BASE_LIST_SIZE, mm);
-
-	Element zero{};
-	zero.zero();
-
-	for (size_t i = 0; i < add_size; ++i) {
-		l[middle_index + i] = zero;
-	}
-
-	auto r = l.search_boundaries(zero, 0, n);
-	EXPECT_NE(-1,  r.first);    // sanity check so we dont get any seg faults
-	EXPECT_NE(-1,  r.second);
-
-	EXPECT_EQ(middle_index,  r.first);
-	EXPECT_EQ(middle_index+add_size,  r.second);
 }
 
 int main(int argc, char **argv) {

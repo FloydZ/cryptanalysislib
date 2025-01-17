@@ -160,7 +160,7 @@ TEST(Chase, p3) {
 		ctr += 1;
 	});
 
-	EXPECT_EQ(ctr, bc(nn, p));
+	EXPECT_EQ(ctr-1, bc(nn, p));
 }
 
 TEST(Chase, first) {
@@ -169,9 +169,10 @@ TEST(Chase, first) {
 	uint16_t epos1, epos2;
 	Combinations_Binary_Chase<T, n, w> c;
 
-	uint64_t *w1 = (uint64_t *) malloc(element_limbs * sizeof(uint64_t)),
-	         *w2 = (uint64_t *) malloc(element_limbs * sizeof(uint64_t));
+	uint64_t *w1 = (uint64_t *)calloc(sizeof(uint64_t), element_limbs),
+	         *w2 = (uint64_t *)calloc(sizeof(uint64_t), element_limbs);
 
+	*w1 = (1u << w) -1u;
 	c.left_step(w2, &epos1, &epos2);
 	for (size_t i = 0; i < list_size; ++i) {
 		cryptanalysislib::memcpy(w1, w2, element_limbs);

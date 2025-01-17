@@ -9,3 +9,4 @@ foreach(testfile ${TEST_SOURCES})
 endforeach(testfile ${TEST_SOURCES})
 
 add_subdirectory(hashmap)
+add_subdirectory(queue)

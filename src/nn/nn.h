@@ -1673,7 +1673,7 @@ public:
 
 			for (size_t j = s2; j < s2 + (e2 + 7) / 8; ++j, ptr_r += 16) {
 				/// NOTE the 8: this is needed, als internally all limbs are T=uint64_t
-				const uint32x8_t ri = uint32x8_t::template gather<4>((const uint32_t *) ptr_r, loadr);
+				const uint32x8_t ri = uint32x8_t::template gather<8>((const uint32_t *) ptr_r, loadr);
 				const uint32_t m = compare_256_32(li, ri);
 
 				if (m) {

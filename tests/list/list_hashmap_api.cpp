@@ -18,6 +18,7 @@ using Label = FqPackedVector<n, 2, MatrixT>;
 using Element= Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
 
+/// NOTE really a test, just a check/dev env if list and hashmap api are interchangeable
 TEST(List, hashmap_simple) {
 	List L{LS, 1};
 	Matrix m;
@@ -47,7 +48,7 @@ TEST(List, hashmap_simple) {
 		std::cout << *f << std::endl;
 	}
 
-
+	delete hm;
 }
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

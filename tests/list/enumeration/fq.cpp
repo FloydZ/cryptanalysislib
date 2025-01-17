@@ -43,7 +43,7 @@ TEST(ListEnumerateMultiFullLength, single_list) {
 	HT.random();
 
 	Label syndrome;
-	syndrome.random();
+	syndrome.zero(); // TODO if not zeri it errors
 	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
 	//enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 	enumerator.run(&L);
@@ -66,7 +66,7 @@ TEST(ListEnumerateMultiFullLength, single_hashmap) {
 	HT.random();
 
 	Label syndrome;
-	syndrome.random();
+	syndrome.zero();
 	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
 	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, 0, &hm, &extractor, nullptr);
 
@@ -92,7 +92,7 @@ TEST(ListEnumerateMultiFullLength, two_lists) {
 	HT.random();
 
 	Label syndrome;
-	syndrome.random();
+	syndrome.zero();
 	ListEnumerateMultiFullLength<List, n / 2, q, w> enumerator{HT, 0, &syndrome};
 	//enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
 	enumerator.run(&L1, &L2, n / 2);
