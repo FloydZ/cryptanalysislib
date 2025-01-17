@@ -52,7 +52,7 @@ struct ImapConfig : public AlignmentConfig {
 };
 constexpr static ImapConfig imapConfig{};
 
-///
+/// TODO templates for bsr/popcount etc algorithm
 template<typename Allocator = AlignmentMallocator<imap_node_t, sizeof(imap_node_t)>,
          const ImapConfig &config=imapConfig>
 struct imap_tree_t {
@@ -73,6 +73,7 @@ public:
 	typedef imap_iter_t     iterator;
 	typedef const imap_iter_t const_iterator;
 
+    /// TODO move to algorithms bits
 	/// \param x
 	/// \return
 	constexpr static inline uint32_t __bsr__(const uint64_t x) noexcept {
@@ -556,7 +557,6 @@ public:
     }
 
 	///
-	/// \param tree
 	/// \param slot
 	/// \return
     [[nodiscard]] constexpr uint32_t getval0(const imap_slot_t *slot) const noexcept {
@@ -799,6 +799,11 @@ public:
 
         return imap__pair_zero__;
     }
+
+    void free() noexcept {
+	    Allocator::deallocate(tree, 0);
+	    tree = nullptr;
+	}
 };
 
 #undef imap__extract_lo4__

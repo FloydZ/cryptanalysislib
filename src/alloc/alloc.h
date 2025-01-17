@@ -609,7 +609,7 @@ public:
 	/// \param n number of byte
 	/// \return pointer to data or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
-		return (pointer)cryptanalysislib::aligned_alloc(alignment, n);
+		return static_cast<pointer>(cryptanalysislib::aligned_alloc(alignment, n));
 	}
 
 	/// \param p pointer to data
