@@ -110,6 +110,8 @@ static void BM_gcd_binary(benchmark::State &state) {
 }
 
 
+// Dont bench them directly as they could segfault if the recursion is to deep
+#ifndef DEBUG
 BENCHMARK(BM_gcd_recursive_v0<uint8_t>)->RangeMultiplier(2);
 BENCHMARK(BM_gcd_recursive_v0<uint32_t>)->RangeMultiplier(2);
 BENCHMARK(BM_gcd_recursive_v0<uint64_t>)->RangeMultiplier(2);
@@ -121,7 +123,7 @@ BENCHMARK(BM_gcd_recursive_v1<uint64_t>)->RangeMultiplier(2);
 BENCHMARK(BM_gcd_recursive_v2<uint8_t>)->RangeMultiplier(2);
 BENCHMARK(BM_gcd_recursive_v2<uint32_t>)->RangeMultiplier(2);
 BENCHMARK(BM_gcd_recursive_v2<uint64_t>)->RangeMultiplier(2);
-
+#endif
 
 BENCHMARK(BM_gcd_nonrecursive_v1<uint8_t>)->RangeMultiplier(2);
 BENCHMARK(BM_gcd_nonrecursive_v1<uint32_t>)->RangeMultiplier(2);
