@@ -107,7 +107,7 @@ constexpr static __m512i u64tom512(const uint64_t t[8]) noexcept {
 template<const bool __unsigned=true>
 struct Xint8x64_t {
 	constexpr static uint32_t LIMBS = 64;
-	using limb_type = uint8_t;
+	using limb_type = std::conditional<__unsigned, uint8_t, int8_t>::type;
 	using S = Xint8x64_t;
 	using simd_type = S;
 
@@ -155,10 +155,10 @@ struct Xint8x64_t {
 
 	///
 	[[nodiscard]] constexpr static inline S set (
-			int __A, int __B, int __C, int __D,
-			int __E, int __F, int __G, int __H,
-			int __I, int __J, int __K, int __L,
-			int __M, int __N, int __O, int __P) noexcept
+			const T32 __A, const T32 __B, const T32 __C, const T32 __D,
+			const T32 __E, const T32 __F, const T32 __G, const T32 __H,
+			const T32 __I, const T32 __J, const T32 __K, const T32 __L,
+			const T32 __M, const T32 __N, const T32 __O, const T32 __P) noexcept
 	{
 		S ret;
 		ret.v512 = __extension__ (__m512i)(__v16si)
@@ -169,10 +169,10 @@ struct Xint8x64_t {
 
 	///
 	[[nodiscard]] constexpr static inline S setr (
-	        int __A, int __B, int __C, int __D,
-	        int __E, int __F, int __G, int __H,
-	        int __I, int __J, int __K, int __L,
-	        int __M, int __N, int __O, int __P) noexcept
+	        const T32 __A, const T32 __B, const T32 __C, int __D,
+	        const T32 __E, const T32 __F, const T32 __G, int __H,
+	        const T32 __I, const T32 __J, const T32 __K, int __L,
+	        const T32 __M, const T32 __N, const T32 __O, int __P) noexcept
 	{
 		S ret;
 		ret.v512 = __extension__ (__m512i)(__v16si)
@@ -183,22 +183,22 @@ struct Xint8x64_t {
 
 	/// \return
 	[[nodiscard]] constexpr static inline S set(
-	        char __q63, char __q62, char __q61, char __q60,
-	        char __q59, char __q58, char __q57, char __q56,
-	        char __q55, char __q54, char __q53, char __q52,
-	        char __q51, char __q50, char __q49, char __q48,
-	        char __q47, char __q46, char __q45, char __q44,
-	        char __q43, char __q42, char __q41, char __q40,
-	        char __q39, char __q38, char __q37, char __q36,
-	        char __q35, char __q34, char __q33, char __q32,
-	        char __q31, char __q30, char __q29, char __q28,
-	        char __q27, char __q26, char __q25, char __q24,
-	        char __q23, char __q22, char __q21, char __q20,
-	        char __q19, char __q18, char __q17, char __q16,
-	        char __q15, char __q14, char __q13, char __q12,
-	        char __q11, char __q10, char __q09, char __q08,
-	        char __q07, char __q06, char __q05, char __q04,
-	        char __q03, char __q02, char __q01, char __q00) noexcept {
+	        const limb_type __q63, const limb_type __q62, const limb_type __q61, const limb_type __q60,
+	        const limb_type __q59, const limb_type __q58, const limb_type __q57, const limb_type __q56,
+	        const limb_type __q55, const limb_type __q54, const limb_type __q53, const limb_type __q52,
+	        const limb_type __q51, const limb_type __q50, const limb_type __q49, const limb_type __q48,
+	        const limb_type __q47, const limb_type __q46, const limb_type __q45, const limb_type __q44,
+	        const limb_type __q43, const limb_type __q42, const limb_type __q41, const limb_type __q40,
+	        const limb_type __q39, const limb_type __q38, const limb_type __q37, const limb_type __q36,
+	        const limb_type __q35, const limb_type __q34, const limb_type __q33, const limb_type __q32,
+	        const limb_type __q31, const limb_type __q30, const limb_type __q29, const limb_type __q28,
+	        const limb_type __q27, const limb_type __q26, const limb_type __q25, const limb_type __q24,
+	        const limb_type __q23, const limb_type __q22, const limb_type __q21, const limb_type __q20,
+	        const limb_type __q19, const limb_type __q18, const limb_type __q17, const limb_type __q16,
+	        const limb_type __q15, const limb_type __q14, const limb_type __q13, const limb_type __q12,
+	        const limb_type __q11, const limb_type __q10, const limb_type __q09, const limb_type __q08,
+	        const limb_type __q07, const limb_type __q06, const limb_type __q05, const limb_type __q04,
+	        const limb_type __q03, const limb_type __q02, const limb_type __q01, const limb_type __q00) noexcept {
 		S out;
 		out.v512 = __extension__(__m512i)(__v64qi){
 		        __q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07,
@@ -214,22 +214,22 @@ struct Xint8x64_t {
 
 	/// \return
 	[[nodiscard]] constexpr static inline S setr(
-	        char __q63, char __q62, char __q61, char __q60,
-	        char __q59, char __q58, char __q57, char __q56,
-	        char __q55, char __q54, char __q53, char __q52,
-	        char __q51, char __q50, char __q49, char __q48,
-	        char __q47, char __q46, char __q45, char __q44,
-	        char __q43, char __q42, char __q41, char __q40,
-	        char __q39, char __q38, char __q37, char __q36,
-	        char __q35, char __q34, char __q33, char __q32,
-	        char __q31, char __q30, char __q29, char __q28,
-	        char __q27, char __q26, char __q25, char __q24,
-	        char __q23, char __q22, char __q21, char __q20,
-	        char __q19, char __q18, char __q17, char __q16,
-	        char __q15, char __q14, char __q13, char __q12,
-	        char __q11, char __q10, char __q09, char __q08,
-	        char __q07, char __q06, char __q05, char __q04,
-	        char __q03, char __q02, char __q01, char __q00) noexcept {
+	        const limb_type __q63, const limb_type __q62, const limb_type __q61, const limb_type __q60,
+	        const limb_type __q59, const limb_type __q58, const limb_type __q57, const limb_type __q56,
+	        const limb_type __q55, const limb_type __q54, const limb_type __q53, const limb_type __q52,
+	        const limb_type __q51, const limb_type __q50, const limb_type __q49, const limb_type __q48,
+	        const limb_type __q47, const limb_type __q46, const limb_type __q45, const limb_type __q44,
+	        const limb_type __q43, const limb_type __q42, const limb_type __q41, const limb_type __q40,
+	        const limb_type __q39, const limb_type __q38, const limb_type __q37, const limb_type __q36,
+	        const limb_type __q35, const limb_type __q34, const limb_type __q33, const limb_type __q32,
+	        const limb_type __q31, const limb_type __q30, const limb_type __q29, const limb_type __q28,
+	        const limb_type __q27, const limb_type __q26, const limb_type __q25, const limb_type __q24,
+	        const limb_type __q23, const limb_type __q22, const limb_type __q21, const limb_type __q20,
+	        const limb_type __q19, const limb_type __q18, const limb_type __q17, const limb_type __q16,
+	        const limb_type __q15, const limb_type __q14, const limb_type __q13, const limb_type __q12,
+	        const limb_type __q11, const limb_type __q10, const limb_type __q09, const limb_type __q08,
+	        const limb_type __q07, const limb_type __q06, const limb_type __q05, const limb_type __q04,
+	        const limb_type __q03, const limb_type __q02, const limb_type __q01, const limb_type __q00) noexcept {
 		S out;
 		out.v512 = __extension__(__m512i)(__v64qi){
 		        __q63,
@@ -300,27 +300,28 @@ struct Xint8x64_t {
 		return out;
 	}
 
-	[[nodiscard]] constexpr static inline S set1(char __A) noexcept {
+	/// \param a[in]: single integer
+	/// \return vector register with: [a, ..., a]
+	[[nodiscard]] constexpr static inline S set1(const limb_type a) noexcept {
 		S out;
-		out.v512 = __extension__(__m512i)(__v64qi){__A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A,
-		                                           __A, __A, __A, __A, __A, __A, __A, __A};
+		out.v512 = __extension__(__m512i)(__v64qi){a, a, a, a, a, a, a, a,
+		                                           a, a, a, a, a, a, a, a,
+		                                           a, a, a, a, a, a, a, a,
+		                                           a, a, a, a, a, a, a, a,
+		                                           a, a, a, a, a, a, a, a,
+		                                           a, a, a, a, a, a, a, a,
+		                                           a, a, a, a, a, a, a, a,
+		                                           a, a, a, a, a, a, a, a};
 
 		return out;
 	}
 
 
-	///
-	/// \tparam aligned
-	/// \param ptr
-	/// \return
+	/// \tparam aligned[in]: if true a aligned instruction will be emmited.
+	/// \param ptr[in]: pointer to memory
+	/// \return __m512_load{u}_si512(ptr);
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline S load(const uint8_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S load(const limb_type *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -331,7 +332,7 @@ struct Xint8x64_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline S aligned_load(const uint8_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
 			// in the constexpr case simply ignore that the data is aligned
 			// it will not have any "runtime" penalties
@@ -340,6 +341,7 @@ struct Xint8x64_t {
 			out.v512 = tmp;
 			return out;
 		} else {
+			assert(is_aligned(ptr, 64));
 			const __m512i tmp = *(__m512i *) ptr;
 			S out;
 			out.v512 = tmp;
@@ -1857,15 +1859,21 @@ struct Xint64x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = uint64_t;
 	using S = Xint64x8_t;
+	using simd_type = S;
+
+    using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
+    using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
+    using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
+    using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
+    using T64 = std::conditional<__unsigned, uint64_t, int64_t>::type;
 
 	union {
 		// compatibility with TxN_t
-		uint64_t d[8];
-
-		uint8_t v8[64];
-		uint16_t v16[32];
-		uint32_t v32[16];
-		uint64_t v64[8];
+		T64   d[8];
+		T8   v8[64];
+		T16 v16[32];
+		T32 v32[16];
+		T64 v64[8];
 		cryptanalysislib::_uint64x2_t v128[4];
 		__m256i v256[2];
 		__m512i v512;
@@ -2112,7 +2120,7 @@ struct Xint64x8_t {
 		Xint64x8_t out;
 		// out.v512 = _mm512_slli_epi64(in1.v512, in2);
 		// out.v512 = (__m512i)__builtin_ia32_psllqi512((__v8di)in1.v512, (int)in2);
-		out.v512 = (__m512i) ((__v8di)in1.v512 << (int)in2);
+		out.v512 = (__m512i) ((V)in1.v512 << (int)in2);
 		return out;
 	}
 

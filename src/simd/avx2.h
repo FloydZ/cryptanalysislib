@@ -695,7 +695,7 @@ class TxN_t;
 template<const bool __unsigned=true>
 struct Xint8x32_t {
 	constexpr static uint32_t LIMBS = 32;
-	using limb_type = uint8_t;
+	using limb_type = std::conditional<__unsigned, uint8_t, int8_t>::type;
 	using S = Xint8x32_t;
 	using simd_type = S;
 

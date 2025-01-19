@@ -258,11 +258,12 @@ static void translate_level(uint32_t *lower,
 	*upper = level_translation_array[level + 1u];
 }
 
-/// translates an const_array 'level_filter_array' = (e.g.) [4, 0, 0] into a 'norm' = (e.g.) 2, s.t. every 'Value' with a
+/// translates a const_array 'level_filter_array' = (e.g.) [4, 0, 0] into a 'norm' = (e.g.) 2, s.t. every 'Value' with a
 /// coordinate which is absolute bigger than 'Norm' needs to be filtered out.
 /// assumes to count from the top to the bottom of the tree in increasing order. So the root is in lvl 0.
-/// \param const lvl = current lvl
-/// \param const level_filter_array input parameter
+/// \param lvl[in]: current lvl
+/// \param nr2[in]:
+/// \param level_filter_array input parameter
 static uint32_t translate_filter(const uint8_t lvl, const uint16_t nr2,
                                  const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept {
 	if (level_filter_array[lvl][2] > 0) {
@@ -289,7 +290,18 @@ static void ident() {
 	std::cout << "DEFINED USE_BRANCH_PREDICTION" << std::endl;
 #endif
 
+	/// TODO update once it is ready
 	std::cout << "cryptanalysislib 0.0.1" << std::endl;
+}
+
+/// \tparam T[]
+/// \param ptr[in]:
+/// \param alignment[in]
+/// \return if the pointer is correctly aligne
+template<typename T>
+constexpr static inline bool is_aligned(const T *ptr,
+										const uint32_t alignment) {
+	return (((uintptr_t)ptr) % alignment) == 0;
 }
 
 
