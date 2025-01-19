@@ -12,7 +12,7 @@
 using signal_index = std::uint64_t;
 static signal_index constexpr invalid_signal_index{~0ull};
 
-
+///
 static thread_local std::uint64_t select_bias_hint = 0;
 
 
@@ -22,8 +22,10 @@ static inline constexpr auto minimum_bit_count(const std::unsigned_integral auto
 }
 
 
-
-template <std::size_t, std::size_t>
+/// \tparam
+/// \tparam
+template <std::size_t, 
+          std::size_t>
 struct sub_counter_arity;
 
 //=============================================================================
@@ -49,12 +51,12 @@ static auto constexpr sub_counter_arity_v = sub_counter_arity<counter_capacity, 
 // these will be type rich types in the near future
 using tree_index = std::uint64_t;
 
-///
-/// @tparam total_counters
-/// @tparam bits_per_counter
-/// @tparam bias_bit
+/// \tparam total_counters
+/// \tparam bits_per_counter
+/// \tparam bias_bit
 template <std::uint64_t total_counters,
-		 std::uint64_t bits_per_counter, std::uint64_t bias_bit = (1ull << 63)>
+		  std::uint64_t bits_per_counter, 
+          std::uint64_t bias_bit = (1ull << 63u)>
 struct default_selector {
         // default select will select which ever child is non-zero, or if both
         // children are non-zero, prefer the child indicated by the bias flag.
@@ -150,6 +152,7 @@ public:
 	static auto constexpr number_of_counters = T::number_of_counters;
 	static auto constexpr counter_capacity = T::counter_capacity;
 	static auto constexpr bits_per_counter = T::bits_per_counter;
+	static auto constexpr bias_bit = 1ull << 63u;
 	static auto constexpr counter_mask = (1ull << bits_per_counter) - 1;
 
 	using child_type = node<node_traits<capacity / number_of_counters, tree_capacity>>;
@@ -196,11 +199,13 @@ public:
 	/// \tparam selector
 	/// \param biasFlags
 	/// \return
-	template <template <std::uint64_t, std::uint64_t> class selector>
+	template <template <std::uint64_t,
+                        std::uint64_t,
+                        std::uint64_t> class selector>
 	inline auto select( const bias_flags biasFlags) noexcept -> std::pair<signal_index, bool> {
 	    auto expected = value_.load();
 	    while (expected) {
-	        auto counterIndex = selector<number_of_counters, bits_per_counter>()(biasFlags, expected);
+	        auto counterIndex = selector<number_of_counters, bits_per_counter, bias_bit>()(biasFlags, expected);
 	        if constexpr (non_leaf_node_traits<T>) {
 	            auto desired = expected - addend_[counterIndex];
 	            if (value_.compare_exchange_strong(expected, desired))
@@ -294,7 +299,9 @@ public:
 	/// \tparam select_function
 	/// \param biasFlags
 	/// \return
-	template<template<std::uint64_t, std::uint64_t> class select_function>
+	template<template<std::uint64_t,
+                      std::uint64_t, 
+                      std::uint64_t> class select_function>
 	std::pair<signal_index, bool> select(bias_flags biasFlags) noexcept
 	    requires(root_level_traits<T>) {
 	    return select<select_function>(biasFlags, 0);
@@ -314,7 +321,9 @@ protected:
 	/// \param biasFlags
 	/// \param nodeIndex
 	/// \return
-	template<template<std::uint64_t, std::uint64_t> class select_function>
+	template<template<std::uint64_t, 
+                      std::uint64_t, 
+                      std::uint64_t> class select_function>
 	std::pair<signal_index, bool> select(bias_flags biasFlags,
 										 node_index nodeIndex) noexcept {
 	    static auto constexpr bias_bits_consumed_to_select_counter = minimum_bit_count(counters_per_node) - 1;  // was node_count
@@ -374,7 +383,9 @@ public:
 	/// \tparam select_function
 	/// \param bias
 	/// \return
-	template <template <std::uint64_t, std::uint64_t> class select_function = default_selector>
+	template <template <std::uint64_t,
+                        std::uint64_t,
+                        std::uint64_t> class select_function = default_selector>
     std::pair<signal_index, bool> select (std::uint64_t bias) noexcept {
         static auto constexpr number_of_bias_bits = (65 - minimum_bit_count(capacity));
         bias <<= number_of_bias_bits;

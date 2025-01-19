@@ -340,14 +340,6 @@ using TypeTemplate =
                 typename std::conditional<(n <= 0xFFFFFFFFFFFFFFFF), typename std::conditional<__unsigned, uint64_t, int64_t>::type,
                     typename std::conditional<__unsigned, __uint128_t, __int128_t>::type>::type>::type>::type>::type;
 
-template<typename T>
-constexpr static size_t limbs() noexcept {
-#ifdef USE_AVX512F
-	return 64/sizeof(T);
-#else
-	return 32/sizeof(T);
-#endif
-}
 
 // tracy stuff
 #ifdef USE_TRACY

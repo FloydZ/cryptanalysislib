@@ -21,7 +21,7 @@ namespace cryptanalysislib {
     };
     constexpr static AlgorithmMinConfig algorithmMinConfig{};
 
-	/// \tparam T
+	/// \tparam T TODO doc
 	/// \tparam config
 	/// \param a
 	/// \param n
@@ -63,7 +63,7 @@ namespace cryptanalysislib {
 		return m;
     }
 
-	/// \tparam Iterator
+	/// \tparam Iterator TODO doc
 	/// \tparam config
 	/// \param start
 	/// \param end

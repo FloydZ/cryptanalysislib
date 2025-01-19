@@ -346,8 +346,9 @@ class CacheTrie {
 
 	///////////////////////////// Allocation Cache //////////////////////////////
 
-	using SCacheAllocator = CacheAllocator<SNode>;
-	SCacheAllocator sll{};
+    // NOTE: this was dramatically slower than just a normal malloc
+	// using SCacheAllocator = CacheAllocator<SNode>;
+	// SCacheAllocator sll{};
 
 	/////////////////////////////////////////////////////////////////////////////
 

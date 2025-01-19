@@ -84,7 +84,9 @@ using namespace cryptanalysislib;
 
 
 ///
-template<typename T, const uint32_t N>
+template<typename T,
+         const uint32_t N,
+         const bool __unsigned>
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>
 #endif
@@ -92,7 +94,7 @@ class TxN_t {
 public:
 	constexpr static uint32_t LIMBS = N;
 	using limb_type = T;
-	using S = TxN_t<T, N>;
+	using S = TxN_t<T, N, __unsigned>;
 
 	static_assert(N > 0);
 

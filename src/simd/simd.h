@@ -3282,4 +3282,11 @@ concept SIMDAble = requires(S s) {
 #include "simd/generic.h"
 #include "simd/bits/generic.h"
 
+template<typename T>
+#ifdef USE_AVX512F
+using SIMDSelector = TxN_t<T, 64/sizeof(T), std::is_unsigned_v<T>>;
+#else
+using SIMDSelector = TxN_t<T, 32/sizeof(T), std::is_unsigned_v<T>>;
+#endif
+
 #endif//CRYPTANALYSISLIB_SIMD_H

@@ -128,17 +128,17 @@ constexpr inline uint64_t simd_binom(const uint64_t n,
 	assert(k < n);
 
 	// n!
-	uint8x64_t fn = uint8x64_t::aligned_load(cryptanalysislib::internal::factorials[n]);
+	Xint8x64_t fn = Xint8x64_t::aligned_load(cryptanalysislib::internal::factorials[n]);
 	// k!
-	uint8x64_t fk = uint8x64_t::aligned_load(cryptanalysislib::internal::factorials[k]);
+	Xint8x64_t fk = Xint8x64_t::aligned_load(cryptanalysislib::internal::factorials[k]);
 	// (n - k)!
-	uint8x64_t fnk = uint8x64_t::aligned_load(cryptanalysislib::internal::factorials[n - k]);
+	Xint8x64_t fnk = Xint8x64_t::aligned_load(cryptanalysislib::internal::factorials[n - k]);
 
-	const uint8x64_t vdenom = fk + fnk;// k! * (n -k)!
-	const uint8x64_t tmp = fn - vdenom;// n! / ...
+	const Xint8x64_t vdenom = fk + fnk;// k! * (n -k)!
+	const Xint8x64_t tmp = fn - vdenom;// n! / ...
 
 	alignas(64) int8_t coef[64];
-	uint8x64_t::aligned_store(coef, tmp);
+	Xint8x64_t::aligned_store(coef, tmp);
 
 	// get back from the product of factorials into the integer domain
 	uint64_t num = 1;

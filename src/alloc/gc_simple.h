@@ -506,7 +506,7 @@ struct GarbageCollector {
 		void *_bos = this->bos;
 		/* The stack grows towards smaller memory addresses, hence we scan tos->bos.
 	     * Stop scanning once the distance between tos & bos is too small to hold a valid pointer */
-		for (void* p = (void*) tos; p <= (void*)_bos - PTRSIZE; p+=PTRSIZE) {
+		for (uintptr_t p = (uintptr_t) tos; p <= (uintptr_t)_bos - PTRSIZE; p+=PTRSIZE) {
 			mark_alloc(*(void **) p);
 		}
 	}

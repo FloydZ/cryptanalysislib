@@ -22,19 +22,16 @@ namespace cryptanalysislib {
 
 	/// \tparam T
 	/// \tparam config
-	/// \param a
-	/// \param n
-	/// \return
+	/// \param a[in]: array of integers
+	/// \param n[in]: length of the array
+	/// \return max(a[0], ..., a[n-1])
 	template<typename T,
              const AlgorithmMaxConfig &config = algorithmMaxConfig>
 	[[nodiscard]] constexpr static inline T max_simd_uXX(const T *a,
 														 const size_t n) noexcept {
-#ifdef USE_AVX512F
-		constexpr uint32_t limbs = 64/sizeof(T);
-#else
-		constexpr uint32_t limbs = 32/sizeof(T);
-#endif
-		using S = TxN_t<T, limbs>;
+        // make sure that we actually support the integers
+        static_assert(std::is_integral_v<T>);
+		using S = SIMDSelector<T>;
 
 		T m = 0;
 		auto p = S::set1(m);
@@ -46,15 +43,16 @@ namespace cryptanalysislib {
 			p = S::max(p, y);
 		}
 
+        // compute the max over the register
 		for (uint32_t j = 0; j < t; j++) {
 			if (m < p[j]) {
 				m = p[j];
 			}
 		}
 
-		// tail
+		// tail mngt.
 		for (; i < n; i++) {
-			if (a[i] > m) {
+			if (a[i] > m) [[unlikely]] {
 				m = a[i];
 			}
 		}
@@ -122,9 +120,9 @@ namespace cryptanalysislib {
 			static_cast<T *>(nullptr),
 			1, nthreads);
 
-		T m = futures[0].get();
+		size_t m = futures[0].get();
 		for (size_t i = 1; i < nthreads; i++) {
-			T mm = futures[i].get();
+			const size_t mm = futures[i].get();
 			if (mm > m) {
 				m = mm;
 			}

@@ -19,7 +19,9 @@ constexpr static CacheAllocatorConfig cacheAllocatorConfig;
 /// NOTE: seams to be super slow. Lol.
 /// \tparam T type to allocate
 template<class T,
-		 template<class> class LinkedList = ConstFreeList,
+		 template<class, 
+                  class=cryptanalysislib::alloc::allocator, 
+                  class=std::atomic<T>> class LinkedList = ConstFreeList,
 		 const CacheAllocatorConfig &config=cacheAllocatorConfig>
 class CacheAllocator {
 	// number of elements to store in a single bucket

@@ -206,7 +206,9 @@ namespace cryptanalysislib::work_contract {
 					  non_movable {
 	public:
 		//=============================================================================
-		template<std::uint64_t total_counters, std::uint64_t bits_per_counter>
+		template<std::uint64_t total_counters, 
+                 std::uint64_t bits_per_counter,
+                 std::uint64_t bias_bit = 1ull << 63u>
 		struct largest_child_selector {
 			inline auto operator()(
 				std::uint64_t,

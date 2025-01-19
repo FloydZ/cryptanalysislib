@@ -682,9 +682,10 @@ constexpr static __m256i u64tom256(const uint64_t t[4]) noexcept {
 //	t[15] = d3 >> 48;
 //}
 
-// needed forward decl
+/// needed forward decl
 template<typename T,
-         const uint32_t N>
+         const uint32_t N, 
+         const bool __unsigned=true>
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>
 #endif
@@ -698,8 +699,7 @@ struct Xint8x32_t {
 	using S = Xint8x32_t;
 	using simd_type = S;
 
-    using V = std::conditional<__unsigned, __v32qu, __v32qi>::type;
-
+    using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -1266,7 +1266,7 @@ struct Xint16x16_t {
 	[[nodiscard]] static inline S random() noexcept {
 		S ret;
 		for (size_t i = 0; i < 4; ++i) {
-			ret.v64[i] = rng();
+			ret.v64[i] = cryptanalysislib::rng();
 		}
 		return ret;
 	}
@@ -1700,7 +1700,7 @@ struct Xint32x8_t {
 	[[nodiscard]] static inline S random() noexcept {
 		S ret{};
 		for (size_t i = 0; i < 4; ++i) {
-			ret.v64[i] = rng();
+			ret.v64[i] =cryptanalysislib::rng();
 		}
 		return ret;
 	}
@@ -2294,7 +2294,7 @@ struct Xint64x4_t {
 	[[nodiscard]] static inline S random() noexcept {
 		S ret;
 		for (size_t i = 0; i < 4; ++i) {
-			ret.v64[i] = rng();
+			ret.v64[i] = cryptanalysislib::rng();
 		}
 		return ret;
 	}

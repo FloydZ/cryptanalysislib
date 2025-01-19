@@ -34,7 +34,7 @@ std::atomic<uint32_t> __global_tid = 0;
 #define DEBUG_PRINTF(...)\
 			debug_futex.down(); \
 			sprintf(debug_msg, __VA_ARGS__); \
-			write(1, debug_msg, strlen(debug_msg)); \
+			(void)write(1, debug_msg, strlen(debug_msg)); \
             debug_futex.up();
 
 
