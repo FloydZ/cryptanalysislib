@@ -682,14 +682,6 @@ constexpr static __m256i u64tom256(const uint64_t t[4]) noexcept {
 //	t[15] = d3 >> 48;
 //}
 
-/// needed forward decl
-template<typename T,
-         const uint32_t N, 
-         const bool __unsigned=true>
-#if __cplusplus > 201709L
-    requires std::is_integral_v<T>
-#endif
-class TxN_t;
 
 
 template<const bool __unsigned=true>

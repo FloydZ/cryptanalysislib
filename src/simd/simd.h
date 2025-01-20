@@ -3047,21 +3047,21 @@ constexpr inline void Xint64x4_t<__unsigned>::print(bool binary,
 ////////////////////////////////////////////////////////////////////////
 
 namespace cryptanalysislib {
-	constexpr inline _uint8x16_t& _uint8x16_t::operator=(const _uint16x8_t &b) noexcept {
+	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint16x8_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
 		}
 
 		return *this;
 	}
-	constexpr inline _uint8x16_t& _uint8x16_t::operator=(const _uint32x4_t &b) noexcept {
+	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint32x4_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
 		}
 
 		return *this;
 	}
-	constexpr inline _uint8x16_t& _uint8x16_t::operator=(const _uint64x2_t &b) noexcept {
+	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint64x2_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
 		}

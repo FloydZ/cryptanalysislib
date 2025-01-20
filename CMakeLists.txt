@@ -40,7 +40,7 @@ include(FetchContent)
 include(ExternalProject)
 include(CheckCXXCompilerFlag) 	# check for compiler optimization flags
 include(CheckIPOSupported)  	# check for -flto
-include(CheckLanguage) 			# needed for `check_language(CUDA)`
+include(CheckLanguage) 		# needed for `check_language(CUDA)`
 
 if(NOT ${USE_SIMD})
 	message(STATUS "no SIMD")
@@ -70,7 +70,7 @@ check_cxx_compiler_flag(-Wthread-safety COMPILER_SUPPORTS_THREAD_SAFETY)
 # find needed packages: the good thing only is: we only have a single external
 # dependencies. 
 enable_testing()
-find_package(OpenMP REQUIRED)
+find_package(OpenMP QUIET)
 find_package(Threads REQUIRED)
 find_package(GTest) 
 find_package(benchmark QUIET)
@@ -223,7 +223,6 @@ set(LINK_TEST_FLAGS
 	GTest::gtest 
 	GTest::gtest_main 
 	Threads::Threads 
-	OpenMP::OpenMP_CXX
 	reflectcpp
 )
 
@@ -231,6 +230,10 @@ set(LINK_BENCH_FLAGS
 	benchmark::benchmark
 	reflectcpp
 )
+
+if(OpenMP_FOUND)
+	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_CXX)
+endif ()
 
 if(OpenCL_FOUND AND OpenCLHeader_FOUND)
 	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenCL::OpenCL OpenCL::Headers)

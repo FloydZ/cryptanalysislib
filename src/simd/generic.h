@@ -86,7 +86,7 @@ using namespace cryptanalysislib;
 ///
 template<typename T,
          const uint32_t N,
-         const bool __unsigned>
+         const bool __unsigned=true>
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>
 #endif
