@@ -13,6 +13,28 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+#define S _uint8x16_t
+#define T _uint8x16_t
+#include "test_simd.h"
+#undef S
+#undef T
+//#define S _uint16x8_t
+//#define T _uint16x8_t
+//#include "test_simd.h"
+//#undef S
+//#undef T
+//#define S _uint32x4_t
+//#define T _uint32x4_t
+//#include "test_simd.h"
+//#undef S
+//#undef T
+//#define S _uint64x2_t
+//#define T _uint64x2_t
+//#include "test_simd.h"
+//#undef S
+//#undef T
+
+
 #define S uint8x32_t
 #define T uint8x32_t
 #include "test_simd.h"

@@ -61,50 +61,55 @@ namespace cryptanalysislib {
 	struct _uint32x4_t;
 	struct _uint64x2_t;
 
-	struct _uint8x16_t {
+    template<const bool __unsigned=true>
+	struct _Xint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
 		using limb_type = uint8_t;
+	    using S = _Xint8x16_t;
+        
+        using V = std::conditional<__unsigned, __v16qu, __v16hi>::type;
 
-		constexpr inline _uint8x16_t& operator=(const _uint16x8_t &b) noexcept;
-		constexpr inline _uint8x16_t& operator=(const _uint32x4_t &b) noexcept;
-		constexpr inline _uint8x16_t& operator=(const _uint64x2_t &b) noexcept;
-
-		constexpr _uint8x16_t() noexcept = default;
-		constexpr _uint8x16_t(const _uint16x8_t &b) noexcept;
-		constexpr _uint8x16_t(const _uint32x4_t &b) noexcept;
-		constexpr _uint8x16_t(const _uint64x2_t &b) noexcept;
+        using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
+        using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
+        using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
+        using T64 = std::conditional<__unsigned, uint64_t, int64_t>::type;
 
 		union {
 			// compatibility to `TxN_t`
-			uint8_t d[16];
-
-			uint8_t v8[16];
-			uint16_t v16[8];
-			uint32_t v32[4];
-			uint64_t v64[2];
+			T8   d[16];
+			T8  v8[16];
+			T16 v16[8];
+			T32 v32[4];
+			T64 v64[2];
 
 			__m128i v128;
 		};
 
-		[[nodiscard]] constexpr inline uint32_t size() const noexcept {
-			return 16;
-		}
-
-
+        /// \param i[in]: position of the limb to return
+        /// \return __m256i[i]
 		[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 			assert(i < LIMBS);
 			return d[i];
 		}
 
+        /// \param i[in]: position of the limb to return
+        /// \return __m256i[i]
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 			assert(i < LIMBS);
 			return d[i];
 		}
+		
+        constexpr inline S& operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline S& operator=(const _uint32x4_t &b) noexcept;
+		constexpr inline S& operator=(const _uint64x2_t &b) noexcept;
 
-		///
-		/// \return
-		static inline _uint8x16_t random() noexcept {
-			_uint8x16_t ret;
+		constexpr _Xint8x16_t(const _uint16x8_t &b) noexcept;
+		constexpr _Xint8x16_t(const _uint32x4_t &b) noexcept;
+		constexpr _Xint8x16_t(const _uint64x2_t &b) noexcept;
+
+		/// \return random element
+		static inline S random() noexcept {
+			S ret;
 			for (uint32_t i = 0; i < 2; i++) {
 				ret.v64[i] = rng();
 			}
@@ -112,93 +117,50 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
-		/// TODO optimize with
-		[[nodiscard]] constexpr static inline _uint8x16_t set1(const uint8_t i) noexcept {
-			_uint8x16_t ret;
-			for (uint32_t j = 0; j < 16u; ++j) {
-				ret.v8[j] = i;
-			}
-			return ret;
+	    /// \param binary[in]:
+	    /// \param hex[in]:
+	    constexpr inline void print(bool binary = false,
+	                                bool hex = false) const;
+
+        /// \param a-p[in]: 
+        /// \return 
+		[[nodiscard]] constexpr static inline S set(const limb_type a, const limb_type b, const limb_type c, const limb_type d,
+		                                            const limb_type e, const limb_type f, const limb_type g, const limb_type h,
+		                                            const limb_type i, const limb_type j, const limb_type k, const limb_type l,
+		                                            const limb_type m, const limb_type n, const limb_type o, const limb_type p) noexcept {
+			S ret;
+            ret.v128 = __extension__ (__m128i)(__v16qi){
+                (char)p, (char)o, (char)n, (char)m, (char)l, (char)k, (char)j, (char)i,
+                (char)h, (char)g, (char)f, (char)e, (char)d, (char)c, (char)b, (char)a,
+            };
+            return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint8x16_t set(const uint32_t a,
-															  const uint32_t b,
-															  const uint32_t c,
-															  const uint32_t d) noexcept {
-			_uint8x16_t ret;
-			ret.v32[0] = d;
-			ret.v32[1] = c;
-			ret.v32[2] = b;
-			ret.v32[3] = a;
-			return ret;
+        /// \param a-p[in]: 
+        /// \return 
+		[[nodiscard]] constexpr static inline S setr(const limb_type a, const limb_type b, const limb_type c, const limb_type d,
+		                                             const limb_type e, const limb_type f, const limb_type g, const limb_type h,
+		                                             const limb_type i, const limb_type j, const limb_type k, const limb_type l,
+		                                             const limb_type m, const limb_type n, const limb_type o, const limb_type p) noexcept {
+			S ret;
+            ret.v128 = __extension__ (__m128i)(__v16qi){
+                (char)a, (char)b, (char)c, (char)d, (char)e, (char)f, (char)g, (char)h,
+                (char)i, (char)j, (char)k, (char)l, (char)m, (char)n, (char)o, (char)p,
+            };
+            return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint8x16_t setr(
-		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
-			_uint8x16_t ret;
-			ret.v32[0] = a;
-			ret.v32[1] = b;
-			ret.v32[2] = c;
-			ret.v32[3] = d;
-			return ret;
+        /// \param a-p[in]: 
+        /// \return 
+		[[nodiscard]] constexpr static inline S set1(const limb_type i) noexcept {
+            return S::set(i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i);
 		}
 
-		[[nodiscard]] constexpr static inline _uint8x16_t set(
-		        uint8_t a, uint8_t b, uint8_t c, uint8_t d,
-		        uint8_t e, uint8_t f, uint8_t g, uint8_t h,
-		        uint8_t i, uint8_t j, uint8_t k, uint8_t l,
-		        uint8_t m, uint8_t n, uint8_t o, uint8_t p) noexcept {
-			_uint8x16_t ret;
-			ret.v8[0] = p;
-			ret.v8[1] = o;
-			ret.v8[2] = n;
-			ret.v8[3] = m;
-			ret.v8[4] = l;
-			ret.v8[5] = k;
-			ret.v8[6] = j;
-			ret.v8[7] = i;
-			ret.v8[8] = h;
-			ret.v8[9] = g;
-			ret.v8[10] = f;
-			ret.v8[11] = e;
-			ret.v8[12] = d;
-			ret.v8[13] = c;
-			ret.v8[14] = b;
-			ret.v8[15] = a;
-			return ret;
-		}
-
-		[[nodiscard]] constexpr static inline _uint8x16_t setr(
-		        uint8_t a, uint8_t b, uint8_t c, uint8_t d,
-		        uint8_t e, uint8_t f, uint8_t g, uint8_t h,
-		        uint8_t i, uint8_t j, uint8_t k, uint8_t l,
-		        uint8_t m, uint8_t n, uint8_t o, uint8_t p) noexcept {
-			_uint8x16_t ret;
-			ret.v8[0] = a;
-			ret.v8[1] = b;
-			ret.v8[2] = c;
-			ret.v8[3] = d;
-			ret.v8[4] = e;
-			ret.v8[5] = f;
-			ret.v8[6] = g;
-			ret.v8[7] = h;
-			ret.v8[8] = i;
-			ret.v8[9] = j;
-			ret.v8[10] = k;
-			ret.v8[11] = l;
-			ret.v8[12] = m;
-			ret.v8[13] = n;
-			ret.v8[14] = o;
-			ret.v8[15] = p;
-			return ret;
-		}
-
-		///
-		/// \tparam aligned
-		/// \param ptr
-		/// \return
+		/// \tparam aligned[in]: if true a alied instruction will be emitted
+		/// \param ptr[in]: pointer to (aligned )16 bytes 
+		/// \return vector element
 		template<const bool aligned = false>
-		[[nodiscard]] constexpr static inline _uint8x16_t load(const void *ptr) noexcept {
+		[[nodiscard]] constexpr static inline S load(const limb_type *ptr) noexcept {
 			if constexpr (aligned) {
 				return aligned_load(ptr);
 			}
@@ -206,34 +168,33 @@ namespace cryptanalysislib {
 			return unaligned_load(ptr);
 		}
 
-		///
-		/// \param ptr
-		/// \return
-		[[nodiscard]] constexpr static inline _uint8x16_t aligned_load(const void *ptr) noexcept {
+		/// \param ptr[in]: pointer to 16 aligned bytes
+		/// \return: vector element
+		[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
 			auto *ptr128 = (__m128i *) ptr;
-			_uint8x16_t out;
+			S out;
 			out.v128 = *ptr128;
 			return out;
 		}
 
-
-		///
-		/// \param ptr
-		/// \return
-		[[nodiscard]] constexpr static inline _uint8x16_t unaligned_load(const void *ptr) noexcept {
+		/// \param ptr[in]: pointer to 16 unaligned bytes
+		/// \return: vector element
+		[[nodiscard]] constexpr static inline S unaligned_load(const limb_type *ptr) noexcept {
 			__m128i_u const *ptr128 = (__m128i_u const *) ptr;
 			const __m128i_u tmp = ::internal::unaligned_load_wrapper_128(ptr128);
-			_uint8x16_t out;
+			S out;
 			out.v128 = tmp;
 			return out;
 		}
 
-		///
-		/// \tparam aligned
-		/// \param ptr
-		/// \param in
+	    /// NOTE: the store can never be constexpr ans its needs to access
+	    /// given memory
+	    /// \tparam aligned[in]: 
+	    /// \param ptr[in/out]: pointer to 16 (aligned) bytes
+	    /// \param in[in]: vector element
 		template<const bool aligned = false>
-		constexpr static inline void store(void *ptr, const _uint8x16_t in) noexcept {
+		static inline void store(limb_type *ptr,
+                                 const S in) noexcept {
 			if constexpr (aligned) {
 				aligned_store(ptr, in);
 				return;
@@ -242,51 +203,185 @@ namespace cryptanalysislib {
 			unaligned_store(ptr, in);
 		}
 
-		///
-		/// \param ptr
-		/// \param in
-		constexpr static inline void aligned_store(void *ptr, const _uint8x16_t in) noexcept {
+	    /// \param ptr[in/out]: pointer to 16 aligned bytes
+	    /// \param in[in]: vector element
+		constexpr static inline void aligned_store(void *ptr,
+                                                   const S in) noexcept {
 			auto *ptr128 = (__m128i *) ptr;
 			*ptr128 = in.v128;
 		}
 
-		///
-		/// \param ptr
-		/// \param in
-		constexpr static inline void unaligned_store(void *ptr, const _uint8x16_t in) noexcept {
+	    /// \param ptr[in/out]: pointer to 16 unaligned bytes
+	    /// \param in[in]: vector element
+		constexpr static inline void unaligned_store(void *ptr,
+                                                     const S in) noexcept {
 			auto *ptr128 = (__m128i_u *) ptr;
 			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 
-		/// \param in1
-		/// \param in2
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 ^ in2
+	    [[nodiscard]] constexpr static inline S xor_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 ^ (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 & in2
+	    [[nodiscard]] constexpr static inline S and_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 & (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 | in2
+	    [[nodiscard]] constexpr static inline S or_(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 | (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return (~in1) & in2
+	    [[nodiscard]] constexpr static inline S andnot(const S in1,
+	                                                   const S in2) noexcept {
+	    	S out;
+#ifndef __clang__
+		    out.v128 = (__m128i) __builtin_ia32_andnotsi128((__v4di) in1.v128, (__v4di) in2.v128);
+#else
+		    out.v128 = (__m128i) (~(V) in1.v128 & (V) in2.v128);
+#endif
+		return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \return ~in1
+	    [[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
+	    	S out;
+	    	const S minus_one = set1(-1);
+	    	out.v128 = (__m128i) ((V) in1.v128 ^ (V) minus_one.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 + in2
+	    [[nodiscard]] constexpr static inline S add(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 + (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 - in2
+	    [[nodiscard]] constexpr static inline S sub(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 - (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// 8 bit mul lo
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1*in2
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const S in2) noexcept {
+		    S out;
+		    out.v128 = ((__m128i) ((V) in1.v128 * (V) in2.v128));
+		    return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const limb_type in2) noexcept {
+	    	const S rs = S::set1(in2);
+	    	return S::mullo(in1, rs);
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 << in2
+	    [[nodiscard]] constexpr static inline S slli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	S out;
+	    	constexpr S mask = set1((1u << in2) - 1u);
+	    	out = S::and_(in1, mask);
+	    	// if (std::is_constant_evaluated()) {
+	    	// 	out.v128 = (__m128i)((__v32qi)out.v128) << in2;
+	    	// 	return out;
+	    	// }
+	    	// out.v128 = (__m128i) __builtin_ia32_psllwi128((__v16hi) out.v128, in2);
+
+	    	out.v128 = (__m128i) ((V) out.v128) << in2;
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >> in2
+	    [[nodiscard]] constexpr static inline S srli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	constexpr S mask1 = set1(((1u << (8u - in2)) - 1u) << in2);
+	    	constexpr S mask2 = set1((1u << (8u - in2)) - 1u);
+	    	S out = S::and_(in1, mask1);
+	    	if (std::is_constant_evaluated()) {
+	    		out.v128 = (__m128i) ((V) out.v128) >> in2;
+	    		return out;
+	    	}
+	    	out.v128 = (__m128i) ((V) out.v128) >> in2;
+	    	out = S::and_(out, mask2);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
 		/// \return in1 > in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t gt(const _uint8x16_t in1,
-		                                                  const _uint8x16_t in2) noexcept {
-			const __m128i tmp = (__m128i) ((__v16qu) in1.v128 > (__v16qu) in2.v128);
+		[[nodiscard]] constexpr static inline uint32_t gt(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 > (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
 
-		/// NOTE: signed comparison
-		/// \param in1
-		/// \param in2
+		/// NOTE: TODO signed comparison
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
 		/// \return in1 > in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t lt(const _uint8x16_t in1,
-		                                                  const _uint8x16_t in2) noexcept {
-			const __m128i tmp = (__m128i) ((__v16qu) in1.v128 < (__v16qu) in2.v128);
+		[[nodiscard]] constexpr static inline uint32_t lt(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 < (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
 
-		///
-		/// \param in1
-		/// \param in2
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
 		/// \return in1 == in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t cmp(const _uint8x16_t in1,
-		                                                   const _uint8x16_t in2) noexcept {
-			const __m128i tmp = (__m128i) ((__v16qu) in1.v128 == (__v16qu) in2.v128);
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+		                                                   const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
 	};
+
+    
+    /// 
+    using _uint8x16_t = _Xint8x16_t<true>;
+    using  _int8x16_t = _Xint8x16_t<false>;
 
 	struct _uint16x8_t {
 		constexpr static uint32_t LIMBS = 8;
@@ -708,11 +803,15 @@ struct Xint8x32_t {
 		__m256i v256;
 	};
 
+    /// \param i[in]: position of the limb to return
+    /// \return __m256i[i]
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
 		assert(i < LIMBS);
 		return d[i];
 	}
 
+    /// \param i[in]: position of the limb to return
+    /// \return __m256i[i]
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) {
 		assert(i < LIMBS);
 		return d[i];
@@ -732,40 +831,39 @@ struct Xint8x32_t {
 		return ret;
 	}
 
-	/// \param binary
-	/// \param hex
+	/// \param binary[in]:
+	/// \param hex[in]:
 	constexpr inline void print(bool binary = false,
 	                            bool hex = false) const;
 
-	///
-	/// \return
-	[[nodiscard]] constexpr static inline S set(char __q31, char __q30, char __q29, char __q28,
-	                                            char __q27, char __q26, char __q25, char __q24,
-	                                            char __q23, char __q22, char __q21, char __q20,
-	                                            char __q19, char __q18, char __q17, char __q16,
-	                                            char __q15, char __q14, char __q13, char __q12,
-	                                            char __q11, char __q10, char __q09, char __q08,
-	                                            char __q07, char __q06, char __q05, char __q04,
-	                                            char __q03, char __q02, char __q01, char __q00) noexcept {
+	/// \return __m256i_set_epi8()
+	[[nodiscard]] constexpr static inline S set(const limb_type __q31, const limb_type __q30, const limb_type __q29, const limb_type __q28,
+	                                            const limb_type __q27, const limb_type __q26, const limb_type __q25, const limb_type __q24,
+	                                            const limb_type __q23, const limb_type __q22, const limb_type __q21, const limb_type __q20,
+	                                            const limb_type __q19, const limb_type __q18, const limb_type __q17, const limb_type __q16,
+	                                            const limb_type __q15, const limb_type __q14, const limb_type __q13, const limb_type __q12,
+	                                            const limb_type __q11, const limb_type __q10, const limb_type __q09, const limb_type __q08,
+	                                            const limb_type __q07, const limb_type __q06, const limb_type __q05, const limb_type __q04,
+	                                            const limb_type __q03, const limb_type __q02, const limb_type __q01, const limb_type __q00) noexcept {
 		S out;
 		out.v256 = __extension__(__m256i)(__v32qi){
-		        __q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07,
-		        __q08, __q09, __q10, __q11, __q12, __q13, __q14, __q15,
-		        __q16, __q17, __q18, __q19, __q20, __q21, __q22, __q23,
-		        __q24, __q25, __q26, __q27, __q28, __q29, __q30, __q31};
+		        (char)__q00, (char)__q01, (char)__q02, (char)__q03, (char)__q04, (char)__q05, (char)__q06, (char)__q07,
+		        (char)__q08, (char)__q09, (char)__q10, (char)__q11, (char)__q12, (char)__q13, (char)__q14, (char)__q15,
+		        (char)__q16, (char)__q17, (char)__q18, (char)__q19, (char)__q20, (char)__q21, (char)__q22, (char)__q23,
+		        (char)__q24, (char)__q25, (char)__q26, (char)__q27, (char)__q28, (char)__q29, (char)__q30, (char)__q31};
 
 		return out;
 	}
 
-	///
-	[[nodiscard]] constexpr static inline S setr(char __q31, char __q30, char __q29, char __q28,
-	                                                      char __q27, char __q26, char __q25, char __q24,
-	                                                      char __q23, char __q22, char __q21, char __q20,
-	                                                      char __q19, char __q18, char __q17, char __q16,
-	                                                      char __q15, char __q14, char __q13, char __q12,
-	                                                      char __q11, char __q10, char __q09, char __q08,
-	                                                      char __q07, char __q06, char __q05, char __q04,
-	                                                      char __q03, char __q02, char __q01, char __q00) noexcept {
+	/// \return _m256i_setr_epi8
+	[[nodiscard]] constexpr static inline S setr(const limb_type __q31, const limb_type __q30, const limb_type __q29, const limb_type __q28,
+	                                             const limb_type __q27, const limb_type __q26, const limb_type __q25, const limb_type __q24,
+	                                             const limb_type __q23, const limb_type __q22, const limb_type __q21, const limb_type __q20,
+	                                             const limb_type __q19, const limb_type __q18, const limb_type __q17, const limb_type __q16,
+	                                             const limb_type __q15, const limb_type __q14, const limb_type __q13, const limb_type __q12,
+	                                             const limb_type __q11, const limb_type __q10, const limb_type __q09, const limb_type __q08,
+	                                             const limb_type __q07, const limb_type __q06, const limb_type __q05, const limb_type __q04,
+	                                             const limb_type __q03, const limb_type __q02, const limb_type __q01, const limb_type __q00) noexcept {
 		return set(__q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07, __q08,
 		           __q09, __q10, __q11, __q12, __q13, __q14, __q15, __q16, __q17,
 		           __q18, __q19, __q20, __q21, __q22, __q23, __q24, __q25, __q26,
@@ -775,21 +873,20 @@ struct Xint8x32_t {
 	/// sets all 32 8bit limbs to `a`
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline S set1(const uint8_t a) noexcept {
+	[[nodiscard]] constexpr static inline S set1(const limb_type a) noexcept {
 		S out;
 		out = S::set(a, a, a, a, a, a, a, a,
-		                      a, a, a, a, a, a, a, a,
-		                      a, a, a, a, a, a, a, a,
-		                      a, a, a, a, a, a, a, a);
+		             a, a, a, a, a, a, a, a,
+		             a, a, a, a, a, a, a, a,
+		             a, a, a, a, a, a, a, a);
 		return out;
 	}
 
-	///
-	/// \tparam aligned
-	/// \param ptr
-	/// \return
+	/// \tparam aligned[in]: if true a alied instruction will be emitted
+	/// \param ptr[in]: pointer to (aligned) 32 bytes 
+	/// \return vector element
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline S load(const uint8_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S load(const limb_type *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -799,9 +896,9 @@ struct Xint8x32_t {
 
 	/// the is `is_constant_evaluated()' is removed with `-O3`
 	/// https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIM6SuADJ4DJgAcj4ARpjEIACsABykAA6oCoRODB7evv6p6ZkCIWGRLDFxSbaY9o4CQgRMxAQ5Pn4BdpgOWQ1NBCUR0bEJyQqNza15HeP9oYPlw0kAlLaoXsTI7BzmAMyhyN5YANQmO254LCyhBMShAHQIp9gmGgCCu/uHmCdnY/iCDyeL3eZj2DAOXmOpzcBAAnilMAB9G5MQgKIFvYFoBhjTCqFLEI5jJiOZBHRGIlhmeIANjwRy8iSIVNpEGxYwZ10SyKOBBM8QsOzM/IAIksjgxUHjNikCCcAOxWTEaACctAEwCO6qM5OR/IsklFpyV71VFL5Ao0op%2BIqOEG1modSwtFiOVvitpM8rcdqgDq1Gud%2BqOXFF4uh0KOiXD3t9/qdLqOwo9Pzcka4NJjPr9GoDRiDAqOO2tEbOSckWbjuYTwcNKdLPqFlZzOprhfiJbOkckGmb9urgcTNM7abLkmjCuz/dbg%2BD8pHkdpS2NwJeKvN%2BtD9Z2tunjtnhcSJdjUD3eeABddKrDqcjE69U/jB4sXHdnq7ZYzfaf%2BZdXC376jj6ZgVpOVYzr%2Bm7JoBkZNmBLb7pBApcMW25AUcPbfgOSEvnWMFjveJ5nm2L4dmhi6ZiuyrrnqArQTado/hef7DvWRHEc%2BXDzh64Yfj6hGPthzGbke5Gfpm8EcThXDXmJwGgQ%2B4GIcJdFvreZZwYpCHnpeZgAepPqYZJTG6fRDYYQJSk6S6oILmWS5UaaNEuqh767iZNl4ZJUkqRY1I3uZlnaSRZisfhPpfsZQm6dx4XllhEG%2BWYolxZpREefqZiyXFRlaT5l47Gp5njglykFfp5kOTsJprhSLJ0ryLApAxXoWBulqiqQ7Uvp13XQV1tGCka8oio5a7EJgBDrAwjUpGNI2rsqrxjMQXgOJygiJKoQo8q1i0quyBB4gSRKNKSG0EDtcpBAAkgAshYQgMUKY2ql4GSthcUTIvC3ynLaXhcnq1X7e9oSak9/0XVtV2vU5XgMFkCo1aqa4APRo0caBNSSeBRHQhCwkcADuhAIEcAAqqjhHq1FroDm08ug%2BovR6cNrvTQNygAbqJgrQa915vdcGY8tzGabmFguc4IV1HNzrMWCl0vC4INKSGL6v6nhKs0fV9Lc9Sw4g3TC0m6aTkY2j%2B1Wyc8RuCkTSsEcsrEDbGN224E1TcQDD7fq%2BqSvgCiiMQzNsymh3HYSxLnaEtBzND21mDyYh4MAYToIi6pMOgbICByDMENycoAFSu%2BKkrSpgsrI/7qp4FQdp/CAIB4AoiKHYYBCIpg3NiF4JKYHnSwxijQsTx7oS8gg3xR/ihKiEoRIXCktBE%2BnkoTTPJIz986AkkwRzt0cacZ8P9eT5jhAk3QtASqgcoIEw3PfIYRPmGYq2CBcmCfy7jAxCOEwOiOmqNVSHV1PrWaDFGTMiNhACuus1xPTWHyc2HNwEqjQXcQ2tIGIECasg1U3tppHDQcgkaRwajLz2mAieTAvBECOOXG4RsGIQDqkbekpdxSu2ISqVBTCBE4LwTSBirDiBGwEaQ325DhEYKwV6UapsVHvDNijV4RcYYpzlEdMYXB844jlNonkkix7AiOFYo4siZraOTsiVuZ9M7Z1QLnRBNxlwYIWkteeJ17Fy30QQMwRjC5cxYRXOubxrE2MmmQgJuinEJ3PlnHOeckHeJFBwFYtBODxF4H4bgvBUCcDTJYawRI1gbD%2BqCHgpACCaGySsAA1iAHYKo7g7HlBoGkKpEgoS4jSDQGhki5I4JIApjTSAlI4LwBQIAND1MaSsOAsAkDYxSHQWI5BKAbK2XEYAUguB8DoEdYg8yIBRCmfjZgxBYScDqTcposIADyURtBdAaUU0g2M2CCBeQwdeUysBRC8MANwYhaDzO%2BVgFghhgDiA4FoUg%2BAJrdFftC5FeIuhMK2HU64NQpkJyiMQZ5HgsBTJuBcB5vBX7ECiOkTAIpMBwqMAnIwyy%2BAGGAAoAAangTAxMXkIkKXU/gggRBiHYFIGQghFAqHUEinQegDActMOUyw%2Bg8bzMgCsVAsosjQoALQvJ2EcI1cLuaqHNSwKgcKbVRCuGYG1L9VDOvNX8f6GcvDWGsGYZFqA6W3CwDqiAKxOjdGcBAVwkw/DHOCHMMoFQ9BpAyHUbIng2gpsKOmgYSbhjHIjem3oExM15ELTUT5PQZh5qGHEQtMxY16GJM0WtCx63hqqZsCQOS8mTKVdMzgRxVCJBpEa9WRxgDIDJFIO4XA7S4EICQE4tSli8C%2BVoUepBWlmHlHcLK8QVQ0kSPEHYkgVQ9MPQEMZEzSCFIDZwOZCyllKpWTARAIA0EpCYTs/OTV9nhFYFsEdY6J1TpnZIOdvBh5LuDXocVwhRDiBlQh%2BVagpm6GOcTUlKQaW9o4Pku9UyZkvKYd%2BuUqAm4gfHZISd06QyQfnRADw/76CEl2FwNdL7N0tLaTsTpOxBNCeE0J/QnBb33uKY%2B2wz6N1NLExwMw/aH2zO4/JulGRnCSCAA%3D
-	/// \param ptr
-	/// \return
-	[[nodiscard]] constexpr static inline S aligned_load(const uint8_t *ptr) noexcept {
+	/// \param ptr[in]: pointer to 32 aligned bytes
+	/// \return: vector element
+	[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
 			// in the constexpr case simply ignore that the data is aligned
 			// it will not have any "runtime" penalties
@@ -817,9 +914,9 @@ struct Xint8x32_t {
 		}
 	}
 
-	/// \param ptr
-	/// \return
-	[[nodiscard]] constexpr static inline S unaligned_load(const uint8_t *ptr) noexcept {
+	/// \param ptr[in]: pointer to 32 unaligned bytes
+	/// \return: vector element
+	[[nodiscard]] constexpr static inline S unaligned_load(const limb_type *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
 			const __m256i tmp = u8tom256(ptr);
 			S out;
@@ -834,11 +931,12 @@ struct Xint8x32_t {
 
 	/// NOTE: the store can never be constexpr ans its needs to access
 	/// given memory
-	/// \tparam aligned
-	/// \param ptr
-	/// \param in
+	/// \tparam aligned[in]: 
+	/// \param ptr[in/out]: pointer to 32 (aligned) bytes
+	/// \param in[in]: vector element
 	template<const bool aligned = false>
-	static inline void store(void *ptr, const S in) noexcept {
+	static inline void store(limb_type *ptr, 
+                             const S in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -847,84 +945,82 @@ struct Xint8x32_t {
 		unaligned_store(ptr, in);
 	}
 
-	///
-	/// \param ptr
-	/// \param in
-	static inline void aligned_store(void *ptr, const S in) noexcept {
+	/// \param ptr[in/out]: pointer to 32 aligned bytes
+	/// \param in[in]: vector element
+	static inline void aligned_store(limb_type *ptr,
+                                     const S in) noexcept {
 		auto *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
 
-	///
-	/// \param ptr
-	/// \param in
-	static inline void unaligned_store(void *ptr, const S in) noexcept {
+	/// \param ptr[in/out]: pointer to 32 unaligned bytes
+	/// \param in[in]: vector element
+	static inline void unaligned_store(limb_type *ptr, 
+                                       const S in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
 		::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
+    /// Argument to use 
+    ///     `((V) in1.v256 ^ (V) in2.v256)` instead of 
+    ///     `((__v4du) in1.v256 ^ (__v4du) in2.v256);`        
+    /// https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:8,endLineNumber:3,positionColumn:8,positionLineNumber:3,selectionStartColumn:8,selectionStartLineNumber:3,startColumn:8,startLineNumber:3),source:'%23include+%3Cimmintrin.h%3E%0A%0A__m256i+square(__m256i+in1,+__m256i+in2)+%7B%0A%09return+(__m256i)+((__v4du)+in1+%5E+(__v4du)+in2)%3B%0A%7D'),l:'5',n:'0',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:g142,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-mavx+-mavx2+-O3',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+x86-64+gcc+14.2+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 ^ in2
 	[[nodiscard]] constexpr static inline S xor_(const S in1,
-	                                                      const S in2) noexcept {
+	                                             const S in2) noexcept {
 		S out;
-		out.v256 = (__m256i) ((__v4du) in1.v256 ^ (__v4du) in2.v256);
+		out.v256 = (__m256i) ((V) in1.v256 ^ (V) in2.v256);
 		return out;
 	}
 
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 & in2
 	[[nodiscard]] constexpr static inline S and_(const S in1,
 	                                             const S in2) noexcept {
 		S out;
-		out.v256 = (__m256i) ((__v4du) in1.v256 & (__v4du) in2.v256);
+		out.v256 = (__m256i) ((V) in1.v256 & (V) in2.v256);
 		return out;
 	}
 
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 | in2
 	[[nodiscard]] constexpr static inline S or_(const S in1,
 	                                            const S in2) noexcept {
 		S out;
-		out.v256 = (__m256i) ((__v4du) in1.v256 | (__v4du) in2.v256);
+		out.v256 = (__m256i) ((V) in1.v256 | (V) in2.v256);
 		return out;
 	}
 
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return (~in1) & in2
 	[[nodiscard]] constexpr static inline S andnot(const S in1,
 	                                               const S in2) noexcept {
 		S out;
 #ifndef __clang__
 		out.v256 = (__m256i) __builtin_ia32_andnotsi256((__v4di) in1.v256, (__v4di) in2.v256);
 #else
-		out.v256 = (__m256i) (~(__v4du) in1.v256 & (__v4du) in2.v256);
+		out.v256 = (__m256i) (~(V) in1.v256 & (V) in2.v256);
 #endif
 		return out;
 	}
 
-	///
-	/// \param in1
-	/// \return
+	/// \param in1[in]: vector element
+	/// \return ~in1
 	[[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
 		S out;
 		const S minus_one = set1(-1);
-		out.v256 = (__m256i) ((__v4du) in1.v256 ^ (__v4du) minus_one.v256);
+		out.v256 = (__m256i) ((V) in1.v256 ^ (V) minus_one.v256);
 		return out;
 	}
 
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 + in2
 	[[nodiscard]] constexpr static inline S add(const S in1,
 	                                            const S in2) noexcept {
 		S out;
@@ -932,10 +1028,9 @@ struct Xint8x32_t {
 		return out;
 	}
 
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 - in2
 	[[nodiscard]] constexpr static inline S sub(const S in1,
 	                                            const S in2) noexcept {
 		S out;
@@ -944,8 +1039,8 @@ struct Xint8x32_t {
 	}
 
 	/// 8 bit mul lo
-	/// \param in1 first input
-	/// \param in2
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
 	/// \return in1*in2
 	[[nodiscard]] constexpr static inline S mullo(const S in1,
 	                                              const S in2) noexcept {
@@ -955,10 +1050,10 @@ struct Xint8x32_t {
 		const __m256i maskl = __extension__(__m256i)(__v16hi){0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 		const __m256i maskh = __extension__(__m256i)(__v16hi){(short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00, (short) 0xff00};
 
-		const __m256i in1l = (__m256i) ((__v4du) in1.v256 & (__v4du) maskl);
-		const __m256i in2l = (__m256i) ((__v4du) in2.v256 & (__v4du) maskl);
-		const __m256i in1h = (__m256i) ((__v4du) in1.v256 & (__v4du) maskh);
-		const __m256i in2h = (__m256i) ((__v4du) in2.v256 & (__v4du) maskh);
+		const __m256i in1l = (__m256i) ((V) in1.v256 & (V) maskl);
+		const __m256i in2l = (__m256i) ((V) in2.v256 & (V) maskl);
+		const __m256i in1h = (__m256i) ((V) in1.v256 & (V) maskh);
+		const __m256i in2h = (__m256i) ((V) in2.v256 & (V) maskh);
 
 
 		out.v256 = ((__m256i) ((__v16hu) in1l * (__v16hu) in2l)) & maskl;
@@ -966,22 +1061,20 @@ struct Xint8x32_t {
 		return out;
 	}
 
-	///
-	/// \param in1
-	/// \param in2
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
 	/// \return
 	[[nodiscard]] constexpr static inline S mullo(const S in1,
-	                                                       const uint8_t in2) noexcept {
+	                                              const limb_type in2) noexcept {
 		const S rs = S::set1(in2);
 		return S::mullo(in1, rs);
 	}
 
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 << in2
 	[[nodiscard]] constexpr static inline S slli(const S in1,
-	                                             const uint8_t in2) noexcept {
+	                                             const limb_type in2) noexcept {
 		assert(in2 <= 8);
 		S out;
 		const S mask = set1((1u << in2) - 1u);
@@ -992,22 +1085,21 @@ struct Xint8x32_t {
 		// }
 		// out.v256 = (__m256i) __builtin_ia32_psllwi256((__v16hi) out.v256, in2);
 
-		out.v256 = (__m256i) ((__v32qi) out.v256) << in2;
+		out.v256 = (__m256i) ((V) out.v256) << in2;
 		return out;
 	}
 
-	///
-	/// \param in1
-	/// \param in2
-	/// \return
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 >> in2
 	[[nodiscard]] constexpr static inline S srli(const S in1,
-	                                                      const uint8_t in2) noexcept {
+	                                             const uint8_t in2) noexcept {
 		assert(in2 <= 8);
 		const S mask1 = set1(((1u << (8u - in2)) - 1u) << in2);
 		const S mask2 = set1((1u << (8u - in2)) - 1u);
 		S out = S::and_(in1, mask1);
 		if (std::is_constant_evaluated()) {
-			out.v256 = (__m256i) ((__v32qi) out.v256) >> in2;
+			out.v256 = (__m256i) ((V) out.v256) >> in2;
 			return out;
 		}
 		out.v256 = (__m256i) __builtin_ia32_psrlwi256((__v16hi) out.v256, in2);
@@ -1015,8 +1107,9 @@ struct Xint8x32_t {
 		return out;
 	}
 
-	/// \param in1
-	/// \param in2
+    /// TODO
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
 	/// \return in1 > in2 uncompressed
 	[[nodiscard]] constexpr static inline S gt_(const S in1,
 	                                            const S in2) noexcept {
@@ -1472,7 +1565,7 @@ struct Xint16x16_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S mullo(const S in1,
-	                                              const uint8_t in2) noexcept {
+	                                              const limb_type in2) noexcept {
 		auto rs = S::set1(in2);
 		return mullo(in1, rs);
 	}
@@ -1928,7 +2021,7 @@ struct Xint32x8_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S mul(const S in1,
-	                                              const S in2) noexcept {
+	                                            const S in2) noexcept {
 		S out{};
 		// todo
 		return out;
