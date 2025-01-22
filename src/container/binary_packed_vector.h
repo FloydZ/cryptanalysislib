@@ -55,7 +55,8 @@ public:
 	typedef T ContainerLimbType;
 	typedef bool DataType;
 	using S = uint8x32_t;
-
+    
+    
 
 	//using M = FqPackedVectorMeta<_n, 2, T, true>;
 	//using typename M::ContainerLimbType;
@@ -89,6 +90,9 @@ public:
 
 	/// default constructor
 	constexpr FqPackedVector() noexcept : __data() {}
+	constexpr FqPackedVector(const T x) noexcept : __data() {
+        __data[0] = x;
+    }
 
 	/// Copy Constructor
 	constexpr FqPackedVector(const FqPackedVector &a) noexcept : __data(a.__data) {}

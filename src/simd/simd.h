@@ -3047,6 +3047,7 @@ constexpr inline void Xint64x4_t<__unsigned>::print(bool binary,
 ////////////////////////////////////////////////////////////////////////
 
 namespace cryptanalysislib {
+    template<>
 	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint16x8_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
@@ -3054,6 +3055,7 @@ namespace cryptanalysislib {
 
 		return *this;
 	}
+    template<>
 	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint32x4_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
@@ -3061,6 +3063,7 @@ namespace cryptanalysislib {
 
 		return *this;
 	}
+    template<>
 	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint64x2_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
@@ -3146,17 +3149,20 @@ namespace cryptanalysislib {
 }
 
 namespace cryptanalysislib {
-	constexpr _uint8x16_t::_uint8x16_t(const _uint16x8_t &b) noexcept {
+    template<>
+	constexpr _uint8x16_t::_Xint8x16_t(const _uint16x8_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
 		}
 	}
-	constexpr _uint8x16_t::_uint8x16_t(const _uint32x4_t &b) noexcept {
+    template<>
+	constexpr _uint8x16_t::_Xint8x16_t(const _uint32x4_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
 		}
 	}
-	constexpr _uint8x16_t::_uint8x16_t(const _uint64x2_t &b) noexcept {
+    template<>
+	constexpr _uint8x16_t::_Xint8x16_t(const _uint64x2_t &b) noexcept {
 		for (uint32_t i = 0; i < 2; ++i) {
 			v64[i] = b.v64[i];
 		}

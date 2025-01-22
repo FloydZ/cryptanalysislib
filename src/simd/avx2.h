@@ -99,10 +99,11 @@ namespace cryptanalysislib {
 			return d[i];
 		}
 		
-        constexpr inline S& operator=(const _uint16x8_t &b) noexcept;
-		constexpr inline S& operator=(const _uint32x4_t &b) noexcept;
-		constexpr inline S& operator=(const _uint64x2_t &b) noexcept;
+        constexpr inline S operator=(const _uint16x8_t &b) noexcept;
+		constexpr inline S operator=(const _uint32x4_t &b) noexcept;
+		constexpr inline S operator=(const _uint64x2_t &b) noexcept;
 
+		constexpr _Xint8x16_t() = default;
 		constexpr _Xint8x16_t(const _uint16x8_t &b) noexcept;
 		constexpr _Xint8x16_t(const _uint32x4_t &b) noexcept;
 		constexpr _Xint8x16_t(const _uint64x2_t &b) noexcept;
@@ -153,7 +154,7 @@ namespace cryptanalysislib {
         /// \param a-p[in]: 
         /// \return 
 		[[nodiscard]] constexpr static inline S set1(const limb_type i) noexcept {
-            return S::set(i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i);
+            return S::set(i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i);
 		}
 
 		/// \tparam aligned[in]: if true a alied instruction will be emitted
