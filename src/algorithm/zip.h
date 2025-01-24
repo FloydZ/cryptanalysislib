@@ -22,13 +22,13 @@ static inline void
 /// \param in0
 /// \param in1
 static inline void morton_vec8(uint64_t *out ,
-                               uint32_t *in0,
-                               uint32_t *in1,  ) {
+							   uint32_t *in0,
+							   uint32_t *in1,  ) {
 
 	// nybble -> byte lookups
 	__m256i m0 = _mm256_set_epi8(85, 84, 81, 80, 69, 68, 65, 64, 21, 20, 17,
-	                             16, 5, 4, 1, 0, 85, 84, 81, 80, 69, 68, 65,
-	                             64, 21, 20, 17, 16, 5, 4, 1, 0);
+								 16, 5, 4, 1, 0, 85, 84, 81, 80, 69, 68, 65,
+								 64, 21, 20, 17, 16, 5, 4, 1, 0);
 
 	__m256i m1 = _mm256_slli_epi64( m0, 1);
 

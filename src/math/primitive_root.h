@@ -5,7 +5,8 @@
 
 namespace cryptanalysislib {
 
-    //  O(√m). Returns a generator of F∗m. If m not prime, replace m − 1 by totient of m
+    //  O(√m). Returns a generator of F^*_m.
+	//  If m not prime, replace m − 1 by totient of m
     template<typename T>
     T primitive_root(T m) {
         std::vector<T> div;

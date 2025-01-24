@@ -31,7 +31,7 @@ constexpr static inline bool is_prime(const size_t n) noexcept {
 /// \param n base number from which the next prime will be computed
 /// \return the next prime >= n
 [[nodiscard]] constexpr static inline size_t next_prime(const size_t n) noexcept {
-	// some safty
+	// some safety
 	if (n >= 18361375334787046697ull) {
 		return 18361375334787046697ull;
 	}

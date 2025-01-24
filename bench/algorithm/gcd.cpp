@@ -1,8 +1,8 @@
 #include <benchmark/benchmark.h>
 #include <numeric>
 
-#include "algorithm/gcd.h"
 #include "cpucycles.h"
+#include "math/gcd.h"
 #include "random.h"
 
 using namespace cryptanalysislib;

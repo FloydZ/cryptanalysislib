@@ -1071,6 +1071,14 @@ struct Xint8x32_t {
 		return S::mullo(in1, rs);
 	}
 
+    /// TODO impl: https://github.com/ridiculousfish/libdivide/blob/master/libdivide.h#L144
+    /// definition of magic/more: https://github.com/ridiculousfish/libdivide/blob/af1db190fe740f33e08a0b541146cda85dbd5006/libdivide.h#L1382
+	[[nodiscard]] constexpr static inline S div(const S in1,
+	                                            const limb_type in2) noexcept {
+        S out;
+        return out;
+    }
+
 	/// \param in1[in]: vector element
 	/// \param in2[in]: vector element
 	/// \return in1 << in2
@@ -1571,6 +1579,14 @@ struct Xint16x16_t {
 		return mullo(in1, rs);
 	}
 
+	[[nodiscard]] constexpr static inline S div(const S in1,
+	                                            const limb_type in2) noexcept {
+        S out;
+        const __m256i vb = _mm256_set1_epi16(32768 / in2);
+        out.v256 = _mm256_mulhrs_epi16(in1.v256, vb);
+        return out;
+    }
+
 	///
 	/// \param in1
 	/// \param in2
@@ -2025,6 +2041,7 @@ struct Xint32x8_t {
 	                                            const S in2) noexcept {
 		S out{};
 		// todo
+		out.v256 = (__m256i) ((V) in1.v256 * (V) in2.v256);
 		return out;
 	}
 
@@ -2035,6 +2052,7 @@ struct Xint32x8_t {
 	                                              const S in2) noexcept {
 		S out{};
 		// todo
+		out.v256 = (__m256i) ((V) in1.v256 * (V) in2.v256);
 		return out;
 	}
 

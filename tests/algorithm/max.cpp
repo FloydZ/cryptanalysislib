@@ -53,7 +53,6 @@ TYPED_TEST_P(Max, simd_rng) {
 }
 
 TYPED_TEST_P(Max, multithreading) {
-
 	constexpr size_t b = sizeof(TypeParam)*8u - 1u;
     constexpr static size_t s = 1u<<b;
     std::vector<TypeParam> in; in.resize(s);

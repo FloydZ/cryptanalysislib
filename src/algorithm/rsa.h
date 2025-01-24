@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "helper.h"
-#include "algorithm/gcd.h"
+#include "math/gcd.h"
 
 using namespace cryptanalysislib;
 

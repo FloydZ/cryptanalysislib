@@ -1,10 +1,17 @@
 #ifndef CRYPTANALYSISLIB_MATH_MOD_H
 #define CRYPTANALYSISLIB_MATH_MOD_H
 
+#include <type_traits>
+#ifndef CRYPTANALYSISLIB_MATH_H
+#error "do not inlcude this file directly. Use `#include <cryptanalysislib/math>`"
+#endif
+
 #include <cstdint>
 
 #include "simd/simd.h"
 
+
+namespace cryptanalysislib::math::internal {
 // TODO: - u64 mod/div, simd mod/div
 // 		 - docs
 // extension by FloydZ
@@ -27,8 +34,9 @@ template<typename S>
 #if __cplusplus > 201709L
 	requires SIMDAble<S>
 #endif
-constexpr static S mul128_u32(const S &a, const S &b) noexcept {
-	// TODO
+constexpr static S mul128_u32(const S &a,
+                              const S &b) noexcept {
+	static_assert(sizeof(S::limb_type));
 	(void)a;
 	(void)b;
 	return a;
@@ -73,6 +81,35 @@ constexpr static uint64_t mul128_u64(const __uint128_t lowbits,
 	return (uint64_t)both_halves;
 }
 
+
+/// 
+__uint128_t computeM_u64(uint64_t d) {
+    // what follows is just ((__uint128_t)0 - 1) / d) + 1 spelled out
+    __uint128_t M = UINT64_C(0xFFFFFFFFFFFFFFFF);
+    M <<= 64;
+    M |= UINT64_C(0xFFFFFFFFFFFFFFFF);
+    M /= d;
+    M += 1;
+    return M;
+}
+
+uint64_t fastmod_u64(uint64_t a,
+                     __uint128_t M,
+                     uint64_t d) {
+    __uint128_t lowbits = M * a;
+    return mul128_u64(lowbits, d);
+}
+
+uint64_t fastdiv_u64(uint64_t a, __uint128_t M) {
+    return mul128_u64(M, a);
+}
+
+// given precomputed M, is_divisible checks whether n % d == 0
+bool is_divisible_u64(uint64_t n, __uint128_t M) { 
+    return n * M <= M - 1; 
+}
+
+
 /**
  * Unsigned integers.
  * Usage:
@@ -93,7 +130,7 @@ constexpr static uint64_t computeM_u32(const uint32_t d) noexcept {
 /// \param a
 /// \param M
 /// \param d
-/// \return
+/// \return a % d
 constexpr static uint32_t fastmod_u32(const uint32_t a,
                                       const uint64_t M,
                                       const uint32_t d) {
@@ -132,7 +169,6 @@ constexpr static uint64_t computeM_s32(int32_t d) noexcept {
 	if (d < 0) {
 		d = -d;
 	}
-
 	return UINT64_C(0xFFFFFFFFFFFFFFFF) / d + 1 + ((d & (d - 1)) == 0 ? 1 : 0);
 }
 
@@ -160,8 +196,9 @@ constexpr static int32_t fastdiv_s32(const int32_t a,
                                      const int32_t d) noexcept {
 	uint64_t highbits = mul128_s32(M, a);
 	highbits += (a < 0 ? 1 : 0);
-	if (d < 0)
+	if (d < 0) {
 		return -(int32_t)(highbits);
+    }
 	return (int32_t)(highbits);
 }
 
@@ -169,17 +206,16 @@ constexpr static int32_t fastdiv_s32(const int32_t a,
 /// \param x
 /// \return
 template <uint32_t d>
-constexpr static uint32_t fastmod(uint32_t x) noexcept {
+constexpr static uint32_t fastmod(const uint32_t x) noexcept {
 	constexpr uint64_t v = computeM_u32(d);
 	return fastmod_u32(x, v, d);
 }
 
-///
 /// \tparam d
 /// \param x
-/// \return
+/// \return x/d
 template <uint32_t d>
-constexpr static uint32_t fastdiv(uint32_t x) noexcept {
+constexpr static uint32_t fastdiv(const uint32_t x) noexcept {
 	constexpr uint64_t v = computeM_u32(d);
 	return fastdiv_u32(x, v);
 }
@@ -187,20 +223,49 @@ constexpr static uint32_t fastdiv(uint32_t x) noexcept {
 ///
 /// \tparam d
 /// \param x
-/// \return
+/// \return x/d
 template <int32_t d>
-constexpr static int32_t fastmod(int32_t x) noexcept {
+constexpr static int32_t fastmod(const int32_t x) noexcept {
 	constexpr uint64_t v = computeM_s32(d);
 	return fastmod_s32(x, v, d);
 }
 
-///
 /// \tparam d
 /// \param x
-/// \return
+/// \return x/d
 template <int32_t d>
-constexpr static int32_t fastdiv(int32_t x) noexcept {
+constexpr static int32_t fastdiv(const int32_t x) noexcept {
 	constexpr uint64_t v = computeM_s32(d);
 	return fastdiv_s32(x, v, d);
+}
+}; // end namespace cryptanalysislib::math::internal
+
+
+
+template <typename T, const T d> 
+constexpr static int32_t fastdiv(T x) noexcept {
+    if constexpr (std::is_unsigned_v<T>) {
+        if constexpr (sizeof(T) <= 4) {
+	        constexpr uint64_t v = computeM_u32(d);
+	        return fastdiv_u32(x, v, d);
+        }
+        
+        if constexpr (sizeof(T) <= 8) {
+	        constexpr __uint128_t v = computeM_u64(d);
+	        return fastdiv_u64(x, v, d);
+        }
+    }
+
+    /// signed operations
+    if constexpr (sizeof(T) <= 4) {
+	    constexpr uint64_t v = computeM_s32(d);
+	    return fastdiv_s32(x, v, d);
+    }
+
+    // TODO not implemented
+    // if constexpr (sizeof(T) <= 8) {
+	//     constexpr __uint128_t v = computeM_s64(d);
+	//     return fastdiv_s64(x, v, d);
+    // }
 }
 #endif

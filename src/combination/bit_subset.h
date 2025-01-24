@@ -15,14 +15,14 @@
 //   ...11.1.
 //   ........
 template<typename T = uint64_t>
-class bit_subset {
+class bit_subset_T {
 protected:
 	T U;// current subset
 	T V;// the full set
 
 public:
-	explicit bit_subset(T v) : U(0), V(v) { ; }
-	~bit_subset() { ; }
+	explicit bit_subset_T(T v) : U(0), V(v) { ; }
+	~bit_subset_T() { ; }
 
     /// \return
 	constexpr inline T current() const noexcept {
@@ -158,7 +158,7 @@ protected:
 		return T(1) << __builtin_clzll(x | 1);
 	}
 
-	bit_subset<T> S;
+	bit_subset_T<T> S;
 	T G;// subsets in Gray code order
 	T H;// highest bit in S.V;  needed for the prev() method
 
