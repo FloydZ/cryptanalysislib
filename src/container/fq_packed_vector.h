@@ -60,8 +60,7 @@ public:
 	static_assert(ceil_log2(q) <= (8*sizeof(T)), 
                   "the limb type should be atleast of the size of prime");
 
-	constexpr static uint32_t nr_limbs_in_S = limbs<T>();
-	using S = TxN_t<T, nr_limbs_in_S>;
+	using S = SIMDSelector<T>;
 
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
@@ -679,7 +678,7 @@ public:
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = add_T(a_data[i], b_data[i]);
 		}
 
@@ -697,7 +696,7 @@ public:
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = sub_T(a_data[i], b_data[i]);
 		}
 
@@ -715,7 +714,7 @@ public:
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = mul_T(a_data[i], b_data[i]);
 		}
 
@@ -731,7 +730,7 @@ public:
 		S ret;
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = neg_T(a_data[i]);
 		}
 
@@ -746,7 +745,7 @@ public:
 		S ret;
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = neg_T(a_data[i]);
 		}
 

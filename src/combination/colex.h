@@ -1,24 +1,38 @@
 #pragma once
 
-template<class T>
-class colex {
+template<class T,
+         const uint32_t n,
+         const uint32_t k>
+class enumeration_colex {
 private:
+    T val = first_comb();
+
     constexpr static size_t BITS = sizeof(T) * 8;
+    static_assert(n <= BITS);
+    static_assert(k <= n);
 public:
+
 	/// Return the first combination of (i.e. smallest word with) k bits,
 	/// i.e.  00..001111..1 (k low bits set)
 	/// Must have:  0 <= k <= BITS_PER_LONG
-	static inline T first_comb(const T k){
+	constexpr static inline T first_comb() noexcept {
 		if (k == 0) return 0;// shift with BITS_PER_LONG is undefined
 		return ~0UL >> (BITS- k);
+	}
+	
+    /// Return the first combination of (i.e. smallest word with) k bits,
+	/// i.e.  00..001111..1 (k low bits set)
+	/// Must have:  0 <= k <= BITS_PER_LONG
+	constexpr static inline T first_comb(const T k_) noexcept {
+		if (k == 0) return 0;// shift with BITS_PER_LONG is undefined
+		return ~0UL >> (BITS- k_);
 	}
 
 
 	/// Return the last combination of (biggest n-bit word with) k bits
 	/// i.e.  1111..100..00 (k high bits set)
 	/// Must have:  0 <= k <= n <= BITS_PER_LONG
-	static inline T last_comb(T k,
-                              const T n = BITS) {
+	constexpr static inline T last_comb() noexcept {
 		//    if ( BITS_PER_LONG == k )  return  ~0UL;
 		//    else return  ((1UL<<k)-1) << (n - k);
 		return first_comb(k) << (n - k);
@@ -50,7 +64,7 @@ public:
 	///.
 	/// based on code by Doug Moore / Glenn Rhoads
 	/// note: might want to use bitscan near end
-	static inline T next_colex_comb(T x) {
+	constexpr static inline T next_colex_comb(T x) noexcept {
 		T r = x & -x;// lowest set bit
 		x += r;          // replace lowest block by a one left to it
 
@@ -64,9 +78,22 @@ public:
 	}
 
 	// Inverse of next_colex_comb()
-	static inline T prev_colex_comb(T x) {
+	constexpr static inline T prev_colex_comb(T x) noexcept {
 		x = next_colex_comb(~x);
 		if (0 != x) x = ~x;
 		return x;
 	}
+
+public:
+    constexpr enumeration_colex() noexcept {};
+    constexpr inline T next() noexcept {
+        const T ret = val;
+        val = next_colex_comb(val);
+        return ret;
+    } 
+    constexpr inline T prev() noexcept {
+        const T ret = val;
+        val = prev_colex_comb(val);
+        return ret;
+    } 
 };

@@ -33,33 +33,40 @@ namespace internal {
 	///				No alignment needed
 	/// 			but 32 bytes should be readable
 	/// \return unaligned `__m256i`
-	constexpr static inline __m256i_u unaligned_load_wrapper(const __m256i_u *ptr) {
+	constexpr static inline __m256i_u unaligned_load_wrapper(const __m256i_u *ptr) noexcept {
 		return *ptr;
 	}
 
 	/// helper function. This enforces the compiler to emit a unaligned instruction
-	/// \param ptr pointer to data
-	/// \param data data to store
+	/// \param ptr[out]: pointer to data
+	/// \param data[in]: data to store
 	/// \return nothing
-	constexpr static inline void unaligned_store_wrapper(__m256i_u *ptr, __m256i_u data) {
+	constexpr static inline void unaligned_store_wrapper(__m256i_u *ptr,
+                                                         const __m256i_u data) noexcept {
 		*ptr = data;
 	}
 
-
-	constexpr static inline __m128i_u unaligned_load_wrapper_128(__m128i_u const *ptr) {
+    /// \param ptr[in]:
+	constexpr static inline __m128i_u unaligned_load_wrapper_128(__m128i_u const *ptr) noexcept {
 		return *ptr;
 	}
 
-	constexpr static inline void unaligned_store_wrapper_128(__m128i_u *ptr, __m128i_u data) {
+    /// \param ptr[out]:
+    /// \param data[in]:
+	constexpr static inline void unaligned_store_wrapper_128(__m128i_u *ptr, 
+                                                             __m128i_u data) noexcept {
 		*ptr = data;
 	}
 }// namespace internal
 
 
 namespace cryptanalysislib {
-	struct _uint16x8_t;
-	struct _uint32x4_t;
-	struct _uint64x2_t;
+    template<const bool __unsigned=true>
+	struct _Xint16x8_t;
+    template<const bool __unsigned=true>
+	struct _Xint32x4_t;
+    template<const bool __unsigned=true>
+	struct _Xint64x2_t;
 
     template<const bool __unsigned=true>
 	struct _Xint8x16_t {
@@ -99,14 +106,14 @@ namespace cryptanalysislib {
 			return d[i];
 		}
 		
-        constexpr inline S operator=(const _uint16x8_t &b) noexcept;
-		constexpr inline S operator=(const _uint32x4_t &b) noexcept;
-		constexpr inline S operator=(const _uint64x2_t &b) noexcept;
+        constexpr inline S operator=(const _Xint16x8_t<> &b) noexcept;
+		constexpr inline S operator=(const _Xint32x4_t<> &b) noexcept;
+		constexpr inline S operator=(const _Xint64x2_t<> &b) noexcept;
 
 		constexpr _Xint8x16_t() = default;
-		constexpr _Xint8x16_t(const _uint16x8_t &b) noexcept;
-		constexpr _Xint8x16_t(const _uint32x4_t &b) noexcept;
-		constexpr _Xint8x16_t(const _uint64x2_t &b) noexcept;
+		constexpr _Xint8x16_t(const _Xint16x8_t<> &b) noexcept;
+		constexpr _Xint8x16_t(const _Xint32x4_t<> &b) noexcept;
+		constexpr _Xint8x16_t(const _Xint64x2_t<> &b) noexcept;
 
 		/// \return random element
 		static inline S random() noexcept {
@@ -314,6 +321,15 @@ namespace cryptanalysislib {
 	    }
 
 	    /// \param in1[in]: vector element
+	    /// \param in2[in]: 
+	    /// \return
+	    [[nodiscard]] constexpr static inline S div(const S in1,
+	                                                const limb_type in2) noexcept {
+            S out;
+            return out;
+        }
+
+	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 << in2
 	    [[nodiscard]] constexpr static inline S slli(const S in1,
@@ -352,14 +368,33 @@ namespace cryptanalysislib {
 
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S gt_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 > (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
 		/// \return in1 > in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t gt(const S in1,
 		                                                  const S in2) noexcept {
 			const __m128i tmp = (__m128i) ((V) in1.v128 > (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
+	    
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S lt_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 < (V) in2.v128);
+	    	return ret;
+	    }
 
-		/// NOTE: TODO signed comparison
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 		/// \return in1 > in2 compressed
@@ -368,6 +403,16 @@ namespace cryptanalysislib {
 			const __m128i tmp = (__m128i) ((V) in1.v128 < (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
+        
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
+	    	return ret;
+	    }
 
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
@@ -377,52 +422,165 @@ namespace cryptanalysislib {
 			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
+
+	    /// \param in[in]: vector element
+		/// \return [popcnt(in[0]), ..., popcnt(in[7])]
+	    [[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
+	    	S ret;
+	    	ret.v128 = popcount_sse_u8x16(in.v128);
+	    	return ret;
+	    }
+
+        // TODO
+	    [[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+            return 0;
+        }
+        
+        // TODO
+	    [[nodiscard]] constexpr static inline S reverse(const S in) noexcept {
+	    	S ret;
+	    	return ret;
+        }
+
+	    /// kmoves the msb into each bit
+	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+	    	return __builtin_ia32_pmovmskb128((__v16qi) in.v128);
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    [[nodiscard]] constexpr static inline S gather(const void *ptr,
+	    											   const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	S ret;
+
+	    	const uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
+	    		ret.d[i] = ptr8[data.d[i] * scale];
+	    	}
+	    	return ret;
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param offset[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    constexpr static inline void scatter(const void *ptr,
+	    									 const S offset,
+	    									 const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < 8; i++) {
+	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
+	    	}
+	    }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [min(a[0], b[0]), ..., min(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S min(const S a,
+                                                    const S b) noexcept {
+            S c;
+	    	if constexpr (__unsigned) {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_min((__v16qu)a.v128, (__v16qu)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_min_epu8(a.v128, b.v128);
+#endif
+		    } else {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_min((__v16qi)a.v128, (__v16qi)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_min_epi8(a.v128, b.v128);
+#endif
+		    }
+            return c;
+        }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [max(a[0], b[0]), ..., max(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S max(const S a,
+                                                    const S b) noexcept {
+            S c;
+	    	if constexpr (__unsigned) {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_max((__v16qu)a.v128, (__v16qu)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_max_epu8(a.v128, b.v128);
+#endif
+		    } else {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_max((__v16qi)a.v128, (__v16qi)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_max_epi8(a.v128, b.v128);
+#endif
+	    	}
+            return c;
+        }
+
 	};
 
-    
     /// 
     using _uint8x16_t = _Xint8x16_t<true>;
     using  _int8x16_t = _Xint8x16_t<false>;
 
-	struct _uint16x8_t {
+    template<const bool __unsigned>
+	struct _Xint16x8_t {
 		constexpr static uint32_t LIMBS = 8;
-		using limb_type = uint16_t;
+	    using limb_type = std::conditional<__unsigned, uint8_t, int8_t>::type;
+	    using S = _Xint16x8_t;
+	    using simd_type = S;
 
-		constexpr inline _uint16x8_t operator=(const _uint8x16_t &b) noexcept;
-		constexpr inline _uint16x8_t operator=(const _uint32x4_t &b) noexcept;
-		constexpr inline _uint16x8_t operator=(const _uint64x2_t &b) noexcept;
+        using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
+        using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
+        using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
+        using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
+        using T64 = std::conditional<__unsigned, uint64_t, int64_t>::type;
 
-		constexpr _uint16x8_t() noexcept = default;
-		constexpr _uint16x8_t(const _uint8x16_t &b) noexcept;
-		constexpr _uint16x8_t(const _uint32x4_t &b) noexcept;
-		constexpr _uint16x8_t(const _uint64x2_t &b) noexcept;
+		constexpr inline S operator=(const _Xint8x16_t<> &b) noexcept;
+		constexpr inline S operator=(const _Xint32x4_t<> &b) noexcept;
+		constexpr inline S operator=(const _Xint64x2_t<> &b) noexcept;
+
+		constexpr _Xint16x8_t() noexcept = default;
+		constexpr _Xint16x8_t(const _Xint8x16_t<> &b) noexcept;
+		constexpr _Xint16x8_t(const _Xint32x4_t<> &b) noexcept;
+		constexpr _Xint16x8_t(const _Xint64x2_t<> &b) noexcept;
 
 		union {
 			// compatibility to `TxN_t`
-			uint16_t d[8];
+			T16 d[8];
 
-			uint8_t v8[16];
-			uint16_t v16[8];
-			uint32_t v32[4];
-			uint64_t v64[2];
+			T8 v8[16];
+			T16 v16[8];
+			T32 v32[4];
+			T64 v64[2];
 
 			__m128i v128;
 		};
 
+        /// \param i[in]: position of the limb to return
+        /// \return __m128i[i]
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 			assert(i < LIMBS);
 			return d[i];
 		}
 
+        /// \param i[in]: position of the limb to return
+        /// \return __m128i[i]
 		[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 			assert(i < LIMBS);
 			return d[i];
 		}
 
-		///
 		/// \return
-		static inline _uint16x8_t random() noexcept {
-			_uint16x8_t ret;
+		static inline S random() noexcept {
+			S ret;
 			for (uint32_t i = 0; i < 2; i++) {
 				ret.v64[i] = rng();
 			}
@@ -430,30 +588,16 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint16x8_t set(
-		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
-			_uint16x8_t ret;
-			ret.v32[0] = d;
-			ret.v32[1] = c;
-			ret.v32[2] = b;
-			ret.v32[3] = a;
-			return ret;
-		}
-
-		[[nodiscard]] constexpr static inline _uint16x8_t setr(
-		        uint32_t a, uint32_t b, uint32_t c, uint32_t d) noexcept {
-			_uint16x8_t ret;
-			ret.v32[0] = a;
-			ret.v32[1] = b;
-			ret.v32[2] = c;
-			ret.v32[3] = d;
-			return ret;
-		}
-
-		[[nodiscard]] constexpr static inline _uint16x8_t set(
-		        uint16_t a, uint16_t b, uint16_t c, uint16_t d,
-		        uint16_t e, uint16_t f, uint16_t g, uint16_t h) noexcept {
-			_uint16x8_t ret;
+	    /// \param binary[in]:
+	    /// \param hex[in]:
+	    constexpr inline void print(bool binary = false,
+	                                bool hex = false) const;
+        
+        /// \return
+		[[nodiscard]] constexpr static inline S set(
+		        const limb_type a, const limb_type b, const limb_type c, const limb_type d,
+		        const limb_type e, const limb_type f, const limb_type g, const limb_type h) noexcept {
+			S ret;
 			ret.v16[0] = h;
 			ret.v16[1] = g;
 			ret.v16[2] = f;
@@ -465,27 +609,41 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint16x8_t setr(
-		        uint8_t a, uint8_t b, uint8_t c, uint8_t d,
-		        uint8_t e, uint8_t f, uint8_t g, uint8_t h) noexcept {
-			_uint16x8_t ret;
-			ret.v8[0] = a;
-			ret.v8[1] = b;
-			ret.v8[2] = c;
-			ret.v8[3] = d;
-			ret.v8[4] = e;
-			ret.v8[5] = f;
-			ret.v8[6] = g;
-			ret.v8[7] = h;
+        /// \return
+		[[nodiscard]] constexpr static inline S setr(
+		        const limb_type a, const limb_type b, const limb_type c, const limb_type d,
+		        const limb_type e, const limb_type f, const limb_type g, const limb_type h) noexcept {
+			S ret;
+			ret.v16[0] = a;
+			ret.v16[1] = b;
+			ret.v16[2] = c;
+			ret.v16[3] = d;
+			ret.v16[4] = e;
+			ret.v16[5] = f;
+			ret.v16[6] = g;
+			ret.v16[7] = h;
 			return ret;
 		}
+		
+        /// \return
+        [[nodiscard]] constexpr static inline S set1(const limb_type a) noexcept {
+			S ret;
+			ret.v16[0] = a;
+			ret.v16[1] = a;
+			ret.v16[2] = a;
+			ret.v16[3] = a;
+			ret.v16[4] = a;
+			ret.v16[5] = a;
+			ret.v16[6] = a;
+			ret.v16[7] = a;
+			return ret;
+        }
 
-		///
 		/// \tparam aligned
 		/// \param ptr
 		/// \return
 		template<const bool aligned = false>
-		[[nodiscard]] constexpr static inline _uint16x8_t load(const void *ptr) noexcept {
+		[[nodiscard]] constexpr static inline S load(const limb_type *ptr) noexcept {
 			if constexpr (aligned) {
 				return aligned_load(ptr);
 			}
@@ -493,34 +651,31 @@ namespace cryptanalysislib {
 			return unaligned_load(ptr);
 		}
 
-		///
 		/// \param ptr
 		/// \return
-		[[nodiscard]] constexpr static inline _uint16x8_t aligned_load(const void *ptr) noexcept {
+		[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
 			auto *ptr128 = (__m128i *) ptr;
-			_uint16x8_t out;
+			S out;
 			out.v128 = *ptr128;
 			return out;
 		}
 
-
-		///
 		/// \param ptr
 		/// \return
-		[[nodiscard]] constexpr static inline _uint16x8_t unaligned_load(const void *ptr) noexcept {
+		[[nodiscard]] constexpr static inline S unaligned_load(const limb_type *ptr) noexcept {
 			__m128i_u const *ptr128 = (__m128i_u const *) ptr;
 			const __m128i_u tmp = ::internal::unaligned_load_wrapper_128(ptr128);
-			_uint16x8_t out;
+			S out;
 			out.v128 = tmp;
 			return out;
 		}
 
-		///
 		/// \tparam aligned
 		/// \param ptr
 		/// \param in
 		template<const bool aligned = false>
-		constexpr static inline void store(void *ptr, const _uint16x8_t in) noexcept {
+		constexpr static inline void store(limb_type *ptr,
+                                           const S in) noexcept {
 			if constexpr (aligned) {
 				aligned_store(ptr, in);
 				return;
@@ -529,10 +684,10 @@ namespace cryptanalysislib {
 			unaligned_store(ptr, in);
 		}
 
-		///
 		/// \param ptr
 		/// \param in
-		constexpr static inline void aligned_store(void *ptr, const _uint16x8_t in) noexcept {
+		constexpr static inline void aligned_store(limb_type *ptr,
+                                                   const S in) noexcept {
 			auto *ptr128 = (__m128i *) ptr;
 			*ptr128 = in.v128;
 		}
@@ -540,45 +695,351 @@ namespace cryptanalysislib {
 		///
 		/// \param ptr
 		/// \param in
-		constexpr static inline void unaligned_store(void *ptr, const _uint16x8_t in) noexcept {
+		constexpr static inline void unaligned_store(void *ptr, const S in) noexcept {
 			auto *ptr128 = (__m128i_u *) ptr;
 			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
+	    
+    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 ^ in2
+	    [[nodiscard]] constexpr static inline S xor_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 ^ (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 & in2
+	    [[nodiscard]] constexpr static inline S and_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 & (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 | in2
+	    [[nodiscard]] constexpr static inline S or_(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 | (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return (~in1) & in2
+	    [[nodiscard]] constexpr static inline S andnot(const S in1,
+	                                                   const S in2) noexcept {
+	    	S out;
+#ifndef __clang__
+		    out.v128 = (__m128i) __builtin_ia32_andnotsi128((__v4di) in1.v128, (__v4di) in2.v128);
+#else
+		    out.v128 = (__m128i) (~(V) in1.v128 & (V) in2.v128);
+#endif
+		return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \return ~in1
+	    [[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
+	    	S out;
+	    	const S minus_one = set1(-1);
+	    	out.v128 = (__m128i) ((V) in1.v128 ^ (V) minus_one.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 + in2
+	    [[nodiscard]] constexpr static inline S add(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 + (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 - in2
+	    [[nodiscard]] constexpr static inline S sub(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 - (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// 8 bit mul lo
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1*in2
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const S in2) noexcept {
+		    S out;
+		    out.v128 = ((__m128i) ((V) in1.v128 * (V) in2.v128));
+		    return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const limb_type in2) noexcept {
+	    	const S rs = S::set1(in2);
+	    	return S::mullo(in1, rs);
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: 
+	    /// \return
+	    [[nodiscard]] constexpr static inline S div(const S in1,
+	                                                const limb_type in2) noexcept {
+            S out;
+            return out;
+        }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 << in2
+	    [[nodiscard]] constexpr static inline S slli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	S out;
+	    	constexpr S mask = set1((1u << in2) - 1u);
+	    	out = S::and_(in1, mask);
+	    	// if (std::is_constant_evaluated()) {
+	    	// 	out.v128 = (__m128i)((__v32qi)out.v128) << in2;
+	    	// 	return out;
+	    	// }
+	    	// out.v128 = (__m128i) __builtin_ia32_psllwi128((__v16hi) out.v128, in2);
+
+	    	out.v128 = (__m128i) ((V) out.v128) << in2;
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >> in2
+	    [[nodiscard]] constexpr static inline S srli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	constexpr S mask1 = set1(((1u << (8u - in2)) - 1u) << in2);
+	    	constexpr S mask2 = set1((1u << (8u - in2)) - 1u);
+	    	S out = S::and_(in1, mask1);
+	    	if (std::is_constant_evaluated()) {
+	    		out.v128 = (__m128i) ((V) out.v128) >> in2;
+	    		return out;
+	    	}
+	    	out.v128 = (__m128i) ((V) out.v128) >> in2;
+	    	out = S::and_(out, mask2);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S gt_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 > (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t gt(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 > (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+	    
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S lt_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 < (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t lt(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 < (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+        
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+		                                                   const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+	    /// \param in[in]: vector element
+		/// \return [popcnt(in[0]), ..., popcnt(in[7])]
+	    [[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
+	    	S ret;
+	    	ret.v128 = popcount_sse_u8x16(in.v128);
+	    	return ret;
+	    }
+
+        // TODO
+	    [[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+            return 0;
+        }
+        
+        // TODO
+	    [[nodiscard]] constexpr static inline S reverse(const S in) noexcept {
+	    	S ret;
+	    	return ret;
+        }
+
+	    /// kmoves the msb into each bit
+	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+	    	return __builtin_ia32_pmovmskb128((__v16qi) in.v128);
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    [[nodiscard]] constexpr static inline S gather(const void *ptr,
+	    											   const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	S ret;
+
+	    	const uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
+	    		ret.d[i] = ptr8[data.d[i] * scale];
+	    	}
+	    	return ret;
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param offset[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    constexpr static inline void scatter(const void *ptr,
+	    									 const S offset,
+	    									 const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < 8; i++) {
+	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
+	    	}
+	    }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [min(a[0], b[0]), ..., min(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S min(const S a,
+                                                    const S b) noexcept {
+            S c;
+	    	if constexpr (__unsigned) {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_min((__v16qu)a.v128, (__v16qu)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_min_epu8(a.v128, b.v128);
+#endif
+		    } else {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_min((__v16qi)a.v128, (__v16qi)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_min_epi8(a.v128, b.v128);
+#endif
+		    }
+            return c;
+        }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [max(a[0], b[0]), ..., max(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S max(const S a,
+                                                    const S b) noexcept {
+            S c;
+	    	if constexpr (__unsigned) {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_max((__v16qu)a.v128, (__v16qu)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_max_epu8(a.v128, b.v128);
+#endif
+		    } else {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_max((__v16qi)a.v128, (__v16qi)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_max_epi8(a.v128, b.v128);
+#endif
+	    	}
+            return c;
+        }
 	};
 
-	struct _uint32x4_t {
+    /// 
+    using _uint16x8_t = _Xint16x8_t<true>;
+    using  _int16x8_t = _Xint16x8_t<false>;
+
+    template<const bool __unsigned>
+	struct _Xint32x4_t {
 		constexpr static uint32_t LIMBS = 4;
-		using limb_type = uint32_t;
+	    using limb_type = std::conditional<__unsigned, uint8_t, int8_t>::type;
+	    using S = _Xint32x4_t;
+	    using simd_type = S;
 
-		constexpr inline _uint32x4_t operator=(const _uint8x16_t &b) noexcept;
-		constexpr inline _uint32x4_t operator=(const _uint16x8_t &b) noexcept;
-		constexpr inline _uint32x4_t operator=(const _uint64x2_t &b) noexcept;
+        using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
+        using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
+        using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
+        using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
+        using T64 = std::conditional<__unsigned, uint64_t, int64_t>::type;
 
-		constexpr _uint32x4_t() noexcept = default;
-		constexpr _uint32x4_t(const _uint8x16_t &b) noexcept;
-		constexpr _uint32x4_t(const _uint16x8_t &b) noexcept;
-		constexpr _uint32x4_t(const _uint64x2_t &b) noexcept;
+		constexpr inline _Xint32x4_t operator=(const _Xint8x16_t<> &b) noexcept;
+		constexpr inline _Xint32x4_t operator=(const _Xint16x8_t<> &b) noexcept;
+		constexpr inline _Xint32x4_t operator=(const _Xint64x2_t<> &b) noexcept;
+
+		constexpr _Xint32x4_t() noexcept = default;
+		constexpr _Xint32x4_t(const _Xint8x16_t<> &b) noexcept;
+		constexpr _Xint32x4_t(const _Xint16x8_t<> &b) noexcept;
+		constexpr _Xint32x4_t(const _Xint64x2_t<> &b) noexcept;
 
 		union {
-			uint8_t v8[16];
-			uint16_t v16[8];
-			uint32_t v32[4];
-			uint64_t v64[2];
+		    // compatibility with TxN_t
+		    T16  d[32];
+
+			T8  v8[16];
+			T16 v16[8];
+			T32 v32[4];
+			T64 v64[2];
 			__m128i v128;
 		};
 
-		[[nodiscard]] constexpr static inline _uint32x4_t set1(const uint32_t a) {
-			_uint32x4_t ret;
-			ret.v32[0] = a;
-			ret.v32[1] = a;
-			ret.v32[2] = a;
-			ret.v32[3] = a;
-			return ret;
-		}
-
-
-		[[nodiscard]] constexpr static inline _uint32x4_t set(const uint32_t a, const uint32_t b, const uint32_t c, const uint32_t d) {
-			_uint32x4_t ret;
+		[[nodiscard]] constexpr static inline S set(const limb_type a,
+                                                    const limb_type b,
+                                                    const limb_type c,
+                                                    const limb_type d) {
+			S ret;
 			ret.v32[0] = d;
 			ret.v32[1] = c;
 			ret.v32[2] = b;
@@ -586,42 +1047,412 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint32x4_t setr(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
-			_uint32x4_t ret;
+		[[nodiscard]] constexpr static inline S setr(const limb_type a,
+                                                     const limb_type b,
+                                                     const limb_type c,
+                                                     const limb_type d) {
+			S ret;
 			ret.v32[0] = a;
 			ret.v32[1] = b;
 			ret.v32[2] = c;
 			ret.v32[3] = d;
 			return ret;
 		}
-
-		[[nodiscard]] constexpr static inline _uint32x4_t set(uint64_t a, uint64_t b) {
-			_uint32x4_t ret;
-			ret.v64[0] = b;
-			ret.v64[1] = a;
+		
+        [[nodiscard]] constexpr static inline S set1(const limb_type a) {
+			S ret;
+			ret.v32[0] = a;
+			ret.v32[1] = a;
+			ret.v32[2] = a;
+			ret.v32[3] = a;
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint32x4_t setr(uint64_t a, uint64_t b) {
-			_uint32x4_t ret;
-			ret.v64[0] = a;
-			ret.v64[1] = b;
-			return ret;
+		/// \tparam aligned
+		/// \param ptr
+		/// \return
+		template<const bool aligned = false>
+		[[nodiscard]] constexpr static inline S load(const limb_type *ptr) noexcept {
+			if constexpr (aligned) {
+				return aligned_load(ptr);
+			}
+
+			return unaligned_load(ptr);
 		}
+
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
+			auto *ptr128 = (__m128i *) ptr;
+			S out;
+			out.v128 = *ptr128;
+			return out;
+		}
+
+		/// \param ptr
+		/// \return
+		[[nodiscard]] constexpr static inline S unaligned_load(const limb_type *ptr) noexcept {
+			__m128i_u const *ptr128 = (__m128i_u const *) ptr;
+			const __m128i_u tmp = ::internal::unaligned_load_wrapper_128(ptr128);
+			S out;
+			out.v128 = tmp;
+			return out;
+		}
+
+		/// \tparam aligned
+		/// \param ptr
+		/// \param in
+		template<const bool aligned = false>
+		constexpr static inline void store(limb_type *ptr,
+                                           const S in) noexcept {
+			if constexpr (aligned) {
+				aligned_store(ptr, in);
+				return;
+			}
+
+			unaligned_store(ptr, in);
+		}
+
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(limb_type *ptr,
+                                                   const S in) noexcept {
+			auto *ptr128 = (__m128i *) ptr;
+			*ptr128 = in.v128;
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(void *ptr, const S in) noexcept {
+			auto *ptr128 = (__m128i_u *) ptr;
+			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
+		}
+	    
+    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 ^ in2
+	    [[nodiscard]] constexpr static inline S xor_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 ^ (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 & in2
+	    [[nodiscard]] constexpr static inline S and_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 & (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 | in2
+	    [[nodiscard]] constexpr static inline S or_(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 | (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return (~in1) & in2
+	    [[nodiscard]] constexpr static inline S andnot(const S in1,
+	                                                   const S in2) noexcept {
+	    	S out;
+#ifndef __clang__
+		    out.v128 = (__m128i) __builtin_ia32_andnotsi128((__v4di) in1.v128, (__v4di) in2.v128);
+#else
+		    out.v128 = (__m128i) (~(V) in1.v128 & (V) in2.v128);
+#endif
+		return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \return ~in1
+	    [[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
+	    	S out;
+	    	const S minus_one = set1(-1);
+	    	out.v128 = (__m128i) ((V) in1.v128 ^ (V) minus_one.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 + in2
+	    [[nodiscard]] constexpr static inline S add(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 + (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 - in2
+	    [[nodiscard]] constexpr static inline S sub(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 - (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// 8 bit mul lo
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1*in2
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const S in2) noexcept {
+		    S out;
+		    out.v128 = ((__m128i) ((V) in1.v128 * (V) in2.v128));
+		    return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const limb_type in2) noexcept {
+	    	const S rs = S::set1(in2);
+	    	return S::mullo(in1, rs);
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: 
+	    /// \return
+	    [[nodiscard]] constexpr static inline S div(const S in1,
+	                                                const limb_type in2) noexcept {
+            S out;
+            return out;
+        }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 << in2
+	    [[nodiscard]] constexpr static inline S slli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	S out;
+	    	constexpr S mask = set1((1u << in2) - 1u);
+	    	out = S::and_(in1, mask);
+	    	// if (std::is_constant_evaluated()) {
+	    	// 	out.v128 = (__m128i)((__v32qi)out.v128) << in2;
+	    	// 	return out;
+	    	// }
+	    	// out.v128 = (__m128i) __builtin_ia32_psllwi128((__v16hi) out.v128, in2);
+
+	    	out.v128 = (__m128i) ((V) out.v128) << in2;
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >> in2
+	    [[nodiscard]] constexpr static inline S srli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	constexpr S mask1 = set1(((1u << (8u - in2)) - 1u) << in2);
+	    	constexpr S mask2 = set1((1u << (8u - in2)) - 1u);
+	    	S out = S::and_(in1, mask1);
+	    	if (std::is_constant_evaluated()) {
+	    		out.v128 = (__m128i) ((V) out.v128) >> in2;
+	    		return out;
+	    	}
+	    	out.v128 = (__m128i) ((V) out.v128) >> in2;
+	    	out = S::and_(out, mask2);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S gt_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 > (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t gt(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 > (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+	    
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S lt_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 < (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t lt(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 < (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+        
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+		                                                   const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+	    /// \param in[in]: vector element
+		/// \return [popcnt(in[0]), ..., popcnt(in[7])]
+	    [[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
+	    	S ret;
+	    	ret.v128 = popcount_sse_u8x16(in.v128);
+	    	return ret;
+	    }
+
+        // TODO
+	    [[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+            return 0;
+        }
+        
+        // TODO
+	    [[nodiscard]] constexpr static inline S reverse(const S in) noexcept {
+	    	S ret;
+	    	return ret;
+        }
+
+	    /// kmoves the msb into each bit
+	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+	    	return __builtin_ia32_pmovmskb128((__v16qi) in.v128);
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    [[nodiscard]] constexpr static inline S gather(const void *ptr,
+	    											   const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	S ret;
+
+	    	const uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
+	    		ret.d[i] = ptr8[data.d[i] * scale];
+	    	}
+	    	return ret;
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param offset[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    constexpr static inline void scatter(const void *ptr,
+	    									 const S offset,
+	    									 const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < 8; i++) {
+	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
+	    	}
+	    }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [min(a[0], b[0]), ..., min(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S min(const S a,
+                                                    const S b) noexcept {
+            S c;
+	    	if constexpr (__unsigned) {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_min((__v16qu)a.v128, (__v16qu)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_min_epu8(a.v128, b.v128);
+#endif
+		    } else {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_min((__v16qi)a.v128, (__v16qi)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_min_epi8(a.v128, b.v128);
+#endif
+		    }
+            return c;
+        }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [max(a[0], b[0]), ..., max(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S max(const S a,
+                                                    const S b) noexcept {
+            S c;
+	    	if constexpr (__unsigned) {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_max((__v16qu)a.v128, (__v16qu)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_max_epu8(a.v128, b.v128);
+#endif
+		    } else {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_max((__v16qi)a.v128, (__v16qi)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_max_epi8(a.v128, b.v128);
+#endif
+	    	}
+            return c;
+        }
 	};
 
-	struct _uint64x2_t {
+
+    /// 
+    using uint32x4_t = _Xint32x4_t<true>;
+    using  int32x4_t = _Xint32x4_t<false>;
+
+    template<const bool __unsigned>
+	struct _Xint64x2_t {
 		constexpr static uint32_t LIMBS = 2;
-		using limb_type = uint64_t;
+	    using limb_type = std::conditional<__unsigned, uint8_t, int8_t>::type;
+	    using S = _Xint64x2_t;
+	    using simd_type = S;
 
-		constexpr inline _uint64x2_t operator=(const _uint8x16_t &b) noexcept;
-		constexpr inline _uint64x2_t operator=(const _uint16x8_t &b) noexcept;
-		constexpr inline _uint64x2_t operator=(const _uint32x4_t &b) noexcept;
+        using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
+        using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
+        using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
+        using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
+        using T64 = std::conditional<__unsigned, uint64_t, int64_t>::type;
 
-		constexpr _uint64x2_t() noexcept = default;
-		constexpr _uint64x2_t(const _uint8x16_t &b) noexcept;
-		constexpr _uint64x2_t(const _uint16x8_t &b) noexcept;
-		constexpr _uint64x2_t(const _uint32x4_t &b) noexcept;
+		constexpr inline _Xint64x2_t operator=(const _Xint8x16_t<> &b) noexcept;
+		constexpr inline _Xint64x2_t operator=(const _Xint16x8_t<> &b) noexcept;
+		constexpr inline _Xint64x2_t operator=(const _Xint32x4_t<> &b) noexcept;
+
+		constexpr _Xint64x2_t() noexcept = default;
+		constexpr _Xint64x2_t(const _Xint8x16_t<> &b) noexcept;
+		constexpr _Xint64x2_t(const _Xint16x8_t<> &b) noexcept;
+		constexpr _Xint64x2_t(const _Xint32x4_t<> &b) noexcept;
 
 		union {
 			uint8_t v8[16];
@@ -631,22 +1462,22 @@ namespace cryptanalysislib {
 			__m128i v128;
 		};
 
-		[[nodiscard]] constexpr static inline _uint64x2_t set1(uint64_t a) {
-			_uint64x2_t ret;
+		[[nodiscard]] constexpr static inline _Xint64x2_t set1(uint64_t a) {
+			_Xint64x2_t ret;
 			ret.v64[0] = a;
 			ret.v64[1] = a;
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint64x2_t set(uint64_t a, uint64_t b) {
-			_uint64x2_t ret;
+		[[nodiscard]] constexpr static inline _Xint64x2_t set(uint64_t a, uint64_t b) {
+			_Xint64x2_t ret;
 			ret.v64[0] = b;
 			ret.v64[1] = a;
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _uint64x2_t setr(uint64_t a, uint64_t b) {
-			_uint64x2_t ret;
+		[[nodiscard]] constexpr static inline _Xint64x2_t setr(uint64_t a, uint64_t b) {
+			_Xint64x2_t ret;
 			ret.v64[0] = a;
 			ret.v64[1] = b;
 			return ret;
@@ -657,7 +1488,7 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		template<const bool aligned = false>
-		[[nodiscard]] constexpr static inline _uint64x2_t load(const void *ptr) noexcept {
+		[[nodiscard]] constexpr static inline _Xint64x2_t load(const limb_type *ptr) noexcept {
 			if constexpr (aligned) {
 				return aligned_load(ptr);
 			}
@@ -668,9 +1499,9 @@ namespace cryptanalysislib {
 		///
 		/// \param ptr
 		/// \return
-		[[nodiscard]] constexpr static inline _uint64x2_t aligned_load(const void *ptr) noexcept {
+		[[nodiscard]] constexpr static inline _Xint64x2_t aligned_load(const limb_type *ptr) noexcept {
 			auto *ptr128 = (__m128i *) ptr;
-			_uint64x2_t out;
+			_Xint64x2_t out;
 			out.v128 = *ptr128;
 			return out;
 		}
@@ -679,10 +1510,10 @@ namespace cryptanalysislib {
 		///
 		/// \param ptr
 		/// \return
-		[[nodiscard]] constexpr static inline _uint64x2_t unaligned_load(const void *ptr) noexcept {
+		[[nodiscard]] constexpr static inline _Xint64x2_t unaligned_load(const limb_type *ptr) noexcept {
 			__m128i_u const *ptr128 = (__m128i_u const *) ptr;
 			const __m128i_u tmp = ::internal::unaligned_load_wrapper_128(ptr128);
-			_uint64x2_t out;
+			_Xint64x2_t out;
 			out.v128 = tmp;
 			return out;
 		}
@@ -692,7 +1523,7 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \param in
 		template<const bool aligned = false>
-		constexpr static inline void store(void *ptr, const _uint64x2_t in) noexcept {
+		constexpr static inline void store(void *ptr, const _Xint64x2_t in) noexcept {
 			if constexpr (aligned) {
 				aligned_store(ptr, in);
 				return;
@@ -701,22 +1532,308 @@ namespace cryptanalysislib {
 			unaligned_store(ptr, in);
 		}
 
-		///
-		/// \param ptr
-		/// \param in
-		constexpr static inline void aligned_store(void *ptr, const _uint64x2_t in) noexcept {
-			auto *ptr128 = (__m128i *) ptr;
-			*ptr128 = in.v128;
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 ^ in2
+	    [[nodiscard]] constexpr static inline S xor_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 ^ (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 & in2
+	    [[nodiscard]] constexpr static inline S and_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 & (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 | in2
+	    [[nodiscard]] constexpr static inline S or_(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 | (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return (~in1) & in2
+	    [[nodiscard]] constexpr static inline S andnot(const S in1,
+	                                                   const S in2) noexcept {
+	    	S out;
+#ifndef __clang__
+		    out.v128 = (__m128i) __builtin_ia32_andnotsi128((__v4di) in1.v128, (__v4di) in2.v128);
+#else
+		    out.v128 = (__m128i) (~(V) in1.v128 & (V) in2.v128);
+#endif
+		return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \return ~in1
+	    [[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
+	    	S out;
+	    	const S minus_one = set1(-1);
+	    	out.v128 = (__m128i) ((V) in1.v128 ^ (V) minus_one.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 + in2
+	    [[nodiscard]] constexpr static inline S add(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 + (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 - in2
+	    [[nodiscard]] constexpr static inline S sub(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+	    	out.v128 = (__m128i) ((V) in1.v128 - (V) in2.v128);
+	    	return out;
+	    }
+
+	    /// 8 bit mul lo
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1*in2
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const S in2) noexcept {
+		    S out;
+		    out.v128 = ((__m128i) ((V) in1.v128 * (V) in2.v128));
+		    return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const limb_type in2) noexcept {
+	    	const S rs = S::set1(in2);
+	    	return S::mullo(in1, rs);
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: 
+	    /// \return
+	    [[nodiscard]] constexpr static inline S div(const S in1,
+	                                                const limb_type in2) noexcept {
+            S out;
+            return out;
+        }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 << in2
+	    [[nodiscard]] constexpr static inline S slli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	S out;
+	    	constexpr S mask = set1((1u << in2) - 1u);
+	    	out = S::and_(in1, mask);
+	    	// if (std::is_constant_evaluated()) {
+	    	// 	out.v128 = (__m128i)((__v32qi)out.v128) << in2;
+	    	// 	return out;
+	    	// }
+	    	// out.v128 = (__m128i) __builtin_ia32_psllwi128((__v16hi) out.v128, in2);
+
+	    	out.v128 = (__m128i) ((V) out.v128) << in2;
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >> in2
+	    [[nodiscard]] constexpr static inline S srli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	constexpr S mask1 = set1(((1u << (8u - in2)) - 1u) << in2);
+	    	constexpr S mask2 = set1((1u << (8u - in2)) - 1u);
+	    	S out = S::and_(in1, mask1);
+	    	if (std::is_constant_evaluated()) {
+	    		out.v128 = (__m128i) ((V) out.v128) >> in2;
+	    		return out;
+	    	}
+	    	out.v128 = (__m128i) ((V) out.v128) >> in2;
+	    	out = S::and_(out, mask2);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S gt_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 > (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t gt(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 > (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+	    
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S lt_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 < (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t lt(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 < (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+        
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 > in2 uncompressed
+	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+		                                                   const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
 
-		///
-		/// \param ptr
-		/// \param in
-		constexpr static inline void unaligned_store(void *ptr, const _uint64x2_t in) noexcept {
-			auto *ptr128 = (__m128i_u *) ptr;
-			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
-		}
+	    /// \param in[in]: vector element
+		/// \return [popcnt(in[0]), ..., popcnt(in[7])]
+	    [[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
+	    	S ret;
+	    	ret.v128 = popcount_sse_u8x16(in.v128);
+	    	return ret;
+	    }
+
+        // TODO
+	    [[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+            return 0;
+        }
+        
+        // TODO
+	    [[nodiscard]] constexpr static inline S reverse(const S in) noexcept {
+	    	S ret;
+	    	return ret;
+        }
+
+	    /// kmoves the msb into each bit
+	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+	    	return __builtin_ia32_pmovmskb128((__v16qi) in.v128);
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    [[nodiscard]] constexpr static inline S gather(const void *ptr,
+	    											   const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	S ret;
+
+	    	const uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
+	    		ret.d[i] = ptr8[data.d[i] * scale];
+	    	}
+	    	return ret;
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param offset[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    constexpr static inline void scatter(const void *ptr,
+	    									 const S offset,
+	    									 const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < 8; i++) {
+	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
+	    	}
+	    }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [min(a[0], b[0]), ..., min(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S min(const S a,
+                                                    const S b) noexcept {
+            S c;
+	    	if constexpr (__unsigned) {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_min((__v16qu)a.v128, (__v16qu)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_min_epu8(a.v128, b.v128);
+#endif
+		    } else {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_min((__v16qi)a.v128, (__v16qi)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_min_epi8(a.v128, b.v128);
+#endif
+		    }
+            return c;
+        }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [max(a[0], b[0]), ..., max(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S max(const S a,
+                                                    const S b) noexcept {
+            S c;
+	    	if constexpr (__unsigned) {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_max((__v16qu)a.v128, (__v16qu)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_max_epu8(a.v128, b.v128);
+#endif
+		    } else {
+#ifdef __clang__
+			    c.v128 = (__m128i)__builtin_elementwise_max((__v16qi)a.v128, (__v16qi)b.v128);
+#else
+			    c.v128 = (__m128i)_mm_max_epi8(a.v128, b.v128);
+#endif
+	    	}
+            return c;
+        }
 	};
+
+
+    /// 
+    using uint64x2_t = _Xint64x2_t<true>;
+    using  int64x2_t = _Xint64x2_t<false>;
 }// namespace cryptanalysislib
 
 
@@ -1166,9 +2283,8 @@ struct Xint8x32_t {
 		return ret;
 	}
 
-	///
-	/// \param in1
-	/// \param in2
+	/// \param in1[in]:
+	/// \param in2[in]:
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
 	                                                   const S in2) noexcept {
@@ -1176,9 +2292,8 @@ struct Xint8x32_t {
 		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
 
-	///
-	/// \param in
-	/// \return
+	/// \param in[in]:
+	/// \return 
 	[[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
 		S ret;
 		ret.v256 = popcount_avx2_8(in.v256);
@@ -1243,7 +2358,10 @@ struct Xint8x32_t {
 		return __builtin_ia32_pmovmskb256((__v32qi) in.v256);
 	}
 
-
+    /// \tparam scale[in]:
+    /// \param ptr[in]:
+    /// \param data[in]:
+    /// \return
 	template<const uint32_t scale = 1>
 	[[nodiscard]] constexpr static inline S gather(const void *ptr,
 												   const S data) noexcept {
@@ -1257,6 +2375,11 @@ struct Xint8x32_t {
 		return ret;
 	}
 
+    /// \tparam scale[in]:
+    /// \param ptr[in]:
+    /// \param offset[in]:
+    /// \param data[in]:
+    /// \return
 	template<const uint32_t scale = 1>
 	constexpr static inline void scatter(const void *ptr,
 										 const S offset,
@@ -1268,8 +2391,8 @@ struct Xint8x32_t {
 		}
 	}
 
-	/// \param a
-	/// \param b
+	/// \param a[in]:
+	/// \param b[in]:
 	/// \return
 	[[nodiscard]] constexpr static inline S min(const S a,
                                                 const S b) noexcept {
@@ -1290,8 +2413,8 @@ struct Xint8x32_t {
         return c;
     }
 
-	/// \param a
-	/// \param b
+	/// \param a[in]:
+	/// \param b[in]:
 	/// \return
 	[[nodiscard]] constexpr static inline S max(const S a,
                                                 const S b) noexcept {
@@ -1774,7 +2897,7 @@ struct Xint32x8_t {
 		T16 v16[16];
 		T32 v32[8];
 		T64 v64[4];
-		cryptanalysislib::_uint32x4_t v128[2];
+		cryptanalysislib::_Xint32x4_t<__unsigned> v128[2];
 		__m256i v256;
 	};
 

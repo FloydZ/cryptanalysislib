@@ -47,9 +47,7 @@ public:
 
 	typedef FqNonPackedVectorMeta ContainerType;
 
-	//
-	constexpr static size_t nr_of_limbs_in_S = limbs<T>();
-	using S = TxN_t<T, nr_of_limbs_in_S>;
+	using S = SIMDSelector<T>;
 
 
 	/// simple hash function
@@ -566,7 +564,7 @@ public:
 	/// \param in1: input vector
 	constexpr static inline void mod(T *out, const T *in1) noexcept {
 		uint32_t i = 0;
-		for (; i + nr_of_limbs_in_S < n; i += nr_of_limbs_in_S) {
+		for (; i + S::LIMBS < n; i += S::LIMBS) {
 			const uint8x32_t a = uint8x32_t::load(in1 + i);
 			const uint8x32_t tmp = mod256_T(a);
 			uint8x32_t::store(out + i, tmp);
@@ -607,7 +605,7 @@ public:
 	                                 const T *in1,
 	                                 const T *in2) noexcept {
 		uint32_t i = 0;
-		for (; i + nr_of_limbs_in_S <= n; i += nr_of_limbs_in_S) {
+		for (; i + S::LIMBS <= n; i += S::LIMBS) {
 			const S a = S::load((uint8_t *)(in1 + i));
 			const S b = S::load((uint8_t *)(in2 + i));
 
@@ -705,7 +703,7 @@ public:
 	                       const T *in1,
 	                       const T *in2) noexcept {
 		uint32_t i = 0;
-		for (; i + nr_of_limbs_in_S < n; i += nr_of_limbs_in_S) {
+		for (; i + S::LIMBS < n; i += S::LIMBS) {
 			const auto a = S::load((uint8_t *)(in1 + i));
 			const auto b = S::load((uint8_t *)(in2 + i));
 
@@ -801,7 +799,7 @@ public:
 	                                 const uint32_t k_lower=0,
 	                                 const uint32_t k_upper=n) noexcept {
 		uint32_t i = k_lower;
-		for (; i + nr_of_limbs_in_S <= k_upper; i += nr_of_limbs_in_S) {
+		for (; i + S::LIMBS <= k_upper; i += S::LIMBS) {
 			const auto a = S::load(in1 + i);
 			const auto b = S::load(in2 + i);
 

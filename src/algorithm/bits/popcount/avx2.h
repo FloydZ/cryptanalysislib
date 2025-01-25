@@ -37,7 +37,30 @@ const __m256i popcnt1 = (__m256i)__builtin_ia32_pshufb256((__v32qi)lookup, (__v3
 const __m256i popcnt2 = (__m256i)__builtin_ia32_pshufb256((__v32qi)lookup, (__v32qi)hi);
 
 
+#define POPCOUNT_HELPER_MACRO_U128() 											\
+constexpr __m128i lookup = __extension__ (__m128i)(__v16qi){  					\
+		/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2, 							\
+		/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3, 							\
+		/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3, 							\
+		/* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4   							\
+}; 																				\
+const __m128i low_mask =  __extension__ (__m128i)(__v16qi){ 					\
+		0xf,0xf,0xf,0xf,0xf,0xf,0xf,0xf, 										\
+		0xf,0xf,0xf,0xf,0xf,0xf,0xf,0xf, 										\
+}; 																				\
+const __m128i lo = vec & low_mask; 												\
+const __m128i hi      = (__m128i)__builtin_ia32_psrlwi128((__v8hi)vec, 4)&low_mask;	 \
+const __m128i popcnt1 = (__m128i)__builtin_ia32_pshufb128((__v16qi)lookup, (__v16qi)lo); \
+const __m128i popcnt2 = (__m128i)__builtin_ia32_pshufb128((__v16qi)lookup, (__v16qi)hi);
+
+
 namespace cryptanalysislib::popcount::internal {
+	/// special popcount which popcounts on 16 * 8u bit limbs in parallel
+	constexpr static __m128i popcount_sse_u8x16(const __m128i vec) noexcept {
+		POPCOUNT_HELPER_MACRO_U128()
+		return (__m128i) ((__v16qu) popcnt1 + (__v16qu) popcnt2);
+	}
+
 	/// special popcount which popcounts on 32 * 8u bit limbs in parallel
 	constexpr static __m256i popcount_avx2_8(const __m256i vec) noexcept {
 		POPCOUNT_HELPER_MACRO()
