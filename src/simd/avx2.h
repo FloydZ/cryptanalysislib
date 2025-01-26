@@ -2599,7 +2599,7 @@ using  int8x32_t = Xint8x32_t<false>;
 template<const bool __unsigned=true>
 struct Xint16x16_t {
 	constexpr static uint32_t LIMBS = 16;
-	using limb_type = uint16_t;
+	using limb_type = std::conditional<__unsigned, uint16_t, int16_t>::type; 
 	using S = Xint16x16_t;
     
     using V = std::conditional<__unsigned, __v16hu, __v16hi>::type;
@@ -3116,7 +3116,7 @@ using  int16x16_t = Xint16x16_t<false>;
 template<const bool __unsigned=true>
 struct Xint32x8_t {
 	constexpr static uint32_t LIMBS = 8;
-	using limb_type = uint32_t;
+	using limb_type = std::conditional<__unsigned, uint32_t, int32_t>::type; 
 	using S = Xint32x8_t;
     using V = std::conditional<__unsigned, __v8su, __v8si>::type;
 
@@ -3707,7 +3707,7 @@ using  int32x8_t = Xint32x8_t<false>;
 template<const bool __unsigned=true>
 struct Xint64x4_t {
 	constexpr static uint32_t LIMBS = 4;
-	using limb_type = uint64_t;
+	using limb_type = std::conditional<__unsigned, uint64_t, int64_t>::type; 
 	using S = Xint64x4_t;
     using V = std::conditional<__unsigned, __v4du, __v4di>::type;
 

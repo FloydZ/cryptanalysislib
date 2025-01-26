@@ -122,17 +122,17 @@ public:
 
 	using data_type = T;
 	using simd256_type =
-	   typename std::conditional<lb == 1u, uint8x32_t,
-	      typename std::conditional<lb == 2u, uint16x16_t,
-	         typename std::conditional<lb == 4u, uint32x8_t,
-	            typename std::conditional<lb == 8u, uint64x4_t, void>::type>::type>::type>::type;
+	   typename std::conditional<lb == 1u, Xint8x32_t<__unsigned>,
+	      typename std::conditional<lb == 2u, Xint16x16_t<__unsigned>,
+	         typename std::conditional<lb == 4u, Xint32x8_t<__unsigned>,
+	            typename std::conditional<lb == 8u, Xint64x4_t<__unsigned>, void>::type>::type>::type>::type;
 
 #ifdef USE_AVX512F
 	using simd512_type =
-	   typename std::conditional<lb == 1u, uint8x64_t,
-	      typename std::conditional<lb == 2u, uint16x32_t,
-	         typename std::conditional<lb == 4u, uint32x16_t,
-	            typename std::conditional<lb == 8u, uint64x8_t, void>::type>::type>::type>::type;
+	   typename std::conditional<lb == 1u, Xint8x64_t<__unsigned>,
+	      typename std::conditional<lb == 2u, Xint16x32_t<__unsigned>,
+	         typename std::conditional<lb == 4u, Xint32x16_t<__unsigned>,
+	            typename std::conditional<lb == 8u, Xint64x8_t<__unsigned>, void>::type>::type>::type>::type;
 #else
 	/// just a dummy value
 	using simd512_type = simd256_type;

@@ -491,7 +491,7 @@ public:
 			const uint8x32_t x_avx = uint8x32_t::load((uint8_t *)(M.row(j) + l));
 			const uint8x32_t y_avx = uint8x32_t::load((uint8_t *)(M.row(i) + l));
 			const uint8x32_t z_avx = x_avx ^ y_avx;
-			uint8x32_t::store(M.row(+i) + l, z_avx);
+			uint8x32_t::store((uint8_t *)(M.row(+i) + l), z_avx);
 		}
 
 		for (; l < limbs; ++l) {
@@ -520,7 +520,7 @@ public:
 			const uint8x32_t x_avx = uint8x32_t::load(out + j * padded_limbs + l);
 			const uint8x32_t y_avx = uint8x32_t::load(out + i * padded_limbs + l);
 			const uint8x32_t z_avx = x_avx ^ y_avx;
-			uint8x32_t::store(out + i * padded_limbs + l, z_avx);
+			uint8x32_t::store((uint8_t *)(out + i * padded_limbs + l), z_avx);
 		}
 
 		for (; l < limbs; ++l) {
@@ -542,7 +542,7 @@ public:
 			const uint8x32_t x_avx = uint8x32_t::load(out.row(j) + l);
 			const uint8x32_t y_avx = uint8x32_t::load(in.row(i) + l);
 			const uint8x32_t z_avx = x_avx ^ y_avx;
-			uint8x32_t::store(out.row(i) + l, z_avx);
+			uint8x32_t::store((uint8_t *)(out.row(i) + l), z_avx);
 		}
 
 		for (; l < uint32_t(out->width); ++l) {
@@ -563,8 +563,8 @@ public:
 
 			LOOP_UNROLL();
 			for (; j + nr_T_in_avx <= padded_limbs; j += nr_T_in_avx) {
-				const uint32x8_t in1_ = uint32x8_t::load(in1.row(i) + j);
-				const uint32x8_t in2_ = uint32x8_t::load(in2.row(i) + j);
+				const uint32x8_t in1_ = uint32x8_t::load((uint32_t *)(in1.row(i) + j));
+				const uint32x8_t in2_ = uint32x8_t::load((uint32_t *)(in2.row(i) + j));
 				const uint32x8_t out_ = in1_ ^ in2_;
 
 				uint32x8_t::store(out.row(i) + j, out_);

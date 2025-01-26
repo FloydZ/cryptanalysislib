@@ -557,7 +557,8 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S ror(const S in1,
 												const limb_type in2) noexcept {
 		S out;
-        out.v256 = _mm256_slli_epi16(in1.v256, 16u - in2) ^ _mm256_srli_epi16(in1.v256, in2);
+        __m512i mask = _mm512_set1_epi8(-1u << in2);
+        out.v512 = (mask & _mm512_slli_epi16(in1.v512, 8u - in2)) ^ _mm512_srli_epi16(in1.v512, in2);
 		return out;
 	}
 
@@ -567,7 +568,8 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 												const limb_type in2) noexcept {
 		S out;
-        out.v256 = _mm256_slli_epi16(in1.v256, in2) ^ _mm256_srli_epi16(in1.v256, 16u-in2);
+        __m512i mask = _mm512_set1_epi8((1u << in2) -1u);
+        out.v512 = _mm512_slli_epi16(in1.v512, in2) ^ (_mm512_srli_epi16(in1.v512, 8u-in2) & mask);
 		return out;
 	}
 

@@ -4787,16 +4787,20 @@ concept SIMDAble = requires(S s) {
 	        const bool b,
 	        const uint32_t u32,
 	        typename S::limb_type l,
+	        typename S::limb_type ll[],
 	        typename S::limb_type *pl) {
 		{ S::is_unsigned() } -> std::convertible_to<bool>;
 
 		{ S::random() } -> std::convertible_to<S>;
-		{ S::set(pl) } -> std::convertible_to<S>;
-		{ S::setr(pl) } -> std::convertible_to<S>;
+        // NOTE: these two function take a variadic amount of arguments, somhehow
+        //      its hard to abstract this.
+		// { S::set(ll) } -> std::convertible_to<S>;
+		// { S::setr(ll) } -> std::convertible_to<S>;
 		{ S::set1(l) } -> std::convertible_to<S>;
 		{ S::load(pl) } -> std::convertible_to<S>;
 		{ S::aligned_load(pl) } -> std::convertible_to<S>;
 		{ S::unaligned_load(pl) } -> std::convertible_to<S>;
+        // TODO store
 
 		{ S::xor_(s, s) } -> std::convertible_to<S>;
 		{ S::and_(s, s) } -> std::convertible_to<S>;

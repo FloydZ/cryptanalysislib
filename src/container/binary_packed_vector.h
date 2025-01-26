@@ -810,7 +810,7 @@ public:
 			const uint32x8_t x_ = uint32x8_t::load<align>((uint32_t *)(v1 + i));
 			const uint32x8_t y_ = uint32x8_t::load<align>((uint32_t *)(v2 + i));
 			const uint32x8_t z_ = x_ ^ y_;
-			uint32x8_t::store(v3 + i, z_);
+			uint32x8_t::store((uint32_t *)(v3 + i), z_);
 		}
 
 		// tail operation
