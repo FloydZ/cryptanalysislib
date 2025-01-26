@@ -202,13 +202,16 @@ constexpr static int32_t fastdiv_s32(const int32_t a,
 	return (int32_t)(highbits);
 }
 
+}; // end namespace cryptanalysislib::math::internal
+
+
 /// \tparam d
 /// \param x
 /// \return
 template <uint32_t d>
 constexpr static uint32_t fastmod(const uint32_t x) noexcept {
-	constexpr uint64_t v = computeM_u32(d);
-	return fastmod_u32(x, v, d);
+	constexpr uint64_t v = cryptanalysislib::math::internal::computeM_u32(d);
+	return cryptanalysislib::math::internal::fastmod_u32(x, v, d);
 }
 
 /// \tparam d
@@ -216,8 +219,8 @@ constexpr static uint32_t fastmod(const uint32_t x) noexcept {
 /// \return x/d
 template <uint32_t d>
 constexpr static uint32_t fastdiv(const uint32_t x) noexcept {
-	constexpr uint64_t v = computeM_u32(d);
-	return fastdiv_u32(x, v);
+	constexpr uint64_t v = cryptanalysislib::math::internal::computeM_u32(d);
+	return cryptanalysislib::math::internal::fastdiv_u32(x, v);
 }
 
 ///
@@ -226,8 +229,8 @@ constexpr static uint32_t fastdiv(const uint32_t x) noexcept {
 /// \return x/d
 template <int32_t d>
 constexpr static int32_t fastmod(const int32_t x) noexcept {
-	constexpr uint64_t v = computeM_s32(d);
-	return fastmod_s32(x, v, d);
+	constexpr uint64_t v = cryptanalysislib::math::internal::computeM_s32(d);
+	return cryptanalysislib::math::internal::fastmod_s32(x, v, d);
 }
 
 /// \tparam d
@@ -235,37 +238,8 @@ constexpr static int32_t fastmod(const int32_t x) noexcept {
 /// \return x/d
 template <int32_t d>
 constexpr static int32_t fastdiv(const int32_t x) noexcept {
-	constexpr uint64_t v = computeM_s32(d);
-	return fastdiv_s32(x, v, d);
+	constexpr uint64_t v = cryptanalysislib::math::internal::computeM_s32(d);
+	return cryptanalysislib::math::internal::fastdiv_s32(x, v, d);
 }
-}; // end namespace cryptanalysislib::math::internal
 
-
-
-template <typename T, const T d> 
-constexpr static int32_t fastdiv(T x) noexcept {
-    if constexpr (std::is_unsigned_v<T>) {
-        if constexpr (sizeof(T) <= 4) {
-	        constexpr uint64_t v = computeM_u32(d);
-	        return fastdiv_u32(x, v, d);
-        }
-        
-        if constexpr (sizeof(T) <= 8) {
-	        constexpr __uint128_t v = computeM_u64(d);
-	        return fastdiv_u64(x, v, d);
-        }
-    }
-
-    /// signed operations
-    if constexpr (sizeof(T) <= 4) {
-	    constexpr uint64_t v = computeM_s32(d);
-	    return fastdiv_s32(x, v, d);
-    }
-
-    // TODO not implemented
-    // if constexpr (sizeof(T) <= 8) {
-	//     constexpr __uint128_t v = computeM_s64(d);
-	//     return fastdiv_s64(x, v, d);
-    // }
-}
 #endif

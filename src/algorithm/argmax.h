@@ -166,7 +166,6 @@ namespace cryptanalysislib {
 #endif
 	[[nodiscard]] constexpr static inline size_t argmax(Iterator start,
 														Iterator end) noexcept {
-		using T = Iterator::value_type;
 		const size_t len = std::distance(start, end);
 		size_t k = 0;
 		for (size_t i = 1; i < len; i++) {

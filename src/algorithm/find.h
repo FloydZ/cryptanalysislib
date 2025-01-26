@@ -176,13 +176,13 @@ namespace cryptanalysislib {
 				   RandIt first,
 				   RandIt last,
 				   const typename RandIt::value_type& value) noexcept {
-		const auto size = static_cast<size_t>(std::distance(first, last));
+		using diff_t = typename std::iterator_traits<RandIt>::difference_type;
+		const diff_t size = std::distance(first, last);
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 			return cryptanalysislib::find<RandIt, config>(first, last, value);
 		}
 
-		using diff_t = typename std::iterator_traits<RandIt>::difference_type;
 		std::atomic<diff_t> extremum(size);
 
 		internal::parallel_chunk_for_1_wait(std::forward<ExecPolicy>(policy), first, last,
