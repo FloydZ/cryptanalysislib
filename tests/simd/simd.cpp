@@ -13,6 +13,10 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+// just for testing the rotate operations
+#define ROR(a, offset) (((a) >> (offset)) ^ ((a) << ((sizeof(a)*8) - (offset))))
+#define ROL(a, offset) (((a) << (offset)) ^ ((a) >> ((sizeof(a)*8) - (offset))))
+
 #define S _uint8x16_t
 #define T _uint8x16_t
 #include "test_simd.h"

@@ -181,6 +181,29 @@ TEST(T, logic) {
 	}
 }
 
+
+TEST(T, rotate) {
+	S t1 = S::set1(1u);
+    S::limb_type t2 = 1u;
+	for (uint8_t j = 0; j < 255; j++) {
+	    for (uint8_t i = 0; i < S::LIMBS; i++) {
+		    EXPECT_EQ(t1[i], t2);
+            t1 = S::rol(t1, 1);
+            t2 = ROL(t2, 1);
+        }
+	}
+
+	t1 = S::set1(1u);
+    t2 = 1u;
+	for (uint8_t j = 0; j < 255; j++) {
+	    for (uint8_t i = 0; i < S::LIMBS; i++) {
+		    EXPECT_EQ(t1[i], t2);
+            t1 = S::ror(t1, 1);
+            t2 = ROR(t2, 1);
+        }
+	}
+}
+
 TEST(T, all_equal) {
 	for (uint8_t j = 0; j < 255; j++) {
 		const S t1 = S::set1(j);
