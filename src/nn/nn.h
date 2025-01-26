@@ -205,7 +205,8 @@ public:
 	/// chooses e1 completely rng and e2 a weight d vector.
 	/// \param e1 input/output
 	/// \param e2 input/output
-	static void generate_golden_element(Element &e1, Element &e2) noexcept {
+	static void generate_golden_element(Element &e1, 
+                                        Element &e2) noexcept {
 		constexpr T mask = n % T_BITSIZE == 0 ? T(-1) : ((1ul << n % T_BITSIZE) - 1ul);
 		static_assert(n > d);
 		static_assert(64 > d);
@@ -396,7 +397,8 @@ public:
 
 	/// checks whether a,b are a solution or not
 	/// NOTE: upper bound `d` is inclusive
-	[[nodiscard]] bool compare_u32(const uint32_t a, const uint32_t b) const noexcept {
+	[[nodiscard]] bool compare_u32(const uint32_t a,
+                                   const uint32_t b) const noexcept {
 		if constexpr (EXACT) {
 			return a == b;
 		} else {
@@ -409,7 +411,8 @@ public:
 	/// \param a first value
 	/// \param b second value
 	/// \return
-	[[nodiscard]] bool compare_u64(const uint64_t a, const uint64_t b) const noexcept {
+	[[nodiscard]] bool compare_u64(const uint64_t a,
+                                   const uint64_t b) const noexcept {
 		if constexpr (EXACT) {
 			return a == b;
 		} else {
@@ -530,6 +533,8 @@ public:
 			const uint32x8_t gt_mask = uint32x8_t::gt_(avx_nn_weight32, tmp);
 			return uint32x8_t::move(lt_mask & gt_mask);
 		}
+
+        return 0;
 	}
 
 	/// executes the comparison operator in the NN subroutine on 64 bit limbs
@@ -559,6 +564,8 @@ public:
 			const uint64x4_t gt_mask = uint64x4_t::gt_(avx_nn_weight64, tmp);
 			return uint64x4_t::move(lt_mask & gt_mask);
 		}
+
+        return 0;
 	}
 
 	/// compares the limbs from the given pointer on.
@@ -1559,7 +1566,7 @@ public:
 	/// \param e2
 	/// \return
 	constexpr inline void nn(const size_t e1 = LIST_SIZE,
-	                  const size_t e2 = LIST_SIZE) noexcept {
+	                         const size_t e2 = LIST_SIZE) noexcept {
 		run(e1, e2);
 	}
 
@@ -2153,10 +2160,10 @@ public:
 		assert(e2 >= s2);
 
 		/// difference of the memory location in the right list
-		constexpr cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint32x4_t::setr((4ull << 32u), (8ul) | (12ull << 32u));
-		constexpr cryptanalysislib::_uint32x4_t loadr2 = cryptanalysislib::_uint32x4_t::setr(1ull | (5ull << 32u), (9ul) | (13ull << 32u));
-		constexpr cryptanalysislib::_uint32x4_t loadr3 = cryptanalysislib::_uint32x4_t::setr(2ull | (6ull << 32u), (10ul) | (14ull << 32u));
-		constexpr cryptanalysislib::_uint32x4_t loadr4 = cryptanalysislib::_uint32x4_t::setr(3ull | (7ull << 32u), (11ul) | (15ull << 32u));
+		constexpr cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint64x2_t::setr((4ull << 32u), (8ul) | (12ull << 32u));
+		constexpr cryptanalysislib::_uint32x4_t loadr2 = cryptanalysislib::_uint64x2_t::setr(1ull | (5ull << 32u), (9ul) | (13ull << 32u));
+		constexpr cryptanalysislib::_uint32x4_t loadr3 = cryptanalysislib::_uint64x2_t::setr(2ull | (6ull << 32u), (10ul) | (14ull << 32u));
+		constexpr cryptanalysislib::_uint32x4_t loadr4 = cryptanalysislib::_uint64x2_t::setr(3ull | (7ull << 32u), (11ul) | (15ull << 32u));
 
 		for (size_t i = s1; i < e1; ++i) {
 			const uint64x4_t li1 = uint64x4_t::set1(L1[i][0]);
@@ -2221,10 +2228,10 @@ public:
 		assert(e2 >= s2);
 
 		/// difference of the memory location in the right list
-		constexpr cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint32x4_t::setr((4ull << 32u), (8ul) | (12ull << 32u));
-		constexpr cryptanalysislib::_uint32x4_t loadr2 = cryptanalysislib::_uint32x4_t::setr(1ull | (5ull << 32u), (9ul) | (13ull << 32u));
-		constexpr cryptanalysislib::_uint32x4_t loadr3 = cryptanalysislib::_uint32x4_t::setr(2ull | (6ull << 32u), (10ul) | (14ull << 32u));
-		constexpr cryptanalysislib::_uint32x4_t loadr4 = cryptanalysislib::_uint32x4_t::setr(3ull | (7ull << 32u), (11ul) | (15ull << 32u));
+		constexpr cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint64x2_t::setr(       (4ull << 32u), (8ul)  | (12ull << 32u));
+		constexpr cryptanalysislib::_uint32x4_t loadr2 = cryptanalysislib::_uint64x2_t::setr(1ull | (5ull << 32u), (9ul)  | (13ull << 32u));
+		constexpr cryptanalysislib::_uint32x4_t loadr3 = cryptanalysislib::_uint64x2_t::setr(2ull | (6ull << 32u), (10ul) | (14ull << 32u));
+		constexpr cryptanalysislib::_uint32x4_t loadr4 = cryptanalysislib::_uint64x2_t::setr(3ull | (7ull << 32u), (11ul) | (15ull << 32u));
 
 		alignas(128) uint64x4_t li[u * 4u];
 		alignas(32) uint32_t m1s[8] = {0};// this clearing is important
@@ -2660,7 +2667,7 @@ public:
 		T *ptr_l = (T *) L1;
 
 		/// difference of the memory location in the right list
-		const cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint32x4_t::setr((4ull << 32u), (8ul) | (12ull << 32u));
+		const cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint64x2_t::setr((4ull << 32u), (8ul) | (12ull << 32u));
 		alignas(32) uint8_t m1s[64];
 
 		/// allowed weight to match on

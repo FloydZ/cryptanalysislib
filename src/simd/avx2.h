@@ -3105,7 +3105,6 @@ struct Xint32x8_t {
 		__m256i v256;
 	};
 
-
 	[[nodiscard]] constexpr inline static size_t size() noexcept { 
         return LIMBS; 
     }
@@ -3398,7 +3397,7 @@ struct Xint32x8_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
-	                                             const uint8_t in2) noexcept {
+	                                             const limb_type in2) noexcept {
 		assert(in2 <= 8);
 		S out{};
 #ifndef __clang__
@@ -3414,7 +3413,7 @@ struct Xint32x8_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
-	                                             const uint8_t in2) noexcept {
+	                                             const limb_type in2) noexcept {
 		assert(in2 <= 8);
 		S out{};
 #ifndef __clang__
@@ -3430,7 +3429,7 @@ struct Xint32x8_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S ror(const S in1,
-												const uint8_t in2) noexcept {
+												const limb_type in2) noexcept {
 		S out;
         out.v256 = _mm256_slli_epi32(in1.v256, 32 - in2) ^ _mm256_srli_epi32(in1.v256, in2);
 		return out;
@@ -3440,7 +3439,7 @@ struct Xint32x8_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S rol(const S in1,
-												const uint8_t in2) noexcept {
+												const limb_type in2) noexcept {
 		S out;
         out.v256 = _mm256_slli_epi32(in1.v256, in2) ^ _mm256_srli_epi32(in1.v256, 32u-in2);
 		return out;
