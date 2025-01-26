@@ -17,7 +17,7 @@ using ::testing::UnitTest;
 
 #ifdef USE_AVX512F
 TEST(uint8x64_t, TTrandom) {
-	Xint8x64_t t1 = Xint8x64_t::random();
+	uint8x64_t t1 = uint8x64_t::random();
 
 	uint32_t atleast_one_not_zero = false;
 	for (uint32_t i = 0; i < 64; ++i) {
@@ -31,12 +31,12 @@ TEST(uint8x64_t, TTrandom) {
 }
 
 TEST(uint8x64_t, set1) {
-	Xint8x64_t t1 = Xint8x64_t::set1(0);
+	uint8x64_t t1 = uint8x64_t::set1(0);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t1.v8[i], 0);
 	}
 
-	Xint8x64_t t2 = Xint8x64_t::set1(1);
+	uint8x64_t t2 = uint8x64_t::set1(1);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t2.v8[i], 1);
 	}
@@ -44,7 +44,7 @@ TEST(uint8x64_t, set1) {
 
 TEST(uint8x64_t, set) {
 	uint32_t pos = 53;
-	Xint8x64_t t1 = Xint8x64_t::set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	uint8x64_t t1 = uint8x64_t::set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	for (uint32_t i = 0; i < 64; ++i) {
 		if (i == pos) {
 			EXPECT_EQ(t1.v8[i], 1);
@@ -53,7 +53,7 @@ TEST(uint8x64_t, set) {
 		EXPECT_EQ(t1.v8[i], 0);
 	}
 
-	Xint8x64_t t2 = Xint8x64_t::setr(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	uint8x64_t t2 = uint8x64_t::setr(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	for (uint32_t i = 0; i < 64; ++i) {
 		if (i == (63 - pos)) {
 			EXPECT_EQ(t2.v8[i], 1);
@@ -66,7 +66,7 @@ TEST(uint8x64_t, set) {
 TEST(uint8x64_t, unalinged_load) {
 	uint8_t data[64] = {0};
 
-	Xint8x64_t t1 = Xint8x64_t::unaligned_load(data);
+	uint8x64_t t1 = uint8x64_t::unaligned_load(data);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t1.v8[i], 0u);
 	}
@@ -74,35 +74,35 @@ TEST(uint8x64_t, unalinged_load) {
 
 TEST(uint8x64_t, alinged_load) {
 	alignas(256) uint8_t data[64] = {0};
-	Xint8x64_t t1 = Xint8x64_t::aligned_load(data);
+	uint8x64_t t1 = uint8x64_t::aligned_load(data);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t1.v8[i], 0u);
 	}
 }
 
 TEST(uint8x64_t, unalinged_store) {
-	Xint8x64_t t1 = Xint8x64_t::random();
+	uint8x64_t t1 = uint8x64_t::random();
 	uint8_t data[64] = {0};
 
-	Xint8x64_t::unaligned_store(data, t1);
+	uint8x64_t::unaligned_store(data, t1);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t1.v8[i], data[i]);
 	}
 }
 
 TEST(uint8x64_t, alinged_store) {
-	Xint8x64_t t1 = Xint8x64_t::random();
+	uint8x64_t t1 = uint8x64_t::random();
 	alignas(256) uint8_t data[64] = {0};
 
-	Xint8x64_t::aligned_store(data, t1);
+	uint8x64_t::aligned_store(data, t1);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t1.v8[i], data[i]);
 	}
 }
 TEST(uint8x64_t, logic) {
-	const Xint8x64_t t1 = Xint8x64_t::set1(0);
-	const Xint8x64_t t2 = Xint8x64_t::set1(1);
-	Xint8x64_t t3 = Xint8x64_t::set1(2);
+	const uint8x64_t t1 = uint8x64_t::set1(0);
+	const uint8x64_t t2 = uint8x64_t::set1(1);
+	uint8x64_t t3 = uint8x64_t::set1(2);
 
 	t3 = t1 + t2;
 	for (uint32_t i = 0; i < 64; ++i) {
@@ -139,17 +139,17 @@ TEST(uint8x64_t, logic) {
 		EXPECT_EQ(t3.v8[i], uint8_t(-1u));
 	}
 
-	t3 = Xint8x64_t::mullo(t1, t2);
+	t3 = uint8x64_t::mullo(t1, t2);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t3.v8[i], 0);
 	}
 
-	t3 = Xint8x64_t::slli(t1, 1);
+	t3 = uint8x64_t::slli(t1, 1);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t3.v8[i] , 0);
 	}
 
-	t3 = Xint8x64_t::slli(t2, 1);
+	t3 = uint8x64_t::slli(t2, 1);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t3.v8[i] , 2);
 	}
@@ -157,16 +157,16 @@ TEST(uint8x64_t, logic) {
 
 TEST(uint8x64_t, slri) {
 	for (uint8_t j = 0; j < 8; j++) {
-		const Xint8x64_t t1 = Xint8x64_t::set1(1u << j);
-		const Xint8x64_t t2 = Xint8x64_t::srli(t1, j);
+		const uint8x64_t t1 = uint8x64_t::set1(1u << j);
+		const uint8x64_t t2 = uint8x64_t::srli(t1, j);
 		for (uint32_t i = 0; i < 64; ++i) {
 			EXPECT_EQ(t2.v8[i], 1);
 		}
 	}
 
 	/// special case for j = 8
-	const Xint8x64_t t1 = Xint8x64_t::set1((1u << 7u) - 1u);
-	const Xint8x64_t t2 = Xint8x64_t::srli(t1, 8);
+	const uint8x64_t t1 = uint8x64_t::set1((1u << 7u) - 1u);
+	const uint8x64_t t2 = uint8x64_t::srli(t1, 8);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t2.v8[i], 0);
 	}
@@ -174,14 +174,14 @@ TEST(uint8x64_t, slri) {
 
 
 TEST(uint8x64_t, popcnt) {
-	auto t1 = Xint8x64_t::set1(4);
-	auto t2 = Xint8x64_t::popcnt(t1);
+	auto t1 = uint8x64_t::set1(4);
+	auto t2 = uint8x64_t::popcnt(t1);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t2.v8[i], 1);
 	}
 
 
-	auto t3 = Xint8x64_t::lzcnt(t1);
+	auto t3 = uint8x64_t::lzcnt(t1);
 	for (uint32_t i = 0; i < 64; ++i) {
 		EXPECT_EQ(t3.v8[i], 2);
 	}
