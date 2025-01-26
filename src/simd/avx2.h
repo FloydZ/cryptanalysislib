@@ -2014,6 +2014,13 @@ struct Xint8x32_t {
 		__m256i v256;
 	};
 
+	[[nodiscard]] constexpr inline static size_t size() noexcept { 
+        return LIMBS; 
+    }
+	[[nodiscard]] constexpr inline static bool is_unsigned() noexcept {
+        return __unsigned; 
+    }
+
     /// \param i[in]: position of the limb to return
     /// \return __m256i[i]
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
@@ -2472,6 +2479,15 @@ struct Xint8x32_t {
 		ret2.v256 = ret;
 		return ret2;
 	}
+	/// \param in
+	/// \param perm
+	/// \return
+	[[nodiscard]] constexpr static inline S permute(const S in,
+	                                                const S perm) noexcept {
+		S ret;
+		ret.v256 = _mm256_shuffle_epi8(in.v256, perm.v256);
+		return ret;
+	}
 
 	/// kmoves the msb into each bit
 	[[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
@@ -2488,7 +2504,7 @@ struct Xint8x32_t {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		S ret;
 
-		const uint8_t *ptr8 = (uint8_t *) ptr;
+		const limb_type *ptr8 = (limb_type *) ptr;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.d[i] = ptr8[data.d[i] * scale];
 		}
@@ -2505,7 +2521,7 @@ struct Xint8x32_t {
 										 const S offset,
 										 const S data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
-		uint8_t *ptr8 = (uint8_t *) ptr;
+		limb_type *ptr8 = (limb_type *) ptr;
 		for (uint32_t i = 0; i < 8; i++) {
 			*(ptr8 + offset.d[i] * scale) = data.d[i];
 		}
@@ -2586,13 +2602,22 @@ struct Xint16x16_t {
 
 	constexpr inline Xint16x16_t() noexcept = default;
 
-	[[nodiscard]] constexpr inline static bool is_unsigned() { return __unsigned; }
+	[[nodiscard]] constexpr inline static size_t size() noexcept { 
+        return LIMBS; 
+    }
+	[[nodiscard]] constexpr inline static bool is_unsigned() noexcept { 
+        return __unsigned; 
+    }
 
+    /// \param i[in]: position of the limb to return
+    /// \return __m256i[i]
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const {
 		assert(i < LIMBS);
 		return d[i];
 	}
 
+    /// \param i[in]: position of the limb to return
+    /// \return __m256i[i]
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) {
 		assert(i < LIMBS);
 		return d[i];
@@ -2614,46 +2639,37 @@ struct Xint16x16_t {
 	constexpr inline void print(bool binary = false, bool hex = false) const;
 
 	///
-	[[nodiscard]] constexpr static inline S set(short __q15, short __q14, short __q13, short __q12,
-	                                                      short __q11, short __q10, short __q09, short __q08,
-	                                                      short __q07, short __q06, short __q05, short __q04,
-	                                                      short __q03, short __q02, short __q01, short __q00) noexcept {
+	[[nodiscard]] constexpr static inline S set(const limb_type __q15, const limb_type __q14, const limb_type __q13, const limb_type __q12,
+	                                            const limb_type __q11, const limb_type __q10, const limb_type __q09, const limb_type __q08,
+	                                            const limb_type __q07, const limb_type __q06, const limb_type __q05, const limb_type __q04,
+	                                            const limb_type __q03, const limb_type __q02, const limb_type __q01, const limb_type __q00) noexcept {
 		S out;
 		out.v256 = __extension__(__m256i)(__v16hi){
-		        __q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07,
-		        __q08, __q09, __q10, __q11, __q12, __q13, __q14, __q15};
+		        (short)__q00, (short)__q01, (short)__q02, (short)__q03, (short)__q04, (short)__q05, (short)__q06, (short)__q07,
+		        (short)__q08, (short)__q09, (short)__q10, (short)__q11, (short)__q12, (short)__q13, (short)__q14, (short)__q15};
 		return out;
 	}
 
 	///
-	[[nodiscard]] constexpr static inline S setr(short __q15, short __q14, short __q13, short __q12,
-	                                                       short __q11, short __q10, short __q09, short __q08,
-	                                                       short __q07, short __q06, short __q05, short __q04,
-	                                                       short __q03, short __q02, short __q01, short __q00) noexcept {
-		return S::set(__q00, __q01, __q02, __q03, __q04, __q05, __q06,
-		                        __q07, __q08, __q09, __q10, __q11, __q12, __q13, __q14, __q15);
+	[[nodiscard]] constexpr static inline S setr(const limb_type __q15, const limb_type __q14, const limb_type __q13, const limb_type __q12,
+	                                             const limb_type __q11, const limb_type __q10, const limb_type __q09, const limb_type __q08,
+	                                             const limb_type __q07, const limb_type __q06, const limb_type __q05, const limb_type __q04,
+	                                             const limb_type __q03, const limb_type __q02, const limb_type __q01, const limb_type __q00) noexcept {
+		return S::set(__q00, __q01, __q02, __q03, __q04, __q05, __q06, __q07, 
+                      __q08, __q09, __q10, __q11, __q12, __q13, __q14, __q15);
 	}
 
-	///
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline S set1(const uint16_t a) noexcept {
+	[[nodiscard]] constexpr static inline S set1(const limb_type a) noexcept {
 		return S::set(a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
 	}
 
-	///
-	/// \param a
-	/// \return
-	[[nodiscard]] constexpr static inline S set(const uint16_t a) noexcept {
-		return S::set1(a);
-	}
-
-	///
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline S load(const uint16_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S load(const limb_type *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -2661,10 +2677,9 @@ struct Xint16x16_t {
 		return unaligned_load(ptr);
 	}
 
-	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline S aligned_load(const uint16_t ptr[16]) noexcept {
+	[[nodiscard]] constexpr static inline S aligned_load(const limb_type ptr[16]) noexcept {
 		if (std::is_constant_evaluated()) {
 			// in the constexpr case simply ignore that the data is aligned
 			// it will not have any "runtime" penalties
@@ -2682,7 +2697,7 @@ struct Xint16x16_t {
 
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline S unaligned_load(const uint16_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S unaligned_load(const limb_type *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
 			const __m256i tmp = u16tom256(ptr);
 			S out;
@@ -2700,7 +2715,8 @@ struct Xint16x16_t {
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	static inline void store(void *ptr, const S in) noexcept {
+	static inline void store(limb_type *ptr,
+                             const S in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -2709,23 +2725,22 @@ struct Xint16x16_t {
 		aligned_store(ptr, in);
 	}
 
-	///
 	/// \param ptr
 	/// \param in
-	static inline void aligned_store(void *ptr, const S in) noexcept {
+	static inline void aligned_store(limb_type *ptr,
+                                     const S in) noexcept {
 		auto *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
 
-	///
 	/// \param ptr
 	/// \param in
-	static inline void unaligned_store(void *ptr, const S in) noexcept {
+	static inline void unaligned_store(limb_type *ptr,
+                                       const S in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
 		::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2736,7 +2751,6 @@ struct Xint16x16_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2747,7 +2761,6 @@ struct Xint16x16_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2758,7 +2771,6 @@ struct Xint16x16_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2769,7 +2781,6 @@ struct Xint16x16_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
@@ -2779,7 +2790,6 @@ struct Xint16x16_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2790,7 +2800,6 @@ struct Xint16x16_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2801,7 +2810,6 @@ struct Xint16x16_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2812,7 +2820,6 @@ struct Xint16x16_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2822,6 +2829,9 @@ struct Xint16x16_t {
 		return mullo(in1, rs);
 	}
 
+	/// \param in1
+	/// \param in2
+	/// \return
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
         S out;
@@ -2830,7 +2840,6 @@ struct Xint16x16_t {
         return out;
     }
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2984,12 +2993,59 @@ struct Xint16x16_t {
 		return ret;
 	}
 
+    /// not vectorized: https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:56,endLineNumber:4,positionColumn:56,positionLineNumber:4,selectionStartColumn:56,selectionStartLineNumber:4,startColumn:56,startLineNumber:4),source:'%23include+%3Cimmintrin.h%3E%0A%23include+%3Cstdint.h%3E%0A%0Avoid+perm(uint16_t+a%5B16%5D,+uint16_t+b%5B16%5D,+uint16_t+c%5B16%5D)+%7B%0A++++for+(uint32_t+i+%3D+0%3B+i+%3C+16%3B+i%2B%2B)+%7B%0A++++++++a%5Bb%5Bi%5D%5D+%3D+c%5Bi%5D%3B%0A++++%7D%0A%7D'),l:'5',n:'0',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:g142,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-mavx+-mavx2+-O3',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+x86-64+gcc+14.2+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
+	/// \param in
+	/// \param perm
+	/// \return
+	[[nodiscard]] constexpr static inline S permute(const S in,
+	                                                const S perm) noexcept {
+		S ret;
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            ret.d[perm.d[i]] = in[i];
+        }
+
+        return ret;
+    }
+
 	///
 	/// kmoves the msb into each bit
-	[[nodiscard]] constexpr static inline uint16_t move(const S in) noexcept {
+	[[nodiscard]] constexpr static inline limb_type move(const S in) noexcept {
 		uint32_t t = _mm256_movemask_epi8(in.v256);
 		uint16_t ret = _pext_u32(t, 0b01010101010101010101010101010101);
 		return ret;
+	}
+
+    /// \tparam scale[in]:
+    /// \param ptr[in]:
+    /// \param data[in]:
+    /// \return
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline S gather(const void *ptr,
+												   const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		S ret;
+
+		const limb_type *ptr8 = (limb_type *) ptr;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = ptr8[data.d[i] * scale];
+		}
+		return ret;
+	}
+
+    /// \tparam scale[in]:
+    /// \param ptr[in]:
+    /// \param offset[in]:
+    /// \param data[in]:
+    /// \return
+	template<const uint32_t scale = 1>
+	constexpr static inline void scatter(const void *ptr,
+										 const S offset,
+										 const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		limb_type *ptr8 = (limb_type *) ptr;
+		for (uint32_t i = 0; i < 8; i++) {
+			*(ptr8 + offset.d[i] * scale) = data.d[i];
+		}
 	}
 
 	/// \param a
@@ -3042,9 +3098,12 @@ struct Xint32x8_t {
 	};
 
 
-	[[nodiscard]] constexpr inline static size_t size() { return LIMBS; }
-
-	[[nodiscard]] constexpr inline static bool is_unsigned() { return __unsigned; }
+	[[nodiscard]] constexpr inline static size_t size() noexcept { 
+        return LIMBS; 
+    }
+	[[nodiscard]] constexpr inline static bool is_unsigned() noexcept {
+        return __unsigned; 
+    }
 
 	/// \param i
 	/// \return
@@ -3075,15 +3134,6 @@ struct Xint32x8_t {
 	/// \param hex
 	constexpr inline void print(bool binary = false, bool hex = false) const;
 
-	[[nodiscard]] constexpr static inline S set(const limb_type *ptr) {
-		return unaligned_load(ptr);
-	}
-
-	[[nodiscard]] constexpr static inline S setr(const limb_type *ptr) {
-		return setr(ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]);
-	}
-
-	///
 	/// \param a0
 	/// \param a1
 	/// \param a2
@@ -3093,20 +3143,19 @@ struct Xint32x8_t {
 	/// \param a6
 	/// \param a7
 	/// \return
-	[[nodiscard]] constexpr inline static S set(const uint32_t a0,
-	                                            const uint32_t a1,
-	                                            const uint32_t a2,
-	                                            const uint32_t a3,
-	                                            const uint32_t a4,
-	                                            const uint32_t a5,
-	                                            const uint32_t a6,
-	                                            const uint32_t a7) noexcept {
+	[[nodiscard]] constexpr inline static S set(const limb_type a0,
+	                                            const limb_type a1,
+	                                            const limb_type a2,
+	                                            const limb_type a3,
+	                                            const limb_type a4,
+	                                            const limb_type a5,
+	                                            const limb_type a6,
+	                                            const limb_type a7) noexcept {
 		S out{};
 		out.v256 = __extension__(__m256i)(__v8si){(int) a7, (int) a6, (int) a5, (int) a4, (int) a3, (int) a2, (int) a1, (int) a0};
 		return out;
 	}
 
-	///
 	/// \param a0
 	/// \param a1
 	/// \param a2
@@ -3116,37 +3165,29 @@ struct Xint32x8_t {
 	/// \param a6
 	/// \param a7
 	/// \return
-	[[nodiscard]] constexpr inline static S setr(const uint32_t a0,
-	                                             const uint32_t a1,
-	                                             const uint32_t a2,
-	                                             const uint32_t a3,
-	                                             const uint32_t a4,
-	                                             const uint32_t a5,
-	                                             const uint32_t a6,
-	                                             const uint32_t a7) noexcept {
+	[[nodiscard]] constexpr inline static S setr(const limb_type a0,
+	                                             const limb_type a1,
+	                                             const limb_type a2,
+	                                             const limb_type a3,
+	                                             const limb_type a4,
+	                                             const limb_type a5,
+	                                             const limb_type a6,
+	                                             const limb_type a7) noexcept {
 		return set(a7, a6, a5, a4, a3, a2, a1, a0);
 	}
 
 	///
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline S set1(const uint32_t a) noexcept {
+	[[nodiscard]] constexpr static inline S set1(const limb_type a) noexcept {
 		return set(a, a, a, a, a, a, a, a);
 	}
 
-	///
-	/// \param a
-	/// \return
-	[[nodiscard]] constexpr static inline S set(const uint32_t a) noexcept {
-		return S::set1(a);
-	}
-
-	///
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline S load(const uint32_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S load(const limb_type *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -3154,10 +3195,9 @@ struct Xint32x8_t {
 		return unaligned_load(ptr);
 	}
 
-	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline S aligned_load(const uint32_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
 			// in the constexpr case simply ignore that the data is aligned
 			// it will not have any "runtime" penalties
@@ -3173,10 +3213,9 @@ struct Xint32x8_t {
 		}
 	}
 
-	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline S unaligned_load(const uint32_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S unaligned_load(const limb_type *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
 			const __m256i tmp = u32tom256(ptr);
 			S out;
@@ -3189,12 +3228,12 @@ struct Xint32x8_t {
 		}
 	}
 
-	///
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	constexpr static inline void store(void *ptr, const S in) noexcept {
+	constexpr static inline void store(limb_type *ptr,
+                                       const S in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -3203,25 +3242,22 @@ struct Xint32x8_t {
 		unaligned_store(ptr, in);
 	}
 
-	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void aligned_store(void *ptr,
+	constexpr static inline void aligned_store(limb_type *ptr,
                                                const S in) noexcept {
 		auto *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
 
-	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(void *ptr,
+	constexpr static inline void unaligned_store(limb_type *ptr,
                                                  const S in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
 		::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -3329,7 +3365,6 @@ struct Xint32x8_t {
 		return out;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -3339,7 +3374,18 @@ struct Xint32x8_t {
 		return mullo(in1, m);
 	}
 
-	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline S div(const S in1,
+	                                            const limb_type in2) noexcept {
+        S out;
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            out[i] = in1[i] / in2;
+        }
+        return out;
+    }
+
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -3499,6 +3545,27 @@ struct Xint32x8_t {
 		ret.v256 = _mm256_permutevar8x32_epi32(in.v256, shuffle.v256);
 		return ret;
 	}
+
+	/// \param in
+	/// \param perm
+	/// \return
+	[[nodiscard]] constexpr static inline S permute(const S in,
+	                                                const S perm) noexcept {
+		S ret;
+#ifdef __clang__
+		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((V) in.v256, (V) perm.v256);
+#else 
+
+		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((__v8si) in.v256, (__v8si) perm.v256);
+#endif
+		return ret;
+	}
+
+	/// moves the msb into each bit
+	[[nodiscard]] constexpr static inline uint8_t move(const S in) noexcept {
+		return __builtin_ia32_movmskps256((__v8sf) in.v256);
+	}
+
 	/// \tparam scale
 	/// \param ptr
 	/// \param data
@@ -3506,8 +3573,7 @@ struct Xint32x8_t {
 	template<const uint32_t scale = 1>
 	[[nodiscard]] constexpr static inline S gather(const void *ptr,
 	                                               const S data) noexcept {
-		S ret{};
-
+		S ret;
 #ifndef __clang__
 		// NOTE: there is no typecast to V, because gcc does things
 		ret.v256 = (__m256i) __builtin_ia32_gathersiv8si((__v8si) _mm256_setzero_si256(),
@@ -3521,7 +3587,6 @@ struct Xint32x8_t {
 		return ret;
 	}
 
-	///
 	/// \tparam scale
 	/// \param ptr
 	/// \param offset
@@ -3536,27 +3601,6 @@ struct Xint32x8_t {
 		for (uint32_t i = 0; i < 8; i++) {
 			*(uint32_t *) (ptr8 + offset.v32[i] * scale) = data.v32[i];
 		}
-	}
-
-	///
-	/// \param in
-	/// \param perm
-	/// \return
-	[[nodiscard]] constexpr static inline S permute(const S in,
-	                                                const S perm) noexcept {
-		S ret{};
-#ifdef __clang__
-		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((V) in.v256, (V) perm.v256);
-#else 
-
-		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((__v8si) in.v256, (__v8si) perm.v256);
-#endif
-		return ret;
-	}
-
-	/// moves the msb into each bit
-	[[nodiscard]] constexpr static inline uint8_t move(const S in) noexcept {
-		return __builtin_ia32_movmskps256((__v8sf) in.v256);
 	}
 
 	/// needs BMI2
@@ -3585,8 +3629,6 @@ struct Xint32x8_t {
 		return ret;
 	}
 
-
-	///
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline S cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
@@ -3646,11 +3688,23 @@ struct Xint64x4_t {
 		__m256i v256;
 	};
 
+	[[nodiscard]] constexpr inline static size_t size() noexcept { 
+        return LIMBS; 
+    }
+
+	[[nodiscard]] constexpr inline static bool is_unsigned() noexcept { 
+        return __unsigned; 
+    }
+
+    /// \param i[in]: position of the limb to return
+    /// \return __m256i[i]
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
 		assert(i < LIMBS);
 		return d[i];
 	}
 
+    /// \param i[in]: position of the limb to return
+    /// \return __m256i[i]
 	[[nodiscard]] constexpr inline limb_type &operator[](const uint32_t i) noexcept {
 		assert(i < LIMBS);
 		return d[i];
@@ -3666,21 +3720,19 @@ struct Xint64x4_t {
 		return ret;
 	}
 
-	///
 	/// \param binary
 	/// \param hex
 	constexpr inline void print(bool binary = false, bool hex = false) const;
 
-	///
 	/// \param a
 	/// \param b
 	/// \param c
 	/// \param d
 	/// \return
-	[[nodiscard]] constexpr static inline S set(const uint64_t a,
-	                                            const uint64_t b,
-	                                            const uint64_t c,
-	                                            const uint64_t d) noexcept {
+	[[nodiscard]] constexpr static inline S set(const limb_type a,
+	                                            const limb_type b,
+	                                            const limb_type c,
+	                                            const limb_type d) noexcept {
 		S out;
 		out.v256 = __extension__(__m256i)(__v4di){(long long) d,
 		                                          (long long) c,
@@ -3689,39 +3741,29 @@ struct Xint64x4_t {
 		return out;
 	}
 
-	///
 	/// \param a
 	/// \param b
 	/// \param c
 	/// \param d
 	/// \return
-	[[nodiscard]] constexpr static inline S setr(const uint64_t a,
-                                                 const uint64_t b,
-                                                 const uint64_t c,
-                                                 const uint64_t d) noexcept {
+	[[nodiscard]] constexpr static inline S setr(const limb_type a,
+                                                 const limb_type b,
+                                                 const limb_type c,
+                                                 const limb_type d) noexcept {
 		return set(d, c, b, a);
 	}
 
-	///
 	/// \param a
 	/// \return
-	[[nodiscard]] constexpr static inline S set1(const uint64_t a) noexcept {
+	[[nodiscard]] constexpr static inline S set1(const limb_type a) noexcept {
 		return set(a, a, a, a);
 	}
 
-	///
-	/// \param a
-	/// \return
-	[[nodiscard]] constexpr static inline S set(const uint64_t a) noexcept {
-		return S::set1(a);
-	}
-
-	///
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
 	template<const bool aligned = false>
-	[[nodiscard]] constexpr static inline S load(const uint64_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S load(const limb_type *ptr) noexcept {
 		if constexpr (aligned) {
 			return aligned_load(ptr);
 		}
@@ -3732,7 +3774,7 @@ struct Xint64x4_t {
 	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline S aligned_load(const uint64_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
 			// in the constexpr case simply ignore that the data is aligned
 			// it will not have any "runtime" penalties
@@ -3748,10 +3790,9 @@ struct Xint64x4_t {
 		}
 	}
 
-	///
 	/// \param ptr
 	/// \return
-	[[nodiscard]] constexpr static inline S unaligned_load(const uint64_t *ptr) noexcept {
+	[[nodiscard]] constexpr static inline S unaligned_load(const limb_type *ptr) noexcept {
 		if (std::is_constant_evaluated()) {
 			const __m256i tmp = u64tom256(ptr);
 			S out;
@@ -3764,12 +3805,12 @@ struct Xint64x4_t {
 		}
 	}
 
-	///
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
 	template<const bool aligned = false>
-	static inline void store(void *ptr, const S in) noexcept {
+	static inline void store(limb_type *ptr, 
+                             const S in) noexcept {
 		if constexpr (aligned) {
 			aligned_store(ptr, in);
 			return;
@@ -3778,25 +3819,22 @@ struct Xint64x4_t {
 		unaligned_store(ptr, in);
 	}
 
-	///
 	/// \param ptr
 	/// \param in
-	static inline void aligned_store(void *ptr,
+	static inline void aligned_store(limb_type *ptr,
                                      const S in) noexcept {
 		auto *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
 
-	///
 	/// \param ptr
 	/// \param in
-	static inline void unaligned_store(void *ptr,
+	static inline void unaligned_store(limb_type *ptr,
                                        const S in) noexcept {
 		auto *ptr256 = (__m256i_u *) ptr;
 		::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -3890,22 +3928,32 @@ struct Xint64x4_t {
 		// }
 		return out;
 	}
-	///
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline S div(const S in1,
+	                                            const limb_type in2) noexcept {
+        S out;
+        const __m256i vb = _mm256_set1_epi16(32768 / in2);
+        out.v256 = _mm256_mulhrs_epi16(in1.v256, vb);
+        return out;
+    }
+
 	/// \param in1
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S mullo(const S in1,
-	                                              const uint64_t in2) noexcept {
+	                                              const limb_type in2) noexcept {
 		auto m = S::set1(in2);
 		return mullo(in1, m);
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
-	                                             const uint8_t in2) noexcept {
+	                                             const limb_type in2) noexcept {
 		assert(in2 <= 8);
 		S out;
 #ifndef __clang__
@@ -3921,7 +3969,7 @@ struct Xint64x4_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
-	                                             const uint8_t in2) noexcept {
+	                                             const limb_type in2) noexcept {
 		assert(in2 <= 8);
 		//const S mask = set1(((1u << (8u - in2)) - 1u) << in2);
 		S out;
@@ -3952,17 +4000,6 @@ struct Xint64x4_t {
 		S out;
         out.v256 = _mm256_slli_epi64(in1.v256, in2) ^ _mm256_srli_epi64(in1.v256, 64u-in2);
 		return out;
-	}
-
-	///
-	/// \tparam in2
-	/// \param in1
-	/// \return
-	template<const uint32_t in2>
-	[[nodiscard]] constexpr static inline S permute(const S in1) noexcept {
-		S ret;
-		ret.v256 = ((__m256i) __builtin_ia32_permdi256((__v4di) (__m256i) (in1.v256), (int) (in2)));
-		return ret;
 	}
 
 	///
@@ -4018,7 +4055,6 @@ struct Xint64x4_t {
 		return ret;
 	}
 
-	///
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
@@ -4032,7 +4068,6 @@ struct Xint64x4_t {
 #endif
 	}
 
-	///
 	/// \param in
 	/// \return
 	constexpr static inline S popcnt(const S in) noexcept {
@@ -4065,6 +4100,27 @@ struct Xint64x4_t {
 		ret.v256 = _mm256_permute4x64_epi64(in.v256, 0b00011011);
 		return ret;
 	}
+
+	/// \tparam in2
+	/// \param in1
+	/// \return
+	template<const uint32_t in2>
+	[[nodiscard]] constexpr static inline S permute(const S in1) noexcept {
+		S ret;
+		ret.v256 = ((__m256i) __builtin_ia32_permdi256((__v4di) (__m256i) (in1.v256), (int) (in2)));
+		return ret;
+	}
+
+	/// \param in1[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline uint8_t move(const S in1) noexcept {
+#ifndef __clang__
+		return __builtin_ia32_movmskpd256((__v4df) in1.v256);
+#else
+		return _mm256_movemask_pd((__m256d) in1.v256);
+#endif
+	}
+
 	/// \tparam scale
 	/// \param ptr
 	/// \param data
@@ -4138,15 +4194,6 @@ struct Xint64x4_t {
 			*(uint64_t *) (ptr8 + offset.v64[i] * scale) = data.v64[i];
 		}
 	}
-
-	[[nodiscard]] constexpr static inline uint8_t move(const S in1) noexcept {
-#ifndef __clang__
-		return __builtin_ia32_movmskpd256((__v4df) in1.v256);
-#else
-		return _mm256_movemask_pd((__m256d) in1.v256);
-#endif
-	}
-
 
 	/// \param a
 	/// \param b
