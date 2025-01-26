@@ -83,18 +83,18 @@ using namespace cryptanalysislib;
 
 
 
-///
+/// NOTE: the signed will be extracted from T
 template<typename T,
-         const uint32_t N,
-         const bool __unsigned=true>
+         const uint32_t N>
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>
 #endif
 class TxN_t {
 public:
 	constexpr static uint32_t LIMBS = N;
+    constexpr static bool __unsigned = std::is_unsigned_v<T>;
 	using limb_type = T;
-	using S = TxN_t<T, N, __unsigned>;
+	using S = TxN_t<T, N>;
 
 	static_assert(N > 0);
 
@@ -361,11 +361,12 @@ public:
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(T *ptr, const TxN_t &in) noexcept {
+	constexpr static inline void unaligned_store(T *ptr, 
+                                                 const TxN_t &in) noexcept {
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				simd512_type::unaligned_store(ptr + i, in.v512[i / nr_limbs_in_simd512]);
+				simd512_type::unaligned_store((limb_type *)(ptr + i), in.v512[i / nr_limbs_in_simd512]);
 			}
 
 			if constexpr (simd512_fits) {
@@ -375,7 +376,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				simd256_type::unaligned_store(ptr + i, in.v256[i / nr_limbs_in_simd256]);
+				simd256_type::unaligned_store((limb_type *)(ptr + i), in.v256[i / nr_limbs_in_simd256]);
 			}
 
 			if constexpr (simd256_fits) {
@@ -400,7 +401,8 @@ public:
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline TxN_t andnot_(const TxN_t &in1, const TxN_t in2) noexcept {
+	[[nodiscard]] constexpr static inline TxN_t andnot_(const TxN_t &in1, 
+                                                        const TxN_t in2) noexcept {
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {

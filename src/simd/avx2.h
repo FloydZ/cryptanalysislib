@@ -1,7 +1,6 @@
 #ifndef CRYPTANALYSISLIB_SIMD_AVX2_H
 #define CRYPTANALYSISLIB_SIMD_AVX2_H
 
-#include <tmmintrin.h>
 #ifndef CRYPTANALYSISLIB_SIMD_H
 #error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
@@ -10,7 +9,7 @@
 #error "no avx2 enabled."
 #endif
 
-#include <emmintrin.h>
+#include <immintrin.h>
 #include <type_traits>
 
 
@@ -376,7 +375,7 @@ namespace cryptanalysislib {
 	                                                   const S in2) noexcept {
 	    	S out;
 #ifndef __clang__
-		    out.v128 = (__m128i) __builtin_ia32_andnotsi128((__v4di) in1.v128, (__v4di) in2.v128);
+		    out.v128 = _mm_andnot_si128(in1.v128, in2.v128);
 #else
 		    out.v128 = (__m128i) (~(V) in1.v128 & (V) in2.v128);
 #endif
@@ -676,11 +675,11 @@ namespace cryptanalysislib {
     template<const bool __unsigned>
 	struct _Xint16x8_t {
 		constexpr static uint32_t LIMBS = 8;
-	    using limb_type = std::conditional<__unsigned, uint8_t, int8_t>::type;
+	    using limb_type = std::conditional<__unsigned, uint16_t, int16_t>::type;
 	    using S = _Xint16x8_t;
 	    using simd_type = S;
 
-        using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
+        using V   = std::conditional<__unsigned, __v16qu, __v8qi>::type;
         using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
         using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
         using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -880,7 +879,7 @@ namespace cryptanalysislib {
 	                                                   const S in2) noexcept {
 	    	S out;
 #ifndef __clang__
-		    out.v128 = (__m128i) __builtin_ia32_andnotsi128((__v4di) in1.v128, (__v4di) in2.v128);
+		    out.v128 = _mm_andnot_si128(in1.v128, in2.v128);
 #else
 		    out.v128 = (__m128i) (~(V) in1.v128 & (V) in2.v128);
 #endif
@@ -1061,7 +1060,7 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S reverse(const S in) noexcept {
 	    	S ret;
             const __m128i shuffle = _mm_setr_epi8(14,15,12,13,10,11,8,9,6,7,4,5,2,3,0,1);
-            ret.v128 = _mm_shuffle_pi8(in.v128, shuffle);
+            ret.v128 = _mm_shuffle_epi8(in.v128, shuffle);
 	    	return ret;
         }
 
@@ -1155,7 +1154,7 @@ namespace cryptanalysislib {
     template<const bool __unsigned>
 	struct _Xint32x4_t {
 		constexpr static uint32_t LIMBS = 4;
-	    using limb_type = std::conditional<__unsigned, uint8_t, int8_t>::type;
+	    using limb_type = std::conditional<__unsigned, uint32_t, int32_t>::type;
 	    using S = _Xint32x4_t;
 	    using simd_type = S;
 
@@ -1279,7 +1278,7 @@ namespace cryptanalysislib {
 			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 	    
-    /// \param in1[in]: vector element
+        /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 ^ in2
 	    [[nodiscard]] constexpr static inline S xor_(const S in1,
@@ -1316,7 +1315,7 @@ namespace cryptanalysislib {
 	                                                   const S in2) noexcept {
 	    	S out;
 #ifndef __clang__
-		    out.v128 = (__m128i) __builtin_ia32_andnotsi128((__v4di) in1.v128, (__v4di) in2.v128);
+		    out.v128 = _mm_andnot_si128(in1.v128, in2.v128);
 #else
 		    out.v128 = (__m128i) (~(V) in1.v128 & (V) in2.v128);
 #endif
@@ -1495,7 +1494,7 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S reverse(const S in) noexcept {
 	    	S ret;
             const __m128i shuffle = _mm_setr_epi8(12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3);
-            ret.v128 = _mm_shuffle_epi(in.v128, shuffle);
+            ret.v128 = _mm_shuffle_epi8(in.v128, shuffle);
 	    	return ret;
         }
 
@@ -1590,7 +1589,7 @@ namespace cryptanalysislib {
     template<const bool __unsigned>
 	struct _Xint64x2_t {
 		constexpr static uint32_t LIMBS = 2;
-	    using limb_type = std::conditional<__unsigned, uint8_t, int8_t>::type;
+	    using limb_type = std::conditional<__unsigned, uint64_t, int64_t>::type;
 	    using S = _Xint64x2_t;
 	    using simd_type = S;
 
@@ -1617,28 +1616,27 @@ namespace cryptanalysislib {
 			__m128i v128;
 		};
 
-		[[nodiscard]] constexpr static inline _Xint64x2_t set1(uint64_t a) {
+		[[nodiscard]] constexpr static inline _Xint64x2_t set1(const limb_type a) {
 			_Xint64x2_t ret;
 			ret.v64[0] = a;
 			ret.v64[1] = a;
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _Xint64x2_t set(uint64_t a, uint64_t b) {
+		[[nodiscard]] constexpr static inline _Xint64x2_t set(const limb_type a, const limb_type b) {
 			_Xint64x2_t ret;
 			ret.v64[0] = b;
 			ret.v64[1] = a;
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _Xint64x2_t setr(uint64_t a, uint64_t b) {
+		[[nodiscard]] constexpr static inline _Xint64x2_t setr(const limb_type a, const limb_type b) {
 			_Xint64x2_t ret;
 			ret.v64[0] = a;
 			ret.v64[1] = b;
 			return ret;
 		}
 
-		///
 		/// \tparam aligned
 		/// \param ptr
 		/// \return
@@ -1651,7 +1649,6 @@ namespace cryptanalysislib {
 			return unaligned_load(ptr);
 		}
 
-		///
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint64x2_t aligned_load(const limb_type *ptr) noexcept {
@@ -1661,8 +1658,6 @@ namespace cryptanalysislib {
 			return out;
 		}
 
-
-		///
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint64x2_t unaligned_load(const limb_type *ptr) noexcept {
@@ -1673,18 +1668,35 @@ namespace cryptanalysislib {
 			return out;
 		}
 
-		///
 		/// \tparam aligned
 		/// \param ptr
 		/// \param in
 		template<const bool aligned = false>
-		constexpr static inline void store(void *ptr, const _Xint64x2_t in) noexcept {
+		constexpr static inline void store(limb_type *ptr,
+                                           const S in) noexcept {
 			if constexpr (aligned) {
 				aligned_store(ptr, in);
 				return;
 			}
 
 			unaligned_store(ptr, in);
+		}
+
+		/// \param ptr
+		/// \param in
+		constexpr static inline void aligned_store(limb_type *ptr,
+                                                   const S in) noexcept {
+			auto *ptr128 = (__m128i *) ptr;
+			*ptr128 = in.v128;
+		}
+
+		///
+		/// \param ptr
+		/// \param in
+		constexpr static inline void unaligned_store(limb_type *ptr,
+                                                     const S in) noexcept {
+			auto *ptr128 = (__m128i_u *) ptr;
+			::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 
         /// \param in1[in]: vector element
@@ -1724,7 +1736,7 @@ namespace cryptanalysislib {
 	                                                   const S in2) noexcept {
 	    	S out;
 #ifndef __clang__
-		    out.v128 = (__m128i) __builtin_ia32_andnotsi128((__v4di) in1.v128, (__v4di) in2.v128);
+		    out.v128 = _mm_andnot_si128(in1.v128, in2.v128);
 #else
 		    out.v128 = (__m128i) (~(V) in1.v128 & (V) in2.v128);
 #endif
@@ -2837,6 +2849,7 @@ struct Xint16x16_t {
 		return mullo(in1, rs);
 	}
 
+    /// TODO: https://stackoverflow.com/questions/16822757/sse-integer-division
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -2852,7 +2865,7 @@ struct Xint16x16_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
-	                                             const uint8_t in2) noexcept {
+	                                             const limb_type in2) noexcept {
 		assert(in2 <= 16);
 		const S mask = set1((1u << ((16u - in2) & 15u)) - 1u);
 		S out = S::and_(in1, mask);
@@ -2870,7 +2883,7 @@ struct Xint16x16_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
-	                                             const uint8_t in2) noexcept {
+	                                             const limb_type in2) noexcept {
 		assert(in2 <= 16);
 		const S mask = set1(~((1u << in2) - 1u));
 		S out;
@@ -2888,7 +2901,7 @@ struct Xint16x16_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S ror(const S in1,
-												const uint8_t in2) noexcept {
+												const limb_type in2) noexcept {
 		S out;
         out.v256 = _mm256_slli_epi16(in1.v256, 16u - in2) ^ _mm256_srli_epi16(in1.v256, in2);
 		return out;
@@ -2898,12 +2911,11 @@ struct Xint16x16_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S rol(const S in1,
-												const uint8_t in2) noexcept {
+												const limb_type in2) noexcept {
 		S out;
         out.v256 = _mm256_slli_epi16(in1.v256, in2) ^ _mm256_srli_epi16(in1.v256, 16u-in2);
 		return out;
 	}
-
 
 	/// \param in1
 	/// \param in2
@@ -2970,7 +2982,6 @@ struct Xint16x16_t {
 		return ret;
 	}
 
-	///
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
@@ -2978,6 +2989,22 @@ struct Xint16x16_t {
 		ret.v256 = popcount_avx2_16(in.v256);
 		return ret;
 	}
+	
+	/// \param in
+	/// \return
+    [[nodiscard]] constexpr static inline S clz(const S in) noexcept {
+		S ret;
+		// TODO
+		return ret;
+    }
+	
+    /// \param in
+	/// \return
+    [[nodiscard]] constexpr static inline S ctz(const S in) noexcept {
+		S ret;
+		// TODO
+		return ret;
+    }
 
 	/// checks if all bytes are equal
 	/// \param in
@@ -3015,7 +3042,12 @@ struct Xint16x16_t {
         return ret;
     }
 
-	///
+    ///
+	[[nodiscard]] constexpr static inline S conflict(const S in1) noexcept {
+		S ret;
+        return ret;
+    }
+
 	/// kmoves the msb into each bit
 	[[nodiscard]] constexpr static inline limb_type move(const S in) noexcept {
 		uint32_t t = _mm256_movemask_epi8(in.v256);
