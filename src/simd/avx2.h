@@ -160,7 +160,7 @@ namespace cryptanalysislib {
     template<const bool __unsigned=true>
 	struct _Xint8x16_t {
 		constexpr static uint32_t LIMBS = 16;
-		using limb_type = uint8_t;
+		using limb_type = std::conditional_t<__unsigned, uint8_t, int8_t>;
 	    using S = _Xint8x16_t;
         
         using V = std::conditional<__unsigned, __v16qu, __v16hi>::type;
