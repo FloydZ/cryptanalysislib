@@ -181,6 +181,23 @@ namespace cryptanalysislib {
 
 			__m128i v128;
 		};
+	    
+        [[nodiscard]] constexpr inline static size_t size() noexcept { 
+            return LIMBS; 
+        }
+
+	    [[nodiscard]] constexpr inline static bool is_unsigned() noexcept { 
+            return __unsigned; 
+        }
+        
+        constexpr inline S operator=(const _Xint16x8_t<> &b) noexcept;
+		constexpr inline S operator=(const _Xint32x4_t<> &b) noexcept;
+		constexpr inline S operator=(const _Xint64x2_t<> &b) noexcept;
+
+		constexpr _Xint8x16_t() = default;
+		constexpr _Xint8x16_t(const _Xint16x8_t<> &b) noexcept;
+		constexpr _Xint8x16_t(const _Xint32x4_t<> &b) noexcept;
+		constexpr _Xint8x16_t(const _Xint64x2_t<> &b) noexcept;
 
         /// \param i[in]: position of the limb to return
         /// \return __m256i[i]
@@ -196,15 +213,6 @@ namespace cryptanalysislib {
 			return d[i];
 		}
 		
-        constexpr inline S operator=(const _Xint16x8_t<> &b) noexcept;
-		constexpr inline S operator=(const _Xint32x4_t<> &b) noexcept;
-		constexpr inline S operator=(const _Xint64x2_t<> &b) noexcept;
-
-		constexpr _Xint8x16_t() = default;
-		constexpr _Xint8x16_t(const _Xint16x8_t<> &b) noexcept;
-		constexpr _Xint8x16_t(const _Xint32x4_t<> &b) noexcept;
-		constexpr _Xint8x16_t(const _Xint64x2_t<> &b) noexcept;
-
 		/// \return random element
 		static inline S random() noexcept {
 			S ret;
@@ -587,7 +595,7 @@ namespace cryptanalysislib {
         /// \param data[in]:
         /// \return
 	    template<const uint32_t scale = 1>
-	    [[nodiscard]] constexpr static inline S gather(const void *ptr,
+	    [[nodiscard]] constexpr static inline S gather(const limb_type *ptr,
 	    											   const S data) noexcept {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 	    	S ret;
@@ -605,7 +613,7 @@ namespace cryptanalysislib {
         /// \param data[in]:
         /// \return
 	    template<const uint32_t scale = 1>
-	    constexpr static inline void scatter(const void *ptr,
+	    constexpr static inline void scatter(const limb_type *ptr,
 	    									 const S offset,
 	    									 const S data) noexcept {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
