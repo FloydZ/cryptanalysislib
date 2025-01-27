@@ -202,7 +202,7 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
-		[[nodiscard]] constexpr static inline _Xint8x16_t set1(const uint8_t i) noexcept {
+		[[nodiscard]] constexpr static inline _Xint8x16_t set1(const limb_type i) noexcept {
 			_Xint8x16_t ret;
 			for (uint32_t j = 0; j < 16u; ++j) {
 				ret.v8[j] = i;
@@ -231,10 +231,10 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _Xint8x16_t set(
-				uint8_t a, uint8_t b, uint8_t c, uint8_t d,
-				uint8_t e, uint8_t f, uint8_t g, uint8_t h,
-				uint8_t i, uint8_t j, uint8_t k, uint8_t l,
-				uint8_t m, uint8_t n, uint8_t o, uint8_t p
+				const limb_type a, const limb_type b, const limb_type c, const limb_type d,
+				const limb_type e, const limb_type f, const limb_type g, const limb_type h,
+				const limb_type i, const limb_type j, const limb_type k, const limb_type l,
+				const limb_type m, const limb_type n, const limb_type o, const limb_type p
 		) noexcept {
 			_Xint8x16_t ret;
 			ret.v8[ 0] = p;
@@ -257,10 +257,10 @@ namespace cryptanalysislib {
 		}
 
 		[[nodiscard]] constexpr static inline _Xint8x16_t setr(
-				uint8_t a, uint8_t b, uint8_t c, uint8_t d,
-				uint8_t e, uint8_t f, uint8_t g, uint8_t h,
-				uint8_t i, uint8_t j, uint8_t k, uint8_t l,
-				uint8_t m, uint8_t n, uint8_t o, uint8_t p
+				const limb_type a, const limb_type b, const limb_type c, const limb_type d,
+				const limb_type e, const limb_type f, const limb_type g, const limb_type h,
+				const limb_type i, const limb_type j, const limb_type k, const limb_type l,
+				const limb_type m, const limb_type n, const limb_type o, const limb_type p
 		) noexcept {
 			_Xint8x16_t ret;
 			ret.v8[ 0] = a;
@@ -309,7 +309,6 @@ namespace cryptanalysislib {
 			return out;
 		}
 
-
 		///
 		/// \param ptr
 		/// \return
@@ -325,7 +324,8 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \param in
 		template<const bool aligned = false>
-		constexpr static inline void store(void *ptr, const _Xint8x16_t in) noexcept {
+		constexpr static inline void store(void *ptr,
+										   const _Xint8x16_t in) noexcept {
 			if constexpr (aligned) {
 				aligned_store(ptr, in);
 				return;
@@ -337,7 +337,8 @@ namespace cryptanalysislib {
 		///
 		/// \param ptr
 		/// \param in
-		constexpr static inline void aligned_store(void *ptr, const _Xint8x16_t in) noexcept {
+		constexpr static inline void aligned_store(void *ptr,
+												   const _Xint8x16_t in) noexcept {
 			auto *ptr128 = (uint8x16_t *) ptr;
 			*ptr128 = in.v128;
 		}
@@ -345,9 +346,201 @@ namespace cryptanalysislib {
 		///
 		/// \param ptr
 		/// \param in
-		constexpr static inline void unaligned_store(void *ptr, const _Xint8x16_t in) noexcept {
+		constexpr static inline void unaligned_store(void *ptr,
+													 const _Xint8x16_t in) noexcept {
 			auto *ptr128 = (uint8x16_t *) ptr;
 			*ptr128 = in.v128;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 ^ in2
+	    [[nodiscard]] constexpr static inline S xor_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+        		out.v128 = veorq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = veorq_s8(in1.v128, in2.v128);
+        	}
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 & in2
+	    [[nodiscard]] constexpr static inline S and_(const S in1,
+	                                                 const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+        		out.v128 = vandq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vandq_s8(in1.v128, in2.v128);
+        	}
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 | in2
+	    [[nodiscard]] constexpr static inline S or_(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+        		out.v128 = vorrq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vorrq_u8(in1.v128, in2.v128);
+        	}
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return (~in1) & in2
+	    [[nodiscard]] constexpr static inline S andnot(const S in1,
+	                                                   const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+        		out.v128 = vandq_u8(vmvnq_u8(in1.v128), in2.v128);
+        	} else {
+        		out.v128 = vandq_u8(vmvnq_u8(in1.v128), in2.v128);
+        	}
+			return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \return ~in1
+	    [[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
+	    	S out;
+        	out.v128 = ~in1.v128;
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 + in2
+	    [[nodiscard]] constexpr static inline S add(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+        		out.v128 = vaddq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vaddq_s8(in1.v128, in2.v128);
+        	}
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 - in2
+	    [[nodiscard]] constexpr static inline S sub(const S in1,
+	                                                const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+        		out.v128 = vsubq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vsubq_s8(in1.v128, in2.v128);
+        	}
+	    	return out;
+	    }
+
+	    /// 8 bit mul lo
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1*in2
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const S in2) noexcept {
+		    S out;
+        	if constexpr (__unsigned) {
+        		out.v128 = vmulq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vmulq_s8(in1.v128, in2.v128);
+        	}
+		    return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return
+	    [[nodiscard]] constexpr static inline S mullo(const S in1,
+	                                                  const limb_type in2) noexcept {
+        	S out;
+        	if constexpr (__unsigned) {
+        		out.v128 = vmulq_n_u8(in1.v128, in2);
+        	} else {
+        		out.v128 = vmulq_n_s8(in1.v128, in2);
+        	}
+        	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return TODO optimize
+	    [[nodiscard]] constexpr static inline S div(const S in1,
+	                                                const limb_type in2) noexcept {
+            S out;
+            for (uint32_t i = 0; i < LIMBS; i++) {
+                out[i] = in1[i] / in2;
+            }
+            return out;
+        }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 << in2
+	    [[nodiscard]] constexpr static inline S slli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+	    	S out;
+        	out.v128 = vshlq_n_u8(in1.v128, in2);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >> in2
+	    [[nodiscard]] constexpr static inline S srli(const S in1,
+	                                                 const limb_type in2) noexcept {
+	    	assert(in2 <= 8);
+        	S out;
+        	out.v128 = vshrq_n_u8(in1.v128, in2);
+	    	return out;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return in1 >>> in2 uncompressed
+	    [[nodiscard]] constexpr static inline S ror(const S in1,
+	                                                 const uint8_t in2) noexcept {
+
+	    	S out;
+        	out.v128 = vrshrq_n_s8(in1.v128, in2);
+	    	return out;
+
+        }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return in1 >>> in2 uncompressed
+	    [[nodiscard]] constexpr static inline S rol(const S in1,
+	                                                 const uint8_t in2) noexcept {
+	    	S out;
+        	out.v128 = vrshrq_n_s8(in1.v128, in2);
+	    	return out;
+        }
+
+		/// \param in1
+		/// \param in2
+		/// \return in1 > in2 uncompressed
+		[[nodiscard]] constexpr static inline S gt_(const S in1,
+													const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+				out.v128 = vcgtq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vcgtq_s8(in1.v128, in2.v128);
+        	}
+        	return out;
 		}
 
 		/// \param in1
@@ -355,8 +548,25 @@ namespace cryptanalysislib {
 		/// \return in1 > in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t gt(const _Xint8x16_t in1,
 													 	  const _Xint8x16_t in2) noexcept {
-			uint8x16_t tmp = vcgtq_u8(in1.v128, in2.v128);
-            return _mm_movemask_epi8(tmp);
+        	if constexpr (__unsigned) {
+				return _mm_movemask_epi8(vcgtq_u8(in1.v128, in2.v128));
+        	} else {
+				return _mm_movemask_epi8(vcgtq_s8(in1.v128, in2.v128));
+        	}
+		}
+
+		/// \param in1
+		/// \param in2
+		/// \return in1 < in2 uncompressed
+		[[nodiscard]] constexpr static inline S lt_(const S in1,
+													const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+				out.v128 = vcltq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vcltq_s8(in1.v128, in2.v128);
+        	}
+        	return out;
 		}
 
 		/// NOTE: signed comparison
@@ -365,9 +575,25 @@ namespace cryptanalysislib {
 		/// \return in1 > in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t lt(const _Xint8x16_t in1,
 													      const _Xint8x16_t in2) noexcept {
+        	if constexpr (__unsigned) {
+				return _mm_movemask_epi8(vcltq_u8(in1.v128, in2.v128));
+        	} else {
+				return _mm_movemask_epi8(vcltq_s8(in1.v128, in2.v128));
+        	}
+		}
 
-			uint8x16_t tmp = vcltq_u8(in1.v128, in2.v128);
-            return _mm_movemask_epi8(tmp);
+		/// \param in1
+		/// \param in2
+		/// \return in1 == in2 ucompressed
+		[[nodiscard]] constexpr static inline S cmp_(const S in1,
+													const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+				out.v128 = vceqq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vceqq_s8(in1.v128, in2.v128);
+        	}
+        	return out;
 		}
 
 		///
@@ -376,9 +602,107 @@ namespace cryptanalysislib {
 		/// \return in1 == in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t cmp(const _Xint8x16_t in1,
 		                                                   const _Xint8x16_t in2) noexcept {
-			uint8x16_t tmp = vceqq_u8(in1.v128, in2.v128);
-            return _mm_movemask_epi8(tmp);
+        	if constexpr (__unsigned) {
+				return _mm_movemask_epi8(vceqq_u8(in1.v128, in2.v128));
+        	} else {
+				return _mm_movemask_epi8(vceqq_s8(in1.v128, in2.v128));
+        	}
 		}
+
+
+	    /// \param in[in]: vector element
+		/// \return [popcnt(in[0]), ..., popcnt(in[7])]
+	    [[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
+	    	S ret;
+        	if constexpr (__unsigned) {
+        		ret.v128 = vcntq_u8(in.v128);
+        	} else {
+        		ret.v128 = vcntq_s8(in.v128);
+        	}
+	    	return ret;
+	    }
+
+	    [[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+        	// TODO
+        	return 0;
+        }
+
+        // just shuffle the 16 u8 elements
+	    [[nodiscard]] constexpr static inline S reverse(const S in) noexcept {
+	    	S ret;
+        	if constexpr (__unsigned) {
+        		ret.v128 = vrbitq_u8(in.v128);
+        	} else {
+        		ret.v128 = vrbitq_u8(in.v128);
+        	}
+	    	return ret;
+        }
+
+	    /// kmoves the msb into each bit
+	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+        	return _mm_movemask_epi8(in.v128);
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    [[nodiscard]] constexpr static inline S gather(const limb_type *ptr,
+	    											   const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	S ret;
+
+	    	const uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
+	    		ret.d[i] = ptr8[data.d[i] * scale];
+	    	}
+	    	return ret;
+	    }
+
+        /// \tparam scale[in]:
+        /// \param ptr[in]:
+        /// \param offset[in]:
+        /// \param data[in]:
+        /// \return
+	    template<const uint32_t scale = 1>
+	    constexpr static inline void scatter(const limb_type *ptr,
+	    									 const S offset,
+	    									 const S data) noexcept {
+	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+	    	uint8_t *ptr8 = (uint8_t *) ptr;
+	    	for (uint32_t i = 0; i < 8; i++) {
+	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
+	    	}
+	    }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [min(a[0], b[0]), ..., min(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S min(const S a,
+                                                    const S b) noexcept {
+            S c;
+        	if constexpr (__unsigned) {
+        		c.v128 = vminq_u8(a.v128, b.v128);
+        	} else {
+        		c.v128 = vminq_s8(a.v128, b.v128);
+        	}
+            return c;
+        }
+
+	    /// \param a[in]:
+	    /// \param b[in]:
+	    /// \return [max(a[0], b[0]), ..., max(a[7], b[7])]
+	    [[nodiscard]] constexpr static inline S max(const S a,
+                                                    const S b) noexcept {
+            S c;
+        	if constexpr (__unsigned) {
+        		c.v128 = vmaxq_u8(a.v128, b.v128);
+        	} else {
+        		c.v128 = vmaxq_s8(a.v128, b.v128);
+        	}
+            return c;
+        }
 	};
 
     template<const bool __unsigned>
@@ -1354,6 +1678,30 @@ struct Xint8x32_t {
 		return out;
 	}
 
+	/// \param in1[in]: vector element
+	/// \param in2[in]:
+	/// \return in1 >>> in2 uncompressed
+	[[nodiscard]] constexpr static inline S ror(const S in1,
+	                                             const uint8_t in2) noexcept {
+
+		S out;
+    	out.v128[0] = vrshrq_n_u8(in1.v128[0], in2);
+    	out.v128[1] = vrshrq_n_u8(in1.v128[1], in2);
+		return out;
+
+    }
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]:
+	/// \return in1 >>> in2 uncompressed
+	[[nodiscard]] constexpr static inline S rol(const S in1,
+	                                             const uint8_t in2) noexcept {
+		S out;
+    	out.v128[0] = vrshrq_n_u8(in1.v128[0], in2);
+    	out.v128[1] = vrshrq_n_u8(in1.v128[1], in2);
+		return out;
+    }
+
 	[[nodiscard]] constexpr static inline uint32_t gt(const S in1,
 	                                                  const S in2) noexcept {
 		uint32_t ret = 0;
@@ -1676,7 +2024,7 @@ struct Xint16x16_t {
 	/// \param ptr
 	/// \return
 	constexpr static inline S unaligned_load(const uint16_t *ptr) noexcept {
-		if constexpr (std::is_constant_evaluated()) {
+		if (std::is_constant_evaluated()) {
 			S out;
 			out.v128[0] = u16tom128(ptr + 0);
 			out.v128[1] = u16tom128(ptr + 8);
@@ -1910,6 +2258,30 @@ struct Xint16x16_t {
 
 		return out;
 	}
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]:
+	/// \return in1 >>> in2 uncompressed
+	[[nodiscard]] constexpr static inline S ror(const S in1,
+	                                             const uint8_t in2) noexcept {
+
+		S out;
+    	out.v128[0] = vrshrq_n_u16(in1.v128[0], in2);
+    	out.v128[1] = vrshrq_n_u16(in1.v128[1], in2);
+		return out;
+
+    }
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]:
+	/// \return in1 >>> in2 uncompressed
+	[[nodiscard]] constexpr static inline S rol(const S in1,
+	                                             const uint8_t in2) noexcept {
+		S out;
+    	out.v128[0] = vrshrq_n_u16(in1.v128[0], in2);
+    	out.v128[1] = vrshrq_n_u16(in1.v128[1], in2);
+		return out;
+    }
 
 	constexpr static inline int gt(const S in1,
 								   const S in2) noexcept {
@@ -2473,6 +2845,28 @@ struct Xint32x8_t {
 		return out;
 	}
 
+	/// \param in1[in]: vector element
+	/// \param in2[in]:
+	/// \return in1 >>> in2 uncompressed
+	[[nodiscard]] constexpr static inline S ror(const S in1,
+	                                             const uint8_t in2) noexcept {
+		S out;
+    	out.v128[0] = vrshrq_n_u32(in1.v128[0], in2);
+    	out.v128[1] = vrshrq_n_u32(in1.v128[1], in2);
+		return out;
+
+    }
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]:
+	/// \return in1 >>> in2 uncompressed
+	[[nodiscard]] constexpr static inline S rol(const S in1,
+	                                             const uint8_t in2) noexcept {
+		S out;
+    	out.v128[0] = vrshrq_n_u32(in1.v128[0], in2);
+    	out.v128[1] = vrshrq_n_u32(in1.v128[1], in2);
+		return out;
+    }
 
 	constexpr static inline int gt(const S in1,
                                    const S in2) noexcept {
@@ -3035,6 +3429,29 @@ struct Xint64x4_t {
 		return out;
 	}
 
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]:
+	/// \return in1 >>> in2 uncompressed
+	[[nodiscard]] constexpr static inline S ror(const S in1,
+	                                             const uint8_t in2) noexcept {
+		S out;
+    	out.v128[0] = vrshrq_n_u64(in1.v128[0], in2);
+    	out.v128[1] = vrshrq_n_u64(in1.v128[1], in2);
+		return out;
+
+    }
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]:
+	/// \return in1 >>> in2 uncompressed
+	[[nodiscard]] constexpr static inline S rol(const S in1,
+	                                             const uint8_t in2) noexcept {
+		S out;
+    	out.v128[0] = vrshrq_n_u64(in1.v128[0], in2);
+    	out.v128[1] = vrshrq_n_u64(in1.v128[1], in2);
+		return out;
+    }
 	///
 	/// \param in1
 	/// \param in2
