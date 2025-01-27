@@ -21,7 +21,7 @@ TEST(count, int_) {
     std::fill(in.begin(), in.end(), 1);
 
     const auto d = cryptanalysislib::count(in.begin(), in.end(), 1);
-    EXPECT_EQ(d, s);
+    EXPECT_EQ((size_t)d, s);
 }
 
 TEST(count, uint32_simd) {

@@ -18,10 +18,10 @@ TEST(accumulate, int_) {
     constexpr static size_t s = 100;
     using T = int;
     std::vector<T> in; in.resize(s);
-    std::fill(in.begin(), in.end(), 1);
+    std::fill(in.begin(), in.end(), (T)1);
 
     const auto d = cryptanalysislib::accumulate(in.begin(), in.end(), 0);
-    EXPECT_EQ(d, s);
+    EXPECT_EQ((size_t)d, s);
 }
 
 TEST(accumulate, int_simd_plus) {

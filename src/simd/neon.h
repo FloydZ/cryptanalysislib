@@ -491,8 +491,8 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S slli(const S in1,
 	                                                 const limb_type in2) noexcept {
 	    	assert(in2 <= 8);
-	    	S out;
-        	out.v128 = vshlq_n_u8(in1.v128, in2);
+	    	S out, t = S::set1(in2);
+        	out.v128 = vshlq_u8(in1.v128, t.v128);
 	    	return out;
 	    }
 
@@ -502,8 +502,8 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S srli(const S in1,
 	                                                 const limb_type in2) noexcept {
 	    	assert(in2 <= 8);
-        	S out;
-        	out.v128 = vshrq_n_u8(in1.v128, in2);
+        	S out, t = S::set1(in2);
+        	out.v128 = vshlq_u8(in1.v128, t.v128);
 	    	return out;
 	    }
 
@@ -513,10 +513,9 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S ror(const S in1,
 	                                                 const limb_type in2) noexcept {
 
-	    	S out, t = S::set1(in2);
-        	// TODO out.v128 = vrshrq_s8(in1.v128, t.v128);
+	    	S out, t1 = S::set1(-in2), t2 = S::set1(8- in2);
+			out.v128 = vshlq_u8(in1.v128, t1.v128) ^ (vshlq_u8(in1.v128, t2.v128));
 	    	return out;
-
         }
 
 	    /// \param in1[in]: vector element
@@ -525,7 +524,8 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S rol(const S in1,
 	                                                 const uint8_t in2) noexcept {
 	    	S out;
-        	// TODO out.v128 = vrshrq_n_s8(in1.v128, in2);
+			(void)in1;
+			(void)in2;
 	    	return out;
         }
 
@@ -624,6 +624,7 @@ namespace cryptanalysislib {
 
 	    [[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
         	// TODO
+			(void)in;
         	return 0;
         }
 
@@ -1223,13 +1224,23 @@ constexpr static uint64x2_t u64tom128(const uint64_t t[2]) noexcept {
 	return tmp;
 }
 
+// Shuffle packed 8-bit integers in a according to shuffle control mask in the
+// corresponding 8-bit element of b, and store the results in dst.
+// https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_shuffle_epi8
+uint8x16_t shuffle_epi8(uint8x16_t a, uint8x16_t b) {
+	int8x16_t tbl = a;
+	uint8x16_t idx = b;
+	uint8x16_t idx_masked =  vandq_u8(idx, vdupq_n_u8(0x8F));  // avoid using meaningless bits
+	return vqtbl1q_s8(tbl, idx_masked);
+}
+
 // implementation of `_mm_shuffle_epi16`
 inline uint16x8_t shuffle_epi16(const uint16x8_t a,
 								const uint16x8_t b) {
     const uint16x8_t tmp = b*2;
     const uint16x8_t s  = tmp ^ vshlq_n_u16(tmp, 8);
     const uint16x8_t ss = vaddq_u16(s, vdupq_n_u16(0x100));
-    return ss; // TODO shuffle_epi8(a, ss);
+    return shuffle_epi8(a, ss);
 }
 
 ///
@@ -1685,6 +1696,8 @@ struct Xint8x32_t {
 	                                             const uint8_t in2) noexcept {
 
 		S out;
+		(void)in1;
+		(void)in2;
     	// out.v128[0] = vrshrq_n_u8(in1.v128[0], in2);
     	// out.v128[1] = vrshrq_n_u8(in1.v128[1], in2);
 		return out;
@@ -1697,6 +1710,8 @@ struct Xint8x32_t {
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;// TODO
+		(void)in1;
+		(void)in2;
     	// out.v128[0] = vrshrq_n_u8(in1.v128[0], in2);
     	// out.v128[1] = vrshrq_n_u8(in1.v128[1], in2);
 		return out;
@@ -2266,6 +2281,8 @@ struct Xint16x16_t {
 	                                             const uint8_t in2) noexcept {
 
 		S out;
+		(void)in1;
+		(void)in2;
     	// out.v128[0] = vrshrq_n_u16(in1.v128[0], in2);
     	// out.v128[1] = vrshrq_n_u16(in1.v128[1], in2);
 		return out;
@@ -2278,6 +2295,8 @@ struct Xint16x16_t {
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
+		(void)in1;
+		(void)in2;
     	// out.v128[0] = vrshrq_n_u16(in1.v128[0], in2);
     	// out.v128[1] = vrshrq_n_u16(in1.v128[1], in2);
 		return out;
@@ -2851,6 +2870,8 @@ struct Xint32x8_t {
 	[[nodiscard]] constexpr static inline S ror(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
+		(void)in1;
+		(void)in2;
     	// out.v128[0] = vrshrq_n_u32(in1.v128[0], in2);
     	// out.v128[1] = vrshrq_n_u32(in1.v128[1], in2);
 		return out;
@@ -2863,6 +2884,8 @@ struct Xint32x8_t {
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
+		(void)in1;
+		(void)in2;
     	// out.v128[0] = vrshrq_n_u32(in1.v128[0], in2);
     	// out.v128[1] = vrshrq_n_u32(in1.v128[1], in2);
 		return out;
@@ -3049,21 +3072,23 @@ struct Xint32x8_t {
 		return out;
 	}
 
-	/// TODO implement everywhere
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline S min(const S a,
                                                 const S b) noexcept {
         S c;
+		c.v128[0] = vminq_u32(a.v128[0], b.v128[0]);
+		c.v128[1] = vminq_u32(a.v128[1], b.v128[1]);
         return c;
     }
 
-	/// TODO implement everywhere
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline S max(const S a,
                                                 const S b) noexcept {
         S c;
+		c.v128[0] = vmaxq_u32(a.v128[0], b.v128[0]);
+		c.v128[1] = vmaxq_u32(a.v128[1], b.v128[1]);
         return c;
     }
 };
@@ -3436,6 +3461,8 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S ror(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
+		(void)in1;
+		(void)in2;
     	// out.v128[0] = vrshrq_n_u64(in1.v128[0], in2);
     	// out.v128[1] = vrshrq_n_u64(in1.v128[1], in2);
 		return out;
@@ -3448,6 +3475,8 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
+		(void)in1;
+		(void)in2;
     	//out.v128[0] = vrshrq_n_u64(in1.v128[0], in2);
     	//out.v128[1] = vrshrq_n_u64(in1.v128[1], in2);
 		return out;//
@@ -3655,15 +3684,10 @@ struct Xint64x4_t {
 		const cryptanalysislib::_Xint16x8_t<__unsigned> mask = cryptanalysislib::_Xint16x8_t<__unsigned>::set1(0xff);
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
 			const uint16x8_t tmp1 = (uint16x8_t) vcntq_u8((uint8x16_t) in.v128[i]);
 			const uint16x8_t tmp2 = vaddq_u16(vshrq_n_u16(tmp1, 8), vandq_u16(tmp1, mask.v128));
 			const uint32x4_t tmp3 = vaddq_u32(vshrq_n_u32((uint32x4_t) tmp2, 16), (uint32x4_t) tmp2);
 			ret.v128[i] = vaddq_u64(vshrq_n_u64((uint64x2_t) tmp3, 32), (uint64x2_t) tmp3);
-#else
-			// TODO
-			assert(false);
-#endif
 		}
 		return ret;
 	}

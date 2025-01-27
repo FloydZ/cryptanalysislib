@@ -50,7 +50,7 @@ public:
 
 		std::cout << a << std::endl;
 		std::cout << b << std::endl;
-
+		return true;
 	}
 };
 #endif

@@ -22,7 +22,7 @@ TEST(reduce, int_) {
     std::fill(in.begin(), in.end(), 1);
 
     const auto d = cryptanalysislib::reduce(in.begin(), in.end(), 1);
-    EXPECT_EQ(d, s+1);
+    EXPECT_EQ((size_t)d, s+1);
 }
 
 TEST(reduce, int_multithreading) {

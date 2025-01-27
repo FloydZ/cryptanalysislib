@@ -14,14 +14,13 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 using namespace cryptanalysislib;
 
-
 TEST(argmin, simd_uint32_t) {
 	constexpr size_t s = 100;
 	auto d = new uint32_t [s];
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = argmin_simd_u32(d, s);
-	EXPECT_EQ(t, 0);
+	EXPECT_EQ(t, 0u);
 
 
 	for (size_t i = 0; i < s; ++i) { d[i] = rng(1, 38475983); }
@@ -39,7 +38,7 @@ TEST(argmin, simd_uint32_t_bl16) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = argmin_simd_u32_bl16(d, s);
-	EXPECT_EQ(t, 0);
+	EXPECT_EQ(t, 0u);
 
 	for (size_t i = 0; i < s; ++i) { d[i] = rng(1, 38475983); }
     const size_t pos = rng(s);

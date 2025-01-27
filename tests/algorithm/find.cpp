@@ -24,7 +24,7 @@ TEST(find, int_) {
 
 	const auto r2 = cryptanalysislib::find(in.begin(), in.end(), 0);
 	const auto t2 = std::distance(in.begin(), r2);
-	EXPECT_EQ(t2, s);
+	EXPECT_EQ((size_t)t2, s);
 }
 
 TEST(find, int_simd_) {
@@ -33,7 +33,7 @@ TEST(find, int_simd_) {
     std::vector<T> in; in.resize(s);
 	std::fill(in.begin(), in.end(), 1);
 	const auto t1 = cryptanalysislib::internal::find_uXX_simd<T>(in.data(), s, 1);
-	EXPECT_EQ(t1, 0);
+	EXPECT_EQ(t1, (T)0);
 
 	const auto t2 = cryptanalysislib::internal::find_uXX_simd<T>(in.data(), s, 0);
 	EXPECT_EQ(t2, s);
