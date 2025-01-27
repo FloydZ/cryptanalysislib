@@ -511,10 +511,10 @@ namespace cryptanalysislib {
 	    /// \param in2[in]:
 	    /// \return in1 >>> in2 uncompressed
 	    [[nodiscard]] constexpr static inline S ror(const S in1,
-	                                                 const uint8_t in2) noexcept {
+	                                                 const limb_type in2) noexcept {
 
-	    	S out;
-        	out.v128 = vrshrq_n_s8(in1.v128, in2);
+	    	S out, t = S::set1(in2);
+        	// TODO out.v128 = vrshrq_s8(in1.v128, t.v128);
 	    	return out;
 
         }
@@ -525,7 +525,7 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S rol(const S in1,
 	                                                 const uint8_t in2) noexcept {
 	    	S out;
-        	out.v128 = vrshrq_n_s8(in1.v128, in2);
+        	// TODO out.v128 = vrshrq_n_s8(in1.v128, in2);
 	    	return out;
         }
 
@@ -1685,8 +1685,8 @@ struct Xint8x32_t {
 	                                             const uint8_t in2) noexcept {
 
 		S out;
-    	out.v128[0] = vrshrq_n_u8(in1.v128[0], in2);
-    	out.v128[1] = vrshrq_n_u8(in1.v128[1], in2);
+    	// out.v128[0] = vrshrq_n_u8(in1.v128[0], in2);
+    	// out.v128[1] = vrshrq_n_u8(in1.v128[1], in2);
 		return out;
 
     }
@@ -1696,9 +1696,9 @@ struct Xint8x32_t {
 	/// \return in1 >>> in2 uncompressed
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 	                                             const uint8_t in2) noexcept {
-		S out;
-    	out.v128[0] = vrshrq_n_u8(in1.v128[0], in2);
-    	out.v128[1] = vrshrq_n_u8(in1.v128[1], in2);
+		S out;// TODO
+    	// out.v128[0] = vrshrq_n_u8(in1.v128[0], in2);
+    	// out.v128[1] = vrshrq_n_u8(in1.v128[1], in2);
 		return out;
     }
 
@@ -2266,8 +2266,8 @@ struct Xint16x16_t {
 	                                             const uint8_t in2) noexcept {
 
 		S out;
-    	out.v128[0] = vrshrq_n_u16(in1.v128[0], in2);
-    	out.v128[1] = vrshrq_n_u16(in1.v128[1], in2);
+    	// out.v128[0] = vrshrq_n_u16(in1.v128[0], in2);
+    	// out.v128[1] = vrshrq_n_u16(in1.v128[1], in2);
 		return out;
 
     }
@@ -2278,8 +2278,8 @@ struct Xint16x16_t {
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
-    	out.v128[0] = vrshrq_n_u16(in1.v128[0], in2);
-    	out.v128[1] = vrshrq_n_u16(in1.v128[1], in2);
+    	// out.v128[0] = vrshrq_n_u16(in1.v128[0], in2);
+    	// out.v128[1] = vrshrq_n_u16(in1.v128[1], in2);
 		return out;
     }
 
@@ -2851,8 +2851,8 @@ struct Xint32x8_t {
 	[[nodiscard]] constexpr static inline S ror(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
-    	out.v128[0] = vrshrq_n_u32(in1.v128[0], in2);
-    	out.v128[1] = vrshrq_n_u32(in1.v128[1], in2);
+    	// out.v128[0] = vrshrq_n_u32(in1.v128[0], in2);
+    	// out.v128[1] = vrshrq_n_u32(in1.v128[1], in2);
 		return out;
 
     }
@@ -2863,8 +2863,8 @@ struct Xint32x8_t {
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
-    	out.v128[0] = vrshrq_n_u32(in1.v128[0], in2);
-    	out.v128[1] = vrshrq_n_u32(in1.v128[1], in2);
+    	// out.v128[0] = vrshrq_n_u32(in1.v128[0], in2);
+    	// out.v128[1] = vrshrq_n_u32(in1.v128[1], in2);
 		return out;
     }
 
@@ -3436,8 +3436,8 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S ror(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
-    	out.v128[0] = vrshrq_n_u64(in1.v128[0], in2);
-    	out.v128[1] = vrshrq_n_u64(in1.v128[1], in2);
+    	// out.v128[0] = vrshrq_n_u64(in1.v128[0], in2);
+    	// out.v128[1] = vrshrq_n_u64(in1.v128[1], in2);
 		return out;
 
     }
@@ -3448,9 +3448,9 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 	                                             const uint8_t in2) noexcept {
 		S out;
-    	out.v128[0] = vrshrq_n_u64(in1.v128[0], in2);
-    	out.v128[1] = vrshrq_n_u64(in1.v128[1], in2);
-		return out;
+    	//out.v128[0] = vrshrq_n_u64(in1.v128[0], in2);
+    	//out.v128[1] = vrshrq_n_u64(in1.v128[1], in2);
+		return out;//
     }
 	///
 	/// \param in1

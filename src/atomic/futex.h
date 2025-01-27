@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_FUTEX_H
 #define CRYPTANALYSISLIB_FUTEX_H
 
+#ifndef __APPLE__
 #include <errno.h>
 #include <sys/syscall.h>
 #include <linux/futex.h>
@@ -186,3 +187,5 @@ namespace cryptanalysislib::atomic {
 	};
 } // end namespace cryptanalysislib
 #endif//CRYPTANALYSISLIB_FUTEX_H
+
+#endif

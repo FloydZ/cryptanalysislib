@@ -178,7 +178,7 @@ concept ListAble = requires(List l) {
 
 template<class List>
 #if __cplusplus > 201709L
-	//requires ListAble<List>
+	// TODO requires ListAble<List>
 #endif
 class Listview_t {
 private:
@@ -366,7 +366,7 @@ public:
 		out.set_thread_block_size(in.thread_block_size());
 
 		const std::size_t s = tid * in.threads();
-		const std::size_t c = ((tid == in.threads - 1) ? in.thread_block : in.nr_elements - (in.threads - 1) * in.thread_block);
+		const std::size_t c = ((tid == in.__threads - 1) ? in.__thread_block_size : in.__size - (in.__threads - 1) * in.__thread_block_size);
 		memcpy(out.__data.data() + s, in.__data.data() + s, c * sizeof(ValueType));
 	}
 

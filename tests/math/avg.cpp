@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "math/avg.h"
+#include "math/math.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
