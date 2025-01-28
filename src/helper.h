@@ -289,9 +289,7 @@ static void ident() {
 #ifdef USE_BRANCH_PREDICTION
 	std::cout << "DEFINED USE_BRANCH_PREDICTION" << std::endl;
 #endif
-
-	/// TODO update once it is ready
-	std::cout << "cryptanalysislib 0.0.1" << std::endl;
+	std::cout << "cryptanalysislib 1.0.0" << std::endl;
 }
 
 /// \tparam T[]
@@ -300,7 +298,7 @@ static void ident() {
 /// \return if the pointer is correctly aligne
 template<typename T>
 constexpr static inline bool is_aligned(const T *ptr,
-										const uint32_t alignment) {
+										const uint32_t alignment) noexcept {
 	return (((uintptr_t)ptr) % alignment) == 0;
 }
 

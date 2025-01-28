@@ -22,7 +22,7 @@
 /// unsorted single-linked list
 /// \tparam T
 template<typename T,
-		 class Allocator = cryptanalysislib::alloc::allocator,
+         template<class N> class Allocator = cryptanalysislib::allocator>
          class A = std::atomic<T>>
 class ConstFreeList {
 private:

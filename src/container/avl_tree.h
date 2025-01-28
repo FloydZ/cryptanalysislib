@@ -14,14 +14,16 @@
 #include <utility>
 
 #include "reflection/reflection.h"
+#include "alloc/alloc.h"
 
 
 struct AvlTreeConfig : public AlignmentConfig {
 };
 constexpr static AvlTreeConfig avlTreeConfig;
 
-/// TODO allocator class 
+/// TODO use allocator class 
 template <typename E,
+          template<class N> class Allocator = cryptanalysislib::allocator,
 		  const AvlTreeConfig &config=avlTreeConfig>
 class AvlTreeList final {
 	private:

@@ -58,12 +58,7 @@ public:
 
 	//using T = TypeTemplate<q>;
 	using T2 = TypeTemplate<__uint128_t(q) * __uint128_t(q)>;
-
-#ifdef USE_AVX512F
-	using S = TxN_t<T, 64u / sizeof(T)>;
-#else
-	using S = TxN_t<T, 32u / sizeof(T)>;
-#endif
+	using S = SIMDSelector<T>;
 
 	// this is needed to make sure that we have enough `bits` in reserve to
 	// correctly compute the multiplication.

@@ -3,13 +3,17 @@
 #include <vector>
 #include <cstdint>
 #include <cmath>
+#include "alloc/alloc.h"
 
 #define INC(c) ((c) == K - 1 ? 0 : (c) + 1)
 
-template<int K>
+template<const int K,
+         typename D = double,
+         template<class N> class Allocator = cryptanalysislib::allocator>
 struct kd_tree {
-    using D = double;
     constexpr static D EPS = 1e-5;
+
+
 	struct pt {
 		D coord[K];
 		pt() {}
@@ -75,6 +79,7 @@ struct kd_tree {
 	kd_tree(std::vector<pt> pts) {
 		root = construct(pts, 0, size(pts) - 1, 0);
 	}
+
 	node *construct(std::vector<pt> &pts, int fr, int to, int c) {
 		if (fr > to) return NULL;
 		int mid = fr + (to - fr) / 2;

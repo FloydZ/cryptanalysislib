@@ -38,16 +38,11 @@ namespace cryptanalysislib {
 		constexpr size_t find_uXX_simd(const T *data,
 										const size_t n,
 										const T val) noexcept {
-#ifdef USE_AVX512F
-			constexpr uint32_t limbs = 64/sizeof(T);
-#else
-			constexpr uint32_t limbs = 32/sizeof(T);
-#endif
-			using S = TxN_t<T, limbs>;
+			using S = SIMDSelector<T>;
 
 			const auto t = S::set1(val);
 			size_t i = 0;
-			for (; (i+limbs) <= n; i+=limbs) {
+			for (; (i+S::LIMBS) <= n; i+=S::LIMBS) {
 				const auto d = S::template load<config.aligned_instructions>(data + i);
 				const auto s = d == t;
 				if (s) [[unlikely]] {

@@ -20,7 +20,7 @@ constexpr static CacheAllocatorConfig cacheAllocatorConfig;
 /// \tparam T type to allocate
 template<class T,
 		 template<class, 
-                  class=cryptanalysislib::alloc::allocator, 
+                  class=cryptanalysislib::allocator, 
                   class=std::atomic<T>> class LinkedList = ConstFreeList,
 		 const CacheAllocatorConfig &config=cacheAllocatorConfig>
 class CacheAllocator {

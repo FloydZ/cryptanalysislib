@@ -10,6 +10,8 @@
 #include <utility>
 
 #include "memory/memory.h"
+#include "alloc/alloc.h"
+
 
 // TODO: implement everything: https://www.nayuki.io/res/aa-tree-set/aatreeset.rs
 // 	is currently just a cipy and paste from AVLTree
@@ -26,7 +28,7 @@ class AANode;
 /// \tparam config
 template <typename T,
           typename cmp = std::compare_three_way,
-		  class Allocator = std::allocator<AANode<T, aaNodeConfig>>,
+		  class Allocator = cryptanalysislib::allocator<AANode<T, aaNodeConfig>>,
 		  const AANodeConfig &config=aaNodeConfig>
 class AAMaybeNode {
 private:

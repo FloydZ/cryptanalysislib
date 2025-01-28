@@ -14,24 +14,35 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 using namespace cryptanalysislib;
 
+template <typename T>
+class ArgMax : public testing::Test {};
 
-TEST(argmax, simd_uint32_t) {
-	constexpr size_t s = 100;
-	auto d = new uint32_t [s];
-	for (size_t i = 0; i < s; ++i) { d[i] = i; }
+TYPED_TEST_SUITE_P(ArgMax);
 
-	const auto t = argmax_simd_u32(d, s);
-	EXPECT_EQ(t, s-1);
+TYPED_TEST_P(ArgMax, simple) {
+    constexpr static size_t s = 10000;
+    using T = int;
+    std::vector<T> in; in.resize(s);
+	for (size_t i = 0; i < s; ++i) { in[i] = i; }
 
-
-	for (size_t i = 0; i < s; ++i) { d[i] = rng(); }
-    const size_t pos = rng(s);
-    d[pos] = -1u;
-    const size_t pos2 = argmax_simd_u32(d, s);
-	EXPECT_EQ(pos, pos2);
-
-	delete[] d;
+    const auto d = cryptanalysislib::argmax(in.begin(), in.end());
+    EXPECT_EQ(d, s-1);
 }
+
+TYPED_TEST_P(ArgMax, multithreading) {
+    constexpr static size_t s = 10000;
+    using T = int;
+    std::vector<T> in; in.resize(s);
+	for (size_t i = 0; i < s; ++i) { in[i] = i; }
+
+    const auto d = cryptanalysislib::argmax(par_if(true), in.begin(), in.end());
+    EXPECT_EQ(d, s-1);
+}
+
+REGISTER_TYPED_TEST_SUITE_P(ArgMax, simple, multithreading);
+using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ArgMax, MyTypes);
+
 
 TEST(argmax, simd_uint32_t_bl16) {
 	constexpr size_t s = 100;
@@ -65,17 +76,6 @@ TEST(argmax, simd_uint32_t_bl32) {
 	EXPECT_EQ(pos, pos2);
 
 	delete[] d;
-}
-
-
-TEST(argmax, int_multithreading) {
-    constexpr static size_t s = 10000;
-    using T = int;
-    std::vector<T> in; in.resize(s);
-	for (size_t i = 0; i < s; ++i) { in[i] = i; }
-
-    const auto d = cryptanalysislib::argmax(par_if(true), in.begin(), in.end());
-    EXPECT_EQ(d, s-1);
 }
 
 

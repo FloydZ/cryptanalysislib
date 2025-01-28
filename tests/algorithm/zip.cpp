@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "math/math.h"
+#include "algorithm/zip.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -13,10 +13,7 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 
-using namespace cryptanalysislib;
-
-TEST(crt, int_) {
- 
+TEST(zip, int_) {
 }
 
 int main(int argc, char **argv) {

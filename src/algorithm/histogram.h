@@ -378,6 +378,7 @@ constexpr inline static void histogram_u8_1x(C cnt[256],
 	}
 }
 
+/// NOTE: uses a lot of stack
 /// \tparam T
 /// \tparam C
 /// \param cnt
@@ -396,6 +397,7 @@ constexpr inline static void histogram_u8_4x(C cnt[256],
 	HISTEND4(c, cnt);
 }
 
+/// NOTE: uses a lot of stack
 /// \tparam T
 /// \tparam C
 /// \param cnt
@@ -437,20 +439,19 @@ namespace cryptanalysislib::algorithm {
 		}
 	}
 
-	///
-	/// @tparam ExecPolicy 
-	/// @tparam T 
-	/// @tparam C 
-	/// @tparam config 
-	/// @param policy 
-	/// @param cnt 
-	/// @param in 
-	/// @param size 
+	/// \tparam ExecPolicy 
+	/// \tparam T 
+	/// \tparam C 
+	/// \tparam config 
+	/// \param policy 
+	/// \param cnt 
+	/// \param in 
+	/// \param size 
 	template<class ExecPolicy,
 		     typename T=uint8_t,
 			 typename C=uint32_t,
 			 const AlgorithmHistogramConfig &config=algorithmHistogramConfig,
-			 typename Allocator=cryptanalysislib::alloc::alignment_allocator<C>>
+			 typename Allocator=cryptanalysislib::alignment_allocator<C>>
 	constexpr inline static void histogram(ExecPolicy && policy,
 										   C *__restrict__ cnt,
 										   const T *__restrict in,

@@ -1,9 +1,13 @@
 #pragma once
 
 #include <memory>
+#include "alloc/alloc.h"
+
+
+/// TODO iterator
 /// \tparam T
 template <class T,
-		  template<class> class Allocator=std::allocator>
+		  template<class> class Allocator=cryptanalysislib::allocator>
 struct dancing_links {
 public:
 	struct node {

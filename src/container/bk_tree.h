@@ -28,8 +28,7 @@ constexpr static BKTreeConfig bkTreeConfig;
 /// \tparam Allocator
 /// \tparam config
 template<class T,
-		 //TODO class Allocator=cryptanalysislib::alloc::allocator,
-		 class Allocator=std::allocator<T>,
+         template<class N> class Allocator = cryptanalysislib::allocator,
 		 const BKTreeConfig &config=bkTreeConfig>
 class BKTree {
 	using node_type = BKTreeNode<T>;
@@ -38,7 +37,7 @@ class BKTree {
 	///
 	void info() const noexcept {
 		std::cout << " { name: \"BKTree\""
-				  << " , \"allocator\": " << Allocator::str()
+				  << " , \"allocator\": " << Allocator<node_type>::str()
 				  // << " , \"config\": " << config
 				  << " }" <<std::endl;
 	}

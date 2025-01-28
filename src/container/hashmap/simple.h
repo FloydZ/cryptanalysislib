@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "atomic/atomic_primitives.h"
+#include "alloc/alloc.h"
 #include "hash/hash.h"
 #include "helper.h"
 
@@ -32,7 +33,8 @@ template<
         typename keyType,
         typename valueType,
         const SimpleHashMapConfig &config,
-        class Hash>
+        class Hash,
+        template<class N> class Allocator = cryptanalysislib::allocator>
 //#if __cplusplus > 201709L
 //	requires HashFunction<Hash, valueType>
 //#endif

@@ -30,12 +30,7 @@ namespace cryptanalysislib {
              const AlgorithmMinConfig &config = algorithmMinConfig>
 	[[nodiscard]] constexpr static inline T min_simd_uXX(const T *a,
 														 const size_t n) noexcept {
-#ifdef USE_AVX512F
-		constexpr uint32_t limbs = 64/sizeof(T);
-#else
-		constexpr uint32_t limbs = 32/sizeof(T);
-#endif
-		using S = TxN_t<T, limbs>;
+		using S = SIMDSelector<T>;
 
 		T m = 0;
 		auto p = S::set1(m);

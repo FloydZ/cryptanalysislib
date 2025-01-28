@@ -1,5 +1,5 @@
-#ifndef CRYPTANALYSISLIB_QUEUE_H
-#define CRYPTANALYSISLIB_QUEUE_H
+#ifndef CRYPTANALYSISLIB_CONTAINER_QUEUE_H
+#define CRYPTANALYSISLIB_CONTAINER_QUEUE_H
 
 #include <atomic>
 #include <cstdint>
@@ -8,6 +8,8 @@
 #include <mutex>
 #include <optional>
 
+// NOTE: cannot import this, as the allocator depends on it xD
+// #include "alloc/alloc.h"
 #include "atomic/atomic_primitives.h"
 
 /// taken from: https://github.com/codecryptanalysis/mccl/blob/main/mccl/core/collection.hpp
@@ -16,12 +18,13 @@
 /// \tparam T
 /// \tparam Mutex
 template<typename T,
-         typename Mutex = std::mutex>
+         typename Mutex = std::mutex,
+         typename Allocator = std::allocator<T>>
 class concurrent_queue {
 public:
 	typedef Mutex mutex_type;
 	typedef std::lock_guard<mutex_type> lock_type;
-	typedef std::deque<T> queue_type;
+	typedef std::deque<T, Allocator> queue_type;
 
 	typedef T value_type;
 
@@ -79,7 +82,10 @@ private:
 };
 
 
-template <typename T, typename Lock = std::mutex>
+/// \tparam T
+/// \tparam Lock
+template <typename T,
+          typename Lock = std::mutex>
     requires is_lockable<Lock>
 class thread_safe_queue {
 public:

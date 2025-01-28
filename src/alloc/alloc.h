@@ -182,7 +182,6 @@ class FreeListAllocator {
 	Node *_root = nullptr;
 
 public:
-	///
 	/// \param n
 	/// \return
 	constexpr Blk allocate(const size_t n) noexcept {
@@ -195,7 +194,6 @@ public:
 		return _parent.allocate(n);
 	}
 
-	///
 	/// \param b
 	/// \return
 	constexpr void deallocate(const Blk &b) {
@@ -590,8 +588,8 @@ public:
 };
 
 /// C++ wrapper around `aligned_alloc` and `aligned_free`
-/// @tparam T  type to allocate
-/// @tparam alignment in bytes
+/// \tparam T[in]:  type to allocate
+/// \tparam alignment[in]: in bytes
 template<typename T,
 		 const size_t alignment = 1024>
 class AlignmentMallocator {
@@ -656,9 +654,10 @@ public:
 };
 #endif
 
-namespace cryptanalysislib::alloc {
+namespace cryptanalysislib {
 	// define a standard allocator
-	using allocator = PageMallocator<1u<<12u, 1u<<12u>;
+    template<typename T>
+	using allocator = std::allocator<T>; // PageMallocator<1u<<12u, 1u<<12u>;
 
 	template <typename T>
 	using alignment_allocator = AlignmentMallocator<T>;

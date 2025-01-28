@@ -1,7 +1,10 @@
 #pragma once
 
 #include <vector>
-template<typename T>
+#include "alloc/alloc.h"
+
+template<typename T,
+        template<class N> class Allocator = cryptanalysislib::allocator>
 struct sparse_table {
     std::vector<std::vector<T>> m;
 

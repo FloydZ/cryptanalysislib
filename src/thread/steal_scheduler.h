@@ -19,7 +19,7 @@
 #include <type_traits>
 #include <version>
 
-// TODO only available on unix
+// NOTE only available on unix
 #include <assert.h>
 #include <sys/resource.h>
 #include <sys/socket.h>

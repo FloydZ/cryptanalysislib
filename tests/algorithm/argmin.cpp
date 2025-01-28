@@ -14,6 +14,35 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 using namespace cryptanalysislib;
 
+template <typename T>
+class ArgMin : public testing::Test {};
+
+TYPED_TEST_SUITE_P(ArgMin);
+
+TYPED_TEST_P(ArgMin, simple) {
+    constexpr static size_t s = 10000;
+    using T = int;
+    std::vector<T> in; in.resize(s);
+	for (size_t i = 0; i < s; ++i) { in[i] = i; }
+
+    const auto d = cryptanalysislib::argmin(in.begin(), in.end());
+    EXPECT_EQ(d, s-1);
+}
+
+TYPED_TEST_P(ArgMin, multithreading) {
+    constexpr static size_t s = 10000;
+    using T = int;
+    std::vector<T> in; in.resize(s);
+	for (size_t i = 0; i < s; ++i) { in[i] = i; }
+
+    const auto d = cryptanalysislib::argmin(par_if(true), in.begin(), in.end());
+    EXPECT_EQ(d, s-1);
+}
+
+REGISTER_TYPED_TEST_SUITE_P(ArgMin, simple, multithreading);
+using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ArgMin, MyTypes);
+
 TEST(argmin, simd_uint32_t) {
 	constexpr size_t s = 100;
 	auto d = new uint32_t [s];

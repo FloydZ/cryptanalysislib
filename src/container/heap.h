@@ -4,12 +4,20 @@
 #include <functional>
 #include <cassert>
 
+
+#include "alloc/alloc.h"
+
 // 2.6. Heap. An implementation of a binary heap.
 template <class T, 
-          class Comp = std::less<T>>
+          class Comp = std::less<T>,
+          class Allocator = cryptanalysislib::allocator>
 struct heap {
-    std::vector<T> q, loc; Comp op;
-    heap() : op(Comp()) {}
+private:
+    std::vector<T, Allocator> q, loc; Comp op;
+
+public:
+    heap() : op(Comp()) {
+    }
 
     bool cmp(int i, int j) { 
         return op(q[i], q[j]); 

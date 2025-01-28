@@ -5,15 +5,17 @@
 #include <vector>
 
 #include "traits.h"
+#include "alloc/alloc.h"
 
-/// TODO allocator + iterator
-/// @tparam T
-template<typename T>
+/// \tparam T
+template<typename T,
+          template<class N> class Allocator = cryptanalysislib::allocator>
 class spsc_fixed_queue : non_copyable {
-public:
+private:
 	using type = T;
 	using value_type = T;
 
+public:
 	[[nodiscard]] constexpr inline auto begin() noexcept { return queue_.begin() + front_; }
 	[[nodiscard]] constexpr inline auto end() noexcept { return queue_.begin() + back_; }
 	[[nodiscard]] constexpr inline auto begin() const noexcept { return queue_.begin() + front_; }
@@ -132,5 +134,5 @@ private:
 	std::size_t capacity_;
 	std::size_t capacityMask_;
 
-	std::vector<type> queue_;
+	std::vector<type, Allocator<type>> queue_;
 };
