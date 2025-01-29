@@ -20,6 +20,20 @@ namespace cryptanalysislib {
     };
     constexpr static AlgorithmMaxConfig algorithmMaxConfig{};
 
+    /// Return maximum(a, b)
+    /// Both a and b must not have the most significant bit set
+	template<typename T>
+    constexpr static inline T max_branchless(const T a,
+                                             const T b) noexcept {
+        constexpr static size_t BITS = sizeof(T) * 8u;
+        T d = b - a;
+        d &= (T)( (long)d >> (BITS-1) );
+        // here: d ==
+        // 0    if  b > a
+        // b-a  if  a > b  (negative as signed type)
+        return  b - d;
+    }
+
 	/// \tparam T
 	/// \tparam config
 	/// \param a[in]: array of integers

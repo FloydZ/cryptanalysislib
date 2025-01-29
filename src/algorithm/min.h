@@ -21,6 +21,16 @@ namespace cryptanalysislib {
     };
     constexpr static AlgorithmMinConfig algorithmMinConfig{};
 
+    // Return minimum(a, b)
+    // Both a and b must not have the most significant bit set
+	template<typename T>
+    static inline T upos_min(T a, T b) {
+        constexpr static size_t BITS = sizeof(T) * 8u;
+        T d = b - a;
+        d &= (T)( (long)d >> (BITS-1) );
+        return  a + d;
+    }
+
 	/// \tparam T TODO doc
 	/// \tparam config
 	/// \param a

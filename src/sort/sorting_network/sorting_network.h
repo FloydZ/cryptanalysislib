@@ -1,6 +1,8 @@
 #ifndef CRYPTANALYSISLIB_SORT_SORTING_NETWORK_H
 #define CRYPTANALYSISLIB_SORT_SORTING_NETWORK_H
 
+#include <cstdint>
+
 // code original from djb_sort
 #ifdef USE_AVX
 #define int32_MINMAX(a,b) 			\
@@ -46,6 +48,18 @@ do {                     	\
 	b = a > b ? tmp : b; 	\
 }while(0)
 #endif
+
+
+// Set {a, b} := {min(a, b), max(a,b)}
+// Both a and b must not have the most significant bit set
+template<typename T>
+static inline void sort_minmax_branchless(T &a, T &b) {
+    constexpr static uint32_t BITS = sizeof(T) * 8u;
+    T d = b - a;
+    d &= (T)( (long)d >> (BITS-1) );
+    a += d;
+    b -= d;
+}
 
 static inline void sortingnetwork_sort_i32x8(int32_t *x){
 	int32_t x0 = x[0];
