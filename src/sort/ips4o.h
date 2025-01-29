@@ -55,6 +55,8 @@
 #include <utility>
 #include <vector>
 
+#include "memory/memory.h"
+
 #if IPS4O_SIMD
 #include "hwy/highway.h"
 #endif
@@ -66,6 +68,8 @@
 	if (c) __builtin_unreachable()
 #define IPS4OML_IS_NOT(c) assert(!(c))
 
+
+// TODO allocator + thread template
 namespace ips4o {
 	namespace detail {
 
@@ -188,17 +192,20 @@ namespace ips4o {
 
 			__attribute__((noinline)) 
             void readFrom(const Cfg::iterator src) noexcept {
-				memcpy(storage_, src, Cfg::kBlockSizeInBytes);
+				// memcpy(storage_, src, Cfg::kBlockSizeInBytes);
+				memcpy<Cfg::value_type>(storage_, src, Cfg::kBlockSize);
 			}
 
-			__attribute__((noinline)) 
+			__attribute__((noinline))
             void writeToBlock(Block &block) noexcept {
-				memcpy(block.storage_, storage_, Cfg::kBlockSizeInBytes);
+				//memcpy(block.storage_, storage_, Cfg::kBlockSizeInBytes);
+				memcpy<Cfg::value_type>(block.storage_, storage_, Cfg::kBlockSize);
 			}
 
 			__attribute__((noinline)) 
             void writeTo(Cfg::iterator dest) noexcept {
-				memcpy(dest, storage_, Cfg::kBlockSizeInBytes);
+				// memcpy(dest, storage_, Cfg::kBlockSizeInBytes);
+				memcpy<Cfg::value_type>(dest, storage_, Cfg::kBlockSize);
 			}
 
 		private:
@@ -256,7 +263,8 @@ namespace ips4o {
 				indices_[idx_bucket] -= Cfg::kBlockSize;
 
 				Cfg::value_type *bucket = storage_ + indices_[idx_bucket];
-				memcpy(dest, bucket, Cfg::kBlockSizeInBytes);
+				//memcpy(dest, bucket, Cfg::kBlockSizeInBytes);
+				memcpy(dest, bucket, Cfg::kBlockSize);
 			}
 
 		private:
@@ -634,7 +642,7 @@ namespace ips4o {
 			                                                     iterator end) {
 				iterator write = begin;
 				const ptrdiff_t num_buckets = 1l << (kLogBuckets + kEqualBuckets);
-				constexpr const size_t kUnroll = 16;// AVX-512
+				constexpr const size_t kUnroll = 1; // AVX-512: TODO was 16 for avx 512
 				static_assert(kUnroll <= Cfg::kBaseCaseSize, "Need >= 1 iteration");
 
 				alignas(64) uint32_t bucket_indices[kUnroll];
@@ -709,6 +717,7 @@ namespace ips4o {
 					ScatterBatch(bucket_indices, batch_size, begin + i, write);
 				}
 #else
+				// TODO tail mngt
 				for (size_t i = 0; i < num; i += kUnroll) {
 					for (size_t j = 0; j < kUnroll; ++j) {
 						IdxBucket b = 1;
@@ -992,7 +1001,8 @@ namespace ips4o {
 						auto tail_size = Cfg::kBlockSize - remaining;
 
 						// Fill head
-						memcpy(dst, src, remaining * sizeof(value_type));
+						// memcpy(dst, src, remaining * sizeof(value_type));
+						memcpy(dst, src, remaining);
 						src += remaining;
 						remaining = std::numeric_limits<ptrdiff_t>::max();
 
@@ -1031,7 +1041,8 @@ namespace ips4o {
 							dst = std::move(src, src + count, dst);
 							remaining -= count;
 						} else {
-							memcpy(dst, src, remaining * sizeof(value_type));
+							// memcpy(dst, src, remaining * sizeof(value_type));
+							memcpy(dst, src, remaining);
 							src += remaining;
 							count -= remaining;
 							remaining = std::numeric_limits<ptrdiff_t>::max();
