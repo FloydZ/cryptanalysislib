@@ -21,6 +21,7 @@ void generate_list(std::vector<T> &data,
 	}
 }
 
+// TODO make tests generic over T
 using namespace cryptanalysislib;
 
 TEST(pluggable_sort, std_sort_u8) {
@@ -59,6 +60,17 @@ TEST(pluggable_quicksort, std_sort_u8) {
 	}
 }
 
+TEST(ips4o, kek) {
+	constexpr size_t s = 10000;
+	using T = uint32_t;
+	std::vector<T> data;
+	generate_list(data, s);
+    ips4o::sort(data.begin(), data.end());
+
+	for (size_t i = 0; i < listsize-1; ++i) {
+		EXPECT_LE(data[i], data[i+1]);
+	}
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
