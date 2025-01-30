@@ -2821,6 +2821,7 @@ static inline void avx2_store_f32x8(float *array,
 	}
 }
 
+/// TODO probably move somewhere useful `transpose.h`?
 /// Transpose a bit-matrix using the vpmovmskb instruction.
 ///
 /// See Bitshuffle - https://github.com/kiyo-masui/bitshuffle (MIT)
@@ -2847,8 +2848,8 @@ void matrix_transpose(uint64_t At,
 	}
 }
 
-
-/* Transpose bytes within elements, starting partway through input. */
+/// TODO probably move somewhere useful `transpose.h`?
+// Transpose bytes within elements, starting partway through input.
 static constexpr int64_t bshuf_trans_byte_elem_remainder(const void* in,
                                                          void* out,
                                         				 const size_t size,
@@ -2921,5 +2922,26 @@ uint64_t bshuf_trans_byte_elem_SSE_16(void* out,
             size - size % 16);
 }
 
+/// transopse of 32bit entries
+inline void sse_transpose_4x4_dwords (__m128i w0, __m128i w1,
+                                  __m128i w2, __m128i w3,
+                                  __m128i &r0, __m128i &r1,
+                                  __m128i &r2, __m128i &r3)
+{
+    // 0  1  2  3
+    // 4  5  6  7
+    // 8  9  10 11
+    // 12 13 14 15
+
+    __m128i x0 = _128i_shuffle (w0, w1, 0, 1, 0, 1); // 0 1 4 5
+    __m128i x1 = _128i_shuffle (w0, w1, 2, 3, 2, 3); // 2 3 6 7
+    __m128i x2 = _128i_shuffle (w2, w3, 0, 1, 0, 1); // 8 9 12 13
+    __m128i x3 = _128i_shuffle (w2, w3, 2, 3, 2, 3); // 10 11 14 15
+
+    r0 = _128i_shuffle (x0, x2, 0, 2, 0, 2);
+    r1 = _128i_shuffle (x0, x2, 1, 3, 1, 3);
+    r2 = _128i_shuffle (x1, x3, 0, 2, 0, 2);
+    r3 = _128i_shuffle (x1, x3, 1, 3, 1, 3);
+}
 
 #endif
