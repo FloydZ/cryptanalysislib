@@ -9,4 +9,5 @@ foreach(testfile ${TEST_SOURCES})
 endforeach(testfile ${TEST_SOURCES})
 
 add_subdirectory(bits)
+add_subdirectory(mq)
 add_subdirectory(subsetsum)

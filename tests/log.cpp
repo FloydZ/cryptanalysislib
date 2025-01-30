@@ -5,7 +5,6 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-
 using namespace cryptanalysislib;
 
 TEST(log, simple) {
