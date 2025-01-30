@@ -140,7 +140,7 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 	}
 
 	if constexpr (k == 3) {
-		ASSERT(0);
+		assert(0);
 	}
 
 	// will never happen
@@ -181,7 +181,7 @@ inline void biject(size_t a, uint16_t rows[p]) noexcept {
 		return;
 	}
 
-	ASSERT(false);
+	assert(false);
 }
 
 #ifdef USE_AVX2
@@ -217,7 +217,7 @@ inline void biject_avx(__m256i a, __m256i rows[p]) noexcept {
 		return;
 	}
 
-	ASSERT(false);
+	assert(false);
 }
 #endif
 
@@ -250,7 +250,7 @@ constexpr inline uint32x8_t opt_max_bc_simd(const uint32x8_t a, const uint32x8_t
 	}
 
 	// will never happen
-	ASSERT(false);
+	assert(false);
 	return uint32x8_t::set1(1);
 }
 
@@ -303,7 +303,7 @@ inline void biject_simd(uint32x8_t a,
 		return;
 	}
 
-	ASSERT(false);
+	assert(false);
 }
 
 template<const uint32_t n, const uint32_t p>
@@ -338,10 +338,10 @@ inline void biject_simd_lookup(uint32x8_t a,
 }
 
 
-template<typename T>
-static inline void reverse_biject_helper(T **L,
-										 const uint32_t w,
-										 const uint32_t t) noexcept {
+template<typename T,
+		 const uint32_t w,
+		 const uint32_t t>
+static inline void reverse_biject_helper(T L[w][t]) {
 
 	// static check
     if (L[0][0] == 0) [[unlikely]] {
@@ -360,7 +360,7 @@ static inline void reverse_biject_helper(T **L,
 /// impl: https://eprint.iacr.org/2023/948.pdf
 ///	 the chi function
 /// NOTE: make sure that s != 0;
-/// computes given a weight <= w vector the position within the
+/// computes given a weight <= w vector the position within
 /// the position within [0, |W^n_w|)
 template<typename T,
          const uint32_t n,
@@ -372,11 +372,11 @@ static inline size_t reverse_biject(const T s) noexcept {
     if (s == 0) [[unlikely]] { return 0; }
 
     alignas(64) static T L[w][t] = {{0}};
-	reverse_biject_helper<T>((T **)L, w, t);
+	reverse_biject_helper<T, w, t>(L);
 
 	T ss = s;
     const uint32_t p = cryptanalysislib::popcount::popcount(s);
-    ASSERT(p <= w);
+    assert(p <= w);
 
     for (uint32_t i = 0; i < p; i++) {
 		// like popcount make an own function
@@ -384,7 +384,7 @@ static inline size_t reverse_biject(const T s) noexcept {
         ss ^= 1ul << s0;
 		ret += L[w-i-1][s0];
     }
-	ASSERT(ss == 0);
+	assert(ss == 0);
 
     return ret;
 }
@@ -404,14 +404,14 @@ static inline size_t reverse_biject(const uint32_t *s,
 	reverse_biject_helper<T>((T **)L, w, t);
 
 	T ss = s;
-    ASSERT(p <= w);
+    assert(p <= w);
 
     for (uint32_t i = 0; i < p; i++) {
         const uint32_t s0 = s[i];
         ss ^= 1ul << s0;
 		ret += L[w-i-1][s0];
     }
-	ASSERT(ss == 0);
+	assert(ss == 0);
 
     return ret;
 }

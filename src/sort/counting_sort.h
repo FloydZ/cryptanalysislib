@@ -39,27 +39,4 @@ constexpr static void counting_sort_u8(uint8_t *arr,
 	}
 }
 
-constexpr static void counting_sort_stable_u8(uint8_t *output,
-        									  const uint8_t *input,
-                                              const size_t size) {
-	size_t cnt[256] = { 0 };
-	size_t i;
-
-	if (size >= switch_) {
-		histogram(cnt, input, size);
-	} else {
-		for (i = 0 ; i < size ; ++i) { cnt[input[i]]++; }
-	}
-
-	// Calculate prefix sums.
-	prefixsum(cnt, 256);
-
-	// Sort elements
-	for (i = 0 ; i < size; ++i) {
-		uint8_t k = input[i];
-		size_t dst = cnt[k];
-		output[dst] = input[i];
-		cnt[k]++;
-	}
-}
 #endif

@@ -1,6 +1,8 @@
 #ifndef CRYPTANALYSISLIB_THREAD_EXECUTION_H
 #define CRYPTANALYSISLIB_THREAD_EXECUTION_H
 
+#include <cassert>
+
 #ifdef USE_OPENCL
 
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
@@ -40,6 +42,7 @@ namespace internal {
 
 }; // end namespace cryptanalysislib::internal
 
+static
 void __attribute__((constructor)) cryptanalysislib_thread_init(){
     cryptanalysislib::internal::get_default_pool();
 }
@@ -53,7 +56,7 @@ struct execution_policy {
 /// A sequential policy that simply forwards to the non-policy overload.
 struct sequenced_policy : public execution_policy {
     [[nodiscard]] constexpr inline pool_type pool() const noexcept {
-        ASSERT("requested thread pool for seq policy.");
+        assert("requested thread pool for seq policy.");
         return nullptr;
     }
 
@@ -217,6 +220,11 @@ namespace internal {
     }
    
     /// min between 
+    /// TODO doc
+    /// \tparam Iterator
+    /// \param iter
+    /// \param last
+    /// \param chunk_size
     template<typename Iterator>
 #if __cplusplus > 201709L
         requires std::forward_iterator<Iterator>
@@ -227,7 +235,11 @@ namespace internal {
                         const typename std::iterator_traits<Iterator>::difference_type chunk_size) noexcept {
         return std::min(chunk_size, std::distance(iter, last));
     }
-    
+  
+    /// TODO doc
+    /// \tparam Iterator
+    /// \param iter
+    /// \param offset
     template<typename Iterator>
 #if __cplusplus > 201709L
         requires std::forward_iterator<Iterator>
@@ -299,6 +311,7 @@ namespace internal {
         return getting_iter<Iterator>(iter);
     }
 
+    /// TODO doc
     /// \tparam ExecPolicy
     /// \tparam RandIt
     /// \tparam Chunk
@@ -435,6 +448,7 @@ namespace internal {
         return futures;
     }
 
+    /// TODO doc
 	/// \tparam ExecPolicy
     /// \tparam RandIt
     /// \tparam Chunk
@@ -465,7 +479,6 @@ template<class ExecPolicy,
         auto& task_pool = *policy.pool();
         const uint32_t t = nthreads == 0 ? task_pool.get_num_threads() : nthreads;
         auto chunk_size = get_chunk_size(first, last, extra_split_factor*t);
-        // auto chunk_size = get_chunk_size(first, last, extra_split_factor * task_pool.get_num_threads());
 
         while (first < last) {
             auto iter_chunk_size = get_iter_chunk_size(first, last, chunk_size);
@@ -479,9 +492,6 @@ template<class ExecPolicy,
         return futures;
     }
 
-
-
 }; // end namespace internal
-
 }; // end namespace cryptanalysislib
 #endif 

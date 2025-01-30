@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "helper.h"
-#include "algorithm/gcd.h"
+#include "math/gcd.h"
 
 using namespace cryptanalysislib;
 
@@ -50,7 +50,7 @@ public:
 
 		std::cout << a << std::endl;
 		std::cout << b << std::endl;
-
+		return true;
 	}
 };
 #endif

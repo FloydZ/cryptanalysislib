@@ -2,9 +2,9 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "compression/deflate.h"
-#include "compression/inflate.h"
-#include "math/math.h"
+#include "../../src/compression/deflate.h"
+#include "../../src/compression/inflate.h"
+#include "../../src/math/math.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;

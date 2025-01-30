@@ -28,7 +28,8 @@ namespace cryptanalysislib::popcount {
 			return  __builtin_popcountll((uint64_t )data) +
 					__builtin_popcountll(data >> 64u);
 		} else {
-			ASSERT(false);
+			assert(false);
+            return 0;
 		}
 	}
 

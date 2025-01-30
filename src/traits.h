@@ -131,18 +131,46 @@ namespace cryptanalysislib {
 		}
 	};
 
-}
+}// namespace cryptanalysislib
 
 
+/// \tparam T
 template<typename T>
 struct IsStdArray : std::false_type {};
 
+/// \tparam T
+/// \tparam N
 template<typename T, std::size_t N>
 struct IsStdArray<std::array<T, N>> : std::true_type {};
 
+///
 template<typename T>
 concept Iterable = requires(T x) {
 	x.begin();
 	x.end();
 };
+
+
+///
+struct non_movable {
+	non_movable() noexcept = default;
+	~non_movable() noexcept = default;
+	non_movable(non_movable &&) = delete;
+	non_movable & operator = (non_movable &&) = delete;
+	non_movable(non_movable const &) = default;
+	non_movable & operator = (non_movable const &) = default;
+};
+
+
+///
+struct non_copyable {
+	non_copyable() noexcept = default;
+	~non_copyable() noexcept = default;
+	non_copyable(non_copyable const &) = delete;
+	non_copyable & operator = (non_copyable const &) = delete;
+	non_copyable(non_copyable &&) = default;
+	non_copyable & operator = (non_copyable &&) = default;
+};
+
+
 #endif

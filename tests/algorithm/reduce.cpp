@@ -15,17 +15,22 @@ using ::testing::UnitTest;
 
 using namespace cryptanalysislib;
 
-TEST(reduce, int_) {
+template <typename T>
+class Reduce : public testing::Test {};
+
+TYPED_TEST_SUITE_P(Reduce);
+
+TYPED_TEST_P(Reduce, simple) {
     constexpr static size_t s = 100;
     using T = int;
     std::vector<T> in; in.resize(s);
     std::fill(in.begin(), in.end(), 1);
 
     const auto d = cryptanalysislib::reduce(in.begin(), in.end(), 1);
-    EXPECT_EQ(d, s+1);
+    EXPECT_EQ((size_t)d, s+1);
 }
 
-TEST(reduce, int_multithreading) {
+TYPED_TEST_P(Reduce, multithreading) {
     constexpr static size_t s = 10000;
     using T = int;
     std::vector<T> in; in.resize(s);
@@ -34,6 +39,10 @@ TEST(reduce, int_multithreading) {
     const auto d = cryptanalysislib::reduce(par_if(true),in.begin(), in.end(), 1);
     EXPECT_EQ(d, s+1);
 }
+
+REGISTER_TYPED_TEST_SUITE_P(Reduce, simple, multithreading);
+using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
+INSTANTIATE_TYPED_TEST_SUITE_P(My, Reduce, MyTypes);
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

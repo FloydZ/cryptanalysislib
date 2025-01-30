@@ -10,8 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # options
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SIMD "Enable avx/neon" ON)
-option(USE_SANITIZER "Enable memory sanitizer (only debug build)" ON)
-option(USE_NOINLINE "Enable -fno-inline" ON)
+option(USE_SANITIZER "Enable memory sanitizer (only debug build)" OFF)
+option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable linkage time optimizations" OFF)
 option(USE_PROFILE "Enable profile guided optimization" OFF)
 option(USE_POLLY "Enable polly loop optimization" OFF)
@@ -40,7 +40,7 @@ include(FetchContent)
 include(ExternalProject)
 include(CheckCXXCompilerFlag) 	# check for compiler optimization flags
 include(CheckIPOSupported)  	# check for -flto
-include(CheckLanguage) 			# needed for `check_language(CUDA)`
+include(CheckLanguage) 		# needed for `check_language(CUDA)`
 
 if(NOT ${USE_SIMD})
 	message(STATUS "no SIMD")
@@ -70,25 +70,25 @@ check_cxx_compiler_flag(-Wthread-safety COMPILER_SUPPORTS_THREAD_SAFETY)
 # find needed packages: the good thing only is: we only have a single external
 # dependencies. 
 enable_testing()
-find_package(OpenMP REQUIRED)
+find_package(OpenMP QUIET)
 find_package(Threads REQUIRED)
 find_package(GTest) 
-find_package(benchmark)
+find_package(benchmark QUIET)
 find_package(Git QUIET)
 
-find_package(OpenCL)
-find_package(OpenCLHeaders)
+find_package(OpenCL QUIET)
+find_package(OpenCLHeaders QUIET)
 
 # now check if we have to add the cuda runtime
-#find_package(CUDA)
-#find_package(CUDAToolkit)
-#check_language(CUDA)
-#if(CMAKE_CUDA_COMPILER)
-#	enable_language(CUDA)
-#	message(STATUS "CUDA ENABLED")
-#endif()
+# NOTE: apperently this is not how its done: find_package(CUDA QUIET)
+find_package(CUDAToolkit QUIET)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+	enable_language(CUDA)
+	message(STATUS "CUDA ENABLED")
+endif()
 
-if(OpenCL_FOUND)
+if(OpenCL_FOUND AND OpenCLHeaders_FOUND)
 	message(STATUS "OpenCL ENABLED")
 endif()
 
@@ -107,7 +107,7 @@ endif ()
 FetchContent_Declare(
 		reflect-cpp
 		GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
-		GIT_TAG        v0.14.1
+		GIT_TAG        v0.17.0
 )
 FetchContent_MakeAvailable(reflect-cpp)
 include_directories(${reflect-cpp_SOURCE_DIR}/include)
@@ -139,7 +139,7 @@ endif()
 if(${USE_SANITIZER})
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
-	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
+	set(SANITIZER_FLAGS " -fsanitize=leak -fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
 endif()
 
 if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
@@ -213,16 +213,16 @@ if(CMAKE_CUDA_COMPILER)
 	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_CUDA")
 endif()
 
-#if(OpenCL_FOUND)
-#	set(DEBUG_FLAGS "${DEBUG_FLAGS} -DUSE_OPENCL")
-#	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_OPENCL")
-#endif()
+if(OpenCL_FOUND AND OpenCLHeader_FOUND)
+	set(DEBUG_FLAGS "${DEBUG_FLAGS} -DUSE_OPENCL")
+	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_OPENCL")
+endif()
 
+# Set linker flags
 set(LINK_TEST_FLAGS 
 	GTest::gtest 
 	GTest::gtest_main 
 	Threads::Threads 
-	OpenMP::OpenMP_CXX
 	reflectcpp
 )
 
@@ -231,7 +231,11 @@ set(LINK_BENCH_FLAGS
 	reflectcpp
 )
 
-if(OpenCL_FOUND)
+if(OpenMP_FOUND)
+	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_CXX)
+endif ()
+
+if(OpenCL_FOUND AND OpenCLHeader_FOUND)
 	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenCL::OpenCL OpenCL::Headers)
 	set(LINK_BENCH_FLAGS ${LINK_BENCH_FLAGS} OpenCL::OpenCL OpenCL::Headers)
 endif()

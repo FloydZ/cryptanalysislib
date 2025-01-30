@@ -1,3 +1,4 @@
+#include "gtest/gtest.h"
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <iostream>
@@ -14,36 +15,69 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 using namespace cryptanalysislib;
 
-TEST(max, simple) {
+
+template <typename T>
+class Max : public testing::Test {};
+
+TYPED_TEST_SUITE_P(Max);
+
+TYPED_TEST_P(Max, simple) {
 	constexpr size_t s = 100;
-	using T = uint32_t;
-	std::vector<T> d; d.resize(s);
+	std::vector<TypeParam> d; d.resize(s);
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = cryptanalysislib::max(d.begin(), d.end());
-	ASSERT_EQ(t, s-1);
+	EXPECT_EQ(t, s-1);
 }
 
-TEST(max, simd_uint32_t) {
+TYPED_TEST_P(Max, simd) {
 	constexpr size_t s = 100;
-	auto d = new uint32_t [s];
+	auto d = new TypeParam [s];
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = max_simd_uXX(d, s);
-	ASSERT_EQ(t, s-1);
+	EXPECT_EQ(t, s-1);
 
 	delete[] d;
 }
 
-TEST(max, int_multithreading) {
-    constexpr static size_t s = 100000;
-    using T = uint32_t;
-    std::vector<T> in; in.resize(s);
-	for (size_t i = 0; i < s; ++i) { in[i] = i; }
+TYPED_TEST_P(Max, simd_rng) {
+	constexpr size_t s = 100;
+    std::vector<TypeParam> d; d.resize(s);
+	for (size_t i = 0; i < s; ++i) { d[i] = rand(); }
+
+	const auto t = max_simd_uXX(d.data(), s);
+    for (const auto &k : d) {
+        EXPECT_GE(t, k);
+    }
+}
+
+TYPED_TEST_P(Max, multithreading) {
+	constexpr size_t b = sizeof(TypeParam)*8u - 1u;
+    constexpr static size_t s = 1u<<b;
+    std::vector<TypeParam> in; in.resize(s);
+	for (size_t i = 0; i < s; ++i) { in[i] = s - i - 1; }
 
     const auto d = cryptanalysislib::max(par_if(true), in.begin(), in.end());
     EXPECT_EQ(d, s-1);
 }
+
+TYPED_TEST_P(Max, multithreading_rnd) {
+    constexpr static size_t s = 1u<<20;
+    std::vector<TypeParam> in; in.resize(s);
+	for (size_t i = 0; i < s; ++i) { in[i] = rand(); }
+
+    const auto d = cryptanalysislib::max(par_if(true), in.begin(), in.end());
+    for (const auto &k : in) {
+        EXPECT_GE(d, k);
+    }
+}
+
+REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd);
+using MyTypes = ::testing::Types<uint8_t>;//, uint16_t, uint32_t, uint64_t>;
+INSTANTIATE_TYPED_TEST_SUITE_P(My, Max, MyTypes);
+
+
 
 
 int main(int argc, char **argv) {

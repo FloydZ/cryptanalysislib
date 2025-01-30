@@ -47,9 +47,7 @@ public:
 
 	typedef FqNonPackedVectorMeta ContainerType;
 
-	//
-	constexpr static size_t nr_of_limbs_in_S = limbs<T>();
-	using S = TxN_t<T, nr_of_limbs_in_S>;
+	using S = SIMDSelector<T>;
 
 
 	/// simple hash function
@@ -80,9 +78,9 @@ public:
 	/// \return
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= length);
-		ASSERT(((h-l)*qbits) <= 64);
+		assert(l < h);
+		assert(h <= length);
+		assert(((h-l)*qbits) <= 64);
 
 		__uint128_t d = __data[l];
 		uint32_t shift = qbits;
@@ -114,7 +112,7 @@ public:
 	}
 	constexpr static bool is_hashable(const uint32_t l,
 									  const uint32_t h) noexcept {
-		ASSERT(h > l);
+		assert(h > l);
 		const size_t t1 = h-l;
 		const size_t t2 = t1*qbits;
 
@@ -155,8 +153,8 @@ public:
 	/// \param k_higher higher coordinate to stop. Not included.
 	void random(const uint32_t k_lower = 0,
 	            const uint32_t k_higher = length) noexcept {
-		ASSERT(k_lower < k_higher);
-		ASSERT(k_higher <= length);
+		assert(k_lower < k_higher);
+		assert(k_higher <= length);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; i++) {
@@ -173,8 +171,8 @@ public:
 	constexpr void random_with_weight(const uint32_t w,
 									  const uint32_t m=length,
 	                                  const uint32_t offset=0) noexcept {
-		ASSERT(w <= m);
-		ASSERT(m+offset <= length);
+		assert(w <= m);
+		assert(m+offset <= length);
 		zero();
 
 		// chose first
@@ -203,8 +201,8 @@ public:
 	/// \return true/false
 	[[nodiscard]] constexpr bool is_zero(const uint32_t k_lower = 0,
 	                                     const uint32_t k_higher = length) const noexcept {
-		ASSERT(k_lower < k_higher);
-		ASSERT(k_higher <= length);
+		assert(k_lower < k_higher);
+		assert(k_higher <= length);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; ++i) {
@@ -233,19 +231,19 @@ public:
 	}
 
 	/// swap coordinate i, j, boundary checks are done
-	/// \param i coordinate
-	/// \param j coordinate
+	/// \param i[in]: coordinate
+	/// \param j[in]: coordinate
 	constexpr void swap(const uint32_t i,
 	                    const uint32_t j) noexcept {
-		ASSERT(i < length && j < length);
+		assert(i < length && j < length);
 		SWAP(__data[i], __data[j]);
 	}
 
 	/// *-1
 	/// \param i
 	constexpr void flip(const uint32_t i) noexcept {
-		ASSERT(i < length);
-		ASSERT(__data[i] < q);
+		assert(i < length);
+		assert(__data[i] < q);
 		__data[i] *= -1;
 		__data[i] += q;
 		__data[i] %= q;
@@ -517,7 +515,7 @@ public:
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length);
+		assert(s < length);
 		for (uint32_t j = 0; j < length - s; ++j) {
 			const auto d = in.get(j);
 			out.set(d, j + s);
@@ -530,7 +528,7 @@ public:
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length);
+		assert(s < length);
 		for (uint32_t j = 0; j < length - s; ++j) {
 			const auto d = in.get(j+s);
 			out.set(d, j);
@@ -542,7 +540,7 @@ public:
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length);
+		assert(s < length);
 		for (uint32_t j = 0; j < length; ++j) {
 			const auto d = in.get((j + s) % length);
 			out.set(d, j);
@@ -553,7 +551,7 @@ public:
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length);
+		assert(s < length);
 		for (uint32_t j = 0; j < length - s; ++j) {
 			const auto d = in.get(j);
 			out.set(d, (j + s) % length);
@@ -566,7 +564,7 @@ public:
 	/// \param in1: input vector
 	constexpr static inline void mod(T *out, const T *in1) noexcept {
 		uint32_t i = 0;
-		for (; i + nr_of_limbs_in_S < n; i += nr_of_limbs_in_S) {
+		for (; i + S::LIMBS < n; i += S::LIMBS) {
 			const uint8x32_t a = uint8x32_t::load(in1 + i);
 			const uint8x32_t tmp = mod256_T(a);
 			uint8x32_t::store(out + i, tmp);
@@ -591,7 +589,7 @@ public:
 	/// \param k_upper higher dimension, exclusive
 	constexpr inline void neg(const uint32_t k_lower = 0,
 	                          const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -607,7 +605,7 @@ public:
 	                                 const T *in1,
 	                                 const T *in2) noexcept {
 		uint32_t i = 0;
-		for (; i + nr_of_limbs_in_S <= n; i += nr_of_limbs_in_S) {
+		for (; i + S::LIMBS <= n; i += S::LIMBS) {
 			const S a = S::load((uint8_t *)(in1 + i));
 			const S b = S::load((uint8_t *)(in2 + i));
 
@@ -645,7 +643,7 @@ public:
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper,
 	                                 const uint32_t norm = -1) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 
 		if (norm == -1u) {
 			for (uint64_t i = k_lower; i < k_upper; ++i) {
@@ -705,7 +703,7 @@ public:
 	                       const T *in1,
 	                       const T *in2) noexcept {
 		uint32_t i = 0;
-		for (; i + nr_of_limbs_in_S < n; i += nr_of_limbs_in_S) {
+		for (; i + S::LIMBS < n; i += S::LIMBS) {
 			const auto a = S::load((uint8_t *)(in1 + i));
 			const auto b = S::load((uint8_t *)(in2 + i));
 
@@ -743,7 +741,7 @@ public:
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper,
 	                                 const uint32_t norm = -1) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -801,7 +799,7 @@ public:
 	                                 const uint32_t k_lower=0,
 	                                 const uint32_t k_upper=n) noexcept {
 		uint32_t i = k_lower;
-		for (; i + nr_of_limbs_in_S <= k_upper; i += nr_of_limbs_in_S) {
+		for (; i + S::LIMBS <= k_upper; i += S::LIMBS) {
 			const auto a = S::load(in1 + i);
 			const auto b = S::load(in2 + i);
 
@@ -851,7 +849,7 @@ public:
 	                                    const DataType v2,
 	                                    const uint32_t k_lower = 0,
 	                                    const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -868,7 +866,7 @@ public:
 	                                 FqNonPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
 	                                 const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -909,7 +907,7 @@ public:
 	                                 FqNonPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
 	                                 const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -943,8 +941,8 @@ public:
 	constexpr bool is_greater(FqNonPackedVectorMeta const &obj,
 	                          const uint32_t k_lower = 0,
 	                          const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_upper <= length);
-		ASSERT(k_lower < k_upper);
+		assert(k_upper <= length);
+		assert(k_lower < k_upper);
 		
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
@@ -986,8 +984,8 @@ public:
 	constexpr bool is_lower(FqNonPackedVectorMeta const &obj,
 	                        const uint32_t k_lower = 0,
 	                        const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_upper <= length);
-		ASSERT(k_lower < k_upper);
+		assert(k_upper <= length);
+		assert(k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_upper; i > k_lower; i--) {
@@ -1069,12 +1067,12 @@ public:
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
 	[[nodiscard]] constexpr T &operator[](const size_t i) noexcept {
-		ASSERT(i < length);
+		assert(i < length);
 		return __data[i];
 	}
 
 	[[nodiscard]] constexpr const T &operator[](const size_t i) const noexcept {
-		ASSERT(i < length);
+		assert(i < length);
 		return __data[i];
 	};
 
@@ -1083,7 +1081,7 @@ public:
 	/// \param k_upper higher bound, exclusive
 	constexpr void print_binary(const uint32_t k_lower = 0,
 	                            const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_lower < length && k_upper <= length && k_lower < k_upper);
+		assert(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			unsigned data = (unsigned) __data[i];
 			for (uint32_t j = 0; j < ceil_log2(q); ++j) {
@@ -1099,7 +1097,7 @@ public:
 	/// \param k_upper higher bound, exclusive
 	constexpr void print(const uint32_t k_lower = 0,
 	                     const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_lower < length && k_upper <= length && k_lower < k_upper);
+		assert(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << (unsigned) __data[i] << " ";
 		}
@@ -1124,26 +1122,26 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr T *ptr() noexcept { return __data.data(); }
 	[[nodiscard]] __FORCEINLINE__ constexpr const T *ptr() const noexcept { return __data.data(); }
 	[[nodiscard]] __FORCEINLINE__ T ptr(const size_t i) noexcept {
-		ASSERT(i < limbs());
+		assert(i < limbs());
 		return __data[i];
 	};
 	[[nodiscard]] const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
-		ASSERT(i < limbs());
+		assert(i < limbs());
 		return __data[i];
 	};
 
 	[[nodiscard]] __FORCEINLINE__ std::array<T, length> &data() noexcept { return __data; }
 	[[nodiscard]] __FORCEINLINE__ const std::array<T, length> &data() const noexcept { return __data; }
 	[[nodiscard]] constexpr T data(const size_t index) const noexcept {
-		ASSERT(index < length);
+		assert(index < length);
 		return __data[index];
 	}
 	[[nodiscard]] constexpr T get(const size_t index) const noexcept {
-		ASSERT(index < length);
+		assert(index < length);
 		return __data[index];
 	}
 	constexpr void set(const T data, const size_t index) noexcept {
-		ASSERT(index < length);
+		assert(index < length);
 		__data[index] = data % q;
 	}
 
@@ -1174,9 +1172,9 @@ protected:
 
 
 /// simple data container holding `length` Ts
-/// \tparam T base type
-/// \tparam length number of elements
+/// \tparam n number of elements
 /// \tparam q prime
+/// \tparam T base type
 template<const uint32_t n,
          const uint64_t q,
          typename T=uint64_t>
@@ -1383,7 +1381,7 @@ public:
 	static inline void scalar(uint8_t *out,
 	                          const uint8_t *in1,
 	                          const T in2) noexcept {
-		ASSERT(in2 <= q);
+		assert(in2 <= q);
 		uint32_t i = 0;
 
 		const uint8x32_t b = uint8x32_t::set1(in2);

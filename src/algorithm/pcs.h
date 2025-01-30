@@ -8,7 +8,7 @@
 
 /// TODO README and example
 /// TODO multithreading and then pcs
-/// TODO brents and gospers cycle finding
+/// TODO gospers cycle finding
 ///		TODO: config class
 
 
@@ -127,9 +127,11 @@ public:
 		const auto sp = x1;
 		size_t i = 0;
 		if constexpr (brent) {
-			y2 = y1;
+			x2 = x1;
+			y2 = f(flavour(x1));
 			uint32_t power = 1, lam = 1;
-			while (i < max_iters) {
+			
+			while (!cmp(x1, x2, y1, y2) && (i < max_iters)) {
 				// time to start a new power of two?
 				if (power == lam) {
 					x2 = y2;
@@ -138,33 +140,34 @@ public:
 				}
 
 				y1 = y2;
-
 				y2 = f(flavour(y1));
 				i += 1;
 				lam += 1;
 				walk_len += 1;
-
-				if (cmp(x1, x2, y1, y2)) [[unlikely]] {
-					ret = true;
-					break;
-				}
 			}
 
-			// early exit, no coll found
-			if (!ret) { return false; }
+			// early exit, no collision found
+			if (!cmp(x1, x2, y1, y2)) { return false; }
 
 			x2 = sp;
-			y1 = sp;
+			y2 = sp;
 			for (uint32_t j = 0; j < lam; j++) {
-				y1 = f(flavour(y1));
+				y2 = f(flavour(y2));
 			}
-			y2 = y1;
+			
+			while (!cmp(x1, x2, y1, y2)) {
+				x1 = x2;
+				x2 = f(flavour(x1));
+				y1 = y2;
+				y2 = f(flavour(y1));
+			}
+			return true;
 		} else {
+			y1 = x1;
 			while (i < max_iters) {
 				i += 1;
 				walk_len += 1;
 
-				// x1 = flavour(x1);
 				x2 = f(flavour(x1));
 
 				y1 = f(flavour(y1));

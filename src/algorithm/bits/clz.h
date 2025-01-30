@@ -26,7 +26,7 @@ namespace cryptanalysislib::algorithm {
 			}
 			return clz<uint64_t>(data);
 		} else {
-			ASSERT(false);
+			assert(false);
 		}
 	}
 }

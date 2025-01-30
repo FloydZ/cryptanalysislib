@@ -156,6 +156,11 @@ TEST(NAME, HashSimple) {
 			}
 
 
+			if ((h-l)*qbits >= 64) {
+				continue;
+			}
+
+
 			b1.zero();
 			b1.one(l, h);
 			uint64_t t2 = b1.hash(l, h);

@@ -54,7 +54,7 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 	const auto v = h(value_);
 	uint64_t next = interpolate1(v);
 	uint64_t old_next = -1ull;
-	ASSERT(next <= count);
+	assert(next <= count);
 
 	while (true) {
 		const auto a = h(*(first+next));
@@ -72,14 +72,14 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 			return last;
 		}
 
-		ASSERT(h(*left) <= h(*right));
+		assert(h(*left) <= h(*right));
 		next = interpolate2(v, left, right);
 		next += std::distance(first, left);
 
 		// break free from a possible infinite loop
 		next += next == old_next;
 		old_next = next;
-		ASSERT(next < count);
+		assert(next < count);
 	}
 	return left;
 }
@@ -212,20 +212,25 @@ constexpr RandIt lower_bound_interpolation_search2(RandIt first,
 }
 
 /// implementation idea taken from `https://en.wikipedia.org/wiki/Interpolation_search`
+/// \tparam T[in]: TODO doc
+/// \tparam Hash[in]:
+/// \param __buckets[in]:
+/// \param key[in]:
+/// \param boffset[in]:
+/// \param load[in]:
+/// \param e[in]:
 template<typename T,
          typename Hash>
 #if __cplusplus > 201709L
 	requires HashFunction<Hash, T> and
              std::is_integral_v<T>
 #endif
-size_t LowerBoundInterpolationSearch(const T *__buckets,
-                                     const T key,
-                                     const size_t boffset,
-                                     const size_t load,
-                                     Hash e) noexcept {
-	ASSERT(boffset < load);
-	// example of the extract function#define ISAccess(x) x //((x&mask2)>>b1)
-
+constexpr size_t LowerBoundInterpolationSearch(const T *__buckets,
+                                               const T &key,
+                                               const size_t boffset,
+                                               const size_t load,
+                                               Hash &&e) noexcept {
+	assert(boffset < load);
 	size_t low = boffset, high = load - 1, mid;
 	const T data = e(key);
 	while ((e(__buckets[high]) >= e(__buckets[low])) &&
@@ -236,7 +241,7 @@ size_t LowerBoundInterpolationSearch(const T *__buckets,
 		const double abc = double(high - low);
 		const size_t mul = abc / double(div);
 		mid = low + ((data - e(__buckets[low])) * mul);
-		ASSERT(mid <= high);
+		assert(mid <= high);
 
 		const T middata = e(__buckets[mid]);
 		if (middata < data)
@@ -300,7 +305,7 @@ RandIt LowerBoundInterpolationSearch(RandIt first,
 		mid = low;
 		std::advance(mid, (data - e(*low)) * mul);
 		const T middata = e(*mid);
-		ASSERT(middata <= e(*high));
+		assert(middata <= e(*high));
 
 		if (middata < data) {
 			low = mid;
@@ -332,7 +337,7 @@ RandIt LowerBoundInterpolationSearch(RandIt first,
 
 namespace cryptanalysislib::search {
 
-	/// \tparam RandIt
+	/// \tparam RandIt TODO doc
 	/// \tparam Hash
 	/// \param first
 	/// \param last

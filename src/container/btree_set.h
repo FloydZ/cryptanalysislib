@@ -1,28 +1,9 @@
 #ifndef CRYPTANALYSISLIB_CONTAINER_BTREE_SET_H
 #define CRYPTANALYSISLIB_CONTAINER_BTREE_SET_H
-/*
- * B-tree set (C++)
- *
- * Copyright (c) 2021 Project Nayuki. (MIT License)
- * https://www.nayuki.io/page/btree-set
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- * - The above copyright notice and this permission notice shall be included in
- *   all copies or substantial portions of the Software.
- * - The Software is provided "as is", without warranty of any kind, express or
- *   implied, including but not limited to the warranties of merchantability,
- *   fitness for a particular purpose and noninfringement. In no event shall the
- *   authors or copyright holders be liable for any claim, damages or other
- *   liability, whether in an action of contract, tort or otherwise, arising from,
- *   out of or in connection with the Software or the use or other dealings in the
- *   Software.
- */
 
+/// original code from: 
+///     https://www.nayuki.io/page/btree-set
+     
 
 #include <algorithm>
 #include <cassert>
@@ -43,7 +24,7 @@ struct BKTreeConfig : public AlignmentConfig {
 constexpr static BKTreeConfig bkTreeConfig;
 
 /// \tparam E
-/// \tparam Allocator
+/// \tparam Allocator TODO add 
 /// \tparam config
 template <typename E,
 		  const BKTreeConfig &config=bkTreeConfig>
@@ -65,8 +46,9 @@ public:
 	using value_type = E;
 	using key_type = uint32_t;
 	using SearchResult = std::pair<bool, key_type>;
+    // TODO iterators and stuff
 
-	///
+	/// print some basic information about the structure
 	void info() noexcept {
 		std::cout << " { name: \"BTreeSet\""
 		          << ", count:" << count
@@ -77,8 +59,9 @@ public:
 		          << " }" <<std::endl;
 	}
 
-	// The degree is the minimum number of children each non-root internal node must have.
-	constexpr explicit BTreeSet(uint32_t degree) noexcept :
+	/// \param degree[in]: The degree is the minimum number of children each 
+    ///         non-root internal node must have.
+	constexpr explicit BTreeSet(const uint32_t degree) noexcept :
 	         minKeys(degree - 1),
 	         maxKeys(degree <= UINT32_MAX / 2 ? degree * 2 - 1 : 0) {
 		if (degree < 2) {
@@ -92,7 +75,7 @@ public:
 		clear();
 	}
 
-
+    /// \param other[in]:
 	constexpr explicit BTreeSet(const BTreeSet &other) noexcept :
 	    root(new Node(*other.root.get())),
 	    count  (other.count  ),
@@ -100,8 +83,10 @@ public:
 	    maxKeys(other.maxKeys) {}
 
 
+    /// \param other[in]:
 	constexpr BTreeSet(BTreeSet &&other) = default;
 
+    /// \param other[in]:
 	constexpr BTreeSet &operator=(BTreeSet other) noexcept {
 		std::swap(root   , other.root);
 		std::swap(count  , other.count);
@@ -115,7 +100,7 @@ public:
 		return count == 0;
 	}
 
-	/// \return number of elements within the tree
+	/// \return: number of elements within the tree
 	[[nodiscard]] constexpr inline std::size_t size() const noexcept {
 		return count;
 	}
@@ -126,7 +111,9 @@ public:
 		count = 0;
 	}
 
-	constexpr bool contains(const E &val) const noexcept {
+    /// \param val[in]:
+    /// \return true/false if the element is present or nor
+	[[nodiscard]] constexpr bool contains(const E &val) const noexcept {
 		// Walk down the tree
 		const Node *node = root.get();
 		while (true) {
@@ -142,8 +129,8 @@ public:
 		}
 	}
 
-
-	constexpr void insert(E val) noexcept {
+    /// \param val[in]
+	constexpr void insert(const E val) noexcept {
 		// Special preprocessing to split root node
 		if (root->keys.size() == maxKeys) {
 			std::unique_ptr<Node> child = std::move(root);
@@ -156,15 +143,15 @@ public:
 		Node *node = root.get();
 		while (true) {
 			// Search for index in current node
-			ASSERT(node->keys.size() < maxKeys);
-			ASSERT(node == root.get() || node->keys.size() >= minKeys);
+			assert(node->keys.size() < maxKeys);
+			assert(node == root.get() || node->keys.size() >= minKeys);
 			SearchResult sr = node->search(val);
 			if (sr.first)
 				return;  // Key already exists in tree
 			key_type index = sr.second;
 
 			if (node->isLeaf()) {  // Simple insertion into leaf
-				ASSERT(count != SIZE_MAX);
+				assert(count != SIZE_MAX);
 				node->keys.insert(node->keys.begin() + index, std::move(val));
 				count++;
 				return;  // Successfully inserted
@@ -199,12 +186,12 @@ public:
 
 		Node *node = root.get();
 		while (true) {
-			ASSERT(node->keys.size() <= maxKeys);
-			ASSERT(node == root.get() || node->keys.size() > minKeys);
+			assert(node->keys.size() <= maxKeys);
+			assert(node == root.get() || node->keys.size() > minKeys);
 			if (node->isLeaf()) {
 				if (found) {  // Simple removal from leaf
 					node->removeKey(index);
-					ASSERT(count > 0);
+					assert(count > 0);
 					count--;
 					return 1;
 				} else {
@@ -215,24 +202,24 @@ public:
 				if (found) {  // Key is stored at current node
 					Node *left  = node->children.at(index + 0).get();
 					Node *right = node->children.at(index + 1).get();
-					ASSERT(left != nullptr && right != nullptr);
+					assert(left != nullptr && right != nullptr);
 					if (left->keys.size() > minKeys) {
 						// Replace key with predecessor
 						node->keys.at(index) = left->removeMax(minKeys);
-						ASSERT(count > 0);
+						assert(count > 0);
 						count--;
 						return 1;
 					} else if (right->keys.size() > minKeys) {
 						// Replace key with successor
 						node->keys.at(index) = right->removeMin(minKeys);
-						ASSERT(count > 0);
+						assert(count > 0);
 						count--;
 						return 1;
 					} else {
 						// Merge key and right node into left node, then recurse
 						node->mergeChildren(minKeys, index);
 						if (node == root.get() && root->keys.empty()) {
-							ASSERT(root->children.size() == 1);
+							assert(root->children.size() == 1);
 							std::unique_ptr<Node> newRoot = std::move(root->children.at(0));
 							root = std::move(newRoot);  // Decrement tree height
 						}
@@ -243,7 +230,7 @@ public:
 				} else {  // Key might be found in some child
 					Node *child = node->ensureChildRemove(minKeys, index);
 					if (node == root.get() && root->keys.empty()) {
-						ASSERT(root->children.size() == 1);
+						assert(root->children.size() == 1);
 						std::unique_ptr<Node> newRoot = std::move(root->children.at(0));
 						root = std::move(newRoot);  // Decrement tree height
 					}
@@ -275,7 +262,7 @@ private:
 		/// \param leaf
 		constexpr Node(const key_type maxKeys,
 					   bool leaf) noexcept {
-			ASSERT(maxKeys >= 3 && maxKeys % 2 == 1);
+			assert(maxKeys >= 3 && maxKeys % 2 == 1);
 			keys.reserve(maxKeys);
 			if (!leaf) {
 				children.reserve(maxKeys + 1);
@@ -314,7 +301,7 @@ private:
 				}
 			}
 
-			ASSERT(i <= keys.size());
+			assert(i <= keys.size());
 			// Not found, caller should recurse on child
 			return SearchResult(false, i);
 		}
@@ -326,9 +313,9 @@ private:
 		constexpr void splitChild(std::size_t minKeys,
 		                          std::size_t maxKeys,
 		                          std::size_t index) noexcept {
-			ASSERT(!this->isLeaf() && index <= this->keys.size() && this->keys.size() < maxKeys);
+			assert(!this->isLeaf() && index <= this->keys.size() && this->keys.size() < maxKeys);
 			Node *left = this->children.at(index).get();
-			ASSERT(left->keys.size() == maxKeys);
+			assert(left->keys.size() == maxKeys);
 			this->children.insert(this->children.begin() + index + 1, std::make_unique<Node>(maxKeys, left->isLeaf()));
 			Node *right = this->children.at(index + 1).get();
 
@@ -351,22 +338,22 @@ private:
 		// A reference to the appropriate child is returned, which is helpful if the old child no longer exists.
 		constexpr Node *ensureChildRemove(const std::size_t minKeys,
 		                                  const key_type index) noexcept {
-			ASSERT(!this->isLeaf() && index < this->children.size());
+			assert(!this->isLeaf() && index < this->children.size());
 			Node *child = this->children.at(index).get();
 			if (child->keys.size() > minKeys) {
 				// Already satisfies the condition
 				return child;
 			}
 
-			ASSERT(child->keys.size() == minKeys);
+			assert(child->keys.size() == minKeys);
 
 			// Get siblings
 			Node *left = index >= 1 ? this->children.at(index - 1).get() : nullptr;
 			Node *right = index < this->keys.size() ? this->children.at(index + 1).get() : nullptr;
 			bool internal = !child->isLeaf();
-			ASSERT(left != nullptr || right != nullptr);  // At least one sibling exists because degree >= 2
-			ASSERT(left  == nullptr || left ->isLeaf() != internal);  // Sibling must be same type (internal/leaf) as child
-			ASSERT(right == nullptr || right->isLeaf() != internal);  // Sibling must be same type (internal/leaf) as child
+			assert(left != nullptr || right != nullptr);  // At least one sibling exists because degree >= 2
+			assert(left  == nullptr || left ->isLeaf() != internal);  // Sibling must be same type (internal/leaf) as child
+			assert(right == nullptr || right->isLeaf() != internal);  // Sibling must be same type (internal/leaf) as child
 
 			if (left != nullptr && left->keys.size() > minKeys) {  // Steal rightmost item from left sibling
 				if (internal) {
@@ -400,10 +387,10 @@ private:
 		// assuming the current node is not empty and both children have minKeys.
 		constexpr void mergeChildren(const std::size_t minKeys,
 		                             const key_type index) noexcept {
-			ASSERT(!this->isLeaf() && index < this->keys.size());
+			assert(!this->isLeaf() && index < this->keys.size());
 			Node &left  = *children.at(index + 0);
 			Node &right = *children.at(index + 1);
-			ASSERT(left.keys.size() == minKeys && right.keys.size() == minKeys);
+			assert(left.keys.size() == minKeys && right.keys.size() == minKeys);
 			if (!left.isLeaf()) {
 				std::move(right.children.begin(), right.children.end(), std::back_inserter(left.children));
 			}
@@ -418,7 +405,7 @@ private:
 		// Requires this node to be preprocessed to have at least minKeys+1 keys.
 		constexpr E removeMin(const std::size_t minKeys) noexcept {
 			for (Node *node = this; ; ) {
-				ASSERT(node->keys.size() > minKeys);
+				assert(node->keys.size() > minKeys);
 				if (node->isLeaf()) {
 					return node->removeKey(0);
 				} else {
@@ -426,7 +413,6 @@ private:
 				}
 			}
 		}
-
 
 		// Removes and returns the maximum key among the whole subtree rooted at this node.
 		// Requires this node to be preprocessed to have at least minKeys+1 keys.
@@ -439,7 +425,6 @@ private:
 					node = node->ensureChildRemove(minKeys, node->children.size() - 1);
 			}
 		}
-
 
 		// Removes and returns this node's key at the given index.
 		constexpr E removeKey(const key_type index) noexcept {

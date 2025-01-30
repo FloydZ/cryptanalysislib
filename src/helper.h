@@ -110,25 +110,6 @@ constexpr std::ptrdiff_t prefetch_distance = 0;
 #include <iostream>
 
 #ifdef DEBUG
-#include <cassert>
-#ifdef USE_ARM
-#include <cstdlib>
-// NOTE that's the BUG. GCC on arm `assert` is not constexpr
-#define ASSERT(x)										\
-do {													\
-	if (!(x)) {											\
-		exit(EXIT_FAILURE);								\
-	}													\
-} while(0);
-
-#else
-#define ASSERT(x) assert(x)
-#endif
-#else
-#define ASSERT(x)
-#endif
-
-#ifdef DEBUG
 #ifndef DEBUG_MACRO
 #define DEBUG_MACRO(x) x
 #endif
@@ -259,7 +240,8 @@ constexpr inline void constexpr_for(F &&f) noexcept {
 static void translate_level(uint32_t *lower,
                             uint32_t *upper, const uint32_t level,
                             const std::vector<uint32_t> &level_translation_array) noexcept {
-	ASSERT(lower != NULL && upper != NULL);
+	assert(lower != NULL);
+	assert(upper != NULL);
 
 	// this is actually mostly only for testing.
 	if (unlikely(level == uint32_t(-1))) {
@@ -270,17 +252,18 @@ static void translate_level(uint32_t *lower,
 
 	// we __MUST__ check this after the 'if' clause,
 	// because otherwise this would catch the -1 test case
-	ASSERT(level <= level_translation_array.size() - 1u);
+	assert(level <= level_translation_array.size() - 1u);
 
 	*lower = level_translation_array[level];
 	*upper = level_translation_array[level + 1u];
 }
 
-/// translates an const_array 'level_filter_array' = (e.g.) [4, 0, 0] into a 'norm' = (e.g.) 2, s.t. every 'Value' with a
+/// translates a const_array 'level_filter_array' = (e.g.) [4, 0, 0] into a 'norm' = (e.g.) 2, s.t. every 'Value' with a
 /// coordinate which is absolute bigger than 'Norm' needs to be filtered out.
 /// assumes to count from the top to the bottom of the tree in increasing order. So the root is in lvl 0.
-/// \param const lvl = current lvl
-/// \param const level_filter_array input parameter
+/// \param lvl[in]: current lvl
+/// \param nr2[in]:
+/// \param level_filter_array input parameter
 static uint32_t translate_filter(const uint8_t lvl, const uint16_t nr2,
                                  const std::vector<std::vector<uint8_t>> &level_filter_array) noexcept {
 	if (level_filter_array[lvl][2] > 0) {
@@ -306,8 +289,17 @@ static void ident() {
 #ifdef USE_BRANCH_PREDICTION
 	std::cout << "DEFINED USE_BRANCH_PREDICTION" << std::endl;
 #endif
+	std::cout << "cryptanalysislib 1.0.0" << std::endl;
+}
 
-	std::cout << "cryptanalysislib 0.0.1" << std::endl;
+/// \tparam T[]
+/// \param ptr[in]:
+/// \param alignment[in]
+/// \return if the pointer is correctly aligne
+template<typename T>
+constexpr static inline bool is_aligned(const T *ptr,
+										const uint32_t alignment) noexcept {
+	return (((uintptr_t)ptr) % alignment) == 0;
 }
 
 
@@ -358,14 +350,6 @@ using TypeTemplate =
                 typename std::conditional<(n <= 0xFFFFFFFFFFFFFFFF), typename std::conditional<__unsigned, uint64_t, int64_t>::type,
                     typename std::conditional<__unsigned, __uint128_t, __int128_t>::type>::type>::type>::type>::type;
 
-template<typename T>
-constexpr static size_t limbs() noexcept {
-#ifdef USE_AVX512F
-	return 64/sizeof(T);
-#else
-	return 32/sizeof(T);
-#endif
-}
 
 // tracy stuff
 #ifdef USE_TRACY

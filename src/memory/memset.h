@@ -165,10 +165,10 @@ namespace cryptanalysislib {
 			if (bytes >= 128) {
 				if constexpr (sizeof(T) == 1) {
 					uint8x64_t t = uint8x64_t::set1(in);
-					uint8x64_t::unaligned_store(out, t);
+					uint8x64_t::unaligned_store((uint8_t *)out, t);
 
 					uint8_t *out2 = ((uint8_t *)out) + bytes;
-					uint8x64_t::unaligned_store(out2 - 0x40, t);
+					uint8x64_t::unaligned_store((uint8_t *)(out2 - 0x40), t);
 					out2 = (uint8_t *) (((uintptr_t) (out2)) & -0x40);
 
 					out += 0x40;

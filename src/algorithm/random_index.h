@@ -27,8 +27,8 @@ constexpr void generate_random_indices(T *data,
                                        const size_t len,
                                        const T max_entry,
                                        const T min_entry=0) noexcept {
-	ASSERT(len > 0);
-	ASSERT(max_entry > 1);
+	assert(len > 0);
+	assert(max_entry > 1);
 
 	if (max_entry <= len) {
 		// easy case, in which we have to chose certain elements often
@@ -58,7 +58,7 @@ constexpr void generate_random_indices(T *data,
 	}
 }
 
-///
+/// TODO doc
 /// \tparam T
 /// \param data
 /// \param len
@@ -68,8 +68,8 @@ template<typename T>
 constexpr void generate_random_mitm_indices(T *data,
 									   	   const size_t len,
                                            const T max_entry) noexcept {
-	ASSERT(len >= 2);
-	ASSERT(max_entry >= 2);
+	assert(len >= 2);
+	assert(max_entry >= 2);
 	const size_t mitm = len/2;
 	const T half = max_entry/2;
 	generate_random_indices<T>(data+0, mitm, half);

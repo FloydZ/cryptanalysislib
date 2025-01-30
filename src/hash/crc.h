@@ -230,6 +230,11 @@ uint32_t crc32(uint32_t crc, uint8_t *buf, size_t len) {
 
 #define CRC_ITER(i) case i:								\
 crcA = _mm_crc32_u64(crcA, *(uint64_t*)(pA - 8*(i)));	\
+crcB = _mm_crc32_u64(crcB, *(uint64_t*)(pB - 8*(i)));	\
+[[fallthrough]]
+
+#define CRC_ITER_(i) case i:							\
+crcA = _mm_crc32_u64(crcA, *(uint64_t*)(pA - 8*(i)));	\
 crcB = _mm_crc32_u64(crcB, *(uint64_t*)(pB - 8*(i)));
 
 #define X0(n) CRC_ITER(n);
@@ -238,7 +243,18 @@ crcB = _mm_crc32_u64(crcB, *(uint64_t*)(pB - 8*(i)));
 #define X3(n) X2(n+4) X2(n)
 #define X4(n) X3(n+8) X3(n)
 #define X5(n) X4(n+16) X4(n)
-#define X6(n) X5(n+32) X5(n)
+
+/// same as above, but the last '[[fallthrough]]' is omitted
+#define X0_(n) CRC_ITER_(n);
+#define X1_(n) X0(n+1)  X0_(n)
+#define X2_(n) X1(n+2)  X1_(n)
+#define X3_(n) X2(n+4)  X2_(n)
+#define X4_(n) X3(n+8)  X3_(n)
+#define X5_(n) X4(n+16) X4_(n)
+
+/// NOTE: the last [[fallthrough]] needs to be omitted, thats why we have two
+/// sets of macros
+#define X6(n) X5(n+32) X5_(n)
 #define CRC_ITERS_128_TO_2() do {X0(128) X1(126) X2(122) X3(114) X4(98) X5(66) X6(2)} while(0)
 
 /// Source: https://github.com/komrad36/CRC/tree/master/CRC

@@ -112,7 +112,7 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) {
 		/// some security checks
-		ASSERT(n + offset <= Value::length);
+		assert(n + offset <= Value::length);
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -153,7 +153,7 @@ public:
 			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off2]);
+			assert(element.value[a + off2]);
 
 			Label::sub(element.label, element.label, HT.get(a + off2));
 			Label::add(element.label, element.label, HT.get(b + off2));
@@ -181,7 +181,7 @@ public:
 		}
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == list_size);
+		assert(ctr == list_size);
 
 		if (sL1) { L1->set_load(list_size); }
 		if (sL2) { L2->set_load(list_size); }
@@ -317,8 +317,8 @@ public:
 			 Extractor *e = nullptr,
 			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
-		ASSERT(offset + base_offset <= Value::length());
+		assert(n + offset <= Value::length());
+		assert(offset + base_offset <= Value::length());
 		constexpr bool write = false;
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -363,7 +363,7 @@ public:
 			const uint32_t off2 = off + base_offset;
 		  /// make really sure that the the chase
 		  /// sequence is correct.
-		  ASSERT(element.value[a + off2]);
+		  assert(element.value[a + off2]);
 
 		  Label::add(element.label, element.label, HT.get(a + off2));
 		  Label::add(element.label, element.label, HT.get(b + off2));
@@ -392,7 +392,7 @@ public:
 		}
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == list_size);
+		assert(ctr == list_size);
 
 		// in this case reset everything, so its recallable
 		chase.reset();
@@ -533,8 +533,8 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) noexcept {
 		/// some security checks
-		ASSERT(n + offset <= Value::length);
-		ASSERT(offset + base_offset <= Value::length);
+		assert(n + offset <= Value::length);
+		assert(offset + base_offset <= Value::length);
 		element1.zero(); element2.zero();
 
 		// check if the lists are enabled
@@ -705,7 +705,7 @@ public:
 									 	const Label *syndrome = nullptr) :
 			ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
 			list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
-		ASSERT(LIST_SIZE >= list_size);
+		assert(LIST_SIZE >= list_size);
 
 		mitm_enumerator::changelist(mitm_chase_cl);
 		noreps_enumerator::changelist(noreps_chase_cl);
@@ -802,9 +802,9 @@ public:
 
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[unset]);
-			ASSERT(!element.value[set]);
-			ASSERT(std::abs((int) unset - (int) set) <= (int) w);
+			assert(element.value[unset]);
+			assert(!element.value[set]);
+			assert(std::abs((int) unset - (int) set) <= (int) w);
 
 			Label::sub(element.label, element.label, HT.get(unset));
 			Label::add(element.label, element.label, HT.get(set));
@@ -860,7 +860,7 @@ public:
 	finish:
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		assert(ctr == LIST_SIZE);
 		L1.set_load(list_size);
 		L2.set_load(list_size);
 		L3.set_load(list_size);

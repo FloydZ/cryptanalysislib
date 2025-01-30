@@ -38,9 +38,7 @@ static void BM_div(benchmark::State &state) {
 }
 
 static void BM_fastmod(benchmark::State &state) {
-	uint32_t a = rng(),
-			b = rng(),
-			c = rng();
+	uint32_t a = rng(), b = rng(), c = rng();
 
 	for (auto _: state) {
 		for (size_t i = 0; i < (size_t)state.range(0); ++i) {
@@ -53,9 +51,7 @@ static void BM_fastmod(benchmark::State &state) {
 }
 
 static void BM_fastdiv(benchmark::State &state) {
-	uint32_t a = rng(),
-	         b = rng(),
-	         c = rng();
+	uint32_t a = rng(), b = rng(), c = rng();
 
 	for (auto _: state) {
 		for (size_t i = 0; i < (size_t)state.range(0); ++i) {

@@ -13,7 +13,7 @@ size_t Tree_T<List, config>::join4lists(List &out, List &L1, List &L2, List &L3,
                                         const LabelType &target,
                                         const std::vector<uint32_t> &lta,
                                         const bool prepare) noexcept {
-	ASSERT(lta.size() >= 3);
+	assert(lta.size() >= 3);
 	// limits: k_lower1, k_upper1 for the lowest level tree. And k_lower2, k_upper2 for highest level. There are
 	// only two levels..., so obviously k_upper1=k_lower2
 	const uint64_t k_lower1 = lta[0], k_upper1 = lta[1];
@@ -33,7 +33,7 @@ size_t Tree_T<List, config>::join4lists(List &out, List &L1, List &L2, List &L3,
 	                const uint32_t k_lower2, const uint32_t k_upper2,
 	                const bool prepare,
 	                F &&f) noexcept {
-	ASSERT(k_lower1 < k_upper1 &&
+	assert(k_lower1 < k_upper1 &&
 	       0 < k_upper1 && k_lower2 < k_upper2
 	       && 0 < k_upper2 && k_lower1 <= k_lower2
 	       && k_upper1 < k_upper2
@@ -137,8 +137,8 @@ size_t Tree_T<List, config>::join4lists_on_iT_v2(List &out,
 			L4.sort_level(k_lower1, k_upper1);
 		}
 
-		ASSERT(L2.is_sorted(k_lower1, k_upper1));
-		ASSERT(L4.is_sorted(k_lower1, k_upper1));
+		assert(L2.is_sorted(k_lower1, k_upper1));
+		assert(L4.is_sorted(k_lower1, k_upper1));
 
 		ElementType tmpe1;
 		LabelType t1, iT;
@@ -206,8 +206,8 @@ size_t Tree_T<List, config>::join4lists_on_iT_v2(List &out,
 			L4.template sort_level<k_lower1, k_upper1>();
 		}
 
-		ASSERT(L2.is_sorted(k_lower1, k_upper1));
-		ASSERT(L4.is_sorted(k_lower1, k_upper1));
+		assert(L2.is_sorted(k_lower1, k_upper1));
+		assert(L4.is_sorted(k_lower1, k_upper1));
 
 		ElementType tmpe1;
 		LabelType t1, iT;
@@ -221,8 +221,8 @@ size_t Tree_T<List, config>::join4lists_on_iT_v2(List &out,
 
 #ifdef DEBUG
 		for (size_t i = 0; i < iL.load(); ++i) {
-			ASSERT(iL[i].label.is_equal(iT, k_lower1, k_upper1));
-			ASSERT(iL[i].is_correct(matrix));
+			assert(iL[i].label.is_equal(iT, k_lower1, k_upper1));
+			assert(iL[i].is_correct(matrix));
 		}
 #endif
 

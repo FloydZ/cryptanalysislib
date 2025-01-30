@@ -28,11 +28,11 @@ let
     # codelldb
     cmake
     lldb
-    clang_18
-    clang-tools_18
-    llvm_18
-    llvmPackages_18.libcxx
-    llvmPackages_18.openmp
+    clang
+    clang-tools
+    llvm
+    llvmPackages.libcxx
+    llvmPackages.openmp
     gcc
     gtest
     gbenchmark

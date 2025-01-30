@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_ATOMIC_SEMAPHORE_H
 
 #include <semaphore.h>
+#include <cassert>
 
 #include "helper.h"
 
@@ -12,7 +13,7 @@ private:
 
 	inline void create() noexcept {
 		int err = sem_init(&sem, 0, 0);
-		ASSERT(err == 0);
+		assert(err == 0);
 	}
 
 	inline void close() noexcept {
@@ -33,7 +34,7 @@ public:
 	///
 	inline void wait() noexcept {
 		int err = sem_wait(&sem);
-		ASSERT(err == 0);
+		assert(err == 0);
 	}
 
 	///

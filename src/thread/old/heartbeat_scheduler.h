@@ -201,22 +201,22 @@ namespace cryptanalysislib {
 
 			// Gets the JobExecuteState if the job is executing.
 			constexpr inline JobExecuteState *getExecuteState() const noexcept {
-				ASSERT(state() == JobState::State::executing);
-				ASSERT(next_or_state);
+				assert(state() == JobState::State::executing);
+				assert(next_or_state);
 				return (JobExecuteState *) next_or_state;
 			}
 
 			// Sets the execution state of the job.
 			constexpr inline void setExecuteState(JobExecuteState *execute_state) noexcept {
-				ASSERT(state() == JobState::executing);
-				ASSERT(execute_state);
+				assert(state() == JobState::executing);
+				assert(execute_state);
 				next_or_state = execute_state;
 			}
 
 			// Pushes the job onto a stack.
 			constexpr inline void push(Job **tail,
 			                           JobHandler *new_handler) noexcept {
-				ASSERT(state() == JobState::State::pending);
+				assert(state() == JobState::State::pending);
 				handler = new_handler;
 
 				(*tail)->next_or_state = this;// tail->next = this
@@ -224,7 +224,7 @@ namespace cryptanalysislib {
 				next_or_state = nullptr;      // this->next = null
 				*tail = this;                 // tail = this
 
-				ASSERT(state() == JobState::State::queued);
+				assert(state() == JobState::State::queued);
 			}
 
 			// Pops the job from the stack.
@@ -243,7 +243,7 @@ namespace cryptanalysislib {
 				if (next_or_state == nullptr) { return nullptr; }
 
 				Job *job = (Job *) next_or_state;
-				ASSERT(job->state() == JobState::queued);
+				assert(job->state() == JobState::queued);
 
 				auto next = (Job *) (job->next_or_state);
 				// Now we have: self -> job -> next.
@@ -261,7 +261,7 @@ namespace cryptanalysislib {
 				job->prev_or_null = nullptr; // job->prev = null
 				job->next_or_state = nullptr;// job->next_or_state = undefined
 
-				ASSERT(job->state() == JobState::executing);
+				assert(job->state() == JobState::executing);
 				return job;
 			}
 		};
@@ -560,7 +560,7 @@ namespace cryptanalysislib {
 		void destroyExecuteState(JobExecuteState *exec_state) noexcept {
 			// not needed, as this is done curretnly with `new`
 			// std::lock_guard lock(mutex);
-			ASSERT(exec_state);
+			assert(exec_state);
 			delete exec_state;
 		}
 

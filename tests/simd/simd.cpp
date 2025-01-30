@@ -13,6 +13,32 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+// just for testing the rotate operations
+#define ROR(a, offset) (((a) >> (offset)) ^ ((a) << ((sizeof(a)*8) - (offset))))
+#define ROL(a, offset) (((a) << (offset)) ^ ((a) >> ((sizeof(a)*8) - (offset))))
+
+#define S _uint8x16_t
+#define T _uint8x16_t
+#include "test_simd.h"
+#undef S
+#undef T
+//#define S _uint16x8_t
+//#define T _uint16x8_t
+//#include "test_simd.h"
+//#undef S
+//#undef T
+//#define S _uint32x4_t
+//#define T _uint32x4_t
+//#include "test_simd.h"
+//#undef S
+//#undef T
+//#define S _uint64x2_t
+//#define T _uint64x2_t
+//#include "test_simd.h"
+//#undef S
+//#undef T
+
+
 #define S uint8x32_t
 #define T uint8x32_t
 #include "test_simd.h"
@@ -186,7 +212,7 @@ TEST(uint32x8_t, gather) {
 	uint32_t d1[8] = {0,1,2,3,4,5,6,7};
 	// uint32_t d2[32] = {0,0,0,0,1,0,0,0,2,0,0,0,3,0,0,0,4,0,0,0,5,0,0,0,6,0,0,0,7,0,0,0};
 	const auto a = uint32x8_t::unaligned_load(d1);	
-	const auto b = uint32x8_t::gather(d1, a);
+	const auto b = uint32x8_t::gather<4>(d1, a);
 
 	for (uint32_t i = 0; i < 8; ++i) {
 		EXPECT_EQ(a.d[i], b.d[i]);

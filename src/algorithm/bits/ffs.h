@@ -24,7 +24,8 @@ namespace cryptanalysislib {
 
 			return t;
 		} else {
-			ASSERT(false);
+			assert(false);
+            return 0;
 		}
 	}
 }

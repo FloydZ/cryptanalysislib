@@ -10,6 +10,8 @@
 #include <utility>
 
 #include "memory/memory.h"
+#include "alloc/alloc.h"
+
 
 // TODO: implement everything: https://www.nayuki.io/res/aa-tree-set/aatreeset.rs
 // 	is currently just a cipy and paste from AVLTree
@@ -26,7 +28,7 @@ class AANode;
 /// \tparam config
 template <typename T,
           typename cmp = std::compare_three_way,
-		  class Allocator = std::allocator<AANode<T, aaNodeConfig>>,
+		  class Allocator = cryptanalysislib::allocator<AANode<T, aaNodeConfig>>,
 		  const AANodeConfig &config=aaNodeConfig>
 class AAMaybeNode {
 private:
@@ -57,19 +59,19 @@ public:
 	}
 
 	[[nodiscard]] constexpr inline T& value() noexcept {
-		ASSERT(!exists());
+		assert(!exists());
 		return ptr->value;
 	}
 
 	/// \return
 	[[nodiscard]] constexpr inline node& node_ref() noexcept {
-		ASSERT(exists());
+		assert(exists());
 		return *ptr;
 	}
 
 	/// \return
 	[[nodiscard]] constexpr inline node& node_ref() const noexcept {
-		ASSERT(exists());
+		assert(exists());
 		return *ptr;
 	}
 
@@ -92,7 +94,7 @@ public:
 	/// \param val
 	/// \return
 	[[nodiscard]] constexpr inline auto& skew(const T val) noexcept {
-		ASSERT(exists());
+		assert(exists());
 		auto selfnode = node_ref();
 		if (selfnode.left.level() < level()) {
 			return *this;

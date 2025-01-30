@@ -22,6 +22,7 @@ static void BM_std_unordered_map(benchmark::State &state) {
 			t += map.at(i);
 		}
 		benchmark::ClobberMemory();
+        benchmark::DoNotOptimize(t += 1);
 	}
 }
 
@@ -37,7 +38,9 @@ static void BM_hopscotch_map(benchmark::State &state) {
 		for (size_t i = 0; i < list_size; ++i) {
 			t += map.at(i);
 		}
+
 		benchmark::ClobberMemory();
+        benchmark::DoNotOptimize(t += 1);
 	}
 }
 

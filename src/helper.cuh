@@ -3,13 +3,6 @@
 #define idx (threadIdx.x + blockIdx.x * blockDim.x)
 #endif
 
-#ifdef DEBUG
-#include <assert.h>
-#define ASSERT(x) assert(x);
-#else
-#define ASSERT(x)
-#endif
-
 #ifndef __device__
 #define __device__
 #endif

@@ -4,6 +4,7 @@
 #include "thread/thread.h"
 #include "algorithm/algorithm.h"
 #include "simd/simd.h"
+#include "helper.h"
 
 #include <numeric>
 
@@ -26,22 +27,17 @@ namespace cryptanalysislib {
 		constexpr T accumulate_simd_int_plus(const T *data,
 							  const size_t n,
 							  const T init) noexcept {
-#ifdef USE_AVX512F
-			constexpr uint32_t limbs = 64/sizeof(T);
-#else
-			constexpr uint32_t limbs = 32/sizeof(T);
-#endif
-			using S = TxN_t<T, limbs>;
+			using S = SIMDSelector<T>;
 			T ret = init;
 
 			S acc = S::set1(0);
 			size_t i = 0;
-			for (; (i+limbs) <= n; i+=limbs) {
+			for (; (i+S::LIMBS) <= n; i+=S::LIMBS) {
 				const auto d = S::template load<config.aligned_instructions>(data + i);
 				acc = acc + d;
 			}
 
-			for (uint32_t j = 0; j < limbs; j++) {
+			for (uint32_t j = 0; j < S::LIMBS; j++) {
 				ret += acc[j];
 			}
 

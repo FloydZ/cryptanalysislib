@@ -17,7 +17,7 @@ size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
                                         const uint32_t k_upper,
                                         bool prepare,
                                         F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
+	assert(k_lower < k_upper && 0 < k_upper);
 	out.set_load(0);
 
 	if ((!target.is_zero()) && (prepare)) {
@@ -31,8 +31,8 @@ size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
 	}
 
 	// make sure everything is sorted, even if it was not prepared.
-	ASSERT(L1.is_sorted(k_lower, k_upper));
-	ASSERT(L2.is_sorted(k_lower, k_upper));
+	assert(L1.is_sorted(k_lower, k_upper));
+	assert(L2.is_sorted(k_lower, k_upper));
 
 	uint64_t i = 0, j = 0;
 	size_t ret = 0;
@@ -80,7 +80,7 @@ size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
 			std::cout << L1[i] << std::endl;
 			std::cout << L2[j] << std::endl;
 			std::cout << out[b] << std::endl;
-			ASSERT(false);
+			assert(false);
 		}
 #endif
 		return false;
@@ -118,8 +118,8 @@ size_t Tree_T<List, config>::join2lists(
 		L2.template sort_level<k_lower, k_upper>();
 	}
 
-	ASSERT(L1.is_sorted(k_lower, k_upper));
-	ASSERT(L2.is_sorted(k_lower, k_upper));
+	assert(L1.is_sorted(k_lower, k_upper));
+	assert(L2.is_sorted(k_lower, k_upper));
 
 	uint64_t i = 0, j = 0;
 	size_t ret = 0;
@@ -162,14 +162,14 @@ size_t Tree_T<List, config>::join2lists_on_iT(List &out,
                       const uint32_t k_upper,
                       const bool prepare,
                       F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
+	assert(k_lower < k_upper && 0 < k_upper);
 	out.set_load(0);
 
 	constexpr static bool sub = !LabelType::binary();
 	if (prepare) {
 		L1.sort_level(k_lower, k_upper);
 	}
-	ASSERT(L1.is_sorted(k_lower, k_upper));
+	assert(L1.is_sorted(k_lower, k_upper));
 
 	// NOTE: will always be sorted, as we dont know the
 	// target befor hand
@@ -238,7 +238,7 @@ size_t Tree_T<List, config>::join2lists_on_iT(List &out,
 			L2[j].label.print_binary();
 			out[b].label.print_binary();
 			target.print_binary();
-			ASSERT(false);
+			assert(false);
 		}
 #endif
 		return false;
@@ -261,10 +261,10 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
 							 const uint32_t k_upper,
 	                         const bool prepare,
 	                         F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
+	assert(k_lower < k_upper && 0 < k_upper);
 	out.set_load(0);
 	if (prepare) { L2.sort_level(k_lower, k_upper); }
-	ASSERT(L2.is_sorted(k_lower, k_upper));
+	assert(L2.is_sorted(k_lower, k_upper));
 
 	LabelType sigma_t;
 	size_t ret = 0;
@@ -318,13 +318,13 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
 						 const LabelType &target,
                          const bool prepare,
                          F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
+	assert(k_lower < k_upper && 0 < k_upper);
 	out.set_load(0);
 	if (prepare) {
 		L2.template sort_level<k_lower, k_upper>();
 	}
 
-	ASSERT(L2.is_sorted(k_lower, k_upper));
+	assert(L2.is_sorted(k_lower, k_upper));
 
 	LabelType sigma_t;
 	size_t ret = 0;
@@ -365,7 +365,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(
         const LabelType &target,
         const bool prepare,
         F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
+	assert(k_lower < k_upper && 0 < k_upper);
 	using LoadType = typename HashMap::load_type;
 	out.set_load(0);
 
@@ -417,7 +417,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(
 								const LabelType &target,
 								const bool prepare,
 								F f) noexcept {
-	ASSERT(k_lower < k_upper && 0 < k_upper);
+	assert(k_lower < k_upper && 0 < k_upper);
 	using LoadType = typename HashMapIn::load_type;
 	out.clear();
 
@@ -438,8 +438,8 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(
 		size_t s = hm2.find(sigma_t.value(), load);
 		for (size_t k = s; k < s + load; ++k) {
 			const size_t j = hm2[k];
-			ASSERT(L2[j].label.is_equal(sigma_t, k_lower, k_upper));
-			ASSERT(j < L2.load());
+			assert(L2[j].label.is_equal(sigma_t, k_lower, k_upper));
+			assert(j < L2.load());
 
 			ret += 1;
 			if (f(out, L1, L2, i, j)) { goto finish; }

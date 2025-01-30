@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_FUTEX_H
 #define CRYPTANALYSISLIB_FUTEX_H
 
+#ifndef __APPLE__
 #include <errno.h>
 #include <sys/syscall.h>
 #include <linux/futex.h>
@@ -17,7 +18,7 @@ namespace cryptanalysislib::atomic {
 	// very simple binary semaphore based on linux futex
 	struct futex {
 	private:
-		int count;
+		int count = 0;
 		constexpr static int FUTEX_PASSED = (-(1024 * 1024 * 1024));
 
 		constexpr futex() noexcept : count(1) {}
@@ -73,7 +74,6 @@ namespace cryptanalysislib::atomic {
 		}
 
 		/// Returns -1 on fail, 0 on wakeup, 1 on pass, 2 on didn't sleep
-		/// \param futx
 		/// \param val
 		/// \param rel
 		/// \return
@@ -140,7 +140,7 @@ namespace cryptanalysislib::atomic {
 		}
 
 		/// If __futex_down decrements from 1 to 0, we have it.
-		/// Otherwise sleep.
+		/// Otherwise, sleep.
 		/// \return
 		inline int down() noexcept {
 			return futex_down_timeout(nullptr);
@@ -153,7 +153,7 @@ namespace cryptanalysislib::atomic {
 
 		// If __futex_up increments count from 0 -> 1, none was waiting.
 		// Otherwise, set to 1 and tell kernel to wake them up.
-		// returns 0 on sucess
+		// returns 0 on success
 		inline int up() noexcept {
 			if (!__futex_up(&count)) {
 				return __futex_up_slow();
@@ -178,9 +178,14 @@ namespace cryptanalysislib::atomic {
 			return 0;
 		}
 
-        inline int get() noexcept {
+        constexpr inline void set(const uint32_t c) noexcept {
+            count = c;
+        }
+        constexpr inline int get() const noexcept {
             return count; 
         }
 	};
 } // end namespace cryptanalysislib
 #endif//CRYPTANALYSISLIB_FUTEX_H
+
+#endif

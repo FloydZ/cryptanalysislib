@@ -7,22 +7,28 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <iostream>
+#include <iterator>
+#include <simd/simd.h>
+
+#include "alloc/alloc.h"
 
 /// Source:
 ///  https://www.cs.purdue.edu/homes/xyzhang/fall14/lock_free_set.pdf
 ///  https://moodycamel.com/blog/2014/solving-the-aba-problem-for-lock-free-free-lists
 ///  https://users.fmi.uni-jena.de/~nwk/LockFree.pdf
 /// IMPORTANT: this linkedlist does not implement the remove operator.
-/// 		Hence the ABA problem is not a thing
+/// 		Hence, the ABA problem is not a thing
 /// unsorted single-linked list
 /// \tparam T
 template<typename T,
+         template<class N> class Allocator = cryptanalysislib::allocator>
          class A = std::atomic<T>>
 class ConstFreeList {
 private:
 	struct Node {
-		Node() noexcept : next(nullptr) {}
-		Node(T data) noexcept : next(nullptr), data(data) {}
+		constexpr Node() noexcept : next(nullptr) {}
+		constexpr Node(T data) noexcept : next(nullptr), data(data) {}
 
 		std::atomic<Node *> next;
 		T data;
@@ -47,9 +53,14 @@ private:
 		using reference = T &;
 		using internal_pointer = Node *;
 
-		Iterator(internal_pointer ptr) : m_ptr(ptr) {}
-		reference operator*() const { return m_ptr->data; }
-		pointer operator->() { return &(m_ptr->data); }
+		///
+		constexpr Iterator(const internal_pointer ptr) : m_ptr(ptr) {}
+
+		///
+		constexpr reference operator*() noexcept { return m_ptr->data; }
+		constexpr reference operator*() const noexcept { return m_ptr->data; }
+
+		constexpr pointer operator->() noexcept { return &(m_ptr->data); }
 
 		// Prefix increment
 		Iterator &operator++() {
@@ -64,10 +75,12 @@ private:
 			return tmp;
 		}
 
-		friend bool operator==(const Iterator &a, const Iterator &b) { 
+		[[nodiscard]] constexpr friend bool operator==(const Iterator &a,
+													   const Iterator &b) noexcept {
 			return a.m_ptr == b.m_ptr;
 		};
-		friend bool operator!=(const Iterator &a, const Iterator &b) {
+		[[nodiscard]] constexpr friend bool operator!=(const Iterator &a,
+													   const Iterator &b) noexcept {
 			return a.m_ptr != b.m_ptr; 
 		};
 
@@ -85,12 +98,21 @@ private:
 	std::atomic<Node *> head;
 
 public:
-	Iterator begin() { return Iterator(head); }
-	Iterator end() { return nullptr; }
+	constexpr inline Iterator begin() noexcept { return Iterator(head); }
+	constexpr inline Iterator end() noexcept { return nullptr; }
+	constexpr inline Iterator begin() const noexcept { return Iterator(head); }
+	constexpr inline Iterator end() const noexcept { return nullptr; }
 
+	///
 	constexpr ConstFreeList() noexcept {
 		/// create an empty element
 		head.store(nullptr);
+	}
+
+	/// free everything
+	/// NOTE: not thread save. Only call by a single thread
+	constexpr ~ConstFreeList() noexcept {
+		clear();
 	}
 
 	/// returns 1 if element is in list, 0 else
@@ -111,6 +133,7 @@ public:
 	/// returns 0 on success. This function cannot fail
 	constexpr int insert_front(const T &data) noexcept {
 		Node *current_head = head.load();
+		// TODO replace with allocator
 		auto new_head = new Node(data);
 		do {
 			new_head->next.store(current_head);

@@ -10,6 +10,7 @@
 namespace cryptanalysislib {
 
 #ifdef USE_AVX2
+    // TODO make S a template argument which fullfills the SIMD trate
 	bool memcmp_u256_u8(const uint8_t *__restrict__ a,
                         const uint8_t *__restrict__ b,
 		                const size_t n) noexcept {
@@ -27,10 +28,9 @@ namespace cryptanalysislib {
             nn += 32;
         }
 
-        
         using A = _uint64x2_t;
         if (nn <= -16) {
-            uint32_t t = A::load(a + nn) == A::load(b + nn);
+            uint32_t t = A::load((A::limb_type *)(a + nn)) == A::load((A::limb_type *)(b + nn));
             t ^= 0xFFFF;
             if (t) { return 1; }
 

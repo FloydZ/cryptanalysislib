@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+#include <cassert>
 
 #if defined(SORT_PARALLEL)
 #include <algorithm>
@@ -355,7 +356,7 @@ private:
 	inline uint64_t bucket_offset(const BucketHashType bid) const noexcept { return bid * size_b; }
 
 	inline uint64_t bucket_offset(const uint32_t tid, const BucketHashType bid) const noexcept {
-		ASSERT(bid < nrb && tid < nrt);
+		assert(bid < nrb && tid < nrt);
 		uint64_t r;
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
 			// In this case we break up the chunks for each thread,
@@ -365,15 +366,15 @@ private:
 			r = bid * size_b + tid * size_t;
 		}
 
-		ASSERT(r < nrb * size_b);
-		ASSERT(size_t <= size_b);
+		assert(r < nrb * size_b);
+		assert(size_t <= size_b);
 		return r;
 	}
 
 	// accumulate the bucket load over all threads
 	// can be called multithreading.
 	inline void acc_bucket_load(const BucketHashType bid) noexcept {
-		ASSERT(bid < nrb);
+		assert(bid < nrb);
 
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
 			// Do nothing.
@@ -392,7 +393,7 @@ private:
 	/// \param index position to check in the __buckets const_array
 	/// \return if the element is zero or not
 	bool is_zero(const uint64_t index) const noexcept {
-		ASSERT(index < nrb * size_b);
+		assert(index < nrb * size_b);
 		return __buckets[index].first == zero_element;
 	}
 
@@ -404,8 +405,8 @@ private:
 	template<const bool insert>
 	inline LoadType find_next_empty_slot(const BucketHashType bid, const uint32_t tid) const noexcept {
 		// make sure the function is only called in the correct setting
-		ASSERT((!USE_LOAD_IN_FIND_SWITCH && LINEARSEARCH_SWITCH) || USE_HIGH_WEIGHT_SWITCH);
-		ASSERT(tid < nrt);
+		assert((!USE_LOAD_IN_FIND_SWITCH && LINEARSEARCH_SWITCH) || USE_HIGH_WEIGHT_SWITCH);
+		assert(tid < nrt);
 
 		constexpr LoadType middle = insert ? size_t / 2 : size_b / 2;
 		const uint64_t offset = insert ? bucket_offset(tid, bid) : bucket_offset(bid);
@@ -425,7 +426,7 @@ private:
 public:
 	// increments the bucket load by one
 	inline LoadType inc_bucket_load(const uint32_t tid, const BucketHashType bid) noexcept {
-		ASSERT(tid < nrt && bid < nrb);
+		assert(tid < nrt && bid < nrb);
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
 			// So here takes all the magic place. So basically we want to return and unique position where the callee
 			// function can save its element.
@@ -443,8 +444,8 @@ public:
 	}
 
 	inline LoadType get_bucket_load(const uint32_t tid, const BucketHashType bid) const noexcept {
-		ASSERT(tid < nrt && bid < nrb);
-		ASSERT(config.USE_LOAD_IN_FIND_SWITCH);
+		assert(tid < nrt && bid < nrb);
+		assert(config.USE_LOAD_IN_FIND_SWITCH);
 
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
 			// because I want to reduce the atomic loads I do not check before inserting elements, which leads to an overflow of the load factor
@@ -463,10 +464,10 @@ public:
 
 	// IMPORTANT: Call `acc_bucket_load` first
 	inline LoadType get_bucket_load(const BucketHashType bid) const noexcept {
-		ASSERT(bid < nrb);
+		assert(bid < nrb);
 
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
-			ASSERT(USE_SORTING_NETWORK_DECODED_IN_LOAD && "not impl");
+			assert(USE_SORTING_NETWORK_DECODED_IN_LOAD && "not impl");
 			// because I want to reduce the atomic loads I do not check before inserting elements,
 			// which leads to an overflow of the load factor
 			// do not use this function to insert elements.
@@ -494,7 +495,7 @@ public:
 
 	inline BucketHashType hash(const ArgumentLimbType data) const noexcept {
 		const BucketHashType bid = ((data & mask1) >> config.b0);
-		ASSERT(bid < nrb);
+		assert(bid < nrb);
 		return bid;
 	}
 
@@ -582,7 +583,7 @@ public:
 		}
 
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH && USE_SORTING_NETWORK_DECODED_IN_LOAD) {
-			ASSERT(false && "makes no sense");
+			assert(false && "makes no sense");
 		}
 
 		// Make sure the internal stuff is only printed once.
@@ -635,7 +636,7 @@ public:
 	///			In this case additional `IM_bits` bits are copied from the label into the hashmap. Make sure
 	///			that there is enough space.
 	void hash(const List &L, const uint32_t tid) noexcept {
-		ASSERT(tid < config.nr_threads);
+		assert(tid < config.nr_threads);
 		constexpr static uint32_t loffset = config.label_offset;
 		constexpr static uint32_t loffset64 = loffset / 64;
 		constexpr static uint32_t lshift = (loffset - (loffset64 * 64));  // this is also with some bitmasking possible.
@@ -682,7 +683,7 @@ public:
 	/// \param e extractor function
 	template<class Extractor>
 	void hash(const List &L, const uint64_t load, const uint32_t tid, Extractor e) noexcept {
-		ASSERT(tid < config.nr_threads);
+		assert(tid < config.nr_threads);
 
 		const std::size_t s_tid = L.start_pos(tid);
 		const std::size_t e_tid = s_tid + load;
@@ -700,7 +701,7 @@ public:
 	template<class Extractor, class Extractor2>
 	void hash_extend_to_triple(const List &L, const uint64_t load, const uint32_t tid,
 	                           Extractor e, Extractor2 et) noexcept {
-		ASSERT(tid < config.nr_threads);
+		assert(tid < config.nr_threads);
 
 		const std::size_t s_tid = L.start_pos(tid);
 		const std::size_t e_tid = s_tid + load;
@@ -732,7 +733,7 @@ public:
 	// same as above but do not touch the load const_array
 	template<class Extractor>
 	void traverse_hash(const List &L, const uint64_t load, const uint32_t tid, Extractor e) noexcept {
-		ASSERT(tid < config.nr_threads);
+		assert(tid < config.nr_threads);
 
 		const std::size_t s_tid = L.start_pos(tid);
 		const std::size_t e_tid = s_tid + load;
@@ -762,7 +763,7 @@ public:
 	/// \param pos	pointer to the const_array which should be copied into the internal data structure to loop up elements in the baselists
 	/// \param tid	thread_id
 	void insert(const ArgumentLimbType data, const IndexType *npos, const uint32_t tid) noexcept {
-		ASSERT(tid < config.nr_threads);
+		assert(tid < config.nr_threads);
 		const BucketHashType bid = HashFkt(data);
 		LoadType load;
 
@@ -830,7 +831,7 @@ public:
 	                   const IndexType *npos,
 	                   const uint32_t tid,
 	                   Hasher &CustomHashFkt) noexcept {
-		ASSERT(tid < config.nr_threads);
+		assert(tid < config.nr_threads);
 		const BucketHashType bid = CustomHashFkt(data);
 		LoadType load;
 
@@ -890,8 +891,8 @@ public:
 	/// Only sort a single bucket. Make sure that you call this function for every bucket.
 	// Assumes more buckets than threads
 	void sort_bucket(const BucketHashType bid) noexcept {
-		ASSERT(bid < nrb);
-		ASSERT(((bid + 1) * size_b) <= (nrb * size_b));
+		assert(bid < nrb);
+		assert(((bid + 1) * size_b) <= (nrb * size_b));
 
 		const uint64_t start = bid * size_b;
 		const uint64_t end = start + size_b;
@@ -930,7 +931,7 @@ public:
 	/// A little helper function, which maps a thread (its assumed that nr_threads <= nr_buckets) to a set of buckets,
 	/// which this thread needs to sort.
 	inline void sort(const uint32_t tid) noexcept {
-		ASSERT(tid < config.nr_threads);
+		assert(tid < config.nr_threads);
 
 		if constexpr (USE_ATOMIC_LOAD_SWITCH) {
 			// that's the whole reason, we use atomic value. So we dont have to sort.
@@ -944,12 +945,12 @@ public:
 			// to access areas of other threads.
 
 			if constexpr (b1 != b2) {
-				ASSERT(0);// not implemented
+				assert(0);// not implemented
 				return;
 			}
 
 			if constexpr (!LINEARSEARCH_SWITCH) {
-				ASSERT(0);// not implemented
+				assert(0);// not implemented
 				return;
 			}
 
@@ -1010,7 +1011,7 @@ public:
 		}
 
 		// Slowest path, we have to sort each bucket.
-		ASSERT(tid < nrt && nrt <= nrb);
+		assert(tid < nrt && nrt <= nrb);
 		for (uint64_t bid = tid * chunks; bid < ((tid + 1) * chunks); ++bid) {
 			sort_bucket(bid);
 		}
@@ -1019,7 +1020,7 @@ public:
 	BucketIndexType traverse_find(const ArgumentLimbType &data) noexcept {
 		const BucketHashType bid = HashFkt(data);
 		const BucketIndexType boffset = bid * size_b;
-		ASSERT(bid < nrb && boffset < nrb * size_b);
+		assert(bid < nrb && boffset < nrb * size_b);
 		//ignore load
 		return boffset;
 	}
@@ -1049,7 +1050,7 @@ public:
 			}
 		}
 
-		ASSERT(bid < nrb && boffset < nrb * size_b && load < nrb * size_b);
+		assert(bid < nrb && boffset < nrb * size_b && load < nrb * size_b);
 
 		// fastpath. Meaning that there was nothing to sort on.
 		if constexpr (b2 == b1) {
@@ -1062,7 +1063,7 @@ public:
 
 				// Check if the last element is really not a -1.
 				// NOTE: this check makes probably no sense after a few runs of the algorithm.
-				// ASSERT(__buckets[boffset + load - 1].first != ArgumentLimbType(-1));
+				// assert(__buckets[boffset + load - 1].first != ArgumentLimbType(-1));
 
 				load += boffset;
 				return boffset;
@@ -1097,7 +1098,7 @@ public:
 		// on huge arrays with small bucket size it's maybe a good idea to switch on linear search.
 		if constexpr (LINEARSEARCH_SWITCH) {
 			BucketIndexType pos = boffset;
-			ASSERT(pos < load);
+			assert(pos < load);
 
 			const ArgumentLimbType data2 = data & mask2;
 			while ((__buckets[pos].first & mask2) != data2) {
@@ -1107,7 +1108,7 @@ public:
 			if (pos == load)
 				return -1;
 
-			ASSERT(pos < load);
+			assert(pos < load);
 			return pos;
 		}
 
@@ -1127,7 +1128,7 @@ public:
 			const BucketIndexType pos = distance(__buckets.begin(), r);
 			if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
 
-			ASSERT(pos < load);
+			assert(pos < load);
 			return pos;
 		} else {
 			auto r = lower_bound_monobound_binary_search(__buckets.begin() + boffset,
@@ -1141,11 +1142,11 @@ public:
 			const BucketIndexType pos = distance(__buckets.begin(), r);
 			if ((__buckets[pos].first & mask2) != (data & mask2)) return -1;
 
-			ASSERT(pos < load);
+			assert(pos < load);
 			return pos;
 		}
 
-		ASSERT(0);
+		assert(0);
 		return 0;
 	}
 
@@ -1179,7 +1180,7 @@ public:
 			}
 		}
 
-		ASSERT(bid < nrb && boffset < nrb * size_b && load < nrb * size_b);
+		assert(bid < nrb && boffset < nrb * size_b && load < nrb * size_b);
 
 		// fastpath. Meaning that there was nothing to sort on.
 		if constexpr (b2 == b1) {
@@ -1192,7 +1193,7 @@ public:
 
 				// Check if the last element is really not a -1.
 				// NOTE: this check makes probably no sense after a few runs of the algorithm.
-				// ASSERT(__buckets[boffset + load - 1].first != ArgumentLimbType(-1));
+				// assert(__buckets[boffset + load - 1].first != ArgumentLimbType(-1));
 
 				load += boffset;
 				return boffset;
@@ -1215,7 +1216,7 @@ public:
 	/// \return
 	template<uint8_t lvl, uint8_t ctr>
 	ArgumentLimbType traverse(const ArgumentLimbType &data, IndexType &pos, IndexType *npos, const LoadType &load) const noexcept {
-		ASSERT(lvl < 4 && npos != nullptr && pos < load);
+		assert(lvl < 4 && npos != nullptr && pos < load);
 		if (pos >= (load - 1)) {
 			pos = IndexType(-1);
 			return pos;
@@ -1225,7 +1226,7 @@ public:
 		// the position and length of what needs to be copies is specified by the template parameters `lvl` and `ctr`.
 		// Whereas `lvl` specifies the starting position of the memcpy and `ctr` the length.
 		memcpy(&npos[lvl], __buckets[pos].second.data(), ctr * sizeof(IndexType));
-		ASSERT(npos[0] != IndexType(-1) && npos[1] != IndexType(-1));
+		assert(npos[0] != IndexType(-1) && npos[1] != IndexType(-1));
 
 		const ArgumentLimbType ret = data ^ __buckets[pos].first;
 
@@ -1241,9 +1242,9 @@ public:
 
 	template<uint8_t lvl, uint8_t ctr>
 	void traverse_drop(const ArgumentLimbType &data, IndexType &pos, IndexType *npos, const LoadType &load) const noexcept {
-		ASSERT(npos != nullptr && pos < load);
+		assert(npos != nullptr && pos < load);
 		memcpy(&npos[lvl], __buckets[pos].second.data(), ctr * sizeof(IndexType));
-		ASSERT(npos[0] != IndexType(-1) && npos[1] != IndexType(-1) && npos[2] != IndexType(-1) && npos[3] != IndexType(-1));
+		assert(npos[0] != IndexType(-1) && npos[1] != IndexType(-1) && npos[2] != IndexType(-1) && npos[3] != IndexType(-1));
 
 		if (pos >= (load - 1)) {
 			pos = IndexType(-1);
@@ -1287,8 +1288,8 @@ public:
 
 	/// Each thread resets a number of blocks
 	void reset(const uint32_t tid) noexcept {
-		ASSERT(tid < nrt);
-		ASSERT((tid * chunks_size) < (nrb * size_b));
+		assert(tid < nrt);
+		assert((tid * chunks_size) < (nrb * size_b));
 
 		if constexpr (!USE_LOAD_IN_FIND_SWITCH) {
 			// in this case reset everything except the load const_array.
@@ -1404,7 +1405,7 @@ public:
 	// check if each bucket is correctly sorted
 	// input argument is the starting position within the `__buckets` const_array
 	bool check_sorted(const uint64_t start, const uint64_t load) const noexcept {
-		ASSERT(start < (nrb * size_b));
+		assert(start < (nrb * size_b));
 		uint64_t i = start;
 		// constexpr ArgumentLimbType mask = b0 == 0 ? rmask2 : rmask2&lmask1;
 

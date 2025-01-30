@@ -1249,14 +1249,14 @@ using namespace cryptanalysislib::hash;
 void InternalTest(const uint64_t* expected, const int offset, const int len) {
 	const __uint128_t u = CityHash128(data + offset, len);
 	const __uint128_t v = CityHash128WithSeed(data + offset, len, kSeed128);
-	ASSERT_EQ(expected[0], CityHash64(data + offset, len));
-	ASSERT_EQ(expected[15], CityHash32(data + offset, len));
-	ASSERT_EQ(expected[1], CityHash64WithSeed(data + offset, len, kSeed0));
-	ASSERT_EQ(expected[2], CityHash64WithSeeds(data + offset, len, kSeed0, kSeed1));
-	ASSERT_EQ(expected[3], uint64_t (u));
-	ASSERT_EQ(expected[4], (u >> 64u));
-	ASSERT_EQ(expected[5], uint64_t (v));
-	ASSERT_EQ(expected[6], (v>>64u));
+	EXPECT_EQ(expected[0], CityHash64(data + offset, len));
+	EXPECT_EQ(expected[15], CityHash32(data + offset, len));
+	EXPECT_EQ(expected[1], CityHash64WithSeed(data + offset, len, kSeed0));
+	EXPECT_EQ(expected[2], CityHash64WithSeeds(data + offset, len, kSeed0, kSeed1));
+	EXPECT_EQ(expected[3], uint64_t (u));
+	EXPECT_EQ(expected[4], (u >> 64u));
+	EXPECT_EQ(expected[5], uint64_t (v));
+	EXPECT_EQ(expected[6], (v>>64u));
 }
 
 

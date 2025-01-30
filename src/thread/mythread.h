@@ -29,15 +29,14 @@ std::atomic<uint32_t> __global_tid = 0;
 #define BLOCKED 2 /* Waiting on Join */
 #define DEFUNCT 3 /* Dead */
 
-#ifdef DEBUG
-#define DEBUG_PRINTF(...)                          \
-	sprintf(debug_msg, __VA_ARGS__);               \
-	(void) write(1, debug_msg, strlen(debug_msg));
-#else
-#define DEBUG_PRINTF(...) \
-	do {                  \
-	} while (0);
-#endif
+
+
+#define DEBUG_PRINTF(...)\
+			debug_futex.down(); \
+			sprintf(debug_msg, __VA_ARGS__); \
+			(void)write(1, debug_msg, strlen(debug_msg)); \
+            debug_futex.up();
+
 
 
 /// org code from:
@@ -45,9 +44,9 @@ std::atomic<uint32_t> __global_tid = 0;
 /// but heavily modified to the c++ world by floyd
 
 
-char debug_msg[1000];
-
 using namespace cryptanalysislib::atomic;
+struct cryptanalysislib::atomic::futex debug_futex{0};
+char debug_msg[1000];
 
 namespace cryptanalysislib {
 
@@ -63,10 +62,10 @@ namespace cryptanalysislib {
 	/* The Actual Thread Control Block structure */
 	typedef struct mythread_private {
 		// The thread-id of the thread
-		pid_t tid;
+		pid_t tid = 0;
 
 		// the state in which the corresponding thread will be.
-		int state;
+		int state = 0;
 
 		void *(*start_func)(void *);             /* The func pointer to the thread function to be executed. */
 		void *args;                              /* The arguments to be passed to the thread function. */
@@ -77,7 +76,7 @@ namespace cryptanalysislib {
 	} mythread_private_t;
 
 	inline pid_t __mythread_gettid() noexcept {
-		return (pid_t) syscall(SYS_gettid);
+		return static_cast<pid_t>(syscall(SYS_gettid));
 	}
 
 	void __mythread_debug_futex_init() {
@@ -135,25 +134,28 @@ namespace cryptanalysislib {
 			mythread_q_head = nullptr;
 		}
 
-		if (node == mythread_q_head)
+		if (node == mythread_q_head) {
 			mythread_q_head = node->next;
+        }
 
 		p = node->prev;
 
 		p->next = node->next;
 		node->next->prev = p;
+
+        free(node);
 	}
 
-	/* This function iterates over the ntire Queue and prints out the state(see mythread.h to refer to various states)
+	/* This function iterates over the entire Queue and prints out the state(see mythread.h to refer to various states)
    		of all the tcb members.
 	*/
-	void mythread_q_state_display() {
+	void mythread_q_state_display() noexcept {
 		if (mythread_q_head != nullptr) {
 			//display the Q - for debug purposes
 			printf("\n The Q contents are -> \n");
-			mythread_private_t *p;
-			p = mythread_q_head;
-			do {//traverse to the last node in Q
+			mythread_private_t *p = mythread_q_head;
+			//traverse to the last node in Q
+			do {
 				printf(" %d\n", p->state);
 				p = p->next;
 			} while (p != mythread_q_head);
@@ -185,7 +187,7 @@ namespace cryptanalysislib {
 	/// is ensured.
 	/// \param node
 	/// \return
-	int __mythread_dispatcher(mythread_private_t *node) {
+	int __mythread_dispatcher(mythread_private_t *node) noexcept {
 		mythread_private_t *ptr = node->next;
 		/* Loop till we find a thread in READY state. This loop is guanrateed
 	 	 * to end since idle thread is ALWAYS READY.
@@ -224,13 +226,12 @@ namespace cryptanalysislib {
 
 	// TODO remove the linked list and use the fs register to store information
 
-///#define THREAD_SELF (*(struct mythread_private *__seg_fs *) //offsetof (struct mythread_private, header.self))
+	///#define THREAD_SELF (*(struct mythread_private *__seg_fs *) //offsetof (struct mythread_private, header.self))
 	/// Return pointed to the private TCB structure
 	inline mythread_private_t *__mythread_selfptr() noexcept {
-		/* Search in the queue and return the pointer */
+		/// Search in the queue and return the pointer
 		return mythread_q_search(__mythread_gettid());
 	}
-
 
 	/// Calling the glibc's exit() exits the process.
 	/// Directly call the syscall instead
@@ -247,7 +248,7 @@ namespace cryptanalysislib {
 
 		/* Get pointer to our TCB structure */
 		self_ptr = __mythread_selfptr();
-		ASSERT(self_ptr);
+		assert(self_ptr);
 
 		/* Don't remove the node from the list yet. We still have to collect the return value */
 		self_ptr->state = DEFUNCT;
@@ -256,10 +257,14 @@ namespace cryptanalysislib {
 		/* Change the state of any thread waiting on us. FIFO dispatcher will do the
 	   	 * needfull
 	 	 */
-		if (self_ptr->blockedForJoin != nullptr)
+		if (self_ptr->blockedForJoin != nullptr) {
 			self_ptr->blockedForJoin->state = READY;
+        }
 
+		gfutex.down();
 		__mythread_dispatcher(self_ptr);
+        mythread_q_delete(self_ptr);
+		gfutex.up();
 
 		/* Suicide */
 		__mythread_do_exit();
@@ -268,7 +273,7 @@ namespace cryptanalysislib {
 	/* Yield: Yield the processor to another thread. Dispatcher selects the next
 	 * appropriate thread and wakes it up. Then current thread sleeps.
 	 */
-	int mythread_yield() {
+	int mythread_yield() noexcept {
 		mythread_private_t *self;
 		int retval;
 
@@ -299,7 +304,7 @@ namespace cryptanalysislib {
 	 	 * races in yield.
 	 	 */
 		if (self->sched_futex.get() > 0) {
-			self->sched_futex.up();
+			self->sched_futex.down();
 		}
 
 		gfutex.up();
@@ -316,13 +321,13 @@ namespace cryptanalysislib {
  	 * The thread checks whether it is the only one alive, if yes, exit()
  	 * else keep scheduling someone.
  	 */
-	void *mythread_idle(void *phony) {
+	void *mythread_idle(void *phony) noexcept {
 		(void)phony;
 		mythread_private_t *traverse_tcb;
 		pid_t idle_tcb_tid;
 
 		while (true) {
-			DEBUG_PRINTF("I am idle\n");
+			//DEBUG_PRINTF("I am idle\n");
 			traverse_tcb = __mythread_selfptr();
 			idle_tcb_tid = traverse_tcb->tid;
 			traverse_tcb = traverse_tcb->next;
@@ -337,8 +342,10 @@ namespace cryptanalysislib {
 			}
 
 			/* Idle is the only one alive, kill the process */
-			if (traverse_tcb->tid == idle_tcb_tid)
+			if (traverse_tcb->tid == idle_tcb_tid) {
+				DEBUG_PRINTF("mythread_idle exti!\n");
 				exit(0);
+			}
 
 			/* Some thread still awaits execution, yield ourselves */
 			mythread_yield();
@@ -390,6 +397,8 @@ namespace cryptanalysislib {
 
 		/* Initialize futex to zero */
 		// futex_init(&main_tcb->sched_futex, 1);
+		//main_tcb->sched_futex.up();
+        main_tcb->sched_futex.set(1);
 
 		/* Put it in the Queue of thread blocks */
 		mythread_q_add(main_tcb);
@@ -428,6 +437,8 @@ namespace cryptanalysislib {
 
 			/* Initialise the global futex */
 			// futex_init(&gfutex, 1);
+            gfutex.set(1);
+
 
 			/* Now create the node for Idle thread with a recursive call to mythread_create(). */
 			DEBUG_PRINTF("create: creating node for Idle thread \n");
@@ -471,6 +482,7 @@ namespace cryptanalysislib {
 		new_node->blockedForJoin = nullptr;
 		/* Initialize the tcb's sched_futex to zero. */
 		// futex_init(&new_node->sched_futex, 0);
+		new_node->sched_futex.set(0);
 
 		/* Put it in the Q of thread blocks */
 		mythread_q_add(new_node);
@@ -503,7 +515,7 @@ namespace cryptanalysislib {
 		mythread_private_t *self_ptr;
 
 		self_ptr = __mythread_selfptr();
-		ASSERT(self_ptr);
+		assert(self_ptr);
 		DEBUG_PRINTF("Join: Got tid: %ld\n", (unsigned long) self_ptr->tid);
 		mythread_private_t *target = mythread_q_search(target_thread.tid);
 

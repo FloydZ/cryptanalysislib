@@ -13,6 +13,7 @@
 
 #include "atomic/atomic_primitives.h"
 #include "container/hashmap/common.h"
+#include "simd/simd.h"
 #include "helper.h"
 
 ///
@@ -55,7 +56,9 @@ public:
 	constexpr static size_t internal_bucketsize = bucketsize - 1u;
 	using load_type = TypeTemplate<bucketsize>;
 
+#ifndef __cpp_static_call_operator
 	Hash hashclass = Hash{};
+#endif
 
 
 	// number of buckets
@@ -72,9 +75,9 @@ public:
 
 	/// the simple hashmap ignores the thread id.
 	/// Which is nice.
-	/// \param e key element (hashed down = index within the internal array)
-	/// \param value element to insert
-	/// \param tid (ignored) can be anything
+	/// \param e[in]: key element (hashed down = index within the internal array)
+	/// \param value[in]: element to insert
+	/// \param tid[in]: (ignored) can be anything
 	/// \return
 	constexpr void insert(const keyType &e,
 	                      const valueType value,
@@ -86,12 +89,12 @@ public:
 	/// hashes down `e` (Element) to an index where to store
 	/// the element.
 	/// NOTE: Boundary checks are performed in debug mode.
-	/// \param e element to insert
+	/// \param e[in]: element to insert
 	/// \return nothing
 	constexpr inline void insert(const keyType &e, const valueType value) noexcept {
 		// hash down the element to the index
 		const size_t index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 
 
 		size_t load;
@@ -113,7 +116,7 @@ public:
 
 
 		// just some debugging checks
-		ASSERT(load < internal_bucketsize);
+		assert(load < internal_bucketsize);
 		if constexpr (!multithreaded) {
 			__array[index * bucketsize + internal_bucketsize] += 1;
 		}
@@ -130,8 +133,7 @@ public:
 	///
 	template<class SIMD>
 #if __cplusplus > 201709L
-// 		activate as soon as every uint16x16 has implemented the interface
-// 		requires SIMDAble<SIMD>
+		requires SIMDAble<SIMD>
 #endif
 	constexpr inline void insert_simd(const SIMD &e,
 	                                  const SIMD &value) noexcept {
@@ -151,7 +153,7 @@ public:
 	/// \return
 	using inner_data_type = typename std::remove_all_extents<data_type>::type;
 	constexpr inline inner_data_type ptr(const index_type i) noexcept {
-		ASSERT(i < total_size);
+		assert(i < total_size);
 		if constexpr (std::is_bounded_array_v<data_type>) {
 			return (inner_data_type) __array[i];
 		} else {
@@ -165,7 +167,7 @@ public:
 	/// \return the position within the internal const_array of `e`
 	constexpr inline index_type find(const keyType &e) const noexcept {
 		const index_type index = HashFkt(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
 		return index * nrbuckets;
@@ -177,28 +179,32 @@ public:
 	/// \return
 	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
 		const index_type index = HashFkt(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		__load = load(index);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
 		return index * bucketsize;
 	}
 
-	///
-	/// \param e
-	/// \param __load
-	/// \return
-	constexpr inline index_type find_without_hash(const keyType &e, index_type &__load) const noexcept {
-		ASSERT(e < nrbuckets);
+	/// \param e[in]: element to base the calcoulations on
+	/// \param __load[in/out]:
+	/// \return the index of the bucket `e` would get hashed into
+	constexpr inline index_type find_without_hash(const keyType &e,
+                                                  index_type &__load) const noexcept {
+		assert(e < nrbuckets);
 		__load = load(e);
 		return e * bucketsize;
 	}
 
-	/// match the api
+    /// \param e[in]:
 	constexpr inline size_t hash(const keyType &e) const noexcept {
+#ifdef __cpp_static_call_operator
+        return Hash::operator()(e);
+#else
 		// NOTE: this can be simplified as soon as gcc supports C++23 where
 		// static operator()() functions are allowed
 		return hashclass(e);
+#endif
 	}
 
 	/// NOTE: can be called with only a single thread
@@ -211,7 +217,8 @@ public:
 	}
 
 	/// multithreaded clear
-	constexpr inline void clear(uint32_t tid) noexcept {
+    /// \param tid[in]:
+	constexpr inline void clear(const uint32_t tid) noexcept {
 		if constexpr (config.threads == 1) {
 			(void) tid;
 			clear();
@@ -224,18 +231,20 @@ public:
 			__array[i * bucketsize + internal_bucketsize] = 0;
 		}
 	}
+
 	/// internal function
+    /// \param e[in]:
 	constexpr inline index_type load_without_hash(const keyType &e) const noexcept {
-		ASSERT(e < nrbuckets);
+		assert(e < nrbuckets);
 		return __array[e * bucketsize + internal_bucketsize];
 	}
 
 	/// returns the load of the bucket, where the given element would hashed into
-	/// \param e bucket/bucket of the element e
+	/// \param e[int] bucket/bucket of the element e
 	/// \return the load
 	constexpr inline index_type load(const keyType &e) const noexcept {
 		const size_t index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		return __array[index * bucketsize + internal_bucketsize];
 	}
 

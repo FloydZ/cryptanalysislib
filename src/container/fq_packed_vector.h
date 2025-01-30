@@ -60,8 +60,7 @@ public:
 	static_assert(ceil_log2(q) <= (8*sizeof(T)), 
                   "the limb type should be atleast of the size of prime");
 
-	constexpr static uint32_t nr_limbs_in_S = limbs<T>();
-	using S = TxN_t<T, nr_limbs_in_S>;
+	using S = SIMDSelector<T>;
 
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
@@ -130,9 +129,10 @@ public:
 	// 	return *this;
 	//}
 
-
-
-	template<const uint32_t l, const uint32_t h>
+    /// \tparam l[in]: lower bound (inclusive)
+    /// \tparam h[in]: upper bound (exclusive)
+	template<const uint32_t l, 
+             const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
 		static_assert(h <= length);
@@ -190,9 +190,9 @@ public:
 
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= length);
-		ASSERT((h-l) <= n);
+		assert(l < h);
+		assert(h <= length);
+		assert((h-l) <= n);
 
 		constexpr uint32_t bits = used_bits_per_limb;
 
@@ -222,7 +222,7 @@ public:
 			if (llimb == hlimb) {
 				constexpr uint64_t mbits = bits%64 == 0 ? -1ull : (1ull << bits) - 1ull;
 				const T diff1 = hprime - lprime;
-				ASSERT(diff1 <= bits);
+				assert(diff1 <= bits);
 				const T diff2 = bits - diff1;
 				const T mask = mbits >> diff2;
 				const T b = __data[llimb] >> lprime;
@@ -232,7 +232,7 @@ public:
 		}
 
 		// now the stupid hard part
-		ASSERT(((h-l)*qbits) <= 63);
+		assert(((h-l)*qbits) <= 63);
 
 		// NOTE typecast
 		__uint128_t d1 = load();
@@ -273,7 +273,7 @@ public:
 	///		a hashmap or sorting/searching
 	constexpr static bool is_hashable(const uint32_t l,
 									  const uint32_t h) noexcept {
-		ASSERT(h > l);
+		assert(h > l);
 		const size_t t1 = h-l;
 		const size_t t2 = t1*qbits;
 
@@ -300,13 +300,13 @@ public:
 	// given the i-th bit this function will return a bits mask where the lower 'i' bits are set. Everything will be
 	// realigned to limb_bits_width().
 	[[nodiscard]] constexpr static T lower_mask(const uint32_t i) noexcept {
-		ASSERT(i < n);
+		assert(i < n);
 		return ((T(1) << (i % bits_per_limb)) - 1);
 	}
 
 	// given the i-th bit this function will return a bits mask where the higher (n-i)bits are set.
 	[[nodiscard]] constexpr static T higher_mask(const uint32_t i) noexcept {
-		ASSERT(i < n);
+		assert(i < n);
 		if ((i % bits_per_limb) == 0) return T(-1);
 
 		return (~((T(1u) << (i % bits_per_limb)) - 1));
@@ -317,7 +317,7 @@ public:
 	/// \return the number you wanted to access, shifted down to the lowest bits.
 	[[nodiscard]] constexpr inline DataType get(const uint32_t i) const noexcept {
 		// needs 5 instructions. So 64*5 for the whole limb
-		ASSERT(i < length);
+		assert(i < length);
 		return DataType((__data[i / numbers_per_limb] >> ((i % numbers_per_limb) * bits_per_number)) & number_mask);
 	}
 
@@ -327,7 +327,7 @@ public:
 	/// \return nothing
 	constexpr inline void set(const DataType data,
 	                          const uint32_t i) noexcept {
-		ASSERT(i < length);
+		assert(i < length);
 		const uint16_t off = i / numbers_per_limb;
 		const uint16_t spot = (i % numbers_per_limb) * bits_per_number;
 
@@ -435,8 +435,8 @@ public:
 
 	[[nodiscard]] constexpr uint32_t popcnt(const uint32_t l,
 	                                        const uint32_t h) const noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= size());
+		assert(l < h);
+		assert(h <= size());
 		uint32_t ret = 0;
 		for (uint32_t i = l; i < h; i++) {
 			ret += get(i) > 0;
@@ -503,7 +503,7 @@ public:
 	/// \param j second coordinate
 	constexpr void swap(const uint16_t i,
 	                    const uint16_t j) noexcept {
-		ASSERT(i < length && j < length);
+		assert(i < length && j < length);
 		auto tmp = get(i);
 		set(i, get(j));
 		set(j, tmp);
@@ -515,7 +515,7 @@ public:
 	/// \param k_upper higher limit, exclusive
 	constexpr inline void neg(const uint32_t k_lower = 0,
 	                          const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			set(((-get(i)) + modulus) % modulus, i);
 		}
@@ -678,7 +678,7 @@ public:
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = add_T(a_data[i], b_data[i]);
 		}
 
@@ -696,7 +696,7 @@ public:
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = sub_T(a_data[i], b_data[i]);
 		}
 
@@ -714,7 +714,7 @@ public:
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = mul_T(a_data[i], b_data[i]);
 		}
 
@@ -730,7 +730,7 @@ public:
 		S ret;
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = neg_T(a_data[i]);
 		}
 
@@ -745,7 +745,7 @@ public:
 		S ret;
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs_in_S; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = neg_T(a_data[i]);
 		}
 
@@ -781,7 +781,7 @@ public:
 	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower,
 									 const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) + v2.get(i);
 			v3.set(data % modulus, i);
@@ -862,7 +862,7 @@ public:
 	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower,
 									 const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i));
 			if (data < 0)
@@ -902,7 +902,7 @@ public:
 	                                 FqPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
 	                                 const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = (v1.get(i) * v2.get(i)) % modulus;
 			v3.set(data, i);
@@ -918,7 +918,7 @@ public:
 	                                 FqPackedVectorMeta const &v1,
 	                                 const uint32_t k_lower = 0,
 	                                 const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = v1.get(i) % modulus;
 			v3.set(data, i);
@@ -936,7 +936,7 @@ public:
 	                                    const TT v2,
 	                                    const uint32_t k_lower = 0,
 	                                    const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			DataType data = (v1.get(i) * v2) % modulus;
 			v3.set(data, i);
@@ -952,7 +952,7 @@ public:
 	                                 FqPackedVectorMeta const &v2,
 									 const uint32_t k_lower = 0,
 									 const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			if (v1.get(i) != v2.get(i)) {
 				return false;
@@ -987,7 +987,7 @@ public:
 	                                 FqPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
 	                                 const uint32_t k_upper = length) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			v1.set(v2.get(i), i);
 		}
@@ -1019,7 +1019,7 @@ public:
 	[[nodiscard]] constexpr bool is_greater(FqPackedVectorMeta const &obj,
 	                          const uint32_t k_lower = 0,
 	                          const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) > obj.get(i - 1)) {
 				return true;
@@ -1056,7 +1056,7 @@ public:
 	[[nodiscard]] constexpr bool is_lower(FqPackedVectorMeta const &obj,
 	                        			  const uint32_t k_lower = 0,
 	                        			  const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_upper; i > k_lower; i--) {
 			if (get(i - 1) < obj.get(i - 1)) {
 				return true;
@@ -1108,7 +1108,7 @@ public:
 	/// shifts this by i to the left
 	/// \param i amount to shift
 	constexpr void left_shift(const uint32_t i) noexcept {
-		ASSERT(i < length);
+		assert(i < length);
 		for (uint32_t j = length; j > i; j--) {
 			set(get(j - i - 1), j - 1);
 		}
@@ -1122,7 +1122,7 @@ public:
 	/// shifts this by i to the left
 	/// \param i amount to shift
 	constexpr void right_shift(const uint32_t i) noexcept {
-		ASSERT(i < length);
+		assert(i < length);
 		for (uint32_t j = 0; j < n - i; j--) {
 			const auto data = get(i + j);
 			set(data, j);
@@ -1139,7 +1139,7 @@ public:
 	/// \param k_upper upper limit
 	void print(const uint32_t k_lower = 0,
 	           const uint32_t k_upper = length) const noexcept {
-		ASSERT(k_lower < length && k_upper <= length && k_lower < k_upper);
+		assert(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << unsigned(get(i));
 		}
@@ -1240,14 +1240,14 @@ public:
 	/// \param i
 	/// \return the ith element;
 	constexpr inline DataType operator[](const size_t i) noexcept {
-		ASSERT(i < length);
+		assert(i < length);
 		return get(i);
 	}
 
 	/// \param i
 	/// \return the i-element
 	constexpr inline DataType operator[](const size_t i) const noexcept {
-		ASSERT(i < length);
+		assert(i < length);
 		return get(i);
 	};
 
@@ -1264,11 +1264,11 @@ public:
 
 
 	[[nodiscard]] constexpr T limb(const size_t index) noexcept {
-		ASSERT(index < length);
+		assert(index < length);
 		return __data[index];
 	}
 	[[nodiscard]] constexpr T limb(const size_t index) const noexcept {
-		ASSERT(index < length);
+		assert(index < length);
 		return __data[index];
 	}
 
@@ -1276,11 +1276,11 @@ public:
 	[[nodiscard]] constexpr inline T *ptr() noexcept { return __data.data(); }
 	[[nodiscard]] constexpr const inline T *ptr() const noexcept { return __data.data(); }
 	[[nodiscard]] constexpr inline T ptr(const size_t i) noexcept {
-		ASSERT(i < limbs());
+		assert(i < limbs());
 		return __data[i];
 	};
 	[[nodiscard]] constexpr inline T ptr(const size_t i) const noexcept {
-		ASSERT(i < limbs());
+		assert(i < limbs());
 		return __data[i];
 	};
 
@@ -1290,7 +1290,7 @@ public:
 
 	/// print some internal information aobut the class
 	constexpr static void info() noexcept {
-		std::cout << "{ name: \"kAryPackedContainer_Meta\""
+		std::cout << "{ name: \"FqPackedVector\""
 		          << ", n: " << n
 		          << ", q: " << q
 				  << ", bits_per_limb: " << bits_per_limb
@@ -1321,9 +1321,10 @@ public:
 };
 
 /// represents a vector of numbers mod `MOD` in vector of `T` in a compressed way
-/// \param T = uint64_t
-/// \param n = number of elements
-/// \param q = modulus
+/// \tparam n = number of elements
+/// \tparam q = modulus
+/// \tparam T = uint64_t
+/// \tparam __unsigned
 template<const uint32_t n,
          const uint64_t q,
          typename T=uint64_t,
@@ -1336,12 +1337,12 @@ public:
 	/// Nomenclature:
 	///     Number 	:= actual data one wants to save % modulus
 	///		Limb 	:= Underlying data container holding at max sizeof(T)/log2(modulus) many numbers.
-	/// Its not possible, that numbers cover more than one limb.
+	/// It's not possible, that numbers cover more than one limb.
 	/// The internal data container layout looks like this:
 	/// 		limb0				limb1			limb2
 	///   [	n0	,  n1  ,  n2  |	    , 	,	  |		,	 ,     |  .... ]
-	/// The container fits as much numbers is the limb as possible. But there will no overhanging elements (e.g.
-	///  numbers that first bits are on one limb and the remaining bits are on the next limb).
+	/// The container fits as many numbers in the limb as possible. But there will no overhanging elements (e.g.
+	///  numbers which first bits are on one limb and the remaining bits are on the next limb).
 	///
 
 	using M = FqPackedVectorMeta<n, q, T, __unsigned>;
@@ -1455,12 +1456,12 @@ public:
 		return t.v64[0] + t.v64[1] + t.v64[2] + t.v64[3];
 	}
 
-	/// \param lower lower bound, inclusive
-	/// \param upper upper bound, exclusive
+	/// \param lower lower bound, (inclusive)
+	/// \param upper upper bound, (exclusive)
 	constexpr inline void neg(const uint32_t lower,
 	                          const uint32_t upper) noexcept {
-		ASSERT(lower <= upper);
-		ASSERT(upper <= n);
+		assert(lower <= upper);
+		assert(upper <= n);
 
 		// NOTE: its important that its signed
 		const int32_t lower_limb = (lower + bits_per_limb - 1u) / bits_per_limb;
@@ -1499,9 +1500,10 @@ public:
 		}
 	}
 
-	/// \tparam k_lower lower limit inclusive
-	/// \tparam k_upper upper limit exclusive
-	template<uint32_t k_lower, uint32_t k_upper>
+	/// \tparam k_lower lower limit (inclusive)
+	/// \tparam k_upper upper limit (exclusive)
+	template<uint32_t k_lower,
+			 uint32_t k_upper>
 	constexpr inline void neg() noexcept {
 		static_assert(k_upper <= length && k_lower < k_upper);
 
@@ -1629,7 +1631,7 @@ public:
 	                                 FqPackedVector const &v2,
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper) noexcept {
-		ASSERT(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
 			int64_t data = int64_t(v1.get(i)) - int64_t(v2.get(i)) + modulus;
 			v3.set(data % modulus, i);
@@ -1837,7 +1839,6 @@ public:
 	}
 
 	/// \param a element to check
-	/// \param limit
 	/// \return returns the number of two in the limb
 	template<typename TT = DataType>
 	constexpr static inline uint32_t filter2count_T(const TT a) noexcept {
@@ -1848,10 +1849,12 @@ public:
 
 	/// \tparam k_lower lower limit in coordinates to check if twos exist
 	/// \tparam k_upper upper limit in coordinates (not bits)
+	/// \tparam TT
 	/// \param a element to check if two exists
-	/// \param limit how many twos are in total allowed
 	/// \return return the twos in a[k_lower, k_upper].
-	template<const uint16_t k_lower, const uint16_t k_upper, typename TT = DataType>
+	template<const uint16_t k_lower,
+			 const uint16_t k_upper,
+			 typename TT = DataType>
 	constexpr static inline uint32_t filter2count_range_T(const TT a) noexcept {
 		static_assert(k_lower != 0 && k_lower < k_upper && k_upper <= length);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
@@ -1861,7 +1864,8 @@ public:
 	}
 
 	/// counts the number of twos upto `k_upper` (exclusive)
-	/// \tparam kupper
+	/// \tparam k_upper
+	/// \tparam TT
 	template<const uint16_t k_upper, typename TT = DataType>
 	constexpr inline uint32_t filter2count_T() {
 		static_assert(k_upper <= length);
@@ -1875,7 +1879,7 @@ public:
 		}
 
 		uint32_t ctr = 0;
-#pragma unroll
+		LOOP_UNROLL()
 		for (uint32_t i = 0; i < limb - 1; ++i) {
 			ctr += cryptanalysislib::popcount::template popcount<TT>(__data[i] & m);
 		}
@@ -1890,7 +1894,7 @@ public:
 	/// \return number of twos
 	template<const uint16_t k_upper, typename TT = DataType>
 	constexpr static inline uint32_t filter2count_range_T(const TT a) noexcept {
-		ASSERT(0 < k_upper && k_upper <= length);
+		assert(0 < k_upper && k_upper <= length);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16u ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
 		constexpr TT mm = (TT(1u) << (2u * k_upper)) - 1u;

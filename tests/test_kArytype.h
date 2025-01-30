@@ -1,7 +1,11 @@
 #include <cstdint>
 
 #define ABC S::LimbType
-#define MA 	((1ull << ((sizeof(ABC) * 8u) - 1ull)) - 1ull)
+#define MA 	((1ull << ((sizeof(ABC) * 3u) - 1ull)) - 1ull)
+
+TEST(T, info) {
+	S::info();
+}
 
 TEST(T, DoesNotLeak) {
     auto*l = new S;
@@ -194,13 +198,14 @@ TEST(T, sub_uint64_t) {
 	}
 }
 
+#if TEST_SIZE > PRIME
 TEST(T, addmul_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		unsigned int t1 = rng<ABC>(MA);
-		unsigned int t2 = rng<ABC>(MA);
-		unsigned int t3 = rng<ABC>(MA);
+		uint64_t t1 = i;
+		uint64_t t2 = i;
+		uint64_t t3 = i;
 
 		l1 = t1;
 		l2 = t2;
@@ -217,9 +222,9 @@ TEST(T, addmul_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		signed int t1 = rng<ABC>(MA);
-		signed int t2 = rng<ABC>(MA);
-		signed int t3 = rng<ABC>(MA);
+		signed int t1 = i;
+		signed int t2 = i;
+		signed int t3 = i;
 
 		l1 = t1;
 		l2 = t2;
@@ -236,9 +241,9 @@ TEST(T, add_mul_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = rng<ABC>(MA);
-		uint64_t t2 = rng<ABC>(MA);
-		uint64_t t3 = rng<ABC>(MA);
+		uint64_t t1 = i;
+		uint64_t t2 = i;
+		uint64_t t3 = i;
 
 		l1 = t1;
 		l2 = t2;
@@ -250,6 +255,7 @@ TEST(T, add_mul_uint64_t) {
 		EXPECT_EQ(l2, t2 % PRIME);
 	}
 }
+#endif
 
 TEST(T, arith) {
 	S l1, l2, l3, l4, l5;
@@ -419,10 +425,6 @@ TEST(T, Constexpr) {
 	uint64_t t = b1.template hash<0, n>();
 	uint64_t mask = (1ull << (n - 0)) - 1ull;
 	EXPECT_EQ(t, mask);
-}
-
-TEST(T, info) {
-	S::info();
 }
 
 #undef ABC

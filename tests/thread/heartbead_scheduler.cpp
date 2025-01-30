@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include "thread/heartbeat_scheduler.h"
+// #include "thread/heartbeat_scheduler.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
-using namespace cryptanalysislib;
+// using namespace cryptanalysislib;
 
 // TODO not finished implementing
 TEST(Heartbeat, Simple) {

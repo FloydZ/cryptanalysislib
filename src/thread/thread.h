@@ -4,5 +4,6 @@
 #include "mythread.h"
 #include "pthread.h"
 #include "steal_scheduler.h"
+#include "simple_scheduler.h"
 #include "execution.h"
 #endif

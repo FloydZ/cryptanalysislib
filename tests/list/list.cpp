@@ -130,11 +130,8 @@ TEST(ListName, kAry_search) {
 	for (size_t i = 0; i < LS; ++i) {
 		const size_t pos1 = L.linear_search(L[i]);
 		const size_t pos2 = L.binary_search(L[i]);
-		// DOES not work if the image space is to small
-		// const size_t pos3 = L.template interpolation_search<0, qbits>(L[i]);
-		ASSERT_LE(pos1, i);
-		ASSERT_LE(pos2, i);
-		// ASSERT_LE(pos3, i);
+		EXPECT_LE(pos1, i);
+		EXPECT_LE(pos2, i);
 	}
 }
 
@@ -151,7 +148,7 @@ TEST(ListName, sort_level) {
 
 	L.sort_level(k_lower, k_higher);
 
-	ASSERT(L.is_sorted(k_lower, k_higher));
+	EXPECT_TRUE(L.is_sorted(k_lower, k_higher));
 	EXPECT_EQ(L.is_correct(m), true);
 }
 

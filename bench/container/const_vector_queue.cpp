@@ -13,7 +13,8 @@ void BM_ConstVectorQueue(benchmark::State& state) {
     T c = 0;
     for (auto _ : state) {
 		for (uint32_t i=0; i<state.range(0); i++) {
-			q.push(i);
+			const bool b = q.push(i);
+            assert(b);
 		}
 
 		for (uint32_t i=0; i<state.range(0); i++) {
@@ -54,7 +55,9 @@ void BM_ConstVectorQueue1(benchmark::State& state) {
     T c = 0;
     for (auto _ : state) {
 		for (uint32_t i=0; i<state.range(0); i++) {
-			q.push(i);
+			const bool b = q.push(i);
+            assert(b);
+
             benchmark::DoNotOptimize(c += q.front());
 			q.pop();
 		}

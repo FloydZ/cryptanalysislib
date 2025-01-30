@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <mutex>
 
 #include "container/queue.h"
 #include "helper.h"
@@ -37,7 +38,6 @@ namespace cryptanalysislib {
 	}
 
     /// NOTE: wil fail if the ptr was not return by `aligned_alloc`
-    /// 
     static inline void aligned_free(void *p) noexcept {
         if (nullptr != p) [[likely]] { 
             free(((void **)p)[-1]);
@@ -182,7 +182,6 @@ class FreeListAllocator {
 	Node *_root = nullptr;
 
 public:
-	///
 	/// \param n
 	/// \return
 	constexpr Blk allocate(const size_t n) noexcept {
@@ -195,7 +194,6 @@ public:
 		return _parent.allocate(n);
 	}
 
-	///
 	/// \param b
 	/// \return
 	constexpr void deallocate(const Blk &b) {
@@ -386,7 +384,6 @@ class PageMallocator {
 
 public:
 	///
-	/// \param n
 	/// \return
 	constexpr Blk allocate() noexcept {
 		void *ptr = cryptanalysislib::aligned_alloc(page_alignment, page_size);
@@ -398,7 +395,8 @@ public:
 	/// \return
 	constexpr void deallocate(const Blk &b) noexcept {
 		if (owns(b)) {
-			std::free(b.ptr);
+			cryptanalysislib::aligned_free(b.ptr);
+			//std::free(b.ptr);
 		}
 	}
 
@@ -442,7 +440,7 @@ private:
 		// concurrent queue to store freed pages
 		queue_type _queue;
 		std::size_t _alignment = _page_alignment;
-		std::mutex _mutex;
+		std::mutex _mutex; // TODO make template argument
 
 		_static_helper() noexcept {}
 
@@ -453,7 +451,7 @@ private:
 				allocator.deallocate(p);
 			}
 
-			ASSERT(_queue.size() == 0);
+			assert(_queue.size() == 0);
 		}
 	};
 	static inline PAllocator allocator;
@@ -590,8 +588,8 @@ public:
 };
 
 /// C++ wrapper around `aligned_alloc` and `aligned_free`
-/// @tparam T  type to allocate
-/// @tparam alignment in bytes
+/// \tparam T[in]:  type to allocate
+/// \tparam alignment[in]: in bytes
 template<typename T,
 		 const size_t alignment = 1024>
 class AlignmentMallocator {
@@ -609,7 +607,7 @@ public:
 	/// \param n number of byte
 	/// \return pointer to data or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
-		return (pointer)cryptanalysislib::aligned_alloc(alignment, n);
+		return static_cast<pointer>(cryptanalysislib::aligned_alloc(alignment, n));
 	}
 
 	/// \param p pointer to data
@@ -656,9 +654,10 @@ public:
 };
 #endif
 
-namespace cryptanalysislib::alloc {
+namespace cryptanalysislib {
 	// define a standard allocator
-	using allocator = PageMallocator<1u<<12u, 1u<<12u>;
+    template<typename T>
+	using allocator = std::allocator<T>; // PageMallocator<1u<<12u, 1u<<12u>;
 
 	template <typename T>
 	using alignment_allocator = AlignmentMallocator<T>;

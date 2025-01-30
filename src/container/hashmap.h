@@ -11,7 +11,4 @@
 #include "container/hashmap/hopscotch.h"
 #include "container/hashmap/ska_flat.h"
 
-#ifdef USE_AVX2
-#include "container/hashmap/avx2.h"
-#endif
 #endif //CRYPTANALYSISLIB

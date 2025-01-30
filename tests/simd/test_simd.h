@@ -9,7 +9,7 @@
 		}
 	}
 
-	ASSERT_EQ(atleast_one_not_zero, true);
+	EXPECT_EQ(atleast_one_not_zero, true);
 }
 
 // the apple compiler cannot handle to much constexpr magic
@@ -132,32 +132,32 @@ TEST(T, logic) {
 	const S t2 = S::set1(1);
 	S t3 = t1 + t2;
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t3.d[i], 1);
+		EXPECT_EQ(t3.d[i], (S::limb_type)1);
 	}
 
 	const S t4 = t2 - t1;
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t4.d[i], 1);
+		EXPECT_EQ(t4.d[i], (S::limb_type)1);
 	}
 
 	const S t5 = t2 - t2;
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t5.d[i], 0);
+		EXPECT_EQ(t5.d[i], (S::limb_type)0);
 	}
 
 	const S t6 = t1 ^ t2;
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t6.d[i], 1);
+		EXPECT_EQ(t6.d[i], (S::limb_type)1);
 	}
 
 	const S t7 = t1 | t2;
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t7.d[i], 1);
+		EXPECT_EQ(t7.d[i], (S::limb_type)1);
 	}
 
 	const S t8 = t1 & t2;
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t8.d[i], 0);
+		EXPECT_EQ(t8.d[i], (S::limb_type)0);
 	}
 
 	const S t9 = ~t1;
@@ -167,17 +167,40 @@ TEST(T, logic) {
 
 	const S t10 = S::mullo(t1, t2);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t10.d[i], 0);
+		EXPECT_EQ(t10.d[i], (S::limb_type)0);
 	}
 
 	const S t11 = S::slli(t1, 1u);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t11.d[i], 0);
+		EXPECT_EQ(t11.d[i], (S::limb_type)0);
 	}
 
 	const S t12 = S::slli(t2, 1);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
-		EXPECT_EQ(t12.d[i], 2);
+		EXPECT_EQ(t12.d[i], (S::limb_type)2);
+	}
+}
+
+
+TEST(T, rotate) {
+	S t1 = S::set1(1u);
+    S::limb_type t2 = 1u;
+	for (uint8_t j = 0; j < 255; j++) {
+	    for (uint8_t i = 0; i < S::LIMBS; i++) {
+		    EXPECT_EQ(t1[i], t2);
+            t1 = S::rol(t1, 1);
+            t2 = ROL(t2, 1);
+        }
+	}
+
+	t1 = S::set1(1u);
+    t2 = 1u;
+	for (uint8_t j = 0; j < 255; j++) {
+	    for (uint8_t i = 0; i < S::LIMBS; i++) {
+		    EXPECT_EQ(t1[i], t2);
+            t1 = S::ror(t1, 1);
+            t2 = ROR(t2, 1);
+        }
 	}
 }
 
@@ -222,10 +245,10 @@ TEST(T, compare) {
 		uint64_t v4 = S::lt(t1, t2);
 
 		uint64_t k2 = S::LIMBS == 64 ? -1ull : (1ull << (S::LIMBS)) - 1ull;
-		EXPECT_EQ(v1, 0);
+		EXPECT_EQ(v1, (S::limb_type)0);
 		EXPECT_EQ(v2, k2);
 		EXPECT_EQ(v3, k2);
-		EXPECT_EQ(v4, 0);
+		EXPECT_EQ(v4, (S::limb_type)0);
 
 		for (uint32_t i = 0; i < S::LIMBS; ++i) {
 			t2.d[i] = 1;
@@ -237,10 +260,10 @@ TEST(T, compare) {
 			v3 = S::gt(t1, t2);
 			v4 = S::lt(t1, t2);
 
-			EXPECT_EQ(v1, 0);
+			EXPECT_EQ(v1, (S::limb_type)0);
 			EXPECT_EQ(v2, k2);
 			EXPECT_EQ(v3, k2);
-			EXPECT_EQ(v4, 0);
+			EXPECT_EQ(v4, (S::limb_type)0);
 		}
 
 
@@ -252,10 +275,10 @@ TEST(T, compare) {
 		v4 = S::lt(t1, t2);
 
 		k2 = S::LIMBS == 64 ? -1ull : (1ull << (S::LIMBS)) - 1ull;
-		EXPECT_EQ(v1, 0);
+		EXPECT_EQ(v1, (S::limb_type)0);
 		EXPECT_EQ(v2, k2);
 		EXPECT_EQ(v3, k2);
-		EXPECT_EQ(v4, 0);
+		EXPECT_EQ(v4, (S::limb_type)0);
 
 		// NOTE: only valid test if unsigned
 		for (uint32_t i = 0; i < S::LIMBS; ++i) {
@@ -266,10 +289,10 @@ TEST(T, compare) {
 			v3 = S::gt(t1, t2);
 			v4 = S::lt(t1, t2);
 
-			EXPECT_EQ(v1, 0);
+			EXPECT_EQ(v1, (S::limb_type)0);
 			EXPECT_EQ(v2, k2);
 			EXPECT_EQ(v3, k2);
-			EXPECT_EQ(v4, 0);
+			EXPECT_EQ(v4, (S::limb_type)0);
 		}
 	}
 }

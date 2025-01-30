@@ -110,7 +110,7 @@ struct SubSetSumCmp {
 	/// \param x2 value to be
 	/// \param y1 predecessor of b2
 	/// \param y2 value to be compared
-	/// \return true if a2.label==b2.label, weight is correct, and a1!=b1;
+	/// \return true if a2.label==b2.label
 	auto operator()(const Element &x1,
 	                const Element &x2,
 	                const Element &y1,
@@ -340,17 +340,17 @@ public:
 
 			//std::cout << tree_target << std::endl;
 			//std::cout << out << std::endl;
-			ASSERT(out.load() > 0);
+			assert(out.load() > 0);
 			size_t wrong = 0;
 			for (size_t it = 0; it < out.load(); it++) {
-				ASSERT(out[it].is_correct(A));
+				assert(out[it].is_correct(A));
 				if (!out[it].label.is_equal(tree_target, 0, k_upper2)) {
 					wrong += 1;
 				}
 			}
 			Element ret = out[0];
-			ASSERT(ret.label.is_equal(tree_target, 0, k_upper2));
-			ASSERT(wrong == 0);
+			assert(ret.label.is_equal(tree_target, 0, k_upper2));
+			assert(wrong == 0);
 
 			if (bit) {
 				Label::sub(ret.label, global_target, out[0].label);
@@ -376,9 +376,11 @@ public:
 			rho_calls += 1;
 			z = rng<L>(instance.q);
 			s.random(0, 1ull << (k_upper2));
+
+
+			// NOTE: we only choose a single starting point. The second starting
+			// point is depending on Brents or Floyds cycle finding different.
 			x1.label.random(0, 1ull<< k_upper1);
-			y1 = x1;
-			// y1 = f(x1);
 			b_1 = rng<L>(instance.flavour_q);
 			b_2 = rng<L>(instance.flavour_q);
 
@@ -388,7 +390,7 @@ public:
 
 			// NOTE: restart every `instance.walk_len` runs
 			// NOTE: the weight check and the check if the collision is between
-			//		 two different functions is done outside of the rho function,
+			//		 two different functions is done outside the rho function,
 			//		 to assure that we do not run into useless cycles.
 			if (rho::run(f, flavour, x1, y1, x2, y2, instance.walk_len)) {
                 pass_rho += 1;
@@ -456,7 +458,7 @@ public:
 		// std::cout << sol2.label << ", sol2" << std::endl;
 		// std::cout << sol.label << ", sol" << std::endl;
 		// std::cout << global_target << ", global_target" << std::endl;
-		// ASSERT(sol2.label.is_equal(sol.label));
+		// assert(sol2.label.is_equal(sol.label));
 		if (!global_target.is_equal(sol2.label)) {
 			goto restart;
 		}

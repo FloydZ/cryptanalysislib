@@ -29,12 +29,12 @@ namespace cryptanalysislib {
 				out = out + bytes;
 				in = in + bytes;
 				if (count <= -32) {
-					_uint64x2_t::unaligned_store((void *)(out + count +  0), _uint64x2_t::unaligned_load((void *)(in + count +  0)));
-					_uint64x2_t::unaligned_store((void *)(out + count + 16), _uint64x2_t::unaligned_load((void *)(in + count + 16)));
+					_uint64x2_t::unaligned_store((uint64_t *)(out + count +  0), _uint64x2_t::unaligned_load((uint64_t *)(in + count +  0)));
+					_uint64x2_t::unaligned_store((uint64_t *)(out + count + 16), _uint64x2_t::unaligned_load((uint64_t *)(in + count + 16)));
 					count += 32;
 				}
 				if (count <= -16) {
-					_uint64x2_t::unaligned_store((void *)(out + count), _uint64x2_t::unaligned_load((void *)(in + count)));
+					_uint64x2_t::unaligned_store((uint64_t *)(out + count), _uint64x2_t::unaligned_load((uint64_t *)(in + count)));
 					count += 16;
 				}
 				if (count <= -8) {
@@ -55,28 +55,28 @@ namespace cryptanalysislib {
 				return;
 			}
 
-			const uintptr_t t = ((uintptr_t )out) & 0b11111;
+			uintptr_t t = ((uintptr_t )out) & 0b11111;
 			size_t bytes2 = bytes;
 			if (t) {
 				if (t & 1u) {
 					*out = *in;
-					out += 1; in += 1; bytes2 -= 1;
+					out += 1; in += 1; bytes2 -= 1; t+=1;
 				}
 				if (t & 2u) {
 					*(uint16_t *) out = *(uint16_t *) in;
-					out += 2; in += 2; bytes2 -= 2;
+					out += 2; in += 2; bytes2 -= 2; t+=2;
 				}
-				if (t & 3u) {
+				if (t & 4u) {
 					*(uint32_t *) out = *(uint32_t *) in;
-					out += 4; in += 4; bytes2 -= 4;
+					out += 4; in += 4; bytes2 -= 4; t+=4;
 				}
 				if (t & 8u) {
 					*(uint64_t *) out = *(uint64_t *) in;
-					out += 8; in += 8; bytes2 -= 8;
+					out += 8; in += 8; bytes2 -= 8; t+=8 ;
 				}
 				if (t & 16u) {
-					_uint64x2_t::aligned_store((void *)out,
-							_uint64x2_t::unaligned_load((void *)in));
+					_uint64x2_t::aligned_store((uint64_t *)out,
+							_uint64x2_t::unaligned_load((uint64_t *)in));
 					out += 16; in += 16; bytes2 -= 16;
 				}
 			}
@@ -84,7 +84,7 @@ namespace cryptanalysislib {
 			// now dest is aligned by 32
 			size_t ctr = 0;
 			for (size_t i = 0; i < bytes2/32; ++i) {
-				uint64x4_t::aligned_store((void *)(out + ctr),
+				uint64x4_t::aligned_store((uint64_t *)(out + ctr),
 				                          uint64x4_t::unaligned_load((uint64_t *)(in + ctr)));
 				ctr += 32;
 			}
@@ -94,7 +94,8 @@ namespace cryptanalysislib {
 
 			// tail mng
 			if (count <= -16) {
-				_uint64x2_t::unaligned_store((void *)(out + count), _uint64x2_t::unaligned_load((void *)(in + count)));
+				_uint64x2_t::unaligned_store((uint64_t *)(out + count), 
+                                             _uint64x2_t::unaligned_load((uint64_t *)(in + count)));
 				count += 16;
 			}
 			if (count <= -8) {
@@ -115,6 +116,9 @@ namespace cryptanalysislib {
 		}
 
 #ifdef USE_AVX512BW
+		/// \param out[out]
+		/// \param in[in]
+		/// \param bytes[in]
 		constexpr void memcpyU512BW(uint8_t *out,
 									uint8_t *in,
 									const size_t bytes) noexcept {
@@ -133,18 +137,19 @@ namespace cryptanalysislib {
 				ctr =  ctr & -0x40;
 				ctr = -ctr;
 				while (ctr != 0) {
-					uint64x8_t::unaligned_store(out + ctr, uint64x8_t::unaligned_load((uint64_t *)(in + ctr)));
+					uint64x8_t::unaligned_store((uint64_t *)(out + ctr), uint64x8_t::unaligned_load((uint64_t *)(in + ctr)));
 					ctr += 64;
 				}
 
-				uint64x8_t::unaligned_store(out2, t1);
-				uint64x8_t::unaligned_store(out2 + bytes - 0x40, t2);
+				uint64x8_t::unaligned_store((uint64_t *)out2, t1);
+				uint64x8_t::unaligned_store((uint64_t *)(out2 + bytes - 0x40), t2);
 				return;
 			}
 
 			memcpyU256(out, in, bytes);
 		}
 #endif
+
 
 		/// \tparam T
 		/// \param out
@@ -153,8 +158,8 @@ namespace cryptanalysislib {
 		/// \return
 		template<typename T>
  		constexpr void memcpy(T *out, 
-				const T *in, 
-				const size_t bytes) {
+							  const T *in,
+							  const size_t bytes) {
 			auto *in2 = (uint8_t *)in;
 #ifdef USE_AVX512BW
 			memcpyU512BW((uint8_t *)out, in2, bytes);

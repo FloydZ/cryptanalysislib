@@ -3,7 +3,6 @@
 
 #include "helper.h"
 #include "container/linkedlist.h"
-#include "algorithm/bits/popcount.h"
 #include "memory/memory.h"
 
 
@@ -17,8 +16,12 @@ constexpr static CacheAllocatorConfig cacheAllocatorConfig;
 /// caches. It stores `bits` many `T` typed elements in single bucket, which
 /// are extended via a linked list.
 /// NOTE: dont use it for anything useful
+/// NOTE: seams to be super slow. Lol.
 /// \tparam T type to allocate
 template<class T,
+		 template<class, 
+                  class=cryptanalysislib::allocator, 
+                  class=std::atomic<T>> class LinkedList = ConstFreeList,
 		 const CacheAllocatorConfig &config=cacheAllocatorConfig>
 class CacheAllocator {
 	// number of elements to store in a single bucket
@@ -44,7 +47,7 @@ class CacheAllocator {
 		/// \param ptr
 		/// \return
 		constexpr inline void deallocate(const T *ptr) {
-			uint32_t pos = bits - ((((uintptr_t)(data + bits)) - ((uintptr_t)ptr)) / sizeof(T));
+			const uint32_t pos = bits - ((((uintptr_t)(data + bits)) - ((uintptr_t)ptr)) / sizeof(T));
 
 			Limb d, nd;
 			do {
@@ -85,13 +88,14 @@ class CacheAllocator {
 			cryptanalysislib::memcpy(data, t.data, sizeof(T));
 		}
 
-		bool operator==(const Node &b) const noexcept {
+		/// \param b
+		/// \return
+		[[nodiscard]] constexpr bool operator==(const Node &b) const noexcept {
 			return (uintptr_t)data == (uintptr_t)b.data;
 		}
 	};
 
-	using LinkedList = ConstFreeList<Node>;
-	LinkedList root{};
+	LinkedList<Node> root{};
 
 public:
 	constexpr CacheAllocator() noexcept {

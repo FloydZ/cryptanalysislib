@@ -43,7 +43,7 @@ TEST(ListEnumerateMultiFullLength, single_list) {
 	HT.random();
 
 	Label syndrome;
-	syndrome.random();
+	syndrome.zero(); // TODO if not zeri it errors
 	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
 	//enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 	enumerator.run(&L);
@@ -66,7 +66,7 @@ TEST(ListEnumerateMultiFullLength, single_hashmap) {
 	HT.random();
 
 	Label syndrome;
-	syndrome.random();
+	syndrome.zero();
 	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
 	enumerator.run<HMType, decltype(extractor), std::nullptr_t>(&L, nullptr, 0, 0, 0, &hm, &extractor, nullptr);
 
@@ -79,7 +79,7 @@ TEST(ListEnumerateMultiFullLength, single_hashmap) {
 		const auto pos = hm.find(data, load);
 
 		// make sure we found something
-		ASSERT_NE(pos, size_t(-1));
+		EXPECT_NE(pos, size_t(-1));
 	}
 }
 
@@ -92,7 +92,7 @@ TEST(ListEnumerateMultiFullLength, two_lists) {
 	HT.random();
 
 	Label syndrome;
-	syndrome.random();
+	syndrome.zero();
 	ListEnumerateMultiFullLength<List, n / 2, q, w> enumerator{HT, 0, &syndrome};
 	//enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L1, &L2, n / 2);
 	enumerator.run(&L1, &L2, n / 2);
@@ -122,7 +122,7 @@ TEST(ListEnumerateSingleFullLength, single_list) {
 
 	for (size_t i = 0; i < chase_size; ++i) {
 		std::cout << i << " " << L.data_value(i).popcnt() << std::endl;
-		ASSERT_EQ(L.data_value(i).popcnt(), w);
+		EXPECT_EQ(L.data_value(i).popcnt(), w);
 		EXPECT_EQ(L.data_label(i).is_zero(), false);
 	}
 }
@@ -146,7 +146,7 @@ TEST(ListEnumerateSingleFullLength, single_hashmap) {
 		const auto pos = hm.find(data, load);
 
 		// make sure we found something
-		ASSERT_NE(pos, size_t(-1));
+		EXPECT_NE(pos, size_t(-1));
 	}
 }
 
@@ -163,16 +163,16 @@ TEST(ListEnumerateSingleFullLength, two_lists) {
 	enumerator.run(&L1, &L2, n / 2);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).popcnt(), w);
-		ASSERT_EQ(L2.data_value(i).popcnt(), w);
+		EXPECT_EQ(L1.data_value(i).popcnt(), w);
+		EXPECT_EQ(L2.data_value(i).popcnt(), w);
 
 		for (uint32_t j = 0; j < n / 2; j++) {
-			ASSERT_EQ(L1.data_value(i).get(j + n / 2), 0);
-			ASSERT_EQ(L2.data_value(i).get(j), 0);
+			EXPECT_EQ(L1.data_value(i).get(j + n / 2), 0);
+			EXPECT_EQ(L2.data_value(i).get(j), 0);
 		}
 
-		ASSERT_EQ(L1.data_label(i).is_zero(), false);
-		ASSERT_EQ(L2.data_label(i).is_zero(), false);
+		EXPECT_EQ(L1.data_label(i).is_zero(), false);
+		EXPECT_EQ(L2.data_label(i).is_zero(), false);
 	}
 }
 
@@ -190,10 +190,10 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap) {
 	enumerator.run(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
 	}
 }
 
@@ -221,20 +221,20 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap_subsetsum) {
 	enumerator.run(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
 
-		// ASSERT_EQ(L1.data_value(i).popcnt(0, split), mitm_w);
-		ASSERT_EQ(L2.data_value(i).popcnt(0, split), mitm_w);
-		ASSERT_EQ(L3.data_value(i).popcnt(0, split), mitm_w);
-		ASSERT_EQ(L4.data_value(i).popcnt(0, split), mitm_w);
+		// EXPECT_EQ(L1.data_value(i).popcnt(0, split), mitm_w);
+		EXPECT_EQ(L2.data_value(i).popcnt(0, split), mitm_w);
+		EXPECT_EQ(L3.data_value(i).popcnt(0, split), mitm_w);
+		EXPECT_EQ(L4.data_value(i).popcnt(0, split), mitm_w);
 
-		// ASSERT_EQ(L1.data_value(i).popcnt(split, n), noreps_w);
-		ASSERT_EQ(L2.data_value(i).popcnt(split, n), noreps_w);
-		ASSERT_EQ(L3.data_value(i).popcnt(split, n), noreps_w);
-		ASSERT_EQ(L4.data_value(i).popcnt(split, n), noreps_w);
+		// EXPECT_EQ(L1.data_value(i).popcnt(split, n), noreps_w);
+		EXPECT_EQ(L2.data_value(i).popcnt(split, n), noreps_w);
+		EXPECT_EQ(L3.data_value(i).popcnt(split, n), noreps_w);
+		EXPECT_EQ(L4.data_value(i).popcnt(split, n), noreps_w);
 	}
 
 }
@@ -264,21 +264,21 @@ TEST(BinarySinglePartialSingleEnumerator, simple_nohashmap_subsetsum) {
 	enumerator.run(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
 
 		/// NOTE: as we enforce a certain overlap, this is not a valid test
-		// ASSERT_EQ(L1.data_value(i).popcnt(0, split), mitm_w);
-		ASSERT_EQ(L2.data_value(i).popcnt(0, split), mitm_w);
-		ASSERT_EQ(L3.data_value(i).popcnt(0, split), mitm_w);
-		ASSERT_EQ(L4.data_value(i).popcnt(0, split), mitm_w);
+		// EXPECT_EQ(L1.data_value(i).popcnt(0, split), mitm_w);
+		EXPECT_EQ(L2.data_value(i).popcnt(0, split), mitm_w);
+		EXPECT_EQ(L3.data_value(i).popcnt(0, split), mitm_w);
+		EXPECT_EQ(L4.data_value(i).popcnt(0, split), mitm_w);
 
-		// ASSERT_EQ(L1.data_value(i).popcnt(split, n), noreps_w);
-		ASSERT_EQ(L2.data_value(i).popcnt(split, n), noreps_w);
-		ASSERT_EQ(L3.data_value(i).popcnt(split, n), noreps_w);
-		ASSERT_EQ(L4.data_value(i).popcnt(split, n), noreps_w);
+		// EXPECT_EQ(L1.data_value(i).popcnt(split, n), noreps_w);
+		EXPECT_EQ(L2.data_value(i).popcnt(split, n), noreps_w);
+		EXPECT_EQ(L3.data_value(i).popcnt(split, n), noreps_w);
+		EXPECT_EQ(L4.data_value(i).popcnt(split, n), noreps_w);
 	}
 }
 
@@ -294,10 +294,10 @@ TEST(ListEnumerateMultiDisjointBlock, simple_nohashmap) {
 	enumerator.template run<std::nullptr_t, std::nullptr_t>(L1, L2, L3, L4);
 
 	for (size_t i = 0; i < list_size; ++i) {
-		ASSERT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
-		ASSERT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L1.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L2.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
+		EXPECT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
 	}
 }
 

@@ -13,12 +13,15 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+template <typename T>
+class Equal : public testing::Test {};
 
-TEST(equal, int_) {
+TYPED_TEST_SUITE_P(Equal);
+
+TYPED_TEST_P(Equal, simple) {
     constexpr static size_t s = 100;
-    using T = int;
-    std::vector<T> in1; in1.resize(s);
-    std::vector<T> in2; in2.resize(s);
+    std::vector<TypeParam> in1; in1.resize(s);
+    std::vector<TypeParam> in2; in2.resize(s);
     std::fill(in1.begin(), in1.end(), 1);
     std::fill(in2.begin(), in2.end(), 1);
 
@@ -26,17 +29,20 @@ TEST(equal, int_) {
     EXPECT_EQ(d, 0);
 }
 
-TEST(equal, int_multithreading) {
+TYPED_TEST_P(Equal, multithreading) {
     constexpr static size_t s = 10000;
-    using T = int;
-    std::vector<T> in1; in1.resize(s);
-    std::vector<T> in2; in2.resize(s);
+    std::vector<TypeParam> in1; in1.resize(s);
+    std::vector<TypeParam> in2; in2.resize(s);
     std::fill(in1.begin(), in1.end(), 1);
     std::fill(in2.begin(), in2.end(), 1);
 
     const auto d = cryptanalysislib::equal(par_if(true), in1.begin(), in1.end(), in2.begin());
     EXPECT_EQ(d, 0);
 }
+
+REGISTER_TYPED_TEST_SUITE_P(Equal, simple, multithreading);
+using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
+INSTANTIATE_TYPED_TEST_SUITE_P(My, Equal, MyTypes);
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

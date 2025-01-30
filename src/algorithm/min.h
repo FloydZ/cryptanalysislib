@@ -21,7 +21,17 @@ namespace cryptanalysislib {
     };
     constexpr static AlgorithmMinConfig algorithmMinConfig{};
 
-	/// \tparam T
+    // Return minimum(a, b)
+    // Both a and b must not have the most significant bit set
+	template<typename T>
+    static inline T upos_min(T a, T b) {
+        constexpr static size_t BITS = sizeof(T) * 8u;
+        T d = b - a;
+        d &= (T)( (long)d >> (BITS-1) );
+        return  a + d;
+    }
+
+	/// \tparam T TODO doc
 	/// \tparam config
 	/// \param a
 	/// \param n
@@ -30,12 +40,7 @@ namespace cryptanalysislib {
              const AlgorithmMinConfig &config = algorithmMinConfig>
 	[[nodiscard]] constexpr static inline T min_simd_uXX(const T *a,
 														 const size_t n) noexcept {
-#ifdef USE_AVX512F
-		constexpr uint32_t limbs = 64/sizeof(T);
-#else
-		constexpr uint32_t limbs = 32/sizeof(T);
-#endif
-		using S = TxN_t<T, limbs>;
+		using S = SIMDSelector<T>;
 
 		T m = 0;
 		auto p = S::set1(m);
@@ -63,7 +68,7 @@ namespace cryptanalysislib {
 		return m;
     }
 
-	/// \tparam Iterator
+	/// \tparam Iterator TODO doc
 	/// \tparam config
 	/// \param start
 	/// \param end

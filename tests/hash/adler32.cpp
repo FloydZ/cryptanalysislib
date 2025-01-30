@@ -26,8 +26,9 @@ TEST(Adler32, avx) {
 		const uint32_t t1 = adler32(0, data, i);
 		const uint32_t t2 = avx2_adler32(0, data, i);
 		EXPECT_EQ(t1, t2);
-		// std::cout << i << " " << t1 << " " << t2 << std::endl;
 	}
+
+	free(data);
 }
 #endif
 int main(int argc, char **argv) {

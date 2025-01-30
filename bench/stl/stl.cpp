@@ -14,7 +14,6 @@
 
 constexpr uint64_t lsize = (1<<20);
 
-constexpr uint32_t l = 20;
 using ContainerA        = BinaryVector<k>;
 using ContainerB        = BinaryVector<n>;
 using DecodingValue     = BinaryVector<k>;

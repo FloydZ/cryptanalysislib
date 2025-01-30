@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <array>
 
-#include "../../src/algorithm/gcd.h"
 #include "../../src/algorithm/int2weight.h"
 #include "../../src/algorithm/pcs.h"
 #include "../../src/algorithm/random_index.h"
@@ -15,6 +14,7 @@
 #include "../../src/list/list.h"
 #include "../../src/matrix/matrix.h"
 #include "../../src/tree.h"
+#include "math/gcd.h"
 
 // needed for the generation of subset sum instances
 #include "../../src/algorithm/rsa.h"
@@ -114,7 +114,7 @@ TEST(PCS, RhoFactorise) {
 //			}
 //		}
 //
-//		ASSERT(ret.value.popcnt() == n4);
+//		assert(ret.value.popcnt() == n4);
 //		return ret;
 //	};
 //

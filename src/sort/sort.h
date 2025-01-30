@@ -17,4 +17,5 @@
 #include "sort/sorting_network/common.h"
 
 #include "parallel.h"
+#include "ips4o.h"
 #endif//SMALLSECRETLWE_METASORT_H

@@ -270,7 +270,7 @@ TEST(Compare_Is_Equal, AllLevelsSimpleWithoutTranslationArray) {
 }
 
 TEST(Compare_Is_Equal, AllK) {
-	ASSERT(q > 2 && "q must be bigger than 2 for this test");
+	assert(q > 2 && "q must be bigger than 2 for this test");
 	Label l1, l2;
 
 	for (uint32_t k_lower = 0; k_lower < Label::size(); ++k_lower) {
@@ -298,7 +298,7 @@ TEST(Compare_Is_Lower, AllCoordinatesSimple) {
 }
 
 TEST(Compare_Is_Lower, AllK) {
-	ASSERT(q > 2 && "q must be bigger than 2 for this test");
+	assert(q > 2 && "q must be bigger than 2 for this test");
 
 	Label l1, l2;
 

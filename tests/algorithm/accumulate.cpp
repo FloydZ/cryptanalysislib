@@ -14,35 +14,41 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 
-TEST(accumulate, int_) {
+template <typename T>
+class Reduce : public testing::Test {};
+
+TYPED_TEST_SUITE_P(Reduce);
+
+TYPED_TEST_P(Reduce, simple) {
     constexpr static size_t s = 100;
-    using T = int;
-    std::vector<T> in; in.resize(s);
-    std::fill(in.begin(), in.end(), 1);
+    std::vector<TypeParam> in; in.resize(s);
+    std::fill(in.begin(), in.end(), (TypeParam)1);
 
     const auto d = cryptanalysislib::accumulate(in.begin(), in.end(), 0);
-    EXPECT_EQ(d, s);
+    EXPECT_EQ((size_t)d, s);
 }
-
-TEST(accumulate, int_simd_plus) {
+TYPED_TEST_P(Reduce, simd) {
     constexpr static size_t s = 100;
-    using T = uint8_t;
-    std::vector<T> in; in.resize(s);
+    std::vector<TypeParam> in; in.resize(s);
     std::fill(in.begin(), in.end(), 1);
 
-    const auto d = cryptanalysislib::internal::accumulate_simd_int_plus<T>(in.data(), s, 0);
+    const auto d = cryptanalysislib::internal::accumulate_simd_int_plus<TypeParam>(in.data(), s, 0);
     EXPECT_EQ(d, s);
 }
 
-TEST(accumulate, int_multithreading) {
+TYPED_TEST_P(Reduce, multithreading) {
     constexpr static size_t s = 10000;
-    using T = int;
-    std::vector<T> in; in.resize(s);
+    std::vector<TypeParam> in; in.resize(s);
     std::fill(in.begin(), in.end(), 1);
 
     const auto d = cryptanalysislib::accumulate(par_if(true), in.begin(), in.end(), 0);
     EXPECT_EQ(d, s);
 }
+
+REGISTER_TYPED_TEST_SUITE_P(Reduce, simple, simd, multithreading);
+using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
+INSTANTIATE_TYPED_TEST_SUITE_P(My, Reduce, MyTypes);
+
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

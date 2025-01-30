@@ -25,8 +25,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 		}
 	}
 
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -40,8 +40,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 		}
 	}
 
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -55,9 +55,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on64) {
 		}
 	}
 
-
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -93,13 +92,13 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double64) {
 
 	for (size_t i = 0; i < LS; ++i) {
 		for (uint32_t j = 0; j < 4; ++j) {
-			ASSERT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
-			ASSERT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
+			EXPECT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
+			EXPECT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
 		}
 	}
 
-	free(algo1.L1);
-	free(algo1.L2);
+	cryptanalysislib::aligned_free(algo1.L1);
+	cryptanalysislib::aligned_free(algo1.L2);
 	algo1.generate_random_instance();
 	memcpy(algo2.L1, algo1.L1, LS);
 	memcpy(algo2.L2, algo1.L2, LS);
@@ -113,13 +112,13 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double64) {
 
 	for (size_t i = 0; i < LS; ++i) {
 		for (uint32_t j = 0; j < 4; ++j) {
-			ASSERT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
-			ASSERT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
+			EXPECT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
+			EXPECT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
 		}
 	}
 
-	free(algo1.L1);
-	free(algo1.L2);
+	cryptanalysislib::aligned_free(algo1.L1);
+	cryptanalysislib::aligned_free(algo1.L2);
 	algo1.generate_random_instance();
 	memcpy(algo2.L1, algo1.L1, LS);
 	memcpy(algo2.L2, algo1.L2, LS);
@@ -133,8 +132,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double64) {
 
 	for (size_t i = 0; i < LS; ++i) {
 		for (uint32_t j = 0; j < 4; ++j) {
-			ASSERT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
-			ASSERT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
+			EXPECT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
+			EXPECT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
 		}
 	}
 }
@@ -157,8 +156,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 		}
 	}
 
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -173,8 +172,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 		}
 	}
 
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -189,9 +188,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on32) {
 		}
 	}
 
-
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -228,13 +226,13 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double32) {
 
 	for (size_t i = 0; i < LS; ++i) {
 		for (uint32_t j = 0; j < 4; ++j) {
-			ASSERT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
-			ASSERT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
+			EXPECT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
+			EXPECT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
 		}
 	}
 
-	free(algo1.L1);
-	free(algo1.L2);
+	cryptanalysislib::aligned_free(algo1.L1);
+	cryptanalysislib::aligned_free(algo1.L2);
 	algo1.generate_random_instance();
 	memcpy(algo2.L1, algo1.L1, LS);
 	memcpy(algo2.L2, algo1.L2, LS);
@@ -248,16 +246,16 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double32) {
 
 	for (size_t i = 0; i < LS; ++i) {
 		for (uint32_t j = 0; j < 4; ++j) {
-			ASSERT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
-			ASSERT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
+			EXPECT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
+			EXPECT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
 		}
 	}
 
-	free(algo1.L1);
-	free(algo1.L2);
+	cryptanalysislib::aligned_free(algo1.L1);
+	cryptanalysislib::aligned_free(algo1.L2);
 	algo1.generate_random_instance();
-	memcpy(algo2.L1, algo1.L1, LS*4*8);
-	memcpy(algo2.L2, algo1.L2, LS*4*8);
+	memcpy(algo2.L1, algo1.L1, LS);
+	memcpy(algo2.L2, algo1.L2, LS);
 	e21=0, e22=0;
 
 	e11 = algo1.simd_sort_nn_on32_simple<2>(LS, z, algo1.L1);
@@ -268,8 +266,8 @@ TEST(NearestNeighborAVX, avx2_sort_nn_on_double32) {
 
 	for (size_t i = 0; i < LS; ++i) {
 		for (uint32_t j = 0; j < 4; ++j) {
-			ASSERT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
-			ASSERT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
+			EXPECT_EQ(algo1.L1[i][j], algo2.L1[i][j]);
+			EXPECT_EQ(algo1.L2[i][j], algo2.L2[i][j]);
 		}
 	}
 }
@@ -327,7 +325,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on_32_allcorrect) {
 	uint32_t z;
 	size_t e1=LS,new_e1=0;
 	z = rng_weighted<uint32_t>(dk);
-	ASSERT(cryptanalysislib::popcount::popcount(z) == dk);
+	EXPECT_EQ(cryptanalysislib::popcount::popcount(z), dk);
 	new_e1 = algo1.simd_sort_nn_on32<0>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS);
 	z = rng_weighted<uint32_t>(dk);
@@ -346,7 +344,7 @@ TEST(NearestNeighborAVX, simd_sort_nn_on_32_allcorrect) {
 	algo1.L1[rng()%LS][3] = -1ull;
 
 	z = rng_weighted<uint32_t>(dk);
-	ASSERT(cryptanalysislib::popcount::popcount(z) == dk);
+	EXPECT_EQ(cryptanalysislib::popcount::popcount(z), dk);
 	new_e1 = algo1.simd_sort_nn_on32<0>(e1, z, algo1.L1);
 	EXPECT_EQ(new_e1, LS-1);
 	z = rng_weighted<uint32_t>(dk);
@@ -417,12 +415,12 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 
 	for (size_t i = 0; i < LS; ++i) {
 		for (uint32_t j = 0; j < 4; ++j) {
-			ASSERT_EQ(algo.L1[i][j], algo.L2[i][j]);
+			EXPECT_EQ(algo.L1[i][j], algo.L2[i][j]);
 		}
 	}
 
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -433,12 +431,12 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 
 	for (size_t i = 0; i < LS; ++i) {
 		for (uint32_t j = 0; j < 4; ++j) {
-			ASSERT_EQ(algo.L1[i][j], algo.L2[i][j]);
+			EXPECT_EQ(algo.L1[i][j], algo.L2[i][j]);
 		}
 	}
 
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -453,9 +451,8 @@ TEST(NearestNeighborAVX, simd_sort_nn_on32_k) {
 		}
 	}
 
-
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -489,8 +486,8 @@ TEST(NearestNeighborAVX, simd_sort_nn_on64_k) {
 		}
 	}
 
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -504,8 +501,8 @@ TEST(NearestNeighborAVX, simd_sort_nn_on64_k) {
 		}
 	}
 
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 
@@ -519,9 +516,8 @@ TEST(NearestNeighborAVX, simd_sort_nn_on64_k) {
 		}
 	}
 
-
-	free(algo.L1);
-	free(algo.L2);
+	cryptanalysislib::aligned_free(algo.L1);
+	cryptanalysislib::aligned_free(algo.L2);
 	algo.generate_random_instance();
 	memcpy(algo.L1, algo.L2, LS);
 

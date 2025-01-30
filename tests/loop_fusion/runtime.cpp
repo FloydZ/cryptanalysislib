@@ -26,7 +26,7 @@ TEST(LoopFusion, NoDuplFkt) {
 	EXPECT_EQ(a[2], 1);
 	EXPECT_EQ(a[20], 6'765);
 	EXPECT_EQ(a[40], 102'334'155);
-	ASSERT_EQ(b.size(), 16);
+	EXPECT_EQ(b.size(), 16);
 	EXPECT_EQ(b[0], 75'025 + 1);
 	EXPECT_EQ(b[15], 102'334'155 + 1);
 }
@@ -68,7 +68,7 @@ TEST(LoopFusion, Basic) {
 	merged.run();
 
 	const int sum = std::accumulate(vec.cbegin(), vec.cend(), 0);
-	ASSERT_EQ(sum, vec.size() * 3 + 2);
+	EXPECT_EQ(sum, vec.size() * 3 + 2);
 }
 
 TEST(LoopFusion, DuplicateFkt) {
@@ -93,7 +93,7 @@ TEST(LoopFusion, Merge) {
 	const auto r1 = loop({ 100, 1000 }, addOne);
 	const auto r2 = loop({ 100, 1000 }, addOne);
 	(r1 | r2).run();
-	ASSERT_EQ(sum, 2*900);
+	EXPECT_EQ(sum, 2*900);
 }
 
 /**
@@ -114,7 +114,7 @@ TEST(LoopFusion, MultipleMerge) {
     auto u2 = l2 | l3;
 	// NOTE: currently not possible
     // (u1 | u2).run();
-    // ASSERT_EQ(sum, (900 + 4 * 2000 + 3 * 1000));
+    // EXPECT_EQ(sum, (900 + 4 * 2000 + 3 * 1000));
 }
 
 int main(int argc, char **argv) {

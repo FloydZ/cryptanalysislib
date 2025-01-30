@@ -4,33 +4,32 @@
 // apple doesnt provide jthread!
 #ifndef __APPLE__
 
+#include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <concepts>
 #include <deque>
 #include <functional>
 #include <future>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <semaphore>
 #include <thread>
 #include <type_traits>
 #include <version>
-#include <algorithm>
-#include <concepts>
-#include <deque>
-#include <mutex>
-#include <optional>
 
-// TODO only available on unix
+// NOTE only available on unix
+#include <assert.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <assert.h>
 
 
-#include "container/queue.h"
 #include "atomic/annotated_mutex.h"
+#include "container/queue.h"
 #include "pthread.h"
 
 #include <rfl.hpp>
@@ -47,18 +46,18 @@ namespace cryptanalysislib {
 
 		/// TODO: apple does not suport jthread
 #ifdef __APPLE__
-		using default_thread_type = std::jthread;
-#else 
+		using default_thread_type = std::thread;
+#else
 		using default_thread_type = std::jthread;
 #endif
-	}  // namespace details
+	}// namespace details
 
 	class SchedulerConfig {
 	public:
 		constexpr static bool enable_try_block = false;
 		constexpr static bool enable_remote_view = false;
 	};
-    constexpr static SchedulerConfig schedulerConfig;
+	constexpr static SchedulerConfig schedulerConfig;
 
 	// NOTE: this is linux only
 	// NOTE: this is needed, as the real internal `rusage`
@@ -90,8 +89,9 @@ namespace cryptanalysislib {
 
 		///// get the needed values
 		void gather() noexcept {
-			if (getrusage(RUSAGE_THREAD, (rusage *)&data) != 0) {
-				ASSERT(false);
+			if (getrusage(RUSAGE_THREAD, (rusage *) &data) != 0) {
+				// TODO: what happen in this case
+				assert(false);
 			}
 		}
 
@@ -181,7 +181,7 @@ namespace cryptanalysislib {
 	/// class. This is needed for the reflect-cpp framework
 	struct SchedulerPerformance {
 		// per thread information
-		std::vector <SchedulerThreadLoad> schedulerThreadLoad;
+		std::vector<SchedulerThreadLoad> schedulerThreadLoad;
 
 		// global information
 		int number_active_threads = 0;
@@ -198,12 +198,12 @@ namespace cryptanalysislib {
 		const bool server;
 
 		// socket communication
-		constexpr static char *socket_path = (char *)"/tmp/cryptanalysislib_scheduler.socket4";
+		constexpr static char *socket_path = (char *) "/tmp/cryptanalysislib_scheduler.socket";
 		constexpr static size_t buffer_size = 8096;
 		int sockfd;
 		std::thread server_thread;
-	public:
 
+	public:
 		/// either create a server or client instance. The client is sending data.
 		/// The server is receiving data.
 		/// \param server
@@ -219,14 +219,26 @@ namespace cryptanalysislib {
 			strcpy(serv_addr.sun_path, socket_path);
 			const int servlen = strlen(serv_addr.sun_path) + sizeof(serv_addr.sun_family);
 
+		    const int one = 1;
+		    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int)) < 0) {
+		    	std::cerr << "setsockopt(SO_REUSEADDR) failed" << std::endl;
+		    	return;
+		    }
+
+		    if (unlinkat(sockfd, socket_path, 0) < -1) {
+		    	std::cerr << "unlinkat failed" << std::endl;
+		    	return;
+		    }
+
 			if (server) {
+
 				if (bind(sockfd, (struct sockaddr *) &serv_addr, servlen) < 0) {
 					std::cout << "ERROR: binding socket" << std::endl;
 					exit(1);
 				}
 
 				std::cout << "starting server" << std::endl;
-				auto server_worker = [&]() ->void {
+				auto server_worker = [&]() -> void {
 					if (listen(sockfd, 5) != 0) {
 						std::cout << "ERROR: listen: " << strerror(errno) << std::endl;
 						exit(1);
@@ -236,7 +248,7 @@ namespace cryptanalysislib {
 					char buf[buffer_size];
 					socklen_t clilen = sizeof(cli_addr);
 
-					int newsockfd = accept((int)sockfd, (struct sockaddr *) &cli_addr, &clilen);
+					int newsockfd = accept((int) sockfd, (struct sockaddr *) &cli_addr, &clilen);
 					if (newsockfd < 0) {
 						std::cout << "ERROR: accepting: " << strerror(errno) << std::endl;
 						exit(1);
@@ -245,7 +257,7 @@ namespace cryptanalysislib {
 					// TODO with fork etc we can handle multiple streams, but for now
 					// its fine
 					while (true) {
-						memset(buf, (char)0, buffer_size);
+						memset(buf, (char) 0, buffer_size);
 						const uint32_t n = read(newsockfd, buf, buffer_size);
 						if (n == 0) { break; }
 						assert(n < buffer_size);
@@ -276,7 +288,7 @@ namespace cryptanalysislib {
 		void print() noexcept {
 			std::cout << "#Active Threads: " << schedulerPerformance.number_active_threads << std::endl;
 			std::cout << "#Enqueud Tasks: " << schedulerPerformance.number_enqueud_tasks << std::endl;
-			for (const auto &s : schedulerPerformance.schedulerThreadLoad) {
+			for (const auto &s: schedulerPerformance.schedulerThreadLoad) {
 				std::cout << "UserTime: " << s.usertime() << std::endl;
 				std::cout << "SystemTime: " << s.systime() << std::endl;
 				std::cout << "Max Resident Set Size: " << s.maxrss() << std::endl;
@@ -297,14 +309,20 @@ namespace cryptanalysislib {
 			}
 		}
 
-		/// \param nr_threads
-		/// \return nothing
+		/// start running the scheduler
+		void serve() noexcept {
+			assert(server);
+			server_thread.join();
+		}
+
+		/// \param nr_threads[i]: set the number of threads available to the
+		///     scheduler.
 		constexpr void resize(const uint32_t nr_threads) noexcept {
-			ASSERT(nr_threads);
+			assert(nr_threads);
 			schedulerPerformance.schedulerThreadLoad.resize(nr_threads);
 		}
 
-		/// write the
+		/// write the gathered benchmark information.
 		void send() noexcept {
 			const auto data = rfl::json::write(schedulerPerformance);
 			std::cout << "sending data:" << std::endl;
@@ -312,29 +330,23 @@ namespace cryptanalysislib {
 
 			const int k = write(sockfd, data.data(), data.size());
 			if (k < 0) {
-				std::cout << "Error writing" << std:: endl;
+				std::cout << "Error writing" << std::endl;
 			}
 		}
 
-		void serve() noexcept {
-			ASSERT(server);
-			server_thread.join();
-		}
-
-       
-        /// gather performance metrics for thread `tid`
+		/// gather performance metrics for thread `tid`
 		/// \param tid thread id
 		constexpr inline void gather(const uint32_t tid) noexcept {
-			ASSERT(tid < schedulerPerformance.schedulerThreadLoad.size());
+			assert(tid < schedulerPerformance.schedulerThreadLoad.size());
 			schedulerPerformance.schedulerThreadLoad[tid].gather();
 		}
 
 		/// set performance metric
-        /// this funcitons should only be called by thread 0
+		/// this funcitons should only be called by thread 0
 		/// \param number_active_threads
 		/// \param number_enqueud_tasks
 		constexpr inline void gather(const uint32_t number_active_threads,
-									 const uint32_t number_enqueud_tasks) noexcept {
+		                             const uint32_t number_enqueud_tasks) noexcept {
 			schedulerPerformance.schedulerThreadLoad[0].gather();
 			schedulerPerformance.number_active_threads = number_active_threads;
 			schedulerPerformance.number_enqueud_tasks = number_enqueud_tasks;
@@ -343,8 +355,8 @@ namespace cryptanalysislib {
 
 		/// \param tid thread id
 		/// \return
-		constexpr inline SchedulerThreadLoad& operator[](const uint32_t tid) noexcept {
-			ASSERT(tid < schedulerPerformance.schedulerThreadLoad.size());
+		constexpr inline SchedulerThreadLoad &operator[](const uint32_t tid) noexcept {
+			assert(tid < schedulerPerformance.schedulerThreadLoad.size());
 			return schedulerPerformance.schedulerThreadLoad[tid];
 		}
 	};
@@ -352,9 +364,9 @@ namespace cryptanalysislib {
 	/// \tparam ThreadType
 	/// \tparam FunctionType
 	/// \tparam config
-	template <typename ThreadType = std::jthread,
-	          typename FunctionType = details::default_function_type,
-	          const SchedulerConfig &config=schedulerConfig>
+	template<typename ThreadType = std::jthread,
+	         typename FunctionType = details::default_function_type,
+	         const SchedulerConfig &config = schedulerConfig>
 #if __cplusplus > 201709L
 	    requires std::invocable<FunctionType> &&
 	             std::is_same_v<void, std::invoke_result_t<FunctionType>>
@@ -366,38 +378,35 @@ namespace cryptanalysislib {
 		SchedulerPerformanceManager *schedulerPerformance;
 
 	public:
-        /// TODO performance meassurement in all schedulers
-        /// TODO benchmark comparison between the different schedulers
+		/// TODO performance meassurement in all schedulers
+		/// TODO benchmark comparison between the different schedulers
 		/// TODO use the MOVE operator from SimpleScheduler
 		/// \tparam InitializationFunction
 		/// \param number_of_threads
 		/// \param init
-		template <typename InitializationFunction = std::function<void(std::size_t)>>
+		template<typename InitializationFunction = std::function<void(std::size_t)>>
 		    requires std::invocable<InitializationFunction, std::size_t> &&
 		             std::is_same_v<void, std::invoke_result_t<InitializationFunction, std::size_t>>
-		explicit StealingScheduler(const unsigned int &number_of_threads = std::thread::hardware_concurrency(),
-		                   InitializationFunction init = [](std::size_t) {}) noexcept
-		    : tasks_(number_of_threads) {
+		explicit StealingScheduler(const unsigned int &number_of_threads = std::thread::hardware_concurrency(), InitializationFunction init = [](std::size_t) {}) noexcept : tasks_(number_of_threads) {
 			std::size_t current_id = 0;
 			if constexpr (enable_remote_view) {
-                schedulerPerformance = new SchedulerPerformanceManager{false};
+				schedulerPerformance = new SchedulerPerformanceManager{false};
 				schedulerPerformance->resize(number_of_threads);
 			}
 
 			/// create all threads
 			for (std::size_t i = 0; i < number_of_threads; ++i) {
 				priority_queue_.push_back(size_t(current_id));
-				threads_.emplace_back([&, i, id = current_id, init]
-			                     (const std::stop_token &stop_tok) -> int {
-					(void)i;
+				threads_.emplace_back([&, i, id = current_id, init](const std::stop_token &stop_tok) -> int {
+					(void) i;
 					/// invoke the init function on the thread
 					if constexpr (enable_try_block) {
 						try {
 							std::invoke(init, id);
 						} catch (...) { return 0; }
-				    } else {
+					} else {
 						std::invoke(init, id);
-				    }
+					}
 
 					do {
 						// wait until signaled
@@ -406,8 +415,10 @@ namespace cryptanalysislib {
 							// not nice but easy
 							if (i == 0) {
 								schedulerPerformance->gather(get_num_running_tasks(),
-								                            get_num_queued_tasks());
-							} else {schedulerPerformance->gather(i); }
+								                             get_num_queued_tasks());
+							} else {
+								schedulerPerformance->gather(i);
+							}
 						}
 
 						do {
@@ -450,7 +461,7 @@ namespace cryptanalysislib {
 
 					} while (!stop_tok.stop_requested());
 
-				    return 0 ;
+					return 0;
 				});
 				// increment the thread id
 				++current_id;
@@ -472,15 +483,15 @@ namespace cryptanalysislib {
 		StealingScheduler(const StealingScheduler &) noexcept = delete;
 		StealingScheduler &operator=(const StealingScheduler &) noexcept = delete;
 
-        /// \brief Enqueue a task into the thread pool that returns a result.
-        /// \details Note that task execution begins once the task is enqueued.
-        /// \tparam Function An invokable type.
-        /// \tparam Args Argument parameter pack
-        /// \tparam ReturnType The return type of the Function
-        /// \param f The callable function
-        /// \param args The parameters that will be passed (copied) to the function.
-        /// \return A std::future<ReturnType> that can be used to retrieve the returned value.
-		template <typename Function, typename... Args,
+		/// \brief Enqueue a task into the thread pool that returns a result.
+		/// \details Note that task execution begins once the task is enqueued.
+		/// \tparam Function An invokable type.
+		/// \tparam Args Argument parameter pack
+		/// \tparam ReturnType The return type of the Function
+		/// \param f The callable function
+		/// \param args The parameters that will be passed (copied) to the function.
+		/// \return A std::future<ReturnType> that can be used to retrieve the returned value.
+		template<typename Function, typename... Args,
 		         typename ReturnType = std::invoke_result_t<Function &&, Args &&...>>
 		    requires std::invocable<Function, Args...>
 		[[nodiscard]] std::future<ReturnType> enqueue(Function f,
@@ -517,19 +528,23 @@ namespace cryptanalysislib {
              */
 			auto shared_promise = std::make_shared<std::promise<ReturnType>>();
 			auto task = [func = std::move(f), ... largs = std::move(args),
-			             promise = shared_promise] () __attribute__((always_inline)) {
+				         promise = shared_promise]() __attribute__((always_inline)) {
 				if constexpr (enable_try_block) {
 					try {
 						if constexpr (std::is_same_v<ReturnType, void>) {
 							func(largs...);
 							promise->set_value();
-						} else { promise->set_value(func(largs...)); }
+						} else {
+							promise->set_value(func(largs...));
+						}
 					} catch (...) { promise->set_exception(std::current_exception()); }
 				} else {
 					if constexpr (std::is_same_v<ReturnType, void>) {
 						func(largs...);
 						promise->set_value();
-					} else { promise->set_value(func(largs...)); }
+					} else {
+						promise->set_value(func(largs...));
+					}
 				}
 			};
 
@@ -550,29 +565,25 @@ namespace cryptanalysislib {
          * @param func The callable to be executed
          * @param args Arguments that will be passed to the function.
          */
-		template <typename Function,
-		          typename... Args>
+		template<typename Function,
+		         typename... Args>
 		    requires std::invocable<Function, Args...>
 		void enqueue_detach(Function &&func,
 		                    Args &&...args) {
 			enqueue_task(std::move([f = std::forward<Function>(func),
 			                        ... largs =
 			                                std::forward<Args>(args)]() mutable -> decltype(auto) {
-				// suppress exceptions
-				//try {
-					if constexpr (std::is_same_v<void,std::invoke_result_t<Function &&, Args &&...>>) {
-						std::invoke(f, largs...);
-					} else {
-						// the function returns an argument, but can be ignored
-						std::ignore = std::invoke(f, largs...);
-					}
-				//} catch (...) {
-				//}
+				if constexpr (std::is_same_v<void, std::invoke_result_t<Function &&, Args &&...>>) {
+					std::invoke(f, largs...);
+				} else {
+					// the function returns an argument, but can be ignored
+					std::ignore = std::invoke(f, largs...);
+				}
 			}));
 		}
 
-        /// @brief Wait for all tasks to finish.
-        /// @details This function will block until all tasks have been completed.
+		/// @brief Wait for all tasks to finish.
+		/// @details This function will block until all tasks have been completed.
 		void wait_for_tasks() noexcept {
 			if (in_flight_tasks_.load(std::memory_order_acquire) > 0) {
 				// wait for all tasks to finish
@@ -580,14 +591,14 @@ namespace cryptanalysislib {
 			}
 		}
 
-        /// @brief Makes best-case attempt to clear all tasks from the thread_pool
-        /// @details Note that this does not guarantee that all tasks will be cleared, as currently
-        /// running tasks could add additional tasks. Also a thread could steal a task from another
-        /// in the middle of this.
-        /// @return number of tasks cleared
+		/// @brief Makes best-case attempt to clear all tasks from the thread_pool
+		/// @details Note that this does not guarantee that all tasks will be cleared, as currently
+		/// running tasks could add additional tasks. Also a thread could steal a task from another
+		/// in the middle of this.
+		/// @return number of tasks cleared
 		[[nodiscard]] inline size_t clear_tasks() noexcept {
 			size_t removed_task_count{0};
-			for (auto &task_list : tasks_) {
+			for (auto &task_list: tasks_) {
 				removed_task_count += task_list.tasks.clear();
 			}
 			in_flight_tasks_.fetch_sub(removed_task_count, std::memory_order_release);
@@ -601,47 +612,46 @@ namespace cryptanalysislib {
 			pool_paused = true;
 		}
 
-        /// Resume executing queued tasks.
+		/// Resume executing queued tasks.
 		void unpause() noexcept {
 			pool_paused = false;
 		}
 
-        /// Check whether the pool is paused.
-        /// \return true if pause() has been called without an 
-        ///         intervening unpause().
+		/// Check whether the pool is paused.
+		/// \return true if pause() has been called without an
+		///         intervening unpause().
 		[[nodiscard]] constexpr bool inline is_paused() const noexcept {
 			return pool_paused;
 		}
 
-        /// Get number of enqueued tasks.
-        /// \return Number of tasks that have been enqueued but not yet started.
+		/// Get number of enqueued tasks.
+		/// \return: Number of tasks that have been enqueued but not yet started.
 		[[nodiscard]] constexpr size_t get_num_queued_tasks() const {
 			return tasks_.size();
 		}
 
-        /// Get number of in-progress tasks.
-        /// @return Approximate number of tasks currently being processed by 
-        ///     worker threads.
+		/// Get number of in-progress tasks.
+		/// \return Approximate number of tasks currently being processed by
+		///     worker threads.
 		[[nodiscard]] constexpr size_t get_num_running_tasks() const noexcept {
 			return in_flight_tasks_.load();
 		}
 
-        /// Get total number of tasks in the pool.
-        /// @return Approximate number of tasks both enqueued and running.
+		/// Get total number of tasks in the pool.
+		/// \return Approximate number of tasks both enqueued and running.
 		[[nodiscard]] constexpr size_t get_num_tasks() const noexcept {
 			return tasks_.size() + in_flight_tasks_.load();
 		}
 
-        ///  brief Returns the number of threads in the pool.
-        /// @return std::size_t The number of threads in the pool.
+		/// brief Returns the number of threads in the pool.
+		/// \return std::size_t The number of threads in the pool.
 		[[nodiscard]] constexpr inline auto size() const noexcept { return threads_.size(); }
-        [[nodiscard]] constexpr inline auto get_num_threads() const noexcept { return size(); }
+		[[nodiscard]] constexpr inline auto get_num_threads() const noexcept { return size(); }
 
 	private:
-
 		/// \tparam Function
 		/// \param f function to enqueue
-		template <typename Function>
+		template<typename Function>
 		void enqueue_task(Function &&f) noexcept {
 			auto i_opt = priority_queue_.copy_front_and_rotate_to_back();
 			if (!i_opt.has_value()) {
@@ -681,7 +691,7 @@ namespace cryptanalysislib {
 		std::atomic_bool threads_complete_signal_{false};
 		std::atomic_bool pool_paused{false};
 	};
-}
+}// namespace cryptanalysislib
 
 #endif
 #endif

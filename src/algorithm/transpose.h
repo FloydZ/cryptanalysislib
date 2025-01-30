@@ -106,42 +106,12 @@ void transpose8(uint32_t A[8],
 	B[7 * n] = y;
 }
 
-/// input: in, a 64x64 matrix over GF(2)
-/// output: out, transpose of in
-constexpr void transpose_b64x64(uint64_t out[64],
-							    const uint64_t in[64]) noexcept {
-	constexpr uint64_t masks[6][2] = {
-			{0x5555555555555555, 0xAAAAAAAAAAAAAAAA},
-			{0x3333333333333333, 0xCCCCCCCCCCCCCCCC},
-			{0x0F0F0F0F0F0F0F0F, 0xF0F0F0F0F0F0F0F0},
-			{0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00},
-			{0x0000FFFF0000FFFF, 0xFFFF0000FFFF0000},
-			{0x00000000FFFFFFFF, 0xFFFFFFFF00000000}};
-
-	for (uint64_t i = 0; i < 64; i++) {
-		out[i] = in[i];
-	}
-
-	for (int32_t d = 5; d >= 0; d--) {
-		const uint32_t s = 1 << d;
-
-		for (uint32_t i = 0; i < 64; i += s * 2) {
-			for (uint32_t j = i; j < i + s; j++) {
-				const uint64_t x = (out[j] & masks[d][0]) | ((out[j + s] & masks[d][0]) << s);
-				const uint64_t y = ((out[j] & masks[d][1]) >> s) | (out[j + s] & masks[d][1]);
-				out[j + 0] = x;
-				out[j + s] = y;
-			}
-		}
-	}
-}
-
-/// transpose of a 64x64 matrix over gf(2)
 /// inplace
+/// transpose of a 64x64 matrix over gf(2)
 inline void transpose_b64x64_inplace(uint64_t a[64]) noexcept {
 	for (uint64_t j = 32, m = 0x00000000FFFFFFFF; j; j >>= 1, m ^= m << j) {
 		for (uint64_t k = 0; k < 64; k = ((k | j) + 1) & ~j) {
-			uint64_t t = (a[k] ^ (a[k | j] >> j)) & m;
+			const uint64_t t = (a[k] ^ (a[k | j] >> j)) & m;
 			a[k] ^= t;
 			a[k | j] ^= (t << j);
 		}
