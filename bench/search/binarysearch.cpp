@@ -23,6 +23,7 @@ std::vector<T> data;
 
 // std_sort
 B63_BASELINE(Std_lowerbound, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -38,6 +39,7 @@ B63_BASELINE(Std_lowerbound, nn) {
 }
 
 B63_BENCHMARK(upper_bound_standard_binary_search, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -54,6 +56,7 @@ B63_BENCHMARK(upper_bound_standard_binary_search, nn) {
 }
 
 B63_BENCHMARK(lower_bound_standard_binary_search, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -70,6 +73,7 @@ B63_BENCHMARK(lower_bound_standard_binary_search, nn) {
 }
 
 B63_BENCHMARK(upper_bound_monobound_binary_search, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -86,6 +90,7 @@ B63_BENCHMARK(upper_bound_monobound_binary_search, nn) {
 }
 
 B63_BENCHMARK(lower_bound_monobound_binary_search, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -102,6 +107,7 @@ B63_BENCHMARK(lower_bound_monobound_binary_search, nn) {
 }
 
 B63_BENCHMARK(tripletapped_binary_search, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -118,6 +124,7 @@ B63_BENCHMARK(tripletapped_binary_search, nn) {
 }
 
 B63_BENCHMARK(branchless_lower_bound_cmp, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -135,6 +142,7 @@ B63_BENCHMARK(branchless_lower_bound_cmp, nn) {
 }
 
 B63_BENCHMARK(branchless_lower_bound, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -152,6 +160,7 @@ B63_BENCHMARK(branchless_lower_bound, nn) {
 }
 
 B63_BENCHMARK(lower_bound_interpolation_search2, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
@@ -166,6 +175,7 @@ B63_BENCHMARK(lower_bound_interpolation_search2, nn) {
 }
 
 B63_BENCHMARK(LowerBoundInterpolationSearch, nn) {
+    (void)b63run;
 	uint64_t search=0, errors = 0;
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {

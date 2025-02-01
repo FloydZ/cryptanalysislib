@@ -52,7 +52,7 @@ TYPED_TEST_P(Min, simd_rng) {
 
 TYPED_TEST_P(Min, multithreading) {
 	constexpr size_t b = sizeof(TypeParam)*8u - 1u;
-    constexpr static size_t s = 1u<<b;
+    constexpr static size_t s = 1ull<<b;
     std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = s - i - 1; }
 

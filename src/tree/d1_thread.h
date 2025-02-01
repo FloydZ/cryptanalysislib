@@ -23,7 +23,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy &&policy,
 	        bucketsize, 1ull << (k_upper - k_lower), nthreads};
 
 	using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower, k_upper, 2>>;
-	using LoadType = typename HML0::load_type;
+	// using LoadType = typename HML0::load_type;
 	HML0 *hm = new HML0{};
 
 	join2lists_on_iT_v2<k_lower, k_upper, bucketsize, nthreads, chunks>(policy, out, hm, L1, L2, target);

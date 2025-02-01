@@ -2366,7 +2366,7 @@ public:
 					(out, L1, L2, target);
 		}
 
-		using D = typename LabelType::DataType;
+		//using D = typename LabelType::DataType;
 		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
 			bucketsize, 1ull<<(k_upper1-k_lower1), nthreads
 		};

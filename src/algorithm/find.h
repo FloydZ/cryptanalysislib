@@ -10,7 +10,8 @@
 #include "search/search.h"
 
 namespace cryptanalysislib {
-	struct AlgorithmFindConfig : public AlgorithmConfig {
+    // TODO somehow this yields an anonymous unitiialized field element
+	struct AlgorithmFindConfig /* : public AlgorithmConfig */ {
 		// NOTE multithreaded find is extremly slow
 		const size_t min_size_per_thread = 1048576u;
 
@@ -21,6 +22,7 @@ namespace cryptanalysislib {
 		const bool assume_sorted = false;
 		const bool use_interpolation_search = false;
 	};
+
 	constexpr static AlgorithmFindConfig algorithmFindConfig;
 
 	namespace internal {

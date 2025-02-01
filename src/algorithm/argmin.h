@@ -7,12 +7,14 @@
 #include <type_traits>
 
 #include "simd/simd.h"
+#include "algorithm.h"
 #include "thread/thread.h"
 
 namespace cryptanalysislib {
     struct AlgorithmArgMinConfig {
     public:
-        constexpr static size_t aligned_instructions = false;
+        constexpr static bool aligned_instructions = false;
+        constexpr static size_t min_size_per_thread = 100000;
     };
     constexpr static AlgorithmArgMinConfig algorithmArgMinConfig{};
 
@@ -379,5 +381,5 @@ namespace cryptanalysislib {
 
 		return m;
 	}
-}
+}; // end namespace 
 #endif

@@ -8,7 +8,10 @@
 /// NOTE: upper bound `d` is inclusive
 /// \param in
 /// \return
-template<bool exact = false, const bool EXACT = false, const uint32_t d = 1, const uint32_t dk_bruteforce_weight = 0>
+template<const bool exact = false,
+         const bool EXACT = false,
+         const uint32_t d = 1,
+         const uint32_t dk_bruteforce_weight = 0>
 int compare_256_64(const __m256i in1, const __m256i in2) noexcept {
 	if constexpr (EXACT) {
 		const __m256i tmp2 = _mm256_cmpeq_epi64(in1, in2);

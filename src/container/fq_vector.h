@@ -26,7 +26,9 @@ constexpr static FqVectorMetaConfig fqVectorMetaConfig;
 template<const uint32_t _n,
 		 const uint64_t _q,
          typename T=uint64_t,
-		 const FqVectorMetaConfig &config=fqVectorMetaConfig>
+/// NOTE: its quite important that the config is nor passes as an reference so 
+/// it doesnt get a internal linkage
+		 const FqVectorMetaConfig config=fqVectorMetaConfig>
 #if __cplusplus > 201709L
     requires std::is_integral<T>::value
 #endif
@@ -1196,7 +1198,7 @@ public:
 	using typename M::ContainerType;
 
 	/// needed fields
-	using M::__data;
+	// using M::__data;
 
 	/// needed functions
 	using M::get;
@@ -1225,7 +1227,7 @@ template<const uint32_t n>
 #if __cplusplus > 201709L
     requires kAryContainerAble<uint8_t>
 #endif
-class FqNonPackedVector<n, 4, uint8_t > : public FqNonPackedVectorMeta<n, 4, uint8_t> {
+class FqNonPackedVector<n, 4ul, uint8_t > : public FqNonPackedVectorMeta<n, 4ul, uint8_t> {
 public:
 	/// this is just needed, because Im lazy
 	constexpr static uint32_t q = 4;
@@ -1239,7 +1241,7 @@ public:
 	using M::modulus;
 	using typename M::LimbType;
 	using typename M::ContainerType;
-	using M::__data;
+	// using M::__data;
 
 	/// needed functions
 	using M::get;

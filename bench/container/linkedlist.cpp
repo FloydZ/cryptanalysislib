@@ -22,6 +22,7 @@ public:
 };
 
 B63_BASELINE(Base, nn) {
+    (void)b63run;
 	FreeList<TestStruct> linked_list = FreeList<TestStruct>();
 	std::vector<std::thread> pool(THREADS);
 	uint64_t ret = 0;

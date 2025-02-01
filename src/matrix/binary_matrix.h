@@ -909,8 +909,8 @@ public:
 		for (; l + CTR <= padded_limbs; l += CTR) {
 			const uint8x32_t x_avx = uint8x32_t::load((uint8_t *)(out + i * padded_limbs + l));
 			const uint8x32_t y_avx = uint8x32_t::load((uint8_t *)(out + j * padded_limbs + l));
-			uint8x32_t::store(out + i * padded_limbs + l, y_avx);
-			uint8x32_t::store(out + j * padded_limbs + l, x_avx);
+			uint8x32_t::store((uint8_t *)(out + i * padded_limbs + l), y_avx);
+			uint8x32_t::store((uint8_t *)(out + j * padded_limbs + l), x_avx);
 		}
 
 		for (; l < limbs; ++l) {

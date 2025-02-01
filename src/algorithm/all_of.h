@@ -72,7 +72,7 @@ namespace cryptanalysislib {
                            UnaryPred p) noexcept {
 
     	constexpr static AlgorithmFindConfig c = {
-    		.min_size_per_thread = config.min_size_per_thread
+    		.min_size_per_thread = config.min_size_per_thread,
     	};
         return cryptanalysislib::find_if
     			<InputIt, UnaryPred, c>
@@ -101,7 +101,7 @@ namespace cryptanalysislib {
                 RandIt last,
                 Predicate pred) noexcept {
     	constexpr static AlgorithmFindConfig c = {
-    		.min_size_per_thread = config.min_size_per_thread
+    		.min_size_per_thread = config.min_size_per_thread,
     	};
 
         return last == cryptanalysislib::find_if_not
@@ -131,7 +131,7 @@ namespace cryptanalysislib {
                  Iterator last,
                  Predicate pred) noexcept {
     	constexpr static AlgorithmFindConfig c = {
-    		.min_size_per_thread = config.min_size_per_thread
+    		.min_size_per_thread = config.min_size_per_thread,
     	};
 
         return last == cryptanalysislib::find_if

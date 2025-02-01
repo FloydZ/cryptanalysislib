@@ -8,8 +8,10 @@ namespace cryptanalysislib {
 
 ///
 struct AlgorithmConfig {
-    constexpr static size_t alignment = 8;
+    const size_t alignment = 8;
 };
+
+constexpr static AlgorithmConfig algorithmConfig;
 
 /// extends the functionality of `is_par`/`is_seq` by deciding during runtime
 /// if threads should be used (maybe the problem is to small) and if yes,

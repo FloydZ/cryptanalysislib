@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_SIMD_AVX2_H
 #define CRYPTANALYSISLIB_SIMD_AVX2_H
 
+#include <xmmintrin.h>
 #ifndef CRYPTANALYSISLIB_SIMD_H
 #error "dont include this file directly. Use `#include <simd/simd.h>`"
 #endif
@@ -3094,7 +3095,12 @@ struct Xint16x16_t {
 	[[nodiscard]] constexpr static inline S min(const S a,
                                                 const S b) noexcept {
         S c;
+#ifdef __clang__
 		c.v256 = (__m256i)__builtin_elementwise_min((V)a.v256, (V)b.v256);
+#else
+        // TODO
+        c.v256 = _mm256_min_epi32(a.v256, b.v256);
+#endif
         return c;
     }
 
@@ -4451,25 +4457,24 @@ uint64_t bshuf_trans_byte_elem_SSE_16(void* out,
 }
 
 /// transopse of 32bit entries
-inline void sse_transpose_4x4_dwords (__m128i w0, __m128i w1,
-                                  __m128i w2, __m128i w3,
-                                  __m128i &r0, __m128i &r1,
-                                  __m128i &r2, __m128i &r3)
-{
+inline void sse_transpose_4x4_dwords(__m128i w0, __m128i w1,
+                                     __m128i w2, __m128i w3,
+                                     __m128i &r0, __m128i &r1,
+                                     __m128i &r2, __m128i &r3) noexcept {
     // 0  1  2  3
     // 4  5  6  7
     // 8  9  10 11
     // 12 13 14 15
 
-    __m128i x0 = _128i_shuffle (w0, w1, 0, 1, 0, 1); // 0 1 4 5
-    __m128i x1 = _128i_shuffle (w0, w1, 2, 3, 2, 3); // 2 3 6 7
-    __m128i x2 = _128i_shuffle (w2, w3, 0, 1, 0, 1); // 8 9 12 13
-    __m128i x3 = _128i_shuffle (w2, w3, 2, 3, 2, 3); // 10 11 14 15
+    __m128i x0 = (__m128i)_mm_shuffle_ps((__m128)w0, (__m128)w1, _MM_SHUFFLE(0, 1, 0, 1)); // 0 1 4 5
+    __m128i x1 = (__m128i)_mm_shuffle_ps((__m128)w0, (__m128)w1, _MM_SHUFFLE(2, 3, 2, 3)); // 2 3 6 7
+    __m128i x2 = (__m128i)_mm_shuffle_ps((__m128)w2, (__m128)w3, _MM_SHUFFLE(0, 1, 0, 1)); // 8 9 12 13
+    __m128i x3 = (__m128i)_mm_shuffle_ps((__m128)w2, (__m128)w3, _MM_SHUFFLE(2, 3, 2, 3)); // 10 11 14 15
 
-    r0 = _128i_shuffle (x0, x2, 0, 2, 0, 2);
-    r1 = _128i_shuffle (x0, x2, 1, 3, 1, 3);
-    r2 = _128i_shuffle (x1, x3, 0, 2, 0, 2);
-    r3 = _128i_shuffle (x1, x3, 1, 3, 1, 3);
+    r0 = (__m128i)_mm_shuffle_ps((__m128)x0, (__m128)x2, _MM_SHUFFLE(0, 2, 0, 2));
+    r1 = (__m128i)_mm_shuffle_ps((__m128)x0, (__m128)x2, _MM_SHUFFLE(1, 3, 1, 3));
+    r2 = (__m128i)_mm_shuffle_ps((__m128)x1, (__m128)x3, _MM_SHUFFLE(0, 2, 0, 2));
+    r3 = (__m128i)_mm_shuffle_ps((__m128)x1, (__m128)x3, _MM_SHUFFLE(1, 3, 1, 3));
 }
 
 #endif

@@ -263,7 +263,7 @@ public:
 };
 
 template<class Element,
-         class Allocator=cryptanalysislib::alloc::allocator,
+         class Allocator=cryptanalysislib::allocator<Element>,
 		 const ListConfig &config=listConfig>
 #if __cplusplus > 201709L
     requires ListElementAble<Element>

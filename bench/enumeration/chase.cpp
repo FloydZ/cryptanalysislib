@@ -13,6 +13,7 @@ constexpr size_t list_size = bc(n, p) - 1;
 constexpr uint32_t element_limbs = (n + 63) / 64;
 
 B63_BASELINE(Combinations_Binary_Chase, nn) {
+    (void)b63run;
 	uint64_t w1[element_limbs + 1] = {0};
 	uint64_t res = 0;
 
@@ -32,6 +33,7 @@ B63_BASELINE(Combinations_Binary_Chase, nn) {
 }
 
 B63_BENCHMARK(add_level1, nn) {
+    (void)b63run;
 	uint64_t res = 0;
 	chase_t<n, p> c{};
 
