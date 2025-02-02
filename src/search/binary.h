@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_SEARCH_BINARY_SEARCH_H
 #define CRYPTANALYSISLIB_SEARCH_BINARY_SEARCH_H
 
+#include <cassert>
 #ifndef CRYPTANALYSISLIB_SEARCH_H
 #error "do not include this file directly. Use `#inluce <cryptanalysislib/search/search.h>`"
 #endif
@@ -15,6 +16,261 @@
 #include "atomic/atomic_primitives.h"
 #include "hash/hash.h"
 #include "math/math.h"
+
+/// Source: https://www.jjj.de/fxt/fxtpage.html#fxtbook
+/// Return index of first element in f[] that equals v
+/// Return n if there is no such element.
+/// f[] must be sorted in ascending order.
+/// Must have  n!=0
+template <typename Type>
+size_t bsearch(const Type *f,
+               const size_t n,
+               const Type v) noexcept {
+    assert(n);
+    size_t nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        size_t t = (nhi+nlo)/2;
+
+        if ( f[t] < v )  nlo = t + 1;
+        else             nhi = t;
+    }
+
+    if ( f[nhi]==v )  return nhi;
+    else              return n;
+}
+
+/// Return index of first element in f[] that is >= v
+/// Return n if there is no such element.
+/// f[] must be sorted in ascending order.
+/// Must have  n!=0
+template <typename Type>
+size_t bsearch_geq(const Type *f, 
+                   const size_t n,
+                   const Type v) {
+    assert(n);
+    size_t nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        size_t t = (nhi+nlo)/2;
+
+        if ( f[t] < v )  nlo = t + 1;
+        else             nhi = t;
+    }
+
+    if ( f[nhi]>=v )  return nhi;
+    else              return n;
+}
+
+/// Return index of first element in f[] that is <= v
+/// Return n (word with all bits set) if there is no such element.
+/// f[] must be sorted in ascending order.
+/// Must have  n!=0
+template <typename Type>
+size_t bsearch_leq(const Type *f,
+                   const size_t n,
+                   const Type v) noexcept {
+    assert(n);
+    size_t nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        size_t t = (nhi+nlo)/2;
+
+        if ( f[t] > v )  nlo = t + 1;
+        else             nhi = t;
+    }
+
+    if ( f[nhi]<=v )  return nhi;
+    else              return n;
+}
+
+/// return index of first element in f[] that is == v
+/// return n if there is no such element
+/// f[] must be sorted in ascending order
+/// must have  n!=0
+template <typename Type>
+size_t bsearch(const Type *f,
+               const size_t n, 
+               const Type v,
+               int (*cmp)(const Type &, const Type &)) {
+    assert(n);
+    size_t nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        size_t t = (nhi+nlo)/2;
+        if ( cmp(f[t], v) < 0 )  nlo = t + 1;
+        else                     nhi = t;
+    }
+
+    if ( cmp(f[nhi], v)==0 )  return nhi;
+    else                      return n;
+}
+
+/// return index of first element in f[] that is >= v
+/// return n if there is no such element
+/// f[] must be sorted in ascending order
+/// must have  n!=0
+template <typename Type>
+size_t bsearch_geq(const Type *f,
+                   const size_t n,
+                   const Type v,
+                   int (*cmp)(const Type &, const Type &)) {
+    assert(n);
+    size_t nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        size_t t = (nhi+nlo)/2;
+        if ( cmp(f[t], v) < 0 )  nlo = t + 1;
+        else                   nhi = t;
+    }
+
+    if ( cmp(f[nhi], v) >= 0 )  return nhi;
+    else                        return n;
+}
+
+/// return index of first element in f[] that is <= v
+/// return n if there is no such element
+/// f[] must be sorted in ascending order
+/// must have  n!=0
+template <typename Type>
+size_t bsearch_leq(const Type *f,
+                   const ulong n, 
+                   const Type v,
+                   int (*cmp)(const Type &, const Type &)) noexcept {
+    assert(n);
+    size_t nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        size_t t = (nhi+nlo)/2;
+        if ( cmp(f[t], v) > 0 )  nlo = t + 1;
+        else                     nhi = t;
+    }
+
+    if ( cmp(f[nhi], v) <= 0 )  return nhi;
+    else                        return n;
+}
+
+/// Return index of first element x in f[] for which  |(x-v)| <= da
+/// Return n if there is no such element.
+/// f[] must be sorted in ascending order.
+/// da must be positive.
+///
+/// Makes sense only with inexact types (float or double).
+/// Must have  n!=0
+template <typename Type>
+ulong bsearch_approx(const Type *f,
+                     const ulong n,
+                     const Type v,
+                     const Type da) noexcept {
+    assert(n);
+    size_t k = bsearch_geq(f, n, v-da);
+    if (k<n) k = bsearch_leq(f+k, n-k, v+da);
+    return k;
+}
+
+/// Return index of first element x in f[] for which  |(x-v)| <= da
+///    with respect to comparison function cmp().
+/// Return n if there is no such element.
+/// f[] must be sorted in ascending order.
+/// da must be positive.
+///
+/// Makes sense only with inexact types (float or double).
+/// Must have  n!=0
+template <typename Type>
+size_t bsearch_approx(const Type *f,
+                     const size_t n,
+                     const Type v,
+                     const Type da,
+                     int (*cmp)(const Type &, const Type &)) noexcept {
+    assert(n);
+    size_t k = bsearch_geq(f, n, v-da, cmp);
+    if ( k<n )  k = bsearch_leq(f+k, n-k, v+da, cmp);
+    return k;
+}
+
+/// Return minimal i so that f[x[i]] == v.
+/// Return n if there is no such i.
+/// f[x[]] must be (index-)sorted in ascending order:
+/// f[x[i]] <= f[x[i+i]]
+/// Must have  n!=0
+template <typename Type>
+size_t idx_bsearch(const Type *f,
+                   const size_t n, 
+                   const size_t *x,
+                   const Type v) noexcept {
+    ulong nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        ulong t = (nhi+nlo)/2;
+
+        if ( f[x[t]] < v )  nlo = t + 1;
+        else                nhi = t;
+    }
+
+    if ( f[x[nhi]]==v )  return nhi;
+    else                 return n;
+}
+
+/// Return minimal i so that f[x[i]] >= v.
+/// Return n if there is no such i.
+/// f[x[]] must be (index-)sorted in ascending order:
+/// f[x[i]] <= f[x[i+i]]
+/// Must have  n!=0
+template <typename Type>
+size_t idx_bsearch_geq(const Type *f,
+                       const size_t n,
+                       const ulong *x,
+                       const Type v) noexcept {
+    size_t nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        size_t t = (nhi+nlo)/2;
+
+        if ( f[x[t]] < v )  nlo = t + 1;
+        else                nhi = t;
+    }
+
+    if ( f[x[nhi]]>=v )  return nhi;
+    else                 return n;
+}
+
+/// Return index-ptr i of first element in f[] that is == v
+/// i.e. f[x[i]] == v, with i minimal.
+/// Return n if there is no such element
+/// f[x[]] must be (index-)sorted in ascending order:
+/// f[x[i]] <= f[x[i+i]]
+/// Must have  n!=0
+template <typename Type>
+size_t idx_bsearch(const Type *f,
+                   const size_t n, 
+                   const ulong *x,
+                   const Type v,
+                   int (*cmp)(const Type &, const Type &)) {
+    size_t nlo=0, nhi=n-1;
+    while ( nlo != nhi ) {
+        size_t t = (nhi+nlo)/2;
+        if ( cmp(f[x[t]], v) < 0 )  nlo = t + 1;
+        else                        nhi = t;
+    }
+
+    if ( cmp(f[x[nhi]], v)==0 )  return nhi;
+    else                         return n;
+}
+
+/// Return index-ptr of first element in f[] that is >= v
+/// i.e. f[x[i]] >= v, with i minimal.
+/// Return n if there is no such element
+/// f[x[]] must be (index-)sorted in ascending order:
+/// f[x[i]] <= f[x[i+i]]
+/// Must have  n!=0
+template <typename Type>
+size_t idx_bsearch_geq(const Type *f,
+                       const size_t n,
+                       const ulong *x,
+                       const Type v,
+                      int (*cmp)(const Type &, const Type &)) {
+    ulong nlo=0, nhi=n-1;
+    while (nlo != nhi) {
+        ulong t = (nhi+nlo)/2;
+        if ( cmp(f[x[t]], v)<0 )  nlo = t + 1;
+        else                      nhi = t;
+    }
+
+    if ( cmp(f[x[nhi]], v)>=0 )  return nhi;
+    else                         return n;
+}
 
 /// See Paul Khuong's
 /// https://www.pvk.ca/Blog/2012/07/03/binary-search-star-eliminates-star-branch-mispredictions/
