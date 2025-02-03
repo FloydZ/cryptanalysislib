@@ -10,7 +10,7 @@
 // 2.6. Heap. An implementation of a binary heap.
 template <class T, 
           class Comp = std::less<T>,
-          class Allocator = cryptanalysislib::allocator>
+          class Allocator = cryptanalysislib::allocator<T>>
 struct heap {
 private:
     std::vector<T, Allocator> q, loc; Comp op;
@@ -91,7 +91,8 @@ public:
 };
 
 
-template <typename Type>
+template <typename Type,
+          class Allocator = cryptanalysislib::allocator<T>>
 class heap2{
 
     // Return 0 if x[] has heap property
