@@ -1,61 +1,71 @@
-#if !defined  HAVE_RINGBUFFER_H__
-#define       HAVE_RINGBUFFER_H__
-// This file is part of the FXT library.
-// Copyright (C) 2010, 2012, 2014, 2019 Joerg Arndt
-// License: GNU General Public License version 3 or later,
-// see the file COPYING.txt in the main directory.
+#pragma once
 
-#include "fxttypes.h"
+#include <cstddef>
+#include "alloc/alloc.h"
 
-
-template <typename Type>
-class ringbuffer
 // Implementation of a ring buffer
-{
-public:
-    Type *x_;   // data (ring buffer)
-    ulong s_;   // allocated size (# of elements)
-    ulong n_;   // current number of entries in buffer
-    ulong wpos_;  // next position to write in buffer
-    ulong fpos_;  // first position to read in buffer
+template <typename Type,
+          typename Allocator = cryptanalysislib::allocator<Type>>
+class RingBuffer {
+private:
+    Allocator allocator;
 
-    ringbuffer(const ringbuffer&) = delete;
-    ringbuffer & operator = (const ringbuffer&) = delete;
+    // data (ring buffer)
+    Type *x_;   
+    
+    // allocated size (# of elements)
+    size_t s_;   
+    
+    // current number of entries in buffer
+    size_t n_;   
+    
+    // next position to write in buffer
+    size_t wpos_;  
+    
+    // first position to read in buffer
+    size_t fpos_;  
+
+    RingBuffer(const RingBuffer&) = delete;
+    RingBuffer & operator = (const RingBuffer&) = delete;
 
 public:
-    explicit ringbuffer(ulong n)
-    {
+    explicit RingBuffer(size_t n) noexcept {
         s_ = n;
-        x_ = new Type[s_];
+        x_ = allocator.allocator(s_);
+        // x_ = new Type[s_];
         n_ = 0;
         wpos_ = 0;
         fpos_ = 0;
     }
 
-    ~ringbuffer()  { delete [] x_; }
+    ~RingBuffer()  { 
+        // delete [] x_; 
+        allocator.deallocate(x_, s_);
+    }
 
-    ulong num()  const  { return n_; }
+    constexpr size_t size() const noexcept { 
+        return n_; 
+    }
 
-    void insert(const Type &z)
-    {
+    constexpr size_t capacity() const noexcept { 
+        return s_; 
+    }
+
+    constexpr void insert(const Type &z) noexcept {
         x_[wpos_] = z;
         if ( ++wpos_>=s_ )  wpos_ = 0;
         if ( n_ < s_ )  ++n_;
         else  fpos_ =  wpos_;
     }
 
-    ulong read(ulong k, Type &z)  const
     // Read entry k (that is, [(fpos_ + k)%s_]).
     // Return 0 if k>=n, else return k+1.
-    {
+    constexpr size_t read(size_t k, Type &z)  const noexcept  {
         if ( k>=n_ )  return 0;
-        ulong j = fpos_ + k;
+        size_t j = fpos_ + k;
         if ( j>=s_ )  j -= s_;
         z = x_[j];
         return  k + 1;
     }
 };
-// -------------------------
 
-
-#endif  // !defined HAVE_RINGBUFFER_H__
