@@ -21,8 +21,7 @@ TYPED_TEST_SUITE_P(ArgMax);
 
 TYPED_TEST_P(ArgMax, simple) {
     constexpr static size_t s = 10000;
-    using T = int;
-    std::vector<T> in; in.resize(s);
+    std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = i; }
 
     const auto d = cryptanalysislib::argmax(in.begin(), in.end());
@@ -31,8 +30,7 @@ TYPED_TEST_P(ArgMax, simple) {
 
 TYPED_TEST_P(ArgMax, multithreading) {
     constexpr static size_t s = 10000;
-    using T = int;
-    std::vector<T> in; in.resize(s);
+    std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = i; }
 
     const auto d = cryptanalysislib::argmax(par_if(true), in.begin(), in.end());

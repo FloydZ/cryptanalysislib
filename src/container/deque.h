@@ -6,7 +6,6 @@
 struct DequeConfig {
     const size_t growSize = 0;
 };
-
 constexpr static DequeConfig dequeConfig;
 
 // deque := double-ended queue
@@ -14,7 +13,7 @@ constexpr static DequeConfig dequeConfig;
 template <typename Type,
           typename Allocator = cryptanalysislib::allocator<Type>,
           const DequeConfig config = dequeConfig>
-class deque {
+class Deque {
 public:
     /// data (ring buffer)
     Type *x_;
@@ -36,13 +35,13 @@ public:
     /// 
     constexpr static bool gq_ = config.growSize;  
 
-    deque(const deque&) = delete;
-    deque & operator = (const deque&) = delete;
+    Deque(const Deque&) = delete;
+    Deque & operator = (const Deque&) = delete;
 
 public:
 
     /// \param n[in]:
-    explicit deque(const size_t n) noexcept {
+    explicit Deque(const size_t n) noexcept {
         s_ = n;
         x_ = Allocator::allocator(s_);
         n_ = 0;
@@ -50,7 +49,7 @@ public:
         lpos_ = 0;
     }
 
-    ~deque() noexcept { 
+    ~Deque() noexcept { 
         Allocator::deallocate(x_);
     }
 
@@ -61,12 +60,12 @@ public:
 
     /// \return current capacity
     constexpr size_t capacity() const noexcept { 
-        return n_; 
+        return s_; 
     }
 
-    // Return number of entries after insertion.
-    // Zero is returned on failure
-    //   (i.e. space exhausted and 0==gq_)
+    /// Return number of entries after insertion.
+    /// Zero is returned on failure
+    ///   (i.e. space exhausted and 0==gq_)
     size_t insert_first(const Type &z) noexcept {
         if ( n_ >= s_ ) {
             if ( 0==gq_ ) {
@@ -77,18 +76,21 @@ public:
         }
 
         --fpos_;
-        if ( fpos_ == -1UL )  fpos_ = s_ - 1;
+        if ( fpos_ == -1UL ) { fpos_ = s_ - 1; }
         x_[fpos_] = z;
         ++n_;
         return  n_;
     }
 
-    // Return number of entries after insertion.
-    // Zero is returned on failure
-    //   (i.e. space exhausted and 0==gq_)
+    /// Return number of entries after insertion.
+    /// Zero is returned on failure
+    ///   (i.e. space exhausted and 0==gq_)
     size_t insert_last(const Type &z) noexcept {
         if ( n_ >= s_ ) {
-            if ( 0==gq_ )  return 0;  // growing disabled
+            // growing disabled
+            if constexpr (0 == gq_) { 
+                return 0;
+            }
             grow();
         }
 
@@ -99,8 +101,8 @@ public:
         return  n_;
     }
 
-    // Return number of elements before extract.
-    // Return 0 if extract on empty deque was attempted.
+    //// Return number of elements before extract.
+    //// Return 0 if extract on empty deque was attempted.
     size_t extract_first(const Type &z) noexcept {
         if ( 0==n_ )  return 0;
         z = x_[fpos_];
@@ -137,7 +139,8 @@ public:
 
     // Read entry k (that is, [(fpos_ + k)%s_]).
     // Return 0 if k>=n_ else return k+1
-    size_t read(ulong k, Type & z) const noexcept {
+    size_t read(const size_t k,
+                Type & z) const noexcept {
         if ( k>=n_ )  return 0;
         size_t j = fpos_ + k;
         if ( j>=s_ )  j -= s_;

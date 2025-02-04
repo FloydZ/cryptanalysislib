@@ -30,7 +30,9 @@ class cartesian_tree {
 		augment(t);
 		return std::make_pair(res.first, t);
 	}
-	node *merge(node *l, node *r) {
+
+	node *merge(node *l,
+                node *r) noexcept {
 		if (!l) return r;
 		if (!r) return l;
 		if (l->y > r->y) {
@@ -42,7 +44,9 @@ class cartesian_tree {
 		augment(r);
 		return r;
 	}
-	node *find(node *t, int x) {
+
+	node *find(node *t, 
+               const int x) noexcept {
 		while (t) {
 			if (x < t->x) t = t->l;
 			else if (t->x < x)
@@ -50,14 +54,17 @@ class cartesian_tree {
 			else
 				return t;
 		}
+
 		return nullptr;
 	}
-	node *insert(node *t, int x, int y) {
+
+	node *insert(node *t, int x, int y) noexcept {
 		if (find(t, x) != nullptr) return t;
         std::pair<node *, node *> res = split(t, x);
 		return merge(res.first, merge(new node(x, y), res.second));
 	}
-	node *erase(node *t, int x) {
+
+	node *erase(node *t, int x) noexcept {
 		if (!t) return nullptr;
 		if (t->x < x) t->r = erase(t->r, x);
 		else if (x < t->x)
