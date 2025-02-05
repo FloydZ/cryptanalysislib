@@ -1,27 +1,29 @@
 #pragma once
 
-
+#include <cstddef>
 #include "container/heap.h"
 
 
 // Sort x[] into ascending order.
 template <typename T,
-          class Heap=cryptanalysislib::heap2<T>>
-void heap_sort(T *x, ulong n) {
+          class Heap=Heap<T>>
+constexpr void heap_sort(T *x,
+                         const size_t n) noexcept {
     Heap heap(x, n);
+    size_t m = n;
     // one-based for heapify()
     T *p = x - 1;  
-    for (ulong k=n; k>1; --k) {
+    for (size_t k=m; k>1; --k) {
         swap2(p[1], p[k]);  // move largest element (p[1]) to end of array
-        --n;                // remaining array has one element less
+        --m;                // remaining array has one element less
         heapify(p, n, 1);   // restore heap-property
     }
 }
 
+// Sort x[] into descending order.
 template <typename Type>
-void heap_sort_descending(Type *x,
-                          const size_t n) // Sort x[] into descending order.
-{
+constexpr void heap_sort_descending(Type *x,
+                                    const size_t n) noexcept {
     heap_sort( x, n );
     reverse( x, n );
 }

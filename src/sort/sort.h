@@ -3,6 +3,8 @@
 
 #include "common.h"
 #include "counting_sort.h"
+#include "heapsort.h"
+#include "merge_sort.h"
 #include "robinhoodsort.h"
 #include "timsort.h"
 #include "ska_sort.h"
