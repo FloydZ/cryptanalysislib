@@ -62,7 +62,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy &&policy,
 	auto &task_pool = *policy.pool();
 	std::vector<std::future<size_t>> futures;
 	for (size_t tid = 0; tid < chunks; tid++) {
-		futures.emplace_back(task_pool.enqueue([tid, &hm, &L2]() __attribute__((always_inline)) -> size_t {
+		futures.emplace_back(task_pool.submit([tid, &hm, &L2]() __attribute__((always_inline)) -> size_t {
 			const size_t spos = L2.start_pos(tid);
 			const size_t epos = L2.end_pos(tid);
 			for (size_t i = spos; i < epos; ++i) {
@@ -76,7 +76,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy &&policy,
 	futures.clear();
 
 	for (size_t tid = 0; tid < chunks; tid++) {
-		futures.emplace_back(task_pool.enqueue([tid, &hm, &out, &L1, &L2, &target]() __attribute__((always_inline)) {
+		futures.emplace_back(task_pool.submit([tid, &hm, &out, &L1, &L2, &target]() __attribute__((always_inline)) {
 			LabelType sigma_t;
 			LoadType load = 0;
 			size_t out_load = 0;

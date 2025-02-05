@@ -6,8 +6,9 @@
 #include "pthread.h"
 #include "thread/thread.h"
 
-constexpr size_t size = 8;
-size_t value = 0;
+constexpr size_t N = 1u<<10u;
+constexpr size_t size = 1024;
+size_t value = 2;
 
 #ifndef __APPLE__
 using namespace cryptanalysislib;
@@ -15,6 +16,17 @@ using namespace cryptanalysislib;
 void *inc(void *a) noexcept {
 	value += *((size_t *)a);
 	return (void *)&value;
+   
+    size_t b = *(size_t *)a;
+    size_t c = (size_t )a;
+    for (uint32_t i = 0; i < size; i++) {
+        value += rand() + b;
+        for (uint32_t j = 0; j < N; j++) {
+            value -= j*value/c;
+        }
+    }
+    
+    return (void *)value;
 }
 
 void *inc2(void *a) {
@@ -30,7 +42,7 @@ static void stealingscheduler_create_destroy(benchmark::State& state) {
 		StealingScheduler pool(state.range(0));
 	}
 }
-BENCHMARK(stealingscheduler_create_destroy)->DenseRange(1, size, 1);
+//BENCHMARK(stealingscheduler_create_destroy)->DenseRange(1, size, 1);
 
 ///**
 // * Measure submitting a pre-packaged std::packaged_task.
@@ -180,9 +192,10 @@ BENCHMARK(stealingscheduler_create_destroy)->DenseRange(1, size, 1);
 
 void BM_pthread(benchmark::State& state) {
 	std::vector<pthread_t> threads(state.range(0));
+    size_t t = 0;
 	for (auto _ : state) {
 		for (int64_t i = 0; i < state.range(0); ++i) {
-			pthread_create(&threads[i], nullptr, inc, &i);
+			pthread_create(&threads[i], nullptr, inc, &t);
 		}
 
 		for (int64_t i = 0; i < state.range(0); ++i) {
@@ -191,35 +204,57 @@ void BM_pthread(benchmark::State& state) {
 	}
 }
 
-void BM_thread(benchmark::State& state) {
+void BM_Stealing(benchmark::State& state) {
+    size_t t = 0;
 	for (auto _ : state) {
 		StealingScheduler local_pool(state.range(0));
 		for (int64_t i = 0; i < state.range(0); ++i) {
-			local_pool.enqueue_detach(inc, (void *)&i);
+			local_pool.submit_detach(inc, (void *)&t);
 		}
 
 		local_pool.wait_for_tasks();
 	}
 }
 
-// NOTE: thread is just a wrapper pthread
-//void BM_thread_pthread(benchmark::State& state) {
-//	for (auto _ : state) {
-//		cryptanalysislib::scheduler<pthread> local_pool(state.range(0));
-//		for (int64_t i = 0; i < state.range(0); ++i) {
-//			//local_pool.enqueue_detach(inc, (void *)&i);
-//		}
-//
-//		//local_pool.wait_for_tasks();
-//	}
-//}
+void BM_Simple(benchmark::State& state) {
+    size_t t = 0;
+	for (auto _ : state) {
+		SimpleScheduler local_pool(state.range(0));
+		for (int64_t i = 0; i < state.range(0); ++i) {
+			local_pool.submit_detach(inc, (void *)&t);
+		}
+
+		local_pool.wait_for_tasks();
+	}
+}
+
+void BM_WorkContract(benchmark::State& state) {
+    size_t t = 0;
+    work_contract_group workContractGroup;
+    std::vector<std::jthread> threads(24);
+    for (auto &thread : threads) {
+        thread = std::move(std::jthread([&](auto stopToken) {
+            while(!stopToken.stop_requested()) workContractGroup.execute_next_contract();
+        }));
+    }
+
+	for (auto _ : state)  {
+        auto w = workContractGroup.create_contract([&t](auto &token){
+           inc(&t);
+            token.schedule();
+        });
+		for (int64_t i = 0; i < state.range(0); ++i) {
+            w.schedule();
+		}
+	}
+}
 
 void BM_jthread(benchmark::State& state) {
+    size_t t = 0;
 	std::vector<std::jthread> threads(state.range(0));
 	for (auto _ : state) {
-		StealingScheduler local_pool(state.range(0));
 		for (int64_t i = 0; i < state.range(0); ++i) {
-			threads[i] = std::jthread(inc, (void *)&i);
+			threads[i] = std::jthread(inc, (void *)&t);
 		}
 
 		for (int64_t i = 0; i < state.range(0); ++i) {
@@ -229,11 +264,11 @@ void BM_jthread(benchmark::State& state) {
 }
 
 void BM_stdthread(benchmark::State& state) {
+    size_t t = 0;
 	std::vector<std::thread> threads(state.range(0));
 	for (auto _ : state) {
-		StealingScheduler local_pool(state.range(0));
 		for (int64_t i = 0; i < state.range(0); ++i) {
-			threads[i] = std::thread(inc, (void *)&i);
+			threads[i] = std::thread(inc, (void *)&t);
 		}
 
 		for (int64_t i = 0; i < state.range(0); ++i) {
@@ -242,11 +277,16 @@ void BM_stdthread(benchmark::State& state) {
 	}
 }
 
-BENCHMARK(BM_pthread)->DenseRange(1, size, 1);
-BENCHMARK(BM_thread)->DenseRange(1, size, 1);
-BENCHMARK(BM_jthread)->DenseRange(1, size, 1);
-BENCHMARK(BM_stdthread)->DenseRange(1, size, 1);
-//BENCHMARK(BM_thread_pthread)->DenseRange(1, size, 1);
+// BENCHMARK(BM_WorkContract)->RangeMultiplier(2)->Range(1, size);
+BENCHMARK(BM_pthread)->RangeMultiplier(2)->Range(1, size);
+BENCHMARK(BM_Simple)->RangeMultiplier(2)->Range(1, size);
+BENCHMARK(BM_Stealing)->RangeMultiplier(2)->Range(1, size);
+
+//BENCHMARK(BM_pthread)->DenseRange(1, size, 1);
+//BENCHMARK(BM_Simple)->DenseRange(1, size, 1);
+//BENCHMARK(BM_Stealing)->DenseRange(1, size, 1);
+// BENCHMARK(BM_jthread)->DenseRange(1, size, 1);
+// BENCHMARK(BM_stdthread)->DenseRange(1, size, 1);
 
 #endif
 int main(int argc, char** argv) {

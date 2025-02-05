@@ -18,15 +18,15 @@
 
 #include "helper.h"
 #include "traits.h"
-#include "thread/steal_scheduler.h"
-#include "thread/simple_scheduler.h"
+#include "thread/steal.h"
+#include "thread/simple.h"
 
 
 namespace cryptanalysislib {
 
 // using pool_type_ = HeartbeatScheduler<>;
 // using pool_type_ = StealingScheduler<>;
-using pool_type_ = SimpleScheduler;
+using pool_type_ = SimpleScheduler<>;
 using pool_type = pool_type_*;
 
 namespace internal {
@@ -396,7 +396,7 @@ namespace internal {
             RandIt loop_end = advanced(first, iter_chunk_size);
 
             futures.emplace_back(
-                task_pool.enqueue(
+                task_pool.submit(
                     chunk, first, loop_end, chunk_args...
                 )
             );
@@ -435,7 +435,7 @@ namespace internal {
         while (first1 < last1) {
             auto iter_chunk_size = get_iter_chunk_size(first1, last1, chunk_size);
             RandIt1 loop_end = advanced(first1, iter_chunk_size);
-            futures.emplace_back(task_pool.enqueue(chunk,
+            futures.emplace_back(task_pool.submit(chunk,
                                                   first1, 
                                                   loop_end, 
                                                   first2, 

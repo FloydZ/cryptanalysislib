@@ -34,8 +34,7 @@ namespace cryptanalysislib::work_contract {
 
 	//=========================================================================
 	template<synchronization_mode T>
-	class work_contract_token final : non_movable,
-					  non_copyable {
+	class work_contract_token final : non_movable, non_copyable {
 	public:
 		///
 		void schedule() noexcept {
@@ -113,9 +112,8 @@ namespace cryptanalysislib::work_contract {
 		}
 
 		/// \param other
-		work_contract(work_contract &&other) noexcept : owner_(other.owner_),
-		                                                releaseToken_(other.releaseToken_),
-		                                                id_(other.id_) {
+		work_contract(work_contract &&other) noexcept 
+        : owner_(other.owner_), releaseToken_(other.releaseToken_), id_(other.id_) {
 			other.owner_ = {};
 			other.id_ = {};
 			other.releaseToken_ = {};
@@ -155,6 +153,7 @@ namespace cryptanalysislib::work_contract {
 			return false;
 		}
 
+        // TODO
 		bool deschedule();
 
 		/// \return
@@ -369,11 +368,10 @@ namespace cryptanalysislib::work_contract {
 		/// \param duration
 		/// \return
 		template<typename rep, typename period>
-		std::uint64_t execute_next_contract(
-			std::chrono::duration<rep, period> duration )
+		std::uint64_t execute_next_contract(std::chrono::duration<rep, period> duration )
 			requires(mode == synchronization_mode::blocking) {
 			return execute_next_contract(duration, tls_biasFlags_);
-			}
+		}
 
 
 		/// select a signal (a set signal) from the array of signal trees and, if found,
