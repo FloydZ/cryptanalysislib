@@ -5,6 +5,7 @@
 //          so this is only include swaps of equal size.
 // TODO config is contantexpr
 // Mutation which is a swap pattern
+// TODO find until Level=91 oder so
 
 #include <stdint.h>
 #include <vector>
