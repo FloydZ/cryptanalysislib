@@ -76,10 +76,10 @@ namespace ips4o {
 #if IPS4O_SIMD
 		using namespace hwy::HWY_NAMESPACE;
 #endif
+    
 
-		/**
-         * Compute the logarithm to base 2, rounded down.
-         */
+        /// TODO move somewhere usefull
+        /// Compute the logarithm to base 2, rounded down.
 		inline constexpr unsigned long log2(unsigned long n) {
 			return (std::numeric_limits<unsigned long>::digits - 1 - __builtin_clzl(n));
 		}
@@ -362,12 +362,12 @@ namespace ips4o {
 				random_generator.seed(seed);
 			}
 
-			void selectInPlace(Cfg::iterator begin, const Cfg::iterator end,
-			                   ptrdiff_t num_samples) {
+			void selectInPlace(Cfg::iterator begin,
+                               const Cfg::iterator end,
+			                   ptrdiff_t num_samples) noexcept {
 				ptrdiff_t n = end - begin;
 				while (num_samples--) {
-					const auto i =
-					        std::uniform_int_distribution<ptrdiff_t>(0, --n)(random_generator);
+					const auto i = std::uniform_int_distribution<ptrdiff_t>(0, --n)(random_generator);
 					std::swap(*begin, begin[i]);
 					++begin;
 				}
@@ -382,8 +382,9 @@ namespace ips4o {
 			        random_generator;
 		};
 
+        /// 
 		template<class It>
-		__attribute__((noinline)) void baseCaseSort(It begin, It end) {
+		__attribute__((noinline)) void baseCaseSort(It begin, It end) noexcept {
 			// Insertion sort
 			std::less<Cfg::value_type> comp;
 			for (It it = begin + 1; it < end; ++it) {
@@ -408,9 +409,7 @@ namespace ips4o {
 			using value_type = Cfg::value_type;
 			using IdxBucket = ptrdiff_t;
 
-			/**
-   * Recursive entry point for sequential algorithm.
-   */
+            /// Recursive entry point for sequential algorithm.
 			__attribute__((noinline)) void sequential(const iterator begin,
 			                                          const iterator end) {
 				// Check for base case
@@ -511,24 +510,20 @@ namespace ips4o {
 
 			iterator begin_;
 			iterator end_;
-			int num_buckets_;
+			uint32_t num_buckets_;
 
 			Block swap[2];
 			Block overflow;
 
-			/**
-   * The oversampling factor to be used for input of size n.
-   */
-			static constexpr double oversamplingFactor(ptrdiff_t n) {
+            /// The oversampling factor to be used for input of size n.
+			[[nodiscard]] static constexpr double oversamplingFactor(ptrdiff_t n) noexcept {
 				return (0.2 * log2(n)) < 1.0 ? 1.0 : (0.2 * log2(n));
 			}
 
-			/**
-   * Builds the classifer.
-   * Number of used_buckets is a power of two and at least two.
-   */
+            ///  Builds the classifer.
+            ///  Number of used_buckets is a power of two and at least two.
 			std::pair<int, bool> buildClassifier(const iterator begin,
-			                                     const iterator end) {
+			                                     const iterator end) noexcept {
 				const auto n = end - begin;
 				int log_buckets = Cfg::logBuckets(n);
 				int num_buckets = 1 << log_buckets;
@@ -578,9 +573,11 @@ namespace ips4o {
 
 			// TODO(?): this is a bottleneck, should be replaced with SIMD writes.
 			__attribute__((noinline)) void ScatterBatch(
-			        const uint32_t *IPS4O_RESTRICT bucket_indices, size_t num, iterator begin,
-			        iterator &write) {
-#pragma unroll(2)
+			        const uint32_t *IPS4O_RESTRICT bucket_indices, 
+                    size_t num, 
+                    iterator begin,
+			        iterator &write) noexcept {
+                #pragma unroll(2)
 				for (size_t i = 0; i < num; ++i) {
 					const IdxBucket idx_bucket = bucket_indices[i];
 					// Only flush buffers on overflow
@@ -592,13 +589,11 @@ namespace ips4o {
 					buffers.push(idx_bucket, begin[i]);
 				}
 			}
-			/**
-   * Local classification phase.
-   */
 
+            /// Local classification phase.
 			template<bool kEqualBuckets>
 			__attribute__((noinline)) ptrdiff_t classifyLocally(iterator begin,
-			                                                    iterator end) {
+			                                                    iterator end) noexcept {
 				const size_t log_buckets = classifier.log_buckets_;
 				switch (log_buckets) {
 					case 1:
@@ -639,7 +634,7 @@ namespace ips4o {
 			// a compile-time constant to allow skipping code without actually branching.
 			template<bool kEqualBuckets, size_t kLogBuckets>
 			__attribute__((noinline)) ptrdiff_t classifyLocally2(iterator begin,
-			                                                     iterator end) {
+			                                                     iterator end) noexcept {
 				iterator write = begin;
 				const ptrdiff_t num_buckets = 1l << (kLogBuckets + kEqualBuckets);
 				constexpr const size_t kUnroll = 1; // AVX-512: TODO was 16 for avx 512
@@ -647,7 +642,6 @@ namespace ips4o {
 
 				alignas(64) uint32_t bucket_indices[kUnroll];
 				const size_t num = static_cast<size_t>(end - begin);
-
 #if IPS4O_SIMD
 				const CappedTag<Cfg::value_type, 16> d;
 				const auto splitter0 = LoadU(d, classifier.splitter(0));
@@ -735,7 +729,7 @@ namespace ips4o {
 #endif
 
 				// Update bucket sizes to account for partially filled buckets
-				for (int i = 0; i < num_buckets_; ++i) bucket_size[i] += buffers.size(i);
+				for (uint32_t i = 0; i < num_buckets_; ++i) bucket_size[i] += buffers.size(i);
 
 				return write - begin_;
 			}
@@ -749,14 +743,14 @@ namespace ips4o {
 				// Find bucket boundaries
 				ptrdiff_t sum = 0;
 				bucket_start_[0] = 0;
-				for (int i = 0; i < num_buckets_; ++i) {
+				for (uint32_t i = 0; i < num_buckets_; ++i) {
 					sum += bucket_size[i];
 					bucket_start_[i + 1] = sum;
 				}
 				IPS4OML_ASSUME_NOT(bucket_start_[num_buckets_] != end_ - begin_);
 
 				// Set write/read pointers for all buckets
-				for (int bucket = 0; bucket < num_buckets_; ++bucket) {
+				for (uint32_t bucket = 0; bucket < num_buckets_; ++bucket) {
 					const auto start = Cfg::alignToNextBlock(bucket_start_[bucket]);
 					const auto stop = Cfg::alignToNextBlock(bucket_start_[bucket + 1]);
 					bucket_pointers[bucket].set(
@@ -769,9 +763,9 @@ namespace ips4o {
 			}
 
 			/**
-   * Moves empty blocks to establish invariant:
-   * All buckets must consist of full blocks followed by empty blocks.
-   */
+            * Moves empty blocks to establish invariant:
+            * All buckets must consist of full blocks followed by empty blocks.
+            */
 			__attribute__((noinline)) void moveEmptyBlocks(
 			        const ptrdiff_t my_begin, const ptrdiff_t my_end,
 			        const ptrdiff_t my_first_empty_block) {
@@ -782,33 +776,33 @@ namespace ips4o {
 				}(0);
 
 				/*
-     * After classification, a stripe consists of full blocks followed by empty
-     * blocks. This means that the invariant above already holds for all buckets
-     * except those that cross stripe boundaries.
-     *
-     * The following cases exist:
-     * 1)  The bucket is fully contained within one stripe.
-     *     In this case, nothing needs to be done, just set the bucket pointers.
-     *
-     * 2)  The bucket starts in stripe i, and ends in stripe i+1.
-     *     In this case, thread i moves full blocks from the end of the bucket
-     * (from the stripe of thread i+1) to fill the holes at the end of its
-     * stripe.
-     *
-     * 3)  The bucket starts in stripe i, crosses more than one stripe boundary,
-     * and ends in stripe i+k. This is an extension of case 2. In this case,
-     * multiple threads work on the same bucket. Each thread is responsible for
-     * filling the empty blocks in its stripe. The left-most thread will take
-     * the right-most blocks. Therefore, we count how many blocks are fetched by
-     * threads to our left before moving our own blocks.
-     */
+                 * After classification, a stripe consists of full blocks followed by empty
+                 * blocks. This means that the invariant above already holds for all buckets
+                 * except those that cross stripe boundaries.
+                 *
+                 * The following cases exist:
+                 * 1)  The bucket is fully contained within one stripe.
+                 *     In this case, nothing needs to be done, just set the bucket pointers.
+                 *
+                 * 2)  The bucket starts in stripe i, and ends in stripe i+1.
+                 *     In this case, thread i moves full blocks from the end of the bucket
+                 * (from the stripe of thread i+1) to fill the holes at the end of its
+                 * stripe.
+                 *
+                 * 3)  The bucket starts in stripe i, crosses more than one stripe boundary,
+                 * and ends in stripe i+k. This is an extension of case 2. In this case,
+                 * multiple threads work on the same bucket. Each thread is responsible for
+                 * filling the empty blocks in its stripe. The left-most thread will take
+                 * the right-most blocks. Therefore, we count how many blocks are fetched by
+                 * threads to our left before moving our own blocks.
+                 */
 
 				// Check if last bucket overlaps the end of the stripe
 				const auto bucket_end = Cfg::alignToNextBlock(bucket_start_[num_buckets_]);
 				const bool last_bucket_is_overlapping = bucket_end > my_end;
 
 				// Case 1)
-				for (int b = bucket_range_start;
+				for (uint32_t b = bucket_range_start;
 				     b < num_buckets_ - last_bucket_is_overlapping; ++b) {
 					const auto start = Cfg::alignToNextBlock(bucket_start_[b]);
 					const auto stop = Cfg::alignToNextBlock(bucket_start_[b + 1]);
@@ -1063,11 +1057,13 @@ namespace ips4o {
 		};
 
 		template<class It>
-		__attribute__((noinline)) bool sortSimpleCases(It begin, It end) {
+		__attribute__((noinline)) bool sortSimpleCases(It begin,
+                                                       It end) noexcept {
 			if (begin == end) {
 				return true;
 			}
 
+            /// TODO pass as argument
 			std::less<Cfg::value_type> comp;
 
 			// If last element is not smaller than first element,
@@ -1092,8 +1088,9 @@ namespace ips4o {
 
 	}// namespace detail
 
+    ///
 	template<class It>
-	void sort(It begin, It end) {
+	void sort(It begin, It end) noexcept {
 		// Negligible cost.
 		if (detail::sortSimpleCases(begin, end)) {
 			return;
