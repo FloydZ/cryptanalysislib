@@ -1,10 +1,10 @@
 	#include <stdint.h>
 	#include <immintrin.h>
-struct solution_t {
-	uint32_t x;
-	uint32_t mask;
-};
-void solver(uint8_t *rdi, uint8_t *rsi, struct solution_t *buffer, const uint32_t alpha, const uint32_t beta, const uint32_t gamma) {
+//struct solution_t {
+//	uint32_t x;
+//	uint32_t mask;
+//};
+struct solution_t* solver(uint16_t *rdi, uint16_t *rsi, const uint32_t alpha, const uint32_t beta, const uint32_t gamma, struct solution_t *buffer) {
 	uint32_t mask = 0;
 	// load the most-frequently used values into vector registers
 	__m256i ymm0 = _mm256_load_si256((__m256i *)(rsi + 0));
@@ -79,7 +79,7 @@ void solver(uint8_t *rdi, uint8_t *rsi, struct solution_t *buffer, const uint32_
 	// Save Fl[0] back to memory
 	_mm256_store_si256((__m256i *)rsi, ymm0);
 
-	return;
+	return buffer;
 
 
 	// now the code that reports solutions

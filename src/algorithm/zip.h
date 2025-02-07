@@ -1,6 +1,8 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_BITINTERLEAVE_H
 #define CRYPTANALYSISLIB_ALGORITHM_BITINTERLEAVE_H
 
+#include <cstdint>
+
 #ifdef USE_AVX2
 #include <immintrin.h>
 
@@ -23,7 +25,7 @@ static inline void
 /// \param in1
 static inline void morton_vec8(uint64_t *out ,
 							   uint32_t *in0,
-							   uint32_t *in1,  ) {
+							   uint32_t *in1) {
 
 	// nybble -> byte lookups
 	__m256i m0 = _mm256_set_epi8(85, 84, 81, 80, 69, 68, 65, 64, 21, 20, 17,

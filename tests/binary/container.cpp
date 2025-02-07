@@ -448,7 +448,7 @@ TEST(Add, Probabilistic){
 			b2.data()[0] = c; b2.data()[1] = d;
 
 
-			b1.add(b2, k_lower, k_upper);
+            BinaryContainerTest::add(b1, b1, b2, k_lower, k_upper);
 
 			for(uint64_t k = 0; k < k_lower; k++){
 				if(k < 64){

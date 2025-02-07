@@ -2995,7 +2995,8 @@ struct Xint16x16_t {
 	/// \return
     [[nodiscard]] constexpr static inline S clz(const S in) noexcept {
 		S ret;
-		// TODO
+		// TODO https://stackoverflow.com/questions/58823140/count-leading-zero-bits-for-each-element-in-avx2-vector-emulate-mm256-lzcnt-ep
+        (void)in;
 		return ret;
     }
 	
@@ -3004,6 +3005,7 @@ struct Xint16x16_t {
     [[nodiscard]] constexpr static inline S ctz(const S in) noexcept {
 		S ret;
 		// TODO
+        (void)in;
 		return ret;
     }
 
@@ -3043,9 +3045,10 @@ struct Xint16x16_t {
         return ret;
     }
 
-    ///
+    /// TODO
 	[[nodiscard]] constexpr static inline S conflict(const S in1) noexcept {
 		S ret;
+        (void) in1;
         return ret;
     }
 

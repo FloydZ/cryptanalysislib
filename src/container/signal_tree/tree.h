@@ -252,7 +252,7 @@ concept non_leaf_level_traits = ((level_traits_concept<T>) && (!leaf_level_trait
 
 
 template<level_traits_concept T>
-struct level;
+class level;
 
 
 template<level_traits_concept T>
@@ -315,7 +315,7 @@ protected:
 	static auto constexpr counter_capacity = (node_capacity / counters_per_node);
 
 	template<level_traits_concept>
-	friend struct level;
+	friend class level;
 
 	/// \tparam select_function
 	/// \param biasFlags

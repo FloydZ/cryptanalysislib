@@ -47,7 +47,7 @@ TEST(mq, simple) {
 
 	/* check solution number: one lane have reached the cap*/
 	bool enough = false;
-	for (int lane = 0; lane < m; lane++) {
+	for (uint32_t lane = 0; lane < m; lane++) {
 		//printf("# kernel [%s] found %d solutions in lane %d\n", name, size[lane], lane);
 		enough |= (size[lane] == count);
 	}

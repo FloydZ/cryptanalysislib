@@ -773,8 +773,8 @@ public:
 	/// this function does a full length addition
 	/// v3 = v1 + v2
 	constexpr inline static void add(FqPackedVector &v3,
-	                                 FqPackedVector const &v1,
-	                                 FqPackedVector const &v2) noexcept {
+	                                 const FqPackedVector &v1,
+	                                 const FqPackedVector &v2) noexcept {
 		add(v3.ptr(), v1.ptr(), v2.ptr());
 	}
 
@@ -818,8 +818,6 @@ public:
 			v3[i] = v1[i] ^ v2[i];
 		}
 	}
-
-
 
 	/// windowed addition.
 	/// this += v [k_lower, k_upper)

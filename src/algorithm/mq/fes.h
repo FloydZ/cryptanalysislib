@@ -4,9 +4,6 @@
 #define L 8
 #define LANES 16
 
-extern struct solution_t * feslite_avx2_asm_enum(const void * Fq, void * Fl,
-                                                 uint64_t alpha, uint64_t beta, uint64_t gamma, struct solution_t *local_buffer);
-
 /* 
  * Constant-time algorithm to compute the position of the first and second bits
  * set in successive values of an (n+2)-bit counter initialized at (1 << (n+1)). 
@@ -85,9 +82,14 @@ static inline int idxq(int i, int j) {
 }
 
 struct solution_t {
+public:
 	uint32_t x;
 	uint32_t mask;
 };
+
+// extern struct solution_t * feslite_avx2_asm_enum(const void * Fq, void * Fl, uint64_t alpha, uint64_t beta, uint64_t gamma, struct solution_t *local_buffer);
+#include "avx_16x16.h"
+
 
 struct context_t {
 	int n;
@@ -443,7 +445,7 @@ int feslite_avx2_enum_16x16(int n, int m, const uint32_t * Fq, const uint32_t * 
         k2 = context.ffs.k2 + L;
         uint64_t beta = 1 + k1;
         uint64_t gamma = idxq(k1, k2);
-        struct solution_t *top = feslite_avx2_asm_enum(context.Fq, context.Fl, alpha, beta, gamma, context.local_buffer);
+        struct solution_t *top = solver(context.Fq, context.Fl, alpha, beta, gamma, context.local_buffer);
         if (FLUSH_BUFFER(&context, top, j << L)) {
             break;
         }

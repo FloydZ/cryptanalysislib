@@ -94,13 +94,13 @@ def compute_update(i, a, b):
         xor2 = "\t_mm256_xor_si256(ymm0, ymm14, ymm0);"
         return ("\n\t".join([xor1a, xor1b, xor1c]), xor2)
 
-print("\t#include <stdint.h>")
-print("\t#include <immintrin.h>")
-print("""struct solution_t {
-	uint32_t x;
-	uint32_t mask;
-};""")
-print( "void solver(uint8_t *rdi, uint8_t *rsi, struct solution_t *buffer, const uint32_t alpha, const uint32_t beta, const uint32_t gamma) {" )
+print("#include <stdint.h>")
+print("#include <immintrin.h>")
+#print("""struct solution_t {
+#	uint32_t x;
+#	uint32_t mask;
+#};""")
+print( "struct solution_t* solver(uint16_t *rdi, uint16_t *rsi,const uint32_t alpha, const uint32_t beta, const uint32_t gamma, struct solution_t *buffer) {" )
 print("\tuint32_t mask = 0;")
 print( "\t// load the most-frequently used values into vector registers" )
 for i, reg in Fl.items():
@@ -167,7 +167,7 @@ print("\t// Save Fl[0] back to memory")
 print("\t_mm256_store_si256((__m256i *)rsi, ymm0);")                 # Fl[0] <-- %ymm0
 print()
 #print('ret')
-print('\treturn;')
+print('\treturn buffer;')
 print()
 print()
 
