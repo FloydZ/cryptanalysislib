@@ -111,6 +111,7 @@ unsigned char *SearchForPhrase(unsigned char *str, unsigned char *src,
 			// curlength = DataCompare((p + 1), (str + 1), maxlength);
 			// TODO double comparsion
 			curlength = DataCompare(p, str, maxlength);
+            printf("%d\n", curlength);
 			if (curlength > *bestlength) {
 				*bestlength = curlength;
 				best = p;
