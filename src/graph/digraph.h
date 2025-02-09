@@ -851,3 +851,309 @@ private:
         return -cmp1(a, b);
     }
 };
+
+
+// Find all full paths in a directed graph.
+template <typename T=uint32_t, 
+          class Allocator = cryptanalysislib::allocator<T>>
+class digraph_paths {
+private:
+    Allocator allocator;
+
+    // the graph
+    digraph &g_; 
+
+    // Record of Visits: rv[k] == node visited at step k
+    T *rv_;
+
+    // qq[k] == whether node k has been visited yet
+    T *qq_;
+
+    // count Paths
+    size_t pct_ = 0;
+
+    // count Cycles
+    size_t cct_ = 0;
+    
+    // count Paths where pfunc() returns 1
+    size_t pfct_ = 0;
+
+    // whether current path is a cycle
+    bool cq_ = 0; 
+
+    // whether to print anything (set automatically)
+    bool pany_ = 0;
+    
+    // == g_.ng_
+    T ng_;
+
+    // number of bits in ng_, used for printing
+    T ngbits_ = 0;
+
+    // function to call with each path found with all_paths():
+    ulong (*pfunc_)(const digraph_paths &);
+
+    // if set (by pfunc()) then search is stopped
+    bool pfdone_ = 0;  
+
+    // stop after maxnp times that pfunc returned one (0==forever)
+    size_t maxnp_ = 0;
+
+    // function to impose condition with all_cond_paths():
+    bool (*cfunc_)(digraph_paths &, ulong ns);  // can set pfdone_
+
+    digraph_paths(const digraph_paths&) = delete;
+    digraph_paths & operator = (const digraph_paths&) = delete;
+
+public:
+    // graph/digraph.cc:
+    explicit digraph_paths(digraph &g)  noexcept :
+        g_(g), ng_(g_.ng_) {
+        // rv_ = new T[ng_];
+        // qq_ = new T[ng_];
+        rv_ = allocator.allocate(ng_);
+        qq_ = allocator.allocate(ng_);
+        ngbits_ = next_exp_of_2(ng_);
+        pfunc_ = nullptr;
+        cryptanalysislib::memset(qq_, 0, ng_);
+    }
+
+    ~digraph_paths() noexcept {
+        allocator.deallocate(rv_, ng_);
+        allocator.deallocate(qq_, ng_);
+    }
+
+    constexpr const digraph & graph() const noexcept { return g_; }
+
+    // Return whether the path is a cycle.
+    constexpr bool path_is_cycle()  const noexcept {
+        // first node visited
+        ulong p0 = rv_[0];
+        
+        // last node visited
+        ulong p = rv_[ng_-1];  
+        return graph().has_edge(p, p0);
+    }
+
+    void print_turns(bool shortq=true) const {
+        cout << "Path:";
+        if ( shortq )  cout << " (short print) ";
+        cout << endl;
+        ulong nffct = 0;  // count non-first-free turns
+        for (ulong k=0; k<ng_-1; ++k)
+        {
+            ulong pk = rv_[k];
+            ulong ft = qq_[pk] - 1;
+            nffct += (0!=ft);
+            if ( !shortq || ft )
+            {
+                ulong nt = g_.num_edges(pk);
+                ulong pn = rv_[k+1];
+                ulong tt = g_.edge_idx(pk, pn);
+                cout << setw(4) << k << ":";
+                cout << " " << setw(4) << pk << " ->" << setw(4) << pn;
+                cout << "  [" << setw(2) << ft;
+                cout << " " << setw(2) << tt;
+                cout << " / " << setw(2) << nt << "]";
+                cout << endl;
+            }
+        }
+        cout << "Path: #non-first-free turns = " << nffct;
+        if ( 0==nffct )  cout << "  (lucky path)";
+        cout << endl;
+    }
+
+    // Return 0 if path is a lucky path,
+    // else return 1+k where k is the index where
+    //  the edge used was not the first free edge.
+    T test_lucky_path()  const noexcept  {
+        for (T k=0; k<ng_-1; ++k) {
+            if ( qq_[rv_[k]] - 1 ) { return  k+1; }
+        }
+        return  0;
+    }
+
+    bool mark(ulong p, ulong &ns) noexcept {
+        if ( p>=ng_ )  return false;
+        if ( ns>=ng_ )  return false;
+        if ( 0!=ns )
+        {
+            bool ha = graph().has_edge(rv_[ns-1], p);
+            if ( false==ha )  return false;
+        }
+        rv_[ns] = p;
+        qq_[p] = 1;
+        ++ns;
+        return true;
+    }
+
+    void print_path() const
+    // Print sequence of nodes.
+    { ::print_path(rv_, ng_); }
+
+    void print_bin_path() const
+    // Print sequence of nodes both binary and decimal.
+    { ::print_bin_path(rv_, ng_, ngbits_); }
+
+    void print_bin_horiz_path()  const
+    // Horizontally print sequence of nodes in binary.
+    { ::print_bin_horiz_path(rv_, ng_, ngbits_); }
+
+
+    // graph/search-digraph.cc:
+public:
+    ulong all_paths(ulong (*pfunc)(const digraph_paths &),
+                    ulong ns=0,
+                    ulong p=0,
+                    ulong maxnp=0) noexcept {
+        pct_ = 0;
+        cct_ = 0;
+        pfct_ = 0;
+        pfunc_ = pfunc;
+        pfdone_ = 0;
+        maxnp_ = maxnp;
+        next_path(ns, p);
+        return pfct_;  // Number of paths where pfunc() returned true
+    }
+
+private:
+    // called by all_paths()
+    // ns+1 == how many nodes seen
+    // p == position (node we are on)
+    void next_path(ulong ns, ulong p) noexcept {
+        if ( pfdone_ )  return;
+    
+        rv_[ns] = p;  // record position
+        ++ns;
+    
+        // all nodes seen ?
+        if ( ns==ng_ ) {
+            ++pct_;
+            cq_ = path_is_cycle();
+            if ( cq_ )  ++cct_;
+            ulong pq = pfunc_(*this);
+            if ( pq )
+            {
+                ++pfct_;
+                if ( maxnp_ && ( pfct_>=maxnp_ ) )  pfdone_ = true;
+            }
+        } else {
+            qq_[p] = 1;  // mark position as seen (else loops lead to errors)
+            ulong fe, en;
+            g_.get_edge_idx(p, fe, en);
+            ulong fct = 0;  // count free reachable nodes
+            for (ulong ep=fe; ep<en; ++ep)
+            {
+                ulong t = g_.e_[ep];  // next node
+                if ( 0==qq_[t] )  // node free?
+                {
+                    ++fct;
+                    qq_[p] = fct;  // mark position as seen: record turns
+    //                jjassert( fct>=1 );
+                    next_path(ns, t);
+                }
+            }
+            // if ( 0==fct )  { "dead end: this is a U-turn"; }
+    
+            qq_[p] = 0;  // unmark position
+        }
+    }
+    // graph/search-digraph-cond.cc:
+public:
+    ulong all_cond_paths(ulong (*pfunc)(const digraph_paths &),
+                         bool (*cfunc)(digraph_paths &, ulong),
+                         ulong ns=0, ulong p=0, ulong maxnp=0) {
+        pct_ = 0;
+        cct_ = 0;
+        pfct_ = 0;
+        pfunc_ = pfunc;
+        cfunc_ = cfunc;
+        pfdone_ = 0;
+        maxnp_ = maxnp;
+        next_cond_path(ns, p);
+        return pfct_;  // Number of paths where pfunc() returned true
+    }
+
+private:
+    // called by all_cond_paths()
+    // ns+1 == how many nodes seen
+    // p == position (node we are on)
+    void next_cond_path(ulong ns, ulong p) {
+        if ( pfdone_ )  return;
+    
+        rv_[ns] = p;  // record position
+        ++ns;
+    
+        // all nodes seen ?
+        if ( ns==ng_ ) {
+            ++pct_;
+            cq_ = path_is_cycle();
+            if ( cq_ )  ++cct_;
+            ulong pq = pfunc_(*this);
+            if ( pq )
+            {
+                ++pfct_;
+                if ( maxnp_ && ( pfct_>=maxnp_ ) )  pfdone_ = true;
+            }
+        } else {
+            qq_[p] = 1;  // mark position as seen (else loops lead to errors)
+            ulong fe, en;
+            g_.get_edge_idx(p, fe, en);
+            ulong fct = 0;  // count free reachable nodes
+            for (ulong ep=fe; ep<en; ++ep)
+            {
+                ulong t = g_.e_[ep];  // next node
+                if ( 0==qq_[t] )  // node free?
+                {
+                    rv_[ns] = t;  // for cfunc()
+                    if ( cfunc_(*this, ns) )
+                    {
+                        ++fct;
+                        qq_[p] = fct;  // mark position as seen: record turns
+                        next_cond_path(ns, t);
+                    }
+                }
+            }
+            // if ( 0==fct )  { "dead end: this is a U-turn"; }
+    
+            qq_[p] = 0;  // unmark position
+        }
+    }
+
+public:
+    ulong try_lucky_path(ulong ns=0, ulong p=0){
+        pct_ = 0;
+        cct_ = 0;
+        // TODO init();
+    
+     start:
+        rv_[ns] = p;  // record position
+        ++ns;
+        // ns == how many nodes seen
+        // p == position (node we are on)
+        
+        // all nodes seen ?
+        if ( ns==ng_ ) {
+            cq_ = path_is_cycle();
+            if ( cq_ )  ++cct_;
+            ++pct_;
+            return  pct_;  // ==1
+        } else {
+            ulong fe, en;
+            g_.get_edge_idx(p, fe, en);
+            for (ulong ep=fe; ep<en; ++ep)
+            {
+                ulong t = g_.e_[ep];  // next node
+                if ( 0==qq_[t] )  // first free node is taken as next
+                {
+                    qq_[p] = 1;
+                    p = t;
+                    goto start;
+                }
+            }
+            return 0;
+        }
+    
+    //    return 0;  // never reached
+    }
+};

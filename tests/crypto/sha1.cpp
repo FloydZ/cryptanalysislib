@@ -6,10 +6,7 @@
 #include "helper.h"
 #include "random.h"
 
-// TODO not implemented
-// #include "crypto/sha1.h"
-// 
-// 
+#include "crypto/sha1.h"
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -21,8 +18,7 @@ using ::testing::UnitTest;
 // using namespace cryptanalysislib;
 // 
 TEST(SHA1, simple) {
-//	constexpr uint8_t data[3] = {"He"};
-// 	constexpr SHA1 hash_value = SHA1(data);
+    static_assert("abc"_sha1       == "a9993e364706816aba3e25717850c26c9cd0d89d"_hex_bytes);
 }
 
 

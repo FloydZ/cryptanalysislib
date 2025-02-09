@@ -170,9 +170,9 @@ namespace cryptanalysislib {
 	requires std::random_access_iterator<RandIt>
 #endif
 	RandIt find(ExecPolicy &&policy,
-				   RandIt first,
-				   RandIt last,
-				   const typename RandIt::value_type& value) noexcept {
+				RandIt first,
+				RandIt last,
+				const typename RandIt::value_type& value) noexcept {
 		using diff_t = typename std::iterator_traits<RandIt>::difference_type;
 		const diff_t size = std::distance(first, last);
 		const uint32_t nthreads = should_par(policy, config, size);
@@ -191,7 +191,9 @@ namespace cryptanalysislib {
 					return;
 				}
 
-				RandIt chunk_res = cryptanalysislib::find<RandIt, config>(chunk_first, chunk_last, value);
+				RandIt chunk_res = cryptanalysislib::find
+                                      <RandIt, config>
+                                      (chunk_first, chunk_last, value);
 				if (chunk_res != chunk_last) {
 					// Found, update exremum using a priority update CAS, as discussed in
 					// "Reducing Contention Through Priority Updates", PPoPP '13
