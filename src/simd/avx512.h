@@ -614,8 +614,8 @@ struct Xint8x64_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
-													     const S in2) noexcept {
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
+												const S in2) noexcept {
 		S ret;
 		ret.v512 = (__m512i) ((__v64qi) in1.v512 == (__v64qi) in2.v512);
 		return ret;
@@ -624,10 +624,30 @@ struct Xint8x64_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint64_t cmp(const S in1,
-												       const S in2) noexcept {
+	[[nodiscard]] constexpr static inline uint64_t eq(const S in1,
+												      const S in2) noexcept {
 		__m512i v512 = (__m512i) ((__v64qi) in1.v512 == (__v64qi) in2.v512);
 		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+		ret.v512  = (__m512i) ((__v64qi) in1.v512 < (__v64qi) in2.v512);
+		ret.v512 ^= (__m512i) ((__v64qi) in1.v512 > (__v64qi) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64_t cmp(const S in1,
+												       const S in2) noexcept {
+        S ret = S::cmp_(in1, in2);
+		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)ret.v512);
 	}
 
 	///
@@ -1323,8 +1343,8 @@ struct Xint16x32_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline Xint16x32_t cmp_(const Xint16x32_t in1,
-														   const Xint16x32_t in2) noexcept {
+	[[nodiscard]] constexpr static inline Xint16x32_t eq_(const Xint16x32_t in1,
+														  const Xint16x32_t in2) noexcept {
 		Xint16x32_t ret;
 		ret.v512 = (__m512i) ((__v32hi) in1.v512 == (__v32hi) in2.v512);
 		return ret;
@@ -1333,10 +1353,30 @@ struct Xint16x32_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint32_t cmp(const Xint16x32_t in1,
-													   const Xint16x32_t in2) noexcept {
+	[[nodiscard]] constexpr static inline uint32_t eq(const Xint16x32_t in1,
+												      const Xint16x32_t in2) noexcept {
 		const __m512i v512 = (__m512i) ((__v32hi) in1.v512 == (__v32hi) in2.v512);
 		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+		ret.v512  = (__m512i) ((V) in1.v512 < (V) in2.v512);
+		ret.v512 ^= (__m512i) ((V) in1.v512 > (V) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+												       const S in2) noexcept {
+        S ret = S::cmp_(in1, in2);
+		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)ret.v512);
 	}
 
 	///
@@ -1814,8 +1854,8 @@ struct Xint32x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline Xint32x16_t cmp_(const Xint32x16_t in1,
-														   const Xint32x16_t in2) noexcept {
+	[[nodiscard]] constexpr static inline Xint32x16_t eq_(const Xint32x16_t in1,
+														  const Xint32x16_t in2) noexcept {
 		Xint32x16_t ret;
 		ret.v512 = (__m512i) ((__v16si) in1.v512 == (__v16si) in2.v512);
 		return ret;
@@ -1824,12 +1864,31 @@ struct Xint32x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint16_t cmp(const Xint32x16_t in1,
-													   const Xint32x16_t in2) noexcept {
+	[[nodiscard]] constexpr static inline uint16_t eq(const Xint32x16_t in1,
+													  const Xint32x16_t in2) noexcept {
 		const __m512i v512 = (__m512i) ((__v16si) in1.v512 == (__v16si) in2.v512);
 		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
 	}
 
+	/// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+		ret.v512  = (__m512i) ((V) in1.v512 < (V) in2.v512);
+		ret.v512 ^= (__m512i) ((V) in1.v512 > (V) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+												       const S in2) noexcept {
+        S ret = S::cmp_(in1, in2);
+		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)ret.v512);
+	}
 
 	/// needs`AVX512VPOPCNTDQ`
 	/// \param in1
@@ -2329,8 +2388,8 @@ struct Xint64x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline uint8_t cmp(const Xint64x8_t in1,
-													   const Xint64x8_t in2) noexcept {
+	[[nodiscard]] constexpr static inline uint8_t eq(const Xint64x8_t in1,
+													 const Xint64x8_t in2) noexcept {
 		const __m512i v512 = (__m512i) ((__v8di) in1.v512 == (__v8di) in2.v512);
 		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
 	}
@@ -2338,11 +2397,31 @@ struct Xint64x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline Xint64x8_t cmp_(const Xint64x8_t in1,
-	                                                      const Xint64x8_t in2) noexcept {
+	[[nodiscard]] constexpr static inline Xint64x8_t eq_(const Xint64x8_t in1,
+	                                                     const Xint64x8_t in2) noexcept {
 		Xint64x8_t ret;
 		ret.v512 = (__m512i) ((__v8di) in1.v512 == (__v8di) in2.v512);
 		return ret;
+	}
+	
+    /// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+		ret.v512  = (__m512i) ((V) in1.v512 < (V) in2.v512);
+		ret.v512 ^= (__m512i) ((V) in1.v512 > (V) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+												       const S in2) noexcept {
+        S ret = S::cmp_(in1, in2);
+		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) ret.v512);
 	}
 
 	///

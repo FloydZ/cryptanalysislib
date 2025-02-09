@@ -611,9 +611,9 @@ public:
 		const auto tmp = S::lt_(in1, in2);
 		return S::move(tmp);
 	}
-	[[nodiscard]] constexpr static inline uint64_t cmp(const TxN_t &in1,
+	[[nodiscard]] constexpr static inline uint64_t eq(const TxN_t &in1,
 	                                                  const TxN_t &in2) noexcept {
-		const auto tmp = S::cmp_(in1, in2);
+		const auto tmp = S::eq_(in1, in2);
 		return S::move(tmp);
 	}
 

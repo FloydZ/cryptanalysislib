@@ -542,14 +542,34 @@ namespace cryptanalysislib {
 			const __m128i tmp = (__m128i) ((V) in1.v128 < (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
-        
-        /// \param in1[in]: vector element
+
+		/// \param in1[in]: vector element
+		/// \param in2[in]: vector element
+		/// \return in1 > in2 uncompressed
+		[[nodiscard]] constexpr static inline S eq_(const S in1,
+		                                            const S in2) noexcept {
+			S ret;
+			ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
+			return ret;
+		}
+
+		/// \param in1[in]: vector element
+		/// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t eq(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+		/// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 > in2 uncompressed
 	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
-	                                                const S in2) noexcept {
+	                                                 const S in2) noexcept {
 	    	S ret;
-	    	ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
+	    	ret.v128  = (__m128i) ((V) in1.v128 < (V) in2.v128);
+			ret.v128 ^= (__m128i) ((V) in1.v128 > (V) in2.v128);
 	    	return ret;
 	    }
 
@@ -558,8 +578,8 @@ namespace cryptanalysislib {
 		/// \return in1 == in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
 		                                                   const S in2) noexcept {
-			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
-			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+			S ret = S::cmp_(in1, in2);
+			return __builtin_ia32_pmovmskb128((__v16qi) ret.v128);
 		}
 
 	    /// \param in[in]: vector element
@@ -1026,7 +1046,7 @@ namespace cryptanalysislib {
         /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 > in2 uncompressed
-	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
+	    [[nodiscard]] constexpr static inline S eq_(const S in1,
 	                                                const S in2) noexcept {
 	    	S ret;
 	    	ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
@@ -1036,10 +1056,30 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 		/// \return in1 == in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
-		                                                   const S in2) noexcept {
+		[[nodiscard]] constexpr static inline uint32_t eq(const S in1,
+		                                                  const S in2) noexcept {
 			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+		/// \param in1[in]: vector element
+		/// \param in2[in]: vector element
+		/// \return in1 > in2 uncompressed
+		[[nodiscard]] constexpr static inline S cmp_(const S in1,
+													 const S in2) noexcept {
+			S ret;
+			ret.v128  = (__m128i) ((V) in1.v128 < (V) in2.v128);
+			ret.v128 ^= (__m128i) ((V) in1.v128 > (V) in2.v128);
+			return ret;
+		}
+
+		/// \param in1[in]: vector element
+		/// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+														   const S in2) noexcept {
+			S ret = S::cmp_(in1, in2);
+			return __builtin_ia32_pmovmskb128((__v16qi) ret.v128);
 		}
 
 	    /// \param in[in]: vector element
@@ -1462,7 +1502,7 @@ namespace cryptanalysislib {
         /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 > in2 uncompressed
-	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
+	    [[nodiscard]] constexpr static inline S eq_(const S in1,
 	                                                const S in2) noexcept {
 	    	S ret;
 	    	ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
@@ -1472,10 +1512,30 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 		/// \return in1 == in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
-		                                                   const S in2) noexcept {
+		[[nodiscard]] constexpr static inline uint32_t eq(const S in1,
+		                                                  const S in2) noexcept {
 			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+		/// \param in1[in]: vector element
+		/// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+														   const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+		/// \param in1[in]: vector element
+		/// \param in2[in]: vector element
+		/// \return in1 > in2 uncompressed
+		[[nodiscard]] constexpr static inline S cmp_(const S in1,
+													 const S in2) noexcept {
+			S ret;
+			ret.v128  = (__m128i) ((V) in1.v128 < (V) in2.v128);
+			ret.v128 ^= (__m128i) ((V) in1.v128 > (V) in2.v128);
+			return ret;
 		}
 
 	    /// \param in[in]: vector element
@@ -1883,7 +1943,7 @@ namespace cryptanalysislib {
         /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 > in2 uncompressed
-	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
+	    [[nodiscard]] constexpr static inline S eq_(const S in1,
 	                                                const S in2) noexcept {
 	    	S ret;
 	    	ret.v128 = (__m128i) ((V) in1.v128 == (V) in2.v128);
@@ -1893,10 +1953,30 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 		/// \return in1 == in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+		[[nodiscard]] constexpr static inline uint32_t eq(const S in1,
 		                                                   const S in2) noexcept {
 			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+		/// \param in1[in]: vector element
+		/// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+														  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 == (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+		/// \param in1[in]: vector element
+		/// \param in2[in]: vector element
+		/// \return in1 > in2 uncompressed
+		[[nodiscard]] constexpr static inline S cmp_(const S in1,
+		                                            const S in2) noexcept {
+			S ret;
+			ret.v128  = (__m128i) ((V) in1.v128 < (V) in2.v128);
+			ret.v128 ^= (__m128i) ((V) in1.v128 > (V) in2.v128);
+			return ret;
 		}
 
 	    /// \param in[in]: vector element
@@ -2420,14 +2500,36 @@ struct Xint8x32_t {
 		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
 
-	///
+
 	/// \param in1
 	/// \param in2
 	/// \return in1 == in2 compressed
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
-	                                                      const S in2) noexcept {
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
+												 const S in2) noexcept {
 		S ret;
 		ret.v256 = (__m256i) ((__v32qs) in1.v256 == (__v32qs) in2.v256);
+		return ret;
+	}
+
+	/// \param in1[in]:
+	/// \param in2[in]:
+	/// \return in1 == in2 compressed
+	[[nodiscard]] constexpr static inline uint32_t eq(const S in1,
+													   const S in2) noexcept {
+		const __m256i tmp = (__m256i) ((__v32qi) in1.v256 == (__v32qi) in2.v256);
+		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return  -1 <
+	// 			  0 ==
+	// 			  1 >
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+	                                             const S in2) noexcept {
+		S ret;
+		const __m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		ret.v256 ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
 		return ret;
 	}
 
@@ -2436,7 +2538,8 @@ struct Xint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
 	                                                   const S in2) noexcept {
-		const __m256i tmp = (__m256i) ((__v32qi) in1.v256 == (__v32qi) in2.v256);
+		__m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		tmp ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
 		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
 
@@ -2963,8 +3066,8 @@ struct Xint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return in1 == in2 uncompressed
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
-	                                                       const S in2) noexcept {
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
+	                                            const S in2) noexcept {
 		S ret;
 		ret.v256 = (__m256i) ((V) in1.v256 == (V) in2.v256);
 		return ret;
@@ -2974,13 +3077,36 @@ struct Xint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline int cmp(const S in1,
-	                                              const S in2) noexcept {
+	[[nodiscard]] constexpr static inline int eq(const S in1,
+	                                             const S in2) noexcept {
 		S tmp;
 		tmp.v256 = (__m256i) ((V) in1.v256 == (V) in2.v256);
 		uint32_t t = _mm256_movemask_epi8(tmp.v256);
 		uint16_t ret = _pdep_u32(t, 0b01010101010101010101010101010101);
 		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return  -1 <
+	// 			  0 ==
+	// 			  1 >
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+		const __m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		ret.v256 ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
+		return ret;
+	}
+
+	/// \param in1[in]:
+	/// \param in2[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+													   const S in2) noexcept {
+		__m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		tmp ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
+		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
 
 	/// \param in
@@ -3532,8 +3658,8 @@ struct Xint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return in1 == in2 uncompress
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
-	                                             const S in2) noexcept {
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
+	                                            const S in2) noexcept {
 		S ret{};
 		ret.v256 = (__m256i) ((V) in1.v256 == (V) in2.v256);
 		return ret;
@@ -3543,14 +3669,37 @@ struct Xint32x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline int cmp(const S in1,
-                                                  const S in2) noexcept {
+	[[nodiscard]] constexpr static inline int eq(const S in1,
+	                                             const S in2) noexcept {
 		const __m256i tmp = (__m256i) ((V) in1.v256 == (V) in2.v256);
 #ifndef __clang__
 		return __builtin_ia32_movmskps256((__v8sf) tmp);
 #else
 		return _mm256_movemask_ps((__m256) tmp);
 #endif
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return  -1 <
+	// 			  0 ==
+	// 			  1 >
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+		const __m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		ret.v256 ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
+		return ret;
+	}
+
+	/// \param in1[in]:
+	/// \param in2[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+													   const S in2) noexcept {
+		__m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		tmp ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
+		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
 
 	///
@@ -4096,8 +4245,8 @@ struct Xint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return in1 == in2 uncompressed
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
-	                                             const S in2) noexcept {
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
+	                                            const S in2) noexcept {
 		S ret;
 		ret.v256 = (__m256i) ((__v4di) in1.v256 == (__v4di) in2.v256);
 		return ret;
@@ -4105,8 +4254,8 @@ struct Xint64x4_t {
 
 	/// \param in1
 	/// \return
-	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
-	                                                   const S in2) noexcept {
+	[[nodiscard]] constexpr static inline uint32_t eq(const S in1,
+	                                                  const S in2) noexcept {
 #ifndef __clang__
 		const __m256i tmp = (__m256i) ((__v4di) in1.v256 == (__v4di) in2.v256);
 		return __builtin_ia32_movmskpd256((__v4df) tmp);
@@ -4114,6 +4263,29 @@ struct Xint64x4_t {
 		const __m256i tmp = _mm256_cmpeq_epi64(in1.v256, in2.v256);
 		return _mm256_movemask_pd((__m256d) tmp);
 #endif
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return  -1 <
+	// 			  0 ==
+	// 			  1 >
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+		const __m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		ret.v256 ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
+		return ret;
+	}
+
+	/// \param in1[in]:
+	/// \param in2[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+													   const S in2) noexcept {
+		__m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		tmp ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
+		return __builtin_ia32_pmovmskb256((__v32qi) tmp);
 	}
 
 	/// \param in

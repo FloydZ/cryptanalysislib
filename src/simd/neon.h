@@ -585,7 +585,7 @@ namespace cryptanalysislib {
 		/// \param in1
 		/// \param in2
 		/// \return in1 == in2 ucompressed
-		[[nodiscard]] constexpr static inline S cmp_(const S in1,
+		[[nodiscard]] constexpr static inline S eq_(const S in1,
 													const S in2) noexcept {
 	    	S out;
         	if constexpr (__unsigned) {
@@ -600,8 +600,8 @@ namespace cryptanalysislib {
 		/// \param in1
 		/// \param in2
 		/// \return in1 == in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t cmp(const _Xint8x16_t in1,
-		                                                   const _Xint8x16_t in2) noexcept {
+		[[nodiscard]] constexpr static inline uint32_t eq(const _Xint8x16_t in1,
+		                                                  const _Xint8x16_t in2) noexcept {
         	if constexpr (__unsigned) {
 				return _mm_movemask_epi8(vceqq_u8(in1.v128, in2.v128));
         	} else {
@@ -609,6 +609,30 @@ namespace cryptanalysislib {
         	}
 		}
 
+        /// \param in1
+	    /// \param in2
+	    /// \return {-1, 0, 1}
+	    [[nodiscard]] constexpr static inline S cmp_(const S in1,
+	    											 const S in2) noexcept {
+	    	S ret;
+        	if constexpr (__unsigned) {
+				ret.v128  = vceqq_u8(in1.v128, in2.v128);
+				ret.v128 ^= vceqq_u8(in1.v128, in2.v128);
+        	} else {
+				ret.v128  = vceqq_s8(in1.v128, in2.v128);
+				ret.v128 ^= vceqq_s8(in1.v128, in2.v128);
+        	}
+	    	return ret;
+	    }
+
+	    /// \param in1
+	    /// \param in2
+	    /// \return
+	    [[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+	    											       const S in2) noexcept {
+            S ret = S::cmp_(in1, in2);
+	    	return _mm_movemask_epi8(ret.v128);
+	    }
 
 	    /// \param in[in]: vector element
 		/// \return [popcnt(in[0]), ..., popcnt(in[7])]
@@ -1782,8 +1806,8 @@ struct Xint8x32_t {
 	}
 
 
-	[[nodiscard]] constexpr static inline int cmp(const S in1,
-	                                              const S in2) noexcept {
+	[[nodiscard]] constexpr static inline int eq(const S in1,
+	                                             const S in2) noexcept {
 		uint32_t ret = 0;
 
 		LOOP_UNROLL()
@@ -1800,6 +1824,53 @@ struct Xint8x32_t {
 		return ret;
 	}
 
+
+    /// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
+												const S in2) noexcept {
+		S ret;
+    	if constexpr (__unsigned) {
+			ret.v128[0] = vceqq_u8(in1.v128[0], in2.v128[0]);
+			ret.v128[1] = vceqq_u8(in1.v128[1], in2.v128[1]);
+    	} else {
+			ret.v128[0] = vceqq_s8(in1.v128[0], in2.v128[0]);
+			ret.v128[1] = vceqq_s8(in1.v128[1], in2.v128[1]);
+    	}
+		return ret;
+	}
+
+    /// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+    	if constexpr (__unsigned) {
+			ret.v128[0]  = vcltq_u8(in1.v128[0], in2.v128[0]);
+			ret.v128[0] ^= vcgtq_u8(in1.v128[0], in2.v128[0]);
+			ret.v128[1]  = vcltq_u8(in1.v128[1], in2.v128[1]);
+			ret.v128[1] ^= vcgtq_u8(in1.v128[1], in2.v128[1]);
+    	} else {
+			ret.v128[0]  = vcltq_s8(in1.v128[0], in2.v128[0]);
+			ret.v128[0] ^= vcgtq_s8(in1.v128[0], in2.v128[0]);
+			ret.v128[1]  = vcltq_s8(in1.v128[1], in2.v128[1]);
+			ret.v128[1] ^= vcgtq_s8(in1.v128[1], in2.v128[1]);
+    	}
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+												       const S in2) noexcept {
+        S ret = S::cmp_(in1, in2);
+		return _mm_movemask_epi8(ret.v128[0]) ^ (_mm_movemask_epi8(ret.v128[1]) << 16u);
+	}
+
+    /// \param in[in]:
 	[[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
 		S out;
 
@@ -2370,8 +2441,8 @@ struct Xint16x16_t {
 		return ret;
 	}
 
-	constexpr static inline int cmp(const S in1,
-								    const S in2) noexcept {
+	constexpr static inline int eq(const S in1,
+								   const S in2) noexcept {
 		uint32_t ret = 0;
 
 		LOOP_UNROLL()
@@ -2388,7 +2459,7 @@ struct Xint16x16_t {
 		return ret;
 	}
 
-	constexpr static inline S cmp_(const S in1,
+	constexpr static inline S eq_(const S in1,
 								   const S in2) noexcept {
 		S ret;
 
@@ -2402,6 +2473,35 @@ struct Xint16x16_t {
 		}
 
 		return ret;
+	}
+
+    /// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+    	if constexpr (__unsigned) {
+			ret.v128[0]  = vcltq_u16(in1.v128[0], in2.v128[0]);
+			ret.v128[0] ^= vcgtq_u16(in1.v128[0], in2.v128[0]);
+			ret.v128[1]  = vcltq_u16(in1.v128[1], in2.v128[1]);
+			ret.v128[1] ^= vcgtq_u16(in1.v128[1], in2.v128[1]);
+    	} else {
+			ret.v128[0]  = vcltq_s16(in1.v128[0], in2.v128[0]);
+			ret.v128[0] ^= vcgtq_s16(in1.v128[0], in2.v128[0]);
+			ret.v128[1]  = vcltq_s16(in1.v128[1], in2.v128[1]);
+			ret.v128[1] ^= vcgtq_s16(in1.v128[1], in2.v128[1]);
+    	}
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+												       const S in2) noexcept {
+        S ret = S::cmp_(in1, in2);
+		return _mm_movemask_epi16(ret.v128[0]) ^ (_mm_movemask_epi16(ret.v128[1]) << 16u);
 	}
 
 	constexpr static inline S popcnt(const S in) noexcept {
@@ -2958,7 +3058,7 @@ struct Xint32x8_t {
 		return ret;
 	}
 
-	constexpr static inline int cmp(const S in1,
+	constexpr static inline int eq(const S in1,
                                     const S in2) noexcept {
 		uint32_t ret = 0;
 
@@ -2975,7 +3075,8 @@ struct Xint32x8_t {
 
 		return ret;
 	}
-	constexpr static inline S cmp_(const S in1,
+
+	constexpr static inline S eq_(const S in1,
                                    const S in2) noexcept {
 		S ret;
 
@@ -2989,6 +3090,35 @@ struct Xint32x8_t {
 		}
 
 		return ret;
+	}
+
+    /// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+    	if constexpr (__unsigned) {
+			ret.v128[0]  = vcltq_u32(in1.v128[0], in2.v128[0]);
+			ret.v128[0] ^= vcgtq_u32(in1.v128[0], in2.v128[0]);
+			ret.v128[1]  = vcltq_u32(in1.v128[1], in2.v128[1]);
+			ret.v128[1] ^= vcgtq_u32(in1.v128[1], in2.v128[1]);
+    	} else {
+			ret.v128[0]  = vcltq_s32(in1.v128[0], in2.v128[0]);
+			ret.v128[0] ^= vcgtq_s32(in1.v128[0], in2.v128[0]);
+			ret.v128[1]  = vcltq_s32(in1.v128[1], in2.v128[1]);
+			ret.v128[1] ^= vcgtq_s32(in1.v128[1], in2.v128[1]);
+    	}
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+												       const S in2) noexcept {
+        S ret = S::cmp_(in1, in2);
+		return _mm_movemask_epi32(ret.v128[0]) ^ (_mm_movemask_epi32(ret.v128[1]) << 16u);
 	}
 
 	[[nodiscard]] constexpr static inline uint16_t move(const S in1) noexcept {
@@ -3580,8 +3710,8 @@ struct Xint64x4_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	constexpr static inline int cmp(const S in1,
-                                    const S in2) noexcept {
+	constexpr static inline int eq(const S in1,
+                                   const S in2) noexcept {
 		int ret = 0;
 
 		LOOP_UNROLL()
@@ -3597,12 +3727,11 @@ struct Xint64x4_t {
 		return ret;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
-	constexpr static inline S cmp_(const S in1,
-								   const S in2) noexcept {
+	constexpr static inline S eq_(const S in1,
+								  const S in2) noexcept {
 		S ret;
 
 		LOOP_UNROLL()
@@ -3614,6 +3743,35 @@ struct Xint64x4_t {
 #endif
 		}
 		return ret;
+	}
+    
+    /// \param in1
+	/// \param in2
+	/// \return {-1, 0, 1}
+	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+												 const S in2) noexcept {
+		S ret;
+    	if constexpr (__unsigned) {
+			ret.v128[0]  = vcltq_u64(in1.v128[0], in2.v128[0]);
+			ret.v128[0] ^= vcgtq_u64(in1.v128[0], in2.v128[0]);
+			ret.v128[1]  = vcltq_u64(in1.v128[1], in2.v128[1]);
+			ret.v128[1] ^= vcgtq_u64(in1.v128[1], in2.v128[1]);
+    	} else {
+			ret.v128[0]  = vcltq_s64(in1.v128[0], in2.v128[0]);
+			ret.v128[0] ^= vcgtq_s64(in1.v128[0], in2.v128[0]);
+			ret.v128[1]  = vcltq_s64(in1.v128[1], in2.v128[1]);
+			ret.v128[1] ^= vcgtq_s64(in1.v128[1], in2.v128[1]);
+    	}
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+												       const S in2) noexcept {
+        S ret = S::cmp_(in1, in2);
+		return _mm_movemask_epi64(ret.v128[0]) ^ (_mm_movemask_epi64(ret.v128[1]) << 16u);
 	}
 
 	[[nodiscard]] constexpr static inline uint8_t move(const S in1) noexcept {

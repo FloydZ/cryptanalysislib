@@ -476,7 +476,7 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 == in2 uncompressed
-		constexpr static inline uint32_t cmp_(const S &in1,
+		constexpr static inline uint32_t eq_(const S &in1,
 		                                     const S &in2) noexcept {
 			S ret;
 			for (uint32_t i = 0; i < LIMBS; i++) {
@@ -488,11 +488,35 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t eq(const S &in1,
+		                                                  const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] == in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 == in2 uncompressed
+		constexpr static inline uint32_t cmp_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = 0xFF * (in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i]);
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
 		                                                   const S &in2) noexcept {
 			uint32_t ret = 0;
 			for (uint32_t i = 0; i < LIMBS; i++) {
-				ret ^= (in1.d[i] == in2.d[i]) << i;
+				ret ^= ((in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i])) << i;
 			}
 			return ret;
 		}
@@ -971,7 +995,7 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 == in2 uncompressed
-		constexpr static inline uint32_t cmp_(const S &in1,
+		constexpr static inline uint32_t eq_(const S &in1,
 		                                     const S &in2) noexcept {
 			S ret;
 			for (uint32_t i = 0; i < LIMBS; i++) {
@@ -983,11 +1007,35 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 		/// \return in1 == in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
+		[[nodiscard]] constexpr static inline uint32_t eq(const S &in1,
 		                                                   const S &in2) noexcept {
 			uint32_t ret = 0;
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] == in2.d[i]) << i;
+			}
+			return ret;
+		}
+	    
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 == in2 uncompressed
+		constexpr static inline uint32_t cmp_(const S &in1,
+		                                      const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = 0xFFFF * (in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i]);
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
+		                                                   const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= ((in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i])) << i;
 			}
 			return ret;
 		}
@@ -1453,7 +1501,7 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 == in2 uncompressed
-		constexpr static inline uint32_t cmp_(const S &in1,
+		constexpr static inline uint32_t eq_(const S &in1,
 		                                     const S &in2) noexcept {
 			S ret;
 			for (uint32_t i = 0; i < LIMBS; i++) {
@@ -1465,8 +1513,8 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 		/// \return in1 == in2 compressed
-		[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
-		                                                   const S &in2) noexcept {
+		[[nodiscard]] constexpr static inline uint32_t eq(const S &in1,
+		                                                 const S &in2) noexcept {
 			uint32_t ret = 0;
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] == in2.d[i]) << i;
@@ -1941,7 +1989,7 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 == in2 uncompressed
-		constexpr static inline uint32_t cmp_(const S &in1,
+		constexpr static inline uint32_t eq_(const S &in1,
 		                                     const S &in2) noexcept {
 			S ret;
 			for (uint32_t i = 0; i < LIMBS; i++) {
@@ -1953,11 +2001,35 @@ namespace cryptanalysislib {
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t eq(const S &in1,
+		                                                  const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] == in2.d[i]) << i;
+			}
+			return ret;
+		}
+        
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 == in2 uncompressed
+		constexpr static inline uint32_t cmp_(const S &in1,
+		                                      const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = 0xFFFFFFFFFFFFFFFF * (in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i]);
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
 		[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
 		                                                   const S &in2) noexcept {
 			uint32_t ret = 0;
 			for (uint32_t i = 0; i < LIMBS; i++) {
-				ret ^= (in1.d[i] == in2.d[i]) << i;
+				ret ^= ((in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i])) << i;
 			}
 			return ret;
 		}
@@ -2502,7 +2574,7 @@ struct Xint8x32_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
 											     const S in2) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
@@ -2511,7 +2583,7 @@ struct Xint8x32_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline int cmp(const S in1,
+	[[nodiscard]] constexpr static inline int eq(const S in1,
 	                                              const S in2) noexcept {
 		int ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
@@ -2521,6 +2593,29 @@ struct Xint8x32_t {
 		return ret;
 	}
 
+        /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 == in2 uncompressed
+		constexpr static inline uint32_t cmp_(const S &in1,
+		                                      const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = 0xFF * (in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i]);
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 == in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
+		                                                   const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= ((in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i])) << i;
+			}
+			return ret;
+		}
 
 	[[nodiscard]] constexpr static inline S popcnt(const S in) {
 		S ret;
@@ -2977,7 +3072,7 @@ struct Xint16x16_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+	[[nodiscard]] constexpr static inline uint32_t eq(const S in1,
 	                                                   const S in2) noexcept {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
@@ -2990,13 +3085,37 @@ struct Xint16x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
                                                  const S in2) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.d[i] = in1.d[i] == in2.d[i];
 		}
 
+		return ret;
+	}
+        
+    /// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 == in2 uncompressed
+	constexpr static inline uint32_t cmp_(const S &in1,
+	                                      const S &in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret.d[i] = 0xFFFF * (in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i]);
+		}
+		return ret;
+	}
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 == in2 compressed
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
+	                                                   const S &in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret ^= ((in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i])) << i;
+		}
 		return ret;
 	}
 
@@ -3460,7 +3579,7 @@ struct Xint32x8_t {
 		return ret;
 	}
 	
-    [[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+    [[nodiscard]] constexpr static inline uint32_t eq(const S in1,
 													   const S in2) noexcept {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
@@ -3470,7 +3589,7 @@ struct Xint32x8_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
 	                                             const S in2) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
@@ -3479,6 +3598,31 @@ struct Xint32x8_t {
 
 		return ret;
 	}
+
+    /// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 == in2 uncompressed
+	constexpr static inline uint32_t cmp_(const S &in1,
+	                                      const S &in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret.d[i] = 0xFFFFFFFF * (in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i]);
+		}
+		return ret;
+	}
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 == in2 compressed
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
+	                                                   const S &in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret ^= ((in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i])) << i;
+		}
+		return ret;
+	}
+
 
     ///
 	[[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
@@ -3980,7 +4124,7 @@ struct Xint64x4_t {
 		return ret;
 	}
 	
-    [[nodiscard]] constexpr static inline uint32_t cmp(const S in1,
+    [[nodiscard]] constexpr static inline uint32_t eq(const S in1,
 													   const S in2) noexcept {
 		uint32_t ret = 0;
 		for (uint8_t i = 0; i < S::LIMBS; i++) {
@@ -3990,7 +4134,7 @@ struct Xint64x4_t {
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline S cmp_(const S in1,
+	[[nodiscard]] constexpr static inline S eq_(const S in1,
 	                                             const S in2) noexcept {
 		S ret;
 		for (uint8_t i = 0; i < S::LIMBS; i++) {
@@ -3998,6 +4142,31 @@ struct Xint64x4_t {
 		}
 		return ret;
 	}
+
+    /// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 == in2 uncompressed
+	constexpr static inline uint32_t cmp_(const S &in1,
+	                                      const S &in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret.d[i] = 0xFFFFFFFFFFFFFFFF * (in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i]);
+		}
+		return ret;
+	}
+
+	/// \param in1[in]: vector element
+	/// \param in2[in]: vector element
+	/// \return in1 == in2 compressed
+	[[nodiscard]] constexpr static inline uint32_t cmp(const S &in1,
+	                                                   const S &in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret ^= ((in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i])) << i;
+		}
+		return ret;
+	}
+
 
 	[[nodiscard]] constexpr static inline S popcnt(const S in) noexcept {
 		S ret;
@@ -4395,10 +4564,10 @@ constexpr inline uint64x4_t operator|=(uint64x4_t &lhs, const uint64x4_t &rhs) n
 
 /* 					 comparison									*/
 constexpr inline int operator==(const uint8x32_t &a, const uint8x32_t &b) noexcept {
-	return uint8x32_t::cmp(a, b);
+	return uint8x32_t::eq(a, b);
 }
 constexpr inline int operator!=(const uint8x32_t &a, const uint8x32_t &b) noexcept {
-	return 0xffffffff ^ uint8x32_t::cmp(a, b);
+	return 0xffffffff ^ uint8x32_t::eq(a, b);
 }
 constexpr inline int operator<(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::gt(b, a);
@@ -4410,10 +4579,10 @@ constexpr inline int operator>(const uint8x32_t &a, const uint8x32_t &b) noexcep
 
 ///
 constexpr inline int operator==(const uint16x16_t &a, const uint16x16_t &b) noexcept {
-	return (int) uint16x16_t::cmp(a, b);
+	return (int) uint16x16_t::eq(a, b);
 }
 constexpr inline int operator!=(const uint16x16_t &a, const uint16x16_t &b) noexcept {
-	return 0xffff ^ uint16x16_t::cmp(a, b);
+	return 0xffff ^ uint16x16_t::eq(a, b);
 }
 constexpr inline int operator<(const uint16x16_t &a, const uint16x16_t &b) noexcept {
 	return (int) uint16x16_t::gt(b, a);
@@ -4425,10 +4594,10 @@ constexpr inline int operator>(const uint16x16_t &a, const uint16x16_t &b) noexc
 
 ///
 constexpr inline uint32_t operator==(const uint32x8_t &a, const uint32x8_t &b) noexcept {
-	return (int) uint32x8_t::cmp(a, b);
+	return (int) uint32x8_t::eq(a, b);
 }
 constexpr inline int operator!=(const uint32x8_t &a, const uint32x8_t &b) noexcept {
-	return 0xff ^ uint32x8_t::cmp(a, b);
+	return 0xff ^ uint32x8_t::eq(a, b);
 }
 constexpr inline int operator<(const uint32x8_t &a, const uint32x8_t &b) noexcept {
 	return (int) uint32x8_t::gt(b, a);
@@ -4439,10 +4608,10 @@ constexpr inline int operator>(const uint32x8_t &a, const uint32x8_t &b) noexcep
 
 ///
 constexpr inline int operator==(const uint64x4_t &a, const uint64x4_t &b) noexcept {
-	return (int) uint64x4_t::cmp(a, b);
+	return (int) uint64x4_t::eq(a, b);
 }
 constexpr inline int operator!=(const uint64x4_t &a, const uint64x4_t &b) noexcept {
-	return 0xf ^ uint64x4_t::cmp(a, b);
+	return 0xf ^ uint64x4_t::eq(a, b);
 }
 constexpr inline int operator<(const uint64x4_t &a, const uint64x4_t &b) noexcept {
 	return (int) uint64x4_t::gt(b, a);
@@ -4453,10 +4622,10 @@ constexpr inline int operator>(const uint64x4_t &a, const uint64x4_t &b) {
 
 /* sub types */
 constexpr inline uint32_t operator==(const cryptanalysislib::_uint8x16_t &a, const cryptanalysislib::_uint8x16_t &b) noexcept {
-	return cryptanalysislib::_uint8x16_t::cmp(a, b);
+	return cryptanalysislib::_uint8x16_t::eq(a, b);
 }
 constexpr inline uint32_t operator!=(const cryptanalysislib::_uint8x16_t &a, const cryptanalysislib::_uint8x16_t &b) noexcept {
-	return 0xffffffff ^ cryptanalysislib::_uint8x16_t::cmp(a, b);
+	return 0xffffffff ^ cryptanalysislib::_uint8x16_t::eq(a, b);
 }
 constexpr inline uint32_t operator<(const cryptanalysislib::_uint8x16_t &a, const cryptanalysislib::_uint8x16_t &b) noexcept {
 	return cryptanalysislib::_uint8x16_t::gt(b, a);
