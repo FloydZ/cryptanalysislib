@@ -451,6 +451,30 @@ namespace cryptanalysislib {
 
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
+	    /// \return in1 >= in2 uncompressed
+		constexpr static inline uint32_t ge_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = in1.d[i] >= in2.d[i];
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 >= in2 compressed
+		constexpr static inline uint32_t ge(const S &in1,
+		                                    const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] >= in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
 	    /// \return in1 < in2 uncompressed
 		constexpr static inline uint32_t lt_(const S &in1,
 		                                     const S &in2) noexcept {
@@ -469,6 +493,30 @@ namespace cryptanalysislib {
 			uint32_t ret = 0;
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] < in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 <= in2 uncompressed
+		constexpr static inline uint32_t le_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = in1.d[i] <= in2.d[i];
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 <= in2 compressed
+		constexpr static inline uint32_t le(const S &in1,
+		                                    const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] <= in2.d[i]) << i;
 			}
 			return ret;
 		}
@@ -944,6 +992,7 @@ namespace cryptanalysislib {
 	    	return out;
         }
 
+
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 > in2 uncompressed
@@ -970,6 +1019,30 @@ namespace cryptanalysislib {
 
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
+	    /// \return in1 >= in2 uncompressed
+		constexpr static inline uint32_t ge_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = in1.d[i] >= in2.d[i];
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 >= in2 compressed
+		constexpr static inline uint32_t ge(const S &in1,
+		                                    const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] >= in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
 	    /// \return in1 < in2 uncompressed
 		constexpr static inline uint32_t lt_(const S &in1,
 		                                     const S &in2) noexcept {
@@ -988,6 +1061,30 @@ namespace cryptanalysislib {
 			uint32_t ret = 0;
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] < in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 <= in2 uncompressed
+		constexpr static inline uint32_t le_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = in1.d[i] <= in2.d[i];
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 <= in2 compressed
+		constexpr static inline uint32_t le(const S &in1,
+		                                    const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] <= in2.d[i]) << i;
 			}
 			return ret;
 		}
@@ -1476,6 +1573,30 @@ namespace cryptanalysislib {
 
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
+	    /// \return in1 >= in2 uncompressed
+		constexpr static inline uint32_t ge_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = in1.d[i] >= in2.d[i];
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 >= in2 compressed
+		constexpr static inline uint32_t ge(const S &in1,
+		                                    const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] >= in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
 	    /// \return in1 < in2 uncompressed
 		constexpr static inline uint32_t lt_(const S &in1,
 		                                     const S &in2) noexcept {
@@ -1494,6 +1615,30 @@ namespace cryptanalysislib {
 			uint32_t ret = 0;
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] < in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 <= in2 uncompressed
+		constexpr static inline uint32_t le_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = in1.d[i] <= in2.d[i];
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 <= in2 compressed
+		constexpr static inline uint32_t le(const S &in1,
+		                                    const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] <= in2.d[i]) << i;
 			}
 			return ret;
 		}
@@ -1964,6 +2109,30 @@ namespace cryptanalysislib {
 
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
+	    /// \return in1 >= in2 uncompressed
+		constexpr static inline uint32_t ge_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = in1.d[i] >= in2.d[i];
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 >= in2 compressed
+		constexpr static inline uint32_t ge(const S &in1,
+		                                    const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] >= in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
 	    /// \return in1 < in2 uncompressed
 		constexpr static inline uint32_t lt_(const S &in1,
 		                                     const S &in2) noexcept {
@@ -1982,6 +2151,30 @@ namespace cryptanalysislib {
 			uint32_t ret = 0;
 			for (uint32_t i = 0; i < LIMBS; i++) {
 				ret ^= (in1.d[i] < in2.d[i]) << i;
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 <= in2 uncompressed
+		constexpr static inline uint32_t le_(const S &in1,
+		                                     const S &in2) noexcept {
+			S ret;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret.d[i] = in1.d[i] <= in2.d[i];
+			}
+			return ret;
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 <= in2 compressed
+		constexpr static inline uint32_t le(const S &in1,
+		                                    const S &in2) noexcept {
+			uint32_t ret = 0;
+			for (uint32_t i = 0; i < LIMBS; i++) {
+				ret ^= (in1.d[i] <= in2.d[i]) << i;
 			}
 			return ret;
 		}
@@ -2536,8 +2729,7 @@ struct Xint8x32_t {
 		return out;
 	}
 
-
-	constexpr static inline uint32_t gt(const S &in1,
+	[[nodiscard]] constexpr static inline uint32_t gt(const S &in1,
 	                                    const S &in2) noexcept {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < LIMBS; i++) {
@@ -2556,6 +2748,25 @@ struct Xint8x32_t {
 		return ret;
 	}
 
+	[[nodiscard]] constexpr static inline uint32_t ge(const S &in1,
+	                                    const S &in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret ^= (in1.d[i] >= in2.d[i]) << i;
+		}
+		return ret;
+	}
+
+
+	[[nodiscard]] constexpr static inline S ge_(const S in1,
+											    const S in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = (in1.d[i] >= in2.d[i]) * -1ull;
+		}
+		return ret;
+	}
+
 	constexpr static inline uint32_t lt(const S &in1,
 	                                    const S &in2) noexcept {
 		uint32_t ret = 0;
@@ -2570,6 +2781,24 @@ struct Xint8x32_t {
 		S ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret.d[i] = (in1.d[i] < in2.d[i]) * -1ull;
+		}
+		return ret;
+	}
+
+	constexpr static inline uint32_t le(const S &in1,
+	                                    const S &in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			ret ^= (in1.d[i] <= in2.d[i]) << i;
+		}
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline S le_(const S in1,
+	                                            const S in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = (in1.d[i] <= in2.d[i]) * -1ull;
 		}
 		return ret;
 	}
@@ -3052,6 +3281,26 @@ struct Xint16x16_t {
 		return ret;
 	}
 
+	[[nodiscard]] constexpr static inline S ge_(const S in1,
+	                                            const S in2) noexcept{
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = (in1.d[i] >= in2.d[i]) * -1ull;
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32_t ge(const S in1,
+	                                                  const S in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret ^= (in1.d[i] >= in2.d[i]) << i;
+		}
+
+		return ret;
+	}
+
 	[[nodiscard]] constexpr static inline S lt_(const S in1,
 	                                            const S in2) noexcept{
 		S ret;
@@ -3067,6 +3316,26 @@ struct Xint16x16_t {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.d[i] < in2.d[i]) << i;
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline S le_(const S in1,
+	                                            const S in2) noexcept{
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = (in1.d[i] <= in2.d[i]) * -1ull;
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+	                                                  const S in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret ^= (in1.d[i] <= in2.d[i]) << i;
 		}
 
 		return ret;
@@ -3558,6 +3827,27 @@ struct Xint32x8_t {
 		return ret;
 	}
 
+	[[nodiscard]] constexpr static inline S ge_(const S in1,
+												const S in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = (in1.d[i] >= in2.d[i]) * -1ull;
+		}
+
+		return ret;
+	}
+
+
+	[[nodiscard]] constexpr static inline uint32_t ge(const S in1,
+													  const S in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret ^= (in1.d[i] >= in2.d[i]) << i;
+		}
+
+		return ret;
+	}
+
 	[[nodiscard]] constexpr static inline S lt_(const S in1,
 	                                                     const S in2) noexcept {
 		S ret;
@@ -3574,6 +3864,27 @@ struct Xint32x8_t {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.d[i] < in2.d[i]) << i;
+		}
+
+		return ret;
+	}
+	
+	[[nodiscard]] constexpr static inline S le_(const S in1,
+	                                                     const S in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = (in1.d[i] <= in2.d[i]) * -1ull;
+		}
+
+		return ret;
+	}
+
+
+	[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+	                                                  const S in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret ^= (in1.d[i] <= in2.d[i]) << i;
 		}
 
 		return ret;
@@ -4079,7 +4390,6 @@ struct Xint64x4_t {
 		return out;
 	}
 
-
 	[[nodiscard]] constexpr static inline S gt_(const S in1,
 											    const S in2) noexcept {
 		S ret;
@@ -4101,6 +4411,26 @@ struct Xint64x4_t {
 		return ret;
 	}
 
+	[[nodiscard]] constexpr static inline S ge_(const S in1,
+											    const S in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = (in1.d[i] >= in2.d[i]) * -1ull;
+		}
+
+		return ret;
+	}
+
+
+	[[nodiscard]] constexpr static inline uint32_t ge(const S in1,
+													  const S in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret ^= (in1.d[i] >= in2.d[i]) << i;
+		}
+
+		return ret;
+	}
 
 	[[nodiscard]] constexpr static inline S lt_(const S in1,
 	                                            const S in2) noexcept {
@@ -4112,13 +4442,33 @@ struct Xint64x4_t {
 		return ret;
 	}
 
-
     ///
 	[[nodiscard]] constexpr static inline uint32_t lt(const S in1,
 	                                                  const S in2) noexcept {
 		uint32_t ret = 0;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			ret ^= (in1.d[i] < in2.d[i]) << i;
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline S le_(const S in1,
+	                                            const S in2) noexcept {
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret.d[i] = (in1.d[i] <= in2.d[i]) * -1ull;
+		}
+
+		return ret;
+	}
+
+    ///
+	[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+	                                                  const S in2) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			ret ^= (in1.d[i] <= in2.d[i]) << i;
 		}
 
 		return ret;

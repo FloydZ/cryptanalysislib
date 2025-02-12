@@ -557,6 +557,32 @@ namespace cryptanalysislib {
 
 		/// \param in1
 		/// \param in2
+		/// \return in1 > in2 uncompressed
+		[[nodiscard]] constexpr static inline S ge_(const S in1,
+													const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+				out.v128 = vcgeq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vcgeq_s8(in1.v128, in2.v128);
+        	}
+        	return out;
+		}
+
+		/// \param in1
+		/// \param in2
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t ge(const _Xint8x16_t in1,
+													 	  const _Xint8x16_t in2) noexcept {
+        	if constexpr (__unsigned) {
+				return _mm_movemask_epi8(vcgeq_u8(in1.v128, in2.v128));
+        	} else {
+				return _mm_movemask_epi8(vcgeq_s8(in1.v128, in2.v128));
+        	}
+		}
+
+		/// \param in1
+		/// \param in2
 		/// \return in1 < in2 uncompressed
 		[[nodiscard]] constexpr static inline S lt_(const S in1,
 													const S in2) noexcept {
@@ -579,6 +605,33 @@ namespace cryptanalysislib {
 				return _mm_movemask_epi8(vcltq_u8(in1.v128, in2.v128));
         	} else {
 				return _mm_movemask_epi8(vcltq_s8(in1.v128, in2.v128));
+        	}
+		}
+
+		/// \param in1
+		/// \param in2
+		/// \return in1 < in2 uncompressed
+		[[nodiscard]] constexpr static inline S le_(const S in1,
+													const S in2) noexcept {
+	    	S out;
+        	if constexpr (__unsigned) {
+				out.v128 = vcleq_u8(in1.v128, in2.v128);
+        	} else {
+        		out.v128 = vcleq_s8(in1.v128, in2.v128);
+        	}
+        	return out;
+		}
+
+		/// NOTE: signed comparison
+		/// \param in1
+		/// \param in2
+		/// \return in1 > in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t le(const _Xint8x16_t in1,
+													      const _Xint8x16_t in2) noexcept {
+        	if constexpr (__unsigned) {
+				return _mm_movemask_epi8(vcleq_u8(in1.v128, in2.v128));
+        	} else {
+				return _mm_movemask_epi8(vcleq_s8(in1.v128, in2.v128));
         	}
 		}
 
@@ -1772,6 +1825,37 @@ struct Xint8x32_t {
 		}
 		return ret;
 	}
+	[[nodiscard]] constexpr static inline uint32_t ge(const S in1,
+	                                                  const S in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint8x16_t tmp = vcgeq_u8(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi8(tmp) << i * 16;
+#else
+			const uint8x16_t tmp = in1.v128[i] >= in2.v128[i];
+			ret ^= _mm_movemask_epi8(tmp) << i * 16;
+#endif
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline S ge_(const S in1,
+	                                            const S in2) noexcept {
+		S ret;
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcgeq_u8(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] >= in2.v128[i];
+#endif
+		}
+		return ret;
+	}
 
 	[[nodiscard]] constexpr static inline uint32_t lt(const S in1,
 	                                                  const S in2) noexcept {
@@ -1800,6 +1884,38 @@ struct Xint8x32_t {
 			ret.v128[i] = vcltq_u8(in1.v128[i], in2.v128[i]);
 #else
 			ret.v128[i] = in1.v128[i] < in2.v128[i];
+#endif
+		}
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+	                                                  const S in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint8x16_t tmp = vcleq_u8(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi8(tmp) << i * 16;
+#else
+			const uint8x16_t tmp = in1.v128[i] <= in2.v128[i];
+			ret ^= _mm_movemask_epi8(tmp) << i * 16;
+#endif
+		}
+
+		return ret;
+	}
+
+	[[nodiscard]] constexpr static inline S le_(const S in1,
+	                                            const S in2) noexcept {
+		S ret;
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcleq_u8(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] <= in2.v128[i];
 #endif
 		}
 		return ret;
@@ -2405,6 +2521,40 @@ struct Xint16x16_t {
 		}
 
 		return ret;
+    }
+
+	constexpr static inline int ge(const S in1,
+								   const S in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint16x8_t tmp = vcgeq_u16(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi16(tmp) << i * 8;
+#else
+			const uint16x8_t tmp = in1.v128[i] >= in2.v128[i];
+			ret ^= _mm_movemask_epi16(tmp) << i * 8;
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline S ge_(const S in1,
+								  const S in2) noexcept {
+		S ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcgeq_u16(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] >= in2.v128[i];
+#endif
+		}
+
+		return ret;
 	}
 
 	constexpr static inline int lt(const S in1,
@@ -2435,6 +2585,40 @@ struct Xint16x16_t {
 			ret.v128[i] = vcltq_u16(in1.v128[i], in2.v128[i]);
 #else
 			ret.v128[i] = in1.v128[i] < in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline int le(const S in1,
+								   const S in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint16x8_t tmp = vcleq_u16(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi16(tmp) << i * 8;
+#else
+			const uint16x8_t tmp = in1.v128[i] <= in2.v128[i];
+			ret ^= _mm_movemask_epi16(tmp) << i * 8;
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline S le_(const S in1,
+							      const S in2) noexcept {
+		S ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcltq_u16(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] <= in2.v128[i];
 #endif
 		}
 
@@ -3024,6 +3208,39 @@ struct Xint32x8_t {
 		return ret;
 	}
 
+	constexpr static inline int ge(const S in1,
+                                   const S in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint32x4_t tmp = vcgeq_u32(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi32(tmp) << i * 4;
+#else
+			const uint32x4_t tmp = in1.v128[i] >= in2.v128[i];
+			ret ^= _mm_movemask_epi32(tmp) << i * 4;
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline S ge_(const S in1, const S in2) noexcept {
+		S ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcgeq_u32(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] >= in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
 	constexpr static inline int lt(const S in1,
                                    const S in2) noexcept {
 		uint32_t ret = 0;
@@ -3052,6 +3269,74 @@ struct Xint32x8_t {
 			ret.v128[i] = vcltq_u32(in1.v128[i], in2.v128[i]);
 #else
 			ret.v128[i] = in1.v128[i] < in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline int lt(const S in1,
+                                   const S in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint32x4_t tmp = vcltq_u32(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi32(tmp) << i * 4;
+#else
+			const uint32x4_t tmp = in1.v128[i] < in2.v128[i];
+			ret ^= _mm_movemask_epi32(tmp) << i * 4;
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline S lt_(const S in1,
+                                  const S in2) noexcept {
+		S ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcltq_u32(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] < in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline int le(const S in1,
+                                   const S in2) noexcept {
+		uint32_t ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint32x4_t tmp = vcleq_u32(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi32(tmp) << i * 4;
+#else
+			const uint32x4_t tmp = in1.v128[i] <= in2.v128[i];
+			ret ^= _mm_movemask_epi32(tmp) << i * 4;
+#endif
+		}
+
+		return ret;
+	}
+
+	constexpr static inline S le_(const S in1,
+                                  const S in2) noexcept {
+		S ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcleq_u32(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] <= in2.v128[i];
 #endif
 		}
 
@@ -3625,7 +3910,6 @@ struct Xint64x4_t {
 		return ret;
 	}
 
-	///
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -3666,7 +3950,46 @@ struct Xint64x4_t {
 		return ret;
 	}
 
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline int ge(const S in1,
+	                               const S in2) noexcept {
+		int ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint64x2_t tmp = vcgeq_u64(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi64(tmp) << i * 2;
+#else
+			const uint64x2_t tmp = in1.v128[i] >= in2.v128[i];
+			ret ^= _mm_movemask_epi64(tmp) << i * 2;
+#endif
+		}
+		return ret;
+	}
+
 	///
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline S ge_(const S in1,
+	                              const S in2) noexcept {
+		S ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcgeq_u64(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] >= in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -3706,7 +4029,46 @@ struct Xint64x4_t {
 
 		return ret;
 	}
-	///
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline int le(const S in1,
+	                               const S in2) noexcept {
+		int ret = 0;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			const uint64x2_t tmp = vcleq_u64(in1.v128[i], in2.v128[i]);
+			ret ^= _mm_movemask_epi64(tmp) << i * 2;
+#else
+			const uint64x2_t tmp = in1.v128[i] <= in2.v128[i];
+			ret ^= _mm_movemask_epi64(tmp) << i * 2;
+#endif
+		}
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	constexpr static inline S le_(const S in1,
+	                              const S in2) noexcept {
+		S ret;
+
+		LOOP_UNROLL()
+		for (uint32_t i = 0; i < 2; ++i) {
+#ifdef __clang__
+			ret.v128[i] = vcleq_u64(in1.v128[i], in2.v128[i]);
+#else
+			ret.v128[i] = in1.v128[i] <= in2.v128[i];
+#endif
+		}
+
+		return ret;
+	}
+
 	/// \param in1
 	/// \param in2
 	/// \return
