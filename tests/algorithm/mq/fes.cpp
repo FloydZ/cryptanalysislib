@@ -12,25 +12,20 @@ using ::testing::Test;
 uint32_t Fq_internal[496];
 uint32_t Fl_internal[34];
 
-constexpr static uint32_t n = 32;
-constexpr static uint32_t m = n;
+constexpr static uint32_t n = 22;
+constexpr static uint32_t m = 16;
+constexpr static uint32_t k = n > 16 ? 16 : n/2;
+constexpr static uint32_t w = 8;
 
 using namespace cryptanalysislib;
 
 TEST(mq, simple) {
-	const uint32_t k = n > 16 ? 16 : n/2;
-	uint32_t mask = ((1ull << k) - 1) & 0xffffffff;
-	for (uint32_t i = 0; i < 496; i++) {
-		Fq_internal[i] = rng() & mask;
-	}
-
-	for (uint32_t i = 0; i < n + 1; i++) {
-		Fl_internal[i] = rng() & mask;
-	}
-
+	uint32_t mask = ((1ull << k) - 1u) & 0xffffffff;
+	// for (uint32_t i = 0; i < 496; i++) { Fq_internal[i] = rng() & mask; }
+	// for (uint32_t i = 0; i < n + 1; i++) { Fl_internal[i] = rng() & mask; }
+	for (uint32_t i = 0; i < 496; i++) { Fq_internal[i] = ((i*mask + k*mask)/ n) & mask; }
+	for (uint32_t i = 0; i < n + 1; i++) { Fl_internal[i] = ((i*mask + k*mask))/n & mask; }
 	Fl_internal[n + 1] = 0;
-
-
 
 	/* clone original system in all lanes */
 	uint32_t Fl2[33 * m];
@@ -43,7 +38,8 @@ TEST(mq, simple) {
 	uint32_t buffer[m * count];
 	int size[m];
 	// feslite_kernel_solve(kernel, n, m, Fq_internal, Fl2, count, buffer, size);
-    feslite_avx2_enum_16x16(n, m, Fq_internal, Fl2, count, buffer, size);
+    //feslite_avx2_enum_16x16(n, m, Fq_internal, Fl2, count, buffer, size);
+	feslite_avx2_enum_16x16_w(n, m, w, Fq_internal, Fl2, count, buffer, size);
 
 	/* check solution number: one lane have reached the cap*/
 	bool enough = false;
@@ -51,8 +47,9 @@ TEST(mq, simple) {
 		//printf("# kernel [%s] found %d solutions in lane %d\n", name, size[lane], lane);
 		enough |= (size[lane] == count);
 	}
-	if (!enough)
+	if (!enough) {
 		printf("not ok: did NOT reach %d solutions\n", count);
+	}
 
     /* check solutions */
 	for (uint32_t lane = 0; lane < m; lane++) {
@@ -62,7 +59,7 @@ TEST(mq, simple) {
 		}
 
 		for (int i = 0; i < size[lane]; i++) {
-			uint32_t y = feslite_naive_evaluation(n, Fq_internal, Fl2, m, buffer[count * lane + i]);
+			uint32_t y = feslite_naive_evaluation(n, Fq_internal, Fl2, m, buffer[count * lane + i], w);
 			if (y != 0) {
 				printf("not ok: incorrectly reported F[%08x] = %08x in lane %d\n",
 				        buffer[count * lane + i], y, lane);

@@ -2565,7 +2565,7 @@ struct Xint8x32_t {
 	[[nodiscard]] constexpr static inline S cmp_(const S in1,
 	                                             const S in2) noexcept {
 		S ret;
-		const __m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		ret.v256  = (__m256i) ((V) in1.v256 < (V) in2.v256);
 		ret.v256 ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
 		return ret;
 	}
@@ -3173,7 +3173,7 @@ struct Xint16x16_t {
 	[[nodiscard]] constexpr static inline S cmp_(const S in1,
 												 const S in2) noexcept {
 		S ret;
-		const __m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		ret.v256  = (__m256i) ((V) in1.v256 < (V) in2.v256);
 		ret.v256 ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
 		return ret;
 	}
@@ -3802,7 +3802,7 @@ struct Xint32x8_t {
 	[[nodiscard]] constexpr static inline S cmp_(const S in1,
 												 const S in2) noexcept {
 		S ret;
-		const __m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		ret.v256  = (__m256i) ((V) in1.v256 < (V) in2.v256);
 		ret.v256 ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
 		return ret;
 	}
@@ -4407,7 +4407,7 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S cmp_(const S in1,
 												 const S in2) noexcept {
 		S ret;
-		const __m256i tmp = (__m256i) ((V) in1.v256 < (V) in2.v256);
+		ret.v256  = (__m256i) ((V) in1.v256 < (V) in2.v256);
 		ret.v256 ^= (__m256i) ((V) in1.v256 > (V) in2.v256);
 		return ret;
 	}

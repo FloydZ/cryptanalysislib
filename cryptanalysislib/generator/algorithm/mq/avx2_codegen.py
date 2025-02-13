@@ -1,8 +1,9 @@
 import sys
 
-L = 2
+L = 8
 
 def ffs(i):
+    """ returns the position of the LSB set"""
     if i == 0:
         return -1
     k = 0
@@ -80,18 +81,18 @@ def compute_update(i, a, b):
     else:             # (a not in Fl)
         assert b not in Fq
         # xor1a = "vmovdqa {offset}(%rsi), %ymm14".format(offset=32*a) # load Fl[a]
-        xor1a = "ymm14 = _mm256_load_si256((__m256i *)(rsi + {offset}));".format(offset=32*a) # load Fl[a]
+        xor1a = "\tymm14 = _mm256_load_si256((__m256i *)(rsi + {offset}));".format(offset=32*a) # load Fl[a]
 
         if Fq_memref is None: 
             #xor1b = "vpxor {offset}(%rdi), %ymm14, %ymm14".format(offset=32*b)
-            xor1b = "ymm14 = __mm256_xor_si256(ymm14, *(__m256 *)(rdi + {offset}));".format(offset=32*b)
+            xor1b = "ymm14 = _mm256_xor_si256(ymm14, *(__m256 *)(rdi + {offset}));".format(offset=32*b)
         else:
             #xor1b = "vpxor {src}, %ymm14, %ymm14".format(src=Fq_memref)
-            xor1b = "ymm14 = _mm256_xor_si256(ymm14, *(__m256 *){src});".format(src=Fq_memref)
+            xor1b = "ymm14 = _mm256_xor_si256(ymm14, *(__m256 *)({src}));".format(src=Fq_memref)
         # xor1c = "vmovdqa %ymm14, {offset}(%rsi)".format(offset=32*a) # store Fl[a]
-        xor1c = "_mm256_store_si256((__m256i *)(rsi + {offset}), ymm14);".format(offset=32*a) # store Fl[a]
+        xor1c = ("_mm256_store_si256((__m256i *)(rsi + {offset}), ymm14);").format(offset=32*a) # store Fl[a]
         # xor2 = "vpxor %ymm14, %ymm0, %ymm0"
-        xor2 = "\t_mm256_xor_si256(ymm0, ymm14, ymm0);"
+        xor2 = "\tymm0 = _mm256_xor_si256(ymm0, ymm14);"
         return ("\n\t".join([xor1a, xor1b, xor1c]), xor2)
 
 print("#include <stdint.h>")
@@ -100,7 +101,14 @@ print("#include <immintrin.h>")
 #	uint32_t x;
 #	uint32_t mask;
 #};""")
-print( "struct solution_t* solver(uint16_t *rdi, uint16_t *rsi,const uint32_t alpha, const uint32_t beta, const uint32_t gamma, struct solution_t *buffer) {" )
+print( "struct solution_t* solver(uint16_t *_rdi, uint16_t *_rsi, uint32_t alpha, uint32_t beta, uint32_t gamma, struct solution_t *buffer) {" )
+print("\tuint8_t *rdi = (uint8_t *)_rdi;")
+print("\tuint8_t *rsi = (uint8_t *)_rsi;")
+
+print("\talpha <<= 5;")
+print("\tbeta <<= 5;")
+print("\tgamma <<= 5;")
+
 print("\tuint32_t mask = 0;")
 print( "\t// load the most-frequently used values into vector registers" )
 for i, reg in Fl.items():

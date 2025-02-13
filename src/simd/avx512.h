@@ -577,7 +577,7 @@ struct Xint8x64_t {
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S gt_(const S in1,
-														 const S in2) noexcept {
+												const S in2) noexcept {
 		S ret;
 		ret.v512 = (__m512i) ((__v64qu) in1.v512 > (__v64qu) in2.v512);
 		return ret;
@@ -595,8 +595,27 @@ struct Xint8x64_t {
 	/// \param in1
 	/// \param in2
 	/// \return
+	[[nodiscard]] constexpr static inline S ge_(const S in1,
+												const S in2) noexcept {
+		S ret;
+		ret.v512 = (__m512i) ((__v64qu) in1.v512 >= (__v64qu) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64_t ge(const S in1,
+													  const S in2) noexcept {
+		__m512i v512 = (__m512i) ((__v64qu) in1.v512 >= (__v64qu) in2.v512);
+		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
 	[[nodiscard]] constexpr static inline S lt_(const S in1,
-														  const S in2) noexcept {
+												const S in2) noexcept {
 		S ret;
 		ret.v512 = (__m512i) ((__v64qu) in1.v512 < (__v64qu) in2.v512);
 		return ret;
@@ -608,6 +627,25 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline uint64_t lt(const S in1,
 	                                                  const S in2) noexcept {
 		__m512i v512 = (__m512i) ((__v64qu) in1.v512 < (__v64qu) in2.v512);
+		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline S le_(const S in1,
+												const S in2) noexcept {
+		S ret;
+		ret.v512 = (__m512i) ((__v64qu) in1.v512 <= (__v64qu) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint64_t le(const S in1,
+	                                                  const S in2) noexcept {
+		__m512i v512 = (__m512i) ((__v64qu) in1.v512 <= (__v64qu) in2.v512);
 		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
 	}
 
@@ -1324,6 +1362,25 @@ struct Xint16x32_t {
 	/// \param in1
 	/// \param in2
 	/// \return
+	[[nodiscard]] constexpr static inline Xint16x32_t ge_(const Xint16x32_t in1,
+														  const Xint16x32_t in2) noexcept {
+		Xint16x32_t ret;
+		ret.v512 = (__m512i) ((__v32hu) in1.v512 >= (__v32hu) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t ge(const Xint16x32_t in1,
+													  const Xint16x32_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 >= (__v32hu) in2.v512);
+		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
 	[[nodiscard]] constexpr static inline Xint16x32_t lt_(const Xint16x32_t in1,
 														  const Xint16x32_t in2) noexcept {
 		Xint16x32_t ret;
@@ -1337,6 +1394,25 @@ struct Xint16x32_t {
 	[[nodiscard]] constexpr static inline uint32_t lt(const Xint16x32_t in1,
 													  const Xint16x32_t in2) noexcept {
 		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 < (__v32hu) in2.v512);
+		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline Xint16x32_t le_(const Xint16x32_t in1,
+														  const Xint16x32_t in2) noexcept {
+		Xint16x32_t ret;
+		ret.v512 = (__m512i) ((__v32hu) in1.v512 <= (__v32hu) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint32_t le(const Xint16x32_t in1,
+													  const Xint16x32_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 <= (__v32hu) in2.v512);
 		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
 	}
 
@@ -1835,6 +1911,25 @@ struct Xint32x16_t {
 	/// \param in1
 	/// \param in2
 	/// \return
+	[[nodiscard]] constexpr static inline Xint32x16_t ge_(const Xint32x16_t in1,
+														  const Xint32x16_t in2) noexcept {
+		Xint32x16_t ret;
+		ret.v512 = (__m512i) ((__v16su) in1.v512 >= (__v16su) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t ge(const Xint32x16_t in1,
+													  const Xint32x16_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v16su) in1.v512 >= (__v16su) in2.v512);
+		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
 	[[nodiscard]] constexpr static inline Xint32x16_t lt_(const Xint32x16_t in1,
 														  const Xint32x16_t in2) noexcept {
 		Xint32x16_t ret;
@@ -1848,6 +1943,25 @@ struct Xint32x16_t {
 	[[nodiscard]] constexpr static inline uint16_t lt(const Xint32x16_t in1,
 													  const Xint32x16_t in2) noexcept {
 		const __m512i v512 = (__m512i) ((__v16su) in1.v512 < (__v16su) in2.v512);
+		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline Xint32x16_t le_(const Xint32x16_t in1,
+														  const Xint32x16_t in2) noexcept {
+		Xint32x16_t ret;
+		ret.v512 = (__m512i) ((__v16su) in1.v512 <= (__v16su) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t le(const Xint32x16_t in1,
+													  const Xint32x16_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v16su) in1.v512 <= (__v16su) in2.v512);
 		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
 	}
 
@@ -2369,6 +2483,25 @@ struct Xint64x8_t {
 	/// \param in1
 	/// \param in2
 	/// \return
+	[[nodiscard]] constexpr static inline uint16_t ge(const Xint64x8_t in1,
+													  const Xint64x8_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v8du) in1.v512 >= (__v8du) in2.v512);
+		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline Xint64x8_t ge_(const Xint64x8_t in1,
+														 const Xint64x8_t in2) noexcept {
+		Xint64x8_t ret;
+		ret.v512 = (__m512i) ((__v8du) in1.v512 >= (__v8du) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
 	[[nodiscard]] constexpr static inline uint16_t lt(const Xint64x8_t in1,
 													  const Xint64x8_t in2) noexcept {
 		const __m512i v512 = (__m512i) ((__v8du) in1.v512 < (__v8du) in2.v512);
@@ -2382,6 +2515,25 @@ struct Xint64x8_t {
 														 const Xint64x8_t in2) noexcept {
 		Xint64x8_t ret;
 		ret.v512 = (__m512i) ((__v8du) in1.v512 < (__v8du) in2.v512);
+		return ret;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline uint16_t le(const Xint64x8_t in1,
+													  const Xint64x8_t in2) noexcept {
+		const __m512i v512 = (__m512i) ((__v8du) in1.v512 <= (__v8du) in2.v512);
+		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return
+	[[nodiscard]] constexpr static inline Xint64x8_t le_(const Xint64x8_t in1,
+														 const Xint64x8_t in2) noexcept {
+		Xint64x8_t ret;
+		ret.v512 = (__m512i) ((__v8du) in1.v512 <= (__v8du) in2.v512);
 		return ret;
 	}
 
