@@ -46,7 +46,7 @@ template<const uint32_t _n,
 #endif
 class FqPackedVectorMeta {
 public:
-	/// NOTE: think about: is it always good to have only the unsigned type
+	/// NOTE: think about: is it always good to have only the unsigned type?
 	typedef FqPackedVectorMeta ContainerType;
 
 	// make the length and modulus of the container public available
@@ -59,8 +59,6 @@ public:
 	static_assert(q > 1, "mod 1 or 0?");
 	static_assert(ceil_log2(q) <= (8*sizeof(T)), 
                   "the limb type should be atleast of the size of prime");
-
-	using S = SIMDSelector<T>;
 
 	// number of bits in each T
 	constexpr static uint16_t bits_per_limb = sizeof(T) * 8;
@@ -82,6 +80,7 @@ public:
 
 	//
 	constexpr static bool activate_simd = config.activate_simd;
+	using S = SIMDSelector<T>;
 	constexpr static uint16_t limbs_per_simd_limb 	= (sizeof(S) * 8) / bits_per_limb;
 	constexpr static uint16_t numbers_per_simd_limb = (sizeof(S) * 8) / bits_per_number;
 
@@ -96,6 +95,7 @@ public:
 	typedef T LimbType;
 	typedef T LabelContainerType;
 
+    /// NOTE:
 	static_assert((numbers_per_limb * bits_per_number) <= bits_per_limb);
 
 	// this will zero initialize everything, i think
@@ -324,7 +324,6 @@ public:
 	/// sets the `i`-th number to `data`
 	/// \param data value to set the const_array n
 	/// \param i -th number to overwrite
-	/// \return nothing
 	constexpr inline void set(const DataType data,
 	                          const uint32_t i) noexcept {
 		assert(i < length);
@@ -356,10 +355,11 @@ public:
 	}
 
 	/// sets everything to zero between [a, b)
-	/// \param a lower bound, inclusive
-	/// \param b higher bound, exclusive
+	/// \param a[in]: lower bound, inclusive
+	/// \param b[in]: higher bound, exclusive
 	/// \return nothing
-	constexpr void zero(const uint32_t a, const uint32_t b) noexcept {
+	constexpr void zero(const uint32_t a,
+                        const uint32_t b) noexcept {
 		for (uint32_t i = a; i < b; i++) {
 			set(0, i);
 		}

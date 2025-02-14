@@ -89,7 +89,7 @@ static inline void ffs_step(struct ffs_t *context) {
 	context->sp += 1;
 }
 
-static inline int idxq(int i, int j) {
+static inline int idxq(uint32_t i, uint32_t j) {
 	return j * (j - 1) / 2 + i;
 }
 
@@ -187,7 +187,7 @@ void feslite_transpose_32(const uint32_t *M, uint32_t *T) {
 
 
 uint32_t feslite_naive_evaluation(int n, const uint32_t *Fq, const uint32_t *Fl, int stride, uint32_t x, const uint32_t w = 0) {
-	if ((x > 0) && ((uint32_t)__builtin_popcount(x)) > w) {
+	if ((w > 0) && ((uint32_t)__builtin_popcount(x)) > w) {
 		return 0;
 	}
 	// first expand the values of the variables from `x`
@@ -470,117 +470,129 @@ int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl
 	return 0;
 }
 
-// Combinations (n choose k) in a strong minimal-change order.
-// The delta set is generated.
-// Algorithm C, "Chase's sequence", TAOCP 4A/1, pp.367.
-//  Phillip J. Chase: Combination generation and graylex ordering,
-// Congressus Numerantium, vol.69, pp.215-242, (1989)
-class combination_chase {
-public:
-	ulong n_; // (n choose k)  n>=1
-	ulong k_; // 1<=k<=n
-	ulong s_; // == n_ - k_
-	ulong t_; // == n_ - s_
-	ulong r_; // aux
-	ulong *a_;// data (a delta set)
-	ulong *w_;// aux
 
-	combination_chase(const combination_chase &) = delete;
-	combination_chase &operator=(const combination_chase &) = delete;
+void
+print_set_as_deltaset(const char *bla, const ulong *x, ulong n, ulong N, const char *c01=0)
+// Print x[0,..,n-1], a subset of {0,1,...,N-1} as delta set,
+// n is the number of elements in the set.
+// Example:  x[]=[0,1,3,4,8]  ==> "11.11...1"
+{
+	static const char n01[] = {'.', '1'};
+	if ( bla )  std::cout << bla;
+
+	const char *d = ( nullptr==c01 ?  n01 : c01 );
+
+	ulong j = 0;
+	for (ulong k=0; k<n; ++k)
+	{
+		for (  ; j<x[k]; ++j)  std::cout << d[0];
+		std::cout << d[1];
+		++j;
+	}
+
+	while ( j++ < N )  std::cout << d[0];
+}
+
+// Combinations in a minimal-change order.
+// Algorithm R, "revolving-door combinations", TAOCP 4A/1, pp.363.
+//  W. H. Payne, F. M. Ives: "Combination Generators",
+//  ACM Transactions on Mathematical Software (TOMS),
+//  vol.5, no.2, pp.163-172, (June-1979).
+class combination_revdoor
+{
+public:
+	ulong *c_;  // delta set
+	ulong n_, k_;  // (n choose k)  n>=1,  1<=k<=n
+
+	combination_revdoor(const combination_revdoor&) = delete;
+	combination_revdoor & operator = (const combination_revdoor&) = delete;
 
 public:
-	explicit combination_chase(ulong n, ulong k) {
-		n_ = (n ? n : 1);
+	explicit combination_revdoor(ulong n, ulong k)
+	// Must have:  1 <= k <= n
+	{
+		n_ = n;  // (n ? n : 1);
 		k_ = k;
-		if (k > n_) k = n;
-		else {
-			if (k == 0) k = n;
-		}
+		//        if ( k>n_ )  k=n;
+		//        else { if ( k==0 )  k=n; }
 
-		t_ = k_;
-		s_ = n_ - t_;
-
-		a_ = new ulong[n_];
-		w_ = new ulong[n_ + 1];
+		c_ = new ulong[k_+1];  // incl. sentinel
 		first();
 	}
 
-	~combination_chase() {
-		delete[] a_;
-		delete[] w_;
+	~combination_revdoor()  { delete [] c_; }
+
+	void first()
+	{
+		for (ulong j=0; j<k_; ++j)  c_[j] = j;
+		c_[k_] = n_;  // sentinel
 	}
 
-	void first() {
-		ulong j;
-		for (j = 0; j < s_; ++j) a_[j] = 0;
-		for (; j < n_; ++j) a_[j] = 1;
-		for (ulong i = 0; i <= n_; ++i) w_[i] = 1;
-		r_ = (s_ > 0 ? s_ : t_);
-	}
+	const ulong* data()  const  { return c_; }
 
-	const ulong *data() const { return a_; }
-
-	bool next(uint32_t *k1, uint32_t *k2) {
-		// C3: [Find j and branch]
-		ulong j = r_;
-		while (0 == w_[j]) {
-			w_[j] = 1;
-			++j;
-		}
-
-		if (j == n_) { return false; }
-		w_[j] = 0;
-		if (0 != a_[j]) {
-			if (j & 1) { goto C4; }// j odd
-			else { goto C5;} // j even
+	bool next(uint32_t *k1, uint32_t *k2 ) {
+		ulong j = 1;
+		// R3: [Easy case?]
+		// odd k (try to increase)
+		if ( k_ & 1 ) {
+			ulong c = c_[0] + 1;
+			if ( c < c_[1] )  {
+				*k1 = c_[0];
+				c_[0] = c;
+				*k2 = c;
+				return true;
+			}
+			else goto R4;
 		} else {
-			// 0==a_[j]
-			if (j & 1) { goto C7; }// j odd
-			else { goto C6; }// j even
+			// even k (try to decrease)
+			ulong c = c_[0];
+			if ( c )  {
+				*k1 = c_[0];
+				c_[0] = c-1;
+				*k2 = c-1;
+				return true;
+			} else {
+				goto R5;
+			}
 		}
-	C4:// C4: [Move right one]
-		a_[j - 1] = 1;
-		a_[j] = 0;
-		*k1 = n_-1-j;
-		*k2 = n_-1-(j-1);
-		if ((r_ == j) && (j > 1)) { r_ = j - 1; }
-		else if (r_ == j - 1) { r_ = j; }
-		return true;
 
-	C5:// C5: [Move right two]
-		if (0 != a_[j - 2]) { goto C4; }
-		a_[j - 2] = 1;
-		a_[j] = 0;
-		*k2 = n_-1-(j -2);
-		*k1 = n_-1-j;
-		if (r_ == j) { r_ = MAX(j - 2, 1UL); }
-		else if (r_ == j - 2) { r_ = j - 1; }
-		return true;
+	R4:  // R4: [Try to decrease]
+		if ( j==k_ )  return false;
+		if ( c_[j] > j ) {
+			*k1 = c_[j];
+			c_[j] = c_[j-1];
+			*k2 = c_[j-1];
+			c_[j-1] = j-1;
+			return true;
+		}
+		++j;
 
-	C6:// C6: [Move left one]
-		a_[j] = 1;
-		a_[j - 1] = 0;
-		*k2 = n_-1-j;
-		*k1 = n_-1-(j-1);
-		if ((r_ == j) && (j > 1)) { r_ = j - 1; }
-		else if (r_ == j - 1) { r_ = j; }
-		return true;
+	R5:  // R5: [Try to increase]
+		if ( j==k_ )  return false;
 
-	C7:// C7: [Move left two]
-		if (0 != a_[j - 1]) goto C6;
-		a_[j] = 1;
-		a_[j - 2] = 0;
-		*k2 = n_-1-j;
-		*k1 = n_-1-(j-2);
-		if (r_ == j - 2) { r_ = j; }
-		else if (r_ == j - 1) { r_ = j - 2; }
-		return true;
+		{
+			ulong c = c_[j] + 1;
+			// can read sentinel
+			if ( c < c_[j+1] ) {
+				*k1 = c_[j-1];
+				*k2 = c_[j];
+				c_[j-1] = c - 1;
+				c_[j] = c;
+				return true;
+			}
+		}
+		++j;
+		goto R4;
 	}
+
+	void print_deltaset(const char *bla=nullptr)  const
+	{ print_set_as_deltaset(bla, c_, k_, n_); }
 };
 
 
 int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq, const uint32_t *Fl, int count, uint32_t *buffer, int *size) {
-	if (count <= 0 || n < L || n > 32 || m != LANES || w < 8) {
+	// TODO to fix the issue with 10 is to greate two more kernels which only enumerate 6 or 7 variables
+	if (count <= 0 || n < L || n > 32 || m != LANES || w < (L+2)) {
 		return -1;
 	}
 
@@ -600,24 +612,43 @@ int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq
 
 	setup16(n, LANES, Fq, Fl, context.Fq, context.Fl);
 
-	combination_chase c(n-L, w-7);
-	uint32_t k1 = w - 8, k2 = w - 7;
-	// int npositive = 0;
-	const uint64_t iterations = bc(n -L, w - 7);
+	// init, simply specializes 000 -> 001 -> 011 -> 111
+	// until we have w-8 many ones specialized
+	uint32_t alph = idxq(0, n + 1);
+
+	// TODO: iterativer revolving door ansatz:
+	// 	- also um die beiden loops ein weiteter loop der alle w' = 8,....w
+	// 	- durchgeht.
+
+	/// TODO (w-8) + 1: because we need to first specialize for all 0
+	for (uint32_t i = 0; i < w - 8; i++) {
+		const uint32_t beta = L + i + 1, gamma = idxq(L + i, n + 1);
+		struct solution_t *top = solver(context.Fq, context.Fl, alph, beta, gamma, context.local_buffer);
+		if (FLUSH_BUFFER(&context, top, i << L)) { break; }
+		alph = idxq(0, L + i);
+	}
+
+
+	//combination_chase c(n-L, w-8);
+	uint32_t k1 = w /*- L*/ - 1, k2 = w - L;
+	const uint64_t iterations = bc(n - L, w - 8);
 	for (uint64_t j = 0; j < iterations; j++) {
+		// first the one to clear = last one which was set
+		uint32_t alpha = idxq(0, k1);
+
 		// TODO init sequence not correct
 		// TODO in each step of the chase sequence two bit flips happen istead of two, we need to fixt this
 		// k1 = cleared, k2 = set
-		c.next(&k1, &k2);
+		//c.next(&k1, &k2);
 
 		k1 += L; k2 += L;
-		uint32_t alpha = idxq(0, k1);
-		uint32_t beta = k2;
+		uint32_t beta = k1+1; // +1 because of the constant part
 		uint32_t gamma = k1 < k2 ? idxq(k1, k2) : idxq(k2, k1);
 		struct solution_t *top = solver(context.Fq, context.Fl, alpha, beta, gamma, context.local_buffer);
-		if (FLUSH_BUFFER(&context, top, j << L)) {
-			break;
-		}
+		if (FLUSH_BUFFER(&context, top, j << L)) { break; }
+
+		// for (uint32_t i = 0; i < LANES; i++) { FLUSH_CANDIDATES(&context, i); }
+		return 0;
 	}
 
 	for (uint32_t i = 0; i < LANES; i++) {
