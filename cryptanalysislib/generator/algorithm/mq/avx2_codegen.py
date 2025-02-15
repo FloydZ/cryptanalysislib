@@ -43,11 +43,11 @@ Fq[idxq(0, 4)] = "ymm13" # 1/32
 def output_comparison(i, between_cmp_msk=None, between_msk_test=None, between_test_jmp=None):
     # before the XORs, the comparison
     # print('vpcmpeqw %ymm0, %ymm15, %ymm15'.format())
-    print("\tymm15 =_mm256_cmpeq_epi16(ymm0, ymm15);")
+    print("\tymm14 =_mm256_cmpeq_epi16(ymm0, ymm15);")
     if between_cmp_msk:
         print(between_cmp_msk)
     # print('vpmovmskb %ymm15, %r11d')
-    print('\tmask = _mm256_movemask_epi8(ymm15);')
+    print('\tmask = _mm256_movemask_epi8(ymm14);')
     if between_msk_test:
         print(between_msk_test)
     #print('test %r11d, %r11d')
@@ -119,7 +119,7 @@ for x, reg in Fq.items():
     # print("vmovdqa {offset}(%rdi), {reg}   ## {reg} = Fq[{idx}]".format(offset=x*32, reg=reg, idx=x))
     print("\t__m256i {reg} = _mm256_load_si256((__m256i *)(rdi + {offset}));".format(offset=x*32, reg=reg))
 
-print("\t__m256i ymm14;")
+print("\t__m256i ymm14 = _mm256_set1_epi8(0);")
 print("\t__m256i ymm15 = _mm256_set1_epi8(0);")
 print()
 
@@ -188,7 +188,7 @@ for i in range(1<<L):
     #print('._report_solution_{i}:          # GrayCode(i + {i}) is a solution'.format(i=i))
     print('\t_report_solution_{i}:                  // GrayCode(i + {i}) is a solution'.format(i=i))
     #print('vpxor %ymm15, %ymm15, %ymm15    # reset %ymm15 to zero')
-    print('\tymm15 = _mm256_xor_si256(ymm15, ymm15);// reset %ymm15 to zero')
+    #print('\tymm15 = _mm256_xor_si256(ymm15, ymm15);// reset %ymm15 to zero')
     #print('movl ${i},  0(%rax)             # buffer.x = {i}'.format(i=i))
     #print('movl %r11d, 4(%rax)             # buffer.mask = %r11')
     #print('addq $8, %rax                   # buffer++'); 

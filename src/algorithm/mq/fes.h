@@ -100,7 +100,7 @@ public:
 };
 
 // extern struct solution_t * feslite_avx2_asm_enum(const void * Fq, void * Fl, uint64_t alpha, uint64_t beta, uint64_t gamma, struct solution_t *local_buffer);
-#include "avx_16x16.h"
+#include "avx_16x16_v2.h"
 
 
 struct context_t {
