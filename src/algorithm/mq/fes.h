@@ -483,8 +483,7 @@ print_set_as_deltaset(const char *bla, const ulong *x, ulong n, ulong N, const c
 	const char *d = ( nullptr==c01 ?  n01 : c01 );
 
 	ulong j = 0;
-	for (ulong k=0; k<n; ++k)
-	{
+	for (ulong k=0; k<n; ++k) {
 		for (  ; j<x[k]; ++j)  std::cout << d[0];
 		std::cout << d[1];
 		++j;
@@ -508,48 +507,45 @@ public:
 	combination_revdoor & operator = (const combination_revdoor&) = delete;
 
 public:
-	explicit combination_revdoor(ulong n, ulong k)
 	// Must have:  1 <= k <= n
-	{
+	explicit combination_revdoor(const ulong n, const ulong k) noexcept {
 		n_ = n;  // (n ? n : 1);
 		k_ = k;
-		//        if ( k>n_ )  k=n;
-		//        else { if ( k==0 )  k=n; }
-
 		c_ = new ulong[k_+1];  // incl. sentinel
 		first();
 	}
 
 	~combination_revdoor()  { delete [] c_; }
 
-	void first()
-	{
-		for (ulong j=0; j<k_; ++j)  c_[j] = j;
+	void first() noexcept {
+		for (ulong j=0; j<k_; ++j) { c_[j] = j; }
 		c_[k_] = n_;  // sentinel
 	}
 
 	const ulong* data()  const  { return c_; }
 
+	/// @param k1[out]: bit-position to be cleared
+	/// @param k2[out]: bit-position to be set
+	/// @return
 	bool next(uint32_t *k1, uint32_t *k2 ) {
 		ulong j = 1;
 		// R3: [Easy case?]
 		// odd k (try to increase)
 		if ( k_ & 1 ) {
-			ulong c = c_[0] + 1;
+			const ulong c = c_[0] + 1;
 			if ( c < c_[1] )  {
 				*k1 = c_[0];
 				c_[0] = c;
 				*k2 = c;
 				return true;
-			}
-			else goto R4;
+			} else { goto R4; }
 		} else {
 			// even k (try to decrease)
-			ulong c = c_[0];
+			const ulong c = c_[0];
 			if ( c )  {
-				*k1 = c_[0];
+				*k1 = std::max(c_[0], c-1);
+				*k2 = std::min(c_[0],c-1);
 				c_[0] = c-1;
-				*k2 = c-1;
 				return true;
 			} else {
 				goto R5;
@@ -560,22 +556,22 @@ public:
 		if ( j==k_ )  return false;
 		if ( c_[j] > j ) {
 			*k1 = c_[j];
+			*k2 = j-1;
 			c_[j] = c_[j-1];
-			*k2 = c_[j-1];
 			c_[j-1] = j-1;
 			return true;
 		}
 		++j;
 
 	R5:  // R5: [Try to increase]
-		if ( j==k_ )  return false;
+		if ( j==k_ ) { return false; }
 
 		{
 			ulong c = c_[j] + 1;
 			// can read sentinel
 			if ( c < c_[j+1] ) {
 				*k1 = c_[j-1];
-				*k2 = c_[j];
+				*k2 = c;
 				c_[j-1] = c - 1;
 				c_[j] = c;
 				return true;

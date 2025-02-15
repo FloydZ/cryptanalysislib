@@ -20,7 +20,7 @@ constexpr static uint32_t w = 10;
 using namespace cryptanalysislib;
 
 TEST(mq, simple) {
-	combination_revdoor c(11, 3);
+	combination_revdoor c(10, 4);
 	uint32_t k1 = 1, k2 = 2;
 	do {
 		c.print_deltaset();

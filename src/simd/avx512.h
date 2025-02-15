@@ -1005,7 +1005,7 @@ struct Xint16x32_t {
 	using S = Xint16x32_t;
 	using simd_type = S;
 
-	using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
+	using V   = std::conditional<__unsigned, __v16su, __v16si>::type;
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -1558,7 +1558,7 @@ struct Xint32x16_t {
 	using S = Xint32x16_t;
 	using simd_type = S;
 
-    using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
+    using V   = std::conditional<__unsigned, __v32hu, __v32hi>::type;
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;

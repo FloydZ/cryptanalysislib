@@ -85,10 +85,10 @@ def compute_update(i, a, b):
 
         if Fq_memref is None: 
             #xor1b = "vpxor {offset}(%rdi), %ymm14, %ymm14".format(offset=32*b)
-            xor1b = "ymm14 = _mm256_xor_si256(ymm14, *(__m256 *)(rdi + {offset}));".format(offset=32*b)
+            xor1b = "ymm14 = _mm256_xor_si256(ymm14, *(__m256i *)(rdi + {offset}));".format(offset=32*b)
         else:
             #xor1b = "vpxor {src}, %ymm14, %ymm14".format(src=Fq_memref)
-            xor1b = "ymm14 = _mm256_xor_si256(ymm14, *(__m256 *)({src}));".format(src=Fq_memref)
+            xor1b = "ymm14 = _mm256_xor_si256(ymm14, *(__m256i *)({src}));".format(src=Fq_memref)
         # xor1c = "vmovdqa %ymm14, {offset}(%rsi)".format(offset=32*a) # store Fl[a]
         xor1c = ("_mm256_store_si256((__m256i *)(rsi + {offset}), ymm14);").format(offset=32*a) # store Fl[a]
         # xor2 = "vpxor %ymm14, %ymm0, %ymm0"

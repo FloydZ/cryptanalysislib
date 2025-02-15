@@ -664,7 +664,7 @@ struct solution_t* solver(uint16_t *_rdi, uint16_t *_rsi, uint32_t alpha, uint32
 	if (mask != 0) { goto _report_solution_63; }
 	_step_63_end:
 	ymm14 = _mm256_load_si256((__m256i *)(rsi + 224));
-	ymm14 = _mm256_xor_si256(ymm14, *(__m256 *)(rdi + alpha + 192));
+	ymm14 = _mm256_xor_si256(ymm14, *(__m256i *)(rdi + alpha + 192));
 	_mm256_store_si256((__m256i *)(rsi + 224), ymm14);
 	ymm0 = _mm256_xor_si256(ymm0, ymm14);
 
@@ -1306,7 +1306,7 @@ struct solution_t* solver(uint16_t *_rdi, uint16_t *_rsi, uint32_t alpha, uint32
 	if (mask != 0) { goto _report_solution_127; }
 	_step_127_end:
 	ymm14 = _mm256_load_si256((__m256i *)(rsi + 256));
-	ymm14 = _mm256_xor_si256(ymm14, *(__m256 *)(rdi + alpha + 224));
+	ymm14 = _mm256_xor_si256(ymm14, *(__m256i *)(rdi + alpha + 224));
 	_mm256_store_si256((__m256i *)(rsi + 256), ymm14);
 	ymm0 = _mm256_xor_si256(ymm0, ymm14);
 
@@ -1948,7 +1948,7 @@ struct solution_t* solver(uint16_t *_rdi, uint16_t *_rsi, uint32_t alpha, uint32
 	if (mask != 0) { goto _report_solution_191; }
 	_step_191_end:
 	ymm14 = _mm256_load_si256((__m256i *)(rsi + 224));
-	ymm14 = _mm256_xor_si256(ymm14, *(__m256 *)(rdi + 864));
+	ymm14 = _mm256_xor_si256(ymm14, *(__m256i *)(rdi + 864));
 	_mm256_store_si256((__m256i *)(rsi + 224), ymm14);
 	ymm0 = _mm256_xor_si256(ymm0, ymm14);
 
