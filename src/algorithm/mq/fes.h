@@ -1,6 +1,8 @@
 #include <cstdint>
-#include <string.h>
+#include <cstring>
+
 #include "math/math.h"
+#include "combination/revolving_door.h"
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
@@ -100,7 +102,7 @@ public:
 };
 
 // extern struct solution_t * feslite_avx2_asm_enum(const void * Fq, void * Fl, uint64_t alpha, uint64_t beta, uint64_t gamma, struct solution_t *local_buffer);
-#include "avx_16x16_v2.h"
+#include "avx_16x16.h"
 
 
 struct context_t {
@@ -378,11 +380,21 @@ static inline uint32_t to_gray(uint32_t i) {
 }
 
 
+/// @param context
+/// @param top
+/// @param r
+/// @param flag if true: r will be understood as a gray code position
+/// @return
 static inline bool FLUSH_BUFFER(struct context_t *context,
                                 struct solution_t *top,
-                                uint64_t i) {
+                                const uint64_t r, const bool flag=true) noexcept {
 	for (struct solution_t *bot = context->local_buffer; bot != top; bot++) {
-		uint32_t x = to_gray(bot->x + i);
+		uint32_t x;
+		if (flag) {
+			x = to_gray(bot->x + r);
+		} else {
+			x = r+to_gray(bot->x);
+		}
 		uint32_t mask = bot->mask;
 		do {
 			int i = __builtin_ctzl(mask);
@@ -471,127 +483,13 @@ int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl
 }
 
 
-void
-print_set_as_deltaset(const char *bla, const ulong *x, ulong n, ulong N, const char *c01=0)
-// Print x[0,..,n-1], a subset of {0,1,...,N-1} as delta set,
-// n is the number of elements in the set.
-// Example:  x[]=[0,1,3,4,8]  ==> "11.11...1"
-{
-	static const char n01[] = {'.', '1'};
-	if ( bla )  std::cout << bla;
-
-	const char *d = ( nullptr==c01 ?  n01 : c01 );
-
-	ulong j = 0;
-	for (ulong k=0; k<n; ++k) {
-		for (  ; j<x[k]; ++j)  std::cout << d[0];
-		std::cout << d[1];
-		++j;
-	}
-
-	while ( j++ < N )  std::cout << d[0];
-}
-
-// Combinations in a minimal-change order.
-// Algorithm R, "revolving-door combinations", TAOCP 4A/1, pp.363.
-//  W. H. Payne, F. M. Ives: "Combination Generators",
-//  ACM Transactions on Mathematical Software (TOMS),
-//  vol.5, no.2, pp.163-172, (June-1979).
-class combination_revdoor
-{
-public:
-	ulong *c_;  // delta set
-	ulong n_, k_;  // (n choose k)  n>=1,  1<=k<=n
-
-	combination_revdoor(const combination_revdoor&) = delete;
-	combination_revdoor & operator = (const combination_revdoor&) = delete;
-
-public:
-	// Must have:  1 <= k <= n
-	explicit combination_revdoor(const ulong n, const ulong k) noexcept {
-		n_ = n;  // (n ? n : 1);
-		k_ = k;
-		c_ = new ulong[k_+1];  // incl. sentinel
-		first();
-	}
-
-	~combination_revdoor()  { delete [] c_; }
-
-	void first() noexcept {
-		for (ulong j=0; j<k_; ++j) { c_[j] = j; }
-		c_[k_] = n_;  // sentinel
-	}
-
-	const ulong* data()  const  { return c_; }
-
-	/// @param k1[out]: bit-position to be cleared
-	/// @param k2[out]: bit-position to be set
-	/// @return
-	bool next(uint32_t *k1, uint32_t *k2 ) {
-		ulong j = 1;
-		// R3: [Easy case?]
-		// odd k (try to increase)
-		if ( k_ & 1 ) {
-			const ulong c = c_[0] + 1;
-			if ( c < c_[1] )  {
-				*k1 = c_[0];
-				c_[0] = c;
-				*k2 = c;
-				return true;
-			} else { goto R4; }
-		} else {
-			// even k (try to decrease)
-			const ulong c = c_[0];
-			if ( c )  {
-				*k1 = std::max(c_[0], c-1);
-				*k2 = std::min(c_[0],c-1);
-				c_[0] = c-1;
-				return true;
-			} else {
-				goto R5;
-			}
-		}
-
-	R4:  // R4: [Try to decrease]
-		if ( j==k_ )  return false;
-		if ( c_[j] > j ) {
-			*k1 = c_[j];
-			*k2 = j-1;
-			c_[j] = c_[j-1];
-			c_[j-1] = j-1;
-			return true;
-		}
-		++j;
-
-	R5:  // R5: [Try to increase]
-		if ( j==k_ ) { return false; }
-
-		{
-			ulong c = c_[j] + 1;
-			// can read sentinel
-			if ( c < c_[j+1] ) {
-				*k1 = c_[j-1];
-				*k2 = c;
-				c_[j-1] = c - 1;
-				c_[j] = c;
-				return true;
-			}
-		}
-		++j;
-		goto R4;
-	}
-
-	void print_deltaset(const char *bla=nullptr)  const
-	{ print_set_as_deltaset(bla, c_, k_, n_); }
-};
-
-
 int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq, const uint32_t *Fl, int count, uint32_t *buffer, int *size) {
 	// TODO to fix the issue with 10 is to greate two more kernels which only enumerate 6 or 7 variables
-	if (count <= 0 || n < L || n > 32 || m != LANES || w < (L+2)) {
+	if (count <= 0 || n < L || n > 32 || m != LANES || w != (L+2)) {
 		return -1;
 	}
 
+	struct solution_t *top;
 	struct context_t context;
 	context.n = n;
 	context.m = m;
@@ -613,38 +511,47 @@ int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq
 	uint32_t alph = idxq(0, n + 1);
 
 	// TODO: iterativer revolving door ansatz:
-	// 	- also um die beiden loops ein weiteter loop der alle w' = 8,....w
-	// 	- durchgeht.
+	// 	- also um die beiden loops ein weiteter loop der alle w' = 8,....w durchgeht
 
-	/// TODO (w-8) + 1: because we need to first specialize for all 0
-	for (uint32_t i = 0; i < w - 8; i++) {
+	for (uint32_t i = 0; i < w - L; i++) {
 		const uint32_t beta = L + i + 1, gamma = idxq(L + i, n + 1);
-		struct solution_t *top = solver(context.Fq, context.Fl, alph, beta, gamma, context.local_buffer);
-		if (FLUSH_BUFFER(&context, top, i << L)) { break; }
+		top = solver(context.Fq, context.Fl, alph, beta, gamma, context.local_buffer);
+		if (FLUSH_BUFFER(&context, top, i << L, true)) { break; }
 		alph = idxq(0, L + i);
 	}
 
+	combination_revdoor c(n-L, w-8);
+	uint32_t k1, k2;
+	uint32_t alpha = alph;
+	uint64_t ctr = ((1u << (w-L)) - 1u) << L;
 
-	//combination_chase c(n-L, w-8);
-	uint32_t k1 = w /*- L*/ - 1, k2 = w - L;
+	// k1 = cleared, k2 = set
+	c.next(&k1, &k2); k1 += L; k2 += L;
 	const uint64_t iterations = bc(n - L, w - 8);
 	for (uint64_t j = 0; j < iterations; j++) {
-		// first the one to clear = last one which was set
-		uint32_t alpha = idxq(0, k1);
+		// TODO gamma is not correct, need to proper understand it.
 
-		// TODO init sequence not correct
-		// TODO in each step of the chase sequence two bit flips happen istead of two, we need to fixt this
-		// k1 = cleared, k2 = set
-		//c.next(&k1, &k2);
-
-		k1 += L; k2 += L;
+		// First the clearing bit-flip
 		uint32_t beta = k1+1; // +1 because of the constant part
-		uint32_t gamma = k1 < k2 ? idxq(k1, k2) : idxq(k2, k1);
-		struct solution_t *top = solver(context.Fq, context.Fl, alpha, beta, gamma, context.local_buffer);
-		if (FLUSH_BUFFER(&context, top, j << L)) { break; }
+		uint32_t gamma = idxq(k1, k1+1);
+		top = solver(context.Fq, context.Fl, alpha, beta, gamma, context.local_buffer);
+		if (FLUSH_BUFFER(&context, top, ctr, false)) { break; }
 
-		// for (uint32_t i = 0; i < LANES; i++) { FLUSH_CANDIDATES(&context, i); }
-		return 0;
+		if (j == 1) {for (uint32_t i = 0; i < LANES; i++) { FLUSH_CANDIDATES(&context, i); } return 0;}
+
+		// Next the setting bit-flip
+		alpha = idxq(0, beta-1),
+		beta = k2+1;
+		gamma =  idxq(k2, n+1);
+		top = solver(context.Fq, context.Fl, alpha, beta, gamma, context.local_buffer);
+		if (FLUSH_BUFFER(&context, top, ctr, true)) { break; }
+
+
+		alpha = idxq(0, beta-1);
+		ctr ^= 1u << k1;
+		ctr ^= 1u << k2;
+		c.next(&k1, &k2);
+		k1 += L; k2 += L;
 	}
 
 	for (uint32_t i = 0; i < LANES; i++) {
