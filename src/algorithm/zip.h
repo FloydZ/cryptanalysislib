@@ -6,17 +6,17 @@
 #ifdef USE_AVX2
 #include <immintrin.h>
 
-#if defined(__GNUC__) && !defined(__clang__) && !defined(__ICC)
-// this maps to multiple instructions in avx, but one in avx2 (?)
-static inline void
-        __attribute__((__always_inline__))
-        _mm256_storeu2_m128i(__m128i* const hiaddr,
-                             __m128i* const loaddr,
-                             const __m256i a) {
-	_mm_storeu_si128(loaddr, _mm256_castsi256_si128(a));
-	_mm_storeu_si128(hiaddr, _mm256_extracti128_si256(a, 1));
-}
-#endif
+// #if defined(__GNUC__) && !defined(__clang__) && !defined(__ICC)
+// // this maps to multiple instructions in avx, but one in avx2 (?)
+// static inline void
+//         __attribute__((__always_inline__))
+//         _mm256_storeu2_m128i(__m128i* const hiaddr,
+//                              __m128i* const loaddr,
+//                              const __m256i a) {
+// 	_mm_storeu_si128(loaddr, _mm256_castsi256_si128(a));
+// 	_mm_storeu_si128(hiaddr, _mm256_extracti128_si256(a, 1));
+// }
+// #endif
 
 /// given 0b1011 (11 in decimal) and 0b1100 (12 in decimal),
 /// compute the number 0b11011010.
@@ -67,5 +67,89 @@ static inline void morton_vec8(uint64_t *out ,
 	_mm256_storeu2_m128i ((__m128i*) (out+4),(__m128i*) out, los);
 	_mm256_storeu2_m128i ((__m128i*) (out+6),(__m128i*) (out+2), his);
 }
+
+/// \param out1 lower part: [x1y1, x2y2, ..., x16y16]
+/// \param out2 upper part: [x17y17, ..., x32y32]
+/// \param in1 [x1, ..., x32]
+/// \param in2 [y1, ..., y32]
+static inline void zip_u8(__m256i *__restrict__ out1,
+						  __m256i *__restrict__ out2,
+						  const __m256i *__restrict__ in1,
+						  const __m256i *__restrict__ in2) noexcept {
+	const __m256i a = _mm256_loadu_si256(in1);
+	const __m256i b = _mm256_loadu_si256(in2);
+	const __m256i tmp1 = _mm256_unpacklo_epi8(a, b);
+	*out2 = _mm256_unpackhi_epi8(a, b);
+	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0b1000);
+	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0b01);
+}
+
+/// \param out1 lower part: [x1y1, x2y2, ..., x8y8]
+/// \param out2 upper part: [x9y9, ..., x16y16]
+/// \param in1 [x1, ..., x16]
+/// \param in2 [y1, ..., y16]
+static inline void zip_u16(__m256i *__restrict__ out1,
+						   __m256i *__restrict__ out2,
+						   const __m256i *__restrict__ in1,
+						   const __m256i *__restrict__ in2) noexcept {
+	const __m256i a = _mm256_loadu_si256(in1);
+	const __m256i b = _mm256_loadu_si256(in2);
+	const __m256i tmp1 = _mm256_unpacklo_epi16(a, b);
+	*out2 = _mm256_unpackhi_epi16(a, b);
+	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0b1000);
+	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0b01);
+}
+
+/// \param out1 lower part: [x1y1, x2y2, ..., x4y4]
+/// \param out2 upper part: [x5y5, ..., x8y8]
+/// \param in1 [x1, ..., x8]
+/// \param in2 [y1, ..., y8]
+static inline void zip_u32(__m256i *__restrict__ out1,
+						   __m256i *__restrict__ out2,
+						   const __m256i *__restrict__ in1,
+						   const __m256i *__restrict__ in2) noexcept {
+	const __m256i a = _mm256_loadu_si256(in1);
+	const __m256i b = _mm256_loadu_si256(in2);
+	const __m256i tmp1 = _mm256_unpacklo_epi32(a, b);
+	*out2 = _mm256_unpackhi_epi32(a, b);
+	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0b1000);
+	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0b01);
+}
+
+/// \param out1 lower part: [x1y1, x2y2]
+/// \param out2 upper part: [x3y3, x4y4]
+/// \param in1 [x1, ..., x4]
+/// \param in2 [y1, ..., y4]
+static inline void zip_u64(__m256i *__restrict__ out1,
+						   __m256i *__restrict__ out2,
+						   const __m256i *__restrict__ in1,
+						   const __m256i *__restrict__ in2) noexcept {
+	const __m256i a = _mm256_loadu_si256(in1);
+	const __m256i b = _mm256_loadu_si256(in2);
+	const __m256i tmp1 = _mm256_unpacklo_epi64(a, b);
+	*out2 = _mm256_unpackhi_epi64(a, b);
+	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0b1000);
+	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0b01);
+}
+
+/// \param out
+/// \param in1
+/// \param in2
+/// \param n number of elements in `in1`, `in2`
+static inline void zip_u8(uint16_t *__restrict__ out,
+						  const uint8_t *__restrict__ in1,
+						  const uint8_t *__restrict__ in2,
+						  const size_t n) {
+	for (size_t i = 0; (i+32) <= n; i += 32) {
+		zip_u8((__m256i *)out, (__m256i *)(out + 16), (__m256i *)in1, (__m256i *)in2);
+		in1 += 32; in2 += 32; out += 16;
+	}
+
+	for (size_t i = 0; i < n; i++) {
+		const uint16_t t = (uint16_t)(*in1) | (((uint16_t)(*in2)) << 8u);
+		out[i] = t;
+	}
+}
+
 #endif
 #endif

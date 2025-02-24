@@ -58,11 +58,12 @@ static inline constexpr void restart(struct solver *S) noexcept {
 	S->processed = S->forced;
 }
 
-static inline constexpr void assign(struct solver *S, int *reason, int forced) {// Make the first literal of the reason true
-	int lit = reason[0];                                                        // Let lit be the first literal in the reason
-	S->_false[-lit] = forced ? IMPLIED : 1;                                     // Mark lit as true and IMPLIED if forced
-	*(S->assigned++) = -lit;                                                    // Push it on the assignment stack
-	S->reason[abs(lit)] = 1 + (int) ((reason) -S->DB);                          // Set the reason clause of lit
+// Make the first literal of the reason true
+static inline constexpr void assign(struct solver *S, int *reason, int forced) {
+	int lit = reason[0];                              // Let lit be the first literal in the reason
+	S->_false[-lit] = forced ? IMPLIED : 1;           // Mark lit as true and IMPLIED if forced
+	*(S->assigned++) = -lit;                          // Push it on the assignment stack
+	S->reason[abs(lit)] = 1 + (int) ((reason) -S->DB);// Set the reason clause of lit
 	S->model[abs(lit)] = (lit > 0);
 }// Mark the literal as true in the model
 
@@ -85,13 +86,15 @@ static inline constexpr int *getMemory(struct solver *S,
 	return store;
 }
 
-int *addClause(struct solver *S, int *in, int size, int irr) {// Adds a clause stored in *in of size size
-	int i, used = S->mem_used;                                // Store a pointer to the beginning of the clause
-	int *clause = getMemory(S, size + 3) + 2;                 // Allocate memory for the clause in the database
+// Adds a clause stored in *in of size size
+int *addClause(struct solver *S, int *in, int size, int irr) {
+	int i, used = S->mem_used;               // Store a pointer to the beginning of the clause
+	int *clause = getMemory(S, size + 3) + 2;// Allocate memory for the clause in the database
 	if (size > 1) {
+		// Two watch pointers to the datastructure
 		addWatch(S, in[0], used);// If the clause is not unit, then add
 		addWatch(S, in[1], used + 1);
-	}// Two watch pointers to the datastructure
+	}
 	for (i = 0; i < size; i++) clause[i] = in[i];
 	clause[i] = 0;// Copy the clause from the buffer to the database
 	if (irr) S->mem_fixed = S->mem_used;
@@ -315,9 +318,9 @@ void initCDCL(struct solver *S, int n, int m) {
 
 	for (int i = 1; i <= n; i++) {// Initialize the main datastructures:
 		S->prev[i] = i - 1;
-        // the double-linked list for variable-move-to-front,
+		// the double-linked list for variable-move-to-front,
 		S->next[i - 1] = i;
-        // the model (phase-saving), the false array,
+		// the model (phase-saving), the false array,
 		S->model[i] = S->_false[-i] = S->_false[i] = 0;
 		S->first[i] = S->first[-i] = END;
 	}// and first (watch pointers).
@@ -368,7 +371,8 @@ int parse(struct solver *S, const char *filename) noexcept {
 			printf("s parse error: header incorrect\n");
 			exit(0);
 		}
-		if (!lit) {                                            // If reaching the end of the clause
+		if (!lit) {
+			// If reaching the end of the clause
 			int *clause = addClause(S, S->buffer, size, 1);    // Then add the clause to data_base
 			if (!size || ((size == 1) && S->_false[clause[0]]))// Check for empty clause or conflicting unit
 				return UNSAT;                                  // If either is found return UNSAT
