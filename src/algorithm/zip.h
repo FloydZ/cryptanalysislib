@@ -146,7 +146,7 @@ static inline void zip_u8(uint16_t *__restrict__ out,
 	}
 
 	for (size_t i = 0; i < n; i++) {
-		const uint16_t t = (uint16_t)(*in1) | (((uint16_t)(*in2)) << 8u);
+		const uint16_t t = (uint16_t)(in1[i]) | (((uint16_t)(in2[i])) << 8u);
 		out[i] = t;
 	}
 }
