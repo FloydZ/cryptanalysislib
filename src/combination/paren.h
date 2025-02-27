@@ -1,8 +1,12 @@
 #pragma once
 
 template<typename T>
-class parenthesis_word {
+class enumeration_parenthesis {
+private:
+    constexpr static size_t BITS = sizeof(T) * 8;
+    T val = first_parenword();
 
+public:
     // Return whether x is a valid paren word.
     //
     // Binary words < 16, those that are valid
@@ -56,11 +60,11 @@ class parenthesis_word {
     //         to the begin of string (left end).
     // Note 2: Word is extended with zeros (to the left) when necessary,
     //         so the length of str must be >= 1 + 2*(number of set bits)
-    static inline void parenword2str(T x, char *str) {
+    constexpr static inline void parenword2str(char *str, 
+                                               T x) noexcept {
         int s = 0;
         T j = 0;
-        for (j=0; x!=0; ++j)
-        {
+        for (j=0; x!=0; ++j) {
             s += ( x&1 ? +1 : -1 );
             // if ( s<0 )  {"Invalid word"}
             str[j] = ")("[x&1];
@@ -72,15 +76,15 @@ class parenthesis_word {
     
     // Return least binary word corresponding to n pairs of parens.
     // Example, n=5:  .....11111   ((((()))))
-    static inline T first_parenword(T n) {
+    constexpr static inline T first_parenword(const T n) noexcept {
         return first_comb(n);
     }
     
     // Return biggest binary word corresponding to n pairs of parens.
     // Must have: 1 <= n <= BITS_PER_LONG/2.
     // Example, n=5:  .1.1.1.1.1   ()()()()()
-    static inline T last_parenword(T n) {
-        return  0x5555555555555555UL >> (BITS_PER_LONG-2*n);
+    constexpr static inline T last_parenword(const T n) noexcept {
+        return  0x5555555555555555UL >> (BITS-2*n);
     }
     
     
@@ -102,16 +106,14 @@ class parenthesis_word {
     //  ..1.1..11   (())()()
     //  ..1.1.1.1   ()()()()
     //  .........    [zero]
-    static inline T next_parenword(T x) {
-        if ( x & 2 )  // Easy case, move highest bit of lowest block to the left:
-        {
+    constexpr static inline T next(T x) noexcept {
+        if (x & 2) {
+            // Easy case, move highest bit of lowest block to the left:
             T b = lowest_zero(x);
             x ^= b;
             x ^= (b>>1);
             return x;
-        }
-        else
-        {
+        } else {
             const T m0 = -1UL/3;
             T t = x ^ m0;               // XOR t, x, m0;
             if ( (t&x)==0 )  return 0;      // current is last
@@ -124,5 +126,11 @@ class parenthesis_word {
             y += w;                         // ADDU y, w, y;
             return y;
         }
+    }
+
+    constexpr inline T next() noexcept {
+        const T ret = val;
+        val = next(val);
+        return ret;
     }
 };
