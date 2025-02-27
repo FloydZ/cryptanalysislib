@@ -33,8 +33,6 @@ public:
 	/// i.e.  1111..100..00 (k high bits set)
 	/// Must have:  0 <= k <= n <= BITS_PER_LONG
 	constexpr static inline T last_comb() noexcept {
-		//    if ( BITS_PER_LONG == k )  return  ~0UL;
-		//    else return  ((1UL<<k)-1) << (n - k);
 		return first_comb(k) << (n - k);
 	}
 
@@ -64,7 +62,7 @@ public:
 	///.
 	/// based on code by Doug Moore / Glenn Rhoads
 	/// note: might want to use bitscan near end
-	constexpr static inline T next_colex_comb(T x) noexcept {
+	constexpr static inline T next(T x) noexcept {
 		T r = x & -x;// lowest set bit
 		x += r;          // replace lowest block by a one left to it
 
@@ -78,7 +76,7 @@ public:
 	}
 
 	// Inverse of next_colex_comb()
-	constexpr static inline T prev_colex_comb(T x) noexcept {
+	constexpr static inline T prev(T x) noexcept {
 		x = next_colex_comb(~x);
 		if (0 != x) x = ~x;
 		return x;
@@ -86,14 +84,18 @@ public:
 
 public:
     constexpr enumeration_colex() noexcept {};
+
+	///
     constexpr inline T next() noexcept {
         const T ret = val;
-        val = next_colex_comb(val);
+        val = next(val);
         return ret;
-    } 
+    }
+
+	///
     constexpr inline T prev() noexcept {
         const T ret = val;
-        val = prev_colex_comb(val);
+        val = prev(val);
         return ret;
     } 
 };

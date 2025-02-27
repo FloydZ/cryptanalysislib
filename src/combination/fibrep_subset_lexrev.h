@@ -1,39 +1,41 @@
 #pragma once 
 
+/// Return next Fibonacci word in subset-lex order.
+/// Start with a one-bit word at position n-1 to
+/// generate all Fibonacci words of length n
+/// E.g., for n==6 the words (and subsets) are
+///       word     subset of {0,1,2,3,4,5}
+///   1:  1.....  =  { 0 }
+///   2:  1.1...  =  { 0, 2 }
+///   3:  1.1.1.  =  { 0, 2, 4 }
+///   4:  1.1..1  =  { 0, 2, 5 }
+///   5:  1..1..  =  { 0, 3 }
+///   6:  1..1.1  =  { 0, 3, 5 }
+///   7:  1...1.  =  { 0, 4 }
+///   8:  1....1  =  { 0, 5 }
+///   9:  .1....  =  { 1 }
+///  10:  .1.1..  =  { 1, 3 }
+///  11:  .1.1.1  =  { 1, 3, 5 }
+///  12:  .1..1.  =  { 1, 4 }
+///  13:  .1...1  =  { 1, 5 }
+///  14:  ..1...  =  { 2 }
+///  15:  ..1.1.  =  { 2, 4 }
+///  16:  ..1..1  =  { 2, 5 }
+///  17:  ...1..  =  { 3 }
+///  18:  ...1.1  =  { 3, 5 }
+///  19:  ....1.  =  { 4 }
+///  20:  .....1  =  { 5 }
+///  21:  ......  =  { }
 template<typename T>
 class fibrev_subset_lexrev {
-    // Return next Fibonacci word in subset-lex order.
-    // Start with a one-bit word at position n-1 to
-    // generate all Fibonacci words of length n
-    // E.g., for n==6 the words (and subsets) are
-    //       word     subset of {0,1,2,3,4,5}
-    //   1:  1.....  =  { 0 }
-    //   2:  1.1...  =  { 0, 2 }
-    //   3:  1.1.1.  =  { 0, 2, 4 }
-    //   4:  1.1..1  =  { 0, 2, 5 }
-    //   5:  1..1..  =  { 0, 3 }
-    //   6:  1..1.1  =  { 0, 3, 5 }
-    //   7:  1...1.  =  { 0, 4 }
-    //   8:  1....1  =  { 0, 5 }
-    //   9:  .1....  =  { 1 }
-    //  10:  .1.1..  =  { 1, 3 }
-    //  11:  .1.1.1  =  { 1, 3, 5 }
-    //  12:  .1..1.  =  { 1, 4 }
-    //  13:  .1...1  =  { 1, 5 }
-    //  14:  ..1...  =  { 2 }
-    //  15:  ..1.1.  =  { 2, 4 }
-    //  16:  ..1..1  =  { 2, 5 }
-    //  17:  ...1..  =  { 3 }
-    //  18:  ...1.1  =  { 3, 5 }
-    //  19:  ....1.  =  { 4 }
-    //  20:  .....1  =  { 5 }
-    //  21:  ......  =  { }
-    //
+private:
+	T val = 0;
+
     // Note (1): the first element of the subset corresponds
     // to the highest set bit.
     // Note (2): the lex order for the delta sets would simply
     // be the counting order.
-    constexpr static inline T next_subset_lexrev_fib(T x) {
+    constexpr static inline T next(T x) noexcept {
         T x0 = x & -x;  // lowest bit
         T xs = x0 >> 2;
         if ( xs != 0 ) {  // easy case: set bit right of lowest bit
@@ -78,7 +80,7 @@ class fibrev_subset_lexrev {
     //  18:  1.1.1.  =   { 0, 2, 4 }
     //  19:  1.1...  =   { 0, 2 }
     //  20:  1.....  =   { 0 }
-    constexpr static inline T prev_subset_lexrev_fib(T x) noexcept {
+    constexpr static inline T prev(T x) noexcept {
         T x0 = x & -x;  // lowest bit
         if ( x & (x0<<2) )  { // easy case: next higher bit is set
             x ^= x0;  // clear lowest bit
@@ -89,4 +91,20 @@ class fibrev_subset_lexrev {
             return x;
         }
     }
+
+public:
+
+	///
+	constexpr inline T next() noexcept {
+		const T ret = val;
+		val = next(val);
+		return ret;
+	}
+
+	///
+	constexpr inline T prev() noexcept {
+		const T ret = val;
+		val = prev(val);
+		return ret;
+	}
 };

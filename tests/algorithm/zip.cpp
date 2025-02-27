@@ -16,7 +16,7 @@ using ::testing::UnitTest;
 TEST(zip, uint8_t_) {
     using TypeParam = uint8_t;
     using TypeParam2 = uint16_t;
-    constexpr static size_t s = 1u << 10;
+    constexpr static size_t s = 1 + (1u << 5);
     TypeParam d1[s], d2[s];
     TypeParam2 out[s];
     for (uint32_t i = 0; i < s; i++) {
@@ -28,7 +28,6 @@ TEST(zip, uint8_t_) {
     for (size_t i = 0; i < s; i++) {
         const TypeParam2 t = d1[i] | (((TypeParam2)d2[i]) << (sizeof(TypeParam)*8));
         EXPECT_EQ(out[i], t);
-    
     }
 }
 

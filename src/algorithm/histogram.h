@@ -33,9 +33,6 @@ constexpr static uint32_t histogram_csize = 256;
 constexpr static void avx512_histogram_u8_1x(uint32_t cnt[256],
 									  		 const uint8_t *__restrict in,
 									  		 const size_t inlen) noexcept {
-	// cryptanalysislib::template memset<uint32_t>(cnt, 0u, 256u);
-	// const __m512i acc = _mm512_set1_epi32(1);
-
 	uint32_t tmp1[16] __attribute__((aligned(64))) = {0};
 
 	size_t i = 0;
@@ -56,7 +53,7 @@ constexpr static void avx512_histogram_u8_1x(uint32_t cnt[256],
 		}
 	}
 
-	// tailmng
+	// tail mng
 	for (; i < inlen; ++i) {
 		cnt[in[i]]++;
 	}
@@ -101,6 +98,7 @@ static void avx512_histogram_u32_v3(uint32_t C[256],
 
 /// using popcnt
 /// NOTE: inputs are uint32_t: with values < 2**8
+/// TODO: no tail managment
 /// \param C
 /// \param A
 /// \param size
@@ -121,12 +119,8 @@ static void avx512_histogram_u32_v4(uint32_t C[256],
 
 
 ///
-static inline 
-void FA(__m512i& h, __m512i& l, __m512i a, __m512i b, __m512i c) {
-    //__m512i tmp = _mm512_ternarylogic_epi32(c, b, a, 0x96);
-    //h = _mm512_ternarylogic_epi32(c, b, a, 0xE8);    
-    //l = tmp;
-
+constexr static inline
+void FA(__m512i& h, __m512i& l, __m512i a, __m512i b, __m512i c) noexcept {
     l = _mm512_ternarylogic_epi32(c, b, a, 0x96);
     h = _mm512_ternarylogic_epi32(l, b, a, 0x8E);
 }
@@ -220,7 +214,13 @@ static void consume_buffer_2(uint8_t* data, size_t N, uint16_t* hist16) {
     _mm512_storeu_epi16(hist16 + 32, _mm512_add_epi16(h1, _mm512_loadu_epi16(hist16 + 32)));
 }
 
-void hist256_2(uint8_t* ptr, size_t N, uint32_t* histogram) {
+/// \param histogram[out]:
+/// \param ptr[in]: uint8_t input data
+/// \param N[in]: array size
+constexpr static
+void hist256_2(uint32_t* histogram,
+               const uint8_t* ptr,
+               const size_t N) noexcept {
     // Scalar loop to align input pointer.
     if (N >= 64) {
         uint8_t* end = ptr + N;
@@ -232,7 +232,6 @@ void hist256_2(uint8_t* ptr, size_t N, uint32_t* histogram) {
 
     // Input bytes are binned into buffers; 0 for 0-63, 1 for 64-127, 2 for 128-191, 3 for 192-255.
     const size_t bufsize = 1024 * 16;
-    //  = (uint8_t*)_aligned_malloc(bufsize * 4, 64);
     uint8_t  buffer0[bufsize*4] __attribute__((aligned(64)));
     uint8_t *buffer1 = buffer0 + bufsize;
     uint8_t *buffer2 = buffer1 + bufsize;
@@ -299,8 +298,6 @@ void hist256_2(uint8_t* ptr, size_t N, uint32_t* histogram) {
             _mm512_storeu_epi32(histogram + i + 48, _mm512_add_epi32(w3, _mm512_loadu_epi32(histogram + i + 48)));
         }
     }
-
-    // _aligned_free(buffer0);
 
     // Scalar loop to deal with any remaining input.
     while (N) {

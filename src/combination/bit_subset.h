@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-// Generate all all subsets of bits of  a given word.
+// Generate all subsets of bits of  a given word.
 //
 // E.g., for the word ('.' printed for unset bits)
 //   ...11.1.
@@ -19,7 +19,7 @@ template<typename T = uint64_t>
 class bit_subset_T {
 protected:
 	T U;// current subset
-	T V;// the full set
+	const T V;// the full set
 
 public:
 	explicit bit_subset_T(T v) : U(0), V(v) { ; }
@@ -44,32 +44,6 @@ public:
     /// \return
 	constexpr inline T prev() noexcept {
 		U = (U - 1) & V;
-		return U;
-	}
-
-    /// \return
-	constexpr inline T first(const T v) noexcept {
-		V = v;
-		U = 0;
-		return U;
-	}
-
-    /// \return
-	constexpr inline T first() noexcept {
-		first(V);
-		return U;
-	}
-
-    /// \return
-	constexpr inline T last(T v) noexcept {
-		V = v;
-		U = v;
-		return U;
-	}
-
-    /// \return
-	constexpr inline T last() noexcept {
-		last(V);
 		return U;
 	}
 
@@ -115,38 +89,35 @@ public:
 	}
 
     /// \return
-	constexpr inline T shift_left() {
+	constexpr inline T shift_left() noexcept {
 		U = ((U << 1) + ~V) & V;
 		return U;
 	}
 
     /// \return
-	constexpr inline T shift_left_fill() {
+	constexpr inline T shift_left_fill() noexcept {
 		shift_left();
 		next();
 		return U;
 	}
 
     /// \return
-	constexpr inline T shift_left_blocks() {
+	constexpr inline T shift_left_blocks() noexcept {
 		U = (U << 1) & V;
 		return U;
 	}
 
     /// \return
-	constexpr inline T shift_left_blocks_fill() {
+	constexpr inline T shift_left_blocks_fill() noexcept {
 		shift_left_blocks();
 		U |= ((-V + ~V) & V);
 		return U;
 	}
 
     /// \return
-	constexpr inline T rev_gray_code() {
+	constexpr inline T rev_gray_code() noexcept {
 		U ^= ((U << 1) + ~V);
 		U &= V;
 		return U;
 	}
 };
-
-
-// -------------------------

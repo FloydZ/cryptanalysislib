@@ -80,8 +80,8 @@ static inline void zip_u8(__m256i *__restrict__ out1,
 	const __m256i b = _mm256_loadu_si256(in2);
 	const __m256i tmp1 = _mm256_unpacklo_epi8(a, b);
 	*out2 = _mm256_unpackhi_epi8(a, b);
-	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0b1000);
-	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0b01);
+	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0x20);
+	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
 /// \param out1 lower part: [x1y1, x2y2, ..., x8y8]
@@ -96,8 +96,8 @@ static inline void zip_u16(__m256i *__restrict__ out1,
 	const __m256i b = _mm256_loadu_si256(in2);
 	const __m256i tmp1 = _mm256_unpacklo_epi16(a, b);
 	*out2 = _mm256_unpackhi_epi16(a, b);
-	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0b1000);
-	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0b01);
+	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0x20);
+	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
 /// \param out1 lower part: [x1y1, x2y2, ..., x4y4]
@@ -112,8 +112,8 @@ static inline void zip_u32(__m256i *__restrict__ out1,
 	const __m256i b = _mm256_loadu_si256(in2);
 	const __m256i tmp1 = _mm256_unpacklo_epi32(a, b);
 	*out2 = _mm256_unpackhi_epi32(a, b);
-	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0b1000);
-	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0b01);
+	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0x20);
+	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
 /// \param out1 lower part: [x1y1, x2y2]
@@ -128,8 +128,8 @@ static inline void zip_u64(__m256i *__restrict__ out1,
 	const __m256i b = _mm256_loadu_si256(in2);
 	const __m256i tmp1 = _mm256_unpacklo_epi64(a, b);
 	*out2 = _mm256_unpackhi_epi64(a, b);
-	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0b1000);
-	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0b01);
+	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0x20);
+	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
 /// \param out
@@ -140,12 +140,12 @@ static inline void zip_u8(uint16_t *__restrict__ out,
 						  const uint8_t *__restrict__ in1,
 						  const uint8_t *__restrict__ in2,
 						  const size_t n) {
-	for (size_t i = 0; (i+32) <= n; i += 32) {
-		zip_u8((__m256i *)out, (__m256i *)(out + 16), (__m256i *)in1, (__m256i *)in2);
-		in1 += 32; in2 += 32; out += 16;
+	size_t i = 0;
+	for (; (i+32) <= n; i += 32) {
+		zip_u8((__m256i *)(out + i), (__m256i *)(out + 16 + i), (__m256i *)(in1+i), (__m256i *)(in2 + i));
 	}
 
-	for (size_t i = 0; i < n; i++) {
+	for (; i < n; i++) {
 		const uint16_t t = (uint16_t)(in1[i]) | (((uint16_t)(in2[i])) << 8u);
 		out[i] = t;
 	}

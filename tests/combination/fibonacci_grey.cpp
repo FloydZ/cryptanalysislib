@@ -1,7 +1,7 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 
-#include "combination/bit_subset.h"
+#include "combination/fibonacci_gray.h"
 #include "math/math.h"
 #include "print/print.h"
 
@@ -10,12 +10,14 @@ using ::testing::Test;
 
 TEST(bit_subset, p1) {
 	using T = uint64_t;
-	T W, V = 0b11010000100001;
-	bit_subset_T<T> b(V);
+	constexpr static uint32_t n = 5;
+	constexpr static T m = -1ull;
+	bit_fibgray<T, n> b;
+	T W;
 	do {
 		W = b.next();
-		print_binary(W, 14);
-	} while (V != W);
+		print_binary(W, n);
+	} while (m != W);
 }
 
 int main(int argc, char **argv) {

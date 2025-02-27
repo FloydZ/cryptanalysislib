@@ -74,7 +74,7 @@ TYPED_TEST_P(Max, multithreading_rnd) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd);
-using MyTypes = ::testing::Types<uint8_t>;//, uint16_t, uint32_t, uint64_t>;
+using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Max, MyTypes);
 
 
