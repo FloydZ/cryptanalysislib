@@ -1,4 +1,8 @@
 #pragma once
+#include <cstdint>
+#include <cstdlib>
+#include <cassert>
+#include <array>
 
 template<const uint8_t size>
 constexpr static size_t len_to_keyschedule_size() noexcept {
@@ -86,7 +90,7 @@ constexpr static uint8_t inv_shifts[16] = {
 
 
 /* add the round key to the state with simple XOR operation */
-constexpr void add_round_key(uint8_t state[16], 
+constexpr void add_round_key(std::array<uint8_t, 16> state, 
                              const uint8_t rkey[16]) noexcept {
     for (uint8_t i = 0; i < 16; i++) {
         state[i] ^= rkey[i];
@@ -94,20 +98,20 @@ constexpr void add_round_key(uint8_t state[16],
 }
 
 /* substitute all bytes using Rijndael's substitution box */
-constexpr void sub_bytes(uint8_t state[16]) noexcept {
+constexpr void sub_bytes(std::array<uint8_t, 16> state) noexcept {
     for (uint8_t i = 0; i < 16; i++) {
         state[i] = SBOX[state[i]];
     }
 }
 
 /* reverse the sub bytes step using Rijndael's inverse s-box */
-constexpr void inv_sub_bytes(uint8_t state[16]) noexcept {
+constexpr void inv_sub_bytes(std::array<uint8_t, 16> state) noexcept {
     for (uint8_t i = 0; i < 16; i++) {
         state[i] = INV_SBOX[state[i]];
     }
 }
 
-constexpr void shift_rows(uint8_t state[16]) noexcept {
+constexpr void shift_rows(std::array<uint8_t, 16> state) noexcept {
     uint8_t temp[16];
 
     for (uint8_t i = 0; i < 16; i++) {
@@ -120,7 +124,7 @@ constexpr void shift_rows(uint8_t state[16]) noexcept {
 }
 
 /* the inverse of the shift rows step */
-constexpr void inv_shift_rows(uint8_t state[16]) noexcept {
+constexpr void inv_shift_rows(std::array<uint8_t, 16> state) noexcept {
     uint8_t temp[16];
 
     for (uint8_t i = 0; i < 16; i++) {
@@ -132,7 +136,7 @@ constexpr void inv_shift_rows(uint8_t state[16]) noexcept {
     }
 }
 
-constexpr void mix_columns(uint8_t state[16]) noexcept {
+constexpr void mix_columns(std::array<uint8_t, 16> state) noexcept {
     uint8_t a[4];
     uint8_t b[4];
     uint8_t h;	
@@ -178,7 +182,7 @@ constexpr uint8_t gmul(uint8_t a,
     return p;
 }
 
-constexpr void inv_mix_columns(uint8_t state[16]) noexcept {
+constexpr void inv_mix_columns(std::array<uint8_t, 16> state) noexcept {
     uint8_t a[4];
 
     for (uint8_t k = 0; k < 4; k++) {
@@ -202,7 +206,7 @@ constexpr void inv_mix_columns(uint8_t state[16]) noexcept {
 
 /* key schedule stuff */
 /* simple function to rotate 4 byte array */
-void rotate(uint8_t * in) {
+constexpr void rotate(uint8_t * in) noexcept {
     uint8_t temp;
 
     temp = in[0];
@@ -213,7 +217,7 @@ void rotate(uint8_t * in) {
 }
 
 /* calculate round constant */
-uint8_t rcon(uint8_t in) {
+constexpr uint8_t rcon(uint8_t in) noexcept {
     if (in == 0) {
         return 0;
     }
@@ -235,8 +239,8 @@ uint8_t rcon(uint8_t in) {
 }
 
 /* key schedule core operation */
-void schedule_core(uint8_t * in,
-                   const uint8_t n) {
+constexpr void schedule_core(uint8_t * in,
+                             const uint8_t n) noexcept {
     rotate(in);
 
     for (uint8_t i = 0; i < 4; i++) {
@@ -247,21 +251,21 @@ void schedule_core(uint8_t * in,
 }
 
 /* expand the key */
-void expand_key(uint8_t * in,
-                const uint32_t keysize) {
+constexpr void expand_key(uint8_t * in,
+                const uint32_t keysize) noexcept {
     uint8_t t[4];
     uint8_t size = keysize / 8;
     uint8_t n = 1;
     uint8_t schedule_size;
 
     if (keysize == 128) {
-        schedule_size = SCHEDULE_SIZE_128BIT;
+        schedule_size = 176;
     }
     else if (keysize == 192) {
-        schedule_size = SCHEDULE_SIZE_192BIT;
+        schedule_size = 208;
     }
     else if (keysize == 256) {
-        schedule_size = SCHEDULE_SIZE_256BIT;
+        schedule_size = 240;
     }
     else {
     }
@@ -292,16 +296,17 @@ void expand_key(uint8_t * in,
 
 /// \param
 template<const uint8_t version>
-constexpr void aes_encrypt(uint8_t * state, 
-                 const uint8_t * key) noexcept {
+constexpr std::array<uint8_t, 16> aes_encrypt(const uint8_t s[version/8], 
+                               const uint8_t key[version/8]) noexcept {
     constexpr size_t key_schedule_size = len_to_keyschedule_size<version>();
     constexpr size_t rounds = len_to_rounds<version>();
     uint8_t key_schedule[key_schedule_size];
     uint8_t round_key[16];
 
-    /* initialize key schedule; its first 16 bytes are the key */
+    std::array<uint8_t, 16> state;
     for (uint8_t i = 0; i < 16; i++) {
         key_schedule[i] = key[i];
+        state[i] = s[i];
     }
 
     /* populate the key schedule */
@@ -335,54 +340,55 @@ constexpr void aes_encrypt(uint8_t * state,
     sub_bytes(state);
     shift_rows(state);
     add_round_key(state, round_key);
+    return state;
 }
 
-template<const uint8_t version>
-void aes_decrypt(uint8_t * state, 
-                 const uint8_t *key) noexcept {
-    constexpr size_t key_schedule_size = len_to_keyschedule_size<version>();
-    constexpr size_t rounds = len_to_rounds<version>();
-    uint8_t key_schedule[key_schedule_size];
-    uint8_t round_key[16];
-
-    /* initialize key schedule; its first 16 bytes are the key */
-    for (uint8_t i = 0; i < 16; i++) {
-        key_schedule[i] = key[i];
-    }
-
-    /* populate the key schedule */
-    expand_key(key_schedule, version);
-
-    /* the 'first' round key for decryption is the last in the schedule */
-    for (uint8_t i = 0; i < 16; i++) {
-        round_key[i] = key_schedule[key_schedule_size - 16 + i];
-    }
-
-    /* initial round of AddRoundKey step */
-    add_round_key(state, round_key);
-
-    /* rounds 1-9 of the algorithm */
-    for (uint8_t i = 1; i < rounds; i++) {
-        inv_shift_rows(state);
-        inv_sub_bytes(state);
-
-        for (uint8_t j = 0; j < 16; j++) {
-            round_key[j] = key_schedule[j + ((key_schedule_size - 16) - i * 16)];
-        }
-
-        /* AddRoundKey is its own inverse */
-        add_round_key(state, round_key);
-        inv_mix_columns(state);
-    }
-
-    /* prepare final round key */
-    for (uint8_t i = 0; i < 16; i++) {
-        round_key[i] = key_schedule[i];
-    }
-
-    /* final round */
-    inv_shift_rows(state);
-    inv_sub_bytes(state);
-    add_round_key(state, round_key);
-}
-
+//template<const uint8_t version>
+//void aes_decrypt(uint8_t * state, 
+//                 const uint8_t *key) noexcept {
+//    constexpr size_t key_schedule_size = len_to_keyschedule_size<version>();
+//    constexpr size_t rounds = len_to_rounds<version>();
+//    uint8_t key_schedule[key_schedule_size];
+//    uint8_t round_key[16];
+//
+//    /* initialize key schedule; its first 16 bytes are the key */
+//    for (uint8_t i = 0; i < 16; i++) {
+//        key_schedule[i] = key[i];
+//    }
+//
+//    /* populate the key schedule */
+//    expand_key(key_schedule, version);
+//
+//    /* the 'first' round key for decryption is the last in the schedule */
+//    for (uint8_t i = 0; i < 16; i++) {
+//        round_key[i] = key_schedule[key_schedule_size - 16 + i];
+//    }
+//
+//    /* initial round of AddRoundKey step */
+//    add_round_key(state, round_key);
+//
+//    /* rounds 1-9 of the algorithm */
+//    for (uint8_t i = 1; i < rounds; i++) {
+//        inv_shift_rows(state);
+//        inv_sub_bytes(state);
+//
+//        for (uint8_t j = 0; j < 16; j++) {
+//            round_key[j] = key_schedule[j + ((key_schedule_size - 16) - i * 16)];
+//        }
+//
+//        /* AddRoundKey is its own inverse */
+//        add_round_key(state, round_key);
+//        inv_mix_columns(state);
+//    }
+//
+//    /* prepare final round key */
+//    for (uint8_t i = 0; i < 16; i++) {
+//        round_key[i] = key_schedule[i];
+//    }
+//
+//    /* final round */
+//    inv_shift_rows(state);
+//    inv_sub_bytes(state);
+//    add_round_key(state, round_key);
+//}
+//
