@@ -260,14 +260,12 @@ constexpr void expand_key(uint8_t * in,
 
     if (keysize == 128) {
         schedule_size = 176;
-    }
-    else if (keysize == 192) {
+    } else if (keysize == 192) {
         schedule_size = 208;
-    }
-    else if (keysize == 256) {
+    } else if (keysize == 256) {
         schedule_size = 240;
-    }
-    else {
+    } else {
+		assert(false);
     }
 
     while (size < schedule_size) {
@@ -297,7 +295,7 @@ constexpr void expand_key(uint8_t * in,
 /// \param
 template<const uint8_t version>
 constexpr std::array<uint8_t, 16> aes_encrypt(const uint8_t s[version/8], 
-                               const uint8_t key[version/8]) noexcept {
+                                              const uint8_t key[version/8]) noexcept {
     constexpr size_t key_schedule_size = len_to_keyschedule_size<version>();
     constexpr size_t rounds = len_to_rounds<version>();
     uint8_t key_schedule[key_schedule_size];

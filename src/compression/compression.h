@@ -10,4 +10,6 @@
 #include "compression/lzmat.h"
 #include "compression/smaz2.h"
 
+#include "compression/bwt.h"
+
 #endif//CRYPTANALYSISLIB_COMPRESSION_H

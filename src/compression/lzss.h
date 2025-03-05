@@ -44,7 +44,9 @@
 
 typedef uint32_t (*PFNCOMPRESSCALLBACK)(uint8_t *, uint8_t *, uint8_t *);
 
-unsigned long DecompressData(uint8_t *src,
+/// \param src[in]
+/// \param out[out]
+unsigned long DecompressData(const uint8_t *src,
                              uint8_t *dest) noexcept {
 	uint8_t control;
 	unsigned int phrase_index, control_count = 0;
@@ -83,23 +85,39 @@ unsigned long DecompressData(uint8_t *src,
 	return (unsigned long) (dest - dest_start);
 }
 
-unsigned int CompressCallback(uint8_t *src, uint8_t *src_end, uint8_t *p) {
+/// \param src[in]:
+/// \param src[in]:
+/// \param src[in]:
+unsigned int CompressCallback(uint8_t *src,
+                              uint8_t *src_end, 
+                              uint8_t *p) {
 	printf("\r%lu%% complete.   ",
 	       ((((uintptr_t) p - (uintptr_t) src) * 100) / ((uintptr_t) src_end - (uintptr_t) src)));
 	return 1;
 }
 
-unsigned long DataCompare(unsigned char *str1, unsigned char *str2,
-                          unsigned long maxlength) {
+/// \param str1[in]
+/// \param str2[in]
+/// \param maxlength[in]
+/// \return max length on which str1==str2
+unsigned long DataCompare(const uint8_t *str1,
+                          const uint8_t *str2,
+                          const size_t maxlength) {
 	if (maxlength == 0) { return 0; }
 	unsigned long length = 1;
-	for (; *str1 == *str2 && length < maxlength; length++) {
+	for (; (*str1 == *str2) && (length < maxlength); length++) {
 		str1++; str2++;
 	}
 	return length;
 }
 
-unsigned char *SearchForPhrase(unsigned char *str, unsigned char *src,
+/// search for the longest chain of equal elements
+/// \param str[in]:
+/// \param src[in]:
+/// \param maxlength[in]:
+/// \param str[in]:
+unsigned char *SearchForPhrase(uint8_t *str,
+                               uint8_t *src,
                                unsigned long maxlength,
                                unsigned long *bestlength) {
 	unsigned char *p = str, *best = NULL;
@@ -111,7 +129,6 @@ unsigned char *SearchForPhrase(unsigned char *str, unsigned char *src,
 			// curlength = DataCompare((p + 1), (str + 1), maxlength);
 			// TODO double comparsion
 			curlength = DataCompare(p, str, maxlength);
-            printf("%d\n", curlength);
 			if (curlength > *bestlength) {
 				*bestlength = curlength;
 				best = p;
