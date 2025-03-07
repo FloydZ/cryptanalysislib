@@ -60,7 +60,9 @@ int main() {
 	prepareTestVectorsFromPrefix(prefix);
 
 
-	for (;;)// Outer loop - restart from here if restart is triggered (only applies if RestartRate!=0)
+    // Outer loop - restart from here if restart is triggered (only applies if 
+    // RestartRate!=0)
+	for (;;)
 	{
 		pairs = copyValidPairs(init, config.N);
 
@@ -80,13 +82,14 @@ int main() {
 
 			SortWord_t failed_output_pattern;
 
-			if (testInitialPairsFromPrefixOutput(se, parallelpatterns_from_prefix, failed_output_pattern))
+			if (testInitialPairsFromPrefixOutput(se, parallelpatterns_from_prefix, failed_output_pattern)) {
 				break;
+            }
 
 			Pair_t p;
 
-			if (postfix.size() == 0)// Empty postfix: find a pattern that fixes an arbitrary inversion in the first failed output
-			{
+            // Empty postfix: find a pattern that fixes an arbitrary inversion in the first failed output
+			if (postfix.size() == 0) {
 				bool found_useful_ce = false;
 				do {
 					p = RANDELEM(alphabet);
@@ -117,8 +120,9 @@ int main() {
 
 		checkImproved(totalnw);
 
-		for (;;)// Program never ends, keep trying to improve, we may restart in the outer loop however.
-		{
+        // Program never ends, keep trying to improve, we may restart in the 
+        // outer loop however.
+		for (;;){
 			if (Verbosity > 2) {
 				itercount++;
 				if (itercount >= iter_next_report) {
@@ -135,7 +139,8 @@ int main() {
 					iter_next_report += (1 + iter_next_report / 10);// Report about each 10% increase of iteration count, avoid all too frequent output
 				}
 			}
-			/* Determine number of mutations to use in this iteration */
+
+			// Determine number of mutations to use in this iteration
 			u32 nmods = 1;
 
 			if (config.MaxMutations > 1) {
@@ -143,7 +148,7 @@ int main() {
                 nmods += rng(config.MaxMutations);
 			}
 
-			/* Create a copy of the accepted set of pairs */
+			// Create a copy of the accepted set of pairs
 			newpairs = pairs;
 
 			/* Apply the mutations */
@@ -165,7 +170,8 @@ int main() {
 
 			appendNetwork(se, postfix);
 
-			/* Test whether the new postfix network yields a valid sorter when combined with the prefix */
+			/* Test whether the new postfix network yields a valid sorter when
+             * combined with the prefix */
 			if ((se.size() > 0) && testpairsFromPrefixOutput(se, parallelpatterns_from_prefix)) {
 				concatNetwork(prefix, se, totalnw);
 

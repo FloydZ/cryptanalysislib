@@ -26,8 +26,11 @@ using namespace cryptanalysislib;
 
 using std::size_t;
 
-typedef uint64_t SortWord_t;///< Needs to contain at least NMAX bits
-typedef uint64_t BPWord_t;  ///< Bit-parallel operation word, needs to contain at least PARWORDSIZE bits
+//< Needs to contain at least NMAX bits
+typedef uint64_t SortWord_t;
+
+///< Bit-parallel operation word, needs to contain at least PARWORDSIZE bits
+typedef uint64_t BPWord_t;  
 typedef uint32_t u32;
 typedef uint8_t u8;
 
@@ -78,7 +81,8 @@ Network_t postfix; ///< Fixed or empty postfix network
 #define RANDELEM(v) (v[RANDIDX(v)])
 
 
-/// Orthogonal Convex Hull, to keep track of unmatched (size,depth) combinations of the networks we found
+/// Orthogonal Convex Hull, to keep track of unmatched (size,depth) combinations 
+/// of the networks we found.
 class OCH_t {
 public:
 	OCH_t() {}
@@ -539,12 +543,14 @@ void computePrefixOutputs(u8 ninputs,
 	cg.computeOutputs(patterns);
 }
 
-/**
- * For symmetric networks, any network that sorts a pattern successfully will also sort the reverse of the inverse,
- * i.e. if a symmetric network sorts '00101111', if will also sort '00001011'
- * This function is used to discard the largest of those patterns.
- */
-static bool hasSmallerMirror(u8 ninputs, SortWord_t w) noexcept {
+/// For symmetric networks, any network that sorts a pattern successfully will 
+/// also sort the reverse of the inverse, i.e. if a symmetric network sorts 
+/// '00101111', if will also sort '00001011' This function is used to discard 
+/// the largest of those patterns.
+/// \param ninputs[in]
+constexpr static 
+bool hasSmallerMirror(const u8 ninputs, 
+                      const SortWord_t w) noexcept {
 	SortWord_t rw = 0u;
 	SortWord_t tmp = w;
 	for (u32 k = 0; k < ninputs; k++) {
@@ -623,7 +629,8 @@ void convertToBitParallel(u8 ninputs,
  * @param ninputs Number of network inputs
  * @param use_symmetry If set to true duplicates due to mirroring will be omitted
  */
-static void initAlphabet(u8 ninputs, bool use_symmetry) {
+static void initAlphabet(u8 ninputs,
+                         bool use_symmetry) {
 	alphabet.clear();
 	for (u32 i = 0; i < (ninputs - 1u); i++)
 		for (u32 j = i + 1; j < ninputs; j++) {
@@ -755,9 +762,10 @@ static void swap_sortedpatterns(SinglePatternList_t &patterns,
 }
 
 
-/// Send a bit-parallel set of test patterns through a sorting network. Maximum PARWORDSIZE patterns are processed
-/// together.
-/// 'Data' contains N words. Each bit position corresponds to an independent data set {0,1}^N to be sorted
+/// Send a bit-parallel set of test patterns through a sorting network. Maximum 
+///     PARWORDSIZE patterns are processe together.
+/// 'Data' contains N words. Each bit position corresponds to an independent
+///     data set {0,1}^N to be sorted
 /// Bit level truth table:
 /// In    Out
 /// 00 ->  00
