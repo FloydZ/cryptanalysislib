@@ -18,6 +18,40 @@
 namespace cryptanalysislib {
 namespace random::internal {
 
+/// source: https://github.com/avaneev/komihash/blob/main/komihash.h
+/// @brief KOMIRAND 64-bit pseudo-random number generator.
+/// 
+/// Simple, reliable, self-starting yet efficient PRNG, with 2^64 period.
+/// 0.62 cycles/byte performance. Self-starts in 4 iterations, which is a
+/// suggested "warming up" initialization before using its output.
+/// 
+/// While for simplicity it is possible to use the same initial value for both
+/// the `Seed1` and `Seed2` variables, these variables can be also
+/// independently initialized with two high-quality uniformly-random values
+/// (e.g., from operating system's entropy, or a hash function's outputs). Such
+/// initialization reduces the number of "warm up" iterations - that way the
+/// PRNG output will be valid from the let go.
+/// 
+/// @param[in,out] Seed1 Seed value 1. Can be initialized to any value
+/// (even 0). This is the usual "PRNG seed" value.
+/// @param[in,out] Seed2 Seed value 2, a supporting variable. In the simplest
+/// case, can be initialized to the same value as `Seed1`.
+/// @return The next uniformly-random 64-bit value.
+//static inline uint64_t komirand(uint64_t* const Seed1,
+//	                            uint64_t* const Seed2 ) noexcept {
+//	uint64_t s1 = *Seed1;
+//	uint64_t s2 = *Seed2;
+//
+//	kh_m128( s1, s2, &s1, &s2 );
+//	s2 += KOMIHASH_VAL10;
+//	s1 ^= s2;
+//
+//	*Seed2 = s2;
+//	*Seed1 = s1;
+//
+//	return( s1 );
+//}
+
 /// super rng values
 static uint64_t random_x = 123456789u, random_y = 362436069u, random_z = 521288629u;
 

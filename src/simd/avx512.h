@@ -20,33 +20,6 @@
 typedef char __v64qi_u __attribute__((__vector_size__(64), __may_alias__, __aligned__(1)));
 #endif
 
-/// NOTE: apparently this function is not in the normal list of intrinsics?
-static inline 
-__m512i _mm512_setr_epi8 (char __e63, char __e62, char __e61, char __e60, char __e59,            
-                          char __e58, char __e57, char __e56, char __e55, char __e54, char __e53,
-                          char __e52, char __e51, char __e50, char __e49, char __e48, char __e47,
-                          char __e46, char __e45, char __e44, char __e43, char __e42, char __e41,
-                          char __e40, char __e39, char __e38, char __e37, char __e36, char __e35,
-                          char __e34, char __e33, char __e32, char __e31, char __e30, char __e29,
-                          char __e28, char __e27, char __e26, char __e25, char __e24, char __e23,
-                          char __e22, char __e21, char __e20, char __e19, char __e18, char __e17,
-                          char __e16, char __e15, char __e14, char __e13, char __e12, char __e11,
-                          char __e10, char __e9,  char __e8,  char __e7,  char __e6,  char __e5,
-                          char __e4,  char __e3,  char __e2,  char __e1,  char __e0) {
-  return __extension__ (__m512i)(__v64qi) {
-    __e63, __e62, __e61, __e60, __e59,            
-    __e58, __e57, __e56, __e55, __e54, __e53,
-    __e52, __e51, __e50, __e49, __e48, __e47,
-    __e46, __e45, __e44, __e43, __e42, __e41,
-    __e40, __e39, __e38, __e37, __e36, __e35,
-    __e34, __e33, __e32, __e31, __e30, __e29,
-    __e28, __e27, __e26, __e25, __e24, __e23,
-    __e22, __e21, __e20, __e19, __e18, __e17,
-    __e16, __e15, __e14, __e13, __e12, __e11,
-    __e10, __e9,  __e8,  __e7,  __e6,  __e5,
-    __e4,  __e3,  __e2,  __e1,  __e0};
-}
-
 /// translates 64 bytes into a singe __m512i register as constexpr
 [[nodiscard]] constexpr static __m512i u8tom512(const uint8_t t[64]) noexcept {
 	long long __t[8];

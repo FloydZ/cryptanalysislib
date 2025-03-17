@@ -22,7 +22,8 @@
 /// 		const __m256i permuted_data = _mm256_permutevar8x32_ps(data, shuffle);
 /// \param mask bit mask. Must be smaller than 2**8
 /// \return the permutation
-inline __m256i shuffle_down_32(const uint64_t mask) noexcept {
+static inline 
+__m256i shuffle_down_32(const uint64_t mask) noexcept {
 	// make sure only sane inputs make it.
 	assert(mask < (1u << 8u));
 
@@ -51,7 +52,8 @@ inline __m256i shuffle_down_32(const uint64_t mask) noexcept {
 /// 		const __m256i permuted_data = _mm256_permutevar4x64_pd(data, shuffle);
 /// \param mask bit mask. Must be smaller than 2**4
 /// \return the permutation
-const __m256i shuffle_down_64(const uint64_t mask) noexcept {
+static inline
+__m256i shuffle_down_64(const uint64_t mask) noexcept {
 	// make sure only sane inputs make it.
 	assert(mask < (1u << 4u));
 
@@ -74,7 +76,8 @@ const __m256i shuffle_down_64(const uint64_t mask) noexcept {
 /// \param higher: output parameterm, contains the higher/last 4 permutations
 /// \param lower:  output parameter, contain the lower/first 4 permutations
 /// \param mask: input parameter
-const void shuffle_down_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) noexcept {
+static inline 
+void shuffle_down_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) noexcept {
 	// make sure only sane inputs make it.
 	assert(mask < (1u << 8u));
 
@@ -101,7 +104,8 @@ const void shuffle_down_2_64(__m256i &higher, __m256i &lower, const uint64_t mas
 /// 		const __m256i permuted_data = _mm256_permutevar8x32_ps(data, shuffle);
 /// \param mask
 /// \return
-const __m256i shuffle_up_32(const uint64_t mask) noexcept {
+static inline 
+__m256i shuffle_up_32(const uint64_t mask) noexcept {
 	assert(mask < (1u << 8u));
 
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
@@ -125,7 +129,8 @@ const __m256i shuffle_up_32(const uint64_t mask) noexcept {
 /// 		const __m256i permuted_data = _mm256_permutevar4x64_pd(data, shuffle);
 /// \param mask
 /// \return
-const __m256i shuffle_up_64(const uint64_t mask) noexcept {
+static inline 
+__m256i shuffle_up_64(const uint64_t mask) noexcept {
 	assert(mask < (1u << 4u));
 
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
@@ -143,7 +148,8 @@ const __m256i shuffle_up_64(const uint64_t mask) noexcept {
 /// \param higher[out]:
 /// \param lower[out]:
 /// \param mask[in]:
-const void shuffle_up_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) noexcept {
+static inline
+void shuffle_up_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) noexcept {
 	assert(mask < (1u << 8u));
 
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
