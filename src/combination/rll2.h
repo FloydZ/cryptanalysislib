@@ -1,53 +1,65 @@
 #pragma once 
-class bit_rll2
+
 // Run length limited (RLL) words and Fibonacci words.
 // The RLL words are in lexicographic order,
 // the Fibonacci words are in a minimal change order (Gray code).
-{
-public:
-    ulong w_;  // RLL-word
+// 01001001001010
+// 01001001001011
+// 01001001001100
+// 01001001001101
+// 01001001010010
+// 01001001010011
+// 01001001010100
+// 01001001010101
+// 01001001010110
+// 01001001011001
+// 01001001011010
+// 01001001011011
+// 01001001100100
+// 01001001100101
+// 01001001100110
+// 01001001101001
+// 01001001101010
+// 01001001101011
+// 01001001101100
+template<typename T>
+class bit_rll2 {
+private:
+    constexpr static size_t BITS = sizeof(T) * 8u;
+    T w_;  // RLL-word
 
 public:
-    bit_rll2()  { first(); }
+    constexpr bit_rll2() noexcept { first(); }
 
-    void first()
-    {
+    constexpr void first() noexcept {
         w_ = 1;
-        ulong s = 3;  // max run length + 1
-        while ( s <= BITS_PER_LONG )
-        {
+        T s = 3;  // max run length + 1
+        while (s <= BITS ) {
             w_ |= w_ << s;
             s <<= 1;
         }
     }
 
-    void last()
-    {
+    constexpr void last() noexcept {
         first();
         w_ <<= 2;  // shift by max run length
         w_ = ~w_;
     }
 
-    void middle()
     // RLL word corresponding to all-zero Fibonacci word
-    {
-#if BITS_PER_LONG == 64
+    constexpr void middle() noexcept {
         w_ = 0xaaaaaaaaaaaaaaaaUL;
-#else
-        w_ = 0xaaaaaaaaUL;
-#endif
     }
 
 private:
-    ulong step(ulong x)
-    {
+    constexpr T step(T x) {
         x |= ( (x>>1) & (x>>2) ); // max run length 2
         // ==> Gray code with max 1 successive one (Fibonacci words)
 
-//        x |= ( (x>>1) & (x>>2) & (x>>3) ); // max run length 3
+        // x |= ( (x>>1) & (x>>2) & (x>>3) ); // max run length 3
         // ==> Gray code with max 2 successive ones
 
-//        x |= ( (x>>1) & (x>>2) & (x>>4) ); // max run length 4
+        // x |= ( (x>>1) & (x>>2) & (x>>4) ); // max run length 4
         // ==> Gray code with max 3 successive ones
 
         x ^= (x+1);
@@ -56,17 +68,17 @@ private:
     }
 
 public:
-    ulong next()  { return step( w_ ); }
-    ulong prev()  { return step( ~w_ ); }
+    constexpr T next() noexcept { return step( w_ ); }
+    constexpr T prev() noexcept { return step( ~w_ ); }
 
-    ulong data()  const
     // RLL word (lexicographic order)
+    constexpr T data() const noexcept 
     { return w_; }
 
-    ulong fib()  const
     // Fibonacci word (Gray code)
+    constexpr T fib() const noexcept 
     { return  ~( w_ ^ (w_ >> 1) ); }
 
-    ulong next_fib()  { next();  return fib(); }
-    ulong prev_fib()  { prev();  return fib(); }
+    constexpr T next_fib() noexcept { next(); return fib(); }
+    constexpr T prev_fib() noexcept { prev(); return fib(); }
 };

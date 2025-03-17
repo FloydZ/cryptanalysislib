@@ -7,7 +7,7 @@
 
 #include "alloc/alloc.h"
 
-// 2.6. Heap. An implementation of a binary heap.
+// An implementation of a binary heap.
 template <class T, 
           class Comp = std::less<T>,
           class Allocator = cryptanalysislib::allocator<T>>
@@ -202,13 +202,12 @@ public:
     
     /// Return maximal element of heap and restore heap structure.
     /// Return value is undefined for 0==n.
-    T extract_max(size_t n) noexcept {
+    T extract_max(const size_t n) noexcept {
         T m = x[0];
         if ( 0 != n ) {
             T *x1 = x - 1;
             x1[1] = x1[n];
-            --n;
-            heapify(x1, n, 1);
+            heapify(x1, n-1, 1);
         }
         return m;
     }

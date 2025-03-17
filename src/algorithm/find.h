@@ -292,5 +292,8 @@ namespace cryptanalysislib {
 			std::not_fn(p)
 		);
 	}
+
+
+
 }
 #endif //FIND_H

@@ -7,6 +7,7 @@
 
 #define INC(c) ((c) == K - 1 ? 0 : (c) + 1)
 
+// TODO custom distance function
 template<const int K,
          typename D = double,
          template<class N> class Allocator = cryptanalysislib::allocator>

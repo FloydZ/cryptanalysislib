@@ -43,11 +43,11 @@ public:
         allocator.deallocate(x_, s_);
     }
 
-    constexpr size_t size() const noexcept { 
+    [[nodiscard]] constexpr size_t size() const noexcept {
         return n_; 
     }
 
-    constexpr size_t capacity() const noexcept { 
+    [[nodiscard]] constexpr size_t capacity() const noexcept {
         return s_; 
     }
 
