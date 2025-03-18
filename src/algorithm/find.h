@@ -293,7 +293,68 @@ namespace cryptanalysislib {
 		);
 	}
 
+    template<class ForwardIt1, 
+             class ForwardIt2>
+#if __cplusplus > 201709L
+		requires std::forward_iterator<ForwardIt1> &&
+                 std::forward_iterator<ForwardIt2>
+#endif
+    constexpr
+    ForwardIt1 find_end(ForwardIt1 first,
+                        ForwardIt1 last,
+                        ForwardIt2 s_first,
+                        ForwardIt2 s_last) noexcept {
+        if (s_first == s_last) {
+            return last;
+        }
+     
+        ForwardIt1 result = last;
+        while (true) {
+            ForwardIt1 new_result = std::search(first, last, s_first, s_last);
+            if (new_result == last) {
+                break;
+            } else {
+                result = new_result;
+                first = result;
+                ++first;
+            }
+        }
 
+        return result;
+    }
+
+    /// \tparam ForwardIt1
+    template<class ForwardIt1, 
+             class ForwardIt2, 
+             class BinaryPred>
+    #if __cplusplus > 201709L
+    		requires std::forward_iterator<ForwardIt1> &&
+                     std::forward_iterator<ForwardIt2> && 
+    			     std::regular_invocable<BinaryPred, bool>
+    #endif
+    constexpr //< since C++20
+    ForwardIt1 find_end(ForwardIt1 first, ForwardIt1 last,
+                        ForwardIt2 s_first, ForwardIt2 s_last,
+                        BinaryPred p)
+    {
+        if (s_first == s_last)
+            return last;
+     
+        ForwardIt1 result = last;
+        while (true)
+        {
+            ForwardIt1 new_result = std::search(first, last, s_first, s_last, p);
+            if (new_result == last)
+                break;
+            else
+            {
+                result = new_result;
+                first = result;
+                ++first;
+            }
+        }
+        return result;
+    }
 
 }
 #endif //FIND_H

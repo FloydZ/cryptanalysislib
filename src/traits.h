@@ -1,6 +1,10 @@
 #ifndef CRYPTANALYSISLIB_TRAITS_H
 #define CRYPTANALYSISLIB_TRAITS_H
 
+#include <cstdlib>
+#include <type_traits>
+#include <utility>
+
 namespace cryptanalysislib {
 	namespace internal {
 		// NOTE: this value can be changed, if you need it.
