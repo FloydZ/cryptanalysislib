@@ -6,6 +6,7 @@
 #include "compression/inflate.h"
 #include "compression/leb128.h"
 #include "compression/lz77.h"
+#include "compression/lzf.h"
 #include "compression/lzss.h"
 #include "compression/lzmat.h"
 #include "compression/smaz2.h"

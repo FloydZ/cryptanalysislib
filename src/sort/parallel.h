@@ -15,20 +15,19 @@ namespace cryptanalysislib {
             return *(std::next(first, std::distance(first, last) / 2));
         }
 
-        /**
-        * Predicate for std::partition (for quicksort)
-        */
+        /// Predicate for std::partition (for quicksort)
         template <class Compare,
                   class T>
         struct pivot_predicate {
-            /// @param comp
-            /// @param pivot
+
+            /// \param comp
+            /// \param pivot
             pivot_predicate(Compare comp,
                             const T& pivot) noexcept :
                 comp(comp), pivot(pivot) {}
 
             ///
-            bool operator()(const T& em) noexcept {
+            constexpr inline bool operator()(const T& em) noexcept {
                 return comp(em, pivot);
             }
 
@@ -36,11 +35,9 @@ namespace cryptanalysislib {
             const T pivot;
         };
 
-        /**
-         * Partition range according to predicate. Unstable.
-         *
-         * This implementation only parallelizes with p=2; will spawn and wait for only one task.
-         */
+        /// Partition range according to predicate. Unstable.
+        /// This implementation only parallelizes with p=2; will spawn and wait 
+        /// for only one task.
         template <class RandIt,
                   class Predicate>
         #if __cplusplus > 201709L
@@ -78,12 +75,9 @@ namespace cryptanalysislib {
     }; // end namespace internal
 
 
-    /**
-     * Sort a range in parallel.
-     *
-     * @param sort_func Sequential sort method, like std::sort or std::stable_sort
-     * @param merge_func Sequential merge method, like std::inplace_merge
-     */
+    /// Sort a range in parallel.
+    /// \param sort_func Sequential sort method, like std::sort or std::stable_sort
+    /// \param merge_func Sequential merge method, like std::inplace_merge
     template <class ExecPolicy,
               class RandIt,
               class Compare,
@@ -144,9 +138,7 @@ namespace cryptanalysislib {
         futures.front().get();
     }
 
-    /**
-     * Quicksort worker function.
-     */
+    /// Quicksort worker function.
     template <class RandIt,
               class Compare,
               class SortFunc,
@@ -204,13 +196,12 @@ namespace cryptanalysislib {
         sort_func(first, last, comp);
     }
 
-    /**
-     * Sort a range in parallel using quicksort.
-     *
-     * @param sort_func Sequential sort method, like std::sort or std::stable_sort
-     * @param part_func Method that partitions a range, like std::partition or std::stable_partition
-     * @param pivot_func Method that identifies the pivot
-     */
+    /// Sort a range in parallel using quicksort.
+    /// \param first
+    /// \param first
+    /// \param sort_func Sequential sort method, like std::sort or std::stable_sort
+    /// \param part_func Method that partitions a range, like std::partition or std::stable_partition
+    /// \param pivot_func Method that identifies the pivot
     template <class ExecPolicy,
               class RandIt,
               class Compare,
@@ -233,19 +224,21 @@ namespace cryptanalysislib {
 
         auto& task_pool = *policy.pool();
 
-        // Target partition size. Range will be recursively partitioned into partitions no bigger than this
-        // size. Target approximately twice as many partitions as threads to reduce impact of uneven pivot
+        // Target partition size. Range will be recursively partitioned into 
+        // partitions no bigger than this size. Target approximately twice as 
+        // many partitions as threads to reduce impact of uneven pivot
         // selection.
         auto num_threads = task_pool.get_num_threads();
-        std::ptrdiff_t target_leaf_size = std::max((std::ptrdiff_t)(std::distance(first, last) / (num_threads * 2)),
-                                                   (std::ptrdiff_t)5);
+        std::ptrdiff_t target_leaf_size = std::max(
+            (std::ptrdiff_t)(std::distance(first, last) / (num_threads * 2)),
+            (std::ptrdiff_t)5);
 
         if (num_threads == 1) {
             target_leaf_size = std::distance(first, last);
         }
 
-        // task_thread_pool does not support creating task DAGs, so organize the code such that
-        // all parallel tasks are independent. The parallel tasks can spawn additional parallel tasks, and they
+        // task_thread_pool does not support creating task DAGs, so organize
+        // the code such that all parallel tasks are independent. The parallel tasks can spawn additional parallel tasks, and they
         // record their "child" task's std::future into a common vector to be waited on by the main thread.
         std::mutex mutex;
 

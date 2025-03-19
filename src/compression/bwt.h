@@ -11,7 +11,7 @@ int rank(uint8_t *T, char c, int i){
 	int sum=0;
 	int j;
 	for(j=0; j<i; j++) if(T[j] <= c) sum++;
-	for(; j<strlen((char *)T); j++) if(T[j] < c) sum++;
+	for(; j<(int)strlen((char *)T); j++) if(T[j] < c) sum++;
 
     return sum;
 }
