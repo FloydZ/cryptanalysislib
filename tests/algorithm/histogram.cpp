@@ -80,7 +80,7 @@ TEST(histogram_u32_avx2, single) {
 
 TEST(avx512_hist256_, single) {
 	constexpr size_t s = 1u << 10;
-	using T = uint8_t;
+	using T = uint32_t;
 	T *data = (T *)malloc(s * sizeof(T));
 	auto *cnt = (uint32_t *)malloc(256 * sizeof(uint32_t));
 	memset(data, 0, s * sizeof(T));
@@ -117,7 +117,7 @@ TEST(avx512_histogram_u32_v3, single) {
 }
 
 TEST(avx512_histogram_u32_v4, single) {
-	constexpr size_t s = 32;
+	constexpr size_t s = 64;
 	using T = uint32_t;
 	T *data = (T *)malloc(s * sizeof(T));
 	auto *cnt = (uint32_t *)malloc(256 * sizeof(uint32_t));
@@ -129,6 +129,29 @@ TEST(avx512_histogram_u32_v4, single) {
 
 	data[0] = 1;
 	avx512_histogram_u32_v4(cnt, data, s);
+	EXPECT_EQ(cnt[0], s-1);
+	EXPECT_EQ(cnt[1], 1);
+
+	free(data); free(cnt);
+}
+
+TEST(avx512_hist256_2, single) {
+	constexpr size_t s = 64;
+	using T = uint8_t;
+	T *data = (T *)cryptanalysislib::aligned_alloc(64, s * sizeof(T));
+	auto *cnt = (uint8_t *)malloc(256 * sizeof(uint32_t));
+	memset(data, 0, s * sizeof(T));
+	memset(cnt, 0, 256* sizeof(uint32_t));
+
+	for (uint32_t i = 0; i < s; i++) {
+		data[i] = i;
+	}
+
+	histogram_less(cnt, data, s);
+	// EXPECT_EQ(cnt[0], s);
+
+	data[0] = 1;
+	histogram_less(cnt, data, s);
 	EXPECT_EQ(cnt[0], s-1);
 	EXPECT_EQ(cnt[1], 1);
 

@@ -14,6 +14,7 @@
 
 #include "helper.h"
 #include "random.h"
+#include "avx512_intrinsics.h"
 
 #ifdef __clang__
 /// what this is needed?
@@ -268,6 +269,11 @@ struct Xint8x64_t {
 		return out;
 	}
 
+    /// set the `i`-th bit in each limb
+    /// \param pos[in]: bit position to set
+    constexpr inline void set_bit(const uint32_t pos) noexcept {
+        v512 = _mm512_set1_epi8(1u << pos); 
+    }
 
 	/// \tparam aligned[in]: if true a aligned instruction will be emmited.
 	/// \param ptr[in]: pointer to memory
@@ -317,6 +323,25 @@ struct Xint8x64_t {
 			return out;
 		}
 	}
+
+    /// NOTE: is just unaligned_load
+	/// \param ptr
+	/// \return
+	[[nodiscard]] constexpr static inline S maskz_aligned_load(const limb_type *ptr, 
+                                                                 const Mask<LIMBS> &m) noexcept {
+		S out;
+        out.v512 = _mm512_maskz_loadu_epi8(m, ptr);
+        return out;
+    }
+
+	/// \param ptr
+	/// \return
+	[[nodiscard]] constexpr static inline S maskz_unaligned_load(const limb_type *ptr, 
+                                                                 const Mask<LIMBS> &m) noexcept {
+		S out;
+        out.v512 = _mm512_maskz_loadu_epi8(m, ptr);
+        return out;
+    }
 
 	/// \tparam aligned
 	/// \param ptr
@@ -883,6 +908,75 @@ struct Xint8x64_t {
         return ret;
     }
 
+    /// translates to the `_mm512_maskz_compress_epi16` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	[[nodiscard]] constexpr static inline Xint8x64_t compress(const S in1,
+                                                              const Mask<LIMBS> &m) noexcept {
+        S out; 
+        out.v512 = _mm512_maskz_compress_epi8(m, in1.v512);
+        return out;
+    }
+
+    /// translates to the `_mm512_mask_compress_epi8` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	[[nodiscard]] constexpr static inline Xint8x64_t compress(const S in1,
+                                                              const S in2,
+                                                              const Mask<LIMBS> &m) noexcept {
+        S out; 
+        out.v512 = _mm512_mask_compress_epi8(in2.v512, m, in1.v512);
+        return out;
+    }
+
+    /// translates to the `_mm512_maskz_compress_epi8` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	constexpr static inline void compress(uint8_t *ptr,
+                                          const Xint8x64_t in1,
+                                          const Mask<LIMBS> &m) noexcept {
+        _mm512_maskz_compressstoreu_epi8(ptr, m, in1.v512);
+    }
+
+    /// translates to the `_mm512_test_epi64_mask` instrinsic
+    /// \param in1[in]: avx512 register to test
+    /// \param bit_pos[in]: bit pos to test
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+                                                           const uint32_t bit_pos) noexcept {
+        const S tmp = S::set1(1u << bit_pos);
+        __mmask64 mm = _mm512_test_epi8_mask(in1, tmp);
+        return Mask<LIMBS>(mm);
+    }
+
+    /// translates to the `_mm512_test_epi64_mask` instrinsic
+    /// \param in1[in]: avx512 register to test
+    /// \param bit_pos[in]: bit pos to test
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+                                                           const uint32_t bit_pos) noexcept {
+        const S tmp = S::set1(1u << bit_pos);
+        __mmask64 mm = _mm512_test_epi8_mask(in1, tmp);
+        return Mask<LIMBS>(mm);
+    }
+
+    /// TODO not correct
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
+        if constexpr (is_unsigned()) {
+            return _mm512_reduce_min_epu32(in1.v512)
+        }
+        return _mm512_reduce_min_epi32(in1.v512);
+    }
+
+    /// TODO not correct
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
+        if constexpr (is_unsigned()) {
+            return _mm512_reduce_max_epu32(in1.v512)
+        }
+        return _mm512_reduce_max_epi32(in1.v512);
+    }
+
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline uint64_t move(const S in) noexcept {
@@ -1082,6 +1176,11 @@ struct Xint16x32_t {
 		return out;
 	}
 
+    /// set the `i`-th bit in each limb
+    /// \param pos[in]: bit position to set
+    constexpr inline void set_bit(const uint32_t pos) noexcept {
+        v512 = _mm512_set1_epi16(1u << pos); 
+    }
 
 	///
 	/// \tparam aligned
@@ -1133,6 +1232,25 @@ struct Xint16x32_t {
 			return out;
 		}
 	}
+
+    /// NOTE: is just unaligned_load
+	/// \param ptr
+	/// \return
+	[[nodiscard]] constexpr static inline S maskz_aligned_load(const limb_type *ptr, 
+                                                                 const Mask<LIMBS> &m) noexcept {
+		S out;
+        out.v512 = _mm512_maskz_loadu_epi16(m, ptr);
+        return out;
+    }
+
+	/// \param ptr
+	/// \return
+	[[nodiscard]] constexpr static inline S maskz_unaligned_load(const limb_type *ptr, 
+                                                                 const Mask<LIMBS> &m) noexcept {
+		S out;
+        out.v512 = _mm512_maskz_loadu_epi16(m, ptr);
+        return out;
+    }
 
 	/// \tparam aligned
 	/// \param ptr
@@ -1492,6 +1610,64 @@ struct Xint16x32_t {
 		return out;
 	}
 
+    /// translates to the `_mm512_maskz_compress_epi16` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	[[nodiscard]] constexpr static inline Xint16x32_t compress(const S in1,
+                                                               const Mask<LIMBS> &m) noexcept {
+        S out; 
+        out.v512 = _mm512_maskz_compress_epi16(m, in1.v512);
+        return out;
+    }
+
+    /// translates to the `_mm512_mask_compress_epi16` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	[[nodiscard]] constexpr static inline Xint16x32_t compress(const S in1,
+                                                               const S in2,
+                                                               const Mask<LIMBS> &m) noexcept {
+        S out; 
+        out.v512 = _mm512_mask_compress_epi16(in2.v512, m, in1.v512);
+        return out;
+    }
+
+    /// translates to the `_mm512_maskz_compress_epi16` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	constexpr static inline void compress(uint16_t *ptr,
+                                          const S in1,
+                                          const Mask<LIMBS> &m) noexcept {
+        _mm512_maskz_compressstoreu_epi16(ptr, m, in1.v512);
+    }
+
+    /// \param in1[in]: avx512 register to test
+    /// \param bit_pos[in]: bit pos to test
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+                                                           const uint32_t bit_pos) noexcept {
+        const S tmp = S::set1(1u << bit_pos);
+        __mmask32 mm = _mm512_test_epi16_mask(in1, tmp);
+        return Mask<LIMBS>(mm);
+    }
+
+    /// TODO not correct
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
+        if constexpr (is_unsigned()) {
+            return _mm512_reduce_min_epu32(in1.v512)
+        }
+        return _mm512_reduce_min_epi32(in1.v512);
+    }
+
+    /// TODO not correct
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
+        if constexpr (is_unsigned()) {
+            return _mm512_reduce_max_epu32(in1.v512)
+        }
+        return _mm512_reduce_max_epi32(in1.v512);
+    }
+
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t move(const Xint16x32_t in) noexcept {
@@ -1618,6 +1794,11 @@ struct Xint32x16_t {
 		return out;
 	}
 
+    /// set the `i`-th bit in each limb
+    /// \param pos[in]: bit position to set
+    constexpr inline void set_bit(const uint32_t pos) noexcept {
+        v512 = _mm512_set1_epi32(1u << pos); 
+    }
 
 	///
 	/// \tparam aligned
@@ -1670,6 +1851,24 @@ struct Xint32x16_t {
 			return out;
 		}
 	}
+
+	/// \param ptr
+	/// \return
+	[[nodiscard]] constexpr static inline S maskz_aligned_load(const limb_type *ptr, 
+                                                                 const Mask<LIMBS> &m) noexcept {
+		S out;
+        out.v512 = _mm512_maskz_load_epi32(m, ptr);
+        return out;
+    }
+
+	/// \param ptr
+	/// \return
+	[[nodiscard]] constexpr static inline S maskz_unaligned_load(const limb_type *ptr, 
+                                                                 const Mask<LIMBS> &m) noexcept {
+		S out;
+        out.v512 = _mm512_maskz_loadu_epi32(m, ptr);
+        return out;
+    }
 
 	///
 	/// \tparam aligned
@@ -2056,6 +2255,64 @@ struct Xint32x16_t {
 		return ret;
 	}
 
+    /// translates to the `_mm512_maskz_compress_epi32` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	[[nodiscard]] constexpr static inline Xint32x16_t compress(const S in1,
+                                                               const Mask<LIMBS> &m) noexcept {
+        S out; 
+        out.v512 = _mm512_maskz_compress_epi32(m, in1.v512);
+        return out;
+    }
+
+    /// translates to the `_mm512_mask_compress_epi32` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	[[nodiscard]] constexpr static inline Xint32x16_t compress(const S in1,
+                                                               const S in2,
+                                                               const Mask<LIMBS> &m) noexcept {
+        S out; 
+        out.v512 = _mm512_mask_compress_epi32(in2.v512, m, in1.v512);
+        return out;
+    }
+
+    /// translates to the `_mm512_maskz_compress_epi32` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	constexpr static inline void compress(uint32_t *ptr,
+                                          const S in1,
+                                          const Mask<LIMBS> &m) noexcept {
+        _mm512_maskz_compressstoreu_epi32(ptr, m, in1.v512);
+    }
+
+    /// \param in1[in]: avx512 register to test
+    /// \param bit_pos[in]: bit pos to test
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+                                                           const uint32_t bit_pos) noexcept {
+        const S tmp = S::set1(1u << bit_pos);
+        __mmask16 mm = _mm512_test_epi32_mask(in1, tmp);
+        return Mask<LIMBS>(mm);
+    }
+
+    /// \param in1[in]:
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
+        if constexpr (is_unsigned()) {
+            return _mm512_reduce_min_epu32(in1.v512)
+        }
+        return _mm512_reduce_min_epi32(in1.v512);
+    }
+
+    /// \param in1[in]:
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
+        if constexpr (is_unsigned()) {
+            return _mm512_reduce_max_epu32(in1.v512)
+        }
+        return _mm512_reduce_max_epi32(in1.v512);
+    }
+
 	/// needs `AVX512F`, wrapper around `_mm512_shuffle_i32x4`
 	/// \param input
 	/// \return
@@ -2196,6 +2453,11 @@ struct Xint64x8_t {
 		return out;
 	}
 
+    /// set the `i`-th bit in each limb
+    /// \param pos[in]: bit position to set
+    constexpr inline void set_bit(const uint32_t pos) noexcept {
+        v512 = _mm512_set1_epi64(1u << pos); 
+    }
 
 	///
 	/// \tparam aligned
@@ -2229,8 +2491,6 @@ struct Xint64x8_t {
 		}
 	}
 
-
-	///
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline Xint64x8_t unaligned_load(const limb_type *ptr) noexcept {
@@ -2248,6 +2508,26 @@ struct Xint64x8_t {
 			return out;
 		}
 	}
+
+    /// TODO extend to avx2
+	/// \param ptr
+	/// \return
+	[[nodiscard]] constexpr static inline S maskz_aligned_load(const limb_type *ptr, 
+                                                                 const Mask<LIMBS> &m) noexcept {
+		S out;
+        out.v512 = _mm512_maskz_load_epi64(m, ptr);
+        return out;
+    }
+
+    /// TODO extend to avx2
+	/// \param ptr
+	/// \return
+	[[nodiscard]] constexpr static inline S maskz_unaligned_load(const limb_type *ptr, 
+                                                                 const Mask<LIMBS> &m) noexcept {
+		S out;
+        out.v512 = _mm512_maskz_loadu_epi64(m, ptr);
+        return out;
+    }
 
 	///
 	/// \tparam aligned
@@ -2613,6 +2893,66 @@ struct Xint64x8_t {
 #endif
 		return ret;
 	}
+
+    /// translates to the `_mm512_maskz_compress_epi64` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	[[nodiscard]] constexpr static inline Xint64x8_t compress(const S in1,
+                                                              const Mask<LIMBS> &m) noexcept {
+        S out; 
+        out.v512 = _mm512_maskz_compress_epi64(m, in1.v512);
+        return out;
+    }
+
+    /// translates to the `_mm512_mask_compress_epi64` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	[[nodiscard]] constexpr static inline Xint64x8_t compress(const S in1,
+                                                              const S in2,
+                                                              const Mask<LIMBS> &m) noexcept {
+        S out; 
+        out.v512 = _mm512_mask_compress_epi64(in2.v512, m, in1.v512);
+        return out;
+    }
+
+    /// translates to the `_mm512_maskz_compress_epi64` instrinsics
+    /// \param in1[in]:
+    /// \param m[in]:
+    /// \return 
+	constexpr static inline void compress(uint64_t *ptr,
+                                          const Xint64x8_t in1,
+                                          const Mask<LIMBS> &m) noexcept {
+        _mm512_maskz_compressstoreu_epi64(ptr, m, in1.v512);
+    }
+   
+    /// translates to the `_mm512_test_epi64_mask` instrinsic
+    /// \param in1[in]: avx512 register to test
+    /// \param bit_pos[in]: bit pos to test
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+                                                           const uint32_t bit_pos) noexcept {
+        const S tmp = S::set1(1u << bit_pos);
+        __mmask8 mm = _mm512_test_epi64_mask(in1, tmp);
+        return Mask<LIMBS>(mm);
+    }
+
+    /// \param in1[in]:
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
+        if constexpr (is_unsigned()) {
+            return _mm512_reduce_min_epu32(in1.v512)
+        }
+        return _mm512_reduce_min_epi32(in1.v512);
+    }
+
+    /// \param in1[in]:
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
+        if constexpr (is_unsigned()) {
+            return _mm512_reduce_max_epu32(in1.v512)
+        }
+        return _mm512_reduce_max_epi32(in1.v512);
+    }
+
 
 	/// TODO test and implement for uint32x16 and so on and implement hadd_epu16,...
 	/// needs `AVX512BW`

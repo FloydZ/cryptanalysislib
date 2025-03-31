@@ -148,7 +148,7 @@ namespace cryptanalysislib {
         
         	// turn on single step TODO
 #ifdef __LP64__
-        	uc->uc_mcontext.__ss.__rflags |= 0x100;
+        	// uc->uc_mcontext.__ss.__rflags |= 0x100;
 #else
         	uc->uc_mcontext->__ss.__eflags |= 0x100;
 #endif
@@ -159,7 +159,7 @@ namespace cryptanalysislib {
         
         	// turn off single step
 #ifdef __LP64__
-        	uc->uc_mcontext.__ss.__rflags &= ~0x100;
+        	// uc->uc_mcontext.__ss.__rflags &= ~0x100;
 #else
         	uc->uc_mcontext->__ss.__eflags &= ~0x100;
 #endif

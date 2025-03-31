@@ -119,7 +119,7 @@ static void avx512_histogram_u32_v4(uint32_t C[256],
 
 
 ///
-constexr static inline
+constexpr static inline
 void FA(__m512i& h, __m512i& l, __m512i a, __m512i b, __m512i c) noexcept {
     l = _mm512_ternarylogic_epi32(c, b, a, 0x96);
     h = _mm512_ternarylogic_epi32(l, b, a, 0x8E);
@@ -168,7 +168,6 @@ static void consume_buffer_2(uint8_t* data, size_t N, uint16_t* hist16) {
             __m512i x5 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 40)));
             __m512i x6 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 48)));
             __m512i x7 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 56)));
-            data += 64;
 
             // Add the 1-bit counters to the 3-bit counters.
             FA(x1, x2, x0, x1, x2);
@@ -186,6 +185,8 @@ static void consume_buffer_2(uint8_t* data, size_t N, uint16_t* hist16) {
             w3_0 = _mm512_popcnt_epi8(w3_0);
             // Flush w3_0 into w.
             w = _mm512_add_epi8(w, w3_0);
+
+        	data += 64;
         } while (--M);
 
         // Flush w into h.
@@ -220,10 +221,10 @@ static void consume_buffer_2(uint8_t* data, size_t N, uint16_t* hist16) {
 constexpr static
 void hist256_2(uint32_t* histogram,
                const uint8_t* ptr,
-               const size_t N) noexcept {
+               size_t N) noexcept {
     // Scalar loop to align input pointer.
     if (N >= 64) {
-        uint8_t* end = ptr + N;
+        const uint8_t* end = ptr + N;
         while ((uintptr_t)ptr & 63) {
             histogram[*ptr++] += 1;
         }
@@ -305,6 +306,95 @@ void hist256_2(uint32_t* histogram,
     }
 }
 
+static void consume(uint8_t* hist8,
+					const uint8_t* data,
+					const size_t N) {
+	// 512x 3-bit counters (1 bit of each counter in each __m512i)
+	__m512i w0_0 = _mm512_setzero_si512();
+	__m512i w1_0 = _mm512_setzero_si512();
+	__m512i w2_0 = _mm512_setzero_si512();
+
+	const __m512i tp = _mm512_setr_epi8(
+	    0, 8, 16, 24, 32, 40, 48, 56,
+	    1, 9, 17, 25, 33, 41, 49, 57,
+	    2, 10, 18, 26, 34, 42, 50, 58,
+	    3, 11, 19, 27, 35, 43, 51, 59,
+	    4, 12, 20, 28, 36, 44, 52, 60,
+	    5, 13, 21, 29, 37, 45, 53, 61,
+	    6, 14, 22, 30, 38, 46, 54, 62,
+	    7, 15, 23, 31, 39, 47, 55, 63);
+
+    __m512i x0 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 0)));
+    __m512i x1 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 8)));
+    __m512i x2 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 16)));
+    __m512i x3 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 24)));
+    __m512i x4 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 32)));
+    __m512i x5 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 40)));
+    __m512i x6 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 48)));
+    __m512i x7 = _mm512_sllv_epi64(_mm512_set1_epi64(1), _mm512_cvtepu8_epi64(_mm_loadu_si64(data + 56)));
+
+    // Add the 1-bit counters to the 3-bit counters.
+    FA(x1, x2, x0, x1, x2);
+    FA(x4, x5, x3, x4, x5);
+    FA(x7, w0_0, x6, x7, w0_0);
+    FA(x5, w0_0, x2, x5, w0_0);
+    FA(x4, x7, x1, x4, x7);
+    FA(x5, w1_0, x7, x5, w1_0);
+    __m512i w3_0; // 4th bit of the 3-bit counters.
+    FA(w3_0, w2_0, x5, x4, w2_0);
+
+    // Change w3_0 from 512x 1-bit counters to 64x 8-bit counters.
+    w3_0 = _mm512_permutexvar_epi8(tp, w3_0);
+    w3_0 = _mm512_gf2p8affine_epi64_epi8(_mm512_set1_epi64(0x8040201008040201), w3_0, 0);
+    w3_0 = _mm512_popcnt_epi8(w3_0);
+
+    // Change w0_0, w1_0, w2_0 from 512x 1-bit counters to 64x 8-bit counters.
+    w0_0 = _mm512_permutexvar_epi8(tp, w0_0);
+    w1_0 = _mm512_permutexvar_epi8(tp, w1_0);
+    w2_0 = _mm512_permutexvar_epi8(tp, w2_0);
+    w0_0 = _mm512_gf2p8affine_epi64_epi8(_mm512_set1_epi64(0x8040201008040201), w0_0, 0);
+    w1_0 = _mm512_gf2p8affine_epi64_epi8(_mm512_set1_epi64(0x8040201008040201), w1_0, 0);
+    w2_0 = _mm512_gf2p8affine_epi64_epi8(_mm512_set1_epi64(0x8040201008040201), w2_0, 0);
+    w0_0 = _mm512_popcnt_epi8(w0_0);
+    w1_0 = _mm512_popcnt_epi8(w1_0);
+    w2_0 = _mm512_popcnt_epi8(w2_0);
+	__m512i w = _mm512_add_epi8(_mm512_add_epi8(w0_0, _mm512_add_epi8(w1_0, w1_0)), _mm512_slli_epi64(w2_0, 2));
+	w = _mm512_add_epi8(w, _mm512_slli_epi16(w3_0, 3));
+	_mm512_store_si512(hist8, w);
+}
+
+constexpr static
+void histogram_less(uint8_t* histogram,
+					 const uint8_t* ptr,
+					 size_t N) noexcept {
+
+	uint8_t buffer0[128] __attribute__((aligned(64)));
+	uint8_t buffer1[128] __attribute__((aligned(64)));
+	uint32_t count0 = 0, count1 = 0;
+
+    for (size_t i = 0; i < N; i += 64) {
+        // Load 64 bytes, use high 2 bits of each to choose appropriate bin.
+        __m512i data = _mm512_load_si512(ptr + i);
+        // __mmask64 bit7 = _mm512_movepi8_mask(data);
+        __mmask64 bit6 = _mm512_movepi8_mask(_mm512_add_epi8(data, data));
+    	__mmask64 b0 = _knot_mask64(bit6);  // Values 0-63
+    	__mmask64 b1 = bit6;               // Values 64-127
+
+    	// Discard top two bits of each byte (they confuse _mm512_sllv_epi64), and perform a
+        // rotation left by two bits on the bottom six bits (this gets undone by one when
+        // 8-bit counters are promoted to 16-bit, and again by one when 16-bit counters are
+        // promoted to 32-bit).
+        // data = _mm512_gf2p8affine_epi64_epi8(data, _mm512_set1_epi64(0x2010010204080000), 0);
+        // Append into bins.
+        _mm512_storeu_epi8(buffer0 + count0, _mm512_maskz_compress_epi8(b0, data));
+        _mm512_storeu_epi8(buffer1 + count1, _mm512_maskz_compress_epi8(01, data));
+        count0 += _mm_popcnt_u64(b0);
+        count1 += _mm_popcnt_u64(b1);
+    }
+
+	consume(histogram+ 0, buffer0, count0);
+	consume(histogram+64, buffer1, count1);
+}
 #endif
 
 

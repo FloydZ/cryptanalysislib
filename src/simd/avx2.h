@@ -228,7 +228,6 @@ namespace cryptanalysislib {
 	    constexpr inline void print(bool binary = false,
 	                                bool hex = false) const;
 
-        /// \param a-p[in]: 
         /// \return 
 		[[nodiscard]] constexpr static inline S set(const limb_type a, const limb_type b, const limb_type c, const limb_type d,
 		                                            const limb_type e, const limb_type f, const limb_type g, const limb_type h,
@@ -242,7 +241,6 @@ namespace cryptanalysislib {
             return ret;
 		}
 
-        /// \param a-p[in]: 
         /// \return 
 		[[nodiscard]] constexpr static inline S setr(const limb_type a, const limb_type b, const limb_type c, const limb_type d,
 		                                             const limb_type e, const limb_type f, const limb_type g, const limb_type h,
@@ -256,11 +254,17 @@ namespace cryptanalysislib {
             return ret;
 		}
 
-        /// \param a-p[in]: 
+        /// \param i[in]: 
         /// \return 
 		[[nodiscard]] constexpr static inline S set1(const limb_type i) noexcept {
             return S::set(i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i);
 		}
+
+        /// set the `i`-th bit in each limb
+        /// \param pos[in]: bit position to set
+        constexpr inline void set_bit(const uint32_t pos) noexcept {
+            v128 = _mm_set1_epi8(1u << pos); 
+        }
 
 		/// \tparam aligned[in]: if true a alied instruction will be emitted
 		/// \param ptr[in]: pointer to (aligned )16 bytes 
@@ -802,6 +806,12 @@ namespace cryptanalysislib {
 			return ret;
         }
 
+        /// set the `i`-th bit in each limb
+        /// \param pos[in]: bit position to set
+        constexpr inline void set_bit(const uint32_t pos) noexcept {
+            v128 = _mm_set1_epi16(1u << pos); 
+        }
+
 		/// \tparam aligned
 		/// \param ptr
 		/// \return
@@ -1257,6 +1267,12 @@ namespace cryptanalysislib {
 			ret.v32[3] = a;
 			return ret;
 		}
+        
+        /// set the `i`-th bit in each limb
+        /// \param pos[in]: bit position to set
+        constexpr inline void set_bit(const uint32_t pos) noexcept {
+            v128 = _mm_set1_epi32(1u << pos); 
+        }
 
 		/// \tparam aligned
 		/// \param ptr
@@ -1670,7 +1686,8 @@ namespace cryptanalysislib {
 		constexpr _Xint64x2_t(const _Xint32x4_t<> &b) noexcept;
 
 		union {
-			uint8_t v8[16];
+            uint64_t   d[2];
+			uint8_t  v8[16];
 			uint16_t v16[8];
 			uint32_t v32[4];
 			uint64_t v64[2];
@@ -1697,6 +1714,13 @@ namespace cryptanalysislib {
 			ret.v64[1] = b;
 			return ret;
 		}
+
+
+        /// set the `i`-th bit in each limb
+        /// \param pos[in]: bit position to set
+        constexpr inline void set_bit(const uint32_t pos) noexcept {
+            v128 = _mm_set1_epi64x(1u << pos); 
+        }
 
 		/// \tparam aligned
 		/// \param ptr
@@ -2200,6 +2224,12 @@ struct Xint8x32_t {
 		             a, a, a, a, a, a, a, a);
 		return out;
 	}
+
+    /// set the `i`-th bit in each limb
+    /// \param pos[in]: bit position to set
+    constexpr inline void set_bit(const uint32_t pos) noexcept {
+        v256 = _mm256_set1_epi8(1u << pos); 
+    }
 
 	/// \tparam aligned[in]: if true a alied instruction will be emitted
 	/// \param ptr[in]: pointer to (aligned) 32 bytes 
@@ -2826,6 +2856,12 @@ struct Xint16x16_t {
 		return S::set(a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
 	}
 
+    /// set the `i`-th bit in each limb
+    /// \param pos[in]: bit position to set
+    constexpr inline void set_bit(const uint32_t pos) noexcept {
+        v256 = _mm256_set1_epi16(1u << pos); 
+    }
+
 	/// \tparam aligned
 	/// \param ptr
 	/// \return
@@ -3435,6 +3471,12 @@ struct Xint32x8_t {
 	[[nodiscard]] constexpr static inline S set1(const limb_type a) noexcept {
 		return set(a, a, a, a, a, a, a, a);
 	}
+    
+    /// set the `i`-th bit in each limb
+    /// \param pos[in]: bit position to set
+    constexpr inline void set_bit(const uint32_t pos) noexcept {
+        v256 = _mm256_set1_epi32(1u << pos); 
+    }
 
 	/// \tparam aligned
 	/// \param ptr
@@ -4070,6 +4112,12 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S set1(const limb_type a) noexcept {
 		return set(a, a, a, a);
 	}
+
+    /// set the `i`-th bit in each limb
+    /// \param pos[in]: bit position to set
+    constexpr inline void set_bit(const uint32_t pos) noexcept {
+        v256 = _mm256_set1_epi64x(1u << pos); 
+    }
 
 	/// \tparam aligned
 	/// \param ptr

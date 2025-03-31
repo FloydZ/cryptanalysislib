@@ -6,13 +6,7 @@
 #include "random.h"
 #include "algorithm/max.h"
 
-using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
-using ::testing::Test;
-using ::testing::TestEventListeners;
-using ::testing::TestInfo;
-using ::testing::TestPartResult;
-using ::testing::UnitTest;
 using namespace cryptanalysislib;
 
 
@@ -54,7 +48,7 @@ TYPED_TEST_P(Max, simd_rng) {
 
 TYPED_TEST_P(Max, multithreading) {
 	constexpr size_t b = sizeof(TypeParam)*8u - 1u;
-    constexpr static size_t s = 1u<<b;
+    constexpr static size_t s = 1ull<<b;
     std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = s - i - 1; }
 
@@ -63,7 +57,7 @@ TYPED_TEST_P(Max, multithreading) {
 }
 
 TYPED_TEST_P(Max, multithreading_rnd) {
-    constexpr static size_t s = 1u<<20;
+    constexpr static size_t s = 1ull<<20;
     std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = rand(); }
 

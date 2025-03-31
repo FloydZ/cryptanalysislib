@@ -23,8 +23,178 @@ using namespace cryptanalysislib;
 	 (uint64_t(uint8_t(1 << b6)) << (1 * 8)) |            \
 	 (uint64_t(uint8_t(1 << b7)) << (0 * 8)))
 
-#if defined(USE_AVX2)
 
+
+namespace cryptanalysislib::internal {
+    template <std::size_t Size>
+    struct _MaskType {
+        static_assert(false, "Unsupported mask size");
+    };
+#ifdef USE_AVX512F
+    template <>
+    struct _MaskType<64> {
+        using type = __mmask64;
+    };
+    template <>
+    struct _MaskType<32> {
+        using type = __mmask32;
+    };
+    template <>
+    struct _MaskType<16> {
+        using type = __mmask16;
+    };
+    template <>
+    struct _MaskType<8> {
+        using type = __mmask8;
+    };
+    template <>
+    struct _MaskType<4> {
+        using type = __mmask8;
+    };
+    template <>
+    struct _MaskType<2> {
+        using type = __mmask8;
+    };
+    template <>
+    struct _MaskType<1> {
+        using type = __mmask8;
+    };
+#else
+    template <>
+    struct _MaskType<64> {
+        using type = uint64_t;
+    };
+    template <>
+    struct _MaskType<32> {
+        using type = uint32_t;
+    };
+    template <>
+    struct _MaskType<16> {
+        using type = uint16_t;
+    };
+    template <>
+    struct _MaskType<8> {
+        using type = uint8_t;
+    };
+    template <>
+    struct _MaskType<4> {
+        using type = uint8_t;
+    };
+    template <>
+    struct _MaskType<2> {
+        using type = uint8_t;
+    };
+    template <>
+    struct _MaskType<1> {
+        using type = uint8_t;
+    };
+#endif
+}; // end namespace: cryptanalysislib::internal
+
+template <std::size_t Size>
+using MaskType = typename cryptanalysislib::internal::_MaskType<Size>::type;
+
+/// 
+template <std::size_t Size>
+struct Mask {
+private:
+    static constexpr std::size_t size = Size;
+    MaskType<Size> k;
+
+public:
+    constexpr Mask() = default;
+    constexpr Mask(const MaskType<Size> &x) noexcept : k(x) {}
+
+    /// simple copy operator
+    /// \param x
+    constexpr Mask &operator=(const MaskType<Size> &x) noexcept  {
+      k = x;
+      return *this;
+    }
+
+    /// \return k
+    constexpr operator MaskType<Size>() const noexcept { return k; }
+
+    constexpr MaskType<Size> operator!() const noexcept {
+#ifdef USE_AVX512F
+        if constexpr (Size <= 8) {
+            _knot_mask8(k);
+        } else if constexpr (Size == 16) {
+            _knot_mask16(k);
+        } else if constexpr (Size == 32) {
+            _knot_mask32(k);
+        } else if constexpr (Size == 64) {
+            _knot_mask64(k);
+        } else {
+            static_assert(false);
+        }
+#else 
+        k = ~k;
+#endif
+        return *this;
+    }
+
+    constexpr MaskType<Size> operator&(const MaskType<Size> &m) const noexcept {
+#ifdef USE_AVX512F
+        if constexpr (Size <= 8) {
+            _kand_mask8(k, m());
+        } else if constexpr (Size == 16) {
+            _kand_mask16(k, m());
+        } else if constexpr (Size == 32) {
+            _kand_mask32(k, m());
+        } else if constexpr (Size == 64) {
+            _kand_mask64(k, m());
+        } else {
+            static_assert(false);
+        }
+#else 
+        k = k & m();
+#endif
+        return *this;
+    }
+
+    constexpr MaskType<Size> operator>>(const uint32_t m) const noexcept {
+#ifdef USE_AVX512F
+        if constexpr (Size <= 8) {
+            return k >> (m * (8 / Size));
+        } else {
+            k >> m;
+        }
+#else 
+        k >>= m;
+#endif
+        return *this;
+    }
+
+    constexpr MaskType<Size> operator<<(const uint32_t m) const noexcept {
+#ifdef USE_AVX512F
+        if constexpr (Size <= 8) {
+            return k << (m * (8 / Size));
+        } else {
+            k << m;
+        }
+#else 
+        k <<= m;
+#endif
+        return *this;
+    }
+
+    constexpr uint32_t popcnt() const noexcept {
+#ifdef USE_AVX512F
+        if constexpr (Size < 8) {
+            return _mm_popcnt_u64(k) / (8 / Size);
+        } else {
+            return _mm_popcnt_u64(k);
+        } 
+#else
+        return __builtin_popcountll(k);
+#endif
+    }
+};
+
+
+
+#if defined(USE_AVX2)
 #include "simd/avx2.h"
 #include "simd/float/avx2.h"
 #if defined(USE_AVX512F)
@@ -187,6 +357,15 @@ namespace cryptanalysislib {
 			ret.v8[15] = p;
 			return ret;
 		}
+	
+        ///  
+        /// \param i 
+        constexpr inline void set_bit(const uint32_t pos) noexcept {
+            const uint32_t data = 1u << offs;
+            for (uint32_t i = 0; i < LIMBS; i++) {
+                d[i] = data;
+            }
+        }
 
 		/// \tparam aligned
 		/// \param ptr

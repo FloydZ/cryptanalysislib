@@ -316,13 +316,13 @@ namespace __atomic_impl {
 
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE void
-	store(_Tp *__ptr, _Val<_Tp> __t, memory_order __m) noexcept {
+	store(_Tp *__ptr, _Val<_Tp> __t, std::memory_order __m) noexcept {
 		__atomic_store(__ptr, __atomic_impl::__clear_padding(__t), int(__m));
 	}
 
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE _Val<_Tp>
-	load(const _Tp *__ptr, memory_order __m) noexcept {
+	load(const _Tp *__ptr, std::memory_order __m) noexcept {
 		alignas(_Tp) unsigned char __buf[sizeof(_Tp)];
 		auto *__dest = reinterpret_cast<_Val<_Tp> *>(__buf);
 		__atomic_load(__ptr, __dest, int(__m));
@@ -331,7 +331,7 @@ namespace __atomic_impl {
 
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE _Val<_Tp>
-	exchange(_Tp *__ptr, _Val<_Tp> __desired, memory_order __m) noexcept {
+	exchange(_Tp *__ptr, _Val<_Tp> __desired, std::memory_order __m) noexcept {
 		alignas(_Tp) unsigned char __buf[sizeof(_Tp)];
 		auto *__dest = reinterpret_cast<_Val<_Tp> *>(__buf);
 		__atomic_exchange(__ptr, __atomic_impl::__clear_padding(__desired),
@@ -342,8 +342,8 @@ namespace __atomic_impl {
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE bool
 	compare_exchange_weak(_Tp *__ptr, _Val<_Tp> &__expected,
-	                      _Val<_Tp> __desired, memory_order __success,
-	                      memory_order __failure) noexcept {
+	                      _Val<_Tp> __desired, std::memory_order __success,
+	                      std::memory_order __failure) noexcept {
 		return __atomic_impl::__compare_exchange(*__ptr, __expected, __desired,
 		                                         true, __success, __failure);
 	}
@@ -351,8 +351,8 @@ namespace __atomic_impl {
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE bool
 	compare_exchange_strong(_Tp *__ptr, _Val<_Tp> &__expected,
-	                        _Val<_Tp> __desired, memory_order __success,
-	                        memory_order __failure) noexcept {
+	                        _Val<_Tp> __desired, std::memory_order __success,
+	                        std::memory_order __failure) noexcept {
 		return __atomic_impl::__compare_exchange(*__ptr, __expected, __desired,
 		                                         false, __success, __failure);
 	}
@@ -361,7 +361,7 @@ namespace __atomic_impl {
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE void
 	wait(const _Tp *__ptr, _Val<_Tp> __old,
-	     memory_order __m = memory_order_seq_cst) noexcept {
+	     std::memory_order __m = std::memory_order_seq_cst) noexcept {
 		std::__atomic_wait_address_v(__ptr, __old,
 		                             [__ptr, __m]() { return __atomic_impl::load(__ptr, __m); });
 	}
@@ -381,91 +381,91 @@ namespace __atomic_impl {
 	// TODO add const volatile overload
 #endif// __cpp_lib_atomic_wait
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	fetch_add(_Tp *__ptr, _Diff<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_add(__ptr, __i, int(__m)); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//fetch_add(_Tp *__ptr, _Diff<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_add(__ptr, __i, int(__m)); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	fetch_sub(_Tp *__ptr, _Diff<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_sub(__ptr, __i, int(__m)); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//fetch_sub(_Tp *__ptr, _Diff<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_sub(__ptr, __i, int(__m)); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	fetch_and(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_and(__ptr, __i, int(__m)); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//fetch_and(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_and(__ptr, __i, int(__m)); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	fetch_or(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_or(__ptr, __i, int(__m)); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//fetch_or(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_or(__ptr, __i, int(__m)); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	fetch_xor(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_xor(__ptr, __i, int(__m)); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//fetch_xor(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept { return __atomic_fetch_xor(__ptr, __i, int(__m)); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	__add_fetch(_Tp *__ptr, _Diff<_Tp> __i) noexcept { return __atomic_add_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//__add_fetch(_Tp *__ptr, _Diff<_Tp> __i) noexcept { return __atomic_add_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	__sub_fetch(_Tp *__ptr, _Diff<_Tp> __i) noexcept { return __atomic_sub_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//__sub_fetch(_Tp *__ptr, _Diff<_Tp> __i) noexcept { return __atomic_sub_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	__and_fetch(_Tp *__ptr, _Val<_Tp> __i) noexcept { return __atomic_and_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//__and_fetch(_Tp *__ptr, _Val<_Tp> __i) noexcept { return __atomic_and_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	__or_fetch(_Tp *__ptr, _Val<_Tp> __i) noexcept { return __atomic_or_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//__or_fetch(_Tp *__ptr, _Val<_Tp> __i) noexcept { return __atomic_or_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
 
-	template<typename _Tp>
-	_GLIBCXX_ALWAYS_INLINE _Tp
-	__xor_fetch(_Tp *__ptr, _Val<_Tp> __i) noexcept { return __atomic_xor_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
+	//template<typename _Tp>
+	//_GLIBCXX_ALWAYS_INLINE _Tp
+	//__xor_fetch(_Tp *__ptr, _Val<_Tp> __i) noexcept { return __atomic_xor_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
 
-	template<typename _Tp>
-	_Tp
-	__fetch_add_flt(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept {
-		_Val<_Tp> __oldval = load(__ptr, memory_order_relaxed);
-		_Val<_Tp> __newval = __oldval + __i;
-		while (!compare_exchange_weak(__ptr, __oldval, __newval, __m,
-		                              memory_order_relaxed))
-			__newval = __oldval + __i;
-		return __oldval;
-	}
+	//template<typename _Tp>
+	//_Tp
+	//__fetch_add_flt(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept {
+	//	_Val<_Tp> __oldval = load(__ptr, memory_order_relaxed);
+	//	_Val<_Tp> __newval = __oldval + __i;
+	//	while (!compare_exchange_weak(__ptr, __oldval, __newval, __m,
+	//	                              memory_order_relaxed))
+	//		__newval = __oldval + __i;
+	//	return __oldval;
+	//}
 
-	template<typename _Tp>
-	_Tp
-	__fetch_sub_flt(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept {
-		_Val<_Tp> __oldval = load(__ptr, memory_order_relaxed);
-		_Val<_Tp> __newval = __oldval - __i;
-		while (!compare_exchange_weak(__ptr, __oldval, __newval, __m,
-		                              memory_order_relaxed))
-			__newval = __oldval - __i;
-		return __oldval;
-	}
+	//template<typename _Tp>
+	//_Tp
+	//__fetch_sub_flt(_Tp *__ptr, _Val<_Tp> __i, memory_order __m) noexcept {
+	//	_Val<_Tp> __oldval = load(__ptr, memory_order_relaxed);
+	//	_Val<_Tp> __newval = __oldval - __i;
+	//	while (!compare_exchange_weak(__ptr, __oldval, __newval, __m,
+	//	                              memory_order_relaxed))
+	//		__newval = __oldval - __i;
+	//	return __oldval;
+	//}
 
-	template<typename _Tp>
-	_Tp
-	__add_fetch_flt(_Tp *__ptr, _Val<_Tp> __i) noexcept {
-		_Val<_Tp> __oldval = load(__ptr, memory_order_relaxed);
-		_Val<_Tp> __newval = __oldval + __i;
-		while (!compare_exchange_weak(__ptr, __oldval, __newval,
-		                              memory_order_seq_cst,
-		                              memory_order_relaxed))
-			__newval = __oldval + __i;
-		return __newval;
-	}
+	//template<typename _Tp>
+	//_Tp
+	//__add_fetch_flt(_Tp *__ptr, _Val<_Tp> __i) noexcept {
+	//	_Val<_Tp> __oldval = load(__ptr, memory_order_relaxed);
+	//	_Val<_Tp> __newval = __oldval + __i;
+	//	while (!compare_exchange_weak(__ptr, __oldval, __newval,
+	//	                              memory_order_seq_cst,
+	//	                              memory_order_relaxed))
+	//		__newval = __oldval + __i;
+	//	return __newval;
+	//}
 
-	template<typename _Tp>
-	_Tp
-	__sub_fetch_flt(_Tp *__ptr, _Val<_Tp> __i) noexcept {
-		_Val<_Tp> __oldval = load(__ptr, memory_order_relaxed);
-		_Val<_Tp> __newval = __oldval - __i;
-		while (!compare_exchange_weak(__ptr, __oldval, __newval,
-		                              memory_order_seq_cst,
-		                              memory_order_relaxed))
-			__newval = __oldval - __i;
-		return __newval;
-	}
+	//template<typename _Tp>
+	//_Tp
+	//__sub_fetch_flt(_Tp *__ptr, _Val<_Tp> __i) noexcept {
+	//	_Val<_Tp> __oldval = load(__ptr, memory_order_relaxed);
+	//	_Val<_Tp> __newval = __oldval - __i;
+	//	while (!compare_exchange_weak(__ptr, __oldval, __newval,
+	//	                              memory_order_seq_cst,
+	//	                              memory_order_relaxed))
+	//		__newval = __oldval - __i;
+	//	return __newval;
+	//}
 }// namespace __atomic_impl
 
 #endif
