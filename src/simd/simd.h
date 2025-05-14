@@ -115,6 +115,7 @@ public:
     /// \return k
     constexpr operator MaskType<Size>() const noexcept { return k; }
 
+    /// \return !this
     constexpr MaskType<Size> operator!() const noexcept {
 #ifdef USE_AVX512F
         if constexpr (Size <= 8) {
@@ -134,6 +135,8 @@ public:
         return *this;
     }
 
+    /// \param m[in]
+    /// \return m & this
     constexpr MaskType<Size> operator&(const MaskType<Size> &m) const noexcept {
 #ifdef USE_AVX512F
         if constexpr (Size <= 8) {

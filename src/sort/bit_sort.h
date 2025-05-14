@@ -28,6 +28,12 @@
 
 // source: https://github.com/jonicho/simd-radix-sort/blob/main/radixSort.hpp
 
+/// TODO move somewhere useful
+template <std::size_t X>
+inline constexpr bool is_power_of_two = X > 0 && (X & (X - 1)) == 0;
+
+
+
 /// make private?
 using SortIndex = ssize_t;
 
@@ -59,6 +65,8 @@ struct CmpSorterInsertionSort {
 	}
 };
 
+/// \tparam K
+/// \tparam Ps...
 template<typename K, typename... Ps>
 struct DataElement {
 	K key;
@@ -79,6 +87,10 @@ struct DataElement<K> {
 
 ///
 struct BitSorterSIMD {
+    // TODO: use SIMD wrapper
+    template <typename K>
+    static constexpr SortIndex numElemsPerVec = 64 / sizeof(K);
+
 	template<const bool Up,
              const bool IsHighestBit, 
              const bool IsRightSide, 
@@ -107,126 +119,258 @@ struct BitSorterSIMD {
             payloadVecStore = ST::unaligned_load(&payloads[readPosLeft]);
 		}
 
-		//while (readPosLeft <= readPosRight) {
-		//	const auto keyVec = keyVecStore;
-		//	const auto payloadVec = payloadVecStore;
-		//	const auto [sortMaskLeft, sortMaskRight] =
-		//	        getSortMasks<Up, IsHighestBit, IsRightSide, K, Ps...>(keyVec, bitNo);
-		//	const SortIndex numElemsToLeft = simd::kpopcnt(sortMaskLeft);
-		//	const SortIndex numElemsToRight = _numElemsPerVec - numElemsToLeft;
-		//	const bool areEnoughElemsFreeLeft =
-		//	        (readPosLeft - writePosLeft) >= numElemsToLeft;
-		//	if (areEnoughElemsFreeLeft) {
-		//		keyVecStore =
-		//		        simd::loadu<_numElemsPerVec * sizeof(K)>(&keys[readPosRight]);
-		//		payloadVecStore =
-		//		        std::make_tuple(simd::loadu<_numElemsPerVec * sizeof(Ps)>(
-		//		                &payloads[readPosRight])...);
-		//		readPosRight -= _numElemsPerVec;
-		//	} else {
-		//		keyVecStore =
-		//		        simd::loadu<_numElemsPerVec * sizeof(K)>(&keys[readPosLeft]);
-		//		payloadVecStore =
-		//		        std::make_tuple(simd::loadu<_numElemsPerVec * sizeof(Ps)>(
-		//		                &payloads[readPosLeft])...);
-		//		readPosLeft += _numElemsPerVec;
-		//	}
-		//	compress_store_left_right(
-		//	        writePosLeft, writePosRight - numElemsToRight + 1, sortMaskLeft,
-		//	        sortMaskRight, keyVec, payloadVec, keys, payloads...);
-		//	writePosLeft += numElemsToLeft;
-		//	writePosRight -= numElemsToRight;
-		//}
+		while (readPosLeft <= readPosRight) {
+			const auto keyVec = keyVecStore;
+			const auto payloadVec = payloadVecStore;
+			const auto [sortMaskLeft, sortMaskRight] =
+			        getSortMasks<Up, IsHighestBit, IsRightSide, K, T>(keyVec, bitNo);
+			const SortIndex numElemsToLeft = sortMaskLeft.popcnt();// simd::kpopcnt(sortMaskLeft);
+			const SortIndex numElemsToRight = _numElemsPerVec - numElemsToLeft;
+			const bool areEnoughElemsFreeLeft =
+			        (readPosLeft - writePosLeft) >= numElemsToLeft;
+			if (areEnoughElemsFreeLeft) {
+				keyVecStore = SK::load(&keys[readPosRight]);
+				        //simd::loadu<_numElemsPerVec * sizeof(K)>(&keys[readPosRight]);
+				payloadVecStore = ST::load(&payloads[readPosRight]);
+				        //std::make_tuple(simd::loadu<_numElemsPerVec * sizeof(Ps)>(
+				        //        &payloads[readPosRight])...);
+				readPosRight -= _numElemsPerVec;
+			} else {
+				keyVecStore = SK::load(&keys[readPosLeft]);
+				        //simd::loadu<_numElemsPerVec * sizeof(K)>(&keys[readPosLeft]);
+				payloadVecStore = ST::load(&payloads[readPosLeft]);
+				        //std::make_tuple(simd::loadu<_numElemsPerVec * sizeof(Ps)>(
+				        //        &payloads[readPosLeft])...);
+				readPosLeft += _numElemsPerVec;
+			}
+			compress_store_left_right(
+			        writePosLeft, writePosRight - numElemsToRight + 1, sortMaskLeft,
+			        sortMaskRight, keyVec, payloadVec, keys, payloads);
+			writePosLeft += numElemsToLeft;
+			writePosRight -= numElemsToRight;
+		}
 
-		//const SortIndex numElemsRest = readPosRight + _numElemsPerVec - readPosLeft;
+		const SortIndex numElemsRest = readPosRight + _numElemsPerVec - readPosLeft;
 
-		//simd::Mask<_numElemsPerVec> restMask = 0;
-		//simd::Vec<K, _numElemsPerVec * sizeof(K)> keyVecRest;
-		//std::tuple<simd::Vec<Ps, _numElemsPerVec * sizeof(Ps)>...> payloadVecRest;
-		//if (numElemsRest != 0) {
-		//	restMask = simd::kshiftr(simd::knot(simd::Mask<_numElemsPerVec>(0)),
-		//	                         _numElemsPerVec - numElemsRest);
-		//	keyVecRest = simd::maskz_loadu<_numElemsPerVec * sizeof(K)>(
-		//	        restMask, &keys[readPosLeft]);
-		//	payloadVecRest =
-		//	        std::make_tuple(simd::maskz_loadu<_numElemsPerVec * sizeof(Ps)>(
-		//	                restMask, &payloads[readPosLeft])...);
-		//	readPosLeft += numElemsRest;
-		//}
+		Mask<_numElemsPerVec> restMask = 0;
+	    SK keyVecRest;
+		ST payloadVecRest;
+		if (numElemsRest != 0) {
+			// restMask = simd::kshiftr(simd::knot(simd::Mask<_numElemsPerVec>(0)), _numElemsPerVec - numElemsRest);
+            restMask = -1ul >> (_numElemsPerVec - numElemsRest);
+			// keyVecRest = simd::maskz_loadu<_numElemsPerVec * sizeof(K)>(restMask, &keys[readPosLeft]);
+            keyVecRest = SK::maskz_unaligned_load(&keys[readPosLeft], restMask);
+			// payloadVecRest = std::make_tuple(simd::maskz_loadu<_numElemsPerVec * sizeof(Ps)>(restMask, &payloads[readPosLeft])...);
+            payloadVecRest = ST::maskz_unaligned_load(&payloads[readPosLeft], restMask);
+			readPosLeft += numElemsRest;
+		}
 
-		//if (numElems >= _numElemsPerVec) {
-		//	const auto [sortMaskLeft, sortMaskRight] =
-		//	        getSortMasks<Up, IsHighestBit, IsRightSide, K, Ps...>(keyVecStore,
-		//	                                                              bitNo);
-		//	const SortIndex numElemsToLeft = simd::kpopcnt(sortMaskLeft);
-		//	const SortIndex numElemsToRight = _numElemsPerVec - numElemsToLeft;
-		//	compress_store_left_right(
-		//	        writePosLeft, writePosRight - numElemsToRight + 1, sortMaskLeft,
-		//	        sortMaskRight, keyVecStore, payloadVecStore, keys, payloads...);
-		//	writePosLeft += numElemsToLeft;
-		//	writePosRight -= numElemsToRight;
-		//}
+		if (numElems >= _numElemsPerVec) {
+			const auto [sortMaskLeft, sortMaskRight] =
+			        getSortMasks<Up, IsHighestBit, IsRightSide, K, T>(keyVecStore,
+			                                                              bitNo);
+			const SortIndex numElemsToLeft = sortMaskLeft.popcnt();//simd::kpopcnt(sortMaskLeft);
+			const SortIndex numElemsToRight = _numElemsPerVec - numElemsToLeft;
+			compress_store_left_right(
+			        writePosLeft, writePosRight - numElemsToRight + 1, sortMaskLeft,
+			        sortMaskRight, keyVecStore, payloadVecStore, keys, payloads);
+			writePosLeft += numElemsToLeft;
+			writePosRight -= numElemsToRight;
+		}
 
-		//if (numElemsRest != 0) {
-		//	auto [sortMaskLeftRest, sortMaskRightRest] =
-		//	        getSortMasks<Up, IsHighestBit, IsRightSide, K, Ps...>(keyVecRest,
-		//	                                                              bitNo);
-		//	sortMaskLeftRest = simd::kand(sortMaskLeftRest, restMask);
-		//	sortMaskRightRest = simd::kand(sortMaskRightRest, restMask);
-		//	const SortIndex numElemsToLeftRest = simd::kpopcnt(sortMaskLeftRest);
-		//	const SortIndex numElemsToRightRest = numElemsRest - numElemsToLeftRest;
-		//	compress_store_left_right(writePosLeft, writePosLeft + numElemsToLeftRest,
-		//	                          sortMaskLeftRest, sortMaskRightRest, keyVecRest,
-		//	                          payloadVecRest, keys, payloads...);
-		//	writePosLeft += numElemsToLeftRest;
-		//	writePosRight -= numElemsToRightRest;
-		//}
-		//return writePosLeft;
+		if (numElemsRest != 0) {
+			auto [sortMaskLeftRest, sortMaskRightRest] =
+			        getSortMasks<Up, IsHighestBit, IsRightSide, K, T>(keyVecRest, bitNo);
+            // simd::kand(sortMaskLeftRest, restMask);
+			sortMaskLeftRest = sortMaskLeftRest & restMask;
+            // simd::kand(sortMaskRightRest, restMask);
+			sortMaskRightRest = sortMaskRightRest & restMask;
+            // simd::kpopcnt(sortMaskLeftRest);
+			const SortIndex numElemsToLeftRest = sortMaskLeftRest.popcnt(); 
+			const SortIndex numElemsToRightRest = numElemsRest - numElemsToLeftRest;
+			compress_store_left_right(writePosLeft, writePosLeft + numElemsToLeftRest,
+			                          sortMaskLeftRest, sortMaskRightRest, keyVecRest,
+			                          payloadVecRest, keys, payloads);
+			writePosLeft += numElemsToLeftRest;
+			writePosRight -= numElemsToRightRest;
+		}
+		return writePosLeft;
 	}
 
 private:
-	// template<bool Up,
-    //          bool IsHighestBit, 
-    //          bool IsRightSide, typename K,
-	//          typename... Ps>
-	// static inline std::tuple<simd::Mask<numElemsPerVec<K, Ps...>>,
-	//                          simd::Mask<numElemsPerVec<K, Ps...>>>
-	// getSortMasks(const simd::Vec<K, numElemsPerVec<K, Ps...> * sizeof(K)> keyVec,
-	//              const std::size_t bitNo) {
-	// 	if constexpr (bitDirUp<K, Up, IsHighestBit, IsRightSide>()) {
-	// 		const auto sortMaskRight = simd::test_bit(keyVec, bitNo);
-	// 		const auto sortMaskLeft = simd::knot(sortMaskRight);
-	// 		return std::make_tuple(sortMaskLeft, sortMaskRight);
-	// 	} else {
-	// 		const auto sortMaskLeft = simd::test_bit(keyVec, bitNo);
-	// 		const auto sortMaskRight = simd::knot(sortMaskLeft);
-	// 		return std::make_tuple(sortMaskLeft, sortMaskRight);
-	// 	}
-	// }
-	// template<typename K, typename... Ps>
-	// static inline void compress_store_left_right(
-	//         const SortIndex leftPos, const SortIndex rightPos,
-	//         const simd::Mask<numElemsPerVec<K, Ps...>> leftMask,
-	//         const simd::Mask<numElemsPerVec<K, Ps...>> rightMask,
-	//         const simd::Vec<K, numElemsPerVec<K, Ps...> * sizeof(K)> keyVec,
-	//         const std::tuple<simd::Vec<Ps, numElemsPerVec<K, Ps...> * sizeof(Ps)>...>
-	//                 payloadVec,
-	//         K *const keys, Ps *const... payloads) {
-	// 	simd::mask_compressstoreu(&keys[leftPos], leftMask, keyVec);
-	// 	std::apply(
-	// 	        [&](const auto... payloadVecs) {
-	// 		        (simd::mask_compressstoreu(&payloads[leftPos], leftMask, payloadVecs),
-	// 		         ...);
-	// 	        },
-	// 	        payloadVec);
+    template<bool Up,
+             bool IsHighestBit, 
+             bool IsRightSide,
+             typename K>
+    static inline std::tuple<Mask<numElemsPerVec<K>>,
+                             Mask<numElemsPerVec<K>>>
+    getSortMasks(const SIMDSelector<K> keyVec,
+                 const std::size_t bitNo) {
+       using SK = SIMDSelector<K>;
+    	if constexpr (bitDirUp<K, Up, IsHighestBit, IsRightSide>()) {
+           // simd::test_bit(keyVec, bitNo);
+    		const auto sortMaskRight = SK::test(keyVec, bitNo);
+           //simd::knot(sortMaskRight);
+    		const auto sortMaskLeft = !sortMaskRight;
+    		return std::make_tuple(sortMaskLeft, sortMaskRight);
+    	} else {
+           // simd::test_bit(keyVec, bitNo);
+    		const auto sortMaskLeft = SK::test(keyVec, bitNo);
+           // simd::knot(sortMaskLeft);
+    		const auto sortMaskRight = !sortMaskLeft;
+    		return std::make_tuple(sortMaskLeft, sortMaskRight);
+    	}
+    }
+   
+    /// \tparam K[in]
+    /// \tparam T[in]
+    /// \param leftPos
+    /// \param rightPos
+    /// \param leftMask
+    /// \param rightMask
+    /// \param keyVec
+    /// \param payloadVec
+    /// \param keys
+    /// \param payloads
+    template<typename K,
+             typename T>
+    static inline void compress_store_left_right(
+                            const SortIndex leftPos, 
+                            const SortIndex rightPos,
+                            const Mask<numElemsPerVec<K>> leftMask,
+                            const Mask<numElemsPerVec<K>> rightMask,
+                            const SIMDSelector<K> keyVec,
+                            const SIMDSelector<T> payloadVec,
+                            K *const keys,
+                            T *const payloads) {
+        using SK = SIMDSelector<K>;
+        using TK = SIMDSelector<T>;
 
-	// 	simd::mask_compressstoreu(&keys[rightPos], rightMask, keyVec);
-	// 	std::apply(
-	// 	        [&](const auto... payloadVecs) {
-	// 		        (simd::mask_compressstoreu(&payloads[rightPos], rightMask,
-	// 		                                   payloadVecs),
-	// 		         ...);
-	// 	        },
-	// 	        payloadVec);
-	// }
+        SK::compress(&keys[leftPos], keyVec, leftMask);
+        std::apply(
+                [&](const auto... payloadVecs) {
+        	        (TK::compress(&payloads[leftPos], payloadVecs, leftMask),
+        	         ...);
+                },
+                payloadVec);
+        
+        SK::compress(&keys[rightPos], keyVec, rightMask);
+        std::apply(
+                [&](const auto... payloadVecs) {
+        	        (TK::compress(&payloads[rightPos], payloadVecs, rightMask),
+        	         ...);
+                },
+                payloadVec);
+    }
 };
+
+
+/// \tparam Up[in]:
+/// \tparam BitSorter[in]:
+/// \tparam CmpSorter[in]:
+/// \tparam IsRightSide[in]:
+/// \tparam IsHighestBit[in]:
+/// \tparam K[in]:
+/// \tparam Ps[in]:
+/// \param bitNo[in]:
+/// \param cmpSortThreshold[in]:
+/// \param left[in]:
+/// \param right[in]:
+/// \param keys[in]:
+/// \param payloads[in]:
+template<bool Up,
+         typename BitSorter,
+         typename CmpSorter,
+         bool IsRightSide = false,
+         bool IsHighestBit = true,
+         typename K,
+         typename... Ps>
+void radixRecursion(const std::size_t bitNo,
+                    const SortIndex cmpSortThreshold,
+                    const SortIndex left,
+                    const SortIndex right,
+                    K *const keys,
+                    Ps *const... payloads) noexcept {
+	if (right - left <= 0) {
+		return;
+	}
+	if (right - left < cmpSortThreshold) {
+		CmpSorter::template sort<Up, K, Ps...>(left, right, keys, payloads...);
+		return;
+	}
+
+	const SortIndex split =
+	        BitSorter::template sortBit<Up, IsHighestBit, IsRightSide, K, Ps...>(
+	                bitNo, left, right, keys, payloads...);
+	if (bitNo > 0) {
+		radixRecursion<Up, BitSorter, CmpSorter, IsHighestBit ? false : IsRightSide,
+		               false>(bitNo - 1, cmpSortThreshold, left, split - 1, keys,
+		                      payloads...);
+		radixRecursion<Up, BitSorter, CmpSorter, IsHighestBit ? true : IsRightSide,
+		               false>(bitNo - 1, cmpSortThreshold, split, right, keys,
+		                      payloads...);
+	}
+}
+
+/// \tparam Up[in]:
+/// \tparam BitSorter[in]:
+/// \tparam CmpSorter[in]:
+/// \tparam K[in]:
+/// \tparam Ps[in]:
+/// \param cmpSortThreshold[in]:
+/// \param num[in]:
+/// \param keys[in]:
+/// \param payloads[in]:
+template<bool Up = true,
+         typename BitSorter = BitSorterSIMD,
+         typename CmpSorter = CmpSorterInsertionSort,
+         typename K,
+         typename... Ps>
+void sort(SortIndex cmpSortThreshold, 
+          const SortIndex num,
+          K *const keys,
+          Ps *const... payloads) noexcept {
+	radixRecursion
+        <Up, BitSorter, CmpSorter>
+        (sizeof(K) * 8 - 1, cmpSortThreshold, 0, num - 1, keys, payloads...);
+}
+
+/// \tparam Up[in]:
+/// \tparam BitSorter[in]:
+/// \tparam CmpSorter[in]:
+/// \tparam K[in]:
+/// \tparam Ps[in]:
+/// \param cmpSortThreshold[in]:
+/// \param num[in]:
+/// \param elements[in]:
+template<bool Up,
+         typename BitSorter,
+         typename CmpSorter,
+         typename K,
+         typename... Ps>
+void sort(SortIndex cmpSortThreshold,
+          const SortIndex num,
+          DataElement<K, Ps...> *const elements) {
+	static_assert(is_power_of_two<sizeof(DataElement<K, Ps...>)>,
+	              "size of DataElement<K, Ps...> must be a power of two");
+	radixRecursion
+        <Up, BitSorter, CmpSorter>
+        (sizeof(K) * 8 - 1, cmpSortThreshold, 0, num - 1, elements);
+}
+
+/// \tparam Up[in]:
+/// \tparam K[in]:
+/// \tparam Ps[in]:
+/// \param num[in]:
+/// \param keys[in]:
+/// \param payloads[in]:
+template<bool Up = true,
+         typename K,
+         typename... Ps>
+void sort(const SortIndex num,
+          K *const keys,
+          Ps *const... payloads) {
+	sort
+        <Up, BitSorterSIMD, CmpSorterInsertionSort>
+        (16, num, keys, payloads...);
+}

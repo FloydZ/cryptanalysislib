@@ -1,12 +1,12 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_ACCUMULATE_H
 #define CRYPTANALYSISLIB_ALGORITHM_ACCUMULATE_H
 
-#include "thread/thread.h"
+#include <numeric>
+
 #include "algorithm/algorithm.h"
 #include "simd/simd.h"
-#include "helper.h"
 
-#include <numeric>
+/// TODO: comments and usage of simd function in normal function
 
 namespace cryptanalysislib {
 	struct AlgorithmAccumulateConfig : public AlgorithmConfig {
@@ -25,8 +25,8 @@ namespace cryptanalysislib {
 		template<typename T,
 				 const AlgorithmAccumulateConfig &config = algorithmAccumulateConfig>
 		constexpr T accumulate_simd_int_plus(const T *data,
-							  const size_t n,
-							  const T init) noexcept {
+							                 const size_t n,
+							                 const T init) noexcept {
 			using S = SIMDSelector<T>;
 			T ret = init;
 
@@ -60,7 +60,7 @@ namespace cryptanalysislib {
     requires std::random_access_iterator<InputIt>
 #endif
 	constexpr InputIt::value_type accumulate(InputIt first,
-											 InputIt last,
+											 const InputIt last,
 											 typename InputIt::value_type init) noexcept {
 		for (; first != last; ++first) {
 			init = std::move(init) + *first;
@@ -86,9 +86,9 @@ namespace cryptanalysislib {
 									const typename InputIt::value_type&>
 #endif
 	constexpr InputIt::value_type accumulate(InputIt first,
-						   InputIt last,
-						   typename InputIt::value_type init,
-						   BinaryOperation op) {
+						                     const InputIt last,
+						                     const typename InputIt::value_type init,
+						                     BinaryOperation op) {
 		for (; first != last; ++first) {
 			init = op(std::move(init), *first);
 		}

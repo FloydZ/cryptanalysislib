@@ -23,6 +23,7 @@ namespace cryptanalysislib {
     /// Return maximum(a, b)
     /// Both a and b must not have the most significant bit set
 	template<typename T>
+        requires std::is_integral_v<T>
     constexpr static inline T max_branchless(const T a,
                                              const T b) noexcept {
         constexpr static size_t BITS = sizeof(T) * 8u;
@@ -41,6 +42,7 @@ namespace cryptanalysislib {
 	/// \return max(a[0], ..., a[n-1])
 	template<typename T,
              const AlgorithmMaxConfig &config = algorithmMaxConfig>
+        requires std::is_integral_v<T>
 	[[nodiscard]] constexpr static inline T max_simd_uXX(const T *a,
 														 const size_t n) noexcept {
         // make sure that we actually support the integers

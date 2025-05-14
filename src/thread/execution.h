@@ -76,19 +76,19 @@ struct parallel_policy : public execution_policy {
                                        const bool par_ok): 
         on_pool(on_pool), par_ok(par_ok) {}
 
-	/// @param pool
-    /// @return
+	/// \param pool
+    /// \return
     [[nodiscard]] constexpr inline parallel_policy on(pool_type pool) const noexcept {
         return parallel_policy{pool, par_ok};
     }
 
-    /// @param call_par
-    /// @return
+    /// \param call_par
+    /// \return
     [[nodiscard]] parallel_policy par_if(const bool call_par) const noexcept {
         return parallel_policy{on_pool, call_par};
     }
 
-    ///
+    /// \return
     [[nodiscard]] pool_type pool() const noexcept {
         if (on_pool != nullptr) {
             return on_pool;

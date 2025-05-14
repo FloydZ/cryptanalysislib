@@ -938,17 +938,7 @@ struct Xint8x64_t {
 	constexpr static inline void compress(uint8_t *ptr,
                                           const Xint8x64_t in1,
                                           const Mask<LIMBS> &m) noexcept {
-        _mm512_maskz_compressstoreu_epi8(ptr, m, in1.v512);
-    }
-
-    /// translates to the `_mm512_test_epi64_mask` instrinsic
-    /// \param in1[in]: avx512 register to test
-    /// \param bit_pos[in]: bit pos to test
-	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
-                                                           const uint32_t bit_pos) noexcept {
-        const S tmp = S::set1(1u << bit_pos);
-        __mmask64 mm = _mm512_test_epi8_mask(in1, tmp);
-        return Mask<LIMBS>(mm);
+        _mm512_mask_compressstoreu_epi8(ptr, m, in1.v512);
     }
 
     /// translates to the `_mm512_test_epi64_mask` instrinsic
@@ -964,7 +954,7 @@ struct Xint8x64_t {
     /// TODO not correct
 	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_min_epu32(in1.v512)
+            return _mm512_reduce_min_epu32(in1.v512);
         }
         return _mm512_reduce_min_epi32(in1.v512);
     }
@@ -972,7 +962,7 @@ struct Xint8x64_t {
     /// TODO not correct
 	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_max_epu32(in1.v512)
+            return _mm512_reduce_max_epu32(in1.v512);
         }
         return _mm512_reduce_max_epi32(in1.v512);
     }
@@ -1640,7 +1630,7 @@ struct Xint16x32_t {
 	constexpr static inline void compress(uint16_t *ptr,
                                           const S in1,
                                           const Mask<LIMBS> &m) noexcept {
-        _mm512_maskz_compressstoreu_epi16(ptr, m, in1.v512);
+        _mm512_mask_compressstoreu_epi16(ptr, m, in1.v512);
     }
 
     /// \param in1[in]: avx512 register to test
@@ -1655,7 +1645,7 @@ struct Xint16x32_t {
     /// TODO not correct
 	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_min_epu32(in1.v512)
+            return _mm512_reduce_min_epu32(in1.v512);
         }
         return _mm512_reduce_min_epi32(in1.v512);
     }
@@ -1663,7 +1653,7 @@ struct Xint16x32_t {
     /// TODO not correct
 	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_max_epu32(in1.v512)
+            return _mm512_reduce_max_epu32(in1.v512);
         }
         return _mm512_reduce_max_epi32(in1.v512);
     }
@@ -2092,7 +2082,7 @@ struct Xint32x16_t {
 
 	/// \param in1
 	/// \param in2
-	/// \return
+	/// \return in1 >= in2
 	[[nodiscard]] constexpr static inline uint16_t ge(const Xint32x16_t in1,
 													  const Xint32x16_t in2) noexcept {
 		const __m512i v512 = (__m512i) ((__v16su) in1.v512 >= (__v16su) in2.v512);
@@ -2285,7 +2275,7 @@ struct Xint32x16_t {
 	constexpr static inline void compress(uint32_t *ptr,
                                           const S in1,
                                           const Mask<LIMBS> &m) noexcept {
-        _mm512_maskz_compressstoreu_epi32(ptr, m, in1.v512);
+        _mm512_mask_compressstoreu_epi32(ptr, m, in1.v512);
     }
 
     /// \param in1[in]: avx512 register to test
@@ -2300,7 +2290,7 @@ struct Xint32x16_t {
     /// \param in1[in]:
 	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_min_epu32(in1.v512)
+            return _mm512_reduce_min_epu32(in1.v512);
         }
         return _mm512_reduce_min_epi32(in1.v512);
     }
@@ -2308,7 +2298,7 @@ struct Xint32x16_t {
     /// \param in1[in]:
 	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_max_epu32(in1.v512)
+            return _mm512_reduce_max_epu32(in1.v512);
         }
         return _mm512_reduce_max_epi32(in1.v512);
     }
@@ -2924,7 +2914,7 @@ struct Xint64x8_t {
 	constexpr static inline void compress(uint64_t *ptr,
                                           const Xint64x8_t in1,
                                           const Mask<LIMBS> &m) noexcept {
-        _mm512_maskz_compressstoreu_epi64(ptr, m, in1.v512);
+        _mm512_mask_compressstoreu_epi64(ptr, m, in1.v512);
     }
    
     /// translates to the `_mm512_test_epi64_mask` instrinsic
@@ -2940,7 +2930,7 @@ struct Xint64x8_t {
     /// \param in1[in]:
 	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_min_epu32(in1.v512)
+            return _mm512_reduce_min_epu32(in1.v512);
         }
         return _mm512_reduce_min_epi32(in1.v512);
     }
@@ -2948,7 +2938,7 @@ struct Xint64x8_t {
     /// \param in1[in]:
 	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_max_epu32(in1.v512)
+            return _mm512_reduce_max_epu32(in1.v512);
         }
         return _mm512_reduce_max_epi32(in1.v512);
     }

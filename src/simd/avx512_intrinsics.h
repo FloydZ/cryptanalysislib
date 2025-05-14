@@ -57,7 +57,7 @@ __m512i _mm512_adds_epi32(const __m512i a,
 	__m512i of		= _mm512_ternarylogic_epi32(a, b, add, 0x42);
 
 	__m512i ofmask	= _mm512_srai_epi32(of, 31);
-	__m512i ofvalue	= _mm512_xor_si512(_mm512_set1_epi32(LONG_MIN), sign);
+	__m512i ofvalue	= _mm512_xor_si512(_mm512_set1_epi32((int)LONG_MIN), sign);
 
 	__m512i val		= _mm512_ternarylogic_epi32(ofvalue, add, ofmask, 0xe4);
 	return	val;
@@ -96,7 +96,7 @@ __m512i _mm512_subs_epi32(const __m512i a,
 	__m512i of		= _mm512_ternarylogic_epi32(a, b, sub, 0x18);
 
 	__m512i ofmask	= _mm512_srai_epi32(of, 31);
-	__m512i ofvalue	= _mm512_xor_si512(_mm512_set1_epi32(LONG_MIN), sign);
+	__m512i ofvalue	= _mm512_xor_si512(_mm512_set1_epi32((int)LONG_MIN), sign);
 
 	__m512i val		= _mm512_ternarylogic_epi32(ofvalue, sub, ofmask, 0xe4);
 	return	val;
@@ -214,7 +214,7 @@ __m512i _mm512_adds_Zen4_epi32(const __m512i a,
 	__m512i of		= _mm512_ternarylogic_epi32(add, a, b, 0x18);
 
 	__m512i ofmask	= _mm512_srai_epi32(of, 31);
-	__m512i ofvalue	= _mm512_xor_si512(sign, _mm512_set1_epi32(LONG_MIN));
+	__m512i ofvalue	= _mm512_xor_si512(sign, _mm512_set1_epi32((int)LONG_MIN));
 
 	__m512i val		= _mm512_ternarylogic_epi32(ofmask, ofvalue, add, 0xca);
 	return	val;
@@ -253,7 +253,7 @@ __m512i _mm512_subs_Zen4_epi32(const __m512i a,
 	__m512i of		= _mm512_ternarylogic_epi32(sub, a, b, 0x24);
 
 	__m512i ofmask	= _mm512_srai_epi32(of, 31);
-	__m512i ofvalue	= _mm512_xor_si512(sign, _mm512_set1_epi32(LONG_MIN));
+	__m512i ofvalue	= _mm512_xor_si512(sign, _mm512_set1_epi32((int)LONG_MIN));
 
 	__m512i val		= _mm512_ternarylogic_epi32(ofmask, ofvalue, sub, 0xca);
 	return	val;
@@ -1206,17 +1206,17 @@ __m512i _mm512_lzcnt_epi16(const __m512i a) noexcept {
 
 static inline
 __m128i _mm_lzcnt_fp16_epi16(const __m128i a) noexcept {
-	return _mm_min_epi16(_mm_sub_epi16(_mm_set1_epi16(0x1e), _mm_srli_epi16(_mm_cvtepu16_ph(a), 10)), _mm_set1_epi16(0x10));
+	return _mm_min_epi16(_mm_sub_epi16(_mm_set1_epi16(0x1e), _mm_srli_epi16((__m128i)_mm_cvtepu16_ph(a), 10)), _mm_set1_epi16(0x10));
 }
 
 static inline
 __m256i _mm256_lzcnt_fp16_epi16(const __m256i a) noexcept {
-	return _mm256_min_epi16(_mm256_sub_epi16(_mm256_set1_epi16(0x1e), _mm256_srli_epi16(_mm256_cvtepu16_ph(a), 10)), _mm256_set1_epi16(0x10));
+	return _mm256_min_epi16(_mm256_sub_epi16(_mm256_set1_epi16(0x1e), _mm256_srli_epi16((__m256i)_mm256_cvtepu16_ph(a), 10)), _mm256_set1_epi16(0x10));
 }
 
 static inline
 __m512i _mm512_lzcnt_fp16_epi16(const __m512i a) noexcept {
-	return _mm512_min_epi16(_mm512_sub_epi16(_mm512_set1_epi16(0x1e), _mm512_srli_epi16(_mm512_cvtepu16_ph(a), 10)), _mm512_set1_epi16(0x10));
+	return _mm512_min_epi16(_mm512_sub_epi16(_mm512_set1_epi16(0x1e), _mm512_srli_epi16((__m512i)_mm512_cvtepu16_ph(a), 10)), _mm512_set1_epi16(0x10));
 }
 
 static inline

@@ -107,7 +107,7 @@ endif ()
 FetchContent_Declare(
 		reflect-cpp
 		GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
-		GIT_TAG        v0.17.0
+		GIT_TAG        v0.19.0
 )
 FetchContent_MakeAvailable(reflect-cpp)
 include_directories(${reflect-cpp_SOURCE_DIR}/include)
