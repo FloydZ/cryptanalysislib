@@ -38,8 +38,8 @@ namespace cryptanalysislib {
 			requires std::unsigned_integral<T>
 #endif
 		constexpr size_t find_uXX_simd(const T *data,
-										const size_t n,
-										const T val) noexcept {
+									   const size_t n,
+									   const T val) noexcept {
 			using S = SIMDSelector<T>;
 
 			const auto t = S::set1(val);

@@ -29,6 +29,24 @@
 using namespace cryptanalysislib::popcount::internal;
 
 
+#if !defined(USE_AVX512) && !defined(__AVX512VLINTRIN_H)
+// AVX2 does not provide scatter, so we emulate it in a most obvious way
+void _mm256_i32scatter_epi32(int32_t* base, 
+                             __m256i vec_indices,
+                             __m256i vec_values, size_t /*scale*/) {
+    uint32_t indices[8];
+    uint32_t values[8];
+
+    _mm256_storeu_si256((__m256i*)indices, vec_indices);
+    _mm256_storeu_si256((__m256i*)values, vec_values);
+
+    for (int i=0; i < 8; i++) {
+        const size_t idx = indices[i];
+        base[idx] = values[i];
+    }
+}
+#endif
+
 
 constexpr static __m256i u8tom256(const uint8_t t[32]) noexcept {
 	long long __t[4];
