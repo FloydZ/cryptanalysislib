@@ -826,10 +826,115 @@ static void transpose_u4_64x64_avx2(uint8_t *B,
     }
 }
 
+/// every element is a u64
+/// out: [a0 b0 c0 d0]
+///      [a1 b1 c1 d1]
+///      [a2 b2 c2 d2]
+///      [a1 b1 c1 d1]
+/// in : [a0 a1 a2 a3]
+///      [b0 b1 b2 b3]
+///      [c0 c1 c2 c3]
+///      [d0 d1 d2 d3]
+static inline
+void transpose_u64_4x4_avx2(uint64_t *out,
+                           const uint64_t *in) {
+    const __m256i a0 = _mm256_loadu_si256((const __m256i *)(in +  0));
+    const __m256i a1 = _mm256_loadu_si256((const __m256i *)(in +  4));
+    const __m256i a2 = _mm256_loadu_si256((const __m256i *)(in +  8));
+    const __m256i a3 = _mm256_loadu_si256((const __m256i *)(in + 12));
+
+    const __m256i b0 = _mm256_unpacklo_epi64(a0, a1);
+    const __m256i b1 = _mm256_unpackhi_epi64(a0, a1);
+    const __m256i b2 = _mm256_unpacklo_epi64(a2, a3);
+    const __m256i b3 = _mm256_unpackhi_epi64(a2, a3);
+
+    const __m256i t0 = _mm256_permute2x128_si256(b0, b2, 0x20);
+    const __m256i t1 = _mm256_permute2x128_si256(b1, b3, 0x20);
+    const __m256i t2 = _mm256_permute2x128_si256(b0, b2, 0x31);
+    const __m256i t3 = _mm256_permute2x128_si256(b1, b3, 0x31);
+
+    _mm256_storeu_si256((__m256i *)(out +  0), t0);
+    _mm256_storeu_si256((__m256i *)(out +  4), t1);
+    _mm256_storeu_si256((__m256i *)(out +  8), t2);
+    _mm256_storeu_si256((__m256i *)(out + 12), t3);
+}
+
+/// every element is a u64
+/// out: [a0 b0 c0 d0]
+///      [a1 b1 c1 d1]
+///      [a2 b2 c2 d2]
+///      [a1 b1 c1 d1]
+/// in : [a0 a1 a2 a3]
+///      [b0 b1 b2 b3]
+///      [c0 c1 c2 c3]
+///      [d0 d1 d2 d3]
+static inline
+void transpose_u64_4x4_avx2_(__m256i a[4]) {
+    const __m256i b0 = _mm256_unpacklo_epi64(a[0], a[1]);
+    const __m256i b1 = _mm256_unpackhi_epi64(a[0], a[1]);
+    const __m256i b2 = _mm256_unpacklo_epi64(a[2], a[3]);
+    const __m256i b3 = _mm256_unpackhi_epi64(a[2], a[3]);
+
+    a[0] = _mm256_permute2x128_si256(b0, b2, 0x20);
+    a[1] = _mm256_permute2x128_si256(b1, b3, 0x20);
+    a[2] = _mm256_permute2x128_si256(b0, b2, 0x31);
+    a[3] = _mm256_permute2x128_si256(b1, b3, 0x31);
+}
 
 
 #ifdef USE_AVX512 
 
+/// every element is a u64
+/// out: [a0 b0 c0 d0 e0 f0 g0 h0]
+///      [a1 b1 c1 d1 e1 f1 g1 h1]
+///      [a2 b2 c2 d2 e2 f2 g2 h2]
+///      [a3 b3 c3 d3 e3 f3 g3 h3]
+///      [a4 b4 c4 d4 e4 f4 g4 h4]
+///      [a5 b5 c5 d5 e5 f5 g5 h5]
+///      [a6 b6 c6 d6 e6 f6 g6 h6]
+///      [a7 b7 c7 d7 e7 f7 g7 h7]
+/// in : [a0 a1 a2 a3 a4 a5 a6 a7]
+///      [b0 b1 b2 b7 b4 b5 b6 b7]
+///      [c0 c1 c2 c3 c4 c5 c6 c7]
+///      [d0 d1 d2 d3 d4 d5 d6 d7]
+///      [e0 e1 e2 e3 e4 e5 e6 e7]
+///      [f0 f1 f2 f3 f4 f5 f6 f7]
+///      [g0 g1 g2 g3 g4 g5 g6 g7]
+///      [h0 h1 h2 h3 h4 h5 h6 h7]
+void transpose_u64_8x8_avx512_(__m512i a[8]) {
+    const __m512i m1 = _mm512_setr_epi64(0b0000, 0b0001, 0b1000, 0b1001, 0b0100, 0b0101, 0b1100, 0b1101);
+    const __m512i m2 = _mm512_setr_epi64(0b0010, 0b0011, 0b1010, 0b1011, 0b0110, 0b0111, 0b1110, 0b1111);
+
+    const __m512i m3 = _mm512_setr_epi64(0b0000, 0b0001, 0b0010, 0b0011, 0b1000, 0b1001, 0b1010, 0b1011);
+    const __m512i m4 = _mm512_setr_epi64(0b0100, 0b0101, 0b0110, 0b0111, 0b1100, 0b1101, 0b1110, 0b1111);
+
+    const __m512i b0 = _mm512_unpacklo_epi64(a[0], a[1]);
+    const __m512i b1 = _mm512_unpackhi_epi64(a[0], a[1]);
+    const __m512i b2 = _mm512_unpacklo_epi64(a[2], a[3]);
+    const __m512i b3 = _mm512_unpackhi_epi64(a[2], a[3]);
+    const __m512i b4 = _mm512_unpacklo_epi64(a[4], a[5]);
+    const __m512i b5 = _mm512_unpackhi_epi64(a[4], a[5]);
+    const __m512i b6 = _mm512_unpacklo_epi64(a[6], a[7]);
+    const __m512i b7 = _mm512_unpackhi_epi64(a[6], a[7]);
+
+    const __m512i t0 = _mm512_permutex2var_epi64(b0, m1, b2);
+    const __m512i t1 = _mm512_permutex2var_epi64(b1, m2, b3);
+    const __m512i t2 = _mm512_permutex2var_epi64(b0, m1, b2);
+    const __m512i t3 = _mm512_permutex2var_epi64(b1, m2, b3);
+    const __m512i t4 = _mm512_permutex2var_epi64(b4, m1, b6);
+    const __m512i t5 = _mm512_permutex2var_epi64(b5, m2, b7);
+    const __m512i t6 = _mm512_permutex2var_epi64(b4, m1, b6);
+    const __m512i t7 = _mm512_permutex2var_epi64(b5, m2, b7);
+
+    a[0] = _mm512_permutex2var_epi64(b0, m3, b4);
+    a[1] = _mm512_permutex2var_epi64(b1, m3, b5);
+    a[2] = _mm512_permutex2var_epi64(b2, m3, b6);
+    a[3] = _mm512_permutex2var_epi64(b3, m3, b7);
+    a[4] = _mm512_permutex2var_epi64(b4, m4, b6);
+    a[5] = _mm512_permutex2var_epi64(b5, m4, b7);
+    a[6] = _mm512_permutex2var_epi64(b6, m4, b6);
+    a[7] = _mm512_permutex2var_epi64(b7, m4, b7);
+}
 // source: https://stackoverflow.com/questions/29519222/how-to-transpose-a-16x16-matrix-using-simd-instructions
 inline static
 void tran_new2(uint32_t* mat, uint32_t* matT) noexcept {
