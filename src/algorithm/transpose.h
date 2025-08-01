@@ -120,6 +120,39 @@ inline void transpose_b64x64_inplace(uint64_t a[64]) noexcept {
 }
 
 
+/// Optimized transpose of a 4x4 matrix of bytes
+/// \param dst[out]: pointer to the output transposed matrix
+/// \param src[in]: pointer to the input matrix
+/// \param stride[in]: distance between rows in bytes
+/// TODO: move cryptanalyslib
+void transpose_u8_4x4(uint8_t* dst,
+                      const uint8_t* src,
+                      const size_t stride) {
+    // load rows of src matrix
+    uint32_t a0 = *((uint32_t*)(src+0*stride));
+    uint32_t a1 = *((uint32_t*)(src+1*stride));
+    uint32_t a2 = *((uint32_t*)(src+2*stride));
+    uint32_t a3 = *((uint32_t*)(src+3*stride));
+    
+    // 2x2 block matrices
+    uint32_t b0 = (a0 & 0x00ff00ffU) | ((a1 << 8) & 0xff00ff00U);
+    uint32_t b1 = (a1 & 0xff00ff00U) | ((a0 >> 8) & 0x00ff00ffU);
+    uint32_t b2 = (a2 & 0x00ff00ffU) | ((a3 << 8) & 0xff00ff00U);
+    uint32_t b3 = (a3 & 0xff00ff00U) | ((a2 >> 8) & 0x00ff00ffU);
+    
+    // 4x4 block matrices
+    uint32_t c0 = (b0 & 0x0000ffffU) | ((b2 << 16) & 0xffff0000U);
+    uint32_t c1 = (b1 & 0x0000ffffU) | ((b3 << 16) & 0xffff0000U);
+    uint32_t c2 = (b2 & 0xffff0000U) | ((b0 >> 16) & 0x0000ffffU);
+    uint32_t c3 = (b3 & 0xffff0000U) | ((b1 >> 16) & 0x0000ffffU);
+    
+    // write to dst matrix
+    *(uint32_t*)(dst + 0*stride) = c0;
+    *(uint32_t*)(dst + 1*stride) = c1;
+    *(uint32_t*)(dst + 2*stride) = c2;
+    *(uint32_t*)(dst + 3*stride) = c3;
+}
+
 /// \param dst[out]: out  data
 /// \param src[in] input bytes 8x8 matrix
 /// \param src_stride[in] in bytes
