@@ -6,22 +6,24 @@
 #include "algorithm/algorithm.h"
 #include "simd/simd.h"
 
-/// TODO: comments and usage of simd function in normal function
-
 namespace cryptanalysislib {
+	/// Configuration for accumulate algorithm
 	struct AlgorithmAccumulateConfig : public AlgorithmConfig {
+        /// Minimum data size per thread
 	    const size_t min_size_per_thread = 1u<<10u;
+        /// Whether to use aligned memory access
 	    const bool aligned_instructions = false;
 	};
 	constexpr static AlgorithmAccumulateConfig algorithmAccumulateConfig;
 
 	namespace internal {
 
-		/// \tparam T
-		/// \param data
-		/// \param n
-		/// \param init
-		/// \return
+		/// SIMD accelerated implementation for accumulating numeric values
+		/// \tparam T [in] Element type to accumulate
+		/// \param data [in] Pointer to array of elements
+		/// \param n [in] Number of elements to process
+		/// \param init [in] Initial value for accumulation
+		/// \return Accumulated sum of elements with initial value
 		template<typename T,
 				 const AlgorithmAccumulateConfig &config = algorithmAccumulateConfig>
 		constexpr T accumulate_simd_int_plus(const T *data,
@@ -41,7 +43,7 @@ namespace cryptanalysislib {
 				ret += acc[j];
 			}
 
-			//
+			// Process remaining elements
 			for (; i < n; i++) {
 				ret += data[i];
 			}
@@ -49,11 +51,12 @@ namespace cryptanalysislib {
 		}
 	} // end namespace internal
 
-	/// \tparam InputIt
-	/// \param first
-	/// \param last
-	/// \param init
-	/// \return
+	/// Sequential implementation of accumulate with addition operation
+	/// \tparam InputIt [in] Input iterator type
+	/// \param first [in] Iterator to first element
+	/// \param last [in] Iterator past the last element
+	/// \param init [in] Initial accumulation value
+	/// \return Sum of all elements plus initial value
 	template<class InputIt,
 			 const AlgorithmAccumulateConfig &config=algorithmAccumulateConfig>
 #if __cplusplus > 201709L
@@ -62,6 +65,15 @@ namespace cryptanalysislib {
 	constexpr InputIt::value_type accumulate(InputIt first,
 											 const InputIt last,
 											 typename InputIt::value_type init) noexcept {
+        using T = typename std::iterator_traits<InputIt>::value_type;
+
+		// For contiguous arrays of arithmetic types, use SIMD-accelerated implementation
+		if constexpr (std::is_arithmetic_v<T>) {
+		    const size_t n = std::distance(first, last);
+		    return internal::accumulate_simd_int_plus(first, n, init);
+		}
+		
+		// Generic implementation for all other cases
 		for (; first != last; ++first) {
 			init = std::move(init) + *first;
 		}
@@ -69,13 +81,14 @@ namespace cryptanalysislib {
 		return init;
 	}
 
-	/// \tparam InputIt
-	/// \tparam BinaryOperation
-	/// \param first
-	/// \param last
-	/// \param init
-	/// \param op
-	/// \return
+	/// Sequential implementation of accumulate with custom binary operation
+	/// \tparam InputIt [in] Input iterator type
+	/// \tparam BinaryOperation [in] Binary operation type
+	/// \param first [in] Iterator to first element
+	/// \param last [in] Iterator past the last element
+	/// \param init [in] Initial accumulation value
+	/// \param op [in] Binary operation to apply
+	/// \return Result of applying binary operation to all elements
 	template<class InputIt,
 			 class BinaryOperation,
 			 const AlgorithmAccumulateConfig &config=algorithmAccumulateConfig>
@@ -95,14 +108,15 @@ namespace cryptanalysislib {
 		return init;
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam config
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param init
-	/// \return
+	/// Parallel implementation of accumulate using execution policy
+	/// \tparam ExecPolicy [in] Execution policy type
+	/// \tparam RandIt[in]: Random access iterator type
+	/// \tparam config[in]: Configuration for algorithm behavior
+	/// \param policy[in]: Execution policy instance
+	/// \param first[in]: Iterator to first element
+	/// \param last[in]: Iterator past the last element
+	/// \param init[in]: Initial accumulation value
+	/// \return Sum of all elements plus initial value
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmAccumulateConfig &config=algorithmAccumulateConfig>

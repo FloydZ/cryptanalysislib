@@ -6,20 +6,22 @@
 
 namespace cryptanalysislib {
 
-///
+/// Basic configuration for algorithms
+/// Contains default settings used by various algorithm implementations
 struct AlgorithmConfig {
-    const size_t alignment = 8;
+    ///< Default memory alignment in bytes
+    const size_t alignment = 8;  
 };
 
 constexpr static AlgorithmConfig algorithmConfig;
 
-/// extends the functionality of `is_par`/`is_seq` by deciding during runtime
-/// if threads should be used (maybe the problem is to small) and if yes,
+/// Extends the functionality of `is_par`/`is_seq` by deciding during runtime
+/// if threads should be used (maybe the problem is too small) and if yes,
 /// how many.
-/// \param policy 
-/// \param config derivation of `AlgorithmConfig` which implements a `min_size_per_thread` field.
-/// \param size problem size: number of elements to be processed 
-/// \return the number of threads that should be used. If zero it means that 
+/// \param policy[in]: Execution policy that determines if parallelism is allowed
+/// \param config[in]: Derivation of `AlgorithmConfig` which implements a `min_size_per_thread` field
+/// \param size[in]: Problem size: number of elements to be processed 
+/// \return The number of threads that should be used. If zero it means that 
 ///     no threading should be used.
 template <class ExecPolicy,
           class AlgorithmConfigClass>
