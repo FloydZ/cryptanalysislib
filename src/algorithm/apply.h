@@ -8,18 +8,23 @@
 #include "algorithm/algorithm.h"
 
 namespace cryptanalysislib {
+	/// Configuration for the apply algorithm operations
 	struct AlgorithmApplyConfig : public AlgorithmConfig {
+	    /// min_size_per_thread[in]: Minimum number of elements that should be processed per thread
 	    constexpr static size_t min_size_per_thread = 1u<<10u;
 	};
+	/// Default configuration for apply algorithm operations
 	constexpr static AlgorithmApplyConfig algorithmApplyConfig;
 
-	/// \tparam ExecPolicy
-	/// \tparam Op
-	/// \tparam ArgContainer
-	/// \param policy
-	/// \param op
-	/// \param args_list
-	/// \return
+	/// Applies an operation to each element in a container in parallel using std::apply
+	/// \tparam ExecPolicy[in]: Type of execution policy that determines parallelism behavior
+	/// \tparam Op[in]: Type of operation to apply to each tuple of arguments
+	/// \tparam ArgContainer[in]: Type of container holding argument tuples
+	/// \tparam config[in]: Configuration for the algorithm
+	/// \param policy[in]: Execution policy instance that controls thread pool access
+	/// \param op[in]: Operation to apply to each tuple of arguments
+	/// \param args_list[in]: Container of argument tuples to process
+	/// \return Vector of futures for tracking the completion of parallel tasks
 	template <class ExecPolicy,
 			  class Op,
 			  class ArgContainer,
