@@ -3,11 +3,11 @@
 
 #include <cstdint>
 
-/// generic function to read a i-th bit from a array
-/// \tparam T
-/// \param data
-/// \param i
-/// \return
+/// Retrieve the value of the i-th bit from an array of type T
+/// \tparam T Type of the array elements
+/// \param data[in]: Pointer to the array
+/// \param i[in]: Bit position to retrieve
+/// \return Boolean value of the specified bit
 template<typename T>
 [[nodiscard]] constexpr static inline bool get_bit(const T *data,
 												   const uint32_t i) noexcept {
@@ -18,6 +18,11 @@ template<typename T>
 }
 
 
+/// Set the value of a specific bit in an array of type T
+/// \tparam T Type of the array elements
+/// \param data [in,out]: Pointer to the array to modify
+/// \param pos [in]: Bit position to set
+/// \param bit [in]: Boolean value to set
 template<typename T>
 constexpr static inline void set_bit(const T *data,
 									 const uint32_t pos,

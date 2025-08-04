@@ -3,10 +3,12 @@
 
 #include "helper.h"
 
+
 namespace cryptanalysislib {
-	/// \tparam T base data type
-	/// \param data input data type
-	/// \return hamming weight (popcount) of the input vector
+	/// Find the index of the first set bit (Find First Set)
+	/// \tparam T Base integer data type
+	/// \param data [in]: Input value to find the first set bit in
+	/// \return Position of the first set bit (1-indexed, returns 0 if no bits are set)
 	template<typename T>
 #if __cplusplus > 201709L
 		requires std::is_integral<T>::value

@@ -12,9 +12,10 @@
 
 /// namespace containing popcount algorithms
 namespace cryptanalysislib::popcount {
-	/// \tparam T base data type
-	/// \param data input data type
-	/// \return hamming weight (popcount) of the input vector
+	/// Count the number of set bits in an integer (Population Count)
+	/// \tparam T Base integer data type
+	/// \param data [in]: Input value to count the set bits in
+	/// \return [out]: Number of set bits (Hamming weight)
 	template<typename T>
 #if __cplusplus > 201709L
 		requires std::is_integral<T>::value
@@ -33,10 +34,11 @@ namespace cryptanalysislib::popcount {
 		}
 	}
 
-	/// \tparam T base type
-	/// \param data pointer to the const_array
-	/// \param size number of elements in the const_array
-	/// \return hamming weight (popcount) of the input vector
+	/// Count the number of set bits in an array of integers
+	/// \tparam T Base integer data type
+	/// \param data [in]: Pointer to the array of integers
+	/// \param size [in]: Number of elements in the array
+	/// \return [out]: Total number of set bits (Hamming weight) across all elements
 	template<class T>
 #if __cplusplus > 201709L
 		requires std::is_integral<T>::value

@@ -55,13 +55,17 @@ const __m128i popcnt2 = (__m128i)__builtin_ia32_pshufb128((__v16qi)lookup, (__v1
 
 
 namespace cryptanalysislib::popcount::internal {
-	/// special popcount which popcounts on 16 * 8u bit limbs in parallel
+	/// Count set bits in parallel across 16 bytes (8-bit elements) using SSE instructions
+	/// \param vec [in]: 128-bit vector containing 16 bytes to count bits in
+	/// \return [out]: 128-bit vector where each byte contains the popcount of the corresponding input byte
 	constexpr static __m128i popcount_sse_u8x16(const __m128i vec) noexcept {
 		POPCOUNT_HELPER_MACRO_U128()
 		return (__m128i) ((__v16qu) popcnt1 + (__v16qu) popcnt2);
 	}
 
-	/// special popcount which popcounts on 32 * 8u bit limbs in parallel
+	/// Count set bits in parallel across 32 bytes (8-bit elements) using AVX2 instructions
+	/// \param vec [in]: 256-bit vector containing 32 bytes to count bits in
+	/// \return [out]: 256-bit vector where each byte contains the popcount of the corresponding input byte
 	constexpr static __m256i popcount_avx2_8(const __m256i vec) noexcept {
 #ifdef USE_AVX512BITALG
         return _mm256_popcnt_epi8(vec);
@@ -71,7 +75,9 @@ namespace cryptanalysislib::popcount::internal {
 #endif
 	}
 
-	/// special popcount which popcounts on 16 * 16u bit limbs in parallel
+	/// Count set bits in parallel across 16 words (16-bit elements) using AVX2 instructions
+	/// \param vec [in]: 256-bit vector containing 16 words to count bits in
+	/// \return [out]: 256-bit vector where each word contains the popcount of the corresponding input word
 	constexpr static __m256i popcount_avx2_16(const __m256i vec) noexcept {
 #ifdef USE_AVX512BITALG
         return _mm256_popcnt_epi16(vec);
@@ -85,7 +91,9 @@ namespace cryptanalysislib::popcount::internal {
 #endif
 	}
 
-	/// special popcount which popcounts on 8 * 32u bit limbs in parallel
+	/// Count set bits in parallel across 8 dwords (32-bit elements) using AVX2 instructions
+	/// \param vec [in]: 256-bit vector containing 8 dwords to count bits in
+	/// \return [out]: 256-bit vector where each dword contains the popcount of the corresponding input dword
 	constexpr static __m256i popcount_avx2_32(const __m256i vec) noexcept {
 #ifdef USE_AVX512BITALG
         return _mm256_popcnt_epi32(vec);
@@ -104,7 +112,9 @@ namespace cryptanalysislib::popcount::internal {
 #endif
 	}
 
-	/// special popcount which popcounts on 4 * 64 bit limbs in parallel
+	/// Count set bits in parallel across 4 qwords (64-bit elements) using AVX2 instructions
+	/// \param vec [in]: 256-bit vector containing 4 qwords to count bits in
+	/// \return [out]: 256-bit vector where each qword contains the popcount of the corresponding input qword
 	constexpr static __m256i popcount_avx2_64(const __m256i vec) noexcept {
 #ifdef USE_AVX512BITALG
         return _mm256_popcnt_epi64(vec);

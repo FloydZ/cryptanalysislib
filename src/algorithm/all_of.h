@@ -11,6 +11,7 @@ namespace cryptanalysislib {
 		 /// Minimum size per thread to avoid excessive thread creation for small data sets
 		 const size_t min_size_per_thread = 1048576;
 	};
+
 	/// Default configuration for the any_of, all_of, and none_of algorithms
 	constexpr static AlgorithmAnyOfConfig algorithmAnyOfConfig;
 
