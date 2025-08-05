@@ -9,17 +9,20 @@
 #include "memory/memcmp.h"
 
 namespace cryptanalysislib {
+	/// Configuration for equal algorithms with threading settings
 	struct AlgorithmEqualConfig : public AlgorithmConfig {
 		const size_t min_size_per_thread = 262144;
 	};
 	constexpr static AlgorithmEqualConfig algorithmEqualConfig;
 
-	/// \tparam InputIt1
-	/// \tparam InputIt2
-	/// \param first1
-	/// \param last1
-	/// \param first2
-	/// \return
+	/// Checks if two ranges are equal (sequential version)
+	/// \tparam InputIt1 Forward iterator type for first range
+	/// \tparam InputIt2 Forward iterator type for second range
+	/// \tparam config Algorithm configuration (default: algorithmEqualConfig)
+	/// \param first1[in]: Iterator to the beginning of the first range
+	/// \param last1[in]: Iterator to the end of the first range
+	/// \param first2[in]: Iterator to the beginning of the second range
+	/// \return True if ranges are equal, false otherwise
 	template<class InputIt1,
 			 class InputIt2,
 			 const AlgorithmEqualConfig &config=algorithmEqualConfig>
@@ -44,15 +47,16 @@ namespace cryptanalysislib {
 	    return true;
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt1
-	/// \tparam RandIt2
-	/// \tparam config
-	/// \param policy
-	/// \param first1
-	/// \param last1
-	/// \param first2
-	/// \return
+	/// Checks if two ranges are equal (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt1 Random access iterator type for first range
+	/// \tparam RandIt2 Random access iterator type for second range
+	/// \tparam config Algorithm configuration (default: algorithmEqualConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first1[in]: Iterator to the beginning of the first range
+	/// \param last1[in]: Iterator to the end of the first range
+	/// \param first2[in]: Iterator to the beginning of the second range
+	/// \return True if ranges are equal, false otherwise
 	template <class ExecPolicy,
 			  class RandIt1,
 			  class RandIt2,

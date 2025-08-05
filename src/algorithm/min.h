@@ -13,6 +13,7 @@
 #include "thread/thread.h"
 
 namespace cryptanalysislib {
+    /// Configuration for min algorithms with SIMD and threading settings
     struct AlgorithmMinConfig {
     public:
         const size_t aligned_instructions = false;
@@ -21,58 +22,67 @@ namespace cryptanalysislib {
     };
     constexpr static AlgorithmMinConfig algorithmMinConfig{};
 
-    // Return minimum(a, b)
-    // Both a and b must not have the most significant bit set
-	template<typename T>
-    static inline T upos_min(T a, T b) {
-        constexpr static size_t BITS = sizeof(T) * 8u;
-        T d = b - a;
-        d &= (T)( (long)d >> (BITS-1) );
-        return  a + d;
-    }
+    namespace internal {
+        /// Returns minimum of two values using branchless computation
+        /// Both a and b must not have the most significant bit set
+        /// \tparam T Integral type for the values
+        /// \param a[in]: First value to compare
+        /// \param b[in]: Second value to compare
+        /// \return Minimum of a and b
+    	template<typename T>
+        static inline T upos_min(const T a,
+                                 const T b) {
+            constexpr static size_t BITS = sizeof(T) * 8u;
+            T d = b - a;
+            d &= (T)( (long)d >> (BITS-1) );
+            return  a + d;
+        }
+    
+    	/// SIMD-optimized minimum finding for integral arrays
+    	/// \tparam T Integral type for array elements
+    	/// \tparam config Algorithm configuration (default: algorithmMinConfig)
+    	/// \param a[in]: Array of integers
+    	/// \param n[in]: Length of the array
+    	/// \return Minimum value from a[0], ..., a[n-1]
+    	template<typename T,
+                 const AlgorithmMinConfig &config = algorithmMinConfig>
+    	[[nodiscard]] constexpr static inline T min_simd_uXX(const T *a,
+    														 const size_t n) noexcept {
+    		using S = SIMDSelector<T>;
+    
+    		T m = 0;
+    		auto p = S::set1(m);
+    
+            constexpr size_t t = S::LIMBS;
+    		size_t i = 0;
+    		for (; i+t <= n; i += t) {
+    			auto y = S::template load<config.aligned_instructions>(a + i);
+    			p = S::min(p, y);
+    		}
+    
+    		for (uint32_t j = 0; j < t; j++) {
+    			if (m > p[j]) {
+    				m = p[j];
+    			}
+    		}
+    
+    		// tail
+    		for (; i < n; i++) {
+    			if (a[i] < m) {
+    				m = a[i];
+    			}
+    		}
+    
+    		return m;
+        }
+    } // end namespace internal
 
-	/// \tparam T TODO doc
-	/// \tparam config
-	/// \param a
-	/// \param n
-	/// \return
-	template<typename T,
-             const AlgorithmMinConfig &config = algorithmMinConfig>
-	[[nodiscard]] constexpr static inline T min_simd_uXX(const T *a,
-														 const size_t n) noexcept {
-		using S = SIMDSelector<T>;
-
-		T m = 0;
-		auto p = S::set1(m);
-
-        constexpr size_t t = S::LIMBS;
-		size_t i = 0;
-		for (; i+t <= n; i += t) {
-			auto y = S::template load<config.aligned_instructions>(a + i);
-			p = S::min(p, y);
-		}
-
-		for (uint32_t j = 0; j < t; j++) {
-			if (m > p[j]) {
-				m = p[j];
-			}
-		}
-
-		// tail
-		for (; i < n; i++) {
-			if (a[i] < m) {
-				m = a[i];
-			}
-		}
-
-		return m;
-    }
-
-	/// \tparam Iterator TODO doc
-	/// \tparam config
-	/// \param start
-	/// \param end
-	/// \return
+	/// Finds minimum element in a range (sequential version)
+	/// \tparam Iterator Forward iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmMinConfig)
+	/// \param start[in]: Iterator to the beginning of the range
+	/// \param end[in]: Iterator to the end of the range
+	/// \return Minimum value in the range
 	template<class Iterator,
              const AlgorithmMinConfig &config = algorithmMinConfig>
 #if __cplusplus > 201709L
@@ -96,12 +106,14 @@ namespace cryptanalysislib {
 		return k;
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \return
+	/// Finds minimum element in a range (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmMinConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \return Minimum value in the range
 	template <class ExecPolicy,
 			  class RandIt,
               const AlgorithmMinConfig &config = algorithmMinConfig>

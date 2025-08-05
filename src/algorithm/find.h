@@ -10,6 +10,7 @@
 #include "search/search.h"
 
 namespace cryptanalysislib {
+    /// Configuration for find algorithms 
     // TODO somehow this yields an anonymous unitiialized field element
 	struct AlgorithmFindConfig /* : public AlgorithmConfig */ {
 		// NOTE multithreaded find is extremly slow
@@ -27,11 +28,13 @@ namespace cryptanalysislib {
 
 	namespace internal {
 
-		/// \tparam T
-		/// \param data
-		/// \param n
-		/// \param val
-		/// \return the position of the first element == val or n
+		/// SIMD-optimized find for integer types
+		/// \tparam T Unsigned integer type to search for
+		/// \tparam config Algorithm configuration (default: algorithmFindConfig)
+		/// \param data[in]: Pointer to array of elements to search
+		/// \param n[in]: Number of elements in the array
+		/// \param val[in]: Value to find in the array
+		/// \return Position of the first element == val or n if not found
 		template<typename T,
 				 const AlgorithmFindConfig &config=algorithmFindConfig>
 #if __cplusplus > 201709L
@@ -60,14 +63,15 @@ namespace cryptanalysislib {
 
 			return i;
 		}
-	}// end namespace internal
+	} // end namespace internal
 
-	/// \tparam InputIt
-	/// \tparam config
-	/// \param first
-	/// \param last
-	/// \param value
-	/// \return
+	/// Finds the first occurrence of a value in a range (sequential version)
+	/// \tparam InputIt Forward iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmFindConfig)
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param value[in]: Value to find in the range
+	/// \return Iterator to the first occurrence of value, or last if not found
 	template<class InputIt,
 			 const AlgorithmFindConfig &config = algorithmFindConfig>
 #if __cplusplus > 201709L
@@ -103,12 +107,14 @@ namespace cryptanalysislib {
 		return last;
 	}
 
-	/// \tparam InputIt
-	/// \tparam UnaryPred
-	/// \param first
-	/// \param last
-	/// \param p
-	/// \return
+	/// Finds the first element satisfying a predicate (sequential version)
+	/// \tparam InputIt Forward iterator type for the range
+	/// \tparam UnaryPred Predicate type to test elements
+	/// \tparam config Algorithm configuration (default: algorithmFindConfig)
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param p[in]: Unary predicate function
+	/// \return Iterator to the first element satisfying the predicate, or last if none found
 	template<class InputIt,
 			 class UnaryPred,
 			 const AlgorithmFindConfig &config = algorithmFindConfig>
@@ -129,12 +135,14 @@ namespace cryptanalysislib {
 		return last;
 	}
 
-	/// \tparam InputIt
-	/// \tparam UnaryPred
-	/// \param first
-	/// \param last
-	/// \param q
-	/// \return
+	/// Finds the first element not satisfying a predicate (sequential version)
+	/// \tparam InputIt Forward iterator type for the range
+	/// \tparam UnaryPred Predicate type to test elements
+	/// \tparam config Algorithm configuration (default: algorithmFindConfig)
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param q[in]: Unary predicate function
+	/// \return Iterator to the first element not satisfying the predicate, or last if none found
 	template<class InputIt,
 			 class UnaryPred,
 			 const AlgorithmFindConfig &config = algorithmFindConfig>
@@ -155,14 +163,15 @@ namespace cryptanalysislib {
 	    return last;
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam config
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param value
-	/// \return
+	/// Finds the first occurrence of a value in a range (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmFindConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param value[in]: Value to find in the range
+	/// \return Iterator to the first occurrence of value, or last if not found
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmFindConfig &config = algorithmFindConfig>
@@ -209,14 +218,16 @@ namespace cryptanalysislib {
 		return extremum == size ? last : first + extremum;
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam UnaryPred
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param p
-	/// \return
+	/// Finds the first element satisfying a predicate (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam UnaryPred Predicate type to test elements
+	/// \tparam config Algorithm configuration (default: algorithmFindConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param p[in]: Unary predicate function
+	/// \return Iterator to the first element satisfying the predicate, or last if none found
 	template <class ExecPolicy,
 			  class RandIt,
 	          class UnaryPred,
@@ -267,14 +278,16 @@ namespace cryptanalysislib {
 		return (size_t)extremum == size ? last : first + extremum;
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam UnaryPredicate
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param p
-	/// \return
+	/// Finds the first element not satisfying a predicate (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam UnaryPredicate Predicate type to test elements
+	/// \tparam config Algorithm configuration (default: algorithmFindConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param p[in]: Unary predicate function
+	/// \return Iterator to the first element not satisfying the predicate, or last if none found
 	template <class ExecPolicy,
 			  class RandIt,
 			  class UnaryPredicate,
@@ -293,6 +306,14 @@ namespace cryptanalysislib {
 		);
 	}
 
+    /// Finds the last subsequence in a range that matches another range (default comparison)
+    /// \tparam ForwardIt1 Forward iterator type for the main range
+    /// \tparam ForwardIt2 Forward iterator type for the subsequence range
+    /// \param first[in]: Iterator to the beginning of the main range
+    /// \param last[in]: Iterator to the end of the main range
+    /// \param s_first[in]: Iterator to the beginning of the subsequence
+    /// \param s_last[in]: Iterator to the end of the subsequence
+    /// \return Iterator to the beginning of the last matching subsequence, or last if not found
     template<class ForwardIt1, 
              class ForwardIt2>
 #if __cplusplus > 201709L
@@ -323,7 +344,16 @@ namespace cryptanalysislib {
         return result;
     }
 
-    /// \tparam ForwardIt1
+    /// Finds the last subsequence in a range that matches another range (custom predicate)
+    /// \tparam ForwardIt1 Forward iterator type for the main range
+    /// \tparam ForwardIt2 Forward iterator type for the subsequence range
+    /// \tparam BinaryPred Binary predicate type for element comparison
+    /// \param first[in]: Iterator to the beginning of the main range
+    /// \param last[in]: Iterator to the end of the main range
+    /// \param s_first[in]: Iterator to the beginning of the subsequence
+    /// \param s_last[in]: Iterator to the end of the subsequence
+    /// \param p[in]: Binary predicate for element comparison
+    /// \return Iterator to the beginning of the last matching subsequence, or last if not found
     template<class ForwardIt1, 
              class ForwardIt2, 
              class BinaryPred>

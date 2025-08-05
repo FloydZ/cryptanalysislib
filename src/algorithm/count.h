@@ -9,19 +9,21 @@
 
 namespace cryptanalysislib {
 
+	/// Configuration for count algorithms
 	struct AlgorithmCountConfig : public AlgorithmConfig {
 	    const size_t min_size_per_thread = 1u<<10u;
 	    const bool aligned_instructions = false;
 	};
 	constexpr static AlgorithmCountConfig algorithmCountConfig;
 
-	/// \tparam RandIt
-	/// \tparam UnaryPredicate
-	/// \tparam config
-	/// \param first
-	/// \param last
-	/// \param p
-	/// \return
+	/// Counts elements in a range that satisfy a predicate (sequential version)
+	/// \tparam Iterator Random access iterator type for the range
+	/// \tparam UnaryPredicate Predicate type to test elements
+	/// \tparam config Algorithm configuration (default: algorithmCountConfig)
+	/// \param first [in]: Iterator to the beginning of the range
+	/// \param last [in]: Iterator to the end of the range
+	/// \param p [in]: Unary predicate function
+	/// \return [out]: Number of elements satisfying the predicate
 	template <class Iterator,
 			  class UnaryPredicate,
 			  const AlgorithmCountConfig &config=algorithmCountConfig>
@@ -44,15 +46,16 @@ namespace cryptanalysislib {
 		return ret;
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam UnaryPredicate
-	/// \tparam config
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param p
-	/// \return
+	/// Counts elements in a range that satisfy a predicate (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam UnaryPredicate Predicate type to test elements
+	/// \tparam config Algorithm configuration (default: algorithmCountConfig)
+	/// \param policy [in]: Execution policy specifying parallelization strategy
+	/// \param first [in]: Iterator to the beginning of the range
+	/// \param last [in]: Iterator to the end of the range
+	/// \param p [in]: Unary predicate function
+	/// \return Number of elements satisfying the predicate
 	template <class ExecPolicy,
 			  class RandIt,
 			  class UnaryPredicate,
@@ -89,11 +92,13 @@ namespace cryptanalysislib {
 
 	namespace internal {
 
-		/// \tparam T
-		/// \param data
-		/// \param n
-		/// \param val
-		/// \return
+		/// SIMD-optimized count for unsigned integer types
+		/// \tparam T Unsigned integer type to count
+		/// \tparam config Algorithm configuration (default: algorithmCountConfig)
+		/// \param data [in]: Pointer to array of elements to search
+		/// \param n [in]: Number of elements in the array
+		/// \param val [in]: Value to count occurrences of
+		/// \return [out]: Number of occurrences of val in the array
 		template<typename T,
 			     const AlgorithmCountConfig &config=algorithmCountConfig>
 #if __cplusplus > 201709L
@@ -102,6 +107,7 @@ namespace cryptanalysislib {
 		constexpr size_t count_uXX_simd(const T *data,
 										const size_t n,
 										const T val) noexcept {
+            // TODO replace with SIMDSelector
 #ifdef USE_AVX512F
 			constexpr uint32_t limbs = 64/sizeof(T);
 #else
@@ -129,11 +135,13 @@ namespace cryptanalysislib {
 		}
 	}// end namespace internal
 
-	/// \tparam RandIt
-	/// \param first
-	/// \param last
-	/// \param value
-	/// \return
+	/// Counts occurrences of a specific value in a range (sequential version)
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmCountConfig)
+	/// \param first [in]: Iterator to the beginning of the range
+	/// \param last [in]: Iterator to the end of the range
+	/// \param value [in]: Value to count occurrences of
+	/// \return [out]: Number of occurrences of value in the range
 	template <class RandIt,
 			  const AlgorithmCountConfig &config=algorithmCountConfig>
 #if __cplusplus > 201709L
@@ -158,13 +166,15 @@ namespace cryptanalysislib {
 			(first, last, p);
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param value
-	/// \return
+	/// Counts occurrences of a specific value in a range (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmCountConfig)
+	/// \param policy [in]: Execution policy specifying parallelization strategy
+	/// \param first [in]: Iterator to the beginning of the range
+	/// \param last [in]: Iterator to the end of the range
+	/// \param value [in]: Value to count occurrences of
+	/// \return [out]: Number of occurrences of value in the range
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmCountConfig &config=algorithmCountConfig>
@@ -186,6 +196,5 @@ namespace cryptanalysislib {
 			(std::forward<ExecPolicy>(policy),
 			first, last, p);
 	}
-
 } // end namespace cryptanalysislib
 #endif

@@ -7,15 +7,16 @@ namespace cryptanalysislib {
 	using algorithm::AlgorithmPrefixsumConfig;
 	using algorithm::algorithmPrefixsumConfig;
 
-	/// \tparam InputIt
-	/// \tparam OutputIt
-	/// \tparam BinaryOp
-	/// \tparam config
-	/// \param first
-	/// \param last
-	/// \param d_first
-	/// \param op
-	/// \return
+	/// Computes inclusive prefix scan with custom binary operation 
+	/// \tparam InputIt Forward iterator type for input range
+	/// \tparam OutputIt Forward iterator type for output range
+	/// \tparam BinaryOp Binary operation type
+	/// \tparam config Algorithm configuration (default: algorithmPrefixsumConfig)
+	/// \param first[in]: Iterator to the beginning of the input range
+	/// \param last[in]: Iterator to the end of the input range
+	/// \param d_first[out]: Iterator to the beginning of the output range
+	/// \param op[in]: Binary operation to perform
+	/// \return Iterator to the end of the output range
 	template<class InputIt,
 			 class OutputIt,
 			 class BinaryOp,
@@ -33,16 +34,17 @@ namespace cryptanalysislib {
 			(first, last, d_first, op);
 	}
 
-	/// \tparam InputIt
-	/// \tparam OutputIt
-	/// \tparam BinaryOp
-	/// \tparam config
-	/// \param first
-	/// \param last
-	/// \param d_first
-	/// \param init
-	/// \param op
-	/// \return
+	/// Computes inclusive prefix scan with initial value and custom binary operation
+	/// \tparam InputIt Forward iterator type for input range
+	/// \tparam OutputIt Forward iterator type for output range
+	/// \tparam BinaryOp Binary operation type
+	/// \tparam config Algorithm configuration (default: algorithmPrefixsumConfig)
+	/// \param first[in]: Iterator to the beginning of the input range
+	/// \param last[in]: Iterator to the end of the input range
+	/// \param d_first[out]: Iterator to the beginning of the output range
+	/// \param init[in]: Initial value for scan operation
+	/// \param op[in]: Binary operation to perform
+	/// \return Iterator to the end of the output range
 	template<class InputIt,
 			 class OutputIt,
 			 class BinaryOp,
@@ -61,18 +63,19 @@ namespace cryptanalysislib {
 			(first, last, d_first, init, op);
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam InputIt
-	/// \tparam OutputIt
-	/// \tparam BinaryOp
-	/// \tparam config
-	/// \param policy
-	/// \param first1
-	/// \param last1
-	/// \param d_first
-	/// \param init
-	/// \param op
-	/// \return
+	/// Computes inclusive prefix scan with initial value and custom binary operation 
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam InputIt Random access iterator type for input range
+	/// \tparam OutputIt Random access iterator type for output range
+	/// \tparam BinaryOp Binary operation type
+	/// \tparam config Algorithm configuration (default: algorithmPrefixsumConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first1[in]: Iterator to the beginning of the input range
+	/// \param last1[in]: Iterator to the end of the input range
+	/// \param d_first[out]: Iterator to the beginning of the output range
+	/// \param init[in]: Initial value for scan operation
+	/// \param op[in]: Binary operation to perform
+	/// \return Iterator to the end of the output range
 	template<class ExecPolicy,
 			 class InputIt,
 			 class OutputIt,

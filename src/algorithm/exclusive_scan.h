@@ -7,21 +7,27 @@
 #include "algorithm/apply.h"
 
 namespace cryptanalysislib {
+    /// Configuration for exclusive scan algorithms with threading settings
     struct AlgorithmExclusiveScanConfig : public AlgorithmConfig {
     	constexpr static size_t min_size_per_thread = 131072;
     };
     constexpr static AlgorithmExclusiveScanConfig algorithmExclusiveScanConfig;
 
-	/// \tparam InputIt
-    /// \tparam OutputIt
-    /// \tparam BinaryOp
-    /// \tparam config
-    /// \param first
-    /// \param last
-    /// \param d_first
-    /// \param init
-    /// \param op
-    /// \return
+    namespace internal {
+        // TODO add SIMD implementations
+    }; // end namespace internal
+
+	/// Computes exclusive prefix scan with custom binary operation (sequential version)
+    /// \tparam InputIt Forward iterator type for input range
+    /// \tparam OutputIt Forward iterator type for output range
+    /// \tparam BinaryOp Binary operation type
+    /// \tparam config Algorithm configuration (default: algorithmExclusiveScanConfig)
+    /// \param first[in]: Iterator to the beginning of the input range
+    /// \param last[in]: Iterator to the end of the input range
+    /// \param d_first[out]: Iterator to the beginning of the output range
+    /// \param init[in]: Initial value for scan operation
+    /// \param op[in]: Binary operation to perform
+    /// \return Iterator to the end of the output range
     template<class InputIt,
              class OutputIt,
              class BinaryOp,
@@ -30,8 +36,8 @@ namespace cryptanalysislib {
 		requires std::forward_iterator<InputIt> &&
 		         std::forward_iterator<OutputIt> &&
     		     std::regular_invocable<BinaryOp,
-									const typename InputIt::value_type&,
-									const typename InputIt::value_type&>
+				 const typename InputIt::value_type&,
+				 const typename InputIt::value_type&>
 #endif
     OutputIt exclusive_scan(InputIt first,
                             InputIt last,
@@ -56,14 +62,15 @@ namespace cryptanalysislib {
     	return d_first;
     }
 
-	/// \tparam InputIt
-    /// \tparam OutputIt
-    /// \tparam config
-    /// \param first
-    /// \param last
-    /// \param d_first
-    /// \param init
-    /// \return
+	/// Computes exclusive prefix scan with default plus operation (sequential version)
+    /// \tparam InputIt Random access iterator type for input range
+    /// \tparam OutputIt Forward iterator type for output range
+    /// \tparam config Algorithm configuration (default: algorithmExclusiveScanConfig)
+    /// \param first[in]: Iterator to the beginning of the input range
+    /// \param last[in]: Iterator to the end of the input range
+    /// \param d_first[out]: Iterator to the beginning of the output range
+    /// \param init[in]: Initial value for scan operation
+    /// \return Iterator to the end of the output range
     template<class InputIt,
              class OutputIt,
              const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
@@ -82,6 +89,14 @@ namespace cryptanalysislib {
     }
 
 
+    /// Computes exclusive prefix scan with default init and plus operation (sequential version)
+    /// \tparam InputIt Forward iterator type for input range
+    /// \tparam OutputIt Forward iterator type for output range
+    /// \tparam config Algorithm configuration (default: algorithmExclusiveScanConfig)
+    /// \param first[in]: Iterator to the beginning of the input range
+    /// \param last[in]: Iterator to the end of the input range
+    /// \param d_first[out]: Iterator to the beginning of the output range
+    /// \return Iterator to the end of the output range
     template<class InputIt,
              class OutputIt,
              const AlgorithmExclusiveScanConfig &config=algorithmExclusiveScanConfig>
@@ -97,17 +112,19 @@ namespace cryptanalysislib {
     }
 
 
-	/// \tparam ExecPolicy
-    /// \tparam RandIt1
-    /// \tparam RandIt2
-    /// \tparam BinaryOp
-    /// \param policy
-    /// \param first
-    /// \param last
-    /// \param dest
-    /// \param init
-    /// \param binop
-    /// \return
+	/// Computes exclusive prefix scan with custom binary operation (parallel version)
+    /// \tparam ExecPolicy Execution policy type for parallel execution
+    /// \tparam RandIt1 Random access iterator type for input range
+    /// \tparam RandIt2 Random access iterator type for output range
+    /// \tparam BinaryOp Binary operation type
+    /// \tparam config Algorithm configuration (default: algorithmExclusiveScanConfig)
+    /// \param policy[in]: Execution policy specifying parallelization strategy
+    /// \param first[in]: Iterator to the beginning of the input range
+    /// \param last[in]: Iterator to the end of the input range
+    /// \param dest[out]: Iterator to the beginning of the output range
+    /// \param init[in]: Initial value for scan operation
+    /// \param binop[in]: Binary operation to perform
+    /// \return Iterator to the end of the output range
     template <class ExecPolicy,
               class RandIt1,
               class RandIt2,
@@ -117,8 +134,8 @@ namespace cryptanalysislib {
 		requires std::random_access_iterator<RandIt1> &&
 		         std::random_access_iterator<RandIt2> &&
     		     std::regular_invocable<BinaryOp,
-									const typename RandIt1::value_type&,
-									const typename RandIt1::value_type&>
+				 const typename RandIt1::value_type&,
+				 const typename RandIt1::value_type&>
 #endif
     RandIt2 exclusive_scan(ExecPolicy &&policy,
                            RandIt1 first,
@@ -177,16 +194,17 @@ namespace cryptanalysislib {
         return dest + (last - first);
     }
 
-	/// \tparam ExecPolicy
-    /// \tparam RandIt1
-    /// \tparam RandIt2
-    /// \tparam config
-    /// \param policy
-    /// \param first
-    /// \param last
-    /// \param dest
-    /// \param init
-    /// \return
+	/// Computes exclusive prefix scan with default plus operation (parallel version)
+    /// \tparam ExecPolicy Execution policy type for parallel execution
+    /// \tparam RandIt1 Random access iterator type for input range
+    /// \tparam RandIt2 Random access iterator type for output range
+    /// \tparam config Algorithm configuration (default: algorithmExclusiveScanConfig)
+    /// \param policy[in]: Execution policy specifying parallelization strategy
+    /// \param first[in]: Iterator to the beginning of the input range
+    /// \param last[in]: Iterator to the end of the input range
+    /// \param dest[out]: Iterator to the beginning of the output range
+    /// \param init[in]: Initial value for scan operation
+    /// \return Iterator to the end of the output range
     template<class ExecPolicy,
              class RandIt1,
              class RandIt2,
@@ -206,6 +224,16 @@ namespace cryptanalysislib {
             (std::forward<ExecPolicy>(policy), first, last, dest, init, std::plus<T>());
     }
 
+    /// Computes exclusive prefix scan with default init and plus operation (parallel version)
+    /// \tparam ExecPolicy Execution policy type for parallel execution
+    /// \tparam RandIt1 Random access iterator type for input range
+    /// \tparam RandIt2 Random access iterator type for output range
+    /// \tparam config Algorithm configuration (default: algorithmExclusiveScanConfig)
+    /// \param policy[in]: Execution policy specifying parallelization strategy
+    /// \param first[in]: Iterator to the beginning of the input range
+    /// \param last[in]: Iterator to the end of the input range
+    /// \param dest[out]: Iterator to the beginning of the output range
+    /// \return Iterator to the end of the output range
     template<class ExecPolicy,
              class RandIt1,
              class RandIt2,

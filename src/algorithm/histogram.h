@@ -9,8 +9,10 @@
 #include "alloc/alloc.h"
 #include "simd/simd.h"
 
-// TODO multiple parallel histograms, result in a speedup?
+/// TODO add cryptanalysislib namespace
+/// TODO multiple parallel histograms, result in a speedup?
 
+/// Configuration for histogram algorithms with threading settings
 struct AlgorithmHistogramConfig : public AlgorithmConfig {
 	constexpr static size_t min_size_per_thread = 1u << 14u;
 };
@@ -96,12 +98,12 @@ static void avx512_histogram_u32_v3(uint32_t C[256],
 	}
 }
 
-/// using popcnt
+/// AVX512-optimized histogram for uint32_t values using popcnt (values < 256)
 /// NOTE: inputs are uint32_t: with values < 2**8
 /// TODO: no tail managment
-/// \param C
-/// \param A
-/// \param size
+/// \param C[out]: Output histogram array (256 elements)
+/// \param A[in]: Input array of uint32_t values
+/// \param size[in]: Number of elements in input array
 static void avx512_histogram_u32_v4(uint32_t C[256],
 									const uint32_t *A,
 									const size_t size) noexcept {
@@ -118,7 +120,12 @@ static void avx512_histogram_u32_v4(uint32_t C[256],
 
 
 
-///
+/// Full adder operation for AVX512 histogram computation
+/// \param h[out]: High bit output
+/// \param l[out]: Low bit output  
+/// \param a[in]: First input operand
+/// \param b[in]: Second input operand
+/// \param c[in]: Third input operand
 constexpr static inline
 void FA(__m512i& h, __m512i& l, __m512i a, __m512i b, __m512i c) noexcept {
     l = _mm512_ternarylogic_epi32(c, b, a, 0x96);
@@ -215,9 +222,10 @@ static void consume_buffer_2(uint8_t* data, size_t N, uint16_t* hist16) {
     _mm512_storeu_epi16(hist16 + 32, _mm512_add_epi16(h1, _mm512_loadu_epi16(hist16 + 32)));
 }
 
-/// \param histogram[out]:
-/// \param ptr[in]: uint8_t input data
-/// \param N[in]: array size
+/// High-performance AVX512 histogram for 256-bin uint8_t data
+/// \param histogram[out]: Output histogram array (256 elements)
+/// \param ptr[in]: Input uint8_t data array
+/// \param N[in]: Size of input array
 constexpr static
 void hist256_2(uint32_t* histogram,
                const uint8_t* ptr,
@@ -448,12 +456,15 @@ static void avx2_histogram_u32(uint32_t C[1024],
 }
 #endif
 
+/// Simple sequential histogram for uint8_t data (single-threaded)
 /// NOTE: if an element occurs more than 2**32 times in the array
 ///		an overflow will happen, given `C = uint32_t`
 /// NOTE: cnt needs to be 256 elements big
-/// \param cnt output
-/// \param in input
-/// \param inlen nr of elements in the input.
+/// \tparam T Input data type (default: uint8_t)
+/// \tparam C Counter data type (default: uint32_t)
+/// \param cnt[out]: Output histogram array (256 elements)
+/// \param in[in]: Input data array
+/// \param inlen[in]: Number of elements in input array
 template<typename T=uint8_t,
 		 typename C=uint32_t>
 constexpr inline static void histogram_u8_1x(C cnt[256],
@@ -465,12 +476,13 @@ constexpr inline static void histogram_u8_1x(C cnt[256],
 	}
 }
 
+/// 4-way unrolled histogram for uint8_t data (uses more stack)
 /// NOTE: uses a lot of stack
-/// \tparam T
-/// \tparam C
-/// \param cnt
-/// \param in
-/// \param inlen
+/// \tparam T Input data type (default: uint8_t)
+/// \tparam C Counter data type (default: uint32_t)
+/// \param cnt[out]: Output histogram array (256 elements)
+/// \param in[in]: Input data array
+/// \param inlen[in]: Number of elements in input array
 template<typename T=uint8_t,
 		 typename C=uint32_t>
 constexpr inline static void histogram_u8_4x(C cnt[256],
@@ -484,12 +496,13 @@ constexpr inline static void histogram_u8_4x(C cnt[256],
 	HISTEND4(c, cnt);
 }
 
+/// 8-way unrolled histogram for uint8_t data (uses significant stack)
 /// NOTE: uses a lot of stack
-/// \tparam T
-/// \tparam C
-/// \param cnt
-/// \param in
-/// \param inlen
+/// \tparam T Input data type (default: uint8_t)
+/// \tparam C Counter data type (default: uint32_t)
+/// \param cnt[out]: Output histogram array (256 elements)
+/// \param in[in]: Input data array
+/// \param inlen[in]: Number of elements in input array
 template<typename T=uint8_t,
 		 typename C=uint32_t>
 constexpr inline static void histogram_u8_8x(C cnt[256],
@@ -506,11 +519,13 @@ constexpr inline static void histogram_u8_8x(C cnt[256],
 
 namespace cryptanalysislib::algorithm {
 
-	/// \tparam T
-	/// \tparam C
-	/// \param cnt
-	/// \param in
-	/// \param inlen
+	/// Computes histogram of input data (sequential version)
+	/// \tparam T Input data type (default: uint8_t)
+	/// \tparam C Counter data type (default: uint32_t)
+	/// \tparam config Algorithm configuration (default: algorithmHistogramConfig)
+	/// \param cnt[out]: Output histogram array
+	/// \param in[in]: Input data array
+	/// \param inlen[in]: Number of elements in input array
 	template<typename T=uint8_t,
 			 typename C=uint32_t,
 			 const AlgorithmHistogramConfig &config=algorithmHistogramConfig>
@@ -526,14 +541,16 @@ namespace cryptanalysislib::algorithm {
 		}
 	}
 
-	/// \tparam ExecPolicy 
-	/// \tparam T 
-	/// \tparam C 
-	/// \tparam config 
-	/// \param policy 
-	/// \param cnt 
-	/// \param in 
-	/// \param size 
+	/// Computes histogram of input data (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam T Input data type (default: uint8_t)
+	/// \tparam C Counter data type (default: uint32_t)
+	/// \tparam config Algorithm configuration (default: algorithmHistogramConfig)
+	/// \tparam Allocator Memory allocator type
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param cnt[out]: Output histogram array
+	/// \param in[in]: Input data array
+	/// \param size[in]: Number of elements in input array 
 	template<class ExecPolicy,
 		     typename T=uint8_t,
 			 typename C=uint32_t,

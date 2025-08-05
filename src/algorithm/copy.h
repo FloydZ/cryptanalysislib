@@ -6,20 +6,21 @@
 
 namespace cryptanalysislib {
 
-///
+/// Configuration for copy algorithms with minimum size per thread threshold
 struct AlgorithmCopyConfig : public AlgorithmConfig {
     constexpr static size_t min_size_per_thread = 262144;
 };
 
 constexpr static AlgorithmCopyConfig algorithmCopyConfig;
 
-/// \tparam RandIt1
-/// \tparam RandIt2
-/// \tparam config
-/// \param first
-/// \param last
-/// \param dest
-/// \return
+/// Copies elements from one range to another
+/// \tparam RandIt1 Random access iterator type for source range
+/// \tparam RandIt2 Random access iterator type for destination range
+/// \tparam config Algorithm configuration (default: algorithmCopyConfig)
+/// \param first Iterator to the beginning of the source range
+/// \param last Iterator to the end of the source range
+/// \param dest Iterator to the beginning of the destination range
+/// \return Iterator to the end of the destination range
 template <class RandIt1,
           class RandIt2,
           const AlgorithmCopyConfig &config=algorithmCopyConfig>
@@ -37,13 +38,14 @@ constexpr RandIt2 copy(RandIt1 first,
     return dest;
 }
 
-/// \tparam RandIt1
-/// \tparam Size
-/// \tparam RandIt2
-/// \param first
-/// \param n
-/// \param dest
-/// \return
+/// Copies n elements from source to destination
+/// \tparam RandIt1 Random access iterator type for source range
+/// \tparam Size Integral type for count
+/// \tparam RandIt2 Random access iterator type for destination range
+/// \param first Iterator to the beginning of the source range
+/// \param n Number of elements to copy
+/// \param dest Iterator to the beginning of the destination range
+/// \return Iterator to the end of the destination range
 template<class RandIt1,
 	     class Size,
 	     class RandIt2,
@@ -66,15 +68,16 @@ constexpr RandIt2 copy_n(RandIt1 first,
 	return internal::advanced(dest, n);
 }
 
-/// \tparam ExecPolicy
-/// \tparam RandIt1
-/// \tparam RandIt2
-/// \tparam config
-/// \param policy
-/// \param first
-/// \param last
-/// \param dest
-/// \return
+/// Copies elements from one range to another
+/// \tparam ExecPolicy Execution policy type for parallel execution
+/// \tparam RandIt1 Random access iterator type for source range
+/// \tparam RandIt2 Random access iterator type for destination range
+/// \tparam config Algorithm configuration (default: algorithmCopyConfig)
+/// \param policy Execution policy specifying parallelization strategy
+/// \param first Iterator to the beginning of the source range
+/// \param last Iterator to the end of the source range
+/// \param dest Iterator to the beginning of the destination range
+/// \return Iterator to the end of the destination range
 template <class ExecPolicy,
           class RandIt1, 
           class RandIt2,
@@ -102,16 +105,17 @@ RandIt2 copy(ExecPolicy &&policy,
     return internal::advanced(dest, std::distance(first, last));
 }
 
-/// \tparam ExecPolicy
-/// \tparam RandIt1
-/// \tparam Size
-/// \tparam RandIt2
-/// \tparam config
-/// \param policy
-/// \param first
-/// \param n
-/// \param dest
-/// \return
+/// Copies n elements from source to destination (parallel version)
+/// \tparam ExecPolicy Execution policy type for parallel execution
+/// \tparam RandIt1 Random access iterator type for source range
+/// \tparam Size Integral type for count
+/// \tparam RandIt2 Random access iterator type for destination range
+/// \tparam config Algorithm configuration (default: algorithmCopyConfig)
+/// \param policy Execution policy specifying parallelization strategy
+/// \param first Iterator to the beginning of the source range
+/// \param n Number of elements to copy
+/// \param dest Iterator to the beginning of the destination range
+/// \return Iterator to the end of the destination range
 template <class ExecPolicy,
           class RandIt1,
           class Size,

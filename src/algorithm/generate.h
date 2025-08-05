@@ -1,5 +1,6 @@
 #pragma once
 
+// TODO 
 template<class ForwardIt, 
 class Generator>
 constexpr 

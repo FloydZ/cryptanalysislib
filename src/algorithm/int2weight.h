@@ -6,12 +6,16 @@
 #include "math/math.h"
 #include "algorithm/bits.h"
 
-/// \tparam T
-/// \param weights	output list
-/// \param in in element, which is mapped to a bit sequence
-/// \param n	bitlength of n
-/// \param wt max index size
-/// \param k how many indices to generate
+// TODO add namespace cryptanalysislib 
+
+/// Converts integer to weight positions using combinatorial ranking
+/// \tparam D Output data type for weight positions
+/// \tparam T Input integer type
+/// \param weights[out]: Output array of weight positions
+/// \param in[in]: Input element to be mapped to bit sequence
+/// \param n[in]: Bit length of the sequence
+/// \param wt[in]: Maximum weight (number of set bits)
+/// \param k[in]: Maximum number of indices to generate
 template<typename D, typename T>
 #if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T> &&
@@ -45,13 +49,14 @@ constexpr void int2weights(D *weights,
 	}
 }
 
-/// \tparam D
-/// \tparam T
-/// \param weights
-/// \param in
-/// \param n
-/// \param wt
-/// \param k
+/// Converts integer to weight positions stored as bits
+/// \tparam D Output data type for bit representation
+/// \tparam T Input integer type
+/// \param weights[out]: Output bit array where set bits indicate positions
+/// \param in[in]: Input element to be mapped to bit sequence
+/// \param n[in]: Bit length of the sequence
+/// \param wt[in]: Maximum weight (number of set bits)
+/// \param k[in]: Maximum number of indices to generate
 template<typename D,
 		 typename T>
 #if __cplusplus > 201709L
@@ -89,6 +94,13 @@ constexpr void int2weight_bits(D *weights,
 	}
 }
 
+/// Converts integer to weight positions using vector output
+/// \tparam D Output data type for weight positions
+/// \tparam T Input integer type
+/// \param weights[out]: Output vector of weight positions
+/// \param in[in]: Input element to be mapped to bit sequence
+/// \param n[in]: Bit length of the sequence
+/// \param wt[in]: Maximum weight (number of set bits)
 template<typename D,
 		 typename T>
 #if __cplusplus > 201709L

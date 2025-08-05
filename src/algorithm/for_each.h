@@ -5,17 +5,20 @@
 #include "thread/thread.h"
 
 namespace cryptanalysislib {
+	/// Configuration for for_each algorithms
 	struct AlgorithmForEachConfig : public AlgorithmConfig {
 		constexpr static size_t min_size_per_thread = 1u << 14u;
 	};
 	constexpr static AlgorithmForEachConfig algorithmForEachConfig;
 
-	/// \tparam InputIt
-	/// \tparam UnaryFunction
-	/// \param first
-	/// \param last
-	/// \param f
-	/// \return
+	/// Applies a function to each element in a range (sequential version)
+	/// \tparam InputIt Forward iterator type for the range
+	/// \tparam UnaryFunction Function type to apply to each element
+	/// \tparam config Algorithm configuration (default: algorithmForEachConfig)
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param f[in]: Function to apply to each element
+	/// \return Copy of the function object
 	template<class InputIt,
 	         class UnaryFunction,
 	         const AlgorithmForEachConfig &config=algorithmForEachConfig>
@@ -34,16 +37,17 @@ namespace cryptanalysislib {
 	    return f;
 	}
 
-	/// NOTE: Iterators are expected to be rng access.
+	/// Applies a function to each element in a range (parallel version)
+    /// NOTE: Iterators are expected to be random access.
     /// See std::for_each https://en.cppreference.com/w/cpp/algorithm/for_each
-    /// \tparam ExecPolicy
-    /// \tparam RandIt
-    /// \tparam UnaryFunction
-    /// \param policy
-    /// \param first
-    /// \param last
-    /// \param p
-    /// \return
+    /// \tparam ExecPolicy Execution policy type for parallel execution
+    /// \tparam RandIt Random access iterator type for the range
+    /// \tparam UnaryFunction Function type to apply to each element
+    /// \tparam config Algorithm configuration (default: algorithmForEachConfig)
+    /// \param policy[in]: Execution policy specifying parallelization strategy
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \param p[in]: Function to apply to each element
 	template <class ExecPolicy,
 	          class RandIt,
 	          class UnaryFunction,
@@ -75,15 +79,17 @@ namespace cryptanalysislib {
 		    p);
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam Size
-	/// \tparam UnaryFunction
-	/// \param policy
-	/// \param first
-	/// \param n
-	/// \param f
-	/// \return
+	/// Applies a function to n elements starting from an iterator (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam Size Integral type for count
+	/// \tparam UnaryFunction Function type to apply to each element
+	/// \tparam config Algorithm configuration (default: algorithmForEachConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param n[in]: Number of elements to process
+	/// \param f[in]: Function to apply to each element
+	/// \return Iterator to the end of the processed range
 	template <class ExecPolicy,
 			  class RandIt,
 			  class Size,
@@ -96,7 +102,7 @@ namespace cryptanalysislib {
 #endif
     RandIt for_each_n(ExecPolicy &&policy,
 					  RandIt first,
-					  Size n,
+					  const Size n,
 					  UnaryFunction f) noexcept {
         RandIt last = internal::advanced(first, n);
         cryptanalysislib::for_each
@@ -105,7 +111,14 @@ namespace cryptanalysislib {
         return last;
     }
 
-    ///
+    /// Applies a function to each element with chunk-local data
+    /// \tparam RandIt Random access iterator type for the range
+    /// \tparam ChunkConstructor Function type to construct chunk-local data
+    /// \tparam UnaryFunction Function type to apply to each element
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \param construct[in]: Function to construct chunk-local data
+    /// \param f[in]: Function to apply to each element with chunk data
     template <class RandIt,
               class ChunkConstructor,
               class UnaryFunction>

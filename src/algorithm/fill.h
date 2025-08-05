@@ -9,18 +9,24 @@
 
 namespace cryptanalysislib {
 
-struct AlgorithmFillConfig : public AlgorithmConfig {
-    const size_t min_size_per_thread = 1048576;
-};
+    /// Configuration for fill algorithms
+    struct AlgorithmFillConfig : public AlgorithmConfig {
+        const size_t min_size_per_thread = 1048576;
+    };
+    
+    constexpr static AlgorithmFillConfig algorithmFillConfig;
 
-constexpr static AlgorithmFillConfig algorithmFillConfig;
-
-	///
-	// @tparam Iterator
-	// @tparam config
-	// @param first
-	// @param last
-	// @param value
+    
+    namespace internal {
+        // TODO implement SIMD algorithms
+    };
+    
+	/// Fills a range with a specified value (sequential version)
+	/// \tparam Iterator Forward iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmFillConfig)
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param value[in]: Value to fill the range with
 	template <class Iterator,
 			  const AlgorithmFillConfig &config=algorithmFillConfig>
 #if __cplusplus > 201709L
@@ -34,12 +40,14 @@ constexpr static AlgorithmFillConfig algorithmFillConfig;
 		cryptanalysislib::memset<T>(&(*first), value, s);
     }
 
-	/// \tparam Iterator
-	/// \tparam Size
-	/// \param first
-	/// \param n
-	/// \param value
-	/// \return
+	/// Fills n elements with a specified value (sequential version)
+	/// \tparam Iterator Forward iterator type for the range
+	/// \tparam Size Integral type for count
+	/// \tparam config Algorithm configuration (default: algorithmFillConfig)
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param n[in]: Number of elements to fill
+	/// \param value[in]: Value to fill the elements with
+	/// \return Iterator to the end of the filled range
 	template <class Iterator,
 			  class Size,
 			  const AlgorithmFillConfig &config=algorithmFillConfig>
@@ -57,13 +65,14 @@ constexpr static AlgorithmFillConfig algorithmFillConfig;
         return last;
     }
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam config
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param value
+	/// Fills a range with a specified value (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmFillConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param value[in]: Value to fill the range with
 template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmFillConfig &config=algorithmFillConfig>
@@ -89,14 +98,15 @@ template <class ExecPolicy,
 											value);
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam Size
-	/// \param policy
-	/// \param first
-	/// \param n
-	/// \param value
-	/// \return
+	/// Fills n elements with a specified value (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam Size Integral type for count
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param n[in]: Number of elements to fill
+	/// \param value[in]: Value to fill the elements with
+	/// \return Iterator to the end of the filled range
 	template <class ExecPolicy,
 			  class RandIt,
 			  class Size>

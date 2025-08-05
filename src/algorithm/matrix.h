@@ -11,6 +11,8 @@ namespace cryptanalysislib {
 // where a1 = cn = 0. Beware of numerical instability.
 #define MAXN 5000
 
+
+// TODO
 double A[MAXN], B[MAXN], C[MAXN], D[MAXN], X[MAXN];
 
 template <typename T>
