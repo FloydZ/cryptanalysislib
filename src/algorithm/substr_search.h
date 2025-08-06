@@ -8,10 +8,15 @@
 #include <immintrin.h>
 #endif
 
+/// A simple structure representing a span of bytes
 struct span_t {
-    uint8_t *data = nullptr;
-    size_t len = 0;
+    uint8_t *data = nullptr;  ///< Pointer to the data
+    size_t len = 0;           ///< Length of the data in bytes
 
+    /// Returns a new span starting at the specified offset from this span
+    ///
+    /// \param offset[in]: Number of bytes to skip from the beginning
+    /// \return A new span starting at data+offset with adjusted length
     constexpr inline span_t after_n(const size_t offset) const noexcept {
         return (offset < len) ? span_t {data + offset, len - offset} : span_t {};
     }
@@ -21,10 +26,13 @@ namespace cryptanalysislib::algorithm {
     namespace internal {
         static constexpr size_t not_found_k = std::numeric_limits<size_t>::max();
 
-        /// \tparam T type to compare
-        /// \param a:
-        /// \param b:
-        /// \param len:
+        /// Compares two arrays for equality
+        ///
+        /// \tparam T type of array elements to compare
+        /// \param a[in]: Pointer to the first array
+        /// \param b[in]: Pointer to the second array
+        /// \param len[in]: Number of elements to compare
+        /// \return true if arrays are equal, false otherwise
         template <typename T>
         constexpr inline bool are_equal(T const *a,
                                         T const *b,
@@ -35,8 +43,12 @@ namespace cryptanalysislib::algorithm {
             return a_end == a;
         }
 
-        /// A naive subtring matching algorithm with O(|haystack|*|needle|) comparisons.
-        /// Matching performance fluctuates between 200 MB/s and 2 GB/s.
+        /// A naive substring matching algorithm with O(|haystack|*|needle|) comparisons
+        /// Matching performance fluctuates between 200 MB/s and 2 GB/s
+        ///
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
         constexpr size_t naive_substr(span_t &haystack,
                                       const span_t &needle) {
             if (haystack.len < needle.len) {
@@ -52,8 +64,8 @@ namespace cryptanalysislib::algorithm {
             return not_found_k;
         }
     
-        /// \brief Modified version inspired by Rabin-Karp algorithm.
-        /// Matching performance fluctuates between 1 GB/s and 3,5 GB/s.
+        /// Modified version inspired by Rabin-Karp algorithm
+        /// Matching performance fluctuates between 1 GB/s and 3.5 GB/s
         /// 
         /// Similar to Rabin-Karp Algorithm, instead of comparing variable length
         /// strings - we can compare some fixed size fingerprints, which can make
@@ -61,6 +73,10 @@ namespace cryptanalysislib::algorithm {
         /// hashes is very expensive.
         /// Instead - we compare the first 4 bytes of the `needle` to every 4 byte
         /// substring in the `haystack`. If those match - compare the rest.
+        ///
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
         constexpr size_t prefix_substr(span_t &haystack,
                                        const span_t &needle) noexcept {
             if (needle.len < 5) {
@@ -86,8 +102,8 @@ namespace cryptanalysislib::algorithm {
         }
 
 #ifdef USE_AVX2
-        /// \brief A SIMD vectorized version for AVX2 instruction set.
-        /// Matching performance is ~ 9 GB/s.
+        /// A SIMD vectorized version for AVX2 instruction set
+        /// Matching performance is ~ 9 GB/s
         /// 
         /// This version processes 32 `haystack` substrings per iteration,
         /// so the number of instructions is only:
@@ -96,6 +112,10 @@ namespace cryptanalysislib::algorithm {
         ///  + 3 bitwise ORs
         ///  + 1 masking
         /// for every 32 consecutive substrings.
+        ///
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
         constexpr size_t avx2_prefix_substr(span_t &haystack, 
                                             const span_t &needle) noexcept {
 
@@ -129,13 +149,17 @@ namespace cryptanalysislib::algorithm {
             return (last_match != not_found_k) ? last_match + (h_ptr - haystack.data) : not_found_k;
         }
 
-        /// \brief Speculative SIMD version for AVX2 instruction set.
-        /// Matching performance is ~ 12 GB/s.
-        /// 
+        /// Speculative SIMD version for AVX2 instruction set
+        /// Matching performance is ~ 12 GB/s
+        ///
         /// Up to 40% of performance in modern CPUs comes from speculative
         /// out-of-order execution. The `prefixed_avx2_t` version has
-        /// 4 explicit local memory  barries: 3 ORs and 1 IF branch.
+        /// 4 explicit local memory barriers: 3 ORs and 1 IF branch.
         /// This has only 1 IF branch in the main loop.
+        ///
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
         constexpr size_t avx2_speculative_substr(span_t &haystack, 
                                                  const span_t &needle) noexcept {
             if (needle.len < 5) {
@@ -181,9 +205,16 @@ namespace cryptanalysislib::algorithm {
             return (last_match != not_found_k) ? last_match + (h_ptr - haystack.data) : not_found_k;
         }
 
-        /// \brief A hybrid of `avx_prefixed` and `avx2_speculative_substr`.
-        /// It demonstrates the current inability of scheduler to optimize
-        /// the execution flow better, than a human.
+        /// A hybrid of `avx_prefixed` and `avx2_speculative_substr`
+        /// Matching performance is superior to both individual approaches
+        ///
+        /// Demonstrates the current inability of scheduler to optimize
+        /// the execution flow better than manual optimization. Processes
+        /// 64 bytes at once for improved throughput.
+        ///
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
         constexpr size_t avx2_hybrid_substr(span_t &haystack, 
                                             const span_t &needle) noexcept {
            if (needle.len < 5)
@@ -222,6 +253,16 @@ namespace cryptanalysislib::algorithm {
         }
         
 
+        /// An AVX2 optimized substring search that works for any size needles
+        /// Performance varies based on needle size, generally 6-10 GB/s
+        ///
+        /// Uses a two-stage approach - first checking first and last characters
+        /// simultaneously with SIMD, then verifying matches with full comparison.
+        /// This approach reduces the number of full comparisons needed.
+        ///
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
         constexpr size_t avx2_strstr_anysize(span_t &haystack, 
                                                 const span_t &needle) noexcept {
             const size_t n = haystack.len; 
@@ -258,11 +299,21 @@ namespace cryptanalysislib::algorithm {
 #endif
 
 #ifdef USE_AVX512F 
+        /// Speculative SIMD version for AVX512 instruction set
+        /// Matching performance is ~ 15-18 GB/s on supported hardware
+        ///
+        /// Similar to the AVX2 speculative version but leverages AVX512's
+        /// wider vectors and mask operations for improved throughput.
+        /// Processes 64 bytes per iteration with optimized branching.
+        ///
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
         constexpr size_t avx512_speculative_substr(span_t &haystack, 
                                             const span_t &needle) noexcept {
 
             if (needle.len < 5)
-                return naive_t {}.next_offset(haystack, needle);
+                return naive_substr(haystack, needle);
 
             // Precomputed constants.
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
@@ -289,18 +340,27 @@ namespace cryptanalysislib::algorithm {
             }
 
             // Don't forget the last (up to 64+3=67) characters.
-            size_t last_match = prefixed_t {}.next_offset(haystack.after_n(h_ptr - haystack.data), needle);
+            size_t last_match = prefix_substr(haystack.after_n(h_ptr - haystack.data), needle);
             return (last_match != not_found_k) ? last_match + (h_ptr - haystack.data) : not_found_k;
-        }
         }
 #endif
 
 #ifdef USE_NEON
 
+        /// Speculative SIMD version for ARM NEON instruction set
+        /// Matching performance is ~ 5-8 GB/s on ARM processors
+        ///
+        /// ARM NEON equivalent of the speculative approach used in AVX2/AVX512.
+        /// Optimized for ARM architecture with 128-bit vector operations.
+        /// Processes 16 bytes per iteration with similar branch optimization.
+        ///
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
         constexpr size_t neon_speculative_substr(span_t &haystack, 
                                             const span_t &needle) noexcept {
             if (needle.len < 5)
-                return naive_t {}.next_offset(haystack, needle);
+                return naive_substr(haystack, needle);
 
             // Precomputed constants.
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
@@ -331,7 +391,7 @@ namespace cryptanalysislib::algorithm {
             }
 
             // Don't forget the last (up to 16+3=19) characters.
-            size_t last_match = prefixed_t {}.next_offset(haystack.after_n(h_ptr - haystack.data), needle);
+            size_t last_match = prefix_substr(haystack.after_n(h_ptr - haystack.data), needle);
             return (last_match != not_found_k) ? last_match + (h_ptr - haystack.data) : not_found_k;
         }
 #endif

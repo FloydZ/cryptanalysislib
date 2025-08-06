@@ -13,13 +13,15 @@ namespace cryptanalysislib {
 	};
 	constexpr static AlgorithmReduceConfig algorithmReduceConfig;
 
-	/// \tparam InputIt
-	/// \tparam BinaryOp
-	/// \param first
-	/// \param last
-	/// \param init
-	/// \param op
-	/// \return
+	/// Reduces a range of elements using a binary operation
+	/// 
+	/// \tparam InputIt type of the input iterator
+	/// \tparam BinaryOp type of the binary operation
+	/// \param first [in]: iterator to the first element
+	/// \param last [in]: iterator to one past the last element
+	/// \param init [in]: initial value for the reduction
+	/// \param op [in]: binary operation function object
+	/// \return result of the reduction operation
 	template<class InputIt,
 			 class BinaryOp,
 			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
@@ -45,11 +47,13 @@ namespace cryptanalysislib {
 
 	}
 
-	/// \tparam InputIt
-	/// \param first
-	/// \param last
-	/// \param init
-	/// \return
+	/// Reduces a range of elements using addition
+	/// 
+	/// \tparam InputIt type of the input iterator
+	/// \param first [in]: iterator to the first element
+	/// \param last [in]: iterator to one past the last element
+	/// \param init [in]: initial value for the reduction
+	/// \return result of the reduction operation
 	template<class InputIt,
 			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
 #if __cplusplus > 201709L
@@ -71,10 +75,12 @@ namespace cryptanalysislib {
 		return ret;
 	}
 
-	/// \tparam InputIt
-	/// \param first
-	/// \param last
-	/// \return
+	/// Reduces a range of elements using addition with initial value of 0
+	/// 
+	/// \tparam InputIt type of the input iterator
+	/// \param first [in]: iterator to the first element
+	/// \param last [in]: iterator to one past the last element
+	/// \return result of the reduction operation
 	template<class InputIt,
 			 const AlgorithmReduceConfig &config=algorithmReduceConfig>
 #if __cplusplus > 201709L
@@ -86,15 +92,17 @@ namespace cryptanalysislib {
 		return cryptanalysislib::reduce(first, last, (T)0);
 	}
 
-	/// \tparam InputIt
-	/// \tparam OutputIt
-	/// \tparam UnaryOperation
-	/// \tparam config
-	/// \param first1
-	/// \param last1
-	/// \param d_first
-	/// \param unary_op
-	/// \return
+	/// Applies a unary operation to a range of elements and stores the result in another range
+	/// 
+	/// \tparam InputIt type of the input iterator
+	/// \tparam OutputIt type of the output iterator
+	/// \tparam UnaryOperation type of the unary operation
+	/// \tparam config configuration for the algorithm
+	/// \param first1 [in]: iterator to the first element in the input range
+	/// \param last1 [in]: iterator to one past the last element in the input range
+	/// \param d_first [out]: iterator to the first element in the output range
+	/// \param unary_op [in]: unary operation function object
+	/// \return iterator to the element past the last element written
 	template<class InputIt,
 			 class OutputIt,
 			 class UnaryOperation,
@@ -116,17 +124,19 @@ namespace cryptanalysislib {
         return d_first;
     }
 
-	/// \tparam InputIt1
-	/// \tparam InputIt2
-	/// \tparam OutputIt
-	/// \tparam BinaryOperation
-	/// \tparam config
-	/// \param first1
-	/// \param last1
-	/// \param first2
-	/// \param d_first
-	/// \param binary_op
-	/// \return
+	/// Applies a binary operation to pairs of elements from two ranges and stores the result in a third range
+	/// 
+	/// \tparam InputIt1 type of the first input iterator
+	/// \tparam InputIt2 type of the second input iterator
+	/// \tparam OutputIt type of the output iterator
+	/// \tparam UnaryOperation type of the binary operation
+	/// \tparam config configuration for the algorithm
+	/// \param first1 [in]: iterator to the first element in the first input range
+	/// \param last1 [in]: iterator to one past the last element in the first input range
+	/// \param first2 [in]: iterator to the first element in the second input range
+	/// \param d_first [out]: iterator to the first element in the output range
+	/// \param binary_op [in]: binary operation function object
+	/// \return iterator to the element past the last element written
 	template<class InputIt1,
 			 class InputIt2,
 			 class OutputIt,
@@ -150,16 +160,18 @@ namespace cryptanalysislib {
         return d_first;
     }
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam UnaryOperation
-	/// \tparam config
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param init
-	/// \param binop
-	/// \return
+	/// Parallel version of reduce that uses an execution policy
+	/// 
+	/// \tparam ExecPolicy type of the execution policy
+	/// \tparam RandIt type of the random access iterator
+	/// \tparam UnaryOperation type of the binary operation
+	/// \tparam config configuration for the algorithm
+	/// \param policy [in]: execution policy
+	/// \param first [in]: iterator to the first element
+	/// \param last [in]: iterator to one past the last element
+	/// \param init [in]: initial value for the reduction
+	/// \param binop [in]: binary operation function object
+	/// \return result of the reduction operation
 	template <class ExecPolicy,
 			  class RandIt,
 			  class UnaryOperation,
@@ -196,14 +208,16 @@ namespace cryptanalysislib {
 			internal::get_wrap(futures.end()), init, binop);
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam config
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \param init
-	/// \return
+	/// Parallel version of reduce using addition that uses an execution policy
+	/// 
+	/// \tparam ExecPolicy type of the execution policy
+	/// \tparam RandIt type of the random access iterator
+	/// \tparam config configuration for the algorithm
+	/// \param policy [in]: execution policy
+	/// \param first [in]: iterator to the first element
+	/// \param last [in]: iterator to one past the last element
+	/// \param init [in]: initial value for the reduction
+	/// \return result of the reduction operation
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmReduceConfig &config=algorithmReduceConfig>
@@ -221,13 +235,15 @@ namespace cryptanalysislib {
 			(std::forward<ExecPolicy>(policy), first, last, init, std::plus<T>());
 	}
 
-	/// \tparam ExecPolicy
-	/// \tparam RandIt
-	/// \tparam config
-	/// \param policy
-	/// \param first
-	/// \param last
-	/// \return
+	/// Parallel version of reduce using addition with default initial value that uses an execution policy
+	/// 
+	/// \tparam ExecPolicy type of the execution policy
+	/// \tparam RandIt type of the random access iterator
+	/// \tparam config configuration for the algorithm
+	/// \param policy [in]: execution policy
+	/// \param first [in]: iterator to the first element
+	/// \param last [in]: iterator to one past the last element
+	/// \return result of the reduction operation
 	template <class ExecPolicy,
 			  class RandIt,
 			  const AlgorithmReduceConfig &config=algorithmReduceConfig>

@@ -7,21 +7,31 @@
 
 // TODO logging of solutions
 // TODO move to ./src/combination/grey.h
-constexpr static inline uint32_t idxq(const uint32_t i,
-                                      const uint32_t j) noexcept {
+
+
+template<typename T>
+constexpr static inline 
+T idxq(const T i,
+       const T j) noexcept {
   return j * (j - 1u) / 2u + i;
 }
 
-constexpr static inline uint32_t to_gray(uint32_t i) noexcept {
+template<typename T>
+constexpr static inline 
+T to_gray(const T i) noexcept {
   return (i ^ (i >> 1u));
 }
 
-constexpr static inline uint32_t next_gray(const uint32_t a) noexcept {
-    return a ^ __builtin_ctz(a+1);
+template<typename T>
+constexpr static inline 
+T next_gray(const T a) noexcept {
+    // TODO replace with cryptanalysislib::ctz
+    return a ^ __builtin_ctzll(a+1);
 }
 
 using namespace cryptanalysislib;
 
+/// TODO doc
 template <typename S,
           typename T,
           const uint32_t n>

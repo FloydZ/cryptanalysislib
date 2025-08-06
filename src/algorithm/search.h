@@ -18,11 +18,14 @@ namespace cryptanalysislib {
 
 	namespace internal {
 
-		/// \tparam T
-		/// \param data
-		/// \param n
-		/// \param val
-		/// \return the position of the first element == val for n  elements
+		/// SIMD-accelerated search for a sequence of n identical values in an array
+		///
+		/// \tparam T type of the array elements
+		/// \tparam config configuration parameters for the search algorithm
+		/// \param data[in]: pointer to the array to search
+		/// \param n[in]: number of elements to search for
+		/// \param val[in]: value to search for
+		/// \return the position of the first element of a sequence of n elements equal to val
 		template<typename T,
 				 const AlgorithmSearchConfig &config=algorithmSearchConfig>
 #if __cplusplus > 201709L
@@ -72,13 +75,23 @@ namespace cryptanalysislib {
 		}
 	}// end namespace internal
 
-    /// \tparam
+    /// Searches for a sequence within a range
+    ///
+    /// \tparam ForwardIt1 type of the main range iterator
+    /// \tparam ForwardIt2 type of the search sequence iterator
     template<class ForwardIt1,
              class ForwardIt2>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<ForwardIt1> &&
                  std::forward_iterator<ForwardIt2>
 #endif
+    /// Finds the first occurrence of a sequence in a range
+    ///
+    /// \param first[in]: iterator to the beginning of the range to search in
+    /// \param last[in]: iterator to the end of the range to search in
+    /// \param s_first[in]: iterator to the beginning of the sequence to search for
+    /// \param s_last[in]: iterator to the end of the sequence to search for
+    /// \return iterator to the beginning of the first occurrence or last if not found
     constexpr
     ForwardIt1 search(ForwardIt1 first,
                       ForwardIt1 last,
@@ -100,6 +113,11 @@ namespace cryptanalysislib {
     	}
     }
     
+    /// Searches for a sequence within a range using a custom predicate
+    ///
+    /// \tparam ForwardIt1 type of the main range iterator
+    /// \tparam ForwardIt2 type of the search sequence iterator
+    /// \tparam BinaryPred type of the binary predicate
     template<class ForwardIt1, 
              class ForwardIt2, 
              class BinaryPred>
@@ -108,6 +126,14 @@ namespace cryptanalysislib {
                  std::forward_iterator<ForwardIt2> && 
     		     std::regular_invocable<BinaryPred, bool>
 #endif
+    /// Finds the first occurrence of a sequence in a range using a custom predicate
+    ///
+    /// \param first[in]: iterator to the beginning of the range to search in
+    /// \param last[in]: iterator to the end of the range to search in
+    /// \param s_first[in]: iterator to the beginning of the sequence to search for
+    /// \param s_last[in]: iterator to the end of the sequence to search for
+    /// \param p[in]: binary predicate that compares elements for equality
+    /// \return iterator to the beginning of the first occurrence or last if not found
     constexpr
     ForwardIt1 search(ForwardIt1 first, 
                       ForwardIt1 last,
@@ -128,11 +154,22 @@ namespace cryptanalysislib {
     	}
     }
     
+    /// Searches for a sequence of n consecutive copies of a value in a range
+    ///
+    /// \tparam ForwardIt type of the forward iterator for the range
+    /// \tparam Size type used to represent the count
     template<class ForwardIt,
              class Size>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<ForwardIt>
 #endif
+    /// Searches for a sequence of count consecutive copies of a value in a range
+    ///
+    /// \param first[in]: iterator to the beginning of the range to search in
+    /// \param last[in]: iterator to the end of the range to search in
+    /// \param count[in]: length of the sequence to search for
+    /// \param value[in]: value to search for
+    /// \return iterator to the beginning of the first occurrence or last if not found
     constexpr
     ForwardIt search_n(ForwardIt first, 
                        ForwardIt last,
@@ -164,6 +201,11 @@ namespace cryptanalysislib {
     	return last;
     }
     
+    /// Searches for a sequence of n consecutive elements that satisfy a predicate with a value
+    ///
+    /// \tparam ForwardIt type of the forward iterator for the range
+    /// \tparam Size type used to represent the count
+    /// \tparam BinaryPred type of the binary predicate function
     template<class ForwardIt, 
              class Size,
              class BinaryPred>
@@ -171,6 +213,14 @@ namespace cryptanalysislib {
 	    requires std::forward_iterator<ForwardIt> &&
     		     std::regular_invocable<BinaryPred, bool>
 #endif
+    /// Searches for a sequence of count consecutive elements that satisfy a predicate with a value
+    ///
+    /// \param first[in]: iterator to the beginning of the range to search in
+    /// \param last[in]: iterator to the end of the range to search in
+    /// \param count[in]: length of the sequence to search for
+    /// \param value[in]: value to compare with each element
+    /// \param p[in]: binary predicate that compares elements with value
+    /// \return iterator to the beginning of the first occurrence or last if not found
     constexpr
     ForwardIt search_n(ForwardIt first, 
                        ForwardIt last, 
@@ -203,6 +253,13 @@ namespace cryptanalysislib {
     }
 
 
+	/// Parallel search for a sequence of count consecutive elements that satisfy a predicate with a value
+	///
+	/// \tparam ExecPolicy type of the execution policy
+	/// \tparam RandIt type of the random access iterator
+	/// \tparam Size type used to represent the count
+	/// \tparam BinaryPred type of the binary predicate function
+	/// \tparam config configuration parameters for the search algorithm
 	template<class ExecPolicy,
 			 class RandIt,
              class Size,
@@ -211,6 +268,15 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 	requires std::random_access_iterator<RandIt>
 #endif
+	/// Performs a parallel search for a sequence of consecutive matching elements
+	///
+	/// \param policy[in]: execution policy controlling parallelization
+	/// \param first[in]: iterator to the beginning of the range to search in
+	/// \param last[in]: iterator to the end of the range to search in
+	/// \param count[in]: length of the sequence to search for
+	/// \param value[in]: value to compare with each element
+	/// \param p[in]: binary predicate that compares elements with value
+	/// \return iterator to the beginning of the first occurrence or last if not found
 	RandIt search_n(ExecPolicy &&policy,
                     RandIt first, 
                     RandIt last, 

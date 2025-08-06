@@ -1,5 +1,4 @@
-#ifndef DECODING_CPUCYCLES_H
-#define DECODING_CPUCYCLES_H
+#pragma once 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -144,4 +143,3 @@ static double osfreq(void) {
 
 	return 2399987654.0;
 }
-#endif//DECODING_CPUCYCLES_H

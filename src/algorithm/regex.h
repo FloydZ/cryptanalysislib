@@ -106,6 +106,10 @@ private:
 	// Max length of character-class buffer in.
 	constexpr static size_t MAX_CHAR_CLASS_LEN = config.MAX_CHAR_CLASS_LEN;
 
+	/// Converts a hexadecimal character to its integer value
+	///
+	/// \param c[in]: hexadecimal character to convert
+	/// \return integer value of the hexadecimal character, or -1 if invalid
 	constexpr static int hex(const char c) noexcept {
 		if (c >= 'a' && c <= 'f')
 			return c - 'a' + 10;
@@ -117,28 +121,53 @@ private:
 			return -1;
 	}
 
+	/// Checks if a character is a digit
+	///
+	/// \param c[in]: character to check
+	/// \return non-zero if the character is a digit, zero otherwise
 	constexpr static inline int matchdigit(const char c) noexcept {
 		return isdigit((unsigned char) c);
 	}
 
+	/// Checks if a character is alphabetic
+	///
+	/// \param c[in]: character to check
+	/// \return non-zero if the character is alphabetic, zero otherwise
 	constexpr static inline int matchalpha(const char c) noexcept {
 		return isalpha((unsigned char) c);
 	}
 
+	/// Checks if a character is whitespace
+	///
+	/// \param c[in]: character to check
+	/// \return non-zero if the character is whitespace, zero otherwise
 	constexpr static inline int matchwhitespace(const char c) noexcept {
 		return isspace((unsigned char) c);
 	}
 
+	/// Checks if a character is alphanumeric or underscore
+	///
+	/// \param c[in]: character to check
+	/// \return non-zero if the character is alphanumeric or underscore, zero otherwise
 	constexpr static inline int matchalphanum(const char c) noexcept {
 		return ((c == '_') || matchalpha(c) || matchdigit(c));
 	}
 
+	/// Checks if a character is within a specified range
+	///
+	/// \param c[in]: character to check
+	/// \param str[in]: string containing range specification in format "a-z"
+	/// \return non-zero if the character is within the range, zero otherwise
 	constexpr static inline int matchrange(const char c,
 	                                       const char *str) noexcept {
 		return ((c != '-') && (str[0] != '\0') && (str[0] != '-') &&
 		        (str[1] == '-') && (str[2] != '\0') && ((c >= str[0]) && (c <= str[2])));
 	}
 
+	/// Checks if a character matches the dot wildcard based on configuration
+	///
+	/// \param c[in]: character to check
+	/// \return non-zero if the character matches the dot wildcard, zero otherwise
 	constexpr static inline int matchdot(const char c) noexcept {
 		if constexpr (dot_matches_newline) {
 			(void) c;
@@ -148,11 +177,20 @@ private:
 		}
 	}
 
+	/// Checks if a character is a regex metacharacter
+	///
+	/// \param c[in]: character to check
+	/// \return non-zero if the character is a metacharacter, zero otherwise
 	constexpr static inline int ismetachar(char c) noexcept {
 		return ((c == 's') || (c == 'S') || (c == 'w') ||
 		        (c == 'W') || (c == 'd') || (c == 'D'));
 	}
 
+	/// Checks if a character matches a regex metacharacter
+	///
+	/// \param c[in]: character to check
+	/// \param str[in]: string containing the metacharacter
+	/// \return non-zero if the character matches the metacharacter, zero otherwise
 	constexpr static int matchmetachar(const char c,
 	                                   const char *str) noexcept {
 		switch (str[0]) {
@@ -173,6 +211,11 @@ private:
 		}
 	}
 
+	/// Checks if a character matches a character class
+	///
+	/// \param c[in]: character to check
+	/// \param str[in]: string representing a character class
+	/// \return non-zero if the character matches the character class, zero otherwise
 	constexpr static int matchcharclass(const char c,
 	                                    const char *str) noexcept {
 		do {
@@ -198,6 +241,11 @@ private:
 		return 0;
 	}
 
+	/// Checks if a character matches a regex pattern element
+	///
+	/// \param p[in]: regex pattern element
+	/// \param c[in]: character to check
+	/// \return non-zero if the character matches the pattern element, zero otherwise
 	constexpr static int matchone(const regex &p,
 	                              const char c) noexcept {
 		switch (p.type) {
@@ -227,12 +275,26 @@ private:
 	}
 
 
+	/// Matches a pattern with the star quantifier (zero or more occurrences)
+	///
+	/// \param p[in]: regex pattern element to match
+	/// \param pattern[in]: remaining pattern to match after this element
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchstar(regex p, regex *pattern, const char *text, int *matchlength) {
 		int num_patterns = 0;
 		return matchplus(p, pattern, text, matchlength) ||
 		       matchpattern(pattern, text, matchlength, &num_patterns);
 	}
 
+	/// Matches a pattern with the plus quantifier (one or more occurrences)
+	///
+	/// \param p[in]: regex pattern element to match
+	/// \param pattern[in]: remaining pattern to match after this element
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchplus(regex p, regex *pattern, const char *text, int *matchlength) {
 		int num_patterns = 0;
 		const char *prepoint = text;
@@ -251,6 +313,13 @@ private:
 		return 0;
 	}
 
+	/// Matches a pattern with the question mark quantifier (zero or one occurrence)
+	///
+	/// \param p[in]: regex pattern element to match
+	/// \param pattern[in]: remaining pattern to match after this element
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchquestion(regex p, regex *pattern, const char *text, int *matchlength) {
 		int num_patterns = 0;
 		if (p.type == UNUSED)
@@ -267,6 +336,13 @@ private:
 		return 0;
 	}
 
+	/// Matches a pattern exactly n times
+	///
+	/// \param p[in]: regex pattern element to match
+	/// \param n[in]: number of times to match
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchtimes(regex p, unsigned short n, const char *text, int *matchlength) {
 		unsigned short i = 0;
 		int pre = *matchlength;
@@ -281,6 +357,13 @@ private:
 		return 0;
 	}
 
+	/// Matches a pattern n or more times
+	///
+	/// \param p[in]: regex pattern element to match
+	/// \param n[in]: minimum number of times to match
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchtimes_n(regex p, unsigned short n, const char *text, int *matchlength) {
 		unsigned short i = 0;
 		int pre = *matchlength;
@@ -295,6 +378,13 @@ private:
 		return 0;
 	}
 
+	/// Matches a pattern up to m times
+	///
+	/// \param p[in]: regex pattern element to match
+	/// \param m[in]: maximum number of times to match
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchtimes_m(regex p, unsigned short m, const char *text, int *matchlength) {
 		unsigned short i = 0;
 		/* Match the pattern max m times */
@@ -305,6 +395,14 @@ private:
 		return 1;
 	}
 
+	/// Matches a pattern between n and m times
+	///
+	/// \param p[in]: regex pattern element to match
+	/// \param n[in]: minimum number of times to match
+	/// \param m[in]: maximum number of times to match
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchtimes_nm(regex p, unsigned short n, unsigned short m, const char *text, int *matchlength) {
 		unsigned short i = 0;
 		int pre = *matchlength;
@@ -319,6 +417,13 @@ private:
 		return 0;
 	}
 
+	/// Matches a pattern with the branch (OR) operator
+	///
+	/// \param p[in]: regex pattern element to match
+	/// \param pattern[in]: remaining pattern to match after this element
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchbranch(regex p, regex *pattern, const char *text, int *matchlength) {
 		int num_patterns = 0;
 		const char *prepoint = text;
@@ -338,6 +443,12 @@ private:
 		return 0;
 	}
 
+	/// Matches a pattern group (contents within parentheses)
+	///
+	/// \param p[in]: regex pattern pointer to the group start
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return non-zero if match successful, zero otherwise
 	static int matchgroup(regex *p, const char *text, int *matchlength) {
 		int pre = *matchlength;
 		int num_patterns = 0, length = pre;
@@ -361,7 +472,13 @@ private:
 		return 1;
 	}
 
-	/* Iterative matching */
+	/// Iteratively matches a pattern against text
+	///
+	/// \param pattern[in]: regex pattern to match
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \param num_patterns[out]: number of pattern elements matched
+	/// \return non-zero if match successful, zero otherwise
 	static int matchpattern(regex *pattern, const char *text, int *matchlength, int *num_patterns) {
 		int pre = *matchlength;
 		do {
@@ -408,10 +525,22 @@ private:
 	}
 
 public:
+	/// Matches a regex pattern against text
+	///
+	/// \param pattern[in]: regex pattern string
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return index of match if successful, -1 if no match
 	constexpr static int re_match(const char *pattern, const char *text, int *matchlength) noexcept {
 		return re_matchp(re_compile(pattern), text, matchlength);
 	}
 
+	/// Matches a compiled regex pattern against text
+	///
+	/// \param pattern[in]: compiled regex pattern
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return index of match if successful, -1 if no match
 	constexpr static int re_matchp(regex *pattern, const char *text, int *matchlength) noexcept {
 		int num_patterns = 0;
 		*matchlength = 0;
@@ -437,6 +566,10 @@ public:
 		return -1;
 	}
 
+	/// Compiles a regex pattern string into a compiled regex pattern
+	///
+	/// \param pattern[in]: regex pattern string to compile
+	/// \return pointer to compiled regex pattern, or nullptr if compilation fails
 	constexpr static regex *re_compile(const char *pattern) noexcept {
 		//The sizes of the three static arrays below substantiates the static RAM
      	//usage of this module.
@@ -693,6 +826,9 @@ public:
 	}
 
 
+	/// Prints a compiled regex pattern for debugging purposes
+	///
+	/// \param pattern[in]: compiled regex pattern to print
 	constexpr static void re_print(regex *pattern) noexcept {
 		const char *const types[] = {
 		        "UNUSED", "DOT", "BEGIN", "END", "QUESTIONMARK", "STAR",

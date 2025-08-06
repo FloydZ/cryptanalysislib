@@ -138,3 +138,5 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
+
+**/.claude/settings.local.json

@@ -153,17 +153,23 @@ public:
 	constexpr static uint32_t LabelLENGTH = Label::length;
 
 
-	/// normal constructor. Initialize everything with zero.
+	/// Default constructor that initializes everything with zero
+	///
+	/// Creates a new Element with zero-initialized label and value components
 	Element_T() noexcept : label(), value() { this->zero(); }
 
-	/// zero out the element.
+	/// Sets all components of the element to zero
+	///
+	/// Zeroes out both the value and label components of the element
 	void zero() noexcept {
 		value.zero();
 		label.zero();
 	}
 
-	/// generate a completely rng element
-	/// NOTE: value and label are not in any correspondence
+	/// Generates a random element with uncorrelated components
+	///
+	/// Fills both value and label with random data. Note that the components
+	/// will not be related to each other (label != value*matrix)
 	void random() noexcept {
 		value.random();
 		label.random();
@@ -192,6 +198,7 @@ public:
 		(void)k_upper;
 		m.mul(label, value);
 	}
+
 	/// checks if label == value*m
 	/// \param m
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.

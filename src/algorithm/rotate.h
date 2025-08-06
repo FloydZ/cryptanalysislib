@@ -10,7 +10,13 @@
 
 
 namespace internal {
-    /// \param TODO doc everywhere
+    /// Swaps two contiguous blocks of elements in forward order
+    ///
+    /// \tparam T type of array elements
+    /// \param array[in,out]: array containing the blocks to swap
+    /// \param start1[in]: starting index of the first block
+    /// \param start2[in]: starting index of the second block
+    /// \param block_size[in]: number of elements in each block
     template<typename T>
     constexpr void forward_block_swap(T *array,
                                       const size_t start1, 
@@ -26,6 +32,13 @@ namespace internal {
     	}
     }
     
+    /// Swaps two contiguous blocks of elements in backward order
+    ///
+    /// \tparam T type of array elements
+    /// \param array[in,out]: array containing the blocks to swap
+    /// \param start1[in]: starting index of the first block
+    /// \param start2[in]: starting index of the second block
+    /// \param block_size[in]: number of elements in each block
     template<typename T>
     void backward_block_swap(T *array,
                              const size_t start1,
@@ -41,6 +54,13 @@ namespace internal {
     	}
     }
 
+    /// Rotates elements in an array using a temporary buffer
+    ///
+    /// \tparam T type of array elements
+    /// \tparam MAX_AUX maximum size of the temporary buffer
+    /// \param array[in,out]: array to rotate
+    /// \param left[in]: number of elements in the left segment
+    /// \param right[in]: number of elements in the right segment
     template<typename T, 
              const size_t MAX_AUX=8>
     constexpr void stack_rotation(T *array,
@@ -64,10 +84,12 @@ namespace internal {
     }
 };
 
-/// left rotate
-/// \param x value to rotate
-/// \param k how much to rotate
-/// \return x <<< k
+/// Performs a left rotation on bits of an integer value
+///
+/// \tparam T type of integer to rotate, defaults to uint64_t
+/// \param x[in]: value to rotate
+/// \param k[in]: number of bits to rotate left
+/// \return left-rotated value (x <<< k)
 template<typename T=uint64_t>
 #if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T>
@@ -86,10 +108,12 @@ template<typename T=uint64_t>
 	return (x << k) | (x >> ((sizeof(T)*8) - k));
 }
 
-/// right rotate
-/// \param x value to rotate
-/// \param k how much to rotate
-/// \return x <<< k
+/// Performs a right rotation on bits of an integer value
+///
+/// \tparam T type of integer to rotate, defaults to uint64_t
+/// \param x[in]: value to rotate
+/// \param k[in]: number of bits to rotate right
+/// \return right-rotated value (x >>> k)
 template<typename T=uint64_t>
 #if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T>
@@ -109,10 +133,12 @@ template<typename T=uint64_t>
 }
 
 
-/// \tparam num_bits The number of bits to rotate.
-/// \tparam word_t   The type of number to rotate.
-/// \param x The number to be rotated right.
-/// \returns The result of right-rotating the bits of x by num_bits.
+/// Compile-time right rotation of bits of an integer value
+///
+/// \tparam num_bits number of bits to rotate
+/// \tparam T type of integer to rotate
+/// \param x[in]: value to rotate
+/// \return result of right-rotating the bits of x by num_bits
 template <std::size_t num_bits, typename T> 
 #if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T>
@@ -121,10 +147,12 @@ consteval T rotr(const T x) noexcept {
     return (x >> num_bits) | (x << ((sizeof(T) * 8u) - num_bits));
 }
 
-/// \tparam num_bits The number of bits to rotate.
-/// \tparam word_t   The type of number to rotate.
-/// \param x The number to be rotated left.
-/// \returns The result of left-rotating the bits of x by num_bits.
+/// Compile-time left rotation of bits of an integer value
+///
+/// \tparam num_bits number of bits to rotate
+/// \tparam T type of integer to rotate
+/// \param x[in]: value to rotate
+/// \return result of left-rotating the bits of x by num_bits
 template <std::size_t num_bits, typename T> 
 #if __cplusplus > 201709L
 	requires std::is_arithmetic_v<T>
@@ -137,7 +165,15 @@ consteval T rotl(const T x) noexcept {
 // basically I concentrated on the implementations not using any memory
 // TODO tests and benchmarks
 
-// 2021 - Conjoined Triple Reversal rotation by Igor van den Hoven
+/// Conjoined Triple Reversal rotation algorithm by Igor van den Hoven (2021)
+///
+/// Rotates array elements using an in-place triple reversal approach
+/// without requiring additional memory
+///
+/// \tparam T type of array elements
+/// \param array[in,out]: array to rotate
+/// \param left[in]: number of elements in the left segment
+/// \param right[in]: number of elements in the right segment
 template<typename T>
 constexpr void contrev_rotation(T *array,
                                 const size_t left, 
@@ -214,7 +250,14 @@ constexpr void contrev_rotation(T *array,
 }
 
 
-
+/// Trinity rotation algorithm that combines memory-efficient buffer with fallback 
+/// in-place swapping techniques
+///
+/// \tparam T type of array elements
+/// \tparam MAX_AUX maximum size of the temporary buffer
+/// \param array[in,out]: array to rotate
+/// \param left[in]: number of elements in the left segment
+/// \param right[in]: number of elements in the right segment
 template<typename T, const size_t MAX_AUX>
 constexpr void trinity_rotation(T *array, 
                                 size_t left, 
@@ -342,7 +385,15 @@ size_t loop;
     }
 }
 
-// 1981 - Gries-Mills rotation by David Gries and Harlan Mills
+/// Gries-Mills rotation algorithm (1981) by David Gries and Harlan Mills
+///
+/// Efficient in-place rotation algorithm that works by repeatedly swapping
+/// equal-sized blocks of elements
+///
+/// \tparam T type of array elements
+/// \param array[in,out]: array to rotate
+/// \param left[in]: number of elements in the left segment
+/// \param right[in]: number of elements in the right segment
 template<typename T>
 constexpr void griesmills_rotation(T *array,
                                    size_t left, 
@@ -367,7 +418,16 @@ constexpr void griesmills_rotation(T *array,
 	}
 }
 
-// 2020 - Grail rotation by the Holy Grail Sort project (Gries-Mills derived)
+/// Grail rotation algorithm (2020) by the Holy Grail Sort project
+///
+/// Enhanced version of Gries-Mills rotation that optimizes edge cases
+/// using both forward and backward block swaps, with a fallback to
+/// stack-based rotation for small remaining segments
+///
+/// \tparam T type of array elements
+/// \param array[in,out]: array to rotate
+/// \param left[in]: number of elements in the left segment
+/// \param right[in]: number of elements in the right segment
 template<typename T>
 constexpr void grail_rotation(T *array,
                               size_t left,
@@ -402,7 +462,15 @@ constexpr void grail_rotation(T *array,
 	}
 }
 
-// 2021 - Piston rotation by Igor van den Hoven. Based on the successive swap described by Gries and Mills in 1981.
+/// Piston rotation algorithm (2021) by Igor van den Hoven
+///
+/// Based on the successive swap approach described by Gries and Mills (1981)
+/// but with optimized block swapping for improved performance
+///
+/// \tparam T type of array elements
+/// \param array[in,out]: array to rotate
+/// \param left[in]: number of elements in the left segment
+/// \param right[in]: number of elements in the right segment
 template<typename T>
 constexpr void piston_rotation(T *array,
                                size_t left,
@@ -424,7 +492,15 @@ constexpr void piston_rotation(T *array,
 	}
 }
 
-// 2021 - Helix rotation by Control (grail derived)
+/// Helix rotation algorithm (2021) by Control
+///
+/// Derived from the Grail algorithm but with a different approach to swapping elements
+/// that optimizes for certain array patterns
+///
+/// \tparam T type of array elements
+/// \param array[in,out]: array to rotate
+/// \param left[in]: number of elements in the left segment
+/// \param right[in]: number of elements in the right segment
 template<typename T>
 constexpr void helix_rotation(T *array,
                     size_t left,
@@ -467,7 +543,15 @@ constexpr void helix_rotation(T *array,
     }
 }
 
-// 2021 - Drill rotation by Igor van den Hoven (grail derived with piston and helix loops)
+/// Drill rotation algorithm (2021) by Igor van den Hoven
+///
+/// Combines elements from Grail, Piston, and Helix algorithms for a hybrid approach
+/// that performs well across various array patterns and sizes
+///
+/// \tparam T type of array elements
+/// \param array[in,out]: array to rotate
+/// \param left[in]: number of elements in the left segment
+/// \param right[in]: number of elements in the right segment
 template<typename T>
 constexpr void drill_rotation(T *array,
                               size_t left,

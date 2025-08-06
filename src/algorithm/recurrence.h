@@ -1,5 +1,7 @@
 #pragma once 
 
+// TODO finish 
+
 // Solving linear recurrences. Given some brute-forced
 // sequence s[0], s[1], . . . , s[2n − 1], Berlekamp-Massey finds the
 // shortest possible recurrence relation in O(n2). After that,

@@ -4,28 +4,16 @@
 #include <cstdint>
 #include <cstdlib>
 
-/// Transpose 8x8 bit array packed into a single quadword
-/// 		   input
-///  0 						 7 bit
-///  [a0,a1,a2,a3,a4,a5,a6,a7] 7
-///  [b0,b1,b2,b3,b4,b5,b6,b7] 15
-///  [c0,c1,c2,c3,c4,c5,c6,c7] 23
-///  [d0,d1,d2,d3,d4,d5,d6,d7]
-///  [e0,e1,e2,e3,e4,e5,e6,e7]
-///  [f0,f1,f2,f3,f4,f5,f6,f7]
-///  [g0,g1,g2,g3,g4,g5,g6,g7]
-///  [h0,h1,h2,h3,h4,h5,h6,h7] 63
+/// Transposes an 8x8 bit array packed into a single quadword
 ///
-/// 			output
-///  [a0,b0,c0,d0,e0,f0,g0,h0] 7 bit
-///  [a1,b1,c1,d1,e1,f1,g1,h1] 15
-///  [a2,b2,c2,d2,e2,f2,g2,h2] 23
-///  [a3,b3,c3,d3,e3,f3,g3,h3]
-///  [a4,b4,c4,d4,e4,f4,g4,h4]
-///  [a5,b5,c5,d5,e5,f5,g5,h5]
-///  [a6,b6,c6,d6,e6,f6,g6,h6]
-///  [a7,b7,c7,d7,e7,f7,g7,h7] 63
-constexpr inline uint64_t transpose_b8x8(const uint64_t x_) noexcept {
+/// Transforms the bit layout from rows to columns:
+/// Input:  [a0,a1,a2,a3,a4,a5,a6,a7] [b0,b1,b2,b3,b4,b5,b6,b7] ... [h0,h1,h2,h3,h4,h5,h6,h7]
+/// Output: [a0,b0,c0,d0,e0,f0,g0,h0] [a1,b1,c1,d1,e1,f1,g1,h1] ... [a7,b7,c7,d7,e7,f7,g7,h7]
+///
+/// \param x_[in]: 64-bit value containing the 8x8 bit matrix to transpose
+/// \return Transposed 64-bit value with bits arranged in column-major order
+constexpr inline 
+uint64_t transpose_b8x8(const uint64_t x_) noexcept {
 	uint64_t x = x_, t;
     t = (x ^ (x >> 7)) & 0x00AA00AA00AA00AALL;
     x = x ^ t ^ (t << 7);
@@ -36,28 +24,16 @@ constexpr inline uint64_t transpose_b8x8(const uint64_t x_) noexcept {
 	return x;
 }
 
-/// Transpose 8x8 bit array along the diagonal from upper right
-/// 		   input
-///  0 						 7 bit
-///  [a0,a1,a2,a3,a4,a5,a6,a7] 7
-///  [b0,b1,b2,b3,b4,b5,b6,b7] 15
-///  [c0,c1,c2,c3,c4,c5,c6,c7] 23
-///  [d0,d1,d2,d3,d4,d5,d6,d7]
-///  [e0,e1,e2,e3,e4,e5,e6,e7]
-///  [f0,f1,f2,f3,f4,f5,f6,f7]
-///  [g0,g1,g2,g3,g4,g5,g6,g7]
-///  [h0,h1,h2,h3,h4,h5,h6,h7] 63
+/// Transposes an 8x8 bit array along the diagonal from upper right (reverse transpose)
 ///
-/// out
-///  [h7,g7,f7,e7,d7,c7,b7,a7] 7
-///  [h6,g6,f6,e6,d6,c6,b6,a6]
-///  [h5,g5,f5,e5,d5,c5,b5,a5]
-///  [h4,g4,f4,e4,d4,c4,b4,a4]
-///  [h3,g3,f3,e3,d3,c3,b3,a3]
-///  [h2,g2,f2,e2,d2,c2,b2,a2]
-///  [h1,g1,f1,e1,d1,c1,b1,a1]
-///  [h0,g0,f0,e0,d0,c0,b0,a0] 63 bit
-constexpr inline uint64_t transpose_b8x8_be(const uint64_t x_) noexcept {
+/// Transforms the bit layout from rows to columns and reverses the order:
+/// Input:  [a0,a1,a2,a3,a4,a5,a6,a7] [b0,b1,b2,b3,b4,b5,b6,b7] ... [h0,h1,h2,h3,h4,h5,h6,h7]
+/// Output: [h7,g7,f7,e7,d7,c7,b7,a7] [h6,g6,f6,e6,d6,c6,b6,a6] ... [h0,g0,f0,e0,d0,c0,b0,a0]
+///
+/// \param x_[in]: 64-bit value containing the 8x8 bit matrix to transpose
+/// \return Transposed 64-bit value with bits arranged in reverse column-major order
+constexpr inline
+uint64_t transpose_b8x8_be(const uint64_t x_) noexcept {
 	uint64_t x = x_, t;
     t = (x ^ (x >> 9)) & 0x0055005500550055LL;
     x = x ^ t ^ (t << 9);
@@ -68,13 +44,15 @@ constexpr inline uint64_t transpose_b8x8_be(const uint64_t x_) noexcept {
 	return x;
 }
 
-/// \param A
-/// \param m
-/// \param n
-/// \param B
+/// Transposes a byte matrix with 8 rows using bit manipulation techniques
+///
+/// \param A[in]: Input array of 8 elements, where each element is treated as a row
+/// \param m[in]: Stride of the input array A
+/// \param n[in]: Stride of the output array B
+/// \param B[out]: Output array where the transposed matrix will be stored
 void transpose8(uint32_t A[8],
-				int m,
-				int n,
+				const int m,
+				const int n,
 				uint32_t B[8]) noexcept {
 	unsigned x, y, t;
 
@@ -107,8 +85,12 @@ void transpose8(uint32_t A[8],
 	B[7 * n] = y;
 }
 
-/// inplace
-/// transpose of a 64x64 matrix over gf(2)
+/// Performs an in-place transpose of a 64x64 bit matrix
+///
+/// Each entry in the array represents a row of 64 bits. The function 
+/// transposes the matrix in-place using bit manipulation techniques.
+///
+/// \param a[in,out]: Array of 64 uint64_t values representing a 64x64 bit matrix
 inline void transpose_b64x64_inplace(uint64_t a[64]) noexcept {
 	for (uint64_t j = 32, m = 0x00000000FFFFFFFF; j; j >>= 1, m ^= m << j) {
 		for (uint64_t k = 0; k < 64; k = ((k | j) + 1) & ~j) {
@@ -121,10 +103,12 @@ inline void transpose_b64x64_inplace(uint64_t a[64]) noexcept {
 
 
 /// Optimized transpose of a 4x4 matrix of bytes
-/// \param dst[out]: pointer to the output transposed matrix
-/// \param src[in]: pointer to the input matrix
-/// \param stride[in]: distance between rows in bytes
-/// TODO: move cryptanalyslib
+///
+/// Efficiently transposes a 4x4 matrix of bytes using SIMD-friendly operations
+///
+/// \param dst[out]: Pointer to the output transposed matrix
+/// \param src[in]: Pointer to the input matrix
+/// \param stride[in]: Distance between rows in bytes
 void transpose_u8_4x4(uint8_t* dst,
                       const uint8_t* src,
                       const size_t stride) {
@@ -153,10 +137,14 @@ void transpose_u8_4x4(uint8_t* dst,
     *(uint32_t*)(dst + 3*stride) = c3;
 }
 
-/// \param dst[out]: out  data
-/// \param src[in] input bytes 8x8 matrix
-/// \param src_stride[in] in bytes
-/// \param dst_stride[in] in bytes
+/// Transposes an 8x8 matrix of bytes
+///
+/// Efficiently transposes an 8x8 matrix of bytes using bit manipulation operations
+///
+/// \param dst[out]: Pointer to the output transposed matrix
+/// \param src[in]: Pointer to the input 8x8 byte matrix
+/// \param src_stride[in]: Source stride in bytes (distance between rows in the input)
+/// \param dst_stride[in]: Destination stride in bytes (distance between rows in the output)
 void transpose_u8_8x8(uint8_t* dst,
                       const uint8_t* src,
                       const size_t src_stride,
@@ -212,13 +200,85 @@ void transpose_u8_8x8(uint8_t* dst,
     *(uint64_t*)(dst + 7*dst_stride) = d7;
 }
 
+
+///  this code was written by Antoine Joux for his book 
+/// "algorithmic cryptanalysis" (cf. http://www.joux.biz). It
+/// was slightly modified by C. Bouillaguet. Just like the original, it is licensed
+/// under a Creative Commons Attribution-Noncommercial-Share Alike 3.0 Unported License.
+/// Performs a 32x32 bit matrix transposition
+///
+/// Transposes a 32x32 bit matrix using the algorithm described by Antoine Joux
+/// in "Algorithmic Cryptanalysis". The algorithm uses bit manipulation to efficiently
+/// transpose the matrix in-place.
+///
+/// \param M[in]: Pointer to the input matrix (32 uint32_t values)
+/// \param T[out]: Pointer to the output transposed matrix (32 uint32_t values)
+void transpose_u32_32x32(const uint32_t *M,
+                         uint32_t *T) {
+    constexpr static const uint32_t M1_HI = 0xffff0000;
+    constexpr static const uint32_t M1_LO = 0x0000ffff;
+    constexpr static const uint32_t M2_HI = 0xff00ff00;
+    constexpr static const uint32_t M2_LO = 0x00ff00ff;
+    constexpr static const uint32_t M3_HI = 0xf0f0f0f0;
+    constexpr static const uint32_t M3_LO = 0x0f0f0f0f;
+    constexpr static const uint32_t M4_HI = 0xcccccccc;
+    constexpr static const uint32_t M4_LO = 0x33333333;
+    constexpr static const uint32_t M5_HI = 0xaaaaaaaa;
+    constexpr static const uint32_t M5_LO = 0x55555555;
+
+	/* to unroll manually */
+	for (int l = 0; l < 16; l++) {
+		T[l] = (M[l] & M1_LO) | ((M[l + 16] & M1_LO) << 16);
+		T[l + 16] = ((M[l] & M1_HI) >> 16) | (M[l + 16] & M1_HI);
+	}
+
+	for (int l0 = 0; l0 < 32; l0 += 16) {
+		for (int l = l0; l < l0 + 8; l++) {
+			uint32_t val1 = (T[l] & M2_LO) | ((T[l + 8] & M2_LO) << 8);
+			uint32_t val2 = ((T[l] & M2_HI) >> 8) | (T[l + 8] & M2_HI);
+			T[l] = val1;
+			T[l + 8] = val2;
+		}
+	}
+
+	for (int l0 = 0; l0 < 32; l0 += 8) {
+		for (int l = l0; l < l0 + 4; l++) {
+			uint32_t val1 = (T[l] & M3_LO) | ((T[l + 4] & M3_LO) << 4);
+			uint32_t val2 = ((T[l] & M3_HI) >> 4) | (T[l + 4] & M3_HI);
+			T[l] = val1;
+			T[l + 4] = val2;
+		}
+	}
+
+	for (int l0 = 0; l0 < 32; l0 += 4) {
+		for (int l = l0; l < l0 + 2; l++) {
+			uint32_t val1 = (T[l] & M4_LO) | ((T[l + 2] & M4_LO) << 2);
+			uint32_t val2 = ((T[l] & M4_HI) >> 2) | (T[l + 2] & M4_HI);
+			T[l] = val1;
+			T[l + 2] = val2;
+		}
+	}
+
+	for (int l = 0; l < 32; l += 2) {
+		uint32_t val1 = (T[l] & M5_LO) | ((T[l + 1] & M5_LO) << 1);
+		uint32_t val2 = ((T[l] & M5_HI) >> 1) | (T[l + 1] & M5_HI);
+		T[l] = val1;
+		T[l + 1] = val2;
+	}
+}
+
+
 #ifdef USE_AVX2
 #include <immintrin.h>
-/// \param dst_origin[out]: output matrix
-/// \param src_origin[in]: input matrix
-/// \param prf_origin[in]: lookahead pointer to prefetch it
-/// \param src_stride[in]:
-/// \param dst_stride[in]:
+/// Transposes a 32x32 matrix of bytes using AVX2 instructions
+///
+/// Efficiently transposes a 32x32 matrix of bytes using AVX2 SIMD instructions
+///
+/// \param dst_origin[out]: Pointer to the output transposed matrix
+/// \param src_origin[in]: Pointer to the input matrix
+/// \param prf_origin[in]: Lookahead pointer to prefetch memory (can optimize cache usage)
+/// \param src_stride[in]: Source stride in bytes (distance between rows in the input)
+/// \param dst_stride[in]: Destination stride in bytes (distance between rows in the output)
 static inline
 void matrix_transpose_u8_32x32(uint8_t* dst_origin,
                                const uint8_t* src_origin,
@@ -310,11 +370,15 @@ void matrix_transpose_u8_32x32(uint8_t* dst_origin,
 
 #ifdef USE_NEON 
 
-/// \param dst_origin[out]: output matrix
-/// \param src_origin[in]: input matrix
-/// \param prf_origin[in]: lookahead pointer to prefetch it (unused in neon impl.)
-/// \param src_stride[in]: number of bytes (including alignment) in each row for source matrix
-/// \param dst_stride[in]: number of bytes (including alignment) in each row for destination matrix
+/// Transposes a 32x32 matrix of bytes using ARM NEON instructions
+///
+/// Efficiently transposes a 32x32 matrix of bytes using ARM NEON SIMD instructions
+///
+/// \param dst_origin[out]: Pointer to the output transposed matrix
+/// \param src_origin[in]: Pointer to the input matrix
+/// \param prf_origin[in]: Lookahead pointer to prefetch memory (unused in NEON implementation)
+/// \param src_stride[in]: Source stride in bytes (distance between rows in the input)
+/// \param dst_stride[in]: Destination stride in bytes (distance between rows in the output)
 void matrix_transpose_u8_32x32(uint8_t* dst_origin,
                            const uint8_t* src_origin,
                            const uint8_t* prf_origin,
@@ -555,12 +619,15 @@ void matrix_transpose_u8_32x32(uint8_t* dst_origin,
 #endif
 #ifdef USE_AVX512
 
-
-/// \param dst_origin[out]: output matrix
-/// \param src_origin[in]: input matrix
-/// \param prf_origin[in]: lookahead pointer to prefetch it
-/// \param src_stride[in]:
-/// \param dst_stride[in]:
+/// Transposes a 64x64 matrix of bytes using AVX512 instructions
+///
+/// Efficiently transposes a 64x64 matrix of bytes using AVX512 SIMD instructions
+///
+/// \param dst_origin[out]: Pointer to the output transposed matrix
+/// \param src_origin[in]: Pointer to the input matrix
+/// \param prf_origin[in]: Lookahead pointer to prefetch memory (can optimize cache usage)
+/// \param src_stride[in]: Source stride in bytes (distance between rows in the input)
+/// \param dst_stride[in]: Destination stride in bytes (distance between rows in the output)
 void matrix_transpose_u8_64x64(uint8_t* dst_origin,
                             const uint8_t* src_origin,
                             const uint8_t* prf_origin,
@@ -681,7 +748,13 @@ void matrix_transpose_u8_64x64(uint8_t* dst_origin,
 
 #ifdef USE_AVX2
 
-// NOTE: stride in bytes
+/// Transposes a 32x32 matrix of 4-bit elements using AVX2 instructions
+///
+/// Efficiently transposes a matrix where each element is 4 bits wide
+///
+/// \param B[out]: Pointer to the output transposed matrix
+/// \param A[in]: Pointer to the input matrix
+/// \param stride[in]: Stride in bytes between rows
 static void transpose_u4_32x32_avx2(uint8_t *B,
                                       const uint8_t *const A,
                                       const uint32_t stride) {
@@ -765,7 +838,14 @@ static void transpose_u4_32x32_avx2(uint8_t *B,
     }
 }
 
-// NOTE: stride in bytes
+/// Transposes a 64x64 matrix of 4-bit elements using AVX2 instructions
+///
+/// Efficiently transposes a matrix where each element is 4 bits wide
+///
+/// \param B[out]: Pointer to the output transposed matrix
+/// \param A[in]: Pointer to the input matrix
+/// \param src_stride[in]: Source stride in bytes (distance between rows in the input)
+/// \param dst_stride[in]: Destination stride in bytes (distance between rows in the output)
 static void transpose_u4_64x64_avx2(uint8_t *B,
                                       const uint8_t *const A,
                                       const uint32_t src_stride,
@@ -859,15 +939,24 @@ static void transpose_u4_64x64_avx2(uint8_t *B,
     }
 }
 
-/// every element is a u64
-/// out: [a0 b0 c0 d0]
-///      [a1 b1 c1 d1]
-///      [a2 b2 c2 d2]
-///      [a1 b1 c1 d1]
-/// in : [a0 a1 a2 a3]
-///      [b0 b1 b2 b3]
-///      [c0 c1 c2 c3]
-///      [d0 d1 d2 d3]
+/// Transposes a 4x4 matrix of 64-bit elements using AVX2 instructions
+///
+/// Efficiently transposes a matrix where each element is a 64-bit value
+///
+/// Input format:
+///   [a0 a1 a2 a3]
+///   [b0 b1 b2 b3]
+///   [c0 c1 c2 c3]
+///   [d0 d1 d2 d3]
+///
+/// Output format:
+///   [a0 b0 c0 d0]
+///   [a1 b1 c1 d1]
+///   [a2 b2 c2 d2]
+///   [a3 b3 c3 d3]
+///
+/// \param out[out]: Pointer to the output transposed matrix
+/// \param in[in]: Pointer to the input matrix
 static inline
 void transpose_u64_4x4_avx2(uint64_t *out,
                            const uint64_t *in) {
@@ -892,15 +981,24 @@ void transpose_u64_4x4_avx2(uint64_t *out,
     _mm256_storeu_si256((__m256i *)(out + 12), t3);
 }
 
-/// every element is a u64
-/// out: [a0 b0 c0 d0]
-///      [a1 b1 c1 d1]
-///      [a2 b2 c2 d2]
-///      [a1 b1 c1 d1]
-/// in : [a0 a1 a2 a3]
-///      [b0 b1 b2 b3]
-///      [c0 c1 c2 c3]
-///      [d0 d1 d2 d3]
+/// Transposes a 4x4 matrix of 64-bit elements in-place using AVX2 instructions
+///
+/// Efficiently transposes a matrix where each element is a 64-bit value.
+/// This version transposes the matrix in-place.
+///
+/// Input format:
+///   [a0 a1 a2 a3]
+///   [b0 b1 b2 b3]
+///   [c0 c1 c2 c3]
+///   [d0 d1 d2 d3]
+///
+/// Output format:
+///   [a0 b0 c0 d0]
+///   [a1 b1 c1 d1]
+///   [a2 b2 c2 d2]
+///   [a3 b3 c3 d3]
+///
+/// \param a[in,out]: Array of 4 __m256i values to be transposed in-place
 static inline
 void transpose_u64_4x4_avx2_(__m256i a[4]) {
     const __m256i b0 = _mm256_unpacklo_epi64(a[0], a[1]);
@@ -917,23 +1015,31 @@ void transpose_u64_4x4_avx2_(__m256i a[4]) {
 
 #ifdef USE_AVX512 
 
-/// every element is a u64
-/// out: [a0 b0 c0 d0 e0 f0 g0 h0]
-///      [a1 b1 c1 d1 e1 f1 g1 h1]
-///      [a2 b2 c2 d2 e2 f2 g2 h2]
-///      [a3 b3 c3 d3 e3 f3 g3 h3]
-///      [a4 b4 c4 d4 e4 f4 g4 h4]
-///      [a5 b5 c5 d5 e5 f5 g5 h5]
-///      [a6 b6 c6 d6 e6 f6 g6 h6]
-///      [a7 b7 c7 d7 e7 f7 g7 h7]
-/// in : [a0 a1 a2 a3 a4 a5 a6 a7]
-///      [b0 b1 b2 b7 b4 b5 b6 b7]
-///      [c0 c1 c2 c3 c4 c5 c6 c7]
-///      [d0 d1 d2 d3 d4 d5 d6 d7]
-///      [e0 e1 e2 e3 e4 e5 e6 e7]
-///      [f0 f1 f2 f3 f4 f5 f6 f7]
-///      [g0 g1 g2 g3 g4 g5 g6 g7]
-///      [h0 h1 h2 h3 h4 h5 h6 h7]
+/// Transposes an 8x8 matrix of 64-bit elements using AVX512 instructions
+///
+/// Efficiently transposes a matrix where each element is a 64-bit value
+///
+/// Input format:
+///   [a0 a1 a2 a3 a4 a5 a6 a7]
+///   [b0 b1 b2 b3 b4 b5 b6 b7]
+///   [c0 c1 c2 c3 c4 c5 c6 c7]
+///   [d0 d1 d2 d3 d4 d5 d6 d7]
+///   [e0 e1 e2 e3 e4 e5 e6 e7]
+///   [f0 f1 f2 f3 f4 f5 f6 f7]
+///   [g0 g1 g2 g3 g4 g5 g6 g7]
+///   [h0 h1 h2 h3 h4 h5 h6 h7]
+///
+/// Output format:
+///   [a0 b0 c0 d0 e0 f0 g0 h0]
+///   [a1 b1 c1 d1 e1 f1 g1 h1]
+///   [a2 b2 c2 d2 e2 f2 g2 h2]
+///   [a3 b3 c3 d3 e3 f3 g3 h3]
+///   [a4 b4 c4 d4 e4 f4 g4 h4]
+///   [a5 b5 c5 d5 e5 f5 g5 h5]
+///   [a6 b6 c6 d6 e6 f6 g6 h6]
+///   [a7 b7 c7 d7 e7 f7 g7 h7]
+///
+/// \param a[in,out]: Array of 8 __m512i values to be transposed in-place
 void transpose_u64_8x8_avx512_(__m512i a[8]) {
     const __m512i m1 = _mm512_setr_epi64(0b0000, 0b0001, 0b1000, 0b1001, 0b0100, 0b0101, 0b1100, 0b1101);
     const __m512i m2 = _mm512_setr_epi64(0b0010, 0b0011, 0b1010, 0b1011, 0b0110, 0b0111, 0b1110, 0b1111);
@@ -968,7 +1074,13 @@ void transpose_u64_8x8_avx512_(__m512i a[8]) {
     a[6] = _mm512_permutex2var_epi64(b6, m4, b6);
     a[7] = _mm512_permutex2var_epi64(b7, m4, b7);
 }
-// source: https://stackoverflow.com/questions/29519222/how-to-transpose-a-16x16-matrix-using-simd-instructions
+/// Transposes a 16x16 matrix of 32-bit elements using AVX512 instructions
+///
+/// Efficiently transposes a 16x16 matrix of 32-bit integers using AVX512 SIMD instructions
+/// Source: https://stackoverflow.com/questions/29519222/how-to-transpose-a-16x16-matrix-using-simd-instructions
+///
+/// \param mat[in]: Pointer to the input matrix (16x16 of 32-bit elements)
+/// \param matT[out]: Pointer to the output transposed matrix
 inline static
 void tran_new2(uint32_t* mat, uint32_t* matT) noexcept {
     __m512i t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, ta, tb, tc, td, te, tf;

@@ -3,6 +3,9 @@
 
 #include <cstdint>
 
+
+// TODO normal iterator version 
+
 #ifdef USE_AVX2
 #include <immintrin.h>
 
@@ -18,12 +21,15 @@
 // }
 // #endif
 
-/// given 0b1011 (11 in decimal) and 0b1100 (12 in decimal),
-/// compute the number 0b11011010.
-/// \param out
-/// \param in0
-/// \param in1
-static inline void morton_vec8(uint64_t *out ,
+/// Computes Morton codes (Z-order curve values) for interleaving bits from two input arrays
+///
+/// Given two values like 0b1011 (11 in decimal) and 0b1100 (12 in decimal),
+/// computes the interleaved value 0b11011010.
+///
+/// \param out[out]: Pointer to the output array where Morton codes will be stored
+/// \param in0[in]: Pointer to the first input array
+/// \param in1[in]: Pointer to the second input array
+static inline void morton_vec8(uint64_t *out,
 							   uint32_t *in0,
 							   uint32_t *in1) {
 
@@ -68,10 +74,14 @@ static inline void morton_vec8(uint64_t *out ,
 	_mm256_storeu2_m128i ((__m128i*) (out+6),(__m128i*) (out+2), his);
 }
 
-/// \param out1 lower part: [x1y1, x2y2, ..., x16y16]
-/// \param out2 upper part: [x17y17, ..., x32y32]
-/// \param in1 [x1, ..., x32]
-/// \param in2 [y1, ..., y32]
+/// Interleaves 32 8-bit elements from two vectors into two output vectors
+///
+/// Takes two vectors of 8-bit elements and interleaves them into two output vectors.
+///
+/// \param out1[out]: Pointer to output vector for lower part [x1y1, x2y2, ..., x16y16]
+/// \param out2[out]: Pointer to output vector for upper part [x17y17, ..., x32y32]
+/// \param in1[in]: Pointer to first input vector [x1, ..., x32]
+/// \param in2[in]: Pointer to second input vector [y1, ..., y32]
 static inline void zip_u8(__m256i *__restrict__ out1,
 						  __m256i *__restrict__ out2,
 						  const __m256i *__restrict__ in1,
@@ -84,10 +94,14 @@ static inline void zip_u8(__m256i *__restrict__ out1,
 	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
-/// \param out1 lower part: [x1y1, x2y2, ..., x8y8]
-/// \param out2 upper part: [x9y9, ..., x16y16]
-/// \param in1 [x1, ..., x16]
-/// \param in2 [y1, ..., y16]
+/// Interleaves 16 16-bit elements from two vectors into two output vectors
+///
+/// Takes two vectors of 16-bit elements and interleaves them into two output vectors.
+///
+/// \param out1[out]: Pointer to output vector for lower part [x1y1, x2y2, ..., x8y8]
+/// \param out2[out]: Pointer to output vector for upper part [x9y9, ..., x16y16]
+/// \param in1[in]: Pointer to first input vector [x1, ..., x16]
+/// \param in2[in]: Pointer to second input vector [y1, ..., y16]
 static inline void zip_u16(__m256i *__restrict__ out1,
 						   __m256i *__restrict__ out2,
 						   const __m256i *__restrict__ in1,
@@ -100,10 +114,14 @@ static inline void zip_u16(__m256i *__restrict__ out1,
 	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
-/// \param out1 lower part: [x1y1, x2y2, ..., x4y4]
-/// \param out2 upper part: [x5y5, ..., x8y8]
-/// \param in1 [x1, ..., x8]
-/// \param in2 [y1, ..., y8]
+/// Interleaves 8 32-bit elements from two vectors into two output vectors
+///
+/// Takes two vectors of 32-bit elements and interleaves them into two output vectors.
+///
+/// \param out1[out]: Pointer to output vector for lower part [x1y1, x2y2, ..., x4y4]
+/// \param out2[out]: Pointer to output vector for upper part [x5y5, ..., x8y8]
+/// \param in1[in]: Pointer to first input vector [x1, ..., x8]
+/// \param in2[in]: Pointer to second input vector [y1, ..., y8]
 static inline void zip_u32(__m256i *__restrict__ out1,
 						   __m256i *__restrict__ out2,
 						   const __m256i *__restrict__ in1,
@@ -116,10 +134,14 @@ static inline void zip_u32(__m256i *__restrict__ out1,
 	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
-/// \param out1 lower part: [x1y1, x2y2]
-/// \param out2 upper part: [x3y3, x4y4]
-/// \param in1 [x1, ..., x4]
-/// \param in2 [y1, ..., y4]
+/// Interleaves 4 64-bit elements from two vectors into two output vectors
+///
+/// Takes two vectors of 64-bit elements and interleaves them into two output vectors.
+///
+/// \param out1[out]: Pointer to output vector for lower part [x1y1, x2y2]
+/// \param out2[out]: Pointer to output vector for upper part [x3y3, x4y4]
+/// \param in1[in]: Pointer to first input vector [x1, ..., x4]
+/// \param in2[in]: Pointer to second input vector [y1, ..., y4]
 static inline void zip_u64(__m256i *__restrict__ out1,
 						   __m256i *__restrict__ out2,
 						   const __m256i *__restrict__ in1,
@@ -132,10 +154,15 @@ static inline void zip_u64(__m256i *__restrict__ out1,
 	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
-/// \param out
-/// \param in1
-/// \param in2
-/// \param n number of elements in `in1`, `in2`
+/// Interleaves 8-bit elements from two arrays into a single array of 16-bit values
+///
+/// Combines each pair of 8-bit values from in1 and in2 into a 16-bit value.
+/// Uses SIMD operations when possible, with scalar fallback for remaining elements.
+///
+/// \param out[out]: Pointer to output array to store interleaved values
+/// \param in1[in]: Pointer to first input array
+/// \param in2[in]: Pointer to second input array 
+/// \param n[in]: Number of elements in `in1` and `in2`
 static inline void zip_u8(uint16_t *__restrict__ out,
 						  const uint8_t *__restrict__ in1,
 						  const uint8_t *__restrict__ in2,

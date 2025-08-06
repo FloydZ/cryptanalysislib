@@ -66,6 +66,13 @@ struct ffs_t {
 };
 
 
+/// Initializes the FFS (Find First and Second bit) data structure
+///
+/// Sets up the internal state of the FFS structure for tracking bit positions
+/// in an (n+2)-bit counter initialized at (1 << (n+1)).
+///
+/// \param context[out]: Pointer to the FFS data structure to initialize
+/// \param n[in]: The size parameter (counter will be initialized to track an (n+2)-bit value)
 static void ffs_reset(struct ffs_t *context, int n) {
 	context->k1 = n + 1;
 	context->k2 = -1;
@@ -76,6 +83,12 @@ static void ffs_reset(struct ffs_t *context, int n) {
 }
 
 
+/// Updates the FFS (Find First and Second bit) data structure to the next counter value
+///
+/// Performs a single step in the FFS algorithm, updating the first and second
+/// bit positions (k1 and k2) that are set in the counter.
+///
+/// \param context[in,out]: Pointer to the FFS data structure to update
 static inline void ffs_step(struct ffs_t *context) {
 	/* update k1 using focus pointers */
 	int j = context->focus[0];
@@ -91,6 +104,14 @@ static inline void ffs_step(struct ffs_t *context) {
 	context->sp += 1;
 }
 
+/// Calculates the index in a flattened upper triangular matrix
+///
+/// Computes the position in a one-dimensional array that corresponds to 
+/// the element at position (i,j) in an upper triangular matrix, where i < j.
+///
+/// \param i[in]: Row index (must be less than j)
+/// \param j[in]: Column index
+/// \return Index in the flattened array
 static inline int idxq(uint32_t i, uint32_t j) {
 	return j * (j - 1) / 2 + i;
 }
@@ -130,21 +151,29 @@ struct context_t {
 	struct ffs_t ffs;
 };
 
-static const uint32_t M1_HI = 0xffff0000;
-static const uint32_t M1_LO = 0x0000ffff;
-static const uint32_t M2_HI = 0xff00ff00;
-static const uint32_t M2_LO = 0x00ff00ff;
-static const uint32_t M3_HI = 0xf0f0f0f0;
-static const uint32_t M3_LO = 0x0f0f0f0f;
-static const uint32_t M4_HI = 0xcccccccc;
-static const uint32_t M4_LO = 0x33333333;
-static const uint32_t M5_HI = 0xaaaaaaaa;
-static const uint32_t M5_LO = 0x55555555;
+constexpr static const uint32_t M1_HI = 0xffff0000;
+constexpr static const uint32_t M1_LO = 0x0000ffff;
+constexpr static const uint32_t M2_HI = 0xff00ff00;
+constexpr static const uint32_t M2_LO = 0x00ff00ff;
+constexpr static const uint32_t M3_HI = 0xf0f0f0f0;
+constexpr static const uint32_t M3_LO = 0x0f0f0f0f;
+constexpr static const uint32_t M4_HI = 0xcccccccc;
+constexpr static const uint32_t M4_LO = 0x33333333;
+constexpr static const uint32_t M5_HI = 0xaaaaaaaa;
+constexpr static const uint32_t M5_LO = 0x55555555;
 
-/* this code was written by Antoine Joux for his book 
-  "algorithmic cryptanalysis" (cf. http://www.joux.biz). It
-  was slightly modified by C. Bouillaguet. Just like the original, it is licensed
-  under a Creative Commons Attribution-Noncommercial-Share Alike 3.0 Unported License. */
+///  this code was written by Antoine Joux for his book 
+/// "algorithmic cryptanalysis" (cf. http://www.joux.biz). It
+/// was slightly modified by C. Bouillaguet. Just like the original, it is licensed
+/// under a Creative Commons Attribution-Noncommercial-Share Alike 3.0 Unported License.
+/// Performs a 32x32 bit matrix transposition
+///
+/// Transposes a 32x32 bit matrix using the algorithm described by Antoine Joux
+/// in "Algorithmic Cryptanalysis". The algorithm uses bit manipulation to efficiently
+/// transpose the matrix in-place.
+///
+/// \param M[in]: Pointer to the input matrix (32 uint32_t values)
+/// \param T[out]: Pointer to the output transposed matrix (32 uint32_t values)
 void feslite_transpose_32(const uint32_t *M, uint32_t *T) {
 	/* to unroll manually */
 	for (int l = 0; l < 16; l++) {
@@ -188,6 +217,18 @@ void feslite_transpose_32(const uint32_t *M, uint32_t *T) {
 }
 
 
+/// Evaluates a multivariate quadratic system using a naive bit-sliced approach
+///
+/// Computes the result of evaluating a system of multivariate quadratic equations
+/// at a given point. Optionally can check if the input has at most w bits set.
+///
+/// \param n[in]: Number of variables in the system
+/// \param Fq[in]: Quadratic terms of the system
+/// \param Fl[in]: Linear terms of the system
+/// \param stride[in]: Stride between rows in the linear terms
+/// \param x[in]: Input value to evaluate (bit vector representing variable assignments)
+/// \param w[in]: Optional weight constraint (if > 0, restricts to inputs with ≤ w bits set)
+/// \return Evaluation result as a 32-bit mask
 uint32_t feslite_naive_evaluation(int n, const uint32_t *Fq, const uint32_t *Fl, int stride, uint32_t x, const uint32_t w = 0) {
 	if ((w > 0) && ((uint32_t)__builtin_popcount(x)) > w) {
 		return 0;
@@ -217,17 +258,21 @@ uint32_t feslite_naive_evaluation(int n, const uint32_t *Fq, const uint32_t *Fl,
 	return y;
 }
 
-/// warning: inbuf must be of size 32, regardless of the actual number of inputs.
-/// inputs are checked against equations [16:32]
-/// \param n number of variables
-/// \param Fq quadratic terms
-/// \param Fl linear terms
-/// \param stride
-/// \param incount number of partial solution to check against the remaining 16 equations
-/// \param inbuf partial solutions
-/// \param outcount
-/// \param outbuf
-/// \param size
+/// Evaluates multiple inputs against a multivariate quadratic system using bit-slicing
+///
+/// Efficiently checks multiple inputs against a multivariate quadratic system.
+/// The function transposes the inputs and uses bit-slicing to evaluate all inputs
+/// in parallel against equations [16:32].
+///
+/// \param n[in]: Number of variables in the system
+/// \param Fq[in]: Quadratic terms of the system
+/// \param Fl[in]: Linear terms of the system
+/// \param stride[in]: Stride between rows in the linear terms
+/// \param incount[in]: Number of partial solutions to check
+/// \param inbuf[in]: Buffer containing partial solutions (must be size 32 regardless of incount)
+/// \param outcount[in]: Maximum number of solutions to store in the output buffer
+/// \param outbuf[out]: Buffer to store solutions that pass validation
+/// \param size[out]: Pointer to store the number of valid solutions found
 void feslite_generic_eval_32(int n,
                              const uint32_t *Fq,
                              const uint32_t *Fl,
@@ -307,6 +352,17 @@ void feslite_generic_eval_32(int n,
 ///
 ///		NOTE: they are really the same. The input systems need to be duplicated to be able to specify even further
 /// \param Fl_
+/// Sets up the multivariate quadratic system for the 16x16 FES solver
+///
+/// Prepares the data structures needed for the AVX2-accelerated 16x16 FES solver.
+/// Copies and formats the quadratic and linear terms into the required layout.
+///
+/// \param n[in]: Number of variables in the system
+/// \param LL[in]: Number of lanes (should be LANES = 16)
+/// \param Fq[in]: Original quadratic terms of the system
+/// \param Fl[in]: Original linear terms of the system
+/// \param Fq_[out]: Reformatted quadratic terms buffer
+/// \param Fl_[out]: Reformatted linear terms buffer
 static inline void setup16(int n,
                            int LL,
                            const uint32_t *Fq, const uint32_t *Fl, uint16_t *Fq_, uint16_t *Fl_) {
@@ -348,6 +404,13 @@ static inline void setup16(int n,
 	}
 }
 /* batch-eval all the candidates */
+/// Processes and evaluates a batch of candidate solutions
+///
+/// Takes the accumulated candidate solutions for a specific lane and evaluates them
+/// against the multivariate quadratic system. Valid solutions are stored in the output buffer.
+///
+/// \param context[in,out]: Pointer to the FES context structure
+/// \param lane[in]: The lane (equation system specialization) to process
 static inline void FLUSH_CANDIDATES(struct context_t *context,
                                     int lane) {
 
@@ -364,6 +427,14 @@ static inline void FLUSH_CANDIDATES(struct context_t *context,
 }
 
 
+/// Adds a new candidate solution to the buffer for later evaluation
+///
+/// Stores a candidate solution in the appropriate lane's buffer. If the buffer
+/// becomes full (32 candidates), it automatically flushes and evaluates the batch.
+///
+/// \param context[in,out]: Pointer to the FES context structure
+/// \param x[in]: The candidate solution to add
+/// \param lane[in]: The lane (equation system specialization) to add the candidate to
 static inline void NEW_CANDIDATE(struct context_t *context,
                                  uint32_t x,
                                  int lane) {
@@ -375,16 +446,29 @@ static inline void NEW_CANDIDATE(struct context_t *context,
 		FLUSH_CANDIDATES(context, lane);
 }
 
+/// Converts a binary number to its Gray code representation
+///
+/// Transforms a binary number into its corresponding Gray code value
+/// using the standard binary-to-Gray conversion formula.
+///
+/// \param i[in]: Input binary value
+/// \return The corresponding Gray code value
 static inline uint32_t to_gray(uint32_t i) {
 	return (i ^ (i >> 1));
 }
 
 
-/// @param context
-/// @param top
-/// @param r
-/// @param flag if true: r will be understood as a gray code position
-/// @return
+/// Processes a batch of solutions from the local buffer
+///
+/// Takes solutions from the local buffer and distributes them to the appropriate
+/// candidate buffers based on their mask values. Each solution is combined with
+/// the provided offset value r using Gray code conversion.
+///
+/// \param context[in,out]: Pointer to the FES context structure
+/// \param top[in]: Pointer to the end of the valid solutions in the buffer
+/// \param r[in]: Offset value to combine with the solutions
+/// \param flag[in]: If true, r is added before Gray code conversion; if false, after
+/// \return True if the context has overflowed (reached maximum solutions)
 static inline bool FLUSH_BUFFER(struct context_t *context,
                                 struct solution_t *top,
                                 const uint64_t r, const bool flag=true) noexcept {
@@ -431,6 +515,20 @@ static inline bool FLUSH_BUFFER(struct context_t *context,
 /// \param buffer
 /// \param size
 /// \return
+/// Enumerates solutions to a multivariate quadratic system using AVX2 acceleration
+///
+/// Main entry point for solving a system of multivariate quadratic equations over GF(2)
+/// using a fast implementation with AVX2 instructions. Processes 16 equation systems
+/// in parallel (hence the 16x16 in the name).
+///
+/// \param n[in]: Number of variables in the system
+/// \param m[in]: Number of equation systems (must be LANES=16)
+/// \param Fq[in]: Quadratic terms of the system
+/// \param Fl[in]: Linear terms of the system
+/// \param count[in]: Maximum number of solutions to find per equation system
+/// \param buffer[out]: Buffer to store the solutions (size must be at least count*m)
+/// \param size[out]: Array to store the number of solutions found for each system
+/// \return 0 on success, -1 if parameters are invalid
 int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl, int count, uint32_t *buffer, int *size) {
 	/* verify input parameters */
 	if (count <= 0 || n < L || n > 32 || m != LANES) {
@@ -483,6 +581,21 @@ int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl
 }
 
 
+/// Enumerates weight-constrained solutions to a multivariate quadratic system
+///
+/// Variant of the feslite_avx2_enum_16x16 function that restricts the search to
+/// solutions with a specific Hamming weight (w). Uses a revolving door algorithm
+/// to efficiently enumerate solutions with the given weight constraint.
+///
+/// \param n[in]: Number of variables in the system
+/// \param m[in]: Number of equation systems (must be LANES=16)
+/// \param w[in]: Weight constraint (must be L+2 = 10)
+/// \param Fq[in]: Quadratic terms of the system
+/// \param Fl[in]: Linear terms of the system
+/// \param count[in]: Maximum number of solutions to find per equation system
+/// \param buffer[out]: Buffer to store the solutions (size must be at least count*m)
+/// \param size[out]: Array to store the number of solutions found for each system
+/// \return 0 on success, -1 if parameters are invalid
 int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq, const uint32_t *Fl, int count, uint32_t *buffer, int *size) {
 	// TODO to fix the issue with 10 is to greate two more kernels which only enumerate 6 or 7 variables
 	if (count <= 0 || n < L || n > 32 || m != LANES || w != (L+2)) {

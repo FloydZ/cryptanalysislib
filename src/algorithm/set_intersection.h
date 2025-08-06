@@ -3,7 +3,8 @@
 #include <iterator>
 #include <cstdint>
 
-// TODO simd version which also supports 
+// TODO simd version 
+// TODO parrallel version
 
 namespace cryptanalysislib {
     struct AlgorithmSetIntersectionConfig {
@@ -15,7 +16,14 @@ namespace cryptanalysislib {
     constexpr static AlgorithmSetIntersectionConfig algorithmSetIntersectionConfig{};
 
 
-    /// NOTE: must be sorted
+    /// Computes the intersection of two sorted ranges
+    ///
+    /// \tparam InputIt1 type of the first input iterator
+    /// \tparam InputIt2 type of the second input iterator
+    /// \tparam OutputIt type of the output iterator
+    /// \tparam Compare type of the comparison function
+    /// 
+    /// NOTE: Input ranges must be sorted according to the same ordering criterion
     template<class InputIt1, 
              class InputIt2, 
              class OutputIt, 
@@ -25,6 +33,15 @@ namespace cryptanalysislib {
                  std::forward_iterator<InputIt2> && 
                  std::forward_iterator<OutputIt>
 #endif
+    /// Constructs a sorted range consisting of elements that are found in both sorted input ranges
+    ///
+    /// \param first1[in]: iterator to the beginning of the first range
+    /// \param last1[in]: iterator to the end of the first range
+    /// \param first2[in]: iterator to the beginning of the second range
+    /// \param last2[in]: iterator to the end of the second range
+    /// \param d_first[out]: iterator to the beginning of the destination range
+    /// \param comp[in]: comparison function object
+    /// \return iterator to the end of the constructed range
     constexpr
     OutputIt set_intersection(InputIt1 first1, 
                               InputIt1 last1,
@@ -46,7 +63,13 @@ namespace cryptanalysislib {
         return d_first;
     }
     
-    /// NOTE: must be sorted
+    /// Computes the intersection of two sorted ranges using the less operator
+    ///
+    /// \tparam InputIt1 type of the first input iterator
+    /// \tparam InputIt2 type of the second input iterator
+    /// \tparam OutputIt type of the output iterator
+    /// 
+    /// NOTE: Input ranges must be sorted in ascending order
     template<class InputIt1, 
              class InputIt2, 
              class OutputIt>
@@ -55,6 +78,14 @@ namespace cryptanalysislib {
                  std::forward_iterator<InputIt2> && 
                  std::forward_iterator<OutputIt>
 #endif
+    /// Constructs a sorted range consisting of elements that are found in both sorted input ranges
+    ///
+    /// \param first1[in]: iterator to the beginning of the first range
+    /// \param last1[in]: iterator to the end of the first range
+    /// \param first2[in]: iterator to the beginning of the second range
+    /// \param last2[in]: iterator to the end of the second range
+    /// \param d_first[out]: iterator to the beginning of the destination range
+    /// \return iterator to the end of the constructed range
     constexpr
     OutputIt set_intersection(InputIt1 first1,
                               InputIt1 last1,
