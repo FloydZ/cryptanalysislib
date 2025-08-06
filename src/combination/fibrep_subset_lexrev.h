@@ -26,16 +26,19 @@
 ///  19:  ....1.  =  { 4 }
 ///  20:  .....1  =  { 5 }
 ///  21:  ......  =  { }
+/// Class for generating Fibonacci words in subset-lexrev order
+/// \tparam T[in]: type to use for representing the words
 template<typename T>
 class fibrev_subset_lexrev {
 private:
 	T val = 0;
 
-    // Note (1): the first element of the subset corresponds
-    // to the highest set bit.
-    // Note (2): the lex order for the delta sets would simply
-    // be the counting order.
-    constexpr static inline T next(T x) noexcept {
+    /// Computes the next Fibonacci word in subset-lexrev order
+    /// Note (1): the first element of the subset corresponds to the highest set bit
+    /// Note (2): the lex order for the delta sets would simply be the counting order
+    /// \param x[in]: current Fibonacci word
+    /// \return the next Fibonacci word in subset-lexrev order
+    [[nodiscard]] constexpr static inline T next(T x) noexcept {
         T x0 = x & -x;  // lowest bit
         T xs = x0 >> 2;
         if ( xs != 0 ) {  // easy case: set bit right of lowest bit
@@ -55,32 +58,34 @@ private:
         }
     }
     
-    // Return previous Fibonacci word in subset-lex order.
-    // Start with zero to generate all words of length n.
-    // E.g., for n==6:
-    //       word     subset of {0,1,2,3,4,5}
-    //   0:  ......  =   { }
-    //   1:  .....1  =   { 5 }
-    //   2:  ....1.  =   { 4 }
-    //   3:  ...1.1  =   { 3, 5 }
-    //   4:  ...1..  =   { 3 }
-    //   5:  ..1..1  =   { 2, 5 }
-    //   6:  ..1.1.  =   { 2, 4 }
-    //   7:  ..1...  =   { 2 }
-    //   8:  .1...1  =   { 1, 5 }
-    //   9:  .1..1.  =   { 1, 4 }
-    //  10:  .1.1.1  =   { 1, 3, 5 }
-    //  11:  .1.1..  =   { 1, 3 }
-    //  12:  .1....  =   { 1 }
-    //  13:  1....1  =   { 0, 5 }
-    //  14:  1...1.  =   { 0, 4 }
-    //  15:  1..1.1  =   { 0, 3, 5 }
-    //  16:  1..1..  =   { 0, 3 }
-    //  17:  1.1..1  =   { 0, 2, 5 }
-    //  18:  1.1.1.  =   { 0, 2, 4 }
-    //  19:  1.1...  =   { 0, 2 }
-    //  20:  1.....  =   { 0 }
-    constexpr static inline T prev(T x) noexcept {
+    /// Returns the previous Fibonacci word in subset-lex order
+    /// Start with zero to generate all words of length n
+    /// E.g., for n==6:
+    ///       word     subset of {0,1,2,3,4,5}
+    ///   0:  ......  =   { }
+    ///   1:  .....1  =   { 5 }
+    ///   2:  ....1.  =   { 4 }
+    ///   3:  ...1.1  =   { 3, 5 }
+    ///   4:  ...1..  =   { 3 }
+    ///   5:  ..1..1  =   { 2, 5 }
+    ///   6:  ..1.1.  =   { 2, 4 }
+    ///   7:  ..1...  =   { 2 }
+    ///   8:  .1...1  =   { 1, 5 }
+    ///   9:  .1..1.  =   { 1, 4 }
+    ///  10:  .1.1.1  =   { 1, 3, 5 }
+    ///  11:  .1.1..  =   { 1, 3 }
+    ///  12:  .1....  =   { 1 }
+    ///  13:  1....1  =   { 0, 5 }
+    ///  14:  1...1.  =   { 0, 4 }
+    ///  15:  1..1.1  =   { 0, 3, 5 }
+    ///  16:  1..1..  =   { 0, 3 }
+    ///  17:  1.1..1  =   { 0, 2, 5 }
+    ///  18:  1.1.1.  =   { 0, 2, 4 }
+    ///  19:  1.1...  =   { 0, 2 }
+    ///  20:  1.....  =   { 0 }
+    /// \param x[in]: current Fibonacci word
+    /// \return the previous Fibonacci word in subset-lex order
+    [[nodiscard]] constexpr static inline T prev(T x) noexcept {
         T x0 = x & -x;  // lowest bit
         if ( x & (x0<<2) )  { // easy case: next higher bit is set
             x ^= x0;  // clear lowest bit
@@ -94,15 +99,17 @@ private:
 
 public:
 
-	///
-	constexpr inline T next() noexcept {
+	/// Returns the current Fibonacci word and advances to the next one
+	/// \return the current Fibonacci word before advancing
+	[[nodiscard]] constexpr inline T next() noexcept {
 		const T ret = val;
 		val = next(val);
 		return ret;
 	}
 
-	///
-	constexpr inline T prev() noexcept {
+	/// Returns the current Fibonacci word and moves to the previous one
+	/// \return the current Fibonacci word before moving back
+	[[nodiscard]] constexpr inline T prev() noexcept {
 		const T ret = val;
 		val = prev(val);
 		return ret;

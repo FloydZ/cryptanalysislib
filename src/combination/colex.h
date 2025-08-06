@@ -1,5 +1,25 @@
 #pragma once
 
+#include <stdint.h>
+#include <stdlib.h>
+
+/// Enumeration of k-combinations in colex (co-lexicographic) order
+///
+/// colex order (5 over 3):
+///   set        word    set reversed (sorted!)
+///  0  1  2    ..111    2  1  0
+///  0  1  3    .1.11    3  1  0
+///  0  2  3    .11.1    3  2  0
+///  1  2  3    .111.    3  2  1
+///  0  1  4    1..11    4  1  0
+///  0  2  4    1.1.1    4  2  0
+///  1  2  4    1.11.    4  2  1
+///  0  3  4    11..1    4  3  0
+///  1  3  4    11.1.    4  3  1
+///  2  3  4    111..    4  3  2
+/// \tparam T[in]: type for storing combinations
+/// \tparam n[in]: universe size (number of elements to choose from)
+/// \tparam k[in]: combination size (number of elements to select)
 template<class T,
          const uint32_t n,
          const uint32_t k>
@@ -15,7 +35,9 @@ public:
 	/// Return the first combination of (i.e. smallest word with) k bits,
 	/// i.e.  00..001111..1 (k low bits set)
 	/// Must have:  0 <= k <= BITS_PER_LONG
-	constexpr static inline T first_comb() noexcept {
+	/// Returns the first combination in colex order
+	/// \return the first combination with k bits set (lowest k bits)
+	[[nodiscard]] constexpr static inline T first_comb() noexcept {
 		if (k == 0) return 0;// shift with BITS_PER_LONG is undefined
 		return ~0UL >> (BITS- k);
 	}
@@ -23,8 +45,11 @@ public:
     /// Return the first combination of (i.e. smallest word with) k bits,
 	/// i.e.  00..001111..1 (k low bits set)
 	/// Must have:  0 <= k <= BITS_PER_LONG
-	constexpr static inline T first_comb(const T k_) noexcept {
-		if (k == 0) return 0;// shift with BITS_PER_LONG is undefined
+	/// Returns the first combination with k_ bits set
+	/// \param k_[in]: number of bits to set
+	/// \return the first combination with k_ bits set (lowest k_ bits)
+	[[nodiscard]] constexpr static inline T first_comb(const T k_) noexcept {
+		if (k_ == 0) return 0;// shift with BITS_PER_LONG is undefined
 		return ~0UL >> (BITS- k_);
 	}
 
@@ -32,7 +57,9 @@ public:
 	/// Return the last combination of (biggest n-bit word with) k bits
 	/// i.e.  1111..100..00 (k high bits set)
 	/// Must have:  0 <= k <= n <= BITS_PER_LONG
-	constexpr static inline T last_comb() noexcept {
+	/// Returns the last combination in colex order
+	/// \return the last combination with k bits set in an n-bit word
+	[[nodiscard]] constexpr static inline T last_comb() noexcept {
 		return first_comb(k) << (n - k);
 	}
 
@@ -62,7 +89,10 @@ public:
 	///.
 	/// based on code by Doug Moore / Glenn Rhoads
 	/// note: might want to use bitscan near end
-	constexpr static inline T next(T x) noexcept {
+	/// Computes the next combination in colex order
+	/// \param x[in]: current combination
+	/// \return the next combination in colex order
+	[[nodiscard]] constexpr static inline T next(T x) noexcept {
 		T r = x & -x;// lowest set bit
 		x += r;          // replace lowest block by a one left to it
 
@@ -75,25 +105,30 @@ public:
 		return x | (z >> 1);             // need one bit less of low block
 	}
 
-	// Inverse of next_colex_comb()
-	constexpr static inline T prev(T x) noexcept {
-		x = next_colex_comb(~x);
+	/// Inverse of next() function - computes the previous combination
+	/// \param x[in]: current combination
+	/// \return the previous combination in colex order
+	[[nodiscard]] constexpr static inline T prev(T x) noexcept {
+		x = next(~x);
 		if (0 != x) x = ~x;
 		return x;
 	}
 
 public:
+    /// Default constructor - initializes with the first combination
     constexpr enumeration_colex() noexcept {};
 
-	///
-    constexpr inline T next() noexcept {
+	/// Returns the current combination and advances to the next one
+    /// \return the current combination before advancing
+    [[nodiscard]] constexpr inline T next() noexcept {
         const T ret = val;
         val = next(val);
         return ret;
     }
 
-	///
-    constexpr inline T prev() noexcept {
+	/// Returns the current combination and moves to the previous one
+    /// \return the current combination before moving back
+    [[nodiscard]] constexpr inline T prev() noexcept {
         const T ret = val;
         val = prev(val);
         return ret;

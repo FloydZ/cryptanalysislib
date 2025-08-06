@@ -1,13 +1,22 @@
 #pragma once
 
+// TODO replace ulong with uint64_t
+// TODO add 
+
+/// Class for generating combinations with minimal change between consecutive elements
+/// Provides utilities for generating combinations where only one or two bits differ
+/// between consecutive elements
+/// \tparam T[in]: integer type to represent combinations
 template<class T>
 class enumeration_min_change {
 private:
+    /// Current value in the enumeration
     T val = 0;
 
-
-    // Alternative version, faster.
-    // Constant amortized time (CAT).
+    /// Computes the next minimal change combination using inverse Gray code
+    /// Alternative version optimized for speed with constant amortized time (CAT)
+    /// \param x[in]: current inverse Gray code value
+    /// \return next inverse Gray code value with minimal bit changes
     constexpr static inline ulong igc_next_minchange_comb(ulong x) noexcept {
         ulong gx = gray_code( x );
         ulong i = 2;
@@ -26,12 +35,12 @@ private:
         return  0;  // not reached
     }
 
-    /// Alternative version, uses the fact that the difference
-    /// of two successive x is the smallest possible power of 2.
-    /// Should be fast if the CPU has a bitcount instruction.
-    /// k must be the bit-count of x
-    /// Constant amortized time (CAT).
-    /// Note: this version has 2 arguments.
+    /// Computes the next minimal change combination using inverse Gray code
+    /// Uses the fact that the difference between successive values is the smallest
+    /// possible power of 2. Efficient when CPU has a bitcount instruction.
+    /// \param x[in]: current inverse Gray code value
+    /// \param k[in]: bit-count of x (must be provided accurately)
+    /// \return next inverse Gray code value with minimal bit changes
     constexpr static inline ulong igc_next_minchange_comb(ulong x, ulong k) {
         ulong y;
         ulong i = 2;
@@ -42,10 +51,11 @@ private:
         return  y;
     }
     
-    /// Return the inverse Gray code of the previous combination in minimal-change order.
-    /// Input must be the inverse Gray code of the current combination.
-    /// Constant amortized time (CAT).
-    /// With input==first the output is the last for n=BITS_PER_LONG
+    /// Computes the previous combination in minimal-change order
+    /// Input must be the inverse Gray code of the current combination
+    /// \param x[in]: current inverse Gray code value
+    /// \param k[in]: bit-count of x
+    /// \return previous inverse Gray code with minimal bit changes
     constexpr static inline ulong igc_prev_minchange_comb(ulong x, ulong k) noexcept {
         ulong y, i = 1;
         do {
@@ -55,8 +65,8 @@ private:
         return  y;
     }
     
-    /// Return the (inverse Gray code of the) last combination
-    /// as in igc_next_minchange_comb().
+    /// Computes the last combination in the minimal-change sequence
+    /// Used with igc_next_minchange_comb() to determine end of sequence
     ///
     /// Example (n=6)   c:=first_comb(n) == 111111
     ///
@@ -68,6 +78,10 @@ private:
     ///   4:     ..1.1.        111.1.
     ///   5:     .1.1.1        11.1.1
     ///   6:     1.1.1.        1.1.1.
+    ///
+    /// \param k[in]: bit-count parameter
+    /// \param n[in]: number of bits in the combination
+    /// \return last combination in the minimal change sequence
     static inline ulong igc_last_comb(ulong k, ulong n) noexcept {
         if ( 0==k )  return 0;
     
@@ -82,8 +96,8 @@ private:
         //    return  ((1UL<<n) - 1) ^ (((1UL<<k) - 1) / 3);
     }
     
-    /// Not efficient, just to explain the usage of igc_next_minchange_comb()
-    /// Must have: last==igc_last_comb(k, n)
+    /// Computes the next minimal change combination
+    /// Demonstration function showing usage of igc_next_minchange_comb()
     ///
     /// Example with  k==3, n==5:
     ///      x       inverse_gray_code(x)
@@ -97,6 +111,10 @@ private:
     ///    1.1.1       11..1
     ///    1.11.       11.11
     ///    1..11       111.1 == igc_last_comb(k, n)
+    ///
+    /// \param x[in]: current combination
+    /// \param last[in]: last combination (must be igc_last_comb(k, n))
+    /// \return next combination in minimal change order or 0 if at end
     constexpr static inline ulong next_minchange_comb(ulong x, ulong last) noexcept {
         x = inverse_gray_code(x);
         if ( x==last )  return 0;
@@ -105,12 +123,19 @@ private:
     }
 
 public:
-    constexpr inline T next() noexcept {
+    /// Returns the current combination and advances to the next
+    /// Uses co-lexicographic ordering for minimal change
+    /// \return current combination value
+    [[nodiscard]] constexpr inline T next() noexcept {
         const T ret = val;
         val = next_colex_comb(val);
         return ret;
     } 
-    constexpr inline T prev() noexcept {
+
+    /// Returns the current combination and moves to the previous
+    /// Uses co-lexicographic ordering for minimal change
+    /// \return current combination value
+    [[nodiscard]] constexpr inline T prev() noexcept {
         const T ret = val;
         val = prev_colex_comb(val);
         return ret;

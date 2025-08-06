@@ -1,15 +1,24 @@
 #pragma once 
 
-/// TODO allocator
-/// Combinations in a minimal-change order.
-/// Algorithm R, "revolving-door combinations", TAOCP 4A/1, pp.363.
-///  W. H. Payne, F. M. Ives: "Combination Generators",
-///  ACM Transactions on Mathematical Software (TOMS),
-///  vol.5, no.2, pp.163-172, (June-1979).
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "algorithm/max.h"
+#include "algorithm/min.h"
+
+/// Class for generating combinations in minimal-change order using the revolving-door algorithm
+/// Implements Algorithm R, "revolving-door combinations", from Knuth's TAOCP 4A/1, pp.363
+/// Based on W. H. Payne, F. M. Ives: "Combination Generators",
+/// ACM Transactions on Mathematical Software (TOMS), vol.5, no.2, pp.163-172, (June-1979)
 ///
-/// k1 = bit which is cleared 
-/// k2 = bit which is set
-/// Output(10, 2): k1k2
+/// The revolving-door algorithm generates combinations where each successive
+/// combination differs from the previous by exactly one element being removed and
+/// one element being added.
+///
+/// k1 = bit position to be cleared (element removed) 
+/// k2 = bit position to be set (element added)
+///
+/// Example output for (10, 2) showing the delta set and which bits change (k1,k2):
 ///     11........ 0 1
 ///     .11....... 0 2
 ///     1.1....... 1 0
@@ -56,7 +65,7 @@
 ///     .1.......1 2 1
 ///     1........1 1 0
 ///
-/// Example Code:
+/// Usage example:
 ///     combination_revdoor c(10, 4);
 ///     uint32_t k1 = 1, k2 = 2;
 ///     do {
@@ -66,16 +75,26 @@
 ///     return;
 class combination_revdoor {
 private:
+    /// Integer type used for combinations
     using T = uint32_t;
 
-	T *c_;  // delta set
-	T n_, k_;  // (n choose k)  n>=1,  1<=k<=n
+    /// Array storing the delta set representation
+	T *c_;
+	
+	/// n_ is the total number of elements, k_ is the subset size
+	/// Must have: n>=1, 1<=k<=n
+	T n_, k_;
 
+	/// Deleted copy constructor to prevent unintended copies
 	combination_revdoor(const combination_revdoor&) = delete;
+	
+	/// Deleted assignment operator to prevent unintended copies
 	combination_revdoor & operator = (const combination_revdoor&) = delete;
 
 public:
-	// Must have:  1 <= k <= n
+	/// Constructor for the revolving-door combination generator
+	/// \param n[in]: total number of elements (must be >= 1)
+	/// \param k[in]: subset size (must be 1 <= k <= n)
 	explicit combination_revdoor(const T n,
                                  const T k) noexcept {
 		n_ = n;  // (n ? n : 1);
@@ -84,19 +103,24 @@ public:
 		first();
 	}
 
+	/// Destructor frees allocated memory
 	~combination_revdoor() noexcept { delete [] c_; }
 
+	/// Sets the combination to the first one in the sequence
 	constexpr void first() noexcept {
 		for (T j=0; j<k_; ++j) { c_[j] = j; }
 		c_[k_] = n_;  // sentinel
 	}
 
-    /// \return 
+    /// Gets the current combination data
+    /// \return pointer to the current combination array
 	constexpr const T* data() const noexcept { return c_; }
 
-	/// \param k1[out]: bit-position to be cleared
-	/// \param k2[out]: bit-position to be set
-	/// \return
+    /// TODO constexpr not working as there are gotos.
+	/// Advances to the next combination in the revolving-door sequence
+	/// \param k1[out]: bit position to be cleared (element removed)
+	/// \param k2[out]: bit position to be set (element added)
+	/// \return true if a next combination exists, false if at the end
 	/* constexpr */ bool next(uint32_t *k1,
                               uint32_t *k2 ) noexcept{
 		T j = 1;
@@ -114,8 +138,8 @@ public:
 			// even k (try to decrease)
 			const T c = c_[0];
 			if ( c )  {
-				*k1 = std::max(c_[0], c-1);
-				*k2 = std::min(c_[0],c-1);
+				*k1 = cryptanalysislib::max(c_[0], c-1);
+				*k2 = cryptanalysislib::min(c_[0], c-1);
 				c_[0] = c-1;
 				return true;
 			} else {
@@ -152,13 +176,20 @@ public:
 		goto R4;
 	}
 
-    // Print x[0,..,n-1], a subset of {0,1,...,N-1} as delta set,
-    // n is the number of elements in the set.
-    // Example:  x[]=[0,1,3,4,8]  ==> "11.11...1"
-	void print_deltaset(const char *bla=nullptr)  const
+    /// Prints the current combination as a delta set
+    /// A delta set representation shows a 1 at each position that belongs to the set
+    /// Example: x[]=[0,1,3,4,8] is printed as "11.11...1"
+    /// \param bla[in]: optional prefix string to print before the delta set
+	void print_deltaset(const char *bla=nullptr) const
 	{ print_set_as_deltaset(bla, c_, k_, n_); }
 
 private:
+    /// Helper function to print a set as a delta set representation
+    /// \param bla[in]: optional prefix string to print
+    /// \param x[in]: array containing the elements of the set
+    /// \param n[in]: number of elements in the set x
+    /// \param N[in]: total number of elements in the universe
+    /// \param c01[in]: optional character array for representing 0s and 1s
     void print_set_as_deltaset(const char *bla, 
                                const T *x,
                                T n, 

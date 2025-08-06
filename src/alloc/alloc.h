@@ -11,9 +11,9 @@
 #include "helper.h"
 #include "memory/memory.h"
 
-///
-/// \tparam alignment in bytes
-/// \param n input to align up to a multiple of `alignment`
+/// Rounds up a value to the next multiple of alignment
+/// \tparam alignment[in]: in bytes
+/// \param n[in]: input to align up to a multiple of `alignment`
 /// \return the up aligned value
 template<const size_t alignment = 256>
 constexpr size_t roundToAligned(const size_t n) noexcept {
@@ -22,10 +22,10 @@ constexpr size_t roundToAligned(const size_t n) noexcept {
 
 namespace cryptanalysislib {
 
-	/// very important function
-	/// \param alignment number of bytes to align the pointer to
-	/// \param size number of bytes to allocate
-	/// \return pointer to the data or nullptr
+	/// Allocates memory with specified alignment
+	/// \param alignment[in]: number of bytes to align the pointer to
+	/// \param size[in]: number of bytes to allocate
+	/// \return pointer to the aligned data or nullptr
 	static inline void *aligned_alloc(const std::size_t alignment,
 	                                  const std::size_t size) noexcept {
         void *p = malloc(size + sizeof(void *) + alignment - 1);
@@ -37,7 +37,9 @@ namespace cryptanalysislib {
         return ap;
 	}
 
-    /// NOTE: wil fail if the ptr was not return by `aligned_alloc`
+    /// Frees memory allocated by aligned_alloc
+    /// NOTE: will fail if the ptr was not returned by `aligned_alloc`
+    /// \param p[in]: pointer to free
     static inline void aligned_free(void *p) noexcept {
         if (nullptr != p) [[likely]] { 
             free(((void **)p)[-1]);
@@ -45,8 +47,94 @@ namespace cryptanalysislib {
     }
 }// namespace cryptanalysislib
 
-/// replacement for *void
-/// instead of just give a pointer, all allocators do return
+#ifdef __unix__
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/kernel-page-flags.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+// See <https://www.kernel.org/doc/Documentation/vm/pagemap.txt> for
+// format which these bitmasks refer to
+#define PAGEMAP_PRESENT(ent) (((ent) & (1ull << 63)) != 0)
+#define PAGEMAP_PFN(ent) ((ent) & ((1ull << 55) - 1))
+
+// Checks if the page pointed at by `ptr` is huge. Assumes that `ptr` has already
+// been allocated.
+static void check_huge_page(void *ptr) {
+	int pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
+	if (pagemap_fd < 0) {
+		std::cout << "could not open /proc/self/pagemap: " << strerror(errno) << "\n";
+	}
+	int kpageflags_fd = open("/proc/kpageflags", O_RDONLY);
+	if (kpageflags_fd < 0) {
+		std::cout << "could not open /proc/kpageflags: " << strerror(errno) << "\n";
+	}
+
+	// each entry is 8 bytes long
+	uint64_t ent;
+	if (pread(pagemap_fd, &ent, sizeof(ent), ((uintptr_t) ptr) / CUSTOM_PAGE_SIZE * 8) != sizeof(ent)) {
+		std::cout << "could not read from pagemap\n";
+	}
+
+	if (!PAGEMAP_PRESENT(ent)) {
+		std::cout << "page not present in /proc/self/pagemap, did you allocate it?\n";
+	}
+	if (!PAGEMAP_PFN(ent)) {
+		std::cout << "page frame number not present, run this program as root\n";
+	}
+
+	uint64_t flags;
+	if (pread(kpageflags_fd, &flags, sizeof(flags), PAGEMAP_PFN(ent) << 3) != sizeof(flags)) {
+		std::cout << "could not read from kpageflags\n";
+	}
+
+	if (!(flags & (1ull << KPF_THP))) {
+		std::cout << "could not allocate huge page\n";
+	}
+
+	if (close(pagemap_fd) < 0) {
+		std::cout << "could not close /proc/self/pagemap: " << strerror(errno) << "\n";
+	}
+	if (close(kpageflags_fd) < 0) {
+		std::cout << "could not close /proc/kpageflags: " << strerror(errno) << "\n";
+	}
+}
+
+/// Tries to allocate a huge page
+/// \param size[in]: number of bytes to allocate
+/// \return pointer to the allocated huge page or nullptr
+static 
+void *cryptanalysislib_hugepage_malloc(const size_t size) {
+	const size_t nr_pages = (size + HPAGE_SIZE - 1) / HPAGE_SIZE;
+	const size_t alloc_size = nr_pages * HPAGE_SIZE;
+	void *ret = aligned_alloc(HPAGE_SIZE, alloc_size);
+	if (ret == nullptr) {
+		std::cout << "error alloc\n";
+		return nullptr;
+	}
+
+	madvise(ret, size, MADV_HUGEPAGE);
+
+	size_t buf = (size_t) ret;
+	for (size_t end = buf + size; buf < end; buf += HPAGE_SIZE) {
+		// allocate page
+		memset((void *) buf, 0, 1);
+		// check the page is indeed huge
+		check_huge_page((void *) buf);
+	}
+
+	return ret;
+}
+#endif
+
+/// Replacement for *void
+/// Instead of just giving a pointer, all allocators return
 /// a block `blk` of memory.
 struct Blk {
 public:
@@ -56,21 +144,23 @@ public:
 	constexpr Blk() noexcept : ptr(nullptr), len(0) {}
 	constexpr Blk(void *ptr, size_t len) noexcept : ptr(ptr), len(len) {}
 
-	/// checks whether the Blk of memory is valid or not
-	/// \returns false if either ptr == nullptr or the length is zero.
+	/// Checks whether the Blk of memory is valid or not
+	/// \return false if either ptr == nullptr or the length is zero
 	constexpr inline bool valid() const noexcept {
 		return (ptr != nullptr) && (len != 0);
 	}
 
-	/// simplifies debugging
+	/// Stream output operator for Blk to simplify debugging
+	/// \param os[in]: output stream
+	/// \param tc[in]: Blk object to output
+	/// \return the modified output stream
 	friend std::ostream &operator<<(std::ostream &os,
 	                                Blk const &tc) noexcept {
 		return os << tc.ptr << ":" << tc.len;
 	}
 };
 
-
-///
+/// Configuration settings for allocators
 struct AllocatorConfig : public AlignmentConfig {
 	/// the base pointer to the internal data struct are always to 16bytes aligned
 	constexpr static size_t base_alignment = 16;
@@ -89,7 +179,8 @@ struct AllocatorConfig : public AlignmentConfig {
 };
 constexpr static AllocatorConfig allocatorConfig;
 
-/// concept of an allocator
+/// Concept definition for an allocator
+/// Requires allocate, deallocate, deallocateAll, and owns methods
 template<class T>
 concept Allocator = requires(T a, Blk b, size_t n) {
 	{ a.allocate(n) } -> std::convertible_to<Blk>;
@@ -99,14 +190,13 @@ concept Allocator = requires(T a, Blk b, size_t n) {
 };
 
 /// Simple Stack Allocator
-/// \tparam s  allocates `s` bytes on the stack
-/// \tparam allocatorConfig
+/// \tparam s[in]: allocates `s` bytes on the stack
+/// \tparam allocatorConfig[in]: configuration for the allocator
 template<const size_t s,
          const struct AllocatorConfig &allocatorConfig = allocatorConfig>
 class StackAllocator {
 	/// minimal datatype = 1 byte
 	using T = uint8_t;
-
 
 	/// data storage, good old stack
 	alignas(allocatorConfig.base_alignment) T _d[s];
@@ -117,7 +207,8 @@ class StackAllocator {
 public:
 	constexpr StackAllocator() : _p(_d) {}
 
-	/// \param n allocate n bytes
+	/// Allocates memory from the stack allocator
+	/// \param n[in]: number of bytes to allocate
 	/// \return
 	/// 	success: a Blk of memory of size n bytes.
 	/// 	error:   a Blk containing {nullptr, 0}
@@ -136,8 +227,8 @@ public:
 		return result;
 	}
 
-	///
-	/// \param b
+	/// Deallocates a block of memory, but only if it's the last allocated block
+	/// \param b[in]: Block to deallocate
 	constexpr void deallocate(const Blk b) noexcept {
 		// a little stupid. But the allocator is only to deallocate something
 		// if it's the last element in the stack
@@ -150,7 +241,7 @@ public:
 		}
 	}
 
-	/// delalocate all allocations
+	/// Deallocates all allocations and resets the allocator to its initial state
 	constexpr void deallocateAll() noexcept {
 		if constexpr (allocatorConfig.zero_after_free) {
 			cryptanalysislib::memset(_d, T(0), ((uintptr_t)_p - (uintptr_t)_d)/sizeof(T));
@@ -159,9 +250,9 @@ public:
 		_p = _d;
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Checks if a memory block is owned by this allocator
+	/// \param b[in]: Block to check ownership for
+	/// \return true if the block is within the allocator's memory range
 	constexpr bool owns(Blk b) noexcept {
 		return b.ptr >= _d && b.ptr < _p;
 	}
@@ -170,8 +261,8 @@ public:
 /// FreeList = makes use of Freeing memory previously
 /// allocated by `parent`
 ///
-/// \tparam Parent allocator for each node
-/// \tparam s exact size of the allocator
+/// \tparam Parent[in]: allocator for each node
+/// \tparam size[in]: exact size of the allocator
 template<Allocator Parent, const size_t size>
 class FreeListAllocator {
 	struct Node {
@@ -182,8 +273,9 @@ class FreeListAllocator {
 	Node *_root = nullptr;
 
 public:
-	/// \param n
-	/// \return
+	/// Allocates a block of memory of specified size
+	/// \param n[in]: Number of bytes to allocate
+	/// \return A valid block if allocation succeeded, or {nullptr, 0} otherwise
 	constexpr Blk allocate(const size_t n) noexcept {
 		if (n == size && (_root != nullptr)) {
 			Blk b = {_root, n};
@@ -194,8 +286,8 @@ public:
 		return _parent.allocate(n);
 	}
 
-	/// \param b
-	/// \return
+	/// Deallocates a memory block, returning it to the free list or parent allocator
+	/// \param b[in]: memory block to deallocate
 	constexpr void deallocate(const Blk &b) {
 		if (b.len != size) {
 			return _parent.deallocate(b);
@@ -206,9 +298,8 @@ public:
 		_root = p;
 	}
 
-	/// iterate through the list and deallocate through
+	/// Iterates through the free list and deallocates all nodes through
 	/// the parent allocator
-	/// \return
 	constexpr void deallocateAll() noexcept {
 		const Node *c = _root;
 		while (c != nullptr) {
@@ -220,19 +311,23 @@ public:
 		_parent.deallocateAll();
 	}
 
-	/// \param b memory blk
-	/// \returns true if the memory blk is owned by this allocator
+	/// Checks if this allocator owns the given memory block
+	/// \param b[in]: memory block to check
+	/// \return true if the memory block is owned by this allocator
 	constexpr bool owns(const Blk &b) {
 		return (b.len == size) || _parent.owns(b);
 	}
 };
 
-///
-/// \tparam Primary
-/// \tparam Fallback
+/// Fallback allocator that tries Primary first, then Fallback
+/// \tparam Primary[in]: primary allocator to try first
+/// \tparam Fallback[in]: fallback allocator to use if Primary fails
 template<class Primary, class Fallback>
 class FallbackAllocator : private Primary, private Fallback {
 public:
+	/// Allocates memory using Primary allocator, falls back to Fallback if Primary fails
+	/// \param n[in]: number of bytes to allocate
+	/// \return allocated memory block
 	constexpr Blk allocate(const size_t n) {
 		Blk r = Primary::allocate(n);
 		if (r.ptr == nullptr) {
@@ -242,6 +337,8 @@ public:
 		return r;
 	}
 
+	/// Deallocates memory using the appropriate allocator
+	/// \param b[in]: memory block to deallocate
 	constexpr void deallocate(Blk b) {
 		if (Primary::owns(b)) {
 			Primary::deallocate(b);
@@ -250,6 +347,9 @@ public:
 		}
 	}
 
+	/// Checks if this allocator owns the given memory block
+	/// \param b[in]: memory block to check
+	/// \return true if either Primary or Fallback allocator owns the block
 	constexpr bool owns(const Blk b) {
 		return Primary::owns(b) || Fallback::owns(b);
 	}
@@ -258,9 +358,9 @@ public:
 /// Special Allocator, which does not allocate anything but adds
 /// debug information, stats and very importantly it allocates
 /// a predix and a suffix around the underlying memory allocation.
-/// \tparam A base allocator
-/// \tparam Prefix type to allocate before the memory allocation
-/// \tparam Suffix type to allocate after the memory allocation
+/// \tparam A[in]: base allocator
+/// \tparam Prefix[in]: type to allocate before the memory allocation
+/// \tparam Suffix[in]: type to allocate after the memory allocation
 template<Allocator A,
          class Prefix,
          class Suffix = void>
@@ -283,9 +383,9 @@ class AffixAllocator {
 	size_t nr_own = 0;
 
 public:
-	///
-	/// \param n
-	/// \return
+	/// Allocates memory with prefix and suffix regions
+	/// \param n[in]: number of bytes to allocate
+	/// \return memory block with adjusted pointer and size
 	constexpr Blk allocate(const size_t n) {
 		Blk b = allocator.allocate(n + prefix_bytes + suffix_bytes);
 		if (!b.valid()) {
@@ -298,9 +398,8 @@ public:
 		return {(void *) ((uintptr_t) b.ptr + prefix_bytes), n};
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Deallocates memory, accounting for prefix and suffix regions
+	/// \param b[in]: memory block to deallocate
 	constexpr void deallocate(Blk b) {
 		nr_deallocations += 1;
 		const Blk bprime = {(void *) ((uintptr_t) b.ptr - prefix_bytes), b.len + prefix_bytes + suffix_bytes};
@@ -310,15 +409,14 @@ public:
 		}
 	}
 
-	///
-	/// \return
+	/// Deallocates all memory from the underlying allocator
 	constexpr void deallocateAll() {
 		allocator.deallocateAll();
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Checks if this allocator owns the given memory block
+	/// \param b[in]: memory block to check
+	/// \return true if the allocator owns the block
 	constexpr bool owns(const Blk b) {
 		nr_own += 1;
 		const Blk bprime = {(void *) ((uintptr_t) b.ptr - prefix_bytes), b.len + prefix_bytes + suffix_bytes};
@@ -327,10 +425,10 @@ public:
 	}
 };
 
-///
-/// \tparam SmallAllocator
-/// \tparam LargeAllocator
-/// \tparam Threshold
+/// Segregator allocator that uses different allocators based on allocation size
+/// \tparam SmallAllocator[in]: allocator for small allocations
+/// \tparam LargeAllocator[in]: allocator for large allocations
+/// \tparam Threshold[in]: size threshold to determine small vs large
 template<class SmallAllocator,
          class LargeAllocator,
          const size_t Threshold>
@@ -339,9 +437,9 @@ class Segregator {
 	LargeAllocator largeAllocator;
 
 public:
-	///
-	/// \param n
-	/// \return
+	/// Allocates memory using the appropriate allocator based on size
+	/// \param n[in]: number of bytes to allocate
+	/// \return allocated memory block
 	constexpr Blk allocate(const size_t n) {
 		if (n >= Threshold) {
 			return largeAllocator.allocate(n);
@@ -350,9 +448,8 @@ public:
 		return smallAllocator.allocate(n);
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Deallocates memory using the appropriate allocator based on size
+	/// \param b[in]: memory block to deallocate
 	constexpr void deallocate(const Blk &b) {
 		if (b.len >= Threshold) {
 			return largeAllocator.deallocate(b);
@@ -361,38 +458,38 @@ public:
 		return smallAllocator.deallocate(b);
 	}
 
-	///
-	/// \return
+	/// Deallocates all memory from both allocators
 	constexpr void deallocateAll() {
 		largeAllocator.deallocateAll();
 		smallAllocator.deallocateAll();
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Checks if this allocator owns the given memory block
+	/// \param b[in]: memory block to check
+	/// \return true if either allocator owns the block
 	constexpr bool owns(const Blk &b) {
 		return largeAllocator.owns(b) || smallAllocator.owns(b);
 	}
 };
 
-/// simple page allocator. It can only allocate a single page
+/// Simple page allocator that can only allocate a single page
+/// \tparam page_alignment[in]: alignment of the page in bytes
+/// \tparam page_size[in]: size of the page in bytes
 template<const size_t page_alignment = 1u << 12u,
          const size_t page_size = 1u << 12u>
 class PageMallocator {
 	constexpr static uintptr_t MASK = ~(page_size - 1u);
 
 public:
-	///
-	/// \return
+	/// Allocates a single page of memory
+	/// \return memory block containing a page
 	constexpr Blk allocate() noexcept {
 		void *ptr = cryptanalysislib::aligned_alloc(page_alignment, page_size);
 		return {ptr, ptr == nullptr ? 0 : page_size};
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Deallocates a page of memory
+	/// \param b[in]: memory block to deallocate
 	constexpr void deallocate(const Blk &b) noexcept {
 		if (owns(b)) {
 			cryptanalysislib::aligned_free(b.ptr);
@@ -400,27 +497,28 @@ public:
 		}
 	}
 
-	///
-	/// \return
+	/// Deallocates all memory (does nothing for this allocator)
 	constexpr void deallocateAll() noexcept {
 		/// well nothing
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Checks if this allocator owns the given memory block
+	/// \param b[in]: memory block to check
+	/// \return true if the block is a page owned by this allocator
 	constexpr bool owns(const Blk &b) noexcept {
 		return ((uintptr_t) b.ptr) & MASK;
 	}
 };
 
-
-/// taken from:https://raw.githubusercontent.com/codecryptanalysis/mccl/main/mccl/core/collection.hpp
-/// - modified to not use exceptions
-/// - modified to use the new allocation interface
-/// memory allocator pool for fixed size pages
-/// do not use page_allocator before static members have been initialized
-/// freeing pages after end of main (i.e. during static deconstructors) leads to undefined behaviour
+/// Memory allocator pool for fixed size pages
+/// Taken from: https://raw.githubusercontent.com/codecryptanalysis/mccl/main/mccl/core/collection.hpp
+/// - Modified to not use exceptions
+/// - Modified to use the new allocation interface
+/// Do not use page_allocator before static members have been initialized
+/// Freeing pages after end of main (i.e. during static deconstructors) leads to undefined behaviour
+/// \tparam _page_alignment[in]: alignment of the page in bytes
+/// \tparam _page_size[in]: size of the page in bytes
+/// \tparam PAllocator[in]: underlying page allocator
 template<const size_t _page_alignment = 1u << 12u,
          const size_t _page_size = 1u << 12u,
          typename PAllocator =
@@ -458,40 +556,36 @@ private:
 	static inline _static_helper _helper{};
 
 public:
-	///
-	/// \param n
-	/// \return
+	/// Allocates a memory page from the page allocator
+	/// \return memory block containing a page
 	constexpr Blk allocate() noexcept {
 		return allocator.allocate();
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Adds the page to the free list queue instead of deallocating it
+	/// \param b[in]: memory block to deallocate
 	constexpr void deallocate(const Blk &b) noexcept {
 		if (owns(b)) {
 			_helper._queue.push_back(b);
 		}
 	}
 
-	///
-	/// \return
+	/// Deallocates all memory (does nothing for this allocator)
 	constexpr void deallocateAll() noexcept {
 		/// well nothing
 	}
 
-	///
-	/// \param b
-	/// \return
+	/// Checks if this allocator owns the given memory block
+	/// \param b[in]: memory block to check
+	/// \return true if the block is owned by this allocator
 	constexpr bool owns(const Blk &b) noexcept {
 		return allocator.owns(b);
 	}
 };
 
-
-/// wrapper class to expose a interface for algorithms in the std
-/// \tparam T Base type to allocate
-/// \tparam Allocator allocator type
+/// Wrapper class to expose an interface for algorithms in the STL
+/// \tparam T[in]: Base type to allocate
+/// \tparam Allocator[in]: allocator type
 template<typename T,
          typename Allocator>
 class STDAllocatorWrapper {
@@ -509,30 +603,29 @@ public:
 	static inline inner_allocator sallocator{};
 	inner_allocator allocator;
 
-	/// simply allocates `n` bytes using `a`
-	/// \param a base allocator
-	/// \param n number of byte
-	/// \return pointer to data or nullptr
+	/// Allocates memory for n elements
+	/// \param n[in]: number of elements to allocate
+	/// \return pointer to allocated memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
 		Blk b = sallocator.allocate(n);
 		return (pointer) b.ptr;
 	}
 
-	/// simply allocates `n` bytes using `a`
-	/// \param a base allocator
-	/// \param n number of byte
-	/// \return pointer to data or nullptr
+	/// Allocates memory for n elements using the provided allocator
+	/// \param a[in]: allocator to use
+	/// \param n[in]: number of elements to allocate
+	/// \return pointer to allocated memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(allocator_type &a,
 	                                                       const size_type n) noexcept {
 		Blk b = a.allocator.allocate(n);
 		return (pointer) b.ptr;
 	}
 
-	/// currently ignoring the hint
-	/// \param a base allocator
-	/// \param n number of byte
-	/// \param hint
-	/// \return pointer to data or nullptr
+	/// Allocates memory for n elements with a hint (currently ignored)
+	/// \param a[in]: allocator to use
+	/// \param n[in]: number of elements to allocate
+	/// \param hint[in]: allocation hint (ignored)
+	/// \return pointer to allocated memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(allocator_type &a,
 	                                                const size_type n,
 	                                                const const_void_pointer hint) noexcept {
@@ -546,18 +639,19 @@ public:
 	//
 	// }
 
-	/// \param a base allocator
-	/// \param p pointer to data
-	/// \param n number of bytes
+	/// Deallocates memory
+	/// \param p[in]: pointer to memory to deallocate
+	/// \param n[in]: number of elements
 	static constexpr inline void deallocate(const pointer p,
 											const size_type n) noexcept {
 		const Blk b((void *) p, n);
 		sallocator.deallocate(b);
 	}
 
-	/// \param a base allocator
-	/// \param p pointer to data
-	/// \param n number of bytes
+	/// Deallocates memory using the provided allocator
+	/// \param a[in]: allocator to use
+	/// \param p[in]: pointer to memory to deallocate
+	/// \param n[in]: number of elements
 	static constexpr inline void deallocate(allocator_type &a,
 	                                        const pointer p,
 	                                        const size_type n) noexcept {
@@ -588,7 +682,7 @@ public:
 };
 
 /// C++ wrapper around `aligned_alloc` and `aligned_free`
-/// \tparam T[in]:  type to allocate
+/// \tparam T[in]: type to allocate
 /// \tparam alignment[in]: in bytes
 template<typename T,
 		 const size_t alignment = 1024>
@@ -603,15 +697,16 @@ public:
 	typedef const void *const_void_pointer;
 	typedef size_t size_type;
 
-	/// simply allocates `n` bytes using `a`
-	/// \param n number of byte
-	/// \return pointer to data or nullptr
+	/// Allocates aligned memory
+	/// \param n[in]: number of bytes to allocate
+	/// \return pointer to aligned memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
 		return static_cast<pointer>(cryptanalysislib::aligned_alloc(alignment, n));
 	}
 
-	/// \param p pointer to data
-	/// \param n number of bytes
+	/// Deallocates aligned memory
+	/// \param p[in]: pointer to memory to deallocate
+	/// \param n[in]: number of bytes (unused)
 	static constexpr inline void deallocate(const pointer p,
 											const size_type n) noexcept {
         (void) n;
@@ -636,17 +731,18 @@ public:
 
 	const char *pool_name = "tracy_allocator";
 
-	/// simply allocates `n` bytes using `a`
-	/// \param n number of byte
-	/// \return pointer to data or nullptr
+	/// Allocates memory with Tracy profiling
+	/// \param n[in]: number of elements to allocate
+	/// \return pointer to allocated memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
 		T *p = nullptr;
 		TracyCAllocN(p, sizeof(T) * n, pool_name);
 		return p;
 	}
 
-	/// \param p pointer to data
-	/// \param n number of bytes
+	/// Deallocates memory with Tracy profiling
+	/// \param p[in]: pointer to memory to deallocate
+	/// \param n[in]: number of elements
 	static constexpr inline void deallocate(const pointer p,
 											const size_type n) noexcept {
 		TracyCFreeN(p, sizeof(T) * n);

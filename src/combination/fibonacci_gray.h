@@ -16,6 +16,9 @@
 /// 01010
 /// 01000
 /// 01001
+/// Class for generating Fibonacci Gray codes
+/// \tparam T[in]: integer type to use for the code
+/// \tparam n[in]: bit length of the codes
 template<typename T,
           const uint32_t n>
 class bit_fibgray {
@@ -25,7 +28,9 @@ private:
     T fw_, lw_;  // first and last Fibonacci word in Gray code
     T mw_;  // max(fw_, lw_)
 
-	// binary --> radix(-2)
+	/// Converts from binary to radix(-2) representation
+	/// \param x[in]: binary value to convert
+	/// \return radix(-2) representation
 	static inline constexpr T bin2neg(T x) noexcept {
 		// mask in radix 2 is ...10101010
 		const T m = 0xaaaaaaaaaaaaaaaaUL;
@@ -34,8 +39,10 @@ private:
 		return  x;
 	}
 
-	// radix(-2) --> binary
-	// inverse of bin2neg()
+	/// Converts from radix(-2) to binary representation
+	/// Inverse of bin2neg()
+	/// \param x[in]: radix(-2) value to convert
+	/// \return binary representation
 	constexpr inline T neg2bin(T x) noexcept {
 		const T m = 0xaaaaaaaaaaaaaaaaUL;
 		x ^= m;
@@ -43,10 +50,11 @@ private:
 		return  x;
 	}
 
-	// inverse of gray_code()
-	// note: the returned value contains at each bit position
-	// the parity of all bits of the input left from it (incl. itself)
-	//
+	/// Calculates the inverse of the Gray code operation
+	/// Note: the returned value contains at each bit position
+	/// the parity of all bits of the input left from it (including itself)
+	/// \param x[in]: Gray code value to invert
+	/// \return the original binary value that produced the Gray code
 	constexpr static inline T inverse_gray_code(T x) noexcept {
 		x ^= x>>1;  // gray ** 1
 		x ^= x>>2;  // gray ** 2
@@ -61,6 +69,7 @@ private:
 
 
 public:
+    /// Constructor - initializes the Fibonacci Gray code sequence
     explicit bit_fibgray() noexcept {
         fw_ = 0;
         for (T m=(1UL<<(n-1)); m!=0; m>>=3)  fw_ |= m;
@@ -73,14 +82,21 @@ public:
         k_ = neg2bin(k_);
     }
 
+    /// Destructor
     ~bit_fibgray()  { ; }
 
-    constexpr inline T data() const noexcept { return x_; }
+    /// Returns the current Fibonacci word
+    /// \return the current word in the sequence
+    [[nodiscard]] constexpr inline T data() const noexcept {
+        return x_; 
+    }
 
-    // Return next word in Gray code.
-    // Return ~0 if current word is the last one.
-    constexpr T next() noexcept {
-        if ( x_ == lw_ )  return ~0UL;
+    /// Returns the next word in the Fibonacci Gray code sequence
+    /// \return the next word, or ~0 if the current word is the last one
+    [[nodiscard]] constexpr T next() noexcept {
+        if (x_ == lw_) {
+            return ~0UL;
+        }
 
         T s = n;  // shift
         while(1) {

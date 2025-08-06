@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstdlib>
 
+/// Class for generating combinations in lexicographic order over Fq
+/// Provides utilities for enumerating combinations with constraints
 class Combinations_Fq_Lexicographic {
 	/// length to enumerate
 	const uint32_t n;
@@ -11,14 +13,18 @@ class Combinations_Fq_Lexicographic {
 	/// max value to enumerate
 	const uint32_t q;
 
-
+	/// Constructor for Combinations_Fq_Lexicographic
+	/// \param n[in]: length to enumerate
+	/// \param q[in]: max value to enumerate
 	Combinations_Fq_Lexicographic(const uint32_t n, const uint32_t q) :
 	n(n), q(q) {}
 
-	/// \param stack array of size
-	/// \param sp current stack pointer. Do not think about this
-	/// \param k max weight to enumerate
-	/// \return the number of subsequent numbers which have hamming weight < k.
+	/// Updates a stack during enumeration with weight constraints
+	/// Used for restricted zeta transforms with bounded Hamming weight
+	/// \param stack[in]: array of size at least k+1
+	/// \param sp[in]: current stack pointer position
+	/// \param k[in]: max weight to enumerate
+	/// \return the number of subsequent numbers which have hamming weight < k
 	uint64_t restricted_zeta_update_stack(uint32_t *stack, uint32_t *sp, const uint64_t k) {
 		if (stack[*sp] == k) {
 			uint32_t i = *sp + 1;
@@ -49,11 +55,11 @@ class Combinations_Fq_Lexicographic {
 public:
 };
 
-/// lexicographic enumeration of p error position <= n
-/// so it can be that certain posiiton occur twice within the error
-/// \tparam n max size of each index
-/// \tparam p number of error position
-/// \tparam q (unused, needed for api compability)
+/// Lexicographic enumeration of p error positions <= n
+/// Allows certain positions to occur twice within the error
+/// \tparam n[in]: max size of each index
+/// \tparam p[in]: number of error positions
+/// \tparam q[in]: (unused, needed for API compatibility)
 template<const uint32_t n,
          const uint32_t p,
          const uint32_t q = 2>
@@ -66,6 +72,8 @@ class enumerate_t {
 	static_assert(n > p);
 
 public:
+	/// Calculates the total number of combinations to enumerate
+	/// \return the total number of combinations
 	[[nodiscard]] constexpr size_t list_size() const noexcept {
 		size_t ret = 1;
 		for (uint32_t i = 0; i < p; i++) {
@@ -74,6 +82,10 @@ public:
 		return ret;
 	}
 
+	/// Enumerates all combinations and applies a function to each
+	/// Dispatches to the appropriate enumeration method based on p
+	/// \tparam F[in]: function type to apply to each combination
+	/// \param f[in]: function to apply to each combination
 	template<typename F>
 	constexpr inline void enumerate(F &&f) noexcept {
 		if constexpr (p == 0) {
@@ -88,9 +100,10 @@ public:
 		}
 	}
 
-	/// \tparam F
-	/// \param idx
-	/// \param f
+	/// Enumerates all combinations with p=1
+	/// \tparam F[in]: function type to apply to each combination
+	/// \param idx[out]: array to store the current combination
+	/// \param f[in]: function to apply to each combination
 	template<typename F>
 	constexpr static inline void enumerate1(T *idx,
 										    F &&f) noexcept {
@@ -99,9 +112,10 @@ public:
 		}
 	}
 
-	/// \tparam F
-	/// \param idx
-	/// \param f
+	/// Enumerates all combinations with p=2
+	/// \tparam F[in]: function type to apply to each combination
+	/// \param idx[out]: array to store the current combination
+	/// \param f[in]: function to apply to each combination
 	template<typename F>
 	constexpr static inline void enumerate2(T *idx, F &&f) noexcept {
 		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
@@ -111,9 +125,10 @@ public:
 		}
 	}
 
-	/// \tparam F
-	/// \param idx
-	/// \param f
+	/// Enumerates all combinations with p=3
+	/// \tparam F[in]: function type to apply to each combination
+	/// \param idx[out]: array to store the current combination
+	/// \param f[in]: function to apply to each combination
 	template<typename F>
 	constexpr static inline void enumerate3(T *idx,
 											F &&f) noexcept {
@@ -126,9 +141,10 @@ public:
 		}
 	}
 
-	/// \tparam F
-	/// \param idx
-	/// \param f
+	/// Enumerates all combinations with p=4
+	/// \tparam F[in]: function type to apply to each combination
+	/// \param idx[out]: array to store the current combination
+	/// \param f[in]: function to apply to each combination
 	template<typename F>
 	constexpr static inline void enumerate4(T *idx,
 											F &&f) noexcept {
@@ -143,10 +159,10 @@ public:
 		}
 	}
 
-	/// enumerating <= p
-	/// \tparam F
-	/// \param idx
-	/// \param f
+	/// Enumerates all combinations with weight <= p
+	/// \tparam F[in]: function type to apply to each combination
+	/// \param idx[out]: array to store the current combination
+	/// \param f[in]: function to apply to each combination
 	template<typename F>
 	constexpr static inline void enumeratep(T *idx,
 											F &&f) noexcept {
@@ -170,51 +186,59 @@ public:
 	}
 };
 
+/// Binary lexicographic enumeration and manipulation class
+/// Provides utilities for working with lexicographically ordered binary subsets
+/// \tparam T[in]: underlying integer type for representing binary words
 template<typename T>
 class BinaryLexicographic {
-    // Return next word in subset-lexrev order.
-    // Start with a one-bit word at position n-1 to
-    // generate 2**n subsets of length n.
-    // E.g., for n==4 the subsets are
-    //     word   subset of {0,1,2,3}
-    //     1...   {0}
-    //     11..   {0, 1}
-    //     111.   {0, 1, 2}
-    //     1111   {0, 1, 2, 3}
-    //     11.1   {0, 1, 3}
-    //     1.1.   {0, 2}
-    //     1.11   {0, 2, 3}
-    //     1..1   {0, 3}
-    //     .1..   {1}
-    //     .11.   {1, 2}
-    //     .111   {1, 2, 3}
-    //     .1.1   {1, 3}
-    //     ..1.   {2}
-    //     ..11   {2, 3}
-    //     ...1   {3}
-    //     ....   {}
-    // Note (1): the first element of the subset corresponds
-    // to the highest set bit.  When interpreting the binary
-    // words via "bit(n)==element n" (as usual), the order
-    // would be:
-    //     1...           { 3 }
-    //     11..        { 2, 3 }
-    //     111.     { 1, 2, 3 }
-    //     1111  { 0, 1, 2, 3 }
-    //     11.1     { 0, 2, 3 }
-    //     1.1.        { 1, 3 }
-    //     1.11     { 0, 1, 3 }
-    //     1..1        { 0, 3 }
-    //     .1..           { 2 }
-    //     .11.        { 1, 2 }
-    //     .111     { 0, 1, 2 }
-    //     .1.1        { 0, 2 }
-    //     ..1.           { 1 }
-    //     ..11        { 0, 1 }
-    //     ...1           { 0 }
-    // Note (2): the lex order for the delta sets would simply
-    // be the counting order (of the words or reversed words
-    // depending on the interpretation as explained above).
+public:
+    /// Computes the next word in subset-lexrev order
+    /// Start with a one-bit word at position n-1 to generate 2**n subsets of length n
+    /// 
+    /// Example for n==4 with subsets interpretation:
+    ///     word   subset of {0,1,2,3}
+    ///     1...   {0}
+    ///     11..   {0, 1}
+    ///     111.   {0, 1, 2}
+    ///     1111   {0, 1, 2, 3}
+    ///     11.1   {0, 1, 3}
+    ///     1.1.   {0, 2}
+    ///     1.11   {0, 2, 3}
+    ///     1..1   {0, 3}
+    ///     .1..   {1}
+    ///     .11.   {1, 2}
+    ///     .111   {1, 2, 3}
+    ///     .1.1   {1, 3}
+    ///     ..1.   {2}
+    ///     ..11   {2, 3}
+    ///     ...1   {3}
+    ///     ....   {}
+    /// 
+    /// Note (1): The first element of the subset corresponds to the highest set bit.
+    ///           When interpreting the binary words via "bit(n)==element n" (as usual),
+    ///           the order would be:
+    ///     1...           { 3 }
+    ///     11..        { 2, 3 }
+    ///     111.     { 1, 2, 3 }
+    ///     1111  { 0, 1, 2, 3 }
+    ///     11.1     { 0, 2, 3 }
+    ///     1.1.        { 1, 3 }
+    ///     1.11     { 0, 1, 3 }
+    ///     1..1        { 0, 3 }
+    ///     .1..           { 2 }
+    ///     .11.        { 1, 2 }
+    ///     .111     { 0, 1, 2 }
+    ///     .1.1        { 0, 2 }
+    ///     ..1.           { 1 }
+    ///     ..11        { 0, 1 }
+    ///     ...1           { 0 }
+    /// 
+    /// Note (2): The lex order for the delta sets would simply be the counting order
+    ///           (of the words or reversed words depending on the interpretation as
+    ///           explained above).
+    ///
+    /// \param x[in]: current word
+    /// \return next word in subset-lexrev order
     constexpr static inline T next_lexrev(T x) {
         T x0 = x & -x;  // lowest one
         if (1 != x0) {  // easy case: set bit right of lowest one
@@ -230,26 +254,29 @@ class BinaryLexicographic {
         }
     }
     
-    // Return previous word in subset-lexrev order.
-    // Start with zero and use 2**n calls
-    // generate 2**n subsets of length n.
-    // E.g., for n==4:
-    //  ....  =  0
-    //  ...1  =  1
-    //  ..11  =  3
-    //  ..1.  =  2
-    //  .1.1  =  5
-    //  .111  =  7
-    //  .11.  =  6
-    //  .1..  =  4
-    //  1..1  =  9
-    //  1.11  = 11
-    //  1.1.  = 10
-    //  11.1  = 13
-    //  1111  = 15
-    //  111.  = 14
-    //  11..  = 12
-    //  1...  =  8
+    /// Computes the previous word in subset-lexrev order
+    /// Start with zero and use 2**n calls to generate 2**n subsets of length n
+    /// 
+    /// Example for n==4:
+    ///  ....  =  0
+    ///  ...1  =  1
+    ///  ..11  =  3
+    ///  ..1.  =  2
+    ///  .1.1  =  5
+    ///  .111  =  7
+    ///  .11.  =  6
+    ///  .1..  =  4
+    ///  1..1  =  9
+    ///  1.11  = 11
+    ///  1.1.  = 10
+    ///  11.1  = 13
+    ///  1111  = 15
+    ///  111.  = 14
+    ///  11..  = 12
+    ///  1...  =  8
+    ///
+    /// \param x[in]: current word
+    /// \return previous word in subset-lexrev order
     static inline T prev_lexrev(T x) {
         T x0 = x & -x;  // lowest one
         if ( x & (x0<<1) ) {
@@ -263,24 +290,29 @@ class BinaryLexicographic {
         }
     }
     
-    //   k:  negidx2lexrev(k)
-    //   0:  .....
-    //   1:  ....1
-    //   2:  ...11
-    //   3:  ...1.
-    //   4:  ..1.1
-    //   5:  ..111
-    //   6:  ..11.
-    //   7:  ..1..
-    //   8:  .1..1
-    //   9:  .1.11
-    //  10:  .1.1.
-    //  11:  .11.1
-    //  12:  .1111
-    //  13:  .111.
-    //  14:  .11..
-    //  15:  .1...
-    //  16:  1...1
+    /// Converts a negative index to a lexicographic-reverse representation
+    /// Example conversions:
+    ///   k:  negidx2lexrev(k)
+    ///   0:  .....
+    ///   1:  ....1
+    ///   2:  ...11
+    ///   3:  ...1.
+    ///   4:  ..1.1
+    ///   5:  ..111
+    ///   6:  ..11.
+    ///   7:  ..1..
+    ///   8:  .1..1
+    ///   9:  .1.11
+    ///  10:  .1.1.
+    ///  11:  .11.1
+    ///  12:  .1111
+    ///  13:  .111.
+    ///  14:  .11..
+    ///  15:  .1...
+    ///  16:  1...1
+    ///
+    /// \param k[in]: negative index to convert
+    /// \return lexicographic-reverse representation
     static inline T negidx2lexrev(size_t k) noexcept {
         T z = 0;
         // T h = highest_one(k);
@@ -296,7 +328,10 @@ class BinaryLexicographic {
         return  z;
     }
     
-    // inverse of negidx2lexrev()
+    /// Converts a lexicographic-reverse representation to a negative index
+    /// Inverse of negidx2lexrev()
+    /// \param x[in]: lexicographic-reverse representation to convert
+    /// \return the corresponding negative index
     static inline size_t lexrev2negidx(T x) {
         if ( 0==x )  return 0;
         T h = x & -x;  // lowest one
@@ -340,11 +375,11 @@ class BinaryLexicographic {
     //    }
     //    return  r;
     }
-    // -------------------------
     
-    
-    
-    // Return whether x is a fixed point in the prev_lexrev() - sequence
+    /// Determines if x is a fixed point in the prev_lexrev() sequence
+    /// A fixed point is a value that remains unchanged when prev_lexrev() is applied
+    /// \param x[in]: value to check
+    /// \return true if x is a fixed point, false otherwise
     static inline bool is_lexrev_fixed_point(T x) {
         if ( x & 1 )  return  (1==x);
     

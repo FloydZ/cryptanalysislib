@@ -5,8 +5,8 @@
 #include <setjmp.h>
 #include <sys/syslog.h>
 
-#include "alloc/alloc.h"
 #include "math/math.h"
+#include "alloc/alloc.h"
 #include "memory/memory.h"
 
 /*

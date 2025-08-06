@@ -1,12 +1,15 @@
 #pragma once 
 
+/// Class providing utilities for working with Fibonacci representations of numbers
+/// Fibonacci representation: a binary representation where no two adjacent 1s appear
 class fibrep {
 
-// Return Fibonacci representation of b
-// Limitation: the first Fibonacci number greater
-//  than b must be representable as ulong.
-// 32 bit:  b < 2971215073=F(47) [F(48)=4807526976 > 2^32]
-// 64 bit:  b < 12200160415121876738=F(93) [F(94) > 2^64]
+/// Converts a binary number to its Fibonacci representation
+/// Limitation: the first Fibonacci number greater than b must be representable as ulong
+/// 32 bit:  b < 2971215073=F(47) [F(48)=4807526976 > 2^32]
+/// 64 bit:  b < 12200160415121876738=F(93) [F(94) > 2^64]
+/// \param b[in]: binary number to convert
+/// \return Fibonacci representation of b
 constexpr static inline ulong bin2fibrep(ulong b) noexcept {
     ulong f0 = 1,  f1 = 1,  s = 1;
     while ( f1 <= b )  { ulong t = f0+f1;  f0=f1;  f1=t;  s<<=1; }
@@ -20,8 +23,10 @@ constexpr static inline ulong bin2fibrep(ulong b) noexcept {
     return f;
 }
 
-// Return binary representation of f
-// Inverse of bin2fibrep().
+/// Converts a Fibonacci representation to its binary value
+/// Inverse of bin2fibrep()
+/// \param f[in]: Fibonacci representation to convert
+/// \return binary value of the Fibonacci representation
 constexpr static inline ulong fibrep2bin(ulong f) noexcept {
     ulong f0 = 1,  f1 = 1;
     ulong b = 0;
@@ -34,8 +39,9 @@ constexpr static inline ulong fibrep2bin(ulong f) noexcept {
     return b;
 }
 
-// With x the Fibonacci representation of n
-// return Fibonacci representation of n+1.
+/// Computes the Fibonacci representation of n+1 given the Fibonacci representation of n
+/// \param x[in]: Fibonacci representation of n
+/// \return Fibonacci representation of n+1
 constexpr static inline ulong next_fibrep(ulong x) noexcept {
     // From the Python code by Falk Hueffner in https://oeis.org/A003714
     const ulong y = ~(x >> 1);
@@ -44,8 +50,9 @@ constexpr static inline ulong next_fibrep(ulong x) noexcept {
     return x;
 }
 
-// With x the Fibonacci representation of n
-// return Fibonacci representation of n-1.
+/// Computes the Fibonacci representation of n-1 given the Fibonacci representation of n
+/// \param x[in]: Fibonacci representation of n
+/// \return Fibonacci representation of n-1
 constexpr static inline ulong prev_fibrep(ulong x) noexcept {
     // 2 examples:                   //  ex. 1             //  ex.2
     //                               // x == [*]0 100000   // x == [*]0 10000
@@ -59,8 +66,10 @@ constexpr static inline ulong prev_fibrep(ulong x) noexcept {
 }
 
 
-// Return whether f is a valid Fibonacci representation,
-// that is, whether it does not contain two adjacent ones.
+/// Checks if a number is a valid Fibonacci representation
+/// A valid Fibonacci representation does not contain two adjacent ones
+/// \param f[in]: number to check
+/// \return true if f is a valid Fibonacci representation, false otherwise
 constexpr static inline bool is_fibrep(ulong f) noexcept  {
     return  ( 0 == (f & (f>>1)) );
 }

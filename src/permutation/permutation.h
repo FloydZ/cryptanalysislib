@@ -8,6 +8,7 @@
 #include "helper.h"
 
 class PermutationConfig {
+    /// TODO
 };
 
 constexpr static PermutationConfig permutationConfig;
