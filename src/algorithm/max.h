@@ -11,6 +11,11 @@
 #include "algorithm/algorithm.h"
 #include "thread/thread.h"
 
+
+// TODO implement max_element simd version
+// TODO implement max_element parallel version
+
+
 namespace cryptanalysislib {
     /// Configuration for max algorithms with SIMD and threading settings
     struct AlgorithmMaxConfig {
@@ -157,6 +162,48 @@ namespace cryptanalysislib {
 
 		return m;
 	}
-}
+
+
+    /// TODO doc
+    template<class ForwardIt>
+    ForwardIt max_element(ForwardIt first,
+                          ForwardIt last) noexcept {
+        if (first == last) {
+            return last;
+        }
+     
+        ForwardIt largest = first;
+     
+        while (++first != last) {
+            if (*largest < *first) {
+                largest = first;
+            }
+        }
+     
+        return largest;
+    }
+    
+    /// TODO doc
+    template<class ForwardIt,
+             class Compare>
+    ForwardIt max_element(ForwardIt first,
+                          ForwardIt last,
+                          Compare comp) noexcept {
+        if (first == last) {
+            return last;
+        }
+     
+        ForwardIt largest = first;
+     
+        while(++first != last) {
+            if (comp(*largest, *first)) {
+                largest = first;
+            }
+        }
+     
+        return largest;
+    }
+
+} // end namespace cryptanalysislib
 
 #endif

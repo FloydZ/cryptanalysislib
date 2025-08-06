@@ -10,6 +10,8 @@
 #include "print/print.h"
 #include "random.h"
 
+#include "swar.h"
+
 using cryptanalysislib::print_binary;
 using namespace cryptanalysislib;
 

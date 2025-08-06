@@ -193,6 +193,7 @@ static void check_huge_page(void *ptr) {
 
 /// tries to alloc a huge page.
 /// \param size
+static 
 void *cryptanalysislib_hugepage_malloc(const size_t size) {
 	const size_t nr_pages = (size + HPAGE_SIZE - 1) / HPAGE_SIZE;
 	const size_t alloc_size = nr_pages * HPAGE_SIZE;

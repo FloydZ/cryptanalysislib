@@ -12,6 +12,10 @@
 #include "simd/simd.h"
 #include "thread/thread.h"
 
+
+/// TODO parallel version of min_element
+/// TODO simd version of min_element
+
 namespace cryptanalysislib {
     /// Configuration for min algorithms with SIMD and threading settings
     struct AlgorithmMinConfig {
@@ -150,6 +154,47 @@ namespace cryptanalysislib {
 
 		return m;
 	}
+
+/// TODO doc
+template<class ForwardIt>
+ForwardIt min_element(ForwardIt first,
+                      ForwardIt last) {
+    if (first == last) {
+        return last;
+    }
+ 
+    ForwardIt smallest = first;
+ 
+    while (++first != last) {
+        if (*first < *smallest) {
+            smallest = first;
+        }
+    }
+
+    return smallest;
 }
+
+/// TODO doc
+template<class ForwardIt, 
+         class Compare>
+ForwardIt min_element(ForwardIt first,
+                      ForwardIt last,
+                      Compare comp) {
+    if (first == last) {
+        return last;
+    }
+ 
+    ForwardIt smallest = first;
+ 
+    while (++first != last) {
+        if (comp(*first, *smallest)) {
+            smallest = first;
+        }
+    }
+ 
+    return smallest;
+}
+
+}; // end namespace cryptanalysislib
 
 #endif

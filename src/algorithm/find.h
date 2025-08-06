@@ -9,6 +9,9 @@
 #include "simd/simd.h"
 #include "search/search.h"
 
+// TODO docs for find_first_of and adjacent_find 
+// TODO parallel versions of `find_first_of` and `adjacent_find`
+
 namespace cryptanalysislib {
     /// Configuration for find algorithms 
     // TODO somehow this yields an anonymous unitiialized field element
@@ -363,28 +366,94 @@ namespace cryptanalysislib {
     			     std::regular_invocable<BinaryPred, bool>
     #endif
     constexpr //< since C++20
-    ForwardIt1 find_end(ForwardIt1 first, ForwardIt1 last,
-                        ForwardIt2 s_first, ForwardIt2 s_last,
-                        BinaryPred p)
-    {
-        if (s_first == s_last)
+    ForwardIt1 find_end(ForwardIt1 first,
+                        ForwardIt1 last,
+                        ForwardIt2 s_first,
+                        ForwardIt2 s_last,
+                        BinaryPred p) {
+        if (s_first == s_last) {
             return last;
+        }
      
         ForwardIt1 result = last;
-        while (true)
-        {
-            ForwardIt1 new_result = std::search(first, last, s_first, s_last, p);
-            if (new_result == last)
+        while (true) {
+            ForwardIt1 new_result = cryptanalysislib::search(first, last, s_first, s_last, p);
+            if (new_result == last) {
                 break;
-            else
-            {
+            } else {
                 result = new_result;
                 first = result;
                 ++first;
             }
         }
+
         return result;
     }
 
-}
+    /// TODO doc
+    template<class InputIt,
+             class ForwardIt>
+    InputIt find_first_of(InputIt first,
+                          InputIt last,
+                          const ForwardIt s_first,
+                          const ForwardIt s_last) {
+        for (; first != last; ++first)
+            for (ForwardIt it = s_first; it != s_last; ++it)
+                if (*first == *it)
+                    return first;
+        return last;
+    }
+
+    /// TODO doc
+    template<class InputIt,
+             class ForwardIt,
+             class BinaryPred>
+    InputIt find_first_of(InputIt first,
+                          InputIt last,
+                          const ForwardIt s_first, 
+                          const ForwardIt s_last,
+                          BinaryPred p) {
+        for (; first != last; ++first)
+            for (ForwardIt it = s_first; it != s_last; ++it)
+                if (p(*first, *it))
+                    return first;
+        return last;
+    }
+    
+    /// TODO doc
+    template<class ForwardIt>
+    ForwardIt adjacent_find(ForwardIt first,
+                            ForwardIt last) {
+        if (first == last)
+            return last;
+     
+        ForwardIt next = first;
+        ++next;
+     
+        for (; next != last; ++next, ++first)
+            if (*first == *next)
+                return first;
+     
+        return last;
+    }
+    
+    /// TODO doc
+    template<class ForwardIt,
+             class BinaryPred>
+    ForwardIt adjacent_find(ForwardIt first,
+                            ForwardIt last,
+                            BinaryPred p) {
+        if (first == last)
+            return last;
+     
+        ForwardIt next = first;
+        ++next;
+     
+        for (; next != last; ++next, ++first)
+            if (p(*first, *next))
+                return first;
+     
+        return last;
+    }
+} // end namespace cryptanalysislib
 #endif //FIND_H

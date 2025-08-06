@@ -8,7 +8,10 @@
 #include <immintrin.h>
 #endif
 
+#include "copy.h"
+#include "swap.h"
 
+namespace cryptanalysislib {
 namespace internal {
     /// Swaps two contiguous blocks of elements in forward order
     ///
@@ -590,3 +593,45 @@ constexpr void drill_rotation(T *array,
 		internal::stack_rotation(array + start, left, right);
 	}
 }
+
+/// TODO doc
+template<class ForwardIt>
+constexpr 
+ForwardIt rotate(ForwardIt first,
+                 ForwardIt middle,
+                 ForwardIt last) {
+    if (first == middle) {
+        return last;
+    }
+ 
+    if (middle == last) {
+        return first;
+    }
+ 
+    ForwardIt write = first;
+    ForwardIt next_read = first; // read position for when “read” hits “last”
+ 
+    for (ForwardIt read = middle; read != last; ++write, ++read) {
+        if (write == next_read)
+            next_read = read; // track where “first” went
+        std::iter_swap(write, read);
+    }
+ 
+    // rotate the remaining sequence into place
+    rotate(write, next_read, last);
+    return write;
+}
+
+//// TODO doc
+template<class ForwardIt,
+         class OutputIt>
+constexpr
+OutputIt rotate_copy(ForwardIt first,
+                     ForwardIt middle,
+                     ForwardIt last,
+                     OutputIt d_first) {
+    d_first = std::copy(middle, last, d_first);
+    return std::copy(first, middle, d_first);
+}
+
+}; // end namespace cryptanalysislib
