@@ -6,8 +6,10 @@
 // source  https://github.com/felipelouza/bwt-lcp-in-place
 #define END_MARKER '$'
 
+/// TODO docs tests and benchs
 
-int rank(uint8_t *T, char c, int i){
+static 
+int rank(uint8_t *T, char c, int i) noexcept {
 	int sum=0;
 	int j;
 	for(j=0; j<i; j++) if(T[j] <= c) sum++;
@@ -16,7 +18,7 @@ int rank(uint8_t *T, char c, int i){
     return sum;
 }
 
-int bwt_lcp_inplace(uint8_t *T, int n, int *LCP){
+int bwt_lcp_inplace(uint8_t *T, int n, int *LCP) noexcept {
 
 	int i, p, r=1, s;
 	int p_a1, p_b1, l_a, l_b;
@@ -64,7 +66,7 @@ int bwt_lcp_inplace(uint8_t *T, int n, int *LCP){
 
 
 /// \param T[in]:
-int bwt_inplace(uint8_t *T, int n){
+int bwt_inplace(uint8_t *T, int n) noexcept {
 
 	int p, r=1;
 	int i, s;
@@ -85,7 +87,7 @@ int bwt_inplace(uint8_t *T, int n){
     return 0;
 }
 
-uint8_t* bwt_reverse(uint8_t *bwt, int n){
+uint8_t* bwt_reverse(uint8_t *bwt, int n) noexcept {
 
 	auto* rev = (uint8_t*) malloc((n+1)*sizeof(char));
 	int p = 0;

@@ -10,8 +10,11 @@
 /// https://github.com/lemire/Code-used-on-Daniel-Lemire-s-blog/blob/master/2024/09/02/include/avx512compress.h
 ///
 
+/// TODO add doc and tests bench
 
-void to_float16(uint16_t *dst, const double *src, size_t length) {
+void to_float16(uint16_t *dst, 
+                const double *src,
+                const size_t length) noexcept {
     size_t i = 0;
     __mmask8 mask;
 
@@ -44,7 +47,9 @@ void to_float16(uint16_t *dst, const double *src, size_t length) {
 }
 
 
-void from_float16(double *dst, const uint16_t *src, size_t length) {
+void from_float16(double *dst, 
+                  const uint16_t *src,
+                  const size_t length) noexcept {
     size_t i = 0;
     __mmask8 mask;
 

@@ -12,6 +12,10 @@
 #include "algorithm/bits/popcount.h"
 #include "simd/simd.h"
 
+// TODO add docs
+// TODO add namespace
+// TODO add [[nodiscard]]
+
 /// main comparison class for hash function used within the data containers
 /// these hash functions are either optimized for
 ///	- the case the data is packed together: BinaryVector
@@ -34,7 +38,7 @@ class Hash {};
 /// \tparam l lower element (NOT bit)
 /// \tparam h upper element (NOT bit)
 /// \tparam q modulus
-template<std::integral T,
+template<std::integral T, // examples:
          const uint32_t l,// = 0
 		 const uint32_t h,// = 8u * sizeof(T),
 		 const uint32_t q>// = 2u>
@@ -54,7 +58,8 @@ private:
 	/// \tparam hprime NOTE: must be the upper bit posiition within the limb
 	/// \param a
 	/// \return
-	template<const uint32_t lprime=l*qbits, const uint32_t hprime=h*qbits>
+	template<const uint32_t lprime=l*qbits,
+             const uint32_t hprime=h*qbits>
 	static constexpr inline R compute(const T &a) noexcept {
 		// NOTE: these checks are not valid globally for the whole class
 		static_assert(lprime < hprime);
@@ -145,11 +150,11 @@ public:
 		return compute(d);
 	}
 
-	constexpr static inline R hash(const T d) noexcept {
+	[[nodiscard]] constexpr static inline R hash(const T d) noexcept {
 		return compute(d);
 	}
 
-	constexpr static inline R hash(const T *d) noexcept {
+	[[nodiscard]] constexpr static inline R hash(const T *d) noexcept {
 		return compute(d);
 	}
 };
@@ -439,7 +444,7 @@ public:
 /// \param v3
 /// \return				v on the coordinates between [k_lower] and [k_higher]
 template<typename T, uint32_t k_lower, uint32_t k_higher, uint32_t flip = 0>
-static inline T extract(const T *v) noexcept {
+constexpr static inline T extract(const T *v) noexcept {
 	static_assert(k_lower < k_higher);
 	static_assert(k_higher - k_lower <= 128u);
 	constexpr uint32_t BITSIZE = sizeof(T) * 8u;

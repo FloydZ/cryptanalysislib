@@ -2,6 +2,13 @@
 
 #include <utility>
 
+/// TODO: add tests
+/// TODO: add docs
+/// TODO: add benchs
+/// TODO: add namespace 
+/// TODO: add constexpr 
+/// TODO: add noexcept 
+
 class cartesian_tree {
 	struct node {
 		int x, y, sz;

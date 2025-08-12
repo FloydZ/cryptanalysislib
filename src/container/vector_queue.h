@@ -27,32 +27,32 @@ public:
     using size_type = size_t;
 
 	/// \return the current element at the fotn
-    [[nodiscard]] inline const_reference front() const noexcept {
+    [[nodiscard]] constexpr inline const_reference front() const noexcept {
         return __data[_front];
     }
 
 	/// \return the last element in the back of the queue
-    [[nodiscard]] inline const_reference back() const noexcept {
+    [[nodiscard]] constexpr inline const_reference back() const noexcept {
         return __data[_back];
     }
 
 	/// \return
-    [[nodiscard]] inline bool empty() const noexcept {
+    [[nodiscard]] constexpr inline bool empty() const noexcept {
         return _front == (_back - 1);
     }
 
 	/// \return max size the queue can handle. NOTE: its not resizable
-    [[nodiscard]] inline size_t max_size() const noexcept {
+    [[nodiscard]] constexpr inline size_t max_size() const noexcept {
         return _max_size;
     }
 
 	/// \return current number of elements in the queue
-    [[nodiscard]] inline size_t size() const noexcept {
+    [[nodiscard]] constexpr inline size_t size() const noexcept {
         return std::abs(_back - _front - 1);
     }
 
 	/// \param value[in]
-    [[nodiscard]] inline bool push(const value_type &value) noexcept {
+    [[nodiscard]] constexpr inline bool push(const value_type &value) noexcept {
         if ((_back-1) == _max_size) {
             // wrap around
             _back = 1;
@@ -69,7 +69,7 @@ public:
     }
 
     /// \param value[in]: get moved into the queue
-    [[nodiscard]] inline bool push(value_type &&value) noexcept {
+    [[nodiscard]] constexpr inline bool push(value_type &&value) noexcept {
         if ((_back-1) == _max_size) {
             // wrap around
             _back = 1;
@@ -86,7 +86,7 @@ public:
     }
 
     /// incremenets the front counter
-    inline void pop() noexcept {
+    constexpr inline void pop() noexcept {
         _front += 1;
         if (_front == _max_size) { _front = 0; }
     }

@@ -9,6 +9,7 @@
 
 #include "helper.h"
 
+// TODO doc and tests
 
 namespace cryptanalysislib {
 	struct config_array {
@@ -57,12 +58,13 @@ namespace cryptanalysislib {
 
 		/// access operator
 		///		this functions perform a boundary check.
-		///		throws an exception on bad boundary check
+        ///     simply exists on a bad access
 		/// \param n position to access.
 		/// \return the element.
-		constexpr T operator[](const size_t n) const {
+		[[nodiscard]] constexpr inline 
+        T operator[](const size_t n) const noexcept {
 			if (unlikely(n >= N)) {
-				throw std::invalid_argument("invalid size");
+                exit(1);
 			}
 
 			return m_data[n];
@@ -71,7 +73,7 @@ namespace cryptanalysislib {
 		/// same as the operator[]
 		/// \param n index to accdess
 		/// \return the element
-		constexpr T at(const size_t n) const noexcept {
+		[[nodiscard]] constexpr inline T at(const size_t n) const noexcept {
 			return this->operator[](n);
 		}
 

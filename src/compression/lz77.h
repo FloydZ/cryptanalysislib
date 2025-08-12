@@ -12,7 +12,7 @@
 
 /// org code:https://github.com/andyherbert/lz1
 
-///
+/// TODO doc
 /// \param compressed_text
 /// \param uncompressed_text
 /// \param uncompressed_size
@@ -69,6 +69,10 @@ uint32_t lz77_compress(uint8_t *compressed_text,
 	return output_size;
 }
 
+/// TODO doc
+/// \param uncompressed_text
+/// \param compressed_text
+/// \return decompresses size
 uint32_t lz77_decompress(uint8_t *uncompressed_text,
                          const uint8_t *compressed_text) {
 	uint8_t pointer_length_width;

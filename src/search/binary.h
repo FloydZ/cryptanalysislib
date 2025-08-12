@@ -11,22 +11,34 @@
 #include <cstdint>
 #include <functional>
 
-#include "helper.h"
 #include "dispatch.h"
-#include "atomic/atomic_primitives.h"
 #include "hash/hash.h"
 #include "math/math.h"
 
+
+// TODO add namespace, for all the c functions
+// TODO add @lemire binary search in parallel in multiple different lists
+// TODO add `constexpr` where possible
+// TODO add concept to the c functions below to check that `Type` is arithmetic 
+
+
+/// Binary search for an exact value in a sorted array
 /// Source: https://www.jjj.de/fxt/fxtpage.html#fxtbook
-/// Return index of first element in f[] that equals v
-/// Return n if there is no such element.
-/// f[] must be sorted in ascending order.
-/// Must have  n!=0
+///
+/// NOTE: f[] must be sorted in ascending order.
+/// 
+/// \param f[in]: Pointer to the sorted array to search in
+/// \param n[in]: Length of the array
+/// \param v[in]: Value to search for
+/// \return Index of first element in f[] that equals v, or n if no such element exists
 template <typename Type>
 size_t bsearch(const Type *f,
                const size_t n,
                const Type v) noexcept {
-    assert(n);
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         size_t t = (nhi+nlo)/2;
@@ -39,15 +51,21 @@ size_t bsearch(const Type *f,
     else              return n;
 }
 
-/// Return index of first element in f[] that is >= v
-/// Return n if there is no such element.
-/// f[] must be sorted in ascending order.
-/// Must have  n!=0
+/// Binary search for the first element greater than or equal to a value
+/// NOTE: f[] must be sorted in ascending order.
+/// 
+/// \param f[in]: Pointer to the sorted array to search in
+/// \param n[in]: Length of the array
+/// \param v[in]: Value to compare against
+/// \return Index of first element in f[] that is >= v, or n if no such element exists
 template <typename Type>
 size_t bsearch_geq(const Type *f, 
                    const size_t n,
                    const Type v) {
-    assert(n);
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         size_t t = (nhi+nlo)/2;
@@ -60,15 +78,21 @@ size_t bsearch_geq(const Type *f,
     else              return n;
 }
 
-/// Return index of first element in f[] that is <= v
-/// Return n (word with all bits set) if there is no such element.
-/// f[] must be sorted in ascending order.
-/// Must have  n!=0
+/// Binary search for the first element less than or equal to a value
+/// NOTE: f[] must be sorted in ascending order.
+/// 
+/// \param f[in]: Pointer to the sorted array to search in
+/// \param n[in]: Length of the array
+/// \param v[in]: Value to compare against
+/// \return Index of first element in f[] that is <= v, or n if no such element exists
 template <typename Type>
 size_t bsearch_leq(const Type *f,
                    const size_t n,
                    const Type v) noexcept {
-    assert(n);
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         size_t t = (nhi+nlo)/2;
@@ -81,16 +105,23 @@ size_t bsearch_leq(const Type *f,
     else              return n;
 }
 
-/// return index of first element in f[] that is == v
-/// return n if there is no such element
-/// f[] must be sorted in ascending order
-/// must have  n!=0
+/// Binary search for an exact value using a custom comparator
+/// NOTE: f[] must be sorted in ascending order according to the comparator
+/// 
+/// \param f[in]: Pointer to the sorted array to search in
+/// \param n[in]: Length of the array
+/// \param v[in]: Value to search for
+/// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
+/// \return Index of first element in f[] that equals v, or n if no such element exists
 template <typename Type>
 size_t bsearch(const Type *f,
                const size_t n, 
                const Type v,
                int (*cmp)(const Type &, const Type &)) {
-    assert(n);
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         size_t t = (nhi+nlo)/2;
@@ -102,16 +133,24 @@ size_t bsearch(const Type *f,
     else                      return n;
 }
 
-/// return index of first element in f[] that is >= v
-/// return n if there is no such element
-/// f[] must be sorted in ascending order
-/// must have  n!=0
+/// Binary search for the first element greater than or equal to a value using 
+/// a custom comparator
+/// NOTE: f[] must be sorted in ascending order according to the comparator
+/// 
+/// \param f[in]: Pointer to the sorted array to search in
+/// \param n[in]: Length of the array
+/// \param v[in]: Value to compare against
+/// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
+/// \return Index of first element in f[] that is >= v, or n if no such element exists
 template <typename Type>
 size_t bsearch_geq(const Type *f,
                    const size_t n,
                    const Type v,
                    int (*cmp)(const Type &, const Type &)) {
-    assert(n);
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         size_t t = (nhi+nlo)/2;
@@ -123,16 +162,24 @@ size_t bsearch_geq(const Type *f,
     else                        return n;
 }
 
-/// return index of first element in f[] that is <= v
-/// return n if there is no such element
-/// f[] must be sorted in ascending order
-/// must have  n!=0
+/// Binary search for the first element less than or equal to a value using a
+/// custom comparator
+/// NOTE: f[] must be sorted in ascending order according to the comparator
+///
+/// \param f[in]: Pointer to the sorted array to search in
+/// \param n[in]: Length of the array
+/// \param v[in]: Value to compare against
+/// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
+/// \return Index of first element in f[] that is <= v, or n if no such element exists
 template <typename Type>
 size_t bsearch_leq(const Type *f,
                    const ulong n, 
                    const Type v,
                    int (*cmp)(const Type &, const Type &)) noexcept {
-    assert(n);
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         size_t t = (nhi+nlo)/2;
@@ -144,54 +191,82 @@ size_t bsearch_leq(const Type *f,
     else                        return n;
 }
 
-/// Return index of first element x in f[] for which  |(x-v)| <= da
-/// Return n if there is no such element.
-/// f[] must be sorted in ascending order.
-/// da must be positive.
+/// Binary search for elements approximately equal to a value within a given
+/// tolerance.
+/// 
+/// NOTE: f[] must be sorted in ascending order.
+/// NOTE: da must be positive.
+/// NOTE: Makes sense only with inexact types (float or double).
 ///
-/// Makes sense only with inexact types (float or double).
-/// Must have  n!=0
+/// \param f[in]: Pointer to the sorted array to search in
+/// \param n[in]: Length of the array
+/// \param v[in]: Value to search for
+/// \param da[in]: Tolerance value - elements within v±da will match
+/// \return Index of first element x in f[] for which |x-v| <= da,
+///             or n if no such element exists
 template <typename Type>
 ulong bsearch_approx(const Type *f,
                      const ulong n,
                      const Type v,
                      const Type da) noexcept {
-    assert(n);
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t k = bsearch_geq(f, n, v-da);
     if (k<n) k = bsearch_leq(f+k, n-k, v+da);
     return k;
 }
 
-/// Return index of first element x in f[] for which  |(x-v)| <= da
-///    with respect to comparison function cmp().
-/// Return n if there is no such element.
-/// f[] must be sorted in ascending order.
-/// da must be positive.
+/// Binary search for elements approximately equal to a value within a given 
+/// tolerance using a custom comparator
+/// 
+/// NOTE: f[] must be sorted in ascending order.
+/// NOTE: da must be positive.
+/// NOTE: Makes sense only with inexact types (float or double).
 ///
-/// Makes sense only with inexact types (float or double).
-/// Must have  n!=0
+/// \param f[in]: Pointer to the sorted array to search in
+/// \param n[in]: Length of the array
+/// \param v[in]: Value to search for
+/// \param da[in]: Tolerance value - elements within v±da will match
+/// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
+/// \return Index of first element x in f[] for which |x-v| <= da according to
+///         comparator, or n if no such element exists
 template <typename Type>
 size_t bsearch_approx(const Type *f,
                      const size_t n,
                      const Type v,
                      const Type da,
                      int (*cmp)(const Type &, const Type &)) noexcept {
-    assert(n);
+    if (n == 0) [[unlikely]] {
+        return 0;
+    }
+
     size_t k = bsearch_geq(f, n, v-da, cmp);
-    if ( k<n )  k = bsearch_leq(f+k, n-k, v+da, cmp);
+    if (k < n) { 
+        k = bsearch_leq(f+k, n-k, v+da, cmp); 
+    }
+
     return k;
 }
 
-/// Return minimal i so that f[x[i]] == v.
-/// Return n if there is no such i.
-/// f[x[]] must be (index-)sorted in ascending order:
-/// f[x[i]] <= f[x[i+i]]
-/// Must have  n!=0
+/// Binary search for an exact value in an indirectly sorted array
+/// NOTE: f[x[]] must be (index-)sorted in ascending order: f[x[i]] <= f[x[i+1]]
+///
+/// \param f[in]: Pointer to the base array
+/// \param n[in]: Length of the index array
+/// \param x[in]: Pointer to the array of indices into f
+/// \param v[in]: Value to search for
+/// \return Minimal index i so that f[x[i]] == v, or n if no such i exists
 template <typename Type>
 size_t idx_bsearch(const Type *f,
                    const size_t n, 
                    const size_t *x,
                    const Type v) noexcept {
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     ulong nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         ulong t = (nhi+nlo)/2;
@@ -204,16 +279,24 @@ size_t idx_bsearch(const Type *f,
     else                 return n;
 }
 
-/// Return minimal i so that f[x[i]] >= v.
-/// Return n if there is no such i.
-/// f[x[]] must be (index-)sorted in ascending order:
-/// f[x[i]] <= f[x[i+i]]
-/// Must have  n!=0
+/// Binary search for the first element greater than or equal to a value in an 
+/// indirectly sorted array
+/// NOTE: f[x[]] must be (index-)sorted in ascending order: f[x[i]] <= f[x[i+1]]
+/// 
+/// \param f[in]: Pointer to the base array
+/// \param n[in]: Length of the index array
+/// \param x[in]: Pointer to the array of indices into f
+/// \param v[in]: Value to compare against
+/// \return Minimal index i so that f[x[i]] >= v, or n if no such i exists
 template <typename Type>
 size_t idx_bsearch_geq(const Type *f,
                        const size_t n,
                        const ulong *x,
                        const Type v) noexcept {
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         size_t t = (nhi+nlo)/2;
@@ -226,18 +309,25 @@ size_t idx_bsearch_geq(const Type *f,
     else                 return n;
 }
 
-/// Return index-ptr i of first element in f[] that is == v
-/// i.e. f[x[i]] == v, with i minimal.
-/// Return n if there is no such element
-/// f[x[]] must be (index-)sorted in ascending order:
-/// f[x[i]] <= f[x[i+i]]
-/// Must have  n!=0
+/// Binary search for an exact value in an indirectly sorted array using a custom comparator
+/// NOTE: f[x[]] must be (index-)sorted in ascending order according to the comparator: f[x[i]] <= f[x[i+1]]
+/// 
+/// \param f[in]: Pointer to the base array
+/// \param n[in]: Length of the index array
+/// \param x[in]: Pointer to the array of indices into f
+/// \param v[in]: Value to search for
+/// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
+/// \return Minimal index i so that f[x[i]] == v, or n if no such i exists
 template <typename Type>
 size_t idx_bsearch(const Type *f,
                    const size_t n, 
                    const ulong *x,
                    const Type v,
                    int (*cmp)(const Type &, const Type &)) {
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
+
     size_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
         size_t t = (nhi+nlo)/2;
@@ -249,18 +339,26 @@ size_t idx_bsearch(const Type *f,
     else                         return n;
 }
 
-/// Return index-ptr of first element in f[] that is >= v
-/// i.e. f[x[i]] >= v, with i minimal.
-/// Return n if there is no such element
-/// f[x[]] must be (index-)sorted in ascending order:
-/// f[x[i]] <= f[x[i+i]]
-/// Must have  n!=0
+/// Binary search for the first element greater than or equal to a value in an
+/// indirectly sorted array using a custom comparator.
+/// NOTE: f[x[]] must be (index-)sorted in ascending order according to the 
+/// comparator: f[x[i]] <= f[x[i+1]]
+/// 
+/// \param f[in]: Pointer to the base array
+/// \param n[in]: Length of the index array
+/// \param x[in]: Pointer to the array of indices into f
+/// \param v[in]: Value to compare against
+/// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
+/// \return Minimal index i so that f[x[i]] >= v, or n if no such i exists
 template <typename Type>
 size_t idx_bsearch_geq(const Type *f,
                        const size_t n,
                        const ulong *x,
                        const Type v,
                       int (*cmp)(const Type &, const Type &)) {
+    if (n <= 1) [[unlikely]] {
+        return 0;
+    }
     ulong nlo=0, nhi=n-1;
     while (nlo != nhi) {
         ulong t = (nhi+nlo)/2;
@@ -272,19 +370,20 @@ size_t idx_bsearch_geq(const Type *f,
     else                         return n;
 }
 
-/// See Paul Khuong's
-/// https://www.pvk.ca/Blog/2012/07/03/binary-search-star-eliminates-star-branch-mispredictions/
+/// Binary search implementation based on Paul Khuong's branch-prediction optimized algorithm
+/// See: https://www.pvk.ca/Blog/2012/07/03/binary-search-star-eliminates-star-branch-mispredictions/
 /// NOTE: probably wrong
-/// \tparam T
-/// \param list
-/// \param len_list
-/// \param value
-/// \return -1 on error
+/// 
+/// \tparam T Type of elements in the array
+/// \param list[in]: Pointer to the sorted array to search in
+/// \param len_list[in]: Length of the array
+/// \param value[in]: Value to search for
+/// \return Index of the matching element, or -1 if not found or on error
 template<typename T>
-static size_t Khuong_bin_search(const T *list,
-                                const size_t len_list,
-                                const T value) {
-	if (len_list <= 1) {
+size_t Khuong_bin_search(const T *list,
+                         const size_t len_list,
+                         const T value) {
+	if (len_list <= 1) [[unlikely]] {
 		return 0;
 	}
 
@@ -302,12 +401,14 @@ static size_t Khuong_bin_search(const T *list,
 	return (*low == value) ? (low - list) : -1;
 }
 
-/// src: https://en.algorithmica.org/hpc/data-structures/binary-search/
-/// \tparam T
-/// \param list
-/// \param len
-/// \param x
-/// \return
+/// Eytzinger layout binary search with prefetching optimization
+/// Source: https://en.algorithmica.org/hpc/data-structures/binary-search/
+/// 
+/// \tparam T Type of elements in the array (must be integral)
+/// \param list[in]: Pointer to the sorted array in Eytzinger layout
+/// \param len[in]: Length of the array
+/// \param x[in]: Value to search for
+/// \return Index of the first element not less than x
 template<typename T>
 #if __cplusplus > 201709L
 	requires std::is_integral_v<T>
@@ -315,6 +416,10 @@ template<typename T>
 int lower_bound_eytzinger_prefetch(const T *list,
                 const size_t len,
                 const T x) {
+	if (len <= 1) [[unlikely]] {
+		return 0;
+	}
+
 	size_t k = 1;
 	while (k <= len) {
 		__builtin_prefetch(list + k * 16);
@@ -325,15 +430,15 @@ int lower_bound_eytzinger_prefetch(const T *list,
 }
 
 
-///
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
+/// Standard binary search implementation to find upper bound with hash function
+/// 
+/// \tparam ForwardIt Forward iterator type
+/// \tparam Hash Hash function type for the value type
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param key_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element greater than key_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -375,15 +480,15 @@ ForwardIt upper_bound_standard_binary_search(ForwardIt first,
 	return last;
 }
 
-///
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
+/// Standard binary search implementation to find lower bound with hash function
+/// 
+/// \tparam ForwardIt Forward iterator type
+/// \tparam Hash Hash function type for the value type
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param key_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than key_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -395,12 +500,16 @@ ForwardIt lower_bound_standard_binary_search(ForwardIt first,
                                              const typename ForwardIt::value_type &key_,
                                              Hash h) noexcept {
 	ForwardIt it;
-	typename std::iterator_traits<ForwardIt>::difference_type count, step;
-	count = std::distance(first, last);
+	using T = typename std::iterator_traits<ForwardIt>::difference_type;
+	T count = std::distance(first, last);
+	if (count <= 1) {
+		return first;
+	}
+
 	const auto key = h(key_);
 	while (count > 0) {
 		it = first;
-		step = count / 2;
+		const T step = count / 2;
 		std::advance(it, step);
 		if (h(*it) < key) {
 			first = ++it;
@@ -412,18 +521,19 @@ ForwardIt lower_bound_standard_binary_search(ForwardIt first,
 }
 
 
-/// the standard binary search from text books
-/// \tparam T
-/// \param array
-/// \param array_size
-/// \param key
-/// \return
+/// The classic binary search implementation from textbooks
+/// 
+/// \tparam T Type of elements in the array
+/// \param array[in]: Pointer to the sorted array to search in
+/// \param array_size[in]: Length of the array
+/// \param key[in]: Value to search for
+/// \return Index of the element equal to key, or -1 if not found
 template<typename T>
 size_t standard_binary_search(const T *array,
                               const size_t array_size,
                               const T key) noexcept {
-	if (array_size == 0) {
-		return -1;
+	if (array_size <= 1) {
+		return 0;
 	}
 
 	size_t bot = 0, mid, top = array_size - 1;
@@ -449,18 +559,19 @@ size_t standard_binary_search(const T *array,
 	return -1;
 }
 
-/// faster than the standard binary search, same number of checks
-/// \tparam T
-/// \param array
-/// \param array_size
-/// \param key
-/// \return
+/// Faster binary search with no upper bound check - same number of comparisons as standard
+/// 
+/// \tparam T Type of elements in the array
+/// \param array[in]: Pointer to the sorted array to search in
+/// \param array_size[in]: Length of the array
+/// \param key[in]: Value to search for
+/// \return Index of the element equal to key, or -1 if not found
 template<typename T>
 size_t boundless_binary_search(const T *array,
                                const size_t array_size,
                                const T key) noexcept {
-	if (array_size == 0) {
-		return -1;
+	if (array_size <= 1) {
+		return 0;
 	}
 
 	uint64_t mid = array_size,
@@ -480,16 +591,21 @@ size_t boundless_binary_search(const T *array,
 	return -1;
 }
 
-/// always double tap
-/// \tparam T
-/// \param array
-/// \param array_size
-/// \param key
-/// \return
+/// Binary search variant that performs two comparisons at the final stages for improved performance
+/// 
+/// \tparam T Type of elements in the array
+/// \param array[in]: Pointer to the sorted array to search in
+/// \param array_size[in]: Length of the array
+/// \param key[in]: Value to search for
+/// \return Index of the element equal to key, or -1 if not found
 template<typename T>
 size_t doubletapped_binary_search(const T *array,
                                   const size_t array_size,
                                   T key) noexcept {
+	if (array_size <= 1) {
+		return 0;
+	}
+
 	size_t mid = array_size, bot = 0;
 
 	while (mid > 2) {
@@ -508,15 +624,16 @@ size_t doubletapped_binary_search(const T *array,
 	return -1;
 }
 
-///
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
+/// Monobound binary search implementation to find upper bound with hash function
+/// This variant uses a different comparison strategy that can reduce branch mispredictions
+/// 
+/// \tparam ForwardIt Forward iterator type
+/// \tparam Hash Hash function type for the value type
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param key_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element greater than key_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -533,8 +650,9 @@ ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
 	auto it = first;
 	auto top = last;
 	std::advance(top, -1);
-	if (count == 0)
+	if (count == 0) {
 		return last;
+    }
 
 	while (count > 1) {
 		const auto midc = count / 2;
@@ -555,15 +673,16 @@ ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
 	return bot;
 }
 
-///
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
+/// Monobound binary search implementation to find lower bound with hash function
+/// This variant uses a different comparison strategy that can reduce branch mispredictions
+/// 
+/// \tparam ForwardIt Forward iterator type
+/// \tparam Hash Hash function type for the value type
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param key_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than key_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -581,8 +700,9 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
 	auto top = last;
 	std::advance(top, -1);
 
-	if (count == 0)
+	if (count == 0) {
 		return last;
+    }
 
 	while (count > 1) {
 		const auto mid = count / 2;
@@ -608,18 +728,20 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
 	return last;
 }
 
-/// faster than the boundless binary search, more checks
-/// \tparam T
-/// \param array
-/// \param array_size
-/// \param key
-/// \return
+/// Monobound binary search - typically faster than boundless binary search despite more checks
+/// Uses a different approach to mid-point calculation and range reduction
+/// 
+/// \tparam T Type of elements in the array
+/// \param array[in]: Pointer to the sorted array to search in
+/// \param array_size[in]: Length of the array
+/// \param key[in]: Value to search for
+/// \return Index of the element equal to key, or 0 if not found
 template<typename T>
 size_t monobound_binary_search(const T *array,
                                const size_t array_size,
                                const T key) noexcept {
 	if (array_size == 0) {
-		return -1;
+		return 0;
 	}
 
 	uint64_t bot = 0, mid, top = array_size;
@@ -641,7 +763,7 @@ size_t monobound_binary_search(const T *array,
 	return -1;
 }
 
-///
+/// TODO doc
 /// \tparam ForwardIt
 /// \tparam T
 /// \tparam Hash
@@ -688,18 +810,19 @@ ForwardIt tripletapped_binary_search(ForwardIt first,
 	return last;
 }
 
-/// heck, always triple tap ⁍⁍⁍
-/// \tparam T
-/// \param array
-/// \param array_size
-/// \param key
-/// \return
+/// Triple-tapped binary search - performs three comparisons in the final stage for improved performance
+/// 
+/// \tparam T Type of elements in the array
+/// \param array[in]: Pointer to the sorted array to search in
+/// \param array_size[in]: Length of the array
+/// \param key[in]: Value to search for
+/// \return Index of the element equal to key, or -1 if not found
 template<typename T>
 size_t tripletapped_binary_search(const T *array,
                                   const size_t array_size,
                                   const T key) noexcept {
 	if (array_size == 0) {
-		return -1;
+		return 0;
 	}
 
 	uint64_t bot = 0, mid, top = array_size;
@@ -721,13 +844,20 @@ size_t tripletapped_binary_search(const T *array,
 	return -1;
 }
 
-// better performance on large arrays
+/// Quaternary search - better performance on large arrays by using 4-way divisions
+/// Uses quaternary divisions initially, then falls back to binary divisions for smaller ranges
+/// 
+/// \tparam T Type of elements in the array
+/// \param array[in]: Pointer to the sorted array to search in
+/// \param array_size[in]: Length of the array
+/// \param key[in]: Value to search for
+/// \return Index of the element equal to key, or -1 if not found
 template<typename T>
 size_t monobound_quaternary_search(const T *array,
                                    const size_t array_size,
                                    const T key) noexcept {
 	if (array_size == 0) {
-		return -1;
+		return 0;
 	}
 
 	uint64_t bot = 0, mid, top = array_size;
@@ -789,13 +919,16 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.*/
 
 ///  https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGErqSuADJ4DJgAcj4ARpjEIABsAQAOqAqETgwe3r7%2BpClpjgIhYZEsMXGJtpj2hQxCBEzEBFk%2BflwBdpgOGfWNBMUR0bEJHQ1NLTnttmP9oYNlw4kAlLaoXsTI7BzmAMyhyN5YANQmO27ICgT4gqfYJhoAgrv7h5gnZ5fotHhRAHQIt3uTzMewYBy8x1ObjEwBIhAQLEBj2eYNe7zcADcukRiEinsiQVgaGEjsgWKgMQB9eKSCBMUhHKJLI7oVAnADsFiOTAULCOGM8TEc9COEBOZjMZIpTHFAFYNHKuCZZW4GMq3ARzGYjiBxWZTgARXES0VMZm6rXG7UQJlLU5ckzsg1HADuCDomAgGjtOysyP9DwA9IGvKECDTKQRSeSqV4FExgJ7Q4II1H6aSBJcjsnw5JI4zmY6/UHA0cy9GKdTaemmfagcHy0diJgCOsGNy649g46DUC%2B48c6mKximBBB3m0wy0Aws%2BP81Ep5mozmdmZ8wQAhmZ8uw6v12ZmQxUJhVJsklGi/2AJw8vkCgzCt4QIGNxtagiYLOKhnmWX6lVqiqmoSte9xXlqUojnKGg/mYso7OqgEalqoEaFeFogTsRpaqadr%2BuBaEYWYVqihuKx6iREAEAesHEThNp4fiV4%2BsWjbNq2xDtkwnZPE6/YPHOUaQbQY5hkO6bTrOYkToyi7btmu5rlGG5yVJgh7spB5HEeJ5nhenLXre/KCo%2Boovq%2BZbvp%2BUbfnK/6quqwH6vhYEQTGtDQbB8GIY5KEuYReqGpRZqoehFH0WRtGUdR5GWvRtb4Sx5lluxbYdr6fZ8QGQIfiwSQPpgUIEAAnkkjCsG8ACSBAMiVZXMGwRwACq1aV5WNW4eV4pJH6qEkxBHNVjLEIYyAIPQCgKJStCoC6sSUlEawMOgEBDTEwChKQyUWTtu1lkNrhbY8e0nTtPXNeK8Qjt4mBHQ8p0PeWnVJJd5jxBmeWNJghYGcd5afCAIBpAAXpg%2Bb0EYBAIO8zquEcAC0jKYBtaoZX9ZZ4FQooQ8AUMw4aRzehyxauWhqWcUcrg8a5WX4vd/1XIDINg1GlyYC9BMAyAUSEJSVAzSQEA41DSUBo2mOimzL1gGABPC9Db1vR9SRfTayOhMqFhS8qBoMtdXjfT9rE7fLCOcx%2BHOWEcSpo/TFkS0LjC4wrWEE0Tl7%2BQRV7k%2B2VO26T4G09tjZSzDRxczzBCUpsdCO5DCCi3br7raEYdw4j2u22%2BtONvwA0QKHgYE/qvrhxbRwy279pl%2BzRxF1hRxaR7Sfi1jEBoJ9zZqyjmva7Kuv8mIBtLEboVgSn7bWOb7PU2hNO9ujr7BsJ3ehIn2cL0nPtIyj4pch3KtdwAVBPetD991NB48zPzgYBeMyAWIOCQUKCbcl1r8T23nUwXhENyYcogjTBONT8U0ZpzWIAtJaK1Qi/AnhAcicDXCIIZFwDQXgGRcwmgoV%2B0lIy3EQevcs28ub4EuKNT0cCEHkRCv7J0HAVi0E4LKXgfgOBaFIKgTgbgp5WwUGsDYbxdg8FIAQTQjCVgAGsQCSCvL8dkOx2R/g0AADlUWYdkqj2jsn0JwSQbCJFcM4LwBQIAYLiI4Yw0gcBYBIAPh6MgFB26oDyo4kAwAuCrj4HQD8xAzE2iMTzZgxBiqcFEcExoxUADyURtDYnCbwDubBBDRIYLQMJVjSBYCiF4YA0JaC0DMdwXgWAWCGGAOILJ%2BBmzdCxMUzhJ4uh/y2KIsM1QjHfCAVEjwWAjEEGIHgFgiSVj8wTAoAAangTALpon1USTIQQIgxDsCkIs%2BQSg1BGN0AEAwRgUB8JsF0sxkAVioHPBkYp8NPiGlMJYawZgFTw2iTsXgFJYiDKwCc1BnRujOAgK4CYfg4KBGWgMUo5QEi6PyOkAQQKQAgphbUcFQwKi6N%2BbUXo4xPCtARbKKoNQegzBRQsNF0w%2BjwpBRQpoJLIXxHZCsAR6xNgSCYSwwxWTuEcCOKoVR8R4Y0iOMAZAyBrY7F%2BNaXAhASDih2FwJYvBLFaBHqQGR8oJXxDMJIdkV4dFmC4Oo6QzCOAGNIOwzhXLTHmLERIlVxqzAcotSYm1ViVVYn8RkWRQA%3D%3D
-/// \tparam It iterator typ
-/// \tparam Cmp  comparison operator
-/// \param begin
-/// \param end
-/// \param value
-/// \param compare
-/// \return
+/// Branchless lower bound implementation that minimizes branch mispredictions
+/// Uses bit manipulation operations to reduce branching in the inner loop
+/// 
+/// \tparam It Iterator type
+/// \tparam Cmp Comparison function type
+/// \param begin[in]: Iterator to the beginning of the range
+/// \param end[in]: Iterator to the end of the range
+/// \param value[in]: Value to compare against
+/// \param compare[in]: Comparison function
+/// \return Iterator to the first element not less than value, or end if not found
 template<typename It,
          typename Cmp>
 #if __cplusplus > 201709L
@@ -832,6 +965,13 @@ template<typename It,
 	return begin + compare(*begin, value);
 }
 
+/// Branchless lower bound implementation with default less-than comparator
+/// 
+/// \tparam It Iterator type
+/// \param begin[in]: Iterator to the beginning of the range
+/// \param end[in]: Iterator to the end of the range
+/// \param value[in]: Value to compare against
+/// \return Iterator to the first element not less than value, or end if not found
 template<typename It>
 #if __cplusplus > 201709L
 	requires std::forward_iterator<It>
@@ -843,6 +983,15 @@ template<typename It>
 }
 
 
+/// Branchless lower bound implementation that uses a hash function for comparison
+/// 
+/// \tparam It Iterator type
+/// \tparam Hash Hash function type
+/// \param begin[in]: Iterator to the beginning of the range
+/// \param end[in]: Iterator to the end of the range
+/// \param value[in]: Value to compare against
+/// \param h[in]: Hash function to use for comparisons
+/// \return Iterator to the first element not less than value, or end if not found
 template<typename It,
          typename Hash>
 #if __cplusplus > 201709L
@@ -854,7 +1003,7 @@ template<typename It,
 						const typename It::value_type &value,
 						Hash h) noexcept {
 	std::size_t length = end - begin;
-	if (length == 0) {
+	if (length <= 0) {
 		return end;
 	}
 
@@ -882,6 +1031,15 @@ template<typename It,
 
 namespace cryptanalysislib::search {
 
+	/// Find the first element not less than a value using a hash function
+	/// 
+	/// \tparam It Iterator type
+	/// \tparam Hash Hash function type
+	/// \param begin[in]: Iterator to the beginning of the range
+	/// \param end[in]: Iterator to the end of the range
+	/// \param value[in]: Value to compare against
+	/// \param h[in]: Hash function to use for comparison
+	/// \return Iterator to the first element not less than value, or end if not found
 	template<typename It,
 			 typename Hash>
 #if __cplusplus > 201709L
@@ -895,6 +1053,15 @@ namespace cryptanalysislib::search {
 		return branchless_lower_bound(begin, end, value, h);
 	}
 
+	/// Find the first element not less than a value using a custom comparator
+	/// 
+	/// \tparam It Iterator type
+	/// \tparam Compare Comparison function type
+	/// \param begin[in]: Iterator to the beginning of the range
+	/// \param end[in]: Iterator to the end of the range
+	/// \param value[in]: Value to compare against
+	/// \param cmp[in]: Comparison function
+	/// \return Iterator to the first element not less than value, or end if not found
 	template<typename It,
 			 typename Compare>
 #if __cplusplus > 201709L
@@ -908,6 +1075,15 @@ namespace cryptanalysislib::search {
 		return branchless_lower_bound(begin, end, value, cmp);
 	}
 
+	/// Search for a value in a sorted range using a hash function
+	/// 
+	/// \tparam It Iterator type
+	/// \tparam Hash Hash function type
+	/// \param begin[in]: Iterator to the beginning of the range
+	/// \param end[in]: Iterator to the end of the range
+	/// \param value[in]: Value to search for
+	/// \param h[in]: Hash function to use for comparison
+	/// \return Iterator to the matching element, or end if not found
 	template<typename It,
 			 typename Hash>
 #if __cplusplus > 201709L
@@ -921,6 +1097,15 @@ namespace cryptanalysislib::search {
 		return branchless_lower_bound(begin, end, value, h);
 	}
 
+	/// Search for a value in a sorted range using a custom comparator
+	/// 
+	/// \tparam It Iterator type
+	/// \tparam Compare Comparison function type
+	/// \param begin[in]: Iterator to the beginning of the range
+	/// \param end[in]: Iterator to the end of the range
+	/// \param value[in]: Value to search for
+	/// \param cmp[in]: Comparison function
+	/// \return Iterator to the matching element, or end if not found
 	template<typename It,
 			 typename Compare>
 #if __cplusplus > 201709L
@@ -934,6 +1119,13 @@ namespace cryptanalysislib::search {
 		return branchless_lower_bound(begin, end, value, cmp);
 	}
 
+	/// Search for a value in a sorted range using default less-than comparison
+	/// 
+	/// \tparam It Iterator type
+	/// \param begin[in]: Iterator to the beginning of the range
+	/// \param end[in]: Iterator to the end of the range
+	/// \param value[in]: Value to search for
+	/// \return Iterator to the matching element, or end if not found
 	template<typename It,
 			 typename Compare>
 #if __cplusplus > 201709L
@@ -948,13 +1140,15 @@ namespace cryptanalysislib::search {
 
 	namespace internal {
 
-		/// \tparam It
-		/// \tparam Compare
-		/// \param begin
-		/// \param end
-		/// \param value
-		/// \param cmp
-		/// \return
+		/// Dispatches to the most efficient binary search implementation based on hardware capabilities
+		/// 
+		/// \tparam It Iterator type
+		/// \tparam Compare Comparison function type
+		/// \param begin[in]: Iterator to the beginning of the range
+		/// \param end[in]: Iterator to the end of the range
+		/// \param value[in]: Value to search for
+		/// \param cmp[in]: Comparison function
+		/// \return Iterator to the matching element, or end if not found
 		template<typename It,
 				 typename Compare>
 #if __cplusplus > 201709L
@@ -985,13 +1179,15 @@ namespace cryptanalysislib::search {
 			return binary_search_dispatch(begin, end, value, cmp);
 		}
 
-		/// \tparam It
-		/// \tparam Hash
-		/// \param begin
-		/// \param end
-		/// \param value
-		/// \param h
-		/// \return
+		/// Dispatches to the most efficient binary search implementation with hash function
+		/// 
+		/// \tparam It Iterator type
+		/// \tparam Hash Hash function type
+		/// \param begin[in]: Iterator to the beginning of the range
+		/// \param end[in]: Iterator to the end of the range
+		/// \param value[in]: Value to search for
+		/// \param h[in]: Hash function to use for comparison
+		/// \return Iterator to the matching element, or end if not found
 		template<typename It,
 				 typename Hash>
 #if __cplusplus > 201709L
@@ -1021,6 +1217,7 @@ namespace cryptanalysislib::search {
 				lower_bound_monobound_binary_search<It, Hash>,
 				tripletapped_binary_search<It, Hash>,
 			};
+
 			const auto d = generic_dispatch(out, functions, 1, begin, end, value, h);
 			return binary_search_dispatch(begin, end, value, h);
 		}

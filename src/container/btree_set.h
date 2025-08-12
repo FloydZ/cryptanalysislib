@@ -18,14 +18,22 @@
 #include "helper.h"
 #include "memory/memory.h"
 
+/// TODO add namespace 
+/// TODO add Allocator to class 
+/// TODO add iterators to classes
+
+
+
 struct BKTreeConfig : public AlignmentConfig {
 	const bool example_flag = true;
 };
 constexpr static BKTreeConfig bkTreeConfig;
 
-/// \tparam E
-/// \tparam Allocator TODO add 
-/// \tparam config
+/// B-tree set implementation for efficient ordered element storage
+/// Provides O(log n) time complexity for lookups, insertions, and deletions
+/// 
+/// \tparam E Type of elements stored in the tree (must be comparable)
+/// \tparam config Configuration options for the B-tree
 template <typename E,
 		  const BKTreeConfig &config=bkTreeConfig>
 class BTreeSet final {
@@ -48,7 +56,8 @@ public:
 	using SearchResult = std::pair<bool, key_type>;
     // TODO iterators and stuff
 
-	/// print some basic information about the structure
+	/// Prints basic information about the B-tree structure
+	/// Outputs details such as element count, key constraints, and data type sizes in JSON format
 	void info() noexcept {
 		std::cout << " { name: \"BTreeSet\""
 		          << ", count:" << count
@@ -59,8 +68,10 @@ public:
 		          << " }" <<std::endl;
 	}
 
-	/// \param degree[in]: The degree is the minimum number of children each 
-    ///         non-root internal node must have.
+	/// Primary constructor that sets up the B-tree with a specified degree
+	/// The degree determines the minimum and maximum number of keys per node
+	/// 
+	/// \param degree[in] The minimum number of children each non-root internal node must have
 	constexpr explicit BTreeSet(const uint32_t degree) noexcept :
 	         minKeys(degree - 1),
 	         maxKeys(degree <= UINT32_MAX / 2 ? degree * 2 - 1 : 0) {
@@ -75,7 +86,10 @@ public:
 		clear();
 	}
 
-    /// \param other[in]:
+    /// Copy constructor
+    /// Creates a deep copy of another B-tree
+    /// 
+    /// \param other[in] The B-tree to copy
 	constexpr explicit BTreeSet(const BTreeSet &other) noexcept :
 	    root(new Node(*other.root.get())),
 	    count  (other.count  ),
@@ -83,10 +97,17 @@ public:
 	    maxKeys(other.maxKeys) {}
 
 
-    /// \param other[in]:
+    /// Move constructor
+    /// Takes ownership of another B-tree's resources
+    /// 
+    /// \param other[in] The B-tree to move from
 	constexpr BTreeSet(BTreeSet &&other) = default;
 
-    /// \param other[in]:
+    /// Assignment operator using copy-and-swap idiom
+    /// Takes a copy of the argument and swaps with it
+    /// 
+    /// \param other[in] The B-tree to assign from
+    /// \return Reference to this B-tree after assignment
 	constexpr BTreeSet &operator=(BTreeSet other) noexcept {
 		std::swap(root   , other.root);
 		std::swap(count  , other.count);
@@ -95,24 +116,34 @@ public:
 		return *this;
 	}
 
-	/// \return if the tree is empyt
+	/// Checks if the tree is empty
+	/// Tests whether the B-tree contains any elements
+	/// 
+	/// \return True if the tree is empty, false otherwise
 	[[nodiscard]] constexpr inline bool empty() const noexcept {
 		return count == 0;
 	}
 
-	/// \return: number of elements within the tree
+	/// Gets the number of elements in the tree
+	/// Returns the total count of elements stored in the B-tree
+	/// 
+	/// \return Number of elements in the tree
 	[[nodiscard]] constexpr inline std::size_t size() const noexcept {
 		return count;
 	}
 
-	/// clears the tree
+	/// Removes all elements from the tree
+	/// Resets the B-tree to an empty state by creating a new root node
 	constexpr void clear() noexcept {
 		root = std::make_unique<Node>(maxKeys, true);
 		count = 0;
 	}
 
-    /// \param val[in]:
-    /// \return true/false if the element is present or nor
+    /// Checks if an element exists in the tree
+    /// Traverses the B-tree to determine if the given element is present
+    /// 
+    /// \param val[in] The element to search for
+    /// \return True if the element is in the tree, false otherwise
 	[[nodiscard]] constexpr bool contains(const E &val) const noexcept {
 		// Walk down the tree
 		const Node *node = root.get();
@@ -129,7 +160,11 @@ public:
 		}
 	}
 
-    /// \param val[in]
+    /// Inserts an element into the B-tree
+    /// If the element already exists, the operation has no effect
+    /// Handles node splitting and tree height increases as needed
+    /// 
+    /// \param val[in] The element to insert
 	constexpr void insert(const E val) noexcept {
 		// Special preprocessing to split root node
 		if (root->keys.size() == maxKeys) {
@@ -171,8 +206,11 @@ public:
 		}
 	}
 
-	/// \param val
-	/// \return
+	/// Removes an element from the B-tree if it exists
+	/// Handles node merging and tree height decreases as needed
+	/// 
+	/// \param val[in] The element to remove
+	/// \return Number of elements removed (0 or 1)
 	constexpr std::size_t erase(const E &val) noexcept {
 		// Walk down the tree
 		bool found;
@@ -257,9 +295,12 @@ private:
 		std::vector<std::unique_ptr<Node>, Allocator2> children;
 
 
-		/// Note: Once created, a node's structure never changes between a leaf and internal node.
-		/// \param maxKeys
-		/// \param leaf
+		/// Constructor for a B-tree node
+		/// Creates either a leaf node or an internal node with reserved capacity
+		/// Note: Once created, a node's structure never changes between a leaf and internal node
+		/// 
+		/// \param maxKeys[in] Maximum number of keys this node can hold
+		/// \param leaf[in] Whether this node is a leaf (true) or internal node (false)
 		constexpr Node(const key_type maxKeys,
 					   bool leaf) noexcept {
 			assert(maxKeys >= 3 && maxKeys % 2 == 1);
@@ -269,8 +310,10 @@ private:
 			}
 		}
 
-		/// copy constructor
-		/// \param other
+		/// Copy constructor for a B-tree node
+		/// Creates a deep copy of the node and all its children
+		/// 
+		/// \param other[in] The node to copy
 		constexpr Node(const Node &other) noexcept :
 		    keys(other.keys) {
 			for (auto it = other.children.cbegin(); it != other.children.cend(); ++it) {
@@ -278,15 +321,22 @@ private:
 			}
 		}
 
-		/// \return
+		/// Determines if this node is a leaf node
+		/// A leaf node has no children
+		/// 
+		/// \return True if this is a leaf node, false if it's an internal node
 		[[nodiscard]] constexpr bool isLeaf() const noexcept {
 			return children.empty();
 		}
 
 
-		// Searches this node's keys vector and returns (true, i) if obj equals keys[i],
-		// otherwise returns (false, i) if children[i] should be explored. For simplicity,
-		// the implementation uses linear search. It's possible to replace it with binary search for speed.
+		/// Searches for a value in this node's keys
+		/// Returns a pair indicating whether the value was found and the relevant index
+		/// Uses linear search for simplicity, but could be replaced with binary search for speed
+		/// 
+		/// \param val[in] The value to search for
+		/// \return Pair where first is true if found (with index in second), 
+		///         or false with the index of the child to explore
 		constexpr SearchResult search(const E &val) const noexcept {
 			std::uint32_t i = 0;
 			while (i < keys.size()) {

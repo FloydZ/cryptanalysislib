@@ -25,6 +25,8 @@
 #include "helper.h"
 #include "memory/memory.h"
 
+/// TODO comments 
+/// TODO move fetch64/32 and rotate32  into internal namespace
 
 constexpr inline static uint64_t fetch64(const char *p) noexcept {
 	return ((uint64_t *)p)[0];
@@ -36,6 +38,7 @@ constexpr inline static uint32_t fetch32(const char *p) noexcept {
 
 template<typename T=uint32_t>
 constexpr inline static T Rotate32(const T val, const int shift) noexcept {
+    // TODO use own rotate implementation, which is optimized
 	// Avoid shifting by 32: doing so yields an undefined result.
 	return shift == T(0) ? val : ((val >> shift) | (val << ((sizeof(T)*8u) - shift)));
 }

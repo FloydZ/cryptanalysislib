@@ -7,23 +7,23 @@
 
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 #include <iterator>
-#include <vector>
 
 #include "helper.h"
 #include "hash/hash.h"
 
 
-/// SRC:https://pages.cs.wisc.edu/~chronis/files/efficiently_searching_sorted_arrays.pdf
-/// 	https://github.com/UWHustle/Efficiently-Searching-In-Memory-Sorted-Arrays/blob/master/src/algorithms/interpolation_search.h
-/// \tparam ForwardIt
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param value_
-/// \param h
-/// \return
+/// Three-point interpolation search algorithm for finding lower bound
+/// SRC: https://pages.cs.wisc.edu/~chronis/files/efficiently_searching_sorted_arrays.pdf
+///      https://github.com/UWHustle/Efficiently-Searching-In-Memory-Sorted-Arrays/blob/master/src/algorithms/interpolation_search.h
+/// 
+/// \tparam ForwardIt Type of forward iterator
+/// \tparam Hash Type of hash function for comparison
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param value_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than value_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -84,14 +84,16 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 	return left;
 }
 
-/// NOT WORKING
-/// \tparam RandIt
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param value_
-/// \param h
-/// \return
+/// Interpolation search variant 1 - NOT WORKING
+/// Uses interpolation to estimate the position of a value in a sorted range
+/// 
+/// \tparam RandIt Type of random access iterator
+/// \tparam Hash Type of hash function for comparison
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param value_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than value_, or last if not found
 template<typename RandIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -147,15 +149,16 @@ constexpr RandIt lower_bound_interpolation_search1(RandIt first,
 }
 
 
-/// taken from:
-/// https://medium.com/@vgasparyan1995/interpolation-search-a-generic-implementation-in-c-part-2-164d2c9f55fa
-/// \tparam RandIt
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param value_
-/// \param h
-/// \return
+/// Interpolation search variant 2 for finding lower bound
+/// Implementation from: https://medium.com/@vgasparyan1995/interpolation-search-a-generic-implementation-in-c-part-2-164d2c9f55fa
+/// 
+/// \tparam RandIt Type of random access iterator
+/// \tparam Hash Type of hash function for comparison
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param value_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than value_, or last if not found
 template<typename RandIt,
 		typename Hash>
 #if __cplusplus > 201709L
@@ -211,14 +214,17 @@ constexpr RandIt lower_bound_interpolation_search2(RandIt first,
 	return to_iter;
 }
 
-/// implementation idea taken from `https://en.wikipedia.org/wiki/Interpolation_search`
-/// \tparam T[in]: TODO doc
-/// \tparam Hash[in]:
-/// \param __buckets[in]:
-/// \param key[in]:
-/// \param boffset[in]:
-/// \param load[in]:
-/// \param e[in]:
+/// Array-based interpolation search implementation for lower bound
+/// Implementation idea taken from https://en.wikipedia.org/wiki/Interpolation_search
+/// 
+/// \tparam T Type of elements in the array (must be integral)
+/// \tparam Hash Type of hash function for comparison
+/// \param __buckets[in]: Pointer to the sorted array to search in
+/// \param key[in]: Value to search for
+/// \param boffset[in]: Starting offset in the array
+/// \param load[in]: Number of elements to search through
+/// \param e[in]: Hash function to use for comparison
+/// \return Index of the first element not less than key, or -1 if not found
 template<typename T,
          typename Hash>
 #if __cplusplus > 201709L
@@ -264,17 +270,19 @@ constexpr size_t LowerBoundInterpolationSearch(const T *__buckets,
 		return -1;
 }
 
-/// Implementation Idea taken from wikipedia: `https://en.wikipedia.org/wiki/Interpolation_search`
-/// This search algorithm assumes a lot.
-///		T must implement
-/// 			<	Operator
-/// \tparam RandIt	Iterator, must be rng access_iterator
-/// \tparam Hash		Hash/Extractor function
-/// \param first		low end iterator
-/// \param last			high end iterator
-/// \param key_			value to look for
-/// \param e			instantiation of the extractor/hash function
-/// \return
+/// Iterator-based interpolation search implementation for lower bound
+/// Implementation idea taken from https://en.wikipedia.org/wiki/Interpolation_search
+/// 
+/// \tparam RandIt Type of random access iterator
+/// \tparam Hash Type of hash function for comparison
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param key_[in]: Value to search for
+/// \param e[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than key_, or last if not found
+///
+/// Note: The search assumes that the value type implements the < operator,
+/// and values are distributed uniformly
 template<typename RandIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -337,13 +345,15 @@ RandIt LowerBoundInterpolationSearch(RandIt first,
 
 namespace cryptanalysislib::search {
 
-	/// \tparam RandIt TODO doc
-	/// \tparam Hash
-	/// \param first
-	/// \param last
-	/// \param key_
-	/// \param e
-	/// \return
+	/// Perform interpolation search to find a value in a sorted range with a provided hash function
+	/// 
+	/// \tparam RandIt Type of random access iterator
+	/// \tparam Hash Type of hash function for comparison
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param key_[in]: Value to search for
+	/// \param e[in]: Hash function to use for comparison
+	/// \return Iterator to the matching element, or last if not found
 	template<typename RandIt,
 	         typename Hash>
 #if __cplusplus > 201709L
@@ -359,12 +369,14 @@ namespace cryptanalysislib::search {
 		return lower_bound_interpolation_3p_search(first, last, key_, e);
 	}
 
-	/// \tparam RandIt
-	/// \tparam Hash
-	/// \param first
-	/// \param last
-	/// \param key_
-	/// \return
+	/// Perform interpolation search to find a value in a sorted range using default hash function
+	/// 
+	/// \tparam RandIt Type of random access iterator
+	/// \tparam Hash Type of hash function for comparison
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param key_[in]: Value to search for
+	/// \return Iterator to the matching element, or last if not found
 	template<typename RandIt,
 	         typename Hash>
 #if __cplusplus > 201709L
@@ -384,6 +396,15 @@ namespace cryptanalysislib::search {
 
 	namespace internal {
 
+		/// Dispatches to the most efficient interpolation search implementation based on benchmarks
+		/// 
+		/// \tparam It Type of iterator
+		/// \tparam Hash Type of hash function for comparison
+		/// \param begin[in]: Iterator to the beginning of the range
+		/// \param end[in]: Iterator to the end of the range
+		/// \param value[in]: Value to search for
+		/// \param h[in]: Hash function to use for comparison
+		/// \return Iterator to the matching element, or end if not found
 		template<typename It,
 				 typename Hash>
 #if __cplusplus > 201709L

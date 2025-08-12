@@ -1,13 +1,9 @@
 #ifndef CRYPTANALYSISLIB_AA_TREE_H
 #define CRYPTANALYSISLIB_AA_TREE_H
 
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <set>
-#include <stdexcept>
-#include <utility>
 
 #include "memory/memory.h"
 #include "alloc/alloc.h"
@@ -36,6 +32,7 @@ private:
 
 	using allocator_type = Allocator;
 	const Allocator &alloc = Allocator();
+
 public:
 	using node = AANode<T, config>;
 

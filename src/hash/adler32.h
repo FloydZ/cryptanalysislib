@@ -8,13 +8,19 @@
 #include <immintrin.h>
 #endif
 
+// TODO add dispatch function like in `src/search/binary.h`
+// TODO move the internal horizontally addition functions to the simd interface
+
 namespace cryptanalysislib::hash::adler32::internal {
 	constexpr static uint32_t MOD = 65521u;
 	constexpr static uint32_t NMAX = 5552u;
 
 #if defined(USE_AVX2) || defined(USE_AVX512F)
-	/// \param v
-	/// \return
+	/// Horizontal addition of 32-bit integers in a 256-bit AVX2 vector
+	/// Used for summing partial results in Adler32 calculation
+	/// 
+	/// \param v[in] Vector containing values to be horizontally added
+	/// \return Sum of all 32-bit integers in the vector
 	static uint32_t avx2_hadd_adler32(const __m256i v) noexcept {
 		alignas(32) __m128i tmp[2];
 		_mm256_store_si256((__m256i *)tmp, v);
@@ -29,8 +35,11 @@ namespace cryptanalysislib::hash::adler32::internal {
 	}
 
 #if defined(USE_AVX512F)
-	/// \param v
-	/// \return
+	/// Horizontal addition of 32-bit integers in a 512-bit AVX512 vector
+	/// Uses avx2_hadd_adler32 to process two 256-bit halves of the input vector
+	/// 
+	/// \param v[in] Vector containing values to be horizontally added
+	/// \return Sum of all 32-bit integers in the vector
 	static uint32_t avx512_hadd_adler32(const __m512i v) noexcept {
 		alignas(32) __m256i b[2];
 		_mm512_store_si512((__m512i *)b, v);
@@ -41,11 +50,14 @@ namespace cryptanalysislib::hash::adler32::internal {
 #endif
 };// namespace cryptanalysislib::hash::adler32::internal
 
-/// \param a
-/// \param b
-/// \param in
-/// \param in_len_
-/// \return
+/// Updates an Adler-32 checksum with new data
+/// Implements the standard Adler-32 algorithm with optimized loop unrolling
+/// 
+/// \param a[in] Lower 16 bits of the current Adler-32 value
+/// \param b[in] Upper 16 bits of the current Adler-32 value
+/// \param in[in] Pointer to input data
+/// \param in_len_[in] Length of input data in bytes
+/// \return Updated Adler-32 checksum (b << 16 | a)
 constexpr static uint32_t adler32_update(uint16_t a,
 										 uint16_t b,
                                   		 const uint8_t *in,
@@ -84,16 +96,16 @@ constexpr static uint32_t adler32_update(uint16_t a,
 	return (uint32_t)(b << 16u) + (uint32_t)a;
 }
 
-/// \param val
-/// \param in
-/// \param in_len_
-/// \return
+/// Calculates or updates an Adler-32 checksum for a block of data
+/// A wrapper around adler32_update that handles the initial value splitting
+/// 
+/// \param val[in] Initial Adler-32 value (typically 1 for new checksums)
+/// \param in[in] Pointer to input data
+/// \param in_len_[in] Length of input data in bytes
+/// \return Calculated Adler-32 checksum
 constexpr static uint32_t adler32(uint32_t val,
                                   const uint8_t *in,
                                   const size_t in_len_) noexcept {
-	using cryptanalysislib::hash::adler32::internal::MOD;
-	using cryptanalysislib::hash::adler32::internal::NMAX;
-
 	uint32_t a = val & 0xffffu;
 	uint32_t b = val >> 16u;
 	return adler32_update(a, b, in, in_len_);
@@ -102,17 +114,22 @@ constexpr static uint32_t adler32(uint32_t val,
 #ifdef USE_AVX2
 #include <immintrin.h>
 
-/// translation from: https://github.com/mcountryman/simd-adler32/blob/main/src/imp/avx2.rs
-/// \param val
-/// \param in
-/// \param in_len
-/// \return
+/// AVX2-optimized version of Adler-32 checksum calculation
+/// Based on implementation from: https://github.com/mcountryman/simd-adler32/blob/main/src/imp/avx2.rs
+/// Uses SIMD operations to process 32 bytes at a time
+/// 
+/// \param val[in] Initial Adler-32 value (typically 1 for new checksums)
+/// \param in[in] Pointer to input data
+/// \param in_len[in] Length of input data in bytes
+/// \return Calculated Adler-32 checksum
 constexpr static uint32_t avx2_adler32(const uint32_t val,
                                   	   const uint8_t *in,
                                   	   const size_t in_len) noexcept {
 	using cryptanalysislib::hash::adler32::internal::MOD;
 	using cryptanalysislib::hash::adler32::internal::NMAX;
 	using cryptanalysislib::hash::adler32::internal::avx2_hadd_adler32;
+
+    // TODO make this a function argument? Or move it anywhere useful
 	constexpr size_t BLOCK_SIZE = 32u;
 
 	if (in_len < BLOCK_SIZE) {
@@ -153,7 +170,14 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
 
 #ifdef USE_AVX512F 
 
-/// NOTE: needs AVX512F and AVX512BW
+/// AVX512-optimized version of Adler-32 checksum calculation
+/// Requires both AVX512F and AVX512BW instruction set extensions
+/// Uses SIMD operations to process 64 bytes at a time for maximum throughput
+/// 
+/// \param val[in] Initial Adler-32 value (typically 1 for new checksums)
+/// \param in[in] Pointer to input data
+/// \param in_len[in] Length of input data in bytes
+/// \return Calculated Adler-32 checksum
 constexpr static uint32_t avx512_adler32(uint32_t val,
                                   		 const uint8_t *in,
                                   		 const size_t in_len) noexcept {

@@ -4,6 +4,10 @@
 #include "algorithm/algorithm.h"
 #include "thread/thread.h"
 
+/// TODO parallel version of for_each_n
+/// TODO parallel version of for_each_chunk
+
+
 namespace cryptanalysislib {
 	/// Configuration for for_each algorithms
 	struct AlgorithmForEachConfig : public AlgorithmConfig {
@@ -129,8 +133,8 @@ namespace cryptanalysislib {
 #endif
     void for_each_chunk(RandIt first,
                         RandIt last,
-                        ChunkConstructor construct, 
-                        UnaryFunction f) noexcept {
+                        ChunkConstructor &&construct, 
+                        UnaryFunction &&f) noexcept {
         if (first == last) {
             return;
         }
