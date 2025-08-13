@@ -41,16 +41,19 @@ public:
     T(uint32_t v) noexcept : value(v) {}
 };
 
+/// Compare class to compare two strings
 class Cmp {
 public:
 	constexpr inline int operator()(const K *k1,
                                     const K *k2) const noexcept {
+		std::cout << 'cmp()' << std::endl;
 		std::cout << *k1 << std::endl;
 		std::cout << *k2 << std::endl;
         return k1->compare(*k2);
 	}
 };
 
+/// Helper class computing the length of a key
 class KLen {
 public:
 	constexpr inline int operator()(const K *k1) const noexcept {
@@ -58,14 +61,24 @@ public:
 	}
 };
 
+/// Helper class hashing a value T to a key K
 class THash {
 public:
 	constexpr inline K operator()(const T *k1) const noexcept {
 		return k1->k;
 	}
 };
+
+/// Helper class accessing the binary data of a key k
+class KBinary {
+public:
+	constexpr inline uint8_t*operator()(const K *k1) const noexcept {
+		return (uint8_t *)k1->data();
+	}
+};
+
 // For the tests, we'll specialize the critbit_tree class
-using CritBitTree = critbit_tree<T, K, THash, Cmp, KLen>;
+using CritBitTree = critbit_tree<T, K, THash, Cmp, KLen, KBinary>;
 
 class CritBitTest : public testing::Test {
 protected:
@@ -89,13 +102,18 @@ TEST_F(CritBitTest, Initialization) {
     // Since most methods are private, we need to test indirectly
     // For example, we can verify that a lookup returns nullptr
     
-    K key("abc");
+    K key("a");
+    K key2("ab");
 	T t;
-    
+	T t2; t2.k = key2;
+
     using critbit_node = CritBitTree::critbit_node;
     critbit_node *nnode = (critbit_node *)malloc(sizeof(critbit_node));
     tree.critbit_insert(nnode, &t);
-    auto r1 = tree.critbit_insert(nnode, &t);
+
+    critbit_node *nnode2 = (critbit_node *)malloc(sizeof(critbit_node));
+    auto r1 = tree.critbit_insert(nnode2, &t2);
+
     auto r2= tree.critbit_get_impl(&key);
     
     // EXPECT_NE(r1, nullptr);

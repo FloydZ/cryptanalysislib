@@ -26,7 +26,8 @@ template<typename critbit_ref,
          typename critbit_key,
          typename Hash,
          typename KeyCompare,
-         typename KeyLen>
+         typename KeyLen,
+         typename KeyBinary>
 class critbit_tree {
 private:
     
@@ -39,6 +40,7 @@ private:
     KeyCompare keycmp = KeyCompare();
     KeyLen keylen = KeyLen(); 
 	Hash hash{};
+	KeyBinary keybinary{};
 public:
     struct critbit_node {
     	critbit_ref *child[2];
@@ -177,7 +179,8 @@ private:
     inline critbit_key *
     critbit_insert_impl(critbit_node *newnode,
                         const critbit_key *key) noexcept {
-    	const uint8_t *const ubytes = (const uint8_t *const)&key;
+    	// const uint8_t *const ubytes = (const uint8_t *const)&key;
+    	const uint8_t *const ubytes = keybinary(key);
         const size_t keyLen = keylen(key);
     	critbit_node *q;
     	critbit_ref *p = (critbit_ref *)this->root;
@@ -205,7 +208,8 @@ private:
     		p = (critbit_ref *)q->child[direction];
     	}
     
-    	pkey = (const uint8_t *)(critbit_ref_get_key(p));
+    	// pkey = (const uint8_t *)(critbit_ref_get_key(p));
+    	pkey = keybinary(critbit_ref_get_key(p));
     	for (newbyte = 0; newbyte < keyLen; ++newbyte) {
     		if (pkey[newbyte] != ubytes[newbyte]) {
     			newotherbits = pkey[newbyte] ^ ubytes[newbyte];
