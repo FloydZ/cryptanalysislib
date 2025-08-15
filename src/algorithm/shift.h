@@ -95,7 +95,8 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
     requires std::forward_iterator<ForwardIt>
 #endif
-    ForwardIt shift_right(ForwardIt first, ForwardIt last,
+    ForwardIt shift_right(ForwardIt first,
+                          ForwardIt last,
                           typename std::iterator_traits<ForwardIt>::difference_type n) {
         if (n == 0) {
             return first;
@@ -127,11 +128,14 @@ namespace cryptanalysislib {
     /// \param last Iterator one past the last element in the range
     /// \param n Number of positions to shift left
     /// \return Iterator to the new end of the range (last - n)
-    template<class ExecPolicy, class ForwardIt>
+    template<class ExecPolicy,
+             class ForwardIt>
 #if __cplusplus > 201709L
     requires std::random_access_iterator<ForwardIt>
 #endif
-    ForwardIt shift_left(ExecPolicy&& policy, ForwardIt first, ForwardIt last,
+    ForwardIt shift_left(ExecPolicy&& policy,
+                         ForwardIt first,
+                         ForwardIt last,
                          typename std::iterator_traits<ForwardIt>::difference_type n) {
         if (n == 0) {
             return last;
