@@ -41,6 +41,12 @@ private:
     KeyLen keylen = KeyLen(); 
 	Hash hash{};
 	KeyBinary keybinary{};
+
+	struct critbit_key_ref_tuple {
+		critbit_key key;
+		critbit_ref ref;
+	};
+
 public:
     struct critbit_node {
     	critbit_ref *child[2];
@@ -59,9 +65,9 @@ private:
 
 public:
     /// TODO doc
-    critbit_tree() noexcept {
-    	root = NULL;
-    }
+    critbit_tree() noexcept : free_arg(nullptr) {
+		root = nullptr;
+	}
 
 private:
     // /// TODO doc
@@ -77,7 +83,7 @@ private:
   
 
     constexpr static inline
-    int critbit_ref_is_internal(critbit_ref *ref) noexcept {
+    int critbit_ref_is_internal(const critbit_ref *ref) noexcept {
     	return (((intptr_t)ref) & 1);
     }
    
@@ -91,7 +97,7 @@ private:
     constexpr static inline
     void critbit_ref_set_node(critbit_ref **ref,
                               critbit_node *node) noexcept {
-    	*ref = (critbit_ref *)((uint8_t *)node + 1);
+    	*ref = (critbit_ref *)(((uint8_t *)node) + 1);
     	assert(critbit_ref_is_internal(*ref));
     }
     
@@ -102,11 +108,11 @@ private:
     	assert(!critbit_ref_is_internal(*ref));
     }
     
-    constexpr static inline 
-    critbit_key * critbit_ref_get_key(critbit_ref *ref) noexcept {
-    	critbit_key *key = (critbit_key *)ref;
+    constexpr inline
+    critbit_key * critbit_ref_get_key(const critbit_ref *ref) const noexcept {
+    	const critbit_key *key = hash(ref);
     	assert(!critbit_ref_is_internal(ref));
-    	return (key);
+    	return (critbit_key *)key;
     }
 
     constexpr static inline const uint8_t *
@@ -146,17 +152,16 @@ public:
     inline critbit_ref *
     critbit_get_impl(const critbit_key *key) noexcept {
         const size_t keyLen = keylen(key);
-    	const uint8_t *ubytes = (uint8_t *)key;
-    	critbit_node *node;
+    	const uint8_t *ubytes = (uint8_t *)keybinary(key);
     	critbit_ref *ref = (critbit_ref *)this->root;
-    	uint8_t c;
+    	uint8_t c = 0;;
     
-    	if (ref == NULL) {
-    		return NULL;
+    	if (ref == nullptr) {
+    		return nullptr;
         }
     
     	while (critbit_ref_is_internal(ref)) {
-    		node = critbit_ref_get_node(ref);
+    		critbit_node *node = critbit_ref_get_node(ref);
     
     		c = 0;
     		if (node->byte < keyLen) {
@@ -172,17 +177,17 @@ public:
     		return ref;
         }
     
-    	return NULL;
+    	return nullptr;
     }
-private:
-    /// TODO returns?
+
+	/// TODO returns?
     inline critbit_key *
     critbit_insert_impl(critbit_node *newnode,
-                        const critbit_key *key) noexcept {
+    				    const critbit_ref *ref) noexcept {
+    	const critbit_key *key = hash(ref);
     	// const uint8_t *const ubytes = (const uint8_t *const)&key;
     	const uint8_t *const ubytes = keybinary(key);
         const size_t keyLen = keylen(key);
-    	critbit_node *q;
     	critbit_ref *p = (critbit_ref *)this->root;
     	const uint8_t *pkey;
     	uint32_t newbyte;
@@ -191,14 +196,14 @@ private:
     
     	if (p == nullptr) {
             // case where the first element is inserted
-    		critbit_ref_set_key((critbit_ref **)&this->root, (const critbit_key *)key);
+    		critbit_ref_set_key((critbit_ref **)&this->root, (const critbit_key *)ref);
     		critbit_node_free(newnode);
-    		return NULL;
+    		return nullptr;
     	}
     
     	while (critbit_ref_is_internal(p)) {
-    		q = critbit_ref_get_node(p);
-    
+    		critbit_node *q = critbit_ref_get_node(p);
+
     		c = 0;
     		if (q->byte < keyLen) {
     			c = ubytes[q->byte];
@@ -207,6 +212,7 @@ private:
     		const int direction = (1 + (q->otherbits | c)) >> 8;
     		p = (critbit_ref *)q->child[direction];
     	}
+    	// NOTE: from this point on `p` is a pointer `T`
     
     	// pkey = (const uint8_t *)(critbit_ref_get_key(p));
     	pkey = keybinary(critbit_ref_get_key(p));
@@ -228,18 +234,18 @@ private:
     different_byte_found:
     
     	newotherbits = ms1b8(newotherbits) ^ 255;
-    	const int newdirection = (1 + (newotherbits | pkey[newbyte])) >> 8;
+    	const uint32_t newdirection = (1 + (newotherbits | pkey[newbyte])) >> 8;
     
     	newnode->byte = newbyte;
     	newnode->otherbits = newotherbits;
-    	critbit_ref_set_key((critbit_ref **)&newnode->child[1 - newdirection], key);
+    	critbit_ref_set_key((critbit_ref **)&newnode->child[1 - newdirection], (critbit_key *)ref);
     
     	critbit_ref **wherep = (critbit_ref **)&this->root;
     	for (;;) {
     		p = *wherep;
     		if (!critbit_ref_is_internal(p))
     			break;
-    		q = critbit_ref_get_node(p);
+    		critbit_node *q = critbit_ref_get_node(p);
     		if (q->byte > newbyte)
     			break;
     		if (q->byte == newbyte && q->otherbits > newotherbits)
@@ -253,107 +259,53 @@ private:
     
     	newnode->child[newdirection] = *wherep;
     	critbit_ref_set_node(wherep, newnode);
-    
-            std::cout << "2. error" << std::endl;
-    	return NULL;
+    	return nullptr;
     }
     
-    // static inline 
-    // critbit_key *critbit_remove_impl(critbit_tree *t,
-    //                                         const void *key,
-    //                                         size_t keylen,
-    //                                         critbit_keycmp_t *keycmp, 
-    //                                         critbit_keybuf_t *keybuf) noexcept {
-    // 	const uint8_t *ubytes = (const uint8_t *)key;
-    // 	critbit_ref *p = (critbit_ref *)t->root;
-    // 	critbit_node *q = NULL;
-    // 	critbit_ref **wherep = (critbit_ref **)&t->root;
-    // 	critbit_ref **whereq = NULL;
-    // 	int direction = 0;
-    // 
-    // 	if (p == NULL)
-    // 		return (NULL);
-    // 
-    // 	while (critbit_ref_is_internal(p)) {
-    // 		whereq = wherep;
-    // 		q = critbit_ref_get_node(p);
-    // 		uint8_t c = 0;
-    // 		if (q->byte < keylen)
-    // 			c = ubytes[q->byte];
-    // 		direction = (1 + (q->otherbits | c)) >> 8;
-    // 		wherep = (critbit_ref **)q->child + direction;
-    // 		p = *wherep;
-    // 	}
-    // 
-    // 	if (keycmp(keybuf(critbit_ref_get_key(p)), ubytes, keylen) != 0)
-    // 		return (NULL);
-    // 
-    // 	/* Remove p */
-    // 
-    // 	if (whereq == NULL) {
-    // 		t->root = NULL;
-    // 		return (critbit_ref_get_key(p));
-    // 	}
-    // 
-    // 	*whereq = (critbit_ref *)q->child[1 - direction];
-    // 	critbit_node_free(q);
-    // 
-    // 	return (critbit_ref_get_key(p));
-    // }
-    // 
-    // void* critbit_buf_get(critbit_tree *t,
-    //                       const void *key) noexcept {
-    // 	return (critbit_get_impl(t, key, critbit_buf_keylen(t, (uint8_t *)key), critbit_buf_keycmp, critbit_buf_keybuf));
-    // }
-    // 
-    // void *
-    // critbit_buf_insert(critbit_tree *t,
-    //     critbit_node *newnode, const void *key) noexcept
-    // {
-    // 	return (critbit_insert_impl(t, newnode, (const critbit_key *)key,
-    // 	    critbit_buf_keylen(t, NULL), critbit_buf_keybuf));
-    // }
-    // 
-    // void *
-    // critbit_buf_remove(critbit_tree *t, const void *key) noexcept
-    // {
-    // 	return (critbit_remove_impl(t, key, critbit_buf_keylen(t, (uint8_t *)key),
-    // 	    critbit_buf_keycmp, critbit_buf_keybuf));
-    // }
-    // 
-    // void *
-    // critbit_str_get(critbit_tree *t, const char *key) noexcept
-    // {
-    // 	return (critbit_get_impl(t, key,
-    // 	    critbit_str_keylen(t, (const uint8_t *)key),
-    // 	    critbit_str_keycmp, critbit_str_keybuf));
-    // }
-    // 
-    // void *
-    // critbit_str_insert(critbit_tree *t,
-    //     critbit_node *newnode, const char **key) noexcept
-    // {
-    // 	return (critbit_insert_impl(t, newnode, (const critbit_key *)key,
-    // 	    critbit_str_keylen(t, (const uint8_t *)*key), critbit_str_keybuf));
-    // }
-    // 
-    // void *
-    // critbit_str_remove(critbit_tree *t, const char *key) noexcept
-    // {
-    // 	return (critbit_remove_impl(t, key,
-    // 	    critbit_str_keylen(t, (const uint8_t *)key),
-    // 	    critbit_str_keycmp, critbit_str_keybuf));
-    // }
-
 public:
+    inline
+    critbit_key *critbit_remove_impl(const critbit_key *key) noexcept {
+    	const uint8_t *ubytes = (const uint8_t *)keybinary(key);
+    	const size_t keyLen = keylen(key);
+    	critbit_ref *p = (critbit_ref *)this->root;
+    	critbit_node *q = nullptr;
+    	critbit_ref **wherep = (critbit_ref **)&this->root;
+    	critbit_ref **whereq = nullptr;
+    	int direction = 0;
 
-	inline critbit_key *
-	critbit_insert(critbit_node *newnode,
-			const critbit_ref *data) noexcept {
-		critbit_key key = hash(data);
-		return critbit_insert_impl(newnode, &key);
-	}
+    	if (p == nullptr) {
+    		return nullptr;
+    	}
 
+    	while (critbit_ref_is_internal(p)) {
+    		whereq = wherep;
+    		q = critbit_ref_get_node(p);
+    		uint8_t c = 0;
+    		if (q->byte < keyLen) {
+    			c = ubytes[q->byte];
+    		}
+    		direction = (1 + (q->otherbits | c)) >> 8;
+    		wherep = (critbit_ref **)q->child + direction;
+    		p = *wherep;
+    	}
+
+    	/// TODO simplify `keybinary` is not needed
+    	if (memcmp(keybinary(critbit_ref_get_key(p)), ubytes, keyLen) != 0) {
+    		return nullptr;
+    	}
+
+    	// Remove p
+    	if (whereq == nullptr) {
+    		this->root = nullptr;
+    		return (critbit_ref_get_key(p));
+    	}
+
+    	assert(q);
+    	*whereq = (critbit_ref *)(q->child[1 - direction]);
+    	critbit_node_free(q);
+
+    	return critbit_ref_get_key(p);
+    }
 };
 
 #if 0  // TODO

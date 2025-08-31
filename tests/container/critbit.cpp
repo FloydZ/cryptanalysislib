@@ -35,10 +35,10 @@ class T {
 public:
     uint32_t value;
 
-	K k{"abc"};
+	K k{"a"};
 
     T() noexcept : value(7) {}
-    T(uint32_t v) noexcept : value(v) {}
+    explicit T(const uint32_t v) noexcept : value(v) {}
 };
 
 /// Compare class to compare two strings
@@ -46,9 +46,9 @@ class Cmp {
 public:
 	constexpr inline int operator()(const K *k1,
                                     const K *k2) const noexcept {
-		std::cout << 'cmp()' << std::endl;
-		std::cout << *k1 << std::endl;
+		std::cout << "cmp" << std::endl;
 		std::cout << *k2 << std::endl;
+		std::cout << *k1 << std::endl;
         return k1->compare(*k2);
 	}
 };
@@ -56,7 +56,7 @@ public:
 /// Helper class computing the length of a key
 class KLen {
 public:
-	constexpr inline int operator()(const K *k1) const noexcept {
+	constexpr inline size_t operator()(const K *k1) const noexcept {
         return k1->length();
 	}
 };
@@ -64,15 +64,15 @@ public:
 /// Helper class hashing a value T to a key K
 class THash {
 public:
-	constexpr inline K operator()(const T *k1) const noexcept {
-		return k1->k;
+	constexpr inline const K* operator()(const T *k1) const noexcept {
+		return &(k1->k);
 	}
 };
 
 /// Helper class accessing the binary data of a key k
 class KBinary {
 public:
-	constexpr inline uint8_t*operator()(const K *k1) const noexcept {
+	constexpr inline uint8_t* operator()(const K *k1) const noexcept {
 		return (uint8_t *)k1->data();
 	}
 };
@@ -92,10 +92,6 @@ protected:
 };
 
 TEST_F(CritBitTest, Initialization) {
-    // Test that we can create a critbit tree
-    void* freearg = nullptr;
-    
-    // Create a new critbit_tree
     CritBitTree tree{};
     
     // At this point we should have an empty tree
@@ -103,22 +99,28 @@ TEST_F(CritBitTest, Initialization) {
     // For example, we can verify that a lookup returns nullptr
     
     K key("a");
-    K key2("ab");
+    K key2("aa");
 	T t;
+	t.k = key;
 	T t2; t2.k = key2;
 
     using critbit_node = CritBitTree::critbit_node;
-    critbit_node *nnode = (critbit_node *)malloc(sizeof(critbit_node));
-    tree.critbit_insert(nnode, &t);
+    critbit_node *nnode = (critbit_node *)calloc(1, sizeof(critbit_node));
+    tree.critbit_insert_impl(nnode, &t);
 
-    critbit_node *nnode2 = (critbit_node *)malloc(sizeof(critbit_node));
-    auto r1 = tree.critbit_insert(nnode2, &t2);
+    critbit_node *nnode2 = (critbit_node *)calloc(1, sizeof(critbit_node));
+    auto r1 = tree.critbit_insert_impl(nnode2, &t2);
 
     auto r2= tree.critbit_get_impl(&key);
     
     // EXPECT_NE(r1, nullptr);
     EXPECT_NE(r2, nullptr);
     std::cout << r2->value << std::endl;
+
+	K *s1 = tree.critbit_remove_impl(&key);
+	K *s2 = tree.critbit_remove_impl(&key2);
+	std::cout << *s1 << std::endl;
+	std::cout << *s2 << std::endl;
 }
 
 // This test would test the lookup functionality if it was implemented
