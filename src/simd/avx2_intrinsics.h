@@ -74,3 +74,59 @@ __m256i _mm256_subs_epu32(const __m256i a,
                           const __m256i b) noexcept {
 	return _mm256_sub_epi32(_mm256_max_epu32(a, b), b);
 }
+
+/// source: https://arxiv.org/pdf/2112.06342
+inline __m256i _mm256_2intersect_epi16_mask(const __m256i a,
+                                            const __m256i b) {
+	__m256i a1 = _mm256_permute2x128_si256(a, a, 1);
+	__m256i b1 = _mm256_shuffle_epi32(b, _MM_PERM_ADCB);
+	__m256i b2 = _mm256_shuffle_epi32(b, _MM_PERM_BADC);
+	__m256i b3 = _mm256_shuffle_epi32(b, _MM_PERM_CBAD);
+	__m256i b01 = _mm256_or_si256(_mm256_srli_epi32(b, 16), _mm256_slli_epi32(b, 16));
+	__m256i b11 = _mm256_shuffle_epi32(b01, _MM_PERM_ADCB);
+	__m256i b21 = _mm256_shuffle_epi32(b01, _MM_PERM_BADC);
+	__m256i b31 = _mm256_shuffle_epi32(b01, _MM_PERM_CBAD);
+
+	__m256i l1l = _mm256_or_si256(_mm256_cmpeq_epi16(a , b ), _mm256_cmpeq_epi16(a , b01));
+	__m256i l1h = _mm256_or_si256(_mm256_cmpeq_epi16(a , b1), _mm256_cmpeq_epi16(a , b11));
+	__m256i l2l = _mm256_or_si256(_mm256_cmpeq_epi16(a , b2), _mm256_cmpeq_epi16(a , b21));
+	__m256i l2h = _mm256_or_si256(_mm256_cmpeq_epi16(a , b3), _mm256_cmpeq_epi16(a , b31));
+	__m256i h1l = _mm256_or_si256(_mm256_cmpeq_epi16(a1, b ), _mm256_cmpeq_epi16(a1, b01));
+	__m256i h1h = _mm256_or_si256(_mm256_cmpeq_epi16(a1, b1), _mm256_cmpeq_epi16(a1, b11));
+	__m256i h2l = _mm256_or_si256(_mm256_cmpeq_epi16(a1, b2), _mm256_cmpeq_epi16(a1, b21));
+	__m256i h2h = _mm256_or_si256(_mm256_cmpeq_epi16(a1, b3), _mm256_cmpeq_epi16(a1, b31));
+	__m256i l1 = _mm256_or_si256(l1l, l1h);
+	__m256i l2 = _mm256_or_si256(l2l, l2h);
+	__m256i h1 = _mm256_or_si256(h1l, h1h);
+	__m256i h2 = _mm256_or_si256(h2l, h2h);
+	__m256i l = _mm256_or_si256(l1, l2);
+	__m256i h = _mm256_or_si256(h1, h2);
+	return _mm256_or_si256(l, _mm256_permute2x128_si256(h, h, 1));
+}
+
+/// source: https://arxiv.org/pdf/2112.06342
+inline __m256i _mm256_2intersect_epi32_mask(const __m256i a,
+                                            const __m256i b) {
+	__m256i a1 = _mm256_permute2x128_si256(a, a, 1);
+	__m256i b1 = _mm256_shuffle_epi32(b, _MM_PERM_ADCB);
+	__m256i b2 = _mm256_shuffle_epi32(b, _MM_PERM_BADC);
+	__m256i b3 = _mm256_shuffle_epi32(b, _MM_PERM_CBAD);
+
+	__m256i ll = _mm256_or_si256(_mm256_cmpeq_epi32(a , b ), _mm256_cmpeq_epi32(a , b1));
+	__m256i lh = _mm256_or_si256(_mm256_cmpeq_epi32(a , b2), _mm256_cmpeq_epi32(a , b3));
+	__m256i hl = _mm256_or_si256(_mm256_cmpeq_epi32(a1, b ), _mm256_cmpeq_epi32(a1, b1));
+	__m256i hh = _mm256_or_si256(_mm256_cmpeq_epi32(a1, b2), _mm256_cmpeq_epi32(a1, b3));
+	__m256i l = _mm256_or_si256(ll, lh);
+	__m256i h = _mm256_or_si256(hl, hh);
+	return _mm256_or_si256(l, _mm256_permute2x128_si256(h, h, 1));
+}
+
+/// source: https://arxiv.org/pdf/2112.06342
+inline __m256i _mm256_2intersect_epi64_mask(const __m256i a,
+                                            const __m256i b) {
+	__m256i a1 = _mm256_permute2x128_si256(a, a, 1);
+	__m256i b1 = _mm256_shuffle_epi32(b, _MM_PERM_BADC);
+	__m256i l = _mm256_or_si256(_mm256_cmpeq_epi64(a , b), _mm256_cmpeq_epi64(a , b1));
+	__m256i h = _mm256_or_si256(_mm256_cmpeq_epi64(a1, b), _mm256_cmpeq_epi64(a1, b1));
+	return _mm256_or_si256(l, _mm256_permute2x128_si256(h, h, 1));
+}
