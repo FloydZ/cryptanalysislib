@@ -22,6 +22,19 @@
 		b = _mm512_max_epu64(tmp, b); 	\
 	}
 
+#define COEX_u16x32(a, b, tmp)			\
+	{                                   \
+		tmp = a;                		\
+		a = _mm512_min_epu16(a, b);     \
+		b = _mm512_max_epu16(tmp, b); 	\
+	}
+
+#define COEX_u16x32_(a, b, c, d)		\
+	{                                   \
+		c = _mm512_min_epu16(a, b);     \
+		d = _mm512_max_epu16(a, b); 	\
+	}
+
 #define COEX_u32x16(a, b, tmp)			\
 	{                                   \
 		tmp = a;                		\
@@ -84,6 +97,61 @@
 						       				  (__mmask8) -1);
 #endif
 
+
+static inline
+__m512i sortingnetwork_sort_u16x32(__m512i v) {
+	const __m512i sm0 = _mm512_setr_epi16(1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,17,16,19,18,21,20,23,22,25,25,27,26,29,28,31,30);
+	const __m512i sm1 = _mm512_setr_epi16(3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,19,18,17,16,23,22,21,20,27,26,25,24,31,30,29,28);
+	const __m512i sm2 = _mm512_setr_epi16(7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,23,22,21,20,19,18,17,16,31,30,29,28,27,26,25,24);
+	const __m512i sm3 = _mm512_setr_epi16(2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,18,19,16,17,22,23,20,21,26,27,24,25,30,31,28,29);
+	const __m512i sm4 = _mm512_setr_epi16(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16);
+	const __m512i sm5 = _mm512_setr_epi16(4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11,20,21,22,23,16,17,18,19,28,29,30,31,24,25,26,27);
+
+	__m512i t = v, tmp;
+	// lvl 1
+	t = _mm512_permutexvar_epi16(sm0, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x55555555, v);
+	// lvl 2
+	v = _mm512_permutexvar_epi16(sm1, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x33333333, t);
+	// lvl 3
+	t = _mm512_permutexvar_epi16(sm0, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x55555555, v);
+	// lvl 4
+	v = _mm512_permutexvar_epi16(sm2, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x0f0f0f0f, t);
+	// lvl 5
+	t = _mm512_permutexvar_epi16(sm3, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x33333333, v);
+	// lvl 6
+	v = _mm512_permutexvar_epi16(sm0, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x55555555, t);
+	// lvl 7
+	t = _mm512_permutexvar_epi16(sm4, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x00ff00ff, v);
+	// lvl 8
+	v = _mm512_permutexvar_epi16(sm5, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x0f0f0f0f, t);
+	// lvl 9
+	t = _mm512_permutexvar_epi16(sm3, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x33333333, v);
+	// lvl 10
+	v = _mm512_permutexvar_epi16(sm0, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x55555555, t);
+
+	// TODO remaining 4 layers
+	return v;
+}
 
 /// sorts a and b
 /// \param a first 8 elements to sort
@@ -155,7 +223,7 @@ constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) 
 
 
 // cleanup macros
-#ifndef __clang__ 
+#ifndef __clang__
 #undef __builtin_ia32_vpermi2varq512
 #endif
 

@@ -1,10 +1,8 @@
 #include <benchmark/benchmark.h>
-#include "loop_fusion/loop_fusion.h"
+#include "loop_fusion/loop_fusion.hpp"
 
 #include <algorithm>
-#include <cstddef>
 #include <random>
-#include <vector>
 using T = uint64_t;
 
 template<typename T>

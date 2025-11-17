@@ -67,6 +67,7 @@ namespace cryptanalysislib {
 // Checks if the page pointed at by `ptr` is huge. Assumes that `ptr` has already
 // been allocated.
 static void check_huge_page(void *ptr) {
+	const uint64_t CUSTOM_PAGE_SIZE = 1u<<13; // TODO dont know if this is correct
 	int pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
 	if (pagemap_fd < 0) {
 		std::cout << "could not open /proc/self/pagemap: " << strerror(errno) << "\n";
@@ -111,9 +112,10 @@ static void check_huge_page(void *ptr) {
 /// \return pointer to the allocated huge page or nullptr
 static 
 void *cryptanalysislib_hugepage_malloc(const size_t size) {
+	const uint64_t HPAGE_SIZE = 1u<<13; // TODO dont know if this is correct
 	const size_t nr_pages = (size + HPAGE_SIZE - 1) / HPAGE_SIZE;
 	const size_t alloc_size = nr_pages * HPAGE_SIZE;
-	void *ret = aligned_alloc(HPAGE_SIZE, alloc_size);
+	void *ret = cryptanalysislib::aligned_alloc(HPAGE_SIZE, alloc_size);
 	if (ret == nullptr) {
 		std::cout << "error alloc\n";
 		return nullptr;

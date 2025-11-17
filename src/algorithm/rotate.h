@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <type_traits>
 #include <cstring>
 
@@ -9,7 +8,6 @@
 #endif
 
 #include "copy.h"
-#include "swap.h"
 
 namespace cryptanalysislib {
 namespace internal {
@@ -181,13 +179,13 @@ template<typename T>
 constexpr void contrev_rotation(T *array,
                                 const size_t left, 
                                 const size_t right) {
-	T *pta, *ptb, *ptc, *ptd, swap;
+	T swap;
 	size_t loop;
 
-	pta = array;
-	ptb = array + left;
-	ptc = array + left;
-	ptd = array + left + right;
+	T *pta = array;
+	T *ptb = array + left;
+	T *ptc = array + left;
+	T *ptd = array + left + right;
 
     if (left > right) {
     	loop = right / 2;
@@ -393,8 +391,8 @@ size_t loop;
 /// Efficient in-place rotation algorithm that works by repeatedly swapping
 /// equal-sized blocks of elements
 ///
-/// \tparam T type of array elements
-/// \param array[in,out]: array to rotate
+/// \tparam T[in]: type of array elements
+/// \param array[in/out]: array to rotate
 /// \param left[in]: number of elements in the left segment
 /// \param right[in]: number of elements in the right segment
 template<typename T>

@@ -190,9 +190,12 @@ void rhsort32(T *array, size_t n) {
 	free(aux);  // All done!
 }
 
+/// \tparam T
+/// \param x
+/// \param n
 template<typename T>
 void rhmergesort(T *x, size_t n) {
-	static const size_t size = 1<<16;
+	static constexpr size_t size = 1<<16;
 	for (size_t i=0; i<n; i+=size) {
 		rhsort32(x + i, n > i + size ? size : n - i);
 	}

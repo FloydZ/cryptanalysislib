@@ -1,7 +1,7 @@
 #ifndef CRYPTANALYSISLIB_SORT_SORTINGNETWORK_MACROS_H
 #define CRYPTANALYSISLIB_SORT_SORTINGNETWORK_MACROS_H
 
-/// creates a funtions which takes two `REG` variables, each of them storing
+/// creates a functions which takes two `REG` variables, each of them storing
 /// a single `MULT` type, and sorts them to a single `NEW_MULT`
 /// \NEW_MULT: ex: f32x16
 /// \MULT: ex: f32x8

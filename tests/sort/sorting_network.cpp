@@ -10,6 +10,8 @@ using namespace std;
 #include "random.h"
 #include "sort/sorting_network/common.h"
 
+using namespace cryptanalysislib;
+
 /// generate rng data
 template<typename T>
 T *gen_data(const size_t size) {
@@ -62,7 +64,6 @@ TEST(SortingNetwork, staticSort) {
 	free(data);
 }
 
-
 TEST(SortingNetwork, constexpra) {
 	constexpr size_t size = 10;
 	using T = uint32_t;
@@ -87,7 +88,21 @@ TEST(SortingNetwork, timsort_constexpr) {
 	}
 }
 
+
 #ifdef USE_AVX2
+TEST(SortingNetwork, uint16x16_t) {
+	uint16_t d_in[16], d_out[16];
+	for (uint32_t i = 0; i < 16; ++i) {
+		d_in[i] = 15-i; //rng();
+	}
+
+	const __m256i in  = _mm256_loadu_si256((const __m256i *) d_in);
+	const __m256i out = sortingnetwork_sort_u16x16(in);
+	_mm256_storeu_si256((__m256i *)d_out, out);
+	for (uint32_t i = 0; i < 15; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
 
 TEST(SortingNetwork, int64x8_t) {
 	__m256i z1 = _mm256_setr_epi64x(0, 1, 2, 3);
@@ -368,8 +383,8 @@ TEST(SortingNetwork, uint8x288_t) {
 	uint8_t datas2[288] __attribute__((aligned(64)));
 	uint8_t datas3[288] __attribute__((aligned(64)));
 	rng_seed();
-	for (uint32_t i = 0; i < 288; ++i) {
-		datas2[i] = rng();
+	for (unsigned char & i : datas2) {
+		i = rng();
 	}
 	 __m256i i1 = _mm256_loadu_si256((const __m256i *)(datas2 +   0));
 	 __m256i i2 = _mm256_loadu_si256((const __m256i *)(datas2 +  32));
@@ -398,7 +413,7 @@ TEST(SortingNetwork, uint8x288_t) {
 TEST(SortingNetwork, uint8x512_t) {
 	uint8_t datas2[512] __attribute__((aligned(64)));
 	uint8_t datas3[512] __attribute__((aligned(64)));
-	for (uint32_t i = 0; i < 256; ++i) {
+	for (uint32_t i = 0; i < 512; ++i) {
 		datas2[i] = rng();
 	}
 	 __m256i  i1 = _mm256_loadu_si256((const __m256i *)(datas2 +   0));
@@ -840,6 +855,21 @@ TEST(SortingNetwork, avx512_float_small) {
 		}
 	}
 }
+
+TEST(SortingNetwork, avx512_uint16x32_t) {
+	uint16_t d_in[32], d_out[32];
+	for (uint32_t i = 0; i < 32; ++i) {
+		d_in[i] = rng();
+	}
+
+	const __m512i in  = _mm512_loadu_si512((const __m512i *) d_in);
+	const __m512i out = sortingnetwork_sort_u16x32(in);
+	_mm512_storeu_si512((__m512i *)d_out, out);
+	for (uint32_t i = 0; i < 15; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+
 #endif
 
 int main(int argc, char **argv) {

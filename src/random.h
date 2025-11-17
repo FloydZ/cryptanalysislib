@@ -1,16 +1,12 @@
-#ifndef CRYPTANALYSISLIB_RANDOM_H
-#define CRYPTANALYSISLIB_RANDOM_H
+#pragma once
 
 #include <cassert>
 #include <cstddef>
-#include <cstdlib>
 #include <cstdio>
 #include <cstdint>
 #include <string>
 #include <type_traits>
 #include <algorithm>
-
-#include "algorithm/rotate.h"
 
 // floor( ( (1+sqrt(5))/2 ) * 2**64 MOD 2**64)
 #define GOLDEN_GAMMA UINT64_C(0x9E3779B97F4A7C15)
@@ -159,8 +155,8 @@ static uint64_t __xorshf128_S1 = 998234767632513414;
 	const uint64_t result = s0 + s1;
 
 	s1 ^= s0;
-	__xorshf128_S0 = rotl(s0, 24) ^ s1 ^ (s1 << 16);
-	__xorshf128_S1 = rotl(s1, 37);
+	__xorshf128_S0 = std::rotl(s0, 24) ^ s1 ^ (s1 << 16);
+	__xorshf128_S1 = std::rotl(s1, 37);
 
 	return result;
 }
@@ -260,7 +256,7 @@ inline void pcg_setseq_128_srandom_r(__uint128_t initstate,
 
 ///
 [[nodiscard]] static inline uint64_t pcg_output_xsl_rr_128_64() noexcept {
-  return rotr(((uint64_t)(pcg_state_setseq_128_state >> 64u)) ^ (uint64_t)pcg_state_setseq_128_state, 
+  return std::rotr(((uint64_t)(pcg_state_setseq_128_state >> 64u)) ^ (uint64_t)pcg_state_setseq_128_state,
               (unsigned int)(pcg_state_setseq_128_state >> 122u));
 }
 
@@ -348,7 +344,7 @@ template<typename T=uint64_t>
 	requires std::is_integral_v<T>
 #endif
 [[nodiscard]] static inline T rng() noexcept {
-	return random::internal::xorshf96_random_data<T>();
+	return random::internal::xorshf96_random_data<uint64_t>();
 }
 
 /// \return a uniform (not really) uint64 % limit
@@ -356,9 +352,7 @@ template<typename T=uint64_t>
 #if __cplusplus > 201709L
 	requires std::is_integral_v<T>
 #endif
-[[nodiscard]] static inline uint64_t rng(const T limit) noexcept {
-    // NOTE: the only place where only a normal assert is used. I didnt want 
-    // to depent on `helper.h`
+[[nodiscard]] static inline T rng(const T limit) noexcept {
 	assert(limit > 0);
 	return random::internal::xorshf96_random_data<T>() % limit;
 }
@@ -411,21 +405,18 @@ template<typename T=uint64_t>
 	requires std::is_integral_v<T>
 #endif
 constexpr static inline T rng_v2(const uint64_t range) noexcept {
-	__uint128_t random64bit, multiresult;
-	uint64_t leftover;
-	uint64_t threshold;
-	random64bit = rng<uint64_t>();
-	multiresult = random64bit * range;
-	leftover = (uint64_t)multiresult;
+	__uint128_t random64bit = rng<uint64_t>();
+	__uint128_t multiresult = random64bit * range;
+	uint64_t leftover =  multiresult;
 	if (leftover < range) {
-		threshold = -range % range;
+		const uint64_t threshold = -range % range;
 		while (leftover < threshold) {
 			random64bit = rng<uint64_t>();
 			multiresult = random64bit * range;
-			leftover = (uint64_t)multiresult;
+			leftover = multiresult;
 		}
 	}
-	return (T)(multiresult >> 64); // [0, range)
+	return static_cast<T>(multiresult >> 64); // [0, range)
 }
 
 // product_bound can be any integer >= range1*range2
@@ -531,7 +522,7 @@ T random_data(L &data,
 	}
 
 	return data[solution_index];
-}
+} // end random_data
 
 /// implementation of https://en.cppreference.com/w/cpp/numeric/random/random_device
 class random_device {
@@ -582,4 +573,3 @@ public:
 };
 
 }// namespace cryptanalysislib
-#endif//SMALLSECRETLWE_RANDOM_H

@@ -2,7 +2,7 @@
 #define CRYPTANALYSISLIB_SORTING_NETWORK_AVX2_H
 
 #include <cstdint>
-#ifndef USE_AVX2
+#ifndef USE_AVX
 #error "no avx"
 #endif
 
@@ -338,7 +338,7 @@ static inline void sortingnetwork_sort_i64x8(__m256i &a0,
 
 // optimized sorting network for two vectors, that is 16 ints
 static inline void sortingnetwork_sort_u32x16(__m256i &v1,
-													    __m256i &v2) noexcept {
+											  __m256i &v2) noexcept {
 #ifdef __clang__
 #define SHUFFLE_2_VECS(a, b, mask)         \
 	_mm256_castps_si256(_mm256_shuffle_ps( \
@@ -425,33 +425,33 @@ static inline __m256i sortingnetwork_sort_u32x8(__m256i &input) noexcept {
 	{
 		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
-		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
+		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	{
 		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(0, 1, 2, 3));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
-		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
+		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
 		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
-		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
+		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 	{
 		const __m256i swap = (__m256i)_mm256_permute2f128_ps((__m256)input, (__m256)input, _MM_SHUFFLE(0, 0, 1, 1));
 		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)swap, _MM_SHUFFLE(0, 1, 2, 3));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
-		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xF0);
+		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xF0);
 	}
 	{
 		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(1, 0, 3, 2));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
-		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
+		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xCC);
 	}
 	{
 		const __m256i perm_neigh = (__m256i)_mm256_permute_ps((__m256)input, _MM_SHUFFLE(2, 3, 0, 1));
 		COEX_u32x8_(input, perm_neigh, perm_neigh_min, perm_neigh_max)
-		input = (__m256i)_mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
+		input = _mm256_blend_epi32(perm_neigh_min, perm_neigh_max, 0xAA);
 	}
 
 	return input;
@@ -540,6 +540,11 @@ static inline __m256i sortingnetwork_aftermerge_i32x8(__m256i &a) noexcept {
 	return a;
 }
 
+
+__m256i sortingnetwork_sort_u16x16(__m256i v) {
+    return v;
+}
+
 /// needed by `sort_u8x16`
 constexpr static uint8_t layers[6][16] = {
         {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
@@ -547,7 +552,7 @@ constexpr static uint8_t layers[6][16] = {
         {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
         {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
         {15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
-        {4,5,6,7,0,1,2,3,12,13,14,15, 8,9,10,11},
+        {4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11},
 };
 
 /// needed by `sort_u8x16`
@@ -663,12 +668,14 @@ constexpr static int8_t sortingnetwork_u8x32_shuffle_masks[8][32] __attribute((a
 
 /// \param  a = [a0, ..., a31], u8 elements 
 /// \return a = [a31, ..., a0]
-static inline void sortingnetwork_reverse_u8x32(__m256i &a) noexcept {
+static inline
+void sortingnetwork_reverse_u8x32(__m256i &a) noexcept {
     const __m256i p = _mm256_permute2x128_si256(a, a, 0b00000001);
 	const __m256i mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
 	a =_mm256_shuffle_epi8(p, mask);
 }
 
+static inline
 __m256i sortingnetwork_sort_u8x32_(__m256i v) noexcept {
     __m256i t = v, tmp;
     t = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));

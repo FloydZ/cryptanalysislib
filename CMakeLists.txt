@@ -80,7 +80,7 @@ find_package(OpenCL QUIET)
 find_package(OpenCLHeaders QUIET)
 
 # now check if we have to add the cuda runtime
-# NOTE: apperently this is not how its done: find_package(CUDA QUIET)
+# NOTE: apparently this is not how its done: find_package(CUDA QUIET)
 find_package(CUDAToolkit QUIET)
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)

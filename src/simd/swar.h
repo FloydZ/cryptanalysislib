@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 
 #include "helper.h"
 
@@ -41,7 +42,7 @@ namespace cryptanalysislib::swar {
     /// TODO
     template<typename T, 
              const size_t Width = sizeof(uint64_t) / sizeof(T),
-             typename TAbi = abi_t<T, Width>>
+             typename TAbi = LogTypeTemplate<T, Width>>
       requires ((sizeof(T) * Width) <= sizeof(TAbi))
     struct swar {
         using value_type = T;
@@ -64,25 +65,25 @@ namespace cryptanalysislib::swar {
             }
         }
     
-        /// TODO
+        /// TODO doc
         constexpr explicit swar(const auto& gen) noexcept requires requires(size_t i) { gen(i); } {
             for (auto i = 0u; i < Width; ++i) {
                 value |= abi_type(gen(i)) << (nbits * i);
             }
         }
-        /// TODO
+        /// TODO doc
         [[nodiscard]] constexpr explicit operator abi_type() const noexcept { 
             return value; 
-        };
-        /// TODO
+        }
+        /// TODO doc
         [[nodiscard]] constexpr auto operator[](const size_t index) const noexcept -> T {
             return (value >> (index * nbits)) & ((T(1u) << nbits) - 1u);
         }
-        /// TODO
+        /// TODO doc
         [[nodiscard]] static constexpr auto size() noexcept -> size_t {
             return Width; 
         }
-        /// TODO
+        /// TODO doc
         [[nodiscard]] friend constexpr 
         auto operator==(const swar& lhs,
                         const swar& rhs) noexcept -> swar_mask<T, Width, TAbi> {

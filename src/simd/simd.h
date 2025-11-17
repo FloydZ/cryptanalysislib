@@ -5,16 +5,17 @@
 #include <cmath>
 #include <cstdint>
 
-#include "helper.h"
 #include "algorithm/bits/popcount.h"
 #include "print/print.h"
 #include "random.h"
 
-#include "swar.h"
+// TODO #include "swar.h"
 
 using cryptanalysislib::print_binary;
+using cryptanalysislib::rng;
 using namespace cryptanalysislib;
 
+/// TODO whats that?
 #define bit_shuffle_const(b0, b1, b2, b3, b4, b5, b6, b7) \
 	((uint64_t(uint8_t(1 << b0)) << (7 * 8)) |            \
 	 (uint64_t(uint8_t(1 << b1)) << (6 * 8)) |            \
@@ -28,7 +29,7 @@ using namespace cryptanalysislib;
 
 
 namespace cryptanalysislib::internal {
-    template <std::size_t Size>
+    template <std::size_t size>
     struct _MaskType {
         static_assert(false, "Unsupported mask size");
     };
@@ -364,9 +365,10 @@ namespace cryptanalysislib {
 		}
 	
         ///  
-        /// \param i 
+        /// \param pos[in]
         constexpr inline void set_bit(const uint32_t pos) noexcept {
-            const uint32_t data = 1u << offs;
+			assert(pos < 8);
+            const uint32_t data = 1u << pos;
             for (uint32_t i = 0; i < LIMBS; i++) {
                 d[i] = data;
             }
@@ -3704,7 +3706,7 @@ struct Xint32x8_t {
 	[[nodiscard]] static inline S random() noexcept {
 		S ret;
 		for (uint32_t i = 0; i < 4; i++) {
-			ret.v64[i] = rng();
+			ret.v64[i] = cryptanalysislib::rng();
 		}
 
 		return ret;
