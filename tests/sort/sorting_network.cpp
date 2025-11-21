@@ -880,7 +880,7 @@ TEST(SortingNetwork, avx512_float_small) {
 TEST(SortingNetwork, avx512_uint16x32_t) {
 	uint16_t d_in[32], d_out[32];
 	for (uint32_t i = 0; i < 32; ++i) {
-		d_in[i] = 31-i; // rng();
+		d_in[i] = rng();
 	}
 
 	const __m512i in  = _mm512_loadu_si512((const __m512i *) d_in);
@@ -888,6 +888,27 @@ TEST(SortingNetwork, avx512_uint16x32_t) {
 	_mm512_storeu_si512((__m512i *)d_out, out);
 	for (uint32_t i = 0; i < 31; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+
+TEST(SortingNetwork, avx512_kv_uint16x32_t) {
+	uint16_t k_in[32] __attribute__((aligned(32))), k_out[32] __attribute__((aligned(32)));
+	uint16_t v_in[32] __attribute__((aligned(32))), v_out[32] __attribute__((aligned(32)));
+	for (uint32_t i = 0; i < 32; ++i) {
+		k_in[i] = rng();
+		v_in[i] = i;
+	}
+
+	memcpy(k_out, k_in, 64);
+	memcpy(v_out, v_in, 64);
+	sortingnetwork_kvsort_u16x32((__m512i *)k_out, (__m512i *)v_out);
+	for (uint32_t i = 0; i < 31; ++i) {
+		EXPECT_LE(k_out[i], k_out[i+1]);
+		uint32_t j = 0;
+		for (; j < 31; j++) {
+			if (k_out[i] == k_in[j]) { break; }
+		}
+		EXPECT_EQ(v_out[i], v_in[j]);
 	}
 }
 

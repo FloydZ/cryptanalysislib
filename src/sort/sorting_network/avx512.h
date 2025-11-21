@@ -227,44 +227,44 @@ static inline
 __m512i sortingnetwork_sort_u16x32_v2(__m512i a) {
 #define SORT(a, perm, sel)							\
 {													\
-	__m512i b  = _mm512_permutexvar_epi16(perm, a); \
-	__m512i min = _mm512_min_epu16(a, b);			\
-	__m512i max = _mm512_max_epu16(a, b); 			\
-	a = _mm512_mask_mov_epi16(min, sel, max);		\
+__m512i b   = _mm512_permutexvar_epi16(perm, a);\
+__m512i min = _mm512_min_epu16(a, b);			\
+__m512i max = _mm512_max_epu16(a, b); 			\
+a = _mm512_mask_mov_epi16(min, sel, max);		\
 }
 
 	const __m512i p1 = _mm512_set_epi16(
-		14,15,12,13,10,11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1,
-		30,31,28,29,26,27,24,25,22,23,20,21,18,19,16,17
+		30,31,28,29,26,27,24,25,22,23,20,21,18,19,16,17,
+		14,15,12,13,10,11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1
 	);
 	const __m512i p2 = _mm512_set_epi16(
-		12,13,14,15, 8, 9,10,11, 4, 5, 6, 7, 0, 1, 2, 3,
-		28,29,30,31,24,25,26,27,20,21,22,23,16,17,18,19
+		28,29,30,31,24,25,26,27,20,21,22,23,16,17,18,19,
+		12,13,14,15, 8, 9,10,11, 4, 5, 6, 7, 0, 1, 2, 3
 	);
 	const __m512i p3 = _mm512_set_epi16(
-		8, 9,10,11,12,13,14,15, 0, 1, 2, 3, 4, 5, 6, 7,
-	   24,25,26,27,28,29,30,31,16,17,18,19,20,21,22,23
+	   24,25,26,27,28,29,30,31,16,17,18,19,20,21,22,23,
+		8, 9,10,11,12,13,14,15, 0, 1, 2, 3, 4, 5, 6, 7
 	);
 	const __m512i p4 = _mm512_set_epi16(
-		13,12,15,14, 9, 8,11,10, 5, 4, 7, 6, 1, 0, 3, 2,
-		29,28,31,30,25,24,27,26,21,20,23,22,17,16,19,18
+		29,28,31,30,25,24,27,26,21,20,23,22,17,16,19,18,
+		13,12,15,14, 9, 8,11,10, 5, 4, 7, 6, 1, 0, 3, 2
 	);
 	const __m512i p5 = _mm512_set_epi16(
-		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
-		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
-	);
-	const __m512i p6 = _mm512_set_epi16(
-		11,10, 9, 8,15,14,13,12, 3, 2, 1, 0, 7, 6, 5, 4,
-		27,26,25,24,31,30,29,28,19,18,17,16,21,20,19,18
-	);
-	// merger layer
-	const __m512i m1 = _mm512_set_epi16(
 		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
 		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15
 	);
+	const __m512i p6 = _mm512_set_epi16(
+		27,26,25,24,31,30,29,28,19,18,17,16,23,22,21,20,
+		11,10, 9, 8,15,14,13,12, 3, 2, 1, 0, 7, 6, 5, 4
+	);
+	// merger layer
+	const __m512i m1 = _mm512_set_epi16(
+		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
+		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+	);
 	const __m512i m2 = _mm512_set_epi16(
-		7, 6, 5, 4, 3, 2, 1, 0,15,14,13,12,11,10, 9, 8,
-	   23,22,21,20,19,18,17,16,31,30,29,28,28,26,25,24
+	   23,22,21,20,19,18,17,16,31,30,29,28,28,26,25,24,
+		7, 6, 5, 4, 3, 2, 1, 0,15,14,13,12,11,10, 9, 8
 	);
 
 	SORT(a, p1, 0xAAAAAAAA);
@@ -281,11 +281,84 @@ __m512i sortingnetwork_sort_u16x32_v2(__m512i a) {
 	// merger part
 	SORT(a, m1, 0xFFFF0000);
 	SORT(a, m2, 0xFF00FF00);
-	SORT(a, p5, 0xF0F0F0F0);
+	SORT(a, p6, 0xF0F0F0F0);
 	SORT(a, p4, 0xCCCCCCCC);
 	SORT(a, p1, 0xAAAAAAAA);
 
 	return a;
+#undef SORT
+}
+
+/// translation of `sortingnetwork_sort_x32x32_body`
+static inline
+void sortingnetwork_kvsort_u16x32(__m512i *k, __m512i *v) {
+#define SORT(a, v, perm, sel)										\
+{																	\
+	const __m512i b   = _mm512_permutexvar_epi16(perm, a);			\
+	const __m512i min = _mm512_min_epu16(a, b);						\
+	const __m512i max = _mm512_max_epu16(a, b); 					\
+	const __m512i aa = _mm512_mask_mov_epi16(min, sel, max);		\
+	v = _mm512_mask_mov_epi16(_mm512_permutexvar_epi16(perm, v),	\
+		_mm512_cmp_epi16_mask(aa, a, _MM_CMPINT_EQ), v);			\
+	a = aa;															\
+}
+
+	const __m512i p1 = _mm512_set_epi16(
+		30,31,28,29,26,27,24,25,22,23,20,21,18,19,16,17,
+		14,15,12,13,10,11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1
+	);
+	const __m512i p2 = _mm512_set_epi16(
+		28,29,30,31,24,25,26,27,20,21,22,23,16,17,18,19,
+		12,13,14,15, 8, 9,10,11, 4, 5, 6, 7, 0, 1, 2, 3
+	);
+	const __m512i p3 = _mm512_set_epi16(
+	   24,25,26,27,28,29,30,31,16,17,18,19,20,21,22,23,
+		8, 9,10,11,12,13,14,15, 0, 1, 2, 3, 4, 5, 6, 7
+	);
+	const __m512i p4 = _mm512_set_epi16(
+		29,28,31,30,25,24,27,26,21,20,23,22,17,16,19,18,
+		13,12,15,14, 9, 8,11,10, 5, 4, 7, 6, 1, 0, 3, 2
+	);
+	const __m512i p5 = _mm512_set_epi16(
+		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15
+	);
+	const __m512i p6 = _mm512_set_epi16(
+		27,26,25,24,31,30,29,28,19,18,17,16,23,22,21,20,
+		11,10, 9, 8,15,14,13,12, 3, 2, 1, 0, 7, 6, 5, 4
+	);
+	// merger layer
+	const __m512i m1 = _mm512_set_epi16(
+		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
+		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+	);
+	const __m512i m2 = _mm512_set_epi16(
+	   23,22,21,20,19,18,17,16,31,30,29,28,28,26,25,24,
+		7, 6, 5, 4, 3, 2, 1, 0,15,14,13,12,11,10, 9, 8
+	);
+
+	__m512i kk = *k;
+	__m512i vv = *v;
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+	SORT(kk, vv, p2, 0xCCCCCCCC);
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+	SORT(kk, vv, p3, 0xF0F0F0F0);
+	SORT(kk, vv, p4, 0xCCCCCCCC);
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+	SORT(kk, vv, p5, 0xFF00FF00);
+	SORT(kk, vv, p6, 0xF0F0F0F0);
+	SORT(kk, vv, p4, 0xCCCCCCCC);
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+
+	// merger part
+	SORT(kk, vv, m1, 0xFFFF0000);
+	SORT(kk, vv, m2, 0xFF00FF00);
+	SORT(kk, vv, p6, 0xF0F0F0F0);
+	SORT(kk, vv, p4, 0xCCCCCCCC);
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+
+	*k = kk;
+	*v = vv;
 #undef SORT
 }
 
@@ -517,16 +590,16 @@ __m512i sortingnetwork_sort_u16x32_v2(__m512i a) {
 }
 
 
-#define sortingnetwork_sort_x32x32_body(T, REG, MIN_FKT, MAX_FKT)				\
-	{																			\
-		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,		\
-											   6, 7, 4, 5, 2, 3, 0, 1);\
-		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
-		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
-		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
-		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
-		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
-		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+#define sortingnetwork_sort_x32x32_body(T, REG, MIN_FKT, MAX_FKT)						\
+	{																					\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,				\
+											   6, 7, 4, 5, 2, 3, 0, 1);					\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);				\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);				\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);								\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);							\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);								\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);							\
 		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
 		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
  		if constexpr (kv) { \
