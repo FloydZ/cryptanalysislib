@@ -541,26 +541,322 @@ static inline __m256i sortingnetwork_aftermerge_i32x8(__m256i &a) noexcept {
 }
 
 
-__m256i sortingnetwork_sort_u16x16(__m256i v) {
-    return v;
+static inline __m256i sortingnetwork_sort_u16x16(__m256i a) {
+	/// applies a single layer of the permutation network
+#define CMPXCH_SHUFFLE(a, perm, sel)				\
+	{												\
+		__m256i b  = _mm256_shuffle_epi8(a, perm);	\
+		__m256i mn = _mm256_min_epu16(a, b);		\
+		__m256i mx = _mm256_max_epu16(a, b);		\
+		a = _mm256_blendv_epi8(mx, mn, sel);		\
+	}
+	/// applies a single layer of the permutation network
+	/// but first swaps the upper and lower half of `a`
+#define CMPXCH_CROSS128_SHUFFLE(a, perm, sel)				\
+	{														\
+		__m256i b = _mm256_permute2x128_si256(a, a, 0x01);	\
+    	b = _mm256_shuffle_epi8(b, perm);					\
+		__m256i mn = _mm256_min_epu16(a, b);				\
+		__m256i mx = _mm256_max_epu16(a, b);				\
+		a = _mm256_blendv_epi8(mx, mn, sel);				\
+	}
+
+	// swaps i with i+1
+    const __m256i perm1 = _mm256_setr_epi8(
+        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13,
+        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13
+    );
+    // swaps i with i+2
+    const __m256i perm2 = _mm256_setr_epi8(
+        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11,
+        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11
+    );
+    // swaps i,i+1 with i+3,i+2 in packs of 4  
+    const __m256i perm22 = _mm256_setr_epi8(
+        6,7, 4,5, 2,3, 0,1, 14,15, 12,13, 10,11, 8,9,
+        6,7, 4,5, 2,3, 0,1, 14,15, 12,13, 10,11, 8,9
+    );
+    // swaps i with i+4
+    const __m256i perm4 = _mm256_setr_epi8(
+    	8,9, 10,11, 12,13, 14,15, 0,1, 2,3, 4,5, 6,7,
+    	8,9, 10,11, 12,13, 14,15, 0,1, 2,3, 4,5, 6,7
+    );
+    // swaps i,i+1,i+2,i+3 with i+7,i+6,i+5,i+4 in packs of 8
+    const __m256i perm44 = _mm256_setr_epi8(
+        14,15, 12,13, 10,11, 8,9, 6,7, 4,5, 2,3, 0,1,
+        14,15, 12,13, 10,11, 8,9, 6,7, 4,5, 2,3, 0,1
+    );
+    
+    // sel1: even word indices (w & 1 == 0) receive the min
+    const __m256i sel1 = _mm256_setr_epi8(
+        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,
+        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00
+    );
+    // sel2: (w & 2) == 0 receive min
+    const __m256i sel2 = _mm256_setr_epi8(
+        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,
+        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00
+    );
+    // sel4: (w & 4) == 0 receive min -> words 0..3 get min, words 4..7 get max inside each 128-bit lane
+    const __m256i sel4 = _mm256_setr_epi8(
+        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00,
+        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00
+    );
+    // sel8: lower 128-bit half (first 8 words = first 16 bytes) receive min when compare across halves
+    const __m256i sel8 = _mm256_setr_epi8(
+    	0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,  0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+    	0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,  0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00
+    );
+
+	CMPXCH_SHUFFLE(a, perm1, sel1);		// dist=1
+	CMPXCH_SHUFFLE(a, perm22, sel2);	// dist=2
+	CMPXCH_SHUFFLE(a, perm1, sel1);		// dist=1
+
+	CMPXCH_SHUFFLE(a, perm44, sel4);	// dist=4
+	CMPXCH_SHUFFLE(a, perm2, sel2);		// dist=2
+	CMPXCH_SHUFFLE(a, perm1, sel1);		// dist=1
+
+	// dist=8 across 128-bit halves
+	CMPXCH_CROSS128_SHUFFLE(a, perm44, sel8);
+
+	CMPXCH_SHUFFLE(a, perm4, sel4);		// dist=4
+	CMPXCH_SHUFFLE(a, perm2, sel2);		// dist=2
+	CMPXCH_SHUFFLE(a, perm1, sel1);		// dist=1
+
+	return a;
+#undef CMPXCH_SHUFFLE
 }
+
+/// source: https://bekbolatov.github.io/sorting/
+/// NOTE: this is slower than the batcher network as it has 4 layer which
+///     cross 128bit lanes.
+static inline __m256i sortingnetwork_sort_u16x16_odd_even(__m256i a) {
+	/// applies a single layer of the permutation network
+#define CMPXCH_SHUFFLE(a, perm, sel)				\
+	{												\
+		__m256i b  = _mm256_shuffle_epi8(a, perm);	\
+		__m256i mn = _mm256_min_epu16(a, b);		\
+		__m256i mx = _mm256_max_epu16(a, b);		\
+		a = _mm256_blendv_epi8(mx, mn, sel);		\
+	}
+	/// applies a single layer of the permutation network
+	/// but first swaps the upper and lower half of `a`
+#define CMPXCH_CROSS128_SHUFFLE(a, perm, sel)				\
+	{														\
+		__m256i b = _mm256_permute2x128_si256(a, a, 0x01);	\
+    	b = _mm256_shuffle_epi8(b, perm);					\
+		__m256i mn = _mm256_min_epu16(a, b);				\
+		__m256i mx = _mm256_max_epu16(a, b);				\
+		a = _mm256_blendv_epi8(mx, mn, sel);				\
+	}
+
+	// swaps i with i+1
+    const __m256i perm1 = _mm256_setr_epi8(
+        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13,
+        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13
+    );
+    // swaps i with i+2
+    const __m256i perm2 = _mm256_setr_epi8(
+        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11,
+        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11
+    );
+    const __m256i perm3 = _mm256_setr_epi8(
+        0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15,
+        0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15
+    );
+    // swaps i with i+4
+    const __m256i perm4 = _mm256_setr_epi8(
+    	8,9, 10,11, 12,13, 14,15, 0,1, 2,3, 4,5, 6,7,
+    	8,9, 10,11, 12,13, 14,15, 0,1, 2,3, 4,5, 6,7
+    );
+    const __m256i perm5 = _mm256_setr_epi8(
+        0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15,
+        0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15
+    );
+    const __m256i perm6 = _mm256_setr_epi8(
+        0, 1, 4, 5, 2, 3, 8, 9, 6, 7, 12, 13, 10, 11, 14, 15,
+        0, 1, 4, 5, 2, 3, 8, 9, 6, 7, 12, 13, 10, 11, 14, 15
+    );
+    // across lanes
+    const __m256i perm7 = _mm256_setr_epi8(
+        14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1,
+        14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1
+    );
+    // across lanes: NOTE: probably wrong
+    const __m256i perm8 = _mm256_setr_epi8(
+        0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 
+        0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7
+    );
+    // across lanes: NOTE: probably wrong
+    const __m256i perm9 = _mm256_setr_epi8(
+        0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3,
+        0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3
+    );
+    // across lanes: NOTE: probably wrong
+    const __m256i perm10= _mm256_setr_epi8(
+        0, 1, 4, 5, 2, 3, 8, 9, 6, 7, 12, 13, 10, 11, 14, 15,
+        0, 1, 4, 5, 2, 3, 8, 9, 6, 7, 12, 13, 10, 11, 14, 15
+    );
+    
+    // sel1: even word indices (w & 1 == 0) receive the min
+    const __m256i sel1 = _mm256_setr_epi8(
+        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,
+        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00
+    );
+    // sel2: (w & 2) == 0 receive min
+    const __m256i sel2 = _mm256_setr_epi8(
+        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,
+        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00
+    );
+    // sel4: (w & 4) == 0 receive min -> words 0..3 get min, words 4..7 get max inside each 128-bit lane
+    const __m256i sel4 = _mm256_setr_epi8(
+        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00,
+        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00
+    );
+    // sel8: lower 128-bit half (first 8 words = first 16 bytes) receive min when compare across halves
+    const __m256i sel8 = _mm256_setr_epi8(
+    	0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,  0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+    	0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,  0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00
+    );
+
+    // TODO: the selection masks are wrong.
+	CMPXCH_SHUFFLE(a, perm1, sel1);
+	CMPXCH_SHUFFLE(a, perm2, sel2);
+	CMPXCH_SHUFFLE(a, perm3, sel1);
+	CMPXCH_SHUFFLE(a, perm4, sel4);
+	CMPXCH_SHUFFLE(a, perm5, sel1);
+	CMPXCH_SHUFFLE(a, perm6, sel2);
+	CMPXCH_CROSS128_SHUFFLE(a, perm7, sel8);
+	CMPXCH_CROSS128_SHUFFLE(a, perm8, sel8);
+	CMPXCH_CROSS128_SHUFFLE(a, perm9, sel8);
+	CMPXCH_CROSS128_SHUFFLE(a, perm10, sel8);
+
+	return a;
+#undef CMPXCH_SHUFFLE
+#undef CMPXCH_CROSS128_SHUFFLE
+}
+
+
+static inline
+void sortingnetwork_kvsort_u16x16(__m256i *k,
+								  __m256i *v) {
+	/// applies a single layer of the permutation network
+#define CMPXCH_SHUFFLE(kk, vv, perm, sel)				                            \
+{												                                    \
+    const __m256i k2 = _mm256_shuffle_epi8(kk, perm);                               \
+    const __m256i v2 = _mm256_shuffle_epi8(vv, perm);                               \
+    const __m256i k_min = _mm256_min_epu16(kk, k2);                                 \
+    const __m256i k_max = _mm256_max_epu16(kk, k2);                                 \
+    const __m256i v_min = _mm256_blendv_epi8(v2, vv, _mm256_cmpeq_epi16(k_min, kk));\
+    const __m256i v_max = _mm256_blendv_epi8(vv, v2, _mm256_cmpeq_epi16(k_min, kk));\
+    kk = _mm256_blendv_epi8(k_max, k_min, sel);                                     \
+    vv = _mm256_blendv_epi8(v_max, v_min, sel);                                     \
+}
+	/// applies a single layer of the permutation network
+	/// but first swaps the upper and lower half of `a`
+#define CMPXCH_CROSS128_SHUFFLE(kk, vv, perm, sel)				                    \
+{														                            \
+    __m256i k2 = _mm256_permute2x128_si256(kk, kk, 0x01);                           \
+    __m256i v2 = _mm256_permute2x128_si256(vv, vv, 0x01);                           \
+    k2 = _mm256_shuffle_epi8(k2, perm);                                             \
+    v2 = _mm256_shuffle_epi8(v2, perm);                                             \
+    const __m256i k_min = _mm256_min_epu16(kk, k2);                                 \
+    const __m256i k_max = _mm256_max_epu16(kk, k2);                                 \
+    const __m256i v_min = _mm256_blendv_epi8(v2, vv, _mm256_cmpeq_epi16(k_min, kk));\
+    const __m256i v_max = _mm256_blendv_epi8(vv, v2, _mm256_cmpeq_epi16(k_min, kk));\
+    kk = _mm256_blendv_epi8(k_max, k_min, sel);                                     \
+    vv = _mm256_blendv_epi8(v_max, v_min, sel);                                     \
+}
+
+	// swaps i with i+1
+    const __m256i perm1 = _mm256_setr_epi8(
+        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13,
+        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13
+    );
+    // swaps i with i+2
+    const __m256i perm2 = _mm256_setr_epi8(
+        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11,
+        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11
+    );
+    // swaps i,i+1 with i+3,i+2 in packs of 4  
+    const __m256i perm22 = _mm256_setr_epi8(
+        6,7, 4,5, 2,3, 0,1, 14,15, 12,13, 10,11, 8,9,
+        6,7, 4,5, 2,3, 0,1, 14,15, 12,13, 10,11, 8,9
+    );
+    // swaps i with i+4
+    const __m256i perm4 = _mm256_setr_epi8(
+    	8,9, 10,11, 12,13, 14,15, 0,1, 2,3, 4,5, 6,7,
+    	8,9, 10,11, 12,13, 14,15, 0,1, 2,3, 4,5, 6,7
+    );
+    // swaps i,i+1,i+2,i+3 with i+7,i+6,i+5,i+4 in packs of 8
+    const __m256i perm44 = _mm256_setr_epi8(
+        14,15,12,13,10,11,8,9,6,7,4,5,2,3,0,1,
+        14,15,12,13,10,11,8,9,6,7,4,5,2,3,0,1
+    );
+    
+    // sel1: even word indices (w & 1 == 0) receive the min
+    const __m256i sel1 = _mm256_setr_epi8(
+        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,
+        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00
+    );
+    // sel2: (w & 2) == 0 receive min
+    const __m256i sel2 = _mm256_setr_epi8(
+        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,
+        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00
+    );
+    // sel4: (w & 4) == 0 receive min -> words 0..3 get min, words 4..7 get max inside each 128-bit lane
+    const __m256i sel4 = _mm256_setr_epi8(
+        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00,
+        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00
+    );
+    // sel8: lower 128-bit half (first 8 words = first 16 bytes) receive min when compare across halves
+    const __m256i sel8 = _mm256_setr_epi8(
+    	0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,  0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+    	0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,  0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00
+    );
+
+    __m256i kk = *k;
+    __m256i vv = *v;
+
+	CMPXCH_SHUFFLE(kk, vv, perm1, sel1);
+	CMPXCH_SHUFFLE(kk, vv, perm22, sel2);
+	CMPXCH_SHUFFLE(kk, vv, perm1, sel1);
+
+	CMPXCH_SHUFFLE(kk, vv, perm44, sel4);
+	CMPXCH_SHUFFLE(kk, vv, perm2, sel2);
+	CMPXCH_SHUFFLE(kk, vv, perm1, sel1);
+
+	// dist=8 across 128-bit halves
+	CMPXCH_CROSS128_SHUFFLE(kk, vv, perm44, sel8);
+
+	CMPXCH_SHUFFLE(kk, vv, perm4, sel4);
+	CMPXCH_SHUFFLE(kk, vv, perm2, sel2);
+	CMPXCH_SHUFFLE(kk, vv, perm1, sel1);
+
+    _mm256_storeu_si256(k, kk);
+    _mm256_storeu_si256(v, vv);
+#undef CMPXCH_SHUFFLE
+#undef CMPXCH_CROSS128_SHUFFLE
+}
+
+
 
 /// needed by `sort_u8x16`
 constexpr static uint8_t layers[6][16] = {
-        {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
-        {3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12},
-        {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
-        {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
-        {15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
-        {4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11},
+    {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
+    {3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12},
+    {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
+    {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
+    {15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
+    {4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11},
 };
 
 /// needed by `sort_u8x16`
 constexpr static int8_t blend[4][16] = {
-        {0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1},
-        {0, 0,-1,-1,0,0,-1,-1,0,0,-1,-1,0,0,-1,-1},
-        {0,0,0,0,-1,-1,-1,-1,0,0,0,0,-1,-1,-1,-1},
-        {0,0,0,0,0,0,0,0, -1,-1,-1,-1,-1,-1,-1,-1},
+    {0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1},
+    {0,0,-1,-1,0,0,-1,-1,0,0,-1,-1,0,0,-1,-1},
+    {0,0,0,0,-1,-1,-1,-1,0,0,0,0,-1,-1,-1,-1},
+    {0,0,0,0,0,0,0,0,-1,-1,-1,-1,-1,-1,-1,-1},
 };
 
 /// sorts a single SSE register
@@ -731,24 +1027,24 @@ __m256i sortingnetwork_sort_u8x32_(__m256i v) noexcept {
     __m128i L1 = _mm256_extractf128_si256(v, 0);
     __m128i H1 = _mm256_extractf128_si256(v, 1);
     H1 = _mm_shuffle_epi8(H1, _mm_load_si128((__m128i *)sortingnetwork_u8x32_shuffle_masks[4]));
-
 	COEX_u8x16(L1, H1, tmp_);
+
     __m128i L1p = _mm_blendv_epi8(L1, _mm_bslli_si128(H1, 8), _mm_load_si128((__m128i *)blend[3]));
     __m128i H1p = _mm_blendv_epi8(_mm_bsrli_si128(L1, 8), H1, _mm_load_si128((__m128i *)blend[3]));
-
 	COEX_u8x16(L1p, H1p, tmp_);
+
     __m128i L2p = _mm_blendv_epi8(L1p, _mm_bslli_si128(H1p, 4), _mm_load_si128((__m128i *)blend[2]));
     __m128i H2p = _mm_blendv_epi8(_mm_bsrli_si128(L1p, 4), H1p, _mm_load_si128((__m128i *)blend[2]));
-
 	COEX_u8x16(L2p, H2p, tmp_);
+
     __m128i L3p = _mm_blendv_epi8(L2p, _mm_bslli_si128(H2p, 2), _mm_load_si128((__m128i *)blend[1]));
     __m128i H3p = _mm_blendv_epi8(_mm_bsrli_si128(L2p, 2), H2p, _mm_load_si128((__m128i *)blend[1]));
-
 	COEX_u8x16(L3p, H3p, tmp_);
+
     __m128i L4p = _mm_blendv_epi8(L3p, _mm_bslli_si128(H3p, 1), _mm_load_si128((__m128i *)blend[0]));
     __m128i H4p = _mm_blendv_epi8(_mm_bsrli_si128(L3p, 1), H3p, _mm_load_si128((__m128i *)blend[0]));
-
 	COEX_u8x16(L4p, H4p, tmp_);
+
     const __m128i kl = _mm_unpacklo_epi8(L4p, H4p);
     const __m128i kh = _mm_unpackhi_epi8(L4p, H4p);
     return _mm256_set_m128i(kh, kl);

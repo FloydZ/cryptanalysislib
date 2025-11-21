@@ -140,3 +140,4 @@ _deps
 
 
 **/.claude/settings.local.json
+.aider*

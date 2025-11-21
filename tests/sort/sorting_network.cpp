@@ -93,7 +93,7 @@ TEST(SortingNetwork, timsort_constexpr) {
 TEST(SortingNetwork, uint16x16_t) {
 	uint16_t d_in[16], d_out[16];
 	for (uint32_t i = 0; i < 16; ++i) {
-		d_in[i] = 15-i; //rng();
+		d_in[i] = rng(); //i + (i&1)*i*(1u<<8);
 	}
 
 	const __m256i in  = _mm256_loadu_si256((const __m256i *) d_in);
@@ -101,6 +101,26 @@ TEST(SortingNetwork, uint16x16_t) {
 	_mm256_storeu_si256((__m256i *)d_out, out);
 	for (uint32_t i = 0; i < 15; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+TEST(SortingNetwork, kv_uint16x16_t) {
+	uint16_t k_in[16] __attribute__((aligned(32))), k_out[16] __attribute__((aligned(32)));
+	uint16_t v_in[16] __attribute__((aligned(32))), v_out[16] __attribute__((aligned(32)));
+	for (uint32_t i = 0; i < 16; ++i) {
+		k_in[i] = rng(); //i + (i&1)*i*(1u<<8);
+		v_in[i] = rng();
+	}
+
+	memcpy(k_out, k_in, 32);
+	memcpy(v_out, v_in, 32);
+	sortingnetwork_kvsort_u16x16((__m256i *)k_out, (__m256i *)v_out);
+	for (uint32_t i = 0; i < 15; ++i) {
+		EXPECT_LE(k_out[i], k_out[i+1]);
+		uint32_t j = 0;
+		for (; j < 15; j++) {
+			if (k_out[i] == k_in[j]) { break; }
+		}
+		EXPECT_EQ(v_out[i], v_in[j]);
 	}
 }
 
@@ -118,6 +138,7 @@ TEST(SortingNetwork, int64x8_t) {
 	mask = _mm256_movemask_ps((__m256) c);
 	EXPECT_EQ(mask, (1u << 8u) - 1u);
 }
+
 
 // SRC: https://drops.dagstuhl.de/opus/volltexte/2021/13775/pdf/LIPIcs-SEA-2021-3.pdf
 TEST(SortingNetwork, uint32x8_t) {
@@ -859,13 +880,13 @@ TEST(SortingNetwork, avx512_float_small) {
 TEST(SortingNetwork, avx512_uint16x32_t) {
 	uint16_t d_in[32], d_out[32];
 	for (uint32_t i = 0; i < 32; ++i) {
-		d_in[i] = rng();
+		d_in[i] = 31-i; // rng();
 	}
 
 	const __m512i in  = _mm512_loadu_si512((const __m512i *) d_in);
-	const __m512i out = sortingnetwork_sort_u16x32(in);
+	const __m512i out = sortingnetwork_sort_u16x32_v2(in);
 	_mm512_storeu_si512((__m512i *)d_out, out);
-	for (uint32_t i = 0; i < 15; ++i) {
+	for (uint32_t i = 0; i < 31; ++i) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
 	}
 }
