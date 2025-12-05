@@ -130,3 +130,15 @@ inline __m256i _mm256_2intersect_epi64_mask(const __m256i a,
 	__m256i h = _mm256_or_si256(_mm256_cmpeq_epi64(a1, b), _mm256_cmpeq_epi64(a1, b1));
 	return _mm256_or_si256(l, _mm256_permute2x128_si256(h, h, 1));
 }
+
+// https://www.maths.town/code-blog/simd/64bit-multiply-using-avx2/
+// Multiply-Assign Operator.  (i64*i64->i64) 
+__m256i _mm256_mul_epu64(__m256i a, __m256i b) noexcept {	
+	auto digit1 = _mm256_mul_epu32(a, b);											        // Calculate bd (carry in upper dword)
+	auto rhs_swap = _mm256_shuffle_epi32(b, 0xB1);									    // Swap the low and high dwords. 
+	auto ad_bc = _mm256_mullo_epi32(a, rhs_swap);										    // Multiply dwords.          
+	auto bc_00 = _mm256_slli_epi64(ad_bc, 32);											    // Shift left to put bc in the upper dword.
+	auto ad_plus_bc = _mm256_add_epi32(ad_bc, bc_00);									    // Perform addition in the upper dword
+	auto digit2 = _mm256_and_si256(ad_plus_bc, _mm256_set1_epi64x(0xFFFFFFFF00000000));   // Zero lower dword
+	return _mm256_add_epi64(digit1, digit2);											                // Add digits to get final result. 
+}

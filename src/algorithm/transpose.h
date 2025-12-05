@@ -24,6 +24,50 @@ uint64_t transpose_b8x8(const uint64_t x_) noexcept {
 	return x;
 }
 
+///  taken from hackers delight
+void transpose_b8x8_(uint8_t *b,
+                     const uint8_t *a,
+                     const uint64_t dst_stride,
+                     const uint64_t src_stride) {
+    uint32_t x = (uint32_t)a[7*src_stride]<<24 | (uint32_t)a[6*src_stride]<<16 | (uint32_t)a[5*src_stride]<<8 | ((uint32_t)a[4*src_stride])<<0;
+    uint32_t y = (uint32_t)a[3*src_stride]<<24 | (uint32_t)a[2*src_stride]<<16 | (uint32_t)a[1*src_stride]<<8 | ((uint32_t)a[0*src_stride])<<0;
+
+    uint32_t t = (x ^ (x >> 7)) & 0x00AA00AA;  x = x ^ t ^ (t << 7);
+    t = (y ^ (y >> 7)) & 0x00AA00AA;  y = y ^ t ^ (t << 7);
+
+    t = (x ^ (x >>14)) & 0x0000CCCC;  x = x ^ t ^ (t <<14);
+    t = (y ^ (y >>14)) & 0x0000CCCC;  y = y ^ t ^ (t <<14);
+
+    t = (x & 0xF0F0F0F0) | ((y >> 4) & 0x0F0F0F0F);
+    y = ((x << 4) & 0xF0F0F0F0) | (y & 0x0F0F0F0F);
+    x = t;
+
+    b[7*dst_stride]=x>>24; b[6*dst_stride]=x>>16; b[5*dst_stride]=x>>8; b[4*dst_stride]=x;
+    b[3*dst_stride]=y>>24; b[2*dst_stride]=y>>16; b[1*dst_stride]=y>>8; b[0*dst_stride]=y;
+}
+
+///  taken from hackers delight
+void transpose_b8x8_be_(uint8_t *b,
+                        const uint8_t *a,
+                        const uint64_t dst_stride,
+                        const uint64_t src_stride) {
+    uint32_t x = (uint32_t)a[0]           <<24 | (uint32_t)a[src_stride]  <<16 | (uint32_t)a[2*src_stride]<<8 | (uint32_t)a[3*src_stride];
+    uint32_t y = (uint32_t)a[4*src_stride]<<24 | (uint32_t)a[5*src_stride]<<16 | (uint32_t)a[6*src_stride]<<8 | (uint32_t)a[7*src_stride];
+
+    uint32_t t = (x ^ (x >> 7)) & 0x00AA00AA;  x = x ^ t ^ (t << 7);
+    t = (y ^ (y >> 7)) & 0x00AA00AA;  y = y ^ t ^ (t << 7);
+
+    t = (x ^ (x >>14)) & 0x0000CCCC;  x = x ^ t ^ (t <<14);
+    t = (y ^ (y >>14)) & 0x0000CCCC;  y = y ^ t ^ (t <<14);
+
+    t = (x & 0xF0F0F0F0) | ((y >> 4) & 0x0F0F0F0F);
+    y = ((x << 4) & 0xF0F0F0F0) | (y & 0x0F0F0F0F);
+    x = t;
+
+    b[0]           =x>>24; b[dst_stride]  =x>>16; b[2*dst_stride]=x>>8; b[3*dst_stride]=x;
+    b[4*dst_stride]=y>>24; b[5*dst_stride]=y>>16; b[6*dst_stride]=y>>8; b[7*dst_stride]=y;
+}
+
 /// Transposes an 8x8 bit array along the diagonal from upper right (reverse transpose)
 ///
 /// Transforms the bit layout from rows to columns and reverses the order:
