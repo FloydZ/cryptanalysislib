@@ -29,7 +29,7 @@
 using namespace cryptanalysislib::popcount::internal;
 
 
-#if !defined(USE_AVX512F) && !defined(__AVX512VLINTRIN_H)
+#if !defined(USE_AVX512F) && !defined(__AVX512VLINTRIN_H) && !defined(USE_AVX2)
 // AVX2 does not provide scatter, so we emulate it in a most obvious way
 void _mm256_i32scatter_epi32(int32_t* base, 
                              __m256i vec_indices,

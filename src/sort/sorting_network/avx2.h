@@ -609,10 +609,10 @@ static inline __m256i sortingnetwork_sort_u16x16(__m256i a) {
     );
 
 	CMPXCH_SHUFFLE(a, perm1, sel1);		// dist=1
-	CMPXCH_SHUFFLE(a, perm22, sel2);	// dist=2
+	CMPXCH_SHUFFLE(a, perm22, sel2);	    // dist=2
 	CMPXCH_SHUFFLE(a, perm1, sel1);		// dist=1
 
-	CMPXCH_SHUFFLE(a, perm44, sel4);	// dist=4
+	CMPXCH_SHUFFLE(a, perm44, sel4);	    // dist=4
 	CMPXCH_SHUFFLE(a, perm2, sel2);		// dist=2
 	CMPXCH_SHUFFLE(a, perm1, sel1);		// dist=1
 
@@ -840,6 +840,243 @@ void sortingnetwork_kvsort_u16x16(__m256i *k,
 }
 
 
+// implementation of two parallel `simd_aftermerge_1V`
+static inline __m256i sortingnetwork_aftermerge_u16x16(__m256i a) noexcept {
+	/// applies a single layer of the permutation network
+#define CMPXCH_SHUFFLE1(a, perm, sel)				\
+	{												\
+		__m256i b  = _mm256_shuffle_epi8(a, perm);	\
+		__m256i mn = _mm256_min_epu16(a, b);		\
+		__m256i mx = _mm256_max_epu16(a, b);		\
+		a = _mm256_blendv_epi8(mx, mn, sel);		\
+	}
+#define CMPXCH_SHUFFLE2(a, b, perm, sel)			\
+	{												\
+		        b  = _mm256_shuffle_epi8(b, perm);	\
+		__m256i mn = _mm256_min_epu16(a, b);		\
+		__m256i mx = _mm256_max_epu16(a, b);		\
+		a = _mm256_blendv_epi8(mx, mn, sel);		\
+	}
+	// swaps i with i+1
+    const __m256i perm1 = _mm256_setr_epi8(
+        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13,
+        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13
+    );
+    // swaps i with i+2
+    const __m256i perm2 = _mm256_setr_epi8(
+        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11,
+        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11
+    );
+
+    // sel1: even word indices (w & 1 == 0) receive the min
+    const __m256i sel1 = _mm256_setr_epi8(
+        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,
+        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00
+    );
+    // sel2: (w & 2) == 0 receive min
+    const __m256i sel2 = _mm256_setr_epi8(
+        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,
+        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00
+    );
+    // sel4: (w & 4) == 0 receive min -> words 0..3 get min, words 4..7 get max inside each 128-bit lane
+    const __m256i sel4 = _mm256_setr_epi8(
+        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00,
+        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00
+    );
+	
+    __m256i b = _mm256_permute4x64_epi64(a, 0b10110001);
+	{
+		__m256i mn = _mm256_min_epu16(a, b);
+    	__m256i mx = _mm256_max_epu16(a, b);
+    	a = _mm256_blendv_epi8(mx, mn, sel4);
+	}
+	//CMPXCH_SHUFFLE2(a, b, perm4, sel4);
+    CMPXCH_SHUFFLE1(a, perm2, sel2);
+    CMPXCH_SHUFFLE1(a, perm1, sel1);
+
+	return a;
+#undef CMPXCH_SHUFFLE1
+#undef CMPXCH_SHUFFLE2
+}
+
+/// \param  a = [a0, ..., a7, a8,..., a15], u8 elements 
+/// \return a = [a7, ..., a0, a15, .., 18]
+static inline
+__m256i sortingnetwork_reverse_u8x8x2(const __m256i a) noexcept {
+    // reverse 
+    const __m256i rev = _mm256_setr_epi8(
+        14,15, 12,13, 10,11, 8,9, 6,7, 4,5, 2,3, 0,1,
+        14,15, 12,13, 10,11, 8,9, 6,7, 4,5, 2,3, 0,1
+    );
+
+    return _mm256_shuffle_epi8(a, rev);
+}
+
+/// \param  a = [a0, ..., a15], u8 elements 
+/// \return a = [a15, ..., a0]
+static inline
+__m256i sortingnetwork_reverse_u8x16(const __m256i a) noexcept {
+    // reverse 
+    __m256i b = _mm256_permute2x128_si256(a, a, 0x01);
+    return sortingnetwork_reverse_u8x8x2(b);
+}
+
+/// 
+static inline void sortingnetwork_mergesorted_u16x32(__m256i &a,
+                                                     __m256i &b) noexcept {
+#define SHUFFLE128(a)							\
+	{											\
+	__m256i t = a, x;							\
+	x = _mm256_permute2x128_si256(a, a, 0x01);  \
+	a = _mm256_min_epu16(t, x);					\
+	x = _mm256_max_epu16(t, x);					\
+	a = _mm256_blend_epi32(x, a, 0x0F);			\
+	}
+
+    // simd_permute_minmax_2V
+    b = sortingnetwork_reverse_u8x16(b);
+    __m256i t = a;
+	a = _mm256_min_epu16(t, b);
+	b = _mm256_max_epu16(t, b);
+
+    // simd_minmax_2V
+	SHUFFLE128(a);
+	SHUFFLE128(b);
+
+    a = sortingnetwork_aftermerge_u16x16(a);
+    b = sortingnetwork_aftermerge_u16x16(b);
+}
+
+/// translation of `simd_sort_4V`
+static inline void sortingnetwork_sort_u16x32(__m256i &a,
+                                              __m256i &b) noexcept {
+
+    a = sortingnetwork_sort_u16x16(a);
+    b = sortingnetwork_sort_u16x16(b);
+    sortingnetwork_mergesorted_u16x32(a, b);
+}
+
+/// translation of `simd_sort_8V`
+static inline void sortingnetwork_sort_u16x64(__m256i &a,
+											  __m256i &b,
+											  __m256i &c,
+											  __m256i &d) noexcept {
+#define SHUFFLE128(a)						\
+{											\
+__m256i t = a, x;							\
+x = _mm256_permute2x128_si256(a, a, 0x01);  \
+a = _mm256_min_epu16(t, x);					\
+x = _mm256_max_epu16(t, x);					\
+a = _mm256_blend_epi32(x, a, 0x0F);			\
+}
+
+	__m256i t;
+	sortingnetwork_sort_u16x32(a, b);
+	sortingnetwork_sort_u16x32(c, d);
+
+	// permute_minmax
+	d = sortingnetwork_reverse_u8x16(d);
+	t = a;
+	a = _mm256_min_epu16(t, d);
+	d = _mm256_max_epu16(t, d);
+
+	c = sortingnetwork_reverse_u8x16(c);
+	t = b;
+	b = _mm256_min_epu16(t, c);
+	c = _mm256_max_epu16(t, c);
+
+	// minmax_2v
+	t = a;
+	a = _mm256_min_epu16(t, b);
+	b = _mm256_max_epu16(t, b);
+	SHUFFLE128(a);
+	SHUFFLE128(b);
+
+
+	t = c;
+	c = _mm256_min_epu16(t, d);
+	d = _mm256_max_epu16(t, d);
+	SHUFFLE128(c);
+	SHUFFLE128(d);
+
+	a = sortingnetwork_aftermerge_u16x16(a);
+	b = sortingnetwork_aftermerge_u16x16(b);
+	c = sortingnetwork_aftermerge_u16x16(c);
+	d = sortingnetwork_aftermerge_u16x16(d);
+#undef SHUFFLE128
+}
+
+// translation of `simd_aftermerge_8V`
+static inline void sortingnetwork_aftermerge_u16x64(__m256i &a,
+													__m256i &b,
+													__m256i &c,
+													__m256i &d) noexcept {
+#define SHUFFLE128(a)							\
+	{											\
+	__m256i t = a, x;							\
+	x = _mm256_permute2x128_si256(a, a, 0x01);  \
+	a = _mm256_min_epu16(t, x);					\
+	x = _mm256_max_epu16(t, x);					\
+	a = _mm256_blend_epi32(x, a, 0x0F);			\
+	}
+
+	__m256i t = a;
+	a = _mm256_min_epu16(t, c);
+	c = _mm256_max_epu16(t, c);
+	t = b;
+	b = _mm256_min_epu16(t, d);
+	d = _mm256_max_epu16(t, d);
+
+	t = a;
+	a = _mm256_min_epu16(t, b);
+	b = _mm256_max_epu16(t, b);
+	t = c;
+	c = _mm256_min_epu16(t, d);
+	d = _mm256_max_epu16(t, d);
+
+	SHUFFLE128(a);
+	SHUFFLE128(b);
+	SHUFFLE128(c);
+	SHUFFLE128(d);
+
+	a = sortingnetwork_aftermerge_u16x16(a);
+	b = sortingnetwork_aftermerge_u16x16(b);
+	c = sortingnetwork_aftermerge_u16x16(c);
+	d = sortingnetwork_aftermerge_u16x16(d);
+
+#undef SHUFFLE128
+}
+
+/// translation of `simd_sort_16V`
+static inline void sortingnetwork_sort_u16x128(__m256i &a,
+											   __m256i &b,
+											   __m256i &c,
+											   __m256i &d,
+											   __m256i &e,
+											   __m256i &f,
+											   __m256i &g,
+											   __m256i &h) noexcept {
+#define SHUFFLE_REV(a, b)						\
+	{											\
+	b = sortingnetwork_reverse_u8x16(b);		\
+	const __m256i t = a;						\
+	a = _mm256_min_epu16(t, b);					\
+	b = _mm256_max_epu16(t, b);					\
+	}
+
+	sortingnetwork_sort_u16x64(a, b, c, d);
+	sortingnetwork_sort_u16x64(e, f, g, h);
+
+	// permute_minmax
+	SHUFFLE_REV(a, h);
+	SHUFFLE_REV(b, g);
+	SHUFFLE_REV(c, f);
+	SHUFFLE_REV(d, e);
+
+	sortingnetwork_aftermerge_u16x64(a, b, c, d);
+	sortingnetwork_aftermerge_u16x64(e, f, g, h);
+#undef SHUFFLE_REV
+}
 
 /// needed by `sort_u8x16`
 constexpr static uint8_t layers[6][16] = {
@@ -1074,7 +1311,7 @@ static inline void sortingnetwork_aftermergesort_u8x32(__m256i &a) noexcept {
 	mask = _mm256_set1_epi32(0x0000FFFF);
 	L0 = _mm256_blendv_epi8(L5p, L0, mask);
 
-	// 6, TODO somewhere is a bug, for reasons I dont understand this shuffle is missing
+	// 6, NOTE: somewhere is a bug, for reasons I dont understand this shuffle is missing
 	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[7]);
 	__m256i L6p = _mm256_shuffle_epi8(L0, mask);
     COEX_u8x32(L0, L6p, tmp);
@@ -1149,12 +1386,12 @@ static inline void sortingnetwork_aftermergesort_u8x64(__m256i &a,
 static inline void sortingnetwork_mergesort_u8x64(__m256i &a,
                                                   __m256i &b) noexcept {
 
-    __m256i L0 = a, tmp, mask;
+    __m256i L0 = a, tmp;
     __m256i H0 = b;
 
 	// reverse H0
     __m256i H0p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
+	const __m256i mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
 	H0p =_mm256_shuffle_epi8(H0p, mask);
 	H0 = H0p;
 

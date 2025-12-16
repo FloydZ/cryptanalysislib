@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstdlib>
 #include <gtest/gtest.h>
 
 
@@ -121,6 +122,64 @@ TEST(SortingNetwork, kv_uint16x16_t) {
 			if (k_out[i] == k_in[j]) { break; }
 		}
 		EXPECT_EQ(v_out[i], v_in[j]);
+	}
+}
+TEST(SortingNetwork, uint16x32_t) {
+	uint16_t d_in[32], d_out[32];
+	for (uint32_t i = 0; i < 32; ++i) {
+		d_in[i] = rand() & 0xFF;
+	}
+	__m256i in0 = _mm256_loadu_si256((const __m256i *)(d_in+ 0));
+	__m256i in1 = _mm256_loadu_si256((const __m256i *)(d_in+16));
+	sortingnetwork_sort_u16x32(in0, in1);
+	_mm256_storeu_si256((__m256i *)(d_out + 0), in0);
+	_mm256_storeu_si256((__m256i *)(d_out +16), in1);
+	for (uint32_t i = 0; i < 31; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+TEST(SortingNetwork, uint16x64_t) {
+	uint16_t d_in[64], d_out[64];
+	for (uint32_t i = 0; i < 64; ++i) {
+		d_in[i] = rand() & 0xFF;
+	}
+	__m256i in0 = _mm256_loadu_si256((const __m256i *)(d_in+ 0));
+	__m256i in1 = _mm256_loadu_si256((const __m256i *)(d_in+16));
+	__m256i in2 = _mm256_loadu_si256((const __m256i *)(d_in+32));
+	__m256i in3 = _mm256_loadu_si256((const __m256i *)(d_in+48));
+	sortingnetwork_sort_u16x64(in0, in1, in2, in3);
+	_mm256_storeu_si256((__m256i *)(d_out + 0), in0);
+	_mm256_storeu_si256((__m256i *)(d_out +16), in1);
+	_mm256_storeu_si256((__m256i *)(d_out +32), in2);
+	_mm256_storeu_si256((__m256i *)(d_out +48), in3);
+	for (uint32_t i = 0; i < 63; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
+	}
+}
+TEST(SortingNetwork, uint16x128_t) {
+	uint16_t d_in[128], d_out[128];
+	for (uint32_t i = 0; i < 128; ++i) {
+		d_in[i] = rand() & 0xFF;
+	}
+	__m256i in0 = _mm256_loadu_si256((const __m256i *)(d_in +  0));
+	__m256i in1 = _mm256_loadu_si256((const __m256i *)(d_in + 16));
+	__m256i in2 = _mm256_loadu_si256((const __m256i *)(d_in + 32));
+	__m256i in3 = _mm256_loadu_si256((const __m256i *)(d_in + 48));
+	__m256i in4 = _mm256_loadu_si256((const __m256i *)(d_in + 64));
+	__m256i in5 = _mm256_loadu_si256((const __m256i *)(d_in + 80));
+	__m256i in6 = _mm256_loadu_si256((const __m256i *)(d_in + 96));
+	__m256i in7 = _mm256_loadu_si256((const __m256i *)(d_in +112));
+	sortingnetwork_sort_u16x128(in0, in1, in2, in3, in4, in5, in6, in7);
+	_mm256_storeu_si256((__m256i *)(d_out +   0), in0);
+	_mm256_storeu_si256((__m256i *)(d_out +  16), in1);
+	_mm256_storeu_si256((__m256i *)(d_out +  32), in2);
+	_mm256_storeu_si256((__m256i *)(d_out +  48), in3);
+	_mm256_storeu_si256((__m256i *)(d_out +  64), in4);
+	_mm256_storeu_si256((__m256i *)(d_out +  80), in5);
+	_mm256_storeu_si256((__m256i *)(d_out +  96), in6);
+	_mm256_storeu_si256((__m256i *)(d_out + 112), in7);
+	for (uint32_t i = 0; i < 127; ++i) {
+		EXPECT_LE(d_out[i], d_out[i+1]);
 	}
 }
 
