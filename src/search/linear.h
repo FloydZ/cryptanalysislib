@@ -11,15 +11,20 @@
 
 #include "hash/hash.h"
 
-/// linear search, needs to run backwards so it's stable
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Compare
-/// \param first
-/// \param last
-/// \param key
-/// \param compare
-/// \return
+// TODO add simd implementation (probably just steal is from `src/algorithm/find.h`)
+// TODO add namespace 
+// TODO add dispatch function as in `src/search/binary.h`
+
+/// Linear search to find the upper bound of a value
+/// Searches backwards through the range to maintain stability
+/// 
+/// \tparam ForwardIt Type of forward iterator
+/// \tparam Compare Type of comparison function
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param key[in]: Value to compare against
+/// \param compare[in]: Comparison function that returns true if first argument is less than second
+/// \return Iterator to the first element greater than key, or last if no such element exists
 template<class ForwardIt,
          class Compare>
 #if __cplusplus > 201709L
@@ -53,15 +58,17 @@ constexpr ForwardIt upper_bound_linear_search(const ForwardIt first,
 }
 
 
-/// linear search, needs to run forward so it's stable
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Compare
-/// \param first
-/// \param last
-/// \param key
-/// \param compare
-/// \return
+/// Linear search to find the lower bound of a value
+/// This algorithm iterates forward through the range to maintain stability
+/// The lower bound is defined as the first element in the range not less than the key
+/// 
+/// \tparam ForwardIt Type of forward iterator
+/// \tparam Compare Type of comparison function
+/// \param first[in] Iterator to the beginning of the range
+/// \param last[in] Iterator to the end of the range
+/// \param key[in] Value to compare against
+/// \param compare[in] Comparison function that returns true if first argument is less than second
+/// \return Iterator to the first element not less than key, or last if no such element exists
 template<class ForwardIt,
          class Compare>
 #if __cplusplus > 201709L
@@ -94,15 +101,16 @@ constexpr ForwardIt lower_bound_linear_search(const ForwardIt first,
 	return last;
 }
 
-///
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
+/// Linear search to find the upper bound of a value using a hash function
+/// Searches backwards through the range and stops when it finds an element with hash not greater than key
+/// 
+/// \tparam ForwardIt Type of forward iterator
+/// \tparam Hash Type of hash function
+/// \param first[in] Iterator to the beginning of the range
+/// \param last[in] Iterator to the end of the range
+/// \param key_[in] Value to compare against
+/// \param h[in] Hash function that returns a comparable value
+/// \return Iterator to the element with matching hash, or last if no such element exists
 template<class ForwardIt,
          class Hash>
 #if __cplusplus > 201709L
@@ -135,15 +143,16 @@ constexpr ForwardIt upper_bound_breaking_linear_search(const ForwardIt first,
 	return last;
 }
 
-///
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
+/// Linear search to find the lower bound of a value using a hash function
+/// Searches forward through the range and returns the first element with matching hash
+/// 
+/// \tparam ForwardIt Type of forward iterator
+/// \tparam Hash Type of hash function
+/// \param first[in] Iterator to the beginning of the range
+/// \param last[in] Iterator to the end of the range
+/// \param key_[in] Value to compare against
+/// \param h[in] Hash function that returns a comparable value
+/// \return Iterator to the first element with matching hash, or last if no such element exists
 template<class ForwardIt,
          class Hash>
 #if __cplusplus > 201709L
@@ -174,12 +183,14 @@ constexpr ForwardIt lower_bound_breaking_linear_search(const ForwardIt first,
 	return last;
 }
 
-/// faster than linear on larger arrays
-/// \tparam T
-/// \param array
-/// \param array_size
-/// \param key
-/// \return
+/// Linear search optimized for larger arrays
+/// Searches backwards through the array and breaks early when a value is found
+/// 
+/// \tparam T Type of array elements
+/// \param array[in] Pointer to the beginning of the array
+/// \param array_size[in] Size of the array
+/// \param key[in] Value to search for
+/// \return Index of the found element, or -1 if not found
 template<typename T>
 constexpr uint64_t breaking_linear_search(const T *array,
                                 const uint64_t array_size,
@@ -204,6 +215,16 @@ constexpr uint64_t breaking_linear_search(const T *array,
 }
 
 namespace cryptanalysislib::search {
+	/// Linear search using a hash function
+	/// Wrapper around lower_bound_breaking_linear_search
+	/// 
+	/// \tparam ForwardIt Type of forward iterator
+	/// \tparam Hash Type of hash function
+	/// \param first[in] Iterator to the beginning of the range
+	/// \param last[in] Iterator to the end of the range
+	/// \param key_[in] Value to compare against
+	/// \param h[in] Hash function that returns a comparable value
+	/// \return Iterator to the first element with matching hash, or last if no such element exists
 	template<class ForwardIt,
 	         class Hash>
 #if __cplusplus > 201709L
@@ -217,6 +238,16 @@ namespace cryptanalysislib::search {
 		return lower_bound_breaking_linear_search(first, last, key_, h);
 	}
 
+	/// Linear search using a comparison function
+	/// Wrapper around lower_bound_linear_search
+	/// 
+	/// \tparam ForwardIt Type of forward iterator
+	/// \tparam Compare Type of comparison function
+	/// \param first[in] Iterator to the beginning of the range
+	/// \param last[in] Iterator to the end of the range
+	/// \param key_[in] Value to compare against
+	/// \param cmp[in] Comparison function that returns true if first argument is less than second
+	/// \return Iterator to the first element not less than key, or last if no such element exists
 	template<class ForwardIt,
 			 class Compare>
 #if __cplusplus > 201709L

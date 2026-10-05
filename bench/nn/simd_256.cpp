@@ -32,8 +32,8 @@ void bruteforce_avx2_256(const Element *L1,
                          const size_t e2) noexcept {
 
 	constexpr size_t s1 = 0, s2 = 0;
-	ASSERT(e1 >= s1);
-	ASSERT(e2 >= s2);
+	assert(e1 >= s1);
+	assert(e2 >= s2);
 
 	/// difference of the memory location in the right list
 	const __m128i loadr1 = {(4ull << 32u), (8ul) | (12ull << 32u)};
@@ -130,7 +130,7 @@ BENCHMARK(BM_simd_256_32_ux8)->RangeMultiplier(2)->Range(128, 1u << 16)->Complex
 BENCHMARK(BM_simd_256_64_4x4)->RangeMultiplier(2)->Range(1024, 1u << 16)->Complexity();
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	algo.generate_random_instance(false);
 
 	::benchmark::Initialize(&argc, argv);

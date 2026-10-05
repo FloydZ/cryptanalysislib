@@ -17,7 +17,10 @@ template<typename T,
          const uint64_t q,
          const bool packed = true,
          typename R=void>
-class FqMatrix : public FqMatrix_Meta<T, nrows, ncols, q, packed, R> {
+#if __cplusplus > 201709L
+	requires std::unsigned_integral<T>
+#endif
+class FqMatrix : public FqMatrixMeta<T, nrows, ncols, q, packed, R> {
 public:
 };
 
@@ -30,14 +33,17 @@ template<typename T,
          const uint32_t nrows,
          const uint32_t ncols,
          const bool packed>
-class FqMatrix<T, nrows, ncols, 3, packed, void> : public FqMatrix_Meta<T, nrows, ncols, 3, packed, void> {
+#if __cplusplus > 201709L
+	requires std::unsigned_integral<T>
+#endif
+class FqMatrix<T, nrows, ncols, 3, packed, void> : public FqMatrixMeta<T, nrows, ncols, 3, packed, void> {
 public:
 	/// this is just defined, because Im lazy
 	static constexpr uint32_t q = 3;
 
 	using R = void;
 
-	using S = FqMatrix_Meta<T, nrows, ncols, q, packed, R>;
+	using S = FqMatrixMeta<T, nrows, ncols, q, packed, R>;
 	/// needed type definitions
 	using typename S::RowType;
 	using typename S::DataType;

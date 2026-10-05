@@ -1,13 +1,21 @@
 #ifndef CRYPTANALYSISLIB_SORTING_NETWORK_H
 #define CRYPTANALYSISLIB_SORTING_NETWORK_H
 
-#ifdef USE_AVX2
-#include "sort/sorting_network/avx2.h"
-#endif
 
 #ifdef USE_AVX512F
 #include "sort/sorting_network/avx512.h"
 #endif
+
+#ifdef USE_AVX2
+#include "sort/sorting_network/avx2.h"
+#endif
+
+#ifdef USE_NEON
+#include "sort/sorting_network/neon.h"
+#endif
+
+#include "sorting_network.h"
+
 /*
  Adapted from the Bose-Nelson Sorting network code from:
  https://github.com/atinm/bose-nelson/blob/master/bose-nelson.c

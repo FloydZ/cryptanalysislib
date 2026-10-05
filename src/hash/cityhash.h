@@ -12,14 +12,39 @@
 #endif
 #include <cstdint>
 
-#include "helper.h"
-#include "binary.h"
+#if defined(__APPLE__)
+// Mac OS X / Darwin features
+#include <libkern/OSByteOrder.h>
+#define bswap_16(x) OSSwapInt16(x)
+#define bswap_32(x) OSSwapInt32(x)
+#define bswap_64(x) OSSwapInt64(x)
+#else 
+#include <byteswap.h>
+#endif
 
+#include "helper.h"
 #include "memory/memory.h"
 
-using namespace cryptanalysislib;
+/// TODO comments 
+/// TODO move fetch64/32 and rotate32  into internal namespace
+
+constexpr inline static uint64_t fetch64(const char *p) noexcept {
+	return ((uint64_t *)p)[0];
+}
+
+constexpr inline static uint32_t fetch32(const char *p) noexcept {
+	return ((uint32_t *)p)[0];
+}
+
+template<typename T=uint32_t>
+constexpr inline static T Rotate32(const T val, const int shift) noexcept {
+    // TODO use own rotate implementation, which is optimized
+	// Avoid shifting by 32: doing so yields an undefined result.
+	return shift == T(0) ? val : ((val >> shift) | (val << ((sizeof(T)*8u) - shift)));
+}
 
 namespace cryptanalysislib::hash {
+
 	// Some primes between 2^63 and 2^64 for various uses.
 	constexpr static uint64_t k0 = 0xc3a5c85c97cb3127ULL;
 	constexpr static uint64_t k1 = 0xb492b66fbe98f273ULL;

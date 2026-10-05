@@ -65,8 +65,8 @@ TEST(Bruteforce, n256) {
 			EXPECT_EQ(algo.all_solutions_correct(), true);
 			algo.solutions_nr = 0;
 
-			free(algo.L1);
-			free(algo.L2);
+			cryptanalysislib::aligned_free(algo.L1);
+			cryptanalysislib::aligned_free(algo.L2);
 			algo.generate_random_instance();
 		}
 	}
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 #if TRACY_ENABLE==1
 	std::cout << "Tracy Enabled" << std::endl;
 #endif
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

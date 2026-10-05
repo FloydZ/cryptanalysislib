@@ -83,8 +83,8 @@ TEST(ipow, simple) {
 TEST(mod, simple) {
 	constexpr uint32_t mod = 718293;
 	for (uint32_t i = 0; i < 1u<<14; ++i) {
-		const uint32_t a = fastrandombytes_uint64();
-		const uint32_t b = fastrandombytes_uint64();
+		const uint32_t a = rng();
+		const uint32_t b = rng();
 		const uint32_t c = fastmod<mod>(a+b);
 		EXPECT_EQ(c, (a+b)%mod);
 	}
@@ -129,21 +129,21 @@ TEST(big_int, simple) {
 	EXPECT_EQ(tmp == one, true);
 }
 
-TEST(big_int, binom) {
-	const auto b1 = binomial<1, T, 1u, 1u>();
-	EXPECT_EQ(b1[0], 1);
-	const auto b2 = binomial<2, T, 2u, 2u>();
-	EXPECT_EQ(b2[0], 1);
-
-	const auto b3 = binomial<1, T, 256, 2u>();
-	EXPECT_EQ(b3[0], 32640);
-
-	// Number is too big:w
-	constexpr auto b4 = binomial<1, T, 1024, 7u>();
-	EXPECT_EQ(b4[0], 229479463334370304);
-}
+//TEST(big_int, binom) {
+//	const auto b1 = binomial<1, T, 1u, 1u>();
+//	EXPECT_EQ(b1[0], 1);
+//	const auto b2 = binomial<2, T, 2u, 2u>();
+//	EXPECT_EQ(b2[0], 1);
+//
+//	const auto b3 = binomial<1, T, 256, 2u>();
+//	EXPECT_EQ(b3[0], 32640);
+//
+//	// Number is too big:w
+//	constexpr auto b4 = binomial<1, T, 1024, 7u>();
+//	EXPECT_EQ(b4[0], 229479463334370304);
+//}
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

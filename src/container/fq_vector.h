@@ -9,47 +9,57 @@
 #include "container/common.h"
 #include "helper.h"
 #include "math/math.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
 #include "hash/hash.h"
 
+using namespace cryptanalysislib;
 
-///
+struct FqVectorMetaConfig : public AlignmentConfig {
+};
+constexpr static FqVectorMetaConfig fqVectorMetaConfig;
+
 /// \tparam T base type
 /// \tparam n size of the fq vector space=number of elements
 /// \tparam q field size
-template<typename T,
-		const uint64_t _n,
-		const uint64_t _q>
+template<const uint32_t _n,
+		 const uint64_t _q,
+         typename T=uint64_t,
+/// NOTE: its quite important that the config is nor passes as an reference so 
+/// it doesnt get a internal linkage
+		 const FqVectorMetaConfig config=fqVectorMetaConfig>
 #if __cplusplus > 201709L
     requires std::is_integral<T>::value
 #endif
-class kAryContainerMeta {
+class FqNonPackedVectorMeta {
 public:
 	// internal data length. Used in the template system to pass through this information
 	constexpr static uint64_t n = _n;
-	constexpr static inline uint64_t length() { return n; }
+	constexpr static uint64_t length = n;
 	constexpr static uint16_t internal_limbs = _n;
 
 	constexpr static uint64_t q = _q;
-	constexpr static inline uint64_t modulus() { return q; }
-	constexpr static uint32_t qbits = bits_log2(q);
+	constexpr static uint64_t modulus = q;
+	constexpr static uint32_t qbits = ceil_log2(q);
 
 	// Needed for the internal template system.
 	typedef T DataType;
 	typedef T LimbType;
 
-	typedef kAryContainerMeta ContainerType;
+	typedef FqNonPackedVectorMeta ContainerType;
 
-	// TODO enable AVX512
-	using S = TxN_t<T, 32/sizeof(T)>;
+	using S = SIMDSelector<T>;
 
-	// simple hash function
+
+	/// simple hash function
+	/// \tparam l
+	/// \tparam h
+	/// \return
 	template<const uint32_t l, const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
-		static_assert(h <= length());
+		static_assert(h <= length);
 		static_assert(((h-l)*qbits) <= 64);
 
 		__uint128_t d = __data[l];
@@ -64,11 +74,15 @@ public:
 		const uint64_t t2 = t1 & mask;
 		return t2;
 	}
+
+	/// \param l
+	/// \param h
+	/// \return
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
-		ASSERT(l < h);
-		ASSERT(h <= length());
-		ASSERT(((h-l)*qbits) <= 64);
+		assert(l < h);
+		assert(h <= length);
+		assert(((h-l)*qbits) <= 64);
 
 		__uint128_t d = __data[l];
 		uint32_t shift = qbits;
@@ -100,7 +114,7 @@ public:
 	}
 	constexpr static bool is_hashable(const uint32_t l,
 									  const uint32_t h) noexcept {
-		ASSERT(h > l);
+		assert(h > l);
 		const size_t t1 = h-l;
 		const size_t t2 = t1*qbits;
 
@@ -110,7 +124,7 @@ public:
 	/// zeros our the whole container
 	/// \return nothing
 	constexpr inline void zero(const uint32_t l=0,
-	                           const uint32_t h=length()) noexcept {
+	                           const uint32_t h=length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; i++) {
 			__data[i] = T(0);
@@ -120,7 +134,7 @@ public:
 	/// set everything one
 	/// \return nothing
 	constexpr inline void one(const uint32_t l=0,
-	                          const uint32_t h=length()) noexcept {
+	                          const uint32_t h=length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; i++) {
 			__data[i] = T(1);
@@ -129,38 +143,38 @@ public:
 
 	// sets everything
 	constexpr inline void minus_one(const uint32_t l=0,
-	                                const uint32_t h=length()) noexcept {
+	                                const uint32_t h=length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; i++) {
 			__data[i] = T(-1ull);
 		}
 	}
 
-	/// generates random coordinates
+	/// generates rng coordinates
 	/// \param k_lower lower coordinate to start from
 	/// \param k_higher higher coordinate to stop. Not included.
 	void random(const uint32_t k_lower = 0,
-	            const uint32_t k_higher = length()) noexcept {
-		ASSERT(k_lower < k_higher);
-		ASSERT(k_higher <= length());
+	            const uint32_t k_higher = length) noexcept {
+		assert(k_lower < k_higher);
+		assert(k_higher <= length);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; i++) {
-			__data[i] = fastrandombytes_uint64(q);
+			__data[i] = rng(q);
 		}
 	}
 
 
-	/// generates a random weight `w` vector with `w` != 0
+	/// generates a rng weight `w` vector with `w` != 0
 	/// \param w we
 	/// \param m
 	/// \param offset start offset of the first error position
 	/// \return
 	constexpr void random_with_weight(const uint32_t w,
-									  const uint32_t m=length(),
+									  const uint32_t m=length,
 	                                  const uint32_t offset=0) noexcept {
-		ASSERT(w <= m);
-		ASSERT(m+offset <= length());
+		assert(w <= m);
+		assert(m+offset <= length);
 		zero();
 
 		// chose first
@@ -168,7 +182,7 @@ public:
 			if constexpr (q == 2) {
 				set(1, i + offset);
 			} else {
-				const auto d = fastrandombytes_uint64(1, q - 1u);
+				const auto d = rng<T>(1, q - 1u);
 				set(d, i + offset);
 			}
 		}
@@ -178,7 +192,7 @@ public:
 
 		// now permute
 		for (uint64_t i = 0; i < m; ++i) {
-			uint64_t pos = fastrandombytes_uint64() % (m - i);
+			uint64_t pos = rng() % (m - i);
 			const auto t = get(i+offset);
 			set(get(i + pos+offset), i+offset);
 			set(t, i + pos+offset);
@@ -188,9 +202,9 @@ public:
 	/// checks if every dimension is zero
 	/// \return true/false
 	[[nodiscard]] constexpr bool is_zero(const uint32_t k_lower = 0,
-	                                     const uint32_t k_higher = length()) const noexcept {
-		ASSERT(k_lower < k_higher);
-		ASSERT(k_higher <= length());
+	                                     const uint32_t k_higher = length) const noexcept {
+		assert(k_lower < k_higher);
+		assert(k_higher <= length);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_higher; ++i) {
@@ -205,7 +219,7 @@ public:
 	/// calculate the hamming weight
 	/// \return the hamming weight
 	[[nodiscard]] constexpr inline uint32_t popcnt(const uint32_t l = 0,
-	                                               const uint32_t h = length()) const noexcept {
+	                                               const uint32_t h = length) const noexcept {
 		uint32_t r = 0;
 
 		LOOP_UNROLL();
@@ -219,19 +233,19 @@ public:
 	}
 
 	/// swap coordinate i, j, boundary checks are done
-	/// \param i coordinate
-	/// \param j coordinate
+	/// \param i[in]: coordinate
+	/// \param j[in]: coordinate
 	constexpr void swap(const uint32_t i,
 	                    const uint32_t j) noexcept {
-		ASSERT(i < length() && j < length());
+		assert(i < length && j < length);
 		SWAP(__data[i], __data[j]);
 	}
 
 	/// *-1
 	/// \param i
 	constexpr void flip(const uint32_t i) noexcept {
-		ASSERT(i < length());
-		ASSERT(__data[i] < q);
+		assert(i < length);
+		assert(__data[i] < q);
 		__data[i] *= -1;
 		__data[i] += q;
 		__data[i] %= q;
@@ -414,14 +428,12 @@ public:
 	/// \param b in
 	/// \return a+b, component wise
 	[[nodiscard]] constexpr static inline S add256_T(const S a,
-	                                                          const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
+	                                                 const S b) noexcept {
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = (a_data[i] + b_data[i]) % q;
 		}
 
@@ -434,14 +446,12 @@ public:
 	/// \param b in
 	/// \return a-b, component wise
 	[[nodiscard]] constexpr static inline S sub256_T(const S a,
-	                                                          const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
+	                                                 const S b) noexcept {
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = (a_data[i] + (q - b_data[i])) % q;
 		}
 
@@ -455,14 +465,11 @@ public:
 	/// \return a*b, component wise
 	[[nodiscard]] constexpr static inline S mul256_T(const S a,
 	                                                 const S b) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
-		// TODO: replace with S::mul
 		S ret;
 		const T *a_data = (const T *) &a;
 		const T *b_data = (const T *) &b;
 		T *ret_data = (T *)ret.d;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
+		for (uint8_t i = 0; i < S::LIMBS; ++i) {
 			ret_data[i] = (a_data[i] * b_data[i]) % q;
 		}
 
@@ -504,28 +511,62 @@ public:
 		return ret;
 	}
 
-	// TODO missing rol/ror/slr
 	///  out[s: ] = in[0:s]
-	constexpr static inline void sll(kAryContainerMeta &out,
-									 const kAryContainerMeta &in,
+	constexpr static inline void sll(FqNonPackedVectorMeta &out,
+									 const FqNonPackedVectorMeta &in,
 									 const uint32_t s) noexcept {
 		out.zero();
 
-		ASSERT(s < length());
-		for (uint32_t j = 0; j < length() - s; ++j) {
+		assert(s < length);
+		for (uint32_t j = 0; j < length - s; ++j) {
 			const auto d = in.get(j);
 			out.set(d, j + s);
 		}
 	}
+
+	///
+	constexpr static inline void slr(FqNonPackedVectorMeta &out,
+									 const FqNonPackedVectorMeta &in,
+									 const uint32_t s) noexcept {
+		out.zero();
+
+		assert(s < length);
+		for (uint32_t j = 0; j < length - s; ++j) {
+			const auto d = in.get(j+s);
+			out.set(d, j);
+		}
+	}
+
+	constexpr static inline void ror(FqNonPackedVectorMeta &out,
+									 const FqNonPackedVectorMeta &in,
+									 const uint32_t s) noexcept {
+		out.zero();
+
+		assert(s < length);
+		for (uint32_t j = 0; j < length; ++j) {
+			const auto d = in.get((j + s) % length);
+			out.set(d, j);
+		}
+	}
+	constexpr static inline void rol(FqNonPackedVectorMeta &out,
+									 const FqNonPackedVectorMeta &in,
+									 const uint32_t s) noexcept {
+		out.zero();
+
+		assert(s < length);
+		for (uint32_t j = 0; j < length - s; ++j) {
+			const auto d = in.get(j);
+			out.set(d, (j + s) % length);
+		}
+	}
+
 	/// NOTE: inplace
 	/// computes mod q
 	/// \param out = in1 % q
 	/// \param in1: input vector
 	constexpr static inline void mod(T *out, const T *in1) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		uint32_t i = 0;
-		for (; i + nr_limbs < n; i += nr_limbs) {
+		for (; i + S::LIMBS < n; i += S::LIMBS) {
 			const uint8x32_t a = uint8x32_t::load(in1 + i);
 			const uint8x32_t tmp = mod256_T(a);
 			uint8x32_t::store(out + i, tmp);
@@ -540,8 +581,8 @@ public:
 	/// computes mod q
 	/// \param out = in1 % q
 	/// \param in1: input vector
-	constexpr static inline void mod(kAryContainerMeta &out,
-	                                 const kAryContainerMeta &in1) noexcept {
+	constexpr static inline void mod(FqNonPackedVectorMeta &out,
+	                                 const FqNonPackedVectorMeta &in1) noexcept {
 		mod((T *) out.__data.data(), (const T *) in1.__data.data());
 	}
 
@@ -549,8 +590,8 @@ public:
 	/// \param k_lower lower dimension inclusive
 	/// \param k_upper higher dimension, exclusive
 	constexpr inline void neg(const uint32_t k_lower = 0,
-	                          const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                          const uint32_t k_upper = length) noexcept {
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -565,15 +606,13 @@ public:
 	constexpr static inline void add(T *out,
 	                                 const T *in1,
 	                                 const T *in2) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		uint32_t i = 0;
-		for (; i + nr_limbs <= n; i += nr_limbs) {
-			const uint8x32_t a = uint8x32_t::load((uint8_t *)(in1 + i));
-			const uint8x32_t b = uint8x32_t::load((uint8_t *)(in2 + i));
+		for (; i + S::LIMBS <= n; i += S::LIMBS) {
+			const S a = S::load((uint8_t *)(in1 + i));
+			const S b = S::load((uint8_t *)(in2 + i));
 
-			const uint8x32_t tmp = add256_T(a, b);
-			uint8x32_t::store(out + i, tmp);
+			const S tmp = add256_T(a, b);
+			S::store(out + i, tmp);
 		}
 
 		for (; i < n; i += 1) {
@@ -585,9 +624,9 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	constexpr static inline void add(kAryContainerMeta &out,
-	                       			 const kAryContainerMeta &in1,
-	                       			 const kAryContainerMeta &in2) noexcept {
+	constexpr static inline void add(FqNonPackedVectorMeta &out,
+	                       			 const FqNonPackedVectorMeta &in1,
+	                       			 const FqNonPackedVectorMeta &in2) noexcept {
 		add((T *) out.__data.data(),
 		    (const T *) in1.ptr(),
 		    (const T *) in2.ptr());
@@ -600,20 +639,17 @@ public:
 	/// \param k_upper higher dimension, exclusive
 	/// \param norm = max norm of an dimension which is allowed.
 	/// \return true if the element needs to be filtered out. False else.
-	constexpr inline static bool add(kAryContainerMeta &v3,
-	                                 kAryContainerMeta const &v1,
-	                                 kAryContainerMeta const &v2,
+	constexpr inline static bool add(FqNonPackedVectorMeta &v3,
+	                                 FqNonPackedVectorMeta const &v1,
+	                                 FqNonPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper,
 	                                 const uint32_t norm = -1) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 
 		if (norm == -1u) {
 			for (uint64_t i = k_lower; i < k_upper; ++i) {
 				v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
-				// TODO hide behind an internal constexpr flag
-				if ((cryptanalysislib::math::abs(v3.__data[i]) > norm) && (norm != uint32_t(-1)))
-					return true;
 			}
 
 			return false;
@@ -622,6 +658,9 @@ public:
 		LOOP_UNROLL();
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			v3.__data[i] = (v1.__data[i] + v2.__data[i]) % q;
+			if (cryptanalysislib::math::abs(v3.__data[i]) > norm) {
+				return true;
+			}
 		}
 
 		return false;
@@ -635,10 +674,10 @@ public:
 	/// \param norm = max norm of an dimension which is allowed.
 	/// \return true if the element needs to be filtered out. False else.
 	template<const uint32_t k_lower, const uint32_t k_upper, const uint32_t norm=-1u>
-	constexpr inline static bool add(kAryContainerMeta &v3,
-									 kAryContainerMeta const &v1,
-									 kAryContainerMeta const &v2) noexcept {
-		static_assert( k_upper <= length() && k_lower < k_upper);
+	constexpr inline static bool add(FqNonPackedVectorMeta &v3,
+	                                 FqNonPackedVectorMeta const &v1,
+	                                 FqNonPackedVectorMeta const &v2) noexcept {
+		static_assert( k_upper <= length && k_lower < k_upper);
 
 		if constexpr (norm == -1u) {
 			for (uint64_t i = k_lower; i < k_upper; ++i) {
@@ -665,10 +704,8 @@ public:
 	constexpr static inline void sub(T *out,
 	                       const T *in1,
 	                       const T *in2) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		uint32_t i = 0;
-		for (; i + nr_limbs < n; i += nr_limbs) {
+		for (; i + S::LIMBS < n; i += S::LIMBS) {
 			const auto a = S::load((uint8_t *)(in1 + i));
 			const auto b = S::load((uint8_t *)(in2 + i));
 
@@ -685,9 +722,9 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	constexpr static inline void sub(kAryContainerMeta &out,
-	                       const kAryContainerMeta &in1,
-	                       const kAryContainerMeta &in2) noexcept {
+	constexpr static inline void sub(FqNonPackedVectorMeta &out,
+	                       const FqNonPackedVectorMeta &in1,
+	                       const FqNonPackedVectorMeta &in2) noexcept {
 		sub((T *) out.__data.data(),
 		    (const T *) in1.__data.data(),
 		    (const T *) in2.__data.data());
@@ -700,13 +737,13 @@ public:
 	/// \param k_upper higher dimension, exclusive
 	/// \param norm filter every element out if hte norm is bigger than `norm`
 	/// \return true if the elements needs to be filter out. False if not
-	constexpr inline static bool sub(kAryContainerMeta &v3,
-	                                 kAryContainerMeta const &v1,
-	                                 kAryContainerMeta const &v2,
+	constexpr inline static bool sub(FqNonPackedVectorMeta &v3,
+	                                 FqNonPackedVectorMeta const &v1,
+	                                 FqNonPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower,
 	                                 const uint32_t k_upper,
 	                                 const uint32_t norm = -1) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -729,10 +766,10 @@ public:
 	template<const uint32_t k_lower,
 	         const uint32_t k_upper,
 	         const uint32_t norm=-1u>
-	constexpr inline static bool sub(kAryContainerMeta &v3,
-									 kAryContainerMeta const &v1,
-									 kAryContainerMeta const &v2) noexcept {
-		static_assert(k_upper <= length() && k_lower < k_upper);
+	constexpr inline static bool sub(FqNonPackedVectorMeta &v3,
+	                                 FqNonPackedVectorMeta const &v1,
+	                                 FqNonPackedVectorMeta const &v2) noexcept {
+		static_assert(k_upper <= length && k_lower < k_upper);
 
 		if constexpr (norm == -1u){
 			LOOP_UNROLL();
@@ -763,10 +800,8 @@ public:
 	                       			 const T *in2,
 	                                 const uint32_t k_lower=0,
 	                                 const uint32_t k_upper=n) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
 		uint32_t i = k_lower;
-		for (; i + nr_limbs < k_upper; i += nr_limbs) {
+		for (; i + S::LIMBS <= k_upper; i += S::LIMBS) {
 			const auto a = S::load(in1 + i);
 			const auto b = S::load(in2 + i);
 
@@ -783,9 +818,9 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	constexpr static inline void mul(kAryContainerMeta &out,
-	                       			 const kAryContainerMeta &in1,
-	                       			 const kAryContainerMeta &in2,
+	constexpr static inline void mul(FqNonPackedVectorMeta &out,
+	                       			 const FqNonPackedVectorMeta &in1,
+	                       			 const FqNonPackedVectorMeta &in2,
 	                                 const uint32_t k_lower=0,
 	                                 const uint32_t k_upper=n) noexcept {
 		mul((T *) out.__data.data(),
@@ -799,10 +834,10 @@ public:
 	/// \param v2 input
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper upper bound, exclusive
-	constexpr inline static void scalar(kAryContainerMeta &v1,
+	constexpr inline static void scalar(FqNonPackedVectorMeta &v1,
 	                                    const DataType v2,
 	                                    const uint32_t k_lower = 0,
-	                                    const uint32_t k_upper = length()) noexcept {
+	                                    const uint32_t k_upper = length) noexcept {
 		scalar(v1, v1, v2, k_lower, k_upper);
 	}
 
@@ -811,12 +846,12 @@ public:
 	/// \param v2 input container
 	/// \param k_lower lower dimension, inclusive
 	/// \param k_upper higher dimension, exclusive
-	constexpr inline static void scalar(kAryContainerMeta &v3,
-	                                    const kAryContainerMeta &v1,
+	constexpr inline static void scalar(FqNonPackedVectorMeta &v3,
+	                                    const FqNonPackedVectorMeta &v1,
 	                                    const DataType v2,
 	                                    const uint32_t k_lower = 0,
-	                                    const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                    const uint32_t k_upper = length) noexcept {
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -829,11 +864,11 @@ public:
 	/// \param k_lower lower dimension, inclusive
 	/// \param k_upper higher dimension, exclusive
 	/// \return v1 == v2 on the coordinates [k_lower, k_higher)
-	constexpr inline static bool cmp(kAryContainerMeta const &v1,
-	                                 kAryContainerMeta const &v2,
+	constexpr inline static bool cmp(FqNonPackedVectorMeta const &v1,
+	                                 FqNonPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                 const uint32_t k_upper = length) noexcept {
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -850,9 +885,9 @@ public:
 	/// \param k_upper higher dimension, exclusive
 	/// \return v1 == v2 on the coordinates [k_lower, k_higher)
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr inline static bool cmp(kAryContainerMeta const &v1,
-									 kAryContainerMeta const &v2) noexcept {
-		static_assert( k_upper <= length() && k_lower < k_upper);
+	constexpr inline static bool cmp(FqNonPackedVectorMeta const &v1,
+	                                 FqNonPackedVectorMeta const &v2) noexcept {
+		static_assert( k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -870,11 +905,11 @@ public:
 	/// \param v2 input container
 	/// \param k_lower lower bound coordinate wise, inclusive
 	/// \param k_upper higher bound coordinate wise, exclusive
-	constexpr inline static void set(kAryContainerMeta &v1,
-	                                 kAryContainerMeta const &v2,
+	constexpr inline static void set(FqNonPackedVectorMeta &v1,
+	                                 FqNonPackedVectorMeta const &v2,
 	                                 const uint32_t k_lower = 0,
-	                                 const uint32_t k_upper = length()) noexcept {
-		ASSERT(k_upper <= length() && k_lower < k_upper);
+	                                 const uint32_t k_upper = length) noexcept {
+		assert(k_upper <= length && k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_lower; i < k_upper; ++i) {
@@ -886,9 +921,9 @@ public:
 	/// \param k_lower lower coordinate bound, inclusive
 	/// \param k_upper higher coordinate bound, exclusive
 	/// \return this == obj on the coordinates [k_lower, k_higher)
-	constexpr bool is_equal(kAryContainerMeta const &obj,
+	constexpr bool is_equal(FqNonPackedVectorMeta const &obj,
 							const uint32_t k_lower = 0,
-							const uint32_t k_upper = length()) const noexcept {
+							const uint32_t k_upper = length) const noexcept {
 		return cmp(*this, obj, k_lower, k_upper);
 	}
 
@@ -897,7 +932,7 @@ public:
 	/// \param k_upper higher coordinate bound, exclusive
 	/// \return this == obj on the coordinates [k_lower, k_higher)
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr bool is_equal(kAryContainerMeta const &obj) const noexcept {
+	constexpr bool is_equal(FqNonPackedVectorMeta const &obj) const noexcept {
 		return cmp<k_lower, k_upper>(*this, obj);
 	}
 
@@ -905,11 +940,11 @@ public:
 	/// \param k_lower lower bound coordinate wise, inclusive
 	/// \param k_upper higher bound coordinate wise, exclusive
 	/// \return this > obj on the coordinates [k_lower, k_higher)
-	constexpr bool is_greater(kAryContainerMeta const &obj,
+	constexpr bool is_greater(FqNonPackedVectorMeta const &obj,
 	                          const uint32_t k_lower = 0,
-	                          const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_upper <= length());
-		ASSERT(k_lower < k_upper);
+	                          const uint32_t k_upper = length) const noexcept {
+		assert(k_upper <= length);
+		assert(k_lower < k_upper);
 		
 		LOOP_UNROLL();
 		for (uint64_t i = k_upper; i > k_lower; i--) {
@@ -928,8 +963,8 @@ public:
 	/// \param k_upper higher bound coordinate wise, exclusive
 	/// \return this > obj on the coordinates [k_lower, k_higher)
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr bool is_greater(kAryContainerMeta const &obj) const noexcept {
-		static_assert(k_upper <= length());
+	constexpr bool is_greater(FqNonPackedVectorMeta const &obj) const noexcept {
+		static_assert(k_upper <= length);
 		static_assert(k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -948,11 +983,11 @@ public:
 	/// \param k_lower lower bound coordinate wise, inclusive
 	/// \param k_upper higher bound coordinate wise, exclusive
 	/// \return this < obj on the coordinates [k_lower, k_higher)
-	constexpr bool is_lower(kAryContainerMeta const &obj,
+	constexpr bool is_lower(FqNonPackedVectorMeta const &obj,
 	                        const uint32_t k_lower = 0,
-	                        const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_upper <= length());
-		ASSERT(k_lower < k_upper);
+	                        const uint32_t k_upper = length) const noexcept {
+		assert(k_upper <= length);
+		assert(k_lower < k_upper);
 
 		LOOP_UNROLL();
 		for (uint32_t i = k_upper; i > k_lower; i--) {
@@ -971,8 +1006,8 @@ public:
 	/// \param k_upper higher bound coordinate wise, exclusive
 	/// \return this < obj on the coordinates [k_lower, k_higher)
 	template<const uint32_t k_lower, const uint32_t k_upper>
-	constexpr bool is_lower(kAryContainerMeta const &obj) const noexcept {
-		static_assert( k_upper <= length());
+	constexpr bool is_lower(FqNonPackedVectorMeta const &obj) const noexcept {
+		static_assert( k_upper <= length);
 		static_assert( k_lower < k_upper);
 
 		LOOP_UNROLL();
@@ -996,9 +1031,9 @@ public:
 	/// \return
 	template<const uint32_t weight,
 	         const uint32_t... Ts>
-	constexpr static bool filter(kAryContainerMeta &v3,
-	                             const kAryContainerMeta &v1,
-	                             const kAryContainerMeta &v2,
+	constexpr static bool filter(FqNonPackedVectorMeta &v3,
+	                             const FqNonPackedVectorMeta &v1,
+	                             const FqNonPackedVectorMeta &v2,
 	                             const uint32_t k_lower = 0,
 	                             const uint32_t k_upper = n) {
 		constexpr uint32_t nTs = sizeof...(Ts);
@@ -1034,12 +1069,12 @@ public:
 	/// \param i position. Boundary check is done.
 	/// \return limb at position i
 	[[nodiscard]] constexpr T &operator[](const size_t i) noexcept {
-		ASSERT(i < length());
+		assert(i < length);
 		return __data[i];
 	}
 
 	[[nodiscard]] constexpr const T &operator[](const size_t i) const noexcept {
-		ASSERT(i < length());
+		assert(i < length);
 		return __data[i];
 	};
 
@@ -1047,11 +1082,11 @@ public:
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper higher bound, exclusive
 	constexpr void print_binary(const uint32_t k_lower = 0,
-	                            const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
+	                            const uint32_t k_upper = length) const noexcept {
+		assert(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			unsigned data = (unsigned) __data[i];
-			for (uint32_t j = 0; j < bits_log2(q); ++j) {
+			for (uint32_t j = 0; j < ceil_log2(q); ++j) {
 				std::cout << (data & 1u) << " ";
 				data >>= 1;
 			}
@@ -1063,8 +1098,8 @@ public:
 	/// \param k_lower lower bound, inclusive
 	/// \param k_upper higher bound, exclusive
 	constexpr void print(const uint32_t k_lower = 0,
-	                     const uint32_t k_upper = length()) const noexcept {
-		ASSERT(k_lower < length() && k_upper <= length() && k_lower < k_upper);
+	                     const uint32_t k_upper = length) const noexcept {
+		assert(k_lower < length && k_upper <= length && k_lower < k_upper);
 		for (uint64_t i = k_lower; i < k_upper; ++i) {
 			std::cout << (unsigned) __data[i] << " ";
 		}
@@ -1079,36 +1114,36 @@ public:
 
 	// this data container is never binary
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return false; }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length(); }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return length(); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t size() noexcept { return length; }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t limbs() noexcept { return length; }
 	/// returns size of a single element in this container in bits
 	[[nodiscard]] __FORCEINLINE__ constexpr static size_t sub_container_size() noexcept { return sizeof(T) * 8; }
-	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return length() * sizeof(T); }
+	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept { return length * sizeof(T); }
 
 	/// returns the underlying data container
 	[[nodiscard]] __FORCEINLINE__ constexpr T *ptr() noexcept { return __data.data(); }
 	[[nodiscard]] __FORCEINLINE__ constexpr const T *ptr() const noexcept { return __data.data(); }
 	[[nodiscard]] __FORCEINLINE__ T ptr(const size_t i) noexcept {
-		ASSERT(i < limbs());
+		assert(i < limbs());
 		return __data[i];
 	};
 	[[nodiscard]] const __FORCEINLINE__ T ptr(const size_t i) const noexcept {
-		ASSERT(i < limbs());
+		assert(i < limbs());
 		return __data[i];
 	};
 
-	[[nodiscard]] __FORCEINLINE__ std::array<T, length()> &data() noexcept { return __data; }
-	[[nodiscard]] __FORCEINLINE__ const std::array<T, length()> &data() const noexcept { return __data; }
+	[[nodiscard]] __FORCEINLINE__ std::array<T, length> &data() noexcept { return __data; }
+	[[nodiscard]] __FORCEINLINE__ const std::array<T, length> &data() const noexcept { return __data; }
 	[[nodiscard]] constexpr T data(const size_t index) const noexcept {
-		ASSERT(index < length());
+		assert(index < length);
 		return __data[index];
 	}
 	[[nodiscard]] constexpr T get(const size_t index) const noexcept {
-		ASSERT(index < length());
+		assert(index < length);
 		return __data[index];
 	}
 	constexpr void set(const T data, const size_t index) noexcept {
-		ASSERT(index < length());
+		assert(index < length);
 		__data[index] = data % q;
 	}
 
@@ -1134,54 +1169,56 @@ public:
 				  << "}" << std::endl;
 	}
 protected:
-	std::array<T, length()> __data;
+	std::array<T, length> __data;
 };
 
 
 /// simple data container holding `length` Ts
-/// \tparam T base type
-/// \tparam length number of elements
+/// \tparam n number of elements
 /// \tparam q prime
-template<class T,
-         const uint32_t n,
-         const uint64_t q>
+/// \tparam T base type
+template<const uint32_t n,
+         const uint64_t q,
+         typename T=uint64_t>
 #if __cplusplus > 201709L
     requires kAryContainerAble<T> &&
              std::is_integral<T>::value
 #endif
-class kAryContainer_T : public kAryContainerMeta<T, n, q> {
+class FqNonPackedVector : public FqNonPackedVectorMeta<n, q, T> {
 public:
+	using M = FqNonPackedVectorMeta<n, q, T>;
+
 	/// needed constants
-	using kAryContainerMeta<T, n, q>::length;
-	using kAryContainerMeta<T, n, q>::modulus;
+	using M::length;
+	using M::modulus;
 
 	/// needed typedefs
-	using typename kAryContainerMeta<T, n, q>::DataType;
-	using typename kAryContainerMeta<T, n, q>::LimbType;
-	using typename kAryContainerMeta<T, n, q>::ContainerType;
+	using typename M::DataType;
+	using typename M::LimbType;
+	using typename M::ContainerType;
 
 	/// needed fields
-	using kAryContainerMeta<T, n, q>::__data;
+	// using M::__data;
 
 	/// needed functions
-	using kAryContainerMeta<T, n, q>::get;
-	using kAryContainerMeta<T, n, q>::set;
-	using kAryContainerMeta<T, n, q>::random;
-	using kAryContainerMeta<T, n, q>::zero;
-	using kAryContainerMeta<T, n, q>::is_equal;
-	using kAryContainerMeta<T, n, q>::is_greater;
-	using kAryContainerMeta<T, n, q>::is_lower;
-	using kAryContainerMeta<T, n, q>::cmp;
-	using kAryContainerMeta<T, n, q>::print;
-	using kAryContainerMeta<T, n, q>::size;
-	using kAryContainerMeta<T, n, q>::data;
-	using kAryContainerMeta<T, n, q>::is_zero;
+	using M::get;
+	using M::set;
+	using M::random;
+	using M::zero;
+	using M::is_equal;
+	using M::is_greater;
+	using M::is_lower;
+	using M::cmp;
+	using M::print;
+	using M::size;
+	using M::data;
+	using M::is_zero;
 
 	/// needed arithmetic
-	using kAryContainerMeta<T, n, q>::mod;
-	using kAryContainerMeta<T, n, q>::neg;
-	using kAryContainerMeta<T, n, q>::add;
-	using kAryContainerMeta<T, n, q>::sub;
+	using M::mod;
+	using M::neg;
+	using M::add;
+	using M::sub;
 };
 
 /// NOTE: this implements the representation padded (e.g. every number gets 8 bit)
@@ -1190,7 +1227,7 @@ template<const uint32_t n>
 #if __cplusplus > 201709L
     requires kAryContainerAble<uint8_t>
 #endif
-class kAryContainer_T<uint8_t, n, 4> : public kAryContainerMeta<uint8_t, n, 4> {
+class FqNonPackedVector<n, 4ul, uint8_t > : public FqNonPackedVectorMeta<n, 4ul, uint8_t> {
 public:
 	/// this is just needed, because Im lazy
 	constexpr static uint32_t q = 4;
@@ -1198,32 +1235,34 @@ public:
 	/// needed typedefs
 	using T = uint8_t;
 	using DataType = T;
-	using kAryContainerMeta<T, n, q>::length;
-	using kAryContainerMeta<T, n, q>::modulus;
-	using typename kAryContainerMeta<T, n, q>::LimbType;
-	using typename kAryContainerMeta<T, n, q>::ContainerType;
-	using kAryContainerMeta<T, n, q>::__data;
+	using M =  FqNonPackedVectorMeta<n, q, T>;
+
+	using M::length;
+	using M::modulus;
+	using typename M::LimbType;
+	using typename M::ContainerType;
+	// using M::__data;
 
 	/// needed functions
-	using kAryContainerMeta<T, n, q>::get;
-	using kAryContainerMeta<T, n, q>::set;
-	using kAryContainerMeta<T, n, q>::random;
-	using kAryContainerMeta<T, n, q>::zero;
-	using kAryContainerMeta<T, n, q>::is_equal;
-	using kAryContainerMeta<T, n, q>::is_greater;
-	using kAryContainerMeta<T, n, q>::is_lower;
-	using kAryContainerMeta<T, n, q>::cmp;
-	using kAryContainerMeta<T, n, q>::print;
-	using kAryContainerMeta<T, n, q>::size;
-	using kAryContainerMeta<T, n, q>::data;
-	using kAryContainerMeta<T, n, q>::is_zero;
-	using kAryContainerMeta<T, n, q>::ptr;
+	using M::get;
+	using M::set;
+	using M::random;
+	using M::zero;
+	using M::is_equal;
+	using M::is_greater;
+	using M::is_lower;
+	using M::cmp;
+	using M::print;
+	using M::size;
+	using M::data;
+	using M::is_zero;
+	using M::ptr;
 
 	/// needed arith
-	using kAryContainerMeta<T, n, q>::neg;
-	using kAryContainerMeta<T, n, q>::mod;
-	using kAryContainerMeta<T, n, q>::add;
-	using kAryContainerMeta<T, n, q>::sub;
+	using M::neg;
+	using M::mod;
+	using M::add;
+	using M::sub;
 
 private:
 	// helper masks
@@ -1344,7 +1383,7 @@ public:
 	static inline void scalar(uint8_t *out,
 	                          const uint8_t *in1,
 	                          const T in2) noexcept {
-		ASSERT(in2 <= q);
+		assert(in2 <= q);
 		uint32_t i = 0;
 
 		const uint8x32_t b = uint8x32_t::set1(in2);
@@ -1367,8 +1406,8 @@ public:
 	/// \param in1 input: vector
 	/// \param in2 input: scalar
 	template<typename T>
-	static inline void scalar(kAryContainer_T &out,
-	                          const kAryContainer_T &in1,
+	static inline void scalar(FqNonPackedVector &out,
+	                          const FqNonPackedVector &in1,
 	                          const T in2) noexcept {
 		scalar<T>(out.__data.data(), in1.__data.data(), in2);
 	}
@@ -1397,8 +1436,8 @@ public:
 	/// computes mod q
 	/// \param out = in1 % q
 	/// \param in1: input vector
-	constexpr static inline void mod(kAryContainer_T &out,
-	                                 const kAryContainer_T &in1) noexcept {
+	constexpr static inline void mod(FqNonPackedVector &out,
+	                                 const FqNonPackedVector &in1) noexcept {
 		mod((T *) out.__data.data(), (const T *) in1.__data.data());
 	}
 
@@ -1429,9 +1468,9 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
+	static inline void add(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
 		add((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
 	}
 
@@ -1462,9 +1501,9 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
+	static inline void sub(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
 		sub((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
 	}
 
@@ -1497,9 +1536,9 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	constexpr static inline void mul(kAryContainer_T &out,
-	                       			 const kAryContainer_T &in1,
-	                       			 const kAryContainer_T &in2,
+	constexpr static inline void mul(FqNonPackedVector &out,
+	                       			 const FqNonPackedVector &in1,
+	                       			 const FqNonPackedVector &in2,
 	                                 const uint32_t k_lower=0,
 	                                 const uint32_t k_upper=n) noexcept {
 		mul((T *) out.__data.data(),
@@ -1519,7 +1558,7 @@ template<const uint32_t n>
 #if __cplusplus > 201709L
     requires kAryContainerAble<uint8_t>
 #endif
-class kAryContainer_T<uint8_t, n, 5> : public kAryContainerMeta<uint8_t, n, 5> {
+class FqNonPackedVector<n, 5, uint8_t > : public FqNonPackedVectorMeta<n, 5, uint8_t > {
 public:
 	/// this is just needed, because Im lazy
 	constexpr static uint32_t q = 5;
@@ -1527,29 +1566,35 @@ public:
 	/// needed typedefs
 	using T = uint8_t;
 	using DataType = T;
-	using kAryContainerMeta<T, n, q>::length;
-	using kAryContainerMeta<T, n, q>::modulus;
-	using typename kAryContainerMeta<T, n, q>::LimbType;
-	using typename kAryContainerMeta<T, n, q>::ContainerType;
-	using kAryContainerMeta<T, n, q>::__data;
+	using M = FqNonPackedVectorMeta<n, q, T>;
+
+	using M::length;
+	using M::modulus;
+	using typename M::LimbType;
+	using typename M::ContainerType;
+	using M::__data;
 
 	/// needed functions
-	using kAryContainerMeta<T, n, q>::get;
-	using kAryContainerMeta<T, n, q>::set;
-	using kAryContainerMeta<T, n, q>::neg;
-	using kAryContainerMeta<T, n, q>::random;
-	using kAryContainerMeta<T, n, q>::zero;
-	using kAryContainerMeta<T, n, q>::is_equal;
-	using kAryContainerMeta<T, n, q>::is_greater;
-	using kAryContainerMeta<T, n, q>::is_lower;
-	using kAryContainerMeta<T, n, q>::cmp;
-	using kAryContainerMeta<T, n, q>::print;
-	using kAryContainerMeta<T, n, q>::size;
-	using kAryContainerMeta<T, n, q>::data;
-	using kAryContainerMeta<T, n, q>::is_zero;
-	using kAryContainerMeta<T, n, q>::add;
-	using kAryContainerMeta<T, n, q>::sub;
-	using kAryContainerMeta<T, n, q>::ptr;
+	using M::get;
+	using M::set;
+	using M::random;
+	using M::zero;
+	using M::is_equal;
+	using M::is_greater;
+	using M::is_lower;
+	using M::cmp;
+	using M::print;
+	using M::size;
+	using M::data;
+	using M::is_zero;
+	using M::ptr;
+
+	/// needed arith
+	using M::neg;
+	using M::mod;
+	using M::add;
+	using M::sub;
+
 
 private:
 	// helper masks
@@ -1687,7 +1732,7 @@ public:
 	/// \param in1 output: vector
 	/// \param in2 output: scalar
 	template<typename T>
-	static inline void scalar(kAryContainer_T &out, const kAryContainer_T &in1, const T in2) noexcept {
+	static inline void scalar(FqNonPackedVector &out, const FqNonPackedVector &in1, const T in2) noexcept {
 		scalar<T>(out.__data.data(), in1.__data.data(), in2);
 	}
 
@@ -1715,8 +1760,8 @@ public:
 	/// computes mod q
 	/// \param out = in1 % q
 	/// \param in1: input vector
-	constexpr static inline void mod(kAryContainer_T &out,
-	                                 const kAryContainer_T &in1) noexcept {
+	constexpr static inline void mod(FqNonPackedVector &out,
+	                                 const FqNonPackedVector &in1) noexcept {
 		mod((T *) out.__data.data(), (const T *) in1.__data.data());
 	}
 
@@ -1745,9 +1790,18 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
+	static inline void add(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
+		add((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
+	}
+
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper,
+			 const uint32_t norm>
+	static inline void add(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
 		add((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
 	}
 
@@ -1776,9 +1830,9 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
+	static inline void sub(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
 		sub((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
 	}
 
@@ -1807,9 +1861,9 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
+	static inline void mul(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
 		mul((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
 	}
 
@@ -1824,7 +1878,7 @@ template<const uint32_t n>
 #if __cplusplus > 201709L
     requires kAryContainerAble<uint8_t>
 #endif
-class kAryContainer_T<uint8_t, n, 7> : public kAryContainerMeta<uint8_t, n, 7> {
+class FqNonPackedVector<n, 7, uint8_t > : public FqNonPackedVectorMeta<n, 7, uint8_t> {
 public:
 	/// this is just needed, because Im lazy
 	constexpr static uint32_t q = 7;
@@ -1832,29 +1886,34 @@ public:
 	/// needed typedefs
 	using T = uint8_t;
 	using DataType = T;
-	using kAryContainerMeta<T, n, q>::length;
-	using kAryContainerMeta<T, n, q>::modulus;
-	using typename kAryContainerMeta<T, n, q>::LimbType;
-	using typename kAryContainerMeta<T, n, q>::ContainerType;
-	using kAryContainerMeta<T, n, q>::__data;
+	using M = FqNonPackedVectorMeta<n, q, T>;
+
+	using M::length;
+	using M::modulus;
+	using typename M::LimbType;
+	using typename M::ContainerType;
+	using M::__data;
 
 	/// needed functions
-	using kAryContainerMeta<T, n, q>::get;
-	using kAryContainerMeta<T, n, q>::set;
-	using kAryContainerMeta<T, n, q>::neg;
-	using kAryContainerMeta<T, n, q>::random;
-	using kAryContainerMeta<T, n, q>::zero;
-	using kAryContainerMeta<T, n, q>::is_equal;
-	using kAryContainerMeta<T, n, q>::is_greater;
-	using kAryContainerMeta<T, n, q>::is_lower;
-	using kAryContainerMeta<T, n, q>::cmp;
-	using kAryContainerMeta<T, n, q>::print;
-	using kAryContainerMeta<T, n, q>::size;
-	using kAryContainerMeta<T, n, q>::data;
-	using kAryContainerMeta<T, n, q>::is_zero;
-	using kAryContainerMeta<T, n, q>::add;
-	using kAryContainerMeta<T, n, q>::sub;
-	using kAryContainerMeta<T, n, q>::ptr;
+	using M::get;
+	using M::set;
+	using M::random;
+	using M::zero;
+	using M::is_equal;
+	using M::is_greater;
+	using M::is_lower;
+	using M::cmp;
+	using M::print;
+	using M::size;
+	using M::data;
+	using M::is_zero;
+	using M::ptr;
+
+	/// needed arith
+	using M::neg;
+	using M::mod;
+	using M::add;
+	using M::sub;
 
 private:
 	// helper masks
@@ -1986,7 +2045,7 @@ public:
 	/// \param in1 output: vector
 	/// \param in2 output: scalar
 	template<typename T>
-	static inline void scalar(kAryContainer_T &out, const kAryContainer_T &in1, const T in2) noexcept {
+	static inline void scalar(FqNonPackedVector &out, const FqNonPackedVector &in1, const T in2) noexcept {
 		scalar<T>(out.__data.data(), in1.__data.data(), in2);
 	}
 
@@ -2014,8 +2073,8 @@ public:
 	/// computes mod q
 	/// \param out = in1 % q
 	/// \param in1: input vector
-	constexpr static inline void mod(kAryContainer_T &out,
-	                                 const kAryContainer_T &in1) noexcept {
+	constexpr static inline void mod(FqNonPackedVector &out,
+	                                 const FqNonPackedVector &in1) noexcept {
 		mod((T *) out.__data.data(), (const T *) in1.__data.data());
 	}
 
@@ -2044,9 +2103,9 @@ public:
 	/// \param out = in1 + in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void add(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
+	static inline void add(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
 		add((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
 	}
 
@@ -2075,9 +2134,9 @@ public:
 	/// \param out = in1 - in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void sub(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
+	static inline void sub(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
 		sub((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
 	}
 
@@ -2106,9 +2165,9 @@ public:
 	/// \param out = in1*in2
 	/// \param in1 input: vector
 	/// \param in2 input: vector
-	static inline void mul(kAryContainer_T &out,
-	                       const kAryContainer_T &in1,
-	                       const kAryContainer_T &in2) noexcept {
+	static inline void mul(FqNonPackedVector &out,
+	                       const FqNonPackedVector &in1,
+	                       const FqNonPackedVector &in2) noexcept {
 		mul((T *) out.__data.data(), (const T *) in1.__data.data(), (const T *) in2.__data.data());
 	}
 
@@ -2117,20 +2176,42 @@ public:
 };
 
 
-
-template<typename T, const uint64_t n, const uint64_t q>
-constexpr inline bool operator==(const kAryContainerMeta<T, n, q> &a,
-								 const kAryContainerMeta<T, n, q> &b) noexcept {
+///
+/// \tparam T
+/// \tparam n
+/// \tparam q
+/// \param a
+/// \param b
+/// \return
+template<const uint32_t n, const uint64_t q, typename T>
+constexpr inline bool operator==(const FqNonPackedVectorMeta<n, q, T> &a,
+								 const FqNonPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_equal(b);
 }
-template<typename T, const uint64_t n, const uint64_t q>
-constexpr inline bool operator<(const kAryContainerMeta<T, n, q> &a,
-								const kAryContainerMeta<T, n, q> &b) noexcept {
+
+///
+/// \tparam n
+/// \tparam q
+/// \tparam T
+/// \param a
+/// \param b
+/// \return
+template<const uint32_t n, const uint64_t q, typename T>
+constexpr inline bool operator<(const FqNonPackedVectorMeta<n, q, T> &a,
+								const FqNonPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_lower(b);
 }
-template<typename T, const uint64_t n, const uint64_t q>
-constexpr inline bool operator>(const kAryContainerMeta<T, n, q> &a,
-								const kAryContainerMeta<T, n, q> &b) noexcept {
+
+///
+/// \tparam n
+/// \tparam q
+/// \tparam T
+/// \param a
+/// \param b
+/// \return
+template<const uint32_t n, const uint64_t q, typename T>
+constexpr inline bool operator>(const FqNonPackedVectorMeta<n, q, T> &a,
+								const FqNonPackedVectorMeta<n, q, T> &b) noexcept {
 	return a.is_greater(b);
 }
 
@@ -2141,8 +2222,8 @@ constexpr inline bool operator>(const kAryContainerMeta<T, n, q> &a,
 /// \param out
 /// \param obj
 /// \return
-template<typename T, const uint32_t n, const uint64_t q>
-std::ostream &operator<<(std::ostream &out, const kAryContainer_T<T, n, q> &obj) {
+template<const uint32_t n, const uint64_t q, typename T>
+std::ostream &operator<<(std::ostream &out, const FqNonPackedVector<n, q, T> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {
 		out << unsigned(obj[i]);
 	}

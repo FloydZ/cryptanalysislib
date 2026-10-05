@@ -9,7 +9,6 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
-// TODO probably need inc type: so that -1/i-- is possible
 using namespace loop_fusion::compiletime;
 
 
@@ -33,7 +32,7 @@ TEST(LoopFusion, Basic) {
 	auto fill = [&vec](int i) { vec.push_back(i); };
 	auto l = basic_looper<int, -100, 101, decltype(fill)>(std::make_tuple(fill));
 	l.run();
-	ASSERT_EQ(vec.size(), 201);
+	EXPECT_EQ(vec.size(), 201);
 	EXPECT_EQ(vec.at(0), -100);
 	EXPECT_EQ(vec.at(100), 0);
 	EXPECT_EQ(vec.at(200), 100);

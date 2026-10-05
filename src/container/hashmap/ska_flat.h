@@ -5,8 +5,12 @@
 #error "Do not include this file directly. Use: `#include <container/hashmap.h>`"
 #endif
 
-#include "growth_policy.h"
 #include <cstdint>
+#include <cassert>
+
+#include "growth_policy.h"
+
+/// TODO doc
 
 // TODO remove
 template<typename T, bool>
@@ -417,11 +421,11 @@ public:
 			return {current};
 		}
 
-		template<
-		        class U = ValueSelect,
-		        typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
+		template<class U = ValueSelect,
+		         typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
 		constexpr templated_iterator value() const noexcept {
-			ASSERT(false);
+            // TODO
+			assert(false);
 			// if (!current->is_empty()) {
 			// 	return U()(current->value());
 			// }
@@ -468,7 +472,7 @@ public:
 	         typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
 	constexpr inline typename ValueSelect::value_type &operator[](K &&key) noexcept {
 		// TODO implement
-		ASSERT(false);
+		assert(false);
 		(void) key;
 	}
 
@@ -611,7 +615,7 @@ public:
 
 	template<class K>
 	constexpr inline size_type erase(const K &key) noexcept {
-		ASSERT(false); // TODO
+		assert(false); // TODO
 		(void) key;
 		return 0;
 	}
@@ -735,7 +739,7 @@ private:
 	size_t num_elements = 0;
 
 	constexpr static int8_t compute_max_lookups(size_t num_buckets) noexcept {
-		int8_t desired = bits_log2(num_buckets);
+		int8_t desired = ceil_log2(num_buckets);
 		return std::max(min_lookups, desired);
 	}
 

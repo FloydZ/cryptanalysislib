@@ -10,6 +10,14 @@
 #include "list/enumeration/enumeration.h"
 
 /// only a single element is enumerated on the full length
+/// NOTE: enumerates:
+///		[aa00....0]
+///		[a0a0....0]
+///		[a00a....0]
+///			...
+///		[a000....a]
+///			...
+///		[000....aa]
 /// \tparam ListType
 /// \tparam n
 /// \tparam q
@@ -49,7 +57,9 @@ public:
 	// this generates a grey code sequence, e.g. a sequence in which
 	// two consecutive elements only differ in a single position
 	Combinations_Binary_Chase<T, n, w> chase = Combinations_Binary_Chase<T, n, w>{};
-	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(LIST_SIZE);
+
+	using ChangeList = std::vector<std::pair<uint16_t, uint16_t>>;
+	ChangeList chase_cl{LIST_SIZE};
 
 	const uint32_t q_prime = 0;
 	const size_t list_size = 0;
@@ -66,10 +76,10 @@ public:
 	                                                                           q_prime(q_prime),
 	                                                                           list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 
-		ASSERT(LIST_SIZE >= list_size);
-		ASSERT(q_prime > 0);
-		ASSERT(q_prime < q);
-		chase.template changelist<false>(chase_cl.data(), this->LIST_SIZE);
+		assert(LIST_SIZE >= list_size);
+		assert(q_prime > 0);
+		assert(q_prime < q);
+		chase.template changelist<false>(chase_cl, this->LIST_SIZE);
 	}
 
 	/// \tparam HashMap
@@ -107,7 +117,7 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
+		assert(n + offset <= Value::length);
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -153,8 +163,8 @@ public:
 			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off2]);
-			ASSERT(std::abs((int) a - (int) b) <= (int) w);
+			assert(element.value[a + off2]);
+			assert(std::abs((int) a - (int) b) <= (int) w);
 
 			Label tmp;
 			Label::scalar(tmp, HT.get(a + off2), q - q_prime);
@@ -190,7 +200,7 @@ public:
 		}
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		assert(ctr == LIST_SIZE);
 		return false;
 	}
 
@@ -208,6 +218,16 @@ public:
 		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
 		        (L1, L2, offset, base_offset, tid, nullptr, nullptr, nullptr);
 	}
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"BinarySinglePartialSingleEnumerator\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", q: " << q
+		          << " }\n";
+	}
+
 };
 
 /// This class enumerates each element of length `n`.
@@ -252,14 +272,15 @@ public:
 
 	/// this can be used to specify the size of the input list
 	/// e.g. its the maximum number of elements this class enumerates
-	constexpr static size_t LIST_SIZE = Combinations_Fq_Chase<n, q, w>::LIST_SIZE;
+	constexpr static size_t max_list_size = Combinations_Fq_Chase<n, q, w>::LIST_SIZE;
 
 	// this can be se to something else as `LIST_SIZE`, if one wants to only
 	// enumerate a part of the sequence
 	const size_t list_size = 0;
 
 	// change list for the chase sequence
-	std::vector<std::pair<uint16_t, uint16_t>> chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(chase_size);
+	using ChangeList = std::vector<std::pair<uint16_t, uint16_t>>;
+	ChangeList chase_cl{chase_size};
 	// change list for the gray code sequence
 	std::vector<uint16_t> gray_cl = std::vector<uint16_t>(std::max(1ul, gray_size));
 
@@ -272,18 +293,18 @@ public:
 	                             const size_t list_size = 0,
 	                             const Label *syndrome = nullptr)
 	    : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	      list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+	      list_size((list_size == size_t(0)) ? max_list_size : list_size) {
 
-		static_assert(chase_size >= 0);
-		static_assert(gray_size >= 0);
-		ASSERT(LIST_SIZE >= list_size);
+		static_assert(chase_size > 0);
+		static_assert(gray_size > 0);
+		assert(max_list_size >= list_size);
 
 		if constexpr (w > 0) {
 			if constexpr (q > 2) {
 				chase.changelist_mixed_radix_grey(gray_cl.data());
 			}
 
-			chase.template changelist_chase<false>(chase_cl.data());
+			chase.template changelist_chase<false>(chase_cl);
 		}
 	}
 
@@ -322,7 +343,7 @@ public:
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
+		assert(n + offset <= Value::length);
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -371,12 +392,14 @@ public:
 			const uint32_t cs = current_set[gray_cl[j]];
 			element.value.set((element.value[cs + off2] + 1) % q, cs + off2);
 			Label::add(element.label, element.label, HT.get(cs + off2));
-
 			/// NOTE: this is stupid, but needed. The gray code enumeration
 			/// also enumerates zeros. Therefore we need to fix them
 			if (element.value[cs + off2] == 0) {
 				element.value.set(1, cs + off2);
 				Label::add(element.label, element.label, HT.get(cs + off2));
+
+				// TODO
+				element.recalculate_label(HT);
 			}
 		};
 
@@ -387,8 +410,8 @@ public:
 			const uint32_t off2 = off + base_offset;
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[a + off2]);
-			ASSERT(std::abs((int) a - (int) b) <= (int) w);
+			assert(element.value[a + off2]);
+			assert(std::abs((int) a - (int) b) <= (int) w);
 
 			Label tmp;
 			Label::scalar(tmp, HT.get(a + off2), (q - element.value[a + off2]) % q);
@@ -396,6 +419,9 @@ public:
 			Label::add(element.label, element.label, HT.get(b + off2));
 			element.value.set(0, off2 + a);
 			element.value.set(1, off2 + b);
+
+			// TODO, this is only
+			element.recalculate_label(HT);
 		};
 
 		/// iterate over all sequences
@@ -404,17 +430,13 @@ public:
 				check(element1.label, element1.value);
 				if (sL2) check(element2.label, element2.value, false);
 
-				if constexpr (sP) {
-					if (std::invoke(*p, element1.label)) { return true; }
-				}
+				if constexpr (sP) { if (std::invoke(*p, element1.label)) { return true; } }
 				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 				if (sL1) insert_list(L1, element1, ctr, tid);
 				if (sL2) insert_list(L2, element2, ctr, tid);
 
 				ctr += 1;
-				if (ctr >= list_size) {
-					return false;
-				}
+				if (ctr >= list_size) { goto finish; }
 
 				gray_step(element1, j, 0);
 				if (sL2) gray_step(element2, j, offset);
@@ -432,7 +454,7 @@ public:
 
 			ctr += 1;
 			if (ctr >= list_size) {
-				return false;
+				goto finish;
 			}
 
 			/// advance the current set by one
@@ -446,11 +468,21 @@ public:
 			if (sL2) chase_step(element2, a, b, offset);
 		}
 
+	finish:
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		assert(ctr == list_size);
+		if (sL1) { L1->set_load(list_size); }
+		if (sL2) { L2->set_load(list_size); }
 		return false;
 	}
 
+	///
+	/// @param L1
+	/// @param L2
+	/// @param offset
+	/// @param base_offset
+	/// @param tid
+	/// @return
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
 			 const uint32_t offset = 0,
@@ -459,9 +491,18 @@ public:
 		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
 				   (L1, L2, offset, base_offset, tid, nullptr, nullptr, nullptr);
 	}
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"ListEnumerateMultiFullLength\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", q: " << q
+		          << " }\n";
+	}
 };
 
-
+/// NOTE: uses the 
 /// this class enumerates elements of the form:
 ///  [xxxx0000|xx000000], [0000xxxx|00xx0000], [xxxx0000|0000xx00], [0000xxxx|000000xx]
 /// In other-words you must pass 4 base lists to the function.
@@ -472,16 +513,33 @@ public:
 ///      mitmlen  norepslen
 /// \tparam ListType
 /// \tparam n length to enumerate
-/// \tparam q field size, e.g. enumeration symbols = {0, ..., q-1}
-/// \tparam w weight to enumerate
+/// \tparam q field size, e.g. enumeration symbol: x \in {0, ..., q-1}
+/// \tparam mitm_w hamming weight to enumerate on the mitm part
+/// \tparam noreps_w hamming weight to enumerate on the no representations part
+/// \tparam split were the split between the two is
 template<class ListType,
          const uint32_t n,
          const uint32_t q,
          const uint32_t mitm_w,
          const uint32_t noreps_w,
          const uint32_t split>
-class ListEnumerateSinglePartialSingle : public ListEnumeration_Meta<ListType, n, q, mitm_w + noreps_w> {
+#if __cplusplus > 201709L
+	requires ListAble<ListType>
+#endif
+class ListEnumerateSinglePartialSingle :
+    public ListEnumeration_Meta<ListType, n, q, mitm_w + noreps_w> {
+private:
+	constexpr ListEnumerateSinglePartialSingle() = default;
 public:
+	static_assert(n > split);
+	static_assert(split >= mitm_w);
+	static_assert((n-split) >= noreps_w);
+
+	/// if set to `true` the noreps part will be increased, s.t.
+	/// it will be divisible by 4; Therefore the noreps part of L1 will
+	/// be overlapping with the reps/mitm part of L2
+	constexpr static bool align_noreps = true;
+
 	/// helper definition. Shouldnt be used.
 	constexpr static uint32_t w = mitm_w + noreps_w;
 
@@ -506,20 +564,34 @@ public:
 
 	using T = typename Value::ContainerLimbType;
 
+	/// The multiple of the element to enumerate
 	const uint32_t qprime;
 
-	///
+	/// Helper definitions for the mitm part
+	/// Total length to enumerate
 	constexpr static uint32_t mitmlen = split;
-	constexpr static uint32_t mitmlen_half = (mitmlen + 1u) / 2u;
-	constexpr static uint32_t mitmlen_offset = mitmlen - mitmlen_half;
+	constexpr static uint32_t mitmlen_half 		= (mitmlen + 1u) / 2u;
+	constexpr static uint32_t mitmlen_offset 	= mitmlen - mitmlen_half;
 
-	constexpr static uint32_t norepslen = n - split;
+	constexpr static uint32_t norepslen 		= align_noreps ? roundToAligned<4>(n - split) : n - split;
+	constexpr static uint32_t noreps_base 		= align_noreps ? n - norepslen : split;
 	constexpr static uint32_t norepslen_quarter = (norepslen + 3) / 4;
-	constexpr static uint32_t norepslen_offset = (norepslen) / 4;/// TODO not fully correct: with this the last coordinate will not be enumerated
-	Combinations_Binary_Chase<T, mitmlen_half, mitm_w> mitm_chase = Combinations_Binary_Chase<T, mitmlen_half, mitm_w>{};
-	Combinations_Binary_Chase<T, norepslen_quarter, noreps_w> noreps_chase = Combinations_Binary_Chase<T, norepslen_quarter, noreps_w>{};
-	constexpr static size_t mitm_chase_size = Combinations_Binary_Chase<T, mitmlen_half, mitm_w>::chase_size;
-	constexpr static size_t noreps_chase_size = Combinations_Binary_Chase<T, norepslen_quarter, noreps_w>::chase_size;
+	constexpr static uint32_t norepslen_offset 	= (norepslen) / 4;
+
+	using mitm_enumerator = BinaryChaseEnumerator<mitmlen_half, mitm_w>;
+	using noreps_enumerator = BinaryChaseEnumerator<norepslen_quarter, noreps_w>;
+
+	/// NOTE: the +1ull is needed, as the computation of `noreps` does not count
+	/// for the first element, which needs to be created by the caller function
+	constexpr static size_t mitm_chase_size   = mitm_enumerator::size();
+	constexpr static size_t noreps_chase_size = noreps_enumerator::size() + 1ull;
+
+	static_assert(n > w);
+	static_assert(mitmlen > mitm_w);
+	static_assert(norepslen > noreps_w);
+	static_assert(mitm_chase_size >= 0);
+	static_assert(noreps_chase_size > 0);
+
 
 	/// this can be used to specify the size of the input list
 	/// e.g. its the maximum number of elements this class enumerates
@@ -530,10 +602,11 @@ public:
 	const size_t list_size = 0;
 
 	// change list for the chase sequence
-	std::vector<std::pair<uint16_t, uint16_t>> mitm_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(mitm_chase_size);
-	std::vector<std::pair<uint16_t, uint16_t>> noreps_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(noreps_chase_size);
+	using changelist = std::vector<std::pair<uint16_t, uint16_t>>;
+	changelist mitm_chase_cl;
+	changelist noreps_chase_cl;
 
-	/// empty constructor
+	/// \param qprime: the multiple of `1`, which should be enumerated
 	/// \param HT transposed parity check matrix
 	/// \param list_size max numbers of elements to enumerate.
 	/// 			if set to 0: the complete sequence will be enumerated.
@@ -541,19 +614,14 @@ public:
 	ListEnumerateSinglePartialSingle(const uint32_t qprime,
 	                                 const Matrix &HT,
 	                                 const size_t list_size = 0,
-	                                 const Label *syndrome = nullptr) : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	                                                                    qprime(qprime),
-	                                                                    list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
-		static_assert(n > w);
-		static_assert(mitmlen > mitm_w);
-		static_assert(norepslen > noreps_w);
+	                                 const Label *syndrome = nullptr) :
+	    ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+	    qprime(qprime),
+	    list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+		assert(LIST_SIZE >= list_size);
 
-		static_assert(mitm_chase_size >= 0);
-		static_assert(noreps_chase_size > 0);
-		ASSERT(LIST_SIZE >= list_size);
-
-		mitm_chase.template changelist<false>(mitm_chase_cl.data());
-		noreps_chase.template changelist<false>(noreps_chase_cl.data());
+		mitm_enumerator::changelist(mitm_chase_cl);
+		noreps_enumerator::changelist(noreps_chase_cl);
 	}
 
 	/// \tparam HashMap
@@ -568,14 +636,13 @@ public:
 	/// \param L2 second list.
 	/// \param L3 third list.
 	/// \param L4 fourth list.
-	/// \param offset
-	/// 		- number of position between the MITM strategy
 	/// \param tid thread id
-	/// \param hm hashmap
-	/// \param e extractor
+	/// \param hm hashmap or nullptr
+	/// \param e extractor or nullptr
 	/// \param p predicate function
 	/// \return true/false if the golden element was found or not (only if
 	///  		predicate was given)
+	/// 		else always returns false
 	template<typename HashMap,
 	         typename Extractor,
 	         typename Predicate>
@@ -630,8 +697,8 @@ public:
 
 		for (uint32_t i = 0; i < noreps_w; ++i) {
 			for (uint32_t k = 0; k < 4; ++k) {
-				elements[k]->value.set(qprime, i + split + k * norepslen_offset);
-				Label::scalar(tmp, HT.get(i + split + k * norepslen_offset), qprime);
+				elements[k]->value.set(qprime, i + noreps_base + k * norepslen_offset);
+				Label::scalar(tmp, HT.get(i + noreps_base + k * norepslen_offset), qprime);
 				Label::add(elements[k]->label, elements[k]->label, tmp);
 			}
 		}
@@ -639,11 +706,15 @@ public:
 		auto chase_step = [this](Element &element,
 		                         const uint32_t unset,
 		                         const uint32_t set) {
+			if (unset == set) {
+				  // this quirk can happen if `noreps_w` is even.
+				  return;
+			}
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[unset]);
-			ASSERT(!element.value[set]);
-			ASSERT(std::abs((int) unset - (int) set) <= (int) w);
+			assert(element.value[unset]);
+			assert(!element.value[set]);
+			assert(std::abs((int) unset - (int) set) <= (int) w);
 
 			Label tmp;
 			Label::scalar(tmp, HT.get(unset), q - qprime);
@@ -656,15 +727,15 @@ public:
 		};
 
 		/// iterate over all sequences
-		for (uint32_t i = 0; i < mitm_chase_size; ++i) {
-			for (uint32_t j = 0; j < noreps_chase_size; ++j) {
+		for (size_t i = 0; i < mitm_chase_size; ++i) {
+			for (size_t j = 0; j < noreps_chase_size-1ull; ++j) {
 				for (uint32_t k = 0; k < 4; ++k) {
 					check(elements[k]->label, elements[k]->value);
 					insert_list(lists[k], *elements[k], ctr, tid);
 
 					chase_step(*elements[k],
-					           split + k * norepslen_offset + noreps_chase_cl[j].first,
-					           split + k * norepslen_offset + noreps_chase_cl[j].second);
+							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].first,
+							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].second);
 				}
 
 				// TODO also hash the 3 element
@@ -681,11 +752,18 @@ public:
 				insert_list(lists[k], *elements[k], ctr, tid);
 
 				chase_step(*elements[k],
-				           (k & 1u) * mitmlen_offset + mitm_chase_cl[i].first,
-				           (k & 1u) * mitmlen_offset + mitm_chase_cl[i].second);
+						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].first,
+						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].second);
+
+				// due to easieness reasons, we simply reset the no reps part,
+				// and do not walk backwards
+				for (uint32_t j = 0; j < noreps_w; ++j) {
+					chase_step(*elements[k],
+							   noreps_base + k*norepslen_offset + norepslen_quarter-j-1,
+							   noreps_base + k*norepslen_offset + j);
+				}
 			}
 
-			if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 			ctr += 1;
 			if (ctr >= list_size) {
 				return false;
@@ -693,10 +771,16 @@ public:
 		}
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		assert(ctr == LIST_SIZE);
 		return false;
 	}
 
+	/// \param L1
+	/// \param L2
+	/// \param L3
+	/// \param L4
+	/// \param tid
+	/// \return
 	bool run(ListType &L1,
 			 ListType &L2,
 			 ListType &L3,
@@ -704,6 +788,16 @@ public:
 			 const uint32_t tid = 0) noexcept {
 		return run<std::nullptr_t, std::nullptr_t, std::nullptr_t>
 		           (L1, L2, L3, L4, tid, nullptr, nullptr, nullptr);
+	}
+
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"ListEnumerateSinglePartialSingle\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", q: " << q
+		          << " }\n";
 	}
 };
 
@@ -726,6 +820,9 @@ template<class ListType,
          const uint32_t mitm_w,
          const uint32_t noreps_w,
          const uint32_t split>
+#if __cplusplus > 201709L
+requires ListAble<ListType>
+#endif
 class ListEnumerateMultiDisjointBlock : public ListEnumeration_Meta<ListType, n, q, mitm_w + noreps_w> {
 public:
 	/// helper definition. Shouldnt be used.
@@ -777,8 +874,10 @@ public:
 	const size_t list_size = 0;
 
 	// change list for the chase sequence
-	std::vector<std::pair<uint16_t, uint16_t>> mitm_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(mitm_chase_size);
-	std::vector<std::pair<uint16_t, uint16_t>> noreps_chase_cl = std::vector<std::pair<uint16_t, uint16_t>>(noreps_chase_size);
+	using ChangeList = std::vector<std::pair<uint16_t, uint16_t>>;
+	ChangeList mitm_chase_cl{mitm_chase_size};
+	ChangeList noreps_chase_cl{noreps_chase_size};
+
 	std::vector<uint16_t> mitm_gray_cl = std::vector<uint16_t>(mitm_gray_size);
 	std::vector<uint16_t> noreps_gray_cl = std::vector<uint16_t>(noreps_gray_size);
 
@@ -789,20 +888,21 @@ public:
 	/// \param syndrome additional element which is added to all list elements
 	ListEnumerateMultiDisjointBlock(const Matrix &HT,
 	                                const size_t list_size = 0,
-	                                const Label *syndrome = nullptr) : ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-	                                                                   list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
+	                                const Label *syndrome = nullptr) :
+	       ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+	       list_size((list_size == size_t(0)) ? LIST_SIZE : list_size) {
 		static_assert(n > w);
 		static_assert(mitmlen > mitm_w);
 		static_assert(norepslen > noreps_w);
 
 		static_assert(mitm_chase_size >= 0);
 		static_assert(noreps_chase_size > 0);
-		ASSERT(LIST_SIZE >= list_size);
+		assert(LIST_SIZE >= list_size);
 
 		if constexpr (q > 2) mitm_chase.changelist_mixed_radix_grey(mitm_gray_cl.data());
 		if constexpr (q > 2) noreps_chase.changelist_mixed_radix_grey(noreps_gray_cl.data());
-		mitm_chase.template changelist_chase<false>(mitm_chase_cl.data());
-		noreps_chase.template changelist_chase<false>(noreps_chase_cl.data());
+		mitm_chase.template changelist_chase<false>(mitm_chase_cl);
+		noreps_chase.template changelist_chase<false>(noreps_chase_cl);
 	}
 
 	/// \tparam HashMap
@@ -896,9 +996,9 @@ public:
 		                         const uint32_t set) {
 			/// make really sure that the the chase
 			/// sequence is correct.
-			ASSERT(element.value[unset]);
-			ASSERT(!element.value[set]);
-			ASSERT(std::abs((int) unset - (int) set) <= (int) w);
+			assert(element.value[unset]);
+			assert(!element.value[set]);
+			assert(std::abs((int) unset - (int) set) <= (int) w);
 
 			Label tmp;
 			Label::scalar(tmp, HT.get(unset), q - element.value[unset]);
@@ -971,7 +1071,7 @@ public:
 		}// end mitm chase
 
 		/// make sure that all elements where generated
-		ASSERT(ctr == LIST_SIZE);
+		assert(ctr == LIST_SIZE);
 		return false;
 	}
 
@@ -986,6 +1086,15 @@ public:
 			 const uint32_t tid = 0) {
 		return run<std::nullptr_t, std::nullptr_t>
 				   (L1, L2, L3, L4, tid, nullptr, nullptr);
+	}
+
+	///
+	constexpr static void info() noexcept {
+		std::cout << " { name: \"ListEnumerateMultiDisjointBlock\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", q: " << q
+		          << " }\n";
 	}
 };
 #endif//CRYPTANALYSISLIB_FQ_ENUMERATION_H

@@ -11,7 +11,7 @@ with zero.
 ### `MetaList`
 Main class. All other classes inherit from this one. This class implements all 
 the main functionalities like:
-    - random generation, access operators, size(), base types, 
+    - rng generation, access operators, size(), base types, 
     - iterators, ...
 implemented in `list/common.h`
 

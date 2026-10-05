@@ -3,7 +3,9 @@
 #include <gtest/gtest.h>
 
 #include "combination/chase.h"
+#include "combination/lexicographic.h"
 #include "container/hashmap.h"
+#include "container/binary_packed_vector.h"
 #include "hash/simple.h"
 #include "helper.h"
 #include "list/enumeration/enumeration.h"
@@ -11,7 +13,7 @@
 #include "matrix/matrix.h"
 #include "random.h"
 
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 
 using namespace cryptanalysislib;
 using ::testing::InitGoogleTest;
@@ -25,8 +27,8 @@ constexpr uint32_t w = 3;
 constexpr size_t list_size = compute_combinations_fq_chase_list_size<n, q, w>();
 
 using T = uint64_t;
-using Value = kAryPackedContainer_T<T, n, q>;
-using Label = kAryPackedContainer_T<T, n, q>;
+using Value = BinaryVector<n, T>;
+using Label = BinaryVector<n, T>;
 using Matrix = FqMatrix<T, n, n, q, true>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
@@ -83,7 +85,7 @@ TEST(Enum, p3) {
 TEST(Chase, p1) {
 	constexpr int nn = 30;
 	constexpr int p = 1;
-	chase<nn, p> c;
+	chase_t<nn, p> c;
 
 	uint32_t ctr = 1;
 	uint32_t x = 1u;
@@ -107,7 +109,7 @@ TEST(Chase, p1) {
 TEST(Chase, p2) {
 	constexpr int nn = 30;
 	constexpr int p = 2;
-	chase<nn, p> c;
+	chase_t<nn, p> c;
 
 	uint32_t ctr = 1;
 	uint32_t x = 3u;
@@ -136,8 +138,7 @@ TEST(Chase, p2) {
 TEST(Chase, p3) {
 	constexpr int nn = 10;
 	constexpr int p = 3;
-	chase<nn, p> c;
-
+	chase_t<nn, p> c;
 	uint32_t ctr = 1;
 	uint32_t x = 7u;
 	uint16_t rows[p] = {0};
@@ -159,7 +160,7 @@ TEST(Chase, p3) {
 		ctr += 1;
 	});
 
-	EXPECT_EQ(ctr, bc(nn, p));
+	EXPECT_EQ(ctr-1, bc(nn, p));
 }
 
 TEST(Chase, first) {
@@ -168,9 +169,10 @@ TEST(Chase, first) {
 	uint16_t epos1, epos2;
 	Combinations_Binary_Chase<T, n, w> c;
 
-	uint64_t *w1 = (uint64_t *) malloc(element_limbs * sizeof(uint64_t)),
-	         *w2 = (uint64_t *) malloc(element_limbs * sizeof(uint64_t));
+	uint64_t *w1 = (uint64_t *)calloc(sizeof(uint64_t), element_limbs),
+	         *w2 = (uint64_t *)calloc(sizeof(uint64_t), element_limbs);
 
+	*w1 = (1u << w) -1u;
 	c.left_step(w2, &epos1, &epos2);
 	for (size_t i = 0; i < list_size; ++i) {
 		cryptanalysislib::memcpy(w1, w2, element_limbs);
@@ -197,7 +199,7 @@ TEST(Chase, first) {
 
 		uint32_t popc = 0;
 		for (uint32_t j = 0; j < element_limbs; ++j) {
-			popc += popcount::popcount<uint64_t>(w2[j]);
+			popc += popcount::popcount<T>(w2[j]);
 		}
 
 		if (i < list_size - 1) {
@@ -240,7 +242,7 @@ TEST(F2, single_hashmap) {
 		const auto pos = hm.find(data, load);
 
 		// make sure we found something
-		ASSERT_NE(pos, size_t(-1));
+		EXPECT_NE(pos, size_t(-1));
 	}
 }
 
@@ -270,7 +272,7 @@ TEST(F2, two_lists) {
 }
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

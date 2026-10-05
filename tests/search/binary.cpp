@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include "common.h"
+
+#include "random.h"
 #include "search/search.h"
 #include "container/fq_vector.h"
 #include "list/list.h"
@@ -26,8 +27,8 @@ constexpr size_t list_size = 1u << 10;
 
 using MatrixT = uint64_t;
 using Matrix = FqMatrix<MatrixT, n, k, q>;
-using Value = kAryPackedContainer_T<MatrixT, k, q>;
-using Label = kAryPackedContainer_T<MatrixT, n, q>;
+using Value = FqPackedVector<k, q, MatrixT>;
+using Label = FqPackedVector<n, q, MatrixT>;
 using Element = Element_T<Value, Label, Matrix>;
 using List = List_T<Element>;
 
@@ -35,7 +36,7 @@ TEST(upper_bound_standard_binary_search, kAryList) {
 	List data{list_size};
 	Element dummy;
 	size_t solution_index;
-	const Element search = random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
+	const Element search = cryptanalysislib::random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
 
 	 auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const Element &e1) {
@@ -49,7 +50,7 @@ TEST(upper_bound_standard_binary_search, kAryList) {
 TEST(upper_bound_standard_binary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	const T search = random_data(data, solution_index, SIZE, 1, MASK);
+	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
 	auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
@@ -60,27 +61,10 @@ TEST(upper_bound_standard_binary_search, simple) {
 	EXPECT_EQ(solution_index, std::distance(data.begin(), a));
 }
 
-// TODO not working
-// TEST(upper_bound_standard_binary_search, kAryList_multiple) {
-// 	List data{list_size};
-// 	Element dummy;
-// 	size_t solution_index;
-// 	const Element search = random_data<List, Element>(data, solution_index, SIZE, nr_sols, dummy);
-//
-// 	auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
-// 		[](const Element &e1) {
-// 		  return e1.hash();
-// 		}
-// 	);
-//
-// 	EXPECT_EQ(solution_index, std::distance(data.begin(), a));
-// }
-
-
 TEST(upper_bound_standard_binary_search, multiple) {
 	std::vector<T> data;
 	size_t solution_index;
-	const T search = random_data(data, solution_index, SIZE, nr_sols, MASK);
+	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, nr_sols, MASK);
 
 	auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
@@ -93,7 +77,7 @@ TEST(upper_bound_standard_binary_search, multiple) {
 TEST(lower_bound_standard_binary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	const T search = random_data(data, solution_index, SIZE, 1, MASK);
+	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
 	auto a = lower_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
@@ -107,7 +91,7 @@ TEST(lower_bound_standard_binary_search, simple) {
 TEST(lower_bound_standard_binary_search, multiple) {
 	std::vector<T> data;
 	size_t solution_index;
-	const T search = random_data(data, solution_index, SIZE, nr_sols, MASK);
+	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, nr_sols, MASK);
 
 	auto a = lower_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
@@ -121,7 +105,7 @@ TEST(lower_bound_standard_binary_search, multiple) {
 TEST(upper_bound_monobound_binary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	const T search = random_data(data, solution_index, SIZE, 1, MASK);
+	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
 	const auto b = monobound_binary_search(data.data(), data.size(), search);
 	auto a = lower_bound_monobound_binary_search(data.begin(), data.end(), search,
@@ -137,7 +121,7 @@ TEST(upper_bound_monobound_binary_search, simple) {
 TEST(upper_bound_monobound_binary_search, multiple) {
 	std::vector<T> data;
 	size_t solution_index;
-	const T search = random_data(data, solution_index, SIZE, nr_sols, MASK);
+	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, nr_sols, MASK);
 
 	const auto b = monobound_binary_search(data.data(), data.size(), search);
 	auto a = lower_bound_monobound_binary_search(data.begin(), data.end(), search,
@@ -153,7 +137,7 @@ TEST(upper_bound_monobound_binary_search, multiple) {
 TEST(lower_bound_monobound_binary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, 1, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
 	const auto b = monobound_binary_search(data.data(), data.size(), search);
 	auto a = lower_bound_monobound_binary_search(data.begin(), data.end(), search,
@@ -170,7 +154,7 @@ TEST(lower_bound_monobound_binary_search, simple) {
 TEST(iterator_tripletapped_binary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, 1, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
 	const auto b = monobound_binary_search(data.data(), data.size(), search);
 	auto a = tripletapped_binary_search(
@@ -187,7 +171,7 @@ TEST(iterator_tripletapped_binary_search, simple) {
 TEST(tripletapped_binary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data<std::vector<T>, T>(data, solution_index, SIZE, 1);
+	T search = cryptanalysislib::random_data<std::vector<T>, T>(data, solution_index, SIZE, 1);
 
 	/// NOTE MASK not working
 	size_t a = tripletapped_binary_search(data.data(), SIZE, search);
@@ -197,7 +181,7 @@ TEST(tripletapped_binary_search, simple) {
 TEST(monobound_quaternary_search, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data<std::vector<T>, T>(data, solution_index, SIZE, 1);
+	T search = cryptanalysislib::random_data<std::vector<T>, T>(data, solution_index, SIZE, 1);
 
 	/// note mask not working
 	size_t a = monobound_quaternary_search(data.data(), SIZE, search);
@@ -208,7 +192,7 @@ TEST(branchless_lower_bound_cmp, karylist_simple) {
 	List data{list_size};
 	Element dummy;
 	size_t solution_index;
-	const Element search = random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
+	const Element search = cryptanalysislib::random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
 
 	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		[](const Element &e1, const Element &e2) -> bool {
@@ -222,7 +206,7 @@ TEST(branchless_lower_bound_cmp, karylist_simple) {
 TEST(branchless_lower_bound_cmp, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, 1, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
 	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		 [](const T &e1, const T &e2) -> T {
@@ -237,7 +221,7 @@ TEST(branchless_lower_bound_cmp, karylist_multiple) {
 	List data{list_size};
 	Element dummy;
 	size_t solution_index;
-	const Element search = random_data<List, Element>(data, solution_index, SIZE, nr_sols, dummy);
+	const Element search = cryptanalysislib::random_data<List, Element>(data, solution_index, SIZE, nr_sols, dummy);
 
 	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		[](const Element &e1, const Element &e2) {
@@ -251,7 +235,7 @@ TEST(branchless_lower_bound_cmp, karylist_multiple) {
 TEST(branchless_lower_bound_cmp, multiple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, nr_sols, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, nr_sols, MASK);
 
 	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> T {
@@ -266,7 +250,7 @@ TEST(branchless_lower_bound, karylist_simple) {
 	List data{list_size};
 	Element dummy;
 	size_t solution_index;
-	const Element search = random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
+	const Element search = cryptanalysislib::random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
 
 	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		[](const Element &e1) {
@@ -280,7 +264,7 @@ TEST(branchless_lower_bound, karylist_simple) {
 TEST(branchless_lower_bound, simple) {
 	std::vector<T> data;
 	size_t solution_index;
-	T search = random_data(data, solution_index, SIZE, 1, MASK);
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
 	auto a = branchless_lower_bound(data.begin(), data.end(), search,
 		[](const T &e1) {
@@ -291,10 +275,34 @@ TEST(branchless_lower_bound, simple) {
 	EXPECT_EQ(solution_index, distance(data.begin(), a));
 }
 
+TEST(binary_search_dispatch, compare) {
+	std::vector<T> data;
+	size_t solution_index;
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
+
+	auto a = cryptanalysislib::search::internal::binary_search_dispatch(data.begin(), data.end(), search,
+		[](const T &e1, const T &e2) {
+		  return e1 < e2;
+		}
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
+
+TEST(binary_search_dispatch, hash) {
+	std::vector<T> data;
+	size_t solution_index;
+	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
+
+	auto a = cryptanalysislib::search::internal::binary_search_dispatch(data.begin(), data.end(), search,
+		[](const T &e1) __attribute__((always_inline)){
+		  return e1 & MASK;
+		}
+	);
+
+	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
-
-	srand(time(NULL));
-	xorshf96_random_seed(rand());
     return RUN_ALL_TESTS();
 }

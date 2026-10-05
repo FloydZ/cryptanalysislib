@@ -10,7 +10,9 @@
 #include <cstdlib>
 #include <utility>
 
-#include "atomic_primitives.h"
+#include "atomic/atomic_primitives.h"
+#include "alloc/alloc.h"
+#include "hash/hash.h"
 #include "helper.h"
 
 ///
@@ -26,12 +28,16 @@ public:
 /// \tparam keyType		base type of the input keys
 /// \tparam valueType	base type of the values to save in the list
 /// \tparam config		`SimpleHashmapConfig` object
-/// \tparam HashFkt		internal hash function to use.
+/// \tparam Hash		internal hash function to use.
 template<
         typename keyType,
         typename valueType,
         const SimpleHashMapConfig &config,
-        class Hash>
+        class Hash,
+        template<class N> class Allocator = cryptanalysislib::allocator>
+//#if __cplusplus > 201709L
+//	requires HashFunction<Hash, valueType>
+//#endif
 class SimpleHashMap {
 public:
 	using data_type = valueType;
@@ -39,8 +45,43 @@ public:
 	using index_type = size_t;
 	using load_type = TypeTemplate<config.bucketsize>;
 
-	Hash hashclass = Hash{};
+	typedef valueType value_type;
+	typedef size_t size_type;
+	typedef size_t difference_type;
+	typedef value_type& reference;
+	typedef const value_type& const_reference;
+	typedef value_type* pointer;
+	typedef const value_type* const_pointer;
 
+	using iterator = data_type*;
+	using const_iterator = const data_type*;
+
+	[[nodiscard]] constexpr inline auto begin() noexcept { return std::begin(__internal_hashmap_array); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return std::begin(__internal_hashmap_array); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return std::end(__internal_hashmap_array); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return std::end(__internal_hashmap_array); }
+
+	[[nodiscard]] constexpr inline auto begin(const data_type &d) noexcept {
+		return __internal_hashmap_array.data() + find(d);
+	}
+	[[nodiscard]] constexpr inline auto end(const data_type &d) noexcept {
+		const size_t index = hash(d);
+		return __internal_hashmap_array.data() + ((index * bucketsize) +
+											    __internal_load_array[index]);
+	}
+
+	[[nodiscard]] constexpr inline auto begin(const data_type &d) const noexcept {
+		return __internal_hashmap_array.data() + find(d);
+	}
+	[[nodiscard]] constexpr inline auto end(const data_type &d) const noexcept {
+		const size_t index = hash(d);
+		return __internal_hashmap_array.data() + ((index * bucketsize) +
+											__internal_load_array[index]);
+	}
+
+#ifndef __cpp_static_call_operator
+	Hash hashclass = Hash{};
+#endif
 
 	// size per bucket
 	constexpr static size_t bucketsize = config.bucketsize;
@@ -53,6 +94,13 @@ public:
 
 	constexpr static uint32_t threads = config.threads;
 	constexpr static bool multithreaded = config.threads > 1u;
+
+	// catch some missconfigurations
+	static_assert(threads > 0, "please allow at least a single thread?");
+	static_assert(bucketsize > 0, "please allow at least a single element in each bucket");
+	static_assert(nrbuckets > 0, "no bucket?");
+
+
 
 	/// constructor. Zero initializing everything
 	constexpr SimpleHashMap() noexcept : __internal_hashmap_array(),
@@ -74,15 +122,17 @@ public:
 	/// hashes down `e` (Element) to an index where to store
 	/// the element.
 	/// NOTE: Boundary checks are performed in debug mode.
-	/// \param e element to insert
+	/// \param e element to hash
+	/// \param value element to insert
 	/// \return nothing
-	constexpr inline void insert(const keyType &e, const valueType &value) noexcept {
+	constexpr inline void insert(const keyType &e,
+	                             const valueType &value) noexcept {
 		const size_t index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 
 		size_t load;
 		if constexpr (multithreaded) {
-			load = FAA(__internal_load_array + index, 1);
+			load = FAA(__internal_load_array.data() + index, 1);
 			// early exit and reset
 			if (load >= bucketsize) {
 				__internal_load_array[index] = bucketsize;
@@ -99,7 +149,7 @@ public:
 
 
 		// just some debugging checks
-		ASSERT(load < bucketsize);
+		assert(load < bucketsize);
 		if constexpr (!multithreaded) {
 			__internal_load_array[index] += 1;
 		}
@@ -115,32 +165,35 @@ public:
 
 	///
 	template<class SIMD>
-	//	TODO require the internal SIMD type: write concept
-	constexpr inline void insert_simd(const SIMD &e, const SIMD *value) noexcept {
+#if __cplusplus > 201709L
+		requires SIMDAble<SIMD>
+#endif
+	constexpr inline void insert_simd(const SIMD &e,
+	                                  const SIMD value) noexcept {
 		for (uint32_t i = 0; i < SIMD::LIMBS; i++) {
 			insert(e[i], value[i]);
 		}
 	}
 
-	constexpr inline load_type load_ptr() noexcept {
+    /// \return: pointer to the internal load array
+	[[nodiscard]] constexpr inline load_type load_ptr() noexcept {
 		return __internal_load_array;
 	}
 
-	///
-	/// \return
-	constexpr inline valueType *ptr() noexcept {
+	/// \return: pointer to the internal data array
+	[[nodiscard]] constexpr inline valueType *ptr() noexcept {
 		return __internal_hashmap_array;
 	}
 
-	///
-	/// \param i
-	/// \return
 	using inner_data_type = typename std::remove_all_extents<data_type>::type;
 	using ret_type = typename std::conditional<std::is_bounded_array_v<data_type>,
 	                                           inner_data_type *,
 	                                           valueType>::type;
+
+	/// \param i[in]: index to fetch
+	/// \return __data[i]
 	constexpr inline ret_type ptr(const index_type i) noexcept {
-		ASSERT(i < total_size);
+		assert(i < total_size);
 		if constexpr (std::is_bounded_array_v<data_type>) {
 			return (inner_data_type *) __internal_hashmap_array[i];
 		} else {
@@ -148,8 +201,26 @@ public:
 		}
 	}
 
-	/// calls ptr
-	constexpr inline ret_type operator[](const index_type i) noexcept {
+	/// \param i[in]: index to fetch
+	/// \return __data[i]
+	constexpr inline ret_type ptr(const index_type i) const noexcept {
+		assert(i < total_size);
+		if constexpr (std::is_bounded_array_v<data_type>) {
+			return (inner_data_type *) __internal_hashmap_array[i];
+		} else {
+			return (valueType) __internal_hashmap_array[i];
+		}
+	}
+
+	/// \param i[in]:
+	/// \return data[i]:
+	[[nodiscard]] constexpr inline ret_type operator[](const index_type i) noexcept {
+		return ptr(i);
+	}
+
+	/// \param i[in]:
+	/// \return data[i]
+	[[nodiscard]] constexpr inline const ret_type operator[](const index_type i) const noexcept {
 		return ptr(i);
 	}
 
@@ -157,9 +228,9 @@ public:
 	/// the position of the element.
 	/// \param e Element to hash down.
 	/// \return the position within the internal const_array of `e`
-	constexpr inline index_type find(const keyType &e) const noexcept {
+	[[nodiscard]] constexpr inline index_type find(const keyType &e) const noexcept {
 		const index_type index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
 		return index * bucketsize;
@@ -169,40 +240,45 @@ public:
 	/// \param e
 	/// \param __load
 	/// \return
-	constexpr inline index_type find(const keyType &e, load_type &__load) const noexcept {
+	[[nodiscard]] constexpr inline index_type find(const keyType &e,
+	                                               load_type &__load) const noexcept {
 		const index_type index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		__load = __internal_load_array[index];
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
 		return index * bucketsize;
 	}
 
-	///
 	/// \param e
 	/// \param __load
 	/// \return
 	constexpr inline index_type find_without_hash(const keyType &e, load_type &__load) const noexcept {
-		ASSERT(e < nrbuckets);
+		assert(e < nrbuckets);
 		__load = __internal_load_array[e];
 		return e * bucketsize;
 	}
 
-	/// match the api
+    /// \param e[in]:
+    /// \return 
 	constexpr inline size_t hash(const keyType &e) const noexcept {
+#ifdef __cpp_static_call_operator
+        return Hash::operator()(e);
+#else
 		return hashclass(e);
+#endif
 	}
 
 	/// NOTE: can be called with only a single thread
 	/// overwrites the internal data const_array
 	/// with zero initialized elements.
 	constexpr inline void clear() noexcept {
-		memset(__internal_load_array, 0, nrbuckets * sizeof(load_type));
+		memset(__internal_load_array.data(), 0, nrbuckets * sizeof(load_type));
 	}
 
 	/// multithreaded clear
 	/// NOTE: cannot be `constexpr`
-	inline void clear(uint32_t tid) noexcept {
+	inline void clear(const uint32_t tid) noexcept {
 		if constexpr (config.threads == 1) {
 			(void) tid;
 			clear();
@@ -211,13 +287,13 @@ public:
 
 		const size_t start = tid * nrbuckets / config.threads;
 		const size_t bytes = nrbuckets * sizeof(load_type) / config.threads;
-		memset(__internal_load_array + start, 0, bytes);
-#pragma omp barrier
+		memset(__internal_load_array.data() + start, 0, bytes);
+        #pragma omp barrier
 	}
 
 	/// internal function
 	constexpr inline index_type load_without_hash(const keyType &e) const noexcept {
-		ASSERT(e < nrbuckets);
+		assert(e < nrbuckets);
 		return __internal_load_array[e];
 	}
 
@@ -226,7 +302,7 @@ public:
 	/// \return the load
 	constexpr inline index_type load(const keyType &e) const noexcept {
 		const size_t index = hash(e);
-		ASSERT(index < nrbuckets);
+		assert(index < nrbuckets);
 		return __internal_load_array[index];
 	}
 
@@ -242,7 +318,7 @@ public:
 	}
 
 	/// prints some basic information about the hashmap
-	constexpr void print() const noexcept {
+	constexpr void info() const noexcept {
 		std::cout << "total_size:" << total_size
 		          << ", total_size_byts:" << sizeof(__internal_hashmap_array) + sizeof(__internal_load_array)
 		          << ", nrbuckets:" << nrbuckets
@@ -261,8 +337,13 @@ public:
 	}
 
 	// internal const_array
-	alignas(1024) data_type __internal_hashmap_array[total_size];
-	alignas(1024) load_type __internal_load_array[nrbuckets];
+	// alignas(1024) data_type __internal_hashmap_array[total_size];
+	// alignas(1024) load_type __internal_load_array[nrbuckets];
+
+	// NOTE: this is kind of stupid. But otherwise all hashmap allocation
+	// would be allocated on the heap.
+	alignas(1024) std::array<data_type, total_size>__internal_hashmap_array;
+	alignas(1024) std::array<load_type, nrbuckets> __internal_load_array;
 };
 
 #endif//SMALLSECRETLWE_SIMPLE_H

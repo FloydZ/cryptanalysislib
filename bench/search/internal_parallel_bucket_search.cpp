@@ -21,7 +21,7 @@ constexpr static T mask = ((T(1) << k_higher) - 1) ^ ((T(1) << k_lower) -1);
 T random_data(std::vector<T> &data, const uint64_t size) {
 	data.resize(size);
 	for (uint64_t i = 0; i < size; ++i) {
-		data[i] = fastrandombytes_uint64() & mask;
+		data[i] = rng() & mask;
 	}
 
 	std::sort(data.begin(), data.end(),
@@ -31,7 +31,7 @@ T random_data(std::vector<T> &data, const uint64_t size) {
 	);
 
 	assert(std::is_sorted(data.begin(), data.end()));
-	return fastrandombytes_uint64() % SIZE;
+	return rng() % SIZE;
 }
 
 // std_sort
@@ -147,29 +147,6 @@ B63_BENCHMARK(Khuong_bin_search, nn) {
 	}
 	B63_KEEP(pos);
 }
-
-// TODO
-//B63_BENCHMARK(monobound_interpolated_search, n) {
-//	T search;
-//	vector<T> data;
-//	B63_SUSPEND {
-//		search = random_data(data, n);
-//	}
-//
-//	uint64_t pos = monobound_interpolated_search(reinterpret_cast<int *>(data.data()), SIZE, search);
-//	B63_KEEP(pos);
-//}
-//
-//B63_BENCHMARK(adaptive_binary_search, n) {
-//	T search;
-//	vector<T> data;
-//	B63_SUSPEND {
-//		search = random_data(data, n);
-//	}
-//
-//	uint64_t pos = adaptive_binary_search(reinterpret_cast<int *>(data.data()), SIZE, search);
-//	B63_KEEP(pos);
-//}
 
 int main(int argc, char **argv) {
 	B63_RUN_WITH("lpe:branches,lpe:branch-misses,lpe:cache-misses,lpe:cache-references,lpe:cycles,lpe:instructions", argc, argv);

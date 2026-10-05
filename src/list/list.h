@@ -1,6 +1,11 @@
 #ifndef CRYPTANALYSISLIB_LIST_H
 #define CRYPTANALYSISLIB_LIST_H
 
+#include <algorithm>// search/find routines
+#include <cassert>
+#include <iterator>
+#include <vector>// main data container
+
 #include "list/enumeration/enumeration.h"
 #include "list/common.h"
 #include "list/parallel.h"
@@ -12,16 +17,11 @@
 #include "search/search.h"
 #include "hash/hash.h"
 
-#include <algorithm>// search/find routines
-#include <cassert>
-#include <iterator>
-#include <vector>// main data container
-
-
 
 /// Mother of all lists
 /// \tparam Element
-template<class Element>
+template<class Element,
+         const ListConfig &config=listConfig>
 class List_T : public MetaListT<Element> {
 public:
 	/// needed typedefs
@@ -68,6 +68,7 @@ public:
 	using MetaListT<Element>::use_std_binary_search;
 	using MetaListT<Element>::use_interpolation_search;
 	using MetaListT<Element>::sort_increasing_order;
+	using MetaListT<Element>::allow_resize;
 
 	/// needed functions
 	using MetaListT<Element>::size;
@@ -96,9 +97,59 @@ public:
 	using MetaListT<Element>::is_correct;
 	using MetaListT<Element>::is_sorted;
 
-	// TODO define iterator type und so
+	[[nodiscard]] constexpr inline auto begin() noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return __data.begin(); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return __data.end(); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return __data.end(); }
 
-	// TODO not fully correct. kAryCOmpresssed could be smaller
+	/// NOTE: assumes sorted
+	/// @param e
+	/// @return
+	[[nodiscard]] constexpr inline auto begin(const Element &e,
+											  const uint32_t k_lower,
+											  const uint32_t k_upper) noexcept {
+		return begin() + search_level(e, k_lower, k_upper);
+	}
+
+	/// NOTE: you need to pass the current iterator to optimize the process
+	/// of finding the last element which is equal to e.
+	/// @param e
+	/// @param current current iterator.
+	/// @param e find equal elements to e
+	/// @param k_lower lower part
+	/// @param k_upper upper part
+	/// @return  first element in the list which is != e on [k_lower, k_upper)
+	[[nodiscard]] constexpr inline auto end(const Element &e,
+											const Element &current,
+											const uint32_t k_lower,
+											const uint32_t k_upper) noexcept {
+		if (e.is_equal(current, k_lower, k_upper)) {
+			return e;
+		}
+
+		return current;
+	}
+
+	/// NOTE: this function needs to do a forward search to find the last
+	///		element which is equal to `e`.
+	///		So technically dont use this do enumerate over equal elements, as you
+	///		will do it twice
+	/// @param e find equal elements to e
+	/// @param k_lower lower part
+	/// @param k_upper upper part
+	/// @return  first element in the list which is != e on [k_lower, k_upper)
+	[[nodiscard]] constexpr inline auto end(const Element &e,
+											const uint32_t k_lower,
+											const uint32_t k_upper) noexcept {
+		auto b = begin(e, k_lower, k_upper)++;
+		while (e.is_equal(*b, k_lower, k_upper)) {
+			b += 1;
+		}
+
+		return b;
+	}
+
+
 	// using TMP = decltype(e.label.hash());
 	constexpr static bool use_hash_operator = (sizeof(LabelType) * 8u) <= 64u;
 
@@ -114,7 +165,7 @@ public:
 	constexpr List_T(const size_t nr_element,
 	                 const uint32_t threads = 1) noexcept
 	    : MetaListT<Element>(nr_element, threads) {
-		ASSERT(threads > 0);
+		assert(threads > 0);
 		for (uint32_t i = 0; i < threads; ++i) {
 			set_load(0, i);
 		}
@@ -167,8 +218,8 @@ public:
 	/// \param level current lvl within the tree.
 	/// \param level_translation
 	constexpr void sort_level(const uint32_t level,
-	                          const std::vector<uint64_t> &level_translation) noexcept {
-		uint64_t k_lower, k_higher;
+	                          const std::vector<uint32_t> &level_translation) noexcept {
+		uint32_t k_lower, k_higher;
 		translate_level(&k_lower, &k_higher, level, level_translation);
 		return sort_level(k_lower, k_higher);
 	}
@@ -210,7 +261,7 @@ public:
 	constexpr void sort_level(const uint32_t k_lower,
 							  const uint32_t k_higher,
 							  const uint32_t tid) noexcept {
-		ASSERT(k_lower < k_higher);
+		assert(k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
 		if (use_std_sort || (!Element::is_hashable(k_lower, k_higher))) {
@@ -229,13 +280,13 @@ public:
 			});
 
 		}
-
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 	}
 
 	/// NOTE: this does not search the FULL list, only each segment
-	/// \param k_lower lower dimension to sort on (inclusive)
-	/// \param k_higher upper dimensions to sort (not included)
+	/// \tparam k_lower lower dimension to sort on (inclusive)
+	/// \tparam k_higher upper dimensions to sort (not included)
+	/// \tparam sub
 	/// \param tid thread id
 	template<const uint32_t k_lower,
 	         const uint32_t k_higher,
@@ -260,7 +311,7 @@ public:
 			});
 		}
 
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 	}
 
 	/// \param k_lower
@@ -272,7 +323,7 @@ public:
 							  const uint32_t k_higher,
 	                          const LabelType &target,
 	                          const uint32_t tid) noexcept {
-		ASSERT(k_lower < k_higher);
+		assert(k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
 		if (use_std_sort || (!Element::is_hashable(k_lower, k_higher))) {
@@ -307,11 +358,12 @@ public:
 			});
 		}
 
-		ASSERT(is_sorted(target, sub, k_lower, k_higher));
+		assert(is_sorted(target, sub, k_lower, k_higher));
 	}
 
-	/// \param k_lower
-	/// \param k_higher
+	/// \tparam k_lower
+	/// \tparam k_higher
+	/// \tparam
 	/// \param target
 	/// \return
 	template<const uint32_t k_lower,
@@ -330,7 +382,7 @@ public:
 	         const bool sub = false>
 	constexpr void sort_level(const LabelType &target,
 							  const uint32_t tid) noexcept {
-		ASSERT(k_lower < k_higher);
+		assert(k_lower < k_higher);
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
 
 		if constexpr (use_std_sort || (!Element::template is_hashable<k_lower, k_higher>())) {
@@ -366,7 +418,7 @@ public:
 			});
 		}
 
-		ASSERT(is_sorted(target, sub, k_lower, k_higher));
+		assert(is_sorted(target, sub, k_lower, k_higher));
 	}
 
 
@@ -399,6 +451,23 @@ public:
 
 public:
 
+	/// tried to mimic the api of the hashmap
+	constexpr inline size_t find(size_t &load,
+	                             const Element &e,
+	                             const uint32_t k_lower,
+								 const uint32_t k_upper) const noexcept {
+		const size_t a = search_level(e, k_lower, k_upper);
+		if (a == -1ull) {return -1ull; }
+
+		load = 1;
+		while ((a + load) < load &&
+		        e.is_equal(__data[a + load], k_lower, k_upper)) {
+			load += 1;
+		}
+
+		return a;
+	}
+
 	/// generic search function, which depending on your configuration
 	/// does different things. If
 	/// \param e element to search
@@ -422,7 +491,7 @@ public:
 	constexpr inline size_t search_level(const Element &e,
 								  const uint32_t k_lower,
 								  const uint32_t k_higher) const noexcept {
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 		if constexpr (use_interpolation_search) {
 			return interpolation_search(e, k_lower, k_higher);
 		} else {
@@ -446,7 +515,7 @@ public:
 	/// \return
 	template<const uint32_t k_lower, const uint32_t k_higher>
 	constexpr inline size_t search_level(const Element &e) const noexcept {
-		ASSERT(is_sorted(k_lower, k_higher));
+		assert(is_sorted(k_lower, k_higher));
 		if constexpr (use_interpolation_search) {
 			return interpolation_search<k_lower, k_higher>(e);
 		} else {
@@ -482,7 +551,7 @@ public:
 	                                      const uint32_t k_lower,
 	                                      const uint32_t k_upper,
 										  const uint32_t tid = 0) const noexcept {
-		ASSERT(k_upper > k_lower);
+		assert(k_upper > k_lower);
 
 		// the linear search, doesn't need the data to be sorted
 		if (use_hash_operator && Element::is_hashable(k_lower, k_upper)) {
@@ -549,7 +618,7 @@ public:
 
 
 
-	///
+	/// TODO doc
 	/// \tparam k_lower
 	/// \tparam k_upper
 	/// \param e
@@ -559,18 +628,22 @@ public:
 										  const uint32_t k_lower,
 										  const uint32_t k_upper,
 										  const uint32_t tid=0) const noexcept {
-		ASSERT(k_upper > k_lower);
+		assert(k_upper > k_lower);
 
 		// the linear search, doesn't need the data to be sorted
-		if (use_hash_operator && Element::is_hashable(k_lower, k_upper)) {
-			return binary_search(e, tid,
-				 [k_lower, k_upper](const Element &a)  __attribute__((always_inline)) {
-				   return a.hash(k_lower, k_upper);
-				 });
+		if constexpr (!use_std_binary_search && use_hash_operator) {
+			if (Element::is_hashable(k_lower, k_upper)) {
+				return binary_search(e, tid,
+					 [k_lower, k_upper](const Element &a)  __attribute__((always_inline)) {
+					   return a.hash(k_lower, k_upper);
+					 });
+			} else {
+				assert(false);
+			}
 		} else {
-			return linear_search(e, tid, [](const Element &a,
-											const Element &b)  __attribute__((always_inline)) {
-			  return a == b;
+			return binary_search(e, tid, [k_lower, k_upper](const Element &a,
+													   		const Element &b)  __attribute__((always_inline)) {
+			  return a.is_lower(b, k_lower, k_upper);
 			});
 		}
 	}
@@ -585,8 +658,8 @@ public:
 	template<const uint32_t k_lower=0, const uint32_t k_upper=0>
 	constexpr inline size_t binary_search(const Element &e,
 										  const uint32_t tid = 0) const noexcept {
-		if constexpr (use_hash_operator ||
-		              (k_lower != k_upper)) {
+		if constexpr (!use_std_binary_search &&
+		              (use_hash_operator || (k_lower != k_upper))) {
 			return binary_search(e, tid, [](const Element &a)  __attribute__((always_inline)) {
 			    // NOTE: the checks if `k_lower` and `k_upper` are valid, are done
 			    // within the `hash` function
@@ -600,7 +673,11 @@ public:
 		} else {
 			return binary_search(e, tid, [](const Element &a,
 											const Element &b)  __attribute__((always_inline)) -> bool {
-			    return a < b;
+			  if constexpr (k_lower != k_upper){
+				  return a.template is_lower<k_lower, k_upper>(b);
+			  } else {
+				  return a < b;
+			  }
 			});
 		}
 	}
@@ -619,7 +696,8 @@ public:
 		const_iterator it;
 		if constexpr (use_std_binary_search) {
 			it = std::lower_bound(__data.begin() + sp,
-			                                 __data.begin() + ep, e, f);
+			                      __data.begin() + ep,
+			                      e, f);
 		} else {
 			it = cryptanalysislib::search::binary_search(__data.begin() + sp,
 			                                             __data.begin() + ep, e, f);
@@ -759,7 +837,7 @@ public:
 	                              const uint32_t norm,
 	                              const bool sub=false,
 	                              const uint32_t tid=0) noexcept {
-		auto op1 = [e1, e2, k_lower, k_higher, sub, norm](Element &c) {
+		auto op1 = [&e1, &e2, k_lower, k_higher, sub, norm](Element &c) __attribute__((always_inline)) {
 			if (sub) {
 			    return Element::sub(c, e1, e2, k_lower, k_higher, norm);
 			} else {
@@ -772,11 +850,15 @@ public:
 		// exists for which it holds: |data[load].value[r]| >= norm
 		if (load() < size()) {
 			const bool b = op1(__data[load(tid)]);
-			if ((norm != uint32_t(-1)) && b) { return; }
+			if ((norm != uint32_t(-1u)) && b) { return; }
 		} else {
+			if constexpr (! allow_resize) {
+				return;
+			}
+
 			Element t{};
 			const bool b = op1(t);
-			if ((norm != uint32_t(-1)) && b) { return; }
+			if ((norm != uint32_t(-1u)) && b) { return; }
 
 			// this __MUST__ be a copy.
 			__data.push_back(t);
@@ -784,7 +866,7 @@ public:
 		}
 
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
-		set_load(load() + 1);
+		set_load(load(tid) + 1, tid);
 	}
 
 	template<const uint32_t k_lower,
@@ -795,7 +877,7 @@ public:
 								  const Element &e2,
 	                              const uint32_t tid=0) noexcept {
 
-		auto op1 = [e1, e2](Element &c) {
+		auto op1 = [&e1, &e2](Element &c) __attribute__((always_inline)) {
 		  if constexpr (sub) {
 			  return Element::template sub<k_lower, k_higher, norm>(c, e1, e2);
 		  } else {
@@ -805,18 +887,32 @@ public:
 
 		if (load() < size()) {
 			const bool b = op1(__data[load(tid)]);
-			if constexpr (norm != uint32_t(-1)) { if (b) { return; } }
+			if constexpr (norm != uint32_t(-1u)) { if (b) { return; } }
 		} else {
+			if constexpr (! allow_resize) {
+				return;
+			}
+
 			Element t{};
 			const bool b = op1(t);
-			if constexpr (norm != uint32_t(-1)) { if (b) { return; } }
+			if constexpr (norm != uint32_t(-1u)) { if (b) { return; } }
 
 			// this __MUST__ be a copy.
 			__data.push_back(t);
 			__size += 1;
 		}
 		// we do not increase the 'load' of our internal data structure if one of the add functions above returns true.
-		set_load(load() + 1);
+		set_load(load(tid) + 1, tid);
+	}
+
+	static void info()  noexcept{
+		std::cout << " { name=\"List\""
+				  << " , sizeof(LoadType):" << sizeof(LoadType)
+				  << " , ValueLENGTH:" << ValueLENGTH
+				  << " , LabelLENGTH:" << LabelLENGTH
+				  << " }" << std::endl;
+		config.info(); 
+        ElementType::info();
 	}
 };
 

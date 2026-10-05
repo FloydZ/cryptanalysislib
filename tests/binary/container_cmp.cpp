@@ -12,8 +12,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using BinaryContainerTest = BinaryContainer<n>;
-using BinaryContainerTest2 = BinaryContainer<10*n>;
+using BinaryContainerTest = BinaryVector<n>;
+using BinaryContainerTest2 = BinaryVector<10*n>;
 
 // Allow the tests only for smaller bit length
 #if defined(NNN) && NNN <= 64
@@ -464,7 +464,7 @@ using BinaryContainerTest2 = BinaryContainer<10*n>;
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }
 #endif

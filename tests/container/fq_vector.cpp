@@ -9,8 +9,14 @@
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 
+TEST(test, info) {
+	using K3 = FqPackedVector<100, 3, uint8_t>;
+	printf("sizeof(K3)=%ld\n", sizeof(K3));
+	K3::info();
+}
+
 TEST(test, simple) {
-	using K3 = kAryPackedContainer_T<uint64_t, 100, 3>;
+	using K3 = FqPackedVector<100, 3, uint64_t>;
 	// using K5 = kAryPackedContainer_T<uint64_t, 100, 5>;
 	auto t31 = K3{};
 	auto t32 = K3{};
@@ -20,19 +26,19 @@ TEST(test, simple) {
 }
 
 constexpr uint32_t n = 127;
-using K4 = kAryContainer_T<uint8_t, n, 4>;
-using K5 = kAryContainer_T<uint8_t, n, 5>;
-using K7 = kAryContainer_T<uint8_t, n, 7>;
+using K4 = FqNonPackedVector<n, 4, uint8_t>;
+using K5 = FqNonPackedVector<n, 5, uint8_t>;
+using K7 = FqNonPackedVector<n, 7, uint8_t>;
 
 /// A field for which no optimized implementation exists
-using KGeneric = kAryContainer_T<uint8_t, n, 9>;
+using KGeneric = FqNonPackedVector<n, 9, uint8_t>;
 
 #define NR_TESTS (1u << 4u)
 
 #define NAME uint8_K4
 #define PRIME 4
 #define T uint8_t
-#define K kAryContainer_T<T, n, PRIME>
+#define K FqNonPackedVector<n, PRIME, T>
 #include "test_fqvector.h"
 #undef PRIME
 #undef T
@@ -42,7 +48,7 @@ using KGeneric = kAryContainer_T<uint8_t, n, 9>;
 #define NAME uint64_K4
 #define PRIME 4
 #define T uint64_t
-#define K kAryContainer_T<T, n, PRIME>
+#define K FqNonPackedVector<n, PRIME, T>
 #include "test_fqvector.h"
 #undef PRIME
 #undef T
@@ -52,7 +58,7 @@ using KGeneric = kAryContainer_T<uint8_t, n, 9>;
 #define NAME uint8_K11
 #define PRIME 11
 #define T uint8_t
-#define K kAryContainer_T<T, n, PRIME>
+#define K FqNonPackedVector<n, PRIME, T>
 #include "test_fqvector.h"
 #undef PRIME
 #undef T
@@ -62,7 +68,7 @@ using KGeneric = kAryContainer_T<uint8_t, n, 9>;
 #define NAME uint8_K255
 #define PRIME 255
 #define T uint8_t
-#define K kAryContainer_T<T, n, PRIME>
+#define K FqNonPackedVector<n, PRIME, T>
 #include "test_fqvector.h"
 #undef PRIME
 #undef T
@@ -292,7 +298,7 @@ TEST(F4, mod) {
 	K4 t1 = K4();
 	K4 t2 = K4();
 	for (uint32_t i = 0; i < n; i++){
-		t1.set(fastrandombytes_uint64(), i);
+		t1.set(rng(), i);
 	}
 
 	K4::mod(t2, t1);

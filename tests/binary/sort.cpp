@@ -11,8 +11,8 @@
 #include "tree.h"
 
 constexpr uint32_t n = 50;
-using BinaryValue = BinaryContainer<n>;
-using BinaryLabel = BinaryContainer<n>;
+using BinaryValue = BinaryVector<n>;
+using BinaryLabel = BinaryVector<n>;
 using BinaryMatrix = FqMatrix<uint64_t, n, n, 2>;
 using BinaryElement = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList = List_T<BinaryElement>;
@@ -121,7 +121,6 @@ TEST(ParallelBucketSort, first) {
 
 	uint64_t load = 0ul;
 	auto poss = hm->find(extractor(L.data_label(30)), load);
-	//ASSERT(hm->__buckets[poss].second[0] == 30);
 }
 
 TEST(ParallelBucketSort, need2sort) {
@@ -168,13 +167,12 @@ TEST(ParallelBucketSort, need2sort) {
 
 	uint64_t load = 0ul;
 	auto poss = hm->find(extractor(L.data_label(30)), load);
-	//ASSERT(hm->__buckets[poss].second[0] == 30);
 }
 
 #endif
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }

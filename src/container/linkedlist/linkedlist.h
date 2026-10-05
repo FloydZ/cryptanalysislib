@@ -22,16 +22,17 @@
 /// 	- introduce Free Node which or direct delete
 ///
 /// \tparam T
-template<typename T>
-#if __cplusplus > 201709L
+template<typename T> // TODO allocator
+#if __cplusplus > 201709L 
     requires std::copyable<T> && std::three_way_comparable<T>
 #endif
 struct FreeList {
 private:
 	/// internal struct
+    // TODO something like this template<template<typename> typename A=std::atomic>
 	struct Node {
 		Node() : next(nullptr), prev(nullptr) {}
-		Node(T data) : next(nullptr), prev(nullptr), data(data) {}
+		Node(const T data) : next(nullptr), prev(nullptr), data(data) {}
 
 		std::atomic<Node *> next;
 		std::atomic<Node *> prev;
@@ -79,11 +80,11 @@ private:
 
 
 	/// internal pointers
-	Node *head = nullptr,                           // start of the linked list
-	        *tail = nullptr,                        // end of the linked list
-	                *__free = nullptr,              // start of a second linked list of removed (but not freed) elements
-	                        *curr = nullptr,        //
-	                                *pred = nullptr;//
+	Node *head = nullptr,  // start of the linked list
+	     *tail = nullptr,  // end of the linked list
+	     *__free = nullptr,// start of a second linked list of removed (but not freed) elements
+	     *curr = nullptr,  //
+	     *pred = nullptr;  //
 
 	/// pointer stuff: we need to mark/tag pointers to counter the ABA problem
 	constexpr static uintptr_t UNMARK_MASK = ~1;
@@ -110,7 +111,7 @@ private:
 			__pred = __pred->prev.load();
 		}
 		__curr = getpointer(__pred->next.load());
-		ASSERT(__pred->data < data);
+		assert(__pred->data < data);
 
 		do {
 			__succ = __curr->next.load();
@@ -137,7 +138,7 @@ private:
 
 			/// set
 			if (data <= __curr->data) {
-				ASSERT(__pred->data < __curr->data);
+				assert(__pred->data < __curr->data);
 				pred = __pred;
 				curr = __curr;
 				return;

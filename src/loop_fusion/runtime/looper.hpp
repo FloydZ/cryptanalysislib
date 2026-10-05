@@ -39,14 +39,14 @@ public:
 
     static_assert(std::conjunction_v<is_loop_function<F>...>, "Invalid function signature");
 
-    range rng;
+    range rang;
     std::tuple<F...> functions;
 
     template<typename loop_function,
 		     typename = std::enable_if_t<is_loop_function<loop_function>::value>>
     [[nodiscard]] constexpr auto operator|(loop_function rhs) const noexcept {
         using new_looper = looper<F..., loop_function>;
-        return new_looper(rng, std::tuple_cat(functions, std::make_tuple(rhs)));
+        return new_looper(rang, std::tuple_cat(functions, std::make_tuple(rhs)));
     }
 
     template <typename... F2>
@@ -57,7 +57,7 @@ public:
 private:
     template <std::size_t... Idx>
     constexpr void run_loops(std::index_sequence<Idx...>) noexcept {
-        for (auto i = rng.start; i < rng.end; ++i) {
+        for (auto i = rang.start; i < rang.end; ++i) {
             (std::get<Idx>(functions)(i), ...);
         }
     }

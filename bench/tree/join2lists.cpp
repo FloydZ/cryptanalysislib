@@ -14,7 +14,7 @@ constexpr uint32_t q    = (1ul << n);
 
 using T 			= uint64_t;
 //using Value     	= kAryContainer_T<T, n, 2>;
-using Value     	= BinaryContainer<n>;
+using Value     	= BinaryVector<n>;
 using Label    		= kAry_Type_T<q>;
 using Matrix 		= FqVector<T, n, q, true>;
 using Element		= Element_T<Value, Label, Matrix>;
@@ -37,10 +37,11 @@ B63_BASELINE(Base, nn) {
 
 	int32_t res = 0;
 	const uint32_t k_lower = 0, k_higher = 8;
+    Tree t{1, A, 0};
 
 	for (uint64_t i = 0; i < nn; i++) {
 		out.set_load(0);
-		Tree::join2lists(out, l1, l2, target, k_lower, k_higher, true);
+		t.join2lists(out, l1, l2, target, k_lower, k_higher, true);
 		B63_SUSPEND {
 			res += out[0].label.value();
 		}
@@ -59,10 +60,12 @@ B63_BENCHMARK(Constexpr, nn) {
 		}
 	}
 
+    Tree t{1, A, 0};
+
 	int32_t res = 0;
 	for (uint64_t i = 0; i < nn; i++) {
 		out.set_load(0);
-		Tree::template join2lists<0, 8>(out, l1, l2, target, true);
+		t.template join2lists<0, 8>(out, l1, l2, target, true);
 		B63_SUSPEND {
 			res += out[0].label.value();
 		}
@@ -84,9 +87,10 @@ B63_BENCHMARK(Constexpr_on_iT_v2, nn) {
 	}
 
 	int32_t res = 0;
+    Tree t{1, A, 0};
 	for (uint64_t i = 0; i < nn; i++) {
 		out.set_load(0);
-		Tree::template join2lists_on_iT_v2<0, 8>(out, l1, l2, target);
+		t.template join2lists_on_iT_v2<0, 8>(out, l1, l2, target);
 		B63_SUSPEND {
 			res += out[0].label.value();
 		}
@@ -94,8 +98,9 @@ B63_BENCHMARK(Constexpr_on_iT_v2, nn) {
 
 	B63_KEEP(res);
 }
+
 int main(int argc, char **argv) {
-A.random();
+    A.random();
 	using Enumerator = MaxBinaryRandomEnumerator<List, n/2, n/4>;
 	Enumerator e{A};
 	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>

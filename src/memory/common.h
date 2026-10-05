@@ -9,8 +9,7 @@
 #include <cstdlib>
 #include <cstdint>
 
-#define POINTER_IS_32BYTES_ALIGNED(ptr) ((((uintptr_t)(ptr)) & (0b11111)) == 0)
-
+// TODO move to traits
 // basic alignment cofnig
 struct AlignmentConfig {
 	// alignment in bytes

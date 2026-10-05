@@ -21,7 +21,7 @@ TEST(Label, DoesNotLeak) {
 
 TEST(Label, Zero) {
 	Label l;
-	l.data()[0] = fastrandombytes_uint64();
+	l.data()[0] = rng();
 
 	l.zero();
 	for (uint32_t i = 0; i < Label::size(); ++i) {
@@ -57,7 +57,7 @@ TEST(Add, AddWithLevelAllCoordinates) {
 		l2.data()[i] = i;
 	}
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	Label::add(l3, l1, l2, k_lower, k_higher);
 
@@ -68,7 +68,7 @@ TEST(Add, AddWithLevelAllCoordinates) {
 
 TEST(Add, AddWithLevelWithTranslationArray) {
 	Label l1, l2, l3;
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 
 	for (uint32_t r = 0; r < TESTSIZE; ++r) {
 		l1.zero();
@@ -78,7 +78,7 @@ TEST(Add, AddWithLevelWithTranslationArray) {
 		// only a simple test.
 		for (uint32_t i = 0; i < Label::size(); ++i) {
 			l1[i] = i;
-			l2[i] = fastrandombytes_uint64();
+			l2[i] = rng();
 		}
 
 		for (uint32_t j = 0; j < __level_translation_array.size() - 1; ++j) {
@@ -108,7 +108,7 @@ TEST(Add, AddWithLevelWithTranslationArray) {
 
 TEST(Add, AddWithLevel) {
 	Label l1, l2, l3;
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 
 	for (uint32_t r = 0; r < TESTSIZE; ++r) {
 
@@ -119,7 +119,7 @@ TEST(Add, AddWithLevel) {
 		// only a simple test.
 		for (uint32_t i = 0; i < Label::size(); ++i) {
 			l1[i] = i;
-			l2[i] = fastrandombytes_uint64();
+			l2[i] = rng();
 		}
 
 		for (uint32_t j = 0; j < __level_translation_array.size() - 1; ++j) {
@@ -158,7 +158,7 @@ TEST(Add, AddWithK) {
 		// only a simple test.
 		for (uint32_t i = 0; i < Label::size(); ++i) {
 			l1[i] = i;
-			l2[i] = fastrandombytes_uint64();
+			l2[i] = rng();
 		}
 
 		for (uint32_t k_lower = 0; k_lower < Label::size(); ++k_lower) {
@@ -196,7 +196,7 @@ TEST(Sub, SubWithLevelAllCoordinates) {
 		l2[i] = i;
 	}
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 
 	Label::sub(l3, l1, l2, k_lower, k_higher);
@@ -251,7 +251,7 @@ TEST(Compare_Is_Equal, AllLevelsSimple) {
 		EXPECT_EQ(l1[i], l2[i]);
 	}
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	EXPECT_EQ(true, l1.is_equal(l2, k_lower, k_higher));
 }
@@ -264,13 +264,13 @@ TEST(Compare_Is_Equal, AllLevelsSimpleWithoutTranslationArray) {
 		EXPECT_EQ(l1[i],  l2[i]);
 	}
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	EXPECT_EQ(true, l1.is_equal(l2, k_lower, k_higher));
 }
 
 TEST(Compare_Is_Equal, AllK) {
-	ASSERT(q > 2 && "q must be bigger than 2 for this test");
+	assert(q > 2 && "q must be bigger than 2 for this test");
 	Label l1, l2;
 
 	for (uint32_t k_lower = 0; k_lower < Label::size(); ++k_lower) {
@@ -292,13 +292,13 @@ TEST(Compare_Is_Lower, AllCoordinatesSimple) {
 	Label l1, l2;
 	l1.zero(); l2.zero();
 
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, -1, __level_translation_array);
 	EXPECT_EQ(false, l1.is_lower(l2, k_lower, k_higher));
 }
 
 TEST(Compare_Is_Lower, AllK) {
-	ASSERT(q > 2 && "q must be bigger than 2 for this test");
+	assert(q > 2 && "q must be bigger than 2 for this test");
 
 	Label l1, l2;
 
@@ -330,12 +330,7 @@ TEST(Compare_Is_Lower, AllK) {
 
 
 int main(int argc, char **argv) {
-	uint64_t t = 0;
-	const auto k = fastrandombytes(&t, 8);
-	ASSERT(!k);
-	srand(t);
     InitGoogleTest(&argc, argv);
-	ident();
-	random_seed(time(NULL));
+	rng_seed(time(nullptr));
     return RUN_ALL_TESTS();
 }

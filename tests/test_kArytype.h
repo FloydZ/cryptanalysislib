@@ -1,5 +1,12 @@
 #include <cstdint>
 
+#define ABC S::LimbType
+#define MA 	((1ull << ((sizeof(ABC) * 3u) - 1ull)) - 1ull)
+
+TEST(T, info) {
+	S::info();
+}
+
 TEST(T, DoesNotLeak) {
     auto*l = new S;
     delete l;
@@ -40,7 +47,7 @@ TEST(T, constexpr) {
 
 TEST(T, Simple) {
 	S l1;
-	S::LimbType t1 = fastrandombytes_uint64()% PRIME;
+	S::LimbType t1 = rng()% PRIME;
 	l1 = t1;
 	EXPECT_EQ(l1, t1);
 }
@@ -83,7 +90,7 @@ TEST(T, one) {
 TEST(T, neg) {
 	if constexpr (S::arith && (PRIME != 2)) {
 		for (size_t i = 0; i < TESTSIZE; ++i) {
-			const uint64_t t1 = fastrandombytes_uint64(1, PRIME);
+			const uint64_t t1 = rng<uint64_t>(1, PRIME);
 			S l1 = t1;
 
 			l1.neg();
@@ -106,15 +113,15 @@ TEST(T, add_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = fastrandombytes_uint64(1ull << 63);
-		uint64_t t2 = fastrandombytes_uint64(1ull << 63);
-
+		uint64_t t1 = rng<ABC>(MA);
+		uint64_t t2 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
 
 		l3 = l1 + l2;
-		EXPECT_EQ(l3.value(), (t1 + t2) % PRIME);
+		uint64_t c = (t1 + t2) % PRIME;
+		EXPECT_EQ(l3.value(), c);
 		EXPECT_EQ(l1, t1 % PRIME);
 		EXPECT_EQ(l2, t2 % PRIME);
 	}
@@ -124,8 +131,8 @@ TEST(T, add_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		const int64_t t1 = fastrandombytes_uint64(1ull << 63);
-		const int64_t t2 = fastrandombytes_uint64(1ull << 63);
+		uint64_t t1 = rng<ABC>(MA);
+		uint64_t t2 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
@@ -141,8 +148,8 @@ TEST(T, add_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		const uint64_t t1 = fastrandombytes_uint64(1ull << 63);
-		const uint64_t t2 = fastrandombytes_uint64(1ull << 63);
+		uint64_t t1 = rng<ABC>(MA);
+		uint64_t t2 = rng<ABC>(MA);
 
 		l1 = t1;
 		l2 = t2;
@@ -159,8 +166,8 @@ TEST(T, sub_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		signed int t1 = fastrandombytes_uint64(PRIME);
-		signed int t2 = fastrandombytes_uint64(PRIME);
+		signed int t1 = rng<ABC>(PRIME);
+		signed int t2 = rng<ABC>(PRIME);
 
 		l1 = t1;
 		l2 = t2;
@@ -178,8 +185,8 @@ TEST(T, sub_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = (fastrandombytes_uint64(PRIME));
-		uint64_t t2 = (fastrandombytes_uint64(PRIME));
+		uint64_t t1 = rng<ABC>(PRIME);
+		uint64_t t2 = rng<ABC>(PRIME);
 
 		l1 = t1;
 		l2 = t2;
@@ -191,13 +198,14 @@ TEST(T, sub_uint64_t) {
 	}
 }
 
+#if TEST_SIZE > PRIME
 TEST(T, addmul_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		unsigned int t1 = fastrandombytes_uint64(1ull << 15);
-		unsigned int t2 = fastrandombytes_uint64(1ull << 15);
-		unsigned int t3 = fastrandombytes_uint64(1ull << 15);
+		uint64_t t1 = i;
+		uint64_t t2 = i;
+		uint64_t t3 = i;
 
 		l1 = t1;
 		l2 = t2;
@@ -214,9 +222,9 @@ TEST(T, addmul_signed_simple) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		signed int t1 = fastrandombytes_uint64(1ull << 15);
-		signed int t2 = fastrandombytes_uint64(1ull << 15);
-		signed int t3 = fastrandombytes_uint64(1ull << 15);
+		signed int t1 = i;
+		signed int t2 = i;
+		signed int t3 = i;
 
 		l1 = t1;
 		l2 = t2;
@@ -233,9 +241,9 @@ TEST(T, add_mul_uint64_t) {
 	S l1, l2, l3;
 
 	for (size_t i = 0; i < TESTSIZE; ++i) {
-		uint64_t t1 = fastrandombytes_uint64(1ull << 15);
-		uint64_t t2 = fastrandombytes_uint64(1ull << 15);
-		uint64_t t3 = fastrandombytes_uint64(1ull << 15);
+		uint64_t t1 = i;
+		uint64_t t2 = i;
+		uint64_t t3 = i;
 
 		l1 = t1;
 		l2 = t2;
@@ -247,6 +255,7 @@ TEST(T, add_mul_uint64_t) {
 		EXPECT_EQ(l2, t2 % PRIME);
 	}
 }
+#endif
 
 TEST(T, arith) {
 	S l1, l2, l3, l4, l5;
@@ -288,7 +297,7 @@ TEST(T, arith) {
 
 TEST(T, comparison_simple) {
 	S l1, l2;
-	unsigned int t1 = fastrandombytes_uint64(PRIME - 1);
+	unsigned int t1 = rng<ABC>(PRIME - 1);
 	unsigned int t2 = t1 + 1;
 
 	l1 = t1;
@@ -309,12 +318,12 @@ TEST(T, comparison_simple) {
 	EXPECT_EQ(false, l1.is_equal(l2));
 	EXPECT_EQ(false, l1.is_equal(l2, 0, 1));
 
-	for (size_t i = 1; i < S::bits(); ++i) {
+	for (size_t i = 1; i < S::bits; ++i) {
 		EXPECT_EQ(true, l1.is_equal(l1, i-1, i));
 	}
 
-	for (size_t j = 1; j < S::bits() - 1u; ++j) {
-		for (uint32_t i = j; i < S::bits(); i+=j) {
+	for (size_t j = 1; j < S::bits - 1u; ++j) {
+		for (uint32_t i = j; i < S::bits; i+=j) {
 			EXPECT_EQ(true, l1.is_equal(l1, i-j, i));
 			EXPECT_EQ(false, l1.is_lower(l1, i-j, i));
 			EXPECT_EQ(false, l1.is_greater(l1, i-j, i));
@@ -327,8 +336,8 @@ TEST(T, comparison_simple) {
 	std::cout << l2 << std::endl;
 	std::cout << l3 << std::endl;
 	if constexpr (!S::arith) {
-		for (size_t j = 1; j < S::bits() - 1u; ++j) {
-			for (uint32_t i = j; i < S::bits(); i += j) {
+		for (size_t j = 1; j < S::bits - 1u; ++j) {
+			for (uint32_t i = j; i < S::bits; i += j) {
 				const bool b = l2.is_equal(l3, i - j, i);
 				EXPECT_EQ(false, b);
 
@@ -339,7 +348,7 @@ TEST(T, comparison_simple) {
 		}
 	}
 
-	const uint64_t limit = S::bits()/2ll;
+	const uint64_t limit = S::bits/2ll;
 	const S l4 = (1ull << limit) - 1ull;
 	S l5 = l4;
 	l5.neg();
@@ -384,7 +393,7 @@ TEST(T, comparison_simple) {
 
 TEST(T, HashSimple) {
 	S b1;
-	constexpr uint32_t n = S::bits();
+	constexpr uint32_t n = S::bits;
 	for (uint32_t l = 0; l < n-1u; ++l) {
 		for (uint32_t h = l+1u; h < n; ++h) {
 			if ((h - l) > 64) { continue; }
@@ -407,7 +416,7 @@ TEST(T, HashSimple) {
 
 
 TEST(T, Constexpr) {
-	constexpr uint32_t n = S::bits();
+	constexpr uint32_t n = S::bits;
 	S b1;
 
 	b1.zero();
@@ -418,6 +427,5 @@ TEST(T, Constexpr) {
 	EXPECT_EQ(t, mask);
 }
 
-TEST(T, info) {
-	S::info();
-}
+#undef ABC
+#undef MA

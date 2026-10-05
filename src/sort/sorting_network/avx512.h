@@ -11,14 +11,41 @@
 
 #include <immintrin.h>
 #include <stdint.h>
+
 #include "simd/simd.h"
 
 ///
-#define UCOEX_u64X8(a, b)				\
+#define COEX_u64x8(a, b, tmp)			\
 	{                                   \
-		__m512i tmp = a;                \
+		tmp = a;                		\
 		a = _mm512_min_epu64(a, b);     \
 		b = _mm512_max_epu64(tmp, b); 	\
+	}
+
+#define COEX_u16x32(a, b, tmp)			\
+	{                                   \
+		tmp = a;                		\
+		a = _mm512_min_epu16(a, b);     \
+		b = _mm512_max_epu16(tmp, b); 	\
+	}
+
+#define COEX_u16x32_(a, b, c, d)		\
+	{                                   \
+		c = _mm512_min_epu16(a, b);     \
+		d = _mm512_max_epu16(a, b); 	\
+	}
+
+#define COEX_u32x16(a, b, tmp)			\
+	{                                   \
+		tmp = a;                		\
+		a = _mm512_min_epu32(a, b);     \
+		b = _mm512_max_epu32(tmp, b); 	\
+	}
+
+#define COEX_u32x16_(a, b, c, d)		\
+	{                                   \
+		c = _mm512_min_epu32(a, b);     \
+		d = _mm512_max_epu32(a, b); 	\
 	}
 
 #ifdef _clang_
@@ -44,6 +71,7 @@
 	}
 
 
+#include "sort/sorting_network/macros.h"
 
 
 // only needed if less the 16 elements should be sorted in 
@@ -69,6 +97,62 @@
 						       				  (__mmask8) -1);
 #endif
 
+/// NOTE: direct translation of: sortingnetwork_sort_u8x32
+static inline
+__m512i sortingnetwork_sort_u16x32(__m512i v) {
+	const __m512i sm0 = _mm512_setr_epi16(1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,17,16,19,18,21,20,23,22,25,25,27,26,29,28,31,30);
+	const __m512i sm1 = _mm512_setr_epi16(3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,19,18,17,16,23,22,21,20,27,26,25,24,31,30,29,28);
+	const __m512i sm2 = _mm512_setr_epi16(7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,23,22,21,20,19,18,17,16,31,30,29,28,27,26,25,24);
+	const __m512i sm3 = _mm512_setr_epi16(2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,18,19,16,17,22,23,20,21,26,27,24,25,30,31,28,29);
+	const __m512i sm4 = _mm512_setr_epi16(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16);
+	const __m512i sm5 = _mm512_setr_epi16(4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11,20,21,22,23,16,17,18,19,28,29,30,31,24,25,26,27);
+
+	__m512i t = v, tmp;
+	// lvl 1
+	t = _mm512_permutexvar_epi16(sm0, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x55555555, v);
+	// lvl 2
+	v = _mm512_permutexvar_epi16(sm1, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x33333333, t);
+	// lvl 3
+	t = _mm512_permutexvar_epi16(sm0, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x55555555, v);
+	// lvl 4
+	v = _mm512_permutexvar_epi16(sm2, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x0f0f0f0f, t);
+	// lvl 5
+	t = _mm512_permutexvar_epi16(sm3, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x33333333, v);
+	// lvl 6
+	v = _mm512_permutexvar_epi16(sm0, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x55555555, t);
+	// lvl 7
+	t = _mm512_permutexvar_epi16(sm4, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x00ff00ff, v);
+	// lvl 8
+	v = _mm512_permutexvar_epi16(sm5, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x0f0f0f0f, t);
+	// lvl 9
+	t = _mm512_permutexvar_epi16(sm3, v);
+	COEX_u16x32(t, v, tmp);
+	t = _mm512_mask_mov_epi16(t, 0x33333333, v);
+	// lvl 10
+	v = _mm512_permutexvar_epi16(sm0, t);
+	COEX_u16x32(v, t, tmp);
+	v = _mm512_mask_mov_epi16(v, 0x55555555, t);
+
+	// TODO remaining 4 layers
+	t = _mm512_shuffle_i64x2(v, v, _MM_SHUFFLE(1,0, 3,2));
+	return v;
+}
 
 /// sorts a and b
 /// \param a first 8 elements to sort
@@ -138,20 +222,2226 @@ constexpr static inline void sortingnetwork_sort_u64x16(__m512i &a, __m512i &b) 
 	b = __builtin_ia32_vpermi2varq512(a1, *(const __m512i *)(sortingnetwork_av512_indexd), b1);
 }
 
+/// translation of `sortingnetwork_sort_x32x32_body`
+static inline
+__m512i sortingnetwork_sort_u16x32_v2(__m512i a) {
+#define SORT(a, perm, sel)							\
+{													\
+__m512i b   = _mm512_permutexvar_epi16(perm, a);\
+__m512i min = _mm512_min_epu16(a, b);			\
+__m512i max = _mm512_max_epu16(a, b); 			\
+a = _mm512_mask_mov_epi16(min, sel, max);		\
+}
+
+	const __m512i p1 = _mm512_set_epi16(
+		30,31,28,29,26,27,24,25,22,23,20,21,18,19,16,17,
+		14,15,12,13,10,11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1
+	);
+	const __m512i p2 = _mm512_set_epi16(
+		28,29,30,31,24,25,26,27,20,21,22,23,16,17,18,19,
+		12,13,14,15, 8, 9,10,11, 4, 5, 6, 7, 0, 1, 2, 3
+	);
+	const __m512i p3 = _mm512_set_epi16(
+	   24,25,26,27,28,29,30,31,16,17,18,19,20,21,22,23,
+		8, 9,10,11,12,13,14,15, 0, 1, 2, 3, 4, 5, 6, 7
+	);
+	const __m512i p4 = _mm512_set_epi16(
+		29,28,31,30,25,24,27,26,21,20,23,22,17,16,19,18,
+		13,12,15,14, 9, 8,11,10, 5, 4, 7, 6, 1, 0, 3, 2
+	);
+	const __m512i p5 = _mm512_set_epi16(
+		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15
+	);
+	const __m512i p6 = _mm512_set_epi16(
+		27,26,25,24,31,30,29,28,19,18,17,16,23,22,21,20,
+		11,10, 9, 8,15,14,13,12, 3, 2, 1, 0, 7, 6, 5, 4
+	);
+	// merger layer
+	const __m512i m1 = _mm512_set_epi16(
+		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
+		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+	);
+	const __m512i m2 = _mm512_set_epi16(
+	   23,22,21,20,19,18,17,16,31,30,29,28,28,26,25,24,
+		7, 6, 5, 4, 3, 2, 1, 0,15,14,13,12,11,10, 9, 8
+	);
+
+	SORT(a, p1, 0xAAAAAAAA);
+	SORT(a, p2, 0xCCCCCCCC);
+	SORT(a, p1, 0xAAAAAAAA);
+	SORT(a, p3, 0xF0F0F0F0);
+	SORT(a, p4, 0xCCCCCCCC);
+	SORT(a, p1, 0xAAAAAAAA);
+	SORT(a, p5, 0xFF00FF00);
+	SORT(a, p6, 0xF0F0F0F0);
+	SORT(a, p4, 0xCCCCCCCC);
+	SORT(a, p1, 0xAAAAAAAA);
+
+	// merger part
+	SORT(a, m1, 0xFFFF0000);
+	SORT(a, m2, 0xFF00FF00);
+	SORT(a, p6, 0xF0F0F0F0);
+	SORT(a, p4, 0xCCCCCCCC);
+	SORT(a, p1, 0xAAAAAAAA);
+
+	return a;
+#undef SORT
+}
+
+/// translation of `sortingnetwork_sort_x32x32_body`
+static inline
+void sortingnetwork_kvsort_u16x32(__m512i *k, __m512i *v) {
+#define SORT(a, v, perm, sel)										\
+{																	\
+	const __m512i b   = _mm512_permutexvar_epi16(perm, a);			\
+	const __m512i min = _mm512_min_epu16(a, b);						\
+	const __m512i max = _mm512_max_epu16(a, b); 					\
+	const __m512i aa = _mm512_mask_mov_epi16(min, sel, max);		\
+	v = _mm512_mask_mov_epi16(_mm512_permutexvar_epi16(perm, v),	\
+		_mm512_cmp_epi16_mask(aa, a, _MM_CMPINT_EQ), v);			\
+	a = aa;															\
+}
+
+	const __m512i p1 = _mm512_set_epi16(
+		30,31,28,29,26,27,24,25,22,23,20,21,18,19,16,17,
+		14,15,12,13,10,11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1
+	);
+	const __m512i p2 = _mm512_set_epi16(
+		28,29,30,31,24,25,26,27,20,21,22,23,16,17,18,19,
+		12,13,14,15, 8, 9,10,11, 4, 5, 6, 7, 0, 1, 2, 3
+	);
+	const __m512i p3 = _mm512_set_epi16(
+	   24,25,26,27,28,29,30,31,16,17,18,19,20,21,22,23,
+		8, 9,10,11,12,13,14,15, 0, 1, 2, 3, 4, 5, 6, 7
+	);
+	const __m512i p4 = _mm512_set_epi16(
+		29,28,31,30,25,24,27,26,21,20,23,22,17,16,19,18,
+		13,12,15,14, 9, 8,11,10, 5, 4, 7, 6, 1, 0, 3, 2
+	);
+	const __m512i p5 = _mm512_set_epi16(
+		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15
+	);
+	const __m512i p6 = _mm512_set_epi16(
+		27,26,25,24,31,30,29,28,19,18,17,16,23,22,21,20,
+		11,10, 9, 8,15,14,13,12, 3, 2, 1, 0, 7, 6, 5, 4
+	);
+	// merger layer
+	const __m512i m1 = _mm512_set_epi16(
+		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
+		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
+	);
+	const __m512i m2 = _mm512_set_epi16(
+	   23,22,21,20,19,18,17,16,31,30,29,28,28,26,25,24,
+		7, 6, 5, 4, 3, 2, 1, 0,15,14,13,12,11,10, 9, 8
+	);
+
+	__m512i kk = *k;
+	__m512i vv = *v;
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+	SORT(kk, vv, p2, 0xCCCCCCCC);
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+	SORT(kk, vv, p3, 0xF0F0F0F0);
+	SORT(kk, vv, p4, 0xCCCCCCCC);
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+	SORT(kk, vv, p5, 0xFF00FF00);
+	SORT(kk, vv, p6, 0xF0F0F0F0);
+	SORT(kk, vv, p4, 0xCCCCCCCC);
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+
+	// merger part
+	SORT(kk, vv, m1, 0xFFFF0000);
+	SORT(kk, vv, m2, 0xFF00FF00);
+	SORT(kk, vv, p6, 0xF0F0F0F0);
+	SORT(kk, vv, p4, 0xCCCCCCCC);
+	SORT(kk, vv, p1, 0xAAAAAAAA);
+
+	*k = kk;
+	*v = vv;
+#undef SORT
+}
 
 // cleanup macros
-#ifndef __clang__ 
+#ifndef __clang__
 #undef __builtin_ia32_vpermi2varq512
 #endif
 
-// TODO
-#define sortingnetwork_permute_minmax2_avx512(NEW_MULT, REG, MIN_FKT, MAX_FKT )			\
-static inline void sortingnetwork_permute_minmax_ ## NEW_MULT (REG &a, REG &b) noexcept { \
-  	const REG swap = (REG) (__m256) _mm512_permute_pd((__v8sf)b, (__v8sf)b ); \
-  	REG perm_neigh = (REG) (__m256) __builtin_ia32_vpermilps256 ((__v8sf)swap, _MM_SHUFFLE(0, 1, 2, 3)); 	\
-	REG perm_neigh_min = MIN_FKT(a, perm_neigh);									\
-	b = MAX_FKT(a, perm_neigh);														\
-	a = perm_neigh_min;																\
+/// source for the avx512_sorting networks:
+///	https://github.com/berenger-eu/avx-512-sort/blob/master/sort512kv.hpp#L510
+/// heavily modified by FloydZ to handle key-value and different types all with
+/// a single function
+#define sortingnetwork_sort_x32x16_body(T, REG, MIN_FKT, MAX_FKT) \
+	{																		\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+											  6, 7, 4, 5, 2, 3, 0, 1);		\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh,(__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);						\
+		REG permNeighMax = MAX_FKT(permNeigh, input);						\
+        REG tmp_input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xAAAA, (__m512i)permNeighMax); \
+    	if constexpr (kv) {                                                 \
+			values = (REG)_mm512_mask_mov_epi32(                                 \
+						_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)values),       \
+						_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),        \
+			       		 (__m512i)values);\
+		}                                                                   \
+		input = tmp_input;													\
+	}																		\
+	{																		\
+		__m512i idxNoNeigh = _mm512_set_epi32(12, 13, 14, 15, 8, 9, 10, 11,\
+											  4, 5, 6, 7, 0, 1, 2, 3);\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+        REG tmp_input  = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xCCCC, (__m512i)permNeighMax);\
+		if constexpr (kv) {													\
+			values = (REG)_mm512_mask_mov_epi32( 								\
+	                	_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)values),		\
+	                	_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+	                    (__m512i)values); 											\
+		} 																	\
+		input = tmp_input; 													\
+        }																	\
+	{																		\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,		\
+											  6, 7, 4, 5, 2, 3, 0, 1);		\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xAAAA, (__m512i)permNeighMax);\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(8, 9, 10, 11, 12, 13, 14, 15,\
+											  0, 1, 2, 3, 4, 5, 6, 7);\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xF0F0, (__m512i)permNeighMax);\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+											  5, 4, 7, 6, 1, 0, 3, 2);\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xCCCC, (__m512i)permNeighMax);\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+											  6, 7, 4, 5, 2, 3, 0, 1);\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xAAAA, (__m512i)permNeighMax);\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,\
+											  8, 9, 10, 11, 12, 13, 14, 15);\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xFF00, (__m512i)permNeighMax);\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+											  3, 2, 1, 0, 7, 6, 5, 4);\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xF0F0, (__m512i)permNeighMax);\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+											  5, 4, 7, 6, 1, 0, 3, 2);\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xCCCC, (__m512i)permNeighMax);\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+											  6, 7, 4, 5, 2, 3, 0, 1);\
+		REG permNeigh = (REG)_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)input);\
+		REG permNeighMin = MIN_FKT( input,permNeigh);\
+		REG permNeighMax = MAX_FKT(permNeigh, input);\
+		input = (REG)_mm512_mask_mov_epi32((__m512i)permNeighMin, 0xAAAA, (__m512i)permNeighMax);\
+	}                                                                \
+	(void)values;                                                                  \
 }
-// sortingnetwork_permute_minmax2_avx512(f64x16, __m512, _mm512_min_pd, _mm512_max_pd);
+
+
+
+
+//inline void CoreExchangeSort2V(__m512i& input, __m512i& input2,
+//                               __m512i& input_val, __m512i& input2_val){
+#define sortingnetwork_exchangesort_x32x32_body(T, REG, MIN_FKT, MAX_FKT)				\
+	{																					\
+		__m512i idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,					\
+		                                      8, 9, 10, 11, 12, 13, 14, 15);			\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input1);				\
+		__m512i tmp_input = MIN_FKT( permNeigh,input2);									\
+		__m512i tmp_input2 = MAX_FKT(input2, permNeigh);       							\
+        if constexpr (kv) {																\
+			__m512i input_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, value1);		\
+			value1 = _mm512_mask_mov_epi32(value2,										\
+                            _mm512_cmp_epi32_mask(tmp_input, permNeigh, _MM_CMPINT_EQ),	\
+							input_val_perm);											\
+			value2 = _mm512_mask_mov_epi32(input_val_perm,                     			\
+							_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),	\
+							value2);													\
+		}																				\
+		input1 = tmp_input;\
+		input2 = tmp_input2;\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(7, 6, 5, 4, 3, 2, 1, 0,\
+		                                      15, 14, 13, 12, 11, 10, 9, 8);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input1);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeighMin = MIN_FKT(input1, permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT(input2, permNeigh2);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input1);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);       \
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xFF00, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xFF00, permNeighMax2);\
+		if constexpr (kv) {                                                                  \
+			value1 = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, value1),     \
+						_mm512_cmp_epi32_mask(tmp_input, input1, _MM_CMPINT_EQ),\
+		                value1);\
+			value2 = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, value2),    \
+						_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                value2);\
+		}\
+		input1 = tmp_input;\
+		input2 = tmp_input2;\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+		                                      3, 2, 1, 0, 7, 6, 5, 4);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input1);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeighMin = MIN_FKT( input1,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input1);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xF0F0, permNeighMax2);\
+ 		if constexpr (kv) {\
+			value1 = _mm512_mask_mov_epi32(\
+					_mm512_permutexvar_epi32(idxNoNeigh, value1),\
+					_mm512_cmp_epi32_mask(tmp_input, input1, _MM_CMPINT_EQ),\
+					value1);\
+			value2 = _mm512_mask_mov_epi32(\
+					_mm512_permutexvar_epi32(idxNoNeigh, value2),\
+					_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+					value2);\
+		}\
+		input1 = tmp_input;\
+		input2 = tmp_input2;\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+		                                      5, 4, 7, 6, 1, 0, 3, 2);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input1);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeighMin = MIN_FKT( input1,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input1);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+		if constexpr (kv) {\
+		    value1 = _mm512_mask_mov_epi32(\
+		            	_mm512_permutexvar_epi32(idxNoNeigh, value1), \
+		            	_mm512_cmp_epi32_mask(tmp_input, input1, _MM_CMPINT_EQ),\
+		            	value1);\
+		    value2 = _mm512_mask_mov_epi32(\
+		            	_mm512_permutexvar_epi32(idxNoNeigh, value2), \
+		            	_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		            	value2);\
+	    }\
+		input1 = tmp_input;\
+		input2 = tmp_input2;\
+	}\
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+		                                      6, 7, 4, 5, 2, 3, 0, 1);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input1);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeighMin = MIN_FKT( input1,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input1);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+	    if constexpr (kv) {\
+		    value1 = _mm512_mask_mov_epi32(\
+		            	_mm512_permutexvar_epi32(idxNoNeigh, value1),\
+		            	_mm512_cmp_epi32_mask(tmp_input, input1, _MM_CMPINT_EQ),\
+		            	value1);\
+		    value2 = _mm512_mask_mov_epi32(\
+		            	_mm512_permutexvar_epi32(idxNoNeigh, value2),\
+		            	_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		            	value2);\
+	    }\
+		input1 = tmp_input;\
+		input2 = tmp_input2;\
+	}                                                                        \
+}
+
+
+#define sortingnetwork_sort_x32x32_body(T, REG, MIN_FKT, MAX_FKT)						\
+	{																					\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,				\
+											   6, 7, 4, 5, 2, 3, 0, 1);					\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);				\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);				\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);								\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);							\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);								\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);							\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+ 		if constexpr (kv) { \
+		input_val = _mm512_mask_mov_epi32(\
+						_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+						_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+						input_val);\
+		input2_val = _mm512_mask_mov_epi32(\
+						_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+							_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+						input2_val);\
+		}                                                          \
+		input = tmp_input;\
+		input2 = tmp_input2;\
+	} {\
+	 __m512i idxNoNeigh = _mm512_set_epi32(12, 13, 14, 15, 8, 9, 10, 11,\
+										   4, 5, 6, 7, 0, 1, 2, 3);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+     if constexpr (kv) {                                                             \
+		input_val = _mm512_mask_mov_epi32(                              \
+					   _mm512_permutexvar_epi32(idxNoNeigh, input_val),             \
+					   _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+					   input_val);\
+		input2_val = _mm512_mask_mov_epi32(                             \
+					   _mm512_permutexvar_epi32(idxNoNeigh, input2_val),            \
+					   _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+					   input2_val);\
+	 }                                                             \
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+	} { \
+	 __m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+										   6, 7, 4, 5, 2, 3, 0, 1);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+	if constexpr (kv) {\
+		input_val = _mm512_mask_mov_epi32(                              \
+						_mm512_permutexvar_epi32(idxNoNeigh, input_val),            \
+						_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ ),\
+						input_val);\
+		input2_val = _mm512_mask_mov_epi32(                             \
+						_mm512_permutexvar_epi32(idxNoNeigh, input2_val),           \
+						_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+						input2_val);\
+	}\
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+    }{\
+	 __m512i idxNoNeigh = _mm512_set_epi32(8, 9, 10, 11, 12, 13, 14, 15,\
+										   0, 1, 2, 3, 4, 5, 6, 7);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xF0F0, permNeighMax2);\
+	if constexpr (kv) {\
+		input_val = _mm512_mask_mov_epi32(\
+        				_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+        				_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                input_val);\
+		input2_val = _mm512_mask_mov_epi32(                             \
+						_mm512_permutexvar_epi32(idxNoNeigh, input2_val),           \
+						_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                input2_val);\
+	}\
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+ 	} {\
+	 __m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+										   5, 4, 7, 6, 1, 0, 3, 2);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+	if constexpr (kv) {\
+		input_val = _mm512_mask_mov_epi32(                              \
+						_mm512_permutexvar_epi32(idxNoNeigh, input_val),            \
+						_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                input_val);\
+		input2_val = _mm512_mask_mov_epi32(                             \
+						_mm512_permutexvar_epi32(idxNoNeigh, input2_val),           \
+						_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                input2_val);\
+		}\
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+	} {\
+	 __m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+										   6, 7, 4, 5, 2, 3, 0, 1);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+	if constexpr (kv) {\
+		input_val = _mm512_mask_mov_epi32(\
+        				_mm512_permutexvar_epi32(idxNoNeigh, input_val), \
+        				_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                input_val);\
+		input2_val = _mm512_mask_mov_epi32(\
+                		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),	\
+                		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                input2_val);\
+		}\
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+ 	} {\
+	 __m512i idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,\
+										   8, 9, 10, 11, 12, 13, 14, 15);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xFF00, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xFF00, permNeighMax2);\
+	if constexpr (kv) {\
+		input_val = _mm512_mask_mov_epi32(\
+        				_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+        				_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                input_val);\
+		input2_val = _mm512_mask_mov_epi32(\
+                		_mm512_permutexvar_epi32(idxNoNeigh, input2_val), \
+                		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		               input2_val);\
+    }\
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+	} {\
+	 __m512i idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+										   3, 2, 1, 0, 7, 6, 5, 4);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xF0F0, permNeighMax2);\
+	if constexpr (kv) {\
+		input_val = _mm512_mask_mov_epi32(\
+					   _mm512_permutexvar_epi32(idxNoNeigh, input_val), \
+					   _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+					   input_val);\
+		input2_val = _mm512_mask_mov_epi32(                             \
+					   _mm512_permutexvar_epi32(idxNoNeigh, input2_val),            \
+					   _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ ),\
+					   input2_val);\
+	}\
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+	} {\
+	 __m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+										   5, 4, 7, 6, 1, 0, 3, 2);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+	if constexpr (kv) {\
+		input_val = _mm512_mask_mov_epi32(\
+        				_mm512_permutexvar_epi32(idxNoNeigh, input_val), 	\
+        				_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                input_val);\
+		input2_val = _mm512_mask_mov_epi32(\
+                		_mm512_permutexvar_epi32(idxNoNeigh, input2_val), \
+                		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                input2_val);\
+	}\
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+	} {\
+	 __m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+										   6, 7, 4, 5, 2, 3, 0, 1);\
+	 __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	 __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	 __m512i permNeighMin = MIN_FKT( input,permNeigh);\
+	 __m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+	 __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	 __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	 __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+	 __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+	if constexpr (kv) {\
+		input_val = _mm512_mask_mov_epi32(\
+        				_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+        				_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                input_val);\
+		input2_val = _mm512_mask_mov_epi32(	\
+                		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+                		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                input2_val);\
+	}\
+	 input = tmp_input;\
+	 input2 = tmp_input2;\
+	}                                                            \
+	avx512_sortingnetwork_exchangesort_ ##T ## 32x32<kv>(input,input2,input_val,input2_val);\
+}
+
+
+#define sortingnetwork_sort_x32x48_body(T, REG, MIN_FKT, MAX_FKT) \
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,\
+		                                      8, 9, 10, 11, 12, 13, 14, 15);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i tmp_input3 = MAX_FKT(input2, permNeigh);\
+		__m512i tmp_input2 = MIN_FKT( permNeigh,input2);\
+		__m512i input3_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, input3_val);    \
+        if constexpr (kv) {                                                         \
+			input3_val = _mm512_mask_mov_epi32(input2_val,                 \
+							_mm512_cmp_epi32_mask(tmp_input3, permNeigh, _MM_CMPINT_EQ ),\
+							input3_val_perm);\
+			input2_val = _mm512_mask_mov_epi32(input3_val_perm,\
+                             _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+							input2_val);\
+		}\
+		input3 = tmp_input3;\
+		input2 = tmp_input2;\
+	} {\
+		__m512i inputCopy = input;\
+		__m512i tmp_input = MIN_FKT( inputCopy,input2);\
+		__m512i tmp_input2 = MAX_FKT(input2, inputCopy);\
+		__m512i input_val_copy = input_val;\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(input2_val,\
+		                     _mm512_cmp_epi32_mask(tmp_input, inputCopy, _MM_CMPINT_EQ),\
+		                     input_val_copy);\
+		    input2_val = _mm512_mask_mov_epi32(input_val_copy,\
+		                     _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                     input2_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(7, 6, 5, 4, 3, 2, 1, 0,\
+		                                      15, 14, 13, 12, 11, 10, 9, 8);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xFF00, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xFF00, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xFF00, permNeighMax3);\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+		                                      3, 2, 1, 0, 7, 6, 5, 4);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xF0F0, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xF0F0, permNeighMax3);\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                   	input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                   	input3_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+		                                      5, 4, 7, 6, 1, 0, 3, 2);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xCCCC, permNeighMax3);\
+		if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                   	input3_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+		                                      6, 7, 4, 5, 2, 3, 0, 1);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xAAAA, permNeighMax3);\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		           		 	_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+	}\
+}
+
+
+
+
+#define sortingnetwork_sort_x32x64_body(T, REG, MIN_FKT, MAX_FKT) \
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,\
+		                                      8, 9, 10, 11, 12, 13, 14, 15);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i tmp_input4 = MAX_FKT(input, permNeigh4);\
+		__m512i tmp_input = MIN_FKT( permNeigh4,input);\
+		__m512i tmp_input3 = MAX_FKT(input2, permNeigh3);\
+		__m512i tmp_input2 = MIN_FKT( permNeigh3,input2);\
+        if constexpr (kv) {\
+			__m512i input4_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, input4_val);\
+			input4_val = _mm512_mask_mov_epi32(input_val, _mm512_cmp_epi32_mask(tmp_input4, permNeigh4, _MM_CMPINT_EQ ),\
+			                                   input4_val_perm);\
+			input_val = _mm512_mask_mov_epi32(input4_val_perm, _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ ),\
+		                                  input_val);\
+	        __m512i input3_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, input3_val);\
+	        input3_val = _mm512_mask_mov_epi32(\
+	                		input2_val,\
+	                		_mm512_cmp_epi32_mask(tmp_input3, permNeigh3, _MM_CMPINT_EQ),\
+	                        input3_val_perm);\
+	        input2_val = _mm512_mask_mov_epi32(\
+	                		input3_val_perm,\
+	                		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+	                        input2_val);\
+        }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i inputCopy = input;\
+		__m512i tmp_input = MIN_FKT( inputCopy,input2);\
+		__m512i tmp_input2 = MAX_FKT(input2, inputCopy);\
+	    if constexpr (kv) {\
+			__m512i input_val_copy = input_val;\
+		    input_val = _mm512_mask_mov_epi32(input2_val,\
+		                     _mm512_cmp_epi32_mask(tmp_input, inputCopy, _MM_CMPINT_EQ),\
+		                     input_val_copy);\
+		    input2_val = _mm512_mask_mov_epi32(input_val_copy,\
+		                      _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                      input2_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+	} {\
+		__m512i inputCopy = input3;\
+		__m512i tmp_input3 = MIN_FKT( inputCopy,input4);\
+		__m512i tmp_input4 = MAX_FKT(input4, inputCopy);\
+	    if constexpr (kv) {\
+		    __m512i input3_val_copy = input3_val;\
+		    input3_val = _mm512_mask_mov_epi32(input4_val,\
+		                     _mm512_cmp_epi32_mask(tmp_input3, inputCopy, _MM_CMPINT_EQ),\
+		                     input3_val_copy);\
+		    input4_val = _mm512_mask_mov_epi32(input3_val_copy,\
+		                     _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                     input4_val);\
+	    }\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(7, 6, 5, 4, 3, 2, 1, 0,\
+		                                      15, 14, 13, 12, 11, 10, 9, 8);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xFF00, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xFF00, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xFF00, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xFF00, permNeighMax4);\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input4_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+		                                      3, 2, 1, 0, 7, 6, 5, 4);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xF0F0, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xF0F0, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xF0F0, permNeighMax4);\
+		if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input4_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+		                                      5, 4, 7, 6, 1, 0, 3, 2);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xCCCC, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xCCCC, permNeighMax4);\
+		if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input4_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	} {\
+	    __m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+	                                          6, 7, 4, 5, 2, 3, 0, 1);\
+	    __m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+	    __m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+	    __m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+	    __m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+	    __m512i permNeighMin = MIN_FKT(input, permNeigh);\
+	    __m512i permNeighMin2 = MIN_FKT(input2, permNeigh2);\
+	    __m512i permNeighMin3 = MIN_FKT(input3, permNeigh3);\
+	    __m512i permNeighMin4 = MIN_FKT(input4, permNeigh4);\
+	    __m512i permNeighMax = MAX_FKT(permNeigh, input);\
+	    __m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+	    __m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+	    __m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+	    __m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+	    __m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+	    __m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xAAAA, permNeighMax3);\
+	    __m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xAAAA, permNeighMax4);\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+	    	input2_val = _mm512_mask_mov_epi32(\
+	            			_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+	            			_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+	    	                input2_val);\
+	    	input3_val = _mm512_mask_mov_epi32(\
+	                		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+	                		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+	    	                input3_val);\
+	    	input4_val = _mm512_mask_mov_epi32(\
+	                		_mm512_permutexvar_epi32(idxNoNeigh, input4_val),\
+	                		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+	                        input4_val);\
+    	}\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	}\
+}
+
+
+#define sortingnetwork_sort_x32x80_body(T, REG, MIN_FKT, MAX_FKT) \
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,\
+		                                      8, 9, 10, 11, 12, 13, 14, 15);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i tmp_input5 = MAX_FKT(input4, permNeigh5);\
+		__m512i tmp_input4 = MIN_FKT( permNeigh5,input4);\
+		__m512i input5_val_copy = _mm512_permutexvar_epi32(idxNoNeigh, input5_val);\
+  		if constexpr (kv) {\
+		    input5_val = _mm512_mask_mov_epi32(                         \
+							input4_val,                                                \
+							_mm512_cmp_epi32_mask(tmp_input5, permNeigh5, _MM_CMPINT_EQ),\
+		                    input5_val_copy);\
+		    input4_val = _mm512_mask_mov_epi32(\
+	                        input5_val_copy, \
+							_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+	    }\
+		input5 = tmp_input5;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i inputCopy = input;\
+		__m512i tmp_input = MIN_FKT( inputCopy,input3);\
+		__m512i tmp_input3 = MAX_FKT(input3, inputCopy);\
+		if constexpr (kv) {\
+		    __m512i input_val_copy = input_val;\
+		    input_val = _mm512_mask_mov_epi32(                          \
+							input2_val,                                                \
+							_mm512_cmp_epi32_mask(tmp_input, inputCopy, _MM_CMPINT_EQ),\
+		                    input_val_copy);\
+		    input3_val = _mm512_mask_mov_epi32(                         \
+							input_val_copy,                                            \
+							_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+	    }\
+		input = tmp_input;\
+		input3 = tmp_input3;\
+	} { \
+		__m512i inputCopy = input2;\
+		__m512i tmp_input2 = MIN_FKT( inputCopy,input4);\
+		__m512i tmp_input4 = MAX_FKT(input4, inputCopy);\
+		if constexpr (kv) {\
+		    __m512i input2_val_copy = input2_val;\
+		    input2_val = _mm512_mask_mov_epi32(                         \
+							input4_val,                                                \
+							_mm512_cmp_epi32_mask(tmp_input2, inputCopy, _MM_CMPINT_EQ),\
+		                    input2_val_copy);\
+		    input4_val = _mm512_mask_mov_epi32(\
+	                        input2_val_copy,                 \
+							_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+	    }\
+		input2 = tmp_input2;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i inputCopy = input;\
+		__m512i tmp_input = MIN_FKT( inputCopy,input2);\
+		__m512i tmp_input2 = MAX_FKT(input2, inputCopy);\
+		if constexpr (kv) {\
+		    __m512i input_val_copy = input_val;\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		input2_val, \
+		            		_mm512_cmp_epi32_mask(tmp_input, inputCopy, _MM_CMPINT_EQ),\
+		                    input_val_copy);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		input_val_copy, \
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+	} {\
+		__m512i inputCopy = input3;\
+		__m512i tmp_input3 = MIN_FKT( inputCopy,input4);\
+		__m512i tmp_input4 = MAX_FKT(input4, inputCopy);\
+		if constexpr (kv) {\
+		    __m512i input3_val_copy = input3_val;\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		input4_val, \
+		            		_mm512_cmp_epi32_mask(tmp_input3, inputCopy, _MM_CMPINT_EQ),\
+		                    input3_val_copy);\
+		    input4_val = _mm512_mask_mov_epi32(\
+		            		input3_val_copy, \
+		            		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+	    }\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(7, 6, 5, 4, 3, 2, 1, 0,\
+		                                      15, 14, 13, 12, 11, 10, 9, 8);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xFF00, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xFF00, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xFF00, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xFF00, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xFF00, permNeighMax5);\
+	    if constexpr (kv) { \
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input4_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+		    input5_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input5_val), \
+		            		_mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+		                    input5_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+		                                      3, 2, 1, 0, 7, 6, 5, 4);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xF0F0, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xF0F0, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xF0F0, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xF0F0, permNeighMax5);\
+		if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input4_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+		    input5_val = _mm512_mask_mov_epi32( \
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input5_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+		                    input5_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+		                                      5, 4, 7, 6, 1, 0, 3, 2);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xCCCC, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xCCCC, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xCCCC, permNeighMax5);\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                    input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                    input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input4_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                   input4_val);\
+		    input5_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input5_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+		                   input5_val);\
+	    } \
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+		                                      6, 7, 4, 5, 2, 3, 0, 1);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xAAAA, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xAAAA, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xAAAA, permNeighMax5);\
+		if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                    input_val);\
+		    input2_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input2_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                   input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input3_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                   input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input4_val),\
+		            		_mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                    input4_val);\
+		    input5_val = _mm512_mask_mov_epi32(\
+		            		_mm512_permutexvar_epi32(idxNoNeigh, input5_val),\
+		           		 	_mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+		                    input5_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+	}\
+}
+
+#define sortingnetwork_sort_x32x96_body(T, REG, MIN_FKT, MAX_FKT) \
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,\
+		                                      8, 9, 10, 11, 12, 13, 14, 15);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i tmp_input5 = MAX_FKT(input4, permNeigh5);\
+		__m512i tmp_input4 = MIN_FKT( permNeigh5,input4);\
+		__m512i tmp_input6 = MAX_FKT(input3, permNeigh6);\
+		__m512i tmp_input3 = MIN_FKT( permNeigh6,input3);\
+		if constexpr (kv) {\
+			__m512i input5_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, input5_val);\
+			input5_val = _mm512_mask_mov_epi32(input4_val, _mm512_cmp_epi32_mask(tmp_input5, permNeigh5, _MM_CMPINT_EQ),\
+			                                   input5_val_perm);\
+			input4_val = _mm512_mask_mov_epi32(input5_val_perm, _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+			                                   input4_val);\
+			__m512i input6_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, input6_val);\
+			input6_val = _mm512_mask_mov_epi32(input3_val, _mm512_cmp_epi32_mask(tmp_input6, permNeigh6, _MM_CMPINT_EQ),\
+			                                   input6_val_perm);\
+			input3_val = _mm512_mask_mov_epi32(input6_val_perm, _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+			                                   input3_val);\
+		}\
+		input5 = tmp_input5;\
+		input4 = tmp_input4;\
+		input6 = tmp_input6;\
+		input3 = tmp_input3;\
+	} {\
+		__m512i inputCopy = input;\
+		__m512i tmp_input = MIN_FKT( inputCopy,input3);\
+		__m512i tmp_input3 = MAX_FKT(input3, inputCopy);\
+		if constexpr (kv) {\
+			__m512i input_val_copy = input_val;\
+			input_val = _mm512_mask_mov_epi32(input3_val, _mm512_cmp_epi32_mask(tmp_input, inputCopy, _MM_CMPINT_EQ),\
+			                                  input_val_copy);\
+			input3_val = _mm512_mask_mov_epi32(input_val_copy, _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+			                                   input3_val);\
+		}\
+		input = tmp_input;\
+		input3 = tmp_input3;\
+	} {\
+		__m512i inputCopy = input2;\
+		__m512i tmp_input2 = MIN_FKT( inputCopy,input4);\
+		__m512i tmp_input4 = MAX_FKT(input4, inputCopy);\
+		if constexpr (kv) {\
+			__m512i input2_val_copy = input2_val;\
+			input2_val = _mm512_mask_mov_epi32(input4_val, _mm512_cmp_epi32_mask(tmp_input2, inputCopy, _MM_CMPINT_EQ),\
+			                                   input2_val_copy);\
+			input4_val = _mm512_mask_mov_epi32(input2_val_copy, _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+			                                   input4_val);\
+		}\
+		input2 = tmp_input2;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i inputCopy = input;\
+		__m512i tmp_input = MIN_FKT( inputCopy,input2);\
+		__m512i tmp_input2 = MAX_FKT(input2, inputCopy);\
+		if constexpr (kv) {\
+			__m512i input_val_copy = input_val;\
+			input_val = _mm512_mask_mov_epi32(input2_val, _mm512_cmp_epi32_mask(tmp_input, inputCopy, _MM_CMPINT_EQ),\
+			                                  input_val_copy);\
+			input2_val = _mm512_mask_mov_epi32(input_val_copy, _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+			                                   input2_val);\
+		}\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+	} {\
+		__m512i inputCopy = input3;\
+		__m512i tmp_input3 = MIN_FKT( inputCopy,input4);\
+		__m512i tmp_input4 = MAX_FKT(input4, inputCopy);\
+		if constexpr (kv) {\
+		__m512i input3_val_copy = input3_val;\
+			input3_val = _mm512_mask_mov_epi32(input4_val, _mm512_cmp_epi32_mask(tmp_input3, inputCopy, _MM_CMPINT_EQ),\
+			                                   input3_val_copy);\
+			input4_val = _mm512_mask_mov_epi32(input3_val_copy, _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+			                                   input4_val);\
+		}\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i inputCopy = input5;\
+		__m512i tmp_input5 = MIN_FKT( inputCopy,input6);\
+		__m512i tmp_input6 = MAX_FKT(input6, inputCopy);\
+ 		if constexpr (kv) {\
+			 __m512i input5_val_copy = input5_val;\
+			 input5_val = _mm512_mask_mov_epi32(input6_val, _mm512_cmp_epi32_mask(tmp_input5, inputCopy, _MM_CMPINT_EQ),\
+												input5_val_copy);\
+			 input6_val = _mm512_mask_mov_epi32(input5_val_copy, _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+												input6_val);\
+ 		}\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(7, 6, 5, 4, 3, 2, 1, 0,\
+		                                      15, 14, 13, 12, 11, 10, 9, 8);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMin6 = MIN_FKT( input6,permNeigh6);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i permNeighMax6 = MAX_FKT(permNeigh6, input6);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xFF00, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xFF00, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xFF00, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xFF00, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xFF00, permNeighMax5);\
+		__m512i tmp_input6 = _mm512_mask_mov_epi32(permNeighMin6, 0xFF00, permNeighMax6);\
+		if constexpr (kv) {\
+			input_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input_val), _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+			                                  input_val);\
+			input2_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input2_val), _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+			                                   input2_val);\
+			input3_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input3_val), _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+			                                   input3_val);\
+			input4_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input4_val), _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+			                                   input4_val);\
+			input5_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input5_val), _mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+			                                   input5_val);\
+			input6_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input6_val), _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+			                                   input6_val);\
+		}\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+		                                      3, 2, 1, 0, 7, 6, 5, 4);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMin6 = MIN_FKT( input6,permNeigh6);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i permNeighMax6 = MAX_FKT(permNeigh6, input6);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xF0F0, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xF0F0, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xF0F0, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xF0F0, permNeighMax5);\
+		__m512i tmp_input6 = _mm512_mask_mov_epi32(permNeighMin6, 0xF0F0, permNeighMax6);\
+		if constexpr (kv) {\
+			input_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input_val), _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+			                                  input_val);\
+			input2_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input2_val), _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+			                                   input2_val);\
+			input3_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input3_val), _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+			                                   input3_val);\
+			input4_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input4_val), _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+			                                   input4_val);\
+			input5_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input5_val), _mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+			                                   input5_val);\
+			input6_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input6_val), _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+			                                   input6_val);\
+		}\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+		                                      5, 4, 7, 6, 1, 0, 3, 2);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMin6 = MIN_FKT( input6,permNeigh6);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i permNeighMax6 = MAX_FKT(permNeigh6, input6);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xCCCC, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xCCCC, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xCCCC, permNeighMax5);\
+		__m512i tmp_input6 = _mm512_mask_mov_epi32(permNeighMin6, 0xCCCC, permNeighMax6);\
+		if constexpr (kv) {\
+			input_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input_val), _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+			                                  input_val);\
+			input2_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input2_val), _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+			                                   input2_val);\
+			input3_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input3_val), _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+			                                   input3_val);\
+			input4_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input4_val), _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+			                                   input4_val);\
+			input5_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input5_val), _mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+			                                   input5_val);\
+			input6_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input6_val), _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+			                                   input6_val);\
+		}\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+		                                      6, 7, 4, 5, 2, 3, 0, 1);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMin6 = MIN_FKT( input6,permNeigh6);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i permNeighMax6 = MAX_FKT(permNeigh6, input6);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xAAAA, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xAAAA, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xAAAA, permNeighMax5);\
+		__m512i tmp_input6 = _mm512_mask_mov_epi32(permNeighMin6, 0xAAAA, permNeighMax6);\
+		if constexpr (kv) {\
+			input_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input_val), _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+			                                  input_val);\
+			input2_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input2_val), _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+			                                   input2_val);\
+			input3_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input3_val), _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+			                                   input3_val);\
+			input4_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input4_val), _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+			                                   input4_val);\
+			input5_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input5_val), _mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+			                                   input5_val);\
+			input6_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input6_val), _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+			                                   input6_val);\
+		}\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+	}\
+}
+
+
+#define sortingnetwork_sort_x32x112_body(T, REG, MIN_FKT, MAX_FKT) \
+	{\
+		__m512i idxNoNeigh = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7,\
+		                                      8, 9, 10, 11, 12, 13, 14, 15);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeigh7 = _mm512_permutexvar_epi32(idxNoNeigh, input7);\
+		__m512i tmp_input5 = MAX_FKT(input4, permNeigh5);\
+		__m512i tmp_input4 = MIN_FKT( permNeigh5,input4);\
+		__m512i tmp_input6 = MAX_FKT(input3, permNeigh6);\
+		__m512i tmp_input3 = MIN_FKT( permNeigh6,input3);\
+		__m512i tmp_input7 = MAX_FKT(input2, permNeigh7);\
+		__m512i tmp_input2 = MIN_FKT( permNeigh7,input2);\
+		if constexpr (kv) {\
+			__m512i input5_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, input5_val);\
+			input5_val = _mm512_mask_mov_epi32(input4_val, _mm512_cmp_epi32_mask(tmp_input5, permNeigh5, _MM_CMPINT_EQ ),\
+											   input5_val_perm);\
+			input4_val = _mm512_mask_mov_epi32(input5_val_perm, _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+												  input4_val);\
+			__m512i input6_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, input6_val);\
+			input6_val = _mm512_mask_mov_epi32(input3_val, _mm512_cmp_epi32_mask(tmp_input6, permNeigh6, _MM_CMPINT_EQ),\
+												  input6_val_perm);\
+			input3_val = _mm512_mask_mov_epi32(input6_val_perm, _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+												  input3_val);\
+			__m512i input7_val_perm = _mm512_permutexvar_epi32(idxNoNeigh, input7_val);\
+			input7_val = _mm512_mask_mov_epi32(input2_val, _mm512_cmp_epi32_mask(tmp_input7, permNeigh7, _MM_CMPINT_EQ),\
+												  input7_val_perm);\
+			input2_val = _mm512_mask_mov_epi32(input7_val_perm, _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+																				  input2_val);\
+		}\
+		input5 = tmp_input5;\
+		input4 = tmp_input4;\
+		input6 = tmp_input6;\
+		input3 = tmp_input3;\
+		input7 = tmp_input7;\
+		input2 = tmp_input2;\
+	} {\
+		__m512i inputCopy = input;\
+		__m512i tmp_input = MIN_FKT( inputCopy,input3);\
+		__m512i tmp_input3 = MAX_FKT(input3, inputCopy);\
+ 		if constexpr (kv) {\
+		    __m512i input_val_copy = input_val;\
+		    input_val = _mm512_mask_mov_epi32(input3_val, _mm512_cmp_epi32_mask(tmp_input, inputCopy, _MM_CMPINT_EQ),\
+		                                      input_val_copy);\
+		    input3_val = _mm512_mask_mov_epi32(input_val_copy, _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                                       input3_val);\
+	    }\
+		input = tmp_input;\
+		input3 = tmp_input3;\
+	} {\
+		__m512i inputCopy = input2;\
+		__m512i tmp_input2 = MIN_FKT( inputCopy,input4);\
+		__m512i tmp_input4 = MAX_FKT(input4, inputCopy);\
+ 		if constexpr (kv) {\
+		    __m512i input2_val_copy = input2_val;\
+		    input2_val = _mm512_mask_mov_epi32(input4_val, _mm512_cmp_epi32_mask(tmp_input2, inputCopy, _MM_CMPINT_EQ),\
+		                                       input2_val_copy);\
+		    input4_val = _mm512_mask_mov_epi32(input2_val_copy, _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                                       input4_val);\
+	    }\
+		input2 = tmp_input2;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i inputCopy = input;\
+		__m512i tmp_input = MIN_FKT( inputCopy,input2);\
+		__m512i tmp_input2 = MAX_FKT(input2, inputCopy);\
+		if constexpr (kv) {\
+		    __m512i input_val_copy = input_val;\
+		    input_val = _mm512_mask_mov_epi32(input2_val, _mm512_cmp_epi32_mask(tmp_input, inputCopy, _MM_CMPINT_EQ),\
+		                                      input_val_copy);\
+		    input2_val = _mm512_mask_mov_epi32(input_val_copy, _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                                       input2_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+	} {\
+		__m512i inputCopy = input3;\
+		__m512i tmp_input3 = MIN_FKT( inputCopy,input4);\
+		__m512i tmp_input4 = MAX_FKT(input4, inputCopy);\
+ 		if constexpr (kv) {\
+		    __m512i input3_val_copy = input3_val;\
+		    input3_val = _mm512_mask_mov_epi32(input4_val, _mm512_cmp_epi32_mask(tmp_input3, inputCopy, _MM_CMPINT_EQ),\
+		                                       input3_val_copy);\
+		    input4_val = _mm512_mask_mov_epi32(input3_val_copy, _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                                       input4_val);\
+	    }\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+	} {\
+		__m512i inputCopy = input5;\
+		__m512i tmp_input5 = MIN_FKT( inputCopy,input7);\
+		__m512i tmp_input7 = MAX_FKT(input7, inputCopy);\
+	    if constexpr (kv) {\
+			 __m512i input5_val_copy = input5_val;\
+			 input5_val = _mm512_mask_mov_epi32(input7_val, _mm512_cmp_epi32_mask(tmp_input5, inputCopy, _MM_CMPINT_EQ),\
+												input5_val_copy);\
+			 input7_val = _mm512_mask_mov_epi32(input5_val_copy, _mm512_cmp_epi32_mask(tmp_input7, input7, _MM_CMPINT_EQ),\
+												input7_val);\
+		 }\
+		input5 = tmp_input5;\
+		input7 = tmp_input7;\
+	} {\
+		__m512i inputCopy = input5;\
+		__m512i tmp_input5 = MIN_FKT( inputCopy,input6);\
+		__m512i tmp_input6 = MAX_FKT(input6, inputCopy);\
+ 		if constexpr (kv) {\
+		    __m512i input5_val_copy = input5_val;\
+		    input5_val = _mm512_mask_mov_epi32(input6_val, _mm512_cmp_epi32_mask(tmp_input5, inputCopy, _MM_CMPINT_EQ),\
+		                                       input5_val_copy);\
+		    input6_val = _mm512_mask_mov_epi32(input5_val_copy, _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+		                                       input6_val);\
+	    }\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(7, 6, 5, 4, 3, 2, 1, 0,\
+		                                      15, 14, 13, 12, 11, 10, 9, 8);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeigh7 = _mm512_permutexvar_epi32(idxNoNeigh, input7);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMin6 = MIN_FKT( input6,permNeigh6);\
+		__m512i permNeighMin7 = MIN_FKT( input7,permNeigh7);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i permNeighMax6 = MAX_FKT(permNeigh6, input6);\
+		__m512i permNeighMax7 = MAX_FKT(permNeigh7, input7);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xFF00, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xFF00, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xFF00, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xFF00, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xFF00, permNeighMax5);\
+		__m512i tmp_input6 = _mm512_mask_mov_epi32(permNeighMin6, 0xFF00, permNeighMax6);\
+		__m512i tmp_input7 = _mm512_mask_mov_epi32(permNeighMin7, 0xFF00, permNeighMax7);\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input_val), _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                                      input_val);\
+		    input2_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input2_val), _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                                       input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input3_val), _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                                       input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input4_val), _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                                       input4_val);\
+		    input5_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input5_val), _mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+		                                       input5_val);\
+		    input6_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input6_val), _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+		                                       input6_val);\
+		    input7_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input7_val), _mm512_cmp_epi32_mask(tmp_input7, input7, _MM_CMPINT_EQ),\
+		                                       input7_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+		input7 = tmp_input7;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32( 11, 10, 9, 8, 15, 14, 13, 12,\
+		                                      3, 2, 1, 0, 7, 6, 5, 4);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeigh7 = _mm512_permutexvar_epi32(idxNoNeigh, input7);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMin6 = MIN_FKT( input6,permNeigh6);\
+		__m512i permNeighMin7 = MIN_FKT( input7,permNeigh7);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i permNeighMax6 = MAX_FKT(permNeigh6, input6);\
+		__m512i permNeighMax7 = MAX_FKT(permNeigh7, input7);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xF0F0, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xF0F0, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xF0F0, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xF0F0, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xF0F0, permNeighMax5);\
+		__m512i tmp_input6 = _mm512_mask_mov_epi32(permNeighMin6, 0xF0F0, permNeighMax6);\
+		__m512i tmp_input7 = _mm512_mask_mov_epi32(permNeighMin7, 0xF0F0, permNeighMax7);\
+	    if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input_val), _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                                      input_val);\
+		    input2_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input2_val), _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                                       input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input3_val), _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                                       input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input4_val), _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                                       input4_val);\
+		    input5_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input5_val), _mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+		                                       input5_val);\
+		    input6_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input6_val), _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+		                                       input6_val);\
+		    input7_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input7_val), _mm512_cmp_epi32_mask(tmp_input7, input7, _MM_CMPINT_EQ),\
+		                                       input7_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+		input7 = tmp_input7;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(13, 12, 15, 14, 9, 8, 11, 10,\
+		                                      5, 4, 7, 6, 1, 0, 3, 2);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeigh7 = _mm512_permutexvar_epi32(idxNoNeigh, input7);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMin6 = MIN_FKT( input6,permNeigh6);\
+		__m512i permNeighMin7 = MIN_FKT( input7,permNeigh7);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i permNeighMax6 = MAX_FKT(permNeigh6, input6);\
+		__m512i permNeighMax7 = MAX_FKT(permNeigh7, input7);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xCCCC, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xCCCC, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xCCCC, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xCCCC, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xCCCC, permNeighMax5);\
+		__m512i tmp_input6 = _mm512_mask_mov_epi32(permNeighMin6, 0xCCCC, permNeighMax6);\
+		__m512i tmp_input7 = _mm512_mask_mov_epi32(permNeighMin7, 0xCCCC, permNeighMax7);\
+		if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input_val), _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                                      input_val);\
+		    input2_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input2_val), _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                                       input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input3_val), _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                                       input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input4_val), _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                                       input4_val);\
+		    input5_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input5_val), _mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+		                                       input5_val);\
+		    input6_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input6_val), _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+		                                       input6_val);\
+		    input7_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input7_val), _mm512_cmp_epi32_mask(tmp_input7, input7, _MM_CMPINT_EQ),\
+		                                       input7_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+		input7 = tmp_input7;\
+	} {\
+		__m512i idxNoNeigh = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9,\
+		                                      6, 7, 4, 5, 2, 3, 0, 1);\
+		__m512i permNeigh = _mm512_permutexvar_epi32(idxNoNeigh, input);\
+		__m512i permNeigh2 = _mm512_permutexvar_epi32(idxNoNeigh, input2);\
+		__m512i permNeigh3 = _mm512_permutexvar_epi32(idxNoNeigh, input3);\
+		__m512i permNeigh4 = _mm512_permutexvar_epi32(idxNoNeigh, input4);\
+		__m512i permNeigh5 = _mm512_permutexvar_epi32(idxNoNeigh, input5);\
+		__m512i permNeigh6 = _mm512_permutexvar_epi32(idxNoNeigh, input6);\
+		__m512i permNeigh7 = _mm512_permutexvar_epi32(idxNoNeigh, input7);\
+		__m512i permNeighMin = MIN_FKT( input,permNeigh);\
+		__m512i permNeighMin2 = MIN_FKT( input2,permNeigh2);\
+		__m512i permNeighMin3 = MIN_FKT( input3,permNeigh3);\
+		__m512i permNeighMin4 = MIN_FKT( input4,permNeigh4);\
+		__m512i permNeighMin5 = MIN_FKT( input5,permNeigh5);\
+		__m512i permNeighMin6 = MIN_FKT( input6,permNeigh6);\
+		__m512i permNeighMin7 = MIN_FKT( input7,permNeigh7);\
+		__m512i permNeighMax = MAX_FKT(permNeigh, input);\
+		__m512i permNeighMax2 = MAX_FKT(permNeigh2, input2);\
+		__m512i permNeighMax3 = MAX_FKT(permNeigh3, input3);\
+		__m512i permNeighMax4 = MAX_FKT(permNeigh4, input4);\
+		__m512i permNeighMax5 = MAX_FKT(permNeigh5, input5);\
+		__m512i permNeighMax6 = MAX_FKT(permNeigh6, input6);\
+		__m512i permNeighMax7 = MAX_FKT(permNeigh7, input7);\
+		__m512i tmp_input = _mm512_mask_mov_epi32(permNeighMin, 0xAAAA, permNeighMax);\
+		__m512i tmp_input2 = _mm512_mask_mov_epi32(permNeighMin2, 0xAAAA, permNeighMax2);\
+		__m512i tmp_input3 = _mm512_mask_mov_epi32(permNeighMin3, 0xAAAA, permNeighMax3);\
+		__m512i tmp_input4 = _mm512_mask_mov_epi32(permNeighMin4, 0xAAAA, permNeighMax4);\
+		__m512i tmp_input5 = _mm512_mask_mov_epi32(permNeighMin5, 0xAAAA, permNeighMax5);\
+		__m512i tmp_input6 = _mm512_mask_mov_epi32(permNeighMin6, 0xAAAA, permNeighMax6);\
+		__m512i tmp_input7 = _mm512_mask_mov_epi32(permNeighMin7, 0xAAAA, permNeighMax7);\
+		if constexpr (kv) {\
+		    input_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input_val), _mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+		                                      input_val);\
+		    input2_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input2_val), _mm512_cmp_epi32_mask(tmp_input2, input2, _MM_CMPINT_EQ),\
+		                                       input2_val);\
+		    input3_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input3_val), _mm512_cmp_epi32_mask(tmp_input3, input3, _MM_CMPINT_EQ),\
+		                                       input3_val);\
+		    input4_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input4_val), _mm512_cmp_epi32_mask(tmp_input4, input4, _MM_CMPINT_EQ),\
+		                                       input4_val);\
+		    input5_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input5_val), _mm512_cmp_epi32_mask(tmp_input5, input5, _MM_CMPINT_EQ),\
+		                                       input5_val);\
+		    input6_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input6_val), _mm512_cmp_epi32_mask(tmp_input6, input6, _MM_CMPINT_EQ),\
+		                                       input6_val);\
+		    input7_val = _mm512_mask_mov_epi32(_mm512_permutexvar_epi32(idxNoNeigh, input7_val), _mm512_cmp_epi32_mask(tmp_input7, input7, _MM_CMPINT_EQ),\
+		                                       input7_val);\
+	    }\
+		input = tmp_input;\
+		input2 = tmp_input2;\
+		input3 = tmp_input3;\
+		input4 = tmp_input4;\
+		input5 = tmp_input5;\
+		input6 = tmp_input6;\
+		input7 = tmp_input7;\
+	}\
+}
+
+
+
+
+
+
+#define sortingnetwork_sort_x32x16(T, REG, MIN_FKT, MAX_FKT) 		\
+static inline void avx512_sortingnetwork_sort_ ##T ## 32x16(REG &input) { 	\
+	constexpr bool kv = false;                                    	\
+	REG values = input;                                             \
+sortingnetwork_sort_x32x16_body(T, REG, MIN_FKT, MAX_FKT)
+
+#define sortingnetwork_kvsort_x32x16(T, REG, MIN_FKT, MAX_FKT) 		\
+static inline void avx512_sortingnetwork_kvsort_ ##T ## 32x16(REG &input, REG &values) {\
+	constexpr bool kv = true;                                     	\
+sortingnetwork_sort_x32x16_body(T, REG, MIN_FKT, MAX_FKT)
+
+
+
+#define sortingnetwork_exchangesort_x32x32(T, REG, MIN_FKT, MAX_FKT) 				\
+template<const bool kv>                                                             \
+static inline void avx512_sortingnetwork_exchangesort_ ## T ## 32x32(REG &input1,	\
+	                                                                 REG &input2,	\
+																	 REG &value1,	\
+																	 REG &value2){ 	\
+	if constexpr (kv) {                                                             \
+		(void) value1; (void) value2;                                             	\
+	}                                                                         		\
+sortingnetwork_exchangesort_x32x32_body(T, REG, MIN_FKT, MAX_FKT)
+
+
+
+
+#define sortingnetwork_sort_x32x32(T, REG, MIN_FKT, MAX_FKT) 				\
+static inline void avx512_sortingnetwork_sort_ ##T ## 32x32(REG &input, 	\
+	                                                        REG &input2) { 	\
+	constexpr bool kv = false;                                     			\
+	REG input_val = input; REG input2_val = input;                     		\
+sortingnetwork_sort_x32x32_body(T, REG, MIN_FKT, MAX_FKT)
+
+#define sortingnetwork_kvsort_x32x32(T, REG, MIN_FKT, MAX_FKT) 					\
+static inline void avx512_sortingnetwork_kvsort_ ##T ## 32x32(REG &input, 		\
+															  REG &input2, 		\
+	                                                          REG &input_val,	\
+	                                                          REG &input2_val){	\
+	constexpr bool kv = true;                                     				\
+sortingnetwork_sort_x32x32_body(T, REG, MIN_FKT, MAX_FKT)
+
+
+#define sortingnetwork_sort_x32x48(T, REG, MIN_FKT, MAX_FKT) 				\
+static inline void avx512_sortingnetwork_sort_ ##T ## 32x48(REG &input, 	\
+	                                                        REG &input2, 	\
+															REG &input3) { 	\
+	constexpr bool kv = false;                                     			\
+	REG input_val=input,input2_val = input,input3_val=input;                \
+	avx512_sortingnetwork_sort_ ## T ## 32x32(input, input2);				\
+	avx512_sortingnetwork_sort_ ## T ## 32x16(input3);						\
+sortingnetwork_sort_x32x48_body(T, REG, MIN_FKT, MAX_FKT)
+
+#define sortingnetwork_kvsort_x32x48(T, REG, MIN_FKT, MAX_FKT) 					\
+static inline void avx512_sortingnetwork_kvsort_ ##T ## 32x48(REG &input, 		\
+															  REG &input2, 		\
+															  REG &input3, 		\
+	                                                          REG &input_val,	\
+															  REG &input2_val,	\
+	                                                          REG &input3_val){	\
+	constexpr bool kv = true;                                     				\
+	avx512_sortingnetwork_kvsort_ ## T ## 32x32(input, input2, input_val, input2_val);\
+	avx512_sortingnetwork_kvsort_ ## T ## 32x16(input3, input3_val);\
+sortingnetwork_sort_x32x48_body(T, REG, MIN_FKT, MAX_FKT)
+
+
+
+#define sortingnetwork_sort_x32x64(T, REG, MIN_FKT, MAX_FKT) 				\
+static inline void avx512_sortingnetwork_sort_ ##T ## 32x64(REG &input, 	\
+	                                                        REG &input2, 	\
+															REG &input3, 	\
+															REG &input4) { 	\
+	constexpr bool kv = false;                                     			\
+	REG input_val=input,input2_val=input,input3_val=input,input4_val=input; \
+	avx512_sortingnetwork_sort_ ## T ## 32x32(input, input2);				\
+	avx512_sortingnetwork_sort_ ## T ## 32x32(input3, input4);				\
+sortingnetwork_sort_x32x64_body(T, REG, MIN_FKT, MAX_FKT)
+
+#define sortingnetwork_kvsort_x32x64(T, REG, MIN_FKT, MAX_FKT) 					\
+static inline void avx512_sortingnetwork_kvsort_ ##T ## 32x64(REG &input, 		\
+	                                                          REG &input2, 		\
+															  REG &input3, 		\
+															  REG &input4,  	\
+															  REG &input_val, 	\
+															  REG &input2_val,	\
+															  REG &input3_val,	\
+															  REG &input4_val) {\
+	constexpr bool kv = true;                                     				\
+	avx512_sortingnetwork_kvsort_ ## T ## 32x32(input, input2,         			\
+		                                        input_val, input2_val);			\
+	avx512_sortingnetwork_kvsort_ ## T ## 32x32(input3, input4,        			\
+		                                        input3_val, input4_val);		\
+sortingnetwork_sort_x32x64_body(T, REG, MIN_FKT, MAX_FKT)
+
+
+#define sortingnetwork_sort_x32x80(T, REG, MIN_FKT, MAX_FKT) 				\
+static inline void avx512_sortingnetwork_sort_ ##T ## 32x80(REG &input, 	\
+	                                                        REG &input2, 	\
+															REG &input3, 	\
+															REG &input4, 	\
+															REG &input5) { 	\
+	constexpr bool kv = false;                                     			\
+	REG input_val=input,input2_val=input,input3_val=input,input4_val=input, \
+		input5_val=input;													\
+	avx512_sortingnetwork_sort_ ## T ## 32x64(input, input2,        		\
+		                                      input3, input4);				\
+	avx512_sortingnetwork_sort_ ## T ## 32x16(input5);						\
+sortingnetwork_sort_x32x80_body(T, REG, MIN_FKT, MAX_FKT)
+
+#define sortingnetwork_kvsort_x32x80(T, REG, MIN_FKT, MAX_FKT) 				 \
+static inline void avx512_sortingnetwork_kvsort_ ##T ## 32x80(REG &input, 	 \
+	                                                        REG &input2, 	 \
+															REG &input3, 	 \
+															REG &input4, 	 \
+															REG &input5,     \
+															REG &input_val,  \
+															REG &input2_val, \
+															REG &input3_val, \
+															REG &input4_val, \
+															REG &input5_val){\
+	constexpr bool kv = true;                                     			 \
+	avx512_sortingnetwork_kvsort_ ## T ## 32x64(input, input2,         		 \
+											    input3, input4,        		 \
+		                                        input_val, input2_val,    	 \
+		                                        input3_val, input4_val);	 \
+	avx512_sortingnetwork_kvsort_ ## T ## 32x16(input5, input5_val);		 \
+sortingnetwork_sort_x32x80_body(T, REG, MIN_FKT, MAX_FKT)
+
+
+#define sortingnetwork_sort_x32x96(T, REG, MIN_FKT, MAX_FKT) 				\
+static inline void avx512_sortingnetwork_sort_ ##T ## 32x96(REG &input, 	\
+	                                                        REG &input2, 	\
+															REG &input3, 	\
+															REG &input4, 	\
+															REG &input5, 	\
+															REG &input6) { 	\
+	constexpr bool kv = false;                                     			\
+	REG input_val=input,input2_val=input,input3_val=input,input4_val=input, \
+		input5_val=input,input6_val=input;									\
+	avx512_sortingnetwork_sort_ ## T ## 32x64(input, input2,        		\
+		                                      input3, input4);				\
+	avx512_sortingnetwork_sort_ ## T ## 32x32(input5, input6);				\
+sortingnetwork_sort_x32x96_body(T, REG, MIN_FKT, MAX_FKT)
+
+#define sortingnetwork_kvsort_x32x96(T, REG, MIN_FKT, MAX_FKT) 				 \
+static inline void avx512_sortingnetwork_kvsort_ ##T ## 32x96(REG &input, 	 \
+	                                                        REG &input2, 	 \
+															REG &input3, 	 \
+															REG &input4, 	 \
+															REG &input5,     \
+															REG &input6,     \
+															REG &input_val,  \
+															REG &input2_val, \
+															REG &input3_val, \
+															REG &input4_val, \
+															REG &input5_val, \
+															REG &input6_val){\
+	constexpr bool kv = true;                                     			 \
+	avx512_sortingnetwork_kvsort_ ## T ## 32x64(input, input2,         		 \
+											    input3, input4,        		 \
+		                                        input_val, input2_val,    	 \
+		                                        input3_val, input4_val);	 \
+	avx512_sortingnetwork_kvsort_ ## T ## 32x32(input5, input6,        		 \
+		                                        input5_val,input6_val);		 \
+sortingnetwork_sort_x32x96_body(T, REG, MIN_FKT, MAX_FKT)
+
+
+
+#define sortingnetwork_sort_x32x112(T, REG, MIN_FKT, MAX_FKT) 				\
+static inline void avx512_sortingnetwork_sort_ ##T ## 32x112(REG &input, 	\
+	                                                         REG &input2, 	\
+															 REG &input3, 	\
+															 REG &input4, 	\
+															 REG &input5, 	\
+															 REG &input6, 	\
+															 REG &input7) { \
+	constexpr bool kv = false;                                     			\
+	REG input_val=input,input2_val=input,input3_val=input,input4_val=input, \
+		input5_val=input,input6_val=input,input7_val=input;					\
+	avx512_sortingnetwork_sort_ ## T ## 32x64(input, input2,        		\
+		                                      input3, input4);				\
+	avx512_sortingnetwork_sort_ ## T ## 32x48(input5, input6,input7);		\
+sortingnetwork_sort_x32x112_body(T, REG, MIN_FKT, MAX_FKT)
+
+#define sortingnetwork_kvsort_x32x112(T, REG, MIN_FKT, MAX_FKT) 			 \
+static inline void avx512_sortingnetwork_kvsort_ ##T ## 32x112(REG &input, 	 \
+	                                                    	REG &input2, 	 \
+															REG &input3, 	 \
+															REG &input4, 	 \
+															REG &input5,     \
+															REG &input6,     \
+															REG &input7,     \
+															REG &input_val,  \
+															REG &input2_val, \
+															REG &input3_val, \
+															REG &input4_val, \
+															REG &input5_val, \
+															REG &input6_val, \
+															REG &input7_val){\
+	constexpr bool kv = true;                                     			 \
+	avx512_sortingnetwork_kvsort_ ## T ## 32x64(input, input2,         		 \
+											    input3, input4,        		 \
+		                                        input_val, input2_val,    	 \
+		                                        input3_val, input4_val);	 \
+	avx512_sortingnetwork_kvsort_ ## T ## 32x48(input5, input6, input7,      \
+		                                        input5_val,input6_val,input7_val);\
+sortingnetwork_sort_x32x112_body(T, REG, MIN_FKT, MAX_FKT)
+
+
+
+
+sortingnetwork_sort_x32x16(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_kvsort_x32x16(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_sort_x32x16(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+sortingnetwork_kvsort_x32x16(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+sortingnetwork_sort_x32x16(f, __m512, _mm512_min_ps, _mm512_max_ps)
+// sortingnetwork_kvsort_x32x16(f, __m512, _mm512_min_ps, _mm512_max_ps)
+
+sortingnetwork_exchangesort_x32x32(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_exchangesort_x32x32(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+//sortingnetwork_exchangesort_x32x32(f, __m512, _mm512_min_ps, _mm512_max_ps)
+
+
+sortingnetwork_sort_x32x32(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_kvsort_x32x32(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_sort_x32x32(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+sortingnetwork_kvsort_x32x32(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+//sortingnetwork_sort_x32x32(f, __m512, _mm512_min_ps, _mm512_max_ps)
+//sortingnetwork_kvsort_x32x32(f, __m512, _mm512_min_ps, _mm512_max_ps)
+
+
+sortingnetwork_sort_x32x48(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_kvsort_x32x48(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_sort_x32x48(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+sortingnetwork_kvsort_x32x48(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+//sortingnetwork_sort_x32x48(f, __m512, _mm512_min_ps, _mm512_max_ps)
+//sortingnetwork_kvsort_x32x48(f, __m512, _mm512_min_ps, _mm512_max_ps)
+
+
+sortingnetwork_sort_x32x64(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_kvsort_x32x64(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_sort_x32x64(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+sortingnetwork_kvsort_x32x64(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+//sortingnetwork_sort_x32x64(f, __m512, _mm512_min_ps, _mm512_max_ps)
+//sortingnetwork_kvsort_x32x64(f, __m512, _mm512_min_ps, _mm512_max_ps)
+
+
+sortingnetwork_sort_x32x80(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_kvsort_x32x80(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_sort_x32x80(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+sortingnetwork_kvsort_x32x80(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+//sortingnetwork_sort_x32x80(f, __m512, _mm512_min_ps, _mm512_max_ps)
+//sortingnetwork_kvsort_x32x80(f, __m512, _mm512_min_ps, _mm512_max_ps)
+
+
+sortingnetwork_sort_x32x96(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_kvsort_x32x96(i, __m512i, _mm512_min_epi32, _mm512_max_epi32)
+sortingnetwork_sort_x32x96(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+sortingnetwork_kvsort_x32x96(u, __m512i, _mm512_min_epu32, _mm512_max_epu32)
+//sortingnetwork_sort_x32x96(f, __m512, _mm512_min_ps, _mm512_max_ps)
+//sortingnetwork_kvsort_x32x96(f, __m512, _mm512_min_ps, _mm512_max_ps)
+
+
+
+
+#define avx512_sortingnetwork_small(T, N, REG)						\
+[[nodiscard]] static bool avx512_sortingnetwork_small_ ## N(N* array,	\
+			const size_t element_count) noexcept {						\
+	if (element_count <= 1) { return true; }							\
+	constexpr size_t s = 16;											\
+	const uint32_t full_vec_count = element_count/s;					\
+	const uint32_t last_vec_size = element_count-(full_vec_count*s);	\
+	const uint32_t last_vec_flag = last_vec_size > 0;					\
+	if (full_vec_count > 6) { return false; }							\
+	REG d[16];															\
+	for(uint32_t i=0; i<full_vec_count; ++i) {							\
+		d[i] = *((REG *)(array + s*i));									\
+	}                                                      				\
+    N tmp[s];                                           				\
+	if (last_vec_size) {                                   				\
+		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
+    		tmp[i] = array[full_vec_count*s + i];                       \
+		}                                                     			\
+		d[full_vec_count] = *((REG *)(tmp));							\
+	}																	\
+	switch (full_vec_count+last_vec_flag) {								\
+		case 1 : avx512_sortingnetwork_sort_ ## T ## 32x16 (d[0]); goto cleanup;\
+		case 2 : avx512_sortingnetwork_sort_ ## T ## 32x32 (d[0],d[1]); goto cleanup;\
+		case 3 : avx512_sortingnetwork_sort_ ## T ## 32x48 (d[0],d[1],d[2]); goto cleanup;\
+		case 4 : avx512_sortingnetwork_sort_ ## T ## 32x64 (d[0],d[1],d[2],d[3]); goto cleanup;\
+		case 5 : avx512_sortingnetwork_sort_ ## T ## 32x80 (d[0],d[1],d[2],d[3],d[4]); goto cleanup;\
+		case 6 : avx512_sortingnetwork_sort_ ## T ## 32x96 (d[0],d[1],d[2],d[3],d[4],d[5]); goto cleanup;\
+		default:														\
+			return false;												\
+	}																	\
+	cleanup:															\
+	for(uint32_t i=0; i<full_vec_count; ++i) {							\
+		*((REG *)(array + s*i)) = d[i];									\
+	}																	\
+	if (last_vec_size) {												\
+		d[full_vec_count] = *((REG *)(tmp));							\
+		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
+    		array[full_vec_count*s + i] = tmp[i];                       \
+		}                                                     			\
+	}																	\
+	return true;														\
+}
+
+avx512_sortingnetwork_small(u, uint32_t, __m512i);
+avx512_sortingnetwork_small(i, int32_t, __m512i);
+//avx512_sortingnetwork_small(f, float, __m512);
 #endif

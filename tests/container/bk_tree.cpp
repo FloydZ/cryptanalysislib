@@ -14,7 +14,7 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-using T = BinaryContainer<100, uint64_t>;
+using T = BinaryVector<100>;
 using BKT = BKTree<T>;
 
 TEST(BKTree, first) {
@@ -34,12 +34,11 @@ TEST(BKTree, first) {
 		if (mn < m) {m = mn; }
 	}
 	std::cout << m << std::endl;
-
 }
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
     return RUN_ALL_TESTS();
 }

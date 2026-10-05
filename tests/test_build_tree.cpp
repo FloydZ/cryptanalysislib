@@ -21,8 +21,8 @@ constexpr uint32_t q    = 3;
 
 using T 			= uint8_t;
 using Matrix 		= FqMatrix<T, n, k, q>;
-using Value     	= kAryContainer_T<T, n, q>;
-using Label    		= kAryContainer_T<T, k, q>;
+using Value     	= FqNonPackedVector<n, q, T>;
+using Label    		= FqNonPackedVector<k, q, T>;
 using Element		= Element_T<Value, Label, Matrix>;
 using List			= List_T<Element>;
 using Tree			= Tree_T<List>;
@@ -31,8 +31,8 @@ TEST(TreeTest, join2lists) {
 	size_t basesize = 9;
 	Matrix A; A.identity();
 
-	const std::vector<uint64_t> ta{{0, n}};
-	uint64_t k_lower, k_higher;
+	const std::vector<uint32_t> ta{{0, n}};
+	uint32_t k_lower, k_higher;
 	translate_level(&k_lower, &k_higher, 0, ta);
 
 	List out{1u<<basesize}, l1{0}, l2{0};
@@ -42,8 +42,9 @@ TEST(TreeTest, join2lists) {
 	Label target {};
 	target.zero();
 	target.random();
-
-	Tree::join2lists(out, l1, l2, target, ta);
+    
+    Tree t{1, A, 0};
+	t.join2lists(out, l1, l2, target, ta);
 
 	auto right=true;
 	int wrong=0;
@@ -66,7 +67,7 @@ TEST(TreeTest, sort_level_with_target) {
 	size_t basesize = 8;
 	Matrix A; A.identity();
 
-	const std::vector<uint64_t> ta{{0, n}};
+	const std::vector<uint32_t> ta{{0, n}};
 
 	List out1{1u<<basesize}, out2{1u<<basesize}, l1{0}, l2{0};
 	l1.random(1u << basesize, A);
@@ -96,7 +97,7 @@ TEST(TreeTest, join2lists_on_iT) {
 	size_t basesize = 8;
 	Matrix A; A.identity();
 
-	const std::vector<uint64_t> ta{{0, n}};
+	const std::vector<uint32_t> ta{{0, n}};
 
 	List out1{1u<<basesize}, out2{1u<<basesize}, l1{0}, l2{0};
 	l1.random(1u << basesize, A);
@@ -104,13 +105,14 @@ TEST(TreeTest, join2lists_on_iT) {
 	List l22 = l2;
 	Label target {}; target.random();
 
+    Tree t{1, A, 0};
 
 	// NOTE: this is a little hacky. `join2lists` alters l2 in a way which is
 	// not recoverable by `join2lists_on_iT`. Thus, the order of function calls
 	// does matter here.
 	l1.sort_level(ta[0], ta[1]);
-	Tree::join2lists_on_iT(out2, l1, l22, target, ta[0], ta[1]);
-	Tree::join2lists(out1, l1, l2, target, ta);
+	t.join2lists_on_iT(out2, l1, l22, target, ta[0], ta[1]);
+	t.join2lists(out1, l1, l2, target, ta);
 
 	// check loads
 	EXPECT_GT(out1.load(), 0);
@@ -139,8 +141,8 @@ TEST(TreeTest, join4lists) {
 	Matrix A;
 	A.identity();
 
-	const std::vector<uint64_t> ta{{0, n/2, n}};
-	uint64_t k_lower=0, k_higher=0;
+	const std::vector<uint32_t> ta{{0, n/2, n}};
+	uint32_t k_lower=0, k_higher=0;
 
 	List out{1u<<12}, l1{0}, l2{0}, l3{0}, l4{0};
 	l1.random(1u << basesize, A);
@@ -150,7 +152,8 @@ TEST(TreeTest, join4lists) {
 
 	Label target; target.random();
 
-	Tree::join4lists(out, l1, l2, l3, l4, target, ta);
+    Tree t{1, A, 0};
+	t.join4lists(out, l1, l2, l3, l4, target, ta);
 
 	auto right=true;
 	int wrong=0;
@@ -178,8 +181,8 @@ TEST(TreeTest, join4lists_with2lists) {
 	Matrix A;
 	A.identity();
 
-	const std::vector<uint64_t> ta{{0, n/2, n}};
-	uint64_t k_lower=0, k_higher=0;
+	const std::vector<uint32_t> ta{{0, n/2, n}};
+	uint32_t k_lower=0, k_higher=0;
 
 	List out{1u<<basesize}, l1{0}, l2{0}, l3{0}, l4{0};
 	l1.random(1u << basesize, A);
@@ -189,7 +192,8 @@ TEST(TreeTest, join4lists_with2lists) {
 	target.zero();
 	target.random();
 
-	Tree::streamjoin4lists_twolists(out, l1, l2, target, ta);
+    Tree t{1, A, 0};
+	t.streamjoin4lists_twolists(out, l1, l2, target, ta);
 
 	auto right=true;
 	int wrong=0;
@@ -218,6 +222,6 @@ TEST(TreeTest, join4lists_with2lists) {
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
     return RUN_ALL_TESTS();
 }

@@ -2,16 +2,18 @@ cmake_minimum_required(VERSION 3.20)  		# 3.20 is needed because of C++20
 project(CryptanalysisLib LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_CXX_STANDARD 20)
+
+# NOTE: this is rather important as I need constexpr static storage duration
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # options
 option(USE_TCMALLOC "Enable tcmalloc" OFF)
 option(USE_SIMD "Enable avx/neon" ON)
-option(USE_SANITIZER "Enable memory sanitizer" OFF)
+option(USE_SANITIZER "Enable memory sanitizer (only debug build)" OFF)
 option(USE_NOINLINE "Enable -fno-inline" OFF)
 option(USE_LTO "Enable linkage time optimizations" OFF)
-option(USE_PROFILE "Enable profile guided optmization" OFF)
+option(USE_PROFILE "Enable profile guided optimization" OFF)
 option(USE_POLLY "Enable polly loop optimization" OFF)
 option(USE_BOLT "Enable bolt binary optimization" OFF)
 option(USE_TRACY "Enable tracy profiling" OFF)
@@ -38,7 +40,7 @@ include(FetchContent)
 include(ExternalProject)
 include(CheckCXXCompilerFlag) 	# check for compiler optimization flags
 include(CheckIPOSupported)  	# check for -flto
-include(CheckLanguage) 			# needed for `check_language(CUDA)`
+include(CheckLanguage) 		# needed for `check_language(CUDA)`
 
 if(NOT ${USE_SIMD})
 	message(STATUS "no SIMD")
@@ -63,15 +65,32 @@ find_library(LINKER_SUPPORTS_ATOMIC atomic)
 check_cxx_compiler_flag(-Wno-c11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
 check_cxx_compiler_flag(-Wno-zero-length-array COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
 check_cxx_compiler_flag(-Wno-gnu-label-as-value COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
+check_cxx_compiler_flag(-Wthread-safety COMPILER_SUPPORTS_THREAD_SAFETY)
 
 # find needed packages: the good thing only is: we only have a single external
 # dependencies. 
 enable_testing()
-find_package(OpenMP REQUIRED)
+find_package(OpenMP QUIET)
 find_package(Threads REQUIRED)
 find_package(GTest) 
-find_package(benchmark)
+find_package(benchmark QUIET)
 find_package(Git QUIET)
+
+find_package(OpenCL QUIET)
+find_package(OpenCLHeaders QUIET)
+
+# now check if we have to add the cuda runtime
+# NOTE: apparently this is not how its done: find_package(CUDA QUIET)
+find_package(CUDAToolkit QUIET)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+	enable_language(CUDA)
+	message(STATUS "CUDA ENABLED")
+endif()
+
+if(OpenCL_FOUND AND OpenCLHeaders_FOUND)
+	message(STATUS "OpenCL ENABLED")
+endif()
 
 if(${USE_TRACY})
 	FetchContent_Declare(
@@ -83,6 +102,15 @@ if(${USE_TRACY})
 	)
 	FetchContent_MakeAvailable(tracy)
 endif ()
+
+# Fetch the project and make it available for use.
+FetchContent_Declare(
+		reflect-cpp
+		GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
+		GIT_TAG        v0.19.0
+)
+FetchContent_MakeAvailable(reflect-cpp)
+include_directories(${reflect-cpp_SOURCE_DIR}/include)
 
 # global include directories
 include_directories("deps/b63/include/b63")
@@ -111,7 +139,7 @@ endif()
 if(${USE_SANITIZER})
 	message(STATUS "Using address sanitize")
 	# possible sanitizers = -fsanitize=[address,leak,thread,memory,undefined]
-	set(SANITIZER_FLAGS "-fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
+	set(SANITIZER_FLAGS " -fsanitize=leak -fsanitize=address -fsanitize=pointer-compare -fno-omit-frame-pointer")
 endif()
 
 if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
@@ -120,7 +148,11 @@ if(${USE_NOINLINE} AND COMPILER_SUPPORTS_NO_INLINE)
 endif()
 
 if (COMPILER_SUPPORTS_CONSTEXPR_COST)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=999999999")
+    if(APPLE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=9000099")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
+    endif()
 endif()
 
 if(${USE_LTO} AND lto_supported)
@@ -133,7 +165,7 @@ endif()
 # and if the type is < 512 bits, then this must be zero
 # -Wno-unused-function: needed, because we have alot of helper function, which are not always used.
 # -Wno-unknown-pragmas: needed for `#pragma unroll`
-set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-unused-function -Wno-invalid-constexpr -Wno-c++23-extensions")
+set(ALLOWED_WARNINGS " -Wno-unknown-pragmas -Wno-unused-function -Wno-invalid-constexpr -Wno-c++23-extensions -Wno-invalid-constexpr")
 if (COMPILER_SUPPORTS_C11_EXCEPTION) 
 	message(STATUS "Supports C11 Exceptions")
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-c11-extensions")
@@ -146,10 +178,16 @@ if (COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
 	message(STATUS "Supports Gnu Label as Value")
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wno-gnu-label-as-value")
 endif()
-if (COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
-	message(STATUS "Supports Concepts Diagnostics Depth")
-	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -fconcepts-diagnostics-depth=10")
+# not really needed anymore
+# if (COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
+# 	message(STATUS "Supports Concepts Diagnostics Depth")
+# 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -fconcepts-diagnostics-depth=10")
+# endif()
+if (COMPILER_SUPPORTS_THREAD_SAFETY)
+	message(STATUS "Supports thread saftey")
+	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wthread-safety")
 endif()
+
 if (${USE_PEDANTIC})
 	set(ALLOWED_WARNINGS "${ALLOWED_WARNINGS} -Wpedantic")
 endif()
@@ -158,29 +196,50 @@ message(STATUS "Allowed Warnings: ${ALLOWED_WARNINGS}")
 message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 
 # sadly we need '-march=native' even in 'DEBUG' mode. Because otherwise the code wouldn't compile.
-# for fsized-deallocation see: https://github.com/google/tcmalloc/blob/master/docs/tuning.md
-# -fsized-deallocation -fno-builtin-malloc -fno-builtin-free
+
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") 
 	message(STATUS "ARM CPU detected")
+	# TODO port this to the cmake project
     set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
-	set(DEBUG_FLAGS "-g -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(DEBUG_FLAGS "-g -Og -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-g -O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
-
-  set(DEBUG_FLAGS "-g -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
+	set(DEBUG_FLAGS "-g -march=native -O0 -Wall -Wextra -DDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
 	set(OPTIMIZE_FLAGS "-g -march=native -O3 -DNDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 endif()
 
+
+if(CMAKE_CUDA_COMPILER)
+	set(DEBUG_FLAGS "${DEBUG_FLAGS} -DUSE_CUDA")
+	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_CUDA")
+endif()
+
+if(OpenCL_FOUND AND OpenCLHeader_FOUND)
+	set(DEBUG_FLAGS "${DEBUG_FLAGS} -DUSE_OPENCL")
+	set(OPTIMIZE_FLAGS "${OPTIMIZE_FLAGS} -DUSE_OPENCL")
+endif()
+
+# Set linker flags
 set(LINK_TEST_FLAGS 
 	GTest::gtest 
 	GTest::gtest_main 
 	Threads::Threads 
-	OpenMP::OpenMP_CXX
+	reflectcpp
 )
 
 set(LINK_BENCH_FLAGS 
-	benchmark::benchmark 
+	benchmark::benchmark
+	reflectcpp
 )
+
+if(OpenMP_FOUND)
+	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenMP::OpenMP_CXX)
+endif ()
+
+if(OpenCL_FOUND AND OpenCLHeader_FOUND)
+	set(LINK_TEST_FLAGS ${LINK_TEST_FLAGS} OpenCL::OpenCL OpenCL::Headers)
+	set(LINK_BENCH_FLAGS ${LINK_BENCH_FLAGS} OpenCL::OpenCL OpenCL::Headers)
+endif()
 
 if (LINKER_SUPPORTS_ATOMIC)
 	message(STATUS "Using atomic")
@@ -212,11 +271,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	endif()
 endif()
 
-# now check if we have to add the cuda runtime
-check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
-    enable_language(CUDA)
-
     # global include path for dependencies
     # maybe a little ugly, but the easiest way to include `cuda_runtime.h`
     # as far as i know this is only needed for arch linux.

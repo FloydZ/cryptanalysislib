@@ -18,8 +18,8 @@ constexpr uint32_t k = 100;
 constexpr uint32_t q = 3;
 
 using kAryType          = kAry_Type_T<q>;
-using kAryContainer     = kAryContainer_T<uint8_t, n, q>;
-using kAryContainer2    = kAryContainer_T<uint8_t, k, q>;
+using kAryContainer     = FqNonPackedVector< n, q, uint8_t>;
+using kAryContainer2    = FqNonPackedVector< k, q, uint8_t>;
 using kAryLabel         = kAryContainer2;
 using kAryValue         = kAryContainer;
 
@@ -29,8 +29,8 @@ using kAryElement       = Element_T<kAryValue, kAryLabel, kAryMatrix>;
 using kAryList          = List_T<kAryElement>;
 using kAryTree          = Tree_T<kAryList>;
 
-using BinContainer      = BinaryContainer<n>;
-using BinContainer2     = BinaryContainer<k>;
+using BinContainer      = BinaryVector<n>;
+using BinContainer2     = BinaryVector<k>;
 using BinaryLabel       = BinContainer2;
 using BinaryValue       = BinContainer;
 using BinaryMatrix      = FqMatrix<uint64_t, n, k, 2>;
@@ -38,5 +38,5 @@ using BinaryElement     = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList        = List_T<BinaryElement>;
 using BinaryTree        = Tree_T<BinaryList>;
 
-static  std::vector<uint64_t>   __level_translation_array{{0, 10, 20, 30, k}};
+static  std::vector<uint32_t>   __level_translation_array{{0, 10, 20, 30, k}};
 #endif

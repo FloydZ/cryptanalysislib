@@ -7,7 +7,8 @@
 #include <helper.h>
 
 constexpr uint64_t ctr = 10;
-using Row = kAryPackedContainer_T<uint64_t, 255, 3>;
+using Row = FqPackedVector<255, 3, uint64_t>;
+using S = typename Row::S;
 
 B63_BASELINE(add, nn) {
 	Row a, b, c;
@@ -27,8 +28,8 @@ B63_BASELINE(add, nn) {
 B63_BENCHMARK(add_mod3_limb, nn) {
 	uint64_t a=1, b=1, c=1;
 	B63_SUSPEND {
-		a = fastrandombytes_uint64();
-		b = fastrandombytes_uint64();
+		a = rng();
+		b = rng();
 	}
 
 	for (uint32_t i = 0; i < ctr * nn; i++) {
@@ -43,8 +44,8 @@ B63_BENCHMARK(add_mod3_limb, nn) {
 B63_BENCHMARK(add_mod3_limb128, nn) {
 	__uint128_t a=1, b=1, c=1;
 	B63_SUSPEND {
-		a = fastrandombytes_uint64();
-		b = fastrandombytes_uint64();
+		a = rng();
+		b = rng();
 	}
 
 	for (uint32_t i = 0; i < ctr * nn / 2; i++) {
@@ -57,12 +58,12 @@ B63_BENCHMARK(add_mod3_limb128, nn) {
 }
 
 B63_BENCHMARK(add_mod3_limb256, nn) {
-	uint64x4_t a = uint64x4_t::set1(1), 
-			   b = uint64x4_t::set1(1), 
-			   c = uint64x4_t::set1(1);
+	S a = S::set1(1),
+	  b = S::set1(1),
+	  c = S::set1(1);
 	B63_SUSPEND {
-		a = uint64x4_t::random();
-		b = uint64x4_t::random();
+		a = S::random();
+		b = S::random();
 	}
 
 	for (uint32_t i = 0; i < ctr * nn / 4; i++) {
@@ -75,12 +76,12 @@ B63_BENCHMARK(add_mod3_limb256, nn) {
 }
 
 B63_BENCHMARK(add_mod3_limb256_nooverflow, nn) {
-	uint64x4_t a = uint64x4_t::set1(1), 
-			   b = uint64x4_t::set1(1), 
-			   c = uint64x4_t::set1(1);
+	S a = S::set1(1),
+	  b = S::set1(1),
+	  c = S::set1(1);
 	B63_SUSPEND {
-		a = uint64x4_t::random();
-		b = uint64x4_t::random();
+		a = S::random();
+		b = S::random();
 	}
 
 	for (uint32_t i = 0; i < ctr * nn / 4; i++) {
@@ -95,8 +96,8 @@ B63_BENCHMARK(add_mod3_limb256_nooverflow, nn) {
 B63_BENCHMARK(sub_mod3_limb, nn) {
 	uint64_t a=1, b=1, c=1;
 	B63_SUSPEND {
-		a = fastrandombytes_uint64() % 32;
-		b = fastrandombytes_uint64() % 32;
+		a = rng() % 32;
+		b = rng() % 32;
 	}
 
 	for (uint32_t i = 0; i < ctr * nn; i++) {
@@ -111,8 +112,8 @@ B63_BENCHMARK(sub_mod3_limb, nn) {
 B63_BENCHMARK(sub_mod3_limb128, nn) {
 	__uint128_t a=1ull, b=1ull, c=1ull;
 	B63_SUSPEND {
-		a = fastrandombytes_uint64();
-		b = fastrandombytes_uint64();
+		a = rng();
+		b = rng();
 	}
 
 	for (uint32_t i = 0; i < ctr * nn / 2; i++) {
@@ -125,12 +126,12 @@ B63_BENCHMARK(sub_mod3_limb128, nn) {
 }
 
 B63_BENCHMARK(sub_mod3_limb256, nn) {
-	uint64x4_t a = uint64x4_t::set1(1), 
-			   b = uint64x4_t::set1(1), 
-			   c = uint64x4_t::set1(1);
+	S a = S::set1(1),
+	  b = S::set1(1),
+	  c = S::set1(1);
 	B63_SUSPEND {
-		a = uint64x4_t::random();
-		b = uint64x4_t::random();
+		a = S::random();
+		b = S::random();
 	}
 
 	for (uint32_t i = 0; i < ctr * nn / 4; i++) {
@@ -144,11 +145,11 @@ B63_BENCHMARK(sub_mod3_limb256, nn) {
 
 
 B63_BENCHMARK(hammingweight_mod3_limb, nn) {
-	uint64_t a = 1, weight = fastrandombytes_uint64();
+	uint64_t a = 1, weight = rng();
 
 	for (uint32_t i = 0; i < ctr * nn; i++) {
 		B63_SUSPEND {
-			a = fastrandombytes_uint64();
+			a = rng();
 		}
 		weight += Row::popcnt_T(a);
 	}
@@ -158,9 +159,9 @@ B63_BENCHMARK(hammingweight_mod3_limb, nn) {
 
 B63_BENCHMARK(hammingweight_mod3_limb128, nn) {
 	__uint128_t a = 1ull;
-	uint64_t weight = fastrandombytes_uint64();
+	uint64_t weight = rng();
 	B63_SUSPEND {
-		a = fastrandombytes_uint64();
+		a = rng();
 	}
 	for (uint32_t i = 0; i < ctr * nn / 2; i++) {
 		weight += Row::popcnt_T<__uint128_t>(a);

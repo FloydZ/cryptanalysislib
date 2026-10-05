@@ -7,7 +7,7 @@
 
 #include <type_traits>
 
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "random.h"
 #include "simd/simd.h"
 using namespace cryptanalysislib;
@@ -83,14 +83,16 @@ using namespace cryptanalysislib;
 
 
 
-///
-template<typename T, const uint32_t N>
+/// NOTE: the signed will be extracted from T
+template<typename T,
+         const uint32_t N>
 #if __cplusplus > 201709L
     requires std::is_integral_v<T>
 #endif
 class TxN_t {
 public:
 	constexpr static uint32_t LIMBS = N;
+    constexpr static bool __unsigned = std::is_unsigned_v<T>;
 	using limb_type = T;
 	using S = TxN_t<T, N>;
 
@@ -120,17 +122,17 @@ public:
 
 	using data_type = T;
 	using simd256_type =
-	   typename std::conditional<lb == 1u, uint8x32_t,
-	      typename std::conditional<lb == 2u, uint16x16_t,
-	         typename std::conditional<lb == 4u, uint32x8_t,
-	            typename std::conditional<lb == 8u, uint64x4_t, void>::type>::type>::type>::type;
+	   typename std::conditional<lb == 1u, Xint8x32_t<__unsigned>,
+	      typename std::conditional<lb == 2u, Xint16x16_t<__unsigned>,
+	         typename std::conditional<lb == 4u, Xint32x8_t<__unsigned>,
+	            typename std::conditional<lb == 8u, Xint64x4_t<__unsigned>, void>::type>::type>::type>::type;
 
 #ifdef USE_AVX512F
 	using simd512_type =
-	   typename std::conditional<lb == 1u, uint8x64_t,
-	      typename std::conditional<lb == 2u, uint16x32_t,
-	         typename std::conditional<lb == 4u, uint32x16_t,
-	            typename std::conditional<lb == 8u, uint64x8_t, void>::type>::type>::type>::type;
+	   typename std::conditional<lb == 1u, Xint8x64_t<__unsigned>,
+	      typename std::conditional<lb == 2u, Xint16x32_t<__unsigned>,
+	         typename std::conditional<lb == 4u, Xint32x16_t<__unsigned>,
+	            typename std::conditional<lb == 8u, Xint64x8_t<__unsigned>, void>::type>::type>::type>::type;
 #else
 	/// just a dummy value
 	using simd512_type = simd256_type;
@@ -156,12 +158,12 @@ public:
 
 
 	[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
 	[[nodiscard]] constexpr inline limb_type& operator[](const uint32_t i) noexcept {
-		ASSERT(i < LIMBS);
+		assert(i < LIMBS);
 		return d[i];
 	}
 
@@ -191,14 +193,14 @@ public:
 	[[nodiscard]] static inline TxN_t random() noexcept {
 		TxN_t ret{};
 		for (uint32_t i = 0; i < N; i++) {
-			ret.d[i] = fastrandombytes_uint64();
+			ret.d[i] = rng();
 		}
 
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline TxN_t set(const T *data) noexcept {
-		ASSERT(data);
+	[[nodiscard]] constexpr static inline TxN_t setr(const T *data) noexcept {
+		assert(data);
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data[N - i - 1];
@@ -206,8 +208,8 @@ public:
 		return ret;
 	}
 
-	[[nodiscard]] constexpr static inline TxN_t setr(const T *data) noexcept {
-		ASSERT(data);
+	[[nodiscard]] constexpr static inline TxN_t set(const T *data) noexcept {
+		assert(data);
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; i++) {
 			ret.d[i] = data[i];
@@ -359,11 +361,12 @@ public:
 	///
 	/// \param ptr
 	/// \param in
-	constexpr static inline void unaligned_store(T *ptr, const TxN_t &in) noexcept {
+	constexpr static inline void unaligned_store(T *ptr, 
+                                                 const TxN_t &in) noexcept {
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				simd512_type::unaligned_store(ptr + i, in.v512[i / nr_limbs_in_simd512]);
+				simd512_type::unaligned_store((limb_type *)(ptr + i), in.v512[i / nr_limbs_in_simd512]);
 			}
 
 			if constexpr (simd512_fits) {
@@ -373,7 +376,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				simd256_type::unaligned_store(ptr + i, in.v256[i / nr_limbs_in_simd256]);
+				simd256_type::unaligned_store((limb_type *)(ptr + i), in.v256[i / nr_limbs_in_simd256]);
 			}
 
 			if constexpr (simd256_fits) {
@@ -398,7 +401,8 @@ public:
 	/// \param in1
 	/// \param in2
 	/// \return
-	[[nodiscard]] constexpr static inline TxN_t andnot_(const TxN_t &in1, const TxN_t in2) noexcept {
+	[[nodiscard]] constexpr static inline TxN_t andnot_(const TxN_t &in1, 
+                                                        const TxN_t in2) noexcept {
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {
@@ -550,7 +554,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				ret.v512[i / nr_limbs_in_simd512] = simd512_type::slri(in1.v512[i / nr_limbs_in_simd512], in2);
+				ret.v512[i / nr_limbs_in_simd512] = simd512_type::srli(in1.v512[i / nr_limbs_in_simd512], in2);
 			}
 
 			if constexpr (simd512_fits) {
@@ -560,7 +564,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				ret.v256[i / nr_limbs_in_simd256] = simd256_type::slri(in1.v256[i / nr_limbs_in_simd256], in2);
+				ret.v256[i / nr_limbs_in_simd256] = simd256_type::srli(in1.v256[i / nr_limbs_in_simd256], in2);
 			}
 
 			if constexpr (simd256_fits) {
@@ -607,16 +611,20 @@ public:
 		const auto tmp = S::lt_(in1, in2);
 		return S::move(tmp);
 	}
-	[[nodiscard]] constexpr static inline uint64_t cmp(const TxN_t &in1,
+	[[nodiscard]] constexpr static inline uint64_t eq(const TxN_t &in1,
 	                                                  const TxN_t &in2) noexcept {
-		const auto tmp = S::cmp_(in1, in2);
+		const auto tmp = S::eq_(in1, in2);
 		return S::move(tmp);
 	}
 
+    /// \param in1[in]: 
+    /// \return popcnt(in1): 
 	[[nodiscard]] constexpr static inline S popcnt(const TxN_t &in1) noexcept {
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {
+                /// TODO move this into a seperate call in this class, so 
+                /// if someone wants to copy this file, only needs a single change to make
 				ret[i] = cryptanalysislib::popcount::popcount(in1[i]);
 			}
 			return ret;
@@ -650,7 +658,7 @@ public:
 		return ret;
 	}
 
-	///
+	/// TODO doc
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline TxN_t reverse(const TxN_t &in1) noexcept {
@@ -662,7 +670,7 @@ public:
 		return ret;
 	}
 
-	///
+	/// TODO doc
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const TxN_t &in1) noexcept {
@@ -675,7 +683,10 @@ public:
 		return true;
 	}
 
-
+	/// TODO doc
+	/// \param ptr
+	/// \param in1
+	/// \return
 	template<uint32_t off = sizeof(T)>
 	[[nodiscard]] constexpr static inline TxN_t gather(const limb_type *ptr,
 	                                                   const TxN_t &in1) noexcept {
@@ -688,6 +699,10 @@ public:
 	}
 
 
+	/// TODO doc
+	/// \param ptr
+	/// \param in1
+	/// \param in2
 	template<uint32_t off = sizeof(T)>
 	constexpr static inline void scatter(limb_type *ptr,
 	                                     const TxN_t &in1,
@@ -699,7 +714,10 @@ public:
 		}
 	}
 
-
+	/// TODO doc
+	/// \param ptr
+	/// \param in1
+	/// \param in2
 	[[nodiscard]] constexpr static inline S permute(const TxN_t &in1,
 	                                                const TxN_t &in2) noexcept {
 		S ret;
@@ -714,7 +732,7 @@ public:
 	/// \param in1
 	/// \return
 	[[nodiscard]] constexpr static inline uint64_t move(const TxN_t &in1) noexcept {
-		ASSERT(N <= 64);
+		assert(N <= 64);
 		uint64_t ret = 0;
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
@@ -746,6 +764,7 @@ public:
 		return ret;
 	}
 
+	/// \returns number of limbs
 	[[nodiscard]] constexpr static size_t size() noexcept {
 		return N;
 	}
@@ -811,14 +830,14 @@ template<typename T, const uint32_t N>
 constexpr inline TxN_t<T, N> operator~(const TxN_t<T, N> &lhs) noexcept {
 	return TxN_t<T, N>::not_(lhs);
 }
-//template<typename T, const uint32_t N>
-//constexpr inline TxN_t<T, N> operator>> (const TxN_t<T, N>& lhs, const uint32_t rhs) noexcept {
-//	return TxN_t<T, N>::srli(lhs, rhs);
-//}
-//template<typename T, const uint32_t N>
-//constexpr inline TxN_t<T, N> operator<< (const TxN_t<T, N>& lhs, const uint32_t rhs) noexcept {
-//	return TxN_t<T, N>::slli(lhs, rhs);
-//}
+template<typename T, const uint32_t N>
+constexpr inline TxN_t<T, N> operator>> (const TxN_t<T, N>& lhs, const uint32_t rhs) noexcept {
+	return TxN_t<T, N>::srli(lhs, rhs);
+}
+template<typename T, const uint32_t N>
+constexpr inline TxN_t<T, N> operator<< (const TxN_t<T, N>& lhs, const uint32_t rhs) noexcept {
+	return TxN_t<T, N>::slli(lhs, rhs);
+}
 template<typename T, const uint32_t N>
 constexpr inline TxN_t<T, N> operator^=(TxN_t<T, N> &lhs, const TxN_t<T, N> &rhs) noexcept {
 	lhs = TxN_t<T, N>::xor_(lhs, rhs);
@@ -845,7 +864,7 @@ public:
 	constexpr inline TxN_t(const uint64x4_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 		v128[0] = k.v128[0];
 		v128[1] = k.v128[1];
 #else
@@ -863,7 +882,7 @@ public:
 	constexpr inline TxN_t(const uint32x8_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 		v128[0] = k.v128[0];
 		v128[1] = k.v128[1];
 #else
@@ -881,7 +900,7 @@ public:
 	constexpr inline TxN_t(const uint16x16_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 		v128[0] = k.v128[0];
 		v128[1] = k.v128[1];
 #else
@@ -899,7 +918,7 @@ public:
 	constexpr inline TxN_t(const uint8x32_t &k) noexcept {
 #if defined(USE_AVX2)
 		v256 = k.v256;
-#elif defined(USE_NEON)
+#elif defined(USE_ARM)
 		v128[0] = k.v128[0];
 		v128[1] = k.v128[1];
 #else
@@ -910,5 +929,39 @@ public:
 	};
 };
 
+#ifdef USE_AVX512F
+template<>
+class TxN_t<uint8_t, 64> : public uint8x64_t {
+public:
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint8x64_t &k) noexcept {
+		v512 = k.v512;
+	};
+};
+template<>
+class TxN_t<uint16_t, 32> : public uint16x32_t {
+public:
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint16x32_t &k) noexcept {
+		v512 = k.v512;
+	};
+};
+template<>
+class TxN_t<uint32_t, 16> : public uint32x16_t {
+public:
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint32x16_t &k) noexcept {
+		v512 = k.v512;
+	};
+};
+template<>
+class TxN_t<uint64_t, 8> : public uint64x8_t {
+public:
+	constexpr inline TxN_t() noexcept = default;
+	constexpr inline TxN_t(const uint64x8_t &k) noexcept {
+		v512 = k.v512;
+	};
+};
+#endif
 
 #endif//CRYPTANALYSISLIB_GENERIC_H

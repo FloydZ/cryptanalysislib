@@ -1,0 +1,96 @@
+#ifndef CRYPTANALYSISLIB_ALGORITHM_EQUAL_H
+#define CRYPTANALYSISLIB_ALGORITHM_EQUAL_H
+//https://en.cppreference.com/w/cpp/algorithm/equal
+
+#include <numeric>
+
+#include "thread/thread.h"
+#include "algorithm/algorithm.h"
+#include "memory/memcmp.h"
+
+namespace cryptanalysislib {
+	/// Configuration for equal algorithms with threading settings
+	struct AlgorithmEqualConfig : public AlgorithmConfig {
+		const size_t min_size_per_thread = 262144;
+	};
+	constexpr static AlgorithmEqualConfig algorithmEqualConfig;
+
+	/// Checks if two ranges are equal (sequential version)
+	/// \tparam InputIt1 Forward iterator type for first range
+	/// \tparam InputIt2 Forward iterator type for second range
+	/// \tparam config Algorithm configuration (default: algorithmEqualConfig)
+	/// \param first1[in]: Iterator to the beginning of the first range
+	/// \param last1[in]: Iterator to the end of the first range
+	/// \param first2[in]: Iterator to the beginning of the second range
+	/// \return True if ranges are equal, false otherwise
+	template<class InputIt1,
+			 class InputIt2,
+			 const AlgorithmEqualConfig &config=algorithmEqualConfig>
+#if __cplusplus > 201709L
+		requires std::forward_iterator<InputIt1> &&
+				 std::forward_iterator<InputIt2>
+#endif
+	constexpr bool equal(InputIt1 first1,
+						 InputIt1 last1,
+						 InputIt2 first2) noexcept {
+		if constexpr (std::is_same_v<InputIt1, InputIt2>) {
+			const auto size = static_cast<size_t>(std::distance(first1, last1));
+			return cryptanalysislib::memcmp(&(*first1), &(*first2), size);
+		}
+
+	    for (; first1 != last1; ++first1, ++first2) {
+		    if (!(*first1 == *first2)) {
+		    	return false;
+		    }
+	    }
+
+	    return true;
+	}
+
+	/// Checks if two ranges are equal (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt1 Random access iterator type for first range
+	/// \tparam RandIt2 Random access iterator type for second range
+	/// \tparam config Algorithm configuration (default: algorithmEqualConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first1[in]: Iterator to the beginning of the first range
+	/// \param last1[in]: Iterator to the end of the first range
+	/// \param first2[in]: Iterator to the beginning of the second range
+	/// \return True if ranges are equal, false otherwise
+	template <class ExecPolicy,
+			  class RandIt1,
+			  class RandIt2,
+			  const AlgorithmEqualConfig &config=algorithmEqualConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt1> &&
+				 std::random_access_iterator<RandIt2>
+#endif
+	bool equal(ExecPolicy&& policy,
+			   RandIt1 first1,
+			   RandIt1 last1,
+			   RandIt2 first2) noexcept {
+
+		const auto size = static_cast<size_t>(std::distance(first1, last1));
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			return cryptanalysislib::equal
+				<RandIt1, RandIt2, config>
+				(first1, last1, first2);
+		}
+
+		using T = uint32_t;
+
+		auto futures = internal::parallel_chunk_for_1(
+			std::forward<ExecPolicy>(policy),
+			first1, last1,
+			cryptanalysislib::equal<RandIt1, RandIt2, config>,
+			(bool *)0,
+			1, nthreads, first2);
+
+		return (bool)std::reduce(
+			internal::get_wrap(futures.begin()),
+			internal::get_wrap(futures.end()), (T)0,
+			std::plus<T>());
+	}
+} // end namespace cryptanalysislib
+#endif //EQUAL_H

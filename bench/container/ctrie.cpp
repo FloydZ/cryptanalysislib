@@ -23,6 +23,7 @@ static void BM_std_unordered_map(benchmark::State &state) {
 		V t = 0;
 		for (size_t i = 0; i < list_size; ++i) {
 			t += map.at(i);
+            benchmark::DoNotOptimize(t += i);
 		}
 		benchmark::ClobberMemory();
 	}
@@ -39,6 +40,7 @@ static void BM_ctrie(benchmark::State &state) {
 		V t = 0;
 		for (size_t i = 0; i < list_size; ++i) {
 			t += c.lookup(i);
+            benchmark::DoNotOptimize(t += i);
 		}
 		benchmark::ClobberMemory();
 	}

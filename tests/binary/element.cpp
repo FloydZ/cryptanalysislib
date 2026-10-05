@@ -19,8 +19,8 @@ constexpr uint32_t G_n = 20;
 
 
 TEST(Internals, Size) {
-	using BinaryValue     = BinaryContainer<G_k + G_l>;
-	using BinaryLabel     = BinaryContainer<G_n - G_k>;
+	using BinaryValue     = BinaryVector<G_k + G_l>;
+	using BinaryLabel     = BinaryVector<G_n - G_k>;
 	using BinaryMatrix    = FqMatrix<uint64_t, G_k + G_l, G_n-G_k, 2>;
 	using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 
@@ -28,8 +28,8 @@ TEST(Internals, Size) {
 	BinaryValue v;
 	BinaryLabel l;
 
-	BinaryContainer<G_k + G_l> c1;
-	BinaryContainer<G_n - G_k> c2;
+	BinaryVector<G_k + G_l> c1;
+	BinaryVector<G_n - G_k> c2;
 
 	std::cout << "k+l: " << G_k + G_l << "\n";
 	std::cout << "n+k: " << G_n - G_k << "\n";
@@ -54,7 +54,7 @@ TEST(Internals, Size) {
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }
 #endif

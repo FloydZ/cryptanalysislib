@@ -9,20 +9,36 @@
 #include <type_traits>
 
 #include "math/math.h"
-#include "popcount/popcount.h"
+#include "algorithm/bits/popcount.h"
 #include "simd/simd.h"
 
-/// TODO comments
-/// main comparison class for hash function used within
+// TODO add docs
+// TODO add namespace
+// TODO add [[nodiscard]]
+
+/// main comparison class for hash function used within the data containers
+/// these hash functions are either optimized for
+///	- the case the data is packed together: BinaryVector
+/// - the case the data is not packed together like `FqNonPackedVector`
+//		and one needs to add values together
 template<typename T, const uint32_t ...Ks>
 class Hash {};
+
+
+#ifdef __cpp_static_call_operator
+#define CRYPTANALYSISLIB_HASH_STATIC static
+#define CRYPTANALYSISLIB_HASH_CONST 
+#else
+#define CRYPTANALYSISLIB_HASH_STATIC
+#define CRYPTANALYSISLIB_HASH_CONST const
+#endif
 
 ///
 /// \tparam T
 /// \tparam l lower element (NOT bit)
 /// \tparam h upper element (NOT bit)
 /// \tparam q modulus
-template<std::integral T,
+template<std::integral T, // examples:
          const uint32_t l,// = 0
 		 const uint32_t h,// = 8u * sizeof(T),
 		 const uint32_t q>// = 2u>
@@ -32,7 +48,7 @@ private:
 	using H = Hash<T, l, h, q>;
 	using R = size_t;
 
-	constexpr static uint32_t qbits = std::max((uint32_t)bits_log2(q), (uint32_t)1ull);
+	constexpr static uint32_t qbits = std::max((uint32_t) ceil_log2(q), (uint32_t)1ull);
 	constexpr static uint32_t bits = sizeof(T) * 8u;
 	static_assert(qbits >= 1);
 	static_assert(bits >= 8);
@@ -42,7 +58,8 @@ private:
 	/// \tparam hprime NOTE: must be the upper bit posiition within the limb
 	/// \param a
 	/// \return
-	template<const uint32_t lprime=l*qbits, const uint32_t hprime=h*qbits>
+	template<const uint32_t lprime=l*qbits,
+             const uint32_t hprime=h*qbits>
 	static constexpr inline R compute(const T &a) noexcept {
 		// NOTE: these checks are not valid globally for the whole class
 		static_assert(lprime < hprime);
@@ -60,10 +77,10 @@ private:
 		}
 
 		/// not so trivial case
-		constexpr uint32_t lower = 0, upper = lprime/qbits;
+		constexpr uint32_t lower = 0, upper = hprime/qbits;
 		constexpr T mask = (~((T(1ull) << lower) - 1ull)) & ((T(1ull) << upper) - 1ull);
 		constexpr T mask_q = (1ull << qbits) - 1ull;
-		constexpr uint32_t loops = (lprime/qbits) >> 1ull;
+		constexpr uint32_t loops = (hprime/qbits) >> 1ull;
 
 		uint64_t ctr = q;
 		T tmp = (a & mask) >> lower;
@@ -119,21 +136,25 @@ public:
 	constexpr Hash() noexcept : __data(0) {};
 
 	constexpr explicit Hash(const T d) noexcept : __data(compute(d)) {};
+
 	constexpr inline R operator()() const noexcept {
 		return __data;
 	}
-	constexpr inline R operator()(const T d) const noexcept {
+
+	CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T d) CRYPTANALYSISLIB_HASH_CONST noexcept {
 		return compute(d);
 	}
 
-	constexpr inline R operator()(const T *d) const noexcept {
-		return compute(d);
-	}
-	constexpr static inline R hash(const T d) noexcept {
+    /// \param d[in]:
+	CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T *d) CRYPTANALYSISLIB_HASH_CONST noexcept {
 		return compute(d);
 	}
 
-	constexpr static inline R hash(const T *d) noexcept {
+	[[nodiscard]] constexpr static inline R hash(const T d) noexcept {
+		return compute(d);
+	}
+
+	[[nodiscard]] constexpr static inline R hash(const T *d) noexcept {
 		return compute(d);
 	}
 };
@@ -183,10 +204,13 @@ private:
 	using H = Hash<T, q>;
 	using R = size_t;
 
-	// TODO explain
+	// if true: the hash function assumes that the input data
+	// is "compressed" together, e.g. there are no zero bits
+	// in between two consecutive numbers
 	constexpr static bool compressed = true;
 
-	constexpr static uint32_t qbits = std::max((uint64_t)bits_log2(q), (uint64_t)1ull);
+	///
+	constexpr static uint32_t qbits = std::max((uint64_t) ceil_log2(q), (uint64_t)1ull);
 	constexpr static uint32_t bits = sizeof(T) * 8u;
 	static_assert(qbits >= 1);
 	static_assert(bits >= 8);
@@ -198,13 +222,13 @@ private:
 	static constexpr inline R compute(const T &a,
 	                                  const uint32_t lprime,
 	                                  const uint32_t hprime) noexcept {
-		ASSERT(lprime < hprime);
-		ASSERT((hprime - lprime) <= (sizeof(T) * 8u));
+		assert(lprime < hprime);
+		assert((hprime - lprime) <= (sizeof(T) * 8u));
 
 		/// trivial case: q is a power of two
 		if ((cryptanalysislib::popcount::popcount(q) == 1) || compressed) {
 			const T diff1 = hprime - lprime;
-			ASSERT(diff1 <= bits);
+			assert(diff1 <= bits);
 			const T diff2 = bits - diff1;
 			const T mask = -1ull >> diff2;
 			const T b = a >> lprime;
@@ -238,8 +262,8 @@ private:
 	static constexpr inline R compute(const T *a,
 	                                  const uint32_t l,
 	                                  const uint32_t h) noexcept {
-		ASSERT(l < h);
-		ASSERT(((h- l)*qbits) <= (sizeof(T) * 8u));
+		assert(l < h);
+		assert(((h- l)*qbits) <= (sizeof(T) * 8u));
 
 		const uint32_t lq = l*qbits;
 		const uint32_t hq = h*qbits;
@@ -254,8 +278,8 @@ private:
 			return compute(a[llimb], lprime, hprime);
 		}
 
-		ASSERT(llimb <= hlimb);
-		ASSERT((hlimb - llimb) <= 1u); // note could be extended
+		assert(llimb <= hlimb);
+		assert((hlimb - llimb) <= 1u); // note could be extended
 
 		const T lmask = T(-1ull) << lprime;
 		const T hmask = T(-1ull) >> ((bits - hprime) % bits);
@@ -281,24 +305,36 @@ public:
 		return __data;
 	}
 
-	constexpr inline R operator()(const T d,
-	                              const uint32_t l,
-	                              const uint32_t h) const noexcept {
+    /// \param d[in]:
+    /// \param l[in]: inclusive
+    /// \param h[in]: exclusive
+	CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T d,
+	                                                           const uint32_t l,
+	                                                           const uint32_t h) CRYPTANALYSISLIB_HASH_CONST noexcept {
 		return compute(d, l, h);
 	}
 
-	constexpr inline R operator()(const T *d,
-	                              const uint32_t l,
-	                              const uint32_t h) const noexcept {
+    /// \param d[in]:
+    /// \param l[in]: inclusive
+    /// \param h[in]: exclusive
+	CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T *d,
+	                                                           const uint32_t l,
+	                                                           const uint32_t h) CRYPTANALYSISLIB_HASH_CONST noexcept {
 		return compute(d, l, h);
 	}
 
+    /// \param d[in]:
+    /// \param l[in]: inclusive
+    /// \param h[in]: exclusive
 	constexpr static inline R hash(const T d,
 	                               const uint32_t l,
 	                               const uint32_t h) noexcept {
 		return compute(d, l, h);
 	}
 
+    /// \param d[in]:
+    /// \param l[in]: inclusive
+    /// \param h[in]: exclusive
 	constexpr static inline R hash(const T *d,
 	                               const uint32_t l,
 	                               const uint32_t h) noexcept {
@@ -408,7 +444,7 @@ public:
 /// \param v3
 /// \return				v on the coordinates between [k_lower] and [k_higher]
 template<typename T, uint32_t k_lower, uint32_t k_higher, uint32_t flip = 0>
-static inline T extract(const T *v) noexcept {
+constexpr static inline T extract(const T *v) noexcept {
 	static_assert(k_lower < k_higher);
 	static_assert(k_higher - k_lower <= 128u);
 	constexpr uint32_t BITSIZE = sizeof(T) * 8u;

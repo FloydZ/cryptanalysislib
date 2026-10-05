@@ -15,7 +15,8 @@ TEST(hopscotch, simple) {
 	map.erase("b");
 
 	for(auto it = map.begin(); it != map.end(); ++it) {
-		// TODO it.value() += 2;
+		// NOTE: not implemented
+		// it.value() += 2;
 	}
 
 	// {d, 6} {a, 3} {e, 7} {c, 5}

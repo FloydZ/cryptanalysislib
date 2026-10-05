@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cassert>
 
 #include "alloc/cache.h"
 #include "helper.h"
@@ -57,7 +58,7 @@ TEST(AllocationMap, SimpleMultithreaded) {
 		TestStruct *ptr = allocator.allocate();
 		EXPECT_NE(ptr, nullptr);
 		const uint32_t pid = omp_get_thread_num();
-		ASSERT(pid < THREADS);
+		assert(pid < THREADS);
 		t[pid] = ptr;
 	}
 

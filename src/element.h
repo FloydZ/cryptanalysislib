@@ -1,16 +1,9 @@
-#ifndef SMALLSECRETLWE_ELEMENT_H
-#define SMALLSECRETLWE_ELEMENT_H
+#ifndef CRYPTANALYSISLIB_ELEMENT_H
+#define CRYPTANALYSISLIB_ELEMENT_H
 
 // global includes
 #include <array>
 #include <cstdint>
-
-#ifdef USE_FPLLL
-// dependencies include
-#include "fplll/nr/matrix.h"
-#include "fplll/util.h"// needed for 'vector_matrix_product'
-using namespace fplll;
-#endif
 
 // local includes
 #include "helper.h"
@@ -34,7 +27,8 @@ concept ElementDataAble = requires(Container c,
 	Container::length;
 	Container::info();
 
-	requires requires(const uint32_t i,
+	requires requires(const typename Container::DataType d,
+	                  const uint32_t i,
 	                  const size_t s) {
 		/// init/getter/setter
 		c[i];
@@ -59,9 +53,17 @@ concept ElementDataAble = requires(Container c,
 		c.is_zero();
 
 		/// arithmetic
+		Container::add(c, c, c);
 		Container::add(c, c, c, i, i);
+		Container::sub(c, c, c);
 		Container::sub(c, c, c, i, i);
+		Container::mul(c, c, c);
+		Container::mul(c, c, c, i, i);
+		Container::scalar(c, c, d);
+		Container::scalar(c, c, d, i, i);
+		c.neg();
 		c.neg(i, i);
+		c.popcnt();
 		c.popcnt(i, i);
 
 		/// printing stuff
@@ -95,18 +97,19 @@ concept ElementDataAble = requires(Container c,
     //requires requires(const typename Container::LimbType a,
     //                  const typename Container::S b,
 	//                  const uint32_t u32) {
-	// TODO
-    //    Container::template add<const uint32_t, const uint32_t, const uint32_t>(rc, rc, rc);
+    //    Container::template add
+    //		<uint32_t, uint32_t, uint32_t>
+    //		(rc, rc, rc);
 	//};
 
 	// we also have to enforce the existence of some constexpr functions.
 	{ Container::optimized() } -> std::convertible_to<bool>;
 	{ Container::binary() } -> std::convertible_to<bool>;
-	{ Container::length() } -> std::convertible_to<uint32_t>;
 	{ Container::size() } -> std::convertible_to<uint32_t>;
 	{ Container::limbs() } -> std::convertible_to<uint32_t>;
 	{ Container::bytes() } -> std::convertible_to<uint32_t>;
 	{ Container::sub_container_size() } -> std::convertible_to<uint32_t>;
+	// { Container::length } -> std::convertible_to<uint32_t>;
 };
 
 template<class Value, class Label, class Matrix>
@@ -146,27 +149,33 @@ public:
 	typedef typename Label::LimbType LabelLimbType;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = Value::length();
-	constexpr static uint32_t LabelLENGTH = Label::length();
+	constexpr static uint32_t ValueLENGTH = Value::length;
+	constexpr static uint32_t LabelLENGTH = Label::length;
 
 
-	/// normal constructor. Initialize everything with zero.
+	/// Default constructor that initializes everything with zero
+	///
+	/// Creates a new Element with zero-initialized label and value components
 	Element_T() noexcept : label(), value() { this->zero(); }
 
-	/// zero out the element.
+	/// Sets all components of the element to zero
+	///
+	/// Zeroes out both the value and label components of the element
 	void zero() noexcept {
 		value.zero();
 		label.zero();
 	}
 
-	/// generate a completely random element
-	/// NOTE: value and label are not in any correspondence
+	/// Generates a random element with uncorrelated components
+	///
+	/// Fills both value and label with random data. Note that the components
+	/// will not be related to each other (label != value*matrix)
 	void random() noexcept {
 		value.random();
 		label.random();
 	}
 
-	/// generate a random element.
+	/// generate a rng element.
 	/// \param m 	Matrix
 	void random(const MatrixType &m) noexcept {
 		value.random();
@@ -176,10 +185,15 @@ public:
 	/// recalculated the label. Useful if vou have to negate/change some coordinates of the label for an easier merging
 	/// procedure.
 	/// \param m Matrix
+	constexpr inline void recalculate_label(const MatrixType &m) noexcept {
+		// NOTE: sub mul
+		m.mul(label, value);
+	}
+
 	constexpr inline void recalculate_label(const MatrixType &m,
-	                                        const uint32_t k_lower=0,
-	                                        const uint32_t k_upper=0) noexcept {
-		// TODO sub mul
+	                                        const uint32_t k_lower,
+	                                        const uint32_t k_upper) noexcept {
+		// TODO: matrix_view?
 		(void)k_lower;
 		(void)k_upper;
 		m.mul(label, value);
@@ -190,7 +204,7 @@ public:
 	/// \param rewrite if set to true, it will overwrite the old label with the new recalculated one.
 	/// \return true if the label is correct under the given matrix.
 	[[nodiscard]] constexpr bool is_correct(const MatrixType &m,
-	                          const bool rewrite = false) noexcept {
+											const bool rewrite = false) noexcept {
 		Label tmp;
 		m.mul(tmp, value);
 
@@ -198,9 +212,13 @@ public:
 		if (rewrite) {
 			label = tmp;
 		}
-
-
 		return ret;
+	}
+
+	[[nodiscard]] constexpr bool is_correct(const MatrixType &m) const noexcept {
+		Label tmp;
+		m.mul(tmp, value);
+		return tmp.is_equal(label);
 	}
 
 	/// e3 = e1 + e2 iff \forall r \in \[k_lower, ..., k_upper\] |e3[r]| < norm
@@ -224,6 +242,13 @@ public:
 		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
 	}
 
+	/// \param e3
+	/// \param e1
+	/// \param e2
+	/// \param k_lower
+	/// \param k_upper
+	/// \param norm
+	/// \return
 	constexpr static bool sub(Element_T &e3,
 							  Element_T const &e1,
 							  Element_T const &e2,
@@ -234,7 +259,8 @@ public:
 		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
 	}
 
-	///  Useful if you do not want to filter in your tree and want additional performance.
+	/// Useful if you do not want to filter in your tree and
+	/// want additional performance.
 	constexpr static void add(Element_T &e3,
 	                          Element_T const &e1,
 	                          Element_T const &e2) noexcept {
@@ -242,7 +268,8 @@ public:
 		Value::add(e3.value, e1.value, e2.value);
 	}
 
-	///  Useful if you do not want to filter in your tree and want additional performance.
+	/// Useful if you do not want to filter in your tree and
+	/// want additional performance.
 	constexpr static void sub(Element_T &e3,
 	                          Element_T const &e1,
 	                          Element_T const &e2) noexcept {
@@ -250,7 +277,16 @@ public:
 		ValueContainerType::sub(e3.value, e1.value, e2.value);
 	}
 
-	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1u>
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \tparam norm
+	/// \param e3
+	/// \param e1
+	/// \param e2
+	/// \return
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper,
+			 const uint32_t norm=-1u>
 	constexpr static bool add(Element_T &e3,
 							  Element_T const &e1,
 							  Element_T const &e2) noexcept {
@@ -258,7 +294,16 @@ public:
 		return Value::template add<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
 	}
 
-	template<const uint32_t k_lower, const uint32_t k_upper , const uint32_t norm=-1u>
+	/// \tparam k_lower
+	/// \tparam k_upper
+	/// \tparam norm
+	/// \param e3
+	/// \param e1
+	/// \param e2
+	/// \return
+	template<const uint32_t k_lower,
+			 const uint32_t k_upper,
+			 const uint32_t norm=-1u>
 	constexpr static bool sub(Element_T &e3,
 							  Element_T const &e1,
 							  Element_T const &e2) noexcept {
@@ -400,35 +445,43 @@ public:
 		value.print_binary(k_lower_value, k_upper_value);
 	}
 
-	template<const uint32_t l, const uint32_t h>
+	/// \tparam l[in]:
+	/// \tparam h[in]:
+	template<const uint32_t l,
+             const uint32_t h>
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
 		return label.template hash<l, h>();
 	}
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
-		ASSERT(l < h);
+		assert(l < h);
 		return label.hash(l, h);
 	}
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		return label.hash();
 	}
 
-	///
-	template<const uint32_t l, const uint32_t h>
+	/// \tparam l[in]:
+	/// \tparam h[in]:
+	template<const uint32_t l,
+             const uint32_t h>
 	constexpr static bool is_hashable() noexcept {
 		if constexpr (l == h) { return false; }
 		return LabelType::template is_hashable<l, h>();
 	}
 
+    /// \param l[in]:
+    /// \param h[in]:
+    /// \return if the container is hashhable. A container is hashable if 
+    ///     (h-l) <= 64 bits
 	constexpr static bool is_hashable(const uint32_t l,
 							   	      const uint32_t h) noexcept {
-		ASSERT(h > l);
+		assert(h > l);
 		return LabelType::is_hashable(l, h);
 	}
 
-
-
+    /// \return the label
 	[[nodiscard]] constexpr Value &get_value() noexcept { return value; }
 	[[nodiscard]] constexpr const Value &get_value() const noexcept { return value; }
 	[[nodiscard]] constexpr auto get_value(const size_t i) noexcept {
@@ -464,7 +517,7 @@ public:
 	[[nodiscard]] __FORCEINLINE__ constexpr auto label_ptr(const size_t i) const noexcept { return label.ptr(i); }
 	[[nodiscard]] __FORCEINLINE__ constexpr auto value_ptr(const size_t i) const noexcept { return value.ptr(i); }
 
-	constexpr static void info() noexcept {
+	static void info() noexcept {
 		std::cout << " { name: \"Element\" :"
 		          << ", sizeof(Element): " << sizeof(Element_T)
 				  << ", sizeof(Label): " << sizeof(LabelType)

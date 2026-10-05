@@ -6,7 +6,7 @@
 #endif
 
 #include <cstdint>
-#include "helper.h"
+#include <cassert>
 
 
 #ifdef USE_AVX2
@@ -22,9 +22,10 @@
 /// 		const __m256i permuted_data = _mm256_permutevar8x32_ps(data, shuffle);
 /// \param mask bit mask. Must be smaller than 2**8
 /// \return the permutation
-inline __m256i shuffle_down_32(const uint64_t mask) noexcept {
+static inline 
+__m256i shuffle_down_32(const uint64_t mask) noexcept {
 	// make sure only sane inputs make it.
-	ASSERT(mask < (1u << 8u));
+	assert(mask < (1u << 8u));
 
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
 	// mask |= mask<<1 | mask<<2 | ... | mask<<7;
@@ -51,9 +52,10 @@ inline __m256i shuffle_down_32(const uint64_t mask) noexcept {
 /// 		const __m256i permuted_data = _mm256_permutevar4x64_pd(data, shuffle);
 /// \param mask bit mask. Must be smaller than 2**4
 /// \return the permutation
-const __m256i shuffle_down_64(const uint64_t mask) noexcept {
+static inline
+__m256i shuffle_down_64(const uint64_t mask) noexcept {
 	// make sure only sane inputs make it.
-	ASSERT(mask < (1u << 4u));
+	assert(mask < (1u << 4u));
 
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
 	// mask |= mask<<1 | mask<<2 | ... | mask<<7;
@@ -74,9 +76,10 @@ const __m256i shuffle_down_64(const uint64_t mask) noexcept {
 /// \param higher: output parameterm, contains the higher/last 4 permutations
 /// \param lower:  output parameter, contain the lower/first 4 permutations
 /// \param mask: input parameter
-const void shuffle_down_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) noexcept {
+static inline 
+void shuffle_down_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) noexcept {
 	// make sure only sane inputs make it.
-	ASSERT(mask < (1u << 8u));
+	assert(mask < (1u << 8u));
 
 	/// see the description of this magic in `shuffle_down_64`
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
@@ -101,8 +104,9 @@ const void shuffle_down_2_64(__m256i &higher, __m256i &lower, const uint64_t mas
 /// 		const __m256i permuted_data = _mm256_permutevar8x32_ps(data, shuffle);
 /// \param mask
 /// \return
-const __m256i shuffle_up_32(const uint64_t mask) noexcept {
-	ASSERT(mask < (1u << 8u));
+static inline 
+__m256i shuffle_up_32(const uint64_t mask) noexcept {
+	assert(mask < (1u << 8u));
 
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
 	expanded_mask *= 0xFFU;
@@ -125,8 +129,9 @@ const __m256i shuffle_up_32(const uint64_t mask) noexcept {
 /// 		const __m256i permuted_data = _mm256_permutevar4x64_pd(data, shuffle);
 /// \param mask
 /// \return
-const __m256i shuffle_up_64(const uint64_t mask) noexcept {
-	ASSERT(mask < (1u << 4u));
+static inline 
+__m256i shuffle_up_64(const uint64_t mask) noexcept {
+	assert(mask < (1u << 4u));
 
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
 	expanded_mask *= 0xFFU;
@@ -140,15 +145,18 @@ const __m256i shuffle_up_64(const uint64_t mask) noexcept {
 
 /// similar to `shuffle_up_64`, but instead it can shuffle up to 8 64bit
 ///	limbs in parallel. Therefore it needs to return 2 __m256i
-/// \param mask
-const void shuffle_up_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) noexcept {
-	ASSERT(mask < (1u << 8u));
+/// \param higher[out]:
+/// \param lower[out]:
+/// \param mask[in]:
+static inline
+void shuffle_up_2_64(__m256i &higher, __m256i &lower, const uint64_t mask) noexcept {
+	assert(mask < (1u << 8u));
 
 	uint64_t expanded_mask = _pdep_u64(mask, 0x0101010101010101);
 	expanded_mask *= 0xFFU;
 	const uint64_t identity_indices = 0x03020100;
-	uint64_t wanted_indices1 = _pdep_u64(identity_indices, expanded_mask & ((1ul << 32u) - 1));
-	uint64_t wanted_indices2 = _pdep_u64(identity_indices, expanded_mask >> 32u);
+	const uint64_t wanted_indices1 = _pdep_u64(identity_indices, expanded_mask & ((1ul << 32u) - 1));
+	const uint64_t wanted_indices2 = _pdep_u64(identity_indices, expanded_mask >> 32u);
 
 	const __m128i bytevec1 = _mm_cvtsi32_si128(wanted_indices1);
 	const __m128i bytevec2 = _mm_cvtsi32_si128(wanted_indices2);
@@ -157,4 +165,4 @@ const void shuffle_up_2_64(__m256i &higher, __m256i &lower, const uint64_t mask)
 }
 
 #endif
-#endif//DECODING_SHUFFLE_H
+#endif

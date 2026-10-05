@@ -28,7 +28,7 @@ static void BM_cbc(benchmark::State &state) {
 
 static void BM_ne(benchmark::State &state) {
 	uint64_t res = 0;
-	chase<n, p> c{};
+	chase_t<n, p> c{};
 	for (auto _: state) {
 		c.enumerate([&](uint16_t p1, uint16_t p2) __attribute__((always_inline)) {
 			benchmark::DoNotOptimize(res += p1 + p2);

@@ -14,17 +14,17 @@
 
 constexpr uint64_t lsize = (1<<20);
 
-constexpr uint32_t l = 20;
-using ContainerA        = BinaryContainer<k>;
-using ContainerB        = BinaryContainer<n>;
-using DecodingValue     = BinaryContainer<k>;
-using DecodingLabel     = BinaryContainer<n>;
+using ContainerA        = BinaryVector<k>;
+using ContainerB        = BinaryVector<n>;
+using DecodingValue     = BinaryVector<k>;
+using DecodingLabel     = BinaryVector<n>;
 using DecodingMatrix    = FqMatrix<uint64_t, n, k, 2>;
 using DecodingElement   = Element_T<DecodingValue, DecodingLabel, DecodingMatrix>;
 using DecodingList      = List_T<DecodingElement>;
 
 // std_sort
 B63_BASELINE(ListConstructor, nn) {
+    (void)b63run;
 	uint32_t res = 0;
 	for (uint64_t i = 0; i < nn; ++i) {
 		DecodingList L(nn*lsize);
@@ -36,6 +36,7 @@ B63_BASELINE(ListConstructor, nn) {
 }
 
 B63_BENCHMARK(ListMalloc, nn) {
+    (void)b63run;
 	uint32_t res = 0;
 	for (uint64_t i = 0; i < nn; ++i) {
 		DecodingElement *L = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
@@ -47,6 +48,7 @@ B63_BENCHMARK(ListMalloc, nn) {
 }
 
 B63_BENCHMARK(CopyClass, nn) {
+    (void)b63run;
 	DecodingList L1{nn*lsize};
 	DecodingList L2{nn*lsize};
 	uint32_t res = 0;
@@ -66,6 +68,7 @@ B63_BENCHMARK(CopyClass, nn) {
 }
 
 B63_BENCHMARK(CopyMalloc, nn) {
+    (void)b63run;
 	DecodingElement *L1 = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
 	DecodingElement *L2 = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
 

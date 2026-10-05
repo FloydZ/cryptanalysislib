@@ -17,12 +17,12 @@ constexpr uint32_t q    = 3;
 constexpr uint32_t d    = 2;
 using T 				= uint8_t;
 using kAryType          = kAry_Type_T<q>;
-using kAryContainer     = kAryContainer_T<T, n, q>;
-using kAryContainer2    = kAryContainer_T<T, k, q>;
+using kAryContainer     = FqNonPackedVector<n, q, T>;
+using kAryContainer2    = FqNonPackedVector<k, q, T>;
 using Label             = kAryContainer2;
 using Value             = kAryContainer;
 
 
-static std::vector<uint64_t> __level_translation_array{{0, 5, 10, 15, n}};
+static std::vector<uint32_t> __level_translation_array{{0, 5, 10, 15, n}};
 static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
 #endif //SMALLSECRETLWE_TEST_H

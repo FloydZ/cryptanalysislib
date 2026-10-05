@@ -1,7 +1,5 @@
 #include "b63.h"
 #include "counters/perf_events.h"
-
-#include <vector>
 #include "matrix/matrix.h"
 
 using T = uint64_t;

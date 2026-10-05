@@ -32,7 +32,7 @@ public:
 	/// set the internal load factor
 	/// \param l new load
 	constexpr void set_load(const size_t l) noexcept {
-		ASSERT(l <= __size);
+		assert(l <= __size);
 		load = l;
 	}
 
@@ -40,7 +40,7 @@ public:
 	[[nodiscard]] constexpr inline size_t size() const noexcept { return __size; }
 	/// \return the number of elements each thread enumerates
 	[[nodiscard]] constexpr inline size_t size(const uint32_t tid) const noexcept {
-		ASSERT(tid < threads);
+		assert(tid < threads);
 		if (tid == (threads - 1)) {
 			return thread_block + (__size - (threads*thread_block));
 		}
@@ -51,14 +51,14 @@ public:
 	/// NOTE: boundary checks are done
 	///
 	[[nodiscard]] constexpr inline ElementType &at(const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return this->__data[i];
 	}
 
 	/// NOTE: boundary checks are done
 	///
 	[[nodiscard]] constexpr inline const ElementType &at(const size_t i) const noexcept {
-		ASSERT(i <size());
+		assert(i <size());
 		return this->__data[i];
 	}
 
@@ -66,7 +66,7 @@ public:
 	/// \param i
 	/// \return the i-th element in the list
 	[[nodiscard]] ElementType &operator[](const size_t i) noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return __data[i];
 	}
 
@@ -74,7 +74,7 @@ public:
 	/// \param i
 	/// \return the i-th elementin the list
 	[[nodiscard]] const ElementType &operator[](const size_t i) const noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return this->__data[i];
 	}
 
@@ -83,7 +83,7 @@ public:
 	/// \param tid thread id
 	/// \return
 	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid) const noexcept {
-		ASSERT(tid < threads);
+		assert(tid < threads);
 		return tid*thread_block;
 	};
 
@@ -92,14 +92,14 @@ public:
 	/// \param tid thread id
 	/// \return
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid) const noexcept {
-		ASSERT(tid < threads);
+		assert(tid < threads);
 		return (tid+1)*thread_block;
 	};
 
 	/// zeros all elements
 	/// \param tid
 	constexpr void zero(const uint32_t tid=0) noexcept {
-		ASSERT(tid < threads);
+		assert(tid < threads);
 		for (size_t i = start_pos(tid); i < end_pos(tid); ++i) {
 			__data[i].zero();
 		}
@@ -108,13 +108,13 @@ public:
 	/// zeros a single element
 	/// \param i
 	constexpr void zero_element(const size_t i) noexcept {
-		ASSERT(i < load);
+		assert(i < load);
 		__data[i].zero();
 	}
 
 	/// not implemented
 	constexpr void sort() noexcept {
-		ASSERT(0);
+		assert(0);
 	}
 
 	/// some useful stuff

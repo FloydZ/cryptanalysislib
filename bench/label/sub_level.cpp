@@ -9,7 +9,7 @@
 
 B63_BASELINE(sub_alllevel, nn) {
 	kAryLabel v1{}, v2{}, v3{};
-	uint64_t k_lower=0, k_higher=0;
+	uint32_t k_lower=0, k_higher=0;
 	B63_SUSPEND {
 		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
@@ -35,7 +35,7 @@ B63_BASELINE(sub_alllevel, nn) {
 
 B63_BENCHMARK(sub_level1, nn) {
 	kAryLabel v1{}, v2{}, v3{};
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	B63_SUSPEND {
 		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
@@ -61,7 +61,7 @@ B63_BENCHMARK(sub_level1, nn) {
 
 B63_BENCHMARK(sub_level2, nn) {
 	kAryLabel v1{}, v2{}, v3{};
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	B63_SUSPEND {
 		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;
@@ -87,7 +87,7 @@ B63_BENCHMARK(sub_level2, nn) {
 
 B63_BENCHMARK(sub_level3, nn) {
 	kAryLabel v1{}, v2{}, v3{};
-	uint64_t k_lower, k_higher;
+	uint32_t k_lower, k_higher;
 	B63_SUSPEND {
 		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;

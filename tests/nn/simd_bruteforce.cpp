@@ -17,6 +17,7 @@ TEST(Bruteforce, simd_32) {
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 }
 
+
 TEST(Bruteforce, simd_64) {
 	constexpr static NN_Config config{64, 1, 1, 64, LS, 10, 5, 0, 512};
 	NN<config> algo{};
@@ -37,8 +38,8 @@ TEST(Bruteforce, simd_64_1x1) {
 		EXPECT_EQ(algo.all_solutions_correct(), true);
 		algo.solutions_nr = 0;
 
-		free(algo.L1);
-		free(algo.L2);
+		cryptanalysislib::aligned_free(algo.L1);
+		cryptanalysislib::aligned_free(algo.L2);
 		algo.L1 = nullptr;
 		algo.L2 = nullptr;
 	}
@@ -172,8 +173,8 @@ TEST(Bruteforce, simd_256) {
 			EXPECT_EQ(algo.all_solutions_correct(), true);
 			algo.solutions_nr = 0;
 
-			free(algo.L1);
-			free(algo.L2);
+			cryptanalysislib::aligned_free(algo.L1);
+			cryptanalysislib::aligned_free(algo.L2);
 			algo.generate_random_instance();
 		}
 	}
@@ -247,8 +248,8 @@ TEST(Bruteforce, simd_256_64_4x4) {
 			EXPECT_EQ(algo.all_solutions_correct(), true);
 			algo.solutions_nr = 0;
 
-			free(algo.L1);
-			free(algo.L2);
+			cryptanalysislib::aligned_free(algo.L1);
+			cryptanalysislib::aligned_free(algo.L2);
 			algo.generate_random_instance();
 		}
 	}
@@ -266,7 +267,7 @@ TEST(Bruteforce, simd_256_64_4x4_rearrange) {
 }
 
 int main(int argc, char **argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
 }

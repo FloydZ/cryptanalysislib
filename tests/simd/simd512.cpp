@@ -27,7 +27,7 @@ TEST(uint8x64_t, TTrandom) {
 		}
 	}
 
-	ASSERT_EQ(atleast_one_not_zero, true);
+	EXPECT_EQ(atleast_one_not_zero, true);
 }
 
 TEST(uint8x64_t, set1) {

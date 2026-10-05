@@ -7,6 +7,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
+
 #include "simd/simd.h"
 
 namespace cryptanalysislib {
@@ -16,11 +18,12 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 			requires std::is_integral_v<T>
 #endif
-		void memset_u256_u8(T *out,
+		void memset_u256_u8(T *_out,
 		                    const T in,
 		                    const size_t nr_elements) {
 
 			if constexpr (sizeof(T) == 1) {
+                uint8_t *out = (uint8_t *)_out;
 				const size_t bytes = nr_elements;
 				if (bytes <= 16) {
 #ifdef __clang__
@@ -82,19 +85,18 @@ namespace cryptanalysislib {
 				}
 
 				const _uint8x16_t in3 = _uint8x16_t::set1(in);
-				uint8_t *end = out + bytes;
+				uint8_t *end = ((uint8_t *)out) + bytes;
 				if (bytes > 32) {
 					_uint8x16_t::unaligned_store(out, in3);
 					out += 16;
-					out = (uint8_t *)((uintptr_t)(out) & -16);
+					out = (uint8_t *)(((uintptr_t)(out)) & -16);
 					_uint8x16_t::unaligned_store(out, in3);
 					out += 16;
 					out = (uint8_t *)((uintptr_t)(out) & -32);
 
 					const uint8x32_t in4 = uint8x32_t::set1(in);
 
-					const size_t limit = (bytes-33)/32;
-					for (size_t i = 0; i < limit; ++i) {
+					while((out+32) <= end) {
 						uint8x32_t::aligned_store(out, in4);
 						out += 32;
 					}
@@ -111,8 +113,9 @@ namespace cryptanalysislib {
 				if (nr_elements < 16) {
 					// all other types
 					for (size_t i = 0; i < nr_elements; ++i) {
-						out[i] = in;
+						_out[i] = in;
 					}
+
 					return;
 				}
 
@@ -124,16 +127,15 @@ namespace cryptanalysislib {
 				const size_t bytes = sizeof(T) * nr_elements;
 
 				S in1 = S::set1(in);
-				T *end = out + nr_elements;
+				T *end = _out + nr_elements;
 				if (bytes > alignment) {
-					S::unaligned_store(out, in1);
-					out += N;
+					S::unaligned_store(_out, in1);
+					_out += N;
 
-					out = (T *)((uintptr_t)(out) & -alignment);
-					const size_t limit = (bytes - alignment + 1u)/alignment;
-					for (size_t i = 0; i < limit; ++i) {
-						S::aligned_store(out, in1);
-						out += N;
+					_out = (T *)((uintptr_t)(_out) & -alignment);
+					while (_out + N <= end) {
+						S::aligned_store(_out, in1);
+						_out += N;
 					}
 					S::unaligned_store(end - N, in1);
 					return;
@@ -143,7 +145,7 @@ namespace cryptanalysislib {
 
 				using S_half = TxN_t<T, N/2>;
 				S_half in_half = S_half ::set1(in);
-				S_half::unaligned_store(out, in_half);
+				S_half::unaligned_store(_out, in_half);
 				S_half::unaligned_store(end - N, in_half);
 			}
 		}
@@ -163,15 +165,15 @@ namespace cryptanalysislib {
 			if (bytes >= 128) {
 				if constexpr (sizeof(T) == 1) {
 					uint8x64_t t = uint8x64_t::set1(in);
-					uint8x64_t::unaligned_store(out, t);
+					uint8x64_t::unaligned_store((uint8_t *)out, t);
 
-					uint8_t *out2 = out + bytes;
-					uint8x64_t::unaligned_store(out2 - 0x40, t);
+					uint8_t *out2 = ((uint8_t *)out) + bytes;
+					uint8x64_t::unaligned_store((uint8_t *)(out2 - 0x40), t);
 					out2 = (uint8_t *) (((uintptr_t) (out2)) & -0x40);
 
 					out += 0x40;
-					out = (uint8_t *) (((uintptr_t) out) & -0x40);
-					out = (uint8_t *) ((uintptr_t) out - (uintptr_t) out2);
+					out = (T *) (((uintptr_t) out) & -0x40);
+					out = (T *) ((uintptr_t) out - (uintptr_t) out2);
 
 					while (out != nullptr) {
 						uint8x64_t::aligned_store((uint8_t *) ((uintptr_t) out + (uintptr_t) out2), t);
@@ -201,7 +203,6 @@ namespace cryptanalysislib {
 					}
 
 					return;
-
 				}
 			}
 
@@ -222,12 +223,12 @@ namespace cryptanalysislib {
 #endif
 			memset_u256_u8(out, in, nr_elements);
 		}
-	} // end internal
+	} // end namespace internal
 
 	/// \tparam T type
 	/// \param out output array
 	/// \param in input symbol
-	/// \param len number of elements NOT byts
+	/// \param len number of elements NOT bytes
 	template<typename T>
 	constexpr void memset(T *out,
 	                      const T in,

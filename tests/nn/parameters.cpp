@@ -31,7 +31,7 @@ TEST(NearestNeighborAVX, MO640Params_n128_r2_64) {
 		algo64.generate_random_instance();
 	}
 
-	ASSERT_EQ(sols, nr_tries);
+	EXPECT_EQ(sols, nr_tries);
 }
 
 TEST(NearestNeighborAVX, MO640Params_n128_r2_64_masked) {
@@ -60,7 +60,7 @@ TEST(NearestNeighborAVX, MO640Params_n128_r2_64_masked) {
 		algo64.solutions_nr = 0;
 	}
 
-	ASSERT_EQ(sols, nr_tries);
+	EXPECT_EQ(sols, nr_tries);
 }
 
 TEST(NearestNeighborAVX, MO640Params_n128_r4_32) {
@@ -86,7 +86,7 @@ TEST(NearestNeighborAVX, MO640Params_n128_r4_32) {
 		algokek.generate_random_instance();
 	}
 
-	ASSERT_EQ(sols, nr_tries);
+	EXPECT_EQ(sols, nr_tries);
 }
 
 

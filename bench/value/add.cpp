@@ -7,7 +7,7 @@
 
 B63_BASELINE(add, nn) {
 	kAryValue v1{}, v2{}, v3{};
-	uint64_t k_lower=0, k_higher=0;
+	uint32_t k_lower=0, k_higher=0;
 	B63_SUSPEND {
 		for (uint64_t i = 0; i < n; ++i) {
 			v1.data()[i] = i;

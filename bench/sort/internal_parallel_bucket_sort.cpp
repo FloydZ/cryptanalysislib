@@ -24,7 +24,7 @@ void random_data(std::vector<T> &data,
 		const uint64_t size) {
 	data.resize(SIZE);
 	for (uint64_t i = 0; i < size; ++i) {
-		data[i] = fastrandombytes_uint64() & mask;
+		data[i] = rng() & mask;
 	}
 }
 

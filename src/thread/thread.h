@@ -1,51 +1,35 @@
 #ifndef CRYPTANALYSISLIB_THREAD_H
 #define CRYPTANALYSISLIB_THREAD_H
 
-#include "helper.h"
+#if __cplusplus > 201709L
+#include <cstddef>
+template<class Scheduler>
+concept SchedulerAble = requires(Scheduler a) {
+	requires requires(const size_t i) {
+        // returning a std::future
+        //a.submit();
+        // returning void
+        //a.submit_detach();
 
-/// CORE IDEA:
-/// wrap `openmp` or `std::threads` in an easy to use interface
-///
+        a.wait_for_tasks();
 
-#include <cstdint>
-#if defined(_OPENMP)
-#include <omp.h>
-#endif
-
-class Thread {
-public:
-#if defined(_OPENMP)
-	static uint32_t get_tid() noexcept {
-		return omp_get_thread_num();
-	}
-
-	static void sync() noexcept {
-		#pragma omp barrier
-		return;
-	}
-#else
-	/// this function is called if no backend is available
-	/// \return 0, as there are no threads
-	constexpr static uint32_t get_tid() noexcept {
-		return 0;
-	}
-
-	static void sync() noexcept {
-		return;
-	}
-#endif
+        a.pause();
+        a.unpause();
+        a.is_paused();
+        
+        a.clear_tasks();
+        a.get_num_queued_tasks();
+        a.get_num_running_tasks();
+        a.get_num_tasks();
+        a.get_num_thread();
+	};
 };
+#endif 
 
-
-// SRC: https://stackoverflow.com/questions/24645880/set-cpu-affinity-when-create-a-thread
-// pthread CPU affinity
-/// CPU_ID: integer of the CPU
-/// THREAD: pthread handle
-#define PTHREAD_SET_THREAD_AFFINITY(CPU_ID, THREAD) \
-    cpu_set_t cpuset;								\
-    CPU_ZERO(&cpuset);								\
-    CPU_SET(CPU_ID, &cpuset); 						\
-    int rc = pthread_setaffinity_np(THREAD.native_handle(), sizeof(cpu_set_t), &cpuset); \
-	ASSERT(rc);
-
-#endif//CRYPTANALYSISLIB_THREAD_H
+#include "mythread.h"
+#include "performance.h"
+#include "steal.h"
+#include "simple.h"
+#include "execution.h"
+#include "work_contract.h"
+#endif

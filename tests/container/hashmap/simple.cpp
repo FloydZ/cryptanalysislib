@@ -8,7 +8,7 @@ using ::testing::InitGoogleTest;
 using ::testing::Test;
 
 using K = uint32_t;
-using V = uint64_t;
+using V = uint32_t;
 
 TEST(HashMap, simd) {
 	constexpr uint32_t l = 12;
@@ -17,17 +17,17 @@ TEST(HashMap, simd) {
 	constexpr static SimpleHashMapConfig s = SimpleHashMapConfig{bucketsize, 1u << l, 1};
 	using HM = SimpleHashMap<K, V, s, Hash<K, 0, l, 2>>;
 
-	using SIMD = uint16x16_t;
+	using SIMD = uint32x8_t;
 	HM hm = HM{};
 
-	for (uint64_t i = 0; i < ((1u << l) * bucketsize) / SIMD::LIMBS; ++i) {
+	for (uint64_t i = 0; i < ((1u << l) * bucketsize); i+=SIMD::LIMBS) {
 		SIMD data, index;
 		for (uint32_t j = 0; j < SIMD::LIMBS; ++j) {
-			data[j] = i;
-			index[j] = i + 1;
+			data[j] = i + j;
+			index[j] = i + j + 1;
 		}
 
-		// TODO hm.insert_simd(data, index);
+		hm.template insert_simd<SIMD>(data, index);
 	}
 
 	for (size_t i = 0; i < 1u << l; ++i) {
@@ -78,7 +78,7 @@ TEST(HashMap, multithreaded) {
 	using HM = SimpleHashMap<K, V, s, Hash<K, 0, l, 2>>;
 
 	HM hm = HM{};
-	hm.print();
+	hm.info();
 
 #pragma omp parallel default(none) shared(l, hm) num_threads(threads)
 	{

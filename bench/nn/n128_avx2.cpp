@@ -47,7 +47,7 @@ BENCHMARK(BM_bruteforce_simd_128_32_2_uxv_8x8)->RangeMultiplier(2)->Range(128, L
 BENCHMARK(BM_bruteforce_128)->RangeMultiplier(2)->Range(128, LS)->Complexity();
 
 int main(int argc, char** argv) {
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	algo.generate_random_instance(false);
 
     ::benchmark::Initialize(&argc, argv);

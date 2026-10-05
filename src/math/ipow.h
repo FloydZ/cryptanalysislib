@@ -23,6 +23,32 @@ namespace cryptanalysislib::math {
 	           T{1} / ipow(x, -n);
 	}
 
+    /// square and multiply
+    /// \return a**ex
+    template <typename Type1, 
+              typename Type2>
+    Type1 ipow_v2(Type1 a,
+                  Type2 ex) {
+        if (ex == 0) {
+            return 1;
+        }
+
+        Type1 z = a;
+        Type1 y = 1;
+        while (1){
+            if (ex & 1u) { 
+                y *= z;
+            }
+
+            ex /= 2;
+            if ( 0==ex ){ 
+                break;
+            }
+
+            z *= z;
+        }
+        return y;
+    }
 }
 
 #endif //CRYPTANALYSISLIB_IPOW_H

@@ -7,24 +7,23 @@
 
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 #include <iterator>
-#include <vector>
 
 #include "helper.h"
 #include "hash/hash.h"
 
 
-/// SRC:https://pages.cs.wisc.edu/~chronis/files/efficiently_searching_sorted_arrays.pdf
-/// 	https://github.com/UWHustle/Efficiently-Searching-In-Memory-Sorted-Arrays/blob/master/src/algorithms/interpolation_search.h
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param value_
-/// \param h
-/// \return
+/// Three-point interpolation search algorithm for finding lower bound
+/// SRC: https://pages.cs.wisc.edu/~chronis/files/efficiently_searching_sorted_arrays.pdf
+///      https://github.com/UWHustle/Efficiently-Searching-In-Memory-Sorted-Arrays/blob/master/src/algorithms/interpolation_search.h
+/// 
+/// \tparam ForwardIt Type of forward iterator
+/// \tparam Hash Type of hash function for comparison
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param value_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than value_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -55,11 +54,10 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 	const auto v = h(value_);
 	uint64_t next = interpolate1(v);
 	uint64_t old_next = -1ull;
-	ASSERT(next <= count);
+	assert(next <= count);
 
 	while (true) {
 		const auto a = h(*(first+next));
-		// TODO optimization for prefetchin
 		if (a < v) {
 			left = first + next + 1;
 		} else if (a > v) {
@@ -74,19 +72,28 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 			return last;
 		}
 
-		ASSERT(h(*left) <= h(*right));
+		assert(h(*left) <= h(*right));
 		next = interpolate2(v, left, right);
 		next += std::distance(first, left);
 
 		// break free from a possible infinite loop
 		next += next == old_next;
 		old_next = next;
-		ASSERT(next < count);
+		assert(next < count);
 	}
 	return left;
 }
 
-// NOT WORKING
+/// Interpolation search variant 1 - NOT WORKING
+/// Uses interpolation to estimate the position of a value in a sorted range
+/// 
+/// \tparam RandIt Type of random access iterator
+/// \tparam Hash Type of hash function for comparison
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param value_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than value_, or last if not found
 template<typename RandIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -142,8 +149,16 @@ constexpr RandIt lower_bound_interpolation_search1(RandIt first,
 }
 
 
-// taken from:
-// https://medium.com/@vgasparyan1995/interpolation-search-a-generic-implementation-in-c-part-2-164d2c9f55fa
+/// Interpolation search variant 2 for finding lower bound
+/// Implementation from: https://medium.com/@vgasparyan1995/interpolation-search-a-generic-implementation-in-c-part-2-164d2c9f55fa
+/// 
+/// \tparam RandIt Type of random access iterator
+/// \tparam Hash Type of hash function for comparison
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param value_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than value_, or last if not found
 template<typename RandIt,
 		typename Hash>
 #if __cplusplus > 201709L
@@ -199,21 +214,29 @@ constexpr RandIt lower_bound_interpolation_search2(RandIt first,
 	return to_iter;
 }
 
-/// implementation idea taken from `https://en.wikipedia.org/wiki/Interpolation_search`
+/// Array-based interpolation search implementation for lower bound
+/// Implementation idea taken from https://en.wikipedia.org/wiki/Interpolation_search
+/// 
+/// \tparam T Type of elements in the array (must be integral)
+/// \tparam Hash Type of hash function for comparison
+/// \param __buckets[in]: Pointer to the sorted array to search in
+/// \param key[in]: Value to search for
+/// \param boffset[in]: Starting offset in the array
+/// \param load[in]: Number of elements to search through
+/// \param e[in]: Hash function to use for comparison
+/// \return Index of the first element not less than key, or -1 if not found
 template<typename T,
          typename Hash>
 #if __cplusplus > 201709L
 	requires HashFunction<Hash, T> and
              std::is_integral_v<T>
 #endif
-size_t LowerBoundInterpolationSearch(const T *__buckets,
-                                     const T key,
-                                     const size_t boffset,
-                                     const size_t load,
-                                     Hash e) noexcept {
-	ASSERT(boffset < load);
-	// example of the extract function#define ISAccess(x) x //((x&mask2)>>b1)
-
+constexpr size_t LowerBoundInterpolationSearch(const T *__buckets,
+                                               const T &key,
+                                               const size_t boffset,
+                                               const size_t load,
+                                               Hash &&e) noexcept {
+	assert(boffset < load);
 	size_t low = boffset, high = load - 1, mid;
 	const T data = e(key);
 	while ((e(__buckets[high]) >= e(__buckets[low])) &&
@@ -224,7 +247,7 @@ size_t LowerBoundInterpolationSearch(const T *__buckets,
 		const double abc = double(high - low);
 		const size_t mul = abc / double(div);
 		mid = low + ((data - e(__buckets[low])) * mul);
-		ASSERT(mid <= high);
+		assert(mid <= high);
 
 		const T middata = e(__buckets[mid]);
 		if (middata < data)
@@ -247,17 +270,19 @@ size_t LowerBoundInterpolationSearch(const T *__buckets,
 		return -1;
 }
 
-/// Implementation Idea taken from wikipedia: `https://en.wikipedia.org/wiki/Interpolation_search`
-/// This search algorithm assumes a lot.
-///		T must implement
-/// 			<	Operator
-/// \tparam RandIt	Iterator, must be random access_iterator
-/// \tparam Hash		Hash/Extractor function
-/// \param first		low end iterator
-/// \param last			high end iterator
-/// \param key_			value to look for
-/// \param h			instantiation of the extractor/hash function
-/// \return
+/// Iterator-based interpolation search implementation for lower bound
+/// Implementation idea taken from https://en.wikipedia.org/wiki/Interpolation_search
+/// 
+/// \tparam RandIt Type of random access iterator
+/// \tparam Hash Type of hash function for comparison
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param key_[in]: Value to search for
+/// \param e[in]: Hash function to use for comparison
+/// \return Iterator to the first element not less than key_, or last if not found
+///
+/// Note: The search assumes that the value type implements the < operator,
+/// and values are distributed uniformly
 template<typename RandIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -288,7 +313,7 @@ RandIt LowerBoundInterpolationSearch(RandIt first,
 		mid = low;
 		std::advance(mid, (data - e(*low)) * mul);
 		const T middata = e(*mid);
-		ASSERT(middata <= e(*high));
+		assert(middata <= e(*high));
 
 		if (middata < data) {
 			low = mid;
@@ -320,6 +345,15 @@ RandIt LowerBoundInterpolationSearch(RandIt first,
 
 namespace cryptanalysislib::search {
 
+	/// Perform interpolation search to find a value in a sorted range with a provided hash function
+	/// 
+	/// \tparam RandIt Type of random access iterator
+	/// \tparam Hash Type of hash function for comparison
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param key_[in]: Value to search for
+	/// \param e[in]: Hash function to use for comparison
+	/// \return Iterator to the matching element, or last if not found
 	template<typename RandIt,
 	         typename Hash>
 #if __cplusplus > 201709L
@@ -334,6 +368,76 @@ namespace cryptanalysislib::search {
 		              "the return type of the hash function must be a integral type");
 		return lower_bound_interpolation_3p_search(first, last, key_, e);
 	}
-}
+
+	/// Perform interpolation search to find a value in a sorted range using default hash function
+	/// 
+	/// \tparam RandIt Type of random access iterator
+	/// \tparam Hash Type of hash function for comparison
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \param key_[in]: Value to search for
+	/// \return Iterator to the matching element, or last if not found
+	template<typename RandIt,
+	         typename Hash>
+#if __cplusplus > 201709L
+	requires std::random_access_iterator<RandIt> and
+			 HashFunction<Hash, typename RandIt::value_type>
+#endif
+	constexpr RandIt interpolation_search(RandIt first,
+										  RandIt last,
+										  const typename RandIt::value_type &key_) noexcept {
+		using T = RandIt::value_type;
+		using H = std::hash<T>;
+		H e;
+		static_assert(std::is_integral_v<typename decltype(std::function{e})::result_type>,
+		              "the return type of the hash function must be a integral type");
+		return lower_bound_interpolation_3p_search(first, last, key_, e);
+	}
+
+	namespace internal {
+
+		/// Dispatches to the most efficient interpolation search implementation based on benchmarks
+		/// 
+		/// \tparam It Type of iterator
+		/// \tparam Hash Type of hash function for comparison
+		/// \param begin[in]: Iterator to the beginning of the range
+		/// \param end[in]: Iterator to the end of the range
+		/// \param value[in]: Value to search for
+		/// \param h[in]: Hash function to use for comparison
+		/// \return Iterator to the matching element, or end if not found
+		template<typename It,
+				 typename Hash>
+#if __cplusplus > 201709L
+			requires std::forward_iterator<It> and
+					 HashFunction<Hash, typename It::value_type>
+#endif
+		It interpolation_search_dispatch(It begin,
+										 It end,
+										 const typename It::value_type &value,
+										 Hash h) noexcept {
+			using T = It::value_type;
+			using FF = It(*)(It, It, const T&, Hash);
+
+			static FF out;
+			static bool set = false;
+
+			if (set) [[likely]] {
+				return std::invoke(out, begin, end, value, h);
+			}
+
+			set = true;
+
+			// NOTE dont specify as const
+			static FF functions[] = {
+				LowerBoundInterpolationSearch<It, Hash>,
+				lower_bound_interpolation_search2<It, Hash>,
+				lower_bound_interpolation_search1<It, Hash>,
+				lower_bound_interpolation_3p_search<It, Hash>,
+			};
+			const auto d = generic_dispatch(out, functions, 1, begin, end, value, h);
+			return binary_search_dispatch(begin, end, value, h);
+		}
+	}// end namespace internal
+}//end namespace cryptanalysis
 
 #endif

@@ -5,8 +5,8 @@
 #include <setjmp.h>
 #include <sys/syslog.h>
 
-#include "alloc/alloc.h"
 #include "math/math.h"
+#include "alloc/alloc.h"
 #include "memory/memory.h"
 
 /*
@@ -212,7 +212,7 @@ public:
 	                          const size_t size) noexcept {
 		const size_t index = gc_hash(ptr) % capacity;
 		Allocation* alloc = new Allocation(ptr, size);
-		ASSERT(alloc);
+		assert(alloc);
 
 		Allocation* cur = allocs[index];
 		Allocation* prev = nullptr;
@@ -341,7 +341,7 @@ struct GarbageCollector {
 		sweep_factor = sweep_factor > 0.0 ? sweep_factor : 0.5;
 		initial_capacity = initial_capacity < min_capacity ? min_capacity : initial_capacity;
 		allocs = new AllocationMap(min_capacity, initial_capacity, sweep_factor, downsize_limit, upsize_limit);
-		ASSERT(allocs);
+		assert(allocs);
 	}
 
 	/// stops the garbage collector and frees everything
@@ -367,7 +367,7 @@ struct GarbageCollector {
 	///
 	/// \return
 	[[nodiscard]] constexpr inline bool needs_sweep() noexcept {
-		ASSERT(allocs);
+		assert(allocs);
 		return allocs->size > allocs->sweep_limit;
 	}
 
@@ -486,6 +486,7 @@ struct GarbageCollector {
 		paused = false;
 	}
 
+    /// \param ptr
 	void mark_alloc(void* ptr) noexcept {
 		Allocation* alloc = allocs->get(ptr);
 		/* Mark if alloc exists and is not tagged already, otherwise skip */
@@ -500,12 +501,12 @@ struct GarbageCollector {
 		}
 	}
 
-	void mark_stack() noexcept {
+	void mark_stack() {
 		void *tos = __builtin_frame_address(0);
 		void *_bos = this->bos;
 		/* The stack grows towards smaller memory addresses, hence we scan tos->bos.
 	     * Stop scanning once the distance between tos & bos is too small to hold a valid pointer */
-		for (char* p = (char*) tos; p <= (char*)_bos - PTRSIZE; ++p) {
+		for (uintptr_t p = (uintptr_t) tos; p <= (uintptr_t)_bos - PTRSIZE; p+=PTRSIZE) {
 			mark_alloc(*(void **) p);
 		}
 	}
@@ -527,13 +528,12 @@ struct GarbageCollector {
 		/* Scan the heap for roots */
 		mark_roots();
 		/* Dump registers onto stack and scan the stack */
-		// void (*_mark_stack)(void) = gc_mark_stack;
-		// jmp_buf ctx;
-		// memset(&ctx, 0, sizeof(jmp_buf));
-		// setjmp(ctx);
-		// _mark_stack();
-		// TODO
-		mark_stack();
+		void (GarbageCollector::*ptr)() = &GarbageCollector::mark_stack;
+		jmp_buf ctx;
+		memset(&ctx, 0, sizeof(jmp_buf));
+		setjmp(ctx);
+		// was soll schon schief gehen
+		(*this.*ptr)();
 	}
 
 	size_t sweep() noexcept {
@@ -554,7 +554,7 @@ struct GarbageCollector {
 					//	chunk->dtor(chunk->ptr);
 					//}
 					free((void *) chunk->ptr);
-					ASSERT(chunk);
+					assert(chunk);
 					/* and remove it from the bookkeeping */
 					next = chunk->next;
 					allocs->remove((void *)chunk->ptr, false);

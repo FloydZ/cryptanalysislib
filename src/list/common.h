@@ -8,20 +8,34 @@
 struct ListConfig : public AlignmentConfig {
 public:
 	// if `true` all internal sorting algorithms are `std::sort`
-	constexpr static bool use_std_sort = false;
+	const bool use_std_sort = true;
 
 	// if `true`, the call to `binary_search` will be remapped to
 	// the standard implementation
-	constexpr static bool use_std_binary_search = false;
+	const bool use_std_binary_search = true;
 
 	// if `true`
-	constexpr static bool use_interpolation_search = false;
+	const bool use_interpolation_search = false;
 
 	// if `true` sorting is increasing, else decresing
-	constexpr static bool sort_increasing_order = true;
+	const bool sort_increasing_order = true;
 
+	// if 'true', add_and_append will be allow to resize
+	const bool allow_resize = true;
 
-} listConfig;
+	void info() const noexcept {
+		std::cout << " { name=\"ListConfig\""
+				  << " , use_std_sort:" << use_std_sort
+		          << " , use_std_sort:" << use_std_binary_search
+				  << " , use_interpolation_search:" << use_interpolation_search
+				  << " , sort_increasing_order:" << sort_increasing_order
+				  << " }\n";
+	};
+
+};
+
+constexpr static ListConfig listConfig;
+
 
 
 #if __cplusplus > 201709L
@@ -161,8 +175,95 @@ concept ListAble = requires(List l) {
 };
 #endif
 
+
+template<class List>
+#if __cplusplus > 201709L
+	// TODO requires ListAble<List>
+#endif
+class Listview_t {
+private:
+	using Element = typename List::ElementType;
+
+	// needed types
+	typedef Element ElementType;
+	typedef typename Element::ValueType ValueType;
+	typedef typename Element::LabelType LabelType;
+
+	typedef typename Element::ValueType::LimbType ValueLimbType;
+	typedef typename Element::LabelType::LimbType LabelLimbType;
+
+	typedef typename Element::ValueContainerType ValueContainerType;
+	typedef typename Element::LabelContainerType LabelContainerType;
+
+	typedef typename Element::ValueDataType ValueDataType;
+	typedef typename Element::LabelDataType LabelDataType;
+
+	typedef typename Element::MatrixType MatrixType;
+	constexpr Listview_t() = default;
+
+	const size_t start;
+	const size_t end;
+	const List *list ;
+public:
+	constexpr Listview_t(const List *list,
+						 const size_t start,
+						 const size_t end) :
+			start(start), end(end), list(list) {
+		assert(start < end);
+		assert(end < list->size());
+	}
+
+	[[nodiscard]] constexpr inline size_t size() const noexcept {
+		return end - start;
+	}
+
+	[[nodiscard]] constexpr inline Element &operator[](const size_t i) noexcept {
+		return list->at(start + i);
+	}
+
+	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
+		return list->at(start + i);
+	}
+};
+
+template<class List>
+#if __cplusplus > 201709L
+	//requires ListAble<List>
+#endif
+class Listview_const_t {
+private:
+	using Element = typename List::ElementType;
+
+	// needed types
+	typedef Element ElementType;
+	typedef typename Element::ValueType ValueType;
+	typedef typename Element::LabelType LabelType;
+
+	typedef typename Element::ValueType::LimbType ValueLimbType;
+	typedef typename Element::LabelType::LimbType LabelLimbType;
+
+	typedef typename Element::ValueContainerType ValueContainerType;
+	typedef typename Element::LabelContainerType LabelContainerType;
+
+	typedef typename Element::ValueDataType ValueDataType;
+	typedef typename Element::LabelDataType LabelDataType;
+
+	typedef typename Element::MatrixType MatrixType;
+	constexpr Listview_const_t() = default;
+
+	const size_t start;
+	const size_t end;
+	const List *list ;
+public:
+	constexpr Listview_const_t(const List *list,
+	                     	   const size_t start,
+	                     	   const size_t end) :
+		list(list), start(start), end(end) {}
+
+};
+
 template<class Element,
-         class Alocator=cryptanalysislib::alloc::allocator,
+         class Allocator=cryptanalysislib::allocator<Element>,
 		 const ListConfig &config=listConfig>
 #if __cplusplus > 201709L
     requires ListElementAble<Element>
@@ -175,7 +276,7 @@ private:
 
 protected:
 	/// load factor of the list
-	std::vector<size_t> __load;
+	alignas(64) std::vector<size_t> __load;
 
 	/// total size of the list
 	size_t __size;
@@ -194,8 +295,11 @@ protected:
 	constexpr static bool use_std_binary_search = config.use_std_binary_search;
 	constexpr static bool sort_increasing_order = config.sort_increasing_order;
 	constexpr static bool use_interpolation_search = config.use_interpolation_search;
+	constexpr static bool allow_resize = config.allow_resize;
 
 public:
+
+	using L = MetaListT<Element, Allocator, listConfig>;
 
 	// needed types
 	typedef Element ElementType;
@@ -213,10 +317,9 @@ public:
 
 	typedef typename Element::MatrixType MatrixType;
 
-	// todo do the same for all other list classes
 	// we are good c++ defs
 	typedef Element value_type;
-	typedef Alocator allocator_type; // TODO use
+	typedef Allocator allocator_type;
 	typedef size_t size_type;
 	typedef size_t difference_type;
 	typedef value_type& reference;
@@ -229,8 +332,8 @@ public:
 	using LoadType = size_t;
 
 	// internal data types lengths
-	constexpr static uint32_t ValueLENGTH = ValueType::length();
-	constexpr static uint32_t LabelLENGTH = LabelType::length();
+	constexpr static uint32_t ValueLENGTH = ValueType::length;
+	constexpr static uint32_t LabelLENGTH = LabelType::length;
 
 	/// size in bytes
 	constexpr static uint64_t ElementBytes = Element::bytes();
@@ -263,7 +366,7 @@ public:
 		out.set_thread_block_size(in.thread_block_size());
 
 		const std::size_t s = tid * in.threads();
-		const std::size_t c = ((tid == in.threads - 1) ? in.thread_block : in.nr_elements - (in.threads - 1) * in.thread_block);
+		const std::size_t c = ((tid == in.__threads - 1) ? in.__thread_block_size : in.__size - (in.__threads - 1) * in.__thread_block_size);
 		memcpy(out.__data.data() + s, in.__data.data() + s, c * sizeof(ValueType));
 	}
 
@@ -298,7 +401,7 @@ public:
 										   const size_t start=0,
 										   const size_t end=-1ull) const noexcept {
 		const size_t end_ = end==-1ull ? load() : end;
-		ASSERT(start <= end_);
+		assert(start <= end_);
 
 		for (size_t i = start+1; i < end_; ++i) {
 			if (__data[i - 1].is_equal(__data[i], k_lower, k_higher)) {
@@ -335,7 +438,7 @@ public:
 	                                       const size_t start=0,
 	                                       const size_t end=-1ull) const noexcept {
 		const size_t end_ = end==-1ull ? load()-1 : end;
-		ASSERT(start < end_);
+		assert(start < end_);
 
 		auto op = [&t, sub](const LabelType &a){
 			LabelType tmp;
@@ -370,7 +473,7 @@ public:
 	[[nodiscard]] constexpr size_t size() const noexcept { return __size; }
 	/// \return the number of elements each thread enumerates
 	[[nodiscard]] constexpr size_t size(const uint32_t tid) const noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 
 		if (tid == threads() - 1) {
 			return std::max(thread_block_size() * threads(), size());
@@ -395,21 +498,22 @@ public:
 
 	/// set/get the load factor
 	[[nodiscard]] constexpr size_t load(const uint32_t tid = 0) const noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		return __load[tid];
 	}
-	constexpr void set_load(const size_t l, const uint32_t tid = 0) noexcept {
-		ASSERT(tid < threads());
+	constexpr void set_load(const size_t l,
+							const uint32_t tid = 0) noexcept {
+		assert(tid < threads());
 		__load[tid] = l;
 	}
 	constexpr void inc_load(const uint32_t tid = 0) noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		__load[tid] += 1;
 	}
 
 	/// returning the range in which one thread is allowed to operate
 	[[nodiscard]] constexpr inline size_t start_pos(const uint32_t tid=0) const noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 
 		if (threads() == 1) {
 			return 0;
@@ -418,7 +522,7 @@ public:
 		return tid * (__data.size() / __threads);
 	};
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid=0) const noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		if (threads() == 1) {
 			return load();
 		}
@@ -446,7 +550,7 @@ public:
 
 	/// Get a const pointer. Sometimes useful if one ones to tell the kernel how to access memory.
 	[[nodiscard]] constexpr inline auto *data() noexcept { return __data.data(); }
-	[[nodiscard]] constexpr const auto *data() const noexcept { return __data.data(); }
+	[[nodiscard]] constexpr inline const auto *data() const noexcept { return __data.data(); }
 
 	/// wrapper
 	[[nodiscard]] constexpr inline ValueType *data_value() noexcept { return (ValueType *) (((uint8_t *) ptr()) + LabelBytes); }
@@ -454,45 +558,58 @@ public:
 	[[nodiscard]] constexpr inline LabelType *data_label() noexcept { return (LabelType *) __data.data(); }
 	[[nodiscard]] constexpr inline const LabelType *data_label() const noexcept { return (const LabelType *) __data.data(); }
 	[[nodiscard]] constexpr inline ValueType &data_value(const size_t i) noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return __data[i].get_value();
 	}
 	[[nodiscard]] constexpr inline const ValueType &data_value(const size_t i) const noexcept {
-	 	ASSERT(i < __size);
+	 	assert(i < __size);
 	 	return __data[i].get_value();
 	}
 	[[nodiscard]] constexpr inline LabelType &data_label(const size_t i) noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return __data[i].get_label();
 	}
 	[[nodiscard]] constexpr inline const LabelType &data_label(const size_t i) const noexcept {
-		ASSERT(i < __size);
+		assert(i < __size);
 		return __data[i].get_label();
 	}
 
 	/// operator overloading
 	[[nodiscard]] constexpr inline Element &at(const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return __data[i];
 	}
 	[[nodiscard]] constexpr inline const Element &at(const size_t i) const noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return __data[i];
 	}
 	[[nodiscard]] constexpr inline Element &operator[](const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return __data[i];
 	}
 	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		return __data[i];
+	}
+
+	[[nodiscard]] constexpr inline Listview_t<L> view(const size_t i,
+	                                             	   const size_t j) noexcept {
+		assert(j <= size());
+		assert(i < j);
+		return Listview_t<L>(this, i, j);
+	}
+	[[nodiscard]] constexpr inline const Element view(const size_t i,
+	                                                   const size_t j) const noexcept {
+		assert(j <= size());
+		assert(i < j);
+		return Listview_const_t<L>(this, i, j);
 	}
 
 	///
 	/// \param e
 	/// \param i
 	constexpr inline void set(Element &e, const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		__data[i] = e;
 	}
 
@@ -509,10 +626,10 @@ public:
 	                  const uint32_t value_k_higher,
 	                  const uint32_t label_k_lower,
 	                  const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
+		assert(value_k_lower < value_k_higher);
+		assert(value_k_higher <= ValueLENGTH);
+		assert(label_k_lower < label_k_higher);
+		assert(label_k_higher <= LabelLENGTH);
 
 		data_value(pos).print_binary(value_k_lower, value_k_higher);
 		data_label(pos).print_binary(label_k_lower, label_k_higher);
@@ -531,10 +648,10 @@ public:
 	           const uint32_t value_k_higher,
 	           const uint32_t label_k_lower,
 	           const uint32_t label_k_higher) const noexcept {
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
+		assert(value_k_lower < value_k_higher);
+		assert(value_k_higher <= ValueLENGTH);
+		assert(label_k_lower < label_k_higher);
+		assert(label_k_higher <= LabelLENGTH);
 
 		data_value(pos).print(value_k_lower, value_k_higher);
 		data_label(pos).print(label_k_lower, label_k_higher);
@@ -554,12 +671,12 @@ public:
 	           const uint32_t label_k_higher,
 	           const size_t start,
 	           const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= __data.size());
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
+		assert(start < end);
+		assert(end <= __data.size());
+		assert(value_k_lower < value_k_higher);
+		assert(value_k_higher <= ValueLENGTH);
+		assert(label_k_lower < label_k_higher);
+		assert(label_k_higher <= LabelLENGTH);
 
 		for (size_t i = start; i < end; ++i) {
 			print(i, value_k_lower, value_k_higher,
@@ -581,12 +698,12 @@ public:
 	                  const uint32_t label_k_higher,
 	                  const size_t start,
 	                  const size_t end) const noexcept {
-		ASSERT(start < end);
-		ASSERT(end <= __data.size());
-		ASSERT(value_k_lower < value_k_higher);
-		ASSERT(value_k_higher <= ValueLENGTH);
-		ASSERT(label_k_lower < label_k_higher);
-		ASSERT(label_k_higher <= LabelLENGTH);
+		assert(start < end);
+		assert(end <= __data.size());
+		assert(value_k_lower < value_k_higher);
+		assert(value_k_higher <= ValueLENGTH);
+		assert(label_k_lower < label_k_higher);
+		assert(label_k_higher <= LabelLENGTH);
 
 		for (size_t i = start; i < end; ++i) {
 			print_binary(i, value_k_lower, value_k_higher,
@@ -616,19 +733,19 @@ public:
 	/// \param i
 	constexpr void erase(const size_t i,
 	                     const uint32_t tid = 0) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		__data.erase(__data.begin() + i);
 		__load[tid] -= 1;
 	}
 
-	/// generates a random element
-	/// NOTE: this random elements, does not fulfill any property (e.g. label = matrix*value)
+	/// generates a rng element
+	/// NOTE: this rng elements, does not fulfill any property (e.g. label = matrix*value)
 	void random(const size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		__data[i].random();
 	}
 
-	/// generate a random list
+	/// generate a rng list
 	constexpr void random() noexcept {
 		MatrixType m;
 		m.random();
@@ -650,7 +767,7 @@ public:
 	// mutl
 	constexpr void random(const MatrixType &m,
 						  const uint32_t tid) noexcept {
-		ASSERT(tid < threads());
+		assert(tid < threads());
 		const size_t sp = start_pos(tid);
 		const size_t ep = start_pos(tid);
 
@@ -684,28 +801,36 @@ public:
 	                      const size_t pos,
 	                      const uint32_t tid = 0) noexcept {
 		const size_t spos = start_pos(tid);
-		ASSERT((spos+pos) < size());
+		assert((spos+pos) < size());
 		__data[spos + pos] = e;
 	}
 
-	constexpr static void info() {
+	static void info() noexcept {
 		std::cout << " { name=\"MetaListT\""
 				  << " , sizeof(LoadType):" << sizeof(LoadType)
 				  << " , ValueLENGTH:" << ValueLENGTH
 				  << " , LabelLENGTH:" << LabelLENGTH
-				  << " , use_std_sort:" << use_std_sort
-				  << " , use_interpolation_search:" << use_interpolation_search
-				  << " , sort_increasing_order:" << sort_increasing_order
 		          << " }" << std::endl;
+		config.info();
 		ElementType::info();
 	}
 };
 
 
 template<typename Element>
-std::ostream &operator<<(std::ostream &out, const MetaListT<Element> &obj) {
+std::ostream &operator<<(std::ostream &out,
+                         const MetaListT<Element> &obj) {
 	const size_t size = obj.load() > 0 ? obj.load() : obj.size();
 	for (size_t i = 0; i < size; ++i) {
+		out << obj[i] << "\t pos:" << i << "\n";
+	}
+	return out;
+}
+
+template<typename List>
+std::ostream &operator<<(std::ostream &out,
+                         const Listview_t<List> &obj) {
+	for (size_t i = 0; i < obj.size(); ++i) {
 		out << obj[i] << "\t pos:" << i << "\n";
 	}
 	return out;

@@ -13,7 +13,9 @@ compile_commands.json
 .local-history/
 Session.vim
 config.h
-
+cmake-build-relwithdebinfo/
+*egg-info/
+out/
 # Created by .ignore support plugin (hsz.mobi)
 ### C++ template
 # Prerequisites
@@ -136,3 +138,6 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
+
+**/.claude/settings.local.json
+.aider*

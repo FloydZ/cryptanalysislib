@@ -1,9 +1,9 @@
 TEST(NAME, access) {
 	K t;
-	for (uint32_t i = 0; i < K::length(); ++i) {
+	for (uint32_t i = 0; i < K::length; ++i) {
 		t.set(i,i);
 	}
-	for (uint32_t i = 0; i < K::length(); ++i) {
+	for (uint32_t i = 0; i < K::length; ++i) {
 		const auto d = t.get(i);
 		EXPECT_EQ(d, i % PRIME);
 
@@ -11,11 +11,11 @@ TEST(NAME, access) {
 		EXPECT_EQ(d2, i % PRIME);
 	}
 
-	for (uint32_t i = 0; i < K::length(); ++i) {
+	for (uint32_t i = 0; i < K::length; ++i) {
 		t.set(0, i);
 	}
 
-	for (uint32_t i = 0; i < K::length(); ++i) {
+	for (uint32_t i = 0; i < K::length; ++i) {
 		const auto d = t.get(i);
 		EXPECT_EQ(d, 0);
 
@@ -27,7 +27,7 @@ TEST(NAME, access) {
 TEST(NAME, random) {
 	auto t = K();
 	t.random();
-	for (uint32_t i = 0; i < K::length(); i++){
+	for (uint32_t i = 0; i < K::length; i++){
 		EXPECT_LE(t.get(i), PRIME);
 	}
 }
@@ -35,7 +35,7 @@ TEST(NAME, random) {
 TEST(NAME, comparsion) {
 	auto t1 = K();
 	auto t2 = K();
-	for (uint32_t i = 1; i < K::length(); i++){
+	for (uint32_t i = 1; i < K::length; i++){
 		t2.set(1, i);
 		EXPECT_EQ(t1.is_lower(t2), true);
 		EXPECT_EQ(t1.is_greater(t2), false);
@@ -46,7 +46,7 @@ TEST(NAME, comparsion) {
 
 
 TEST(NAME, mod_T) {
-	constexpr uint32_t qbits = bits_log2(PRIME);
+	constexpr uint32_t qbits = ceil_log2(PRIME);
 	for (uint64_t i = 0; i < PRIME; i++) {
 		const auto d = K::mod_T<uint32_t>(i);
 		EXPECT_EQ(d, i % PRIME);
@@ -149,7 +149,7 @@ TEST(NAME, mul) {
 
 TEST(NAME, HashSimple) {
 	K b1;
-	constexpr uint32_t qbits = bits_log2(PRIME);
+	constexpr uint32_t qbits = ceil_log2(PRIME);
 	constexpr uint32_t limit = 64;
 	for (uint32_t l = 0; l < n-1u; ++l) {
 		for (uint32_t h = l+1u; h < n; ++h) {
@@ -162,6 +162,10 @@ TEST(NAME, HashSimple) {
 				const uint64_t t = b1.hash(l, h);
 				const uint64_t mask = ((h - l) * qbits) == 64ull ? -1ull : (1ull << ((h - l) * qbits)) - 1ull;
 				EXPECT_EQ(t, mask);
+			}
+
+			if ((h-l)*qbits >= 64) {
+				continue;
 			}
 
 
@@ -178,7 +182,7 @@ TEST(NAME, HashSimple) {
 
 			for (size_t k = 0; k < NR_TESTS; ++k) {
 				b1.zero();
-				K::DataType r = fastrandombytes_uint64() % PRIME;
+				K::DataType r = rng() % PRIME;
 
 				for (uint32_t i = l; i < h; ++i) {
 					b1.set(r, i);
@@ -209,8 +213,8 @@ TEST(NAME, HashSimple) {
 }
 
 TEST(NAME, HashCompare) {
-	kAryPackedContainer_T<uint8_t, n, PRIME> b1,b2;
-	constexpr uint32_t qbits = bits_log2(PRIME);
+	FqPackedVector<n, PRIME, T> b1,b2;
+	constexpr uint32_t qbits = ceil_log2(PRIME);
 	constexpr uint64_t limit = 63;
 	const uint64_t qmask = (1ull<<qbits) - 1ull;
 

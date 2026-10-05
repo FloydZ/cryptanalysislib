@@ -12,9 +12,16 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO test the hash interface
-TEST(cityhash, all) {
+TEST(Hash, bits) {
+	using T = uint64_t;
+	T d[2] = {-1ull, -1ull};
+	T r = Hash<T, 0, 10, 2>::hash(d);
+	T mask = (1u<<10u) -1u;
+	EXPECT_EQ(r, mask);
 
+	r = Hash<T, 60, 70, 2>::hash(d);
+	mask = (1u<<10u) -1u;
+	EXPECT_EQ(r, mask);
 }
 
 int main(int argc, char **argv) {

@@ -1,18 +1,17 @@
-#ifndef DECODING_CPUCYCLES_H
-#define DECODING_CPUCYCLES_H
+#pragma once 
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #if defined(USE_ARM)
-long long cpucycles(void) {
+static long long cpucycles(void) noexcept {
 	unsigned long long result;
 	__asm__ __volatile__("mrs %0, cntvct_el0"
 	                     : "=r"(result));
 	return result;
 }
 #elif defined(USE_AVX2)
-long long cpucycles(void) {
+static long long cpucycles(void) noexcept {
 	unsigned long long result;
 	asm volatile(".byte 15;.byte 49;shlq $32,%%rdx;orq %%rdx,%%rax"
 	             : "=a"(result)::"%rdx");
@@ -144,4 +143,3 @@ static double osfreq(void) {
 
 	return 2399987654.0;
 }
-#endif//DECODING_CPUCYCLES_H

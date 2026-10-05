@@ -1,0 +1,200 @@
+#ifndef CRYPTANALYSISLIB_ALGORITHM_MIN_H
+#define CRYPTANALYSISLIB_ALGORITHM_MIN_H
+
+#include "apply.h"
+
+#include <concepts>
+#include <cstdint>
+#include <cstdlib>
+#include <limits.h>
+#include <type_traits>
+
+#include "simd/simd.h"
+#include "thread/thread.h"
+
+
+/// TODO parallel version of min_element
+/// TODO simd version of min_element
+
+namespace cryptanalysislib {
+    /// Configuration for min algorithms with SIMD and threading settings
+    struct AlgorithmMinConfig {
+    public:
+        const size_t aligned_instructions = false;
+    	const uint32_t min_size_simd = 32;
+    	const uint32_t min_size_per_thread = 16384;
+    };
+    constexpr static AlgorithmMinConfig algorithmMinConfig{};
+
+    namespace internal {
+        /// Returns minimum of two values using branchless computation
+        /// Both a and b must not have the most significant bit set
+        /// \tparam T Integral type for the values
+        /// \param a[in]: First value to compare
+        /// \param b[in]: Second value to compare
+        /// \return Minimum of a and b
+    	template<typename T>
+        static inline T upos_min(const T a,
+                                 const T b) {
+            constexpr static size_t BITS = sizeof(T) * 8u;
+            T d = b - a;
+            d &= (T)( (long)d >> (BITS-1) );
+            return  a + d;
+        }
+    
+    	/// SIMD-optimized minimum finding for integral arrays
+    	/// \tparam T Integral type for array elements
+    	/// \tparam config Algorithm configuration (default: algorithmMinConfig)
+    	/// \param a[in]: Array of integers
+    	/// \param n[in]: Length of the array
+    	/// \return Minimum value from a[0], ..., a[n-1]
+    	template<typename T,
+                 const AlgorithmMinConfig &config = algorithmMinConfig>
+    	[[nodiscard]] constexpr static inline T min_simd_uXX(const T *a,
+    														 const size_t n) noexcept {
+    		using S = SIMDSelector<T>;
+    
+    		T m = 0;
+    		auto p = S::set1(m);
+    
+            constexpr size_t t = S::LIMBS;
+    		size_t i = 0;
+    		for (; i+t <= n; i += t) {
+    			auto y = S::template load<config.aligned_instructions>(a + i);
+    			p = S::min(p, y);
+    		}
+    
+    		for (uint32_t j = 0; j < t; j++) {
+    			if (m > p[j]) {
+    				m = p[j];
+    			}
+    		}
+    
+    		// tail
+    		for (; i < n; i++) {
+    			if (a[i] < m) {
+    				m = a[i];
+    			}
+    		}
+    
+    		return m;
+        }
+    } // end namespace internal
+
+	/// Finds minimum element in a range (sequential version)
+	/// \tparam Iterator Forward iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmMinConfig)
+	/// \param start[in]: Iterator to the beginning of the range
+	/// \param end[in]: Iterator to the end of the range
+	/// \return Minimum value in the range
+	template<class Iterator,
+             const AlgorithmMinConfig &config = algorithmMinConfig>
+#if __cplusplus > 201709L
+	    requires std::forward_iterator<Iterator>
+#endif
+	[[nodiscard]] constexpr static inline Iterator::value_type min(Iterator start,
+																   Iterator end) noexcept {
+		using T = Iterator::value_type;
+		const size_t len = std::distance(start, end);
+		if (std::is_integral_v<T> && (len >= config.min_size_simd)) {
+			return min_simd_uXX(&(*start), len);
+		}
+
+		T k = *start;
+		for (size_t i = 1; i < len; i++) {
+			if (*(start+i) < *(start + k)) [[unlikely]] {
+				k = i;
+			}
+		}
+
+		return k;
+	}
+
+	/// Finds minimum element in a range (parallel version)
+	/// \tparam ExecPolicy Execution policy type for parallel execution
+	/// \tparam RandIt Random access iterator type for the range
+	/// \tparam config Algorithm configuration (default: algorithmMinConfig)
+	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param first[in]: Iterator to the beginning of the range
+	/// \param last[in]: Iterator to the end of the range
+	/// \return Minimum value in the range
+	template <class ExecPolicy,
+			  class RandIt,
+              const AlgorithmMinConfig &config = algorithmMinConfig>
+#if __cplusplus > 201709L
+    requires std::random_access_iterator<RandIt>
+#endif
+	RandIt::value_type
+	min(ExecPolicy&& policy,
+				  RandIt first,
+				  RandIt last) noexcept {
+		using T = typename RandIt::value_type;
+
+		const auto size = static_cast<size_t>(std::distance(first, last));
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			return cryptanalysislib::min
+				<RandIt, config>(first, last);
+		}
+
+		auto futures = internal::parallel_chunk_for_1(
+			std::forward<ExecPolicy>(policy),
+			first, last,
+			cryptanalysislib::min<RandIt, config>,
+			(T *)0,
+			1, nthreads);
+
+		T m = futures[0].get();
+		for (size_t i = 1; i < nthreads; i++) {
+			T mm = futures[i].get();
+			if (mm < m) {
+				m = mm;
+			}
+		}
+
+		return m;
+	}
+
+/// TODO doc
+template<class ForwardIt>
+ForwardIt min_element(ForwardIt first,
+                      ForwardIt last) {
+    if (first == last) {
+        return last;
+    }
+ 
+    ForwardIt smallest = first;
+ 
+    while (++first != last) {
+        if (*first < *smallest) {
+            smallest = first;
+        }
+    }
+
+    return smallest;
+}
+
+/// TODO doc
+template<class ForwardIt, 
+         class Compare>
+ForwardIt min_element(ForwardIt first,
+                      ForwardIt last,
+                      Compare comp) {
+    if (first == last) {
+        return last;
+    }
+ 
+    ForwardIt smallest = first;
+ 
+    while (++first != last) {
+        if (comp(*first, *smallest)) {
+            smallest = first;
+        }
+    }
+ 
+    return smallest;
+}
+
+}; // end namespace cryptanalysislib
+
+#endif

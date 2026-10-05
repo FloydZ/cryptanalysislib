@@ -124,6 +124,6 @@ TEST(Ctrie, remove) {
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
     return RUN_ALL_TESTS();
 }

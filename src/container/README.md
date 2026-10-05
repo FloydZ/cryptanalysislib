@@ -12,8 +12,8 @@ c[i];
 c.get(i);
 c.set(i, i);
 
-#  random setter
-c.random();
+#  rng setter
+c.rng();
 c.zero();
 
 # get a pointer to the underlying raw array
@@ -68,11 +68,11 @@ Container holding `n` bits in limbs of type `T`. Each limb will hold
 represents a value `mod q`. The second type `T2` is needed to sanely implement 
 the multiplication.
 
-### kAryContainer_T<T, n>
+### FqNonPackedVector<T, n>
 holds `len` elements `mod q` and each element is  saved in its own limb of 
 type `T`. 
 
-### kAryPackedContainer_T<T, n>
+### FqPackedVector<T, n>
 same as `kAryContainer<T, len>` but the implementations stores as much as 
 possible elements `mod q` in one limb of type `T`.
 

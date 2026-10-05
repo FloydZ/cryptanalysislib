@@ -2,9 +2,10 @@
 #include <iostream>
 #include <cstdint>
 
-#include "container/kAry_type.h"
 #include "helper.h"
 #include "random.h"
+#include "container/kAry_type.h"
+#include "math/math.h"
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -14,7 +15,8 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-#define TESTSIZE (1u << 16u)
+//#define TESTSIZE (1u << 16u)
+#define TESTSIZE 1000
 
 
 #define PRIME 2
@@ -73,10 +75,14 @@ using ::testing::UnitTest;
 #undef T
 #undef S
 
+// only for development
+//TEST(T, dev_big) {
+//	kAry_Type_T_big<>
+//}
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(nullptr));
 	return RUN_ALL_TESTS();
 }

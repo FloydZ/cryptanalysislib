@@ -9,14 +9,14 @@ using ::testing::Test;
 
 #define NR_TESTS (1ull << 4u)
 constexpr uint32_t n = 127;
-using K4 = kAryPackedContainer_T<uint8_t, n, 4>;
-using K5 = kAryPackedContainer_T<uint8_t, n, 5>;
-using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
+using K4 = FqPackedVector<n, 4, uint8_t>;
+using K5 = FqPackedVector<n, 5, uint8_t>;
+using K7 = FqPackedVector<n, 7, uint8_t>;
 
 #define NAME uint8_K4
 #define PRIME 4
 #define T uint8_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -26,7 +26,7 @@ using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
 #define NAME uint8_K5
 #define PRIME 5
 #define T uint8_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -36,7 +36,7 @@ using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
 #define NAME uint8_K7
 #define PRIME 7
 #define T uint8_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -47,7 +47,7 @@ using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
 #define NAME uint64_K4
 #define PRIME 4
 #define T uint64_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -57,7 +57,7 @@ using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
 #define NAME uint64_K5
 #define PRIME 5
 #define T uint64_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
@@ -67,41 +67,13 @@ using K7 = kAryPackedContainer_T<uint8_t, n, 7>;
 #define NAME uint64_K7
 #define PRIME 64
 #define T uint8_t
-#define K kAryPackedContainer_T<T, n, PRIME>
+#define K FqPackedVector<n, PRIME, T>
 #include "test_fqpackedvector.h"
 #undef PRIME
 #undef T
 #undef K
 #undef NAME
 
-
-TEST(Devv, Constexpr) {
-	kAryPackedContainer_T<uint8_t, 127, 8> b1;
-	constexpr uint32_t qbits = bits_log2(8);
-	b1.zero();
-	b1.one(0, 20);
-	uint64_t t = b1.template hash<0, 20>();
-	uint64_t mask = (1ull << (20u) * qbits) - 1ull;
-	EXPECT_EQ(t, mask);
-
-	//b1.zero();
-	//b1.one(0, 64);
-	//t = b1.template hash<0, 64>();
-	//mask = -1ull;
-	//EXPECT_EQ(t, mask);
-
-	//b1.zero();
-	//b1.one(48, 80);
-	//t = b1.template hash<48, 80>();
-	//mask = (1ull << 32u) - 1ull;
-	//EXPECT_EQ(t, mask);
-
-	//b1.zero();
-	//b1.one(63, 127);
-	//t = b1.template hash<63, 127>();
-	//mask = -1ull;
-	//EXPECT_EQ(t, mask);
-}
 
 TEST(F4, mod_T) {
 	// this is not possible, as 4 needs 3 bits,
@@ -236,12 +208,12 @@ TEST(F4, mul_T) {
 	EXPECT_EQ(K4::mul_T<uint32_t>(3, 3), 1);
 }
 
-
+using S4 = K4::S;
 TEST(F4, add256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
+	const auto t0 = S4::set1(0);
+	const auto t1 = S4::set1(1);
+	const auto t2 = S4::set1(2);
+	const auto t3 = S4::set1(3);
 
 	EXPECT_EQ(K4::add256_T(t0, t0), t0);
 	EXPECT_EQ(K4::add256_T(t0, t1), t1);
@@ -260,10 +232,10 @@ TEST(F4, add256_T) {
 }
 
 TEST(F4, mul256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
+	const auto t0 = S4::set1(0);
+	const auto t1 = S4::set1(1);
+	const auto t2 = S4::set1(2);
+	const auto t3 = S4::set1(3);
 
 	EXPECT_EQ(K4::mul256_T(t0, t0), t0);
 	EXPECT_EQ(K4::mul256_T(t0, t1), t0);
@@ -285,7 +257,7 @@ TEST(F4, mod) {
 	K4 t1 = K4();
 	K4 t2 = K4();
 	for (uint32_t i = 0; i < n; i++){
-		t1.set(fastrandombytes_uint64(), i);
+		t1.set(rng(), i);
 	}
 
 	K4::mod(t2, t1);
@@ -513,14 +485,15 @@ TEST(F7, mul_T) {
 	EXPECT_EQ(K7::mul_T<uint32_t>(3, 3), 2);
 }
 
+using S7 = K7::S;
 TEST(F7, add256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
-	const uint8x32_t t6 = uint8x32_t::set1(6);
+	const auto t0 = S7::set1(0);
+	const auto t1 = S7::set1(1);
+	const auto t2 = S7::set1(2);
+	const auto t3 = S7::set1(3);
+	const auto t4 = S7::set1(4);
+	const auto t5 = S7::set1(5);
+	const auto t6 = S7::set1(6);
 
 	EXPECT_EQ(K7::add256_T(t0, t0), t0);
 	EXPECT_EQ(K7::add256_T(t0, t1), t1);
@@ -542,13 +515,13 @@ TEST(F7, add256_T) {
 }
 
 TEST(F7, sub256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
-	const uint8x32_t t6 = uint8x32_t::set1(6);
+	const auto t0 = S7::set1(0);
+	const auto t1 = S7::set1(1);
+	const auto t2 = S7::set1(2);
+	const auto t3 = S7::set1(3);
+	const auto t4 = S7::set1(4);
+	const auto t5 = S7::set1(5);
+	const auto t6 = S7::set1(6);
 
 	EXPECT_EQ(K7::sub256_T(t0, t0), t0);
 	EXPECT_EQ(K7::sub256_T(t0, t1), t6);
@@ -566,13 +539,13 @@ TEST(F7, sub256_T) {
 }
 
 TEST(F7, mul256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
-	const uint8x32_t t6 = uint8x32_t::set1(6);
+	const auto t0 = S7::set1(0);
+	const auto t1 = S7::set1(1);
+	const auto t2 = S7::set1(2);
+	const auto t3 = S7::set1(3);
+	const auto t4 = S7::set1(4);
+	const auto t5 = S7::set1(5);
+	const auto t6 = S7::set1(6);
 
 	EXPECT_EQ(K7::mul256_T(t0, t0), t0);
 	EXPECT_EQ(K7::mul256_T(t0, t1), t0);
@@ -778,13 +751,14 @@ TEST(F5, mul_T) {
 	EXPECT_EQ(K5::mul_T<uint32_t>(5, 3), 0);
 }
 
+using S5 = K5::S;
 TEST(F5, add256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
+	const auto t0 = S5::set1(0);
+	const auto t1 = S5::set1(1);
+	const auto t2 = S5::set1(2);
+	const auto t3 = S5::set1(3);
+	const auto t4 = S5::set1(4);
+	const auto t5 = S5::set1(5);
 
 	EXPECT_EQ(K5::add256_T(t0, t0), t0);
 	EXPECT_EQ(K5::add256_T(t0, t1), t1);
@@ -806,11 +780,11 @@ TEST(F5, add256_T) {
 }
 
 TEST(F5, sub256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
+	const auto t0 = S5::set1(0);
+	const auto t1 = S5::set1(1);
+	const auto t2 = S5::set1(2);
+	const auto t3 = S5::set1(3);
+	const auto t4 = S5::set1(4);
 
 	EXPECT_EQ(K5::sub256_T(t0, t0), t0);
 	EXPECT_EQ(K5::sub256_T(t0, t1), t4);
@@ -828,12 +802,12 @@ TEST(F5, sub256_T) {
 }
 
 TEST(F5, mul256_T) {
-	const uint8x32_t t0 = uint8x32_t::set1(0);
-	const uint8x32_t t1 = uint8x32_t::set1(1);
-	const uint8x32_t t2 = uint8x32_t::set1(2);
-	const uint8x32_t t3 = uint8x32_t::set1(3);
-	const uint8x32_t t4 = uint8x32_t::set1(4);
-	const uint8x32_t t5 = uint8x32_t::set1(5);
+	const auto t0 = S5::set1(0);
+	const auto t1 = S5::set1(1);
+	const auto t2 = S5::set1(2);
+	const auto t3 = S5::set1(3);
+	const auto t4 = S5::set1(4);
+	const auto t5 = S5::set1(5);
 
 	EXPECT_EQ(K5::mul256_T(t0, t0), t0);
 	EXPECT_EQ(K5::mul256_T(t0, t1), t0);

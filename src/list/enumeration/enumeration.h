@@ -91,15 +91,15 @@ public:
 
 	/// checks for the correctness of the computed label.
 	/// e.g. it checks it l == HT*e
-	/// \param l computed label
-	/// \param e error vector resulting in the label
+	/// \param label[in]: computed label
+	/// \param error[in]: error vector resulting in the label
 	/// \param add_syndrome
 	/// \param exact_weight
 	/// \return true/false if correct or not
 	bool check(const Label &label,
 	           const Value &error,
-	           bool add_syndrome = true,
-	           bool exact_weight = true) const noexcept {
+	           const bool add_syndrome = true,
+	           const bool exact_weight = true) const noexcept {
 #ifdef DEBUG
 		/// TEST for correctness
 		auto H = HT.transpose();
@@ -113,15 +113,12 @@ public:
 		if (!tmpl.is_equal(label)) {
 			std::cout << std::endl
 			          << "ERROR: (SHOULD, IS)" << std::endl;
-			tmpl.print();
-			label.print();
-			std::cout << std::endl;
-			error.print();
-			std::cout << std::endl;
-			HT.print();
+			std::cout << tmpl << std::endl;
+			std::cout << label << std::endl;
+			std::cout << error << std::endl;
 		}
 
-		ASSERT(tmpl.is_equal(label));
+		assert(tmpl.is_equal(label));
 
 		const uint32_t tmp_vec_ctr = error.popcnt();
 		if (exact_weight) {
@@ -130,14 +127,14 @@ public:
 				label.print();
 			}
 
-			ASSERT(tmp_vec_ctr == w);
+			assert(tmp_vec_ctr == w);
 		} else {
 			if ((tmp_vec_ctr > w) || (tmp_vec_ctr == 0)) {
 				error.print();
 				label.print();
 			}
-			ASSERT(tmp_vec_ctr <= w);
-			ASSERT(tmp_vec_ctr > 0);
+			assert(tmp_vec_ctr <= w);
+			assert(tmp_vec_ctr > 0);
 		}
 #endif
 		return true;
@@ -196,7 +193,7 @@ public:
 		/// NOTE: its allowed to call this class with `w=0`, which is needed for Prange
 		static_assert(n > w);
 		static_assert(q > 1);
-		static_assert(n <= Value::length());
+		static_assert(n <= Value::length);
 	}
 };
 

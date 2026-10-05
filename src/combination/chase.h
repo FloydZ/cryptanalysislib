@@ -4,8 +4,8 @@
 #include <array>
 #include <cstdint>
 #include <vector>
+#include <cassert>
 
-#include "helper.h"
 #include "math/math.h"
 
 #if __cplusplus > 201709L
@@ -15,9 +15,9 @@ template<typename Enumerator>
 concept EnumeratorAble = requires(Enumerator e) {
 	e.step();
 };
-#endif 
+#endif
 
-/// \return  number of elements in the gray code
+/// \return number of elements in the gray code
 template<const uint32_t w, const uint32_t q>
 constexpr static size_t compute_gray_size() noexcept {
 	uint64_t sum = 1;
@@ -28,11 +28,13 @@ constexpr static size_t compute_gray_size() noexcept {
 }
 
 /// needed to compute the list size before initializing the enumerator
-/// \tparam n length to enumerate
-/// \tparam q base field size
-/// \tparam w hamming weight to enumerate: NOTE: can be zero, for Prange
+/// \tparam n[in]: length to enumerate
+/// \tparam q:in]: base field size
+/// \tparam w:in]: hamming weight to enumerate: NOTE: can be zero, for Prange
 /// \return list size
-template<const uint32_t n, const uint32_t q, const uint32_t w>
+template<const uint32_t n,
+         const uint32_t q,
+         const uint32_t w>
 constexpr size_t compute_combinations_fq_chase_list_size() {
 	static_assert(n > w);
 	static_assert(q > 1);
@@ -44,7 +46,7 @@ constexpr size_t compute_combinations_fq_chase_list_size() {
 
 /// \tparam T base limb type of the input const_array.
 /// 			Most likely always `uint64_t`
-/// \tparam n number of positions to enumerate
+/// \tparam n[in] number of positions to enumerate
 /// \tparam w weight to enumerate
 /// \tparam start offset to start the enumeration process (in bits)
 template<typename T,
@@ -76,39 +78,45 @@ class Combinations_Binary_Chase {
 
 
 	/// computes a single round of the chase sequence
-	/// \param b
+	/// \param b[in]: 
 	inline void left_round(const uint64_t b) noexcept {
-		ASSERT(b < two_changes_binary_o.size());
+		assert(b < two_changes_binary_o.size());
 
 		two_changes_binary_o[b] = two_changes_binary_o[b - 1] + two_changes_binary_d[b - 1] *
-		                          (two_changes_binary_p[b - 1] % 2 ? two_changes_binary_n[b - 1] - 1 : two_changes_binary_p[b - 1] + 1);
+		                                                                (two_changes_binary_p[b - 1] % 2 ? two_changes_binary_n[b - 1] - 1 : two_changes_binary_p[b - 1] + 1);
 		two_changes_binary_d[b] = two_changes_binary_d[b - 1] * (two_changes_binary_p[b - 1] % 2 ? -1 : 1);
 		two_changes_binary_n[b] = two_changes_binary_n[b - 1] - two_changes_binary_p[b - 1] - 1;
 		two_changes_binary_p[b] = 0;
 	}
 
-	/// \return
+    /// \param A[out]:
+    /// \param b[in]:
+    /// \param bit[in]:
+	/// \return 
 	template<const bool write = true>
 	constexpr inline uint64_t left_write(T *A,
-	                           const uint32_t b,
-	                           const int bit) noexcept {
-		ASSERT(b < two_changes_binary_o.size());
+	                                     const uint32_t b,
+	                                     const int bit) noexcept {
+		assert(b < two_changes_binary_o.size());
 		uint64_t ret = start + two_changes_binary_o[b] + two_changes_binary_p[b] * two_changes_binary_d[b];
-		if constexpr (write) { WRITE_BIT(A, ret, bit); }
+		if constexpr (write) { write_bit(A, ret, bit); }
 		return ret;
+	}
+
+	// we need these little helpers, because M4RI does not implement any row
+	// access functions, only ones for matrices.
+	/// \param v[out]: vector to write to
+	/// \param i[in]: position to wrtie to
+	/// \param b[in]:  bit to write
+	constexpr static inline void write_bit(T *v,
+	                                       const size_t i,
+	                                       const uint64_t b) noexcept {
+		v[i / RADIX] = ((v[i / RADIX] & ~(1ull << (i % RADIX))) | (T(b) << (i % RADIX)));
 	}
 
 public:
 	/// max length of the sequence
 	constexpr static size_t chase_size = bc(n, w);
-
-	// we need these little helpers, because M4RI does not implement any row
-	// access functions, only ones for matrices.
-	constexpr static inline void WRITE_BIT(T *v,
-	                                       const size_t i,
-	                                       const uint64_t b) noexcept {
-		v[i / RADIX] = ((v[i / RADIX] & ~(1ull << (i % RADIX))) | (T(b) << (i % RADIX)));
-	}
 
 	///
 	constexpr Combinations_Binary_Chase() noexcept {
@@ -116,7 +124,7 @@ public:
 		reset();
 	};
 
-	/// resets the
+	/// resets the whole class, to be able to run again.
 	constexpr void reset() noexcept {
 		two_changes_binary_o.fill(0);
 		two_changes_binary_d.fill(0);
@@ -174,32 +182,41 @@ public:
 		return true;
 	}
 
+    /// NOTE: assumes that the first element of the list:
+    ///     {1,...1,0, ... 0} 
+    ///     is created by hand.
+    /// NOTE: `ret` will be resized to `listsize`
 	/// \tparam write
-	/// \param ret input/output const_array containing ``
-	/// \param listsize
-	/// \return
+	/// \param ret[out]: output vector containing the differences one needs
+    ///     to compute in each step. So:
+    ///         ret[0] = {p-1, p}
+    ///         ret[1] = {p, p+1}
+    ///               ...
+	/// \param listsize[in]: max number of elements to  generate. If set to 
+    ///     0, all elements in the chase sequence will be generated
 	template<bool write = true>
-	constexpr void changelist(std::pair<uint16_t, uint16_t> *ret, // TODO change to reference
+	constexpr void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 	                          const size_t listsize = 0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
+		ret.resize(listsize);
 
 		left_step<write>(nullptr, &ret[0].first, &ret[0].second);
 		for (size_t i = 0; i < size; ++i) {
 			bool c = left_step<write>(nullptr, &ret[i].first, &ret[i].second);
-			ASSERT(c == (i != size - 1u));
-			ASSERT(ret[i].first < n);
-			ASSERT(ret[i].second < n);
+			assert(c == (i != size - 1u));
+			assert(ret[i].first < n);
+			assert(ret[i].second < n);
 		}
 	}
 
 	/// NOTE: old function, only for testing.
 	/// NOTE: normally you shouldnt use this function.
 	/// This functions simply xors together two given rows `p` and `p_old` and finds the two positions where they differ
-	/// \param p newly generated chase element. Output from `left_step`
-	/// \param p_old  last generated element from the chase sequence.
-	/// \param limbs Number of limbs of type T needed to represent a element of the chase sequence
-	/// \param pos1 output: first bit position where 'p` and `p_old` differs
-	/// \param pos2 output: second bit position
+	/// \param p[in]: generated chase element. Output from `left_step`
+	/// \param p[in]:  last generated element from the chase sequence.
+	/// \param limbs[in]: Number of limbs of type T needed to represent a element of the chase sequence
+	/// \param pos1[out]: first bit position where 'p` and `p_old` differs
+	/// \param pos2[out]: second bit position
 	static void __diff(const T *p,
 	                   const T *p_old,
 	                   const uint32_t limbs,
@@ -238,10 +255,12 @@ public:
 /// all elements are enumerated which only differ in at most two positions.
 /// On top of this sequence, a grey code will enumerated to enumerated over
 /// all elementes in Fq
-/// \tparam n length to enumerate
-/// \tparam q base field size
-/// \tparam w hamming weight to enumerate
-template<uint32_t n, const uint32_t q, const uint32_t w>
+/// \tparam n[in] length to enumerate
+/// \tparam q in] base field size
+/// \tparam w in] hamming weight to enumerate
+template<const uint32_t n,
+         const uint32_t q,
+         const uint32_t w>
 class Combinations_Fq_Chase {
 	/// max value to enumerate
 	constexpr static uint32_t qm1 = q - 1;
@@ -298,14 +317,10 @@ public:
 	/// \param ret input/output const_array containing ``
 	/// \return nothing
 	template<bool write = true>
-	constexpr void changelist_chase(std::pair<uint16_t, uint16_t> *ret) {
+	constexpr void changelist_chase(std::vector<std::pair<uint16_t, uint16_t>> &ret) {
 		chase.template changelist<write>(ret);
 	}
 
-	///
-	/// \param n length
-	/// \param q field size
-	/// \param w max hamming weight to enumerate
 	constexpr Combinations_Fq_Chase() noexcept {
 		/// init the restricted gray code
 		for (uint32_t i = 0; i < n; ++i) {
@@ -317,178 +332,20 @@ public:
 	}
 };
 
-// TODO is sadly wrong is counting certain elements double
-//template<const uint32_t n, const uint32_t p>
-//void next3(uint32_t *c1, uint32_t *c2) {
-//	static_assert(n > p);
-//	static_assert(p > 0);
-//
-//	static bool jumps[p] = {false};
-//	// last_pos[0] = slow ctr
-//	// last_pos[1] = middle ctr
-//	static uint32_t last_pos[p] = {0};
-//	static uint32_t cp = 1;
-//
-//	/// jump the middle/fast ctr back to the slow
-//	for (uint32_t i = 0; i < p; i++) {
-//		if (jumps[i]) {
-//			*c1 = n - 1u;
-//			*c2 = last_pos[cp] + 1u;
-//			jumps[i] = false;
-//			return;
-//		}
-//	}
-//
-//	/// step with slow/middle ctr
-//	for (int32_t i = (p - 1); i >= 0; i--) {
-//		if (*c2 == (n - 1u)) {
-//			*c1 = last_pos[cp];
-//			*c2 = last_pos[cp] + 1u;
-//			last_pos[cp] += 1;
-//
-//			jumps[cp] = true;
-//			cp -= 1u * (last_pos[cp] == (n - 1u - cp));
-//			return;
-//		}
-//	}
-//
-//
-//	*c1 = *c2;
-//	*c2 += 1u;
-//	return;
-//}
-//
-//// only generated the change list
-////https://godbolt.org/#z:OYLghAFBqd5QCxAYwPYBMCmBRdBLAF1QCcAaPECAMzwBtMA7AQwFtMQByARg9KtQYEAysib0QXACx8BBAKoBnTAAUAHpwAMvAFYTStJg1DIApACYAQuYukl9ZATwDKjdAGFUtAK4sGIM9KuADJ4DJgAcj4ARpjEIADMAOykAA6oCoRODB7evv7SaRmOAiFhkSwxcUm2mPbFDEIETMQEOT5%2BATV1WY3NBKUR0bEJyQpNLW15nWN9A%2BWVIwCUtqhexMjsHObxocjeWADUJvFuyGP4gsfYJhoAgje3BJgsKQZPx6cCYwdeoQTxZgA%2BgQDgxSAc0Axvr9BADgQcUlcHn9QZhVAQzBAYf8gSCAFTILjg7Fw/HIMyLI6JKx3G4AThmjmQByiqE8B20PhSR3iABEDlQxEpjjT7hoGU0mT8/qSDgYxoDCjz%2BRoRQ91eKAPTajlcg4EBCYAVMb4OYgspjIADW%2BtQ%2BsNBwUtFQAHcNXS8FQDhBOS9KSZqe76QSuMrQQcALQHLheNW08XB8lh%2BUERXpI6WaOx%2BKi%2Bn033c478wW0YU5oPi4iYAhrBjRuNiukB3kaxvazWOp7cl2EBD2o1O10QgjEd2e70EszKovehgRmOLf2B%2BNN8Uh5Mm1OFBt5tdJmcptMKDMWLM7hPiw9K6wzrjnxv5vUzkdeTDn1d0qs14h1u/llfNq29LtgcaKEBCAj4PU7rauOEDrkWM4QHOC4HEuuZapq9JfrWByqv%2BbZYYkLbxo2CF8gck7vpOJ63tmGGftWuF/rmxGtiiTxjBAkLfCiUQGOh7o8U8qgpOaKIMHWt4aPhDHCWiYkHCihYUWY94PAcmlKYIw7mjOsnuiSuIIqG%2BngikU63u%2B6B2gGDH0mE6JqScknmVcEDmAAbCkRIZt5FINlpQW6bRFEsUGxEHC6CB0Ea3EjjybgzvxTCLIFWk4T%2BJkngizmsbyHDLLQnAAKy8H4HBaKQqCcElljWI6qzrEa2w8KQBCaIVyxWiAJUaPonCSOVnXVZwvAKCA/UdZVhWkHAsBIGgLyxWQFDcagy30HEwBcACfB0E8xATRAUQjVEoTNAAnpwbXncwxCXQA8lE2iYA4N28EtbCCI9DC0NdM2kFgUReMAbhiKWH1A88hjAOIgP4FWDh4AAbpgE2A2ib1eE8UN/LUI20HgUTEFdHhYCNI54CwH3LFQBjAAoABqeCYC6j0pIwUP8IIIhiOwUgyIIigqOogO6ESBhGCgN6WPoxMTZAyyoCk9QYxGj3xJGLBMCjqja7rqhTrwqBo8QxB4FgisQMsdhvfULgMO4njtHowShIMFTDEShSZAIkx%2BD76R%2BwwcxDHERJ28jAi9BMLt5JHtT2z04z9B78ze7YqcB3oMwtGHXsR7bTUbBIRWlcNgM1RwByqAAHJ5EaeZIBzAMgzK7QAdFOEC4IQJAZvEXCLLw01aIupA9X1A0cENpAVVV1fjZN7WdRPxUcGYleL2Nq8zRPZsZM4khAA
-//template<const uint32_t n, const uint32_t p>
-//void next2(uint32_t *c1, uint32_t *c2) {
-//	static bool jump = false;
-//	static uint32_t last_pos = 0;
-//
-//	/// jump the fast ctr back to the slow
-//	if (jump) {
-//		*c1 = n - 1u;
-//		*c2 = last_pos + 1u;
-//		jump = false;
-//		return;
-//	}
-//
-//	/// step with the slow ctr
-//	if (*c2 == (n - 1u)) {
-//		*c1 = last_pos;
-//		*c2 = last_pos + 1u;
-//		last_pos += 1;
-//
-//		jump = true;
-//		return;
-//	}
-//
-//
-//	*c1 = *c2;
-//	*c2 += 1u;
-//	return;
-//}
-//
-/////
-//template<const uint32_t n, const uint32_t p>
-//void next1(uint32_t *c1, uint32_t *c2) {
-//	*c1 += 1;
-//	*c2 += 1;
-//}
-//
-/////
-//template<const uint32_t n, const uint32_t p>
-//void next_chase(uint32_t *c1, uint32_t *c2) {
-//	static_assert(p > 0);
-//	static_assert(n > p);
-//	if constexpr (p == 1) {
-//		next1<n, p>(c1, c2);
-//	} else if constexpr (p == 2) {
-//		next2<n, p>(c1, c2);
-//	} else if constexpr (p == 3) {
-//		next3<n, p>(c1, c2);
-//	}
-//}
 
-
-template<const uint32_t n, const uint32_t p, const uint32_t q = 2>
-class enumerate_t {
-	using T = uint16_t;
-	T idx[16] = {0};
-
-public:
-	constexpr size_t list_size() const noexcept {
-		return compute_combinations_fq_chase_list_size<n, q, p>();
-	}
-
-	template<typename F>
-	constexpr inline void enumerate(F &&f) noexcept {
-		static_assert(n > p);
-		if constexpr (p == 0) {
-			// catch for prange
-			return;
-		} else if constexpr (p == 1) {
-			return enumerate1(idx, f);
-		} else if constexpr (p == 2) {
-			return enumerate2(idx, f);
-		} else if constexpr (p == 3) {
-			return enumerate3(idx, f);
-		}
-	}
-
-	template<typename F>
-	constexpr static inline void enumerate1(T *idx, F &&f) noexcept {
-		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
-			f(idx);
-		}
-	}
-
-	template<typename F>
-	constexpr static inline void enumerate2(T *idx, F &&f) noexcept {
-		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
-			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
-				f(idx);
-			}
-		}
-	}
-
-	template<typename F>
-	constexpr static inline void enumerate3(T *idx, F &&f) noexcept {
-		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
-			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
-				for (idx[2] = idx[1] + 1; idx[2] < n; ++idx[2]) {
-					f(idx);
-				}
-			}
-		}
-	}
-
-	template<typename F>
-	constexpr static inline void enumerate4(T *idx, F &&f) noexcept {
-		for (idx[0] = 0; idx[0] < n; ++idx[0]) {
-			for (idx[1] = idx[0] + 1; idx[1] < n; ++idx[1]) {
-				for (idx[2] = idx[1] + 1; idx[2] < n; ++idx[2]) {
-					for (idx[3] = idx[2] + 1; idx[3] < n; ++idx[3]) {
-						f(idx);
-					}
-				}
-			}
-		}
-	}
-};
-
-template<const uint32_t n, 
-		 const uint32_t p,
-		 const uint32_t q=2>
-class chase {
+template<const uint32_t n,
+         const uint32_t p,
+         const uint32_t q = 2>
+class chase_t {
 	using T = uint16_t;
 	// TODO reset und wie machen wir das wenn wir mehrerer solcher fks hintereinander callen
 	T idx[16] = {0};
 
 	static_assert(q >= 2);
+	static_assert(p <= 3);
 
 public:
-	constexpr size_t list_size() const noexcept {
+	[[nodiscard]] constexpr size_t list_size() const noexcept {
 		return compute_combinations_fq_chase_list_size<n, q, p>();
 	}
 
@@ -597,7 +454,7 @@ public:
 
 
 	inline void biject1(uint64_t a, uint16_t rows[1]) noexcept {
-		ASSERT(a < n);
+		assert(a < n);
 		rows[0] = a;
 	}
 
@@ -676,6 +533,141 @@ public:
 			}
 		}
 	}
+};
+
+/// based on: https://github.com/vvasseur/isd/blob/master/src/dumer.c
+template<const uint32_t n, const uint32_t t>
+class BinaryChaseEnumerator {
+	static_assert(n > t);
+	static_assert(t > 0);
+
+	/// max length of the sequence
+	/// The thing is: we will not create the first element in this list.
+	constexpr static size_t chase_size = bc(n, t) - 1ull;
+
+public:
+	constexpr static inline size_t size() noexcept {
+		return chase_size;
+	}
+
+	/// List all combinations of 't' elements of a set of 'n' elements.
+	///
+	/// Generate a Chase's sequence: the binary representation of a combination and
+	/// its successor only differ by two bits that are either consecutive of
+	/// separated by only one position.
+	///
+	/// See exercise 45 of Knuth's The art of computer programming volume 4A.
+	/// \param ret
+	/// \param listsize
+	/// \return TODO seems not to be correct,n=5,t=2 errors
+	static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
+	                       const size_t listsize = 0) noexcept {
+		const size_t size = listsize == 0 ? chase_size : listsize;
+		ret.resize(size);
+		if constexpr (t==1) {
+			for (size_t i = 1; i <= size; ++i) {
+				std::pair<uint16_t, uint16_t> tmp{i-1,i};
+				ret[i-1] = tmp;
+			}
+			return;
+		}
+
+		size_t N = 0;
+		uint16_t diff_pos = 0;
+		uint16_t diff_len = 0;
+		int32_t x;
+		uint16_t c[t + 2];
+		uint16_t z[t + 2];
+		for (size_t j = 0; j <= t + 1; ++j) {
+			z[j] = 0;
+		}
+		for (size_t j = 0; j <= t + 1; ++j) {
+			c[j] = n - t - 1 + j;
+		}
+		/* r is the least subscript with c[r] >= r. */
+		size_t r = 1;
+		size_t j=0;
+
+		uint16_t old_val = t-1u;
+		uint16_t cur_val = t;
+		uint16_t old_c[t + 2] = {0};
+
+		while (true) {
+			if ((N-1ul) == size) { return; }
+			// for (size_t i = 1; i <= t; ++i) {
+			// 	combinations[i - 1 + N * t] = c[i];
+			// }
+			// diff[N] = diff_pos + (diff_len - 1) * (n - 1);
+			(void)diff_pos;
+			(void)diff_len;
+			if (j <= t) { cur_val = n-1-c[j]; }
+			if (j <= t) { old_val = n-1-old_c[j]; }
+			if (N > 0) {
+				 std::pair<uint16_t, uint16_t> tmp{old_val, cur_val};
+				 ret[N-1] = tmp;
+			}
+			//std::memcpy(old_c, c, (t+2) * sizeof(uint16_t));
+			// TODO replace with cryptanalysislib
+			memcpy(old_c, c, 2*(t+2));
+
+			++N;
+			j = r;
+
+		novisit:
+			if (z[j]) {
+				x = c[j] + 2;
+				if (x < z[j]) {
+					diff_pos = c[j];
+					diff_len = 2;
+					c[j] = x;
+				} else if (x == z[j] && z[j + 1]) {
+					diff_pos = c[j];
+					diff_len = 2 - (c[j + 1] % 2);
+					c[j] = x - (c[j + 1] % 2);
+				} else {
+					z[j] = 0;
+					++j;
+					if (j <= t)
+						goto novisit;
+					else
+						goto exit;
+				}
+				if (c[1] > 0) {
+					r = 1;
+				} else {
+					r = j - 1;
+				}
+			} else {
+				x = c[j] + (c[j] % 2) - 2;
+				if (x >= (int32_t) j) {
+					diff_pos = x;
+					diff_len = 2 - (c[j] % 2);
+					c[j] = x;
+					r = 1;
+				} else if (c[j] == j) {
+					diff_pos = j - 1;
+					diff_len = 1;
+					c[j] = j - 1;
+					z[j] = c[j + 1] - ((c[j + 1] + 1) % 2);
+					r = j;
+				} else if (c[j] < j) {
+					diff_pos = c[j];
+					diff_len = j - c[j];
+					c[j] = j;
+					z[j] = c[j + 1] - ((c[j + 1] + 1) % 2);
+					r = (j > 2) ? j - 1 : 1;
+				} else {
+					diff_pos = x;
+					diff_len = 2 - (c[j] % 2);
+					c[j] = x;
+					r = j;
+				}
+			}
+		}
+	exit:
+		return;
+	}
+
 };
 
 #endif//CRYPTANALYSISLIB_CHASE_H

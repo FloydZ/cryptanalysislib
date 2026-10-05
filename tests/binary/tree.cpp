@@ -6,14 +6,14 @@
 #include "tree.h"
 
 constexpr uint32_t n  = 20;
-using BinaryValue     = BinaryContainer<n>;
-using BinaryLabel     = BinaryContainer<n>;
+using BinaryValue     = BinaryVector<n>;
+using BinaryLabel     = BinaryVector<n>;
 using BinaryMatrix    = FqMatrix<uint64_t, n, n, 2, true>;
 using BinaryElement   = Element_T<BinaryValue, BinaryLabel, BinaryMatrix>;
 using BinaryList      = List_T<BinaryElement>;
 using BinaryTree      = Tree_T<BinaryList>;
 
-static std::vector<uint64_t> __level_translation_array{{0, 5, 10, 15, n}};
+static std::vector<uint32_t> __level_translation_array{{0, 5, 10, 15, n}};
 static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0,0}}, {{1,0,0}}, {{0,0,0}} }};
 
 
@@ -84,7 +84,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel0) {
 
 	constexpr size_t size = 12u;
 
-	static std::vector<uint64_t> __level_translation_array{{0, n}};
+	static std::vector<uint32_t> __level_translation_array{{0, n}};
 	BinaryTree t{2, A, size, __level_translation_array, __level_filter_array};
 
 	t[0].random(1u << size, A);
@@ -111,7 +111,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel1) {
 	A.random();
 
 	constexpr size_t size = 10;
-	static std::vector<uint64_t> tbl{{0, n/2, n}};
+	static std::vector<uint32_t> tbl{{0, n/2, n}};
 	BinaryTree t{2, A, size, tbl, __level_filter_array};
 
 	t[0].random(1u << size, A);
@@ -130,8 +130,8 @@ TEST(BinaryTreeTest, JoinRandomListsLevel1) {
     t[1].sort_level(0, tbl);
 
 	BinaryElement tmp;
-    const uint64_t k_lower = 0;
-	const uint64_t k_upper = tmp.label_size();
+    const uint32_t k_lower = 0;
+	const uint32_t k_upper = tmp.label_size();
 
 	uint64_t num = 0;
 	BinaryElement el{};
@@ -141,7 +141,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel1) {
 				BinaryElement::add(el, t[0][i], t[1][j], k_lower, k_upper);
 
 				for (size_t o = 0; o < t[2].load(); ++o) {
-					if (el.is_equal(t[2][o], 1)) {
+					if (el.is_equal(t[2][o], 0, n)) {
 						num++;
 					}
 				}
@@ -162,7 +162,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel2) {
 	A.fill(0);
 	A.random();
 
-	static std::vector<uint64_t> tbl{{0, n/3, 2*n/3, n}};
+	static std::vector<uint32_t> tbl{{0, n/3, 2*n/3, n}};
 	BinaryTree t{3, A, base_size, tbl, __level_filter_array};
 
     t[0].set_load(0);
@@ -193,7 +193,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel2) {
     t[3].sort_level(2, tbl);
 
     uint64_t num = 0;
-	BinaryElement el, el2, tmp;
+	BinaryElement el, el2;
     for (size_t i = 0; i < t[0].load(); ++i) {
 		for (size_t j = 0; j < t[1].load(); ++j) {
 			if (t[0][i].is_equal(t[1][j], tbl[0], tbl[1])) {
@@ -224,7 +224,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel3) {
 	BinaryMatrix A;
 	A.random();
 
-	static std::vector<uint64_t> tbl{{0, n/4, n/2, 3*n/4, n}};
+	static std::vector<uint32_t> tbl{{0, n/4, n/2, 3*n/4, n}};
 	BinaryTree t{4, A, base_size, tbl, __level_filter_array};
 
     t[0].set_load(0);
@@ -297,7 +297,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel3) {
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();
-	random_seed(time(NULL));
+	rng_seed(time(NULL));
 	return RUN_ALL_TESTS();
 }
 #endif

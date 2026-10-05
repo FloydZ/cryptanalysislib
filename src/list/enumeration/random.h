@@ -14,6 +14,8 @@
 #include "list/enumeration/enumeration.h"
 #include "math/bc.h"
 
+using namespace cryptanalysislib;
+
 /// This class enumerates vectors of length n and weight w, whereas
 /// no changelist is used.
 /// \tparam ListType
@@ -52,7 +54,7 @@ public:
 
 	////
 	constexpr static size_t max_list_size = 1ull << (n - w);
-	const size_t list_size;
+	const size_t list_size = 0;
 
 	// some security things
 	static_assert(Value::length() >= w);
@@ -107,8 +109,8 @@ public:
 			 Extractor *e = nullptr,
 			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
-		ASSERT(offset + base_offset <= Value::length());
+		assert(n + offset <= Value::length());
+		assert(offset + base_offset <= Value::length());
 		const auto H = HT.transpose();
 
 		// check if the lists are enabled
@@ -140,6 +142,31 @@ public:
 		if (sL2) { L2->set_load(list_size); }
 
 		return false;
+	}
+
+	/// \param L1
+	/// \param L2
+	/// \param offset
+	/// \param base_offset
+	/// \param tid
+	/// \return
+	bool run(ListType *L1 = nullptr,
+			 ListType *L2 = nullptr,
+			 const uint32_t offset = 0,
+			 const uint32_t base_offset = 0,
+			 const uint32_t tid = 0){
+		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+		        (L1, L2, offset, base_offset, tid);
+	}
+
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"BinaryRandomEnumerator\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", max_list_size: " << max_list_size
+				  << ", list_size: " << list_size
+		          << " }\n";
 	}
 };
 
@@ -183,10 +210,10 @@ public:
 
 	////
 	constexpr static size_t max_list_size = 1ull << (n - w);
-	const size_t list_size;
+	const size_t list_size = 0;
 
 	// some security things
-	static_assert(Value::length() >= w);
+	static_assert(Value::length >= w);
 	static_assert(n >= w);
 	static_assert(w > 0);
 private:
@@ -198,11 +225,11 @@ public:
 	/// 			if set to 0: the complete sequence will be enumerated.
 	/// \param syndrome additional element which is added to all list elements
 	constexpr MaxBinaryRandomEnumerator(const Matrix &HT,
-							   const size_t list_size = 0,
-							   const Label *syndrome = nullptr) noexcept
-			: ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
-			  list_size((list_size == size_t(0)) ? max_list_size : list_size)
-	 		  {}
+							            const size_t list_size = 0,
+							            const Label *syndrome = nullptr) noexcept
+		: ListEnumeration_Meta<ListType, n, q, w>(HT, syndrome),
+		list_size((list_size == size_t(0)) ? max_list_size : list_size)
+	{}
 
 	///
 	/// \tparam HashMap
@@ -238,8 +265,8 @@ public:
 			 Extractor *e = nullptr,
 			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		ASSERT(n + offset <= Value::length());
-		ASSERT(offset + base_offset <= Value::length());
+		assert(n + offset <= Value::length);
+		assert(offset + base_offset <= Value::length);
 		const auto H = HT.transpose();
 		element1.zero();
 		element2.zero();
@@ -251,14 +278,14 @@ public:
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
 		for (size_t ctr = 0; ctr < list_size; ++ctr) {
-			const uint32_t w1 = fastrandombytes_uint64(1, w);
+			const uint32_t w1 = rng<T>(1, w);
 			element1.value.random_with_weight(w1, n/2, base_offset);
 			H.mul(element1.label, element1.value);
 
 			if (syndrome != nullptr) { Label::add(element1.label, element1.label, *syndrome); }
 
 			if (sL2) {
-				const uint32_t w2 = fastrandombytes_uint64(1, w);
+				const uint32_t w2 = rng<T>(1, w);
 				element2.value.random_with_weight(w2, n/2, base_offset+offset);
 				H.mul(element2.label, element2.value);
 			}
@@ -278,13 +305,29 @@ public:
 		return false;
 	}
 
+	/// \param L1
+	/// \param L2
+	/// \param offset
+	/// \param base_offset
+	/// \param tid
+	/// \return
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
 			 const uint32_t offset = 0,
 			 const uint32_t base_offset = 0,
-			 const uint32_t tid = 0){
+			 const uint32_t tid = 0) noexcept {
 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
 				(L1, L2, offset, base_offset, tid);
+	}
+
+	///
+	constexpr void info() noexcept {
+		std::cout << " { name: \"MaxBinaryRandomEnumerator\""
+				  << ", n: " << n
+				  << ", w: " << w
+				  << ", max_list_size: " << max_list_size
+				  << ", list_size: " << list_size
+		          << " }\n";
 	}
 };
 

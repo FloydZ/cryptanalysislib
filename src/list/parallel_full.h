@@ -46,6 +46,17 @@ public:
 	using MetaListT<Element>::ValueBytes;
 	using MetaListT<Element>::LabelBytes;
 
+	using typename MetaListT<Element>::value_type;
+	using typename MetaListT<Element>::allocator_type;
+	using typename MetaListT<Element>::size_type;
+	using typename MetaListT<Element>::difference_type;
+	using typename MetaListT<Element>::reference;
+	using typename MetaListT<Element>::const_reference;
+	using typename MetaListT<Element>::pointer;
+	using typename MetaListT<Element>::const_pointer;
+	using typename MetaListT<Element>::iterator;
+	using typename MetaListT<Element>::const_iterator;
+
 	/// needed functions
 	using MetaListT<Element>::size;
 	using MetaListT<Element>::set_size;
@@ -107,7 +118,7 @@ public:
 
 	///
 	constexpr void sort(const size_t s=0, const size_t e=size()) noexcept {
-		ASSERT(e <= size());
+		assert(e <= size());
 		std::sort(begin() + s, begin() + e);
 	}
 
@@ -119,7 +130,7 @@ public:
 	/// \param hash
 	template<typename Hash>
 	constexpr void sort(Hash &hash, const size_t s, const size_t e) noexcept {
-		ASSERT(e <= size());
+		assert(e <= size());
 		ska_sort(__data.begin() + s,
 		         __data.begin() + e,
 		         hash);
@@ -127,9 +138,8 @@ public:
 
 	/// \param i lower coordinate in the label used as the sorting index
 	/// \param j upper   .....
-	/// \param tid thread id
 	void sort_level(const uint32_t i, const uint32_t j) noexcept {
-		ASSERT(i < j);
+		assert(i < j);
 		using T = LabelContainerType;
 		using Limb = LabelLimbType;
 
@@ -143,6 +153,7 @@ public:
 				std::sort(__data.begin(),
 				          __data.end(),
 				          [lower, mask](const auto &e1, const auto &e2) {
+				          		// TODO this is not correct for q != 2
 					          return (e1.label_ptr(lower) & mask) < (e2.label_ptr(lower) & mask);
 				          });
 			} else {
@@ -236,21 +247,21 @@ public:
 	/// zero out the i-th element.
 	/// \param i
 	void zero(size_t i) noexcept {
-		ASSERT(i < size());
+		assert(i < size());
 		__data[i].zero();
 	}
 
 	/// set L[load] = e1 + e2 and updated the load factor. Note this is usefull, because every thread can so maintain
 	/// its own list size.
-	/// \param e1	first element
-	/// \param e2	second element to add
-	/// \param load load factor = number of elements currently in the list.
-	/// \param tid thread number
+	/// \param e1[in]: first element
+	/// \param e2[in]: second element to add
+	/// \param load[in/out] load factor = number of elements currently in the list.
+	/// \param tid[in] thread number
 	void add_and_append(const Element &e1,
 	                    const Element &e2,
 	                    LoadType &load,
 	                    const uint32_t tid) noexcept {
-		ASSERT(tid < __threads);
+		assert(tid < __threads);
 
 		if (load >= thread_block_size())
 			return;
@@ -270,7 +281,7 @@ public:
 	void add_and_append(const LabelType &l1, const ValueType &v1,
 	                    const LabelType &l2, const ValueType &v2,
 	                    LoadType &load, const uint32_t tid) noexcept {
-		ASSERT(tid < threads);
+		assert(tid < threads);
 
 		if (load >= thread_block_size())
 			return;
@@ -281,14 +292,16 @@ public:
 	}
 };
 
+//
 /// \tparam Element
 /// \param out
 /// \param obj
 /// \return
 template<class Element>
-std::ostream &operator<<(std::ostream &out, const Parallel_List_FullElement_T<Element> &obj) {
+std::ostream &operator<<(std::ostream &out,
+						 const Parallel_List_FullElement_T<Element> &obj) {
 	for (uint64_t i = 0; i < obj.size(); ++i) {
-		out << i << " " << obj.data(i) << std::flush;
+		out << i << " " << obj[i] << std::flush;
 	}
 
 	return out;

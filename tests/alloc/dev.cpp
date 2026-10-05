@@ -13,20 +13,20 @@ TEST(StackAllocator, Simple) {
 	constexpr size_t size = 16;
 	StackAllocator<size> s;
 	Blk b = s.allocate(size);
-	ASSERT_EQ(b.valid(), true);
+	EXPECT_EQ(b.valid(), true);
 
 	auto *ptr = (uint8_t *) b.ptr;
 	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 
-	ASSERT_EQ(s.owns(b), true);
+	EXPECT_EQ(s.owns(b), true);
 	Blk b2{((uint8_t *) b.ptr) + size, b.len};
-	ASSERT_EQ(s.owns(b2), false);
+	EXPECT_EQ(s.owns(b2), false);
 	s.deallocateAll();
 
-	ASSERT_EQ(s.owns(b), false);
-	ASSERT_EQ(s.owns(b2), false);
+	EXPECT_EQ(s.owns(b), false);
+	EXPECT_EQ(s.owns(b2), false);
 }
 
 TEST(FreeListAllocator, Simple) {
@@ -34,7 +34,7 @@ TEST(FreeListAllocator, Simple) {
 	constexpr size_t size = 16;
 	FreeListAllocator<StackAllocator<total_size>, size> s;
 	Blk b = s.allocate(size);
-	ASSERT_EQ(b.valid(), true);
+	EXPECT_EQ(b.valid(), true);
 
 	auto *ptr = (uint8_t *) b.ptr;
 	for (size_t i = 0; i < size; i++) {
@@ -42,9 +42,9 @@ TEST(FreeListAllocator, Simple) {
 	}
 
 	// checking some basics
-	ASSERT_EQ(s.owns(b), true);
+	EXPECT_EQ(s.owns(b), true);
 	s.deallocateAll();
-	ASSERT_EQ(s.owns(b), true);
+	EXPECT_EQ(s.owns(b), true);
 
 	// checking the free list, while debugging you should see, that in
 	// the last loop the memory is not allocated anymore. But reused
@@ -68,22 +68,22 @@ TEST(AffixAllocator, Simple) {
 	};
 	AffixAllocator<StackAllocator<1024>, TestStruct> s;
 	Blk b = s.allocate(size);
-	ASSERT_EQ(b.valid(), true);
+	EXPECT_EQ(b.valid(), true);
 
 	auto *ptr = (uint8_t *) b.ptr;
 	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 
-	ASSERT_EQ(s.owns(b), true);
+	EXPECT_EQ(s.owns(b), true);
 	s.deallocate(b);
-	ASSERT_EQ(s.owns(b), false);
+	EXPECT_EQ(s.owns(b), false);
 	Blk b2{((uint8_t *) b.ptr) - size, b.len};
-	ASSERT_EQ(s.owns(b2), false);
+	EXPECT_EQ(s.owns(b2), false);
 	s.deallocateAll();
 
-	ASSERT_EQ(s.owns(b), false);
-	ASSERT_EQ(s.owns(b2), false);
+	EXPECT_EQ(s.owns(b), false);
+	EXPECT_EQ(s.owns(b2), false);
 }
 
 
@@ -94,22 +94,22 @@ TEST(Segregator, Simple) {
 	           128>
 	        s;
 	Blk b = s.allocate(size);
-	ASSERT_EQ(b.valid(), true);
+	EXPECT_EQ(b.valid(), true);
 
 	auto *ptr = (uint8_t *) b.ptr;
 	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
 
-	ASSERT_EQ(s.owns(b), true);
+	EXPECT_EQ(s.owns(b), true);
 	s.deallocate(b);// FreeList Deallocate
-	ASSERT_EQ(s.owns(b), true);
+	EXPECT_EQ(s.owns(b), true);
 	Blk b2{((uint8_t *) b.ptr) - size, b.len};
-	ASSERT_EQ(s.owns(b2), true);// well technically not true
+	EXPECT_EQ(s.owns(b2), true);// well technically not true
 	s.deallocateAll();
 
-	// ASSERT_EQ(s.owns(b),  false);
-	// ASSERT_EQ(s.owns(b2), false);
+	// EXPECT_EQ(s.owns(b),  false);
+	// EXPECT_EQ(s.owns(b2), false);
 }
 
 TEST(PageMallocator, Simple) {
@@ -119,12 +119,12 @@ TEST(PageMallocator, Simple) {
 	PageMallocator<page_alignment, size> s;
 	Blk b = s.allocate();
 
-	ASSERT_EQ(b.valid(), true);
+	EXPECT_EQ(b.valid(), true);
 	auto *ptr = (uint8_t *) b.ptr;
 	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
-	ASSERT_EQ(s.owns(b), true);
+	EXPECT_EQ(s.owns(b), true);
 	s.deallocate(b);
 }
 
@@ -135,12 +135,12 @@ TEST(FreeListPageMallocator, Simple) {
 	FreeListPageMallocator<page_alignment, size> s;
 	Blk b = s.allocate();
 
-	ASSERT_EQ(b.valid(), true);
+	EXPECT_EQ(b.valid(), true);
 	auto *ptr = (uint8_t *) b.ptr;
 	for (size_t i = 0; i < size; i++) {
 		ptr[i] = i;
 	}
-	ASSERT_EQ(s.owns(b), true);
+	EXPECT_EQ(s.owns(b), true);
 	s.deallocate(b);
 }
 
@@ -153,15 +153,15 @@ TEST(STDAllocatorWrapper, simple) {
 	WrapperAllocator s;
 
 	const T *ret = WrapperAllocator::allocate(s, size);
-	ASSERT_NE(ret, nullptr);
+	EXPECT_NE(ret, nullptr);
 
 	const T *ret1 = WrapperAllocator::allocate(s, size+1);
-	ASSERT_EQ(ret1, nullptr);
+	EXPECT_EQ(ret1, nullptr);
 
 	using CV = std::vector<T, WrapperAllocator>;
 	CV v = {0, 1, 2, 3};
 	for(uint32_t i = 0; i < 4; i++) {
-		ASSERT_EQ(v[i], i);
+		EXPECT_EQ(v[i], i);
 	}
 }
 
