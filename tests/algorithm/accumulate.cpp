@@ -42,7 +42,9 @@ TYPED_TEST_P(Reduce, multithreading) {
     std::fill(in.begin(), in.end(), 1);
 
     const auto d = cryptanalysislib::accumulate(par_if(true), in.begin(), in.end(), 0);
-    EXPECT_EQ(d, s);
+    // NOTE: the sum is computed in `TypeParam` (unlike std::accumulate, which
+    // uses the type of `init`), so for uint8_t it wraps around: 10000 mod 256
+    EXPECT_EQ(d, (TypeParam)s);
 }
 
 REGISTER_TYPED_TEST_SUITE_P(Reduce, simple, simd, multithreading);

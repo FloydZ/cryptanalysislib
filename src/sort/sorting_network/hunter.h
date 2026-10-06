@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "random.h"
+#include "algorithm/shuffle.h"
 
 using namespace cryptanalysislib;
 
@@ -662,9 +663,7 @@ SortWord_t createGreedyPrefix(u8 ninputs,
 	while ((prefix.size() < maxpairs) || (use_symmetry && (prefix.size() < (maxpairs - 1)))) {
 		Network_t ashuf = alphabet;
 		Pair_t best = {0, 1};
-		// std::shuffle(ashuf.begin(), ashuf.end(), rndgen);
-        // TODO
-		std::random_shuffle(ashuf.begin(), ashuf.end());
+		cryptanalysislib::random_shuffle(ashuf.begin(), ashuf.end());
 		SortWord_t minsize = currentsize;
 
 		ClusterGroup cgbest = cg;
@@ -797,8 +796,7 @@ void prepareTestVectorsFromPrefix(const Network_t &prefix) noexcept {
 	SinglePatternList_t singles;
 	computePrefixOutputs(config.N, prefix, singles);
     // Shuffle test vectors: improve probability of early rejection of non-sorters
-	// TODO std::shuffle(singles.begin(), singles.end(), mtRand);
-	std::random_shuffle(singles.begin(), singles.end());
+	cryptanalysislib::random_shuffle(singles.begin(), singles.end());
 
 	convertToBitParallel(config.N, singles, config.use_symmetry && is_even, parallelpatterns_from_prefix);
 }
@@ -987,8 +985,10 @@ void fillprefixGreedyA(Network_t &prefix,
 static
 void fillprefixFixedThenGreedyA(Network_t &prefix, 
                                 const u32 npairs) noexcept {
-    std::vector<Pair_t> t(sizeof(config.FixedPrefix));
-    for (uint32_t i = 0; i < 1; i++) {
+    // NOTE: number of elements, not bytes
+    constexpr size_t n = sizeof(config.FixedPrefix) / sizeof(config.FixedPrefix[0]);
+    std::vector<Pair_t> t(n);
+    for (uint32_t i = 0; i < n; i++) {
        t[i] = config.FixedPrefix[i];
     }
 	prefix = copyValidPairs(t, config.N);

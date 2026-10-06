@@ -25,17 +25,31 @@ template <class RandIt1,
           class RandIt2,
           const AlgorithmCopyConfig &config=algorithmCopyConfig>
 #if __cplusplus > 201709L
-    requires std::forward_iterator<RandIt1> &&
-             std::forward_iterator<RandIt2>
+    requires std::input_iterator<RandIt1> &&
+             std::output_iterator<RandIt2, std::iter_reference_t<RandIt1>>
 #endif
 constexpr RandIt2 copy(RandIt1 first, 
                        RandIt1 last, 
                        RandIt2 dest) noexcept {
-    using T = RandIt1::value_type;
-    const size_t s = static_cast<size_t>(std::distance(first, last));
-    cryptanalysislib::template memcpy<T>(&(*dest), &(*first), s);
-    std::advance(dest, s);
-    return dest;
+    using T = typename std::iterator_traits<RandIt1>::value_type;
+    // memcpy is only valid if both ranges are contiguous in memory and
+    // hold the same trivially copyable type (e.g. not int -> uint32_t)
+    if constexpr (std::contiguous_iterator<RandIt1> &&
+                  std::contiguous_iterator<RandIt2> &&
+                  std::is_same_v<T, std::iter_value_t<RandIt2>> &&
+                  std::is_trivially_copyable_v<T>) {
+        const size_t s = static_cast<size_t>(last - first);
+        if (s == 0) {
+            return dest;
+        }
+        cryptanalysislib::template memcpy<T>(&(*dest), &(*first), s);
+        return dest + s;
+    } else {
+        for (; first != last; ++first, ++dest) {
+            *dest = *first;
+        }
+        return dest;
+    }
 }
 
 /// Copies n elements from source to destination

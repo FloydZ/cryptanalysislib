@@ -8,6 +8,7 @@
 #include "algorithm/bits/ffs.h"
 #include "simd/simd.h"
 #include "search/search.h"
+#include "algorithm/search.h"
 
 // TODO docs for find_first_of and adjacent_find 
 // TODO parallel versions of `find_first_of` and `adjacent_find`
@@ -52,9 +53,10 @@ namespace cryptanalysislib {
 			size_t i = 0;
 			for (; (i+S::LIMBS) <= n; i+=S::LIMBS) {
 				const auto d = S::template load<config.aligned_instructions>(data + i);
-				const auto s = d == t;
+				// NOTE: `s` has one bit per lane, so it must not be truncated to `T`
+				const uint64_t s = uint64_t(d == t);
 				if (s) [[unlikely]] {
-					return i + ffs<T>(s) - 1u;
+					return i + ffs<uint64_t>(s) - 1u;
 				}
 			}
 
@@ -87,9 +89,9 @@ namespace cryptanalysislib {
 		using T = InputIt::value_type;
 		if constexpr (config.assume_sorted) {
 			if constexpr (config.use_interpolation_search) {
-				cryptanalysislib::search::binary_search(first, last, value);
+				cryptanalysislib::binary_search(first, last, value);
 			} else {
-				cryptanalysislib::search::binary_search(first, last, value);
+				cryptanalysislib::binary_search(first, last, value);
 			}
 		}
 
@@ -334,7 +336,7 @@ namespace cryptanalysislib {
      
         ForwardIt1 result = last;
         while (true) {
-            ForwardIt1 new_result = std::search(first, last, s_first, s_last);
+            ForwardIt1 new_result = cryptanalysislib::search(first, last, s_first, s_last);
             if (new_result == last) {
                 break;
             } else {
@@ -363,7 +365,7 @@ namespace cryptanalysislib {
     #if __cplusplus > 201709L
     		requires std::forward_iterator<ForwardIt1> &&
                      std::forward_iterator<ForwardIt2> && 
-    			     std::regular_invocable<BinaryPred, bool>
+    			     std::indirect_binary_predicate<BinaryPred, ForwardIt1, ForwardIt2>
     #endif
     constexpr //< since C++20
     ForwardIt1 find_end(ForwardIt1 first,

@@ -1,9 +1,12 @@
 #pragma once
 
 #include <atomic>
+#include <exception>
 #include <cstdint>
 #include <memory>
 #include <utility>
+#include <condition_variable>
+#include <mutex>
 
 #include "container/signal_tree/tree.h"
 #include "traits.h"
@@ -344,7 +347,11 @@ namespace cryptanalysislib::work_contract {
 
 					work_contract_id workContractId(subTreeIndex * signal_tree_capacity);
 					workContractId |= signalIndex;
-					std::uint64_t b = (1ull << std::countr_zero(select_bias_hint ^ biasFlags)) & (signal_tree_type::capacity - 1);
+					// countr_zero(0) == 64 and `1 << 64` is UB; x86-64 and ARM64 shift by
+					// (64 mod 64) == 0, so keep that behaviour explicitly
+					const std::uint64_t biasDiff = select_bias_hint ^ biasFlags;
+					const std::uint32_t shift = biasDiff ? __builtin_ctzll(biasDiff) : 0u;
+					std::uint64_t b = (1ull << shift) & (signal_tree_type::capacity - 1);
 					if (b == 0) {
 						biasFlags = ((subTreeIndex + 1) * signal_tree_type::capacity);
 					} else {
@@ -400,6 +407,12 @@ namespace cryptanalysislib::work_contract {
 					if ((bool)releaseToken) {
 						releaseToken->orphan();
 					}
+				}
+
+				// wake up all threads blocked in `execute_next_contract()`,
+				// otherwise they wait forever for a contract
+				if constexpr (mode == synchronization_mode::blocking) {
+					waitableState_.notify_all();
 				}
 			}
 		}

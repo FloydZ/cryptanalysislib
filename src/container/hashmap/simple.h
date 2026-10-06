@@ -285,9 +285,11 @@ public:
 			return;
 		}
 
+		// NOTE: [start, end) also covers the remaining buckets, if nrbuckets
+		// is not a multiple of the number of threads
 		const size_t start = tid * nrbuckets / config.threads;
-		const size_t bytes = nrbuckets * sizeof(load_type) / config.threads;
-		memset(__internal_load_array.data() + start, 0, bytes);
+		const size_t end = (tid + 1) * nrbuckets / config.threads;
+		memset(__internal_load_array.data() + start, 0, (end - start) * sizeof(load_type));
         #pragma omp barrier
 	}
 

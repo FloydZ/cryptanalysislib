@@ -22,16 +22,6 @@ namespace cryptanalysislib {
     constexpr static AlgorithmArgMaxConfig algorithmArgMaxConfig{};
 
     namespace internal {
-        /// Forward declaration for the argmax function
-        /// Find the index of the maximum value in an array
-        /// \tparam T[in]: Element type of the array
-        /// \tparam config[in]: Configuration parameters for the algorithm
-        /// \param a[in]: Pointer to the array to search
-        /// \param n[in]: Number of elements in the array
-        /// \return: Index of the maximum value in the array
-        template<typename T, const AlgorithmApplyConfig &config>
-    	[[nodiscard]] constexpr static inline size_t argmax(const T *a, const size_t n) noexcept;
-    
     	/// Find the index of the maximum value in an array using SIMD instructions
         /// for uint8_t, uint16_t, uint32_t, uint64_t elements.
     	/// \tparam S SIMD vector type to use for operations
@@ -138,31 +128,26 @@ namespace cryptanalysislib {
     			y1 = S::max(y1, y2);
     			y3 = S::max(y3, y4);
     			y1 = S::max(y1, y3);
-                const uint32_t mask = S::gt(p, y1);
+                const uint32_t mask = S::lt(p, y1);
     			if (mask != 0) { [[unlikely]]
-    				idx = i;
     				for (uint32_t j = i; j < i + t4; j++) {
-    					max = (a[j] > max ? a[j] : max);
+    					if (a[j] > max) {
+    						max = a[idx = j];
+    					}
     				}
-    
+
     				p = S::set1(max);
     			}
     		}
-    
-    		size_t idx2 = idx+t4-1;
-    		for (uint32_t j = idx; j < idx + t4-1; j++) {
-    			if (a[j] == max) {
-    				idx2 = j;
-    			}
-    		}
-    
+
+    		// tail
     		for (; i < n; i++) {
     			if (a[i] > max) {
-    				max = a[idx2 = i];
+    				max = a[idx = i];
     			}
     		}
-    
-    		return idx2;
+
+    		return idx;
     	}
     }
 
@@ -180,15 +165,19 @@ namespace cryptanalysislib {
 	[[nodiscard]] constexpr static inline size_t argmax(Iterator start,
 														Iterator end) noexcept {
         using T = typename std::iterator_traits<Iterator>::value_type;
-		const size_t len = std::distance(start, end);
-
-		if constexpr (std::is_arithmetic_v<T>) {
-		    return internal::argmax(start, len);
+		if (start == end) {
+			return 0;
 		}
 
-		size_t k = 0;
-		for (size_t i = 1; i < len; i++) {
-			if (*(start+i) > *(start + k)) [[unlikely]] {
+		if constexpr (std::same_as<T, uint32_t> && std::contiguous_iterator<Iterator>) {
+		    return internal::argmax_simd(&(*start), static_cast<size_t>(end - start));
+		}
+
+		size_t k = 0, i = 0;
+		T best = *start;
+		for (++start, ++i; start != end; ++start, ++i) {
+			if (*start > best) [[unlikely]] {
+				best = *start;
 				k = i;
 			}
 		}
@@ -222,18 +211,23 @@ namespace cryptanalysislib {
 				<RandIt, config>(first, last);
 		}
 
+		// each chunk returns an index relative to its own start; translate it
+		// into an absolute index into [first, last)
+		auto chunk = [first](RandIt b, RandIt e) noexcept -> size_t {
+			return static_cast<size_t>(b - first) +
+			       cryptanalysislib::argmax<RandIt, config>(b, e);
+		};
 		auto futures = internal::parallel_chunk_for_1(
 			std::forward<ExecPolicy>(policy),
 			first, last,
-			cryptanalysislib::argmax<RandIt, config>,
+			chunk,
 			(size_t *)0,
 			1, nthreads);
 
 		size_t m = futures[0].get();
-		T v = *(first + m);
-		for (size_t i = 1; i < nthreads; i++) {
-			T mm = futures[i].get();
-			if (*(first + m) > v) {
+		for (size_t i = 1; i < futures.size(); i++) {
+			const size_t mm = futures[i].get();
+			if (*(first + mm) > *(first + m)) [[unlikely]] {
 				m = mm;
 			}
 		}

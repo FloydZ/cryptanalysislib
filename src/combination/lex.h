@@ -54,8 +54,8 @@ class enumeration_lexicographic {
     /// 
     /// \param x[in]: current word
     /// \return next word in subset-lexrev order
-    [[nodiscard]] constexpr static inline ulong next_lexrev(uint64_t x) noexcept {
-        ulong x0 = x & -x;  // lowest one
+    [[nodiscard]] constexpr static inline uint64_t next_lexrev(uint64_t x) noexcept {
+        uint64_t x0 = x & -x;  // lowest one
         if ( 1 != x0 ) {  // easy case: set bit right of lowest one
             x0 >>= 1;
             x ^= x0;
@@ -129,8 +129,8 @@ class enumeration_lexicographic {
     /// \return lexicographic-reverse representation
     [[nodiscard]] constexpr static inline 
     uint64_t negidx2lexrev(uint64_t k) noexcept {
-        ulong z = 0;
-        ulong h = highest_one(k);
+        uint64_t z = 0;
+        uint64_t h = highest_one(k);
         while ( k ) {
             while ( 0 == (h & k) )  h >>= 1;
             z ^= h;
@@ -147,8 +147,8 @@ class enumeration_lexicographic {
     /// \return the corresponding negative index
     [[nodiscard]] constexpr static inline uint64_t lexrev2negidx(uint64_t x) noexcept {
         if ( 0==x )  return 0;
-        ulong h = x & -x;  // lowest one
-        ulong r = (h-1);
+        uint64_t h = x & -x;  // lowest one
+        uint64_t r = (h-1);
         while ( x^=h ) {
             r += (h-1);
             h = x & -x;  // next higher one

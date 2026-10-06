@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <concepts>
+#include <stdexcept>
+#include <utility>
 
 #include "memory/memory.h"
 #include "algorithm/rotate.h"
@@ -172,6 +175,45 @@ namespace cryptanalysislib {
     		0xc3d2e1f0,
         };
 
+        /// Pads a message as defined in FIPS 180-4 section 5.1.1 and parses
+        /// it into blocks of 16 big-endian words (section 5.2.1).
+        /// \tparam T         The word type (`uint32_t` for SHA-1/SHA-256).
+        /// \tparam num_bytes The length of the message.
+        /// \param message The message to pad.
+        /// \returns An array of blocks, each holding 16 words in host order.
+        template <typename T, std::size_t num_bytes>
+            requires std::unsigned_integral<T>
+        consteval auto preprocess_message(const std::array<std::byte, num_bytes>& message) noexcept {
+            constexpr std::size_t words_per_block = 16;
+            constexpr std::size_t block_bytes = words_per_block * sizeof(T);
+            // the message length is stored in the last 2 words of the last block
+            constexpr std::size_t length_bytes = 2u * sizeof(T);
+            constexpr std::size_t num_blocks = (num_bytes + 1u + length_bytes + block_bytes - 1u) / block_bytes;
+            constexpr std::size_t padded_bytes = num_blocks * block_bytes;
+
+            // message || 0x80 || 0x00 ... 0x00 || bit length (big-endian)
+            std::array<std::byte, padded_bytes> padded{};
+            for (std::size_t i = 0; i < num_bytes; ++i) {
+                padded[i] = message[i];
+            }
+            padded[num_bytes] = std::byte{0x80};
+            const uint64_t num_bits = uint64_t(num_bytes) * 8u;
+            for (std::size_t i = 0; i < sizeof(uint64_t); ++i) {
+                padded[padded_bytes - 1u - i] = static_cast<std::byte>(num_bits >> (8u * i));
+            }
+
+            std::array<std::array<T, words_per_block>, num_blocks> blocks{};
+            for (std::size_t b = 0; b < num_blocks; ++b) {
+                for (std::size_t w = 0; w < words_per_block; ++w) {
+                    T word = 0;
+                    for (std::size_t k = 0; k < sizeof(T); ++k) {
+                        word = T(word << 8u) | static_cast<T>(padded[b * block_bytes + w * sizeof(T) + k]);
+                    }
+                    blocks[b][w] = word;
+                }
+            }
+            return blocks;
+        }
     }; // end namespace internal
    
     /// source https://github.com/vexingcodes/ctsha/blob/master/ctsha.hpp
@@ -182,11 +224,11 @@ namespace cryptanalysislib {
     template <std::size_t num_bytes>
     consteval std::array<std::byte, 20> sha1(const std::array<std::byte, num_bytes>& message) noexcept {
         auto state = internal::sha1_initialization_vector;
-        for (const auto& block : preprocess_message<std::uint32_t>(message)) {
+        for (const auto& block : internal::preprocess_message<std::uint32_t>(message)) {
             // Prepare the message schedule.
             std::array<std::uint32_t, 80> w{};
             for (std::size_t t = 0; t < w.size(); ++t)
-                w.at(t) = (t < 16) ? big_endian_to_host(block.at(t))
+                w.at(t) = (t < 16) ? block.at(t)
                                    : rotl<1>(w.at(t - 3) ^ w.at(t - 8) ^ w.at(t - 14) ^ w.at(t - 16));
     
             // Initialize the working variables. (a=0, b=1, c=2, d=3, e=4)

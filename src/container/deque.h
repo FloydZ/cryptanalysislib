@@ -15,6 +15,8 @@ template <typename Type,
           const DequeConfig config = dequeConfig>
 class Deque {
 public:
+    /// allocator instance (cryptanalysislib::allocator is not static)
+    Allocator allocator_;
     /// data (ring buffer)
     Type *x_;
     
@@ -33,7 +35,7 @@ public:
     // entries are at [fpos, ..., lpos-1]  (range may be empty)
     
     /// 
-    constexpr static bool gq_ = config.growSize;  
+    constexpr static size_t gq_ = config.growSize;  
 
     Deque(const Deque&) = delete;
     Deque & operator = (const Deque&) = delete;
@@ -43,14 +45,14 @@ public:
     /// \param n[in]:
     explicit Deque(const size_t n) noexcept {
         s_ = n;
-        x_ = Allocator::allocator(s_);
+        x_ = allocator_.allocate(s_);
         n_ = 0;
         fpos_ = 0;
         lpos_ = 0;
     }
 
     ~Deque() noexcept { 
-        Allocator::deallocate(x_);
+        allocator_.deallocate(x_, s_);
     }
 
     /// \return current numbers of elements in the queue
@@ -68,9 +70,9 @@ public:
     ///   (i.e. space exhausted and 0==gq_)
     size_t insert_first(const Type &z) noexcept {
         if ( n_ >= s_ ) {
-            if ( 0==gq_ ) {
-                // growing disabled
-                return 0;  
+            // growing disabled
+            if constexpr (0 == gq_) {
+                return 0;
             }
             grow();
         }
@@ -103,7 +105,7 @@ public:
 
     //// Return number of elements before extract.
     //// Return 0 if extract on empty deque was attempted.
-    size_t extract_first(const Type &z) noexcept {
+    size_t extract_first(Type &z) noexcept {
         if ( 0==n_ )  return 0;
         z = x_[fpos_];
         ++fpos_;
@@ -155,7 +157,9 @@ private:
                                   const size_t n) noexcept {
         if ( n >= 2 ) {
             for (size_t k=0, i=n-1;  k<i;  ++k, --i) {
-                swap2(f[k], f[i]);
+                const Type t = f[k];
+                f[k] = f[i];
+                f[i] = t;
             }
         }
     }
@@ -179,9 +183,9 @@ private:
         size_t ns = s_ + gq_;  // new size
         // Move read-position to zero:
         rotate_left(x_, s_, fpos_);
-        Type *a = Allocator::allocate(ns);
+        Type *a = allocator_.allocate(ns);
         cryptanalysislib::memcpy(a, x_, s_);
-        Allocator::deallocate(x_);
+        allocator_.deallocate(x_, s_);
         x_ = a;
 
         // x_ = ReAlloc<Type>(x_, ns, s_);

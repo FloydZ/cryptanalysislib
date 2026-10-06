@@ -608,7 +608,7 @@ public:
 	                               		  const uint32_t tid,
 	                                      F &&f) const noexcept {
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		const auto it = cryptanalysislib::search::linear_search(__data.begin() + sp, __data.begin() + ep, e, f);
+		const auto it = cryptanalysislib::linear_search(__data.begin() + sp, __data.begin() + ep, e, f);
 		if (it == (__data.begin() + ep)) {
 			return -1ull;
 		} else {
@@ -699,15 +699,22 @@ public:
 			                      __data.begin() + ep,
 			                      e, f);
 		} else {
-			it = cryptanalysislib::search::binary_search(__data.begin() + sp,
+			it = cryptanalysislib::binary_search(__data.begin() + sp,
 			                                             __data.begin() + ep, e, f);
 		}
 		if (it == (__data.begin() + ep)) {
 			return -1ull;
-		} else {
-			return std::distance(__data.begin()+sp, it);
 		}
 
+		// NOTE: both searches return the lower bound, which is only a match
+		// 	if it is equal to `e`
+		if constexpr (std::is_invocable_v<F, const Element &, const Element &>) {
+			if (f(e, *it)) { return -1ull; }
+		} else {
+			if (f(e) != f(*it)) { return -1ull; }
+		}
+
+		return std::distance(__data.begin()+sp, it);
 	}
 
 	///
@@ -742,7 +749,7 @@ public:
 		}
 
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		const auto it = cryptanalysislib::search::interpolation_search(__data.begin() + sp, __data.begin() + ep, e, f);
+		const auto it = cryptanalysislib::interpolation_search(__data.begin() + sp, __data.begin() + ep, e, f);
 		if (it == (__data.begin() + ep)) {
 			return -1ull;
 		} else {

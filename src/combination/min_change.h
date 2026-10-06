@@ -1,6 +1,7 @@
 #pragma once
 
-// TODO replace ulong with uint64_t
+#include <cstdint>
+
 // TODO add 
 
 /// Class for generating combinations with minimal change between consecutive elements
@@ -17,14 +18,14 @@ private:
     /// Alternative version optimized for speed with constant amortized time (CAT)
     /// \param x[in]: current inverse Gray code value
     /// \return next inverse Gray code value with minimal bit changes
-    constexpr static inline ulong igc_next_minchange_comb(ulong x) noexcept {
-        ulong gx = gray_code( x );
-        ulong i = 2;
+    constexpr static inline uint64_t igc_next_minchange_comb(uint64_t x) noexcept {
+        uint64_t gx = gray_code( x );
+        uint64_t i = 2;
         do {
-            ulong y = x + i;
+            uint64_t y = x + i;
             i <<= 1;
-            ulong gy = gray_code( y );
-            ulong r = gx ^ gy;
+            uint64_t gy = gray_code( y );
+            uint64_t r = gx ^ gy;
     
             // Check that change consists of exactly one bit
             // of the new and one bit of the old pattern:
@@ -41,9 +42,9 @@ private:
     /// \param x[in]: current inverse Gray code value
     /// \param k[in]: bit-count of x (must be provided accurately)
     /// \return next inverse Gray code value with minimal bit changes
-    constexpr static inline ulong igc_next_minchange_comb(ulong x, ulong k) {
-        ulong y;
-        ulong i = 2;
+    constexpr static inline uint64_t igc_next_minchange_comb(uint64_t x, uint64_t k) {
+        uint64_t y;
+        uint64_t i = 2;
         do {
             y = x + i;
             i <<= 1;
@@ -56,8 +57,8 @@ private:
     /// \param x[in]: current inverse Gray code value
     /// \param k[in]: bit-count of x
     /// \return previous inverse Gray code with minimal bit changes
-    constexpr static inline ulong igc_prev_minchange_comb(ulong x, ulong k) noexcept {
-        ulong y, i = 1;
+    constexpr static inline uint64_t igc_prev_minchange_comb(uint64_t x, uint64_t k) noexcept {
+        uint64_t y, i = 1;
         do {
             i <<= 1;
             y = x - i;
@@ -82,15 +83,15 @@ private:
     /// \param k[in]: bit-count parameter
     /// \param n[in]: number of bits in the combination
     /// \return last combination in the minimal change sequence
-    static inline ulong igc_last_comb(ulong k, ulong n) noexcept {
+    static inline uint64_t igc_last_comb(uint64_t k, uint64_t n) noexcept {
         if ( 0==k )  return 0;
     
     #if ( BITS_PER_LONG < 64 )
-        const ulong f = 0xaaaaaaaaUL >> (BITS_PER_LONG-k);  // == first_sequency(k);
+        const uint64_t f = 0xaaaaaaaaUL >> (BITS_PER_LONG-k);  // == first_sequency(k);
     #else
-        const ulong f = 0xaaaaaaaaaaaaaaaaUL >> (BITS_PER_LONG-k);  // == first_sequency(k);
+        const uint64_t f = 0xaaaaaaaaaaaaaaaaUL >> (BITS_PER_LONG-k);  // == first_sequency(k);
     #endif
-        const ulong c =  ~0UL >> (BITS_PER_LONG-n);  // == first_comb(n);
+        const uint64_t c =  ~0UL >> (BITS_PER_LONG-n);  // == first_comb(n);
         return c ^ (f>>1);
         // =^=  (by Doug Moore)
         //    return  ((1UL<<n) - 1) ^ (((1UL<<k) - 1) / 3);
@@ -115,7 +116,7 @@ private:
     /// \param x[in]: current combination
     /// \param last[in]: last combination (must be igc_last_comb(k, n))
     /// \return next combination in minimal change order or 0 if at end
-    constexpr static inline ulong next_minchange_comb(ulong x, ulong last) noexcept {
+    constexpr static inline uint64_t next_minchange_comb(uint64_t x, uint64_t last) noexcept {
         x = inverse_gray_code(x);
         if ( x==last )  return 0;
         x = igc_next_minchange_comb(x);

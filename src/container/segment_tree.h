@@ -1,24 +1,59 @@
-#pragma once 
+#pragma once
 
 #include <vector>
 #include <cstdint>
 #include <cstdlib>
 
+#include "alloc/alloc.h"
 
-template <typename T>
+/// Iterative segment tree over the positions [0, n) with point updates and
+/// range queries. Every position starts with the value 0.
+/// \tparam T value type
+/// \tparam n number of positions
+template <typename T,
+          const size_t n = 1u << 20,
+          class Allocator = cryptanalysislib::allocator<T>>
 class SegmentTree {
-    constexpr static size_t n = 1 << 20;
-    T t[2 * n];
-    // combine must be an associative function!
-    T combine(const T l, 
-              const T r) noexcept { 
-        // or max(l,r) etc
-        return l+r; 
-    } 
+    Allocator allocator;
+    // the tree has 2n nodes, the leaves are t[n, 2n)
+    T *t;
 
-    // 
+    SegmentTree(const SegmentTree&) = delete;
+    SegmentTree& operator = (const SegmentTree&) = delete;
+
+    // combine must be an associative function with identity 0!
+    constexpr static T combine(const T l,
+                               const T r) noexcept {
+        // or max(l,r) etc
+        return l+r;
+    }
+
+public:
+    SegmentTree() noexcept {
+        t = allocator.allocate(2 * n);
+        for (size_t i = 0; i < 2 * n; i++) {
+            t[i] = T(0);
+        }
+    }
+
+    ~SegmentTree() noexcept {
+        allocator.deallocate(t, 2 * n);
+    }
+
+    /// \return number of positions
+    constexpr static size_t size() noexcept {
+        return n;
+    }
+
+    /// set the value of position pos without updating the inner nodes;
+    /// call build() afterwards
+    void set(const size_t pos, const T v) noexcept {
+        t[pos + n] = v;
+    }
+
+    /// recompute all inner nodes from the leaves
     void build() noexcept {
-        for (int64_t i = n; --i; ) {
+        for (size_t i = n; --i; ) {
             t[i] = combine(t[2 * i], t[2 * i + 1]);
         }
     }
@@ -45,48 +80,72 @@ class SegmentTree {
 };
 
 
+/// Segment tree with range-add updates, point assignments and range-min
+/// queries over the positions [0, n).
 template <typename T>
 struct lazy_segment_tree {
 
     struct node {
-        int l, r, x, lazy;
+        int l = 0, r = -1;
+        T x{}, lazy{};
+        // false for an empty range (identity of min)
+        bool valid = false;
+
         node() {}
-        node(int _l, int _r) : l(_l), r(_r), x(INT_MAX), lazy(0) {}
-        node(int _l, int _r, int _x) : node(_l,_r){x=_x;}
-        node(node a,node b) : node(a.l,b.r){
-            x = std::min(a.x, b.x);
+        node(int _l, int _r) : l(_l), r(_r) {}
+        node(int _l, int _r, T _x) : l(_l), r(_r), x(_x), valid(true) {}
+        node(const node &a, const node &b) : l(a.l), r(b.r) {
+            if (a.valid && b.valid) {
+                x = a.x < b.x ? a.x : b.x;
+                valid = true;
+            } else if (a.valid) {
+                x = a.x;
+                valid = true;
+            } else if (b.valid) {
+                x = b.x;
+                valid = true;
+            }
         }
-        void update(int v) { x = v; }
-        void range_update(int v) { lazy = v; }
-        void apply() { x += lazy; lazy = 0; }
+        void update(const T v) { x = v; valid = true; }
+        void range_update(const T v) { lazy = v; }
+        void apply() {
+            if (valid) {
+                x += lazy;
+            }
+            lazy = T{};
+        }
         void push(node &u) { u.lazy += lazy; }
     };
 
-    int n;
+    int n = 0;
     std::vector<node> arr;
     lazy_segment_tree() { }
 
-    lazy_segment_tree(const std::vector<T> &a) : n(sz(a)), arr(4*n) {
-        mk(a,0,0,n-1); 
+    lazy_segment_tree(const std::vector<T> &a) : n(static_cast<int>(a.size())), arr(4*a.size()) {
+        if (n > 0) {
+            mk(a,0,0,n-1);
+        }
     }
 
     node mk(const std::vector<T> &a, int i, int l, int r) {
         int m = (l+r)/2;
-        return arr[i] = l > r  ? node(l,r) : 
+        return arr[i] = l > r  ? node(l,r) :
                         l == r ? node(l,r,a[l]) :
         node(mk(a,2*i+1,l,m),mk(a,2*i+2,m+1,r));
     }
 
+    /// a[at] = v
     node update(int at, const T v, int i=0) {
         propagate(i);
         int hl = arr[i].l, hr = arr[i].r;
         if (at < hl || hr < at) { return arr[i]; }
         if (hl == at && at == hr) {
-            arr[i].update(v); return arr[i]; 
+            arr[i].update(v); return arr[i];
         }
         return arr[i] = node(update(at,v,2*i+1),update(at,v,2*i+2));
     }
 
+    /// min(a[l..r]), both inclusive; read the result from `.x`
     node query(int l, int r, int i=0) {
         propagate(i);
         int hl = arr[i].l, hr = arr[i].r;
@@ -95,6 +154,7 @@ struct lazy_segment_tree {
         return node(query(l,r,2*i+1),query(l,r,2*i+2));
     }
 
+    /// a[l..r] += v, both inclusive
     node range_update(int l, int r, T v, int i=0) {
         propagate(i);
         int hl = arr[i].l, hr = arr[i].r;

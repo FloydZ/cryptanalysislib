@@ -59,7 +59,7 @@ namespace cryptanalysislib {
 			/// create all threads
 			for (std::size_t i = 0; i < number_of_threads; ++i) {
 				priority_queue_.push_back(size_t(current_id));
-				threads_.emplace_back([&, i, id = current_id, init](const std::stop_token &stop_tok) -> int {
+				threads_.emplace_back([&, i, id = current_id, init]() -> int {
 					(void) i;
 					/// invoke the init function on the thread
 					if constexpr (enable_try_block) {
@@ -94,7 +94,7 @@ namespace cryptanalysislib {
 								// the above task can push more work onto the pool, so we
 								// only decrement the in flights once the task has been
 								// executed because now it's now longer "in flight"
-								in_flight_tasks_.fetch_sub(1, std::memory_order_release);
+								task_done();
 							}
 
 							// try to steal a task
@@ -104,7 +104,7 @@ namespace cryptanalysislib {
 									// steal a task
 									unassigned_tasks_.fetch_sub(1, std::memory_order_release);
 									std::invoke(std::move(task.value()));
-									in_flight_tasks_.fetch_sub(1, std::memory_order_release);
+									task_done();
 									// stop stealing once we have invoked a stolen task
 									break;
 								}
@@ -114,14 +114,8 @@ namespace cryptanalysislib {
 						} while (unassigned_tasks_.load(std::memory_order_acquire) > 0);
 
 						priority_queue_.rotate_to_front(id);
-						// check if all tasks are completed and release the barrier (binary
-						// semaphore)
-						if (in_flight_tasks_.load(std::memory_order_acquire) == 0) {
-							threads_complete_signal_.store(true, std::memory_order_release);
-							threads_complete_signal_.notify_one();
-						}
 
-					} while (!stop_tok.stop_requested());
+					} while (!stop_.load(std::memory_order_acquire));
 
 					return 0;
 				});
@@ -134,8 +128,10 @@ namespace cryptanalysislib {
 			wait_for_tasks();
 
 			// stop all threads
+			// NOTE: own stop flag instead of `std::stop_token`, so `ThreadType`
+			// can be `std::thread` (apple's libc++ has no `std::jthread`)
+			stop_.store(true, std::memory_order_release);
 			for (std::size_t i = 0; i < threads_.size(); ++i) {
-				threads_[i].request_stop();
 				tasks_[i].signal.release();
 				threads_[i].join();
 			}
@@ -246,9 +242,12 @@ namespace cryptanalysislib {
 		/// \brief Wait for all tasks to finish.
 		/// \details This function will block until all tasks have been completed.
 		void wait_for_tasks() noexcept {
-			if (in_flight_tasks_.load(std::memory_order_acquire) > 0) {
-				// wait for all tasks to finish
-				threads_complete_signal_.wait(false);
+			// NOTE: waits on the counter itself; a separate "complete" flag can be
+			// set by a worker after `submit_task` already reset it for new work.
+			auto n = in_flight_tasks_.load(std::memory_order_acquire);
+			while (n > 0) {
+				in_flight_tasks_.wait(n, std::memory_order_acquire);
+				n = in_flight_tasks_.load(std::memory_order_acquire);
 			}
 		}
 
@@ -279,8 +278,11 @@ namespace cryptanalysislib {
 			for (auto &task_list: tasks_) {
 				removed_task_count += task_list.tasks.clear();
 			}
-			in_flight_tasks_.fetch_sub(removed_task_count, std::memory_order_release);
 			unassigned_tasks_.fetch_sub(removed_task_count, std::memory_order_release);
+			const auto prev_in_flight = in_flight_tasks_.fetch_sub(removed_task_count, std::memory_order_acq_rel);
+			if ((removed_task_count > 0) && (prev_in_flight == (int_fast64_t)removed_task_count)) {
+				in_flight_tasks_.notify_all();
+			}
 
 			return removed_task_count;
 		}
@@ -314,6 +316,14 @@ namespace cryptanalysislib {
             return num_threads;
         }
 	private:
+		/// marks one task as finished and wakes up `wait_for_tasks()`
+		/// once no task is in flight anymore
+		inline void task_done() noexcept {
+			if (in_flight_tasks_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+				in_flight_tasks_.notify_all();
+			}
+		}
+
 		/// \tparam Function
 		/// \param f function to enqueue
 		template<typename Function>
@@ -329,12 +339,7 @@ namespace cryptanalysislib {
 
 			// increment the unassigned tasks and in flight tasks
 			unassigned_tasks_.fetch_add(1, std::memory_order_release);
-			const auto prev_in_flight = in_flight_tasks_.fetch_add(1, std::memory_order_release);
-
-			// reset the in flight signal if the list was previously empty
-			if (prev_in_flight == 0) {
-				threads_complete_signal_.store(false, std::memory_order_release);
-			}
+			in_flight_tasks_.fetch_add(1, std::memory_order_release);
 
 			// assign work
 			tasks_[i].tasks.push_back(std::forward<Function>(f));
@@ -353,8 +358,8 @@ namespace cryptanalysislib {
 
 		// guarantee these get zero-initialized
 		std::atomic_int_fast64_t unassigned_tasks_{0}, in_flight_tasks_{0};
-		std::atomic_bool threads_complete_signal_{false};
 		std::atomic_bool pool_paused{false};
+		std::atomic_bool stop_{false};
 	};
 }// namespace cryptanalysislib
 

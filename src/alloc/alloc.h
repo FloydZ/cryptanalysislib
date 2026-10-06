@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <type_traits>
 
 #include "container/queue.h"
 #include "helper.h"
@@ -67,7 +68,7 @@ namespace cryptanalysislib {
 // Checks if the page pointed at by `ptr` is huge. Assumes that `ptr` has already
 // been allocated.
 static void check_huge_page(void *ptr) {
-	const uint64_t CUSTOM_PAGE_SIZE = 1u<<13; // TODO dont know if this is correct
+	const uint64_t page_size = sysconf(_SC_PAGESIZE);
 	int pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
 	if (pagemap_fd < 0) {
 		std::cout << "could not open /proc/self/pagemap: " << strerror(errno) << "\n";
@@ -79,7 +80,7 @@ static void check_huge_page(void *ptr) {
 
 	// each entry is 8 bytes long
 	uint64_t ent;
-	if (pread(pagemap_fd, &ent, sizeof(ent), ((uintptr_t) ptr) / CUSTOM_PAGE_SIZE * 8) != sizeof(ent)) {
+	if (pread(pagemap_fd, &ent, sizeof(ent), ((uintptr_t) ptr) / page_size * 8) != sizeof(ent)) {
 		std::cout << "could not read from pagemap\n";
 	}
 
@@ -714,6 +715,30 @@ public:
         (void) n;
         cryptanalysislib::aligned_free(p);
 	}
+
+	/// Reallocates aligned memory, same semantics as C `realloc`: the first
+	/// min(old_n, new_n) bytes are kept, `p` is freed.
+	/// \param p[in]: pointer returned by `allocate`, or nullptr
+	/// \param old_n[in]: number of bytes `p` was allocated with
+	/// \param new_n[in]: number of bytes to allocate
+	/// \return pointer to the new aligned memory, or nullptr on failure
+	///		(in which case `p` is not freed)
+	[[nodiscard]] static constexpr inline pointer reallocate(const pointer p,
+	                                                         const size_type old_n,
+	                                                         const size_type new_n) noexcept {
+		const pointer np = allocate(new_n);
+		if (np == nullptr) [[unlikely]] {
+			return nullptr;
+		}
+
+		const size_type n = old_n < new_n ? old_n : new_n;
+		if ((p != nullptr) && (n > 0)) {
+			cryptanalysislib::memcpy((uint8_t *)np, (const uint8_t *)p, n);
+		}
+
+		deallocate(p, old_n);
+		return np;
+	}
 };
 
 #ifdef USE_TRACY
@@ -759,5 +784,46 @@ namespace cryptanalysislib {
 
 	template <typename T>
 	using alignment_allocator = AlignmentMallocator<T>;
+
+	/// Reallocates `p`, which holds `old_n` elements and was allocated by `a`,
+	/// to `new_n` elements. Same semantics as C `realloc`: the first
+	/// min(old_n, new_n) elements are kept, `p` is released.
+	/// If the allocator provides its own `reallocate(p, old_n, new_n)`, it is used.
+	/// NOTE: only for trivially copyable types, as the elements are copied
+	///		bytewise and not constructed/destroyed.
+	/// \param a[in]: allocator `p` was allocated with
+	/// \param p[in]: pointer to the elements, or nullptr
+	/// \param old_n[in]: number of elements `p` was allocated with
+	/// \param new_n[in]: number of elements to allocate
+	/// \return pointer to the new memory, or nullptr on failure
+	///		(in which case `p` is not released)
+	template<class Alloc, typename T>
+#if __cplusplus > 201709L
+		requires std::is_trivially_copyable_v<T>
+#endif
+	[[nodiscard]] constexpr inline T *reallocate(Alloc &a,
+	                                             T *p,
+	                                             const size_t old_n,
+	                                             const size_t new_n) noexcept {
+		if constexpr (requires { { a.reallocate(p, old_n, new_n) } -> std::convertible_to<T *>; }) {
+			return a.reallocate(p, old_n, new_n);
+		} else {
+			T *np = a.allocate(new_n);
+			if (np == nullptr) [[unlikely]] {
+				return nullptr;
+			}
+
+			const size_t n = old_n < new_n ? old_n : new_n;
+			if ((p != nullptr) && (n > 0)) {
+				// NOTE: element count, not bytes
+				cryptanalysislib::memcpy(np, p, n);
+			}
+
+			if (p != nullptr) {
+				a.deallocate(p, old_n);
+			}
+			return np;
+		}
+	}
 }
 #endif //CRYPTANALYSISLIB_ALLOC_H

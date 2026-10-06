@@ -1,7 +1,7 @@
 #pragma once 
 
 #include <cstddef>
-#include <utility>
+#include "algorithm/swap.h"
 #include "selectionsort.h"
 
 // Return median of the input values
@@ -15,7 +15,7 @@ constexpr static inline Type median3(const Type &x,
 // Rearrange array, so that for some index p
 // max(f[0], ..., f[p]) <= min(f[p+1], ..., f[n-1])
 template <typename Type>
-constexpr size_t partition(const Type *f,
+constexpr size_t partition(Type *f,
                            const size_t n) noexcept {
     // Avoid worst case with already sorted input:
     const Type v = median3(f[0], f[n/2], f[n-1]);
@@ -26,7 +26,7 @@ constexpr size_t partition(const Type *f,
         do  { ++i; }  while ( f[i]<v );
         do  { --j; }  while ( f[j]>v );
 
-        if ( i < j )  std::swap(f[i], f[j]);
+        if ( i < j )  cryptanalysislib::swap(f[i], f[j]);
         else          return j;
     }
 }
@@ -34,13 +34,13 @@ constexpr size_t partition(const Type *f,
 
 // Sort f[] (ascending order).
 template <typename Type>
-constexpr void quick_sort(const Type *f,
+constexpr void quick_sort(Type *f,
                           const size_t n) noexcept {
     size_t m = n;
 start:
     // TODO via config
     // parameter: threshold for nonrecursive algorithm
-    if (8) {
+    if (m <= 8) {
         selection_sort(f, m);
         return;
     }

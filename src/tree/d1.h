@@ -336,6 +336,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
 		size_t j = L2.template search_level<k_lower, k_upper>(sigma_t);
 		for (; (j < L2.load()) &&
 			   (sigma_t.template is_equal<k_lower, k_upper>(L2[j].label)); ++j) {
+			ret += 1;
 			if (f(out, L1, L2, i, j)) { goto finish; }
 		}
 	}
@@ -384,7 +385,6 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(
 
 		size_t s = hm.find(sigma_t.value(), load);
 		for (size_t k = s; k < s + load; ++k) {
-			ret += 1;
 			const size_t j = hm[k];
 			ret += 1;
 

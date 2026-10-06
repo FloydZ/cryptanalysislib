@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_TRAITS_H
 
 #include <cstdlib>
+#include <functional>
 #include <type_traits>
 #include <utility>
 

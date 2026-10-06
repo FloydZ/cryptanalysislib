@@ -217,6 +217,45 @@ public:
 
 #else
 
+namespace cryptanalysislib::internal {
+	/// \return x rotated left by k bits (k mod bit width), computed in the
+	/// 	unsigned type, so k = 0 and signed limbs are well defined
+	template<typename T>
+	[[nodiscard]] constexpr inline T simd_rotl(const T x, const uint32_t k) noexcept {
+		using U = std::make_unsigned_t<T>;
+		constexpr uint32_t bits = sizeof(T) * 8u;
+		const uint32_t s = k % bits;
+		if (s == 0) { return x; }
+		return (T)(U)((U)((U)x << s) | (U)((U)x >> (bits - s)));
+	}
+
+	/// \return x rotated right by k bits (k mod bit width)
+	template<typename T>
+	[[nodiscard]] constexpr inline T simd_rotr(const T x, const uint32_t k) noexcept {
+		using U = std::make_unsigned_t<T>;
+		constexpr uint32_t bits = sizeof(T) * 8u;
+		const uint32_t s = k % bits;
+		if (s == 0) { return x; }
+		return (T)(U)((U)((U)x >> s) | (U)((U)x << (bits - s)));
+	}
+
+	/// \return x << k computed in the unsigned type (0 if k >= bit width)
+	template<typename T>
+	[[nodiscard]] constexpr inline T simd_slli(const T x, const uint32_t k) noexcept {
+		using U = std::make_unsigned_t<T>;
+		if (k >= sizeof(T) * 8u) { return 0; }
+		return (T)(U)((U)x << k);
+	}
+
+	/// \return logical x >> k, also for signed T (0 if k >= bit width)
+	template<typename T>
+	[[nodiscard]] constexpr inline T simd_srli(const T x, const uint32_t k) noexcept {
+		using U = std::make_unsigned_t<T>;
+		if (k >= sizeof(T) * 8u) { return 0; }
+		return (T)(U)((U)x >> k);
+	}
+} // end namespace cryptanalysislib::internal
+
 namespace cryptanalysislib {
     template<const bool __unsigned=true>
 	struct _Xint8x16_t;
@@ -566,10 +605,10 @@ namespace cryptanalysislib {
 	    /// \return in1 << in2
 	    [[nodiscard]] constexpr static inline S slli(const S in1,
 	                                                 const limb_type in2) noexcept {
-	    	assert(in2 <= 8);
+	    	assert(in2 <= sizeof(limb_type) * 8u);
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = in1.d[i] >> in2;
+                out.d[i] = internal::simd_slli<limb_type>(in1.d[i], in2);
             }
 		    return out;
 	    }
@@ -579,10 +618,10 @@ namespace cryptanalysislib {
 	    /// \return in1 >> in2
 	    [[nodiscard]] constexpr static inline S srli(const S in1,
 	                                                 const limb_type in2) noexcept {
-	    	assert(in2 <= 8);
+	    	assert(in2 <= sizeof(limb_type) * 8u);
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = in1.d[i] << in2;
+                out.d[i] = internal::simd_srli<limb_type>(in1.d[i], in2);
             }
 		    return out;
 	    }
@@ -594,7 +633,7 @@ namespace cryptanalysislib {
 	                                                 const uint8_t in2) noexcept {
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = (in1.d[i] >> in2) ^ (in1.d[i] << ((sizeof(limb_type)*8) - in2));
+                out.d[i] = internal::simd_rotr<limb_type>(in1.d[i], in2);
             }
 		    return out;
         }
@@ -606,7 +645,7 @@ namespace cryptanalysislib {
 	                                                 const uint8_t in2) noexcept {
 	    	S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> ((sizeof(limb_type)*8) - in2));
+                out.d[i] = internal::simd_rotl<limb_type>(in1.d[i], in2);
             }
 	    	return out;
         }
@@ -785,11 +824,12 @@ namespace cryptanalysislib {
 
 	    /// kmoves the msb into each bit
 	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+            // bit i = most significant bit of limb i
             uint32_t ret = 0;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                ret ^= in.d[i] >> (sizeof(limb_type)*8 - i - 1);
+                ret |= (uint32_t)(((std::make_unsigned_t<limb_type>)in.d[i]) >> (sizeof(limb_type)*8 - 1)) << i;
             }
-	    	return 0;
+	    	return ret;
 	    }
 
         /// \tparam scale[in]:
@@ -1133,10 +1173,10 @@ namespace cryptanalysislib {
 	    /// \return in1 << in2
 	    [[nodiscard]] constexpr static inline S slli(const S in1,
 	                                                 const limb_type in2) noexcept {
-	    	assert(in2 <= 8);
+	    	assert(in2 <= sizeof(limb_type) * 8u);
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = in1.d[i] >> in2;
+                out.d[i] = internal::simd_slli<limb_type>(in1.d[i], in2);
             }
 		    return out;
 	    }
@@ -1146,10 +1186,10 @@ namespace cryptanalysislib {
 	    /// \return in1 >> in2
 	    [[nodiscard]] constexpr static inline S srli(const S in1,
 	                                                 const limb_type in2) noexcept {
-	    	assert(in2 <= 8);
+	    	assert(in2 <= sizeof(limb_type) * 8u);
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = in1.d[i] << in2;
+                out.d[i] = internal::simd_srli<limb_type>(in1.d[i], in2);
             }
 		    return out;
 	    }
@@ -1161,7 +1201,7 @@ namespace cryptanalysislib {
 	                                                 const uint8_t in2) noexcept {
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = (in1.d[i] >> in2) ^ (in1.d[i] << ((sizeof(limb_type)*8) - in2));
+                out.d[i] = internal::simd_rotr<limb_type>(in1.d[i], in2);
             }
 		    return out;
         }
@@ -1173,7 +1213,7 @@ namespace cryptanalysislib {
 	                                                 const uint8_t in2) noexcept {
 	    	S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> ((sizeof(limb_type)*8) - in2));
+                out.d[i] = internal::simd_rotl<limb_type>(in1.d[i], in2);
             }
 	    	return out;
         }
@@ -1353,11 +1393,12 @@ namespace cryptanalysislib {
 
 	    /// kmoves the msb into each bit
 	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+            // bit i = most significant bit of limb i
             uint32_t ret = 0;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                ret ^= in.d[i] >> (sizeof(limb_type)*8 - i - 1);
+                ret |= (uint32_t)(((std::make_unsigned_t<limb_type>)in.d[i]) >> (sizeof(limb_type)*8 - 1)) << i;
             }
-	    	return 0;
+	    	return ret;
 	    }
 
         /// \tparam scale[in]:
@@ -1688,10 +1729,10 @@ namespace cryptanalysislib {
 	    /// \return in1 << in2
 	    [[nodiscard]] constexpr static inline S slli(const S in1,
 	                                                 const limb_type in2) noexcept {
-	    	assert(in2 <= 8);
+	    	assert(in2 <= sizeof(limb_type) * 8u);
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = in1.d[i] >> in2;
+                out.d[i] = internal::simd_slli<limb_type>(in1.d[i], in2);
             }
 		    return out;
 	    }
@@ -1701,10 +1742,10 @@ namespace cryptanalysislib {
 	    /// \return in1 >> in2
 	    [[nodiscard]] constexpr static inline S srli(const S in1,
 	                                                 const limb_type in2) noexcept {
-	    	assert(in2 <= 8);
+	    	assert(in2 <= sizeof(limb_type) * 8u);
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = in1.d[i] << in2;
+                out.d[i] = internal::simd_srli<limb_type>(in1.d[i], in2);
             }
 		    return out;
 	    }
@@ -1716,7 +1757,7 @@ namespace cryptanalysislib {
 	                                                 const uint8_t in2) noexcept {
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = (in1.d[i] >> in2) ^ (in1.d[i] << ((sizeof(limb_type)*8) - in2));
+                out.d[i] = internal::simd_rotr<limb_type>(in1.d[i], in2);
             }
 		    return out;
         }
@@ -1728,7 +1769,7 @@ namespace cryptanalysislib {
 	                                                 const uint8_t in2) noexcept {
 	    	S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> ((sizeof(limb_type)*8) - in2));
+                out.d[i] = internal::simd_rotl<limb_type>(in1.d[i], in2);
             }
 	    	return out;
         }
@@ -1883,11 +1924,12 @@ namespace cryptanalysislib {
 
 	    /// kmoves the msb into each bit
 	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+            // bit i = most significant bit of limb i
             uint32_t ret = 0;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                ret ^= in.d[i] >> (sizeof(limb_type)*8 - i - 1);
+                ret |= (uint32_t)(((std::make_unsigned_t<limb_type>)in.d[i]) >> (sizeof(limb_type)*8 - 1)) << i;
             }
-	    	return 0;
+	    	return ret;
 	    }
 
         /// \tparam scale[in]:
@@ -2224,10 +2266,10 @@ namespace cryptanalysislib {
 	    /// \return in1 << in2
 	    [[nodiscard]] constexpr static inline S slli(const S in1,
 	                                                 const limb_type in2) noexcept {
-	    	assert(in2 <= 8);
+	    	assert(in2 <= sizeof(limb_type) * 8u);
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = in1.d[i] >> in2;
+                out.d[i] = internal::simd_slli<limb_type>(in1.d[i], in2);
             }
 		    return out;
 	    }
@@ -2237,10 +2279,10 @@ namespace cryptanalysislib {
 	    /// \return in1 >> in2
 	    [[nodiscard]] constexpr static inline S srli(const S in1,
 	                                                 const limb_type in2) noexcept {
-	    	assert(in2 <= 8);
+	    	assert(in2 <= sizeof(limb_type) * 8u);
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = in1.d[i] << in2;
+                out.d[i] = internal::simd_srli<limb_type>(in1.d[i], in2);
             }
 		    return out;
 	    }
@@ -2252,7 +2294,7 @@ namespace cryptanalysislib {
 	                                                 const uint8_t in2) noexcept {
 		    S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = (in1.d[i] >> in2) ^ (in1.d[i] << ((sizeof(limb_type)*8) - in2));
+                out.d[i] = internal::simd_rotr<limb_type>(in1.d[i], in2);
             }
 		    return out;
         }
@@ -2264,7 +2306,7 @@ namespace cryptanalysislib {
 	                                                 const uint8_t in2) noexcept {
 	    	S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> ((sizeof(limb_type)*8) - in2));
+                out.d[i] = internal::simd_rotl<limb_type>(in1.d[i], in2);
             }
 	    	return out;
         }
@@ -2443,11 +2485,12 @@ namespace cryptanalysislib {
 
 	    /// kmoves the msb into each bit
 	    [[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
+            // bit i = most significant bit of limb i
             uint32_t ret = 0;
             for (uint32_t i = 0; i < LIMBS; i++) {
-                ret ^= in.d[i] >> (sizeof(limb_type)*8 - i - 1);
+                ret |= (uint32_t)(((std::make_unsigned_t<limb_type>)in.d[i]) >> (sizeof(limb_type)*8 - 1)) << i;
             }
-	    	return 0;
+	    	return ret;
 	    }
 
         /// \tparam scale[in]:
@@ -2744,7 +2787,7 @@ struct Xint8x32_t {
 			return;
 		}
 
-		aligned_store(ptr, in);
+		unaligned_store(ptr, in);
 	}
 
 	/// \param ptr
@@ -2761,10 +2804,8 @@ struct Xint8x32_t {
 	/// \param in
 	static inline void unaligned_store(limb_type *ptr,
                                        const S in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.v64[i];
-		}
+		// NOTE: `ptr` may not be 8 byte aligned, so no `uint64_t` stores
+		__builtin_memcpy(ptr, &in, sizeof(S));
 	}
 
 	/// \param in1
@@ -2813,7 +2854,7 @@ struct Xint8x32_t {
 	                                               const S in2) noexcept {
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = ~(in1.d[i] & in2.d[i]);
+			out.d[i] = (limb_type)(~in1.d[i] & in2.d[i]);
 		}
 		return out;
 	}
@@ -2893,10 +2934,10 @@ struct Xint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const limb_type in2) noexcept {
-		assert(in2 <= 8);
+		assert(in2 <= sizeof(limb_type) * 8u);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = in1.d[i] << in2;
+			out.d[i] = internal::simd_slli<limb_type>(in1.d[i], in2);
 		}
 		return out;
 	}
@@ -2907,10 +2948,34 @@ struct Xint8x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const limb_type in2) noexcept {
-		assert(in2 <= 8);
+		assert(in2 <= sizeof(limb_type) * 8u);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = in1.d[i] >> in2;
+			out.d[i] = internal::simd_srli<limb_type>(in1.d[i], in2);
+		}
+		return out;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return in1 <<< in2 (per limb)
+	[[nodiscard]] constexpr static inline S rol(const S in1,
+	                                            const limb_type in2) noexcept {
+		S out;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.d[i] = internal::simd_rotl<limb_type>(in1.d[i], in2);
+		}
+		return out;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return in1 >>> in2 (per limb)
+	[[nodiscard]] constexpr static inline S ror(const S in1,
+	                                            const limb_type in2) noexcept {
+		S out;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.d[i] = internal::simd_rotr<limb_type>(in1.d[i], in2);
 		}
 		return out;
 	}
@@ -3260,16 +3325,17 @@ struct Xint16x16_t {
 			return;
 		}
 
-		aligned_store(ptr, in);
+		unaligned_store(ptr, in);
 	}
 
 	/// \param ptr
 	/// \param in
 	static inline void aligned_store(limb_type *ptr, 
                                      const S in) noexcept {
+		// NOTE: `d` holds 16 bit limbs, `v64` the 64 bit chunks
 		auto *ptr64 = (uint64_t *) ptr;
 		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.d[i];
+			ptr64[i] = in.v64[i];
 		}
 	}
 
@@ -3277,10 +3343,8 @@ struct Xint16x16_t {
 	/// \param in
 	constexpr static inline void unaligned_store(limb_type *ptr,
                                                  const S in) noexcept {
-		auto *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.d[i];
-		}
+		// NOTE: `ptr` may not be 8 byte aligned, so no `uint64_t` stores
+		__builtin_memcpy(ptr, &in, sizeof(S));
 	}
 
 	/// \param in1
@@ -3326,7 +3390,7 @@ struct Xint16x16_t {
 	                                               const S in2) noexcept {
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = ~(in1.d[i] & in2.d[i]);
+			out.d[i] = (limb_type)(~in1.d[i] & in2.d[i]);
 		}
 		return out;
 	}
@@ -3402,10 +3466,10 @@ struct Xint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint8_t in2) noexcept {
-		assert(in2 <= 16);
+		assert(in2 <= sizeof(limb_type) * 8u);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = in1.d[i] << in2;
+			out.d[i] = internal::simd_slli<limb_type>(in1.d[i], in2);
 		}
 		return out;
 	}
@@ -3415,10 +3479,10 @@ struct Xint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const limb_type in2) noexcept {
-		assert(in2 <= 8);
+		assert(in2 <= sizeof(limb_type) * 8u);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = in1.d[i] >> in2;
+			out.d[i] = internal::simd_srli<limb_type>(in1.d[i], in2);
 		}
 		return out;
 	}
@@ -3430,7 +3494,7 @@ struct Xint16x16_t {
 												const limb_type in2) noexcept {
 		S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
-            out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> (sizeof(limb_type) * 8 - in2));
+            out.d[i] = internal::simd_rotr<limb_type>(in1.d[i], in2);
         }
 		return out;
 	}
@@ -3442,7 +3506,7 @@ struct Xint16x16_t {
 												const limb_type in2) noexcept {
 		S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
-            out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> (sizeof(limb_type) * 8 - in2));
+            out.d[i] = internal::simd_rotl<limb_type>(in1.d[i], in2);
         }
 		return out;
 	}
@@ -3794,7 +3858,7 @@ struct Xint32x8_t {
 			return;
 		}
 
-		aligned_store(ptr, in);
+		unaligned_store(ptr, in);
 	}
 
 	///
@@ -3813,10 +3877,8 @@ struct Xint32x8_t {
 	/// \param in
 	constexpr static inline void unaligned_store(limb_type *ptr,
                                                  const S in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.v64[i];
-		}
+		// NOTE: `ptr` may not be 8 byte aligned, so no `uint64_t` stores
+		__builtin_memcpy(ptr, &in, sizeof(S));
 	}
 
 	///
@@ -3866,7 +3928,7 @@ struct Xint32x8_t {
 	                                               const S in2) noexcept {
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = ~(in1.d[i] & in2.d[i]);
+			out.d[i] = (limb_type)(~in1.d[i] & in2.d[i]);
 		}
 		return out;
 	}
@@ -3929,6 +3991,23 @@ struct Xint32x8_t {
 		return S::mullo(in1, rs);
 	}
 
+	/// \return [in1[0]*in2[0], ..., in1[7]*in2[7]] (lower 32 bits, same as `mullo`)
+	[[nodiscard]] constexpr static inline S mul(const S in1,
+	                                            const S in2) noexcept {
+		return S::mullo(in1, in2);
+	}
+
+	/// \return upper 32 bits of the 64 bit products in1[i]*in2[i]
+	[[nodiscard]] constexpr static inline S mulhi(const S in1,
+	                                              const S in2) noexcept {
+		using W = std::conditional_t<__unsigned, uint64_t, int64_t>;
+		S out;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			out.d[i] = (limb_type)(((W)in1.d[i] * (W)in2.d[i]) >> 32u);
+		}
+		return out;
+	}
+
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -3946,10 +4025,10 @@ struct Xint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const uint32_t in2) noexcept {
-		assert(in2 <= 32);
+		assert(in2 <= sizeof(limb_type) * 8u);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = in1.d[i] << in2;
+			out.d[i] = internal::simd_slli<limb_type>(in1.d[i], in2);
 		}
 		return out;
 	}
@@ -3960,10 +4039,10 @@ struct Xint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const uint16_t in2) noexcept {
-		assert(in2 <= 8);
+		assert(in2 <= sizeof(limb_type) * 8u);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = in1.d[i] >> in2;
+			out.d[i] = internal::simd_srli<limb_type>(in1.d[i], in2);
 		}
 		return out;
 	}
@@ -3975,7 +4054,7 @@ struct Xint32x8_t {
 												const limb_type in2) noexcept {
 		S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
-            out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> (sizeof(limb_type) * 8 - in2));
+            out.d[i] = internal::simd_rotr<limb_type>(in1.d[i], in2);
         }
 		return out;
 	}
@@ -3987,7 +4066,7 @@ struct Xint32x8_t {
 												const limb_type in2) noexcept {
 		S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
-            out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> (sizeof(limb_type) * 8 - in2));
+            out.d[i] = internal::simd_rotl<limb_type>(in1.d[i], in2);
         }
 		return out;
 	}
@@ -4098,12 +4177,12 @@ struct Xint32x8_t {
 
     /// \param in1[in]: vector element
 	/// \param in2[in]: vector element
-	/// \return in1 == in2 uncompressed
-	constexpr static inline uint32_t cmp_(const S &in1,
-	                                      const S &in2) noexcept {
+	/// \return in1 != in2 uncompressed (-1 if the limbs differ, 0 otherwise)
+	[[nodiscard]] constexpr static inline S cmp_(const S &in1,
+	                                             const S &in2) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < LIMBS; i++) {
-			ret.d[i] = 0xFFFFFFFF * (in1.d[i] < in2.d[i]) ^ (in1.d[i] > in2.d[i]);
+			ret.d[i] = (limb_type)(0u - (uint32_t)((in1.d[i] < in2.d[i]) | (in1.d[i] > in2.d[i])));
 		}
 		return ret;
 	}
@@ -4234,7 +4313,8 @@ struct Xint32x8_t {
 	/// \param ptr
 	/// \param data
 	/// \return
-	template<const uint32_t scale = 4>
+	// NOTE: `scale` defaults to 1 (byte offsets) like the AVX2 gathers
+	template<const uint32_t scale = 1>
 	[[nodiscard]] constexpr static inline S gather(const void *ptr,
 	                                               const S data) noexcept {
 		S ret;
@@ -4244,6 +4324,22 @@ struct Xint32x8_t {
 		}
 
 		return ret;
+	}
+
+	/// writes data[i] to the byte offset `offset[i] * scale` of `ptr`
+	/// \tparam scale
+	/// \param ptr
+	/// \param offset
+	/// \param data
+	template<const uint32_t scale = 1>
+	constexpr static inline void scatter(void *ptr,
+	                                     const S offset,
+	                                     const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		uint8_t *ptr8 = (uint8_t *) ptr;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			__builtin_memcpy(ptr8 + (offset.d[i] * scale), &data.d[i], sizeof(uint32_t));
+		}
 	}
 };
 
@@ -4378,7 +4474,7 @@ struct Xint64x4_t {
 			return;
 		}
 
-		aligned_store(ptr, in);
+		unaligned_store(ptr, in);
 	}
 
 	///
@@ -4396,10 +4492,8 @@ struct Xint64x4_t {
 	/// \param in
 	constexpr static inline void unaligned_store(limb_type *ptr,
                                                  const S in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.d[i];
-		}
+		// NOTE: `ptr` may not be 8 byte aligned, so no `uint64_t` stores
+		__builtin_memcpy(ptr, &in, sizeof(S));
 	}
 
 	///
@@ -4449,7 +4543,7 @@ struct Xint64x4_t {
 	                                               const S in2) noexcept {
 		S out{};
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = ~(in1.d[i] & in2.d[i]);
+			out.d[i] = (limb_type)(~in1.d[i] & in2.d[i]);
 		}
 		return out;
 	}
@@ -4529,10 +4623,10 @@ struct Xint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const limb_type in2) noexcept {
-		assert(in2 <= 64);
+		assert(in2 <= sizeof(limb_type) * 8u);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = in1.d[i] << in2;
+			out.d[i] = internal::simd_slli<limb_type>(in1.d[i], in2);
 		}
 		return out;
 	}
@@ -4543,10 +4637,10 @@ struct Xint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S srli(const S in1,
 	                                             const limb_type in2) noexcept {
-		assert(in2 <= 64);
+		assert(in2 <= sizeof(limb_type) * 8u);
 		S out;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			out.d[i] = in1.d[i] >> in2;
+			out.d[i] = internal::simd_srli<limb_type>(in1.d[i], in2);
 		}
 		return out;
 	
@@ -4559,7 +4653,7 @@ struct Xint64x4_t {
 												const limb_type in2) noexcept {
 		S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
-            out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> (sizeof(limb_type) * 8 - in2));
+            out.d[i] = internal::simd_rotr<limb_type>(in1.d[i], in2);
         }
 		return out;
 	}
@@ -4571,7 +4665,7 @@ struct Xint64x4_t {
 												const limb_type in2) noexcept {
 		S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
-            out.d[i] = (in1.d[i] << in2) ^ (in1.d[i] >> (sizeof(limb_type) * 8 - in2));
+            out.d[i] = internal::simd_rotl<limb_type>(in1.d[i], in2);
         }
 		return out;
 	}
@@ -5099,16 +5193,16 @@ constexpr inline uint64x4_t operator|=(uint64x4_t &lhs, const uint64x4_t &rhs) n
 
 
 /* 					 comparison									*/
-constexpr inline int operator==(const uint8x32_t &a, const uint8x32_t &b) noexcept {
+constexpr inline uint32_t operator==(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::eq(a, b);
 }
-constexpr inline int operator!=(const uint8x32_t &a, const uint8x32_t &b) noexcept {
+constexpr inline uint32_t operator!=(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return 0xffffffff ^ uint8x32_t::eq(a, b);
 }
-constexpr inline int operator<(const uint8x32_t &a, const uint8x32_t &b) noexcept {
+constexpr inline uint32_t operator<(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::gt(b, a);
 }
-constexpr inline int operator>(const uint8x32_t &a, const uint8x32_t &b) noexcept {
+constexpr inline uint32_t operator>(const uint8x32_t &a, const uint8x32_t &b) noexcept {
 	return uint8x32_t::gt(a, b);
 }
 
@@ -5315,86 +5409,77 @@ namespace cryptanalysislib {
 
     template<>
 	constexpr inline _uint16x8_t _uint16x8_t::operator=(const _uint8x16_t &b) noexcept {
-		_uint16x8_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
     template<>
 	constexpr inline _uint16x8_t _uint16x8_t::operator=(const _uint32x4_t &b) noexcept {
-		_uint16x8_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
     template<>
 	constexpr inline _uint16x8_t _uint16x8_t::operator=(const _uint64x2_t &b) noexcept {
-		_uint16x8_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
 
     template<>
 	constexpr inline _uint32x4_t _uint32x4_t::operator=(const _uint16x8_t &b) noexcept {
-		_uint32x4_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
     template<>
 	constexpr inline _uint32x4_t _uint32x4_t::operator=(const _uint8x16_t &b) noexcept {
-		_uint32x4_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
     template<>
 	constexpr inline _uint32x4_t _uint32x4_t::operator=(const _uint64x2_t &b) noexcept {
-		_uint32x4_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
 
     template<>
 	constexpr inline _uint64x2_t _uint64x2_t::operator=(const _uint16x8_t &b) noexcept {
-		_uint64x2_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
     template<>
 	constexpr inline _uint64x2_t _uint64x2_t::operator=(const _uint32x4_t &b) noexcept {
-		_uint64x2_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
     template<>
 	constexpr inline _uint64x2_t _uint64x2_t::operator=(const _uint8x16_t &b) noexcept {
-		_uint64x2_t ret;
 		for (uint32_t i = 0; i < 2; ++i) {
-			ret.v64[i] = b.v64[i];
+			v64[i] = b.v64[i];
 		}
 
-		return ret;
+		return *this;
 	}
 }
 

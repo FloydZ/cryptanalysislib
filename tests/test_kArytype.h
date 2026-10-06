@@ -109,6 +109,28 @@ TEST(T, neg) {
 	}
 }
 
+TEST(T, popcnt) {
+	constexpr uint32_t bits = S::bits;
+	for (uint32_t i = 0; i < TESTSIZE; ++i) {
+		S a;
+		a.random();
+		const auto v = a.value();
+
+		// does not change the value
+		const uint32_t w = a.popcnt();
+		EXPECT_EQ(v, a.value());
+		EXPECT_EQ(w, cryptanalysislib::popcount::popcount(v));
+
+		// the weight splits over [0, k) and [k, bits)
+		for (uint32_t k = 1; k < bits; ++k) {
+			EXPECT_EQ(w, a.popcnt(0, k) + a.popcnt(k, bits));
+		}
+	}
+
+	S z; z.zero();
+	EXPECT_EQ(0u, z.popcnt());
+}
+
 TEST(T, add_simple) {
 	S l1, l2, l3;
 

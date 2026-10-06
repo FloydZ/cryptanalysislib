@@ -205,7 +205,7 @@ uint32_t static sse42_crc32(const unsigned char *buf,
 #include <stdint.h>
 #include <stddef.h>
 
-uint32_t crc32(uint32_t crc, uint8_t *buf, size_t len) {
+inline uint32_t crc32(uint32_t crc, uint8_t *buf, size_t len) {
     crc = ~crc;
 
     while (len >= 8) {
@@ -263,7 +263,7 @@ crcB = _mm_crc32_u64(crcB, *(uint64_t*)(pB - 8*(i)));
 
 /// Source: https://github.com/komrad36/CRC/tree/master/CRC
 /// OPTION 14
-uint32_t option_14_golden_amd(const void* M,
+inline uint32_t option_14_golden_amd(const void* M,
 							  uint32_t bytes,
 							  uint32_t prev/* = 0*/) noexcept {
 	constexpr uint32_t g_lut_amd[] = {

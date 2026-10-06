@@ -1,5 +1,10 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
+#include "algorithm/bits/popcount.h"
+
 /// Class for enumerating parenthesis-like structures in binary representation
 /// Provides utilities for generating, validating, and manipulating binary words
 /// that correspond to valid parenthesis expressions
@@ -11,9 +16,25 @@ private:
     constexpr static size_t BITS = sizeof(T) * 8;
     
     /// Current value in the enumeration
-    T val = first_parenword();
+    T val;
+
+    /// \return the word with the lowest `n` bits set
+    [[nodiscard]] constexpr static inline T first_comb(const T n) noexcept {
+        if (n == 0) { return 0; } // shift with BITS is undefined
+        return T(T(~T(0)) >> (BITS - n));
+    }
+
+    /// \return the lowest unset bit of x (as a mask)
+    [[nodiscard]] constexpr static inline T lowest_zero(const T x) noexcept {
+        const T t = T(~x);
+        return T(t & T(-t));
+    }
 
 public:
+    /// \param n[in]: number of parenthesis pairs to enumerate
+    constexpr explicit enumeration_parenthesis(const T n = 1) noexcept :
+        val(first_parenword(n)) {}
+
     /// Determines if a binary word represents a valid parenthesis structure
     /// 
     /// Binary words < 16, those that are valid
@@ -102,7 +123,8 @@ public:
     /// \param n[in]: number of parenthesis pairs
     /// \return binary word representing the last valid parenthesis structure with n pairs
     constexpr static inline T last_parenword(const T n) noexcept {
-        return  0x5555555555555555UL >> (BITS-2*n);
+        // 0x5555... in the width of T
+        return T(T(T(~T(0)) / 3u) >> (BITS - 2*n));
     }
     
     /// Computes the next parenthesis word in colex (co-lexicographic) order
@@ -139,7 +161,7 @@ public:
             if ( (t&x)==0 )  return 0;      // current is last
             T u = (t-1) ^ t;            // SUBU u, t, 1;  XOR u, t, u;
             T v = x | u;                // OR v, x, u;
-            T y = bit_count( u & m0 );  // SADD y, u, m0;
+            T y = cryptanalysislib::popcount::popcount<T>( u & m0 );  // SADD y, u, m0;
             T w = v + 1;                // ADDU w, v, 1;
             t = v & ~w;                     // ANDN t, v, w;
             y = t >> y;                     // SRU y, t, y;

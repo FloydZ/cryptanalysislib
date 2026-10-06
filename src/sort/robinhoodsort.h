@@ -5,6 +5,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <type_traits>
 
 #define LIKELY(X) __builtin_expect(X,1)
 #define RARE(X) __builtin_expect(X,0)
@@ -58,17 +59,18 @@ static void mergefrom(T *x, size_t n, size_t block, T *aux) {
 // Counting sort of the n values starting at x
 template<typename T>
 static void count(T *x, size_t n, T min, size_t range) {
+	using U = std::make_unsigned_t<T>;
 	size_t *count = (size_t *)calloc(range,sizeof(size_t));
 	if (range < n/8) { // Short range: branching on count is cheap
 		// Count the values
-		for (size_t i=0; i<n; i++) count[x[i]-min]++;
+		for (size_t i=0; i<n; i++) count[U(U(x[i])-U(min))]++;
 		// Write based on the counts
 		for (size_t i=0; i<range; i++)
 			for (size_t j=0; j<count[i]; j++)
-				*x++ = min+i;
+				*x++ = T(U(U(min)+U(i)));
 	} else {
 		// Count, and zero the const_array
-		for (size_t i=0; i<n; i++) { count[x[i]-min]++; x[i]=0; }
+		for (size_t i=0; i<n; i++) { count[U(U(x[i])-U(min))]++; x[i]=0; }
 		// Write differences to x
 		x[0] = min;
 		for (size_t i=0, s=count[i]; s<n; s+=count[++i]) x[s]++;
@@ -84,6 +86,10 @@ static void count(T *x, size_t n, T min, size_t range) {
 // The main attraction. Sort const_array of ints with length n.
 template<typename T>
 void rhsort32(T *array, size_t n) {
+	// NOTE: all range computations are done in the unsigned type of the
+	// same width, so 64-bit ranges are not truncated.
+	using U = std::make_unsigned_t<T>;
+	if (n < 2) { return; }
 	T *x = array, *xb=x;  // Stolen blocks go to xb
 
 	// Find the range.
@@ -91,16 +97,17 @@ void rhsort32(T *array, size_t n) {
 	for (size_t i=1; i<n; i++) {
 		T e=x[i]; if (e<min) min=e; if (e>max) max=e;
 	}
-	size_t r = (size_t)(uint32_t )(max-min) + 1;           // Size of range
-	if (RARE(r/4 < n)) {                  // Counting sort if it's small
-		count(x, n, min, r); return;
+	const U range = U(U(max) - U(min));   // Size of range - 1
+	if (RARE(range/4 < n)) {              // Counting sort if it's small
+		count(x, n, min, size_t(range) + 1); return;
 	}
 
 	// Planning for the buffer
 	// Sentinel value: the buffer swallows these but count recovers them
 	T s = max;
 	size_t sh = 0;                             // Contract to fit range
-	while (r>5*n) { sh++; r>>=1; }        // Shrink to stay at O(n) memory
+	while ((range >> sh) >= 5*n) { sh++; }     // Shrink to stay at O(n) memory
+	size_t r = size_t(range >> sh) + 1;
 	// Goes down to BLOCK once we know we have to merge
 	size_t threshold = 2*BLOCK;
 	size_t sz = r + threshold;                 // Buffer size
@@ -113,7 +120,7 @@ void rhsort32(T *array, size_t n) {
 	for (size_t i=0; i<sz; i++) aux[i] = s;
 
 	// Main loop: insert const_array entries into buffer
-#define POS(E) ((size_t)(uint32_t)((E)-min) >> sh)
+#define POS(E) ((size_t)(U(U(E)-U(min)) >> sh))
 	for (size_t i=0; i<n; i++) {
 		T e = x[i];               // Entry to be inserted
 		size_t j = POS(e);             // Target position
@@ -161,8 +168,7 @@ void rhsort32(T *array, size_t n) {
 
 	// Move all values from the buffer back to the const_array
 	// Use xt += to convince the compiler to make it branchless
-	while (aux[--sz] == s);
-	sz++;
+	while (sz > 0 && aux[sz-1] == s) { sz--; }
 	T *xt=xb;
 	{
 		static const size_t u=8;  // Unrolling size

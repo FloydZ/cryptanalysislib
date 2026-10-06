@@ -58,8 +58,8 @@ namespace cryptanalysislib::hash::adler32::internal {
 /// \param in[in] Pointer to input data
 /// \param in_len_[in] Length of input data in bytes
 /// \return Updated Adler-32 checksum (b << 16 | a)
-constexpr static uint32_t adler32_update(uint16_t a,
-										 uint16_t b,
+constexpr static uint32_t adler32_update(uint32_t a,
+										 uint32_t b,
                                   		 const uint8_t *in,
                                   		 const size_t in_len_) noexcept {
 	using cryptanalysislib::hash::adler32::internal::MOD;
@@ -148,23 +148,34 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
 
 	uint32_t a = val & 0xffffu;
 	uint32_t b = val >> 16u;
-    __m256i p_v = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, a*blocks);
-    __m256i a_v = _mm256_setzero_si256();
-    __m256i b_v = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, b);
-	
-	for (uint32_t i = 0; i < blocks; i++) {
-        const __m256i block = _mm256_loadu_si256((__m256i *)(in + i*32));
-        p_v = _mm256_add_epi32(p_v, a_v);
-        a_v = _mm256_add_epi32(a_v, _mm256_sad_epu8(block, zero_v));
-        const __m256i mad = _mm256_maddubs_epi16(block, weights);
-        b_v = _mm256_add_epi32(b_v, _mm256_madd_epi16(mad, one_v));
+
+	// NOTE: at most NMAX bytes are summed up before a and b are reduced,
+	// otherwise the 32-bit lanes overflow.
+	constexpr size_t CHUNK = NMAX / BLOCK_SIZE;
+	size_t blocks_left = blocks;
+	const uint8_t *ptr = in;
+	while (blocks_left) {
+		const size_t nb = blocks_left < CHUNK ? blocks_left : CHUNK;
+		__m256i p_v = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, a*nb);
+		__m256i a_v = _mm256_setzero_si256();
+		__m256i b_v = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, b);
+
+		for (size_t i = 0; i < nb; i++) {
+			const __m256i block = _mm256_loadu_si256((__m256i *)ptr);
+			p_v = _mm256_add_epi32(p_v, a_v);
+			a_v = _mm256_add_epi32(a_v, _mm256_sad_epu8(block, zero_v));
+			const __m256i mad = _mm256_maddubs_epi16(block, weights);
+			b_v = _mm256_add_epi32(b_v, _mm256_madd_epi16(mad, one_v));
+			ptr += BLOCK_SIZE;
+		}
+
+		b_v = _mm256_add_epi32(b_v, _mm256_slli_epi32(p_v, 5));
+		a = (a + avx2_hadd_adler32(a_v)) % MOD;
+		b = avx2_hadd_adler32(b_v) % MOD;
+		blocks_left -= nb;
 	}
 
-    b_v = _mm256_add_epi32(b_v, _mm256_slli_epi32(p_v, 5));
-    a += avx2_hadd_adler32(a_v);
-    b  = avx2_hadd_adler32(b_v);
-
-	return adler32_update(a, b, in + blocks*BLOCK_SIZE, blocks_remainder);
+	return adler32_update(a, b, ptr, blocks_remainder);
 }
 #endif
 
@@ -203,23 +214,35 @@ constexpr static uint32_t avx512_adler32(uint32_t val,
 
 	uint32_t a = val & 0xffffu;
 	uint32_t b = val >> 16u;
-    __m512i p_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, a*blocks);
-    __m512i a_v = _mm512_setzero_si512();
-    __m512i b_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b);
 
-	for (uint32_t i = 0; i < blocks; i++) {
-        const __m512i block = _mm512_loadu_si512((__m512i *)(in + i*32));
-        p_v = _mm512_add_epi32(p_v, a_v);
-        a_v = _mm512_add_epi32(a_v, _mm512_sad_epu8(block, zero_v));
-        const __m512i mad = _mm512_maddubs_epi16(block, weights);
-        b_v = _mm512_add_epi32(b_v, _mm512_madd_epi16(mad, one_v));
+	// NOTE: at most NMAX bytes are summed up before a and b are reduced,
+	// otherwise the 32-bit lanes overflow.
+	constexpr size_t CHUNK = NMAX / BLOCK_SIZE;
+	size_t blocks_left = blocks;
+	const uint8_t *ptr = in;
+	while (blocks_left) {
+		const size_t nb = blocks_left < CHUNK ? blocks_left : CHUNK;
+		__m512i p_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, a*nb);
+		__m512i a_v = _mm512_setzero_si512();
+		__m512i b_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b);
+
+		for (size_t i = 0; i < nb; i++) {
+			// NOTE: 64-byte stride (was 32)
+			const __m512i block = _mm512_loadu_si512((__m512i *)ptr);
+			p_v = _mm512_add_epi32(p_v, a_v);
+			a_v = _mm512_add_epi32(a_v, _mm512_sad_epu8(block, zero_v));
+			const __m512i mad = _mm512_maddubs_epi16(block, weights);
+			b_v = _mm512_add_epi32(b_v, _mm512_madd_epi16(mad, one_v));
+			ptr += BLOCK_SIZE;
+		}
+
+		b_v = _mm512_add_epi32(b_v, _mm512_slli_epi32(p_v, 6));
+		a = (a + avx512_hadd_adler32(a_v)) % MOD;
+		b = avx512_hadd_adler32(b_v) % MOD;
+		blocks_left -= nb;
 	}
 
-    b_v = _mm512_add_epi32(b_v, _mm512_slli_epi32(p_v, 6));
-    a += avx512_hadd_adler32(a_v);
-    b  = avx512_hadd_adler32(b_v);
-
-	return adler32_update(a, b, in + blocks*BLOCK_SIZE, blocks_remainder);
+	return adler32_update(a, b, ptr, blocks_remainder);
 }
 #endif
 #endif

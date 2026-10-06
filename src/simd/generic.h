@@ -406,7 +406,7 @@ public:
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {
-				ret.d[i] = ~(in1[i] & in2[i]);
+				ret.d[i] = ~in1[i] & in2[i];
 			}
 			return ret;
 		}
@@ -414,7 +414,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				ret.v512[i / nr_limbs_in_simd512] = ~(in1.v512[i / nr_limbs_in_simd512] & in2[i / nr_limbs_in_simd512]);
+				ret.v512[i / nr_limbs_in_simd512] = ~in1.v512[i / nr_limbs_in_simd512] & in2.v512[i / nr_limbs_in_simd512];
 			}
 
 			if constexpr (simd512_fits) {
@@ -424,7 +424,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				ret.v256[i / nr_limbs_in_simd256] = ~(in1.v256[i / nr_limbs_in_simd256] & in2[i / nr_limbs_in_simd256]);
+				ret.v256[i / nr_limbs_in_simd256] = ~in1.v256[i / nr_limbs_in_simd256] & in2.v256[i / nr_limbs_in_simd256];
 			}
 
 			if constexpr (simd256_fits) {
@@ -433,26 +433,36 @@ public:
 		}
 
 		for (; i < N; ++i) {
-			ret.d[i] = ~(in1.d[i] & in2[i]);
+			ret.d[i] = ~in1.d[i] & in2[i];
 		}
 
 		return ret;
 	}
 
-	/// TODO not implemented
+	/// double width type for the products in `mul`/`mulhi`
+	using mul_type = std::conditional_t<sizeof(T) == 8,
+	                                    std::conditional_t<std::is_signed_v<T>, __int128, unsigned __int128>,
+	                                    std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>>;
+
 	/// \param in1
 	/// \param in2
-	/// \return
+	/// \return [in1[0]*in2[0], ..., in1[N-1]*in2[N-1]] (lower half of each product)
 	[[nodiscard]] constexpr static inline TxN_t mul(const TxN_t &in1, const TxN_t in2) noexcept {
 		TxN_t ret;
-		(void)in1;
-		(void)in2;
+		for (uint32_t i = 0; i < N; ++i) {
+			ret.d[i] = (T)((mul_type)in1.d[i] * (mul_type)in2.d[i]);
+		}
 		return ret;
 	}
+
+	/// \param in1
+	/// \param in2
+	/// \return upper half of each product in1[i]*in2[i]
 	[[nodiscard]] constexpr static inline TxN_t mulhi(const TxN_t &in1, const TxN_t in2) noexcept {
 		TxN_t ret;
-		(void)in1;
-		(void)in2;
+		for (uint32_t i = 0; i < N; ++i) {
+			ret.d[i] = (T)(((mul_type)in1.d[i] * (mul_type)in2.d[i]) >> (sizeof(T) * 8u));
+		}
 		return ret;
 	}
 
@@ -581,15 +591,21 @@ public:
 
 
 	[[nodiscard]] constexpr static inline TxN_t ror(const TxN_t &in1, const uint32_t in2) noexcept {
+		constexpr uint32_t bits = sizeof(T) * 8u;
+		const uint32_t s = in2 % bits;
 		TxN_t ret;
-		(void)in1;
-		(void)in2;
+		for (uint32_t i = 0; i < N; ++i) {
+			ret.d[i] = s ? T((in1.d[i] >> s) | (in1.d[i] << (bits - s))) : in1.d[i];
+		}
 		return ret;
 	}
 	[[nodiscard]] constexpr static inline TxN_t rol(const TxN_t &in1, const uint32_t in2) noexcept {
+		constexpr uint32_t bits = sizeof(T) * 8u;
+		const uint32_t s = in2 % bits;
 		TxN_t ret;
-		(void)in1;
-		(void)in2;
+		for (uint32_t i = 0; i < N; ++i) {
+			ret.d[i] = s ? T((in1.d[i] << s) | (in1.d[i] >> (bits - s))) : in1.d[i];
+		}
 		return ret;
 	}
 
@@ -690,10 +706,13 @@ public:
 	template<uint32_t off = sizeof(T)>
 	[[nodiscard]] constexpr static inline TxN_t gather(const limb_type *ptr,
 	                                                   const TxN_t &in1) noexcept {
+		// `off` is a byte scale (like the AVX2/NEON gathers): read the limb at
+		// byte offset in1[i] * off
 		S ret;
+		const uint8_t *ptr8 = (const uint8_t *)ptr;
 		for (uint32_t i = 0; i < N; ++i) {
-			const size_t c = in1.d[i] * off;
-			ret.d[i] = ptr[c];
+			const size_t c = size_t(in1.d[i]) * off;
+			__builtin_memcpy(&ret.d[i], ptr8 + c, sizeof(limb_type));
 		}
 		return ret;
 	}
@@ -708,9 +727,11 @@ public:
 	                                     const TxN_t &in1,
 	                                     const TxN_t &in2) noexcept {
 
+		// `off` is a byte scale: write the limb at byte offset in1[i] * off
+		uint8_t *ptr8 = (uint8_t *)ptr;
 		for (uint32_t i = 0; i < N; ++i) {
-			const size_t c = in1.d[i] * off;
-			ptr[c] = in2.d[i];
+			const size_t c = size_t(in1.d[i]) * off;
+			__builtin_memcpy(ptr8 + c, &in2.d[i], sizeof(limb_type));
 		}
 	}
 
@@ -737,7 +758,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				const uint64_t data = simd512_type::move(in1.v512[i / nr_limbs_in_simd512]);
+				const uint64_t data = uint64_t(simd512_type::move(in1.v512[i / nr_limbs_in_simd512]));
 				ret ^= data << i;
 			}
 
@@ -748,7 +769,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				ret ^= simd256_type::move(in1.v256[i / nr_limbs_in_simd256]) << i;
+				ret ^= uint64_t(simd256_type::move(in1.v256[i / nr_limbs_in_simd256])) << i;
 			}
 
 			if constexpr (simd256_fits) {
@@ -758,7 +779,7 @@ public:
 
 		constexpr limb_type mask = 1ull << ((sizeof(limb_type) * 8) - 1ull);
 		for (; i < N; ++i) {
-			ret ^= ((in1.d[i] & mask) > 0) << i;
+			ret ^= uint64_t((in1.d[i] & mask) > 0) << i;
 		}
 
 		return ret;

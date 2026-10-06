@@ -16,7 +16,8 @@
 
 		constexpr static uint32_t filter = -1u;
 		constexpr static double factor = 1.5;
-		constexpr static size_t size = (1ull << k_upper1) - 1ull;
+		// number of intermediate targets sigma_M in [0, 2**k_upper1)
+		constexpr static size_t size = 1ull << k_upper1;
 
 		constexpr size_t baselist_size = sum_bc(k_upper1, k_upper1/2);
 		//constexpr size_t baselist_size = sum_bc(n/2, n/4);

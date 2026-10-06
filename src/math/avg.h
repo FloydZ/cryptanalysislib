@@ -21,7 +21,7 @@ constexpr static inline T floor_average(T x,
 /// ceil_average(x,y) == average(x,y) + ((x^y)&1))
 /// \param x[in]:
 /// \param y[in]:
-/// \return floor((x+y)/2) 
+/// \return ceil((x+y)/2) 
 template<typename T>
 constexpr static inline T ceil_average(T x,
                                        T y) {

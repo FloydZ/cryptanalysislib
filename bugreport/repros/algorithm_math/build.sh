@@ -1,0 +1,3 @@
+#!/bin/bash
+f=$1; shift
+clang++ -std=gnu++23 -fexperimental-library -include /private/tmp/claude-503/-Users-ai-Downloads-crypto-lib-cryptanalysislib/fbab725c-4838-4aed-b795-5f43f37adbcf/scratchpad/agent_algo/prelude.h -march=native -Wno-everything -fexperimental-library -g -O0 -DUSE_ARM -DDEBUG -flax-vector-conversions -fsanitize=undefined -fno-sanitize=alignment -I/private/tmp/claude-503/-Users-ai-Downloads-crypto-lib-cryptanalysislib/fbab725c-4838-4aed-b795-5f43f37adbcf/scratchpad/agent_algo/srcp -I/Users/ai/Downloads/crypto/lib/cryptanalysislib/build/_deps/reflect-cpp-src/include "$@" $f.cpp -o $f && timeout 20 ./$f

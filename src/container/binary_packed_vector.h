@@ -251,15 +251,15 @@ public:
 	}
 
 	inline constexpr void set_bit(const uint32_t pos) noexcept {
-		__data[round_down_to_limb(pos)] |= (T(1) << (pos));
+		__data[round_down_to_limb(pos)] |= (T(1) << (pos % RADIX));
 	}
 
 	inline constexpr void flip_bit(const uint32_t pos) noexcept {
-		__data[round_down_to_limb(pos)] ^= (T(1) << (pos));
+		__data[round_down_to_limb(pos)] ^= (T(1) << (pos % RADIX));
 	}
 
 	inline constexpr void clear_bit(const uint32_t pos) noexcept {
-		__data[round_down_to_limb(pos)] &= ~(T(1) << (pos));
+		__data[round_down_to_limb(pos)] &= ~(T(1) << (pos % RADIX));
 	}
 
 	/// zero the complete data vector
@@ -275,11 +275,12 @@ public:
 	/// \param k_upper[in]: upper limit, exclusive
 	constexpr void zero(const uint32_t k_lower,
 	                    const uint32_t k_upper) noexcept {
+		assert(k_lower < k_upper && k_upper <= length);
 		const uint64_t lower = round_down_to_limb(k_lower);
-		const uint64_t upper = round_down_to_limb(k_upper);
+		const uint64_t upper = round_down_to_limb(k_upper - 1u);
 
 		const T lmask = higher_mask(k_lower);
-		const T umask = k_upper % 64 == 0 ? T(0) : lower_mask(k_upper);
+		const T umask = lower_mask2(k_upper);
 
 		if (lower == upper) {
 			const T mask = ~(lmask & umask);
@@ -308,11 +309,12 @@ public:
 	/// \param k_upper in]: upper limit exclusive
 	void one(const uint32_t k_lower,
 	         const uint32_t k_upper) noexcept {
+		assert(k_lower < k_upper && k_upper <= length);
 		const uint64_t lower = round_down_to_limb(k_lower);
-		const uint64_t upper = round_down_to_limb(k_upper);
+		const uint64_t upper = round_down_to_limb(k_upper - 1u);
 
 		const T lmask = higher_mask(k_lower);
-		const T umask = k_upper % 64 == 0 ? T(0) : lower_mask(k_upper);
+		const T umask = lower_mask2(k_upper);
 
 		if (lower == upper) {
 			const T mask = (lmask & umask);
@@ -383,21 +385,22 @@ public:
 		assert(upper <= length);
 
 		const size_t lower_limb = round_down_to_limb(lower);
-		const size_t upper_limb = round_down_to_limb(upper);
+		const size_t upper_limb = round_down_to_limb(upper - 1u);
 
 		const T _lower_mask = higher_mask(lower);
-		const T _upper_mask = lower_mask(upper);
+		const T _upper_mask = lower_mask2(upper);
 
 		if (lower_limb == upper_limb) {
 			const T mask =  _lower_mask & _upper_mask;
 			__data[lower_limb] ^= rng<T>() & mask;
+			return;
 		}
 
 		__data[lower_limb] ^= rng<T>() & _lower_mask;
 		__data[upper_limb] ^= rng<T>() & _upper_mask;
 
-		for (uint32_t i = lower_limb + 1u; i < upper_limb - 1u; ++i) {
-			__data[lower_limb] ^= rng<T>();
+		for (uint32_t i = lower_limb + 1u; i < upper_limb; ++i) {
+			__data[i] ^= rng<T>();
 		}
 	}
 
@@ -481,12 +484,12 @@ public:
     /// \return true/false if the vector is zero
 	[[nodiscard]] constexpr inline bool is_zero(const uint32_t lower,
 	                                            const uint32_t upper) const noexcept {
-		assert(upper <= length);
+		assert(lower < upper && upper <= length);
 		const size_t lower_limb = round_down_to_limb(lower);
-		const size_t upper_limb = round_down_to_limb(upper);
+		const size_t upper_limb = round_down_to_limb(upper - 1u);
 
 		const T _lower_mask = higher_mask(lower);
-		const T _upper_mask = lower_mask(upper);
+		const T _upper_mask = lower_mask2(upper);
 
 		if (lower_limb == upper_limb) {
 			return (__data[upper_limb] & _lower_mask & _upper_mask) == 0u;
@@ -495,7 +498,7 @@ public:
 		if (__data[lower_limb] & _lower_mask) { return false; }
 		if (__data[upper_limb] & _upper_mask) { return false; }
 
-		for (uint32_t i = lower_limb + 1u; i < upper_limb - 1u; ++i) {
+		for (uint32_t i = lower_limb + 1u; i < upper_limb; ++i) {
 			if (__data[i]) { return false; }
 		}
 
@@ -507,11 +510,11 @@ public:
 	/// \return whether the vector is zero between [k_lower, k_upper)
 	template<const uint32_t lower, uint32_t upper>
 	[[nodiscard]] constexpr inline bool is_zero()const noexcept {
-		assert(upper <= length);
+		static_assert(lower < upper && upper <= length);
 		constexpr size_t lower_limb = round_down_to_limb(lower);
-		constexpr size_t upper_limb = round_down_to_limb(upper);
+		constexpr size_t upper_limb = round_down_to_limb(upper - 1u);
 		constexpr T _lower_mask = higher_mask(lower);
-		constexpr T _upper_mask = lower_mask(upper);
+		constexpr T _upper_mask = lower_mask2(upper);
 
 		if constexpr (lower_limb == upper_limb) {
 			return (__data[upper_limb] & _lower_mask & _upper_mask) == 0u;
@@ -520,7 +523,7 @@ public:
 		if (__data[lower_limb] & _lower_mask) { return false; }
 		if (__data[upper_limb] & _upper_mask) { return false; }
 
-		for (uint32_t i = lower_limb + 1u; i < upper_limb - 1u; ++i) {
+		for (uint32_t i = lower_limb + 1u; i < upper_limb; ++i) {
 			if (__data[i]) { return false; }
 		}
 
@@ -900,7 +903,8 @@ public:
 	                                FqPackedVector const &v1,
 	                                FqPackedVector const &v2) noexcept {
 		if constexpr (norm != uint32_t(-1)) {
-			return add_weight<k_lower, k_upper>(v3, v1, v2);
+			// same as the runtime version: true if the weight reached `norm`
+			return add_weight<k_lower, k_upper>(v3, v1, v2) >= norm;
 		}
 
 		constexpr T lmask = higher_mask(k_lower % limb_bits_width());
@@ -930,7 +934,7 @@ public:
 		}
 
 		for (; i < higher_limb; ++i) {
-			v3[i] = v1[i] ^ v2[i];
+			v3.__data[i] = v1.__data[i] ^ v2.__data[i];
 		}
 
 		T tmp1 = (v1.__data[lower_limb] ^ v2.__data[lower_limb]) & lmask;
@@ -1006,7 +1010,7 @@ public:
 		return cnorm;
 	}
 
-	constexpr static uint32_t add_weight(FqPackedVector v3,
+	constexpr static uint32_t add_weight(FqPackedVector &v3,
 	                                     FqPackedVector const &v1,
 	                                     FqPackedVector const &v2,
 										 const uint32_t k_lower,
@@ -1152,16 +1156,17 @@ public:
 									 const uint32_t k_upper=length,
 									 const uint32_t norm=-1) noexcept {
 		(void)norm;
+		assert(k_upper <= length && k_lower < k_upper);
 		const T lmask = higher_mask(k_lower % limb_bits_width());
 		const T rmask = lower_mask2(k_upper % limb_bits_width());
 		const int64_t lower_limb = k_lower / limb_bits_width();
 		const int64_t higher_limb = (k_upper - 1) / limb_bits_width();
 
 		if (lower_limb == higher_limb) {
-			const T mask = k_upper % 64 == 0 ? lmask : (lmask & rmask);
-			T tmp1 = (v3[lower_limb] & ~(mask));
-			T tmp2 = (v1[lower_limb] ^ v2[lower_limb]) & mask;
-			v3[lower_limb] = tmp1 & tmp2;
+			const T mask = lmask & rmask;
+			const T tmp1 = v3.__data[lower_limb] & ~mask;
+			const T tmp2 = v1.__data[lower_limb] & v2.__data[lower_limb] & mask;
+			v3.__data[lower_limb] = tmp1 ^ tmp2;
 			return false;
 		}
 
@@ -1169,24 +1174,24 @@ public:
 		constexpr uint32_t limb_size = 256u/(sizeof(T)*8);
 		uint32_t i = lower_limb + 1;
 		for (; i + limb_size <= higher_limb; i += limb_size) {
-			uint32x8_t x_ = uint32x8_t::load<false>((uint32_t *)(v1 + i));
-			uint32x8_t y_ = uint32x8_t::load<false>((uint32_t *)(v2 + i));
+			uint32x8_t x_ = uint32x8_t::load<false>((uint32_t *)(v1.ptr() + i));
+			uint32x8_t y_ = uint32x8_t::load<false>((uint32_t *)(v2.ptr() + i));
 			uint32x8_t z_ = x_ & y_;
-			uint32x8_t::store((uint32_t *)(v3 + i), z_);
+			uint32x8_t::store((uint32_t *)(v3.ptr() + i), z_);
 		}
 
 		for (; i < higher_limb; ++i) {
-			v3[i] = v1[i] & v2[i];
+			v3.__data[i] = v1.__data[i] & v2.__data[i];
 		}
 
 		// do the remaining stuff
-		T tmp1 = (v1[lower_limb] ^ v2[lower_limb]) & lmask;
-		T tmp2 = (v1[higher_limb] ^ v2[higher_limb]) & rmask;
-		T tmp11 = (v3[lower_limb] & ~(lmask));
-		T tmp21 = (v3[higher_limb] & ~(rmask));
+		const T tmp1 = v1.__data[lower_limb] & v2.__data[lower_limb] & lmask;
+		const T tmp2 = v1.__data[higher_limb] & v2.__data[higher_limb] & rmask;
+		const T tmp11 = v3.__data[lower_limb] & ~lmask;
+		const T tmp21 = v3.__data[higher_limb] & ~rmask;
 
-		v3[lower_limb] = tmp1 & tmp11;
-		v3[higher_limb] = tmp2 & tmp21;
+		v3.__data[lower_limb] = tmp1 ^ tmp11;
+		v3.__data[higher_limb] = tmp2 ^ tmp21;
 		return false;
 	}
 
@@ -1207,10 +1212,11 @@ public:
 		(void)norm;
 		if (v2) {
 			FqPackedVector::set(v3, v1, k_lower, k_upper);
-			return false;
 		} else {
 			v3.zero(k_lower, k_upper);
 		}
+
+		return false;
 	}
 
 
@@ -1264,7 +1270,7 @@ public:
 		for (uint32_t j = s; j < length; ++j) {
 			out.write_bit(j-s, in.get_bit_shifted(j));
 		}
-		for (uint32_t j = s; j < length; ++j) {
+		for (uint32_t j = length - s; j < length; ++j) {
 			out.write_bit(j, 0);
 		}
 	}

@@ -6,19 +6,26 @@
 // source  https://github.com/felipelouza/bwt-lcp-in-place
 #define END_MARKER '$'
 
+/// NOTE: the input text T[0..n) must end with END_MARKER, which must be
+/// 	unique and smaller than every other symbol of the text.
 /// TODO docs tests and benchs
 
-static 
-int rank(uint8_t *T, char c, int i) noexcept {
+/// \param T[in]: text
+/// \param n[in]: length of T
+/// \param c[in]: symbol
+/// \param i[in]: position
+/// \return number of symbols < c in T, plus the number of c's before i
+static inline
+int rank(const uint8_t *T, const int n, const uint8_t c, const int i) noexcept {
 	int sum=0;
 	int j;
 	for(j=0; j<i; j++) if(T[j] <= c) sum++;
-	for(; j<(int)strlen((char *)T); j++) if(T[j] < c) sum++;
+	for(; j<n; j++) if(T[j] < c) sum++;
 
     return sum;
 }
 
-int bwt_lcp_inplace(uint8_t *T, int n, int *LCP) noexcept {
+inline int bwt_lcp_inplace(uint8_t *T, int n, int *LCP) noexcept {
 
 	int i, p, r=1, s;
 	int p_a1, p_b1, l_a, l_b;
@@ -65,8 +72,10 @@ int bwt_lcp_inplace(uint8_t *T, int n, int *LCP) noexcept {
 }
 
 
-/// \param T[in]:
-int bwt_inplace(uint8_t *T, int n) noexcept {
+/// \param T[in/out]: text of length n, ending with END_MARKER. Replaced by its BWT.
+/// \param n[in]: length of T
+/// \return n, the length of the BWT
+inline int bwt_inplace(uint8_t *T, int n) noexcept {
 
 	int p, r=1;
 	int i, s;
@@ -74,7 +83,7 @@ int bwt_inplace(uint8_t *T, int n) noexcept {
 	for(s=n-3; s>=0; s--){
 
 		p = r+1;//	p = find_sentinel(&T[s]);
-		r = rank(&T[s+1], T[s], p);
+		r = rank(&T[s+1], n-s-1, T[s], p);
 	
 		T[p+s] = T[s]; //replace('$', T[s]);
 
@@ -84,10 +93,13 @@ int bwt_inplace(uint8_t *T, int n) noexcept {
 		T[s+r] = END_MARKER;
 	}
 
-    return 0;
+    return n;
 }
 
-uint8_t* bwt_reverse(uint8_t *bwt, int n) noexcept {
+/// \param bwt[in]: BWT of length n (as computed by `bwt_inplace`)
+/// \param n[in]: length of the BWT, must be > 0
+/// \return the original text (n symbols + '\0'), must be freed by the caller
+inline uint8_t* bwt_reverse(uint8_t *bwt, int n) noexcept {
 
 	auto* rev = (uint8_t*) malloc((n+1)*sizeof(char));
 	int p = 0;
@@ -97,7 +109,7 @@ uint8_t* bwt_reverse(uint8_t *bwt, int n) noexcept {
 	for(s=n-2; s>=0; s--){
 
 		rev[s] = bwt[p];
-		p = rank(bwt, rev[s], p);
+		p = rank(bwt, n, rev[s], p);
 	}
 
 	rev[n-1] = END_MARKER;

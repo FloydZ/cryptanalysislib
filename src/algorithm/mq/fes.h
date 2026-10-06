@@ -4,10 +4,10 @@
 #include "math/math.h"
 #include "combination/revolving_door.h"
 
-#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
-#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
-#define L 8
-#define LANES 16
+// NOTE: constants instead of the macros `L`/`LANES` (and the unused `MIN`/`MAX`),
+//	which leaked into every file including this header
+inline constexpr int FES_L = 8;
+inline constexpr int FES_LANES = 16;
 
 /* 
  * Constant-time algorithm to compute the position of the first and second bits
@@ -123,14 +123,16 @@ public:
 };
 
 // extern struct solution_t * feslite_avx2_asm_enum(const void * Fq, void * Fl, uint64_t alpha, uint64_t beta, uint64_t gamma, struct solution_t *local_buffer);
+#if defined(USE_AVX2)
 #include "avx_16x16.h"
+#endif
 
 
 struct context_t {
 	int n;
 	int m;
-	uint16_t Fq[561 * LANES] __attribute__((aligned(32)));
-	uint16_t Fl[34 * LANES] __attribute__((aligned(32)));
+	uint16_t Fq[561 * FES_LANES] __attribute__((aligned(32)));
+	uint16_t Fl[34 * FES_LANES] __attribute__((aligned(32)));
 
 	const uint32_t *Fq_start;
 	const uint32_t *Fl_start;
@@ -140,11 +142,11 @@ struct context_t {
 	int *size;
 
 	/* local solution buffer */
-	struct solution_t local_buffer[(1 << L)];
+	struct solution_t local_buffer[(1 << FES_L)];
 
 	/* candidates */
-	uint32_t candidates[LANES][32];
-	int n_candidates[LANES];
+	uint32_t candidates[FES_LANES][32];
+	int n_candidates[FES_LANES];
 	bool overflow;
 
 	/* counter */
@@ -174,7 +176,7 @@ constexpr static const uint32_t M5_LO = 0x55555555;
 ///
 /// \param M[in]: Pointer to the input matrix (32 uint32_t values)
 /// \param T[out]: Pointer to the output transposed matrix (32 uint32_t values)
-void feslite_transpose_32(const uint32_t *M, uint32_t *T) {
+inline void feslite_transpose_32(const uint32_t *M, uint32_t *T) {
 	/* to unroll manually */
 	for (int l = 0; l < 16; l++) {
 		T[l] = (M[l] & M1_LO) | ((M[l + 16] & M1_LO) << 16);
@@ -229,7 +231,7 @@ void feslite_transpose_32(const uint32_t *M, uint32_t *T) {
 /// \param x[in]: Input value to evaluate (bit vector representing variable assignments)
 /// \param w[in]: Optional weight constraint (if > 0, restricts to inputs with ≤ w bits set)
 /// \return Evaluation result as a 32-bit mask
-uint32_t feslite_naive_evaluation(int n, const uint32_t *Fq, const uint32_t *Fl, int stride, uint32_t x, const uint32_t w = 0) {
+inline uint32_t feslite_naive_evaluation(int n, const uint32_t *Fq, const uint32_t *Fl, int stride, uint32_t x, const uint32_t w = 0) {
 	if ((w > 0) && ((uint32_t)__builtin_popcount(x)) > w) {
 		return 0;
 	}
@@ -273,7 +275,7 @@ uint32_t feslite_naive_evaluation(int n, const uint32_t *Fq, const uint32_t *Fl,
 /// \param outcount[in]: Maximum number of solutions to store in the output buffer
 /// \param outbuf[out]: Buffer to store solutions that pass validation
 /// \param size[out]: Pointer to store the number of valid solutions found
-void feslite_generic_eval_32(int n,
+inline void feslite_generic_eval_32(int n,
                              const uint32_t *Fq,
                              const uint32_t *Fl,
                              int stride,
@@ -417,7 +419,7 @@ static inline void FLUSH_CANDIDATES(struct context_t *context,
 	int max_solutions = context->count - context->size[lane];
 	int k;
 	uint32_t *outbuf = context->buffer + context->count * lane + context->size[lane];
-	feslite_generic_eval_32(context->n, context->Fq_start, context->Fl_start + lane, LANES,
+	feslite_generic_eval_32(context->n, context->Fq_start, context->Fl_start + lane, FES_LANES,
 	                        context->n_candidates[lane], context->candidates[lane],
 	                        max_solutions, outbuf, &k);
 	context->size[lane] += k;
@@ -517,6 +519,7 @@ static inline bool FLUSH_BUFFER(struct context_t *context,
 /// \return
 /// Enumerates solutions to a multivariate quadratic system using AVX2 acceleration
 ///
+#if defined(USE_AVX2)
 /// Main entry point for solving a system of multivariate quadratic equations over GF(2)
 /// using a fast implementation with AVX2 instructions. Processes 16 equation systems
 /// in parallel (hence the 16x16 in the name).
@@ -529,9 +532,9 @@ static inline bool FLUSH_BUFFER(struct context_t *context,
 /// \param buffer[out]: Buffer to store the solutions (size must be at least count*m)
 /// \param size[out]: Array to store the number of solutions found for each system
 /// \return 0 on success, -1 if parameters are invalid
-int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl, int count, uint32_t *buffer, int *size) {
+inline int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl, int count, uint32_t *buffer, int *size) {
 	/* verify input parameters */
-	if (count <= 0 || n < L || n > 32 || m != LANES) {
+	if (count <= 0 || n < FES_L || n > 32 || m != FES_LANES) {
 		return -1;
 	}
 
@@ -541,7 +544,7 @@ int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl
 	context.count = count;
 	context.buffer = buffer;
 	context.size = size;
-	for (int i = 0; i < LANES; i++) {
+	for (int i = 0; i < FES_LANES; i++) {
 		context.n_candidates[i] = 0;
 		context.size[i] = 0;
 	}
@@ -549,29 +552,29 @@ int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl
 	context.Fq_start = Fq;
 	context.Fl_start = Fl;
 
-	setup16(n, LANES, Fq, Fl, context.Fq, context.Fl);
+	setup16(n, FES_LANES, Fq, Fl, context.Fq, context.Fl);
 
-	ffs_reset(&context.ffs, n - L);
-	int k1 = context.ffs.k1 + L;
-	int k2 = context.ffs.k2 + L;
+	ffs_reset(&context.ffs, n - FES_L);
+	int k1 = context.ffs.k1 + FES_L;
+	int k2 = context.ffs.k2 + FES_L;
 
 	// int npositive = 0;
-	uint64_t iterations = 1ul << (n - L);
+	uint64_t iterations = 1ul << (n - FES_L);
 	for (uint64_t j = 0; j < iterations; j++) {
 		uint32_t alpha = idxq(0, k1);
 		ffs_step(&context.ffs);
-		k1 = context.ffs.k1 + L;
-		k2 = context.ffs.k2 + L;
+		k1 = context.ffs.k1 + FES_L;
+		k2 = context.ffs.k2 + FES_L;
 		uint32_t beta = 1 + k1;// +1 for the constant term
 		uint32_t gamma = idxq(k1, k2);
 		struct solution_t *top = solver(context.Fq, context.Fl, alpha, beta, gamma, context.local_buffer);
-		if (FLUSH_BUFFER(&context, top, j << L)) {
+		if (FLUSH_BUFFER(&context, top, j << FES_L)) {
 			break;
 		}
 	}
 
 	//if (n > 16) {
-	for (int i = 0; i < LANES; i++) {
+	for (int i = 0; i < FES_LANES; i++) {
 		FLUSH_CANDIDATES(&context, i);
 	}
 	//}
@@ -596,9 +599,9 @@ int feslite_avx2_enum_16x16(int n, int m, const uint32_t *Fq, const uint32_t *Fl
 /// \param buffer[out]: Buffer to store the solutions (size must be at least count*m)
 /// \param size[out]: Array to store the number of solutions found for each system
 /// \return 0 on success, -1 if parameters are invalid
-int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq, const uint32_t *Fl, int count, uint32_t *buffer, int *size) {
+inline int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq, const uint32_t *Fl, int count, uint32_t *buffer, int *size) {
 	// TODO to fix the issue with 10 is to greate two more kernels which only enumerate 6 or 7 variables
-	if (count <= 0 || n < L || n > 32 || m != LANES || w != (L+2)) {
+	if (count <= 0 || n < FES_L || n > 32 || m != FES_LANES || w != (FES_L+2)) {
 		return -1;
 	}
 
@@ -609,7 +612,7 @@ int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq
 	context.count = count;
 	context.buffer = buffer;
 	context.size = size;
-	for (int i = 0; i < LANES; i++) {
+	for (int i = 0; i < FES_LANES; i++) {
 		context.n_candidates[i] = 0;
 		context.size[i] = 0;
 	}
@@ -617,7 +620,7 @@ int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq
 	context.Fq_start = Fq;
 	context.Fl_start = Fl;
 
-	setup16(n, LANES, Fq, Fl, context.Fq, context.Fl);
+	setup16(n, FES_LANES, Fq, Fl, context.Fq, context.Fl);
 
 	// init, simply specializes 000 -> 001 -> 011 -> 111
 	// until we have w-8 many ones specialized
@@ -626,21 +629,21 @@ int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq
 	// TODO: iterativer revolving door ansatz:
 	// 	- also um die beiden loops ein weiteter loop der alle w' = 8,....w durchgeht
 
-	for (uint32_t i = 0; i < w - L; i++) {
-		const uint32_t beta = L + i + 1, gamma = idxq(L + i, n + 1);
+	for (uint32_t i = 0; i < w - FES_L; i++) {
+		const uint32_t beta = FES_L + i + 1, gamma = idxq(FES_L + i, n + 1);
 		top = solver(context.Fq, context.Fl, alph, beta, gamma, context.local_buffer);
-		if (FLUSH_BUFFER(&context, top, i << L, true)) { break; }
-		alph = idxq(0, L + i);
+		if (FLUSH_BUFFER(&context, top, i << FES_L, true)) { break; }
+		alph = idxq(0, FES_L + i);
 	}
 
-	combination_revdoor c(n-L, w-8);
+	combination_revdoor c(n-FES_L, w-8);
 	uint32_t k1, k2;
 	uint32_t alpha = alph;
-	uint64_t ctr = ((1u << (w-L)) - 1u) << L;
+	uint64_t ctr = ((1u << (w-FES_L)) - 1u) << FES_L;
 
 	// k1 = cleared, k2 = set
-	c.next(&k1, &k2); k1 += L; k2 += L;
-	const uint64_t iterations = bc(n - L, w - 8);
+	c.next(&k1, &k2); k1 += FES_L; k2 += FES_L;
+	const uint64_t iterations = bc(n - FES_L, w - 8);
 	for (uint64_t j = 0; j < iterations; j++) {
 		// TODO gamma is not correct, need to proper understand it.
 
@@ -650,7 +653,7 @@ int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq
 		top = solver(context.Fq, context.Fl, alpha, beta, gamma, context.local_buffer);
 		if (FLUSH_BUFFER(&context, top, ctr, false)) { break; }
 
-		if (j == 1) {for (uint32_t i = 0; i < LANES; i++) { FLUSH_CANDIDATES(&context, i); } return 0;}
+		if (j == 1) {for (uint32_t i = 0; i < FES_LANES; i++) { FLUSH_CANDIDATES(&context, i); } return 0;}
 
 		// Next the setting bit-flip
 		alpha = idxq(0, beta-1),
@@ -664,11 +667,12 @@ int feslite_avx2_enum_16x16_w(int n, int m, const uint32_t w, const uint32_t *Fq
 		ctr ^= 1u << k1;
 		ctr ^= 1u << k2;
 		c.next(&k1, &k2);
-		k1 += L; k2 += L;
+		k1 += FES_L; k2 += FES_L;
 	}
 
-	for (uint32_t i = 0; i < LANES; i++) {
+	for (uint32_t i = 0; i < FES_LANES; i++) {
 		FLUSH_CANDIDATES(&context, i);
 	}
 	return 0;
 }
+#endif // USE_AVX2

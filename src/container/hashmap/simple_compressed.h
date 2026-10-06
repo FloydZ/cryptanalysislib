@@ -69,6 +69,9 @@ private:
 		internal_data_load_type load;
 	};
 
+	// number of bytes of a bucket, which can hold data
+	constexpr static size_t data_bytes_per_bucket = bytes_per_bucket - sizeof(internal_data_load_type);
+
 	struct internal_data {
 		union {
 		    uint8_t bytes[bytes_per_bucket];
@@ -91,28 +94,30 @@ public:
 		assert(index < nrbuckets);
 
 		const size_t l = load(index);
-		assert(l <= bytes_per_bucket);
-
-		// early exit, if it's already full
-		if ((l >= sizeof(data_type)) &&
-		    ((l-sizeof(data_type)) >= bytes_per_bucket)) {
-			return;
-		}
+		assert(l <= data_bytes_per_bucket);
 
 		// get current position within the byte array
 		uint8_t *ptr_ = ((uint8_t *)(__internal_hashmap_array + index)) + l;
 		data_type v = value;
 		if (l > 0) {
+			// the last inserted value is stored (uncompressed) right after
+			// the compressed data
 			// TODO what happens if the old value is bigger?
-			const auto *ptr_2 = (const data_type *)ptr_;
-			v -= *ptr_2;
+			data_type last;
+			__builtin_memcpy(&last, ptr_, sizeof(data_type));
+			v -= last;
 		}
-	
-		const size_t nl = leb128_encode<data_type>(ptr_, v);
-		assert(l+nl <= bytes_per_bucket);
 
-		auto *ptr_3 = (data_type *)(ptr_ + nl);
-		*ptr_3 = value;
+		// early exit, if the compressed delta and the uncompressed copy of
+		// `value` do not fit into the data bytes of the bucket anymore
+		uint8_t enc[(sizeof(data_type) * 8 + 6) / 7];
+		const size_t nl = leb128_encode<data_type>(enc, v);
+		if ((l + nl + sizeof(data_type)) > data_bytes_per_bucket) {
+			return;
+		}
+
+		__builtin_memcpy(ptr_, enc, nl);
+		__builtin_memcpy(ptr_ + nl, &value, sizeof(data_type));
 		set_load(index, l+nl);
 	}
 
@@ -128,7 +133,8 @@ public:
 		auto *pbuf = (uint8_t *)(__internal_hashmap_array + index);
 		uint8_t *buf = pbuf;
 		nr= 0;
-		while (buf < (pbuf + l - sizeof(internal_data_load_type ))) {
+		// NOTE: `l` is the number of compressed bytes
+		while (buf < (pbuf + l)) {
 			assert(nr < bytes_per_bucket);
 			tmp[nr] = leb128_decode<data_type>(&buf);
 			nr += 1;

@@ -13,8 +13,8 @@ namespace cryptanalysislib {
         #endif
         constexpr static T gcd_recursive_v0(const T a,
                                             const T b) noexcept {
-            if (b == 0) { return b; }
-            if (a == 0) { return a; }
+            if (b == 0) { return a; }
+            if (a == 0) { return b; }
 
             // Base case
             if (a == b)
@@ -95,27 +95,43 @@ namespace cryptanalysislib {
         /// \return
         template<typename T>
         #if __cplusplus > 201709L
-            requires std::is_arithmetic_v<T>
+            requires std::is_integral_v<T>
         #endif
-        constexpr static T gcd_binary(T a,
-                                      T b) noexcept {
-            if (a == 0) return b;
-            if (b == 0) return a;
-
-            int az = __builtin_ctz(a);
-            int bz = __builtin_ctz(b);
-            auto shift = std::min(az, bz);
-            b >>= bz;
-
-            while (a != 0) {
-                a >>= az;
-                int diff = b - a;
-                az = __builtin_ctz(diff);
-                b = std::min(a, b);
-                a = std::abs(diff);
+        constexpr static T gcd_binary(const T a_,
+                                      const T b_) noexcept {
+            // NOTE: computed on the absolute values in the unsigned type of
+            // the same width, so it works for every integral type
+            using U = std::make_unsigned_t<T>;
+            U a = U(a_), b = U(b_);
+            if constexpr (std::is_signed_v<T>) {
+                a = (a_ < 0) ? U(U(0) - a) : a;
+                b = (b_ < 0) ? U(U(0) - b) : b;
             }
 
-            return b << shift;
+            if (a == 0) return T(b);
+            if (b == 0) return T(a);
+
+            auto ctz = [](const U x) constexpr noexcept -> uint32_t {
+                if constexpr (sizeof(U) <= 8) {
+                    return __builtin_ctzll(uint64_t(x));
+                } else {
+                    const uint64_t lo = uint64_t(x);
+                    return lo ? __builtin_ctzll(lo) : 64u + __builtin_ctzll(uint64_t(x >> 64u));
+                }
+            };
+
+            // Stein's algorithm
+            const uint32_t shift = ctz(a | b);
+            a >>= ctz(a);
+            while (b != 0) {
+                b >>= ctz(b);
+                if (a > b) {
+                    const U t = a; a = b; b = t;
+                }
+                b -= a;
+            }
+
+            return T(a << shift);
         }
     } // end namespace internal
 
@@ -126,7 +142,7 @@ namespace cryptanalysislib {
     /// \return
 template<typename T>
     #if __cplusplus > 201709L
-        requires std::is_arithmetic_v<T>
+        requires std::is_integral_v<T>
     #endif
     constexpr static T gcd(T a, T b) noexcept {
         return internal::gcd_binary(a, b);

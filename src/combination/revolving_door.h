@@ -123,6 +123,11 @@ public:
 	/// \return true if a next combination exists, false if at the end
 	/* constexpr */ bool next(uint32_t *k1,
                               uint32_t *k2 ) noexcept{
+		// k == 0: the empty set is the only combination
+		if (k_ == 0) {
+			return false;
+		}
+
 		T j = 1;
 		// R3: [Easy case?]
 		// odd k (try to increase)

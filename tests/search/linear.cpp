@@ -23,11 +23,12 @@ TEST(upper_bound_linear_search, simple) {
 
 	auto a = upper_bound_linear_search(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> bool {
-			 return e1 == e2;
+			 return e1 < e2;
 		}
 	);
 
-	EXPECT_EQ(solution_index, distance(data.begin(), a));
+	// first element greater than `search`
+	EXPECT_EQ(solution_index + NR_SOLS, distance(data.begin(), a));
 }
 
 TEST(lower_bound_linear_search, simple) {
@@ -37,7 +38,7 @@ TEST(lower_bound_linear_search, simple) {
 
 	auto a = lower_bound_linear_search(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> bool {
-			 return e1 == e2;
+			 return e1 < e2;
 		}
 	);
 

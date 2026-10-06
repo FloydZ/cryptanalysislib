@@ -90,6 +90,8 @@ public:
 	// we are good C++ devs.
 	typedef T ContainerLimbType;
 	using DataType = LogTypeTemplate<bits_per_number, __unsigned>;
+	// type big enough to hold the sum/product of two numbers mod q
+	using WideType = typename std::conditional<(bits_per_number <= 32), uint64_t, __uint128_t>::type;
 
 	// list compatibility typedef
 	typedef T LimbType;
@@ -284,7 +286,7 @@ public:
 	/// \param i bit position the read
 	/// \return bit mask to access the i-th element within a limb
 	[[nodiscard]] constexpr inline T accessMask(const uint32_t i) const noexcept {
-		return number_mask << (i % numbers_per_limb);
+		return number_mask << ((i % numbers_per_limb) * bits_per_number);
 	}
 
 	// round a given amount of 'in' bits to the nearest limb excluding the lowest overflowing bits
@@ -504,9 +506,9 @@ public:
 	constexpr void swap(const uint16_t i,
 	                    const uint16_t j) noexcept {
 		assert(i < length && j < length);
-		auto tmp = get(i);
-		set(i, get(j));
-		set(j, tmp);
+		const auto tmp = get(i);
+		set(get(j), i);
+		set(tmp, j);
 	}
 
 
@@ -547,7 +549,7 @@ public:
 		for (uint32_t i = 0; i < nr_limbs; i++) {
 			const TT a = (in1 >> (bits_per_number * i)) & mask;
 			const TT b = (in2 >> (bits_per_number * i)) & mask;
-			ret ^= ((a + b) % q) << (bits_per_number * i);
+			ret ^= TT((WideType(a) + WideType(b)) % q) << (bits_per_number * i);
 		}
 		return ret;
 	}
@@ -567,7 +569,7 @@ public:
 		for (uint32_t i = 0; i < nr_limbs; i++) {
 			const TT a = (in1 >> (bits_per_number * i)) & mask;
 			const TT b = (in2 >> (bits_per_number * i)) & mask;
-			ret ^= ((a + q - b) % q) << (bits_per_number * i);
+			ret ^= TT((WideType(a) + q - WideType(b)) % q) << (bits_per_number * i);
 		}
 		return ret;
 	}
@@ -588,7 +590,7 @@ public:
 		for (uint32_t i = 0; i < nr_limbs; i++) {
 			const TT a = (in1 >> (bits_per_number * i)) & mask;
 			const TT b = (in2 >> (bits_per_number * i)) & mask;
-			ret ^= ((a * b) % q) << (bits_per_number * i);
+			ret ^= TT((WideType(a) * WideType(b)) % q) << (bits_per_number * i);
 		}
 		return ret;
 	}
@@ -662,7 +664,7 @@ public:
 		TT ret = 0;
 		for (uint32_t i = 0; i < nr_limbs; i++) {
 			const TT a = (in1 >> (bits_per_number * i)) & mask;
-			ret ^= ((a * in2) % q) << (bits_per_number * i);
+			ret ^= TT((WideType(a) * WideType(in2)) % q) << (bits_per_number * i);
 		}
 		return ret;
 	}
@@ -746,7 +748,7 @@ public:
 		const T *a_data = (const T *) &a;
 		T *ret_data = (T *) &ret;
 		for (uint8_t i = 0; i < S::LIMBS; ++i) {
-			ret_data[i] = neg_T(a_data[i]);
+			ret_data[i] = mod_T(a_data[i]);
 		}
 
 		return ret;
@@ -783,8 +785,8 @@ public:
 									 const uint32_t k_upper) noexcept {
 		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = v1.get(i) + v2.get(i);
-			v3.set(data % modulus, i);
+			const WideType data = WideType(v1.get(i)) + WideType(v2.get(i));
+			v3.set(DataType(data % modulus), i);
 		}
 	}
 
@@ -802,8 +804,8 @@ public:
 	                                 FqPackedVectorMeta const &v2) noexcept {
 		static_assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = v1.get(i) + v2.get(i);
-			v3.set(data % modulus, i);
+			const WideType data = WideType(v1.get(i)) + WideType(v2.get(i));
+			v3.set(DataType(data % modulus), i);
 		}
 
 		return false;
@@ -823,10 +825,10 @@ public:
 									 const uint32_t k_upper,
 									 const uint32_t norm) noexcept {
 		(void)norm;
-		static_assert(k_upper <= length && k_lower < k_upper);
+		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = v1.get(i) + v2.get(i);
-			v3.set(data % modulus, i);
+			const WideType data = WideType(v1.get(i)) + WideType(v2.get(i));
+			v3.set(DataType(data % modulus), i);
 		}
 
 		return false;
@@ -878,8 +880,9 @@ public:
 	/// \param v1 input
 	/// \param v2 input
 	template<const uint32_t k_lower,
-			 const uint32_t k_upper>
-	constexpr inline static void sub(FqPackedVectorMeta &v3,
+			 const uint32_t k_upper,
+			 const uint32_t norm=-1u>
+	constexpr inline static bool sub(FqPackedVectorMeta &v3,
 	                                 FqPackedVectorMeta const &v1,
 	                                 FqPackedVectorMeta const &v2) noexcept {
 		static_assert(k_upper <= length && k_lower < k_upper);
@@ -889,6 +892,28 @@ public:
 				data += modulus;
 			v3.set(data % modulus, i);
 		}
+
+		return false;
+	}
+
+	/// v3 = v1 - v2 between [k_lower, k_upper)
+	/// NOTE: same as `add`, `norm` is ignored
+	/// \param v3 output
+	/// \param v1 input
+	/// \param v2 input
+	/// \param k_lower inclusive
+	/// \param k_upper exclusive
+	/// \param norm ignored
+	/// \return false
+	constexpr inline static bool sub(FqPackedVectorMeta &v3,
+	                                 FqPackedVectorMeta const &v1,
+	                                 FqPackedVectorMeta const &v2,
+	                                 const uint32_t k_lower,
+	                                 const uint32_t k_upper,
+	                                 const uint32_t norm) noexcept {
+		(void)norm;
+		sub(v3, v1, v2, k_lower, k_upper);
+		return false;
 	}
 
 	/// generic components mul: v3 = v1 * v2 between [k_lower, k_upper)
@@ -904,7 +929,7 @@ public:
 	                                 const uint32_t k_upper = length) noexcept {
 		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = (v1.get(i) * v2.get(i)) % modulus;
+			const DataType data = DataType((WideType(v1.get(i)) * WideType(v2.get(i))) % modulus);
 			v3.set(data, i);
 		}
 	}
@@ -938,7 +963,7 @@ public:
 	                                    const uint32_t k_upper = length) noexcept {
 		assert(k_upper <= length && k_lower < k_upper);
 		for (uint32_t i = k_lower; i < k_upper; i++) {
-			DataType data = (v1.get(i) * v2) % modulus;
+			const DataType data = DataType((WideType(v1.get(i)) * WideType(v2)) % modulus);
 			v3.set(data, i);
 		}
 	}
@@ -1123,7 +1148,7 @@ public:
 	/// \param i amount to shift
 	constexpr void right_shift(const uint32_t i) noexcept {
 		assert(i < length);
-		for (uint32_t j = 0; j < n - i; j--) {
+		for (uint32_t j = 0; j < n - i; j++) {
 			const auto data = get(i + j);
 			set(data, j);
 		}
@@ -1421,6 +1446,7 @@ public:
 	using M::is_greater;
 	using M::is_lower;
 	using M::add;
+	using M::sub;
 
 	// extremely important
 	typedef FqPackedVector<n, q, T> ContainerType;
@@ -1456,28 +1482,38 @@ public:
 		return t.v64[0] + t.v64[1] + t.v64[2] + t.v64[3];
 	}
 
+	/// NOTE: `limb` must contain at least one coordinate of [lower, upper)
+	/// \param limb index of the limb
+	/// \param lower first coordinate (inclusive)
+	/// \param upper last coordinate (exclusive)
+	/// \return mask of the bits of the coordinates [lower, upper) within `limb`
+	[[nodiscard]] constexpr static inline T range_mask(const uint32_t limb,
+	                                                   const uint32_t lower,
+	                                                   const uint32_t upper) noexcept {
+		const uint32_t first = limb * numbers_per_limb;
+		assert(lower < first + numbers_per_limb && first < upper);
+		const uint32_t lo = lower > first ? lower - first : 0u;
+		const uint32_t hi = (upper - first) < numbers_per_limb ? upper - first : numbers_per_limb;
+		const T hm = (hi * bits_per_number >= bits_per_limb) ? T(~T(0)) : ((T(1u) << (hi * bits_per_number)) - 1u);
+		const T lm = (T(1u) << (lo * bits_per_number)) - 1u;
+		return hm & ~lm;
+	}
+
 	/// \param lower lower bound, (inclusive)
 	/// \param upper upper bound, (exclusive)
 	constexpr inline void neg(const uint32_t lower,
 	                          const uint32_t upper) noexcept {
 		assert(lower <= upper);
 		assert(upper <= n);
-
-		// NOTE: its important that its signed
-		const int32_t lower_limb = (lower + bits_per_limb - 1u) / bits_per_limb;
-		const int32_t upper_limb = (upper + bits_per_limb - 1u) / bits_per_limb;
-		for (int32_t i = lower_limb + 1; i < upper_limb - 1; i++) {
-			__data[i] = neg_T(__data[i]);
+		if (lower == upper) {
+			return;
 		}
 
-		for (uint32_t i = lower; i < (lower_limb * numbers_per_limb); ++i) {
-			const uint32_t data = (q - get(i)) % q;
-			set(data, i);
-		}
-
-		for (uint32_t i = (upper_limb * numbers_per_limb); i < upper; ++i) {
-			const uint32_t data = (q - get(i)) % q;
-			set(data, i);
+		const uint32_t lower_limb = lower / numbers_per_limb;
+		const uint32_t upper_limb = (upper - 1u) / numbers_per_limb;
+		for (uint32_t i = lower_limb; i <= upper_limb; i++) {
+			const T m = range_mask(i, lower, upper);
+			__data[i] = (neg_T(__data[i]) & m) ^ (__data[i] & ~m);
 		}
 	}
 
@@ -1491,8 +1527,11 @@ public:
 		uint32_t i = 0;
 
 		for (; i + 2 <= internal_limbs; i += 2) {
-			__uint128_t t = neg_T<__uint128_t>(*((__uint128_t *) &__data[i]));
-			*((__uint128_t *) &__data[i]) = t;
+			// NOTE: `__data` is only aligned to `T`, hence the memcpy
+			__uint128_t t;
+			__builtin_memcpy(&t, &__data[i], sizeof(t));
+			t = neg_T<__uint128_t>(t);
+			__builtin_memcpy(&__data[i], &t, sizeof(t));
 		}
 
 		for (; i < internal_limbs; i++) {
@@ -1507,26 +1546,11 @@ public:
 	constexpr inline void neg() noexcept {
 		static_assert(k_upper <= length && k_lower < k_upper);
 
-		constexpr uint32_t ll = 2 * k_lower / bits_per_limb;
-		constexpr uint32_t lh = 2 * k_upper / bits_per_limb;
-		constexpr uint32_t ol = 2 * k_lower % bits_per_limb;
-		constexpr uint32_t oh = 2 * k_upper % bits_per_limb;
-		constexpr T ml = ~((T(1) << ol) - T(1));
-		constexpr T mh = (T(1) << oh) - T(1);
-
-		constexpr T nml = ~ml;
-		constexpr T nmh = ~mh;
-
-		if constexpr (ll == lh) {
-			constexpr T m = ml & mh;
-			constexpr T nm = ~m;
-			__data[ll] = (neg_T(__data[ll]) & m) ^ (__data[ll] & nm);
-		} else {
-			for (uint32_t i = ll + 1; i < lh - 1; ++i) {
-				__data[i] = neg_T(__data[i]);
-			}
-			__data[ll] = (neg_T(__data[ll]) & ml) ^ (__data[ll] & nml);
-			__data[lh] = (neg_T(__data[lh]) & mh) ^ (__data[lh] & nmh);
+		constexpr uint32_t ll = k_lower / numbers_per_limb;
+		constexpr uint32_t lh = (k_upper - 1u) / numbers_per_limb;
+		for (uint32_t i = ll; i <= lh; ++i) {
+			const T m = range_mask(i, k_lower, k_upper);
+			__data[i] = (neg_T(__data[i]) & m) ^ (__data[i] & ~m);
 		}
 	}
 
@@ -1587,7 +1611,7 @@ public:
 		// int(0b0100010001000100010001000100010001000100010001000100010001000100)
 		constexpr TT c1 = sizeof(TT) == 16 ? (TT(4919131752989213764u) << 64u) | TT(4919131752989213764u) : TT(4919131752989213764u);
 		// int(0b0001000100010001000100010001000100010001000100010001000100010001)
-		constexpr TT c2 = sizeof(TT) == 16 ? (TT(1229782938247303441u) << 64u) << TT(1229782938247303441u) : TT(1229782938247303441u);
+		constexpr TT c2 = sizeof(TT) == 16 ? (TT(1229782938247303441u) << 64u) | TT(1229782938247303441u) : TT(1229782938247303441u);
 		const TT c = a & f;
 		const TT d = a & g;
 
@@ -1745,8 +1769,12 @@ public:
 			v3.__data[0] = add_T(v1.__data[0], v2.__data[0]);
 			return;
 		} else if constexpr ((internal_limbs == 2) && (sizeof(DataType) == 8)) {
-			const __uint128_t t = add_T<__uint128_t>(*((__uint128_t *) v1.__data.data()), *((__uint128_t *) v2.__data.data()));
-			*(__uint128_t *) v3.__data.data() = t;
+			// NOTE: `__data` is only aligned to `T`, hence the memcpy
+			__uint128_t t1, t2;
+			__builtin_memcpy(&t1, v1.__data.data(), sizeof(t1));
+			__builtin_memcpy(&t2, v2.__data.data(), sizeof(t2));
+			const __uint128_t t = add_T<__uint128_t>(t1, t2);
+			__builtin_memcpy(v3.__data.data(), &t, sizeof(t));
 			return;
 		} else if constexpr ((internal_limbs == 4) && (sizeof(DataType) == 8u)) {
 			const S t = add256_T(S::aligned_load(&v1.__data[0]),
@@ -1757,7 +1785,7 @@ public:
 
 		uint32_t i = 0;
 		if constexpr (activate_simd) {
-			for (; i + numbers_per_limb <= internal_limbs; i += numbers_per_simd_limb) {
+			for (; i + limbs_per_simd_limb <= internal_limbs; i += limbs_per_simd_limb) {
 				const S t = add256_T(S::unaligned_load((U *)&v1.__data[i]),
 				                     S::unaligned_load((U *)&v2.__data[i]));
 				S::unaligned_store(&v3.__data[i], t);
@@ -1780,34 +1808,18 @@ public:
 	constexpr static uint16_t add_only_weight_partly(FqPackedVector &v3,
 	                                                 FqPackedVector &v1,
 	                                                 FqPackedVector &v2) noexcept {
+		static_assert(l < h && h <= length);
 		constexpr uint32_t llimb = l / numbers_per_limb;
-		constexpr uint32_t hlimb = h / numbers_per_limb;
-		constexpr T lmask = ~((T(1u) << (l * bits_per_number)) - 1);
-		constexpr T hmask = (T(1u) << (h * bits_per_number)) - 1;
+		constexpr uint32_t hlimb = (h - 1u) / numbers_per_limb;
 		uint16_t weight = 0;
 
-		// first add the lower limbs
-		for (uint32_t i = 0; i < llimb; i++) {
+		for (uint32_t i = 0; i < internal_limbs; i++) {
 			v3.__data[i] = add_T(v1.__data[i], v2.__data[i]);
-		}
 
-		// add the limb with weight
-		v3.__data[llimb] = add_T(v1.__data[llimb], v2.__data[llimb]);
-		weight += popcnt_T(v3.__data[llimb] & lmask);
-
-		// add the limbs between l and h
-		for (uint32_t i = llimb + 1; i < hlimb; i++) {
-			v3.__data[i] = add_T(v1.__data[i], v2.__data[i]);
-			weight += popcnt_T(v3.__data[i]);
-		}
-
-		// add the high limb
-		v3.__data[hlimb] = add_T(v1.__data[hlimb], v2.__data[hlimb]);
-		weight += popcnt_T(v3.__data[hlimb] & hmask);
-
-		// add everything that is left
-		for (uint32_t i = hlimb + 1; i < internal_limbs; i++) {
-			v3.__data[i] = add_T(v1.__data[i], v2.__data[i]);
+			// only count the coordinates within [l, h)
+			if ((i >= llimb) && (i <= hlimb)) {
+				weight += popcnt_T(v3.__data[i] & range_mask(i, l, h));
+			}
 		}
 
 		return weight;
@@ -1859,19 +1871,24 @@ public:
 		static_assert(k_lower != 0 && k_lower < k_upper && k_upper <= length);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16u ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
-		constexpr TT mask = ((TT(1u) << (2u * k_lower)) - 1u) & ((TT(1u) << (2u * k_upper)) - 1u);
+		static_assert(2u * k_upper <= sizeof(TT) * 8u);
+		// bits of the coordinates [k_lower, k_upper)
+		constexpr TT hm = (2u * k_upper == sizeof(TT) * 8u) ? TT(~TT(0)) : ((TT(1u) << (2u * k_upper)) - 1u);
+		constexpr TT mask = hm & ~((TT(1u) << (2u * k_lower)) - 1u);
 		return cryptanalysislib::popcount::template popcount<TT>(a & mask & m);
 	}
 
 	/// counts the number of twos upto `k_upper` (exclusive)
 	/// \tparam k_upper
 	/// \tparam TT
-	template<const uint16_t k_upper, typename TT = DataType>
+	template<const uint16_t k_upper, typename TT = T>
 	constexpr inline uint32_t filter2count_T() {
 		static_assert(k_upper <= length);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16 ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
-		constexpr TT mask = (TT(1u) << (2u * k_upper) % bits_per_limb) - 1u;
+		// a multiple of a full limb means the whole last limb is used
+		constexpr uint32_t r = (2u * k_upper) % bits_per_limb;
+		constexpr TT mask = (r == 0) ? TT(~TT(0)) : ((TT(1u) << r) - 1u);
 		constexpr uint32_t limb = std::max(1, (k_upper + numbers_per_limb - 1) / numbers_per_limb);
 
 		if constexpr (limb == 1) {
@@ -1897,7 +1914,8 @@ public:
 		assert(0 < k_upper && k_upper <= length);
 		// int(0b1010101010101010101010101010101010101010101010101010101010101010)
 		constexpr TT m = sizeof(TT) == 16u ? (TT(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
-		constexpr TT mm = (TT(1u) << (2u * k_upper)) - 1u;
+		static_assert(2u * k_upper <= sizeof(TT) * 8u);
+		constexpr TT mm = (2u * k_upper == sizeof(TT) * 8u) ? TT(~TT(0)) : ((TT(1u) << (2u * k_upper)) - 1u);
 		constexpr TT mask = m & mm;
 
 		return cryptanalysislib::popcount::template popcount<TT>(a & mask);
@@ -1910,7 +1928,7 @@ public:
 	constexpr inline bool filter2_mod3(const uint32_t limit) const noexcept {
 		uint32_t ctr = 0;
 		for (uint32_t i = 0; i < internal_limbs; ++i) {
-			ctr += filter2count_mod3_limb(__data[i]);
+			ctr += filter2count_T(__data[i]);
 			if (ctr > limit)
 				return true;
 		}

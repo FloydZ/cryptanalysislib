@@ -13,7 +13,9 @@ using ::testing::UnitTest;
 #include "reflection/reflection.h"
 
 
-enum E { A, B };
+// enum_name probes values in [REFLECT_ENUM_MIN, REFLECT_ENUM_MAX]; clang >= 20 rejects
+// casting such values to an enum without a fixed underlying type
+enum E : int { A, B };
 struct foo { int a; E b; };
 
 

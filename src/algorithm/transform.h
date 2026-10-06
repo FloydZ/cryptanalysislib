@@ -174,9 +174,9 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 		requires std::forward_iterator<InputIt> &&
     			 std::regular_invocable<BinaryOp,
+										typename InputIt::value_type&,
 										typename InputIt::value_type&> &&
     			 std::regular_invocable<UnaryOp,
-										typename InputIt::value_type&,
 										typename InputIt::value_type&>
 #endif
 	InputIt::value_type transform_reduce(InputIt first,
@@ -184,10 +184,10 @@ namespace cryptanalysislib {
 										 const typename InputIt::value_type init,
 										 BinaryOp reduce,
 										 UnaryOp transform) noexcept {
-		using T = InputIt::value;
+		using T = InputIt::value_type;
 		T ret = init;
 		for (; first != last; ++first) {
-			ret = reduce(transform(first), ret);
+			ret = reduce(ret, transform(*first));
 		}
 
 		return ret;
@@ -218,14 +218,13 @@ namespace cryptanalysislib {
 										typename RandIt1::value_type&,
 										typename RandIt1::value_type&> &&
     			 std::regular_invocable<UnaryTransformOp,
-										typename RandIt1::value_type&,
 										typename RandIt1::value_type&>
 #endif
-	typename RandIt1::value_value
+	typename RandIt1::value_type
 	transform_reduce(ExecPolicy&& policy,
 					 RandIt1 first1,
 					 RandIt1 last1,
-					 const typename RandIt1::value_value init,
+					 const typename RandIt1::value_type init,
 					 BinaryReductionOp reduce_op,
 					 UnaryTransformOp transform_op) noexcept {
 		using T = RandIt1::value_type;
@@ -233,22 +232,31 @@ namespace cryptanalysislib {
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 			return cryptanalysislib::transform_reduce
-				<RandIt1, RandIt1, BinaryReductionOp, UnaryTransformOp, config>
+				<RandIt1, BinaryReductionOp, UnaryTransformOp, config>
 				(first1, last1, init, reduce_op, transform_op);
 		}
 
+		// every chunk is non-empty: reduce its transformed elements without `init`
+		auto chunk = [reduce_op, transform_op](RandIt1 b, RandIt1 e) noexcept -> T {
+			T r = transform_op(*b);
+			for (++b; b != e; ++b) {
+				r = reduce_op(r, transform_op(*b));
+			}
+			return r;
+		};
 		auto futures = internal::parallel_chunk_for_1(
 			std::forward<ExecPolicy>(policy), first1, last1,
-			std::transform_reduce<RandIt1, T,
-			BinaryReductionOp, UnaryTransformOp>,
+			chunk,
 			(T*)nullptr,
 			1,
-			nthreads,
-			init, reduce_op, transform_op);
+			nthreads);
 
-		return std::reduce(
-			internal::get_wrap(futures.begin()),
-			internal::get_wrap(futures.end()), init, reduce_op);
+		// `init` is added exactly once
+		T ret = init;
+		for (auto &f : futures) {
+			ret = reduce_op(ret, f.get());
+		}
+		return ret;
 	}
 
 	/// Parallel transform-reduce operation for two ranges that uses an execution policy

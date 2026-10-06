@@ -125,15 +125,13 @@
 #define MAX_REF ((1 << 8) + (1 << 3))
 
 #if __GNUC__ >= 3
-#define expect(expr, value) __builtin_expect((expr), (value))
-#define inline inline
+#define LZF_EXPECT(expr, value) __builtin_expect((expr), (value))
 #else
-#define expect(expr, value) (expr)
-#define inline static
+#define LZF_EXPECT(expr, value) (expr)
 #endif
 
-#define expect_false(expr) expect((expr) != 0, 0)
-#define expect_true(expr) expect((expr) != 0, 1)
+#define LZF_EXPECT_FALSE(expr) LZF_EXPECT((expr) != 0, 0)
+#define LZF_EXPECT_TRUE(expr) LZF_EXPECT((expr) != 0, 1)
 
 #define LZF_HSLOT_BIAS ((const uint8_t *) in_data)
 typedef unsigned int LZF_HSLOT;
@@ -201,7 +199,7 @@ lzf_compress(const void *const in_data,
 			unsigned int maxlen = in_end - ip - len;
 			maxlen = maxlen > MAX_REF ? MAX_REF : maxlen;
 
-			if (expect_false(op + 3 + 1 >= out_end)) /* first a faster conservative test */
+			if (LZF_EXPECT_FALSE(op + 3 + 1 >= out_end)) /* first a faster conservative test */
 				if (op - !lit + 3 + 1 >= out_end)    /* second the exact but rare test */
 					return 0;
 
@@ -209,7 +207,7 @@ lzf_compress(const void *const in_data,
 			op -= !lit;             /* undo run if length is zero */
 
 			for (;;) {
-				if (expect_true(maxlen > 16)) {
+				if (LZF_EXPECT_TRUE(maxlen > 16)) {
 					len++;
 					if (ref[len] != ip[len]) break;
 					len++;
@@ -271,7 +269,7 @@ lzf_compress(const void *const in_data,
 
 			ip += len + 1;
 
-			if (expect_false(ip >= in_end - 2))
+			if (LZF_EXPECT_FALSE(ip >= in_end - 2))
 				break;
 
 #if ULTRA_FAST || VERY_FAST
@@ -301,13 +299,13 @@ lzf_compress(const void *const in_data,
 #endif
 		} else {
 			/* one more literal byte we must copy */
-			if (expect_false(op >= out_end))
+			if (LZF_EXPECT_FALSE(op >= out_end))
 				return 0;
 
 			lit++;
 			*op++ = *ip++;
 
-			if (expect_false(lit == MAX_LIT)) {
+			if (LZF_EXPECT_FALSE(lit == MAX_LIT)) {
 				op[-lit - 1] = lit - 1; /* stop run */
 				lit = 0;
 				op++; /* start run */
@@ -322,7 +320,7 @@ lzf_compress(const void *const in_data,
 		lit++;
 		*op++ = *ip++;
 
-		if (expect_false(lit == MAX_LIT)) {
+		if (LZF_EXPECT_FALSE(lit == MAX_LIT)) {
 			op[-lit - 1] = lit - 1; /* stop run */
 			lit = 0;
 			op++; /* start run */
@@ -336,7 +334,7 @@ lzf_compress(const void *const in_data,
 }
 
 
-unsigned int
+inline unsigned int
 lzf_decompress(const void *const in_data,
                unsigned int in_len,
                void *out_data,

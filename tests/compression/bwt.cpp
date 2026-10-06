@@ -16,16 +16,20 @@ TEST(bwt, simple) {
     constexpr size_t s = 1<<10;
     constexpr size_t sp = 1<<4;
 	uint8_t *t1 = (uint8_t *)malloc(s);
-	for (size_t i = 0; i < sp; ++i) {
-		t1[i] = i+i;// (i*5)/7;
+	// NOTE: the text must end with END_MARKER, which must be its smallest symbol
+	for (size_t i = 0; i < sp - 1; ++i) {
+		t1[i] = 'a' + ((i*5) % 7);
 	}
+	t1[sp - 1] = END_MARKER;
 
 	const int n = bwt_inplace(t1, sp);
+	EXPECT_EQ(n, sp);
 	uint8_t *t2 = bwt_reverse(t1, n);
 
-    for (uint32_t i = 0; i < sp; i++) {
-        EXPECT_EQ(t2[i], i+i);
+    for (uint32_t i = 0; i < sp - 1; i++) {
+        EXPECT_EQ(t2[i], 'a' + ((i*5) % 7));
     }
+    EXPECT_EQ(t2[sp - 1], END_MARKER);
 
 	free(t1); free(t2);
 }

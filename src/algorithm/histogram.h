@@ -1031,20 +1031,26 @@ namespace cryptanalysislib::algorithm {
         std::vector<std::future<void>> futures;
 		const size_t chunks = size  / nthreads;
 
-		// generic fallback implementation
-		constexpr size_t k = sizeof(T)*8*sizeof(C);
-		C *cnts = Allocator::allocate(nthreads*k);
+		// one private histogram per thread with a bin for every value of T
+		static_assert(sizeof(T) <= 2, "histogram: at most 16-bit inputs are supported");
+		constexpr size_t k = 1ull << (8u * sizeof(T));
+		C *cnts = Allocator::allocate(nthreads * k * sizeof(C));
+		for (size_t j = 0; j < nthreads * k; j++) {
+			cnts[j] = 0;
+		}
+
 		for (uint32_t i = 0; i < nthreads; i++) {
+			const size_t l = i*chunks;
+			// the last thread also processes the remainder
+			const size_t len = (i == nthreads - 1u) ? size - l : chunks;
 			futures.emplace_back(
-			    task_pool.enqueue(
-			       [i, cnts, in, chunks] () {
-						const size_t l = i*chunks;
-						// const size_t h = (i+1)*chunks;
+			    task_pool.submit(
+			       [i, cnts, in, l, len] () {
 			       	    histogram
 			       			<T, C, config>
 			       				(cnts + i*k,
 			       	    		  in + l,
-			       	    		  chunks);
+			       	    		  len);
 			       }
 			    )
 			);
@@ -1057,6 +1063,8 @@ namespace cryptanalysislib::algorithm {
 				cnt[j] += cnts[i*k + j];
 			}
 		}
+
+		Allocator::deallocate(cnts, nthreads * k * sizeof(C));
 	}
 };
 

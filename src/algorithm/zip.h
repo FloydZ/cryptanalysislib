@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_BITINTERLEAVE_H
 #define CRYPTANALYSISLIB_ALGORITHM_BITINTERLEAVE_H
 
+#include <cstddef>
 #include <cstdint>
 
 
@@ -154,6 +155,12 @@ static inline void zip_u64(__m256i *__restrict__ out1,
 	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
 }
 
+#endif // USE_AVX2
+
+#ifdef USE_ARM
+#include <arm_neon.h>
+#endif
+
 /// Interleaves 8-bit elements from two arrays into a single array of 16-bit values
 ///
 /// Combines each pair of 8-bit values from in1 and in2 into a 16-bit value.
@@ -168,9 +175,17 @@ static inline void zip_u8(uint16_t *__restrict__ out,
 						  const uint8_t *__restrict__ in2,
 						  const size_t n) {
 	size_t i = 0;
+#ifdef USE_AVX2
 	for (; (i+32) <= n; i += 32) {
 		zip_u8((__m256i *)(out + i), (__m256i *)(out + 16 + i), (__m256i *)(in1+i), (__m256i *)(in2 + i));
 	}
+#elif defined(USE_ARM)
+	// `vst2q_u8` stores the bytes interleaved: in1[0], in2[0], in1[1], ...
+	for (; (i+16) <= n; i += 16) {
+		const uint8x16x2_t t = {{vld1q_u8(in1 + i), vld1q_u8(in2 + i)}};
+		vst2q_u8((uint8_t *)(out + i), t);
+	}
+#endif
 
 	for (; i < n; i++) {
 		const uint16_t t = (uint16_t)(in1[i]) | (((uint16_t)(in2[i])) << 8u);
@@ -178,5 +193,4 @@ static inline void zip_u8(uint16_t *__restrict__ out,
 	}
 }
 
-#endif
-#endif
+#endif // CRYPTANALYSISLIB_ALGORITHM_BITINTERLEAVE_H

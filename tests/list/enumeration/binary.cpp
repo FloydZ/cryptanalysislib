@@ -157,10 +157,14 @@ TEST(Chase, p3) {
 			//EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]) || (ctz == rows[2]));
 			y ^= 1u << ctz;
 		}
+		// every element has weight p and lives in the first nn bits
+		EXPECT_EQ(__builtin_popcount(x), p);
+		EXPECT_LT(x, 1u << nn);
 		ctr += 1;
 	});
 
-	EXPECT_EQ(ctr-1, bc(nn, p));
+	// the first element (x = 7) is not reported, same as for p = 1, 2
+	EXPECT_EQ(ctr, bc(nn, p));
 }
 
 TEST(Chase, first) {

@@ -18,7 +18,7 @@
 /// \param uncompressed_size
 /// \param pointer_length_width
 /// \return compresses size
-uint32_t lz77_compress(uint8_t *compressed_text,
+inline uint32_t lz77_compress(uint8_t *compressed_text,
                        const uint8_t *uncompressed_text,
                        const size_t uncompressed_size,
                        const uint8_t pointer_length_width) {
@@ -73,7 +73,7 @@ uint32_t lz77_compress(uint8_t *compressed_text,
 /// \param uncompressed_text
 /// \param compressed_text
 /// \return decompresses size
-uint32_t lz77_decompress(uint8_t *uncompressed_text,
+inline uint32_t lz77_decompress(uint8_t *uncompressed_text,
                          const uint8_t *compressed_text) {
 	uint8_t pointer_length_width;
 	uint16_t input_pointer, pointer_length, pointer_pos, pointer_length_mask;

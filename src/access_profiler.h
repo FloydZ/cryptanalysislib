@@ -26,14 +26,14 @@ namespace cryptanalysislib {
         	size_t size;
         };
         
-        std::mutex pagemutex;
+        inline std::mutex pagemutex;
         
         // maps page addresses to the type that page belongs to
-        std::unordered_map<uintptr_t, type_t> pagemap;
+        inline std::unordered_map<uintptr_t, type_t> pagemap;
         
-        std::mutex typemutex;
-        std::unordered_map<std::type_info const*, std::uint8_t> typemap;
-        int next_typeidx = 0;
+        inline std::mutex typemutex;
+        inline std::unordered_map<std::type_info const*, std::uint8_t> typemap;
+        inline int next_typeidx = 0;
         
         struct access_t {
         	int size;
@@ -41,14 +41,14 @@ namespace cryptanalysislib {
         };
         
         enum { max_types = 300 };
-        std::vector<struct access_t> _access;
+        inline std::vector<struct access_t> _access;
         // when the sigsegv handler unprotects a page and enters
         // single step mode, it saves the page that was unprotected
         // here, and protects it again in the single step handler
         // (i.e. one instruction later)
-        pthread_key_t last_page = 0;
+        inline pthread_key_t last_page = 0;
 
-        int type_idx(std::type_info const* ti, int size) {
+        inline int type_idx(std::type_info const* ti, int size) {
         	std::lock_guard<std::mutex> l(typemutex);
         	auto i = typemap.find(ti);
         	if (i != typemap.end()) return i->second;
@@ -61,7 +61,7 @@ namespace cryptanalysislib {
         	return next_typeidx-1;
         }
         
-        void* allocate_instrumented_type(int size, int type) {
+        inline void* allocate_instrumented_type(int size, int type) {
         	if (type == -1) return malloc(size);
         
         	// round up to even page
@@ -87,7 +87,7 @@ namespace cryptanalysislib {
         	return buf;
         }
 
-        void free_instrumented_type(void* buf, int size, int type) {
+        inline void free_instrumented_type(void* buf, int size, int type) {
         	if (type == -1) {
         		free(buf);
         		return;
@@ -109,7 +109,7 @@ namespace cryptanalysislib {
         	free(buf);
         }
 
-        void segv_handler(int, siginfo_t *info, void* uap) {
+        inline void segv_handler(int, siginfo_t *info, void* uap) {
         	ucontext_t* uc = (ucontext_t*)uap;
         
         	uintptr_t page_addr = uintptr_t(info->si_addr);
@@ -154,7 +154,7 @@ namespace cryptanalysislib {
 #endif
         }
         
-        void single_step_handler(int signo, siginfo_t* info, void* uap) {
+        inline void single_step_handler(int signo, siginfo_t* info, void* uap) {
         	ucontext_t* uc = (ucontext_t*)uap;
         
         	// turn off single step
@@ -171,7 +171,7 @@ namespace cryptanalysislib {
         }
 
 
-        void init_instrumentation() {
+        inline void init_instrumentation() {
         	pthread_key_create(&detail::last_page, NULL);
         
         	struct sigaction sa;
@@ -187,7 +187,7 @@ namespace cryptanalysislib {
         	_access.resize(max_types);
         }
         
-        void print_report() {
+        inline void print_report() {
         	//FILE* out = fopen("_access_profile.out", "w+");
         	//if (out == nullptr) {
         	//	fprintf(stderr, "failed to open \"_access_profile.out\" "

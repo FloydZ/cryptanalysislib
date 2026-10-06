@@ -1,7 +1,5 @@
 #pragma once 
 
-// apple doesnt provide jthread!
-#ifndef __APPLE__
 #include <thread>
 
 // NOTE only available on unix
@@ -11,6 +9,11 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+// `RUSAGE_THREAD` is Linux-only; elsewhere fall back to process-wide usage
+#ifndef RUSAGE_THREAD
+#define RUSAGE_THREAD RUSAGE_SELF
+#endif
 
 #include <rfl.hpp>
 #include <rfl/json.hpp>
@@ -347,5 +350,3 @@ namespace cryptanalysislib {
 		}
 	};
 }
-
-#endif

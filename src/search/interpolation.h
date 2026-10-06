@@ -12,6 +12,56 @@
 #include "helper.h"
 #include "hash/hash.h"
 
+namespace cryptanalysislib::internal {
+	/// Interpolation-guided lower bound on the hashed values. Interpolation
+	/// steps alternate with bisection steps, so the search always terminates
+	/// after O(log n) steps, even on non-uniform data or equal keys.
+	/// \param first[in]: random access iterator/pointer to the sorted range
+	/// \param n[in]: number of elements
+	/// \param v[in]: hashed value to search for
+	/// \param h[in]: hash function
+	/// \return index of the first element `x` with `!(h(x) < v)`, or `n`
+	template<typename RandIt,
+	         typename V,
+	         typename Hash>
+	constexpr size_t interpolation_lower_bound(const RandIt first,
+	                                           const size_t n,
+	                                           const V &v,
+	                                           Hash &h) noexcept {
+		size_t lo = 0, hi = n;
+		bool bisect = false;
+		while (lo < hi) {
+			const auto hl = h(first[lo]);
+			if (!(hl < v)) {
+				return lo;
+			}
+
+			const auto hh = h(first[hi - 1]);
+			if (hh < v) {
+				return hi;
+			}
+
+			// now: h(first[lo]) < v <= h(first[hi-1]), hence hi - lo >= 2
+			size_t pos = lo + (hi - lo) / 2;
+			if (!bisect) {
+				const double frac = (double(v) - double(hl)) / (double(hh) - double(hl));
+				const size_t off = size_t(frac * double(hi - lo - 1));
+				pos = lo + (off < 1 ? 1 : off);
+				pos = pos > (hi - 1) ? (hi - 1) : pos;
+			}
+			bisect = !bisect;
+
+			if (h(first[pos]) < v) {
+				lo = pos + 1;
+			} else {
+				hi = pos;
+			}
+		}
+
+		return lo;
+	}
+} // end namespace cryptanalysislib::internal
+
 
 /// Three-point interpolation search algorithm for finding lower bound
 /// SRC: https://pages.cs.wisc.edu/~chronis/files/efficiently_searching_sorted_arrays.pdf
@@ -23,7 +73,7 @@
 /// \param last[in]: Iterator to the end of the range
 /// \param value_[in]: Value to search for
 /// \param h[in]: Hash function to use for comparison
-/// \return Iterator to the first element not less than value_, or last if not found
+/// \return Iterator to the first element equal to value_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -34,57 +84,17 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
                                                         const ForwardIt last,
                                                         const typename ForwardIt::value_type &value_,
                                                         Hash h) noexcept {
-	const std::size_t count = std::distance(first, last);
-	if (count == 0) {
-		return first;
-	}
-
-	auto left = first, right = last -1;
-	const double f_aL = h(*first),
-	             f_width_range = (double)(count-1) / (double)(h(*right) - h(*first));
-
-	auto interpolate1 = [f_aL, f_width_range](const size_t x) -> uint64_t {
-		return (uint64_t)(((double)x - f_aL) * f_width_range);
-	};
-	auto interpolate2 = [&h](const size_t x, const auto left, const auto right) -> uint64_t {
-		const auto dist = (double)(std::distance(left, right));
-		const size_t l = h(*left);
-		return ((double)x - (double)(l)) / (double)(h(*right) - l) * dist;
-	};
+	const size_t n = last - first;
 	const auto v = h(value_);
-	uint64_t next = interpolate1(v);
-	uint64_t old_next = -1ull;
-	assert(next <= count);
-
-	while (true) {
-		const auto a = h(*(first+next));
-		if (a < v) {
-			left = first + next + 1;
-		} else if (a > v) {
-			right = first + next - 1;
-		} else {
-			// found it
-			return first + next;
-		}
-
-		if (left == last) {
-			// nothing found
-			return last;
-		}
-
-		assert(h(*left) <= h(*right));
-		next = interpolate2(v, left, right);
-		next += std::distance(first, left);
-
-		// break free from a possible infinite loop
-		next += next == old_next;
-		old_next = next;
-		assert(next < count);
+	const size_t pos = cryptanalysislib::internal::interpolation_lower_bound(first, n, v, h);
+	if ((pos < n) && !(v < h(first[pos]))) {
+		return first + pos;
 	}
-	return left;
+
+	return last;
 }
 
-/// Interpolation search variant 1 - NOT WORKING
+/// Interpolation search variant 1
 /// Uses interpolation to estimate the position of a value in a sorted range
 /// 
 /// \tparam RandIt Type of random access iterator
@@ -93,7 +103,7 @@ constexpr ForwardIt lower_bound_interpolation_3p_search(const ForwardIt first,
 /// \param last[in]: Iterator to the end of the range
 /// \param value_[in]: Value to search for
 /// \param h[in]: Hash function to use for comparison
-/// \return Iterator to the first element not less than value_, or last if not found
+/// \return Iterator to the first element equal to value_, or last if not found
 template<typename RandIt,
          typename Hash>
 #if __cplusplus > 201709L
@@ -104,48 +114,14 @@ constexpr RandIt lower_bound_interpolation_search1(RandIt first,
                                                    RandIt last,
                                                    const typename RandIt::value_type &value_,
                                                    Hash h) noexcept {
-	auto low = first, high = last, mid = first;
-	std::advance(high, -1);
-
-	auto data = h(value_);
-
-	while ((h(*high) >= h(*low)) &&
-	       (data >= h(*low)) &&
-	       (data <= h(*high))) {
-
-		const auto count = std::distance(low, high);
-		const auto midstep = std::round((data - h(*low)) / (h(*high) - h(*low)) * count);
-		mid = low;
-		std::advance(mid, midstep);
-
-		if (midstep == 0) {
-			while ((mid > low) && (h(*(--mid)) == h(*mid)))
-				std::advance(mid, -1);
-
-			break;
-		}
-
-
-		const auto middata = h(*mid);
-		if (middata < data) {
-			low = mid;
-			std::advance(low, 1);
-		} else if (data < middata) {
-			high = mid;
-			std::advance(high, -1);
-		} else {
-			// mhhh do the final walk down
-			while ((mid > low) && (h(*(--mid)) == h(*mid)))
-				std::advance(mid, -1);
-
-			return mid;
-		}
+	const size_t n = last - first;
+	const auto v = h(value_);
+	const size_t pos = cryptanalysislib::internal::interpolation_lower_bound(first, n, v, h);
+	if ((pos < n) && !(v < h(first[pos]))) {
+		return first + pos;
 	}
 
-	if (data == h(*low))
-		return low;
-	else
-		return last;
+	return last;
 }
 
 
@@ -158,7 +134,7 @@ constexpr RandIt lower_bound_interpolation_search1(RandIt first,
 /// \param last[in]: Iterator to the end of the range
 /// \param value_[in]: Value to search for
 /// \param h[in]: Hash function to use for comparison
-/// \return Iterator to the first element not less than value_, or last if not found
+/// \return Iterator to the first element equal to value_, or last if not found
 template<typename RandIt,
 		typename Hash>
 #if __cplusplus > 201709L
@@ -169,49 +145,14 @@ constexpr RandIt lower_bound_interpolation_search2(RandIt first,
                                                    RandIt last,
                                                    const typename RandIt::value_type &value_,
                                                    Hash h) noexcept {
-	using T = typename RandIt::value_type;
-
-	auto count = std::distance(first, last);
-	auto from_iter = first;
-	auto to_iter = from_iter;
-
-	std::advance(to_iter, count - 1);
-	auto value = h(value_);
-
-	while (count > 0) {
-		auto hfrom_iter = h(*from_iter);
-		auto hto_iter = h(*to_iter);
-
-		if (value < hfrom_iter) {
-			return from_iter;
-		} else if (!(hfrom_iter < value)) {
-			return from_iter;
-		}
-
-		if (hto_iter < value) {
-			return ++to_iter;
-		} else if (!(value < hto_iter)) {
-			return std::lower_bound(from_iter, to_iter, value_, [h](const T &e1, const T &e2) { return h(e1) < h(e2); });
-		}
-
-		const auto new_pos = std::round((value - hfrom_iter) / (hto_iter - hfrom_iter) * count);
-		auto new_iter = from_iter;
-		const auto hnew_iter = h(*new_iter);
-
-		std::advance(to_iter, new_pos);
-		if (value < hnew_iter) {
-			to_iter = from_iter;
-			std::advance(to_iter, new_pos - 1);
-		} else if (hnew_iter < value) {
-			std::advance(from_iter, new_pos + 1);
-		} else {
-			return std::lower_bound(from_iter, to_iter, value_, [h](const T &e1, const T &e2) { return h(e1) < h(e2); });
-		}
-
-		count = std::distance(from_iter, to_iter);
+	const size_t n = last - first;
+	const auto v = h(value_);
+	const size_t pos = cryptanalysislib::internal::interpolation_lower_bound(first, n, v, h);
+	if ((pos < n) && !(v < h(first[pos]))) {
+		return first + pos;
 	}
 
-	return to_iter;
+	return last;
 }
 
 /// Array-based interpolation search implementation for lower bound
@@ -224,7 +165,7 @@ constexpr RandIt lower_bound_interpolation_search2(RandIt first,
 /// \param boffset[in]: Starting offset in the array
 /// \param load[in]: Number of elements to search through
 /// \param e[in]: Hash function to use for comparison
-/// \return Index of the first element not less than key, or -1 if not found
+/// \return Index of the first element equal to key, or -1 if not found
 template<typename T,
          typename Hash>
 #if __cplusplus > 201709L
@@ -237,37 +178,14 @@ constexpr size_t LowerBoundInterpolationSearch(const T *__buckets,
                                                const size_t load,
                                                Hash &&e) noexcept {
 	assert(boffset < load);
-	size_t low = boffset, high = load - 1, mid;
-	const T data = e(key);
-	while ((e(__buckets[high]) >= e(__buckets[low])) &&
-	       (data >= e(__buckets[low])) &&
-	       (data <= e(__buckets[high]))) {
-
-		const size_t div = e(__buckets[high]) - e(__buckets[low]);
-		const double abc = double(high - low);
-		const size_t mul = abc / double(div);
-		mid = low + ((data - e(__buckets[low])) * mul);
-		assert(mid <= high);
-
-		const T middata = e(__buckets[mid]);
-		if (middata < data)
-			low = mid + 1;
-		else if (data < middata)
-			high = mid - 1;
-		else {
-			// mhhh do the final walk down
-			while ((mid > boffset) &&
-			       (e(__buckets[mid - 1]) == e(__buckets[mid]))) {
-				mid -= 1;
-			}
-			return mid;
-		}
+	const size_t n = load - boffset;
+	const auto data = e(key);
+	const size_t pos = boffset + cryptanalysislib::internal::interpolation_lower_bound(__buckets + boffset, n, data, e);
+	if ((pos < load) && !(data < e(__buckets[pos]))) {
+		return pos;
 	}
 
-	if (data == e(__buckets[low]))
-		return low;
-	else
-		return -1;
+	return -1;
 }
 
 /// Iterator-based interpolation search implementation for lower bound
@@ -279,7 +197,7 @@ constexpr size_t LowerBoundInterpolationSearch(const T *__buckets,
 /// \param last[in]: Iterator to the end of the range
 /// \param key_[in]: Value to search for
 /// \param e[in]: Hash function to use for comparison
-/// \return Iterator to the first element not less than key_, or last if not found
+/// \return Iterator to the first element equal to key_, or last if not found
 ///
 /// Note: The search assumes that the value type implements the < operator,
 /// and values are distributed uniformly
@@ -293,57 +211,18 @@ RandIt LowerBoundInterpolationSearch(RandIt first,
                                      RandIt last,
                                      const typename RandIt::value_type &key_,
                                      Hash e) noexcept {
-	using diff_type = typename std::iterator_traits<RandIt>::difference_type;
-	using T = typename RandIt::value_type;
-
-	auto low = first;
-	auto mid = first;
-	auto high = last;
-	std::advance(high, -1);
-	const T data = e(key_);
-
-	while ((e(*high) >= e(*low)) &&
-	       (data >= e(*low)) &&
-	       (data <= e(*high))) {
-
-		const double div = e(*high) - e(*low);
-		const double abc = std::distance(low, high);
-		const diff_type mul = diff_type(abc / div);
-
-		mid = low;
-		std::advance(mid, (data - e(*low)) * mul);
-		const T middata = e(*mid);
-		assert(middata <= e(*high));
-
-		if (middata < data) {
-			low = mid;
-			std::advance(low, 1);
-		} else if (data < middata) {
-			high = mid;
-			std::advance(high, -1);
-		} else {
-			// ugly, but somehow we need to catch the case, when the key is not unique in the sorted data.
-			auto tmp_mid = mid;
-			std::advance(tmp_mid, -1);
-			while ((std::distance(first, mid) > 0) && (e(*tmp_mid) == e(*mid))) {
-				std::advance(tmp_mid, -1);
-				std::advance(mid, -1);
-			}
-
-			return mid;
-		}
+	const size_t n = last - first;
+	const auto v = e(key_);
+	const size_t pos = cryptanalysislib::internal::interpolation_lower_bound(first, n, v, e);
+	if ((pos < n) && !(v < e(first[pos]))) {
+		return first + pos;
 	}
 
-	if (data == e(*low)) {
-		return low;
-	}
-
-	// nothing found
-	return low;
+	return last;
 }
 
 
-namespace cryptanalysislib::search {
+namespace cryptanalysislib {
 
 	/// Perform interpolation search to find a value in a sorted range with a provided hash function
 	/// 

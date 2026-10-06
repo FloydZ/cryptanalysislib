@@ -311,8 +311,7 @@ namespace cryptanalysislib::algorithm {
 
 		while (++first != last) {
 			acc = op(std::move(acc), *first);
-			*d_first = acc;
-			d_first += 1;
+			*++d_first = acc;
 		}
 
 		return ++d_first;
@@ -347,8 +346,8 @@ namespace cryptanalysislib::algorithm {
 			return d_first;
 		}
 
-		typename std::iterator_traits<InputIt>::value_type acc = *first;
-		acc = op(std::move(acc), init);
+		// same order as `std::inclusive_scan`: op(init, x_0)
+		typename std::iterator_traits<InputIt>::value_type acc = op(init, *first);
 		*d_first = acc;
 
 		while (++first != last) {

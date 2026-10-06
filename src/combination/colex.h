@@ -39,7 +39,8 @@ public:
 	/// \return the first combination with k bits set (lowest k bits)
 	[[nodiscard]] constexpr static inline T first_comb() noexcept {
 		if (k == 0) return 0;// shift with BITS_PER_LONG is undefined
-		return ~0UL >> (BITS- k);
+		// NOTE: ~T(0), so the result has exactly k bits for every T
+		return T(T(~T(0)) >> (BITS - k));
 	}
 	
     /// Return the first combination of (i.e. smallest word with) k bits,
@@ -50,7 +51,8 @@ public:
 	/// \return the first combination with k_ bits set (lowest k_ bits)
 	[[nodiscard]] constexpr static inline T first_comb(const T k_) noexcept {
 		if (k_ == 0) return 0;// shift with BITS_PER_LONG is undefined
-		return ~0UL >> (BITS- k_);
+		// NOTE: ~T(0), so the result has exactly k_ bits for every T
+		return T(T(~T(0)) >> (BITS - k_));
 	}
 
 

@@ -32,7 +32,7 @@ class LoggerConfig {
     // constexpr static ThreadingPolicy __threadingPolicy{};
 };
 
-constexpr static LoggerConfig __loggerConfig{};
+inline constexpr LoggerConfig __loggerConfig{};
 
 template<const LoggerConfig &config = __loggerConfig>
 class logger {
@@ -58,8 +58,12 @@ public:
 
 namespace cryptanalysislib {
     ///
-    auto log = logging::logger();
+    inline auto log = logging::logger();
+};
 
+// NOTE: the operators live in the namespace of `logger`/`LoggingLevel`, so
+// they are found by ADL without `using namespace cryptanalysislib;`
+namespace cryptanalysislib::logging {
     template<const logging::LoggerConfig &config=logging::__loggerConfig>
     logging::logger<config>& operator<<(logging::logger<config>& l,
                                         const logging::LoggingLevel& level) {
@@ -77,7 +81,7 @@ namespace cryptanalysislib {
     template<typename T>
     logging::LoggingLevel operator<<(logging::LoggingLevel l,
                                       const T &s) {
-        log(l) << s;
+        cryptanalysislib::log(l) << s;
         return l;
     }
 };

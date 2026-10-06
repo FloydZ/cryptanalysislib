@@ -74,8 +74,15 @@
 
 
 
+// NOTE: komihash is defined on little-endian values, so only big-endian
+// hosts need the byte swap
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define KOMIHASH_EC32( v ) __builtin_bswap32( v )
 #define KOMIHASH_EC64( v ) __builtin_bswap64( v )
+#else
+#define KOMIHASH_EC32( v ) ( v )
+#define KOMIHASH_EC64( v ) ( v )
+#endif
 
 /**
  * @brief Load unsigned 32-bit value with endianness-correction.
@@ -91,7 +98,8 @@
 
 static inline 
 uint32_t kh_lu32ec(const uint8_t* const p ) noexcept {
-	uint32_t v = *(const uint32_t *)p;
+	uint32_t v;
+	__builtin_memcpy(&v, p, 4);
 	return( KOMIHASH_EC32( v ));
 }
 
@@ -108,8 +116,8 @@ uint32_t kh_lu32ec(const uint8_t* const p ) noexcept {
  */
 static inline 
 uint64_t kh_lu64ec(const uint8_t* const p) noexcept {
-	uint64_t v = *(uint64_t *)p;
-	//memcpy(&v, p, 8 );
+	uint64_t v;
+	__builtin_memcpy(&v, p, 8);
 	return( KOMIHASH_EC64( v ));
 }
 

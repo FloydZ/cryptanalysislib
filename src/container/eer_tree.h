@@ -3,10 +3,11 @@
 #define MAXN 100100
 #define SIGMA 26
 #define BASE 'a'
-char *s = new char[MAXN];
+inline char *s = new char[MAXN];
 struct state {
 	int len, link, to[SIGMA];
-} *st = new state[MAXN + 2];
+};
+inline state *st = new state[MAXN + 2];
 
 struct eertree {
 	int last, sz, n;

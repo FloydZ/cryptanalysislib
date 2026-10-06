@@ -189,6 +189,25 @@ private:
 	}
 
 public:
+	/// draws a random intermediate target on the coordinates [k_lower, k_upper)
+	/// NOTE: for scalar labels (e.g. `kAry_Type_T`) `random(l, h)` draws a
+	/// 	value in [l, h), for vector labels it randomizes the coordinates [l, h)
+	/// \param iT[out]: intermediate target
+	/// \param k_lower[in]: lower coordinate
+	/// \param k_upper[in]: upper coordinate
+	static void random_intermediate_target(LabelType &iT,
+	                                       const uint32_t k_lower,
+	                                       const uint32_t k_upper) noexcept {
+		if constexpr (requires (const LabelType &l) { { l.value() } -> std::integral; }) {
+			// a value with random lowest `k_upper` bits
+			(void)k_lower;
+			iT.random(0, 1ull << k_upper);
+		} else {
+			iT.zero();
+			iT.random(k_lower, k_upper);
+		}
+	}
+
 	/// TODO doc
 	/// \param d
 	/// \param A
@@ -916,14 +935,10 @@ public:
 							 const LabelType &target,
 	                         const bool prepare=true,
 	                         F f=[](List &out, const List &L1, const List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
-								 size_t out_load = out.load();
-								 ElementType::template sub<k_lower, k_upper, -1u>(out[out_load], L1[i], L2[j]);
-								 out.set_load(out_load++);
-								 return out_load == out.size();
-								// out.template add_and_append
-								// 	<k_lower, k_upper, -1u, false>
-								// 	(L1[i], L2[j]);
-								// return false;
+								 // NOTE: a collision means L1[i] + L2[j] == target on [k_lower, k_upper)
+								 // NOTE: `add_and_append` checks the size of `out` (and resizes it if allowed)
+								 out.template add_and_append<k_lower, k_upper, -1u, false>(L1[i], L2[j]);
+								 return false;
 							}) noexcept;
 
 	///         ┌───────┐
@@ -966,12 +981,10 @@ public:
 	        const LabelType &target,
 	        const bool prepare=true,
 	        F f = [](List & out, const List &L1, const List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
-				size_t out_load = out.load();
-				ElementType::template sub<k_lower, k_upper, -1u>(out[out_load], L1[i], L2[j]);
-				out.set_load(out_load++);
-				return out_load == out.size();
-				// out.template add_and_append<k_lower, k_upper, -1u, false>(L1[i], L2[j]);
-				// return false;
+				// NOTE: a collision means L1[i] + L2[j] == target on [k_lower, k_upper)
+				// NOTE: `add_and_append` checks the size of `out` (and resizes it if allowed)
+				out.template add_and_append<k_lower, k_upper, -1u, false>(L1[i], L2[j]);
+				return false;
         	}) noexcept;
 
 	/// 		out HM
@@ -3676,6 +3689,10 @@ public:
 private:
 	unsigned int depth;
 	uint64_t base_size;
+
+public:
+// NOTE: member functions, so it needs to be included within the class
+#include "tree/dissection.h"
 };
 
 /// \param out

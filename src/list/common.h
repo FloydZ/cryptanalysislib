@@ -4,6 +4,7 @@
 #include "element.h"
 #include "memory/memory.h"
 #include "alloc/alloc.h"
+#include "algorithm/copy.h"
 
 struct ListConfig : public AlignmentConfig {
 public:
@@ -360,14 +361,16 @@ public:
 	constexpr inline void static copy(MetaListT &out,
 	                                  const MetaListT &in,
 	                                  const uint32_t tid=0) noexcept {
+		// NOTE: both lists must be split into the same number of threads
+		assert(out.threads() == in.threads());
 		out.set_size(in.size());
-		out.set_load(in.load());
-		out.set_threads(in.threads());
 		out.set_thread_block_size(in.thread_block_size());
+		out.set_load(in.load(tid), tid);
 
-		const std::size_t s = tid * in.threads();
-		const std::size_t c = ((tid == in.__threads - 1) ? in.__thread_block_size : in.__size - (in.__threads - 1) * in.__thread_block_size);
-		memcpy(out.__data.data() + s, in.__data.data() + s, c * sizeof(ValueType));
+		// [s, s+c) is the part of the list this thread copies
+		const std::size_t s = in.start_pos(tid);
+		const std::size_t c = in.size(tid);
+		cryptanalysislib::copy(in.__data.begin() + s, in.__data.begin() + s + c, out.__data.begin() + s);
 	}
 
 	/// checks if all elements in the list fulfill the equation:
@@ -437,8 +440,9 @@ public:
 	                                       const uint64_t k_higher=LabelBytes,
 	                                       const size_t start=0,
 	                                       const size_t end=-1ull) const noexcept {
-		const size_t end_ = end==-1ull ? load()-1 : end;
-		assert(start < end_);
+		// NOTE: `end_` is exclusive, as in `is_sorted()` above
+		const size_t end_ = end==-1ull ? load() : end;
+		assert(start <= end_);
 
 		auto op = [&t, sub](const LabelType &a){
 			LabelType tmp;
@@ -475,8 +479,9 @@ public:
 	[[nodiscard]] constexpr size_t size(const uint32_t tid) const noexcept {
 		assert(tid < threads());
 
+		// the last thread also handles the remaining elements
 		if (tid == threads() - 1) {
-			return std::max(thread_block_size() * threads(), size());
+			return size() - (thread_block_size() * (threads() - 1));
 		}
 
 		return __thread_block_size;
@@ -519,7 +524,9 @@ public:
 			return 0;
 		}
 
-		return tid * (__data.size() / __threads);
+		// NOTE: not `__data.size()`, which is 0 for lists which manage
+		// their own storage (e.g. `Parallel_List_IndexElement_T`)
+		return tid * thread_block_size();
 	};
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid=0) const noexcept {
 		assert(tid < threads());
@@ -528,9 +535,9 @@ public:
 		}
 
 		if (tid == threads() - 1) {
-			return std::max(thread_block_size() * tid, size());
+			return size();
 		}
-		return (tid + 1) * (__data.size() / __threads);
+		return (tid + 1) * thread_block_size();
 	};
 
 	/// some setter/getter
@@ -769,11 +776,11 @@ public:
 						  const uint32_t tid) noexcept {
 		assert(tid < threads());
 		const size_t sp = start_pos(tid);
-		const size_t ep = start_pos(tid);
+		const size_t ep = sp + size(tid);
 
 		Element e{};
 		set_load(ep - sp, tid);
-		for (size_t i = sp; i < sp; ++i) {
+		for (size_t i = sp; i < ep; ++i) {
 			e.random(m);
 			this->at(i) = e;
 		}

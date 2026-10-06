@@ -1,6 +1,9 @@
+#pragma once
+
+#include <cstdint>
 
 template <typename Type>
-ulong test_strictly_convex(const Type *f, ulong n)
+uint64_t test_strictly_convex(const Type *f, uint64_t n)
 // Return index of maximum for strictly convex sequence,
 //   otherwise return 0.
 // "strictly convex" means "strongly unimodal" and there
@@ -12,12 +15,12 @@ ulong test_strictly_convex(const Type *f, ulong n)
     if ( f[0] >= f[1] ) return 0;
     if ( f[n-2] <= f[n-1] ) return 0;
 
-    ulong i = 0;
+    uint64_t i = 0;
     do  { ++i; }  while ( f[i-1] < f[i] );
     --i;
     // i is second index of last rising pair from start
 
-    ulong j = n - 1;
+    uint64_t j = n - 1;
     do  { --j; }  while ( f[j] > f[j+1] );
     ++j;
     // j is first index of last falling pair from end (going backwards)
@@ -29,7 +32,7 @@ ulong test_strictly_convex(const Type *f, ulong n)
 
 
 template <typename Type>
-ulong test_strictly_concave(const Type *f, ulong n)
+uint64_t test_strictly_concave(const Type *f, uint64_t n)
 // Return index of minimum for strictly concave sequence,
 //   otherwise return 0
 {
@@ -39,12 +42,12 @@ ulong test_strictly_concave(const Type *f, ulong n)
     if ( f[0] <= f[1] ) return 0;
     if ( f[n-2] >= f[n-1] ) return 0;
 
-    ulong i = 0;
+    uint64_t i = 0;
     do  { ++i; }  while ( f[i-1] > f[i] );
     --i;
     // i is second index of last falling pair from start
 
-    ulong j = n - 1;
+    uint64_t j = n - 1;
     do  { --j; }  while ( f[j] < f[j+1] );
     ++j;
     // j is first index of last rising pair from end (going backwards)
@@ -55,20 +58,20 @@ ulong test_strictly_concave(const Type *f, ulong n)
 // -------------------------
 
 template <typename Type>
-bool is_strictly_convex(const Type *f, ulong n)
+bool is_strictly_convex(const Type *f, uint64_t n)
 { return (0 != test_strictly_convex(f, n)); }
 
 template <typename Type>
-bool is_strictly_concave(const Type *f, ulong n)
+bool is_strictly_concave(const Type *f, uint64_t n)
 { return (0 != test_strictly_concave(f, n)); }
 
 
 template <typename Type>
-bool is_weakly_convex(const Type *f, ulong n)
+bool is_weakly_convex(const Type *f, uint64_t n)
 // Return whether sequence is weakly convex (weakly unimodal).
 {
     if ( n<=2 )  return true;
-    ulong j = 1;
+    uint64_t j = 1;
     while ( j < n )  // scan over weakly increasing part
     {
         if ( f[j-1] > f[j] )  break;
@@ -87,11 +90,11 @@ bool is_weakly_convex(const Type *f, ulong n)
 
 
 template <typename Type>
-bool is_weakly_concave(const Type *f, ulong n)
+bool is_weakly_concave(const Type *f, uint64_t n)
 // Return whether sequence is weakly concave.
 {
     if ( n<=2 )  return true;
-    ulong j = 1;
+    uint64_t j = 1;
     while ( j < n )  // scan over weakly decreasing part
     {
         if ( f[j-1] < f[j] )  break;

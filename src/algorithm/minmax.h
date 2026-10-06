@@ -46,31 +46,24 @@ namespace cryptanalysislib {
             }
             
             // Initialize min/max with first SIMD_WIDTH elements
-            S vec = S::loadu(first);
+            S vec = S::template load<false>(first);
             S min_vec = vec;
             S max_vec = vec;
             
             // Process data in chunks of SIMD_WIDTH
             const size_t simd_chunks = (size / SIMD_WIDTH);
             for (size_t i = 1; i < simd_chunks; ++i) {
-                vec = S::loadu(first + i * SIMD_WIDTH);
+                vec = S::template load<false>(first + i * SIMD_WIDTH);
                 min_vec = S::min(min_vec, vec);
                 max_vec = S::max(max_vec, vec);
             }
             
-            // Extract min/max values from SIMD vectors
-            T min_arr[SIMD_WIDTH];
-            T max_arr[SIMD_WIDTH];
-            S::storeu(min_arr, min_vec);
-            S::storeu(max_arr, max_vec);
-            
-            T min_val = min_arr[0];
-            T max_val = max_arr[0];
-            
             // Find min/max within the SIMD results
+            T min_val = min_vec[0];
+            T max_val = max_vec[0];
             for (size_t i = 1; i < SIMD_WIDTH; ++i) {
-                if (min_arr[i] < min_val) min_val = min_arr[i];
-                if (max_arr[i] > max_val) max_val = max_arr[i];
+                if (min_vec[i] < min_val) min_val = min_vec[i];
+                if (max_vec[i] > max_val) max_val = max_vec[i];
             }
             
             // Process remaining elements
@@ -97,7 +90,11 @@ namespace cryptanalysislib {
             
             // Check if we can use pointers for faster access
             if constexpr (std::contiguous_iterator<ForwardIt>) {
-                return simd_minmax_element(&(*first), &(*last));
+                if (first == last) {
+                    return {T{}, T{}};
+                }
+                const T *p = &(*first);
+                return simd_minmax_element(p, p + (last - first));
             } else {
                 // Fallback for non-contiguous iterators
                 if (first == last) {
@@ -146,16 +143,6 @@ namespace cryptanalysislib {
                           : std::pair<const T&, const T&>(a, b);
     }
     
-    /// Computes the minimum and maximum elements in an initializer list
-    /// \param ilist[in]: initializer list of values to examine
-    /// \return a pair containing copies of the minimum and maximum values
-    template<class T>
-    constexpr 
-    std::pair<T, T> minmax(std::initializer_list<T> ilist) noexcept {
-        auto p = minmax_element(ilist.begin(), ilist.end());
-        return std::pair(*p.first, *p.second);
-    }
-
     /// Finds the smallest and largest elements in a range
     /// Uses the less-than operator for comparison
     /// \param first[in]: iterator to the first element in the range
@@ -223,6 +210,16 @@ namespace cryptanalysislib {
             }
         }
         return {min, max};
+    }
+
+    /// Computes the minimum and maximum elements in an initializer list
+    /// \param ilist[in]: initializer list of values to examine
+    /// \return a pair containing copies of the minimum and maximum values
+    template<class T>
+    constexpr 
+    std::pair<T, T> minmax(std::initializer_list<T> ilist) noexcept {
+        auto p = minmax_element(ilist.begin(), ilist.end());
+        return std::pair(*p.first, *p.second);
     }
 
 }; // end namespace cryptanalysislib

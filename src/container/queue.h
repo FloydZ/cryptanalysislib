@@ -188,17 +188,17 @@ class queue
 {
 public:
     Type *x_;   // pointer to data
-    ulong s_;   // allocated size (# of elements)
-    ulong n_;   // current number of entries in buffer
-    ulong wpos_;  // next position to write in buffer
-    ulong rpos_;  // next position to read in buffer
-    ulong gq_;  // grow gq elements if necessary, 0 for "never grow"
+    uint64_t s_;   // allocated size (# of elements)
+    uint64_t n_;   // current number of entries in buffer
+    uint64_t wpos_;  // next position to write in buffer
+    uint64_t rpos_;  // next position to read in buffer
+    uint64_t gq_;  // grow gq elements if necessary, 0 for "never grow"
 
     queue(const queue&) = delete;
     queue & operator = (const queue&) = delete;
 
 public:
-    explicit queue(ulong n, ulong growq=0)
+    explicit queue(uint64_t n, uint64_t growq=0)
     {
         s_ = n;
 //        x_ = new Type[s_];
@@ -211,9 +211,9 @@ public:
 
     ~queue()  { std::free( x_ ); }
 
-    ulong num()  const  { return n_; }
+    uint64_t num()  const  { return n_; }
 
-    ulong push(const Type &z)
+    uint64_t push(const Type &z)
     // Return number of entries.
     // Zero is returned on failure
     //   (i.e. space exhausted and 0==gq_)
@@ -232,7 +232,7 @@ public:
         return n_;
     }
 
-    ulong peek(Type &z)
+    uint64_t peek(Type &z)
     // Return number of entries.
     // if zero is returned the value of z is undefined.
     {
@@ -240,12 +240,12 @@ public:
         return n_;
     }
 
-    ulong pop(Type &z)
+    uint64_t pop(Type &z)
     // Return number of entries before pop
     // i.e. zero is returned if queue was empty.
     // If zero is returned the value of z is undefined.
     {
-        ulong ret = n_;
+        uint64_t ret = n_;
         if ( 0!=n_ )
         {
             z = x_[rpos_];
@@ -260,7 +260,7 @@ public:
 private:
     void grow()
     {
-        ulong ns = s_ + gq_;  // new size
+        uint64_t ns = s_ + gq_;  // new size
         // move read-position to zero:
         rotate_left(x_, s_, rpos_);
         x_ = ReAlloc<Type>(x_, ns, s_);

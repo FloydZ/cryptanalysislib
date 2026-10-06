@@ -1,8 +1,5 @@
 #pragma once
 
-#include <emmintrin.h>
-#include <immintrin.h>
-#include <popcntintrin.h>
 #include <sys/types.h>
 
 #include <algorithm>

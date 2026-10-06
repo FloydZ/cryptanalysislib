@@ -4,6 +4,7 @@
 #include "apply.h"
 
 #include <concepts>
+#include <iterator>
 #include <cstdint>
 #include <cstdlib>
 #include <limits.h>
@@ -50,11 +51,13 @@ namespace cryptanalysislib {
     	/// \return Minimum value from a[0], ..., a[n-1]
     	template<typename T,
                  const AlgorithmMinConfig &config = algorithmMinConfig>
+            requires std::unsigned_integral<T>
     	[[nodiscard]] constexpr static inline T min_simd_uXX(const T *a,
     														 const size_t n) noexcept {
     		using S = SIMDSelector<T>;
     
-    		T m = 0;
+    		// start at the largest value of T
+    		T m = T(~T(0));
     		auto p = S::set1(m);
     
             constexpr size_t t = S::LIMBS;
@@ -81,6 +84,18 @@ namespace cryptanalysislib {
         }
     } // end namespace internal
 
+	/// \return the smaller of the two values (`a` if they are equal)
+	/// NOTE: iterator types are excluded, so `min(first, last)` always
+	///		selects the range algorithm below.
+	/// \param a[in]: first value
+	/// \param b[in]: second value
+	template<typename T>
+	    requires (!std::input_or_output_iterator<T>)
+	[[nodiscard]] constexpr inline T min(const T &a,
+	                                       const T &b) noexcept {
+		return (b < a) ? b : a;
+	}
+
 	/// Finds minimum element in a range (sequential version)
 	/// \tparam Iterator Forward iterator type for the range
 	/// \tparam config Algorithm configuration (default: algorithmMinConfig)
@@ -95,19 +110,21 @@ namespace cryptanalysislib {
 	[[nodiscard]] constexpr static inline Iterator::value_type min(Iterator start,
 																   Iterator end) noexcept {
 		using T = Iterator::value_type;
-		const size_t len = std::distance(start, end);
-		if (std::is_integral_v<T> && (len >= config.min_size_simd)) {
-			return min_simd_uXX(&(*start), len);
-		}
-
-		T k = *start;
-		for (size_t i = 1; i < len; i++) {
-			if (*(start+i) < *(start + k)) [[unlikely]] {
-				k = i;
+		if constexpr (std::unsigned_integral<T> && std::contiguous_iterator<Iterator>) {
+			const size_t len = end - start;
+			if (len >= config.min_size_simd) {
+				return internal::min_simd_uXX(&(*start), len);
 			}
 		}
 
-		return k;
+		T m = *start;
+		for (++start; start != end; ++start) {
+			if (*start < m) [[unlikely]] {
+				m = *start;
+			}
+		}
+
+		return m;
 	}
 
 	/// Finds minimum element in a range (parallel version)

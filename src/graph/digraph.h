@@ -42,9 +42,9 @@ public:
         ep_ = allocator.allocate(ng_ + 1u);
         e_ = allocator.allocate(ne);
         if ( vnq ) { vn_ = allocator.allocate(ng_); }
-        // ep_ = new ulong[ng_+1];
-        // e_ = new ulong[ne];
-        // if ( vnq )  vn_ = new ulong[ng_];
+        // ep_ = new uint64_t[ng_+1];
+        // e_ = new uint64_t[ne];
+        // if ( vnq )  vn_ = new uint64_t[ng_];
     }
 
     ~digraph() noexcept {
@@ -83,8 +83,8 @@ public:
                          const T pn) const noexcept {
         T fe = ep_[p];   // (index of) First Edge
         T nt = num_edges(p);
-        const ulong *e = e_ + fe;
-        for (ulong t=0; t<nt; ++t) { 
+        const uint64_t *e = e_ + fe;
+        for (uint64_t t=0; t<nt; ++t) { 
             if (pn==e[t]) { 
                 return t; 
             }
@@ -115,18 +115,18 @@ public:
         if (rq) sort_edges(cmp0);
         else    sort_edges(cmp1);
     }
-    void  sort_edges(int (*cmp)(const ulong &, const ulong &)) {
+    void  sort_edges(int (*cmp)(const uint64_t &, const uint64_t &)) {
         // value == index (in e[])
         if ( nullptr==vn_ )  {
-            for (ulong k=0; k<ng_; ++k) {
-                ulong x = ep_[k];
-                ulong n = ep_[k+1] - x;
+            for (uint64_t k=0; k<ng_; ++k) {
+                uint64_t x = ep_[k];
+                uint64_t n = ep_[k+1] - x;
                 selection_sort(e_+x, n, cmp);
             }
         } else {
-            for (ulong k=0; k<ng_; ++k) {
-                ulong x = ep_[k];
-                ulong n = ep_[k+1] - x;
+            for (uint64_t k=0; k<ng_; ++k) {
+                uint64_t x = ep_[k];
+                uint64_t n = ep_[k+1] - x;
                 idx_selection_sort(vn_, n, e_+x, cmp);
             }
         }
@@ -138,22 +138,22 @@ public:
     constexpr T test_edge_sorted(int (*cmp)(const T &, const T &)) const noexcept  {
         // value == index (in e[])
         if ( nullptr==vn_ ) {
-            for (ulong k=0; k<ng_; ++k) {
-                ulong x = ep_[k];
-                ulong n = ep_[k+1] - x;
+            for (uint64_t k=0; k<ng_; ++k) {
+                uint64_t x = ep_[k];
+                uint64_t n = ep_[k+1] - x;
                 if ( ! is_sorted(e_+x, n, cmp) )  return k;
             }
         } else {
-            for (ulong k=0; k<ng_; ++k) {
-                ulong x = ep_[k];
-                ulong n = ep_[k+1] - x;
+            for (uint64_t k=0; k<ng_; ++k) {
+                uint64_t x = ep_[k];
+                uint64_t n = ep_[k+1] - x;
                 if ( ! is_idx_sorted(vn_, n, e_+x, cmp) )  return k;
             }
         }
         return ng_;
     }
 
-    constexpr bool is_edge_sorted(int (*cmp)(const ulong &, const ulong &)) const noexcept {
+    constexpr bool is_edge_sorted(int (*cmp)(const uint64_t &, const uint64_t &)) const noexcept {
         return ( ng_==test_edge_sorted(cmp));
     }
 
@@ -174,7 +174,7 @@ public:
 
     // Random permute order of edges at positions p0,...,p1.
     // If p1==0 then action is performed just for position p0.
-    void randomize_edge_order(ulong p0, ulong p1=0) noexcept {
+    void randomize_edge_order(uint64_t p0, uint64_t p1=0) noexcept {
         T p = p0;
         do {
             T n = num_edges(p);
@@ -193,9 +193,9 @@ public:
         }
 
         std::cout << "Node: Edge0 Edge1 ..." << std::endl;
-        for (ulong k=0; k<ng_; ++k) {
+        for (uint64_t k=0; k<ng_; ++k) {
             std::cout << std::setw(3) << k << ":  ";
-            for (ulong j=ep_[k]; j<ep_[k+1]; ++j) {
+            for (uint64_t j=ep_[k]; j<ep_[k+1]; ++j) {
                 std::cout << std::setw(3) << e_[j] << " ";
             }
             std::cout << std::endl;
@@ -216,7 +216,7 @@ public:
         }
 
         std::cout << std::endl;
-        ulong ma = max_edges();
+        uint64_t ma = max_edges();
         for (T j=0; j<ma; ++j) {
             std::cout << std::setw(1) << "Edge" << std::setw(2) << j << ":";
             for (T k=0; k<ng_; ++k) {
@@ -258,7 +258,7 @@ public:
     static digraph *make_complete_digraph(T n) noexcept {
         T ng = n, ne = n*(n-1);
     
-        ulong *ep, *e;
+        uint64_t *ep, *e;
         digraph * dgp = new digraph(ng, ne, ep, e);
     
         T j = 0;
@@ -278,15 +278,15 @@ public:
 
     /// \param n[in] 
     static digraph *make_debruijn_digraph(T n) noexcept {
-        ulong ng = 2*n, ne = 2*ng;
-        ulong *ep, *e;
+        uint64_t ng = 2*n, ne = 2*ng;
+        uint64_t *ep, *e;
         digraph * dgp = new digraph(ng, ne, ep, e);
     
-        ulong j = 0;
-        for (ulong k=0; k<ng; ++k)  // for all nodes
+        uint64_t j = 0;
+        for (uint64_t k=0; k<ng; ++k)  // for all nodes
         {
             ep[k] = j;
-            ulong r = (2*k) % ng;
+            uint64_t r = (2*k) % ng;
             e[j++] = r;  // connect node k to node (2*k) mod ng
             r = (2*k+1) % ng;
             e[j++] = r;  // connect node k to node (2*k+1) mod ng
@@ -328,7 +328,7 @@ public:
         digraph * dgp = new digraph(ng, ne, ep, e);
     
         T j = 0;
-        for (ulong k=0; k<ng; ++k)  {
+        for (uint64_t k=0; k<ng; ++k)  {
             ep[k] = j;
             for (T i=0; i<m; ++i) {
                 T r = (m*k+i) % ng;
@@ -344,32 +344,32 @@ public:
     static digraph *make_fibrepgray_digraph(const T n) noexcept {
         // TODO allocator
         T *f = new T[n];
-        for (ulong k=0; k<n; ++k) { f[k] = bin2fibrep(k); }
+        for (uint64_t k=0; k<n; ++k) { f[k] = bin2fibrep(k); }
     
-        ulong nc = 0;
-        for (ulong k=0; k<n; ++k) {
-            ulong fk = f[k];
-            for (ulong j=0; j<n; ++j) {
+        uint64_t nc = 0;
+        for (uint64_t k=0; k<n; ++k) {
+            uint64_t fk = f[k];
+            for (uint64_t j=0; j<n; ++j) {
                 if ( j==k )  continue;
-                ulong fj = f[j];
+                uint64_t fj = f[j];
                 if ( one_bit_q( fj^fk ) )  ++nc;
             }
         }
     
-        ulong *ep, *e;
+        uint64_t *ep, *e;
         digraph * dgp = new digraph(n, nc, ep, e, 1);
         digraph &dg = *dgp;
         acopy(f, dg.vn_, n);
     
-        ulong tnc = 0;
-        for (ulong k=0; k<n; ++k)
+        uint64_t tnc = 0;
+        for (uint64_t k=0; k<n; ++k)
         {
             ep[k] = tnc;
-            ulong fk = f[k];
-            for (ulong j=0; j<n; ++j)
+            uint64_t fk = f[k];
+            for (uint64_t j=0; j<n; ++j)
             {
                 if ( j==k )  continue;
-                ulong fj = f[j];
+                uint64_t fj = f[j];
                 if ( one_bit_q( fj^fk ) )  e[tnc++] = j;
             }
         }
@@ -383,18 +383,18 @@ public:
     }
     
     digraph *
-    make_gray_digraph(ulong n, bool rq/*=0*/)
+    make_gray_digraph(uint64_t n, bool rq/*=0*/)
     // Initialization for directed graph:
     // Gray code graph for n-bit words.
     {
-        ulong ng = 1UL<<n;
+        uint64_t ng = 1UL<<n;
     
-        ulong ne = ng * n;  // number of edges
-        ulong *ep, *e;
+        uint64_t ne = ng * n;  // number of edges
+        uint64_t *ep, *e;
         digraph * dgp = new digraph(ng, ne, ep, e);
     
-        ulong p = 0;
-        ulong k = 0;
+        uint64_t p = 0;
+        uint64_t k = 0;
         if ( rq )  // force path to start as 0 1 3:
         {
             ep[k] = p;  e[p++] = 1;  ++k;  // 0 --> 1
@@ -404,9 +404,9 @@ public:
         for (  ; k<ng; ++k)  // for all nodes
         {
             ep[k] = p;
-            for (ulong c=0, b=1;  c<n;  ++c, b<<=1)
+            for (uint64_t c=0, b=1;  c<n;  ++c, b<<=1)
             {
-                ulong vc = k ^ b;  // change one bit
+                uint64_t vc = k ^ b;  // change one bit
                 e[p++] = vc;
             }
         }
@@ -417,8 +417,8 @@ public:
     // -------------------------
     
     
-    ulong
-    start_monotonic_gray_path(digraph_paths &dp, ulong n)
+    uint64_t
+    start_monotonic_gray_path(digraph_paths &dp, uint64_t n)
     // Let path start as (a canonical monotonic Gray path):
     //
     // Return number of positions marked.
@@ -435,17 +435,17 @@ public:
     // 8:  11... 2  24
     // 9:  1.... 1  16
     {
-        for (ulong k=0; k<dp.ng_; ++k)  dp.qq_[k] = 0;
-        ulong ns = 0;
+        for (uint64_t k=0; k<dp.ng_; ++k)  dp.qq_[k] = 0;
+        uint64_t ns = 0;
         jjassert( dp.mark(0, ns) );
         jjassert( dp.mark(1, ns) );
         if ( n>=2 )
         {
             jjassert( dp.mark(3, ns) );
-            ulong *rv = dp.rv_;
-            for (ulong k=3;  k<2*n; ++k)
+            uint64_t *rv = dp.rv_;
+            for (uint64_t k=3;  k<2*n; ++k)
             {
-                ulong p = rv[k-2];
+                uint64_t p = rv[k-2];
                 p = bit_rotate_left(p, 1, n);
                 jjassert( dp.mark(p, ns) );
             }
@@ -455,23 +455,23 @@ public:
     
     
     static digraph *
-    make_mtl_digraph(ulong k, bool rq/*=0*/)
+    make_mtl_digraph(uint64_t k, bool rq/*=0*/)
     // Initialization for the "middle two levels" graph
     {
-        ulong k2 = 2*k-1;
-        ulong ng = 2*binomial(k2, k);
-        ulong ne = ng * k;  // number of edges
+        uint64_t k2 = 2*k-1;
+        uint64_t ng = 2*binomial(k2, k);
+        uint64_t ne = ng * k;  // number of edges
         if ( rq )  ne -= (k-1);
     
-        ulong *ep, *e;
+        uint64_t *ep, *e;
     //    digraph dg(ng, ne, ep, e, true);
         digraph * dgp = new digraph(ng, ne, ep, e, true);
         digraph &dg = *dgp;
     
-        ulong *vn = dg.vn_;
-        ulong mask = first_comb(k2);
-        ulong comb = first_comb(k);
-        ulong nct = 0;  // Node counter
+        uint64_t *vn = dg.vn_;
+        uint64_t mask = first_comb(k2);
+        uint64_t comb = first_comb(k);
+        uint64_t nct = 0;  // Node counter
         do
         {
             vn[nct++] = comb;
@@ -484,11 +484,11 @@ public:
     
         quick_sort(vn, ng);
     
-        ulong p = 0;
-        ulong j = 0;
+        uint64_t p = 0;
+        uint64_t j = 0;
         if ( rq )  // force path to start "canonically":
         {
-            ulong x = k;
+            uint64_t x = k;
             ep[j] = p;  e[p++] = x;  ++j;  // 0000111 --> 0001111
     //        print_bin(" 2nd= ", vn[x], pbn);  cout << endl;
             // #0   == 0000111
@@ -501,11 +501,11 @@ public:
         for (  ; j<ng; ++j)  // for all nodes
         {
             ep[j] = p;
-            ulong v = vn[j];  // value of node
-            for (ulong b=1;  0!=(b & mask);  b<<=1)
+            uint64_t v = vn[j];  // value of node
+            for (uint64_t b=1;  0!=(b & mask);  b<<=1)
             {
-                ulong vc = v ^ b;  // change one bit
-                ulong x = bsearch(vn, ng, vc);
+                uint64_t vc = v ^ b;  // change one bit
+                uint64_t x = bsearch(vn, ng, vc);
                 if ( ng != x )
                 {
                     jjassert( p<ne );
@@ -520,7 +520,7 @@ public:
     }
     
     
-    constexpr static ulong Catalan[]=
+    constexpr static uint64_t Catalan[]=
     {
         0UL, 1UL, 2UL, 5UL, 14UL, 42UL, 132UL, 429UL, 1430UL, 4862UL, 16796UL,
         58786UL, 208012UL, 742900UL, 2674440UL, 9694845UL, 35357670UL
@@ -529,9 +529,9 @@ public:
     // -------------------------
     
     static bool
-    parengray_is_neighbor(ulong fk, ulong fj, ulong pcd, ulong /*nb*/)
+    parengray_is_neighbor(uint64_t fk, uint64_t fj, uint64_t pcd, uint64_t /*nb*/)
     {
-        ulong xr = fj^fk;
+        uint64_t xr = fj^fk;
         bool q = false;
         if ( 2==bit_count( xr ) )
         {
@@ -555,13 +555,13 @@ public:
     
     
     digraph *
-    make_parengray_digraph(ulong nb, ulong pcd)
+    make_parengray_digraph(uint64_t nb, uint64_t pcd)
     {
-        ulong n = Catalan[nb];
-        ulong *f = new ulong[n];
+        uint64_t n = Catalan[nb];
+        uint64_t *f = new uint64_t[n];
         {
-            ulong k = 0;
-            ulong c = last_comb(nb, 2*nb);
+            uint64_t k = 0;
+            uint64_t c = last_comb(nb, 2*nb);
             do
             {
                 if ( is_parenword(c) )
@@ -576,29 +576,29 @@ public:
             reverse(f, n);
         }
     
-        ulong nc = 0;
-        for (ulong k=0; k<n; ++k)  // count number of edges
+        uint64_t nc = 0;
+        for (uint64_t k=0; k<n; ++k)  // count number of edges
         {
-            ulong fk = f[k];
-            for (ulong j=0; j<n; ++j)
+            uint64_t fk = f[k];
+            for (uint64_t j=0; j<n; ++j)
             {
                 if ( j==k )  continue;
-                ulong fj = f[j];
+                uint64_t fj = f[j];
                 if ( parengray_is_neighbor(fk, fj, pcd, nb) )  ++nc;
             }
         }
     
-        ulong *cp = new ulong[n+1];
-        ulong *c = new ulong[nc];
+        uint64_t *cp = new uint64_t[n+1];
+        uint64_t *c = new uint64_t[nc];
         nc = 0;
-        for (ulong k=0; k<n; ++k)  // fill in edges
+        for (uint64_t k=0; k<n; ++k)  // fill in edges
         {
             cp[k] = nc;
-            ulong fk = f[k];
-            for (ulong j=0; j<n; ++j)
+            uint64_t fk = f[k];
+            for (uint64_t j=0; j<n; ++j)
             {
                 if ( j==k )  continue;
-                ulong fj = f[j];
+                uint64_t fj = f[j];
                 if ( parengray_is_neighbor(fk, fj, pcd, nb) )  c[nc++] = j;
             }
         }
@@ -607,8 +607,8 @@ public:
     
     
     
-    //    digraph(ulong ng, ulong ne, ulong *&ep, ulong *&e, bool vnq=false)
-        ulong *ep, *e;
+    //    digraph(uint64_t ng, uint64_t ne, uint64_t *&ep, uint64_t *&e, bool vnq=false)
+        uint64_t *ep, *e;
     //    digraph dg(n, nc, ep, e, 1);
         digraph *dgp = new digraph(n, nc, ep, e, 1);
         digraph &dg = *dgp;
@@ -624,7 +624,7 @@ public:
         return  dgp;
     }
     
-    static inline void star_swap(ulong *x, ulong c)
+    static inline void star_swap(uint64_t *x, uint64_t c)
     {
         // star transpositions:
         swap2( x[0], x[c] );
@@ -632,7 +632,7 @@ public:
     // -------------------------
     
     
-    static inline void adj_swap(ulong *x, ulong c)
+    static inline void adj_swap(uint64_t *x, uint64_t c)
     {
         // adjacent transpositions:
         swap2(x[c-1], x[c]);
@@ -640,31 +640,31 @@ public:
     // -------------------------
     
     digraph *
-    make_perm_gray_digraph(ulong n, bool stq)
+    make_perm_gray_digraph(uint64_t n, bool stq)
     // Initialization for directed graph:
     // Gray code permutations of n elements
     // with star transpositions if stq==true,
     // otherwise with adjacent changes.
     {
-        ulong ng = factorial(n);
-        ulong ne = ng * (n-1);  // number of edges
-        ulong *ep, *e;
+        uint64_t ng = factorial(n);
+        uint64_t ne = ng * (n-1);  // number of edges
+        uint64_t *ep, *e;
         digraph * dgp = new digraph(ng, ne, ep, e);
     
-        ulong xx[32];  // permutations
-        ulong p = 0;
-        for (ulong k=0; k<ng; ++k)  // for all nodes
+        uint64_t xx[32];  // permutations
+        uint64_t p = 0;
+        for (uint64_t k=0; k<ng; ++k)  // for all nodes
         {
             ep[k] = p;
             num2perm_rfact(k, xx, n);
     
-            for (ulong j=1;  j<n;  ++j)
-    //        for (ulong j=n-1;  j!=0;  --j)
+            for (uint64_t j=1;  j<n;  ++j)
+    //        for (uint64_t j=n-1;  j!=0;  --j)
             {
                 if ( stq ) star_swap(xx, j);
                 else       adj_swap(xx, j);
     
-                ulong vc = perm2num_rfact(xx, n);
+                uint64_t vc = perm2num_rfact(xx, n);
                 e[p++] = vc;
     
                 // unswap:
@@ -678,31 +678,31 @@ public:
     }
     
     digraph *
-    make_perm_pref_rev_digraph(ulong n)
+    make_perm_pref_rev_digraph(uint64_t n)
     // Initialization for directed graph:
     // permutations are connected by prefix reversals
     {
-        ulong ng = factorial(n);
+        uint64_t ng = factorial(n);
     
-        ulong ne = ng * (n-1);  // number of edges
-        ulong *ep, *e;
+        uint64_t ne = ng * (n-1);  // number of edges
+        uint64_t *ep, *e;
         digraph * dgp = new digraph(ng, ne, ep, e);
     
     
-        ulong xx[32];  // aux: permutations
-        ulong yy[32];  // aux: prefix-reversed permutations
-        ulong p = 0;
-        for (ulong k=0; k<ng; ++k)  // for all nodes
+        uint64_t xx[32];  // aux: permutations
+        uint64_t yy[32];  // aux: prefix-reversed permutations
+        uint64_t p = 0;
+        for (uint64_t k=0; k<ng; ++k)  // for all nodes
         {
             ep[k] = p;
     
             num2perm_ffact(k, xx, n);
-            for (ulong j=2;  j<=n;  ++j)
+            for (uint64_t j=2;  j<=n;  ++j)
             {
-                for (ulong i=0; i<n; ++i)  yy[i] = xx[i];
+                for (uint64_t i=0; i<n; ++i)  yy[i] = xx[i];
                 reverse(yy, j);
     
-                ulong vc = perm2num_ffact(yy, n);
+                uint64_t vc = perm2num_ffact(yy, n);
                 e[p++] = vc;
             }
         }
@@ -712,33 +712,33 @@ public:
     }
     
     digraph *
-    make_perm_pref_rot_digraph(ulong n, bool rq/*=0*/)
+    make_perm_pref_rot_digraph(uint64_t n, bool rq/*=0*/)
     // Initialization for directed graph:
     // permutations are connected by prefix rotations,
     // rq = 1 ==> right rotations, otherwise left rotations.
     {
-        ulong ng = factorial(n);
+        uint64_t ng = factorial(n);
     
-        ulong ne = ng * (n-1);  // number of edges
-        ulong *ep, *e;
+        uint64_t ne = ng * (n-1);  // number of edges
+        uint64_t *ep, *e;
         digraph * dgp = new digraph(ng, ne, ep, e);
     
     
-        ulong xx[32];  // aux: permutations
-        ulong yy[32];  // aux: prefix-reversed permutations
-        ulong p = 0;
-        for (ulong k=0; k<ng; ++k)  // for all nodes
+        uint64_t xx[32];  // aux: permutations
+        uint64_t yy[32];  // aux: prefix-reversed permutations
+        uint64_t p = 0;
+        for (uint64_t k=0; k<ng; ++k)  // for all nodes
         {
             ep[k] = p;
     
             num2perm_ffact(k, xx, n);
-            for (ulong j=2;  j<=n;  ++j)
+            for (uint64_t j=2;  j<=n;  ++j)
             {
-                for (ulong i=0; i<n; ++i)  yy[i] = xx[i];
+                for (uint64_t i=0; i<n; ++i)  yy[i] = xx[i];
                 if ( rq ) rotate_right1(yy, j);
                 else      rotate_left1(yy, j);
     
-                ulong vc = perm2num_ffact(yy, n);
+                uint64_t vc = perm2num_ffact(yy, n);
                 e[p++] = vc;
             }
         }
@@ -754,27 +754,27 @@ public:
     class digraph_paths {
     public:
         digraph &g_;  // the graph
-        ulong *rv_;  // Record of Visits: rv[k] == node visited at step k
-        ulong *qq_;  // qq[k] == whether node k has been visited yet
+        uint64_t *rv_;  // Record of Visits: rv[k] == node visited at step k
+        uint64_t *qq_;  // qq[k] == whether node k has been visited yet
     
-        ulong pct_;  // count Paths
-        ulong cct_;  // count Cycles
-        ulong pfct_;  // count Paths where pfunc() returns 1
+        uint64_t pct_;  // count Paths
+        uint64_t cct_;  // count Cycles
+        uint64_t pfct_;  // count Paths where pfunc() returns 1
     
         bool cq_;  // whether current path is a cycle
     
         bool pany_;    // whether to print anything (set automatically)
-        ulong ng_;  // == g_.ng_
-        ulong ngbits_;  // number of bits in ng_, used for printing
+        uint64_t ng_;  // == g_.ng_
+        uint64_t ngbits_;  // number of bits in ng_, used for printing
     
         // function to call with each path found with all_paths():
-        ulong (*pfunc_)(const digraph_paths &);
+        uint64_t (*pfunc_)(const digraph_paths &);
     
         bool pfdone_;  // if set (by pfunc()) then search is stopped
-        ulong maxnp_;  // stop after maxnp times that pfunc returned one (0==forever)
+        uint64_t maxnp_;  // stop after maxnp times that pfunc returned one (0==forever)
     
         // function to impose condition with all_cond_paths():
-        bool (*cfunc_)(digraph_paths &, ulong ns);  // can set pfdone_
+        bool (*cfunc_)(digraph_paths &, uint64_t ns);  // can set pfdone_
     
         digraph_paths(const digraph_paths&) = delete;
         digraph_paths & operator = (const digraph_paths&) = delete;
@@ -790,9 +790,9 @@ public:
         bool path_is_cycle()  const;
     
         void print_turns(bool shortq=true) const;
-        ulong test_lucky_path()  const;
+        uint64_t test_lucky_path()  const;
     
-        bool mark(ulong p, ulong &ns);
+        bool mark(uint64_t p, uint64_t &ns);
     
         void print_path() const
         // Print sequence of nodes.
@@ -809,24 +809,24 @@ public:
     
         // graph/search-digraph.cc:
     public:
-        ulong all_paths(ulong (*pfunc)(const digraph_paths &),
-                        ulong ns=0, ulong p=0, ulong maxnp=0);
+        uint64_t all_paths(uint64_t (*pfunc)(const digraph_paths &),
+                        uint64_t ns=0, uint64_t p=0, uint64_t maxnp=0);
     private:
-        void next_path(ulong ns, ulong p);  // called by all_paths()
+        void next_path(uint64_t ns, uint64_t p);  // called by all_paths()
     
         // graph/search-digraph-cond.cc:
     public:
-        ulong all_cond_paths(ulong (*pfunc)(const digraph_paths &),
-                             bool (*cfunc)(digraph_paths &, ulong),
-                             ulong ns=0, ulong p=0, ulong maxnp=0);
+        uint64_t all_cond_paths(uint64_t (*pfunc)(const digraph_paths &),
+                             bool (*cfunc)(digraph_paths &, uint64_t),
+                             uint64_t ns=0, uint64_t p=0, uint64_t maxnp=0);
     private:
-        void next_cond_path(ulong ns, ulong p);  // called by all_cond_paths()
+        void next_cond_path(uint64_t ns, uint64_t p);  // called by all_cond_paths()
     
         // graph/search-digraph-trylucky.cc:
     public:
-        ulong try_lucky_path(ulong ns=0, ulong p=0);
+        uint64_t try_lucky_path(uint64_t ns=0, uint64_t p=0);
     private:
-        void next_lucky(ulong ns, ulong p);  // called by try_lucky_path()
+        void next_lucky(uint64_t ns, uint64_t p);  // called by try_lucky_path()
     };
 private:
     /// \param a[in]:
@@ -891,7 +891,7 @@ private:
     T ngbits_ = 0;
 
     // function to call with each path found with all_paths():
-    ulong (*pfunc_)(const digraph_paths &);
+    uint64_t (*pfunc_)(const digraph_paths &);
 
     // if set (by pfunc()) then search is stopped
     bool pfdone_ = 0;  
@@ -900,7 +900,7 @@ private:
     size_t maxnp_ = 0;
 
     // function to impose condition with all_cond_paths():
-    bool (*cfunc_)(digraph_paths &, ulong ns);  // can set pfdone_
+    bool (*cfunc_)(digraph_paths &, uint64_t ns);  // can set pfdone_
 
     digraph_paths(const digraph_paths&) = delete;
     digraph_paths & operator = (const digraph_paths&) = delete;
@@ -928,10 +928,10 @@ public:
     // Return whether the path is a cycle.
     constexpr bool path_is_cycle()  const noexcept {
         // first node visited
-        ulong p0 = rv_[0];
+        uint64_t p0 = rv_[0];
         
         // last node visited
-        ulong p = rv_[ng_-1];  
+        uint64_t p = rv_[ng_-1];  
         return graph().has_edge(p, p0);
     }
 
@@ -939,17 +939,17 @@ public:
         cout << "Path:";
         if ( shortq )  cout << " (short print) ";
         cout << endl;
-        ulong nffct = 0;  // count non-first-free turns
-        for (ulong k=0; k<ng_-1; ++k)
+        uint64_t nffct = 0;  // count non-first-free turns
+        for (uint64_t k=0; k<ng_-1; ++k)
         {
-            ulong pk = rv_[k];
-            ulong ft = qq_[pk] - 1;
+            uint64_t pk = rv_[k];
+            uint64_t ft = qq_[pk] - 1;
             nffct += (0!=ft);
             if ( !shortq || ft )
             {
-                ulong nt = g_.num_edges(pk);
-                ulong pn = rv_[k+1];
-                ulong tt = g_.edge_idx(pk, pn);
+                uint64_t nt = g_.num_edges(pk);
+                uint64_t pn = rv_[k+1];
+                uint64_t tt = g_.edge_idx(pk, pn);
                 cout << setw(4) << k << ":";
                 cout << " " << setw(4) << pk << " ->" << setw(4) << pn;
                 cout << "  [" << setw(2) << ft;
@@ -973,7 +973,7 @@ public:
         return  0;
     }
 
-    bool mark(ulong p, ulong &ns) noexcept {
+    bool mark(uint64_t p, uint64_t &ns) noexcept {
         if ( p>=ng_ )  return false;
         if ( ns>=ng_ )  return false;
         if ( 0!=ns )
@@ -1002,10 +1002,10 @@ public:
 
     // graph/search-digraph.cc:
 public:
-    ulong all_paths(ulong (*pfunc)(const digraph_paths &),
-                    ulong ns=0,
-                    ulong p=0,
-                    ulong maxnp=0) noexcept {
+    uint64_t all_paths(uint64_t (*pfunc)(const digraph_paths &),
+                    uint64_t ns=0,
+                    uint64_t p=0,
+                    uint64_t maxnp=0) noexcept {
         pct_ = 0;
         cct_ = 0;
         pfct_ = 0;
@@ -1020,7 +1020,7 @@ private:
     // called by all_paths()
     // ns+1 == how many nodes seen
     // p == position (node we are on)
-    void next_path(ulong ns, ulong p) noexcept {
+    void next_path(uint64_t ns, uint64_t p) noexcept {
         if ( pfdone_ )  return;
     
         rv_[ns] = p;  // record position
@@ -1031,7 +1031,7 @@ private:
             ++pct_;
             cq_ = path_is_cycle();
             if ( cq_ )  ++cct_;
-            ulong pq = pfunc_(*this);
+            uint64_t pq = pfunc_(*this);
             if ( pq )
             {
                 ++pfct_;
@@ -1039,12 +1039,12 @@ private:
             }
         } else {
             qq_[p] = 1;  // mark position as seen (else loops lead to errors)
-            ulong fe, en;
+            uint64_t fe, en;
             g_.get_edge_idx(p, fe, en);
-            ulong fct = 0;  // count free reachable nodes
-            for (ulong ep=fe; ep<en; ++ep)
+            uint64_t fct = 0;  // count free reachable nodes
+            for (uint64_t ep=fe; ep<en; ++ep)
             {
-                ulong t = g_.e_[ep];  // next node
+                uint64_t t = g_.e_[ep];  // next node
                 if ( 0==qq_[t] )  // node free?
                 {
                     ++fct;
@@ -1060,9 +1060,9 @@ private:
     }
     // graph/search-digraph-cond.cc:
 public:
-    ulong all_cond_paths(ulong (*pfunc)(const digraph_paths &),
-                         bool (*cfunc)(digraph_paths &, ulong),
-                         ulong ns=0, ulong p=0, ulong maxnp=0) {
+    uint64_t all_cond_paths(uint64_t (*pfunc)(const digraph_paths &),
+                         bool (*cfunc)(digraph_paths &, uint64_t),
+                         uint64_t ns=0, uint64_t p=0, uint64_t maxnp=0) {
         pct_ = 0;
         cct_ = 0;
         pfct_ = 0;
@@ -1078,7 +1078,7 @@ private:
     // called by all_cond_paths()
     // ns+1 == how many nodes seen
     // p == position (node we are on)
-    void next_cond_path(ulong ns, ulong p) {
+    void next_cond_path(uint64_t ns, uint64_t p) {
         if ( pfdone_ )  return;
     
         rv_[ns] = p;  // record position
@@ -1089,7 +1089,7 @@ private:
             ++pct_;
             cq_ = path_is_cycle();
             if ( cq_ )  ++cct_;
-            ulong pq = pfunc_(*this);
+            uint64_t pq = pfunc_(*this);
             if ( pq )
             {
                 ++pfct_;
@@ -1097,12 +1097,12 @@ private:
             }
         } else {
             qq_[p] = 1;  // mark position as seen (else loops lead to errors)
-            ulong fe, en;
+            uint64_t fe, en;
             g_.get_edge_idx(p, fe, en);
-            ulong fct = 0;  // count free reachable nodes
-            for (ulong ep=fe; ep<en; ++ep)
+            uint64_t fct = 0;  // count free reachable nodes
+            for (uint64_t ep=fe; ep<en; ++ep)
             {
-                ulong t = g_.e_[ep];  // next node
+                uint64_t t = g_.e_[ep];  // next node
                 if ( 0==qq_[t] )  // node free?
                 {
                     rv_[ns] = t;  // for cfunc()
@@ -1121,7 +1121,7 @@ private:
     }
 
 public:
-    ulong try_lucky_path(ulong ns=0, ulong p=0){
+    uint64_t try_lucky_path(uint64_t ns=0, uint64_t p=0){
         pct_ = 0;
         cct_ = 0;
         // TODO init();
@@ -1139,11 +1139,11 @@ public:
             ++pct_;
             return  pct_;  // ==1
         } else {
-            ulong fe, en;
+            uint64_t fe, en;
             g_.get_edge_idx(p, fe, en);
-            for (ulong ep=fe; ep<en; ++ep)
+            for (uint64_t ep=fe; ep<en; ++ep)
             {
-                ulong t = g_.e_[ep];  // next node
+                uint64_t t = g_.e_[ep];  // next node
                 if ( 0==qq_[t] )  // first free node is taken as next
                 {
                     qq_[p] = 1;

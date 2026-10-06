@@ -39,7 +39,7 @@ static void BM_argmax_u32_simd(benchmark::State &state) {
     uint64_t c = 0;
 	for (auto _: state) {
         c -= cpucycles();
-		size_t t = argmax_simd_u32(data.data(), state.range(0));
+		size_t t = cryptanalysislib::internal::argmax_simd(data.data(), state.range(0));
         c += cpucycles();
 		benchmark::DoNotOptimize(t+1);
 		benchmark::ClobberMemory();
@@ -54,7 +54,7 @@ static void BM_argmax_u32_simd_bl16(benchmark::State &state) {
     uint64_t c = 0;
 	for (auto _: state) {
         c -= cpucycles();
-		size_t t = argmax_simd_u32_bl16(data.data(), state.range(0));
+		size_t t = cryptanalysislib::internal::argmax_simd_bl16(data.data(), state.range(0));
         c += cpucycles();
 		benchmark::DoNotOptimize(t+1);
 		benchmark::ClobberMemory();
@@ -69,7 +69,7 @@ static void BM_argmax_u32_simd_bl32(benchmark::State &state) {
     uint64_t c = 0;
 	for (auto _: state) {
         c -= cpucycles();
-		size_t t = argmax_simd_u32_bl32(data.data(), state.range(0));
+		size_t t = cryptanalysislib::internal::argmax_simd_bl32(data.data(), state.range(0));
         c += cpucycles();
 		benchmark::DoNotOptimize(t+1);
 		benchmark::ClobberMemory();

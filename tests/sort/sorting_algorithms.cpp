@@ -4,6 +4,8 @@
 #include "random.h"
 #include "helper.h"
 #include "sort/sort.h"
+#include "sort/quicksort.h"
+#include "sort/radixsort.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
@@ -115,7 +117,52 @@ TYPED_TEST_P(TestSort, MultipleSKASort) {
 	}
 }
 
-REGISTER_TYPED_TEST_SUITE_P(TestSort, /*CountingSort,*/ RobinHoodSort, SKASort, VergeSort, VVSort, MultipleSKASort);
+// sorts x[0..n) with insertion sort (reference)
+template<typename T>
+static void insertion_sort(T *x, const size_t n) {
+	for (size_t i = 1; i < n; i++) {
+		const T v = x[i];
+		size_t j = i;
+		for (; j > 0 && v < x[j-1]; j--) { x[j] = x[j-1]; }
+		x[j] = v;
+	}
+}
+
+// selection, quick, merge (2- and 4-way), heap and radix sort on many sizes,
+// with few distinct values (many duplicates) and with full-range values
+TYPED_TEST_P(TestSort, ClassicSorts) {
+	for (const size_t n : {0u, 1u, 2u, 7u, 8u, 9u, 15u, 16u, 17u, 100u, 1000u}) {
+		for (int rep = 0; rep < 8; rep++) {
+			std::vector<TypeParam> in(n), ref(n);
+			for (size_t i = 0; i < n; i++) {
+				in[i] = (rep & 1) ? TypeParam(rng() % 5) : TypeParam(rng());
+			}
+			for (size_t i = 0; i < n; i++) { ref[i] = in[i]; }
+			insertion_sort(ref.data(), n);
+
+			for (int algo = 0; algo < 6; algo++) {
+				std::vector<TypeParam> v(in);
+				switch (algo) {
+					case 0: selection_sort(v.data(), n); break;
+					case 1: quick_sort(v.data(), n); break;
+					case 2: merge_sort(v.data(), n); break;
+					case 3: merge_sort4(v.data(), n); break;
+					case 4: radix_sort(v.data(), n); break;
+					default: heap_sort(v.data(), n); break;
+				}
+				EXPECT_TRUE(v == ref) << "algo=" << algo << " n=" << n;
+			}
+
+			std::vector<TypeParam> v(in);
+			heap_sort_descending(v.data(), n);
+			for (size_t i = 0; i < n; i++) {
+				EXPECT_EQ(v[i], ref[n - 1 - i]);
+			}
+		}
+	}
+}
+
+REGISTER_TYPED_TEST_SUITE_P(TestSort, /*CountingSort,*/ HeapSort, MergeSort, ClassicSorts, RobinHoodSort, SKASort, VergeSort, VVSort, MultipleSKASort);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, TestSort, MyTypes);
 

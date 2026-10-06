@@ -116,9 +116,10 @@ public:
               const uint8_t sym=0) noexcept {
 		assert(tid < threads());
 
+		// NOTE: `s` and `l` count elements, not bytes
 		uint64_t s = start_pos(tid);
 		uint64_t l = end_pos(tid) - s;
-		memset((void *) (uint64_t(__data.data()) + s), sym, l);
+		memset((void *) (__data.data() + s), sym, l * sizeof(InternalElementType));
 	}
 
 	/// zero out the i-th element.

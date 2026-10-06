@@ -1,8 +1,8 @@
 with import <nixpkgs> { };
 { pkgs ? import <nixpkgs> { } }:
 let 
-  myPython = pkgs.python312;
-  pythonPackages = pkgs.python312Packages;
+  myPython = pkgs.python3;
+  pythonPackages = pkgs.python3Packages;
   pythonWithPkgs = myPython.withPackages (pythonPkgs: with pythonPkgs; [
     ipython
     pip
@@ -10,7 +10,6 @@ let
     virtualenvwrapper
     wheel
     black
-    prophet
   ]);
 
 

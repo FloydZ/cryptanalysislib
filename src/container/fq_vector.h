@@ -69,7 +69,7 @@ public:
 			shift += qbits;
 		}
 
-		constexpr uint64_t mask = (1ull << ((h-l)*qbits)) - 1ull;
+		constexpr uint64_t mask = ((h-l)*qbits) >= 64u ? uint64_t(-1ull) : (1ull << ((h-l)*qbits)) - 1ull;
 		const uint64_t t1 = d;
 		const uint64_t t2 = t1 & mask;
 		return t2;
@@ -91,7 +91,7 @@ public:
 			shift += qbits;
 		}
 
-		const uint64_t mask = (1ull << ((h-l)*qbits)) - 1ull;
+		const uint64_t mask = ((h-l)*qbits) >= 64u ? uint64_t(-1ull) : (1ull << ((h-l)*qbits)) - 1ull;
 		const uint64_t t1 = d;
 		const uint64_t t2 = t1 & mask;
 		return t2;
@@ -141,12 +141,12 @@ public:
 		}
 	}
 
-	// sets everything
+	// sets everything to -1 mod q
 	constexpr inline void minus_one(const uint32_t l=0,
 	                                const uint32_t h=length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; i++) {
-			__data[i] = T(-1ull);
+			__data[i] = T(q - 1u);
 		}
 	}
 
@@ -499,13 +499,9 @@ public:
 	/// \param a
 	/// \return a%q component wise
 	[[nodiscard]] constexpr static inline S mod256_T(const S a) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
-		uint8x32_t ret;
-		const T *data = (const T *) &a;
-		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
-			ret_data[i] = data[i] % q;
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			ret[i] = a[i] % q;
 		}
 
 		return ret;
@@ -554,7 +550,7 @@ public:
 		out.zero();
 
 		assert(s < length);
-		for (uint32_t j = 0; j < length - s; ++j) {
+		for (uint32_t j = 0; j < length; ++j) {
 			const auto d = in.get(j);
 			out.set(d, (j + s) % length);
 		}
@@ -566,10 +562,11 @@ public:
 	/// \param in1: input vector
 	constexpr static inline void mod(T *out, const T *in1) noexcept {
 		uint32_t i = 0;
-		for (; i + S::LIMBS < n; i += S::LIMBS) {
-			const uint8x32_t a = uint8x32_t::load(in1 + i);
-			const uint8x32_t tmp = mod256_T(a);
-			uint8x32_t::store(out + i, tmp);
+		// NOTE: `S` holds `T` limbs, so this is correct for any `T`
+		for (; i + S::LIMBS <= n; i += S::LIMBS) {
+			const S a = S::load(in1 + i);
+			const S tmp = mod256_T(a);
+			S::store(out + i, tmp);
 		}
 
 		for (; i < n; i += 1) {

@@ -244,6 +244,9 @@ private:
 	__ATTRIBUTE__(no_thread_safety_analysis)
 
 
+#ifndef _GLIBCXX_ALWAYS_INLINE
+#define _GLIBCXX_ALWAYS_INLINE inline __attribute__((__always_inline__))
+#endif
 namespace __atomic_impl {
 
 	// Remove volatile and create a non-deduced context for value arguments.
@@ -252,7 +255,7 @@ namespace __atomic_impl {
 
 	// Like _Val<T> above, but for difference_type arguments.
 	template<typename _Tp>
-	using _Diff = std::__conditional_t<std::is_pointer_v<_Tp>, ptrdiff_t, _Val<_Tp>>;
+	using _Diff = std::conditional_t<std::is_pointer_v<_Tp>, ptrdiff_t, _Val<_Tp>>;
 
 	// Implementation details of atomic padding handling
 	/// \tparam T
@@ -270,7 +273,7 @@ namespace __atomic_impl {
 	/// \return TODO
 	template<typename _Tp>
 	inline _Tp *__clear_padding(_Tp &__val) noexcept {
-		auto *__ptr = std::__addressof(__val);
+		auto *__ptr = __builtin_addressof(__val);
 		if constexpr (__atomic_impl::__maybe_has_padding<_Tp>()) {
 			__builtin_clear_padding(__ptr);
 		}
@@ -294,7 +297,7 @@ namespace __atomic_impl {
 			alignas(_Vp) unsigned char __buf[sizeof(_Vp)];
 			_Vp *__exp = ::new ((void *) __buf) _Vp(__e);
 			__atomic_impl::__clear_padding(*__exp);
-			if (__atomic_compare_exchange(std::__addressof(__val), __exp,
+			if (__atomic_compare_exchange(__builtin_addressof(__val), __exp,
 			                              __atomic_impl::__clear_padding(__i),
 			                              __is_weak, int(__s), int(__f))) {
 				return true;
@@ -363,21 +366,37 @@ namespace __atomic_impl {
 	_GLIBCXX_ALWAYS_INLINE void
 	wait(const _Tp *__ptr, _Val<_Tp> __old,
 	     std::memory_order __m = std::memory_order_seq_cst) noexcept {
+#ifdef __GLIBCXX__
 		std::__atomic_wait_address_v(__ptr, __old,
 		                             [__ptr, __m]() { return __atomic_impl::load(__ptr, __m); });
+#else
+		std::atomic_ref<_Tp>(*const_cast<_Tp *>(__ptr)).wait(__old, __m);
+#endif
 	}
 
 	// TODO add const volatile overload
 
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE void
-	notify_one(const _Tp *__ptr) noexcept { std::__atomic_notify_address(__ptr, false); }
+	notify_one(const _Tp *__ptr) noexcept {
+#ifdef __GLIBCXX__
+		std::__atomic_notify_address(__ptr, false);
+#else
+		std::atomic_ref<_Tp>(*const_cast<_Tp *>(__ptr)).notify_one();
+#endif
+	}
 
 	// TODO add const volatile overload
 
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE void
-	notify_all(const _Tp *__ptr) noexcept { std::__atomic_notify_address(__ptr, true); }
+	notify_all(const _Tp *__ptr) noexcept {
+#ifdef __GLIBCXX__
+		std::__atomic_notify_address(__ptr, true);
+#else
+		std::atomic_ref<_Tp>(*const_cast<_Tp *>(__ptr)).notify_all();
+#endif
+	}
 
 	// TODO add const volatile overload
 #endif// __cpp_lib_atomic_wait

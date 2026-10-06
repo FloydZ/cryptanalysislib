@@ -162,6 +162,8 @@ public:
 			c = next;
 		}
 
+		// NOTE: otherwise `head` points to a freed node
+		head.store(nullptr);
 		__size = 0;
 	}
 

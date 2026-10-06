@@ -8,6 +8,22 @@
 
 
 namespace cryptanalysislib {
+    template<class ForwardIt>
+#if __cplusplus > 201709L
+    requires std::forward_iterator<ForwardIt>
+#endif
+    ForwardIt shift_left(ForwardIt first,
+                         ForwardIt last,
+                         typename std::iterator_traits<ForwardIt>::difference_type n);
+
+    template<class ForwardIt>
+#if __cplusplus > 201709L
+    requires std::bidirectional_iterator<ForwardIt>
+#endif
+    ForwardIt shift_right(ForwardIt first,
+                          ForwardIt last,
+                          typename std::iterator_traits<ForwardIt>::difference_type n);
+
     /// Shifts the elements in the range [first, last) by n positions
     /// Elements are moved forward (towards first) if n is negative,
     /// or backward (towards last) if n is positive
@@ -20,38 +36,21 @@ namespace cryptanalysislib {
     /// \return Iterator to the new position of the first element that was not discarded
     template<class ForwardIt>
 #if __cplusplus > 201709L
-    requires std::forward_iterator<ForwardIt>
+    requires std::bidirectional_iterator<ForwardIt>
 #endif
     ForwardIt shift(ForwardIt first,
                     ForwardIt last, 
                     typename std::iterator_traits<ForwardIt>::difference_type n) {
-        if (n == 0) {
-            return first;
-        }
-        
+        // positive: towards `last` (= shift_right), negative: towards `first` (= shift_left)
         if (n > 0) {
-            // Right shift (towards the end)
-            const auto mid = first;
-            std::advance(first, std::min(n, std::distance(first, last)));
-            // Move elements from [first+n, last) to [first, last-n)
-            return std::move(first, last, mid);
-        } else {
-            // Left shift (towards the beginning)
-            // Convert negative n to positive for easier handling
-            const auto abs_n = -n;
-            const auto d = std::distance(first, last);
-            
-            if (abs_n >= d) {
-                // All elements would be shifted out of range
-                return last;
-            }
-            
-            // Move elements from [first, last-abs_n) to [first+abs_n, last)
-            auto mid = last;
-            std::advance(mid, -abs_n);
-            std::move(first, mid, std::next(first, abs_n));
-            return first;
+            return cryptanalysislib::shift_right(first, last, n);
         }
+
+        if (n < 0) {
+            cryptanalysislib::shift_left(first, last, -n);
+        }
+
+        return first;
     }
     
     /// Shifts elements left by n positions
@@ -93,29 +92,41 @@ namespace cryptanalysislib {
     /// \return Iterator to the new beginning of the range (first + n)
     template<class ForwardIt>
 #if __cplusplus > 201709L
-    requires std::forward_iterator<ForwardIt>
+    requires std::bidirectional_iterator<ForwardIt>
 #endif
     ForwardIt shift_right(ForwardIt first,
                           ForwardIt last,
                           typename std::iterator_traits<ForwardIt>::difference_type n) {
-        if (n == 0) {
+        using diff_t = typename std::iterator_traits<ForwardIt>::difference_type;
+        if (n <= 0) {
             return first;
         }
-        
-        if (n >= std::distance(first, last)) {
+
+        diff_t size = 0;
+        for (ForwardIt it = first; it != last; ++it) {
+            size += 1;
+        }
+
+        if (n >= size) {
             // All elements would be shifted out of range
             return last;
         }
-        
-        // Move elements from [first, last-n) to [first+n, last)
-        auto it = last;
-        while (n > 0) {
-            --it;
-            --n;
+
+        // Move elements from [first, last-n) to [first+n, last), back to front
+        ForwardIt src = first;
+        for (diff_t i = 0; i < size - n; ++i) {
+            ++src;
         }
-        
-        std::move_backward(first, it, last);
-        return std::next(first, n);
+
+        ForwardIt dst = last;
+        while (src != first) {
+            --src;
+            --dst;
+            *dst = static_cast<typename std::iterator_traits<ForwardIt>::value_type &&>(*src);
+        }
+
+        // `dst` is now first + n
+        return dst;
     }
     
     /// Shifts elements left by n positions using parallel execution if possible
@@ -182,20 +193,8 @@ namespace cryptanalysislib {
             return last;
         }
         
-        if (is_seq<ExecPolicy>(policy)) {
-            return shift_right(first, last, n);
-        }
-
-        // LOL todo not correct
-        
-        // Move elements from [first, last-n) to [first+n, last)
-        auto it = last;
-        while (n > 0) {
-            --it;
-            --n;
-        }
-        
-        std::move_backward(first, it, last);
-        return std::next(first, n);
+        // NOTE: not parallelized yet
+        (void)policy;
+        return cryptanalysislib::shift_right(first, last, n);
     }
 }; // end namespace cryptanalysislib

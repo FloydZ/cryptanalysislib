@@ -1,6 +1,10 @@
 #pragma once 
 
-#include <pair>
+#include <algorithm>
+#include <iterator>
+#include <utility>
+
+#include "algorithm/rotate.h"
 
 
 /// TODO doc 
@@ -88,11 +92,62 @@ std::pair<OutputIt1, OutputIt2>
     return std::pair<OutputIt1, OutputIt2>(d_first_true, d_first_false);
 }
 
+namespace cryptanalysislib::internal {
+    /// stable partition of the `len` elements starting at `first`
+    /// divide and conquer: partition both halves, then rotate the
+    /// `false` part of the left half behind the `true` part of the right half.
+    /// \return iterator to the first element for which `p` is false
+    template<class ForwardIt,
+             class UnaryPred>
+    constexpr ForwardIt stable_partition_rec(ForwardIt first,
+                                             const size_t len,
+                                             UnaryPred &p) {
+        if (len == 1) {
+            ForwardIt next = first;
+            ++next;
+            return p(*first) ? next : first;
+        }
+
+        const size_t half = len / 2;
+        ForwardIt middle = first;
+        for (size_t i = 0; i < half; ++i) { ++middle; }
+
+        ForwardIt left = stable_partition_rec(first, half, p);
+        ForwardIt right = stable_partition_rec(middle, len - half, p);
+        // [left, middle) are false, [middle, right) are true
+        return cryptanalysislib::rotate(left, middle, right);
+    }
+} // end namespace cryptanalysislib::internal
+
+/// Reorders [first, last) such that all elements for which `p` is true come
+/// first, keeping the relative order within both groups.
+/// NOTE: in place; `p` is called exactly once per element; O(n log n) moves.
+/// \return iterator to the first element of the second group
 template<class ForwardIt,
          class UnaryPred>
 constexpr
 ForwardIt stable_partition(ForwardIt first,
                            ForwardIt last, 
                            UnaryPred p) {
-    // TODO
+    // skip the prefix, which is already in place
+    while ((first != last) && p(*first)) {
+        ++first;
+    }
+
+    if (first == last) {
+        return first;
+    }
+
+    // `*first` is known to be false: partition the rest and move `*first`
+    // behind its `true` elements
+    ForwardIt next = first;
+    ++next;
+
+    size_t len = 0;
+    for (ForwardIt it = next; it != last; ++it) {
+        len += 1;
+    }
+
+    const ForwardIt r = (len == 0) ? next : cryptanalysislib::internal::stable_partition_rec(next, len, p);
+    return cryptanalysislib::rotate(first, next, r);
 }

@@ -2,7 +2,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-#include "math/eea.h"
 #include "math/math.h"
 
 using ::testing::EmptyTestEventListener;

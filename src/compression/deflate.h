@@ -705,13 +705,13 @@ sdefl_compr(struct sdefl *s, unsigned char *out, const unsigned char *in,
 	assert(s->bitcnt == 0);
 	return (int)(q - out);
 }
-extern int
+inline int
 sdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	s->bits = s->bitcnt = 0;
 	return sdefl_compr(s, (unsigned char*)out, (const unsigned char*)in, n, lvl);
 }
 
-extern int
+inline int
 zsdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	int p = 0;
 	unsigned a = 0;
@@ -730,7 +730,7 @@ zsdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	}
 	return (int)(q - (unsigned char*)out);
 }
-extern int
+inline int
 sdefl_bound(int len) {
 	int max_blocks = 1 + sdefl_div_round_up(len, SDEFL_RAW_BLK_SIZE);
 	int bound = 5 * max_blocks + len + 1 + 4 + 8;

@@ -62,7 +62,7 @@ template<typename T>
 #endif
 constexpr static inline size_t leb128_encode(std::vector<uint8_t> &buf,
                                              const std::vector<T> &val) noexcept {
-    return leb128_encode(buf.data(), val.data, val.size());
+    return leb128_encode(buf.data(), val.data(), val.size());
 }
 
 /// integer decompression
@@ -73,20 +73,20 @@ template<typename T>
 #endif
 constexpr static inline T leb128_decode(uint8_t **buf) noexcept {
 	static_assert(sizeof(T) <= 8);
-	constexpr uint32_t max_shift = (sizeof(T) == 8) ? 63 :
-								   (sizeof(T) == 4) ? 28 :
-								   (sizeof(T) == 1) ? 14 : 7;
-	T res = 0;
-	for (uint32_t shift = 0; shift < max_shift; shift += 7) {
+	using U = std::make_unsigned_t<T>;
+	// a T needs at most ceil(bits/7) groups of 7 bits
+	constexpr uint32_t bits = sizeof(T) * 8u;
+	U res = 0;
+	for (uint32_t shift = 0; shift < bits; shift += 7) {
 		uint8_t tmp = **buf;
 		(*buf)++;
-		res |= ((tmp & 0x7F) << shift);
+		res |= U(U(tmp & 0x7F) << shift);
 		if (!(tmp & 0x80)) [[likely]] {
 			break;
 		}
 	}
 
-	return res;
+	return T(res);
 }
 
 /// integer decompression
@@ -99,10 +99,11 @@ constexpr static inline size_t leb128_decode(T *out,
                                            const uint8_t *buf,
                                            const size_t n) noexcept {
     size_t ctr = 0;
+    // NOTE: the single element decoder advances a non-const pointer
+    uint8_t *ptr = const_cast<uint8_t *>(buf);
     const uint8_t *t = buf + n;
-    while (buf < t) {
-        out[ctr++] = leb128_decode<T>(&buf);
-
+    while (ptr < t) {
+        out[ctr++] = leb128_decode<T>(&ptr);
     }
     return ctr; 
 }

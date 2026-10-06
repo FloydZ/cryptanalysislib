@@ -70,7 +70,7 @@ namespace cryptanalysislib {
 				M06:
 					(*(uint32_t *) (out + 2)) = in2;
 				M02:
-					(*(uint16_t *) (out + 0)) = (uint8_t) in2;
+					(*(uint16_t *) (out + 0)) = (uint16_t) in2;
 					return;
 
 				M13:
@@ -146,7 +146,7 @@ namespace cryptanalysislib {
 				using S_half = TxN_t<T, N/2>;
 				S_half in_half = S_half ::set1(in);
 				S_half::unaligned_store(_out, in_half);
-				S_half::unaligned_store(end - N, in_half);
+				S_half::unaligned_store(end - N/2, in_half);
 			}
 		}
 

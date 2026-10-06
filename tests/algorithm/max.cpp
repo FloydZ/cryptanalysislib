@@ -29,7 +29,7 @@ TYPED_TEST_P(Max, simd) {
 	auto d = new TypeParam [s];
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
-	const auto t = max_simd_uXX(d, s);
+	const auto t = internal::max_simd_uXX(d, s);
 	EXPECT_EQ(t, s-1);
 
 	delete[] d;
@@ -40,14 +40,15 @@ TYPED_TEST_P(Max, simd_rng) {
     std::vector<TypeParam> d; d.resize(s);
 	for (size_t i = 0; i < s; ++i) { d[i] = rand(); }
 
-	const auto t = max_simd_uXX(d.data(), s);
+	const auto t = internal::max_simd_uXX(d.data(), s);
     for (const auto &k : d) {
         EXPECT_GE(t, k);
     }
 }
 
 TYPED_TEST_P(Max, multithreading) {
-	constexpr size_t b = sizeof(TypeParam)*8u - 1u;
+	// capped at 2^20: `1 << (bits-1)` elements would be 2^63 for uint64_t
+	constexpr size_t b = (sizeof(TypeParam)*8u - 1u) < 20u ? (sizeof(TypeParam)*8u - 1u) : 20u;
     constexpr static size_t s = 1ull<<b;
     std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = s - i - 1; }
@@ -67,7 +68,17 @@ TYPED_TEST_P(Max, multithreading_rnd) {
     }
 }
 
-REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd);
+TYPED_TEST_P(Max, scalar) {
+	const TypeParam a = 3, b = 7;
+	EXPECT_EQ(cryptanalysislib::max(a, b), b);
+	EXPECT_EQ(cryptanalysislib::max(b, a), b);
+	EXPECT_EQ(cryptanalysislib::max(a, a), a);
+	// with std::max also visible the constrained overload is chosen (no ambiguity)
+	using std::max;
+	EXPECT_EQ(max(a, b), b);
+}
+
+REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Max, MyTypes);
 

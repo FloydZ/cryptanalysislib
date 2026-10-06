@@ -124,7 +124,7 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<ForwardIt1> &&
                  std::forward_iterator<ForwardIt2> && 
-    		     std::regular_invocable<BinaryPred, bool>
+    		     std::indirect_binary_predicate<BinaryPred, ForwardIt1, ForwardIt2>
 #endif
     /// Finds the first occurrence of a sequence in a range using a custom predicate
     ///
@@ -211,7 +211,8 @@ namespace cryptanalysislib {
              class BinaryPred>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<ForwardIt> &&
-    		     std::regular_invocable<BinaryPred, bool>
+    		     std::predicate<BinaryPred&, std::iter_reference_t<ForwardIt>,
+    		                    const typename std::iterator_traits<ForwardIt>::value_type &>
 #endif
     /// Searches for a sequence of count consecutive elements that satisfy a predicate with a value
     ///

@@ -169,8 +169,7 @@ public:
 		if constexpr (arith) {
 			__value = rng<T>(l, u);
 		} else {
-			const T mask = (1ull << u) - 1ull;
-			__value == (rng() & mask) << l;
+			__value = T(rng()) & compute_mask(l, u);
 		}
 	}
 
@@ -199,7 +198,7 @@ public:
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + (T2(a.__value) * T2(b.__value)), M, q));
 		} else {
-			__value = T(T2(__value) + ((T2(a.__value) * T2(b.__value)) % q) %q);
+			__value = T((T2(__value) + (T2(a.__value) * T2(b.__value)) % q) % q);
 		}
 	}
 
@@ -715,7 +714,7 @@ public:
 			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q));
 		} else {
 			const T mask = compute_mask(lower, upper);
-			const T tmp1 = (in1.value() ^ in2.value()) & mask;
+			const T tmp1 = (in1.value() + in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
 		}
@@ -763,7 +762,7 @@ public:
 			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q);
 		} else {
 			// NOTE: ignores carry here
-			constexpr T mask = compute_mask(lower, upper);
+			const T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() - in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
@@ -819,7 +818,7 @@ public:
 		} else {
 			// NOTE: ignores carry here
 			const T mask = compute_mask(lower, upper);
-			const T tmp1 = (in1.value() ^ in2.value()) & mask;
+			const T tmp1 = (in1.value() * in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
 		}
@@ -911,7 +910,6 @@ public:
 		} else {
 			const T mask = compute_mask(lower, upper);
 			__value ^= mask;
-			__value &= mask;
 		}
 	}
 
@@ -930,19 +928,18 @@ public:
 		}
 	}
 
-	constexpr inline void popcnt(const uint32_t lower = 0,
-	                             const uint32_t upper = bits) noexcept {
+	/// \param lower inclusive
+	/// \param upper exclusive
+	/// \return number of set bits of the value within the bits [lower, upper)
+	[[nodiscard]] constexpr inline uint32_t popcnt(const uint32_t lower = 0,
+	                                               const uint32_t upper = bits) const noexcept {
 		assert(sizeof(T) * 8 > lower);
 		assert(sizeof(T) * 8 >= upper);
 		assert(lower < upper);
 		assert(upper <= bits);
 
-		if constexpr (arith) {
-			__value = ((q - __value) % q);
-		} else {
-			const T mask = compute_mask(lower, upper);
-			__value ^= mask;
-		}
+		const T mask = compute_mask(lower, upper);
+		return (uint32_t)popcnt_T(T(__value & mask));
 	}
 
 	/// right rotate
@@ -975,12 +972,12 @@ public:
 
 	[[nodiscard]] static constexpr inline LimbType add_T(const LimbType a,
 	                                                     const LimbType b) noexcept {
-		return (a + b) % q;
+		return LimbType((T2(a) + T2(b)) % q);
 	}
 
 	[[nodiscard]] static constexpr inline LimbType sub_T(const LimbType a,
 	                                                     const LimbType b) noexcept {
-		return (a + q - b) % q;
+		return LimbType((T2(a) + T2(q) - T2(b)) % q);
 	}
 
 	[[nodiscard]] static constexpr inline LimbType mul_T(const LimbType a,

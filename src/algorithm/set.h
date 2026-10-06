@@ -2,6 +2,7 @@
 
 #include "copy.h"
 #include "simd/simd.h"
+#include "algorithm/bits/ffs.h"
 
 // TODO parallel versions
 
@@ -29,18 +30,20 @@ namespace cryptanalysislib {
             }
             if (n2 == 0) {
                 // Second set is empty, copy all elements from first set
-                std::copy(data1, data1 + n1, dest);
+                cryptanalysislib::copy(data1, data1 + n1, dest);
                 return n1;
             }
             
             using S = SIMDSelector<T>;
+            // lane mask with one bit set per SIMD lane
+            constexpr uint32_t full_mask = S::LIMBS >= 32 ? 0xFFFFFFFFu : ((1u << S::LIMBS) - 1u);
             
             size_t i1 = 0, i2 = 0, dest_idx = 0;
             
             while (i1 < n1) {
                 // If we reached the end of data2, copy remaining elements from data1
                 if (i2 == n2) {
-                    std::copy(data1 + i1, data1 + n1, dest + dest_idx);
+                    cryptanalysislib::copy(data1 + i1, data1 + n1, dest + dest_idx);
                     dest_idx += (n1 - i1);
                     break;
                 }
@@ -48,17 +51,17 @@ namespace cryptanalysislib {
                 // If we have enough elements left in data1 for a SIMD comparison
                 if (i1 + S::LIMBS <= n1) {
                     // Load a SIMD-width chunk of data1
-                    const auto chunk1 = S::load<false>(data1 + i1);
+                    const auto chunk1 = S::template load<false>(data1 + i1);
                     // Create a SIMD vector with the current data2 element replicated
                     const auto val2 = S::set1(data2[i2]);
                     
                     // Compare if all elements in chunk1 are less than data2[i2]
-                    const auto less_mask = chunk1 < val2;
+                    const uint32_t less_mask = (uint32_t)S::lt(chunk1, val2);
                     
-                    if (less_mask == S::maskFull()) {
+                    if (less_mask == full_mask) {
                         // All elements in chunk1 are less than data2[i2], 
                         // so they all belong in the difference
-                        S::store<false>(dest + dest_idx, chunk1);
+                        S::template store<false>(dest + dest_idx, chunk1);
                         dest_idx += S::LIMBS;
                         i1 += S::LIMBS;
                     } else {
@@ -131,6 +134,8 @@ namespace cryptanalysislib {
             }
             
             using S = SIMDSelector<T>;
+            // lane mask with one bit set per SIMD lane
+            constexpr uint32_t full_mask = S::LIMBS >= 32 ? 0xFFFFFFFFu : ((1u << S::LIMBS) - 1u);
             
             size_t i1 = 0, i2 = 0;
             
@@ -139,25 +144,25 @@ namespace cryptanalysislib {
                 // If we have enough elements left in data1 for a SIMD comparison
                 if (i1 + S::LIMBS <= n1) {
                     // Load a SIMD-width chunk of data1
-                    const auto chunk1 = S::load<false>(data1 + i1);
+                    const auto chunk1 = S::template load<false>(data1 + i1);
                     // Create a SIMD vector with the current data2 element replicated
                     const auto val2 = S::set1(data2[i2]);
                     
                     // Compare if any element in chunk1 equals val2
-                    const auto mask = chunk1 == val2;
+                    const uint32_t mask = (uint32_t)S::eq(chunk1, val2);
                     
                     if (mask) {
                         // Found a match, advance to next data2 element
                         ++i2;
                         // Advance i1 to first element after the match
-                        const size_t match_pos = ffs<T>(mask) - 1u;
+                        const size_t match_pos = ffs<uint32_t>(mask) - 1u;
                         i1 += match_pos + 1;
                     } else {
                         // No match in this chunk
                         // Check if all elements in chunk1 are less than data2[i2]
-                        const auto less_mask = chunk1 < val2;
+                        const uint32_t less_mask = (uint32_t)S::lt(chunk1, val2);
                         
-                        if (less_mask == S::maskFull()) {
+                        if (less_mask == full_mask) {
                             // All elements are less, advance to next chunk
                             i1 += S::LIMBS;
                         } else {
@@ -218,10 +223,14 @@ namespace cryptanalysislib {
         
         // For contiguous iterators and unsigned integer types, use SIMD version
         if constexpr (std::is_unsigned_v<T> && 
-                      std::is_same_v<typename std::iterator_traits<InputIt1>::iterator_category, 
-                                    std::random_access_iterator_tag> &&
-                      std::is_same_v<typename std::iterator_traits<InputIt2>::iterator_category, 
-                                    std::random_access_iterator_tag>) {
+                      std::contiguous_iterator<InputIt1> &&
+                      std::contiguous_iterator<InputIt2>) {
+            if (first2 == last2) {
+                return true;
+            }
+            if (first1 == last1) {
+                return false;
+            }
             return internal::includes_uXX_simd<T>(&(*first1), 
                                    static_cast<size_t>(std::distance(first1, last1)),
                                    &(*first2),
@@ -287,12 +296,8 @@ namespace cryptanalysislib {
         
         // For contiguous iterators and unsigned integer types, use SIMD version
         if constexpr (std::is_unsigned_v<T> && 
-                      std::is_same_v<typename std::iterator_traits<InputIt1>::iterator_category, 
-                                    std::random_access_iterator_tag> &&
-                      std::is_same_v<typename std::iterator_traits<InputIt2>::iterator_category, 
-                                    std::random_access_iterator_tag> &&
-                      std::is_same_v<typename std::iterator_traits<OutputIt>::iterator_category, 
-                                    std::random_access_iterator_tag>) {
+                      std::contiguous_iterator<InputIt1> &&
+                      std::contiguous_iterator<InputIt2>) {
             const size_t n1 = static_cast<size_t>(std::distance(first1, last1));
             const size_t n2 = static_cast<size_t>(std::distance(first2, last2));
             
@@ -301,21 +306,19 @@ namespace cryptanalysislib {
             
             // Call SIMD implementation
             const size_t result_size = internal::set_difference_uXX_simd<T>(
-                &(*first1), n1, 
-                &(*first2), n2,
+                n1 ? &(*first1) : nullptr, n1,
+                n2 ? &(*first2) : nullptr, n2,
                 temp_buffer.data()
             );
             
             // Copy result to output iterator
-            std::copy(temp_buffer.data(), temp_buffer.data() + result_size, d_first);
-            std::advance(d_first, result_size);
-            return d_first;
+            return cryptanalysislib::copy(temp_buffer.data(), temp_buffer.data() + result_size, d_first);
         }
         
         // Standard implementation for non-SIMD compatible types
         while (first1 != last1) {
             if (first2 == last2) {
-                return std::copy(first1, last1, d_first);
+                return cryptanalysislib::copy(first1, last1, d_first);
             }
 
             if (*first1 < *first2) {
@@ -345,7 +348,7 @@ namespace cryptanalysislib {
         while (first1 != last1)
         {
             if (first2 == last2)
-                return std::copy(first1, last1, d_first);
+                return cryptanalysislib::copy(first1, last1, d_first);
      
             if (comp(*first1, *first2))
                 *d_first++ = *first1++;
@@ -427,7 +430,7 @@ namespace cryptanalysislib {
         while (first1 != last1)
         {
             if (first2 == last2)
-                return std::copy(first1, last1, d_first);
+                return cryptanalysislib::copy(first1, last1, d_first);
      
             if (*first1 < *first2)
                 *d_first++ = *first1++;
@@ -440,7 +443,7 @@ namespace cryptanalysislib {
                 ++first2;
             }
         }
-        return std::copy(first2, last2, d_first);
+        return cryptanalysislib::copy(first2, last2, d_first);
     }
     
     /// Computes the symmetric difference of two sorted ranges: elements in either range but not in both
@@ -460,7 +463,7 @@ namespace cryptanalysislib {
         while (first1 != last1)
         {
             if (first2 == last2)
-                return std::copy(first1, last1, d_first);
+                return cryptanalysislib::copy(first1, last1, d_first);
      
             if (comp(*first1, *first2))
                 *d_first++ = *first1++;
@@ -473,7 +476,7 @@ namespace cryptanalysislib {
                 ++first2;
             }
         }
-        return std::copy(first2, last2, d_first);
+        return cryptanalysislib::copy(first2, last2, d_first);
     }
     /// Computes the union of two sorted ranges: elements that are present in either or both ranges
     /// Both input ranges must be sorted in the same order
@@ -490,7 +493,7 @@ namespace cryptanalysislib {
         for (; first1 != last1; ++d_first)
         {
             if (first2 == last2)
-                return std::copy(first1, last1, d_first);
+                return cryptanalysislib::copy(first1, last1, d_first);
      
             if (*first2 < *first1)
                 *d_first = *first2++;
@@ -502,7 +505,7 @@ namespace cryptanalysislib {
                 ++first1;
             }
         }
-        return std::copy(first2, last2, d_first);
+        return cryptanalysislib::copy(first2, last2, d_first);
     }
     
     /// Computes the union of two sorted ranges: elements that are present in either or both ranges
@@ -522,7 +525,7 @@ namespace cryptanalysislib {
         {
             if (first2 == last2)
                 // Finished range 2, include the rest of range 1:
-                return std::copy(first1, last1, d_first);
+                return cryptanalysislib::copy(first1, last1, d_first);
      
             if (comp(*first2, *first1))
                 *d_first = *first2++;
@@ -535,6 +538,6 @@ namespace cryptanalysislib {
             }
         }
         // Finished range 1, include the rest of range 2:
-        return std::copy(first2, last2, d_first);
+        return cryptanalysislib::copy(first2, last2, d_first);
     }
 }; // end namespace cryptanalysislib

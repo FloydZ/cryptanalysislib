@@ -117,14 +117,10 @@ public:
     		// Sometimes the fourth (negative) pass is skipped because all numbers are negative and the MSB is 0xFF (for example). This is
     		// not a problem, numbers are correctly sorted anyway.
     		if(PerformPass) {
-    			// Should we care about negative values?
-    			if(j!=3) {
-    				// Here we deal with positive values only
-    
-    				// Create offsets
-    				mOffset[0] = 0;
-    				for(uint32_t i=1;i<256;i++)		mOffset[i] = mOffset[i-1] + CurCount[i-1];
-    			} 
+    			// Create offsets. NOTE: the input is unsigned, so the
+    			// MSB pass (j == 3) needs no special handling.
+    			mOffset[0] = 0;
+    			for(uint32_t i=1;i<256;i++)		mOffset[i] = mOffset[i-1] + CurCount[i-1];
     
     			// Perform Radix Sort
     			uint8_t* InputBytes	= (uint8_t*)input;

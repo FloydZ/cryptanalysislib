@@ -55,14 +55,14 @@ private:
 
 		// Prefix increment
 		Iterator &operator++() {
-			m_ptr = m_ptr->next.load();
+			m_ptr = getpointer(m_ptr->next.load());
 			return *this;
 		}
 
 		// Postfix increment
 		Iterator operator++(int) {
 			Iterator tmp = *this;
-			m_ptr = m_ptr->next.load();
+			m_ptr = getpointer(m_ptr->next.load());
 			return tmp;
 		}
 
@@ -89,9 +89,15 @@ private:
 	/// pointer stuff: we need to mark/tag pointers to counter the ABA problem
 	constexpr static uintptr_t UNMARK_MASK = ~1;
 	constexpr static uintptr_t MARK_BIT = 1;
-	constexpr inline Node *getpointer(const Node *ptr) noexcept { return (Node *) ((uintptr_t) ptr & UNMARK_MASK); }
-	constexpr inline bool ismarked(const Node *ptr) noexcept { return (((uintptr_t) ptr) & MARK_BIT) != 0; }
-	constexpr inline Node *setmark(const Node *ptr) noexcept { return (Node *) (((uintptr_t) ptr) | MARK_BIT); }
+	constexpr static inline Node *getpointer(const Node *ptr) noexcept { return (Node *) ((uintptr_t) ptr & UNMARK_MASK); }
+	constexpr static inline bool ismarked(const Node *ptr) noexcept { return (((uintptr_t) ptr) & MARK_BIT) != 0; }
+	constexpr static inline Node *setmark(const Node *ptr) noexcept { return (Node *) (((uintptr_t) ptr) | MARK_BIT); }
+
+	/// \return true if `data` lies strictly between the two sentinels, i.e.
+	/// 	if it can be stored in the list
+	constexpr inline bool in_range(const T &data) const noexcept {
+		return (head->data < data) && (data < tail->data);
+	}
 
 	/// allocate the first `LEN` nodes into this buffer,
 	constexpr static bool USE_BUFFER = false;
@@ -150,8 +156,9 @@ private:
 	}
 
 public:
-	Iterator begin() { return Iterator(head); }
-	Iterator end() { return Iterator(tail->prev.load()); }
+	// NOTE: `head` and `tail` are sentinels and not part of the list
+	Iterator begin() { return Iterator(getpointer(head->next.load())); }
+	Iterator end() { return Iterator(tail); }
 
 	constexpr FreeList(Node *__head = nullptr, Node *__tail = nullptr) {
 		if (__head == nullptr) {
@@ -164,6 +171,15 @@ public:
 		if (__tail == nullptr) {
 			tail = new Node;
 			std::memset(&tail->data, -1, sizeof(T));
+		}
+
+		if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+			// the bit patterns 0...0 and 1...1 are not the min/max of
+			// signed integers
+			using U = std::make_unsigned_t<T>;
+			constexpr uint32_t bits = sizeof(T) * 8u;
+			if (__head == nullptr) { head->data = T(U(1) << (bits - 1u)); }
+			if (__tail == nullptr) { tail->data = T(U(~U(0)) >> 1u); }
 		}
 
 		// initialize the start and the end of the linked list to point to
@@ -183,6 +199,11 @@ public:
 	/// return 0 on success, 1 else
 	inline int insert(const T &data) noexcept {
 		Node *__pred, *__curr, *__node;
+
+		// the values of the two sentinels cannot be stored
+		if (!in_range(data)) {
+			return 1;
+		}
 
 		if constexpr (USE_BUFFER) {
 			/// if the flag is set
@@ -225,6 +246,10 @@ public:
 
 	/// returns 1 if element is in list, 0 else
 	constexpr inline int contains(const T &data) {
+		if (!in_range(data)) {
+			return 0;
+		}
+
 		Node *__curr = pred;
 		while (data < __curr->data) {
 			__curr = __curr->prev.load();
@@ -243,6 +268,10 @@ public:
 	/// returns 1 on error (no element in), 0 else
 	constexpr inline int remove(const T &data) {
 		Node *__pred, *__succ, *__node, *__markedsucc;
+
+		if (!in_range(data)) {
+			return 1;
+		}
 
 		do {
 			pos(data);
@@ -271,6 +300,7 @@ public:
 			__succ->prev.store(__pred);
 			__node->free = __free;
 			__free = __node;
+			__size.fetch_sub(1u);
 			return 0;
 		} while (true);
 	}

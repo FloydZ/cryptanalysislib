@@ -595,9 +595,8 @@ public:
 				wt += popcount::popcount(a[i] ^ b[i]);
 			}
 
-#ifdef DEBUG
-			constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
-#endif
+			// NOTE: only used by the asserts, which are active unless NDEBUG is set
+			[[maybe_unused]] constexpr T mask = n % T_BITSIZE == 0 ? 0 : ~((1ul << n % T_BITSIZE) - 1ul);
 			assert(!(a[ELEMENT_NR_LIMBS - 1] & mask));
 			assert(!(b[ELEMENT_NR_LIMBS - 1] & mask));
 

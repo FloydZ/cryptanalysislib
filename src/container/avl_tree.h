@@ -384,7 +384,7 @@ public:
 };
 
 
-template <typename E, const AvlTreeConfig &config>
-typename AvlTreeList<E, config>::Node AvlTreeList<E,config>::Node::EMPTY_LEAF;
+template <typename E, template<class N> class Allocator, const AvlTreeConfig &config>
+typename AvlTreeList<E, Allocator, config>::Node AvlTreeList<E, Allocator, config>::Node::EMPTY_LEAF;
 
 #endif//CRYPTANALYSISLIB_AVL_TREE_H

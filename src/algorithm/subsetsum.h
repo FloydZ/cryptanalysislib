@@ -652,8 +652,8 @@ public:
 				iL_bucketsize, 1ull<<(k_h2-k_l2), 1
 		};
 
-		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_l1, k_h1, 3>>;
-		using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_l2, k_h2, 3>>;
+		using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_l1, k_h1, 2>>;
+		using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_l2, k_h2, 2>>;
 		HML0 *hmL0 = new HML0{};
 		HML1 *hmL1 = new HML1{};
 

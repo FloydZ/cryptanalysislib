@@ -101,8 +101,10 @@ public:
 		if constexpr (multithreaded) {
 			load = FAA(__array.data() + index * bucketsize + internal_bucketsize, 1);
 
-			// early exit and reset
+			// early exit and reset, otherwise the load grows past the
+			// bucket size (same as in `SimpleHashMap`)
 			if (load >= internal_bucketsize) {
+				__array[index * bucketsize + internal_bucketsize] = internal_bucketsize;
 				return;
 			}
 		} else {
@@ -166,11 +168,11 @@ public:
 	/// \param e Element to hash down.
 	/// \return the position within the internal const_array of `e`
 	constexpr inline index_type find(const keyType &e) const noexcept {
-		const index_type index = HashFkt(e);
+		const index_type index = hash(e);
 		assert(index < nrbuckets);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
-		return index * nrbuckets;
+		return index * bucketsize;
 	}
 
 	///
@@ -178,9 +180,9 @@ public:
 	/// \param __load
 	/// \return
 	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
-		const index_type index = HashFkt(e);
+		const index_type index = hash(e);
 		assert(index < nrbuckets);
-		__load = load(index);
+		__load = load_without_hash(index);
 		// return the index instead of the actual element, to
 		// reduce the size of the returned element.
 		return index * bucketsize;
@@ -192,7 +194,7 @@ public:
 	constexpr inline index_type find_without_hash(const keyType &e,
                                                   index_type &__load) const noexcept {
 		assert(e < nrbuckets);
-		__load = load(e);
+		__load = load_without_hash(e);
 		return e * bucketsize;
 	}
 
@@ -249,11 +251,12 @@ public:
 	}
 
 	/// NOTE: only single threaded.
-	/// \return the load, the number of buckets which are not empty
+	/// \return the load, the number of elements in the hashmap
 	constexpr inline index_type load() const noexcept {
 		index_type ret = index_type(0);
 		for (index_type i = 0; i < nrbuckets; i++) {
-			ret += load(i);
+			// NOTE: `i` is a bucket index, not a key
+			ret += load_without_hash(i);
 		}
 
 		return ret;

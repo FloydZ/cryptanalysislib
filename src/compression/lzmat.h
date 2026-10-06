@@ -490,7 +490,7 @@ int lzmat_encode(uint8_t *pbOut,
 	*pcbOut = ((uintptr_t)pOut - (uintptr_t)pbOut)+cur_nib;
 	return 0;
 }
-int lzmat_decode(uint8_t *pbOut, uint32_t *pcbOut,
+inline int lzmat_decode(uint8_t *pbOut, uint32_t *pcbOut,
                                 uint8_t *pbIn, uint32_t cbIn)
 {
 	uint32_t  inPos, outPos;

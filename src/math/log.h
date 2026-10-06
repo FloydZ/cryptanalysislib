@@ -5,6 +5,7 @@
 #error "do not inlcude this file directly. Use `#include <cryptanalysislib/math>`"
 #endif
 
+#include <climits>
 #include <type_traits>
 
 #include "math/abs.h"
@@ -98,7 +99,8 @@ namespace cryptanalysislib::math {
 __device__ __host__
 [[nodiscard]] constexpr static inline uint64_t ceil_log2(const uint64_t n) noexcept {
 	//if constexpr (std::is_constant_evaluated()) {
-		return n <= 1 ? 0 : 1 + ceil_log2((n + 1) / 2);
+		// NOTE: ceil(n/2) without the overflow of (n + 1) / 2
+		return n <= 1 ? 0 : 1 + ceil_log2((n / 2) + (n & 1u));
 	//} else {
 	//	return std::log2(n );
 	//}

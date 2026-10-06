@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 /// Class for computing the Golay-Rudin-Shapiro sequence (OEIS A020985)
 /// The sequence determines whether the GRS value is negative at a given index
 class gsr_negative {
@@ -14,7 +16,7 @@ class gsr_negative {
 /// Algorithm: counts bit pairs modulo 2
 /// \param x[in]: index to check
 /// \return 1 if GRS value is negative at index x, 0 otherwise
-static inline ulong grs_negative_q(ulong x)
+static inline uint64_t grs_negative_q(uint64_t x)
 {
     return  parity( x & (x>>1) );
 }
@@ -26,14 +28,14 @@ static inline ulong grs_negative_q(ulong x)
 /// \param k[in]: current index
 /// \param g[in]: current GRS value at index k
 /// \return GRS value at index k+1
-static inline ulong grs_next(ulong k, ulong g)
+static inline uint64_t grs_next(uint64_t k, uint64_t g)
 {
 #if BITS_PER_LONG > 32
-    const ulong cm = 0x5555555555555554UL;  // 64-bit version
+    const uint64_t cm = 0x5555555555555554UL;  // 64-bit version
 #else
-    const ulong cm = 0x55555554UL;
+    const uint64_t cm = 0x55555554UL;
 #endif
-    ulong h = ~k;  h &= -h;  // == lowest_zero(k);
+    uint64_t h = ~k;  h &= -h;  // == lowest_zero(k);
     g ^= ( ((h&cm) ^ ((k>>1)&h)) !=0 );
     return  g;
 }
