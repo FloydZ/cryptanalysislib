@@ -82,6 +82,15 @@ public:
 	/// constructor. Zero initializing everything
 	constexpr SimpleCompressedHashMap() noexcept : __internal_hashmap_array() {}
 
+	/// NOTE: this hashmap cannot be multithreaded, `tid` is ignored.
+	/// 	Only needed for `HashMapAble`.
+	constexpr inline void insert(const keyType &e,
+	                             const data_type &value,
+	                             const uint32_t tid) noexcept {
+		(void) tid;
+		insert(e, value);
+	}
+
 	/// hashes down `e` (Element) to an index where to store
 	/// the element.
 	/// NOTE: Boundary checks are performed in debug mode.

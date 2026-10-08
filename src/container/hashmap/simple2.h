@@ -44,11 +44,12 @@ template<
         const Simple2HashMapConfig &config,
         class Hash>
 class Simple2HashMap {
+public:
+	// NOTE: public, needed by `HashMapAble`
 	using data_type = valueType;
 	using key_type = keyType;
 	using index_type = size_t;
 
-public:
 	typedef keyType T;
 
 	// size per bucket
@@ -179,7 +180,7 @@ public:
 	/// \param e
 	/// \param __load
 	/// \return
-	constexpr inline index_type find(const keyType &e, index_type &__load) const noexcept {
+	constexpr inline index_type find(const keyType &e, load_type &__load) const noexcept {
 		const index_type index = hash(e);
 		assert(index < nrbuckets);
 		__load = load_without_hash(index);
@@ -192,7 +193,7 @@ public:
 	/// \param __load[in/out]:
 	/// \return the index of the bucket `e` would get hashed into
 	constexpr inline index_type find_without_hash(const keyType &e,
-                                                  index_type &__load) const noexcept {
+                                                  load_type &__load) const noexcept {
 		assert(e < nrbuckets);
 		__load = load_without_hash(e);
 		return e * bucketsize;

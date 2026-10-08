@@ -25,6 +25,8 @@ struct BIT {
     void update(const size_t pos, 
                 const T &v) { 
         assert(pos >= 1);
+        // NOTE: `0 & -0 == 0`, so `pos == 0` would loop forever (with NDEBUG)
+        if (pos == 0) { return; }
         size_t i = pos;
         while (i <= n) { 
             A[i] += v, i += i&-i;
@@ -33,7 +35,8 @@ struct BIT {
 
     // sum_{j<=i} a[j]
     T query(const size_t pos) { 
-        size_t i = pos;
+        // NOTE: `pos > n` would read past `A`, the sum is the full sum
+        size_t i = pos > n ? n : pos;
         T v = 0;
         while (i) { 
             v += A[i], i -= i&-i;

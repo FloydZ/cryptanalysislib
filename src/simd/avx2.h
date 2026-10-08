@@ -496,8 +496,13 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S slli(const S in1,
 	                                                 const limb_type in2) noexcept {
 	    	assert(in2 <= 8);
-	    	// shift 16-bit lanes and drop the bits that crossed into the next byte
 	    	S out;
+	    	if consteval {
+	    		// NOTE: the intrinsics below are not usable in constant expressions
+	    		out.v128 = (in2 >= 8) ? (__m128i)(__v16qu){} : (__m128i)((__v16qu)in1.v128 << (uint8_t)in2);
+	    		return out;
+	    	}
+	    	// shift 16-bit lanes and drop the bits that crossed into the next byte
 	    	out.v128 = _mm_and_si128(_mm_slli_epi16(in1.v128, in2),
 	    	                         _mm_set1_epi8((char)(uint8_t)(0xFFu << in2)));
 	    	return out;
@@ -509,8 +514,13 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline S srli(const S in1,
 	                                                 const limb_type in2) noexcept {
 	    	assert(in2 <= 8);
-	    	// shift 16-bit lanes and drop the bits that crossed into the previous byte
 	    	S out;
+	    	if consteval {
+	    		// NOTE: the intrinsics below are not usable in constant expressions
+	    		out.v128 = (in2 >= 8) ? (__m128i)(__v16qu){} : (__m128i)((__v16qu)in1.v128 >> (uint8_t)in2);
+	    		return out;
+	    	}
+	    	// shift 16-bit lanes and drop the bits that crossed into the previous byte
 	    	out.v128 = _mm_and_si128(_mm_srli_epi16(in1.v128, in2),
 	    	                         _mm_set1_epi8((char)(uint8_t)(0xFFu >> in2)));
 	    	return out;
@@ -2448,8 +2458,13 @@ struct Xint8x32_t {
 	[[nodiscard]] constexpr static inline S slli(const S in1,
 	                                             const limb_type in2) noexcept {
 		assert(in2 <= 8);
-		// shift 16-bit lanes and drop the bits that crossed into the next byte
 		S out;
+		if consteval {
+			// NOTE: the intrinsics below are not usable in constant expressions
+			out.v256 = (in2 >= 8) ? (__m256i)(__v32qu){} : (__m256i)((__v32qu)in1.v256 << (uint8_t)in2);
+			return out;
+		}
+		// shift 16-bit lanes and drop the bits that crossed into the next byte
 		out.v256 = _mm256_and_si256(_mm256_slli_epi16(in1.v256, in2),
 		                            _mm256_set1_epi8((char)(uint8_t)(0xFFu << in2)));
 		return out;
@@ -2925,7 +2940,7 @@ struct Xint16x16_t {
 			return;
 		}
 
-		aligned_store(ptr, in);
+		unaligned_store(ptr, in);
 	}
 
 	/// \param ptr
@@ -3038,9 +3053,12 @@ struct Xint16x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
+        // NOTE: exact, per lane. Was `mulhrs_epi16(in1, 32768 / in2)`, an
+        // 	approximation (and for 64 bit lanes even on 16 bit lanes).
         S out;
-        const __m256i vb = _mm256_set1_epi16(32768 / in2);
-        out.v256 = _mm256_mulhrs_epi16(in1.v256, vb);
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            out[i] = in1[i] / in2;
+        }
         return out;
     }
 
@@ -4316,9 +4334,12 @@ struct Xint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
+        // NOTE: exact, per lane. Was `mulhrs_epi16(in1, 32768 / in2)`, an
+        // 	approximation (and for 64 bit lanes even on 16 bit lanes).
         S out;
-        const __m256i vb = _mm256_set1_epi16(32768 / in2);
-        out.v256 = _mm256_mulhrs_epi16(in1.v256, vb);
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            out[i] = in1[i] / in2;
+        }
         return out;
     }
 

@@ -41,13 +41,29 @@
 #include <stdint.h>
 #include <assert.h>
 
-#define GET_LE64(_p_) (*((uint64_t *) (_p_)))
-#define GET_LE32(_p_) (*((uint32_t *) (_p_)))
-#define GET_LE16(_p_) (*((uint16_t *) (_p_)))
+#include "memory/memory.h"
 
-#define SET_LE64(_p_, _v_) (*((uint64_t *) (_p_)) = (_v_))
-#define SET_LE32(_p_, _v_) (*((uint32_t *) (_p_)) = (_v_))
-#define SET_LE16(_p_, _v_) (*((uint16_t *) (_p_)) = (_v_))
+/// NOTE: the compressed stream is a nibble/byte stream, so these accesses
+/// 	are not aligned. Before, they dereferenced `uintXX_t *` casts (UB).
+template<typename T>
+static inline T lzmat_get_le(const uint8_t *p) noexcept {
+	T v;
+	cryptanalysislib::memcpy<uint8_t>((uint8_t *)&v, p, sizeof(T));
+	return v;
+}
+
+template<typename T>
+static inline void lzmat_set_le(uint8_t *p, const T v) noexcept {
+	cryptanalysislib::memcpy<uint8_t>(p, (const uint8_t *)&v, sizeof(T));
+}
+
+#define GET_LE64(_p_) lzmat_get_le<uint64_t>((const uint8_t *)(_p_))
+#define GET_LE32(_p_) lzmat_get_le<uint32_t>((const uint8_t *)(_p_))
+#define GET_LE16(_p_) lzmat_get_le<uint16_t>((const uint8_t *)(_p_))
+
+#define SET_LE64(_p_, _v_) lzmat_set_le<uint64_t>((uint8_t *)(_p_), (_v_))
+#define SET_LE32(_p_, _v_) lzmat_set_le<uint32_t>((uint8_t *)(_p_), (_v_))
+#define SET_LE16(_p_, _v_) lzmat_set_le<uint16_t>((uint8_t *)(_p_), (_v_))
 
 #define MAX_LZMAT_ENCODED_SIZE(_sz_)	((_sz_)+(((_sz_)+7)>>3)+0x21)
 #define LZMAT_STATUS_OK	0
@@ -103,8 +119,16 @@ uint32_t lzmat_dictionary_size(void) { return LZMAT_DICTIONATY_SIZE; }
 #define DICT_MSK	(MAX_LZMAT_DICT-1)
 #define IDX_MSK	(MAX_LZMAT_IDX-1)
 
-#define LZMAT_HASH(p) \
-	((*(uint16_t *)(p)+(uint16_t)((*(uint32_t *)(p))>>RS_HASH_BITS))&DICT_MSK)
+/// NOTE: reads at most the bytes [p, end). Before, 4 bytes were read at
+/// 	each position, i.e. up to 3 bytes past the end of the input. The last
+/// 	3 positions are zero padded; all other hashes are unchanged.
+static inline uint16_t lzmat_hash(const uint8_t *p, const uint8_t *end) noexcept {
+	const size_t avail = (size_t)(end - p);
+	uint32_t v = 0;
+	cryptanalysislib::memcpy<uint8_t>((uint8_t *)&v, p, avail < 4 ? avail : 4);
+	return ((uint16_t)v + (uint16_t)(v >> RS_HASH_BITS)) & DICT_MSK;
+}
+#define LZMAT_HASH(p) lzmat_hash((p), pbIn + cbIn)
 
 typedef struct _LZMAT_HASH_CTL {
 	int32_t ptr[MAX_LZMAT_DICT];
@@ -215,6 +239,12 @@ int lzmat_encode(uint8_t *pbOut,
     //  p -> pointer 
     //  c -> counter 
 
+	// NOTE: before, `pbIn[0]` was read for an empty input
+	if (cbIn == 0) {
+		*pcbOut = 0;
+		return LZMAT_STATUS_OK;
+	}
+
 	uint32_t i, match_cnt, inPtr, cpy_tag, cbUCData;
 	uint8_t *pOut, *pTag, *pInp;
 	uint32_t Gamma_dist;
@@ -254,7 +284,7 @@ int lzmat_encode(uint8_t *pbOut,
 		pInp = pbIn + inPtr;
 		const uint8_t *pITmp = pInp - 1;
         /// while still 4 bytes can be consumed and they are equal
-		if( (cbIn-inPtr)>=4 && (*(uint32_t *)pInp == *(uint32_t *)pITmp)) {
+		if( (cbIn-inPtr)>=4 && (GET_LE32(pInp) == GET_LE32(pITmp))) {
 			uint32_t in_Reminder = cbIn-4-inPtr;
 			uint8_t *pCurPtr = pInp+4;
 			Gamma_dist = 0;
@@ -283,12 +313,18 @@ int lzmat_encode(uint8_t *pbOut,
 				goto skip_search;
             }
 
-			cmp_val = *(uint16_t *)(pbIn + inPtr + 1);
+			// NOTE: a match needs at least 3 bytes, and `cmp_val` reads the
+			// 	bytes `inPtr+1` and `inPtr+2`
+			if ((cbIn - inPtr) < 3) {
+				goto skip_search;
+			}
+
+			cmp_val = GET_LE16(pbIn + inPtr + 1);
 			pITmp = pbIn + 1;
 			cur_idx = inPtr;
 			while ( dict_ptr < cur_idx ) {
 				cur_idx = dict_ptr;
-				if ( *(uint16_t *)(pITmp + dict_ptr) == cmp_val ) {
+				if ( GET_LE16(pITmp + dict_ptr) == cmp_val ) {
 					uint32_t in_Reminder, new_dist, match_found=0;
 					uint8_t *pIdxPtr, *pCurPtr;
 					pIdxPtr = pbIn + dict_ptr; // + sizeof(uint16_t);
@@ -303,7 +339,13 @@ int lzmat_encode(uint8_t *pbOut,
 					if(MP_CMP_DISTANCE(inPtr,Gamma_dist,new_dist,match_cnt,match_found)) {
 						Gamma_dist = new_dist;
 						match_cnt = match_found;
-						cmp_val = *(uint16_t *)(match_found + pInp - 1);
+						// NOTE: the match covers the rest of the input, no
+						// 	longer one exists. Before, `pInp[match_found]`
+						// 	was read below, i.e. past the input.
+						if (match_found >= (cbIn - inPtr)) {
+							break;
+						}
+						cmp_val = GET_LE16(match_found + pInp - 1);
 						pITmp = pbIn + match_found - 1;
 						if (match_found >= LZMAT_MAX_2BYTE_CNT) {
 							match_found = LZMAT_MAX_2BYTE_CNT;
@@ -383,7 +425,6 @@ int lzmat_encode(uint8_t *pbOut,
 		bit_msk >>= 1;
 		if ( bit_msk == 0 ) {
 			if(cpy_tag && cbUCData>0xFFF8) {
-				uint32_t *pdwIn, *pdwOut;
 				uint32_t cbCopy;
 			copy_uncmp:
 				cbCopy = (uint16_t)(cbUCData>>3);
@@ -397,15 +438,12 @@ int lzmat_encode(uint8_t *pbOut,
 					LZMAT_SET_LE16(pUC_Tag, uc_nib, 0xFFFF);
 				}
 				LZMAT_SET_LE16(pUC_Tag, uc_nib, 0xFFFF);
-				pdwOut = (uint32_t *)pUC_Tag;
 				cpy_tag = cbCopy<<1;
-				pdwIn = (uint32_t *)(pbIn + processed_data);
 				inPtr = processed_data+(cpy_tag<<2);
-				while(cpy_tag--) {
-					*pdwOut++ = *pdwIn++;
-                }
+				// NOTE: byte copy, was a `uint32_t *` copy of unaligned data
+				cryptanalysislib::memcpy<uint8_t>(pUC_Tag, pbIn + processed_data, cpy_tag<<2);
 
-				pUC_Tag = pTag = (uint8_t *)pdwOut;
+				pUC_Tag = pTag = pUC_Tag + (cpy_tag<<2);
 				pOut = pTag+1;
 				match_cnt = 1;
 				cpy_tag =  0;
@@ -450,7 +488,10 @@ int lzmat_encode(uint8_t *pbOut,
 			if(cur_nib)
 				*pOut=0;
 			tag_nib = cur_nib;
-			if ( (uintptr_t)pOut >= (uintptr_t)pEndOut )
+			// NOTE: only if input is left. Before, an input of 8k+1 incompressible
+			// 	bytes failed with a `MAX_LZMAT_ENCODED_SIZE` buffer, because
+			// 	the last tag hit the safety margin after the input was consumed.
+			if ( ((uintptr_t)pOut >= (uintptr_t)pEndOut) && ((inPtr + match_cnt) < cbIn) )
 				return LZMAT_STATUS_INTEGRITY_FAILURE;
 		}
 #undef cbCompressed
@@ -496,6 +537,11 @@ inline int lzmat_decode(uint8_t *pbOut, uint32_t *pcbOut,
 	uint32_t  inPos, outPos;
 	uint32_t  cbOutBuf = *pcbOut;
 	uint8_t cur_nib;
+	// NOTE: before, `pbIn[0]` was read and `pbOut[0]` written for empty buffers
+	if ((cbIn == 0) || (cbOutBuf == 0)) {
+		*pcbOut = 0;
+		return (cbIn == 0) ? LZMAT_STATUS_OK : LZMAT_STATUS_BUFFER_TOO_SMALL;
+	}
 	*pbOut = *pbIn;
 	for(inPos=1, outPos=1, cur_nib=0; inPos<(cbIn-cur_nib);)
 	{
@@ -591,7 +637,8 @@ inline int lzmat_decode(uint8_t *pbOut, uint32_t *pcbOut,
 								return LZMAT_STATUS_BUFFER_TOO_SMALL;
 							while(r_cnt-- && outPos<cbOutBuf)
 							{
-								*(uint32_t *)(pbOut+outPos)=*(uint32_t *)(pbIn+inPos);
+								// NOTE: byte copy, was a `uint32_t *` copy of unaligned data
+								cryptanalysislib::memcpy<uint8_t>(pbOut+outPos, pbIn+inPos, 4);
 								inPos+=4;
 								outPos+=4;
 							}

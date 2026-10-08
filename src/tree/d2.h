@@ -66,6 +66,16 @@ size_t Tree_T<List, config>::join4lists(List &out, List &L1, List &L2, List &L3,
 			op(L2[i].label, iT, L2[i].label, k_lower1, k_upper2);
 			LabelType::add(L4[i].label, R2, L4[i].label, k_lower1, k_upper2);
 			L3[i].label.neg(k_lower1, k_upper2);
+
+			// NOTE: the labels of `L2` and `L3` are negated above, so are their
+			// 	values: every element stays `label = const + value*matrix`, and
+			// 	the `sub` based joins below compute `v1 + v2 + v3 + v4`. Before,
+			// 	the values were not negated, which is wrong for non binary
+			// 	values (e.g. F_3), where `-v != v`.
+			if constexpr (!ValueType::binary()) {
+				L2[i].value.neg();
+				L3[i].value.neg();
+			}
 		}
 
 		L1.sort_level(k_lower1, k_upper1);

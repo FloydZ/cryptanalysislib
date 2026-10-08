@@ -81,10 +81,16 @@ private:
 
 	/// internal pointers
 	Node *head = nullptr,  // start of the linked list
-	     *tail = nullptr,  // end of the linked list
-	     *__free = nullptr,// start of a second linked list of removed (but not freed) elements
-	     *curr = nullptr,  //
-	     *pred = nullptr;  //
+	     *tail = nullptr;  // end of the linked list
+	// start of a second linked list of removed (but not freed) elements
+	// NOTE: atomic, `remove` pushes from several threads
+	std::atomic<Node *> __free = nullptr;
+	// NOTE: only a hint where to start searching. Before, `pos()` returned
+	// 	its result through the shared members `pred`/`curr`, which other
+	// 	threads overwrote in between.
+	std::atomic<Node *> hint = nullptr;
+	// whether the sentinels were allocated by the constructor
+	bool own_head = false, own_tail = false;
 
 	/// pointer stuff: we need to mark/tag pointers to counter the ABA problem
 	constexpr static uintptr_t UNMARK_MASK = ~1;
@@ -102,16 +108,34 @@ private:
 	/// allocate the first `LEN` nodes into this buffer,
 	constexpr static bool USE_BUFFER = false;
 	constexpr static size_t LEN = 1024;
-	Node __internal_array[LEN];
+	// NOTE: only allocated if used. Before, every list contained `LEN`
+	// 	nodes, also with `USE_BUFFER == false`.
+	Node __internal_array[USE_BUFFER ? LEN : 1];
+	// NOTE: per list. Was a `static` in `insert`, i.e. shared by all lists.
+	std::atomic<size_t> __buffer_ctr = 0;
+
+	/// frees `n`, if it was allocated with `new` (and not from the buffer)
+	constexpr inline void release(Node *n) noexcept {
+		if constexpr (USE_BUFFER) {
+			if ((n >= __internal_array) && (n < __internal_array + LEN)) {
+				return;
+			}
+		}
+		delete n;
+	}
 
 	/// keep track of the size of the linked list
 	std::atomic<size_t> __size = 0;
 
 	/// finds the position of `data` within the linked list
 	/// internal function, dont use it.
-	inline void pos(const T &data) noexcept {
+	/// \param out_pred[out]: last node with `data > out_pred->data`
+	/// \param out_curr[out]: first node with `data <= out_curr->data`
+	inline void pos(const T &data,
+	                Node *&out_pred,
+	                Node *&out_curr) noexcept {
 		Node *__pred, *__succ, *__curr, *__next;
-		__pred = pred;
+		__pred = hint.load(std::memory_order_relaxed);
 	retry:
 		while (ismarked(__pred->next.load()) || data <= __pred->data) {
 			__pred = __pred->prev.load();
@@ -145,8 +169,9 @@ private:
 			/// set
 			if (data <= __curr->data) {
 				assert(__pred->data < __curr->data);
-				pred = __pred;
-				curr = __curr;
+				hint.store(__pred, std::memory_order_relaxed);
+				out_pred = __pred;
+				out_curr = __curr;
 				return;
 			}
 
@@ -161,8 +186,12 @@ public:
 	Iterator end() { return Iterator(tail); }
 
 	constexpr FreeList(Node *__head = nullptr, Node *__tail = nullptr) {
+		// NOTE: before, user supplied sentinels were never stored
+		head = __head;
+		tail = __tail;
 		if (__head == nullptr) {
 			head = new Node;
+			own_head = true;
 			// this is kind of strange. But the start and the end need to
 			// initialized to the lowest possible value.
 			std::memset(&head->data, 0, sizeof(T));
@@ -170,6 +199,7 @@ public:
 
 		if (__tail == nullptr) {
 			tail = new Node;
+			own_tail = true;
 			std::memset(&tail->data, -1, sizeof(T));
 		}
 
@@ -189,12 +219,29 @@ public:
 		tail->prev = head;
 		tail->next = nullptr;
 
-		pred = head;
-		curr = nullptr;
+		hint.store(head);
 	}
 
-	///
-	constexpr ~FreeList() {}
+	// NOTE: the nodes are owned by the list
+	FreeList(const FreeList &) = delete;
+	FreeList &operator=(const FreeList &) = delete;
+
+	/// NOTE: not thread safe. Before, no node was ever freed.
+	~FreeList() noexcept {
+		// nodes still linked and not marked; marked ones are on `__free`
+		Node *c = getpointer(head->next.load());
+		while ((c != nullptr) && (c != tail)) {
+			Node *next = c->next.load();
+			if (!ismarked(next)) {
+				release(c);
+			}
+			c = getpointer(next);
+		}
+
+		clean();
+		if (own_head) { delete head; }
+		if (own_tail) { delete tail; }
+	}
 
 	/// return 0 on success, 1 else
 	inline int insert(const T &data) noexcept {
@@ -207,9 +254,10 @@ public:
 
 		if constexpr (USE_BUFFER) {
 			/// if the flag is set
-			static std::atomic<size_t> ctr = 0;
-			if (ctr >= LEN) {
-				const size_t c = ctr.fetch_add(1u);
+			// NOTE: take a buffer node while there are some left. Was
+			// 	`if (ctr >= LEN)`, i.e. reading past the buffer.
+			const size_t c = __buffer_ctr.fetch_add(1u);
+			if (c < LEN) {
 				__node = &__internal_array[c];
 				__node->data = data;
 				__node->next = nullptr;
@@ -223,13 +271,12 @@ public:
 		}
 
 		do {
-			pos(data);
-			__pred = pred;
-			__curr = curr;
+			pos(data, __pred, __curr);
 
 			/// data already inserted
 			if (__curr->data == data) {
-				// delete __node;
+				// NOTE: was leaked, `__node` has not been published
+				release(__node);
 				return 1;
 			}
 
@@ -250,7 +297,7 @@ public:
 			return 0;
 		}
 
-		Node *__curr = pred;
+		Node *__curr = hint.load(std::memory_order_relaxed);
 		while (data < __curr->data) {
 			__curr = __curr->prev.load();
 		}
@@ -261,7 +308,6 @@ public:
 			__curr = getpointer(__curr->next.load());
 		}
 
-		pred = __curr;
 		return ((__curr->data == data) && (!ismarked(__curr->next.load())));
 	}
 
@@ -274,9 +320,7 @@ public:
 		}
 
 		do {
-			pos(data);
-			__pred = pred;
-			__node = curr;
+			pos(data, __pred, __node);
 			if (__node->data != data) {
 				return 1;
 			}
@@ -293,13 +337,16 @@ public:
 				}
 			} while (1);
 
-			if (!__pred->next.compare_exchange_weak(__node, __succ)) {
-				__node = curr;
-			}
+			// NOTE: a failed CAS overwrites its expected argument, so do not
+			// 	pass `__node` itself. If the unlink fails, the node is marked
+			// 	and the next `pos()` unlinks it.
+			Node *expected = __node;
+			__pred->next.compare_exchange_weak(expected, __succ);
 
 			__succ->prev.store(__pred);
-			__node->free = __free;
-			__free = __node;
+			// NOTE: atomic push, several threads may remove at the same time
+			__node->free = __free.load();
+			while (!__free.compare_exchange_weak(__node->free, __node)) {}
 			__size.fetch_sub(1u);
 			return 0;
 		} while (true);
@@ -312,15 +359,18 @@ public:
 
 	/// clean the all __free->free->free and so so.
 	/// those are all the elements which where removed
+	/// NOTE: not thread safe
 	constexpr void clean() noexcept {
-		Node *node, *next = __free;
+		Node *node, *next = __free.load();
 		while (next != nullptr) {
 			node = next;
 			next = node->free;
-			delete node;
+			release(node);
 		}
 
 		__free = nullptr;
+		// NOTE: the hint may point to a node freed above
+		hint.store(head);
 	}
 
 	/// clears the whole list

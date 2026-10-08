@@ -89,6 +89,8 @@ uint64_t transpose_b8x8_be(const uint64_t x_) noexcept {
 }
 
 /// Transposes a byte matrix with 8 rows using bit manipulation techniques
+/// NOTE: only the lower 8 bits of each input element are used, and every
+/// 	output element is in [0, 255] (MSB first: bit 7 is column 0).
 ///
 /// \param A[in]: Input array of 8 elements, where each element is treated as a row
 /// \param m[in]: Stride of the input array A
@@ -102,8 +104,9 @@ inline void transpose8(uint32_t A[8],
 
 	// Load the array and pack it into x and y.
 
-	x = (A[0] << 24) | (A[m] << 16) | (A[2 * m] << 8) | A[3 * m];
-	y = (A[4 * m] << 24) | (A[5 * m] << 16) | (A[6 * m] << 8) | A[7 * m];
+	// NOTE: mask to 8 bits, higher bits of the inputs corrupted other rows
+	x = ((A[0] & 0xFFu) << 24) | ((A[m] & 0xFFu) << 16) | ((A[2 * m] & 0xFFu) << 8) | (A[3 * m] & 0xFFu);
+	y = ((A[4 * m] & 0xFFu) << 24) | ((A[5 * m] & 0xFFu) << 16) | ((A[6 * m] & 0xFFu) << 8) | (A[7 * m] & 0xFFu);
 
 	t = (x ^ (x >> 7)) & 0x00AA00AA;
 	x = x ^ t ^ (t << 7);
@@ -119,20 +122,23 @@ inline void transpose8(uint32_t A[8],
 	y = ((x << 4) & 0xF0F0F0F0) | (y & 0x0F0F0F0F);
 	x = t;
 
-	B[0] = x >> 24;
-	B[n] = x >> 16;
-	B[2 * n] = x >> 8;
-	B[3 * n] = x;
-	B[4 * n] = y >> 24;
-	B[5 * n] = y >> 16;
-	B[6 * n] = y >> 8;
-	B[7 * n] = y;
+	// NOTE: mask to 8 bits, before e.g. `B[n]` also contained the byte of `B[0]`
+	B[0] = (x >> 24) & 0xFFu;
+	B[n] = (x >> 16) & 0xFFu;
+	B[2 * n] = (x >> 8) & 0xFFu;
+	B[3 * n] = x & 0xFFu;
+	B[4 * n] = (y >> 24) & 0xFFu;
+	B[5 * n] = (y >> 16) & 0xFFu;
+	B[6 * n] = (y >> 8) & 0xFFu;
+	B[7 * n] = y & 0xFFu;
 }
 
 /// Performs an in-place transpose of a 64x64 bit matrix
 ///
 /// Each entry in the array represents a row of 64 bits. The function 
 /// transposes the matrix in-place using bit manipulation techniques.
+/// NOTE: the bits are numbered MSB first: column `j` of row `i` is bit
+/// 	`63 - j` of `a[i]` (unlike `transpose_b8x8`, which is LSB first).
 ///
 /// \param a[in,out]: Array of 64 uint64_t values representing a 64x64 bit matrix
 inline void transpose_b64x64_inplace(uint64_t a[64]) noexcept {

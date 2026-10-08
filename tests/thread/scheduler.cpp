@@ -586,7 +586,9 @@ TEST(StealingScheduler, clear_task_same_task) {
 	//   tasks), we use a mutex to prevent the tasks from running, until all tasks have been added
 	//   to the pool.
 
-	for (uint32_t  thread_count = 0; thread_count < 4; ++thread_count) {
+	// NOTE: starts at 1. A pool of 0 threads gets 1 worker, and a
+	// 	`std::barrier(0)` cannot be arrived at.
+	for (uint32_t  thread_count = 1; thread_count < 4; ++thread_count) {
 		std::atomic<unsigned int> counter = 0;
 		std::shared_mutex mutex;
 		StealingScheduler pool(thread_count);
@@ -690,6 +692,40 @@ TEST(Thread, Simple) {
 	EXPECT_TRUE(queue.empty());
 	EXPECT_EQ(removed_count, 3);
 };
+
+TEST(StealingScheduler, lvalues_are_copied) {
+	StealingScheduler pool(2);
+	std::string s = "hello";
+	std::function<size_t(std::string)> fn = [](std::string x) { return x.size(); };
+	auto f = pool.submit(fn, s);
+	EXPECT_EQ(f.get(), 5u);
+	EXPECT_EQ(s, "hello");
+	EXPECT_TRUE(bool(fn));
+}
+
+TEST(StealingScheduler, pause) {
+	StealingScheduler pool(2);
+	pool.pause();
+	EXPECT_TRUE(pool.is_paused());
+	std::atomic<int> ran{0};
+	for (int i = 0; i < 8; i++) { pool.submit_detach([&ran] { ran++; }); }
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	EXPECT_EQ(ran.load(), 0);
+	EXPECT_EQ(pool.get_num_queued_tasks(), 8u);
+
+	pool.unpause();
+	pool.wait_for_tasks();
+	EXPECT_EQ(ran.load(), 8);
+	EXPECT_EQ(pool.get_num_queued_tasks(), 0u);
+}
+
+TEST(StealingScheduler, zero_threads) {
+	StealingScheduler pool(0);
+	EXPECT_EQ(pool.size(), 1u);
+	auto f = pool.submit([] { return 42; });
+	EXPECT_EQ(f.get(), 42);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

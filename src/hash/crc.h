@@ -67,13 +67,15 @@ constexpr static uint32_t crc32(const uint8_t *buf,
 	return crc ^ ~0U;
 }
 
-#ifdef USE_PCLMULDQD
+#if defined(USE_PCLMUL) && defined(USE_SSE41)
 #include <immintrin.h>
 
-// SSE4.2+PCLMUL
-uint32_t static sse42_crc32(const unsigned char *buf,
-    						const size_t len,
-    						const uint32_t crc) noexcept {
+// SSE4.2+PCLMUL folding kernel (from chromium/zlib `crc32_sse42_simd_`).
+// NOTE: requires len >= 64 and len % 16 == 0; `crc` is the raw (inverted)
+//	crc state, and the raw state is returned
+uint32_t static sse42_crc32_fold(const unsigned char *buf,
+    						     const size_t len,
+    						     const uint32_t crc) noexcept {
     // Definitions of the bit-reflected domain constants k1,k2,k3, etc and
     // the CRC32+Barrett polynomials given at the end of the paper.
     static const uint64_t __attribute__((aligned(16))) k1k2[] = { 0x0154442bd4, 0x01c6e41596 };
@@ -195,6 +197,33 @@ uint32_t static sse42_crc32(const unsigned char *buf,
      * Return the crc32.
      */
     return _mm_extract_epi32(x1, 1);
+}
+
+/// CRC32 (zlib polynomial), same convention as the scalar `crc32(buf, size, crc)`
+/// \param buf[in]: input
+/// \param len[in]: number of bytes
+/// \param crc[in]: initial crc value (0 for a fresh computation)
+/// \return crc32 of `buf`
+uint32_t static sse42_crc32(const unsigned char *buf,
+    						size_t len,
+    						const uint32_t crc) noexcept {
+	// NOTE: the folding kernel only handles multiples of 16 bytes (and at
+	// least 64); the remaining bytes are processed with the table. (The kernel
+	// used to be called directly: it read 64 bytes for len < 64 and ignored
+	// the last len % 16 bytes.)
+	uint32_t state = ~crc;
+	if (len >= 64) {
+		const size_t chunk = len & ~(size_t)15u;
+		state = sse42_crc32_fold(buf, chunk, state);
+		buf += chunk;
+		len -= chunk;
+	}
+
+	while (len--) {
+		state = crc32_tab[(state ^ *buf++) & 0xFF] ^ (state >> 8);
+	}
+
+	return ~state;
 }
 #endif
 

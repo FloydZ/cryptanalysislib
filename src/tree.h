@@ -2144,8 +2144,8 @@ public:
 			return false;
 		};
 
-		// early exit
-		if (Ls == 0) { return 0; }
+		// NOTE: removed `if (Ls == 0) { return 0; }`: `Ls` is only counted by
+		// 	`f` in the join below, so this always returned 0
 
 		LabelType::sub(t1, target, iT);
 
@@ -2581,7 +2581,9 @@ public:
 			(void)target;
 			static ElementType v;
 			ValueType::add(v.value, e1.value, e2.value);
-			if (v.value.popcnt() !=	n) { return false; }
+			// NOTE: the solution has weight `n/2` (see
+			// 	`generate_subsetsum_instance`), was `n`: no output ever passed
+			if (v.value.popcnt() !=	n/2) { return false; }
 
 			v.recalculate_label(matrix);
 		    out.append(v);
@@ -2734,7 +2736,18 @@ public:
 			}
 		}
 
-		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, false);
+		// NOTE: before, `prepare=false` was passed, so `L1` and `L2` were
+		// 	never sorted for the merge. With a zero target `join2lists` only
+		// 	sorts (it does not alter `L2`).
+		// NOTE: the labels of `iL` are needed on [k_lower1, k_upper2), as the
+		// 	stream join searches `iL` on [k_lower2, k_upper2). The default
+		// 	output function of `join2lists` only computes [k_lower1, k_upper1).
+		auto f1 = [k_lower1, k_upper2](List &out, List &L1, List &L2,
+		                               const size_t i, const size_t j) __attribute__((always_inline)) {
+			out.add_and_append(L1[i], L2[j], k_lower1, k_upper2, -1u, !LabelType::binary());
+			return false;
+		};
+		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, prepare, f1);
 
 		// early exit
 		if (iL.load() == 0) {

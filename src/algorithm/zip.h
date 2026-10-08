@@ -89,10 +89,11 @@ static inline void zip_u8(__m256i *__restrict__ out1,
 						  const __m256i *__restrict__ in2) noexcept {
 	const __m256i a = _mm256_loadu_si256(in1);
 	const __m256i b = _mm256_loadu_si256(in2);
-	const __m256i tmp1 = _mm256_unpacklo_epi8(a, b);
-	*out2 = _mm256_unpackhi_epi8(a, b);
-	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0x20);
-	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
+	const __m256i lo = _mm256_unpacklo_epi8(a, b);
+	const __m256i hi = _mm256_unpackhi_epi8(a, b);
+	// NOTE: unaligned stores, `out1`/`out2` point into arbitrary arrays
+	_mm256_storeu_si256(out1, _mm256_permute2x128_si256(lo, hi, 0x20));
+	_mm256_storeu_si256(out2, _mm256_permute2x128_si256(lo, hi, 0x31));
 }
 
 /// Interleaves 16 16-bit elements from two vectors into two output vectors
@@ -109,10 +110,11 @@ static inline void zip_u16(__m256i *__restrict__ out1,
 						   const __m256i *__restrict__ in2) noexcept {
 	const __m256i a = _mm256_loadu_si256(in1);
 	const __m256i b = _mm256_loadu_si256(in2);
-	const __m256i tmp1 = _mm256_unpacklo_epi16(a, b);
-	*out2 = _mm256_unpackhi_epi16(a, b);
-	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0x20);
-	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
+	const __m256i lo = _mm256_unpacklo_epi16(a, b);
+	const __m256i hi = _mm256_unpackhi_epi16(a, b);
+	// NOTE: unaligned stores, `out1`/`out2` point into arbitrary arrays
+	_mm256_storeu_si256(out1, _mm256_permute2x128_si256(lo, hi, 0x20));
+	_mm256_storeu_si256(out2, _mm256_permute2x128_si256(lo, hi, 0x31));
 }
 
 /// Interleaves 8 32-bit elements from two vectors into two output vectors
@@ -129,10 +131,11 @@ static inline void zip_u32(__m256i *__restrict__ out1,
 						   const __m256i *__restrict__ in2) noexcept {
 	const __m256i a = _mm256_loadu_si256(in1);
 	const __m256i b = _mm256_loadu_si256(in2);
-	const __m256i tmp1 = _mm256_unpacklo_epi32(a, b);
-	*out2 = _mm256_unpackhi_epi32(a, b);
-	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0x20);
-	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
+	const __m256i lo = _mm256_unpacklo_epi32(a, b);
+	const __m256i hi = _mm256_unpackhi_epi32(a, b);
+	// NOTE: unaligned stores, `out1`/`out2` point into arbitrary arrays
+	_mm256_storeu_si256(out1, _mm256_permute2x128_si256(lo, hi, 0x20));
+	_mm256_storeu_si256(out2, _mm256_permute2x128_si256(lo, hi, 0x31));
 }
 
 /// Interleaves 4 64-bit elements from two vectors into two output vectors
@@ -149,10 +152,11 @@ static inline void zip_u64(__m256i *__restrict__ out1,
 						   const __m256i *__restrict__ in2) noexcept {
 	const __m256i a = _mm256_loadu_si256(in1);
 	const __m256i b = _mm256_loadu_si256(in2);
-	const __m256i tmp1 = _mm256_unpacklo_epi64(a, b);
-	*out2 = _mm256_unpackhi_epi64(a, b);
-	*out1 = _mm256_permute2x128_si256(tmp1, *out2, 0x20);
-	*out2 = _mm256_permute2x128_si256(tmp1, *out2, 0x31);
+	const __m256i lo = _mm256_unpacklo_epi64(a, b);
+	const __m256i hi = _mm256_unpackhi_epi64(a, b);
+	// NOTE: unaligned stores, `out1`/`out2` point into arbitrary arrays
+	_mm256_storeu_si256(out1, _mm256_permute2x128_si256(lo, hi, 0x20));
+	_mm256_storeu_si256(out2, _mm256_permute2x128_si256(lo, hi, 0x31));
 }
 
 #endif // USE_AVX2

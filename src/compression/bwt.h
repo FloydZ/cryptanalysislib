@@ -47,10 +47,14 @@ inline int bwt_lcp_inplace(uint8_t *T, int n, int *LCP) noexcept {
 		else l_a++;
 		
 		/*steps 2''*/
+		// NOTE: `p_b1` may reach `n`. Before, `T[n]` was read (the bound was
+		// 	checked second) and `LCP[n]`; `l_b` is set to 0 in this case anyway.
 		p_b1=p+s+1;
-		l_b=LCP[p_b1];
-		while(T[p_b1]!=T[s] && p_b1<n) //RMQ function
-			if(LCP[++p_b1]<l_b) l_b=LCP[p_b1];
+		l_b = (p_b1<n) ? LCP[p_b1] : 0;
+		while(p_b1<n && T[p_b1]!=T[s]) { //RMQ function
+			++p_b1;
+			if(p_b1<n && LCP[p_b1]<l_b) l_b=LCP[p_b1];
+		}
 		if(p_b1==n) l_b=0;
 		else l_b++;
 		

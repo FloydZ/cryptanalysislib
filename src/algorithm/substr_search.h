@@ -87,11 +87,15 @@ namespace cryptanalysislib::algorithm {
             uint8_t const *h_ptr = haystack.data;
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
             size_t const n_suffix_len = needle.len - 4;
-            uint32_t const n_prefix = *reinterpret_cast<uint32_t const *>(needle.data);
+            // NOTE: unaligned 4-byte loads via memcpy (a reinterpret_cast load is UB)
+            uint32_t n_prefix;
+            __builtin_memcpy(&n_prefix, needle.data, 4);
             uint8_t const *n_suffix_ptr = needle.data + 4;
 
             for (; h_ptr <= h_end; h_ptr++) {
-                if (n_prefix == *reinterpret_cast<uint32_t const *>(h_ptr)) {
+                uint32_t h_prefix;
+                __builtin_memcpy(&h_prefix, h_ptr, 4);
+                if (n_prefix == h_prefix) {
                     if (are_equal(h_ptr + 4, n_suffix_ptr, n_suffix_len)) {
                         return h_ptr - haystack.data;
                     }
@@ -340,7 +344,9 @@ namespace cryptanalysislib::algorithm {
             }
 
             // Don't forget the last (up to 64+3=67) characters.
-            size_t last_match = prefix_substr(haystack.after_n(h_ptr - haystack.data), needle);
+            // NOTE: `prefix_substr` takes a non-const reference, hence the named span
+            span_t t = haystack.after_n(h_ptr - haystack.data);
+            size_t last_match = prefix_substr(t, needle);
             return (last_match != not_found_k) ? last_match + (h_ptr - haystack.data) : not_found_k;
         }
 #endif

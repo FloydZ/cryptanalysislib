@@ -37,11 +37,13 @@ namespace cryptanalysislib {
 
 
 
-///
+/// NOTE: non-static members, so a custom config can be passed, e.g.
+/// 	`constexpr static SchedulerConfig c{.enable_remote_view = true};`.
+/// 	Before, both were `constexpr static` and fixed to `false`.
 class SchedulerConfig {
 public:
-	constexpr static bool enable_try_block = false;
-	constexpr static bool enable_remote_view = false;
+	const bool enable_try_block = false;
+	const bool enable_remote_view = false;
 };
 constexpr static SchedulerConfig schedulerConfig;
 }; // end namespace cryptanalysislib
@@ -214,12 +216,14 @@ namespace cryptanalysislib {
 		    	return;
 		    }
 
-		    if (unlinkat(sockfd, socket_path, 0) < -1) {
-		    	std::cerr << "unlinkat failed" << std::endl;
-		    	return;
-		    }
-
 			if (server) {
+				// NOTE: only the server removes a stale socket file. Before, this
+				// 	was done by the client too, which deleted the server's socket
+				// 	right before `connect` (and `< -1` never failed).
+				if ((unlink(socket_path) < 0) && (errno != ENOENT)) {
+					std::cerr << "unlink failed" << std::endl;
+					return;
+				}
 
 				if (bind(sockfd, (struct sockaddr *) &serv_addr, servlen) < 0) {
 					std::cout << "ERROR: binding socket" << std::endl;

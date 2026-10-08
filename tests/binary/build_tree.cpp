@@ -61,8 +61,10 @@ TEST(TreeTest, join2lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<9);
-	EXPECT_LT(out.load(),1u<<11);
+	// NOTE: 2^15 * 2^15 pairs, matching on n=10 bits: 2^20 expected
+	// 	(was: 2^9 < out < 2^11)
+	EXPECT_GT(out.load(),1u<<19);
+	EXPECT_LT(out.load(),1u<<21);
 }
 
 TEST(TreeTest, join4lists) {
@@ -105,8 +107,11 @@ TEST(TreeTest, join4lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<9);
-	EXPECT_LT(out.load(),1u<<11);
+	// NOTE: 2^10 * 2^10 pairs per side matching on n/2=5 bits: 2^15 each,
+	// 	then 2^15 * 2^15 matching on the other 5 bits: 2^25 expected
+	// 	(was: 2^9 < out < 2^11)
+	EXPECT_GT(out.load(),1u<<24);
+	EXPECT_LT(out.load(),1u<<26);
 }
 
 TEST(TreeTest, join4lists_with2lists) {
@@ -147,8 +152,10 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<9);
-	EXPECT_LT(out.load(),1u<<11);
+	// NOTE: the lists `L3`, `L4` are simulated by `L1`, `L2`: as in
+	// 	`join4lists` 2^25 outputs are expected (was: 2^9 < out < 2^11)
+	EXPECT_GT(out.load(),1u<<24);
+	EXPECT_LT(out.load(),1u<<26);
 }
 
 #ifndef EXTERNAL_MAIN

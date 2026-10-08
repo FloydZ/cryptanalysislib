@@ -91,7 +91,8 @@ private:
 	/// allocate the first `LEN` nodes into this buffer,
 	constexpr static bool USE_BUFFER = false;
 	constexpr static size_t LEN = 1024;
-	Node __internal_array[LEN];
+	// NOTE: never used. Before, every list contained `LEN` nodes.
+	Node __internal_array[USE_BUFFER ? LEN : 1];
 
 	/// keep track of the size of the linked list
 	std::atomic<size_t> __size = 0;

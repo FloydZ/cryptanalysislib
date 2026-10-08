@@ -533,7 +533,9 @@ static void sdefl_flush(unsigned char **dst,
 	switch (sdefl_blk_type(s, blk_len, item_cnt, freqs, lens)) {
 		case SDEFL_BLK_UCOMPR: {
 			/* uncompressed blocks */
-			int n = sdefl_div_round_up(blk_len, SDEFL_RAW_BLK_SIZE);
+			/* NOTE: at least one (empty) block. Before, an empty input wrote
+			 * 	no block at all, i.e. no final block: an invalid stream. */
+			int n = blk_len ? sdefl_div_round_up(blk_len, SDEFL_RAW_BLK_SIZE) : 1;
 			for (i = 0; i < n; ++i) {
 				int fin = is_last && (i + 1 == n);
 				int amount = blk_len < SDEFL_RAW_BLK_SIZE ? blk_len : SDEFL_RAW_BLK_SIZE;

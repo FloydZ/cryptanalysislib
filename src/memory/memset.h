@@ -163,47 +163,33 @@ namespace cryptanalysislib {
 
 			const size_t bytes = nr_elements * sizeof(T);
 			if (bytes >= 128) {
+				// NOTE: the first and the last 64 bytes are written with unaligned
+				// stores, everything in between with 64-byte aligned stores.
+				// (The previous version iterated `while (out != nullptr)` over a
+				// pointer used as a wrapping offset, which is UB and was compiled
+				// into a loop running past the end of the buffer.)
+				uint8_t *begin = (uint8_t *)out;
+				uint8_t *end = begin + bytes;
+				uint8_t *p = (uint8_t *)((((uintptr_t)begin) + 0x40) & -(uintptr_t)0x40);
+				uint8_t *aligned_end = (uint8_t *)(((uintptr_t)end) & -(uintptr_t)0x40);
 				if constexpr (sizeof(T) == 1) {
-					uint8x64_t t = uint8x64_t::set1(in);
-					uint8x64_t::unaligned_store((uint8_t *)out, t);
-
-					uint8_t *out2 = ((uint8_t *)out) + bytes;
-					uint8x64_t::unaligned_store((uint8_t *)(out2 - 0x40), t);
-					out2 = (uint8_t *) (((uintptr_t) (out2)) & -0x40);
-
-					out += 0x40;
-					out = (T *) (((uintptr_t) out) & -0x40);
-					out = (T *) ((uintptr_t) out - (uintptr_t) out2);
-
-					while (out != nullptr) {
-						uint8x64_t::aligned_store((uint8_t *) ((uintptr_t) out + (uintptr_t) out2), t);
-						out += 0x40;
+					const uint8x64_t t = uint8x64_t::set1(in);
+					uint8x64_t::unaligned_store(begin, t);
+					uint8x64_t::unaligned_store(end - 0x40, t);
+					for (; p < aligned_end; p += 0x40) {
+						uint8x64_t::aligned_store(p, t);
 					}
-
-					return;
 				} else {
-					constexpr size_t alignment = 64;
-					constexpr size_t N = alignment / sizeof(T);
+					constexpr size_t N = 64 / sizeof(T);
 					using S = TxN_t<T, N>;
-
-					S t = S::set1(in);
+					const S t = S::set1(in);
 					S::unaligned_store(out, t);
-
-					T *out2 = out + nr_elements;
-					S::unaligned_store(out2 - N, t);
-					out2 = (T *)(((uintptr_t)(out2)) & -0x40);
-
-					out += N;
-					out = (T *)(((uintptr_t)out) & -0x40);
-					out = (T *)((uintptr_t)out - (uintptr_t)out2);
-
-					while (out != nullptr) {
-						S::aligned_store((T *)((uintptr_t)out + (uintptr_t)out2), t);
-						out	+= N;
+					S::unaligned_store(out + nr_elements - N, t);
+					for (; p < aligned_end; p += 0x40) {
+						S::aligned_store((T *)p, t);
 					}
-
-					return;
 				}
+				return;
 			}
 
 			memset_u256_u8(out, in, nr_elements);

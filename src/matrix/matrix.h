@@ -560,26 +560,42 @@ public:
 		}
 	}
 
+	/// \return the inverse of `a` mod q, or 0 if `a` is not a unit mod q
+	[[nodiscard]] constexpr static DataType mod_inverse(const DataType a) noexcept {
+		// extended euclid on signed 128 bit, q may be close to 2**64
+		__int128 t = 0, newt = 1, r = q, newr = a % q;
+		while (newr != 0) {
+			const __int128 quotient = r / newr;
+			const __int128 tt = t - quotient * newt; t = newt; newt = tt;
+			const __int128 rr = r - quotient * newr; r = newr; newr = rr;
+		}
+
+		if (r != 1) { return 0; }
+		if (t < 0) { t += q; }
+		return DataType(t);
+	}
+
 	/// simple gaussian elimination
+	/// NOTE: any unit mod q is accepted as a pivot and the row is scaled to 1.
+	/// 	Before, only the pivots `1` and `q-1` were accepted, so for q >= 5
+	/// 	the elimination stopped early.
+	/// NOTE: the last column is never used as a pivot column: the matrix is
+	/// 	assumed to be `[H | s]` with the syndrome `s` in the last column (as
+	/// 	in `fix_gaus`). E.g. the n x n identity has the returned rank n-1.
 	/// \param stop[in]: if passed, the matrix will get systemized up to row `stop`
-	/// \return the rank of the matrix
+	/// \return the number of systematic (leading) columns in [0, ncols-1)
 	[[nodiscard]] constexpr uint32_t gaus(const uint32_t stop = -1) noexcept {
 		const std::size_t m = ncols - 1;
 		alignas(32) RowType tmp;
 		uint32_t row = 0;
 		for (uint32_t col = 0; (col < m) && (row < nrows) && (row < stop); col++) {
 			int sel = -1;
-			// get pivot element
+			DataType inv = 0;
+			// get pivot element: the first unit in this column
 			for (uint32_t i = row; i < nrows; i++) {
-				if (get(i, col) == 1u) {
+				inv = mod_inverse(get(i, col));
+				if (inv != 0) {
 					sel = i;
-					break;
-				}
-
-				if (get(i, col) == (q - 1u)) {
-					sel = i;
-					// neg the row
-					__data[i].neg();
 					break;
 				}
 			}
@@ -589,8 +605,11 @@ public:
 				return row;
             }
 
-			/// move up
+			/// move up and scale the pivot to 1
 			swap_rows(sel, row);
+			if (inv != 1) {
+				RowType::scalar(__data[row], __data[row], inv);
+			}
 
 			/// solve all remaining coordinates (iterate over all rows)
 			for (uint32_t i = 0; i < nrows; i++) {
@@ -709,7 +728,8 @@ public:
 		RowType table[precompute_size];
         // we only need to clean the first element, as the other are getting 
         // overwritten.
-		table[0].clear();
+		// NOTE: was `clear()`, which the row types do not have
+		table[0].zero();
         // we need to keep track which elements within the table are already 
         // precomputed.
 		std::array<bool, precompute_size> computed;
@@ -794,56 +814,52 @@ public:
 		    [&](const uint32_t row,
                 const uint32_t col,
                 const uint32_t kk) {
+		    // NOTE: rewritten. Before, only the pivots `1` and `q-1` were
+		    // 	accepted, the final scaling used the row `current_col` (a column
+		    // 	index), and a pivot row taken from below the square was not
+		    // 	reliably reduced, so the output was not systematic for q >= 5.
 		    alignas(32) RowType tmp;
-		    for (uint32_t i = row; i < row + kk; ++i) {
-		    retry:
+		    for (uint32_t t = 0; t < kk; ++t) {
+		        const uint32_t i = row + t;
+		        const uint32_t current_col = col + t;
 
+		        /// pivoting: the value of a candidate row at `current_col`
+		        /// after eliminating the previous pivot columns [col, col+t)
+		        /// with the (already reduced) block rows [row, row+t)
 		        uint32_t sel = -1u;
-		        const uint32_t current_col = col + i - row;
-
-		        /// pivoting
 		        for (uint32_t pivot_row = i; pivot_row < nrows; pivot_row++) {
-			        if (get(pivot_row, current_col) == 1u) {
-				        sel = pivot_row;
-				        break;
+			        uint64_t v = get(pivot_row, current_col);
+			        for (uint32_t l = 0; l < t; ++l) {
+				        const uint64_t a = get(pivot_row, col + l);
+				        if (a == 0) { continue; }
+				        const uint64_t b = get(row + l, current_col);
+				        v = (v + (q - (uint64_t)((__uint128_t)a * b % q))) % q;
 			        }
 
-			        if (get(pivot_row, current_col) == (q - 1u)) {
+			        if (mod_inverse(DataType(v)) != 0) {
 				        sel = pivot_row;
-				        __data[pivot_row].neg();
 				        break;
 			        }
 		        }
 
 		        /// no pivot found
-		        if (sel == -1u) { return i - row; }
+		        if (sel == -1u) { return t; }
 
 		        swap_rows(i, sel);
 
-		        /// if the pivot row is taken from outside of the kk x kk square
-		        /// we need to resolve it
-		        if (sel >= row + kk) {
-			        for (uint32_t j = col; j < col + kk; ++j) {
-				        if (j == i) { continue; }
-
-				        const DataType a = get(i, j);
-				        if (a == 0) { continue; }
-
-				        // negate
-				        DataType c = (q - a) % q;
-				        RowType::scalar(tmp, __data[row + j - col], c);
-				        RowType::add(__data[i], __data[i], tmp);
-			        }
+		        /// reduce the new pivot row by the previous block rows
+		        for (uint32_t l = 0; l < t; ++l) {
+			        const DataType a = get(i, col + l);
+			        if (a == 0) { continue; }
+			        RowType::scalar(tmp, __data[row + l], (q - a) % q);
+			        RowType::add(__data[i], __data[i], tmp);
 		        }
 
-		        /// this is stupid: while fixing the pivot row, it can happen that
-		        /// the pivot element gets zero out. We catch this case and restart.
-		        if (get(i, current_col) == 0) { goto retry; }
-
-		        // one final fixup
-		        if (get(i, current_col) != 1) {
-			        RowType::scalar(tmp, __data[current_col], (q - get(i, current_col) % q));
-			        RowType::add(__data[i], __data[i], tmp);
+		        /// scale the pivot to 1
+		        const DataType inv = mod_inverse(get(i, current_col));
+		        assert(inv != 0);
+		        if (inv != 1) {
+			        RowType::scalar(__data[i], __data[i], inv);
 		        }
 
 		        /// solve the column in the kk x kk square
@@ -869,17 +885,19 @@ public:
 			if (col + kk > rstop) { kk = rstop - col; }
 			const uint32_t kbar = sub_gaus(row, col, kk);
 
-			if (kk != kbar) { break; }
-
 			if (kbar > 0) {
 				/// process below
-				process_rows(row, col, kk, row + kbar, nrows);
+				process_rows(row, col, kbar, row + kbar, nrows);
 				/// process above
-				process_rows(row, col, kk, 0, row);
+				process_rows(row, col, kbar, 0, row);
 			}
 
 			row += kbar;
 			col += kbar;
+
+			// NOTE: column `col` has no pivot: stop. Before, this exit was
+			// 	taken before the `kbar` pivots of the block were processed.
+			if (kk != kbar) { break; }
 		}
 
 		return col;
@@ -1047,7 +1065,8 @@ public:
 		assert(i2 < nrows);
 		assert(j2 < ncols);
 		uint32_t tmp = get(i1, j1);
-		set(get(i2, j2), i1, i2);
+		// NOTE: was `set(get(i2, j2), i1, i2)`
+		set(get(i2, j2), i1, j1);
 		set(tmp, i2, j2);
 	}
 

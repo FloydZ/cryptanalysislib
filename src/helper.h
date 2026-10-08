@@ -165,7 +165,9 @@ static void translate_level(uint32_t *lower,
 
 	// we __MUST__ check this after the 'if' clause,
 	// because otherwise this would catch the -1 test case
-	assert(level <= level_translation_array.size() - 1u);
+	// NOTE: `level + 1` is read below. Was `level <= size - 1`, which
+	// 	allowed reading one past the end.
+	assert(level + 1u < level_translation_array.size());
 
 	*lower = level_translation_array[level];
 	*upper = level_translation_array[level + 1u];

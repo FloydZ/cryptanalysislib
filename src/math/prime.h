@@ -122,11 +122,16 @@ constexpr static inline bool is_prime(const size_t n) noexcept {
 }
 
 /// \param n base number from which the previous prime will be computed
-/// \return the previous prime <= n
+/// \return the previous prime <= n, or 0 if there is none (n < 2)
 [[nodiscard]] constexpr static inline size_t prev_prime(const size_t n) noexcept {
 	// some safty
 	if (n >= 18361375334787046697ull) {
 		return 18361375334787046697ull;
+	}
+
+	// NOTE: there is no prime <= 1 (prev_prime(1) used to return 1)
+	if (n < 2) {
+		return 0;
 	}
 
 	if (n <= 3) {

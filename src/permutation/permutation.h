@@ -6,6 +6,7 @@
 #include <cassert>
 
 #include "helper.h"
+#include "memory/memory.h"
 
 class PermutationConfig {
     /// TODO
@@ -30,6 +31,42 @@ public:
 		for (uint32_t i = 0; i < length; ++i) {
 			this->values[i] = i;
 		}
+	}
+
+	// NOTE: owns `values`. Before, the implicit copies shared the buffer, so
+	// 	it was freed twice.
+	Permutation(const Permutation &other) noexcept : Permutation(other.length) {
+		cryptanalysislib::memcpy(values, other.values, length);
+	}
+
+	Permutation(Permutation &&other) noexcept :
+	    values(other.values), length(other.length) {
+		other.values = nullptr;
+		other.length = 0;
+	}
+
+	Permutation &operator=(const Permutation &other) noexcept {
+		if (this != &other) {
+			if (length != other.length) {
+				free(values);
+				values = (uint32_t *)malloc(sizeof(uint32_t) * other.length);
+				assert(values);
+				length = other.length;
+			}
+			cryptanalysislib::memcpy(values, other.values, length);
+		}
+		return *this;
+	}
+
+	Permutation &operator=(Permutation &&other) noexcept {
+		if (this != &other) {
+			free(values);
+			values = other.values;
+			length = other.length;
+			other.values = nullptr;
+			other.length = 0;
+		}
+		return *this;
 	}
 
     /// 

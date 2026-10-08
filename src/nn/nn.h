@@ -278,7 +278,10 @@ public:
 	void generate_special_instance(bool insert_sol = true,
 								   bool create_zero = true) noexcept {
 		if (insert_sol && !create_zero) {
+			// NOTE: `generate_random_instance` allocates the lists. Before, they
+			// 	were allocated a second time below, i.e. leaked.
 			generate_random_instance();
+			return;
 		}
 
 		constexpr size_t list_size = (ELEMENT_NR_LIMBS * LIST_SIZE * sizeof(T));
@@ -560,12 +563,71 @@ public:
 			constexpr uint64x4_t avx_nn_weight64 = uint64x4_t::set1(dk + NN_LOWER + epsilon);
 			constexpr uint64x4_t avx_nn_weight_lower64 = uint64x4_t::set1(dk - epsilon);
 
-			const uint64x4_t lt_mask = uint64x4_t::gt_(avx_nn_weight_lower64, tmp);
+			// NOTE: `tmp > lower`, as in `compare_nn_on32`. Was `lower > tmp`.
+			const uint64x4_t lt_mask = uint64x4_t::gt_(tmp, avx_nn_weight_lower64);
 			const uint64x4_t gt_mask = uint64x4_t::gt_(avx_nn_weight64, tmp);
 			return uint64x4_t::move(lt_mask & gt_mask);
 		}
 
         return 0;
+	}
+
+	/// scalar version of `compare_nn_on32` / `compare_nn_on64`
+	/// \param x the limb xor the random value
+	/// \return true if the masked limb `x` fulfills the NN condition
+	template<typename LT>
+	[[nodiscard]] constexpr inline bool compare_nn_scalar(LT x) const noexcept {
+		static_assert((sizeof(LT) == 4) || (sizeof(LT) == 8));
+		constexpr uint32_t bits = sizeof(LT) * 8u;
+		if constexpr (k < bits) { x &= LT((LT(1) << k) - 1u); }
+		const uint32_t wt = popcount::popcount(x);
+
+		if constexpr (NN_EQUAL) { return wt == dk; }
+		if constexpr (NN_LOWER) { return wt < dk + NN_LOWER; }
+		if constexpr (NN_BOUNDS) { return (wt > dk - epsilon) && (wt < dk + NN_LOWER + epsilon); }
+		return false;
+	}
+
+	/// scalar tail of the `simd_sort_nn_on*` functions: moves the elements in
+	/// `L[i, e1)`, whose limb `limb` (of type `LT`) fulfills the NN condition
+	/// with `z`, to `L + ctr`.
+	/// \return the new number of elements in the front of `L`
+	template<const uint32_t limb, typename LT>
+	inline size_t simd_sort_nn_tail(size_t i,
+	                                const size_t e1,
+	                                const LT z,
+	                                Element *__restrict__ L,
+	                                size_t ctr) const noexcept {
+		for (; i < e1; ++i) {
+			const LT x = ((const LT *) L[i])[limb];
+			if (compare_nn_scalar<LT>(x ^ z)) {
+				std::swap(L[ctr], L[i]);
+				ctr += 1;
+			}
+		}
+		return ctr;
+	}
+
+	/// same as `simd_sort_nn_tail`, but copies the elements transposed into
+	/// the bucket `B` (see `swap_ctz_rearrange`)
+	template<const uint32_t limb, const uint32_t bucket_size, typename LT>
+	inline size_t simd_sort_nn_tail_rearrange(size_t i,
+	                                          const size_t e1,
+	                                          const LT z,
+	                                          const Element *__restrict__ L,
+	                                          T *__restrict__ B,
+	                                          size_t ctr) const noexcept {
+		for (; i < e1; ++i) {
+			const LT x = ((const LT *) L[i])[limb];
+			if (compare_nn_scalar<LT>(x ^ z)) {
+				assert(ctr < bucket_size);
+				for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) {
+					B[ctr + j * bucket_size] = L[i][j];
+				}
+				ctr += 1;
+			}
+		}
+		return ctr;
 	}
 
 	/// compares the limbs from the given pointer on.
@@ -608,6 +670,25 @@ public:
 		}
 	}
 
+
+	/// compares all pairs in [s1, e1) x [s2, e2) element wise. Used for the
+	/// tails of the SIMD bruteforce functions, which only process full blocks.
+	/// \param s1 start index of list 1
+	/// \param e1 end index of list 1
+	/// \param s2 start index of list 2
+	/// \param e2 end index of list 2
+	void bruteforce_range(const size_t s1,
+	                      const size_t e1,
+	                      const size_t s2,
+	                      const size_t e2) noexcept {
+		for (size_t i = s1; i < e1; i++) {
+			for (size_t j = s2; j < e2; j++) {
+				if (compare_u64_ptr(L1[i], L2[j])) {
+					found_solution(i, j);
+				}
+			}
+		}
+	}
 
 	/// mother of all bruteforce algorithms. This is a selector function,
 	/// which tries to select heuristically the best subroutine
@@ -805,7 +886,11 @@ public:
 		auto *ptr = (Element *) (((uint8_t *) L) + limb * 4);
 		Element *org_ptr = L;
 
-		for (size_t i = s1; i < (e1 + 7) / 8; i++, ptr += 8, org_ptr += 8) {
+		// NOTE: only full blocks of 8, the tail is done by `simd_sort_nn_tail`.
+		// 	Before, `(e1 + 7) / 8` blocks were processed, i.e. up to 7
+		// 	elements past `e1` were read and possibly moved into the output.
+		size_t i = s1;
+		for (; i + 8 <= e1; i += 8, ptr += 8, org_ptr += 8) {
 			const uint32x8_t ptr_tmp = uint32x8_t::template gather<8>(ptr, offset);
 			uint32x8_t tmp = ptr_tmp ^ z256;
 			if constexpr (k < 32) { tmp &= SIMD_NN_K_MASK32; }
@@ -821,7 +906,7 @@ public:
 			}
 		}
 
-		return ctr;
+		return simd_sort_nn_tail<limb, uint32_t>(i, e1, z, L, ctr);
 	}
 
 	///
@@ -890,8 +975,11 @@ public:
 		}
 
 		// tail work
+		// NOTE: full blocks of 8 only, the rest is done by the scalar tail.
+		// 	Before, `i + 8 < e1 + 7` read up to 7 elements past `e1` and
+		// 	skipped the last element if exactly one was left.
 		// #pragma unroll 4
-		for (; i + 8 < e1 + 7; i += 8, ptr += 8, org_ptr += 8) {
+		for (; i + 8 <= e1; i += 8, ptr += 8, org_ptr += 8) {
 			const uint32x8_t ptr_tmp = uint32x8_t::gather<8>(ptr + 0, offset);
 			uint32x8_t tmp = ptr_tmp ^ z256;
 			if constexpr (k < 32) { tmp &= SIMD_NN_K_MASK32; }
@@ -908,7 +996,7 @@ public:
 			}
 		}
 
-		return ctr;
+		return simd_sort_nn_tail<limb, uint32_t>(i, e1, z, L, ctr);
 	}
 
 	/// NOTE: assumes T=uint64
@@ -975,8 +1063,11 @@ public:
 		}
 
 		// tail work
+		// NOTE: full blocks of 8 only, the rest is done by the scalar tail.
+		// 	Before, `i + 8 < e1 + 7` read up to 7 elements past `e1` and
+		// 	skipped the last element if exactly one was left.
 		// #pragma unroll 4
-		for (; i + 8 < e1 + 7; i += 8, ptr += 8, org_ptr += 8) {
+		for (; i + 8 <= e1; i += 8, ptr += 8, org_ptr += 8) {
 			const uint32x8_t ptr_tmp = uint32x8_t::gather<8>(ptr + 0, offset);
 			uint32x8_t tmp = ptr_tmp ^ z256;
 			if constexpr (k < 32) { tmp &= SIMD_NN_K_MASK32; }
@@ -993,7 +1084,7 @@ public:
 			}
 		}
 
-		return ctr;
+		return simd_sort_nn_tail_rearrange<limb, bucket_size, uint32_t>(i, e1, z, L, B, ctr);
 	}
 
 	/// NOTE: assumes T=uint64
@@ -1025,7 +1116,10 @@ public:
 		Element *org_ptr = L;
 
 		// #pragma unroll 4
-		for (; i < (e1 + 3) / 4; i++, ptr += 4, org_ptr += 4) {
+		// NOTE: full blocks of 4 only (`i` counts elements), the rest is done by
+		// 	the scalar tail. Before, `i < (e1 + 3) / 4` compared an element
+		// 	index with a number of blocks: the tail was skipped or read past `e1`.
+		for (; i + 4 <= e1; i += 4, ptr += 4, org_ptr += 4) {
 			const uint64x4_t ptr_tmp = uint64x4_t::template gather<8>(ptr, offset);
 			uint64x4_t tmp = ptr_tmp ^ z256;
 			if constexpr (k < 64) { tmp &= SIMD_NN_K_MASK64; }
@@ -1040,7 +1134,7 @@ public:
 				ctr += swap<4>(wt, L + ctr, org_ptr);
 			}
 		}
-		return ctr;
+		return simd_sort_nn_tail<limb, uint64_t>(i, e1, z, L, ctr);
 	}
 
 
@@ -1136,12 +1230,16 @@ public:
 		}
 
 		// #pragma unroll 4
-		for (; i < (e1 + 3) / 4; i++, ptr += 4, org_ptr += 4) {
+		// NOTE: full blocks of 4 only (`i` counts elements), the rest is done by
+		// 	the scalar tail. Before, `i < (e1 + 3) / 4` compared an element
+		// 	index with a number of blocks: the tail was skipped or read past `e1`.
+		for (; i + 4 <= e1; i += 4, ptr += 4, org_ptr += 4) {
 			uint64x4_t ptr_tmp = uint64x4_t::template gather<8>(ptr, offset);
 			ptr_tmp ^= z256;
 			if constexpr (k < 64) { ptr_tmp &= SIMD_NN_K_MASK64; }
 			const auto tmp_pop = uint64x4_t::popcnt(ptr_tmp);
-			const uint32_t wt = compare_nn_on64(tmp_pop) << 28u;
+			// NOTE: was `<< 28u`, which selected the elements 28-31 in `swap_ctz`
+			const uint32_t wt = compare_nn_on64(tmp_pop);
 			assert(wt < (1u << 4u));
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
 			// we need to swap the second (0 indexed) uint64_t from L + ctr with the first element from L + i.
@@ -1151,7 +1249,7 @@ public:
 			}
 		}
 
-		return ctr;
+		return simd_sort_nn_tail<limb, uint64_t>(i, e1, z, L, ctr);
 	}
 
 	/// NOTE: assumes T=uint64
@@ -1251,12 +1349,16 @@ public:
 		}
 
 		// #pragma unroll 4
-		for (; i < (e1 + 3) / 4; i++, ptr += 4, org_ptr += 4) {
+		// NOTE: full blocks of 4 only (`i` counts elements), the rest is done by
+		// 	the scalar tail. Before, `i < (e1 + 3) / 4` compared an element
+		// 	index with a number of blocks: the tail was skipped or read past `e1`.
+		for (; i + 4 <= e1; i += 4, ptr += 4, org_ptr += 4) {
 			uint64x4_t ptr_tmp = uint64x4_t::template gather<8>(ptr, offset);
 			ptr_tmp ^= z256;
 			if constexpr (k < 64) { ptr_tmp &= SIMD_NN_K_MASK64; }
 			const uint64x4_t tmp_pop = uint64x4_t::popcnt(ptr_tmp);
-			const int wt = compare_nn_on64(tmp_pop) << 28u;
+			// NOTE: was `<< 28u`, which selected the elements 28-31
+			const uint32_t wt = compare_nn_on64(tmp_pop);
 			assert(wt < 1u << 4u);
 			// now `wt` contains the incises of matches. Meaning if bit 1 in `wt` is set (and bit 0 not),
 			// we need to swap the second (0 indexed) uint64_t from L + ctr with the first element from L + i.
@@ -1266,13 +1368,15 @@ public:
 			}
 		}
 
-		return ctr;
+		return simd_sort_nn_tail_rearrange<limb, bucket_size, uint64_t>(i, e1, z, L, B, ctr);
 	}
 
 	/// NOTE: assumes T=uint64
 	/// NOTE: only matches weight dk on uint32_t
 	/// NOTE: dont call this function at first.
-	/// NOTE: the current implementation will overflow the given e1, e2 in multiples of u*4
+	/// NOTE: the full blocks are done with SIMD, the rest of both lists by the
+	/// 	scalar tail. Before, the blocks were rounded up (over-reading the
+	/// 	shorter list) and the rest of the longer list was skipped.
 	/// NOTE: make sure that `new_e1` and `new_e2` are zero
 	/// \tparam limb current limb
 	/// \tparam u number of checks to unroll, <= 4
@@ -1314,7 +1418,7 @@ public:
 		Element *org_ptr_L2 = L2;
 
 		constexpr uint32_t off = 8 * u;
-		const size_t min_e = (std::min(e1, e2) + off - 1);
+		const size_t min_e = e1 < e2 ? e1 : e2;
 		for (; i + off <= min_e; i += off, ptr_L1 += off, org_ptr_L1 += off,
 										   ptr_L2 += off, org_ptr_L2 += off) {
 			uint64_t wt_L1 = 0, wt_L2 = 0;
@@ -1372,12 +1476,17 @@ public:
 		//		new_e2 += swap<8>(wt, L2 + new_e2, org_ptr_L1);
 		//	}
 		//}
+
+		new_e1 = simd_sort_nn_tail<limb, uint32_t>(i, e1, z, L1, new_e1);
+		new_e2 = simd_sort_nn_tail<limb, uint32_t>(i, e2, z, L2, new_e2);
 	}
 
 	/// NOTE: assumes T=uint64
 	/// NOTE: only matches weight dk on uint64_t
 	/// NOTE: dont call this function at first.
-	/// NOTE: the current implementation will overflow the given e1, e2 in multiples of u*4
+	/// NOTE: the full blocks are done with SIMD, the rest of both lists by the
+	/// 	scalar tail. Before, the blocks were rounded up (over-reading the
+	/// 	shorter list) and the rest of the longer list was skipped.
 	/// NOTE: make sure that `new_e1` and `new_e2` are zero
 	/// \tparam limb current limb
 	/// \tparam u number of checks to unroll
@@ -1416,7 +1525,7 @@ public:
 		auto *ptr_L2 = (Element *) (((uint8_t *) L2) + limb * 8);
 		Element *org_ptr_L2 = L2;
 
-		const size_t min_e = (std::min(e1, e2) + 4 * u - 1);
+		const size_t min_e = e1 < e2 ? e1 : e2;
 		for (; i + (4*u) <= min_e; i+=(4*u), ptr_L1+=(4*u), org_ptr_L1+=(4*u),
 		                             ptr_L2+=(4*u), org_ptr_L2+=(4*u)) {
 			uint32_t wt_L1 = 0, wt_L2 = 0;
@@ -1446,6 +1555,9 @@ public:
 				new_e2 += swap_ctz(wt_L2, L2 + new_e2, org_ptr_L2);
 			}
 		}
+
+		new_e1 = simd_sort_nn_tail<limb, uint64_t>(i, e1, z, L1, new_e1);
+		new_e2 = simd_sort_nn_tail<limb, uint64_t>(i, e2, z, L2, new_e2);
 	}
 
 
@@ -1998,31 +2110,41 @@ public:
 	/// \param i found indext
 	/// \param j found index
 	template<const uint32_t u, const uint32_t v>
-	void bruteforce_simd_32_2_uxv_helper(uint32_t mask,
+	void bruteforce_simd_32_2_uxv_helper(uint64_t mask,
 	                                     const uint8_t *__restrict__ m1,
 	                                     const uint32_t round,
 	                                     const size_t i,
 	                                     const size_t j) noexcept {
 		while (mask > 0) {
-			const uint32_t ctz = __builtin_ctz(mask);
+			// NOTE: 64 bit, `u * v` can be up to 64
+			const uint32_t ctz = __builtin_ctzll(mask);
 
+			// NOTE: `m1` is indexed `f1 * v + f2`. Was `ctz % u`, i.e. only
+			// 	correct for `u == v`.
 			const uint32_t test_i = ctz / v;
-			const uint32_t test_j = ctz % u;
+			const uint32_t test_j = ctz % v;
 
-			const uint32_t inner_i2 = __builtin_ctz(m1[ctz]);
-			const uint32_t inner_j2 = inner_i2;
+			// NOTE: every lane of `m1[ctz]` is a candidate. Before, only the
+			// 	lowest set lane was checked, i.e. two solutions in the same
+			// 	pair of 8-blocks at the same rotation were reported as one.
+			uint32_t lanes = m1[ctz];
+			while (lanes) {
+				const uint32_t inner_i2 = __builtin_ctz(lanes);
+				const uint32_t inner_j2 = inner_i2;
 
-			const int32_t off_l = test_i * 8 + inner_i2;
-			const int32_t off_r = test_j * 8 + ((8 + inner_j2 - round) % 8);
+				const int32_t off_l = test_i * 8 + inner_i2;
+				const int32_t off_r = test_j * 8 + ((8 + inner_j2 - round) % 8);
 
+				const T *test_tl = ((T *) L1) + i * 2 + off_l * 2;
+				const T *test_tr = ((T *) L2) + j * 2 + off_r * 2;
+				if (compare_u64_ptr<0>(test_tl, test_tr)) {
+					found_solution(i + off_l, j + off_r);
+				}
 
-			const T *test_tl = ((T *) L1) + i * 2 + off_l * 2;
-			const T *test_tr = ((T *) L2) + j * 2 + off_r * 2;
-			if (compare_u64_ptr<0>(test_tl, test_tr)) {
-				found_solution(i + off_l, j + off_r);
+				lanes &= lanes - 1u;
 			}
 
-			mask ^= 1u << ctz;
+			mask ^= 1ull << ctz;
 		}
 	}
 
@@ -2058,7 +2180,7 @@ public:
 		                 ptr_inner_ctr_r = 8 * 4;
 
 		if (((e1-s1) < ptr_ctr_l) || ((e2-s2) < ptr_ctr_r)) {
-			return bruteforce_128(e1, e2);
+			return bruteforce_range(s1, e1, s2, e2);
 		}
 
 		/// container for the unrolling
@@ -2072,8 +2194,24 @@ public:
 		/// the aligned load would read uninitialized memory
 		alignas(32) uint8_t m1[roundToAligned<32>(u * v)] = {0};
 
-		auto *ptr_l = (uint32_t *) L1;
-		for (size_t i = s1; (i + ptr_ctr_l) <= (s1 + e1); i += ptr_ctr_l, ptr_l += ptr_ctr_l * 4) {
+		/// bit `x` is set <=> `m1[x] != 0`
+		/// NOTE: reads all of `m1`. Before, only the first 32 bytes were
+		/// 	checked, i.e. for `u * v > 32` solutions were lost.
+		const auto nonzero = [&m1, &zero]() noexcept -> uint64_t {
+			uint64_t ret = uint32_t(~(uint8x32_t::load(m1) == zero));
+			if constexpr (u * v > 32) {
+				ret |= uint64_t(uint32_t(~(uint8x32_t::load(m1 + 32) == zero))) << 32u;
+			}
+			return ret;
+		};
+
+		// NOTE: only full blocks of `u*8 x v*8` elements, the tails are
+		// 	compared below. Before, the tails were skipped, and the loops ended
+		// 	at `s + e` and started at `L1`/`L2` instead of `L1 + s1`/`L2 + s2`.
+		const size_t ie = s1 + ((e1 - s1) / ptr_ctr_l) * ptr_ctr_l;
+		const size_t je = s2 + ((e2 - s2) / ptr_ctr_r) * ptr_ctr_r;
+		auto *ptr_l = (uint32_t *) (L1 + s1);
+		for (size_t i = s1; i < ie; i += ptr_ctr_l, ptr_l += ptr_ctr_l * 4) {
 			// load the left list
 			#pragma unroll
 			for (uint32_t s = 0; s < u; ++s) {
@@ -2081,8 +2219,8 @@ public:
 				lii_2[s] = uint32x8_t::template gather<4>(ptr_l + s * ptr_inner_ctr_l + 1, loadr);
 			}
 
-			auto *ptr_r = (uint32_t *) L2;
-			for (size_t j = s2; (j + ptr_ctr_r) <= (s2 + e2); j += ptr_ctr_r, ptr_r += ptr_ctr_r * 4) {
+			auto *ptr_r = (uint32_t *) (L2 + s2);
+			for (size_t j = s2; j < je; j += ptr_ctr_r, ptr_r += ptr_ctr_r * 4) {
 				// load the right list
 				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
@@ -2107,12 +2245,12 @@ public:
 					for (uint32_t f1 = 0; f1 < u; ++f1) {
 						#pragma unroll
 						for (uint32_t f2 = 0; f2 < v; ++f2) {
-							m1[f1 * u + f2] = compare_256_32(lii_1[f1], rii_1[f2]);
+							m1[f1 * v + f2] = compare_256_32(lii_1[f1], rii_1[f2]);
 						}
 					}
 
 					// early exit
-					uint32_t mask = ~(uint8x32_t::load(m1) == zero);
+					uint64_t mask = nonzero();
 					if (unlikely(mask == 0)) {
 						continue;
 					}
@@ -2122,13 +2260,13 @@ public:
 					for (uint32_t f1 = 0; f1 < u; ++f1) {
 						#pragma unroll
 						for (uint32_t f2 = 0; f2 < v; ++f2) {
-							m1[f1 * u + f2] &= compare_256_32(lii_2[f1], rii_2[f2]);
+							m1[f1 * v + f2] &= compare_256_32(lii_2[f1], rii_2[f2]);
 						}
 					}
 
 
 					// early exit from the second limb computations
-					mask = ~(uint8x32_t::load(m1) == zero);
+					mask = nonzero();
 					if (mask == 0) {
 						continue;
 					}
@@ -2138,6 +2276,11 @@ public:
 				}// 8x8 shuffle
 			}    // j: enumerate right side
 		}        // i: enumerate left side
+
+		// tails: the remaining rows against everything, the remaining columns
+		// against the full blocks of rows
+		bruteforce_range(ie, e1, s2, e2);
+		bruteforce_range(s1, ie, je, e2);
 	}            // end func
 
 	/// bruteforce the two lists between the given start and end indices.
@@ -2663,7 +2806,13 @@ public:
 		assert(dk < 32);
 
 		/// NOTE is already aligned
-		T *ptr_l = (T *) L1;
+		// NOTE: only full blocks of 16 x 16 elements, the tails are compared
+		// 	below. Before, the last block was processed in full, i.e. read
+		// 	past `e1`/`e2` (and `LIST_SIZE`), `j` started at `s1` and the
+		// 	pointers ignored `s1`/`s2`.
+		const size_t ie = s1 + ((e1 - s1) / 16) * 16;
+		const size_t je = s2 + ((e2 - s2) / 16) * 16;
+		T *ptr_l = (T *) (L1 + s1);
 
 		/// difference of the memory location in the right list
 		const cryptanalysislib::_uint32x4_t loadr1 = cryptanalysislib::_uint64x2_t::setr((4ull << 32u), (8ul) | (12ull << 32u));
@@ -2672,17 +2821,17 @@ public:
 		/// allowed weight to match on
 		const uint8x32_t zero = uint8x32_t::set1(0);
 
-		for (size_t i = s1; i < s1 + e1; i += 16, ptr_l += 64) {
+		for (size_t i = s1; i < ie; i += 16, ptr_l += 64) {
 			const uint64x4_t l1 = uint64x4_t::template gather<8>((const long long int *) (ptr_l + 0), loadr1);
 			const uint64x4_t l2 = uint64x4_t::template gather<8>((const long long int *) (ptr_l + 16), loadr1);
 			const uint64x4_t l3 = uint64x4_t::template gather<8>((const long long int *) (ptr_l + 32), loadr1);
 			const uint64x4_t l4 = uint64x4_t::template gather<8>((const long long int *) (ptr_l + 48), loadr1);
 
 			/// reset right list pointer
-			T *ptr_r = (T *) L2;
+			T *ptr_r = (T *) (L2 + s2);
 
 #pragma unroll 4
-			for (size_t j = s1; j < s2 + e2; j += 16, ptr_r += 64) {
+			for (size_t j = s2; j < je; j += 16, ptr_r += 64) {
 				uint64x4_t r1 = uint64x4_t::template gather<8>((const long long int *) (ptr_r + 0), loadr1);
 				uint64x4_t r2 = uint64x4_t::template gather<8>((const long long int *) (ptr_r + 16), loadr1);
 				uint64x4_t r3 = uint64x4_t::template gather<8>((const long long int *) (ptr_r + 32), loadr1);
@@ -2697,6 +2846,10 @@ public:
 				if (m1s2 != 0) { bruteforce_avx2_256_64_4x4_helper<32>(m1s2, m1s, ptr_l, ptr_r, i, j); }
 			}
 		}
+
+		// tails
+		bruteforce_range(ie, e1, s2, e2);
+		bruteforce_range(s1, ie, je, e2);
 	}
 
 	/// \tparam off

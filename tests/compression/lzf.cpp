@@ -26,6 +26,22 @@ TEST(lzf, simple) {
 	EXPECT_EQ(memcmp(text, text2, sizeof(text)), 0);
 }
 
+TEST(lzf, small_sizes) {
+	// exact size inputs, so ASan catches reads past the input
+	for (uint32_t n = 1; n < 40; n++) {
+		uint8_t *text = (uint8_t *)malloc(n);
+		for (uint32_t i = 0; i < n; i++) { text[i] = (i & 4) ? 'a' : uint8_t(i); }
+		unsigned char buf[128];
+		uint8_t text2[40];
+
+		const uint32_t new_size = lzf_compress(text, n, buf, sizeof(buf));
+		EXPECT_GT(new_size, 0u);
+		EXPECT_EQ(n, lzf_decompress(buf, new_size, text2, n));
+		EXPECT_EQ(0, memcmp(text, text2, n));
+		free(text);
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

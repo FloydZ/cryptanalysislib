@@ -76,24 +76,25 @@ private:
 			return c;
 		}
 
-		/// not so trivial case
-		constexpr uint32_t lower = 0, upper = hprime/qbits;
-		constexpr T mask = (~((T(1ull) << lower) - 1ull)) & ((T(1ull) << upper) - 1ull);
-		constexpr T mask_q = (1ull << qbits) - 1ull;
-		constexpr uint32_t loops = (hprime/qbits) >> 1ull;
+		/// not so trivial case: the digits in the bits [lprime, hprime)
+		/// (`qbits` each) are interpreted as a number in base q,
+		/// i.e. digit `i` gets the weight q**i.
+		/// NOTE: before, `hprime/qbits` (a digit count) was used as a bit
+		/// 	position, `lprime` was ignored and only half of the digits
+		/// 	were read, so for q=3 the wrong digits were hashed.
+		constexpr uint32_t digits = (hprime - lprime) / qbits;
+		constexpr T mask_q = (T(1ull) << qbits) - 1ull;
 
-		uint64_t ctr = q;
-		T tmp = (a & mask) >> lower;
-		T ret = tmp & mask_q;
+		T tmp = a >> lprime;
+		R ret = 0, ctr = 1;
 
 		#pragma unroll
-		for (uint32_t i = 1u; i < loops; ++i) {
-			tmp >>= qbits;
+		for (uint32_t i = 0u; i < digits; ++i) {
 			ret += ctr * (tmp & mask_q);
+			tmp >>= qbits;
 			ctr *= q;
 		}
 
-		// NOTE autocast
 		return ret;
 	}
 
@@ -117,6 +118,7 @@ private:
 
 		static_assert(llimb <= hlimb);
 		static_assert((hlimb - llimb) <= 1u); // note could be extended
+		static_assert((hq - lq) <= bits);
 
 		constexpr T lmask = T(-1ull) << lprime;
 		constexpr T hmask = T(-1ull) >> ((bits - hprime) % bits);
@@ -125,7 +127,10 @@ private:
 		// on seperate limbs
 		T data = (a[llimb] & lmask) >> lprime;
 		data ^= (a[hlimb] & hmask) << ((bits - lprime) % bits);
-		return data;
+
+		// NOTE: the bits [lq, hq) are now in [0, hq - lq). Before, they were
+		// 	returned as is, i.e. not in base q like in the single limb case.
+		return compute<0, hq - lq>(data);
 	}
 
 	R __data;
@@ -427,8 +432,11 @@ template<typename L, const uint32_t l, const uint32_t h>
 class HashD {
 public:
 	constexpr inline size_t operator()(const L &k) const noexcept {
-		constexpr __uint128_t mask1 = ~((1u << l) - 1u);
-		constexpr __uint128_t mask2 = (1u << h) - 1u;
+		static_assert(l < h);
+		static_assert(h <= 128u);
+		// NOTE: was `1u << h`, which is a 32 bit shift (UB for h >= 32)
+		constexpr __uint128_t mask1 = ~((__uint128_t(1) << l) - 1u);
+		constexpr __uint128_t mask2 = h == 128u ? __uint128_t(-1) : ((__uint128_t(1) << h) - 1u);
 		constexpr __uint128_t mask = mask1 & mask2;
 		return ((*(__uint128_t *) k.ptr()) & mask) >> l;
 	}
@@ -445,61 +453,46 @@ public:
 /// \return				v on the coordinates between [k_lower] and [k_higher]
 template<typename T, uint32_t k_lower, uint32_t k_higher, uint32_t flip = 0>
 constexpr static inline T extract(const T *v) noexcept {
-	static_assert(k_lower < k_higher);
-	static_assert(k_higher - k_lower <= 128u);
 	constexpr uint32_t BITSIZE = sizeof(T) * 8u;
+	static_assert(k_lower < k_higher);
+	static_assert(BITSIZE <= 64u);
+	// NOTE: was `<= 128`, but the result is a `T`, wider ranges were truncated
+	static_assert(k_higher - k_lower <= BITSIZE);
+	constexpr uint32_t width = k_higher - k_lower;
 	constexpr uint32_t llimb = k_lower / BITSIZE;
 	constexpr uint32_t hlimb = (k_higher - 1) / BITSIZE;
 	constexpr uint32_t l = k_lower % BITSIZE;
-	constexpr uint32_t h = k_higher % BITSIZE;
+	constexpr __uint128_t mask = (__uint128_t(1) << width) - 1u;
 
-	constexpr T mask1 = ~((T(1ull) << l) - 1ull);
-	constexpr T mask2 = h == uint32_t(0) ? T(-1ull) : ((T(1u) << h) - 1ull);
+	// NOTE: before, the bits above `k_higher` of the upper limb were not
+	// 	masked out, and the 3 limb case shifted by `l` twice
+	__uint128_t data = v[llimb];
+	if constexpr (llimb != hlimb) {
+		data ^= __uint128_t(v[hlimb]) << BITSIZE;
+	}
 
-	if constexpr (llimb == hlimb) {
-		constexpr T mask = mask1 & mask2;
-		return (v[llimb] & mask) >> l;
+	const T ret = T((data >> l) & mask);
+	if constexpr (flip == 0) {
+		return ret;
 	} else {
-		__uint128_t data;
+		static_assert(k_lower < flip);
+		static_assert(flip < k_higher);
 
-		if constexpr (llimb == hlimb - 1) {
-			// simple case
-			T dl = v[llimb] & mask1;
-			T dh = v[hlimb];
-			data = dl ^ (__uint128_t(dh) << BITSIZE);
-		} else {
-			// hard case
-			data = *(__uint128_t *) (&v[llimb]);
-			data >>= l;
-			data ^= (__uint128_t(v[hlimb]) << (128 - l));
-		}
+		constexpr uint32_t fshift1 = flip - k_lower;
+		constexpr uint32_t fshift2 = k_higher - flip;
 
-		if constexpr (flip == 0) {
-			return data >> l;
-		} else {
-			static_assert(k_lower < flip);
-			static_assert(flip < k_higher);
+		// is moment:
+		// k_lower          flip                        k_higher
+		// [a                b|c                             d]
+		// after this transformation:
+		// k_higher                     flip            k+lower
+		// [c                            d|a                 b]
+		// NOTE: before, the flip was ignored in the single limb case, and
+		// 	applied to the unshifted and unmasked bits otherwise
+		constexpr T fmask = T((T(1ull) << fshift1) - 1ull);// low part
 
-			constexpr uint32_t fshift1 = flip - k_lower;
-			constexpr uint32_t fshift2 = k_higher - flip;
-			constexpr uint32_t f = fshift1;
-
-			// is moment:
-			// k_lower          flip                        k_higher
-			// [a                b|c                             d]
-			// after this transformation:
-			// k_higher                     flip            k+lower
-			// [c                            d|a                 b]
-			constexpr T fmask1 = ~((T(1ull) << f) - 1ull);// high part
-			constexpr T fmask2 = (T(1ull) << f) - 1ull;   // low part
-
-			// move: high -> low ,low -> high
-			T data2 = data >> fshift1;
-			T data3 = (data & fmask2) << fshift2;
-			T data4 = data2 ^ data3;
-
-			return data4;
-		}
+		// move: high -> low ,low -> high
+		return T((ret >> fshift1) ^ (T(ret & fmask) << fshift2));
 	}
 }
 

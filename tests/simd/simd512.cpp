@@ -181,9 +181,16 @@ TEST(uint8x64_t, popcnt) {
 	}
 
 
+	// NOTE: leading zeros of 0b00000100. Was 2, the trailing zeros, which
+	// 	the former implementation computed (now `tzcnt`).
 	auto t3 = uint8x64_t::lzcnt(t1);
 	for (uint32_t i = 0; i < 64; ++i) {
-		EXPECT_EQ(t3.v8[i], 2);
+		EXPECT_EQ(t3.v8[i], 5);
+	}
+
+	auto t4 = uint8x64_t::tzcnt(t1);
+	for (uint32_t i = 0; i < 64; ++i) {
+		EXPECT_EQ(t4.v8[i], 2);
 	}
 }
 

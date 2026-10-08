@@ -138,113 +138,37 @@ public:
 	[[nodiscard]] constexpr inline auto hash() const noexcept {
 		static_assert(l < h);
 		static_assert(h <= length);
-
-		constexpr uint32_t bits = used_bits_per_limb;
-
-		constexpr uint32_t lq = l*qbits;
-		constexpr uint32_t hq = h*qbits;
-		constexpr uint32_t llimb  = l / numbers_per_limb;
-		constexpr uint32_t hlimb  = h / numbers_per_limb;
-		constexpr uint32_t hlimb2 = (h + numbers_per_limb - 1) / numbers_per_limb;
-		constexpr uint32_t lprime = lq % bits;
-		constexpr uint32_t hprime = (hq%bits) == 0 ? bits : hq % bits;
-
-		auto load = [this]() -> __uint128_t{
-			__uint128_t d = __uint128_t(__data[llimb]) >> (lprime % used_bits_per_limb);
-
-			uint32_t shift = used_bits_per_limb - lprime;
-			for (uint32_t i = 1; i < (hlimb2 - llimb); i++) {
-				const auto t1 = __uint128_t(__data[i + llimb]);
-				const auto t2 = t1 << shift;
-				d ^= t2;
-				shift += used_bits_per_limb;
-			}
-			return d;
-		};
-
-		// easy case everything is nicely packed together and in the same limb
-		if constexpr (cryptanalysislib::popcount::popcount(q) == 1u) {
-			if (llimb == hlimb) {
-				constexpr uint64_t mbits = bits%64 == 0 ? -1ull : (1ull << bits) - 1ull;
-				constexpr T diff1 = hprime - lprime;
-				static_assert(diff1 <= bits);
-				constexpr T diff2 = bits - diff1;
-				constexpr T mask = mbits >> diff2;
-				const T b = __data[llimb] >> lprime;
-				const T c = b & mask;
-				return (uint64_t)c;
-			}
-		}
-
-		// now the stupid hard part
-		static_assert(((h-l)*qbits) <= 63);
-
-		// NOTE typecast
-		__uint128_t d1 = load();
-		const uint64_t d = d1;
-
-		constexpr uint32_t s1 = (hq - lq) % 64;
-		constexpr uint32_t s2 = 64u - s1;
-		constexpr uint64_t mask = -1ull >> s2;
-		const uint64_t e = d & mask;
-		return e;
+		static_assert(((h-l)*qbits) <= 64);
+		// NOTE: `l` and `h` are compile time constants, so the loop in
+		// 	`hash(l, h)` is fully unrolled
+		return hash(l, h);
 	}
 
+	/// \param l[in]: lower bound (inclusive)
+	/// \param h[in]: upper bound (exclusive)
+	/// \return the numbers [l, h) packed into `qbits` each, number `l`
+	/// 	in the lowest bits
+	/// NOTE: works for any limb type `T`, the window may span several limbs
 	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
 	                                         const uint32_t h) const noexcept {
 		assert(l < h);
 		assert(h <= length);
-		assert((h-l) <= n);
+		assert(((h-l)*qbits) <= 64);
 
-		constexpr uint32_t bits = used_bits_per_limb;
-
-		const uint32_t lq = l*qbits;
-		const uint32_t hq = h*qbits;
-		const uint32_t llimb  = l / numbers_per_limb;
-		const uint32_t hlimb  = h / numbers_per_limb;
-		const uint32_t hlimb2 = (h + numbers_per_limb - 1) / numbers_per_limb;
-		const uint32_t lprime = lq % bits;
-		const uint32_t hprime = (hq%bits) == 0 ? bits : hq % bits;
-
-		auto load = [llimb, hlimb2, lprime, this]() -> __uint128_t{
-			__uint128_t d = __uint128_t(__data[llimb]) >> (lprime % used_bits_per_limb);
-
-			uint32_t shift = used_bits_per_limb - lprime;
-			for (uint32_t i = 1; i < (hlimb2 - llimb); i++) {
-				  const auto t1 = __uint128_t(__data[i + llimb]);
-				  const auto t2 = t1 << shift;
-				  d ^= t2;
-				  shift += used_bits_per_limb;
-			}
-			return d;
-		};
-
-		// easy case everything is nicely packed together and in the same limb
-		if constexpr (cryptanalysislib::popcount::popcount(q) == 1u) {
-			if (llimb == hlimb) {
-				constexpr uint64_t mbits = bits%64 == 0 ? -1ull : (1ull << bits) - 1ull;
-				const T diff1 = hprime - lprime;
-				assert(diff1 <= bits);
-				const T diff2 = bits - diff1;
-				const T mask = mbits >> diff2;
-				const T b = __data[llimb] >> lprime;
-				const T c = b & mask;
-				return (uint64_t)c;
-			}
+		uint64_t data = 0;
+		uint32_t got = 0;
+		for (uint32_t i = l; i < h;) {
+			const uint32_t off = i % numbers_per_limb;
+			const uint32_t left = h - i;
+			const uint32_t take = (numbers_per_limb - off) < left ? (numbers_per_limb - off) : left;
+			const uint32_t tbits = take * qbits;
+			const uint64_t chunk = uint64_t(__data[i / numbers_per_limb] >> (off * qbits));
+			data |= (tbits == 64u ? chunk : (chunk & ((1ull << tbits) - 1ull))) << got;
+			got += tbits;
+			i += take;
 		}
 
-		// now the stupid hard part
-		assert(((h-l)*qbits) <= 63);
-
-		// NOTE typecast
-		__uint128_t d1 = load();
-		const uint64_t d = d1;
-
-		const uint32_t s1 = (hq - lq) % 64;
-		const uint32_t s2 = 64u - s1;
-		const uint64_t mask = -1ull >> s2;
-		const uint64_t e = d & mask;
-		return e;
+		return data;
 	}
 
 	// simple hash function

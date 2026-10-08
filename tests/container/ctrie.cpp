@@ -108,6 +108,32 @@ TEST(Ctrie, multithreaded_lookup) {
 	}
 }
 
+/// overwrites, removes and concurrent inserts into expanded arrays.
+/// NOTE: before, the count of an array created by an expansion stayed 0, a
+/// 	remove wrapped it around, and the debug check `checkAANode` read past
+/// 	the array.
+TEST(Ctrie, overwrite_remove_reinsert) {
+	CTrie c{};
+	constexpr uint64_t N = 20000;
+	for (uint64_t r = 0; r < 3; r++) {
+		for (uint64_t i = 0; i < N; i++) { c.insert(i, i + r); }
+	}
+	for (uint64_t i = 0; i < N; i++) { EXPECT_EQ(c.lookup(i), i + 2); }
+	for (uint64_t i = 0; i < N; i += 2) { c.remove(i); }
+	for (uint64_t i = 1; i < N; i += 2) { EXPECT_EQ(c.lookup(i), i + 2); }
+
+	std::vector<std::thread> pool(4);
+	for (uint64_t t = 0; t < 4; t++) {
+		pool[t] = std::thread([&c, t]() {
+			for (uint64_t r = 0; r < 2; r++) {
+				for (uint64_t i = 0; i < 5000; i++) { c.insert(N + t * 5000 + i, r); }
+			}
+		});
+	}
+	for (auto &t: pool) { t.join(); }
+	for (uint64_t i = 0; i < 20000; i++) { EXPECT_EQ(c.lookup(N + i), 1u); }
+}
+
 TEST(Ctrie, fast_insert) {
 	CTrie c;
 	EXPECT_EQ(c.fast_lookup(1ul), 0);

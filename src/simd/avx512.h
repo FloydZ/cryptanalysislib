@@ -77,6 +77,31 @@ constexpr static __m512i u64tom512(const uint64_t t[8]) noexcept {
 	return tmp;
 }
 
+/// NOTE: signed overloads, used by the constexpr loads of the signed types
+/// 	(`int8x64_t`, ...), which did not compile before. Each value is
+/// 	converted to unsigned first, so that a negative value is not sign
+/// 	extended into the neighbouring values.
+constexpr static __m512i u8tom512(const int8_t t[64]) noexcept {
+	uint8_t u[64];
+	for (uint32_t i = 0; i < 64; i++) { u[i] = uint8_t(t[i]); }
+	return u8tom512(u);
+}
+constexpr static __m512i u16tom512(const int16_t t[32]) noexcept {
+	uint16_t u[32];
+	for (uint32_t i = 0; i < 32; i++) { u[i] = uint16_t(t[i]); }
+	return u16tom512(u);
+}
+constexpr static __m512i u32tom512(const int32_t t[16]) noexcept {
+	uint32_t u[16];
+	for (uint32_t i = 0; i < 16; i++) { u[i] = uint32_t(t[i]); }
+	return u32tom512(u);
+}
+constexpr static __m512i u64tom512(const int64_t t[8]) noexcept {
+	uint64_t u[8];
+	for (uint32_t i = 0; i < 8; i++) { u[i] = uint64_t(t[i]); }
+	return u64tom512(u);
+}
+
 
 template<const bool __unsigned=true>
 struct Xint8x64_t {
@@ -85,7 +110,7 @@ struct Xint8x64_t {
 	using S = Xint8x64_t;
 	using simd_type = S;
 
-    using V   = std::conditional<__unsigned, __v32qu, __v32qi>::type;
+    using V   = std::conditional<__unsigned, __v64qu, __v64qs>::type;
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -554,10 +579,13 @@ struct Xint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S ror(const S in1,
 												const limb_type in2) noexcept {
-		S out;
-        __m512i mask = _mm512_set1_epi8(-1u << in2);
-        out.v512 = (mask & _mm512_slli_epi16(in1.v512, 8u - in2)) ^ _mm512_srli_epi16(in1.v512, in2);
-		return out;
+		// NOTE: rotate within each byte; the previous version shifted 16-bit
+		// lanes, so bits moved into the neighbouring byte
+		const uint8_t s = in2 % 8u;
+		if (s == 0) {
+			return in1;
+		}
+		return S::or_(S::srli(in1, s), S::slli(in1, 8u - s));
 	}
 
 	/// \param in1
@@ -565,10 +593,12 @@ struct Xint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S rol(const S in1,
 												const limb_type in2) noexcept {
-		S out;
-        __m512i mask = _mm512_set1_epi8((1u << in2) -1u);
-        out.v512 = _mm512_slli_epi16(in1.v512, in2) ^ (_mm512_srli_epi16(in1.v512, 8u-in2) & mask);
-		return out;
+		// NOTE: rotate within each byte (see `ror`)
+		const uint8_t s = in2 % 8u;
+		if (s == 0) {
+			return in1;
+		}
+		return S::or_(S::slli(in1, s), S::srli(in1, 8u - s));
 	}
 
 	/// \param in1
@@ -577,7 +607,7 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S gt_(const S in1,
 												const S in2) noexcept {
 		S ret;
-		ret.v512 = (__m512i) ((__v64qu) in1.v512 > (__v64qu) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 > (V) in2.v512);
 		return ret;
 	}
 
@@ -586,7 +616,7 @@ struct Xint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64_t gt(const S in1,
 													  const S in2) noexcept {
-		__m512i v512 = (__m512i) ((__v64qu) in1.v512 > (__v64qu) in2.v512);
+		__m512i v512 = (__m512i) ((V) in1.v512 > (V) in2.v512);
 		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
 	}
 
@@ -596,7 +626,7 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S ge_(const S in1,
 												const S in2) noexcept {
 		S ret;
-		ret.v512 = (__m512i) ((__v64qu) in1.v512 >= (__v64qu) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 >= (V) in2.v512);
 		return ret;
 	}
 
@@ -605,7 +635,7 @@ struct Xint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64_t ge(const S in1,
 													  const S in2) noexcept {
-		__m512i v512 = (__m512i) ((__v64qu) in1.v512 >= (__v64qu) in2.v512);
+		__m512i v512 = (__m512i) ((V) in1.v512 >= (V) in2.v512);
 		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
 	}
 
@@ -615,7 +645,7 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S lt_(const S in1,
 												const S in2) noexcept {
 		S ret;
-		ret.v512 = (__m512i) ((__v64qu) in1.v512 < (__v64qu) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 < (V) in2.v512);
 		return ret;
 	}
 
@@ -624,7 +654,7 @@ struct Xint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64_t lt(const S in1,
 	                                                  const S in2) noexcept {
-		__m512i v512 = (__m512i) ((__v64qu) in1.v512 < (__v64qu) in2.v512);
+		__m512i v512 = (__m512i) ((V) in1.v512 < (V) in2.v512);
 		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
 	}
 
@@ -634,7 +664,7 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S le_(const S in1,
 												const S in2) noexcept {
 		S ret;
-		ret.v512 = (__m512i) ((__v64qu) in1.v512 <= (__v64qu) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 <= (V) in2.v512);
 		return ret;
 	}
 
@@ -643,7 +673,7 @@ struct Xint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint64_t le(const S in1,
 	                                                  const S in2) noexcept {
-		__m512i v512 = (__m512i) ((__v64qu) in1.v512 <= (__v64qu) in2.v512);
+		__m512i v512 = (__m512i) ((V) in1.v512 <= (V) in2.v512);
 		return (uint64_t)(__mmask64) __builtin_ia32_cvtb2mask512 ((__v64qi)v512);
 	}
 
@@ -692,11 +722,7 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S popcnt(const S in1) noexcept {
 		S ret;
 #ifdef USE_AVX512BITALG
-#ifdef __clang__
-		ret.v512 = (__m512i) __builtin_ia32_vpopcntb_512((__v64qi) in1.v512);
-#else
-  		ret.v512 = (__m512i) __builtin_ia32_vpopcountb_v64qi ((__v64qi)in1.v512);
-#endif
+		ret.v512 = _mm512_popcnt_epi8(in1.v512);
 #else
 		for (uint32_t i = 0; i < S::LIMBS; ++i) {
 			ret.v8[i] = cryptanalysislib::popcount::popcount(in1.v8[i]);
@@ -705,11 +731,40 @@ struct Xint8x64_t {
 		return ret;
 	}
 
-	/// Source:http://0x80.pl/notesen/2023-01-31-avx512-bsf.html
-	/// needs`AVX512VPOPCNTDQ`
+	/// NOTE: the former implementation counted the trailing zeros, it is
+	/// 	now `tzcnt`
+	/// uses `AVX512CD` if available
 	/// \param in1
 	/// \return
+	/// NOTE: the number of leading zeros per byte. Before, `popcnt((x-1) & ~x)`
+	/// 	was computed, i.e. the number of trailing zeros.
 	[[nodiscard]] constexpr static inline S lzcnt(const S in1) noexcept {
+		S ret;
+#ifdef USE_AVX512CD
+		// per byte of each 32 bit lane: lzcnt32(byte) - 24
+		const __m512i mask = _mm512_set1_epi32(0xFF), c24 = _mm512_set1_epi32(24);
+		__m512i r = _mm512_setzero_si512();
+		for (uint32_t k = 0; k < 4; k++) {
+			const __m512i b = _mm512_and_si512(_mm512_srli_epi32(in1.v512, 8 * k), mask);
+			const __m512i lz = _mm512_sub_epi32(_mm512_lzcnt_epi32(b), c24);
+			r = _mm512_or_si512(r, _mm512_slli_epi32(lz, 8 * k));
+		}
+		ret.v512 = r;
+#else
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			const uint8_t x = uint8_t(in1[i]);
+			ret[i] = limb_type(x ? __builtin_clz(x) - 24 : 8);
+		}
+#endif
+		return ret;
+	}
+
+	/// Source:http://0x80.pl/notesen/2023-01-31-avx512-bsf.html
+	/// needs`AVX512VPOPCNTDQ`
+	/// NOTE: the former `lzcnt`
+	/// \param in1
+	/// \return the number of trailing zeros per byte
+	[[nodiscard]] constexpr static inline S tzcnt(const S in1) noexcept {
 		S ret;
 		constexpr S one = S::set1(1);
 		ret = S::sub(in1, one);
@@ -904,7 +959,9 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S permute(const S in,
 	                                                const S perm) noexcept {
 		S ret;
-        ret.v512 = _mm512_permutexvar_epi8(in.v512, perm.v512);
+        // NOTE: `ret[i] = in[perm[i]]`. Was `permutexvar(in, perm)`, i.e. the
+        // 	index and the data argument swapped.
+        ret.v512 = _mm512_permutexvar_epi8(perm.v512, in.v512);
         return ret;
     }
 
@@ -946,25 +1003,40 @@ struct Xint8x64_t {
     /// \param bit_pos[in]: bit pos to test
 	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
                                                            const uint32_t bit_pos) noexcept {
-        const S tmp = S::set1(1u << bit_pos);
-        __mmask64 mm = _mm512_test_epi8_mask(in1, tmp);
+        // NOTE: was `test_epi8_mask(in1, tmp)` (the structs, did not
+        // 	compile) and `1u << bit_pos`
+        const S tmp = S::set1(limb_type(limb_type(1) << bit_pos));
+        __mmask64 mm = _mm512_test_epi8_mask(in1.v512, tmp.v512);
         return Mask<LIMBS>(mm);
     }
 
-    /// TODO not correct
-	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
-        if constexpr (is_unsigned()) {
-            return _mm512_reduce_min_epu32(in1.v512);
-        }
-        return _mm512_reduce_min_epi32(in1.v512);
+    /// horizontal reduction of all lanes with the 128 bit operation `op`
+    template<typename F>
+	[[nodiscard]] constexpr static inline __m128i reduce_lanes(const __m512i v, F op) noexcept {
+		__m128i n = op(op(_mm512_extracti32x4_epi32(v, 0), _mm512_extracti32x4_epi32(v, 1)),
+		               op(_mm512_extracti32x4_epi32(v, 2), _mm512_extracti32x4_epi32(v, 3)));
+		n = op(n, _mm_srli_si128(n, 8));
+		n = op(n, _mm_srli_si128(n, 4));
+		n = op(n, _mm_srli_si128(n, 2));
+		if constexpr (sizeof(limb_type) == 1) { n = op(n, _mm_srli_si128(n, 1)); }
+		return n;
+	}
+
+    /// NOTE: reduces the 8 bit lanes. Was `_mm512_reduce_min_epu32`, i.e.
+    /// 	the minimum of the 32 bit lanes, truncated.
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) {
+        const __m128i n = reduce_lanes(in1.v512, [](const __m128i a, const __m128i b) {
+            if constexpr (is_unsigned()) { return _mm_min_epu8(a, b); } else { return _mm_min_epi8(a, b); }
+        });
+        return limb_type(_mm_extract_epi8(n, 0));
     }
 
-    /// TODO not correct
-	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
-        if constexpr (is_unsigned()) {
-            return _mm512_reduce_max_epu32(in1.v512);
-        }
-        return _mm512_reduce_max_epi32(in1.v512);
+    /// NOTE: see `reduce_min`
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) {
+        const __m128i n = reduce_lanes(in1.v512, [](const __m128i a, const __m128i b) {
+            if constexpr (is_unsigned()) { return _mm_max_epu8(a, b); } else { return _mm_max_epi8(a, b); }
+        });
+        return limb_type(_mm_extract_epi8(n, 0));
     }
 
 	/// \param in
@@ -1019,15 +1091,12 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S min(const S in1,
 	                                            const S in2) noexcept {
 		S ret;
-#ifdef __clang__
-		ret.v512 = (__m512i)__builtin_elementwise_min((__v8du)in1.v512, (__v8du)in2.v512);
-  		//ret.v512 = (__m512i)__builtin_ia32_pminsb512((__v64qi)in1.v512, (__v64qi)in2.v512);
-#else
-  		ret.v512 = (__m512i) __builtin_ia32_pminsb512_mask ((__v64qi)in1.v512,
-						  (__v64qi)in2.v512,
-						  (__v64qi)  __extension__ (__m512i)(__v8di){ 0, 0, 0, 0, 0, 0, 0, 0 },
-						  (__mmask64) -1);
-#endif
+		// NOTE: unsigned/signed 8-bit lanes
+		if constexpr (__unsigned) {
+			ret.v512 = _mm512_min_epu8(in1.v512, in2.v512);
+		} else {
+			ret.v512 = _mm512_min_epi8(in1.v512, in2.v512);
+		}
 		return ret;
 	}
 
@@ -1037,16 +1106,12 @@ struct Xint8x64_t {
 	[[nodiscard]] constexpr static inline S max(const S in1,
 	                                            const S in2) noexcept {
 		S ret;
-#ifdef __clang__
-		ret.v512 = (__m512i)__builtin_elementwise_max((__v8du)in1.v512, (__v8du)in2.v512);
-  		//ret.v512 = (__m512i)__builtin_ia32_pmaxsb512((__v64qi)in1.v512, (__v64qi)in2.v512);
-#else
-  		//ret.v512 = (__m512i) __builtin_ia32_pmaxsb512_mask ((__v64qi)in1.v512,
-		//				  (__v64qi)in2.v512,
-		//				  (__v64qi) __extension__ (__m512i)(__v8di){ 0, 0, 0, 0, 0, 0, 0, 0 },
-		//				  (__mmask64) -1);
-		ret.v512 = _mm512_max_epu8(in1.v512, in2.v512);
-#endif
+		// NOTE: unsigned/signed 8-bit lanes
+		if constexpr (__unsigned) {
+			ret.v512 = _mm512_max_epu8(in1.v512, in2.v512);
+		} else {
+			ret.v512 = _mm512_max_epi8(in1.v512, in2.v512);
+		}
 		return ret;
 	}
 };
@@ -1058,11 +1123,11 @@ using  int8x64_t = Xint8x64_t<false>;
 template<const bool __unsigned=true>
 struct Xint16x32_t {
 	constexpr static uint32_t LIMBS = 32;
-	using limb_type = uint16_t;
+	using limb_type = std::conditional<__unsigned, uint16_t, int16_t>::type;
 	using S = Xint16x32_t;
 	using simd_type = S;
 
-	using V   = std::conditional<__unsigned, __v16su, __v16si>::type;
+	using V   = std::conditional<__unsigned, __v32hu, __v32hi>::type;
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -1371,9 +1436,11 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
+        // NOTE: exact, per lane. Was `mulhrs(in1, 32768 / in2)`, an approximation.
         S out;
-        const __m512i vb = _mm512_set1_epi16(32768 / in2);
-        out.v512 = _mm512_mulhrs_epi16(in1.v512, vb);
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            out[i] = in1[i] / in2;
+        }
         return out;
     }
 
@@ -1384,8 +1451,13 @@ struct Xint16x32_t {
 	                                                      const uint8_t in2) noexcept {
 		assert(in2 <= 16);
 		Xint16x32_t out;
-		// out.v512 = _mm512_slli_epi16(in1.v512, in2);
-		out.v512 = (__m512i)((__v32hi)in1.v512 << (int)in2);
+		// NOTE: logical shift; a count >= 16 gives 0
+		if consteval {
+			// NOTE: `_mm_cvtsi32_si128` is not usable in constant expressions
+			out.v512 = (in2 >= 16) ? (__m512i)(__v32hu){} : (__m512i)((__v32hu)in1.v512 << (int)in2);
+			return out;
+		}
+		out.v512 = _mm512_sll_epi16(in1.v512, _mm_cvtsi32_si128(in2));
 		return out;
 	}
 
@@ -1396,8 +1468,13 @@ struct Xint16x32_t {
 	                                                       const uint8_t in2) noexcept {
 		assert(in2 <= 16);
 		Xint16x32_t out;
-		// out.v512 = _mm512_srli_epi16(in1.v512, in2);
-		out.v512 = (__m512i)((__v32hi)in1.v512 >> (int)in2);
+		// NOTE: logical shift (the signed lane cast made it arithmetic); a count >= 16 gives 0
+		if consteval {
+			// NOTE: `_mm_cvtsi32_si128` is not usable in constant expressions
+			out.v512 = (in2 >= 16) ? (__m512i)(__v32hu){} : (__m512i)((__v32hu)in1.v512 >> (int)in2);
+			return out;
+		}
+		out.v512 = _mm512_srl_epi16(in1.v512, _mm_cvtsi32_si128(in2));
 		return out;
 	}
 
@@ -1427,7 +1504,7 @@ struct Xint16x32_t {
 	[[nodiscard]] constexpr static inline Xint16x32_t gt_(const Xint16x32_t in1,
 														  const Xint16x32_t in2) noexcept {
 		Xint16x32_t ret;
-		ret.v512 = (__m512i) ((__v32hu) in1.v512 > (__v32hu) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 > (V) in2.v512);
 		return ret;
 	}
 
@@ -1436,7 +1513,7 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t gt(const Xint16x32_t in1,
 													  const Xint16x32_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 > (__v32hu) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 > (V) in2.v512);
 		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
 	}
 
@@ -1446,7 +1523,7 @@ struct Xint16x32_t {
 	[[nodiscard]] constexpr static inline Xint16x32_t ge_(const Xint16x32_t in1,
 														  const Xint16x32_t in2) noexcept {
 		Xint16x32_t ret;
-		ret.v512 = (__m512i) ((__v32hu) in1.v512 >= (__v32hu) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 >= (V) in2.v512);
 		return ret;
 	}
 
@@ -1455,7 +1532,7 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t ge(const Xint16x32_t in1,
 													  const Xint16x32_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 >= (__v32hu) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 >= (V) in2.v512);
 		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
 	}
 
@@ -1465,7 +1542,7 @@ struct Xint16x32_t {
 	[[nodiscard]] constexpr static inline Xint16x32_t lt_(const Xint16x32_t in1,
 														  const Xint16x32_t in2) noexcept {
 		Xint16x32_t ret;
-		ret.v512 = (__m512i) ((__v32hu) in1.v512 < (__v32hu) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 < (V) in2.v512);
 		return ret;
 	}
 
@@ -1474,7 +1551,7 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t lt(const Xint16x32_t in1,
 													  const Xint16x32_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 < (__v32hu) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 < (V) in2.v512);
 		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
 	}
 
@@ -1484,7 +1561,7 @@ struct Xint16x32_t {
 	[[nodiscard]] constexpr static inline Xint16x32_t le_(const Xint16x32_t in1,
 														  const Xint16x32_t in2) noexcept {
 		Xint16x32_t ret;
-		ret.v512 = (__m512i) ((__v32hu) in1.v512 <= (__v32hu) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 <= (V) in2.v512);
 		return ret;
 	}
 
@@ -1493,7 +1570,7 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t le(const Xint16x32_t in1,
 													  const Xint16x32_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v32hu) in1.v512 <= (__v32hu) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 <= (V) in2.v512);
 		return (uint32_t)(__mmask32) __builtin_ia32_cvtw2mask512 ((__v32hi)v512);
 	}
 
@@ -1541,19 +1618,48 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline Xint16x32_t popcnt(const Xint16x32_t in1) noexcept {
 		Xint16x32_t ret;
-#ifdef __clang__
-		ret.v512 = (__m512i) __builtin_ia32_vpopcntw_512((__v32hi) in1.v512);
+#ifdef USE_AVX512BITALG
+		ret.v512 = _mm512_popcnt_epi16(in1.v512);
 #else
-  		ret.v512 = (__m512i) __builtin_ia32_vpopcountw_v32hi ((__v32hi)in1.v512);
+		for (uint32_t i = 0; i < 32; ++i) {
+			ret.v16[i] = cryptanalysislib::popcount::popcount(in1.v16[i]);
+		}
+#endif
+		return ret;
+	}
+
+	/// NOTE: the former implementation counted the trailing zeros, it is
+	/// 	now `tzcnt`
+	/// uses `AVX512CD` if available
+	/// \param in1
+	/// \return
+	/// NOTE: the number of leading zeros per 16 bit lane. Before, the number
+	/// 	of trailing zeros was computed.
+	[[nodiscard]] constexpr static inline Xint16x32_t lzcnt(const Xint16x32_t in1) noexcept {
+		Xint16x32_t ret;
+#ifdef USE_AVX512CD
+		// both halves of each 32 bit lane: lzcnt32(half) - 16
+		const __m512i c16 = _mm512_set1_epi32(16);
+		const __m512i lo = _mm512_and_si512(in1.v512, _mm512_set1_epi32(0xFFFF));
+		const __m512i hi = _mm512_srli_epi32(in1.v512, 16);
+		const __m512i lzlo = _mm512_sub_epi32(_mm512_lzcnt_epi32(lo), c16);
+		const __m512i lzhi = _mm512_sub_epi32(_mm512_lzcnt_epi32(hi), c16);
+		ret.v512 = _mm512_or_si512(lzlo, _mm512_slli_epi32(lzhi, 16));
+#else
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			const uint16_t x = uint16_t(in1[i]);
+			ret[i] = limb_type(x ? __builtin_clz(x) - 16 : 16);
+		}
 #endif
 		return ret;
 	}
 
 	/// Source:http://0x80.pl/notesen/2023-01-31-avx512-bsf.html
 	/// needs`AVX512VPOPCNTDQ`
+	/// NOTE: the former `lzcnt`
 	/// \param in1
-	/// \return
-	[[nodiscard]] constexpr static inline Xint16x32_t lzcnt(const Xint16x32_t in1) noexcept {
+	/// \return the number of trailing zeros per 16 bit lane
+	[[nodiscard]] constexpr static inline Xint16x32_t tzcnt(const Xint16x32_t in1) noexcept {
 		Xint16x32_t ret;
 		constexpr Xint16x32_t one = Xint16x32_t::set1(1);
 		ret = Xint16x32_t::sub(in1, one);
@@ -1637,25 +1743,40 @@ struct Xint16x32_t {
     /// \param bit_pos[in]: bit pos to test
 	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
                                                            const uint32_t bit_pos) noexcept {
-        const S tmp = S::set1(1u << bit_pos);
-        __mmask32 mm = _mm512_test_epi16_mask(in1, tmp);
+        // NOTE: was `test_epi16_mask(in1, tmp)` (the structs, did not
+        // 	compile) and `1u << bit_pos`
+        const S tmp = S::set1(limb_type(limb_type(1) << bit_pos));
+        __mmask32 mm = _mm512_test_epi16_mask(in1.v512, tmp.v512);
         return Mask<LIMBS>(mm);
     }
 
-    /// TODO not correct
-	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
-        if constexpr (is_unsigned()) {
-            return _mm512_reduce_min_epu32(in1.v512);
-        }
-        return _mm512_reduce_min_epi32(in1.v512);
+    /// horizontal reduction of all lanes with the 128 bit operation `op`
+    template<typename F>
+	[[nodiscard]] constexpr static inline __m128i reduce_lanes(const __m512i v, F op) noexcept {
+		__m128i n = op(op(_mm512_extracti32x4_epi32(v, 0), _mm512_extracti32x4_epi32(v, 1)),
+		               op(_mm512_extracti32x4_epi32(v, 2), _mm512_extracti32x4_epi32(v, 3)));
+		n = op(n, _mm_srli_si128(n, 8));
+		n = op(n, _mm_srli_si128(n, 4));
+		n = op(n, _mm_srli_si128(n, 2));
+		if constexpr (sizeof(limb_type) == 1) { n = op(n, _mm_srli_si128(n, 1)); }
+		return n;
+	}
+
+    /// NOTE: reduces the 16 bit lanes. Was `_mm512_reduce_min_epu32`, i.e.
+    /// 	the minimum of the 32 bit lanes, truncated.
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) {
+        const __m128i n = reduce_lanes(in1.v512, [](const __m128i a, const __m128i b) {
+            if constexpr (is_unsigned()) { return _mm_min_epu16(a, b); } else { return _mm_min_epi16(a, b); }
+        });
+        return limb_type(_mm_extract_epi16(n, 0));
     }
 
-    /// TODO not correct
-	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
-        if constexpr (is_unsigned()) {
-            return _mm512_reduce_max_epu32(in1.v512);
-        }
-        return _mm512_reduce_max_epi32(in1.v512);
+    /// NOTE: see `reduce_min`
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) {
+        const __m128i n = reduce_lanes(in1.v512, [](const __m128i a, const __m128i b) {
+            if constexpr (is_unsigned()) { return _mm_max_epu16(a, b); } else { return _mm_max_epi16(a, b); }
+        });
+        return limb_type(_mm_extract_epi16(n, 0));
     }
 
 	/// \param in
@@ -1670,20 +1791,30 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline Xint16x32_t min(const Xint16x32_t a,
                                                       	  const Xint16x32_t b) noexcept {
-        Xint16x32_t c;
-        c.v512 = _mm512_min_epi32(a.v512, b.v512);
-        return c;
-    }
+		Xint16x32_t ret;
+		// NOTE: unsigned/signed 16-bit lanes
+		if constexpr (__unsigned) {
+			ret.v512 = _mm512_min_epu16(a.v512, b.v512);
+		} else {
+			ret.v512 = _mm512_min_epi16(a.v512, b.v512);
+		}
+		return ret;
+	}
 
 	/// \param a
 	/// \param b
 	/// \return
 	[[nodiscard]] constexpr static inline Xint16x32_t max(const Xint16x32_t a,
 														  const Xint16x32_t b) noexcept {
-        Xint16x32_t c;
-        c.v512 = _mm512_max_epi16(a.v512, b.v512);
-        return c;
-    }
+		Xint16x32_t ret;
+		// NOTE: unsigned/signed 16-bit lanes
+		if constexpr (__unsigned) {
+			ret.v512 = _mm512_max_epu16(a.v512, b.v512);
+		} else {
+			ret.v512 = _mm512_max_epi16(a.v512, b.v512);
+		}
+		return ret;
+	}
 };
 
 ///
@@ -1693,11 +1824,11 @@ using  int16x32_t = Xint16x32_t<false>;
 template<const bool __unsigned=true>
 struct Xint32x16_t {
 	constexpr static uint32_t LIMBS = 16;
-	using limb_type = uint32_t;
+	using limb_type = std::conditional<__unsigned, uint32_t, int32_t>::type;
 	using S = Xint32x16_t;
 	using simd_type = S;
 
-    using V   = std::conditional<__unsigned, __v32hu, __v32hi>::type;
+    using V   = std::conditional<__unsigned, __v16su, __v16si>::type;
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -2003,7 +2134,11 @@ struct Xint32x16_t {
 	/// \return TODO
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
+        // NOTE: was empty, i.e. returned an uninitialized vector
         S out;
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            out[i] = in1[i] / in2;
+        }
         return out;
     }
 
@@ -2014,9 +2149,13 @@ struct Xint32x16_t {
 														   const uint8_t in2) noexcept {
 		assert(in2 <= 32);
 		Xint32x16_t out;
-		// out.v512 = _mm512_slli_epi32(in1.v512, in2);
-		// out.v512 (__m512i)__builtin_ia32_pslldi512((__v16si)in1.v512, (int)in2);
-		out.v512 = (__m512i) ((__v16si) in1.v512 << (int)in2);
+		// NOTE: logical shift; a count >= 32 gives 0
+		if consteval {
+			// NOTE: `_mm_cvtsi32_si128` is not usable in constant expressions
+			out.v512 = (in2 >= 32) ? (__m512i)(__v16su){} : (__m512i)((__v16su)in1.v512 << (int)in2);
+			return out;
+		}
+		out.v512 = _mm512_sll_epi32(in1.v512, _mm_cvtsi32_si128(in2));
 		return out;
 	}
 
@@ -2027,7 +2166,13 @@ struct Xint32x16_t {
 														   const uint8_t in2) noexcept {
 		assert(in2 <= 32);
 		Xint32x16_t out;
-		out.v512 = (__m512i) ((__v16su) in1.v512 >> (int)in2);
+		// NOTE: logical shift; a count >= 32 gives 0
+		if consteval {
+			// NOTE: `_mm_cvtsi32_si128` is not usable in constant expressions
+			out.v512 = (in2 >= 32) ? (__m512i)(__v16su){} : (__m512i)((__v16su)in1.v512 >> (int)in2);
+			return out;
+		}
+		out.v512 = _mm512_srl_epi32(in1.v512, _mm_cvtsi32_si128(in2));
 		return out;
 	}
 	
@@ -2057,7 +2202,7 @@ struct Xint32x16_t {
 	[[nodiscard]] constexpr static inline Xint32x16_t gt_(const Xint32x16_t in1,
 														  const Xint32x16_t in2) noexcept {
 		Xint32x16_t ret;
-		ret.v512 = (__m512i) ((__v16su) in1.v512 > (__v16su) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 > (V) in2.v512);
 		return ret;
 	}
 
@@ -2066,7 +2211,7 @@ struct Xint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16_t gt(const Xint32x16_t in1,
 													  const Xint32x16_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v16su) in1.v512 > (__v16su) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 > (V) in2.v512);
 		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
 	}
 
@@ -2076,7 +2221,7 @@ struct Xint32x16_t {
 	[[nodiscard]] constexpr static inline Xint32x16_t ge_(const Xint32x16_t in1,
 														  const Xint32x16_t in2) noexcept {
 		Xint32x16_t ret;
-		ret.v512 = (__m512i) ((__v16su) in1.v512 >= (__v16su) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 >= (V) in2.v512);
 		return ret;
 	}
 
@@ -2085,7 +2230,7 @@ struct Xint32x16_t {
 	/// \return in1 >= in2
 	[[nodiscard]] constexpr static inline uint16_t ge(const Xint32x16_t in1,
 													  const Xint32x16_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v16su) in1.v512 >= (__v16su) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 >= (V) in2.v512);
 		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
 	}
 
@@ -2095,7 +2240,7 @@ struct Xint32x16_t {
 	[[nodiscard]] constexpr static inline Xint32x16_t lt_(const Xint32x16_t in1,
 														  const Xint32x16_t in2) noexcept {
 		Xint32x16_t ret;
-		ret.v512 = (__m512i) ((__v16su) in1.v512 < (__v16su) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 < (V) in2.v512);
 		return ret;
 	}
 
@@ -2104,7 +2249,7 @@ struct Xint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16_t lt(const Xint32x16_t in1,
 													  const Xint32x16_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v16su) in1.v512 < (__v16su) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 < (V) in2.v512);
 		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
 	}
 
@@ -2114,7 +2259,7 @@ struct Xint32x16_t {
 	[[nodiscard]] constexpr static inline Xint32x16_t le_(const Xint32x16_t in1,
 														  const Xint32x16_t in2) noexcept {
 		Xint32x16_t ret;
-		ret.v512 = (__m512i) ((__v16su) in1.v512 <= (__v16su) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 <= (V) in2.v512);
 		return ret;
 	}
 
@@ -2123,7 +2268,7 @@ struct Xint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16_t le(const Xint32x16_t in1,
 													  const Xint32x16_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v16su) in1.v512 <= (__v16su) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 <= (V) in2.v512);
 		return (uint16_t)(__mmask16) __builtin_ia32_cvtd2mask512 ((__v16si)v512);
 	}
 
@@ -2171,10 +2316,12 @@ struct Xint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline Xint32x16_t popcnt(const Xint32x16_t in1) noexcept {
 		Xint32x16_t ret;
-#ifdef __clang__
-		ret.v512 = (__m512i) __builtin_ia32_vpopcntd_512((__v16si)in1.v512);
+#ifdef USE_AVX512VPOPCNTDQ
+		ret.v512 = _mm512_popcnt_epi32(in1.v512);
 #else
-  		ret.v512 = (__m512i) __builtin_ia32_vpopcountd_v16si ((__v16si)in1.v512);
+		for (uint32_t i = 0; i < 16; ++i) {
+			ret.v32[i] = cryptanalysislib::popcount::popcount(in1.v32[i]);
+		}
 #endif
 		return ret;
 	}
@@ -2221,7 +2368,9 @@ struct Xint32x16_t {
 	[[nodiscard]] constexpr static inline S permute(const S in,
 	                                                const S perm) noexcept {
         S ret;
-        ret.v512 = _mm512_permutexvar_epi32(in.v512, perm.v512);
+        // NOTE: `ret[i] = in[perm[i]]`, as the AVX2 version. Was
+        // 	`permutexvar(in, perm)`, i.e. the arguments swapped.
+        ret.v512 = _mm512_permutexvar_epi32(perm.v512, in.v512);
         return ret;
     }
 
@@ -2282,8 +2431,10 @@ struct Xint32x16_t {
     /// \param bit_pos[in]: bit pos to test
 	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
                                                            const uint32_t bit_pos) noexcept {
-        const S tmp = S::set1(1u << bit_pos);
-        __mmask16 mm = _mm512_test_epi32_mask(in1, tmp);
+        // NOTE: was `test_epi32_mask(in1, tmp)` (the structs, did not
+        // 	compile) and `1u << bit_pos`
+        const S tmp = S::set1(limb_type(limb_type(1) << bit_pos));
+        __mmask16 mm = _mm512_test_epi32_mask(in1.v512, tmp.v512);
         return Mask<LIMBS>(mm);
     }
 
@@ -2340,20 +2491,30 @@ struct Xint32x16_t {
 	/// \return
 	[[nodiscard]] constexpr static inline Xint32x16_t min(const Xint32x16_t a,
                                                       	  const Xint32x16_t b) noexcept {
-        Xint32x16_t c;
-        c.v512 = _mm512_min_epi32(a.v512, b.v512);
-        return c;
-    }
+		Xint32x16_t ret;
+		// NOTE: unsigned/signed 32-bit lanes
+		if constexpr (__unsigned) {
+			ret.v512 = _mm512_min_epu32(a.v512, b.v512);
+		} else {
+			ret.v512 = _mm512_min_epi32(a.v512, b.v512);
+		}
+		return ret;
+	}
 
 	/// \param a
 	/// \param b
 	/// \return
 	[[nodiscard]] constexpr static inline Xint32x16_t max(const Xint32x16_t a,
 														  const Xint32x16_t b) noexcept {
-        Xint32x16_t c;
-        c.v512 = _mm512_max_epi32(a.v512, b.v512);
-        return c;
-    }
+		Xint32x16_t ret;
+		// NOTE: unsigned/signed 32-bit lanes
+		if constexpr (__unsigned) {
+			ret.v512 = _mm512_max_epu32(a.v512, b.v512);
+		} else {
+			ret.v512 = _mm512_max_epi32(a.v512, b.v512);
+		}
+		return ret;
+	}
 };
 
 ///
@@ -2363,11 +2524,11 @@ using  int32x16_t = Xint32x16_t<false>;
 template<const bool __unsigned=true>
 struct Xint64x8_t {
 	constexpr static uint32_t LIMBS = 8;
-	using limb_type = uint64_t;
+	using limb_type = std::conditional<__unsigned, uint64_t, int64_t>::type;
 	using S = Xint64x8_t;
 	using simd_type = S;
 
-    using V   = std::conditional<__unsigned, __v64qu, __v64qi>::type;
+    using V   = std::conditional<__unsigned, __v8du, __v8di>::type;
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -2655,7 +2816,11 @@ struct Xint64x8_t {
 	/// \return TODO
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
+        // NOTE: was empty, i.e. returned an uninitialized vector
         S out;
+        for (uint32_t i = 0; i < LIMBS; i++) {
+            out[i] = in1[i] / in2;
+        }
         return out;
     }
 
@@ -2666,9 +2831,13 @@ struct Xint64x8_t {
 	                                                      const limb_type in2) noexcept {
 		assert(in2 <= 64);
 		Xint64x8_t out;
-		// out.v512 = _mm512_slli_epi64(in1.v512, in2);
-		// out.v512 = (__m512i)__builtin_ia32_psllqi512((__v8di)in1.v512, (int)in2);
-		out.v512 = (__m512i) ((V)in1.v512 << (int)in2);
+		// NOTE: shift whole 64-bit lanes (`V` has 8-bit lanes); a count >= 64 gives 0
+		if consteval {
+			// NOTE: `_mm_cvtsi32_si128` is not usable in constant expressions
+			out.v512 = (in2 >= 64) ? (__m512i)(__v8du){} : (__m512i)((__v8du)in1.v512 << (int)in2);
+			return out;
+		}
+		out.v512 = _mm512_sll_epi64(in1.v512, _mm_cvtsi32_si128((int)in2));
 		return out;
 	}
 
@@ -2679,8 +2848,13 @@ struct Xint64x8_t {
 	                                                       const limb_type in2) noexcept {
 		assert(in2 <= 64);
 		Xint64x8_t out;
-		// out.v512 = _mm512_srli_epi64(in1.v512, in2);
-		out.v512 = (__m512i) ((__v8di)in1.v512 >> (int)in2);
+		// NOTE: logical shift (the signed lane cast made it arithmetic); a count >= 64 gives 0
+		if consteval {
+			// NOTE: `_mm_cvtsi32_si128` is not usable in constant expressions
+			out.v512 = (in2 >= 64) ? (__m512i)(__v8du){} : (__m512i)((__v8du)in1.v512 >> (int)in2);
+			return out;
+		}
+		out.v512 = _mm512_srl_epi64(in1.v512, _mm_cvtsi32_si128((int)in2));
 		return out;
 	}
 	
@@ -2709,7 +2883,7 @@ struct Xint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16_t gt(const Xint64x8_t in1,
 													  const Xint64x8_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v8du) in1.v512 > (__v8du) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 > (V) in2.v512);
 		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
 	}
 
@@ -2719,7 +2893,7 @@ struct Xint64x8_t {
 	[[nodiscard]] constexpr static inline Xint64x8_t gt_(const Xint64x8_t in1,
 														 const Xint64x8_t in2) noexcept {
 		Xint64x8_t ret;
-		ret.v512 = (__m512i) ((__v8du) in1.v512 > (__v8du) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 > (V) in2.v512);
 		return ret;
 	}
 
@@ -2728,7 +2902,7 @@ struct Xint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16_t ge(const Xint64x8_t in1,
 													  const Xint64x8_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v8du) in1.v512 >= (__v8du) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 >= (V) in2.v512);
 		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
 	}
 
@@ -2738,7 +2912,7 @@ struct Xint64x8_t {
 	[[nodiscard]] constexpr static inline Xint64x8_t ge_(const Xint64x8_t in1,
 														 const Xint64x8_t in2) noexcept {
 		Xint64x8_t ret;
-		ret.v512 = (__m512i) ((__v8du) in1.v512 >= (__v8du) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 >= (V) in2.v512);
 		return ret;
 	}
 
@@ -2747,7 +2921,7 @@ struct Xint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16_t lt(const Xint64x8_t in1,
 													  const Xint64x8_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v8du) in1.v512 < (__v8du) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 < (V) in2.v512);
 		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
 	}
 
@@ -2757,7 +2931,7 @@ struct Xint64x8_t {
 	[[nodiscard]] constexpr static inline Xint64x8_t lt_(const Xint64x8_t in1,
 														 const Xint64x8_t in2) noexcept {
 		Xint64x8_t ret;
-		ret.v512 = (__m512i) ((__v8du) in1.v512 < (__v8du) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 < (V) in2.v512);
 		return ret;
 	}
 
@@ -2766,7 +2940,7 @@ struct Xint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline uint16_t le(const Xint64x8_t in1,
 													  const Xint64x8_t in2) noexcept {
-		const __m512i v512 = (__m512i) ((__v8du) in1.v512 <= (__v8du) in2.v512);
+		const __m512i v512 = (__m512i) ((V) in1.v512 <= (V) in2.v512);
 		return (uint8_t)(__mmask8) __builtin_ia32_cvtq2mask512 ((__v8di) v512);
 	}
 
@@ -2776,7 +2950,7 @@ struct Xint64x8_t {
 	[[nodiscard]] constexpr static inline Xint64x8_t le_(const Xint64x8_t in1,
 														 const Xint64x8_t in2) noexcept {
 		Xint64x8_t ret;
-		ret.v512 = (__m512i) ((__v8du) in1.v512 <= (__v8du) in2.v512);
+		ret.v512 = (__m512i) ((V) in1.v512 <= (V) in2.v512);
 		return ret;
 	}
 
@@ -2824,19 +2998,42 @@ struct Xint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline Xint64x8_t popcnt(const Xint64x8_t in1) noexcept {
 		Xint64x8_t ret;
-#ifdef __clang__
-		ret.v512 = (__m512i) __builtin_ia32_vpopcntq_512((__v8di) in1.v512);
+#ifdef USE_AVX512VPOPCNTDQ
+		ret.v512 = _mm512_popcnt_epi64(in1.v512);
 #else
-		ret.v512 = (__m512i) __builtin_ia32_vpopcountq_v8di(in1.v512);
+		for (uint32_t i = 0; i < 8; ++i) {
+			ret.v64[i] = cryptanalysislib::popcount::popcount(in1.v64[i]);
+		}
+#endif
+		return ret;
+	}
+
+	/// NOTE: the former implementation counted the trailing zeros, it is
+	/// 	now `tzcnt`
+	/// uses `AVX512CD` if available
+	/// \param in1
+	/// \return
+	/// NOTE: the number of leading zeros per 64 bit lane. Before, the number
+	/// 	of trailing zeros was computed.
+	[[nodiscard]] constexpr static inline Xint64x8_t lzcnt(const Xint64x8_t in1) noexcept {
+		Xint64x8_t ret;
+#ifdef USE_AVX512CD
+		ret.v512 = _mm512_lzcnt_epi64(in1.v512);
+#else
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			const uint64_t x = uint64_t(in1[i]);
+			ret[i] = limb_type(x ? __builtin_clzll(x) : 64);
+		}
 #endif
 		return ret;
 	}
 
 	/// Source:http://0x80.pl/notesen/2023-01-31-avx512-bsf.html
 	/// needs `AVX512VPOPCNTDQ` + `AVX512VL`
+	/// NOTE: the former `lzcnt`
 	/// \param in1
-	/// \return
-	[[nodiscard]] constexpr static inline Xint64x8_t lzcnt(const Xint64x8_t in1) noexcept {
+	/// \return the number of trailing zeros per 64 bit lane
+	[[nodiscard]] constexpr static inline Xint64x8_t tzcnt(const Xint64x8_t in1) noexcept {
 		Xint64x8_t ret;
 		constexpr Xint64x8_t one = Xint64x8_t::set1(1);
 		ret = Xint64x8_t::sub(in1, one);
@@ -2922,25 +3119,28 @@ struct Xint64x8_t {
     /// \param bit_pos[in]: bit pos to test
 	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
                                                            const uint32_t bit_pos) noexcept {
-        const S tmp = S::set1(1u << bit_pos);
-        __mmask8 mm = _mm512_test_epi64_mask(in1, tmp);
+        // NOTE: was `test_epi64_mask(in1, tmp)` (the structs, did not
+        // 	compile) and `1u << bit_pos`
+        const S tmp = S::set1(limb_type(limb_type(1) << bit_pos));
+        __mmask8 mm = _mm512_test_epi64_mask(in1.v512, tmp.v512);
         return Mask<LIMBS>(mm);
     }
 
     /// \param in1[in]:
+    /// NOTE: was `_mm512_reduce_min_epu32`, i.e. 32 bit lanes
 	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_min_epu32(in1.v512);
+            return _mm512_reduce_min_epu64(in1.v512);
         }
-        return _mm512_reduce_min_epi32(in1.v512);
+        return _mm512_reduce_min_epi64(in1.v512);
     }
 
     /// \param in1[in]:
 	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) { 
         if constexpr (is_unsigned()) {
-            return _mm512_reduce_max_epu32(in1.v512);
+            return _mm512_reduce_max_epu64(in1.v512);
         }
-        return _mm512_reduce_max_epi32(in1.v512);
+        return _mm512_reduce_max_epi64(in1.v512);
     }
 
 
@@ -2982,20 +3182,30 @@ struct Xint64x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline Xint64x8_t min(const Xint64x8_t a,
                                                       	  const Xint64x8_t b) noexcept {
-        Xint64x8_t c;
-        c.v512 = _mm512_min_epi64(a.v512, b.v512);
-        return c;
-    }
+		Xint64x8_t ret;
+		// NOTE: unsigned/signed 64-bit lanes
+		if constexpr (__unsigned) {
+			ret.v512 = _mm512_min_epu64(a.v512, b.v512);
+		} else {
+			ret.v512 = _mm512_min_epi64(a.v512, b.v512);
+		}
+		return ret;
+	}
 
 	/// \param a
 	/// \param b
 	/// \return
 	[[nodiscard]] constexpr static inline Xint64x8_t max(const Xint64x8_t a,
 														  const Xint64x8_t b) noexcept {
-        Xint64x8_t c;
-        c.v512 = _mm512_max_epi64(a.v512, b.v512);
-        return c;
-    }
+		Xint64x8_t ret;
+		// NOTE: unsigned/signed 64-bit lanes
+		if constexpr (__unsigned) {
+			ret.v512 = _mm512_max_epu64(a.v512, b.v512);
+		} else {
+			ret.v512 = _mm512_max_epi64(a.v512, b.v512);
+		}
+		return ret;
+	}
 
 };
 
@@ -3195,10 +3405,12 @@ constexpr inline uint64x8_t operator|=(uint64x8_t &lhs, const uint64x8_t &rhs) n
 }
 
 constexpr inline uint64_t operator==(const uint8x64_t &a, const uint8x64_t &b) noexcept {
-	return uint8x64_t::cmp(a, b);
+	// NOTE: `cmp` is lt^gt (a not-equal mask); `eq` returns one bit per equal lane
+	return uint8x64_t::eq(a, b);
 }
 constexpr inline uint64_t operator!=(const uint8x64_t &a, const uint8x64_t &b) noexcept {
-	return -1ull ^ uint8x64_t::cmp(a, b);
+	// NOTE: only the uint8x64_t::LIMBS lane bits are set
+	return -1ull ^ uint64_t(uint8x64_t::eq(a, b));
 }
 constexpr inline uint64_t operator<(const uint8x64_t &a, const uint8x64_t &b) noexcept {
 	return uint8x64_t::lt(a, b);
@@ -3208,10 +3420,12 @@ constexpr inline uint64_t operator>(const uint8x64_t &a, const uint8x64_t &b) no
 }
 
 constexpr inline uint64_t operator==(const uint16x32_t &a, const uint16x32_t &b) noexcept {
-	return uint16x32_t::cmp(a, b);
+	// NOTE: `cmp` is lt^gt (a not-equal mask); `eq` returns one bit per equal lane
+	return uint16x32_t::eq(a, b);
 }
 constexpr inline uint64_t operator!=(const uint16x32_t &a, const uint16x32_t &b) noexcept {
-	return -1ull ^ uint16x32_t::cmp(a, b);
+	// NOTE: only the uint16x32_t::LIMBS lane bits are set
+	return 0xFFFFFFFFull ^ uint64_t(uint16x32_t::eq(a, b));
 }
 constexpr inline uint64_t operator<(const uint16x32_t &a, const uint16x32_t &b) noexcept {
 	return uint16x32_t::lt(a, b);
@@ -3221,10 +3435,12 @@ constexpr inline uint64_t operator>(const uint16x32_t &a, const uint16x32_t &b) 
 }
 
 constexpr inline uint64_t operator==(const uint32x16_t &a, const uint32x16_t &b) noexcept {
-	return uint32x16_t::cmp(a, b);
+	// NOTE: `cmp` is lt^gt (a not-equal mask); `eq` returns one bit per equal lane
+	return uint32x16_t::eq(a, b);
 }
 constexpr inline uint64_t operator!=(const uint32x16_t &a, const uint32x16_t &b) noexcept {
-	return -1ull ^ uint32x16_t::cmp(a, b);
+	// NOTE: only the uint32x16_t::LIMBS lane bits are set
+	return 0xFFFFull ^ uint64_t(uint32x16_t::eq(a, b));
 }
 constexpr inline uint64_t operator<(const uint32x16_t &a, const uint32x16_t &b) noexcept {
 	return uint32x16_t::lt(a, b);
@@ -3234,10 +3450,12 @@ constexpr inline uint64_t operator>(const uint32x16_t &a, const uint32x16_t &b) 
 }
 
 constexpr inline uint64_t operator==(const uint64x8_t &a, const uint64x8_t &b) noexcept {
-	return uint64x8_t::cmp(a, b);
+	// NOTE: `cmp` is lt^gt (a not-equal mask); `eq` returns one bit per equal lane
+	return uint64x8_t::eq(a, b);
 }
 constexpr inline uint64_t operator!=(const uint64x8_t &a, const uint64x8_t &b) noexcept {
-	return -1ull ^ uint64x8_t::cmp(a, b);
+	// NOTE: only the uint64x8_t::LIMBS lane bits are set
+	return 0xFFull ^ uint64_t(uint64x8_t::eq(a, b));
 }
 constexpr inline uint64_t operator<(const uint64x8_t &a, const uint64x8_t &b) noexcept {
 	return uint64x8_t::lt(a, b);

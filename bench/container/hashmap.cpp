@@ -48,11 +48,13 @@ B63_BASELINE(Simple2, nn) {
 	uint64_t ret = 0;
 
 	for (uint64_t s = 0; s < nn; ++s) {
-		for (uint64_t i = 0; i < (1u << l) * nn; ++i) {
+		// NOTE: was `(1u << l) * nn`, which read past the end of `data`
+		// 	(`(1u << l) * fillratio` elements) for `nn > fillratio`
+		for (uint64_t i = 0; i < (1u << l) * fillratio; ++i) {
 			hm2->insert(i, data[i]);
 		}
 
-		for (uint64_t i = 0; i < (1u << l) * nn; ++i) {
+		for (uint64_t i = 0; i < (1u << l) * fillratio; ++i) {
 			for (uint64_t j = 0; j < hm2->load(i); ++j) {
 				ret += hm2->ptr(j);
 			}
@@ -77,6 +79,8 @@ int main(int argc, char **argv) {
 
 	delete hm1;
 	delete hm2;
-	free(data);
+	// NOTE: was `free(data)`, but `data` is from `aligned_alloc`:
+	// 	"double free or corruption" abort
+	cryptanalysislib::aligned_free(data);
 	return 0;
 }

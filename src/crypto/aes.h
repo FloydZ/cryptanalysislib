@@ -4,7 +4,7 @@
 #include <cassert>
 #include <array>
 
-template<const uint8_t size>
+template<const uint32_t size>
 constexpr static size_t len_to_keyschedule_size() noexcept {
     if constexpr(size == 128) {
         return 176;
@@ -18,7 +18,7 @@ constexpr static size_t len_to_keyschedule_size() noexcept {
     }
 }
 
-template<const uint8_t size>
+template<const uint32_t size>
 constexpr static size_t len_to_rounds() noexcept {
     if constexpr(size == 128) {
         return 10;
@@ -90,7 +90,7 @@ constexpr static uint8_t inv_shifts[16] = {
 
 
 /* add the round key to the state with simple XOR operation */
-constexpr void add_round_key(std::array<uint8_t, 16> state, 
+constexpr void add_round_key(std::array<uint8_t, 16> &state, 
                              const uint8_t rkey[16]) noexcept {
     for (uint8_t i = 0; i < 16; i++) {
         state[i] ^= rkey[i];
@@ -98,20 +98,20 @@ constexpr void add_round_key(std::array<uint8_t, 16> state,
 }
 
 /* substitute all bytes using Rijndael's substitution box */
-constexpr void sub_bytes(std::array<uint8_t, 16> state) noexcept {
+constexpr void sub_bytes(std::array<uint8_t, 16> &state) noexcept {
     for (uint8_t i = 0; i < 16; i++) {
         state[i] = SBOX[state[i]];
     }
 }
 
 /* reverse the sub bytes step using Rijndael's inverse s-box */
-constexpr void inv_sub_bytes(std::array<uint8_t, 16> state) noexcept {
+constexpr void inv_sub_bytes(std::array<uint8_t, 16> &state) noexcept {
     for (uint8_t i = 0; i < 16; i++) {
         state[i] = INV_SBOX[state[i]];
     }
 }
 
-constexpr void shift_rows(std::array<uint8_t, 16> state) noexcept {
+constexpr void shift_rows(std::array<uint8_t, 16> &state) noexcept {
     uint8_t temp[16];
 
     for (uint8_t i = 0; i < 16; i++) {
@@ -124,7 +124,7 @@ constexpr void shift_rows(std::array<uint8_t, 16> state) noexcept {
 }
 
 /* the inverse of the shift rows step */
-constexpr void inv_shift_rows(std::array<uint8_t, 16> state) noexcept {
+constexpr void inv_shift_rows(std::array<uint8_t, 16> &state) noexcept {
     uint8_t temp[16];
 
     for (uint8_t i = 0; i < 16; i++) {
@@ -136,7 +136,7 @@ constexpr void inv_shift_rows(std::array<uint8_t, 16> state) noexcept {
     }
 }
 
-constexpr void mix_columns(std::array<uint8_t, 16> state) noexcept {
+constexpr void mix_columns(std::array<uint8_t, 16> &state) noexcept {
     uint8_t a[4];
     uint8_t b[4];
     uint8_t h;	
@@ -182,7 +182,7 @@ constexpr uint8_t gmul(uint8_t a,
     return p;
 }
 
-constexpr void inv_mix_columns(std::array<uint8_t, 16> state) noexcept {
+constexpr void inv_mix_columns(std::array<uint8_t, 16> &state) noexcept {
     uint8_t a[4];
 
     for (uint8_t k = 0; k < 4; k++) {
@@ -292,9 +292,12 @@ constexpr void expand_key(uint8_t * in,
     }
 }
 
-/// \param
-template<const uint8_t version>
-constexpr std::array<uint8_t, 16> aes_encrypt(const uint8_t s[version/8], 
+/// \tparam version: key length in bits: 128, 192 or 256
+/// \param s[in]: 16 byte plaintext block
+/// \param key[in]: version/8 byte key
+/// \return 16 byte ciphertext block
+template<const uint32_t version>
+constexpr std::array<uint8_t, 16> aes_encrypt(const uint8_t s[16],
                                               const uint8_t key[version/8]) noexcept {
     constexpr size_t key_schedule_size = len_to_keyschedule_size<version>();
     constexpr size_t rounds = len_to_rounds<version>();
@@ -303,8 +306,12 @@ constexpr std::array<uint8_t, 16> aes_encrypt(const uint8_t s[version/8],
 
     std::array<uint8_t, 16> state;
     for (uint8_t i = 0; i < 16; i++) {
-        key_schedule[i] = key[i];
         state[i] = s[i];
+    }
+
+    // NOTE: the first version/8 bytes of the key schedule are the key
+    for (uint32_t i = 0; i < version / 8; i++) {
+        key_schedule[i] = key[i];
     }
 
     /* populate the key schedule */

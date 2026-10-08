@@ -7,6 +7,8 @@
 #include <cstring>
 #include <type_traits>
 
+#include "memory/memory.h"
+
 #define LIKELY(X) __builtin_expect(X,1)
 #define RARE(X) __builtin_expect(X,0)
 
@@ -34,7 +36,8 @@ static void merge(T *a, size_t l, size_t n, T *aux) {
 		return;
 	}
 	// Ordinary merge code, not fast or anything
-	memcpy(aux, a, l*sizeof(T));
+	// NOTE: cryptanalysislib::memcpy takes the number of elements, not bytes
+	cryptanalysislib::memcpy(aux, a, l);
 	for (size_t ai=0, bi=l, i=0; i<bi; i++) {
 		if (bi>=n || aux[ai]<=a[bi])
 			a[i] = aux[ai++];

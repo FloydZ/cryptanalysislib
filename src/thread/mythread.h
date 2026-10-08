@@ -45,8 +45,8 @@ inline std::atomic<uint32_t> __global_tid = 0;
 
 
 using namespace cryptanalysislib::atomic;
-struct cryptanalysislib::atomic::futex debug_futex{0};
-char debug_msg[1000];
+inline struct cryptanalysislib::atomic::futex debug_futex{1};
+inline char debug_msg[1000];
 
 namespace cryptanalysislib {
 
@@ -166,7 +166,7 @@ namespace cryptanalysislib {
 	/// the state of the specified thread.
 	/// \param new_tid
 	/// \return
-	mythread_private_t *mythread_q_search(const pid_t new_tid) noexcept {
+	inline mythread_private_t *mythread_q_search(const pid_t new_tid) noexcept {
 		mythread_private_t *p;
 		if (mythread_q_head != nullptr) {
 
@@ -261,9 +261,10 @@ namespace cryptanalysislib {
 			self_ptr->blockedForJoin->state = READY;
         }
 
+		// NOTE: the TCB is not removed (and freed) from the queue: a joining
+		// thread still searches for it and reads `returnValue` from it.
 		gfutex.down();
 		__mythread_dispatcher(self_ptr);
-        mythread_q_delete(self_ptr);
 		gfutex.up();
 
 		/* Suicide */
@@ -321,7 +322,7 @@ namespace cryptanalysislib {
  	 * The thread checks whether it is the only one alive, if yes, exit()
  	 * else keep scheduling someone.
  	 */
-	void *mythread_idle(void *phony) noexcept {
+	inline void *mythread_idle(void *phony) noexcept {
 		(void)phony;
 		mythread_private_t *traverse_tcb;
 		pid_t idle_tcb_tid;

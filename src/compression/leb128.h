@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "algorithm/bits/popcount.h"
+#include "memory/memory.h"
 
 namespace cryptanalysislib {
 
@@ -23,7 +24,11 @@ template<typename T>
 #endif
 constexpr static inline size_t leb128_encode(uint8_t *buf,
                                              const T val) noexcept {
-	T t = val;
+	// NOTE: the bits of `val` are encoded as unsigned, as `leb128_decode`
+	// 	expects. Before, a negative `val` failed `t >= 0x80` and only its
+	// 	lowest byte was written.
+	using U = std::make_unsigned_t<T>;
+	U t = U(val);
 	size_t ret = 0;
 	while (t >= 0x80) {
 		*buf = 0x80 | (t & 0x7F);
@@ -108,20 +113,29 @@ constexpr static inline size_t leb128_decode(T *out,
     return ctr; 
 }
 
-/// \param buf pointer to the compressed integer
-/// \param n number of bytes to read
-constexpr static inline void leb128_skip(const uint8_t *buf,
-										 const size_t n) noexcept {
-	auto *w = reinterpret_cast<const uint64_t *>(buf);
+/// skips `n` compressed integers
+/// NOTE: before, the result was lost (`void` and `buf` by value), i.e. the
+/// 	function had no effect, and the words were read via a misaligned
+/// 	`uint64_t *`. `n` was documented as number of bytes.
+/// \param buf pointer to the first compressed integer
+/// \param n number of integers to skip
+/// \return pointer to the first byte after the `n` integers
+constexpr static inline const uint8_t *leb128_skip(const uint8_t *buf,
+										           const size_t n) noexcept {
 	size_t nn = n;
+	// each byte without the continuation bit terminates an integer. With at
+	// least 8 integers left, the next 8 bytes all belong to them.
 	while (nn >= 8) {
-		nn -= popcount::popcount(~(*w++) & 0x8080808080808080);
+		uint64_t w;
+		cryptanalysislib::memcpy<uint8_t>((uint8_t *)&w, buf, 8);
+		nn -= popcount::popcount(~w & 0x8080808080808080ull);
+		buf += 8;
 	}
 
-	buf = reinterpret_cast<const uint8_t *>(w);
 	while(nn--) {
 		while(*buf++ & 0x80) {}
 	}
+	return buf;
 }
 
 /// NOTE: probably reads out off bounds.

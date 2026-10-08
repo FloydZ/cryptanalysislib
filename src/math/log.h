@@ -6,7 +6,10 @@
 #endif
 
 #include <climits>
+#include <limits>
 #include <type_traits>
+
+#include "algorithm/bits/bsr.h"
 
 #include "math/abs.h"
 #include "math/exp.h"
@@ -27,7 +30,16 @@ namespace cryptanalysislib::math::internal {
 	    requires std::is_floating_point_v<T>
 #endif
 	[[nodiscard]] constexpr T log(T x, T y) noexcept {
-		return feq(y, log_iter(x, y)) ? y : log(x, log_iter(x, y));
+		// NOTE: iterative with a cap, as `exp` is only accurate to a few ulps
+		// and the iteration may oscillate around the result
+		for (uint32_t i = 0; i < 256; ++i) {
+			const T next = log_iter(x, y);
+			if (feq(y, next)) {
+				return next;
+			}
+			y = next;
+		}
+		return y;
 	}
 
 	__device__ __host__
@@ -69,6 +81,16 @@ namespace cryptanalysislib::math {
 	    requires std::is_arithmetic_v<T>
 #endif
 	[[nodiscard]] constexpr T log(T const x) noexcept {
+		// NOTE: the iterations below never terminate for x <= 0
+		if (x <= T{0}) {
+			if constexpr (std::is_floating_point_v<T>) {
+				return (x == T{0}) ? -std::numeric_limits<T>::infinity()
+				                   : std::numeric_limits<T>::quiet_NaN();
+			} else {
+				return T{0};
+			}
+		}
+
 		if (x > T{1024}) {
 			if constexpr (std::is_integral_v<T>) {
 				return cryptanalysislib::math::internal::logLT<double>(x);
@@ -90,7 +112,16 @@ namespace cryptanalysislib::math {
 	    requires std::is_arithmetic_v<T>
 #endif
 	[[nodiscard]] constexpr T log2(T x) noexcept {
-		return log(x) / log(2.);
+		if constexpr (std::is_integral_v<T>) {
+			// NOTE: exact floor(log2(x)); the floating point version truncated
+			//	log(x) to `T` first (log2<int>(8) was 2)
+			if (x <= T{0}) {
+				return T{0};
+			}
+			return (T)cryptanalysislib::algorithm::bsr<std::make_unsigned_t<T>>(x);
+		} else {
+			return log(x) / log(T{2});
+		}
 	}
 }
 
@@ -111,6 +142,10 @@ __device__ __host__
 /// \return floor(log2(n))
 __device__ __host__
 [[nodiscard]] constexpr static inline uint64_t floor_log2(const uint64_t n) noexcept {
+	// NOTE: floor_log2(0) is defined as 0 (`__builtin_clzl(0)` is UB)
+	if (n == 0) {
+		return 0;
+	}
 	return sizeof(uint64_t ) * CHAR_BIT - 1 - __builtin_clzl((uint64_t)n);
 }
 #endif //CRYPTANALYSISLIB_LOG_H

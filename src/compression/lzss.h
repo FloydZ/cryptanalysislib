@@ -107,7 +107,10 @@ inline unsigned int CompressCallback(uint8_t *src,
 /// \param str1[in]
 /// \param str2[in]
 /// \param maxlength[in]
-/// \return max length on which str1==str2
+/// \return 1 + the length of the common prefix of `str1` and `str2`, at most
+/// 	`maxlength`. I.e. the length of a phrase whose first byte (the byte
+/// 	before `str1`/`str2`) already matched.
+/// NOTE: the doc said "max length on which str1==str2", which is 1 less
 inline unsigned long DataCompare(const uint8_t *str1,
                           const uint8_t *str2,
                           const size_t maxlength) {

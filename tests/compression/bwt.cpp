@@ -34,6 +34,25 @@ TEST(bwt, simple) {
 	free(t1); free(t2);
 }
 
+TEST(bwt, lcp) {
+	// sorted suffixes of "banana$": $, a$, ana$, anana$, banana$, na$, nana$
+	constexpr int n = 7;
+	const uint8_t text[n] = {'b','a','n','a','n','a',END_MARKER};
+	const uint8_t bwt[n]  = {'a','n','n','b',END_MARKER,'a','a'};
+	const int lcp[n]      = {0, 0, 1, 3, 0, 0, 2};
+
+	// exact size buffers, so ASan catches reads past the end
+	uint8_t *T = (uint8_t *)malloc(n);
+	int *LCP = (int *)malloc(n * sizeof(int));
+	memcpy(T, text, n);
+	bwt_lcp_inplace(T, n, LCP);
+	for (int i = 0; i < n; i++) {
+		EXPECT_EQ(bwt[i], T[i]);
+		EXPECT_EQ(lcp[i], LCP[i]);
+	}
+	free(T); free(LCP);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

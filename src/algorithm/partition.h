@@ -11,6 +11,8 @@
 /// TODO parallel versions 
 /// TODO simd versions
 
+namespace cryptanalysislib {
+
 template<class InputIt,
          class UnaryPred>
 constexpr 
@@ -92,6 +94,8 @@ std::pair<OutputIt1, OutputIt2>
     return std::pair<OutputIt1, OutputIt2>(d_first_true, d_first_false);
 }
 
+} // end namespace cryptanalysislib
+
 namespace cryptanalysislib::internal {
     /// stable partition of the `len` elements starting at `first`
     /// divide and conquer: partition both halves, then rotate the
@@ -118,6 +122,8 @@ namespace cryptanalysislib::internal {
         return cryptanalysislib::rotate(left, middle, right);
     }
 } // end namespace cryptanalysislib::internal
+
+namespace cryptanalysislib {
 
 /// Reorders [first, last) such that all elements for which `p` is true come
 /// first, keeping the relative order within both groups.
@@ -151,3 +157,4 @@ ForwardIt stable_partition(ForwardIt first,
     const ForwardIt r = (len == 0) ? next : cryptanalysislib::internal::stable_partition_rec(next, len, p);
     return cryptanalysislib::rotate(first, next, r);
 }
+} // end namespace cryptanalysislib

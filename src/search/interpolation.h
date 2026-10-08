@@ -297,15 +297,6 @@ namespace cryptanalysislib {
 			using T = It::value_type;
 			using FF = It(*)(It, It, const T&, Hash);
 
-			static FF out;
-			static bool set = false;
-
-			if (set) [[likely]] {
-				return std::invoke(out, begin, end, value, h);
-			}
-
-			set = true;
-
 			// NOTE dont specify as const
 			static FF functions[] = {
 				LowerBoundInterpolationSearch<It, Hash>,
@@ -313,8 +304,21 @@ namespace cryptanalysislib {
 				lower_bound_interpolation_search1<It, Hash>,
 				lower_bound_interpolation_3p_search<It, Hash>,
 			};
-			const auto d = generic_dispatch(out, functions, 1, begin, end, value, h);
-			return binary_search_dispatch(begin, end, value, h);
+
+			// NOTE: the first call benchmarks all candidates once, the result
+			// 	is a function local static, whose initialisation is thread safe.
+			// 	Before, `set` was published before `out` (a concurrent first
+			// 	call jumped to `nullptr`) and only `functions[0]` was measured.
+			// 	Also, the result of the interpolation dispatch was never used:
+			// 	this returned `binary_search_dispatch(...)`.
+			static const FF out = [&]() noexcept {
+				FF best = functions[0];
+				generic_dispatch(best, functions, sizeof(functions)/sizeof(functions[0]),
+				                 begin, end, value, h);
+				return best;
+			}();
+
+			return std::invoke(out, begin, end, value, h);
 		}
 	}// end namespace internal
 }//end namespace cryptanalysis

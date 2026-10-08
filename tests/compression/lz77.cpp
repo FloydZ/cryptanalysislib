@@ -30,6 +30,26 @@ TEST(lz77, simple) {
 	}
 }
 
+TEST(lz77, repeated_tail) {
+	// matches running into the end of the input; exact size buffers so
+	// ASan catches reads past the input
+	for (size_t n = 1; n < 64; n++) {
+		for (uint8_t w = 1; w < 16; w += 2) {
+			uint8_t *text = (uint8_t *)malloc(n);
+			memset(text, 'a', n);
+			text[0] = 'b';
+			uint8_t *buf = (uint8_t *)malloc(5 + 3 * n);
+			uint8_t *text2 = (uint8_t *)malloc(n);
+
+			const size_t olen = lz77_compress(buf, text, n, w);
+			EXPECT_LE(olen, 5 + 3 * n);
+			EXPECT_EQ(n, lz77_decompress(text2, buf));
+			EXPECT_EQ(0, memcmp(text, text2, n));
+			free(text); free(buf); free(text2);
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

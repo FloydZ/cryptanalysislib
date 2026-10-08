@@ -34,17 +34,19 @@ namespace cryptanalysislib::atomic {
 		/// \param counter
 		/// \return
 		inline int __futex_down(int *counter) noexcept {
-			const int val = *counter;
+			const int val = ACQUIRE(counter);
 
 			// Don't decrement if already negative.
 			if (val < 0) [[unlikely]] {
 				return val;
 			}
 
-			int nval = val -1;
-			const int oval = CAS(counter, &nval, val);
+			const int nval = val - 1;
+			// NOTE: value-returning CAS(ptr, expected, desired); the previous
+			// call had expected/desired swapped, so the counter never changed
+			const int oval = CASnp(counter, val, nval);
 			if (oval == val) {
-				return val-1;
+				return nval;
 			}
 
 			// Otherwise, we have no way of knowing value.  Guess -1 (if
@@ -54,9 +56,10 @@ namespace cryptanalysislib::atomic {
 
 		/* Atomic inc: return 1 if counter incremented from 0 to 1. */
 		static __inline__ int __futex_up(int *counter) noexcept {
-			const int val = *counter;
-			int nval = val+1;
-			const int oval = CAS(counter, &nval, val);
+			const int val = ACQUIRE(counter);
+			const int nval = val + 1;
+			// NOTE: see `__futex_down`
+			const int oval = CASnp(counter, val, nval);
 			return (oval == val && oval == 0);
 		}
 
@@ -81,8 +84,8 @@ namespace cryptanalysislib::atomic {
 							  struct timespec *rel) noexcept {
 			if (sys_futex(&count, FUTEX_WAIT, val, rel) == 0) {
 				// <= in case someone else decremented it
-				if (count <= FUTEX_PASSED) {
-					count = -1;
+				if (ACQUIRE(&count) <= FUTEX_PASSED) {
+					STORE(&count, -1);
 					return 1;
 				}
 				return 0;
@@ -97,7 +100,8 @@ namespace cryptanalysislib::atomic {
 		///
 		/// \return
 		inline int __futex_up_slow() noexcept {
-			count = 1;
+			// NOTE: release, so the writes of the critical section are visible
+			RELEASE(&count, 1);
 			return sys_futex(&count, FUTEX_WAKE, 1, NULL);
 		}
 
@@ -121,9 +125,12 @@ namespace cryptanalysislib::atomic {
 						// error
 						return -1;
 					case 1:
-					case 2:
 						// passed
 						return 0;
+					case 2:
+						// NOTE: EWOULDBLOCK: the value changed before we
+						// slept, try again (this is *not* an acquisition)
+						break;
 					case 0:
 						woken = 1;
 						// slept
@@ -133,7 +140,7 @@ namespace cryptanalysislib::atomic {
 
 			// If we were woken, someone else might be sleeping too: set to -1
 			if (woken) {
-				count = -1;
+				STORE(&count, -1);
 			}
 
 			return 0;
@@ -166,7 +173,7 @@ namespace cryptanalysislib::atomic {
 		inline int up_fair() noexcept {
 			// Someone waiting?
 			if (!__futex_up(&count)) {
-				count = FUTEX_PASSED;
+				RELEASE(&count, FUTEX_PASSED);
 				// If we wake one, they'll see it's a direct pass.
 				if (sys_futex(&count, FUTEX_WAKE, 1, nullptr) == 1) {
 					return 0;
@@ -179,10 +186,10 @@ namespace cryptanalysislib::atomic {
 		}
 
         constexpr inline void set(const uint32_t c) noexcept {
-            count = c;
+            STORE(&count, c);
         }
         constexpr inline int get() const noexcept {
-            return count; 
+            return ACQUIRE(&count);
         }
 	};
 } // end namespace cryptanalysislib

@@ -20,10 +20,12 @@ struct AlgorithmHistogramConfig : public AlgorithmConfig {
 constexpr static AlgorithmHistogramConfig algorithmHistogramConfig;
 
 constexpr static uint32_t histogram_csize = 256;
+// overwrites `_cnt_[0..255]` with the sum of the `_cn_` partial histograms
 #define HISTEND(_c_,_cn_,_cnt_) { uint32_t _i,_j;\
-  memset(_cnt_, 0, 256*sizeof(_cnt_[0]));\
-  for(_i=0; _i < 256; _i++)\
-    for(_j=0; _j < _cn_;_j++) _cnt_[_i] += _c_[_j][_i];\
+  for(_i=0; _i < 256; _i++) {\
+    _cnt_[_i] = _c_[0][_i];\
+    for(_j=1; _j < _cn_;_j++) _cnt_[_i] += _c_[_j][_i];\
+  }\
 }
 
 #define HISTEND8(_c_,_cnt_) HISTEND(_c_,8,_cnt_)
@@ -70,6 +72,12 @@ constexpr static void avx512_histogram_u8_1x(uint32_t cnt[256],
 static void avx512_histogram_u32_v3(uint32_t C[256],
 									const uint32_t *A,
 									const size_t size) noexcept {
+	// NOTE: every lane counts into its own column of a private 256 x 16
+	// table, so the gather/scatter of one iteration never hits the same
+	// counter twice. The 16 columns are summed into `C` at the end.
+	// (The previous version used `value*16 + lane` as index into `C[256]`,
+	// i.e. out of bounds, and only reduced 32 bins of 8 lanes.)
+	alignas(64) uint32_t T[256 * 16] = {0};
 	const __m512i vid = _mm512_setr_epi32(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
 	const __m512i one = _mm512_set1_epi32(1);
 
@@ -79,43 +87,50 @@ static void avx512_histogram_u32_v3(uint32_t C[256],
 		__m512i offsets = _mm512_slli_epi32(chunk, 4);
 		offsets = _mm512_add_epi32(offsets, vid);
 
-		const __m512i oldv = _mm512_i32gather_epi32(offsets, C, 4);
+		const __m512i oldv = _mm512_i32gather_epi32(offsets, T, 4);
 		const __m512i newv = _mm512_add_epi32(oldv, one);
-		_mm512_i32scatter_epi32(C, offsets, newv, 4);
-	}
-
-	for (uint32_t t = 0; t < 32; t++) {
-		const uint32_t pos = t*8;
-		uint32_t sum = 0;
-		for (uint32_t j = 0; j < 8; j++) {
-			sum += C[pos + j];
-		}
-		C[t] = sum;
+		_mm512_i32scatter_epi32(T, offsets, newv, 4);
 	}
 
 	// tailmng
 	for (; i < size; ++i) {
-		C[A[i]]++;
+		T[A[i] * 16]++;
+	}
+
+	for (uint32_t v = 0; v < 256; v++) {
+		uint32_t sum = 0;
+		for (uint32_t j = 0; j < 16; j++) {
+			sum += T[v * 16 + j];
+		}
+		C[v] = sum;
 	}
 }
 
 /// AVX512-optimized histogram for uint32_t values using popcnt (values < 256)
 /// NOTE: inputs are uint32_t: with values < 2**8
-/// TODO: no tail managment
 /// \param C[out]: Output histogram array (256 elements)
 /// \param A[in]: Input array of uint32_t values
 /// \param size[in]: Number of elements in input array
 static void avx512_histogram_u32_v4(uint32_t C[256],
 									const uint32_t *A,
 									const size_t size) noexcept {
+	// NOTE: `C` is overwritten (same as `avx512_histogram_u32_v3`)
+	cryptanalysislib::memset(C, 0u, 256);
+
 	const __m512i one = _mm512_set1_epi32(1u);
-	for (uint32_t i = 0; i+16 <= size; i+=16) {
+	size_t i = 0;
+	for (; i+16 <= size; i+=16) {
 		const __m512i chunk = _mm512_loadu_epi32(A + i);
 		const __m512i conflicts = _mm512_popcnt_epi32(_mm512_conflict_epi32(chunk));
 
 		const __m512i oldv = _mm512_i32gather_epi32(chunk, C, 4);
 		const __m512i newv = _mm512_add_epi32(_mm512_add_epi32(oldv, one), conflicts);
 		_mm512_i32scatter_epi32(C, chunk, newv, 4);
+	}
+
+	// tailmng
+	for (; i < size; ++i) {
+		C[A[i]]++;
 	}
 }
 
@@ -931,6 +946,7 @@ template<typename T=uint8_t,
 constexpr inline static void histogram_u8_1x(C cnt[256],
                      				 const T *__restrict in,
                      				 const size_t inlen) noexcept {
+	cryptanalysislib::memset(cnt, C(0), histogram_csize);
 	const T *ip = in;
 	while(ip < in+inlen) {
 		cnt[*ip++]++;
@@ -981,10 +997,11 @@ constexpr inline static void histogram_u8_8x(C cnt[256],
 namespace cryptanalysislib::algorithm {
 
 	/// Computes histogram of input data (sequential version)
+	/// NOTE: `cnt` is overwritten, it does not need to be zeroed
 	/// \tparam T Input data type (default: uint8_t)
 	/// \tparam C Counter data type (default: uint32_t)
 	/// \tparam config Algorithm configuration (default: algorithmHistogramConfig)
-	/// \param cnt[out]: Output histogram array
+	/// \param cnt[out]: Output histogram array, 2**(8*sizeof(T)) elements
 	/// \param in[in]: Input data array
 	/// \param inlen[in]: Number of elements in input array
 	template<typename T=uint8_t,
@@ -993,23 +1010,28 @@ namespace cryptanalysislib::algorithm {
 	constexpr inline static void histogram(C *__restrict__ cnt,
 											const T *__restrict in,
 											const size_t inlen) noexcept {
-		if constexpr (std::is_same_v<T, uint8_t>) {
-			return histogram_u8_4x(cnt, in, inlen);
+		static_assert(sizeof(T) <= 2, "histogram: at most 16-bit inputs are supported");
+		using U = std::make_unsigned_t<T>;
+		if constexpr (std::is_same_v<U, uint8_t>) {
+			return histogram_u8_4x(cnt, (const uint8_t *)in, inlen);
 		}
 
+		constexpr size_t k = 1ull << (8u * sizeof(T));
+		cryptanalysislib::memset(cnt, C(0), k);
 		for (size_t i = 0; i < inlen; ++i) {
-			cnt[in[i]] += 1u;
+			cnt[static_cast<U>(in[i])] += 1u;
 		}
 	}
 
 	/// Computes histogram of input data (parallel version)
+	/// NOTE: `cnt` is overwritten, it does not need to be zeroed
 	/// \tparam ExecPolicy Execution policy type for parallel execution
 	/// \tparam T Input data type (default: uint8_t)
 	/// \tparam C Counter data type (default: uint32_t)
 	/// \tparam config Algorithm configuration (default: algorithmHistogramConfig)
 	/// \tparam Allocator Memory allocator type
 	/// \param policy[in]: Execution policy specifying parallelization strategy
-	/// \param cnt[out]: Output histogram array
+	/// \param cnt[out]: Output histogram array, 2**(8*sizeof(T)) elements
 	/// \param in[in]: Input data array
 	/// \param size[in]: Number of elements in input array 
 	template<class ExecPolicy,
@@ -1034,10 +1056,8 @@ namespace cryptanalysislib::algorithm {
 		// one private histogram per thread with a bin for every value of T
 		static_assert(sizeof(T) <= 2, "histogram: at most 16-bit inputs are supported");
 		constexpr size_t k = 1ull << (8u * sizeof(T));
+		// every thread overwrites its own private histogram
 		C *cnts = Allocator::allocate(nthreads * k * sizeof(C));
-		for (size_t j = 0; j < nthreads * k; j++) {
-			cnts[j] = 0;
-		}
 
 		for (uint32_t i = 0; i < nthreads; i++) {
 			const size_t l = i*chunks;
@@ -1057,6 +1077,7 @@ namespace cryptanalysislib::algorithm {
 		}
 
 
+		cryptanalysislib::memset(cnt, C(0), k);
 		for (uint32_t i = 0; i < nthreads; i++) {
 			futures[i].wait();
 			for (size_t j = 0; j < k; j++) {

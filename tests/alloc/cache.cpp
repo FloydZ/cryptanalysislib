@@ -84,6 +84,19 @@ TEST(AllocationMap, SingleThreadMultiple) {
 	}
 }
 
+struct BigTestStruct {
+	uint8_t d[256];
+};
+
+TEST(AllocationMap, LargeType) {
+	// NOTE: on the heap, the internal linked list is large
+	auto *allocator = new CacheAllocator<BigTestStruct>;
+	BigTestStruct *ptr = allocator->allocate();
+	EXPECT_NE(ptr, nullptr);
+	EXPECT_EQ(allocator->deallocate(ptr), true);
+	delete allocator;
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

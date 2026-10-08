@@ -84,7 +84,10 @@ public:
         ResetIndices();
     }
 
+	// NOTE: before, the index lists were never freed
 	constexpr ~RadixSort() noexcept {
+        delete[] mIndices2;
+        delete[] mIndices;
     }
 
 	// Sorting methods
@@ -278,8 +281,9 @@ private:
 	// Internal methods
 	bool Resize(const size_t nb) noexcept {
     	// Free previously used ram
-        delete mIndices2;
-        delete mIndices;
+        // NOTE: `new[]` memory, was freed with `delete`
+        delete[] mIndices2;
+        delete[] mIndices;
 
     	// Get some fresh one
     	mIndices		= new uint32_t[nb];

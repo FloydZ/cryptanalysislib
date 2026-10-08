@@ -82,6 +82,18 @@ TEST(deflate, string_simple) {
 }
 
 
+TEST(deflate, empty) {
+	uint8_t data[1] = {0}, comp[64], decomp[1];
+	for (int lvl = SDEFL_LVL_MIN; lvl <= SDEFL_LVL_MAX; ++lvl) {
+		struct sdefl sdefl;
+		const int len = sdeflate(&sdefl, comp, data, 0, lvl);
+		// at least the final block: BFINAL=1, BTYPE=00, LEN=0, NLEN=0xFFFF
+		EXPECT_GT(len, 0);
+		EXPECT_EQ(comp[0] & 1u, 1u);
+		EXPECT_EQ(0, sinflate(decomp, 1, comp, len));
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

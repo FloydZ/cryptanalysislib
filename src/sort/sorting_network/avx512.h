@@ -100,7 +100,8 @@
 /// NOTE: direct translation of: sortingnetwork_sort_u8x32
 static inline
 __m512i sortingnetwork_sort_u16x32(__m512i v) {
-	const __m512i sm0 = _mm512_setr_epi16(1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,17,16,19,18,21,20,23,22,25,25,27,26,29,28,31,30);
+	// NOTE: was `..., 25,25, ...`, i.e. not a permutation (24 missing)
+	const __m512i sm0 = _mm512_setr_epi16(1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,17,16,19,18,21,20,23,22,25,24,27,26,29,28,31,30);
 	const __m512i sm1 = _mm512_setr_epi16(3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,19,18,17,16,23,22,21,20,27,26,25,24,31,30,29,28);
 	const __m512i sm2 = _mm512_setr_epi16(7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,23,22,21,20,19,18,17,16,31,30,29,28,27,26,25,24);
 	const __m512i sm3 = _mm512_setr_epi16(2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,18,19,16,17,22,23,20,21,26,27,24,25,30,31,28,29);
@@ -149,8 +150,25 @@ __m512i sortingnetwork_sort_u16x32(__m512i v) {
 	COEX_u16x32(v, t, tmp);
 	v = _mm512_mask_mov_epi16(v, 0x55555555, t);
 
-	// TODO remaining 4 layers
-	t = _mm512_shuffle_i64x2(v, v, _MM_SHUFFLE(1,0, 3,2));
+	// NOTE: finished. Before, the network stopped here (`// TODO remaining 4
+	// 	layers`), i.e. both 16 element halves were sorted descending and
+	// 	nothing was merged. Reverse the lower half, so the vector is bitonic,
+	// 	and merge with distance 16, 8, 4, 2, 1 (the lower index gets the min).
+	const __m512i rev_lo = _mm512_setr_epi16(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31);
+	const __m512i x16 = _mm512_setr_epi16(16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
+	const __m512i x8 = _mm512_setr_epi16(8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7,24,25,26,27,28,29,30,31,16,17,18,19,20,21,22,23);
+#define MERGE_u16x32(perm, mask)                \
+	t = _mm512_permutexvar_epi16(perm, v);      \
+	COEX_u16x32(t, v, tmp);                     \
+	v = _mm512_mask_mov_epi16(t, mask, v);
+
+	v = _mm512_permutexvar_epi16(rev_lo, v);
+	MERGE_u16x32(x16, 0xFFFF0000)
+	MERGE_u16x32(x8,  0xFF00FF00)
+	MERGE_u16x32(sm5, 0xF0F0F0F0)
+	MERGE_u16x32(sm3, 0xCCCCCCCC)
+	MERGE_u16x32(sm0, 0xAAAAAAAA)
+#undef MERGE_u16x32
 	return v;
 }
 
@@ -262,8 +280,9 @@ a = _mm512_mask_mov_epi16(min, sel, max);		\
 		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
 		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
 	);
+	// NOTE: was `..., 28,28, ...`, i.e. not a permutation (27 missing)
 	const __m512i m2 = _mm512_set_epi16(
-	   23,22,21,20,19,18,17,16,31,30,29,28,28,26,25,24,
+	   23,22,21,20,19,18,17,16,31,30,29,28,27,26,25,24,
 		7, 6, 5, 4, 3, 2, 1, 0,15,14,13,12,11,10, 9, 8
 	);
 
@@ -332,8 +351,9 @@ void sortingnetwork_kvsort_u16x32(__m512i *k, __m512i *v) {
 		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
 		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
 	);
+	// NOTE: was `..., 28,28, ...`, i.e. not a permutation (27 missing)
 	const __m512i m2 = _mm512_set_epi16(
-	   23,22,21,20,19,18,17,16,31,30,29,28,28,26,25,24,
+	   23,22,21,20,19,18,17,16,31,30,29,28,27,26,25,24,
 		7, 6, 5, 4, 3, 2, 1, 0,15,14,13,12,11,10, 9, 8
 	);
 

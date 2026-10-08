@@ -143,9 +143,12 @@ TEST(SubSetSum, join4lists_on_iT_v2) {
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
 		// out[i].recalculate_label(A);
-		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
+		// NOTE: the label of an output is l1+l2+l3+l4 (mod q), but its value
+		// 	is the XOR of the four parts. Both only agree if the parts have
+		// 	disjoint supports, i.e. only then the output is a solution.
+		const bool consistent = test_recalc1.is_equal(out[i].label, 0, n);
 		std::cout << out[i] << std::endl;
-		if (Label::cmp(out[i].label, target)) {
+		if (consistent && Label::cmp(out[i].label, target)) {
 			right += 1;
 		}
 	}
@@ -262,9 +265,12 @@ TEST(SubSetSum, join4lists_twolists_on_iT_v2) {
 
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
-		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
+		// NOTE: the label of an output is l1+l2+l3+l4 (mod q), but its value
+		// 	is the XOR of the four parts. Both only agree if the parts have
+		// 	disjoint supports, i.e. only then the output is a solution.
+		const bool consistent = test_recalc1.is_equal(out[i].label, 0, n);
 		std::cout << out[i] << std::endl;
-		if (Label::cmp(out[i].label, target)) {
+		if (consistent && Label::cmp(out[i].label, target)) {
 			right += 1;
 		}
 	}
@@ -311,9 +317,12 @@ TEST(SubSetSum, join4lists_twolists_on_iT_v2_constexpr) {
 
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
 		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
-		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
+		// NOTE: the label of an output is l1+l2+l3+l4 (mod q), but its value
+		// 	is the XOR of the four parts. Both only agree if the parts have
+		// 	disjoint supports, i.e. only then the output is a solution.
+		const bool consistent = test_recalc1.is_equal(out[i].label, 0, n);
 		std::cout << out[i] << std::endl;
-		if (Label::cmp(out[i].label, target)) {
+		if (consistent && Label::cmp(out[i].label, target)) {
 			right += 1;
 		}
 	}

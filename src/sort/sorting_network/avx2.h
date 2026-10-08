@@ -12,6 +12,8 @@
 
 #include <stdint.h>
 #include <immintrin.h>
+#include <array>
+#include <limits>
 
 #include "simd/simd.h"
 #include "sort/sorting_network/macros.h"
@@ -628,112 +630,65 @@ static inline __m256i sortingnetwork_sort_u16x16(__m256i a) {
 }
 
 /// source: https://bekbolatov.github.io/sorting/
+/// Batcher's odd-even merge sort on 16 `uint16_t` (10 layers).
+/// NOTE: rewritten. Before, the permutations and selection masks of the
+/// 	layers were placeholders ("probably wrong"), and no input was sorted.
 /// NOTE: this is slower than the batcher network as it has 4 layer which
 ///     cross 128bit lanes.
 static inline __m256i sortingnetwork_sort_u16x16_odd_even(__m256i a) {
-	/// applies a single layer of the permutation network
-#define CMPXCH_SHUFFLE(a, perm, sel)				\
-	{												\
-		__m256i b  = _mm256_shuffle_epi8(a, perm);	\
-		__m256i mn = _mm256_min_epu16(a, b);		\
-		__m256i mx = _mm256_max_epu16(a, b);		\
-		a = _mm256_blendv_epi8(mx, mn, sel);		\
-	}
-	/// applies a single layer of the permutation network
-	/// but first swaps the upper and lower half of `a`
-#define CMPXCH_CROSS128_SHUFFLE(a, perm, sel)				\
-	{														\
-		__m256i b = _mm256_permute2x128_si256(a, a, 0x01);	\
-    	b = _mm256_shuffle_epi8(b, perm);					\
-		__m256i mn = _mm256_min_epu16(a, b);				\
-		__m256i mx = _mm256_max_epu16(a, b);				\
-		a = _mm256_blendv_epi8(mx, mn, sel);				\
-	}
+	// per layer: the byte shuffles to fetch the partner of each word from the
+	// same and from the other 128-bit lane, and the words receiving the minimum
+	struct alignas(32) layer_t {
+		uint8_t same[32];
+		uint8_t cross[32];
+		uint8_t sel[32];
+	};
 
-	// swaps i with i+1
-    const __m256i perm1 = _mm256_setr_epi8(
-        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13,
-        2,3, 0,1, 6,7, 4,5, 10,11, 8,9, 14,15, 12,13
-    );
-    // swaps i with i+2
-    const __m256i perm2 = _mm256_setr_epi8(
-        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11,
-        4,5, 6,7, 0,1, 2,3, 12,13, 14,15, 8,9, 10,11
-    );
-    const __m256i perm3 = _mm256_setr_epi8(
-        0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15,
-        0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15
-    );
-    // swaps i with i+4
-    const __m256i perm4 = _mm256_setr_epi8(
-    	8,9, 10,11, 12,13, 14,15, 0,1, 2,3, 4,5, 6,7,
-    	8,9, 10,11, 12,13, 14,15, 0,1, 2,3, 4,5, 6,7
-    );
-    const __m256i perm5 = _mm256_setr_epi8(
-        0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15,
-        0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15
-    );
-    const __m256i perm6 = _mm256_setr_epi8(
-        0, 1, 4, 5, 2, 3, 8, 9, 6, 7, 12, 13, 10, 11, 14, 15,
-        0, 1, 4, 5, 2, 3, 8, 9, 6, 7, 12, 13, 10, 11, 14, 15
-    );
-    // across lanes
-    const __m256i perm7 = _mm256_setr_epi8(
-        14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1,
-        14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1
-    );
-    // across lanes: NOTE: probably wrong
-    const __m256i perm8 = _mm256_setr_epi8(
-        0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 
-        0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7
-    );
-    // across lanes: NOTE: probably wrong
-    const __m256i perm9 = _mm256_setr_epi8(
-        0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3,
-        0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3
-    );
-    // across lanes: NOTE: probably wrong
-    const __m256i perm10= _mm256_setr_epi8(
-        0, 1, 4, 5, 2, 3, 8, 9, 6, 7, 12, 13, 10, 11, 14, 15,
-        0, 1, 4, 5, 2, 3, 8, 9, 6, 7, 12, 13, 10, 11, 14, 15
-    );
-    
-    // sel1: even word indices (w & 1 == 0) receive the min
-    const __m256i sel1 = _mm256_setr_epi8(
-        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,
-        0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00,  0xFF,0xFF, 0x00,0x00, 0xFF,0xFF, 0x00,0x00
-    );
-    // sel2: (w & 2) == 0 receive min
-    const __m256i sel2 = _mm256_setr_epi8(
-        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,
-        0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00,  0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00
-    );
-    // sel4: (w & 4) == 0 receive min -> words 0..3 get min, words 4..7 get max inside each 128-bit lane
-    const __m256i sel4 = _mm256_setr_epi8(
-        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00,
-        0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,  0x00,0x00, 0x00,0x00, 0x00,0x00, 0x00,0x00
-    );
-    // sel8: lower 128-bit half (first 8 words = first 16 bytes) receive min when compare across halves
-    const __m256i sel8 = _mm256_setr_epi8(
-    	0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,  0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
-    	0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,  0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00
-    );
+	static constexpr auto layers = []() {
+		constexpr uint32_t n = 16;
+		std::array<layer_t, 10> L{};
+		uint32_t l = 0;
+		// Knuth, TAOCP vol. 3, 5.3.4: comparators (i + j, i + j + k)
+		for (uint32_t p = 1; p < n; p <<= 1u) {
+			for (uint32_t k = p; k >= 1; k >>= 1u) {
+				uint32_t partner[n];
+				for (uint32_t i = 0; i < n; ++i) { partner[i] = i; }
+				for (uint32_t j = k % p; j + k < n; j += 2 * k) {
+					for (uint32_t i = 0; (i < k) && (i + j + k < n); ++i) {
+						if ((i + j) / (2 * p) == (i + j + k) / (2 * p)) {
+							partner[i + j] = i + j + k;
+							partner[i + j + k] = i + j;
+						}
+					}
+				}
 
-    // TODO: the selection masks are wrong.
-	CMPXCH_SHUFFLE(a, perm1, sel1);
-	CMPXCH_SHUFFLE(a, perm2, sel2);
-	CMPXCH_SHUFFLE(a, perm3, sel1);
-	CMPXCH_SHUFFLE(a, perm4, sel4);
-	CMPXCH_SHUFFLE(a, perm5, sel1);
-	CMPXCH_SHUFFLE(a, perm6, sel2);
-	CMPXCH_CROSS128_SHUFFLE(a, perm7, sel8);
-	CMPXCH_CROSS128_SHUFFLE(a, perm8, sel8);
-	CMPXCH_CROSS128_SHUFFLE(a, perm9, sel8);
-	CMPXCH_CROSS128_SHUFFLE(a, perm10, sel8);
+				for (uint32_t i = 0; i < n; ++i) {
+					const uint32_t t = partner[i];
+					const bool same_lane = (t / 8u) == (i / 8u);
+					for (uint32_t b = 0; b < 2; ++b) {
+						const uint8_t idx = uint8_t(2u * (t % 8u) + b);
+						L[l].same[2 * i + b] = same_lane ? idx : uint8_t(0x80);
+						L[l].cross[2 * i + b] = same_lane ? uint8_t(0x80) : idx;
+						L[l].sel[2 * i + b] = (i < t) ? uint8_t(0xFF) : uint8_t(0x00);
+					}
+				}
+				l += 1;
+			}
+		}
+		return L;
+	}();
+
+	for (const auto &L: layers) {
+		const __m256i sw = _mm256_permute2x128_si256(a, a, 0x01);
+		const __m256i b = _mm256_or_si256(
+		        _mm256_shuffle_epi8(a, _mm256_load_si256((const __m256i *) L.same)),
+		        _mm256_shuffle_epi8(sw, _mm256_load_si256((const __m256i *) L.cross)));
+		const __m256i mn = _mm256_min_epu16(a, b);
+		const __m256i mx = _mm256_max_epu16(a, b);
+		a = _mm256_blendv_epi8(mx, mn, _mm256_load_si256((const __m256i *) L.sel));
+	}
 
 	return a;
-#undef CMPXCH_SHUFFLE
-#undef CMPXCH_CROSS128_SHUFFLE
 }
 
 
@@ -1463,47 +1418,13 @@ static inline void sortingnetwork_sort_u8x96(__m256i &a,
 }
 
 // probably something like `simd_aftermerge_12V`    
+/// NOTE: the former merge network was wrong (it did not sort most bitonic
+/// 	inputs, e.g. descending ones). This sorts `a, b, c` completely, which
+/// 	is correct for any input.
 static inline void sortingnetwork_aftermerge_u8x96(__m256i &a,
 						                           __m256i &b,
                                                    __m256i &c) noexcept {
-    __m256i tmp, L0, H0;
-  
-    // 0 ()
-    COEX_u8x32(a, c, tmp);
-
-	__m256i bp = _mm256_permute4x64_epi64(b, 0b01001110);
-    COEX_u8x32(b, bp, tmp);
-	b = _mm256_blend_epi32(b, bp, 0b11110000);
-
-    // 1 (a e, b f)
-    L0 = a; H0 = c;
-    COEX_u8x32(L0, b, tmp);
-    COEX_u8x32(H0, b, tmp);
-	a = _mm256_blend_epi32(L0, a, 0b11110000);
-	c = _mm256_blend_epi32(H0, c, 0b00001111);
-
-    // 2 (a c, b d)
-	__m256i ap = _mm256_permute4x64_epi64(a, 0b01001110);
-	__m256i cp = _mm256_permute4x64_epi64(c, 0b01001110);
-    COEX_u8x32(a, ap, tmp);
-    COEX_u8x32(c, cp, tmp);
-	a = _mm256_blend_epi32(a, ap, 0b11110000);
-	c = _mm256_blend_epi32(c, cp, 0b11110000);
-
-    // 3 (a b, c d)
-	ap = _mm256_permute4x64_epi64(a, 0b10110001);
-	bp = _mm256_permute4x64_epi64(b, 0b10110001);
-	cp = _mm256_permute4x64_epi64(c, 0b10110001);
-    COEX_u8x32(a, ap, tmp);
-    COEX_u8x32(b, bp, tmp);
-    COEX_u8x32(c, cp, tmp);
-	a = _mm256_blend_epi32(a, ap, 0b11001100);
-	b = _mm256_blend_epi32(b, bp, 0b11001100);
-	c = _mm256_blend_epi32(c, cp, 0b11001100);
-
-    COEX_u8x32(b, c, tmp);
-    sortingnetwork_aftermerge_u8x64(a, b);
-    sortingnetwork_aftermergesort_u8x32(c);
+    sortingnetwork_sort_u8x96(a, b, c);
 }
 
 /// implementation of `simd_sort_16V`
@@ -1564,7 +1485,13 @@ static inline void sortingnetwork_sort_u8x224(__m256i &a,
     COEX_u8x32(b, g, tmp);
 
     sortingnetwork_aftermerge_u8x128(a, b, c, d);
-    sortingnetwork_aftermerge_u8x96(e, f, g);
+    // NOTE: the maxima form a bitonic sequence in the order `g, f, e`.
+    // 	Appending the maximal value keeps it bitonic, so it is merged by the
+    // 	128 element network. Before, `aftermerge_u8x96(e, f, g)` was used,
+    // 	i.e. the wrong order and a broken network: nothing was sorted.
+    __m256i pad = _mm256_set1_epi8(-1);
+    sortingnetwork_aftermerge_u8x128(g, f, e, pad);
+    tmp = e; e = g; g = tmp;
 }
 
 /// implementation of `simd_sort_32V`
@@ -1865,7 +1792,7 @@ sortingnetwork_aftermerge_sorted5(u32x40,u32x8,__m256i)
 sortingnetwork_aftermerge_sorted5(i32x40,i32x8,__m256i)
 sortingnetwork_sort5(f32x40,f32x32,f32x16,f32x8,__m256)
 sortingnetwork_sort5(u32x40,u32x32,u32x16,u32x8,__m256i)
-sortingnetwork_sort5(i32x40,i32x32,i32x16,u32x8,__m256i)
+sortingnetwork_sort5(i32x40,i32x32,i32x16,i32x8,__m256i) // NOTE: was `u32x8` (unsigned compares)
 sortingnetwork_aftermerge_sorted6(f32x48,f32x8,__m256)
 sortingnetwork_aftermerge_sorted6(u32x48,u32x8,__m256i)
 sortingnetwork_aftermerge_sorted6(i32x48,i32x8,__m256i)
@@ -1877,7 +1804,7 @@ sortingnetwork_aftermerge_sorted7(u32x56,u32x8,__m256i)
 sortingnetwork_aftermerge_sorted7(i32x56,i32x8,__m256i)
 sortingnetwork_sort7(f32x56,f32x32,f32x24,f32x16,f32x8,__m256)
 sortingnetwork_sort7(u32x56,u32x32,u32x24,u32x16,u32x8,__m256i)
-sortingnetwork_sort7(i32x56,i32x32,i32x24,i32x16,u32x8,__m256i)
+sortingnetwork_sort7(i32x56,i32x32,i32x24,i32x16,i32x8,__m256i) // NOTE: was `u32x8` (unsigned compares)
 sortingnetwork_aftermerge8(f32x64,f32x16,f32x8,__m256)
 sortingnetwork_aftermerge8(u32x64,u32x16,u32x8,__m256i)
 sortingnetwork_aftermerge8(i32x64,i32x16,i32x8,__m256i)
@@ -1910,116 +1837,64 @@ sortingnetwork_sort16(u32x128,u32x64,u32x16,__m256i)
 sortingnetwork_sort16(i32x128,i32x64,i32x16,__m256i)
 
 
-#ifdef __clang__
+/// NOTE: was copied from the AVX-512 version: 16 (instead of 8) elements
+/// 	per register, an unpadded tail, the sorted tail was discarded and the
+/// 	data was accessed with aligned loads/stores. Now the same scheme as
+/// 	`sortingnetwork_small_f32` below.
+/// can only sort up to 16*8 elements, returns false otherwise
 #define avx2_sortingnetwork_small(T, N, REG)							\
 [[nodiscard]] static bool sortingnetwork_small_ ## N(N* array,			\
 			const size_t element_count) noexcept {						\
 	if (element_count <= 1) { return true; }							\
-	constexpr size_t s = 16;											\
+	constexpr size_t s = 8;												\
 	const uint32_t full_vec_count = element_count/s;					\
 	const uint32_t last_vec_size = element_count-(full_vec_count*s);	\
 	const uint32_t last_vec_flag = last_vec_size > 0;					\
-	if (full_vec_count > s) { return false; }							\
+	if ((full_vec_count + last_vec_flag) > 16) { return false; }		\
 	REG d[16];															\
 	for(uint32_t i=0; i<full_vec_count; ++i) {							\
-		d[i] = *((REG *)(array + s*i));									\
+		d[i] = _mm256_loadu_si256((const __m256i *)(array + s*i));		\
 	}                                                      				\
-    N tmp[s];                                           				\
+	/* the padding is the largest value, so it is sorted to the end */	\
+	alignas(32) N tmp[s];												\
 	if (last_vec_size) {                                   				\
-		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
-    		tmp[i] = array[full_vec_count*s + i];                       \
+		for(uint32_t i=0; i<s; ++i) {              						\
+			tmp[i] = (i < last_vec_size) ? array[full_vec_count*s + i]	\
+			                             : std::numeric_limits<N>::max();\
 		}                                                     			\
-		d[full_vec_count] = *((REG *)(tmp));							\
+		d[full_vec_count] = _mm256_load_si256((const __m256i *)tmp);	\
 	}																	\
 	switch (full_vec_count+last_vec_flag) {								\
-	case 1 : sortingnetwork_sort_ ## T ## 32x8  (d[0]); goto cleanup;	\
-	case 2 : sortingnetwork_sort_ ## T ## 32x16 (d[0],d[1]); goto cleanup;\
-	case 3 : sortingnetwork_sort_ ## T ## 32x24 (d[0],d[1],d[2]); goto cleanup;\
-	case 4 : sortingnetwork_sort_ ## T ## 32x32 (d[0],d[1],d[2],d[3]); goto cleanup;\
-	case 5 : sortingnetwork_sort_ ## T ## 32x40 (d[0],d[1],d[2],d[3],d[4]); goto cleanup;\
-	case 6 : sortingnetwork_sort_ ## T ## 32x48 (d[0],d[1],d[2],d[3],d[4],d[5]); goto cleanup;\
-	case 7 : sortingnetwork_sort_ ## T ## 32x56 (d[0],d[1],d[2],d[3],d[4],d[5],d[6]); goto cleanup;\
-	case 8 : sortingnetwork_sort_ ## T ## 32x64 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7]); goto cleanup;\
-	case 9 : sortingnetwork_sort_ ## T ## 32x72 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8]); goto cleanup;\
-	case 10: sortingnetwork_sort_ ## T ## 32x80 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9]); goto cleanup;\
-	case 11: sortingnetwork_sort_ ## T ## 32x88 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10]); goto cleanup;\
-	case 12: sortingnetwork_sort_ ## T ## 32x96 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11]); goto cleanup;\
-	case 13: sortingnetwork_sort_ ## T ## 32x104(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12]); goto cleanup;\
-	case 14: sortingnetwork_sort_ ## T ## 32x112(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13]); goto cleanup;\
-	case 15: sortingnetwork_sort_ ## T ## 32x120(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14]); goto cleanup;\
-	case 16: sortingnetwork_sort_ ## T ## 32x128(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14],d[15]); goto cleanup;\
-	default:\
-	return false;\
-	}\
-	cleanup:															\
+	case 1 : sortingnetwork_sort_ ## T ## 32x8  (d[0]); break;			\
+	case 2 : sortingnetwork_sort_ ## T ## 32x16 (d[0],d[1]); break;		\
+	case 3 : sortingnetwork_sort_ ## T ## 32x24 (d[0],d[1],d[2]); break;\
+	case 4 : sortingnetwork_sort_ ## T ## 32x32 (d[0],d[1],d[2],d[3]); break;\
+	case 5 : sortingnetwork_sort_ ## T ## 32x40 (d[0],d[1],d[2],d[3],d[4]); break;\
+	case 6 : sortingnetwork_sort_ ## T ## 32x48 (d[0],d[1],d[2],d[3],d[4],d[5]); break;\
+	case 7 : sortingnetwork_sort_ ## T ## 32x56 (d[0],d[1],d[2],d[3],d[4],d[5],d[6]); break;\
+	case 8 : sortingnetwork_sort_ ## T ## 32x64 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7]); break;\
+	case 9 : sortingnetwork_sort_ ## T ## 32x72 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8]); break;\
+	case 10: sortingnetwork_sort_ ## T ## 32x80 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9]); break;\
+	case 11: sortingnetwork_sort_ ## T ## 32x88 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10]); break;\
+	case 12: sortingnetwork_sort_ ## T ## 32x96 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11]); break;\
+	case 13: sortingnetwork_sort_ ## T ## 32x104(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12]); break;\
+	case 14: sortingnetwork_sort_ ## T ## 32x112(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13]); break;\
+	case 15: sortingnetwork_sort_ ## T ## 32x120(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14]); break;\
+	case 16: sortingnetwork_sort_ ## T ## 32x128(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14],d[15]); break;\
+	default:															\
+	return false;														\
+	}																	\
 	for(uint32_t i=0; i<full_vec_count; ++i) {							\
-		*((REG *)(array + s*i)) = d[i];									\
+		_mm256_storeu_si256((__m256i *)(array + s*i), d[i]);			\
 	}																	\
 	if (last_vec_size) {												\
-		d[full_vec_count] = *((REG *)(tmp));							\
+		_mm256_store_si256((__m256i *)tmp, d[full_vec_count]);			\
 		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
     		array[full_vec_count*s + i] = tmp[i];                       \
 		}                                                     			\
 	}																	\
 	return true;														\
 }
-#else
-#define avx2_sortingnetwork_small(T, N, REG)							\
-[[nodiscard]] static bool sortingnetwork_small_ ## N(N* array,			\
-			const size_t element_count) noexcept {						\
-	if (element_count <= 1) { return true; }							\
-	constexpr size_t s = 16;											\
-	const uint32_t full_vec_count = element_count/s;					\
-	const uint32_t last_vec_size = element_count-(full_vec_count*s);	\
-	const uint32_t last_vec_flag = last_vec_size > 0;					\
-	if (full_vec_count > s) { return false; }							\
-	REG d[16];															\
-	for(uint32_t i=0; i<full_vec_count; ++i) {							\
-		d[i] = *((REG *)(array + s*i));									\
-	}                                                      				\
-    N tmp[s];                                           				\
-	if (last_vec_size) {                                   				\
-		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
-    		tmp[i] = array[full_vec_count*s + i];                       \
-		}                                                     			\
-		d[full_vec_count] = *((REG *)(tmp));							\
-	}																	\
-	void *t[] = {\
-	    &&t1,  &&t2,  &&t3,  &&t4,\
-		&&t5,  &&t6,  &&t7,  &&t8,\
-	   	&&t9,  &&t10, &&t11, &&t12,\
-	    &&t13, &&t14, &&t15, &&t16\
-	};\
-	goto *t[full_vec_count+last_vec_flag - 1];\
-	t1 : sortingnetwork_sort_ ## T ## 32x8  (d[0]); goto cleanup;\
-	t2 : sortingnetwork_sort_ ## T ## 32x16 (d[0],d[1]); goto cleanup;\
-	t3 : sortingnetwork_sort_ ## T ## 32x24 (d[0],d[1],d[2]); goto cleanup;\
-	t4 : sortingnetwork_sort_ ## T ## 32x32 (d[0],d[1],d[2],d[3]); goto cleanup;\
-	t5 : sortingnetwork_sort_ ## T ## 32x40 (d[0],d[1],d[2],d[3],d[4]); goto cleanup;\
-	t6 : sortingnetwork_sort_ ## T ## 32x48 (d[0],d[1],d[2],d[3],d[4],d[5]); goto cleanup;\
-	t7 : sortingnetwork_sort_ ## T ## 32x56 (d[0],d[1],d[2],d[3],d[4],d[5],d[6]); goto cleanup;\
-	t8 : sortingnetwork_sort_ ## T ## 32x64 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7]); goto cleanup;\
-	t9 : sortingnetwork_sort_ ## T ## 32x72 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8]); goto cleanup;\
-	t10: sortingnetwork_sort_ ## T ## 32x80 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9]); goto cleanup;\
-	t11: sortingnetwork_sort_ ## T ## 32x88 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10]); goto cleanup;\
-	t12: sortingnetwork_sort_ ## T ## 32x96 (d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11]); goto cleanup;\
-	t13: sortingnetwork_sort_ ## T ## 32x104(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12]); goto cleanup;\
-	t14: sortingnetwork_sort_ ## T ## 32x112(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13]); goto cleanup;\
-	t15: sortingnetwork_sort_ ## T ## 32x120(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14]); goto cleanup;\
-	t16: sortingnetwork_sort_ ## T ## 32x128(d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10],d[11],d[12],d[13],d[14],d[15]); goto cleanup;\
-    cleanup:															\
-	for(uint32_t i=0; i<full_vec_count; ++i) {							\
-		*((REG *)(array + s*i)) = d[i];									\
-	}																	\
-	if (last_vec_size) {												\
-		d[full_vec_count] = *((REG *)(tmp));							\
-		for(uint32_t i=0; i<last_vec_size; ++i) {              			\
-    		array[full_vec_count*s + i] = tmp[i];                       \
-		}                                                     			\
-	}																	\
-	return true;														\
-}
-#endif
 
 avx2_sortingnetwork_small(u, uint32_t, __m256i);
 avx2_sortingnetwork_small(i, int32_t, __m256i);
