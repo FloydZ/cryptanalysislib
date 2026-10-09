@@ -1,7 +1,8 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <iostream>
-#include <execution>
+// NOTE: no `<execution>`: if `libtbb-dev` is installed, libstdc++ selects its
+// TBB pstl backend, which needs `-ltbb` (undefined `tbb::detail::r1::*` at -O0).
 
 #include "algorithm/for_each.h"
 
