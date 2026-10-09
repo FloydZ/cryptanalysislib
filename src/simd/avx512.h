@@ -19,6 +19,10 @@
 #ifdef __clang__
 /// what this is needed?
 typedef char __v64qi_u __attribute__((__vector_size__(64), __may_alias__, __aligned__(1)));
+#else
+/// gcc only provides `__v64qi` (plain `char`) and `__v64qu`; clang additionally
+/// has the explicitly signed `__v64qs`, which `Xint8x64_t<false>::V` needs.
+typedef signed char __v64qs __attribute__((__vector_size__(64)));
 #endif
 
 /// translates 64 bytes into a singe __m512i register as constexpr

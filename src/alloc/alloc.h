@@ -799,23 +799,24 @@ public:
 	typedef const void *const_void_pointer;
 	typedef size_t size_type;
 
-	const char *pool_name = "tracy_allocator";
+	constexpr static const char *pool_name = "tracy_allocator";
 
-	/// Allocates memory with Tracy profiling
+	/// Allocates aligned memory and reports it to Tracy
 	/// \param n[in]: number of elements to allocate
 	/// \return pointer to allocated memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
-		T *p = nullptr;
-		TracyCAllocN(p, sizeof(T) * n, pool_name);
+		const pointer p = AlignmentMallocator<T, alignment>::allocate(sizeof(T) * n);
+		TracyAllocN(p, sizeof(T) * n, pool_name);
 		return p;
 	}
 
-	/// Deallocates memory with Tracy profiling
+	/// Deallocates memory and reports it to Tracy
 	/// \param p[in]: pointer to memory to deallocate
 	/// \param n[in]: number of elements
 	static constexpr inline void deallocate(const pointer p,
 											const size_type n) noexcept {
-		TracyCFreeN(p, sizeof(T) * n);
+		TracyFreeN(p, pool_name);
+		AlignmentMallocator<T, alignment>::deallocate(p, sizeof(T) * n);
 	}
 };
 #endif

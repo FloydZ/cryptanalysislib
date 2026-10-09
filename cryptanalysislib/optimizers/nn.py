@@ -72,7 +72,7 @@ def rebuild(n: int, lam: int, gamma: int, k: int, delta: int, N: int, bf: int, i
     
     lam = int(math.log2(lam))
     cmd = ["make", "CXX_FLAGS +=  -DBENCH_n=" + str(n) + " -DBENCH_N=" + str(N) + " -DBENCH_LS=" + str(lam) + \
-           " -DBENCH_R="+str(r) + " -DBENCH_K="+str(k) + " -DBENCH_GAMMA="+str(gamma) + " -DBENCH_DELTA="+str(delta) +
+           " -DBENCH_R="+str(n // k) + " -DBENCH_K="+str(k) + " -DBENCH_GAMMA="+str(gamma) + " -DBENCH_DELTA="+str(delta) +
            " -DBENCH_BF="+str(bf) + " -DBENCH_ITERS="+str(iters) + optimisations, "-B", target, "-j1"]
 
     p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True, cwd=path)

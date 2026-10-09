@@ -402,7 +402,7 @@ void sortingnetwork_kvsort_u16x32(__m512i *k, __m512i *v) {
     	if constexpr (kv) {                                                 \
 			values = (REG)_mm512_mask_mov_epi32(                                 \
 						_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)values),       \
-						_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),        \
+						_mm512_cmp_epi32_mask((__m512i)tmp_input, (__m512i)input, _MM_CMPINT_EQ),        \
 			       		 (__m512i)values);\
 		}                                                                   \
 		input = tmp_input;													\
@@ -417,7 +417,7 @@ void sortingnetwork_kvsort_u16x32(__m512i *k, __m512i *v) {
 		if constexpr (kv) {													\
 			values = (REG)_mm512_mask_mov_epi32( 								\
 	                	_mm512_permutexvar_epi32((__m512i)idxNoNeigh, (__m512i)values),		\
-	                	_mm512_cmp_epi32_mask(tmp_input, input, _MM_CMPINT_EQ),\
+	                	_mm512_cmp_epi32_mask((__m512i)tmp_input, (__m512i)input, _MM_CMPINT_EQ),\
 	                    (__m512i)values); 											\
 		} 																	\
 		input = tmp_input; 													\

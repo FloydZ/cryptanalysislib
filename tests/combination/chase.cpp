@@ -2,8 +2,6 @@
 #include <bitset>
 #include <gtest/gtest.h>
 
-#define private public
-
 #include "combination/chase.h"
 #include "random.h"
 

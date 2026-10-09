@@ -1490,23 +1490,16 @@ template<typename It, typename OutIt, typename ExtractKey>
 [[nodiscard]] bool ska_sort_copy(It begin, It end, OutIt buffer_begin, ExtractKey && key)
 {
     std::ptrdiff_t num_elements = end - begin;
-#if defined(__clang__) && !defined (__APPLE__)
-    if (num_elements < 128 || detail::radix_sort_pass_count<typename std::result_of<ExtractKey(decltype(*begin))>> >= 8)
-#else 
-    if (num_elements < 128 || detail::radix_sort_pass_count<typename std::invoke_result<ExtractKey(decltype(*begin))>> >= 8)
-#endif
+    // NOTE: `std::result_of` was removed in C++20 (libc++ does not provide it)
+    using key_type = std::invoke_result_t<ExtractKey, decltype(*begin)>;
+    if (num_elements < 128 || detail::radix_sort_pass_count<key_type> >= 8)
     {
         ska_sort(begin, end, key);
         return false;
     }
     else
 	{
-
-#if defined(__clang__) && !defined (__APPLE__)
-        return detail::RadixSorter<typename std::result_of<ExtractKey(decltype(*begin))>::type>::sort(begin, end, buffer_begin, key);
-#else 
-        return detail::RadixSorter<typename std::invoke_result<ExtractKey(decltype(*begin))>::type>::sort(begin, end, buffer_begin, key);
-#endif
+        return detail::RadixSorter<key_type>::sort(begin, end, buffer_begin, key);
 	}
 }
 template<typename It, typename OutIt>

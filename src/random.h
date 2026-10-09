@@ -7,6 +7,7 @@
 #include <string>
 #include <type_traits>
 #include <algorithm>
+#include <bit>
 
 // floor( ( (1+sqrt(5))/2 ) * 2**64 MOD 2**64)
 #define GOLDEN_GAMMA UINT64_C(0x9E3779B97F4A7C15)

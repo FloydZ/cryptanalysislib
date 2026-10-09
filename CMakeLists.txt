@@ -96,10 +96,13 @@ if(${USE_TRACY})
 	FetchContent_Declare(
 		tracy
 		GIT_REPOSITORY 	https://github.com/wolfpld/tracy
-		GIT_TAG 		master
+		# keep in sync with the tracy-capture version in .github/workflows/ubuntu_x86_tracy.yml
+		GIT_TAG 		v0.14.1
 		GIT_SHALLOW 	TRUE
 		GIT_PROGRESS 	TRUE
 	)
+	# tracy disables the client by default, which turns all its macros into no-ops
+	set(TRACY_ENABLE ON CACHE BOOL "Enable profiling" FORCE)
 	FetchContent_MakeAvailable(tracy)
 endif ()
 

@@ -346,7 +346,7 @@ namespace cryptanalysislib {
 		[[nodiscard]] constexpr static inline _Xint8x16_t set1(const limb_type a) noexcept {
 			S ret;
 			for (uint32_t i = 0; i < LIMBS; ++i) {
-				ret[i] = a;
+				ret.d[i] = a;
 			}
 			return ret;
 		}
@@ -431,7 +431,7 @@ namespace cryptanalysislib {
 			auto *ptrd = (limb_type *) ptr;
 			S out;
 			for (uint32_t i = 0; i < LIMBS; i++) {
-				out[i] = ptrd[i];
+				out.d[i] = ptrd[i];
 			}
 			return out;
 		}
@@ -442,7 +442,7 @@ namespace cryptanalysislib {
 			auto *ptrd = (limb_type *) ptr;
 			S out;
 			for (uint32_t i = 0; i < LIMBS; i++) {
-				out[i] = ptrd[i];
+				out.d[i] = ptrd[i];
 			}
 			return out;
 		}
