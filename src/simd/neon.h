@@ -299,13 +299,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint8x16_t aligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (poly128_t *) ptr;
 			_Xint8x16_t out;
-#ifndef __clang__
-			out.v128 = (uint8x16_t) (*ptr128);
-#else
-			out.v128 = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128 = vld1q_u8((const uint8_t *) ptr);
 			return out;
 		}
 
@@ -899,13 +895,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint16x8_t aligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (poly128_t *) ptr;
 			_Xint16x8_t out;
-#ifndef __clang__
-			out.v128 = (uint16x8_t) (*ptr128);
-#else
-			out.v128 = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128 = vreinterpretq_u16_u8(vld1q_u8((const uint8_t *) ptr));
 			return out;
 		}
 
@@ -914,13 +906,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint16x8_t unaligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (poly128_t *) ptr;
 			_Xint16x8_t out;
-#ifndef __clang__
-			out.v128 = (uint16x8_t) (*ptr128);
-#else
-			out.v128 = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128 = vreinterpretq_u16_u8(vld1q_u8((const uint8_t *) ptr));
 			return out;
 		}
 
@@ -942,8 +930,8 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \param in
 		constexpr static inline void aligned_store(void *ptr, const _Xint16x8_t in) noexcept {
-			auto *ptr128 = (uint16x8_t *) ptr;
-			*ptr128 = in.v128;
+			// byte-wise store: alias-safe for any `ptr`
+			vst1q_u8((uint8_t *)ptr, vreinterpretq_u8_u16(in.v128));
 		}
 
 		///
@@ -1063,13 +1051,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint32x4_t aligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (poly128_t *) ptr;
 			_Xint8x16_t out;
-#ifndef __clang__
-			out.v128 = (uint32x4_t) (*ptr128);
-#else
-			out.v128 = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128 = vreinterpretq_u32_u8(vld1q_u8((const uint8_t *) ptr));
 			return out;
 		}
 
@@ -1078,13 +1062,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint32x4_t unaligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (poly128_t *) ptr;
 			_Xint8x16_t out;
-#ifndef __clang__
-			out.v128 = (uint32x4_t) (*ptr128);
-#else
-			out.v128 = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128 = vreinterpretq_u32_u8(vld1q_u8((const uint8_t *) ptr));
 			return out;
 		}
 
@@ -1106,8 +1086,8 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \param in
 		constexpr static inline void aligned_store(void *ptr, const _Xint32x4_t in) noexcept {
-			auto *ptr128 = (_Xint32x4_t *) ptr;
-			*ptr128 = in;
+			// byte-wise store: alias-safe for any `ptr`
+			vst1q_u8((uint8_t *)ptr, vreinterpretq_u8_u32(in.v128));
 		}
 
 		///
@@ -1205,13 +1185,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint64x2_t aligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (poly128_t *) ptr;
 			_Xint8x16_t out;
-#ifndef __clang__
-			out.v128 = (uint64x2_t) (*ptr128);
-#else
-			out.v128 = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128 = vreinterpretq_u64_u8(vld1q_u8((const uint8_t *) ptr));
 			return out;
 		}
 
@@ -1220,13 +1196,9 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint64x2_t unaligned_load(const void *ptr) noexcept {
-			auto *ptr128 = (poly128_t *) ptr;
 			_Xint8x16_t out;
-#ifndef __clang__
-			out.v128 = (uint64x2_t) (*ptr128);
-#else
-			out.v128 = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128 = vreinterpretq_u64_u8(vld1q_u8((const uint8_t *) ptr));
 			return out;
 		}
 
@@ -1249,8 +1221,8 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void aligned_store(void *ptr,
 												   const _Xint64x2_t in) noexcept {
-			auto *ptr128 = (uint64x2_t *) ptr;
-			*ptr128 = in.v128;
+			// byte-wise store: alias-safe for any `ptr`
+			vst1q_u8((uint8_t *)ptr, vreinterpretq_u8_u64(in.v128));
 		}
 
 		///
@@ -1518,15 +1490,11 @@ struct Xint8x32_t {
 			return out;
 		}
 
-		auto *ptr128 = (poly128_t *) ptr;
 		S out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
-#ifndef __clang__
-			out.v128[i] = (uint8x16_t) vldrq_p128(ptr128 + i);
-#else
-			out.v128[i] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128 + i);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128[i] = vld1q_u8((const uint8_t *) ptr + 16u * i);
 		}
 		return out;
 	}
@@ -1543,15 +1511,11 @@ struct Xint8x32_t {
 			return out;
 		}
 
-		auto *ptr128 = (poly128_t *) ptr;
 		S out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
-#ifndef __clang__
-			out.v128[i] = (uint8x16_t) vldrq_p128(ptr128 + i);
-#else
-			out.v128[i] = (uint8x16_t) __builtin_neon_vldrq_p128(ptr128 + i);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128[i] = vld1q_u8((const uint8_t *) ptr + 16u * i);
 		}
 		return out;
 	}
@@ -2237,15 +2201,11 @@ struct Xint16x16_t {
 			return out;
 		}
 
-		auto *ptr128 = (poly128_t *) ptr;
 		S out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
-#ifndef __clang__
-			out.v128[i] = (uint16x8_t) vldrq_p128(ptr128 + i);
-#else
-			out.v128[i] = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128 + i);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128[i] = vreinterpretq_u16_u8(vld1q_u8((const uint8_t *) ptr + 16u * i));
 		}
 		return out;
 	}
@@ -2262,15 +2222,11 @@ struct Xint16x16_t {
 			return out;
 		}
 
-		auto *ptr128 = (poly128_t *) ptr;
 		S out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
-#ifndef __clang__
-			out.v128[i] = (uint16x8_t) vldrq_p128(ptr128 + i);
-#else
-			out.v128[i] = (uint16x8_t) __builtin_neon_vldrq_p128(ptr128 + i);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128[i] = vreinterpretq_u16_u8(vld1q_u8((const uint8_t *) ptr + 16u * i));
 		}
 		return out;
 	}
@@ -2296,14 +2252,11 @@ struct Xint16x16_t {
 	/// \param in
 	constexpr static inline void aligned_store(void *ptr,
                                                const S in) noexcept {
-		auto *ptr128 = (poly128_t *) ptr;
+		auto *ptr8 = (uint8_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#else
-			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#endif
+			// byte-wise store: alias-safe for any `ptr`, no alignment requirement
+			vst1q_u8(ptr8 + 16u * i, vreinterpretq_u8_u16(in.v128[i]));
 		}
 	}
 
@@ -2311,14 +2264,11 @@ struct Xint16x16_t {
 	/// \param ptr
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr, const S in) noexcept {
-		auto *ptr128 = (poly128_t *) ptr;
+		auto *ptr8 = (uint8_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifdef __GNUC__
-			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#else
-			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#endif
+			// byte-wise store: alias-safe for any `ptr`, no alignment requirement
+			vst1q_u8(ptr8 + 16u * i, vreinterpretq_u8_u16(in.v128[i]));
 		}
 	}
 
@@ -2947,15 +2897,11 @@ struct Xint32x8_t {
 			return out;
 		}
 
-		auto *ptr128 = (poly128_t *) ptr;
 		S out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
-#ifndef __clang__
-			out.v128[i] = (uint32x4_t) vldrq_p128(ptr128 + i);
-#else
-			out.v128[i] = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128 + i);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128[i] = vreinterpretq_u32_u8(vld1q_u8((const uint8_t *) ptr + 16u * i));
 		}
 		return out;
 	}
@@ -2972,15 +2918,11 @@ struct Xint32x8_t {
 			return out;
 		}
 
-		auto *ptr128 = (poly128_t *) ptr;
 		S out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
-#ifndef __clang__
-			out.v128[i] = (uint32x4_t) vldrq_p128(ptr128 + i);
-#else
-			out.v128[i] = (uint32x4_t) __builtin_neon_vldrq_p128(ptr128 + i);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128[i] = vreinterpretq_u32_u8(vld1q_u8((const uint8_t *) ptr + 16u * i));
 		}
 		return out;
 	}
@@ -3006,14 +2948,11 @@ struct Xint32x8_t {
 	/// \param in
 	static inline void aligned_store(void *ptr,
                                      const S in) noexcept {
-		auto *ptr128 = (poly128_t *) ptr;
+		auto *ptr8 = (uint8_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#else
-			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#endif
+			// byte-wise store: alias-safe for any `ptr`, no alignment requirement
+			vst1q_u8(ptr8 + 16u * i, vreinterpretq_u8_u32(in.v128[i]));
 		}
 	}
 
@@ -3022,14 +2961,11 @@ struct Xint32x8_t {
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr,
                                                  const S in) noexcept {
-		auto *ptr128 = (poly128_t *) ptr;
+		auto *ptr8 = (uint8_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#else
-			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#endif
+			// byte-wise store: alias-safe for any `ptr`, no alignment requirement
+			vst1q_u8(ptr8 + 16u * i, vreinterpretq_u8_u32(in.v128[i]));
 		}
 	}
 
@@ -3721,15 +3657,11 @@ struct Xint64x4_t {
 			return out;
 		}
 
-		auto *ptr128 = (poly128_t *) ptr;
 		S out;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2u; ++i) {
-#ifndef __clang__
-			out.v128[i] = (uint64x2_t) vldrq_p128(ptr128 + i);
-#else
-			out.v128[i] = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128 + i);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128[i] = vreinterpretq_u64_u8(vld1q_u8((const uint8_t *) ptr + 16u * i));
 		}
 		return out;
 	}
@@ -3745,14 +3677,10 @@ struct Xint64x4_t {
 			return out;
 		}
 
-		auto *ptr128 = (poly128_t *) ptr;
 		S out;
 		for (uint32_t i = 0; i < 2u; ++i) {
-#ifndef __clang__
-			out.v128[i] = (uint64x2_t) vldrq_p128(ptr128 + i);
-#else
-			out.v128[i] = (uint64x2_t) __builtin_neon_vldrq_p128(ptr128 + i);
-#endif
+			// byte-wise load: alias-safe for any `ptr`, no alignment requirement
+			out.v128[i] = vreinterpretq_u64_u8(vld1q_u8((const uint8_t *) ptr + 16u * i));
 		}
 		return out;
 	}
@@ -3776,14 +3704,11 @@ struct Xint64x4_t {
 	/// \param in
 	constexpr static inline void aligned_store(void *ptr,
 	                                           const S in) noexcept {
-		auto *ptr128 = (poly128_t *) ptr;
+		auto *ptr8 = (uint8_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#else
-			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#endif
+			// byte-wise store: alias-safe for any `ptr`, no alignment requirement
+			vst1q_u8(ptr8 + 16u * i, vreinterpretq_u8_u64(in.v128[i]));
 		}
 	}
 
@@ -3792,14 +3717,11 @@ struct Xint64x4_t {
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr,
 	                                             const S in) noexcept {
-		auto *ptr128 = (poly128_t *) ptr;
+		auto *ptr8 = (uint8_t *) ptr;
 		LOOP_UNROLL()
 		for (uint32_t i = 0; i < 2; ++i) {
-#ifndef __clang__
-			vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#else
-			__builtin_neon_vstrq_p128(ptr128 + i, (poly128_t) in.v128[i]);
-#endif
+			// byte-wise store: alias-safe for any `ptr`, no alignment requirement
+			vst1q_u8(ptr8 + 16u * i, vreinterpretq_u8_u64(in.v128[i]));
 		}
 	}
 
