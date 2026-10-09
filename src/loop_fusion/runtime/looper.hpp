@@ -17,11 +17,11 @@ template <typename... F>
 class looper {
 public:
     constexpr explicit looper(range _range, F... _functions)
-        : rng { _range }
+        : rang { _range }
         , functions(std::make_tuple(_functions...)) {};
 
     constexpr looper(range _range, std::tuple<F...> _functions)
-        : rng { _range }
+        : rang { _range }
         , functions(_functions) {};
 
     constexpr void run()

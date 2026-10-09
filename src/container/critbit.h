@@ -289,8 +289,9 @@ public:
     		p = *wherep;
     	}
 
-    	/// TODO simplify `keybinary` is not needed
-    	if (memcmp(keybinary(critbit_ref_get_key(p)), ubytes, keyLen) != 0) {
+    	// NOTE: full key comparison (as in `critbit_get_impl`), a `memcmp` of
+    	// 	`keyLen` bytes also matched every stored key with prefix `key`
+    	if (keycmp(critbit_ref_get_key(p), key) != 0) {
     		return nullptr;
     	}
 

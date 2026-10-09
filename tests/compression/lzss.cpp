@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <cstring>
 #include <iostream>
 
 #include "compression/compression.h"
@@ -13,26 +14,57 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-TEST(lzmat, simple) {
-    constexpr size_t s = 1<<15;
-	uint8_t *t1 = (uint8_t *)malloc(2*s);
-	uint8_t *t2 = (uint8_t *)malloc(2*s);
-	uint8_t *t3 = (uint8_t *)malloc(2*s);
-    t1[0] = 1;
-	for (size_t i = 1; i < s; ++i) {
-		t1[i] = rng(); i*i + s - t1[i-1];
+/// compresses and decompresses `in`, checks that nothing changed
+/// \return compressed size
+static size_t roundtrip(const uint8_t *in, const size_t s) {
+	uint8_t *t1 = (uint8_t *)malloc(s + 1);
+	uint8_t *t2 = (uint8_t *)malloc(CompressBound(s));
+	uint8_t *t3 = (uint8_t *)malloc(s + 1);
+	memcpy(t1, in, s);
+
+	const size_t newsize = CompressData(t1, t2, s, MAX_WINDOWSIZE, nullptr);
+	const size_t decompressed_size = DecompressData(t2, t3);
+
+	EXPECT_LE(newsize, CompressBound(s));
+	EXPECT_EQ(decompressed_size, s);
+	for (size_t i = 0; i < s; ++i) {
+		EXPECT_EQ(t3[i], t1[i]);
 	}
 
-    const size_t newsize = CompressData(t1, t2, s, MAX_WINDOWSIZE, &CompressCallback);
-	const size_t decompressed_size = DecompressData(t2, t3);
-    // TODO
-	// for (size_t i = 0; i < s; ++i) {
-	// 	EXPECT_EQ(t3[i], t1[i]);
-	// }
-
-    EXPECT_EQ(decompressed_size, s);
-	EXPECT_LE(newsize, s);
 	free(t1);free(t2);free(t3);
+	return newsize;
+}
+
+TEST(lzss, random) {
+	// random data is not compressible, but must survive the roundtrip
+	constexpr size_t s = 1<<15;
+	uint8_t *t = (uint8_t *)malloc(s);
+	for (size_t i = 0; i < s; ++i) {
+		t[i] = rng();
+	}
+	roundtrip(t, s);
+	free(t);
+}
+
+TEST(lzss, repetitive) {
+	constexpr size_t s = 1<<15;
+	uint8_t *t = (uint8_t *)malloc(s);
+	for (size_t i = 0; i < s; ++i) {
+		t[i] = (i % 37) < 20 ? 'a' + (i % 7) : rng() % 4;
+	}
+	EXPECT_LT(roundtrip(t, s), s / 2);
+	free(t);
+}
+
+TEST(lzss, small) {
+	// includes lengths where the end marker needs a new control byte
+	uint8_t t[64];
+	for (size_t i = 0; i < 64; ++i) {
+		t[i] = rng() % 3;
+	}
+	for (size_t s = 0; s <= 64; ++s) {
+		roundtrip(t, s);
+	}
 }
 
 int main(int argc, char **argv) {

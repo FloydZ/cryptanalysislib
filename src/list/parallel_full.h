@@ -140,14 +140,19 @@ public:
 	/// \param j upper   .....
 	void sort_level(const uint32_t i, const uint32_t j) noexcept {
 		assert(i < j);
+		// NOTE: the sort key is a single limb
+		assert((j - i) <= (sizeof(LabelLimbType) * 8u));
 		using T = LabelContainerType;
 		using Limb = LabelLimbType;
 
+		// NOTE: `j` is exclusive, so the last used limb is the one of `j - 1`.
+		// 	Before, e.g. [0, 64) was treated as spanning two limbs.
 		const uint64_t lower = T::round_down_to_limb(i);
-		const uint64_t upper = T::round_down_to_limb(j);
+		const uint64_t upper = T::round_down_to_limb(j - 1u);
 
 		if (lower == upper) {
-			const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
+			// NOTE: `lower_mask2(j)` is all ones for `j % 64 == 0`
+			const uint64_t mask = T::higher_mask(i) & T::lower_mask2(j);
 
 			if constexpr (USE_STD_SORT) {
 				std::sort(__data.begin(),
@@ -164,8 +169,12 @@ public:
 				         });
 			}
 		} else {
-			const Limb j_mask = T::lower_mask(j);
+			const Limb j_mask = T::lower_mask2(j);
 			const Limb i_mask = T::higher_mask(i);
+			// NOTE: as the range crosses a limb and is at most one limb wide,
+			// 	`0 < i_shift`, so both shifts are < 64. The bits of the upper
+			// 	limb are the high bits of the key: shifted left (was: right,
+			// 	by 64 for i % 64 == 0).
 			const uint32_t i_shift = i % (sizeof(Limb) * 8u);
 			const uint32_t j_shift = (sizeof(Limb) * 8u) - i_shift;
 
@@ -174,10 +183,10 @@ public:
 				std::sort(__data.begin(),
 				          __data.end(),
 				          [lower, upper, i_mask, j_mask, i_shift, j_shift](const auto &e1, const auto &e2) {
-					          const Limb data1 = ((e1.label_ptr(lower) & i_mask) >> i_shift) ^
-					                             ((e1.label_ptr(upper) & j_mask) >> j_shift);
-					          const Limb data2 = ((e2.label_ptr(lower) & i_mask) >> i_shift) ^
-					                             ((e2.label_ptr(upper) & j_mask) >> j_shift);
+					          const Limb data1 = ((e1.label_ptr(lower) & i_mask) >> i_shift) |
+					                             ((e1.label_ptr(upper) & j_mask) << j_shift);
+					          const Limb data2 = ((e2.label_ptr(lower) & i_mask) >> i_shift) |
+					                             ((e2.label_ptr(upper) & j_mask) << j_shift);
 
 					          return data1 < data2;
 				          });
@@ -185,8 +194,8 @@ public:
 				ska_sort(__data.begin(),
 				         __data.end(),
 				         [lower, upper, i_mask, j_mask, i_shift, j_shift](const Element &e) {
-					         return ((e.label_ptr(lower) & i_mask) >> i_shift) ^
-					                ((e.label_ptr(upper) & j_mask) >> j_shift);
+					         return ((e.label_ptr(lower) & i_mask) >> i_shift) |
+					                ((e.label_ptr(upper) & j_mask) << j_shift);
 				         });
 			}
 		}

@@ -8,6 +8,7 @@
 #endif
 
 #include "copy.h"
+#include "memory/memcpy.h"
 
 namespace cryptanalysislib {
 namespace internal {
@@ -23,7 +24,7 @@ namespace internal {
                                       const size_t start1, 
                                       const size_t start2,
                                       size_t block_size) noexcept {
-    	int *pta, *ptb, swap;
+    	T *pta, *ptb, swap;
     
     	pta = array + start1;
     	ptb = array + start2;
@@ -45,7 +46,7 @@ namespace internal {
                              const size_t start1,
                              const size_t start2,
                              size_t block_size) noexcept {
-    	int *pta, *ptb, swap;
+    	T *pta, *ptb, swap;
     
     	pta = array + start1 + block_size;
     	ptb = array + start2 + block_size;
@@ -74,13 +75,13 @@ namespace internal {
     	ptc = array + right;
     
     	if (left < right) {
-    		memcpy(swap, pta, left * sizeof(int));
-    		memmove(pta, ptb, right * sizeof(int));
-    		memcpy(ptc, swap, left * sizeof(int));
+    		cryptanalysislib::memcpy(swap, pta, left);
+    		cryptanalysislib::memmove(pta, ptb, right);
+    		cryptanalysislib::memcpy(ptc, swap, left);
     	} else {
-    		memcpy(swap, ptb, right * sizeof(int));
-    		memmove(ptc, pta, left * sizeof(int));
-    		memcpy(pta, swap, right * sizeof(int));
+    		cryptanalysislib::memcpy(swap, ptb, right);
+    		cryptanalysislib::memmove(ptc, pta, left);
+    		cryptanalysislib::memcpy(pta, swap, right);
     	}
     }
 };
@@ -106,7 +107,14 @@ template<typename T=uint64_t>
     }
 
 #endif
-	return (x << k) | (x >> ((sizeof(T)*8) - k));
+	using U = std::make_unsigned_t<T>;
+	constexpr uint32_t bits = sizeof(T) * 8u;
+	const uint32_t s = k % bits;
+	if (s == 0) {
+		return U(x);
+	}
+	// NOTE: computed and truncated in the unsigned type, so narrow types are not promoted
+	return U(U(U(x) << s) | U(U(x) >> (bits - s)));
 }
 
 /// Performs a right rotation on bits of an integer value
@@ -130,7 +138,14 @@ template<typename T=uint64_t>
     }
 
 #endif
-    return (x >> k) | (x << ((-k) & ((sizeof(T)*8)-1u)));
+	using U = std::make_unsigned_t<T>;
+	constexpr uint32_t bits = sizeof(T) * 8u;
+	const uint32_t s = k % bits;
+	if (s == 0) {
+		return U(x);
+	}
+	// NOTE: computed and truncated in the unsigned type, so narrow types are not promoted
+	return U(U(U(x) >> s) | U(U(x) << (bits - s)));
 }
 
 
@@ -268,9 +283,9 @@ size_t loop;
 
     if (left < right) {
     	if (left <= MAX_AUX) {
-    		memcpy(swap, array, left * sizeof(int));
-    		memmove(array, array + left, right * sizeof(int));
-    		memcpy(array + right, swap, left * sizeof(int));
+    		cryptanalysislib::memcpy(swap, array, left);
+    		cryptanalysislib::memmove(array, array + left, right);
+    		cryptanalysislib::memcpy(array + right, swap, left);
     	} else {
     		pta = array;
     		ptb = pta + left;
@@ -281,13 +296,13 @@ size_t loop;
     			ptc = pta + right;
     			ptd = ptc + left;
     
-    			memcpy(swap, ptb, loop * sizeof(int));
+    			cryptanalysislib::memcpy(swap, ptb, loop);
     
     			while (left--) {
     				*--ptc = *--ptd;
     				*ptd = *--ptb;
     			}
-    			memcpy(pta, swap, loop * sizeof(int));
+    			cryptanalysislib::memcpy(pta, swap, loop);
     		} else {
     			ptc = ptb;
     			ptd = ptc + right;
@@ -322,9 +337,9 @@ size_t loop;
     	}
     } else if (right < left) {
     	if (right <= MAX_AUX) {
-    		memcpy(swap, array + left, right * sizeof(int));
-    		memmove(array + right, array, left * sizeof(int));
-    		memcpy(array, swap, right * sizeof(int));
+    		cryptanalysislib::memcpy(swap, array + left, right);
+    		cryptanalysislib::memmove(array + right, array, left);
+    		cryptanalysislib::memcpy(array, swap, right);
     	} else {
     		pta = array;
     		ptb = pta + left;
@@ -335,13 +350,13 @@ size_t loop;
     			ptc = pta + right;
     			ptd = ptc + left;
     
-    			memcpy(swap, ptc, loop * sizeof(int));
+    			cryptanalysislib::memcpy(swap, ptc, loop);
     
     			while (right--) {
     				*ptc++ = *pta;
     				*pta++ = *ptb++;
     			}
-    			memcpy(ptd - loop, swap, loop * sizeof(int));
+    			cryptanalysislib::memcpy(ptd - loop, swap, loop);
     		} else {
     			ptc = ptb;
     			ptd = ptc + right;
@@ -404,14 +419,14 @@ constexpr void griesmills_rotation(T *array,
 	while (left && right) {
 		if (left <= right) {
 			do {
-				forward_block_swap(array, start, start + left, left);
+				internal::forward_block_swap(array, start, start + left, left);
 
 				start += left;
 				right -= left;
 			} while (left <= right);
 		} else {
 			do {
-				forward_block_swap(array, start + left - right, start + left, right);
+				internal::forward_block_swap(array, start + left - right, start + left, right);
 
 				left -= right;
 			} while (right <= left);
@@ -616,7 +631,7 @@ ForwardIt rotate(ForwardIt first,
     }
  
     // rotate the remaining sequence into place
-    rotate(write, next_read, last);
+    cryptanalysislib::rotate(write, next_read, last);
     return write;
 }
 

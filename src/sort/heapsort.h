@@ -2,21 +2,27 @@
 
 #include <cstddef>
 #include "container/heap.h"
+#include "algorithm/swap.h"
 
 
 // Sort x[] into ascending order.
+// Uses a max-heap with capacity n: all elements are pushed, then popped
+// (largest first) into x[n-1], x[n-2], ..., x[0].
 template <typename T,
           class Heap=Heap<T>>
 constexpr void heap_sort(T *x,
                          const size_t n) noexcept {
-    Heap heap(x, n);
-    size_t m = n;
-    // one-based for heapify()
-    T *p = x - 1;  
-    for (size_t k=m; k>1; --k) {
-        swap2(p[1], p[k]);  // move largest element (p[1]) to end of array
-        --m;                // remaining array has one element less
-        heapify(p, n, 1);   // restore heap-property
+    if (n < 2) {
+        return;
+    }
+
+    Heap heap(n);
+    for (size_t i = 0; i < n; ++i) {
+        heap.push(x[i]);
+    }
+
+    for (size_t i = n; i-- > 0; ) {
+        heap.pop(x[i]);
     }
 }
 
@@ -25,5 +31,9 @@ template <typename Type>
 constexpr void heap_sort_descending(Type *x,
                                     const size_t n) noexcept {
     heap_sort( x, n );
-    reverse( x, n );
+    // reverse x[]
+    for (size_t i = 0, j = n; i + 1 < j; ++i) {
+        --j;
+        cryptanalysislib::swap(x[i], x[j]);
+    }
 }

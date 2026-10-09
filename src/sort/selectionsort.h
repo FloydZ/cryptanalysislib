@@ -1,12 +1,12 @@
 #pragma once
 
 #include <cstddef>
-#include <utility>
+#include "algorithm/swap.h"
 
 // Sort f[] (ascending order).
 // Algorithm is O(n*n), use for short arrays only.
 template <typename Type>
-constexpr void selection_sort(const Type *f,
+constexpr void selection_sort(Type *f,
                               const size_t n) noexcept {
     for (size_t i=0; i<n; ++i) {
         Type v = f[i];
@@ -21,6 +21,8 @@ constexpr void selection_sort(const Type *f,
             }
         }
 
-        std::swap(f[i], f[m]);
+        if (m != i) {
+            cryptanalysislib::swap(f[i], f[m]);
+        }
     }
 }

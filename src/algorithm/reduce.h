@@ -36,8 +36,6 @@ namespace cryptanalysislib {
 												  const typename InputIt::value_type init,
 												  BinaryOp op) noexcept {
 		using T = InputIt::value_type;
-		if (first == last) { return T{}; }
-
 		T ret = init;
 		for (; first != last; ++first) {
 			ret = op(ret, *first);
@@ -63,8 +61,6 @@ namespace cryptanalysislib {
 												  InputIt last,
 												  const typename InputIt::value_type init) noexcept {
 		using T = InputIt::value_type;
-		if (first == last) { return T{}; }
-
 		auto op = std::plus<T>();
 
 		T ret = init;
@@ -195,17 +191,28 @@ namespace cryptanalysislib {
 			return cryptanalysislib::reduce(first, last, init, binop);
 		}
 
+		// NOTE: every chunk is non-empty and is reduced without `init`,
+		// so `init` is applied exactly once below.
+		auto chunk = [binop](RandIt b, RandIt e) noexcept -> T {
+			T acc = *b;
+			for (++b; b != e; ++b) {
+				acc = binop(acc, *b);
+			}
+			return acc;
+		};
+
 		auto futures = internal::parallel_chunk_for_1(
 			std::forward<ExecPolicy>(policy), first, last,
-					cryptanalysislib::reduce<RandIt, UnaryOperation, config>,
+					chunk,
 					(T*)nullptr,
 					1,
-					nthreads,
-					init, binop);
+					nthreads);
 
-		return std::reduce(
-			internal::get_wrap(futures.begin()),
-			internal::get_wrap(futures.end()), init, binop);
+		T ret = init;
+		for (auto &f : futures) {
+			ret = binop(ret, f.get());
+		}
+		return ret;
 	}
 
 	/// Parallel version of reduce using addition that uses an execution policy

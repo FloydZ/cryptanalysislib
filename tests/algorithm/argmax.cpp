@@ -20,7 +20,8 @@ class ArgMax : public testing::Test {};
 TYPED_TEST_SUITE_P(ArgMax);
 
 TYPED_TEST_P(ArgMax, simple) {
-    constexpr static size_t s = 10000;
+    // keep all values distinct (no wrap-around for uint8_t)
+    constexpr static size_t s = sizeof(TypeParam) == 1 ? 255 : 10000;
     std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = i; }
 
@@ -29,7 +30,8 @@ TYPED_TEST_P(ArgMax, simple) {
 }
 
 TYPED_TEST_P(ArgMax, multithreading) {
-    constexpr static size_t s = 10000;
+    // keep all values distinct (no wrap-around for uint8_t)
+    constexpr static size_t s = sizeof(TypeParam) == 1 ? 255 : 10000;
     std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = i; }
 
@@ -47,13 +49,13 @@ TEST(argmax, simd_uint32_t_bl16) {
 	auto d = new uint32_t [s];
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
-	const auto t = argmax_simd_u32_bl16(d, s);
+	const auto t = internal::argmax_simd_bl16(d, s);
 	EXPECT_EQ(t, s-1);
 
 	for (size_t i = 0; i < s; ++i) { d[i] = rng(); }
     const size_t pos = rng(s);
     d[pos] = -1u;
-    const size_t pos2 = argmax_simd_u32(d, s);
+    const size_t pos2 = internal::argmax_simd(d, s);
 	EXPECT_EQ(pos, pos2);
 
 	delete[] d;
@@ -64,13 +66,13 @@ TEST(argmax, simd_uint32_t_bl32) {
 	auto d = new uint32_t [s];
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
-	const auto t = argmax_simd_u32_bl32(d, s);
+	const auto t = internal::argmax_simd_bl32(d, s);
 	EXPECT_EQ(t, s-1);
 
 	for (size_t i = 0; i < s; ++i) { d[i] = rng(); }
     const size_t pos = rng(s);
     d[pos] = -1u;
-    const size_t pos2 = argmax_simd_u32(d, s);
+    const size_t pos2 = internal::argmax_simd(d, s);
 	EXPECT_EQ(pos, pos2);
 
 	delete[] d;

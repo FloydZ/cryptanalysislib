@@ -30,7 +30,7 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline size_t argmin_simd(const uint32_t *__restrict__ a,
 	                                                   			 const size_t n) noexcept {
             using T = S::limb_type;
-	    	T min = -1ull;
+	    	T min = T(-1);
 	    	size_t idx = 0;
 	    	auto p = S::set1(min);
             
@@ -73,7 +73,7 @@ namespace cryptanalysislib {
             using T = S::limb_type;
             constexpr size_t t = S::LIMBS;
             constexpr size_t t2 = 2*t;
-	    	T min = -1ull;
+	    	T min = T(-1);
 	    	auto p = S::set1(min);
 	    	size_t i = 0, idx = 0;
 	    	for (; i+t2 <= n; i += t2) {
@@ -115,7 +115,7 @@ namespace cryptanalysislib {
             using T = S::limb_type;
             constexpr size_t t = S::LIMBS;
             constexpr size_t t4 = 4*t;
-	    	T min = -1ull;
+	    	T min = T(-1);
 	    	auto p = S::set1(min);
 	    	size_t i = 0, idx = 0;
 	    	for (; i+t4 <= n; i += t4) {
@@ -129,29 +129,24 @@ namespace cryptanalysislib {
 	    		y1 = S::min(y1, y3);
                 const uint32_t mask = S::gt(p, y1);
 	    		if (mask != 0) { [[unlikely]]
-	    			idx = i;
 	    			for (uint32_t j = i; j < i + t4; j++) {
-	    				min = (a[j] < min ? a[j] : min);
+	    				if (a[j] < min) {
+	    					min = a[idx = j];
+	    				}
 	    			}
 
 	    			p = S::set1(min);
 	    		}
 	    	}
 
-	    	size_t idx2 = idx+t4-1;
-	    	for (uint32_t j = idx; j < idx + t4-1; j++) {
-	    		if (a[j] == min) {
-	    			idx2 = j;
-	    		}
-	    	}
-
+	    	// tail
 	    	for (; i < n; i++) {
 	    		if (a[i] < min) {
-	    			min = a[idx2 = i];
+	    			min = a[idx = i];
 	    		}
 	    	}
 
-	    	return idx2;
+	    	return idx;
 	    }
 
 	    /// Dispatch function to select the appropriate SIMD implementation for argmin
@@ -348,14 +343,19 @@ namespace cryptanalysislib {
 	[[nodiscard]] constexpr static inline size_t argmin(Iterator start,
 														Iterator end) noexcept {
         using T = typename std::iterator_traits<Iterator>::value_type;
-		const size_t len = std::distance(start, end);
-
-		if constexpr (std::is_arithmetic_v<T>) {
-		    return internal::argmin_simd(start, len);
+		if (start == end) {
+			return 0;
 		}
-		size_t k = 0;
-		for (size_t i = 1; i < len; i++) {
-			if (*(start+i) < *(start + k)) [[unlikely]] {
+
+		if constexpr (std::same_as<T, uint32_t> && std::contiguous_iterator<Iterator>) {
+		    return internal::argmin_simd(&(*start), static_cast<size_t>(end - start));
+		}
+
+		size_t k = 0, i = 0;
+		T best = *start;
+		for (++start, ++i; start != end; ++start, ++i) {
+			if (*start < best) [[unlikely]] {
+				best = *start;
 				k = i;
 			}
 		}
@@ -389,18 +389,23 @@ namespace cryptanalysislib {
 				<RandIt, config>(first, last);
 		}
 
+		// each chunk returns an index relative to its own start; translate it
+		// into an absolute index into [first, last)
+		auto chunk = [first](RandIt b, RandIt e) noexcept -> size_t {
+			return static_cast<size_t>(b - first) +
+			       cryptanalysislib::argmin<RandIt, config>(b, e);
+		};
 		auto futures = internal::parallel_chunk_for_1(
 			std::forward<ExecPolicy>(policy),
 			first, last,
-			cryptanalysislib::argmin<RandIt, config>,
+			chunk,
 			(size_t *)0,
 			1, nthreads);
 
 		size_t m = futures[0].get();
-		T v = *(first + m);
-		for (size_t i = 1; i < nthreads; i++) {
-			T mm = futures[i].get();
-			if (*(first + m) < v) [[unlikely]] {
+		for (size_t i = 1; i < futures.size(); i++) {
+			const size_t mm = futures[i].get();
+			if (*(first + mm) < *(first + m)) [[unlikely]] {
 				m = mm;
 			}
 		}

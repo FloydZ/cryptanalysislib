@@ -16,6 +16,7 @@ TEST(HashMap, simple) {
 	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static SimpleCompressedHashMapConfig s = SimpleCompressedHashMapConfig{nr_bytes, 1u << l};
 	using HM = SimpleCompressedHashMap<K, V, s, Hash<K, 0, l, 2>>;
+	static_assert(HashMapAble<HM>);
 
 	HM hm = HM{};
 	hm.info();

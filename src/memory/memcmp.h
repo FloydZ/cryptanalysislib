@@ -11,7 +11,7 @@ namespace cryptanalysislib {
 
 #ifdef USE_AVX2
     // TODO make S a template argument which fullfills the SIMD trate
-	bool memcmp_u256_u8(const uint8_t *__restrict__ a,
+	inline bool memcmp_u256_u8(const uint8_t *__restrict__ a,
                         const uint8_t *__restrict__ b,
 		                const size_t n) noexcept {
         using S = uint64x4_t;
@@ -21,43 +21,46 @@ namespace cryptanalysislib {
         int64_t nn = -n;
 
         while (nn <= -32) {
-            uint32_t t = S::load((uint64_t *)(a + nn)) == S::load((uint64_t *)(b + nn));
-            t ^= 0xF;
-            if (t) { return 1; }
+            // one bit per 64-bit lane
+            const uint32_t t = S::eq(S::load((uint64_t *)(a + nn)), S::load((uint64_t *)(b + nn)));
+            if (t != 0xFu) { return 1; }
 
             nn += 32;
         }
 
         using A = _uint64x2_t;
         if (nn <= -16) {
-            uint32_t t = A::load((A::limb_type *)(a + nn)) == A::load((A::limb_type *)(b + nn));
-            t ^= 0xFFFF;
-            if (t) { return 1; }
+            // one bit per 64-bit lane
+            const uint32_t t = A::eq(A::load((A::limb_type *)(a + nn)), A::load((A::limb_type *)(b + nn)));
+            if (t != 0b11u) { return 1; }
 
             nn += 16;
         }
-        
+
+        // NOTE: the tails are loaded via memcpy, as `a`/`b` are not aligned
         if (nn <= -8) {
-            bool t = (*((uint64_t *)(a + nn))) == (*((uint64_t *)(b + nn)));
-            if (t) { return 1; }
+            uint64_t x, y;
+            __builtin_memcpy(&x, a + nn, 8); __builtin_memcpy(&y, b + nn, 8);
+            if (x != y) { return 1; }
             nn += 8;
         }
 
         if (nn <= -4) {
-            bool t = (*((uint32_t *)(a + nn))) == (*((uint32_t *)(b + nn)));
-            if (t) { return 1; }
+            uint32_t x, y;
+            __builtin_memcpy(&x, a + nn, 4); __builtin_memcpy(&y, b + nn, 4);
+            if (x != y) { return 1; }
             nn += 4;
         }
 
-        if (nn < -2) {
-            bool t = (*((uint16_t *)(a + nn))) == (*((uint16_t *)(b + nn)));
-            if (t) { return 1; }
+        if (nn <= -2) {
+            uint16_t x, y;
+            __builtin_memcpy(&x, a + nn, 2); __builtin_memcpy(&y, b + nn, 2);
+            if (x != y) { return 1; }
             nn += 2;
         }
 
         while (nn != 0) {
-            bool t = (*(a + nn)) == (*(b + nn));
-            if (t) { return 1; }
+            if (*(a + nn) != *(b + nn)) { return 1; }
             nn += 1; 
         }
 

@@ -63,10 +63,9 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 					op(e, L1[i], L2[j], k_lower1, k_upper2);
 					boundaries = iL.search_boundaries(e, k_lower2, k_upper2);
 
-					// finished?
-					// NOTE: we cannot break out of the two loops
-					// only the first one.
-					if (boundaries.first == boundaries.second) { break; }
+					// no match in `iL` for this pair, but the next `j` gives
+					// a different `e`, so continue instead of `break`
+					if (boundaries.first == boundaries.second) { continue; }
 
 					for (size_t l = boundaries.first; l < boundaries.second; ++l) {
 						f(out, iL, e, l);
@@ -97,7 +96,6 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 	        (List &out, const List &iL, ElementType &e, const size_t l)
 	        __attribute__((always_inline)) {
 		(void)k_upper1;
-		(void)k_lower2;
 
 		constexpr uint32_t filter = uint32_t(-1);
 		constexpr bool sub = !LabelType::binary();
@@ -105,18 +103,25 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 		// NOTE: it can happen that the addition here is a representation, thus
 		// it will not hold any longer that value*matrix = label, if one simply
 		// adds the two results.
-		if constexpr (!weight) {
+		// NOTE: `weight == 0` means no filtering, otherwise only elements
+		// 	with exactly `weight` bits set in the value are kept.
+		if constexpr (weight) {
 			const size_t b = out.load();
-			ValueType::add(out[b].value, iL[l].value, e.value, k_lower1, k_upper2);
-			if (out[b].value.popcnt(k_lower1, k_upper2) != weight) { return; }
-			// out[b].recalculate_label(matrix);
-			ValueType::add(out[b].value, iL[l].value, e.value, k_lower1, k_upper2);
+			if (b >= out.size()) { return; }
+			if constexpr (sub) {
+				ElementType::sub(out[b], iL[l], e, k_lower1, k_upper2, filter);
+			} else {
+				ElementType::add(out[b], iL[l], e, k_lower1, k_upper2, filter);
+			}
+			if (out[b].value.popcnt() != weight) { return; }
 			out.set_load(b + 1);
 		} else {
 			out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
 #ifdef DEBUG
+			// NOTE: guaranteed on the last level; [k_lower1, k_upper1) is
+			// 	only zero if `iL` is zero there (e.g. in `join4lists`)
 			const size_t b = out.load() - 1;
-			if (!out[b].label.is_zero(k_lower1, k_upper2)) {
+			if (!out[b].label.is_zero(k_lower2, k_upper2)) {
 				std::cout << iL[l] << std::endl;
 				std::cout << e << std::endl;
 				std::cout << out[b] << std::endl;
@@ -126,7 +131,7 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 		}
 	};
 
-	return twolevel_streamjoin(out, iL, L1, L2, k_lower1, k_upper1, k_lower1, k_upper2, prepare, f);
+	return twolevel_streamjoin(out, iL, L1, L2, k_lower1, k_upper1, k_lower2, k_upper2, prepare, f);
 }
 
 /// doc see tree.h
@@ -187,11 +192,10 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, cons
 					e2.label.neg();
 					boundaries = iL.search_boundaries(e2, k_lower2, k_upper2);
 
-					// finished?
+					// no match in `iL` for this pair, but the next `j` gives
+					// a different `e2`, so continue instead of `break`
 					if (boundaries.first == boundaries.second) {
-						// NOTE: we cannot break out of the two loops
-						// only the first one.
-						break;
+						continue;
 					}
 
 					for (size_t l = boundaries.first; l < boundaries.second; ++l) {
@@ -354,7 +358,8 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_v2(List &out, List &iL,
 				assert(L2[l].is_correct(matrix));
 				assert(tmpe1.is_correct(matrix));
 
-				f(out, iL, tmpe1, l);
+				// NOTE: `o` is the matching index in `iL`, `l` the one in `L2`
+				f(out, iL, tmpe1, o);
 				ret += 1;
 			}
 		}

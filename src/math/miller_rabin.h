@@ -5,6 +5,7 @@ namespace cryptanalysislib {
     // returns if n is prime for n < 3e24 (>2^64)
     // but use mul_mod for n > 2e9.
     template<typename T>
+        requires std::is_integral_v<T> && (sizeof(T) <= 8)
     bool millerRabin(T n){
 		constexpr T data[] = { 2, 3, 5, 7, 11, 13,17, 19, 23, 29, 31, 37, 41 };
         if (n < 2 || n % 2 == 0) { 
@@ -12,12 +13,12 @@ namespace cryptanalysislib {
         }
         T d = n - 1, ad, s = 0, r;
         for (; d % 2 == 0; d /= 2) { s++; }
-        for (int a : data) {
+        for (const T a : data) {
             if (n == a) { return true; }
-            if ((ad = mod_pow(a, d, n)) == 1) { continue; }
+            if ((ad = mod_pow<T>(a, d, n)) == 1) { continue; }
             
             for (r = 0; r < s && ad + 1 != n; r++) {
-                ad = (ad * ad) % n;
+                ad = mulmod<T>(ad, ad, n);
             }
             if (r == s) {
 				return false;

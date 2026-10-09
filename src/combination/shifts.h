@@ -1,5 +1,7 @@
 #pragma once 
 
+#include <cstdint>
+
 #include "colex.h"
 
 /// Class for generating bit combinations in shifts-order
@@ -11,16 +13,16 @@ template<typename T, const uint32_t n, const uint32_t k>
 class bit_comb_shifts {
 public:
     /// Current combination
-    ulong x_;
+    uint64_t x_;
     
     /// How far the combination has been shifted to the right
-    ulong s_;
+    uint64_t s_;
     
     /// Parameters for the combinations (n choose k)
-    ulong n_, k_;
+    uint64_t n_, k_;
     
     /// Last combination in the sequence
-    ulong last_;
+    uint64_t last_;
     
     /// Co-lexicographic enumerator for combinations
     enumeration_colex<T, n, k> e;
@@ -34,7 +36,7 @@ public:
 
     /// Sets the combination to the first one in the shifts-order sequence
     /// \return the first combination
-    ulong first() {
+    uint64_t first() {
         s_ = 0;
         x_ =  e.last_comb();
 
@@ -48,7 +50,7 @@ public:
     /// A shifts-order traversal either shifts the current combination right
     /// or performs a split operation when a right shift is not possible
     /// \return the next combination, or 0 if at the end of the sequence
-    ulong next()
+    uint64_t next()
     {
         if ( 0==(x_&1) ) {
             // Easy case: right shift is possible (rightmost bit is 0)
@@ -60,7 +62,7 @@ public:
             if ( x_ == last_ )  return 0;  // combination was last
 
             x_ <<= s_;  s_ = 0;  // shift back to the left
-            ulong b = x_ & -x_;  // lowest bit (rightmost 1)
+            uint64_t b = x_ & -x_;  // lowest bit (rightmost 1)
 
             if ( b!=1UL ) {
                 // Simple split: lowest bit is not at position 0
@@ -69,9 +71,9 @@ public:
             } else { 
                 // Complex split: lowest bit is at position 0
                 // Split second block and attach first
-                ulong t = __builtin_ctzll(x_);  // block of ones at lower end
+                uint64_t t = (x_ ^ (x_ + 1u)) >> 1u;  // block of ones at lower end (as a mask)
                 x_ ^= t;  // remove block
-                ulong b2 = x_ & -x_;  // (second) lowest bit
+                uint64_t b2 = x_ & -x_;  // (second) lowest bit
 
                 b2 >>= 1;
                 x_ -= b2;  // move bit to the right

@@ -35,26 +35,19 @@ constexpr ForwardIt upper_bound_linear_search(const ForwardIt first,
                                               const ForwardIt last,
                                               const typename ForwardIt::value_type &key,
                                               Compare compare) noexcept {
-	typename std::iterator_traits<ForwardIt>::difference_type
-	        count = std::distance(first, last),
-	        step = -1;
-
-	if (count == 0) {
-		return first;
-	}
-
+	// walk backwards until the first element that is not greater than `key`
 	ForwardIt it = last;
-	std::advance(it, step);
-
-	while (--count) {
-		if (compare(*it, key)) {
+	while (it != first) {
+		ForwardIt prev = it;
+		--prev;
+		if (!compare(key, *prev)) {
 			return it;
 		}
 
-		std::advance(it, step);
+		it = prev;
 	}
 
-	return last;
+	return first;
 }
 
 
@@ -79,24 +72,11 @@ constexpr ForwardIt lower_bound_linear_search(const ForwardIt first,
                                               const ForwardIt last,
                                               const typename ForwardIt::value_type &key,
                                               Compare compare) noexcept {
-	typename std::iterator_traits<ForwardIt>::difference_type
-			count = std::distance(first, last),
-			step = 1;
-
-	if (count == 0) {
-		return first;
-	}
-
-	ForwardIt it = first;
-	do {
-		if (compare(key, *it)) {
+	for (ForwardIt it = first; it != last; ++it) {
+		if (!compare(*it, key)) {
 			return it;
 		}
-
-		std::advance(it, step);
-
-		count -= 1;
-	} while (count);
+	}
 
 	return last;
 }
@@ -214,7 +194,7 @@ constexpr uint64_t breaking_linear_search(const T *array,
 	return -1;
 }
 
-namespace cryptanalysislib::search {
+namespace cryptanalysislib {
 	/// Linear search using a hash function
 	/// Wrapper around lower_bound_breaking_linear_search
 	/// 

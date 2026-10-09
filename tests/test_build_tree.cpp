@@ -94,7 +94,9 @@ TEST(TreeTest, sort_level_with_target) {
 }
 
 TEST(TreeTest, join2lists_on_iT) {
-	size_t basesize = 8;
+	// NOTE: 2^9 * 2^9 pairs matching on n=8 trits: ~2^18/3^8 ~ 40 expected.
+	// 	(was: 2^8, i.e. ~10 expected, and `out1 > 2^2` failed for ~3% of seeds)
+	size_t basesize = 9;
 	Matrix A; A.identity();
 
 	const std::vector<uint32_t> ta{{0, n}};
@@ -124,7 +126,10 @@ TEST(TreeTest, join2lists_on_iT) {
 
 	// check if l2 is correctly sorted
 	for (size_t i = 0; i < l2.load(); ++i) {
-		Label::sub(l2[i].label, l2[i].label, target);
+		// NOTE: `join2lists` replaced the labels by `target - l2`, the inverse
+		// 	is `target - (target - l2)` (was: `(target - l2) - target`, which
+		// 	is only `l2` for binary labels)
+		Label::sub(l2[i].label, target, l2[i].label);
 		const bool b = l2[i].is_equal(l22[i]);
 		EXPECT_EQ(b, true);
 	}
@@ -172,8 +177,10 @@ TEST(TreeTest, join4lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<9);
-	EXPECT_LT(out.load(),1u<<11);
+	// NOTE: 2^8 * 2^8 pairs per side matching on n/2=4 trits: ~2^16/3^4 = 809
+	// 	each, then 809^2/3^4 ~ 8080 expected (was: 2^9 < out < 2^11)
+	EXPECT_GT(out.load(),1u<<12);
+	EXPECT_LT(out.load(),1u<<14);
 }
 
 TEST(TreeTest, join4lists_with2lists) {
@@ -214,8 +221,10 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<9);
-	EXPECT_LT(out.load(),1u<<11);
+	// NOTE: 2^10 * 2^10 pairs per side matching on n/2=4 trits: ~2^20/3^4
+	// 	each, then ~(2^20/3^4)^2/3^4 ~ 2^21 expected (was: 2^9 < out < 2^11)
+	EXPECT_GT(out.load(),1u<<20);
+	EXPECT_LT(out.load(),1u<<22);
 }
 
 

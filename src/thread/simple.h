@@ -27,7 +27,7 @@ namespace cryptanalysislib {
 	private:
 		constexpr static bool enable_try_block = config.enable_try_block;
 		constexpr static bool enable_remote_view = config.enable_remote_view;
-		SchedulerPerformanceManager *schedulerPerformance;
+		SchedulerPerformanceManager *schedulerPerformance = nullptr;
 
     public:
         /// Create a SimpleScheduler and start worker threads.
@@ -52,8 +52,12 @@ namespace cryptanalysislib {
         /// If the pool is currently paused then it is resumed.
         ~SimpleScheduler() noexcept {
             unpause();
-            wait_for_queued_tasks();
+            // NOTE: was `wait_for_queued_tasks()`. A running task can still
+            // 	submit (child) tasks, which were then dropped (`broken_promise`).
+            wait_for_tasks();
             stop_all_threads();
+            // NOTE: was leaked (and its socket never closed)
+            delete schedulerPerformance;
         }
 
         /// Submit a Callable for the pool to execute and return a std::future.
@@ -95,17 +99,13 @@ namespace cryptanalysislib {
         /// Some tasks may be in-progress when this method returns.
         void wait_for_queued_tasks() {
             std::unique_lock<std::mutex> tasks_lock(task_mutex);
-            notify_task_finish = true;
             task_finished_cv.wait(tasks_lock, [&] { return tasks.empty(); });
-            notify_task_finish = false;
         }
 
         /// Block until all tasks have finished.
         void wait_for_tasks() {
             std::unique_lock<std::mutex> tasks_lock(task_mutex);
-            notify_task_finish = true;
             task_finished_cv.wait(tasks_lock, [&] { return tasks.empty() && num_inflight_tasks == 0; });
-            notify_task_finish = false;
         }
 
         /// Stop executing queued tasks. Use `unpause()` to resume. Note: 
@@ -135,6 +135,9 @@ namespace cryptanalysislib {
         void clear_tasks() noexcept {
             const std::lock_guard<std::mutex> tasks_lock(task_mutex);
             tasks = {};
+            // NOTE: the queue is empty now. Before, `wait_for_queued_tasks()`
+            // 	was not woken up (forever, if no task was running).
+            task_finished_cv.notify_all();
         }
 
         /// Get number of enqueued tasks.
@@ -206,9 +209,10 @@ namespace cryptanalysislib {
 
                 if (finished_task) {
                     --num_inflight_tasks;
-                    if (notify_task_finish) {
-                        task_finished_cv.notify_all();
-                    }
+                    // NOTE: always notify. Before, a shared `notify_task_finish`
+                    // 	flag was reset by the first waiter that returned, while
+                    // 	other waiters still waited: lost wakeup.
+                    task_finished_cv.notify_all();
                 }
 
                 task_cv.wait(tasks_lock, [&]() {
@@ -221,9 +225,11 @@ namespace cryptanalysislib {
 
 				if constexpr (enable_remote_view) {
 					// not nice but easy
+					// NOTE: `task_mutex` is held here. Before, the getters locked it
+					// 	again: self deadlock.
 					if (id == 0) {
-						schedulerPerformance->gather(get_num_running_tasks(),
-						                             get_num_queued_tasks());
+						schedulerPerformance->gather(num_inflight_tasks,
+						                             tasks.size());
 					} else {
 						schedulerPerformance->gather(id);
 					}
@@ -313,13 +319,6 @@ namespace cryptanalysislib {
          * Access protected by task_mutex.
          */
         bool pool_paused = false;
-
-        /**
-         * A signal for worker threads that they should notify task_finished_cv when they finish a task.
-         *
-         * Access protected by task_mutex.
-         */
-        bool notify_task_finish = false;
 
         /**
          * A counter of the number of tasks in-progress by worker threads.

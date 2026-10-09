@@ -252,6 +252,9 @@ namespace internal {
     }
 
 	/// waits for everything
+	/// NOTE: `noexcept`: if a task exited via an exception, `get()` rethrows it
+	/// 	and `std::terminate` is called. This is intended, the standard requires
+	/// 	the same for the parallel algorithms ([algorithms.parallel.exceptions]).
 	template <class Container>
 #if __cplusplus > 201709L
 		requires Iterable<Container>

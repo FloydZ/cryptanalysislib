@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_ALGORITHM_MAX_H
 
 #include <concepts>
+#include <iterator>
 #include <cstdint>
 #include <cstdlib>
 #include <limits.h>
@@ -54,7 +55,7 @@ namespace cryptanalysislib {
     	/// \return Maximum value from a[0], ..., a[n-1]
     	template<typename T,
                  const AlgorithmMaxConfig &config = algorithmMaxConfig>
-            requires std::is_integral_v<T>
+            requires std::unsigned_integral<T>
     	[[nodiscard]] constexpr static inline T max_simd_uXX(const T *a,
     														 const size_t n) noexcept {
             // make sure that we actually support the integers
@@ -89,6 +90,18 @@ namespace cryptanalysislib {
         }
     } // end namespace internal
 
+	/// \return the larger of the two values (`a` if they are equal)
+	/// NOTE: iterator types are excluded, so `max(first, last)` always
+	///		selects the range algorithm below.
+	/// \param a[in]: first value
+	/// \param b[in]: second value
+	template<typename T>
+	    requires (!std::input_or_output_iterator<T>)
+	[[nodiscard]] constexpr inline T max(const T &a,
+	                                       const T &b) noexcept {
+		return (a < b) ? b : a;
+	}
+
 	/// Finds maximum element in a range (sequential version)
 	/// \tparam Iterator Forward iterator type for the range
 	/// \tparam config Algorithm configuration (default: algorithmMaxConfig)
@@ -103,19 +116,21 @@ namespace cryptanalysislib {
 	[[nodiscard]] constexpr static inline Iterator::value_type max(Iterator start,
 																   Iterator end) noexcept {
 		using T = Iterator::value_type;
-		const size_t len = std::distance(start, end);
-		if (std::is_integral_v<T> && (len >= config.min_size_simd)) {
-			return internal::max_simd_uXX(&(*start), len);
-		}
-
-		T k = *start;
-		for (size_t i = 1; i < len; i++) {
-			if (*(start+i) > *(start + k)) [[unlikely]] {
-				k = i;
+		if constexpr (std::unsigned_integral<T> && std::contiguous_iterator<Iterator>) {
+			const size_t len = end - start;
+			if (len >= config.min_size_simd) {
+				return internal::max_simd_uXX(&(*start), len);
 			}
 		}
 
-		return k;
+		T m = *start;
+		for (++start; start != end; ++start) {
+			if (*start > m) [[unlikely]] {
+				m = *start;
+			}
+		}
+
+		return m;
 	}
 
 	/// Finds maximum element in a range (parallel version)

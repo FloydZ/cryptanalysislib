@@ -2,6 +2,8 @@
 #define CRYPTANALYSISLIB_TRAITS_H
 
 #include <cstdlib>
+#include <functional>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
@@ -103,11 +105,16 @@ namespace cryptanalysislib {
 		using ptr_t = TReturn(*)(TArgs...);
 
 		// Beware! this function makes a copy of the closure! and of the arguments when called!
+		// NOTE: there is one copy per closure type, i.e. the returned pointer
+		// 	calls the closure of the last `generatePointer` call. Before, the
+		// 	copy was only made on the first call, so later closures (e.g. with
+		// 	other captures) were silently ignored.
 		static ptr_t generatePointer(const TClass& closure) {
-			static TClass staticClosureCopy = closure;
+			static std::optional<TClass> staticClosureCopy;
+			staticClosureCopy.emplace(closure);
 
 			return [](TArgs... args){
-			  return staticClosureCopy(args...);
+			  return (*staticClosureCopy)(args...);
 			};
 		}
 	};
@@ -126,11 +133,13 @@ namespace cryptanalysislib {
 
 		// Beware! this function makes a copy of the closure!
 		// and of the arguments when called!
+		// NOTE: one copy per closure type, see above
 		static ptr_t generatePointer(const TClass& closure) {
-			static TClass staticClosureCopy = closure;
+			static std::optional<TClass> staticClosureCopy;
+			staticClosureCopy.emplace(closure);
 
 			return [](TArgs... args) {
-			  return staticClosureCopy(args...);
+			  return (*staticClosureCopy)(args...);
 			};
 		}
 	};

@@ -104,7 +104,10 @@ public:
 			const auto *entry = (const entry_t *) data;
 			data += entry->size;
 			if (entry->self != this) continue;
-			*(uint32_t *) (entry->code) = entry->offsets[value - Min];
+			// NOTE: `entry->code` points behind the 1 byte opcode, i.e. it is
+			// 	not aligned. Was a `uint32_t *` store (UB); this is the same
+			// 	single 4 byte `mov`.
+			__builtin_memcpy((void *) (entry->code), &entry->offsets[value - Min], sizeof(uint32_t));
 		}
 		return *this;
 	}

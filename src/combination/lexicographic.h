@@ -97,6 +97,8 @@ public:
 			return enumerate2(idx, f);
 		} else if constexpr (p == 3) {
 			return enumerate3(idx, f);
+		} else if constexpr (p == 4) {
+			return enumerate4(idx, f);
 		}
 	}
 
@@ -315,8 +317,12 @@ public:
     /// \return lexicographic-reverse representation
     static inline T negidx2lexrev(size_t k) noexcept {
         T z = 0;
-        // T h = highest_one(k);
-        T h = 64 - __builtin_clzll(k);
+        if (k == 0) {
+            return z;
+        }
+
+        // highest one of k (as a mask)
+        T h = T(1) << (63 - __builtin_clzll(k));
         while ( k )
         {
             while ( 0 == (h & k) )  h >>= 1;

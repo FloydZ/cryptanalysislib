@@ -2,8 +2,6 @@
 #include <bitset>
 #include <gtest/gtest.h>
 
-#define private public
-
 #include "combination/revolving_door.h"
 
 using ::testing::InitGoogleTest;

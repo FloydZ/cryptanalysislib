@@ -844,10 +844,24 @@ public:
 
 				// due to easieness reasons, we simply reset the no reps part,
 				// and do not walk backwards
-				for (uint32_t j = 0; j < noreps_w; ++j) {
-					chase_step(*elements[k],
-							   noreps_base + k*norepslen_offset + norepslen_quarter-j-1,
-							   noreps_base + k*norepslen_offset + j);
+				// NOTE: before, this assumed that the chase sequence ends with
+				// 	the ones in the top `noreps_w` positions of the quarter, which
+				// 	is wrong for `noreps_w >= 3` (wrong weights and labels), and
+				// 	used `chase_step`, whose distance assert fails for a reset.
+				// 	Now every set bit above `noreps_w` is moved into a free
+				// 	position of the start configuration [0, noreps_w).
+				{
+					const uint32_t base = noreps_base + k*norepslen_offset;
+					uint32_t to = 0;
+					for (uint32_t pos = noreps_w; pos < norepslen_quarter; ++pos) {
+						if (!elements[k]->value[base + pos]) { continue; }
+						while (elements[k]->value[base + to]) { to += 1; }
+						assert(to < noreps_w);
+						Label::sub(elements[k]->label, elements[k]->label, HT.get(base + pos));
+						Label::add(elements[k]->label, elements[k]->label, HT.get(base + to));
+						elements[k]->value.set(0u, base + pos);
+						elements[k]->value.set(1u, base + to);
+					}
 				}
 			}
 

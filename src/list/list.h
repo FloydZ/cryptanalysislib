@@ -209,9 +209,13 @@ public:
 		}
 	}
 
-	///
+	/// sorts each thread segment [start_pos(tid), end_pos(tid)), i.e. only
+	/// the loaded elements and not the unused (zero) capacity
 	constexpr void sort() noexcept {
-		std::sort(__data.begin(), __data.end());
+		for (uint32_t tid = 0; tid < threads(); ++tid) {
+			cryptanalysislib::sort(__data.begin() + start_pos(tid),
+			                       __data.begin() + end_pos(tid));
+		}
 	}
 
 
@@ -432,7 +436,7 @@ public:
 	constexpr inline void sort_level_std_sort(const size_t sp,
 	                                          const size_t ep,
 	                                          F &&f) noexcept {
-		std::sort(__data.begin() + sp, __data.begin() + ep, f);
+		cryptanalysislib::sort(__data.begin() + sp, __data.begin() + ep, f);
 	}
 
 	///
@@ -452,6 +456,9 @@ public:
 public:
 
 	/// tried to mimic the api of the hashmap
+	/// \param load[out]: number of consecutive elements equal to `e` on
+	///		[k_lower, k_upper), starting at the returned position
+	/// \return position of the first match or -1ull
 	constexpr inline size_t find(size_t &load,
 	                             const Element &e,
 	                             const uint32_t k_lower,
@@ -460,7 +467,7 @@ public:
 		if (a == -1ull) {return -1ull; }
 
 		load = 1;
-		while ((a + load) < load &&
+		while ((a + load) < end_pos() &&
 		        e.is_equal(__data[a + load], k_lower, k_upper)) {
 			load += 1;
 		}
@@ -608,7 +615,7 @@ public:
 	                               		  const uint32_t tid,
 	                                      F &&f) const noexcept {
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		const auto it = cryptanalysislib::search::linear_search(__data.begin() + sp, __data.begin() + ep, e, f);
+		const auto it = cryptanalysislib::linear_search(__data.begin() + sp, __data.begin() + ep, e, f);
 		if (it == (__data.begin() + ep)) {
 			return -1ull;
 		} else {
@@ -699,15 +706,22 @@ public:
 			                      __data.begin() + ep,
 			                      e, f);
 		} else {
-			it = cryptanalysislib::search::binary_search(__data.begin() + sp,
+			it = cryptanalysislib::binary_search(__data.begin() + sp,
 			                                             __data.begin() + ep, e, f);
 		}
 		if (it == (__data.begin() + ep)) {
 			return -1ull;
-		} else {
-			return std::distance(__data.begin()+sp, it);
 		}
 
+		// NOTE: both searches return the lower bound, which is only a match
+		// 	if it is equal to `e`
+		if constexpr (std::is_invocable_v<F, const Element &, const Element &>) {
+			if (f(e, *it)) { return -1ull; }
+		} else {
+			if (f(e) != f(*it)) { return -1ull; }
+		}
+
+		return std::distance(__data.begin()+sp, it);
 	}
 
 	///
@@ -742,7 +756,7 @@ public:
 		}
 
 		const size_t sp = start_pos(tid), ep = end_pos(tid);
-		const auto it = cryptanalysislib::search::interpolation_search(__data.begin() + sp, __data.begin() + ep, e, f);
+		const auto it = cryptanalysislib::interpolation_search(__data.begin() + sp, __data.begin() + ep, e, f);
 		if (it == (__data.begin() + ep)) {
 			return -1ull;
 		} else {
@@ -807,6 +821,7 @@ public:
 			__data[load()] = e;
 		} else {
 			__data.push_back(e);
+			__size += 1;
 		}
 
 		set_load(load() + 1);

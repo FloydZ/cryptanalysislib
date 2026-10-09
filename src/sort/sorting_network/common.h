@@ -10,9 +10,11 @@
 #include "sort/sorting_network/avx2.h"
 #endif
 
-#ifdef USE_NEON
-#include "sort/sorting_network/neon.h"
-#endif
+// NOTE: `neon.h` is an unfinished port (`layers` and `simd_mergesorted_2` are
+// 	not defined) and nothing uses it. not correct right now
+// #ifdef USE_NEON
+// #include "sort/sorting_network/neon.h"
+// #endif
 
 #include "sorting_network.h"
 

@@ -730,30 +730,16 @@ public:
 		assert(ecol - scol <= ncols_prime);
 
 		const uint32_t ncols = ecol - scol;
-		const T end_mask = (1u << (ncols % RADIX)) - 1u;
-		if ((scol % RADIX) == 0) {
-			const uint32_t startword = scol / RADIX;
-			for (uint32_t _row = srow; _row < erow; ++_row) {
-				memcpy(B.row(_row), A.row(_row) + startword, sizeof(T) * (ncols / RADIX));
-			}
-
-			if (ncols % RADIX) {
-				const uint32_t elimb = startword + (ncols / RADIX);
-				for (uint32_t _row = srow; _row < erow; ++_row) {
-					const T tmp = A.row(_row)[elimb] & end_mask;
-					B.row(_row)[elimb] = tmp;
-				}
-			}
-		} else {
-			uint32_t j;
-			for (uint32_t i = 0; i < nrows_prime; i++) {
-				T *crow = B.row(i);
-				for (j = 0; j + RADIX < ncols; j += RADIX) {
-					crow[j / RADIX] = A.read_bits(srow + i, scol + j, RADIX);
-				}
-
-				crow[j / RADIX] &= ~B.high_bitmask;
-				crow[j / RADIX] |= A.read_bits(srow + i, scol + j, ncols - j) & A.high_bitmask;
+		// NOTE: before, the aligned path wrote to the source row/limb indices
+		// 	of `B`, copied `sizeof(T)` times too many limbs (the element count
+		// 	`memcpy`), and shifted `1u` by up to 63; the unaligned path walked
+		// 	all rows of `B`. Now every destination limb is read via `read_bits`,
+		// 	which handles any column offset.
+		for (uint32_t i = 0; i < erow - srow; ++i) {
+			T *crow = B.row(i);
+			for (uint32_t j = 0; j < ncols; j += RADIX) {
+				const uint32_t nb = (ncols - j) < RADIX ? (ncols - j) : RADIX;
+				crow[j / RADIX] = A.read_bits(srow + i, scol + j, nb);
 			}
 		}
 	}
@@ -1178,10 +1164,9 @@ public:
 				kk = rstop - c;
 			}
 
+			// NOTE: `matrix_gauss_submatrix` stops at the first column without
+			// 	a pivot, so the `kbar` pivots are the columns [c, c+kbar).
 			size_t kbar = matrix_gauss_submatrix(M, r, c, nrows, kk);
-			if (kk != kbar) {
-				break;
-			}
 
 			if (kbar > 0) {
 				matrix_make_table(M, r, kbar, xor_rows, diff);
@@ -1193,6 +1178,13 @@ public:
 
 			r += kbar;
 			c += kbar;
+
+			// NOTE: column `c` has no pivot, so the systematic part ends here.
+			// 	Before, this exit was taken before the `kbar` pivots of the
+			// 	block were processed and counted, e.g. returning 3 instead of 4.
+			if (kk != kbar) {
+				break;
+			}
 		}
 
 		return r;

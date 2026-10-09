@@ -280,7 +280,7 @@ TEST(binary_search_dispatch, compare) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	auto a = cryptanalysislib::search::internal::binary_search_dispatch(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::internal::binary_search_dispatch(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) {
 		  return e1 < e2;
 		}
@@ -294,7 +294,7 @@ TEST(binary_search_dispatch, hash) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	auto a = cryptanalysislib::search::internal::binary_search_dispatch(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::internal::binary_search_dispatch(data.begin(), data.end(), search,
 		[](const T &e1) __attribute__((always_inline)){
 		  return e1 & MASK;
 		}
@@ -302,6 +302,27 @@ TEST(binary_search_dispatch, hash) {
 
 	EXPECT_EQ(solution_index, distance(data.begin(), a));
 }
+TEST(binary_search, found_and_not_found) {
+	// sorted, with duplicates and gaps
+	const std::vector<T> data{1, 3, 3, 3, 7, 9, 12};
+	const auto cmp = [](const T &a, const T &b) { return a < b; };
+	const auto hsh = [](const T &a) { return a; };
+	for (T v = 0; v < 14; ++v) {
+		// expected: first equal element or end
+		auto e = data.end();
+		for (auto it = data.begin(); it != data.end(); ++it) {
+			if (*it == v) { e = it; break; }
+		}
+
+		EXPECT_EQ(e, cryptanalysislib::binary_search(data.begin(), data.end(), v));
+		EXPECT_EQ(e, cryptanalysislib::binary_search(data.begin(), data.end(), v, cmp));
+		EXPECT_EQ(e, cryptanalysislib::binary_search(data.begin(), data.end(), v, hsh));
+	}
+
+	const std::vector<T> empty;
+	EXPECT_EQ(empty.end(), cryptanalysislib::binary_search(empty.begin(), empty.end(), T(1)));
+}
+
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -57,8 +57,7 @@ size_t Tree_T<List, config>::join4lists(List &out, List &L1, List &L2, List &L3,
 
 	// prepare baselists
 	if ((!target.is_zero()) && prepare) {
-		// TODO subsetsum only
-		iT.random(0, (1ull << k_upper1) + 1);
+		random_intermediate_target(iT, k_lower1, k_upper1);
 
 		LabelType R2;
 		LabelType::sub(R2, iT, target, k_lower1, k_upper2);
@@ -67,6 +66,16 @@ size_t Tree_T<List, config>::join4lists(List &out, List &L1, List &L2, List &L3,
 			op(L2[i].label, iT, L2[i].label, k_lower1, k_upper2);
 			LabelType::add(L4[i].label, R2, L4[i].label, k_lower1, k_upper2);
 			L3[i].label.neg(k_lower1, k_upper2);
+
+			// NOTE: the labels of `L2` and `L3` are negated above, so are their
+			// 	values: every element stays `label = const + value*matrix`, and
+			// 	the `sub` based joins below compute `v1 + v2 + v3 + v4`. Before,
+			// 	the values were not negated, which is wrong for non binary
+			// 	values (e.g. F_3), where `-v != v`.
+			if constexpr (!ValueType::binary()) {
+				L2[i].value.neg();
+				L3[i].value.neg();
+			}
 		}
 
 		L1.sort_level(k_lower1, k_upper1);
@@ -74,7 +83,16 @@ size_t Tree_T<List, config>::join4lists(List &out, List &L1, List &L2, List &L3,
 	}
 
 	// NOTE: the intermediate target `R` is ingored in this call
-	join2lists(iL, L1, L2, iT, k_lower1, k_upper1, false);
+	// NOTE: the labels of `iL` are needed on [k_lower1, k_upper2), as
+	// 	the second level searches `iL` on [k_lower2, k_upper2). The default
+	// 	`join2lists` only computes them on [k_lower1, k_upper1), which is
+	// 	only enough for labels that ignore the limits (e.g. `kAry_Type_T`).
+	auto f1 = [k_lower1, k_upper2](List &out, List &L1, List &L2,
+	                               const size_t i, const size_t j) __attribute__((always_inline)) {
+		out.add_and_append(L1[i], L2[j], k_lower1, k_upper2, -1u, !LabelType::binary());
+		return false;
+	};
+	join2lists(iL, L1, L2, iT, k_lower1, k_upper1, false, f1);
 
 	// early exit
 	if (iL.load() == 0) {
@@ -142,7 +160,7 @@ size_t Tree_T<List, config>::join4lists_on_iT_v2(List &out,
 
 		ElementType tmpe1;
 		LabelType t1, iT;
-		iT.random(0, 1ull << k_upper1); // TODO only correct for SubSetSum
+		random_intermediate_target(iT, k_lower1, k_upper1);
 		join2lists_on_iT_v2(iL, L1, L2, iT, k_lower1, k_upper1, prepare);
 		// early exit
 		if (iL.load() == 0) {
@@ -174,9 +192,9 @@ size_t Tree_T<List, config>::join4lists_on_iT_v2(List &out,
 		(void)k_upper1;
 		(void)k_lower2;
 
+		// NOTE: v2: `iL[l] + e` is the solution, its label is the target
 		constexpr uint32_t filter = uint32_t(-1);
-		constexpr bool sub = !LabelType::binary();
-		out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
+		out.add_and_append(iL[l], e, k_lower1, k_upper2, filter);
 	};
 	return join4lists_on_iT_v2(out, L1, L2, L3, L4, target, k_lower1, k_upper1, k_lower2, k_upper2, prepare, f);
 }
@@ -211,7 +229,7 @@ size_t Tree_T<List, config>::join4lists_on_iT_v2(List &out,
 
 		ElementType tmpe1;
 		LabelType t1, iT;
-		iT.random(0, 1ull << k_upper1);
+		random_intermediate_target(iT, k_lower1, k_upper1);
 		join2lists_on_iT_v2<k_lower1, k_upper1>(iL, L1, L2, iT, false);
 		// early exit
 		if (iL.load() == 0) { return 0; }

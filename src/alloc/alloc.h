@@ -6,6 +6,7 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <type_traits>
 
 #include "container/queue.h"
 #include "helper.h"
@@ -67,7 +68,7 @@ namespace cryptanalysislib {
 // Checks if the page pointed at by `ptr` is huge. Assumes that `ptr` has already
 // been allocated.
 static void check_huge_page(void *ptr) {
-	const uint64_t CUSTOM_PAGE_SIZE = 1u<<13; // TODO dont know if this is correct
+	const uint64_t page_size = sysconf(_SC_PAGESIZE);
 	int pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
 	if (pagemap_fd < 0) {
 		std::cout << "could not open /proc/self/pagemap: " << strerror(errno) << "\n";
@@ -79,7 +80,7 @@ static void check_huge_page(void *ptr) {
 
 	// each entry is 8 bytes long
 	uint64_t ent;
-	if (pread(pagemap_fd, &ent, sizeof(ent), ((uintptr_t) ptr) / CUSTOM_PAGE_SIZE * 8) != sizeof(ent)) {
+	if (pread(pagemap_fd, &ent, sizeof(ent), ((uintptr_t) ptr) / page_size * 8) != sizeof(ent)) {
 		std::cout << "could not read from pagemap\n";
 	}
 
@@ -112,7 +113,6 @@ static void check_huge_page(void *ptr) {
 /// \return pointer to the allocated huge page or nullptr
 static 
 void *cryptanalysislib_hugepage_malloc(const size_t size) {
-	const uint64_t HPAGE_SIZE = 1u<<13; // TODO dont know if this is correct
 	const size_t nr_pages = (size + HPAGE_SIZE - 1) / HPAGE_SIZE;
 	const size_t alloc_size = nr_pages * HPAGE_SIZE;
 	void *ret = cryptanalysislib::aligned_alloc(HPAGE_SIZE, alloc_size);
@@ -237,7 +237,9 @@ public:
 		const size_t bla = roundToAligned<allocatorConfig.alignment>(b.len);
 		if ((T *) ((size_t) b.ptr + bla) == _p) {
 			if constexpr (allocatorConfig.zero_after_free) {
-				cryptanalysislib::memset(_p, T(0), ((uintptr_t) _p - (uintptr_t) _d)/sizeof(T));
+				// NOTE: zero the freed block [b.ptr, _p). Before, `_p - _d` bytes
+				// 	were zeroed starting at `_p`, i.e. past the block and the stack.
+				cryptanalysislib::memset((T *) b.ptr, T(0), bla);
 			}
 			_p = (T *) b.ptr;
 		}
@@ -310,6 +312,9 @@ public:
 			c = next;
 		}
 
+		// NOTE: before, `_root` still pointed to the freed nodes, so the next
+		// 	`allocate` returned memory the parent hands out again
+		_root = nullptr;
 		_parent.deallocateAll();
 	}
 
@@ -490,6 +495,16 @@ public:
 		return {ptr, ptr == nullptr ? 0 : page_size};
 	}
 
+	/// allocates a page for `n` bytes, the interface used by
+	/// `STDAllocatorWrapper`.
+	/// \return a page or {nullptr, 0} if `n` does not fit into a page
+	constexpr Blk allocate(const size_t n) noexcept {
+		if (n > page_size) {
+			return {nullptr, 0};
+		}
+		return allocate();
+	}
+
 	/// Deallocates a page of memory
 	/// \param b[in]: memory block to deallocate
 	constexpr void deallocate(const Blk &b) noexcept {
@@ -508,7 +523,10 @@ public:
 	/// \param b[in]: memory block to check
 	/// \return true if the block is a page owned by this allocator
 	constexpr bool owns(const Blk &b) noexcept {
-		return ((uintptr_t) b.ptr) & MASK;
+		// NOTE: was `b.ptr & MASK`, which is true for almost every pointer.
+		// 	`len` may be smaller than a page, if allocated via `allocate(n)`.
+		return (b.ptr != nullptr) && (b.len > 0) && (b.len <= page_size) &&
+		       ((((uintptr_t) b.ptr) & (page_alignment - 1u)) == 0);
 	}
 };
 
@@ -561,14 +579,31 @@ public:
 	/// Allocates a memory page from the page allocator
 	/// \return memory block containing a page
 	constexpr Blk allocate() noexcept {
+		// NOTE: reuse a freed page first. Before, freed pages were only
+		// 	collected, so every allocation took a new page.
+		Blk b;
+		if (_helper._queue.try_pop_front(b)) {
+			return b;
+		}
 		return allocator.allocate();
+	}
+
+	/// allocates a page for `n` bytes, the interface used by
+	/// `STDAllocatorWrapper`.
+	/// \return a page or {nullptr, 0} if `n` does not fit into a page
+	constexpr Blk allocate(const size_t n) noexcept {
+		if (n > page_size) {
+			return {nullptr, 0};
+		}
+		return allocate();
 	}
 
 	/// Adds the page to the free list queue instead of deallocating it
 	/// \param b[in]: memory block to deallocate
 	constexpr void deallocate(const Blk &b) noexcept {
 		if (owns(b)) {
-			_helper._queue.push_back(b);
+			// NOTE: store the full page, `b.len` can be smaller
+			_helper._queue.push_back(Blk{b.ptr, page_size});
 		}
 	}
 
@@ -605,11 +640,20 @@ public:
 	static inline inner_allocator sallocator{};
 	inner_allocator allocator;
 
+	/// NOTE: all instances allocate through the shared `sallocator` (the
+	/// 	one argument `allocate`), so they are interchangeable. Needed by
+	/// 	e.g. `std::vector` (copy, swap, shrink_to_fit).
+	[[nodiscard]] constexpr friend bool operator==(const STDAllocatorWrapper &,
+	                                               const STDAllocatorWrapper &) noexcept {
+		return true;
+	}
+
 	/// Allocates memory for n elements
 	/// \param n[in]: number of elements to allocate
 	/// \return pointer to allocated memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
-		Blk b = sallocator.allocate(n);
+		// NOTE: `n` elements, the inner allocator counts bytes
+		Blk b = sallocator.allocate(n * sizeof(T));
 		return (pointer) b.ptr;
 	}
 
@@ -619,7 +663,7 @@ public:
 	/// \return pointer to allocated memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(allocator_type &a,
 	                                                       const size_type n) noexcept {
-		Blk b = a.allocator.allocate(n);
+		Blk b = a.allocator.allocate(n * sizeof(T));
 		return (pointer) b.ptr;
 	}
 
@@ -646,7 +690,7 @@ public:
 	/// \param n[in]: number of elements
 	static constexpr inline void deallocate(const pointer p,
 											const size_type n) noexcept {
-		const Blk b((void *) p, n);
+		const Blk b((void *) p, n * sizeof(T));
 		sallocator.deallocate(b);
 	}
 
@@ -657,7 +701,7 @@ public:
 	static constexpr inline void deallocate(allocator_type &a,
 	                                        const pointer p,
 	                                        const size_type n) noexcept {
-		const Blk b((void *) p, n);
+		const Blk b((void *) p, n * sizeof(T));
 		a.allocator.deallocate(b);
 	}
 
@@ -714,6 +758,30 @@ public:
         (void) n;
         cryptanalysislib::aligned_free(p);
 	}
+
+	/// Reallocates aligned memory, same semantics as C `realloc`: the first
+	/// min(old_n, new_n) bytes are kept, `p` is freed.
+	/// \param p[in]: pointer returned by `allocate`, or nullptr
+	/// \param old_n[in]: number of bytes `p` was allocated with
+	/// \param new_n[in]: number of bytes to allocate
+	/// \return pointer to the new aligned memory, or nullptr on failure
+	///		(in which case `p` is not freed)
+	[[nodiscard]] static constexpr inline pointer reallocate(const pointer p,
+	                                                         const size_type old_n,
+	                                                         const size_type new_n) noexcept {
+		const pointer np = allocate(new_n);
+		if (np == nullptr) [[unlikely]] {
+			return nullptr;
+		}
+
+		const size_type n = old_n < new_n ? old_n : new_n;
+		if ((p != nullptr) && (n > 0)) {
+			cryptanalysislib::memcpy((uint8_t *)np, (const uint8_t *)p, n);
+		}
+
+		deallocate(p, old_n);
+		return np;
+	}
 };
 
 #ifdef USE_TRACY
@@ -731,23 +799,24 @@ public:
 	typedef const void *const_void_pointer;
 	typedef size_t size_type;
 
-	const char *pool_name = "tracy_allocator";
+	constexpr static const char *pool_name = "tracy_allocator";
 
-	/// Allocates memory with Tracy profiling
+	/// Allocates aligned memory and reports it to Tracy
 	/// \param n[in]: number of elements to allocate
 	/// \return pointer to allocated memory or nullptr
 	[[nodiscard]] static constexpr inline pointer allocate(const size_type n) noexcept {
-		T *p = nullptr;
-		TracyCAllocN(p, sizeof(T) * n, pool_name);
+		const pointer p = AlignmentMallocator<T, alignment>::allocate(sizeof(T) * n);
+		TracyAllocN(p, sizeof(T) * n, pool_name);
 		return p;
 	}
 
-	/// Deallocates memory with Tracy profiling
+	/// Deallocates memory and reports it to Tracy
 	/// \param p[in]: pointer to memory to deallocate
 	/// \param n[in]: number of elements
 	static constexpr inline void deallocate(const pointer p,
 											const size_type n) noexcept {
-		TracyCFreeN(p, sizeof(T) * n);
+		TracyFreeN(p, pool_name);
+		AlignmentMallocator<T, alignment>::deallocate(p, sizeof(T) * n);
 	}
 };
 #endif
@@ -759,5 +828,46 @@ namespace cryptanalysislib {
 
 	template <typename T>
 	using alignment_allocator = AlignmentMallocator<T>;
+
+	/// Reallocates `p`, which holds `old_n` elements and was allocated by `a`,
+	/// to `new_n` elements. Same semantics as C `realloc`: the first
+	/// min(old_n, new_n) elements are kept, `p` is released.
+	/// If the allocator provides its own `reallocate(p, old_n, new_n)`, it is used.
+	/// NOTE: only for trivially copyable types, as the elements are copied
+	///		bytewise and not constructed/destroyed.
+	/// \param a[in]: allocator `p` was allocated with
+	/// \param p[in]: pointer to the elements, or nullptr
+	/// \param old_n[in]: number of elements `p` was allocated with
+	/// \param new_n[in]: number of elements to allocate
+	/// \return pointer to the new memory, or nullptr on failure
+	///		(in which case `p` is not released)
+	template<class Alloc, typename T>
+#if __cplusplus > 201709L
+		requires std::is_trivially_copyable_v<T>
+#endif
+	[[nodiscard]] constexpr inline T *reallocate(Alloc &a,
+	                                             T *p,
+	                                             const size_t old_n,
+	                                             const size_t new_n) noexcept {
+		if constexpr (requires { { a.reallocate(p, old_n, new_n) } -> std::convertible_to<T *>; }) {
+			return a.reallocate(p, old_n, new_n);
+		} else {
+			T *np = a.allocate(new_n);
+			if (np == nullptr) [[unlikely]] {
+				return nullptr;
+			}
+
+			const size_t n = old_n < new_n ? old_n : new_n;
+			if ((p != nullptr) && (n > 0)) {
+				// NOTE: element count, not bytes
+				cryptanalysislib::memcpy(np, p, n);
+			}
+
+			if (p != nullptr) {
+				a.deallocate(p, old_n);
+			}
+			return np;
+		}
+	}
 }
 #endif //CRYPTANALYSISLIB_ALLOC_H

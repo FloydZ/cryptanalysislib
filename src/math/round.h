@@ -14,7 +14,16 @@ namespace cryptanalysislib::math {
 	    requires std::is_floating_point_v<T>
 #endif
 	constexpr int64_t round(const T val) {
-		return (int64_t) val;
+		// round half away from zero (as std::round)
+		const int64_t t = (int64_t) val;
+		const T frac = val - T(t);
+		if (frac >= T(0.5)) {
+			return t + 1;
+		}
+		if (frac <= T(-0.5)) {
+			return t - 1;
+		}
+		return t;
 	}
 
 	[[nodiscard]] constexpr static std::size_t round_up_to_power_of_two(std::size_t value) noexcept {

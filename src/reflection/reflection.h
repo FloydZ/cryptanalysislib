@@ -304,7 +304,10 @@ namespace reflect::inline v1_1_1 {
 
 #if defined(__clang__) and (__clang_major__ > 15)
 #pragma clang diagnostic push
+// NOTE: clang 21 removed this warning group, and ignoring it warns
+#if __has_warning("-Wenum-constexpr-conversion")
 #pragma clang diagnostic ignored "-Wenum-constexpr-conversion"
+#endif
 #endif
 		template<class E, auto Min, auto Max> requires (std::is_enum_v<E> and Max > Min)
 		constexpr auto enum_cases = []<auto... Ns>(std::index_sequence<Ns...>) {
@@ -354,6 +357,9 @@ namespace reflect::inline v1_1_1 {
 	template<class E> requires std::is_enum_v<E>
 	consteval auto enum_max(const E) { return REFLECT_ENUM_MAX; }
 
+	/// NOTE: probes the values [Min, Max]. clang >= 20 rejects casting a value
+	/// outside an enum's range of values to the enum in a constant expression,
+	/// so `E` needs a fixed underlying type (`enum E : int {...}` or any scoped enum).
 	template<class E, fixed_string unknown = "", auto Min = enum_min(E{}), auto Max = enum_max(E{})>
 	    requires (std::is_enum_v<E> and Max > Min)
 	[[nodiscard]] constexpr auto enum_name(const E e) noexcept -> std::string_view {

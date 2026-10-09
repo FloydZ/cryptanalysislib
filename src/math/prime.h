@@ -85,7 +85,8 @@ constexpr static inline bool is_prime(const size_t n) noexcept {
 		// check if n is divisible by 2 or 3
 		return false;
 	} else {
-		for (size_t i=5; i*i<=n; i+=6) {
+		// NOTE: `i <= n / i` instead of `i*i <= n`, which overflows for n close to 2^64
+		for (size_t i=5; i<=n/i; i+=6) {
 			if (n % i == 0 || n%(i + 2) == 0) {
 				return false;
 			}
@@ -103,8 +104,12 @@ constexpr static inline bool is_prime(const size_t n) noexcept {
 		return 18361375334787046697ull;
 	}
 
-	if (n <= 3) {
-		return n;
+	if (n <= 2) {
+		return 2;
+	}
+
+	if (n == 3) {
+		return 3;
 	}
 
 	// round up to the next uneven number
@@ -117,11 +122,16 @@ constexpr static inline bool is_prime(const size_t n) noexcept {
 }
 
 /// \param n base number from which the previous prime will be computed
-/// \return the previous prime <= n
+/// \return the previous prime <= n, or 0 if there is none (n < 2)
 [[nodiscard]] constexpr static inline size_t prev_prime(const size_t n) noexcept {
 	// some safty
 	if (n >= 18361375334787046697ull) {
 		return 18361375334787046697ull;
+	}
+
+	// NOTE: there is no prime <= 1 (prev_prime(1) used to return 1)
+	if (n < 2) {
+		return 0;
 	}
 
 	if (n <= 3) {

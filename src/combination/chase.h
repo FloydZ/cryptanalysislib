@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "math/math.h"
+#include "memory/memory.h"
 
 #if __cplusplus > 201709L
 /// functions/fields an enumerator must implement
@@ -149,6 +150,16 @@ public:
 	bool left_step(T *A,
 	               uint16_t *pos1,
 	               uint16_t *pos2) noexcept {
+		if constexpr (w == 0) {
+			// the only element of weight 0 is the zero vector
+			(void)A;
+			*pos1 = 0;
+			*pos2 = 0;
+			const bool ret = init;
+			init = false;
+			return ret;
+		}
+
 		uint16_t pos = 0;
 		if (!init) {
 			// cleanup of the previous round
@@ -198,7 +209,7 @@ public:
 	constexpr void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 	                          const size_t listsize = 0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
-		ret.resize(listsize);
+		ret.resize(size);
 
 		left_step<write>(nullptr, &ret[0].first, &ret[0].second);
 		for (size_t i = 0; i < size; ++i) {
@@ -402,38 +413,50 @@ public:
 	/// \return
 	template<typename F>
 	constexpr static inline void enumerate3(T *idx, F &&f) noexcept {
-		idx[1] = 1;
-		idx[2] = 2;
-		for (idx[0] = 0; idx[0] < n;) {
-			enumerate2(idx + 1, f, idx[0] + 1);
-			idx[0] += 1;
-			if (idx[0] >= n - 1) { break; }
-			f(idx[0], idx[0] - 1);
-			idx[1] -= 1;
+		// revolving door order (Knuth, TAOCP 7.2.1.3, Algorithm R) for t = 3,
+		// starting at {0, 1, 2}. Every step removes one index and adds another.
+		// f(added, removed) is called for every step.
+		uint32_t c[4] = {0, 1, 2, n}; // c[3] is a sentinel
+		while (true) {
+			uint32_t k1 = 0, k2 = 0; // k1: removed, k2: added
+			if (c[0] + 1 < c[1]) {
+				// R3: t is odd, try to increase c[0]
+				k1 = c[0];
+				c[0] += 1;
+				k2 = c[0];
+			} else {
+				uint32_t j = 1;
+				bool stepped = false;
+				while (j < 3) {
+					// R4: try to decrease c[j]
+					if (c[j] > j) {
+						k1 = c[j];
+						k2 = j - 1;
+						c[j] = c[j - 1];
+						c[j - 1] = j - 1;
+						stepped = true;
+						break;
+					}
+					j += 1;
+					if (j == 3) { break; }
 
-			for (; idx[2] > idx[0] + 2;) {
-				for (; idx[1] > idx[0] + 1; idx[1] -= 1) {
-					f(idx[1], idx[1] - 1);
+					// R5: try to increase c[j]
+					if (c[j] + 1 < c[j + 1]) {
+						k1 = c[j - 1];
+						k2 = c[j] + 1;
+						c[j - 1] = c[j];
+						c[j] += 1;
+						stepped = true;
+						break;
+					}
+					j += 1;
 				}
 
-				f(idx[2], idx[2] - 1);
-				idx[2] -= 1;
-				idx[1] += 1;
-
-				for (; idx[1] < idx[2]; idx[1] += 1) {
-					f(idx[1], idx[1] - 1);
-				}
-
-				idx[1] -= 1;
-				f(idx[1] - 1, idx[1] + 1);
-				idx[2] -= 1;
-				idx[1] -= 1;
+				if (!stepped) { break; }
 			}
 
-			f(idx[0], idx[0] + 3);
-			idx[0] += 1;
-			idx[1] += 1;
-			idx[2] += 1;
+			idx[0] = c[0]; idx[1] = c[1]; idx[2] = c[2];
+			f(k2, k1);
 		}
 	}
 
@@ -606,9 +629,10 @@ public:
 				 std::pair<uint16_t, uint16_t> tmp{old_val, cur_val};
 				 ret[N-1] = tmp;
 			}
-			//std::memcpy(old_c, c, (t+2) * sizeof(uint16_t));
-			// TODO replace with cryptanalysislib
-			memcpy(old_c, c, 2*(t+2));
+			// NOTE: element count, not bytes. An unqualified `memcpy` with a
+			// 	byte count resolves to `cryptanalysislib::memcpy` (element
+			// 	count) if the namespace is visible, and overflows `old_c`.
+			cryptanalysislib::memcpy(old_c, c, t + 2);
 
 			++N;
 			j = r;

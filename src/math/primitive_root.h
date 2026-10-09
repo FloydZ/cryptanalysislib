@@ -12,15 +12,16 @@ namespace cryptanalysislib {
         std::vector<T> div;
         for (T i = 1; i*i < m; i++) {
             if ((m-1) % i == 0) {
-                if (i < m-1) { div.pb(i); }
-                if ((m-1)/i < m) { div.pb((m-1)/i); }
+                // proper divisors of m-1 only: x^(m-1) == 1 holds for every x
+                if (i < m-1) { div.push_back(i); }
+                if ((m-1)/i < m-1) { div.push_back((m-1)/i); }
             }
         }
 
-        for (uint32_t x = 2; x < m; x++) {
+        for (T x = 2; x < m; x++) {
             bool ok = true;
             for (T d : div) { 
-                if (mod_pow(x, d, m) == 1){ 
+                if (mod_pow<T>(x, d, m) == 1){ 
                     ok = false; 
                     break; 
                 }

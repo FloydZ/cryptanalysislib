@@ -24,6 +24,14 @@ constexpr bool packed = true;
 using M = FqMatrix<T, nrows, ncols, q, packed>;
 using MT = FqMatrix<T, ncols, nrows, q, packed>;
 
+// NOTE: step between the matrix sizes of the large transpose/gaus tests. At -O0
+// 	the full range (step 3) took ~400s, which timed out the macOS Debug CI.
+#ifdef DEBUG
+constexpr uint32_t size_step = 9;
+#else
+constexpr uint32_t size_step = 3;
+#endif
+
 
 TEST(FqMatrix, Init) {
 	M m = M{};
@@ -148,8 +156,8 @@ TEST(FqMatrix, InitFromString) {
 }
 
 TEST(FqMatrix, SimpleTranspose) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 480, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, size_step>([](const auto __nrows) {
+		constexpr_for<400, 480, size_step>([__nrows](const auto __ncols) {
 			using M = FqMatrix<T, __nrows, __ncols, q, true>;
 			using MT = FqMatrix<T, __ncols, __nrows, q, true>;
 			M m = M{};
@@ -168,8 +176,8 @@ TEST(FqMatrix, SimpleTranspose) {
 }
 
 TEST(FqMatrix, Transpose) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, size_step>([](const auto __nrows) {
+		constexpr_for<400, 470, size_step>([__nrows](const auto __ncols) {
 			using M = FqMatrix<T, __nrows, __ncols, q, true>;
 			using MT = FqMatrix<T, __ncols, __nrows, q, true>;
 			M m = M{};
@@ -294,8 +302,8 @@ TEST(FqMatrix, gaus) {
 // NOTE: disable because ARM CI pipline has not enough space
 #ifndef USE_NEON
 TEST(FqMatrix, m4ri) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<410, 440, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, size_step>([](const auto __nrows) {
+		constexpr_for<410, 440, size_step>([__nrows](const auto __ncols) {
 			if constexpr (__nrows <= __ncols) {
 				using M = FqMatrix<T, __nrows, __ncols, q, true>;
 				M m = M{};
@@ -315,8 +323,8 @@ TEST(FqMatrix, m4ri) {
 
 // note; failed in der osx pipline
 TEST(FqMatrix, markov_gaus) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, size_step>([](const auto __nrows) {
+		constexpr_for<400, 470, size_step>([__nrows](const auto __ncols) {
 			if constexpr (__nrows <= __ncols) {
 				using M = FqMatrix<T, __nrows, __ncols, q, true>;
 				// using MT = FqMatrix<T, __ncols, __nrows, q, true>;

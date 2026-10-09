@@ -24,9 +24,10 @@ namespace cryptanalysislib::math {
 	/// \return
 	__device__ __host__
 	constexpr int64_t cceil(double num) {
-		return (static_cast<double>(static_cast<int32_t>(num)) == num)
-		               ? static_cast<int64_t>(num)
-		               : static_cast<int64_t>(num) + ((num > 0) ? 1 : 0);
+		const int64_t t = static_cast<int64_t>(num);
+		return (static_cast<double>(t) == num)
+		               ? t
+		               : t + ((num > 0) ? 1 : 0);
 	}
 }
 #endif//CRYPTANALYSISLIB_CEIL_H

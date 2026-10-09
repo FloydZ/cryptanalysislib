@@ -11,9 +11,12 @@
 
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <cassert>
+#include <new>
+#include <unordered_map>
 
 #include "alloc/cache.h"
 #include "atomic/atomic_primitives.h"
@@ -155,6 +158,10 @@ constexpr inline bool __CAS_AN_COUNT_(uint8_t *ptr,
 
 #define WRITE(ptr, pos, nv) (((uintptr_t *)ptr)[pos] = (uintptr_t )nv);
 #else
+// NOTE: the global `CAS` is relaxed. Publishing a freshly initialised node
+// 	needs release semantics, which pair with the acquire in `READ*`.
+#define CTRIE_CAS(ptr, cmp, val) __atomic_compare_exchange_n(ptr, cmp, val, 0, \
+                                                         __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
 #define READ(ptr, pos) 	((void *)ACQUIRE(((uintptr_t *)(ptr)) + (pos)))
 #define READ_TXN(ptr) 	((void *)ACQUIRE((uintptr_t *)(((uint8_t *)ptr) + 24)))
 #define READ_WIDE(ptr) 	((void *)ACQUIRE((uintptr_t *)(((uint8_t *)ptr) + 40)))
@@ -162,15 +169,15 @@ constexpr inline bool __CAS_AN_COUNT_(uint8_t *ptr,
 #define READ_A_COUNT(ptr) 	((void *)ACQUIRE((uintptr_t *)(((uint8_t *)ptr) + (16*8))))
 #define READ_AN_COUNT(ptr) 	((void *)ACQUIRE((uintptr_t *)(((uint8_t *)ptr) + (4*8))))
 
-#define CAS_(ptr, pos, ov, nv) 	((void *)CAS(((uintptr_t *)(ptr)) + (pos), (uintptr_t *)ov, (uintptr_t)nv))
-#define CAS_WIDE(ptr, ov, nv) 	((void *)CAS(((uintptr_t *)(((uint8_t *)ptr) + 40u)), (uintptr_t *)ov, (uintptr_t)nv))
-#define CAS_TXN(ptr, ov, nv) 	((void *)CAS(((uintptr_t *)(((uint8_t *)ptr) + 24u)), (uintptr_t *)ov, (uintptr_t)nv))
-#define CAS_CACHE(ptr, ov, nv) 	((void *)CAS((uintptr_t *)&cache_ptr, (uintptr_t *)ov, (uintptr_t)nv))
+#define CAS_(ptr, pos, ov, nv) 	((void *)CTRIE_CAS(((uintptr_t *)(ptr)) + (pos), (uintptr_t *)ov, (uintptr_t)nv))
+#define CAS_WIDE(ptr, ov, nv) 	((void *)CTRIE_CAS(((uintptr_t *)(((uint8_t *)ptr) + 40u)), (uintptr_t *)ov, (uintptr_t)nv))
+#define CAS_TXN(ptr, ov, nv) 	((void *)CTRIE_CAS(((uintptr_t *)(((uint8_t *)ptr) + 24u)), (uintptr_t *)ov, (uintptr_t)nv))
+#define CAS_CACHE(ptr, ov, nv) 	((void *)CTRIE_CAS((uintptr_t *)&cache_ptr, (uintptr_t *)ov, (uintptr_t)nv))
 
-#define CAS_A_COUNT(ptr, ov, nv) 	((void *)CAS(((uintptr_t *)(((uint8_t *)ptr) + (16*8u))), (uintptr_t *)ov, (uintptr_t)nv))
-#define CAS_AN_COUNT(ptr, ov, nv) 	((void *)CAS(((uintptr_t *)(((uint8_t *)ptr) + (4*8u))), (uintptr_t *)ov, (uintptr_t)nv))
+#define CAS_A_COUNT(ptr, ov, nv) 	((void *)CTRIE_CAS(((uintptr_t *)(((uint8_t *)ptr) + (16*8u))), (uintptr_t *)ov, (uintptr_t)nv))
+#define CAS_AN_COUNT(ptr, ov, nv) 	((void *)CTRIE_CAS(((uintptr_t *)(((uint8_t *)ptr) + (4*8u))), (uintptr_t *)ov, (uintptr_t)nv))
 
-#define WRITE(ptr, pos, nv) (STORE(((uintptr_t *)(((uintptr_t *)ptr) + pos)), (uintptr_t )nv))
+#define WRITE(ptr, pos, nv) (RELEASE(((uintptr_t *)(((uintptr_t *)ptr) + pos)), (uintptr_t )nv))
 #endif
 
 
@@ -361,6 +368,68 @@ class CacheTrie {
 	alignas(alignment) void* root[wayness+1] = { nullptr };
 	alignas(alignment) void* rawRoot = nullptr;
 
+	/// NOTE: memory reclamation. Every node which becomes unreachable (the old
+	/// 	value of a successful CAS, or a fresh node whose publishing CAS
+	/// 	failed) is pushed onto this (push only, lock free) stack, and freed
+	/// 	in the destructor. Nothing is freed while the trie is alive, so
+	/// 	concurrent readers never access freed memory. Before, these nodes
+	/// 	were leaked.
+	struct RetireNode {
+		void *node;
+		RetireNode *next;
+	};
+	std::atomic<RetireNode *> retired{nullptr};
+
+	/// \param node[in]: tagged pointer, which is no longer reachable
+	void retire(void *node) noexcept {
+		if (accessNode(node) == 0) {
+			// nullptr or a marker (e.g. `FVNodeValue`)
+			return;
+		}
+
+		auto *r = new (std::nothrow) RetireNode{node, retired.load(std::memory_order_relaxed)};
+		if (r == nullptr) {
+			// out of memory: the node is leaked
+			return;
+		}
+
+		while (!retired.compare_exchange_weak(r->next, r,
+		                                      std::memory_order_release,
+		                                      std::memory_order_relaxed)) {}
+	}
+
+	/// frees only `node` itself (a tagged pointer), not its children.
+	/// NOTE: only for nodes which were never published or are retired.
+	void release(void *node) noexcept {
+		void *raw = (void *) accessNode(node);
+		if (raw == nullptr) {
+			return;
+		}
+
+		const auto del = [](auto *n) noexcept {
+			using N = std::remove_pointer_t<decltype(n)>;
+			n->~N();
+			::operator delete((void *) n, std::align_val_t(alignment));
+		};
+
+		if (isANode(node)) {
+			del((ANode *) raw);
+		} else if (isANNode(node)) {
+			del((ANNode *) raw);
+		} else if (isSNode(node)) {
+			((SNode *) raw)->~SNode();
+			cryptanalysislib::aligned_free(raw);
+		} else if (isLNode(node)) {
+			del((LNode *) raw);
+		} else if (isFNode(node)) {
+			del((FNode *) raw);
+		} else if (isENode(node)) {
+			del((ENode *) raw);
+		} else if (isXNode(node)) {
+			del((XNode *) raw);
+		}
+	}
+
 	/////////////////////////////// CHECK ///////////////////////////////////
 
 	/// checks if `ptr` is a data node and if so if all childs are `sane`
@@ -375,38 +444,48 @@ class CacheTrie {
 
 		if (isANode(ptr)) {
 			auto *a = (ANode *) accessNode(ptr);
-			for (uint32_t i = 0; i < a->size(); i++) {
-				if (!isNode(a->at(i))) {
+			// NOTE: read every slot (and the count) once and atomically: other
+			// 	threads may fill it concurrently, and `isNode` evaluates its
+			// 	argument twice
+			const auto count = (uint64_t)READ_A_COUNT(a);
+			for (uint32_t i = 0; i < count; i++) {
+				const void *n = READ(a, i);
+				if (!isNode(n)) {
 					return false;
 				}
 			}
 
 			const uint32_t len = usedLength(ptr);
 			for (uint32_t i = 0; i < len; i++) {
-				if (a->at(i) == nullptr) {
+				const auto d = (uintptr_t)READ(a, i);
+				if (d == 0) {
 					continue;
 				}
 
-				auto d = (uintptr_t)(a->at(i));
 				if ((d < 1024) && (d > 9)) {
 					return false;
 				}
 			}
 		} else if (isANNode(ptr)) {
 			auto *a = (ANNode *) accessNode(ptr);
-			for (uint32_t i = 0; i < a->size(); i++) {
-				if (!isNode(a->at(i))) {
+			// NOTE: read every slot (and the count) once and atomically: other
+			// 	threads may fill it concurrently, and `isNode` evaluates its
+			// 	argument twice
+			const auto count = (uint64_t)READ_AN_COUNT(a);
+			for (uint32_t i = 0; i < count; i++) {
+				const void *n = READ(a, i);
+				if (!isNode(n)) {
 					return false;
 				}
 			}
 
 			const uint32_t len = usedLength(ptr);
 			for (uint32_t i = 0; i < len; i++) {
-				if (a->at(i) == nullptr) {
+				const auto d = (uintptr_t)READ(a, i);
+				if (d == 0) {
 					continue;
 				}
 
-				auto d = (uintptr_t)(a->at(i));
 				if ((d < 1024) && (d > 9)) {
 					return false;
 				}
@@ -605,13 +684,13 @@ class CacheTrie {
 		auto *array = (ANode *)accessNode(array_);
 
 		if (isANNode(array_)) {
-			const auto count = (uint64_t)READ_AN_COUNT(array);
+			auto count = (uint64_t)READ_AN_COUNT(array);
 			const uint64_t newCount = count - 1;
 			if (!CAS_AN_COUNT(array, (uintptr_t)&count, newCount)) decrementCount(array_);
 			return;
 		}
 
-		const auto count = (uint64_t)READ_A_COUNT(array);
+		auto count = (uint64_t)READ_A_COUNT(array);
 		const uint64_t newCount = count - 1;
 		if (!CAS_A_COUNT(array, (uintptr_t)&count, newCount)) decrementCount(array_);
 	}
@@ -621,17 +700,18 @@ class CacheTrie {
 		auto *array = (ANode *)accessNode(array_);
 
 		if (isANNode(array_)) {
-			const auto count = (uint64_t)READ_AN_COUNT(array);
+			auto count = (uint64_t)READ_AN_COUNT(array);
 			const uint64_t newCount = count + 1;
 			assert(count < 4);
-			if (!CAS_AN_COUNT(array, (uintptr_t)&count, newCount)) decrementCount(array_);
+			// NOTE: on failure retry the increment (was: decrement)
+			if (!CAS_AN_COUNT(array, (uintptr_t)&count, newCount)) incrementCount(array_);
 			return;
 		}
 
-		const auto count = (uint64_t)READ_A_COUNT(array);
+		auto count = (uint64_t)READ_A_COUNT(array);
 		const uint64_t newCount = count + 1;
 		assert(count < 16);
-		if (!CAS_A_COUNT(array, (uintptr_t)&count, newCount)) decrementCount(array_);
+		if (!CAS_A_COUNT(array, (uintptr_t)&count, newCount)) incrementCount(array_);
 	}
 public:
 
@@ -652,9 +732,67 @@ public:
 		}
 	}
 
+	/// NOTE: frees all nodes reachable from the root and all retired nodes
+	/// 	(see `retire`). Not thread safe. Before, nothing was freed. A node
+	/// 	can be reachable from several of them (e.g. the frozen list of a
+	/// 	replaced array, or the replacement in `SNode::txn`), so the nodes
+	/// 	are collected first and each one is freed once.
 	~CacheTrie() noexcept {
-		// TODO
+		std::unordered_map<uintptr_t, void *> nodes;
+		for (uint32_t i = 0; i < wayness; ++i) {
+			collect(root[i], nodes);
+		}
+
+		RetireNode *r = retired.load(std::memory_order_acquire);
+		while (r != nullptr) {
+			collect(r->node, nodes);
+			RetireNode *next = r->next;
+			delete r;
+			r = next;
+		}
+
+		for (const auto &n : nodes) {
+			release(n.second);
+		}
 	}
+
+private:
+	/// adds `node` (a tagged pointer) and everything reachable from it to `nodes`
+	void collect(void *node, std::unordered_map<uintptr_t, void *> &nodes) noexcept {
+		const uintptr_t raw = accessNode(node);
+		if (raw == 0) {
+			// nullptr or a marker (e.g. `FVNodeValue`), not a node
+			return;
+		}
+
+		if (!nodes.emplace(raw, node).second) {
+			// already visited
+			return;
+		}
+
+		if (isANode(node)) {
+			auto *a = (ANode *) raw;
+			for (uint32_t i = 0; i < wayness; ++i) { collect(a->at(i), nodes); }
+		} else if (isANNode(node)) {
+			auto *a = (ANNode *) raw;
+			for (uint32_t i = 0; i < 4; ++i) { collect(a->at(i), nodes); }
+		} else if (isSNode(node)) {
+			// the replacement, if the node was scheduled for replacement
+			collect(((SNode *) raw)->txn, nodes);
+		} else if (isLNode(node)) {
+			collect(((LNode *) raw)->next, nodes);
+		} else if (isFNode(node)) {
+			collect(((FNode *) raw)->frozen, nodes);
+		} else if (isENode(node)) {
+			// NOTE: not `parent`, which may be `rawRoot`
+			collect(((ENode *) raw)->narrow, nodes);
+			collect(((ENode *) raw)->wide, nodes);
+		} else if (isXNode(node)) {
+			collect(((XNode *) raw)->stale, nodes);
+		}
+	}
+
+public:
 
 	void inhabitCache (void *cache, void *nv, const uint64_t hash, const uint32_t cacheeLevel) {
 		if constexpr (!useCache) {
@@ -718,22 +856,30 @@ public:
 	}
 
 	// recursively count the number of used pointers
-	void sequentialFixCount(ANode *array_) {
-		assert(isNode(array_));
+	/// NOTE: iterates over all slots of a narrow or wide array (was: up to
+	/// 	`size()`, i.e. the count which is being computed, which is 0 for a
+	/// 	fresh array: the count stayed 0 and a later `decrementCount` wrapped
+	/// 	it around). Recurses into narrow arrays too, and writes the count of a
+	/// 	narrow array at its position (was: as a wide array, out of bounds).
+	void sequentialFixCount(void *array_) {
+		assert(isAANode(array_));
 
-		auto *array = (ANode *) accessNode(array_);
-    	uint32_t i = 0;
-    	uint64_t count = 0;
-    	while (i < array->size()) {
-    		void *entry = array->at(i);
-    		if (entry != nullptr) { count += 1; }
-    		if (isANode(entry)) {
-    		  	sequentialFixCount((ANode *)entry);
-    		}
-    		i += 1;
-    	}
+		auto **slots = (void **) accessNode(array_);
+		const uint32_t len = usedLength(array_);
+		uint64_t count = 0;
+		for (uint32_t i = 0; i < len; i++) {
+			void *entry = slots[i];
+			if (entry != nullptr) { count += 1; }
+			if (isAANode(entry)) {
+				sequentialFixCount(entry);
+			}
+		}
 
-		array->size(count);
+		if (isANode(array_)) {
+			((ANode *) accessNode(array_))->size(count);
+		} else {
+			((ANNode *) accessNode(array_))->size(count);
+		}
 	}
 
 	bool isCompressible(void *current) {
@@ -909,6 +1055,8 @@ public:
 		void *ptr = nullptr;
     	// If this CAS fails, then somebody else already committed the wide array.
     	if (!CAS_WIDE(enode, (uintptr_t)&ptr, wide)) {
+    		// NOTE: our wide array was never published
+    		retire(wide);
     		wide = READ_WIDE(enode);
     	}
 
@@ -918,7 +1066,12 @@ public:
     	// Note that not all nodes will get cached from this site,
     	// because some array nodes get created outside expansion
     	// (e.g. when creating a node to resolve collisions in sequentialTransfer).
-    	if (CAS_(parent, parentpos, (uintptr_t)&enode_, wide)) {
+    	// NOTE: `expected`, a failed CAS overwrites it (was `enode_`)
+    	void *expected = enode_;
+    	if (CAS_(parent, parentpos, (uintptr_t)&expected, wide)) {
+    		// the expansion node and the frozen narrow array are unreachable
+    		retire(enode_);
+    		retire(narrow);
     		inhabitCache(cache, wide, enode->hash, level);
     	}
 	}
@@ -976,7 +1129,8 @@ public:
 				} else {
 					// Another thread is trying to replace the single node.
 					// In this case, we help and retry.
-					CAS_(current, i, (uintptr_t)&node, txn);
+					void *expected = node;
+					if (CAS_(current, i, (uintptr_t)&expected, txn)) { retire(node); }
 					i -= 1;
 				}
 			} else if (isLNode(node)) {
@@ -984,14 +1138,16 @@ public:
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then we must reinspect the current slot.
 				auto *fnode_ = createFNode(node);
-				CAS_(current, i, (uintptr_t)&node, fnode_);
+				// NOTE: on failure the frozen node was never published. Only the
+				// 	`FNode` itself is freed, `node` is still in use.
+				if (!CAS_(current, i, (uintptr_t)&node, fnode_)) { release(fnode_); }
 				i -= 1;
 			} else if (isAANode(node)) {
 				// Freeze the array node.
 				// If it fails, then either someone helped or another txn is in progress.
 				// If another txn is in progress, then reinspect the current slot.
 				auto *fnode_ = createFNode(node);
-				CAS_(current, i, (uintptr_t)&node, fnode_);
+				if (!CAS_(current, i, (uintptr_t)&node, fnode_)) { release(fnode_); }
 				i -= 1;
 			} else if (isFrozenL(node)) {
 				// We can skip, another thread previously helped with freezing this node.
@@ -1179,7 +1335,8 @@ public:
 		const uint64_t mask = usedLength(wide_) - 1u;
 		const uint64_t len = usedLength(source_);
 		while (i < len) {
-			void *node = source->at(i);
+			// NOTE: atomic read, other threads may still freeze this slot
+			void *node = READ(source, i);
 			assert(isNode(node));
 			// auto *tmp_node = (ANode *) accessNode(node);
 
@@ -1261,20 +1418,22 @@ public:
 	void* newListNarrowOrWideNode(LNode *oldln, const uint64_t hash,
 	                              const K k, const V v, const uint32_t level) {
 		assert(isNode(oldln));
-		auto *tail = (LNode *) accessNode(oldln);
+		// NOTE: `tail` is a masked (tagged) pointer, as `createLNode` expects
+		LNode *tail = oldln;
 		LNode *ln = nullptr;
 		while (tail != nullptr) {
-			// TODO das ist ein fetter mem leak
-			ln = createLNode(tail, nullptr);
-			tail = tail->next;
+			// NOTE: chain the copies, before only the last element survived
+			ln = createLNode(tail, ln);
+			tail = ((LNode *) accessNode(tail))->next;
 		}
-		
-		if (((LNode *)(accessNode(ln)))->hash == hash) {
+
+		const uint64_t lnhash = ((LNode *)(accessNode(ln)))->hash;
+		if (lnhash == hash) {
 			return createLNode(hash, k, v, ln);
 		} else {
 			ANode *an_ = createWideArray();
 			auto *an = (ANode *)accessNode(an_);
-			uint32_t pos1 = (ln->hash >> level) & (usedLength(an_) - 1u);
+			uint32_t pos1 = (lnhash >> level) & (usedLength(an_) - 1u);
 			an->at(pos1) = ln;
 			auto *sn = createSNode(hash, k, v, nullptr);
 			sequentialInsert(sn, an_, level);
@@ -1316,12 +1475,13 @@ public:
 
 		if (sn1->hash == sn2->hash) {
 			auto *ln1 = createLNode(sn1_);
-			auto *ln2 = createLNode(sn1_);
+			auto *ln2 = createLNode(sn2_);
 			((LNode *)accessNode(ln2))->next = ln1;
 
-			// TODO delete this via API
-			delete sn1;
-			delete sn2;
+			// NOTE: `sn1` and `sn2` are fresh (not yet published) and come
+			// 	from `aligned_alloc`, not `new`
+			cryptanalysislib::aligned_free(sn1);
+			cryptanalysislib::aligned_free(sn2);
 			return ln2;
 		} else {
 			const uint32_t pos1_ = (sn1->hash >> level) & (4 - 1);
@@ -1362,7 +1522,7 @@ public:
 		auto *sn2 = (SNode *) accessNode(sn2_);
 		if (sn1->hash == sn2->hash) {
 			auto *ln1 = createLNode(sn1_);
-			auto *ln2 = createLNode(sn1_);
+			auto *ln2 = createLNode(sn2_);
 			((LNode *)accessNode(ln2))->next = ln1;
 			return ln2;
 		} else {
@@ -1397,23 +1557,27 @@ public:
 		while (tail != nullptr) {
 			if (KeyEqual{}(tail->key, k)) {
 				// Only reallocate list if the key must be removed.
-				void *result = (void *)tail->value;
+				// NOTE: pointer to the value (was: the value cast to a
+				// 	pointer), the old node is never freed
+				void *result = (void *)&tail->value;
 				LNode *ln = nullptr;
-				tail = (LNode *)accessNode(oldln_);
-				while (tail != nullptr) {
-			  		// TODO free ln if needed
-					if (!KeyEqual{}(tail->key, k)) {
-						ln = createLNode(tail);
+				// NOTE: masked pointers, as `createLNode` expects
+				LNode *t_ = oldln_;
+				while (t_ != nullptr) {
+					auto *t = (LNode *)accessNode(t_);
+					if (!KeyEqual{}(t->key, k)) {
+						// NOTE: chain the copies, before only the last one survived
+						ln = createLNode(t_, ln);
 					}
 
-					tail = (LNode *)accessNode((uintptr_t *)(tail->next));
+					t_ = t->next;
 				}
 
 				*nn = ln;
 				return (LNode *)result;
 			}
-	
-			tail = tail->next;
+
+			tail = (LNode *)accessNode(tail->next);
 		}
 
 		*nn = oldln_;
@@ -1450,8 +1614,7 @@ public:
 			void *txn = READ_TXN(oldsn);
 			if (txn == nullptr) {
 				if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
-					return std::make_pair<V, bool>(
-					        std::move(oldsn->value), true);
+					return std::pair<V, bool>(oldsn->value, true);
 				} else {
 					return std::make_pair<V, bool>(V{}, false);
 				}
@@ -1473,8 +1636,7 @@ public:
 					// The single node is up-to-date.
 					// Check if the key is contained in the single node.
 					if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
-						return std::make_pair<V, bool>(
-						        std::move(oldsn->value), true);
+						return std::pair<V, bool>(oldsn->value, true);
 					} else {
 						return std::make_pair<V, bool>(V{}, false);
 					}
@@ -1491,8 +1653,7 @@ public:
 					auto *tail = (LNode *)accessNode(old);
 					while (tail != nullptr) {
 						if ((tail->hash == hash) && (key_equal{}(tail->key, key))) {
-							return std::make_pair<V, bool>(
-							        std::move(tail->value), false);
+							return std::pair<V, bool>(tail->value, false);
 						}
 
 						tail = tail->next;
@@ -1571,8 +1732,8 @@ public:
 		    }
 
 			if ((key_equal{}(((SNode *)ptr)->key, key)) && (((SNode *)ptr)->hash == hash)) {
-				return std::make_pair<V, bool>(
-			            std::move(((SNode *)ptr)->value), true);
+				// NOTE: copy, the node is shared (was: `std::move`)
+				return std::pair<V, bool>(((SNode *)ptr)->value, true);
 			}
 
 			return std::make_pair<V, bool>(V{}, false);
@@ -1589,8 +1750,7 @@ public:
 				auto *tail = (LNode *)ptr;
 				while(tail != nullptr) {
 					if ((key_equal{}(((LNode *)tail)->key, key)) && (((LNode *)tail)->hash == hash)) {
-						return std::make_pair<V, bool>(
-					        std::move(((LNode *)tail)->value), true);
+						return std::pair<V, bool>(((LNode *)tail)->value, true);
 					}
 
 					tail = (LNode *)accessNode(tail->next);
@@ -1618,8 +1778,7 @@ public:
 					LNode *tail = ln;
 					while (tail != nullptr) {
 						if (key_equal {}(tail->key, key) ) {
-							return std::make_pair<V, bool>(
-						        std::move(tail->value), true);
+							return std::pair<V, bool>(tail->value, true);
 						}
 
 						tail = (LNode *)accessNode(tail->next);
@@ -1795,6 +1954,8 @@ public:
 				return true;
 			}
 
+			// NOTE: never published
+			release(o);
 			return insert(key, value, hash, level, cur_, prev_, cache);
 
 		insert_aanode:
@@ -1810,10 +1971,14 @@ public:
 					auto *sn_ = createSNode(hash, key, value, nullptr);
 					const uintptr_t *ptr = nullptr;
 					if (CAS_TXN(o, &ptr, sn_)) {
-						CAS_(cur, pos, (uintptr_t)&old, sn_);
+						// NOTE: either this CAS or a helper replaces `old`
+						void *expected = old;
+						if (CAS_(cur, pos, (uintptr_t)&expected, sn_)) { retire(old); }
 						return true;
 					}
 
+					// NOTE: never published
+					release(sn_);
 					return insert(key, value, hash, level, cur_, prev_);
 				} else if (isANNode(cur_)) { // if narrow node
 					assert(level);
@@ -1825,11 +1990,17 @@ public:
 				    auto *en = (ENode *)accessNode(en_);
 					auto *tmp_parent = (ANode *) accessNode(prev_);
 
-					if(CAS_(tmp_parent, ppos, (uintptr_t)&cur_, en_)) {
+					// NOTE: a failed CAS writes the current value into the
+					// 	expected argument, so it must not be `cur_`, which is
+					// 	used for the retry below
+					void *expected = cur_;
+					if(CAS_(tmp_parent, ppos, (uintptr_t)&expected, en_)) {
 						completeExpansion(cache, en_);
 						const auto wide = READ_WIDE(en);
 						return insert(key, value, hash, level, (void *)wide, prev_, cache);
 					} else {
+						// NOTE: never published, does not own `cur_`
+						release(en_);
 						return insert(key, value, hash, level, cur_, prev_, cache);
 					}
 				} else {
@@ -1838,10 +2009,13 @@ public:
 					                                hash, key, value, level + 4);
 					const uintptr_t *ptr = nullptr;
 					if (CAS_TXN(o, &ptr, nnode)) {
-						CAS_(cur, pos, (uintptr_t)&old, nnode);
+						void *expected = old;
+						if (CAS_(cur, pos, (uintptr_t)&expected, nnode)) { retire(old); }
 						return true;
 					}
 
+					// NOTE: never published (a fresh array with fresh nodes)
+					retire(nnode);
 					return insert(key, value, hash, level, cur_, prev_, cache);
 
 				} // old->key == k
@@ -1852,14 +2026,21 @@ public:
 			} else {
 				// The single node had been scheduled for replacement by some thread.
 				// We need to help, then retry.
-				CAS_(cur, pos, (uintptr_t)&old, tmp);
+				void *expected = old;
+				if (CAS_(cur, pos, (uintptr_t)&expected, tmp)) { retire(old); }
 				return insert(key, value, hash, level, cur_, prev_, cache);
 			}
 			assert(false);
 
 		insert_lnode:
 			tmp = newListNarrowOrWideNode((LNode *)old, hash, key, value, level + lW);
-			if (CAS_(cur, pos, (uintptr_t)&old, tmp)) { return true;}
+			{
+				void *expected = old;
+				// NOTE: `tmp` holds copies of the list, the old list is unreachable
+				if (CAS_(cur, pos, (uintptr_t)&expected, tmp)) { retire(old); return true; }
+			}
+			// NOTE: never published
+			retire(tmp);
 			return insert(key, value, hash, level, cur_, prev_, cache);
 
 	    insert_enode:
@@ -1877,7 +2058,8 @@ public:
 	}
 
 	void insert(const K key, const V value) {
-		if (!insert(key, value, hash_key(value), 0, rawRoot, nullptr)) {
+		// NOTE: hash the key (as `lookup`/`remove` do), not the value
+		if (!insert(key, value, hash_key(key), 0, rawRoot, nullptr)) {
 			insert(key, value);
 		}
 	}
@@ -1895,8 +2077,10 @@ public:
 		if (old == nullptr) {
 			// the key does not exist
 			return nullptr;
-		} else if (isANode(old)) {
-			return remove(key, hash, level + 4, old, current, cache);
+		} else if (isAANode(old)) {
+			// NOTE: narrow and wide arrays (was: wide only, a narrow array
+			// 	fell through to `assert(false)`), `current_` is the masked parent
+			return remove(key, hash, level + lW, old, current_, cache);
 		} else if (isSNode(old)) {
 			const uint32_t cachelevel = cache == nullptr ? 0 : 31 - __builtin_clz(cache_size - 1u);
 			if ((level < cachelevel) || level >= cachelevel + 8) { recordCacheMiss(); }
@@ -1909,10 +2093,16 @@ public:
 					// The same key, remove it.
 					const uintptr_t *ptr = nullptr;
 					if (CAS_TXN(oldsn, &ptr, nullptr)) {
-						CAS_(current, pos, (uintptr_t)&oldsn, nullptr);
+						// NOTE: the slot holds the masked pointer `old`, not
+						// 	`oldsn`, so the CAS never succeeded before
+						void *expected = old;
+						// NOTE: retired, so the returned value pointer stays valid
+						// 	until the trie is destroyed
+						if (CAS_(current, pos, (uintptr_t)&expected, nullptr)) { retire(old); }
 						decrementCount(current_);
 						compressAscend(cache, current_, parent_, hash, level);
-						return oldsn;
+						// NOTE: retired (see above), so this stays valid
+						return &oldsn->value;
 					} else {
 						return remove(key, hash, level, current_, parent_, cache);
 					}
@@ -1923,20 +2113,25 @@ public:
 			} else if (isFSNode(txn)) {
 				// We landed into a middle of another transaction.
 				// We must restart from the top, find the transaction node and help.
-				assert(false);
+				return remove(key, hash, 0, rawRoot, nullptr, cache);
 			} else {
 				// The single node had been scheduled for replacement by some thread.
 				// We need to help and retry.
-				CAS_(current, pos, (uintptr_t)&oldsn, txn);
+				void *expected = old;
+				if (CAS_(current, pos, (uintptr_t)&expected, txn)) { retire(old); }
 				return remove(key, hash, level, current_, parent_, cache);
 			}
 		} else if (isLNode(old)) {
-			auto *oldln = (LNode *) accessNode(old);
 			LNode *nn = nullptr;
-			void *result = newListNodeWithoutKey(&nn, oldln, hash, key);
-			if (CAS_(current, pos, (uintptr_t)&oldln, nn)) {
+			void *result = newListNodeWithoutKey(&nn, (LNode *)old, hash, key);
+			void *expected = old;
+			if (CAS_(current, pos, (uintptr_t)&expected, nn)) {
+				// NOTE: `nn == old` if the key was not found
+				if ((void *)nn != old) { retire(old); }
 				return result;
 			} else {
+				// NOTE: `nn` holds fresh copies (if the key was found)
+				if ((void *)nn != old) { retire(nn); }
 				return remove(key, hash, level, current_, parent_, cache);
 			}
 		} else if (isENode(old)) {
@@ -2057,6 +2252,7 @@ public:
 
 
 
+#undef CTRIE_CAS
 #undef isNode
 #undef isFVNode
 #undef isSNode

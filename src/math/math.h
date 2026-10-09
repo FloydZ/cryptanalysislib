@@ -3,6 +3,7 @@
 
 /// constexpr `single limb` arithmetic
 #include "math/abs.h"
+#include "math/avg.h"
 #include "math/ceil.h"
 #include "math/entropy.h"
 #include "math/exp.h"
@@ -10,6 +11,11 @@
 #include "math/ipow.h"
 #include "math/log.h"
 #include "math/mod.h"
+#include "math/eea.h"
+#include "math/crt.h"
+#include "math/miller_rabin.h"
+#include "math/tonelli_shanks.h"
+#include "math/primitive_root.h"
 #include "math/root.h"
 #include "math/round.h"
 #include "math/prime.h"

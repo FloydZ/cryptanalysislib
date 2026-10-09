@@ -7,6 +7,7 @@
 #include <string>
 #include <type_traits>
 #include <algorithm>
+#include <bit>
 
 // floor( ( (1+sqrt(5))/2 ) * 2**64 MOD 2**64)
 #define GOLDEN_GAMMA UINT64_C(0x9E3779B97F4A7C15)
@@ -49,15 +50,25 @@ namespace random::internal {
 //}
 
 /// super rng values
-static uint64_t random_x = 123456789u, random_y = 362436069u, random_z = 521288629u;
+// NOTE: `inline`, i.e. one state for the whole program. Before, the state was
+// 	`static`, so every translation unit had its own and seeding only
+// 	affected the translation unit which called it.
+inline uint64_t random_x = 123456789u, random_y = 362436069u, random_z = 521288629u;
+
+[[nodiscard]] constexpr static inline uint64_t splitmix64_stateless(uint64_t index) noexcept;
 
 /// NOTE: this function cannot fail
+/// NOTE: the state is derived from `seed` only (splitmix64, a bijection, so
+/// 	the state is never all-zero), i.e. the same seed gives the same
+/// 	sequence. Before, `seed` was added to the current state: the sequence
+/// 	depended on the history, and e.g. `seed = -123456789` on the initial
+/// 	state gave the all-zero state, which only outputs zeros.
 /// \param seed seed
 /// \return true on success
 [[nodiscard]] static inline bool xorshf96_seed(const uint64_t seed) noexcept {
-	random_x += seed;
-	random_y = random_x * 4095834;
-	random_z = random_x + random_y * 98798234;
+	random_x = splitmix64_stateless(seed);
+	random_y = splitmix64_stateless(seed + 1u);
+	random_z = splitmix64_stateless(seed + 2u);
 	return true;
 }
 
@@ -67,14 +78,22 @@ static uint64_t random_x = 123456789u, random_y = 362436069u, random_z = 5212886
 
 	urandom_fp = fopen("/dev/urandom", "r");
 	if (urandom_fp == nullptr) return 0;
-	if (fread(&new_s, 8, 3, urandom_fp) != 2) {
+	// NOTE: 3 elements are read. Was `!= 2`, so it never seeded (and
+	// 	leaked the file).
+	if (fread(&new_s, 8, 3, urandom_fp) != 3) {
+		fclose(urandom_fp);
 		return false;
 	}
 	fclose(urandom_fp);
 
-	random_y += new_s[1];
-	random_z += new_s[2];
-	return xorshf96_seed(new_s[0]);
+	// NOTE: was added to the current state (see above)
+	if ((new_s[0] | new_s[1] | new_s[2]) == 0) {
+		return xorshf96_seed(0);
+	}
+	random_x = new_s[0];
+	random_y = new_s[1];
+	random_z = new_s[2];
+	return true;
 }
 
 /// period 2^96-1
@@ -145,8 +164,8 @@ template<typename T=uint64_t>
 /// results in our test than the 2016 version (a=55, b=14, c=36).
 ///
 /// "randomly" choosen start values to the xorshf128 prng
-static uint64_t __xorshf128_S0 = 2837468099234763274;
-static uint64_t __xorshf128_S1 = 998234767632513414;
+inline uint64_t __xorshf128_S0 = 2837468099234763274;
+inline uint64_t __xorshf128_S1 = 998234767632513414;
 
 /// \return random uint64_t
 [[nodiscard]] static inline uint64_t xorshf128_random_data() noexcept {
@@ -213,6 +232,7 @@ static inline bool xorshf128_seed() noexcept {
 	urandom_fp = fopen("/dev/urandom", "r");
 	if (urandom_fp == NULL) return 0;
 	if (fread(&new_s, 8, 2, urandom_fp) != 2) {
+		fclose(urandom_fp);
 		return false;
 	}
 	fclose(urandom_fp);
@@ -237,8 +257,10 @@ static inline bool xorshf128_seed() noexcept {
   PCG_128BIT_CONSTANT(6364136223846793005ULL, 1442695040888963407ULL)
 
 
-static __uint128_t pcg_state_setseq_128_state;
-static __uint128_t pcg_state_setseq_128_inc;
+// NOTE: initialized as `PCG_STATE_SETSEQ_128_INITIALIZER` of the original code.
+// 	Before, state and increment were 0, so the output was 0 until seeded.
+inline __uint128_t pcg_state_setseq_128_state = PCG_128BIT_CONSTANT(0x979c9a98d8462005ULL, 0x7d3e9cb6cfe0549bULL);
+inline __uint128_t pcg_state_setseq_128_inc = PCG_128BIT_CONSTANT(0x0000000000000001ULL, 0xda3e39cb94b95bdbULL);
 
 static inline void pcg_setseq_128_step_r() noexcept {
     pcg_state_setseq_128_state = pcg_state_setseq_128_state*PCG_DEFAULT_MULTIPLIER_128 
@@ -289,7 +311,7 @@ inline void pcg_setseq_128_srandom_r(__uint128_t initstate,
     return splitmix64_r(&seed);
 }
 
-static __uint128_t g_lehmer64_state = UINT64_C(0x853c49e6748fea9b);
+inline __uint128_t g_lehmer64_state = UINT64_C(0x853c49e6748fea9b);
 
 ///
 /// D. H. Lehmer, Mathematical methods in large-scale computing units.
@@ -354,7 +376,10 @@ template<typename T=uint64_t>
 #endif
 [[nodiscard]] static inline T rng(const T limit) noexcept {
 	assert(limit > 0);
-	return random::internal::xorshf96_random_data<T>() % limit;
+	// NOTE: unsigned modulo. Before, a negative draw of a signed `T` gave a
+	// 	negative result, i.e. ~50% were outside of [0, limit).
+	using U = std::make_unsigned_t<T>;
+	return T(U(random::internal::xorshf96_random_data<T>()) % U(limit));
 }
 
 /// \return a rng element from [l, h)
@@ -364,7 +389,9 @@ template<typename T=uint64_t>
 #endif
 [[nodiscard]] static inline T rng(const T l,
                                   const T h) noexcept {
-	return l + rng<T>(h - l);
+	// NOTE: in unsigned arithmetic, `h - l` can overflow a signed `T`
+	using U = std::make_unsigned_t<T>;
+	return T(U(l) + rng<U>(U(U(h) - U(l))));
 }
 
 /// \param w hamming weight of the output element
@@ -374,21 +401,18 @@ template<typename T>
     requires std::is_integral_v<T>
 #endif
 [[nodiscard]] constexpr static T rng_weighted(const uint32_t w) noexcept {
-	assert(w < (sizeof(T) * 8));
+	constexpr uint32_t bits = sizeof(T) * 8u;
+	assert(w < bits);
 
-	T ret = (1u << w) - 1u;
-	for (uint32_t i = 0; i < w; ++i) {
-		const size_t to_pos = rng() % ((sizeof(T) * 8) - i);
-		const size_t from_pos = i;
-
-		const T from_mask = 1u << from_pos;
-		const T to_mask = 1u << to_pos;
-
-		const T from_read = (ret & from_mask) >> from_pos;
-		const T to_read = (ret & to_mask) >> to_pos;
-
-		ret ^= (-from_read ^ ret) & (1ul << to_pos);
-		ret ^= (-to_read ^ ret) & (1ul << from_pos);
+	// NOTE: Robert Floyd's sampling algorithm, i.e. the positions of the `w`
+	// 	set bits are a uniform random `w`-subset. Before, the masks used
+	// 	`1u << pos` (UB for pos >= 32, wrong weights for 64 bit types) and the
+	// 	swap positions were not uniform.
+	T ret = 0;
+	for (uint32_t j = bits - w; j < bits; ++j) {
+		const uint32_t t = rng() % (j + 1u);
+		const T tmask = T(T(1) << t);
+		ret |= (ret & tmask) ? T(T(1) << j) : tmask;
 	}
 
 	return ret;
@@ -531,8 +555,9 @@ public:
 
     constexpr random_device() noexcept = default;
     constexpr random_device(const result_type seed) noexcept {
-        bool t = rng(seed);
-        (void) t;
+        // NOTE: was `rng(seed)`, i.e. `rng() % seed`: nothing was seeded,
+        // 	and `seed == 0` failed the assert in `rng`
+        rng_seed(seed);
     }
    
     /// \param seed if == "/dev/urandom" it will call this device,
@@ -542,8 +567,7 @@ public:
             rng_seed();
         } else {
             for (const auto &t : seed) {
-                bool r = rng((uint64_t)t);
-                (void) r;
+                rng_seed((uint64_t)t);
             }
         }
     }

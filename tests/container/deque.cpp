@@ -26,7 +26,9 @@ TYPED_TEST_P(TestDeque, simple) {
     for (TypeParam i = 0; i < s; i++) {
         TypeParam t;
         const size_t ret = d.extract_first(t);
-        EXPECT_EQ(ret, t);
+        // returns the number of elements before the extraction
+        EXPECT_EQ(ret, s - i);
+        EXPECT_EQ(t, i);
     }
     
     EXPECT_EQ(d.size(), 0);
@@ -42,7 +44,9 @@ TYPED_TEST_P(TestDeque, simple) {
     for (TypeParam i = 0; i < s; i++) {
         TypeParam t;
         const size_t ret = d.extract_last(t);
-        EXPECT_EQ(ret, t);
+        // returns the number of elements before the extraction
+        EXPECT_EQ(ret, s - i);
+        EXPECT_EQ(t, s - 1 - i);
     }
     
     EXPECT_EQ(d.size(), 0);

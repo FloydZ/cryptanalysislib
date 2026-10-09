@@ -46,26 +46,19 @@ bool is_heap_rnd(RandomIterator start, RandomIterator end, Compare cmp) {
     if (count <= 1)
         return true;
 
-    size_t parent_idx = 0;
-    size_t child_idx = 1;
-    for (size_t i=0; i < count/2; i++) {
-        const auto parent = start[parent_idx];
-        if (cmp(parent, start[child_idx]) or cmp(parent, start[child_idx + 1]))
+    // NOTE: before, both children `2i+1` and `2i+2` were read for all
+    //  `i < count/2`, which reads `start[count]` for even `count`, and the
+    //  single last child was handled for odd (instead of even) `count`.
+    for (size_t i = 0; 2*i + 1 < count; i++) {
+        const auto &parent = start[i];
+        if (cmp(parent, start[2*i + 1]))
             return false;
 
-        parent_idx += 1;
-        child_idx += 2;
+        if ((2*i + 2 < count) && cmp(parent, start[2*i + 2]))
+            return false;
     }
 
-    if (count % 2 == 1) {
-        const size_t i = count - 1;
-        const auto parent = start[(i - 1)/2];
-        const auto child  = start[i];
-
-        return not cmp(parent, child);
-    }
-    else
-        return true;
+    return true;
 }
 
 #ifdef USE_AVX2
@@ -171,9 +164,10 @@ constexpr bool is_heap_avx2_epi32(const int32_t* begin,
 }
 #endif
 
-#ifdef USE_AVX512
+// NOTE: was `USE_AVX512`, which the build never defines
+#ifdef USE_AVX512F
 
-bool is_heap_avx512_epi32(const int32_t* begin, const int32_t* end) {
+inline bool is_heap_avx512_epi32(const int32_t* begin, const int32_t* end) {
     const ssize_t k = 64/4; // words in a vector
 
     if (end - begin < 2 * k) {

@@ -37,7 +37,7 @@ namespace cryptanalysislib {
 	private:
 		constexpr static bool enable_try_block = config.enable_try_block;
 		constexpr static bool enable_remote_view = config.enable_remote_view;
-		SchedulerPerformanceManager *schedulerPerformance;
+		SchedulerPerformanceManager *schedulerPerformance = nullptr;
 
 	public:
 		/// TODO use the MOVE operator from SimpleScheduler
@@ -47,9 +47,12 @@ namespace cryptanalysislib {
 		template<typename InitializationFunction = std::function<void(std::size_t)>>
 		    requires std::invocable<InitializationFunction, std::size_t> &&
 		             std::is_same_v<void, std::invoke_result_t<InitializationFunction, std::size_t>>
-		explicit StealingScheduler(const unsigned int &number_of_threads = std::thread::hardware_concurrency(),
+		explicit StealingScheduler(const unsigned int &_number_of_threads = std::thread::hardware_concurrency(),
                                     InitializationFunction init = [](std::size_t) {}) noexcept 
-    : tasks_(number_of_threads) {
+    // NOTE: at least one thread. Before, a pool with 0 threads (e.g. if
+    // 	`hardware_concurrency()` returns 0) dropped every task.
+    : tasks_(_number_of_threads ? _number_of_threads : 1u) {
+			const std::size_t number_of_threads = tasks_.size();
 			std::size_t current_id = 0;
 			if constexpr (enable_remote_view) {
 				schedulerPerformance = new SchedulerPerformanceManager{false};
@@ -59,7 +62,7 @@ namespace cryptanalysislib {
 			/// create all threads
 			for (std::size_t i = 0; i < number_of_threads; ++i) {
 				priority_queue_.push_back(size_t(current_id));
-				threads_.emplace_back([&, i, id = current_id, init](const std::stop_token &stop_tok) -> int {
+				threads_.emplace_back([&, i, id = current_id, init]() -> int {
 					(void) i;
 					/// invoke the init function on the thread
 					if constexpr (enable_try_block) {
@@ -83,9 +86,17 @@ namespace cryptanalysislib {
 							}
 						}
 
+						// NOTE: a paused pool keeps its tasks queued, `unpause()` wakes
+						// 	the workers again. Before, `pause()` had no effect.
+						if (pool_paused.load(std::memory_order_acquire)) {
+							continue;
+						}
+
 						do {
 							// invoke the task
-							while (auto task = tasks_[id].tasks.pop_front()) {
+							while (!pool_paused.load(std::memory_order_acquire)) {
+								auto task = tasks_[id].tasks.pop_front();
+								if (!task) { break; }
 								// decrement the unassigned tasks as the task is now going
 								// to be executed
 								unassigned_tasks_.fetch_sub(1, std::memory_order_release);
@@ -94,7 +105,11 @@ namespace cryptanalysislib {
 								// the above task can push more work onto the pool, so we
 								// only decrement the in flights once the task has been
 								// executed because now it's now longer "in flight"
-								in_flight_tasks_.fetch_sub(1, std::memory_order_release);
+								task_done();
+							}
+
+							if (pool_paused.load(std::memory_order_acquire)) {
+								break;
 							}
 
 							// try to steal a task
@@ -104,7 +119,7 @@ namespace cryptanalysislib {
 									// steal a task
 									unassigned_tasks_.fetch_sub(1, std::memory_order_release);
 									std::invoke(std::move(task.value()));
-									in_flight_tasks_.fetch_sub(1, std::memory_order_release);
+									task_done();
 									// stop stealing once we have invoked a stolen task
 									break;
 								}
@@ -114,14 +129,8 @@ namespace cryptanalysislib {
 						} while (unassigned_tasks_.load(std::memory_order_acquire) > 0);
 
 						priority_queue_.rotate_to_front(id);
-						// check if all tasks are completed and release the barrier (binary
-						// semaphore)
-						if (in_flight_tasks_.load(std::memory_order_acquire) == 0) {
-							threads_complete_signal_.store(true, std::memory_order_release);
-							threads_complete_signal_.notify_one();
-						}
 
-					} while (!stop_tok.stop_requested());
+					} while (!stop_.load(std::memory_order_acquire));
 
 					return 0;
 				});
@@ -131,14 +140,21 @@ namespace cryptanalysislib {
 		}
 
 		~StealingScheduler() noexcept {
+			// NOTE: queued tasks of a paused pool would never finish
+			unpause();
 			wait_for_tasks();
 
 			// stop all threads
+			// NOTE: own stop flag instead of `std::stop_token`, so `ThreadType`
+			// can be `std::thread` (apple's libc++ has no `std::jthread`)
+			stop_.store(true, std::memory_order_release);
 			for (std::size_t i = 0; i < threads_.size(); ++i) {
-				threads_[i].request_stop();
 				tasks_[i].signal.release();
 				threads_[i].join();
 			}
+
+			// NOTE: was leaked (and its socket never closed)
+			delete schedulerPerformance;
 		}
 
 		/// thread pool is non-copyable
@@ -163,7 +179,9 @@ namespace cryptanalysislib {
 			// we can do this in C++23 because we now have support for move only functions
 			std::promise<ReturnType> promise;
 			auto future = promise.get_future();
-			auto task = [func = std::move(f), ... largs = std::move(args),
+			// NOTE: `f` and `args` are forwarding references. Before, they were
+			// 	`std::move`d, so lvalues of the caller were moved from.
+			auto task = [func = std::forward<Function>(f), ... largs = std::forward<Args>(args),
 			             promise = std::move(promise)]() mutable {
 				try {
 					if constexpr (std::is_same_v<ReturnType, void>) {
@@ -190,7 +208,7 @@ namespace cryptanalysislib {
                               promise = std::move(promise)]() mutable {...};
              */
 			auto shared_promise = std::make_shared<std::promise<ReturnType>>();
-			auto task = [func = std::move(f), ... largs = std::move(args),
+			auto task = [func = std::forward<Function>(f), ... largs = std::forward<Args>(args),
 				         promise = shared_promise]() __attribute__((always_inline)) {
 				if constexpr (enable_try_block) {
 					try {
@@ -246,9 +264,12 @@ namespace cryptanalysislib {
 		/// \brief Wait for all tasks to finish.
 		/// \details This function will block until all tasks have been completed.
 		void wait_for_tasks() noexcept {
-			if (in_flight_tasks_.load(std::memory_order_acquire) > 0) {
-				// wait for all tasks to finish
-				threads_complete_signal_.wait(false);
+			// NOTE: waits on the counter itself; a separate "complete" flag can be
+			// set by a worker after `submit_task` already reset it for new work.
+			auto n = in_flight_tasks_.load(std::memory_order_acquire);
+			while (n > 0) {
+				in_flight_tasks_.wait(n, std::memory_order_acquire);
+				n = in_flight_tasks_.load(std::memory_order_acquire);
 			}
 		}
 
@@ -260,6 +281,10 @@ namespace cryptanalysislib {
 		/// Resume executing queued tasks.
 		void unpause() noexcept {
 			pool_paused = false;
+			// wake up all workers, they may hold queued tasks
+			for (auto &t: tasks_) {
+				t.signal.release();
+			}
 		}
 
 		/// Check whether the pool is paused.
@@ -279,8 +304,11 @@ namespace cryptanalysislib {
 			for (auto &task_list: tasks_) {
 				removed_task_count += task_list.tasks.clear();
 			}
-			in_flight_tasks_.fetch_sub(removed_task_count, std::memory_order_release);
 			unassigned_tasks_.fetch_sub(removed_task_count, std::memory_order_release);
+			const auto prev_in_flight = in_flight_tasks_.fetch_sub(removed_task_count, std::memory_order_acq_rel);
+			if ((removed_task_count > 0) && (prev_in_flight == (int_fast64_t)removed_task_count)) {
+				in_flight_tasks_.notify_all();
+			}
 
 			return removed_task_count;
 		}
@@ -288,20 +316,26 @@ namespace cryptanalysislib {
 		/// Get number of enqueued tasks.
 		/// \return: Number of tasks that have been enqueued but not yet started.
 		[[nodiscard]] constexpr size_t get_num_queued_tasks() const {
-			return tasks_.size();
+			// NOTE: was `tasks_.size()`, i.e. the number of threads
+			return unassigned_tasks_.load();
 		}
 
 		/// Get number of in-progress tasks.
 		/// \return Approximate number of tasks currently being processed by
 		///     worker threads.
 		[[nodiscard]] constexpr size_t get_num_running_tasks() const noexcept {
-			return in_flight_tasks_.load();
+			// NOTE: `in_flight_tasks_` also counts the queued tasks. The
+			// 	difference can be negative for a moment during a submit.
+			const auto in_flight = in_flight_tasks_.load();
+			const auto unassigned = unassigned_tasks_.load();
+			return in_flight > unassigned ? size_t(in_flight - unassigned) : 0u;
 		}
 
 		/// Get total number of tasks in the pool.
 		/// \return Approximate number of tasks both enqueued and running.
 		[[nodiscard]] constexpr size_t get_num_tasks() const noexcept {
-			return tasks_.size() + in_flight_tasks_.load();
+			// NOTE: was `tasks_.size() + in_flight_tasks_`
+			return in_flight_tasks_.load();
 		}
 
 		/// brief Returns the number of threads in the pool.
@@ -314,6 +348,14 @@ namespace cryptanalysislib {
             return num_threads;
         }
 	private:
+		/// marks one task as finished and wakes up `wait_for_tasks()`
+		/// once no task is in flight anymore
+		inline void task_done() noexcept {
+			if (in_flight_tasks_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+				in_flight_tasks_.notify_all();
+			}
+		}
+
 		/// \tparam Function
 		/// \param f function to enqueue
 		template<typename Function>
@@ -329,12 +371,7 @@ namespace cryptanalysislib {
 
 			// increment the unassigned tasks and in flight tasks
 			unassigned_tasks_.fetch_add(1, std::memory_order_release);
-			const auto prev_in_flight = in_flight_tasks_.fetch_add(1, std::memory_order_release);
-
-			// reset the in flight signal if the list was previously empty
-			if (prev_in_flight == 0) {
-				threads_complete_signal_.store(false, std::memory_order_release);
-			}
+			in_flight_tasks_.fetch_add(1, std::memory_order_release);
 
 			// assign work
 			tasks_[i].tasks.push_back(std::forward<Function>(f));
@@ -344,7 +381,10 @@ namespace cryptanalysislib {
 		///
 		struct task_item {
 			thread_safe_queue<FunctionType> tasks{};
-			std::binary_semaphore signal{0};
+			// NOTE: released once per submitted task, i.e. possibly several
+			// 	times before the worker acquires it. Releasing a
+			// 	`std::binary_semaphore` above its maximum 1 is UB.
+			std::counting_semaphore<> signal{0};
 		};
 
 		std::vector<ThreadType> threads_;
@@ -353,8 +393,8 @@ namespace cryptanalysislib {
 
 		// guarantee these get zero-initialized
 		std::atomic_int_fast64_t unassigned_tasks_{0}, in_flight_tasks_{0};
-		std::atomic_bool threads_complete_signal_{false};
 		std::atomic_bool pool_paused{false};
+		std::atomic_bool stop_{false};
 	};
 }// namespace cryptanalysislib
 

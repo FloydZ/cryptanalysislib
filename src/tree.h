@@ -189,6 +189,25 @@ private:
 	}
 
 public:
+	/// draws a random intermediate target on the coordinates [k_lower, k_upper)
+	/// NOTE: for scalar labels (e.g. `kAry_Type_T`) `random(l, h)` draws a
+	/// 	value in [l, h), for vector labels it randomizes the coordinates [l, h)
+	/// \param iT[out]: intermediate target
+	/// \param k_lower[in]: lower coordinate
+	/// \param k_upper[in]: upper coordinate
+	static void random_intermediate_target(LabelType &iT,
+	                                       const uint32_t k_lower,
+	                                       const uint32_t k_upper) noexcept {
+		if constexpr (requires (const LabelType &l) { { l.value() } -> std::integral; }) {
+			// a value with random lowest `k_upper` bits
+			(void)k_lower;
+			iT.random(0, 1ull << k_upper);
+		} else {
+			iT.zero();
+			iT.random(k_lower, k_upper);
+		}
+	}
+
 	/// TODO doc
 	/// \param d
 	/// \param A
@@ -916,14 +935,10 @@ public:
 							 const LabelType &target,
 	                         const bool prepare=true,
 	                         F f=[](List &out, const List &L1, const List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
-								 size_t out_load = out.load();
-								 ElementType::template sub<k_lower, k_upper, -1u>(out[out_load], L1[i], L2[j]);
-								 out.set_load(out_load++);
-								 return out_load == out.size();
-								// out.template add_and_append
-								// 	<k_lower, k_upper, -1u, false>
-								// 	(L1[i], L2[j]);
-								// return false;
+								 // NOTE: a collision means L1[i] + L2[j] == target on [k_lower, k_upper)
+								 // NOTE: `add_and_append` checks the size of `out` (and resizes it if allowed)
+								 out.template add_and_append<k_lower, k_upper, -1u, false>(L1[i], L2[j]);
+								 return false;
 							}) noexcept;
 
 	///         ┌───────┐
@@ -966,12 +981,10 @@ public:
 	        const LabelType &target,
 	        const bool prepare=true,
 	        F f = [](List & out, const List &L1, const List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
-				size_t out_load = out.load();
-				ElementType::template sub<k_lower, k_upper, -1u>(out[out_load], L1[i], L2[j]);
-				out.set_load(out_load++);
-				return out_load == out.size();
-				// out.template add_and_append<k_lower, k_upper, -1u, false>(L1[i], L2[j]);
-				// return false;
+				// NOTE: a collision means L1[i] + L2[j] == target on [k_lower, k_upper)
+				// NOTE: `add_and_append` checks the size of `out` (and resizes it if allowed)
+				out.template add_and_append<k_lower, k_upper, -1u, false>(L1[i], L2[j]);
+				return false;
         	}) noexcept;
 
 	/// 		out HM
@@ -2131,8 +2144,8 @@ public:
 			return false;
 		};
 
-		// early exit
-		if (Ls == 0) { return 0; }
+		// NOTE: removed `if (Ls == 0) { return 0; }`: `Ls` is only counted by
+		// 	`f` in the join below, so this always returned 0
 
 		LabelType::sub(t1, target, iT);
 
@@ -2568,7 +2581,9 @@ public:
 			(void)target;
 			static ElementType v;
 			ValueType::add(v.value, e1.value, e2.value);
-			if (v.value.popcnt() !=	n) { return false; }
+			// NOTE: the solution has weight `n/2` (see
+			// 	`generate_subsetsum_instance`), was `n`: no output ever passed
+			if (v.value.popcnt() !=	n/2) { return false; }
 
 			v.recalculate_label(matrix);
 		    out.append(v);
@@ -2721,7 +2736,18 @@ public:
 			}
 		}
 
-		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, false);
+		// NOTE: before, `prepare=false` was passed, so `L1` and `L2` were
+		// 	never sorted for the merge. With a zero target `join2lists` only
+		// 	sorts (it does not alter `L2`).
+		// NOTE: the labels of `iL` are needed on [k_lower1, k_upper2), as the
+		// 	stream join searches `iL` on [k_lower2, k_upper2). The default
+		// 	output function of `join2lists` only computes [k_lower1, k_upper1).
+		auto f1 = [k_lower1, k_upper2](List &out, List &L1, List &L2,
+		                               const size_t i, const size_t j) __attribute__((always_inline)) {
+			out.add_and_append(L1[i], L2[j], k_lower1, k_upper2, -1u, !LabelType::binary());
+			return false;
+		};
+		join2lists(iL, L1, L2, zero, k_lower1, k_upper1, prepare, f1);
 
 		// early exit
 		if (iL.load() == 0) {
@@ -3676,6 +3702,10 @@ public:
 private:
 	unsigned int depth;
 	uint64_t base_size;
+
+public:
+// NOTE: member functions, so it needs to be included within the class
+#include "tree/dissection.h"
 };
 
 /// \param out

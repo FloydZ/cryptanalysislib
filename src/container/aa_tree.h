@@ -13,7 +13,8 @@
 // 	is currently just a cipy and paste from AVLTree
 
 struct AANodeConfig : public AlignmentConfig {
-} aaNodeConfig;
+};
+inline constexpr AANodeConfig aaNodeConfig{};
 
 // forward declaration
 template<typename T, const AANodeConfig &config>

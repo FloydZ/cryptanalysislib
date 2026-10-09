@@ -13,7 +13,7 @@ namespace cryptanalysislib {
 
 
 // TODO
-double A[MAXN], B[MAXN], C[MAXN], D[MAXN], X[MAXN];
+inline double A[MAXN], B[MAXN], C[MAXN], D[MAXN], X[MAXN];
 
 template <typename T>
 void solve(int n) {

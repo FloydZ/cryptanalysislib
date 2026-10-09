@@ -60,7 +60,12 @@ namespace cryptanalysislib::math {
 	    requires std::is_arithmetic_v<T>
 #endif
 	constexpr bool feq(T x, T y) {
-		return abs(x - y) <= std::numeric_limits<T>::epsilon();
+		// NOTE: relative tolerance (4 ulps); with an absolute epsilon the
+		// iterations in `log`, `sqrt` and `cbrt` never terminated for |x| > 2,
+		// as neighbouring doubles are further apart than epsilon there
+		const T ax = abs(x), ay = abs(y);
+		const T m = ax > ay ? ax : ay;
+		return abs(x - y) <= T{4} * std::numeric_limits<T>::epsilon() * m;
 	}
 
 }

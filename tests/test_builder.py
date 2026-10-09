@@ -2,8 +2,11 @@
 """
 """
 
+import pytest
+
 from cryptanalysislib.builder import Cryptanalysislib 
 
+@pytest.mark.integration
 def test1():
     c = Cryptanalysislib()
     assert c.has_error() == False

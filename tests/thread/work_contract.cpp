@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <atomic>
 #include <thread>
 
 #include "thread/work_contract.h"
@@ -8,9 +9,11 @@ using ::testing::Test;
 
 int blocking_execute_after_scheduled() {
     blocking_work_contract_group workContractGroup;
-    std::jthread workerThread([&](std::stop_token stopToken) {
+    // NOTE: std::thread + own stop flag, apple's libc++ has no std::jthread
+    std::atomic<bool> stop{false};
+    std::thread workerThread([&]() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        while (!stopToken.stop_requested())
+        while (!stop.load())
             workContractGroup.execute_next_contract();
     });
     std::atomic<bool> executed{false};
@@ -20,6 +23,11 @@ int blocking_execute_after_scheduled() {
     workContract.schedule();
     while (!executed)
         ;
+
+    // `stop()` wakes the worker if it waits for a contract
+    stop = true;
+    workContractGroup.stop();
+    workerThread.join();
     return 0;
 }
 
@@ -30,8 +38,9 @@ TEST(WorkContract, Simple) {
     blocking_work_contract_group workContractGroup;
 
     // create async worker thread to service scheduled contracts
-    std::jthread workerThread([&](std::stop_token stopToken) {
-        while (!stopToken.stop_requested()) {
+    std::atomic<bool> stop{false};
+    std::thread workerThread([&]() {
+        while (!stop.load()) {
             workContractGroup.execute_next_contract();
         }
     });
@@ -48,6 +57,10 @@ TEST(WorkContract, Simple) {
         while (!executed);
         executed = false;
     }
+
+    stop = true;
+    workContractGroup.stop();
+    workerThread.join();
 }
 
 int main(int argc, char **argv) {

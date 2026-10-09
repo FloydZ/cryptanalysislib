@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "algorithm/bits/popcount.h"
+#include "memory/memory.h"
 
 namespace cryptanalysislib {
 
@@ -23,7 +24,11 @@ template<typename T>
 #endif
 constexpr static inline size_t leb128_encode(uint8_t *buf,
                                              const T val) noexcept {
-	T t = val;
+	// NOTE: the bits of `val` are encoded as unsigned, as `leb128_decode`
+	// 	expects. Before, a negative `val` failed `t >= 0x80` and only its
+	// 	lowest byte was written.
+	using U = std::make_unsigned_t<T>;
+	U t = U(val);
 	size_t ret = 0;
 	while (t >= 0x80) {
 		*buf = 0x80 | (t & 0x7F);
@@ -62,7 +67,7 @@ template<typename T>
 #endif
 constexpr static inline size_t leb128_encode(std::vector<uint8_t> &buf,
                                              const std::vector<T> &val) noexcept {
-    return leb128_encode(buf.data(), val.data, val.size());
+    return leb128_encode(buf.data(), val.data(), val.size());
 }
 
 /// integer decompression
@@ -73,20 +78,20 @@ template<typename T>
 #endif
 constexpr static inline T leb128_decode(uint8_t **buf) noexcept {
 	static_assert(sizeof(T) <= 8);
-	constexpr uint32_t max_shift = (sizeof(T) == 8) ? 63 :
-								   (sizeof(T) == 4) ? 28 :
-								   (sizeof(T) == 1) ? 14 : 7;
-	T res = 0;
-	for (uint32_t shift = 0; shift < max_shift; shift += 7) {
+	using U = std::make_unsigned_t<T>;
+	// a T needs at most ceil(bits/7) groups of 7 bits
+	constexpr uint32_t bits = sizeof(T) * 8u;
+	U res = 0;
+	for (uint32_t shift = 0; shift < bits; shift += 7) {
 		uint8_t tmp = **buf;
 		(*buf)++;
-		res |= ((tmp & 0x7F) << shift);
+		res |= U(U(tmp & 0x7F) << shift);
 		if (!(tmp & 0x80)) [[likely]] {
 			break;
 		}
 	}
 
-	return res;
+	return T(res);
 }
 
 /// integer decompression
@@ -99,28 +104,38 @@ constexpr static inline size_t leb128_decode(T *out,
                                            const uint8_t *buf,
                                            const size_t n) noexcept {
     size_t ctr = 0;
+    // NOTE: the single element decoder advances a non-const pointer
+    uint8_t *ptr = const_cast<uint8_t *>(buf);
     const uint8_t *t = buf + n;
-    while (buf < t) {
-        out[ctr++] = leb128_decode<T>(&buf);
-
+    while (ptr < t) {
+        out[ctr++] = leb128_decode<T>(&ptr);
     }
     return ctr; 
 }
 
-/// \param buf pointer to the compressed integer
-/// \param n number of bytes to read
-constexpr static inline void leb128_skip(const uint8_t *buf,
-										 const size_t n) noexcept {
-	auto *w = reinterpret_cast<const uint64_t *>(buf);
+/// skips `n` compressed integers
+/// NOTE: before, the result was lost (`void` and `buf` by value), i.e. the
+/// 	function had no effect, and the words were read via a misaligned
+/// 	`uint64_t *`. `n` was documented as number of bytes.
+/// \param buf pointer to the first compressed integer
+/// \param n number of integers to skip
+/// \return pointer to the first byte after the `n` integers
+constexpr static inline const uint8_t *leb128_skip(const uint8_t *buf,
+										           const size_t n) noexcept {
 	size_t nn = n;
+	// each byte without the continuation bit terminates an integer. With at
+	// least 8 integers left, the next 8 bytes all belong to them.
 	while (nn >= 8) {
-		nn -= popcount::popcount(~(*w++) & 0x8080808080808080);
+		uint64_t w;
+		cryptanalysislib::memcpy<uint8_t>((uint8_t *)&w, buf, 8);
+		nn -= popcount::popcount(~w & 0x8080808080808080ull);
+		buf += 8;
 	}
 
-	buf = reinterpret_cast<const uint8_t *>(w);
 	while(nn--) {
 		while(*buf++ & 0x80) {}
 	}
+	return buf;
 }
 
 /// NOTE: probably reads out off bounds.

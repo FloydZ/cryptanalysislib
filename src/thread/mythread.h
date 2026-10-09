@@ -1,8 +1,8 @@
 #ifndef CRYPTANALYSISLIB_MYTHREAD_H
 #define CRYPTANALYSISLIB_MYTHREAD_H
 
-// jeah currently thats unix only
-#ifndef __APPLE__
+// Linux only: clone(), futexes and SYS_gettid
+#if defined(__linux__)
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -22,7 +22,7 @@
 #include "atomic/futex.h"
 #include "helper.h"
 
-std::atomic<uint32_t> __global_tid = 0;
+inline std::atomic<uint32_t> __global_tid = 0;
 
 #define RUNNING 0
 #define READY 1   /* Ready to be scheduled */
@@ -45,8 +45,8 @@ std::atomic<uint32_t> __global_tid = 0;
 
 
 using namespace cryptanalysislib::atomic;
-struct cryptanalysislib::atomic::futex debug_futex{0};
-char debug_msg[1000];
+inline struct cryptanalysislib::atomic::futex debug_futex{1};
+inline char debug_msg[1000];
 
 namespace cryptanalysislib {
 
@@ -79,29 +79,29 @@ namespace cryptanalysislib {
 		return static_cast<pid_t>(syscall(SYS_gettid));
 	}
 
-	void __mythread_debug_futex_init() {
+	inline void __mythread_debug_futex_init() {
 	}
 #define CLONE_SIGNAL
 
 	/* The global extern pointer defined in mythread.h which points to the head node in
     	Queue of the Thread Control Blocks.
 	*/
-	mythread_private_t *mythread_q_head;
+	inline mythread_private_t *mythread_q_head;
 
 	/* The global pointer which points to the tcb of the main thread.
  	*/
-	mythread_private_t *main_tcb;
+	inline mythread_private_t *main_tcb;
 
 	/* This structure is used to be able to refer to the Idle thread tcb.
  	*/
-	mythread_t idle_u_tcb;
+	inline mythread_t idle_u_tcb;
 
 	/* Global futex. Please see the mythread_yield() function for more info */
-	struct futex gfutex(0);
+	inline struct futex gfutex(0);
 
 	/* This function initializes the Queue with a single node.
 	*/
-	void mythread_q_init(mythread_private_t *node) {
+	inline void mythread_q_init(mythread_private_t *node) {
 		node->prev = node;
 		node->next = node;
 		mythread_q_head = node;
@@ -110,7 +110,7 @@ namespace cryptanalysislib {
 	/* This function adds a node to the Queue, at the end of the Queue.
 		This is equivalent to Enque operation.
  	*/
-	void mythread_q_add(mythread_private_t *node) {
+	inline void mythread_q_add(mythread_private_t *node) {
 		if (mythread_q_head == nullptr) {
 			//Q is not initiazed yet. Create it.
 			mythread_q_init(node);
@@ -126,7 +126,7 @@ namespace cryptanalysislib {
 
 	/* This function deleted a specified(passed as a parameter) node from the Queue.
  	*/
-	void mythread_q_delete(mythread_private_t *node) {
+	inline void mythread_q_delete(mythread_private_t *node) {
 		mythread_private_t *p;
 		if (node == mythread_q_head && node->next == mythread_q_head) {
 			//There is only a single node and it is being deleted
@@ -149,7 +149,7 @@ namespace cryptanalysislib {
 	/* This function iterates over the entire Queue and prints out the state(see mythread.h to refer to various states)
    		of all the tcb members.
 	*/
-	void mythread_q_state_display() noexcept {
+	inline void mythread_q_state_display() noexcept {
 		if (mythread_q_head != nullptr) {
 			//display the Q - for debug purposes
 			printf("\n The Q contents are -> \n");
@@ -166,7 +166,7 @@ namespace cryptanalysislib {
 	/// the state of the specified thread.
 	/// \param new_tid
 	/// \return
-	mythread_private_t *mythread_q_search(const pid_t new_tid) noexcept {
+	inline mythread_private_t *mythread_q_search(const pid_t new_tid) noexcept {
 		mythread_private_t *p;
 		if (mythread_q_head != nullptr) {
 
@@ -187,7 +187,7 @@ namespace cryptanalysislib {
 	/// is ensured.
 	/// \param node
 	/// \return
-	int __mythread_dispatcher(mythread_private_t *node) noexcept {
+	inline int __mythread_dispatcher(mythread_private_t *node) noexcept {
 		mythread_private_t *ptr = node->next;
 		/* Loop till we find a thread in READY state. This loop is guanrateed
 	 	 * to end since idle thread is ALWAYS READY.
@@ -243,7 +243,7 @@ namespace cryptanalysislib {
 	/// If yes, mark that thread as READY
 	/// and kill ourselves
 	/// \param return_val
-	void mythread_exit(void *return_val) noexcept {
+	inline void mythread_exit(void *return_val) noexcept {
 		mythread_private_t *self_ptr;
 
 		/* Get pointer to our TCB structure */
@@ -261,9 +261,10 @@ namespace cryptanalysislib {
 			self_ptr->blockedForJoin->state = READY;
         }
 
+		// NOTE: the TCB is not removed (and freed) from the queue: a joining
+		// thread still searches for it and reads `returnValue` from it.
 		gfutex.down();
 		__mythread_dispatcher(self_ptr);
-        mythread_q_delete(self_ptr);
 		gfutex.up();
 
 		/* Suicide */
@@ -273,7 +274,7 @@ namespace cryptanalysislib {
 	/* Yield: Yield the processor to another thread. Dispatcher selects the next
 	 * appropriate thread and wakes it up. Then current thread sleeps.
 	 */
-	int mythread_yield() noexcept {
+	inline int mythread_yield() noexcept {
 		mythread_private_t *self;
 		int retval;
 
@@ -321,7 +322,7 @@ namespace cryptanalysislib {
  	 * The thread checks whether it is the only one alive, if yes, exit()
  	 * else keep scheduling someone.
  	 */
-	void *mythread_idle(void *phony) noexcept {
+	inline void *mythread_idle(void *phony) noexcept {
 		(void)phony;
 		mythread_private_t *traverse_tcb;
 		pid_t idle_tcb_tid;
@@ -355,7 +356,7 @@ namespace cryptanalysislib {
 	/* A new thread is created with this wrapper pointer. The aim is to suspend the new
 	 * thread until it is scheduled by the dispatcher.
 	 */
-	int mythread_wrapper(void *thread_tcb) noexcept {
+	inline int mythread_wrapper(void *thread_tcb) noexcept {
 		mythread_private_t *new_tcb;
 		new_tcb = (mythread_private_t *) thread_tcb;
 
@@ -412,7 +413,7 @@ namespace cryptanalysislib {
 	  The mythread_attr_t argument can optionally specify the stack size to be used
 	  the newly created thread.
 	*/
-	int mythread_create(mythread_t *new_thread_ID,
+	inline int mythread_create(mythread_t *new_thread_ID,
 	                    mythread_attr_t *attr,
 	                    void *(*start_func)(void *), void *arg) {
 
@@ -427,7 +428,14 @@ namespace cryptanalysislib {
 		/* Flags to be passed to clone system call.
   		This flags variable is picked up from pthread source code - with CLONE_PTRACE removed.
 		*/
-		int clone_flags = (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_SYSVSEM);
+		/// NOTE: `CLONE_PARENT_SETTID` and `CLONE_CHILD_CLEARTID` need the `ptid`
+		/// and `ctid` arguments of `clone()`. They were not passed, so the kernel
+		/// used whatever was left in the registers/stack: on thread exit it wrote
+		/// a 0 to (and futex-woke) a random address, e.g. into the main stack.
+		/// `ptid` now points into the TCB, so `tid` is set before the child runs.
+		/// `CLONE_CHILD_CLEARTID` is dropped: `mythread_join` still searches the
+		/// TCB by its `tid` after the thread exited.
+		int clone_flags = (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_PARENT_SETTID | CLONE_SYSVSEM);
 
 		if (mythread_q_head == nullptr) {
 			/* This is the very first mythread_create call. Set up the Q first with tcb nodes for main thread. */
@@ -489,7 +497,7 @@ namespace cryptanalysislib {
 
 		/* Call clone with pointer to wrapper function. TCB will be passed as arg to wrapper function. */
 		if ((tid = clone(mythread_wrapper, (char *) child_stack, clone_flags,
-		                 new_node)) == -1) {
+		                 new_node, &new_node->tid, nullptr, nullptr)) == -1) {
 			printf("clone failed! \n");
 			printf("ERROR: %s \n", strerror(errno));
 			return (-errno);
@@ -510,7 +518,7 @@ namespace cryptanalysislib {
 	/// \param target_thread
 	/// \param status
 	/// \return
-	int mythread_join(mythread_t target_thread,
+	inline int mythread_join(mythread_t target_thread,
 	                  void **status) {
 		mythread_private_t *self_ptr;
 

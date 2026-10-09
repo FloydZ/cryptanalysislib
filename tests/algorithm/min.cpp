@@ -25,7 +25,7 @@ TYPED_TEST_P(Min, simple) {
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
 	const auto t = cryptanalysislib::min(d.begin(), d.end());
-	EXPECT_EQ(t, s-1);
+	EXPECT_EQ(t, 0);
 }
 
 TYPED_TEST_P(Min, simd) {
@@ -33,8 +33,8 @@ TYPED_TEST_P(Min, simd) {
 	auto d = new TypeParam [s];
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
-	const auto t = min_simd_uXX(d, s);
-	EXPECT_EQ(t, s-1);
+	const auto t = internal::min_simd_uXX(d, s);
+	EXPECT_EQ(t, 0);
 
 	delete[] d;
 }
@@ -44,20 +44,21 @@ TYPED_TEST_P(Min, simd_rng) {
     std::vector<TypeParam> d; d.resize(s);
 	for (size_t i = 0; i < s; ++i) { d[i] = rand(); }
 
-	const auto t = min_simd_uXX(d.data(), s);
+	const auto t = internal::min_simd_uXX(d.data(), s);
     for (const auto &k : d) {
-        EXPECT_GE(t, k);
+        EXPECT_LE(t, k);
     }
 }
 
 TYPED_TEST_P(Min, multithreading) {
-	constexpr size_t b = sizeof(TypeParam)*8u - 1u;
+	// capped at 2^20: `1 << (bits-1)` elements would be 2^63 for uint64_t
+	constexpr size_t b = (sizeof(TypeParam)*8u - 1u) < 20u ? (sizeof(TypeParam)*8u - 1u) : 20u;
     constexpr static size_t s = 1ull<<b;
     std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = s - i - 1; }
 
     const auto d = cryptanalysislib::min(par_if(true), in.begin(), in.end());
-    EXPECT_EQ(d, s-1);
+    EXPECT_EQ(d, 0);
 }
 
 TYPED_TEST_P(Min, multithreading_rnd) {
@@ -67,11 +68,21 @@ TYPED_TEST_P(Min, multithreading_rnd) {
 
     const auto d = cryptanalysislib::min(par_if(true), in.begin(), in.end());
     for (const auto &k : in) {
-        EXPECT_GE(d, k);
+        EXPECT_LE(d, k);
     }
 }
 
-REGISTER_TYPED_TEST_SUITE_P(Min, simple, simd, simd_rng, multithreading, multithreading_rnd);
+TYPED_TEST_P(Min, scalar) {
+	const TypeParam a = 3, b = 7;
+	EXPECT_EQ(cryptanalysislib::min(a, b), a);
+	EXPECT_EQ(cryptanalysislib::min(b, a), a);
+	EXPECT_EQ(cryptanalysislib::min(a, a), a);
+	// with std::min also visible the constrained overload is chosen (no ambiguity)
+	using std::min;
+	EXPECT_EQ(min(a, b), a);
+}
+
+REGISTER_TYPED_TEST_SUITE_P(Min, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Min, MyTypes);
 

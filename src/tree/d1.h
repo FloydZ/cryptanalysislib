@@ -20,10 +20,13 @@ size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
 	assert(k_lower < k_upper && 0 < k_upper);
 	out.set_load(0);
 
-	if ((!target.is_zero()) && (prepare)) {
-		for (size_t s = 0; s < L2.load(); ++s) {
-			// is remapped to add in the binary case
-			LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
+	// NOTE: before, the lists were only sorted for a non zero target
+	if (prepare) {
+		if (!target.is_zero()) {
+			for (size_t s = 0; s < L2.load(); ++s) {
+				// is remapped to add in the binary case
+				LabelType::sub(L2[s].label, target, L2[s].label, k_lower, k_upper);
+			}
 		}
 
 		L1.sort_level(k_lower, k_upper);
@@ -72,8 +75,20 @@ size_t Tree_T<List, config>::join2lists(List &out, List &L1, List &L2,
                   const uint32_t k_lower,
                   const uint32_t k_upper,
                   bool prepare) noexcept {
-	auto f=[k_lower, k_upper](List &out, List &L1, List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
+	// NOTE: if the labels of `L2` were replaced by `target - l2` (above), a
+	// 	match means `l1 + l2 = target`, so the value is `v1 + v2`. The label
+	// 	is `l1 - l2' = 0` on the window. `Element::sub` (used for non binary
+	// 	labels) also subtracted the values, which is wrong for non binary
+	// 	values (e.g. F_3): every output element was wrong.
+	const bool negated = prepare && (!target.is_zero());
+	auto f=[k_lower, k_upper, negated](List &out, List &L1, List &L2, const size_t i, const size_t j) __attribute__((always_inline)) {
+					const size_t before = out.load();
 					out.add_and_append(L1[i], L2[j], k_lower, k_upper, -1, !LabelType::binary());
+					if constexpr (!ValueType::binary()) {
+						if (negated && (out.load() > before)) {
+							ValueType::add(out[before].value, L1[i].value, L2[j].value);
+						}
+					}
 #ifdef DEBUG
 		const uint64_t b = out.load() - 1;
 		if (!out[b].label.is_zero(k_lower, k_upper)) {
@@ -106,12 +121,15 @@ size_t Tree_T<List, config>::join2lists(
 	static_assert(k_lower < k_upper && 0 < k_upper);
 	out.set_load(0);
 
-	if ((!target.is_zero()) && (prepare)) {
-		for (size_t s = 0; s < L2.load(); ++s) {
-			// will be remapped to + in binary case
-			LabelType::template sub
-				<k_lower, k_upper>
-				(L2[s].label, target, L2[s].label);
+	// NOTE: before, the lists were only sorted for a non zero target
+	if (prepare) {
+		if (!target.is_zero()) {
+			for (size_t s = 0; s < L2.load(); ++s) {
+				// will be remapped to + in binary case
+				LabelType::template sub
+					<k_lower, k_upper>
+					(L2[s].label, target, L2[s].label);
+			}
 		}
 
 		L1.template sort_level<k_lower, k_upper>();
@@ -336,6 +354,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(List &out,
 		size_t j = L2.template search_level<k_lower, k_upper>(sigma_t);
 		for (; (j < L2.load()) &&
 			   (sigma_t.template is_equal<k_lower, k_upper>(L2[j].label)); ++j) {
+			ret += 1;
 			if (f(out, L1, L2, i, j)) { goto finish; }
 		}
 	}
@@ -384,7 +403,6 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(
 
 		size_t s = hm.find(sigma_t.value(), load);
 		for (size_t k = s; k < s + load; ++k) {
-			ret += 1;
 			const size_t j = hm[k];
 			ret += 1;
 

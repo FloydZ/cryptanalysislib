@@ -54,6 +54,47 @@ TEST(prefix_sum, u32_simd_avx512) {
 }
 #endif
 
+/// checks `f` against a scalar prefix sum for all sizes [0, 80]. Each input
+/// is allocated with its exact size, so ASan catches out of bounds accesses.
+template<typename T, typename F>
+static void check_all_sizes(F f) {
+	for (size_t n = 0; n <= 80; n++) {
+		T *v = new T[n + (n == 0)];
+		std::vector<T> e(n);
+		for (size_t i = 0; i < n; i++) { e[i] = v[i] = T(i * 7 + 3); }
+		for (size_t i = 1; i < n; i++) { e[i] += e[i - 1]; }
+
+		f(v, n);
+		for (size_t i = 0; i < n; i++) {
+			EXPECT_EQ(e[i], v[i]) << "n=" << n << " i=" << i;
+		}
+		delete[] v;
+	}
+}
+
+TEST(prefix_sum, all_sizes) {
+#ifdef USE_AVX2
+	check_all_sizes<int32_t>([](int32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_i32_avx2(v, n); });
+	check_all_sizes<int32_t>([](int32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_i32_avx2_v2(v, n); });
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_u32_avx2(v, n); });
+#endif
+#ifdef USE_AVX512F
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_u32_avx512(v, n); });
+#endif
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { prefixsum<uint32_t>(v, n); });
+	check_all_sizes<uint8_t>([](uint8_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint8_t>(v, n); });
+	check_all_sizes<uint16_t>([](uint16_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint16_t>(v, n); });
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint32_t>(v, n); });
+	check_all_sizes<uint64_t>([](uint64_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint64_t>(v, n); });
+	check_all_sizes<uint64_t>([](uint64_t *v, size_t n) { prefixsum<uint64_t>(v, n); });
+}
+
+TEST(prefix_sum, empty_range) {
+	std::vector<uint32_t> v;
+	prefixsum(v.begin(), v.end());
+	EXPECT_TRUE(v.empty());
+}
+
 TEST(avx, prefixsum) {
 	constexpr size_t s = 65;
 	uint32_t *d1 = (uint32_t *)malloc(s * sizeof(uint32_t));

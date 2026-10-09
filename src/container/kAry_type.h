@@ -169,8 +169,7 @@ public:
 		if constexpr (arith) {
 			__value = rng<T>(l, u);
 		} else {
-			const T mask = (1ull << u) - 1ull;
-			__value == (rng() & mask) << l;
+			__value = T(rng()) & compute_mask(l, u);
 		}
 	}
 
@@ -199,7 +198,7 @@ public:
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + (T2(a.__value) * T2(b.__value)), M, q));
 		} else {
-			__value = T(T2(__value) + ((T2(a.__value) * T2(b.__value)) % q) %q);
+			__value = T((T2(__value) + (T2(a.__value) * T2(b.__value)) % q) % q);
 		}
 	}
 
@@ -418,7 +417,7 @@ public:
 		if constexpr (sizeof(T) <= M_limit) {
 			__value = T(fastmod_u32(T2(__value) + T2(q) - T2(fastmod_u32(obj, M, q)), M, q));
 		} else {
-			__value = T(T2(T2(__value) + T2(obj % q)) % q);
+			__value = T(T2(T2(__value) + (T2(q) - T2(obj % q))) % q);
 		}
 		return *this;
 	}
@@ -482,7 +481,9 @@ public:
 	/// \param obj
 	/// \return
 	constexpr inline FqElement &operator=(int32_t const obj) noexcept {
-		__value = T(obj % q);
+		// NOTE: `obj % q` would either be negative or convert `obj` to unsigned
+		const __int128 r = __int128(obj) % __int128(q);
+		__value = T(r < 0 ? r + __int128(q) : r);
 		return *this;
 	}
 
@@ -490,7 +491,9 @@ public:
 	/// \param obj
 	/// \return
 	constexpr inline FqElement &operator=(int64_t const obj) noexcept {
-		__value = T(obj % q);
+		// NOTE: `obj % q` would either be negative or convert `obj` to unsigned
+		const __int128 r = __int128(obj) % __int128(q);
+		__value = T(r < 0 ? r + __int128(q) : r);
 		return *this;
 	}
 
@@ -715,7 +718,7 @@ public:
 			out.__value = T(((T2(in1.__value) + T2(in2.__value)) % q));
 		} else {
 			const T mask = compute_mask(lower, upper);
-			const T tmp1 = (in1.value() ^ in2.value()) & mask;
+			const T tmp1 = (in1.value() + in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
 		}
@@ -763,7 +766,7 @@ public:
 			out.__value = ((T2(in1.__value) + T2(q) - T2(in2.__value)) % q);
 		} else {
 			// NOTE: ignores carry here
-			constexpr T mask = compute_mask(lower, upper);
+			const T mask = compute_mask(lower, upper);
 			const T tmp1 = (in1.value() - in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
@@ -819,7 +822,7 @@ public:
 		} else {
 			// NOTE: ignores carry here
 			const T mask = compute_mask(lower, upper);
-			const T tmp1 = (in1.value() ^ in2.value()) & mask;
+			const T tmp1 = (in1.value() * in2.value()) & mask;
 			const T tmp2 = (out.value() & ~mask) ^ tmp1;
 			out.set(tmp2, 0);
 		}
@@ -911,7 +914,6 @@ public:
 		} else {
 			const T mask = compute_mask(lower, upper);
 			__value ^= mask;
-			__value &= mask;
 		}
 	}
 
@@ -930,19 +932,18 @@ public:
 		}
 	}
 
-	constexpr inline void popcnt(const uint32_t lower = 0,
-	                             const uint32_t upper = bits) noexcept {
+	/// \param lower inclusive
+	/// \param upper exclusive
+	/// \return number of set bits of the value within the bits [lower, upper)
+	[[nodiscard]] constexpr inline uint32_t popcnt(const uint32_t lower = 0,
+	                                               const uint32_t upper = bits) const noexcept {
 		assert(sizeof(T) * 8 > lower);
 		assert(sizeof(T) * 8 >= upper);
 		assert(lower < upper);
 		assert(upper <= bits);
 
-		if constexpr (arith) {
-			__value = ((q - __value) % q);
-		} else {
-			const T mask = compute_mask(lower, upper);
-			__value ^= mask;
-		}
+		const T mask = compute_mask(lower, upper);
+		return (uint32_t)popcnt_T(T(__value & mask));
 	}
 
 	/// right rotate
@@ -975,12 +976,12 @@ public:
 
 	[[nodiscard]] static constexpr inline LimbType add_T(const LimbType a,
 	                                                     const LimbType b) noexcept {
-		return (a + b) % q;
+		return LimbType((T2(a) + T2(b)) % q);
 	}
 
 	[[nodiscard]] static constexpr inline LimbType sub_T(const LimbType a,
 	                                                     const LimbType b) noexcept {
-		return (a + q - b) % q;
+		return LimbType((T2(a) + T2(q) - T2(b)) % q);
 	}
 
 	[[nodiscard]] static constexpr inline LimbType mul_T(const LimbType a,
@@ -1037,24 +1038,35 @@ public:
 		}
 	}
 
-	/// NOTE: assumes that
+	/// lane wise (a + b) mod q
+	/// NOTE: `S::add` followed by a reduction would wrap around in the lane
+	/// 	if a + b >= 2**(8*sizeof(T)), e.g. q = 251 in uint8_t
 	/// \param a
 	/// \param b
 	/// \return
 	[[nodiscard]] static constexpr inline S add256_T(const S a,
 	                                                 const S b) {
-		S ret = S::add(a, b);
-		ret = mod256_T(ret);
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			const T x = a.d[i] % q, y = b.d[i] % q;
+			ret.d[i] = (x >= T(q - y)) ? T(x - (q - y)) : T(x + y);
+		}
 		return ret;
 	}
 
+	/// lane wise (a - b) mod q
+	/// NOTE: `S::sub` followed by a reduction would wrap around in the
+	/// 	lane if a < b
 	/// \param a
 	/// \param b
 	/// \return
 	[[nodiscard]] static constexpr inline S sub256_T(const S a,
 	                                                 const S b) {
-		S ret = S::sub(a, b);
-		ret = mod256_T(ret);
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			const T x = a.d[i] % q, y = b.d[i] % q;
+			ret.d[i] = (x >= y) ? T(x - y) : T(x + (q - y));
+		}
 		return ret;
 	}
 
@@ -1366,6 +1378,10 @@ template<const uint64_t q,
 		 const FqConfig &config=fqConfig>
 class kAry_Type_T : public FqElement<TypeTemplate<q> , q, Metric, config> {
 public:
+	// NOTE: otherwise the implicit copy assignment hides the base overloads,
+	// 	and e.g. `k = -1` goes through `kAry_Type_T(uint64_t)` (wraps around)
+	using FqElement<TypeTemplate<q> , q, Metric, config>::operator=;
+
 	// The problem is, that copy constructors are never inherited
 	constexpr inline kAry_Type_T() noexcept {
 		this->set(0, 0);

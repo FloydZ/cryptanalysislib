@@ -31,7 +31,7 @@ private:
 public:
     explicit RingBuffer(size_t n) noexcept {
         s_ = n;
-        x_ = allocator.allocator(s_);
+        x_ = allocator.allocate(s_);
         // x_ = new Type[s_];
         n_ = 0;
         wpos_ = 0;

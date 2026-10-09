@@ -46,10 +46,17 @@ public:
     void init() {
         n_ = n;
 
-        n2_ = 1UL<<(n-1);
-        mm_ = (~0UL) >> (BITS-n);
-        tfb_ = tiny_factors_tab[n] >> 1;
-        tfb_ |= n2_;  // needed for n==BITS_PER_LONG
+        n2_ = T(T(1) << (n-1));
+        // NOTE: shift a `T`. Was `(~0UL) >> (BITS-n)`, i.e. all ones in the
+        // 	lower `BITS` bits for `BITS < 64`, so `next()` never terminated.
+        mm_ = T(T(~T(0)) >> (BITS-n));
+        // bit `d-1` is set for each divisor `d` of `n`
+        // NOTE: was `tiny_factors_tab[n] >> 1`, the table has 64 entries, so
+        // 	`n == 64` read past its end
+        tfb_ = 0;
+        for (uint32_t d = 1; d <= n; ++d) {
+            if ((n % d) == 0) { tfb_ |= T(T(1) << (d - 1)); }
+        }
         first();
     }
 
@@ -106,7 +113,9 @@ public:
     T next_lyn()
     {
         if ( a_==mm_ )  { first();  return 0; }
-        do  { next(); }  while ( !is_lyndon_word() );
+        // NOTE: stop once `next()` wrapped around. Before, it continued with
+        // 	the first necklace and never returned 0.
+        do  { if ( next()==0 )  { return 0; } }  while ( !is_lyndon_word() );
         return  n_;
     }
 };

@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <gtest/gtest.h>
 
 
@@ -104,6 +106,22 @@ TEST(SortingNetwork, uint16x16_t) {
 		EXPECT_LE(d_out[i], d_out[i+1]);
 	}
 }
+
+TEST(SortingNetwork, uint16x16_odd_even_t) {
+	alignas(32) uint16_t data[16], expected[16];
+	for (uint32_t r = 0; r < 1000; ++r) {
+		for (uint32_t i = 0; i < 16; ++i) {
+			data[i] = (r & 1u) ? (rng() % 4u) : rng();
+		}
+		memcpy(expected, data, sizeof(data));
+		std::sort(expected, expected + 16);
+
+		const __m256i out = sortingnetwork_sort_u16x16_odd_even(_mm256_load_si256((const __m256i *) data));
+		_mm256_store_si256((__m256i *) data, out);
+		EXPECT_EQ(memcmp(data, expected, sizeof(data)), 0);
+	}
+}
+
 TEST(SortingNetwork, kv_uint16x16_t) {
 	uint16_t k_in[16] __attribute__((aligned(32))), k_out[16] __attribute__((aligned(32)));
 	uint16_t v_in[16] __attribute__((aligned(32))), v_out[16] __attribute__((aligned(32)));
@@ -400,36 +418,23 @@ TEST(SortingNetwork, uint8x128_t) {
 	}
 }
 
-//TEST(SortingNetwork, uint8x224_t) {
-//	// TODO not finished
-//	uint8_t datas2[224] __attribute__((aligned(64)));
-//	uint8_t datas3[224] __attribute__((aligned(64)));
-//	uint8_t *datas4 = datas3 + 128;
-//	for (uint32_t i = 0; i < 224; ++i) {
-//		datas2[i] =rng();
-//	}
-//	 __m256i i1 = _mm256_loadu_si256((const __m256i *)(datas2 +   0));
-//	 __m256i i2 = _mm256_loadu_si256((const __m256i *)(datas2 +  32));
-//	 __m256i i3 = _mm256_loadu_si256((const __m256i *)(datas2 +  64));
-//	 __m256i i4 = _mm256_loadu_si256((const __m256i *)(datas2 +  96));
-//	 __m256i i5 = _mm256_loadu_si256((const __m256i *)(datas2 + 128));
-//	 __m256i i6 = _mm256_loadu_si256((const __m256i *)(datas2 + 160));
-//	 __m256i i7 = _mm256_loadu_si256((const __m256i *)(datas2 + 192));
-//	sortingnetwork_sort_u8x224(i1, i2, i3, i4, i5, i6, i7);
-//	_mm256_storeu_si256((__m256i_u *)(datas3 +   0), i1);
-//	_mm256_storeu_si256((__m256i_u *)(datas3 +  32), i2);
-//	_mm256_storeu_si256((__m256i_u *)(datas3 +  64), i3);
-//	_mm256_storeu_si256((__m256i_u *)(datas3 +  96), i4);
-//	_mm256_storeu_si256((__m256i_u *)(datas3 + 128), i5);
-//	_mm256_storeu_si256((__m256i_u *)(datas3 + 160), i6);
-//	_mm256_storeu_si256((__m256i_u *)(datas3 + 192), i7);
-//	for (uint32_t i = 1; i < 224; i++) {
-//		if (datas3[i-1] > datas3[i]) {
-//			std::cout << i << std::endl;
-//		}
-//		EXPECT_LE(datas3[i-1], datas3[i]);
-//	}
-//}
+TEST(SortingNetwork, uint8x224_t) {
+	alignas(32) uint8_t data[224], expected[224];
+	for (uint32_t r = 0; r < 100; ++r) {
+		for (uint32_t i = 0; i < 224; ++i) {
+			// every second round a small alphabet, i.e. many equal values
+			data[i] = (r & 1u) ? (rng() % 4u) : rng();
+		}
+		memcpy(expected, data, 224);
+		std::sort(expected, expected + 224);
+
+		__m256i v[7];
+		for (uint32_t i = 0; i < 7; ++i) { v[i] = _mm256_load_si256((const __m256i *)(data + 32 * i)); }
+		sortingnetwork_sort_u8x224(v[0], v[1], v[2], v[3], v[4], v[5], v[6]);
+		for (uint32_t i = 0; i < 7; ++i) { _mm256_store_si256((__m256i *)(data + 32 * i), v[i]); }
+		EXPECT_EQ(memcmp(data, expected, 224), 0);
+	}
+}
 
 TEST(SortingNetwork, uint8x256_t) {
 	uint8_t datas2[256] __attribute__((aligned(64)));
@@ -937,37 +942,45 @@ TEST(SortingNetwork, avx512_float_small) {
 }
 
 TEST(SortingNetwork, avx512_uint16x32_t) {
-	uint16_t d_in[32], d_out[32];
-	for (uint32_t i = 0; i < 32; ++i) {
-		d_in[i] = rng();
-	}
+	alignas(64) uint16_t data[32], expected[32], out1[32], out2[32];
+	for (uint32_t r = 0; r < 1000; ++r) {
+		for (uint32_t i = 0; i < 32; ++i) {
+			data[i] = (r & 1u) ? (rng() % 4u) : rng();
+		}
+		memcpy(expected, data, sizeof(data));
+		std::sort(expected, expected + 32);
 
-	const __m512i in  = _mm512_loadu_si512((const __m512i *) d_in);
-	const __m512i out = sortingnetwork_sort_u16x32_v2(in);
-	_mm512_storeu_si512((__m512i *)d_out, out);
-	for (uint32_t i = 0; i < 31; ++i) {
-		EXPECT_LE(d_out[i], d_out[i+1]);
+		const __m512i in = _mm512_load_si512((const __m512i *) data);
+		_mm512_store_si512((__m512i *) out1, sortingnetwork_sort_u16x32(in));
+		_mm512_store_si512((__m512i *) out2, sortingnetwork_sort_u16x32_v2(in));
+		EXPECT_EQ(memcmp(out1, expected, sizeof(expected)), 0);
+		EXPECT_EQ(memcmp(out2, expected, sizeof(expected)), 0);
 	}
 }
 
 TEST(SortingNetwork, avx512_kv_uint16x32_t) {
-	uint16_t k_in[32] __attribute__((aligned(32))), k_out[32] __attribute__((aligned(32)));
-	uint16_t v_in[32] __attribute__((aligned(32))), v_out[32] __attribute__((aligned(32)));
-	for (uint32_t i = 0; i < 32; ++i) {
-		k_in[i] = rng();
-		v_in[i] = i;
-	}
-
-	memcpy(k_out, k_in, 64);
-	memcpy(v_out, v_in, 64);
-	sortingnetwork_kvsort_u16x32((__m512i *)k_out, (__m512i *)v_out);
-	for (uint32_t i = 0; i < 31; ++i) {
-		EXPECT_LE(k_out[i], k_out[i+1]);
-		uint32_t j = 0;
-		for (; j < 31; j++) {
-			if (k_out[i] == k_in[j]) { break; }
+	// NOTE: 64 byte aligned, the arrays are accessed as `__m512i`
+	alignas(64) uint16_t k_in[32], k_out[32], expected[32];
+	alignas(64) uint16_t v_out[32];
+	for (uint32_t r = 0; r < 1000; ++r) {
+		for (uint32_t i = 0; i < 32; ++i) {
+			k_in[i] = (r & 1u) ? (rng() % 4u) : rng();
+			v_out[i] = i;
 		}
-		EXPECT_EQ(v_out[i], v_in[j]);
+		memcpy(k_out, k_in, sizeof(k_in));
+		memcpy(expected, k_in, sizeof(k_in));
+		std::sort(expected, expected + 32);
+
+		sortingnetwork_kvsort_u16x32((__m512i *)k_out, (__m512i *)v_out);
+		EXPECT_EQ(memcmp(k_out, expected, sizeof(expected)), 0);
+		// the values are the original positions: a permutation matching the keys
+		bool seen[32] = {false};
+		for (uint32_t i = 0; i < 32; ++i) {
+			ASSERT_LT(v_out[i], 32u);
+			EXPECT_FALSE(seen[v_out[i]]);
+			seen[v_out[i]] = true;
+			EXPECT_EQ(k_in[v_out[i]], k_out[i]);
+		}
 	}
 }
 

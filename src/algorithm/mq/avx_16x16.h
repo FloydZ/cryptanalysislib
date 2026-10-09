@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <immintrin.h>
-struct solution_t* solver(uint16_t *_rdi, uint16_t *_rsi, uint32_t alpha, uint32_t beta, uint32_t gamma, struct solution_t *buffer) {
+inline struct solution_t* solver(uint16_t *_rdi, uint16_t *_rsi, uint32_t alpha, uint32_t beta, uint32_t gamma, struct solution_t *buffer) {
 	uint8_t *rdi = (uint8_t *)_rdi;
 	uint8_t *rsi = (uint8_t *)_rsi;
 	alpha <<= 5;

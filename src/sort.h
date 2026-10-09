@@ -408,16 +408,22 @@ private:
 		assert((!USE_LOAD_IN_FIND_SWITCH && LINEARSEARCH_SWITCH) || USE_HIGH_WEIGHT_SWITCH);
 		assert(tid < nrt);
 
-		constexpr LoadType middle = insert ? size_t / 2 : size_b / 2;
+		// NOTE: a bucket is filled from slot 0 upwards, so the result is the
+		// 	number of used slots: `limit` if the bucket is full.
+		constexpr LoadType limit = insert ? size_t : size_b;
+		constexpr LoadType middle = limit / 2;
 		const uint64_t offset = insert ? bucket_offset(tid, bid) : bucket_offset(bid);
 		LoadType ret = middle;
 
 		if (is_zero(offset + ret)) {
-			// go down
+			// go down to the first empty slot
 			while (ret > 0 && is_zero(offset + ret - 1)) { ret -= 1; }
 		} else {
-			// go up
-			while (ret < size_t - 1 && is_zero(offset + ret + 1)) { ret += 1; }
+			// go up to the first empty slot
+			// NOTE: before, this went up while the *next* slot was empty, i.e.
+			// 	returned an occupied slot (overwritten by `insert`) or the last
+			// 	slot (leaving a hole that `find` never looks at).
+			while (ret < limit && !is_zero(offset + ret)) { ret += 1; }
 		}
 
 		return ret;

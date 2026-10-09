@@ -131,7 +131,7 @@ void avx512_pdep_u32_reference(const uint32_t* data_arr,
     }
 }
 
-unsigned int pdep32_emu(unsigned int v, unsigned int m) {
+inline unsigned int pdep32_emu(unsigned int v, unsigned int m) {
 	unsigned int ret = 0, pc = popcount(m);
 	switch (pc) {
 		case 0:

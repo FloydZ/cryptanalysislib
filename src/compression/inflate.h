@@ -558,12 +558,12 @@ sinfl_decompress(unsigned char *out, int cap, const unsigned char *in, int size)
 	}
 	return (int)(out-o);
 }
-extern int
+inline int
 sinflate(void *out, int cap, const void *in, int size) {
 	return sinfl_decompress((unsigned char*)out, cap, (const unsigned char*)in, size);
 }
 
-extern int
+inline int
 zsinflate(void *out, int cap, const void *mem, int size) {
 	const unsigned char *in = (const unsigned char*)mem;
 	if (size >= 6) {

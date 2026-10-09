@@ -533,7 +533,9 @@ static void sdefl_flush(unsigned char **dst,
 	switch (sdefl_blk_type(s, blk_len, item_cnt, freqs, lens)) {
 		case SDEFL_BLK_UCOMPR: {
 			/* uncompressed blocks */
-			int n = sdefl_div_round_up(blk_len, SDEFL_RAW_BLK_SIZE);
+			/* NOTE: at least one (empty) block. Before, an empty input wrote
+			 * 	no block at all, i.e. no final block: an invalid stream. */
+			int n = blk_len ? sdefl_div_round_up(blk_len, SDEFL_RAW_BLK_SIZE) : 1;
 			for (i = 0; i < n; ++i) {
 				int fin = is_last && (i + 1 == n);
 				int amount = blk_len < SDEFL_RAW_BLK_SIZE ? blk_len : SDEFL_RAW_BLK_SIZE;
@@ -648,6 +650,10 @@ sdefl_compr(struct sdefl *s, unsigned char *out, const unsigned char *in,
 	for (n = 0; n < SDEFL_HASH_SIZ; ++n) {
 		s->tbl[n] = SDEFL_NIL;
 	}
+	/* NOTE: `freq` and `seq_cnt` are read before they are written (first
+	 * `sdefl_flush`), so reset them: callers may pass an uninitialized state. */
+	memset(&s->freq, 0, sizeof(s->freq));
+	s->seq_cnt = 0;
 	do {int blk_begin = i;
 		int blk_end = ((i + SDEFL_BLK_MAX) < in_len) ? (i + SDEFL_BLK_MAX) : in_len;
 		while (i < blk_end) {
@@ -705,13 +711,13 @@ sdefl_compr(struct sdefl *s, unsigned char *out, const unsigned char *in,
 	assert(s->bitcnt == 0);
 	return (int)(q - out);
 }
-extern int
+inline int
 sdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	s->bits = s->bitcnt = 0;
 	return sdefl_compr(s, (unsigned char*)out, (const unsigned char*)in, n, lvl);
 }
 
-extern int
+inline int
 zsdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	int p = 0;
 	unsigned a = 0;
@@ -730,7 +736,7 @@ zsdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	}
 	return (int)(q - (unsigned char*)out);
 }
-extern int
+inline int
 sdefl_bound(int len) {
 	int max_blocks = 1 + sdefl_div_round_up(len, SDEFL_RAW_BLK_SIZE);
 	int bound = 5 * max_blocks + len + 1 + 4 + 8;

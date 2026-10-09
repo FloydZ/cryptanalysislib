@@ -112,10 +112,10 @@ TEST(SearchBoundaries, BasicLevel0) {
 	Element zero{};
 	zero.zero();
 
-	// nothing should be found.
+	// nothing should be found: start = end = load
 	auto r = l.search_boundaries(zero, 0, n);
-	EXPECT_NE(r.second,  r.first);
-	EXPECT_EQ(1,  r.second);
+	EXPECT_EQ(r.second,  r.first);
+	EXPECT_EQ(l.load(),  r.second);
 }
 
 

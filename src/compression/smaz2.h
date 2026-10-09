@@ -186,71 +186,104 @@ alignas(256) constexpr char *words[256] = {
 
 	size_t len = _len;
 	size_t dstlen = _dstlen;
-	while (i < len) {
+
+	// NOTE: writes at most `dstlen` bytes. Before, a full output buffer made
+	// 	the word loop spin forever (`j` was only advanced on a write) and
+	// 	`if (dstlen--)` wrapped `dstlen` around: heap overflow.
+	auto emit = [&](const unsigned char ch) {
+		if (dstlen) {
+			*dst++ = ch;
+			dstlen--;
+		}
+	};
+
+	while ((i < len) && dstlen) {
 		if ((c[i] & 128) != 0) {
 			/* Emit bigram. */
 			unsigned char idx = c[i]&127;
-			if (dstlen && dstlen-- && i < len) *dst++ = bigrams[idx*2];
-			if (dstlen && dstlen-- && i < len) *dst++ = bigrams[idx*2+1];
+			emit(bigrams[idx*2]);
+			emit(bigrams[idx*2+1]);
 			i++;
 		} else if (c[i] > 0 && c[i] < 6) {
 			/* Emit verbatim sequence. */
 			unsigned char vlen = c[i++];
-			while(vlen-- && i < len)
-				if (dstlen && dstlen--) *dst++ = c[i++];
+			while(vlen-- && i < len) {
+				emit(c[i++]);
+			}
 		} else if (c[i] > 5 && c[i] < 9) {
 			/* Emit word. */
 			unsigned char escape = c[i];
-			if (dstlen && escape == 8 && dstlen--) *dst++ = ' ';
+			if (escape == 8) emit(' ');
 			i++; // Go to word ID byte.
 			if (i == len) return 0; // Malformed input.
-			unsigned char idx = c[i++], j = 0;
-			while(words[idx][j] != 0)
-				if (dstlen && dstlen--) *dst++ = words[idx][j++];
-			if (dstlen && escape == 7 && dstlen--) *dst++ = ' ';
+			unsigned char idx = c[i++];
+			for (unsigned j = 0; words[idx][j] != 0; j++) {
+				emit(words[idx][j]);
+			}
+			if (escape == 7) emit(' ');
 		} else {
 			/* Emit byte as it is. */
-			if (dstlen--) *dst++ = c[i++];
+			emit(c[i++]);
 		}
 	}
 	return orig_dstlen - dstlen;
 }
 
-/// \tparam Iterator
-/// \param first
-/// \param last
-/// \param out
-/// \return
-template<class Iterator>
+/// NOTE: the output range is bounded by `out_last`. Before, the overloads took
+/// 	`(first, last, out)` and used the input size as the output capacity,
+/// 	which silently truncated the output (decompression almost always,
+/// 	compression of incompressible data, which needs up to 6/5 of the input).
+/// \tparam InputIt contiguous iterator over bytes
+/// \tparam OutputIt contiguous iterator over bytes
+/// \param first start of the input
+/// \param last end of the input
+/// \param out start of the output
+/// \param out_last end of the output
+/// \return iterator past the last written byte
+template<class InputIt, class OutputIt>
 #if __cplusplus > 201709L
-	requires std::forward_iterator<Iterator>
+	requires std::contiguous_iterator<InputIt> &&
+	         std::contiguous_iterator<OutputIt> &&
+	         (sizeof(std::iter_value_t<InputIt>) == 1) &&
+	         (sizeof(std::iter_value_t<OutputIt>) == 1)
 #endif
-[[nodiscard]] constexpr Iterator smaz2_compress(Iterator &first,
-												Iterator &last,
-												Iterator &out) noexcept {
-	const size_t size = std::distance(first, last);
-	size_t outlen = size;
-	outlen = smaz2_compress(&(*out), outlen, &(*first), size);
-	std::advance(out, outlen);
-	return out;
+[[nodiscard]] constexpr OutputIt smaz2_compress(const InputIt first,
+                                                const InputIt last,
+                                                OutputIt out,
+                                                const OutputIt out_last) noexcept {
+	const size_t size = last - first;
+	const size_t outsize = out_last - out;
+	if ((size == 0) || (outsize == 0)) { return out; }
+
+	const size_t n = smaz2_compress((unsigned char *)&(*out), outsize,
+	                                (const unsigned char *)&(*first), size);
+	return out + n;
 }
 
-/// \tparam Iterator
-/// \param first
-/// \param last
-/// \param out
-/// \return
-template<class Iterator>
+/// \tparam InputIt contiguous iterator over bytes
+/// \tparam OutputIt contiguous iterator over bytes
+/// \param first start of the compressed input
+/// \param last end of the compressed input
+/// \param out start of the output
+/// \param out_last end of the output
+/// \return iterator past the last written byte
+template<class InputIt, class OutputIt>
 #if __cplusplus > 201709L
-	requires std::forward_iterator<Iterator>
+	requires std::contiguous_iterator<InputIt> &&
+	         std::contiguous_iterator<OutputIt> &&
+	         (sizeof(std::iter_value_t<InputIt>) == 1) &&
+	         (sizeof(std::iter_value_t<OutputIt>) == 1)
 #endif
-[[nodiscard]] constexpr Iterator smaz2_decompress(Iterator &first,
-												  Iterator &last,
-												  Iterator &out) noexcept {
-	const size_t size = std::distance(first, last);
-	size_t outlen = size;
-	outlen = smaz2_decompress(&(*out), outlen, &(*first), size);
-	std::advance(out, outlen);
-	return out;
+[[nodiscard]] constexpr OutputIt smaz2_decompress(const InputIt first,
+                                                  const InputIt last,
+                                                  OutputIt out,
+                                                  const OutputIt out_last) noexcept {
+	const size_t size = last - first;
+	const size_t outsize = out_last - out;
+	if ((size == 0) || (outsize == 0)) { return out; }
+
+	const size_t n = smaz2_decompress((unsigned char *)&(*out), outsize,
+	                                  (const unsigned char *)&(*first), size);
+	return out + n;
 }
 #endif//CRYPTANALYSISLIB_SMAZ2_H

@@ -19,13 +19,13 @@ TEST(Hash, simple) {
 
 }
 
-#ifdef USE_PCLMULDQD
+#if defined(USE_PCLMUL) && defined(USE_SSE41)
 TEST(crc32, sse42) {
 	constexpr static size_t size = 1024;
 	auto *data = (uint8_t *)malloc(size);
 	rng(data, size);
 
-	for (uint32_t i = 64; i < size; ++i) {
+	for (uint32_t i = 0; i < size; ++i) {
 		const uint32_t t1 = crc32(data, i, 0);
 		const uint32_t t2 = sse42_crc32(data, i, 0);
 		EXPECT_EQ(t1, t2);

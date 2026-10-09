@@ -14,6 +14,9 @@
 struct AlignmentConfig {
 	// alignment in bytes
 	constexpr static size_t alignment = 8;
-} configAlignment;
+};
+// NOTE: `inline`, so including this header in several translation units does
+// not define the object more than once
+inline constexpr AlignmentConfig configAlignment{};
 
 #endif

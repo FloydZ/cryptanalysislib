@@ -1,7 +1,9 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_INT2WEIGHT_H
 #define CRYPTANALYSISLIB_ALGORITHM_INT2WEIGHT_H
 
+#include <cassert>
 #include <cstdint>
+#include <vector>
 
 #include "math/math.h"
 #include "algorithm/bits.h"
@@ -111,6 +113,7 @@ void int2weights(std::vector<D> &weights,
 				const T in,
 				const uint32_t n,
 				const uint32_t wt) {
-	int2weights(weights.data(), in, n, wt);
+	assert(weights.size() >= wt);
+	int2weights(weights.data(), in, n, wt, wt);
 }
 #endif

@@ -20,10 +20,14 @@ TYPED_TEST_P(TestStack, simple) {
         EXPECT_EQ(ret, i + 1);
     }
     
+    EXPECT_EQ(d.capacity(), s);
+
+    // pop returns the number of entries before the removal
     for (TypeParam i = 0; i < s; i++) {
         TypeParam t;
         const size_t ret = d.pop(t);
-        EXPECT_EQ(ret, i + 1);
+        EXPECT_EQ(ret, s - i);
+        EXPECT_EQ(t, s - i - 1);
     }
 
 }

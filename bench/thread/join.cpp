@@ -294,5 +294,8 @@ int main(int argc, char** argv) {
 	if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;
 	::benchmark::RunSpecifiedBenchmarks();
 	::benchmark::Shutdown();
-	return value;
+	// NOTE: was `return value;`, i.e. the counter was the exit code, so the
+	// 	benchmark "failed" for most counts
+	::benchmark::DoNotOptimize(value);
+	return 0;
 }

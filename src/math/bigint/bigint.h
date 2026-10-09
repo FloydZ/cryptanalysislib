@@ -1,6 +1,7 @@
 #ifndef CRYPTANALYSISLIB_BIGINT_H
 #define CRYPTANALYSISLIB_BIGINT_H
 
+#include <type_traits>
 #include <array>
 #include <concepts>
 #include <cstddef>
@@ -237,11 +238,15 @@ public:
 	}
 
 
-	/// NOTE that's cheating
+	/// numeric equality; limbs missing in the shorter number count as zero
 	template<size_t M, typename TT>
 	bool operator==(big_int<M, TT> const &tc) const {
-		for (size_t i = 0; i < std::min(N, M); i++) {
-			if (this->operator[](i) != tc[i]) {
+		using C = std::common_type_t<T, TT>;
+		constexpr size_t L = N > M ? N : M;
+		for (size_t i = 0; i < L; i++) {
+			const C a = (i < N) ? (C)this->operator[](i) : C(0);
+			const C b = (i < M) ? (C)tc[i] : C(0);
+			if (a != b) {
 				return false;
 			}
 		}
@@ -256,9 +261,20 @@ public:
 	/// \return
 	template<size_t M, typename TT>
 	bool operator<(big_int<M, TT> const &tc) const {
-		// TODO maybe add to FqVector Datatype and add iterators
-		return std::lexicographical_compare(this->begin(), this->end(),
-		                                    tc.begin(), tc.end());
+		// NOTE: numeric comparison, starting at the most significant limb
+		// (limb 0 is the least significant one; a lexicographical compare
+		// starting at limb 0 is wrong)
+		using C = std::common_type_t<T, TT>;
+		constexpr size_t L = N > M ? N : M;
+		for (size_t i = L; i-- > 0; ) {
+			const C a = (i < N) ? (C)this->operator[](i) : C(0);
+			const C b = (i < M) ? (C)tc[i] : C(0);
+			if (a != b) {
+				return a < b;
+			}
+		}
+
+		return false;
 	}
 
 	///

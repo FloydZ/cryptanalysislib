@@ -256,7 +256,7 @@ public:
 							  const uint32_t k_upper,
 							  const uint32_t norm = -1) noexcept {
 		Label::sub(e3.label, e1.label, e2.label, k_lower, k_upper);
-		return Value::add(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
+		return Value::sub(e3.value, e1.value, e2.value, 0, ValueLENGTH, norm);
 	}
 
 	/// Useful if you do not want to filter in your tree and
@@ -308,7 +308,7 @@ public:
 							  Element_T const &e1,
 							  Element_T const &e2) noexcept {
 		Label::template sub<k_lower, k_upper>(e3.label, e1.label, e2.label);
-		return Value::template add<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
+		return Value::template sub<0, ValueLENGTH, norm>(e3.value, e1.value, e2.value);
 	}
 
 

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <emmintrin.h>
-#include <immintrin.h>
-#include <popcntintrin.h>
 #include <sys/types.h>
 
 #include <algorithm>
@@ -86,6 +83,22 @@ struct DataElement<K> {
 
 
 ///
+/// source: https://github.com/jonicho/simd-radix-sort/blob/main/radixSort.hpp
+/// \return true if elements with the bit `bitNo` set belong to the right side
+template<typename K, bool Up, bool IsHighestBit, bool IsRightSide>
+constexpr bool bitDirUp() noexcept {
+	if constexpr (std::is_integral_v<K>) {
+		if constexpr (std::is_unsigned_v<K>) {
+			return Up;
+		} else {
+			return IsHighestBit ? !Up : Up;
+		}
+	} else if constexpr (std::is_floating_point_v<K>) {
+		return IsHighestBit ? !Up : IsRightSide;
+	}
+	return Up;
+}
+
 struct BitSorterSIMD {
     // TODO: use SIMD wrapper
     template <typename K>

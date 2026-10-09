@@ -15,6 +15,7 @@ TEST(HashMap2, simple) {
 	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static Simple2HashMapConfig s = Simple2HashMapConfig{1u << l};
 	using HM = Simple2HashMap<K, V, s, Hash<K, 0, l, 2>>;
+	static_assert(HashMapAble<HM>);
 
 	HM hm = HM{};
 
@@ -42,6 +43,7 @@ TEST(HashMap2, multithreaded) {
 	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static Simple2HashMapConfig s = Simple2HashMapConfig{1u << l, threads};
 	using HM = Simple2HashMap<K, V, s, Hash<K, 0, l, 2>>;
+	static_assert(HashMapAble<HM>);
 
 	HM hm = HM{};
 	hm.print();

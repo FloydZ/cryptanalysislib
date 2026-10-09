@@ -96,7 +96,7 @@ static void bench_sortingnetwork_small_avx2(benchmark::State& state) {
 		data2[i] = rng();
 	}
 	for (auto _ : state) {
-		sortingnetwork_small_uint32_t(data2, state.range(0));
+		benchmark::DoNotOptimize(sortingnetwork_small_uint32_t(data2, state.range(0)));
 		benchmark::ClobberMemory();
 	}
 }
@@ -282,7 +282,7 @@ static void bench_sortingnetwort_small_avx512(benchmark::State& state) {
 		data2[i] = rng();
 	}
 	for (auto _ : state) {
-		avx512_sortingnetwork_small_uint32_t(data2, state.range(0));
+		benchmark::DoNotOptimize(avx512_sortingnetwork_small_uint32_t(data2, state.range(0)));
 		benchmark::ClobberMemory();
 	}
 }

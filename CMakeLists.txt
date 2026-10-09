@@ -96,10 +96,13 @@ if(${USE_TRACY})
 	FetchContent_Declare(
 		tracy
 		GIT_REPOSITORY 	https://github.com/wolfpld/tracy
-		GIT_TAG 		master
+		# keep in sync with the tracy-capture version in .github/workflows/ubuntu_x86_tracy.yml
+		GIT_TAG 		v0.14.1
 		GIT_SHALLOW 	TRUE
 		GIT_PROGRESS 	TRUE
 	)
+	# tracy disables the client by default, which turns all its macros into no-ops
+	set(TRACY_ENABLE ON CACHE BOOL "Enable profiling" FORCE)
 	FetchContent_MakeAvailable(tracy)
 endif ()
 
@@ -107,7 +110,7 @@ endif ()
 FetchContent_Declare(
 		reflect-cpp
 		GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
-		GIT_TAG        v0.19.0
+		GIT_TAG        v0.25.0
 )
 FetchContent_MakeAvailable(reflect-cpp)
 include_directories(${reflect-cpp_SOURCE_DIR}/include)

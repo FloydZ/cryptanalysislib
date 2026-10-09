@@ -1,6 +1,19 @@
 #ifndef CRYPTANALYSISLIB_HELPER_H
 #define CRYPTANALYSISLIB_HELPER_H
 
+// NOTE: needed to rename `PAGE_SIZE` to `CUSTOM_PAGE_SIZE`, as apple in
+// its infinite wisdom have a global variable called `PAGE_SIZE`.
+#ifdef FORCE_HPAGE
+// normal page, 4KiB, buts its forced to be an huge page
+#define CUSTOM_PAGE_SIZE (1 << 21)
+#else
+// normal page, 4KiB
+#define CUSTOM_PAGE_SIZE (1 << 12)
+#endif
+
+// huge page, 2MiB
+#define HPAGE_SIZE (1 << 21)
+
 // Global Includes
 #include <cassert>
 #include <cstdint>// needed for uint8_t and so on
@@ -152,7 +165,9 @@ static void translate_level(uint32_t *lower,
 
 	// we __MUST__ check this after the 'if' clause,
 	// because otherwise this would catch the -1 test case
-	assert(level <= level_translation_array.size() - 1u);
+	// NOTE: `level + 1` is read below. Was `level <= size - 1`, which
+	// 	allowed reading one past the end.
+	assert(level + 1u < level_translation_array.size());
 
 	*lower = level_translation_array[level];
 	*upper = level_translation_array[level + 1u];
