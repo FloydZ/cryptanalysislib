@@ -2794,10 +2794,10 @@ struct Xint8x32_t {
 	/// \param in
 	static inline void aligned_store(limb_type *ptr,
                                      const S in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.v64[i];
-		}
+		// NOTE: byte copy instead of `uint64_t` stores: `ptr` holds `limb_type`
+		// 	limbs, and gcc (strict aliasing) reordered later `limb_type`
+		// 	reads before the `uint64_t` stores
+		__builtin_memcpy(ptr, &in, sizeof(S));
 	}
 
 	/// \param ptr
@@ -3332,11 +3332,10 @@ struct Xint16x16_t {
 	/// \param in
 	static inline void aligned_store(limb_type *ptr, 
                                      const S in) noexcept {
-		// NOTE: `d` holds 16 bit limbs, `v64` the 64 bit chunks
-		auto *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.v64[i];
-		}
+		// NOTE: byte copy instead of `uint64_t` stores: `ptr` holds `limb_type`
+		// 	limbs, and gcc (strict aliasing) reordered later `limb_type`
+		// 	reads before the `uint64_t` stores
+		__builtin_memcpy(ptr, &in, sizeof(S));
 	}
 
 	/// \param ptr
@@ -3866,10 +3865,10 @@ struct Xint32x8_t {
 	/// \param in
 	constexpr static inline void aligned_store(limb_type *ptr,
                                                const S in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.v64[i];
-		}
+		// NOTE: byte copy instead of `uint64_t` stores: `ptr` holds `limb_type`
+		// 	limbs, and gcc (strict aliasing) reordered later `limb_type`
+		// 	reads before the `uint64_t` stores
+		__builtin_memcpy(ptr, &in, sizeof(S));
 	}
 
 	///
@@ -4482,10 +4481,10 @@ struct Xint64x4_t {
 	/// \param in
 	constexpr static inline void aligned_store(limb_type *ptr,
                                                const S in) noexcept {
-		uint64_t *ptr64 = (uint64_t *) ptr;
-		for (uint32_t i = 0; i < 4; i++) {
-			ptr64[i] = in.d[i];
-		}
+		// NOTE: byte copy instead of `uint64_t` stores: `ptr` holds `limb_type`
+		// 	limbs, and gcc (strict aliasing) reordered later `limb_type`
+		// 	reads before the `uint64_t` stores
+		__builtin_memcpy(ptr, &in, sizeof(S));
 	}
 
 	/// \param ptr

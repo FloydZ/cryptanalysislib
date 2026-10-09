@@ -418,7 +418,9 @@ void matrix_transpose_u8_32x32(uint8_t* dst_origin,
 }
 #endif // USE_AVX2
 
-#ifdef USE_NEON 
+// NOTE: unfinished port: `vec256_t` is not defined anywhere, and nothing calls
+// 	this function. not correct right now (was: `#ifdef USE_NEON`)
+#if 0
 
 /// Transposes a 32x32 matrix of bytes using ARM NEON instructions
 ///
