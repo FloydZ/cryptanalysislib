@@ -329,7 +329,7 @@ namespace cryptanalysislib {
 		    	out.v128 = tmp;
 		    	return out;
 		    } else {
-		    	auto *ptr128 = (__m128i *) ptr;
+		    	__m128i *ptr128 = (__m128i *) ptr;
 		    	S out;
 		    	out.v128 = *ptr128;
 		    	return out;
@@ -373,7 +373,7 @@ namespace cryptanalysislib {
 	    /// \param in[in]: vector element
 		constexpr static inline void aligned_store(void *ptr,
                                                    const S in) noexcept {
-			auto *ptr128 = (__m128i *) ptr;
+			__m128i *ptr128 = (__m128i *) ptr;
 			*ptr128 = in.v128;
 		}
 
@@ -381,7 +381,7 @@ namespace cryptanalysislib {
 	    /// \param in[in]: vector element
 		constexpr static inline void unaligned_store(void *ptr,
                                                      const S in) noexcept {
-			auto *ptr128 = (__m128i_u *) ptr;
+			__m128i_u *ptr128 = (__m128i_u *) ptr;
 			cryptanalysislib::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 
@@ -868,7 +868,7 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
-			auto *ptr128 = (__m128i *) ptr;
+			__m128i *ptr128 = (__m128i *) ptr;
 			S out;
 			out.v128 = *ptr128;
 			return out;
@@ -902,7 +902,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void aligned_store(limb_type *ptr,
                                                    const S in) noexcept {
-			auto *ptr128 = (__m128i *) ptr;
+			__m128i *ptr128 = (__m128i *) ptr;
 			*ptr128 = in.v128;
 		}
 
@@ -910,7 +910,7 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \param in
 		constexpr static inline void unaligned_store(void *ptr, const S in) noexcept {
-			auto *ptr128 = (__m128i_u *) ptr;
+			__m128i_u *ptr128 = (__m128i_u *) ptr;
 			cryptanalysislib::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 	    
@@ -1330,7 +1330,7 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline S aligned_load(const limb_type *ptr) noexcept {
-			auto *ptr128 = (__m128i *) ptr;
+			__m128i *ptr128 = (__m128i *) ptr;
 			S out;
 			out.v128 = *ptr128;
 			return out;
@@ -1364,7 +1364,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void aligned_store(limb_type *ptr,
                                                    const S in) noexcept {
-			auto *ptr128 = (__m128i *) ptr;
+			__m128i *ptr128 = (__m128i *) ptr;
 			*ptr128 = in.v128;
 		}
 
@@ -1372,7 +1372,7 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \param in
 		constexpr static inline void unaligned_store(void *ptr, const S in) noexcept {
-			auto *ptr128 = (__m128i_u *) ptr;
+			__m128i_u *ptr128 = (__m128i_u *) ptr;
 			cryptanalysislib::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 	    
@@ -1779,7 +1779,7 @@ namespace cryptanalysislib {
 		/// \param ptr
 		/// \return
 		[[nodiscard]] constexpr static inline _Xint64x2_t aligned_load(const limb_type *ptr) noexcept {
-			auto *ptr128 = (__m128i *) ptr;
+			__m128i *ptr128 = (__m128i *) ptr;
 			_Xint64x2_t out;
 			out.v128 = *ptr128;
 			return out;
@@ -1813,7 +1813,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void aligned_store(limb_type *ptr,
                                                    const S in) noexcept {
-			auto *ptr128 = (__m128i *) ptr;
+			__m128i *ptr128 = (__m128i *) ptr;
 			*ptr128 = in.v128;
 		}
 
@@ -1822,7 +1822,7 @@ namespace cryptanalysislib {
 		/// \param in
 		constexpr static inline void unaligned_store(limb_type *ptr,
                                                      const S in) noexcept {
-			auto *ptr128 = (__m128i_u *) ptr;
+			__m128i_u *ptr128 = (__m128i_u *) ptr;
 			cryptanalysislib::internal::unaligned_store_wrapper_128(ptr128, in.v128);
 		}
 
@@ -2278,7 +2278,7 @@ struct Xint8x32_t {
 			out.v256 = tmp;
 			return out;
 		} else {
-			auto *ptr256 = (__m256i *) ptr;
+			__m256i *ptr256 = (__m256i *) ptr;
 			S out;
 			out.v256 = *ptr256;
 			return out;
@@ -2320,7 +2320,7 @@ struct Xint8x32_t {
 	/// \param in[in]: vector element
 	static inline void aligned_store(limb_type *ptr,
                                      const S in) noexcept {
-		auto *ptr256 = (__m256i *) ptr;
+		__m256i *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
 
@@ -2328,7 +2328,7 @@ struct Xint8x32_t {
 	/// \param in[in]: vector element
 	static inline void unaligned_store(limb_type *ptr, 
                                        const S in) noexcept {
-		auto *ptr256 = (__m256i_u *) ptr;
+		__m256i_u *ptr256 = (__m256i_u *) ptr;
 		cryptanalysislib::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
@@ -2906,7 +2906,7 @@ struct Xint16x16_t {
 			out.v256 = tmp;
 			return out;
 		} else {
-			auto *ptr256 = (__m256i *) ptr;
+			__m256i *ptr256 = (__m256i *) ptr;
 			S out;
 			out.v256 = *ptr256;
 			return out;
@@ -2947,7 +2947,7 @@ struct Xint16x16_t {
 	/// \param in
 	static inline void aligned_store(limb_type *ptr,
                                      const S in) noexcept {
-		auto *ptr256 = (__m256i *) ptr;
+		__m256i *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
 
@@ -2955,7 +2955,7 @@ struct Xint16x16_t {
 	/// \param in
 	static inline void unaligned_store(limb_type *ptr,
                                        const S in) noexcept {
-		auto *ptr256 = (__m256i_u *) ptr;
+		__m256i_u *ptr256 = (__m256i_u *) ptr;
 		cryptanalysislib::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
@@ -3363,8 +3363,11 @@ struct Xint16x16_t {
 #ifdef __clang__
 		c.v256 = (__m256i)__builtin_elementwise_min((V)a.v256, (V)b.v256);
 #else
-        // TODO
-        c.v256 = _mm256_min_epi32(a.v256, b.v256);
+		if constexpr (__unsigned) {
+			c.v256 = _mm256_min_epu16(a.v256, b.v256);
+		} else {
+			c.v256 = _mm256_min_epi16(a.v256, b.v256);
+		}
 #endif
         return c;
     }
@@ -3375,7 +3378,15 @@ struct Xint16x16_t {
 	[[nodiscard]] constexpr static inline S max(const S a,
                                                 const S b) noexcept {
         S c;
+#ifdef __clang__
 		c.v256 = (__m256i)__builtin_elementwise_max((V)a.v256, (V)b.v256);
+#else
+		if constexpr (__unsigned) {
+			c.v256 = _mm256_max_epu16(a.v256, b.v256);
+		} else {
+			c.v256 = _mm256_max_epi16(a.v256, b.v256);
+		}
+#endif
         return c;
     }
 };
@@ -3522,7 +3533,7 @@ struct Xint32x8_t {
 			out.v256 = tmp;
 			return out;
 		} else {
-			auto *ptr256 = (__m256i *) ptr;
+			__m256i *ptr256 = (__m256i *) ptr;
 			S out;
 			out.v256 = *ptr256;
 			return out;
@@ -3562,7 +3573,7 @@ struct Xint32x8_t {
 	/// \param in
 	constexpr static inline void aligned_store(limb_type *ptr,
                                                const S in) noexcept {
-		auto *ptr256 = (__m256i *) ptr;
+		__m256i *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
 
@@ -3570,7 +3581,7 @@ struct Xint32x8_t {
 	/// \param in
 	constexpr static inline void unaligned_store(limb_type *ptr,
                                                  const S in) noexcept {
-		auto *ptr256 = (__m256i_u *) ptr;
+		__m256i_u *ptr256 = (__m256i_u *) ptr;
 		cryptanalysislib::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 
@@ -4183,7 +4194,7 @@ struct Xint64x4_t {
 			out.v256 = tmp;
 			return out;
 		} else {
-			auto *ptr256 = (__m256i *) ptr;
+			__m256i *ptr256 = (__m256i *) ptr;
 			S out;
 			out.v256 = *ptr256;
 			return out;
@@ -4223,7 +4234,7 @@ struct Xint64x4_t {
 	/// \param in
 	static inline void aligned_store(limb_type *ptr,
                                      const S in) noexcept {
-		auto *ptr256 = (__m256i *) ptr;
+		__m256i *ptr256 = (__m256i *) ptr;
 		*ptr256 = in.v256;
 	}
 
@@ -4231,7 +4242,7 @@ struct Xint64x4_t {
 	/// \param in
 	static inline void unaligned_store(limb_type *ptr,
                                        const S in) noexcept {
-		auto *ptr256 = (__m256i_u *) ptr;
+		__m256i_u *ptr256 = (__m256i_u *) ptr;
 		cryptanalysislib::internal::unaligned_store_wrapper(ptr256, in.v256);
 	}
 

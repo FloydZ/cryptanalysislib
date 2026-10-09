@@ -391,7 +391,7 @@ struct Xint8x64_t {
 	/// \param in
 	constexpr static inline void aligned_store(limb_type *ptr,
                                                const S in) noexcept {
-		auto *ptr512 = (__m512i *) ptr;
+		__m512i *ptr512 = (__m512i *) ptr;
 		*ptr512 = in.v512;
 	}
 
@@ -400,7 +400,7 @@ struct Xint8x64_t {
 	/// \param in
 	constexpr static inline void unaligned_store(limb_type *ptr,
                                                  const S in) noexcept {
-		auto *ptr512 = (__m512i_u *) ptr;
+		__m512i_u *ptr512 = (__m512i_u *) ptr;
 		*(__m512i_u *) ptr512 = (__m512i_u) in.v512;
 	}
 
@@ -1329,7 +1329,7 @@ struct Xint16x32_t {
 	/// \param in
 	constexpr static inline void aligned_store(limb_type *ptr,
                                                const Xint16x32_t in) noexcept {
-		auto *ptr512 = (__m512i *) ptr;
+		__m512i *ptr512 = (__m512i *) ptr;
 		*ptr512 = in.v512;
 	}
 
@@ -1337,7 +1337,7 @@ struct Xint16x32_t {
 	/// \param in
 	constexpr static inline void unaligned_store(limb_type *ptr,
                                                  const Xint16x32_t in) noexcept {
-		auto *ptr512 = (__m512i_u *) ptr;
+		__m512i_u *ptr512 = (__m512i_u *) ptr;
 		*(__m512i_u *) ptr512 = (__m512i_u) in.v512;
 	}
 
@@ -2013,7 +2013,7 @@ struct Xint32x16_t {
 	/// \param ptr
 	/// \param in
 	constexpr static inline void aligned_store(void *ptr, const Xint32x16_t in) noexcept {
-		auto *ptr512 = (__m512i *) ptr;
+		__m512i *ptr512 = (__m512i *) ptr;
 		*ptr512 = in.v512;
 	}
 
@@ -2021,7 +2021,7 @@ struct Xint32x16_t {
 	/// \param ptr
 	/// \param in
 	constexpr static inline void unaligned_store(void *ptr, const Xint32x16_t in) noexcept {
-		auto *ptr512 = (__m512i_u *) ptr;
+		__m512i_u *ptr512 = (__m512i_u *) ptr;
 		*(__m512i_u *) ptr512 = (__m512i_u) in.v512;
 	}
 
@@ -2704,7 +2704,7 @@ struct Xint64x8_t {
 	/// \param in
 	constexpr static inline void aligned_store(limb_type *ptr,
                                                const Xint64x8_t in) noexcept {
-		auto *ptr512 = (__m512i *) ptr;
+		__m512i *ptr512 = (__m512i *) ptr;
 		*ptr512 = in.v512;
 	}
 
@@ -2713,7 +2713,7 @@ struct Xint64x8_t {
 	/// \param in
 	constexpr static inline void unaligned_store(limb_type *ptr,
                                                  const Xint64x8_t in) noexcept {
-		auto *ptr512 = (__m512i_u *) ptr;
+		__m512i_u *ptr512 = (__m512i_u *) ptr;
 		*(__m512i_u *) ptr512 = (__m512i_u) in.v512;
 	}
 

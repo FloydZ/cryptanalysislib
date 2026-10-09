@@ -249,7 +249,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				ret.v512[i / nr_limbs_in_simd512] = simd512_type::aligned_load(ptr + i);
+				ret.v512[i / nr_limbs_in_simd512] = simd512_type::aligned_load((const typename simd512_type::limb_type *)(ptr + i));
 			}
 
 			if constexpr (simd512_fits) {
@@ -259,7 +259,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				ret.v256[i / nr_limbs_in_simd256] = simd256_type::aligned_load(ptr + i);
+				ret.v256[i / nr_limbs_in_simd256] = simd256_type::aligned_load((const typename simd256_type::limb_type *)(ptr + i));
 			}
 
 			if constexpr (simd256_fits) {
@@ -289,7 +289,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				ret.v512[i / nr_limbs_in_simd512] = simd512_type::unaligned_load(ptr + i);
+				ret.v512[i / nr_limbs_in_simd512] = simd512_type::unaligned_load((const typename simd512_type::limb_type *)(ptr + i));
 			}
 
 			if constexpr (simd512_fits) {
@@ -299,7 +299,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				ret.v256[i / nr_limbs_in_simd256] = simd256_type::unaligned_load(ptr + i);
+				ret.v256[i / nr_limbs_in_simd256] = simd256_type::unaligned_load((const typename simd256_type::limb_type *)(ptr + i));
 			}
 
 			if constexpr (simd256_fits) {
@@ -335,7 +335,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				simd512_type::aligned_store(ptr + i, in.v512[i / nr_limbs_in_simd512]);
+				simd512_type::aligned_store((typename simd512_type::limb_type *)(ptr + i), in.v512[i / nr_limbs_in_simd512]);
 			}
 
 			if constexpr (simd512_fits) {
@@ -345,7 +345,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				simd256_type::aligned_store(ptr + i, in.v256[i / nr_limbs_in_simd256]);
+				simd256_type::aligned_store((typename simd256_type::limb_type *)(ptr + i), in.v256[i / nr_limbs_in_simd256]);
 			}
 
 			if constexpr (simd256_fits) {
@@ -366,7 +366,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				simd512_type::unaligned_store((limb_type *)(ptr + i), in.v512[i / nr_limbs_in_simd512]);
+				simd512_type::unaligned_store((typename simd512_type::limb_type *)(ptr + i), in.v512[i / nr_limbs_in_simd512]);
 			}
 
 			if constexpr (simd512_fits) {
@@ -376,7 +376,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				simd256_type::unaligned_store((limb_type *)(ptr + i), in.v256[i / nr_limbs_in_simd256]);
+				simd256_type::unaligned_store((typename simd256_type::limb_type *)(ptr + i), in.v256[i / nr_limbs_in_simd256]);
 			}
 
 			if constexpr (simd256_fits) {

@@ -10,7 +10,8 @@ static long long cpucycles(void) noexcept {
 	                     : "=r"(result));
 	return result;
 }
-#elif defined(USE_AVX2)
+#elif defined(USE_AVX2) || defined(__x86_64__)
+// NOTE: `rdtsc` is available on every x86_64 cpu, not only with AVX2
 static long long cpucycles(void) noexcept {
 	unsigned long long result;
 	asm volatile(".byte 15;.byte 49;shlq $32,%%rdx;orq %%rdx,%%rax"
@@ -18,10 +19,13 @@ static long long cpucycles(void) noexcept {
 	return result;
 }
 #else
+#include <chrono>
 
-// backup definition. If everything fails.
-long long cpucycles(void) {
-	return -1;
+// backup definition. If everything fails: nanoseconds of a monotonic
+// clock instead of cycles. (A constant -1 made every measurement 0.)
+static long long cpucycles(void) noexcept {
+	return std::chrono::duration_cast<std::chrono::nanoseconds>(
+	        std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 #endif
 

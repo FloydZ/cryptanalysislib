@@ -428,7 +428,14 @@ namespace cryptanalysislib {
 		/* Flags to be passed to clone system call.
   		This flags variable is picked up from pthread source code - with CLONE_PTRACE removed.
 		*/
-		int clone_flags = (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_SYSVSEM);
+		/// NOTE: `CLONE_PARENT_SETTID` and `CLONE_CHILD_CLEARTID` need the `ptid`
+		/// and `ctid` arguments of `clone()`. They were not passed, so the kernel
+		/// used whatever was left in the registers/stack: on thread exit it wrote
+		/// a 0 to (and futex-woke) a random address, e.g. into the main stack.
+		/// `ptid` now points into the TCB, so `tid` is set before the child runs.
+		/// `CLONE_CHILD_CLEARTID` is dropped: `mythread_join` still searches the
+		/// TCB by its `tid` after the thread exited.
+		int clone_flags = (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_PARENT_SETTID | CLONE_SYSVSEM);
 
 		if (mythread_q_head == nullptr) {
 			/* This is the very first mythread_create call. Set up the Q first with tcb nodes for main thread. */
@@ -490,7 +497,7 @@ namespace cryptanalysislib {
 
 		/* Call clone with pointer to wrapper function. TCB will be passed as arg to wrapper function. */
 		if ((tid = clone(mythread_wrapper, (char *) child_stack, clone_flags,
-		                 new_node)) == -1) {
+		                 new_node, &new_node->tid, nullptr, nullptr)) == -1) {
 			printf("clone failed! \n");
 			printf("ERROR: %s \n", strerror(errno));
 			return (-errno);

@@ -13,7 +13,8 @@
 }
 
 // the apple compiler cannot handle to much constexpr magic
-#if !defined(__APPLE__)
+// NOTE: same on ARM: the NEON `_Xint8x16_t` calls non-constexpr intrinsics
+#if !defined(__APPLE__) && !defined(USE_ARM)
 TEST(T, set1) {
 	constexpr S t1 = S::set1(0);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
