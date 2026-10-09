@@ -627,6 +627,7 @@ static inline __m256i sortingnetwork_sort_u16x16(__m256i a) {
 
 	return a;
 #undef CMPXCH_SHUFFLE
+#undef CMPXCH_CROSS128_SHUFFLE
 }
 
 /// source: https://bekbolatov.github.io/sorting/

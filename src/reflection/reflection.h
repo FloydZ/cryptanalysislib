@@ -304,7 +304,10 @@ namespace reflect::inline v1_1_1 {
 
 #if defined(__clang__) and (__clang_major__ > 15)
 #pragma clang diagnostic push
+// NOTE: clang 21 removed this warning group, and ignoring it warns
+#if __has_warning("-Wenum-constexpr-conversion")
 #pragma clang diagnostic ignored "-Wenum-constexpr-conversion"
+#endif
 #endif
 		template<class E, auto Min, auto Max> requires (std::is_enum_v<E> and Max > Min)
 		constexpr auto enum_cases = []<auto... Ns>(std::index_sequence<Ns...>) {

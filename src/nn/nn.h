@@ -2418,7 +2418,7 @@ public:
 				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr2);
-					const uint32_t tmp = compare_256_64(li[1 * u + mi], ri);
+					const uint32_t tmp = compare_256_64(li[1 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
@@ -2430,7 +2430,7 @@ public:
 				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr3);
-					const uint32_t tmp = compare_256_64(li[2 * u + mi], ri);
+					const uint32_t tmp = compare_256_64(li[2 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
@@ -2443,19 +2443,26 @@ public:
 				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr4);
-					const uint32_t tmp = compare_256_64(li[3 * u + mi], ri);
+					const uint32_t tmp = compare_256_64(li[3 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
 				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
 				while (m1s_tmp) {
 					const uint32_t m1s_ctz = __builtin_ctz(m1s_tmp);
-					const uint32_t bla = __builtin_ctz(m1s[m1s_ctz]);
-					const size_t iprime = i + m1s_ctz;
-					const size_t jprime = j * 4 + bla;
+					// NOTE: check every right element which passed all limbs,
+					// 	not only the first one.
+					uint32_t lanes = m1s[m1s_ctz] ^ m1s_mask;
+					while (lanes) {
+						const uint32_t bla = __builtin_ctz(lanes);
+						const size_t iprime = i + m1s_ctz;
+						const size_t jprime = j * 4 + bla;
 
-					if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
-						found_solution(iprime, jprime);
+						if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
+							found_solution(iprime, jprime);
+						}
+
+						lanes &= lanes - 1u;
 					}
 
 					m1s_tmp ^= 1u << m1s_ctz;
@@ -2472,7 +2479,6 @@ public:
 	///		the left list.
 	///	NOTE: compared to `bruteforce_avx2_256_ux4` this function compares on 32 bit
 	/// NOTE: only made for extremely low weight.
-	/// NOTE: can only find one solution at the time.
 	/// \param e1 end index of list 1
 	/// \param e2 end index list 2
 	template<uint32_t u>
@@ -2544,7 +2550,7 @@ public:
 #pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
-					const uint32_t tmp = compare_256_32(li[1 * u + mi], ri);
+					const uint32_t tmp = compare_256_32(li[1 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
@@ -2558,7 +2564,7 @@ public:
 #pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
-					const uint32_t tmp = compare_256_32(li[2 * u + mi], ri);
+					const uint32_t tmp = compare_256_32(li[2 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
@@ -2572,7 +2578,7 @@ public:
 #pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
-					const uint32_t tmp = compare_256_32(li[3 * u + mi], ri);
+					const uint32_t tmp = compare_256_32(li[3 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
@@ -2586,7 +2592,7 @@ public:
 #pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
-					const uint32_t tmp = compare_256_32(li[4 * u + mi], ri);
+					const uint32_t tmp = compare_256_32(li[4 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
@@ -2600,7 +2606,7 @@ public:
 				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
-					const uint32_t tmp = compare_256_32(li[5 * u + mi], ri);
+					const uint32_t tmp = compare_256_32(li[5 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
@@ -2614,7 +2620,7 @@ public:
 				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
-					const uint32_t tmp = compare_256_32(li[6 * u + mi], ri);
+					const uint32_t tmp = compare_256_32(li[6 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
@@ -2628,21 +2634,28 @@ public:
 				#pragma unroll
 				for (uint32_t mi = 0; mi < u; mi++) {
 					const uint32x8_t ri = uint32x8_t::template gather<4>((const int *) ptr_r, loadr);
-					const uint32_t tmp = compare_256_32(li[7 * u + mi], ri);
+					const uint32_t tmp = compare_256_32(li[7 * u + mi], ri) & m1s[mi];
 					m1s[mi] = tmp ? tmp ^ m1s_mask : 0;
 				}
 
 				m1s_tmp = uint32x8_t::move(uint32x8_t::load(m1s));
-				if (m1s_tmp) {
-					assert(popcount::template popcount<uint32_t>(m1s_tmp) == 1);
+				while (m1s_tmp) {
 					const uint32_t m1s_ctz = __builtin_ctz(m1s_tmp);
-					const uint32_t bla = __builtin_ctz(m1s[m1s_ctz]);
-					const size_t iprime = i + m1s_ctz;
-					const size_t jprime = j * 8 + bla;
-					//std::cout << L1[iprime][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
-					if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
-						found_solution(iprime, jprime);
+					// NOTE: check every right element which passed all limbs,
+					// 	not only the first one.
+					uint32_t lanes = m1s[m1s_ctz] ^ m1s_mask;
+					while (lanes) {
+						const uint32_t bla = __builtin_ctz(lanes);
+						const size_t iprime = i + m1s_ctz;
+						const size_t jprime = j * 8 + bla;
+						if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
+							found_solution(iprime, jprime);
+						}
+
+						lanes &= lanes - 1u;
 					}
+
+					m1s_tmp ^= 1u << m1s_ctz;
 				}
 			}
 		}

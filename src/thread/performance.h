@@ -1,5 +1,7 @@
 #pragma once 
 
+#include <cstddef>
+#include <string>
 #include <thread>
 
 // NOTE only available on unix
@@ -208,7 +210,11 @@ namespace cryptanalysislib {
 			bzero((char *) &serv_addr, sizeof(serv_addr));
 			serv_addr.sun_family = AF_UNIX;
 			strcpy(serv_addr.sun_path, socket_path);
-			const int servlen = strlen(serv_addr.sun_path) + sizeof(serv_addr.sun_family);
+			// NOTE: `sun_path` does not start at `sizeof(sun_family)` on BSD/macOS
+			// 	(`sun_len` precedes the 1 byte `sun_family`). Before, the address
+			// 	was one byte too short there, i.e. the last character of the
+			// 	path was cut off, and the server's `unlink` missed the stale file.
+			const socklen_t servlen = offsetof(struct sockaddr_un, sun_path) + strlen(serv_addr.sun_path);
 
 		    const int one = 1;
 		    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int)) < 0) {
@@ -249,16 +255,33 @@ namespace cryptanalysislib {
 
 					// TODO with fork etc we can handle multiple streams, but for now
 					// its fine
+					// NOTE: a stream socket has no message boundaries: several
+					// 	messages can arrive in one `read`, or one message in
+					// 	several. Each message ends with '\n' (see `send`). Before,
+					// 	every `read` was parsed as one document, and two merged
+					// 	messages aborted via `.value()`.
+					std::string pending;
 					while (true) {
-						memset(buf, (char) 0, buffer_size);
-						const uint32_t n = read(newsockfd, buf, buffer_size);
-						if (n == 0) { break; }
-						assert(n < buffer_size);
-						std::cout << "recv: " << std::endl;
-						std::cout << buf << std::endl;
+						const ssize_t n = read(newsockfd, buf, buffer_size);
+						if (n <= 0) { break; }
+						pending.append(buf, n);
 
-						schedulerPerformance = rfl::json::read<SchedulerPerformance>(buf).value();
-						// TODO nice printing
+						size_t pos;
+						while ((pos = pending.find('\n')) != std::string::npos) {
+							const std::string msg = pending.substr(0, pos);
+							pending.erase(0, pos + 1);
+							std::cout << "recv: " << std::endl;
+							std::cout << msg << std::endl;
+
+							const auto res = rfl::json::read<SchedulerPerformance>(msg);
+							if (!res) {
+								std::cout << "ERROR: parsing: " << res.error().what() << std::endl;
+								continue;
+							}
+
+							schedulerPerformance = res.value();
+							// TODO nice printing
+						}
 					}
 
 					std::cout << "server closing" << std::endl;
@@ -317,13 +340,20 @@ namespace cryptanalysislib {
 
 		/// write the gathered benchmark information.
 		void send() noexcept {
-			const auto data = rfl::json::write(schedulerPerformance);
+			const std::string data = rfl::json::write(schedulerPerformance);
 			std::cout << "sending data:" << std::endl;
 			std::cout << data << std::endl;
 
-			const int k = write(sockfd, data.data(), data.size());
-			if (k < 0) {
-				std::cout << "Error writing" << std::endl;
+			// NOTE: '\n' terminates a message, the JSON itself contains none
+			const std::string msg = data + '\n';
+			size_t written = 0;
+			while (written < msg.size()) {
+				const ssize_t k = write(sockfd, msg.data() + written, msg.size() - written);
+				if (k < 0) {
+					std::cout << "Error writing" << std::endl;
+					return;
+				}
+				written += k;
 			}
 		}
 

@@ -39,7 +39,7 @@ TEST(PCS, RhoFactorise) {
 	constexpr static RSA_instance instance{21};
 	rsa_pollard_rho<instance> rsa;
 
-	rsa.run();
+	EXPECT_TRUE(rsa.run());
 }
 // TODO move to subesetsum folder
 //TEST(PCS, RhoSubSetSum) {

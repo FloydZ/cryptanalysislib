@@ -43,14 +43,14 @@ public:
 		a.set(5,0);
 		b.set(26,0);
 
-		PollardRho<RSACmp<config>, T>::run([](const T &in){
+		const bool found = PollardRho<RSACmp<config>, T>::run([](const T &in){
 			const auto t = in*in + T(1);
 			return t;
 		}, a, b);
 
 		std::cout << a << std::endl;
 		std::cout << b << std::endl;
-		return true;
+		return found;
 	}
 };
 #endif

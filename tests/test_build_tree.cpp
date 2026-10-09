@@ -94,7 +94,9 @@ TEST(TreeTest, sort_level_with_target) {
 }
 
 TEST(TreeTest, join2lists_on_iT) {
-	size_t basesize = 8;
+	// NOTE: 2^9 * 2^9 pairs matching on n=8 trits: ~2^18/3^8 ~ 40 expected.
+	// 	(was: 2^8, i.e. ~10 expected, and `out1 > 2^2` failed for ~3% of seeds)
+	size_t basesize = 9;
 	Matrix A; A.identity();
 
 	const std::vector<uint32_t> ta{{0, n}};

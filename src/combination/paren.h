@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 #include "algorithm/bits/popcount.h"
 
@@ -156,7 +157,7 @@ public:
             x ^= (b>>1);
             return x;
         } else {
-            const T m0 = -1UL/3;
+            const T m0 = T(std::make_unsigned_t<T>(-1)/3);
             T t = x ^ m0;               // XOR t, x, m0;
             if ( (t&x)==0 )  return 0;      // current is last
             T u = (t-1) ^ t;            // SUBU u, t, 1;  XOR u, t, u;

@@ -30,7 +30,7 @@ namespace cryptanalysislib {
 	    [[nodiscard]] constexpr static inline size_t argmin_simd(const uint32_t *__restrict__ a,
 	                                                   			 const size_t n) noexcept {
             using T = S::limb_type;
-	    	T min = -1ull;
+	    	T min = T(-1);
 	    	size_t idx = 0;
 	    	auto p = S::set1(min);
             
@@ -73,7 +73,7 @@ namespace cryptanalysislib {
             using T = S::limb_type;
             constexpr size_t t = S::LIMBS;
             constexpr size_t t2 = 2*t;
-	    	T min = -1ull;
+	    	T min = T(-1);
 	    	auto p = S::set1(min);
 	    	size_t i = 0, idx = 0;
 	    	for (; i+t2 <= n; i += t2) {
@@ -115,7 +115,7 @@ namespace cryptanalysislib {
             using T = S::limb_type;
             constexpr size_t t = S::LIMBS;
             constexpr size_t t4 = 4*t;
-	    	T min = -1ull;
+	    	T min = T(-1);
 	    	auto p = S::set1(min);
 	    	size_t i = 0, idx = 0;
 	    	for (; i+t4 <= n; i += t4) {

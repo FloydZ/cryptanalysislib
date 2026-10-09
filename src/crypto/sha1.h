@@ -43,17 +43,34 @@ to_bytes(const std::array<data_t, num_elements>& value) noexcept {
 }
 
 
+namespace cryptanalysislib::internal {
+	/// structural wrapper, so a string literal can be passed as a template
+	/// argument to the literal operators below (standard C++20, instead of
+	/// the GNU `template<typename char_t, char_t... chars>` extension)
+	/// \tparam N number of characters including the null terminator
+	template<std::size_t N>
+	struct string_literal {
+		char data[N]{};
+
+		consteval string_literal(const char (&str)[N]) noexcept {
+			for (std::size_t i = 0; i < N; ++i) { data[i] = str[i]; }
+		}
+
+		/// \return number of characters without the null terminator
+		[[nodiscard]] constexpr static std::size_t size() noexcept { return N - 1; }
+	};
+} // end namespace cryptanalysislib::internal
+
 /// Allows easier, more readable declaration of std::array<std::byte> using a string literal where the string literal is
 /// interpreted as hex digits.
 ///
-/// @tparam char_t The type of characters in the string literal. Only char is supported here.
-/// @tparam chars  The characters in the string literal.
+/// @tparam str The string literal. Only char is supported here.
 ///
 /// @returns A byte array representing the provided hexadecmal string.
 ///
 /// @throws std::invalid_argument if the input string is malformed.
-template <typename char_t, char_t... chars> requires (sizeof...(chars) >= 2 && sizeof...(chars) % 2 == 0)
-static constexpr std::array<std::byte, sizeof...(chars) / 2> operator "" _hex_bytes() {
+template <cryptanalysislib::internal::string_literal str> requires (str.size() >= 2 && str.size() % 2 == 0)
+static constexpr std::array<std::byte, str.size() / 2> operator ""_hex_bytes() {
     constexpr auto hex2val = [](char c) constexpr {
         if (c >= '0' && c <= '9')
             return c - '0';
@@ -66,22 +83,23 @@ static constexpr std::array<std::byte, sizeof...(chars) / 2> operator "" _hex_by
     };
 
     // Convert the characters pairwise into bytes.
-    const std::array<char, sizeof...(chars)> char_array{chars...};
-    std::array<std::byte, sizeof...(chars) / 2> bytes{};
-    for (std::size_t i = 0; i < char_array.size(); i += 2)
-        bytes.at(i / 2) = static_cast<std::byte>(hex2val(char_array.at(i)) << 4 | hex2val(char_array.at(i + 1)));
+    std::array<std::byte, str.size() / 2> bytes{};
+    for (std::size_t i = 0; i < str.size(); i += 2)
+        bytes.at(i / 2) = static_cast<std::byte>(hex2val(str.data[i]) << 4 | hex2val(str.data[i + 1]));
     return bytes;
 }
 
 /// Makes a byte array from a string literal.
 ///
-/// @tparam char_t The type of characters in the string literal. Only char is supported here.
-/// @tparam chars  The characters in the string literal.
+/// @tparam str The string literal. Only char is supported here.
 ///
 /// @returns A byte array representing the provided string.
-template <typename char_t, char_t... chars>
-static constexpr std::array<std::byte, sizeof...(chars)> operator "" _bytes() {
-    return std::array<std::byte, sizeof...(chars)>{std::byte{chars}...};
+template <cryptanalysislib::internal::string_literal str>
+static constexpr std::array<std::byte, str.size()> operator ""_bytes() {
+    std::array<std::byte, str.size()> bytes{};
+    for (std::size_t i = 0; i < str.size(); ++i)
+        bytes[i] = static_cast<std::byte>(str.data[i]);
+    return bytes;
 }
 
 
@@ -256,13 +274,12 @@ namespace cryptanalysislib {
 
 /// Allows the SHA-1 hash of a message to be computed using a string literal.
 ///
-/// @tparam char_t The type of characters in the string literal. Only char is supported here.
-/// @tparam chars  The characters in the string literal.
+/// @tparam str The string literal. Only char is supported here.
 ///
 /// @returns A byte array representing the SHA-1 hash of the given string literal.
-template <typename char_t, char_t... chars>
-static constexpr auto operator "" _sha1() {
-    return cryptanalysislib::sha1(std::array<std::byte, sizeof...(chars)>{std::byte{chars}...});
+template <cryptanalysislib::internal::string_literal str>
+static constexpr auto operator ""_sha1() {
+    return cryptanalysislib::sha1(operator ""_bytes<str>());
 }
 
 
