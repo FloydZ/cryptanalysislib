@@ -26,12 +26,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 
 
 // TODO: class: with allocator
 // TODO: add PR https://github.com/marijnheule/microsat/pulls
 // TODO: class for literal
 enum { END = -9,
+	   NOMEM = -1,// `parse`: the clause database could not be allocated
 	   UNSAT = 0,
 	   SAT = 1,
 	   MARK = 2,
@@ -288,8 +290,13 @@ inline void initCDCL(struct solver *S, int n, int m) {
 	// Initialize the fast and slow moving averages
 	S->fast = S->slow = 1 << 24;
 
-	// TODO calloc (aligned)
-	S->DB = (int *) malloc(sizeof(int) * S->mem_max);
+	// page aligned and zero initialized ("calloc (aligned)"): an anonymous
+	// mapping, zeroed lazily by the kernel. NOTE: `mem_max` ints are 4 GiB,
+	// so an aligned malloc + memset would touch all of it.
+	void *db = mmap(nullptr, sizeof(int) * (size_t)S->mem_max,
+	                PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	S->DB = (db == MAP_FAILED) ? nullptr : (int *) db;
+	if (S->DB == nullptr) { return; }
 
 	// Full assignment of the (Boolean) variables (initially set to false)
 	S->model = getMemory(S, n + 1);
@@ -351,6 +358,10 @@ inline int parse(struct solver *S, const char *filename) noexcept {
 
 	// Allocate the main datastructures
 	initCDCL(S, S->nVars, S->nClauses);
+	if (S->DB == nullptr) {
+		fclose(input);
+		return NOMEM;
+	}
 
 	// Initialize the number of clauses to read
 	int nZeros = S->nClauses, size = 0;

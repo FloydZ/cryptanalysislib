@@ -11,11 +11,7 @@
 #include "simd/simd.h"
 #include "algorithm/algorithm.h"
 #include "thread/thread.h"
-
-
-// TODO implement max_element simd version
-// TODO implement max_element parallel version
-
+#include "algorithm/find.h"
 
 namespace cryptanalysislib {
     /// Configuration for max algorithms with SIMD and threading settings
@@ -179,12 +175,27 @@ namespace cryptanalysislib {
 	}
 
 
-    /// TODO doc
+    /// Finds the first largest element (like `std::max_element`)
+    /// \tparam ForwardIt Forward iterator type
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \return Iterator to the first largest element, last if the range is empty
     template<class ForwardIt>
     ForwardIt max_element(ForwardIt first,
                           ForwardIt last) noexcept {
         if (first == last) {
             return last;
+        }
+
+        // SIMD: maximum via `max_simd_uXX`, then its first occurrence via
+        // the SIMD `find`
+        using T = std::iter_value_t<ForwardIt>;
+        if constexpr (std::unsigned_integral<T> && std::contiguous_iterator<ForwardIt>) {
+            const size_t len = static_cast<size_t>(last - first);
+            if (len >= algorithmMaxConfig.min_size_simd) {
+                const T m = internal::max_simd_uXX<T>(std::to_address(first), len);
+                return cryptanalysislib::find(first, last, m);
+            }
         }
      
         ForwardIt largest = first;
@@ -198,7 +209,13 @@ namespace cryptanalysislib {
         return largest;
     }
     
-    /// TODO doc
+    /// Finds the first largest element w.r.t. `comp` (like `std::max_element`)
+    /// \tparam ForwardIt Forward iterator type
+    /// \tparam Compare less-than comparison, `comp(a, b)` true iff a < b
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \param comp[in]: comparison function
+    /// \return Iterator to the first largest element, last if the range is empty
     template<class ForwardIt,
              class Compare>
     ForwardIt max_element(ForwardIt first,
@@ -217,6 +234,49 @@ namespace cryptanalysislib {
         }
      
         return largest;
+    }
+
+    /// Finds the first largest element (parallel version): the largest
+    /// element of every chunk, then the largest of those, ties resolved to
+    /// the earliest chunk, i.e. the same result as the sequential version.
+    /// \param policy[in]: Execution policy specifying parallelization strategy
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \return Iterator to the first largest element, last if the range is empty
+    template <class ExecPolicy,
+              class RandIt,
+              const AlgorithmMaxConfig &config = algorithmMaxConfig>
+#if __cplusplus > 201709L
+    requires std::random_access_iterator<RandIt>
+#endif
+    RandIt max_element(ExecPolicy &&policy,
+                       RandIt first,
+                       RandIt last) noexcept {
+        const auto size = static_cast<size_t>(std::distance(first, last));
+        const uint32_t nthreads = should_par(policy, config, size);
+        if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+            return cryptanalysislib::max_element(first, last);
+        }
+
+        auto futures = internal::parallel_chunk_for_1(
+            std::forward<ExecPolicy>(policy),
+            first, last,
+            [](RandIt chunk_first, RandIt chunk_last) {
+                return cryptanalysislib::max_element(chunk_first, chunk_last);
+            },
+            static_cast<RandIt *>(nullptr),
+            1, nthreads);
+
+        // chunks are in order: only a strictly larger value replaces `best`
+        RandIt best = futures[0].get();
+        for (size_t i = 1; i < futures.size(); i++) {
+            const RandIt c = futures[i].get();
+            if (*best < *c) {
+                best = c;
+            }
+        }
+
+        return best;
     }
 
 } // end namespace cryptanalysislib

@@ -94,13 +94,13 @@ a lot like the syndrome equation `s = H*e`, where `s` is the sybdrome, `e` a
 
 This design is chosen for the case in which the error vector `e` (which is 
 saved in a `Value`) is unknown. Hence one wants to iterate a lot of Values which 
-matches the correct `Label` you can order them in a [List](TODO). As a matter 
+matches the correct `Label` you can order them in a [List](./src/list/README.md). As a matter 
 of fact, this libraries offers of lot of different implementations. 
 
 Internally a set of a `Value, Label` and `Matrix` is called an `Element`, which 
 maps each `Value` via a `Matrix` to an unique `Value`. More on each of those 
-containers you find here: [Label](TODO), [Value](TODO), [Matrix](TODO), 
-[Element]().
+containers you find here: [Label](./src/container/README.md), [Value](./src/container/README.md), [Matrix](./src/matrix/README.md), 
+[Element](./src/element.h).
 
 
 Implementation Details:
@@ -110,8 +110,8 @@ The following things are implemented:
 - Custom [allocators](./src/alloc/README.md) which do not return a memory 
     allocation, but memory blocks which do not allow for memory missuses.
 - Binary- and Fq-[Enumeration](./src/combination/README.md) which enumerate vectors of length `n` and weight 
-    `w` in a loop-less efficient way. Either a [Chase](TODO)-Sequence or a 
-    [Gray-Code](TODO) or a combination of both. 
+    `w` in a loop-less efficient way. Either a [Chase](./src/combination/chase.h)-Sequence or a 
+    [Gray-Code](./src/combination/grey.h) or a combination of both. 
 - [LinkedList](./src/container/linkedlist/README.md)
 - [HashMaps](./src/container/hashmap/README.md)
 - [Permutation](./src/permutation/README.md)
@@ -146,7 +146,7 @@ As well as this core datatypes the following list-containers are implemented:
     currently not possible in this list.
 - `Parallel_List_FullElement` Same as `Parallel_List`, but `Values` and 
     `Labels` are together saved in one list of `Elements`, which allows sorting. 
-- `Parallel_List_IndexElement` TODO
+- `Parallel_List_IndexElement` Same as `Parallel_List`, but only the `Labels` are saved, together with an index/counter from which the `Value` can be recomputed. Note: the load is not tracked.
 - `List` generic list implementation.
 Range checks are performed in every implementation.
 

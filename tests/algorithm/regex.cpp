@@ -139,6 +139,21 @@ TEST(regex, simple) {
 	printf("\n");
 }
 
+/// C++ string interface and the supported group forms
+TEST(regex, cpp_interface_and_groups) {
+	using re = regex<>;
+	int len = 0;
+	EXPECT_EQ(re::re_match(std::string("[0-9]+"), std::string("abc123def"), &len), 3);
+	EXPECT_EQ(len, 3);
+	EXPECT_EQ(re::re_match(std::string_view("a(bc)d"), std::string_view("xabcd"), &len), 1);
+	EXPECT_EQ(len, 4);
+	EXPECT_EQ(re::re_match(std::string("(ab)+c"), std::string("xxababc"), &len), 2);
+	EXPECT_EQ(len, 5);
+	EXPECT_TRUE(re::re_search("\\d\\d", std::string("a12")));
+	EXPECT_FALSE(re::re_search("\\d\\d", std::string("a1b2")));
+	// NOTE: not supported yet (see regex.h): '(ab)*', '(a|b)c'
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

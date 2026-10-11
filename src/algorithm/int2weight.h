@@ -8,7 +8,7 @@
 #include "math/math.h"
 #include "algorithm/bits.h"
 
-// TODO add namespace cryptanalysislib 
+namespace cryptanalysislib {
 
 /// Converts integer to weight positions using combinatorial ranking
 /// \tparam D Output data type for weight positions
@@ -116,4 +116,5 @@ void int2weights(std::vector<D> &weights,
 	assert(weights.size() >= wt);
 	int2weights(weights.data(), in, n, wt, wt);
 }
+} // end namespace cryptanalysislib
 #endif

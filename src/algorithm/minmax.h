@@ -5,10 +5,15 @@
 #include <concepts>
 
 #include "simd/simd.h"
-
-/// TODO parallel version implementation
+#include "algorithm/algorithm.h"
+#include "thread/thread.h"
 
 namespace cryptanalysislib {
+    /// Configuration for minmax algorithms
+    struct AlgorithmMinMaxConfig : public AlgorithmConfig {
+        constexpr static size_t min_size_per_thread = 1u << 15u;
+    };
+    constexpr static AlgorithmMinMaxConfig algorithmMinMaxConfig;
     
     namespace internal {
 
@@ -210,6 +215,69 @@ namespace cryptanalysislib {
             }
         }
         return {min, max};
+    }
+
+    /// Finds the smallest and largest elements (parallel version): every chunk
+    /// computes its `minmax_element`, which are combined in order. Like the
+    /// sequential version (and `std::minmax_element`) this returns the first
+    /// smallest and the last largest element.
+    /// \param policy[in]: Execution policy specifying parallelization strategy
+    /// \param first[in]: iterator to the first element in the range
+    /// \param last[in]: iterator to one past the last element in the range
+    /// \param comp[in]: binary comparison function object
+    /// \return a pair of iterators pointing to the minimum and maximum elements
+    template<class ExecPolicy,
+             class RandIt,
+             class Compare,
+             const AlgorithmMinMaxConfig &config = algorithmMinMaxConfig>
+#if __cplusplus > 201709L
+    requires std::random_access_iterator<RandIt>
+#endif
+    std::pair<RandIt, RandIt>
+        minmax_element(ExecPolicy &&policy,
+                       RandIt first,
+                       RandIt last,
+                       Compare comp) noexcept {
+        const auto size = static_cast<size_t>(std::distance(first, last));
+        const uint32_t nthreads = should_par(policy, config, size);
+        if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+            return cryptanalysislib::minmax_element(first, last, comp);
+        }
+
+        using R = std::pair<RandIt, RandIt>;
+        auto futures = internal::parallel_chunk_for_1(
+            std::forward<ExecPolicy>(policy),
+            first, last,
+            [comp](RandIt chunk_first, RandIt chunk_last) {
+                return cryptanalysislib::minmax_element(chunk_first, chunk_last, comp);
+            },
+            static_cast<R *>(nullptr),
+            1, nthreads);
+
+        // chunks are in order: the first minimum and the last maximum win
+        R best = futures[0].get();
+        for (size_t i = 1; i < futures.size(); i++) {
+            const R c = futures[i].get();
+            if (comp(*c.first, *best.first)) { best.first = c.first; }
+            if (!comp(*c.second, *best.second)) { best.second = c.second; }
+        }
+        return best;
+    }
+
+    /// parallel `minmax_element` with `<`
+    template<class ExecPolicy,
+             class RandIt,
+             const AlgorithmMinMaxConfig &config = algorithmMinMaxConfig>
+#if __cplusplus > 201709L
+    requires std::random_access_iterator<RandIt>
+#endif
+    std::pair<RandIt, RandIt>
+        minmax_element(ExecPolicy &&policy,
+                       RandIt first,
+                       RandIt last) noexcept {
+        using T = typename std::iterator_traits<RandIt>::value_type;
+        return cryptanalysislib::minmax_element(std::forward<ExecPolicy>(policy),
+                                                first, last, std::less<T>());
     }
 
     /// Computes the minimum and maximum elements in an initializer list

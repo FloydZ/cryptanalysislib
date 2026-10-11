@@ -222,8 +222,11 @@ def NN_compute_list_sizes(n: int, r: int, lam: int, delta: int, below=False, log
     :param delta: weight difference which is allowed for each element in the list
     :param below: if set to true, elements with weight <= delta are also accepted
     :param logscale: return the list sizes in logarithmic scale
-    :param max_switch: TODO
-    :return:
+    :param max_switch: bruteforce switch over: stop as soon as the expected list
+            size drops to `<= max_switch` (not in logarithmic scale). 0 means
+            all `r` levels are computed.
+    :return: list of the expected list sizes, starting with `lam`, one entry per
+            level (log2 of the sizes if `logscale`)
     """
     k = int(n // r)
     p = calc_p(k, delta, below)

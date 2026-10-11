@@ -53,7 +53,24 @@ TYPED_TEST_P(Reduce, multithreading) {
     }
 }
 
-REGISTER_TYPED_TEST_SUITE_P(Reduce, simple, multithreading);
+/// all sizes around the SIMD block length, random data, against
+/// `std::exclusive_scan`, out of place and inplace
+TYPED_TEST_P(Reduce, simd_all_sizes) {
+	for (size_t s = 0; s <= 300; ++s) {
+		std::vector<TypeParam> in(s), out(s), e(s);
+		for (auto &x : in) { x = TypeParam(rand()); }
+		const TypeParam init = TypeParam(rand());
+		std::exclusive_scan(in.begin(), in.end(), e.begin(), init);
+
+		cryptanalysislib::exclusive_scan(in.begin(), in.end(), out.begin(), init);
+		EXPECT_EQ(out, e) << s;
+
+		cryptanalysislib::exclusive_scan(in.begin(), in.end(), in.begin(), init);
+		EXPECT_EQ(in, e) << s;
+	}
+}
+
+REGISTER_TYPED_TEST_SUITE_P(Reduce, simple, multithreading, simd_all_sizes);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Reduce, MyTypes);
 

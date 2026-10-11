@@ -19,7 +19,7 @@ namespace cryptanalysislib {
 
     namespace internal {
         
-        // TODO test 
+        /// NOTE: tests in `tests/algorithm/mismatch.cpp`
         /// SIMD-optimized mismatch finding for integral arrays
         /// \tparam T Integral type for array elements
         /// \tparam config Algorithm configuration (default: algorithmMismatchConfig)

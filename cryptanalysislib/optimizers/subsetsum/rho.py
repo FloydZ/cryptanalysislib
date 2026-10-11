@@ -8,14 +8,16 @@ from cryptanalysislib.optimizers.optimizers import Optimizer
             
 class SubSetSumOptimizerD2(Optimizer):
     """optimizer for the rho algorithm."""
-    def __init__(self, n: int, w: int = 0, max_mem: int = 0) -> None:
+    def __init__(self, n: int, w: int = 0, max_mem: int = 0,
+                 l1: int = 0, l2: int = 0) -> None:
         """
         :param n: subset sum instance size
         :param w: subset sum weight
         :param max_mem: (logarithmic) max allowed memory for the optimization
                         process
-
-        TODO also pass l1, l2 and so on
+        :param l1: if != 0: fix the number of bits matched in the first level,
+                        instead of optimizing it
+        :param l2: if != 0: fix the number of bits matched in the second level
         """
         super().__init__()
         assert n > 0, "give me at least something to optimize"
@@ -30,6 +32,11 @@ class SubSetSumOptimizerD2(Optimizer):
 
         self.l_1 = 0
         self.l_2 = 0
+
+        # user given values, 0 = optimize
+        assert 0 <= l1 < n and 0 <= l2 < n
+        self.fixed_l1 = l1
+        self.fixed_l2 = l2
 
     def n1_0(self, g):
         """number of 1 in the final list"""
@@ -158,7 +165,15 @@ class SubSetSumOptimizerD2(Optimizer):
     
     def opt(self):
         """
-        TODO
+        Grid search over the base list weight fraction `g` (steps of 0.02), the
+        number of matched bits `l_1`, `l_2` (with `d_1 = 0`) for the parameter
+        set with minimal (log2) running time, such that the memory stays below
+        `2**max_mem` and the list size/representation constraints hold.
+        :return: (found, params): `found` is False if no valid parameter set
+                exists. `params` maps the output names (`T`, `T_tree`, `M`, `g`,
+                `L0`-`L2`, `d1`, `d2`, `l1`, `l2`, `n1_3`, `nm1_3`, `n`,
+                `max_mem`) to their values; they become `PARAM_<name>` in the
+                generated header.
         """
         T = inf
         f = {"T": T}
@@ -171,8 +186,8 @@ class SubSetSumOptimizerD2(Optimizer):
                 if(int(g*self.n)!=g*self.n):
                     continue
 
-                for self.l_1 in range(1,self.n):
-                    for self.l_2 in range(1,self.n):
+                for self.l_1 in ([self.fixed_l1] if self.fixed_l1 else range(1,self.n)):
+                    for self.l_2 in ([self.fixed_l2] if self.fixed_l2 else range(1,self.n)):
                         if(self.l_1+self.l_2+(self.l_2)<=self.n and self.n0_1(g)>=0 and self.n0_2(g)>=0 and self.n0_3(g)>=0):
                             
                             if(self.memory(g)<allocated_memory and self.q_1(g)<=1 and self.q_1(g)>=0):

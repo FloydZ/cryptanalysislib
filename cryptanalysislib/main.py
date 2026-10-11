@@ -3,6 +3,7 @@
 """
 
 import argparse
+import pathlib
 import pprint
 from typing import Dict, List
 
@@ -14,6 +15,10 @@ from cryptanalysislib.optimizers.subsetsum.rho import SubSetSumOptimizerD2
 from cryptanalysislib.optimizers.subsetsum.hgj import HGJ
 from cryptanalysislib.analyser.json_analyzer import json_Analyser
     
+# repository root: the `include_path`s below are relative to it, so the
+# script works from any working directory
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
 # TODO generate this dict from files from a subfolder: so the whole thing 
 # is more dynamic
 algos = [
@@ -27,17 +32,18 @@ algos = [
         # cmake output target == binary to exec
         "bin_path": "bench/subsetsum/bench_subsetsum_rho",
         # header file to write the parameters to
-        "include_path": "../bench/subsetsum/params.h", # TODO path
+        "include_path": str(ROOT / "bench/subsetsum/params.h"),
         #
         "analyser": json_Analyser,
-        # TODO explain params
+        # each entry: `-<name>` command line option (a `Range`), its help text
+        # and default. They end up as `PARAM_<name>` in `include_path`.
         "parameters": [
-            { "n": { "help": "length ofthe instanc3", "default": 32}}, 
+            { "n": { "help": "length of the instance (number of elements)", "default": 32}}, 
             { "w": { "help": "weight of the subsetsum solution", "default": 16}}, 
-            { "l1": { "help": "base list matching", "default": 10}}, 
-            { "l2": { "help": "", "default": 6}}, 
-            { "n1": { "help": "number of 1 in the baselist", "default": 0}}, 
-            { "nm1": { "help": "number of -1 in the baselist", "default": 2}}, 
+            { "l1": { "help": "number of bits matched in the first level (merging the base lists)", "default": 10}}, 
+            { "l2": { "help": "number of bits matched in the second level (merging the level-1 lists)", "default": 6}}, 
+            { "n1": { "help": "number of 1 in each base list element", "default": 0}}, 
+            { "nm1": { "help": "number of -1 in each base list element", "default": 2}}, 
         ]
     },
     {
@@ -50,7 +56,7 @@ algos = [
         # cmake output target == binary to exec
         "bin_path": "bench/subsetsum/bench_subsetsum_hgj",
         # header file to write the parameters to
-        "include_path": "bench/subsetsum/params.h",
+        "include_path": str(ROOT / "bench/subsetsum/params.h"),
         # 
         "analyser": "",
         #

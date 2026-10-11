@@ -332,7 +332,7 @@ public:
         T p = p0;
         do {
             T n = num_edges(p);
-            if (n > 1) { reverse(e_+ep_[p], e_+ep_[p]+n); }
+            if (n > 1) { cryptanalysislib::reverse(e_+ep_[p], e_+ep_[p]+n); }
         } while ( ++p<=p1 );  // note: inclusive p1
     }
 
@@ -802,7 +802,7 @@ public:
             for (T j=2;  j<=n;  ++j)
             {
                 for (T i=0; i<n; ++i)  yy[i] = xx[i];
-                reverse(yy, yy + j);
+                cryptanalysislib::reverse(yy, yy + j);
                 e[p++] = T(perm2num_ffact(yy, n));
             }
         }

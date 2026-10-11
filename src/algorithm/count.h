@@ -107,13 +107,8 @@ namespace cryptanalysislib {
 		constexpr size_t count_uXX_simd(const T *data,
 										const size_t n,
 										const T val) noexcept {
-            // TODO replace with SIMDSelector
-#ifdef USE_AVX512F
-			constexpr uint32_t limbs = 64/sizeof(T);
-#else
-			constexpr uint32_t limbs = 32/sizeof(T);
-#endif
-			using S = TxN_t<T, limbs>;
+			using S = SIMDSelector<T>;
+			constexpr uint32_t limbs = S::LIMBS;
 
 			size_t ret = 0;
 			const auto t = S::set1(val);

@@ -28,19 +28,19 @@ struct Node {
         const int64_t value = from + (to - from)/2;
         ret->value = value;
 
-        if (value > from) { make_balanced_tree(from, value-1ull); }
-        if (value < to)   { make_balanced_tree(value+1ull, to); }
+        // NOTE: the subtrees were built but not attached before, so the
+        // 	tree was a single node
+        if (value > from) { ret->left  = make_balanced_tree(from, value-1ull); }
+        if (value < to)   { ret->right = make_balanced_tree(value+1ull, to); }
         return ret;
     }
 
     void free() noexcept {
-        if (left != nullptr) { 
-            left->free(); 
-            delete left;
+        if (left != nullptr) {
+            left->free();
         }
-        if (right != nullptr) { 
-            right->free(); 
-            delete right;
+        if (right != nullptr) {
+            right->free();
         }
 
         delete this;
@@ -71,7 +71,7 @@ struct SimpleSum {
 Node *root = nullptr;
 
 #ifndef __APPLE__
-// TODO
+// TODO port `heartbeatsum` once the heartbeat scheduler is usable again
 // struct SchedulerSum {
 // 	SimpleScheduler pool{};
 //     int64_t run(Node *node) noexcept {
@@ -80,14 +80,16 @@ Node *root = nullptr;
 //         //return t.get();
 //     }
 // };
-// 
-// struct SimpleSchedulerSum {
-// 	SimpleScheduler pool{};
-//     int64_t run(Node *node) noexcept {
-//         auto t = pool.enqueue(sum, node);
-//         return t.get();
-//     }
-// };
+
+/// sums the two subtrees of the root in parallel via the `SimpleScheduler`
+struct SimpleSchedulerSum {
+	SimpleScheduler<> pool{2};
+	int64_t run(Node *node) noexcept {
+		auto l = pool.submit([node]() { return node->left  ? node->left->sum()  : int64_t(0); });
+		auto r = pool.submit([node]() { return node->right ? node->right->sum() : int64_t(0); });
+		return node->value + l.get() + r.get();
+	}
+};
 
 template<typename T>
 static void BM_NodeSumHeartBeat(benchmark::State& state) {
@@ -100,6 +102,7 @@ static void BM_NodeSumHeartBeat(benchmark::State& state) {
 }
 
 BENCHMARK(BM_NodeSumHeartBeat<SimpleSum>);
+BENCHMARK(BM_NodeSumHeartBeat<SimpleSchedulerSum>);
 #endif
 
 template<typename T>

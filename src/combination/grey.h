@@ -1,7 +1,36 @@
 #pragma once 
 
 #include <cstdint>
+#include <type_traits>
 #include "bit_subset.h"
+#include "algorithm/bits/popcount.h"
+
+namespace cryptanalysislib {
+/// \return the Gray code of `i`
+template<typename T>
+constexpr static inline 
+T to_gray(const T i) noexcept {
+  return (i ^ (i >> 1u));
+}
+
+/// \return the Gray code following the Gray code `a`, i.e.
+///     next_gray(to_gray(i)) == to_gray(i + 1)
+/// NOTE: before, this returned `a ^ ctz(a + 1)` (the bit index instead of
+///     the bit), which is no Gray code successor (e.g. next_gray(0) == 0).
+///     Even parity: flip bit 0, odd parity: flip the bit left of the lowest
+///     set bit. No ctz needed.
+template<typename T>
+constexpr static inline 
+T next_gray(const T a) noexcept {
+    using U = std::make_unsigned_t<T>;
+    const U u = static_cast<U>(a);
+    if ((cryptanalysislib::popcount::popcount<U>(u) & 1u) == 0) {
+        return static_cast<T>(u ^ U(1));
+    }
+    const U lowest = u & (~u + U(1));
+    return static_cast<T>(u ^ U(lowest << 1u));
+}
+} // end namespace cryptanalysislib
 
 /// Class providing Gray code enumeration and utilities
 ///

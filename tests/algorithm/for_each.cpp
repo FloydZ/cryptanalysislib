@@ -37,6 +37,28 @@ TEST(for_each, single) {
 	}
 }
 
+/// every element is visited exactly once, the chunk data is created per chunk
+TEST(for_each, chunk) {
+	constexpr size_t size = 1u << 18u; // above `min_size_per_thread`
+	for (const bool par : {false, true}) {
+		std::vector<uint64_t> v(size, 0);
+		std::atomic<uint32_t> constructed{0};
+		cryptanalysislib::for_each_chunk(par_if(par), v.begin(), v.end(),
+			[&constructed]() { constructed += 1; return uint64_t(1); },
+			[](uint64_t &x, uint64_t &chunk_data) { x += 1; chunk_data += 1; });
+
+		for (size_t i = 0; i < size; ++i) { EXPECT_EQ(v[i], 1u) << i; }
+		if (par) { EXPECT_GE(constructed.load(), 1u); }
+		else     { EXPECT_EQ(constructed.load(), 1u); }
+	}
+
+	// sequential overload without policy
+	std::vector<uint64_t> w(100, 0);
+	cryptanalysislib::for_each_chunk(w.begin(), w.end(), []() { return uint64_t(0); },
+		[](uint64_t &x, uint64_t &c) { x = c++; });
+	for (size_t i = 0; i < w.size(); ++i) { EXPECT_EQ(w[i], i); }
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

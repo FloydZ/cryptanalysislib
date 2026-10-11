@@ -4,9 +4,6 @@
 #include "algorithm/algorithm.h"
 #include "thread/thread.h"
 
-/// TODO parallel version of for_each_n
-/// TODO parallel version of for_each_chunk
-
 
 namespace cryptanalysislib {
 	/// Configuration for for_each algorithms
@@ -118,18 +115,22 @@ namespace cryptanalysislib {
     /// Applies a function to each element with chunk-local data
     /// \tparam RandIt Random access iterator type for the range
     /// \tparam ChunkConstructor Function type to construct chunk-local data
-    /// \tparam UnaryFunction Function type to apply to each element
+    /// \tparam UnaryFunction Function type to apply to each element, called
+    /// 	as f(element, chunk_data)
     /// \param first[in]: Iterator to the beginning of the range
     /// \param last[in]: Iterator to the end of the range
     /// \param construct[in]: Function to construct chunk-local data
     /// \param f[in]: Function to apply to each element with chunk data
+    /// NOTE: the constraint required `f(element)` before, although `f` is
+    /// 	called with two arguments, so no valid `f` satisfied it.
     template <class RandIt,
               class ChunkConstructor,
               class UnaryFunction>
 #if __cplusplus > 201709L
 		requires std::random_access_iterator<RandIt> &&
-    		     std::regular_invocable<UnaryFunction,
-										typename RandIt::value_type&>
+    		     std::invocable<UnaryFunction,
+								typename RandIt::value_type&,
+								std::invoke_result_t<ChunkConstructor>&>
 #endif
     void for_each_chunk(RandIt first,
                         RandIt last,
@@ -143,6 +144,52 @@ namespace cryptanalysislib {
         for (; first != last; ++first) {
             f(*first, chunk_data);
         }
+    }
+
+    /// Applies a function to each element with chunk-local data (parallel
+    /// version): the range is split into chunks, `construct` is called once
+    /// per chunk (from the thread processing it).
+    /// \tparam ExecPolicy Execution policy type for parallel execution
+    /// \tparam RandIt Random access iterator type for the range
+    /// \tparam ChunkConstructor Function type to construct chunk-local data
+    /// \tparam UnaryFunction called as f(element, chunk_data)
+    /// \param policy[in]: Execution policy specifying parallelization strategy
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \param construct[in]: Function to construct chunk-local data
+    /// \param f[in]: Function to apply to each element with chunk data
+    template <class ExecPolicy,
+              class RandIt,
+              class ChunkConstructor,
+              class UnaryFunction,
+              const AlgorithmForEachConfig &config=algorithmForEachConfig>
+#if __cplusplus > 201709L
+		requires std::random_access_iterator<RandIt> &&
+    		     std::invocable<UnaryFunction,
+								typename RandIt::value_type&,
+								std::invoke_result_t<ChunkConstructor>&>
+#endif
+    void for_each_chunk(ExecPolicy &&policy,
+                        RandIt first,
+                        RandIt last,
+                        ChunkConstructor &&construct,
+                        UnaryFunction &&f) noexcept {
+		const size_t size = static_cast<size_t>(std::distance(first, last));
+		const uint32_t nthreads = should_par(policy, config, size);
+		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+			cryptanalysislib::for_each_chunk(first, last, construct, f);
+			return;
+		}
+
+		internal::parallel_chunk_for_1_wait(
+			std::forward<ExecPolicy>(policy),
+			first, last,
+			[&construct, &f](RandIt chunk_first, RandIt chunk_last) {
+				cryptanalysislib::for_each_chunk(chunk_first, chunk_last, construct, f);
+			},
+			(void*)nullptr,
+			1,
+			nthreads);
     }
 
 } // end namespace cryptanalysislib

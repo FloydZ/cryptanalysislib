@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <functional>
 #include <future>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -64,14 +65,16 @@ namespace cryptanalysislib {
         /// \param func The Callable to execute. Can be a function, a lambda, std::packaged_task, std::function, etc.
         /// \param args Arguments for func. Optional.
         /// \return std::future that can be used to get func's return value or thrown exception.
-        template <typename F, 
+        template <typename F,
                   typename... A,
                   typename R = std::invoke_result_t<std::decay_t<F>, std::decay_t<A>...>
         >
         [[nodiscard]] std::future<R> submit(F&& func, A&&... args) {
-            std::packaged_task<R()> task(std::bind(std::forward<F>(func), std::forward<A>(args)...));
-            auto ret = task.get_future();
-            submit_detach(std::move(task));
+            auto task = std::make_shared<std::packaged_task<R()>>(
+                std::bind(std::forward<F>(func), std::forward<A>(args)...)
+            );
+            auto ret = task->get_future();
+            submit_detach([task]() { (*task)(); });
             return ret;
         }
 

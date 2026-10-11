@@ -6,6 +6,8 @@
 #ifdef USE_AVX512F
 #include <immintrin.h>
 #include "simd/simd.h"
+#include "algorithm/countl.h"
+#include "algorithm/bits/popcount.h"
 #endif
 
 // TODO simd version 
@@ -22,7 +24,23 @@ namespace cryptanalysislib {
 
     
     namespace internal {
+        /// \return first position `p` in [lo, hi) with !(x[p] < v), hi if none
+        template <typename T>
+        constexpr size_t intersection_lower_pos(T const *x,
+                                                size_t lo,
+                                                size_t hi,
+                                                const T v) noexcept {
+            while (lo < hi) {
+                const size_t mid = lo + (hi - lo) / 2;
+                if (x[mid] < v) { lo = mid + 1; } else { hi = mid; }
+            }
+            return lo;
+        }
+
         /// Source: https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/
+        /// NOTE: the smaller element is skipped: before, `a[i] < b[j]`
+        ///     searched `a[i]` in `b` (which returns `j` again), so the loop
+        ///     never terminated as soon as both elements differed.
         template <typename T>
         size_t galloping_intersection_size(T const *a, 
                                            T const *b, 
@@ -33,19 +51,49 @@ namespace cryptanalysislib {
                 // If elements are equal, increment both indices and count
                 if (a[i] == b[j]) count++, i++, j++;
         
-                // If a[i] is smaller, gallop through b to find its match
-                else if (a[i] < b[j]) j = std::lower_bound(b + j, b + m, a[i]) - b;
+                // If a[i] is smaller, skip all elements of a smaller than b[j]
+                else if (a[i] < b[j]) i = intersection_lower_pos(a, i, n, b[j]);
         
-                // If a[i] is larger, gallop through a to find its match
-                else i = std::lower_bound(a + i, a + n, b[j]) - a;
+                // If b[j] is smaller, skip all elements of b smaller than a[i]
+                else j = intersection_lower_pos(b, j, m, a[i]);
             }
             return count;
         }
 
-#ifdef USE_AVX512F 
+        /// number of common elements of the sorted, duplicate free arrays
+        /// `a` and `b` (two pointer merge)
+        static inline size_t intersect_u16_serial(uint16_t const *a, uint16_t const *b,
+                                                  const size_t n, const size_t m) noexcept {
+            size_t i = 0, j = 0, c = 0;
+            while ((i < n) && (j < m)) {
+                if (a[i] < b[j]) { ++i; }
+                else if (b[j] < a[i]) { ++j; }
+                else { ++c; ++i; ++j; }
+            }
+            return c;
+        }
+
+#if defined(USE_AVX512F) && defined(USE_AVX512BW)
+        /// emulates the (non existing) 16 bit `vp2intersect`: bit i of the
+        /// result is set iff a[i] equals any lane of `b`. `b` is compared in
+        /// all 32 lane rotations.
+        static inline __mmask32 mm512_2intersect_epi16_mask(const __m512i a,
+                                                            const __m512i b) noexcept {
+            __m512i idx = _mm512_set_epi16(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
+                                           15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0);
+            const __m512i one = _mm512_set1_epi16(1), mask = _mm512_set1_epi16(31);
+            __mmask32 ret = 0;
+            for (uint32_t r = 0; r < 32; ++r) {
+                ret |= _mm512_cmpeq_epi16_mask(a, _mm512_permutexvar_epi16(idx, b));
+                idx = _mm512_and_si512(_mm512_add_epi16(idx, one), mask);
+            }
+            return ret;
+        }
 
         // source: https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/
-        void simsimd_intersect_u16_ice(
+        /// adds the number of common elements of the sorted, duplicate free
+        /// arrays `a` and `b` to `*results`
+        inline void simsimd_intersect_u16_ice(
             uint16_t const *a, uint16_t const *b,
             const size_t a_length, const size_t b_length,
             uint64_t* results) {
@@ -59,7 +107,8 @@ namespace cryptanalysislib {
                 uint8_t u8[64];
             } a_vec, b_vec;
 
-            while (a + 32 < a_end && b + 32 < b_end) {
+            // NOTE: compare remaining lengths, `a + 32` is UB if fewer than 32 remain
+            while ((a_end - a) > 32 && (b_end - b) > 32) {
                 a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
                 b_vec.zmm = _mm512_loadu_si512((__m512i const*)b);
 
@@ -71,13 +120,13 @@ namespace cryptanalysislib {
                 uint16_t b_max = b_vec.u16[31];
 
                 // If the slices don't overlap, advance the appropriate pointer
-                while (a_max < b_min && a + 64 < a_end) {
+                while (a_max < b_min && (a_end - a) > 64) {
                     a += 32;
                     a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
                     a_max = a_vec.u16[31];
                 }
                 a_min = a_vec.u16[0];
-                while (b_max < a_min && b + 64 < b_end) {
+                while (b_max < a_min && (b_end - b) > 64) {
                     b += 32;
                     b_vec.zmm = _mm512_loadu_si512((__m512i const*)b);
                     b_max = b_vec.u16[31];
@@ -85,8 +134,8 @@ namespace cryptanalysislib {
                 b_min = b_vec.u16[0];
 
                 // Now we are likely to have some overlap, so we can intersect the registers
-                __mmask32 a_matches = _mm512_2intersect_epi16_mask(a_vec.zmm, b_vec.zmm);
-                c += _mm_popcnt_u32(a_matches); // The `_popcnt32` symbol isn't recognized by MSVC
+                __mmask32 a_matches = mm512_2intersect_epi16_mask(a_vec.zmm, b_vec.zmm);
+                c += cryptanalysislib::popcount::popcount((uint32_t)a_matches);
 
                 // Determine the number of entries to skip in each array, by comparing
                 // every element in the vector with the last (largest) element in the other array
@@ -94,12 +143,12 @@ namespace cryptanalysislib {
                 __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const*)&b_max);
                 __mmask32 a_step_mask = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
                 __mmask32 b_step_mask = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
-                a += 32 - _lzcnt_u32((uint32_t)a_step_mask);
-                b += 32 - _lzcnt_u32((uint32_t)b_step_mask);
+                a += 32 - cryptanalysislib::countl_zero((uint32_t)a_step_mask);
+                b += 32 - cryptanalysislib::countl_zero((uint32_t)b_step_mask);
             }
 
             // Handle the tail:
-            // TODO simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
+            c += intersect_u16_serial(a, b, size_t(a_end - a), size_t(b_end - b));
             *results += c; // And merge it with the main body result
         }
 #endif

@@ -4,10 +4,12 @@
 #include <immintrin.h>
 
 #include "popcount.h"
+#include "algorithm/countl.h"
+#include "algorithm/countr.h"
 
-using namespace cryptanalysislib::popcount;
-
-// TODO tests and benches
+// NOTE: tests in `tests/algorithm/pdep.cpp`, benchmarks in `bench/algorithm/pdep.cpp`.
+// NOTE: no `using namespace` here: an unqualified `popcount` was ambiguous
+// 	with the namespace `cryptanalysislib::popcount`.
 
 /// Source:  https://github.com/WojciechMula/toys/blob/master/simd-pdep-pext/pdep_avx2.cpp
 template <const uint32_t MAX_MASK_BITS, 
@@ -132,16 +134,16 @@ void avx512_pdep_u32_reference(const uint32_t* data_arr,
 }
 
 inline unsigned int pdep32_emu(unsigned int v, unsigned int m) {
-	unsigned int ret = 0, pc = popcount(m);
+	unsigned int ret = 0, pc = cryptanalysislib::popcount::popcount(m);
 	switch (pc) {
 		case 0:
 			ret = 0;
 			break;
 		case 1:
-			ret = (v & 1) << _tzcnt_u32(m);
+			ret = (v & 1) << cryptanalysislib::countr_zero(m);
 			break;
 		case 2:
-			ret = (((v << (32 - pc)) & 0x80000000) >> _lzcnt_u32(m)) | ((v & 1) << _tzcnt_u32(m));
+			ret = (((v << (32 - pc)) & 0x80000000) >> cryptanalysislib::countl_zero(m)) | ((v & 1) << cryptanalysislib::countr_zero(m));
 			break;
 		case 3:
 		case 4:
@@ -157,8 +159,8 @@ inline unsigned int pdep32_emu(unsigned int v, unsigned int m) {
 			unsigned int lsb = 0, msb = 0;
 			unsigned int v1 = v << (32 - pc);
 			for (unsigned int i = 0; i < pc / 2  ; i++) {
-				const unsigned int tz = _tzcnt_u32(m);
-				const unsigned int lz = _lzcnt_u32(m);
+				const unsigned int tz = cryptanalysislib::countr_zero(m);
+				const unsigned int lz = cryptanalysislib::countl_zero(m);
 				m &= ~((0x80000000 >> lz) | (1 << tz));
 				msb = (v1 & 0x80000000) >> lz;
 				lsb = (v & 1) << tz;
@@ -166,7 +168,8 @@ inline unsigned int pdep32_emu(unsigned int v, unsigned int m) {
 				v >>= 1;
 				v1 <<= 1;
 			}
-			ret |= ((pc & 1) & v) << _tzcnt_u32(m);
+			// pc even: m == 0 here, a shift by 32 would be UB
+			if (pc & 1) { ret |= (v & 1) << cryptanalysislib::countr_zero(m); }
 			break;
 		}
 		default: {

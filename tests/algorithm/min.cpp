@@ -82,7 +82,36 @@ TYPED_TEST_P(Min, scalar) {
 	EXPECT_EQ(min(a, b), a);
 }
 
-REGISTER_TYPED_TEST_SUITE_P(Min, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar);
+/// min_element against std::min_element: sizes around the SIMD threshold,
+/// few distinct values, so the minimum occurs repeatedly (first occurrence)
+TYPED_TEST_P(Min, min_element) {
+	for (size_t s = 1; s <= 300; ++s) {
+		std::vector<TypeParam> in(s);
+		for (auto &x : in) { x = TypeParam(rng() % 7u); }
+		const auto e = std::min_element(in.begin(), in.end());
+		EXPECT_EQ(cryptanalysislib::min_element(in.begin(), in.end()), e) << s;
+		EXPECT_EQ(cryptanalysislib::min_element(in.begin(), in.end(), std::less<TypeParam>()), e) << s;
+	}
+	std::vector<TypeParam> empty;
+	EXPECT_EQ(cryptanalysislib::min_element(empty.begin(), empty.end()), empty.end());
+}
+
+/// parallel min_element against std::min_element, the minimum placed
+/// (several times) in different chunks
+TYPED_TEST_P(Min, min_element_multithreading) {
+	constexpr size_t s = 1u << 20u;
+	std::vector<TypeParam> in(s);
+	for (auto &x : in) { x = TypeParam(rng() % 100u + 10u); }
+	for (const size_t pos : {size_t(0), s / 3, s / 2 + 1, s - 1}) {
+		std::vector<TypeParam> v = in;
+		v[pos] = TypeParam(1);
+		v[s - 1] = TypeParam(1); // later duplicate: the first one wins
+		EXPECT_EQ(cryptanalysislib::min_element(par_if(true), v.begin(), v.end()),
+		          std::min_element(v.begin(), v.end())) << pos;
+	}
+}
+
+REGISTER_TYPED_TEST_SUITE_P(Min, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar, min_element, min_element_multithreading);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Min, MyTypes);
 

@@ -179,7 +179,7 @@ consteval T rotl(const T x) noexcept {
 
 // main source https://github.com/scandum/rotate/
 // basically I concentrated on the implementations not using any memory
-// TODO tests and benchmarks
+// NOTE: tests in `tests/algorithm/rotate.cpp`, benchmarks in `bench/algorithm/rotate.cpp`
 
 /// Conjoined Triple Reversal rotation algorithm by Igor van den Hoven (2021)
 ///
@@ -607,7 +607,15 @@ constexpr void drill_rotation(T *array,
 	}
 }
 
-/// TODO doc
+/// Rotates [first, last) such that `middle` becomes the first element
+/// (like `std::rotate`): in place, O(n) swaps, works for forward iterators.
+/// NOTE: for contiguous arrays see the faster `*_rotation` algorithms above,
+/// 	compared in `bench/algorithm/rotate.cpp` (1M uint32_t, split at n/3:
+/// 	`helix_rotation`/`drill_rotation` 59 µs, `std::rotate` 74 µs).
+/// \param first[in]: Iterator to the beginning of the range
+/// \param middle[in]: element which becomes the new first element
+/// \param last[in]: Iterator to the end of the range
+/// \return iterator to the new position of the former first element
 template<class ForwardIt>
 constexpr 
 ForwardIt rotate(ForwardIt first,
@@ -635,7 +643,13 @@ ForwardIt rotate(ForwardIt first,
     return write;
 }
 
-//// TODO doc
+/// Copies [first, last) rotated such that `middle` comes first to `d_first`
+/// (like `std::rotate_copy`)
+/// \param first[in]: Iterator to the beginning of the input range
+/// \param middle[in]: element which becomes the first output element
+/// \param last[in]: Iterator to the end of the input range
+/// \param d_first[out]: beginning of the output, must not overlap the input
+/// \return Iterator past the last written element
 template<class ForwardIt,
          class OutputIt>
 constexpr

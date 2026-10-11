@@ -61,7 +61,26 @@ TYPED_TEST_P(Search, simple_n) {
 //	EXPECT_EQ(t1, 0);
 //}
 
-REGISTER_TYPED_TEST_SUITE_P(Search, simple, simple_n);
+/// search_n (SIMD path) against std::search_n: few distinct values, so runs
+/// of all lengths occur, also crossing block boundaries
+TYPED_TEST_P(Search, search_n_random) {
+	for (size_t len = 0; len <= 200; ++len) {
+		std::vector<TypeParam> in(len);
+		for (auto &x : in) { x = TypeParam(rand() % 3 == 0 ? 7 : 1); }
+		for (const size_t count : {size_t(0), size_t(1), size_t(2), size_t(3), size_t(5), size_t(9), size_t(17), size_t(40)}) {
+			const auto e = std::search_n(in.begin(), in.end(), count, TypeParam(1));
+			const auto r = cryptanalysislib::search_n(in.begin(), in.end(), count, TypeParam(1));
+			ASSERT_EQ(r - in.begin(), e - in.begin()) << len << " " << count;
+		}
+	}
+	// a long run crossing several blocks
+	std::vector<TypeParam> in(1000, 0);
+	std::fill(in.begin() + 333, in.begin() + 333 + 300, TypeParam(1));
+	EXPECT_EQ(cryptanalysislib::search_n(in.begin(), in.end(), 300, TypeParam(1)) - in.begin(), 333);
+	EXPECT_EQ(cryptanalysislib::search_n(in.begin(), in.end(), 301, TypeParam(1)), in.end());
+}
+
+REGISTER_TYPED_TEST_SUITE_P(Search, simple, simple_n, search_n_random);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Search, MyTypes);
 

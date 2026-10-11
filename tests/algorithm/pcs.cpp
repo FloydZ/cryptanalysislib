@@ -274,6 +274,34 @@ TEST(PCS, RhoFactorise) {
 //	}
 //}
 
+/// collision of f(x) = x^2 + 1 mod p, with both cycle finders of the
+/// flavoured `run` (Brent and Floyd)
+struct ModSquareCmp {
+	bool operator()(const uint32_t &a1, const uint32_t &a2,
+	                const uint32_t &b1, const uint32_t &b2) const noexcept {
+		return (a2 == b2) && (a1 != b1);
+	}
+};
+
+template<const PollardRhoConfig &cfg>
+static void check_rho_config() {
+	constexpr uint32_t p = 65521;
+	const auto f = [](const uint32_t &x) { return uint32_t((uint64_t(x) * x + 1u) % p); };
+	const auto flavour = [](const uint32_t &x) { return x; };
+	for (uint32_t start = 2; start < 50; start += 7) {
+		uint32_t x1 = start, y1 = start, x2 = 0, y2 = 0;
+		const bool found = PollardRho<ModSquareCmp, uint32_t, cfg>::run(f, flavour, x1, y1, x2, y2);
+		EXPECT_TRUE(found) << start;
+		EXPECT_EQ(f(x1), f(y1)) << start;
+		EXPECT_NE(x1, y1) << start;
+	}
+}
+
+constexpr static PollardRhoConfig brentConfig{.brent = true};
+constexpr static PollardRhoConfig floydConfig{.brent = false};
+TEST(PCS, RhoConfigBrent) { check_rho_config<brentConfig>(); }
+TEST(PCS, RhoConfigFloyd) { check_rho_config<floydConfig>(); }
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	ident();

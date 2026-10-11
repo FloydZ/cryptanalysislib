@@ -159,8 +159,16 @@ namespace cryptanalysislib {
                  const AlgorithmArgMinConfig &config = algorithmArgMinConfig>
 	    [[nodiscard]] constexpr static inline size_t argmin_simd_dispatch(const uint32_t *__restrict__ a,
 	                                                   			          const size_t n) noexcept {
-            // TODO select correct one
-            return argmin_simd<S, config>(a, n);
+            // NOTE: crossover points measured with `bench/algorithm/argmin`
+            // 	(random uint32_t): the unrolled versions only pay off once
+            // 	their larger blocks amortize the setup
+            if (n < 1024u) {
+                return argmin_simd<S, config>(a, n);
+            }
+            if (n < 4096u) {
+                return argmin_simd_bl16<S, config>(a, n);
+            }
+            return argmin_simd_bl32<S, config>(a, n);
         }
 
 // old and unused code. The SIMD class can now work with signed/unsinged types
