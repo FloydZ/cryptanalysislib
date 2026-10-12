@@ -83,6 +83,7 @@ constexpr size_t LS = 1u<<8u;
 #define Element Element_T<Value, Label, Matrix>
 #define List 	List_T<Element>
 
+#ifdef __cpp_explicit_this_parameter
 TEST(ListName, list_view) {
 	constexpr size_t qbits = ceil_log2(Q);
 	constexpr size_t LS = 1u<<(qbits);
@@ -108,6 +109,7 @@ TEST(ListName, list_view) {
 
 	std::cout << v;
 }
+#endif
 
 
 TEST(ListName, kAry_search) {

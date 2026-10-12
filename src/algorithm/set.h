@@ -615,7 +615,9 @@ namespace cryptanalysislib {
                                      OutIt d_first, Op op,
                                      const uint32_t nthreads) noexcept {
             using T = typename std::iterator_traits<RandIt1>::value_type;
-            const auto [c1, c2] = set_parallel_cuts(first1, n1, first2, n2, nthreads);
+            // NOTE: no structured binding, clang < 19 cannot capture them with -fopenmp
+            const auto cuts = set_parallel_cuts(first1, n1, first2, n2, nthreads);
+            const std::vector<size_t> &c1 = cuts.first, &c2 = cuts.second;
             auto &task_pool = *policy.pool();
 
             std::vector<std::vector<T>> parts(nthreads);
@@ -692,7 +694,9 @@ namespace cryptanalysislib {
             return cryptanalysislib::includes(first1, last1, first2, last2);
         }
 
-        const auto [c1, c2] = internal::set_parallel_cuts(first1, n1, first2, n2, nthreads);
+        // NOTE: no structured binding, clang < 19 cannot capture them with -fopenmp
+        const auto cuts = internal::set_parallel_cuts(first1, n1, first2, n2, nthreads);
+        const std::vector<size_t> &c1 = cuts.first, &c2 = cuts.second;
         auto &task_pool = *policy.pool();
         std::atomic<bool> ok{true};
         std::vector<std::future<void>> futures;

@@ -8,6 +8,10 @@
 #include <immintrin.h>
 #endif
 
+#ifdef USE_NEON
+#include <arm_neon.h>
+#endif
+
 /// A simple structure representing a span of bytes
 struct span_t {
     uint8_t *data = nullptr;  ///< Pointer to the data
@@ -370,15 +374,18 @@ namespace cryptanalysislib::algorithm {
 
             // Precomputed constants.
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
-            uint32x4_t const n_prefix = vld1q_dup_u32((uint32_t const *)(needle.data));
+            // NOTE: unaligned loads only via memcpy/byte loads (see `prefix_substr`)
+            uint32_t n_prefix32;
+            __builtin_memcpy(&n_prefix32, needle.data, 4);
+            uint32x4_t const n_prefix = vdupq_n_u32(n_prefix32);
 
             uint8_t const *h_ptr = haystack.data;
             for (; (h_ptr + 16) <= h_end; h_ptr += 16) {
 
-                uint32x4_t masks0 = vceqq_u32(vld1q_u32((uint32_t const *)(h_ptr)), n_prefix);
-                uint32x4_t masks1 = vceqq_u32(vld1q_u32((uint32_t const *)(h_ptr + 1)), n_prefix);
-                uint32x4_t masks2 = vceqq_u32(vld1q_u32((uint32_t const *)(h_ptr + 2)), n_prefix);
-                uint32x4_t masks3 = vceqq_u32(vld1q_u32((uint32_t const *)(h_ptr + 3)), n_prefix);
+                uint32x4_t masks0 = vceqq_u32(vreinterpretq_u32_u8(vld1q_u8(h_ptr)), n_prefix);
+                uint32x4_t masks1 = vceqq_u32(vreinterpretq_u32_u8(vld1q_u8(h_ptr + 1)), n_prefix);
+                uint32x4_t masks2 = vceqq_u32(vreinterpretq_u32_u8(vld1q_u8(h_ptr + 2)), n_prefix);
+                uint32x4_t masks3 = vceqq_u32(vreinterpretq_u32_u8(vld1q_u8(h_ptr + 3)), n_prefix);
 
                 // Extracting matches from masks:
                 // vmaxvq_u32 (only a64)
@@ -397,7 +404,9 @@ namespace cryptanalysislib::algorithm {
             }
 
             // Don't forget the last (up to 16+3=19) characters.
-            size_t last_match = prefix_substr(haystack.after_n(h_ptr - haystack.data), needle);
+            // NOTE: `prefix_substr` takes a non-const reference, hence the named span
+            span_t t = haystack.after_n(h_ptr - haystack.data);
+            size_t last_match = prefix_substr(t, needle);
             return (last_match != not_found_k) ? last_match + (h_ptr - haystack.data) : not_found_k;
         }
 #endif

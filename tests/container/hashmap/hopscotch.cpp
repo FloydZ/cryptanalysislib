@@ -62,9 +62,11 @@ TEST(hopscotch, simple) {
 TEST(hopscotch, ranges) {
 	std::vector<std::pair<int, int>> v;
 	for (int i = 0; i < 1000; ++i) { v.emplace_back(i, i * i); }
+#ifdef __cpp_lib_ranges_to_container
 	hopscotch_map<int, int> m(std::from_range, v);
 	EXPECT_EQ(m.size(), 1000u);
 	for (int i = 0; i < 1000; ++i) { EXPECT_EQ(m.at(i), i * i); }
+#endif
 
 	// a view, duplicates keep the first value
 	auto odd = v | std::views::filter([](const auto &p) { return p.first % 2; });

@@ -627,8 +627,10 @@ public:
 		return __data[i];
 	}
 
+#ifdef __cpp_explicit_this_parameter
 	/// NOTE: deducing `this`, so the view is typed on the most derived list
 	/// 	(e.g. `List_T`), which is the one satisfying `ListAble`.
+	/// 	Not available without deducing `this` (e.g. gcc 13).
 	/// \param i first index (inclusive)
 	/// \param j last index (exclusive)
 	/// \return `Listview_t` or, if called on a const list, `Listview_const_t`
@@ -645,6 +647,7 @@ public:
 			return Listview_t<LL>(&self, i, j);
 		}
 	}
+#endif
 
 	///
 	/// \param e

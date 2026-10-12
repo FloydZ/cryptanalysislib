@@ -56,6 +56,7 @@ TEST(Listview, const_view) {
 	}
 }
 
+#ifdef __cpp_explicit_this_parameter
 TEST(Listview, view) {
 	List L{LS, 1};
 	Matrix m;
@@ -73,6 +74,7 @@ TEST(Listview, view) {
 	EXPECT_EQ(cv.size(), 16);
 	EXPECT_EQ(&cv[15], &L[19]);
 }
+#endif
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

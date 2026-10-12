@@ -563,15 +563,17 @@ public:
 		constexpr bool sHM = !std::is_same_v<std::nullptr_t, HashMap>;
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
+		// label = H*e, see `check`
+		const auto H = HT.transpose();
 		for (size_t ctr = 0; ctr < list_size; ++ctr) {
 			increment(element1.value, base_offset);
 
-			HT.mul(element1.label, element1.value);
+			H.mul(element1.label, element1.value);
 			if (syndrome != nullptr) { Label::add(element1.label, element1.label, *syndrome); }
 
 			if (sL2) {
 				increment(element2.value, offset + base_offset);
-				HT.mul(element2.label, element2.value);
+				H.mul(element2.label, element2.value);
 			}
 
 			// stupid security checks

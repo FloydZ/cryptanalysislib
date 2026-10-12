@@ -9,6 +9,7 @@
 #error "no avx512 enabled."
 #endif
 
+#include <array>
 #include <cstdint>
 #include <immintrin.h>
 
@@ -1694,8 +1695,9 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const Xint16x32_t in) noexcept {
 		if consteval {
-			// NOTE: via the vector type, `d` is not the active union member
-			const __v32hu v = (__v32hu) in.v512;
+			// NOTE: via bit_cast, `d` is not the active union member and
+			// 	clang 18 cannot subscript vectors in constant expressions
+			const auto v = __builtin_bit_cast(std::array<uint16_t, LIMBS>, in.v512);
 			for (uint32_t i = 1; i < LIMBS; ++i) {
 				if (v[0] != v[i]) { return false; }
 			}

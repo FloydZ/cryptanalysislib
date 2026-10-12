@@ -278,7 +278,9 @@ public:
 	    : hopscotch_map(init.begin(), init.end(), bucket_count, hash, KeyEqual(),
 	                    alloc) {}
 
+#ifdef __cpp_lib_ranges_to_container
 	/// range constructor (like `std::unordered_map(std::from_range, rg)`)
+	/// NOTE: needs `std::from_range_t` (e.g. not in libstdc++ 13)
 	/// \param rg[in]: range of elements convertible to `value_type`
 	template<class R>
 #if __cplusplus > 201709L
@@ -293,6 +295,7 @@ public:
 	    : hopscotch_map(bucket_count, hash, equal, alloc) {
 		insert_range(std::forward<R>(rg));
 	}
+#endif
 
 	constexpr hopscotch_map &operator=(std::initializer_list<value_type> ilist) noexcept {
 		m_ht.clear();
