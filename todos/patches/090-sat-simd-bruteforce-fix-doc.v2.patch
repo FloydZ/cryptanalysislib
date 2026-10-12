@@ -1,0 +1,108 @@
+diff --git a/src/algorithm/sat/bruteforce.h b/src/algorithm/sat/bruteforce.h
+index 454b410..ac64ba6 100644
+--- a/src/algorithm/sat/bruteforce.h
++++ b/src/algorithm/sat/bruteforce.h
+@@ -16,36 +16,56 @@ T idxq(const T i,
+ 
+ using namespace cryptanalysislib;
+ 
+-/// TODO doc
++/// SIMD version of the SAT bruteforce: every SIMD lane holds one clause, all
++/// 2^n assignments are enumerated in Gray code order.
++/// NOTE: before, this did not compile (`S::limbs`, `print_binary` of a
++///     vector) and was wrong: the lane mask was compared against the
++///     variable mask `m`, and `~c` was not masked to the `n` variable bits
++///     (every clause looked satisfied by its high bits).
++/// \tparam S SIMD type, one clause per lane
++/// \tparam T limb type of `S`
++/// \tparam n number of variables (clause bit i = polarity of variable i)
++/// \tparam print if true, every solution is also printed
++/// \param clauses[in]: exactly S::LIMBS clauses, layout as below
++/// \param nr_clauses[in]: number of clauses, must be S::LIMBS
++/// \return all solutions (assignments, bit i = variable i), in Gray code order
+ template <typename S,
+           typename T,
+-          const uint32_t n>
++          const uint32_t n,
++          const bool print = true>
+ requires SIMDAble<S>
+-void sat_bruteforce(const T *clauses,
+-                    const uint32_t nr_clauses) {
+-    assert(S::limbs == nr_clauses);
++std::vector<T> sat_bruteforce(const T *clauses,
++                              const uint32_t nr_clauses) {
++    assert(S::LIMBS == nr_clauses);
++    (void)nr_clauses;
+ 
+     constexpr size_t size = 1u << n;
+     constexpr T m = (1ull << n) - 1ull;
++    constexpr uint64_t lanes = (S::LIMBS >= 64) ? uint64_t(-1ull) : ((1ull << S::LIMBS) - 1ull);
++    std::vector<T> solutions;
+ 
+-    const S c = S::load(clauses);
+-    const S nc = S::not_(c);
++    const S mm = S::set1(m);
++    const S c = S::load(clauses) & mm;
++    const S nc = S::not_(c) & mm;
+     const S zero = S::set1(0);
+     for (size_t i = 0; i < size; i++) {
+         // TODO write python script which unrolls everything
+-        const T x_ = to_gray(i);
++        const T x_ = to_gray(T(i));
+         const S x = S::set1(x_);
+-        const S invx = S::not_(x);
++        const S invx = S::not_(x) & mm;
+ 
+-        const S t1 = c & x;
+-        const S t2 = nc & invx;
+-        const S t3 = t1 | t2;
+-        const T t = t3 > zero;
+-        if (t == m) {
++        const S t3 = (c & x) | (nc & invx);
++        // one bit per lane: clause satisfied
++        const uint64_t t = uint64_t(t3 > zero) & lanes;
++        if (t == lanes) {
+             // found a solution
+-            print_binary(x, n);
++            solutions.push_back(x_);
++            if constexpr (print) {
++                print_binary(x_, n);
++            }
+         }
+     }
++    return solutions;
+ }
+ 
+ /// \tparam T
+diff --git a/tests/algorithm/sat/bruteforce.cpp b/tests/algorithm/sat/bruteforce.cpp
+index d5feebe..6ffecd1 100644
+--- a/tests/algorithm/sat/bruteforce.cpp
++++ b/tests/algorithm/sat/bruteforce.cpp
+@@ -60,6 +60,27 @@ TEST(sat, next_gray) {
+ 	static_assert(cryptanalysislib::next_gray<uint8_t>(0) == 1 && cryptanalysislib::next_gray<uint8_t>(1) == 3 && cryptanalysislib::next_gray<uint8_t>(3) == 2);
+ }
+ 
++/// SIMD version against a direct evaluation, random sets of 8 clauses
++TEST(sat, bruteforce_simd) {
++	constexpr uint32_t n = 6;
++	for (uint32_t r = 0; r < 200; ++r) {
++		uint32_t clauses[8];
++		for (auto &c : clauses) { c = uint32_t(rand()) & ((1u << n) - 1u); }
++		auto sol = sat_bruteforce<uint32x8_t, uint32_t, n, false>(clauses, 8);
++
++		std::vector<uint32_t> e;
++		for (uint32_t x = 0; x < (1u << n); ++x) {
++			bool all = true;
++			for (uint32_t j = 0; j < 8; ++j) {
++				all &= (((clauses[j] & x) | (~clauses[j] & ~x & ((1u << n) - 1u))) != 0);
++			}
++			if (all) { e.push_back(x); }
++		}
++		std::sort(sol.begin(), sol.end());
++		EXPECT_EQ(sol, e) << r;
++	}
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();

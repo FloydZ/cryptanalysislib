@@ -9,14 +9,6 @@
 #include <cstdlib>
 #include <cstdint>
 
-// TODO move to traits
-// basic alignment cofnig
-struct AlignmentConfig {
-	// alignment in bytes
-	constexpr static size_t alignment = 8;
-};
-// NOTE: `inline`, so including this header in several translation units does
-// not define the object more than once
-inline constexpr AlignmentConfig configAlignment{};
+#include "traits.h"
 
 #endif

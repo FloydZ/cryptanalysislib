@@ -9,13 +9,19 @@
 #include "print/print.h"
 #include "random.h"
 
-// TODO #include "swar.h"
+// SIMD within a register helpers (`cryptanalysislib::swar`)
+#include "simd/swar.h"
 
 using cryptanalysislib::print_binary;
 using cryptanalysislib::rng;
 using namespace cryptanalysislib;
 
-/// TODO whats that?
+/// 64 bit constant for `vgf2p8affineqb` (GFNI): byte (7 - i) of the result
+/// is the one-hot value `1 << b_i`. As the 8x8 bit matrix operand it
+/// permutes the bits within every byte; as the data operand (one-hot bytes)
+/// it selects byte (7 - b_i) of the matrix qword, i.e. it permutes the bytes
+/// within every 64 bit lane, e.g. `bit_shuffle_const(7, 6, ..., 0)` reverses
+/// them (used in `uint8x64_t::reverse`).
 #define bit_shuffle_const(b0, b1, b2, b3, b4, b5, b6, b7) \
 	((uint64_t(uint8_t(1 << b0)) << (7 * 8)) |            \
 	 (uint64_t(uint8_t(1 << b1)) << (6 * 8)) |            \
@@ -93,6 +99,53 @@ namespace cryptanalysislib::internal {
     };
 #endif
 }; // end namespace: cryptanalysislib::internal
+
+namespace cryptanalysislib::internal {
+	/// GCC vector extension type with `LANES` lanes of `T`
+	/// NOTE: via a class, as the attribute is dropped on an alias template
+	template<typename T, const size_t LANES>
+	struct vec_type {
+		typedef T type __attribute__((vector_size(sizeof(T) * LANES)));
+	};
+	template<typename T, const size_t LANES>
+	using vec_t = typename vec_type<T, LANES>::type;
+
+	/// lane-wise unsigned division of `a` by the invariant scalar `d >= 1`,
+	/// without any division instruction. Granlund, Montgomery: "Division by
+	/// invariant integers using multiplication" (1994), Fig. 4.1, as in
+	/// libdivide (branchfree):
+	/// 	l = ceil(log2(d)), m = floor(2**N (2**l - d) / d) + 1   (< 2**N)
+	/// 	t = mulhi(m, a), q = (t + ((a - t) >> 1)) >> (l - 1)
+	/// The N bit `mulhi` is computed in 2N bit lanes, so no 64 bit lanes are
+	/// supported (no 128 bit vector extensions).
+	/// \tparam T unsigned 8, 16 or 32 bit lane type
+	/// \tparam LANES number of lanes
+	/// \param a numerators
+	/// \param d divisor, must not be zero
+	/// \return a / d (lane-wise, rounded down)
+	template<typename T, const size_t LANES>
+#if __cplusplus > 201709L
+		requires (std::is_unsigned_v<T> && (sizeof(T) <= 4))
+#endif
+	constexpr inline vec_t<T, LANES> udiv_invariant(const vec_t<T, LANES> a,
+	                                                const T d) noexcept {
+		using W = std::conditional_t<sizeof(T) == 1, uint16_t,
+		          std::conditional_t<sizeof(T) == 2, uint32_t, uint64_t>>;
+		using VT = vec_t<T, LANES>;
+		using VW = vec_t<W, LANES>;
+		constexpr uint32_t N = sizeof(T) * 8u;
+		assert(d != 0);
+		if (d == 1) { return a; }
+
+		uint32_t l = 0;
+		while ((uint64_t(1) << l) < d) { l += 1; }
+		const W m = W(((uint64_t(1) << N) * ((uint64_t(1) << l) - d)) / d + 1u);
+
+		const VW aw = __builtin_convertvector(a, VW);
+		const VT t = __builtin_convertvector((aw * m) >> N, VT);
+		return (t + ((a - t) >> 1)) >> (l - 1u);
+	}
+} // end namespace cryptanalysislib::internal
 
 template <std::size_t Size>
 using MaskType = typename cryptanalysislib::internal::_MaskType<Size>::type;
@@ -199,6 +252,23 @@ public:
 };
 
 
+namespace cryptanalysislib {
+	/// \return width in bits of the largest SIMD register enabled at compile
+	/// 	time: 512 (`USE_AVX512F`), 256 (`USE_AVX2`), 128 (NEON/SSE2),
+	/// 	otherwise 64 (generic SWAR fallback).
+	/// NOTE: e.g. the maximal useful alignment (in bits) of SIMD data
+	[[nodiscard]] constexpr inline uint32_t simd_max_register_bits() noexcept {
+#if defined(USE_AVX512F)
+		return 512u;
+#elif defined(USE_AVX2)
+		return 256u;
+#elif defined(USE_ARM) || defined(USE_NEON) || defined(USE_SSE2) || defined(__SSE2__)
+		return 128u;
+#else
+		return 64u;
+#endif
+	}
+} // end namespace cryptanalysislib
 
 #if defined(USE_AVX2)
 #include "simd/avx2.h"
@@ -5565,6 +5635,9 @@ namespace cryptanalysislib {
 
 #if __cplusplus > 201709L
 /// describes the needed function to be row
+/// NOTE: currently e.g. `TxN_t<uint32_t, 8>` satisfies it; the backend types
+/// 	(`uint8x32_t`, `uint64x8_t`, ...) do not, mostly because `mulhi`/`mul`
+/// 	(and for AVX-512 `gather`/`scatter`) are missing.
 template<class S>
 concept SIMDAble = requires(S s) {
 	typename S::limb_type;
@@ -5589,7 +5662,7 @@ concept SIMDAble = requires(S s) {
 		{ S::load(pl) } -> std::convertible_to<S>;
 		{ S::aligned_load(pl) } -> std::convertible_to<S>;
 		{ S::unaligned_load(pl) } -> std::convertible_to<S>;
-        // TODO store
+		S::store(pl, s);
 
 		{ S::xor_(s, s) } -> std::convertible_to<S>;
 		{ S::and_(s, s) } -> std::convertible_to<S>;
@@ -5610,8 +5683,8 @@ concept SIMDAble = requires(S s) {
 		{ S::gt(s, s) } -> std::convertible_to<typename S::limb_type>;
 		{ S::lt_(s, s) } -> std::convertible_to<S>;
 		{ S::lt(s, s) } -> std::convertible_to<typename S::limb_type>;
-		//TODO { S::eq_(s, s) } -> std::convertible_to<S>;
-		//TODO { S::eq(s, s) } -> std::convertible_to<typename S::limb_type>;
+		{ S::eq_(s, s) } -> std::convertible_to<S>;
+		{ S::eq(s, s) } -> std::convertible_to<typename S::limb_type>;
 		{ S::cmp_(s, s) } -> std::convertible_to<S>;
 		{ S::cmp(s, s) } -> std::convertible_to<typename S::limb_type>;
 

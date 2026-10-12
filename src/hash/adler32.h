@@ -4,11 +4,12 @@
 #include <cstdlib>
 #include <cstdint>
 
+#include "dispatch.h"
+
 #if defined(USE_AVX2) || defined(USE_AVX512F)
 #include <immintrin.h>
 #endif
 
-// TODO add dispatch function like in `src/search/binary.h`
 // TODO move the internal horizontally addition functions to the simd interface
 
 namespace cryptanalysislib::hash::adler32::internal {
@@ -129,7 +130,7 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
 	using cryptanalysislib::hash::adler32::internal::NMAX;
 	using cryptanalysislib::hash::adler32::internal::avx2_hadd_adler32;
 
-    // TODO make this a function argument? Or move it anywhere useful
+	// NOTE: bytes per AVX2 register, fixed by the algorithm
 	constexpr size_t BLOCK_SIZE = 32u;
 
 	if (in_len < BLOCK_SIZE) {
@@ -245,4 +246,38 @@ constexpr static uint32_t avx512_adler32(uint32_t val,
 	return adler32_update(a, b, ptr, blocks_remainder);
 }
 #endif
+
+/// Adler-32 with the fastest available implementation (scalar, AVX2,
+/// AVX-512): on the first call all candidates are benchmarked once on a
+/// fixed 4 KiB buffer (like `binary_search_dispatch` in `search/binary.h`),
+/// the choice is a function local static (thread safe initialization).
+/// \param val[in] initial Adler-32 value (1 for a new checksum)
+/// \param in[in] input data
+/// \param in_len[in] length of the input in bytes
+/// \return the Adler-32 checksum, identical for all implementations
+static inline uint32_t adler32_dispatch(const uint32_t val,
+                                        const uint8_t *in,
+                                        const size_t in_len) noexcept {
+	using FF = uint32_t (*)(uint32_t, const uint8_t *, size_t);
+	static FF functions[] = {
+		adler32,
+#ifdef USE_AVX2
+		avx2_adler32,
+#endif
+#ifdef USE_AVX512F
+		avx512_adler32,
+#endif
+	};
+
+	static const FF best = []() noexcept {
+		static uint8_t buf[4096];
+		for (size_t i = 0; i < sizeof(buf); ++i) { buf[i] = uint8_t(i * 131u + 7u); }
+		FF out = functions[0];
+		generic_dispatch(out, functions, sizeof(functions) / sizeof(functions[0]),
+		                 uint32_t(1), (const uint8_t *)buf, sizeof(buf));
+		return out;
+	}();
+
+	return best(val, in, in_len);
+}
 #endif

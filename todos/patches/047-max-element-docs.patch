@@ -1,0 +1,32 @@
+diff --git a/src/algorithm/max.h b/src/algorithm/max.h
+index b841320..8f208ef 100644
+--- a/src/algorithm/max.h
++++ b/src/algorithm/max.h
+@@ -179,7 +179,11 @@ namespace cryptanalysislib {
+ 	}
+ 
+ 
+-    /// TODO doc
++    /// Finds the first largest element (like `std::max_element`)
++    /// \tparam ForwardIt Forward iterator type
++    /// \param first[in]: Iterator to the beginning of the range
++    /// \param last[in]: Iterator to the end of the range
++    /// \return Iterator to the first largest element, last if the range is empty
+     template<class ForwardIt>
+     ForwardIt max_element(ForwardIt first,
+                           ForwardIt last) noexcept {
+@@ -198,7 +202,13 @@ namespace cryptanalysislib {
+         return largest;
+     }
+     
+-    /// TODO doc
++    /// Finds the first largest element w.r.t. `comp` (like `std::max_element`)
++    /// \tparam ForwardIt Forward iterator type
++    /// \tparam Compare less-than comparison, `comp(a, b)` true iff a < b
++    /// \param first[in]: Iterator to the beginning of the range
++    /// \param last[in]: Iterator to the end of the range
++    /// \param comp[in]: comparison function
++    /// \return Iterator to the first largest element, last if the range is empty
+     template<class ForwardIt,
+              class Compare>
+     ForwardIt max_element(ForwardIt first,

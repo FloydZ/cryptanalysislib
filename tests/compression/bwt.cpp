@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <iostream>
+#include <vector>
 
 #include "compression/compression.h"
 
@@ -51,6 +53,53 @@ TEST(bwt, lcp) {
 		EXPECT_EQ(lcp[i], LCP[i]);
 	}
 	free(T); free(LCP);
+}
+
+/// naive reference: sort all suffixes
+static void naive_bwt_lcp(const std::vector<uint8_t> &t, std::vector<uint8_t> &bwt, std::vector<int> &lcp) {
+	const int n = int(t.size());
+	std::vector<int> sa(n);
+	for (int i = 0; i < n; ++i) { sa[i] = i; }
+	std::sort(sa.begin(), sa.end(), [&](int a, int b) {
+		return std::lexicographical_compare(t.begin() + a, t.end(), t.begin() + b, t.end());
+	});
+	bwt.resize(n); lcp.assign(n, 0);
+	for (int i = 0; i < n; ++i) {
+		bwt[i] = t[(sa[i] + n - 1) % n];
+		if (i > 0) {
+			int l = 0;
+			while ((sa[i] + l < n) && (sa[i - 1] + l < n) && (t[sa[i] + l] == t[sa[i - 1] + l])) { ++l; }
+			lcp[i] = l;
+		}
+	}
+}
+
+/// random texts over alphabets of 1, 2, 4 and 26 symbols, all lengths
+/// 2..300: BWT, LCP and the inverse against the naive reference
+TEST(bwt, random_vs_naive) {
+	for (const uint32_t sigma : {1u, 2u, 4u, 26u}) {
+		for (int n = 2; n <= 300; n += 7) {
+			std::vector<uint8_t> t(n);
+			for (int i = 0; i < n - 1; ++i) { t[i] = uint8_t('a' + rand() % sigma); }
+			t[n - 1] = END_MARKER;
+			std::vector<uint8_t> e_bwt; std::vector<int> e_lcp;
+			naive_bwt_lcp(t, e_bwt, e_lcp);
+
+			std::vector<uint8_t> T = t;
+			ASSERT_EQ(bwt_inplace(T.data(), n), n);
+			ASSERT_EQ(T, e_bwt) << sigma << " " << n;
+
+			uint8_t *rev = bwt_reverse(T.data(), n);
+			ASSERT_TRUE(std::equal(t.begin(), t.end(), rev)) << sigma << " " << n;
+			free(rev);
+
+			std::vector<uint8_t> T2 = t;
+			std::vector<int> LCP(n);
+			bwt_lcp_inplace(T2.data(), n, LCP.data());
+			ASSERT_EQ(T2, e_bwt) << sigma << " " << n;
+			ASSERT_EQ(LCP, e_lcp) << sigma << " " << n;
+		}
+	}
 }
 
 int main(int argc, char **argv) {

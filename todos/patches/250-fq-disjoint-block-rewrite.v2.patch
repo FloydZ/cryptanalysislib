@@ -1,0 +1,445 @@
+diff --git a/src/list/enumeration/fq.h b/src/list/enumeration/fq.h
+index 84cfc68..503538b 100644
+--- a/src/list/enumeration/fq.h
++++ b/src/list/enumeration/fq.h
+@@ -6,6 +6,7 @@
+ #endif
+ 
+ 
++#include <array>
+ #include "combination/chase.h"
+ #include "list/enumeration/enumeration.h"
+ 
+@@ -854,20 +855,31 @@ public:
+ 	constexpr static uint32_t mitmlen_half = (mitmlen + 1u) / 2u;
+ 	constexpr static uint32_t mitmlen_offset = mitmlen - mitmlen_half;
+ 
+-	constexpr static uint32_t norepslen = n - split;
+-	constexpr static uint32_t norepslen_quarter = (norepslen + 3) / 4;
+-	constexpr static uint32_t norepslen_offset = (norepslen) / 4;/// TODO not fully correct: with this the last coordinate will not be enumerated
+-	Combinations_Fq_Chase<mitmlen_half, q, mitm_w> mitm_chase = Combinations_Fq_Chase<mitmlen_half, q, mitm_w>{};
+-	Combinations_Fq_Chase<norepslen_quarter, q, noreps_w> noreps_chase = Combinations_Fq_Chase<norepslen_quarter, q, noreps_w>{};
++	/// NOTE: the noreps part is split into 4 disjoint blocks of equal size
++	/// 	`norepslen_quarter`. If `n - split` is not divisible by 4, the
++	/// 	noreps part is enlarged into the mitm part (same as `align_noreps`
++	/// 	in `ListEnumerateSinglePartialSingle`).
++	constexpr static uint32_t norepslen = roundToAligned<4>(n - split);
++	constexpr static uint32_t noreps_base = n - norepslen;
++	constexpr static uint32_t norepslen_quarter = norepslen / 4;
++	constexpr static uint32_t norepslen_offset = norepslen_quarter;
++
++	using mitm_chase_t = Combinations_Fq_Chase<mitmlen_half, q, mitm_w>;
++	using noreps_chase_t = Combinations_Fq_Chase<norepslen_quarter, q, noreps_w>;
+ 
+-	constexpr static size_t mitm_chase_size = Combinations_Fq_Chase<mitmlen_half, q, mitm_w>::chase_size;
+-	constexpr static size_t mitm_gray_size = Combinations_Fq_Chase<mitmlen_half, q, mitm_w>::gray_size;
+-	constexpr static size_t noreps_chase_size = Combinations_Fq_Chase<norepslen_quarter, q, noreps_w>::chase_size;
+-	constexpr static size_t noreps_gray_size = Combinations_Fq_Chase<norepslen_quarter, q, noreps_w>::gray_size;
++	/// number of elements enumerated on the mitm/noreps part
++	constexpr static size_t mitm_list_size = mitm_chase_t::LIST_SIZE;
++	constexpr static size_t noreps_list_size = noreps_chase_t::LIST_SIZE;
+ 
+ 	/// this can be used to specify the size of the input list
+ 	/// e.g. its the maximum number of elements this class enumerates
+-	constexpr static size_t LIST_SIZE = (mitm_chase_size * mitm_gray_size) * (noreps_chase_size * noreps_gray_size);
++	constexpr static size_t LIST_SIZE = mitm_list_size * noreps_list_size;
++
++	/// the mitm part and the noreps block of each list must not overlap
++	static_assert(noreps_base + norepslen == n);
++	static_assert(mitmlen_half <= noreps_base);                    // L1, L3
++	static_assert(mitmlen <= noreps_base + norepslen_offset);      // L2
++	static_assert(norepslen_quarter > noreps_w);
+ 
+ 	// this can be se to something else as `LIST_SIZE`, if one wants to only
+ 	// enumerate a part of the sequence
+@@ -875,11 +887,66 @@ public:
+ 
+ 	// change list for the chase sequence
+ 	using ChangeList = std::vector<std::pair<uint16_t, uint16_t>>;
+-	ChangeList mitm_chase_cl{mitm_chase_size};
+-	ChangeList noreps_chase_cl{noreps_chase_size};
+ 
+-	std::vector<uint16_t> mitm_gray_cl = std::vector<uint16_t>(mitm_gray_size);
+-	std::vector<uint16_t> noreps_gray_cl = std::vector<uint16_t>(noreps_gray_size);
++	/// walks the configurations of `Combinations_Fq_Chase<len, q, wt>` in
++	/// the same order as `ListEnumerateMultiFullLength`: a cyclic gray code
++	/// on the values of the `wt` set coordinates, and a chase step after
++	/// each gray code pass. Positions are relative to the block.
++	template<const uint32_t len, const uint32_t wt>
++	struct Walker {
++		using C = Combinations_Fq_Chase<len, q, wt>;
++		ChangeList chase_cl;
++		std::vector<uint16_t> gray_cl = std::vector<uint16_t>(C::gray_size ? C::gray_size : 1u);
++		std::array<uint32_t, wt> cs; // currently set coordinates
++		std::array<uint32_t, len> v; // current values
++		size_t i = 0, j = 0;
++
++		Walker() noexcept {
++			C c{};
++			if constexpr (q > 2) { c.changelist_mixed_radix_grey(gray_cl.data()); }
++			c.template changelist_chase<false>(chase_cl);
++			reset();
++		}
++
++		/// back to the start configuration: `[0, wt)` set to one
++		constexpr void reset() noexcept {
++			i = 0; j = 0;
++			for (uint32_t t = 0; t < len; ++t) { v[t] = t < wt; }
++			for (uint32_t t = 0; t < wt; ++t) { cs[t] = t; }
++		}
++
++		/// \param pos[out] changed (relative) coordinates
++		/// \param val[out] new values of these coordinates
++		/// \return number of changed coordinates, 0 = end of the sequence
++		constexpr uint32_t next(uint32_t pos[2], uint32_t val[2]) noexcept {
++			if (j < C::gray_size) {
++				const uint32_t p = cs[gray_cl[j]];
++				uint32_t nv = (v[p] + 1u) % q;
++				// the gray code is on {1, ..., q-1}
++				if (nv == 0) { nv = 1; }
++				v[p] = nv;
++				pos[0] = p; val[0] = nv;
++				j += 1;
++				return 1;
++			}
++
++			if (i + 1u < C::chase_size) {
++				const uint32_t a = chase_cl[i].first, b = chase_cl[i].second;
++				assert(v[a]);
++				assert(!v[b]);
++				for (uint32_t t = 0; t < wt; ++t) {
++					if (cs[t] == a) { cs[t] = b; }
++				}
++				v[a] = 0; v[b] = 1;
++				pos[0] = a; val[0] = 0;
++				pos[1] = b; val[1] = 1;
++				i += 1; j = 0;
++				return 2;
++			}
++
++			return 0;
++		}
++	};
+ 
+ 	/// empty constructor
+ 	/// \param HT transposed parity check matrix
+@@ -894,37 +961,24 @@ public:
+ 		static_assert(n > w);
+ 		static_assert(mitmlen > mitm_w);
+ 		static_assert(norepslen > noreps_w);
+-
+-		static_assert(mitm_chase_size >= 0);
+-		static_assert(noreps_chase_size > 0);
+ 		assert(LIST_SIZE >= list_size);
+-
+-		if constexpr (q > 2) mitm_chase.changelist_mixed_radix_grey(mitm_gray_cl.data());
+-		if constexpr (q > 2) noreps_chase.changelist_mixed_radix_grey(noreps_gray_cl.data());
+-		mitm_chase.template changelist_chase<false>(mitm_chase_cl);
+-		noreps_chase.template changelist_chase<false>(noreps_chase_cl);
+ 	}
+ 
+ 	/// \tparam HashMap
+ 	/// \tparam Extractor extractor lambda
+ 	/// 		- can be NULL
+-	/// \tparam Predicate Function. NOTE: can be
+-	///			- nullptr_t
+-	/// 		- std::invokable. if this returns true, the function returns
+ 	/// \param L1 first list. NOTE:
+ 	/// 		- the syndrome is only added into the first list
+ 	/// 		- if a hashmap is given: this list will be hashed into the first hashmap
+ 	/// \param L2 second list.
+ 	/// \param L3 third list.
+ 	/// \param L4 fourth list.
+-	/// \param offset
+-	/// 		- number of position between the MITM strategy
+ 	/// \param tid thread id
+-	/// \param hm hashmap
++	/// \param hm hashmap, `L1` is inserted (index = position in `L1`)
+ 	/// \param e extractor
+-	/// \param p predicate function
+-	/// \return true/false if the golden element was found or not (only if
+-	///  		predicate was given)
++	/// \param hm3 optional second hashmap, `L3` is inserted
++	/// 		(index = position in `L3`). Can be `nullptr`.
++	/// \return false
+ 	template<typename HashMap, typename Extractor>
+ #if __cplusplus > 201709L
+ 	    requires(std::is_same_v<std::nullptr_t, HashMap> || HashMapAble<HashMap>) &&
+@@ -934,7 +988,8 @@ public:
+ 	         ListType &L3, ListType &L4,
+ 	         const uint32_t tid = 0,
+ 	         HashMap *hm = nullptr,
+-	         Extractor *e = nullptr) {
++	         Extractor *e = nullptr,
++	         HashMap *hm3 = nullptr) {
+ 		Element element3, element4;
+ 
+ 		/// clear stuff, needed if this functions is called multiple times
+@@ -959,116 +1014,87 @@ public:
+ 			element1.label = *syndrome;
+ 		}
+ 
+-		/// compute the first elements
+-		for (uint32_t i = 0; i < mitm_w; ++i) {
+-			for (uint32_t k = 0; k < 4; ++k) {
+-				elements[k]->value.set(1u, i + (k & 1u) * mitmlen_offset);
+-				Label::add(elements[k]->label, elements[k]->label, HT.get(i + (k & 1u) * mitmlen_offset));
++		/// start of the mitm part/noreps block of the k-th list
++		auto mitm_base = [](const uint32_t k) { return (k & 1u) * mitmlen_offset; };
++		auto noreps_block = [](const uint32_t k) { return noreps_base + k * norepslen_offset; };
++
++		/// sets `value[pos] = nv` and updates the label by `(nv - value[pos]) * HT[pos]`.
++		/// NOTE: the difference is computed over the integers, so this is
++		/// 	also correct if the label is not defined mod q.
++		auto update = [this](Element &element, const uint32_t pos, const uint32_t nv) {
++			const uint32_t old = element.value[pos];
++			if (old == nv) { return; }
++			element.value.set(nv, pos);
++			if (nv == old + 1u) {
++				Label::add(element.label, element.label, HT.get(pos));
++				return;
+ 			}
+-		}
+ 
+-		for (uint32_t i = 0; i < noreps_w; ++i) {
+-			for (uint32_t k = 0; k < 4; ++k) {
+-				elements[k]->value.set(1u, i + split + k * norepslen_offset);
+-				Label::add(elements[k]->label, elements[k]->label, HT.get(i + split + k * norepslen_offset));
++			Label tmp;
++			if (nv > old) {
++				Label::scalar(tmp, HT.get(pos), nv - old);
++				Label::add(element.label, element.label, tmp);
++			} else {
++				Label::scalar(tmp, HT.get(pos), old - nv);
++				Label::sub(element.label, element.label, tmp);
+ 			}
+-		}
+-
+-		//
+-		std::vector<uint32_t> mitm_current_set(mitm_w, 0), noreps_current_set(noreps_w, 0);
+-		for (uint32_t i = 0; i < mitm_w; ++i) { mitm_current_set[i] = i; }
+-		for (uint32_t i = 0; i < noreps_w; ++i) { noreps_current_set[i] = i; }
+-
+-		auto gray_step = [this](Element &element, const uint32_t pos) {
+-			element.value.set((element.value[pos] + 1u) % q, pos);
+-			Label::add(element.label, element.label, HT.get(pos));
++		};
+ 
+-			/// NOTE: this is stupid, but needed. The gray code enumeration
+-			/// also enumerates zeros. Therefore we need to fix them
+-			if (element.value[pos] == 0) {
+-				element.value.set(1u, pos);
+-				Label::add(element.label, element.label, HT.get(pos));
++		/// NOTE: must be called before the element is advanced, so that the
++		/// 	hashed label matches the list entry at index `ctr`.
++		auto insert = [&](const uint32_t k) {
++			check(elements[k]->label, elements[k]->value);
++			insert_list(lists[k], *elements[k], ctr, tid);
++			if constexpr (sHM) {
++				if (k == 0) { insert_hashmap(hm, e, *elements[k], ctr, tid); }
++				if (k == 2) { insert_hashmap(hm3, e, *elements[k], ctr, tid); }
+ 			}
+ 		};
+ 
+-		auto chase_step = [this](Element &element,
+-		                         const uint32_t unset,
+-		                         const uint32_t set) {
+-			/// make really sure that the the chase
+-			/// sequence is correct.
+-			assert(element.value[unset]);
+-			assert(!element.value[set]);
+-			assert(std::abs((int) unset - (int) set) <= (int) w);
++		/// compute the first elements
++		for (uint32_t k = 0; k < 4; ++k) {
++			for (uint32_t i = 0; i < mitm_w; ++i) { update(*elements[k], mitm_base(k) + i, 1u); }
++			for (uint32_t i = 0; i < noreps_w; ++i) { update(*elements[k], noreps_block(k) + i, 1u); }
++		}
+ 
+-			Label tmp;
+-			Label::scalar(tmp, HT.get(unset), q - element.value[unset]);
+-			Label::add(element.label, element.label, tmp);
+-			Label::add(element.label, element.label, HT.get(set));
+-
+-			element.value.set(0u, unset);
+-			element.value.set(1u, set);
+-		};
++		Walker<mitmlen_half, mitm_w> mitm;
++		Walker<norepslen_quarter, noreps_w> noreps;
++		uint32_t pos[2], val[2];
+ 
+ 		/// iterate over all sequences
+-		for (uint32_t mc = 0; mc < mitm_chase_size; ++mc) {
+-			for (uint32_t mg = 0; mg < mitm_gray_size; ++mg) {
+-				for (uint32_t nrc = 0; nrc < noreps_chase_size; ++nrc) {
+-					for (uint32_t nrg = 0; nrg < noreps_gray_size; ++nrg) {
+-						for (uint32_t k = 0; k < 4; ++k) {
+-							check(elements[k]->label, elements[k]->value);
+-							insert_list(lists[k], *elements[k], ctr, tid);
+-
+-							gray_step(*elements[k],
+-							          split + k * norepslen_offset + noreps_current_set[noreps_gray_cl[nrg]]);
+-						}
+-
+-						// TODO also hash the 3 element
+-						if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+-
+-						ctr += 1;
+-						if (ctr >= list_size) { return false; }
+-					}// end noreps gray
+-
+-					for (uint32_t k = 0; k < 4; ++k) {
+-						check(elements[k]->label, elements[k]->value);
+-						insert_list(lists[k], *elements[k], ctr, tid);
+-
+-						const uint32_t a = split + k * norepslen_offset + noreps_chase_cl[nrc].first;
+-						const uint32_t b = split + k * norepslen_offset + noreps_chase_cl[nrc].second;
+-						chase_step(*elements[k], a, b);
+-					}
+-
+-					for (uint32_t j = 0; j < noreps_w; ++j) {
+-						if (noreps_current_set[j] == noreps_chase_cl[nrc].first) { noreps_current_set[j] = noreps_chase_cl[nrc].second; }
+-					}
++		while (true) {
++			/// all noreps configurations for the current mitm configuration
++			while (true) {
++				for (uint32_t k = 0; k < 4; ++k) { insert(k); }
+ 
+-					if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+-					ctr += 1;
+-					if (ctr >= list_size) { return false; }
+-				}// end noreps chase
++				ctr += 1;
++				if (ctr >= list_size) { return false; }
+ 
++				const uint32_t nr = noreps.next(pos, val);
++				if (nr == 0) { break; }
+ 				for (uint32_t k = 0; k < 4; ++k) {
+-					gray_step(*elements[k],
+-					          (k & 1u) * mitmlen_offset + mitm_current_set[mitm_gray_cl[mg]]);
++					for (uint32_t t = 0; t < nr; ++t) {
++						update(*elements[k], noreps_block(k) + pos[t], val[t]);
++					}
+ 				}
+-			}// end mitm gray
++			}
+ 
++			const uint32_t nm = mitm.next(pos, val);
++			if (nm == 0) { break; }
+ 			for (uint32_t k = 0; k < 4; ++k) {
+-				check(elements[k]->label, elements[k]->value);
+-				insert_list(lists[k], *elements[k], ctr, tid);
+-
+-				const uint32_t a = (k & 1u) * mitmlen_offset + mitm_chase_cl[mc].first;
+-				const uint32_t b = (k & 1u) * mitmlen_offset + mitm_chase_cl[mc].second;
+-				chase_step(*elements[k], a, b);
++				for (uint32_t t = 0; t < nm; ++t) {
++					update(*elements[k], mitm_base(k) + pos[t], val[t]);
++				}
+ 			}
+ 
+-			for (uint32_t j = 0; j < mitm_w; ++j) {
+-				if (mitm_current_set[j] == mitm_chase_cl[mc].first) { mitm_current_set[j] = mitm_chase_cl[mc].second; }
++			/// reset the noreps part to its start configuration
++			noreps.reset();
++			for (uint32_t k = 0; k < 4; ++k) {
++				for (uint32_t i = 0; i < norepslen_quarter; ++i) {
++					update(*elements[k], noreps_block(k) + i, i < noreps_w);
++				}
+ 			}
+-			if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+-			ctr += 1;
+-			if (ctr >= list_size) { return false; }
+-		}// end mitm chase
++		}
+ 
+ 		/// make sure that all elements where generated
+ 		assert(ctr == LIST_SIZE);
+diff --git a/tests/list/enumeration/fq.cpp b/tests/list/enumeration/fq.cpp
+index f712dbb..85e7e51 100644
+--- a/tests/list/enumeration/fq.cpp
++++ b/tests/list/enumeration/fq.cpp
+@@ -301,6 +301,84 @@ TEST(ListEnumerateMultiDisjointBlock, simple_nohashmap) {
+ 	}
+ }
+ 
++/// weights, block layout, distinctness, labels (incl. syndrome in L1) and the
++/// hashmaps of L1 and L3
++template<const uint32_t mitm_w, const uint32_t noreps_w>
++static void disjoint_block_full_check() {
++	constexpr uint32_t split = n / 2;
++	using Enumerator = ListEnumerateMultiDisjointBlock<List, n, q, mitm_w, noreps_w, split>;
++	constexpr size_t list_size = Enumerator::LIST_SIZE;
++	static_assert(list_size == compute_combinations_fq_chase_list_size<Enumerator::mitmlen_half, q, mitm_w>() *
++	                           compute_combinations_fq_chase_list_size<Enumerator::norepslen_quarter, q, noreps_w>());
++
++	using HK = uint64_t;
++	constexpr static SimpleHashMapConfig cfg{64, 1u << l, 1};
++	using HM = SimpleHashMap<HK, V, cfg, Hash<HK, 0, l, 2>>;
++	auto extractor = [](const Label label) -> HK {
++		constexpr uint64_t mask = (1ull << l) - 1ull;
++		return label.ptr()[0] & mask;
++	};
++
++	List L1(list_size), L2(list_size), L3(list_size), L4(list_size);
++	auto *hm = new HM{}, *hm3 = new HM{};
++	Matrix HT;
++	HT.random();
++	Label syndrome;
++	syndrome.random();
++	Enumerator enumerator{HT, 0, &syndrome};
++	enumerator.template run<HM, decltype(extractor)>(L1, L2, L3, L4, 0, hm, &extractor, hm3);
++
++	const List *lists[4] = {&L1, &L2, &L3, &L4};
++	std::vector<bool> covered(n, false);
++	for (uint32_t k = 0; k < 4; ++k) {
++		const List &L = *lists[k];
++		const uint32_t mb = (k & 1u) * Enumerator::mitmlen_offset;
++		const uint32_t nb = Enumerator::noreps_base + k * Enumerator::norepslen_offset;
++		for (size_t i = 0; i < list_size; ++i) {
++			const auto &v = L.data_value(i);
++			EXPECT_EQ(v.popcnt(), mitm_w + noreps_w);
++			EXPECT_EQ(v.popcnt(mb, mb + Enumerator::mitmlen_half), mitm_w);
++			EXPECT_EQ(v.popcnt(nb, nb + Enumerator::norepslen_quarter), noreps_w);
++			for (uint32_t j = nb; j < nb + Enumerator::norepslen_quarter; ++j) {
++				covered[j] = covered[j] || v.get(j);
++			}
++
++			Element t = L[i];
++			t.recalculate_label(HT);
++			if (k == 0) { Label::add(t.label, t.label, syndrome); }
++			EXPECT_TRUE(t.label.is_equal(L.data_label(i)));
++
++			for (size_t j = 0; j < i; ++j) {
++				EXPECT_FALSE(v.is_equal(L.data_value(j)));
++			}
++		}
++	}
++
++	// every coordinate of the noreps part is enumerated
++	for (uint32_t j = split; j < n; ++j) { EXPECT_TRUE(covered[j]); }
++
++	auto contains = [&](const HM *h, const List &L, const size_t i) {
++		typename HM::load_type load = 0;
++		const auto pos = h->find(extractor(L.data_label(i)), load);
++		for (size_t j = 0; j < load; ++j) {
++			if (h->ptr(pos + j)[0] == i) { return true; }
++		}
++		return false;
++	};
++	for (size_t i = 0; i < list_size; ++i) {
++		EXPECT_TRUE(contains(hm, L1, i));
++		EXPECT_TRUE(contains(hm3, L3, i));
++	}
++
++	delete hm; delete hm3;
++}
++
++TEST(ListEnumerateMultiDisjointBlock, full_check) {
++	disjoint_block_full_check<1, 1>();
++	disjoint_block_full_check<2, 1>();
++	disjoint_block_full_check<2, 2>();
++}
++
+ 
+ int main(int argc, char **argv) {
+ 	rng_seed(time(NULL));

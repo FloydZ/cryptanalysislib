@@ -1,0 +1,241 @@
+diff --git a/src/atomic/atomic_primitives.h b/src/atomic/atomic_primitives.h
+index 00b91f1..a5612dc 100644
+--- a/src/atomic/atomic_primitives.h
++++ b/src/atomic/atomic_primitives.h
+@@ -4,6 +4,7 @@
+ #include <atomic>
+ #include <cstdint>
+ #include <memory>
++#include <type_traits>
+ 
+ // needed for __ATTRIBUTE__
+ #include "helper.h"
+@@ -100,69 +101,108 @@ concept is_lockable = requires(Lock &&lock) {
+ #define MEMORY_BARRIER_RELEASE() __asm__ __volatile__("" : : : "memory")
+ 
+ 
+-/// TODO doc and tests
+-#ifdef __x86_64__
+-///https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:1,endLineNumber:18,positionColumn:1,positionLineNumber:18,selectionStartColumn:1,selectionStartLineNumber:18,startColumn:1,startLineNumber:18),source:'template%3Ctypename+T%3E%0Ainline+T+cmov(T+a,+const+T+b)+noexcept+%7B%0A%09asm+volatile+(%0A++++++++++++//%22test+%250,+%251%5Cn%5Ct%22%0A%09%09%09%22cmovne+%250,+%251%5Cn%5Ct%22%0A%09%09%09:+%22%3Dr%22+(a)%0A%09%09%09:+%22r%22+(b)%0A%09)%3B%0A%09return+a%3B%0A%7D%0A%0Ausing+T+%3D+unsigned+int%3B%0Aint+tmp(T+a,+const+T+b)+%7B%0A%09a+%3D+cmov%3CT%3E(a,+b)%3B%0A++++return+a%3B%0A%7D%0A%0A'),l:'5',n:'0',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:g132,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-O3',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+x86-64+gcc+13.2+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
+-/// \tparam T
+-/// \tparam test
+-/// \param a
+-/// \param b
+-/// \return
+-#define CMOVE_MACRO(version)                          \
+-	template<typename T, const bool test = false>     \
+-	inline T cmov##version(T a, const T b) noexcept { \
+-		if constexpr (test) {                         \
+-			asm volatile(                             \
+-			        "test %0, %1\n\t"                 \
+-			        : "=r"(a)                         \
+-			        : "r"(b));                        \
+-		}                                             \
+-		asm volatile(                                 \
+-		        "cmov" #version " %0, %1\n\t"         \
+-		        : "=r"(a)                             \
+-		        : "r"(b));                            \
+-		return a;                                     \
++namespace cryptanalysislib::internal {
++	/// the x86 status flags of `cmp a, b` (i.e. of `b - a`) or, if `test`,
++	/// of `test a, b` (i.e. of `a & b`), computed in C++
++	struct cmov_flags { bool cf, zf, sf, of, pf; };
++
++	template<typename T, const bool test>
++	constexpr cmov_flags cmov_compute_flags(const T a, const T b) noexcept {
++		using U = std::make_unsigned_t<T>;
++		constexpr uint32_t bits = sizeof(T) * 8u;
++		const U ua = static_cast<U>(a), ub = static_cast<U>(b);
++		const U r = test ? U(ua & ub) : U(ub - ua);
++		cmov_flags f{};
++		f.cf = test ? false : (ub < ua);
++		f.zf = (r == 0);
++		f.sf = (r >> (bits - 1u)) & 1u;
++		f.of = test ? false : ((((ub ^ ua) & (ub ^ r)) >> (bits - 1u)) & 1u);
++		f.pf = (__builtin_popcount(uint32_t(r & 0xffu)) & 1u) == 0; // even parity of the low byte
++		return f;
+ 	}
++} // end namespace cryptanalysislib::internal
++
++/// Conditional moves: `cmovXX<T, test>(a, b)` returns `b` if the x86
++/// condition `XX` holds for the flags of
++/// 	- `cmp a, b`, i.e. of `b - a` (default), e.g. `cmova(a, b)` = `b` if
++/// 	  `b > a` (unsigned), `cmovl(a, b)` = `b` if `b < a` (signed);
++/// 	- `test a, b`, i.e. of `a & b` (`test = true`), e.g.
++/// 	  `cmovz<T, true>(a, b)` = `b` if `(a & b) == 0`,
++/// and `a` otherwise.
++/// On x86-64 (and 16/32/64 bit integers) this is a single `cmp`/`test` +
++/// `cmovXX` (branchless), else it is computed in C++ via
++/// `internal::cmov_compute_flags`.
++/// NOTE: before, the asm used flags set by unrelated preceding code and the
++/// 	output-only constraint dropped the input value of `a`.
++/// \tparam T integral type
++/// \tparam test use the flags of `test a, b` instead of `cmp a, b`
++/// \param a[in]: value returned if the condition does not hold
++/// \param b[in]: value returned if the condition holds
++/// \return `b` if the condition holds, else `a`
++#ifdef __x86_64__
++#define CMOVE_ASM(version)                                            \
++		if constexpr (sizeof(T) >= 2) {                               \
++			if (!std::is_constant_evaluated()) {                      \
++				if constexpr (test) {                                 \
++					asm("test %[b], %[a]\n\t"                         \
++					    "cmov" #version " %[b], %[a]\n\t"             \
++					    : [a] "+r"(a)                                 \
++					    : [b] "r"(b)                                  \
++					    : "cc");                                      \
++				} else {                                              \
++					asm("cmp %[a], %[b]\n\t"                          \
++					    "cmov" #version " %[b], %[a]\n\t"             \
++					    : [a] "+r"(a)                                 \
++					    : [b] "r"(b)                                  \
++					    : "cc");                                      \
++				}                                                     \
++				return a;                                             \
++			}                                                         \
++		}
+ #else
++#define CMOVE_ASM(version)
++#endif
+ 
+-#define CMOVE_MACRO(version)                          \
+-	template<typename T, const bool test = false>     \
+-	inline T cmov##version(T a, const T b) noexcept { \
+-		if (a != b) {                                 \
+-			a = b;                                    \
+-		}                                             \
+-		return a;                                     \
++#define CMOVE_MACRO(version, cond)                                         \
++	template<typename T, const bool test = false>                          \
++	    requires std::is_integral_v<T>                                     \
++	constexpr inline T cmov##version(T a, const T b) noexcept {            \
++		CMOVE_ASM(version)                                                 \
++		const auto f = cryptanalysislib::internal::cmov_compute_flags<T, test>(a, b); \
++		(void)f;                                                           \
++		return (cond) ? b : a;                                             \
+ 	}
+-#endif
+ 
+-CMOVE_MACRO(a)
+-CMOVE_MACRO(ae)
+-CMOVE_MACRO(b)
+-CMOVE_MACRO(be)
+-CMOVE_MACRO(c)
+-CMOVE_MACRO(e)
+-CMOVE_MACRO(g)
+-CMOVE_MACRO(ge)
+-CMOVE_MACRO(l)
+-CMOVE_MACRO(le)
+-CMOVE_MACRO(na)
+-CMOVE_MACRO(nae)
+-CMOVE_MACRO(nb)
+-CMOVE_MACRO(nc)
+-CMOVE_MACRO(ng)
+-CMOVE_MACRO(ne)
+-CMOVE_MACRO(nl)
+-CMOVE_MACRO(nle)
+-CMOVE_MACRO(no)
+-CMOVE_MACRO(np)
+-CMOVE_MACRO(nz)
+-CMOVE_MACRO(ns)
+-CMOVE_MACRO(o)
+-CMOVE_MACRO(p)
+-CMOVE_MACRO(pe)
+-CMOVE_MACRO(po)
+-CMOVE_MACRO(s)
+-CMOVE_MACRO(z)
++CMOVE_MACRO(a,   !f.cf && !f.zf)
++CMOVE_MACRO(ae,  !f.cf)
++CMOVE_MACRO(b,   f.cf)
++CMOVE_MACRO(be,  f.cf || f.zf)
++CMOVE_MACRO(c,   f.cf)
++CMOVE_MACRO(e,   f.zf)
++CMOVE_MACRO(g,   !f.zf && (f.sf == f.of))
++CMOVE_MACRO(ge,  f.sf == f.of)
++CMOVE_MACRO(l,   f.sf != f.of)
++CMOVE_MACRO(le,  f.zf || (f.sf != f.of))
++CMOVE_MACRO(na,  f.cf || f.zf)
++CMOVE_MACRO(nae, f.cf)
++CMOVE_MACRO(nb,  !f.cf)
++CMOVE_MACRO(nc,  !f.cf)
++CMOVE_MACRO(ng,  f.zf || (f.sf != f.of))
++CMOVE_MACRO(ne,  !f.zf)
++CMOVE_MACRO(nl,  f.sf == f.of)
++CMOVE_MACRO(nle, !f.zf && (f.sf == f.of))
++CMOVE_MACRO(no,  !f.of)
++CMOVE_MACRO(np,  !f.pf)
++CMOVE_MACRO(nz,  !f.zf)
++CMOVE_MACRO(ns,  !f.sf)
++CMOVE_MACRO(o,   f.of)
++CMOVE_MACRO(p,   f.pf)
++CMOVE_MACRO(pe,  f.pf)
++CMOVE_MACRO(po,  !f.pf)
++CMOVE_MACRO(s,   f.sf)
++CMOVE_MACRO(z,   f.zf)
++#undef CMOVE_MACRO
++#undef CMOVE_ASM
+ 
+ 
+ // NOTE: older gcc version do not support atomic::wait
+diff --git a/tests/atomic/atomic.cpp b/tests/atomic/atomic.cpp
+index 02b736f..223e95d 100644
+--- a/tests/atomic/atomic.cpp
++++ b/tests/atomic/atomic.cpp
+@@ -1,6 +1,8 @@
+ #include <cstdint>
+ #include <gtest/gtest.h>
+ #include <iostream>
++#include <limits>
++#include <vector>
+ 
+ #include "atomic/atomic_primitives.h"
+ 
+@@ -22,6 +24,48 @@ TEST(cmov, simple) {
+ 	EXPECT_EQ(a, b);
+ }
+ 
++/// every condition, `cmp` and `test` flavour, against the C++ definition of
++/// the x86 flags (on x86-64 the runtime calls run the asm, the constexpr ones
++/// the C++ fallback)
++template<typename T, const bool test>
++static void check_cmov() {
++	using namespace cryptanalysislib::internal;
++	std::vector<T> vals = {T(0), T(1), T(2), T(-1), T(-2), T(0x7f), T(0x80), T(0xff),
++	                       std::numeric_limits<T>::max(), std::numeric_limits<T>::min(),
++	                       T(std::numeric_limits<T>::max() - 1), T(std::numeric_limits<T>::min() + 1)};
++	for (uint32_t i = 0; i < 200; ++i) { vals.push_back(T(rand() * 2654435761u)); }
++	for (const T a : vals) {
++		for (const T b : vals) {
++			const auto f = cmov_compute_flags<T, test>(a, b);
++#define CHECK_COND(v, cond) EXPECT_EQ((cmov##v<T, test>(a, b)), ((cond) ? b : a)) << #v << " " << int64_t(a) << " " << int64_t(b);
++			CHECK_COND(a, !f.cf && !f.zf) CHECK_COND(ae, !f.cf) CHECK_COND(b, f.cf) CHECK_COND(be, f.cf || f.zf)
++			CHECK_COND(c, f.cf) CHECK_COND(e, f.zf) CHECK_COND(g, !f.zf && (f.sf == f.of)) CHECK_COND(ge, f.sf == f.of)
++			CHECK_COND(l, f.sf != f.of) CHECK_COND(le, f.zf || (f.sf != f.of)) CHECK_COND(na, f.cf || f.zf)
++			CHECK_COND(nae, f.cf) CHECK_COND(nb, !f.cf) CHECK_COND(nc, !f.cf) CHECK_COND(ng, f.zf || (f.sf != f.of))
++			CHECK_COND(ne, !f.zf) CHECK_COND(nl, f.sf == f.of) CHECK_COND(nle, !f.zf && (f.sf == f.of))
++			CHECK_COND(no, !f.of) CHECK_COND(np, !f.pf) CHECK_COND(nz, !f.zf) CHECK_COND(ns, !f.sf)
++			CHECK_COND(o, f.of) CHECK_COND(p, f.pf) CHECK_COND(pe, f.pf) CHECK_COND(po, !f.pf)
++			CHECK_COND(s, f.sf) CHECK_COND(z, f.zf)
++#undef CHECK_COND
++		}
++	}
++}
++
++TEST(cmov, all_conditions) {
++	check_cmov<uint16_t, false>(); check_cmov<uint16_t, true>();
++	check_cmov<int32_t, false>(); check_cmov<uint32_t, true>();
++	check_cmov<uint64_t, false>(); check_cmov<int64_t, true>();
++	check_cmov<uint8_t, false>(); // no 8 bit cmov: C++ path
++
++	// semantics of the documented examples, incl. constexpr evaluation
++	EXPECT_EQ(cmova<uint32_t>(5, 3), 5u);   // 3 > 5? no
++	EXPECT_EQ(cmova<uint32_t>(3, 5), 5u);   // max
++	EXPECT_EQ(cmovl<int32_t>(3, -5), -5);   // -5 < 3 (signed)
++	EXPECT_EQ(cmovb<uint32_t>(3, uint32_t(-5)), 3u); // unsigned: not below
++	EXPECT_EQ((cmovz<uint32_t, true>(0b1010, 0b0101)), 0b0101u);
++	static_assert(cmova<uint32_t>(3, 5) == 5u && cmovl<int32_t>(3, -5) == -5);
++}
++
+ 
+ #ifdef __cpp_lib_atomic_wait
+ TEST(one_byte_mutex, single_threaded) {

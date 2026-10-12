@@ -1,0 +1,115 @@
+diff --git a/src/search/binary.h b/src/search/binary.h
+--- a/src/search/binary.h
++++ b/src/search/binary.h
+@@ -15,7 +15,6 @@
+ #include "hash/hash.h"
+ #include "math/math.h"
+
+-// TODO add @lemire binary search in parallel in multiple different lists
+
+ // NOTE: all functions in this file are `constexpr`, the fxt `bsearch`
+ // 	family requires `std::is_arithmetic_v<Type>`.
+@@ -1242,6 +1241,55 @@ namespace cryptanalysislib {
+
+
+ 	};
++
++	/// lower bound of `N` keys in `N` different sorted arrays at once:
++	/// out[i] = index of the first element >= keys[i] in arrays[i], or
++	/// lengths[i] if there is none.
++	/// The `N` (branchless) binary searches are interleaved in lock step, so
++	/// the CPU can overlap their cache misses (memory level parallelism),
++	/// instead of waiting for each search after the other.
++	/// Source: D. Lemire, "Parallel binary search" / "How fast can you do
++	/// 	binary searches in several arrays at once?"
++	/// \tparam N number of simultaneous searches
++	/// \tparam T element type
++	/// \param arrays[in]: N sorted (ascending) arrays
++	/// \param lengths[in]: their lengths
++	/// \param keys[in]: keys[i] is searched in arrays[i]
++	/// \param out[out]: result indices
++	template<const size_t N, typename T>
++#if __cplusplus > 201709L
++		requires std::totally_ordered<T>
++#endif
++	constexpr void lower_bound_multiple(const T *const *arrays,
++	                                    const size_t *lengths,
++	                                    const T *keys,
++	                                    size_t *out) noexcept {
++		static_assert(N > 0);
++		const T *base[N];
++		size_t n[N];
++		size_t maxn = 0;
++		for (size_t i = 0; i < N; ++i) {
++			base[i] = arrays[i];
++			n[i] = lengths[i];
++			maxn = n[i] > maxn ? n[i] : maxn;
++		}
++
++		while (maxn > 1) {
++			maxn = 0;
++			for (size_t i = 0; i < N; ++i) {
++				const size_t half = n[i] / 2u;
++				if (half) {
++					base[i] = (base[i][half] < keys[i]) ? base[i] + half : base[i];
++					n[i] -= half;
++				}
++				maxn = n[i] > maxn ? n[i] : maxn;
++			}
++		}
++
++		for (size_t i = 0; i < N; ++i) {
++			out[i] = size_t(base[i] - arrays[i]) + size_t((n[i] == 1u) && (base[i][0] < keys[i]));
++		}
++	}
+ };
+
+ #endif
+diff --git a/tests/search/binary.cpp b/tests/search/binary.cpp
+--- a/tests/search/binary.cpp
++++ b/tests/search/binary.cpp
+@@ -323,6 +323,44 @@ TEST(binary_search, found_and_not_found) {
+ 	EXPECT_EQ(empty.end(), cryptanalysislib::binary_search(empty.begin(), empty.end(), T(1)));
+ }
+
++TEST(lower_bound_multiple, random) {
++	constexpr size_t N = 5;
++	for (uint32_t k = 0; k < 200; ++k) {
++		std::vector<uint32_t> v[N];
++		const uint32_t *arrays[N];
++		size_t lengths[N], out[N];
++		uint32_t keys[N];
++		for (size_t i = 0; i < N; ++i) {
++			const size_t len = rng() % 100u;
++			v[i].resize(len);
++			for (auto &x : v[i]) { x = rng() % 64u; }
++			cryptanalysislib::sort(v[i].begin(), v[i].end());
++			arrays[i] = v[i].data();
++			lengths[i] = len;
++			keys[i] = rng() % 70u;
++		}
++
++		cryptanalysislib::lower_bound_multiple<N>(arrays, lengths, keys, out);
++		for (size_t i = 0; i < N; ++i) {
++			size_t expect = 0;
++			while ((expect < lengths[i]) && (v[i][expect] < keys[i])) { expect += 1; }
++			EXPECT_EQ(out[i], expect);
++		}
++	}
++
++	// usable at compile time
++	constexpr uint32_t a[4] = {1, 3, 5, 7}, b[2] = {2, 2};
++	constexpr auto r = [&]() {
++		const uint32_t *arr[2] = {a, b};
++		const size_t len[2] = {4, 2};
++		const uint32_t keys[2] = {5, 3};
++		std::array<size_t, 2> o{};
++		cryptanalysislib::lower_bound_multiple<2>(arr, len, keys, o.data());
++		return o;
++	}();
++	static_assert(r[0] == 2 && r[1] == 2);
++}
++
+ int main(int argc, char **argv) {
+     InitGoogleTest(&argc, argv);
+     return RUN_ALL_TESTS();

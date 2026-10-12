@@ -1,0 +1,87 @@
+diff --git a/src/simd/generic.h b/src/simd/generic.h
+index 1236801..0360c8a 100644
+--- a/src/simd/generic.h
++++ b/src/simd/generic.h
+@@ -644,8 +644,6 @@ public:
+ 		TxN_t ret;
+ 		if (std::is_constant_evaluated()) {
+ 			for (uint32_t i = 0; i < LIMBS; ++i) {
+-                /// TODO move this into a seperate call in this class, so 
+-                /// if someone wants to copy this file, only needs a single change to make
+ 				ret[i] = cryptanalysislib::popcount::popcount(in1[i]);
+ 			}
+ 			return ret;
+@@ -679,9 +677,9 @@ public:
+ 		return ret;
+ 	}
+ 
+-	/// TODO doc
++	/// reverses the order of the lanes
+ 	/// \param in1
+-	/// \return
++	/// \return ret[N - 1 - i] = in1[i]
+ 	[[nodiscard]] constexpr static inline TxN_t reverse(const TxN_t &in1) noexcept {
+ 		S ret;
+ 		for (uint32_t i = 0; i < LIMBS; ++i) {
+@@ -691,9 +689,8 @@ public:
+ 		return ret;
+ 	}
+ 
+-	/// TODO doc
+ 	/// \param in1
+-	/// \return
++	/// \return true if all lanes of `in1` are equal
+ 	[[nodiscard]] constexpr static inline bool all_equal(const TxN_t &in1) noexcept {
+ 		for (uint32_t i = 1; i < N; ++i) {
+ 			if (in1.d[i-1] != in1.d[i]) {
+@@ -704,9 +701,12 @@ public:
+ 		return true;
+ 	}
+ 
+-	/// TODO doc
+-	/// \param ptr
+-	/// \param in1
++	/// gathers one limb per lane: ret[i] = limb at byte offset in1[i] * off
++	/// of `ptr` (unaligned reads are fine)
++	/// \tparam off byte scale of the offsets (as the AVX2/NEON gathers), by
++	/// 	default `sizeof(T)`, i.e. `in1` are limb indices
++	/// \param ptr base pointer
++	/// \param in1 offsets, in units of `off` bytes
+ 	/// \return
+ 	template<uint32_t off = sizeof(T)>
+ 	[[nodiscard]] constexpr static inline TxN_t gather(const limb_type *ptr,
+@@ -723,10 +723,12 @@ public:
+ 	}
+ 
+ 
+-	/// TODO doc
+-	/// \param ptr
+-	/// \param in1
+-	/// \param in2
++	/// scatters one limb per lane: writes in2[i] at byte offset in1[i] * off
++	/// of `ptr`. If two offsets collide, the higher lane wins.
++	/// \tparam off byte scale of the offsets, by default `sizeof(T)`
++	/// \param ptr base pointer
++	/// \param in1 offsets, in units of `off` bytes
++	/// \param in2 data
+ 	template<uint32_t off = sizeof(T)>
+ 	constexpr static inline void scatter(limb_type *ptr,
+ 	                                     const TxN_t &in1,
+@@ -740,10 +742,13 @@ public:
+ 		}
+ 	}
+ 
+-	/// TODO doc
+-	/// \param ptr
+-	/// \param in1
+-	/// \param in2
++	/// scatter permutation: ret[in1[i]] = in2[i]
++	/// NOTE: `in1` are the target positions (a permutation of [0, N)) and
++	/// 	`in2` the data. This differs from the 8/32/64 bit AVX2/AVX-512
++	/// 	`permute(in, perm)`, which gathers `ret[i] = in[perm[i]]`.
++	/// \param in1 target positions
++	/// \param in2 data
++	/// \return
+ 	[[nodiscard]] constexpr static inline S permute(const TxN_t &in1,
+ 	                                                const TxN_t &in2) noexcept {
+ 		S ret;

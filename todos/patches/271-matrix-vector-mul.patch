@@ -1,0 +1,142 @@
+diff --git a/src/matrix/matrix.h b/src/matrix/matrix.h
+index 1cf559d..a30b2f6 100644
+--- a/src/matrix/matrix.h
++++ b/src/matrix/matrix.h
+@@ -1290,13 +1290,15 @@ public:
+ 	/// special version of the row_vector multiplication
+ 	/// in which the input/output are not matrices but
+ 	/// vectors.
++	/// 	- out = in * M  (transposed), if `out` has `ncols` and `in` `nrows`
++	/// 		coordinates. NOTE: chosen first for square matrices.
++	/// 	- out = M * in  (normal), if `out` has `nrows` and `in` `ncols`
+ 	/// \tparam LabelType must fulfill the following function
+ 	///					get(i), set(i)
+ 	/// \tparam ValueType must fulfill the following function
+ 	/// 				get(i), set(i),
+-	/// \param out
+-	/// \param in
+-	/// \return
++	/// \param out[out]: result
++	/// \param in[in]: input vector
+ 	template<class LabelType, class ValueType>
+ #if __cplusplus > 201709L
+ 	    requires LabelTypeAble<LabelType> &&
+@@ -1310,37 +1312,51 @@ public:
+ 		static_assert((IN_COLS == COLS)  || (IN_COLS == ROWS)) ;
+ 		static_assert((OUT_COLS == ROWS) || (OUT_COLS == COLS));
+ 
+-		// TODO optimization if Value is binary
+-		// todo more tests
+-		// TODO simd
++		/// NOTE: 128 bit product, so this does not overflow for q > 2**16
++		auto mulmod = [](const uint64_t a, const uint64_t b) __attribute__((always_inline)) {
++			return (uint64_t)(((__uint128_t)a * b) % q);
++		};
++
+ 		if constexpr ((OUT_COLS == COLS) && (IN_COLS == ROWS)) {
+-			// transposed multiplication
+-			for (uint32_t i = 0; i < OUT_COLS; ++i) {
+-				uint64_t sum = 0;
+-				for (uint32_t j = 0; j < IN_COLS; ++j) {
+-					auto a = get(j, i);
+-					auto b = in.get(j);
+-					auto c = (a * b) % q;
+-					sum = (sum + c) % q;
++			// transposed multiplication: out = sum_j in_j * row_j
++			// NOTE: computed row wise with the (vectorized) `RowType`
++			// 	operations instead of column wise coordinate by coordinate.
++			// 	Rows with in_j == 0 are skipped, for in_j == 1 (e.g. a binary
++			// 	`in`) no scalar multiplication is needed.
++			RowType acc, tmp;
++			acc.zero();
++			for (uint32_t j = 0; j < IN_COLS; ++j) {
++				const uint64_t b = in.get(j);
++				if (b == 0) { continue; }
++				if (b == 1) {
++					RowType::add(acc, acc, __data[j]);
++				} else {
++					RowType::scalar(tmp, __data[j], DataType(b));
++					RowType::add(acc, acc, tmp);
+ 				}
++			}
+ 
+-				out.set(sum % q, i);
++			if constexpr (std::is_same_v<LabelType, RowType>) {
++				out = acc;
++			} else {
++				for (uint32_t i = 0; i < OUT_COLS; ++i) {
++					out.set(acc.get(i), i);
++				}
+ 			}
+ 
+ 			return;
+ 		}
+ 
+-		if constexpr ((OUT_COLS && ROWS) && (IN_COLS == COLS)) {
++		// NOTE: was `(OUT_COLS && ROWS)`, which is always true
++		if constexpr ((OUT_COLS == ROWS) && (IN_COLS == COLS)) {
+ 			// normal multiplication
+ 			for (uint32_t i = 0; i < nrows; ++i) {
+ 				uint64_t sum = 0;
+ 				for (uint32_t j = 0; j < ncols; ++j) {
+-					auto a = get(i, j);
+-					auto b = in.get(j);
+-					auto c = (a * b) % q;
++					const uint64_t c = mulmod(get(i, j), in.get(j));
+ 					sum = (sum + c) % q;
+ 				}
+-				out.set(sum % q, i);
++				out.set(sum, i);
+ 			}
+ 
+ 			return;
+diff --git a/tests/matrix/fq.cpp b/tests/matrix/fq.cpp
+index 687e7a3..7b0be2e 100644
+--- a/tests/matrix/fq.cpp
++++ b/tests/matrix/fq.cpp
+@@ -415,6 +415,45 @@ TEST(FqMatrix, mult) {
+ }
+ #endif
+ 
++/// vector matrix multiplication, transposed and normal, vs a naive reference
++template<const uint64_t qq, const bool pk, typename TT=T>
++static void vec_mul_check() {
++	constexpr uint32_t nr = 37, nc = 70;
++	using MM = FqMatrix<TT, nr, nc, qq, pk>;
++	using VR = typename std::conditional<pk, FqPackedVector<nr, qq, TT>, FqNonPackedVector<nr, qq, TT>>::type;
++	using VC = typename std::conditional<pk, FqPackedVector<nc, qq, TT>, FqNonPackedVector<nc, qq, TT>>::type;
++	MM m; m.random();
++	VR r; VC c;
++
++	for (uint32_t k = 0; k < 10; ++k) {
++		// out = in * M
++		r.random(); c.random();
++		m.mul(c, r);
++		for (uint32_t i = 0; i < nc; ++i) {
++			unsigned __int128 s = 0;
++			for (uint32_t j = 0; j < nr; ++j) { s += (unsigned __int128)m.get(j, i) * r.get(j); }
++			EXPECT_EQ((uint64_t)c.get(i), (uint64_t)(s % qq));
++		}
++
++		// out = M * in
++		r.random(); c.random();
++		m.mul(r, c);
++		for (uint32_t i = 0; i < nr; ++i) {
++			unsigned __int128 s = 0;
++			for (uint32_t j = 0; j < nc; ++j) { s += (unsigned __int128)m.get(i, j) * c.get(j); }
++			EXPECT_EQ((uint64_t)r.get(i), (uint64_t)(s % qq));
++		}
++	}
++}
++
++TEST(FqMatrix, vector_mul) {
++	vec_mul_check<3, true>();
++	vec_mul_check<3, false>();
++	vec_mul_check<7, true>();
++	vec_mul_check<2, false>();
++	vec_mul_check<(1ull << 31) - 1ull, false, uint64_t>();
++}
++
+ TEST(FqMatrix, permute) {
+ 	M m = M{};
+ 	MT mt = MT{};

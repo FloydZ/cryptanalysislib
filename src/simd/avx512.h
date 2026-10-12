@@ -506,6 +506,14 @@ struct Xint8x64_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
+        if constexpr (__unsigned) {
+            // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+            using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+            S out;
+            out.v512 = (__m512i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v512, in2);
+            return out;
+        }
+
         S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
             out[i] = in1[i] / in2;
@@ -1440,7 +1448,14 @@ struct Xint16x32_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
-        // NOTE: exact, per lane. Was `mulhrs(in1, 32768 / in2)`, an approximation.
+        if constexpr (__unsigned) {
+            // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+            using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+            S out;
+            out.v512 = (__m512i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v512, in2);
+            return out;
+        }
+
         S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
             out[i] = in1[i] / in2;
@@ -1672,23 +1687,32 @@ struct Xint16x32_t {
 		return ret;
 	}
 
-    /// TODO opt
-	/// checks if all bytes are equal
+	/// checks if all 16 bit lanes are equal
+	/// NOTE: one compare of all lanes against the broadcasted first lane;
+	/// 	lane by lane in constant evaluation (intrinsics are not constexpr)
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline bool all_equal(const Xint16x32_t in) noexcept {
-		for (uint32_t i = 1; i < LIMBS; ++i) {
-			if (in.d[i-1] != in.d[i]) {
-				return false;
+		if consteval {
+			// NOTE: via the vector type, `d` is not the active union member
+			const __v32hu v = (__v32hu) in.v512;
+			for (uint32_t i = 1; i < LIMBS; ++i) {
+				if (v[0] != v[i]) { return false; }
 			}
+			return true;
+		} else {
+			return eq(in, set1(in.d[0])) == 0xFFFFFFFFu;
 		}
-
-		return true;
 	}
 
+	/// NOTE: scatter semantics `ret[perm[i]] = in[i]` (as the AVX2 16 bit
+	/// 	version), in contrast to the gather of the 8/32/64 bit types. There
+	/// 	is no scatter permutation instruction: `vpermw` gathers, and the
+	/// 	inverse permutation, which would turn the scatter into a gather,
+	/// 	is itself a scatter. Hence a scalar loop.
 	/// \param in
-	/// \param perm
-	/// \return TODO optimize
+	/// \param perm a permutation of [0, LIMBS)
+	/// \return ret[perm[i]] = in[i]
 	[[nodiscard]] constexpr static inline S permute(const S in,
 	                                                const S perm) noexcept {
 		S ret;
@@ -2135,10 +2159,17 @@ struct Xint32x16_t {
 
 	/// \param in1
 	/// \param in2
-	/// \return TODO
+	/// \return in1 / in2, lane-wise
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
-        // NOTE: was empty, i.e. returned an uninitialized vector
+        if constexpr (__unsigned) {
+            // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+            using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+            S out;
+            out.v512 = (__m512i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v512, in2);
+            return out;
+        }
+
         S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
             out[i] = in1[i] / in2;
@@ -2458,6 +2489,44 @@ struct Xint32x16_t {
         return _mm512_reduce_max_epi32(in1.v512);
     }
 
+	/// horizontal add of the 4 unsigned bytes of each 32 bit lane
+	/// \param in1
+	/// \return sum of the bytes, per 32 bit lane
+	[[nodiscard]] constexpr static inline S hadd_epu8(const S in1) noexcept {
+		const __v16su x = (__v16su) in1.v512;
+		constexpr uint32_t m = 0x00FF00FFu;
+		const __v16su t = (x & m) + ((x >> 8u) & m);
+		S ret;
+		ret.v512 = (__m512i) ((t & 0xFFFFu) + (t >> 16u));
+		return ret;
+	}
+
+	/// horizontal add of the 2 unsigned 16 bit values of each 32 bit lane
+	/// \param in1
+	/// \return sum, per 32 bit lane
+	[[nodiscard]] constexpr static inline S hadd_epu16(const S in1) noexcept {
+		const __v16su x = (__v16su) in1.v512;
+		S ret;
+		ret.v512 = (__m512i) ((x & 0xFFFFu) + (x >> 16u));
+		return ret;
+	}
+
+	/// number of 4 bit values (nibbles) equal to `in2` in each 32 bit lane
+	/// \param in1
+	/// \param in2 nibble to count, < 16
+	/// \return per 32 bit lane: #{i : nibble i of the lane == in2}, in [0, 8]
+	[[nodiscard]] constexpr static inline S histogram_epi4(const S in1,
+	                                                       const uint8_t in2) noexcept {
+		assert(in2 < 16);
+		const __v16su z = (__v16su) in1.v512 ^ (0x11111111u * in2);
+		const __v16su nz = (z | (z >> 1u) | (z >> 2u) | (z >> 3u)) & 0x11111111u;
+		S t;
+		t.v512 = (__m512i) nz;
+		t = S::popcnt(t);
+		t.v512 = (__m512i) (8u - (__v16su) t.v512);
+		return t;
+	}
+
 	/// needs `AVX512F`, wrapper around `_mm512_shuffle_i32x4`
 	/// \param input
 	/// \return
@@ -2664,7 +2733,8 @@ struct Xint64x8_t {
 		}
 	}
 
-    /// TODO extend to avx2
+	/// masked load, lane i is loaded if bit i of `m` is set, otherwise 0
+	/// NOTE: also available in the AVX2 backend (`uint64x4_t`, `uint32x8_t`)
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline S maskz_aligned_load(const limb_type *ptr, 
@@ -2674,7 +2744,8 @@ struct Xint64x8_t {
         return out;
     }
 
-    /// TODO extend to avx2
+	/// masked load, lane i is loaded if bit i of `m` is set, otherwise 0
+	/// NOTE: also available in the AVX2 backend (`uint64x4_t`, `uint32x8_t`)
 	/// \param ptr
 	/// \return
 	[[nodiscard]] constexpr static inline S maskz_unaligned_load(const limb_type *ptr, 
@@ -2817,10 +2888,11 @@ struct Xint64x8_t {
 
 	/// \param in1
 	/// \param in2
-	/// \return TODO
+	/// \return in1 / in2, lane-wise
+	/// NOTE: one division per lane: the multiply-high trick of
+	/// 	`internal::udiv_invariant` would need 128 bit lanes for 64 bit inputs
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
-        // NOTE: was empty, i.e. returned an uninitialized vector
         S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
             out[i] = in1[i] / in2;
@@ -3148,10 +3220,10 @@ struct Xint64x8_t {
     }
 
 
-	/// TODO test and implement for uint32x16 and so on and implement hadd_epu16,...
+	/// horizontal add of the 8 unsigned bytes of each 64 bit lane
 	/// needs `AVX512BW`
 	/// \param in1
-	/// \return
+	/// \return sum of the bytes, per 64 bit lane
 	[[nodiscard]] constexpr static inline Xint64x8_t hadd_epu8(const Xint64x8_t in1) noexcept {
 		Xint64x8_t ret;
 		constexpr Xint64x8_t zero = Xint64x8_t::set1(0);
@@ -3159,18 +3231,46 @@ struct Xint64x8_t {
 		return ret;
 	}
 
-	/// TODO test, and implement for uint32x16 and so on
+	/// horizontal add of the 4 unsigned 16 bit values of each 64 bit lane
+	/// \param in1
+	/// \return sum, per 64 bit lane
+	[[nodiscard]] constexpr static inline Xint64x8_t hadd_epu16(const Xint64x8_t in1) noexcept {
+		const __v8du x = (__v8du) in1.v512;
+		constexpr uint64_t m = 0x0000FFFF0000FFFFull;
+		const __v8du t = (x & m) + ((x >> 16u) & m);
+		Xint64x8_t ret;
+		ret.v512 = (__m512i) ((t & 0xFFFFFFFFull) + (t >> 32u));
+		return ret;
+	}
+
+	/// horizontal add of the 2 unsigned 32 bit values of each 64 bit lane
+	/// \param in1
+	/// \return sum, per 64 bit lane
+	[[nodiscard]] constexpr static inline Xint64x8_t hadd_epu32(const Xint64x8_t in1) noexcept {
+		const __v8du x = (__v8du) in1.v512;
+		Xint64x8_t ret;
+		ret.v512 = (__m512i) ((x & 0xFFFFFFFFull) + (x >> 32u));
+		return ret;
+	}
+
+	/// number of 4 bit values (nibbles) equal to `in2` in each 64 bit lane
 	/// Source: http://0x80.pl/notesen/2023-01-06-avx512-popcount-4bit.html
 	/// \param in1
-	/// \param in2
-	/// \return
+	/// \param in2 nibble to count, < 16
+	/// \return per 64 bit lane: #{i : nibble i of the lane == in2}, in [0, 16]
 	[[nodiscard]] constexpr static inline Xint64x8_t histogram_epi4(const Xint64x8_t in1,
 	                                                                const uint8_t in2) noexcept {
 		assert(in2 < 16);
-		Xint64x8_t tmp = Xint64x8_t::xor_(in1, Xint64x8_t::set1(in2));
-		tmp = Xint64x8_t::sub(tmp, Xint64x8_t::set1(1));
-		tmp = Xint64x8_t::popcnt(tmp);
-		return tmp;
+		// equal nibbles become zero
+		const Xint64x8_t z = Xint64x8_t::xor_(in1, Xint64x8_t::set1(0x1111111111111111ull * in2));
+		// one bit per non zero nibble
+		const __v8du zz = (__v8du) z.v512;
+		const __v8du nz = (zz | (zz >> 1u) | (zz >> 2u) | (zz >> 3u)) & 0x1111111111111111ull;
+		Xint64x8_t t;
+		t.v512 = (__m512i) nz;
+		t = Xint64x8_t::popcnt(t);
+		t.v512 = (__m512i) (16u - (__v8du) t.v512);
+		return t;
 	}
 
 	/// \param in

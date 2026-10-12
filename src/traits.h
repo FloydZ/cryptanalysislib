@@ -8,6 +8,23 @@
 #include <utility>
 
 namespace cryptanalysislib {
+	/// basic alignment config. Base class of all config classes which need
+	/// an alignment, e.g. `struct AANodeConfig : public AlignmentConfig {}`.
+	struct AlignmentConfig {
+		// alignment in bytes
+		constexpr static size_t alignment = 8;
+	};
+
+	// NOTE: `inline`, so including this header in several translation units
+	// does not define the object more than once
+	inline constexpr AlignmentConfig configAlignment{};
+} // end namespace cryptanalysislib
+
+// NOTE: also available in the global namespace
+using cryptanalysislib::AlignmentConfig;
+using cryptanalysislib::configAlignment;
+
+namespace cryptanalysislib {
 	namespace internal {
 		// NOTE: this value can be changed, if you need it.
 		constexpr static size_t __max_nr_lambda_args = 50;

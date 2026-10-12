@@ -1,0 +1,134 @@
+diff --git a/src/matrix/matrix.h b/src/matrix/matrix.h
+index 1cf559d..b0e82b7 100644
+--- a/src/matrix/matrix.h
++++ b/src/matrix/matrix.h
+@@ -951,24 +951,19 @@ public:
+ 		}
+ 
+ 		/// fix the wrong columns
++		/// NOTE: any unit mod q is accepted as a pivot and the row is scaled
++		/// 	to 1 (as in `gaus`). Before, only 1 and q-1 were accepted.
+ 		for (uint32_t i = 0; i < c; ++i) {
+ 			bool found = false;
+ 			/// pivoting
+-			if (get(i, i) != 1u) {
++			if (mod_inverse(get(i, i)) == 0) {
+ 				/// try to find from below
+ 				for (uint32_t j = i + 1; j < c; ++j) {
+-					if (__data[j][i] == 1u) {
++					if (mod_inverse(__data[j][i]) != 0) {
+ 						swap_rows(j, i);
+ 						found = true;
+ 						break;
+ 					}
+-
+-					if (__data[j][i] == (q - 1u)) {
+-						swap_rows(j, i);
+-						__data[i].neg();
+-						found = true;
+-						break;
+-					}
+ 				}
+ 
+ 				if (!found) {
+@@ -988,16 +983,14 @@ public:
+ 				}
+ 			}
+ 
+-			// TODO: currently only 1 and q-1 are pivot rows
+-			//const DataType scal = get(i, i);
+-			//assert(scal);
+-			//if (scal > 1u) {
+-			//	RowType::scalar(tmp, __data[i], scal-1u);
+-			//	tmp.print();
+-			//	RowType::add(__data[i], __data[i], tmp);
+-			//}
++			/// scale the pivot to 1
++			const DataType inv = mod_inverse(get(i, i));
++			assert(inv != 0);
++			if (inv != 1u) {
++				RowType::scalar(__data[i], __data[i], inv);
++			}
+ 
+-			assert(get(i, i));
++			assert(get(i, i) == 1u);
+ 			/// first clear above
+ 			for (uint32_t j = 0; j < nrows; ++j) {
+ 				if (i == j) continue;
+@@ -1015,26 +1008,26 @@ public:
+ 			bool found = false;
+ 			/// pivoting
+ 			for (uint32_t j = max_row - i; j < ncols; ++j) {
+-				if (__data[max_row - i][j] == 1u) {
++				if (mod_inverse(__data[max_row - i][j]) != 0) {
+ 					swap_cols(j, max_row - i);
+ 					std::swap(P.values[j], P.values[max_row - i]);
+ 					found = true;
+ 					break;
+ 				}
+-
+-				if (__data[max_row - i][j] == (q-1)) {
+-					swap_cols(j, max_row - i);
+-					std::swap(P.values[j], P.values[max_row - i]);
+-					__data[max_row - i].neg();
+-					found = true;
+-					break;
+-				}
+ 			}
+ 
+ 			if (!found) {
+ 				return max_row - i;
+ 			}
+ 
++			/// scale the pivot to 1
++			{
++				const DataType inv = mod_inverse(get(max_row - i, max_row - i));
++				if (inv != 1u) {
++					RowType::scalar(__data[max_row - i], __data[max_row - i], inv);
++				}
++			}
++
+ 			for (uint32_t j = 0; j < nrows; ++j) {
+ 				if ((max_row - i) == j) continue;
+ 				uint32_t scal = get(j, max_row - i);
+diff --git a/tests/matrix/fq.cpp b/tests/matrix/fq.cpp
+index 687e7a3..cae00a2 100644
+--- a/tests/matrix/fq.cpp
++++ b/tests/matrix/fq.cpp
+@@ -319,6 +319,36 @@ TEST(FqMatrix, m4ri) {
+ 	});
+ }
+ 
++/// q = 5, 7: pivots other than 1 and q-1
++template<const uint64_t qq>
++static void markov_gaus_q() {
++	constexpr uint32_t nr = 60, nc = 90, l = 10, c = 5;
++	using MM = FqMatrix<T, nr, nc, qq, true>;
++	MM m;
++	Permutation P(nc);
++	uint32_t rank = 0;
++	while (true) {
++		m.random();
++		rank = m.gaus(nr - l);
++		if (rank >= nr - l) { break; }
++	}
++
++	for (uint32_t k = 0; k < 50; ++k) {
++		const uint32_t rank2 = m.template markov_gaus<c, nr - l>(P);
++		EXPECT_EQ(rank, rank2);
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nr - l; ++j) {
++				EXPECT_EQ(m.get(i, j), i == j);
++			}
++		}
++	}
++}
++
++TEST(FqMatrix, markov_gaus_q) {
++	markov_gaus_q<5>();
++	markov_gaus_q<7>();
++}
++
+ TEST(FqMatrix, markov_gaus) {
+ 	constexpr_for<400, 430, 7>([](const auto __nrows) {
+ 		constexpr_for<400, 440, 11>([__nrows](const auto __ncols) {

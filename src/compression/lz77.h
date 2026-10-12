@@ -14,12 +14,19 @@
 
 /// org code:https://github.com/andyherbert/lz1
 
-/// TODO doc
-/// \param compressed_text
-/// \param uncompressed_text
-/// \param uncompressed_size
-/// \param pointer_length_width
-/// \return compresses size
+/// LZ77 compression (greedy, brute force match search: O(n * window)).
+/// Format: 4 byte uncompressed size (little endian), 1 byte
+/// `pointer_length_width`, then one 3 byte token per step: a 16 bit pointer
+/// (distance << pointer_length_width | (match length - 1), distance 0 = no
+/// match) followed by the next literal byte.
+/// \param compressed_text[out]: output buffer, at least
+/// 	5 + 3 * uncompressed_size bytes (the worst case: no matches)
+/// \param uncompressed_text[in]: input bytes
+/// \param uncompressed_size[in]: number of input bytes (< 2^32)
+/// \param pointer_length_width[in]: bits of a pointer used for the match
+/// 	length (max. match 2^w), the remaining 16 - w bits are the distance
+/// 	(window 2^(16-w) - 1 bytes); e.g. 4
+/// \return compressed size in bytes
 inline uint32_t lz77_compress(uint8_t *compressed_text,
                        const uint8_t *uncompressed_text,
                        const size_t uncompressed_size,
@@ -80,10 +87,11 @@ inline uint32_t lz77_compress(uint8_t *compressed_text,
 	return output_size;
 }
 
-/// TODO doc
-/// \param uncompressed_text
-/// \param compressed_text
-/// \return decompresses size
+/// LZ77 decompression of the format written by `lz77_compress`
+/// \param uncompressed_text[out]: output buffer, at least the uncompressed
+/// 	size (stored in the first 4 bytes of `compressed_text`)
+/// \param compressed_text[in]: compressed bytes
+/// \return decompressed size in bytes
 inline uint32_t lz77_decompress(uint8_t *uncompressed_text,
                          const uint8_t *compressed_text) {
 	uint8_t pointer_length_width;

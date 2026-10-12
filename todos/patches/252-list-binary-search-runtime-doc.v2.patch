@@ -1,0 +1,91 @@
+diff --git a/src/list/list.h b/src/list/list.h
+index 71ee326..7e32fcd 100644
+--- a/src/list/list.h
++++ b/src/list/list.h
+@@ -625,34 +625,43 @@ public:
+ 
+ 
+ 
+-	/// TODO doc
+-	/// \tparam k_lower
+-	/// \tparam k_upper
+-	/// \param e
+-	/// \param tid
+-	/// \return
++	/// binary search for an element whose label equals the one of `e` on the
++	/// coordinates [k_lower, k_upper). The segment of `tid` must be sorted
++	/// via `sort_level(k_lower, k_upper, tid)`.
++	/// NOTE: runtime version of `binary_search<k_lower, k_upper>(e, tid)`
++	/// \param e element to search for
++	/// \param k_lower lower coordinate of the label to compare (inclusive)
++	/// \param k_upper upper coordinate of the label to compare (exclusive)
++	/// \param tid thread id, only its segment is searched
++	/// \return position (relative to the start of the segment) of the first
++	/// 	matching element, or -1 if not found
+ 	constexpr inline size_t binary_search(const Element &e,
+ 										  const uint32_t k_lower,
+ 										  const uint32_t k_upper,
+ 										  const uint32_t tid=0) const noexcept {
+ 		assert(k_upper > k_lower);
+ 
+-		// the linear search, doesn't need the data to be sorted
+ 		if constexpr (!use_std_binary_search && use_hash_operator) {
+ 			if (Element::is_hashable(k_lower, k_upper)) {
+ 				return binary_search(e, tid,
+ 					 [k_lower, k_upper](const Element &a)  __attribute__((always_inline)) {
+ 					   return a.hash(k_lower, k_upper);
+ 					 });
+-			} else {
+-				assert(false);
+ 			}
+-		} else {
+-			return binary_search(e, tid, [k_lower, k_upper](const Element &a,
+-													   		const Element &b)  __attribute__((always_inline)) {
+-			  return a.is_lower(b, k_lower, k_upper);
+-			});
++
++			// NOTE: not hashable: `sort_level` used the comparison based
++			// 	sort, so search the same way.
+ 		}
++
++		// NOTE: same comparison as in `sort_level`
++		return binary_search(e, tid, [k_lower, k_upper](const Element &a,
++		                                                const Element &b)  __attribute__((always_inline)) {
++			if constexpr (sort_increasing_order) {
++				return a.is_lower(b, k_lower, k_upper);
++			} else {
++				return a.is_greater(b, k_lower, k_upper);
++			}
++		});
+ 	}
+ 
+ 
+diff --git a/tests/list/test_list.h b/tests/list/test_list.h
+index 5258ec6..b021d00 100644
+--- a/tests/list/test_list.h
++++ b/tests/list/test_list.h
+@@ -133,6 +133,24 @@ TEST(ListName, search_level) {
+ 	}
+ }
+ 
++TEST(ListName, binary_search_runtime_bounds) {
++	List L{LS, 1};
++	Matrix m;
++	m.random();
++	L.random(LS, m);
++
++	constexpr uint32_t k_lower = 1, k_upper = N/2;
++	L.sort_level(k_lower, k_upper);
++	EXPECT_EQ(L.is_sorted(k_lower, k_upper), true);
++	for (size_t i = 0; i < LS; ++i) {
++		const size_t pos = L.binary_search(L[i], k_lower, k_upper);
++		ASSERT_NE(pos, size_t(-1));
++		EXPECT_LE(pos, i);
++		EXPECT_FALSE(L[pos].is_lower(L[i], k_lower, k_upper));
++		EXPECT_FALSE(L[i].is_lower(L[pos], k_lower, k_upper));
++	}
++}
++
+ TEST(ListName, linear_search) {
+ 	List L{LS, 1};
+ 	Matrix m;

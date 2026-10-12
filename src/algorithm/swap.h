@@ -43,5 +43,38 @@ namespace cryptanalysislib {
 		cryptanalysislib::swap(*a, *b);
 	}
 
-	/// TODO all other functions
+	/// Exchanges the elements of [first1, last1) with the elements of the
+	/// range starting at `first2` (like `std::swap_ranges`). The ranges must
+	/// not overlap.
+	/// \param first1[in]: beginning of the first range
+	/// \param last1[in]: end of the first range
+	/// \param first2[in]: beginning of the second range
+	/// \return iterator past the last exchanged element of the second range
+	template<class ForwardIt1,
+	         class ForwardIt2>
+	constexpr ForwardIt2 swap_ranges(ForwardIt1 first1,
+	                                 ForwardIt1 last1,
+	                                 ForwardIt2 first2) {
+		for (; first1 != last1; ++first1, ++first2) {
+			cryptanalysislib::iter_swap(first1, first2);
+		}
+		return first2;
+	}
+
+	/// Replaces `obj` by `new_value` and returns its old value (like
+	/// `std::exchange`)
+	/// \param obj[in/out]: object to replace
+	/// \param new_value[in]: value assigned to `obj`
+	/// \return the old value of `obj`
+	template<class T,
+	         class U = T>
+	    requires std::is_move_constructible_v<T> &&
+	             std::is_assignable_v<T &, U>
+	constexpr T exchange(T &obj,
+	                     U &&new_value) noexcept(std::is_nothrow_move_constructible_v<T> &&
+	                                             std::is_nothrow_assignable_v<T &, U>) {
+		T old = static_cast<T &&>(obj);
+		obj = static_cast<U &&>(new_value);
+		return old;
+	}
 } // end namespace cryptanalysislib

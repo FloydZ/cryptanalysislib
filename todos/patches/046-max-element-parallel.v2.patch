@@ -1,0 +1,93 @@
+diff --git a/src/algorithm/max.h b/src/algorithm/max.h
+index 73bda71..1797189 100644
+--- a/src/algorithm/max.h
++++ b/src/algorithm/max.h
+@@ -13,10 +13,6 @@
+ #include "thread/thread.h"
+ #include "algorithm/find.h"
+ 
+-
+-// TODO implement max_element parallel version
+-
+-
+ namespace cryptanalysislib {
+     /// Configuration for max algorithms with SIMD and threading settings
+     struct AlgorithmMaxConfig {
+@@ -230,6 +226,49 @@ namespace cryptanalysislib {
+         return largest;
+     }
+ 
++    /// Finds the first largest element (parallel version): the largest
++    /// element of every chunk, then the largest of those, ties resolved to
++    /// the earliest chunk, i.e. the same result as the sequential version.
++    /// \param policy[in]: Execution policy specifying parallelization strategy
++    /// \param first[in]: Iterator to the beginning of the range
++    /// \param last[in]: Iterator to the end of the range
++    /// \return Iterator to the first largest element, last if the range is empty
++    template <class ExecPolicy,
++              class RandIt,
++              const AlgorithmMaxConfig &config = algorithmMaxConfig>
++#if __cplusplus > 201709L
++    requires std::random_access_iterator<RandIt>
++#endif
++    RandIt max_element(ExecPolicy &&policy,
++                       RandIt first,
++                       RandIt last) noexcept {
++        const auto size = static_cast<size_t>(std::distance(first, last));
++        const uint32_t nthreads = should_par(policy, config, size);
++        if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
++            return cryptanalysislib::max_element(first, last);
++        }
++
++        auto futures = internal::parallel_chunk_for_1(
++            std::forward<ExecPolicy>(policy),
++            first, last,
++            [](RandIt chunk_first, RandIt chunk_last) {
++                return cryptanalysislib::max_element(chunk_first, chunk_last);
++            },
++            static_cast<RandIt *>(nullptr),
++            1, nthreads);
++
++        // chunks are in order: only a strictly larger value replaces `best`
++        RandIt best = futures[0].get();
++        for (size_t i = 1; i < futures.size(); i++) {
++            const RandIt c = futures[i].get();
++            if (*best < *c) {
++                best = c;
++            }
++        }
++
++        return best;
++    }
++
+ } // end namespace cryptanalysislib
+ 
+ #endif
+diff --git a/tests/algorithm/max.cpp b/tests/algorithm/max.cpp
+index 3d5ba0e..11aac2e 100644
+--- a/tests/algorithm/max.cpp
++++ b/tests/algorithm/max.cpp
+@@ -93,7 +93,22 @@ TYPED_TEST_P(Max, max_element) {
+ 	EXPECT_EQ(cryptanalysislib::max_element(empty.begin(), empty.end()), empty.end());
+ }
+ 
+-REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar, max_element);
++/// parallel max_element against std::max_element, the maximum placed
++/// (several times) in different chunks
++TYPED_TEST_P(Max, max_element_multithreading) {
++	constexpr size_t s = 1u << 20u;
++	std::vector<TypeParam> in(s);
++	for (auto &x : in) { x = TypeParam(rng() % 100u); }
++	for (const size_t pos : {size_t(0), s / 3, s / 2 + 1, s - 1}) {
++		std::vector<TypeParam> v = in;
++		v[pos] = TypeParam(200);
++		v[s - 1] = TypeParam(200); // later duplicate: the first one wins
++		EXPECT_EQ(cryptanalysislib::max_element(par_if(true), v.begin(), v.end()),
++		          std::max_element(v.begin(), v.end())) << pos;
++	}
++}
++
++REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar, max_element, max_element_multithreading);
+ using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
+ INSTANTIATE_TYPED_TEST_SUITE_P(My, Max, MyTypes);
+ 

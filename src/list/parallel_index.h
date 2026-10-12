@@ -2,6 +2,7 @@
 #define CRYPTANALYISLIB_LIST_PARALLEL_INDEX_H
 
 #include "list/common.h"
+#include "sort/sort.h"
 
 template<class InnerElement, const uint32_t nri>
 class Parallel_List_IndexElement_Wrapper_T {
@@ -104,9 +105,25 @@ public:
 		__data.resize(size);
 	}
 
-	/// TODO: not implemented
+	/// sorts the segment of thread `tid` increasingly by the label.
+	/// The indices are moved together with their label.
+	/// \param tid[in]: thread number
+	void sort(const uint32_t tid) noexcept {
+		assert(tid < threads());
+		cryptanalysislib::sort(__data.begin() + start_pos(tid),
+		                       __data.begin() + end_pos(tid),
+		                       [](const InternalElementType &a,
+		                          const InternalElementType &b) __attribute__((always_inline)) {
+			                       return a.first.is_lower(b.first);
+		                       });
+	}
+
+	/// sorts every thread segment, see `sort(tid)`.
+	/// NOTE: the list is not sorted globally, only each segment
 	void sort() noexcept {
-		assert(0);
+		for (uint32_t tid = 0; tid < threads(); ++tid) {
+			sort(tid);
+		}
 	}
 
 	/// overwrites every element with the byte sym
@@ -127,7 +144,7 @@ public:
 	void zero_element(const size_t i) noexcept {
 		assert(i < size());
 		__data[i].first.zero();
-		__data[i].second = 0;
+		__data[i].second.fill(0);
 	}
 
 	/// add l1 and l2, and stores the result ad load positon with in the

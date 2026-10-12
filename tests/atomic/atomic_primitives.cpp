@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <iostream>
+#include <thread>
 
 #include "atomic/atomic_primitives.h"
 
@@ -45,6 +46,46 @@ TEST(__clear_padding, simple) {
     auto *t = __atomic_impl::__clear_padding(p);
     EXPECT_EQ(*t, p);
 }
+
+TEST(primitives, cmpexch_failure_order) {
+	static_assert(__atomic_impl::__is_valid_cmpexch_failure_order(std::memory_order_relaxed));
+	static_assert(__atomic_impl::__is_valid_cmpexch_failure_order(std::memory_order_acquire));
+	static_assert(__atomic_impl::__is_valid_cmpexch_failure_order(std::memory_order_seq_cst));
+	static_assert(!__atomic_impl::__is_valid_cmpexch_failure_order(std::memory_order_release));
+	static_assert(!__atomic_impl::__is_valid_cmpexch_failure_order(std::memory_order_acq_rel));
+
+	uint64_t v = 5, e = 5;
+	EXPECT_TRUE(__atomic_impl::compare_exchange_strong(&v, e, 7ull, std::memory_order_acq_rel, std::memory_order_acquire));
+	EXPECT_EQ(v, 7u);
+	e = 5;
+	EXPECT_FALSE(__atomic_impl::compare_exchange_strong(&v, e, 9ull, std::memory_order_seq_cst, std::memory_order_relaxed));
+	EXPECT_EQ(e, 7u);
+}
+
+#if __cpp_lib_atomic_wait
+/// wait/notify on a volatile object (const volatile overloads) and on a
+/// normal one
+TEST(wait_notify, volatile_and_normal) {
+	volatile uint32_t x = 0;
+	std::thread t([&]() {
+		__atomic_impl::store(&x, 1u, std::memory_order_release);
+		__atomic_impl::notify_one(&x);
+		__atomic_impl::notify_all(&x);
+	});
+	__atomic_impl::wait(&x, 0u);
+	t.join();
+	EXPECT_EQ(x, 1u);
+
+	uint32_t y = 0;
+	std::thread t2([&]() {
+		__atomic_impl::store(&y, 2u, std::memory_order_release);
+		__atomic_impl::notify_all(&y);
+	});
+	__atomic_impl::wait(&y, 0u);
+	t2.join();
+	EXPECT_EQ(y, 2u);
+}
+#endif
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

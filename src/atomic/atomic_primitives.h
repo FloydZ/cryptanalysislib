@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_ATOMIC_PRIMITIVES_H
 
 #include <atomic>
+#include <cassert>
 #include <cstdint>
 #include <memory>
 
@@ -98,71 +99,6 @@ concept is_lockable = requires(Lock &&lock) {
 
 ///
 #define MEMORY_BARRIER_RELEASE() __asm__ __volatile__("" : : : "memory")
-
-
-/// TODO doc and tests
-#ifdef __x86_64__
-///https://godbolt.org/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:1,endLineNumber:18,positionColumn:1,positionLineNumber:18,selectionStartColumn:1,selectionStartLineNumber:18,startColumn:1,startLineNumber:18),source:'template%3Ctypename+T%3E%0Ainline+T+cmov(T+a,+const+T+b)+noexcept+%7B%0A%09asm+volatile+(%0A++++++++++++//%22test+%250,+%251%5Cn%5Ct%22%0A%09%09%09%22cmovne+%250,+%251%5Cn%5Ct%22%0A%09%09%09:+%22%3Dr%22+(a)%0A%09%09%09:+%22r%22+(b)%0A%09)%3B%0A%09return+a%3B%0A%7D%0A%0Ausing+T+%3D+unsigned+int%3B%0Aint+tmp(T+a,+const+T+b)+%7B%0A%09a+%3D+cmov%3CT%3E(a,+b)%3B%0A++++return+a%3B%0A%7D%0A%0A'),l:'5',n:'0',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:g132,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-O3',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+x86-64+gcc+13.2+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
-/// \tparam T
-/// \tparam test
-/// \param a
-/// \param b
-/// \return
-#define CMOVE_MACRO(version)                          \
-	template<typename T, const bool test = false>     \
-	inline T cmov##version(T a, const T b) noexcept { \
-		if constexpr (test) {                         \
-			asm volatile(                             \
-			        "test %0, %1\n\t"                 \
-			        : "=r"(a)                         \
-			        : "r"(b));                        \
-		}                                             \
-		asm volatile(                                 \
-		        "cmov" #version " %0, %1\n\t"         \
-		        : "=r"(a)                             \
-		        : "r"(b));                            \
-		return a;                                     \
-	}
-#else
-
-#define CMOVE_MACRO(version)                          \
-	template<typename T, const bool test = false>     \
-	inline T cmov##version(T a, const T b) noexcept { \
-		if (a != b) {                                 \
-			a = b;                                    \
-		}                                             \
-		return a;                                     \
-	}
-#endif
-
-CMOVE_MACRO(a)
-CMOVE_MACRO(ae)
-CMOVE_MACRO(b)
-CMOVE_MACRO(be)
-CMOVE_MACRO(c)
-CMOVE_MACRO(e)
-CMOVE_MACRO(g)
-CMOVE_MACRO(ge)
-CMOVE_MACRO(l)
-CMOVE_MACRO(le)
-CMOVE_MACRO(na)
-CMOVE_MACRO(nae)
-CMOVE_MACRO(nb)
-CMOVE_MACRO(nc)
-CMOVE_MACRO(ng)
-CMOVE_MACRO(ne)
-CMOVE_MACRO(nl)
-CMOVE_MACRO(nle)
-CMOVE_MACRO(no)
-CMOVE_MACRO(np)
-CMOVE_MACRO(nz)
-CMOVE_MACRO(ns)
-CMOVE_MACRO(o)
-CMOVE_MACRO(p)
-CMOVE_MACRO(pe)
-CMOVE_MACRO(po)
-CMOVE_MACRO(s)
-CMOVE_MACRO(z)
 
 
 // NOTE: older gcc version do not support atomic::wait
@@ -269,8 +205,12 @@ namespace __atomic_impl {
 		       !std::is_same<T, double>::value;
 	}
 
-	/// \tparam
-	/// \return TODO
+	/// Zeroes the padding bits of `__val` (if `_Tp` may have padding), so that
+	/// a bytewise comparison (as done by `__atomic_compare_exchange`) only
+	/// compares the value representation
+	/// \tparam _Tp type of the object
+	/// \param __val[in/out]: object whose padding bits are cleared
+	/// \return the address of `__val`
 	template<typename _Tp>
 	inline _Tp *__clear_padding(_Tp &__val) noexcept {
 		auto *__ptr = __builtin_addressof(__val);
@@ -280,6 +220,13 @@ namespace __atomic_impl {
 		return __ptr;
 	}
 
+	/// \return false for the memory orders not allowed as the failure order
+	/// 	of a compare exchange (`release`, `acq_rel`: a failed compare
+	/// 	exchange is only a load)
+	constexpr bool __is_valid_cmpexch_failure_order(const std::memory_order __m) noexcept {
+		return (__m != std::memory_order_release) && (__m != std::memory_order_acq_rel);
+	}
+
 	template<typename _Tp>
 	inline bool
 	__compare_exchange(_Tp &__val,
@@ -287,7 +234,9 @@ namespace __atomic_impl {
 	                   _Val<_Tp> &__i,
 	                   bool __is_weak,
 	                   std::memory_order __s, std::memory_order __f) noexcept {
-		// TODO static_assert(__is_valid_cmpexch_failure_order(__f));
+		// NOTE: `__f` is a runtime value, so no static_assert. Qualified,
+		// 	because ADL also finds `std::__is_valid_cmpexch_failure_order`.
+		assert(__atomic_impl::__is_valid_cmpexch_failure_order(__f));
 
 		using _Vp = _Val<_Tp>;
 
@@ -374,7 +323,15 @@ namespace __atomic_impl {
 #endif
 	}
 
-	// TODO add const volatile overload
+	// const volatile overload: libstdc++'s waiting functions take no volatile
+	// pointers, but the wait/notify itself does not depend on it (as for
+	// `volatile std::atomic<T>::wait`)
+	template<typename _Tp>
+	_GLIBCXX_ALWAYS_INLINE void
+	wait(const volatile _Tp *__ptr, _Val<_Tp> __old,
+	     std::memory_order __m = std::memory_order_seq_cst) noexcept {
+		__atomic_impl::wait(const_cast<const _Tp *>(__ptr), __old, __m);
+	}
 
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE void
@@ -386,7 +343,12 @@ namespace __atomic_impl {
 #endif
 	}
 
-	// TODO add const volatile overload
+	// const volatile overload, see `wait`
+	template<typename _Tp>
+	_GLIBCXX_ALWAYS_INLINE void
+	notify_one(const volatile _Tp *__ptr) noexcept {
+		__atomic_impl::notify_one(const_cast<const _Tp *>(__ptr));
+	}
 
 	template<typename _Tp>
 	_GLIBCXX_ALWAYS_INLINE void
@@ -398,7 +360,12 @@ namespace __atomic_impl {
 #endif
 	}
 
-	// TODO add const volatile overload
+	// const volatile overload, see `wait`
+	template<typename _Tp>
+	_GLIBCXX_ALWAYS_INLINE void
+	notify_all(const volatile _Tp *__ptr) noexcept {
+		__atomic_impl::notify_all(const_cast<const _Tp *>(__ptr));
+	}
 #endif// __cpp_lib_atomic_wait
 
 	//template<typename _Tp>

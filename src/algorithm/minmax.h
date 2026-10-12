@@ -17,7 +17,7 @@ namespace cryptanalysislib {
     
     namespace internal {
 
-        /// TODO make iterator version of this
+        /// NOTE: the iterator version is the overload below
         /// SIMD implementation for minmax_element that finds min and max values in a range
         /// Uses SIMD operations for improved performance with larger data sets
         /// \param first[in]: pointer to the first element in the array

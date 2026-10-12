@@ -27,12 +27,6 @@
 # define assert(x) { if (!(x)) { printf("Assert failed " #x "\n"); exit(-1); } }
 #endif
 
-// TODO remove
-#ifdef DEBUG
-# define assert_DEBUG(x) ASSERT(x)
-#else
-# define assert_DEBUG(x)
-#endif
 
 typedef unsigned char byte;
 typedef unsigned short uint16;
@@ -287,7 +281,7 @@ const int16 cdf_initial4[17] = {
 template<int num_syms, int adapt_bits, int total>
 void init_mixin_table(int16(&mixin)[num_syms][num_syms]) {
 	const int mixin_bias = (1 << adapt_bits) - 1 - num_syms;
-	assert_DEBUG(mixin_bias > 0);
+	assert(mixin_bias > 0);
 
 	for (int y = 0; y < num_syms; y++) {
 		for (int x = 0; x <= y; x++) {
@@ -535,7 +529,7 @@ struct DecodeFrame {
 };
 
 void CodeFrame::Init(byte *start, byte *end, uint32 *buf_rans, uint32 max_rans_syms) {
-	assert_DEBUG(end - start >= 1024);
+	assert(end - start >= 1024);
 
 	this->start = start;
 	this->end = end;

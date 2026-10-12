@@ -1,0 +1,110 @@
+diff --git a/bench/algorithm/max.cpp b/bench/algorithm/max.cpp
+new file mode 100644
+index 0000000..b29f81e
+--- /dev/null
++++ b/bench/algorithm/max.cpp
+@@ -0,0 +1,43 @@
++#include <benchmark/benchmark.h>
++#include <algorithm>
++#include <vector>
++
++#include "random.h"
++#include "algorithm/max.h"
++
++using namespace cryptanalysislib;
++constexpr size_t LS = 1u << 16u;
++
++template<typename T>
++static void generate_data(std::vector<T> &out, const size_t size) noexcept {
++	out.resize(size);
++	for (size_t i = 0; i < size; ++i) { out[i] = rng<T>(); }
++}
++
++template<typename T>
++static void BM_std_max_element(benchmark::State &state) {
++	static std::vector<T> data;
++	generate_data(data, state.range(0));
++	for (auto _: state) {
++		auto t = std::max_element(data.begin(), data.end());
++		benchmark::DoNotOptimize(t);
++	}
++}
++
++template<typename T>
++static void BM_max_element(benchmark::State &state) {
++	static std::vector<T> data;
++	generate_data(data, state.range(0));
++	for (auto _: state) {
++		auto t = cryptanalysislib::max_element(data.begin(), data.end());
++		benchmark::DoNotOptimize(t);
++	}
++}
++
++BENCHMARK(BM_std_max_element<uint8_t>)->RangeMultiplier(4)->Range(32, LS);
++BENCHMARK(BM_std_max_element<uint32_t>)->RangeMultiplier(4)->Range(32, LS);
++BENCHMARK(BM_std_max_element<uint64_t>)->RangeMultiplier(4)->Range(32, LS);
++BENCHMARK(BM_max_element<uint8_t>)->RangeMultiplier(4)->Range(32, LS);
++BENCHMARK(BM_max_element<uint32_t>)->RangeMultiplier(4)->Range(32, LS);
++BENCHMARK(BM_max_element<uint64_t>)->RangeMultiplier(4)->Range(32, LS);
++BENCHMARK_MAIN();
+diff --git a/src/algorithm/max.h b/src/algorithm/max.h
+index b841320..73bda71 100644
+--- a/src/algorithm/max.h
++++ b/src/algorithm/max.h
+@@ -11,9 +11,9 @@
+ #include "simd/simd.h"
+ #include "algorithm/algorithm.h"
+ #include "thread/thread.h"
++#include "algorithm/find.h"
+ 
+ 
+-// TODO implement max_element simd version
+ // TODO implement max_element parallel version
+ 
+ 
+@@ -186,6 +186,17 @@ namespace cryptanalysislib {
+         if (first == last) {
+             return last;
+         }
++
++        // SIMD: maximum via `max_simd_uXX`, then its first occurrence via
++        // the SIMD `find`
++        using T = std::iter_value_t<ForwardIt>;
++        if constexpr (std::unsigned_integral<T> && std::contiguous_iterator<ForwardIt>) {
++            const size_t len = static_cast<size_t>(last - first);
++            if (len >= algorithmMaxConfig.min_size_simd) {
++                const T m = internal::max_simd_uXX<T>(std::to_address(first), len);
++                return cryptanalysislib::find(first, last, m);
++            }
++        }
+      
+         ForwardIt largest = first;
+      
+diff --git a/tests/algorithm/max.cpp b/tests/algorithm/max.cpp
+index 83e8769..3d5ba0e 100644
+--- a/tests/algorithm/max.cpp
++++ b/tests/algorithm/max.cpp
+@@ -78,7 +78,22 @@ TYPED_TEST_P(Max, scalar) {
+ 	EXPECT_EQ(max(a, b), b);
+ }
+ 
+-REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar);
++/// max_element against std::max_element: sizes around the SIMD threshold,
++/// random data with few distinct values, so the maximum occurs repeatedly
++/// (the first occurrence must be returned)
++TYPED_TEST_P(Max, max_element) {
++	for (size_t s = 1; s <= 300; ++s) {
++		std::vector<TypeParam> in(s);
++		for (auto &x : in) { x = TypeParam(rng() % 7u); }
++		const auto e = std::max_element(in.begin(), in.end());
++		EXPECT_EQ(cryptanalysislib::max_element(in.begin(), in.end()), e) << s;
++		EXPECT_EQ(cryptanalysislib::max_element(in.begin(), in.end(), std::less<TypeParam>()), e) << s;
++	}
++	std::vector<TypeParam> empty;
++	EXPECT_EQ(cryptanalysislib::max_element(empty.begin(), empty.end()), empty.end());
++}
++
++REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar, max_element);
+ using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
+ INSTANTIATE_TYPED_TEST_SUITE_P(My, Max, MyTypes);
+ 

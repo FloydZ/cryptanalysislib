@@ -58,6 +58,36 @@ TEST(swap, unqualified_with_std_visible) {
 	EXPECT_EQ(x, 2);
 }
 
+TEST(swap, swap_ranges) {
+	for (size_t n = 0; n <= 20; ++n) {
+		std::vector<int> a(n), b(n + 3);
+		for (size_t i = 0; i < n; ++i) { a[i] = int(i); }
+		for (size_t i = 0; i < n + 3; ++i) { b[i] = 100 + int(i); }
+		const auto r = cryptanalysislib::swap_ranges(a.begin(), a.end(), b.begin());
+		EXPECT_EQ(r - b.begin(), ptrdiff_t(n));
+		for (size_t i = 0; i < n; ++i) { EXPECT_EQ(a[i], 100 + int(i)); EXPECT_EQ(b[i], int(i)); }
+		for (size_t i = n; i < n + 3; ++i) { EXPECT_EQ(b[i], 100 + int(i)); }
+	}
+
+	std::string s[2] = {"a", "b"}, t[2] = {"c", "d"};
+	cryptanalysislib::swap_ranges(s, s + 2, t);
+	EXPECT_EQ(s[0], "c"); EXPECT_EQ(t[1], "b");
+}
+
+TEST(swap, exchange) {
+	int a = 1;
+	EXPECT_EQ(cryptanalysislib::exchange(a, 5), 1);
+	EXPECT_EQ(a, 5);
+
+	std::unique_ptr<int> p(new int(3));
+	auto old = cryptanalysislib::exchange(p, nullptr);
+	EXPECT_EQ(*old, 3);
+	EXPECT_EQ(p, nullptr);
+
+	constexpr int c = []() { int x = 7; const int o = cryptanalysislib::exchange(x, 9); return o * 10 + x; }();
+	static_assert(c == 79);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

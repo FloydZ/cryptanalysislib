@@ -1,0 +1,95 @@
+diff --git a/src/sort/bit_sort.h b/src/sort/bit_sort.h
+index f9e5f4e..94e03e0 100644
+--- a/src/sort/bit_sort.h
++++ b/src/sort/bit_sort.h
+@@ -22,13 +22,10 @@
+ #include <typeinfo>
+ 
+ #include "simd/simd.h"
++#include "math/math.h"
+ 
+ // source: https://github.com/jonicho/simd-radix-sort/blob/main/radixSort.hpp
+ 
+-/// TODO move somewhere useful
+-template <std::size_t X>
+-inline constexpr bool is_power_of_two = X > 0 && (X & (X - 1)) == 0;
+-
+ 
+ 
+ /// make private?
+@@ -100,9 +97,10 @@ constexpr bool bitDirUp() noexcept {
+ }
+ 
+ struct BitSorterSIMD {
+-    // TODO: use SIMD wrapper
++    /// number of keys per SIMD register of the SIMD wrapper
++    /// NOTE: was hard coded to 64 bytes (AVX-512), now `SIMDSelector<K>`
+     template <typename K>
+-    static constexpr SortIndex numElemsPerVec = 64 / sizeof(K);
++    static constexpr SortIndex numElemsPerVec = SortIndex(SIMDSelector<K>::size());
+ 
+ 	template<const bool Up,
+              const bool IsHighestBit, 
+@@ -364,7 +362,7 @@ template<bool Up,
+ void sort(SortIndex cmpSortThreshold,
+           const SortIndex num,
+           DataElement<K, Ps...> *const elements) {
+-	static_assert(is_power_of_two<sizeof(DataElement<K, Ps...>)>,
++	static_assert(cryptanalysislib::math::is_power_of_two_v<sizeof(DataElement<K, Ps...>)>,
+ 	              "size of DataElement<K, Ps...> must be a power of two");
+ 	radixRecursion
+         <Up, BitSorter, CmpSorter>
+diff --git a/src/math/round.h b/src/math/round.h
+index 53ca158..65e452d 100644
+--- a/src/math/round.h
++++ b/src/math/round.h
+@@ -2,6 +2,7 @@
+ #define CRYPTANALYSISLIB_MATH_ROUND_H
+ 
+ #include <cstdint>
++#include <type_traits>
+ #include "helper.h"
+ 
+ #include "algorithm/bits/popcount.h"
+@@ -26,6 +27,19 @@ namespace cryptanalysislib::math {
+ 		return t;
+ 	}
+ 
++	/// \return true if `x` is a power of two (false for 0)
++	template<typename T>
++#if __cplusplus > 201709L
++	    requires std::is_integral_v<T>
++#endif
++	[[nodiscard]] constexpr inline bool is_power_of_two(const T x) noexcept {
++		return (x > 0) && ((x & (x - 1)) == 0);
++	}
++
++	/// compile time version of `is_power_of_two`
++	template<std::size_t X>
++	inline constexpr bool is_power_of_two_v = is_power_of_two(X);
++
+ 	[[nodiscard]] constexpr static std::size_t round_up_to_power_of_two(std::size_t value) noexcept {
+ 		if (cryptanalysislib::popcount::popcount(value) == 1u) {
+ 			return value;
+diff --git a/tests/math/math.cpp b/tests/math/math.cpp
+index b472518..b7c9575 100644
+--- a/tests/math/math.cpp
++++ b/tests/math/math.cpp
+@@ -112,6 +112,17 @@ TEST(bc, avx512) {
+ }
+ #endif
+ 
++TEST(math, is_power_of_two) {
++	using namespace cryptanalysislib::math;
++	static_assert(!is_power_of_two(0) && is_power_of_two(1) && is_power_of_two(2) && !is_power_of_two(3));
++	static_assert(is_power_of_two_v<64> && !is_power_of_two_v<48>);
++	for (uint64_t i = 0; i < 64; ++i) {
++		EXPECT_TRUE(is_power_of_two(1ull << i));
++		if (i > 1) { EXPECT_FALSE(is_power_of_two((1ull << i) + 1ull)); }
++	}
++	EXPECT_FALSE(is_power_of_two(-4));
++}
++
+ TEST(big_int, simple) {
+ 	BigInt one = BigInt{1};
+ 	BigInt zero = BigInt{};

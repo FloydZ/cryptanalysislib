@@ -1,0 +1,59 @@
+diff --git a/src/container/hashmap/simple_compressed.h b/src/container/hashmap/simple_compressed.h
+index b035a63..7e3a9d8 100644
+--- a/src/container/hashmap/simple_compressed.h
++++ b/src/container/hashmap/simple_compressed.h
+@@ -34,9 +34,11 @@ template<
+         typename valueType,
+         const SimpleCompressedHashMapConfig &config,
+         class Hash>
+-//#if __cplusplus > 201709L // TODO
+-//	requires HashFunction<Hash, valueType>
+-//#endif
++#if __cplusplus > 201709L
++	// NOTE: the hash function is applied to the keys (`hash(e)`), not to
++	// 	the values as the old commented constraint said
++	requires HashFunction<Hash, keyType>
++#endif
+ class SimpleCompressedHashMap {
+ public:
+ 	using data_type  = valueType;
+@@ -111,7 +113,11 @@ public:
+ 		if (l > 0) {
+ 			// the last inserted value is stored (uncompressed) right after
+ 			// the compressed data
+-			// TODO what happens if the old value is bigger?
++			// NOTE: if the old value is bigger, the (unsigned) delta wraps
++			// 	around: it is encoded with the maximal leb128 length, and the
++			// 	decoding adds it back modulo 2^bits, i.e. still correct
++			// 	(tested in tests/container/hashmap/simple_compressed.cpp).
++			static_assert(std::is_unsigned_v<data_type>, "the deltas need unsigned wrap around");
+ 			data_type last;
+ 			__builtin_memcpy(&last, ptr_, sizeof(data_type));
+ 			v -= last;
+diff --git a/tests/container/hashmap/simple_compressed.cpp b/tests/container/hashmap/simple_compressed.cpp
+index 42d3c1e..56c5c90 100644
+--- a/tests/container/hashmap/simple_compressed.cpp
++++ b/tests/container/hashmap/simple_compressed.cpp
+@@ -37,6 +37,22 @@ TEST(HashMap, simple) {
+ }
+ 
+ 
++/// decreasing and random values (negative deltas wrap around)
++TEST(HashMap, decreasing_values) {
++	constexpr uint32_t l = 4;
++	constexpr uint32_t nr_bytes = 128;
++	constexpr static SimpleCompressedHashMapConfig s = SimpleCompressedHashMapConfig{nr_bytes, 1u << l};
++	using HM = SimpleCompressedHashMap<K, V, s, Hash<K, 0, l, 2>>;
++	HM hm = HM{};
++	const V values[] = {1000000, 5, 4000000000u, 0, 77, 76, 4294967295u, 1};
++	for (const V v : values) { hm.insert(3, v); }
++	V *out = nullptr;
++	uint32_t nr = 0;
++	hm.decompress(&out, nr, 3);
++	ASSERT_EQ(nr, 8u);
++	for (uint32_t j = 0; j < nr; ++j) { EXPECT_EQ(out[j], values[j]) << j; }
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();

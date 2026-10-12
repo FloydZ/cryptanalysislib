@@ -1,0 +1,30 @@
+diff --git a/src/tree.h b/src/tree.h
+index 1c9bc9a..af6633f 100644
+--- a/src/tree.h
++++ b/src/tree.h
+@@ -3542,15 +3542,16 @@ private:
+ 		search_in_level_l(e1, e2, e3, level, k_lower, k_higher, boundaries, indices);
+ 	}
+ 
+-	/// \param e1 TODO
+-	/// \param e2
+-	/// \param e3
+-	/// \param level
+-	/// \param k_lower
+-	/// \param k_higher
+-	/// \param boundaries
+-	/// \param indices
+-	/// \return
++	/// same as above, but with explicit coordinates: computes e1 = e2 + e3
++	/// and searches it in the list `lists[level + 2]` on [k_lower, k_higher)
++	/// \param e1[out]: e2 + e3, the element to search for
++	/// \param e2[in]: first summand
++	/// \param e3[in]: second summand
++	/// \param level[in]: current level, the list `lists[level + 2]` is searched
++	/// \param k_lower[in]: lower coordinate to match on (inclusive)
++	/// \param k_higher[in]: upper coordinate to match on (exclusive)
++	/// \param boundaries[out]: boundaries[level] = [first, last) of the matches
++	/// \param indices[out]: indices[level] = first match
+ 	constexpr inline void search_in_level_l(ElementType &e1,
+ 								  const ElementType &e2,
+ 								  const ElementType &e3,

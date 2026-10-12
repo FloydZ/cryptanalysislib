@@ -1,0 +1,33 @@
+diff --git a/src/algorithm/reverse.h b/src/algorithm/reverse.h
+index 9a657fb..a9063fe 100644
+--- a/src/algorithm/reverse.h
++++ b/src/algorithm/reverse.h
+@@ -21,7 +21,12 @@ namespace cryptanalysislib {
+     };
+     constexpr static AlgorithmReverseConfig algorithmReverseConfig;
+ 
+-/// TODO doc
++/// Reverses the order of the elements in [first, last) (like `std::reverse`)
++/// NOTE: call it qualified (`cryptanalysislib::reverse`): an unqualified call
++/// 	on `std::` iterators also finds `std::reverse` via ADL (ambiguous).
++/// \tparam BidirIt bidirectional iterator type
++/// \param first[in]: Iterator to the beginning of the range
++/// \param last[in]: Iterator to the end of the range
+ template<class BidirIt>
+ constexpr
+ void reverse(BidirIt first,
+@@ -45,7 +50,13 @@ void reverse(BidirIt first,
+     }
+ }
+ 
+-/// TODO doc
++/// Copies [first, last) in reverse order to `d_first` (like `std::reverse_copy`)
++/// \tparam BidirIt bidirectional iterator type of the input
++/// \tparam OutputIt output iterator type
++/// \param first[in]: Iterator to the beginning of the input range
++/// \param last[in]: Iterator to the end of the input range
++/// \param d_first[out]: beginning of the output, must not overlap the input
++/// \return Iterator past the last written element
+ template<class BidirIt,
+          class OutputIt>
+ constexpr 

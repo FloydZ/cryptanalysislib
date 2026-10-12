@@ -1,0 +1,179 @@
+diff --git a/src/sort/ips4o.h b/src/sort/ips4o.h
+index 9ede117..d7c38f3 100644
+--- a/src/sort/ips4o.h
++++ b/src/sort/ips4o.h
+@@ -56,6 +56,9 @@
+ #include <vector>
+ 
+ #include "memory/memory.h"
++#include "alloc/alloc.h"
++#include "algorithm/countl.h"
++#include "random.h"
+ 
+ #if IPS4O_SIMD
+ #include "hwy/highway.h"
+@@ -79,9 +82,9 @@ namespace ips4o {
+     
+ 
+         /// TODO move somewhere usefull
+-        /// Compute the logarithm to base 2, rounded down.
++        /// Compute the logarithm to base 2, rounded down (0 for n = 0).
+ 		inline constexpr unsigned long log2(unsigned long n) {
+-			return (std::numeric_limits<unsigned long>::digits - 1 - __builtin_clzl(n));
++			return n ? (std::numeric_limits<unsigned long>::digits - 1 - cryptanalysislib::countl_zero(n)) : 0ul;
+ 		}
+ 
+ 		// TODO(?): make into template to allow other key types.
+@@ -218,15 +221,15 @@ namespace ips4o {
+ 		public:
+ 			Buffers() noexcept
+ 			    : storage_(static_cast<Cfg::value_type *>(
+-			              std::aligned_alloc(Cfg::kDataAlignment, Cfg::kBlockSizeInBytes * Cfg::kMaxBuckets * 2))) {
++			              cryptanalysislib::aligned_alloc(Cfg::kDataAlignment, Cfg::kBlockSizeInBytes * Cfg::kMaxBuckets * 2))) {
+ 				for (size_t idx_bucket = 0; idx_bucket < Cfg::kMaxBuckets; ++idx_bucket) {
+ 					reset(idx_bucket);
+ 					end_[idx_bucket] = indices_[idx_bucket] + Cfg::kBlockSize;
+ 				}
+ 			}
+ 
+-			~Buffers() noexcept { 
+-                free(storage_);
++			~Buffers() noexcept {
++                cryptanalysislib::aligned_free(storage_);
+             }
+ 
+             /// Resets to initial position.
+@@ -293,7 +296,7 @@ namespace ips4o {
+ 				num_buckets_ = 1 << log_buckets;
+ 				const auto num_splitters = (1 << log_buckets) - 1;
+ 				IPS4OML_ASSUME_NOT(getSortedSplitters() + num_splitters == nullptr);
+-                // TODO replace with allocator
++                // NOTE: placement new into the fixed `sorted_storage_`, no allocation
+ 				new (getSortedSplitters() + num_splitters)
+ 				        value_type(getSortedSplitters()[num_splitters - 1]);
+ 				build(getSortedSplitters(), getSortedSplitters() + num_splitters, 1);
+@@ -350,36 +353,21 @@ namespace ips4o {
+ 			value_type sorted_storage_[Cfg::kMaxBuckets / 2];
+ 		};
+ 
+-        /// TODO replace with my prng class 
++        /// draws random samples, via the cryptanalysislib prng (`rng`)
+ 		class Sampler {
+-			static constexpr const bool kIs64Bit = sizeof(std::uintptr_t) == 8;
+-
+ 		public:
+-			Sampler() noexcept {
+-				std::random_device rdev;
+-				ptrdiff_t seed = rdev();
+-				if (kIs64Bit) { seed = (seed << (kIs64Bit * 32)) | rdev(); }
+-				random_generator.seed(seed);
+-			}
+-
++			/// moves `num_samples` random elements of [begin, end) to the front
+ 			void selectInPlace(Cfg::iterator begin,
+                                const Cfg::iterator end,
+ 			                   ptrdiff_t num_samples) noexcept {
+ 				ptrdiff_t n = end - begin;
+ 				while (num_samples--) {
+-					const auto i = std::uniform_int_distribution<ptrdiff_t>(0, --n)(random_generator);
++					// uniform in [0, n)
++					const auto i = ptrdiff_t(cryptanalysislib::rng<uint64_t>(uint64_t(n--)));
+ 					std::swap(*begin, begin[i]);
+ 					++begin;
+ 				}
+ 			}
+-
+-		private:
+-			// Random bit generator for sampling
+-			// LCG using constants by Knuth (for 64 bit) or Numerical Recipes (for 32 bit)
+-			std::linear_congruential_engine<
+-			        std::uintptr_t, kIs64Bit ? 6364136223846793005u : 1664525u,
+-			        kIs64Bit ? 1442695040888963407u : 1013904223u, 0u>
+-			        random_generator;
+ 		};
+ 
+         /// 
+@@ -1056,20 +1044,21 @@ namespace ips4o {
+ 			}
+ 		};
+ 
+-		template<class It>
++		/// \return true if [begin, end) is sorted afterwards: it was empty,
++		/// 	sorted or reverse sorted (then it is reversed)
++		template<class It,
++		         class Compare = std::less<Cfg::value_type>>
+ 		__attribute__((noinline)) bool sortSimpleCases(It begin,
+-                                                       It end) noexcept {
++                                                       It end,
++		                                               Compare comp = Compare{}) noexcept {
+ 			if (begin == end) {
+ 				return true;
+ 			}
+ 
+-            /// TODO pass as argument
+-			std::less<Cfg::value_type> comp;
+-
+ 			// If last element is not smaller than first element,
+ 			// test if input is sorted (input is not reverse sorted).
+ 			if (!comp(*(end - 1), *begin)) {
+-				if (std::is_sorted(begin, end)) {
++				if (std::is_sorted(begin, end, comp)) {
+ 					return true;
+ 				}
+ 			} else {
+@@ -1088,8 +1077,13 @@ namespace ips4o {
+ 
+ 	}// namespace detail
+ 
+-    ///
++    /// sorts the `uint32_t` elements of [begin, end) increasingly
++    /// \tparam It contiguous iterator to `uint32_t`
+ 	template<class It>
++#if __cplusplus > 201709L
++		requires std::contiguous_iterator<It> &&
++		         std::is_same_v<std::iter_value_t<It>, detail::Cfg::value_type>
++#endif
+ 	void sort(It begin, It end) noexcept {
+ 		// Negligible cost.
+ 		if (detail::sortSimpleCases(begin, end)) {
+@@ -1102,8 +1096,9 @@ namespace ips4o {
+ 		}
+ 
+ 		alignas(64) detail::Sorter sorter;
+-        // TODO fix this iterator nonsence
+-		sorter.sequential(&(*begin), &(*end));
++		// NOTE: `begin != end` here, so `*begin` is valid
++		uint32_t *first = &(*begin);
++		sorter.sequential(first, first + (end - begin));
+ 	}
+ 
+ }// namespace ips4o
+diff --git a/tests/sort/parallel.cpp b/tests/sort/parallel.cpp
+index 552ed30..e618464 100644
+--- a/tests/sort/parallel.cpp
++++ b/tests/sort/parallel.cpp
+@@ -61,14 +61,16 @@ TEST(pluggable_quicksort, std_sort_u8) {
+ }
+ 
+ TEST(ips4o, kek) {
+-	constexpr size_t s = 10000;
+-	using T = uint32_t;
+-	std::vector<T> data;
+-	generate_list(data, s);
+-    ips4o::sort(data.begin(), data.end());
+-
+-	for (size_t i = 0; i < listsize-1; ++i) {
+-		EXPECT_LE(data[i], data[i+1]);
++	for (const size_t s : {0ul, 1ul, 100ul, 513ul, 10000ul, 300000ul}) {
++		using T = uint32_t;
++		std::vector<T> data;
++		generate_list(data, s);
++		// few distinct values (equality buckets)
++		if (s > 1000) { for (size_t i = 0; i < s; i += 2) { data[i] %= 7u; } }
++		auto expect = data;
++		cryptanalysislib::sort(expect.begin(), expect.end());
++		ips4o::sort(data.begin(), data.end());
++		EXPECT_EQ(data, expect);
+ 	}
+ }
+ 

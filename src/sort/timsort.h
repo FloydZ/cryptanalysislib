@@ -80,7 +80,13 @@ struct run {
     }
 };
 
-/// TODO doc
+/// Timsort (Python/OpenJDK): finds natural runs (extended to at least
+/// `MIN_MERGE / 2 .. MIN_MERGE` elements by binary insertion sort), keeps them
+/// on a stack (`pending_`) and merges them such that the run lengths satisfy
+/// the timsort invariants; merges use galloping (exponential search) once one
+/// run wins `minGallop_` times in a row. Stable, O(n log n), O(n) on presorted
+/// input. Use the `gfx::timsort` / `gfx::timmerge` entry points.
+/// \tparam RandomAccessIterator iterator of the range to sort
 template <typename RandomAccessIterator>
 class TimSort {
     using iter_t = RandomAccessIterator;

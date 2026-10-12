@@ -7,8 +7,10 @@
 
 #include <stdint.h>
 #include <cstring> // for memset
+#include <memory>
 
 #include "helper.h"
+#include "alloc/alloc.h"
 
 /// main src: https://moodycamel.com/blog/2014/solving-the-aba-problem-for-lock-free-free-lists
 /// (sorted) Lock Free Double Linked List
@@ -22,7 +24,10 @@
 /// 	- introduce Free Node which or direct delete
 ///
 /// \tparam T
-template<typename T> // TODO allocator
+/// \tparam Allocator node allocator (STL interface, assumed stateless and
+/// 	thread safe), instantiated with the internal node type
+template<typename T,
+         template<class N> class Allocator = cryptanalysislib::allocator>
 #if __cplusplus > 201709L 
     requires std::copyable<T> && std::three_way_comparable<T>
 #endif
@@ -114,14 +119,32 @@ private:
 	// NOTE: per list. Was a `static` in `insert`, i.e. shared by all lists.
 	std::atomic<size_t> __buffer_ctr = 0;
 
-	/// frees `n`, if it was allocated with `new` (and not from the buffer)
+	using NodeAllocator = Allocator<Node>;
+	using NodeTraits = std::allocator_traits<NodeAllocator>;
+
+	/// allocates a node with `Allocator`
+	template<typename... Args>
+	static Node *create_node(Args &&...args) noexcept {
+		NodeAllocator a{};
+		Node *n = NodeTraits::allocate(a, 1);
+		return ::new (static_cast<void *>(n)) Node(std::forward<Args>(args)...);
+	}
+
+	/// frees a node allocated with `create_node`
+	static void destroy_node(Node *n) noexcept {
+		n->~Node();
+		NodeAllocator a{};
+		NodeTraits::deallocate(a, n, 1);
+	}
+
+	/// frees `n`, if it was allocated with `create_node` (and not from the buffer)
 	constexpr inline void release(Node *n) noexcept {
 		if constexpr (USE_BUFFER) {
 			if ((n >= __internal_array) && (n < __internal_array + LEN)) {
 				return;
 			}
 		}
-		delete n;
+		destroy_node(n);
 	}
 
 	/// keep track of the size of the linked list
@@ -190,7 +213,7 @@ public:
 		head = __head;
 		tail = __tail;
 		if (__head == nullptr) {
-			head = new Node;
+			head = create_node();
 			own_head = true;
 			// this is kind of strange. But the start and the end need to
 			// initialized to the lowest possible value.
@@ -198,7 +221,7 @@ public:
 		}
 
 		if (__tail == nullptr) {
-			tail = new Node;
+			tail = create_node();
 			own_tail = true;
 			std::memset(&tail->data, -1, sizeof(T));
 		}
@@ -239,8 +262,8 @@ public:
 		}
 
 		clean();
-		if (own_head) { delete head; }
-		if (own_tail) { delete tail; }
+		if (own_head) { destroy_node(head); }
+		if (own_tail) { destroy_node(tail); }
 	}
 
 	/// return 0 on success, 1 else
@@ -264,10 +287,10 @@ public:
 				__node->prev = nullptr;
 				__node->free = nullptr;
 			} else {
-				__node = new Node{data};
+				__node = create_node(data);
 			}
 		} else {
-			__node = new Node{data};
+			__node = create_node(data);
 		}
 
 		do {

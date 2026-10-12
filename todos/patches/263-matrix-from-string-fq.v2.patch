@@ -1,0 +1,102 @@
+diff --git a/src/matrix/matrix.h b/src/matrix/matrix.h
+index 1cf559d..8729c50 100644
+--- a/src/matrix/matrix.h
++++ b/src/matrix/matrix.h
+@@ -155,25 +155,47 @@ public:
+ 		from_string(data, cols);
+ 	}
+ 
+-	/// TODO generalize over field
+-	/// parses an ascii string byte by byte, row by row into the matrix
++	/// parses an ascii string row by row into the matrix. Format:
++	/// 	- q <= 36: one symbol per entry, '0'-'9' and then 'a'-'z' (or
++	/// 		'A'-'Z') for 10, ..., 35. E.g. "0102a2120..." for q = 11.
++	/// 		One big string, without any separator.
++	/// 	- q > 36: decimal numbers, separated by any non-digit characters
++	/// 		(e.g. spaces, ',' or '\n'), row by row.
+ 	/// \param data[in]: ascii string
+-	/// \param cols[in]: how many rows each row has
++	/// \param cols[in]: how many columns each row has
+ 	constexpr void from_string(const char *data,
+ 	                           const uint32_t cols = ncols) noexcept {
+ 		clear();
+ 
+-		char input[2] = {0};
+-		for (uint32_t i = 0; i < nrows; ++i) {
+-			for (uint32_t j = 0; j < cols; ++j) {
+-				strncpy(input, data + i * cols + j, 1);
+-				const int a = atoi(input);
+-
+-				assert(a >= 0);
+-				const uint32_t aa = a;
+-				assert(aa < q);
++		if constexpr (q <= 36u) {
++			for (uint32_t i = 0; i < nrows; ++i) {
++				for (uint32_t j = 0; j < cols; ++j) {
++					const char c = data[i * cols + j];
++					uint32_t a = q;// invalid
++					if ((c >= '0') && (c <= '9')) { a = c - '0'; }
++					else if ((c >= 'a') && (c <= 'z')) { a = 10u + (c - 'a'); }
++					else if ((c >= 'A') && (c <= 'Z')) { a = 10u + (c - 'A'); }
++					assert(a < q);
++
++					set(DataType(a), i, j);
++				}
++			}
++		} else {
++			const char *p = data;
++			for (uint32_t i = 0; i < nrows; ++i) {
++				for (uint32_t j = 0; j < cols; ++j) {
++					while ((*p != '\0') && ((*p < '0') || (*p > '9'))) { p += 1; }
++					assert(*p != '\0');
++
++					uint64_t a = 0;
++					while ((*p >= '0') && (*p <= '9')) {
++						a = a * 10u + uint64_t(*p - '0');
++						p += 1;
++					}
++					assert(a < q);
+ 
+-				set(DataType(aa), i, j);
++					set(DataType(a), i, j);
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/tests/matrix/fq.cpp b/tests/matrix/fq.cpp
+index 687e7a3..7b1078e 100644
+--- a/tests/matrix/fq.cpp
++++ b/tests/matrix/fq.cpp
+@@ -25,6 +25,32 @@ using M = FqMatrix<T, nrows, ncols, q, packed>;
+ using MT = FqMatrix<T, ncols, nrows, q, packed>;
+ 
+ 
++TEST(FqMatrix, from_string) {
++	// q <= 10
++	{
++		using A = FqMatrix<T, 2, 3, 3, packed>;
++		const A a{"012210"};
++		EXPECT_EQ(a.get(0, 0), 0); EXPECT_EQ(a.get(0, 1), 1); EXPECT_EQ(a.get(0, 2), 2);
++		EXPECT_EQ(a.get(1, 0), 2); EXPECT_EQ(a.get(1, 1), 1); EXPECT_EQ(a.get(1, 2), 0);
++	}
++
++	// 10 < q <= 36: letters
++	{
++		using A = FqMatrix<T, 2, 3, 17, packed>;
++		const A a{"09aGbg"};
++		EXPECT_EQ(a.get(0, 0), 0); EXPECT_EQ(a.get(0, 1), 9); EXPECT_EQ(a.get(0, 2), 10);
++		EXPECT_EQ(a.get(1, 0), 16); EXPECT_EQ(a.get(1, 1), 11); EXPECT_EQ(a.get(1, 2), 16);
++	}
++
++	// q > 36: separated decimal numbers
++	{
++		using A = FqMatrix<T, 2, 3, 257, false>;
++		const A a{"0 256 17\n100, 1,255"};
++		EXPECT_EQ(a.get(0, 0), 0); EXPECT_EQ(a.get(0, 1), 256); EXPECT_EQ(a.get(0, 2), 17);
++		EXPECT_EQ(a.get(1, 0), 100); EXPECT_EQ(a.get(1, 1), 1); EXPECT_EQ(a.get(1, 2), 255);
++	}
++}
++
+ TEST(FqMatrix, Init) {
+ 	M m = M{};
+ 	(void) m;

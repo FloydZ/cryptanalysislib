@@ -1,0 +1,144 @@
+diff --git a/src/matrix/matrix.h b/src/matrix/matrix.h
+index 1cf559d..6b88d23 100644
+--- a/src/matrix/matrix.h
++++ b/src/matrix/matrix.h
+@@ -1148,15 +1148,17 @@ public:
+ 		}
+ 	}
+ 
+-	/// TODO doc
+-	/// \tparam Tprime
+-	/// \tparam nrows_prime
+-	/// \tparam ncols_prime
+-	/// \tparam ncols_prime2
+-	/// \param ret
+-	/// \param in1
+-	/// \param in2
+-	/// \return
++	/// augments two matrices side by side: ret = [in1 | in2]
++	/// NOTE: `in1` and `in2` may have less rows than `ret` (nrows_prime <=
++	/// 	nrows), the remaining rows of `ret` are zero.
++	/// \tparam Tprime limb type of the inputs
++	/// \tparam nrows_prime number of rows of both inputs
++	/// \tparam ncols_prime number of columns of `in1`
++	/// \tparam ncols_prime2 number of columns of `in2`
++	/// \param ret[out]: nrows \times (ncols_prime + ncols_prime2) result
++	/// \param in1[in]: left part, written to columns [0, ncols_prime)
++	/// \param in2[in]: right part, written to columns [ncols_prime, ncols_prime + ncols_prime2)
++	/// \return a copy of `ret`
+ 	template<typename Tprime,
+ 	         const uint32_t nrows_prime,
+ 	         const uint32_t ncols_prime,
+@@ -1214,27 +1216,28 @@ public:
+ 		return weight;
+ 	}
+ 
+-	/// TODO doc
+-	/// \param C
+-	/// \param A
+-	/// \param B
+-	/// \return
++	/// square matrix multiplication: C = A*B
++	/// NOTE: only defined for square matrices (nrows == ncols), see the
++	/// 	overload below for the general case.
++	/// NOTE: the products are computed in 128 bit, the sum is reduced mod q.
++	/// \param C[out]: result
++	/// \param A[in]: left input
++	/// \param B[in]: right input
+ 	constexpr static void mul(
+ 	        FqMatrixMeta &C,
+ 			const FqMatrixMeta &A,
+ 			const FqMatrixMeta &B) noexcept {
++		static_assert(nrows == ncols);
+ 
+ 		for (uint32_t i = 0; i < nrows; ++i) {
+ 			for (uint32_t j = 0; j < ncols; ++j) {
+ 				uint64_t sum = 0;
+ 				for (uint32_t k = 0; k < ncols; ++k) {
+-					uint32_t a = A.get(i, k);
+-					uint32_t b = B.get(k, j);
+-					uint32_t c = (a * b) % q;
+-					sum += c;
++					const uint64_t c = ((__uint128_t)A.get(i, k) * B.get(k, j)) % q;
++					sum = (sum + c) % q;
+ 				}
+ 
+-				C.set(sum % q, i, j);
++				C.set(sum, i, j);
+ 			}
+ 		}
+ 	}
+@@ -1251,13 +1254,11 @@ public:
+ 			for (uint32_t j = 0; j < ncols_prime; ++j) {
+ 				uint64_t sum = 0;
+ 				for (uint32_t k = 0; k < ncols; ++k) {
+-					uint32_t a = A.get(i, k);
+-					uint32_t b = B.get(k, j);
+-					uint32_t c = (a * b) % q;
+-					sum += c;
++					const uint64_t c = ((__uint128_t)A.get(i, k) * B.get(k, j)) % q;
++					sum = (sum + c) % q;
+ 				}
+ 
+-				C.set(sum % q, i, j);
++				C.set(sum, i, j);
+ 			}
+ 		}
+ 	}
+diff --git a/tests/matrix/fq.cpp b/tests/matrix/fq.cpp
+index 687e7a3..674fc2d 100644
+--- a/tests/matrix/fq.cpp
++++ b/tests/matrix/fq.cpp
+@@ -415,6 +415,52 @@ TEST(FqMatrix, mult) {
+ }
+ #endif
+ 
++/// q > 2**16
++TEST(FqMatrix, mult_large_q) {
++	constexpr uint64_t qq = (1ull << 31) - 1ull;
++	constexpr uint32_t n = 8, m = 5;
++	using A = FqMatrix<uint64_t, n, n, qq, false>;
++	using B = FqMatrix<uint64_t, n, m, qq, false>;
++	A a, b, c;
++	B d, e;
++	a.random(); b.random(); d.random();
++	A::mul(c, a, b);
++	A::template mul<m>(e, a, d);
++
++	for (uint32_t i = 0; i < n; ++i) {
++		for (uint32_t j = 0; j < n; ++j) {
++			unsigned __int128 s = 0;
++			for (uint32_t k = 0; k < n; ++k) {
++				s += (unsigned __int128)a.get(i, k) * b.get(k, j);
++			}
++			EXPECT_EQ(c.get(i, j), (uint64_t)(s % qq));
++		}
++		for (uint32_t j = 0; j < m; ++j) {
++			unsigned __int128 s = 0;
++			for (uint32_t k = 0; k < n; ++k) {
++				s += (unsigned __int128)a.get(i, k) * d.get(k, j);
++			}
++			EXPECT_EQ(e.get(i, j), (uint64_t)(s % qq));
++		}
++	}
++}
++
++TEST(FqMatrix, augment) {
++	using L = FqMatrix<T, 3, 4, q, packed>;
++	using R = FqMatrix<T, 3, 2, q, packed>;
++	using O = FqMatrix<T, 5, 6, q, packed>;
++	L l; l.random();
++	R r; r.random();
++	O o; o.random();
++	O::augment(o, l, r);
++	for (uint32_t i = 0; i < 5; ++i) {
++		for (uint32_t j = 0; j < 6; ++j) {
++			const uint32_t expect = (i >= 3) ? 0 : ((j < 4) ? l.get(i, j) : r.get(i, j - 4));
++			EXPECT_EQ(o.get(i, j), expect);
++		}
++	}
++}
++
+ TEST(FqMatrix, permute) {
+ 	M m = M{};
+ 	MT mt = MT{};

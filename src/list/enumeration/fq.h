@@ -388,18 +388,23 @@ public:
 		auto gray_step =
 		        [base_offset, &current_set, this]
 		        (Element &element, const size_t j, const uint32_t off) {
-			const uint32_t off2 = off + base_offset;
-			const uint32_t cs = current_set[gray_cl[j]];
-			element.value.set((element.value[cs + off2] + 1) % q, cs + off2);
-			Label::add(element.label, element.label, HT.get(cs + off2));
+			const uint32_t pos = current_set[gray_cl[j]] + off + base_offset;
+			const uint32_t old = element.value[pos];
+			uint32_t nv = (old + 1u) % q;
 			/// NOTE: this is stupid, but needed. The gray code enumeration
 			/// also enumerates zeros. Therefore we need to fix them
-			if (element.value[cs + off2] == 0) {
-				element.value.set(1, cs + off2);
-				Label::add(element.label, element.label, HT.get(cs + off2));
+			if (nv == 0) { nv = 1; }
+			element.value.set(nv, pos);
 
-				// TODO
-				element.recalculate_label(HT);
+			/// label += (nv - old) * HT[pos]. NOTE: the difference is computed
+			/// over the integers and not mod q, so this is also correct if the
+			/// label lives in a different ring (e.g. mod 2**n for subset sum).
+			if (nv == old + 1u) {
+				Label::add(element.label, element.label, HT.get(pos));
+			} else {
+				Label tmp;
+				Label::scalar(tmp, HT.get(pos), old - nv);
+				Label::sub(element.label, element.label, tmp);
 			}
 		};
 
@@ -411,17 +416,18 @@ public:
 			/// make really sure that the the chase
 			/// sequence is correct.
 			assert(element.value[a + off2]);
+			assert(!element.value[b + off2]);
 			assert(std::abs((int) a - (int) b) <= (int) w);
 
+			/// label -= value[a] * HT[a]; label += HT[b]
+			/// NOTE: subtracting instead of adding `(q - value[a]) * HT[a]`
+			/// 	keeps this correct if the label is not defined mod q.
 			Label tmp;
-			Label::scalar(tmp, HT.get(a + off2), (q - element.value[a + off2]) % q);
-			Label::add(element.label, element.label, tmp);
+			Label::scalar(tmp, HT.get(a + off2), element.value[a + off2]);
+			Label::sub(element.label, element.label, tmp);
 			Label::add(element.label, element.label, HT.get(b + off2));
 			element.value.set(0, off2 + a);
 			element.value.set(1, off2 + b);
-
-			// TODO, this is only
-			element.recalculate_label(HT);
 		};
 
 		/// iterate over all sequences
@@ -637,9 +643,11 @@ public:
 	/// \param L3 third list.
 	/// \param L4 fourth list.
 	/// \param tid thread id
-	/// \param hm hashmap or nullptr
+	/// \param hm hashmap or nullptr, `L1` is inserted (index = position in `L1`)
 	/// \param e extractor or nullptr
 	/// \param p predicate function
+	/// \param hm3 optional second hashmap, `L3` is inserted
+	/// 		(index = position in `L3`). Can be `nullptr`.
 	/// \return true/false if the golden element was found or not (only if
 	///  		predicate was given)
 	/// 		else always returns false
@@ -658,7 +666,8 @@ public:
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
 	         Extractor *e = nullptr,
-	         Predicate *p = nullptr) {
+	         Predicate *p = nullptr,
+	         HashMap *hm3 = nullptr) {
 		Element element3, element4;
 		Label tmp;
 
@@ -703,6 +712,17 @@ public:
 			}
 		}
 
+		/// NOTE: must be called before the element is advanced, so that the
+		/// 	hashed label matches the list entry at index `ctr`.
+		auto insert = [&](const uint32_t k) __attribute__((always_inline)) {
+			check(elements[k]->label, elements[k]->value);
+			insert_list(lists[k], *elements[k], ctr, tid);
+			if constexpr (sHM) {
+				if (k == 0) { insert_hashmap(hm, e, *elements[k], ctr, tid); }
+				if (k == 2) { insert_hashmap(hm3, e, *elements[k], ctr, tid); }
+			}
+		};
+
 		auto chase_step = [this](Element &element,
 		                         const uint32_t unset,
 		                         const uint32_t set) {
@@ -717,8 +737,8 @@ public:
 			assert(std::abs((int) unset - (int) set) <= (int) w);
 
 			Label tmp;
-			Label::scalar(tmp, HT.get(unset), q - qprime);
-			Label::add(element.label, element.label, tmp);
+			Label::scalar(tmp, HT.get(unset), qprime);
+			Label::sub(element.label, element.label, tmp);
 			Label::scalar(tmp, HT.get(set), qprime);
 			Label::add(element.label, element.label, tmp);
 
@@ -730,16 +750,12 @@ public:
 		for (size_t i = 0; i < mitm_chase_size; ++i) {
 			for (size_t j = 0; j < noreps_chase_size-1ull; ++j) {
 				for (uint32_t k = 0; k < 4; ++k) {
-					check(elements[k]->label, elements[k]->value);
-					insert_list(lists[k], *elements[k], ctr, tid);
+					insert(k);
 
 					chase_step(*elements[k],
 							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].first,
 							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].second);
 				}
-
-				// TODO also hash the 3 element
-				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 
 				ctr += 1;
 				if (ctr >= list_size) {
@@ -748,8 +764,7 @@ public:
 			}
 
 			for (uint32_t k = 0; k < 4; ++k) {
-				check(elements[k]->label, elements[k]->value);
-				insert_list(lists[k], *elements[k], ctr, tid);
+				insert(k);
 
 				chase_step(*elements[k],
 						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].first,
@@ -757,10 +772,24 @@ public:
 
 				// due to easieness reasons, we simply reset the no reps part,
 				// and do not walk backwards
-				for (uint32_t j = 0; j < noreps_w; ++j) {
-					chase_step(*elements[k],
-							   noreps_base + k*norepslen_offset + norepslen_quarter-j-1,
-							   noreps_base + k*norepslen_offset + j);
+				// NOTE: the chase sequence does not necessarily end with the ones
+				// 	in the top `noreps_w` positions of the quarter: every set
+				// 	coordinate above `noreps_w` is moved into a free position of
+				// 	the start configuration.
+				{
+					const uint32_t base = noreps_base + k*norepslen_offset;
+					uint32_t to = 0;
+					for (uint32_t pos = noreps_w; pos < norepslen_quarter; ++pos) {
+						if (!elements[k]->value[base + pos]) { continue; }
+						while (elements[k]->value[base + to]) { to += 1; }
+						assert(to < noreps_w);
+						Label::scalar(tmp, HT.get(base + pos), qprime);
+						Label::sub(elements[k]->label, elements[k]->label, tmp);
+						Label::scalar(tmp, HT.get(base + to), qprime);
+						Label::add(elements[k]->label, elements[k]->label, tmp);
+						elements[k]->value.set(0u, base + pos);
+						elements[k]->value.set(qprime, base + to);
+					}
 				}
 			}
 

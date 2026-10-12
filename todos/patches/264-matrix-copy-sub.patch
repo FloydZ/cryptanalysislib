@@ -1,0 +1,86 @@
+diff --git a/src/matrix/matrix.h b/src/matrix/matrix.h
+index 1cf559d..2101775 100644
+--- a/src/matrix/matrix.h
++++ b/src/matrix/matrix.h
+@@ -185,32 +185,36 @@ public:
+ 	}
+ 
+ 
+-    /// *this = A[srow, scol]
+-	/// copy a smaller matrix into to big matrix
+-    /// \tparam Tprime TODO doc
+-    /// \tparam nrows_prime
+-    /// \tparam ncols_prime
+-    /// \tparam qprime
+-    /// \tparam packed_prime
+-    /// \param A[in]:
+-    /// \param srow[in]:
+-    /// \param scol[in]:
++	/// copies a smaller matrix into this one:
++	/// 	(*this)[srow + i][scol + j] = A[i][j], for all i < nrows_prime, j < ncols_prime
++	/// all other entries are untouched.
++	/// \tparam Tprime limb type of `A`
++	/// \tparam nrows_prime number of rows of `A`
++	/// \tparam ncols_prime number of columns of `A`
++	/// \tparam qprime field size of `A`, must be <= q
++	/// \tparam packed_prime packing of `A`
++	/// \param A[in]: matrix to copy
++	/// \param srow[in]: first row (in this matrix) to copy `A` to
++	/// \param scol[in]: first column (in this matrix) to copy `A` to
+ 	template<typename Tprime,
+ 	         const uint32_t nrows_prime,
+ 	         const uint32_t ncols_prime,
+ 	         const uint64_t qprime,
+ 	         const bool packed_prime>
+ 	constexpr void copy_sub(const FqMatrixMeta<Tprime, nrows_prime, ncols_prime, qprime, packed_prime> &A,
+-	                        const uint32_t srow, const uint32_t scol) {
++	                        const uint32_t srow, const uint32_t scol) noexcept {
+ 		static_assert(nrows_prime <= nrows);
+ 		static_assert(ncols_prime <= ncols);
++		static_assert(qprime <= q);
+ 		assert(nrows_prime + srow <= nrows);
+ 		assert(ncols_prime + scol <= ncols);
+ 
+ 		for (uint32_t i = 0; i < nrows_prime; i++) {
+ 			for (uint32_t j = 0; j < ncols_prime; j++) {
+-				const DataType data = A.get(i, j);
+-				set(i + srow, j + scol, data);
++				const DataType data = DataType(A.get(i, j));
++				// NOTE: was `set(i + srow, j + scol, data)`, but `set` takes
++				// 	the value first
++				set(data, i + srow, j + scol);
+ 			}
+ 		}
+ 	}
+diff --git a/tests/matrix/fq.cpp b/tests/matrix/fq.cpp
+index 687e7a3..8769706 100644
+--- a/tests/matrix/fq.cpp
++++ b/tests/matrix/fq.cpp
+@@ -25,6 +25,27 @@ using M = FqMatrix<T, nrows, ncols, q, packed>;
+ using MT = FqMatrix<T, ncols, nrows, q, packed>;
+ 
+ 
++TEST(FqMatrix, copy_sub) {
++	using Big = FqMatrix<T, 10, 12, 5, packed>;
++	using Small = FqMatrix<T, 3, 4, 3, packed>;
++	Big b; b.random();
++	const Big orig = b;
++	Small a; a.random();
++
++	constexpr uint32_t srow = 6, scol = 7;
++	b.copy_sub(a, srow, scol);
++	for (uint32_t i = 0; i < 10; ++i) {
++		for (uint32_t j = 0; j < 12; ++j) {
++			const bool inside = (i >= srow) && (i < srow + 3) && (j >= scol) && (j < scol + 4);
++			if (inside) {
++				EXPECT_EQ(b.get(i, j), a.get(i - srow, j - scol));
++			} else {
++				EXPECT_EQ(b.get(i, j), orig.get(i, j));
++			}
++		}
++	}
++}
++
+ TEST(FqMatrix, Init) {
+ 	M m = M{};
+ 	(void) m;

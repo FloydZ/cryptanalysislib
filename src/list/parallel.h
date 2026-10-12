@@ -212,8 +212,8 @@ public:
 		auto hash = [](const LabelType &e) -> uint64_t {
 			return e.hash();
 		};
-		ska_sort(__data_label.begin() + start,
-		         __data_label.begin() + end, hash);
+		cryptanalysislib::sort(__data_label.begin() + start,
+		                       __data_label.begin() + end, hash);
 	}
 
 	/// zero a list

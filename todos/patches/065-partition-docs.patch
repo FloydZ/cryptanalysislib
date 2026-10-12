@@ -1,0 +1,64 @@
+diff --git a/src/algorithm/partition.h b/src/algorithm/partition.h
+index 92f4772..625405c 100644
+--- a/src/algorithm/partition.h
++++ b/src/algorithm/partition.h
+@@ -7,12 +7,17 @@
+ #include "algorithm/rotate.h"
+ 
+ 
+-/// TODO doc 
+ /// TODO parallel versions 
+ /// TODO simd versions
+ 
+ namespace cryptanalysislib {
+ 
++/// Checks whether all elements satisfying `p` come before all others
++/// (like `std::is_partitioned`)
++/// \param first[in]: Iterator to the beginning of the range
++/// \param last[in]: Iterator to the end of the range
++/// \param p[in]: unary predicate
++/// \return true if [first, last) is partitioned by `p` (also if empty)
+ template<class InputIt,
+          class UnaryPred>
+ constexpr 
+@@ -28,6 +33,12 @@ bool is_partitioned(InputIt first,
+     return true;
+ }
+ 
++/// Finds the end of the first group of a range partitioned by `p` via binary
++/// search (like `std::partition_point`)
++/// \param first[in]: Iterator to the beginning of the range
++/// \param last[in]: Iterator to the end of the range
++/// \param p[in]: unary predicate, the range must be partitioned by it
++/// \return iterator to the first element for which `p` is false (or last)
+ template<class ForwardIt,
+          class UnaryPred>
+ constexpr
+@@ -50,6 +61,12 @@ ForwardIt partition_point(ForwardIt first,
+     return first;
+ }
+ 
++/// Reorders [first, last) such that all elements for which `p` is true come
++/// first (like `std::partition`). NOT stable, see `stable_partition`.
++/// \param first[in]: Iterator to the beginning of the range
++/// \param last[in]: Iterator to the end of the range
++/// \param p[in]: unary predicate
++/// \return iterator to the first element of the second group
+ template<class ForwardIt,
+          class UnaryPred>
+ constexpr
+@@ -70,6 +87,14 @@ ForwardIt partition(ForwardIt first,
+     return first;
+ }
+ 
++/// Copies the elements for which `p` is true to `d_first_true` and the others
++/// to `d_first_false`, keeping their order (like `std::partition_copy`)
++/// \param first[in]: Iterator to the beginning of the input range
++/// \param last[in]: Iterator to the end of the input range
++/// \param d_first_true[out]: output for the elements satisfying `p`
++/// \param d_first_false[out]: output for the other elements
++/// \param p[in]: unary predicate
++/// \return pair of iterators past the last written element of both outputs
+ template<class InputIt,
+          class OutputIt1,
+          class OutputIt2,

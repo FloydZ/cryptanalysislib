@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cstdlib>
+#include <memory>
 #include "alloc/alloc.h"
 
 // whether to include some O(n) methods for testing purposes
-// TODO actual use them for tests
 //#define LR_WITH_DUMB_METHODS  // default off
 
 
@@ -26,18 +26,26 @@ private:
     left_right_array & operator = (const left_right_array&) = delete;
 
 public:
+    using size_allocator = Allocator<size_t>;
+    using bool_allocator = Allocator<bool>;
+
+    /// \param n number of indices, all free in the beginning
+    /// NOTE: the arrays are allocated with `Allocator` (assumed stateless)
     explicit left_right_array(const size_t n) {
         n_ = n;
-        // TODO allocator
-        fl_ = new size_t[n_];
-        tg_ = new bool[n_];
+        size_allocator sa{};
+        bool_allocator ba{};
+        fl_ = std::allocator_traits<size_allocator>::allocate(sa, n_);
+        tg_ = std::allocator_traits<bool_allocator>::allocate(ba, n_);
         free_all();
     }
 
     ~left_right_array()
     {
-        delete [] fl_;
-        delete [] tg_;
+        size_allocator sa{};
+        bool_allocator ba{};
+        std::allocator_traits<size_allocator>::deallocate(sa, fl_, n_);
+        std::allocator_traits<bool_allocator>::deallocate(ba, tg_, n_);
     }
 
     size_t num_free() const  { return f_; }

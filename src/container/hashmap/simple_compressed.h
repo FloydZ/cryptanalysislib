@@ -34,9 +34,9 @@ template<
         typename valueType,
         const SimpleCompressedHashMapConfig &config,
         class Hash>
-//#if __cplusplus > 201709L // TODO
-//	requires HashFunction<Hash, valueType>
-//#endif
+#if __cplusplus > 201709L
+	requires HashFunction<Hash, keyType>
+#endif
 class SimpleCompressedHashMap {
 public:
 	using data_type  = valueType;
@@ -111,7 +111,10 @@ public:
 		if (l > 0) {
 			// the last inserted value is stored (uncompressed) right after
 			// the compressed data
-			// TODO what happens if the old value is bigger?
+			// NOTE: if the old value is bigger, the (unsigned) delta wraps
+			// 	around: it is encoded with the maximal leb128 length, and the
+			// 	decoding adds it back modulo 2^bits, i.e. still correct.
+			static_assert(std::is_unsigned_v<data_type>, "the deltas need unsigned wrap around");
 			data_type last;
 			__builtin_memcpy(&last, ptr_, sizeof(data_type));
 			v -= last;

@@ -8,13 +8,7 @@
 #include "helper.h"
 #include "memory/memory.h"
 
-class PermutationConfig {
-    /// TODO
-};
-
-constexpr static PermutationConfig permutationConfig;
-
-// template <const PermutationConfig &config=permutationConfig>
+/// permutation of [0, length), stored as an owned array
 class Permutation {
 public:
 	// The swap operations in LAPACK format.

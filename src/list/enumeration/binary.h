@@ -498,6 +498,26 @@ public:
 		return max_list_size;
 	}
 
+	/// adds `2**pos` to `v`, interpreted as a little-endian binary counter
+	/// over the coordinates `[pos, Value::length)`.
+	/// NOTE: works coordinate-wise via `get`/`set`, so it is correct for every
+	/// 	value representation (bit-packed, `FqPackedVector`, one limb per
+	/// 	coordinate, ...) and carries across limb boundaries. The ripple
+	/// 	carry needs 2 steps amortized.
+	/// \param v value to increment
+	/// \param pos coordinate of the least significant counter bit
+	constexpr static inline void increment(Value &v,
+	                                       const uint32_t pos) noexcept {
+		for (uint32_t i = pos; i < Value::length; ++i) {
+			if (!bool(v.get(i))) {
+				v.set(1, i);
+				return;
+			}
+
+			v.set(0, i);
+		}
+	}
+
 	/// \tparam HashMap
 	/// \tparam Extractor extractor lambda
 	/// 		- can be NULL
@@ -544,15 +564,13 @@ public:
 		constexpr bool sP = !std::is_same_v<std::nullptr_t, Predicate>;
 
 		for (size_t ctr = 0; ctr < list_size; ++ctr) {
-			// TODO: this is only correct for values `BinaryContainer` and `PackedContainer` as otherwise there is an overflow
-			// 	MAYBE: fix this via if constexpr(is_good_value_type)
-			element1.value.ptr()[0] += 1ull << base_offset;
+			increment(element1.value, base_offset);
 
 			HT.mul(element1.label, element1.value);
 			if (syndrome != nullptr) { Label::add(element1.label, element1.label, *syndrome); }
 
 			if (sL2) {
-				element2.value.ptr()[0] += 1ull << (offset + base_offset);
+				increment(element2.value, offset + base_offset);
 				HT.mul(element2.label, element2.value);
 			}
 
@@ -726,9 +744,11 @@ public:
 	/// \param offset
 	/// 		- number of position between the MITM strategy
 	/// \param tid thread id
-	/// \param hm hashmap
+	/// \param hm hashmap, `L1` is inserted (index = position in `L1`)
 	/// \param e extractor
 	/// \param p predicate function
+	/// \param hm3 optional second hashmap, `L3` is inserted
+	/// 		(index = position in `L3`). Can be `nullptr`.
 	/// \return true/false if the golden element was found or not (only if
 	///  		predicate was given)
 	template<typename HashMap,
@@ -746,7 +766,8 @@ public:
 			 const uint32_t tid = 0,
 			 HashMap *hm = nullptr,
 			 Extractor *e = nullptr,
-			 Predicate *p = nullptr) {
+			 Predicate *p = nullptr,
+			 HashMap *hm3 = nullptr) {
 		Element element3, element4;
 
 		/// clear stuff, needed if this functions is called multiple times
@@ -792,6 +813,17 @@ public:
 			}
 		}
 
+		/// NOTE: must be called before the element is advanced, so that the
+		/// 	hashed label matches the list entry at index `ctr`.
+		auto insert = [&](const uint32_t k) __attribute__((always_inline)) {
+			check(elements[k]->label, elements[k]->value);
+			insert_list(lists[k], *elements[k], ctr, tid);
+			if constexpr (sHM) {
+				if (k == 0) { insert_hashmap(hm, e, *elements[k], ctr, tid); }
+				if (k == 2) { insert_hashmap(hm3, e, *elements[k], ctr, tid); }
+			}
+		};
+
 		auto chase_step = [this](Element &element,
 								 const uint32_t unset,
 								 const uint32_t set) __attribute__((always_inline)) {
@@ -817,16 +849,12 @@ public:
 		for (size_t i = 0; i < mitm_chase_size; ++i) {
 			for (size_t j = 0; j < noreps_chase_size-1ull; ++j) {
 				for (uint32_t k = 0; k < 4; ++k) {
-					check(elements[k]->label, elements[k]->value);
-					insert_list(lists[k], *elements[k], ctr, tid);
+					insert(k);
 
 					chase_step(*elements[k],
 							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].first,
 							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].second);
 				}
-
-				// TODO also hash the 3 element
-				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 
 				ctr += 1;
 				if (ctr >= list_size) {
@@ -835,8 +863,7 @@ public:
 			}
 
 			for (uint32_t k = 0; k < 4; ++k) {
-				check(elements[k]->label, elements[k]->value);
-				insert_list(lists[k], *elements[k], ctr, tid);
+				insert(k);
 
 				chase_step(*elements[k],
 						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].first,

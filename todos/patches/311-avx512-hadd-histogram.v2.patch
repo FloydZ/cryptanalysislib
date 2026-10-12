@@ -1,0 +1,164 @@
+diff --git a/src/simd/avx512.h b/src/simd/avx512.h
+index 7d57111..998288c 100644
+--- a/src/simd/avx512.h
++++ b/src/simd/avx512.h
+@@ -2489,6 +2489,44 @@ struct Xint32x16_t {
+         return _mm512_reduce_max_epi32(in1.v512);
+     }
+ 
++	/// horizontal add of the 4 unsigned bytes of each 32 bit lane
++	/// \param in1
++	/// \return sum of the bytes, per 32 bit lane
++	[[nodiscard]] constexpr static inline S hadd_epu8(const S in1) noexcept {
++		const __v16su x = (__v16su) in1.v512;
++		constexpr uint32_t m = 0x00FF00FFu;
++		const __v16su t = (x & m) + ((x >> 8u) & m);
++		S ret;
++		ret.v512 = (__m512i) ((t & 0xFFFFu) + (t >> 16u));
++		return ret;
++	}
++
++	/// horizontal add of the 2 unsigned 16 bit values of each 32 bit lane
++	/// \param in1
++	/// \return sum, per 32 bit lane
++	[[nodiscard]] constexpr static inline S hadd_epu16(const S in1) noexcept {
++		const __v16su x = (__v16su) in1.v512;
++		S ret;
++		ret.v512 = (__m512i) ((x & 0xFFFFu) + (x >> 16u));
++		return ret;
++	}
++
++	/// number of 4 bit values (nibbles) equal to `in2` in each 32 bit lane
++	/// \param in1
++	/// \param in2 nibble to count, < 16
++	/// \return per 32 bit lane: #{i : nibble i of the lane == in2}, in [0, 8]
++	[[nodiscard]] constexpr static inline S histogram_epi4(const S in1,
++	                                                       const uint8_t in2) noexcept {
++		assert(in2 < 16);
++		const __v16su z = (__v16su) in1.v512 ^ (0x11111111u * in2);
++		const __v16su nz = (z | (z >> 1u) | (z >> 2u) | (z >> 3u)) & 0x11111111u;
++		S t;
++		t.v512 = (__m512i) nz;
++		t = S::popcnt(t);
++		t.v512 = (__m512i) (8u - (__v16su) t.v512);
++		return t;
++	}
++
+ 	/// needs `AVX512F`, wrapper around `_mm512_shuffle_i32x4`
+ 	/// \param input
+ 	/// \return
+@@ -3182,10 +3220,10 @@ struct Xint64x8_t {
+     }
+ 
+ 
+-	/// TODO test and implement for uint32x16 and so on and implement hadd_epu16,...
++	/// horizontal add of the 8 unsigned bytes of each 64 bit lane
+ 	/// needs `AVX512BW`
+ 	/// \param in1
+-	/// \return
++	/// \return sum of the bytes, per 64 bit lane
+ 	[[nodiscard]] constexpr static inline Xint64x8_t hadd_epu8(const Xint64x8_t in1) noexcept {
+ 		Xint64x8_t ret;
+ 		constexpr Xint64x8_t zero = Xint64x8_t::set1(0);
+@@ -3193,18 +3231,46 @@ struct Xint64x8_t {
+ 		return ret;
+ 	}
+ 
+-	/// TODO test, and implement for uint32x16 and so on
++	/// horizontal add of the 4 unsigned 16 bit values of each 64 bit lane
++	/// \param in1
++	/// \return sum, per 64 bit lane
++	[[nodiscard]] constexpr static inline Xint64x8_t hadd_epu16(const Xint64x8_t in1) noexcept {
++		const __v8du x = (__v8du) in1.v512;
++		constexpr uint64_t m = 0x0000FFFF0000FFFFull;
++		const __v8du t = (x & m) + ((x >> 16u) & m);
++		Xint64x8_t ret;
++		ret.v512 = (__m512i) ((t & 0xFFFFFFFFull) + (t >> 32u));
++		return ret;
++	}
++
++	/// horizontal add of the 2 unsigned 32 bit values of each 64 bit lane
++	/// \param in1
++	/// \return sum, per 64 bit lane
++	[[nodiscard]] constexpr static inline Xint64x8_t hadd_epu32(const Xint64x8_t in1) noexcept {
++		const __v8du x = (__v8du) in1.v512;
++		Xint64x8_t ret;
++		ret.v512 = (__m512i) ((x & 0xFFFFFFFFull) + (x >> 32u));
++		return ret;
++	}
++
++	/// number of 4 bit values (nibbles) equal to `in2` in each 64 bit lane
+ 	/// Source: http://0x80.pl/notesen/2023-01-06-avx512-popcount-4bit.html
+ 	/// \param in1
+-	/// \param in2
+-	/// \return
++	/// \param in2 nibble to count, < 16
++	/// \return per 64 bit lane: #{i : nibble i of the lane == in2}, in [0, 16]
+ 	[[nodiscard]] constexpr static inline Xint64x8_t histogram_epi4(const Xint64x8_t in1,
+ 	                                                                const uint8_t in2) noexcept {
+ 		assert(in2 < 16);
+-		Xint64x8_t tmp = Xint64x8_t::xor_(in1, Xint64x8_t::set1(in2));
+-		tmp = Xint64x8_t::sub(tmp, Xint64x8_t::set1(1));
+-		tmp = Xint64x8_t::popcnt(tmp);
+-		return tmp;
++		// equal nibbles become zero
++		const Xint64x8_t z = Xint64x8_t::xor_(in1, Xint64x8_t::set1(0x1111111111111111ull * in2));
++		// one bit per non zero nibble
++		const __v8du zz = (__v8du) z.v512;
++		const __v8du nz = (zz | (zz >> 1u) | (zz >> 2u) | (zz >> 3u)) & 0x1111111111111111ull;
++		Xint64x8_t t;
++		t.v512 = (__m512i) nz;
++		t = Xint64x8_t::popcnt(t);
++		t.v512 = (__m512i) (16u - (__v8du) t.v512);
++		return t;
+ 	}
+ 
+ 	/// \param in
+diff --git a/tests/simd/simd512.cpp b/tests/simd/simd512.cpp
+index c524b19..0c73763 100644
+--- a/tests/simd/simd512.cpp
++++ b/tests/simd/simd512.cpp
+@@ -33,6 +33,43 @@ TEST(uint16x32_t, all_equal) {
+ }
+ #endif
+ 
++TEST(AVX512, hadd_histogram) {
++	alignas(64) uint64_t a[8], o[8];
++	alignas(64) uint32_t b[16], p[16];
++	for (uint32_t r = 0; r < 1000; ++r) {
++		for (uint32_t i = 0; i < 8; ++i) { a[i] = rng(); }
++		for (uint32_t i = 0; i < 16; ++i) { b[i] = uint32_t(rng()); }
++		// small nibble alphabet, so that the histogram is not mostly 1
++		if (r & 1u) {
++			for (uint32_t i = 0; i < 8; ++i) { a[i] &= 0x3333333333333333ull; }
++			for (uint32_t i = 0; i < 16; ++i) { b[i] &= 0x33333333u; }
++		}
++		const uint8_t nib = uint8_t(rng() % 4u);
++		const uint64x8_t va = uint64x8_t::load(a);
++		const uint32x16_t vb = uint32x16_t::load(b);
++
++		auto ref64 = [&](const uint64_t x, const uint32_t bits) {
++			uint64_t s = 0;
++			for (uint32_t k = 0; k < 64; k += bits) { s += (x >> k) & ((1ull << bits) - 1ull); }
++			return s;
++		};
++		auto nibs = [&](const uint64_t x, const uint32_t n) {
++			uint64_t c = 0;
++			for (uint32_t k = 0; k < n; ++k) { c += ((x >> (4u*k)) & 0xFu) == nib; }
++			return c;
++		};
++
++		uint64x8_t::store(o, uint64x8_t::hadd_epu8(va));  for (uint32_t i = 0; i < 8; ++i) { EXPECT_EQ(o[i], ref64(a[i], 8)); }
++		uint64x8_t::store(o, uint64x8_t::hadd_epu16(va)); for (uint32_t i = 0; i < 8; ++i) { EXPECT_EQ(o[i], ref64(a[i], 16)); }
++		uint64x8_t::store(o, uint64x8_t::hadd_epu32(va)); for (uint32_t i = 0; i < 8; ++i) { EXPECT_EQ(o[i], ref64(a[i], 32)); }
++		uint64x8_t::store(o, uint64x8_t::histogram_epi4(va, nib)); for (uint32_t i = 0; i < 8; ++i) { EXPECT_EQ(o[i], nibs(a[i], 16)); }
++
++		uint32x16_t::store(p, uint32x16_t::hadd_epu8(vb));  for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(p[i], ref64(b[i], 8)); }
++		uint32x16_t::store(p, uint32x16_t::hadd_epu16(vb)); for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(p[i], ref64(b[i], 16)); }
++		uint32x16_t::store(p, uint32x16_t::histogram_epi4(vb, nib)); for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(p[i], nibs(b[i], 8)); }
++	}
++}
++
+ TEST(uint8x64_t, TTrandom) {
+ 	uint8x64_t t1 = uint8x64_t::random();
+ 

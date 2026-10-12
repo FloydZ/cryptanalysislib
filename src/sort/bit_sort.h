@@ -22,12 +22,9 @@
 #include <typeinfo>
 
 #include "simd/simd.h"
+#include "math/math.h"
 
 // source: https://github.com/jonicho/simd-radix-sort/blob/main/radixSort.hpp
-
-/// TODO move somewhere useful
-template <std::size_t X>
-inline constexpr bool is_power_of_two = X > 0 && (X & (X - 1)) == 0;
 
 
 
@@ -100,9 +97,9 @@ constexpr bool bitDirUp() noexcept {
 }
 
 struct BitSorterSIMD {
-    // TODO: use SIMD wrapper
+    /// number of keys per SIMD register of the SIMD wrapper (`SIMDSelector<K>`)
     template <typename K>
-    static constexpr SortIndex numElemsPerVec = 64 / sizeof(K);
+    static constexpr SortIndex numElemsPerVec = SortIndex(SIMDSelector<K>::size());
 
 	template<const bool Up,
              const bool IsHighestBit, 
@@ -364,7 +361,7 @@ template<bool Up,
 void sort(SortIndex cmpSortThreshold,
           const SortIndex num,
           DataElement<K, Ps...> *const elements) {
-	static_assert(is_power_of_two<sizeof(DataElement<K, Ps...>)>,
+	static_assert(cryptanalysislib::math::is_power_of_two_v<sizeof(DataElement<K, Ps...>)>,
 	              "size of DataElement<K, Ps...> must be a power of two");
 	radixRecursion
         <Up, BitSorter, CmpSorter>

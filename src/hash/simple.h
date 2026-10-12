@@ -12,9 +12,8 @@
 #include "algorithm/bits/popcount.h"
 #include "simd/simd.h"
 
-// TODO add docs
-// TODO add namespace
-// TODO add [[nodiscard]]
+
+namespace cryptanalysislib {
 
 /// main comparison class for hash function used within the data containers
 /// these hash functions are either optimized for
@@ -33,8 +32,12 @@ class Hash {};
 #define CRYPTANALYSISLIB_HASH_CONST const
 #endif
 
-///
-/// \tparam T
+/// Hash of the coordinates [l, h) of a vector over F_q whose coordinates are
+/// stored packed in limbs of type T (`qbits` = ceil(log2(q)) bits each): for
+/// q a power of two the bits are extracted, else the digits are read as a
+/// base-q number. Usable with a compile time (`hash`, `operator()`) or a
+/// runtime window.
+/// \tparam T limb type
 /// \tparam l lower element (NOT bit)
 /// \tparam h upper element (NOT bit)
 /// \tparam q modulus
@@ -60,7 +63,7 @@ private:
 	/// \return
 	template<const uint32_t lprime=l*qbits,
              const uint32_t hprime=h*qbits>
-	static constexpr inline R compute(const T &a) noexcept {
+	[[nodiscard]] static constexpr inline R compute(const T &a) noexcept {
 		// NOTE: these checks are not valid globally for the whole class
 		static_assert(lprime < hprime);
 		static_assert((hprime - lprime) <= (sizeof(T) * 8u));
@@ -100,7 +103,7 @@ private:
 
 	/// \param a
 	/// \return
-	static constexpr inline R compute(const T *a) noexcept {
+	[[nodiscard]] static constexpr inline R compute(const T *a) noexcept {
 		static_assert(l < h);
 
 		constexpr uint32_t lq = l*qbits;
@@ -142,16 +145,16 @@ public:
 
 	constexpr explicit Hash(const T d) noexcept : __data(compute(d)) {};
 
-	constexpr inline R operator()() const noexcept {
+	[[nodiscard]] constexpr inline R operator()() const noexcept {
 		return __data;
 	}
 
-	CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T d) CRYPTANALYSISLIB_HASH_CONST noexcept {
+	[[nodiscard]] CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T d) CRYPTANALYSISLIB_HASH_CONST noexcept {
 		return compute(d);
 	}
 
     /// \param d[in]:
-	CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T *d) CRYPTANALYSISLIB_HASH_CONST noexcept {
+	[[nodiscard]] CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T *d) CRYPTANALYSISLIB_HASH_CONST noexcept {
 		return compute(d);
 	}
 
@@ -164,14 +167,8 @@ public:
 	}
 };
 
-///
-/// \tparam T
-/// \tparam l
-/// \tparam h
-/// \tparam q
-/// \param a
-/// \param b
-/// \return
+/// equality of two hashes (of their stored value)
+/// \return a == b
 template<std::integral T,
 		const uint32_t l,
 		const uint32_t h,
@@ -181,14 +178,8 @@ constexpr inline bool operator==(const Hash<T, l, h, q> &a,
 	return a.__data == b.__data;
 }
 
-///
-/// \tparam T
-/// \tparam l
-/// \tparam h
-/// \tparam q
-/// \param a
-/// \param b
-/// \return
+/// order of two hashes (of their stored value)
+/// \return a <= b
 template<std::integral T,
 		const uint32_t l,
 		const uint32_t h,
@@ -224,7 +215,7 @@ private:
 	/// \tparam lprime NOTE: must be the lower bit positions within the limb
 	/// \tparam hprime NOTE: must be the upper bit posiition within the limb
 	/// \return
-	static constexpr inline R compute(const T &a,
+	[[nodiscard]] static constexpr inline R compute(const T &a,
 	                                  const uint32_t lprime,
 	                                  const uint32_t hprime) noexcept {
 		assert(lprime < hprime);
@@ -264,7 +255,7 @@ private:
 
 	/// \param a
 	/// \return
-	static constexpr inline R compute(const T *a,
+	[[nodiscard]] static constexpr inline R compute(const T *a,
 	                                  const uint32_t l,
 	                                  const uint32_t h) noexcept {
 		assert(l < h);
@@ -306,14 +297,14 @@ public:
 	                        const uint32_t h) noexcept :
 	   __data(compute(d, l, h)) {};
 
-	constexpr inline R operator()() const noexcept {
+	[[nodiscard]] constexpr inline R operator()() const noexcept {
 		return __data;
 	}
 
     /// \param d[in]:
     /// \param l[in]: inclusive
     /// \param h[in]: exclusive
-	CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T d,
+	[[nodiscard]] CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T d,
 	                                                           const uint32_t l,
 	                                                           const uint32_t h) CRYPTANALYSISLIB_HASH_CONST noexcept {
 		return compute(d, l, h);
@@ -322,7 +313,7 @@ public:
     /// \param d[in]:
     /// \param l[in]: inclusive
     /// \param h[in]: exclusive
-	CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T *d,
+	[[nodiscard]] CRYPTANALYSISLIB_HASH_STATIC constexpr inline R operator()(const T *d,
 	                                                           const uint32_t l,
 	                                                           const uint32_t h) CRYPTANALYSISLIB_HASH_CONST noexcept {
 		return compute(d, l, h);
@@ -496,4 +487,5 @@ constexpr static inline T extract(const T *v) noexcept {
 	}
 }
 
+} // end namespace cryptanalysislib
 #endif

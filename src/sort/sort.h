@@ -20,6 +20,7 @@
 
 #include "parallel.h"
 #include "ips4o.h"
+#include "algorithm/sort.h"
 
 namespace cryptanalysislib {
 	/// sequential comparison sort of [first, last), same contract as `std::sort`

@@ -1,0 +1,241 @@
+diff --git a/src/algorithm/bits/pext.h b/src/algorithm/bits/pext.h
+index f4ae324..be2b0be 100644
+--- a/src/algorithm/bits/pext.h
++++ b/src/algorithm/bits/pext.h
+@@ -4,10 +4,12 @@
+ #include <immintrin.h>
+ 
+ #include "popcount.h"
++#include "algorithm/countl.h"
++#include "algorithm/countr.h"
+ 
+-using namespace cryptanalysislib::popcount;
+-
+-// TODO tests and benches
++// NOTE: tests in `tests/algorithm/pext.cpp`, benchmarks in `bench/algorithm/pext.cpp`.
++// NOTE: no `using namespace` here: an unqualified `popcount` was ambiguous
++// 	with the namespace `cryptanalysislib::popcount`.
+ 
+ /// Source: https://github.com/WojciechMula/toys/blob/master/simd-pdep-pext/pext_avx2.cpp
+ /// \param
+@@ -110,9 +112,15 @@ void avx512_pext_u32_reference(const uint32_t* data_arr,
+ }
+ 
+ 
+-/// TODO
+-unsigned int pext32_emu(unsigned int v, unsigned int m) {
+-	uint32_t ret = 0, pc = popcount(m);
++/// software `pext` (bit extract): for CPUs where `pext` is microcoded
++/// (AMD before Zen 3). Small masks are handled bit by bit, larger ones via
++/// carry-less multiplication (needs PCLMUL).
++/// NOTE: written with plain shifts/ands and `cryptanalysislib::count{l,r}_zero`
++/// 	instead of the BMI1/LZCNT intrinsics (`_bextr_u32`, `_blsr_u32`,
++/// 	`_tzcnt_u32`, `_lzcnt_u32`), which did not compile without
++/// 	`-mbmi`/`-mlzcnt`; compilers emit the same instructions if available.
++inline unsigned int pext32_emu(unsigned int v, unsigned int m) {
++	uint32_t ret = 0, pc = cryptanalysislib::popcount::popcount(m);
+ 	switch (pc) {
+ 		case 0:
+ 			ret = 0;
+@@ -121,29 +129,29 @@ unsigned int pext32_emu(unsigned int v, unsigned int m) {
+ 			ret = (v & m) != 0;
+ 			break;
+ 		case 2: {
+-				unsigned int msb = _bextr_u32(v, (31 - _lzcnt_u32(m)), 1);
+-				unsigned int lsb = _bextr_u32(v, _tzcnt_u32(m), 1);
++				unsigned int msb = ((v >> ((31 - cryptanalysislib::countl_zero(m)))) & 1u);
++				unsigned int lsb = ((v >> (cryptanalysislib::countr_zero(m))) & 1u);
+ 				ret = (msb << 1) | lsb;
+ 			}
+ 		   break;
+ 		case 3: {
+-				const unsigned int lz = 31 - _lzcnt_u32(m);
+-				const unsigned int tz = _tzcnt_u32(m);
+-				unsigned int msb = _bextr_u32(v, lz, 1);
+-				unsigned int lsb = _bextr_u32(v, tz, 1);
+-				m = _blsr_u32(m);
+-				unsigned int csb = _bextr_u32(v, _tzcnt_u32(m), 1);
++				const unsigned int lz = 31 - cryptanalysislib::countl_zero(m);
++				const unsigned int tz = cryptanalysislib::countr_zero(m);
++				unsigned int msb = ((v >> (lz)) & 1u);
++				unsigned int lsb = ((v >> (tz)) & 1u);
++				m = (m & (m - 1u));
++				unsigned int csb = ((v >> (cryptanalysislib::countr_zero(m))) & 1u);
+ 				ret = (msb << 2) | (csb << 1) | lsb;
+ 			}
+ 			break;
+ 		case 4: {
+-				const unsigned int lz = 31 - _lzcnt_u32(m);
+-				const unsigned int tz = _tzcnt_u32(m);
+-				unsigned int msb1 = _bextr_u32(v, lz, 1);
+-				unsigned int lsb1 = _bextr_u32(v, tz, 1);
++				const unsigned int lz = 31 - cryptanalysislib::countl_zero(m);
++				const unsigned int tz = cryptanalysislib::countr_zero(m);
++				unsigned int msb1 = ((v >> (lz)) & 1u);
++				unsigned int lsb1 = ((v >> (tz)) & 1u);
+ 				m &= ~((1 << lz) | (1 << tz));
+-				unsigned int msb0 = _bextr_u32(v, 31 - _lzcnt_u32(m), 1);
+-				unsigned int lsb0 = _bextr_u32(v, _tzcnt_u32(m), 1);
++				unsigned int msb0 = ((v >> (31 - cryptanalysislib::countl_zero(m))) & 1u);
++				unsigned int lsb0 = ((v >> (cryptanalysislib::countr_zero(m))) & 1u);
+ 				ret = (msb1 << 3) | (msb0 << 2) | (lsb0 << 1) | lsb1;
+ 			break;
+ 		}
+diff --git a/tests/algorithm/pext.cpp b/tests/algorithm/pext.cpp
+new file mode 100644
+index 0000000..ff76947
+--- /dev/null
++++ b/tests/algorithm/pext.cpp
+@@ -0,0 +1,76 @@
++#include <gtest/gtest.h>
++#include <cstdint>
++#include <vector>
++
++#include "random.h"
++
++using ::testing::InitGoogleTest;
++using ::testing::Test;
++using namespace cryptanalysislib;
++
++#if defined(USE_AVX2) && defined(USE_BMI2)
++#include "algorithm/bits/pext.h"
++
++/// portable reference: extracts the bits of `v` at the set bits of `m` into the low bits
++static uint32_t pext_ref(uint32_t v, uint32_t m) {
++	uint32_t ret = 0;
++	for (uint32_t i = 0, k = 0; i < 32; ++i) {
++		if ((m >> i) & 1u) { ret |= ((v >> i) & 1u) << k++; }
++	}
++	return ret;
++}
++
++/// masks with every popcount 0..32, plus random ones
++static void gen(std::vector<uint32_t> &data, std::vector<uint32_t> &mask, const size_t n) {
++	data.resize(n); mask.resize(n);
++	for (size_t i = 0; i < n; ++i) {
++		data[i] = rng<uint32_t>();
++		uint32_t m = 0;
++		const uint32_t w = i % 33;
++		while ((uint32_t)__builtin_popcount(m) < w) { m |= 1u << (rng<uint32_t>() % 32u); }
++		mask[i] = (i & 1) ? m : rng<uint32_t>();
++	}
++}
++
++TEST(pext, reference_vs_bmi2) {
++	std::vector<uint32_t> d, m; gen(d, m, 4096);
++	for (size_t i = 0; i < d.size(); ++i) {
++		EXPECT_EQ(pext_ref(d[i], m[i]), _pext_u32(d[i], m[i])) << i;
++	}
++}
++
++TEST(pext, emu) {
++	std::vector<uint32_t> d, m; gen(d, m, 4096);
++	for (size_t i = 0; i < d.size(); ++i) {
++		EXPECT_EQ(pext32_emu(d[i], m[i]), pext_ref(d[i], m[i])) << std::hex << d[i] << " " << m[i];
++	}
++}
++
++template<const bool early_exit>
++static void check_avx2() {
++	constexpr size_t n = 4096; // multiple of 8, the functions have no tail handling
++	std::vector<uint32_t> d, m, out(n); gen(d, m, n);
++	avx2_pext_u32_reference<32, early_exit>(d.data(), m.data(), out.data(), n);
++	for (size_t i = 0; i < n; ++i) { EXPECT_EQ(out[i], pext_ref(d[i], m[i])) << i; }
++}
++TEST(pext, avx2) { check_avx2<false>(); }
++TEST(pext, avx2_early_exit) { check_avx2<true>(); }
++
++#ifdef USE_AVX512F
++template<const bool early_exit>
++static void check_avx512() {
++	constexpr size_t n = 4096; // multiple of 16
++	std::vector<uint32_t> d, m, out(n); gen(d, m, n);
++	avx512_pext_u32_reference<32, early_exit>(d.data(), m.data(), out.data(), n);
++	for (size_t i = 0; i < n; ++i) { EXPECT_EQ(out[i], pext_ref(d[i], m[i])) << i; }
++}
++TEST(pext, avx512) { check_avx512<false>(); }
++TEST(pext, avx512_early_exit) { check_avx512<true>(); }
++#endif
++#endif
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	rng_seed(time(NULL));
++	return RUN_ALL_TESTS();
++}
+diff --git a/bench/algorithm/pext.cpp b/bench/algorithm/pext.cpp
+new file mode 100644
+index 0000000..4b91bae
+--- /dev/null
++++ b/bench/algorithm/pext.cpp
+@@ -0,0 +1,70 @@
++#include <benchmark/benchmark.h>
++#include <cstdint>
++#include <vector>
++
++#include "random.h"
++
++using namespace cryptanalysislib;
++constexpr size_t LS = 1u << 12u; // multiple of 16: the SIMD versions have no tail handling
++
++#if defined(USE_AVX2) && defined(USE_BMI2)
++#include "algorithm/bits/pext.h"
++
++static std::vector<uint32_t> data, mask, out;
++
++/// `bits` = popcount of every mask
++static void generate(const uint32_t bits) {
++	data.resize(LS); mask.resize(LS); out.resize(LS);
++	for (size_t i = 0; i < LS; ++i) {
++		data[i] = rng<uint32_t>();
++		uint32_t m = 0;
++		while ((uint32_t)__builtin_popcount(m) < bits) { m |= 1u << (rng<uint32_t>() % 32u); }
++		mask[i] = m;
++	}
++}
++
++static void BM_pext_bmi2(benchmark::State &state) {
++	generate(state.range(0));
++	for (auto _: state) {
++		for (size_t i = 0; i < LS; ++i) { out[i] = _pext_u32(data[i], mask[i]); }
++		benchmark::ClobberMemory();
++	}
++}
++
++static void BM_pext_emu(benchmark::State &state) {
++	generate(state.range(0));
++	for (auto _: state) {
++		for (size_t i = 0; i < LS; ++i) { out[i] = pext32_emu(data[i], mask[i]); }
++		benchmark::ClobberMemory();
++	}
++}
++
++template<const bool early_exit>
++static void BM_pext_avx2(benchmark::State &state) {
++	generate(state.range(0));
++	for (auto _: state) {
++		avx2_pext_u32_reference<32, early_exit>(data.data(), mask.data(), out.data(), LS);
++		benchmark::ClobberMemory();
++	}
++}
++
++BENCHMARK(BM_pext_bmi2)->DenseRange(0, 32, 8);
++BENCHMARK(BM_pext_emu)->DenseRange(0, 32, 8);
++BENCHMARK(BM_pext_avx2<false>)->DenseRange(0, 32, 8);
++BENCHMARK(BM_pext_avx2<true>)->DenseRange(0, 32, 8);
++
++#ifdef USE_AVX512F
++template<const bool early_exit>
++static void BM_pext_avx512(benchmark::State &state) {
++	generate(state.range(0));
++	for (auto _: state) {
++		avx512_pext_u32_reference<32, early_exit>(data.data(), mask.data(), out.data(), LS);
++		benchmark::ClobberMemory();
++	}
++}
++BENCHMARK(BM_pext_avx512<false>)->DenseRange(0, 32, 8);
++BENCHMARK(BM_pext_avx512<true>)->DenseRange(0, 32, 8);
++#endif
++#endif
++
++BENCHMARK_MAIN();

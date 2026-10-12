@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_MATH_ROUND_H
 
 #include <cstdint>
+#include <type_traits>
 #include "helper.h"
 
 #include "algorithm/bits/popcount.h"
@@ -25,6 +26,19 @@ namespace cryptanalysislib::math {
 		}
 		return t;
 	}
+
+	/// \return true if `x` is a power of two (false for 0)
+	template<typename T>
+#if __cplusplus > 201709L
+	    requires std::is_integral_v<T>
+#endif
+	[[nodiscard]] constexpr inline bool is_power_of_two(const T x) noexcept {
+		return (x > 0) && ((x & (x - 1)) == 0);
+	}
+
+	/// compile time version of `is_power_of_two`
+	template<std::size_t X>
+	inline constexpr bool is_power_of_two_v = is_power_of_two(X);
 
 	[[nodiscard]] constexpr static std::size_t round_up_to_power_of_two(std::size_t value) noexcept {
 		if (cryptanalysislib::popcount::popcount(value) == 1u) {

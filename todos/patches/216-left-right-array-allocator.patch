@@ -1,0 +1,83 @@
+diff --git a/src/container/left_right_array.h b/src/container/left_right_array.h
+index 653361e..67fa992 100644
+--- a/src/container/left_right_array.h
++++ b/src/container/left_right_array.h
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <cstdlib>
++#include <memory>
+ #include "alloc/alloc.h"
+ 
+ // whether to include some O(n) methods for testing purposes
+@@ -26,18 +27,26 @@ private:
+     left_right_array & operator = (const left_right_array&) = delete;
+ 
+ public:
++    using size_allocator = Allocator<size_t>;
++    using bool_allocator = Allocator<bool>;
++
++    /// \param n number of indices, all free in the beginning
++    /// NOTE: the arrays are allocated with `Allocator` (assumed stateless)
+     explicit left_right_array(const size_t n) {
+         n_ = n;
+-        // TODO allocator
+-        fl_ = new size_t[n_];
+-        tg_ = new bool[n_];
++        size_allocator sa{};
++        bool_allocator ba{};
++        fl_ = std::allocator_traits<size_allocator>::allocate(sa, n_);
++        tg_ = std::allocator_traits<bool_allocator>::allocate(ba, n_);
+         free_all();
+     }
+ 
+     ~left_right_array()
+     {
+-        delete [] fl_;
+-        delete [] tg_;
++        size_allocator sa{};
++        bool_allocator ba{};
++        std::allocator_traits<size_allocator>::deallocate(sa, fl_, n_);
++        std::allocator_traits<bool_allocator>::deallocate(ba, tg_, n_);
+     }
+ 
+     size_t num_free() const  { return f_; }
+diff --git a/tests/container/left_right_array_alloc.cpp b/tests/container/left_right_array_alloc.cpp
+new file mode 100644
+index 0000000..d5f2d9f
+--- /dev/null
++++ b/tests/container/left_right_array_alloc.cpp
+@@ -0,0 +1,33 @@
++#include <gtest/gtest.h>
++#include <cstdint>
++#include <memory>
++
++#include "container/left_right_array.h"
++
++using ::testing::InitGoogleTest;
++
++/// counts the live allocations, to check that the allocator is used
++static int64_t live = 0;
++template<class T>
++struct counting_allocator {
++	using value_type = T;
++	counting_allocator() noexcept = default;
++	template<class U> counting_allocator(const counting_allocator<U> &) noexcept {}
++	T *allocate(const size_t n) { live += 1; return std::allocator<T>{}.allocate(n); }
++	void deallocate(T *p, const size_t n) noexcept { live -= 1; std::allocator<T>{}.deallocate(p, n); }
++};
++
++TEST(left_right_array, allocator_is_used) {
++	{
++		left_right_array<counting_allocator> a(100);
++		EXPECT_EQ(live, 2);
++		EXPECT_EQ(a.get_free_idx_chg(5), 5u);
++		EXPECT_EQ(a.num_set(), 1u);
++	}
++	EXPECT_EQ(live, 0);
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	return RUN_ALL_TESTS();
++}

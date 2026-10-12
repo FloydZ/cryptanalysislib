@@ -418,6 +418,59 @@ TEST(SortingNetwork, uint8x128_t) {
 	}
 }
 
+/// many random inputs (half of them with few distinct values) for the u8
+/// sorters which use the `sortingnetwork_aftermergesort_u8x*` half cleaners
+template<const uint32_t N, typename F>
+static void stress_u8(F f) {
+	alignas(32) uint8_t data[N], expected[N];
+	for (uint32_t r = 0; r < 20000; ++r) {
+		for (uint32_t i = 0; i < N; ++i) {
+			data[i] = (r & 1u) ? (rng() % 3u) : rng();
+		}
+		// counting sort as reference
+		uint32_t cnt[256] = {0};
+		for (uint32_t i = 0; i < N; ++i) { cnt[data[i]] += 1; }
+		for (uint32_t v = 0, k = 0; v < 256; ++v) {
+			while (cnt[v]--) { expected[k++] = uint8_t(v); }
+		}
+
+		__m256i v[N / 32];
+		for (uint32_t i = 0; i < N / 32; ++i) { v[i] = _mm256_load_si256((const __m256i *)(data + 32 * i)); }
+		f(v);
+		for (uint32_t i = 0; i < N / 32; ++i) { _mm256_store_si256((__m256i *)(data + 32 * i), v[i]); }
+		for (uint32_t i = 0; i < N; ++i) { ASSERT_EQ(data[i], expected[i]) << r; }
+	}
+}
+
+TEST(SortingNetwork, uint8_stress) {
+	stress_u8<32>([](__m256i *v) { v[0] = sortingnetwork_sort_u8x32_(v[0]); });
+	stress_u8<64>([](__m256i *v) { sortingnetwork_sort_u8x64(v[0], v[1]); });
+	stress_u8<96>([](__m256i *v) { sortingnetwork_sort_u8x96(v[0], v[1], v[2]); });
+	stress_u8<128>([](__m256i *v) { sortingnetwork_sort_u8x128(v[0], v[1], v[2], v[3]); });
+	stress_u8<256>([](__m256i *v) { sortingnetwork_sort_u8x256(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]); });
+}
+
+TEST(SortingNetwork, uint8x32_desc) {
+	alignas(32) uint8_t data[32], out[32], expected[32];
+	for (uint32_t r = 0; r < 10000; ++r) {
+		for (uint32_t i = 0; i < 32; ++i) { data[i] = (r & 1u) ? (rng() % 3u) : rng(); }
+		// counting sort (descending) as reference
+		uint32_t cnt[256] = {0};
+		for (uint32_t i = 0; i < 32; ++i) { cnt[data[i]] += 1; }
+		for (uint32_t v = 256, k = 0; v-- > 0;) {
+			while (cnt[v]--) { expected[k++] = uint8_t(v); }
+		}
+
+		const __m256i v = sortingnetwork_sort_u8x32_desc(_mm256_load_si256((const __m256i *)data));
+		_mm256_store_si256((__m256i *)out, v);
+		for (uint32_t i = 0; i < 32; ++i) { ASSERT_EQ(out[i], expected[i]) << r; }
+	}
+}
+
+TEST(SortingNetwork, uint8x288_stress) {
+	stress_u8<288>([](__m256i *v) { sortingnetwork_sort_u8x288(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]); });
+}
+
 TEST(SortingNetwork, uint8x224_t) {
 	alignas(32) uint8_t data[224], expected[224];
 	for (uint32_t r = 0; r < 100; ++r) {

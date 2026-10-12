@@ -1,0 +1,118 @@
+diff --git a/src/simd/avx2.h b/src/simd/avx2.h
+index e3efccb..9ed7a7e 100644
+--- a/src/simd/avx2.h
++++ b/src/simd/avx2.h
+@@ -3555,6 +3555,28 @@ struct Xint32x8_t {
+ 		}
+ 	}
+ 
++	/// masked load: lane i is loaded if bit i of `m` is set, otherwise 0.
++	/// Masked out lanes are not accessed (no fault), as in the AVX-512 version.
++	/// \param ptr
++	/// \param m lane mask
++	/// \return
++	[[nodiscard]] static inline S maskz_unaligned_load(const limb_type *ptr,
++	                                                   const Mask<LIMBS> &m) noexcept {
++		// the msb of each 32 bit lane selects it
++		const uint32_t k = uint32_t(MaskType<LIMBS>(m));
++		const __v8su sel = (__v8su){k << 31u, k << 30u, k << 29u, k << 28u,
++		                            k << 27u, k << 26u, k << 25u, k << 24u};
++		S out;
++		out.v256 = _mm256_maskload_epi32((const int *) ptr, (__m256i) sel);
++		return out;
++	}
++
++	/// same as `maskz_unaligned_load` (no alignment needed)
++	[[nodiscard]] static inline S maskz_aligned_load(const limb_type *ptr,
++	                                                 const Mask<LIMBS> &m) noexcept {
++		return maskz_unaligned_load(ptr, m);
++	}
++
+ 	/// \tparam aligned
+ 	/// \param ptr
+ 	/// \param in
+@@ -4216,6 +4238,27 @@ struct Xint64x4_t {
+ 		}
+ 	}
+ 
++	/// masked load: lane i is loaded if bit i of `m` is set, otherwise 0.
++	/// Masked out lanes are not accessed (no fault), as in the AVX-512 version.
++	/// \param ptr
++	/// \param m lane mask
++	/// \return
++	[[nodiscard]] static inline S maskz_unaligned_load(const limb_type *ptr,
++	                                                   const Mask<LIMBS> &m) noexcept {
++		// the msb of each 64 bit lane selects it
++		const uint64_t k = uint64_t(MaskType<LIMBS>(m));
++		const __v4du sel = (__v4du){k << 63u, k << 62u, k << 61u, k << 60u};
++		S out;
++		out.v256 = _mm256_maskload_epi64((const long long *) ptr, (__m256i) sel);
++		return out;
++	}
++
++	/// same as `maskz_unaligned_load` (no alignment needed)
++	[[nodiscard]] static inline S maskz_aligned_load(const limb_type *ptr,
++	                                                 const Mask<LIMBS> &m) noexcept {
++		return maskz_unaligned_load(ptr, m);
++	}
++
+ 	/// \tparam aligned
+ 	/// \param ptr
+ 	/// \param in
+diff --git a/src/simd/avx512.h b/src/simd/avx512.h
+index 6194550..52869e9 100644
+--- a/src/simd/avx512.h
++++ b/src/simd/avx512.h
+@@ -2664,7 +2664,8 @@ struct Xint64x8_t {
+ 		}
+ 	}
+ 
+-    /// TODO extend to avx2
++	/// masked load, lane i is loaded if bit i of `m` is set, otherwise 0
++	/// NOTE: also available in the AVX2 backend (`uint64x4_t`, `uint32x8_t`)
+ 	/// \param ptr
+ 	/// \return
+ 	[[nodiscard]] constexpr static inline S maskz_aligned_load(const limb_type *ptr, 
+@@ -2674,7 +2675,8 @@ struct Xint64x8_t {
+         return out;
+     }
+ 
+-    /// TODO extend to avx2
++	/// masked load, lane i is loaded if bit i of `m` is set, otherwise 0
++	/// NOTE: also available in the AVX2 backend (`uint64x4_t`, `uint32x8_t`)
+ 	/// \param ptr
+ 	/// \return
+ 	[[nodiscard]] constexpr static inline S maskz_unaligned_load(const limb_type *ptr, 
+diff --git a/tests/simd/lane_ops.cpp b/tests/simd/lane_ops.cpp
+index 29abf0e..ab965f4 100644
+--- a/tests/simd/lane_ops.cpp
++++ b/tests/simd/lane_ops.cpp
+@@ -79,6 +79,28 @@ TEST(LaneOps, avx512_uint32x16) { check_lane_ops<uint32x16_t>(); }
+ TEST(LaneOps, avx512_uint64x8) { check_lane_ops<uint64x8_t>(); }
+ #endif
+ 
++/// masked load: lanes not in the mask are zero and not accessed
++template<typename S>
++static void check_maskz_load() {
++	using T = typename S::limb_type;
++	constexpr uint32_t N = S::LIMBS;
++	alignas(64) T a[N], o[N];
++	for (uint32_t m = 0; m < (1u << N); ++m) {
++		for (uint32_t i = 0; i < N; ++i) { a[i] = T(rng()); }
++		S::store(o, S::maskz_unaligned_load(a, Mask<N>(MaskType<N>(m))));
++		for (uint32_t i = 0; i < N; ++i) { EXPECT_EQ(o[i], ((m >> i) & 1u) ? a[i] : T(0)); }
++		S::store(o, S::maskz_aligned_load(a, Mask<N>(MaskType<N>(m))));
++		for (uint32_t i = 0; i < N; ++i) { EXPECT_EQ(o[i], ((m >> i) & 1u) ? a[i] : T(0)); }
++	}
++}
++
++#ifdef USE_AVX2
++TEST(LaneOps, avx2_maskz_load) {
++	check_maskz_load<uint64x4_t>();
++	check_maskz_load<uint32x8_t>();
++}
++#endif
++
+ /// comparisons, min/max and the constexpr load, for signed and unsigned types
+ template<typename S>
+ static void check_cmp_ops() {

@@ -1,0 +1,79 @@
+diff --git a/src/sort/quicksort.h b/src/sort/quicksort.h
+index ea4c500..e9a594b 100644
+--- a/src/sort/quicksort.h
++++ b/src/sort/quicksort.h
+@@ -32,15 +32,25 @@ constexpr size_t partition(Type *f,
+ }
+ 
+ 
++/// configuration of `quick_sort`
++struct QuickSortConfig {
++    /// sub-arrays with at most this many elements are sorted with the
++    /// (non recursive) selection sort.
++    /// NOTE: must be >= 2: `partition` of two elements may return p = 1,
++    /// 	i.e. an empty right part, and the loop would not terminate
++    const size_t selection_sort_threshold = 8;
++};
++constexpr static QuickSortConfig quickSortConfig{};
++
+ // Sort f[] (ascending order).
+-template <typename Type>
++template <typename Type,
++          const QuickSortConfig &config = quickSortConfig>
+ constexpr void quick_sort(Type *f,
+                           const size_t n) noexcept {
++    static_assert(config.selection_sort_threshold >= 2);
+     size_t m = n;
+ start:
+-    // TODO via config
+-    // parameter: threshold for nonrecursive algorithm
+-    if (m <= 8) {
++    if (m <= config.selection_sort_threshold) {
+         selection_sort(f, m);
+         return;
+     }
+@@ -52,11 +62,11 @@ start:
+     // recursion for shorter sub-array
+     if (ln > rn) {
+         // f[ln] ... f[n-1]   right
+-        quick_sort(f+ln, rn);
++        quick_sort<Type, config>(f+ln, rn);
+         m = ln;
+     } else {
+         // f[0]  ... f[ln-1]  left
+-        quick_sort(f, ln);
++        quick_sort<Type, config>(f, ln);
+         m = rn;
+         f += ln;
+     }
+diff --git a/tests/sort/sorting_algorithms.cpp b/tests/sort/sorting_algorithms.cpp
+index c9f93e7..53a3421 100644
+--- a/tests/sort/sorting_algorithms.cpp
++++ b/tests/sort/sorting_algorithms.cpp
+@@ -180,6 +180,26 @@ TEST(CountingSort, u8) {
+ 	}
+ }
+ 
++constexpr static QuickSortConfig quickSortConfig2{2};
++constexpr static QuickSortConfig quickSortConfig64{64};
++
++TEST(QuickSort, config) {
++	for (const size_t n : {0ul, 1ul, 2ul, 3ul, 9ul, 63ul, 64ul, 65ul, 1000ul}) {
++	for (const uint32_t mod : {2u, 100u, 1000000u}) {
++		std::vector<uint32_t> a(n);
++		for (auto &x : a) { x = uint32_t(rng() % mod); }
++		auto e = a; cryptanalysislib::sort(e.begin(), e.end());
++		auto b = a, c = a;
++		quick_sort(a.data(), n);
++		quick_sort<uint32_t, quickSortConfig2>(b.data(), n);
++		quick_sort<uint32_t, quickSortConfig64>(c.data(), n);
++		EXPECT_EQ(a, e);
++		EXPECT_EQ(b, e);
++		EXPECT_EQ(c, e);
++	}
++	}
++}
++
+ TEST(DJBSORT, Ints32) {
+ 	int32_t *array8 = generate_list<int32_t>(listsize);
+ 	int32_sort(array8, listsize);

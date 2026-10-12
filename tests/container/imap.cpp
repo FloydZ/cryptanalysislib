@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <map>
 #include <iostream>
 #include <cstdio>
 #include <cstdint>
@@ -475,93 +476,93 @@ TEST(imap, assign_val64) {
 	}
 }
 
-// NOTE  TODO: not working, something with ensure is not right, needs debugging
-//TEST(imap, assign_val128) {
-//	const unsigned N = 100;
-//	imap_tree_t tree(1);
-//	uint32_t *slot;
-//	imap_u128_t val128;
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		tree.ensure128(+1);
-//		slot = tree.assign(i);
-//		EXPECT_NE(nullptr, slot);
-//		val128.v[0] = 0x8000000000000000ull | i;
-//		val128.v[1] = 0x9000000000000000ull | i;
-//		tree.setval128(slot, val128);
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		slot = tree.lookup(i);
-//		EXPECT_NE(nullptr, slot);
-//		EXPECT_TRUE(tree.hasval(slot));
-//		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
-//		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		tree.ensure128(+1);
-//		slot = tree.assign(i);
-//		EXPECT_NE(nullptr, slot);
-//		val128.v[0] = i;
-//		val128.v[1] = i;
-//		tree.setval128(slot, val128);
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		slot = tree.lookup(i);
-//		EXPECT_EQ(nullptr, slot);
-//		EXPECT_TRUE(tree.hasval(slot));
-//		EXPECT_EQ(i, tree.getval128(slot).v[0]);
-//		EXPECT_EQ(i, tree.getval128(slot).v[1]);
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		tree.ensure(+1);
-//		slot = tree.assign(i);
-//		EXPECT_EQ(nullptr, slot);
-//		val128.v[0] = 0x8000000000000000ull | i;
-//		val128.v[1] = 0x9000000000000000ull | i;
-//		tree.setval128(slot, val128);
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		slot = tree.lookup(i);
-//		EXPECT_NE(nullptr, slot);
-//		EXPECT_TRUE(tree.hasval(slot));
-//		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
-//		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		slot = tree.lookup(i);
-//		EXPECT_EQ(nullptr, slot);
-//		tree.delval(slot);
-//		EXPECT_TRUE(!tree.hasval(slot));
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		slot = tree.lookup(i);
-//		EXPECT_NE(nullptr, slot);
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		tree.ensure(+1);
-//		slot = tree.assign(i);
-//		EXPECT_NE(nullptr, slot);
-//		val128.v[0] = 0x8000000000000000ull | i;
-//		val128.v[1] = 0x9000000000000000ull | i;
-//		tree.setval128(slot, val128);
-//	}
-//
-//	for (unsigned i = 0; N > i; i++) {
-//		slot = tree.lookup(i);
-//		EXPECT_EQ(nullptr, slot);
-//		EXPECT_TRUE(tree.hasval(slot));
-//		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
-//		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
-//	}
-//}
+TEST(imap, assign_val128) {
+	const unsigned N = 100;
+	// NOTE: the tree must be created for 128 bit values
+	imap_tree_t tree(1, sizeof(imap_u128_t));
+	uint32_t *slot;
+	imap_u128_t val128;
+
+	for (unsigned i = 0; N > i; i++) {
+		tree.ensure128(+1);
+		slot = tree.assign(i);
+		EXPECT_NE(nullptr, slot);
+		val128.v[0] = 0x8000000000000000ull | i;
+		val128.v[1] = 0x9000000000000000ull | i;
+		tree.setval128(slot, val128);
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		slot = tree.lookup(i);
+		EXPECT_NE(nullptr, slot);
+		EXPECT_TRUE(tree.hasval(slot));
+		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
+		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		tree.ensure128(+1);
+		slot = tree.assign(i);
+		EXPECT_NE(nullptr, slot);
+		val128.v[0] = i;
+		val128.v[1] = i;
+		tree.setval128(slot, val128);
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		slot = tree.lookup(i);
+		EXPECT_NE(nullptr, slot);
+		EXPECT_TRUE(tree.hasval(slot));
+		EXPECT_EQ(i, tree.getval128(slot).v[0]);
+		EXPECT_EQ(i, tree.getval128(slot).v[1]);
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		tree.ensure128(+1);
+		slot = tree.assign(i);
+		EXPECT_NE(nullptr, slot);
+		val128.v[0] = 0x8000000000000000ull | i;
+		val128.v[1] = 0x9000000000000000ull | i;
+		tree.setval128(slot, val128);
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		slot = tree.lookup(i);
+		EXPECT_NE(nullptr, slot);
+		EXPECT_TRUE(tree.hasval(slot));
+		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
+		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		slot = tree.lookup(i);
+		EXPECT_NE(nullptr, slot);
+		tree.delval(slot);
+		EXPECT_TRUE(!tree.hasval(slot));
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		slot = tree.lookup(i);
+		EXPECT_EQ(nullptr, slot);
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		tree.ensure128(+1);
+		slot = tree.assign(i);
+		EXPECT_NE(nullptr, slot);
+		val128.v[0] = 0x8000000000000000ull | i;
+		val128.v[1] = 0x9000000000000000ull | i;
+		tree.setval128(slot, val128);
+	}
+
+	for (unsigned i = 0; N > i; i++) {
+		slot = tree.lookup(i);
+		EXPECT_NE(nullptr, slot);
+		EXPECT_TRUE(tree.hasval(slot));
+		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
+		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
+	}
+}
 
 TEST(imap, assign_shuffle) {
 	const unsigned N = 10000000;
@@ -1102,6 +1103,31 @@ TEST(imap, locate) {
 	EXPECT_EQ(0, slot);
 	slot = tree.lookup(0xA0008069);
 	EXPECT_EQ(0, slot);
+}
+
+/// STL style iteration: ascending keys, values via getval, against std::map
+TEST(imap, stl_iterator) {
+	imap_tree_t tree(1);
+	std::map<uint64_t, uint32_t> e;
+	EXPECT_TRUE(tree.begin() == tree.end());
+	for (uint32_t i = 0; i < 2000; ++i) {
+		const uint64_t k = (uint64_t(rand()) << 16u) ^ uint64_t(rand());
+		tree.ensure(+1);
+		uint32_t *slot = tree.assign(k);
+		ASSERT_NE(slot, nullptr);
+		const uint32_t v = (i + 1) & 0x7ffffu;
+		tree.setval(slot, v);
+		e[k] = v;
+	}
+	auto ie = e.begin();
+	size_t n = 0;
+	for (const imap_pair_t p : tree) {
+		ASSERT_NE(ie, e.end());
+		EXPECT_EQ(p.x, ie->first);
+		EXPECT_EQ(tree.getval(p.slot), ie->second);
+		++ie; ++n;
+	}
+	EXPECT_EQ(n, e.size());
 }
 
 int main(int argc, char **argv) {

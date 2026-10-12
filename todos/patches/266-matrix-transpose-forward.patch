@@ -1,0 +1,38 @@
+diff --git a/src/matrix/matrix.h b/src/matrix/matrix.h
+index 1cf559d..7802d8e 100644
+--- a/src/matrix/matrix.h
++++ b/src/matrix/matrix.h
+@@ -416,13 +416,7 @@ public:
+ 	/// \param A input
+ 	constexpr static void transpose(FqMatrixMeta<T, ncols, nrows, q, packed, R> &B,
+ 	                                const FqMatrixMeta<T, nrows, ncols, q, packed, R> &A) noexcept {
+-        // TODO replace this code with a function call to the function just below
+-		for (uint32_t row = 0; row < nrows; ++row) {
+-			for (uint32_t col = 0; col < ncols; ++col) {
+-				const DataType data = A.get(row, col);
+-				B.set(data, col, row);
+-			}
+-		}
++		transpose(B, A, 0, 0);
+ 	}
+ 
+ 	/// submatrix transpose within the full matrix. Meaning the
+@@ -431,12 +425,15 @@ public:
+ 	/// \param A[in]: a nrows \times ncols matrix
+ 	/// \param srow start row (inclusive)
+ 	/// \param scol start column (inclusive)
++	/// NOTE: `A` is const and `B` may have any row type `Rprime`, so the
++	/// 	full transpose above can forward to this function.
+ 	template<typename Tprime,
+ 	         const uint32_t nrows_prime,
+ 	         const uint32_t ncols_prime,
+-	         const uint64_t qprime>
+-	constexpr static void transpose(FqMatrixMeta<Tprime, nrows_prime, ncols_prime, qprime, packed> &B,
+-	                                FqMatrixMeta &A,
++	         const uint64_t qprime,
++	         typename Rprime>
++	constexpr static void transpose(FqMatrixMeta<Tprime, nrows_prime, ncols_prime, qprime, packed, Rprime> &B,
++	                                const FqMatrixMeta &A,
+                                     const uint32_t srow,
+                                     const uint32_t scol) noexcept {
+ 		assert(srow < nrows);

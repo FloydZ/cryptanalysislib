@@ -10,12 +10,9 @@
 
 #include "container/signal_tree/tree.h"
 #include "traits.h"
+#include "math/math.h"
 
 //=========================================================================
-/// TODO move somewhere usefull
-static inline constexpr auto minimum_power_of_two(std::unsigned_integral auto value){
-	return (1ull << minimum_bit_count(value - 1));
-}
 
 ///
 enum class synchronization_mode : std::uint32_t {
@@ -156,8 +153,6 @@ namespace cryptanalysislib::work_contract {
 			return false;
 		}
 
-        // TODO
-		bool deschedule();
 
 		/// \return
 		[[nodiscard]] constexpr inline bool is_valid() const noexcept {
@@ -247,7 +242,7 @@ namespace cryptanalysislib::work_contract {
 
 		/// \param capacity
 		work_contract_group(std::uint64_t capacity) :
-			subTreeCount_(minimum_power_of_two((capacity + (signal_tree_type::capacity - 1)) / signal_tree_type::capacity)),
+			subTreeCount_(cryptanalysislib::math::round_up_to_power_of_two((capacity + (signal_tree_type::capacity - 1)) / signal_tree_type::capacity)),
 		    subTreeMask_(subTreeCount_ - 1),
 		    subTreeShift_(minimum_bit_count(signal_tree_type::capacity - 1)),
 		    signalTree_(subTreeCount_),

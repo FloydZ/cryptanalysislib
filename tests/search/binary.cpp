@@ -38,7 +38,7 @@ TEST(upper_bound_standard_binary_search, kAryList) {
 	size_t solution_index;
 	const Element search = cryptanalysislib::random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
 
-	 auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
+	 auto a = cryptanalysislib::upper_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const Element &e1) {
 		  return e1.hash();
 		}
@@ -52,7 +52,7 @@ TEST(upper_bound_standard_binary_search, simple) {
 	size_t solution_index;
 	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::upper_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
 		  return e1 & MASK;
 		}
@@ -66,7 +66,7 @@ TEST(upper_bound_standard_binary_search, multiple) {
 	size_t solution_index;
 	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, nr_sols, MASK);
 
-	auto a = upper_bound_standard_binary_search(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::upper_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
 		  return e1 & MASK;
 		}
@@ -79,7 +79,7 @@ TEST(lower_bound_standard_binary_search, simple) {
 	size_t solution_index;
 	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	auto a = lower_bound_standard_binary_search(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::lower_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
 		  return e1 & MASK;
 		}
@@ -93,7 +93,7 @@ TEST(lower_bound_standard_binary_search, multiple) {
 	size_t solution_index;
 	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, nr_sols, MASK);
 
-	auto a = lower_bound_standard_binary_search(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::lower_bound_standard_binary_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
 		  return e1 & MASK;
 		}
@@ -107,8 +107,8 @@ TEST(upper_bound_monobound_binary_search, simple) {
 	size_t solution_index;
 	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	const auto b = monobound_binary_search(data.data(), data.size(), search);
-	auto a = lower_bound_monobound_binary_search(data.begin(), data.end(), search,
+	const auto b = cryptanalysislib::monobound_binary_search(data.data(), data.size(), search);
+	auto a = cryptanalysislib::lower_bound_monobound_binary_search(data.begin(), data.end(), search,
 		 [](const T &e1) -> T {
 		   return e1 & MASK;
 		 }
@@ -123,8 +123,8 @@ TEST(upper_bound_monobound_binary_search, multiple) {
 	size_t solution_index;
 	const T search = cryptanalysislib::random_data(data, solution_index, SIZE, nr_sols, MASK);
 
-	const auto b = monobound_binary_search(data.data(), data.size(), search);
-	auto a = lower_bound_monobound_binary_search(data.begin(), data.end(), search,
+	const auto b = cryptanalysislib::monobound_binary_search(data.data(), data.size(), search);
+	auto a = cryptanalysislib::lower_bound_monobound_binary_search(data.begin(), data.end(), search,
 		 [](const T &e1) -> T {
 		   return e1 & MASK;
 		 }
@@ -139,8 +139,8 @@ TEST(lower_bound_monobound_binary_search, simple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	const auto b = monobound_binary_search(data.data(), data.size(), search);
-	auto a = lower_bound_monobound_binary_search(data.begin(), data.end(), search,
+	const auto b = cryptanalysislib::monobound_binary_search(data.data(), data.size(), search);
+	auto a = cryptanalysislib::lower_bound_monobound_binary_search(data.begin(), data.end(), search,
 	     [](const T &e1) -> T {
 		     return e1 & MASK;
 	     }
@@ -156,8 +156,8 @@ TEST(iterator_tripletapped_binary_search, simple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	const auto b = monobound_binary_search(data.data(), data.size(), search);
-	auto a = tripletapped_binary_search(
+	const auto b = cryptanalysislib::monobound_binary_search(data.data(), data.size(), search);
+	auto a = cryptanalysislib::tripletapped_binary_search(
 	        data.begin(), data.end(), search,
 		[](const T &e1) -> T {
 		  return e1 & MASK;
@@ -174,7 +174,7 @@ TEST(tripletapped_binary_search, simple) {
 	T search = cryptanalysislib::random_data<std::vector<T>, T>(data, solution_index, SIZE, 1);
 
 	/// NOTE MASK not working
-	size_t a = tripletapped_binary_search(data.data(), SIZE, search);
+	size_t a = cryptanalysislib::tripletapped_binary_search(data.data(), SIZE, search);
 	EXPECT_EQ(solution_index, a);
 }
 
@@ -184,7 +184,7 @@ TEST(monobound_quaternary_search, simple) {
 	T search = cryptanalysislib::random_data<std::vector<T>, T>(data, solution_index, SIZE, 1);
 
 	/// note mask not working
-	size_t a = monobound_quaternary_search(data.data(), SIZE, search);
+	size_t a = cryptanalysislib::monobound_quaternary_search(data.data(), SIZE, search);
 	EXPECT_EQ(solution_index, a);
 }
 
@@ -194,7 +194,7 @@ TEST(branchless_lower_bound_cmp, karylist_simple) {
 	size_t solution_index;
 	const Element search = cryptanalysislib::random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
 
-	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::branchless_lower_bound(data.begin(), data.end(), search,
 		[](const Element &e1, const Element &e2) -> bool {
 		  return e1.hash() < e2.hash();
 		}
@@ -208,7 +208,7 @@ TEST(branchless_lower_bound_cmp, simple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::branchless_lower_bound(data.begin(), data.end(), search,
 		 [](const T &e1, const T &e2) -> T {
 		   return (e1&MASK) < (e2&MASK);
 		 }
@@ -223,7 +223,7 @@ TEST(branchless_lower_bound_cmp, karylist_multiple) {
 	size_t solution_index;
 	const Element search = cryptanalysislib::random_data<List, Element>(data, solution_index, SIZE, nr_sols, dummy);
 
-	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::branchless_lower_bound(data.begin(), data.end(), search,
 		[](const Element &e1, const Element &e2) {
 		  return e1.hash() < e2.hash();
 		}
@@ -237,7 +237,7 @@ TEST(branchless_lower_bound_cmp, multiple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, nr_sols, MASK);
 
-	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::branchless_lower_bound(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> T {
 		  return (e1&MASK) < (e2&MASK);
 		}
@@ -252,7 +252,7 @@ TEST(branchless_lower_bound, karylist_simple) {
 	size_t solution_index;
 	const Element search = cryptanalysislib::random_data<List, Element>(data, solution_index, SIZE, 1, dummy);
 
-	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::branchless_lower_bound(data.begin(), data.end(), search,
 		[](const Element &e1) {
 		  return e1.hash();
 		}
@@ -266,7 +266,7 @@ TEST(branchless_lower_bound, simple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, 1, MASK);
 
-	auto a = branchless_lower_bound(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::branchless_lower_bound(data.begin(), data.end(), search,
 		[](const T &e1) {
 		  return e1 & MASK;
 		}
@@ -321,6 +321,44 @@ TEST(binary_search, found_and_not_found) {
 
 	const std::vector<T> empty;
 	EXPECT_EQ(empty.end(), cryptanalysislib::binary_search(empty.begin(), empty.end(), T(1)));
+}
+
+TEST(lower_bound_multiple, random) {
+	constexpr size_t N = 5;
+	for (uint32_t k = 0; k < 200; ++k) {
+		std::vector<uint32_t> v[N];
+		const uint32_t *arrays[N];
+		size_t lengths[N], out[N];
+		uint32_t keys[N];
+		for (size_t i = 0; i < N; ++i) {
+			const size_t len = rng() % 100u;
+			v[i].resize(len);
+			for (auto &x : v[i]) { x = rng() % 64u; }
+			cryptanalysislib::sort(v[i].begin(), v[i].end());
+			arrays[i] = v[i].data();
+			lengths[i] = len;
+			keys[i] = rng() % 70u;
+		}
+
+		cryptanalysislib::lower_bound_multiple<N>(arrays, lengths, keys, out);
+		for (size_t i = 0; i < N; ++i) {
+			size_t expect = 0;
+			while ((expect < lengths[i]) && (v[i][expect] < keys[i])) { expect += 1; }
+			EXPECT_EQ(out[i], expect);
+		}
+	}
+
+	// usable at compile time
+	constexpr uint32_t a[4] = {1, 3, 5, 7}, b[2] = {2, 2};
+	constexpr auto r = [&]() {
+		const uint32_t *arr[2] = {a, b};
+		const size_t len[2] = {4, 2};
+		const uint32_t keys[2] = {5, 3};
+		std::array<size_t, 2> o{};
+		cryptanalysislib::lower_bound_multiple<2>(arr, len, keys, o.data());
+		return o;
+	}();
+	static_assert(r[0] == 2 && r[1] == 2);
 }
 
 int main(int argc, char **argv) {

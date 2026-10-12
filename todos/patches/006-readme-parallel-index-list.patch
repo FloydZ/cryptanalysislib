@@ -1,0 +1,15 @@
+diff --git a/README.md b/README.md
+index cea1744..ff43176 100644
+--- a/README.md
++++ b/README.md
+@@ -146,7 +146,9 @@ As well as this core datatypes the following list-containers are implemented:
+     currently not possible in this list.
+ - `Parallel_List_FullElement` Same as `Parallel_List`, but `Values` and 
+     `Labels` are together saved in one list of `Elements`, which allows sorting. 
+-- `Parallel_List_IndexElement` TODO
++- `Parallel_List_IndexElement` Same as `Parallel_List`, but only the `Labels` are
++    saved, together with an index/counter from which the `Value` can be
++    recomputed. Note: the load is not tracked.
+ - `List` generic list implementation.
+ Range checks are performed in every implementation.
+ 

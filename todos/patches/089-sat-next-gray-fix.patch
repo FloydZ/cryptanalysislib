@@ -1,0 +1,53 @@
+diff --git a/src/algorithm/sat/bruteforce.h b/src/algorithm/sat/bruteforce.h
+index 9e8883b..48a63f9 100644
+--- a/src/algorithm/sat/bruteforce.h
++++ b/src/algorithm/sat/bruteforce.h
+@@ -22,11 +22,22 @@ T to_gray(const T i) noexcept {
+   return (i ^ (i >> 1u));
+ }
+ 
++/// \return the Gray code following the Gray code `a`, i.e.
++///     next_gray(to_gray(i)) == to_gray(i + 1)
++/// NOTE: before, this returned `a ^ ctz(a + 1)` (the bit index instead of
++///     the bit), which is no Gray code successor (e.g. next_gray(0) == 0).
++///     Even parity: flip bit 0, odd parity: flip the bit left of the lowest
++///     set bit. No ctz needed.
+ template<typename T>
+ constexpr static inline 
+ T next_gray(const T a) noexcept {
+-    // TODO replace with cryptanalysislib::ctz
+-    return a ^ __builtin_ctzll(a+1);
++    using U = std::make_unsigned_t<T>;
++    const U u = static_cast<U>(a);
++    if ((cryptanalysislib::popcount::popcount<U>(u) & 1u) == 0) {
++        return static_cast<T>(u ^ U(1));
++    }
++    const U lowest = u & (~u + U(1));
++    return static_cast<T>(u ^ U(lowest << 1u));
+ }
+ 
+ using namespace cryptanalysislib;
+diff --git a/tests/algorithm/sat/bruteforce.cpp b/tests/algorithm/sat/bruteforce.cpp
+index e0203f1..69c52df 100644
+--- a/tests/algorithm/sat/bruteforce.cpp
++++ b/tests/algorithm/sat/bruteforce.cpp
+@@ -33,6 +33,19 @@ using MyTypes = ::testing::Types<uint32_t>;
+ INSTANTIATE_TYPED_TEST_SUITE_P(My, SAT, MyTypes);
+ 
+ 
++/// next_gray walks the Gray code: next_gray(to_gray(i)) == to_gray(i+1), and
++/// consecutive codes differ in exactly one bit
++TEST(sat, next_gray) {
++	uint32_t g = 0;
++	for (uint32_t i = 0; i < (1u << 16u); ++i) {
++		ASSERT_EQ(g, to_gray(i)) << i;
++		const uint32_t n = next_gray(g);
++		ASSERT_EQ(__builtin_popcount(n ^ g), 1) << i;
++		g = n;
++	}
++	static_assert(next_gray<uint8_t>(0) == 1 && next_gray<uint8_t>(1) == 3 && next_gray<uint8_t>(3) == 2);
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();

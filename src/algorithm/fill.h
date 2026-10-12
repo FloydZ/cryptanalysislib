@@ -17,9 +17,8 @@ namespace cryptanalysislib {
     constexpr static AlgorithmFillConfig algorithmFillConfig;
 
     
-    namespace internal {
-        // TODO implement SIMD algorithms
-    };
+    // NOTE: `fill`/`fill_n` use `cryptanalysislib::memset`, which is the
+    // 	SIMD (TxN_t) implementation, so no separate SIMD kernels are needed
     
 	/// Fills a range with a specified value (sequential version)
 	/// \tparam Iterator Forward iterator type for the range

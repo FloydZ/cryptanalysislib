@@ -1,0 +1,47 @@
+diff --git a/src/matrix/binary_matrix.h b/src/matrix/binary_matrix.h
+index c93c3e0..88d9303 100644
+--- a/src/matrix/binary_matrix.h
++++ b/src/matrix/binary_matrix.h
+@@ -60,10 +60,11 @@ public:
+ 	constexpr static T high_bitmask = -1ul >> ((RADIX - (ncols % RADIX)) % RADIX);
+ 	constexpr static uint32_t block_words = nrows * padded_limbs;
+ 
+-	/// \param x start row
++	/// reads the bits [y, y+n) of row x (may span two limbs).
++	/// \param x row
+ 	/// \param y start col
+ 	/// \param n num bits <= RADIX
+-	/// \return
++	/// \return the n bits, column y in the least significant bit
+ 	constexpr inline T read_bits(T const x, T const y, uint32_t const n) const noexcept {
+ 		assert(x < nrows);
+ 		assert(y + n <= ncols);
+@@ -78,19 +79,6 @@ public:
+ 		return temp >> (RADIX - n);
+ 	}
+ 
+-	/// TODO rename
+-	/// \param M input matrix
+-	/// \param x
+-	/// \param y
+-	/// \param nn
+-	/// \return
+-	constexpr static inline uint64_t matrix_read_bits(FqMatrix &M,
+-	                                           const size_t x,
+-	                                           const size_t y,
+-	                                           const size_t nn) noexcept {
+-		return M.read_bits(x, y, nn);
+-	}
+-
+ 	///
+ 	/// \param x
+ 	/// \return
+@@ -1105,7 +1093,7 @@ public:
+ 	                                          uint64_t *Table,
+ 	                                          const uint32_t **rev) noexcept {
+ 		for (size_t r = rstart; r < rstop; ++r) {
+-			size_t x0 = rev[k][matrix_read_bits(M, r, cstart, k)];
++			size_t x0 = rev[k][M.read_bits(r, cstart, k)];
+ 			if (x0) {
+ #ifdef DEBUG
+ 				auto isnonzero = [&M](const uint32_t r) {

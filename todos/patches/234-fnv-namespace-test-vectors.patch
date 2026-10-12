@@ -1,0 +1,57 @@
+diff --git a/src/hash/fnv1a.h b/src/hash/fnv1a.h
+index 78a0701..cdefcd5 100644
+--- a/src/hash/fnv1a.h
++++ b/src/hash/fnv1a.h
+@@ -10,7 +10,8 @@
+ #include <cassert>
+ 
+ // TODO SIMD version 
+-// TODO add namespace
++
++namespace cryptanalysislib::hash {
+ 
+ /// Computes a FNV-1 hash for the provided data
+ /// Implementation based on: https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV-1_hash
+@@ -73,4 +74,5 @@ template<typename T=uint64_t>
+ 	}
+ }
+ 
++} // end namespace cryptanalysislib::hash
+ #endif
+diff --git a/tests/hash/fnv1a.cpp b/tests/hash/fnv1a.cpp
+new file mode 100644
+index 0000000..32a3f60
+--- /dev/null
++++ b/tests/hash/fnv1a.cpp
+@@ -0,0 +1,31 @@
++#include <gtest/gtest.h>
++#include <cstdint>
++#include <cstring>
++
++#include "hash/hash.h"
++
++using ::testing::InitGoogleTest;
++using namespace cryptanalysislib::hash;
++
++/// official FNV test vectors (http://www.isthe.com/chongo/src/fnv/test_fnv.c)
++TEST(fnv, test_vectors) {
++	const auto *e = (const uint8_t *)"";
++	const auto *a = (const uint8_t *)"a";
++	const auto *f = (const uint8_t *)"foobar";
++	EXPECT_EQ(fnv1a<uint32_t>(e, 0), 0x811c9dc5u);
++	EXPECT_EQ(fnv1a<uint32_t>(a, 1), 0xe40c292cu);
++	EXPECT_EQ(fnv1a<uint32_t>(f, 6), 0xbf9cf968u);
++	EXPECT_EQ(fnv1a<uint64_t>(e, 0), 0xcbf29ce484222325ull);
++	EXPECT_EQ(fnv1a<uint64_t>(a, 1), 0xaf63dc4c8601ec8cull);
++	EXPECT_EQ(fnv1a<uint64_t>(f, 6), 0x85944171f73967e8ull);
++	EXPECT_EQ(fnv1<uint32_t>(a, 1), 0x050c5d7eu);
++	EXPECT_EQ(fnv1<uint32_t>(f, 6), 0x31f0b262u);
++	EXPECT_EQ(fnv1<uint64_t>(a, 1), 0xaf63bd4c8601b7beull);
++	EXPECT_EQ(fnv1<uint64_t>(f, 6), 0x340d8765a4dda9c2ull);
++	static_assert(fnv1a<uint32_t>(nullptr, 0) == 0x811c9dc5u);
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	return RUN_ALL_TESTS();
++}

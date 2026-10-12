@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <cstring>
 #include <iostream>
+#include <vector>
 
 #include "compression/compression.h"
 #include "random.h"
@@ -65,6 +66,25 @@ TEST(lzss, small) {
 	for (size_t s = 0; s <= 64; ++s) {
 		roundtrip(t, s);
 	}
+}
+
+/// class interface, also with a small window
+TEST(lzss, class_interface) {
+	constexpr size_t s = 10000;
+	std::vector<uint8_t> in(s), c(cryptanalysislib::lzss<>::bound(s)), out(s);
+	for (size_t i = 0; i < s; ++i) { in[i] = uint8_t((i % 50) < 30 ? 'a' + (i % 5) : rng() % 3); }
+
+	const auto n1 = cryptanalysislib::lzss<>::compress(c.data(), in.data(), s);
+	EXPECT_LT(n1, s);
+	EXPECT_EQ(cryptanalysislib::lzss<>::decompress(out.data(), c.data()), s);
+	EXPECT_EQ(in, out);
+
+	using small = cryptanalysislib::lzss<16>;
+	const auto n2 = small::compress(c.data(), in.data(), s);
+	EXPECT_LE(n2, small::bound(s));
+	out.assign(s, 0);
+	EXPECT_EQ(small::decompress(out.data(), c.data()), s);
+	EXPECT_EQ(in, out);
 }
 
 int main(int argc, char **argv) {

@@ -115,9 +115,9 @@ struct TreeConfig : public AlignmentConfig {
 	/// min size per thread
 	const size_t min_size_per_thread = 2u;
 
-
-	/// TODO impl: needed for output lists
-	const bool allow_list_to_resize = false;
+	// NOTE: whether an output list grows is decided by the list
+	// 	(`ListConfig::allow_resize`, used by `add_and_append`). The functions,
+	// 	which write into `out` directly, stop if it is full.
 };
 
 constexpr static TreeConfig treeConfig{};
@@ -208,10 +208,11 @@ public:
 		}
 	}
 
-	/// TODO doc
-	/// \param d
-	/// \param A
-	/// \param baselist_size
+	/// creates a tree of depth `d` with `d + additional_baselists` empty
+	/// lists of `2**baselist_size` elements each
+	/// \param d depth of the tree, > 0
+	/// \param A matrix, used to compute the labels of the elements
+	/// \param baselist_size log2 of the size of each list (NOT the size)
 	explicit Tree_T(const uint32_t d,
 	                const MatrixType &A,
 	                const size_t baselist_size) noexcept :
@@ -229,11 +230,12 @@ public:
 		base_size = 1u << baselist_size;
 	}
 
-	/// TODO doc
-	/// \param d
-	/// \param A
-	/// \param b1
-	/// \param b2
+	/// creates a tree of depth `d` on the two (copied) base lists `b1`, `b2`.
+	/// The remaining `d + additional_baselists - 2` lists are empty.
+	/// \param d depth of the tree, > 0
+	/// \param A matrix, used to compute the labels of the elements
+	/// \param b1 first base list
+	/// \param b2 second base list, `base_size` is taken from `b1`
 	explicit Tree_T(const uint32_t d,
 	                const MatrixType &A,
 	                const List &b1,
@@ -1435,6 +1437,8 @@ public:
 									  // the linearity of addition
 									  if constexpr (weight) {
 										  const size_t b2 = out.load();
+										  // NOTE: stop, if the output list is full
+										  if (b2 >= out.size()) { return true; }
 										  ValueType::add(out[b2].value, e.value, iL[l].value);
 
 										  if (out[b2].value.popcnt() == weight) {
@@ -1550,6 +1554,8 @@ public:
 
 					if constexpr (weight) {
 						const size_t b2 = out.load();
+						// NOTE: stop, if the output list is full
+						if (b2 >= out.size()) { goto finish; }
 						ValueType::add(out[b2].value, te1.value, te2.value);
 						if (out[b2].value.popcnt() == weight) {
 							LabelType::template add
@@ -3175,7 +3181,9 @@ public:
 		LabelType l1_t0,l1_t1, l1_t2, l1_t3;
 		LabelType l2_t0, l2_t1;
 
-		// TODO assumes that k_lower1 == 0
+		// NOTE: the intermediate targets are drawn on the lowest `k_upper*`
+		// 	bits, i.e. this assumes k_lower1 == 0 (true for all callers)
+		static_assert(k_lower1 == 0, "join8lists_twolists_on_iT_v2: k_lower1 must be 0");
 		l1_t0.random(0, 1ull << k_upper1);
 		l1_t2.random(0, 1ull << k_upper1);
 		l2_t0.random(0, 1ull << k_upper2);
@@ -3542,15 +3550,16 @@ private:
 		search_in_level_l(e1, e2, e3, level, k_lower, k_higher, boundaries, indices);
 	}
 
-	/// \param e1 TODO
-	/// \param e2
-	/// \param e3
-	/// \param level
-	/// \param k_lower
-	/// \param k_higher
-	/// \param boundaries
-	/// \param indices
-	/// \return
+	/// same as above, but with explicit coordinates: computes e1 = e2 + e3
+	/// and searches it in the list `lists[level + 2]` on [k_lower, k_higher)
+	/// \param e1[out]: e2 + e3, the element to search for
+	/// \param e2[in]: first summand
+	/// \param e3[in]: second summand
+	/// \param level[in]: current level, the list `lists[level + 2]` is searched
+	/// \param k_lower[in]: lower coordinate to match on (inclusive)
+	/// \param k_higher[in]: upper coordinate to match on (exclusive)
+	/// \param boundaries[out]: boundaries[level] = [first, last) of the matches
+	/// \param indices[out]: indices[level] = first match
 	constexpr inline void search_in_level_l(ElementType &e1,
 								  const ElementType &e2,
 								  const ElementType &e3,

@@ -48,8 +48,13 @@ public:
 	constexpr static uint32_t limbs = (ncols + RADIX - 1u) / RADIX;
 
 	// number of limbs actually allocated
-	// TODO: write a SIMD abstraction layer (static global function?) which gives you the max aligment the computer supports.
-	constexpr static uint32_t alignment = 256;// NOTE: currently that's chosen for avx
+	// NOTE: in bits. The row kernels (`row_xor`, `xor_avx1_new`, ...) process
+	// 	one `uint8x32_t` per step, so the padding must be exactly that width.
+	// 	`cryptanalysislib::simd_max_register_bits()` gives the widest register
+	// 	of the machine, but using it here would also require the kernels to
+	// 	step by that width (with 512 they would skip half of every block).
+	constexpr static uint32_t alignment = sizeof(uint8x32_t) * 8u;
+	static_assert(alignment == 256u);
 	constexpr static uint32_t fraction = alignment / RADIX;
 	constexpr static uint32_t padded_limbs = ((ncols + alignment - 1u) / alignment) * fraction;
 	constexpr static uint32_t padded_simd_limbs = (ncols + alignment - 1u) / alignment;
@@ -60,10 +65,11 @@ public:
 	constexpr static T high_bitmask = -1ul >> ((RADIX - (ncols % RADIX)) % RADIX);
 	constexpr static uint32_t block_words = nrows * padded_limbs;
 
-	/// \param x start row
+	/// reads the bits [y, y+n) of row x (may span two limbs).
+	/// \param x row
 	/// \param y start col
 	/// \param n num bits <= RADIX
-	/// \return
+	/// \return the n bits, column y in the least significant bit
 	constexpr inline T read_bits(T const x, T const y, uint32_t const n) const noexcept {
 		assert(x < nrows);
 		assert(y + n <= ncols);
@@ -76,19 +82,6 @@ public:
 		                 ? row_[block] << -spill
 		                 : (row_[block + 1] << (RADIX - spill)) | (row_[block] >> spill);
 		return temp >> (RADIX - n);
-	}
-
-	/// TODO rename
-	/// \param M input matrix
-	/// \param x
-	/// \param y
-	/// \param nn
-	/// \return
-	constexpr static inline uint64_t matrix_read_bits(FqMatrix &M,
-	                                           const size_t x,
-	                                           const size_t y,
-	                                           const size_t nn) noexcept {
-		return M.read_bits(x, y, nn);
 	}
 
 	///
@@ -1105,7 +1098,7 @@ public:
 	                                          uint64_t *Table,
 	                                          const uint32_t **rev) noexcept {
 		for (size_t r = rstart; r < rstop; ++r) {
-			size_t x0 = rev[k][matrix_read_bits(M, r, cstart, k)];
+			size_t x0 = rev[k][M.read_bits(r, cstart, k)];
 			if (x0) {
 #ifdef DEBUG
 				auto isnonzero = [&M](const uint32_t r) {

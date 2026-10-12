@@ -12,6 +12,7 @@
 #include <initializer_list>
 #include <list>
 #include <memory>
+#include <ranges>
 #include <type_traits>
 #include <utility>
 
@@ -20,7 +21,6 @@
 #include "growth_policy.h"
 #include "ska_flat.h"
 
-// TODO ranges constructor
 // INTERNAL::TODO:
 //		- new buckets in cache?
 // 		- avx search?
@@ -278,6 +278,22 @@ public:
 	    : hopscotch_map(init.begin(), init.end(), bucket_count, hash, KeyEqual(),
 	                    alloc) {}
 
+	/// range constructor (like `std::unordered_map(std::from_range, rg)`)
+	/// \param rg[in]: range of elements convertible to `value_type`
+	template<class R>
+#if __cplusplus > 201709L
+	requires std::ranges::input_range<R>
+#endif
+	constexpr hopscotch_map(std::from_range_t,
+	                        R &&rg,
+	                        const size_type bucket_count = ht::DEFAULT_INIT_BUCKETS_SIZE,
+	                        const Hash &hash = Hash(),
+	                        const KeyEqual &equal = KeyEqual(),
+	                        const Allocator &alloc = Allocator()) noexcept
+	    : hopscotch_map(bucket_count, hash, equal, alloc) {
+		insert_range(std::forward<R>(rg));
+	}
+
 	constexpr hopscotch_map &operator=(std::initializer_list<value_type> ilist) noexcept {
 		m_ht.clear();
 
@@ -347,6 +363,17 @@ public:
 
 	constexpr void insert(std::initializer_list<value_type> ilist) noexcept {
 		m_ht.insert(ilist.begin(), ilist.end());
+	}
+
+	/// inserts all elements of the range `rg` (like `std::unordered_map::insert_range`)
+	template<class R>
+#if __cplusplus > 201709L
+	requires std::ranges::input_range<R>
+#endif
+	constexpr void insert_range(R &&rg) noexcept {
+		for (auto &&v : rg) {
+			m_ht.insert(value_type(std::forward<decltype(v)>(v)));
+		}
 	}
 
 	template<class M>

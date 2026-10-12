@@ -1,0 +1,30 @@
+diff --git a/src/simd/avx512_intrinsics.h b/src/simd/avx512_intrinsics.h
+index bdf48a4..6308f21 100644
+--- a/src/simd/avx512_intrinsics.h
++++ b/src/simd/avx512_intrinsics.h
+@@ -2,8 +2,23 @@
+ 
+ #include <immintrin.h>
+ 
+-// TODO docs 
+-// src: https://github.com/InstLatx64/InstLatX64_Demo/
++/// Emulations of instructions/intrinsics which do not exist in AVX-512 (or
++/// AVX2 with AVX-512VL), mostly built on `vpternlog`.
++/// Source: https://github.com/InstLatx64/InstLatX64_Demo/
++///
++/// Contents:
++/// 	- `_mm{256,512}_setr_epi8`, `_mm512_setr_epi16`: reversed `set`, missing in some compilers
++/// 	- saturating add/sub on 32/64 bit lanes, signed and unsigned:
++/// 		`_mm512_{adds,subs}_{epi,epu}{32,64}`, and `*_Zen4_*` variants,
++/// 		which avoid the slow `vpternlog` forms on AMD Zen4
++/// 	- `_mm{,256,512}_2intersect_epi{16,32,64}_mask`: `vp2intersect`
++/// 	- `_mm{,256,512}_{lz,tz}cnt_epi*`: per lane leading/trailing zero
++/// 		counts (`*_fp16_*`: via a half float conversion, `*_gfni_*`: GFNI)
++/// 	- byte shifts/rotations/alignment across the full register:
++/// 		`_mm{256,512}_{bslli,bsrli,palignl,palignr,rotatel,rotater}_*`
++/// 	- `_mm{,256,512}_prefix_xor_clmul_*`: prefix xor via carry-less mul
++/// 	- `_mm512_reduce2_add_epu{8,16,32,64,128}`, `_mm512_mulhi_epi64`,
++/// 		`_mm512_indices_to_bits`, `vp2i_{rol,ror}*` helpers
+ 
+ /// NOTE: apparently this function is not in the normal list of intrinsics?
+ static inline

@@ -6,40 +6,95 @@
 #error "do not inlcude this file directly. Use `#include <cryptanalysislib/math>`"
 #endif
 
+#include <concepts>
 #include <cstdint>
 
 #include "simd/simd.h"
 
 
 namespace cryptanalysislib::math::internal {
-// TODO: - u64 mod/div, simd mod/div
-// 		 - docs
 // extension by FloydZ
 // source: https://github.com/lemire/fastmod
+// Lemire, Kaser, Kurz: "Faster Remainder by Direct Computation" (2019)
+//
+// For a fixed divisor `d` a magic number `M` is computed once, afterwards
+// `a % d` and `a / d` only need multiplications:
+// 	- 32 bit: `M = ceil(2**64 / d)`,  64 bit: `M = ceil(2**128 / d)`
+// 	- a % d = ((M * a) mod 2**64 * d) >> 64     (resp. mod 2**128, >> 128)
+// 	- a / d = (M * a) >> 64                     (resp. >> 128), needs d > 1
+// The SIMD versions compute the 32 bit variants lane-wise on 64 bit lanes.
 
 /// \param lowbits
 /// \param d
-/// \return
+/// \return (lowbits * d) >> 64
 constexpr static uint64_t mul128_u32(const uint64_t lowbits,
                                      const uint32_t d) noexcept {
 	return ((__uint128_t)lowbits * d) >> 64;
 }
 
-///
-/// \tparam S
-/// \param a
-/// \param b
+#if __cplusplus > 201709L
+/// the operations needed by the SIMD fastmod functions below, on 64 bit lanes.
+/// NOTE: not `SIMDAble`, which e.g. `uint64x4_t` does not fully satisfy
+template<typename S>
+concept FastModSIMD = (sizeof(typename S::limb_type) == 8u) &&
+	requires(const S a, const typename S::limb_type l) {
+		{ S::set1(l) } -> std::convertible_to<S>;
+		{ S::and_(a, a) } -> std::convertible_to<S>;
+		{ S::add(a, a) } -> std::convertible_to<S>;
+		{ S::mullo(a, a) } -> std::convertible_to<S>;
+		{ S::srli(a, l) } -> std::convertible_to<S>;
+	};
+#endif
+
+/// lane-wise `(lowbits * d) >> 64` for 64 bit `lowbits` and 32 bit `d`.
+/// NOTE: computed with 64 bit lane multiplications only:
+/// 	lowbits * d = hi * d * 2**32 + lo * d, with lo, hi the 32 bit halves,
+/// 	so (lowbits * d) >> 64 = (hi * d + ((lo * d) >> 32)) >> 32 (no overflow).
+/// \tparam S SIMD type with 64 bit lanes, e.g. `uint64x4_t`
+/// \param lowbits 64 bit values
+/// \param d 32 bit values (stored in 64 bit lanes)
 /// \return
 template<typename S>
 #if __cplusplus > 201709L
-	requires SIMDAble<S>
+	requires FastModSIMD<S>
 #endif
-constexpr static S mul128_u32(const S &a,
-                              const S &b) noexcept {
-	static_assert(sizeof(S::limb_type));
-	(void)a;
-	(void)b;
-	return a;
+constexpr static S mul128_u32(const S &lowbits,
+                              const S &d) noexcept {
+	const S mask = S::set1(0xFFFFFFFFull);
+	const S lo = S::and_(lowbits, mask);
+	const S hi = S::srli(lowbits, 32u);
+	const S t = S::srli(S::mullo(lo, d), 32u);
+	return S::srli(S::add(S::mullo(hi, d), t), 32u);
+}
+
+/// lane-wise version of `fastmod_u32`
+/// \tparam S SIMD type with 64 bit lanes, e.g. `uint64x4_t`
+/// \param a 32 bit values (stored in 64 bit lanes)
+/// \param M `computeM_u32(d)` in every lane
+/// \param d divisor in every lane
+/// \return a % d
+template<typename S>
+#if __cplusplus > 201709L
+	requires FastModSIMD<S>
+#endif
+constexpr static S fastmod_u32(const S &a,
+                               const S &M,
+                               const S &d) noexcept {
+	return mul128_u32(S::mullo(M, a), d);
+}
+
+/// lane-wise version of `fastdiv_u32`, requires d > 1
+/// \tparam S SIMD type with 64 bit lanes, e.g. `uint64x4_t`
+/// \param a 32 bit values (stored in 64 bit lanes)
+/// \param M `computeM_u32(d)` in every lane
+/// \return a / d
+template<typename S>
+#if __cplusplus > 201709L
+	requires FastModSIMD<S>
+#endif
+constexpr static S fastdiv_u32(const S &a,
+                               const S &M) noexcept {
+	return mul128_u32(M, a);
 }
 
 ///
@@ -82,8 +137,10 @@ constexpr static uint64_t mul128_u64(const __uint128_t lowbits,
 }
 
 
-/// 
-inline __uint128_t computeM_u64(uint64_t d) {
+/// M = ceil( (1<<128) / d ), d > 0
+/// \param d divisor
+/// \return magic number for `fastmod_u64`/`fastdiv_u64`/`is_divisible_u64`
+constexpr static __uint128_t computeM_u64(const uint64_t d) noexcept {
     // what follows is just ((__uint128_t)0 - 1) / d) + 1 spelled out
     __uint128_t M = UINT64_C(0xFFFFFFFFFFFFFFFF);
     M <<= 64;
@@ -93,20 +150,32 @@ inline __uint128_t computeM_u64(uint64_t d) {
     return M;
 }
 
-inline uint64_t fastmod_u64(uint64_t a,
-                     __uint128_t M,
-                     uint64_t d) {
-    __uint128_t lowbits = M * a;
+/// \param a
+/// \param M `computeM_u64(d)`
+/// \param d divisor
+/// \return a % d, for all 64 bit `a`
+constexpr static uint64_t fastmod_u64(const uint64_t a,
+                                      const __uint128_t M,
+                                      const uint64_t d) noexcept {
+    const __uint128_t lowbits = M * a;
     return mul128_u64(lowbits, d);
 }
 
-inline uint64_t fastdiv_u64(uint64_t a, __uint128_t M) {
+/// \param a
+/// \param M `computeM_u64(d)`, requires d > 1
+/// \return a / d, for all 64 bit `a`
+constexpr static uint64_t fastdiv_u64(const uint64_t a,
+                                      const __uint128_t M) noexcept {
     return mul128_u64(M, a);
 }
 
-// given precomputed M, is_divisible checks whether n % d == 0
-inline bool is_divisible_u64(uint64_t n, __uint128_t M) { 
-    return n * M <= M - 1; 
+/// given precomputed M, is_divisible checks whether n % d == 0
+/// \param n
+/// \param M `computeM_u64(d)`, requires d > 1
+/// \return n % d == 0
+constexpr static bool is_divisible_u64(const uint64_t n,
+                                       const __uint128_t M) noexcept {
+    return n * M <= M - 1;
 }
 
 
@@ -147,7 +216,10 @@ constexpr static uint32_t fastdiv_u32(const uint32_t a,
 	return (uint32_t)(mul128_u32(M, a));
 }
 
-// given precomputed M, is_divisible checks whether n % d == 0
+/// given precomputed M, is_divisible checks whether n % d == 0
+/// \param n
+/// \param M `computeM_u32(d)`, requires d > 1
+/// \return n % d == 0
 constexpr static bool is_divisible(const uint32_t n,
                                    const uint64_t M) noexcept {
 	return n * M <= M - 1;
@@ -239,6 +311,30 @@ constexpr static int32_t fastmod(const int32_t x) noexcept {
 	// NOTE: fastmod_s32 needs the absolute value of d
 	constexpr int32_t positive_d = d < 0 ? -d : d;
 	return cryptanalysislib::math::internal::fastmod_s32(x, v, positive_d);
+}
+
+/// \tparam d
+/// \param x
+/// \return x % d
+template <uint64_t d>
+constexpr static uint64_t fastmod(const uint64_t x) noexcept {
+	static_assert(d != 0);
+	constexpr __uint128_t v = cryptanalysislib::math::internal::computeM_u64(d);
+	return cryptanalysislib::math::internal::fastmod_u64(x, v, d);
+}
+
+/// \tparam d
+/// \param x
+/// \return x/d
+template <uint64_t d>
+constexpr static uint64_t fastdiv(const uint64_t x) noexcept {
+	static_assert(d != 0);
+	// NOTE: the fastdiv trick requires d > 1
+	if constexpr (d == 1) {
+		return x;
+	}
+	constexpr __uint128_t v = cryptanalysislib::math::internal::computeM_u64(d);
+	return cryptanalysislib::math::internal::fastdiv_u64(x, v);
 }
 
 /// \tparam d

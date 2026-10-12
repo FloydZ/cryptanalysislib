@@ -28,7 +28,7 @@ algos = [
         # 
         "class": SubSetSumOptimizerD2,
         # cmake build/run target
-        "target": "bench_subsetsum_rho", # TODO maybe name all targets: bench_${algoname}
+        "target": "bench_subsetsum_rho", # all targets are named bench_${algoname}
         # cmake output target == binary to exec
         "bin_path": "bench/subsetsum/bench_subsetsum_rho",
         # header file to write the parameters to

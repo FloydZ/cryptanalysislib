@@ -1,0 +1,219 @@
+diff --git a/src/algorithm/set.h b/src/algorithm/set.h
+index 66362aa..f3b2f2f 100644
+--- a/src/algorithm/set.h
++++ b/src/algorithm/set.h
+@@ -1,10 +1,15 @@
+ #pragma once 
+ 
++#include <algorithm>
++#include <atomic>
++#include <future>
++#include <vector>
++
+ #include "copy.h"
+ #include "simd/simd.h"
+ #include "algorithm/bits/ffs.h"
+-
+-// TODO parallel versions
++#include "algorithm/algorithm.h"
++#include "thread/thread.h"
+ 
+ namespace cryptanalysislib {
+     namespace internal {
+@@ -540,4 +545,138 @@ namespace cryptanalysislib {
+         // Finished range 1, include the rest of range 2:
+         return cryptanalysislib::copy(first2, last2, d_first);
+     }
++
++    /// Configuration for the parallel set algorithms
++    struct AlgorithmSetConfig : public AlgorithmConfig {
++        constexpr static size_t min_size_per_thread = 1u << 15u;
++    };
++    constexpr static AlgorithmSetConfig algorithmSetConfig;
++
++    namespace internal {
++        /// splits two sorted ranges into `nthreads` pairs of subranges with
++        /// disjoint, increasing value ranges: range 1 is cut into equal
++        /// chunks, every cut is moved to the next change of value (so equal
++        /// elements are never split: multiset semantics are kept), and
++        /// range 2 is cut at the `lower_bound` of the same values.
++        /// \return cut positions in both ranges, nthreads + 1 each
++        template<class RandIt1, class RandIt2>
++        static std::pair<std::vector<size_t>, std::vector<size_t>>
++        set_parallel_cuts(RandIt1 first1, const size_t n1,
++                          RandIt2 first2, const size_t n2,
++                          const uint32_t nthreads) noexcept {
++            std::vector<size_t> c1(nthreads + 1), c2(nthreads + 1);
++            c1[0] = c2[0] = 0;
++            c1[nthreads] = n1; c2[nthreads] = n2;
++            for (uint32_t k = 1; k < nthreads; ++k) {
++                size_t c = std::max((n1 * k) / nthreads, c1[k - 1]);
++                while ((c > 0) && (c < n1) && !(first1[c - 1] < first1[c])) { ++c; }
++                c1[k] = c;
++                c2[k] = (c < n1) ? static_cast<size_t>(std::lower_bound(first2, first2 + n2, first1[c]) - first2) : n2;
++                c2[k] = std::max(c2[k], c2[k - 1]);
++            }
++            return {c1, c2};
++        }
++
++        /// runs the sequential set operation `op` on every pair of subranges
++        /// (see `set_parallel_cuts`) in parallel, each into a local buffer,
++        /// which are concatenated into `d_first`.
++        template<class ExecPolicy, class RandIt1, class RandIt2, class OutIt, class Op>
++        static OutIt set_op_parallel(ExecPolicy &&policy,
++                                     RandIt1 first1, const size_t n1,
++                                     RandIt2 first2, const size_t n2,
++                                     OutIt d_first, Op op,
++                                     const uint32_t nthreads) noexcept {
++            using T = typename std::iterator_traits<RandIt1>::value_type;
++            const auto [c1, c2] = set_parallel_cuts(first1, n1, first2, n2, nthreads);
++            auto &task_pool = *policy.pool();
++
++            std::vector<std::vector<T>> parts(nthreads);
++            {
++                std::vector<std::future<void>> futures;
++                for (uint32_t k = 0; k < nthreads; ++k) {
++                    futures.emplace_back(task_pool.submit([&, k]() {
++                        std::vector<T> &out = parts[k];
++                        out.resize((c1[k + 1] - c1[k]) + (c2[k + 1] - c2[k]));
++                        auto e = op(first1 + c1[k], first1 + c1[k + 1],
++                                    first2 + c2[k], first2 + c2[k + 1], out.begin());
++                        out.resize(static_cast<size_t>(e - out.begin()));
++                    }));
++                }
++                for (auto &f : futures) { f.wait(); }
++            }
++
++            std::vector<size_t> off(nthreads + 1, 0);
++            for (uint32_t k = 0; k < nthreads; ++k) { off[k + 1] = off[k] + parts[k].size(); }
++
++            std::vector<std::future<void>> futures;
++            for (uint32_t k = 0; k < nthreads; ++k) {
++                futures.emplace_back(task_pool.submit([&, k]() {
++                    std::copy(parts[k].begin(), parts[k].end(), d_first + off[k]);
++                }));
++            }
++            for (auto &f : futures) { f.wait(); }
++            return d_first + off[nthreads];
++        }
++    } // end namespace internal
++
++#define CRYPTANALYSISLIB_SET_PARALLEL(NAME)                                              \
++    /** parallel version of `NAME`, see `internal::set_op_parallel` */                   \
++    template<class ExecPolicy, class RandIt1, class RandIt2, class RandIt3,               \
++             const AlgorithmSetConfig &config = algorithmSetConfig>                        \
++        requires std::random_access_iterator<RandIt1> &&                                 \
++                 std::random_access_iterator<RandIt2> &&                                 \
++                 std::random_access_iterator<RandIt3>                                    \
++    RandIt3 NAME(ExecPolicy &&policy,                                                     \
++                 RandIt1 first1, RandIt1 last1,                                           \
++                 RandIt2 first2, RandIt2 last2,                                           \
++                 RandIt3 d_first) noexcept {                                              \
++        const size_t n1 = static_cast<size_t>(std::distance(first1, last1));              \
++        const size_t n2 = static_cast<size_t>(std::distance(first2, last2));              \
++        const uint32_t nthreads = should_par(policy, config, n1 + n2);                    \
++        if (is_seq<ExecPolicy>(policy) || nthreads < 2 || n1 < nthreads) {                \
++            return cryptanalysislib::NAME(first1, last1, first2, last2, d_first);         \
++        }                                                                                 \
++        return internal::set_op_parallel(policy, first1, n1, first2, n2, d_first,         \
++            [](auto a1, auto a2, auto b1, auto b2, auto out) {                            \
++                return cryptanalysislib::NAME(a1, a2, b1, b2, out);                       \
++            }, nthreads);                                                                 \
++    }
++
++    CRYPTANALYSISLIB_SET_PARALLEL(set_difference)
++    CRYPTANALYSISLIB_SET_PARALLEL(set_intersection)
++    CRYPTANALYSISLIB_SET_PARALLEL(set_union)
++    CRYPTANALYSISLIB_SET_PARALLEL(set_symmetric_difference)
++#undef CRYPTANALYSISLIB_SET_PARALLEL
++
++    /// parallel `includes`: every pair of subranges (see
++    /// `internal::set_parallel_cuts`) is checked in parallel
++    template<class ExecPolicy, class RandIt1, class RandIt2,
++             const AlgorithmSetConfig &config = algorithmSetConfig>
++        requires std::random_access_iterator<RandIt1> &&
++                 std::random_access_iterator<RandIt2>
++    bool includes(ExecPolicy &&policy,
++                  RandIt1 first1, RandIt1 last1,
++                  RandIt2 first2, RandIt2 last2) noexcept {
++        const size_t n1 = static_cast<size_t>(std::distance(first1, last1));
++        const size_t n2 = static_cast<size_t>(std::distance(first2, last2));
++        const uint32_t nthreads = should_par(policy, config, n1 + n2);
++        if (is_seq<ExecPolicy>(policy) || nthreads < 2 || n1 < nthreads) {
++            return cryptanalysislib::includes(first1, last1, first2, last2);
++        }
++
++        const auto [c1, c2] = internal::set_parallel_cuts(first1, n1, first2, n2, nthreads);
++        auto &task_pool = *policy.pool();
++        std::atomic<bool> ok{true};
++        std::vector<std::future<void>> futures;
++        for (uint32_t k = 0; k < nthreads; ++k) {
++            futures.emplace_back(task_pool.submit([&, k]() {
++                if (!cryptanalysislib::includes(first1 + c1[k], first1 + c1[k + 1],
++                                                first2 + c2[k], first2 + c2[k + 1])) {
++                    ok.store(false, std::memory_order_relaxed);
++                }
++            }));
++        }
++        for (auto &f : futures) { f.wait(); }
++        return ok.load(std::memory_order_relaxed);
++    }
+ }; // end namespace cryptanalysislib
+diff --git a/tests/algorithm/set.cpp b/tests/algorithm/set.cpp
+new file mode 100644
+index 0000000..b23ebc8
+--- /dev/null
++++ b/tests/algorithm/set.cpp
+@@ -0,0 +1,52 @@
++#include <gtest/gtest.h>
++#include <algorithm>
++#include <cstdint>
++#include <vector>
++
++#include "random.h"
++#include "algorithm/set.h"
++
++using ::testing::InitGoogleTest;
++using namespace cryptanalysislib;
++
++template<typename T>
++static std::vector<T> sorted_random(const size_t n, const uint32_t mod) {
++	std::vector<T> v(n);
++	for (auto &x : v) { x = T(rng() % mod); }
++	std::sort(v.begin(), v.end());
++	return v;
++}
++
++/// the parallel set operations against std:: on multisets: few distinct
++/// values (long runs of equal elements across chunk boundaries) and many
++#define CHECK_SET_OP(NAME)                                                                   \
++	{                                                                                        \
++		std::vector<uint32_t> out(a.size() + b.size()), e(a.size() + b.size());              \
++		const auto r = cryptanalysislib::NAME(par_if(true), a.begin(), a.end(), b.begin(), b.end(), out.begin()); \
++		const auto re = std::NAME(a.begin(), a.end(), b.begin(), b.end(), e.begin());        \
++		ASSERT_EQ(r - out.begin(), re - e.begin()) << #NAME << " " << mod;                   \
++		ASSERT_TRUE(std::equal(out.begin(), r, e.begin())) << #NAME << " " << mod;           \
++	}
++
++TEST(set, parallel_operations) {
++	constexpr size_t n = 1u << 20u;
++	for (const uint32_t mod : {3u, 100u, 1u << 30}) {
++		const auto a = sorted_random<uint32_t>(n, mod), b = sorted_random<uint32_t>(n / 2, mod);
++		CHECK_SET_OP(set_difference)
++		CHECK_SET_OP(set_intersection)
++		CHECK_SET_OP(set_union)
++		CHECK_SET_OP(set_symmetric_difference)
++
++		EXPECT_EQ(cryptanalysislib::includes(par_if(true), a.begin(), a.end(), b.begin(), b.end()),
++		          std::includes(a.begin(), a.end(), b.begin(), b.end())) << mod;
++		std::vector<uint32_t> sub;
++		for (size_t i = 0; i < n; i += 3) { sub.push_back(a[i]); }
++		EXPECT_TRUE(cryptanalysislib::includes(par_if(true), a.begin(), a.end(), sub.begin(), sub.end())) << mod;
++	}
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	rng_seed(time(NULL));
++	return RUN_ALL_TESTS();
++}

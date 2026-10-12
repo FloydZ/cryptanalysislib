@@ -49,24 +49,45 @@ constexpr static void generate_subsetsum_instance(Label &target,
 }
 
 
-/// TODO image and explanation of config parameters
+/// Configuration of a subset sum instance and of the algorithms solving it
+/// (`sss_d2`: rho/PCS based, `HGJ`: list merging). The label (the sum) is an
+/// element of Z_q, its coordinates [0, l1), [l1, l1+l2), [l1+l2, l1+l2+l3)
+/// are matched on the levels of the tree:
+///
+///     level 0: base lists L1, L2: all vectors of length n/2 and weight bp
+///              (one for each half of the instance)
+///     level 1: L1 x L2 matched on the bits [0, l1)
+///     level 2: matched on the bits [l1, l1+l2)          (d >= 2)
+///     level 3: matched on the bits [l1+l2, l1+l2+l3)    (d == 3, HGJ)
+///
+/// NOTE: the default values are just fake numbers. Enter your own ones (e.g.
+/// 	from the python optimizer `cryptanalysislib/optimizers/subsetsum`).
 struct SSS {
-	/// these are just fake numbers. Enter your own correct ones.
+	/// depth of the tree (number of matching levels), 2 or 3 (HGJ)
 	const uint32_t d = 2;
+	/// number of elements of the instance (= bits of the solution)
     const uint32_t n = 32;
+	/// modulus of the labels (the sums): Z_q
     const uint64_t q = 1ull << n;
-	// base p
+	/// weight of every base list element (number of ones in each half)
 	const uint32_t bp = 1;
+	/// number of label bits matched on the first level
 	const uint32_t l1 = 9;
+	/// number of label bits matched on the second level
 	const uint32_t l2 = 11;
+	/// number of label bits matched on the third level (only d == 3)
 	const uint32_t l3 = 0;
+	/// `sss_d2`: maximal length of a rho walk, before it is restarted with a
+	/// new random start point and a new flavour
     const uint64_t walk_len = 1u << 10u;
 
-	// flavouring prime
+	/// `sss_d2`: prime modulus of the flavouring function
+	/// x -> (b_1 * x + b_2) mod flavour_q (randomizes the rho walks), must
+	/// be prime
     const uint64_t flavour_q = 509;
 
-	// after how many iterations should the
-	// algorithm print some runtime information
+	/// after how many iterations should the
+	/// algorithm print some runtime information
 	const size_t print_iterations = 512;
 
 	/// print some basic informaton about this

@@ -1,12 +1,17 @@
 #pragma once
 
+#include <iterator>
 #include <memory>
+#include <type_traits>
+#include <iostream>
 #include <vector>
 #include "alloc/alloc.h"
 
 
-/// TODO iterator
-/// \tparam T
+/// Doubly linked list whose nodes can be unlinked (`erase`) and relinked
+/// (`restore`) in O(1), as in Knuth's dancing links. Iterable (bidirectional)
+/// over the currently linked nodes.
+/// \tparam T element type
 template <class T,
 		  template<class> class Allocator=cryptanalysislib::allocator>
 struct dancing_links {
@@ -119,6 +124,43 @@ public:
 	constexpr inline size_t size() const noexcept {
 		return size_;
 	}
+
+	/// bidirectional iterator over the linked nodes, front to back
+	/// NOTE: `erase` of the current node invalidates it (its links stay, so
+	/// 	`++` still works until the neighbours change)
+	template<const bool is_const>
+	class iterator_t {
+		friend struct dancing_links;
+		using node_ptr = std::conditional_t<is_const, const node *, node *>;
+		node_ptr n = nullptr;
+		const dancing_links *c = nullptr;
+		constexpr iterator_t(node_ptr _n, const dancing_links *_c) noexcept : n(_n), c(_c) {}
+
+	public:
+		using iterator_category = std::bidirectional_iterator_tag;
+		using value_type = T;
+		using difference_type = std::ptrdiff_t;
+		using pointer = std::conditional_t<is_const, const T *, T *>;
+		using reference = std::conditional_t<is_const, const T &, T &>;
+
+		constexpr iterator_t() noexcept = default;
+		constexpr reference operator*() const noexcept { return n->item; }
+		constexpr pointer operator->() const noexcept { return &n->item; }
+		constexpr iterator_t &operator++() noexcept { n = n->r; return *this; }
+		constexpr iterator_t operator++(int) noexcept { auto t = *this; ++*this; return t; }
+		/// `--end()` is the back
+		constexpr iterator_t &operator--() noexcept { n = (n == nullptr) ? c->back : n->l; return *this; }
+		constexpr iterator_t operator--(int) noexcept { auto t = *this; --*this; return t; }
+		constexpr bool operator==(const iterator_t &o) const noexcept { return n == o.n; }
+		constexpr bool operator!=(const iterator_t &o) const noexcept { return n != o.n; }
+	};
+	using iterator = iterator_t<false>;
+	using const_iterator = iterator_t<true>;
+
+	iterator begin() noexcept { return iterator(front, this); }
+	iterator end() noexcept { return iterator(nullptr, this); }
+	const_iterator begin() const noexcept { return const_iterator(front, this); }
+	const_iterator end() const noexcept { return const_iterator(nullptr, this); }
 
 	/// \param reverse
 	void print(const bool reverse=false) const noexcept {

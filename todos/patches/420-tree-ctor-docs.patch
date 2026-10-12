@@ -1,0 +1,38 @@
+diff --git a/src/tree.h b/src/tree.h
+index 1c9bc9a..0216c69 100644
+--- a/src/tree.h
++++ b/src/tree.h
+@@ -208,10 +208,11 @@ public:
+ 		}
+ 	}
+ 
+-	/// TODO doc
+-	/// \param d
+-	/// \param A
+-	/// \param baselist_size
++	/// creates a tree of depth `d` with `d + additional_baselists` empty
++	/// lists of `2**baselist_size` elements each
++	/// \param d depth of the tree, > 0
++	/// \param A matrix, used to compute the labels of the elements
++	/// \param baselist_size log2 of the size of each list (NOT the size)
+ 	explicit Tree_T(const uint32_t d,
+ 	                const MatrixType &A,
+ 	                const size_t baselist_size) noexcept :
+@@ -229,11 +230,12 @@ public:
+ 		base_size = 1u << baselist_size;
+ 	}
+ 
+-	/// TODO doc
+-	/// \param d
+-	/// \param A
+-	/// \param b1
+-	/// \param b2
++	/// creates a tree of depth `d` on the two (copied) base lists `b1`, `b2`.
++	/// The remaining `d + additional_baselists - 2` lists are empty.
++	/// \param d depth of the tree, > 0
++	/// \param A matrix, used to compute the labels of the elements
++	/// \param b1 first base list
++	/// \param b2 second base list, `base_size` is taken from `b1`
+ 	explicit Tree_T(const uint32_t d,
+ 	                const MatrixType &A,
+ 	                const List &b1,

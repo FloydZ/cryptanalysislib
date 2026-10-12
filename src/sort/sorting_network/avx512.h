@@ -150,10 +150,9 @@ __m512i sortingnetwork_sort_u16x32(__m512i v) {
 	COEX_u16x32(v, t, tmp);
 	v = _mm512_mask_mov_epi16(v, 0x55555555, t);
 
-	// NOTE: finished. Before, the network stopped here (`// TODO remaining 4
-	// 	layers`), i.e. both 16 element halves were sorted descending and
-	// 	nothing was merged. Reverse the lower half, so the vector is bitonic,
-	// 	and merge with distance 16, 8, 4, 2, 1 (the lower index gets the min).
+	// NOTE: here both 16 element halves are sorted descending. Reverse the
+	// 	lower half, so the vector is bitonic, and merge with distance
+	// 	16, 8, 4, 2, 1 (the lower index gets the min).
 	const __m512i rev_lo = _mm512_setr_epi16(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31);
 	const __m512i x16 = _mm512_setr_epi16(16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
 	const __m512i x8 = _mm512_setr_epi16(8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7,24,25,26,27,28,29,30,31,16,17,18,19,20,21,22,23);

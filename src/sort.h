@@ -23,7 +23,7 @@
 #include "list/list.h"
 #include "search/search.h"
 #include "sort.h"
-#include "sort/ska_sort.h"
+#include "algorithm/sort.h"
 #include "thread/thread.h"
 
 
@@ -916,16 +916,16 @@ public:
 				          return (e1.first & sortrmask2) < (e2.first & sortrmask2);
 			          });
 		} else {
-			ska_sort(__buckets.begin() + start,
-			         __buckets.begin() + end,
-			         [](auto e) -> ArgumentLimbType {
-				         // distinguish between the two cases if we are in the first/intermediate lvl
-				         if constexpr (nri == 1) {
-					         return e.first & sortrmask2;
-				         } else {
-					         return e.first & sortrmask2;
-				         }
-			         });
+			cryptanalysislib::sort(__buckets.begin() + start,
+			                       __buckets.begin() + end,
+			                       [](auto e) -> ArgumentLimbType {
+				                       // distinguish between the two cases if we are in the first/intermediate lvl
+				                       if constexpr (nri == 1) {
+					                       return e.first & sortrmask2;
+				                       } else {
+					                       return e.first & sortrmask2;
+				                       }
+			                       });
 		}
 
 		if constexpr (nrt != 1) {
@@ -1137,7 +1137,7 @@ public:
 			assert(pos < load);
 			return pos;
 		} else {
-			auto r = lower_bound_monobound_binary_search(__buckets.begin() + boffset,
+			auto r = cryptanalysislib::lower_bound_monobound_binary_search(__buckets.begin() + boffset,
 			                                             __buckets.begin() + load,
 			                                             data_target,
 			                                             [](const BucketEntry &e1) -> ArgumentLimbType {

@@ -224,7 +224,12 @@ namespace cryptanalysislib {
 		return self_tcb;
 	}
 
-	// TODO remove the linked list and use the fs register to store information
+	// NOTE: the TCB is looked up in the linked list by tid. Using the fs
+	// 	register (or `thread_local`) instead does not work here: the threads
+	// 	are created by `clone` without CLONE_SETTLS, so they share the TLS
+	// 	block (fs base) of the creating thread, and fs belongs to glibc
+	// 	(TLS, stack protector canary at fs:0x28). A private TLS block per
+	// 	thread would require setting up glibc's TCB layout by hand.
 
 	///#define THREAD_SELF (*(struct mythread_private *__seg_fs *) //offsetof (struct mythread_private, header.self))
 	/// Return pointed to the private TCB structure

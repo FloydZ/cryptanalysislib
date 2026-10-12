@@ -167,6 +167,39 @@ using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, TestSort, MyTypes);
 
 #ifdef USE_AVX2
+TEST(CountingSort, u8) {
+	// below and above the histogram switching point
+	for (const size_t n : {0ul, 1ul, 100ul, 511ul, 512ul, 5000ul}) {
+		std::vector<uint8_t> a(n);
+		size_t hist[256] = {0};
+		for (auto &x : a) { x = uint8_t(rng()); hist[x] += 1; }
+		cryptanalysislib::counting_sort_u8(a.data(), n);
+		for (size_t i = 1; i < n; ++i) { EXPECT_LE(a[i - 1], a[i]); }
+		for (const auto x : a) { hist[x] -= 1; }
+		for (size_t i = 0; i < 256; ++i) { EXPECT_EQ(hist[i], 0u); }
+	}
+}
+
+constexpr static QuickSortConfig quickSortConfig2{2};
+constexpr static QuickSortConfig quickSortConfig64{64};
+
+TEST(QuickSort, config) {
+	for (const size_t n : {0ul, 1ul, 2ul, 3ul, 9ul, 63ul, 64ul, 65ul, 1000ul}) {
+	for (const uint32_t mod : {2u, 100u, 1000000u}) {
+		std::vector<uint32_t> a(n);
+		for (auto &x : a) { x = uint32_t(rng() % mod); }
+		auto e = a; cryptanalysislib::sort(e.begin(), e.end());
+		auto b = a, c = a;
+		quick_sort(a.data(), n);
+		quick_sort<uint32_t, quickSortConfig2>(b.data(), n);
+		quick_sort<uint32_t, quickSortConfig64>(c.data(), n);
+		EXPECT_EQ(a, e);
+		EXPECT_EQ(b, e);
+		EXPECT_EQ(c, e);
+	}
+	}
+}
+
 TEST(DJBSORT, Ints32) {
 	int32_t *array8 = generate_list<int32_t>(listsize);
 	int32_sort(array8, listsize);

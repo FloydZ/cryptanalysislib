@@ -480,9 +480,17 @@ namespace cryptanalysislib {
 
 	    /// \param in1[in]: vector element
 	    /// \param in2[in]: 
-	    /// \return TODO optimize
+	    /// \return in1 / in2, lane-wise
 	    [[nodiscard]] constexpr static inline S div(const S in1,
 	                                                const limb_type in2) noexcept {
+            if constexpr (__unsigned) {
+                // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+                using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+                S out;
+                out.v128 = (__m128i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v128, in2);
+                return out;
+            }
+
             S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
                 out[i] = in1[i] / in2;
@@ -1012,6 +1020,14 @@ namespace cryptanalysislib {
 	    /// \return
 	    [[nodiscard]] constexpr static inline S div(const S in1,
 	                                                const limb_type in2) noexcept {
+            if constexpr (__unsigned) {
+                // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+                using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+                S out;
+                out.v128 = (__m128i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v128, in2);
+                return out;
+            }
+
             S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
                 out[i] = in1[i] / in2;
@@ -1474,6 +1490,14 @@ namespace cryptanalysislib {
 	    /// \return
 	    [[nodiscard]] constexpr static inline S div(const S in1,
 	                                                const limb_type in2) noexcept {
+            if constexpr (__unsigned) {
+                // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+                using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+                S out;
+                out.v128 = (__m128i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v128, in2);
+                return out;
+            }
+
             S out;
             for (uint32_t i = 0; i < LIMBS; i++) {
                 out[i] = in1[i] / in2;
@@ -2441,10 +2465,17 @@ struct Xint8x32_t {
 		return S::mullo(in1, rs);
 	}
 
-    /// TODO impl: https://github.com/ridiculousfish/libdivide/blob/master/libdivide.h#L144
-    /// definition of magic/more: https://github.com/ridiculousfish/libdivide/blob/af1db190fe740f33e08a0b541146cda85dbd5006/libdivide.h#L1382
+    /// \return in1 / in2, lane-wise
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
+        if constexpr (__unsigned) {
+            // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+            using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+            S out;
+            out.v256 = (__m256i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v256, in2);
+            return out;
+        }
+
         S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
             out[i] = in1[i] / in2;
@@ -3047,14 +3078,20 @@ struct Xint16x16_t {
 		return mullo(in1, rs);
 	}
 
-    /// TODO: https://stackoverflow.com/questions/16822757/sse-integer-division
+    /// \return in1 / in2, lane-wise
 	/// \param in1
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
-        // NOTE: exact, per lane. Was `mulhrs_epi16(in1, 32768 / in2)`, an
-        // 	approximation (and for 64 bit lanes even on 16 bit lanes).
+        if constexpr (__unsigned) {
+            // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+            using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+            S out;
+            out.v256 = (__m256i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v256, in2);
+            return out;
+        }
+
         S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
             out[i] = in1[i] / in2;
@@ -3252,23 +3289,38 @@ struct Xint16x16_t {
 		return ret;
 	}
 	
+	/// Source: https://stackoverflow.com/questions/58823140/count-leading-zero-bits-for-each-element-in-avx2-vector-emulate-mm256-lzcnt-ep
+	/// Every 16 bit value is exactly representable as a float, so its
+	/// exponent is floor(log2(x)) and clz(x) = 15 - floor(log2(x)).
 	/// \param in
-	/// \return
+	/// \return the number of leading zeros of each 16 bit lane (16 for 0)
     [[nodiscard]] constexpr static inline S clz(const S in) noexcept {
+		typedef uint32_t v16u32 __attribute__((vector_size(64)));
+		typedef int32_t v16i32 __attribute__((vector_size(64)));
+		typedef float v16f __attribute__((vector_size(64)));
+		const v16u32 x = __builtin_convertvector((__v16hu) in.v256, v16u32);
+		const v16f f = __builtin_convertvector(x, v16f);
+		const v16i32 e = ((v16i32) f >> 23) - 127;
+		const v16i32 r = (x == 0) ? v16i32{} + 16 : 15 - e;
 		S ret;
-		// TODO https://stackoverflow.com/questions/58823140/count-leading-zero-bits-for-each-element-in-avx2-vector-emulate-mm256-lzcnt-ep
-        (void)in;
+		ret.v256 = (__m256i) __builtin_convertvector(r, __v16hu);
 		return ret;
     }
 	
+	/// ctz(x) = popcnt((x - 1) & ~x)
     /// \param in
-	/// \return
+	/// \return the number of trailing zeros of each 16 bit lane (16 for 0)
     [[nodiscard]] constexpr static inline S ctz(const S in) noexcept {
-		S ret;
-		// TODO
-        (void)in;
-		return ret;
+		S t;
+		t.v256 = (__m256i) (((__v16hu) in.v256 - 1u) & ~((__v16hu) in.v256));
+		return S::popcnt(t);
     }
+
+	/// same as `clz`, same name as in the AVX-512 backend
+	[[nodiscard]] constexpr static inline S lzcnt(const S in) noexcept { return clz(in); }
+
+	/// same as `ctz`, same name as in the AVX-512 backend
+	[[nodiscard]] constexpr static inline S tzcnt(const S in) noexcept { return ctz(in); }
 
 	/// checks if all bytes are equal
 	/// \param in
@@ -3306,12 +3358,26 @@ struct Xint16x16_t {
         return ret;
     }
 
-    /// TODO
+	/// same semantics as `vpconflict` (AVX512CD), which has no 16 bit version:
+	/// lane i is the bitmask of all lanes j < i with in1[j] == in1[i].
+	/// \param in1
+	/// \return
 	[[nodiscard]] constexpr static inline S conflict(const S in1) noexcept {
+		typedef uint16_t VU __attribute__((vector_size(32)));
+		const VU x = (VU) in1.v256;
+		constexpr VU idx = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+		constexpr VU one = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+		VU r = {};
+		for (uint32_t j = 0; j < LIMBS; ++j) {
+			const VU eq = (VU) (x == x[j]);
+			const VU later = (VU) (idx > (uint16_t) j);
+			r |= (eq & later) & (one << j);
+		}
+
 		S ret;
-        (void) in1;
-        return ret;
-    }
+		ret.v256 = (__m256i) r;
+		return ret;
+	}
 
 	/// kmoves the msb into each bit
 	[[nodiscard]] constexpr static inline uint32_t move(const S in) noexcept {
@@ -3555,6 +3621,28 @@ struct Xint32x8_t {
 		}
 	}
 
+	/// masked load: lane i is loaded if bit i of `m` is set, otherwise 0.
+	/// Masked out lanes are not accessed (no fault), as in the AVX-512 version.
+	/// \param ptr
+	/// \param m lane mask
+	/// \return
+	[[nodiscard]] static inline S maskz_unaligned_load(const limb_type *ptr,
+	                                                   const Mask<LIMBS> &m) noexcept {
+		// the msb of each 32 bit lane selects it
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m));
+		const __v8su sel = (__v8su){k << 31u, k << 30u, k << 29u, k << 28u,
+		                            k << 27u, k << 26u, k << 25u, k << 24u};
+		S out;
+		out.v256 = _mm256_maskload_epi32((const int *) ptr, (__m256i) sel);
+		return out;
+	}
+
+	/// same as `maskz_unaligned_load` (no alignment needed)
+	[[nodiscard]] static inline S maskz_aligned_load(const limb_type *ptr,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		return maskz_unaligned_load(ptr, m);
+	}
+
 	/// \tparam aligned
 	/// \param ptr
 	/// \param in
@@ -3717,6 +3805,14 @@ struct Xint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S div(const S in1,
 	                                            const limb_type in2) noexcept {
+        if constexpr (__unsigned) {
+            // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
+            using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
+            S out;
+            out.v256 = (__m256i) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v256, in2);
+            return out;
+        }
+
         S out;
         for (uint32_t i = 0; i < LIMBS; i++) {
             out[i] = in1[i] / in2;
@@ -4214,6 +4310,27 @@ struct Xint64x4_t {
 			out.v256 = cryptanalysislib::internal::unaligned_load_wrapper((const __m256i_u *) ptr);
 			return out;
 		}
+	}
+
+	/// masked load: lane i is loaded if bit i of `m` is set, otherwise 0.
+	/// Masked out lanes are not accessed (no fault), as in the AVX-512 version.
+	/// \param ptr
+	/// \param m lane mask
+	/// \return
+	[[nodiscard]] static inline S maskz_unaligned_load(const limb_type *ptr,
+	                                                   const Mask<LIMBS> &m) noexcept {
+		// the msb of each 64 bit lane selects it
+		const uint64_t k = uint64_t(MaskType<LIMBS>(m));
+		const __v4du sel = (__v4du){k << 63u, k << 62u, k << 61u, k << 60u};
+		S out;
+		out.v256 = _mm256_maskload_epi64((const long long *) ptr, (__m256i) sel);
+		return out;
+	}
+
+	/// same as `maskz_unaligned_load` (no alignment needed)
+	[[nodiscard]] static inline S maskz_aligned_load(const limb_type *ptr,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		return maskz_unaligned_load(ptr, m);
 	}
 
 	/// \tparam aligned
@@ -4767,126 +4884,7 @@ static inline void avx2_store_f32x8(float *array,
 	}
 }
 
-/// TODO probably move somewhere useful `transpose.h`?
-/// Transpose a bit-matrix using the vpmovmskb instruction.
-///
-/// See Bitshuffle - https://github.com/kiyo-masui/bitshuffle (MIT)
-/// Copyright (c) 2014 Kiyoshi Masui (kiyo@physics.ubc.ca)
-inline void matrix_transpose(uint64_t At,
-					  const uint64_t A,
-					  const size_t nrows,
-                      const size_t ncols) {
-  uint8_t in[32] __attribute__((aligned(32)));
-
-	for (size_t i = 0; i < (nrows + 31) / 32; i += 1) {
-		for (size_t j = 0; j < (ncols + 7) / 8; j += 1) {
-			for (size_t k = 0; k < 32; ++k) {
-				in[k] = (((uint8_t **) A)[k + i * 32])[j];
-			}
-
-			__m256i vec_x = *((__m256i *) in);
-			for (size_t k = 8; k-- > 0;) {
-				int32_t hi = _mm256_movemask_epi8(vec_x);
-				vec_x = _mm256_slli_epi16(vec_x, 1);
-				(((int32_t **) At)[k + j * 8])[i] = hi;
-			}
-		}
-	}
-}
-
-/// TODO probably move somewhere useful `transpose.h`?
-// Transpose bytes within elements, starting partway through input.
-static constexpr int64_t bshuf_trans_byte_elem_remainder(const void* in,
-                                                         void* out,
-                                        				 const size_t size,
-                                        				 const size_t elem_size,
-                                                         const size_t start) noexcept {
-
-	size_t ii, jj, kk;
-	const char* in_b = (const char*) in;
-	char* out_b = (char*) out;
-
-	// CHECK_MULT_EIGHT(start);
-
-	if (size > start) {
-		// ii loop separated into 2 loops so the compiler can unroll
-		// the inner one.
-		for (ii = start; ii + 7 < size; ii += 8) {
-			for (jj = 0; jj < elem_size; jj++) {
-				for (kk = 0; kk < 8; kk++) {
-					out_b[jj * size + ii + kk]
-					        = in_b[ii * elem_size + kk * elem_size + jj];
-				}
-			}
-		}
-		for (ii = size - size % 8; ii < size; ii ++) {
-			for (jj = 0; jj < elem_size; jj++) {
-				out_b[jj * size + ii] = in_b[ii * elem_size + jj];
-			}
-		}
-	}
-	return size * elem_size;
-}
-
-// Transpose bytes within elements for 16 byte elements.
-/// input: [0, 1, 2, 3, ..., 31] // each number is 8 bits
-/// output:[1, 3, ...,  0, 2, ... ]
-/// 	pos:0, 1,      16,17
-/// \param out
-/// \param in
-/// \param size
-/// \return
-inline uint64_t bshuf_trans_byte_elem_SSE_16(void* out,
-        							  const void* in,
-                                      const size_t size) {
-    size_t ii;
-    const char *in_b = (const char*) in;
-    char *out_b = (char*) out;
-    __m128i a0, b0, a1, b1;
-
-    for (ii=0; ii + 15 < size; ii += 16) {
-        a0 = _mm_loadu_si128((__m128i *) &in_b[2*ii + 0*16]);
-        b0 = _mm_loadu_si128((__m128i *) &in_b[2*ii + 1*16]);
-
-        a1 = _mm_unpacklo_epi8(a0, b0);
-        b1 = _mm_unpackhi_epi8(a0, b0);
-
-        a0 = _mm_unpacklo_epi8(a1, b1);
-        b0 = _mm_unpackhi_epi8(a1, b1);
-
-        a1 = _mm_unpacklo_epi8(a0, b0);
-        b1 = _mm_unpackhi_epi8(a0, b0);
-
-        a0 = _mm_unpacklo_epi8(a1, b1);
-        b0 = _mm_unpackhi_epi8(a1, b1);
-
-        _mm_storeu_si128((__m128i *) &out_b[0*size + ii], a0);
-        _mm_storeu_si128((__m128i *) &out_b[1*size + ii], b0);
-    }
-
-    return bshuf_trans_byte_elem_remainder(in, out, size, 2,
-            size - size % 16);
-}
-
-/// transopse of 32bit entries
-inline void sse_transpose_4x4_dwords(__m128i w0, __m128i w1,
-                                     __m128i w2, __m128i w3,
-                                     __m128i &r0, __m128i &r1,
-                                     __m128i &r2, __m128i &r3) noexcept {
-    // 0  1  2  3
-    // 4  5  6  7
-    // 8  9  10 11
-    // 12 13 14 15
-
-    __m128i x0 = (__m128i)_mm_shuffle_ps((__m128)w0, (__m128)w1, _MM_SHUFFLE(0, 1, 0, 1)); // 0 1 4 5
-    __m128i x1 = (__m128i)_mm_shuffle_ps((__m128)w0, (__m128)w1, _MM_SHUFFLE(2, 3, 2, 3)); // 2 3 6 7
-    __m128i x2 = (__m128i)_mm_shuffle_ps((__m128)w2, (__m128)w3, _MM_SHUFFLE(0, 1, 0, 1)); // 8 9 12 13
-    __m128i x3 = (__m128i)_mm_shuffle_ps((__m128)w2, (__m128)w3, _MM_SHUFFLE(2, 3, 2, 3)); // 10 11 14 15
-
-    r0 = (__m128i)_mm_shuffle_ps((__m128)x0, (__m128)x2, _MM_SHUFFLE(0, 2, 0, 2));
-    r1 = (__m128i)_mm_shuffle_ps((__m128)x0, (__m128)x2, _MM_SHUFFLE(1, 3, 1, 3));
-    r2 = (__m128i)_mm_shuffle_ps((__m128)x1, (__m128)x3, _MM_SHUFFLE(0, 2, 0, 2));
-    r3 = (__m128i)_mm_shuffle_ps((__m128)x1, (__m128)x3, _MM_SHUFFLE(1, 3, 1, 3));
-}
+// bit/byte matrix transposes (bitshuffle)
+#include "simd/avx2_transpose.h"
 
 #endif

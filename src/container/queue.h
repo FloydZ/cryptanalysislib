@@ -3,6 +3,8 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
+#include <type_traits>
 #include <limits>
 #include <queue>
 #include <mutex>
@@ -181,11 +183,20 @@ private:
 	mutable Lock mutex_{};
 };
 
-// TODO
-template <typename Type>
-class queue
-// Implementation of a queue
-{
+namespace cryptanalysislib {
+/// FIFO ring buffer queue (from the fxtbook), optionally growing by `gq`
+/// elements when full.
+/// \tparam Type trivially copyable element type (the buffer holds no
+/// 	constructed objects)
+/// \tparam Allocator allocator of the buffer (STL interface, assumed
+/// 	stateless). The default `std::allocator` is `cryptanalysislib::allocator`,
+/// 	which cannot be named here, as `alloc/alloc.h` includes this header.
+template <typename Type,
+          template<class> class Allocator = std::allocator>
+class queue {
+	static_assert(std::is_trivially_copyable_v<Type>);
+	using allocator_type = Allocator<Type>;
+	using traits = std::allocator_traits<allocator_type>;
 public:
     Type *x_;   // pointer to data
     uint64_t s_;   // allocated size (# of elements)
@@ -198,30 +209,32 @@ public:
     queue & operator = (const queue&) = delete;
 
 public:
-    explicit queue(uint64_t n, uint64_t growq=0)
-    {
+    /// \param n initial capacity (> 0)
+    /// \param growq number of elements to grow by if full, 0: never grow
+    explicit queue(uint64_t n, uint64_t growq=0) noexcept {
+        allocator_type a{};
         s_ = n;
-//        x_ = new Type[s_];
-        x_ = (Type *)std::malloc( s_ * sizeof(Type) );
+        x_ = traits::allocate(a, s_);
         n_ = 0;
         wpos_ = 0;
         rpos_ = 0;
         gq_ = growq;
     }
 
-    ~queue()  { std::free( x_ ); }
+    ~queue() noexcept {
+        allocator_type a{};
+        traits::deallocate(a, x_, s_);
+    }
 
-    uint64_t num()  const  { return n_; }
+    /// \return number of entries
+    uint64_t num() const noexcept { return n_; }
 
-    uint64_t push(const Type &z)
-    // Return number of entries.
-    // Zero is returned on failure
-    //   (i.e. space exhausted and 0==gq_)
-    {
-        if ( n_ >= s_ )
-        {
+    /// appends `z`
+    /// \return number of entries, 0 on failure (full and 0 == gq_)
+    uint64_t push(const Type &z) noexcept {
+        if ( n_ >= s_ ) {
             if ( 0==gq_ )  return 0;  // growing disabled
-            grow();
+            if (!grow()) { return 0; }
         }
 
         x_[wpos_] = z;
@@ -232,22 +245,19 @@ public:
         return n_;
     }
 
-    uint64_t peek(Type &z)
-    // Return number of entries.
-    // if zero is returned the value of z is undefined.
-    {
-        z = x_[rpos_];
+    /// reads the oldest entry without removing it
+    /// \return number of entries; if zero, the value of z is undefined
+    uint64_t peek(Type &z) const noexcept {
+        if (n_) { z = x_[rpos_]; }
         return n_;
     }
 
-    uint64_t pop(Type &z)
-    // Return number of entries before pop
-    // i.e. zero is returned if queue was empty.
-    // If zero is returned the value of z is undefined.
-    {
+    /// removes the oldest entry
+    /// \return number of entries before the pop, i.e. zero if the queue
+    /// 	was empty (then `z` is unchanged)
+    uint64_t pop(Type &z) noexcept {
         uint64_t ret = n_;
-        if ( 0!=n_ )
-        {
+        if ( 0!=n_ ) {
             z = x_[rpos_];
             ++rpos_;
             if ( rpos_ >= s_ )  rpos_ = 0;
@@ -258,15 +268,25 @@ public:
     }
 
 private:
-    void grow()
-    {
-        uint64_t ns = s_ + gq_;  // new size
-        // move read-position to zero:
-        rotate_left(x_, s_, rpos_);
-        x_ = ReAlloc<Type>(x_, ns, s_);
+    /// \return false if the allocation failed (the queue is unchanged)
+    bool grow() noexcept {
+        const uint64_t ns = s_ + gq_;  // new size
+        allocator_type a{};
+        Type *nx = traits::allocate(a, ns);
+        if (nx == nullptr) { return false; }
+        // the queue is full here, i.e. the entries are x_[rpos_..s_)
+        // followed by x_[0..rpos_): copy them in this order to the front
+        for (uint64_t i = 0; i < s_; ++i) {
+            const uint64_t j = rpos_ + i;
+            nx[i] = x_[(j < s_) ? j : (j - s_)];
+        }
+        traits::deallocate(a, x_, s_);
+        x_ = nx;
         wpos_ = s_;
         rpos_ = 0;
         s_ = ns;
+        return true;
     }
 };
+} // end namespace cryptanalysislib
 #endif//CRYPTANALYSISLIB_QUEUE_H

@@ -1,0 +1,153 @@
+diff --git a/src/container/imap.h b/src/container/imap.h
+index dca407b..2d75a1c 100644
+--- a/src/container/imap.h
++++ b/src/container/imap.h
+@@ -14,12 +14,14 @@
+ #if defined(USE_AVX2) || defined (USE_AVX512F)
+ #include <immintrin.h>
+ #endif
++#include <iterator>
++
++#include "algorithm/countl.h"
+ 
+ using namespace cryptanalysislib::popcount;
+ using namespace cryptanalysislib::algorithm;
+ using namespace cryptanalysislib;
+    
+-// TODO iterators
+ // TODO remove? use __uint128?
+ typedef struct imap_u128 {
+     uint64_t v[2];
+@@ -52,7 +54,8 @@ struct ImapConfig : public AlignmentConfig {
+ };
+ constexpr static ImapConfig imapConfig{};
+ 
+-/// TODO templates for bsr/popcount etc algorithm
++/// NOTE: STL style iteration: `for (const imap_pair_t p : tree) { ... }`
++/// 	(ascending keys, `p.slot` points to the value slot, see `getval`)
+ template<typename Allocator = AlignmentMallocator<imap_node_t, sizeof(imap_node_t)>,
+          const ImapConfig &config=imapConfig>
+ struct imap_tree_t {
+@@ -73,11 +76,10 @@ public:
+ 	typedef imap_iter_t     iterator;
+ 	typedef const imap_iter_t const_iterator;
+ 
+-    /// TODO move to algorithms bits
+ 	/// \param x
+-	/// \return
++	/// \return the index of the highest set bit of `x | 1`
+ 	constexpr static inline uint32_t __bsr__(const uint64_t x) noexcept {
+-        return 63u - __builtin_clzll(x | 1u);
++        return 63u - cryptanalysislib::countl_zero(x | 1u);
+     }
+ 
+ 	/// \param x
+@@ -87,8 +89,12 @@ public:
+     }
+ 
+ 
+-    // TODO neon and doc
++    // NOTE: no NEON version, the scalar fallbacks `imap__extract_lo4__`/
++    // 	`imap__deposit_lo4__` are used there
+ #if defined (USE_AVX2)
++    /// \param vec32[in]: the 16 slots of a node (64 byte aligned)
++    /// \return the low 4 bits of every slot, packed: slot 2k at bits 4k,
++    /// 	slot 2k+1 at bits 32+4k (k = 0..7)
+     static inline
+     uint64_t imap__extract_lo4_simd__(const uint32_t vec32[16]) noexcept {
+ #if defined (USE_AVX512F)
+@@ -110,6 +116,9 @@ public:
+ #endif
+     }
+ 
++	/// inverse of `imap__extract_lo4_simd__`: writes the 4 bit fields of
++	/// `value` (same layout) into the low 4 bits of the 16 slots, the other
++	/// bits of the slots are kept
+ 	static inline
+     void imap__deposit_lo4_simd__(const uint32_t vec32[16],
+ 							 	  const uint64_t value) noexcept {
+@@ -818,6 +827,42 @@ public:
+         return imap__pair_zero__;
+     }
+ 
++    /// forward iterator over the (key, slot) pairs in ascending key order
++    /// NOTE: invalidated by `assign`/`remove`
++    class pair_iterator {
++        friend struct imap_tree_t;
++        imap_tree_t *t = nullptr;
++        imap_iter_t it{};
++        imap_pair_t p{0, nullptr};
++
++    public:
++        using iterator_category = std::forward_iterator_tag;
++        using value_type = imap_pair_t;
++        using difference_type = std::ptrdiff_t;
++        using pointer = const imap_pair_t *;
++        using reference = const imap_pair_t &;
++
++        pair_iterator() noexcept = default;
++        reference operator*() const noexcept { return p; }
++        pointer operator->() const noexcept { return &p; }
++        pair_iterator &operator++() noexcept { p = t->iterate(&it, 0); return *this; }
++        pair_iterator operator++(int) noexcept { auto c = *this; ++*this; return c; }
++        /// all end iterators (slot == nullptr) are equal
++        bool operator==(const pair_iterator &o) const noexcept { return p.slot == o.p.slot; }
++        bool operator!=(const pair_iterator &o) const noexcept { return !(*this == o); }
++    };
++
++    /// \return iterator to the smallest key
++    pair_iterator begin() noexcept {
++        pair_iterator r;
++        r.t = this;
++        r.p = iterate(&r.it, 1);
++        return r;
++    }
++
++    /// \return past the end iterator
++    pair_iterator end() noexcept { return pair_iterator{}; }
++
+     void free() noexcept {
+ 	    Allocator::deallocate(tree, 0);
+ 	    tree = nullptr;
+diff --git a/tests/container/imap.cpp b/tests/container/imap.cpp
+index 20bcf50..185f76f 100644
+--- a/tests/container/imap.cpp
++++ b/tests/container/imap.cpp
+@@ -1,4 +1,5 @@
+ #include <gtest/gtest.h>
++#include <map>
+ #include <iostream>
+ #include <cstdio>
+ #include <cstdint>
+@@ -1104,6 +1105,31 @@ TEST(imap, locate) {
+ 	EXPECT_EQ(0, slot);
+ }
+ 
++/// STL style iteration: ascending keys, values via getval, against std::map
++TEST(imap, stl_iterator) {
++	imap_tree_t tree(1);
++	std::map<uint64_t, uint32_t> e;
++	EXPECT_TRUE(tree.begin() == tree.end());
++	for (uint32_t i = 0; i < 2000; ++i) {
++		const uint64_t k = (uint64_t(rand()) << 16u) ^ uint64_t(rand());
++		tree.ensure(+1);
++		uint32_t *slot = tree.assign(k);
++		ASSERT_NE(slot, nullptr);
++		const uint32_t v = (i + 1) & 0x7ffffu;
++		tree.setval(slot, v);
++		e[k] = v;
++	}
++	auto ie = e.begin();
++	size_t n = 0;
++	for (const imap_pair_t p : tree) {
++		ASSERT_NE(ie, e.end());
++		EXPECT_EQ(p.x, ie->first);
++		EXPECT_EQ(tree.getval(p.slot), ie->second);
++		++ie; ++n;
++	}
++	EXPECT_EQ(n, e.size());
++}
++
+ int main(int argc, char **argv) {
+     InitGoogleTest(&argc, argv);
+ 	rng_seed(time(nullptr));

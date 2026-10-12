@@ -159,12 +159,8 @@ public:
 	// given the i-th bit this function will return a bits mask where the higher (n-i)bits are set.
 	[[nodiscard]] constexpr static T higher_mask(const uint16_t i) noexcept {
 		assert(i <= length);
-		// TODO better formula
-		if ((i % limb_bits_width()) == 0) {
-			return T(-1);
-		}
-
-		return (~((T(1u) << (i % limb_bits_width())) - 1));
+		// NOTE: branch free: for i % limb_bits_width() == 0 this is T(-1)
+		return T(T(-1) << (i % limb_bits_width()));
 	}
 
 	// given the i-th bit this function will return a bits mask where the lower 'n-i' bits are set. Everything will be
@@ -201,7 +197,6 @@ public:
 	[[nodiscard]] constexpr inline T get_bits(const uint16_t i,
 	                            const uint16_t j) const noexcept {
 		assert(j > i && j - i <= limb_bits_width() && j <= length);
-        /// TODO use _bextr_u64 (needs bmi2)
 		const T lmask = higher_mask(i);
 		const T rmask = lower_mask2(j);
 		const int64_t lower_limb = i / limb_bits_width();
@@ -209,6 +204,15 @@ public:
 
 		const uint64_t shift = i % limb_bits_width();
 		if (lower_limb == higher_limb) {
+#ifdef USE_BMI2
+			// NOTE: one `shrx` + `bzhi` (`bzhi` keeps the lower j - i bits, for
+			// 	j - i == 64 everything) instead of two masks
+			if constexpr (sizeof(T) == 8) {
+				if !consteval {
+					return T(_bzhi_u64(uint64_t(__data[lower_limb]) >> shift, uint32_t(j - i)));
+				}
+			}
+#endif
 			return (__data[lower_limb] & lmask & rmask) >> (shift);
 		} else {
 			const T a = __data[lower_limb] & lmask;
@@ -865,14 +869,14 @@ public:
 				return false;
 			}
 
-			// todo avx512 support
-			constexpr uint32_t limb_size = 256u/(sizeof(T)*8);
+			// widest SIMD type (AVX-512 if available, else 256 bit)
+			using S = SIMDSelector<T>;
+			constexpr uint32_t limb_size = S::LIMBS;
 			uint32_t i = lower_limb + 1;
 			for (; i + limb_size <= higher_limb; i += limb_size) {
-				uint32x8_t x_ = uint32x8_t::load<false>((uint32_t *)(v1 + i));
-				uint32x8_t y_ = uint32x8_t::load<false>((uint32_t *)(v2 + i));
-				uint32x8_t z_ = x_ ^ y_;
-				uint32x8_t::store((uint32_t *)(v3 + i), z_);
+				const S x_ = S::template load<false>(v1 + i);
+				const S y_ = S::template load<false>(v2 + i);
+				S::template store<false>(v3 + i, x_ ^ y_);
 			}
 
 			for (; i < higher_limb; ++i) {
@@ -953,7 +957,8 @@ public:
 	                                            T const *v1,
 	                                            T const *v2) noexcept {
 		uint32_t cnorm = 0;
-		// TODO optimize with avx
+		// NOTE: no explicit SIMD needed: gcc 15 -O3 vectorizes this loop
+		// 	(vpxorq + vpopcntq with AVX-512 VPOPCNTDQ, checked in the asm)
 		for (uint32_t i = 0; i < limbs(); ++i) {
 			v3[i] = v1[i] ^ v2[i];
 			cnorm += popcnt_T(v3[i]);
@@ -1170,14 +1175,14 @@ public:
 			return false;
 		}
 
-		// todo avx512 support
-		constexpr uint32_t limb_size = 256u/(sizeof(T)*8);
+		// widest SIMD type (AVX-512 if available, else 256 bit)
+		using S = SIMDSelector<T>;
+		constexpr uint32_t limb_size = S::LIMBS;
 		uint32_t i = lower_limb + 1;
 		for (; i + limb_size <= higher_limb; i += limb_size) {
-			uint32x8_t x_ = uint32x8_t::load<false>((uint32_t *)(v1.ptr() + i));
-			uint32x8_t y_ = uint32x8_t::load<false>((uint32_t *)(v2.ptr() + i));
-			uint32x8_t z_ = x_ & y_;
-			uint32x8_t::store((uint32_t *)(v3.ptr() + i), z_);
+			const S x_ = S::template load<false>(v1.ptr() + i);
+			const S y_ = S::template load<false>(v2.ptr() + i);
+			S::template store<false>(v3.ptr() + i, x_ & y_);
 		}
 
 		for (; i < higher_limb; ++i) {
@@ -1245,7 +1250,32 @@ public:
 		}
 	}
 
-	// TODO missing rol/ror
+	/// rotate left (towards the higher indices), same semantics as
+	/// `FqNonPackedVectorMeta::rol`: out[(j + s) % length] = in[j]
+	/// NOTE: `out` and `in` must not be the same object
+	constexpr static inline void rol(FqPackedVector &out,
+	                                 const FqPackedVector &in,
+	                                 const uint32_t s) noexcept {
+		assert(s < length);
+		assert(&out != &in);
+		for (uint32_t j = 0; j < length; ++j) {
+			out.write_bit((j + s) % length, in.get_bit_shifted(j));
+		}
+	}
+
+	/// rotate right (towards the lower indices), same semantics as
+	/// `FqNonPackedVectorMeta::ror`: out[j] = in[(j + s) % length]
+	/// NOTE: `out` and `in` must not be the same object
+	constexpr static inline void ror(FqPackedVector &out,
+	                                 const FqPackedVector &in,
+	                                 const uint32_t s) noexcept {
+		assert(s < length);
+		assert(&out != &in);
+		for (uint32_t j = 0; j < length; ++j) {
+			out.write_bit(j, in.get_bit_shifted((j + s) % length));
+		}
+	}
+
 	///  out[s: ] = in[0:s]
 	constexpr static inline void sll(FqPackedVector &out,
 	                               const FqPackedVector &in,
@@ -1297,7 +1327,8 @@ public:
 	constexpr static inline uint32_t dist(const FqPackedVector &a,
 	                                      const FqPackedVector &b) noexcept {
 		uint32_t ret = 0;
-		// TODO simd
+		// NOTE: no explicit SIMD needed: gcc 15 -O3 vectorizes this loop
+		// 	(vpxorq + vpopcntq with AVX-512 VPOPCNTDQ, checked in the asm)
 		for (uint32_t i = 0; i < limbs(); ++i) {
 			ret += popcnt_T(a.__data[i] ^ b.__data[i]);
 		}

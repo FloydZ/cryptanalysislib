@@ -1,0 +1,30 @@
+diff --git a/src/container/fq_packed_vector.h b/src/container/fq_packed_vector.h
+index 91928ea..8952f3d 100644
+--- a/src/container/fq_packed_vector.h
++++ b/src/container/fq_packed_vector.h
+@@ -114,22 +114,9 @@ public:
+ 		__data[0] = t;
+ 	}
+ 
+-	// TODO was damit machen nochmal?
+-	//constexpr kAryPackedContainer_Meta () noexcept : __data(){}
+-	//constexpr kAryPackedContainer_Meta (kAryPackedContainer_Meta const &obj) noexcept : __data(obj.__data) {}
+-	//constexpr kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta const &obj) noexcept {
+-	//	if (this != &obj) {
+-	//		std::copy(&obj.__data[0], &obj.__data[0] + obj.__data.size(), &this->__data[0]);
+-	//	}
+-	//	return *this;
+-	//}
+-	//constexpr kAryPackedContainer_Meta &operator=(kAryPackedContainer_Meta &&obj) noexcept {
+-	// 	// self-assignment check expected really?
+-	// 	if (this != &obj) {
+-	// 		__data = std::move(obj.__data);
+-	// 	}
+-	// 	return *this;
+-	//}
++	// NOTE: no user defined copy/move constructors or assignments: the
++	// 	implicitly generated ones (memberwise, `__data` is an array) are
++	// 	used.
+ 
+     /// \tparam l[in]: lower bound (inclusive)
+     /// \tparam h[in]: upper bound (exclusive)

@@ -43,7 +43,7 @@ TEST(ListEnumerateMultiFullLength, single_list) {
 	HT.random();
 
 	Label syndrome;
-	syndrome.zero(); // TODO if not zeri it errors
+	syndrome.random();
 	ListEnumerateMultiFullLength<List, n, q, w> enumerator{HT, 0, &syndrome};
 	//enumerator.run<std::nullptr_t, std::nullptr_t, std::nullptr_t>(&L, nullptr);
 	enumerator.run(&L);
@@ -80,6 +80,57 @@ TEST(ListEnumerateMultiFullLength, single_hashmap) {
 
 		// make sure we found something
 		EXPECT_NE(pos, size_t(-1));
+	}
+}
+
+/// the labels are updated incrementally, they must be equal to HT*e + s
+TEST(ListEnumerateMultiFullLength, labels_with_syndrome) {
+	List L(list_size);
+	Matrix HT;
+	HT.random();
+
+	Label syndrome;
+	syndrome.random();
+	ListEnumerateMultiFullLength<List, n, q, 2> enumerator{HT, 0, &syndrome};
+	constexpr size_t ls = ListEnumerateMultiFullLength<List, n, q, 2>::max_list_size;
+	List L2(ls);
+	enumerator.run(&L2);
+
+	for (size_t i = 0; i < ls; ++i) {
+		Element t = L2[i];
+		t.recalculate_label(HT);
+		Label::add(t.label, t.label, syndrome);
+		EXPECT_TRUE(t.label.is_equal(L2.data_label(i)));
+		EXPECT_EQ(L2.data_value(i).popcnt(), 2);
+	}
+}
+
+/// value mod 3, label mod 2**32 (as in `BCJ`): the label update must not
+/// rely on `q * HT[i] == 0`.
+TEST(ListEnumerateMultiFullLength, labels_ternary_subsetsum) {
+	using T = uint64_t;
+	constexpr uint32_t n = 16;
+	constexpr uint64_t q = 1ull << 32;
+	using Value = FqPackedVector<n, 3, T, true>;
+	using Label = kAry_Type_T<q>;
+	using Matrix = FqVector<T, n, q>;
+	using Element = Element_T<Value, Label, Matrix>;
+	using List = List_T<Element>;
+	using Enumerator = ListEnumerateMultiFullLength<List, n/2, 3, 2>;
+
+	constexpr size_t ls = Enumerator::max_list_size;
+	List L1(ls), L2(ls);
+	Matrix A;
+	A.random();
+	Enumerator en{A};
+	en.run(&L1, &L2, n/2);
+
+	for (size_t i = 0; i < ls; ++i) {
+		for (const List *L : {&L1, &L2}) {
+			Element t = (*L)[i];
+			t.recalculate_label(A);
+			EXPECT_TRUE(t.label.is_equal(L->data_label(i)));
+		}
 	}
 }
 
@@ -197,6 +248,69 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap) {
 	}
 }
 
+/// noreps_w = 3: weights and labels (HT*e) after the reset of the noreps
+/// part, L1 is hashed into `hm` and L3 into `hm3`.
+TEST(ListEnumerateSinglePartialSingle, hashmap_noreps3) {
+	constexpr uint32_t n = 32, k = 2, q = 4;
+	using Value = FqPackedVector<n, q, T>;
+	using Label = FqPackedVector<n - k, q, T>;
+	using Matrix = FqMatrix<T, n, n - k, q>;
+	using Element = Element_T<Value, Label, Matrix>;
+	using List = List_T<Element>;
+
+	constexpr uint32_t mitm_w = 2;
+	constexpr uint32_t noreps_w = 3;
+	constexpr uint32_t split = n / 2;
+	using Enumerator = ListEnumerateSinglePartialSingle<List, n, q, mitm_w, noreps_w, split>;
+	constexpr size_t list_size = Enumerator::LIST_SIZE;
+
+	using HK = uint64_t;
+	constexpr static SimpleHashMapConfig cfg{32, 1u << l, 1};
+	using HM = SimpleHashMap<HK, V, cfg, Hash<HK, 0, l, 2>>;
+	auto extractor = [](const Label label) -> HK {
+		constexpr uint64_t mask = (1ull << l) - 1ull;
+		return label.ptr()[0] & mask;
+	};
+
+	List L1(list_size), L2(list_size), L3(list_size), L4(list_size);
+	auto *hm = new HM{}, *hm3 = new HM{};
+	Matrix HT;
+	HT.random();
+	Enumerator enumerator{q - 1, HT};
+	enumerator.template run<HM, decltype(extractor), std::nullptr_t>
+	        (L1, L2, L3, L4, 0, hm, &extractor, nullptr, hm3);
+
+	auto contains = [&](const HM *h, const List &L, const size_t i) {
+		typename HM::load_type load = 0;
+		const auto pos = h->find(extractor(L.data_label(i)), load);
+		for (size_t j = 0; j < load; ++j) {
+			if (h->ptr(pos + j)[0] == i) { return true; }
+		}
+		return false;
+	};
+
+	for (const List *L : {&L1, &L2, &L3, &L4}) {
+		for (size_t i = 0; i < list_size; ++i) {
+			EXPECT_EQ(L->data_value(i).popcnt(), mitm_w + noreps_w);
+			Element t = (*L)[i];
+			t.recalculate_label(HT);
+			EXPECT_TRUE(t.label.is_equal(L->data_label(i)));
+
+			// all elements are distinct
+			for (size_t j = 0; j < i; ++j) {
+				EXPECT_FALSE(L->data_value(i).is_equal(L->data_value(j)));
+			}
+		}
+	}
+
+	for (size_t i = 0; i < list_size; ++i) {
+		EXPECT_TRUE(contains(hm, L1, i));
+		EXPECT_TRUE(contains(hm3, L3, i));
+	}
+
+	delete hm; delete hm3;
+}
+
 TEST(ListEnumerateSinglePartialSingle, simple_nohashmap_subsetsum) {
 	using T = uint64_t;
 
@@ -280,6 +394,57 @@ TEST(BinarySinglePartialSingleEnumerator, simple_nohashmap_subsetsum) {
 		EXPECT_EQ(L3.data_value(i).popcnt(split, n), noreps_w);
 		EXPECT_EQ(L4.data_value(i).popcnt(split, n), noreps_w);
 	}
+}
+
+/// L1 is hashed into `hm`, L3 into `hm3`, each with its list index
+TEST(BinarySinglePartialSingleEnumerator, hashmap_subsetsum) {
+	using T = uint64_t;
+
+	constexpr uint64_t n = 20;
+	constexpr uint64_t q = 1ull<<n;
+	using Label = kAry_Type_T<q>;
+	using Value = FqPackedVector<n, q, T>;
+	using Matrix = FqVector<T, n, q>;
+	using Element = Element_T<Value, Label, Matrix>;
+	using List = List_T<Element>;
+
+	constexpr uint32_t mitm_w = 2;
+	constexpr uint32_t noreps_w = 2;
+	constexpr uint32_t split = n / 2;
+	using Enumerator = BinarySinglePartialSingleEnumerator<List, n, mitm_w, noreps_w, split>;
+
+	using HK = uint64_t;
+	constexpr static SimpleHashMapConfig cfg{16, 1u << l, 1};
+	using HM = SimpleHashMap<HK, V, cfg, Hash<HK, 0, l, 2>>;
+	auto extractor = [](const Label label) -> HK {
+		constexpr uint64_t mask = (1ull << l) - 1ull;
+		return label.value() & mask;
+	};
+
+	constexpr size_t list_size = Enumerator::LIST_SIZE;
+	List L1(list_size), L2(list_size), L3(list_size), L4(list_size);
+	auto *hm = new HM{}, *hm3 = new HM{};
+	Matrix HT;
+	HT.random();
+	Enumerator enumerator{HT};
+	enumerator.template run<HM, decltype(extractor), std::nullptr_t>
+	        (L1, L2, L3, L4, 0, hm, &extractor, nullptr, hm3);
+
+	auto contains = [&](const HM *h, const List &L, const size_t i) {
+		typename HM::load_type load = 0;
+		const auto pos = h->find(extractor(L.data_label(i)), load);
+		for (size_t j = 0; j < load; ++j) {
+			if (h->ptr(pos + j)[0] == i) { return true; }
+		}
+		return false;
+	};
+
+	for (size_t i = 0; i < list_size; ++i) {
+		EXPECT_TRUE(contains(hm, L1, i));
+		EXPECT_TRUE(contains(hm3, L3, i));
+	}
+
+	delete hm; delete hm3;
 }
 
 TEST(ListEnumerateMultiDisjointBlock, simple_nohashmap) {

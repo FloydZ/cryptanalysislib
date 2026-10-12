@@ -10,7 +10,8 @@
 #include <cassert>
 
 // TODO SIMD version 
-// TODO add namespace
+
+namespace cryptanalysislib::hash {
 
 /// Computes a FNV-1 hash for the provided data
 /// Implementation based on: https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV-1_hash
@@ -73,4 +74,5 @@ template<typename T=uint64_t>
 	}
 }
 
+} // end namespace cryptanalysislib::hash
 #endif

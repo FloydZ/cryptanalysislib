@@ -1,0 +1,391 @@
+CMakeLists.txt	205	TODO	port this to the cmake project	001	skip
+README.md	171	TODO	`===`	007	skip
+bench/loop_fusion/simple.cpp	21	TODO	independe code	008	skip
+bench/subsetsum/rho.cpp	18	TODO	currently the python optimizer outputs wrong values	009	skip
+bench/thread/sum_tree.cpp	74	TODO	port `heartbeatsum` once the heartbeat scheduler is usable again		
+cryptanalysislib/main.py	22	TODO	generate this dict from files from a subfolder: so the whole thing	012	skip
+cryptanalysislib/main.py	31	TODO	maybe name all targets: bench_${algoname}	013	done
+cryptanalysislib/optimizers/subsetsum/bcj.py	24	TODO	`return False, {}`	018	skip
+cryptanalysislib/optimizers/subsetsum/hgj.py	23	TODO	`return False, {}`	019	skip
+src/algorithm/fill.h	21	TODO	implement SIMD algorithms	029	done
+src/algorithm/matrix.h	15	TODO	`inline double A[MAXN], B[MAXN], C[MAXN], D[MAXN], X[MAXN];`	044	skip
+src/algorithm/minmax.h	20	TODO	make iterator version of this	058	done
+src/algorithm/mq/fes.h	289	FIXME	consider getting rid of this. This function is internal !	061	skip
+src/algorithm/mq/fes.h	605	TODO	to fix the issue with 10 is to greate two more kernels which only enumerate 6 or 7 variables	062	skip
+src/algorithm/mq/fes.h	631	TODO	iterativer revolving door ansatz	063	skip
+src/algorithm/mq/fes.h	650	TODO	gamma is not correct, need to proper understand it.	064	skip
+src/algorithm/partition.h	17	TODO	simd versions	067	skip
+src/algorithm/pcs.h	10	TODO	multithreading and then pcs	069	skip
+src/algorithm/pcs.h	11	TODO	gospers cycle finding	070	skip
+src/algorithm/pcs.h	258	TODO	probaly also safe the length of the walk within the distinguished point data set	072	dup
+src/algorithm/pcs.h	264	TODO	flavour — `T v = cryptanalysislib::rng();`	073	dup
+src/algorithm/pcs.h	289	TODO	`std::vector<std::future<bool>> futures;`	074	dup
+src/algorithm/pcs.h	299	TODO	reconstruct or whatever	075	dup
+src/algorithm/rsa.h	12	TODO	generic Fq numbers	086	skip
+src/algorithm/sat/bruteforce.h	52	TODO	write python script which unrolls everything	091	skip
+src/algorithm/sat/cdcl.h	32	TODO	class: with allocator	092	skip
+src/algorithm/sat/cdcl.h	33	TODO	add PR https://github.com/marijnheule/microsat/pulls	093	skip
+src/algorithm/sat/cdcl.h	34	TODO	class for literal	094	skip
+src/algorithm/set_intersection.h	13	TODO	simd version	101	
+src/algorithm/set_intersection.h	14	TODO	parrallel version	102	
+src/algorithm/shift.h	7	todo	replace ExecPolicy with my parallel policy	104	
+src/algorithm/sort.h	5	TODO	doc — `template<class ForwardIt>`	105	
+src/algorithm/sort.h	13	TODO	doc — `template<class ForwardIt,`	106	
+src/algorithm/sort.h	33	TODO	doc — `template<class ForwardIt>`	107	
+src/algorithm/sort.h	40	TODO	doc — `template<class ForwardIt, class Compare>`	108	
+src/algorithm/subsetsum.h	52	TODO	image and explanation of config parameters	109	
+src/algorithm/subsetsum.h	539	TODO	`constexpr static size_t L1_bucketsize = 100; // factor * (Enumerator::max_list_size >> (instance.l1)`	110	
+src/algorithm/swap.h	46	TODO	all other functions	111	
+src/algorithm/zip.h	8	TODO	normal iterator version	112	
+src/alloc/README.md	43	TODO	). One can use it like this	113	
+src/alloc/alloc.h	561	TODO	make template argument	114	
+src/atomic/atomic.h	8	TODO	#include "semaphore.h"	115	
+src/atomic/atomic_primitives.h	103	TODO	doc and tests	116	
+src/atomic/atomic_primitives.h	273	TODO	`template<typename _Tp>`	117	
+src/atomic/atomic_primitives.h	290	TODO	static_assert(__is_valid_cmpexch_failure_order(__f));	118	
+src/atomic/atomic_primitives.h	377	TODO	add const volatile overload	119	
+src/atomic/atomic_primitives.h	389	TODO	add const volatile overload	120	
+src/atomic/atomic_primitives.h	401	TODO	add const volatile overload	121	
+src/atomic/semaphore.h	204	TODO	std::atomic a template	122	
+src/combination/chase.h	352	TODO	reset und wie machen wir das wenn wir mehrerer solcher fks hintereinander callen	123	
+src/combination/chase.h	544	TODO	not finished const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;	124	
+src/combination/chase.h	585	TODO	seems not to be correct,n=5,t=2 errors	125	
+src/combination/min_change.h	5	TODO	add	126	
+src/combination/revolving_door.h	119	TODO	constexpr not working as there are gotos.	127	
+src/compression/NLZM.cpp	30	TODO	remove — ifdef DEBUG	128	
+src/compression/bwt.h	11	TODO	docs tests and benchs	129	
+src/compression/compress_float.h	13	TODO	add doc and tests bench	130	
+src/compression/lz77.h	17	TODO	doc — \param compressed_text	131	
+src/compression/lz77.h	83	TODO	doc — \param uncompressed_text	132	
+src/compression/lzss.h	41	TODO	- class	133	
+src/container/aa_tree.h	12	TODO	implement everything: https://www.nayuki.io/res/aa-tree-set/aatreeset.rs	134	
+src/container/aa_tree.h	56	TODO	free the stuff	135	
+src/container/aa_tree.h	85	TODO	what if full	136	
+src/container/aa_tree.h	101	TODO	rest — `}`	137	
+src/container/array.h	12	TODO	doc and tests	138	
+src/container/avl_tree.h	24	TODO	use allocator class	139	
+src/container/binary_heap.h	5	TODO	(no description)	140	
+src/container/binary_packed_vector.h	20	TODO	alle funktionen gleich anordnen wie in der fq klasse	141	
+src/container/binary_packed_vector.h	46	TODO	const BinaryVectorConfig &config=binaryVectorConfig>	142	
+src/container/binary_packed_vector.h	83	TODO	config this via config	143	
+src/container/binary_packed_vector.h	162	TODO	better formula	144	
+src/container/binary_packed_vector.h	204	TODO	use _bextr_u64 (needs bmi2)	145	
+src/container/binary_packed_vector.h	868	todo	avx512 support	146	
+src/container/binary_packed_vector.h	956	TODO	optimize with avx	147	
+src/container/binary_packed_vector.h	1173	todo	avx512 support	148	
+src/container/binary_packed_vector.h	1248	TODO	missing rol/ror	149	
+src/container/binary_packed_vector.h	1295	TODO	add to concept and add to kAryTypes	150	
+src/container/binary_packed_vector.h	1300	TODO	simd — `for (uint32_t i = 0; i < limbs(); ++i) {`	151	
+src/container/binary_packed_vector.h	1689	TODO	make this an field in the config	152	
+src/container/bk_tree.h	9	TODO	add namespace	153	
+src/container/bk_tree.h	10	TODO	add concept for T, as T needs a dist functions	154	
+src/container/btree_set.h	21	TODO	add namespace	155	
+src/container/btree_set.h	22	TODO	add Allocator to class	156	
+src/container/btree_set.h	23	TODO	add iterators to classes	157	
+src/container/btree_set.h	57	TODO	iterators and stuff	158	
+src/container/cartesian_tree.h	5	TODO	add tests — TODO: add docs	159	
+src/container/cartesian_tree.h	6	TODO	add docs — TODO: add benchs	160	
+src/container/cartesian_tree.h	7	TODO	add benchs — TODO: add namespace	161	
+src/container/cartesian_tree.h	8	TODO	add namespace	162	
+src/container/cartesian_tree.h	9	TODO	add constexpr	163	
+src/container/cartesian_tree.h	10	TODO	add noexcept	164	
+src/container/critbit.h	15	TODO	the insertion is not working for the first element, where only the key is inserted into the tree, but not the node.	165	
+src/container/critbit.h	18	TODO	move somewhere useful	166	
+src/container/critbit.h	39	TODO	static () Operator	167	
+src/container/critbit.h	58	TODO	move somewhere usefull	168	
+src/container/critbit.h	67	TODO	doc — `critbit_tree() noexcept : free_arg(nullptr) {`	169	
+src/container/critbit.h	73	TODO	doc — inline size_t critbit_buf_keylen(const uint8_t *a) noexcept {	170	
+src/container/critbit.h	79	TODO	doc — inline size_t critbit_str_keylen(const uint8_t *a) noexcept {	171	
+src/container/critbit.h	128	TODO	abstract away as class template function	172	
+src/container/critbit.h	183	TODO	returns? — `inline critbit_key *`	173	
+src/container/critbit.h	312	TODO	`static void`	174	
+src/container/ctrie.h	7	TODO	Ideas — debug funcitons schreiben, die den Ctrie plotten	175	
+src/container/ctrie.h	67	TODO	define NUMBER_CPUS 2	176	
+src/container/ctrie.h	218	TODO	enable — some flags to enable/disable features	177	
+src/container/ctrie.h	1027	TODO	here is some problem	178	
+src/container/ctrie.h	1110	TODO	jump list — `while (i < usedLength(current_)) {`	179	
+src/container/ctrie.h	2213	TODO	wie löschen — `return oldsn->value;`	180	
+src/container/ctrie.h	2225	TODO	== FSNOde — `} else if (txn == nullptr) {`	181	
+src/container/dancing_links.h	8	TODO	iterator — \tparam T	182	
+src/container/fq_packed_vector.h	117	TODO	was damit machen nochmal?	183	
+src/container/fq_packed_vector_v2.h	87	TODO	`return 0;`	184	
+src/container/fq_packed_vector_v2.h	93	TODO	`}`	185	
+src/container/hashmap/growth_policy.h	292	TODO	`(void)min_bucket_count_in_out;`	186	
+src/container/hashmap/hopscotch.h	19	TODO	#include "lock_free_hopscotch.h"	187	
+src/container/hashmap/hopscotch.h	23	TODO	ranges constructor	188	
+src/container/hashmap/hopscotch.h	24	TODO	- new buckets in cache?	189	
+src/container/hashmap/hopscotch.h	170	TODO	generic over this	190	
+src/container/hashmap/hopscotch_hash.h	1592	TODO	use std::optional when	191	
+src/container/hashmap/hopscotch_hash.h	1689	TODO	Try to optimize the function.	192	
+src/container/hashmap/hopscotch_hash.h	1817	TODO	Remove m_buckets_data and only use a pointer+size instead of a	193	
+src/container/hashmap/simple_compressed.h	37	TODO	requires HashFunction<Hash, valueType>	194	
+src/container/hashmap/simple_compressed.h	114	TODO	what happens if the old value is bigger?	195	
+src/container/hashmap/ska_flat.h	13	TODO	doc	196	
+src/container/hashmap/ska_flat.h	15	TODO	remove — `template<typename T, bool>`	197	
+src/container/hashmap/ska_flat.h	179	TODO	simplify — \tparam T	198	
+src/container/hashmap/ska_flat.h	427	TODO	`assert(false);`	199	
+src/container/hashmap/ska_flat.h	474	TODO	implement — `assert(false);`	200	
+src/container/hashmap/ska_flat.h	494	TODO	use hash — `template<class K>`	201	
+src/container/hashmap/ska_flat.h	502	TODO	use hash — `template<class K>`	202	
+src/container/hashmap/ska_flat.h	618	TODO	`(void) key;`	203	
+src/container/hashmap/ska_flat.h	734	TODO	generic	204	
+src/container/imap.h	22	TODO	iterators — TODO remove? use __uint128?	205	
+src/container/imap.h	23	TODO	remove? use __uint128?	206	
+src/container/imap.h	55	TODO	templates for bsr/popcount etc algorithm	207	
+src/container/imap.h	76	TODO	move to algorithms bits	208	
+src/container/imap.h	90	TODO	neon and doc	209	
+src/container/kAry_type.h	31	TODo	rename to Fqelement	210	
+src/container/kAry_type.h	1375	TODO	remove — `template<const uint64_t q,`	211	
+src/container/kAry_type.h	1400	TODO	`template<typename T,`	212	
+src/container/kAry_type.h	1430	TODO	remove — `if (i == 15) {std::cout << " ";}`	213	
+src/container/kd_tree.h	10	TODO	custom distance function	214	
+src/container/left_right_array.h	7	TODO	actual use them for tests	215	
+src/container/left_right_array.h	31	TODO	allocator — `fl_ = new size_t[n_];`	216	
+src/container/linkedlist/const_linkedlist.h	137	TODO	replace with allocator	217	
+src/container/linkedlist/linkedlist.h	25	TODO	allocator — if __cplusplus > 201709L	218	
+src/container/linkedlist/linkedlist.h	32	TODO	something like this template<template<typename> typename A=std::atomic>	219	
+src/container/queue.h	184	TODO	`template <typename Type>`	220	
+src/container/signal_tree/tree.h	11	TODO	type rich — `using signal_index = std::uint64_t;`	221	
+src/container/signal_tree/tree.h	89	TODO	hack.  write better when have time	222	
+src/crypto/sha1.h	17	TODO	all 3 algorithms move somewhere useful	223	
+src/element.h	196	TODO	matrix_view?	224	
+src/hash/adler32.h	11	TODO	add dispatch function like in `src/search/binary.h`	225	
+src/hash/adler32.h	12	TODO	move the internal horizontally addition functions to the simd interface	226	
+src/hash/adler32.h	132	TODO	make this a function argument? Or move it anywhere useful	227	
+src/hash/cityhash.h	28	TODO	comments — TODO move fetch64/32 and rotate32  into internal namespace	228	
+src/hash/cityhash.h	29	TODO	move fetch64/32 and rotate32  into internal namespace	229	
+src/hash/cityhash.h	41	TODO	use own rotate implementation, which is optimized	230	
+src/hash/crc.h	8	TODO	add dispatch function like in `src/search/binary.h`	231	
+src/hash/crc.h	9	TODO	add namespace and stuff	232	
+src/hash/fnv1a.h	12	TODO	SIMD version	233	
+src/hash/fnv1a.h	13	TODO	add namespace	234	
+src/hash/simple.h	15	TODO	add docs — TODO add namespace	235	
+src/hash/simple.h	16	TODO	add namespace	236	
+src/hash/simple.h	17	TODO	add [[nodiscard]]	237	
+src/hash/standard.h	13	TODO	add concept for T1	238	
+src/jmp/jmp.h	6	TODO	really needed	239	
+src/jmp/jmp.h	38	TODO	doc — `template<size_t N>`	240	
+src/jmp/jmp.h	50	TODO	doc — `template<class T, T...>`	241	
+src/jmp/x86.h	7	TODO	arm, riscv	242	
+src/jmp/x86.h	12	TODO	doc — `template<>`	243	
+src/list/common.h	182	TODO	requires ListAble<List>	244	
+src/list/enumeration/binary.h	547	TODO	this is only correct for values `BinaryContainer` and `PackedContainer` as otherwise there is an overflow	245	
+src/list/enumeration/binary.h	828	TODO	also hash the 3 element	246	
+src/list/enumeration/fq.h	401	TODO	`element.recalculate_label(HT);`	247	
+src/list/enumeration/fq.h	423	TODO	, this is only	248	
+src/list/enumeration/fq.h	741	TODO	also hash the 3 element	249	
+src/list/enumeration/fq.h	859	TODO	not fully correct: with this the last coordinate will not be enumerated	250	
+src/list/enumeration/fq.h	1025	TODO	also hash the 3 element	251	
+src/list/list.h	628	TODO	doc — \tparam k_lower	252	
+src/list/parallel_full.h	161	TODO	this is not correct for q != 2	253	
+src/list/parallel_index.h	107	TODO	not implemented	254	
+src/log.h	29	TODO	should container	255	
+src/math/bigint/bigint.h	37	TODO	remove this, if `sign` == false	256	
+src/math/bigint/bigint.h	209	TODO	work on the warning here: that its always true: need to understandit first	257	
+src/math/complex.h	4	TODO	implement complex numbers	258	
+src/math/crt.h	15	TODO	maybe SIMD version? like 8 crt in parallel?	259	
+src/math/mod.h	15	TODO	u64 mod/div, simd mod/div	260	
+src/matrix/binary_matrix.h	51	TODO	write a SIMD abstraction layer (static global function?) which gives you the max aligment the computer supports.	261	
+src/matrix/binary_matrix.h	81	TODO	rename — \param M input matrix	262	
+src/matrix/matrix.h	158	TODO	generalize over field	263	
+src/matrix/matrix.h	190	TODO	doc — \tparam nrows_prime	264	
+src/matrix/matrix.h	324	TODO	replace with `RowType` operation	265	
+src/matrix/matrix.h	419	TODO	replace this code with a function call to the function just below	266	
+src/matrix/matrix.h	721	TODO	add a config class to the matrix class, which contains a config	267	
+src/matrix/matrix.h	991	TODO	currently only 1 and q-1 are pivot rows	268	
+src/matrix/matrix.h	1151	TODO	doc — \tparam Tprime	269	
+src/matrix/matrix.h	1217	TODO	doc — \param C	270	
+src/matrix/matrix.h	1313	TODO	optimization if Value is binary	271	
+src/matrix/matrix.h	1314	todo	more tests — TODO simd	272	
+src/matrix/matrix.h	1315	TODO	simd — `if constexpr ((OUT_COLS == COLS) && (IN_COLS == ROWS)) {`	273	
+src/memory/common.h	12	TODO	move to traits	274	
+src/memory/memcmp.h	13	TODO	make S a template argument which fullfills the SIMD trate	275	
+src/nn/limb.h	58	TODO	code von bruteforce_simd_256_32_uxv klauen	276	
+src/nn/limb.h	59	TODO	BM like nn version der gleichzeit auf verschieden limbs matched	277	
+src/nn/nn.cuh	70	TODO	popc unabhängig machen von T	278	
+src/nn/nn.cuh	83	TODO	check if important	279	
+src/nn/nn.cuh	150	TODO	make this block wide accessable	280	
+src/nn/nn.cuh	155	TODO	(no description)	281	
+src/nn/nn.cuh	263	TODO	here the selection process for the correct nn algorithm	282	
+src/nn/nn.cuh	274	TODO	doc — just a wrapper around the device function	283	
+src/nn/nn_tensor.cuh	60	TODO	ptr[idx * 4];	284	
+src/nn/nn_tensor.cuh	79	TODO	hier halt kopieren	285	
+src/nn/nn_tensor.cuh	106	TODO	loop increment only correct if 32 threads are used	286	
+src/nn/nn_tensor.cuh	132	TODO	hier halt kopieren	287	
+src/permutation/permutation.h	12	TODO	`};`	288	
+src/search/binary.h	19	TODO	add namespace, for all the c functions	289	
+src/search/binary.h	20	TODO	add @lemire binary search in parallel in multiple different lists	290	
+src/search/binary.h	21	TODO	add `constexpr` where possible	291	
+src/search/binary.h	22	TODO	add concept to the c functions below to check that `Type` is arithmetic	292	
+src/search/linear.h	14	TODO	add simd implementation (probably just steal is from `src/algorithm/find.h`)	293	
+src/search/linear.h	15	TODO	add namespace	294	
+src/search/linear.h	16	TODO	add dispatch function as in `src/search/binary.h`	295	
+src/simd/README.md	40	TODO	`=====`	296	
+src/simd/avx2.h	483	TODO	optimize — `[[nodiscard]] constexpr static inline S div(const S in1,`	297	
+src/simd/avx2.h	2444	TODO	impl: https://github.com/ridiculousfish/libdivide/blob/master/libdivide.h#L144	298	
+src/simd/avx2.h	3050	TODO	https://stackoverflow.com/questions/16822757/sse-integer-division	299	
+src/simd/avx2.h	3259	TODO	https://stackoverflow.com/questions/58823140/count-leading-zero-bits-for-each-element-in-avx2-vector-emulate-mm256-lzcnt-ep	300	
+src/simd/avx2.h	3268	TODO	`(void)in;`	301	
+src/simd/avx2.h	3309	TODO	`[[nodiscard]] constexpr static inline S conflict(const S in1) noexcept {`	302	
+src/simd/avx2.h	4770	TODO	probably move somewhere useful `transpose.h`?	303	
+src/simd/avx2.h	4797	TODO	probably move somewhere useful `transpose.h`?	304	
+src/simd/avx512.h	1675	TODO	opt — checks if all bytes are equal	305	
+src/simd/avx512.h	1691	TODO	optimize — `[[nodiscard]] constexpr static inline S permute(const S in,`	306	
+src/simd/avx512.h	2138	TODO	`[[nodiscard]] constexpr static inline S div(const S in1,`	307	
+src/simd/avx512.h	2667	TODO	extend to avx2	308	
+src/simd/avx512.h	2677	TODO	extend to avx2	309	
+src/simd/avx512.h	2820	TODO	`[[nodiscard]] constexpr static inline S div(const S in1,`	310	
+src/simd/avx512.h	3151	TODO	test and implement for uint32x16 and so on and implement hadd_epu16,...	311	
+src/simd/avx512.h	3162	TODO	test, and implement for uint32x16 and so on	312	
+src/simd/avx512.h	3220	TODO	make generic	313	
+src/simd/avx512_intrinsics.h	5	TODO	docs — src: https://github.com/InstLatx64/InstLatX64_Demo/	314	
+src/simd/generic.h	619	TODO	all these function should return a binarycontainer	315	
+src/simd/generic.h	642	TODO	move this into a seperate call in this class, so	316	
+src/simd/generic.h	677	TODO	doc — \param in1	317	
+src/simd/generic.h	689	TODO	doc — \param in1	318	
+src/simd/generic.h	702	TODO	doc — \param ptr	319	
+src/simd/generic.h	721	TODO	doc — \param ptr	320	
+src/simd/generic.h	738	TODO	doc — \param ptr	321	
+src/simd/neon.h	474	TODO	optimize — `[[nodiscard]] constexpr static inline S div(const S in1,`	322	
+src/simd/neon.h	1637	TODO	not correct, carry and sruff	323	
+src/simd/neon.h	1998	TODO	\param in	324	
+src/simd/neon.h	2020	TODO	not optimized	325	
+src/simd/neon.h	2034	TODO	not optimized	326	
+src/simd/neon.h	2705	TODO	\param in	327	
+src/simd/neon.h	2736	TODO	\param a	328	
+src/simd/neon.h	2750	TODO	\param a	329	
+src/simd/neon.h	3045	TODO	not correct, carry and sruff	330	
+src/simd/neon.h	3431	TODO	arm instruction	331	
+src/simd/neon.h	3465	TODO	\param in	332	
+src/simd/neon.h	3499	TODO	\param in	333	
+src/simd/neon.h	3933	TODO	`return ret;`	334	
+src/simd/neon.h	4191	TODO	\param ptr	335	
+src/simd/neon.h	4210	TODO	\param ptr	336	
+src/simd/neon.h	4229	TODO	\tparam in2	337	
+src/simd/neon.h	4261	TODO	\param in	338	
+src/simd/simd.h	12	TODO	#include "swar.h"	339	
+src/simd/simd.h	18	TODO	whats that? — define bit_shuffle_const(b0, b1, b2, b3, b4, b5, b6, b7) \	340	
+src/simd/simd.h	5486	TODO	signed type — `namespace cryptanalysislib {`	341	
+src/simd/simd.h	5592	TODO	store	342	
+src/simd/simd.h	5613	TODO	{ S::eq_(s, s) } -> std::convertible_to<S>;	343	
+src/simd/simd.h	5614	TODO	{ S::eq(s, s) } -> std::convertible_to<typename S::limb_type>;	344	
+src/simd/swar.h	7	TODO	copy tests from  https://github.com/qlibs/swar/blob/main/swar and add them	345	
+src/simd/swar.h	40	TODO	`template<class T,`	346	
+src/simd/swar.h	72	TODO	`template<typename T,`	347	
+src/simd/swar.h	98	TODO	doc — `constexpr explicit swar(const auto& gen) noexcept requires requires(size_t i) { gen(i); } {`	348	
+src/simd/swar.h	104	TODO	doc — `[[nodiscard]] constexpr explicit operator abi_type() const noexcept {`	349	
+src/simd/swar.h	108	TODO	doc — `[[nodiscard]] constexpr auto operator[](const size_t index) const noexcept -> T {`	350	
+src/simd/swar.h	113	TODO	doc — `[[nodiscard]] static constexpr auto size() noexcept -> size_t {`	351	
+src/simd/swar.h	117	TODO	doc — `[[nodiscard]] friend constexpr`	352	
+src/simd/swar.h	128	TODO	use cryptanalysislib functions	353	
+src/sort/bit_sort.h	28	TODO	move somewhere useful	354	
+src/sort/bit_sort.h	103	TODO	use SIMD wrapper	355	
+src/sort/counting_sort.h	17	TODO	doc — \param arr	356	
+src/sort/heap/is_heap.h	8	TODO	- tests and benchmarks for all functions	357	
+src/sort/heap/push_heap.h	6	TODO	tests and benchmarks	358	
+src/sort/ips4o.h	72	TODO	allocator + thread template	359	
+src/sort/ips4o.h	81	TODO	move somewhere usefull	360	
+src/sort/ips4o.h	87	TODO	(?): make into template to allow other key types.	361	
+src/sort/ips4o.h	104	TODO	(?): currently AVX-512 specific to avoid Gather	362	
+src/sort/ips4o.h	107	TODO	(?): adapt to base case sorter (exact match size of sorting network)	363	
+src/sort/ips4o.h	216	TODO	template<class Allocator = std::allocator<int>>	364	
+src/sort/ips4o.h	247	TODO	(?): to allow SIMD writes, we should add >=1 vector of padding to the	365	
+src/sort/ips4o.h	296	TODO	replace with allocator	366	
+src/sort/ips4o.h	353	TODO	replace with my prng class	367	
+src/sort/ips4o.h	506	TODO	(?): for verification, we should narrow the scope/visibility of these.	368	
+src/sort/ips4o.h	574	TODO	(?): this is a bottleneck, should be replaced with SIMD writes.	369	
+src/sort/ips4o.h	640	TODO	was 16 for avx 512	370	
+src/sort/ips4o.h	714	TODO	tail mngt — `for (size_t i = 0; i < num; i += kUnroll) {`	371	
+src/sort/ips4o.h	1066	TODO	pass as argument	372	
+src/sort/ips4o.h	1105	TODO	fix this iterator nonsence	373	
+src/sort/quicksort.h	41	TODO	via config — parameter: threshold for nonrecursive algorithm	374	
+src/sort/ska_sort.h	207	TODO	not optimized: exclusive_sum	375	
+src/sort/sorting_network/avx2.h	1153	TODO	this seems to be a bug in the implementation. Currently only needed for `sortingnetwork_mergesort_u8x64`	376	
+src/sort/sorting_network/avx2.h	1330	TODO	somewhere is a bug, for reasons I dont understand this shuffle is missing	377	
+src/sort/sorting_network/avx2.h	1555	TODO	write a descending sorting func	378	
+src/sort/sorting_network/avx512.h	153	TODO	remaining 4 — layers`), i.e. both 16 element halves were sorted descending and	379	
+src/sort/sorting_network/hunter.h	3	TODO	improvements:  https://github.com/HJLebbink/SorterHunter (256 hannels)	380	
+src/sort/sorting_network/hunter.h	4	TODO	add a function to `Pair_t` which checks if its a simd swap pattern	381	
+src/sort/sorting_network/hunter.h	6	TODO	config is contantexpr	382	
+src/sort/sorting_network/hunter.h	8	TODO	find until Level=91 oder so	383	
+src/sort/timsort.h	83	TODO	doc — `template <typename RandomAccessIterator>`	384	
+src/thread/execution.h	52	TODO	verstehen warum warnung [[nodiscard]] constexpr virtual pool_type pool() const noexcept;	385	
+src/thread/execution.h	53	TODO	verstehen warum warnung [[nodiscard]] constexpr virtual bool par_allowed() const noexcept;	386	
+src/thread/execution.h	193	TODO	ExecPolicy concept	387	
+src/thread/execution.h	223	TODO	doc — \tparam Iterator	388	
+src/thread/execution.h	239	TODO	doc — \tparam Iterator	389	
+src/thread/execution.h	317	TODO	doc — \tparam ExecPolicy	390	
+src/thread/execution.h	352	TODO	`(void)policy;`	391	
+src/thread/execution.h	454	TODO	doc — \tparam ExecPolicy	392	
+src/thread/mythread.h	227	TODO	remove the linked list and use the fs register to store information	393	
+src/thread/old/heartbeat_scheduler.h	29	TODO	apple doesnt support jthread	394	
+src/thread/old/heartbeat_scheduler.h	32	TODO	translate the spice binarytree example	395	
+src/thread/old/heartbeat_scheduler.h	35	TODO	use this future thingy, probably want to switch to std::future	396	
+src/thread/old/heartbeat_scheduler.h	104	TODO	implement — `void clear_task_queue() noexcept {`	397	
+src/thread/old/heartbeat_scheduler.h	108	TODO	implement — `void inline pause() noexcept {`	398	
+src/thread/old/heartbeat_scheduler.h	238	TODO	this = Job();                  // Reset the current job.	399	
+src/thread/old/heartbeat_scheduler.h	331	TODO	correct reference	400	
+src/thread/old/heartbeat_scheduler.h	335	TODO	return std::invoke(func, &t, arg...);	401	
+src/thread/old/heartbeat_scheduler.h	411	TODO	? — `std::unique_lock lock(mutex);`	402	
+src/thread/old/heartbeat_scheduler.h	484	TODO	memory allocator	403	
+src/thread/old/heartbeat_scheduler.h	489	TODO	this seams wrong	404	
+src/thread/old/heartbeat_scheduler.h	510	TODO	better ways.	405	
+src/thread/old/heartbeat_scheduler.h	552	TODO	best_worker->shared_job->reset();	406	
+src/thread/old/heartbeat_scheduler_v2.h	159	TODO	weak probably not needed?	407	
+src/thread/old/heartbeat_scheduler_v2.h	281	TODO	`using T = uint64_t;`	408	
+src/thread/performance.h	32	TODO	apple does not suport jthread	409	
+src/thread/performance.h	86	TODO	what happen in this case	410	
+src/thread/performance.h	183	TODO	more information: like: tid	411	
+src/thread/performance.h	256	TODO	with fork etc we can handle multiple streams, but for now	412	
+src/thread/performance.h	283	TODO	nice printing	413	
+src/thread/simple.h	293	TODO	replace with `ConstVectorQueue`	414	
+src/thread/steal.h	43	TODO	use the MOVE operator from SimpleScheduler	415	
+src/thread/work_contract.h	15	TODO	move somewhere usefull	416	
+src/thread/work_contract.h	159	TODO	`bool deschedule();`	417	
+src/thread/work_contract.h	489	TODO	remove — the expected case. invoke the work function	418	
+src/tree.h	119	TODO	impl: needed for output lists	419	
+src/tree.h	211	TODO	doc — \param d	420	
+src/tree.h	232	TODO	doc — \param d	421	
+src/tree.h	1221	TODO	test — out list	422	
+src/tree.h	1488	TODO	this function is implemented twice (ahh except for the weight. but that should be in the f function)	423	
+src/tree.h	1491	TODO	doc probalby remove and do it via the lambda function	424	
+src/tree.h	1561	TODO	only find a single solution	425	
+src/tree.h	1696	TODO	test, and filter weight, and filter function	426	
+src/tree.h	2056	TODO	`return false;`	427	
+src/tree.h	2060	TODO	tests — out	428	
+src/tree.h	2167	TODO	tests,docs — out	429	
+src/tree.h	2400	TODO	join2lists_on_iT_v2<k_lower1, k_upper1>(iL, L1, L2, iT, false);	430	
+src/tree.h	2488	TODO	docs/tests — `template<const uint32_t k_lower1, const uint32_t k_upper1,`	431	
+src/tree.h	2532	TODO	docs/tests, remove the _f in name	432	
+src/tree.h	2602	TODO	doc, test — out	433	
+src/tree.h	2715	TODO	doc img test	434	
+src/tree.h	2860	TODO	test, doc — ┌───┐	435	
+src/tree.h	2981	TODO	test, doc — ┌───┐	436	
+src/tree.h	3048	TODo	L1, L2, L3 and L4	437	
+src/tree.h	3178	TODO	assumes that k_lower1 == 0	438	
+src/tree.h	3375	TODO	`lists[2].template sort_level<0, 16>();`	439	
+src/tree.h	3457	TODO	sort out list	440	
+src/tree.h	3545	TODO	\param e2	441	
+src/tree/d1.h	470	TODO	test — see tree.h for doc	442	
+src/tree/d2_stream.h	82	TODO	remove the weight	443	
+src/tree/d2_stream.h	491	TODO	diesen teil der function wird irgendwie hundert mal copy&pasted	444	
+src/tree/d2_stream.h	518	TODO	abstract this away?	445	
+src/tree/dissection.h	4	TODO	hashmap version, and non constexpr version	446	
+tests/algorithm/histogram.cpp	137	TODO	`histogram_less` is unfinished (mask literal `01` instead of `b1`,	447	
+tests/algorithm/mq/fes.cpp	112	TODO	`feslite_avx2_enum_16x16_w` is unfinished (see the TODOs in	448	
+tests/algorithm/pcs.cpp	44	TODO	move to subesetsum folder	449	
+tests/algorithm/pcs.cpp	245	TODO	do something	450	
+tests/algorithm/pcs.cpp	263	TODO	return something	451	
+tests/algorithm/subsetsum/join2lists.cpp	21	TODO	non power of two prime extension are not really supported.	452	
+tests/algorithm/subsetsum/join2lists.cpp	519	TODO	12.01.25 not compiling, probably because of mutlithreaded	453	
+tests/algorithm/subsetsum/join4lists.cpp	89	TODO	not finished	454	
+tests/algorithm/subsetsum/join4lists.cpp	161	TODO	12.01.25: the problem is that the lambda is already defined in tree.h:1989	455	
+tests/algorithm/subsetsum/join4lists.cpp	464	TODO	we find more invalid solutions	456	
+tests/algorithm/subsetsum/tmto.cpp	19	TODO	simplify the enumerator interface to only need the lists as inputs and not the offset.	457	
+tests/container/imap.cpp	478	TODO	not working, something with ensure is not right, needs debugging	458	
+tests/container/packed_f3.cpp	301	TODO	currently there is the transition from avx2 to generic simd	459	
+tests/container/rb_tree.cpp	5	TODO	currently dev	460	
+tests/crypto/md5.cpp	8	TODO	c#include "crypto/md5.h"	461	
+tests/list/enumeration/fq.cpp	46	TODO	if not zeri it errors	462	
+tests/sort/parallel.cpp	24	TODO	make tests generic over T	463	
+tests/thread/heartbead_scheduler.cpp	8	TODO	not finished implementing	464	

@@ -1,0 +1,184 @@
+diff --git a/src/compression/bwt.h b/src/compression/bwt.h
+index 9eff5c8..499b970 100644
+--- a/src/compression/bwt.h
++++ b/src/compression/bwt.h
+@@ -6,9 +6,13 @@
+ // source  https://github.com/felipelouza/bwt-lcp-in-place
+ #define END_MARKER '$'
+ 
++/// In-place Burrows-Wheeler transform (BWT), its inverse and the LCP array
++/// (Louza, Gagie, Telles: "Burrows-Wheeler transform and LCP array
++/// construction in constant space", 2017): O(1) extra memory, O(n^2) time.
+ /// NOTE: the input text T[0..n) must end with END_MARKER, which must be
+ /// 	unique and smaller than every other symbol of the text.
+-/// TODO docs tests and benchs
++/// NOTE: tests in `tests/compression/bwt.cpp` (vs a naive suffix sorting),
++/// 	benchmarks in `bench/compression/bwt.cpp`.
+ 
+ /// \param T[in]: text
+ /// \param n[in]: length of T
+@@ -25,6 +29,14 @@ int rank(const uint8_t *T, const int n, const uint8_t c, const int i) noexcept {
+     return sum;
+ }
+ 
++/// Computes the BWT of T in place and its LCP array: LCP[i] is the length of
++/// the longest common prefix of the i-th and the (i-1)-th smallest suffix
++/// (LCP[0] = 0).
++/// \param T[in/out]: text of length n >= 2, ending with END_MARKER.
++/// 	Replaced by its BWT.
++/// \param n[in]: length of T
++/// \param LCP[out]: n ints
++/// \return 0
+ inline int bwt_lcp_inplace(uint8_t *T, int n, int *LCP) noexcept {
+ 
+ 	int i, p, r=1, s;
+diff --git a/tests/compression/bwt.cpp b/tests/compression/bwt.cpp
+index 8c317cb..1f84d15 100644
+--- a/tests/compression/bwt.cpp
++++ b/tests/compression/bwt.cpp
+@@ -1,6 +1,8 @@
+ #include <cstdint>
+ #include <gtest/gtest.h>
++#include <algorithm>
+ #include <iostream>
++#include <vector>
+ 
+ #include "compression/compression.h"
+ 
+@@ -53,6 +55,53 @@ TEST(bwt, lcp) {
+ 	free(T); free(LCP);
+ }
+ 
++/// naive reference: sort all suffixes
++static void naive_bwt_lcp(const std::vector<uint8_t> &t, std::vector<uint8_t> &bwt, std::vector<int> &lcp) {
++	const int n = int(t.size());
++	std::vector<int> sa(n);
++	for (int i = 0; i < n; ++i) { sa[i] = i; }
++	std::sort(sa.begin(), sa.end(), [&](int a, int b) {
++		return std::lexicographical_compare(t.begin() + a, t.end(), t.begin() + b, t.end());
++	});
++	bwt.resize(n); lcp.assign(n, 0);
++	for (int i = 0; i < n; ++i) {
++		bwt[i] = t[(sa[i] + n - 1) % n];
++		if (i > 0) {
++			int l = 0;
++			while ((sa[i] + l < n) && (sa[i - 1] + l < n) && (t[sa[i] + l] == t[sa[i - 1] + l])) { ++l; }
++			lcp[i] = l;
++		}
++	}
++}
++
++/// random texts over alphabets of 1, 2, 4 and 26 symbols, all lengths
++/// 2..300: BWT, LCP and the inverse against the naive reference
++TEST(bwt, random_vs_naive) {
++	for (const uint32_t sigma : {1u, 2u, 4u, 26u}) {
++		for (int n = 2; n <= 300; n += 7) {
++			std::vector<uint8_t> t(n);
++			for (int i = 0; i < n - 1; ++i) { t[i] = uint8_t('a' + rand() % sigma); }
++			t[n - 1] = END_MARKER;
++			std::vector<uint8_t> e_bwt; std::vector<int> e_lcp;
++			naive_bwt_lcp(t, e_bwt, e_lcp);
++
++			std::vector<uint8_t> T = t;
++			ASSERT_EQ(bwt_inplace(T.data(), n), n);
++			ASSERT_EQ(T, e_bwt) << sigma << " " << n;
++
++			uint8_t *rev = bwt_reverse(T.data(), n);
++			ASSERT_TRUE(std::equal(t.begin(), t.end(), rev)) << sigma << " " << n;
++			free(rev);
++
++			std::vector<uint8_t> T2 = t;
++			std::vector<int> LCP(n);
++			bwt_lcp_inplace(T2.data(), n, LCP.data());
++			ASSERT_EQ(T2, e_bwt) << sigma << " " << n;
++			ASSERT_EQ(LCP, e_lcp) << sigma << " " << n;
++		}
++	}
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();
+diff --git a/bench/CMakeLists.txt b/bench/CMakeLists.txt
+index fbf292b..589ee69 100644
+--- a/bench/CMakeLists.txt
++++ b/bench/CMakeLists.txt
+@@ -1,4 +1,5 @@
+ add_subdirectory(algorithm)
++add_subdirectory(compression)
+ add_subdirectory(container)
+ add_subdirectory(enumeration)
+ add_subdirectory(label)
+diff --git a/bench/compression/CMakeLists.txt b/bench/compression/CMakeLists.txt
+new file mode 100644
+index 0000000..72ebd37
+--- /dev/null
++++ b/bench/compression/CMakeLists.txt
+@@ -0,0 +1,8 @@
++file(GLOB BENCH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
++foreach(benchfile ${BENCH_SOURCES})
++    file(RELATIVE_PATH filename ${CMAKE_CURRENT_SOURCE_DIR} ${benchfile})
++    string(REPLACE ".cpp" "" file ${filename})
++    add_executable(bench_compression_${file} ${benchfile})
++    target_link_libraries(bench_compression_${file} ${LINK_BENCH_FLAGS})
++	add_test(bench_compression_${file} bench_compression_${file})
++endforeach(benchfile ${BENCH_SOURCES})
+diff --git a/bench/compression/bwt.cpp b/bench/compression/bwt.cpp
+new file mode 100644
+index 0000000..7193484
+--- /dev/null
++++ b/bench/compression/bwt.cpp
+@@ -0,0 +1,53 @@
++#include <benchmark/benchmark.h>
++#include <cstdint>
++#include <cstdlib>
++#include <vector>
++
++#include "compression/compression.h"
++
++/// random text over 4 symbols, ending with END_MARKER
++static std::vector<uint8_t> text(const size_t n) {
++	std::vector<uint8_t> t(n);
++	for (size_t i = 0; i + 1 < n; ++i) { t[i] = uint8_t('a' + rand() % 4); }
++	t[n - 1] = END_MARKER;
++	return t;
++}
++
++static void BM_bwt_inplace(benchmark::State &state) {
++	const auto t = text(state.range(0));
++	std::vector<uint8_t> T(t.size());
++	for (auto _: state) {
++		T = t;
++		benchmark::DoNotOptimize(bwt_inplace(T.data(), int(T.size())));
++	}
++	state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(t.size()));
++}
++
++static void BM_bwt_lcp_inplace(benchmark::State &state) {
++	const auto t = text(state.range(0));
++	std::vector<uint8_t> T(t.size());
++	std::vector<int> LCP(t.size());
++	for (auto _: state) {
++		T = t;
++		bwt_lcp_inplace(T.data(), int(T.size()), LCP.data());
++		benchmark::DoNotOptimize(LCP.data());
++	}
++	state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(t.size()));
++}
++
++static void BM_bwt_reverse(benchmark::State &state) {
++	auto T = text(state.range(0));
++	bwt_inplace(T.data(), int(T.size()));
++	for (auto _: state) {
++		uint8_t *r = bwt_reverse(T.data(), int(T.size()));
++		benchmark::DoNotOptimize(r);
++		free(r);
++	}
++	state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(T.size()));
++}
++
++// NOTE: O(n^2) algorithms
++BENCHMARK(BM_bwt_inplace)->RangeMultiplier(4)->Range(256, 1u << 14);
++BENCHMARK(BM_bwt_lcp_inplace)->RangeMultiplier(4)->Range(256, 1u << 14);
++BENCHMARK(BM_bwt_reverse)->RangeMultiplier(4)->Range(256, 1u << 14);
++BENCHMARK_MAIN();

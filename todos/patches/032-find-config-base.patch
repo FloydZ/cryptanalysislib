@@ -1,0 +1,19 @@
+diff --git a/src/algorithm/find.h b/src/algorithm/find.h
+index 37650bc..6a6f926 100644
+--- a/src/algorithm/find.h
++++ b/src/algorithm/find.h
+@@ -15,8 +15,12 @@
+ 
+ namespace cryptanalysislib {
+     /// Configuration for find algorithms 
+-    // TODO somehow this yields an anonymous unitiialized field element
+-	struct AlgorithmFindConfig /* : public AlgorithmConfig */ {
++    /// NOTE: like every config this derives from `AlgorithmConfig`. A
++    /// 	designated initializer (`AlgorithmFindConfig{.x = ...}`) leaves the
++    /// 	base default initialized, which gcc reports with -Wextra as
++    /// 	"missing initializer for member 'AlgorithmFindConfig::AlgorithmConfig'"
++    /// 	(the "anonymous uninitialized field"); it is harmless.
++	struct AlgorithmFindConfig : public AlgorithmConfig {
+ 		// NOTE multithreaded find is extremly slow
+ 		const size_t min_size_per_thread = 1048576u;
+ 

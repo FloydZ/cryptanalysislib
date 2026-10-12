@@ -1,0 +1,13 @@
+diff --git a/src/thread/work_contract.h b/src/thread/work_contract.h
+index db67013..3ac15eb 100644
+--- a/src/thread/work_contract.h
++++ b/src/thread/work_contract.h
+@@ -156,8 +156,6 @@ namespace cryptanalysislib::work_contract {
+ 			return false;
+ 		}
+ 
+-        // TODO
+-		bool deschedule();
+ 
+ 		/// \return
+ 		[[nodiscard]] constexpr inline bool is_valid() const noexcept {

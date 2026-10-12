@@ -12,7 +12,7 @@ void BM_counting_sort(benchmark::State& state) {
     cryptanalysislib::random_data<std::vector<T>, T>(l, search_index, state.range(0), 1);
 
 	for (auto _ : state) {
-		counting_sort_u8(l.data(), state.range(0));
+		cryptanalysislib::counting_sort_u8(l.data(), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }

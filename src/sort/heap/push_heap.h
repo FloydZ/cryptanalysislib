@@ -1,9 +1,11 @@
 #pragma once 
 #include <cstdlib>
 #include <algorithm>
+#include <functional>
 #include <stdint.h>
+#include <sys/types.h>
 
-// TODO: tests and benchmarks
+// NOTE: tests in `tests/sort/heap.cpp`, benchmarks in `bench/sort/heap.cpp`
 
 // main source: https://github.com/WojciechMula/toys/blob/master/simd-heap/push_heap/push_heap_avx512.h
 template<typename T,
@@ -34,7 +36,7 @@ constexpr void push_heap_scalar(T* start,
 
 constexpr void push_heap_avx2(int32_t* start, size_t size) {
     if (size <= 255) {
-        std::push_heap(start, start + size);
+        push_heap_scalar(start, start + size, std::less<>{});
         return;
     }
 
@@ -54,7 +56,8 @@ constexpr void push_heap_avx2(int32_t* start, size_t size) {
         // 1. Construct indices from the current element to parent nodes 7 levels up
         ssize_t parent = 0;
 
-        uint32_t tmp[8];
+        // NOTE: aligned, as it is loaded with `_mm256_load_si256`
+        alignas(32) uint32_t tmp[8];
         tmp[0] = index;
         for (int i=1; i < 8; i++) {
             parent = (index - 1)/2;
@@ -74,9 +77,12 @@ constexpr void push_heap_avx2(int32_t* start, size_t size) {
         const __m256i mask = _mm256_cmpgt_epi32(values, last_value);
 
         const uint8_t any_parent_less = _mm256_movemask_ps(_mm256_castsi256_ps(mask));
+        // NOTE: AVX2 has no scatter (`_mm256_i32scatter_epi32` needs
+        //  AVX-512VL), so the path is written back with scalar stores
+        alignas(32) int32_t out[8];
         if (any_parent_less == 0) {
-            const __m256i sorted = _mm256_permutevar8x32_epi32(values, avx2_sort_values[7]);
-            _mm256_i32scatter_epi32(start, indices, sorted, sizeof(uint32_t));
+            _mm256_store_si256((__m256i *)out, _mm256_permutevar8x32_epi32(values, avx2_sort_values[7]));
+            for (uint32_t i = 0; i < 8; i++) { start[tmp[i]] = out[i]; }
             index = tmp[7];
             continue;
         }
@@ -84,43 +90,44 @@ constexpr void push_heap_avx2(int32_t* start, size_t size) {
         // 4. Elements on the path be should sorted, we need to locate where to insert a new value.
         const int new_index = __builtin_ctz(any_parent_less) - 1;
         if (new_index > 0) {
-            const __m256i sorted = _mm256_permutevar8x32_epi32(values, avx2_sort_values[new_index]);
-            _mm256_i32scatter_epi32(start, indices, sorted, sizeof(uint32_t));
+            _mm256_store_si256((__m256i *)out, _mm256_permutevar8x32_epi32(values, avx2_sort_values[new_index]));
+            for (uint32_t i = 0; i < 8; i++) { start[tmp[i]] = out[i]; }
         }
     }
 
-    std::push_heap(start, start + index + 1);
+    push_heap_scalar(start, start + index + 1, std::less<>{});
 }
 #endif
 
-#ifdef USE_AVX512 
+#ifdef USE_AVX512F
 
-
-void push_heap_avx512(int32_t* start, size_t size) {
+/// pushes `start[size - 1]` into the max heap `start[0, size - 1)`.
+/// The AVX-512 path is only used for insertions at level 15 (the 16 elements
+/// on the path to the root fill one register), otherwise `push_heap_scalar`.
+inline void push_heap_avx512(int32_t* start, size_t size) {
     ssize_t index = size - 1;
-    __m512i avx512_sort_values[16] = {
-        avx512_sort_values[0]  = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[1]  = _mm512_setr_epi32(1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[2]  = _mm512_setr_epi32(1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[3]  = _mm512_setr_epi32(1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[4]  = _mm512_setr_epi32(1, 2, 3, 4, 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[5]  = _mm512_setr_epi32(1, 2, 3, 4, 5, 0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[6]  = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[7]  = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 0, 8, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[8]  = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 0, 9, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[9]  = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 10, 11, 12, 13, 14, 15), 
-        avx512_sort_values[10] = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 11, 12, 13, 14, 15), 
-        avx512_sort_values[11] = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14, 15), 
-        avx512_sort_values[12] = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 13, 14, 15), 
-        avx512_sort_values[13] = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 14, 15), 
-        avx512_sort_values[14] = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0, 15), 
-        avx512_sort_values[15] = _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0), 
+    const __m512i avx512_sort_values[16] = {
+        _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 0, 8, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 0, 9, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 10, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 11, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 12, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 13, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 14, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0, 15),
+        _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0),
+    };
 
-    }
     if ((index >= 32767) && (index < 65535)) { // we're handling insertions only at level #15
-
         // 1. Build indices values
-        uint32_t tmp[16];
+        alignas(64) uint32_t tmp[16];
         tmp[0]  = index;
         tmp[15] = 0;
         for (int i=1; i < 15; i++) {
@@ -136,17 +143,17 @@ void push_heap_avx512(int32_t* start, size_t size) {
 
         // 3. Check if the heap propery is violated.
         const __m512i new_value = _mm512_permutexvar_epi32(_mm512_setzero_si512(), values);
-        const __mmask16 any_parent_less = _mm512_cmpgt_epu32_mask(values, new_value);
+        const __mmask16 any_parent_less = _mm512_cmpgt_epi32_mask(values, new_value);
 
         // 4. Elements on the path be should sorted, we need to locate where to insert the new value.
-        const int new_index = __builtin_ctz(any_parent_less) - 1;
+        // NOTE: if no element on the path is greater, the new value becomes the root
+        const int new_index = any_parent_less ? (__builtin_ctz(any_parent_less) - 1) : 15;
         if (new_index > 0) {
             const __m512i sorted = _mm512_permutexvar_epi32(avx512_sort_values[new_index], values);
             _mm512_i32scatter_epi32(start, indices, sorted, sizeof(uint32_t));
         }
     } else {
-        std::push_heap(start, start + size);
-        abort();
+        push_heap_scalar(start, start + size, std::less<>{});
     }
 }
 #endif

@@ -1,0 +1,94 @@
+diff --git a/src/container/linkedlist/const_linkedlist.h b/src/container/linkedlist/const_linkedlist.h
+index 4830b59..d58e83e 100644
+--- a/src/container/linkedlist/const_linkedlist.h
++++ b/src/container/linkedlist/const_linkedlist.h
+@@ -6,6 +6,7 @@
+ #endif
+ 
+ #include <atomic>
++#include <memory>
+ #include <cstdlib>
+ #include <iostream>
+ #include <iterator>
+@@ -44,6 +45,22 @@ private:
+ 		}
+ 	};
+ 
++	using NodeAllocator = Allocator<Node>;
++	using NodeTraits = std::allocator_traits<NodeAllocator>;
++
++	/// allocates a node with `Allocator` (assumed stateless and thread safe)
++	static Node *create_node(const T &data) noexcept {
++		NodeAllocator a{};
++		Node *n = NodeTraits::allocate(a, 1);
++		return ::new (static_cast<void *>(n)) Node(data);
++	}
++
++	static void destroy_node(Node *n) noexcept {
++		n->~Node();
++		NodeAllocator a{};
++		NodeTraits::deallocate(a, n, 1);
++	}
++
+ 	struct Iterator {
+ 	public:
+ 		using iterator_category = std::forward_iterator_tag;
+@@ -134,8 +151,7 @@ public:
+ 	/// returns 0 on success. This function cannot fail
+ 	constexpr int insert_front(const T &data) noexcept {
+ 		Node *current_head = head.load();
+-		// TODO replace with allocator
+-		auto new_head = new Node(data);
++		Node *new_head = create_node(data);
+ 		do {
+ 			new_head->next.store(current_head);
+ 		} while (!head.compare_exchange_weak(current_head,
+@@ -159,7 +175,7 @@ public:
+ 		Node *c = head.load(), *next;
+ 		while (c != nullptr) {
+ 			next = c->next.load();
+-			delete c;
++			destroy_node(c);
+ 			c = next;
+ 		}
+ 
+diff --git a/tests/container/constNonBlockingLinkedList.cpp b/tests/container/constNonBlockingLinkedList.cpp
+index 60514e1..8c567cc 100644
+--- a/tests/container/constNonBlockingLinkedList.cpp
++++ b/tests/container/constNonBlockingLinkedList.cpp
+@@ -1,6 +1,8 @@
+ #include <cstdio>
+ #include <gtest/gtest.h>
+ #include <iostream>
++#include <atomic>
++#include <memory>
+ #include <vector>
+ #include <omp.h>
+ 
+@@ -233,6 +235,26 @@ TEST(ConstFreeList, MultiThreaded) {
+ 	}
+ }
+ 
++/// the nodes are allocated with the Allocator template parameter
++static std::atomic<int64_t> live_nodes{0};
++template<class T>
++struct counting_allocator {
++	using value_type = T;
++	counting_allocator() noexcept = default;
++	template<class U> counting_allocator(const counting_allocator<U> &) noexcept {}
++	T *allocate(const size_t n) { live_nodes += int64_t(n); return std::allocator<T>{}.allocate(n); }
++	void deallocate(T *p, const size_t n) noexcept { live_nodes -= int64_t(n); std::allocator<T>{}.deallocate(p, n); }
++};
++
++TEST(ConstFreeList, allocator_is_used) {
++	ConstFreeList<uint64_t, counting_allocator> l;
++	for (uint64_t i = 0; i < 100; ++i) { l.insert(i); }
++	EXPECT_EQ(live_nodes.load(), 100);
++	EXPECT_TRUE(l.contains(42));
++	l.clear();
++	EXPECT_EQ(live_nodes.load(), 0);
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	rng_seed(time(NULL));

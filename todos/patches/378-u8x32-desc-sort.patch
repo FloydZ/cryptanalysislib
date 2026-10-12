@@ -1,0 +1,68 @@
+diff --git a/src/sort/sorting_network/avx2.h b/src/sort/sorting_network/avx2.h
+index aaddf97..13098a7 100644
+--- a/src/sort/sorting_network/avx2.h
++++ b/src/sort/sorting_network/avx2.h
+@@ -1540,6 +1540,15 @@ static inline void sortingnetwork_aftermerge_u8x256(__m256i &a,
+     sortingnetwork_aftermerge_u8x128(e, f, g, h);
+ }
+ 
++/// sorts the 32 bytes of `v` descending.
++/// NOTE: x -> ~x reverses the order of bytes, so sorting the complements
++/// 	ascending and complementing again sorts descending. Two xors instead
++/// 	of the two shuffles of `sortingnetwork_reverse_u8x32`.
++static inline __m256i sortingnetwork_sort_u8x32_desc(const __m256i v) noexcept {
++    const __m256i ones = _mm256_set1_epi8(-1);
++    return _mm256_xor_si256(sortingnetwork_sort_u8x32_(_mm256_xor_si256(v, ones)), ones);
++}
++
+ /// implementation of `simd_sort_33V`
+ static inline void sortingnetwork_sort_u8x288(__m256i &a,
+ 											  __m256i &b,
+@@ -1552,9 +1561,7 @@ static inline void sortingnetwork_sort_u8x288(__m256i &a,
+                                               __m256i &i) noexcept {
+     __m256i tmp;
+     sortingnetwork_sort_u8x256(a, b, c, d, e, f, g, h);
+-    // TODO write a descending sorting func
+-    i = sortingnetwork_sort_u8x32_(i);
+-    sortingnetwork_reverse_u8x32(i);
++    i = sortingnetwork_sort_u8x32_desc(i);
+     COEX_u8x32(h, i, tmp);
+     sortingnetwork_aftermerge_u8x256(a, b, c, d, e, f, g, h);
+     sortingnetwork_aftermerge_u8x32(i);
+diff --git a/tests/sort/sorting_network.cpp b/tests/sort/sorting_network.cpp
+index 5252fc8..5ea322b 100644
+--- a/tests/sort/sorting_network.cpp
++++ b/tests/sort/sorting_network.cpp
+@@ -418,6 +418,32 @@ TEST(SortingNetwork, uint8x128_t) {
+ 	}
+ }
+ 
++TEST(SortingNetwork, uint8x32_desc) {
++	alignas(32) uint8_t data[32];
++	for (uint32_t r = 0; r < 10000; ++r) {
++		for (uint32_t i = 0; i < 32; ++i) { data[i] = (r & 1u) ? (rng() % 3u) : rng(); }
++		const __m256i v = sortingnetwork_sort_u8x32_desc(_mm256_load_si256((const __m256i *)data));
++		alignas(32) uint8_t out[32];
++		_mm256_store_si256((__m256i *)out, v);
++		std::sort(data, data + 32, std::greater<>{});
++		ASSERT_EQ(memcmp(out, data, 32), 0);
++	}
++}
++
++TEST(SortingNetwork, uint8x288_stress) {
++	alignas(32) uint8_t data[288], expected[288];
++	for (uint32_t r = 0; r < 5000; ++r) {
++		for (uint32_t i = 0; i < 288; ++i) { data[i] = (r & 1u) ? (rng() % 3u) : rng(); }
++		memcpy(expected, data, 288);
++		std::sort(expected, expected + 288);
++		__m256i v[9];
++		for (uint32_t i = 0; i < 9; ++i) { v[i] = _mm256_load_si256((const __m256i *)(data + 32 * i)); }
++		sortingnetwork_sort_u8x288(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
++		for (uint32_t i = 0; i < 9; ++i) { _mm256_store_si256((__m256i *)(data + 32 * i), v[i]); }
++		ASSERT_EQ(memcmp(data, expected, 288), 0) << r;
++	}
++}
++
+ TEST(SortingNetwork, uint8x224_t) {
+ 	alignas(32) uint8_t data[224], expected[224];
+ 	for (uint32_t r = 0; r < 100; ++r) {

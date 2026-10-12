@@ -1,0 +1,24 @@
+diff --git a/src/container/binary_packed_vector.h b/src/container/binary_packed_vector.h
+index 96a9157..212b24b 100644
+--- a/src/container/binary_packed_vector.h
++++ b/src/container/binary_packed_vector.h
+@@ -953,7 +953,8 @@ public:
+ 	                                            T const *v1,
+ 	                                            T const *v2) noexcept {
+ 		uint32_t cnorm = 0;
+-		// TODO optimize with avx
++		// NOTE: no explicit SIMD needed: gcc 15 -O3 vectorizes this loop
++		// 	(vpxorq + vpopcntq with AVX-512 VPOPCNTDQ, checked in the asm)
+ 		for (uint32_t i = 0; i < limbs(); ++i) {
+ 			v3[i] = v1[i] ^ v2[i];
+ 			cnorm += popcnt_T(v3[i]);
+@@ -1297,7 +1298,8 @@ public:
+ 	constexpr static inline uint32_t dist(const FqPackedVector &a,
+ 	                                      const FqPackedVector &b) noexcept {
+ 		uint32_t ret = 0;
+-		// TODO simd
++		// NOTE: no explicit SIMD needed: gcc 15 -O3 vectorizes this loop
++		// 	(vpxorq + vpopcntq with AVX-512 VPOPCNTDQ, checked in the asm)
+ 		for (uint32_t i = 0; i < limbs(); ++i) {
+ 			ret += popcnt_T(a.__data[i] ^ b.__data[i]);
+ 		}

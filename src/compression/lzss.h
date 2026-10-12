@@ -38,10 +38,6 @@
 #define MAX_WINDOWSIZE 4095
 #define ITERATIONS_BEFORE_CALLBACK 64
 
-// TODO:
-//	- class
-//	- benchmark
-
 typedef uint32_t (*PFNCOMPRESSCALLBACK)(uint8_t *, uint8_t *, uint8_t *);
 
 /// \return number of bytes `dest` needs in `CompressData` for `src_length`
@@ -258,3 +254,37 @@ inline unsigned long CompressData(unsigned char *src,
 	}
 	return (unsigned long) (dest - start_dest);
 }
+
+namespace cryptanalysislib {
+	/// class interface of the LZSS functions above
+	/// \tparam windowsize size of the search window, <= MAX_WINDOWSIZE
+	template<const unsigned long windowsize = MAX_WINDOWSIZE>
+	struct lzss {
+		static_assert(windowsize > 0 && windowsize <= MAX_WINDOWSIZE);
+
+		/// \return number of bytes the output of `compress` needs
+		[[nodiscard]] constexpr static unsigned long bound(const unsigned long n) noexcept {
+			return CompressBound(n);
+		}
+
+		/// \param dst[out]: `bound(n)` bytes
+		/// \param src[in]: `n` input bytes
+		/// \param n[in]: number of input bytes
+		/// \return number of compressed bytes
+		static unsigned long compress(uint8_t *dst,
+		                              const uint8_t *src,
+		                              const unsigned long n) noexcept {
+			// NOTE: `CompressData` only reads `src`
+			return CompressData(const_cast<uint8_t *>(src), dst, n, windowsize, nullptr);
+		}
+
+		/// \param dst[out]: buffer for the uncompressed data (its size is not
+		/// 	stored in the stream, the caller has to know it)
+		/// \param src[in]: compressed bytes
+		/// \return number of decompressed bytes
+		static unsigned long decompress(uint8_t *dst,
+		                                const uint8_t *src) noexcept {
+			return DecompressData(src, dst);
+		}
+	};
+} // end namespace cryptanalysislib

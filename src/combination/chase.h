@@ -349,7 +349,10 @@ template<const uint32_t n,
          const uint32_t q = 2>
 class chase_t {
 	using T = uint16_t;
-	// TODO reset und wie machen wir das wenn wir mehrerer solcher fks hintereinander callen
+	// NOTE: no reset needed: every `enumerate` call starts the enumeration
+	// 	from the beginning (`enumerate1/2` reinitialize `idx`, `enumerate3`
+	// 	keeps its state locally), so it can be called several times in a row
+	// 	(tests/list/enumeration/binary.cpp: Chase.repeated).
 	T idx[16] = {0};
 
 	static_assert(q >= 2);
@@ -532,28 +535,23 @@ public:
 		}
 
 		if constexpr (p == 3) {
-			constexpr uint64_t np = bc(n - 1, p - 1);
-			constexpr uint64_t n2 = 2 * np;
-			// constexpr uint64_t n22 = 2 * np - 2;
-			constexpr int64_t nnn = (1 - n2) * (1 - n2);
-			const double pos1 = __builtin_sqrt(nnn - double(a << 3));
-			const double pos = (pos1 + n2 - 3.) / 2.;
-			const uint32_t t = 2 * np - __builtin_ceil(pos) - 2;
-			rows[0] = t;
-
-			// TODO not finished const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
-
-			if (a % (np - 1) > 0 || a == 0) {
-				if (t & 1u) {
-					biject2_down<n - 1, p - 1>(a % np, rows + 1);
-				} else {
-					biject2<n - 1, p - 1>(a % np, rows + 1);
-				}
-
-				for (uint32_t i = 0; i < 2; ++i) {
-					rows[i + 1] += 1;
-				}
-			}
+			// `enumerate3` is the revolving door order (Knuth, TAOCP 7.2.1.3,
+			// Algorithm R), whose rank of c3 > c2 > c1 is
+			// 	r = (C(c3+1, 3) - 1) - (C(c2+1, 2) - 1) + c1,
+			// so it is unranked greedily: c3 is the largest c with C(c, 3) <= r,
+			// then the remaining rank C(c3+1, 3) - 1 - r is unranked with t = 2
+			// (and so on).
+			// NOTE: replaces an unfinished closed formula, which was wrong.
+			uint64_t r = a;
+			uint32_t c3 = 2;
+			while (bc(c3 + 1, 3) <= r) { c3 += 1; }
+			r = bc(c3 + 1, 3) - 1 - r;
+			uint32_t c2 = 1;
+			while (bc(c2 + 1, 2) <= r) { c2 += 1; }
+			r = bc(c2 + 1, 2) - 1 - r;
+			rows[0] = uint16_t(r);
+			rows[1] = uint16_t(c2);
+			rows[2] = uint16_t(c3);
 		}
 	}
 };
@@ -580,9 +578,11 @@ public:
 	/// separated by only one position.
 	///
 	/// See exercise 45 of Knuth's The art of computer programming volume 4A.
-	/// \param ret
-	/// \param listsize
-	/// \return TODO seems not to be correct,n=5,t=2 errors
+	/// The first combination (not part of the list) has its `t` bits set at
+	/// the positions 0, ..., t-1; every entry (a, b) of the list clears bit
+	/// `a` and sets bit `b`, with |a - b| <= 2.
+	/// \param ret[out]: the list of changes (cleared bit, set bit)
+	/// \param listsize[in]: number of changes, 0 = all (C(n, t) - 1)
 	static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 	                       const size_t listsize = 0) noexcept {
 		const size_t size = listsize == 0 ? chase_size : listsize;

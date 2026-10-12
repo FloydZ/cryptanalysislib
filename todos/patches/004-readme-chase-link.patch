@@ -1,0 +1,13 @@
+diff --git a/README.md b/README.md
+index cea1744..2ae63bd 100644
+--- a/README.md
++++ b/README.md
+@@ -110,7 +110,7 @@ The following things are implemented:
+ - Custom [allocators](./src/alloc/README.md) which do not return a memory 
+     allocation, but memory blocks which do not allow for memory missuses.
+ - Binary- and Fq-[Enumeration](./src/combination/README.md) which enumerate vectors of length `n` and weight 
+-    `w` in a loop-less efficient way. Either a [Chase](TODO)-Sequence or a 
++    `w` in a loop-less efficient way. Either a [Chase](./src/combination/chase.h)-Sequence or a 
+     [Gray-Code](TODO) or a combination of both. 
+ - [LinkedList](./src/container/linkedlist/README.md)
+ - [HashMaps](./src/container/hashmap/README.md)

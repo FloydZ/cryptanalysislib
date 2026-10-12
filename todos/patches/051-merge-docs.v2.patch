@@ -1,0 +1,38 @@
+diff --git a/src/algorithm/merge.h b/src/algorithm/merge.h
+index e54eaeb..5e22f43 100644
+--- a/src/algorithm/merge.h
++++ b/src/algorithm/merge.h
+@@ -120,7 +120,17 @@ namespace cryptanalysislib {
+     } // end namespace internal
+ #endif
+     
+-    /// TODO doc
++    /// Merges the sorted ranges [first1, last1) and [first2, last2) into the
++    /// sorted range starting at `d_first` (like `std::merge`, stable: on
++    /// equal elements those of the first range come first)
++    /// \tparam InputIt1 Input iterator type of the first range
++    /// \tparam InputIt2 Input iterator type of the second range
++    /// \tparam OutputIt Output iterator type
++    /// \param first1/last1[in]: first sorted range
++    /// \param first2/last2[in]: second sorted range
++    /// \param d_first[out]: beginning of the output, must not overlap the inputs
++    /// \return Iterator past the last written element
++    /// NOTE: contiguous `uint32_t` ranges use the AVX2 merge (if available)
+     template<class InputIt1,
+              class InputIt2,
+              class OutputIt>
+@@ -161,7 +171,13 @@ namespace cryptanalysislib {
+         return std::copy(first2, last2, d_first);
+     }
+    
+-    /// TODO doc
++    /// Merges two ranges sorted w.r.t. `comp` (like `std::merge`, stable)
++    /// \tparam Compare less-than comparison, `comp(a, b)` true iff a < b
++    /// \param first1/last1[in]: first sorted range
++    /// \param first2/last2[in]: second sorted range
++    /// \param d_first[out]: beginning of the output, must not overlap the inputs
++    /// \param comp[in]: comparison function
++    /// \return Iterator past the last written element
+     template<class InputIt1,
+              class InputIt2,
+              class OutputIt,

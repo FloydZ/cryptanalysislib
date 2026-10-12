@@ -1,0 +1,224 @@
+diff --git a/bench/algorithm/merge.cpp b/bench/algorithm/merge.cpp
+new file mode 100644
+index 0000000..4aeeb2f
+--- /dev/null
++++ b/bench/algorithm/merge.cpp
+@@ -0,0 +1,37 @@
++#include <benchmark/benchmark.h>
++#include <algorithm>
++#include <vector>
++
++#include "random.h"
++#include "algorithm/merge.h"
++
++using namespace cryptanalysislib;
++constexpr size_t LS = 1u << 20u;
++
++static std::vector<uint32_t> a, b, out;
++static void generate(const size_t n) {
++	a.resize(n); b.resize(n); out.resize(2 * n);
++	for (auto &x : a) { x = rng<uint32_t>(); }
++	for (auto &x : b) { x = rng<uint32_t>(); }
++	std::sort(a.begin(), a.end()); std::sort(b.begin(), b.end());
++}
++
++static void BM_std_merge(benchmark::State &state) {
++	generate(state.range(0));
++	for (auto _: state) {
++		std::merge(a.begin(), a.end(), b.begin(), b.end(), out.begin());
++		benchmark::ClobberMemory();
++	}
++}
++
++static void BM_merge(benchmark::State &state) {
++	generate(state.range(0));
++	for (auto _: state) {
++		cryptanalysislib::merge(a.begin(), a.end(), b.begin(), b.end(), out.begin());
++		benchmark::ClobberMemory();
++	}
++}
++
++BENCHMARK(BM_std_merge)->RangeMultiplier(8)->Range(64, LS);
++BENCHMARK(BM_merge)->RangeMultiplier(8)->Range(64, LS);
++BENCHMARK_MAIN();
+diff --git a/src/algorithm/merge.h b/src/algorithm/merge.h
+index 030f8a9..291a7ab 100644
+--- a/src/algorithm/merge.h
++++ b/src/algorithm/merge.h
+@@ -1,9 +1,89 @@
+ #pragma once 
+ 
+-/// TODO simd version 
++#include <algorithm>
++#include <cstdint>
++#include <iterator>
++#include <type_traits>
++
++#ifdef USE_AVX2
++#include "sort/sorting_network/common.h"
++#endif
++
+ /// TODO parallel version 
+ 
+ namespace cryptanalysislib {
++#ifdef USE_AVX2
++    namespace internal {
++        /// merges two sorted vectors of 8 uint32_t: afterwards `lo` holds the
++        /// 8 smallest, `hi` the 8 largest elements, both sorted.
++        /// `a` and reversed `b` form a bitonic sequence: min/max splits it into
++        /// two bitonic halves (all of `lo` <= all of `hi`), which the bitonic
++        /// merge network `sortingnetwork_aftermerge_u32x8` sorts.
++        static inline void merge_u32x8x2(__m256i &lo, __m256i &hi,
++                                         const __m256i a, const __m256i b) noexcept {
++            const __m256i rev = _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0);
++            const __m256i br = _mm256_permutevar8x32_epi32(b, rev);
++            lo = _mm256_min_epu32(a, br);
++            hi = _mm256_max_epu32(a, br);
++            sortingnetwork_aftermerge_u32x8(lo);
++            sortingnetwork_aftermerge_u32x8(hi);
++        }
++
++        /// merges the sorted arrays `a` (n1) and `b` (n2) into `out` (n1+n2)
++        /// NOTE: Inoue et al. style: the 8 largest of the last merge step stay
++        ///     in a register and are merged with the next block of the input
++        ///     with the smaller head. As soon as that input has less than 8
++        ///     elements left, the rest is merged scalar.
++        static inline void merge_u32_avx2(const uint32_t *a, const size_t n1,
++                                          const uint32_t *b, const size_t n2,
++                                          uint32_t *out) noexcept {
++            constexpr size_t t = 8;
++            size_t i = 0, j = 0, k = 0;
++            alignas(32) uint32_t rest[t];
++            size_t nrest = 0;
++
++            if ((n1 >= t) && (n2 >= t)) {
++                __m256i va = _mm256_loadu_si256((const __m256i *)a);
++                __m256i vb = _mm256_loadu_si256((const __m256i *)b);
++                i = t; j = t;
++                while (true) {
++                    __m256i lo, hi;
++                    merge_u32x8x2(lo, hi, va, vb);
++                    _mm256_storeu_si256((__m256i *)(out + k), lo);
++                    k += t;
++                    vb = hi;
++
++                    // the next block must come from the input with the smaller
++                    // head, otherwise elements could be emitted out of order
++                    const bool a_left = i < n1, b_left = j < n2;
++                    const bool a_next = a_left && (!b_left || a[i] <= b[j]);
++                    if (a_next && (i + t <= n1)) {
++                        va = _mm256_loadu_si256((const __m256i *)(a + i)); i += t;
++                    } else if (!a_next && b_left && (j + t <= n2)) {
++                        va = _mm256_loadu_si256((const __m256i *)(b + j)); j += t;
++                    } else {
++                        break;
++                    }
++                }
++
++                _mm256_store_si256((__m256i *)rest, vb);
++                nrest = t;
++            }
++
++            // scalar 3-way merge of `rest`, a[i..n1), b[j..n2)
++            size_t r = 0;
++            while ((r < nrest) || (i < n1) || (j < n2)) {
++                uint32_t best = UINT32_MAX;
++                int src = -1;
++                if (r < nrest)                     { best = rest[r]; src = 0; }
++                if ((i < n1) && (src < 0 || a[i] < best)) { best = a[i]; src = 1; }
++                if ((j < n2) && (src < 0 || b[j] < best)) { best = b[j]; src = 2; }
++                out[k++] = best;
++                if (src == 0) { r++; } else if (src == 1) { i++; } else { j++; }
++            }
++        }
++    } // end namespace internal
++#endif
+     
+     /// TODO doc
+     template<class InputIt1,
+@@ -14,6 +94,22 @@ namespace cryptanalysislib {
+                    InputIt2 first2,
+                    InputIt2 last2,
+                    OutputIt d_first) {
++#ifdef USE_AVX2
++        // SIMD version for contiguous uint32_t ranges
++        if constexpr (std::contiguous_iterator<InputIt1> &&
++                      std::contiguous_iterator<InputIt2> &&
++                      std::contiguous_iterator<OutputIt> &&
++                      std::is_same_v<std::iter_value_t<InputIt1>, uint32_t> &&
++                      std::is_same_v<std::iter_value_t<InputIt2>, uint32_t> &&
++                      std::is_same_v<std::iter_value_t<OutputIt>, uint32_t>) {
++            const size_t n1 = static_cast<size_t>(last1 - first1);
++            const size_t n2 = static_cast<size_t>(last2 - first2);
++            internal::merge_u32_avx2(std::to_address(first1), n1,
++                                     std::to_address(first2), n2,
++                                     std::to_address(d_first));
++            return d_first + (n1 + n2);
++        }
++#endif
+         for (; first1 != last1; ++d_first) {
+             if (first2 == last2)
+                 return std::copy(first1, last1, d_first);
+diff --git a/tests/algorithm/merge.cpp b/tests/algorithm/merge.cpp
+new file mode 100644
+index 0000000..17fa1f3
+--- /dev/null
++++ b/tests/algorithm/merge.cpp
+@@ -0,0 +1,57 @@
++#include <gtest/gtest.h>
++#include <algorithm>
++#include <cstdint>
++#include <vector>
++
++#include "random.h"
++#include "algorithm/merge.h"
++
++using ::testing::InitGoogleTest;
++using namespace cryptanalysislib;
++
++/// merge against std::merge for many size combinations, with few distinct
++/// values (duplicates across both inputs) and with disjoint value ranges
++template<typename T>
++static void check(const size_t n1, const size_t n2, const uint32_t mod) {
++	std::vector<T> a(n1), b(n2), out(n1 + n2), e(n1 + n2);
++	for (auto &x : a) { x = T(rng() % mod); }
++	for (auto &x : b) { x = T(rng() % mod); }
++	std::sort(a.begin(), a.end());
++	std::sort(b.begin(), b.end());
++	std::merge(a.begin(), a.end(), b.begin(), b.end(), e.begin());
++	const auto it = cryptanalysislib::merge(a.begin(), a.end(), b.begin(), b.end(), out.begin());
++	EXPECT_EQ(it, out.end());
++	EXPECT_EQ(out, e) << n1 << " " << n2 << " " << mod;
++}
++
++TEST(merge, uint32_all_sizes) {
++	for (size_t n1 = 0; n1 <= 40; ++n1) {
++		for (size_t n2 = 0; n2 <= 40; ++n2) {
++			check<uint32_t>(n1, n2, 5);
++			check<uint32_t>(n1, n2, 1u << 30);
++		}
++	}
++	check<uint32_t>(10000, 7, 1u << 30);
++	check<uint32_t>(3, 10000, 1u << 30);
++	check<uint32_t>(12345, 23456, 100);
++	check<uint32_t>(12345, 23456, 0xffffffffu);
++}
++
++TEST(merge, other_types) {
++	for (size_t n = 0; n <= 50; ++n) {
++		check<uint8_t>(n, 50 - n, 7);
++		check<uint64_t>(n, 2 * n, 1u << 30);
++	}
++}
++
++TEST(merge, comparator) {
++	std::vector<uint32_t> a = {9, 5, 1}, b = {8, 2}, out(5);
++	cryptanalysislib::merge(a.begin(), a.end(), b.begin(), b.end(), out.begin(), std::greater<uint32_t>());
++	EXPECT_EQ(out, (std::vector<uint32_t>{9, 8, 5, 2, 1}));
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	rng_seed(time(NULL));
++	return RUN_ALL_TESTS();
++}

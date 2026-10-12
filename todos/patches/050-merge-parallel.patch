@@ -1,0 +1,186 @@
+diff --git a/src/algorithm/merge.h b/src/algorithm/merge.h
+index 030f8a9..ccef714 100644
+--- a/src/algorithm/merge.h
++++ b/src/algorithm/merge.h
+@@ -1,9 +1,46 @@
+ #pragma once 
+ 
++#include <algorithm>
++#include <functional>
++#include <future>
++#include <vector>
++
++#include "algorithm/algorithm.h"
++#include "thread/thread.h"
++
+ /// TODO simd version 
+-/// TODO parallel version 
+ 
+ namespace cryptanalysislib {
++    /// Configuration for merge algorithms
++    struct AlgorithmMergeConfig : public AlgorithmConfig {
++        constexpr static size_t min_size_per_thread = 1u << 16u;
++    };
++    constexpr static AlgorithmMergeConfig algorithmMergeConfig;
++
++    namespace internal {
++        /// merge path / co-rank: the number of elements of `a` among the first
++        /// `d` elements of the stable merge of `a` and `b` (on ties the
++        /// elements of `a` come first).
++        template<class RandIt1, class RandIt2, class Compare>
++        constexpr size_t merge_co_rank(const size_t d,
++                                       RandIt1 a, const size_t n1,
++                                       RandIt2 b, const size_t n2,
++                                       Compare comp) noexcept {
++            size_t lo = d > n2 ? d - n2 : 0;
++            size_t hi = d < n1 ? d : n1;
++            while (lo < hi) {
++                const size_t i = lo + (hi - lo) / 2;
++                const size_t j = d - i;
++                // a[i] would be emitted before b[j-1]: take more of `a`
++                if ((j > 0) && !comp(b[j - 1], a[i])) {
++                    lo = i + 1;
++                } else {
++                    hi = i;
++                }
++            }
++            return lo;
++        }
++    } // end namespace internal
+     
+     /// TODO doc
+     template<class InputIt1,
+@@ -56,4 +93,80 @@ namespace cryptanalysislib {
+ 
+         return std::copy(first2, last2, d_first);
+     }
++
++    /// Merges two sorted ranges (parallel version). Every thread computes an
++    /// equally large part of the output: its start in both inputs is found by
++    /// a binary search (merge path / co-rank), so the result equals the
++    /// sequential (stable) merge.
++    /// \param policy[in]: Execution policy specifying parallelization strategy
++    /// \param first1/last1[in]: first sorted range
++    /// \param first2/last2[in]: second sorted range
++    /// \param d_first[out]: beginning of the output, n1+n2 elements
++    /// \param comp[in]: less-than comparison
++    /// \return Iterator to the end of the output range
++    template<class ExecPolicy,
++             class RandIt1,
++             class RandIt2,
++             class RandIt3,
++             class Compare,
++             const AlgorithmMergeConfig &config = algorithmMergeConfig>
++#if __cplusplus > 201709L
++    requires std::random_access_iterator<RandIt1> &&
++             std::random_access_iterator<RandIt2> &&
++             std::random_access_iterator<RandIt3>
++#endif
++    RandIt3 merge(ExecPolicy &&policy,
++                  RandIt1 first1,
++                  RandIt1 last1,
++                  RandIt2 first2,
++                  RandIt2 last2,
++                  RandIt3 d_first,
++                  Compare comp) noexcept {
++        const size_t n1 = static_cast<size_t>(std::distance(first1, last1));
++        const size_t n2 = static_cast<size_t>(std::distance(first2, last2));
++        const size_t n = n1 + n2;
++        const uint32_t nthreads = should_par(policy, config, n);
++        if (is_seq<ExecPolicy>(policy) || nthreads < 2) {
++            return cryptanalysislib::merge(first1, last1, first2, last2, d_first, comp);
++        }
++
++        auto &task_pool = *policy.pool();
++        std::vector<std::future<void>> futures;
++        for (uint32_t t = 0; t < nthreads; ++t) {
++            const size_t d0 = (n * t) / nthreads;
++            const size_t d1 = (n * (t + 1)) / nthreads;
++            futures.emplace_back(task_pool.submit([=]() {
++                const size_t i0 = internal::merge_co_rank(d0, first1, n1, first2, n2, comp);
++                const size_t i1 = internal::merge_co_rank(d1, first1, n1, first2, n2, comp);
++                const size_t j0 = d0 - i0, j1 = d1 - i1;
++                cryptanalysislib::merge(first1 + i0, first1 + i1,
++                                        first2 + j0, first2 + j1,
++                                        d_first + d0, comp);
++            }));
++        }
++
++        for (auto &f : futures) { f.wait(); }
++        return d_first + n;
++    }
++
++    /// parallel merge with `<`
++    template<class ExecPolicy,
++             class RandIt1,
++             class RandIt2,
++             class RandIt3,
++             const AlgorithmMergeConfig &config = algorithmMergeConfig>
++#if __cplusplus > 201709L
++    requires std::random_access_iterator<RandIt1> &&
++             std::random_access_iterator<RandIt2> &&
++             std::random_access_iterator<RandIt3>
++#endif
++    RandIt3 merge(ExecPolicy &&policy,
++                  RandIt1 first1,
++                  RandIt1 last1,
++                  RandIt2 first2,
++                  RandIt2 last2,
++                  RandIt3 d_first) noexcept {
++        return cryptanalysislib::merge(std::forward<ExecPolicy>(policy),
++                                       first1, last1, first2, last2, d_first, std::less<>());
++    }
+ }; // end namespace cryptanalysislib
+diff --git a/tests/algorithm/merge.cpp b/tests/algorithm/merge.cpp
+new file mode 100644
+index 0000000..f7cec99
+--- /dev/null
++++ b/tests/algorithm/merge.cpp
+@@ -0,0 +1,47 @@
++#include <gtest/gtest.h>
++#include <algorithm>
++#include <cstdint>
++#include <vector>
++
++#include "random.h"
++#include "algorithm/merge.h"
++
++using ::testing::InitGoogleTest;
++using namespace cryptanalysislib;
++
++/// parallel merge against std::merge: duplicates, disjoint ranges, skewed sizes
++TEST(merge, multithreading) {
++	struct Case { size_t n1, n2; uint32_t mod; bool disjoint; };
++	for (const Case c : {Case{1u << 20, 1u << 20, 7, false},
++	                     Case{1u << 20, 1u << 20, 1u << 30, false},
++	                     Case{1u << 20, 1u << 18, 1u << 30, true},
++	                     Case{1u << 21, 5, 1u << 30, false},
++	                     Case{3, 1u << 21, 1u << 30, false}}) {
++		std::vector<uint32_t> a(c.n1), b(c.n2), out(c.n1 + c.n2), e(c.n1 + c.n2);
++		for (auto &x : a) { x = uint32_t(rng() % c.mod); }
++		for (auto &x : b) { x = uint32_t(rng() % c.mod) + (c.disjoint ? c.mod : 0u); }
++		std::sort(a.begin(), a.end());
++		std::sort(b.begin(), b.end());
++		std::merge(a.begin(), a.end(), b.begin(), b.end(), e.begin());
++		const auto it = cryptanalysislib::merge(par_if(true), a.begin(), a.end(), b.begin(), b.end(), out.begin());
++		EXPECT_EQ(it, out.end());
++		EXPECT_EQ(out, e) << c.n1 << " " << c.n2;
++	}
++}
++
++/// stability: equal keys, elements of the first range must come first
++TEST(merge, multithreading_stable) {
++	constexpr size_t n = 1u << 19;
++	std::vector<std::pair<uint32_t, uint32_t>> a(n), b(n), out(2 * n), e(2 * n);
++	for (size_t i = 0; i < n; ++i) { a[i] = {uint32_t(i / 1000), 0}; b[i] = {uint32_t(i / 1000), 1}; }
++	const auto comp = [](const auto &x, const auto &y) { return x.first < y.first; };
++	std::merge(a.begin(), a.end(), b.begin(), b.end(), e.begin(), comp);
++	cryptanalysislib::merge(par_if(true), a.begin(), a.end(), b.begin(), b.end(), out.begin(), comp);
++	EXPECT_EQ(out, e);
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	rng_seed(time(NULL));
++	return RUN_ALL_TESTS();
++}

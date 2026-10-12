@@ -1141,17 +1141,16 @@ static inline void sortingnetwork_sort_u8x32(__m128i *a,
 }
 
 
-constexpr static int8_t sortingnetwork_u8x32_shuffle_masks[8][32] __attribute((aligned(64))) = {
+constexpr static int8_t sortingnetwork_u8x32_shuffle_masks[7][32] __attribute((aligned(64))) = {
     {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
     {3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12},
     {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
     {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
     {15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
     {4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11},
-	// NOTE: this is a special mask, currently only needed in `sortingnetwork_aftermergesort_u8x64`
+	// NOTE: swaps the 16 bit halves of each 32 bit word, needed in the
+	// 	`sortingnetwork_aftermergesort_u8x*` half cleaners (distance 2)
     {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
-	// TODO: this seems to be a bug in the implementation. Currently only needed for `sortingnetwork_mergesort_u8x64`
-    {0,2,1,3,4,6,5,7, 8,10,9,11, 12,14,13,15, 0,2,1,3,4,6,5,7, 8,10,9,11, 12,14,13,15},
 };
 
 
@@ -1253,26 +1252,20 @@ static inline void sortingnetwork_aftermergesort_u8x32(__m256i &a) noexcept {
 	mask = _mm256_set1_epi64x(0xFFFFFFFF);
 	L0 = _mm256_blendv_epi8(L0, a, mask);
 
-	// 4
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]);
+	// NOTE: the half cleaner compares at distance 4, 2, 1 (bytes)
+	// 4: distance 2
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[6]);
 	__m256i L4p = _mm256_shuffle_epi8(L0, mask);
     COEX_u8x32(L0, L4p, tmp);
-	mask = _mm256_set1_epi16(0x00FF);
+	mask = _mm256_set1_epi32(0x0000FFFF);
 	L0 = _mm256_blendv_epi8(L4p, L0, mask);
 
-	// 5
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[6]);
+	// 5: distance 1
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]);
 	__m256i L5p = _mm256_shuffle_epi8(L0, mask);
     COEX_u8x32(L0, L5p, tmp);
-	mask = _mm256_set1_epi32(0x0000FFFF);
-	L0 = _mm256_blendv_epi8(L5p, L0, mask);
-
-	// 6, NOTE: somewhere is a bug, for reasons I dont understand this shuffle is missing
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[7]);
-	__m256i L6p = _mm256_shuffle_epi8(L0, mask);
-    COEX_u8x32(L0, L6p, tmp);
-	mask = _mm256_set1_epi32(0x0000FF00);
-	a = _mm256_blendv_epi8(L6p, L0, mask);
+	mask = _mm256_set1_epi16(0x00FF);
+	a = _mm256_blendv_epi8(L5p, L0, mask);
 }
 
 // implementation of `simd_aftermerge_4V`
@@ -1307,35 +1300,26 @@ static inline void sortingnetwork_aftermergesort_u8x64(__m256i &a,
 	L0 = _mm256_blendv_epi8(L0, a, mask);
 	H0 = _mm256_blendv_epi8(H0, b, mask);
 
-	// 4
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]);
+	// NOTE: the half cleaner compares at distance 4, 2, 1 (bytes)
+	// 4: distance 2
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[6]);
 	__m256i L4p = _mm256_shuffle_epi8(L0, mask);
 	__m256i H4p = _mm256_shuffle_epi8(H0, mask);
     COEX_u8x32(L0, L4p, tmp);
     COEX_u8x32(H0, H4p, tmp);
-	mask = _mm256_set1_epi16(0x00FF);
+	mask = _mm256_set1_epi32(0x0000FFFF);
 	L0 = _mm256_blendv_epi8(L4p, L0, mask);
 	H0 = _mm256_blendv_epi8(H4p, H0, mask);
 
-	// 5
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[6]);
+	// 5: distance 1
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]);
 	__m256i L5p = _mm256_shuffle_epi8(L0, mask);
 	__m256i H5p = _mm256_shuffle_epi8(H0, mask);
     COEX_u8x32(L0, L5p, tmp);
     COEX_u8x32(H0, H5p, tmp);
-	mask = _mm256_set1_epi32(0x0000FFFF);
-	L0 = _mm256_blendv_epi8(L5p, L0, mask);
-	H0 = _mm256_blendv_epi8(H5p, H0, mask);
-
-	// 6, TODO somewhere is a bug, for reasons I dont understand this shuffle is missing
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[7]);
-	__m256i L6p = _mm256_shuffle_epi8(L0, mask);
-	__m256i H6p = _mm256_shuffle_epi8(H0, mask);
-    COEX_u8x32(L0, L6p, tmp);
-    COEX_u8x32(H0, H6p, tmp);
-	mask = _mm256_set1_epi32(0x0000FF00);
-	a = _mm256_blendv_epi8(L6p, L0, mask);
-	b = _mm256_blendv_epi8(H6p, H0, mask);
+	mask = _mm256_set1_epi16(0x00FF);
+	a = _mm256_blendv_epi8(L5p, L0, mask);
+	b = _mm256_blendv_epi8(H5p, H0, mask);
 }
 
 // implementation of `simd_sort_4V_sorted`
@@ -1540,6 +1524,14 @@ static inline void sortingnetwork_aftermerge_u8x256(__m256i &a,
     sortingnetwork_aftermerge_u8x128(e, f, g, h);
 }
 
+/// sorts the 32 bytes of `v` descending.
+/// NOTE: x -> ~x reverses the order of bytes, so sorting the complements
+/// 	ascending and complementing again sorts descending (two xors).
+static inline __m256i sortingnetwork_sort_u8x32_desc(const __m256i v) noexcept {
+    const __m256i ones = _mm256_set1_epi8(-1);
+    return _mm256_xor_si256(sortingnetwork_sort_u8x32_(_mm256_xor_si256(v, ones)), ones);
+}
+
 /// implementation of `simd_sort_33V`
 static inline void sortingnetwork_sort_u8x288(__m256i &a,
 											  __m256i &b,
@@ -1552,9 +1544,7 @@ static inline void sortingnetwork_sort_u8x288(__m256i &a,
                                               __m256i &i) noexcept {
     __m256i tmp;
     sortingnetwork_sort_u8x256(a, b, c, d, e, f, g, h);
-    // TODO write a descending sorting func
-    i = sortingnetwork_sort_u8x32_(i);
-    sortingnetwork_reverse_u8x32(i);
+    i = sortingnetwork_sort_u8x32_desc(i);
     COEX_u8x32(h, i, tmp);
     sortingnetwork_aftermerge_u8x256(a, b, c, d, e, f, g, h);
     sortingnetwork_aftermerge_u8x32(i);

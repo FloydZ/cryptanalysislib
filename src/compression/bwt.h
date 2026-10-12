@@ -6,9 +6,11 @@
 // source  https://github.com/felipelouza/bwt-lcp-in-place
 #define END_MARKER '$'
 
+/// In-place Burrows-Wheeler transform (BWT), its inverse and the LCP array
+/// (Louza, Gagie, Telles: "Burrows-Wheeler transform and LCP array
+/// construction in constant space", 2017): O(1) extra memory, O(n^2) time.
 /// NOTE: the input text T[0..n) must end with END_MARKER, which must be
 /// 	unique and smaller than every other symbol of the text.
-/// TODO docs tests and benchs
 
 /// \param T[in]: text
 /// \param n[in]: length of T
@@ -25,6 +27,14 @@ int rank(const uint8_t *T, const int n, const uint8_t c, const int i) noexcept {
     return sum;
 }
 
+/// Computes the BWT of T in place and its LCP array: LCP[i] is the length of
+/// the longest common prefix of the i-th and the (i-1)-th smallest suffix
+/// (LCP[0] = 0).
+/// \param T[in/out]: text of length n >= 2, ending with END_MARKER.
+/// 	Replaced by its BWT.
+/// \param n[in]: length of T
+/// \param LCP[out]: n ints
+/// \return 0
 inline int bwt_lcp_inplace(uint8_t *T, int n, int *LCP) noexcept {
 
 	int i, p, r=1, s;

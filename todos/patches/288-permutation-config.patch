@@ -1,0 +1,21 @@
+diff --git a/src/permutation/permutation.h b/src/permutation/permutation.h
+index 7f9a2da..e8659ec 100644
+--- a/src/permutation/permutation.h
++++ b/src/permutation/permutation.h
+@@ -8,13 +8,9 @@
+ #include "helper.h"
+ #include "memory/memory.h"
+ 
+-class PermutationConfig {
+-    /// TODO
+-};
+-
+-constexpr static PermutationConfig permutationConfig;
+-
+-// template <const PermutationConfig &config=permutationConfig>
++/// permutation of [0, length), stored as an owned array
++/// NOTE: the empty, unused `PermutationConfig`/`permutationConfig`
++/// 	placeholder (and the commented out template parameter) were removed.
+ class Permutation {
+ public:
+ 	// The swap operations in LAPACK format.

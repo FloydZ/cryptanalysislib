@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include <cstdio>
+#include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "container/critbit.h"
 
@@ -46,9 +49,6 @@ class Cmp {
 public:
 	constexpr inline int operator()(const K *k1,
                                     const K *k2) const noexcept {
-		std::cout << "cmp" << std::endl;
-		std::cout << *k2 << std::endl;
-		std::cout << *k1 << std::endl;
         return k1->compare(*k2);
 	}
 };
@@ -151,6 +151,60 @@ TEST_F(CritBitTest, LookupTest) {
     EXPECT_EQ(result2, nullptr);
 }
 */
+
+/// random strings: insert, lookup and remove against std::set
+TEST(critbit, random_vs_std_set) {
+	for (const uint32_t alphabet : {2u, 26u}) {
+		CritBitTree tree{};
+		std::set<std::string> e;
+		std::vector<std::unique_ptr<T>> values;
+		for (size_t i = 0; i < 3000; ++i) {
+			std::string s;
+			const size_t len = 1 + rand() % 6;
+			for (size_t j = 0; j < len; ++j) { s.push_back(char('a' + rand() % alphabet)); }
+			auto t = std::make_unique<T>(uint32_t(i));
+			t->k = s;
+			auto *node = (CritBitTree::critbit_node *)calloc(1, sizeof(CritBitTree::critbit_node));
+			const K *existing = tree.critbit_insert_impl(node, t.get());
+			const bool fresh = e.insert(s).second;
+			EXPECT_EQ(existing == nullptr, fresh) << s;
+			if (fresh) { values.push_back(std::move(t)); }
+		}
+		for (const auto &v : values) {
+			const T *r = tree.critbit_get_impl(&v->k);
+			ASSERT_NE(r, nullptr) << v->k;
+			EXPECT_EQ(r->value, v->value);
+		}
+		const K missing("zzzzzzzz");
+		EXPECT_EQ(tree.critbit_get_impl(&missing), nullptr);
+
+		// remove half, the rest must still be found
+		for (size_t i = 0; i < values.size(); i += 2) {
+			const K *k = tree.critbit_remove_impl(&values[i]->k);
+			ASSERT_NE(k, nullptr);
+			EXPECT_EQ(*k, values[i]->k);
+			EXPECT_EQ(tree.critbit_get_impl(&values[i]->k), nullptr);
+		}
+		for (size_t i = 1; i < values.size(); i += 2) {
+			EXPECT_NE(tree.critbit_get_impl(&values[i]->k), nullptr) << values[i]->k;
+		}
+
+		// all elements with the prefix "ab"
+		std::set<std::string> got, expect;
+		for (size_t i = 1; i < values.size(); i += 2) {
+			if (values[i]->k.rfind("ab", 0) == 0) { expect.insert(values[i]->k); }
+		}
+		tree.allprefixed((const uint8_t *)"ab", 2, [&](const T *r) { got.insert(r->k); return true; });
+		EXPECT_EQ(got, expect);
+		// stopping the traversal: the handle returns false at the third call
+		size_t calls = 0;
+		EXPECT_FALSE(tree.allprefixed((const uint8_t *)"", 0, [&](const T *) { return ++calls < 3; }));
+		EXPECT_EQ(calls, 3u);
+
+		tree.clear();
+		EXPECT_EQ(tree.critbit_get_impl(&values[1]->k), nullptr);
+	}
+}
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

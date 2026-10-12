@@ -1,0 +1,15 @@
+diff --git a/README.md b/README.md
+index cea1744..f2bc846 100644
+--- a/README.md
++++ b/README.md
+@@ -99,8 +99,8 @@ of fact, this libraries offers of lot of different implementations.
+ 
+ Internally a set of a `Value, Label` and `Matrix` is called an `Element`, which 
+ maps each `Value` via a `Matrix` to an unique `Value`. More on each of those 
+-containers you find here: [Label](TODO), [Value](TODO), [Matrix](TODO), 
+-[Element]().
++containers you find here: [Label](./src/container/README.md), [Value](./src/container/README.md), [Matrix](./src/matrix/README.md), 
++[Element](./src/element.h).
+ 
+ 
+ Implementation Details:

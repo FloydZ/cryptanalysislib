@@ -3,10 +3,13 @@
 
 #include <semaphore.h>
 #include <cassert>
+#include <cerrno>
 
 #include "helper.h"
 
-// just a wrapper around the normal glib semaphore
+namespace cryptanalysislib {
+/// just a wrapper around the POSIX semaphore (`sem_t`, unnamed, not shared
+/// between processes), initialized with 0
 struct semaphore_wrapper {
 private:
 	sem_t sem;
@@ -21,29 +24,42 @@ private:
 	}
 
 public:
-	///
+	/// creates the semaphore with the value 0
 	semaphore_wrapper() noexcept {
 		create();
 	}
 
-	///
+	semaphore_wrapper(const semaphore_wrapper &) = delete;
+	semaphore_wrapper &operator=(const semaphore_wrapper &) = delete;
+
+	/// destroys the semaphore
 	~semaphore_wrapper() noexcept {
 		close();
 	}
 
-	///
+	/// blocks until the value is > 0, then decrements it
 	inline void wait() noexcept {
-		int err = sem_wait(&sem);
+		int err;
+		// NOTE: `sem_wait` returns early with EINTR if a signal arrives
+		do { err = sem_wait(&sem); } while ((err != 0) && (errno == EINTR));
 		assert(err == 0);
+		(void)err;
 	}
 
-	///
-	inline void signal(int cnt) {
+	/// increments the value `cnt` times, i.e. wakes up `cnt` waiters
+	inline void signal(int cnt) noexcept {
 		while (cnt-- > 0) {
 			sem_post(&sem);
 		}
 	}
 };
+} // end namespace cryptanalysislib
+
+// NOTE: the following coroutine semaphore is an unfinished port of
+// 	libcoro's `coro::semaphore` (missing `acquire_result`, members, includes,
+// 	member functions defined in the wrong scope, non-inline globals in a
+// 	header): it does not compile, so it is disabled until it is finished.
+#if 0
 
 
 // #include "coro/semaphore.hpp"
@@ -211,5 +227,6 @@ namespace cryptographic::atomic
     }
     } // end class
 } // end namespace
+#endif // the unfinished coroutine semaphore
 
 #endif

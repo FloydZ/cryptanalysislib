@@ -1,0 +1,268 @@
+diff --git a/src/list/common.h b/src/list/common.h
+index c813dd3..048f49d 100644
+--- a/src/list/common.h
++++ b/src/list/common.h
+@@ -5,6 +5,7 @@
+ #include "memory/memory.h"
+ #include "alloc/alloc.h"
+ #include "algorithm/copy.h"
++#include <type_traits>
+ 
+ struct ListConfig : public AlignmentConfig {
+ public:
+@@ -177,12 +178,14 @@ concept ListAble = requires(List l) {
+ #endif
+ 
+ 
++/// non-owning, mutable view onto the half-open range [start, end) of a list.
++/// \tparam List any list implementing `ListAble`
+ template<class List>
+ #if __cplusplus > 201709L
+-	// TODO requires ListAble<List>
++	requires ListAble<List>
+ #endif
+ class Listview_t {
+-private:
++public:
+ 	using Element = typename List::ElementType;
+ 
+ 	// needed types
+@@ -200,18 +203,23 @@ private:
+ 	typedef typename Element::LabelDataType LabelDataType;
+ 
+ 	typedef typename Element::MatrixType MatrixType;
++
++private:
+ 	constexpr Listview_t() = default;
+ 
++	List *list;
+ 	const size_t start;
+ 	const size_t end;
+-	const List *list ;
+ public:
+-	constexpr Listview_t(const List *list,
++	/// \param list underlying list, must outlive the view
++	/// \param start first index (inclusive)
++	/// \param end last index (exclusive), must be <= list->size()
++	constexpr Listview_t(List *list,
+ 						 const size_t start,
+-						 const size_t end) :
+-			start(start), end(end), list(list) {
+-		assert(start < end);
+-		assert(end < list->size());
++						 const size_t end) noexcept :
++			list(list), start(start), end(end) {
++		assert(start <= end);
++		assert(end <= list->size());
+ 	}
+ 
+ 	[[nodiscard]] constexpr inline size_t size() const noexcept {
+@@ -219,20 +227,24 @@ public:
+ 	}
+ 
+ 	[[nodiscard]] constexpr inline Element &operator[](const size_t i) noexcept {
++		assert(i < size());
+ 		return list->at(start + i);
+ 	}
+ 
+ 	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
++		assert(i < size());
+ 		return list->at(start + i);
+ 	}
+ };
+ 
++/// non-owning, read-only view onto the half-open range [start, end) of a list.
++/// \tparam List any list implementing `ListAble`
+ template<class List>
+ #if __cplusplus > 201709L
+-	//requires ListAble<List>
++	requires ListAble<List>
+ #endif
+ class Listview_const_t {
+-private:
++public:
+ 	using Element = typename List::ElementType;
+ 
+ 	// needed types
+@@ -250,17 +262,33 @@ private:
+ 	typedef typename Element::LabelDataType LabelDataType;
+ 
+ 	typedef typename Element::MatrixType MatrixType;
++
++private:
+ 	constexpr Listview_const_t() = default;
+ 
++	const List *list;
+ 	const size_t start;
+ 	const size_t end;
+-	const List *list ;
+ public:
++	/// \param list underlying list, must outlive the view
++	/// \param start first index (inclusive)
++	/// \param end last index (exclusive), must be <= list->size()
+ 	constexpr Listview_const_t(const List *list,
+ 	                     	   const size_t start,
+-	                     	   const size_t end) :
+-		list(list), start(start), end(end) {}
++	                     	   const size_t end) noexcept :
++		list(list), start(start), end(end) {
++		assert(start <= end);
++		assert(end <= list->size());
++	}
++
++	[[nodiscard]] constexpr inline size_t size() const noexcept {
++		return end - start;
++	}
+ 
++	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
++		assert(i < size());
++		return list->at(start + i);
++	}
+ };
+ 
+ template<class Element,
+@@ -300,7 +328,7 @@ protected:
+ 
+ public:
+ 
+-	using L = MetaListT<Element, Allocator, listConfig>;
++	using L = MetaListT<Element, Allocator, config>;
+ 
+ 	// needed types
+ 	typedef Element ElementType;
+@@ -599,17 +627,23 @@ public:
+ 		return __data[i];
+ 	}
+ 
+-	[[nodiscard]] constexpr inline Listview_t<L> view(const size_t i,
+-	                                             	   const size_t j) noexcept {
+-		assert(j <= size());
+-		assert(i < j);
+-		return Listview_t<L>(this, i, j);
+-	}
+-	[[nodiscard]] constexpr inline const Element view(const size_t i,
+-	                                                   const size_t j) const noexcept {
+-		assert(j <= size());
+-		assert(i < j);
+-		return Listview_const_t<L>(this, i, j);
++	/// NOTE: deducing `this`, so the view is typed on the most derived list
++	/// 	(e.g. `List_T`), which is the one satisfying `ListAble`.
++	/// \param i first index (inclusive)
++	/// \param j last index (exclusive)
++	/// \return `Listview_t` or, if called on a const list, `Listview_const_t`
++	template<class Self>
++	[[nodiscard]] constexpr inline auto view(this Self &self,
++	                                         const size_t i,
++	                                         const size_t j) noexcept {
++		assert(j <= self.size());
++		assert(i <= j);
++		using LL = std::remove_const_t<Self>;
++		if constexpr (std::is_const_v<Self>) {
++			return Listview_const_t<LL>(&self, i, j);
++		} else {
++			return Listview_t<LL>(&self, i, j);
++		}
+ 	}
+ 
+ 	///
+@@ -844,4 +878,13 @@ std::ostream &operator<<(std::ostream &out,
+ 	return out;
+ }
+ 
++template<typename List>
++std::ostream &operator<<(std::ostream &out,
++                         const Listview_const_t<List> &obj) {
++	for (size_t i = 0; i < obj.size(); ++i) {
++		out << obj[i] << "\t pos:" << i << "\n";
++	}
++	return out;
++}
++
+ #endif//DECODING_LIST_COMMON_H
+diff --git a/tests/list/listview.cpp b/tests/list/listview.cpp
+new file mode 100644
+index 0000000..2873712
+--- /dev/null
++++ b/tests/list/listview.cpp
+@@ -0,0 +1,81 @@
++#include <gtest/gtest.h>
++
++#include "list/list.h"
++
++using ::testing::InitGoogleTest;
++using ::testing::Test;
++
++constexpr size_t LS = 1u<<8u;
++
++constexpr static uint32_t n = 32;
++using MatrixT = uint8_t;
++using Matrix = FqMatrix<uint64_t, n, n, 2>;
++using Value = FqPackedVector<n, 2, MatrixT>;
++using Label = FqPackedVector<n, 2, MatrixT>;
++using Element = Element_T<Value, Label, Matrix>;
++using List = List_T<Element>;
++
++static_assert(ListAble<List>);
++
++TEST(Listview, mutable_view) {
++	List L{LS, 1};
++	Matrix m;
++	m.random();
++	L.random(LS, m);
++
++	constexpr size_t start = 10, end = 42;
++	Listview_t<List> v{&L, start, end};
++	EXPECT_EQ(v.size(), end - start);
++	for (size_t i = 0; i < v.size(); ++i) {
++		EXPECT_EQ(&v[i], &L[start + i]);
++	}
++
++	// writes go through to the list
++	v[0] = L[0];
++	EXPECT_TRUE(L[start].is_equal(L[0]));
++
++	// full and empty views
++	Listview_t<List> full{&L, 0, L.size()};
++	EXPECT_EQ(full.size(), L.size());
++	Listview_t<List> empty{&L, 5, 5};
++	EXPECT_EQ(empty.size(), 0);
++}
++
++TEST(Listview, const_view) {
++	List L{LS, 1};
++	Matrix m;
++	m.random();
++	L.random(LS, m);
++
++	const List &cL = L;
++	constexpr size_t start = 3, end = 17;
++	const Listview_const_t<List> v{&cL, start, end};
++	EXPECT_EQ(v.size(), end - start);
++	for (size_t i = 0; i < v.size(); ++i) {
++		EXPECT_EQ(&v[i], &cL[start + i]);
++	}
++}
++
++TEST(Listview, view) {
++	List L{LS, 1};
++	Matrix m;
++	m.random();
++	L.random(LS, m);
++
++	auto v = L.view(4, 20);
++	static_assert(std::is_same_v<decltype(v), Listview_t<List>>);
++	EXPECT_EQ(v.size(), 16);
++	EXPECT_EQ(&v[0], &L[4]);
++
++	const List &cL = L;
++	const auto cv = cL.view(4, 20);
++	static_assert(std::is_same_v<std::remove_const_t<decltype(cv)>, Listview_const_t<List>>);
++	EXPECT_EQ(cv.size(), 16);
++	EXPECT_EQ(&cv[15], &L[19]);
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	rng_seed(time(NULL));
++	return RUN_ALL_TESTS();
++}

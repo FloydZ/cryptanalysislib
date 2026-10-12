@@ -3,7 +3,6 @@
 // TODO improvements:  https://github.com/HJLebbink/SorterHunter (256 hannels)
 // TODO add a function to `Pair_t` which checks if its a simd swap pattern
 //          so this is only include swaps of equal size.
-// TODO config is contantexpr
 // Mutation which is a swap pattern
 // TODO find until Level=91 oder so
 

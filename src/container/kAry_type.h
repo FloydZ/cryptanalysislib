@@ -28,8 +28,6 @@ struct FqConfig : public AlignmentConfig {
 }; 
 constexpr static FqConfig fqConfig;
 
-//TODo rename to Fqelement
-
 /// Container to represent a single element mod q
 /// \tparam q modulus
 /// \tparam Metric: currently unused
@@ -1424,12 +1422,10 @@ std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) 
 
 	if constexpr (bin) {
 		uint64_t tmp = obj.value();
+		// lowest bit first
 		for (size_t i = 0; i < S::bits; ++i) {
-			std::cout << (tmp & 1u);
+			out << (tmp & 1u);
 			tmp >>= 1u;
-			// TODO remove
-			if (i == 15) {std::cout << " ";}
-			if (i == 25) {std::cout << " ";}
 		}
 		out << " (" << std::dec << (uint64_t) obj.value()
 		    << ", 0x" << std::hex << (uint64_t) obj.value() << ")"

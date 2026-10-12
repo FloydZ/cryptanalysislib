@@ -1,0 +1,91 @@
+diff --git a/src/simd/avx2.h b/src/simd/avx2.h
+index bc41400..5e244df 100644
+--- a/src/simd/avx2.h
++++ b/src/simd/avx2.h
+@@ -3289,24 +3289,39 @@ struct Xint16x16_t {
+ 		return ret;
+ 	}
+ 	
++	/// Source: https://stackoverflow.com/questions/58823140/count-leading-zero-bits-for-each-element-in-avx2-vector-emulate-mm256-lzcnt-ep
++	/// Every 16 bit value is exactly representable as a float, so its
++	/// exponent is floor(log2(x)) and clz(x) = 15 - floor(log2(x)).
+ 	/// \param in
+-	/// \return
++	/// \return the number of leading zeros of each 16 bit lane (16 for 0)
+     [[nodiscard]] constexpr static inline S clz(const S in) noexcept {
++		typedef uint32_t v16u32 __attribute__((vector_size(64)));
++		typedef int32_t v16i32 __attribute__((vector_size(64)));
++		typedef float v16f __attribute__((vector_size(64)));
++		const v16u32 x = __builtin_convertvector((__v16hu) in.v256, v16u32);
++		const v16f f = __builtin_convertvector(x, v16f);
++		const v16i32 e = ((v16i32) f >> 23) - 127;
++		const v16i32 r = (x == 0) ? v16i32{} + 16 : 15 - e;
+ 		S ret;
+-		// TODO https://stackoverflow.com/questions/58823140/count-leading-zero-bits-for-each-element-in-avx2-vector-emulate-mm256-lzcnt-ep
+-        (void)in;
++		ret.v256 = (__m256i) __builtin_convertvector(r, __v16hu);
+ 		return ret;
+     }
+ 	
++	/// ctz(x) = popcnt((x - 1) & ~x)
+     /// \param in
+-	/// \return
++	/// \return the number of trailing zeros of each 16 bit lane (16 for 0)
+     [[nodiscard]] constexpr static inline S ctz(const S in) noexcept {
+-		S ret;
+-		// TODO
+-        (void)in;
+-		return ret;
++		S t;
++		t.v256 = (__m256i) (((__v16hu) in.v256 - 1u) & ~((__v16hu) in.v256));
++		return S::popcnt(t);
+     }
+ 
++	/// same as `clz`, same name as in the AVX-512 backend
++	[[nodiscard]] constexpr static inline S lzcnt(const S in) noexcept { return clz(in); }
++
++	/// same as `ctz`, same name as in the AVX-512 backend
++	[[nodiscard]] constexpr static inline S tzcnt(const S in) noexcept { return ctz(in); }
++
+ 	/// checks if all bytes are equal
+ 	/// \param in
+ 	/// \return
+diff --git a/tests/simd/lane_ops.cpp b/tests/simd/lane_ops.cpp
+index 4de7286..2da21af 100644
+--- a/tests/simd/lane_ops.cpp
++++ b/tests/simd/lane_ops.cpp
+@@ -3,6 +3,8 @@
+ #include <cstdint>
+ #include <cstring>
+ 
++#include "algorithm/countl.h"
++#include "algorithm/countr.h"
+ #include "random.h"
+ #include "simd/simd.h"
+ 
+@@ -136,6 +138,25 @@ TEST(Div, avx512) {
+ }
+ #endif
+ 
++#ifdef USE_AVX2
++/// clz/ctz of all 16 bit values (and 0)
++TEST(LaneOps, avx2_uint16x16_clz_ctz_exhaustive) {
++	using S = uint16x16_t;
++	alignas(32) uint16_t a[16], o1[16], o2[16];
++	for (uint32_t base = 0; base < 65536u; base += 16) {
++		for (uint32_t i = 0; i < 16; ++i) { a[i] = uint16_t(base + i); }
++		const S v = S::load(a);
++		S::store(o1, S::clz(v));
++		S::store(o2, S::ctz(v));
++		for (uint32_t i = 0; i < 16; ++i) {
++			const uint16_t x = a[i];
++			ASSERT_EQ(o1[i], cryptanalysislib::countl_zero(x)) << x;
++			ASSERT_EQ(o2[i], cryptanalysislib::countr_zero(x)) << x;
++		}
++	}
++}
++#endif
++
+ /// comparisons, min/max and the constexpr load, for signed and unsigned types
+ template<typename S>
+ static void check_cmp_ops() {

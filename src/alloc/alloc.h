@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
-#include <mutex>
 #include <type_traits>
 
 #include "container/queue.h"
@@ -558,7 +557,6 @@ private:
 		// concurrent queue to store freed pages
 		queue_type _queue;
 		std::size_t _alignment = _page_alignment;
-		std::mutex _mutex; // TODO make template argument
 
 		_static_helper() noexcept {}
 

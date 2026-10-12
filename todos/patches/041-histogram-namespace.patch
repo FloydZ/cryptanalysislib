@@ -1,0 +1,25 @@
+diff --git a/src/algorithm/histogram.h b/src/algorithm/histogram.h
+index 9e11421..687c52a 100644
+--- a/src/algorithm/histogram.h
++++ b/src/algorithm/histogram.h
+@@ -10,9 +10,10 @@
+ #include "alloc/alloc.h"
+ #include "simd/simd.h"
+ 
+-/// TODO add cryptanalysislib namespace
+ /// TODO multiple parallel histograms, result in a speedup?
+ 
++namespace cryptanalysislib {
++
+ /// Configuration for histogram algorithms with threading settings
+ struct AlgorithmHistogramConfig : public AlgorithmConfig {
+ 	constexpr static size_t min_size_per_thread = 1u << 14u;
+@@ -994,6 +995,8 @@ constexpr inline static void histogram_u8_8x(C cnt[256],
+ 	HISTEND8(c, cnt);
+ }
+ 
++} // end namespace cryptanalysislib
++
+ namespace cryptanalysislib::algorithm {
+ 
+ 	/// Computes histogram of input data (sequential version)

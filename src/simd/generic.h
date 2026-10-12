@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "algorithm/bits/popcount.h"
+#include "helper.h"
 #include "random.h"
 #include "simd/simd.h"
 using namespace cryptanalysislib;
@@ -616,19 +617,23 @@ public:
 	SIMD_FUNCTION_2ARGS_MACRO(cmp_, ==)
 	SIMD_FUNCTION_2ARGS_MACRO(eq_, ==)
 
-	// TODO all these function should return a binarycontainer
-	[[nodiscard]] constexpr static inline uint64_t gt(const TxN_t &in1,
-													  const TxN_t &in2) noexcept {
+	/// one bit per lane (bit i = lane i): the smallest unsigned integer with
+	/// at least N bits, `uint8_t`, ..., `uint64_t`, `__uint128_t`.
+	/// NOTE: `gt`/`lt`/`eq`/`move` need N <= 128.
+	using mask_type = LogTypeTemplate<N>;
+
+	[[nodiscard]] constexpr static inline mask_type gt(const TxN_t &in1,
+													   const TxN_t &in2) noexcept {
 		const auto tmp = S::gt_(in1, in2);
 		return S::move(tmp);
 	}
-	[[nodiscard]] constexpr static inline uint64_t lt(const TxN_t &in1,
-													  const TxN_t &in2) noexcept {
+	[[nodiscard]] constexpr static inline mask_type lt(const TxN_t &in1,
+													   const TxN_t &in2) noexcept {
 		const auto tmp = S::lt_(in1, in2);
 		return S::move(tmp);
 	}
-	[[nodiscard]] constexpr static inline uint64_t eq(const TxN_t &in1,
-	                                                  const TxN_t &in2) noexcept {
+	[[nodiscard]] constexpr static inline mask_type eq(const TxN_t &in1,
+	                                                   const TxN_t &in2) noexcept {
 		const auto tmp = S::eq_(in1, in2);
 		return S::move(tmp);
 	}
@@ -639,8 +644,6 @@ public:
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {
-                /// TODO move this into a seperate call in this class, so 
-                /// if someone wants to copy this file, only needs a single change to make
 				ret[i] = cryptanalysislib::popcount::popcount(in1[i]);
 			}
 			return ret;
@@ -674,9 +677,9 @@ public:
 		return ret;
 	}
 
-	/// TODO doc
+	/// reverses the order of the lanes
 	/// \param in1
-	/// \return
+	/// \return ret[N - 1 - i] = in1[i]
 	[[nodiscard]] constexpr static inline TxN_t reverse(const TxN_t &in1) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < LIMBS; ++i) {
@@ -686,9 +689,8 @@ public:
 		return ret;
 	}
 
-	/// TODO doc
 	/// \param in1
-	/// \return
+	/// \return true if all lanes of `in1` are equal
 	[[nodiscard]] constexpr static inline bool all_equal(const TxN_t &in1) noexcept {
 		for (uint32_t i = 1; i < N; ++i) {
 			if (in1.d[i-1] != in1.d[i]) {
@@ -699,9 +701,12 @@ public:
 		return true;
 	}
 
-	/// TODO doc
-	/// \param ptr
-	/// \param in1
+	/// gathers one limb per lane: ret[i] = limb at byte offset in1[i] * off
+	/// of `ptr` (unaligned reads are fine)
+	/// \tparam off byte scale of the offsets (as the AVX2/NEON gathers), by
+	/// 	default `sizeof(T)`, i.e. `in1` are limb indices
+	/// \param ptr base pointer
+	/// \param in1 offsets, in units of `off` bytes
 	/// \return
 	template<uint32_t off = sizeof(T)>
 	[[nodiscard]] constexpr static inline TxN_t gather(const limb_type *ptr,
@@ -718,10 +723,12 @@ public:
 	}
 
 
-	/// TODO doc
-	/// \param ptr
-	/// \param in1
-	/// \param in2
+	/// scatters one limb per lane: writes in2[i] at byte offset in1[i] * off
+	/// of `ptr`. If two offsets collide, the higher lane wins.
+	/// \tparam off byte scale of the offsets, by default `sizeof(T)`
+	/// \param ptr base pointer
+	/// \param in1 offsets, in units of `off` bytes
+	/// \param in2 data
 	template<uint32_t off = sizeof(T)>
 	constexpr static inline void scatter(limb_type *ptr,
 	                                     const TxN_t &in1,
@@ -735,10 +742,13 @@ public:
 		}
 	}
 
-	/// TODO doc
-	/// \param ptr
-	/// \param in1
-	/// \param in2
+	/// scatter permutation: ret[in1[i]] = in2[i]
+	/// NOTE: `in1` are the target positions (a permutation of [0, N)) and
+	/// 	`in2` the data. This differs from the 8/32/64 bit AVX2/AVX-512
+	/// 	`permute(in, perm)`, which gathers `ret[i] = in[perm[i]]`.
+	/// \param in1 target positions
+	/// \param in2 data
+	/// \return
 	[[nodiscard]] constexpr static inline S permute(const TxN_t &in1,
 	                                                const TxN_t &in2) noexcept {
 		S ret;
@@ -749,17 +759,16 @@ public:
 		return ret;
 	}
 
-	/// note; 64 elements limitation
 	/// \param in1
-	/// \return
-	[[nodiscard]] constexpr static inline uint64_t move(const TxN_t &in1) noexcept {
-		assert(N <= 64);
-		uint64_t ret = 0;
+	/// \return the msb of each lane, one bit per lane (see `mask_type`)
+	[[nodiscard]] constexpr static inline mask_type move(const TxN_t &in1) noexcept {
+		static_assert(N <= 128u, "the lane mask has at most 128 bits");
+		mask_type ret = 0;
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
 				const uint64_t data = uint64_t(simd512_type::move(in1.v512[i / nr_limbs_in_simd512]));
-				ret ^= data << i;
+				ret ^= mask_type(data) << i;
 			}
 
 			if constexpr (simd512_fits) {
@@ -769,7 +778,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				ret ^= uint64_t(simd256_type::move(in1.v256[i / nr_limbs_in_simd256])) << i;
+				ret ^= mask_type(simd256_type::move(in1.v256[i / nr_limbs_in_simd256])) << i;
 			}
 
 			if constexpr (simd256_fits) {
@@ -779,7 +788,7 @@ public:
 
 		constexpr limb_type mask = 1ull << ((sizeof(limb_type) * 8) - 1ull);
 		for (; i < N; ++i) {
-			ret ^= uint64_t((in1.d[i] & mask) > 0) << i;
+			ret ^= mask_type((in1.d[i] & mask) > 0) << i;
 		}
 
 		return ret;

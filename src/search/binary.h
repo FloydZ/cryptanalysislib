@@ -16,10 +16,9 @@
 #include "math/math.h"
 
 
-// TODO add namespace, for all the c functions
-// TODO add @lemire binary search in parallel in multiple different lists
-// TODO add `constexpr` where possible
-// TODO add concept to the c functions below to check that `Type` is arithmetic 
+// NOTE: all functions in this file are `constexpr`, the fxt `bsearch`
+// 	family requires `std::is_arithmetic_v<Type>`.
+namespace cryptanalysislib {
 
 
 /// Binary search for an exact value in a sorted array
@@ -32,7 +31,10 @@
 /// \param v[in]: Value to search for
 /// \return Index of first element in f[] that equals v, or n if no such element exists
 template <typename Type>
-size_t bsearch(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch(const Type *f,
                const size_t n,
                const Type v) noexcept {
     if (n == 0) [[unlikely]] {
@@ -59,7 +61,10 @@ size_t bsearch(const Type *f,
 /// \param v[in]: Value to compare against
 /// \return Index of first element in f[] that is >= v, or n if no such element exists
 template <typename Type>
-size_t bsearch_geq(const Type *f, 
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_geq(const Type *f, 
                    const size_t n,
                    const Type v) {
     if (n == 0) [[unlikely]] {
@@ -86,7 +91,10 @@ size_t bsearch_geq(const Type *f,
 /// \param v[in]: Value to compare against
 /// \return Index of first element in f[] that is <= v, or n if no such element exists
 template <typename Type>
-size_t bsearch_leq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_leq(const Type *f,
                    const size_t n,
                    const Type v) noexcept {
     if (n == 0) [[unlikely]] {
@@ -114,7 +122,10 @@ size_t bsearch_leq(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Index of first element in f[] that equals v, or n if no such element exists
 template <typename Type>
-size_t bsearch(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch(const Type *f,
                const size_t n, 
                const Type v,
                int (*cmp)(const Type &, const Type &)) {
@@ -143,7 +154,10 @@ size_t bsearch(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Index of first element in f[] that is >= v, or n if no such element exists
 template <typename Type>
-size_t bsearch_geq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_geq(const Type *f,
                    const size_t n,
                    const Type v,
                    int (*cmp)(const Type &, const Type &)) {
@@ -172,7 +186,10 @@ size_t bsearch_geq(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Index of first element in f[] that is <= v, or n if no such element exists
 template <typename Type>
-size_t bsearch_leq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_leq(const Type *f,
                    const uint64_t n, 
                    const Type v,
                    int (*cmp)(const Type &, const Type &)) noexcept {
@@ -205,7 +222,10 @@ size_t bsearch_leq(const Type *f,
 /// \return Index of first element x in f[] for which |x-v| <= da,
 ///             or n if no such element exists
 template <typename Type>
-uint64_t bsearch_approx(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr uint64_t bsearch_approx(const Type *f,
                      const uint64_t n,
                      const Type v,
                      const Type da) noexcept {
@@ -233,7 +253,10 @@ uint64_t bsearch_approx(const Type *f,
 /// \return Index of first element x in f[] for which |x-v| <= da according to
 ///         comparator, or n if no such element exists
 template <typename Type>
-size_t bsearch_approx(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_approx(const Type *f,
                      const size_t n,
                      const Type v,
                      const Type da,
@@ -256,7 +279,10 @@ size_t bsearch_approx(const Type *f,
 /// \param v[in]: Value to search for
 /// \return Minimal index i so that f[x[i]] == v, or n if no such i exists
 template <typename Type>
-size_t idx_bsearch(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t idx_bsearch(const Type *f,
                    const size_t n, 
                    const size_t *x,
                    const Type v) noexcept {
@@ -286,7 +312,10 @@ size_t idx_bsearch(const Type *f,
 /// \param v[in]: Value to compare against
 /// \return Minimal index i so that f[x[i]] >= v, or n if no such i exists
 template <typename Type>
-size_t idx_bsearch_geq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t idx_bsearch_geq(const Type *f,
                        const size_t n,
                        const uint64_t *x,
                        const Type v) noexcept {
@@ -316,7 +345,10 @@ size_t idx_bsearch_geq(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Minimal index i so that f[x[i]] == v, or n if no such i exists
 template <typename Type>
-size_t idx_bsearch(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t idx_bsearch(const Type *f,
                    const size_t n, 
                    const uint64_t *x,
                    const Type v,
@@ -348,7 +380,10 @@ size_t idx_bsearch(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Minimal index i so that f[x[i]] >= v, or n if no such i exists
 template <typename Type>
-size_t idx_bsearch_geq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t idx_bsearch_geq(const Type *f,
                        const size_t n,
                        const uint64_t *x,
                        const Type v,
@@ -376,7 +411,7 @@ size_t idx_bsearch_geq(const Type *f,
 /// \param value[in]: Value to search for
 /// \return Index of the first matching element, or -1 if not found
 template<typename T>
-size_t Khuong_bin_search(const T *list,
+constexpr size_t Khuong_bin_search(const T *list,
                          const size_t len_list,
                          const T value) {
 	if (len_list == 0) [[unlikely]] {
@@ -412,7 +447,7 @@ template<typename T>
 #if __cplusplus > 201709L
 	requires std::is_integral_v<T>
 #endif
-int lower_bound_eytzinger_prefetch(const T *list,
+constexpr int lower_bound_eytzinger_prefetch(const T *list,
                 const size_t len,
                 const T x) {
 	if (len <= 1) [[unlikely]] {
@@ -444,7 +479,7 @@ template<typename ForwardIt,
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt upper_bound_standard_binary_search(ForwardIt first,
+constexpr ForwardIt upper_bound_standard_binary_search(ForwardIt first,
                                              ForwardIt last,
                                              const typename ForwardIt::value_type &key_,
                                              Hash h) noexcept {
@@ -494,7 +529,7 @@ template<typename ForwardIt,
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt lower_bound_standard_binary_search(ForwardIt first,
+constexpr ForwardIt lower_bound_standard_binary_search(ForwardIt first,
                                              ForwardIt last,
                                              const typename ForwardIt::value_type &key_,
                                              Hash h) noexcept {
@@ -528,7 +563,7 @@ ForwardIt lower_bound_standard_binary_search(ForwardIt first,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t standard_binary_search(const T *array,
+constexpr size_t standard_binary_search(const T *array,
                               const size_t array_size,
                               const T key) noexcept {
 	if (array_size == 0) {
@@ -566,7 +601,7 @@ size_t standard_binary_search(const T *array,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t boundless_binary_search(const T *array,
+constexpr size_t boundless_binary_search(const T *array,
                                const size_t array_size,
                                const T key) noexcept {
 	if (array_size == 0) {
@@ -598,7 +633,7 @@ size_t boundless_binary_search(const T *array,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t doubletapped_binary_search(const T *array,
+constexpr size_t doubletapped_binary_search(const T *array,
                                   const size_t array_size,
                                   T key) noexcept {
 	if (array_size == 0) {
@@ -639,7 +674,7 @@ template<typename ForwardIt,
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
+constexpr ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
                                               ForwardIt last,
                                               const typename ForwardIt::value_type &key_,
                                               Hash h) noexcept {
@@ -681,7 +716,7 @@ template<typename ForwardIt,
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
+constexpr ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
                                               ForwardIt last,
                                               const typename ForwardIt::value_type &key_,
                                               Hash h) noexcept {
@@ -713,7 +748,7 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t monobound_binary_search(const T *array,
+constexpr size_t monobound_binary_search(const T *array,
                                const size_t array_size,
                                const T key) noexcept {
 	if (array_size == 0) {
@@ -753,7 +788,7 @@ template<typename ForwardIt,
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt tripletapped_binary_search(ForwardIt first,
+constexpr ForwardIt tripletapped_binary_search(ForwardIt first,
                                      ForwardIt last,
                                      const typename ForwardIt::value_type &key_,
                                      Hash h) noexcept {
@@ -789,7 +824,7 @@ ForwardIt tripletapped_binary_search(ForwardIt first,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t tripletapped_binary_search(const T *array,
+constexpr size_t tripletapped_binary_search(const T *array,
                                   const size_t array_size,
                                   const T key) noexcept {
 	if (array_size == 0) {
@@ -824,7 +859,7 @@ size_t tripletapped_binary_search(const T *array,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t monobound_quaternary_search(const T *array,
+constexpr size_t monobound_quaternary_search(const T *array,
                                    const size_t array_size,
                                    const T key) noexcept {
 	if (array_size == 0) {
@@ -999,8 +1034,6 @@ template<typename It,
 
 	return begin + (h(*begin) < v);
 }
-
-namespace cryptanalysislib {
 
 	/// Find the first element not less than a value using a hash function
 	/// 
@@ -1208,6 +1241,55 @@ namespace cryptanalysislib {
 
 
 	};
+
+	/// lower bound of `N` keys in `N` different sorted arrays at once:
+	/// out[i] = index of the first element >= keys[i] in arrays[i], or
+	/// lengths[i] if there is none.
+	/// The `N` (branchless) binary searches are interleaved in lock step, so
+	/// the CPU can overlap their cache misses (memory level parallelism),
+	/// instead of waiting for each search after the other.
+	/// Source: D. Lemire, "Parallel binary search" / "How fast can you do
+	/// 	binary searches in several arrays at once?"
+	/// \tparam N number of simultaneous searches
+	/// \tparam T element type
+	/// \param arrays[in]: N sorted (ascending) arrays
+	/// \param lengths[in]: their lengths
+	/// \param keys[in]: keys[i] is searched in arrays[i]
+	/// \param out[out]: result indices
+	template<const size_t N, typename T>
+#if __cplusplus > 201709L
+		requires std::totally_ordered<T>
+#endif
+	constexpr void lower_bound_multiple(const T *const *arrays,
+	                                    const size_t *lengths,
+	                                    const T *keys,
+	                                    size_t *out) noexcept {
+		static_assert(N > 0);
+		const T *base[N];
+		size_t n[N];
+		size_t maxn = 0;
+		for (size_t i = 0; i < N; ++i) {
+			base[i] = arrays[i];
+			n[i] = lengths[i];
+			maxn = n[i] > maxn ? n[i] : maxn;
+		}
+
+		while (maxn > 1) {
+			maxn = 0;
+			for (size_t i = 0; i < N; ++i) {
+				const size_t half = n[i] / 2u;
+				if (half) {
+					base[i] = (base[i][half] < keys[i]) ? base[i] + half : base[i];
+					n[i] -= half;
+				}
+				maxn = n[i] > maxn ? n[i] : maxn;
+			}
+		}
+
+		for (size_t i = 0; i < N; ++i) {
+			out[i] = size_t(base[i] - arrays[i]) + size_t((n[i] == 1u) && (base[i][0] < keys[i]));
+		}
+	}
 };
 
 #endif

@@ -1,4 +1,6 @@
 #pragma once
+#include <concepts>
+#include <cstddef>
 #include <utility>
 
 
@@ -10,14 +12,19 @@
 #define CRYPTANALYSISLIB_HASH_STANDARD_CONST const
 #endif
 
-// TODO add concept for T1
+/// the value type of `hash`: an integer (the hash uses ^, +, << and >>)
+template<class T>
+concept StandardHashAble = std::integral<T>;
 
 /// Generic hash function implementation for basic types
 /// Uses a simple but effective combination of XOR, addition, and bit shifts
 /// This implementation is designed for performance and distribution quality
 /// 
-/// \tparam T1 Type of value to be hashed (must support arithmetic operations)
+/// \tparam T1 Type of value to be hashed (an integer, see `StandardHashAble`)
 template<class T1>
+#if __cplusplus > 201709L
+	requires StandardHashAble<T1>
+#endif
 struct hash { 
 public:
     /// Computes a hash value for the given input

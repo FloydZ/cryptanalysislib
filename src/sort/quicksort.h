@@ -32,15 +32,25 @@ constexpr size_t partition(Type *f,
 }
 
 
+/// configuration of `quick_sort`
+struct QuickSortConfig {
+    /// sub-arrays with at most this many elements are sorted with the
+    /// (non recursive) selection sort.
+    /// NOTE: must be >= 2: `partition` of two elements may return p = 1,
+    /// 	i.e. an empty right part, and the loop would not terminate
+    const size_t selection_sort_threshold = 8;
+};
+constexpr static QuickSortConfig quickSortConfig{};
+
 // Sort f[] (ascending order).
-template <typename Type>
+template <typename Type,
+          const QuickSortConfig &config = quickSortConfig>
 constexpr void quick_sort(Type *f,
                           const size_t n) noexcept {
+    static_assert(config.selection_sort_threshold >= 2);
     size_t m = n;
 start:
-    // TODO via config
-    // parameter: threshold for nonrecursive algorithm
-    if (m <= 8) {
+    if (m <= config.selection_sort_threshold) {
         selection_sort(f, m);
         return;
     }
@@ -52,11 +62,11 @@ start:
     // recursion for shorter sub-array
     if (ln > rn) {
         // f[ln] ... f[n-1]   right
-        quick_sort(f+ln, rn);
+        quick_sort<Type, config>(f+ln, rn);
         m = ln;
     } else {
         // f[0]  ... f[ln-1]  left
-        quick_sort(f, ln);
+        quick_sort<Type, config>(f, ln);
         m = rn;
         f += ln;
     }

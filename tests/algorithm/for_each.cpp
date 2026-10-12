@@ -16,6 +16,13 @@ using ::testing::UnitTest;
 
 using namespace cryptanalysislib;
 
+
+// the execution policies satisfy the concept, other types do not
+static_assert(cryptanalysislib::ExecutionPolicy<decltype(cryptanalysislib::seq)>);
+static_assert(cryptanalysislib::ExecutionPolicy<decltype(cryptanalysislib::par)>);
+static_assert(cryptanalysislib::ExecutionPolicy<cryptanalysislib::pure_threads_policy &>);
+static_assert(!cryptanalysislib::ExecutionPolicy<int>);
+
 TEST(for_each, single) {
 	using T = uint64_t;
 	constexpr size_t size = 10;

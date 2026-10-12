@@ -19,6 +19,7 @@
 #include "math/root.h"
 #include "math/round.h"
 #include "math/prime.h"
+#include "math/complex.h"
 
 /// constexpr special computation of the binomial coefficient
 #include "math/bc.h"

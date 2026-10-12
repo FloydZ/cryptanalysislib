@@ -1,0 +1,250 @@
+diff --git a/src/simd/neon.h b/src/simd/neon.h
+index c15334f..9f8e9a4 100644
+--- a/src/simd/neon.h
++++ b/src/simd/neon.h
+@@ -471,9 +471,17 @@ namespace cryptanalysislib {
+ 
+ 	    /// \param in1[in]: vector element
+ 	    /// \param in2[in]:
+-	    /// \return TODO optimize
++	    /// \return in1 / in2, lane-wise
+ 	    [[nodiscard]] constexpr static inline S div(const S in1,
+ 	                                                const limb_type in2) noexcept {
++            if constexpr (__unsigned) {
++                // NOTE: division by the invariant `in2`, see `internal::udiv_invariant`
++                using VT = cryptanalysislib::internal::vec_t<limb_type, LIMBS>;
++                S out;
++                out.v128 = (uint8x16_t) cryptanalysislib::internal::udiv_invariant<limb_type, LIMBS>((VT) in1.v128, in2);
++                return out;
++            }
++
+             S out;
+             for (uint32_t i = 0; i < LIMBS; i++) {
+                 out[i] = in1[i] / in2;
+@@ -1634,7 +1642,8 @@ struct Xint8x32_t {
+ 		S out;
+ 		LOOP_UNROLL()
+ 		for (uint32_t i = 0; i < 2; ++i) {
+-			/// TODO not correct, carry and sruff
++			// NOTE: lane-wise add with wrap-around (as the AVX2 version), the
++			// 	lanes are independent, so no carry needs to be propagated
+ 			out.v128[i] = in1.v128[i] + in2.v128[i];
+ 		}
+ 		return out;
+@@ -1995,9 +2004,8 @@ struct Xint8x32_t {
+ 		return ret;
+ 	}
+ 
+-	/// TODO
+ 	/// \param in
+-	/// \return
++	/// \return true if all lanes of `in` are equal
+ 	[[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+ 		for (uint32_t i = 1; i < LIMBS; ++i) {
+ 			if (in.d[0] != in.d[i]) {
+@@ -2017,29 +2025,37 @@ struct Xint8x32_t {
+ 		return out;
+ 	}
+ 
+-    /// TODO: not optimized
++    /// lane-wise minimum
+     /// \param a
+ 	/// \param b
+ 	/// \return
+ 	[[nodiscard]] constexpr static inline S min(const S a,
+                                                 const S b) noexcept {
+         S c;
+-		for (uint32_t i = 0; i < S::LIMBS; i++) {
+-			c.d[i] = std::min(a.d[i], b.d[i]);
++		for (uint32_t i = 0; i < 2; i++) {
++			if constexpr (__unsigned) {
++				c.v128[i] = vminq_u8(a.v128[i], b.v128[i]);
++			} else {
++				c.v128[i] = vreinterpretq_u8_s8(vminq_s8(vreinterpretq_s8_u8(a.v128[i]), vreinterpretq_s8_u8(b.v128[i])));
++			}
+ 		}
+ 
+         return c;
+     }
+ 
+-    /// TODO: not optimized
++	/// lane-wise maximum
+ 	/// \param a
+ 	/// \param b
+ 	/// \return
+ 	[[nodiscard]] constexpr static inline S max(const S a,
+                                                 const S b) noexcept {
+         S c;
+-		for (uint32_t i = 0; i < S::LIMBS; i++) {
+-			c.d[i] = std::max(a.d[i], b.d[i]);
++		for (uint32_t i = 0; i < 2; i++) {
++			if constexpr (__unsigned) {
++				c.v128[i] = vmaxq_u8(a.v128[i], b.v128[i]);
++			} else {
++				c.v128[i] = vreinterpretq_u8_s8(vmaxq_s8(vreinterpretq_s8_u8(a.v128[i]), vreinterpretq_s8_u8(b.v128[i])));
++			}
+ 		}
+ 
+         return c;
+@@ -2702,9 +2718,8 @@ struct Xint16x16_t {
+ 		return out;
+ 	}
+ 
+-	/// TODO
+ 	/// \param in
+-	/// \return
++	/// \return true if all lanes of `in` are equal
+ 	[[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+ 		for (uint32_t i = 1; i < LIMBS; ++i) {
+ 			if (in.v16[0] != in.v16[i]) {
+@@ -2733,29 +2748,37 @@ struct Xint16x16_t {
+ 		return ret;
+ 	}
+ 
+-    /// TODO
++    /// lane-wise minimum
+     /// \param a
+ 	/// \param b
+ 	/// \return
+ 	[[nodiscard]] constexpr static inline S min(const S a,
+                                                 const S b) noexcept {
+         S c;
+-		for (uint32_t i = 0; i < S::LIMBS; i++) {
+-			c.d[i] = std::min(a.d[i], b.d[i]);
++		for (uint32_t i = 0; i < 2; i++) {
++			if constexpr (__unsigned) {
++				c.v128[i] = vminq_u16(a.v128[i], b.v128[i]);
++			} else {
++				c.v128[i] = vreinterpretq_u16_s16(vminq_s16(vreinterpretq_s16_u16(a.v128[i]), vreinterpretq_s16_u16(b.v128[i])));
++			}
+ 		}
+ 
+         return c;
+     }
+ 
+-    /// TODO
++	/// lane-wise maximum
+ 	/// \param a
+ 	/// \param b
+ 	/// \return
+ 	[[nodiscard]] constexpr static inline S max(const S a,
+                                                 const S b) noexcept {
+         S c;
+-		for (uint32_t i = 0; i < S::LIMBS; i++) {
+-			c.d[i] = std::max(a.d[i], b.d[i]);
++		for (uint32_t i = 0; i < 2; i++) {
++			if constexpr (__unsigned) {
++				c.v128[i] = vmaxq_u16(a.v128[i], b.v128[i]);
++			} else {
++				c.v128[i] = vreinterpretq_u16_s16(vmaxq_s16(vreinterpretq_s16_u16(a.v128[i]), vreinterpretq_s16_u16(b.v128[i])));
++			}
+ 		}
+ 
+         return c;
+@@ -3042,7 +3065,8 @@ struct Xint32x8_t {
+ 		S out;
+ 		LOOP_UNROLL()
+ 		for (uint32_t i = 0; i < 2; ++i) {
+-			/// TODO not correct, carry and sruff
++			// NOTE: lane-wise add with wrap-around (as the AVX2 version), the
++			// 	lanes are independent, so no carry needs to be propagated
+ 			out.v128[i] = in1.v128[i] + in2.v128[i];
+ 		}
+ 		return out;
+@@ -3428,7 +3452,8 @@ struct Xint32x8_t {
+ 		return ret;
+ 	}
+ 
+-	// TODO arm instruction
++	// NOTE: NEON has no gather instruction (only SVE has), so this is a
++	// 	scalar loop.
+ 	/// \tparam scale
+ 	/// \param ptr
+ 	/// \param data
+@@ -3462,7 +3487,7 @@ struct Xint32x8_t {
+ 		}
+ 	}
+ 
+-	/// TODO
++	/// gather permutation: ret[i] = in[perm[i] % 8]
+ 	/// \param in
+ 	/// \param perm
+ 	/// \return
+@@ -3496,9 +3521,8 @@ struct Xint32x8_t {
+ 
+ 		return out;
+ 	}
+-	/// TODO
+ 	/// \param in
+-	/// \return
++	/// \return true if all lanes of `in` are equal
+ 	[[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+ 		for (uint32_t i = 1; i < LIMBS; ++i) {
+ 			if (in.d[0] != in.d[i]) {
+@@ -3924,13 +3948,13 @@ struct Xint64x4_t {
+ 	/// \param in1
+ 	/// \param in2
+ 	/// \return
++	/// runtime version of `permute<in2>`: ret[i] = in1[(in2 >> 2i) & 3]
+ 	constexpr static inline S permute(const S in1,
+ 	                                  const uint32_t in2) noexcept {
+ 		S ret;
+-		(void) in1;
+-		(void) in2;
+-
+-		assert(0); // TODO
++		for (uint32_t i = 0; i < 4; i++) {
++			ret.v64[i] = in1.v64[(in2 >> (2 * i)) & 0b11];
++		}
+ 		return ret;
+ 	}
+ 
+@@ -4188,9 +4212,9 @@ struct Xint64x4_t {
+ 		return ret;
+ 	}
+ 
+-	/// TODO
+-	/// \param ptr
+-	/// \param data
++	/// gathers one 64 bit limb per lane from byte offset data[i] * scale of `ptr`
++	/// \param ptr base pointer
++	/// \param data offsets, in units of `scale` bytes
+ 	/// \return
+ 	// NOTE: `scale` defaults to 1 (byte offsets) like the AVX2 gathers
+ 	template<const uint32_t scale = 1>
+@@ -4207,9 +4231,9 @@ struct Xint64x4_t {
+ 		return ret;
+ 	}
+ 
+-	/// TODO
+-	/// \param ptr
+-	/// \param data
++	/// gathers one 64 bit limb per lane from byte offset data[i] * scale of `ptr`
++	/// \param ptr base pointer
++	/// \param data offsets, in units of `scale` bytes
+ 	/// \return
+ 	// NOTE: `scale` defaults to 1 (byte offsets) like the AVX2 gathers
+ 	template<const uint32_t scale = 1>
+@@ -4226,8 +4250,9 @@ struct Xint64x4_t {
+ 		return ret;
+ 	}
+ 
+-	/// TODO
+-	/// \tparam in2
++	/// permutes the 4 64 bit lanes, like `_mm256_permute4x64_epi64`:
++	/// ret[i] = in1[(in2 >> 2i) & 3]
++	/// \tparam in2 8 bit immediate, 2 bits per lane
+ 	/// \param in1
+ 	/// \return
+ 	template<const uint32_t in2>
+@@ -4258,9 +4283,8 @@ struct Xint64x4_t {
+ 		return ret;
+ 	}
+ 
+-	/// TODO
+ 	/// \param in
+-	/// \return
++	/// \return true if all lanes of `in` are equal
+ 	[[nodiscard]] constexpr static inline bool all_equal(const S in) noexcept {
+ 		for (uint32_t i = 1; i < LIMBS; ++i) {
+ 			if (in.d[0] != in.d[i]) {

@@ -35,11 +35,14 @@ vector extensions the following specialisations are provides which wrap:
 - `T=uint16_t`: `uint16x8_t`, `uint16x16_t`
 - `T=uint32_t`: `uint32x4_t`, `uint32x8_t`
 - `T=uint64_t`: `uint64x2_t`, `uint64x4_t`
- 
 
- TODO:
- =====
+NOTE: the 128 bit types are called `_uint8x16_t`, `_uint16x8_t`, ... (with a
+leading underscore, to not clash with the native NEON types) and exist for the
+`avx2`, `neon` and the generic backend.
 
- - riscv backeend
- - uint16x8, uint8x16_t in neon, avx
- - cvtepu8 in neon und noch mehr zero extend
+Open items
+==========
+
+ - riscv backend (`riscv.h` is only a stub)
+ - `cvtepu8` (and the other zero extensions) in the neon backend; currently
+   only in the `avx2` and the generic backend

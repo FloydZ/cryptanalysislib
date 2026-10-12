@@ -1,0 +1,106 @@
+diff --git a/src/algorithm/sat/cdcl.h b/src/algorithm/sat/cdcl.h
+index 6f7c4c6..77e90d2 100644
+--- a/src/algorithm/sat/cdcl.h
++++ b/src/algorithm/sat/cdcl.h
+@@ -26,6 +26,7 @@
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <sys/mman.h>
+ 
+ 
+ // TODO: class: with allocator
+@@ -288,8 +289,13 @@ inline void initCDCL(struct solver *S, int n, int m) {
+ 	// Initialize the fast and slow moving averages
+ 	S->fast = S->slow = 1 << 24;
+ 
+-	// TODO calloc (aligned)
+-	S->DB = (int *) malloc(sizeof(int) * S->mem_max);
++	// page aligned and zero initialized ("calloc (aligned)"): an anonymous
++	// mapping, zeroed lazily by the kernel. NOTE: `mem_max` ints are 4 GiB,
++	// so an aligned malloc + memset would touch all of it.
++	void *db = mmap(nullptr, sizeof(int) * (size_t)S->mem_max,
++	                PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	S->DB = (db == MAP_FAILED) ? nullptr : (int *) db;
++	if (S->DB == nullptr) { return; }
+ 
+ 	// Full assignment of the (Boolean) variables (initially set to false)
+ 	S->model = getMemory(S, n + 1);
+diff --git a/tests/algorithm/sat/cdcl.cpp b/tests/algorithm/sat/cdcl.cpp
+new file mode 100644
+index 0000000..a2b4fad
+--- /dev/null
++++ b/tests/algorithm/sat/cdcl.cpp
+@@ -0,0 +1,72 @@
++#include <gtest/gtest.h>
++#include <cstdint>
++#include <fstream>
++#include <sstream>
++#include <string>
++#include <vector>
++
++#include "algorithm/sat/cdcl.h"
++
++using ::testing::InitGoogleTest;
++
++/// the .cnf files next to this test
++static std::string cnf_path(const char *name) {
++	std::string f = __FILE__;
++	return f.substr(0, f.rfind('/') + 1) + name;
++}
++
++/// independent reader of the DIMACS clauses
++static std::vector<std::vector<int>> read_cnf(const std::string &path, int &nvars) {
++	std::ifstream in(path);
++	std::string line;
++	std::vector<std::vector<int>> clauses;
++	std::vector<int> cur;
++	while (std::getline(in, line)) {
++		if (line.empty() || line[0] == 'c') { continue; }
++		std::istringstream ss(line);
++		if (line[0] == 'p') { std::string p, cnf; int m; ss >> p >> cnf >> nvars >> m; continue; }
++		int lit;
++		while (ss >> lit) {
++			if (lit == 0) { clauses.push_back(cur); cur.clear(); } else { cur.push_back(lit); }
++		}
++	}
++	return clauses;
++}
++
++/// solve with the CDCL solver and check the result: a SAT model must satisfy
++/// every clause, UNSAT is checked by enumerating all assignments
++static void check(const char *name) {
++	int nvars = 0;
++	const auto clauses = read_cnf(cnf_path(name), nvars);
++	ASSERT_LE(nvars, 20);
++
++	struct solver S{};
++	const bool sat = (parse(&S, cnf_path(name).c_str()) == SAT) && (solve(&S) == SAT);
++	ASSERT_NE(S.DB, nullptr);
++
++	if (sat) {
++		for (const auto &c : clauses) {
++			bool ok = false;
++			for (const int l : c) { ok |= (S._false[-l] != 0); } // literal l true <=> -l false
++			EXPECT_TRUE(ok) << name;
++		}
++	} else {
++		for (uint32_t x = 0; x < (1u << nvars); ++x) {
++			bool all = true;
++			for (const auto &c : clauses) {
++				bool ok = false;
++				for (const int l : c) { const bool v = (x >> (std::abs(l) - 1)) & 1u; ok |= (l > 0) ? v : !v; }
++				all &= ok;
++			}
++			EXPECT_FALSE(all) << name << " claimed UNSAT, but " << x << " satisfies it";
++		}
++	}
++}
++
++TEST(cdcl, simple)   { check("simple.cnf"); }
++TEST(cdcl, problem1) { check("problem1.cnf"); }
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	return RUN_ALL_TESTS();
++}

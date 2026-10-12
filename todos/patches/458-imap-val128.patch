@@ -1,0 +1,209 @@
+diff --git a/tests/container/imap.cpp b/tests/container/imap.cpp
+index 20bcf50..34bae5a 100644
+--- a/tests/container/imap.cpp
++++ b/tests/container/imap.cpp
+@@ -475,93 +475,93 @@ TEST(imap, assign_val64) {
+ 	}
+ }
+ 
+-// NOTE  TODO: not working, something with ensure is not right, needs debugging
+-//TEST(imap, assign_val128) {
+-//	const unsigned N = 100;
+-//	imap_tree_t tree(1);
+-//	uint32_t *slot;
+-//	imap_u128_t val128;
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		tree.ensure128(+1);
+-//		slot = tree.assign(i);
+-//		EXPECT_NE(nullptr, slot);
+-//		val128.v[0] = 0x8000000000000000ull | i;
+-//		val128.v[1] = 0x9000000000000000ull | i;
+-//		tree.setval128(slot, val128);
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		slot = tree.lookup(i);
+-//		EXPECT_NE(nullptr, slot);
+-//		EXPECT_TRUE(tree.hasval(slot));
+-//		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
+-//		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		tree.ensure128(+1);
+-//		slot = tree.assign(i);
+-//		EXPECT_NE(nullptr, slot);
+-//		val128.v[0] = i;
+-//		val128.v[1] = i;
+-//		tree.setval128(slot, val128);
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		slot = tree.lookup(i);
+-//		EXPECT_EQ(nullptr, slot);
+-//		EXPECT_TRUE(tree.hasval(slot));
+-//		EXPECT_EQ(i, tree.getval128(slot).v[0]);
+-//		EXPECT_EQ(i, tree.getval128(slot).v[1]);
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		tree.ensure(+1);
+-//		slot = tree.assign(i);
+-//		EXPECT_EQ(nullptr, slot);
+-//		val128.v[0] = 0x8000000000000000ull | i;
+-//		val128.v[1] = 0x9000000000000000ull | i;
+-//		tree.setval128(slot, val128);
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		slot = tree.lookup(i);
+-//		EXPECT_NE(nullptr, slot);
+-//		EXPECT_TRUE(tree.hasval(slot));
+-//		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
+-//		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		slot = tree.lookup(i);
+-//		EXPECT_EQ(nullptr, slot);
+-//		tree.delval(slot);
+-//		EXPECT_TRUE(!tree.hasval(slot));
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		slot = tree.lookup(i);
+-//		EXPECT_NE(nullptr, slot);
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		tree.ensure(+1);
+-//		slot = tree.assign(i);
+-//		EXPECT_NE(nullptr, slot);
+-//		val128.v[0] = 0x8000000000000000ull | i;
+-//		val128.v[1] = 0x9000000000000000ull | i;
+-//		tree.setval128(slot, val128);
+-//	}
+-//
+-//	for (unsigned i = 0; N > i; i++) {
+-//		slot = tree.lookup(i);
+-//		EXPECT_EQ(nullptr, slot);
+-//		EXPECT_TRUE(tree.hasval(slot));
+-//		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
+-//		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
+-//	}
+-//}
++TEST(imap, assign_val128) {
++	const unsigned N = 100;
++	// NOTE: the tree must be created for 128 bit values
++	imap_tree_t tree(1, sizeof(imap_u128_t));
++	uint32_t *slot;
++	imap_u128_t val128;
++
++	for (unsigned i = 0; N > i; i++) {
++		tree.ensure128(+1);
++		slot = tree.assign(i);
++		EXPECT_NE(nullptr, slot);
++		val128.v[0] = 0x8000000000000000ull | i;
++		val128.v[1] = 0x9000000000000000ull | i;
++		tree.setval128(slot, val128);
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		slot = tree.lookup(i);
++		EXPECT_NE(nullptr, slot);
++		EXPECT_TRUE(tree.hasval(slot));
++		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
++		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		tree.ensure128(+1);
++		slot = tree.assign(i);
++		EXPECT_NE(nullptr, slot);
++		val128.v[0] = i;
++		val128.v[1] = i;
++		tree.setval128(slot, val128);
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		slot = tree.lookup(i);
++		EXPECT_NE(nullptr, slot);
++		EXPECT_TRUE(tree.hasval(slot));
++		EXPECT_EQ(i, tree.getval128(slot).v[0]);
++		EXPECT_EQ(i, tree.getval128(slot).v[1]);
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		tree.ensure128(+1);
++		slot = tree.assign(i);
++		EXPECT_NE(nullptr, slot);
++		val128.v[0] = 0x8000000000000000ull | i;
++		val128.v[1] = 0x9000000000000000ull | i;
++		tree.setval128(slot, val128);
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		slot = tree.lookup(i);
++		EXPECT_NE(nullptr, slot);
++		EXPECT_TRUE(tree.hasval(slot));
++		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
++		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		slot = tree.lookup(i);
++		EXPECT_NE(nullptr, slot);
++		tree.delval(slot);
++		EXPECT_TRUE(!tree.hasval(slot));
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		slot = tree.lookup(i);
++		EXPECT_EQ(nullptr, slot);
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		tree.ensure128(+1);
++		slot = tree.assign(i);
++		EXPECT_NE(nullptr, slot);
++		val128.v[0] = 0x8000000000000000ull | i;
++		val128.v[1] = 0x9000000000000000ull | i;
++		tree.setval128(slot, val128);
++	}
++
++	for (unsigned i = 0; N > i; i++) {
++		slot = tree.lookup(i);
++		EXPECT_NE(nullptr, slot);
++		EXPECT_TRUE(tree.hasval(slot));
++		EXPECT_EQ((0x8000000000000000ull | i), tree.getval128(slot).v[0]);
++		EXPECT_EQ((0x9000000000000000ull | i), tree.getval128(slot).v[1]);
++	}
++}
+ 
+ TEST(imap, assign_shuffle) {
+ 	const unsigned N = 10000000;
+diff --git a/src/container/imap.h b/src/container/imap.h
+index dca407b..6118283 100644
+--- a/src/container/imap.h
++++ b/src/container/imap.h
+@@ -443,8 +443,17 @@ public:
+ 	using imap_slot_t = uint32_t;
+ 
+ 	/// \param n max number of integers to store in the container
+-	constexpr imap_tree_t (const size_t n = 0) noexcept : tree(nullptr) {
+-		ensure(n+1);
++	/// \param value_bytes size of the boxed values: `sizeof(uint64_t)`
++	/// 	(default) or `sizeof(imap_u128_t)` for `setval128`/`getval128`
++	/// NOTE: the free list of the boxed values is set up when the storage is
++	/// 	created, its layout depends on the value size. Before, the tree was
++	/// 	always created for 64 bit values, so 128 bit values (`ensure128`,
++	/// 	`setval128`) corrupted the tree.
++	constexpr imap_tree_t (const size_t n = 0,
++	                       const uint32_t value_bytes = sizeof(uint64_t)) noexcept : tree(nullptr) {
++		assert((value_bytes == sizeof(uint64_t)) || (value_bytes == sizeof(imap_u128_t)));
++		imap_node_t *t = imap__ensure__(nullptr, n + 1, value_bytes);
++		if (t != nullptr) { tree = t; }
+ 	}
+ 
+ 	~imap_tree_t() noexcept {

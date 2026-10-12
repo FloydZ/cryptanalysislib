@@ -1,0 +1,19 @@
+diff --git a/src/atomic/atomic_primitives.h b/src/atomic/atomic_primitives.h
+index 00b91f1..d725fd7 100644
+--- a/src/atomic/atomic_primitives.h
++++ b/src/atomic/atomic_primitives.h
+@@ -269,8 +269,12 @@ namespace __atomic_impl {
+ 		       !std::is_same<T, double>::value;
+ 	}
+ 
+-	/// \tparam
+-	/// \return TODO
++	/// Zeroes the padding bits of `__val` (if `_Tp` may have padding), so that
++	/// a bytewise comparison (as done by `__atomic_compare_exchange`) only
++	/// compares the value representation
++	/// \tparam _Tp type of the object
++	/// \param __val[in/out]: object whose padding bits are cleared
++	/// \return the address of `__val`
+ 	template<typename _Tp>
+ 	inline _Tp *__clear_padding(_Tp &__val) noexcept {
+ 		auto *__ptr = __builtin_addressof(__val);

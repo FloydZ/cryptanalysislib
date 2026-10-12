@@ -1,0 +1,523 @@
+diff --git a/src/algorithm/zip.h b/src/algorithm/zip.h
+--- a/src/algorithm/zip.h
++++ b/src/algorithm/zip.h
+@@ -3,9 +3,9 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
+-
+-
+-// TODO normal iterator version 
++#include <iterator>
++#include <memory>
++#include <type_traits>
+ 
+ #ifdef USE_AVX2
+ #include <immintrin.h>
+@@ -75,92 +75,246 @@ static inline void morton_vec8(uint64_t *out,
+ 	_mm256_storeu2_m128i ((__m128i*) (out+6),(__m128i*) (out+2), his);
+ }
+ 
+-/// Interleaves 32 8-bit elements from two vectors into two output vectors
+-///
+-/// Takes two vectors of 8-bit elements and interleaves them into two output vectors.
+-///
+-/// \param out1[out]: Pointer to output vector for lower part [x1y1, x2y2, ..., x16y16]
+-/// \param out2[out]: Pointer to output vector for upper part [x17y17, ..., x32y32]
+-/// \param in1[in]: Pointer to first input vector [x1, ..., x32]
+-/// \param in2[in]: Pointer to second input vector [y1, ..., y32]
+-static inline void zip_u8(__m256i *__restrict__ out1,
+-						  __m256i *__restrict__ out2,
+-						  const __m256i *__restrict__ in1,
+-						  const __m256i *__restrict__ in2) noexcept {
+-	const __m256i a = _mm256_loadu_si256(in1);
+-	const __m256i b = _mm256_loadu_si256(in2);
+-	const __m256i lo = _mm256_unpacklo_epi8(a, b);
+-	const __m256i hi = _mm256_unpackhi_epi8(a, b);
+-	// NOTE: unaligned stores, `out1`/`out2` point into arbitrary arrays
+-	_mm256_storeu_si256(out1, _mm256_permute2x128_si256(lo, hi, 0x20));
+-	_mm256_storeu_si256(out2, _mm256_permute2x128_si256(lo, hi, 0x31));
+-}
++namespace cryptanalysislib::internal {
++	/// Interleaves the `n` 8-bit elements of `in1` and `in2` (AVX2,
++	/// 32 elements of each input per iteration, scalar tail):
++	/// out = [in1[0], in2[0], in1[1], in2[1], ...] (2n elements)
++	/// \param out[out]: output array of 2n elements, must not overlap the inputs
++	/// \param in1[in]: first input array of n elements
++	/// \param in2[in]: second input array of n elements
++	/// \param n[in]: number of elements in `in1` and `in2`
++	static inline void zip_u8_avx2(uint8_t *__restrict__ out,
++	                               const uint8_t *__restrict__ in1,
++	                               const uint8_t *__restrict__ in2,
++	                               const size_t n) noexcept {
++		size_t i = 0;
++		for (; (i + 32) <= n; i += 32) {
++			const __m256i a = _mm256_loadu_si256((const __m256i *)(in1 + i));
++			const __m256i b = _mm256_loadu_si256((const __m256i *)(in2 + i));
++			const __m256i lo = _mm256_unpacklo_epi8(a, b);
++			const __m256i hi = _mm256_unpackhi_epi8(a, b);
++			// NOTE: unaligned stores, `out` points into an arbitrary array
++			_mm256_storeu_si256((__m256i *)(out + 2 * i), _mm256_permute2x128_si256(lo, hi, 0x20));
++			_mm256_storeu_si256((__m256i *)(out + 2 * i + 32), _mm256_permute2x128_si256(lo, hi, 0x31));
++		}
++		for (; i < n; ++i) {
++			out[2 * i] = in1[i];
++			out[2 * i + 1] = in2[i];
++		}
++	}
+ 
+-/// Interleaves 16 16-bit elements from two vectors into two output vectors
+-///
+-/// Takes two vectors of 16-bit elements and interleaves them into two output vectors.
+-///
+-/// \param out1[out]: Pointer to output vector for lower part [x1y1, x2y2, ..., x8y8]
+-/// \param out2[out]: Pointer to output vector for upper part [x9y9, ..., x16y16]
+-/// \param in1[in]: Pointer to first input vector [x1, ..., x16]
+-/// \param in2[in]: Pointer to second input vector [y1, ..., y16]
+-static inline void zip_u16(__m256i *__restrict__ out1,
+-						   __m256i *__restrict__ out2,
+-						   const __m256i *__restrict__ in1,
+-						   const __m256i *__restrict__ in2) noexcept {
+-	const __m256i a = _mm256_loadu_si256(in1);
+-	const __m256i b = _mm256_loadu_si256(in2);
+-	const __m256i lo = _mm256_unpacklo_epi16(a, b);
+-	const __m256i hi = _mm256_unpackhi_epi16(a, b);
+-	// NOTE: unaligned stores, `out1`/`out2` point into arbitrary arrays
+-	_mm256_storeu_si256(out1, _mm256_permute2x128_si256(lo, hi, 0x20));
+-	_mm256_storeu_si256(out2, _mm256_permute2x128_si256(lo, hi, 0x31));
+-}
++	/// Interleaves the `n` 16-bit elements of `in1` and `in2` (AVX2,
++	/// 16 elements of each input per iteration, scalar tail):
++	/// out = [in1[0], in2[0], in1[1], in2[1], ...] (2n elements)
++	/// \param out[out]: output array of 2n elements, must not overlap the inputs
++	/// \param in1[in]: first input array of n elements
++	/// \param in2[in]: second input array of n elements
++	/// \param n[in]: number of elements in `in1` and `in2`
++	static inline void zip_u16_avx2(uint16_t *__restrict__ out,
++	                                const uint16_t *__restrict__ in1,
++	                                const uint16_t *__restrict__ in2,
++	                                const size_t n) noexcept {
++		size_t i = 0;
++		for (; (i + 16) <= n; i += 16) {
++			const __m256i a = _mm256_loadu_si256((const __m256i *)(in1 + i));
++			const __m256i b = _mm256_loadu_si256((const __m256i *)(in2 + i));
++			const __m256i lo = _mm256_unpacklo_epi16(a, b);
++			const __m256i hi = _mm256_unpackhi_epi16(a, b);
++			// NOTE: unaligned stores, `out` points into an arbitrary array
++			_mm256_storeu_si256((__m256i *)(out + 2 * i), _mm256_permute2x128_si256(lo, hi, 0x20));
++			_mm256_storeu_si256((__m256i *)(out + 2 * i + 16), _mm256_permute2x128_si256(lo, hi, 0x31));
++		}
++		for (; i < n; ++i) {
++			out[2 * i] = in1[i];
++			out[2 * i + 1] = in2[i];
++		}
++	}
+ 
+-/// Interleaves 8 32-bit elements from two vectors into two output vectors
+-///
+-/// Takes two vectors of 32-bit elements and interleaves them into two output vectors.
+-///
+-/// \param out1[out]: Pointer to output vector for lower part [x1y1, x2y2, ..., x4y4]
+-/// \param out2[out]: Pointer to output vector for upper part [x5y5, ..., x8y8]
+-/// \param in1[in]: Pointer to first input vector [x1, ..., x8]
+-/// \param in2[in]: Pointer to second input vector [y1, ..., y8]
+-static inline void zip_u32(__m256i *__restrict__ out1,
+-						   __m256i *__restrict__ out2,
+-						   const __m256i *__restrict__ in1,
+-						   const __m256i *__restrict__ in2) noexcept {
+-	const __m256i a = _mm256_loadu_si256(in1);
+-	const __m256i b = _mm256_loadu_si256(in2);
+-	const __m256i lo = _mm256_unpacklo_epi32(a, b);
+-	const __m256i hi = _mm256_unpackhi_epi32(a, b);
+-	// NOTE: unaligned stores, `out1`/`out2` point into arbitrary arrays
+-	_mm256_storeu_si256(out1, _mm256_permute2x128_si256(lo, hi, 0x20));
+-	_mm256_storeu_si256(out2, _mm256_permute2x128_si256(lo, hi, 0x31));
+-}
++	/// Interleaves the `n` 32-bit elements of `in1` and `in2` (AVX2,
++	/// 8 elements of each input per iteration, scalar tail):
++	/// out = [in1[0], in2[0], in1[1], in2[1], ...] (2n elements)
++	/// \param out[out]: output array of 2n elements, must not overlap the inputs
++	/// \param in1[in]: first input array of n elements
++	/// \param in2[in]: second input array of n elements
++	/// \param n[in]: number of elements in `in1` and `in2`
++	static inline void zip_u32_avx2(uint32_t *__restrict__ out,
++	                                const uint32_t *__restrict__ in1,
++	                                const uint32_t *__restrict__ in2,
++	                                const size_t n) noexcept {
++		size_t i = 0;
++		for (; (i + 8) <= n; i += 8) {
++			const __m256i a = _mm256_loadu_si256((const __m256i *)(in1 + i));
++			const __m256i b = _mm256_loadu_si256((const __m256i *)(in2 + i));
++			const __m256i lo = _mm256_unpacklo_epi32(a, b);
++			const __m256i hi = _mm256_unpackhi_epi32(a, b);
++			// NOTE: unaligned stores, `out` points into an arbitrary array
++			_mm256_storeu_si256((__m256i *)(out + 2 * i), _mm256_permute2x128_si256(lo, hi, 0x20));
++			_mm256_storeu_si256((__m256i *)(out + 2 * i + 8), _mm256_permute2x128_si256(lo, hi, 0x31));
++		}
++		for (; i < n; ++i) {
++			out[2 * i] = in1[i];
++			out[2 * i + 1] = in2[i];
++		}
++	}
+ 
+-/// Interleaves 4 64-bit elements from two vectors into two output vectors
+-///
+-/// Takes two vectors of 64-bit elements and interleaves them into two output vectors.
+-///
+-/// \param out1[out]: Pointer to output vector for lower part [x1y1, x2y2]
+-/// \param out2[out]: Pointer to output vector for upper part [x3y3, x4y4]
+-/// \param in1[in]: Pointer to first input vector [x1, ..., x4]
+-/// \param in2[in]: Pointer to second input vector [y1, ..., y4]
+-static inline void zip_u64(__m256i *__restrict__ out1,
+-						   __m256i *__restrict__ out2,
+-						   const __m256i *__restrict__ in1,
+-						   const __m256i *__restrict__ in2) noexcept {
+-	const __m256i a = _mm256_loadu_si256(in1);
+-	const __m256i b = _mm256_loadu_si256(in2);
+-	const __m256i lo = _mm256_unpacklo_epi64(a, b);
+-	const __m256i hi = _mm256_unpackhi_epi64(a, b);
+-	// NOTE: unaligned stores, `out1`/`out2` point into arbitrary arrays
+-	_mm256_storeu_si256(out1, _mm256_permute2x128_si256(lo, hi, 0x20));
+-	_mm256_storeu_si256(out2, _mm256_permute2x128_si256(lo, hi, 0x31));
+-}
++	/// Interleaves the `n` 64-bit elements of `in1` and `in2` (AVX2,
++	/// 4 elements of each input per iteration, scalar tail):
++	/// out = [in1[0], in2[0], in1[1], in2[1], ...] (2n elements)
++	/// \param out[out]: output array of 2n elements, must not overlap the inputs
++	/// \param in1[in]: first input array of n elements
++	/// \param in2[in]: second input array of n elements
++	/// \param n[in]: number of elements in `in1` and `in2`
++	static inline void zip_u64_avx2(uint64_t *__restrict__ out,
++	                                const uint64_t *__restrict__ in1,
++	                                const uint64_t *__restrict__ in2,
++	                                const size_t n) noexcept {
++		size_t i = 0;
++		for (; (i + 4) <= n; i += 4) {
++			const __m256i a = _mm256_loadu_si256((const __m256i *)(in1 + i));
++			const __m256i b = _mm256_loadu_si256((const __m256i *)(in2 + i));
++			const __m256i lo = _mm256_unpacklo_epi64(a, b);
++			const __m256i hi = _mm256_unpackhi_epi64(a, b);
++			// NOTE: unaligned stores, `out` points into an arbitrary array
++			_mm256_storeu_si256((__m256i *)(out + 2 * i), _mm256_permute2x128_si256(lo, hi, 0x20));
++			_mm256_storeu_si256((__m256i *)(out + 2 * i + 4), _mm256_permute2x128_si256(lo, hi, 0x31));
++		}
++		for (; i < n; ++i) {
++			out[2 * i] = in1[i];
++			out[2 * i + 1] = in2[i];
++		}
++	}
++} // end namespace cryptanalysislib::internal
+ 
+ #endif // USE_AVX2
+ 
++#ifdef USE_AVX512F
++#include <immintrin.h>
++
++namespace cryptanalysislib::internal {
++#ifdef USE_AVX512BW
++	/// Interleaves the `n` 8-bit elements of `in1` and `in2` (AVX-512,
++	/// 64 elements of each input per iteration, scalar tail):
++	/// out = [in1[0], in2[0], in1[1], in2[1], ...] (2n elements)
++	/// \param out[out]: output array of 2n elements, must not overlap the inputs
++	/// \param in1[in]: first input array of n elements
++	/// \param in2[in]: second input array of n elements
++	/// \param n[in]: number of elements in `in1` and `in2`
++	static inline void zip_u8_avx512(uint8_t *__restrict__ out,
++	                                 const uint8_t *__restrict__ in1,
++	                                 const uint8_t *__restrict__ in2,
++	                                 const size_t n) noexcept {
++		// `unpacklo/hi` work within the 128-bit lanes: the outputs are the
++		// lanes lo.0 hi.0 lo.1 hi.1 and lo.2 hi.2 lo.3 hi.3
++		const __m512i idx1 = _mm512_set_epi64(11, 10, 3, 2, 9, 8, 1, 0);
++		const __m512i idx2 = _mm512_set_epi64(15, 14, 7, 6, 13, 12, 5, 4);
++		size_t i = 0;
++		for (; (i + 64) <= n; i += 64) {
++			const __m512i a = _mm512_loadu_si512((const void *)(in1 + i));
++			const __m512i b = _mm512_loadu_si512((const void *)(in2 + i));
++			const __m512i lo = _mm512_unpacklo_epi8(a, b);
++			const __m512i hi = _mm512_unpackhi_epi8(a, b);
++			_mm512_storeu_si512((void *)(out + 2 * i), _mm512_permutex2var_epi64(lo, idx1, hi));
++			_mm512_storeu_si512((void *)(out + 2 * i + 64), _mm512_permutex2var_epi64(lo, idx2, hi));
++		}
++		for (; i < n; ++i) {
++			out[2 * i] = in1[i];
++			out[2 * i + 1] = in2[i];
++		}
++	}
++
++	/// Interleaves the `n` 16-bit elements of `in1` and `in2` (AVX-512,
++	/// 32 elements of each input per iteration, scalar tail):
++	/// out = [in1[0], in2[0], in1[1], in2[1], ...] (2n elements)
++	/// \param out[out]: output array of 2n elements, must not overlap the inputs
++	/// \param in1[in]: first input array of n elements
++	/// \param in2[in]: second input array of n elements
++	/// \param n[in]: number of elements in `in1` and `in2`
++	static inline void zip_u16_avx512(uint16_t *__restrict__ out,
++	                                  const uint16_t *__restrict__ in1,
++	                                  const uint16_t *__restrict__ in2,
++	                                  const size_t n) noexcept {
++		// `unpacklo/hi` work within the 128-bit lanes: the outputs are the
++		// lanes lo.0 hi.0 lo.1 hi.1 and lo.2 hi.2 lo.3 hi.3
++		const __m512i idx1 = _mm512_set_epi64(11, 10, 3, 2, 9, 8, 1, 0);
++		const __m512i idx2 = _mm512_set_epi64(15, 14, 7, 6, 13, 12, 5, 4);
++		size_t i = 0;
++		for (; (i + 32) <= n; i += 32) {
++			const __m512i a = _mm512_loadu_si512((const void *)(in1 + i));
++			const __m512i b = _mm512_loadu_si512((const void *)(in2 + i));
++			const __m512i lo = _mm512_unpacklo_epi16(a, b);
++			const __m512i hi = _mm512_unpackhi_epi16(a, b);
++			_mm512_storeu_si512((void *)(out + 2 * i), _mm512_permutex2var_epi64(lo, idx1, hi));
++			_mm512_storeu_si512((void *)(out + 2 * i + 32), _mm512_permutex2var_epi64(lo, idx2, hi));
++		}
++		for (; i < n; ++i) {
++			out[2 * i] = in1[i];
++			out[2 * i + 1] = in2[i];
++		}
++	}
++#endif // USE_AVX512BW
++
++	/// Interleaves the `n` 32-bit elements of `in1` and `in2` (AVX-512,
++	/// 16 elements of each input per iteration, scalar tail):
++	/// out = [in1[0], in2[0], in1[1], in2[1], ...] (2n elements)
++	/// \param out[out]: output array of 2n elements, must not overlap the inputs
++	/// \param in1[in]: first input array of n elements
++	/// \param in2[in]: second input array of n elements
++	/// \param n[in]: number of elements in `in1` and `in2`
++	static inline void zip_u32_avx512(uint32_t *__restrict__ out,
++	                                  const uint32_t *__restrict__ in1,
++	                                  const uint32_t *__restrict__ in2,
++	                                  const size_t n) noexcept {
++		// `unpacklo/hi` work within the 128-bit lanes: the outputs are the
++		// lanes lo.0 hi.0 lo.1 hi.1 and lo.2 hi.2 lo.3 hi.3
++		const __m512i idx1 = _mm512_set_epi64(11, 10, 3, 2, 9, 8, 1, 0);
++		const __m512i idx2 = _mm512_set_epi64(15, 14, 7, 6, 13, 12, 5, 4);
++		size_t i = 0;
++		for (; (i + 16) <= n; i += 16) {
++			const __m512i a = _mm512_loadu_si512((const void *)(in1 + i));
++			const __m512i b = _mm512_loadu_si512((const void *)(in2 + i));
++			const __m512i lo = _mm512_unpacklo_epi32(a, b);
++			const __m512i hi = _mm512_unpackhi_epi32(a, b);
++			_mm512_storeu_si512((void *)(out + 2 * i), _mm512_permutex2var_epi64(lo, idx1, hi));
++			_mm512_storeu_si512((void *)(out + 2 * i + 16), _mm512_permutex2var_epi64(lo, idx2, hi));
++		}
++		for (; i < n; ++i) {
++			out[2 * i] = in1[i];
++			out[2 * i + 1] = in2[i];
++		}
++	}
++
++	/// Interleaves the `n` 64-bit elements of `in1` and `in2` (AVX-512,
++	/// 8 elements of each input per iteration, scalar tail):
++	/// out = [in1[0], in2[0], in1[1], in2[1], ...] (2n elements)
++	/// \param out[out]: output array of 2n elements, must not overlap the inputs
++	/// \param in1[in]: first input array of n elements
++	/// \param in2[in]: second input array of n elements
++	/// \param n[in]: number of elements in `in1` and `in2`
++	static inline void zip_u64_avx512(uint64_t *__restrict__ out,
++	                                  const uint64_t *__restrict__ in1,
++	                                  const uint64_t *__restrict__ in2,
++	                                  const size_t n) noexcept {
++		// `unpacklo/hi` work within the 128-bit lanes: the outputs are the
++		// lanes lo.0 hi.0 lo.1 hi.1 and lo.2 hi.2 lo.3 hi.3
++		const __m512i idx1 = _mm512_set_epi64(11, 10, 3, 2, 9, 8, 1, 0);
++		const __m512i idx2 = _mm512_set_epi64(15, 14, 7, 6, 13, 12, 5, 4);
++		size_t i = 0;
++		for (; (i + 8) <= n; i += 8) {
++			const __m512i a = _mm512_loadu_si512((const void *)(in1 + i));
++			const __m512i b = _mm512_loadu_si512((const void *)(in2 + i));
++			const __m512i lo = _mm512_unpacklo_epi64(a, b);
++			const __m512i hi = _mm512_unpackhi_epi64(a, b);
++			_mm512_storeu_si512((void *)(out + 2 * i), _mm512_permutex2var_epi64(lo, idx1, hi));
++			_mm512_storeu_si512((void *)(out + 2 * i + 8), _mm512_permutex2var_epi64(lo, idx2, hi));
++		}
++		for (; i < n; ++i) {
++			out[2 * i] = in1[i];
++			out[2 * i + 1] = in2[i];
++		}
++	}
++} // end namespace cryptanalysislib::internal
++#endif // USE_AVX512F
++
+ #ifdef USE_ARM
+ #include <arm_neon.h>
+ #endif
+@@ -179,10 +333,14 @@ static inline void zip_u8(uint16_t *__restrict__ out,
+ 						  const uint8_t *__restrict__ in2,
+ 						  const size_t n) {
+ 	size_t i = 0;
+-#ifdef USE_AVX2
+-	for (; (i+32) <= n; i += 32) {
+-		zip_u8((__m256i *)(out + i), (__m256i *)(out + 16 + i), (__m256i *)(in1+i), (__m256i *)(in2 + i));
+-	}
++	// NOTE: little endian, the 16-bit value `in1[i] | in2[i] << 8` are the
++	// 	two bytes in1[i], in2[i]
++#if defined(USE_AVX512F) && defined(USE_AVX512BW)
++	cryptanalysislib::internal::zip_u8_avx512((uint8_t *)out, in1, in2, n);
++	return;
++#elif defined(USE_AVX2)
++	cryptanalysislib::internal::zip_u8_avx2((uint8_t *)out, in1, in2, n);
++	return;
+ #elif defined(USE_ARM)
+ 	// `vst2q_u8` stores the bytes interleaved: in1[0], in2[0], in1[1], ...
+ 	for (; (i+16) <= n; i += 16) {
+@@ -197,4 +355,78 @@ static inline void zip_u8(uint16_t *__restrict__ out,
+ 	}
+ }
+ 
++namespace cryptanalysislib {
++	/// Interleaves the elements of [first1, last1) and of the range starting
++	/// at `first2` into the range starting at `d_first`:
++	/// a0, b0, a1, b1, ... (2 * (last1 - first1) elements).
++	/// NOTE: contiguous `uint8_t`/`uint16_t`/`uint32_t`/`uint64_t` ranges (input
++	/// 	and output of the same type) use `internal::zip_uXX_avx512` or
++	/// 	`internal::zip_uXX_avx2`
++	/// \param first1[in]: beginning of the first input range
++	/// \param last1[in]: end of the first input range
++	/// \param first2[in]: beginning of the second input range (same length)
++	/// \param d_first[out]: beginning of the output range, must not overlap
++	/// 	the inputs
++	/// \return iterator past the last written element
++	template<class InputIt1,
++	         class InputIt2,
++	         class OutputIt>
++#if __cplusplus > 201709L
++	requires std::input_iterator<InputIt1> &&
++	         std::input_iterator<InputIt2>
++#endif
++	constexpr OutputIt zip(InputIt1 first1,
++	                       InputIt1 last1,
++	                       InputIt2 first2,
++	                       OutputIt d_first) noexcept {
++#ifdef USE_AVX2
++		using T = std::iter_value_t<InputIt1>;
++		if constexpr (std::contiguous_iterator<InputIt1> &&
++		              std::contiguous_iterator<InputIt2> &&
++		              std::contiguous_iterator<OutputIt> &&
++		              std::is_same_v<T, std::iter_value_t<InputIt2>> &&
++		              std::is_same_v<T, std::iter_value_t<OutputIt>> &&
++		              (std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> ||
++		               std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>)) {
++			if !consteval {
++				const size_t n = static_cast<size_t>(last1 - first1);
++				T *out = std::to_address(d_first);
++				const T *a = std::to_address(first1), *b = std::to_address(first2);
++				if constexpr (sizeof(T) == 1) {
++#if defined(USE_AVX512F) && defined(USE_AVX512BW)
++					internal::zip_u8_avx512(out, a, b, n);
++#else
++					internal::zip_u8_avx2(out, a, b, n);
++#endif
++				} else if constexpr (sizeof(T) == 2) {
++#if defined(USE_AVX512F) && defined(USE_AVX512BW)
++					internal::zip_u16_avx512(out, a, b, n);
++#else
++					internal::zip_u16_avx2(out, a, b, n);
++#endif
++				} else if constexpr (sizeof(T) == 4) {
++#ifdef USE_AVX512F
++					internal::zip_u32_avx512(out, a, b, n);
++#else
++					internal::zip_u32_avx2(out, a, b, n);
++#endif
++				} else {
++#ifdef USE_AVX512F
++					internal::zip_u64_avx512(out, a, b, n);
++#else
++					internal::zip_u64_avx2(out, a, b, n);
++#endif
++				}
++				return d_first + 2 * n;
++			}
++		}
++#endif
++		for (; first1 != last1; ++first1, ++first2) {
++			*d_first = *first1; ++d_first;
++			*d_first = *first2; ++d_first;
++		}
++		return d_first;
++	}
++} // end namespace cryptanalysislib
++
+ #endif // CRYPTANALYSISLIB_ALGORITHM_BITINTERLEAVE_H
+diff --git a/tests/algorithm/zip.cpp b/tests/algorithm/zip.cpp
+--- a/tests/algorithm/zip.cpp
++++ b/tests/algorithm/zip.cpp
+@@ -1,6 +1,9 @@
+ #include <cstdint>
+ #include <gtest/gtest.h>
+ #include <iostream>
++#include <list>
++#include <string>
++#include <vector>
+ 
+ #include "algorithm/zip.h"
+ 
+@@ -34,6 +37,68 @@ TEST(zip, uint8_t_) {
+     }
+ }
+ 
++/// checks the zip function `f(out, in1, in2, n)` against the reference for
++/// all sizes around the register widths (AVX2: 4..32, AVX-512: 8..64
++/// elements per register), also that nothing is written past the 2n outputs
++template<typename T, typename F>
++static void check_zip(F f) {
++	for (size_t s = 0; s <= 200; ++s) {
++		std::vector<T> a(s), b(s), out(2 * s + 1, T(7));
++		for (size_t i = 0; i < s; ++i) { a[i] = T(i * 3 + 1); b[i] = T(~(i * 5)); }
++		f(out.data(), a.data(), b.data(), s);
++		for (size_t i = 0; i < s; ++i) {
++			ASSERT_EQ(out[2 * i], a[i]) << s << " " << i;
++			ASSERT_EQ(out[2 * i + 1], b[i]) << s << " " << i;
++		}
++		ASSERT_EQ(out[2 * s], T(7)) << "wrote past the end " << s;
++	}
++}
++
++#ifdef USE_AVX2
++TEST(zip, avx2) {
++	check_zip<uint8_t>(cryptanalysislib::internal::zip_u8_avx2);
++	check_zip<uint16_t>(cryptanalysislib::internal::zip_u16_avx2);
++	check_zip<uint32_t>(cryptanalysislib::internal::zip_u32_avx2);
++	check_zip<uint64_t>(cryptanalysislib::internal::zip_u64_avx2);
++}
++#endif
++
++#ifdef USE_AVX512F
++TEST(zip, avx512) {
++#ifdef USE_AVX512BW
++	check_zip<uint8_t>(cryptanalysislib::internal::zip_u8_avx512);
++	check_zip<uint16_t>(cryptanalysislib::internal::zip_u16_avx512);
++#endif
++	check_zip<uint32_t>(cryptanalysislib::internal::zip_u32_avx512);
++	check_zip<uint64_t>(cryptanalysislib::internal::zip_u64_avx512);
++}
++#endif
++
++/// iterator version: the dispatch to the SIMD functions (all unsigned
++/// types), a non contiguous/non integral range and constexpr
++template<typename T>
++static void zip_iterator(T *out, const T *a, const T *b, const size_t n) {
++	const auto r = cryptanalysislib::zip(a, a + n, b, out);
++	EXPECT_EQ(r - out, ptrdiff_t(2 * n));
++}
++TEST(zip, iterator_version) {
++	check_zip<uint8_t>(zip_iterator<uint8_t>);
++	check_zip<uint16_t>(zip_iterator<uint16_t>);
++	check_zip<uint32_t>(zip_iterator<uint32_t>);
++	check_zip<uint64_t>(zip_iterator<uint64_t>);
++
++	std::list<std::string> a = {"a", "b"}, b = {"x", "y"};
++	std::vector<std::string> out(4);
++	const auto r = cryptanalysislib::zip(a.begin(), a.end(), b.begin(), out.begin());
++	EXPECT_EQ(r, out.end());
++	EXPECT_EQ(out, (std::vector<std::string>{"a", "x", "b", "y"}));
++
++	constexpr auto c = []() { int x[2] = {1, 2}, y[2] = {3, 4}, o[4] = {}; cryptanalysislib::zip(x, x + 2, y, o); return o[0] * 1000 + o[1] * 100 + o[2] * 10 + o[3]; }();
++	static_assert(c == 1324);
++	constexpr auto d = []() { uint8_t x[2] = {1, 2}, y[2] = {3, 4}, o[4] = {}; cryptanalysislib::zip(x, x + 2, y, o); return o[0] * 1000 + o[1] * 100 + o[2] * 10 + o[3]; }();
++	static_assert(d == 1324);
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();

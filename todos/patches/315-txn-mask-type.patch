@@ -1,0 +1,257 @@
+diff --git a/src/simd/generic.h b/src/simd/generic.h
+index 5edd397..97327cf 100644
+--- a/src/simd/generic.h
++++ b/src/simd/generic.h
+@@ -616,19 +616,26 @@ public:
+ 	SIMD_FUNCTION_2ARGS_MACRO(cmp_, ==)
+ 	SIMD_FUNCTION_2ARGS_MACRO(eq_, ==)
+ 
+-	// TODO all these function should return a binarycontainer
+-	[[nodiscard]] constexpr static inline uint64_t gt(const TxN_t &in1,
+-													  const TxN_t &in2) noexcept {
++	/// one bit per lane: lane i is bit (i % 64) of word (i / 64).
++	/// NOTE: a plain `uint64_t` for N <= 64 (as before), otherwise an array
++	/// 	of words. Before, `gt`/`lt`/`eq`/`move` returned a `uint64_t` also
++	/// 	for N > 64 (and `move` asserted N <= 64). Not a `BinaryContainer`,
++	/// 	as the containers are built on top of this header.
++	using mask_type = std::conditional_t<(N <= 64u), uint64_t,
++	                                     std::array<uint64_t, (N + 63u) / 64u>>;
++
++	[[nodiscard]] constexpr static inline mask_type gt(const TxN_t &in1,
++													   const TxN_t &in2) noexcept {
+ 		const auto tmp = S::gt_(in1, in2);
+ 		return S::move(tmp);
+ 	}
+-	[[nodiscard]] constexpr static inline uint64_t lt(const TxN_t &in1,
+-													  const TxN_t &in2) noexcept {
++	[[nodiscard]] constexpr static inline mask_type lt(const TxN_t &in1,
++													   const TxN_t &in2) noexcept {
+ 		const auto tmp = S::lt_(in1, in2);
+ 		return S::move(tmp);
+ 	}
+-	[[nodiscard]] constexpr static inline uint64_t eq(const TxN_t &in1,
+-	                                                  const TxN_t &in2) noexcept {
++	[[nodiscard]] constexpr static inline mask_type eq(const TxN_t &in1,
++	                                                   const TxN_t &in2) noexcept {
+ 		const auto tmp = S::eq_(in1, in2);
+ 		return S::move(tmp);
+ 	}
+@@ -752,14 +759,22 @@ public:
+ 	/// note; 64 elements limitation
+ 	/// \param in1
+ 	/// \return
+-	[[nodiscard]] constexpr static inline uint64_t move(const TxN_t &in1) noexcept {
+-		assert(N <= 64);
+-		uint64_t ret = 0;
++	[[nodiscard]] constexpr static inline mask_type move(const TxN_t &in1) noexcept {
++		mask_type ret{};
++		// NOTE: the lanes of one SIMD register never cross a word boundary,
++		// 	as their number divides 64
++		auto put = [&ret](const uint32_t i, const uint64_t bits) {
++			if constexpr (N <= 64u) {
++				ret ^= bits << i;
++			} else {
++				ret[i / 64u] ^= bits << (i % 64u);
++			}
++		};
++
+ 		uint32_t i = 0;
+ 		if constexpr (simd512_enable) {
+ 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+-				const uint64_t data = uint64_t(simd512_type::move(in1.v512[i / nr_limbs_in_simd512]));
+-				ret ^= data << i;
++				put(i, uint64_t(simd512_type::move(in1.v512[i / nr_limbs_in_simd512])));
+ 			}
+ 
+ 			if constexpr (simd512_fits) {
+@@ -769,7 +784,7 @@ public:
+ 
+ 		if constexpr (simd256_enable) {
+ 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+-				ret ^= uint64_t(simd256_type::move(in1.v256[i / nr_limbs_in_simd256])) << i;
++				put(i, uint64_t(simd256_type::move(in1.v256[i / nr_limbs_in_simd256])));
+ 			}
+ 
+ 			if constexpr (simd256_fits) {
+@@ -779,7 +794,7 @@ public:
+ 
+ 		constexpr limb_type mask = 1ull << ((sizeof(limb_type) * 8) - 1ull);
+ 		for (; i < N; ++i) {
+-			ret ^= uint64_t((in1.d[i] & mask) > 0) << i;
++			put(i, uint64_t((in1.d[i] & mask) > 0));
+ 		}
+ 
+ 		return ret;
+diff --git a/tests/simd/test_simd.h b/tests/simd/test_simd.h
+index 1144891..0befb42 100644
+--- a/tests/simd/test_simd.h
++++ b/tests/simd/test_simd.h
+@@ -236,78 +236,113 @@ TEST(T, reverse) {
+ 	}
+ }
+ 
+-TEST(T, compare) {
+-	if constexpr (S::LIMBS <= 64) {
+-		S t1 = S::set1(1);
+-		S t2 = S::set1(0);
+-		uint64_t v1 = S::gt(t2, t1);
+-		uint64_t v2 = S::lt(t2, t1);
+-		uint64_t v3 = S::gt(t1, t2);
+-		uint64_t v4 = S::lt(t1, t2);
+-
+-		uint64_t k2 = S::LIMBS == 64 ? -1ull : (1ull << (S::LIMBS)) - 1ull;
+-		EXPECT_EQ(v1, (S::limb_type)0);
+-		EXPECT_EQ(v2, k2);
+-		EXPECT_EQ(v3, k2);
+-		EXPECT_EQ(v4, (S::limb_type)0);
++#ifndef TEST_SIMD_MASK_BIT
++#define TEST_SIMD_MASK_BIT
++/// bit i of a lane mask (`uint64_t` or an array of words for > 64 lanes)
++template<typename M>
++static bool test_simd_mask_bit(const M &m, const uint32_t i) {
++	if constexpr (std::is_integral_v<M>) {
++		return (uint64_t(m) >> i) & 1u;
++	} else {
++		return (m[i / 64u] >> (i % 64u)) & 1u;
++	}
++}
++#endif
+ 
++/// gt/lt/eq for any number of lanes (also > 64)
++TEST(T, compare_mask) {
++	alignas(64) typename S::limb_type a[S::LIMBS], b[S::LIMBS];
++	for (uint32_t r = 0; r < 20; ++r) {
+ 		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+-			t2.d[i] = 1;
+-
+-			k2 ^= 1ull << i;
+-
+-			v1 = S::gt(t2, t1);
+-			v2 = S::lt(t2, t1);
+-			v3 = S::gt(t1, t2);
+-			v4 = S::lt(t1, t2);
++			a[i] = typename S::limb_type(rng() % 4u);
++			b[i] = typename S::limb_type(rng() % 4u);
++		}
++		const S t1 = S::template load<false>(a), t2 = S::template load<false>(b);
++		const auto g = S::gt(t1, t2);
++		const auto l = S::lt(t1, t2);
++		const auto e = S::eq(t1, t2);
++		for (uint32_t i = 0; i < S::LIMBS; ++i) {
++			EXPECT_EQ(test_simd_mask_bit(g, i), a[i] > b[i]);
++			EXPECT_EQ(test_simd_mask_bit(l, i), a[i] < b[i]);
++			EXPECT_EQ(test_simd_mask_bit(e, i), a[i] == b[i]);
++		}
++	}
++}
+ 
+-			EXPECT_EQ(v1, (S::limb_type)0);
++TEST(T, compare) {
++	// NOTE: generic lambda, so the `if constexpr` discards the body for
++	// 	LIMBS > 64, where the masks are arrays
++	[](auto tag) {
++		using SS = typename decltype(tag)::type;
++		if constexpr (SS::LIMBS <= 64) {
++			SS t1 = SS::set1(1);
++			SS t2 = SS::set1(0);
++			uint64_t v1 = SS::gt(t2, t1);
++			uint64_t v2 = SS::lt(t2, t1);
++			uint64_t v3 = SS::gt(t1, t2);
++			uint64_t v4 = SS::lt(t1, t2);
++
++			uint64_t k2 = SS::LIMBS == 64 ? -1ull : (1ull << (SS::LIMBS)) - 1ull;
++			EXPECT_EQ(v1, (typename SS::limb_type)0);
+ 			EXPECT_EQ(v2, k2);
+ 			EXPECT_EQ(v3, k2);
+-			EXPECT_EQ(v4, (S::limb_type)0);
+-		}
++			EXPECT_EQ(v4, (typename SS::limb_type)0);
+ 
++			for (uint32_t i = 0; i < SS::LIMBS; ++i) {
++				t2.d[i] = 1;
+ 
+-		t1 = S::set1((S::limb_type)-1ull);
+-		t2 = S::set1(0);
+-		v1 = S::gt(t2, t1);
+-		v2 = S::lt(t2, t1);
+-		v3 = S::gt(t1, t2);
+-		v4 = S::lt(t1, t2);
++				k2 ^= 1ull << i;
+ 
+-		k2 = S::LIMBS == 64 ? -1ull : (1ull << (S::LIMBS)) - 1ull;
+-		EXPECT_EQ(v1, (S::limb_type)0);
+-		EXPECT_EQ(v2, k2);
+-		EXPECT_EQ(v3, k2);
+-		EXPECT_EQ(v4, (S::limb_type)0);
++				v1 = SS::gt(t2, t1);
++				v2 = SS::lt(t2, t1);
++				v3 = SS::gt(t1, t2);
++				v4 = SS::lt(t1, t2);
++
++				EXPECT_EQ(v1, (typename SS::limb_type)0);
++				EXPECT_EQ(v2, k2);
++				EXPECT_EQ(v3, k2);
++				EXPECT_EQ(v4, (typename SS::limb_type)0);
++			}
+ 
+-		// NOTE: only valid test if unsigned
+-		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+-			t2.d[i] = 1;
+ 
+-			v1 = S::gt(t2, t1);
+-			v2 = S::lt(t2, t1);
+-			v3 = S::gt(t1, t2);
+-			v4 = S::lt(t1, t2);
++			t1 = SS::set1((typename SS::limb_type)-1ull);
++			t2 = SS::set1(0);
++			v1 = SS::gt(t2, t1);
++			v2 = SS::lt(t2, t1);
++			v3 = SS::gt(t1, t2);
++			v4 = SS::lt(t1, t2);
+ 
+-			EXPECT_EQ(v1, (S::limb_type)0);
++			k2 = SS::LIMBS == 64 ? -1ull : (1ull << (SS::LIMBS)) - 1ull;
++			EXPECT_EQ(v1, (typename SS::limb_type)0);
+ 			EXPECT_EQ(v2, k2);
+ 			EXPECT_EQ(v3, k2);
+-			EXPECT_EQ(v4, (S::limb_type)0);
++			EXPECT_EQ(v4, (typename SS::limb_type)0);
++
++			// NOTE: only valid test if unsigned
++			for (uint32_t i = 0; i < SS::LIMBS; ++i) {
++				t2.d[i] = 1;
++
++				v1 = SS::gt(t2, t1);
++				v2 = SS::lt(t2, t1);
++				v3 = SS::gt(t1, t2);
++				v4 = SS::lt(t1, t2);
++
++				EXPECT_EQ(v1, (typename SS::limb_type)0);
++				EXPECT_EQ(v2, k2);
++				EXPECT_EQ(v3, k2);
++				EXPECT_EQ(v4, (typename SS::limb_type)0);
++			}
+ 		}
+-	}
++	}(std::type_identity<S>{});
+ }
+ 
+ TEST(T, move) {
+-	if constexpr ((S::LIMBS <= 64) && ((S::LIMBS * sizeof(S::limb_type)) <= 64)) {
+-		S t1 = S::set1(0);
+-		uint64_t val = 0;
+-		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+-			const uint64_t ret = S::move(t1);
+-			EXPECT_EQ(ret, val);
+-
+-			t1[i] = (S::limb_type)-1ull;
+-			val ^= 1ull << i;
++	S t1 = S::set1(0);
++	for (uint32_t i = 0; i < S::LIMBS; ++i) {
++		t1[i] = (S::limb_type)-1ull;
++		const auto m = S::move(t1);
++		for (uint32_t j = 0; j < S::LIMBS; ++j) {
++			EXPECT_EQ(test_simd_mask_bit(m, j), j <= i);
+ 		}
+ 	}
+ }

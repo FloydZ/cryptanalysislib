@@ -1,0 +1,74 @@
+diff --git a/src/simd/avx512.h b/src/simd/avx512.h
+index 6194550..36f71af 100644
+--- a/src/simd/avx512.h
++++ b/src/simd/avx512.h
+@@ -1672,23 +1672,32 @@ struct Xint16x32_t {
+ 		return ret;
+ 	}
+ 
+-    /// TODO opt
+-	/// checks if all bytes are equal
++	/// checks if all 16 bit lanes are equal
++	/// NOTE: one compare against the broadcasted first lane, instead of a
++	/// 	scalar loop
+ 	/// \param in
+ 	/// \return
+ 	[[nodiscard]] constexpr static inline bool all_equal(const Xint16x32_t in) noexcept {
+-		for (uint32_t i = 1; i < LIMBS; ++i) {
+-			if (in.d[i-1] != in.d[i]) {
+-				return false;
++		if consteval {
++			// NOTE: via the vector type, `d` is not the active union member
++			const __v32hu v = (__v32hu) in.v512;
++			for (uint32_t i = 1; i < LIMBS; ++i) {
++				if (v[0] != v[i]) { return false; }
+ 			}
++			return true;
++		} else {
++			return eq(in, set1(in.d[0])) == 0xFFFFFFFFu;
+ 		}
+-
+-		return true;
+ 	}
+ 
++	/// NOTE: scatter semantics `ret[perm[i]] = in[i]` (as the AVX2 16 bit
++	/// 	version), in contrast to the gather of the 8/32/64 bit types. There
++	/// 	is no scatter permutation instruction: `vpermw` gathers, and the
++	/// 	inverse permutation, which would turn the scatter into a gather,
++	/// 	is itself a scatter. So this stays a scalar loop.
+ 	/// \param in
+-	/// \param perm
+-	/// \return TODO optimize
++	/// \param perm a permutation of [0, LIMBS)
++	/// \return ret[perm[i]] = in[i]
+ 	[[nodiscard]] constexpr static inline S permute(const S in,
+ 	                                                const S perm) noexcept {
+ 		S ret;
+diff --git a/tests/simd/simd512.cpp b/tests/simd/simd512.cpp
+index 68165bf..c524b19 100644
+--- a/tests/simd/simd512.cpp
++++ b/tests/simd/simd512.cpp
+@@ -16,6 +16,23 @@ using ::testing::TestPartResult;
+ using ::testing::UnitTest;
+ 
+ #ifdef USE_AVX512F
++#ifdef USE_AVX512BW
++TEST(uint16x32_t, all_equal) {
++	alignas(64) uint16_t a[32];
++	for (uint32_t r = 0; r < 1000; ++r) {
++		const uint16_t v = uint16_t(rng());
++		for (uint32_t i = 0; i < 32; ++i) { a[i] = v; }
++		EXPECT_TRUE(uint16x32_t::all_equal(uint16x32_t::load(a)));
++		const uint32_t p = rng() % 32u;
++		a[p] ^= uint16_t(1u << (rng() % 16u));
++		EXPECT_FALSE(uint16x32_t::all_equal(uint16x32_t::load(a)));
++	}
++
++	constexpr bool c = uint16x32_t::all_equal(uint16x32_t::set1(7));
++	static_assert(c);
++}
++#endif
++
+ TEST(uint8x64_t, TTrandom) {
+ 	uint8x64_t t1 = uint8x64_t::random();
+ 

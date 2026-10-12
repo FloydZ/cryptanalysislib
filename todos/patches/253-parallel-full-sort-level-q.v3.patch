@@ -1,0 +1,293 @@
+--- a/src/algorithm/sort.h
++++ b/src/algorithm/sort.h
+@@ -6,6 +6,7 @@
+ #include <iterator>
+ 
+ #include "algorithm/swap.h"
++#include "sort/ska_sort.h"
+ 
+ namespace cryptanalysislib {
+     template<class ForwardIt, class Compare>
+@@ -71,6 +72,22 @@
+         return cryptanalysislib::is_sorted_until(first, last, comp) == last;
+     }
+ 
++    /// Sorts [first, last) by the key `extract_key(*it)` (radix sort, `ska_sort`).
++    /// NOTE: `extract_key` takes a single element, the overload with a
++    ///     two argument comparator is in `sort/sort.h`.
++    /// \param first[in]: Iterator to the beginning of the range
++    /// \param last[in]: Iterator to the end of the range
++    /// \param extract_key[in]: returns the sort key (integer, float, ...) of an element
++    template<class RandIt,
++             class ExtractKey>
++        requires std::random_access_iterator<RandIt> &&
++                 std::invocable<ExtractKey &, std::iter_reference_t<RandIt>>
++    constexpr inline void sort(RandIt first,
++                               RandIt last,
++                               ExtractKey extract_key) noexcept {
++        ::ska_sort(first, last, extract_key);
++    }
++
+ 
+ 
+ 
+--- a/src/list/list.h
++++ b/src/list/list.h
+@@ -449,7 +449,7 @@
+ 	constexpr inline void sort_level_radix_sort(const size_t sp,
+ 									   			const size_t ep,
+ 									   			F &&f) noexcept {
+-		ska_sort(__data.begin() + sp, __data.begin() + ep, f);
++		cryptanalysislib::sort(__data.begin() + sp, __data.begin() + ep, f);
+ 	}
+ 
+ 
+--- a/src/list/parallel.h
++++ b/src/list/parallel.h
+@@ -212,8 +212,8 @@
+ 		auto hash = [](const LabelType &e) -> uint64_t {
+ 			return e.hash();
+ 		};
+-		ska_sort(__data_label.begin() + start,
+-		         __data_label.begin() + end, hash);
++		cryptanalysislib::sort(__data_label.begin() + start,
++		                       __data_label.begin() + end, hash);
+ 	}
+ 
+ 	/// zero a list
+--- a/src/list/parallel_full.h
++++ b/src/list/parallel_full.h
+@@ -131,72 +131,90 @@
+ 	template<typename Hash>
+ 	constexpr void sort(Hash &hash, const size_t s, const size_t e) noexcept {
+ 		assert(e <= size());
+-		ska_sort(__data.begin() + s,
+-		         __data.begin() + e,
+-		         hash);
++		cryptanalysislib::sort(__data.begin() + s,
++		                       __data.begin() + e,
++		                       hash);
+ 	}
+ 
+ 	/// \param i lower coordinate in the label used as the sorting index
+ 	/// \param j upper   .....
+ 	void sort_level(const uint32_t i, const uint32_t j) noexcept {
+ 		assert(i < j);
+-		// NOTE: the sort key is a single limb
+-		assert((j - i) <= (sizeof(LabelLimbType) * 8u));
+ 		using T = LabelContainerType;
+ 		using Limb = LabelLimbType;
+ 
+-		// NOTE: `j` is exclusive, so the last used limb is the one of `j - 1`.
+-		// 	Before, e.g. [0, 64) was treated as spanning two limbs.
+-		const uint64_t lower = T::round_down_to_limb(i);
+-		const uint64_t upper = T::round_down_to_limb(j - 1u);
+-
+-		if (lower == upper) {
+-			// NOTE: `lower_mask2(j)` is all ones for `j % 64 == 0`
+-			const uint64_t mask = T::higher_mask(i) & T::lower_mask2(j);
+-
++		// NOTE: the bit-mask based code below treats `i` and `j` as bit
++		// 	positions, which is only correct for binary labels. For q != 2 the
++		// 	coordinates [i, j) are packed via `hash(i, j)` (`qbits` bits each).
++		if constexpr (T::q != 2) {
++			assert(Element::is_hashable(i, j));
+ 			if constexpr (USE_STD_SORT) {
+ 				std::sort(__data.begin(),
+ 				          __data.end(),
+-				          [lower, mask](const auto &e1, const auto &e2) {
+-				          		// TODO this is not correct for q != 2
+-					          return (e1.label_ptr(lower) & mask) < (e2.label_ptr(lower) & mask);
++				          [i, j](const auto &e1, const auto &e2) {
++					          return e1.label.hash(i, j) < e2.label.hash(i, j);
+ 				          });
+ 			} else {
+-				ska_sort(__data.begin(),
+-				         __data.end(),
+-				         [lower, mask](const Element &e) {
+-					         return e.label_ptr(lower) & mask;
+-				         });
++				cryptanalysislib::sort(__data.begin(),
++				                       __data.end(),
++				                       [i, j](const Element &e) {
++					                       return e.label.hash(i, j);
++				                       });
+ 			}
+ 		} else {
+-			const Limb j_mask = T::lower_mask2(j);
+-			const Limb i_mask = T::higher_mask(i);
+-			// NOTE: as the range crosses a limb and is at most one limb wide,
+-			// 	`0 < i_shift`, so both shifts are < 64. The bits of the upper
+-			// 	limb are the high bits of the key: shifted left (was: right,
+-			// 	by 64 for i % 64 == 0).
+-			const uint32_t i_shift = i % (sizeof(Limb) * 8u);
+-			const uint32_t j_shift = (sizeof(Limb) * 8u) - i_shift;
+-
++			// NOTE: the sort key is a single limb
++			assert((j - i) <= (sizeof(LabelLimbType) * 8u));
+ 
+-			if constexpr (USE_STD_SORT) {
+-				std::sort(__data.begin(),
+-				          __data.end(),
+-				          [lower, upper, i_mask, j_mask, i_shift, j_shift](const auto &e1, const auto &e2) {
+-					          const Limb data1 = ((e1.label_ptr(lower) & i_mask) >> i_shift) |
+-					                             ((e1.label_ptr(upper) & j_mask) << j_shift);
+-					          const Limb data2 = ((e2.label_ptr(lower) & i_mask) >> i_shift) |
+-					                             ((e2.label_ptr(upper) & j_mask) << j_shift);
+-
+-					          return data1 < data2;
+-				          });
++			// NOTE: `j` is exclusive, so the last used limb is the one of `j - 1`.
++			const uint64_t lower = T::round_down_to_limb(i);
++			const uint64_t upper = T::round_down_to_limb(j - 1u);
++
++			if (lower == upper) {
++				// NOTE: `lower_mask2(j)` is all ones for `j % 64 == 0`
++				const uint64_t mask = T::higher_mask(i) & T::lower_mask2(j);
++
++				if constexpr (USE_STD_SORT) {
++					std::sort(__data.begin(),
++					          __data.end(),
++					          [lower, mask](const auto &e1, const auto &e2) {
++						          return (e1.label_ptr(lower) & mask) < (e2.label_ptr(lower) & mask);
++					          });
++				} else {
++					cryptanalysislib::sort(__data.begin(),
++					                       __data.end(),
++					                       [lower, mask](const Element &e) {
++						                       return e.label_ptr(lower) & mask;
++					                       });
++				}
+ 			} else {
+-				ska_sort(__data.begin(),
+-				         __data.end(),
+-				         [lower, upper, i_mask, j_mask, i_shift, j_shift](const Element &e) {
+-					         return ((e.label_ptr(lower) & i_mask) >> i_shift) |
+-					                ((e.label_ptr(upper) & j_mask) << j_shift);
+-				         });
++				const Limb j_mask = T::lower_mask2(j);
++				const Limb i_mask = T::higher_mask(i);
++				// NOTE: as the range crosses a limb and is at most one limb wide,
++				// 	`0 < i_shift`, so both shifts are < 64. The bits of the upper
++				// 	limb are the high bits of the key: shifted left.
++				const uint32_t i_shift = i % (sizeof(Limb) * 8u);
++				const uint32_t j_shift = (sizeof(Limb) * 8u) - i_shift;
++
++
++				if constexpr (USE_STD_SORT) {
++					std::sort(__data.begin(),
++					          __data.end(),
++					          [lower, upper, i_mask, j_mask, i_shift, j_shift](const auto &e1, const auto &e2) {
++						          const Limb data1 = ((e1.label_ptr(lower) & i_mask) >> i_shift) |
++						                             ((e1.label_ptr(upper) & j_mask) << j_shift);
++						          const Limb data2 = ((e2.label_ptr(lower) & i_mask) >> i_shift) |
++						                             ((e2.label_ptr(upper) & j_mask) << j_shift);
++
++						          return data1 < data2;
++					          });
++				} else {
++					cryptanalysislib::sort(__data.begin(),
++					                       __data.end(),
++					                       [lower, upper, i_mask, j_mask, i_shift, j_shift](const Element &e) {
++						                       return ((e.label_ptr(lower) & i_mask) >> i_shift) |
++						                              ((e.label_ptr(upper) & j_mask) << j_shift);
++					                       });
++				}
+ 			}
+ 		}
+ 	}
+@@ -240,7 +258,9 @@
+ 	                                                const uint32_t k_higher,
+ 	                                                const uint32_t tid) noexcept {
+ 		uint64_t end_index;
+-		uint64_t start_index = search_level(e, k_lower, k_higher, tid);
++		// NOTE: the list is not split per thread
++		(void)tid;
++		uint64_t start_index = search_level(e, k_lower, k_higher);
+ 		if (start_index == uint64_t(-1)) {
+ 			return std::pair<uint64_t, uint64_t>(-1, -1);
+ 		}
+--- a/src/sort.h
++++ b/src/sort.h
+@@ -23,7 +23,7 @@
+ #include "list/list.h"
+ #include "search/search.h"
+ #include "sort.h"
+-#include "sort/ska_sort.h"
++#include "algorithm/sort.h"
+ #include "thread/thread.h"
+ 
+ 
+@@ -916,16 +916,16 @@
+ 				          return (e1.first & sortrmask2) < (e2.first & sortrmask2);
+ 			          });
+ 		} else {
+-			ska_sort(__buckets.begin() + start,
+-			         __buckets.begin() + end,
+-			         [](auto e) -> ArgumentLimbType {
+-				         // distinguish between the two cases if we are in the first/intermediate lvl
+-				         if constexpr (nri == 1) {
+-					         return e.first & sortrmask2;
+-				         } else {
+-					         return e.first & sortrmask2;
+-				         }
+-			         });
++			cryptanalysislib::sort(__buckets.begin() + start,
++			                       __buckets.begin() + end,
++			                       [](auto e) -> ArgumentLimbType {
++				                       // distinguish between the two cases if we are in the first/intermediate lvl
++				                       if constexpr (nri == 1) {
++					                       return e.first & sortrmask2;
++				                       } else {
++					                       return e.first & sortrmask2;
++				                       }
++			                       });
+ 		}
+ 
+ 		if constexpr (nrt != 1) {
+--- a/src/sort/sort.h
++++ b/src/sort/sort.h
+@@ -20,6 +20,7 @@
+ 
+ #include "parallel.h"
+ #include "ips4o.h"
++#include "algorithm/sort.h"
+ 
+ namespace cryptanalysislib {
+ 	/// sequential comparison sort of [first, last), same contract as `std::sort`
+--- a/tests/list/parallel_full.cpp
++++ b/tests/list/parallel_full.cpp
+@@ -75,6 +75,33 @@
+ 	}
+ }
+ 
++/// q = 4, the sorted range crosses a limb
++TEST(List4, sort_level) {
++	constexpr uint32_t q4 = 4, n4 = 40;
++	using Matrix4 = FqMatrix<MatrixT, n4, n4, q4>;
++	using Value4 = FqPackedVector<n4, q4, MatrixT>;
++	using Label4 = FqPackedVector<n4, q4, MatrixT>;
++	using Element4 = Element_T<Value4, Label4, Matrix4>;
++	using List4 = Parallel_List_FullElement_T<Element4>;
++
++	List4 L{list_size};
++	L.random();
++
++	// crosses the limb boundary at coordinate 32
++	constexpr uint32_t lower = 20, upper = 44 - 4;
++	L.sort_level(lower, upper);
++	for (size_t i = 0; i < list_size - 1; ++i) {
++		EXPECT_LE(L[i].label.hash(lower, upper), L[i + 1].label.hash(lower, upper));
++		EXPECT_FALSE(L[i + 1].is_lower(L[i], lower, upper));
++	}
++
++	for (size_t i = 0; i < list_size; i += 17) {
++		const auto [s, e] = L.search_boundaries(L[i], lower, upper, 1);
++		ASSERT_NE(s, uint64_t(-1));
++		EXPECT_LE(s, i);
++		EXPECT_LT(i, e);
++	}
++}
+ 
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);

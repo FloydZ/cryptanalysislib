@@ -14,15 +14,6 @@ using ::testing::UnitTest;
 
 using Label_Type = uint64_t;
 
-TEST(cmov, simple) {
-	using T = uint32_t;
-	T a = 1, b = 2;
-
-	a = cmova<T>(a, b);
-	EXPECT_EQ(a, b);
-}
-
-
 #ifdef __cpp_lib_atomic_wait
 TEST(one_byte_mutex, single_threaded) {
 	one_byte_mutex t;

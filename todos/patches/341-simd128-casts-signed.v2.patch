@@ -1,0 +1,261 @@
+diff --git a/src/simd/simd.h b/src/simd/simd.h
+index 849bce7..3d6f3b7 100644
+--- a/src/simd/simd.h
++++ b/src/simd/simd.h
+@@ -5451,24 +5451,24 @@ constexpr inline void Xint64x4_t<__unsigned>::print(bool binary,
+ ////////////////////////////////////////////////////////////////////////
+ 
+ namespace cryptanalysislib {
+-    template<>
+-	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint16x8_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint8x16_t<u> _Xint8x16_t<u>::operator=(const _uint16x8_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 
+ 		return *this;
+ 	}
+-    template<>
+-	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint32x4_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint8x16_t<u> _Xint8x16_t<u>::operator=(const _uint32x4_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 
+ 		return *this;
+ 	}
+-    template<>
+-	constexpr inline _uint8x16_t _uint8x16_t::operator=(const _uint64x2_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint8x16_t<u> _Xint8x16_t<u>::operator=(const _uint64x2_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+@@ -5476,24 +5476,24 @@ namespace cryptanalysislib {
+ 		return *this;
+ 	}
+ 
+-    template<>
+-	constexpr inline _uint16x8_t _uint16x8_t::operator=(const _uint8x16_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint16x8_t<u> _Xint16x8_t<u>::operator=(const _uint8x16_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 
+ 		return *this;
+ 	}
+-    template<>
+-	constexpr inline _uint16x8_t _uint16x8_t::operator=(const _uint32x4_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint16x8_t<u> _Xint16x8_t<u>::operator=(const _uint32x4_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 
+ 		return *this;
+ 	}
+-    template<>
+-	constexpr inline _uint16x8_t _uint16x8_t::operator=(const _uint64x2_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint16x8_t<u> _Xint16x8_t<u>::operator=(const _uint64x2_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+@@ -5501,24 +5501,24 @@ namespace cryptanalysislib {
+ 		return *this;
+ 	}
+ 
+-    template<>
+-	constexpr inline _uint32x4_t _uint32x4_t::operator=(const _uint16x8_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint32x4_t<u> _Xint32x4_t<u>::operator=(const _uint16x8_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 
+ 		return *this;
+ 	}
+-    template<>
+-	constexpr inline _uint32x4_t _uint32x4_t::operator=(const _uint8x16_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint32x4_t<u> _Xint32x4_t<u>::operator=(const _uint8x16_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 
+ 		return *this;
+ 	}
+-    template<>
+-	constexpr inline _uint32x4_t _uint32x4_t::operator=(const _uint64x2_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint32x4_t<u> _Xint32x4_t<u>::operator=(const _uint64x2_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+@@ -5526,24 +5526,24 @@ namespace cryptanalysislib {
+ 		return *this;
+ 	}
+ 
+-    template<>
+-	constexpr inline _uint64x2_t _uint64x2_t::operator=(const _uint16x8_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint64x2_t<u> _Xint64x2_t<u>::operator=(const _uint16x8_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 
+ 		return *this;
+ 	}
+-    template<>
+-	constexpr inline _uint64x2_t _uint64x2_t::operator=(const _uint32x4_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint64x2_t<u> _Xint64x2_t<u>::operator=(const _uint32x4_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 
+ 		return *this;
+ 	}
+-    template<>
+-	constexpr inline _uint64x2_t _uint64x2_t::operator=(const _uint8x16_t &b) noexcept {
++    template<const bool u>
++	constexpr inline _Xint64x2_t<u> _Xint64x2_t<u>::operator=(const _uint8x16_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+@@ -5553,79 +5553,80 @@ namespace cryptanalysislib {
+ }
+ 
+ 
+-// TODO signed type
++// NOTE: defined for the signed and unsigned types. The source is always
++// 	the unsigned type, as declared in the classes.
+ namespace cryptanalysislib {
+-    template<>
+-	constexpr _uint8x16_t::_Xint8x16_t(const _uint16x8_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint8x16_t<u>::_Xint8x16_t(const _uint16x8_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+-    template<>
+-	constexpr _uint8x16_t::_Xint8x16_t(const _uint32x4_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint8x16_t<u>::_Xint8x16_t(const _uint32x4_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+-    template<>
+-	constexpr _uint8x16_t::_Xint8x16_t(const _uint64x2_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint8x16_t<u>::_Xint8x16_t(const _uint64x2_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+ 
+-    template<>
+-	constexpr _uint16x8_t::_Xint16x8_t(const _uint8x16_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint16x8_t<u>::_Xint16x8_t(const _uint8x16_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+-    template<>
+-	constexpr _uint16x8_t::_Xint16x8_t(const _uint32x4_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint16x8_t<u>::_Xint16x8_t(const _uint32x4_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+-    template<>
+-	constexpr _uint16x8_t::_Xint16x8_t(const _uint64x2_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint16x8_t<u>::_Xint16x8_t(const _uint64x2_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+ 
+-    template<>
+-	constexpr _uint32x4_t::_Xint32x4_t(const _uint16x8_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint32x4_t<u>::_Xint32x4_t(const _uint16x8_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+-    template<>
+-	constexpr _uint32x4_t::_Xint32x4_t(const _uint8x16_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint32x4_t<u>::_Xint32x4_t(const _uint8x16_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+-    template<>
+-	constexpr _uint32x4_t::_Xint32x4_t(const _uint64x2_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint32x4_t<u>::_Xint32x4_t(const _uint64x2_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+ 
+-    template<>
+-	constexpr _uint64x2_t::_Xint64x2_t(const _uint16x8_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint64x2_t<u>::_Xint64x2_t(const _uint16x8_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+-    template<>
+-	constexpr _uint64x2_t::_Xint64x2_t(const _uint32x4_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint64x2_t<u>::_Xint64x2_t(const _uint32x4_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+ 	}
+-    template<>
+-	constexpr _uint64x2_t::_Xint64x2_t(const _uint8x16_t &b) noexcept {
++    template<const bool u>
++	constexpr _Xint64x2_t<u>::_Xint64x2_t(const _uint8x16_t &b) noexcept {
+ 		for (uint32_t i = 0; i < 2; ++i) {
+ 			v64[i] = b.v64[i];
+ 		}
+diff --git a/tests/simd/simd.cpp b/tests/simd/simd.cpp
+index ac0bbde..a4b61e4 100644
+--- a/tests/simd/simd.cpp
++++ b/tests/simd/simd.cpp
+@@ -180,6 +180,22 @@ TEST(simd, max_register_bits) {
+ #endif
+ }
+ 
++/// the bit cast constructors/assignments between the 128 bit types, also
++/// for the signed types
++TEST(simd128, cast_signed) {
++	using namespace cryptanalysislib;
++	const _uint16x8_t a = _uint16x8_t::set1(0x0102);
++	const _Xint8x16_t<false> b(a);
++	for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(b[i], (i % 2) ? 1 : 2); }
++	_Xint32x4_t<false> c(a);
++	for (uint32_t i = 0; i < 4; ++i) { EXPECT_EQ(c[i], 0x01020102); }
++	_Xint64x2_t<false> d;
++	d = _uint32x4_t::set1(7u);
++	for (uint32_t i = 0; i < 2; ++i) { EXPECT_EQ(d[i], int64_t(7) | (int64_t(7) << 32)); }
++	const _uint8x16_t e(_uint64x2_t::set1(0x0807060504030201ull));
++	for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(e[i], (i % 8) + 1); }
++}
++
+ TEST(uint32x8_t, set) {
+ 	uint32_t pos = 21;
+ 	uint8x32_t t1 = uint8x32_t::set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);

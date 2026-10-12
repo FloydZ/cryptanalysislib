@@ -1,0 +1,48 @@
+diff --git a/src/memory/common.h b/src/memory/common.h
+index 7ef5176..e70d0a1 100644
+--- a/src/memory/common.h
++++ b/src/memory/common.h
+@@ -9,14 +9,6 @@
+ #include <cstdlib>
+ #include <cstdint>
+ 
+-// TODO move to traits
+-// basic alignment cofnig
+-struct AlignmentConfig {
+-	// alignment in bytes
+-	constexpr static size_t alignment = 8;
+-};
+-// NOTE: `inline`, so including this header in several translation units does
+-// not define the object more than once
+-inline constexpr AlignmentConfig configAlignment{};
++#include "traits.h"
+ 
+ #endif
+diff --git a/src/traits.h b/src/traits.h
+index 70e1a06..34a36b2 100644
+--- a/src/traits.h
++++ b/src/traits.h
+@@ -7,6 +7,23 @@
+ #include <type_traits>
+ #include <utility>
+ 
++namespace cryptanalysislib {
++	/// basic alignment config. Base class of all config classes which need
++	/// an alignment, e.g. `struct AANodeConfig : public AlignmentConfig {}`.
++	struct AlignmentConfig {
++		// alignment in bytes
++		constexpr static size_t alignment = 8;
++	};
++
++	// NOTE: `inline`, so including this header in several translation units
++	// does not define the object more than once
++	inline constexpr AlignmentConfig configAlignment{};
++} // end namespace cryptanalysislib
++
++// NOTE: also available in the global namespace
++using cryptanalysislib::AlignmentConfig;
++using cryptanalysislib::configAlignment;
++
+ namespace cryptanalysislib {
+ 	namespace internal {
+ 		// NOTE: this value can be changed, if you need it.

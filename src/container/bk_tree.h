@@ -1,13 +1,19 @@
 #ifndef CRYPTANALYSISLIB_CONTAINER_BK_TREE_H
 #define CRYPTANALYSISLIB_CONTAINER_BK_TREE_H
 
+#include <concepts>
 #include <vector>
 
 #include "alloc/alloc.h"
 #include "math/abs.h"
 
-/// TODO add namespace
-/// TODO add concept for T, as T needs a dist functions
+namespace cryptanalysislib {
+
+/// the element type of a BK-tree needs a metric: `T::dist(a, b)`
+template<class T>
+concept BKTreeMetric = requires(const T &a, const T &b) {
+	{ T::dist(a, b) } -> std::convertible_to<uint32_t>;
+};
 
 /// Details: https://dl.acm.org/doi/pdf/10.1145/362003.362025
 template<class T>
@@ -41,6 +47,9 @@ constexpr static BKTreeConfig bkTreeConfig;
 template<class T,
          template<class N> class Allocator = cryptanalysislib::allocator,
 		 const BKTreeConfig &config=bkTreeConfig>
+#if __cplusplus > 201709L
+	requires BKTreeMetric<T>
+#endif
 class BKTree {
 	using node_type = BKTreeNode<T>;
 	// NOTE: the first inserted element becomes the root. Before, a fake
@@ -144,4 +153,5 @@ public:
 		return d_best;
 	}
 };
+} // end namespace cryptanalysislib
 #endif//CRYPTANALYSISLIB_BK_TREE_H

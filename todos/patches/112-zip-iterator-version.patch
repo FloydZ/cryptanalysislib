@@ -1,0 +1,130 @@
+diff --git a/src/algorithm/zip.h b/src/algorithm/zip.h
+index ca42806..131354f 100644
+--- a/src/algorithm/zip.h
++++ b/src/algorithm/zip.h
+@@ -3,9 +3,11 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
++#include <iterator>
++#include <memory>
++#include <type_traits>
+ 
+-
+-// TODO normal iterator version 
++// NOTE: the iterator version is `cryptanalysislib::zip` at the end of this file
+ 
+ #ifdef USE_AVX2
+ #include <immintrin.h>
+@@ -197,4 +199,65 @@ static inline void zip_u8(uint16_t *__restrict__ out,
+ 	}
+ }
+ 
++namespace cryptanalysislib {
++	/// Interleaves the elements of [first1, last1) and of the range starting
++	/// at `first2` into the range starting at `d_first`:
++	/// a0, b0, a1, b1, ... (2 * (last1 - first1) elements).
++	/// NOTE: for contiguous 8/16/32/64 bit unsigned integers (input and
++	/// 	output of the same type) the AVX2 kernels `zip_uXX` are used.
++	/// \param first1[in]: beginning of the first input range
++	/// \param last1[in]: end of the first input range
++	/// \param first2[in]: beginning of the second input range (same length)
++	/// \param d_first[out]: beginning of the output range, must not overlap
++	/// 	the inputs
++	/// \return iterator past the last written element
++	template<class InputIt1,
++	         class InputIt2,
++	         class OutputIt>
++#if __cplusplus > 201709L
++	requires std::input_iterator<InputIt1> &&
++	         std::input_iterator<InputIt2>
++#endif
++	constexpr OutputIt zip(InputIt1 first1,
++	                       InputIt1 last1,
++	                       InputIt2 first2,
++	                       OutputIt d_first) noexcept {
++#ifdef USE_AVX2
++		using T = std::iter_value_t<InputIt1>;
++		if constexpr (std::contiguous_iterator<InputIt1> &&
++		              std::contiguous_iterator<InputIt2> &&
++		              std::contiguous_iterator<OutputIt> &&
++		              std::is_unsigned_v<T> &&
++		              std::is_same_v<T, std::iter_value_t<InputIt2>> &&
++		              std::is_same_v<T, std::iter_value_t<OutputIt>>) {
++			if (!std::is_constant_evaluated()) {
++				const size_t n = static_cast<size_t>(last1 - first1);
++				const T *a = std::to_address(first1), *b = std::to_address(first2);
++				T *out = std::to_address(d_first);
++				constexpr size_t t = 32 / sizeof(T); // elements per register
++				size_t i = 0;
++				for (; (i + t) <= n; i += t) {
++					__m256i *o1 = (__m256i *)(out + 2 * i), *o2 = (__m256i *)(out + 2 * i + t);
++					const __m256i *i1 = (const __m256i *)(a + i), *i2 = (const __m256i *)(b + i);
++					if constexpr (sizeof(T) == 1) { zip_u8(o1, o2, i1, i2); }
++					else if constexpr (sizeof(T) == 2) { zip_u16(o1, o2, i1, i2); }
++					else if constexpr (sizeof(T) == 4) { zip_u32(o1, o2, i1, i2); }
++					else { zip_u64(o1, o2, i1, i2); }
++				}
++				for (; i < n; ++i) {
++					out[2 * i] = a[i];
++					out[2 * i + 1] = b[i];
++				}
++				return d_first + 2 * n;
++			}
++		}
++#endif
++		for (; first1 != last1; ++first1, ++first2) {
++			*d_first = *first1; ++d_first;
++			*d_first = *first2; ++d_first;
++		}
++		return d_first;
++	}
++} // end namespace cryptanalysislib
++
+ #endif // CRYPTANALYSISLIB_ALGORITHM_BITINTERLEAVE_H
+diff --git a/tests/algorithm/zip.cpp b/tests/algorithm/zip.cpp
+index 891fa0d..07e3433 100644
+--- a/tests/algorithm/zip.cpp
++++ b/tests/algorithm/zip.cpp
+@@ -1,6 +1,9 @@
+ #include <cstdint>
+ #include <gtest/gtest.h>
+ #include <iostream>
++#include <list>
++#include <string>
++#include <vector>
+ 
+ #include "algorithm/zip.h"
+ 
+@@ -34,6 +37,31 @@ TEST(zip, uint8_t_) {
+     }
+ }
+ 
++/// iterator version: all sizes around the register widths, all unsigned
++/// types (AVX2 path) and a non contiguous/non integral one
++template<typename T>
++static void check_zip() {
++	for (size_t s = 0; s <= 100; ++s) {
++		std::vector<T> a(s), b(s), out(2 * s + 1, T(7)), e(2 * s);
++		for (size_t i = 0; i < s; ++i) { a[i] = T(i * 3 + 1); b[i] = T(~(i * 5)); e[2 * i] = a[i]; e[2 * i + 1] = b[i]; }
++		const auto r = cryptanalysislib::zip(a.begin(), a.end(), b.begin(), out.begin());
++		ASSERT_EQ(r - out.begin(), ptrdiff_t(2 * s));
++		ASSERT_TRUE(std::equal(e.begin(), e.end(), out.begin())) << s;
++		ASSERT_EQ(out[2 * s], T(7)) << "wrote past the end " << s;
++	}
++}
++TEST(zip, iterator_version) {
++	check_zip<uint8_t>(); check_zip<uint16_t>(); check_zip<uint32_t>(); check_zip<uint64_t>();
++
++	std::list<std::string> a = {"a", "b"}, b = {"x", "y"};
++	std::vector<std::string> out(4);
++	cryptanalysislib::zip(a.begin(), a.end(), b.begin(), out.begin());
++	EXPECT_EQ(out, (std::vector<std::string>{"a", "x", "b", "y"}));
++
++	constexpr auto c = []() { int x[2] = {1, 2}, y[2] = {3, 4}, o[4] = {}; cryptanalysislib::zip(x, x + 2, y, o); return o[0] * 1000 + o[1] * 100 + o[2] * 10 + o[3]; }();
++	static_assert(c == 1324);
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();

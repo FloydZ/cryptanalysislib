@@ -1,0 +1,106 @@
+diff --git a/src/sort/counting_sort.h b/src/sort/counting_sort.h
+index 847c6cd..3b95910 100644
+--- a/src/sort/counting_sort.h
++++ b/src/sort/counting_sort.h
+@@ -6,35 +6,37 @@
+ #include "algorithm/histogram.h"
+ 
+ 
+-using namespace cryptanalysislib::algorithm;
+-
+-
+-// this switching point was selected by a benchmark in
+-// `bench/algorithm/histogram.cpp`.
+-// Benchmarked on: AMD Ryzen 5 7600X 6-Core Processor
+-constexpr static size_t switch_ = 512;
+-
+-/// TODO doc
+-/// \param arr
+-/// \param size
+-/// \return
+-constexpr static void counting_sort_u8(uint8_t *arr,
+-                            		  const size_t size) {
+-	size_t cnt[256] = {0};
+-	size_t i;
+-
+-	if (size >= switch_) {
+-		histogram(cnt, arr, size);
+-	} else {
+-		for (i = 0 ; i < size ; ++i) { cnt[arr[i]]++; }
+-	}
++namespace cryptanalysislib {
++	namespace internal {
++		/// below this size the histogram is computed with a simple loop.
++		/// this switching point was selected by a benchmark in
++		/// `bench/algorithm/histogram.cpp`.
++		/// Benchmarked on: AMD Ryzen 5 7600X 6-Core Processor
++		constexpr static size_t counting_sort_switch = 512;
++	} // end namespace internal
++
++	/// sorts `arr` in place (increasing) by counting the occurrences of every
++	/// byte value and writing them back in order. O(size + 256).
++	/// \param arr[in/out]: bytes to sort
++	/// \param size[in]: number of bytes
++	constexpr static void counting_sort_u8(uint8_t *arr,
++	                                       const size_t size) noexcept {
++		size_t cnt[256] = {0};
++		size_t i;
++
++		if (size >= internal::counting_sort_switch) {
++			cryptanalysislib::algorithm::histogram(cnt, arr, size);
++		} else {
++			for (i = 0 ; i < size ; ++i) { cnt[arr[i]]++; }
++		}
+ 
+-	i = 0;
+-	for (size_t a = 0 ; a < 256 ; ++a) {
+-		while (cnt[a]--) {
+-			arr[i++] = a;
++		i = 0;
++		for (size_t a = 0 ; a < 256 ; ++a) {
++			while (cnt[a]--) {
++				arr[i++] = a;
++			}
+ 		}
+ 	}
+-}
++} // end namespace cryptanalysislib
+ 
+ #endif
+diff --git a/tests/sort/sorting_algorithms.cpp b/tests/sort/sorting_algorithms.cpp
+index eb96d3d..c9f93e7 100644
+--- a/tests/sort/sorting_algorithms.cpp
++++ b/tests/sort/sorting_algorithms.cpp
+@@ -167,6 +167,19 @@ using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
+ INSTANTIATE_TYPED_TEST_SUITE_P(My, TestSort, MyTypes);
+ 
+ #ifdef USE_AVX2
++TEST(CountingSort, u8) {
++	// below and above the histogram switching point
++	for (const size_t n : {0ul, 1ul, 100ul, 511ul, 512ul, 5000ul}) {
++		std::vector<uint8_t> a(n);
++		size_t hist[256] = {0};
++		for (auto &x : a) { x = uint8_t(rng()); hist[x] += 1; }
++		cryptanalysislib::counting_sort_u8(a.data(), n);
++		for (size_t i = 1; i < n; ++i) { EXPECT_LE(a[i - 1], a[i]); }
++		for (const auto x : a) { hist[x] -= 1; }
++		for (size_t i = 0; i < 256; ++i) { EXPECT_EQ(hist[i], 0u); }
++	}
++}
++
+ TEST(DJBSORT, Ints32) {
+ 	int32_t *array8 = generate_list<int32_t>(listsize);
+ 	int32_sort(array8, listsize);
+diff --git a/bench/sort/counting_sort.cpp b/bench/sort/counting_sort.cpp
+index 3b9a1c9..890f3e8 100644
+--- a/bench/sort/counting_sort.cpp
++++ b/bench/sort/counting_sort.cpp
+@@ -12,7 +12,7 @@ void BM_counting_sort(benchmark::State& state) {
+     cryptanalysislib::random_data<std::vector<T>, T>(l, search_index, state.range(0), 1);
+ 
+ 	for (auto _ : state) {
+-		counting_sort_u8(l.data(), state.range(0));
++		cryptanalysislib::counting_sort_u8(l.data(), state.range(0));
+ 	}
+ 	state.SetComplexityN(state.range(0));
+ }

@@ -40,7 +40,7 @@ Configuration:
 --------------
 
 Each allocator class can be configured with the `AllocatorConfig` class. Which
-is defined [here](TODO). One can use it like this:
+is defined [here](./alloc.h) (`struct AllocatorConfig`). One can use it like this:
 
 ```C 
 constexpr static AllocatorConfig config {

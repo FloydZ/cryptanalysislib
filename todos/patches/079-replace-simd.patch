@@ -1,0 +1,100 @@
+diff --git a/src/algorithm/replace.h b/src/algorithm/replace.h
+index ddbe862..6ec80c5 100644
+--- a/src/algorithm/replace.h
++++ b/src/algorithm/replace.h
+@@ -1,9 +1,29 @@
+ #pragma once
++#include <cstddef>
+ #include <iterator>
++#include <memory>
++#include <type_traits>
+ 
+ namespace cryptanalysislib {
+     namespace internal {
+-        // TODO implement SIMD optimized version
++        /// SIMD version of `replace` for arithmetic types: written as a
++        /// branchless select over contiguous memory, which compilers vectorize
++        /// (compare + blend). The branchy conditional store of the generic
++        /// version is not vectorized without masked stores.
++        template<typename T>
++            requires std::is_arithmetic_v<T>
++        constexpr inline void replace_simd(T *data,
++                                           const size_t n,
++                                           const T old_value,
++                                           const T new_value) noexcept {
++#if defined(__clang__)
++            #pragma clang loop vectorize(enable)
++#endif
++            for (size_t i = 0; i < n; ++i) {
++                const T t = data[i];
++                data[i] = (t == old_value) ? new_value : t;
++            }
++        }
+     };
+ 
+     /// Replaces all elements equal to old_value with new_value in a range
+@@ -20,6 +40,16 @@ namespace cryptanalysislib {
+                  ForwardIt last,
+                  const T& old_value,
+                  const T& new_value) {
++        using V = std::iter_value_t<ForwardIt>;
++        if constexpr (std::contiguous_iterator<ForwardIt> &&
++                      std::is_arithmetic_v<V> &&
++                      std::is_same_v<V, T>) {
++            internal::replace_simd<V>(std::to_address(first),
++                                      static_cast<size_t>(last - first),
++                                      old_value, new_value);
++            return;
++        }
++
+         for (; first != last; ++first)
+             if (*first == old_value)
+                 *first = new_value;
+diff --git a/tests/algorithm/replace.cpp b/tests/algorithm/replace.cpp
+new file mode 100644
+index 0000000..e94b932
+--- /dev/null
++++ b/tests/algorithm/replace.cpp
+@@ -0,0 +1,42 @@
++#include <gtest/gtest.h>
++#include <algorithm>
++#include <cstdint>
++#include <list>
++#include <vector>
++
++#include "random.h"
++#include "algorithm/replace.h"
++
++using ::testing::InitGoogleTest;
++using namespace cryptanalysislib;
++
++template <typename T>
++class Replace : public testing::Test {};
++TYPED_TEST_SUITE_P(Replace);
++
++/// replace against std::replace, all sizes around the vector width
++TYPED_TEST_P(Replace, simple) {
++	for (size_t n = 0; n <= 300; ++n) {
++		std::vector<TypeParam> v(n);
++		for (auto &x : v) { x = TypeParam(rng() % 4u); }
++		auto e = v;
++		cryptanalysislib::replace(v.begin(), v.end(), TypeParam(1), TypeParam(3));
++		std::replace(e.begin(), e.end(), TypeParam(1), TypeParam(3));
++		EXPECT_EQ(v, e) << n;
++	}
++}
++REGISTER_TYPED_TEST_SUITE_P(Replace, simple);
++using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t, int32_t, float, double>;
++INSTANTIATE_TYPED_TEST_SUITE_P(My, Replace, MyTypes);
++
++TEST(replace, non_contiguous) {
++	std::list<int> l = {1, 2, 1, 3};
++	cryptanalysislib::replace(l.begin(), l.end(), 1, 7);
++	EXPECT_EQ(l, (std::list<int>{7, 2, 7, 3}));
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	rng_seed(time(NULL));
++	return RUN_ALL_TESTS();
++}

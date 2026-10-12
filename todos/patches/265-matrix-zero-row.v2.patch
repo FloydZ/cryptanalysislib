@@ -1,0 +1,38 @@
+diff --git a/src/matrix/matrix.h b/src/matrix/matrix.h
+index 1cf559d..d500ead 100644
+--- a/src/matrix/matrix.h
++++ b/src/matrix/matrix.h
+@@ -321,10 +321,7 @@ public:
+ 	constexpr void zero_row(const uint32_t row) noexcept {
+ 		assert(row < nrows);
+ 
+-        // TODO replace with `RowType` operation
+-		for (uint32_t i = 0; i < ncols; ++i) {
+-			set(0, row, i);
+-		}
++		__data[row].zero();
+ 	}
+ 
+ 	/// generates a fully rng matrix with full rank
+diff --git a/tests/matrix/fq.cpp b/tests/matrix/fq.cpp
+index 687e7a3..726e07d 100644
+--- a/tests/matrix/fq.cpp
++++ b/tests/matrix/fq.cpp
+@@ -72,6 +72,17 @@ TEST(FqMatrix, copy_sub) {
+ 	}
+ }
+
++TEST(FqMatrix, zero_row) {
++	M m; m.random();
++	const M orig = m;
++	m.zero_row(5);
++	for (uint32_t i = 0; i < nrows; ++i) {
++		for (uint32_t j = 0; j < ncols; ++j) {
++			EXPECT_EQ(m.get(i, j), (i == 5) ? 0 : orig.get(i, j));
++		}
++	}
++}
++
+ TEST(FqMatrix, Init) {
+ 	M m = M{};
+ 	(void) m;

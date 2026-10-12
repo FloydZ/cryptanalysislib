@@ -283,19 +283,57 @@ namespace cryptanalysislib::hh {
 		              "The type of m_iprime is not big enough.");
 	};
 
-	///
+	/// Fibonacci hashing: the bucket of a hash h is the top log2(#buckets)
+	/// bits of h * 2^64/phi, the number of buckets is a power of two.
+	/// Has the interface of the other policies (constructor, bucket_for_hash,
+	/// next_bucket_count, max_bucket_count, clear) and the ska style one
+	/// (next_size_over, commit, keep_in_range, reset).
 	class fibonacci_growth_policy {
 	public:
 		constexpr fibonacci_growth_policy() = default;
 
+		/// rounds `min_bucket_count_in_out` up to a power of two (>= 2);
+		/// 0 stays 0, then `bucket_for_hash` always returns 0
 		constexpr explicit fibonacci_growth_policy(std::size_t &min_bucket_count_in_out) noexcept {
-			/// TODO
-			(void)min_bucket_count_in_out;
+			if (min_bucket_count_in_out > max_bucket_count()) {
+				// the hashmap has reached its max size
+				assert(false);
+			}
 
+			if (min_bucket_count_in_out == 0) {
+				clear();
+				return;
+			}
+
+			size_t size = min_bucket_count_in_out;
+			commit(next_size_over(size));
+			min_bucket_count_in_out = size;
 		}
 
+		/// \return the bucket [0, bucket count) of `hash`
 		[[nodiscard]] constexpr inline size_t bucket_for_hash(const size_t hash) const noexcept{
-			return (11400714819323198485ull * hash) >> shift;
+			return ((11400714819323198485ull * hash) >> shift) & mask;
+		}
+
+		/// \return the bucket count after the next growth (doubling)
+		[[nodiscard]] constexpr inline std::size_t next_bucket_count() const noexcept {
+			const size_t count = mask + 1u;
+			if (count > max_bucket_count() / 2u) {
+				// the hashmap has reached its max size
+				assert(false);
+			}
+			return count < 2u ? 2u : count * 2u;
+		}
+
+		/// \return the maximal bucket count
+		[[nodiscard]] constexpr inline std::size_t max_bucket_count() const noexcept {
+			return (std::numeric_limits<std::size_t>::max() / 2u) + 1u;
+		}
+
+		/// as if created with a bucket count of 0
+		constexpr inline void clear() noexcept {
+			shift = 63;
+			mask = 0;
 		}
 
 		[[nodiscard]] constexpr inline size_t keep_in_range(const size_t index,
@@ -310,14 +348,17 @@ namespace cryptanalysislib::hh {
 
 		constexpr inline void commit(int8_t shift) noexcept {
 			this->shift = shift;
+			mask = (size_t(1) << (64u - uint32_t(shift))) - 1u;
 		}
 
 		constexpr inline void reset() noexcept {
-			shift = 63;
+			clear();
 		}
 
 	private:
 		int8_t shift = 63;
+		/// bucket count - 1, 0 for the empty table
+		size_t mask = 0;
 	};
 }
 

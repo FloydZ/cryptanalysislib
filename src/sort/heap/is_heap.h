@@ -3,10 +3,11 @@
 
 #include <iterator>
 #include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <sys/types.h>
 
-
-// TODO
-// - tests and benchmarks for all functions
+// NOTE: tests in `tests/sort/heap.cpp`, benchmarks in `bench/sort/heap.cpp`
 
 
 
@@ -69,7 +70,7 @@ constexpr bool is_heap_sse_epi32(const int32_t* begin,
     const ssize_t k = 16/4; // words in a vector
 
     if (end - begin < 2 * k) {
-        return std::is_heap(begin, end);
+        return is_heap_rnd(begin, end, std::less<>{});
     }
 
     const int32_t* parent = begin;
@@ -117,7 +118,7 @@ constexpr bool is_heap_avx2_epi32(const int32_t* begin,
     constexpr ssize_t k = 32/4; // words in a vector
 
     if (end - begin < 2 * k) {
-        return std::is_heap(begin, end);
+        return is_heap_rnd(begin, end, std::less<>{});
     }
 
     const int32_t* parent = begin;
@@ -164,14 +165,13 @@ constexpr bool is_heap_avx2_epi32(const int32_t* begin,
 }
 #endif
 
-// NOTE: was `USE_AVX512`, which the build never defines
 #ifdef USE_AVX512F
 
 inline bool is_heap_avx512_epi32(const int32_t* begin, const int32_t* end) {
     const ssize_t k = 64/4; // words in a vector
 
     if (end - begin < 2 * k) {
-        return std::is_heap(begin, end);
+        return is_heap_rnd(begin, end, std::less<>{});
     }
 
     const int32_t* parent = begin;

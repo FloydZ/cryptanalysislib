@@ -1,0 +1,139 @@
+diff --git a/src/compression/lzss.h b/src/compression/lzss.h
+index 3b08f57..f0c8ed7 100644
+--- a/src/compression/lzss.h
++++ b/src/compression/lzss.h
+@@ -38,9 +38,8 @@
+ #define MAX_WINDOWSIZE 4095
+ #define ITERATIONS_BEFORE_CALLBACK 64
+ 
+-// TODO:
+-//	- class
+-//	- benchmark
++// NOTE: class interface: `cryptanalysislib::lzss` at the end of this file,
++// 	benchmark: `bench/compression/lzss.cpp`
+ 
+ typedef uint32_t (*PFNCOMPRESSCALLBACK)(uint8_t *, uint8_t *, uint8_t *);
+ 
+@@ -258,3 +257,37 @@ inline unsigned long CompressData(unsigned char *src,
+ 	}
+ 	return (unsigned long) (dest - start_dest);
+ }
++
++namespace cryptanalysislib {
++	/// class interface of the LZSS functions above
++	/// \tparam windowsize size of the search window, <= MAX_WINDOWSIZE
++	template<const unsigned long windowsize = MAX_WINDOWSIZE>
++	struct lzss {
++		static_assert(windowsize > 0 && windowsize <= MAX_WINDOWSIZE);
++
++		/// \return number of bytes the output of `compress` needs
++		[[nodiscard]] constexpr static unsigned long bound(const unsigned long n) noexcept {
++			return CompressBound(n);
++		}
++
++		/// \param dst[out]: `bound(n)` bytes
++		/// \param src[in]: `n` input bytes
++		/// \param n[in]: number of input bytes
++		/// \return number of compressed bytes
++		static unsigned long compress(uint8_t *dst,
++		                              const uint8_t *src,
++		                              const unsigned long n) noexcept {
++			// NOTE: `CompressData` only reads `src`
++			return CompressData(const_cast<uint8_t *>(src), dst, n, windowsize, nullptr);
++		}
++
++		/// \param dst[out]: buffer for the uncompressed data (its size is not
++		/// 	stored in the stream, the caller has to know it)
++		/// \param src[in]: compressed bytes
++		/// \return number of decompressed bytes
++		static unsigned long decompress(uint8_t *dst,
++		                                const uint8_t *src) noexcept {
++			return DecompressData(src, dst);
++		}
++	};
++} // end namespace cryptanalysislib
+diff --git a/tests/compression/lzss.cpp b/tests/compression/lzss.cpp
+index 70edc85..736568b 100644
+--- a/tests/compression/lzss.cpp
++++ b/tests/compression/lzss.cpp
+@@ -2,6 +2,7 @@
+ #include <gtest/gtest.h>
+ #include <cstring>
+ #include <iostream>
++#include <vector>
+ 
+ #include "compression/compression.h"
+ #include "random.h"
+@@ -67,6 +68,25 @@ TEST(lzss, small) {
+ 	}
+ }
+ 
++/// class interface, also with a small window
++TEST(lzss, class_interface) {
++	constexpr size_t s = 10000;
++	std::vector<uint8_t> in(s), c(cryptanalysislib::lzss<>::bound(s)), out(s);
++	for (size_t i = 0; i < s; ++i) { in[i] = uint8_t((i % 50) < 30 ? 'a' + (i % 5) : rng() % 3); }
++
++	const auto n1 = cryptanalysislib::lzss<>::compress(c.data(), in.data(), s);
++	EXPECT_LT(n1, s);
++	EXPECT_EQ(cryptanalysislib::lzss<>::decompress(out.data(), c.data()), s);
++	EXPECT_EQ(in, out);
++
++	using small = cryptanalysislib::lzss<16>;
++	const auto n2 = small::compress(c.data(), in.data(), s);
++	EXPECT_LE(n2, small::bound(s));
++	out.assign(s, 0);
++	EXPECT_EQ(small::decompress(out.data(), c.data()), s);
++	EXPECT_EQ(in, out);
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();
+diff --git a/bench/compression/lzss.cpp b/bench/compression/lzss.cpp
+new file mode 100644
+index 0000000..2205e79
+--- /dev/null
++++ b/bench/compression/lzss.cpp
+@@ -0,0 +1,41 @@
++#include <benchmark/benchmark.h>
++#include <cstdint>
++#include <cstdlib>
++#include <vector>
++
++#include "compression/compression.h"
++
++/// partly repetitive data (as in the tests)
++static std::vector<uint8_t> data(const size_t n) {
++	std::vector<uint8_t> t(n);
++	for (size_t i = 0; i < n; ++i) { t[i] = uint8_t((i % 37) < 20 ? 'a' + (i % 7) : rand() % 4); }
++	return t;
++}
++
++template<const unsigned long window>
++static void BM_lzss_compress(benchmark::State &state) {
++	const auto t = data(state.range(0));
++	std::vector<uint8_t> c(cryptanalysislib::lzss<window>::bound(t.size()));
++	size_t n = 0;
++	for (auto _: state) {
++		n = cryptanalysislib::lzss<window>::compress(c.data(), t.data(), t.size());
++		benchmark::DoNotOptimize(n);
++	}
++	state.counters["ratio"] = double(n) / double(t.size());
++	state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(t.size()));
++}
++
++static void BM_lzss_decompress(benchmark::State &state) {
++	const auto t = data(state.range(0));
++	std::vector<uint8_t> c(cryptanalysislib::lzss<>::bound(t.size())), out(t.size());
++	cryptanalysislib::lzss<>::compress(c.data(), t.data(), t.size());
++	for (auto _: state) {
++		benchmark::DoNotOptimize(cryptanalysislib::lzss<>::decompress(out.data(), c.data()));
++	}
++	state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(t.size()));
++}
++
++BENCHMARK(BM_lzss_compress<256>)->RangeMultiplier(8)->Range(1u << 10, 1u << 16);
++BENCHMARK(BM_lzss_compress<MAX_WINDOWSIZE>)->RangeMultiplier(8)->Range(1u << 10, 1u << 16);
++BENCHMARK(BM_lzss_decompress)->RangeMultiplier(8)->Range(1u << 10, 1u << 16);
++BENCHMARK_MAIN();

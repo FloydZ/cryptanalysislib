@@ -1,0 +1,213 @@
+diff --git a/src/container/array.h b/src/container/array.h
+index a33d79f..a00ac8d 100644
+--- a/src/container/array.h
++++ b/src/container/array.h
+@@ -9,7 +9,5 @@
+
+ #include "helper.h"
+
+-// TODO doc and tests
+-
+ namespace cryptanalysislib {
+ 	struct config_array {
+@@ -25,9 +23,12 @@ namespace cryptanalysislib {
+ 	constexpr config_array std_config_array = config_array();
+ 
+ 
+-	/// \tparam T
+-	/// \tparam N
+-	/// \tparam config
++	/// Fixed size array whose operations (map, push_back/front, concat,
++	/// slice, insert, mergesort, ...) are all constexpr and return new arrays
++	/// (in the spirit of "constexpr all the things").
++	/// \tparam T element type
++	/// \tparam N number of elements
++	/// \tparam config alignment of the data
+ 	template<typename T,
+ 	         size_t N,
+ 	         const config_array &config = std_config_array>
+@@ -84,7 +85,8 @@ namespace cryptanalysislib {
+ 		constexpr const_iterator end() const noexcept { return &m_data[N]; }
+ 		constexpr const_iterator cend() const noexcept { return &m_data[N]; }
+ 
+-		// map a function over an const_array (or two)
++		/// map a function over an const_array (or two)
++		/// \return {f(a[0]), ..., f(a[N-1])}
+ 		template<typename F>
+ 		constexpr auto map(F &&f) const -> const_array<decltype(f(T{})), N> {
+ 			return map(std::forward<F>(f), std::make_index_sequence<N>());
+@@ -95,44 +97,46 @@ namespace cryptanalysislib {
+ 			return map(std::forward<F>(f), rhs, std::make_index_sequence<(N > M ? M : N)>());
+ 		}
+ 
+-		// const_array comparison
++		/// lexicographical comparison
++		/// \return true if *this < rhs
+ 		template<size_t M>
+ 		constexpr bool less(const const_array<T, M> &rhs) const {
+ 			return less_r(rhs.begin(), rhs.end(), 0);
+ 		}
+ 
+-		// push_back, push_front
++		/// \return a copy with `t` appended
+ 		constexpr const_array<T, N + 1> push_back(const T &t) const {
+ 			return push_back(t, std::make_index_sequence<N>());
+ 		}
+ 
++		/// \return a copy with `t` prepended
+ 		constexpr const_array<T, N + 1> push_front(const T &t) const {
+ 			return push_front(t, std::make_index_sequence<N>());
+ 		}
+ 
+-		// concatenate two arrays
++		/// \return the concatenation of *this and `a`
+ 		template<size_t M>
+ 		constexpr const_array<T, (M + N)> concat(const const_array<T, M> &a) const {
+ 			return concat(a, std::make_index_sequence<N>(), std::make_index_sequence<M>());
+ 		}
+ 
+-		///
+-		/// \tparam A
+-		/// \tparam B
+-		/// \return
++		/// \tparam A first index
++		/// \tparam B end index (exclusive)
++		/// \return the elements [A, B)
+ 		template<size_t A, size_t B>
+ 		requires (A < B) && (B <= N)
+ 		constexpr const_array<T, (B - A)> slice() const {
+ 			return {&m_data[A], std::make_index_sequence<(B - A)>()};
+ 		}
+ 
+-		// tail (omit first M elements) or init (omit last M elements)
++		/// \return all but the first M elements
+ 		template<size_t M = 1>
+ 		requires (M < N)
+ 		constexpr const_array<T, (N - M)> tail() const {
+ 			return slice<M, N>();
+ 		}
+ 
++		/// \return all but the last M elements
+ 		template<size_t M = 1>
+ 		requires (M < N)
+ 		constexpr const_array<T, (N - M)> init() const {
+@@ -143,6 +147,8 @@ namespace cryptanalysislib {
+ 		template<size_t I, typename = void>
+ 		struct inserter;
+ 
++		/// \tparam I position, 0 or N (front or back)
++		/// \return a copy with `t` inserted at position I
+ 		template<size_t I>
+ 		constexpr const_array<T, N + 1> insert(const T &t) const {
+ 			return inserter<I>()(*this, t);
+@@ -155,22 +161,23 @@ namespace cryptanalysislib {
+ 		template<size_t I, size_t J, typename = void>
+ 		struct merger;
+ 
+-		///
+-		/// \tparam F
+-		/// \param f
+-		/// \return
++		/// stable mergesort
++		/// \tparam F less-than comparison
++		/// \param f comparison function
++		/// \return a sorted copy
+ 		template<typename F>
+ 		constexpr const_array<T, N> mergesort(F &&f) const {
+ 			return sorter<N>::sort(*this, std::forward<F>(f));
+ 		}
+ 
+-		///
+-		/// \tparam P
+-		/// \param p
+-		/// \return
++		/// stable partition
++		/// \tparam P unary predicate
++		/// \param p predicate
++		/// \return a copy, the elements with p(x) == true first
+ 		template<typename P>
+ 		constexpr const_array<T, N> partition(P &&p) const {
+-			return mergesort(pred_to_less_t<P>(p));
++			// NOTE: forward, a named `p` does not bind to `P &&`
++			return mergesort(pred_to_less_t<P>(std::forward<P>(p)));
+ 		}
+ 
+ 		///
+@@ -196,13 +203,14 @@ namespace cryptanalysislib {
+ 		constexpr auto map(F &&f, const const_array<U, M> &rhs, std::index_sequence<Is...>) const
+ 		-> const_array<decltype(f(T{}, U{})), sizeof...(Is)> {
+ 			return const_array<decltype(f(T{}, U{})), sizeof...(Is)>
+-					{f(m_data[Is], rhs.m_data[Is])...};
++					{f(m_data[Is], rhs[Is])...}; // NOTE: `rhs.m_data` is private for U != T
+ 		}
+ 
+ 		constexpr bool less_r(const T *b, const T *e, size_t i) const {
+ 			return b == e ? false :         // other has run out
+ 			       i == N ? true :          // this has run out
+ 			       m_data[i] < *b ? true :  // elementwise less
++			       *b < m_data[i] ? false : // elementwise greater
+ 			       less_r(b + 1, e, i + 1); // recurse
+ 		}
+ 
+diff --git a/tests/container/array.cpp b/tests/container/array.cpp
+new file mode 100644
+index 0000000..34c0887
+--- /dev/null
++++ b/tests/container/array.cpp
+@@ -0,0 +1,56 @@
++#include <gtest/gtest.h>
++#include <cstdint>
++
++#include "container/array.h"
++
++using ::testing::InitGoogleTest;
++using namespace cryptanalysislib;
++
++using A = const_array<int, 5>;
++constexpr A a{5, 3, 4, 1, 2};
++
++template<typename T, size_t N, size_t M>
++constexpr bool eq(const const_array<T, N> &x, const int (&y)[M]) {
++	if (N != M) { return false; }
++	for (size_t i = 0; i < N; ++i) { if (x[i] != y[i]) { return false; } }
++	return true;
++}
++
++// everything at compile time
++static_assert(a.size() == 5);
++static_assert(a[0] == 5 && a.at(4) == 2);
++static_assert(eq(a.map([](int x) { return 2 * x; }), {10, 6, 8, 2, 4}));
++static_assert(eq(a.map([](int x, int y) { return x + y; }, const_array<int, 3>{1, 1, 1}), {6, 4, 5}));
++static_assert(eq(a.push_back(9), {5, 3, 4, 1, 2, 9}));
++static_assert(eq(a.push_front(9), {9, 5, 3, 4, 1, 2}));
++static_assert(eq(a.concat(const_array<int, 2>{7, 8}), {5, 3, 4, 1, 2, 7, 8}));
++static_assert(eq(a.slice<1, 3>(), {3, 4}));
++static_assert(eq(a.tail(), {3, 4, 1, 2}));
++static_assert(eq(a.tail<2>(), {4, 1, 2}));
++static_assert(eq(a.init(), {5, 3, 4, 1}));
++static_assert(eq(a.insert<0>(0), {0, 5, 3, 4, 1, 2}));
++static_assert(eq(a.insert<5>(0), {5, 3, 4, 1, 2, 0}));
++static_assert(eq(a.mergesort([](int x, int y) { return x < y; }), {1, 2, 3, 4, 5}));
++static_assert(eq(a.mergesort([](int x, int y) { return x > y; }), {5, 4, 3, 2, 1}));
++static_assert(eq(a.partition([](int x) { return x % 2 == 0; }), {4, 2, 5, 3, 1})); // stable
++static_assert(eq(transform(a, [](int x) { return x - 1; }), {4, 2, 3, 0, 1}));
++// lexicographical comparison
++static_assert(const_array<int, 2>{1, 5}.less(const_array<int, 2>{2, 1}));
++static_assert(!const_array<int, 2>{2, 1}.less(const_array<int, 2>{1, 5}));
++static_assert(const_array<int, 2>{1, 2}.less(const_array<int, 3>{1, 2, 0}));
++static_assert(!const_array<int, 2>{1, 2}.less(const_array<int, 2>{1, 2}));
++
++TEST(const_array, runtime) {
++	A b{1, 2, 3, 4, 5};
++	int sum = 0;
++	for (const int x : b) { sum += x; }
++	EXPECT_EQ(sum, 15);
++	EXPECT_EQ(b.end() - b.begin(), 5);
++	EXPECT_EQ(uintptr_t(b.begin()) % std_config_array.base_alignment, 0u);
++	EXPECT_TRUE(eq(a.mergesort([](int x, int y) { return x < y; }), {1, 2, 3, 4, 5}));
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	return RUN_ALL_TESTS();
++}

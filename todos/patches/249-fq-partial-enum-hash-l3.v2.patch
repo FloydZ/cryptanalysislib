@@ -1,0 +1,188 @@
+diff --git a/src/list/enumeration/fq.h b/src/list/enumeration/fq.h
+index 84cfc68..dcc68e1 100644
+--- a/src/list/enumeration/fq.h
++++ b/src/list/enumeration/fq.h
+@@ -637,9 +637,11 @@ public:
+ 	/// \param L3 third list.
+ 	/// \param L4 fourth list.
+ 	/// \param tid thread id
+-	/// \param hm hashmap or nullptr
++	/// \param hm hashmap or nullptr, `L1` is inserted (index = position in `L1`)
+ 	/// \param e extractor or nullptr
+ 	/// \param p predicate function
++	/// \param hm3 optional second hashmap, `L3` is inserted
++	/// 		(index = position in `L3`). Can be `nullptr`.
+ 	/// \return true/false if the golden element was found or not (only if
+ 	///  		predicate was given)
+ 	/// 		else always returns false
+@@ -658,7 +660,8 @@ public:
+ 	         const uint32_t tid = 0,
+ 	         HashMap *hm = nullptr,
+ 	         Extractor *e = nullptr,
+-	         Predicate *p = nullptr) {
++	         Predicate *p = nullptr,
++	         HashMap *hm3 = nullptr) {
+ 		Element element3, element4;
+ 		Label tmp;
+ 
+@@ -703,6 +706,17 @@ public:
+ 			}
+ 		}
+ 
++		/// NOTE: must be called before the element is advanced, so that the
++		/// 	hashed label matches the list entry at index `ctr`.
++		auto insert = [&](const uint32_t k) __attribute__((always_inline)) {
++			check(elements[k]->label, elements[k]->value);
++			insert_list(lists[k], *elements[k], ctr, tid);
++			if constexpr (sHM) {
++				if (k == 0) { insert_hashmap(hm, e, *elements[k], ctr, tid); }
++				if (k == 2) { insert_hashmap(hm3, e, *elements[k], ctr, tid); }
++			}
++		};
++
+ 		auto chase_step = [this](Element &element,
+ 		                         const uint32_t unset,
+ 		                         const uint32_t set) {
+@@ -717,8 +731,8 @@ public:
+ 			assert(std::abs((int) unset - (int) set) <= (int) w);
+ 
+ 			Label tmp;
+-			Label::scalar(tmp, HT.get(unset), q - qprime);
+-			Label::add(element.label, element.label, tmp);
++			Label::scalar(tmp, HT.get(unset), qprime);
++			Label::sub(element.label, element.label, tmp);
+ 			Label::scalar(tmp, HT.get(set), qprime);
+ 			Label::add(element.label, element.label, tmp);
+ 
+@@ -730,17 +744,13 @@ public:
+ 		for (size_t i = 0; i < mitm_chase_size; ++i) {
+ 			for (size_t j = 0; j < noreps_chase_size-1ull; ++j) {
+ 				for (uint32_t k = 0; k < 4; ++k) {
+-					check(elements[k]->label, elements[k]->value);
+-					insert_list(lists[k], *elements[k], ctr, tid);
++					insert(k);
+ 
+ 					chase_step(*elements[k],
+ 							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].first,
+ 							   noreps_base + k * norepslen_offset + noreps_chase_cl[j].second);
+ 				}
+ 
+-				// TODO also hash the 3 element
+-				if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
+-
+ 				ctr += 1;
+ 				if (ctr >= list_size) {
+ 					return false;
+@@ -748,8 +758,7 @@ public:
+ 			}
+ 
+ 			for (uint32_t k = 0; k < 4; ++k) {
+-				check(elements[k]->label, elements[k]->value);
+-				insert_list(lists[k], *elements[k], ctr, tid);
++				insert(k);
+ 
+ 				chase_step(*elements[k],
+ 						   ((k & 1u)*mitmlen_offset) + mitm_chase_cl[i].first,
+@@ -757,10 +766,24 @@ public:
+ 
+ 				// due to easieness reasons, we simply reset the no reps part,
+ 				// and do not walk backwards
+-				for (uint32_t j = 0; j < noreps_w; ++j) {
+-					chase_step(*elements[k],
+-							   noreps_base + k*norepslen_offset + norepslen_quarter-j-1,
+-							   noreps_base + k*norepslen_offset + j);
++				// NOTE: the chase sequence does not necessarily end with the ones
++				// 	in the top `noreps_w` positions of the quarter: every set
++				// 	coordinate above `noreps_w` is moved into a free position of
++				// 	the start configuration.
++				{
++					const uint32_t base = noreps_base + k*norepslen_offset;
++					uint32_t to = 0;
++					for (uint32_t pos = noreps_w; pos < norepslen_quarter; ++pos) {
++						if (!elements[k]->value[base + pos]) { continue; }
++						while (elements[k]->value[base + to]) { to += 1; }
++						assert(to < noreps_w);
++						Label::scalar(tmp, HT.get(base + pos), qprime);
++						Label::sub(elements[k]->label, elements[k]->label, tmp);
++						Label::scalar(tmp, HT.get(base + to), qprime);
++						Label::add(elements[k]->label, elements[k]->label, tmp);
++						elements[k]->value.set(0u, base + pos);
++						elements[k]->value.set(qprime, base + to);
++					}
+ 				}
+ 			}
+ 
+diff --git a/tests/list/enumeration/fq.cpp b/tests/list/enumeration/fq.cpp
+index f712dbb..87e6190 100644
+--- a/tests/list/enumeration/fq.cpp
++++ b/tests/list/enumeration/fq.cpp
+@@ -197,6 +197,69 @@ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap) {
+ 	}
+ }
+ 
++/// noreps_w = 3: weights and labels (HT*e) after the reset of the noreps
++/// part, L1 is hashed into `hm` and L3 into `hm3`.
++TEST(ListEnumerateSinglePartialSingle, hashmap_noreps3) {
++	constexpr uint32_t n = 32, k = 2, q = 4;
++	using Value = FqPackedVector<n, q, T>;
++	using Label = FqPackedVector<n - k, q, T>;
++	using Matrix = FqMatrix<T, n, n - k, q>;
++	using Element = Element_T<Value, Label, Matrix>;
++	using List = List_T<Element>;
++
++	constexpr uint32_t mitm_w = 2;
++	constexpr uint32_t noreps_w = 3;
++	constexpr uint32_t split = n / 2;
++	using Enumerator = ListEnumerateSinglePartialSingle<List, n, q, mitm_w, noreps_w, split>;
++	constexpr size_t list_size = Enumerator::LIST_SIZE;
++
++	using HK = uint64_t;
++	constexpr static SimpleHashMapConfig cfg{32, 1u << l, 1};
++	using HM = SimpleHashMap<HK, V, cfg, Hash<HK, 0, l, 2>>;
++	auto extractor = [](const Label label) -> HK {
++		constexpr uint64_t mask = (1ull << l) - 1ull;
++		return label.ptr()[0] & mask;
++	};
++
++	List L1(list_size), L2(list_size), L3(list_size), L4(list_size);
++	auto *hm = new HM{}, *hm3 = new HM{};
++	Matrix HT;
++	HT.random();
++	Enumerator enumerator{q - 1, HT};
++	enumerator.template run<HM, decltype(extractor), std::nullptr_t>
++	        (L1, L2, L3, L4, 0, hm, &extractor, nullptr, hm3);
++
++	auto contains = [&](const HM *h, const List &L, const size_t i) {
++		typename HM::load_type load = 0;
++		const auto pos = h->find(extractor(L.data_label(i)), load);
++		for (size_t j = 0; j < load; ++j) {
++			if (h->ptr(pos + j)[0] == i) { return true; }
++		}
++		return false;
++	};
++
++	for (const List *L : {&L1, &L2, &L3, &L4}) {
++		for (size_t i = 0; i < list_size; ++i) {
++			EXPECT_EQ(L->data_value(i).popcnt(), mitm_w + noreps_w);
++			Element t = (*L)[i];
++			t.recalculate_label(HT);
++			EXPECT_TRUE(t.label.is_equal(L->data_label(i)));
++
++			// all elements are distinct
++			for (size_t j = 0; j < i; ++j) {
++				EXPECT_FALSE(L->data_value(i).is_equal(L->data_value(j)));
++			}
++		}
++	}
++
++	for (size_t i = 0; i < list_size; ++i) {
++		EXPECT_TRUE(contains(hm, L1, i));
++		EXPECT_TRUE(contains(hm3, L3, i));
++	}
++
++	delete hm; delete hm3;
++}
++
+ TEST(ListEnumerateSinglePartialSingle, simple_nohashmap_subsetsum) {
+ 	using T = uint64_t;
+ 

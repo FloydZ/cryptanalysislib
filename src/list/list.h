@@ -449,7 +449,7 @@ public:
 	constexpr inline void sort_level_radix_sort(const size_t sp,
 									   			const size_t ep,
 									   			F &&f) noexcept {
-		ska_sort(__data.begin() + sp, __data.begin() + ep, f);
+		cryptanalysislib::sort(__data.begin() + sp, __data.begin() + ep, f);
 	}
 
 
@@ -625,34 +625,40 @@ public:
 
 
 
-	/// TODO doc
-	/// \tparam k_lower
-	/// \tparam k_upper
-	/// \param e
-	/// \param tid
-	/// \return
+	/// binary search for an element whose label equals the one of `e` on the
+	/// coordinates [k_lower, k_upper). The segment of `tid` must be sorted
+	/// via `sort_level(k_lower, k_upper, tid)`.
+	/// NOTE: runtime version of `binary_search<k_lower, k_upper>(e, tid)`
+	/// \param e element to search for
+	/// \param k_lower lower coordinate of the label to compare (inclusive)
+	/// \param k_upper upper coordinate of the label to compare (exclusive)
+	/// \param tid thread id, only its segment is searched
+	/// \return position (relative to the start of the segment) of the first
+	/// 	matching element, or -1 if not found
 	constexpr inline size_t binary_search(const Element &e,
 										  const uint32_t k_lower,
 										  const uint32_t k_upper,
 										  const uint32_t tid=0) const noexcept {
 		assert(k_upper > k_lower);
 
-		// the linear search, doesn't need the data to be sorted
 		if constexpr (!use_std_binary_search && use_hash_operator) {
 			if (Element::is_hashable(k_lower, k_upper)) {
 				return binary_search(e, tid,
 					 [k_lower, k_upper](const Element &a)  __attribute__((always_inline)) {
 					   return a.hash(k_lower, k_upper);
 					 });
-			} else {
-				assert(false);
 			}
-		} else {
-			return binary_search(e, tid, [k_lower, k_upper](const Element &a,
-													   		const Element &b)  __attribute__((always_inline)) {
-			  return a.is_lower(b, k_lower, k_upper);
-			});
 		}
+
+		// NOTE: same comparison as in `sort_level`
+		return binary_search(e, tid, [k_lower, k_upper](const Element &a,
+		                                                const Element &b)  __attribute__((always_inline)) {
+			if constexpr (sort_increasing_order) {
+				return a.is_lower(b, k_lower, k_upper);
+			} else {
+				return a.is_greater(b, k_lower, k_upper);
+			}
+		});
 	}
 
 

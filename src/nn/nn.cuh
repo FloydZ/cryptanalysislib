@@ -9,17 +9,29 @@ constexpr size_t BRUTEFORCE_SWITCH = 1024;
 constexpr bool NN_EQUAL = false;
 constexpr bool NN_LOWER = true;
 
+/// popcount for 32 and 64 bit limbs
+template<typename T>
+__device__ __always_inline
+uint32_t popc(const T v) {
+	static_assert((sizeof(T) == 4) || (sizeof(T) == 8));
+	if constexpr (sizeof(T) == 8) {
+		return __popcll(v);
+	} else {
+		return __popc(v);
+	}
+}
+
 template<typename T, const uint32_t d> 
 __device__ __always_inline
 uint32_t compare(const T v) {
 	static_assert((NN_EQUAL + NN_LOWER) == 1);
 	
 	if constexpr (NN_EQUAL) {
-		return __popc(v) == d;
+		return popc<T>(v) == d;
 	}
 
 	if constexpr (NN_LOWER) {
-		return __popc(v) < (d+1u);
+		return popc<T>(v) < (d+1u);
 	}
 
 	/// to make the compiler happy
@@ -55,7 +67,7 @@ __device__ void dbruteforce(T *L, T *R,
 	static_assert(nr_limbs > 0);
 
 
-	uint32_t tmpL[nr_limbs];
+	T tmpL[nr_limbs];
 	while (tid < e1) {
 		// first load the current element into the register
 		for (uint32_t j = 0; j < nr_limbs; j++) {
@@ -67,8 +79,7 @@ __device__ void dbruteforce(T *L, T *R,
 			// next compute the weight
 			uint32_t weight = 0;
 			for (uint32_t j = 0; j < nr_limbs; j++) {
-				// TODO popc unabhängig machen von T
-				weight += __popc(tmpL[j] ^ R[i*nr_limbs + j]);
+				weight += popc<T>(tmpL[j] ^ R[i*nr_limbs + j]);
 			}
 			
 			// highly unlikely
@@ -80,9 +91,8 @@ __device__ void dbruteforce(T *L, T *R,
 
 		tid += dim;
 
-		// TODO check if important
-		//__syncthreads();
-		__syncwarp();
+		// NOTE: no synchronization needed: the threads do not share any
+		// 	(shared) memory.
 	}
 }
 
@@ -271,8 +281,8 @@ __device__ void dnn(T *L, T *R,
 	}
 }
 
-/// TODO doc
-/// just a wrapper around the device function
+/// global wrapper around the device function `dnn`, see there for the
+/// template parameters and arguments.
 template<typename T, const uint32_t nr_limbs,
 	     const uint32_t d, const uint32_t dk, const uint32_t N,
 		 const uint32_t lvl>

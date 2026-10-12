@@ -1,0 +1,32 @@
+diff --git a/src/algorithm/min.h b/src/algorithm/min.h
+index 532447a..bf9f5c9 100644
+--- a/src/algorithm/min.h
++++ b/src/algorithm/min.h
+@@ -172,7 +172,11 @@ namespace cryptanalysislib {
+ 		return m;
+ 	}
+ 
+-/// TODO doc
++/// Finds the first smallest element (like `std::min_element`)
++/// \tparam ForwardIt Forward iterator type
++/// \param first[in]: Iterator to the beginning of the range
++/// \param last[in]: Iterator to the end of the range
++/// \return Iterator to the first smallest element, last if the range is empty
+ template<class ForwardIt>
+ ForwardIt min_element(ForwardIt first,
+                       ForwardIt last) {
+@@ -191,7 +195,13 @@ ForwardIt min_element(ForwardIt first,
+     return smallest;
+ }
+ 
+-/// TODO doc
++/// Finds the first smallest element w.r.t. `comp` (like `std::min_element`)
++/// \tparam ForwardIt Forward iterator type
++/// \tparam Compare less-than comparison, `comp(a, b)` true iff a < b
++/// \param first[in]: Iterator to the beginning of the range
++/// \param last[in]: Iterator to the end of the range
++/// \param comp[in]: comparison function
++/// \return Iterator to the first smallest element, last if the range is empty
+ template<class ForwardIt, 
+          class Compare>
+ ForwardIt min_element(ForwardIt first,

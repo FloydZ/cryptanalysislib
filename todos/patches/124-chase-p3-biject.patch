@@ -1,0 +1,67 @@
+diff --git a/src/combination/chase.h b/src/combination/chase.h
+index dbfd59c..18ad6d3 100644
+--- a/src/combination/chase.h
++++ b/src/combination/chase.h
+@@ -532,28 +532,23 @@ public:
+ 		}
+ 
+ 		if constexpr (p == 3) {
+-			constexpr uint64_t np = bc(n - 1, p - 1);
+-			constexpr uint64_t n2 = 2 * np;
+-			// constexpr uint64_t n22 = 2 * np - 2;
+-			constexpr int64_t nnn = (1 - n2) * (1 - n2);
+-			const double pos1 = __builtin_sqrt(nnn - double(a << 3));
+-			const double pos = (pos1 + n2 - 3.) / 2.;
+-			const uint32_t t = 2 * np - __builtin_ceil(pos) - 2;
+-			rows[0] = t;
+-
+-			// TODO not finished const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
+-
+-			if (a % (np - 1) > 0 || a == 0) {
+-				if (t & 1u) {
+-					biject2_down<n - 1, p - 1>(a % np, rows + 1);
+-				} else {
+-					biject2<n - 1, p - 1>(a % np, rows + 1);
+-				}
+-
+-				for (uint32_t i = 0; i < 2; ++i) {
+-					rows[i + 1] += 1;
+-				}
+-			}
++			// `enumerate3` is the revolving door order (Knuth, TAOCP 7.2.1.3,
++			// Algorithm R), whose rank of c3 > c2 > c1 is
++			// 	r = (C(c3+1, 3) - 1) - (C(c2+1, 2) - 1) + c1,
++			// so it is unranked greedily: c3 is the largest c with C(c, 3) <= r,
++			// then the remaining rank C(c3+1, 3) - 1 - r is unranked with t = 2
++			// (and so on).
++			// NOTE: replaces an unfinished closed formula, which was wrong.
++			uint64_t r = a;
++			uint32_t c3 = 2;
++			while (bc(c3 + 1, 3) <= r) { c3 += 1; }
++			r = bc(c3 + 1, 3) - 1 - r;
++			uint32_t c2 = 1;
++			while (bc(c2 + 1, 2) <= r) { c2 += 1; }
++			r = bc(c2 + 1, 2) - 1 - r;
++			rows[0] = uint16_t(r);
++			rows[1] = uint16_t(c2);
++			rows[2] = uint16_t(c3);
+ 		}
+ 	}
+ };
+diff --git a/tests/list/enumeration/binary.cpp b/tests/list/enumeration/binary.cpp
+index af92b0c..3cec00b 100644
+--- a/tests/list/enumeration/binary.cpp
++++ b/tests/list/enumeration/binary.cpp
+@@ -154,9 +154,11 @@ TEST(Chase, p3) {
+ 		uint32_t y = x;
+ 		for (uint32_t i = 0; i < p; ++i) {
+ 			const uint32_t ctz = __builtin_ctz(y);
+-			//EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]) || (ctz == rows[2]));
++			EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]) || (ctz == rows[2]));
+ 			y ^= 1u << ctz;
+ 		}
++		// the bijection gives exactly the positions of the set bits
++		EXPECT_EQ((1u << rows[0]) | (1u << rows[1]) | (1u << rows[2]), x) << ctr;
+ 		// every element has weight p and lives in the first nn bits
+ 		EXPECT_EQ(__builtin_popcount(x), p);
+ 		EXPECT_LT(x, 1u << nn);

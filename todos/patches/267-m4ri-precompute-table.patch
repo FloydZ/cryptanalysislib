@@ -1,0 +1,97 @@
+diff --git a/src/matrix/matrix.h b/src/matrix/matrix.h
+index 1cf559d..448f613 100644
+--- a/src/matrix/matrix.h
++++ b/src/matrix/matrix.h
+@@ -698,9 +698,16 @@ public:
+     /// generic implementation of the method of the 4 russians
+ 	/// \tparam r[in]: optimization parameter: A r \times r matrix will be 
+     ///     solved by a gausian elimination.
++	/// \tparam precompute_table[in]: if `true`, after each r \times r block
++	/// 	all q**kk linear combinations of the kk pivot rows are computed
++	/// 	upfront (one row addition each). Otherwise (default) only the
++	/// 	combinations which are actually needed are computed lazily. The
++	/// 	upfront version avoids the per row branch and is faster, as long
++	/// 	as q**r is small compared to the number of rows.
+ 	/// \param rstop[in]: up to which rank the matrix should get systemized.
+ 	/// \return the rank of the matrix
+-	template<const uint32_t r = 4>
++	template<const uint32_t r = 4,
++	         const bool precompute_table = false>
+ 	constexpr uint32_t m4ri(const uint32_t rstop = nrows) noexcept {
+ 		static_assert(r > 0);
+         assert(r <= rstop);
+@@ -718,11 +725,6 @@ public:
+ 			return ret;
+ 		};
+ 
+-        /// TODO add a config class to the matrix class, which contains a config
+-        /// flag, which automatically precomptes the whole table.
+-        /// This is usefull,as long as q is small.
+-       
+-
+ 		/// precompuation table data container. 
+ 		constexpr size_t precompute_size = compute_size();
+ 		RowType table[precompute_size];
+@@ -878,6 +880,28 @@ public:
+ 		    return kk;
+ 		};
+ 
++		/// computes all q**kk table entries for the pivot rows
++		/// [start_row, start_row + kk). The entry at index sum_i d_i q**i
++		/// is sum_i d_i * row_{start_row + i} (same encoding as
++		/// `compute_index`), so every entry is the entry with the lowest
++		/// non zero digit decreased by one, plus the corresponding row.
++		auto compute_full_table =
++		    [&](const uint32_t start_row,
++		        const uint32_t kk) {
++		    size_t size = 1;
++		    for (uint32_t i = 0; i < kk; ++i) { size *= q; }
++		    assert(size <= precompute_size);
++
++		    computed[0] = true;
++		    for (size_t idx = 1; idx < size; ++idx) {
++		        uint32_t j = 0;
++		        size_t qj = 1;
++		        while (((idx / qj) % q) == 0) { j += 1; qj *= q; }
++		        RowType::add(table[idx], table[idx - qj], __data[start_row + j]);
++		        computed[idx] = true;
++		    }
++		};
++
+         // actual algorithm, lol.
+ 		uint32_t row = 0, col = 0, kk = r;
+ 		while (col < rstop) {
+@@ -886,6 +910,10 @@ public:
+ 			const uint32_t kbar = sub_gaus(row, col, kk);
+ 
+ 			if (kbar > 0) {
++				if constexpr (precompute_table) {
++					compute_full_table(row, kbar);
++				}
++
+ 				/// process below
+ 				process_rows(row, col, kbar, row + kbar, nrows);
+ 				/// process above
+diff --git a/tests/matrix/fq.cpp b/tests/matrix/fq.cpp
+index 687e7a3..02d55e2 100644
+--- a/tests/matrix/fq.cpp
++++ b/tests/matrix/fq.cpp
+@@ -319,6 +319,18 @@ TEST(FqMatrix, m4ri) {
+ 	});
+ }
+ 
++TEST(FqMatrix, m4ri_precompute_table) {
++	using M2 = FqMatrix<T, 100, 130, q, true>;
++	for (uint32_t k = 0; k < 10; ++k) {
++		M2 a; a.random();
++		M2 b = a;
++		const uint32_t r1 = a.template m4ri<4, false>();
++		const uint32_t r2 = b.template m4ri<4, true>();
++		EXPECT_EQ(r1, r2);
++		EXPECT_TRUE(M2::is_equal(a, b));
++	}
++}
++
+ TEST(FqMatrix, markov_gaus) {
+ 	constexpr_for<400, 430, 7>([](const auto __nrows) {
+ 		constexpr_for<400, 440, 11>([__nrows](const auto __ncols) {

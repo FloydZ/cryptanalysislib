@@ -1,0 +1,79 @@
+diff --git a/src/algorithm/find.h b/src/algorithm/find.h
+index 37650bc..0947f51 100644
+--- a/src/algorithm/find.h
++++ b/src/algorithm/find.h
+@@ -10,7 +10,6 @@
+ #include "search/search.h"
+ #include "algorithm/search.h"
+ 
+-// TODO docs for find_first_of and adjacent_find 
+ // TODO parallel versions of `find_first_of` and `adjacent_find`
+ 
+ namespace cryptanalysislib {
+@@ -392,7 +391,16 @@ namespace cryptanalysislib {
+         return result;
+     }
+ 
+-    /// TODO doc
++    /// Finds the first element of [first, last) which equals any element of
++    /// [s_first, s_last) (like `std::find_first_of`)
++    /// \tparam InputIt Input iterator type for the searched range
++    /// \tparam ForwardIt Forward iterator type for the set of candidates
++    /// \param first[in]: Iterator to the beginning of the searched range
++    /// \param last[in]: Iterator to the end of the searched range
++    /// \param s_first[in]: Iterator to the beginning of the candidates
++    /// \param s_last[in]: Iterator to the end of the candidates
++    /// \return Iterator to the first matching element, or last if none
++    ///     (also if the candidate range is empty). O(n*m) comparisons.
+     template<class InputIt,
+              class ForwardIt>
+     InputIt find_first_of(InputIt first,
+@@ -406,7 +414,17 @@ namespace cryptanalysislib {
+         return last;
+     }
+ 
+-    /// TODO doc
++    /// Finds the first element `x` of [first, last) for which `p(x, s)` holds
++    /// for any `s` of [s_first, s_last) (like `std::find_first_of`)
++    /// \tparam InputIt Input iterator type for the searched range
++    /// \tparam ForwardIt Forward iterator type for the set of candidates
++    /// \tparam BinaryPred Binary predicate type, called as p(*it1, *it2)
++    /// \param first[in]: Iterator to the beginning of the searched range
++    /// \param last[in]: Iterator to the end of the searched range
++    /// \param s_first[in]: Iterator to the beginning of the candidates
++    /// \param s_last[in]: Iterator to the end of the candidates
++    /// \param p[in]: Binary predicate, true if the two elements match
++    /// \return Iterator to the first matching element, or last if none
+     template<class InputIt,
+              class ForwardIt,
+              class BinaryPred>
+@@ -422,7 +440,12 @@ namespace cryptanalysislib {
+         return last;
+     }
+     
+-    /// TODO doc
++    /// Finds the first two consecutive equal elements (like `std::adjacent_find`)
++    /// \tparam ForwardIt Forward iterator type
++    /// \param first[in]: Iterator to the beginning of the range
++    /// \param last[in]: Iterator to the end of the range
++    /// \return Iterator to the first element of the first pair `*it == *(it+1)`,
++    ///     or last if there is none
+     template<class ForwardIt>
+     ForwardIt adjacent_find(ForwardIt first,
+                             ForwardIt last) {
+@@ -439,7 +462,14 @@ namespace cryptanalysislib {
+         return last;
+     }
+     
+-    /// TODO doc
++    /// Finds the first two consecutive elements satisfying `p` (like `std::adjacent_find`)
++    /// \tparam ForwardIt Forward iterator type
++    /// \tparam BinaryPred Binary predicate type, called as p(*it, *(it+1))
++    /// \param first[in]: Iterator to the beginning of the range
++    /// \param last[in]: Iterator to the end of the range
++    /// \param p[in]: Binary predicate on two consecutive elements
++    /// \return Iterator to the first element of the first pair with
++    ///     `p(*it, *(it+1))`, or last if there is none
+     template<class ForwardIt,
+              class BinaryPred>
+     ForwardIt adjacent_find(ForwardIt first,
