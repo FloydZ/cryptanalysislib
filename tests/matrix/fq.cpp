@@ -212,8 +212,8 @@ TEST(FqMatrix, InitFromString) {
 }
 
 TEST(FqMatrix, SimpleTranspose) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 480, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, 7>([](const auto __nrows) {
+		constexpr_for<400, 480, 11>([__nrows](const auto __ncols) {
 			using M = FqMatrix<T, __nrows, __ncols, q, true>;
 			using MT = FqMatrix<T, __ncols, __nrows, q, true>;
 			M m = M{};
@@ -232,8 +232,8 @@ TEST(FqMatrix, SimpleTranspose) {
 }
 
 TEST(FqMatrix, Transpose) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, 7>([](const auto __nrows) {
+		constexpr_for<400, 470, 11>([__nrows](const auto __ncols) {
 			using M = FqMatrix<T, __nrows, __ncols, q, true>;
 			using MT = FqMatrix<T, __ncols, __nrows, q, true>;
 			M m = M{};

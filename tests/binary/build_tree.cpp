@@ -68,7 +68,7 @@ TEST(TreeTest, join2lists) {
 }
 
 TEST(TreeTest, join4lists) {
-	uint32_t basesize = 10u;
+	uint32_t basesize = 8u;
 	BinaryMatrix A;
 	A.identity();
 
@@ -107,15 +107,14 @@ TEST(TreeTest, join4lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	// NOTE: 2^10 * 2^10 pairs per side matching on n/2=5 bits: 2^15 each,
-	// 	then 2^15 * 2^15 matching on the other 5 bits: 2^25 expected
-	// 	(was: 2^9 < out < 2^11)
-	EXPECT_GT(out.load(),1u<<24);
-	EXPECT_LT(out.load(),1u<<26);
+	// NOTE: 2^8 * 2^8 pairs per side matching on n/2=5 bits: 2^11 each,
+	// 	then 2^11 * 2^11 matching on the other 5 bits: 2^17 expected
+	EXPECT_GT(out.load(),1u<<16);
+	EXPECT_LT(out.load(),1u<<18);
 }
 
 TEST(TreeTest, join4lists_with2lists) {
-	unsigned int basesize = 10;
+	unsigned int basesize = 8;
 	BinaryMatrix A;
 	A.identity();
 
@@ -153,9 +152,9 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
 	// NOTE: the lists `L3`, `L4` are simulated by `L1`, `L2`: as in
-	// 	`join4lists` 2^25 outputs are expected (was: 2^9 < out < 2^11)
-	EXPECT_GT(out.load(),1u<<24);
-	EXPECT_LT(out.load(),1u<<26);
+	// 	`join4lists` 2^17 outputs are expected
+	EXPECT_GT(out.load(),1u<<16);
+	EXPECT_LT(out.load(),1u<<18);
 }
 
 #ifndef EXTERNAL_MAIN

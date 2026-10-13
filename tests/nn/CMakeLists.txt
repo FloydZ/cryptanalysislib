@@ -11,4 +11,8 @@ endforeach(testfile ${TEST_SOURCES})
 if(CMAKE_CUDA_COMPILER)
     add_executable(test_nn_cuda cuda.cu)
 	add_test(nn_cuda test_nn_cuda)
+
+    add_executable(test_nn_tensor tensor.cu)
+    target_link_libraries(test_nn_tensor GTest::gtest)
+	add_test(nn_tensor test_nn_tensor)
 endif()
