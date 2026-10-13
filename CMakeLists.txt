@@ -82,6 +82,13 @@ find_package(OpenCLHeaders QUIET)
 # now check if we have to add the cuda runtime
 # NOTE: apparently this is not how its done: find_package(CUDA QUIET)
 find_package(CUDAToolkit QUIET)
+
+# compile for the GPU(s) of the build machine. Must be set before
+# `enable_language(CUDA)`, otherwise the compiler default is used. If no GPU
+# is found, nvcc falls back to its default architecture.
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+	set(CMAKE_CUDA_ARCHITECTURES native)
+endif()
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
 	enable_language(CUDA)
@@ -289,13 +296,6 @@ if(CMAKE_CUDA_COMPILER)
     if(NOT DEFINED CMAKE_CUDA_STANDARD)
         set(CMAKE_CUDA_STANDARD 17)
         set(CMAKE_CUDA_STANDARD_REQUIRED True)
-    endif()
-
-
-    # fall back, if one does not directly have a CUDA ready card, but rather a 
-	# optimus (internal laptop) card.
-    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-        set(CMAKE_CUDA_ARCHITECTURES 61)
     endif()
 
     #add_executable(test_cuda tests/test_cuda.cu)

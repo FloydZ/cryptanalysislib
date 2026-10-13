@@ -7,3 +7,8 @@ foreach(testfile ${TEST_SOURCES})
     target_link_libraries(test_nn_${file} ${LINK_TEST_FLAGS})
 	add_test(nn_${file} test_nn_${file})
 endforeach(testfile ${TEST_SOURCES})
+
+if(CMAKE_CUDA_COMPILER)
+    add_executable(test_nn_cuda cuda.cu)
+	add_test(nn_cuda test_nn_cuda)
+endif()

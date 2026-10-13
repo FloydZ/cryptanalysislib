@@ -1,7 +1,11 @@
 #ifndef CRYPTANALYSISLIB_ATOMIC_SEMAPHORE_H
 #define CRYPTANALYSISLIB_ATOMIC_SEMAPHORE_H
 
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#else
 #include <semaphore.h>
+#endif
 #include <cassert>
 #include <cerrno>
 
@@ -10,18 +14,34 @@
 namespace cryptanalysislib {
 /// just a wrapper around the POSIX semaphore (`sem_t`, unnamed, not shared
 /// between processes), initialized with 0
+/// NOTE: macOS does not implement unnamed POSIX semaphores (`sem_init` fails
+/// 	with ENOSYS), so a libdispatch semaphore is used there instead.
 struct semaphore_wrapper {
 private:
+#ifdef __APPLE__
+	dispatch_semaphore_t sem;
+
+	inline void create() noexcept {
+		sem = dispatch_semaphore_create(0);
+		assert(sem != nullptr);
+	}
+
+	inline void close() noexcept {
+		dispatch_release(sem);
+	}
+#else
 	sem_t sem;
 
 	inline void create() noexcept {
 		int err = sem_init(&sem, 0, 0);
 		assert(err == 0);
+		(void)err;
 	}
 
 	inline void close() noexcept {
 		sem_destroy(&sem);
 	}
+#endif
 
 public:
 	/// creates the semaphore with the value 0
@@ -39,17 +59,25 @@ public:
 
 	/// blocks until the value is > 0, then decrements it
 	inline void wait() noexcept {
+#ifdef __APPLE__
+		dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+#else
 		int err;
 		// NOTE: `sem_wait` returns early with EINTR if a signal arrives
 		do { err = sem_wait(&sem); } while ((err != 0) && (errno == EINTR));
 		assert(err == 0);
 		(void)err;
+#endif
 	}
 
 	/// increments the value `cnt` times, i.e. wakes up `cnt` waiters
 	inline void signal(int cnt) noexcept {
 		while (cnt-- > 0) {
+#ifdef __APPLE__
+			dispatch_semaphore_signal(sem);
+#else
 			sem_post(&sem);
+#endif
 		}
 	}
 };

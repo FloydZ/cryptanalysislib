@@ -77,7 +77,9 @@ size_t Tree_T<List, config>::join4lists(List &out, List &L1, List &L2, List &L3,
 				L3[i].value.neg();
 			}
 		}
+	}
 
+	if (prepare) {
 		L1.sort_level(k_lower1, k_upper1);
 		L2.sort_level(k_lower1, k_upper1);
 	}
