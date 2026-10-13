@@ -42,7 +42,7 @@ namespace cryptanalysislib::hash::adler32::internal {
 	/// \param v[in] Vector containing values to be horizontally added
 	/// \return Sum of all 32-bit integers in the vector
 	static uint32_t avx512_hadd_adler32(const __m512i v) noexcept {
-		alignas(32) __m256i b[2];
+		alignas(64) __m256i b[2];
 		_mm512_store_si512((__m512i *)b, v);
 		return avx2_hadd_adler32(b[0]) +
 			   avx2_hadd_adler32(b[1]);
