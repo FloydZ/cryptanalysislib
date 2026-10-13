@@ -16,6 +16,10 @@ if(CMAKE_CUDA_COMPILER)
     target_link_libraries(test_nn_tensor GTest::gtest)
 	add_test(nn_tensor test_nn_tensor)
 
-    set_tests_properties(nn_cuda nn_tensor PROPERTIES LABELS cuda)
-    add_dependencies(cuda_tests test_nn_cuda test_nn_tensor)
+    add_executable(test_nn_full_length full_length.cu)
+    target_link_libraries(test_nn_full_length GTest::gtest)
+	add_test(nn_full_length test_nn_full_length)
+
+    set_tests_properties(nn_cuda nn_tensor nn_full_length PROPERTIES LABELS cuda)
+    add_dependencies(cuda_tests test_nn_cuda test_nn_tensor test_nn_full_length)
 endif()

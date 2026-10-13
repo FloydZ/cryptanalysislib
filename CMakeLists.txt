@@ -94,6 +94,19 @@ check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
 	enable_language(CUDA)
 	message(STATUS "CUDA ENABLED")
+
+	# arch specific features (e.g. the mxf4 MMA in `nn/full_length.cuh`) are
+	# only available for `sm_120a`/`sm_121a`, not for `sm_120`/`sm_121`. Hence
+	# for a native GPU of these, the arch specific target is used (CUDA 12.8+).
+	if("${CMAKE_CUDA_ARCHITECTURES}" STREQUAL "native" AND
+	   CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8)
+		list(TRANSFORM CMAKE_CUDA_ARCHITECTURES_NATIVE REPLACE "^(12[01])(-real)?$" "\\1a\\2"
+		     OUTPUT_VARIABLE CRYPTANALYSISLIB_CUDA_ARCHS)
+		if(NOT "${CRYPTANALYSISLIB_CUDA_ARCHS}" STREQUAL "${CMAKE_CUDA_ARCHITECTURES_NATIVE}")
+			set(CMAKE_CUDA_ARCHITECTURES ${CRYPTANALYSISLIB_CUDA_ARCHS})
+		endif()
+	endif()
+	message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
 endif()
 
 if(OpenCL_FOUND AND OpenCLHeaders_FOUND)

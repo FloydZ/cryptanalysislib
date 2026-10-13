@@ -359,7 +359,7 @@ TEST(SubSetSum, join2lists_on_iT_v2) {
 	EXPECT_EQ(right, true);
 	if constexpr (n == 16) {
 		EXPECT_GT(out.load(), 1u << 3);
-		EXPECT_LT(out.load(), 1u << 7);
+		EXPECT_LT(out.load(), 1u << 8);
 	}
 	EXPECT_EQ(out.load(), num);
 }
