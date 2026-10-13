@@ -233,7 +233,7 @@ TEST(NAME, HashCompare) {
 	for (uint32_t l = 0; l < n-1u; ++l) {
 		for (uint32_t h = l + 1u; h < n; ++h) {
 			const uint64_t size1 = (h - l) * qbits;
-			const uint64_t size2 = compute_limit(h-l);
+			[[maybe_unused]] const uint64_t size2 = compute_limit(h-l);
 			if (size1 > limit) { continue; }
 
 			for (size_t i = 0; i < 1; ++i) {

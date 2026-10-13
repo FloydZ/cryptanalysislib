@@ -109,7 +109,7 @@ void rhsort32(T *array, size_t n) {
 	// Sentinel value: the buffer swallows these but count recovers them
 	T s = max;
 	size_t sh = 0;                             // Contract to fit range
-	while ((range >> sh) >= 5*n) { sh++; }     // Shrink to stay at O(n) memory
+	while ((size_t(range) >> sh) >= 5*n) { sh++; }     // Shrink to stay at O(n) memory
 	size_t r = size_t(range >> sh) + 1;
 	// Goes down to BLOCK once we know we have to merge
 	size_t threshold = 2*BLOCK;

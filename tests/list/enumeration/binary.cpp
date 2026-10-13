@@ -175,8 +175,8 @@ TEST(Chase, first) {
 	uint16_t epos1, epos2;
 	Combinations_Binary_Chase<T, n, w> c;
 
-	uint64_t *w1 = (uint64_t *)calloc(sizeof(uint64_t), element_limbs),
-	         *w2 = (uint64_t *)calloc(sizeof(uint64_t), element_limbs);
+	uint64_t *w1 = (uint64_t *)calloc(element_limbs, sizeof(uint64_t)),
+	         *w2 = (uint64_t *)calloc(element_limbs, sizeof(uint64_t));
 
 	*w1 = (1u << w) -1u;
 	c.left_step(w2, &epos1, &epos2);

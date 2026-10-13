@@ -40,7 +40,7 @@ void avx2_pdep_u32_reference(const uint32_t* data_arr,
                 fi
             end
         */
-        for (int j=0; j < MAX_MASK_BITS; j++) {
+        for (uint32_t j=0; j < MAX_MASK_BITS; j++) {
             // 1. isolate the first non-zoro bit set of mask (at m)
             //                                                       mask = [0101_1001_1100_0000|0000_1110_1100_1000|...]
             const __m256i m0 = _mm256_sub_epi32(mask, one); // m0   = [0101_1001_1011_1111|0000_1110_1100_0111|...]
@@ -102,7 +102,7 @@ void avx512_pdep_u32_reference(const uint32_t* data_arr,
                 fi
             end
         */
-        for (int j=0; j < MAX_MASK_BITS; j++) {
+        for (uint32_t j=0; j < MAX_MASK_BITS; j++) {
             // 1. isolate the first non-zoro bit set of mask (at m)
 
             //                                                 mask = [0101_1001_1100_0000|0000_1110_1100_1000|...]

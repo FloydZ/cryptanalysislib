@@ -20,8 +20,8 @@ using namespace cryptanalysislib;
 TEST(histogram_u8, single) {
 	constexpr size_t s = 65;
 	using T = uint8_t;
-	auto data = static_cast<T *>(calloc(sizeof(T), s));
-	auto *cnt = (uint32_t *)calloc(sizeof(uint32_t), 256);
+	auto data = static_cast<T *>(calloc(s, sizeof(T)));
+	auto *cnt = (uint32_t *)calloc(256, sizeof(uint32_t));
 	histogram_u8_1x(cnt, data, s);
 	EXPECT_EQ(cnt[0], s);
 

@@ -6,7 +6,7 @@
 using T = uint64_t;
 
 template<typename T>
-void func1(T *a, T *b, T *c, T *d, T *e, T *f, const size_t n) {
+void func1(T *a, T *b, T *c, T *d, [[maybe_unused]] T *e, T *f, const size_t n) {
 	for (size_t i = 0; i < n; ++i) {
 		a[i] = b[i] + c[i];
 	}
@@ -29,7 +29,7 @@ void func1(T *a, T *b, T *c, T *d, T *e, T *f, const size_t n) {
 	}
 }
 template<typename T>
-void func4(T *a, T *b, T *c, T *d, T *e, T *f, const size_t n) {
+void func4(T *a, T *b, T *c, T *d, [[maybe_unused]] T *e, T *f, const size_t n) {
 	for (size_t i = 0; i < n; ++i) {
 		a[i] = b[i] + c[i];
 		d[i] = a[i] * f[i] - b[i];
@@ -38,7 +38,7 @@ void func4(T *a, T *b, T *c, T *d, T *e, T *f, const size_t n) {
 }
 
 template<typename T>
-void func2(T *a, T *b, T *c, T *d, T *e, T *f, const size_t n) {
+void func2(T *a, T *b, T *c, T *d, [[maybe_unused]] T *e, T *f, const size_t n) {
 	using namespace loop_fusion::main_range;
 
 	auto loop_body_1 = [&](size_t i) { a[i] = b[i] + c[i]; };
@@ -51,7 +51,7 @@ void func2(T *a, T *b, T *c, T *d, T *e, T *f, const size_t n) {
 }
 
 template<typename T>
-void func3(T *a, T *b, T *c, T *d, T *e, T *f, const size_t n) {
+void func3(T *a, T *b, T *c, T *d, [[maybe_unused]] T *e, T *f, const size_t n) {
 	using namespace loop_fusion::main_range;
 
 	auto loop_body_1 = [&](size_t i) { a[i] = b[i] + c[i]; };

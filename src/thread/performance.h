@@ -55,7 +55,7 @@ public:
 	const bool enable_try_block = false;
 	const bool enable_remote_view = false;
 };
-constexpr static SchedulerConfig schedulerConfig;
+inline constexpr SchedulerConfig schedulerConfig;
 }; // end namespace cryptanalysislib
 
 

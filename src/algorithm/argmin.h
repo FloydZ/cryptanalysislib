@@ -388,8 +388,6 @@ namespace cryptanalysislib {
 	size_t argmin(ExecPolicy&& policy,
 				  RandIt first,
 				  RandIt last) noexcept {
-		using T = typename RandIt::value_type;
-
 		const auto size = static_cast<size_t>(std::distance(first, last));
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {

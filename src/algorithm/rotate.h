@@ -4,7 +4,7 @@
 #include <cstring>
 
 #ifdef USE_AVX2 
-#include <immintrin.h>
+#include <x86intrin.h>
 #endif
 
 #include "copy.h"
@@ -100,7 +100,7 @@ template<typename T=uint64_t>
 		                                            const uint32_t k) noexcept {
 #ifdef USE_AVX2
     if constexpr(sizeof(T) == 8) {
-        return _rotl64(x, k);
+        return __rolq(x, k);
     }
     if constexpr(sizeof(T) == 4) {
         return _rotl(x, k);
@@ -131,7 +131,7 @@ template<typename T=uint64_t>
                                                     const uint32_t k) {
 #ifdef USE_AVX2
     if constexpr(sizeof(T) == 8) {
-        return _rotr64(x, k);
+        return __rorq(x, k);
     }
     if constexpr(sizeof(T) == 4) {
         return _rotr(x, k);

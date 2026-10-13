@@ -109,7 +109,7 @@ TEST_F(CritBitTest, Initialization) {
     tree.critbit_insert_impl(nnode, &t);
 
     critbit_node *nnode2 = (critbit_node *)calloc(1, sizeof(critbit_node));
-    auto r1 = tree.critbit_insert_impl(nnode2, &t2);
+    [[maybe_unused]] auto r1 = tree.critbit_insert_impl(nnode2, &t2);
 
     auto r2= tree.critbit_get_impl(&key);
     

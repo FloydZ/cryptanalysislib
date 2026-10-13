@@ -18,7 +18,7 @@ int blocking_execute_after_scheduled() {
     });
     std::atomic<bool> executed{false};
     auto workContract = workContractGroup.create_contract(
-        [&](auto & token){std::cout << "contract executed\n"; executed = true;}
+        [&](auto &){std::cout << "contract executed\n"; executed = true;}
     );
     workContract.schedule();
     while (!executed)
@@ -47,7 +47,7 @@ TEST(WorkContract, Simple) {
 
     std::atomic<bool> executed{false};
     auto workContract = workContractGroup.create_contract(
-        [&](auto & token){std::cout << "executed\n"; executed = true;}
+        [&](auto &){std::cout << "executed\n"; executed = true;}
     );
 
     for (auto i = 0; i < 1000; ++i) {

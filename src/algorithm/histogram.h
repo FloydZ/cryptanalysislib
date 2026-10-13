@@ -336,7 +336,7 @@ void hist256_2(uint32_t* histogram,
 
 static void consume(uint8_t* hist8,
 					const uint8_t* data,
-					const size_t N) {
+					[[maybe_unused]] const size_t N) {
 	// 512x 3-bit counters (1 bit of each counter in each __m512i)
 	__m512i w0_0 = _mm512_setzero_si512();
 	__m512i w1_0 = _mm512_setzero_si512();

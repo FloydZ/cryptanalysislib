@@ -21,7 +21,7 @@ namespace cryptanalysislib {
 		T s = 0, q = p - 1, z = 2;
 		while (~q & 1) s++, q >>= 1;
 		if (s == 1) return mod_pow<T>(n, (p + 1) / 4, p);
-		while (legendre(z, p) != -1) z++;
+		while (legendre(z, p) != T(-1)) z++;
 		T c = mod_pow<T>(z, q, p),
 		  r = mod_pow<T>(n, (q + 1) / 2, p),
 		  t = mod_pow<T>(n, q, p),

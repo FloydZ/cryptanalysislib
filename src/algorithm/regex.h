@@ -664,10 +664,10 @@ public:
 				}
 				case ')': {
 					int nestlevel = 0;
-					size_t k = j;
+					int64_t k = (int64_t)j;
 					/* search back to next innermost groupstart */
 					for (; k >= 0; k--) {
-						if (k < j && re_compiled[k].type == GROUPEND)
+						if (k < (int64_t)j && re_compiled[k].type == GROUPEND)
 							nestlevel++;
 						else if (re_compiled[k].type == GROUP) {
 							if (nestlevel == 0) {

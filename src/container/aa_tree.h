@@ -62,11 +62,11 @@ private:
 		destroy_node(n);
 	}
 
-	///       |          |
-	///   A - B    ->    A - B
-	///  / \   \        /   / \
-	/// 0   1   2      0   1   2
-	/// removes a left horizontal link
+	/**       |          |
+	 *    A - B    ->    A - B
+	 *   / \   \        /   / \
+	 *  0   1   2      0   1   2
+	 * removes a left horizontal link */
 	[[nodiscard]] static constexpr Node *skew(Node *n) noexcept {
 		if (n && n->left && (n->left->level == n->level)) {
 			Node *l = n->left;
@@ -77,13 +77,13 @@ private:
 		return n;
 	}
 
-	///   |                      |
-	///   |                    - B -
-	///   |                   /     \
-	///   A - B - C    ->    A       C
-	///  /   /   / \        / \     / \
-	/// 0   1   2   3      0   1   2   3
-	/// removes two consecutive right horizontal links
+	/**   |                      |
+	 *    |                    - B -
+	 *    |                   /     \
+	 *    A - B - C    ->    A       C
+	 *   /   /   / \        / \     / \
+	 *  0   1   2   3      0   1   2   3
+	 * removes two consecutive right horizontal links */
 	[[nodiscard]] static constexpr Node *split(Node *n) noexcept {
 		if (n && n->right && n->right->right && (n->right->right->level == n->level)) {
 			Node *r = n->right;

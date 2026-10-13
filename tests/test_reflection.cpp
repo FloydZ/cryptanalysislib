@@ -52,7 +52,7 @@ TEST(simple, my_type) {
 // 	static_assert(42 == std::get<0>(t));
 // 	static_assert(B  == std::get<1>(t));
 
-		reflect::for_each([](auto _) {
+		reflect::for_each([](auto) {
 		  	std::cout <<   reflect::type_name(E{});
 		}, f);
 

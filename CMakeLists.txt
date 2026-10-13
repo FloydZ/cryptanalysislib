@@ -62,9 +62,10 @@ check_ipo_supported(RESULT lto_supported OUTPUT error)
 find_library(LINKER_SUPPORTS_ATOMIC atomic)
 
 # check for compiler warnings
-check_cxx_compiler_flag(-Wno-c11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
-check_cxx_compiler_flag(-Wno-zero-length-array COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
-check_cxx_compiler_flag(-Wno-gnu-label-as-value COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
+# NOTE: gcc accepts any unknown `-Wno-*` flag, so the positive form is checked.
+check_cxx_compiler_flag(-Wc11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
+check_cxx_compiler_flag(-Wzero-length-array COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
+check_cxx_compiler_flag(-Wgnu-label-as-value COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
 check_cxx_compiler_flag(-Wthread-safety COMPILER_SUPPORTS_THREAD_SAFETY)
 
 # find needed packages: the good thing only is: we only have a single external

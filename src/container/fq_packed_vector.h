@@ -18,7 +18,7 @@ struct FqPackedVectorMetaConfig : public AlignmentConfig {
     // if true: simd operations will be used.
 	const bool activate_simd = true;
 };
-constexpr static FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
+inline constexpr FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
 
 /// represents a vector of numbers mod `_q` in vector of `_T` in a compressed way
 /// Meta class, contains all important meta definitions.
@@ -1930,7 +1930,6 @@ std::ostream &operator<<(std::ostream &out, const FqPackedVectorMeta<n, q, T, __
 		TT t1 = TT(obj[i]);
 		if constexpr (!__unsigned) {
 			auto translate = [](const TT a) {
-				constexpr TT q2 = I::modulus/2;
 				// NOTE: this sees to be a signed extension
 				return a | (-(a/2));
 			};

@@ -8,7 +8,7 @@ struct test : cryptanalysislib::instrument_type<test> {
 	long long b;
 };
 
-int main(int argc, char* argv[]) {
+int main() {
 	test* t1 = new test;
 
 	for (int i = 0; i < 10; ++i)
@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
 		t1->b += t1->a;
 	}
 
-	printf("%d\n", t1->b);
+	printf("%lld\n", (long long)t1->b);
 
 	delete t1;
 }

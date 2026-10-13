@@ -199,23 +199,6 @@ namespace cryptanalysislib {
             return i2 == n2;
         }
     }
-    namespace internal {
-        template<class InputIt1,
-                 class InputIt2>
-#if __cplusplus > 201709L
-	    requires std::forward_iterator<InputIt1> &&
-                 std::forward_iterator<InputIt2>
-#endif
-        bool includes(InputIt1 first1,
-                      InputIt1 last1,
-                      InputIt2 first2,
-                      InputIt2 last2) {
-
-		    using T = InputIt1::value_type;
-            using S = SIMDSelector<T>;
-            constexpr size_t SIMD_WIDTH = S::LIMBS;
-        }
-    };
 
     /// Checks if the sorted range [first2, last2) is a subset of the sorted range [first1, last1)
     /// Both input ranges must be sorted in the same order

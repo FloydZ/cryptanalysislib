@@ -307,7 +307,6 @@ namespace cryptanalysislib {
                     Size count, 
                     const typename std::iterator_traits<RandIt>::value_type &value,
                     BinaryPred &&p) noexcept {
-        using T = typename std::iterator_traits<RandIt>::value_type;
 		using diff_t = typename std::iterator_traits<RandIt>::difference_type;
 		const diff_t size = std::distance(first, last);
 		const uint32_t nthreads = should_par(policy, config, size);

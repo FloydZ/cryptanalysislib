@@ -18,7 +18,7 @@ namespace cryptanalysislib {
     /// \param first Iterator to the first element in the population range
     /// \param last Iterator one past the last element in the population range
     /// \param out Iterator to the beginning of the destination range
-    /// \param n Number of elements to sample
+    /// \param n_ Number of elements to sample
     /// \param g Uniform random bit generator used as the source of randomness
     /// \return Iterator to the element after the last sample written
     template<class PopulationIt,
@@ -32,7 +32,7 @@ namespace cryptanalysislib {
     SampleIt sample(PopulationIt first,
                     PopulationIt last,
                     SampleIt out,
-                    Distance n,
+                    Distance n_,
                     URBG&& g) {
         using diff_t = typename std::iterator_traits<PopulationIt>::difference_type;
         using value_type = typename std::iterator_traits<PopulationIt>::value_type;
@@ -40,7 +40,7 @@ namespace cryptanalysislib {
         using param_t = typename dist_t::param_type;
         
         diff_t population_size = std::distance(first, last);
-        n = std::min(static_cast<diff_t>(n), population_size);
+        const diff_t n = std::min(static_cast<diff_t>(n_), population_size);
         
         if (n <= 0) {
             return out;
@@ -163,7 +163,7 @@ namespace cryptanalysislib {
     /// \param first Iterator to the first element in the population range
     /// \param last Iterator one past the last element in the population range
     /// \param out Iterator to the beginning of the destination range
-    /// \param n Number of elements to sample
+    /// \param n_ Number of elements to sample
     /// \param g Uniform random bit generator used as the source of randomness
     /// \return Iterator to the element after the last sample written
     template<class ExecPolicy,
@@ -179,17 +179,17 @@ namespace cryptanalysislib {
                     PopulationIt first,
                     PopulationIt last,
                     SampleIt out,
-                    Distance n,
+                    Distance n_,
                     URBG&& g) {
         if (is_seq<ExecPolicy>(policy)) {
-            return sample(first, last, out, n, std::forward<URBG>(g));
+            return sample(first, last, out, n_, std::forward<URBG>(g));
         }
         
         using diff_t = typename std::iterator_traits<PopulationIt>::difference_type;
         using value_type = typename std::iterator_traits<PopulationIt>::value_type;
         
         diff_t population_size = std::distance(first, last);
-        n = std::min(static_cast<diff_t>(n), population_size);
+        const diff_t n = std::min(static_cast<diff_t>(n_), population_size);
         
         if (n <= 0) {
             return out;

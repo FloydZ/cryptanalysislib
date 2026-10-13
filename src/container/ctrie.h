@@ -813,7 +813,7 @@ public:
 				auto **cn = (CacheNode **)createCacheArray(8);
 				cn[0] = new (std::align_val_t(alignment)) CacheNode{nullptr, 8};
 				void *np = nullptr;
-				CAS_CACHE(cache_ptr, &np, cn);
+				(void)CAS_CACHE(cache_ptr, &np, cn);
 				void * newCache = cache_ptr;
 				inhabitCache(newCache, nv, hash, cacheeLevel);
 			}
@@ -1220,7 +1220,7 @@ public:
 					// Another thread is trying to replace the single node.
 					// In this case, we help and retry.
 					single = current;
-					CAS_(current, i, (uintptr_t)&node, txn);
+					(void)CAS_(current, i, (uintptr_t)&node, txn);
 					i -= 1;
 				}
 			} else if (isLNode(node)) {
@@ -1229,7 +1229,7 @@ public:
 				// If another txn is in progress, then we must reinspect the current slot.
 				single = current;
 				auto *fnode = createFNode(node);
-				CAS_(current, i, (uintptr_t)&node, fnode);
+				(void)CAS_(current, i, (uintptr_t)&node, fnode);
 				i -= 1;
 			} else if (isANode(node)) {
 				// Freeze the array node.
@@ -1237,7 +1237,7 @@ public:
 				// If another txn is in progress, then reinspect the current slot.
 				single = current;
 				auto *fnode = createFNode(node);
-				CAS_(current, i, (uintptr_t)&node, fnode);
+				(void)CAS_(current, i, (uintptr_t)&node, fnode);
 				i -= 1;
 			} else if (isFrozenL(node)) {
 				// We can skip, another thread previously helped with freezing this node.
@@ -1876,7 +1876,7 @@ public:
 						// Replace this key in the parent.
 						auto *sn = createSNode(hash, key, value, nullptr);
 						if (CAS_TXN(oldsn, &np, sn)) {
-							CAS_(an, pos_, old, sn);
+							(void)CAS_(an, pos_, old, sn);
 							// Note: must not increment the count here.
 						} else {
 							return fast_insert(key, value, hash, cache, prevCache);
@@ -1890,7 +1890,7 @@ public:
 						auto *nnode = newNarrowOrWideNode(oldsn->hash, oldsn->key, oldsn->value, hash, key, value, level + 4);
 						void *np = nullptr;
 						if (CAS_TXN(oldsn, &np, nnode)) {
-							CAS_(an, pos_, old, nnode);
+							(void)CAS_(an, pos_, old, nnode);
 						} else {
 							return fast_insert(key, value, hash, cache, prevCache);
 						}
@@ -1900,7 +1900,7 @@ public:
 					return insert(key, value);
 				} else {
 					// Complete the current transaction, and retry.
-					CAS_(an, pos, old, txn);
+					(void)CAS_(an, pos, old, txn);
 				    return fast_insert(key, value, hash, cache, prevCache);
 				}
 			} else {
@@ -2208,7 +2208,7 @@ public:
 						// Remove the key.
 						void *np = nullptr;
 						if (CAS_TXN(oldsn, &np, nullptr)) {
-							CAS_(an, pos, oldsn, nullptr);
+							(void)CAS_(an, pos, oldsn, nullptr);
 							decrementCount(an);
 							if (ascends > 1) {
 								recordCacheMiss();
@@ -2234,7 +2234,7 @@ public:
 					return remove(key, hash);
 				} else {
 					// Complete the current transaction, and retry.
-					CAS_(an, pos, oldsn, txn);
+					(void)CAS_(an, pos, oldsn, txn);
 					return fast_remove(key, hash, cache, prevCache, ascends);
 				}
 			} else {
