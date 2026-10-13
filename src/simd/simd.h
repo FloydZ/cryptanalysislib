@@ -3128,7 +3128,7 @@ struct Xint8x32_t {
 											     const S in2) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.d[i] = in1.d[i] == in2.d[i];
+			ret.d[i] = (in1.d[i] == in2.d[i]) * -1ull;
 		}
 		return ret;
 	}
@@ -3677,7 +3677,7 @@ struct Xint16x16_t {
                                                  const S in2) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.d[i] = in1.d[i] == in2.d[i];
+			ret.d[i] = (in1.d[i] == in2.d[i]) * -1ull;
 		}
 
 		return ret;
@@ -4238,7 +4238,7 @@ struct Xint32x8_t {
 	                                             const S in2) noexcept {
 		S ret;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.d[i] = in1.d[i] == in2.d[i];
+			ret.d[i] = (in1.d[i] == in2.d[i]) * -1ull;
 		}
 
 		return ret;
@@ -4837,7 +4837,7 @@ struct Xint64x4_t {
 	                                             const S in2) noexcept {
 		S ret;
 		for (uint8_t i = 0; i < S::LIMBS; i++) {
-			ret.d[i] = in1.d[i] == in2.d[i];
+			ret.d[i] = (in1.d[i] == in2.d[i]) * -1ull;
 		}
 		return ret;
 	}

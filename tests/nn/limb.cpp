@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -28,12 +29,12 @@ TEST(NNLimb, simd_equals_naive) {
 			for (size_t i = 0; i < cryptanalysislib::min(el, er); i += 3) { R[i] = L[i] ^ 0x3FFu; }
 
 			const size_t max = el * er + 1;
-			std::vector<uint32_t[2]> o1(max), o2(max);
-			const size_t n1 = N::nn(o1.data(), L.data(), R.data(), el, er, max);
-			const size_t n2 = N::nn_bruteforce_simd_F2_32<uint32_t, 2, 3>(o2.data(), L.data(), R.data(), el, er, max);
+			std::unique_ptr<uint32_t[][2]> o1(new uint32_t[max][2]{}), o2(new uint32_t[max][2]{});
+			const size_t n1 = N::nn(o1.get(), L.data(), R.data(), el, er, max);
+			const size_t n2 = N::nn_bruteforce_simd_F2_32<uint32_t, 2, 3>(o2.get(), L.data(), R.data(), el, er, max);
 			EXPECT_EQ(n1, n2);
 			EXPECT_GE(n1, cryptanalysislib::min(el, er) / 3);
-			EXPECT_EQ(to_set(o1.data(), n1), to_set(o2.data(), n2));
+			EXPECT_EQ(to_set(o1.get(), n1), to_set(o2.get(), n2));
 
 			// brute force reference
 			size_t ref = 0;
@@ -46,8 +47,8 @@ TEST(NNLimb, simd_equals_naive) {
 
 			// `max` is respected
 			if (n1 > 1) {
-				EXPECT_EQ(N::nn_bruteforce_simd_F2_32(o2.data(), L.data(), R.data(), el, er, 1), 1u);
-				EXPECT_EQ(N::nn(o1.data(), L.data(), R.data(), el, er, 1), 1u);
+				EXPECT_EQ(N::nn_bruteforce_simd_F2_32(o2.get(), L.data(), R.data(), el, er, 1), 1u);
+				EXPECT_EQ(N::nn(o1.get(), L.data(), R.data(), el, er, 1), 1u);
 			}
 		}
 	}

@@ -8,6 +8,10 @@ foreach(testfile ${TEST_SOURCES})
         # the asm goto labels of static_branch must stay in the same section
         target_compile_options(test_jmp_${file} PUBLIC -fno-reorder-blocks-and-partition)
     endif()
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # the "i"(this) operands of static_branch are only constant with -O1+
+        target_compile_options(test_jmp_${file} PUBLIC -O1)
+    endif()
     target_link_libraries(test_jmp_${file} ${LINK_TEST_FLAGS})
 	add_test(jmp_${file} test_jmp_${file})
 endforeach(testfile ${TEST_SOURCES})

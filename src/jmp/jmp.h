@@ -35,7 +35,10 @@
 /// NOTE: gcc may move the asm goto targets into `.text.unlikely`
 /// 	(hot/cold splitting), then the assembler cannot compute the offsets:
 /// 	compile the users with `-fno-reorder-blocks-and-partition` (as tests/jmp
-/// 	does); clang needs nothing.
+/// 	does).
+/// NOTE: clang needs at least `-O1`: at `-O0` the inlined `this` is still
+/// 	loaded from a stack slot, so the `"i"(this)` operand is no constant
+/// 	("invalid operand for inline asm constraint 'i'"); tests/jmp adds `-O1`.
 
 #pragma once
 #pragma GCC system_header
