@@ -2323,21 +2323,24 @@ public:
 
 				if (m1) {
 					const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr2);
-					const int m1 = compare_256_64(li2, ri);
+					const int m2 = compare_256_64(li2, ri) & m1;
 
-					if (m1) {
+					if (m2) {
 						const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr3);
-						const int m1 = compare_256_64(li3, ri);
+						const int m3 = compare_256_64(li3, ri) & m2;
 
-						if (m1) {
+						if (m3) {
 							const uint64x4_t ri = uint64x4_t::template gather<8>((const long long int *) ptr_r, loadr4);
-							const int m1 = compare_256_64(li4, ri);
-							if (m1) {
-								const size_t jprime = j * 4 + __builtin_ctz(m1);
+							// NOTE: only lanes which passed all limbs, and every
+							// 	one of them, not only the first one.
+							uint32_t m4 = compare_256_64(li4, ri) & m3;
+							while (m4) {
+								const size_t jprime = j * 4 + __builtin_ctz(m4);
 								if (compare_u64_ptr((T *) (L1 + i), (T *) (L2 + jprime))) {
-									//std::cout << L1[i][0] << " " << L2[jprime][0] << " " << L2[jprime+1][0] << " " << L2[jprime-1][0] << "\n";
 									found_solution(i, jprime);
 								}
+
+								m4 &= m4 - 1u;
 							}
 						}
 					}
@@ -2683,20 +2686,26 @@ public:
 		while (m1sx > 0) {
 			const uint32_t ctz1 = __builtin_ctz(m1sx);
 			const uint32_t ctz = off + ctz1;
-			const uint32_t m1sc = m1s[ctz];
-			const uint32_t inner_ctz = __builtin_ctz(m1sc);
+			// NOTE: check every lane which passed the first limb, not only
+			// 	the first one.
+			uint32_t m1sc = m1s[ctz];
+			while (m1sc) {
+				const uint32_t inner_ctz = __builtin_ctz(m1sc);
 
-			const uint32_t test_j = ctz % 4;
-			const uint32_t test_inner = (inner_ctz + (ctz / 16)) % 4;
-			const uint32_t test_i = (ctz % 16) / 4;
+				const uint32_t test_j = ctz % 4;
+				const uint32_t test_inner = (inner_ctz + (ctz / 16)) % 4;
+				const uint32_t test_i = (ctz % 16) / 4;
 
-			const uint32_t off_l = test_i * 4 + inner_ctz;
-			const uint32_t off_r = test_j * 4 + test_inner;
+				const uint32_t off_l = test_i * 4 + inner_ctz;
+				const uint32_t off_r = test_j * 4 + test_inner;
 
-			const T *test_tl = ptr_l + off_l * 4;
-			const T *test_tr = ptr_r + off_r * 4;
-			if (compare_u64_ptr(test_tl, test_tr)) {
-				found_solution(i + off_l, j + off_r);
+				const T *test_tl = ptr_l + off_l * 4;
+				const T *test_tr = ptr_r + off_r * 4;
+				if (compare_u64_ptr(test_tl, test_tr)) {
+					found_solution(i + off_l, j + off_r);
+				}
+
+				m1sc &= m1sc - 1u;
 			}
 
 			m1sx ^= 1u << ctz1;
@@ -2873,42 +2882,57 @@ public:
 	/// \param ptr_r
 	/// \param i
 	/// \param j
+	/// \param ie end index (exclusive) of the left list. The last block of 16
+	/// 	elements may reach past it, these rows are skipped.
+	/// \param je end index (exclusive) of the right list, see `ie`.
 	template<const uint32_t off,
 			 const uint32_t bucket_size>
 	void bruteforce_simd_256_64_4x4_rearrange_helper(uint32_t m1sx,
 	                                                 const uint8_t *__restrict__ m1s,
 	                                                 const uint64_t *__restrict__ ptr_l,
 	                                                 const uint64_t *__restrict__ ptr_r,
-	                                                 const size_t i, const size_t j) noexcept {
+	                                                 const size_t i, const size_t j,
+	                                                 const size_t ie, const size_t je) noexcept {
 		ZoneScoped;
 		while (m1sx > 0) {
 			const uint32_t ctz1 = __builtin_ctz(m1sx);
 			const uint32_t ctz = off + ctz1;
-			const uint32_t m1sc = m1s[ctz];
-			const uint32_t inner_ctz = __builtin_ctz(m1sc);
+			// NOTE: check every lane which passed the first limb, not only
+			// 	the first one.
+			uint32_t m1sc = m1s[ctz];
+			while (m1sc) {
+				const uint32_t inner_ctz = __builtin_ctz(m1sc);
+				m1sc &= m1sc - 1u;
 
-			const uint32_t test_j = ctz % 4;
-			const uint32_t test_inner = (inner_ctz + (ctz / 16)) % 4;
-			const uint32_t test_i = (ctz % 16) / 4;
+				const uint32_t test_j = ctz % 4;
+				const uint32_t test_inner = (inner_ctz + (ctz / 16)) % 4;
+				const uint32_t test_i = (ctz % 16) / 4;
 
-			const uint32_t off_l = test_i * 4 + inner_ctz;
-			const uint32_t off_r = test_j * 4 + test_inner;
-			assert(off_l < 16);
-			assert(off_r < 16);
+				const uint32_t off_l = test_i * 4 + inner_ctz;
+				const uint32_t off_r = test_j * 4 + test_inner;
+				assert(off_l < 16);
+				assert(off_r < 16);
 
-			uint32_t wt = 0;
-			for (uint32_t s = 0; s < ELEMENT_NR_LIMBS; s++) {
-				const T t1 = ptr_l[off_l + s * bucket_size];
-				const T t2 = ptr_r[off_r + s * bucket_size];
-				wt += popcount::popcount(t1 ^ t2);
-			}
+				// NOTE: rows past the end of a transposed list are limbs of
+				// 	other elements, which can produce wrong solutions.
+				if ((i + off_l >= ie) || (j + off_r >= je)) {
+					continue;
+				}
 
-			assert(wt);
-			if (wt <= d) {
-				solutions.resize(solutions_nr + 1);
-				solutions[solutions_nr++] = std::pair
-												<size_t, size_t>
-												{i + off_l, j + off_r};
+				uint32_t wt = 0;
+				for (uint32_t s = 0; s < ELEMENT_NR_LIMBS; s++) {
+					const T t1 = ptr_l[off_l + s * bucket_size];
+					const T t2 = ptr_r[off_r + s * bucket_size];
+					wt += popcount::popcount(t1 ^ t2);
+				}
+
+				assert(wt);
+				if (wt <= d) {
+					solutions.resize(solutions_nr + 1);
+					solutions[solutions_nr++] = std::pair
+													<size_t, size_t>
+													{i + off_l, j + off_r};
+				}
 			}
 
 			m1sx ^= 1u << ctz1;
@@ -2967,8 +2991,8 @@ public:
 				uint32_t m1s1 = zero < uint8x32_t::load(m1s + 0u);
 				uint32_t m1s2 = zero < uint8x32_t::load(m1s + 32u);
 
-				if (m1s1 != 0) { bruteforce_simd_256_64_4x4_rearrange_helper<0, bucket_size>(m1s1, m1s, ptr_l, ptr_r, i, j); }
-				if (m1s2 != 0) { bruteforce_simd_256_64_4x4_rearrange_helper<32, bucket_size>(m1s2, m1s, ptr_l, ptr_r, i, j); }
+				if (m1s1 != 0) { bruteforce_simd_256_64_4x4_rearrange_helper<0, bucket_size>(m1s1, m1s, ptr_l, ptr_r, i, j, s1 + e1, s2 + e2); }
+				if (m1s2 != 0) { bruteforce_simd_256_64_4x4_rearrange_helper<32, bucket_size>(m1s2, m1s, ptr_l, ptr_r, i, j, s1 + e1, s2 + e2); }
 			}
 		}
 	}

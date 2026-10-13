@@ -60,7 +60,8 @@ static std::vector<std::vector<uint8_t>> __level_filter_array{{ {{4,0,0}}, {{1,0
 // 	EXPECT_EQ(t[2].load(), num);
 // }
 
-// NOTE: takes very long
+// NOTE: the reference check below is quadratic, keep the lists small
+// 	(2^12 elements take minutes in Debug mode).
 TEST(SubSetSum, JoinRandomListsLevel1) {
 	Matrix A;
 	A.random();
@@ -68,16 +69,16 @@ TEST(SubSetSum, JoinRandomListsLevel1) {
 	static std::vector<uint32_t> tbl{{0, n/2, n}};
 	Tree t{2, A, 11, tbl, __level_filter_array};
 
-	t[0].random(1u << 12u, A);
-	t[1].random(1u << 12u, A);
+	t[0].random(1u << 10u, A);
+	t[1].random(1u << 10u, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 	t.join_stream(0);
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].random(1u << 12u, A);
-	t[1].random(1u << 12u, A);
+	t[0].random(1u << 10u, A);
+	t[1].random(1u << 10u, A);
 
 	t[2].sort_level(1, tbl);
 	t[0].sort_level(0, tbl);

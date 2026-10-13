@@ -147,6 +147,47 @@ __device__ __forceinline__ uint32_t weights(const uint4 *X, const uint32_t strid
 	return (w << 16u) | w0;
 }
 
+/// one bmma of the AND variants: c += popc(a & b) on sm_80+.
+/// NOTE: bmmaBitOpAND does not exist before sm_80 (e.g. sm_75). There
+/// 		c += popc(a ^ b) is computed instead, and `and_leq` checks the
+/// 		distance directly. Both are equivalent, see `and_leq`.
+/// \param c accumulator fragment, input and output
+/// \param a 8 elements of L (one 128 bit chunk each)
+/// \param b 8 elements of R (one 128 bit chunk each)
+__device__ __forceinline__ void bmma_and(FragC &c, const FragA &a, const FragB &b) {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 800)
+	wmma::bmma_sync(c, a, b, c,
+					wmma::experimental::bmmaBitOpXOR,
+					wmma::experimental::bmmaAccumulateOpPOPC);
+#else
+	wmma::bmma_sync(c, a, b, c,
+					wmma::experimental::bmmaBitOpAND,
+					wmma::experimental::bmmaAccumulateOpPOPC);
+#endif
+}
+
+/// distance check of the AND variants for one accumulator element of
+/// `bmma_and`:
+/// 	sm_80+:  c = popc(a & b), and
+/// 	         wt(a ^ b) = wt(a) + wt(b) - 2c <= d  <=>  2c - wt(b) >= wt(a) - d
+/// 	< sm_80: c = popc(a ^ b) <= d, the weights are not needed
+/// \tparam d maximal hamming distance of a solution
+/// \param c accumulator element of `bmma_and`, accumulated over the same
+/// 		128 bit chunks as the weights `wb` and `tl` are computed on
+/// \param wb hamming weight of the element of R (same chunks as `c`)
+/// \param tl threshold wt(a) - d of the element of L (same chunks as `c`)
+/// \return true if the distance of the pair (on these chunks) is <= d
+template<const uint32_t d>
+__device__ __forceinline__ bool and_leq(const int c, const uint32_t wb, const int tl) {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 800)
+	(void)wb;
+	(void)tl;
+	return uint32_t(c) <= d;
+#else
+	return 2 * c - int(wb) >= tl;
+#endif
+}
+
 /// writes the solution (row, col) into (f1, f2), if no other solution was
 /// written before. Same protocol as `dbruteforce` in `nn.cuh`: the first
 /// thread which swaps `f1` from -1 to `row` also writes `f2`. All other
@@ -405,6 +446,10 @@ tensor_bruteforce(const T *L, const T *R,
 ///   wt(a ^ b) = wt(a) + wt(b) - 2*popc(a & b) <= d
 ///   <=>  2*popc(a & b) - wt(b) >= wt(a) - d
 ///
+/// NOTE: bmmaBitOpAND needs sm_80+. When compiled for an older architecture
+/// 		(sm_75), `bmma_and` and `and_leq` fall back to bmmaBitOpXOR and a
+/// 		direct distance check, so the result is the same, only slower.
+///
 /// The weights of the L super-tile are computed once into shared memory
 /// (`Lw`), and each tensor core thread keeps the thresholds wt(a) - d of the
 /// rows of its accumulator elements in registers (`tl0`, `tl`). The weights of
@@ -610,12 +655,10 @@ __device__ void dtensor_bruteforce_and(const T *L, const T *R,
 					#pragma unroll
 					for (uint32_t i = 0; i < TM; i++) {
 						wmma::fill_fragment(acc[i], 0);
-						wmma::bmma_sync(acc[i], a[i][0], fb, acc[i],
-										wmma::experimental::bmmaBitOpAND,
-										wmma::experimental::bmmaAccumulateOpPOPC);
+						bmma_and(acc[i], a[i][0], fb);
 						#pragma unroll
 						for (uint32_t s = 0; s < FragC::num_elements; s++) {
-							cand |= 2 * acc[i].x[s] - int(rw[s] & 0xffffu) >= tl0[i][s];
+							cand |= and_leq<d>(acc[i].x[s], rw[s] & 0xffffu, tl0[i][s]);
 						}
 					}
 
@@ -626,9 +669,7 @@ __device__ void dtensor_bruteforce_and(const T *L, const T *R,
 							wmma::load_matrix_sync(fb, Rt + k * RC, WMMA_K);
 							#pragma unroll
 							for (uint32_t i = 0; i < TM; i++) {
-								wmma::bmma_sync(acc[i], a[i][k], fb, acc[i],
-												wmma::experimental::bmmaBitOpAND,
-												wmma::experimental::bmmaAccumulateOpPOPC);
+								bmma_and(acc[i], a[i][k], fb);
 							}
 						}
 
@@ -639,7 +680,7 @@ __device__ void dtensor_bruteforce_and(const T *L, const T *R,
 								const size_t row = w_base + i * WMMA_M + coord.x[s] / WMMA_N;
 								const size_t col = r_base + t * WMMA_N + coord.x[s] % WMMA_N;
 								// the zero padding can produce wrong solutions
-								if ((2 * acc[i].x[s] - int(rw[s] >> 16u) >= tl[i][s]) && (row < e1) && (col < e2)) {
+								if (and_leq<d>(acc[i].x[s], rw[s] >> 16u, tl[i][s]) && (row < e1) && (col < e2)) {
 									report_solution(row, col, f1, f2);
 								}
 							}
