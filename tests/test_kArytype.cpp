@@ -76,11 +76,6 @@ using ::testing::UnitTest;
 #undef T
 #undef S
 
-// only for development
-//TEST(T, dev_big) {
-//	kAry_Type_T_big<>
-//}
-
 /// operator<< writes into the given stream (not std::cout)
 TEST(kAryType, ostream) {
 	using K = kAry_Type_T<13>;

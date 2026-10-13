@@ -42,6 +42,8 @@ TEST(PCS, RhoFactorise) {
 	EXPECT_TRUE(rsa.run());
 }
 // TODO move to subesetsum folder
+// not correct right now: the runtime is unbounded (0.1s to >500s), a walk of
+// 	`walk_len`=8 steps only rarely ends in a golden collision.
 //TEST(PCS, RhoSubSetSum) {
 //	/// Simple example of how to use the PollardRho class
 //	/// to solve a subset sum problem.
@@ -173,106 +175,106 @@ TEST(PCS, RhoFactorise) {
 //	EXPECT_EQ(correct, true);
 //
 //}
-//
-//TEST(PCS, RhoSubSetSumTree) {
-//	// example of a PCS computing trees within the function f
-//	constexpr static uint32_t n = 16;
-//	constexpr static uint32_t p = 1u << 16;
-//	using T = kAry_Type_T<p>;
-//
-//	// first generate a random SubSetSum Instance
-//	T target, a = T(1734), b = T(319);
-//
-//	// Needed Types
-//	using TT 			= uint16_t;
-//	using Matrix 		= FqMatrix<TT, 1, n, q>;
-//	using Value     	= FqNonPackedVector<n, 2, TT>;
-//	using Element		= Element_T<Value, T, Matrix>;
-//	using List			= List_T<Element>;
-//	using Tree			= Tree_T<List>;
-//
-//	// represent the SubSetSum Instance a 1xn row matrix= row vector
-//	// this makes a lot of things alot easier
-//	Matrix A; A.random();
-//
-//	std::vector<uint32_t> sol;
-//	generate_subsetsum_instance(target, sol, A, n);
-//
-//	// enumerate weight n//4 on n//2 coordinates.
-//	// NOTE: elements are randomly chosen, so no chase sequence or whatsoever
-//	using Enumerator = BinaryRandomEnumerator<List, n/2, n/4>;
-//	Enumerator en{A};
-//
-//	constexpr static size_t size = 1ull << (n / 4u);
-//	List L1{size}, L2{size}, out{size};
-//	Tree t{1, A, 0};
-//
-//	struct SubSetSumCmp {
-//		decltype(auto) operator()(const T &a1,
-//								  const T &a2,
-//								  const T &b1,
-//								  const T &b2) const {
-//			// get the lowest bit
-//			const uint32_t alb = a1.value() & 1;
-//			const uint32_t blb = b1.value() & 1;
-//
-//			// and make sure, that they are different
-//			if (alb == blb) {
-//				return false;
-//			}
-//
-//			return a2 == b2;
-//		}
-//	};
-//
-//	while(true) {
-//		/// restart every X runs
-//		const bool val = PollardRho<SubSetSumCmp, T>::run(
-//		        [&A, &target, &L1, &L2, &out, &en, &t](const T &in) {
-//			// reset the lists
-//			L1.set_load(0); L2.set_load(0), out.set_load(0);
-//
-//			// write random elements in the lists in a mitm split. The elements will have
-//			// weight n//4 on each halve.
-//			en.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-//					  (&L1, &L2, n/4);
-//
-//			// merge the two base lists on the full length ([0, n)) on the target
-//			t.join2lists(out, L1, L2, target, 0, n, false);
-//
-//			T ret = T(0);
-//			for (size_t i = 0; i < out.load(); ++i) {
-//				// TODO do something
-//				// const auto el = out[i];
-//
-//				// remap each solution back to a binary string of weight n //4
-//				static uint32_t weights[n/4];
-//				int2weights<T::LimbType>(weights, in.value(), n, n/4, n/4);
-//
-//				// super simple distinguish function
-//				if (in.value() & 1u) {
-//					ret += target;
-//				}
-//
-//				for (uint32_t j = 0; j < n/4; j++) {
-//					ret += A[0][weights[i]];
-//				}
-//
-//			}
-//
-//			// TODO return something
-//			return ret;
-//		}, a, b, 1u << 6);
-//
-//		if (val) {
-//			break;
-//		}
-//
-//		// resample the flavour
-//		a = rng<T::LimbType>() % p;
-//		b = rng<T::LimbType>() % p;
-//	}
-//}
+
+TEST(PCS, RhoSubSetSumTree) {
+	// example of a PCS computing trees within the function f
+	constexpr static uint32_t n = 16;
+	constexpr static uint32_t p = 1u << 16;
+	using T = kAry_Type_T<p>;
+
+	// first generate a random SubSetSum Instance
+	T target, a = T(1734), b = T(319);
+
+	// Needed Types
+	using TT 			= uint16_t;
+	using Matrix 		= FqMatrix<TT, 1, n, q>;
+	using Value     	= FqNonPackedVector<n, 2, TT>;
+	using Element		= Element_T<Value, T, Matrix>;
+	using List			= List_T<Element>;
+	using Tree			= Tree_T<List>;
+
+	// represent the SubSetSum Instance a 1xn row matrix= row vector
+	// this makes a lot of things alot easier
+	Matrix A; A.random();
+
+	std::vector<uint32_t> sol;
+	generate_subsetsum_instance(target, sol, A, n);
+
+	// enumerate weight n//4 on n//2 coordinates.
+	// NOTE: elements are randomly chosen, so no chase sequence or whatsoever
+	using Enumerator = BinaryRandomEnumerator<List, n/2, n/4>;
+	Enumerator en{A};
+
+	constexpr static size_t size = 1ull << (n / 4u);
+	List L1{size}, L2{size}, out{size};
+	Tree t{1, A, 0};
+
+	struct SubSetSumCmp {
+		decltype(auto) operator()(const T &a1,
+								  const T &a2,
+								  const T &b1,
+								  const T &b2) const {
+			// get the lowest bit
+			const uint32_t alb = a1.value() & 1;
+			const uint32_t blb = b1.value() & 1;
+
+			// and make sure, that they are different
+			if (alb == blb) {
+				return false;
+			}
+
+			return a2 == b2;
+		}
+	};
+
+	while(true) {
+		/// restart every X runs
+		const bool val = PollardRho<SubSetSumCmp, T>::run(
+		        [&A, &target, &L1, &L2, &out, &en, &t](const T &in) {
+			// reset the lists
+			L1.set_load(0); L2.set_load(0), out.set_load(0);
+
+			// write random elements in the lists in a mitm split. The elements will have
+			// weight n//4 on each halve.
+			en.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+					  (&L1, &L2, n/4);
+
+			// merge the two base lists on the full length ([0, n)) on the target
+			t.join2lists(out, L1, L2, target, 0, n, false);
+
+			T ret = T(0);
+			for (size_t i = 0; i < out.load(); ++i) {
+				// TODO do something
+				// const auto el = out[i];
+
+				// remap each solution back to a binary string of weight n //4
+				static uint32_t weights[n/4];
+				int2weights<T::LimbType>(weights, in.value(), n, n/4, n/4);
+
+				// super simple distinguish function
+				if (in.value() & 1u) {
+					ret += target;
+				}
+
+				for (uint32_t j = 0; j < n/4; j++) {
+					ret += A[0][weights[j]];
+				}
+
+			}
+
+			// TODO return something
+			return ret;
+		}, a, b, 1u << 6);
+
+		if (val) {
+			break;
+		}
+
+		// resample the flavour
+		a = rng<T::LimbType>() % p;
+		b = rng<T::LimbType>() % p;
+	}
+}
 
 /// collision of f(x) = x^2 + 1 mod p, with both cycle finders of the
 /// flavoured `run` (Brent and Floyd)

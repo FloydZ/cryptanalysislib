@@ -2052,14 +2052,17 @@ public:
 	/// \param f:
 	template<const uint32_t k_lower1, const uint32_t k_upper1,
 			 const uint32_t k_lower2, const uint32_t k_upper2,
-			 typename F>
+			 typename F = bool(List &, List &, ElementType &, size_t)>
 	size_t join4lists_on_iT_v2(List &out,
 	                           const List &L1, List &L2,
 	                           const List &L3, List &L4,
 	                           const LabelType &target,
 	                           const bool prepare = true,
-	                           F f=[](List&, ElementType&, ElementType&, size_t,size_t,size_t,size_t) {
-	                           		// TODO
+	                           F f=[](List &out, List &iL, ElementType &e, const size_t l) __attribute__((always_inline)) {
+		                           // NOTE: v2: `iL[l] + e` is the solution, its label is the target
+		                           out.template add_and_append
+		                                   <k_lower1, k_upper2, -1u, false>
+		                                   (e, iL[l]);
 		                           return false;
 	                           }) noexcept;
 
@@ -3053,16 +3056,15 @@ public:
 			return ;
 		}
 
-		// TODo
 		// L1, L2, L3 and L4
-		// LabelType::sub(t1, iT2, iT1);
-		// twolevel_streamjoin_on_iT_v2
-		//         <k_lower1, k_upper1, k_lower2, k_upper2>
-		//         (iL2, iL1, L1, L2, iT2, t1);
-		// iL2.template sort_level<0, k_upper3>();
-		// if (iL2.load() == 0) {
-		// 	return ;
-		// }
+		LabelType::sub(t1, iT2, iT1);
+		twolevel_streamjoin_on_iT_v2
+		        <k_lower1, k_upper1, k_lower2, k_upper2>
+		        (iL2, iL1, L1, L2, iT2, t1, true);
+		iL2.template sort_level<0, k_upper3>();
+		if (iL2.load() == 0) {
+			return ;
+		}
 
 
 		// L5 and L6

@@ -793,20 +793,6 @@ TEST(SortingNetwork, avx512_f32x16_t) {
 	}
 }
 
-//TEST(SortingNetwork, avx512_f64x8_t) {
-//	double d_in[8], d_out[8];
-//	for (size_t i = 0; i < 8; ++i) {
-//		d_in[i] = 8-i;
-//	}
-//
-//	__m512d a = _mm512_loadu_pd((__m512d *)(d_in + 0));
-//	sortingnetwork_sort_f64x8(a);
-//	_mm512_storeu_pd((__m512d *)(d_out + 0), a);
-//	for (uint32_t i = 0; i < 8; ++i) {
-//		EXPECT_LE(d_out[i], d_out[i+1]);
-//	}
-//}
-
 
 TEST(SortingNetwork, avx512_uint32x32_t) {
 	uint32_t d_in[32], d_out[32];

@@ -23,42 +23,45 @@ using ::testing::UnitTest;
 
 // NOTE: random enumeration of the values
 // NOTE: only two baselists are used
-// not correct right now
-// TEST(SubSetSum, n32_d2_baselists2) {
-// 	// 15.841070074033095 7.999094705692274 6 10 0 0 100.0 2.0 0 120.0 14.06  1.77
-// 	constexpr uint32_t n = 32ul;
-// 	constexpr uint64_t q = (1ul << n); //4294967279
-//
-// 	using T 			= uint64_t;
-// 	using Value     	= BinaryVector<n>;
-// 	using Label    		= kAry_Type_T<q>;
-// 	using Matrix 		= FqVector<T, n, q, true>;
-// 	using Element		= Element_T<Value, Label, Matrix>;
-// 	using List			= List_T<Element>;
-// 	using Tree			= Tree_T<List>;
-//
-// 	Matrix A; A.random();
-// 	constexpr uint32_t k_lower1=0, k_higher1=10, k_higher2=16;
-// 	constexpr uint32_t p = 2;
-// 	constexpr size_t baselist_size = sum_bc(n/2, p);
-// 	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
-//
-// 	using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, p>;
-// 	//using Enumerator = BinaryLexicographicEnumerator<List, n/2, p>;
-//
-// 	Label target;
-// 	std::vector<uint32_t> weights(n/2);
-// 	generate_subsetsum_instance(target, weights, A, n);
-//
-//     Tree t{1, A, 0};
-// 	t.template join4lists_twolists_on_iT_hashmap_v2
-// 			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
-// 			(out, l1, l2, target);
-//
-// 	EXPECT_GT(out.load(), 0);
-// }
+TEST(SubSetSum, n32_d2_baselists2) {
+	// 15.841070074033095 7.999094705692274 6 10 0 0 100.0 2.0 0 120.0 14.06  1.77
+	constexpr uint32_t n = 32ul;
+	constexpr uint64_t q = (1ul << n); //4294967279
 
-// not correct right now
+	using T 			= uint64_t;
+	using Value     	= BinaryVector<n>;
+	using Label    		= kAry_Type_T<q>;
+	using Matrix 		= FqVector<T, n, q, true>;
+	using Element		= Element_T<Value, Label, Matrix>;
+	using List			= List_T<Element>;
+	using Tree			= Tree_T<List>;
+
+	Matrix A; A.random();
+	// NOTE: the outputs are filtered on weight n/2, so the four base list
+	// 	elements (weight <= p each) need 4p >= n/2. `k_higher2` is chosen
+	// 	such that the intermediate hashmap has enough buckets.
+	constexpr uint32_t k_lower1=0, k_higher1=10, k_higher2=20;
+	constexpr uint32_t p = 4;
+	constexpr size_t baselist_size = sum_bc(n/2, p);
+	List out{1u<<8}, l1{baselist_size}, l2{baselist_size};
+
+	using Enumerator = BinaryListEnumerateMultiFullLength<List, n/2, p>;
+	//using Enumerator = BinaryLexicographicEnumerator<List, n/2, p>;
+
+	Label target;
+	std::vector<uint32_t> weights(n/2);
+	generate_subsetsum_instance(target, weights, A, n);
+
+    Tree t{1, A, 0};
+	t.template join4lists_twolists_on_iT_hashmap_v2
+			<k_lower1, k_higher1, k_higher1, k_higher2, Enumerator>
+			(out, l1, l2, target);
+
+	EXPECT_GT(out.load(), 0);
+}
+
+// not correct right now: the base list elements have weight 1+2, so the
+// 	four of them never reach the output weight n/2 = 16
 // TEST(SubSetSum, n32_d2_baselists4) {
 // 	constexpr uint32_t n = 32ul;
 // 	constexpr uint64_t q = (1ul << n); //4294967279
@@ -90,7 +93,8 @@ using ::testing::UnitTest;
 // 	EXPECT_GT(out.load(), 0);
 // }
 
-// not correct right now
+// not correct right now: with p = 3 the four base list elements never reach
+// 	the output weight n/2 = 24, and p = 6 (190051 elements per list) is too slow
 // TEST(SubSetSum, n48) {
 // 	// 22.707336747487684 12.775544757643935 2 20 0 0 1 3.0 0 2024.0 1.6311530334469542 3.90679931640625
 // 	constexpr uint32_t n    = 48ul;

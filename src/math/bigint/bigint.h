@@ -423,35 +423,35 @@ constexpr auto subtract_same(big_int<N, T> a, big_int<N, T> b) {
 //	}
 //	return {q, shift_right(cryptanalysislib::first<N>(us), k)};
 //}
-//
-///// NOTE: this function will use a sginaficant amount of compiler ressources.
-///// you may need to increase the constexpr steps via:
-/////    -fconstexpr-steps=99999999
-///// \tparam N
-///// \tparam T
-///// \param n
-///// \param k
-///// \return
-//template<size_t N, typename T, const T n, const T k>
-//constexpr big_int<N, T> binomial() {
-//	static_assert(n * k < 1u<<20); // we need to enforce some limit
-//	static_assert(k <= n);
-//
-//	const big_int<N, T> one = big_int<N, T>(1u);
-//
-//	std::array<std::array<big_int<N, T>, k+1>, n+1> tmp;
-//	for (T i = 0; i <= n; ++i) {
-//		for (T j = 0; j <= std::min(i, k); ++j) {
-//			if ((j == 0) || (j == i)) {
-//				tmp[i][j] = one;
-//			} else {
-//				tmp[i][j] = big_int<N, T>{tmp[i-1][j-1] + tmp[i-1][j]};
-//			}
-//		}
-//	}
-//
-//	return tmp[n][k];
-//}
+
+/// NOTE: this function will use a sginaficant amount of compiler ressources.
+/// you may need to increase the constexpr steps via:
+///    -fconstexpr-steps=99999999
+/// \tparam N
+/// \tparam T
+/// \param n
+/// \param k
+/// \return
+template<size_t N, typename T, const T n, const T k>
+constexpr big_int<N, T> binomial() {
+	static_assert(n * k < 1u<<20); // we need to enforce some limit
+	static_assert(k <= n);
+
+	const big_int<N, T> one = big_int<N, T>(1u);
+
+	std::array<std::array<big_int<N, T>, k+1>, n+1> tmp;
+	for (T i = 0; i <= n; ++i) {
+		for (T j = 0; j <= std::min(i, k); ++j) {
+			if ((j == 0) || (j == i)) {
+				tmp[i][j] = one;
+			} else {
+				tmp[i][j] = big_int<N, T>{tmp[i-1][j-1] + tmp[i-1][j]};
+			}
+		}
+	}
+
+	return tmp[n][k];
+}
 
 //template<typename T, size_t N1, size_t N2>
 //constexpr auto operator/(const big_int<N1, T> &a,

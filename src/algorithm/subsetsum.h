@@ -30,7 +30,7 @@ constexpr static void generate_subsetsum_instance(Label &target,
 												  const uint32_t n,
 												  const bool mitm = true,
 												  const bool debug = true) noexcept {
-	if (!IsStdArray<List>()) { weights.reserve(n/2);}
+	if (!IsStdArray<List>()) { weights.resize(n/2);}
 	target.zero();
 	if (mitm) { generate_random_mitm_indices(weights, n);
 	} else { generate_random_indices(weights, n); }
