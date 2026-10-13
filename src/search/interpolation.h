@@ -256,11 +256,11 @@ namespace cryptanalysislib {
 	/// \param last[in]: Iterator to the end of the range
 	/// \param key_[in]: Value to search for
 	/// \return Iterator to the matching element, or last if not found
-	template<typename RandIt,
-	         typename Hash>
+	/// NOTE: no `Hash` template parameter (it could not be deduced, so this
+	/// 	overload could not be called), uses `std::hash`
+	template<typename RandIt>
 #if __cplusplus > 201709L
-	requires std::random_access_iterator<RandIt> and
-			 HashFunction<Hash, typename RandIt::value_type>
+	requires std::random_access_iterator<RandIt>
 #endif
 	constexpr RandIt interpolation_search(RandIt first,
 										  RandIt last,

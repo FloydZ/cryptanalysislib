@@ -1,3 +1,4 @@
+#include <vector>
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cstdint>
@@ -48,6 +49,14 @@ TEST(reverse, non_contiguous_and_constexpr) {
 
 	constexpr auto r = []() { std::array<uint32_t, 5> a = {1, 2, 3, 4, 5}; cryptanalysislib::reverse(a.begin(), a.end()); return a; }();
 	static_assert(r[0] == 5 && r[4] == 1);
+}
+
+TEST(reverse, reverse_copy) {
+	const std::vector<uint32_t> v = {1, 2, 3, 4, 5};
+	std::vector<uint32_t> o(6, 0);
+	EXPECT_EQ(cryptanalysislib::reverse_copy(v.begin(), v.end(), o.begin()), o.begin() + 5);
+	EXPECT_EQ(o, (std::vector<uint32_t>{5, 4, 3, 2, 1, 0}));
+	EXPECT_EQ(cryptanalysislib::reverse_copy(v.begin(), v.begin(), o.begin()), o.begin());
 }
 
 int main(int argc, char **argv) {

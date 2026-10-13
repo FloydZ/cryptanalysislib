@@ -5,6 +5,7 @@
 /// Class for computing the Golay-Rudin-Shapiro sequence (OEIS A020985)
 /// The sequence determines whether the GRS value is negative at a given index
 class gsr_negative {
+public:
 
 /// Determines whether the Golay-Rudin-Shapiro sequence is negative for a given index
 /// Returns 1 for indices where the GRS value is negative
@@ -18,7 +19,7 @@ class gsr_negative {
 /// \return 1 if GRS value is negative at index x, 0 otherwise
 static inline uint64_t grs_negative_q(uint64_t x)
 {
-    return  parity( x & (x>>1) );
+    return  __builtin_parityll( x & (x>>1) );
 }
 // -------------------------
 
@@ -30,11 +31,9 @@ static inline uint64_t grs_negative_q(uint64_t x)
 /// \return GRS value at index k+1
 static inline uint64_t grs_next(uint64_t k, uint64_t g)
 {
-#if BITS_PER_LONG > 32
-    const uint64_t cm = 0x5555555555555554UL;  // 64-bit version
-#else
-    const uint64_t cm = 0x55555554UL;
-#endif
+    // NOTE: `BITS_PER_LONG` is not defined here (the 32 bit mask was always
+    //  used), the arguments are 64 bit
+    const uint64_t cm = 0x5555555555555554UL;
     uint64_t h = ~k;  h &= -h;  // == lowest_zero(k);
     g ^= ( ((h&cm) ^ ((k>>1)&h)) !=0 );
     return  g;

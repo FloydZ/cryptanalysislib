@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <vector>
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cstdint>
@@ -85,6 +87,19 @@ TEST(remove, multithreading) {
 	                                            [](const auto &x) { return x.size() == 1; });
 	ASSERT_EQ(rv - vv.begin(), (1u << 17) - 1u);
 	for (auto it = vv.begin(); it != rv; ++it) { EXPECT_EQ(*it, (std::vector<uint32_t>{1, 2})); }
+}
+
+TEST(remove, remove_copy) {
+	const std::vector<uint32_t> v = {1, 2, 1, 3, 4, 1, 5};
+	std::vector<uint32_t> o(v.size(), 0), e(v.size(), 0);
+	EXPECT_EQ(cryptanalysislib::remove_copy(v.begin(), v.end(), o.begin(), 1u) - o.begin(),
+	          std::remove_copy(v.begin(), v.end(), e.begin(), 1u) - e.begin());
+	EXPECT_EQ(o, e);
+	const auto odd = [](const uint32_t x) { return (x & 1u) != 0; };
+	std::fill(o.begin(), o.end(), 0); std::fill(e.begin(), e.end(), 0);
+	EXPECT_EQ(cryptanalysislib::remove_copy_if(v.begin(), v.end(), o.begin(), odd) - o.begin(),
+	          std::remove_copy_if(v.begin(), v.end(), e.begin(), odd) - e.begin());
+	EXPECT_EQ(o, e);
 }
 
 int main(int argc, char **argv) {

@@ -8,7 +8,7 @@ using ::testing::InitGoogleTest;
 using ::testing::Test;
 using namespace cryptanalysislib;
 
-#if defined(USE_AVX2) && defined(USE_BMI2)
+// NOTE: `pext32_emu` is portable, the BMI2/AVX2/AVX-512 tests are x86 only
 #include "algorithm/bits/pext.h"
 
 /// portable reference: extracts the bits of `v` at the set bits of `m` into the low bits
@@ -32,17 +32,19 @@ static void gen(std::vector<uint32_t> &data, std::vector<uint32_t> &mask, const 
 	}
 }
 
-TEST(pext, reference_vs_bmi2) {
-	std::vector<uint32_t> d, m; gen(d, m, 4096);
-	for (size_t i = 0; i < d.size(); ++i) {
-		EXPECT_EQ(pext_ref(d[i], m[i]), _pext_u32(d[i], m[i])) << i;
-	}
-}
 
 TEST(pext, emu) {
 	std::vector<uint32_t> d, m; gen(d, m, 4096);
 	for (size_t i = 0; i < d.size(); ++i) {
 		EXPECT_EQ(pext32_emu(d[i], m[i]), pext_ref(d[i], m[i])) << std::hex << d[i] << " " << m[i];
+	}
+}
+
+#if defined(USE_AVX2) && defined(USE_BMI2)
+TEST(pext, reference_vs_bmi2) {
+	std::vector<uint32_t> d, m; gen(d, m, 4096);
+	for (size_t i = 0; i < d.size(); ++i) {
+		EXPECT_EQ(pext_ref(d[i], m[i]), _pext_u32(d[i], m[i])) << i;
 	}
 }
 

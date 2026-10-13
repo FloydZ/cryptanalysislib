@@ -1,3 +1,8 @@
+#pragma once
+
+#include <cstddef>
+#include <string>
+
 constexpr int get_string_size(const char * input,int i = 0) {
     return input[i] == '\0' ? i : get_string_size(input,i+1);
 }

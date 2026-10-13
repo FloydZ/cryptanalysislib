@@ -126,8 +126,9 @@ namespace cryptanalysislib {
             }
             
             // If we exhausted the input before filling the reservoir, return
+            // NOTE: the end of the `i` written elements (was `out - i`, the begin)
             if (first == last) {
-                return out - i;
+                return out;
             }
             
             // Continue with reservoir sampling

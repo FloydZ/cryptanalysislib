@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <iostream>
 
 
 /// Class for generating combinations in minimal-change order using the revolving-door algorithm

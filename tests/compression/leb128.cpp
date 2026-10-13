@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <algorithm>
+#include <vector>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -92,6 +94,21 @@ TEST(leb128, skip) {
 		uint8_t *q = (uint8_t *) leb128_skip(buf, k);
 		EXPECT_EQ(leb128_decode<uint32_t>(&q), in[k]);
 	}
+}
+
+/// the array/vector encoders and the array decoder
+TEST(leb128, arrays) {
+	std::vector<uint64_t> in(1000);
+	for (size_t i = 0; i < in.size(); ++i) { in[i] = (i % 7 == 0) ? ~0ull >> (i % 64) : i * i; }
+	std::vector<uint8_t> buf(in.size() * 10, 0);
+	const size_t len = leb128_encode(buf, in);
+	std::vector<uint8_t> buf2(in.size() * 10, 0);
+	EXPECT_EQ(leb128_encode(buf2.data(), in.data(), in.size()), len);
+	EXPECT_TRUE(std::equal(buf.begin(), buf.begin() + len, buf2.begin()));
+
+	std::vector<uint64_t> out(in.size() + 1, 0);
+	EXPECT_EQ(leb128_decode(out.data(), buf.data(), len), in.size());
+	EXPECT_TRUE(std::equal(in.begin(), in.end(), out.begin()));
 }
 
 int main(int argc, char **argv) {

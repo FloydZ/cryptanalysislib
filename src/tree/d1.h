@@ -494,12 +494,14 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy&& policy,
 								const bool prepare,
 								F f) noexcept {
 	/// INIT THREADS
-	auto& task_pool = *policy.pool();
 	if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 		return join2lists_on_iT_v2
 				<k_lower, k_upper>
 				(out, L1, L2, hm2, target, prepare);
 	}
+	// NOTE: the pool only exists for parallel policies (`seq.pool()` is
+	// 	null), so it is not dereferenced before the sequential check
+	auto& task_pool = *policy.pool();
 
 
 	std::vector<std::future<size_t>> futures;

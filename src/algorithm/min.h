@@ -36,7 +36,9 @@ namespace cryptanalysislib {
                                  const T b) {
             constexpr static size_t BITS = sizeof(T) * 8u;
             T d = b - a;
-            d &= (T)( (long)d >> (BITS-1) );
+            // NOTE: arithmetic shift in the signed type of T: `(long)d` zero
+            //  extended unsigned 32 bit values, the mask was 0/1, not 0/-1
+            d &= (T)( (std::make_signed_t<T>)d >> (BITS-1) );
             return  a + d;
         }
     

@@ -466,12 +466,14 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_hashmap_v2(
                                             const LabelType &iT,
                                             F f) noexcept {
 
-	auto& task_pool = *policy.pool();
 	if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 		return twolevel_streamjoin_on_iT_hashmap_v2
 				<k_lower1, k_upper1, k_lower2, k_upper2, HashMap1, HashMap2>
 				(out, L1, L2, hmiL, hmL2, target, iT, f);
 	}
+	// NOTE: the pool only exists for parallel policies (`seq.pool()` is
+	// 	null), so it is not dereferenced before the sequential check
+	auto& task_pool = *policy.pool();
 
 	static_assert(k_lower1 < k_upper1);
 	static_assert(k_lower2 < k_upper2);

@@ -137,12 +137,15 @@ namespace cryptanalysislib {
     /// \param last1[in]: Iterator to the end of the first range
     /// \param first2[in]: Iterator to the beginning of the second range
     /// \return Pair of iterators pointing to the first mismatch
+    /// NOTE: `ExecPolicy` is constrained, otherwise the 4 iterator call
+    /// 	`mismatch(first1, last1, first2, last2)` is ambiguous with this one
     template<class ExecPolicy,
              class InputIt1, 
              class InputIt2,
              const AlgorithmMismatchConfig config=algorithmMismatchConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt1> &&
+		requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<InputIt1> &&
                  std::random_access_iterator<InputIt2>
 #endif
     constexpr std::pair<InputIt1, InputIt2>
@@ -215,7 +218,8 @@ namespace cryptanalysislib {
              class BinaryPred,
              const AlgorithmMismatchConfig config=algorithmMismatchConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt1> &&
+		requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<InputIt1> &&
                  std::random_access_iterator<InputIt2> &&
     			 std::regular_invocable<BinaryPred,
 									const typename InputIt1::value_type&,
@@ -285,7 +289,8 @@ namespace cryptanalysislib {
              class InputIt2,
              const AlgorithmMismatchConfig config=algorithmMismatchConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt1> &&
+		requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<InputIt1> &&
                  std::random_access_iterator<InputIt2>
 #endif
     constexpr std::pair<InputIt1, InputIt2>
@@ -365,7 +370,8 @@ namespace cryptanalysislib {
              class BinaryPred,
              const AlgorithmMismatchConfig config=algorithmMismatchConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt1> &&
+		requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<InputIt1> &&
                  std::random_access_iterator<InputIt2> &&
     			 std::regular_invocable<BinaryPred,
 									const typename InputIt1::value_type&,

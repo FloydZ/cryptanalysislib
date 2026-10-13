@@ -146,10 +146,15 @@ namespace cryptanalysislib {
 								  RandIt last,
 								  const typename RandIt::value_type & value) noexcept {
 		using T = RandIt::value_type;
-		if constexpr (std::is_unsigned_v<T>) {
-			return internal::count_uXX_simd(&(*first),
-											static_cast<size_t>(std::distance(first, last)),
-											value);
+		// NOTE: the SIMD kernel reads [first, last) as an array: only for
+		// 	contiguous iterators (a `std::list` range was read as an array),
+		// 	and `first` must not be dereferenced for an empty range
+		if constexpr (std::is_unsigned_v<T> && std::contiguous_iterator<RandIt>) {
+			const size_t n = static_cast<size_t>(last - first);
+			if (n == 0) {
+				return 0;
+			}
+			return internal::count_uXX_simd(&(*first), n, value);
 		}
 
 		auto p = [&value](const T& test) __attribute__((always_inline)) {

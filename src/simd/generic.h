@@ -14,6 +14,8 @@
 using namespace cryptanalysislib;
 
 
+/// NOTE: the SIMD parts call the named functions (`simd256_type::NAME`)
+/// 	instead of the operators, which only exist for the unsigned types
 #define SIMD_ARITH_MACRO(OPERATION, NAME) 										\
 [[nodiscard]] constexpr static inline TxN_t NAME(const TxN_t &in1,				\
 												 const TxN_t &in2) noexcept {	\
@@ -27,7 +29,7 @@ using namespace cryptanalysislib;
 	uint32_t i = 0;																\
 	if constexpr (simd512_enable) {												\
 		for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {		\
-			out.v512[i / nr_limbs_in_simd512] = in1.v512[i / nr_limbs_in_simd512] OPERATION in2.v512[i / nr_limbs_in_simd512];\
+			out.v512[i / nr_limbs_in_simd512] = simd512_type::NAME(in1.v512[i / nr_limbs_in_simd512], in2.v512[i / nr_limbs_in_simd512]);\
 		}																		\
 		if constexpr (simd512_fits) {											\
 			return out;															\
@@ -35,7 +37,7 @@ using namespace cryptanalysislib;
 	}																			\
 	if constexpr (simd256_enable) {												\
 		for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {		\
-			out.v256[i / nr_limbs_in_simd256] = in1.v256[i / nr_limbs_in_simd256] OPERATION in2.v256[i / nr_limbs_in_simd256];\
+			out.v256[i / nr_limbs_in_simd256] = simd256_type::NAME(in1.v256[i / nr_limbs_in_simd256], in2.v256[i / nr_limbs_in_simd256]);\
 		}																		\
 		if constexpr (simd256_fits) {											\
 			return out;															\
@@ -96,6 +98,8 @@ public:
     constexpr static bool __unsigned = std::is_unsigned_v<T>;
 	using limb_type = T;
 	using S = TxN_t<T, N>;
+	/// the shifts/rotations are computed in the unsigned type (logical shifts)
+	using U = std::make_unsigned_t<T>;
 
 	static_assert(N > 0);
 
@@ -400,6 +404,14 @@ public:
 
 
 	/// \param in1
+	/// \param in2 scalar
+	/// \return [in1[0]*in2, ..., in1[N-1]*in2] (lower half of each product)
+	[[nodiscard]] constexpr static inline TxN_t mullo(const TxN_t &in1,
+	                                                  const T in2) noexcept {
+		return mullo(in1, set1(in2));
+	}
+
+	/// \param in1
 	/// \param in2
 	/// \return
 	[[nodiscard]] constexpr static inline TxN_t andnot_(const TxN_t &in1, 
@@ -415,7 +427,7 @@ public:
 		uint32_t i = 0;
 		if constexpr (simd512_enable) {
 			for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
-				ret.v512[i / nr_limbs_in_simd512] = ~in1.v512[i / nr_limbs_in_simd512] & in2.v512[i / nr_limbs_in_simd512];
+				ret.v512[i / nr_limbs_in_simd512] = simd512_type::andnot(in1.v512[i / nr_limbs_in_simd512], in2.v512[i / nr_limbs_in_simd512]);
 			}
 
 			if constexpr (simd512_fits) {
@@ -425,7 +437,7 @@ public:
 
 		if constexpr (simd256_enable) {
 			for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
-				ret.v256[i / nr_limbs_in_simd256] = ~in1.v256[i / nr_limbs_in_simd256] & in2.v256[i / nr_limbs_in_simd256];
+				ret.v256[i / nr_limbs_in_simd256] = simd256_type::andnot(in1.v256[i / nr_limbs_in_simd256], in2.v256[i / nr_limbs_in_simd256]);
 			}
 
 			if constexpr (simd256_fits) {
@@ -438,6 +450,12 @@ public:
 		}
 
 		return ret;
+	}
+
+	/// \return (~in1) & in2, same as `andnot_` (the name used by all backends)
+	[[nodiscard]] constexpr static inline TxN_t andnot(const TxN_t &in1,
+	                                                   const TxN_t &in2) noexcept {
+		return andnot_(in1, in2);
 	}
 
 	/// double width type for the products in `mul`/`mulhi`
@@ -516,7 +534,7 @@ public:
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {
-				ret.d[i] = in1[i] << in2;
+				ret.d[i] = (T)((U)in1[i] << in2);
 			}
 			return ret;
 		}
@@ -543,7 +561,7 @@ public:
 		}
 
 		for (; i < N; ++i) {
-			ret.d[i] = in1.d[i] << in2;
+			ret.d[i] = (T)((U)in1.d[i] << in2);
 		}
 
 		return ret;
@@ -557,7 +575,7 @@ public:
 		TxN_t ret;
 		if (std::is_constant_evaluated()) {
 			for (uint32_t i = 0; i < LIMBS; ++i) {
-				ret.d[i] = in1[i] >> in2;
+				ret.d[i] = (T)((U)in1[i] >> in2);
 			}
 			return ret;
 		}
@@ -584,7 +602,7 @@ public:
 		}
 
 		for (; i < N; ++i) {
-			ret.d[i] = in1.d[i] >> in2;
+			ret.d[i] = (T)((U)in1.d[i] >> in2);
 		}
 
 		return ret;
@@ -596,7 +614,8 @@ public:
 		const uint32_t s = in2 % bits;
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; ++i) {
-			ret.d[i] = s ? T((in1.d[i] >> s) | (in1.d[i] << (bits - s))) : in1.d[i];
+			const U x = (U)in1.d[i];
+			ret.d[i] = s ? T((U)(x >> s) | (U)(x << (bits - s))) : in1.d[i];
 		}
 		return ret;
 	}
@@ -605,7 +624,8 @@ public:
 		const uint32_t s = in2 % bits;
 		TxN_t ret;
 		for (uint32_t i = 0; i < N; ++i) {
-			ret.d[i] = s ? T((in1.d[i] << s) | (in1.d[i] >> (bits - s))) : in1.d[i];
+			const U x = (U)in1.d[i];
+			ret.d[i] = s ? T((U)(x << s) | (U)(x >> (bits - s))) : in1.d[i];
 		}
 		return ret;
 	}
@@ -613,8 +633,11 @@ public:
 
 
 	SIMD_FUNCTION_2ARGS_MACRO(lt_, <)
+	SIMD_FUNCTION_2ARGS_MACRO(le_, <=)
 	SIMD_FUNCTION_2ARGS_MACRO(gt_, >)
-	SIMD_FUNCTION_2ARGS_MACRO(cmp_, ==)
+	SIMD_FUNCTION_2ARGS_MACRO(ge_, >=)
+	// NOTE: `cmp_` is `!=` (-1 if the limbs differ), as in all backends
+	SIMD_FUNCTION_2ARGS_MACRO(cmp_, !=)
 	SIMD_FUNCTION_2ARGS_MACRO(eq_, ==)
 
 	/// one bit per lane (bit i = lane i): the smallest unsigned integer with
@@ -635,6 +658,21 @@ public:
 	[[nodiscard]] constexpr static inline mask_type eq(const TxN_t &in1,
 	                                                   const TxN_t &in2) noexcept {
 		const auto tmp = S::eq_(in1, in2);
+		return S::move(tmp);
+	}
+	[[nodiscard]] constexpr static inline mask_type ge(const TxN_t &in1,
+	                                                   const TxN_t &in2) noexcept {
+		const auto tmp = S::ge_(in1, in2);
+		return S::move(tmp);
+	}
+	[[nodiscard]] constexpr static inline mask_type le(const TxN_t &in1,
+	                                                   const TxN_t &in2) noexcept {
+		const auto tmp = S::le_(in1, in2);
+		return S::move(tmp);
+	}
+	[[nodiscard]] constexpr static inline mask_type cmp(const TxN_t &in1,
+	                                                    const TxN_t &in2) noexcept {
+		const auto tmp = S::cmp_(in1, in2);
 		return S::move(tmp);
 	}
 
@@ -786,9 +824,9 @@ public:
 			}
 		}
 
-		constexpr limb_type mask = 1ull << ((sizeof(limb_type) * 8) - 1ull);
+		// NOTE: in the unsigned type, `(d & mask) > 0` is false for signed limbs
 		for (; i < N; ++i) {
-			ret ^= mask_type((in1.d[i] & mask) > 0) << i;
+			ret ^= mask_type((U)in1.d[i] >> (limb_bits - 1u)) << i;
 		}
 
 		return ret;
@@ -828,12 +866,13 @@ template<typename T, const uint32_t N>
 constexpr inline TxN_t<T, N> operator*(const TxN_t<T, N> &lhs, const TxN_t<T, N> &rhs) noexcept {
 	return TxN_t<T, N>::mullo(lhs, rhs);
 }
+/// NOTE: the scalar is a `T` (non-deduced), so it is not truncated to 8 bits
 template<typename T, const uint32_t N>
-constexpr inline TxN_t<T, N> operator*(const TxN_t<T, N> &lhs, const uint8_t &rhs) noexcept {
+constexpr inline TxN_t<T, N> operator*(const TxN_t<T, N> &lhs, const std::type_identity_t<T> &rhs) noexcept {
 	return TxN_t<T, N>::mullo(lhs, rhs);
 }
 template<typename T, const uint32_t N>
-constexpr inline TxN_t<T, N> operator*(const uint8_t &lhs, const TxN_t<T, N> &rhs) noexcept {
+constexpr inline TxN_t<T, N> operator*(const std::type_identity_t<T> &lhs, const TxN_t<T, N> &rhs) noexcept {
 	return TxN_t<T, N>::mullo(rhs, lhs);
 }
 template<typename T, const uint32_t N>

@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include <cstdint>
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -114,6 +115,18 @@ INSTANTIATE_TYPED_TEST_SUITE_P(My, Max, MyTypes);
 
 
 
+
+/// branchless max of non negative values (msb clear)
+TEST(max, max_branchless) {
+	for (uint32_t i = 0; i < 100000; ++i) {
+		const uint32_t a = rng<uint32_t>() >> 1, b = rng<uint32_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::max_branchless<uint32_t>(a, b), std::max(a, b)) << a << " " << b;
+		const uint64_t c = rng<uint64_t>() >> 1, d = rng<uint64_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::max_branchless<uint64_t>(c, d), std::max(c, d)) << c << " " << d;
+		const int16_t e = rng<uint16_t>() >> 1, f = rng<uint16_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::max_branchless<int16_t>(e, f), std::max(e, f));
+	}
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

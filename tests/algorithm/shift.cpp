@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <vector>
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cstdint>
@@ -70,6 +72,25 @@ TEST(shift, forward_iterator) {
 	auto r = cryptanalysislib::shift_left(l.begin(), l.end(), 2);
 	EXPECT_EQ(std::distance(l.begin(), r), 3);
 	EXPECT_EQ(*l.begin(), 3);
+}
+
+/// `shift` dispatches on the sign of n: positive = shift_right, negative =
+/// shift_left; it returns the new position of the first element that was not
+/// discarded (`first` for n <= 0, as documented; `std::shift_left` returns the end)
+TEST(shift, shift_sign) {
+	for (const long n : {-7L, -3L, -1L, 0L, 1L, 3L, 7L}) {
+		std::vector<uint32_t> a = {1, 2, 3, 4, 5}, e = a;
+		const auto r = cryptanalysislib::shift(a.begin(), a.end(), n);
+		if (n > 0) {
+			const auto re = std::shift_right(e.begin(), e.end(), n);
+			EXPECT_EQ(r - a.begin(), re - e.begin()) << n;
+			EXPECT_TRUE(std::equal(r, a.end(), re)) << n;
+		} else {
+			EXPECT_EQ(r, a.begin()) << n;
+			const auto re = std::shift_left(e.begin(), e.end(), -n);
+			EXPECT_TRUE(std::equal(e.begin(), re, a.begin())) << n;
+		}
+	}
 }
 
 int main(int argc, char **argv) {

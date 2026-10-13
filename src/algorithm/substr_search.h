@@ -8,7 +8,7 @@
 #include <immintrin.h>
 #endif
 
-#ifdef USE_NEON
+#ifdef USE_ARM
 #include <arm_neon.h>
 #endif
 
@@ -89,6 +89,10 @@ namespace cryptanalysislib::algorithm {
 
             // Precomputed constants.
             uint8_t const *h_ptr = haystack.data;
+            // NOTE: `h_end` must not be computed if the needle is longer (UB)
+            if (haystack.len < needle.len) {
+                return not_found_k;
+            }
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
             size_t const n_suffix_len = needle.len - 4;
             // NOTE: unaligned 4-byte loads via memcpy (a reinterpret_cast load is UB)
@@ -131,6 +135,10 @@ namespace cryptanalysislib::algorithm {
                 return naive_substr(haystack, needle);
             }
 
+            // NOTE: `h_end` must not be computed if the needle is longer (UB)
+            if (haystack.len < needle.len) {
+                return not_found_k;
+            }
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
             __m256i const n_prefix = _mm256_set1_epi32(*(uint32_t const *)(needle.data));
 
@@ -175,6 +183,10 @@ namespace cryptanalysislib::algorithm {
             }
 
             // Precomputed constants.
+            // NOTE: `h_end` must not be computed if the needle is longer (UB)
+            if (haystack.len < needle.len) {
+                return not_found_k;
+            }
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
             __m256i const n_prefix = _mm256_set1_epi32(*(uint32_t const *)(needle.data));
 
@@ -228,6 +240,10 @@ namespace cryptanalysislib::algorithm {
            if (needle.len < 5)
                 return naive_substr(haystack, needle);
 
+            // NOTE: `h_end` must not be computed if the needle is longer (UB)
+            if (haystack.len < needle.len) {
+                return not_found_k;
+            }
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
             __m256i const n_prefix = _mm256_set1_epi32(*(uint32_t const *)(needle.data));
 
@@ -324,6 +340,10 @@ namespace cryptanalysislib::algorithm {
                 return naive_substr(haystack, needle);
 
             // Precomputed constants.
+            // NOTE: `h_end` must not be computed if the needle is longer (UB)
+            if (haystack.len < needle.len) {
+                return not_found_k;
+            }
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
             __m512i const n_prefix = _mm512_set1_epi32(*(uint32_t const *)(needle.data));
 
@@ -355,7 +375,7 @@ namespace cryptanalysislib::algorithm {
         }
 #endif
 
-#ifdef USE_NEON
+#ifdef USE_ARM
 
         /// Speculative SIMD version for ARM NEON instruction set
         /// Matching performance is ~ 5-8 GB/s on ARM processors
@@ -373,6 +393,10 @@ namespace cryptanalysislib::algorithm {
                 return naive_substr(haystack, needle);
 
             // Precomputed constants.
+            // NOTE: `h_end` must not be computed if the needle is longer (UB)
+            if (haystack.len < needle.len) {
+                return not_found_k;
+            }
             uint8_t const *const h_end = haystack.data + haystack.len - needle.len;
             // NOTE: unaligned loads only via memcpy/byte loads (see `prefix_substr`)
             uint32_t n_prefix32;

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 /// Class for working with sequency (number of bit transitions) in binary words
 /// Provides utilities for generating, analyzing, and manipulating words based on their sequency
 ///  ...1.1.1 ->

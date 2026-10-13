@@ -2,6 +2,8 @@
 #define CRYPTANALYSISLIB_TRIPLE_H
 
 #include <type_traits>
+#include <cstddef>
+#include <ostream>
 
 ///
 struct ConfigTriple {

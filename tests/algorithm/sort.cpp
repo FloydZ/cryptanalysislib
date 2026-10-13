@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <vector>
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cstdint>
@@ -38,6 +40,24 @@ TEST(sort, partial_sort) {
 			EXPECT_EQ(v, e) << "not a permutation " << n << " " << k;
 		}
 	}
+}
+
+/// sort by an extracted key (ska_sort) and partial_sort with a comparator
+TEST(sort, extract_key_and_comparator) {
+	struct P { uint32_t key, payload; };
+	std::vector<P> v(1000);
+	for (size_t i = 0; i < v.size(); ++i) { v[i] = P{(uint32_t)(i * 2654435761u) % 997u, (uint32_t)i}; }
+	cryptanalysislib::sort(v.begin(), v.end(), [](const P &p) { return p.key; });
+	EXPECT_TRUE(std::is_sorted(v.begin(), v.end(), [](const P &a, const P &b) { return a.key < b.key; }));
+
+	std::vector<uint32_t> w(500), e;
+	for (size_t i = 0; i < w.size(); ++i) { w[i] = (uint32_t)(i * 2654435761u); }
+	e = w;
+	cryptanalysislib::partial_sort(w.begin(), w.begin() + 37, w.end(), std::greater<>());
+	std::sort(e.begin(), e.end(), std::greater<>());
+	EXPECT_TRUE(std::equal(w.begin(), w.begin() + 37, e.begin()));
+	EXPECT_TRUE(cryptanalysislib::is_sorted(w.begin(), w.begin() + 37, std::greater<>()));
+	EXPECT_FALSE(cryptanalysislib::is_sorted(w.begin(), w.end(), std::greater<>()));
 }
 
 int main(int argc, char **argv) {

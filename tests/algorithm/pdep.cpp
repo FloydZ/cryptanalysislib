@@ -8,7 +8,7 @@ using ::testing::InitGoogleTest;
 using ::testing::Test;
 using namespace cryptanalysislib;
 
-#if defined(USE_AVX2) && defined(USE_BMI2)
+// NOTE: `pdep32_emu` is portable, the BMI2/AVX2/AVX-512 tests are x86 only
 #include "algorithm/bits/pdep.h"
 
 /// portable reference: deposits the low bits of `v` at the set bits of `m`
@@ -32,17 +32,19 @@ static void gen(std::vector<uint32_t> &data, std::vector<uint32_t> &mask, const 
 	}
 }
 
-TEST(pdep, reference_vs_bmi2) {
-	std::vector<uint32_t> d, m; gen(d, m, 4096);
-	for (size_t i = 0; i < d.size(); ++i) {
-		EXPECT_EQ(pdep_ref(d[i], m[i]), _pdep_u32(d[i], m[i])) << i;
-	}
-}
 
 TEST(pdep, emu) {
 	std::vector<uint32_t> d, m; gen(d, m, 4096);
 	for (size_t i = 0; i < d.size(); ++i) {
 		EXPECT_EQ(pdep32_emu(d[i], m[i]), pdep_ref(d[i], m[i])) << std::hex << d[i] << " " << m[i];
+	}
+}
+
+#if defined(USE_AVX2) && defined(USE_BMI2)
+TEST(pdep, reference_vs_bmi2) {
+	std::vector<uint32_t> d, m; gen(d, m, 4096);
+	for (size_t i = 0; i < d.size(); ++i) {
+		EXPECT_EQ(pdep_ref(d[i], m[i]), _pdep_u32(d[i], m[i])) << i;
 	}
 }
 

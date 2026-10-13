@@ -1049,11 +1049,13 @@ namespace cryptanalysislib::algorithm {
 										   C *__restrict__ cnt,
 										   const T *__restrict in,
 										   const size_t size) noexcept {
-        auto& task_pool = *policy.pool();
 		const uint32_t nthreads = should_par(policy, config, size);
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 			return cryptanalysislib::algorithm::histogram(cnt, in, size);
 		}
+		// NOTE: the pool only exists for parallel policies (`seq.pool()` is
+		// 	null), so it is not dereferenced before the sequential check
+		auto& task_pool = *policy.pool();
 
 
         std::vector<std::future<void>> futures;

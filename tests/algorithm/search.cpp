@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cstdint>
+#include <algorithm>
+#include <vector>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -84,6 +86,25 @@ REGISTER_TYPED_TEST_SUITE_P(Search, simple, simple_n, search_n_random);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Search, MyTypes);
 
+
+/// SIMD kernel and predicate overloads of search_n against std::search_n
+TEST(Search, search_n_simd_and_predicate) {
+	for (const size_t s : {size_t(0), size_t(1), size_t(33), size_t(1000), size_t(1u << 21)}) {
+		std::vector<uint32_t> v(s);
+		for (size_t i = 0; i < s; ++i) { v[i] = (i % 50u) < 7u ? 1u : (uint32_t)(i & 0xffu) | 2u; }
+		if (s > 100) { for (size_t i = s - 30; i < s - 10; ++i) { v[i] = 1u; } }
+		for (const size_t count : {size_t(0), size_t(1), size_t(7), size_t(8), size_t(20), size_t(21)}) {
+			const auto e = std::search_n(v.begin(), v.end(), count, 1u);
+			EXPECT_EQ(cryptanalysislib::internal::search_n_uXX_simd<uint32_t>(v.data(), s, count, 1u),
+			          size_t(e - v.begin())) << s << " " << count;
+			// predicate: equal modulo 2 (every odd value is a match of 1)
+			const auto p = [](const uint32_t a, const uint32_t b) { return (a & 1u) == (b & 1u); };
+			const auto ep = std::search_n(v.begin(), v.end(), count, 1u, p);
+			EXPECT_EQ(cryptanalysislib::search_n(v.begin(), v.end(), count, 1u, p), ep) << s << " " << count;
+			EXPECT_EQ(cryptanalysislib::search_n(par_if(true), v.begin(), v.end(), count, 1u, p), ep) << s << " " << count;
+		}
+	}
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

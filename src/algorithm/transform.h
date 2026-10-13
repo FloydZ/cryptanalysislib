@@ -308,16 +308,27 @@ namespace cryptanalysislib {
 			return cryptanalysislib::transform_reduce(first1, last1, first2, init, reduce_op, transform_op);
 		}
 
+		// NOTE: every chunk is non-empty and is reduced without `init` (each
+		// 	chunk added `init` before, and the final reduction once more)
+		auto chunk = [reduce_op, transform_op](RandIt1 b1, RandIt1 e1, RandIt2 b2) noexcept -> T {
+			T r = transform_op(*b1, *b2);
+			for (++b1, ++b2; b1 != e1; ++b1, ++b2) {
+				r = reduce_op(r, transform_op(*b1, *b2));
+			}
+			return r;
+		};
 		auto futures = internal::parallel_chunk_for_2(
 			std::forward<ExecPolicy>(policy), first1, last1, first2,
-				 cryptanalysislib::transform_reduce<RandIt1, RandIt2, BinaryReductionOp, BinaryTransformOp, config>,
+				chunk,
 				(T*)nullptr,
-				nthreads,
-				init, reduce_op, transform_op);
+				nthreads);
 
-		return std::reduce(
-			internal::get_wrap(futures.begin()),
-			internal::get_wrap(futures.end()), init, reduce_op);
+		// `init` is added exactly once
+		T ret = init;
+		for (auto &f : futures) {
+			ret = reduce_op(ret, f.get());
+		}
+		return ret;
 	}
 
 	/// Parallel transform-reduce operation for two ranges using default addition and multiplication

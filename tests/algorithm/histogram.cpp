@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <algorithm>
+#include <vector>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -160,6 +162,31 @@ TEST(avx512_hist256_2, DISABLED_single) {
 	cryptanalysislib::aligned_free(data); free(cnt);
 }
 #endif
+
+/// the generic and parallel histograms and the 8-way u8 kernel
+TEST(histogram, generic_parallel_8x) {
+	const size_t s = (1u << 22) + 13u;
+	std::vector<uint8_t> d(s);
+	std::vector<uint16_t> d16(s);
+	for (size_t i = 0; i < s; ++i) { d[i] = rng<uint8_t>(); d16[i] = rng<uint16_t>(); }
+	std::vector<uint32_t> e(256, 0), e16(1u << 16, 0);
+	for (size_t i = 0; i < s; ++i) { e[d[i]] += 1; e16[d16[i]] += 1; }
+
+	std::vector<uint32_t> c(256, 7), c16(1u << 16, 7);
+	histogram_u8_8x(c.data(), d.data(), s);
+	EXPECT_EQ(c, e);
+	std::fill(c.begin(), c.end(), 7u);
+	cryptanalysislib::algorithm::histogram(c.data(), d.data(), s);
+	EXPECT_EQ(c, e);
+	std::fill(c.begin(), c.end(), 7u);
+	cryptanalysislib::algorithm::histogram(par_if(true), c.data(), d.data(), s);
+	EXPECT_EQ(c, e);
+	cryptanalysislib::algorithm::histogram<uint16_t>(c16.data(), d16.data(), s);
+	EXPECT_EQ(c16, e16);
+	std::fill(c16.begin(), c16.end(), 7u);
+	cryptanalysislib::algorithm::histogram(par_if(true), c16.data(), d16.data(), s);
+	EXPECT_EQ(c16, e16);
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

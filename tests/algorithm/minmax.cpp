@@ -39,6 +39,35 @@ TEST(minmax, values) {
 	EXPECT_EQ(cryptanalysislib::minmax(a, b).first, 1);
 }
 
+/// `minmax`/`minmax_element` with a comparator, the SIMD kernels
+TEST(MinMax, comparator_and_simd) {
+	const auto gt = [](const uint32_t a, const uint32_t b) { return a > b; };
+	const uint32_t x = 3, y = 7;
+	const auto p = cryptanalysislib::minmax(x, y, gt);
+	EXPECT_EQ(p.first, 7u);
+	EXPECT_EQ(p.second, 3u);
+	const auto q = cryptanalysislib::minmax(x, x, gt);
+	EXPECT_EQ(&q.first, &x);
+
+	for (const size_t s : {size_t(0), size_t(1), size_t(2), size_t(31), size_t(1000)}) {
+		std::vector<uint32_t> v(s);
+		for (size_t i = 0; i < s; ++i) { v[i] = (uint32_t)(i * 2654435761u) % 1000u; }
+		const auto e = std::minmax_element(v.begin(), v.end(), gt);
+		const auto r = cryptanalysislib::minmax_element(v.begin(), v.end(), gt);
+		EXPECT_EQ(r.first, e.first) << s;
+		EXPECT_EQ(r.second, e.second) << s;
+		if (s == 0) { continue; }
+
+		const auto m = std::minmax_element(v.begin(), v.end());
+		const auto t1 = cryptanalysislib::internal::simd_minmax_element(v.data(), v.data() + s);
+		EXPECT_EQ(t1.first, *m.first) << s;
+		EXPECT_EQ(t1.second, *m.second) << s;
+		const auto t2 = cryptanalysislib::internal::minmax_element_simd(v.begin(), v.end());
+		EXPECT_EQ(t2.first, *m.first) << s;
+		EXPECT_EQ(t2.second, *m.second) << s;
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

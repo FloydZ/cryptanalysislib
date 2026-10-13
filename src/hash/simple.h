@@ -175,7 +175,8 @@ template<std::integral T,
 		const uint32_t q>
 constexpr inline bool operator==(const Hash<T, l, h, q> &a,
 								 const Hash<T, l, h, q> &b) noexcept {
-	return a.__data == b.__data;
+	// NOTE: via the public `operator()()`, `__data` is private (did not compile)
+	return a() == b();
 }
 
 /// order of two hashes (of their stored value)
@@ -186,7 +187,8 @@ template<std::integral T,
 		const uint32_t q>
 constexpr inline bool operator<=(const Hash<T, l, h, q> &a,
 								 const Hash<T, l, h, q> &b) noexcept {
-	return a.__data <= b.__data;
+	// NOTE: via the public `operator()()`, `__data` is private (did not compile)
+	return a() <= b();
 }
 
 

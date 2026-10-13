@@ -6,6 +6,12 @@
 /// Class for generating and working with lexicographically ordered subsets
 /// Provides utilities to enumerate, convert, and analyze lexicographic representations
 class enumeration_lexicographic {
+    /// \return the highest set bit of x (0 for x == 0)
+    [[nodiscard]] constexpr static inline uint64_t highest_one(const uint64_t x) noexcept {
+        return x ? (uint64_t(1) << (63u - __builtin_clzll(x))) : 0u;
+    }
+
+public:
 
     /// Computes the next word in subset-lexrev order
     /// Start with a one-bit word at position n-1 to generate 2**n subsets of length n
@@ -167,7 +173,7 @@ class enumeration_lexicographic {
             return  1 == x;
         }
     
-        const uint64_t w = __builtin_popcntll(x);
+        const uint64_t w = __builtin_popcountll(x);
         if (w != (w & -w)) {
             return  false;
         }

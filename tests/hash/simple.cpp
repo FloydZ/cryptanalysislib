@@ -52,6 +52,17 @@ TEST(Hash, extract) {
 	EXPECT_EQ((extract<T, 60, 70, 63>(d)), (1u << 10u) - 1u);
 }
 
+/// comparison of two (scalar) hashes
+TEST(Hash, operators) {
+	using H = Hash<uint64_t, 0, 8, 2>;
+	const H a(0x1234u), b(0x1235u), c(0x34u); // the hash is the low byte
+	EXPECT_TRUE(a == c);
+	EXPECT_FALSE(a == b);
+	EXPECT_TRUE(a <= b);
+	EXPECT_TRUE(a <= c);
+	EXPECT_FALSE(b <= a);
+}
+
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 	ident();

@@ -66,6 +66,26 @@ TEST(for_each, chunk) {
 	for (size_t i = 0; i < w.size(); ++i) { EXPECT_EQ(w[i], i); }
 }
 
+/// sequential `for_each` returns the functor, parallel `for_each_n` visits exactly n elements
+TEST(for_each, sequential_and_n) {
+	std::vector<uint64_t> v(1000);
+	for (size_t i = 0; i < v.size(); ++i) { v[i] = i; }
+	struct Sum {
+		uint64_t s = 0;
+		void operator()(uint64_t &x) { s += x; x += 1; }
+	};
+	const Sum r = cryptanalysislib::for_each(v.begin(), v.end(), Sum{});
+	EXPECT_EQ(r.s, 999u * 1000u / 2u);
+	for (size_t i = 0; i < v.size(); ++i) { ASSERT_EQ(v[i], i + 1u); }
+
+	for (const size_t n : {size_t(0), size_t(1), size_t(500), size_t(1u << 20)}) {
+		std::vector<uint32_t> w(n + 4, 0u);
+		auto it = cryptanalysislib::for_each_n(par_if(true), w.begin(), n, [](uint32_t &x) { x += 3u; });
+		EXPECT_EQ(it, w.begin() + n);
+		for (size_t i = 0; i < w.size(); ++i) { ASSERT_EQ(w[i], i < n ? 3u : 0u) << n << " " << i; }
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

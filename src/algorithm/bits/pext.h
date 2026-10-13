@@ -1,7 +1,9 @@
 #pragma once
 
 #include <stdint.h>
+#if defined(__x86_64__) || defined(__i386__)
 #include <immintrin.h>
+#endif
 
 #include "popcount.h"
 #include "algorithm/countl.h"
@@ -11,6 +13,7 @@
 // NOTE: no `using namespace` here: an unqualified `popcount` was ambiguous
 // 	with the namespace `cryptanalysislib::popcount`.
 
+#ifdef USE_AVX2
 /// Source: https://github.com/WojciechMula/toys/blob/master/simd-pdep-pext/pext_avx2.cpp
 /// \param
 template <const uint32_t MAX_MASK_BITS,
@@ -59,7 +62,9 @@ void avx2_pext_u32_reference(const uint32_t* data_arr,
         _mm256_storeu_si256((__m256i*)(&out_arr[i]), out);
     }
 }
+#endif // USE_AVX2
 
+#ifdef USE_AVX512F
 /// Source: https://github.com/WojciechMula/toys/blob/master/simd-pdep-pext/pext_avx512.cpp
 template <const uint32_t MAX_MASK_BITS,
           const bool EARLY_EXIT>
@@ -110,6 +115,7 @@ void avx512_pext_u32_reference(const uint32_t* data_arr,
         _mm512_storeu_si512((__m512i*)(&out_arr[i]), out);
     }
 }
+#endif // USE_AVX512F
 
 
 /// software `pext` (bit extract): for CPUs where `pext` is microcoded
@@ -156,6 +162,7 @@ inline unsigned int pext32_emu(unsigned int v, unsigned int m) {
 			break;
 		}
 		default: {
+#if defined(__PCLMUL__)
 			__m128i mm		= _mm_cvtsi32_si128(~m);
 			__m128i mtwo	= _mm_set1_epi64x((~0ULL) - 1);
 			__m128i clmul	= _mm_clmulepi64_si128(mm, mtwo, 0);
@@ -181,6 +188,17 @@ inline unsigned int pext32_emu(unsigned int v, unsigned int m) {
 					ret		= (unsigned int)((~bit4 & a) | ((bit4 & a) >> 16));
 			break;
 		}
+#else
+			// portable: extract the bits of `v` at the set bits of `m`
+			for (unsigned int k = 1; m; k += k) {
+				const unsigned int low = m & (0u - m);
+				if (v & low) { ret |= k; }
+				m ^= low;
+			}
+			break;
+		}
+#endif
+
 	}
 	return ret;
 };

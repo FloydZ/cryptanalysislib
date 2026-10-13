@@ -2378,12 +2378,14 @@ public:
 									  List &out,
 									  const List &L1, List &L2,
 									  const LabelType &target) noexcept {
-		auto& task_pool = *policy.pool();
 		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 			return join4lists_twolists_on_iT_v2
 					<k_lower1, k_upper2>
 					(out, L1, L2, target);
 		}
+		// NOTE: the pool only exists for parallel policies (`seq.pool()` is
+		// 	null), so it is not dereferenced before the sequential check
+		auto& task_pool = *policy.pool();
 
 		//using D = typename LabelType::DataType;
 		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {

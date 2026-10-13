@@ -284,7 +284,7 @@ template <typename Type>
 #endif
 constexpr size_t idx_bsearch(const Type *f,
                    const size_t n, 
-                   const size_t *x,
+                   const uint64_t *x,
                    const Type v) noexcept {
     if (n == 0) [[unlikely]] {
         return 0;
@@ -442,18 +442,17 @@ constexpr size_t Khuong_bin_search(const T *list,
 /// \param list[in]: Pointer to the sorted array in Eytzinger layout
 /// \param len[in]: Length of the array
 /// \param x[in]: Value to search for
-/// \return Index of the first element not less than x
+/// \return the first element (value) not less than x, i.e. list[k] of the
+/// 	lower bound k, or `list[0]` (the sentinel) if there is none.
+/// NOTE: `list` is 1-indexed (`list[1..len]`, list[0] is the sentinel). The
+/// 	result was `int` (truncated 64 bit values), and `len == 1` returned 0.
 template<typename T>
 #if __cplusplus > 201709L
 	requires std::is_integral_v<T>
 #endif
-constexpr int lower_bound_eytzinger_prefetch(const T *list,
+constexpr T lower_bound_eytzinger_prefetch(const T *list,
                 const size_t len,
                 const T x) {
-	if (len <= 1) [[unlikely]] {
-		return 0;
-	}
-
 	size_t k = 1;
 	while (k <= len) {
 		__builtin_prefetch(list + k * 16);

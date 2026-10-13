@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -115,6 +116,18 @@ REGISTER_TYPED_TEST_SUITE_P(Min, simple, simd, simd_rng, multithreading, multith
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Min, MyTypes);
 
+
+/// branchless min of non negative values (msb clear)
+TEST(min, upos_min) {
+	for (uint32_t i = 0; i < 100000; ++i) {
+		const uint32_t a = rng<uint32_t>() >> 1, b = rng<uint32_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::upos_min<uint32_t>(a, b), std::min(a, b)) << a << " " << b;
+		const uint64_t c = rng<uint64_t>() >> 1, d = rng<uint64_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::upos_min<uint64_t>(c, d), std::min(c, d)) << c << " " << d;
+		const uint8_t e = rng<uint8_t>() >> 1, f = rng<uint8_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::upos_min<uint8_t>(e, f), std::min(e, f));
+	}
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
+#include "combination/bit_subset.h"
+
 /// Choose the method for calculating subset differences
 /// METHOD1 uses ~U0 & U1 (default)
 /// Alternative method uses (U0 ^ U1) & U1
@@ -16,7 +20,8 @@ protected:
     /// \param x[in]: value to analyze
     /// \return 1 << MSB(x), the power of 2 corresponding to the highest set bit
     constexpr inline T highest_one(const T x) {
-        return T(1) << __builtin_clzll(x | 1);
+        // NOTE: the highest one is at bit 63 - clz (was `1 << clz`)
+        return T(1) << (63u - __builtin_clzll(uint64_t(x) | 1u));
     }
 
     /// Underlying subset generator

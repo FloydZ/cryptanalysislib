@@ -64,7 +64,8 @@ struct f64x4_t {
 
 	constexpr f64x4_t(const uint64x4_t in) {
 		for (uint32_t i = 0; i < 4u; ++i) {
-			d[i] = (float) in.v64[i];
+			// NOTE: `double` (as the AVX2 version), not `float`
+			d[i] = (double) in.v64[i];
 		}
 	}
 

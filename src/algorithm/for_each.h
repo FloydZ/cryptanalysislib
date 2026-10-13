@@ -106,8 +106,10 @@ namespace cryptanalysislib {
 					  const Size n,
 					  UnaryFunction f) noexcept {
         RandIt last = internal::advanced(first, n);
+        // NOTE: the template arguments start with `ExecPolicy` (the arguments
+        // 	`<RandIt, UnaryFunction, config>` did not compile)
         cryptanalysislib::for_each
-			<RandIt, UnaryFunction, config>
+			<ExecPolicy, RandIt, UnaryFunction, config>
 			(std::forward<ExecPolicy>(policy), first, last, f);
         return last;
     }

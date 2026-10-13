@@ -21,7 +21,9 @@ namespace cryptanalysislib::math {
     constexpr static inline T abs_branchless(T a, T b) noexcept {
         constexpr static uint32_t BITS = sizeof(T) * 8u;
         T d1 = b - a;
-        T d2 = (d1 & (T)( (long)d1 >> (BITS-1u)) ) << 1u;
+        // NOTE: arithmetic shift in the signed type of T: `(long)d1` zero
+        //  extended unsigned 32 bit values, the mask was 0/1, not 0/-1
+        T d2 = (d1 & (T)( (std::make_signed_t<T>)d1 >> (BITS-1u)) ) << 1u;
         return  d1 - d2;  // == (b - d) - (a + d);
     }
 

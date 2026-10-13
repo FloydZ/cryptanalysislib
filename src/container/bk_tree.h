@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "alloc/alloc.h"
-#include "math/abs.h"
+#include "math/math.h"
 
 namespace cryptanalysislib {
 

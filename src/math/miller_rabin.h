@@ -1,5 +1,11 @@
 #pragma once 
 
+#ifndef CRYPTANALYSISLIB_MATH_H
+#error "do not inlcude this file directly. Use `#include <cryptanalysislib/math>`"
+#endif
+
+#include <type_traits>
+
 namespace cryptanalysislib {
     // src: https://github.com/ludopulles/tcr
     // returns if n is prime for n < 3e24 (>2^64)

@@ -10,7 +10,8 @@ template<const uint32_t N,
 		 const uint32_t M>
 struct bNxM_t {
 public:
-	using T = std::conditional<N>=64, uint64_t, LogTypeTemplate<N>>;
+	// NOTE: `conditional_t`, `conditional<...>` is the trait, not the type
+	using T = std::conditional_t<(N >= 64), uint64_t, LogTypeTemplate<N>>;
 
 	/// NOTE: think about where the difference to `BinaryMatrix`?
 

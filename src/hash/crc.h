@@ -4,6 +4,13 @@
 #include <cstdint>
 #include <cstdlib>
 
+#if defined(USE_PCLMUL) && defined(USE_SSE41)
+#include <immintrin.h>
+#endif
+
+#if defined(USE_ARM) && defined(__ARM_FEATURE_CRC32)
+#include <arm_acle.h>
+#endif
 
 #include "dispatch.h"
 
@@ -72,8 +79,6 @@ constexpr static uint32_t crc32(const uint8_t *buf,
 }
 
 #if defined(USE_PCLMUL) && defined(USE_SSE41)
-#include <immintrin.h>
-
 // SSE4.2+PCLMUL folding kernel (from chromium/zlib `crc32_sse42_simd_`).
 // NOTE: requires len >= 64 and len % 16 == 0; `crc` is the raw (inverted)
 //	crc state, and the raw state is returned
@@ -232,34 +237,44 @@ uint32_t static sse42_crc32(const unsigned char *buf,
 #endif
 
 
-#ifdef USE_NEON
-#include <arm_neon.h>
-#include <arm_acle.h>
-#include <stdint.h>
-#include <stddef.h>
+#if defined(USE_ARM) && defined(__ARM_FEATURE_CRC32)
+/// CRC32 (zlib polynomial) via the ARMv8 CRC32 instructions, same convention
+/// as the scalar `crc32(buf, size, crc)`
+/// \param buf[in]: input
+/// \param len[in]: number of bytes
+/// \param crc[in]: initial crc value (0 for a fresh computation)
+/// \return crc32 of `buf`
+static inline uint32_t neon_crc32(const uint8_t *buf,
+                                  size_t len,
+                                  const uint32_t crc_) noexcept {
+	uint32_t crc = ~crc_;
 
-inline uint32_t crc32(uint32_t crc, uint8_t *buf, size_t len) {
-    crc = ~crc;
+	// NOTE: `buf` may not be aligned, so the words are loaded via memcpy
+	while (len >= 8) {
+		uint64_t t;
+		__builtin_memcpy(&t, buf, 8);
+		crc = __crc32d(crc, t);
+		len -= 8;
+		buf += 8;
+	}
 
-    while (len >= 8) {
-        crc = __crc32d(crc, *(uint64_t*)buf);
-        len -= 8;
-        buf += 8;
-    }
+	if (len & 4) {
+		uint32_t t;
+		__builtin_memcpy(&t, buf, 4);
+		crc = __crc32w(crc, t);
+		buf += 4;
+	}
+	if (len & 2) {
+		uint16_t t;
+		__builtin_memcpy(&t, buf, 2);
+		crc = __crc32h(crc, t);
+		buf += 2;
+	}
+	if (len & 1) {
+		crc = __crc32b(crc, *buf);
+	}
 
-    if (len & 4) {
-        crc = __crc32w(crc, *(uint32_t*)buf);
-        buf += 4;
-    }
-    if (len & 2) {
-        crc = __crc32h(crc, *(uint16_t*)buf);
-        buf += 2;
-    }
-    if (len & 1) {
-        crc = __crc32b(crc, *buf);
-    }
-
-    return ~crc;
+	return ~crc;
 }
 #endif
 
@@ -382,8 +397,8 @@ inline uint32_t option_14_golden_amd(const void* M,
 
 #endif
 
-/// CRC32 (zlib polynomial) with the fastest available implementation (table
-/// or SSE4.2+PCLMUL): on the first call the candidates are benchmarked once
+/// CRC32 (zlib polynomial) with the fastest available implementation (table,
+/// SSE4.2+PCLMUL or the ARMv8 CRC32 instructions): on the first call the candidates are benchmarked once
 /// on a fixed 4 KiB buffer (like `binary_search_dispatch`), the choice is a
 /// function local static (thread safe initialization).
 /// \param buf[in]: input
@@ -398,6 +413,9 @@ static inline uint32_t crc32_dispatch(const uint8_t *buf,
 		[](const uint8_t *b, size_t n, uint32_t c) noexcept { return crc32(b, n, c); },
 #if defined(USE_PCLMUL) && defined(USE_SSE41)
 		[](const uint8_t *b, size_t n, uint32_t c) noexcept { return sse42_crc32(b, n, c); },
+#endif
+#if defined(USE_ARM) && defined(__ARM_FEATURE_CRC32)
+		[](const uint8_t *b, size_t n, uint32_t c) noexcept { return neon_crc32(b, n, c); },
 #endif
 	};
 

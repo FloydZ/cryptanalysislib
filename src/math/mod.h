@@ -266,6 +266,9 @@ constexpr int32_t fastmod_s32(const int32_t a,
 constexpr static int32_t fastdiv_s32(const int32_t a,
                                      const uint64_t M,
                                      const int32_t d) noexcept {
+	// NOTE: for |d| == 1 `computeM_s32` overflows (M == 1), the result was 0
+	if (d == 1) { return a; }
+	if (d == -1) { return -a; }
 	uint64_t highbits = mul128_s32(M, a);
 	highbits += (a < 0 ? 1 : 0);
 	if (d < 0) {

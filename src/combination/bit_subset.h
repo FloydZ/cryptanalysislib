@@ -21,7 +21,7 @@ template<typename T = uint64_t>
 class bit_subset_T {
 protected:
 	T U;// current subset
-	const T V;// the full set
+	T V;// the full set (not `const`: `first(v)`/`last(v)` change it)
 
 public:
 	/// Constructor initializing with a full set
@@ -53,6 +53,36 @@ public:
     /// \return the previous subset
 	[[nodiscard]] constexpr inline T prev() noexcept {
 		U = (U - 1) & V;
+		return U;
+	}
+
+    /// Sets the full set to `v` and the current subset to the empty set
+    /// \return the empty set
+	constexpr inline T first(const T v) noexcept {
+		V = v;
+		U = 0;
+		return U;
+	}
+
+    /// Sets the current subset to the empty set
+    /// \return the empty set
+	constexpr inline T first() noexcept {
+		U = 0;
+		return U;
+	}
+
+    /// Sets the full set to `v` and the current subset to the full set
+    /// \return the full set
+	constexpr inline T last(const T v) noexcept {
+		V = v;
+		U = v;
+		return U;
+	}
+
+    /// Sets the current subset to the full set
+    /// \return the full set
+	constexpr inline T last() noexcept {
+		U = V;
 		return U;
 	}
 

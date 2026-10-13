@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <numeric>
+#include <vector>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -114,6 +116,25 @@ TEST(avx, prefixsum) {
 	EXPECT_EQ(d1[i], d2[i]);
 	}
 	free(d1); free(d2);
+}
+
+/// the generic `prefixsum` overloads (with an operation) against std::inclusive_scan
+TEST(Prefixsum, op_overloads) {
+	for (const size_t s : {size_t(0), size_t(1), size_t(13), size_t(100000)}) {
+		std::vector<uint32_t> in(s), e(s), o(s + 1, 0xdeadu);
+		for (size_t i = 0; i < s; ++i) { in[i] = (uint32_t)(i * 2654435761u); }
+		const auto op = [](const uint32_t a, const uint32_t b) { return a ^ b; };
+		std::inclusive_scan(in.begin(), in.end(), e.begin(), op);
+		EXPECT_EQ(cryptanalysislib::algorithm::prefixsum(in.begin(), in.end(), o.begin(), op), o.begin() + s);
+		for (size_t i = 0; i < s; ++i) { ASSERT_EQ(o[i], e[i]) << i; }
+		EXPECT_EQ(o[s], 0xdeadu);
+
+		std::inclusive_scan(in.begin(), in.end(), e.begin(), op, 3u);
+		EXPECT_EQ(cryptanalysislib::algorithm::prefixsum(in.begin(), in.end(), o.begin(), 3u, op), o.begin() + s);
+		for (size_t i = 0; i < s; ++i) { ASSERT_EQ(o[i], e[i]) << i; }
+		EXPECT_EQ(cryptanalysislib::algorithm::prefixsum(par_if(true), in.begin(), in.end(), o.begin(), 3u, op), o.begin() + s);
+		for (size_t i = 0; i < s; ++i) { ASSERT_EQ(o[i], e[i]) << i; }
+	}
 }
 
 int main(int argc, char **argv) {

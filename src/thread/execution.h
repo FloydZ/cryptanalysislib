@@ -56,7 +56,8 @@ struct execution_policy {};
 /// A sequential policy that simply forwards to the non-policy overload.
 struct sequenced_policy : public execution_policy {
     [[nodiscard]] constexpr inline pool_type pool() const noexcept {
-        assert("requested thread pool for seq policy.");
+        // NOTE: was `assert("...")`, which is always true
+        assert(false && "requested thread pool for seq policy.");
         return nullptr;
     }
 

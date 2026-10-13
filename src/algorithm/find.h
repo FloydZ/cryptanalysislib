@@ -96,12 +96,16 @@ namespace cryptanalysislib {
 			}
 		}
 
-		if constexpr (std::is_unsigned_v<T>) {
-			const size_t t = internal::find_uXX_simd<T, config>(&(*first),
-											static_cast<size_t>(std::distance(first, last)),
-											value);
-            std::advance(first, t);
-            return first;
+		// NOTE: the SIMD kernel reads [first, last) as an array: only for
+		// 	contiguous iterators (a `std::list` range was read as an array),
+		// 	and `first` must not be dereferenced for an empty range
+		if constexpr (std::is_unsigned_v<T> && std::contiguous_iterator<InputIt>) {
+			const size_t n = static_cast<size_t>(last - first);
+			if (n == 0) {
+				return last;
+			}
+			const size_t t = internal::find_uXX_simd<T, config>(&(*first), n, value);
+            return first + t;
 		}
 
 		for (; first != last; ++first) {

@@ -1,7 +1,9 @@
 #pragma once 
 
 #include <stdint.h>
+#if defined(__x86_64__) || defined(__i386__)
 #include <immintrin.h>
+#endif
 
 #include "popcount.h"
 #include "algorithm/countl.h"
@@ -11,6 +13,7 @@
 // NOTE: no `using namespace` here: an unqualified `popcount` was ambiguous
 // 	with the namespace `cryptanalysislib::popcount`.
 
+#ifdef USE_AVX2
 /// Source:  https://github.com/WojciechMula/toys/blob/master/simd-pdep-pext/pdep_avx2.cpp
 template <const uint32_t MAX_MASK_BITS, 
           const bool EARLY_EXIT>
@@ -70,7 +73,9 @@ void avx2_pdep_u32_reference(const uint32_t* data_arr,
         _mm256_storeu_si256((__m256i*)(&out_arr[i]), out);
     }
 }
+#endif // USE_AVX2
 
+#ifdef USE_AVX512F
 /// Source: https://github.com/WojciechMula/toys/blob/master/simd-pdep-pext/pdep_avx512.cpp
 template <const uint32_t MAX_MASK_BITS,
           const bool EARLY_EXIT>
@@ -132,6 +137,7 @@ void avx512_pdep_u32_reference(const uint32_t* data_arr,
         _mm512_storeu_si512((__m512i*)(&out_arr[i]), out);
     }
 }
+#endif // USE_AVX512F
 
 inline unsigned int pdep32_emu(unsigned int v, unsigned int m) {
 	unsigned int ret = 0, pc = cryptanalysislib::popcount::popcount(m);
@@ -173,6 +179,7 @@ inline unsigned int pdep32_emu(unsigned int v, unsigned int m) {
 			break;
 		}
 		default: {
+#if defined(__PCLMUL__) && defined(__BMI2__)
 			__m128i mtwo	= _mm_set1_epi64x((~0ULL) - 1);
 			__m128i mm		= _mm_cvtsi32_si128(~m);
 			__m128i bit0	= _mm_clmulepi64_si128(mm, mtwo, 0);
@@ -200,6 +207,17 @@ inline unsigned int pdep32_emu(unsigned int v, unsigned int m) {
 			ret = _mm_cvtsi128_si32(a);
 		}
 		break;
+#else
+			// portable: deposit the low bits of `v` at the set bits of `m`
+			for (unsigned int k = 1; m; k += k) {
+				const unsigned int low = m & (0u - m);
+				if (v & k) { ret |= low; }
+				m ^= low;
+			}
+			break;
+		}
+#endif
+
 	}
 	return ret;
 };

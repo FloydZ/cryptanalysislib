@@ -89,6 +89,51 @@ REGISTER_TYPED_TEST_SUITE_P(Set, set_difference_simd, includes_simd);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Set, MyTypes);
 
+/// sequential set operations (with and without comparator) against std::
+TEST(set, sequential_operations) {
+	for (const uint32_t mod : {3u, 50u, 1000u}) {
+		std::vector<uint32_t> a(400), b(300);
+		for (auto &x : a) { x = rng<uint32_t>() % mod; }
+		for (auto &x : b) { x = rng<uint32_t>() % mod; }
+		std::sort(a.begin(), a.end());
+		std::sort(b.begin(), b.end());
+		std::vector<uint32_t> sub;
+		for (size_t i = 0; i < a.size(); i += 3) { sub.push_back(a[i]); }
+		std::vector<uint32_t> o(1000), e(1000);
+		const auto gt = std::greater<>();
+		std::vector<uint32_t> ra(a.rbegin(), a.rend()), rb(b.rbegin(), b.rend());
+
+		EXPECT_EQ(cryptanalysislib::includes(a.begin(), a.end(), b.begin(), b.end()), std::includes(a.begin(), a.end(), b.begin(), b.end()));
+		EXPECT_TRUE(cryptanalysislib::includes(a.begin(), a.end(), sub.begin(), sub.end()));
+		EXPECT_EQ(cryptanalysislib::includes(ra.begin(), ra.end(), rb.begin(), rb.end(), gt), std::includes(ra.begin(), ra.end(), rb.begin(), rb.end(), gt));
+
+#define CHECK_SET_OP(OP) {                                                                                   \
+			auto r1 = cryptanalysislib::OP(a.begin(), a.end(), b.begin(), b.end(), o.begin());             \
+			auto r2 = std::OP(a.begin(), a.end(), b.begin(), b.end(), e.begin());                          \
+			ASSERT_EQ(r1 - o.begin(), r2 - e.begin()) << #OP << " " << mod;                                \
+			EXPECT_TRUE(std::equal(o.begin(), r1, e.begin())) << #OP << " " << mod;                        \
+			r1 = cryptanalysislib::OP(ra.begin(), ra.end(), rb.begin(), rb.end(), o.begin(), gt);          \
+			r2 = std::OP(ra.begin(), ra.end(), rb.begin(), rb.end(), e.begin(), gt);                       \
+			ASSERT_EQ(r1 - o.begin(), r2 - e.begin()) << #OP << " cmp " << mod;                            \
+			EXPECT_TRUE(std::equal(o.begin(), r1, e.begin())) << #OP << " cmp " << mod; }
+		CHECK_SET_OP(set_difference)
+		CHECK_SET_OP(set_intersection)
+		CHECK_SET_OP(set_symmetric_difference)
+		CHECK_SET_OP(set_union)
+#undef CHECK_SET_OP
+	}
+}
+
+/// lower/upper positions of the parallel set operations
+TEST(set, internal_positions) {
+	const std::vector<uint32_t> a = {1, 2, 2, 2, 5, 7, 7, 9};
+	for (uint32_t v = 0; v < 11; ++v) {
+		EXPECT_EQ(cryptanalysislib::internal::set_lower_pos(a.begin(), 0, a.size(), v), size_t(std::lower_bound(a.begin(), a.end(), v) - a.begin())) << v;
+		EXPECT_EQ(cryptanalysislib::internal::set_upper_pos(a.begin(), 0, a.size(), v), size_t(std::upper_bound(a.begin(), a.end(), v) - a.begin())) << v;
+		EXPECT_EQ(cryptanalysislib::internal::set_lower_pos(a.begin(), 2, 6, v), size_t(std::lower_bound(a.begin() + 2, a.begin() + 6, v) - a.begin())) << v;
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

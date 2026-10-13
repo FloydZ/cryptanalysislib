@@ -48,6 +48,32 @@ REGISTER_TYPED_TEST_SUITE_P(Mismatch, simd_all_positions, sequential_parallel);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Mismatch, MyTypes);
 
+/// all `mismatch` overloads (predicate, two ranges, parallel) against std::mismatch
+TEST(Mismatch, overloads) {
+	const auto p = [](const uint32_t a, const uint32_t b) { return (a & 0xffu) == (b & 0xffu); };
+	for (const size_t s : {size_t(0), size_t(1), size_t(100), size_t(1u << 21)}) {
+		std::vector<uint32_t> a(s), b(s);
+		for (size_t i = 0; i < s; ++i) { a[i] = (uint32_t)i; b[i] = (uint32_t)i; }
+		for (const size_t pos : {size_t(0), s / 3, s ? s - 1 : 0, s}) {
+			std::vector<uint32_t> c = b;
+			if (pos < s) { c[pos] += 1u; }
+			// shorter second range
+			const size_t s2 = s / 2;
+			EXPECT_EQ(cryptanalysislib::mismatch(a.begin(), a.end(), c.begin(), p), std::mismatch(a.begin(), a.end(), c.begin(), p)) << s << " " << pos;
+			EXPECT_EQ(cryptanalysislib::mismatch(a.begin(), a.end(), c.begin(), c.end()), std::mismatch(a.begin(), a.end(), c.begin(), c.end())) << s << " " << pos;
+			EXPECT_EQ(cryptanalysislib::mismatch(a.begin(), a.end(), c.begin(), c.begin() + s2), std::mismatch(a.begin(), a.end(), c.begin(), c.begin() + s2)) << s << " " << pos;
+			EXPECT_EQ(cryptanalysislib::mismatch(a.begin(), a.end(), c.begin(), c.end(), p), std::mismatch(a.begin(), a.end(), c.begin(), c.end(), p)) << s << " " << pos;
+			EXPECT_EQ(cryptanalysislib::mismatch(par_if(true), a.begin(), a.end(), c.begin(), c.end()), std::mismatch(a.begin(), a.end(), c.begin(), c.end())) << s << " " << pos;
+			EXPECT_EQ(cryptanalysislib::mismatch(par_if(true), a.begin(), a.end(), c.begin(), c.begin() + s2), std::mismatch(a.begin(), a.end(), c.begin(), c.begin() + s2)) << s << " " << pos;
+			EXPECT_EQ(cryptanalysislib::mismatch(par_if(true), a.begin(), a.end(), c.begin(), c.end(), p), std::mismatch(a.begin(), a.end(), c.begin(), c.end(), p)) << s << " " << pos;
+			if (s) {
+				const size_t k = cryptanalysislib::internal::mismatch_parallel(par_if(true), a.begin(), s, c.begin(), std::equal_to<>(), 4);
+				EXPECT_EQ(k, pos < s ? pos : s) << s << " " << pos;
+			}
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

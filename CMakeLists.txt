@@ -210,7 +210,12 @@ message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") 
 	message(STATUS "ARM CPU detected")
 	# TODO port this to the cmake project
-    set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
+	if(${USE_SIMD})
+		set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
+	else()
+		# NOTE: `-DUSE_SIMD=OFF` selects the generic (no SIMD) code path, as on x86
+		set(ADDITIONAL_FLAGS "-march=native")
+	endif()
 	set(DEBUG_FLAGS "-g -Og -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-g -O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()

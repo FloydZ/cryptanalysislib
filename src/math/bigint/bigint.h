@@ -6,6 +6,8 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
+#include <ostream>
 
 template<typename T>
 struct dbl_bitlen { using type = void; };

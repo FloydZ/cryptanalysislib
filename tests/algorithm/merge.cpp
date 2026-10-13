@@ -1,3 +1,5 @@
+#include <iterator>
+#include <utility>
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cstdint>
@@ -79,6 +81,28 @@ TEST(merge, multithreading_stable) {
 	std::merge(a.begin(), a.end(), b.begin(), b.end(), e.begin(), comp);
 	cryptanalysislib::merge(par_if(true), a.begin(), a.end(), b.begin(), b.end(), out.begin(), comp);
 	EXPECT_EQ(out, e);
+}
+
+/// co-rank: number of elements of `a` among the first d of the stable merge
+TEST(merge, co_rank) {
+	for (uint32_t it = 0; it < 200; ++it) {
+		std::vector<uint32_t> a(rng<uint32_t>() % 50), b(rng<uint32_t>() % 50);
+		for (auto &x : a) { x = rng<uint32_t>() % 10; }
+		for (auto &x : b) { x = rng<uint32_t>() % 10; }
+		std::sort(a.begin(), a.end());
+		std::sort(b.begin(), b.end());
+		// tag the elements of `a` to count them in the stable merge
+		std::vector<std::pair<uint32_t, uint32_t>> ta, tb, m;
+		for (const auto x : a) { ta.emplace_back(x, 0); }
+		for (const auto x : b) { tb.emplace_back(x, 1); }
+		std::merge(ta.begin(), ta.end(), tb.begin(), tb.end(), std::back_inserter(m),
+		           [](const auto &x, const auto &y) { return x.first < y.first; });
+		size_t ca = 0;
+		for (size_t d = 0; d <= m.size(); ++d) {
+			EXPECT_EQ(cryptanalysislib::internal::merge_co_rank(d, a.begin(), a.size(), b.begin(), b.size(), std::less<>()), ca) << d;
+			if (d < m.size()) { ca += m[d].second == 0; }
+		}
+	}
 }
 
 int main(int argc, char **argv) {
