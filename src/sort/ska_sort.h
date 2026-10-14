@@ -12,6 +12,7 @@
 #include <functional>
 
 #include "helper.h"
+#include "sort/sorting_network/common.h"
 
 namespace detail
 {
@@ -1094,10 +1095,34 @@ struct FallbackSubKey<T, typename std::enable_if<has_subscript_operator<T>::valu
 {
 };
 
+/// partitions with at most this many elements are sorted with a sorting
+/// network (if the elements are small and trivially copyable)
+constexpr static std::ptrdiff_t SortingNetworkThreshold = 16;
+
+/// sorts [b, b + n) with the Bose-Nelson sorting network for `Ns == n`
+template<typename It, typename Compare, std::size_t... Ns>
+inline void SortingNetworkDispatch(It b, const std::ptrdiff_t n, Compare & compare, std::index_sequence<Ns...>)
+{
+    (void)((n == std::ptrdiff_t(Ns) ? (StaticSort<Ns>()(b, compare), true) : false) || ...);
+}
+
 template<typename It, typename ExtractKey>
 inline void StdSortFallback(It begin, It end, ExtractKey & extract_key)
 {
-    std::sort(begin, end, [&](auto && l, auto && r){ return extract_key(l) < extract_key(r); });
+    auto compare = [&](auto && l, auto && r){ return extract_key(l) < extract_key(r); };
+    using value_type = typename std::iterator_traits<It>::value_type;
+    using iterator_category = typename std::iterator_traits<It>::iterator_category;
+    if constexpr (std::is_base_of_v<std::random_access_iterator_tag, iterator_category> &&
+                  std::is_trivially_copyable_v<value_type> && (sizeof(value_type) <= 16))
+    {
+        const std::ptrdiff_t n = end - begin;
+        if (n <= SortingNetworkThreshold)
+        {
+            SortingNetworkDispatch(begin, n, compare, std::make_index_sequence<SortingNetworkThreshold + 1>());
+            return;
+        }
+    }
+    std::sort(begin, end, compare);
 }
 
 template<std::ptrdiff_t StdSortThreshold, typename It, typename ExtractKey>

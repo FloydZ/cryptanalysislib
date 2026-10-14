@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "combination/enumerator.h"
+
 /// Enumeration of k-combinations in colex (co-lexicographic) order
 ///
 /// colex order (5 over 3):
@@ -120,19 +122,24 @@ public:
     /// Default constructor - initializes with the first combination
     constexpr enumeration_colex() noexcept {};
 
-	/// Returns the current combination and advances to the next one
-    /// \return the current combination before advancing
-    [[nodiscard]] constexpr inline T next() noexcept {
-        const T ret = val;
-        val = next(val);
-        return ret;
+    /// \return the current combination
+    [[nodiscard]] constexpr inline T current() const noexcept {
+        return val;
     }
 
-	/// Returns the current combination and moves to the previous one
-    /// \return the current combination before moving back
-    [[nodiscard]] constexpr inline T prev() noexcept {
-        const T ret = val;
+	/// Advances to the next combination
+    /// \return false if the current combination is the last one (unchanged)
+    constexpr inline bool next() noexcept {
+        if (val == last_comb()) { return false; }
+        val = next(val);
+        return true;
+    }
+
+	/// Moves to the previous combination
+    /// \return false if the current combination is the first one (unchanged)
+    constexpr inline bool previous() noexcept {
+        if (val == first_comb()) { return false; }
         val = prev(val);
-        return ret;
-    } 
+        return true;
+    }
 };

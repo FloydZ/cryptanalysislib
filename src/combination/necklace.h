@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cassert>
+
 #include "algorithm/bits/periodic.h"
+#include "combination/enumerator.h"
 #include "math/math.h"
 
 /// Binary necklace generation class
@@ -38,6 +41,9 @@ public:
     T tfb_;
 
 public:
+    /// starts at the first necklace (all zeros)
+    bit_necklace() { init(); }
+
     /// Destructor
     ~bit_necklace()  { ; }
 
@@ -72,16 +78,19 @@ public:
     /// Gets the current necklace data
     /// \return current necklace as a binary word
     T data() const { return  a_; }
-    
+
+    /// \return current necklace as a binary word
+    T current() const { return  a_; }
+
     /// Gets the period of the current necklace
     /// \return period of the current necklace
     T period() const { return j_; }
 
-    /// Creates the next necklace in the sequence
-    /// \return the period of the new necklace, or 0 if the current necklace was the last
-    T next()
+    /// Creates the next necklace in the sequence, see `period()` for its period
+    /// \return false if the current necklace is the last one (all ones, unchanged)
+    bool next()
     {
-        if ( a_==mm_ )  { first();  return 0; }
+        if ( a_==mm_ )  { return false; }
 
         do
         {
@@ -100,7 +109,15 @@ public:
         }
         while ( 0==(tfb_ & j2_) );  // necklaces only
 
-        return  j_;
+        return  true;
+    }
+
+    /// not possible: the necklaces are only generated forwards
+    /// \return false
+    bool previous()
+    {
+        assert(false);
+        return false;
     }
 
     /// Determines if the current necklace is a Lyndon word
@@ -109,13 +126,11 @@ public:
     T is_lyndon_word()  const  { return (j2_ & n2_); }
 
     /// Creates the next Lyndon word in the sequence
-    /// \return the period of the new Lyndon word (==n), or 0 if the current necklace was the last
+    /// \return the period of the new Lyndon word (==n), or 0 if there is no
+    /// 	further Lyndon word (the current necklace is the last one then)
     T next_lyn()
     {
-        if ( a_==mm_ )  { first();  return 0; }
-        // NOTE: stop once `next()` wrapped around. Before, it continued with
-        // 	the first necklace and never returned 0.
-        do  { if ( next()==0 )  { return 0; } }  while ( !is_lyndon_word() );
+        do  { if ( !next() )  { return 0; } }  while ( !is_lyndon_word() );
         return  n_;
     }
 };

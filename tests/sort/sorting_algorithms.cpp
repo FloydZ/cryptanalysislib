@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "random.h"
 #include "helper.h"
@@ -115,6 +118,47 @@ TYPED_TEST_P(TestSort, MultipleSKASort) {
 
         free(array8);
 	}
+}
+
+/// the small partitions are sorted with sorting networks: all sizes around
+/// the threshold, keys with duplicates, records sorted by a key, and a
+/// non trivially copyable type (std::sort fallback)
+TEST(SKASort, sorting_network_fallback) {
+	struct record { uint32_t key; uint32_t payload; };
+	for (size_t n = 0; n <= 300; n += (n < 40 ? 1 : 13)) {
+		for (const uint32_t mod : {4u, 1000u, 0xffffffffu}) {
+			std::vector<uint64_t> a(n);
+			for (auto &x : a) { x = rng() % mod; }
+			auto e = a;
+			std::sort(e.begin(), e.end());
+			ska_sort(a.begin(), a.end(), [](const uint64_t x) { return x; });
+			EXPECT_EQ(a, e) << n;
+
+			std::vector<record> r(n);
+			for (size_t i = 0; i < n; ++i) { r[i] = {uint32_t(rng() % mod), uint32_t(i)}; }
+			ska_sort(r.begin(), r.end(), [](const record &x) { return x.key; });
+			std::vector<uint32_t> seen(n, 0);
+			for (size_t i = 0; i < n; ++i) {
+				if (i > 0) { EXPECT_LE(r[i - 1].key, r[i].key); }
+				seen[r[i].payload] += 1;
+			}
+			for (const uint32_t s : seen) { EXPECT_EQ(s, 1u); }
+
+			std::vector<std::string> s(n);
+			for (auto &x : s) { x = std::to_string(rng() % mod); }
+			auto es = s;
+			std::sort(es.begin(), es.end());
+			ska_sort(s.begin(), s.end());
+			EXPECT_EQ(s, es) << n;
+		}
+	}
+
+	std::vector<uint32_t> big(1u << 20);
+	for (auto &x : big) { x = uint32_t(rng()); }
+	auto e = big;
+	std::sort(e.begin(), e.end());
+	ska_sort(big.begin(), big.end());
+	EXPECT_EQ(big, e);
 }
 
 // sorts x[0..n) with insertion sort (reference)

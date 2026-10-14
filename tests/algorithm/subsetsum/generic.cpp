@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "algorithm/random_index.h"
+#include "algorithm/subsetsum.h"
 #include "container/kAry_type.h"
 #include "helper.h"
 #include "matrix/matrix.h"
@@ -103,6 +104,50 @@ TEST(SubSetSum, generic) {
 	}
 
 	EXPECT_GT(right,0);
+}
+
+TEST(SubSetSum, join_stream_generic) {
+	// NOTE: the same instance as in `join8lists.cpp`: n = 16, the weight n/2
+	// 	solution is split over 8 base lists of weight <= 2. Only the
+	// 	representations with disjoint supports are found, the planted
+	// 	solution in ~2% of the tries (`join8lists`: ~30-60%).
+	constexpr uint32_t d = 3;
+	Matrix A; A.random();
+	const std::vector<uint32_t> lts{0, 3, 8, n};
+
+	constexpr size_t baselist_size = sum_bc(n/2, 2);
+	List out{1u<<10};
+	std::vector<List> L(1u << d, List{baselist_size});
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, 2>;
+	Enumerator e{A};
+	for (uint32_t i = 0; i < 4u; ++i) {
+		e.run(&L[i*2+0], &L[i*2+1], n/2);
+	}
+
+	Label target;
+	std::vector<uint32_t> weights(n/2);
+	generate_subsetsum_instance(target, weights, A, n);
+	Value sol; sol.zero();
+	for (const uint32_t w : weights) { sol.set(1, w); }
+
+	Tree t{1, A, 0};
+	uint32_t right = 0;
+	// NOTE: `join_stream_generic` does not change the lists
+	for (uint32_t tries = 0; (tries < 1000) && (right == 0); ++tries) {
+		t.join_stream_generic<d>(out, L, target, lts);
+
+		for (uint64_t i = 0; i < out.load(); ++i) {
+			// every output is a solution, its label is the target
+			Label recalc;
+			A.mul(recalc, out[i].value);
+			EXPECT_TRUE(recalc.is_equal(target, 0, n));
+			EXPECT_TRUE(out[i].label.is_equal(target, 0, n));
+			right += out[i].value.is_equal(sol);
+		}
+	}
+
+	// the planted solution was found
+	EXPECT_GT(right, 0);
 }
 
 int main(int argc, char **argv) {

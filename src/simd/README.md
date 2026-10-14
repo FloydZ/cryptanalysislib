@@ -25,6 +25,11 @@ This container provides all operations like:
 - Addition, Subtraction, Multiplication, Division
 - Scatter/Table lookups, Permutations
 - Memory stores/loads
+- Lane reductions (for all SIMD types): `all_of`, `any_of`, `none_of`,
+  `some_of` and `lane_mask`, where a lane counts as true if it is not zero:
+```c++
+if (cryptanalysislib::any_of(S::eq_(t1, t2))) { ... }
+```
 
 Additionally, for the 3 main architectures `x86`, `arm` and `neon` and their 
 vector extensions the following specialisations are provides which wrap:

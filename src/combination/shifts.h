@@ -1,8 +1,10 @@
-#pragma once 
+#pragma once
 
+#include <cassert>
 #include <cstdint>
 
 #include "colex.h"
+#include "combination/enumerator.h"
 
 /// Class for generating bit combinations in shifts-order
 /// Provides utilities for enumerating combinations that differ by shifts and splits
@@ -46,20 +48,34 @@ public:
         return x_;
     }
 
+    /// \return the current combination
+    [[nodiscard]] uint64_t current() const noexcept {
+        return x_;
+    }
+
+    /// not implemented: the shifts-order is only generated forwards
+    /// \return false
+    bool previous() noexcept {
+        assert(false);
+        return false;
+    }
+
     /// Advances to the next combination in shifts-order
     /// A shifts-order traversal either shifts the current combination right
     /// or performs a split operation when a right shift is not possible
-    /// \return the next combination, or 0 if at the end of the sequence
-    uint64_t next()
+    /// \return false if the current combination is the last one (unchanged)
+    bool next()
     {
+        // NOTE: checked first, for k == 0 the only combination is 0
+        if ( x_ == last_ )  return false;  // combination was last
+
         if ( 0==(x_&1) ) {
             // Easy case: right shift is possible (rightmost bit is 0)
             ++s_;
             x_ >>= 1;
-            return  x_;
+            return  true;
         } else {
             // Splitting cases (rightmost bit is 1)
-            if ( x_ == last_ )  return 0;  // combination was last
 
             x_ <<= s_;  s_ = 0;  // shift back to the left
             uint64_t b = x_ & -x_;  // lowest bit (rightmost 1)
@@ -67,7 +83,7 @@ public:
             if ( b!=1UL ) {
                 // Simple split: lowest bit is not at position 0
                 x_ -= (b>>1);  // move rightmost bit to the right
-                return x_;
+                return true;
             } else { 
                 // Complex split: lowest bit is at position 0
                 // Split second block and attach first
@@ -86,7 +102,7 @@ public:
                 // Alternative: attach block using bit-scan operations
                 x_ |= ( t << (highest_one_idx(b2)-highest_one_idx(t)-1) );
 #endif
-                return x_;
+                return true;
             }
         }
     }

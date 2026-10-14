@@ -83,6 +83,9 @@ TEST(prefix_sum, all_sizes) {
 #ifdef USE_AVX512F
 	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_u32_avx512(v, n); });
 #endif
+#ifdef USE_ARM
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_u32_neon(v, n); });
+#endif
 	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { prefixsum<uint32_t>(v, n); });
 	check_all_sizes<uint8_t>([](uint8_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint8_t>(v, n); });
 	check_all_sizes<uint16_t>([](uint16_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint16_t>(v, n); });

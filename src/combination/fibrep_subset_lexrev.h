@@ -1,4 +1,8 @@
-#pragma once 
+#pragma once
+
+#include <cstdint>
+
+#include "combination/enumerator.h"
 
 /// Return next Fibonacci word in subset-lex order.
 /// Start with a one-bit word at position n-1 to
@@ -27,11 +31,18 @@
 ///  20:  .....1  =  { 5 }
 ///  21:  ......  =  { }
 /// Class for generating Fibonacci words in subset-lexrev order
+/// As an enumerator: from the one-bit word `1 << (n-1)` to the empty word.
 /// \tparam T[in]: type to use for representing the words
-template<typename T>
+/// \tparam n[in]: length of the words, 0 < n <= bits of T
+template<typename T, const uint32_t n>
 class fibrev_subset_lexrev {
 private:
-	T val = 0;
+	static_assert((n > 0) && (n <= sizeof(T) * 8u));
+
+	/// the first word
+	constexpr static T first = T(T(1) << (n - 1u));
+
+	T val = first;
 
     /// Computes the next Fibonacci word in subset-lexrev order
     /// Note (1): the first element of the subset corresponds to the highest set bit
@@ -99,19 +110,24 @@ private:
 
 public:
 
-	/// Returns the current Fibonacci word and advances to the next one
-	/// \return the current Fibonacci word before advancing
-	[[nodiscard]] constexpr inline T next() noexcept {
-		const T ret = val;
-		val = next(val);
-		return ret;
+	/// \return the current Fibonacci word
+	[[nodiscard]] constexpr inline T current() const noexcept {
+		return val;
 	}
 
-	/// Returns the current Fibonacci word and moves to the previous one
-	/// \return the current Fibonacci word before moving back
-	[[nodiscard]] constexpr inline T prev() noexcept {
-		const T ret = val;
+	/// Advances to the next Fibonacci word
+	/// \return false if the current word is the last one (the empty word, unchanged)
+	constexpr inline bool next() noexcept {
+		if (val == 0) { return false; }
+		val = next(val);
+		return true;
+	}
+
+	/// Moves to the previous Fibonacci word
+	/// \return false if the current word is the first one (unchanged)
+	constexpr inline bool previous() noexcept {
+		if (val == first) { return false; }
 		val = prev(val);
-		return ret;
+		return true;
 	}
 };

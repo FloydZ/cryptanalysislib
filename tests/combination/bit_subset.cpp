@@ -10,12 +10,11 @@ using ::testing::Test;
 
 TEST(bit_subset, p1) {
 	using T = uint64_t;
-	T W, V = 0b11010000100001;
+	T V = 0b11010000100001;
 	bit_subset_T<T> b(V);
 	do {
-		W = b.next();
-		print_binary(W, 14);
-	} while (V != W);
+		print_binary(b.current(), 14);
+	} while (b.next());
 }
 
 /// `next` enumerates all non-empty subsets of V (ending with V), `first`/`last` reset
@@ -24,12 +23,11 @@ TEST(bit_subset, first_last) {
 	const T V = 0b11010000100001;
 	bit_subset_T<T> b(V);
 	uint64_t n = 0;
-	T W;
-	do {
-		W = b.next();
-		EXPECT_EQ(W & ~V, 0u);
+	while (b.next()) {
+		EXPECT_EQ(b.current() & ~V, 0u);
 		n += 1;
-	} while (V != W);
+	}
+	EXPECT_EQ(b.current(), V);
 	// all non-empty subsets (the empty set is the start)
 	EXPECT_EQ(n, (1ull << __builtin_popcountll(V)) - 1u);
 

@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "algorithm/bits/popcount.h"
+#include "combination/enumerator.h"
 
 /// Class for enumerating parenthesis-like structures in binary representation
 /// Provides utilities for generating, validating, and manipulating binary words
@@ -171,11 +172,40 @@ public:
         }
     }
 
-    /// Returns the current parenthesis word and advances to the next
-    /// \return current parenthesis word
-    [[nodiscard]] constexpr inline T next() noexcept {
-        const T ret = val;
-        val = next(val);
-        return ret;
+    /// \return the current parenthesis word
+    [[nodiscard]] constexpr inline T current() const noexcept {
+        return val;
+    }
+
+    /// Advances to the next parenthesis word
+    /// \return false if the current word is the last one (unchanged)
+    constexpr inline bool next() noexcept {
+        const T t = next(val);
+        if (t == 0) { return false; }
+        val = t;
+        return true;
+    }
+
+    /// Moves to the previous parenthesis word: the words are in ascending
+    /// order, so it is the next smaller word with the same number of bits,
+    /// which is a parenthesis word (on average about n+1 steps)
+    /// \return false if the current word is the first one (unchanged)
+    constexpr inline bool previous() noexcept {
+        const T k = T(cryptanalysislib::popcount::popcount<T>(val));
+        if (val == first_parenword(k)) { return false; }
+        T x = val;
+        do {
+            // previous word with the same number of bits: the complement
+            // of the next (colex) word of the complement
+            T y = T(~x);
+            const T r = T(y & T(-y));
+            y = T(y + r);
+            T z = T(y & T(-y));
+            z = T(z - r);
+            while (0 == (z & 1u)) { z >>= 1u; }
+            x = T(~T(y | T(z >> 1u)));
+        } while (!is_parenword(x));
+        val = x;
+        return true;
     }
 };

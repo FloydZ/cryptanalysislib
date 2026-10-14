@@ -6,6 +6,10 @@
 #include <sys/syscall.h>
 #include <linux/futex.h>
 #include <sys/time.h>
+#include <time.h>
+#include <unistd.h>
+#include <cstdint>
+#include <type_traits>
 
 #include "atomic_primitives.h"
 
@@ -192,6 +196,152 @@ namespace cryptanalysislib::atomic {
             return ACQUIRE(&count);
         }
 	};
+
+	/// futex2 syscalls (https://docs.kernel.org/userspace-api/futex2.html):
+	/// wait/wake with a bit mask (Linux 6.7+), and waiting on up to 128
+	/// futexes at once (`waitv`, Linux 5.16+). All functions return -1 and
+	/// set `errno` on failure, `ENOSYS` if the kernel does not support futex2.
+	/// NOTE: the API has futex words of 8, 16, 32 and 64 bits, but the kernel
+	/// 	only implements 32 bits so far (EINVAL for the other sizes).
+	/// NOTE: only defined with Linux 6.7+ headers (`FUTEX2_SIZE_U8`)
+#ifdef FUTEX2_SIZE_U8
+	namespace futex2 {
+		/// \return the FUTEX2 size flag of `T`
+		template<typename T>
+		constexpr static uint32_t size_flag() noexcept {
+			static_assert(std::is_integral_v<T> && (sizeof(T) <= 8));
+			if constexpr (sizeof(T) == 1) { return FUTEX2_SIZE_U8; }
+			else if constexpr (sizeof(T) == 2) { return FUTEX2_SIZE_U16; }
+			else if constexpr (sizeof(T) == 4) { return FUTEX2_SIZE_U32; }
+			else { return FUTEX2_SIZE_U64; }
+		}
+
+		/// \return `mask` restricted to the bits of `T` (the kernel rejects
+		/// 	masks and values wider than the futex word)
+		template<typename T>
+		constexpr static uint64_t word_mask(const uint64_t mask) noexcept {
+			if constexpr (sizeof(T) == 8) {
+				return mask;
+			} else {
+				return mask & ((1ull << (8u * sizeof(T))) - 1ull);
+			}
+		}
+
+		/// \return the flags of a futex over `T`
+		/// \param shared[in]: false: only shared between the threads of
+		/// 	this process (faster)
+		template<typename T>
+		constexpr static uint32_t flags(const bool shared = false) noexcept {
+			return size_flag<T>() | (shared ? 0u : uint32_t(FUTEX2_PRIVATE));
+		}
+
+		/// sleeps while `*addr == val`
+		/// \param addr[in]: futex word, aligned to `sizeof(T)`
+		/// \param val[in]: expected value
+		/// \param mask[in]: only woken by a `wake` with a mask sharing a bit
+		/// \param timeout[in]: absolute timeout w.r.t. `clock`, `nullptr`: none
+		/// \param clock[in]: CLOCK_MONOTONIC or CLOCK_REALTIME
+		/// \param shared[in]: see `flags`
+		/// \return 0 if woken, -1 with errno EAGAIN (`*addr != val`),
+		/// 	ETIMEDOUT, EINTR, ...
+		template<typename T>
+		inline int wait(T *addr,
+		                const T val,
+		                const uint64_t mask = ~0ull,
+		                const struct timespec *timeout = nullptr,
+		                const clockid_t clock = CLOCK_MONOTONIC,
+		                const bool shared = false) noexcept {
+#ifdef SYS_futex_wait
+			return int(syscall(SYS_futex_wait, addr, word_mask<T>(uint64_t(val)), word_mask<T>(mask),
+			                   flags<T>(shared), timeout, clock));
+#else
+			(void)addr; (void)val; (void)mask; (void)timeout; (void)clock; (void)shared;
+			errno = ENOSYS;
+			return -1;
+#endif
+		}
+
+		/// wakes up to `nr` threads waiting on `addr` with a mask sharing a
+		/// bit with `mask`
+		/// \return number of woken threads, -1 on error
+		template<typename T>
+		inline int wake(T *addr,
+		                const int nr = INT32_MAX,
+		                const uint64_t mask = ~0ull,
+		                const bool shared = false) noexcept {
+#ifdef SYS_futex_wake
+			return int(syscall(SYS_futex_wake, addr, word_mask<T>(mask), nr, flags<T>(shared)));
+#else
+			(void)addr; (void)nr; (void)mask; (void)shared;
+			errno = ENOSYS;
+			return -1;
+#endif
+		}
+
+		/// \return a waiter for `waitv`, which sleeps while `*addr == val`
+		template<typename T>
+		constexpr inline struct futex_waitv waiter(T *addr,
+		                                           const T val,
+		                                           const bool shared = false) noexcept {
+			struct futex_waitv w{};
+			w.val = word_mask<T>(uint64_t(val));
+			w.uaddr = uint64_t(uintptr_t(addr));
+			w.flags = flags<T>(shared);
+			return w;
+		}
+
+		/// sleeps until one of the futexes is woken, if all `nr` futexes
+		/// have their expected value
+		/// \param waiters[in]: array of `nr <= FUTEX_WAITV_MAX` waiters
+		/// \param timeout[in]: absolute timeout w.r.t. `clock`, `nullptr`: none
+		/// \return the index of the woken futex, -1 with errno EAGAIN (a
+		/// 	futex has not its expected value), ETIMEDOUT, ...
+		inline int waitv(struct futex_waitv *waiters,
+		                 const uint32_t nr,
+		                 const struct timespec *timeout = nullptr,
+		                 const clockid_t clock = CLOCK_MONOTONIC) noexcept {
+#ifdef SYS_futex_waitv
+			return int(syscall(SYS_futex_waitv, waiters, nr, 0, timeout, clock));
+#else
+			(void)waiters; (void)nr; (void)timeout; (void)clock;
+			errno = ENOSYS;
+			return -1;
+#endif
+		}
+
+		/// wakes up to `nr_wake` waiters of `src`, and moves up to
+		/// `nr_requeue` other waiters to `dst`, if `*src == src_val`
+		/// \return number of woken and requeued waiters, -1 on error
+		template<typename T>
+		inline int requeue(T *src,
+		                   const T src_val,
+		                   T *dst,
+		                   const int nr_wake,
+		                   const int nr_requeue,
+		                   const bool shared = false) noexcept {
+#ifdef SYS_futex_requeue
+			struct futex_waitv w[2] = {waiter(src, src_val, shared), waiter(dst, T(0), shared)};
+			return int(syscall(SYS_futex_requeue, w, 0, nr_wake, nr_requeue));
+#else
+			(void)src; (void)src_val; (void)dst; (void)nr_wake; (void)nr_requeue; (void)shared;
+			errno = ENOSYS;
+			return -1;
+#endif
+		}
+
+		/// \return true if the kernel supports futex2 wait/wake/waitv
+		inline bool available() noexcept {
+			uint32_t x = 0;
+			if (wake(&x, 1) < 0) {
+				return false;
+			}
+
+			struct futex_waitv w = waiter(&x, 1u);
+			// the value differs: EAGAIN, if supported
+			return (waitv(&w, 1) < 0) && (errno == EAGAIN);
+		}
+	} // end namespace futex2
+#endif
 } // end namespace cryptanalysislib
 #endif//CRYPTANALYSISLIB_FUTEX_H
 

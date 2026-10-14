@@ -29,57 +29,56 @@ using Element		= Element_T<Value, Label, Matrix>;
 using List			= List_T<Element>;
 using Tree			= Tree_T<List>;
 
-// not correct right now: `Tree_T::join8lists` is unfinished, it stream joins
-// 	`iL` with L1, L2 instead of L3, L4, and L[2], L[6] are never used.
-//TEST(SubSetSum, join8lists) {
-//	Matrix A; A.random();
-//	constexpr uint32_t k_lower1=0, k_higher1=n/3;
-//	constexpr uint32_t k_lower2=n/3, k_higher2=2*n/3;
-//	constexpr uint32_t k_lower3=2*n/3, k_higher3=n;
-//	const std::vector<uint32_t> lts{0, n/3, 2*n/3, n};
-//
-//	constexpr size_t baselist_size = sum_bc(n/2, n/4);
-//	List out{1u<<8};
-//
-//	std::vector<List> L{12};
-//	using Enumerator = BinaryLexicographicEnumerator<List, n/2, 2>;
-//	Enumerator e{A};
-//	for (uint32_t i = 0; i < 4u; ++i) {
-//		e.run(&L[i*2+0], &L[i*2+1], n/2);
-//	}
-//
-//	Label target;
-//	std::vector<uint32_t> weights(n/2);
-//	generate_subsetsum_instance(target, weights, A, n);
-//
-//	Tree t{1, A, 0};
-//	t.join8lists(out, L, target, lts);
-//
-//	uint32_t right=0;
-//	for(uint64_t i = 0; i < out.load(); ++i) {
-//		// just for debugging, we are not filtering
-//		if (out[i].value.popcnt() != n/2) { continue; }
-//
-//		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
-//		A.mul(test_recalc3, out[i].value);
-//		// NOTE: the full length
-//		for (uint64_t j = 0; j < n; ++j) {
-//			if (out[i].value.get(j)) {
-//				test_recalc1 += A[0][j];
-//				Label::add(test_recalc2, test_recalc2, A[0][j]);
-//			}
-//		}
-//
-//		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc2, 0, n));
-//		EXPECT_EQ(true, test_recalc1.is_equal(test_recalc3, 0, n));
-//		std::cout << out[i] << std::endl;
-//		if (Label::cmp(out[i].label, target)) {
-//			right += 1;
-//		}
-//	}
-//
-//	EXPECT_GT(right,0);
-//}
+TEST(SubSetSum, join8lists) {
+	// NOTE: a smaller instance (n = 16, the weight n/2 solution is split
+	// 	over 8 base lists of weight <= 2), for which the planted solution
+	// 	survives the random intermediate targets on 3+3+8 bits in ~30-60%
+	// 	of the tries.
+	constexpr uint32_t n = 16;
+	using Value  = BinaryVector<n>;
+	using Label  = kAry_Type_T<1ull << n>;
+	using Matrix = FqVector<T, n, 1ull << n, true>;
+	using List   = List_T<Element_T<Value, Label, Matrix>>;
+	using Tree   = Tree_T<List>;
+
+	Matrix A; A.random();
+	const std::vector<uint32_t> lts{0, 3, 8, n};
+
+	constexpr size_t baselist_size = sum_bc(n/2, 2);
+	List out{1u<<10};
+	std::vector<List> L(8, List{baselist_size});
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, 2>;
+	Enumerator e{A};
+
+	Label target;
+	std::vector<uint32_t> weights(n/2);
+	generate_subsetsum_instance(target, weights, A, n);
+	Value sol; sol.zero();
+	for (const uint32_t w : weights) { sol.set(1, w); }
+
+	Tree t{1, A, 0};
+	uint32_t right = 0;
+	for (uint32_t tries = 0; (tries < 100) && (right == 0); ++tries) {
+		// `join8lists` modifies the lists, so they are enumerated again
+		for (uint32_t i = 0; i < 4u; ++i) {
+			e.run(&L[i*2+0], &L[i*2+1], n/2);
+		}
+
+		t.join8lists(out, L, target, lts);
+
+		for (uint64_t i = 0; i < out.load(); ++i) {
+			// every output is a solution, its label is the target
+			Label recalc;
+			A.mul(recalc, out[i].value);
+			EXPECT_TRUE(recalc.is_equal(target, 0, n));
+			EXPECT_TRUE(out[i].label.is_equal(target, 0, n));
+			right += out[i].value.is_equal(sol);
+		}
+	}
+
+	// the planted solution was found
+	EXPECT_GT(right, 0);
+}
 
 TEST(SubSetSum, join8lists_twolists_on_iT_v2) {
 	Matrix A; A.random();

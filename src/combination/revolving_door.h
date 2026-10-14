@@ -1,8 +1,11 @@
-#pragma once 
+#pragma once
 
+#include <cassert>
 #include <stdint.h>
 #include <stdlib.h>
 #include <iostream>
+
+#include "combination/enumerator.h"
 
 
 /// Class for generating combinations in minimal-change order using the revolving-door algorithm
@@ -114,6 +117,23 @@ public:
     /// Gets the current combination data
     /// \return pointer to the current combination array
 	constexpr const T* data() const noexcept { return c_; }
+
+    /// \return pointer to the current combination array (`k` elements)
+	constexpr const T* current() const noexcept { return c_; }
+
+	/// Advances to the next combination in the revolving-door sequence
+	/// \return true if a next combination exists, false if at the end (unchanged)
+	constexpr bool next() noexcept {
+		uint32_t k1 = 0, k2 = 0;
+		return next(&k1, &k2);
+	}
+
+	/// not implemented: Algorithm R only steps forwards
+	/// \return false
+	constexpr bool previous() noexcept {
+		assert(false);
+		return false;
+	}
 
 	/// Advances to the next combination in the revolving-door sequence
 	/// (Knuth, TAOCP 7.2.1.3, Algorithm R)

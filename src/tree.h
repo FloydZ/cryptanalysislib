@@ -2782,8 +2782,8 @@ public:
 	///                   k_lower3 │ k_upper3
 	///                ┌───────────┴───────────┐
 	///              ┌─┴─┐                   ┌─┴─┐
-	///              └─┬─┘                   └─┬─┘
-	///     k_lower2   │ k_lower1              │
+	///              └─┬─┘ R                 └─┬─┘ target-R
+	///     k_lower2   │ k_upper2              │
 	///          ┌─────┴─────┐           ┌─────┴─────┐
 	///        ┌─┴─┐       ┌─┴─┐       ┌─┴─┐       ┌─┴─┐
 	///        └─┬─┘       └─┬─┘       └─┬─┘       └─┬─┘
@@ -2794,79 +2794,108 @@ public:
 	///     └───┘ └───┘ └───┘ └───┘ └───┘ └───┘ └───┘ └───┘
 	///      L1    L2    L3    L4    L5    L6    L7    L8
 	///
-	/// \param out		output lists
+	/// finds x1,...,x8 \in L1,...,L8 s.t. x1+...+x8 = target on [k_lower1, k_upper3):
+	/// 	- `join4lists(L1..L4)` on the target R (random on [k_lower1, k_upper2))
+	/// 	- `join4lists(L5..L8)` on the target `target-R`
+	/// 	- `join2lists` of both results on [k_lower3, k_upper3)
+	/// NOTE: the labels (and for non binary values: the values) of L2,L3,L4,
+	/// 	L6,L7,L8 are changed, all lists are sorted (see `join4lists`).
+	/// NOTE: allocates two intermediate lists of `out.size()` elements.
+	/// \param out		output list: the values of the solutions, their labels
+	/// 		are recomputed (`value*matrix`), i.e. equal to the target on
+	/// 		[k_lower1, k_upper3)
 	/// \param L		input lists, L must contain 8 Lists
 	/// \param target	target to match on
-	/// \param lta		translation const_array with the limits to match on, for each lvl
+	/// \param lta		limits {k_lower1, k_upper1=k_lower2, k_upper2=k_lower3, k_upper3}
 	void join8lists(List &out, std::vector<List> &L,
-	                       const LabelType &target,
-	                       const std::vector<uint32_t> &lta) noexcept {
-		assert(lta.size() == 4 && L.size() == 8);
+	                const LabelType &target,
+	                const std::vector<uint32_t> &lta) noexcept;
 
-		// limits:
-		const uint32_t k_lower1 = lta[0], k_upper1 = lta[1];
-		const uint32_t k_lower2 = lta[1], k_upper2 = lta[2];
-		const uint32_t k_lower3 = lta[2], k_upper3 = lta[3];
-		std::vector<uint32_t> lower_lta{{k_lower1, k_upper1}};
-		std::vector<uint32_t> middle_lta{{k_lower2, k_upper2}};
+	/// same as above
+	/// \param L		pointer to 8 lists
+	/// \param lta		pointer to the 4 limits
+	void join8lists(List &out, List *L,
+	                const LabelType &target,
+	                const uint32_t *lta) noexcept;
 
-		// Intermediate List
-		// 2 for the first Level, 2 for the second level
-		for (uint32_t k = 0; k < 4; ++k) {
-			L.push_back(List{out.size() * 2});
-		}
+	///                                       ┌───┐
+	///                                       └─┬─┘
+	///                                k_lower4 │ k_upper4
+	///                       ┌─────────────────┴─────────────────┐
+	///                     ┌─┴─┐ R                             ┌─┴─┐ target-R
+	///                     └─┬─┘                               └─┬─┘
+	///                       │ join8lists                        │ join8lists
+	///          ┌────────────┴────────────┐         ┌────────────┴────────────┐
+	///         L1    L2    L3   ...      L8         L9    L10   L11  ...     L16
+	///
+	/// finds x1,...,x16 \in L1,...,L16 s.t. x1+...+x16 = target on [k_lower1, k_upper4):
+	/// 	- `join8lists(L1..L8)` on the target R (random on [k_lower1, k_upper3))
+	/// 	- `join8lists(L9..L16)` on the target `target-R`
+	/// 	- `join2lists` of both results on [k_lower4, k_upper4)
+	/// NOTE: the lists are changed and sorted (see `join8lists`).
+	/// NOTE: allocates two intermediate lists of `out.size()` elements (and
+	/// 	`join8lists` its own).
+	/// \param out		output list: the values of the solutions, their labels
+	/// 		are recomputed (`value*matrix`), i.e. equal to the target on
+	/// 		[k_lower1, k_upper4)
+	/// \param L		input lists, L must contain 16 Lists
+	/// \param target	target to match on
+	/// \param lta		limits {k_lower1, k_upper1, k_upper2, k_upper3, k_upper4}
+	void join16lists(List &out, std::vector<List> &L,
+	                 const LabelType &target,
+	                 const std::vector<uint32_t> &lta) noexcept;
 
-		// Intermediate Target
-		LabelType R, R1, R3, R5, R13, R57, zero;
-		R1.random(); R3.random(); R5.random();
-		R13.random(); R57.random(); zero.zero();
-		LabelType::add(R, R1, R3, k_lower1, k_upper1);
-		LabelType::add(R, R, R5, k_lower1, k_upper1);
-		LabelType::add(R, R, R13, k_lower2, k_upper2);
-		LabelType::add(R, R, R57, k_lower2, k_upper2);
+	/// stream join of a tree of depth `d`, i.e. 2**d base lists: the left
+	/// subtree of every node is materialized (one intermediate list per
+	/// level), the right subtree is streamed:
+	///                          out
+	///                           │ k_lower_d │ k_upper_d
+	///              ┌────────────┴────────────┐
+	///         ┌────┴────┐ R             streamed (target-R)
+	///         │   iL    │ (depth d-1)        │ (depth d-1)
+	///         └────┬────┘                    │
+	///         L1 .. L_{2**(d-1)}      L_{2**(d-1)+1} .. L_{2**d}
+	/// the recursion ends with `join2lists_on_iT_v2` of two base lists.
+	/// finds x1,...,x_{2**d} \in L1,...,L_{2**d} s.t. their sum is the target
+	/// on [lta[0], lta[d]). Level i matches on [lta[i-1], lta[i]).
+	/// NOTE: the lists are not changed, every second list is sorted.
+	/// NOTE: the labels are added on the full length, the labels of the
+	/// 	output elements are recomputed (`value*matrix`). So for subset sum
+	/// 	(binary values, where the sum of two values is not the sum of their
+	/// 	labels if their supports overlap) only representations with
+	/// 	disjoint supports are found (`join8lists` recomputes the labels
+	/// 	after `join4lists`, so it finds more).
+	/// \tparam d		depth of the tree, >= 1
+	/// \param out		output list: the values of the solutions, their labels
+	/// 		are equal to the target on [lta[0], lta[d])
+	/// \param L		input lists, L must contain 2**d Lists
+	/// \param target	target to match on
+	/// \param lta		limits {lta[0], ..., lta[d]}
+	template<const uint32_t d>
+	void join_stream_generic(List &out, std::vector<List> &L,
+	                         const LabelType &target,
+	                         const std::vector<uint32_t> &lta) noexcept;
 
-		std::vector<LabelType> vr{{zero, zero}};
-		// prepare Lists
-		if (!target.is_zero()) {
-			for (size_t k = 0; k < L[1].load(); ++k) {
-				LabelType::add(L[1][k].label, L[1][k].label, R1, k_lower1, k_upper1);
-			}
+	/// same as above, but calls `f(a, b)` for every solution `a + b`
+	/// \tparam F	`void(const ElementType &a, const ElementType &b)`
+	/// \param L	pointer to 2**d lists
+	/// \param lta	pointer to the d+1 limits
+	template<const uint32_t d, typename F>
+	void join_stream_generic(List *L,
+	                         const LabelType &target,
+	                         const uint32_t *lta,
+	                         F &&f) noexcept;
 
-			for (size_t k = 0; k < L[3].load(); ++k) {
-				LabelType::add(L[3][k].label, L[3][k].label, R3, k_lower1, k_upper1);
-				LabelType::add(L[3][k].label, L[3][k].label, R13, k_lower2, k_upper2);
-			}
-
-			for (size_t k = 0; k < L[5].load(); ++k) {
-				LabelType::add(L[5][k].label, L[5][k].label, R5, k_lower1, k_upper1);
-			}
-
-			for (size_t k = 0; k < L[7].load(); ++k) {
-				LabelType::sub(L[7][k].label, L[7][k].label, R, k_lower1, k_upper1);
-				// add the target on the full length
-				LabelType::add(L[7][k].label, L[7][k].label, target, k_lower1, k_upper3);
-			}
-		}
-
-		for (uint32_t k = 0; k < 3; k += 2) {
-			List &L1 = L[k * 2];
-			List &L2 = L[k * 2 + 1];
-			List &iL = L[8 + k / 2];      // Intermediate list for the normal join
-			List &tout = L[8 + k / 2 + 2];// Intermediate list for the stream join
-
-			// base list join
-			join2lists(iL, L1, L2, vr[k / 2], lower_lta, false);
-
-			// then streamjoin
-			twolevel_streamjoin(tout, iL, L1, L2, k_lower1, k_upper1, k_lower2, k_upper2);
-		}
-
-		// Last Join
-		// in L[10] is the result of the stream join between L[0-3]
-		// in L[11] is the result of the stream join between L[4-7]
-		std::vector<uint32_t> last_lta{{k_lower3, k_upper3}};
-		join2lists(out, L[10], L[11], target, last_lta, false);
-	}
+	/// appends `e1 + e2` to `out` and recomputes its label (`value*matrix`).
+	/// The element is only kept, if its label is the target on [k_lower, k_upper).
+	/// NOTE: for subset sum the sum of two values is not the sum of their
+	/// 	labels, if their supports overlap.
+	void append_solution(List &out,
+	                     const ElementType &e1,
+	                     const ElementType &e2,
+	                     const LabelType &target,
+	                     const uint32_t k_lower,
+	                     const uint32_t k_upper) noexcept;
 
 	///  TODO test, doc
 	///                          ┌───┐
@@ -3740,3 +3769,5 @@ std::ostream &operator<<(std::ostream &out, const Tree_T<List> &obj) {
 #include "tree/d2_stream.h"
 #include "tree/d2.h"
 #include "tree/d3.h"
+#include "tree/d4.h"
+#include "tree/generic.h"

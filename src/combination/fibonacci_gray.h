@@ -1,5 +1,7 @@
-#pragma once 
+#pragma once
 #include <cstdint>
+
+#include "combination/enumerator.h"
 
 
 /// Fibonacci Gray code with binary words.
@@ -88,14 +90,19 @@ public:
     /// Returns the current Fibonacci word
     /// \return the current word in the sequence
     [[nodiscard]] constexpr inline T data() const noexcept {
-        return x_; 
+        return x_;
     }
 
-    /// Returns the next word in the Fibonacci Gray code sequence
-    /// \return the next word, or ~0 if the current word is the last one
-    [[nodiscard]] constexpr T next() noexcept {
+    /// \return the current word in the sequence
+    [[nodiscard]] constexpr inline T current() const noexcept {
+        return x_;
+    }
+
+    /// Advances to the next word in the Fibonacci Gray code sequence
+    /// \return false if the current word is the last one (unchanged)
+    constexpr bool next() noexcept {
         if (x_ == lw_) {
-            return ~0UL;
+            return false;
         }
 
         T s = n;  // shift
@@ -110,7 +117,32 @@ public:
             if ( 0==(x&(x>>1))) {
                 k_ = i;
                 x_ = x;
-                return x;
+                return true;
+            }
+        }
+    }
+
+    /// Moves to the previous word: the same search as `next`, in the other
+    /// direction of the negabinary counter
+    /// \return false if the current word is the first one (unchanged)
+    constexpr bool previous() noexcept {
+        if (x_ == fw_) {
+            return false;
+        }
+
+        T s = n;  // shift
+        while(1) {
+            --s;
+            T c = 1 | (mw_ >> s);  // possible difference for negbin word
+            T i = k_ + c;
+            T x = bin2neg(i);
+            x ^= (x>>1);
+
+			// is_fibrep(x)
+            if ( 0==(x&(x>>1))) {
+                k_ = i;
+                x_ = x;
+                return true;
             }
         }
     }

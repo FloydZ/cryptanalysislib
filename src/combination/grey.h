@@ -4,6 +4,7 @@
 #include <type_traits>
 #include "bit_subset.h"
 #include "algorithm/bits/popcount.h"
+#include "combination/enumerator.h"
 
 namespace cryptanalysislib {
 /// \return the Gray code of `i`
@@ -52,9 +53,45 @@ T next_gray(const T a) noexcept {
 ///  15:   ...1...    ..1...1   ..1... 1   ..1..- 1
 ///  16:   ..11...    .11....   .11... .   .+1... .
 ///  17:   ..11..1    .11..11   .11..1 1   .11..+ 1
+/// As an enumerator: gray_code(i) for i = 0, ..., 2**n - 1.
 /// \tparam T[in]: type to use for representing the codes
 template<class T>
 class enumeration_gray {
+    /// the current index and the last one (2**n - 1)
+    T i = 0, last;
+
+public:
+    /// \param n[in]: number of bits, <= bits of T
+    constexpr explicit enumeration_gray(const uint32_t n = sizeof(T) * 8u) noexcept :
+        last((n == sizeof(T) * 8u) ? T(~T(0)) : T((T(1) << n) - 1u)) {}
+
+    /// \return gray_code(index())
+    [[nodiscard]] constexpr inline T current() const noexcept {
+        return gray_code(i);
+    }
+
+    /// \return the current index
+    [[nodiscard]] constexpr inline T index() const noexcept {
+        return i;
+    }
+
+    /// moves to the next Gray code (one bit changes)
+    /// \return false if the current code is the last one (unchanged)
+    constexpr inline bool next() noexcept {
+        if (i == last) { return false; }
+        i += 1;
+        return true;
+    }
+
+    /// moves to the previous Gray code (one bit changes)
+    /// \return false if the current code is the first one (0, unchanged)
+    constexpr inline bool previous() noexcept {
+        if (i == 0) { return false; }
+        i -= 1;
+        return true;
+    }
+
+private:
 
     /// Converts a binary number to its Gray code representation
     /// (Performs a 'bit-wise derivative modulo 2')

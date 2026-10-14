@@ -19,6 +19,7 @@ implementation exists. [config] indicates that the algorithm/class is configurab
     - find() [simd, thread, config]
     - for_each() [thread, config]
     - gcd() []
+    - is_heap()/is_heap_until()/make_heap()/push_heap()/pop_heap()/sort_heap() [simd]
     - histogram() [simd, config]
     - inclusive_scan() [thread, config, simd]
     - int2scan() []

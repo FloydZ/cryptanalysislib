@@ -13,10 +13,12 @@ TEST(bit_subset, p1) {
 	constexpr static uint32_t n = 10;
 	constexpr static uint32_t w = 3;
 	enumeration_colex<T, n, w> b;
-	for (size_t i = 0; i < bc(n, w); i++){
-		const T W = b.next();
-		print_binary(W, n);
-	}
+	size_t ctr = 0;
+	do {
+		print_binary(b.current(), n);
+		ctr += 1;
+	} while (b.next());
+	EXPECT_EQ(ctr, bc(n, w));
 }
 
 int main(int argc, char **argv) {

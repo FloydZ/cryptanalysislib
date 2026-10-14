@@ -1,10 +1,41 @@
-#pragma once 
+#pragma once
 
 #include <cstdint>
 
+#include "combination/enumerator.h"
+
 /// Class providing utilities for working with Fibonacci representations of numbers
 /// Fibonacci representation: a binary representation where no two adjacent 1s appear
+/// As an enumerator: the Fibonacci representations of 0, 1, 2, ... up to the
+/// largest one in 64 bits (`10101...10`).
 class fibrep {
+    /// the current Fibonacci representation
+    uint64_t f = 0;
+
+public:
+    /// the largest Fibonacci representation in 64 bits
+    constexpr static uint64_t last = 0xaaaaaaaaaaaaaaaaull;
+
+    /// \return the current Fibonacci representation
+    [[nodiscard]] constexpr inline uint64_t current() const noexcept {
+        return f;
+    }
+
+    /// moves to the representation of the next number
+    /// \return false if the current one is the last one (unchanged)
+    constexpr inline bool next() noexcept {
+        if (f == last) { return false; }
+        f = next_fibrep(f);
+        return true;
+    }
+
+    /// moves to the representation of the previous number
+    /// \return false if the current one is 0 (unchanged)
+    constexpr inline bool previous() noexcept {
+        if (f == 0) { return false; }
+        f = prev_fibrep(f);
+        return true;
+    }
 
 /// Converts a binary number to its Fibonacci representation
 /// Limitation: the first Fibonacci number greater than b must be representable as uint64_t

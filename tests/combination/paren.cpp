@@ -26,11 +26,21 @@ void check(const uint32_t n) {
 	enumeration_parenthesis<T> b(n);
 	EXPECT_EQ(ref.front(), enumeration_parenthesis<T>::first_parenword(n));
 	EXPECT_EQ(ref.back(), enumeration_parenthesis<T>::last_parenword(n));
-	for (const T r : ref) {
-		EXPECT_EQ(b.next(), r);
+	EXPECT_EQ(b.current(), ref[0]);
+	for (size_t i = 1; i < ref.size(); ++i) {
+		EXPECT_TRUE(b.next());
+		EXPECT_EQ(b.current(), ref[i]);
 	}
 	// end of the sequence
-	EXPECT_EQ(b.next(), T(0));
+	EXPECT_FALSE(b.next());
+	EXPECT_EQ(b.current(), ref.back());
+
+	// and back
+	for (size_t i = ref.size() - 1; i-- > 0;) {
+		EXPECT_TRUE(b.previous());
+		EXPECT_EQ(b.current(), ref[i]);
+	}
+	EXPECT_FALSE(b.previous());
 }
 
 TEST(enum_paren, simple) {

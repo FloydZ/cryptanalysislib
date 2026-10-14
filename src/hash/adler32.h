@@ -51,6 +51,8 @@ namespace cryptanalysislib::hash::adler32::internal {
 #endif
 };// namespace cryptanalysislib::hash::adler32::internal
 
+// NOTE: in `cryptanalysislib`, as zlib declares a global `adler32`
+namespace cryptanalysislib {
 /// Updates an Adler-32 checksum with new data
 /// Implements the standard Adler-32 algorithm with optimized loop unrolling
 /// 
@@ -280,4 +282,5 @@ static inline uint32_t adler32_dispatch(const uint32_t val,
 
 	return best(val, in, in_len);
 }
+} // namespace cryptanalysislib
 #endif

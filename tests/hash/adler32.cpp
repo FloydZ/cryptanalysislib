@@ -11,6 +11,7 @@ using ::testing::TestEventListeners;
 using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
+using namespace cryptanalysislib;
 
 TEST(Hash, simple) {
 

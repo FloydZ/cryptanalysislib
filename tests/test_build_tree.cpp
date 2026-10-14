@@ -227,6 +227,36 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_LT(out.load(),1u<<22);
 }
 
+TEST(TreeTest, join8lists) {
+	constexpr uint32_t basesize = 6u;
+	Matrix A;
+	A.identity();
+
+	const std::vector<uint32_t> ta{{0, 3, 6, n}};
+
+	List out{1u<<18};
+	std::vector<List> L(8, List{0});
+	for (auto &l : L) { l.random(1u << basesize, A); }
+
+	Label target; target.random();
+
+	Tree t{1, A, 0};
+	t.join8lists(out, L, target, ta);
+
+	uint32_t wrong = 0;
+	for (uint64_t i = 0; i < out.load(); ++i) {
+		// NOTE: the labels are the target
+		if (!Label::cmp(out[i].label, target, 0, n)) { wrong++; }
+		out[i].recalculate_label(A);
+		if (!Label::cmp(out[i].label, target, 0, n)) { wrong++; }
+	}
+
+	EXPECT_EQ(0, wrong);
+	// NOTE: 2^24 4-tuples per side matching on 3+6 trits: ~852 each, then
+	// 	852^2 pairs matching on the last 2 trits: ~80k expected
+	EXPECT_GT(out.load(),1u<<15);
+	EXPECT_LT(out.load(),1u<<18);
+}
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

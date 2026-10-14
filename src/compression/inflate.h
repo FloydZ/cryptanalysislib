@@ -121,6 +121,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 	struct sinfl {
 		const unsigned char *bitptr;
+		/// end of the input, the bytes behind it are read as zeros
+		const unsigned char *bitend;
 		unsigned long long bitbuf;
 		int bitcnt;
 
@@ -203,7 +205,14 @@ sinfl_copy128(unsigned char **dst, unsigned char **src) {
 #endif
 static void
 sinfl_refill(struct sinfl *s) {
-	s->bitbuf |= sinfl_read64(s->bitptr) << s->bitcnt;
+	unsigned long long w = 0;
+	if (sinfl_likely(s->bitend - s->bitptr >= 8)) {
+		w = sinfl_read64(s->bitptr);
+	} else if (s->bitptr < s->bitend) {
+		// NOTE: the last bytes of the input, the missing ones are zero
+		memcpy(&w, s->bitptr, (size_t)(s->bitend - s->bitptr));
+	}
+	s->bitbuf |= w << s->bitcnt;
 	s->bitptr += (63 - s->bitcnt) >> 3;
 	s->bitcnt |= 56; /* bitcount in range [56,63] */
 }
@@ -373,10 +382,11 @@ sinfl_decompress(unsigned char *out, int cap, const unsigned char *in, int size)
 	const unsigned char *e = in + size, *o = out;
 	enum sinfl_states {hdr,stored,fixed,dyn,blk};
 	enum sinfl_states state = hdr;
-	struct sinfl s = {nullptr, 0, 0, {0}, {0}};
+	struct sinfl s = {nullptr, nullptr, 0, 0, {0}, {0}};
 	int last = 0;
 
 	s.bitptr = in;
+	s.bitend = e;
 	while (1) {
 		switch (state) {
 			case hdr: {
@@ -402,7 +412,7 @@ sinfl_decompress(unsigned char *out, int cap, const unsigned char *in, int size)
 
 				if ((unsigned short)len != (unsigned short)~nlen)
 					return (int)(out-o);
-				if (len > (e - s.bitptr) || !len)
+				if (len > (e - s.bitptr) || len > (oe - out) || !len)
 					return (int)(out-o);
 
 				memcpy(out, s.bitptr, (size_t)len);
@@ -443,10 +453,18 @@ sinfl_decompress(unsigned char *out, int cap, const unsigned char *in, int size)
 						int sym = 0;
 						sinfl_refill(&s);
 						sym = sinfl_decode(&s, hlens, 7);
+						// NOTE: a repetition must not exceed `nlit + ndist`, and
+						// 	code 16 repeats the previous length (needs n > 0)
 						switch (sym) {default: lens[n++] = (unsigned char)sym; break;
-							case 16: for (i=3+sinfl_get(&s,2);i;i--,n++) lens[n]=lens[n-1]; break;
-							case 17: for (i=3+sinfl_get(&s,3);i;i--,n++) lens[n]=0; break;
-							case 18: for (i=11+sinfl_get(&s,7);i;i--,n++) lens[n]=0; break;}
+							case 16: i = 3 + sinfl_get(&s,2);
+								if (n == 0 || n + i > nlit + ndist) return (int)(out-o);
+								for (;i;i--,n++) lens[n]=lens[n-1]; break;
+							case 17: i = 3 + sinfl_get(&s,3);
+								if (n + i > nlit + ndist) return (int)(out-o);
+								for (;i;i--,n++) lens[n]=0; break;
+							case 18: i = 11 + sinfl_get(&s,7);
+								if (n + i > nlit + ndist) return (int)(out-o);
+								for (;i;i--,n++) lens[n]=0; break;}
 					}
 					/* build lit/dist tables */
 					sinfl_build(s.lits, lens, 10, 15, nlit);
@@ -467,6 +485,9 @@ sinfl_decompress(unsigned char *out, int cap, const unsigned char *in, int size)
 						*out++ = (unsigned char)sym;
 						sym = sinfl_decode(&s, s.lits, 10);
 						if (sym < 256) {
+							if (sinfl_unlikely(out >= oe)) {
+								return (int)(out-o);
+							}
 							*out++ = (unsigned char)sym;
 							continue;
 						}
@@ -487,7 +508,9 @@ sinfl_decompress(unsigned char *out, int cap, const unsigned char *in, int size)
 						int dsym = sinfl_decode(&s, s.dsts, 8);
 						int offs = sinfl__get(&s, dbits[dsym]) + dbase[dsym];
 						unsigned char *dst = out, *src = out - offs;
-						if (sinfl_unlikely(offs > (int)(out-o))) {
+						// NOTE: distance codes 30, 31 are invalid (offset 0), and the
+						// 	match must fit into the output
+						if (sinfl_unlikely(dsym >= 30 || offs > (int)(out-o) || len > (int)(oe - out))) {
 							return (int)(out-o);
 						}
 						out = out + len;
@@ -568,8 +591,9 @@ zsinflate(void *out, int cap, const void *mem, int size) {
 	const unsigned char *in = (const unsigned char*)mem;
 	if (size >= 6) {
 		const unsigned char *eob = in + size - 4;
-		int n = sinfl_decompress((unsigned char*)out, cap, in + 2u, size);
-		unsigned a = adler32(1u, (unsigned char*)out, n);
+		// NOTE: the deflate stream starts behind the 2 byte header
+		int n = sinfl_decompress((unsigned char*)out, cap, in + 2u, size - 2);
+		unsigned a = cryptanalysislib::adler32(1u, (unsigned char*)out, n);
 		unsigned h = eob[0] << 24 | eob[1] << 16 | eob[2] << 8 | eob[3] << 0;
 		return a == h ? n : -1;
 	} else {

@@ -1,17 +1,50 @@
-#pragma once 
+#pragma once
 
 #include <stdint.h>
+
+#include "combination/enumerator.h"
 
 
 /// Class for generating and working with lexicographically ordered subsets
 /// Provides utilities to enumerate, convert, and analyze lexicographic representations
+/// As an enumerator: all 2**n words of length n in subset-lexrev order, from
+/// `1 << (n-1)` to 0 (see `next_lexrev`).
 class enumeration_lexicographic {
     /// \return the highest set bit of x (0 for x == 0)
     [[nodiscard]] constexpr static inline uint64_t highest_one(const uint64_t x) noexcept {
         return x ? (uint64_t(1) << (63u - __builtin_clzll(x))) : 0u;
     }
 
+    /// the first word `1 << (n-1)`
+    uint64_t first;
+    /// the current word
+    uint64_t x;
+
 public:
+    /// \param n[in]: length of the words, 1 <= n <= 64
+    constexpr explicit enumeration_lexicographic(const uint32_t n = 64) noexcept :
+        first(uint64_t(1) << (n - 1u)), x(first) {}
+
+    /// \return the current word
+    [[nodiscard]] constexpr inline uint64_t current() const noexcept {
+        return x;
+    }
+
+    /// moves to the next word in subset-lexrev order
+    /// \return false if the current word is the last one (0, unchanged)
+    constexpr inline bool next() noexcept {
+        if (x == 0) { return false; }
+        x = next_lexrev(x);
+        return true;
+    }
+
+    /// moves to the previous word in subset-lexrev order
+    /// \return false if the current word is the first one (unchanged)
+    constexpr inline bool previous() noexcept {
+        if (x == first) { return false; }
+        x = prev_lexrev(x);
+        return true;
+    }
 
     /// Computes the next word in subset-lexrev order
     /// Start with a one-bit word at position n-1 to generate 2**n subsets of length n

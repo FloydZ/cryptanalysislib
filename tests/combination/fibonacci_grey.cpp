@@ -11,13 +11,14 @@ using ::testing::Test;
 TEST(bit_subset, p1) {
 	using T = uint64_t;
 	constexpr static uint32_t n = 5;
-	constexpr static T m = -1ull;
 	bit_fibgray<T, n> b;
-	T W;
+	uint32_t ctr = 0;
 	do {
-		W = b.next();
-		print_binary(W, n);
-	} while (m != W);
+		print_binary(b.current(), n);
+		ctr += 1;
+	} while (b.next());
+	// F(n+2) Fibonacci words of length n
+	EXPECT_EQ(ctr, 13u);
 }
 
 int main(int argc, char **argv) {

@@ -9,6 +9,10 @@
 #include <immintrin.h>
 #endif
 
+#ifdef USE_ARM
+#include <arm_neon.h>
+#endif
+
 namespace cryptanalysislib::algorithm {
 	struct AlgorithmPrefixsumConfig : public AlgorithmConfig {
 		const bool aligned_instructions = false;
@@ -209,6 +213,56 @@ namespace cryptanalysislib::algorithm {
         }
 #endif
 
+#ifdef USE_ARM
+		/// inplace prefix sum, 16 elements per iteration.
+		/// `vld4q_u32` deinterleaves the 16 elements, s.t. lane `j` of
+		/// `vals.val[k]` is the element `4j + k`. Hence three vertical additions
+		/// compute the prefix sums of the four groups of four elements in
+		/// parallel. Afterwards the four group sums (`vals.val[3]`) are prefix
+		/// summed horizontally and added to the groups.
+		/// source: https://lemire.me/blog/2026/03/08/prefix-sums-at-tens-of-gigabytes-per-second-with-arm-neon/
+		/// NOTE: the carry for the first group is the sum of all previous
+		/// 	blocks, so `add` is computed from `prev` before it is updated
+		/// \param data[in/out]
+		/// \param n number of elements
+		static void prefixsum_u32_neon(uint32_t *data,
+		                               const size_t n) noexcept {
+			const uint32x4_t zero = vdupq_n_u32(0);
+			uint32x4_t prev = vdupq_n_u32(0);
+
+			size_t i = 0;
+			for (; (i + 16) <= n; i += 16) {
+				uint32x4x4_t vals = vld4q_u32(data + i);
+
+				// prefix sum inside each group
+				vals.val[1] = vaddq_u32(vals.val[1], vals.val[0]);
+				vals.val[2] = vaddq_u32(vals.val[2], vals.val[1]);
+				vals.val[3] = vaddq_u32(vals.val[3], vals.val[2]);
+
+				// prefix sum over the four group sums
+				uint32x4_t ps = vaddq_u32(vals.val[3], vextq_u32(zero, vals.val[3], 3));
+				ps = vaddq_u32(ps, vextq_u32(zero, ps, 2));
+				ps = vaddq_u32(ps, prev);
+
+				// group `j` gets the sum of all elements before it
+				const uint32x4_t add = vextq_u32(prev, ps, 3);
+				prev = vdupq_laneq_u32(ps, 3);
+
+				vals.val[0] = vaddq_u32(vals.val[0], add);
+				vals.val[1] = vaddq_u32(vals.val[1], add);
+				vals.val[2] = vaddq_u32(vals.val[2], add);
+				vals.val[3] = vaddq_u32(vals.val[3], add);
+				vst4q_u32(data + i, vals);
+			}
+
+			// tail mngt
+			if (i == 0) { i = 1; }
+			for (; i < n; i++) {
+				data[i] += data[i - 1];
+			}
+		}
+#endif
+
 		/// inplace prefix sum for any unsigned `T`, via `TxN_t`
 		/// NOTE: was unfinished: it shifted the bits within each element
 		/// 	(`sll`) instead of shifting the elements, had no carry between
@@ -280,6 +334,12 @@ namespace cryptanalysislib::algorithm {
 #ifdef USE_AVX2
 		if constexpr (std::is_same_v<T, uint32_t>) {
 			internal::prefixsum_u32_avx2(data, len);
+			return;
+		}
+#endif
+#ifdef USE_ARM
+		if constexpr (std::is_same_v<T, uint32_t>) {
+			internal::prefixsum_u32_neon(data, len);
 			return;
 		}
 #endif

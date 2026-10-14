@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "algorithm/bits/popcount.h"
+#include "combination/enumerator.h"
 
 // port of the minimal-change combination order of the fxtbook (Jörg Arndt,
 // comb/comb-minchange, bits/bitcombminchange.h)
@@ -23,10 +24,12 @@ private:
 
     /// current combination
     uint64_t val = 0;
+    /// first combination, in the inverse Gray code domain
+    uint64_t first = 0;
     /// last combination, in the inverse Gray code domain
     uint64_t last = 0;
-    /// false once the last combination was passed
-    bool valid = true;
+    /// number of set bits of the combinations
+    uint64_t k = 0;
 
 public:
     /// \return the Gray code of `x`
@@ -174,7 +177,8 @@ public:
     /// \param k[in]: subset size, <= n
     constexpr enumeration_min_change(const uint32_t n,
                                      const uint32_t k) noexcept :
-        val(gray_code(first_sequency(k))), last(igc_last_comb(k, n)) {
+        val(gray_code(first_sequency(k))), first(first_sequency(k)),
+        last(igc_last_comb(k, n)), k(k) {
         static_assert(sizeof(T) <= 8);
     }
 
@@ -184,14 +188,22 @@ public:
     }
 
     /// advances to the next combination
-    /// \return false if the current one was the last combination
+    /// \return false if the current one is the last combination (unchanged)
     constexpr inline bool next() noexcept {
-        if (!valid) { return false; }
         if (inverse_gray_code(val) == last) {
-            valid = false;
             return false;
         }
         val = gray_code(igc_next_minchange_comb(inverse_gray_code(val)));
+        return true;
+    }
+
+    /// moves to the previous combination
+    /// \return false if the current one is the first combination (unchanged)
+    constexpr inline bool previous() noexcept {
+        if (inverse_gray_code(val) == first) {
+            return false;
+        }
+        val = gray_code(igc_prev_minchange_comb(inverse_gray_code(val), k));
         return true;
     }
 };

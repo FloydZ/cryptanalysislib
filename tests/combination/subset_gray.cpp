@@ -17,13 +17,16 @@ TEST(subset_gray, next) {
 		seen.insert(p);
 		const uint64_t N = 1ull << __builtin_popcountll(v);
 		for (uint64_t i = 1; i < N; ++i) {
-			const uint64_t q = G.next();
+			EXPECT_TRUE(G.next());
+			const uint64_t q = G.current();
 			EXPECT_EQ(__builtin_popcountll(p ^ q), 1);
 			EXPECT_EQ(q & ~v, 0u);
 			seen.insert(q);
 			p = q;
 		}
 		EXPECT_EQ(seen.size(), N);
+		EXPECT_FALSE(G.next());
+		EXPECT_EQ(G.current(), p);
 		EXPECT_EQ(G.full_set(), v);
 	}
 }
@@ -37,12 +40,15 @@ TEST(subset_gray, last_prev) {
 	uint64_t p = G.current();
 	seen.insert(p);
 	for (uint64_t i = 1; i < (1u << 4); ++i) {
-		const uint64_t q = G.prev();
+		EXPECT_TRUE(G.previous());
+		const uint64_t q = G.current();
 		EXPECT_EQ(__builtin_popcountll(p ^ q), 1);
 		seen.insert(q);
 		p = q;
 	}
 	EXPECT_EQ(seen.size(), 1u << 4);
+	EXPECT_FALSE(G.previous());
+	EXPECT_EQ(G.current(), 0u);
 
 	EXPECT_EQ(G.first(0b11), 0u);
 	EXPECT_EQ(G.full_set(), 0b11u);

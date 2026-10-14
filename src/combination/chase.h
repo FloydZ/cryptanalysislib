@@ -6,17 +6,9 @@
 #include <vector>
 #include <cassert>
 
+#include "combination/enumerator.h"
 #include "math/math.h"
 #include "memory/memory.h"
-
-#if __cplusplus > 201709L
-/// functions/fields an enumerator must implement
-/// \tparam Enumerator
-template<typename Enumerator>
-concept EnumeratorAble = requires(Enumerator e) {
-	e.step();
-};
-#endif
 
 /// \return number of elements in the gray code
 template<const uint32_t w, const uint32_t q>
@@ -76,6 +68,15 @@ class Combinations_Binary_Chase {
 
 	// number of bits in one limb
 	constexpr static uint32_t RADIX = sizeof(T) * 8;
+
+	/// limbs of the current element of the stateful interface (`start + n` bits)
+	constexpr static uint32_t limbs = (start + n + RADIX - 1u) / RADIX;
+	/// the current element of the stateful interface (`current`, `next`)
+	std::array<T, limbs> cur{};
+	/// true once `left_step` created the first element in `cur`
+	bool started = false;
+	/// true once the end of the sequence was reached
+	bool finished = false;
 
 
 	/// computes a single round of the chase sequence
@@ -138,6 +139,45 @@ public:
 		two_changes_binary_n[0] = n;
 
 		init = true;
+
+		// the first element: the bits [start, start + w)
+		cur.fill(0);
+		for (uint32_t i = 0; i < w; ++i) { write_bit(cur.data(), start + i, 1); }
+		started = false;
+		finished = false;
+	}
+
+	/// \return the current element (the stateful interface `current`/`next`
+	/// 	and `left_step` share the state, do not mix them)
+	[[nodiscard]] constexpr const std::array<T, limbs> &current() const noexcept {
+		return cur;
+	}
+
+	/// moves to the next element of the chase sequence
+	/// \return false if the current element is the last one (unchanged)
+	bool next() noexcept {
+		if (finished) { return false; }
+		uint16_t pos1, pos2;
+		if (!started) {
+			// creates the first element, which is already in `cur`
+			started = true;
+			left_step<true>(cur.data(), &pos1, &pos2);
+		}
+
+		const std::array<T, limbs> old = cur;
+		if (!left_step<true>(cur.data(), &pos1, &pos2)) {
+			cur = old;
+			finished = true;
+			return false;
+		}
+		return true;
+	}
+
+	/// not implemented: the chase sequence is only generated forwards
+	/// \return false
+	constexpr bool previous() noexcept {
+		assert(false);
+		return false;
 	}
 
 	/// computes one step in the cache sequence
@@ -286,7 +326,56 @@ class Combinations_Fq_Chase {
 	/// stuff for the chase sequence
 	Combinations_Binary_Chase<uint64_t, n, w> chase;
 
+	/// stateful interface (`current`, `next`): the support of the current
+	/// element, its nonzero values (in [1, q-1], the last one changes
+	/// fastest), and the current element
+	Combinations_Binary_Chase<uint64_t, n, w> support;
+	std::array<uint32_t, (w > 0) ? w : 1> vals;
+	std::array<uint32_t, n> cur;
+
+	/// writes the values `vals` to the positions of the support into `cur`
+	constexpr void build_current() noexcept {
+		const auto &s = support.current();
+		uint32_t j = 0;
+		for (uint32_t i = 0; i < n; ++i) {
+			const bool bit = (s[i / 64u] >> (i % 64u)) & 1u;
+			cur[i] = bit ? vals[j++] : 0u;
+		}
+	}
+
 public:
+	/// \return the current element: a vector over F_q of length n and weight w
+	/// 	(the elements are: all supports in chase order, for each support
+	/// 	all nonzero values in lexicographic order)
+	[[nodiscard]] constexpr const std::array<uint32_t, n> &current() const noexcept {
+		return cur;
+	}
+
+	/// moves to the next element
+	/// \return false if the current element is the last one (unchanged)
+	bool next() noexcept {
+		for (uint32_t i = w; i-- > 0;) {
+			if (vals[i] < qm1) {
+				vals[i] += 1;
+				for (uint32_t j = i + 1; j < w; ++j) { vals[j] = 1; }
+				build_current();
+				return true;
+			}
+		}
+
+		if (!support.next()) { return false; }
+		vals.fill(1);
+		build_current();
+		return true;
+	}
+
+	/// not implemented: the chase sequence is only generated forwards
+	/// \return false
+	constexpr bool previous() noexcept {
+		assert(false);
+		return false;
+	}
+
 	constexpr static size_t chase_size = bc(n, w);
 
 	// the -1u is needed, because we already enumerated the 1...10...0 vector
@@ -340,6 +429,9 @@ public:
 			s[i] = qm1 - 1;
 		}
 		f[n] = n;
+
+		vals.fill(1);
+		build_current();
 	}
 };
 
@@ -358,9 +450,47 @@ class chase_t {
 	static_assert(q >= 2);
 	static_assert(p <= 3);
 
+	/// stateful interface (`current`, `next`, `previous`): the rank of the
+	/// current element in the order of `enumerate` and its positions
+	uint64_t rank = 0;
+	T cur[(p > 0) ? p : 1] = {0};
+
 public:
+	/// starts the stateful enumeration at {0, ..., p-1}, the first element
+	/// of `enumerate`
+	constexpr chase_t() noexcept {
+		for (uint32_t i = 0; i < p; ++i) { cur[i] = T(i); }
+	}
+
 	[[nodiscard]] constexpr size_t list_size() const noexcept {
 		return compute_combinations_fq_chase_list_size<n, q, p>();
+	}
+
+	/// \return the `p` positions of the current element (unsorted)
+	[[nodiscard]] constexpr const T *current() const noexcept {
+		return cur;
+	}
+
+	/// moves to the next element (in the order of `enumerate`, via `biject`)
+	/// \return false if the current element is the last one (unchanged)
+	bool next() noexcept {
+		if (rank + 1u >= bc(n, p)) { return false; }
+		rank += 1;
+		biject(rank, cur);
+		return true;
+	}
+
+	/// moves to the previous element
+	/// \return false if the current element is the first one (unchanged)
+	bool previous() noexcept {
+		if (rank == 0) { return false; }
+		rank -= 1;
+		if (rank == 0) {
+			for (uint32_t i = 0; i < p; ++i) { cur[i] = T(i); }
+		} else {
+			biject(rank, cur);
+		}
+		return true;
 	}
 
 
@@ -566,7 +696,43 @@ class BinaryChaseEnumerator {
 	/// The thing is: we will not create the first element in this list.
 	constexpr static size_t chase_size = bc(n, t) - 1ull;
 
+	/// stateful interface (`current`, `next`, `previous`): the change list,
+	/// the number of applied changes and the current positions
+	std::vector<std::pair<uint16_t, uint16_t>> changes;
+	size_t applied = 0;
+	std::array<uint16_t, t> cur;
+
 public:
+	/// starts the stateful enumeration at the first combination {0, ..., t-1}.
+	/// NOTE: computes the full change list (`size()` entries)
+	BinaryChaseEnumerator() noexcept {
+		changelist(changes);
+		for (uint32_t i = 0; i < t; ++i) { cur[i] = uint16_t(i); }
+	}
+
+	/// \return the `t` positions of the current combination (unsorted)
+	[[nodiscard]] const std::array<uint16_t, t> &current() const noexcept {
+		return cur;
+	}
+
+	/// moves to the next combination: applies the next change
+	/// \return false if the current combination is the last one (unchanged)
+	bool next() noexcept {
+		if (applied == changes.size()) { return false; }
+		const auto [a, b] = changes[applied++];
+		for (auto &c : cur) { if (c == a) { c = b; break; } }
+		return true;
+	}
+
+	/// moves to the previous combination: undoes the last change
+	/// \return false if the current combination is the first one (unchanged)
+	bool previous() noexcept {
+		if (applied == 0) { return false; }
+		const auto [a, b] = changes[--applied];
+		for (auto &c : cur) { if (c == b) { c = a; break; } }
+		return true;
+	}
+
 	constexpr static inline size_t size() noexcept {
 		return chase_size;
 	}

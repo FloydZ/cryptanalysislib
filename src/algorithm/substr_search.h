@@ -4,8 +4,12 @@
 #include <limits>
 #include <cstring>
 
-#ifdef USE_AVX2
+#if defined(USE_AVX2) || defined(USE_AVX512F)
 #include <immintrin.h>
+#endif
+
+#if defined(__SSE2__)
+#include <emmintrin.h>
 #endif
 
 #ifdef USE_ARM
@@ -279,48 +283,170 @@ namespace cryptanalysislib::algorithm {
 
         /// An AVX2 optimized substring search that works for any size needles
         /// Performance varies based on needle size, generally 6-10 GB/s
+        /// source: http://0x80.pl/notesen/2016-11-28-simd-strfind.html
         ///
         /// Uses a two-stage approach - first checking first and last characters
         /// simultaneously with SIMD, then verifying matches with full comparison.
         /// This approach reduces the number of full comparisons needed.
+        /// NOTE: the block loop only runs while both loads are inside the
+        /// 	haystack, the remaining positions are checked by `naive_substr`.
         ///
         /// \param haystack[in,out]: The string to search in
         /// \param needle[in]: The substring to search for
         /// \return Position of the first match or not_found_k if not found
-        constexpr size_t avx2_strstr_anysize(span_t &haystack, 
+        constexpr size_t avx2_strstr_anysize(span_t &haystack,
                                                 const span_t &needle) noexcept {
-            const size_t n = haystack.len; 
-            const size_t k = needle.len; 
+            const size_t n = haystack.len;
+            const size_t k = needle.len;
             const uint8_t *s = haystack.data;
+            if (k == 0) { return 0; }
+            if (n < k) { return not_found_k; }
 
             const __m256i first = _mm256_set1_epi8(needle.data[0]);
             const __m256i last  = _mm256_set1_epi8(needle.data[k - 1]);
-        
-            for (size_t i = 0; i < n; i += 32) {
-        
+
+            size_t i = 0;
+            for (; i + k - 1 + 32 <= n; i += 32) {
                 const __m256i block_first = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + i));
                 const __m256i block_last  = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(s + i + k - 1));
-        
+
                 const __m256i eq_first = _mm256_cmpeq_epi8(first, block_first);
                 const __m256i eq_last  = _mm256_cmpeq_epi8(last, block_last);
-        
+
                 uint32_t mask = _mm256_movemask_epi8(_mm256_and_si256(eq_first, eq_last));
-        
                 while (mask != 0) {
-        
-                    const auto bitpos = __builtin_ctz(mask);
-        
-                    if (memcmp(s + i + bitpos + 1, needle.data + 1, k - 2) == 0) {
+                    const uint32_t bitpos = __builtin_ctz(mask);
+                    if ((k <= 2) || are_equal(s + i + bitpos + 1, needle.data + 1, k - 2)) {
                         return i + bitpos;
                     }
-        
                     mask = mask & (mask - 1u);
                 }
             }
-        
-            return not_found_k;
+
+            span_t t = haystack.after_n(i);
+            const size_t last_match = naive_substr(t, needle);
+            return (last_match != not_found_k) ? last_match + i : not_found_k;
         }
 #endif
+
+#if defined(__SSE2__)
+        /// SSE2 version of `avx2_strstr_anysize` (16 positions per block)
+        /// source: http://0x80.pl/notesen/2016-11-28-simd-strfind.html
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
+        inline size_t sse2_strstr_anysize(span_t &haystack,
+                                          const span_t &needle) noexcept {
+            const size_t n = haystack.len;
+            const size_t k = needle.len;
+            const uint8_t *s = haystack.data;
+            if (k == 0) { return 0; }
+            if (n < k) { return not_found_k; }
+
+            const __m128i first = _mm_set1_epi8(char(needle.data[0]));
+            const __m128i last  = _mm_set1_epi8(char(needle.data[k - 1]));
+
+            size_t i = 0;
+            for (; i + k - 1 + 16 <= n; i += 16) {
+                const __m128i block_first = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + i));
+                const __m128i block_last  = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + i + k - 1));
+                uint32_t mask = uint32_t(_mm_movemask_epi8(_mm_and_si128(_mm_cmpeq_epi8(first, block_first),
+                                                                         _mm_cmpeq_epi8(last, block_last))));
+                while (mask != 0) {
+                    const uint32_t bitpos = __builtin_ctz(mask);
+                    if ((k <= 2) || are_equal(s + i + bitpos + 1, needle.data + 1, k - 2)) {
+                        return i + bitpos;
+                    }
+                    mask = mask & (mask - 1u);
+                }
+            }
+
+            span_t t = haystack.after_n(i);
+            const size_t last_match = naive_substr(t, needle);
+            return (last_match != not_found_k) ? last_match + i : not_found_k;
+        }
+#endif
+
+#if defined(USE_AVX512F) && defined(USE_AVX512BW)
+        /// AVX-512BW version of `avx2_strstr_anysize` (64 positions per block)
+        /// source: http://0x80.pl/notesen/2016-11-28-simd-strfind.html
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
+        inline size_t avx512bw_strstr_anysize(span_t &haystack,
+                                              const span_t &needle) noexcept {
+            const size_t n = haystack.len;
+            const size_t k = needle.len;
+            const uint8_t *s = haystack.data;
+            if (k == 0) { return 0; }
+            if (n < k) { return not_found_k; }
+
+            const __m512i first = _mm512_set1_epi8(char(needle.data[0]));
+            const __m512i last  = _mm512_set1_epi8(char(needle.data[k - 1]));
+
+            size_t i = 0;
+            for (; i + k - 1 + 64 <= n; i += 64) {
+                const __m512i block_first = _mm512_loadu_si512(s + i);
+                const __m512i block_last  = _mm512_loadu_si512(s + i + k - 1);
+                uint64_t mask = _mm512_cmpeq_epi8_mask(first, block_first) &
+                                _mm512_cmpeq_epi8_mask(last, block_last);
+                while (mask != 0) {
+                    const uint32_t bitpos = __builtin_ctzll(mask);
+                    if ((k <= 2) || are_equal(s + i + bitpos + 1, needle.data + 1, k - 2)) {
+                        return i + bitpos;
+                    }
+                    mask = mask & (mask - 1u);
+                }
+            }
+
+            span_t t = haystack.after_n(i);
+            const size_t last_match = naive_substr(t, needle);
+            return (last_match != not_found_k) ? last_match + i : not_found_k;
+        }
+#endif
+
+        /// SWAR (64 bit words) version of `avx2_strstr_anysize`, portable
+        /// source: http://0x80.pl/notesen/2016-11-28-simd-strfind.html
+        /// \param haystack[in,out]: The string to search in
+        /// \param needle[in]: The substring to search for
+        /// \return Position of the first match or not_found_k if not found
+        constexpr size_t swar64_strstr_anysize(span_t &haystack,
+                                               const span_t &needle) noexcept {
+            const size_t n = haystack.len;
+            const size_t k = needle.len;
+            const uint8_t *s = haystack.data;
+            if (k == 0) { return 0; }
+            if (n < k) { return not_found_k; }
+
+            constexpr uint64_t lo7 = 0x7f7f7f7f7f7f7f7full;
+            const uint64_t first = 0x0101010101010101ull * needle.data[0];
+            const uint64_t last  = 0x0101010101010101ull * needle.data[k - 1];
+
+            size_t i = 0;
+            for (; i + k - 1 + 8 <= n; i += 8) {
+                uint64_t block_first = 0, block_last = 0;
+                // little endian words: byte j is the position i + j
+                for (uint32_t j = 0; j < 8; ++j) {
+                    block_first |= uint64_t(s[i + j]) << (8u * j);
+                    block_last  |= uint64_t(s[i + k - 1 + j]) << (8u * j);
+                }
+
+                // 0x80 in every byte, which is zero in `eq`
+                const uint64_t eq = (block_first ^ first) | (block_last ^ last);
+                uint64_t zeros = ~((((eq & lo7) + lo7) | eq) | lo7);
+                while (zeros != 0) {
+                    const uint32_t pos = uint32_t(__builtin_ctzll(zeros)) / 8u;
+                    if ((k <= 2) || are_equal(s + i + pos + 1, needle.data + 1, k - 2)) {
+                        return i + pos;
+                    }
+                    zeros &= zeros - 1u;
+                }
+            }
+
+            span_t t = haystack.after_n(i);
+            const size_t last_match = naive_substr(t, needle);
+            return (last_match != not_found_k) ? last_match + i : not_found_k;
+        }
 
 #ifdef USE_AVX512F 
         /// Speculative SIMD version for AVX512 instruction set
@@ -436,6 +562,28 @@ namespace cryptanalysislib::algorithm {
 #endif
     }; // end namespace intern
 
+    /// \param haystack[in]: the string to search in
+    /// \param haystack_len[in]: its length
+    /// \param needle[in]: the string to search for
+    /// \param needle_len[in]: its length
+    /// \return position of the first occurrence of `needle` in `haystack`,
+    /// 	`internal::not_found_k` if there is none
+    [[nodiscard]] inline size_t substr_search(const uint8_t *haystack,
+                                              const size_t haystack_len,
+                                              const uint8_t *needle,
+                                              const size_t needle_len) noexcept {
+        span_t h{const_cast<uint8_t *>(haystack), haystack_len};
+        const span_t n{const_cast<uint8_t *>(needle), needle_len};
+#if defined(USE_AVX512F) && defined(USE_AVX512BW)
+        return internal::avx512bw_strstr_anysize(h, n);
+#elif defined(USE_AVX2)
+        return internal::avx2_strstr_anysize(h, n);
+#elif defined(__SSE2__)
+        return internal::sse2_strstr_anysize(h, n);
+#else
+        return internal::swar64_strstr_anysize(h, n);
+#endif
+    }
 }; // end namespace cryptanalyslib::algorithm
 
 

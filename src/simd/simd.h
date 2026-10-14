@@ -5884,4 +5884,57 @@ using SIMDSelector = TxN_t<T, 64/sizeof(T)>;
 using SIMDSelector = TxN_t<T, 32/sizeof(T)>;
 #endif
 
+/// lane reductions, like `std::experimental::simd`: a lane counts as true if
+/// it is not zero, e.g. the lanes of a comparison `S::gt_(a, b)`. Works for
+/// every SIMD type (`uint8x32_t`, ..., `TxN_t<T, N>` with N <= 128):
+/// 	if (cryptanalysislib::any_of(uint32x8_t::eq_(a, b))) { ... }
+/// Tests: `tests/simd/reduce.cpp`
+namespace cryptanalysislib {
+	/// \param in[in]: SIMD register
+	/// \return one bit per lane (bit i = lane i), set if lane i is not zero
+	template<class S>
+		requires requires(const S s) { S::LIMBS; S::move(S::cmp_(s, s)); }
+	[[nodiscard]] constexpr inline auto lane_mask(const S &in) noexcept {
+		using M = decltype(S::move(in));
+		constexpr uint32_t n = S::LIMBS;
+		const M m = M(S::move(S::cmp_(in, S::set1(0))));
+		if constexpr (n >= sizeof(M) * 8u) {
+			return m;
+		} else {
+			return M(m & M((M(1u) << n) - 1u));
+		}
+	}
+
+	/// \return true if all lanes of `in` are not zero
+	template<class S>
+		requires requires(const S s) { S::LIMBS; S::move(S::cmp_(s, s)); }
+	[[nodiscard]] constexpr inline bool all_of(const S &in) noexcept {
+		using M = decltype(lane_mask(in));
+		constexpr uint32_t n = S::LIMBS;
+		constexpr M full = (n >= sizeof(M) * 8u) ? M(~M(0u)) : M((M(1u) << (n % (sizeof(M) * 8u))) - 1u);
+		return lane_mask(in) == full;
+	}
+
+	/// \return true if at least one lane of `in` is not zero
+	template<class S>
+		requires requires(const S s) { S::LIMBS; S::move(S::cmp_(s, s)); }
+	[[nodiscard]] constexpr inline bool any_of(const S &in) noexcept {
+		return lane_mask(in) != 0;
+	}
+
+	/// \return true if all lanes of `in` are zero
+	template<class S>
+		requires requires(const S s) { S::LIMBS; S::move(S::cmp_(s, s)); }
+	[[nodiscard]] constexpr inline bool none_of(const S &in) noexcept {
+		return lane_mask(in) == 0;
+	}
+
+	/// \return true if at least one, but not all lanes of `in` are zero
+	template<class S>
+		requires requires(const S s) { S::LIMBS; S::move(S::cmp_(s, s)); }
+	[[nodiscard]] constexpr inline bool some_of(const S &in) noexcept {
+		return any_of(in) && !all_of(in);
+	}
+}// namespace cryptanalysislib
+
 #endif//CRYPTANALYSISLIB_SIMD_H

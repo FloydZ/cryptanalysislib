@@ -1,7 +1,9 @@
-#pragma once 
+#pragma once
 
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "combination/enumerator.h"
 
 /// Class for generating and manipulating Run Length Limited (RLL) and Fibonacci words
 /// RLL words have restrictions on the maximum number of consecutive identical bits
@@ -87,23 +89,45 @@ private:
         return w_;
     }
 
+    /// \return the first RLL word
+    [[nodiscard]] constexpr static T first_word() noexcept {
+        bit_rll2 r;
+        return r.w_;
+    }
+
+    /// \return the last RLL word
+    [[nodiscard]] constexpr static T last_word() noexcept {
+        bit_rll2 r;
+        r.last();
+        return r.w_;
+    }
+
 public:
     /// Advances to the next RLL word in the sequence
-    /// \return the next RLL word
-    [[nodiscard]] constexpr T next() noexcept { 
-        return step( w_ ); 
+    /// \return false if the current word is the last one (unchanged)
+    constexpr bool next() noexcept {
+        if (w_ == last_word()) { return false; }
+        (void)step( w_ );
+        return true;
     }
-    
+
     /// Moves to the previous RLL word in the sequence
-    /// \return the previous RLL word
-    [[nodiscard]] constexpr T prev() noexcept { 
-        return step( ~w_ ); 
+    /// \return false if the current word is the first one (unchanged)
+    constexpr bool previous() noexcept {
+        if (w_ == first_word()) { return false; }
+        (void)step( T(~w_) );
+        return true;
     }
 
     /// Gets the current RLL word (in lexicographic order)
     /// \return the current RLL word
-    [[nodiscard]] constexpr T data() const noexcept { 
-        return w_; 
+    [[nodiscard]] constexpr T data() const noexcept {
+        return w_;
+    }
+
+    /// \return the current RLL word (in lexicographic order)
+    [[nodiscard]] constexpr T current() const noexcept {
+        return w_;
     }
 
     /// Converts the current RLL word to a Fibonacci word (in Gray code order)
@@ -115,14 +139,14 @@ public:
     /// Advances to the next RLL word and returns the corresponding Fibonacci word
     /// \return the next Fibonacci word
     [[nodiscard]] constexpr T next_fib() noexcept {
-        next(); 
-        return fib(); 
+        next();
+        return fib();
     }
-    
+
     /// Moves to the previous RLL word and returns the corresponding Fibonacci word
     /// \return the previous Fibonacci word
-    [[nodiscard]] constexpr T prev_fib() noexcept { 
-        prev(); 
-        return fib(); 
+    [[nodiscard]] constexpr T prev_fib() noexcept {
+        previous();
+        return fib();
     }
 };

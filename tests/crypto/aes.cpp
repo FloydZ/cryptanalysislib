@@ -41,6 +41,52 @@ TEST(AES, aes256) {
     for (uint32_t i = 0; i < 16; i++) { EXPECT_EQ(c[i], e[i]); }
 }
 
+// source: FIPS-197 appendix C (AES-128/192/256 example vectors)
+TEST(AES, fips197_decrypt) {
+    constexpr uint8_t p[] = {0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff};
+    constexpr uint8_t k[] = {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
+                             0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f};
+    constexpr uint8_t c128[] = {0x69,0xc4,0xe0,0xd8,0x6a,0x7b,0x04,0x30,0xd8,0xcd,0xb7,0x80,0x70,0xb4,0xc5,0x5a};
+    constexpr uint8_t c192[] = {0xdd,0xa9,0x7c,0xa4,0x86,0x4c,0xdf,0xe0,0x6e,0xaf,0x70,0xa0,0xec,0x0d,0x71,0x91};
+    constexpr uint8_t c256[] = {0x8e,0xa2,0xb7,0xca,0x51,0x67,0x45,0xbf,0xea,0xfc,0x49,0x90,0x4b,0x49,0x60,0x89};
+
+    // encrypt and decrypt at compile time
+    constexpr auto e128 = aes_encrypt<128>(p, k);
+    constexpr auto d128 = aes_decrypt<128>(c128, k);
+    constexpr auto e192 = aes_encrypt<192>(p, k);
+    constexpr auto d192 = aes_decrypt<192>(c192, k);
+    constexpr auto e256 = aes_encrypt<256>(p, k);
+    constexpr auto d256 = aes_decrypt<256>(c256, k);
+    for (uint32_t i = 0; i < 16; i++) {
+        EXPECT_EQ(e128[i], c128[i]);
+        EXPECT_EQ(d128[i], p[i]);
+        EXPECT_EQ(e192[i], c192[i]);
+        EXPECT_EQ(d192[i], p[i]);
+        EXPECT_EQ(e256[i], c256[i]);
+        EXPECT_EQ(d256[i], p[i]);
+    }
+}
+
+/// decrypt(encrypt(m)) == m for random blocks and keys
+TEST(AES, roundtrip) {
+    for (uint32_t r = 0; r < 100; ++r) {
+        uint8_t b[16], k[32];
+        for (auto &x : b) { x = uint8_t(cryptanalysislib::rng()); }
+        for (auto &x : k) { x = uint8_t(cryptanalysislib::rng()); }
+        const auto c1 = aes_encrypt<128>(b, k);
+        const auto c2 = aes_encrypt<192>(b, k);
+        const auto c3 = aes_encrypt<256>(b, k);
+        const auto d1 = aes_decrypt<128>(c1.data(), k);
+        const auto d2 = aes_decrypt<192>(c2.data(), k);
+        const auto d3 = aes_decrypt<256>(c3.data(), k);
+        for (uint32_t i = 0; i < 16; i++) {
+            ASSERT_EQ(d1[i], b[i]);
+            ASSERT_EQ(d2[i], b[i]);
+            ASSERT_EQ(d3[i], b[i]);
+        }
+    }
+}
+
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

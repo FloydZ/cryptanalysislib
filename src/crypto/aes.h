@@ -348,52 +348,60 @@ constexpr std::array<uint8_t, 16> aes_encrypt(const uint8_t s[16],
     return state;
 }
 
-//template<const uint8_t version>
-//void aes_decrypt(uint8_t * state, 
-//                 const uint8_t *key) noexcept {
-//    constexpr size_t key_schedule_size = len_to_keyschedule_size<version>();
-//    constexpr size_t rounds = len_to_rounds<version>();
-//    uint8_t key_schedule[key_schedule_size];
-//    uint8_t round_key[16];
-//
-//    /* initialize key schedule; its first 16 bytes are the key */
-//    for (uint8_t i = 0; i < 16; i++) {
-//        key_schedule[i] = key[i];
-//    }
-//
-//    /* populate the key schedule */
-//    expand_key(key_schedule, version);
-//
-//    /* the 'first' round key for decryption is the last in the schedule */
-//    for (uint8_t i = 0; i < 16; i++) {
-//        round_key[i] = key_schedule[key_schedule_size - 16 + i];
-//    }
-//
-//    /* initial round of AddRoundKey step */
-//    add_round_key(state, round_key);
-//
-//    /* rounds 1-9 of the algorithm */
-//    for (uint8_t i = 1; i < rounds; i++) {
-//        inv_shift_rows(state);
-//        inv_sub_bytes(state);
-//
-//        for (uint8_t j = 0; j < 16; j++) {
-//            round_key[j] = key_schedule[j + ((key_schedule_size - 16) - i * 16)];
-//        }
-//
-//        /* AddRoundKey is its own inverse */
-//        add_round_key(state, round_key);
-//        inv_mix_columns(state);
-//    }
-//
-//    /* prepare final round key */
-//    for (uint8_t i = 0; i < 16; i++) {
-//        round_key[i] = key_schedule[i];
-//    }
-//
-//    /* final round */
-//    inv_shift_rows(state);
-//    inv_sub_bytes(state);
-//    add_round_key(state, round_key);
-//}
-//
+/// \tparam version: key length in bits: 128, 192 or 256
+/// \param s[in]: 16 byte ciphertext block
+/// \param key[in]: version/8 byte key
+/// \return 16 byte plaintext block
+template<const uint32_t version>
+constexpr std::array<uint8_t, 16> aes_decrypt(const uint8_t s[16],
+                                              const uint8_t key[version/8]) noexcept {
+    constexpr size_t key_schedule_size = len_to_keyschedule_size<version>();
+    constexpr size_t rounds = len_to_rounds<version>();
+    uint8_t key_schedule[key_schedule_size];
+    uint8_t round_key[16];
+
+    std::array<uint8_t, 16> state;
+    for (uint8_t i = 0; i < 16; i++) {
+        state[i] = s[i];
+    }
+
+    // NOTE: the first version/8 bytes of the key schedule are the key
+    for (uint32_t i = 0; i < version / 8; i++) {
+        key_schedule[i] = key[i];
+    }
+
+    /* populate the key schedule */
+    expand_key(key_schedule, version);
+
+    /* the 'first' round key for decryption is the last in the schedule */
+    for (uint8_t i = 0; i < 16; i++) {
+        round_key[i] = key_schedule[key_schedule_size - 16 + i];
+    }
+
+    /* initial round of AddRoundKey step */
+    add_round_key(state, round_key);
+
+    for (uint8_t i = 1; i < rounds; i++) {
+        inv_shift_rows(state);
+        inv_sub_bytes(state);
+
+        for (uint8_t j = 0; j < 16; j++) {
+            round_key[j] = key_schedule[j + ((key_schedule_size - 16) - i * 16)];
+        }
+
+        /* AddRoundKey is its own inverse */
+        add_round_key(state, round_key);
+        inv_mix_columns(state);
+    }
+
+    /* prepare final round key */
+    for (uint8_t i = 0; i < 16; i++) {
+        round_key[i] = key_schedule[i];
+    }
+
+    /* final round */
+    inv_shift_rows(state);
+    inv_sub_bytes(state);
+    add_round_key(state, round_key);
+    return state;
+}

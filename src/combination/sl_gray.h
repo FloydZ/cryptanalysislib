@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
+
+#include "combination/enumerator.h"
 
 /// Class for generating binary words in SL-Gray order (subset-lex Gray code)
 /// Implements a minimal-change order related to subset-lex order
@@ -53,10 +56,33 @@ public:
     /// \return current Gray code word
     uint64_t data()  const  { return x_; }
 
+    /// \return current Gray code word
+    uint64_t current()  const  { return x_; }
+
+    /// not implemented: the loopless algorithm only steps forwards
+    /// \return false
+    bool previous() {
+        assert(false);
+        return false;
+    }
+
     /// Advances to the next word in the SL-Gray sequence
     /// The algorithm is "loopless" meaning it has constant time per word
+    /// \return false if the current word is the last one (unchanged)
+    bool next() {
+        const uint64_t x = x_, tr = tr_;
+        const bool dt = dt_;
+        if (step() == 0) {
+            x_ = x; tr_ = tr; dt_ = dt;
+            return false;
+        }
+        return true;
+    }
+
+private:
+    /// one step of the loopless algorithm
     /// \return the next SL-Gray code word, or 0 if at the end of the sequence
-    uint64_t next() {
+    uint64_t step() {
         if ( dt_ ) {
             // Try to append trailing ones (moving right)
             if ( (x_ & tr_) == 0 ) {

@@ -56,11 +56,11 @@ public:
 
     /// Advances to the next subset in Gray code order
     /// Each successive subset differs from the previous by exactly one bit
-    /// \return the next subset in Gray code order
-    constexpr T next() noexcept {
-        T U0 = S.current();
-        if (U0 == S.full_set()) return first();
-        T U1 = S.next();
+    /// \return false if the current subset is the last one (unchanged)
+    constexpr bool next() noexcept {
+        const T U0 = S.current();
+        if (!S.next()) { return false; }
+        const T U1 = S.current();
 #if defined BITSUBSET_GRAY_METHOD1
         // Method 1: find bits in U1 that are not in U0
         T X = ~U0 & U1;
@@ -69,7 +69,7 @@ public:
         T X = (U0 ^ U1) & U1;
 #endif
         G ^= X;
-        return G;
+        return true;
     }
 
     /// Sets the generator to the first subset for a new full set
@@ -91,11 +91,11 @@ public:
     }
 
     /// Moves to the previous subset in Gray code order
-    /// \return the previous subset in Gray code order
-    constexpr T prev() noexcept {
-        T U1 = S.current();
-        if (U1 == 0) return last();
-        T U0 = S.prev();
+    /// \return false if the current subset is the first one (unchanged)
+    constexpr bool previous() noexcept {
+        const T U1 = S.current();
+        if (!S.previous()) { return false; }
+        const T U0 = S.current();
 #if defined BITSUBSET_GRAY_METHOD1
         // Method 1: find bits in U1 that are not in U0
         T X = ~U0 & U1;
@@ -104,7 +104,7 @@ public:
         T X = (U0 ^ U1) & U1;
 #endif
         G ^= X;
-        return G;
+        return true;
     }
 
     /// Sets the generator to the last subset for a new full set

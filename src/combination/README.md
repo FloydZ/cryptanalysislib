@@ -1,3 +1,23 @@
+Enumerator interface:
+=====================
+
+All enumerators in this directory implement the concept `EnumeratorAble`
+(`combination/enumerator.h`):
+
+```C
+enumeration_colex<uint64_t, 10, 3> e;    // at the first element
+do {
+    use(e.current());                    // the current element
+} while (e.next());                      // false at the last element
+while (e.previous()) { ... }             // false at the first element
+```
+
+`next()`/`previous()` do not change the current element if they return
+`false`. Enumerators which cannot go back (`kolakoski_seq`, `bit_necklace`,
+`combination_revdoor`, `bit_comb_shifts`, `bit_sl_gray`,
+`Combinations_Binary_Chase`, `Combinations_Fq_Chase`) `assert(false)` in
+`previous()`. Tests: `tests/combination/enumerator.cpp`.
+
 Chase-Sequence:
 ===============
 

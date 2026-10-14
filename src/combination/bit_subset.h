@@ -2,11 +2,14 @@
 
 #include <cstdint>
 
+#include "combination/enumerator.h"
+
 // Generate all subsets of bits of  a given word.
 //
 // E.g., for the word ('.' printed for unset bits)
 //   ...11.1.
-// these words are produced by subsequent next()-calls:
+// these words are produced by subsequent next()-calls (starting with the
+// empty set, `next()` returns false at the full set):
 //   ......1.
 //   ....1...
 //   ....1.1.
@@ -14,7 +17,6 @@
 //   ...1..1.
 //   ...11...
 //   ...11.1.
-//   ........
 /// Class for generating all subsets of bits in a given word
 /// \tparam T[in]: type of the word, defaults to uint64_t
 template<typename T = uint64_t>
@@ -42,18 +44,21 @@ public:
 		return V;
 	}
 
-    /// Advances to the next subset in the enumeration
-    /// \return the next subset
-	[[nodiscard]] constexpr inline T next() noexcept {
+    /// Advances to the next subset in the enumeration (counting order, from
+    /// the empty set to the full set)
+    /// \return false if the current subset is the full set (unchanged)
+	constexpr inline bool next() noexcept {
+		if (U == V) { return false; }
 		U = (U - V) & V;
-		return U;
+		return true;
 	}
 
     /// Returns to the previous subset in the enumeration
-    /// \return the previous subset
-	[[nodiscard]] constexpr inline T prev() noexcept {
+    /// \return false if the current subset is the empty set (unchanged)
+	constexpr inline bool previous() noexcept {
+		if (U == 0) { return false; }
 		U = (U - 1) & V;
-		return U;
+		return true;
 	}
 
     /// Sets the full set to `v` and the current subset to the empty set
@@ -145,7 +150,7 @@ public:
     /// \return the subset after left shift with filling
 	[[nodiscard]] constexpr inline T shift_left_fill() noexcept {
 		shift_left();
-		next();
+		U = (U - V) & V;
 		return U;
 	}
 

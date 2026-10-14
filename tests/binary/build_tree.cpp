@@ -157,6 +157,39 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_LT(out.load(),1u<<18);
 }
 
+TEST(TreeTest, join8lists) {
+	constexpr uint32_t basesize = 5u;
+	BinaryMatrix A;
+	A.identity();
+
+	const std::vector<uint32_t> ta{{0, 4, 7, n}};
+
+	BinaryList out{1u<<17};
+	std::vector<BinaryList> L(8, BinaryList{0});
+	for (auto &l : L) { l.random(1u << basesize, A); }
+
+	BinaryLabel target {};
+	target.zero();
+	target.random();
+
+	BinaryTree t{1, A, 0};
+	t.join8lists(out, L, target, ta);
+
+	uint32_t wrong = 0;
+	for (uint64_t i = 0; i < out.load(); ++i) {
+		// NOTE: the labels are the target
+		if (!BinaryLabel::cmp(out[i].label, target, 0, n)) { wrong++; }
+		out[i].recalculate_label(A);
+		if (!BinaryLabel::cmp(out[i].label, target, 0, n)) { wrong++; }
+	}
+
+	EXPECT_EQ(0, wrong);
+	// NOTE: 2^20 4-tuples per side matching on 4+7 bits: 2^9 each, then
+	// 	2^18 pairs matching on the last 3 bits: 2^15 expected
+	EXPECT_GT(out.load(),1u<<14);
+	EXPECT_LT(out.load(),1u<<16);
+}
+
 #ifndef EXTERNAL_MAIN
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
