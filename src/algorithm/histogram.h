@@ -10,6 +10,11 @@
 #include "alloc/alloc.h"
 #include "simd/simd.h"
 
+#ifdef __CUDACC__
+// needed for `parallel_cuda_policy`
+#include "algorithm/histogram.cuh"
+#endif
+
 namespace cryptanalysislib {
 
 /// Configuration for histogram algorithms with threading settings
@@ -1000,6 +1005,37 @@ constexpr inline static void histogram_u8_8x(C cnt[256],
 
 } // end namespace cryptanalysislib
 
+#ifdef USE_ISPC
+namespace cryptanalysislib::internal::ispc {
+	/// ispc histogram for uint8_t data, see `algorithm/histogram.ispc`
+	/// NOTE: `cnt` is overwritten, it does not need to be zeroed
+	/// NOTE: the target needs to link against `cryptanalysislib_ispc`
+	/// \param cnt[out]: Output histogram array (256 elements)
+	/// \param in[in]: Input data array
+	/// \param inlen[in]: Number of elements in input array
+	extern "C" void histogram_u8(uint32_t cnt[256],
+								 const uint8_t *in,
+								 uint64_t inlen) noexcept;
+
+	/// ispc 256-bin histograms for 16/32/64-bit data, see `algorithm/histogram.ispc`
+	/// NOTE: only the lower 8 bits of each element are counted
+	/// NOTE: `cnt` is overwritten, it does not need to be zeroed
+	/// NOTE: the target needs to link against `cryptanalysislib_ispc`
+	/// \param cnt[out]: Output histogram array (256 elements)
+	/// \param in[in]: Input data array
+	/// \param inlen[in]: Number of elements in input array
+	extern "C" void histogram_u16(uint32_t cnt[256],
+								  const uint16_t *in,
+								  uint64_t inlen) noexcept;
+	extern "C" void histogram_u32(uint32_t cnt[256],
+								  const uint32_t *in,
+								  uint64_t inlen) noexcept;
+	extern "C" void histogram_u64(uint32_t cnt[256],
+								  const uint64_t *in,
+								  uint64_t inlen) noexcept;
+} // end namespace cryptanalysislib::internal::ispc
+#endif
+
 namespace cryptanalysislib::algorithm {
 
 	/// Computes histogram of input data (sequential version)
@@ -1036,10 +1072,12 @@ namespace cryptanalysislib::algorithm {
 	/// \tparam C Counter data type (default: uint32_t)
 	/// \tparam config Algorithm configuration (default: algorithmHistogramConfig)
 	/// \tparam Allocator Memory allocator type
-	/// \param policy[in]: Execution policy specifying parallelization strategy
+	/// \param policy[in]: Execution policy specifying parallelization strategy,
+	/// 	`parallel_cuda_policy` (nvcc only) runs it on a CUDA device (see
+	/// 	`algorithm/histogram.cuh`), if this fails the sequential version is used
 	/// \param cnt[out]: Output histogram array, 2**(8*sizeof(T)) elements
 	/// \param in[in]: Input data array
-	/// \param size[in]: Number of elements in input array 
+	/// \param size[in]: Number of elements in input array
 	template<class ExecPolicy,
 		     typename T=uint8_t,
 			 typename C=uint32_t,
@@ -1049,51 +1087,62 @@ namespace cryptanalysislib::algorithm {
 										   C *__restrict__ cnt,
 										   const T *__restrict in,
 										   const size_t size) noexcept {
-		const uint32_t nthreads = should_par(policy, config, size);
-		if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
-			return cryptanalysislib::algorithm::histogram(cnt, in, size);
-		}
-		// NOTE: the pool only exists for parallel policies (`seq.pool()` is
-		// 	null), so it is not dereferenced before the sequential check
-		auto& task_pool = *policy.pool();
-
-
-        std::vector<std::future<void>> futures;
-		const size_t chunks = size  / nthreads;
-
-		// one private histogram per thread with a bin for every value of T
 		static_assert(sizeof(T) <= 2, "histogram: at most 16-bit inputs are supported");
-		constexpr size_t k = 1ull << (8u * sizeof(T));
-		// every thread overwrites its own private histogram
-		C *cnts = Allocator::allocate(nthreads * k * sizeof(C));
-
-		for (uint32_t i = 0; i < nthreads; i++) {
-			const size_t l = i*chunks;
-			// the last thread also processes the remainder
-			const size_t len = (i == nthreads - 1u) ? size - l : chunks;
-			futures.emplace_back(
-			    task_pool.submit(
-			       [i, cnts, in, l, len] () {
-			       	    histogram
-			       			<T, C, config>
-			       				(cnts + i*k,
-			       	    		  in + l,
-			       	    		  len);
-			       }
-			    )
-			);
-		}
-
-
-		cryptanalysislib::memset(cnt, C(0), k);
-		for (uint32_t i = 0; i < nthreads; i++) {
-			futures[i].wait();
-			for (size_t j = 0; j < k; j++) {
-				cnt[j] += cnts[i*k + j];
+#ifdef __CUDACC__
+		if constexpr (std::is_same_v<std::remove_cvref_t<ExecPolicy>, parallel_cuda_policy>) {
+			using U = std::make_unsigned_t<T>;
+			if (is_seq<ExecPolicy>(policy) ||
+			    !internal::cuda::histogram<U, C>(cnt, (const U *)in, size, policy.stream(), policy.device())) {
+				cryptanalysislib::algorithm::histogram<T, C, config>(cnt, in, size);
 			}
-		}
+		} else
+#endif
+		{
+			const uint32_t nthreads = should_par(policy, config, size);
+			if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+				return cryptanalysislib::algorithm::histogram(cnt, in, size);
+			}
+			// NOTE: the pool only exists for parallel policies (`seq.pool()` is
+			// 	null), so it is not dereferenced before the sequential check
+			auto& task_pool = *policy.pool();
 
-		Allocator::deallocate(cnts, nthreads * k * sizeof(C));
+
+			std::vector<std::future<void>> futures;
+			const size_t chunks = size  / nthreads;
+
+			// one private histogram per thread with a bin for every value of T
+			constexpr size_t k = 1ull << (8u * sizeof(T));
+			// every thread overwrites its own private histogram
+			C *cnts = Allocator::allocate(nthreads * k * sizeof(C));
+
+			for (uint32_t i = 0; i < nthreads; i++) {
+				const size_t l = i*chunks;
+				// the last thread also processes the remainder
+				const size_t len = (i == nthreads - 1u) ? size - l : chunks;
+				futures.emplace_back(
+				    task_pool.submit(
+				       [i, cnts, in, l, len] () {
+				       	    histogram
+				       			<T, C, config>
+				       				(cnts + i*k,
+				       	    		  in + l,
+				       	    		  len);
+				       }
+				    )
+				);
+			}
+
+
+			cryptanalysislib::memset(cnt, C(0), k);
+			for (uint32_t i = 0; i < nthreads; i++) {
+				futures[i].wait();
+				for (size_t j = 0; j < k; j++) {
+					cnt[j] += cnts[i*k + j];
+				}
+			}
+
+			Allocator::deallocate(cnts, nthreads * k * sizeof(C));
+		}
 	}
 };
 

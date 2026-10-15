@@ -37,7 +37,9 @@ using namespace cryptanalysislib;
 namespace cryptanalysislib::internal {
     template <std::size_t size>
     struct _MaskType {
-        static_assert(false, "Unsupported mask size");
+        // NOTE: depends on `size`, as `static_assert(false)` in a template
+        //  is only allowed since C++23 (nvcc supports at most C++20)
+        static_assert(size == 0, "Unsupported mask size");
     };
 #ifdef USE_AVX512F
     template <>

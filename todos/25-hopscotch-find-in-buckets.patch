@@ -1,0 +1,136 @@
+diff --git a/bench/container/hashmap2.cpp b/bench/container/hashmap2.cpp
+index 88f9722..b9749a7 100644
+--- a/bench/container/hashmap2.cpp
++++ b/bench/container/hashmap2.cpp
+@@ -45,6 +45,24 @@ static void BM_hopscotch_map(benchmark::State &state) {
+ }
+ 
+ 
++/// lookups (hits and misses) of random keys, i.e. occupied neighborhoods
++static void BM_hopscotch_map_find_random(benchmark::State &state) {
++	hopscotch_map<K, V> map;
++	std::vector<K> keys(2 * list_size);
++	for (auto &k : keys) { k = cryptanalysislib::rng<K>(); }
++	for (size_t i = 0; i < list_size; ++i) { map[keys[i]] = f(keys[i]); }
++
++	for (auto _: state) {
++		size_t t = 0;
++		for (const auto k : keys) {
++			t += map.count(k);
++		}
++
++		benchmark::DoNotOptimize(t += 1);
++	}
++}
++
+ BENCHMARK(BM_std_unordered_map);
+ BENCHMARK(BM_hopscotch_map);
++BENCHMARK(BM_hopscotch_map_find_random);
+ BENCHMARK_MAIN();
+diff --git a/src/container/hashmap/hopscotch_hash.h b/src/container/hashmap/hopscotch_hash.h
+index c4cd98b..9a62cc3 100644
+--- a/src/container/hashmap/hopscotch_hash.h
++++ b/src/container/hashmap/hopscotch_hash.h
+@@ -22,6 +22,7 @@
+ #include <utility>
+ #include <vector>
+ 
++#include "algorithm/countr.h"
+ #include "growth_policy.h"
+ 
+ #if (defined(__GNUC__) && (__GNUC__ == 4) && (__GNUC_MINOR__ < 9))
+@@ -1589,8 +1590,8 @@ namespace tsl {
+    			 * Avoid the creation of an iterator to just get the value for operator[] and
+    			 * at() in maps. Faster this way.
+    			 *
+-   			 * Return null if no value for the key (TODO use std::optional when
+-   			 * available).
++   			 * Return null if no value for the key. NOTE: a pointer, because
++   			 * `std::optional<T &>` needs C++26.
+    			 */
+ 			template <class K, class U = ValueSelect,
+ 			         typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
+@@ -1686,26 +1687,23 @@ namespace tsl {
+ 			        const hopscotch_bucket* bucket_for_hash) const noexcept {
+ 				(void)hash;  // Avoid warning of unused variable when StoreHash is false;
+ 
+-				// TODO Try to optimize the function.
+-				// I tried to use ffs and  __builtin_ffs functions but I could not reduce
+-				// the time the function takes with -march=native
+-
++				// only visits the buckets whose neighborhood bit is set
+ 				neighborhood_bitmap neighborhood_infos =
+ 				        bucket_for_hash->neighborhood_infos();
+ 				while (neighborhood_infos != 0) {
+-					if ((neighborhood_infos & 1) == 1) {
+-						// Check StoreHash before calling bucket_hash_equal. Functionally it
+-						// doesn't change anything. If StoreHash is false, bucket_hash_equal is a
+-						// no-op. Avoiding the call is there to help GCC optimizes `hash`
+-						// parameter away, it seems to not be able to do without this hint.
+-						if ((!StoreHash || bucket_for_hash->bucket_hash_equal(hash)) &&
+-						    compare_keys(KeySelect()(bucket_for_hash->value()), key)) {
+-							return bucket_for_hash;
+-						}
++					const hopscotch_bucket *bucket =
++					        bucket_for_hash + cryptanalysislib::countr_zero(neighborhood_infos);
++					// Check StoreHash before calling bucket_hash_equal. Functionally it
++					// doesn't change anything. If StoreHash is false, bucket_hash_equal is a
++					// no-op. Avoiding the call is there to help GCC optimizes `hash`
++					// parameter away, it seems to not be able to do without this hint.
++					if ((!StoreHash || bucket->bucket_hash_equal(hash)) &&
++					    compare_keys(KeySelect()(bucket->value()), key)) {
++						return bucket;
+ 					}
+ 
+-					++bucket_for_hash;
+-					neighborhood_infos = neighborhood_bitmap(neighborhood_infos >> 1);
++					// clear the lowest set bit
++					neighborhood_infos = neighborhood_bitmap(neighborhood_infos & (neighborhood_infos - 1));
+ 				}
+ 
+ 				return nullptr;
+diff --git a/tests/container/hashmap/hopscotch.cpp b/tests/container/hashmap/hopscotch.cpp
+index 4ee7710..1dd734d 100644
+--- a/tests/container/hashmap/hopscotch.cpp
++++ b/tests/container/hashmap/hopscotch.cpp
+@@ -79,6 +79,40 @@ TEST(hopscotch, ranges) {
+ 	EXPECT_EQ(m2.count(2), 0u);
+ }
+ 
++/// random and colliding keys (identity hash, shared low bits), i.e. occupied
++/// neighborhoods and overflow, hits and misses against std::unordered_map
++TEST(hopscotch, random_vs_std) {
++	for (const uint32_t shift : {0u, 8u, 16u}) {
++		hopscotch_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
++		              std::allocator<std::pair<uint64_t, uint64_t>>, 8> m;
++		hopscotch_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
++		              std::allocator<std::pair<uint64_t, uint64_t>>, 30, true> ms;
++		std::unordered_map<uint64_t, uint64_t> e;
++		for (uint64_t i = 0; i < 20000; ++i) {
++			const uint64_t k = (cryptanalysislib::rng<uint64_t>() % 50000) << shift;
++			if (cryptanalysislib::rng() % 4) {
++				m[k] = i; ms[k] = i; e[k] = i;
++			} else {
++				EXPECT_EQ(m.erase(k), e.erase(k));
++				ms.erase(k);
++			}
++		}
++
++		ASSERT_EQ(m.size(), e.size());
++		ASSERT_EQ(ms.size(), e.size());
++		for (uint64_t i = 0; i < 20000; ++i) {
++			const uint64_t k = (cryptanalysislib::rng<uint64_t>() % 100000) << shift;
++			const auto ie = e.find(k);
++			EXPECT_EQ(m.count(k), e.count(k));
++			EXPECT_EQ(ms.count(k), e.count(k));
++			if (ie != e.end()) {
++				EXPECT_EQ(m.at(k), ie->second);
++				EXPECT_EQ(ms.at(k), ie->second);
++			}
++		}
++	}
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();

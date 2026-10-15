@@ -1,0 +1,207 @@
+diff --git a/src/container/hashmap/growth_policy.h b/src/container/hashmap/growth_policy.h
+index aaf842d..897dc1a 100644
+--- a/src/container/hashmap/growth_policy.h
++++ b/src/container/hashmap/growth_policy.h
+@@ -35,6 +35,8 @@ namespace cryptanalysislib::hh {
+ 	template<std::size_t GrowthFactor>
+ 	class power_of_two_growth_policy {
+ 	public:
++	/// as if created with a bucket count of 0
++	constexpr power_of_two_growth_policy() noexcept = default;
+ 
+ 	/**
+      * Called on the hash table creation and on rehash. The number of buckets for
+@@ -98,7 +100,7 @@ namespace cryptanalysislib::hh {
+ 		              (cryptanalysislib::popcount::popcount(GrowthFactor) == 1),
+ 		              "GrowthFactor must be a power of two >= 2.");
+ 
+-		std::size_t m_mask;
++		std::size_t m_mask = 0;
+ 	};
+ 
+ 	/**
+@@ -109,6 +111,9 @@ namespace cryptanalysislib::hh {
+ 	template<class GrowthFactor = std::ratio<3, 2>>
+ 	class mod_growth_policy {
+ 	public:
++		/// as if created with a bucket count of 0
++		constexpr mod_growth_policy() noexcept = default;
++
+ 		constexpr explicit mod_growth_policy(const std::size_t &min_bucket_count_in_out) noexcept {
+ 			if (min_bucket_count_in_out > max_bucket_count()) {
+ 				assert(false);
+@@ -157,7 +162,7 @@ namespace cryptanalysislib::hh {
+ 		static_assert(REHASH_SIZE_MULTIPLICATION_FACTOR >= 1.1,
+ 		              "Growth factor should be >= 1.1.");
+ 
+-		std::size_t m_mod;
++		std::size_t m_mod = 1;
+ 	};
+ 
+ 	namespace detail {
+@@ -241,6 +246,9 @@ namespace cryptanalysislib::hh {
+ 	*/
+ 	class prime_growth_policy {
+ 	public:
++		/// as if created with a bucket count of 0
++		constexpr prime_growth_policy() noexcept = default;
++
+ 		constexpr explicit prime_growth_policy(std::size_t &min_bucket_count_in_out) noexcept {
+ 			auto it_prime = std::lower_bound(
+ 			        detail::PRIMES.begin(), detail::PRIMES.end(), min_bucket_count_in_out);
+@@ -276,7 +284,7 @@ namespace cryptanalysislib::hh {
+ 		constexpr void clear() noexcept { m_iprime = 0; }
+ 
+ 	private:
+-		uint32_t m_iprime;
++		uint32_t m_iprime = 0;
+ 
+ 		static_assert(std::numeric_limits<decltype(m_iprime)>::max() >=
+ 		                      detail::PRIMES.size(),
+diff --git a/src/container/hashmap/hopscotch.h b/src/container/hashmap/hopscotch.h
+index 93bb87f..b68eea7 100644
+--- a/src/container/hashmap/hopscotch.h
++++ b/src/container/hashmap/hopscotch.h
+@@ -174,11 +174,8 @@ private:
+ 					KeySelect,
+ 					ValueSelect,
+ 	                Hash,
+-	                KeyOrValueHasher<Key, std::pair<Key, T>, Hash>,
+-	        		KeyEqual ,
+-	                KeyOrValueEquality<Key, std::pair<Key, T>, KeyEqual>,
+-	                Allocator,
+-	                typename std::allocator_traits<Allocator>::template rebind_alloc<sherwood_v3_entry<std::pair<Key, T>>>
++	        		KeyEqual,
++	                Allocator
+ 	>;
+ 	using ht = tsl::detail_hopscotch_hash::hopscotch_hash<
+ 	        		std::pair<Key, T>,
+diff --git a/src/container/hashmap/ska_flat.h b/src/container/hashmap/ska_flat.h
+index 2f8a609..17e325c 100644
+--- a/src/container/hashmap/ska_flat.h
++++ b/src/container/hashmap/ska_flat.h
+@@ -163,25 +163,24 @@ struct sherwood_v3_entry {
+ 	};
+ };
+ 
+-/// TODO simplify
+-/// \tparam T
+-/// \tparam KeySelect
+-/// \tparam ValueSelect
+-/// \tparam ArgumentHash
+-/// \tparam Hasher
+-/// \tparam ArgumentEqual
+-/// \tparam Equal
+-/// \tparam ArgumentAlloc
+-/// \tparam EntryAlloc
++/// \tparam T value type
++/// \tparam KeySelect returns the key of a `T`
++/// \tparam ValueSelect returns the mapped value of a `T`
++/// \tparam ArgumentHash hash of the key
++/// \tparam ArgumentEqual equality of the key
++/// \tparam ArgumentAlloc allocator of `T`
++/// \tparam GrowthPolicy maps a hash to a bucket, any policy of `growth_policy.h`
++/// \tparam Hasher, Equal, EntryAlloc: derived from the above, do not set
+ template<typename T,
+          typename KeySelect,
+          typename ValueSelect,
+          typename ArgumentHash,
+-         typename Hasher,
+          typename ArgumentEqual,
+-         typename Equal,
+          typename ArgumentAlloc,
+-         typename EntryAlloc>
++         typename GrowthPolicy = cryptanalysislib::hh::fibonacci_growth_policy,
++         typename Hasher = KeyOrValueHasher<typename KeySelect::key_type, T, ArgumentHash>,
++         typename Equal = KeyOrValueEquality<typename KeySelect::key_type, T, ArgumentEqual>,
++         typename EntryAlloc = typename std::allocator_traits<ArgumentAlloc>::template rebind_alloc<sherwood_v3_entry<T>>>
+ class sherwood_v3_table : private EntryAlloc, private Hasher, private Equal {
+ 	using Entry = sherwood_v3_entry<T>;
+ 	using AllocatorTraits = std::allocator_traits<EntryAlloc>;
+@@ -560,7 +559,8 @@ public:
+ 			return;
+ 		}
+ 
+-		auto new_prime_index = hash_policy.next_size_over(num_buckets);
++		// rounds `num_buckets` up to a bucket count of the policy
++		const GrowthPolicy new_policy(num_buckets);
+ 		if (num_buckets == bucket_count())
+ 			return;
+ 		int8_t new_max_lookups = compute_max_lookups(num_buckets);
+@@ -574,7 +574,7 @@ public:
+ 		std::swap(entries, new_buckets);
+ 		std::swap(num_slots_minus_one, num_buckets);
+ 		--num_slots_minus_one;
+-		hash_policy.commit(new_prime_index);
++		hash_policy = new_policy;
+ 		int8_t old_max_lookups = max_lookups;
+ 		max_lookups = new_max_lookups;
+ 		num_elements = 0;
+@@ -717,9 +717,7 @@ public:
+ private:
+ 	EntryPointer entries = Entry::empty_default_table();
+ 	size_t num_slots_minus_one = 0;
+-	// TODO generic
+-
+-	cryptanalysislib::hh::fibonacci_growth_policy hash_policy;
++	GrowthPolicy hash_policy;
+ 	int8_t max_lookups = min_lookups - 1;
+ 	float _max_load_factor = 0.5f;
+ 	size_t num_elements = 0;
+@@ -799,7 +797,7 @@ private:
+ 		deallocate_data(entries, num_slots_minus_one, max_lookups);
+ 		entries = Entry::empty_default_table();
+ 		num_slots_minus_one = 0;
+-		hash_policy.reset();
++		hash_policy.clear();
+ 		max_lookups = min_lookups - 1;
+ 	}
+ 
+diff --git a/tests/container/hashmap/ska_flat.cpp b/tests/container/hashmap/ska_flat.cpp
+index 4a93dc4..80b63e5 100644
+--- a/tests/container/hashmap/ska_flat.cpp
++++ b/tests/container/hashmap/ska_flat.cpp
+@@ -18,13 +18,13 @@ struct VS {
+ 	uint64_t &operator()(V &v) const noexcept { return v.second; }
+ 	const uint64_t &operator()(const V &v) const noexcept { return v.second; }
+ };
+-using Table = sherwood_v3_table<V, KS, VS,
+-                                std::hash<uint64_t>, KeyOrValueHasher<uint64_t, V, std::hash<uint64_t>>,
+-                                std::equal_to<uint64_t>, KeyOrValueEquality<uint64_t, V, std::equal_to<uint64_t>>,
+-                                std::allocator<V>, std::allocator<sherwood_v3_entry<V>>>;
++template<typename GrowthPolicy = cryptanalysislib::hh::fibonacci_growth_policy>
++using Table = sherwood_v3_table<V, KS, VS, std::hash<uint64_t>, std::equal_to<uint64_t>,
++                                std::allocator<V>, GrowthPolicy>;
+ 
+ /// insert, operator[], find (also with a precomputed hash), erase against std::map
+-TEST(ska_flat, random_vs_std_map) {
++template<typename Table>
++void random_vs_std_map() {
+ 	for (const uint64_t mod : {50ull, 5000ull, 1ull << 40}) {
+ 		Table t;
+ 		std::map<uint64_t, uint64_t> e;
+@@ -51,9 +51,24 @@ TEST(ska_flat, random_vs_std_map) {
+ 			ASSERT_NE(it, t.end());
+ 			EXPECT_EQ(it->second, v);
+ 		}
++
++		t.clear();
++		EXPECT_EQ(t.size(), 0u);
++		EXPECT_EQ(t.find(1), t.end());
+ 	}
+ }
+ 
++TEST(ska_flat, random_vs_std_map) {
++	random_vs_std_map<Table<>>();
++}
++
++/// the other growth policies
++TEST(ska_flat, growth_policies) {
++	random_vs_std_map<Table<cryptanalysislib::hh::power_of_two_growth_policy<2>>>();
++	random_vs_std_map<Table<cryptanalysislib::hh::mod_growth_policy<>>>();
++	random_vs_std_map<Table<cryptanalysislib::hh::prime_growth_policy>>();
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	cryptanalysislib::rng_seed(time(NULL));

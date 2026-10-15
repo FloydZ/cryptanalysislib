@@ -1,0 +1,74 @@
+--- a/src/algorithm/matrix.h
++++ b/src/algorithm/matrix.h
+@@ -1,27 +1,33 @@
+ #pragma once
+-#include <stdlib.h>
++#include <cstddef>
+ 
+-// this file is not in `matrix.h` as this file implements algorithms which 
++// this file is not in `matrix.h` as this file implements algorithms which
+ // solve matrix equation systems.
+ 
+ namespace cryptanalysislib {
+-// 1.5. Tridiagonal Matrix Algorithm. Solves a tridiagonal
+-// system of linear equations
+-// aixi−1 + bixi + cixi+1 = di
+-// where a1 = cn = 0. Beware of numerical instability.
+-#define MAXN 5000
+-
+-
+-// TODO
+-inline double A[MAXN], B[MAXN], C[MAXN], D[MAXN], X[MAXN];
+-
++/// 1.5. Tridiagonal Matrix Algorithm. Solves a tridiagonal
++/// system of linear equations
++/// 	a_i x_{i-1} + b_i x_i + c_i x_{i+1} = d_i, for i = 0, ..., n-1,
++/// where a_0 = c_{n-1} = 0. Beware of numerical instability.
++/// NOTE: `c` and `d` are overwritten.
++/// \param x output: the solution, n elements
++/// \param a lower diagonal, n elements
++/// \param b diagonal, n elements
++/// \param c upper diagonal, n elements, will be overwritten
++/// \param d right hand side, n elements, will be overwritten
++/// \param n number of equations, >= 2
+ template <typename T>
+-void solve(int n) {
+-    C[0] /= B[0]; D[0] /= B[0];
+-    for (int i = 1; i < n-1; i++) { C[i] /= B[i] - A[i]*C[i-1]; }
+-    for (int i = 1; i < n; i++) {  D[i] = (D[i] - A[i]*D[i-1]) / (B[i] - A[i]*C[i-1]); }
+-    X[n-1] = D[n-1];
+-    for (int i = n-1; i--;) { X[i] = D[i] - C[i]*X[i+1]; }
++constexpr void solve(T *x,
++                     const T *a,
++                     const T *b,
++                     T *c,
++                     T *d,
++                     const size_t n) noexcept {
++    c[0] /= b[0]; d[0] /= b[0];
++    for (size_t i = 1; i < n-1; i++) { c[i] /= b[i] - a[i]*c[i-1]; }
++    for (size_t i = 1; i < n; i++) {  d[i] = (d[i] - a[i]*d[i-1]) / (b[i] - a[i]*c[i-1]); }
++    x[n-1] = d[n-1];
++    for (size_t i = n-1; i--;) { x[i] = d[i] - c[i]*x[i+1]; }
+ }
+ 
+ };
+--- a/tests/algorithm/matrix_solve.cpp
++++ b/tests/algorithm/matrix_solve.cpp
+@@ -11,7 +11,7 @@
+ TEST(matrix, solve_tridiagonal) {
+ 	using namespace cryptanalysislib;
+ 	for (const int n : {2, 3, 10, 100}) {
+-		double x[100];
++		double x[100], A[100], B[100], C[100], D[100], X[100];
+ 		for (int i = 0; i < n; ++i) { x[i] = 1.0 + 0.5 * i; }
+ 		for (int i = 0; i < n; ++i) {
+ 			A[i] = (i == 0) ? 0. : -1.;
+@@ -19,7 +19,7 @@
+ 			B[i] = 4.;
+ 			D[i] = B[i] * x[i] + (i ? A[i] * x[i - 1] : 0.) + (i < n - 1 ? C[i] * x[i + 1] : 0.);
+ 		}
+-		solve<double>(n);
++		solve<double>(X, A, B, C, D, n);
+ 		for (int i = 0; i < n; ++i) { EXPECT_NEAR(X[i], x[i], 1e-9) << n << " " << i; }
+ 	}
+ }

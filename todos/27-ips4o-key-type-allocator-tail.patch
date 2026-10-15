@@ -1,0 +1,459 @@
+diff --git a/src/sort/ips4o.h b/src/sort/ips4o.h
+index d7c38f3..2777f9c 100644
+--- a/src/sort/ips4o.h
++++ b/src/sort/ips4o.h
+@@ -58,6 +58,7 @@
+ #include "memory/memory.h"
+ #include "alloc/alloc.h"
+ #include "algorithm/countl.h"
++#include "math/math.h"
+ #include "random.h"
+ 
+ #if IPS4O_SIMD
+@@ -72,24 +73,18 @@
+ #define IPS4OML_IS_NOT(c) assert(!(c))
+ 
+ 
+-// TODO allocator + thread template
++// TODO thread template (parallel version)
+ namespace ips4o {
+ 	namespace detail {
+ 
+ #if IPS4O_SIMD
+ 		using namespace hwy::HWY_NAMESPACE;
+ #endif
+-    
+ 
+-        /// TODO move somewhere usefull
+-        /// Compute the logarithm to base 2, rounded down (0 for n = 0).
+-		inline constexpr unsigned long log2(unsigned long n) {
+-			return n ? (std::numeric_limits<unsigned long>::digits - 1 - cryptanalysislib::countl_zero(n)) : 0ul;
+-		}
+-
+-		// TODO(?): make into template to allow other key types.
++		/// \tparam T key type (trivially copyable, compared with `std::less`)
++		template<typename T>
+ 		struct Cfg {
+-			using value_type = uint32_t;
++			using value_type = T;
+ 			using iterator = value_type *__restrict__;// restrict is important
+ 
+ 			// Must be at least 1 vector.
+@@ -117,11 +112,11 @@ namespace ips4o {
+ 			constexpr static int logBuckets(const ptrdiff_t n) noexcept {
+ 				if (n <= kSingleLevelThreshold) {
+ 					// Only one more level until the base case, reduce the number of buckets
+-					return std::max(1ul, log2(n / kBaseCaseSize));
++					return std::max(1ul, floor_log2(n / kBaseCaseSize));
+ 				} else if (n <= kTwoLevelThreshold) {
+ 					// Only two more levels until we reach the base case, split the buckets
+ 					// evenly
+-					return std::max(1ul, (log2(n / kBaseCaseSize) + 1) / 2);
++					return std::max(1ul, (floor_log2(n / kBaseCaseSize) + 1) / 2);
+ 				} else {
+ 					// Use the maximum number of buckets
+ 					return kLogBuckets;
+@@ -146,6 +141,7 @@ namespace ips4o {
+ 		};
+ 
+ 		// Read/write indices
++		template<class Cfg>
+ 		class BucketPointers {
+ 		public:
+             /// \param l_w[in]:
+@@ -183,32 +179,33 @@ namespace ips4o {
+ 		};
+ 
+         /// A single buffer block: array of values.
++		template<class Cfg>
+ 		class Block {
+ 		public:
+-			constexpr inline Cfg::value_type *data() noexcept { 
+-                return storage_; 
++			constexpr inline Cfg::value_type *data() noexcept {
++                return storage_;
+             }
+ 
+-			constexpr inline const Cfg::value_type *data() const noexcept { 
+-                return storage_; 
++			constexpr inline const Cfg::value_type *data() const noexcept {
++                return storage_;
+             }
+ 
+-			__attribute__((noinline)) 
++			__attribute__((noinline))
+             void readFrom(const Cfg::iterator src) noexcept {
+ 				// memcpy(storage_, src, Cfg::kBlockSizeInBytes);
+-				memcpy<Cfg::value_type>(storage_, src, Cfg::kBlockSize);
++				memcpy<typename Cfg::value_type>(storage_, src, Cfg::kBlockSize);
+ 			}
+ 
+ 			__attribute__((noinline))
+             void writeToBlock(Block &block) noexcept {
+ 				//memcpy(block.storage_, storage_, Cfg::kBlockSizeInBytes);
+-				memcpy<Cfg::value_type>(block.storage_, storage_, Cfg::kBlockSize);
++				memcpy<typename Cfg::value_type>(block.storage_, storage_, Cfg::kBlockSize);
+ 			}
+ 
+-			__attribute__((noinline)) 
++			__attribute__((noinline))
+             void writeTo(Cfg::iterator dest) noexcept {
+ 				// memcpy(dest, storage_, Cfg::kBlockSizeInBytes);
+-				memcpy<Cfg::value_type>(dest, storage_, Cfg::kBlockSize);
++				memcpy<typename Cfg::value_type>(dest, storage_, Cfg::kBlockSize);
+ 			}
+ 
+ 		private:
+@@ -216,12 +213,16 @@ namespace ips4o {
+ 		};
+ 
+         /// Per-thread buffers for each bucket (array of pointers into one allocation).
+-        // TODO template<class Allocator = std::allocator<int>>
++        /// \tparam Allocator interface of `AlignmentMallocator`:
++        ///		static `allocate(bytes)` and `deallocate(pointer, bytes)`
++		template<class Cfg, class Allocator>
+ 		class Buffers {
++			constexpr static size_t kStorageBytes = Cfg::kBlockSizeInBytes * Cfg::kMaxBuckets * 2;
++
+ 		public:
+ 			Buffers() noexcept
+ 			    : storage_(static_cast<Cfg::value_type *>(
+-			              cryptanalysislib::aligned_alloc(Cfg::kDataAlignment, Cfg::kBlockSizeInBytes * Cfg::kMaxBuckets * 2))) {
++			              static_cast<void *>(Allocator::allocate(kStorageBytes)))) {
+ 				for (size_t idx_bucket = 0; idx_bucket < Cfg::kMaxBuckets; ++idx_bucket) {
+ 					reset(idx_bucket);
+ 					end_[idx_bucket] = indices_[idx_bucket] + Cfg::kBlockSize;
+@@ -229,7 +230,7 @@ namespace ips4o {
+ 			}
+ 
+ 			~Buffers() noexcept {
+-                cryptanalysislib::aligned_free(storage_);
++                Allocator::deallocate(static_cast<Allocator::pointer>(static_cast<void *>(storage_)), kStorageBytes);
+             }
+ 
+             /// Resets to initial position.
+@@ -265,7 +266,7 @@ namespace ips4o {
+                 // rewind to start of buffer
+ 				indices_[idx_bucket] -= Cfg::kBlockSize;
+ 
+-				Cfg::value_type *bucket = storage_ + indices_[idx_bucket];
++				typename Cfg::value_type *bucket = storage_ + indices_[idx_bucket];
+ 				//memcpy(dest, bucket, Cfg::kBlockSizeInBytes);
+ 				memcpy(dest, bucket, Cfg::kBlockSize);
+ 			}
+@@ -275,11 +276,12 @@ namespace ips4o {
+ 			size_t indices_[Cfg::kMaxBuckets];// into storage_
+ 			size_t end_[Cfg::kMaxBuckets];    // into storage_
+ 			// Blocks should have no extra elements or padding
+-			static_assert(sizeof(Block) == sizeof(Cfg::value_type) * Cfg::kBlockSize, "");
++			static_assert(sizeof(Block<Cfg>) == sizeof(typename Cfg::value_type) * Cfg::kBlockSize, "");
+ 		};
+ 
+ 
+         /// Branch-free classifier.
++		template<class Cfg>
+ 		class Classifier {
+ 		public:
+ 			using value_type = typename Cfg::value_type;
+@@ -311,7 +313,7 @@ namespace ips4o {
+ 				IPS4OML_ASSUME_NOT(log_buckets > Cfg::kLogBuckets + 1);
+ 
+ 				IdxBucket b = 1;
+-				std::less<Cfg::value_type> comp_;
++				std::less<value_type> comp_;
+ 				for (uint32_t l = 0; l < log_buckets; ++l) {
+ 					b = 2 * b + comp_(*splitter(b), value);
+                 }
+@@ -354,6 +356,7 @@ namespace ips4o {
+ 		};
+ 
+         /// draws random samples, via the cryptanalysislib prng (`rng`)
++		template<class Cfg>
+ 		class Sampler {
+ 		public:
+ 			/// moves `num_samples` random elements of [begin, end) to the front
+@@ -374,9 +377,9 @@ namespace ips4o {
+ 		template<class It>
+ 		__attribute__((noinline)) void baseCaseSort(It begin, It end) noexcept {
+ 			// Insertion sort
+-			std::less<Cfg::value_type> comp;
++			std::less<std::iter_value_t<It>> comp;
+ 			for (It it = begin + 1; it < end; ++it) {
+-				Cfg::value_type val = *it;
++				std::iter_value_t<It> val = *it;
+ 				if (comp(val, *begin)) {
+ 					std::move_backward(begin, it, it + 1);
+ 					*begin = std::move(val);
+@@ -391,6 +394,7 @@ namespace ips4o {
+ 			}
+ 		}
+ 
++		template<class Cfg, class Allocator>
+ 		class Sorter {
+ 		public:
+ 			using iterator = Cfg::iterator;
+@@ -482,30 +486,30 @@ namespace ips4o {
+ 
+ 		private:
+ 			ptrdiff_t bucket_size[Cfg::kMaxBuckets] = {0};
+-			Buffers buffers;
++			Buffers<Cfg, Allocator> buffers;
+ 
+-			Classifier classifier;
++			Classifier<Cfg> classifier;
+ 
+ 			// Bucket information
+-			BucketPointers bucket_pointers[Cfg::kMaxBuckets];
++			BucketPointers<Cfg> bucket_pointers[Cfg::kMaxBuckets];
+ 
+-			Sampler sampler_;
++			Sampler<Cfg> sampler_;
+ 
+ 			// TODO(?): for verification, we should narrow the scope/visibility of these.
+ 			// They are set and used in the recursion.
+ 			ptrdiff_t *bucket_start_;
+-			Block *overflow_;
++			Block<Cfg> *overflow_;
+ 
+ 			iterator begin_;
+ 			iterator end_;
+ 			uint32_t num_buckets_;
+ 
+-			Block swap[2];
+-			Block overflow;
++			Block<Cfg> swap[2];
++			Block<Cfg> overflow;
+ 
+             /// The oversampling factor to be used for input of size n.
+ 			[[nodiscard]] static constexpr double oversamplingFactor(ptrdiff_t n) noexcept {
+-				return (0.2 * log2(n)) < 1.0 ? 1.0 : (0.2 * log2(n));
++				return (0.2 * floor_log2(n)) < 1.0 ? 1.0 : (0.2 * floor_log2(n));
+ 			}
+ 
+             ///  Builds the classifer.
+@@ -524,17 +528,17 @@ namespace ips4o {
+ 				sequential(begin, begin + num_samples);
+ 				iterator splitter = begin + step - 1;
+ 				auto sorted_splitters = classifier.getSortedSplitters();
+-				std::less<Cfg::value_type> comp;
++				std::less<value_type> comp;
+ 
+ 				// Choose the splitters
+ 				IPS4OML_ASSUME_NOT(sorted_splitters == nullptr);
+-				new (sorted_splitters) typename Cfg::value_type(*splitter);
++				new (sorted_splitters) value_type(*splitter);
+ 				for (int i = 2; i < num_buckets; ++i) {
+ 					splitter += step;
+ 					// Skip duplicates
+ 					if (comp(*sorted_splitters, *splitter)) {
+ 						IPS4OML_ASSUME_NOT(sorted_splitters + 1 == nullptr);
+-						new (++sorted_splitters) Cfg::value_type(*splitter);
++						new (++sorted_splitters) value_type(*splitter);
+ 					}
+ 				}
+ 
+@@ -545,11 +549,11 @@ namespace ips4o {
+ 				        num_buckets - 1 - diff_splitters >= Cfg::kEqualBucketsThreshold;
+ 
+ 				// Fill the array to the next power of two
+-				log_buckets = log2(diff_splitters) + 1;
++				log_buckets = floor_log2(diff_splitters) + 1;
+ 				num_buckets = 1 << log_buckets;
+ 				for (int i = diff_splitters + 1; i < num_buckets; ++i) {
+ 					IPS4OML_ASSUME_NOT(sorted_splitters + 1 == nullptr);
+-					new (++sorted_splitters) Cfg::value_type(*splitter);
++					new (++sorted_splitters) value_type(*splitter);
+ 				}
+ 
+ 				// Build the tree
+@@ -606,7 +610,7 @@ namespace ips4o {
+ 			HWY_INLINE Vec512<int32_t> X2PlusComp(Vec512<int32_t> vb,
+ 			                                      Vec512<int32_t> items,
+ 			                                      Vec512<int32_t> split) {
+-				const CappedTag<Cfg::value_type, 16> d;
++				const CappedTag<value_type, 16> d;
+ 				vb = Add(vb, vb);
+ 				// Poor codegen here with clang, unnecessary shift of the predicate value.
+ 				const auto gt = Gt(items, split);
+@@ -625,13 +629,16 @@ namespace ips4o {
+ 			                                                     iterator end) noexcept {
+ 				iterator write = begin;
+ 				const ptrdiff_t num_buckets = 1l << (kLogBuckets + kEqualBuckets);
+-				constexpr const size_t kUnroll = 1; // AVX-512: TODO was 16 for avx 512
++				// AVX-512: one vector of 16 32-bit keys per iteration
++				constexpr const size_t kUnroll = IPS4O_SIMD ? 16 : 1;
+ 				static_assert(kUnroll <= Cfg::kBaseCaseSize, "Need >= 1 iteration");
+ 
+ 				alignas(64) uint32_t bucket_indices[kUnroll];
+ 				const size_t num = static_cast<size_t>(end - begin);
++				size_t i = 0;
+ #if IPS4O_SIMD
+-				const CappedTag<Cfg::value_type, 16> d;
++				static_assert(sizeof(value_type) == 4, "the SIMD classifier needs 32 bit keys");
++				const CappedTag<value_type, 16> d;
+ 				const auto splitter0 = LoadU(d, classifier.splitter(0));
+ 				const auto splitter1 = LoadU(d, classifier.splitter(16));
+ 				const auto splitter2 = LoadU(d, classifier.splitter(32));
+@@ -642,7 +649,8 @@ namespace ips4o {
+ 				const auto sort_splitter2 = LoadU(d, classifier.sortedSplitter(32));
+ 				const auto sort_splitter3 = LoadU(d, classifier.sortedSplitter(48));
+ 
+-				for (size_t i = 0; i < num; i += kUnroll) {
++				// only full vectors, the tail is classified by the scalar loop
++				for (; i + kUnroll <= num; i += kUnroll) {
+ 					auto vb = Set(d, 1);
+ 					const auto items = LoadU(d, &begin[i]);
+ 
+@@ -695,15 +703,14 @@ namespace ips4o {
+ 
+ 					vb = Sub(vb, Set(d, num_buckets));
+ 					Store(vb, d, reinterpret_cast<int32_t *>(bucket_indices));
+-					size_t batch_size = HWY_MIN(kUnroll, num - i);
+-					ScatterBatch(bucket_indices, batch_size, begin + i, write);
++					ScatterBatch(bucket_indices, kUnroll, begin + i, write);
+ 				}
+-#else
+-				// TODO tail mngt
+-				for (size_t i = 0; i < num; i += kUnroll) {
+-					for (size_t j = 0; j < kUnroll; ++j) {
++#endif
++				for (; i < num; i += kUnroll) {
++					const size_t batch_size = std::min(kUnroll, num - i);
++					for (size_t j = 0; j < batch_size; ++j) {
+ 						IdxBucket b = 1;
+-						std::less<Cfg::value_type> comp_;
++						std::less<value_type> comp_;
+ 						for (size_t l = 0; l < kLogBuckets; ++l)
+ 							b = 2 * b + comp_(*classifier.splitter(b), begin[i + j]);
+ 						if (kEqualBuckets)
+@@ -711,10 +718,8 @@ namespace ips4o {
+ 							                   *classifier.sortedSplitter(b - num_buckets / 2));
+ 						bucket_indices[j] = b - num_buckets;
+ 					}
+-					size_t batch_size = std::min(kUnroll, num - i);
+ 					ScatterBatch(bucket_indices, batch_size, begin + i, write);
+ 				}
+-#endif
+ 
+ 				// Update bucket sizes to account for partially filled buckets
+ 				for (uint32_t i = 0; i < num_buckets_; ++i) bucket_size[i] += buffers.size(i);
+@@ -869,7 +874,7 @@ namespace ips4o {
+    */
+ 			template<bool kEqualBuckets>
+ 			int classifyAndReadBlock(const int read_bucket) {
+-				BucketPointers &bp = bucket_pointers[read_bucket];
++				BucketPointers<Cfg> &bp = bucket_pointers[read_bucket];
+ 
+ 				ptrdiff_t write, read;
+ 				std::tie(write, read) = bp.decRead();
+@@ -894,7 +899,7 @@ namespace ips4o {
+ 			              const bool current_swap) {
+ 				ptrdiff_t write, read;
+ 				int new_dest_bucket;
+-				BucketPointers &bp = bucket_pointers[dest_bucket];
++				BucketPointers<Cfg> &bp = bucket_pointers[dest_bucket];
+ 				do {
+ 					std::tie(write, read) = bp.incWrite();
+ 					if (write > read) {
+@@ -1047,7 +1052,7 @@ namespace ips4o {
+ 		/// \return true if [begin, end) is sorted afterwards: it was empty,
+ 		/// 	sorted or reverse sorted (then it is reversed)
+ 		template<class It,
+-		         class Compare = std::less<Cfg::value_type>>
++		         class Compare = std::less<std::iter_value_t<It>>>
+ 		__attribute__((noinline)) bool sortSimpleCases(It begin,
+                                                        It end,
+ 		                                               Compare comp = Compare{}) noexcept {
+@@ -1077,27 +1082,35 @@ namespace ips4o {
+ 
+ 	}// namespace detail
+ 
+-    /// sorts the `uint32_t` elements of [begin, end) increasingly
+-    /// \tparam It contiguous iterator to `uint32_t`
+-	template<class It>
++    /// sorts the elements of [begin, end) increasingly (`std::less`)
++    /// \tparam It contiguous iterator to a trivially copyable, totally ordered type
++    /// \tparam Allocator for the internal buffers, interface of
++    ///		`AlignmentMallocator` (static, in bytes)
++	template<class It,
++	         class Allocator = AlignmentMallocator<std::iter_value_t<It>,
++	                                               detail::Cfg<std::iter_value_t<It>>::kDataAlignment>>
+ #if __cplusplus > 201709L
+ 		requires std::contiguous_iterator<It> &&
+-		         std::is_same_v<std::iter_value_t<It>, detail::Cfg::value_type>
++		         std::is_trivially_copyable_v<std::iter_value_t<It>> &&
++		         std::totally_ordered<std::iter_value_t<It>>
+ #endif
+ 	void sort(It begin, It end) noexcept {
++		using T = std::iter_value_t<It>;
++		using Cfg = detail::Cfg<T>;
++
+ 		// Negligible cost.
+ 		if (detail::sortSimpleCases(begin, end)) {
+ 			return;
+ 		}
+ 
+-		if ((end - begin) <= 16 * detail::Cfg::kBaseCaseSize) {
++		if ((end - begin) <= 16 * Cfg::kBaseCaseSize) {
+ 			detail::baseCaseSort(begin, end);
+ 			return;
+ 		}
+ 
+-		alignas(64) detail::Sorter sorter;
++		alignas(64) detail::Sorter<Cfg, Allocator> sorter;
+ 		// NOTE: `begin != end` here, so `*begin` is valid
+-		uint32_t *first = &(*begin);
++		T *first = &(*begin);
+ 		sorter.sequential(first, first + (end - begin));
+ 	}
+ 
+diff --git a/tests/sort/parallel.cpp b/tests/sort/parallel.cpp
+index 9698559..867b537 100644
+--- a/tests/sort/parallel.cpp
++++ b/tests/sort/parallel.cpp
+@@ -66,20 +66,39 @@ TYPED_TEST(PluggableSort, quicksort) {
+ 	});
+ }
+ 
+-TEST(ips4o, kek) {
++/// ips4o against std::sort, for the key type `T`
++template<typename T, typename... Allocator>
++static void check_ips4o() {
+ 	for (const size_t s : {0ul, 1ul, 100ul, 513ul, 10000ul, 300000ul}) {
+-		using T = uint32_t;
+ 		std::vector<T> data;
+ 		generate_list(data, s);
+ 		// few distinct values (equality buckets)
+-		if (s > 1000) { for (size_t i = 0; i < s; i += 2) { data[i] %= 7u; } }
++		if (s > 1000) { for (size_t i = 0; i < s; i += 2) { data[i] = T(data[i] % T(7)); } }
+ 		auto expect = data;
+-		cryptanalysislib::sort(expect.begin(), expect.end());
+-		ips4o::sort(data.begin(), data.end());
+-		EXPECT_EQ(data, expect);
++		std::sort(expect.begin(), expect.end());
++		ips4o::sort<typename std::vector<T>::iterator, Allocator...>(data.begin(), data.end());
++		EXPECT_EQ(data, expect) << s;
+ 	}
+ }
+ 
++TEST(ips4o, kek) {
++	check_ips4o<uint32_t>();
++}
++
++/// other key types
++TEST(ips4o, types) {
++	check_ips4o<uint8_t>();
++	check_ips4o<uint16_t>();
++	check_ips4o<uint64_t>();
++	check_ips4o<int32_t>();
++	check_ips4o<int64_t>();
++}
++
++/// other allocator for the internal buffers
++TEST(ips4o, allocator) {
++	check_ips4o<uint32_t, AlignmentMallocator<uint32_t, 4096>>();
++}
++
+ /// the pluggable sorts with a comparator (descending), the comparator `sort`
+ /// and `counting_sort_u8`
+ TEST(PluggableSortComparator, descending) {

@@ -1,8 +1,17 @@
 #pragma once 
 
+#include <cerrno>
+#include <charconv>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <iostream>
 #include <string>
+#include <string_view>
 #include <thread>
+#include <type_traits>
+#include <vector>
 
 // NOTE only available on unix
 #include <assert.h>
@@ -24,8 +33,7 @@
 
 #include <version>
 
-#include <rfl.hpp>
-#include <rfl/json.hpp>
+#include "reflection/reflection.h"
 
 namespace cryptanalysislib {
 	namespace details {
@@ -63,7 +71,7 @@ namespace cryptanalysislib {
 	// NOTE: this is linux only
 	// NOTE: this is needed, as the real internal `rusage`
 	// uses strange unions, which are not supported by
-	// `reflect-cpp`
+	// `reflect`
 	struct rusage__ {
 		struct timeval ru_utime;
 		struct timeval ru_stime;
@@ -200,7 +208,7 @@ namespace cryptanalysislib {
 
 
 	/// NOTE: just the data container. To access it use the Manager
-	/// class. This is needed for the reflect-cpp framework
+	/// class. This is needed for the (de)serialization via `reflect`
 	struct SchedulerPerformance {
 		// per thread information
 		std::vector<SchedulerThreadLoad> schedulerThreadLoad;
@@ -211,6 +219,67 @@ namespace cryptanalysislib {
 
 		// NOTE: the thread ids are in `SchedulerThreadLoad::tid`
 	};
+
+	// NOTE: `reflect` is not available in CUDA translation units, there the
+	// 	performance data is neither sent nor received
+#ifdef CRYPTANALYSISLIB_REFLECTIONS_AVAILABLE
+	namespace internal {
+		/// appends all arithmetic members of `t` (recursively, via `reflect`)
+		/// as space separated decimal numbers to `out`. A container is written
+		/// as its size followed by its elements.
+		/// \param out[in/out]: the serialized data is appended
+		/// \param t[in]: arithmetic value, container or aggregate
+		template<typename T>
+		void serialize(std::string &out, const T &t) noexcept {
+			if constexpr (std::is_arithmetic_v<T>) {
+				out += std::to_string(t);
+				out += ' ';
+			} else if constexpr (requires { t.size(); t.begin(); t.end(); }) {
+				serialize(out, t.size());
+				for (const auto &e : t) {
+					serialize(out, e);
+				}
+			} else {
+				reflect::for_each([&](auto I) { serialize(out, reflect::get<I>(t)); }, t);
+			}
+		}
+
+		/// inverse of `serialize`: parses `t` from the beginning of `in`
+		/// \param in[in/out]: the parsed part is removed
+		/// \param t[out]: arithmetic value, container or aggregate
+		/// \return false if `in` is malformed
+		template<typename T>
+		bool deserialize(std::string_view &in, T &t) noexcept {
+			if constexpr (std::is_arithmetic_v<T>) {
+				while (!in.empty() && in.front() == ' ') {
+					in.remove_prefix(1);
+				}
+				const auto [ptr, ec] = std::from_chars(in.data(), in.data() + in.size(), t);
+				if (ec != std::errc{}) {
+					return false;
+				}
+				in.remove_prefix(ptr - in.data());
+				return true;
+			} else if constexpr (requires { t.resize(size_t{}); t.begin(); t.end(); }) {
+				size_t n;
+				if (!deserialize(in, n)) {
+					return false;
+				}
+				t.resize(n);
+				for (auto &e : t) {
+					if (!deserialize(in, e)) {
+						return false;
+					}
+				}
+				return true;
+			} else {
+				bool ok = true;
+				reflect::for_each([&](auto I) { ok = ok && deserialize(in, reflect::get<I>(t)); }, t);
+				return ok;
+			}
+		}
+	} // namespace internal
+#endif
 
 	/// Manager class
 	struct SchedulerPerformanceManager {
@@ -300,15 +369,18 @@ namespace cryptanalysislib {
 						while ((pos = pending.find('\n')) != std::string::npos) {
 							const std::string msg = pending.substr(0, pos);
 							pending.erase(0, pos + 1);
-							const auto res = rfl::json::read<SchedulerPerformance>(msg);
-							if (!res) {
-								std::cout << "ERROR: parsing: " << res.error().what() << std::endl;
+#ifdef CRYPTANALYSISLIB_REFLECTIONS_AVAILABLE
+							std::string_view in = msg;
+							SchedulerPerformance res;
+							if (!internal::deserialize(in, res)) {
+								std::cout << "ERROR: parsing" << std::endl;
 								std::cout << msg << std::endl;
 								continue;
 							}
 
-							schedulerPerformance = res.value();
+							schedulerPerformance = res;
 							print();
+#endif
 						}
 					}
 
@@ -369,11 +441,13 @@ namespace cryptanalysislib {
 
 		/// write the gathered benchmark information.
 		void send() noexcept {
-			const std::string data = rfl::json::write(schedulerPerformance);
+#ifdef CRYPTANALYSISLIB_REFLECTIONS_AVAILABLE
+			std::string data;
+			internal::serialize(data, schedulerPerformance);
 			std::cout << "sending data:" << std::endl;
 			std::cout << data << std::endl;
 
-			// NOTE: '\n' terminates a message, the JSON itself contains none
+			// NOTE: '\n' terminates a message, the serialized data contains none
 			const std::string msg = data + '\n';
 			size_t written = 0;
 			while (written < msg.size()) {
@@ -384,6 +458,7 @@ namespace cryptanalysislib {
 				}
 				written += k;
 			}
+#endif
 		}
 
 		/// gather performance metrics for thread `tid`

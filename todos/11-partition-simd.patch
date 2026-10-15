@@ -1,0 +1,156 @@
+--- a/src/algorithm/partition.h
++++ b/src/algorithm/partition.h
+@@ -11,10 +11,14 @@
+ #include "algorithm/algorithm.h"
+ #include "algorithm/copy.h"
+ #include "algorithm/find.h"
++#include "algorithm/remove.h"
++#include "algorithm/bits/popcount.h"
+ #include "thread/thread.h"
++#include "memory/memcpy.h"
+ 
+-
+-/// TODO simd versions
++#ifdef USE_AVX512F
++#include "simd/simd.h"
++#endif
+ 
+ namespace cryptanalysislib {
+ 
+@@ -125,6 +129,100 @@
+     return std::pair<OutputIt1, OutputIt2>(d_first_true, d_first_false);
+ }
+ 
++namespace internal {
++    /// SIMD `partition_copy` of `n` uint32_t on the predicate `x < pivot`
++    /// \return (#true, #false)
++    static inline std::pair<size_t, size_t> partition_copy_less_u32(const uint32_t *in,
++                                                                    const size_t n,
++                                                                    uint32_t *d_first_true,
++                                                                    uint32_t *d_first_false,
++                                                                    const uint32_t pivot) noexcept {
++        size_t i = 0, t = 0, f = 0;
++#if defined(USE_AVX512F)
++        // the compress stores only write the selected lanes
++        const uint32x16_t p = uint32x16_t::set1(pivot);
++        for (; (i + 16) <= n; i += 16) {
++            const uint32x16_t d = uint32x16_t::unaligned_load(in + i);
++            const uint16_t mt = uint32x16_t::lt(d, p);
++            const uint16_t mf = (uint16_t)~mt;
++            uint32x16_t::compress(d_first_true + t, d, Mask<16>(mt));
++            uint32x16_t::compress(d_first_false + f, d, Mask<16>(mf));
++            const uint32_t c = cryptanalysislib::popcount::popcount((uint32_t)mt);
++            t += c; f += 16u - c;
++        }
++#elif defined(USE_AVX2)
++        // NOTE: the lanes are moved to the front of a register, which is
++        // 	stored into a buffer, as the outputs may not have space for 8
++        // 	elements. AVX2 has no unsigned compare: the sign bit is flipped.
++        const __m256i sign = _mm256_set1_epi32((int)0x80000000u);
++        const __m256i p = _mm256_xor_si256(_mm256_set1_epi32((int)pivot), sign);
++        alignas(32) uint32_t buf[8];
++        for (; (i + 8) <= n; i += 8) {
++            const __m256i d = _mm256_loadu_si256((const __m256i *)(in + i));
++            const __m256i lt = _mm256_cmpgt_epi32(p, _mm256_xor_si256(d, sign));
++            const uint32_t mt = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(lt));
++            const uint32_t mf = (~mt) & 0xffu;
++            const uint32_t c = cryptanalysislib::popcount::popcount(mt);
++
++            const __m256i pt = _mm256_loadu_si256((const __m256i *)remove_u32_lut[mt].data());
++            _mm256_store_si256((__m256i *)buf, _mm256_permutevar8x32_epi32(d, pt));
++            cryptanalysislib::memcpy(d_first_true + t, buf, c);
++
++            const __m256i pf = _mm256_loadu_si256((const __m256i *)remove_u32_lut[mf].data());
++            _mm256_store_si256((__m256i *)buf, _mm256_permutevar8x32_epi32(d, pf));
++            cryptanalysislib::memcpy(d_first_false + f, buf, 8u - c);
++            t += c; f += 8u - c;
++        }
++#endif
++        for (; i < n; ++i) {
++            if (in[i] < pivot) {
++                d_first_true[t++] = in[i];
++            } else {
++                d_first_false[f++] = in[i];
++            }
++        }
++        return {t, f};
++    }
++} // end namespace internal
++
++/// `partition_copy` on the predicate `x < pivot`: copies the elements smaller
++/// than `pivot` to `d_first_true` and the others to `d_first_false`, keeping
++/// their order. For contiguous ranges of uint32_t the comparisons and
++/// copies are done with SIMD (AVX2, AVX-512).
++/// \param first[in]: Iterator to the beginning of the input range
++/// \param last[in]: Iterator to the end of the input range
++/// \param d_first_true[out]: output for the elements < pivot
++/// \param d_first_false[out]: output for the other elements
++/// \param pivot[in]:
++/// \return pair of iterators past the last written element of both outputs
++template<class InputIt,
++         class OutputIt1,
++         class OutputIt2,
++         class T = typename std::iterator_traits<InputIt>::value_type>
++std::pair<OutputIt1, OutputIt2>
++    partition_copy_less(InputIt first,
++                        InputIt last,
++                        OutputIt1 d_first_true,
++                        OutputIt2 d_first_false,
++                        const T &pivot) noexcept {
++    if constexpr (std::contiguous_iterator<InputIt> &&
++                  std::contiguous_iterator<OutputIt1> &&
++                  std::contiguous_iterator<OutputIt2> &&
++                  std::is_same_v<std::iter_value_t<InputIt>, uint32_t> &&
++                  std::is_same_v<std::iter_value_t<OutputIt1>, uint32_t> &&
++                  std::is_same_v<std::iter_value_t<OutputIt2>, uint32_t>) {
++        const auto r = internal::partition_copy_less_u32(std::to_address(first),
++                                                         static_cast<size_t>(last - first),
++                                                         std::to_address(d_first_true),
++                                                         std::to_address(d_first_false),
++                                                         uint32_t(pivot));
++        return {d_first_true + r.first, d_first_false + r.second};
++    }
++
++    return cryptanalysislib::partition_copy(first, last, d_first_true, d_first_false,
++        [&pivot](const auto &x) { return x < pivot; });
++}
++
+ } // end namespace cryptanalysislib
+ 
+ namespace cryptanalysislib::internal {
+--- a/tests/algorithm/partition.cpp
++++ b/tests/algorithm/partition.cpp
+@@ -85,6 +85,33 @@
+ 	}
+ }
+ 
++/// SIMD `partition_copy_less` (uint32_t) and the generic fallback against std::
++TEST(partition, partition_copy_less) {
++	for (const size_t s : {size_t(0), size_t(1), size_t(7), size_t(8), size_t(15), size_t(16),
++	                       size_t(17), size_t(31), size_t(100), size_t(1000)}) {
++		for (const uint32_t pivot : {0u, 1u, 1u << 31u, 0xffffffffu, rng<uint32_t>()}) {
++			std::vector<uint32_t> v(s);
++			for (auto &x : v) { x = rng<uint32_t>(); }
++			if (s > 3) { v[1] = pivot; v[2] = 0; v[3] = 0xffffffffu; }
++
++			const auto p = [pivot](const uint32_t x) { return x < pivot; };
++			std::vector<uint32_t> t(s), f(s), te(s), fe(s);
++			const auto r = cryptanalysislib::partition_copy_less(v.begin(), v.end(), t.begin(), f.begin(), pivot);
++			const auto e = std::partition_copy(v.begin(), v.end(), te.begin(), fe.begin(), p);
++			EXPECT_EQ(r.first - t.begin(), e.first - te.begin()) << s << " " << pivot;
++			EXPECT_EQ(r.second - f.begin(), e.second - fe.begin()) << s << " " << pivot;
++			EXPECT_EQ(t, te) << s << " " << pivot;
++			EXPECT_EQ(f, fe) << s << " " << pivot;
++
++			// generic (non SIMD) version
++			std::vector<uint64_t> v64(v.begin(), v.end()), t64(s), f64(s);
++			const auto r64 = cryptanalysislib::partition_copy_less(v64.begin(), v64.end(), t64.begin(), f64.begin(), uint64_t(pivot));
++			EXPECT_EQ(r64.first - t64.begin(), e.first - te.begin());
++			for (size_t i = 0; i < size_t(r64.first - t64.begin()); ++i) { EXPECT_EQ(t64[i], te[i]); }
++		}
++	}
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	rng_seed(time(NULL));

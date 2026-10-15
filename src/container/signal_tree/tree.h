@@ -17,7 +17,7 @@ static thread_local std::uint64_t select_bias_hint = 0;
 
 
 static inline constexpr auto minimum_bit_count(const std::unsigned_integral auto value ) {
-	constexpr static size_t bits_per_byte = 8ull;
+	constexpr size_t bits_per_byte = 8ull;
     return ((sizeof(value) * bits_per_byte) - std::countl_zero(value));
 }
 

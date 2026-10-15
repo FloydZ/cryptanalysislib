@@ -1,0 +1,183 @@
+diff --git a/src/list/enumeration/binary.h b/src/list/enumeration/binary.h
+index 79f1ce6..518b311 100644
+--- a/src/list/enumeration/binary.h
++++ b/src/list/enumeration/binary.h
+@@ -91,6 +91,8 @@ public:
+ 	/// 		- otherwise it will compute the error with and offset
+ 	/// \param offset
+ 	/// 		- number of position between the MITM strategy
++	/// 		- default `n`: the elements of `L2` are placed after the
++	/// 		  enumerated part of `L1`
+ 	/// \param tid thread id
+ 	/// \param hm hashmap
+ 	/// \param e extractor
+@@ -105,14 +107,14 @@ public:
+ #endif
+ 	bool run(ListType *L1 = nullptr,
+ 	         ListType *L2 = nullptr,
+-	         const uint32_t offset = 0,
++	         const uint32_t offset = n,
+ 			 const uint32_t base_offset = 0,
+ 	         const uint32_t tid = 0,
+ 	         HashMap *hm = nullptr,
+ 	         Extractor *e = nullptr,
+ 	         Predicate *p = nullptr) {
+ 		/// some security checks
+-		assert(n + offset <= Value::length);
++		assert((L2 == nullptr) || (n + offset <= Value::length));
+ 
+ 		/// counter of how many elements already added to the list
+ 		size_t ctr = 0;
+@@ -197,7 +199,7 @@ public:
+ 	/// \return
+ 	bool run(ListType *L1 = nullptr,
+ 			 ListType *L2 = nullptr,
+-			 const uint32_t offset = 0,
++			 const uint32_t offset = n,
+ 			 const uint32_t base_offset = 0,
+ 			 const uint32_t tid = 0){
+ 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+@@ -298,6 +300,8 @@ public:
+ 	/// 		- otherwise it will compute the error with and offset
+ 	/// \param offset
+ 	/// 		- number of position between the MITM strategy
++	/// 		- default `n`: the elements of `L2` are placed after the
++	/// 		  enumerated part of `L1`
+ 	/// \param tid thread id
+ 	/// \param hm hashmap
+ 	/// \param e extractor
+@@ -310,15 +314,15 @@ public:
+ 			(std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
+ 	bool run(ListType *L1 = nullptr,
+ 			 ListType *L2 = nullptr,
+-			 const uint32_t offset = 0,
++			 const uint32_t offset = n,
+ 			 const uint32_t base_offset = 0,
+ 			 const uint32_t tid = 0,
+ 			 HashMap *hm = nullptr,
+ 			 Extractor *e = nullptr,
+ 			 Predicate *p = nullptr) noexcept {
+ 		/// some security checks
+-		assert(n + offset <= Value::length());
+-		assert(offset + base_offset <= Value::length());
++		assert((L2 == nullptr) || (n + offset <= Value::length()));
++		assert((L2 == nullptr) || (offset + base_offset <= Value::length()));
+ 		constexpr bool write = false;
+ 		/// counter of how many elements already added to the list
+ 		size_t ctr = 0;
+@@ -412,7 +416,7 @@ public:
+ 	/// \return
+ 	bool run(ListType *L1 = nullptr,
+ 			 ListType *L2 = nullptr,
+-			 const uint32_t offset = 0,
++			 const uint32_t offset = n,
+ 			 const uint32_t base_offset = 0,
+ 			 const uint32_t tid = 0){
+ 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+@@ -532,6 +536,8 @@ public:
+ 	/// 		- otherwise it will compute the error with and offset
+ 	/// \param offset
+ 	/// 		- number of position between the MITM strategy
++	/// 		- default `n`: the elements of `L2` are placed after the
++	/// 		  enumerated part of `L1`
+ 	/// \param tid thread id
+ 	/// \param hm hashmap
+ 	/// \param e extractor
+@@ -546,15 +552,15 @@ public:
+ #endif
+ 	bool run(ListType *L1 = nullptr,
+ 	         ListType *L2 = nullptr,
+-	         const uint32_t offset = 0,
++	         const uint32_t offset = n,
+ 	         const uint32_t base_offset = 0,
+ 	         const uint32_t tid = 0,
+ 	         HashMap *hm = nullptr,
+ 	         Extractor *e = nullptr,
+ 	         Predicate *p = nullptr) noexcept {
+ 		/// some security checks
+-		assert(n + offset <= Value::length);
+-		assert(offset + base_offset <= Value::length);
++		assert((L2 == nullptr) || (n + offset <= Value::length));
++		assert((L2 == nullptr) || (offset + base_offset <= Value::length));
+ 		element1.zero(); element2.zero();
+ 
+ 		// check if the lists are enabled
+@@ -604,7 +610,7 @@ public:
+ 	/// \return
+ 	bool run(ListType *L1 = nullptr,
+ 			 ListType *L2 = nullptr,
+-			 const uint32_t offset = 0,
++			 const uint32_t offset = n,
+ 			 const uint32_t base_offset = 0,
+ 			 const uint32_t tid = 0){
+ 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+diff --git a/tests/algorithm/subsetsum/join4lists.cpp b/tests/algorithm/subsetsum/join4lists.cpp
+index 19a4731..902d76d 100644
+--- a/tests/algorithm/subsetsum/join4lists.cpp
++++ b/tests/algorithm/subsetsum/join4lists.cpp
+@@ -41,8 +41,9 @@ TEST(SubSetSum, join4lists) {
+ 	// not split enumeration (e.g. L1=L3, L2=L4)
+ 	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+ 	Enumerator e{A};
+-	e.run(&l1, &l2, n/2);
+-	e.run(&l3, &l4, n/2);
++	// NOTE: the elements of the second list are placed after the first n/2 coordinates
++	e.run(&l1, &l2);
++	e.run(&l3, &l4);
+ 
+ 	Label target;
+ 	std::vector<uint32_t> weights(n/2);
+@@ -59,14 +60,17 @@ TEST(SubSetSum, join4lists) {
+ 	// NOTE: the planted solution is only found with probability ~1-1/e for a
+ 	// 	random intermediate target, hence the retries. `join4lists` modifies
+ 	// 	the lists, so they are enumerated again.
++	// `right` counts how often the planted solution was found
+ 	uint32_t right=0;
+ 	for (uint32_t tries = 0; (tries < 32) && (right == 0); ++tries) {
+-	if (tries) { e.run(&l1, &l2, n/2); e.run(&l3, &l4, n/2); }
++	if (tries) { e.run(&l1, &l2); e.run(&l3, &l4); }
+ 	t.join4lists(out, l1, l2, l3, l4, target,
+ 	                 k_lower1, k_higher1, k_lower2, k_higher2, true);
+ 
+ 	for(uint64_t i = 0; i < out.load(); ++i) {
+-		// just for debugging, we are not filtering
++		// NOTE: L1=L3 and L2=L4, so the supports of the combined base elements
++		//	may overlap: then the value is their xor, but the label their sum,
++		// 	i.e. only the elements of weight n/2 can be solutions.
+ 		if (out[i].value.popcnt() != n/2) {
+ 			continue;
+ 		}
+@@ -90,10 +94,17 @@ TEST(SubSetSum, join4lists) {
+ 		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
+ 		std::cout << out[i] << std::endl;
+ 
+-		// TODO not finished
+-		if (Label::cmp(out[i].label, target)) {
+-			right += 1;
++		// a solution: `A*value == target`
++		if (!Label::cmp(out[i].label, target)) {
++			continue;
++		}
++
++		// the planted solution
++		bool planted = true;
++		for (const uint32_t w : weights) {
++			planted &= out[i].value.get(w);
+ 		}
++		right += planted;
+ 	}
+ 	}
+ 
+diff --git a/tests/algorithm/subsetsum/tmto.cpp b/tests/algorithm/subsetsum/tmto.cpp
+index 86bfcf2..a82330e 100644
+--- a/tests/algorithm/subsetsum/tmto.cpp
++++ b/tests/algorithm/subsetsum/tmto.cpp
+@@ -16,8 +16,6 @@ using ::testing::TestInfo;
+ using ::testing::TestPartResult;
+ using ::testing::UnitTest;
+ 
+-// TODO: simplify the enumerator interface to only need the lists as inputs and not the offset.
+-
+ // NOTE: random enumeration of the values
+ // NOTE: only two baselists are used
+ TEST(SubSetSum, n32_d2_baselists2) {

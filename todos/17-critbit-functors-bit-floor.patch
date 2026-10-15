@@ -1,0 +1,416 @@
+--- a/src/container/critbit.h
++++ b/src/container/critbit.h
+@@ -7,8 +7,10 @@
+ #include <cstring>
+ #include <iostream>
+ 
++#include "algorithm/countl.h"
++
+ /// Source
+-/// https://github.com/glk/critbit 
++/// https://github.com/glk/critbit
+ // struct critbit_key;
+ // critbit_ref; //  = T = thing to store
+ 
+@@ -17,13 +19,46 @@
+ // 	owned by the tree), internal nodes are `malloc`ed by the caller and
+ // 	`free`d by the tree (remove, clear, destructor).
+ 
++/// key functors (`KeyCompare`, `KeyLen`, `KeyBinary` of `critbit_tree`) for
++/// NUL terminated C string keys, i.e. `critbit_key = const char *`.
++struct critbit_cstr_keycmp {
++	int operator()(const char *const *a, const char *const *b) const noexcept {
++		return strcmp(*a, *b);
++	}
++};
++struct critbit_cstr_keylen {
++	size_t operator()(const char *const *a) const noexcept {
++		return strlen(*a);
++	}
++};
++struct critbit_cstr_keybinary {
++	const uint8_t *operator()(const char *const *a) const noexcept {
++		return (const uint8_t *)*a;
++	}
++};
+ 
+-/// TODO move somewhere useful
+-/// \returns the msb
+-constexpr static inline uint8_t ms1b8(uint8_t v) noexcept {
+-	uint32_t value = v;
+-	return value ? 1 << (31 - __builtin_clz(value)) : 0;
+-}
++/// key functors (`KeyCompare`, `KeyLen`, `KeyBinary` of `critbit_tree`) for
++/// fixed size binary keys of `N` bytes, e.g. `critbit_key = uint8_t[N]`.
++template<const size_t N>
++struct critbit_buf_keycmp {
++	template<typename K>
++	int operator()(const K *a, const K *b) const noexcept {
++		return memcmp((const void *)a, (const void *)b, N);
++	}
++};
++template<const size_t N>
++struct critbit_buf_keylen {
++	template<typename K>
++	constexpr size_t operator()(const K *) const noexcept {
++		return N;
++	}
++};
++struct critbit_buf_keybinary {
++	template<typename K>
++	const uint8_t *operator()(const K *a) const noexcept {
++		return (const uint8_t *)a;
++	}
++};
+ 
+ template<typename critbit_ref,
+          typename critbit_key,
+@@ -39,11 +74,8 @@
+ 	void *root;
+ 	void *free_arg;
+ 
+-	// TODO static () Operator
+-    KeyCompare keycmp = KeyCompare();
+-    KeyLen keylen = KeyLen(); 
+-	Hash hash{};
+-	KeyBinary keybinary{};
++	// NOTE: the functors `KeyCompare`, `KeyLen`, `Hash` and `KeyBinary` are
++	// 	stateless, a temporary is created for every call.
+ 
+ 	struct critbit_key_ref_tuple {
+ 		critbit_key key;
+@@ -56,15 +88,6 @@
+     	uint32_t byte;
+     	uint8_t otherbits;
+     };
+-    
+-private: 
+-    /// TODO move somewhere usefull
+-    static inline void
+-    critbit_node_free(critbit_node *node) noexcept {
+-    	// assert(t->node_free != NULL);
+-    	// t->node_free(t, node);
+-        free(node);
+-    }
+ 
+ public:
+     /// creates an empty tree
+@@ -113,8 +136,8 @@
+ 
+         // the best match must have the prefix, else no element has it
+         const critbit_key *k = critbit_ref_get_key(p);
+-        if (keylen(k) < prefix_len) { return true; }
+-        const uint8_t *kb = keybinary(k);
++        if (KeyLen{}(k) < prefix_len) { return true; }
++        const uint8_t *kb = KeyBinary{}(k);
+         for (size_t i = 0; i < prefix_len; ++i) {
+             if (kb[i] != prefix[i]) { return true; }
+         }
+@@ -129,7 +152,7 @@
+         critbit_node *q = critbit_ref_get_node(p);
+         clear(q->child[0]);
+         clear(q->child[1]);
+-        critbit_node_free(q);
++        free(q);
+     }
+ 
+     template<typename F>
+@@ -174,49 +197,17 @@
+     
+     constexpr inline
+     critbit_key * critbit_ref_get_key(const critbit_ref *ref) const noexcept {
+-    	const critbit_key *key = hash(ref);
++    	const critbit_key *key = Hash{}(ref);
+     	assert(!critbit_ref_is_internal(ref));
+     	return (critbit_key *)key;
+     }
+ 
+-    constexpr static inline const uint8_t *
+-    critbit_buf_keybuf(const critbit_key *key) noexcept {
+-    	return ((const uint8_t *)(key));
+-    }
+-    
+-    constexpr static inline const uint8_t *
+-    critbit_str_keybuf(const critbit_key *key) noexcept {
+-    	return (*(uint8_t **)(key));
+-    }
+-   
+-    /// TODO abstract away as class template function
+-    constexpr static inline 
+-    int critbit_str_keycmp(const uint8_t *a, 
+-                           const uint8_t *b, 
+-                           const size_t blen) noexcept {
+-    	size_t alen;
+-    	int rv;
+-    
+-    	alen = strlen((char *)a);
+-    	rv = alen - blen;
+-    	if (rv != 0)
+-    		return (rv);
+-    	return (memcmp(a, b, blen));
+-    }
+-    
+-    constexpr static inline
+-    int critbit_buf_keycmp(const uint8_t *a,
+-                           const uint8_t *b,
+-                           size_t blen) noexcept {
+-    	return (memcmp(a, b, blen));
+-    }
+-
+ public:
+ 
+     inline critbit_ref *
+     critbit_get_impl(const critbit_key *key) noexcept {
+-        const size_t keyLen = keylen(key);
+-    	const uint8_t *ubytes = (uint8_t *)keybinary(key);
++        const size_t keyLen = KeyLen{}(key);
++    	const uint8_t *ubytes = (uint8_t *)KeyBinary{}(key);
+     	critbit_ref *ref = (critbit_ref *)this->root;
+     	uint8_t c = 0;;
+     
+@@ -236,7 +227,7 @@
+     		ref = (critbit_ref *)node->child[direction];
+     	}
+     
+-    	if (keycmp(critbit_ref_get_key(ref), key) == 0) {
++    	if (KeyCompare{}(critbit_ref_get_key(ref), key) == 0) {
+     		// return critbit_ref_get_key(ref);
+     		return ref;
+         }
+@@ -253,20 +244,20 @@
+     inline critbit_key *
+     critbit_insert_impl(critbit_node *newnode,
+     				    const critbit_ref *ref) noexcept {
+-    	const critbit_key *key = hash(ref);
++    	const critbit_key *key = Hash{}(ref);
+     	// const uint8_t *const ubytes = (const uint8_t *const)&key;
+-    	const uint8_t *const ubytes = keybinary(key);
+-        const size_t keyLen = keylen(key);
++    	const uint8_t *const ubytes = KeyBinary{}(key);
++        const size_t keyLen = KeyLen{}(key);
+     	critbit_ref *p = (critbit_ref *)this->root;
+     	const uint8_t *pkey;
+     	uint32_t newbyte;
+     	uint32_t newotherbits;
+-    	uint8_t c;
++    	uint8_t c, pbyte = 0;
+     
+     	if (p == nullptr) {
+             // case where the first element is inserted
+     		critbit_ref_set_key((critbit_ref **)&this->root, (const critbit_key *)ref);
+-    		critbit_node_free(newnode);
++    		free(newnode);
+     		return nullptr;
+     	}
+     
+@@ -284,26 +275,29 @@
+     	// NOTE: from this point on `p` is a pointer `T`
+     
+     	// pkey = (const uint8_t *)(critbit_ref_get_key(p));
+-    	pkey = keybinary(critbit_ref_get_key(p));
+-    	for (newbyte = 0; newbyte < keyLen; ++newbyte) {
+-    		if (pkey[newbyte] != ubytes[newbyte]) {
+-    			newotherbits = pkey[newbyte] ^ ubytes[newbyte];
+-    			goto different_byte_found;
++    	pkey = KeyBinary{}(critbit_ref_get_key(p));
++    	{
++    		// NOTE: the bytes after the end of a key are treated as 0 (as in
++    		// 	the traversal), so also fixed size binary keys are supported
++    		const size_t pkeyLen = KeyLen{}(critbit_ref_get_key(p));
++    		const size_t maxLen = keyLen > pkeyLen ? keyLen : pkeyLen;
++    		for (newbyte = 0; newbyte < maxLen; ++newbyte) {
++    			pbyte = newbyte < pkeyLen ? pkey[newbyte] : 0;
++    			const uint8_t ubyte = newbyte < keyLen ? ubytes[newbyte] : 0;
++    			if (pbyte != ubyte) {
++    				newotherbits = pbyte ^ ubyte;
++    				goto different_byte_found;
++    			}
+     		}
+     	}
+-    
+-    	if (pkey[newbyte] != 0) {
+-    		newotherbits = pkey[newbyte];
+-    		goto different_byte_found;
+-    	}
+-    
+-    	critbit_node_free(newnode);
++
++    	free(newnode);
+     	return (critbit_ref_get_key(p));
+-    
++
+     different_byte_found:
+-    
+-    	newotherbits = ms1b8(newotherbits) ^ 255;
+-    	const uint32_t newdirection = (1 + (newotherbits | pkey[newbyte])) >> 8;
++
++    	newotherbits = cryptanalysislib::bit_floor(uint8_t(newotherbits)) ^ 255;
++    	const uint32_t newdirection = (1 + (newotherbits | pbyte)) >> 8;
+     
+     	newnode->byte = newbyte;
+     	newnode->otherbits = newotherbits;
+@@ -334,8 +328,8 @@
+ public:
+     inline
+     critbit_key *critbit_remove_impl(const critbit_key *key) noexcept {
+-    	const uint8_t *ubytes = (const uint8_t *)keybinary(key);
+-    	const size_t keyLen = keylen(key);
++    	const uint8_t *ubytes = (const uint8_t *)KeyBinary{}(key);
++    	const size_t keyLen = KeyLen{}(key);
+     	critbit_ref *p = (critbit_ref *)this->root;
+     	critbit_node *q = nullptr;
+     	critbit_ref **wherep = (critbit_ref **)&this->root;
+@@ -360,7 +354,7 @@
+ 
+     	// NOTE: full key comparison (as in `critbit_get_impl`), a `memcmp` of
+     	// 	`keyLen` bytes also matched every stored key with prefix `key`
+-    	if (keycmp(critbit_ref_get_key(p), key) != 0) {
++    	if (KeyCompare{}(critbit_ref_get_key(p), key) != 0) {
+     		return nullptr;
+     	}
+ 
+@@ -372,7 +366,7 @@
+ 
+     	assert(q);
+     	*whereq = (critbit_ref *)(q->child[1 - direction]);
+-    	critbit_node_free(q);
++    	free(q);
+ 
+     	return critbit_ref_get_key(p);
+     }
+--- a/src/algorithm/countl.h
++++ b/src/algorithm/countl.h
+@@ -36,6 +36,20 @@
+ 			return 64u + (uint32_t)__builtin_clzll((uint64_t)x);
+ 		}
+ 	}
++
++	/// the largest power of two, which is <= x (same semantics as
++	/// `std::bit_floor`)
++	/// \tparam T unsigned integer type (up to 128 bits)
++	/// \param x [in]:
++	/// \return [out]: only the most significant set bit of `x`, 0 if `x == 0`
++	template<typename T>
++#if __cplusplus > 201709L
++		requires (std::is_unsigned_v<T> || std::is_same_v<T, unsigned __int128>)
++#endif
++	[[nodiscard]] constexpr inline T bit_floor(const T x) noexcept {
++		if (x == 0) { return 0; }
++		return T(T(1) << (sizeof(T) * 8u - 1u - countl_zero(x)));
++	}
+ } // namespace cryptanalysislib
+ 
+ #endif
+--- a/tests/container/critbit.cpp
++++ b/tests/container/critbit.cpp
+@@ -1,4 +1,5 @@
+ #include <gtest/gtest.h>
++#include <array>
+ #include <cstdio>
+ #include <memory>
+ #include <set>
+@@ -156,6 +157,80 @@
+ 	}
+ }
+ 
++/// C string keys, with the `critbit_cstr_*` key functors
++struct CStrRef { const char *k; };
++struct CStrHash {
++	const char *const *operator()(const CStrRef *r) const noexcept { return &r->k; }
++};
++
++TEST(critbit, cstr_keys) {
++	using Tree = critbit_tree<CStrRef, const char *, CStrHash,
++	                          critbit_cstr_keycmp, critbit_cstr_keylen, critbit_cstr_keybinary>;
++	Tree tree{};
++	std::set<std::string> e;
++	std::vector<std::unique_ptr<std::string>> storage;
++	std::vector<std::unique_ptr<CStrRef>> refs;
++	for (size_t i = 0; i < 2000; ++i) {
++		auto s = std::make_unique<std::string>();
++		const size_t len = 1 + rand() % 5;
++		for (size_t j = 0; j < len; ++j) { s->push_back(char('a' + rand() % 3)); }
++		auto r = std::make_unique<CStrRef>(CStrRef{s->c_str()});
++		auto *node = (Tree::critbit_node *)calloc(1, sizeof(Tree::critbit_node));
++		const bool inserted = tree.critbit_insert_impl(node, r.get()) == nullptr;
++		EXPECT_EQ(inserted, e.insert(*s).second) << *s;
++		if (inserted) { storage.push_back(std::move(s)); refs.push_back(std::move(r)); }
++	}
++
++	for (const auto &r : refs) {
++		const CStrRef *f = tree.critbit_get_impl(&r->k);
++		ASSERT_NE(f, nullptr);
++		EXPECT_EQ(f, r.get());
++	}
++	const char *missing = "dddd";
++	EXPECT_EQ(tree.critbit_get_impl(&missing), nullptr);
++	for (const auto &r : refs) {
++		EXPECT_NE(tree.critbit_remove_impl(&r->k), nullptr);
++		EXPECT_EQ(tree.critbit_get_impl(&r->k), nullptr);
++	}
++}
++
++/// fixed size binary keys (also with zero bytes), with the `critbit_buf_*` key functors
++using Buf = std::array<uint8_t, 4>;
++struct BufRef { Buf k; };
++struct BufHash {
++	const Buf *operator()(const BufRef *r) const noexcept { return &r->k; }
++};
++
++TEST(critbit, buf_keys) {
++	using Tree = critbit_tree<BufRef, Buf, BufHash,
++	                          critbit_buf_keycmp<4>, critbit_buf_keylen<4>, critbit_buf_keybinary>;
++	Tree tree{};
++	std::set<Buf> e;
++	std::vector<std::unique_ptr<BufRef>> refs;
++	for (size_t i = 0; i < 3000; ++i) {
++		auto r = std::make_unique<BufRef>();
++		// small alphabet: many zero bytes and common prefixes
++		for (auto &b : r->k) { b = uint8_t(rand() % 3); }
++		auto *node = (Tree::critbit_node *)calloc(1, sizeof(Tree::critbit_node));
++		const bool inserted = tree.critbit_insert_impl(node, r.get()) == nullptr;
++		EXPECT_EQ(inserted, e.insert(r->k).second);
++		if (inserted) { refs.push_back(std::move(r)); }
++	}
++
++	EXPECT_EQ(refs.size(), e.size());
++	for (const auto &r : refs) {
++		const BufRef *f = tree.critbit_get_impl(&r->k);
++		ASSERT_NE(f, nullptr);
++		EXPECT_EQ(f, r.get());
++	}
++	for (size_t i = 0; i < refs.size(); i += 2) {
++		EXPECT_NE(tree.critbit_remove_impl(&refs[i]->k), nullptr);
++	}
++	for (size_t i = 0; i < refs.size(); ++i) {
++		EXPECT_EQ(tree.critbit_get_impl(&refs[i]->k) != nullptr, (i & 1u) == 1u);
++	}
++}
++
+ int main(int argc, char **argv) {
+     InitGoogleTest(&argc, argv);
+     return RUN_ALL_TESTS();
+--- a/tests/algorithm/count_zero.cpp
++++ b/tests/algorithm/count_zero.cpp
+@@ -58,6 +58,21 @@
+ 	}
+ }
+ 
++/// bit_floor against std::bit_floor
++TEST(count_zero, bit_floor) {
++	for (uint32_t i = 0; i < 256; ++i) {
++		EXPECT_EQ(cryptanalysislib::bit_floor(uint8_t(i)), std::bit_floor(uint8_t(i))) << i;
++	}
++	for (uint32_t i = 0; i < 10000; ++i) {
++		const uint64_t x = rng() >> (rng() % 64);
++		EXPECT_EQ(cryptanalysislib::bit_floor(x), std::bit_floor(x)) << x;
++		EXPECT_EQ(cryptanalysislib::bit_floor(uint32_t(x)), std::bit_floor(uint32_t(x))) << x;
++	}
++	using T = unsigned __int128;
++	EXPECT_EQ(cryptanalysislib::bit_floor(T(0)), T(0));
++	EXPECT_EQ(cryptanalysislib::bit_floor(T(3) << 100u), T(1) << 101u);
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	rng_seed(time(NULL));

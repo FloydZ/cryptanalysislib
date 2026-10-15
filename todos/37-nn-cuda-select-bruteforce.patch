@@ -1,0 +1,67 @@
+diff --git a/src/nn/nn.cuh b/src/nn/nn.cuh
+index 247d127..13d1d34 100644
+--- a/src/nn/nn.cuh
++++ b/src/nn/nn.cuh
+@@ -256,11 +256,19 @@ __device__ void dnn(T *L, T *R,
+ 			(L, R, e1, e2, f1, f2, idx, blockDim.x*gridDim.x);
+ 		return;
+ 	} else {
+-		/// TODO here the selection process for the correct nn algorithm
+-		/// 	- irgendwie hier die estimated list size berechnen und abhängig davon
+-		/// 		dann zwischen dierser implementierung mit shared mem und einer
+-		/// 		anderen implementierung die auf den eigentlichen listen arbeitet
+-		/// 		switchen.
++		/// selection: the bruteforce on the lists costs `e1*e2` comparisons,
++		/// the nn filters both lists for each of the `N` leaves of each block.
++		/// The bruteforce is exact, so it is used whenever it is not more
++		/// expensive. Uniform over all blocks, i.e. all blocks take the same branch.
++		const uint64_t bruteforce_cost = uint64_t(e1) * uint64_t(e2);
++		const uint64_t nn_cost = uint64_t(gridDim.x) * N * (uint64_t(e1) + uint64_t(e2));
++		if (bruteforce_cost <= nn_cost) {
++			dbruteforce
++				<T, nr_limbs, d>
++				(L, R, e1, e2, f1, f2, idx, blockDim.x*gridDim.x);
++			return;
++		}
++
+ 		dnn_shared
+ 			<T, nr_limbs, d, dk, N, lvl>
+ 			(L, R, e1, e2, f1, f2, randState);
+diff --git a/tests/nn/cuda.cu b/tests/nn/cuda.cu
+index bdcdcab..9a44ae4 100644
+--- a/tests/nn/cuda.cu
++++ b/tests/nn/cuda.cu
+@@ -55,13 +55,13 @@ int bench() {
+ 	return ips;
+ }
+ 
+-int main () {
+-	srand(time(0));
+-	//return bench();
+-
++/// inserts one pair of weight `d` into two random lists of size `lam` and runs
++/// the nn on them
++/// \return 0 if a pair of weight `d` was found
++template<const uint64_t lam>
++int run() {
+ 	/// number of leaves per block
+ 	constexpr uint32_t N = 4;
+-	constexpr uint64_t lam = 1u << 14u;
+ 	constexpr uint32_t d = 4;
+ 	constexpr uint32_t dk = 11;
+ 	constexpr uint32_t nr_limbs = 2;
+@@ -176,3 +176,14 @@ int main () {
+ 	cudaFree(L);cudaFree(R);cudaFree(f1);cudaFree(f2);cudaFree(randState);
+ 	return weight != d;
+ }
++
++int main () {
++	srand(time(0));
++	//return bench();
++
++	// nn on shared memory
++	int ret = run<1u << 14u>();
++	// small lists: the (exact) bruteforce is selected
++	ret |= run<1u << 8u>();
++	return ret;
++}

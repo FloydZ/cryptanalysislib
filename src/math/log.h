@@ -15,20 +15,20 @@
 #include "math/exp.h"
 
 namespace cryptanalysislib::math::internal {
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 		requires std::is_floating_point_v<T>
 #endif
+	__device__ __host__
 	[[nodiscard]] constexpr T log_iter(T x, T y) noexcept {
 		return y + T{2} * (x - exp(y)) / (x + exp(y));
 	}
 
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_floating_point_v<T>
 #endif
+	__device__ __host__
 	[[nodiscard]] constexpr T log(T x, T y) noexcept {
 		// NOTE: iterative with a cap, as `exp` is only accurate to a few ulps
 		// and the iteration may oscillate around the result
@@ -54,11 +54,11 @@ namespace cryptanalysislib::math::internal {
 	// doubles, YMMV.
 
 	// if x <= 1, we will multiply by e^5 repeatedly until x > 1
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_floating_point_v<T>
 #endif
+	__device__ __host__
 	[[nodiscard]] constexpr T logGT(T x) noexcept {
 		return x > T{0.25} ? log(x, T{0}) : logGT<T>(x * e() * e() * e() * e() * e()) - T{5};
 	}
@@ -75,11 +75,11 @@ namespace cryptanalysislib::math::internal {
 
 
 namespace cryptanalysislib::math {
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
 #endif
+	__device__ __host__
 	[[nodiscard]] constexpr T log(T const x) noexcept {
 		// NOTE: the iterations below never terminate for x <= 0
 		if (x <= T{0}) {
@@ -106,11 +106,11 @@ namespace cryptanalysislib::math {
 		}
 	}
 
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
 #endif
+	__device__ __host__
 	[[nodiscard]] constexpr T log2(T x) noexcept {
 		if constexpr (std::is_integral_v<T>) {
 			// NOTE: exact floor(log2(x)); the floating point version truncated

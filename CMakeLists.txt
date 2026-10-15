@@ -18,6 +18,7 @@ option(USE_POLLY "Enable polly loop optimization" OFF)
 option(USE_BOLT "Enable bolt binary optimization" OFF)
 option(USE_TRACY "Enable tracy profiling" OFF)
 option(USE_PEDANTIC "Enable pedantic warnings" OFF)
+option(USE_ISPC "Enable ispc kernels (if ispc is found)" ON)
 
 set(default_build_type "Release")
 
@@ -126,15 +127,6 @@ if(${USE_TRACY})
 	set(TRACY_ENABLE ON CACHE BOOL "Enable profiling" FORCE)
 	FetchContent_MakeAvailable(tracy)
 endif ()
-
-# Fetch the project and make it available for use.
-FetchContent_Declare(
-		reflect-cpp
-		GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
-		GIT_TAG        v0.25.0
-)
-FetchContent_MakeAvailable(reflect-cpp)
-include_directories(${reflect-cpp_SOURCE_DIR}/include)
 
 # global include directories
 include_directories("deps/b63/include/b63")
@@ -252,13 +244,11 @@ endif()
 set(LINK_TEST_FLAGS 
 	GTest::gtest 
 	GTest::gtest_main 
-	Threads::Threads 
-	reflectcpp
+	Threads::Threads
 )
 
-set(LINK_BENCH_FLAGS 
+set(LINK_BENCH_FLAGS
 	benchmark::benchmark
-	reflectcpp
 )
 
 if(OpenMP_FOUND)
@@ -282,6 +272,30 @@ if(${USE_TRACY})
 	list(APPEND LINK_TEST_FLAGS TracyClient)
 	list(APPEND LINK_BENCH_FLAGS TracyClient)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_TRACY")
+endif()
+
+# ispc kernels, e.g. `cryptanalysislib::internal::ispc::histogram_u8`. They are
+# compiled into a static library, which every test/bench links against.
+if(${USE_ISPC})
+	check_language(ISPC)
+endif()
+if(CMAKE_ISPC_COMPILER)
+	enable_language(ISPC)
+	message(STATUS "ISPC ENABLED")
+	add_library(cryptanalysislib_ispc STATIC src/algorithm/histogram.ispc)
+	set_target_properties(cryptanalysislib_ispc PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	# the gather/scatter performance warnings are expected
+	target_compile_options(cryptanalysislib_ispc PRIVATE --wno-perf)
+	if(NOT ${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" AND NOT ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+		# runtime dispatch to the best supported target
+		# NOTE: `sse4-i32x4` and not `sse4.2-i32x4`, as ispc writes the object
+		# 	of the latter to `*_sse4.o`, but cmake expects `*_sse4.2.o`
+		set_target_properties(cryptanalysislib_ispc PROPERTIES
+			ISPC_INSTRUCTION_SETS "sse4-i32x4;avx2-i32x8;avx512skx-x16")
+	endif()
+	list(APPEND LINK_TEST_FLAGS cryptanalysislib_ispc)
+	list(APPEND LINK_BENCH_FLAGS cryptanalysislib_ispc)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_ISPC")
 endif()
 
 # Set additionally our own debug/optimization compiler/linkage flags. Maybe not

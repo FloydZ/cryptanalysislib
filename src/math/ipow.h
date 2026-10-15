@@ -11,11 +11,11 @@
 namespace cryptanalysislib::math {
 
 	template <typename T, typename T2>
-	__device__ __host__
 #if __cplusplus > 201709L
     	requires std::is_arithmetic_v<T> &&
     	         std::is_integral_v<T2>
 #endif
+	__device__ __host__
 	constexpr T ipow(T x, T2 n) {
 	    return (n == 0) ? T{1} :
 	           n == 1 ? x :

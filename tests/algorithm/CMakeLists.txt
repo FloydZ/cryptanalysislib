@@ -8,6 +8,16 @@ foreach(testfile ${TEST_SOURCES})
 	add_test(algorithm_${file} test_algorithm_${file})
 endforeach(testfile ${TEST_SOURCES})
 
+if(CMAKE_CUDA_COMPILER)
+    add_executable(test_algorithm_histogram_cuda histogram.cu)
+    # the C++ part of the library (`algorithm/histogram.h`) needs at least C++20
+    set_target_properties(test_algorithm_histogram_cuda PROPERTIES CUDA_STANDARD 20)
+    target_link_libraries(test_algorithm_histogram_cuda GTest::gtest)
+    add_test(algorithm_histogram_cuda test_algorithm_histogram_cuda)
+    set_tests_properties(algorithm_histogram_cuda PROPERTIES LABELS cuda)
+    add_dependencies(cuda_tests test_algorithm_histogram_cuda)
+endif()
+
 add_subdirectory(bits)
 add_subdirectory(mq)
 add_subdirectory(subsetsum)

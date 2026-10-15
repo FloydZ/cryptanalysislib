@@ -108,6 +108,31 @@ BENCHMARK(BM_histogram_u32_avx512_v4)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_histogram_avx512<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 #endif
 
+#ifdef USE_ISPC
+template<typename T>
+static void BM_histogram_ispc(benchmark::State &state) {
+	static std::vector<T> data;
+	generate_data(data, state.range(0));
+
+	for (auto _: state) {
+		if constexpr (sizeof(T) == 1) {
+			cryptanalysislib::internal::ispc::histogram_u8(cnt, data.data(), state.range(0));
+		} else if constexpr (sizeof(T) == 2) {
+			cryptanalysislib::internal::ispc::histogram_u16(cnt, data.data(), state.range(0));
+		} else if constexpr (sizeof(T) == 4) {
+			cryptanalysislib::internal::ispc::histogram_u32(cnt, data.data(), state.range(0));
+		} else {
+			cryptanalysislib::internal::ispc::histogram_u64(cnt, data.data(), state.range(0));
+		}
+		benchmark::ClobberMemory();
+	}
+}
+BENCHMARK(BM_histogram_ispc<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
+BENCHMARK(BM_histogram_ispc<uint16_t>)->RangeMultiplier(2)->Range(32, LS);
+BENCHMARK(BM_histogram_ispc<uint32_t>)->RangeMultiplier(2)->Range(32, LS);
+BENCHMARK(BM_histogram_ispc<uint64_t>)->RangeMultiplier(2)->Range(32, LS);
+#endif
+
 BENCHMARK(BM_histogram<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_histogram_4x<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_histogram_8x<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
@@ -132,5 +157,4 @@ static void BM_histogram_large(benchmark::State &state) {
 }
 BENCHMARK(BM_histogram_large<false>)->RangeMultiplier(4)->Range(1u << 14u, 1u << 24u)->UseRealTime();
 BENCHMARK(BM_histogram_large<true>)->RangeMultiplier(4)->Range(1u << 14u, 1u << 24u)->UseRealTime();
-
 BENCHMARK_MAIN();

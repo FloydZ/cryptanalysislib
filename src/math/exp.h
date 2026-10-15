@@ -18,9 +18,9 @@ namespace cryptanalysislib::math {
 	/// \tparam T
 	/// \param x
 	/// \return e^x
-	__device__ __host__
 	template<typename T>
 	    requires std::is_arithmetic_v<T>
+	__device__ __host__
 	constexpr T exp(T x) {
 		if constexpr (std::is_integral_v<T>) {
 			return (T)cryptanalysislib::math::exp<double>(static_cast<double>(x));
