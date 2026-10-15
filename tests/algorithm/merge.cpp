@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cstdint>
+#include <list>
 #include <vector>
 
 #include "random.h"
@@ -103,6 +104,85 @@ TEST(merge, co_rank) {
 			if (d < m.size()) { ca += m[d].second == 0; }
 		}
 	}
+}
+
+/// `inplace_merge` against `std::inplace_merge`: all splits of small ranges,
+/// few distinct values, and stability (tagged elements)
+TEST(merge, inplace_merge) {
+	for (size_t n = 0; n <= 60; ++n) {
+		for (size_t k = 0; k <= n; ++k) {
+			for (const uint32_t mod : {3u, 1000u}) {
+				std::vector<std::pair<uint32_t, uint32_t>> v(n);
+				for (size_t i = 0; i < n; ++i) { v[i] = {uint32_t(rng() % mod), uint32_t(i)}; }
+				const auto comp = [](const auto &x, const auto &y) { return x.first < y.first; };
+				std::sort(v.begin(), v.begin() + k, comp);
+				std::sort(v.begin() + k, v.end(), comp);
+				auto e = v;
+				cryptanalysislib::inplace_merge(v.begin(), v.begin() + k, v.end(), comp);
+				std::inplace_merge(e.begin(), e.begin() + k, e.end(), comp);
+				ASSERT_EQ(v, e) << n << " " << k << " " << mod;
+			}
+		}
+	}
+
+	// large and skewed
+	for (const size_t k : {size_t(1), size_t(1000), size_t(50000), size_t(99999)}) {
+		std::vector<uint32_t> v(100000);
+		for (auto &x : v) { x = uint32_t(rng()); }
+		std::sort(v.begin(), v.begin() + k);
+		std::sort(v.begin() + k, v.end());
+		cryptanalysislib::inplace_merge(v.begin(), v.begin() + k, v.end());
+		EXPECT_TRUE(std::is_sorted(v.begin(), v.end())) << k;
+	}
+
+	// bidirectional iterators and a comparator
+	std::list<int> l = {9, 5, 1, 8, 4, 2};
+	cryptanalysislib::inplace_merge(l.begin(), std::next(l.begin(), 3), l.end(), std::greater<>());
+	EXPECT_EQ(l, (std::list<int>{9, 8, 5, 4, 2, 1}));
+}
+
+/// parallel `inplace_merge` against `std::inplace_merge`: stability (tagged
+/// elements, few distinct keys), skewed splits, `<` on uint32_t (SIMD
+/// merge) and the sequential fallback
+TEST(merge, inplace_merge_multithreaded) {
+	const size_t n = (1u << 20u) + 13u;
+	for (const size_t k : {size_t(0), size_t(1), size_t(1000), n / 3, n - 1, n}) {
+		std::vector<std::pair<uint32_t, uint32_t>> v(n);
+		for (size_t i = 0; i < n; ++i) { v[i] = {uint32_t(rng() % 100u), uint32_t(i)}; }
+		const auto comp = [](const auto &x, const auto &y) { return x.first < y.first; };
+		std::sort(v.begin(), v.begin() + k, comp);
+		std::sort(v.begin() + k, v.end(), comp);
+		auto e = v;
+		cryptanalysislib::inplace_merge(par_if(true), v.begin(), v.begin() + k, v.end(), comp);
+		std::inplace_merge(e.begin(), e.begin() + k, e.end(), comp);
+		ASSERT_EQ(v, e) << k;
+
+		std::vector<uint32_t> w(n);
+		for (auto &x : w) { x = uint32_t(rng()); }
+		std::sort(w.begin(), w.begin() + k);
+		std::sort(w.begin() + k, w.end());
+		auto we = w;
+		cryptanalysislib::inplace_merge(par_if(true), w.begin(), w.begin() + k, w.end());
+		std::inplace_merge(we.begin(), we.begin() + k, we.end());
+		ASSERT_EQ(w, we) << k;
+	}
+
+	std::vector<int> s = {1, 4, 6, 2, 3, 5};
+	cryptanalysislib::inplace_merge(par_if(true), s.begin(), s.begin() + 3, s.end());
+	EXPECT_EQ(s, (std::vector<int>{1, 2, 3, 4, 5, 6}));
+}
+
+/// usable in constant expressions
+TEST(merge, constexpr_inplace_merge) {
+	constexpr auto r = []() {
+		int a[7] = {1, 4, 6, 2, 3, 5, 7};
+		cryptanalysislib::inplace_merge(a, a + 3, a + 7);
+		int s = 0;
+		for (const int x : a) { s = s * 10 + x; }
+		return s;
+	}();
+	static_assert(r == 1234567);
+	EXPECT_EQ(r, 1234567);
 }
 
 int main(int argc, char **argv) {

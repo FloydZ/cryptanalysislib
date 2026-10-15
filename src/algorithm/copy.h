@@ -1,6 +1,9 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_COPY_H
 #define CRYPTANALYSISLIB_ALGORITHM_COPY_H
 
+#include <future>
+#include <vector>
+
 #include "memory/memory.h"
 #include "algorithm/algorithm.h"
 
@@ -82,6 +85,74 @@ constexpr RandIt2 copy_n(RandIt1 first,
 	return internal::advanced(dest, n);
 }
 
+/// Copies the elements of [first, last) for which `pred` is true to the
+/// range starting at `d_first`, in their order (like `std::copy_if`)
+/// \tparam InputIt input iterator type of the source range
+/// \tparam OutputIt output iterator type of the destination range
+/// \tparam UnaryPred predicate type
+/// \param first Iterator to the beginning of the source range
+/// \param last Iterator to the end of the source range
+/// \param d_first Iterator to the beginning of the destination range, must
+/// 	not overlap the source range
+/// \param pred an element `x` is copied iff `pred(x)` is true
+/// \return Iterator past the last written element
+template<class InputIt,
+         class OutputIt,
+         class UnaryPred>
+#if __cplusplus > 201709L
+    requires std::input_iterator<InputIt>
+#endif
+constexpr OutputIt copy_if(InputIt first,
+                           InputIt last,
+                           OutputIt d_first,
+                           UnaryPred pred) noexcept {
+    for (; first != last; ++first) {
+        if (pred(*first)) {
+            *d_first = *first;
+            ++d_first;
+        }
+    }
+    return d_first;
+}
+
+/// Copies [first, last) to the range ending at `d_last`, starting with the
+/// last element (like `std::copy_backward`). The ranges may overlap as long
+/// as `d_last` is not in (first, last], e.g. to shift elements to the right.
+/// \tparam BidirIt1 bidirectional iterator type of the source range
+/// \tparam BidirIt2 bidirectional iterator type of the destination range
+/// \param first Iterator to the beginning of the source range
+/// \param last Iterator to the end of the source range
+/// \param d_last Iterator to the end of the destination range
+/// \return Iterator to the first written element
+template<class BidirIt1,
+         class BidirIt2>
+#if __cplusplus > 201709L
+    requires std::bidirectional_iterator<BidirIt1> &&
+             std::bidirectional_iterator<BidirIt2>
+#endif
+constexpr BidirIt2 copy_backward(BidirIt1 first,
+                                 BidirIt1 last,
+                                 BidirIt2 d_last) noexcept {
+    using T = typename std::iterator_traits<BidirIt1>::value_type;
+    if constexpr (std::contiguous_iterator<BidirIt1> &&
+                  std::contiguous_iterator<BidirIt2> &&
+                  std::is_same_v<T, std::iter_value_t<BidirIt2>> &&
+                  std::is_trivially_copyable_v<T>) {
+        const size_t s = static_cast<size_t>(last - first);
+        if (s == 0) {
+            return d_last;
+        }
+        // element count, the ranges may overlap
+        cryptanalysislib::memmove(std::to_address(d_last - s), std::to_address(first), s);
+        return d_last - s;
+    } else {
+        while (first != last) {
+            *(--d_last) = *(--last);
+        }
+        return d_last;
+    }
+}
+
 /// Copies elements from one range to another
 /// \tparam ExecPolicy Execution policy type for parallel execution
 /// \tparam RandIt1 Random access iterator type for source range
@@ -148,6 +219,78 @@ RandIt2 copy_n(ExecPolicy &&policy,
         <ExecPolicy, RandIt1, RandIt2, config>
         (std::forward<ExecPolicy>(policy), first, last, dest);
     return internal::advanced(dest, n);
+}
+
+/// Configuration for the parallel `copy_if`
+struct AlgorithmCopyIfConfig : public AlgorithmConfig {
+    constexpr static size_t min_size_per_thread = 1u << 15u;
+};
+
+constexpr static AlgorithmCopyIfConfig algorithmCopyIfConfig;
+
+/// Copies the elements of [first, last) for which `pred` is true, in their
+/// order (parallel version of `copy_if`): every thread counts the matching
+/// elements of its chunk, then every thread copies them to the prefix sum
+/// of the counts.
+/// NOTE: `pred` is evaluated twice per element (so it must be pure)
+/// \tparam ExecPolicy Execution policy type for parallel execution
+/// \tparam RandIt1 Random access iterator type for source range
+/// \tparam RandIt2 Random access iterator type for destination range
+/// \tparam UnaryPred predicate type
+/// \param policy Execution policy specifying parallelization strategy
+/// \param first Iterator to the beginning of the source range
+/// \param last Iterator to the end of the source range
+/// \param d_first Iterator to the beginning of the destination range, must
+/// 	not overlap the source range
+/// \param pred an element `x` is copied iff `pred(x)` is true
+/// \return Iterator past the last written element
+template<class ExecPolicy,
+         class RandIt1,
+         class RandIt2,
+         class UnaryPred,
+         const AlgorithmCopyIfConfig &config = algorithmCopyIfConfig>
+#if __cplusplus > 201709L
+    requires ExecutionPolicy<ExecPolicy> &&
+             std::random_access_iterator<RandIt1> &&
+             std::random_access_iterator<RandIt2>
+#endif
+RandIt2 copy_if(ExecPolicy &&policy,
+                RandIt1 first,
+                RandIt1 last,
+                RandIt2 d_first,
+                UnaryPred pred) noexcept {
+    const size_t n = static_cast<size_t>(std::distance(first, last));
+    const uint32_t nthreads = should_par(policy, config, n);
+    if (is_seq<ExecPolicy>(policy) || nthreads < 2) {
+        return cryptanalysislib::copy_if(first, last, d_first, pred);
+    }
+
+    auto &task_pool = *policy.pool();
+    std::vector<size_t> count(nthreads, 0);
+    std::vector<std::future<void>> futures;
+    for (uint32_t k = 0; k < nthreads; ++k) {
+        const size_t lo = (n * k) / nthreads, hi = (n * (k + 1)) / nthreads;
+        futures.emplace_back(task_pool.submit([&count, &pred, first, lo, hi, k]() {
+            size_t c = 0;
+            for (size_t i = lo; i < hi; ++i) {
+                c += pred(first[i]) ? 1u : 0u;
+            }
+            count[k] = c;
+        }));
+    }
+    internal::get_futures(futures);
+    futures.clear();
+
+    size_t off = 0;
+    for (uint32_t k = 0; k < nthreads; ++k) {
+        const size_t lo = (n * k) / nthreads, hi = (n * (k + 1)) / nthreads;
+        futures.emplace_back(task_pool.submit([&pred, first, lo, hi, out = d_first + off]() {
+            cryptanalysislib::copy_if(first + lo, first + hi, out, pred);
+        }));
+        off += count[k];
+    }
+    internal::get_futures(futures);
+    return d_first + off;
 }
 #ifdef USE_CUDA
 

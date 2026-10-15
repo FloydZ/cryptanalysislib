@@ -20,5 +20,6 @@ endif()
 
 add_subdirectory(bits)
 add_subdirectory(mq)
+add_subdirectory(numeric)
 add_subdirectory(subsetsum)
 add_subdirectory(sat)
